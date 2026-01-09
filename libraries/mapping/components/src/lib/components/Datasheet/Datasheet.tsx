@@ -31,22 +31,24 @@ const Datasheet = ({ mainComponent, datasheetComponent }: DatasheetProps) => {
         }}
       >
         {mainComponent}
-        <button
-          onClick={toggleDatasheetView}
-          style={{
-            position: "absolute",
-            top: 8,
-            right: 8,
-            padding: "6px 12px",
-            background: "white",
-            border: "1px solid #ccc",
-            borderRadius: 4,
-            cursor: "pointer",
-            zIndex: 1000,
-          }}
-        >
-          {isDatasheetView ? "X" : "Datenblatt"}
-        </button>
+        {isDatasheetView && (
+          <button
+            onClick={toggleDatasheetView}
+            style={{
+              position: "absolute",
+              top: 8,
+              right: 8,
+              padding: "6px 12px",
+              background: "white",
+              border: "1px solid #ccc",
+              borderRadius: 4,
+              cursor: "pointer",
+              zIndex: 1000,
+            }}
+          >
+            X
+          </button>
+        )}
       </div>
     </div>
   );

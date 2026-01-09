@@ -71,8 +71,6 @@ export function App() {
               additionalLayersFreeZOrder={0}
               onSelectionChanged={(e) => {
                 if (e.hit && e.hit.setSelection) {
-                  // console.log("xxx", e.hit);
-
                   if (
                     e.hit.properties.fabrikat ||
                     e.hit.properties.bezeichnung ||
@@ -86,10 +84,20 @@ export function App() {
                           e.hit.properties.fabrikat ||
                           e.hit.properties.bezeichnung ||
                           e.hit.properties.strasse,
+                        genericLinks: [
+                          {
+                            tooltip: "Datenblatt",
+                            action: () => {
+                              setIsDatasheetView(true);
+                            },
+                            iconname: "file",
+                          },
+                        ],
                       },
                     });
-                  } else {
                   }
+                } else {
+                  setFeature(null);
                 }
               }}
             />
