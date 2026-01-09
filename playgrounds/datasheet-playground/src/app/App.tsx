@@ -2,15 +2,17 @@ import TopicMapComponent from "react-cismap/topicmaps/TopicMapComponent";
 import { suppressReactCismapErrors } from "@carma-commons/utils";
 import { EmptySearchComponent } from "@carma-mapping/fuzzy-search";
 import { Datasheet, useDatasheet } from "@carma-mapping/components";
-import { useRef, useEffect, useState } from "react";
+import { useRef, useEffect, useState, useContext } from "react";
 import { Control, ControlLayout } from "@carma-mapping/map-controls-layout";
 import { FeatureInfobox, InfoBox } from "@carma-appframeworks/portals";
 import CismapLayer from "react-cismap/CismapLayer";
+import { TopicMapContext } from "react-cismap/contexts/TopicMapContextProvider";
 
 suppressReactCismapErrors(true);
 
 export function App() {
   const wrapperRef = useRef<HTMLDivElement>(null);
+  const { routedMapRef } = useContext<typeof TopicMapContext>(TopicMapContext);
   const { isDatasheetView, setIsDatasheetView, setMapSizes } = useDatasheet();
   const [feature, setFeature] = useState(null);
 
@@ -89,7 +91,14 @@ export function App() {
                           {
                             tooltip: "Datenblatt",
                             action: () => {
-                              setIsDatasheetView(true);
+                              setIsDatasheetView(
+                                true,
+                                {
+                                  geometry: e.hit.geometry,
+                                  properties: {},
+                                },
+                                routedMapRef
+                              );
                             },
                             iconname: "file",
                           },

@@ -1,4 +1,5 @@
 import { createContext, useContext, useState, ReactNode, useRef } from "react";
+import { utils } from "@carma-appframeworks/portals";
 import {
   calculateSmallMapPosition,
   calculateBigMapPosition,
@@ -13,7 +14,11 @@ interface MapSize {
 
 interface DatasheetContextType {
   isDatasheetView: boolean;
-  setIsDatasheetView: (value: boolean) => void;
+  setIsDatasheetView: (
+    value: boolean,
+    feature?: any,
+    routedMapRef?: any
+  ) => void;
   toggleDatasheetView: () => void;
   setMapSizes: (bigSize: MapSize, smallSize: MapSize, padding?: number) => void;
 }
@@ -36,11 +41,20 @@ export const DatasheetProvider = ({ children }: { children: ReactNode }) => {
     mapSizesRef.current = { bigSize, smallSize, padding };
   };
 
-  const setIsDatasheetView = (value: boolean) => {
+  const setIsDatasheetView = (
+    value: boolean,
+    feature?: any,
+    routedMapRef?: any
+  ) => {
     const sizes = mapSizesRef.current;
     const currentPosition = getPositionFromUrl();
+    const leafletMap = routedMapRef?.leafletMap?.leafletElement;
 
-    if (sizes && currentPosition) {
+    if (value && feature && leafletMap) {
+      setTimeout(() => {
+        utils.zoomToFeature(feature, leafletMap);
+      }, 550);
+    } else if (sizes && currentPosition) {
       if (value && !isDatasheetView) {
         // Transitioning to small map
         const newPosition = calculateSmallMapPosition(
