@@ -1,7 +1,8 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { Form, Input, message, FormInstance, Row, Col } from "antd";
 import { useSelector } from "react-redux";
 import { getJWT } from "../../store/slices/auth";
+import { updateDataByClassName } from "../../helper/apiMethods";
 
 interface KeyTableItemFormProps {
   item: Record<string, unknown>;
@@ -21,6 +22,7 @@ const KeyTableItemForm = ({
   disabled = false,
 }: KeyTableItemFormProps) => {
   const [form] = Form.useForm();
+  const [saving, setSaving] = useState(false);
   const jwt = useSelector(getJWT);
 
   useEffect(() => {
@@ -45,18 +47,18 @@ const KeyTableItemForm = ({
 
     console.log("xxx form value", values);
 
-    //   setSaving(true);
-    //   try {
-    //     const dataToSave = { ...values, id: item.id };
-    //     await updateDataByClassName(jwt, tableName, dataToSave);
-    //     message.success("Gespeichert");
-    //     onSave(dataToSave);
-    //   } catch (error) {
-    //     console.error("Save error:", error);
-    //     message.error("Fehler beim Speichern");
-    //   } finally {
-    //     setSaving(false);
-    //   }
+    setSaving(true);
+    try {
+      const dataToSave = { ...values, id: item.id };
+      await updateDataByClassName(jwt, tableName, dataToSave);
+      message.success("Gespeichert");
+      onSave(dataToSave);
+    } catch (error) {
+      console.error("Save error:", error);
+      message.error("Fehler beim Speichern");
+    } finally {
+      setSaving(false);
+    }
   };
 
   const fields = Object.entries(item).filter(([key]) => key !== "id");
@@ -108,9 +110,7 @@ const KeyTableItemForm = ({
             key={key}
             name={key}
             label={
-              <span
-                style={{ fontSize: 14, fontWeight: 400, color: "#8c8c8c" }}
-              >
+              <span style={{ fontSize: 14, fontWeight: 400, color: "#8c8c8c" }}>
                 {formatLabel(key)}
               </span>
             }
