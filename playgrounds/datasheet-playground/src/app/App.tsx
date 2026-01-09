@@ -70,6 +70,7 @@ export function App() {
               additionalLayerUniquePane={"vector." + 0}
               additionalLayersFreeZOrder={0}
               onSelectionChanged={(e) => {
+                console.log("xxx", e);
                 if (e.hit && e.hit.setSelection) {
                   if (
                     e.hit.properties.fabrikat ||
@@ -94,6 +95,7 @@ export function App() {
                           },
                         ],
                       },
+                      geometry: e.hit.geometry,
                     });
                   }
                 } else {
