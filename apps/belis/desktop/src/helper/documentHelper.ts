@@ -1,0 +1,29 @@
+const SECRES_BASE_URL = "https://belis-mobile-api.cismet.de/secres";
+
+export const getSecureDocumentUrl = (
+  jwt: string,
+  objectName: string
+): string => {
+  return `${SECRES_BASE_URL}/${jwt}/beliswebdav/${objectName}`;
+};
+
+export const downloadDocument = async (
+  jwt: string,
+  objectName: string,
+  fileName?: string
+): Promise<void> => {
+  const secureUrl = getSecureDocumentUrl(jwt, objectName);
+  const response = await fetch(secureUrl);
+  if (!response.ok) {
+    throw new Error(`Download failed: ${response.status}`);
+  }
+  const blob = await response.blob();
+  const downloadUrl = window.URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = downloadUrl;
+  link.download = fileName || objectName;
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+  window.URL.revokeObjectURL(downloadUrl);
+};

@@ -2,6 +2,7 @@ import { useEffect } from "react";
 import { Form, Input, Row, Col, List } from "antd";
 import type { FormInstance } from "antd";
 import { FilePdfOutlined, FileImageOutlined } from "@ant-design/icons";
+import { downloadDocument } from "../../../helper/documentHelper";
 
 interface DmsUrlInner {
   id: number;
@@ -31,6 +32,7 @@ interface LeuchentypFormProps {
   onFormReady?: (form: FormInstance) => void;
   onValuesChange?: (hasChanges: boolean) => void;
   disabled?: boolean;
+  jwt?: string;
 }
 
 const LeuchentypForm = ({
@@ -39,6 +41,7 @@ const LeuchentypForm = ({
   onFormReady,
   onValuesChange,
   disabled = false,
+  jwt,
 }: LeuchentypFormProps) => {
   const [form] = Form.useForm();
 
@@ -251,21 +254,13 @@ const LeuchentypForm = ({
               className="hover:bg-gray-50"
               onClick={async () => {
                 const urlData = doc.dms_url?.url;
-                if (urlData?.object_name && urlData?.url_base) {
-                  const { prot_prefix, server, path } = urlData.url_base;
-                  const fullUrl = `${prot_prefix}${server}${path}${urlData.object_name}`;
+                if (urlData?.object_name && jwt) {
                   try {
-                    const response = await fetch(fullUrl);
-                    const blob = await response.blob();
-                    const downloadUrl = window.URL.createObjectURL(blob);
-                    const link = document.createElement("a");
-                    link.href = downloadUrl;
-                    link.download =
-                      doc.dms_url?.description || urlData.object_name;
-                    document.body.appendChild(link);
-                    link.click();
-                    document.body.removeChild(link);
-                    window.URL.revokeObjectURL(downloadUrl);
+                    await downloadDocument(
+                      jwt,
+                      urlData.object_name,
+                      doc.dms_url?.description || urlData.object_name
+                    );
                   } catch (error) {
                     console.error("Download failed:", error);
                   }

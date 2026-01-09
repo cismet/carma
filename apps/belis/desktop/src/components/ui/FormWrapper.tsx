@@ -1,4 +1,5 @@
 import { useRef, useState } from "react";
+import { useSelector } from "react-redux";
 import { CheckCircleOutlined, CloseOutlined } from "@ant-design/icons";
 import type { FormInstance } from "antd";
 import { CustomCard } from "../commons/CustomCard";
@@ -6,6 +7,7 @@ import KeyTableItemForm from "./KeyTableItemForm";
 import { keyTableDisplayConfig } from "../../config/keyTableDisplayConfig";
 import { getItemDisplayText } from "../../utils/templateParser";
 import { customForms } from "./forms";
+import { getJWT } from "../../store/slices/auth";
 
 interface SelectedItem {
   item: Record<string, unknown>;
@@ -21,6 +23,7 @@ interface FormWrapperProps {
 const FormWrapper = ({ selectedItem, onSave, readOnly = false }: FormWrapperProps) => {
   const [formHasChanges, setFormHasChanges] = useState(false);
   const formRef = useRef<FormInstance | null>(null);
+  const jwt = useSelector(getJWT);
 
   const customFormKey = keyTableDisplayConfig[selectedItem.tableName]?.customForm;
   const FormComponent = (customFormKey && customForms[customFormKey]) || KeyTableItemForm;
@@ -76,6 +79,7 @@ const FormWrapper = ({ selectedItem, onSave, readOnly = false }: FormWrapperProp
             onFormReady={(form) => (formRef.current = form)}
             onValuesChange={setFormHasChanges}
             disabled={readOnly}
+            jwt={jwt}
           />
         </div>
       </div>

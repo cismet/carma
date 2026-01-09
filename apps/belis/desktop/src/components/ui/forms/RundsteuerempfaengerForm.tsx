@@ -2,6 +2,7 @@ import { useEffect } from "react";
 import { Form, Input, Row, Col, Select, List } from "antd";
 import type { FormInstance } from "antd";
 import { FilePdfOutlined } from "@ant-design/icons";
+import { downloadDocument } from "../../../helper/documentHelper";
 
 interface DmsUrlInner {
   id: number;
@@ -27,6 +28,7 @@ interface RundsteuerempfaengerFormProps {
   onFormReady?: (form: FormInstance) => void;
   onValuesChange?: (hasChanges: boolean) => void;
   disabled?: boolean;
+  jwt?: string;
 }
 
 const RundsteuerempfaengerForm = ({
@@ -35,6 +37,7 @@ const RundsteuerempfaengerForm = ({
   onFormReady,
   onValuesChange,
   disabled = false,
+  jwt,
 }: RundsteuerempfaengerFormProps) => {
   const [form] = Form.useForm();
 
@@ -151,20 +154,13 @@ const RundsteuerempfaengerForm = ({
                 className="hover:bg-gray-50"
                 onClick={async () => {
                   const urlData = doc.url;
-                  if (urlData?.object_name && urlData?.url_base) {
-                    const { prot_prefix, server, path } = urlData.url_base;
-                    const fullUrl = `${prot_prefix}${server}${path}${urlData.object_name}`;
+                  if (urlData?.object_name && jwt) {
                     try {
-                      const response = await fetch(fullUrl);
-                      const blob = await response.blob();
-                      const downloadUrl = window.URL.createObjectURL(blob);
-                      const link = document.createElement("a");
-                      link.href = downloadUrl;
-                      link.download = doc.description || urlData.object_name;
-                      document.body.appendChild(link);
-                      link.click();
-                      document.body.removeChild(link);
-                      window.URL.revokeObjectURL(downloadUrl);
+                      await downloadDocument(
+                        jwt,
+                        urlData.object_name,
+                        doc.description || urlData.object_name
+                      );
                     } catch (error) {
                       console.error("Download failed:", error);
                     }
