@@ -45,15 +45,45 @@ const KeyTableItemForm = ({
       return;
     }
 
-    console.log("xxx form value", values);
-
     setSaving(true);
     try {
-      const isNewItem = !item.id || (item.id as number) < 0;
+      // Check if this is a temporary unsaved item (created with -Date.now())
+      // Temporary IDs are very large negative numbers (like -1736441234567)
+      const isNewItem = !item.id || (item.id as number) < -1000000000;
       const dataToSave = { ...values, id: isNewItem ? -1 : item.id };
-      await updateDataByClassName(jwt, tableName, dataToSave);
+      const apiResponse = await updateDataByClassName(jwt, tableName, dataToSave);
       message.success("Gespeichert");
-      onSave(dataToSave);
+
+      // API returns {contentType: '...', res: '{"id": "33"}'} for new items
+      // We need to parse the nested JSON in the res property
+      let savedItem: Record<string, unknown>;
+      let newId: number | null = null;
+
+      if (isNewItem && apiResponse && typeof apiResponse === "object") {
+        const response = apiResponse as Record<string, unknown>;
+        if ("res" in response && typeof response.res === "string") {
+          // Parse the nested JSON string
+          try {
+            const parsed = JSON.parse(response.res);
+            if (parsed && typeof parsed.id !== "undefined") {
+              newId = Number(parsed.id);
+            }
+          } catch {
+            // Parsing failed, newId stays null
+          }
+        } else if ("id" in response) {
+          // Direct id property (fallback)
+          newId = Number(response.id);
+        }
+      }
+
+      if (isNewItem && newId !== null) {
+        savedItem = { ...values, id: newId };
+      } else {
+        savedItem = { ...values, id: item.id };
+      }
+
+      onSave(savedItem);
     } catch (error) {
       console.error("Save error:", error);
       message.error("Fehler beim Speichern");

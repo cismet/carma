@@ -28,7 +28,9 @@ const FormWrapper = ({ selectedItem, onSave, readOnly = false }: FormWrapperProp
   const customFormKey = keyTableDisplayConfig[selectedItem.tableName]?.customForm;
   const FormComponent = (customFormKey && customForms[customFormKey]) || KeyTableItemForm;
 
-  const isNewItem = (selectedItem.item.id as number) < 0;
+  // Check if this is a temporary unsaved item (created with -Date.now())
+  // Temporary IDs are very large negative numbers (like -1736441234567)
+  const isNewItem = (selectedItem.item.id as number) < -1000000000;
   const title = isNewItem
     ? "Neuer Eintrag"
     : getItemDisplayText(selectedItem.item, selectedItem.tableName, keyTableDisplayConfig);
