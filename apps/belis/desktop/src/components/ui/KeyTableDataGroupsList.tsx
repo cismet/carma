@@ -1,4 +1,6 @@
-import { List } from "antd";
+import { useState, useMemo } from "react";
+import { List, Tree, Select } from "antd";
+import type { TreeProps } from "antd/es/tree";
 import { PlusOutlined, DeleteOutlined } from "@ant-design/icons";
 import { CustomCard } from "../commons/CustomCard";
 import {
@@ -6,6 +8,11 @@ import {
   SortMode,
 } from "../../config/keyTableDisplayConfig";
 import { getItemDisplayText } from "../../utils/templateParser";
+import {
+  buildTreeData,
+  GroupingMode,
+  StrassenItem,
+} from "../../utils/strassenGrouping";
 
 interface SelectedItem {
   item: Record<string, unknown>;
@@ -29,6 +36,11 @@ const formatTableName = (key: string) => {
     .trim();
 };
 
+const GROUPING_OPTIONS = [
+  { value: "byKey", label: "Nach Schlüssel" },
+  { value: "byStreet", label: "Nach Straße" },
+];
+
 const KeyTableDataGroupsList = ({
   tableName,
   items,
@@ -38,6 +50,27 @@ const KeyTableDataGroupsList = ({
   onRemoveItem,
   sortMode = "none",
 }: KeyTableDataGroupsListProps) => {
+  const [groupingMode, setGroupingMode] = useState<GroupingMode>("byKey");
+
+  const useGroupedDisplay = tableName === "straßenschlüssel";
+
+  const treeData = useMemo(() => {
+    if (!useGroupedDisplay) return [];
+    return buildTreeData(items as StrassenItem[], groupingMode);
+  }, [items, groupingMode, useGroupedDisplay]);
+
+  const selectedKeys = useMemo(() => {
+    if (!selectedItem || selectedItem.tableName !== tableName) return [];
+    return [`item-${selectedItem.item.id}`];
+  }, [selectedItem, tableName]);
+
+  const handleTreeSelect: TreeProps["onSelect"] = (_selectedKeys, info) => {
+    const node = info.node as { isLeaf?: boolean; data?: StrassenItem };
+    if (node.isLeaf && node.data) {
+      onItemSelect(node.data, tableName);
+    }
+  };
+
   const getSortedItems = () => {
     if (sortMode === "none") {
       return items;
@@ -71,12 +104,69 @@ const KeyTableDataGroupsList = ({
 
   const sortedItems = getSortedItems();
 
+  const renderGroupedList = () => (
+    <Tree
+      showIcon={false}
+      selectedKeys={selectedKeys}
+      onSelect={handleTreeSelect}
+      treeData={treeData}
+      style={{ background: "transparent" }}
+    />
+  );
+
+  const renderFlatList = () => (
+    <List
+      size="small"
+      dataSource={sortedItems}
+      renderItem={(item: unknown) => {
+        const itemRecord = item as Record<string, unknown>;
+        const isSelected =
+          selectedItem?.item.id === itemRecord.id &&
+          selectedItem?.tableName === tableName;
+        return (
+          <List.Item
+            style={{
+              cursor: "pointer",
+              backgroundColor: isSelected ? "#e6f4ff" : undefined,
+              borderLeft: isSelected
+                ? "3px solid #1677ff"
+                : "3px solid transparent",
+              padding: "8px 12px",
+            }}
+            className="hover:bg-gray-50"
+            onClick={() => onItemSelect(item, tableName)}
+          >
+            <span
+              style={{
+                fontSize: 14,
+                fontWeight: 400,
+                color: "#262626",
+              }}
+            >
+              {getItemDisplayText(itemRecord, tableName, keyTableDisplayConfig)}
+            </span>
+          </List.Item>
+        );
+      }}
+      locale={{ emptyText: "Keine Daten" }}
+    />
+  );
+
   return (
     <CustomCard
       title={formatTableName(tableName)}
       style={{ height: "100%" }}
       extra={
         <div className="flex items-center gap-2">
+          {useGroupedDisplay && (
+            <Select
+              size="small"
+              value={groupingMode}
+              onChange={(value: GroupingMode) => setGroupingMode(value)}
+              options={GROUPING_OPTIONS}
+              style={{ width: 140 }}
+            />
+          )}
           <PlusOutlined
             className="cursor-pointer hover:text-blue-500"
             onClick={onAddItem}
@@ -88,45 +178,7 @@ const KeyTableDataGroupsList = ({
         </div>
       }
     >
-      <List
-        size="small"
-        dataSource={sortedItems}
-        renderItem={(item: unknown) => {
-          const itemRecord = item as Record<string, unknown>;
-          const isSelected =
-            selectedItem?.item.id === itemRecord.id &&
-            selectedItem?.tableName === tableName;
-          return (
-            <List.Item
-              style={{
-                cursor: "pointer",
-                backgroundColor: isSelected ? "#e6f4ff" : undefined,
-                borderLeft: isSelected
-                  ? "3px solid #1677ff"
-                  : "3px solid transparent",
-                padding: "8px 12px",
-              }}
-              className="hover:bg-gray-50"
-              onClick={() => onItemSelect(item, tableName)}
-            >
-              <span
-                style={{
-                  fontSize: 14,
-                  fontWeight: 400,
-                  color: "#262626",
-                }}
-              >
-                {getItemDisplayText(
-                  itemRecord,
-                  tableName,
-                  keyTableDisplayConfig
-                )}
-              </span>
-            </List.Item>
-          );
-        }}
-        locale={{ emptyText: "Keine Daten" }}
-      />
+      {useGroupedDisplay ? renderGroupedList() : renderFlatList()}
     </CustomCard>
   );
 };

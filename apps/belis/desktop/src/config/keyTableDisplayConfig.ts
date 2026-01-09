@@ -1,4 +1,5 @@
 export type SortMode = "none" | "alphabetical" | "numeric";
+export type GroupingMode = "byKey" | "byStreet";
 
 /**
  * Configuration for how items in a key table should be displayed in the list.
@@ -10,6 +11,8 @@ export interface KeyTableDisplayRule {
   sortMode?: SortMode;
   readOnly?: boolean;
   customForm?: string;
+  groupedDisplay?: boolean;
+  defaultGroupingMode?: GroupingMode;
 }
 
 export type KeyTableDisplayConfig = Record<string, KeyTableDisplayRule>;
@@ -97,5 +100,7 @@ export const keyTableDisplayConfig: KeyTableDisplayConfig = {
   straßenschlüssel: {
     template: "{pk}",
     readOnly: true,
+    groupedDisplay: true,
+    defaultGroupingMode: "byKey",
   },
 };
