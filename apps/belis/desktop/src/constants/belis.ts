@@ -10,6 +10,12 @@ export const SAVE_ENDPOINT =
   DOMAIN +
   ".SaveObject/tasks?resultingInstanceType=result";
 
+export const DELETE_ENDPOINT =
+  REST_SERVICE +
+  "/actions/" +
+  DOMAIN +
+  ".DeleteObject/tasks?resultingInstanceType=result";
+
 export const jwtTestQuery = gql`
   ${queries.jwtTestQuery}
 `;
