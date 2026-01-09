@@ -1,5 +1,9 @@
 import { useEffect, useState } from "react";
-import { fetchAllKeyTables } from "../../helper/apiMethods";
+import {
+  fetchAllKeyTables,
+  deleteDataByClassName,
+  removeDataByClassName,
+} from "../../helper/apiMethods";
 import { AppDispatch } from "../../store";
 import { useDispatch, useSelector } from "react-redux";
 import { getJWT } from "../../store/slices/auth";
@@ -12,7 +16,7 @@ import {
   getKeyTablesLoading,
   getKeyTablesFetched,
 } from "../../store/slices/keyTables";
-import { Spin, Alert } from "antd";
+import { Spin, Alert, Modal, message } from "antd";
 import KeyTableDataGroups from "../ui/KeyTableDataGroups";
 import KeyTableDataGroupsList from "../ui/KeyTableDataGroupsList";
 import FormWrapper from "../ui/FormWrapper";
@@ -74,8 +78,16 @@ const KeyTablesPage = () => {
 
         if (sortMode && sortMode !== "none") {
           sortedItems.sort((a, b) => {
-            const aText = getItemDisplayText(a, selectedTable, keyTableDisplayConfig);
-            const bText = getItemDisplayText(b, selectedTable, keyTableDisplayConfig);
+            const aText = getItemDisplayText(
+              a,
+              selectedTable,
+              keyTableDisplayConfig
+            );
+            const bText = getItemDisplayText(
+              b,
+              selectedTable,
+              keyTableDisplayConfig
+            );
             if (sortMode === "alphabetical") {
               return aText.localeCompare(bText, "de", { sensitivity: "base" });
             }
@@ -137,13 +149,51 @@ const KeyTablesPage = () => {
   };
 
   const handleRemoveItem = () => {
-    if (!selectedItem) return;
-    console.log(
-      "Remove item:",
-      selectedItem.item,
-      "from table:",
-      selectedItem.tableName
-    );
+    if (!selectedItem || !storedJWT) return;
+
+    const itemId = selectedItem.item.id as number;
+    if (itemId < 0) {
+      // New unsaved item - just clear selection
+      setSelectedItem(null);
+      return;
+    }
+
+    Modal.confirm({
+      title: "Eintrag löschen",
+      content: "Möchten Sie diesen Eintrag wirklich löschen?",
+      okText: "Löschen",
+      okType: "danger",
+      cancelText: "Abbrechen",
+      onOk: async () => {
+        try {
+          console.log("xxx delete item", selectedItem.item);
+          console.log("xxx delete classname", selectedItem.tableName);
+
+          await removeDataByClassName(
+            storedJWT,
+            selectedItem.tableName,
+            selectedItem.item
+          );
+          message.success("Gelöscht");
+          // Remove from Redux state
+          const newData = { ...data };
+          console.log("xxx delete item", selectedItem.tableName);
+          const tableData = (
+            newData[selectedItem.tableName] as unknown[]
+          ).filter(
+            (i: unknown) => (i as Record<string, unknown>).id !== itemId
+          );
+          newData[selectedItem.tableName] = tableData;
+          // dispatch(setKeyTablesData(newData));
+
+          // Clear selection
+          setSelectedItem(null);
+        } catch (error) {
+          console.error("Delete error:", error);
+          message.error("Fehler beim Löschen");
+        }
+      },
+    });
   };
 
   const selectedTableItems = selectedTable
