@@ -53,28 +53,10 @@ export const CarmaMapProviderWrapper = <
   TState extends APIRootState = APIRootState
 >({
   children,
-  overlayOptions = { background: { transparency: 0, color: "#000000" } },
-  cesiumOptions = {
-    providerConfig: { terrainProvider: { url: "" } },
-    tilesetConfigs: {},
-  },
+  overlayOptions,
+  cesiumOptions,
   gazDataConfig = defaultGazDataConfig,
-  hashKeyAliases,
-  hashCodecs,
-  keyOrder = [
-    "lat",
-    "lng",
-    "zoom",
-    "h",
-    "heading",
-    "bearing",
-    "pitch",
-    "roll",
-    "fov",
-    "m",
-    "isOblique",
-  ],
-  mapStyleConfig = { defaultStyle: "", availableStyles: [] },
+  mapStyleConfig,
   topicMapConfig = {},
   store,
 }: CarmaMapProviderWrapperProps<TState>) => {
