@@ -98,7 +98,7 @@ export const keyTableDisplayConfig: KeyTableDisplayConfig = {
     sortMode: "alphabetical",
   },
   straßenschlüssel: {
-    template: "{pk}",
+    template: "{pk} - {strasse}",
     readOnly: true,
     groupedDisplay: true,
     defaultGroupingMode: "byKey",
