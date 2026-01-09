@@ -13,13 +13,13 @@ import {
   rundsteuerempfaengerQuery,
   SAVE_ENDPOINT,
   teamQuery,
-  tkeyBezirkQuery,
+  // tkeyBezirkQuery,
   tkeyDoppelkommandoQuery,
   tkeyEnergielieferantQuery,
   tkeyKennzifferQuery,
   tkeyKlassifizierungQuery,
   tkeyMastartQuery,
-  tkeyStrassenschluesselQuery,
+  // tkeyStrassenschluesselQuery,
   tkeyUnterhaltLeuchteQuery,
   tkeyUnterhaltMastQuery,
   infobausteinTemplateQuery,
@@ -396,46 +396,46 @@ export const fetchAllUnterhaltLeuchte = async (jwt: string) => {
   return json.data?.tkey_unterh_leuchte ?? [];
 };
 
-export const fetchAllStrassenschluessel = async (jwt: string) => {
-  const response = await fetch(ENDPOINT, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${jwt}`,
-    },
-    body: JSON.stringify({
-      query: tkeyStrassenschluesselQuery,
-    }),
-  });
+// export const fetchAllStrassenschluessel = async (jwt: string) => {
+//   const response = await fetch(ENDPOINT, {
+//     method: "POST",
+//     headers: {
+//       "Content-Type": "application/json",
+//       Authorization: `Bearer ${jwt}`,
+//     },
+//     body: JSON.stringify({
+//       query: tkeyStrassenschluesselQuery,
+//     }),
+//   });
 
-  const text = await response.text();
-  if (!response.ok) {
-    throw new Error(
-      `fetchAllStrassenschluessel failed: ${response.status} ${text}`
-    );
-  }
+//   const text = await response.text();
+//   if (!response.ok) {
+//     throw new Error(
+//       `fetchAllStrassenschluessel failed: ${response.status} ${text}`
+//     );
+//   }
 
-  const json = JSON.parse(text) as {
-    data?: {
-      tkey_strassenschluessel?: Array<{
-        id: number;
-        pk: string;
-        strasse: string;
-      }>;
-    };
-    errors?: unknown;
-  };
+//   const json = JSON.parse(text) as {
+//     data?: {
+//       tkey_strassenschluessel?: Array<{
+//         id: number;
+//         pk: string;
+//         strasse: string;
+//       }>;
+//     };
+//     errors?: unknown;
+//   };
 
-  if (json.errors) {
-    throw new Error(
-      `fetchAllStrassenschluessel GraphQL errors: ${JSON.stringify(
-        json.errors
-      )}`
-    );
-  }
+//   if (json.errors) {
+//     throw new Error(
+//       `fetchAllStrassenschluessel GraphQL errors: ${JSON.stringify(
+//         json.errors
+//       )}`
+//     );
+//   }
 
-  return json.data?.tkey_strassenschluessel ?? [];
-};
+//   return json.data?.tkey_strassenschluessel ?? [];
+// };
 
 export const fetchAllEnergielieferant = async (jwt: string) => {
   const response = await fetch(ENDPOINT, {
@@ -476,38 +476,38 @@ export const fetchAllEnergielieferant = async (jwt: string) => {
   return json.data?.tkey_energielieferant ?? [];
 };
 
-export const fetchAllBezirk = async (jwt: string) => {
-  const response = await fetch(ENDPOINT, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${jwt}`,
-    },
-    body: JSON.stringify({
-      query: tkeyBezirkQuery,
-    }),
-  });
+// export const fetchAllBezirk = async (jwt: string) => {
+//   const response = await fetch(ENDPOINT, {
+//     method: "POST",
+//     headers: {
+//       "Content-Type": "application/json",
+//       Authorization: `Bearer ${jwt}`,
+//     },
+//     body: JSON.stringify({
+//       query: tkeyBezirkQuery,
+//     }),
+//   });
 
-  const text = await response.text();
-  if (!response.ok) {
-    throw new Error(`fetchAllBezirk failed: ${response.status} ${text}`);
-  }
+//   const text = await response.text();
+//   if (!response.ok) {
+//     throw new Error(`fetchAllBezirk failed: ${response.status} ${text}`);
+//   }
 
-  const json = JSON.parse(text) as {
-    data?: {
-      tkey_bezirk?: Array<{ id: number; pk: string; bezirk: string }>;
-    };
-    errors?: unknown;
-  };
+//   const json = JSON.parse(text) as {
+//     data?: {
+//       tkey_bezirk?: Array<{ id: number; pk: string; bezirk: string }>;
+//     };
+//     errors?: unknown;
+//   };
 
-  if (json.errors) {
-    throw new Error(
-      `fetchAllBezirk GraphQL errors: ${JSON.stringify(json.errors)}`
-    );
-  }
+//   if (json.errors) {
+//     throw new Error(
+//       `fetchAllBezirk GraphQL errors: ${JSON.stringify(json.errors)}`
+//     );
+//   }
 
-  return json.data?.tkey_bezirk ?? [];
-};
+//   return json.data?.tkey_bezirk ?? [];
+// };
 
 export const fetchAllLeitungstyp = async (jwt: string) => {
   const response = await fetch(ENDPOINT, {
@@ -945,9 +945,9 @@ export const fetchAllKeyTables = async (jwt: string) => {
     { key: "materialMauerlasche", fetch: fetchAllMaterialMauerlasche },
     { key: "anlagengruppe", fetch: fetchAllAnlagengruppe },
     { key: "unterhaltLeuchte", fetch: fetchAllUnterhaltLeuchte },
-    { key: "straßenschlüssel", fetch: fetchAllStrassenschluessel },
+    // { key: "straßenschlüssel", fetch: fetchAllStrassenschluessel },
     { key: "energielieferant", fetch: fetchAllEnergielieferant },
-    { key: "bezirk", fetch: fetchAllBezirk },
+    // { key: "bezirk", fetch: fetchAllBezirk },
     { key: "leitungstyp", fetch: fetchAllLeitungstyp },
     { key: "arbeitsprotokollstatus", fetch: fetchAllArbeitsprotokollstatus },
     { key: "materialLeitung", fetch: fetchAllMaterialLeitung },

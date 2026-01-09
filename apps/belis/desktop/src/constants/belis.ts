@@ -46,17 +46,17 @@ export const tkeyUnterhaltLeuchteQuery = gql`
   ${queries.tkey_unterh_leuchte}
 `;
 
-export const tkeyStrassenschluesselQuery = gql`
-  ${queries.tkey_strassenschluessel}
-`;
+// export const tkeyStrassenschluesselQuery = gql`
+//   ${queries.tkey_strassenschluessel}
+// `;
 
 export const tkeyEnergielieferantQuery = gql`
   ${queries.tkey_energielieferant}
 `;
 
-export const tkeyBezirkQuery = gql`
-  ${queries.tkey_bezirk}
-`;
+// export const tkeyBezirkQuery = gql`
+//   ${queries.tkey_bezirk}
+// `;
 
 export const leitungstypQuery = gql`
   ${queries.leitungstyp}
