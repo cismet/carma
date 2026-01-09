@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import {
   fetchAllKeyTables,
   deleteDataByClassName,
@@ -37,6 +37,13 @@ const KeyTablesPage = () => {
   const fetched = useSelector(getKeyTablesFetched);
   const [selectedTable, setSelectedTable] = useState<string | null>(null);
   const [selectedItem, setSelectedItem] = useState<SelectedItem | null>(null);
+
+  // Keep refs to current data and selectedItem to avoid stale closure in Modal.confirm callback
+  // Update synchronously during render (not in useEffect which runs after)
+  const dataRef = useRef(data);
+  dataRef.current = data;
+  const selectedItemRef = useRef(selectedItem);
+  selectedItemRef.current = selectedItem;
 
   const adjustedHeight = "calc(100vh - 65px)";
 
@@ -117,25 +124,40 @@ const KeyTablesPage = () => {
   };
 
   const handleItemSaved = (updatedItem: Record<string, unknown>) => {
-    if (!selectedItem) return;
+    // Use ref to get fresh selectedItem value
+    const currentSelectedItem = selectedItemRef.current;
+    if (!currentSelectedItem) return;
 
-    const newData = { ...data };
-    const tableData = [...(newData[selectedItem.tableName] as unknown[])];
-    const index = tableData.findIndex(
-      (i: unknown) => (i as Record<string, unknown>).id === updatedItem.id
-    );
-    if (index !== -1) {
-      tableData[index] = updatedItem;
-      newData[selectedItem.tableName] = tableData;
-      dispatch(setKeyTablesData(newData));
+    const newData = { ...dataRef.current };
+    const tableData = [...(newData[currentSelectedItem.tableName] as unknown[])];
+
+    // Check if this is a temporary unsaved item (created with -Date.now())
+    // Temporary IDs are very large negative numbers (like -1736441234567)
+    const isNewItem = (currentSelectedItem.item.id as number) < -1000000000;
+
+    if (isNewItem) {
+      // New item - add to the list
+      tableData.unshift(updatedItem);
+    } else {
+      // Existing item - update in place
+      const index = tableData.findIndex(
+        (i: unknown) => (i as Record<string, unknown>).id === updatedItem.id
+      );
+      if (index !== -1) {
+        tableData[index] = updatedItem;
+      }
     }
-    // Keep the selection with the updated item
-    setSelectedItem({ item: updatedItem, tableName: selectedItem.tableName });
+
+    newData[currentSelectedItem.tableName] = tableData;
+    dispatch(setKeyTablesData(newData));
+
+    // Select the saved item (with the new real ID)
+    setSelectedItem({ item: updatedItem, tableName: currentSelectedItem.tableName });
   };
 
   const handleAddItem = () => {
     if (!selectedTable) return;
-    const tableItems = data[selectedTable] as Record<string, unknown>[];
+    const tableItems = dataRef.current[selectedTable] as Record<string, unknown>[];
     const templateItem = tableItems[0] || {};
 
     // Create new item with same shape, empty values, and temporary negative id
@@ -144,7 +166,8 @@ const KeyTablesPage = () => {
       newItem[key] = key === "id" ? -Date.now() : "";
     });
 
-    // Just show the form for the new item (don't add to list yet)
+    // Don't add to list yet - just select the new item to show empty form
+    // The item will be added to the list when saved via handleItemSaved
     setSelectedItem({ item: newItem, tableName: selectedTable });
   };
 
@@ -152,9 +175,34 @@ const KeyTablesPage = () => {
     if (!selectedItem || !storedJWT) return;
 
     const itemId = selectedItem.item.id as number;
-    if (itemId < 0) {
-      // New unsaved item - just clear selection
-      setSelectedItem(null);
+    // Check if this is a temporary unsaved item (created with -Date.now())
+    // Temporary IDs are very large negative numbers (like -1736441234567)
+    // Small negative numbers like -1 could be valid database IDs
+    const isTemporaryUnsavedItem = itemId < -1000000000;
+    if (isTemporaryUnsavedItem) {
+      // New unsaved item - select first item in the list instead
+      const tableData = dataRef.current[selectedItem.tableName] as Record<string, unknown>[];
+      if (tableData && tableData.length > 0) {
+        // Apply sorting to match displayed order
+        const sortMode = keyTableDisplayConfig[selectedItem.tableName]?.sortMode;
+        let sortedItems = [...tableData];
+        if (sortMode && sortMode !== "none") {
+          sortedItems.sort((a, b) => {
+            const aText = getItemDisplayText(a, selectedItem.tableName, keyTableDisplayConfig);
+            const bText = getItemDisplayText(b, selectedItem.tableName, keyTableDisplayConfig);
+            if (sortMode === "alphabetical") {
+              return aText.localeCompare(bText, "de", { sensitivity: "base" });
+            }
+            if (sortMode === "numeric") {
+              return aText.localeCompare(bText, "de", { numeric: true });
+            }
+            return 0;
+          });
+        }
+        setSelectedItem({ item: sortedItems[0], tableName: selectedItem.tableName });
+      } else {
+        setSelectedItem(null);
+      }
       return;
     }
 
@@ -165,29 +213,66 @@ const KeyTablesPage = () => {
       okType: "danger",
       cancelText: "Abbrechen",
       onOk: async () => {
-        try {
-          console.log("xxx delete item", selectedItem.item);
-          console.log("xxx delete classname", selectedItem.tableName);
+        // Use refs to get fresh values, not stale closure
+        const currentSelectedItem = selectedItemRef.current;
+        if (!currentSelectedItem) return;
 
+        try {
           await removeDataByClassName(
             storedJWT,
-            selectedItem.tableName,
-            selectedItem.item
+            currentSelectedItem.tableName,
+            currentSelectedItem.item
           );
           message.success("Gelöscht");
-          // Remove from Redux state
-          const newData = { ...data };
-          console.log("xxx delete item", selectedItem.tableName);
-          const tableData = (
-            newData[selectedItem.tableName] as unknown[]
-          ).filter(
-            (i: unknown) => (i as Record<string, unknown>).id !== itemId
-          );
-          newData[selectedItem.tableName] = tableData;
-          // dispatch(setKeyTablesData(newData));
 
-          // Clear selection
-          setSelectedItem(null);
+          // Remove from Redux state - use dataRef to get fresh data
+          const currentItemId = currentSelectedItem.item.id as number;
+          const newData = { ...dataRef.current };
+          const tableData = (
+            newData[currentSelectedItem.tableName] as unknown[]
+          ).filter(
+            (i: unknown) => (i as Record<string, unknown>).id !== currentItemId
+          );
+          newData[currentSelectedItem.tableName] = tableData;
+          dispatch(setKeyTablesData(newData));
+
+          // Select first SORTED item after delete (to match displayed order)
+          if (tableData.length > 0) {
+            const sortMode =
+              keyTableDisplayConfig[currentSelectedItem.tableName]?.sortMode;
+            let sortedItems = [...tableData] as Record<string, unknown>[];
+
+            if (sortMode && sortMode !== "none") {
+              sortedItems.sort((a, b) => {
+                const aText = getItemDisplayText(
+                  a,
+                  currentSelectedItem.tableName,
+                  keyTableDisplayConfig
+                );
+                const bText = getItemDisplayText(
+                  b,
+                  currentSelectedItem.tableName,
+                  keyTableDisplayConfig
+                );
+                if (sortMode === "alphabetical") {
+                  return aText.localeCompare(bText, "de", {
+                    sensitivity: "base",
+                  });
+                }
+                if (sortMode === "numeric") {
+                  return aText.localeCompare(bText, "de", { numeric: true });
+                }
+                return 0;
+              });
+            }
+
+            setSelectedItem({
+              item: sortedItems[0],
+              tableName: currentSelectedItem.tableName,
+            });
+          } else {
+            setSelectedItem(null);
+          }
         } catch (error) {
           console.error("Delete error:", error);
           message.error("Fehler beim Löschen");
@@ -247,6 +332,7 @@ const KeyTablesPage = () => {
               }}
             >
               <KeyTableDataGroupsList
+                key={`${selectedTable}-${selectedTableItems.length}`}
                 tableName={selectedTable}
                 items={selectedTableItems}
                 selectedItem={selectedItem}
