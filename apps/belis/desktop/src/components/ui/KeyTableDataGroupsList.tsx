@@ -3,6 +3,7 @@ import { List, Tree, Select } from "antd";
 import type { TreeProps } from "antd/es/tree";
 import { PlusOutlined, DeleteOutlined } from "@ant-design/icons";
 import { CustomCard } from "../commons/CustomCard";
+import { SearchInput } from "../commons/SearchInput";
 import {
   keyTableDisplayConfig,
   SortMode,
@@ -51,6 +52,7 @@ const KeyTableDataGroupsList = ({
   sortMode = "none",
 }: KeyTableDataGroupsListProps) => {
   const [groupingMode, setGroupingMode] = useState<GroupingMode>("byKey");
+  const [searchText, setSearchText] = useState("");
 
   const useGroupedDisplay = tableName === "straßenschlüssel";
 
@@ -71,12 +73,29 @@ const KeyTableDataGroupsList = ({
     }
   };
 
-  const getSortedItems = () => {
-    if (sortMode === "none") {
-      return items;
+  const getFilteredAndSortedItems = () => {
+    let result = items;
+
+    // Filter by search text
+    if (searchText.trim()) {
+      const lowerSearch = searchText.toLowerCase();
+      result = items.filter((item) => {
+        const itemRecord = item as Record<string, unknown>;
+        const displayText = getItemDisplayText(
+          itemRecord,
+          tableName,
+          keyTableDisplayConfig
+        );
+        return displayText.toLowerCase().includes(lowerSearch);
+      });
     }
 
-    return [...items].sort((a, b) => {
+    // Sort
+    if (sortMode === "none") {
+      return result;
+    }
+
+    return [...result].sort((a, b) => {
       const aRecord = a as Record<string, unknown>;
       const bRecord = b as Record<string, unknown>;
       const aText = getItemDisplayText(
@@ -102,7 +121,7 @@ const KeyTableDataGroupsList = ({
     });
   };
 
-  const sortedItems = getSortedItems();
+  const filteredAndSortedItems = getFilteredAndSortedItems();
 
   const renderGroupedList = () => (
     <Tree
@@ -118,7 +137,7 @@ const KeyTableDataGroupsList = ({
   const renderFlatList = () => (
     <List
       size="small"
-      dataSource={sortedItems}
+      dataSource={filteredAndSortedItems}
       renderItem={(item: unknown) => {
         const itemRecord = item as Record<string, unknown>;
         const isSelected =
@@ -170,6 +189,7 @@ const KeyTableDataGroupsList = ({
               popupClassName="strassen-grouping-select-dropdown"
             />
           )}
+          <SearchInput value={searchText} onChange={setSearchText} />
           <PlusOutlined
             className="cursor-pointer hover:text-blue-500"
             onClick={onAddItem}
