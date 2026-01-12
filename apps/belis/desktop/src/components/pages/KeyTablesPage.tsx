@@ -1,7 +1,7 @@
 import { useEffect, useState, useRef } from "react";
 import {
   fetchAllKeyTables,
-  deleteDataByClassName,
+  // deleteDataByClassName,
   removeDataByClassName,
 } from "../../helper/apiMethods";
 import { AppDispatch } from "../../store";
