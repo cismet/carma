@@ -1,4 +1,4 @@
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useSelector } from "react-redux";
 import { CheckCircleOutlined, CloseOutlined } from "@ant-design/icons";
 import type { FormInstance } from "antd";
@@ -24,6 +24,11 @@ const FormWrapper = ({ selectedItem, onSave, readOnly = false }: FormWrapperProp
   const [formHasChanges, setFormHasChanges] = useState(false);
   const formRef = useRef<FormInstance | null>(null);
   const jwt = useSelector(getJWT);
+
+  // Reset formHasChanges when selected item changes
+  useEffect(() => {
+    setFormHasChanges(false);
+  }, [selectedItem.item.id, selectedItem.tableName]);
 
   const customFormKey = keyTableDisplayConfig[selectedItem.tableName]?.customForm;
   const FormComponent = (customFormKey && customForms[customFormKey]) || KeyTableItemForm;

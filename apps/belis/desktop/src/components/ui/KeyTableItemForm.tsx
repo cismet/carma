@@ -3,6 +3,7 @@ import { Form, Input, message, FormInstance, Row, Col } from "antd";
 import { useSelector } from "react-redux";
 import { getJWT } from "../../store/slices/auth";
 import { updateDataByClassName } from "../../helper/apiMethods";
+import { keyTableDisplayConfig } from "../../config/keyTableDisplayConfig";
 
 interface KeyTableItemFormProps {
   item: Record<string, unknown>;
@@ -51,7 +52,9 @@ const KeyTableItemForm = ({
       // Temporary IDs are very large negative numbers (like -1736441234567)
       const isNewItem = !item.id || (item.id as number) < -1000000000;
       const dataToSave = { ...values, id: isNewItem ? -1 : item.id };
-      const apiResponse = await updateDataByClassName(jwt, tableName, dataToSave);
+      // Use apiClassName from config if it differs from tableName (e.g., "teams" -> "team")
+      const apiClassName = keyTableDisplayConfig[tableName]?.apiClassName || tableName;
+      const apiResponse = await updateDataByClassName(jwt, apiClassName, dataToSave);
       message.success("Gespeichert");
 
       // API returns {contentType: '...', res: '{"id": "33"}'} for new items
