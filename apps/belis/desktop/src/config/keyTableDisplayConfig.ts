@@ -13,6 +13,7 @@ export interface KeyTableDisplayRule {
   customForm?: string;
   groupedDisplay?: boolean;
   defaultGroupingMode?: GroupingMode;
+  apiClassName?: string; // API class name when it differs from the key
 }
 
 export type KeyTableDisplayConfig = Record<string, KeyTableDisplayRule>;
@@ -25,6 +26,7 @@ export const keyTableDisplayConfig: KeyTableDisplayConfig = {
   teams: {
     template: "{name}",
     sortMode: "alphabetical",
+    apiClassName: "team",
   },
   masttyp: {
     template: "{masttyp} {bezeichnung}",
@@ -44,6 +46,7 @@ export const keyTableDisplayConfig: KeyTableDisplayConfig = {
   doppelkommando: {
     template: "{pk} - {beschreibung}",
     sortMode: "numeric",
+    apiClassName: "tkey_doppelkommando",
   },
   leuchtmittel: {
     template: "{hersteller} {lichtfarbe}",
@@ -51,14 +54,17 @@ export const keyTableDisplayConfig: KeyTableDisplayConfig = {
   unterhaltMast: {
     template: "{pk} - {unterhalt_mast}",
     sortMode: "numeric",
+    apiClassName: "tkey_unterh_mast",
   },
   unterhaltLeuchte: {
     template: "{pk} - {unterhaltspflichtiger_leuchte}",
     sortMode: "numeric",
+    apiClassName: "tkey_unterh_leuchte",
   },
   energielieferant: {
     template: "{energielieferant}",
     sortMode: "alphabetical",
+    apiClassName: "tkey_energielieferant",
   },
   anlagengruppe: {
     template: "{nummer} - {bezeichnung}",
@@ -74,10 +80,13 @@ export const keyTableDisplayConfig: KeyTableDisplayConfig = {
   },
   kennziffer: {
     template: "{kennziffer} - {beschreibung}",
+    sortMode: "numeric",
+    apiClassName: "tkey_kennziffer",
   },
   mastart: {
     template: "{mastart}",
     sortMode: "alphabetical",
+    apiClassName: "tkey_mastart",
   },
   veranlassungsart: {
     template: "{schluessel} - {bezeichnung}",
@@ -85,6 +94,8 @@ export const keyTableDisplayConfig: KeyTableDisplayConfig = {
   },
   klassifizierung: {
     template: "{pk} - {klassifizierung}",
+    sortMode: "numeric",
+    apiClassName: "tkey_klassifizierung",
   },
   infobausteinTemplate: {
     template: "{schluessel} - {bezeichnung}",
@@ -99,6 +110,12 @@ export const keyTableDisplayConfig: KeyTableDisplayConfig = {
   materialLeitung: {
     template: "{bezeichnung}",
     sortMode: "alphabetical",
+    apiClassName: "material_leitung",
+  },
+  materialMauerlasche: {
+    template: "{bezeichnung}",
+    sortMode: "alphabetical",
+    apiClassName: "material_mauerlasche",
   },
   // straßenschlüssel: {
   //   template: "{pk} - {strasse}",
