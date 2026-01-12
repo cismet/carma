@@ -5,6 +5,7 @@ import { defaultLayerConf } from "react-cismap/tools/layerFactory";
 import LoginForm from "./components/LoginForm";
 import TitleControl from "./components/TitleControl";
 import { APP_CONFIG } from "../config/appConfig";
+import { SyncProvider } from "../core/sync";
 
 import "bootstrap/dist/css/bootstrap.min.css";
 import "leaflet/dist/leaflet.css";
@@ -17,6 +18,24 @@ import {
   backgroundConfWithFastOrtho2024,
   useProgress,
 } from "@carma-appframeworks/portals";
+
+// Extract username from JWT
+const getUserFromJWT = (jwt) => {
+  try {
+    const base64Url = jwt.split(".")[1];
+    const base64 = base64Url.replace(/-/g, "+").replace(/_/g, "/");
+    const jsonPayload = decodeURIComponent(
+      atob(base64)
+        .split("")
+        .map((c) => "%" + ("00" + c.charCodeAt(0).toString(16)).slice(-2))
+        .join("")
+    );
+    const payload = JSON.parse(jsonPayload);
+    return payload.preferred_username || payload.sub || null;
+  } catch {
+    return null;
+  }
+};
 
 if (typeof global === "undefined") {
   window.global = window;
@@ -178,39 +197,44 @@ function App() {
     })();
   }, [auth.jwt, auth.checked]);
 
+  const login = auth.jwt ? getUserFromJWT(auth.jwt) : null;
+
   return (
-    <TopicMapContextProvider
-      appKey="tz.baumbewirtschaftung"
-      backgroundConfigurations={bgConf}
-      backgroundModes={backgroundModes}
-      baseLayerConf={baseLayerConf}
-      offlineCacheConfig={offlineConfig}
-    >
-      {auth.checked && auth.jwt === undefined && (
-        <LoginForm
-          setJWT={(token) => setAuth({ checked: true, jwt: token })}
-          loginInfo={loginInfo}
-          setLoginInfo={setLoginInfo}
+    <SyncProvider jwt={auth.jwt} login={login}>
+      <TopicMapContextProvider
+        appKey="tz.baumbewirtschaftung"
+        backgroundConfigurations={bgConf}
+        backgroundModes={backgroundModes}
+        baseLayerConf={baseLayerConf}
+        offlineCacheConfig={offlineConfig}
+      >
+        {auth.checked && auth.jwt === undefined && (
+          <LoginForm
+            setJWT={(token) => setAuth({ checked: true, jwt: token })}
+            loginInfo={loginInfo}
+            setLoginInfo={setLoginInfo}
+          />
+        )}
+        <TitleControl
+          jwt={auth.jwt}
+          logout={() => {
+            setAuth({ checked: true, jwt: undefined });
+          }}
         />
-      )}
-      <TitleControl
-        jwt={auth.jwt}
-        logout={() => {
-          setAuth({ checked: true, jwt: undefined });
-        }}
-      />
-      <Map
-        jwt={auth.jwt}
-        onAuthError={() => {
-          setAuth({ checked: true, jwt: undefined });
-          setLoginInfo({
-            color: "#F9D423",
-            text: "Bitte melden Sie sich erneut an.",
-          });
-          setTimeout(() => setLoginInfo(), 2500);
-        }}
-      />
-    </TopicMapContextProvider>
+        <Map
+          jwt={auth.jwt}
+          login={login}
+          onAuthError={() => {
+            setAuth({ checked: true, jwt: undefined });
+            setLoginInfo({
+              color: "#F9D423",
+              text: "Bitte melden Sie sich erneut an.",
+            });
+            setTimeout(() => setLoginInfo(), 2500);
+          }}
+        />
+      </TopicMapContextProvider>
+    </SyncProvider>
   );
 }
 

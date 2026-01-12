@@ -49,9 +49,11 @@ const baseUrl = window.location.origin + window.location.pathname;
 
 const TZBaumbewirtschaftung = ({
   jwt,
+  login,
   onAuthError,
 }: {
   jwt?: string;
+  login?: string | null;
   onAuthError?: () => void;
 }) => {
   const { markerSymbolSize } = useContext(TopicMapStylingContext) as any;

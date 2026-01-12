@@ -45,6 +45,22 @@ export const APP_CONFIG = {
     actions: "tzbBaumbewirtschaftungActions",
     legacy: "tzbBaumbewirtschaftung", // Full dataset (all-in-one)
   },
+
+  // RxDB Sync Configuration
+  // Live URLs (for production):
+  //   httpUrl: "https://wunda-offline-actions.cismet.de/v1/graphql"
+  //   wsUrl: "wss://wunda-offline-actions.cismet.de/v1/graphql"
+  sync: {
+    httpUrl:
+      import.meta.env.VITE_TZ_BAUMBEWIRTSCHAFTUNG_SYNC_HTTP_URL ||
+      "https://offline-actions-wunda-cloud.cismet.de/v1/graphql",
+    wsUrl:
+      import.meta.env.VITE_TZ_BAUMBEWIRTSCHAFTUNG_SYNC_WS_URL ||
+      "wss://offline-actions-wunda-cloud.cismet.de/v1/graphql",
+    appId: "tzb",
+    dbVersion: "v2",
+    actionName: "uploadTzbTreeAction",
+  },
 };
 
 /**
