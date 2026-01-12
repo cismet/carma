@@ -218,9 +218,12 @@ const KeyTablesPage = () => {
         if (!currentSelectedItem) return;
 
         try {
+          const apiClassName =
+            keyTableDisplayConfig[currentSelectedItem.tableName]?.apiClassName ||
+            currentSelectedItem.tableName;
           await removeDataByClassName(
             storedJWT,
-            currentSelectedItem.tableName,
+            apiClassName,
             currentSelectedItem.item
           );
           message.success("Gelöscht");
