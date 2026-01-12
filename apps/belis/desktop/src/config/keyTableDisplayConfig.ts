@@ -14,6 +14,7 @@ export interface KeyTableDisplayRule {
   groupedDisplay?: boolean;
   defaultGroupingMode?: GroupingMode;
   apiClassName?: string; // API class name when it differs from the key
+  fieldLabels?: Record<string, string>; // Override labels for form fields (key -> display label)
 }
 
 export type KeyTableDisplayConfig = Record<string, KeyTableDisplayRule>;
@@ -55,11 +56,17 @@ export const keyTableDisplayConfig: KeyTableDisplayConfig = {
     template: "{pk} - {unterhalt_mast}",
     sortMode: "numeric",
     apiClassName: "tkey_unterh_mast",
+    fieldLabels: {
+      unterhalt_mast: "Unterhaltspflichtige - Mast",
+    },
   },
   unterhaltLeuchte: {
     template: "{pk} - {unterhaltspflichtiger_leuchte}",
     sortMode: "numeric",
     apiClassName: "tkey_unterh_leuchte",
+    fieldLabels: {
+      unterhaltspflichtiger_leuchte: "Unterhaltspflichtige - Leuchte",
+    },
   },
   energielieferant: {
     template: "{energielieferant}",
@@ -77,6 +84,9 @@ export const keyTableDisplayConfig: KeyTableDisplayConfig = {
   arbeitsprotokollstatus: {
     template: "{schluessel} - {bezeichnung}",
     sortMode: "numeric",
+    fieldLabels: {
+      schluessel: "Schlüssel",
+    },
   },
   kennziffer: {
     template: "{kennziffer} - {beschreibung}",
@@ -91,6 +101,9 @@ export const keyTableDisplayConfig: KeyTableDisplayConfig = {
   veranlassungsart: {
     template: "{schluessel} - {bezeichnung}",
     sortMode: "alphabetical",
+    fieldLabels: {
+      schluessel: "Schlüssel",
+    },
   },
   klassifizierung: {
     template: "{pk} - {klassifizierung}",
