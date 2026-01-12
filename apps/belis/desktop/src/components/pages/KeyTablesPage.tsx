@@ -335,7 +335,7 @@ const KeyTablesPage = () => {
               }}
             >
               <KeyTableDataGroupsList
-                key={`${selectedTable}-${selectedTableItems.length}`}
+                key={selectedTable}
                 tableName={selectedTable}
                 items={selectedTableItems}
                 selectedItem={selectedItem}

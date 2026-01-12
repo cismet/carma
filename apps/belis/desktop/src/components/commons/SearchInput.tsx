@@ -1,5 +1,4 @@
 import { Input } from "antd";
-import { CloseCircleFilled } from "@ant-design/icons";
 
 interface SearchInputProps {
   value: string;
@@ -18,15 +17,8 @@ export const SearchInput = ({
       size="small"
       value={value}
       onChange={(e) => onChange(e.target.value)}
-      style={{ width: 120 }}
-      suffix={
-        value ? (
-          <CloseCircleFilled
-            style={{ color: "#bfbfbf", cursor: "pointer" }}
-            onClick={() => onChange("")}
-          />
-        ) : null
-      }
+      // style={{ width: 120 }}
+      allowClear
     />
   );
 };
