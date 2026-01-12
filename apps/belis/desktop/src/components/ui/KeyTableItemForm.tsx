@@ -40,6 +40,11 @@ const KeyTableItemForm = ({
       .trim();
   };
 
+  const getLabel = (key: string) => {
+    const fieldLabels = keyTableDisplayConfig[tableName]?.fieldLabels;
+    return fieldLabels?.[key] ?? formatLabel(key);
+  };
+
   const handleSave = async (values: Record<string, unknown>) => {
     if (!jwt) {
       message.error("Nicht authentifiziert");
@@ -128,7 +133,7 @@ const KeyTableItemForm = ({
                   <span
                     style={{ fontSize: 14, fontWeight: 400, color: "#8c8c8c" }}
                   >
-                    {formatLabel(key)}
+                    {getLabel(key)}
                   </span>
                 }
                 style={{ marginBottom: 16 }}
@@ -145,7 +150,7 @@ const KeyTableItemForm = ({
             name={key}
             label={
               <span style={{ fontSize: 14, fontWeight: 400, color: "#8c8c8c" }}>
-                {formatLabel(key)}
+                {getLabel(key)}
               </span>
             }
             style={{ marginBottom: 16 }}
