@@ -1,6 +1,5 @@
-import { useState, useMemo } from "react";
-import { List, Tree, Select } from "antd";
-import type { TreeProps } from "antd/es/tree";
+import { useState } from "react";
+import { List } from "antd";
 import { PlusOutlined, DeleteOutlined } from "@ant-design/icons";
 import { CustomCard } from "../commons/CustomCard";
 import { SearchInput } from "../commons/SearchInput";
@@ -9,11 +8,6 @@ import {
   SortMode,
 } from "../../config/keyTableDisplayConfig";
 import { getItemDisplayText } from "../../utils/templateParser";
-import {
-  buildTreeData,
-  GroupingMode,
-  StrassenItem,
-} from "../../utils/strassenGrouping";
 
 interface SelectedItem {
   item: Record<string, unknown>;
@@ -37,11 +31,6 @@ const formatTableName = (key: string) => {
     .trim();
 };
 
-const GROUPING_OPTIONS = [
-  { value: "byKey", label: "Schlüssel" },
-  { value: "byStreet", label: "Straße" },
-];
-
 const KeyTableDataGroupsList = ({
   tableName,
   items,
@@ -51,27 +40,7 @@ const KeyTableDataGroupsList = ({
   onRemoveItem,
   sortMode = "none",
 }: KeyTableDataGroupsListProps) => {
-  const [groupingMode, setGroupingMode] = useState<GroupingMode>("byKey");
   const [searchText, setSearchText] = useState("");
-
-  const useGroupedDisplay = tableName === "straßenschlüssel";
-
-  const treeData = useMemo(() => {
-    if (!useGroupedDisplay) return [];
-    return buildTreeData(items as StrassenItem[], groupingMode);
-  }, [items, groupingMode, useGroupedDisplay]);
-
-  const selectedKeys = useMemo(() => {
-    if (!selectedItem || selectedItem.tableName !== tableName) return [];
-    return [`item-${selectedItem.item.id}`];
-  }, [selectedItem, tableName]);
-
-  const handleTreeSelect: TreeProps["onSelect"] = (_selectedKeys, info) => {
-    const node = info.node as { isLeaf?: boolean; data?: StrassenItem };
-    if (node.isLeaf && node.data) {
-      onItemSelect(node.data, tableName);
-    }
-  };
 
   const getFilteredAndSortedItems = () => {
     let result = items;
@@ -86,7 +55,7 @@ const KeyTableDataGroupsList = ({
           tableName,
           keyTableDisplayConfig
         );
-        return displayText.toLowerCase().includes(lowerSearch);
+        return String(displayText ?? "").toLowerCase().includes(lowerSearch);
       });
     }
 
@@ -123,72 +92,12 @@ const KeyTableDataGroupsList = ({
 
   const filteredAndSortedItems = getFilteredAndSortedItems();
 
-  const renderGroupedList = () => (
-    <Tree
-      showIcon={false}
-      selectedKeys={selectedKeys}
-      onSelect={handleTreeSelect}
-      treeData={treeData}
-      style={{ background: "transparent" }}
-      className="strassen-tree"
-    />
-  );
-
-  const renderFlatList = () => (
-    <List
-      size="small"
-      dataSource={filteredAndSortedItems}
-      renderItem={(item: unknown) => {
-        const itemRecord = item as Record<string, unknown>;
-        const isSelected =
-          selectedItem?.item.id === itemRecord.id &&
-          selectedItem?.tableName === tableName;
-        return (
-          <List.Item
-            style={{
-              cursor: "pointer",
-              backgroundColor: isSelected ? "#e6f4ff" : undefined,
-              borderLeft: isSelected
-                ? "3px solid #1677ff"
-                : "3px solid transparent",
-              padding: "8px 12px",
-            }}
-            className="hover:bg-gray-50"
-            onClick={() => onItemSelect(item, tableName)}
-          >
-            <span
-              style={{
-                fontSize: 14,
-                fontWeight: 400,
-                color: "#262626",
-              }}
-            >
-              {getItemDisplayText(itemRecord, tableName, keyTableDisplayConfig)}
-            </span>
-          </List.Item>
-        );
-      }}
-      locale={{ emptyText: "Keine Daten" }}
-    />
-  );
-
   return (
     <CustomCard
       title={formatTableName(tableName)}
       style={{ height: "100%" }}
       extra={
         <div className="flex items-center gap-2">
-          {useGroupedDisplay && (
-            <Select
-              size="small"
-              value={groupingMode}
-              onChange={(value: GroupingMode) => setGroupingMode(value)}
-              options={GROUPING_OPTIONS}
-              style={{ width: 120 }}
-              className="strassen-grouping-select"
-              popupClassName="strassen-grouping-select-dropdown"
-            />
-          )}
           <SearchInput value={searchText} onChange={setSearchText} />
           <PlusOutlined
             className="cursor-pointer hover:text-blue-500"
@@ -201,7 +110,41 @@ const KeyTableDataGroupsList = ({
         </div>
       }
     >
-      {useGroupedDisplay ? renderGroupedList() : renderFlatList()}
+      <List
+        size="small"
+        dataSource={filteredAndSortedItems}
+        renderItem={(item: unknown) => {
+          const itemRecord = item as Record<string, unknown>;
+          const isSelected =
+            selectedItem?.item.id === itemRecord.id &&
+            selectedItem?.tableName === tableName;
+          return (
+            <List.Item
+              style={{
+                cursor: "pointer",
+                backgroundColor: isSelected ? "#e6f4ff" : undefined,
+                borderLeft: isSelected
+                  ? "3px solid #1677ff"
+                  : "3px solid transparent",
+                padding: "8px 12px",
+              }}
+              className="hover:bg-gray-50"
+              onClick={() => onItemSelect(item, tableName)}
+            >
+              <span
+                style={{
+                  fontSize: 14,
+                  fontWeight: 400,
+                  color: "#262626",
+                }}
+              >
+                {getItemDisplayText(itemRecord, tableName, keyTableDisplayConfig)}
+              </span>
+            </List.Item>
+          );
+        }}
+        locale={{ emptyText: "Keine Daten" }}
+      />
     </CustomCard>
   );
 };
