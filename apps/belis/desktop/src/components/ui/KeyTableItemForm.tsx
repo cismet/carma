@@ -2,8 +2,8 @@ import { useEffect, useState } from "react";
 import { Form, Input, message, FormInstance, Row, Col } from "antd";
 import { useSelector } from "react-redux";
 import { getJWT } from "../../store/slices/auth";
-import { updateDataByClassName } from "../../helper/apiMethods";
 import { keyTableDisplayConfig } from "../../config/keyTableDisplayConfig";
+import { useSyncOptional } from "@carma-providers/syncing";
 
 interface KeyTableItemFormProps {
   item: Record<string, unknown>;
@@ -25,6 +25,7 @@ const KeyTableItemForm = ({
   const [form] = Form.useForm();
   const [saving, setSaving] = useState(false);
   const jwt = useSelector(getJWT);
+  const sync = useSyncOptional();
 
   useEffect(() => {
     if (onFormReady) {
@@ -58,40 +59,32 @@ const KeyTableItemForm = ({
       const isNewItem = !item.id || (item.id as number) < -1000000000;
       const dataToSave = { ...values, id: isNewItem ? -1 : item.id };
       // Use apiClassName from config if it differs from tableName (e.g., "teams" -> "team")
-      const apiClassName = keyTableDisplayConfig[tableName]?.apiClassName || tableName;
-      const apiResponse = await updateDataByClassName(jwt, apiClassName, dataToSave);
-      message.success("Gespeichert");
+      const apiClassName =
+        keyTableDisplayConfig[tableName]?.apiClassName || tableName;
 
-      // API returns {contentType: '...', res: '{"id": "33"}'} for new items
-      // We need to parse the nested JSON in the res property
-      let savedItem: Record<string, unknown>;
-      let newId: number | null = null;
+      // Use syncedAction to queue the save operation for offline sync
+      if (sync?.syncedAction) {
+        sync.syncedAction("SaveObject", {
+          className: apiClassName,
+          data: JSON.stringify(dataToSave),
+          status: "open",
+        });
+        message.success("Aktion zur Synchronisation hinzugefügt");
 
-      if (isNewItem && apiResponse && typeof apiResponse === "object") {
-        const response = apiResponse as Record<string, unknown>;
-        if ("res" in response && typeof response.res === "string") {
-          // Parse the nested JSON string
-          try {
-            const parsed = JSON.parse(response.res);
-            if (parsed && typeof parsed.id !== "undefined") {
-              newId = Number(parsed.id);
-            }
-          } catch {
-            // Parsing failed, newId stays null
-          }
-        } else if ("id" in response) {
-          // Direct id property (fallback)
-          newId = Number(response.id);
+        // For new items, we use a temporary ID until sync completes
+        // The actual ID will be assigned by the server
+        let savedItem: Record<string, unknown>;
+        if (isNewItem) {
+          // Use negative timestamp as temporary ID for new items
+          savedItem = { ...values, id: -Date.now() };
+        } else {
+          savedItem = { ...values, id: item.id };
         }
-      }
-
-      if (isNewItem && newId !== null) {
-        savedItem = { ...values, id: newId };
+        onSave(savedItem);
       } else {
-        savedItem = { ...values, id: item.id };
+        // Fallback: sync not available, show error
+        message.error("Synchronisation nicht verfügbar");
       }
-
-      onSave(savedItem);
     } catch (error) {
       console.error("Save error:", error);
       message.error("Fehler beim Speichern");

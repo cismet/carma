@@ -73,9 +73,29 @@ const getStatusIcon = (statusCode?: number, isCompleted?: boolean) => {
   );
 };
 
-// Get action emoji based on the action's status (open, done, exception)
+// Get action emoji based on the action type or status
 const getActionEmoji = (actionStatus: TaskItem["actionStatus"]) => {
   switch (actionStatus) {
+    // Action types
+    case "createObject":
+      return (
+        <span style={{ fontSize: 20 }} title="Neues Objekt erstellen">
+          ➕
+        </span>
+      );
+    case "editObject":
+      return (
+        <span style={{ fontSize: 20 }} title="Objekt bearbeiten">
+          ✏️
+        </span>
+      );
+    case "deleteObject":
+      return (
+        <span style={{ fontSize: 20 }} title="Objekt löschen">
+          🗑️
+        </span>
+      );
+    // Legacy status values
     case "open":
       return (
         <span style={{ fontSize: 20 }} title="Gestartet">

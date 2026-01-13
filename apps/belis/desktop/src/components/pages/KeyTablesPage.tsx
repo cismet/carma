@@ -1,12 +1,9 @@
 import { useEffect, useState, useRef } from "react";
-import {
-  fetchAllKeyTables,
-  // deleteDataByClassName,
-  removeDataByClassName,
-} from "../../helper/apiMethods";
+import { fetchAllKeyTables } from "../../helper/apiMethods";
 import { AppDispatch } from "../../store";
 import { useDispatch, useSelector } from "react-redux";
 import { getJWT } from "../../store/slices/auth";
+import { useSyncOptional } from "@carma-providers/syncing";
 import {
   setKeyTablesData,
   setKeyTablesErrors,
@@ -38,6 +35,7 @@ const KeyTablesPage = () => {
   const fetched = useSelector(getKeyTablesFetched);
   const [selectedTable, setSelectedTable] = useState<string | null>(null);
   const [selectedItem, setSelectedItem] = useState<SelectedItem | null>(null);
+  const sync = useSyncOptional();
 
   // Keep refs to current data and selectedItem to avoid stale closure in Modal.confirm callback
   // Update synchronously during render (not in useEffect which runs after)
@@ -139,7 +137,9 @@ const KeyTablesPage = () => {
     if (!currentSelectedItem) return;
 
     const newData = { ...dataRef.current };
-    const tableData = [...(newData[currentSelectedItem.tableName] as unknown[])];
+    const tableData = [
+      ...(newData[currentSelectedItem.tableName] as unknown[]),
+    ];
 
     // Check if this is a temporary unsaved item (created with -Date.now())
     // Temporary IDs are very large negative numbers (like -1736441234567)
@@ -162,12 +162,18 @@ const KeyTablesPage = () => {
     dispatch(setKeyTablesData(newData));
 
     // Select the saved item (with the new real ID)
-    setSelectedItem({ item: updatedItem, tableName: currentSelectedItem.tableName });
+    setSelectedItem({
+      item: updatedItem,
+      tableName: currentSelectedItem.tableName,
+    });
   };
 
   const handleAddItem = () => {
     if (!selectedTable) return;
-    const tableItems = dataRef.current[selectedTable] as Record<string, unknown>[];
+    const tableItems = dataRef.current[selectedTable] as Record<
+      string,
+      unknown
+    >[];
     const templateItem = tableItems[0] || {};
 
     // Create new item with same shape, empty values, and temporary negative id
@@ -191,15 +197,27 @@ const KeyTablesPage = () => {
     const isTemporaryUnsavedItem = itemId < -1000000000;
     if (isTemporaryUnsavedItem) {
       // New unsaved item - select first item in the list instead
-      const tableData = dataRef.current[selectedItem.tableName] as Record<string, unknown>[];
+      const tableData = dataRef.current[selectedItem.tableName] as Record<
+        string,
+        unknown
+      >[];
       if (tableData && tableData.length > 0) {
         // Apply sorting to match displayed order
-        const sortMode = keyTableDisplayConfig[selectedItem.tableName]?.sortMode;
+        const sortMode =
+          keyTableDisplayConfig[selectedItem.tableName]?.sortMode;
         let sortedItems = [...tableData];
         if (sortMode && sortMode !== "none") {
           sortedItems.sort((a, b) => {
-            const aText = getItemDisplayText(a, selectedItem.tableName, keyTableDisplayConfig);
-            const bText = getItemDisplayText(b, selectedItem.tableName, keyTableDisplayConfig);
+            const aText = getItemDisplayText(
+              a,
+              selectedItem.tableName,
+              keyTableDisplayConfig
+            );
+            const bText = getItemDisplayText(
+              b,
+              selectedItem.tableName,
+              keyTableDisplayConfig
+            );
             if (sortMode === "alphabetical") {
               return aText.localeCompare(bText, "de", { sensitivity: "base" });
             }
@@ -209,7 +227,10 @@ const KeyTablesPage = () => {
             return 0;
           });
         }
-        setSelectedItem({ item: sortedItems[0], tableName: selectedItem.tableName });
+        setSelectedItem({
+          item: sortedItems[0],
+          tableName: selectedItem.tableName,
+        });
       } else {
         setSelectedItem(null);
       }
@@ -229,14 +250,21 @@ const KeyTablesPage = () => {
 
         try {
           const apiClassName =
-            keyTableDisplayConfig[currentSelectedItem.tableName]?.apiClassName ||
-            currentSelectedItem.tableName;
-          await removeDataByClassName(
-            storedJWT,
-            apiClassName,
-            currentSelectedItem.item
-          );
-          message.success("Gelöscht");
+            keyTableDisplayConfig[currentSelectedItem.tableName]
+              ?.apiClassName || currentSelectedItem.tableName;
+
+          // Use syncedAction to queue the delete operation for offline sync
+          if (sync?.syncedAction) {
+            await sync.syncedAction("DeleteObject", {
+              className: apiClassName,
+              data: JSON.stringify(currentSelectedItem.item),
+              status: "open",
+            });
+            message.success("Löschaktion zur Synchronisation hinzugefügt");
+          } else {
+            message.error("Synchronisation nicht verfügbar");
+            return;
+          }
 
           // Remove from Redux state - use dataRef to get fresh data
           const currentItemId = currentSelectedItem.item.id as number;
