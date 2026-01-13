@@ -100,7 +100,18 @@ const KeyTableItemForm = ({
     }
   };
 
-  const fields = Object.entries(item).filter(([key]) => key !== "id");
+  const fieldOrder = keyTableDisplayConfig[tableName]?.fieldOrder;
+  const fields = Object.entries(item)
+    .filter(([key]) => key !== "id")
+    .sort((a, b) => {
+      if (!fieldOrder) return 0;
+      const indexA = fieldOrder.indexOf(a[0]);
+      const indexB = fieldOrder.indexOf(b[0]);
+      // Fields not in fieldOrder go to the end
+      const orderA = indexA === -1 ? Infinity : indexA;
+      const orderB = indexB === -1 ? Infinity : indexB;
+      return orderA - orderB;
+    });
   const ifTwoColumns = fields.length > 2;
 
   const handleValuesChange = () => {

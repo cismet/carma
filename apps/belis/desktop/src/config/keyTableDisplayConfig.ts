@@ -16,6 +16,7 @@ export interface KeyTableDisplayRule {
   apiClassName?: string; // API class name when it differs from the key
   fieldLabels?: Record<string, string>; // Override labels for form fields (key -> display label)
   displayName?: string; // Custom display name for the table in Column 1 (e.g., "Unterhalt - Mast")
+  fieldOrder?: string[]; // Order of fields in the form (fields not listed appear at the end)
 }
 
 export type KeyTableDisplayConfig = Record<string, KeyTableDisplayRule>;
@@ -52,6 +53,7 @@ export const keyTableDisplayConfig: KeyTableDisplayConfig = {
   },
   leuchtmittel: {
     template: "{hersteller} {lichtfarbe}",
+    fieldOrder: ["hersteller", "lichtfarbe"],
   },
   unterhaltMast: {
     template: "{pk} - {unterhalt_mast}",
@@ -78,6 +80,7 @@ export const keyTableDisplayConfig: KeyTableDisplayConfig = {
   },
   anlagengruppe: {
     template: "{nummer} - {bezeichnung}",
+    sortMode: "numeric",
   },
   // bezirk: {
   //   template: "{bezirk} - {unterhaltspflichtiger_leuchte}",
@@ -100,6 +103,7 @@ export const keyTableDisplayConfig: KeyTableDisplayConfig = {
     template: "{mastart}",
     sortMode: "alphabetical",
     apiClassName: "tkey_mastart",
+    fieldOrder: ["mastart", "pk"],
   },
   veranlassungsart: {
     template: "{schluessel} - {bezeichnung}",
