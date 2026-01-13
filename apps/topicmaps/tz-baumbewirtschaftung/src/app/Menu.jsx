@@ -3,6 +3,7 @@ import CustomizationContextProvider from "react-cismap/contexts/CustomizationCon
 import { UIDispatchContext } from "react-cismap/contexts/UIContextProvider";
 import DefaultSettingsPanel from "react-cismap/topicmaps/menu/DefaultSettingsPanel";
 import ModalApplicationMenu from "react-cismap/topicmaps/menu/ModalApplicationMenu";
+import Section from "react-cismap/topicmaps/menu/Section";
 import {
   KompaktanleitungSection,
   Footer,
@@ -11,6 +12,7 @@ import {
 import { GenericDigitalTwinReferenceSection } from "@carma-collab/wuppertal/commons";
 import versionData from "../version.json";
 import { getApplicationVersion } from "@carma-commons/utils";
+import { TaskPanel } from "@carma-providers/syncing";
 
 const Menu = () => {
   const { setAppMenuActiveMenuSection } = useContext(UIDispatchContext);
@@ -52,6 +54,13 @@ const Menu = () => {
             key="settings"
             skipClusteringSettings={true}
             getSymbolSVG={previewSVG}
+          />,
+          <Section
+            key="tasks"
+            sectionKey="tasks"
+            sectionTitle="Aktionen"
+            sectionBsStyle="warning"
+            sectionContent={<TaskPanel />}
           />,
           <KompaktanleitungSection />,
           <GenericDigitalTwinReferenceSection />,

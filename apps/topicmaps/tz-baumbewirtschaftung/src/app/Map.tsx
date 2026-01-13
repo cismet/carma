@@ -45,13 +45,14 @@ type LightboxDispatch = {
   setCaptions: (t: string[]) => void;
   setVisible: (v: boolean) => void;
 };
-const baseUrl = window.location.origin + window.location.pathname;
 
 const TZBaumbewirtschaftung = ({
   jwt,
+  login,
   onAuthError,
 }: {
   jwt?: string;
+  login?: string | null;
   onAuthError?: () => void;
 }) => {
   const { markerSymbolSize } = useContext(TopicMapStylingContext) as any;
@@ -190,6 +191,7 @@ const TZBaumbewirtschaftung = ({
                   <Modal
                     {...props}
                     lightBoxDispatchContext={lightBoxDispatchContext}
+                    jwt={jwt}
                   />
                 )}
               />
@@ -226,8 +228,8 @@ const TZBaumbewirtschaftung = ({
                       // add infoBoxControlObject
                       feature.properties.info = createInfoBoxControlObject(
                         feature,
-                        baseUrl,
-                        setShowStatusDialog
+                        setShowStatusDialog,
+                        jwt
                       );
                       feature.text = feature.properties.info.puretitle;
 

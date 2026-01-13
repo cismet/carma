@@ -66,3 +66,4 @@ deployment-config copy.json
 
 vite.config.*.timestamp*
 vitest.config.*.timestamp*
+.claude/

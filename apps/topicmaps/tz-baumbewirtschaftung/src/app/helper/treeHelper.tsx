@@ -1,4 +1,5 @@
 import Icon from "react-cismap/commons/Icon";
+import { transformImageUrl } from "./imageHelper";
 interface Feature {
   id: number;
   properties: {
@@ -222,8 +223,8 @@ export const enrichFeatureCollection = (fc: FeatureCollection) => {
 
 export const createInfoBoxControlObject = (
   feature: Feature,
-  baseUrl: string,
-  setShowStatusDialog: (show: boolean) => void
+  setShowStatusDialog: (show: boolean) => void,
+  jwt?: string | null
 ) => {
   const p = feature.properties;
   console.log("xxx feature.properties", p);
@@ -263,7 +264,7 @@ export const createInfoBoxControlObject = (
 
     const latestAction = sortedActions[0];
     if (latestAction?.payload?.pic) {
-      latestActionImage = baseUrl + latestAction.payload.pic;
+      latestActionImage = transformImageUrl(latestAction.payload.pic, jwt);
     }
   }
 
@@ -281,7 +282,10 @@ export const createInfoBoxControlObject = (
 
     sortedActions.forEach((action: any) => {
       if (action?.payload?.pic) {
-        fotos.push(baseUrl + action.payload.pic);
+        const transformedUrl = transformImageUrl(action.payload.pic, jwt);
+        if (transformedUrl) {
+          fotos.push(transformedUrl);
+        }
 
         // Create caption: "30.9.2025 08:40 ▶️ Gestartet - Zugang prüfen (thelkl)"
         const date = action.action_time ? new Date(action.action_time) : null;

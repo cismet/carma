@@ -3,6 +3,7 @@ import { Descriptions, Timeline } from "antd";
 import { faBullseye, faInfoCircle } from "@fortawesome/free-solid-svg-icons";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import Panel from "react-cismap/commons/Panel";
+import { transformImageUrl } from "./helper/imageHelper";
 
 interface Action {
   id: number;
@@ -128,10 +129,10 @@ const groupActionsByKey = (actions: Action[]) => {
 
 const getTimelineForActions = (
   actions: Action[],
-  baseUrl?: string,
   allPhotos?: string[],
   lightBoxDispatchContext?: any,
-  setOpen?: (open: boolean) => void
+  setOpen?: (open: boolean) => void,
+  jwt?: string | null
 ) => {
   if (actions.length === 0) return null;
 
@@ -167,11 +168,9 @@ const getTimelineForActions = (
                   color = "red";
                 }
 
-                // Get the action-specific image from payload
+                // Get the action-specific image from payload (pic is already a full URL)
                 const actionImage = action.payload?.pic
-                  ? (baseUrl ||
-                      window.location.origin + window.location.pathname) +
-                    action.payload.pic
+                  ? transformImageUrl(action.payload.pic, jwt)
                   : null;
 
                 // Find the index of this image in the allPhotos array
@@ -277,12 +276,14 @@ const SecondaryInfoModal = ({
   versionString = "???",
   Footer,
   lightBoxDispatchContext,
+  jwt,
 }: {
   feature?: FeatureType;
   setOpen?: (open: boolean) => void;
   versionString?: string;
   Footer?: React.ComponentType<any>;
   lightBoxDispatchContext?: any;
+  jwt?: string | null;
 }) => {
   const close = () => {
     setOpen(false);
@@ -290,12 +291,6 @@ const SecondaryInfoModal = ({
 
   const p = feature.properties || {};
   const actions = parseActions(p.actions);
-
-  // Extract baseUrl from the foto path
-  const fotoUrl = p.info?.foto || "";
-  const baseUrl = fotoUrl
-    ? fotoUrl.substring(0, fotoUrl.lastIndexOf("/demo/"))
-    : "";
 
   const title = `${p.baumart_botanisch || "Baum"} (${p.standort_nr || ""}.${
     p.zusatz || ""
@@ -391,10 +386,10 @@ const SecondaryInfoModal = ({
               <div style={{ marginTop: "8px" }}>
                 {getTimelineForActions(
                   actions,
-                  baseUrl,
                   allPhotos,
                   lightBoxDispatchContext,
-                  setOpen
+                  setOpen,
+                  jwt
                 )}
               </div>
             ) : (
