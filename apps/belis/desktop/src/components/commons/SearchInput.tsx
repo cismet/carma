@@ -9,7 +9,7 @@ interface SearchInputProps {
 export const SearchInput = ({
   value,
   onChange,
-  placeholder = "Suchen...",
+  placeholder = "Filtern...",
 }: SearchInputProps) => {
   return (
     <Input
