@@ -138,7 +138,7 @@ export const update3dCrossVisibility = (
   cross: Cross3DGroup,
   show: boolean
 ): void => {
-  console.debug(
-    `[3D Cross] Visibility control for primitives not yet implemented. ID: ${cross.id}, show: ${show}`
-  );
+  // console.debug(
+  //   `[3D Cross] Visibility control for primitives not yet implemented. ID: ${cross.id}, show: ${show}`
+  // );
 };

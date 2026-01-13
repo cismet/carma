@@ -96,8 +96,11 @@ export const useCesiumPointQuery = (
 
       updateCollection(setCollection, measurementConstructor, temporaryMode);
 
-      console.debug(
-        `[SceneClick] Created terrain point at elevation: ${height.toFixed(3)}m`
+      scene.requestRender();
+      console.log(
+        `[Measurement] Created terrain point at elevation: ${height.toFixed(
+          3
+        )}m`
       );
     }, ScreenSpaceEventType.LEFT_CLICK);
 

@@ -35,7 +35,12 @@ export function useCesiumMousePosition(
 
     handler.setInputAction((event: { endPosition: Cartesian2 }) => {
       const pickedPosition = scene.pickPosition(event.endPosition);
-      setMousePosition(pickedPosition || null);
+      if (pickedPosition) {
+        setMousePosition(pickedPosition);
+        scene.requestRender();
+      } else {
+        setMousePosition(null);
+      }
     }, ScreenSpaceEventType.MOUSE_MOVE);
 
     return () => {
