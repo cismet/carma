@@ -318,3 +318,12 @@ iframe {
 .strassen-grouping-select-dropdown .ant-select-item {
   font-size: 12px !important;
 }
+
+/* Fix input background to be white in production */
+.ant-input {
+  background-color: #ffffff !important;
+}
+
+.ant-input:not(:disabled) {
+  background-color: #ffffff !important;
+}
