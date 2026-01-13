@@ -45,7 +45,7 @@ const SetStatusDialog = ({
   const [imagePreview, setImagePreview] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState(false);
 
-  const { status: syncStatus, uploadAction } = useSync();
+  const { status: syncStatus, syncedAction } = useSync();
 
   const handleUploadChange = (info: any) => {
     if (info.file.status === "done") {
@@ -84,7 +84,7 @@ const SetStatusDialog = ({
 
       console.log("[SetStatusDialog] Uploading action:", actionPayload);
 
-      const actionId = await uploadAction(actionPayload);
+      const actionId = await syncedAction("uploadTzbTreeAction", actionPayload);
 
       console.log("[SetStatusDialog] Action uploaded with ID:", actionId);
       message.success("Aktion wurde gespeichert und wird synchronisiert");
