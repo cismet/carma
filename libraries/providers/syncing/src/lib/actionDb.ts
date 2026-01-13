@@ -133,7 +133,6 @@ export function setupReplication(
       queryBuilder: (checkpoint) => {
         const cp = checkpoint as { updatedAt?: string } | null;
         const lastUpdate = cp?.updatedAt || new Date(0).toISOString();
-        log("PULL: Fetching actions since", lastUpdate);
 
         return {
           query: `{
@@ -161,12 +160,11 @@ export function setupReplication(
         checkpoint: unknown
       ) => {
         const rawDocs = response as Record<string, unknown>[];
-        log("PULL: Received", rawDocs.length, "document(s)");
+        if (rawDocs.length > 0) {
+          log("PULL: Received", rawDocs.length, "document(s)");
+        }
 
         const docs: ActionDocumentWithDeleted[] = rawDocs.map((d) => {
-          log(
-            `  id=${d.id}, action=${d.action}, isCompleted=${d.isCompleted}`
-          );
           return {
             id: d.id as string,
             jwt: d.jwt as string,
@@ -196,8 +194,8 @@ export function setupReplication(
     retryTime: 6000,
   });
 
-  replicationState.active$.subscribe((active) => {
-    log("Replication active:", active);
+  replicationState.active$.subscribe(() => {
+    // Silent - only log errors
   });
 
   replicationState.error$.subscribe((err) => {
@@ -240,7 +238,6 @@ export function setupReplication(
 
   // Set up polling interval for periodic resync (like belis-online)
   const pollInterval = setInterval(() => {
-    log("POLL: Triggering periodic resync");
     replicationState.reSync();
   }, 5000);
 
