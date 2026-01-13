@@ -2,8 +2,7 @@
   "compilerOptions": {
     "allowJs": false,
     "esModuleInterop": false,
-    "allowSyntheticDefaultImports": true,
-    "strict": true
+    "allowSyntheticDefaultImports": true
   },
   "files": [],
   "include": [],
@@ -15,5 +14,5 @@
       "path": "./tsconfig.spec.json"
     }
   ],
-  "extends": "../../../../../tsconfig.base.json"
+  "extends": "../../../../../tsconfig.legacy.base.json"
 }

@@ -389,10 +389,10 @@ const MapWrapper = () => {
             <MeasurementControl
               position="topleft"
               order={60}
-              disabled={!isLeaflet || (isLeaflet && showLibreMap)}
+              disabled={isLeaflet && showLibreMap}
               useDisabledStyle={isLeaflet && showLibreMap}
               tooltip={
-                isCesium
+                isLeaflet && showLibreMap
                   ? "zum Messen zu 2D-Modus wechseln"
                   : isModeMeasurement
                   ? "Messungsmodus ausschalten"

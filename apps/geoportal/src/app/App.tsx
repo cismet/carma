@@ -1,5 +1,5 @@
 // Built-in Modules
-import { useMemo } from "react";
+import { useMemo, useEffect, useCallback, useRef } from "react";
 import { useDispatch, useSelector } from "react-redux";
 
 // 3rd party Modules
@@ -31,6 +31,13 @@ import {
   MapMeasurementsProvider,
   MEASUREMENT_MODE,
 } from "@carma-commons/measurements";
+import { LabelOverlayProvider } from "@carma-providers/label-overlay";
+import {
+  CesiumMeasurementsProvider,
+  useCesiumMeasurements,
+  MeasurementMode,
+  useCesiumOverlaySync,
+} from "@carma-mapping/engines/cesium/measurements";
 
 // Local Modules
 import AppErrorFallback from "./components/AppErrorFallback";
@@ -127,6 +134,45 @@ function MeasurementsWrapper({
   );
 }
 
+const CesiumMeasurementsSync = () => {
+  const { setMeasurementMode } = useCesiumMeasurements();
+  const uiMode = useSelector(getUIMode);
+
+  useEffect(() => {
+    if (uiMode === UIMode.MEASUREMENT) {
+      setMeasurementMode(MeasurementMode.PointQuery);
+    } else {
+      setMeasurementMode(MeasurementMode.NONE);
+    }
+  }, [uiMode, setMeasurementMode]);
+
+  return null;
+};
+
+const MeasurementsIntegration = ({
+  children,
+}: {
+  children: React.ReactNode;
+}) => {
+  const requestUpdateCallback = useCesiumOverlaySync();
+
+  const options = useMemo(
+    () => ({
+      pointQueries: { enabled: true, radius: 1 },
+    }),
+    []
+  );
+
+  return (
+    <LabelOverlayProvider requestUpdateCallback={requestUpdateCallback}>
+      <CesiumMeasurementsProvider options={options}>
+        {children}
+        <CesiumMeasurementsSync />
+      </CesiumMeasurementsProvider>
+    </LabelOverlayProvider>
+  );
+};
+
 function App({ published }: { published?: boolean }) {
   const dispatch = useDispatch();
   const showLoginModal = useSelector(getShowLoginModal);
@@ -186,48 +232,50 @@ function App({ published }: { published?: boolean }) {
                   setModeExternal={handleSetMode}
                   baseConfig={MEASUREMENTS_BASE_CONFIG}
                 >
-                  <ErrorBoundary FallbackComponent={AppErrorFallback}>
-                    <AdhocFeatureRehydration />
-                    <div className={TAILWIND_CLASSNAMES_FULLSCREEN_FIXED}>
-                      {isLoadingConfig && (
-                        <div
-                          id="loading"
-                          className="absolute flex flex-col items-center text-white justify-center h-screen w-full bg-black/50 z-[9999999999999]"
-                        >
-                          <h2>Lade Konfiguration</h2>
-                          <FontAwesomeIcon size="2x" icon={faSpinner} spin />
-                        </div>
-                      )}
-                      {!published && <TopNavbar />}
-                      <MapWrapper />
-                      <MobileWarningMessage
-                        headerText={mobileInfo.headerText}
-                        bodyText={mobileInfo.bodyText}
-                        confirmButtonText={mobileInfo.confirmButtonText}
-                      />
-
-                      <Modal
-                        open={showLoginModal}
-                        closable={false}
-                        footer={null}
-                        styles={{
-                          content: {
-                            padding: "0px",
-                            width: window.innerWidth < 600 ? "100%" : "450px",
-                          },
-                        }}
-                      >
-                        <LoginForm
-                          onSuccess={() => dispatch(setShowLoginModal(false))}
-                          closeLoginForm={() =>
-                            dispatch(setShowLoginModal(false))
-                          }
-                          showHelpText={false}
-                          style={{ padding: "20px" }}
+                  <MeasurementsIntegration>
+                    <ErrorBoundary FallbackComponent={AppErrorFallback}>
+                      <AdhocFeatureRehydration />
+                      <div className={TAILWIND_CLASSNAMES_FULLSCREEN_FIXED}>
+                        {isLoadingConfig && (
+                          <div
+                            id="loading"
+                            className="absolute flex flex-col items-center text-white justify-center h-screen w-full bg-black/50 z-[9999999999999]"
+                          >
+                            <h2>Lade Konfiguration</h2>
+                            <FontAwesomeIcon size="2x" icon={faSpinner} spin />
+                          </div>
+                        )}
+                        {!published && <TopNavbar />}
+                        <MapWrapper />
+                        <MobileWarningMessage
+                          headerText={mobileInfo.headerText}
+                          bodyText={mobileInfo.bodyText}
+                          confirmButtonText={mobileInfo.confirmButtonText}
                         />
-                      </Modal>
-                    </div>
-                  </ErrorBoundary>
+
+                        <Modal
+                          open={showLoginModal}
+                          closable={false}
+                          footer={null}
+                          styles={{
+                            content: {
+                              padding: "0px",
+                              width: window.innerWidth < 600 ? "100%" : "450px",
+                            },
+                          }}
+                        >
+                          <LoginForm
+                            onSuccess={() => dispatch(setShowLoginModal(false))}
+                            closeLoginForm={() =>
+                              dispatch(setShowLoginModal(false))
+                            }
+                            showHelpText={false}
+                            style={{ padding: "20px" }}
+                          />
+                        </Modal>
+                      </div>
+                    </ErrorBoundary>
+                  </MeasurementsIntegration>
                 </MeasurementsWrapper>
               </ObliqueProvider>
             </CarmaMapProviderWrapper>

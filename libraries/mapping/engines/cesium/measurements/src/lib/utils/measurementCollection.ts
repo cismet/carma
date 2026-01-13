@@ -19,6 +19,9 @@ export const updateLastOfMeasurementType =
     const measurement = isConstructor(entryOrConstructor)
       ? entryOrConstructor(prev)
       : entryOrConstructor;
+
+    if (!measurement) return prev;
+
     const type = measurement.type;
     const existingIndex = prev
       .map((m, i) => ({ m, i }))

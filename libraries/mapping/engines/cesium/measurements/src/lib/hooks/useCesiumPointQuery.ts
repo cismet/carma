@@ -89,7 +89,7 @@ export const useCesiumPointQuery = (
           geometryWGS84: {
             longitude: geometryWGS84.longitude,
             latitude: geometryWGS84.latitude,
-            height: geometryWGS84.altitude,
+            height: geometryWGS84.altitude ?? 0,
           },
           timestamp: new Date().getTime(),
         };
@@ -99,9 +99,9 @@ export const useCesiumPointQuery = (
 
       scene.requestRender();
       console.log(
-        `[Measurement] Created terrain point at elevation: ${height.toFixed(
-          3
-        )}m`
+        `[Measurement] Created terrain point at elevation: ${(
+          height ?? 0
+        ).toFixed(3)}m`
       );
     }, ScreenSpaceEventType.LEFT_CLICK);
 
