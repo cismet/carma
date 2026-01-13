@@ -37,6 +37,7 @@ export interface SyncStatus {
 export interface TaskItem {
   id: string;
   action: string;
+  actionStatus: "open" | "done" | "exception" | "unknown";
   datum: string;
   fachobjekt: string;
   beschreibung: string;
@@ -69,9 +70,16 @@ function actionToTask(doc: any): TaskItem {
     // ignore
   }
 
+  // Extract action status from payload (open, done, exception)
+  let actionStatus: "open" | "done" | "exception" | "unknown" = "unknown";
+  if (params.status === "open" || params.status === "done" || params.status === "exception") {
+    actionStatus = params.status;
+  }
+
   return {
     id: doc.id,
     action: doc.action,
+    actionStatus,
     datum: doc.updatedAt || doc.createdAt,
     fachobjekt: params.fk_tree ? `Baum ${params.fk_tree}` : "Baum",
     beschreibung: params.description || params.status_reason || doc.action,
@@ -135,11 +143,24 @@ export function SyncProvider({ children, jwt, login }: SyncProviderProps) {
 
         setReplicationState(replState);
 
-        // Subscribe to active state
+        // Subscribe to active state (WebSocket live sync)
         replState.active$.subscribe((active: boolean) => {
-          console.log(LOG_PREFIX, "Connection active:", active);
-          setStatus((s) => ({ ...s, isConnected: active }));
+          console.log(LOG_PREFIX, "WebSocket active:", active);
         });
+
+        // Track if sync is working based on successful operations
+        replState.sent$.subscribe(() => {
+          console.log(LOG_PREFIX, "Push successful - marking as connected");
+          setStatus((s) => ({ ...s, isConnected: true }));
+        });
+
+        replState.received$.subscribe(() => {
+          console.log(LOG_PREFIX, "Pull successful - marking as connected");
+          setStatus((s) => ({ ...s, isConnected: true }));
+        });
+
+        // Mark as connected initially if replication starts without error
+        setStatus((s) => ({ ...s, isConnected: true }));
 
         // Subscribe to actions collection for task list
         const { appId } = APP_CONFIG.sync;

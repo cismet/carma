@@ -13,6 +13,7 @@ import { useSyncOptional, TaskItem } from "../../core/sync";
 
 const { Text } = Typography;
 
+// Get sync status icon (server/sync status)
 const getStatusIcon = (statusCode?: number, isCompleted?: boolean) => {
   if (isCompleted && statusCode === 200) {
     return (
@@ -71,12 +72,17 @@ const getStatusIcon = (statusCode?: number, isCompleted?: boolean) => {
   );
 };
 
-const getActionIcon = (action: string) => {
-  switch (action) {
-    case "uploadTzbTreeAction":
-      return "🌳";
+// Get action emoji based on the action's status (open, done, exception)
+const getActionEmoji = (actionStatus: TaskItem["actionStatus"]) => {
+  switch (actionStatus) {
+    case "open":
+      return <span style={{ fontSize: 20 }} title="Gestartet">▶️</span>;
+    case "done":
+      return <span style={{ fontSize: 20 }} title="Abgeschlossen">✅</span>;
+    case "exception":
+      return <span style={{ fontSize: 20 }} title="Ausnahme">⚠️</span>;
     default:
-      return "📋";
+      return <span style={{ fontSize: 20 }} title="Unbekannt">❓</span>;
   }
 };
 
@@ -114,13 +120,11 @@ const TaskPanel = () => {
   const columns = [
     {
       title: "Aktion",
-      dataIndex: "action",
+      dataIndex: "actionStatus",
       key: "action",
       align: "center" as const,
       width: 80,
-      render: (action: string) => (
-        <Text style={{ fontSize: 20 }}>{getActionIcon(action)}</Text>
-      ),
+      render: (_: unknown, record: TaskItem) => getActionEmoji(record.actionStatus),
     },
     {
       title: "Datum",
@@ -147,7 +151,7 @@ const TaskPanel = () => {
       key: "status",
       align: "center" as const,
       width: 80,
-      render: (_: any, record: TaskItem) =>
+      render: (_: unknown, record: TaskItem) =>
         getStatusIcon(record.statusCode, record.isCompleted),
     },
   ];
