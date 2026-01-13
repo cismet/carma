@@ -1,5 +1,20 @@
-import { UploadOutlined, SyncOutlined, CheckCircleOutlined, WarningOutlined } from "@ant-design/icons";
-import { Button, Form, Input, Modal, Radio, Typography, Upload, message, Tooltip } from "antd";
+import {
+  UploadOutlined,
+  SyncOutlined,
+  CheckCircleOutlined,
+  WarningOutlined,
+} from "@ant-design/icons";
+import {
+  Button,
+  Form,
+  Input,
+  Modal,
+  Radio,
+  Typography,
+  Upload,
+  message,
+  Tooltip,
+} from "antd";
 import TextArea from "antd/lib/input/TextArea";
 import { useState } from "react";
 import { useSync } from "@carma-providers/syncing";
@@ -192,7 +207,7 @@ const SetStatusDialog = ({
       cancelText="Abbrechen"
       okButtonProps={{
         loading: isSaving,
-        disabled: !syncStatus.isReady
+        disabled: true, // TODO: Enable when sync backend is ready:  !syncStatus.isReady
       }}
     >
       <Form
@@ -299,7 +314,14 @@ const SetStatusDialog = ({
 
       {/* Debug info in development */}
       {syncStatus.pendingCount > 0 && (
-        <div style={{ marginTop: 16, padding: 8, background: "#fffbe6", borderRadius: 4 }}>
+        <div
+          style={{
+            marginTop: 16,
+            padding: 8,
+            background: "#fffbe6",
+            borderRadius: 4,
+          }}
+        >
           <Text type="secondary" style={{ fontSize: 12 }}>
             <SyncOutlined spin style={{ marginRight: 4 }} />
             {syncStatus.pendingCount} Aktion(en) werden synchronisiert...
