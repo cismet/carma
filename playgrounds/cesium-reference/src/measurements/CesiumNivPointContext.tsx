@@ -1,16 +1,20 @@
-import React, { createContext, useContext, useState, useMemo } from "react";
+import React, { createContext, useContext, useMemo, useState } from "react";
+
+import { PointPrimitiveCollection } from "cesium";
+
+import { FESTPUNKTE_WUPPERTAL } from "@carma-commons/resources";
+
 import { useCesiumViewer } from "../contexts/CesiumViewerContext";
 import { useNivPoints } from "./hooks/useNivPoints";
-import { FESTPUNKTE_WUPPERTAL } from "@carma-commons/resources";
-import { Entity } from "cesium";
+import { TransformedNivPoint } from "./types/NivPointTypes";
 
 interface CesiumNivPointContextType {
   showNivPoints: boolean;
-  nivPointEntities?: Entity[];
+  pointCollection?: PointPrimitiveCollection | null;
   setShowNivPoints: (show: boolean) => void;
   showHistoricNivPoints?: boolean;
   setShowHistoricNivPoints: (show: boolean) => void;
-  nearestNivPoint?: Entity;
+  nearestNivPoint?: TransformedNivPoint | null;
 }
 
 const CesiumNivPointContext = createContext<
@@ -29,8 +33,8 @@ export const CesiumNivPointProvider: React.FC<CesiumNivPointProviderProps> = ({
   const [showNivPoints, setShowNivPoints] = useState(true);
   const [showHistoricNivPoints, setShowHistoricNivPoints] = useState(false);
 
-  const { entities: nivPointEntities, nearestNivPoint } = useNivPoints(
-    viewer,
+  const { pointCollection, nearestNivPoint } = useNivPoints(
+    viewer?.scene ?? null,
     FESTPUNKTE_WUPPERTAL,
     showNivPoints,
     showHistoricNivPoints
@@ -39,7 +43,7 @@ export const CesiumNivPointProvider: React.FC<CesiumNivPointProviderProps> = ({
   const contextValue = useMemo(
     () => ({
       showNivPoints,
-      nivPointEntities,
+      pointCollection,
       setShowNivPoints,
       showHistoricNivPoints,
       setShowHistoricNivPoints,
@@ -47,7 +51,7 @@ export const CesiumNivPointProvider: React.FC<CesiumNivPointProviderProps> = ({
     }),
     [
       showNivPoints,
-      nivPointEntities,
+      pointCollection,
       setShowNivPoints,
       showHistoricNivPoints,
       setShowHistoricNivPoints,

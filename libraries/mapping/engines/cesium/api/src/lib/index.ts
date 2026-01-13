@@ -7,6 +7,7 @@
 
 // Pure re-exports from Cesium
 export {
+  Cartesian4,
   ClassificationType,
   ClippingPlaneCollection,
   ClippingPolygonCollection,
@@ -14,9 +15,9 @@ export {
   ColorMaterialProperty,
   ConstantProperty,
   defined,
-  Ellipsoid,
   // Entity intentionally left out - use PrimitiveCollections in Scene instead
   // EasingFunction // EquivalentEasing is @carma-commons/math
+  Ellipsoid,
   GeometryInstance,
   GroundPolylineGeometry,
   GroundPolylinePrimitive,
@@ -25,6 +26,7 @@ export {
   Material,
   Matrix3,
   Matrix4,
+  PointPrimitiveCollection,
   PolygonGeometry,
   PolygonHierarchy,
   Polyline,

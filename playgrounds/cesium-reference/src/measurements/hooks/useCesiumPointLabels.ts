@@ -1,12 +1,12 @@
-import { useMemo, useState, useEffect } from "react";
+import { useEffect, useMemo, useState } from "react";
 
-import { defined } from "cesium";
+import { Cartesian2, SceneTransforms, defined, type Scene } from "cesium";
 
 import {
   usePointLabels,
   type PointLabelData,
 } from "@carma-providers/label-overlay";
-import { useCesiumViewer } from "../../contexts/CesiumViewerContext";
+
 import { PointMeasurementEntry } from "../types/MeasurementTypes";
 import { formatNumberToEnclosed } from "../utils/cesiumLabels";
 import {
@@ -19,11 +19,11 @@ const VIEWPORT_PADDING_HORIZONTAL = 100; // pixels
 const VIEWPORT_PADDING_VERTICAL = 50; // pixels
 
 export const useCesiumPointLabels = (
+  scene: Scene | null,
   points: PointMeasurementEntry[],
   showLabels: boolean,
   referenceElevation: number = 0
 ) => {
-  const { viewer } = useCesiumViewer();
   const [occlusionResults, setOcclusionResults] = useState<
     Record<string, boolean>
   >({});
@@ -34,14 +34,14 @@ export const useCesiumPointLabels = (
 
   // Cesium-specific visibility and occlusion detection
   useEffect(() => {
-    if (!viewer || viewer.isDestroyed() || !showLabels) return;
+    if (!scene || scene.isDestroyed() || !showLabels) return;
 
     const checkVisibilityAndOcclusion = () => {
       const newOcclusionResults: Record<string, boolean> = {};
       const newHiddenResults: Record<string, boolean> = {};
 
       // Get current camera pitch once per frame for all points
-      const currentPitch = viewer.scene.camera.pitch;
+      const currentPitch = scene.camera.pitch;
       if (Math.abs(currentPitch - cameraPitch) > 0.01) {
         // 0.01 radian threshold
         setCameraPitch(currentPitch);
@@ -49,7 +49,8 @@ export const useCesiumPointLabels = (
 
       points.forEach((point) => {
         // Convert 3D position to screen coordinates
-        const canvasPosition = viewer.scene.cartesianToCanvasCoordinates(
+        const canvasPosition = SceneTransforms.worldToWindowCoordinates(
+          scene,
           point.geometryECEF
         );
 
@@ -63,8 +64,8 @@ export const useCesiumPointLabels = (
         // Check if point is within viewport bounds with padding for smooth transitions
         const inViewport = isPointInViewport(
           canvasPosition,
-          viewer.canvas.clientWidth,
-          viewer.canvas.clientHeight,
+          scene.canvas.clientWidth,
+          scene.canvas.clientHeight,
           VIEWPORT_PADDING_HORIZONTAL,
           VIEWPORT_PADDING_VERTICAL
         );
@@ -81,7 +82,7 @@ export const useCesiumPointLabels = (
 
         // Check if point is occluded by terrain or other geometry
         newOcclusionResults[point.id] = isPointOccluded(
-          viewer,
+          scene,
           point.geometryECEF,
           canvasPosition,
           1.0 // 1 meter tolerance
@@ -106,7 +107,7 @@ export const useCesiumPointLabels = (
 
     // Check visibility and occlusion when camera stops moving (not every frame)
     // This matches the polyline behavior and prevents competition with tileset rendering
-    const removeMoveEndListener = viewer.camera.moveEnd.addEventListener(
+    const removeMoveEndListener = scene.camera.moveEnd.addEventListener(
       checkVisibilityAndOcclusion
     );
 
@@ -119,7 +120,7 @@ export const useCesiumPointLabels = (
       }
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [viewer, points, showLabels, cameraPitch]);
+  }, [scene, points, showLabels, cameraPitch]);
 
   // Transform measurement points to point label data
   const pointLabelData: PointLabelData[] = useMemo(
@@ -128,8 +129,9 @@ export const useCesiumPointLabels = (
         id: point.id,
         getCanvasPosition: () => {
           // Fresh screen coordinate calculation at render time
-          if (!viewer || viewer.isDestroyed()) return null;
-          const canvasPosition = viewer.scene.cartesianToCanvasCoordinates(
+          if (!scene || scene.isDestroyed()) return null;
+          const canvasPosition = SceneTransforms.worldToWindowCoordinates(
+            scene,
             point.geometryECEF
           );
           return defined(canvasPosition)
@@ -150,7 +152,7 @@ export const useCesiumPointLabels = (
       referenceElevation,
       occlusionResults,
       hiddenResults,
-      viewer,
+      scene,
       cameraPitch,
     ]
   );

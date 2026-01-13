@@ -1,45 +1,40 @@
 import { useEffect, useRef, useState } from "react";
+
 import {
   Cartesian2,
   Cartesian3,
-  ScreenSpaceEventType,
   ScreenSpaceEventHandler,
-  Viewer,
+  ScreenSpaceEventType,
+  type Scene,
 } from "cesium";
 
 export function useCesiumMousePosition(
-  viewer: Viewer | null,
+  scene: Scene | null,
   enabled: boolean = true
 ) {
   const [mousePosition, setMousePosition] = useState<Cartesian3 | null>(null);
   const handlerRef = useRef<ScreenSpaceEventHandler | null>(null);
 
   useEffect(() => {
-    if (
-      !viewer ||
-      viewer.isDestroyed() ||
-      !viewer.scene ||
-      viewer.scene.isDestroyed() ||
-      !enabled
-    ) {
+    if (!scene || scene.isDestroyed() || !enabled) {
       if (handlerRef.current) {
         handlerRef.current.destroy();
         handlerRef.current = null;
       }
       setMousePosition(null);
       // Reset cursor
-      //if (viewer.scene?.canvas) {viewer.scene.canvas.style.cursor = ""; }
+      //if (scene.canvas) {scene.canvas.style.cursor = ""; }
       return;
     }
 
-    const handler = new ScreenSpaceEventHandler(viewer.scene.canvas);
+    const handler = new ScreenSpaceEventHandler(scene.canvas);
     handlerRef.current = handler;
 
     // Set crosshair cursor when measurement mode is active
-    viewer.scene.canvas.style.cursor = "crosshair";
+    scene.canvas.style.cursor = "crosshair";
 
     handler.setInputAction((event: { endPosition: Cartesian2 }) => {
-      const pickedPosition = viewer.scene.pickPosition(event.endPosition);
+      const pickedPosition = scene.pickPosition(event.endPosition);
       setMousePosition(pickedPosition || null);
     }, ScreenSpaceEventType.MOUSE_MOVE);
 
@@ -49,11 +44,11 @@ export function useCesiumMousePosition(
         handlerRef.current = null;
       }
       // Reset cursor when cleaning up
-      if (viewer && viewer.scene?.canvas) {
-        viewer.scene.canvas.style.cursor = "";
+      if (scene && !scene.isDestroyed()) {
+        scene.canvas.style.cursor = "";
       }
     };
-  }, [viewer, enabled]);
+  }, [scene, enabled]);
 
   return mousePosition;
 }

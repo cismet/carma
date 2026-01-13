@@ -9,12 +9,11 @@ const { Text } = Typography;
 export const NivPointPanel: FC = () => {
   const { nearestNivPoint } = useCesiumNivPoints();
 
-  const nivp = nearestNivPoint?.properties.nivpData.getValue();
-  console.debug("NivPointPanel", nivp);
+  console.debug("NivPointPanel", nearestNivPoint);
   return (
     <Card size="small">
-      {nivp ? (
-        <NivPointInfo nivp={nivp} />
+      {nearestNivPoint ? (
+        <NivPointInfo nivp={nearestNivPoint} />
       ) : (
         <Text type="secondary" style={{ fontSize: 11 }}>
           Kein Höhenfestpunkt gefunden,

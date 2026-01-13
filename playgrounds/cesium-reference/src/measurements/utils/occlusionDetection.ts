@@ -1,33 +1,33 @@
-import { Viewer, Cartesian3, Cartesian2, defined } from "cesium";
+import { Cartesian2, Cartesian3, defined, type Scene } from "cesium";
 
 /**
  * Checks if a 3D point is occluded by terrain or other geometry
- * @param viewer - The Cesium viewer instance
+ * @param scene - The Cesium scene instance
  * @param point3D - The 3D position to check for occlusion
  * @param canvasPosition - The screen coordinates of the point
  * @param tolerance - Distance tolerance in meters (default: 1.0)
  * @returns true if the point is occluded, false otherwise
  */
 export function isPointOccluded(
-  viewer: Viewer,
+  scene: Scene,
   point3D: Cartesian3,
   canvasPosition: Cartesian2,
   tolerance: number = 1.0
 ): boolean {
-  if (!viewer || viewer.isDestroyed()) {
+  if (!scene || scene.isDestroyed()) {
     return false;
   }
 
   // Use Cesium's scene.pick to test visibility against depth buffer
-  const pickedObject = viewer.scene.pick(canvasPosition);
+  const pickedObject = scene.pick(canvasPosition);
 
   if (defined(pickedObject)) {
     // Get the depth of the picked object
-    const pickedCartesian = viewer.scene.pickPosition(canvasPosition);
+    const pickedCartesian = scene.pickPosition(canvasPosition);
 
     if (defined(pickedCartesian)) {
       // Calculate distances from camera
-      const cameraPosition = viewer.scene.camera.position;
+      const cameraPosition = scene.camera.position;
       const pointDistance = Cartesian3.distance(cameraPosition, point3D);
       const pickedDistance = Cartesian3.distance(
         cameraPosition,

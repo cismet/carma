@@ -6,13 +6,13 @@ import { useCRS } from "../CRSContext";
 export const NivPointControls: FC = () => {
   const {
     showNivPoints,
-    nivPointEntities,
+    pointCollection,
     setShowNivPoints,
     showHistoricNivPoints,
     setShowHistoricNivPoints,
   } = useCesiumNivPoints();
   const { verticalDatum, setVerticalDatum } = useCRS();
-  const pointCount = nivPointEntities ? nivPointEntities.length : 0;
+  const pointCount = pointCollection ? pointCollection.length : 0;
   return (
     <>
       <Checkbox

@@ -1,10 +1,10 @@
 import { Dispatch, SetStateAction, useEffect, useRef } from "react";
 
-import type { Cartesian3, Viewer } from "cesium";
+import type { Cartesian3, Scene } from "cesium";
 import {
   Cartesian2,
-  ScreenSpaceEventType,
   ScreenSpaceEventHandler,
+  ScreenSpaceEventType,
 } from "cesium";
 
 import {
@@ -21,7 +21,7 @@ import { toGeographicDegrees } from "../utils/geo";
 import { useCesiumMousePosition } from "./useCesiumMousePosition";
 
 export const useCesiumPointQuery = (
-  viewer: Viewer | null,
+  scene: Scene | null,
   enabled: boolean = true,
   setCollection: Dispatch<SetStateAction<MeasurementCollection>>,
   temporaryMode: boolean = true,
@@ -31,7 +31,7 @@ export const useCesiumPointQuery = (
   const prevTemporaryModeRef = useRef(temporaryMode);
 
   // Use mouse position hook to track cursor and show crosshair
-  const mousePosition = useCesiumMousePosition(viewer, enabled);
+  const mousePosition = useCesiumMousePosition(scene, enabled);
 
   // Handle temporary-to-permanent conversion when temporary mode is turned off
   useEffect(() => {
@@ -46,7 +46,7 @@ export const useCesiumPointQuery = (
   }, [temporaryMode, setCollection]);
 
   useEffect(() => {
-    if (!viewer || viewer.isDestroyed() || !enabled) {
+    if (!scene || scene.isDestroyed() || !enabled) {
       // Clean up if disabled
       if (handlerRef.current) {
         handlerRef.current.destroy();
@@ -57,12 +57,12 @@ export const useCesiumPointQuery = (
 
     console.debug("[SceneClick] Enabling terrain click handler");
     // Create click handler
-    const handler = new ScreenSpaceEventHandler(viewer.scene.canvas);
+    const handler = new ScreenSpaceEventHandler(scene.canvas);
     handlerRef.current = handler;
 
     handler.setInputAction((event: { position: Cartesian2 }) => {
       // Try to pick terrain/mesh position
-      const pickedPosition = viewer.scene.pickPosition(event.position);
+      const pickedPosition = scene.pickPosition(event.position);
 
       if (!pickedPosition) {
         console.debug("[SceneClick] No position picked");
@@ -71,7 +71,7 @@ export const useCesiumPointQuery = (
 
       const geometryWGS84 = toGeographicDegrees(
         pickedPosition,
-        viewer.scene.globe.ellipsoid
+        scene.globe.ellipsoid
       );
       const { height } = geometryWGS84;
 
@@ -110,7 +110,7 @@ export const useCesiumPointQuery = (
       }
       console.debug("[SceneClick] Terrain click handler cleaned up");
     };
-  }, [viewer, enabled, radius, temporaryMode, setCollection]);
+  }, [scene, enabled, radius, temporaryMode, setCollection]);
 
   return {
     mousePosition, // Current mouse position in 3D space

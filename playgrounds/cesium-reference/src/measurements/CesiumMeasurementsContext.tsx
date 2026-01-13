@@ -105,6 +105,7 @@ export const CesiumMeasurementsProvider: React.FC<
   CesiumMeasurementsProviderProps
 > = ({ children, options }) => {
   const { viewer, tilesetReady } = useCesiumViewer();
+  const scene = viewer?.scene ?? null;
 
   const pointQueryOptions = normalizeOptions(
     options?.pointQueries,
@@ -143,15 +144,15 @@ export const CesiumMeasurementsProvider: React.FC<
   >(new Set());
 
   const referenceElevation = useMemo(() => {
-    if (!referencePoint || !viewer) return 0;
+    if (!referencePoint || !scene) return 0;
     const cartographic =
-      viewer.scene.globe.ellipsoid.cartesianToCartographic(referencePoint);
+      scene.globe.ellipsoid.cartesianToCartographic(referencePoint);
     return cartographic?.height ?? 0;
-  }, [referencePoint, viewer]);
+  }, [referencePoint, scene]);
 
   // point query hooks
   useCesiumPointQuery(
-    viewer,
+    scene,
     measurementMode === MeasurementMode.PointQuery,
     setMeasurements,
     temporaryMode,
@@ -165,7 +166,7 @@ export const CesiumMeasurementsProvider: React.FC<
     !hideLabelsOfType.has(MeasurementMode.PointQuery);
 
   useCesiumPointVisualizer(
-    viewer,
+    scene,
     measurements,
     showPoints,
     true,
@@ -186,7 +187,7 @@ export const CesiumMeasurementsProvider: React.FC<
     );
 
   const mousePosition = useCesiumMousePosition(
-    viewer,
+    scene,
     measurementMode === MeasurementMode.Traverse
   );
 

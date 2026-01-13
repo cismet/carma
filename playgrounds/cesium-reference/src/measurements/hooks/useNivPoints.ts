@@ -1,14 +1,10 @@
-import { useEffect, useState, useRef } from "react";
-import type { Viewer } from "cesium";
+import { useEffect, useRef, useState } from "react";
+
 import {
-  Cartesian2,
   Cartesian3,
   Color,
-  Entity,
-  HeightReference,
-  HorizontalOrigin,
-  LabelStyle,
-  VerticalOrigin,
+  PointPrimitiveCollection,
+  type Scene,
 } from "cesium";
 
 import { PROJ4_CONVERTERS } from "@carma-commons/utils";
@@ -16,11 +12,6 @@ import { NivPoint, TransformedNivPoint } from "../types/NivPointTypes";
 import { isPointMeasurementEntry } from "../types/MeasurementTypes";
 import { useCesiumMeasurements } from "../CesiumMeasurementsContext";
 import { useCRS, VerticalDatum } from "../CRSContext";
-import {
-  LABEL_FONT,
-  SCALE_BY_DISTANCE,
-  SCALE_BY_DISTANCE_POINTS,
-} from "../utils/cesiumLabels";
 
 const getElevationValue = (
   point: NivPoint,
@@ -39,7 +30,7 @@ const getElevationValue = (
 };
 
 export const useNivPoints = (
-  viewer: Viewer | null,
+  scene: Scene | null,
   uri: string,
   enabled: boolean = true,
   includeHistoric: boolean = false
@@ -49,17 +40,19 @@ export const useNivPoints = (
 
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [allPoints, setAllPoints] = useState<TransformedNivPoint[]>([]); // Session permanent objects
+  const [allPoints, setAllPoints] = useState<TransformedNivPoint[]>([]);
   const [filteredPoints, setFilteredPoints] = useState<TransformedNivPoint[]>(
     []
   );
-  const [entities, setEntities] = useState<Entity[]>([]);
-  const [nearestNivPoint, setNearestNivPoint] = useState<Entity | null>(null);
-  const currentEntitiesRef = useRef<Entity[]>([]);
+  const pointPrimitiveCollectionRef = useRef<PointPrimitiveCollection | null>(
+    null
+  );
+  const [nearestNivPoint, setNearestNivPoint] =
+    useState<TransformedNivPoint | null>(null);
 
   // Load and transform data once per session
   useEffect(() => {
-    if (!viewer || !enabled) return;
+    if (!scene || !enabled) return;
 
     const loadNivPData = async () => {
       setIsLoading(true);
@@ -147,7 +140,7 @@ export const useNivPoints = (
     };
 
     loadNivPData();
-  }, [viewer, uri, verticalDatum, enabled]); // Include verticalDatum for initial transformation
+  }, [scene, uri, verticalDatum, enabled]);
 
   // Filter points based on historic toggle and elevation standard
   useEffect(() => {
@@ -214,143 +207,99 @@ export const useNivPoints = (
     setFilteredPoints(updatedPoints);
   }, [allPoints, includeHistoric, verticalDatum]);
 
+  // Create and manage primitives
   useEffect(() => {
-    if (!viewer || !enabled || filteredPoints.length === 0) return;
+    if (!scene || !enabled || filteredPoints.length === 0) return;
 
-    console.debug(`[NIVP] Creating ${filteredPoints.length} point entities...`);
+    console.debug(
+      `[NIVP] Creating ${filteredPoints.length} point primitives...`
+    );
 
-    const newEntities: Entity[] = filteredPoints.map((point) => {
-      // Historical points without valid elevation are positioned at 0.5m above ground
+    // Create or get the PointPrimitiveCollection
+    if (!pointPrimitiveCollectionRef.current) {
+      pointPrimitiveCollectionRef.current = scene.primitives.add(
+        new PointPrimitiveCollection()
+      );
+    }
+
+    const pointCollection = pointPrimitiveCollectionRef.current;
+
+    // Add each point as a primitive
+    filteredPoints.forEach((point) => {
       const isClampedHistorical = point.historisch && !point.hasValidElevation;
 
-      const entity = new Entity({
-        id: `nivp-point-${point.id}`,
-        name: `NivP Point ${point.laufende_nummer}`,
-        properties: {
-          nivpData: point,
-        },
+      pointCollection.add({
         position: point.cartesian,
-        point: {
-          pixelSize: 5,
-          scaleByDistance: SCALE_BY_DISTANCE_POINTS,
-          color: point.hasValidElevation
-            ? Color.WHITE
-            : isClampedHistorical
-            ? Color.YELLOW
-            : Color.LIGHTGRAY,
-          outlineColor: Color.BLACK.withAlpha(0.8),
-          outlineWidth: 1,
-          // Use CLAMP_TO_3D_TILE to add the 0.5m offset to whatever surface is below
-          heightReference: point.hasValidElevation
-            ? HeightReference.NONE
-            : HeightReference.CLAMP_TO_3D_TILE,
-          disableDepthTestDistance: 200,
-        },
-        label: {
-          text: point.hasValidElevation
-            ? `${point.currentElevation.toFixed(2)}`
-            : isClampedHistorical
-            ? `~${point.currentElevation.toFixed(1)}m+`
-            : "No Data",
-          font: LABEL_FONT,
-          fillColor: point.hasValidElevation
-            ? Color.WHITE
-            : isClampedHistorical
-            ? Color.YELLOW
-            : Color.LIGHTGRAY,
-          showBackground: false,
-          outlineColor: Color.BLACK.withAlpha(0.9),
-          outlineWidth: 2,
-          style: LabelStyle.FILL_AND_OUTLINE,
-          pixelOffset: new Cartesian2(5, -8),
-          horizontalOrigin: HorizontalOrigin.LEFT,
-          verticalOrigin: VerticalOrigin.BASELINE,
-          scaleByDistance: SCALE_BY_DISTANCE,
-          disableDepthTestDistance: 200,
-        },
+        pixelSize: 5,
+        color: point.hasValidElevation
+          ? Color.WHITE
+          : isClampedHistorical
+          ? Color.YELLOW
+          : Color.LIGHTGRAY,
+        outlineColor: Color.BLACK.withAlpha(0.8),
+        outlineWidth: 1,
+        id: `nivp-point-${point.id}`,
       });
-
-      return entity;
-    });
-
-    setEntities(newEntities);
-    currentEntitiesRef.current = newEntities;
-
-    // Add entities to viewer
-    newEntities.forEach((entity) => {
-      // Add HMR robustness - check if viewer is not destroyed
-      if (viewer && !viewer.isDestroyed()) {
-        viewer.entities.add(entity);
-      }
     });
 
     console.debug(
-      `[NIVP] Added ${newEntities.length} point entities to viewer`
+      `[NIVP] Added ${filteredPoints.length} point primitives to scene`
     );
 
-    // Cleanup function to remove entities when component unmounts
+    // Cleanup function
     return () => {
-      console.debug("[NIVP] Cleaning up point entities...");
-      try {
-        // Clean up the entities that were tracked in the ref
-        currentEntitiesRef.current.forEach((entity) => {
-          // Add HMR robustness - check if viewer is not destroyed
-          if (viewer && !viewer.isDestroyed()) {
-            viewer.entities.remove(entity);
-          }
-        });
-        currentEntitiesRef.current = [];
-      } catch (error) {
-        console.error("[useNivPoints] Error during cleanup:", error);
+      console.debug("[NIVP] Cleaning up point primitives...");
+      if (pointPrimitiveCollectionRef.current && !scene.isDestroyed?.()) {
+        scene.primitives.remove(pointPrimitiveCollectionRef.current);
+        pointPrimitiveCollectionRef.current = null;
       }
     };
-  }, [viewer, filteredPoints, verticalDatum, enabled]);
+  }, [scene, filteredPoints, enabled]);
 
+  // Find nearest point
   useEffect(() => {
-    if (!entities || !measurements || measurements.length < 1) return;
+    if (!filteredPoints || !measurements || measurements.length < 1) return;
 
     const pointMeasurements = measurements.filter(isPointMeasurementEntry);
-
     const lastPoint = pointMeasurements[pointMeasurements.length - 1];
 
-    let distance = Infinity;
-    let entityIndex = 0;
-
-    while (
-      distance > pointRadius &&
-      entityIndex < entities.length &&
-      lastPoint
-    ) {
-      const entity = entities[entityIndex];
-      const entityDistance = Cartesian3.distance(
-        lastPoint.geometryECEF,
-        entity.position.getValue()
-      );
-      if (entityDistance < distance) {
-        distance = entityDistance;
-      }
-      entityIndex++;
+    if (!lastPoint) {
+      setNearestNivPoint(null);
+      return;
     }
 
-    if (distance <= pointRadius && lastPoint) {
-      const nearestPoint = entities[entityIndex - 1];
+    let nearestDistance = Infinity;
+    let nearestPoint: TransformedNivPoint | null = null;
+
+    filteredPoints.forEach((point) => {
+      const distance = Cartesian3.distance(
+        lastPoint.geometryECEF,
+        point.cartesian
+      );
+      if (distance < nearestDistance && distance <= pointRadius) {
+        nearestDistance = distance;
+        nearestPoint = point;
+      }
+    });
+
+    if (nearestPoint) {
       setNearestNivPoint(nearestPoint);
       console.debug(
-        `[NIVP] Nearest point found: ${nearestPoint.id} at distance ${distance}`
+        `[NIVP] Nearest point found: ${nearestPoint.id} at distance ${nearestDistance}`
       );
     } else {
       setNearestNivPoint(null);
     }
-  }, [measurements, entities, pointRadius]);
+  }, [measurements, filteredPoints, pointRadius]);
 
   return {
     isLoading,
     error,
     points: filteredPoints,
-    entities,
     pointCount: filteredPoints.length,
     verticalDatum,
     nearestNivPoint,
+    pointCollection: pointPrimitiveCollectionRef.current,
   };
 };
 

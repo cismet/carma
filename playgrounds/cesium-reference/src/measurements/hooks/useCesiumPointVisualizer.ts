@@ -1,6 +1,14 @@
 import { useEffect, useMemo, useRef } from "react";
 
-import { type Viewer, Entity, Color } from "cesium";
+import {
+  Cartesian2,
+  Color,
+  HorizontalOrigin,
+  LabelCollection,
+  LabelStyle,
+  VerticalOrigin,
+  type Scene,
+} from "cesium";
 
 import {
   create3DCrossGroup,
@@ -12,14 +20,11 @@ import {
   MeasurementCollection,
   PointMeasurementEntry,
 } from "../types/MeasurementTypes";
-import {
-  createLabelEntity,
-  formatNumberToEnclosed,
-} from "../utils/cesiumLabels";
+import { formatNumberToEnclosed, LABEL_FONT } from "../utils/cesiumLabels";
 import { useCesiumPointLabels } from "./useCesiumPointLabels";
 
 export const useCesiumPointVisualizer = (
-  viewer: Viewer | null,
+  scene: Scene | null,
   measurements: MeasurementCollection = [],
   showMarkers: boolean = true,
   showCesiumMarkers: boolean = false,
@@ -29,7 +34,7 @@ export const useCesiumPointVisualizer = (
   referenceElevation: number = 0,
   debug: boolean = false
 ) => {
-  const labelRefs = useRef<Record<string, Entity>>({});
+  const labelCollectionRef = useRef<LabelCollection | null>(null);
   const cross3DRefs = useRef<Record<string, Cross3DGroup>>({});
   const prevIdsRef = useRef<Set<string>>(new Set());
 
@@ -42,27 +47,38 @@ export const useCesiumPointVisualizer = (
     }, [measurements]);
 
   // Use overlay labels instead of Cesium entity labels
-  useCesiumPointLabels(points, showLabels, referenceElevation);
+  useCesiumPointLabels(scene, points, showLabels, referenceElevation);
+
+  // Initialize and clean up LabelCollection
+  useEffect(() => {
+    if (!scene || scene.isDestroyed()) return;
+
+    const labels = scene.primitives.add(new LabelCollection());
+    labelCollectionRef.current = labels;
+
+    return () => {
+      if (scene && !scene.isDestroyed()) {
+        scene.primitives.remove(labels);
+      }
+      labelCollectionRef.current = null;
+    };
+  }, [scene]);
 
   useEffect(() => {
-    // render markers
-    if (!showCesiumMarkers || !viewer || viewer.isDestroyed()) return;
+    // render markers using primitives instead of entities
+    if (!showCesiumMarkers || !scene) return;
     const crosses = cross3DRefs.current;
 
     points.forEach(({ id, geometryECEF }) => {
       if (!crosses[id]) {
-        const cross3D = create3DCrossGroup({
+        const cross3D = create3DCrossGroup(scene, {
           position: geometryECEF,
           radius,
           width: 1,
           id: `debugMarker-${id}`,
-          xyCirclePlane: true,
-          colorCircle: Color.WHITE.withAlpha(0.3),
-          show: showMarkers,
           showAxes: debug,
         });
         update3dCrossVisibility(cross3D, showMarkers);
-        cross3D.addToViewer(viewer);
         crosses[id] = cross3D;
       } else {
         //console.debug(`[CesiumPointVisualizer] Updating visibility for cross3D ${id}`);
@@ -72,31 +88,35 @@ export const useCesiumPointVisualizer = (
     // Remove refs for points that no longer exist
     Object.keys(crosses).forEach((id) => {
       if (!currentIds.has(id)) {
-        crosses[id].cleanup(viewer);
+        if (scene) {
+          crosses[id].cleanup(scene);
+        }
         delete crosses[id];
       }
     });
     prevIdsRef.current = currentIds;
-    viewer.scene.requestRender(); // Ensure scene updates after changes
+    if (scene) {
+      scene.requestRender(); // Ensure scene updates after changes
+    }
     return () => {
-      if (!viewer || viewer.isDestroyed()) {
+      if (!scene) {
         return;
       }
 
       try {
         Object.keys(crosses).forEach((id) => {
           if (!currentIds.has(id)) {
-            crosses[id].cleanup(viewer);
+            crosses[id].cleanup(scene);
             delete crosses[id];
           }
         });
         prevIdsRef.current = new Set();
       } catch (error) {
-        console.warn("Cross3D cleanup failed:", error);
+        console.warn("Cross3D primitive cleanup failed:", error);
       }
     };
   }, [
-    viewer,
+    scene,
     points,
     radius,
     currentIds,
@@ -106,42 +126,39 @@ export const useCesiumPointVisualizer = (
   ]);
 
   useEffect(() => {
-    // render Labels
-    if (!viewer || viewer.isDestroyed()) return;
-    points.forEach((m, i) => {
-      if (!labelRefs.current[m.id]) {
-        const entity = createLabelEntity(m, undefined, {
-          show: showCesiumLabels,
+    // render Labels using LabelCollection primitive
+    if (!scene || scene.isDestroyed()) return;
+
+    const labels = labelCollectionRef.current;
+    if (!labels) return;
+
+    // Clear and rebuild labels
+    // This is efficient enough for small collections (< 1000)
+    labels.removeAll();
+
+    if (showCesiumLabels) {
+      points.forEach((m, i) => {
+        labels.add({
+          position: m.geometryECEF,
           text: `${formatNumberToEnclosed(i + 1)} ${(
             m.geometryWGS84.height - referenceElevation
           ).toFixed(2)}m`,
+          font: LABEL_FONT,
+          fillColor: Color.BLACK,
+          showBackground: false,
+          outlineColor: Color.WHITE,
+          outlineWidth: 5,
+          style: LabelStyle.FILL_AND_OUTLINE,
+          pixelOffset: new Cartesian2(5, -8),
+          horizontalOrigin: HorizontalOrigin.LEFT,
+          verticalOrigin: VerticalOrigin.BASELINE,
         });
-        viewer.entities.add(entity);
-        labelRefs.current[m.id] = entity;
-      }
-    });
-    prevIdsRef.current = currentIds;
-    viewer.scene.requestRender(); // Ensure scene updates after changes
-    return () => {
-      if (!viewer || viewer.isDestroyed()) {
-        return;
-      }
+      });
+    }
 
-      try {
-        if (labelRefs.current && viewer.entities) {
-          Object.values(labelRefs.current).forEach((entity) => {
-            if (viewer && viewer.entities) {
-              viewer.entities.remove(entity);
-            }
-          });
-        }
-        labelRefs.current = {};
-        prevIdsRef.current = new Set();
-      } catch (error) {
-        console.warn("Label entity cleanup failed", error);
-      }
-    };
-  }, [viewer, points, currentIds, showCesiumLabels, referenceElevation]);
+    prevIdsRef.current = currentIds;
+    scene.requestRender(); // Ensure scene updates after changes
+  }, [scene, points, currentIds, showCesiumLabels, referenceElevation]);
 };
 
 export default useCesiumPointVisualizer;
