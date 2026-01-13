@@ -29,7 +29,7 @@ export async function getDb(
   config: SyncConfig,
   login: string
 ): Promise<RxDatabase> {
-  const key = `${config.dbVersion}_${login.toLowerCase()}`;
+  const key = `${config.appId}_${config.dbVersion}_${login.toLowerCase()}`;
   const dbName = `actiondb_${key}`;
 
   const existing = dbInstances.get(dbName);
@@ -258,7 +258,7 @@ export function setupReplication(
 }
 
 export function destroyDb(config: SyncConfig, login: string) {
-  const key = `${config.dbVersion}_${login.toLowerCase()}`;
+  const key = `${config.appId}_${config.dbVersion}_${login.toLowerCase()}`;
   const dbName = `actiondb_${key}`;
   const db = dbInstances.get(dbName);
 
