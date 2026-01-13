@@ -3,7 +3,7 @@ export interface SyncConfig {
   wsUrl: string;
   appId: string;
   dbVersion: string;
-  actionName: string;
+  actionName?: string; // Optional - kept for backward compatibility
 }
 
 export interface ActionDocument {

@@ -74,7 +74,7 @@ function actionToTask(
 interface SyncContextValue {
   status: SyncStatus;
   tasks: TaskItem[];
-  uploadAction: (payload: ActionPayload) => Promise<string>;
+  syncedAction: (actionName: string, payload: ActionPayload) => Promise<string>;
   resync: () => void;
   downloadTasks: () => void;
 }
@@ -152,19 +152,12 @@ export function SyncProvider({
 
         setReplicationState(replState);
 
-        // Subscribe to active state (WebSocket live sync)
-        replState.active$.subscribe((active: boolean) => {
-          console.log(LOG_PREFIX, "WebSocket active:", active);
-        });
-
         // Track if sync is working based on successful operations
         replState.sent$.subscribe(() => {
-          console.log(LOG_PREFIX, "Push successful - marking as connected");
           setStatus((s) => ({ ...s, isConnected: true }));
         });
 
         replState.received$.subscribe(() => {
-          console.log(LOG_PREFIX, "Pull successful - marking as connected");
           setStatus((s) => ({ ...s, isConnected: true }));
         });
 
@@ -180,7 +173,6 @@ export function SyncProvider({
           .sort({ createdAt: "desc" });
 
         query.$.subscribe((results: ActionDocument[]) => {
-          console.log(LOG_PREFIX, "Tasks updated:", results.length);
           const taskList = results.map((doc) => actionToTask(doc, taskFormatter));
           setTasks(taskList);
           setStatus((s) => ({
@@ -210,19 +202,18 @@ export function SyncProvider({
     };
   }, [jwt, login, config, taskFormatter]);
 
-  // Upload action
-  const uploadAction = useCallback(
-    async (payload: ActionPayload): Promise<string> => {
+  // Synced action - supports multiple action types
+  const syncedAction = useCallback(
+    async (actionName: string, payload: ActionPayload): Promise<string> => {
       if (!db || !jwt || !login) {
         throw new Error("Sync not ready - database or auth not available");
       }
 
-      const { appId, actionName } = config;
+      const { appId } = config;
       const id = uuidv4();
       const now = new Date().toISOString();
 
-      console.log(LOG_PREFIX, "Inserting action:", id);
-      console.log(LOG_PREFIX, "  Payload:", JSON.stringify(payload, null, 2));
+      console.log(LOG_PREFIX, "Inserting action:", id, "type:", actionName);
 
       await db.collections.actions.insert({
         id,
@@ -235,8 +226,6 @@ export function SyncProvider({
         applicationId: `${login}@${appId}`,
       });
 
-      console.log(LOG_PREFIX, "Action inserted successfully:", id);
-
       return id;
     },
     [db, jwt, login, config]
@@ -245,7 +234,6 @@ export function SyncProvider({
   // Resync - restart replication
   const resync = useCallback(() => {
     if (replicationState) {
-      console.log(LOG_PREFIX, "Triggering resync");
       replicationState.reSync();
     }
   }, [replicationState]);
@@ -275,7 +263,7 @@ export function SyncProvider({
   const value: SyncContextValue = {
     status,
     tasks,
-    uploadAction,
+    syncedAction,
     resync,
     downloadTasks,
   };
