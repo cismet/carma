@@ -252,20 +252,29 @@ const InfobausteinTemplateForm = ({
             size="small"
           />
         </div>
+        <style>
+          {`
+            .infobaustein-table .ant-table-row.selected-row > td {
+              background-color: #e6f4ff !important;
+            }
+            .infobaustein-table .ant-table-row {
+              cursor: pointer;
+            }
+          `}
+        </style>
         <Table
+          className="infobaustein-table"
           columns={columns}
           dataSource={tableData}
           rowKey="id"
           size="small"
           pagination={false}
           scroll={{ y: 300 }}
+          rowClassName={(record) =>
+            selectedRowKey === record.id ? "selected-row" : ""
+          }
           onRow={(record) => ({
             onClick: () => setSelectedRowKey(record.id),
-            style: {
-              cursor: "pointer",
-              backgroundColor:
-                selectedRowKey === record.id ? "#e6f4ff" : undefined,
-            },
           })}
         />
       </div>
