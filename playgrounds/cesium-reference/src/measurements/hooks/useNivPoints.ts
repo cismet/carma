@@ -8,8 +8,8 @@ import {
 } from "cesium";
 
 import { PROJ4_CONVERTERS } from "@carma-commons/utils";
+import { isPointMeasurementEntry } from "@carma-mapping/engines/cesium/measurements";
 import { NivPoint, TransformedNivPoint } from "../types/NivPointTypes";
-import { isPointMeasurementEntry } from "../types/MeasurementTypes";
 import { useCesiumMeasurements } from "../CesiumMeasurementsContext";
 import { useCRS, VerticalDatum } from "../CRSContext";
 

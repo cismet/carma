@@ -8,7 +8,9 @@ import {
   LabelStyle,
   VerticalOrigin,
   type Scene,
-} from "cesium";
+} from "@carma/cesium";
+
+import { formatNumberToEnclosed } from "@carma-providers/label-overlay";
 
 import {
   create3DCrossGroup,
@@ -20,8 +22,10 @@ import {
   MeasurementCollection,
   PointMeasurementEntry,
 } from "../types/MeasurementTypes";
-import { formatNumberToEnclosed, LABEL_FONT } from "../utils/cesiumLabels";
 import { useCesiumPointLabels } from "./useCesiumPointLabels";
+
+// Font for deprecated Cesium labels - will be removed when Cesium labels are fully deprecated
+const LABEL_FONT = '10px "Helvetica Neue", Arial, Helvetica, sans-serif';
 
 export const useCesiumPointVisualizer = (
   scene: Scene | null,
@@ -81,7 +85,6 @@ export const useCesiumPointVisualizer = (
         update3dCrossVisibility(cross3D, showMarkers);
         crosses[id] = cross3D;
       } else {
-        //console.debug(`[CesiumPointVisualizer] Updating visibility for cross3D ${id}`);
         update3dCrossVisibility(crosses[id], showMarkers);
       }
     });

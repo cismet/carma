@@ -1,14 +1,19 @@
 import { useEffect, useMemo, useState } from "react";
 
-import { Cartesian2, SceneTransforms, defined, type Scene } from "cesium";
+import {
+  Cartesian2,
+  SceneTransforms,
+  defined,
+  type Scene,
+} from "@carma/cesium";
 
 import {
   usePointLabels,
+  formatNumberToEnclosed,
   type PointLabelData,
 } from "@carma-providers/label-overlay";
 
 import { PointMeasurementEntry } from "../types/MeasurementTypes";
-import { formatNumberToEnclosed } from "../utils/cesiumLabels";
 import {
   isPointOccluded,
   isPointInViewport,

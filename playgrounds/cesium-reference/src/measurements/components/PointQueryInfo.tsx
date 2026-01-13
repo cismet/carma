@@ -1,6 +1,6 @@
 import React from "react";
 import { Math as CesiumMath } from "cesium";
-import { PointMeasurementEntry } from "../types/MeasurementTypes";
+import { PointMeasurementEntry } from "@carma-mapping/engines/cesium/measurements";
 import { InfoRow } from "../../components/InfoRow";
 import { useCRS, CoordinateDisplayMode } from "../CRSContext";
 import { useCesiumMeasurements } from "../CesiumMeasurementsContext";

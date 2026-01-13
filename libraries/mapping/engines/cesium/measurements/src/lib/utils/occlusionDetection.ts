@@ -1,4 +1,4 @@
-import { Cartesian2, Cartesian3, defined, type Scene } from "cesium";
+import { Cartesian2, Cartesian3, defined, type Scene } from "@carma/cesium";
 
 /**
  * Checks if a 3D point is occluded by terrain or other geometry

@@ -1,4 +1,4 @@
-import type { MeasurementCollection } from "../types/MeasurementTypes";
+import type { MeasurementCollection } from "@carma-mapping/engines/cesium/measurements";
 
 const STORAGE_KEY = "cesium-reference-measurements";
 

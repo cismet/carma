@@ -1,11 +1,12 @@
 import { Dispatch, SetStateAction, useEffect, useRef } from "react";
 
-import type { Cartesian3, Scene } from "cesium";
 import {
   Cartesian2,
   ScreenSpaceEventHandler,
   ScreenSpaceEventType,
-} from "cesium";
+  getDegreesFromCartesian,
+  type Scene,
+} from "@carma/cesium";
 
 import {
   isPointMeasurementEntry,
@@ -17,7 +18,6 @@ import {
   updateCollection,
   makeTemporaryMeasurementsPermanent,
 } from "../utils/measurementCollection";
-import { toGeographicDegrees } from "../utils/geo";
 import { useCesiumMousePosition } from "./useCesiumMousePosition";
 
 export const useCesiumPointQuery = (
@@ -69,11 +69,8 @@ export const useCesiumPointQuery = (
         return;
       }
 
-      const geometryWGS84 = toGeographicDegrees(
-        pickedPosition,
-        scene.globe.ellipsoid
-      );
-      const { height } = geometryWGS84;
+      const geometryWGS84 = getDegreesFromCartesian(pickedPosition);
+      const height = geometryWGS84.altitude;
 
       const measurementId = `point-${Date.now()}`;
 
@@ -89,7 +86,11 @@ export const useCesiumPointQuery = (
           index: insertionIndex,
           name: `Messpunkt ${insertionIndex + 1}`,
           geometryECEF: pickedPosition,
-          geometryWGS84,
+          geometryWGS84: {
+            longitude: geometryWGS84.longitude,
+            latitude: geometryWGS84.latitude,
+            height: geometryWGS84.altitude,
+          },
           timestamp: new Date().getTime(),
         };
       };

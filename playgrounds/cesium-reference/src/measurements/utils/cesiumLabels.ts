@@ -14,9 +14,12 @@ import {
   SceneTransforms,
   Transforms,
 } from "cesium";
-import { GeomPoint, MeasurementEntry } from "../types/MeasurementTypes";
+import {
+  GeomPoint,
+  MeasurementEntry,
+} from "@carma-mapping/engines/cesium/measurements";
 import { normalizeOptions } from "@carma-commons/utils";
-import { formatDistance } from "../../utils/formatters";
+import { formatDistance } from "@carma-providers/label-overlay";
 export const SCALE_BY_DISTANCE = new NearFarScalar(0, 1, 5000, 0.0);
 export const SCALE_BY_DISTANCE_POINTS = new NearFarScalar(0, 1, 5000, 0.5);
 

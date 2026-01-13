@@ -2,7 +2,7 @@ import { Cartesian3, Color, Entity, HeightReference } from "cesium";
 import {
   isTraverseMeasurementEntry,
   MeasurementCollection,
-} from "../types/MeasurementTypes";
+} from "@carma-mapping/engines/cesium/measurements";
 
 export const createPointMarker = (
   position: Cartesian3,

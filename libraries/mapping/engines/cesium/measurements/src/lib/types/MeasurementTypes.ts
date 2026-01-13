@@ -1,4 +1,4 @@
-import { Cartesian3, Cartographic } from "cesium";
+import { Cartesian3, type Cartographic } from "@carma/cesium";
 
 export enum MeasurementMode {
   NONE = "none",
@@ -33,7 +33,7 @@ export type PointMeasurementEntry = MeasurementEntry & {
   type: MeasurementMode.PointQuery;
   geometryECEF: Cartesian3;
   geometryWGS84: GeomPoint;
-  radius?: number; // Radius in meters for point query
+  radius?: number;
 };
 
 export function isPointMeasurementEntry(
@@ -46,8 +46,8 @@ export type TraverseMeasurementEntry = MeasurementEntry & {
   type: MeasurementMode.Traverse;
   geometryECEF: Cartesian3[];
   geometryWGS84: GeomPolyline;
-  heightOffset?: number; // Height offset in meters for visualization
-  shouldRebuildEntry?: boolean; // Flag to indicate entry needs to be rebuilt/recomputed
+  heightOffset?: number;
+  shouldRebuildEntry?: boolean;
   derived?: {
     segmentLengths: number[];
     segmentLengthsCumulative: number[];

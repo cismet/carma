@@ -18,12 +18,10 @@ import {
   TraverseMeasurementEntry,
   MeasurementCollection,
   isTraverseMeasurementEntry,
-} from "../types/MeasurementTypes";
-import { calculateSegmentLengths } from "../utils/cesiumTraverseEntities";
-import {
   updateCollection,
   makeTemporaryMeasurementsPermanent,
-} from "../utils/measurementCollection";
+} from "@carma-mapping/engines/cesium/measurements";
+import { calculateSegmentLengths } from "../utils/cesiumTraverseEntities";
 import { toGeographicDegrees } from "../utils/geo";
 
 export function useCesiumTraverseQuery(

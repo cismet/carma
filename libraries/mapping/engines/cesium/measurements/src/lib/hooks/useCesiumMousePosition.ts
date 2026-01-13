@@ -6,7 +6,7 @@ import {
   ScreenSpaceEventHandler,
   ScreenSpaceEventType,
   type Scene,
-} from "cesium";
+} from "@carma/cesium";
 
 export function useCesiumMousePosition(
   scene: Scene | null,
@@ -22,8 +22,6 @@ export function useCesiumMousePosition(
         handlerRef.current = null;
       }
       setMousePosition(null);
-      // Reset cursor
-      //if (scene.canvas) {scene.canvas.style.cursor = ""; }
       return;
     }
 

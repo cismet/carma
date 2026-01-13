@@ -20,7 +20,7 @@ import {
 } from "@fortawesome/free-solid-svg-icons";
 
 import { useCesiumMeasurements } from "../CesiumMeasurementsContext";
-import { MeasurementMode } from "../types/MeasurementTypes";
+import { MeasurementMode } from "@carma-mapping/engines/cesium/measurements";
 import { CoordinateDisplayMode, useCRS } from "../CRSContext";
 
 const PointQuerySettingsComponent: React.FC<{

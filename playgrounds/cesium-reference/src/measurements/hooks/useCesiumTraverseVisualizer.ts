@@ -18,7 +18,7 @@ import {
   isTraverseMeasurementEntry,
   MeasurementCollection,
   TraverseMeasurementEntry,
-} from "../types/MeasurementTypes";
+} from "@carma-mapping/engines/cesium/measurements";
 import { createPointMarker } from "../utils/cesiumTraverseEntities";
 import { formatDistance } from "../../utils/formatters";
 import {

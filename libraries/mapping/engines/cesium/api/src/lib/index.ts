@@ -21,11 +21,15 @@ export {
   GeometryInstance,
   GroundPolylineGeometry,
   GroundPolylinePrimitive,
+  HorizontalOrigin,
+  LabelCollection,
+  LabelStyle,
   LightingModel,
   Math as CesiumMath,
   Material,
   Matrix3,
   Matrix4,
+  NearFarScalar,
   PointPrimitiveCollection,
   PolygonGeometry,
   PolygonHierarchy,
@@ -44,6 +48,7 @@ export {
   // Shaders, // moved to @carma-mapping/engines/cesium/shaders
   ShadowMode,
   Transforms,
+  VerticalOrigin,
   // Viewer intentionally left out - use CesiumWidget instead
   WebMapServiceImageryProvider,
   WebMapTileServiceImageryProvider,

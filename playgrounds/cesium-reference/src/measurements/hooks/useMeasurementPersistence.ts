@@ -1,5 +1,5 @@
 import { useEffect, useCallback, useRef } from "react";
-import type { MeasurementCollection } from "../types/MeasurementTypes";
+import type { MeasurementCollection } from "@carma-mapping/engines/cesium/measurements";
 import {
   saveMeasurements,
   loadMeasurements,

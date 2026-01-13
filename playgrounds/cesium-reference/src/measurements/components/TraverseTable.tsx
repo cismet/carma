@@ -2,7 +2,7 @@ import React, { FC, useMemo, useState } from "react";
 import { Button, Table, Typography, Modal } from "antd";
 import { Math as CesiumMath } from "cesium";
 import "./TraverseTable.css";
-import { TraverseMeasurementEntry } from "../types/MeasurementTypes";
+import { TraverseMeasurementEntry } from "@carma-mapping/engines/cesium/measurements";
 import { useCesiumViewer } from "../../contexts/CesiumViewerContext";
 import { CoordinateDisplayMode, useCRS } from "../CRSContext";
 import { useCesiumMeasurements } from "../CesiumMeasurementsContext";

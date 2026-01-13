@@ -16,7 +16,7 @@ import {
   type MeasurementEntry,
   MeasurementMode,
   type TraverseMeasurementEntry,
-} from "../types/MeasurementTypes";
+} from "@carma-mapping/engines/cesium/measurements";
 import { useCesiumMeasurements } from "../CesiumMeasurementsContext";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import {
