@@ -16,10 +16,11 @@ import {
   getKeyTablesLoading,
   getKeyTablesFetched,
 } from "../../store/slices/keyTables";
-import { Spin, Alert, Modal, message } from "antd";
+import { Spin, Alert, Modal, message, List } from "antd";
 import KeyTableDataGroups from "../ui/KeyTableDataGroups";
 import KeyTableDataGroupsList from "../ui/KeyTableDataGroupsList";
 import FormWrapper from "../ui/FormWrapper";
+import { CustomCard } from "../commons/CustomCard";
 import { keyTableDisplayConfig } from "../../config/keyTableDisplayConfig";
 import { getItemDisplayText } from "../../utils/templateParser";
 
@@ -348,14 +349,14 @@ const KeyTablesPage = () => {
           )}
 
           {/* Column 3: Form */}
-          {selectedItem && (
-            <div
-              style={{
-                flex: 1,
-                height: adjustedHeight,
-                minWidth: 0,
-              }}
-            >
+          <div
+            style={{
+              flex: 1,
+              height: adjustedHeight,
+              minWidth: 0,
+            }}
+          >
+            {selectedItem ? (
               <FormWrapper
                 selectedItem={selectedItem}
                 onSave={handleItemSaved}
@@ -363,8 +364,17 @@ const KeyTablesPage = () => {
                   keyTableDisplayConfig[selectedItem.tableName]?.readOnly
                 }
               />
-            </div>
-          )}
+            ) : (
+              <CustomCard title="" style={{ height: "100%" }}>
+                <List
+                  size="small"
+                  dataSource={[]}
+                  renderItem={() => null}
+                  locale={{ emptyText: "Keine Daten" }}
+                />
+              </CustomCard>
+            )}
+          </div>
         </div>
       )}
     </div>
