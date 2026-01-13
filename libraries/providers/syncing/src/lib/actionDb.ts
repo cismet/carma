@@ -45,6 +45,7 @@ export async function getDb(
       name: dbName,
       storage: getRxStorageDexie(),
       multiInstance: true,
+      ignoreDuplicate: true,
     });
 
     log("Database created, adding collections...");
@@ -237,9 +238,24 @@ export function setupReplication(
     );
   });
 
+  // Set up polling interval for periodic resync (like belis-online)
+  const pollInterval = setInterval(() => {
+    log("POLL: Triggering periodic resync");
+    replicationState.reSync();
+  }, 5000);
+
   log("Replication state initialized");
   log("  - Live mode: enabled");
   log("  - Retry time: 6000ms");
+  log("  - Poll interval: 5000ms");
+
+  // Extend replicationState to include interval cleanup on cancel
+  const originalCancel = replicationState.cancel.bind(replicationState);
+  replicationState.cancel = () => {
+    log("Cancelling replication and clearing poll interval");
+    clearInterval(pollInterval);
+    return originalCancel();
+  };
 
   return replicationState;
 }
