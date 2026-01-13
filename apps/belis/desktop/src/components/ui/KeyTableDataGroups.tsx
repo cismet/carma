@@ -1,5 +1,6 @@
 import { List } from "antd";
 import { CustomCard } from "../commons/CustomCard";
+import { keyTableDisplayConfig } from "../../config/keyTableDisplayConfig";
 
 interface KeyTableDataGroupsProps {
   data: Record<string, unknown[]>;
@@ -14,6 +15,10 @@ const formatTableName = (key: string) => {
     .trim();
 };
 
+const getTableDisplayName = (key: string) => {
+  return keyTableDisplayConfig[key]?.displayName ?? formatTableName(key);
+};
+
 const KeyTableDataGroups = ({
   data,
   selectedTable,
@@ -24,7 +29,7 @@ const KeyTableDataGroups = ({
       <List
         size="small"
         dataSource={Object.keys(data).sort((a, b) =>
-          formatTableName(a).localeCompare(formatTableName(b), "de", { sensitivity: "base" })
+          getTableDisplayName(a).localeCompare(getTableDisplayName(b), "de", { sensitivity: "base" })
         )}
         renderItem={(tableName: string) => {
           const items = data[tableName];
@@ -58,7 +63,7 @@ const KeyTableDataGroups = ({
                     color: "#262626",
                   }}
                 >
-                  {formatTableName(tableName)}
+                  {getTableDisplayName(tableName)}
                 </span>
                 <span
                   style={{
