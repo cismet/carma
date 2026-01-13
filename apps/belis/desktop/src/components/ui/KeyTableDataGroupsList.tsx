@@ -32,6 +32,10 @@ const formatTableName = (key: string) => {
     .trim();
 };
 
+const getTableDisplayName = (key: string) => {
+  return keyTableDisplayConfig[key]?.displayName ?? formatTableName(key);
+};
+
 interface SearchableItem {
   original: unknown;
   displayText: string;
@@ -120,7 +124,7 @@ const KeyTableDataGroupsList = ({
 
   return (
     <CustomCard
-      title={formatTableName(tableName)}
+      title={getTableDisplayName(tableName)}
       style={{ height: "100%" }}
       extra={
         <div className="flex items-center gap-2">

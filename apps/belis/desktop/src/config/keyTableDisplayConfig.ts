@@ -15,6 +15,7 @@ export interface KeyTableDisplayRule {
   defaultGroupingMode?: GroupingMode;
   apiClassName?: string; // API class name when it differs from the key
   fieldLabels?: Record<string, string>; // Override labels for form fields (key -> display label)
+  displayName?: string; // Custom display name for the table in Column 1 (e.g., "Unterhalt - Mast")
 }
 
 export type KeyTableDisplayConfig = Record<string, KeyTableDisplayRule>;
@@ -56,8 +57,9 @@ export const keyTableDisplayConfig: KeyTableDisplayConfig = {
     template: "{pk} - {unterhalt_mast}",
     sortMode: "numeric",
     apiClassName: "tkey_unterh_mast",
+    displayName: "Unterhalt - Mast",
     fieldLabels: {
-      unterhalt_mast: "Unterhaltspflichtige - Mast",
+      unterhalt_mast: "Unterhalt - Mast",
     },
   },
   unterhaltLeuchte: {
@@ -67,6 +69,7 @@ export const keyTableDisplayConfig: KeyTableDisplayConfig = {
     fieldLabels: {
       unterhaltspflichtiger_leuchte: "Unterhaltspflichtige - Leuchte",
     },
+    displayName: "Unterhalt - Leuchte",
   },
   energielieferant: {
     template: "{energielieferant}",
@@ -124,11 +127,13 @@ export const keyTableDisplayConfig: KeyTableDisplayConfig = {
     template: "{bezeichnung}",
     sortMode: "alphabetical",
     apiClassName: "material_leitung",
+    displayName: "Material - Leitung",
   },
   materialMauerlasche: {
     template: "{bezeichnung}",
     sortMode: "alphabetical",
     apiClassName: "material_mauerlasche",
+    displayName: "Material - Mauerlasche",
   },
   // straßenschlüssel: {
   //   template: "{pk} - {strasse}",
