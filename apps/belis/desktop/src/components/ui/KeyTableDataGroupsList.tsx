@@ -1,5 +1,6 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { List } from "antd";
+import Fuse from "fuse.js";
 import { PlusOutlined, DeleteOutlined } from "@ant-design/icons";
 import { CustomCard } from "../commons/CustomCard";
 import { SearchInput } from "../commons/SearchInput";
@@ -31,6 +32,11 @@ const formatTableName = (key: string) => {
     .trim();
 };
 
+interface SearchableItem {
+  original: unknown;
+  displayText: string;
+}
+
 const KeyTableDataGroupsList = ({
   tableName,
   items,
@@ -42,21 +48,41 @@ const KeyTableDataGroupsList = ({
 }: KeyTableDataGroupsListProps) => {
   const [searchText, setSearchText] = useState("");
 
-  const getFilteredAndSortedItems = () => {
-    let result = items;
-
-    // Filter by search text
-    if (searchText.trim()) {
-      const lowerSearch = searchText.toLowerCase();
-      result = items.filter((item) => {
-        const itemRecord = item as Record<string, unknown>;
-        const displayText = getItemDisplayText(
-          itemRecord,
+  // Prepare items with display text for Fuse.js search
+  const searchableItems = useMemo(() => {
+    return items.map((item) => ({
+      original: item,
+      displayText: String(
+        getItemDisplayText(
+          item as Record<string, unknown>,
           tableName,
           keyTableDisplayConfig
-        );
-        return String(displayText ?? "").toLowerCase().includes(lowerSearch);
-      });
+        ) ?? ""
+      ),
+    }));
+  }, [items, tableName]);
+
+  // Create Fuse instance
+  const fuse = useMemo(() => {
+    return new Fuse<SearchableItem>(searchableItems, {
+      keys: [{ name: "displayText", weight: 1 }],
+      shouldSort: false,
+      includeMatches: true,
+      useExtendedSearch: true,
+      ignoreLocation: true,
+      threshold: 0.1,
+    });
+  }, [searchableItems]);
+
+  const getFilteredAndSortedItems = () => {
+    let result: unknown[];
+
+    // Filter by search text using Fuse.js
+    if (searchText.trim()) {
+      const fuseResults = fuse.search(searchText);
+      result = fuseResults.map((r) => r.item.original);
+    } else {
+      result = items;
     }
 
     // Sort
