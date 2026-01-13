@@ -68,11 +68,20 @@ const KeyTablesPage = () => {
     fetchData();
   }, []);
 
-  // Select first table by default when data loads
+  // Select first table by default when data loads (sorted alphabetically to match display)
   useEffect(() => {
     if (Object.keys(data).length > 0 && !selectedTable) {
-      const firstTableKey = Object.keys(data)[0];
-      setSelectedTable(firstTableKey);
+      const formatTableName = (key: string) =>
+        key
+          .replace(/([A-Z])/g, " $1")
+          .replace(/^./, (str) => str.toUpperCase())
+          .trim();
+      const sortedKeys = Object.keys(data).sort((a, b) =>
+        formatTableName(a).localeCompare(formatTableName(b), "de", {
+          sensitivity: "base",
+        })
+      );
+      setSelectedTable(sortedKeys[0]);
     }
   }, [data]);
 
