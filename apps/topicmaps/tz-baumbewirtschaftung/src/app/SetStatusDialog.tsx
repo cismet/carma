@@ -2,9 +2,25 @@ import { UploadOutlined, SyncOutlined, CheckCircleOutlined, WarningOutlined } fr
 import { Button, Form, Input, Modal, Radio, Typography, Upload, message, Tooltip } from "antd";
 import TextArea from "antd/lib/input/TextArea";
 import { useState } from "react";
-import { useSync, TreeActionPayload } from "../core/sync";
+import { useSync } from "@carma-providers/syncing";
 
 const { Text } = Typography;
+
+// App-specific payload type for tree actions
+interface TreeActionPayload {
+  [key: string]: unknown;
+  key: string;
+  status: "open" | "done" | "exception";
+  payload: {
+    pic?: string;
+    user: string;
+  };
+  created_at: string;
+  action_time: string;
+  description: string;
+  status_reason: string;
+  fk_tree: number;
+}
 
 interface SetStatusDialogProps {
   close?: () => void;
@@ -29,7 +45,7 @@ const SetStatusDialog = ({
   const [imagePreview, setImagePreview] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState(false);
 
-  const { status: syncStatus, uploadTreeAction } = useSync();
+  const { status: syncStatus, uploadAction } = useSync();
 
   const handleUploadChange = (info: any) => {
     if (info.file.status === "done") {
@@ -68,7 +84,7 @@ const SetStatusDialog = ({
 
       console.log("[SetStatusDialog] Uploading action:", actionPayload);
 
-      const actionId = await uploadTreeAction(actionPayload);
+      const actionId = await uploadAction(actionPayload);
 
       console.log("[SetStatusDialog] Action uploaded with ID:", actionId);
       message.success("Aktion wurde gespeichert und wird synchronisiert");

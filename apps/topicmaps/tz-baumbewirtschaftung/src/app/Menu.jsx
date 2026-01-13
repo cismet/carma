@@ -12,7 +12,7 @@ import {
 import { GenericDigitalTwinReferenceSection } from "@carma-collab/wuppertal/commons";
 import versionData from "../version.json";
 import { getApplicationVersion } from "@carma-commons/utils";
-import TaskPanel from "./components/TaskPanel";
+import { TaskPanel } from "@carma-providers/syncing";
 
 const Menu = () => {
   const { setAppMenuActiveMenuSection } = useContext(UIDispatchContext);

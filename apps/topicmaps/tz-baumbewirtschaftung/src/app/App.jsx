@@ -5,7 +5,7 @@ import { defaultLayerConf } from "react-cismap/tools/layerFactory";
 import LoginForm from "./components/LoginForm";
 import TitleControl from "./components/TitleControl";
 import { APP_CONFIG } from "../config/appConfig";
-import { SyncProvider } from "../core/sync";
+import { SyncProvider } from "@carma-providers/syncing";
 
 import "bootstrap/dist/css/bootstrap.min.css";
 import "leaflet/dist/leaflet.css";
@@ -199,8 +199,32 @@ function App() {
 
   const login = auth.jwt ? getUserFromJWT(auth.jwt) : null;
 
+  // Custom task formatter for tree actions
+  const taskFormatter = (doc, params) => {
+    let actionStatus = "unknown";
+    if (
+      params.status === "open" ||
+      params.status === "done" ||
+      params.status === "exception"
+    ) {
+      actionStatus = params.status;
+    }
+
+    return {
+      actionStatus,
+      fachobjekt: params.fk_tree ? `Baum ${params.fk_tree}` : "Baum",
+      beschreibung:
+        params.description || params.status_reason || doc.action,
+    };
+  };
+
   return (
-    <SyncProvider jwt={auth.jwt} login={login}>
+    <SyncProvider
+      jwt={auth.jwt}
+      login={login}
+      config={APP_CONFIG.sync}
+      taskFormatter={taskFormatter}
+    >
       <TopicMapContextProvider
         appKey="tz.baumbewirtschaftung"
         backgroundConfigurations={bgConf}
