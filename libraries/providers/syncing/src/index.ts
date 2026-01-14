@@ -1,5 +1,10 @@
 // Components
-export { SyncProvider, useSync, useSyncOptional } from "./lib/SyncProvider";
+export {
+  SyncProvider,
+  useSync,
+  useSyncOptional,
+  type ActionCompleteCallback,
+} from "./lib/SyncProvider";
 export { default as TaskPanel } from "./lib/TaskPanel";
 
 // Database utilities

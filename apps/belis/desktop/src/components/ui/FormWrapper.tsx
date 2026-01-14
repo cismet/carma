@@ -16,10 +16,11 @@ interface SelectedItem {
 interface FormWrapperProps {
   selectedItem: SelectedItem;
   onSave: (updatedItem: Record<string, unknown>) => void;
+  onIdUpdated?: (oldId: number, newId: number, tableName: string) => void;
   readOnly?: boolean;
 }
 
-const FormWrapper = ({ selectedItem, onSave, readOnly = false }: FormWrapperProps) => {
+const FormWrapper = ({ selectedItem, onSave, onIdUpdated, readOnly = false }: FormWrapperProps) => {
   const [formHasChanges, setFormHasChanges] = useState(false);
   const formRef = useRef<FormInstance | null>(null);
   const jwt = useSelector(getJWT);
@@ -53,6 +54,7 @@ const FormWrapper = ({ selectedItem, onSave, readOnly = false }: FormWrapperProp
             item={selectedItem.item}
             tableName={selectedItem.tableName}
             onSave={onSave}
+            onIdUpdated={onIdUpdated}
             onFormReady={(form) => (formRef.current = form)}
             onValuesChange={setFormHasChanges}
             disabled={readOnly}

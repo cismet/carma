@@ -168,6 +168,34 @@ const KeyTablesPage = () => {
     });
   };
 
+  const handleIdUpdated = (oldId: number, newId: number, tableName: string) => {
+    // Update the item's ID in Redux state when server returns the real ID
+    const newData = { ...dataRef.current };
+    const tableData = [...(newData[tableName] as unknown[])];
+
+    // Find the item with the old (temporary) ID and update it
+    const index = tableData.findIndex(
+      (i: unknown) => (i as Record<string, unknown>).id === oldId
+    );
+    if (index !== -1) {
+      const item = tableData[index] as Record<string, unknown>;
+      tableData[index] = { ...item, id: newId };
+      newData[tableName] = tableData;
+      dispatch(setKeyTablesData(newData));
+
+      // Also update selectedItem if it's the same item
+      const currentSelectedItem = selectedItemRef.current;
+      if (currentSelectedItem?.item.id === oldId) {
+        setSelectedItem({
+          item: { ...currentSelectedItem.item, id: newId },
+          tableName: currentSelectedItem.tableName,
+        });
+      }
+
+      console.log(`ID updated: ${oldId} -> ${newId} in table ${tableName}`);
+    }
+  };
+
   const handleAddItem = () => {
     if (!selectedTable) return;
     const tableItems = dataRef.current[selectedTable] as Record<
@@ -397,6 +425,7 @@ const KeyTablesPage = () => {
               <FormWrapper
                 selectedItem={selectedItem}
                 onSave={handleItemSaved}
+                onIdUpdated={handleIdUpdated}
                 readOnly={
                   keyTableDisplayConfig[selectedItem.tableName]?.readOnly
                 }

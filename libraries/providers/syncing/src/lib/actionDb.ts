@@ -208,11 +208,17 @@ export function setupReplication(
       "RECEIVED: Action from server:",
       action.id,
       "isCompleted:",
-      action.isCompleted
+      action.isCompleted,
+      "result:",
+      action.result ? "yes" : "no"
     );
 
-    if (action.result && !action.isCompleted) {
-      log("  -> Marking action as completed locally");
+    // Notify when action is completed (has result or isCompleted flag)
+    if (action.result || action.isCompleted) {
+      log("  -> Action completed, notifying callback");
+      onUpdate?.(action);
+
+      // Also ensure local document is marked as completed
       db.collections.actions
         .findOne({ selector: { id: action.id } })
         .exec()
@@ -222,8 +228,7 @@ export function setupReplication(
               ...data,
               isCompleted: true,
             }));
-            log("  -> Action marked complete:", action.id);
-            onUpdate?.(action);
+            log("  -> Action marked complete locally:", action.id);
           }
         });
     }

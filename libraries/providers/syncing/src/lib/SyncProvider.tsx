@@ -4,6 +4,7 @@ import {
   useEffect,
   useState,
   useCallback,
+  useRef,
   ReactNode,
 } from "react";
 import { v4 as uuidv4 } from "uuid";
@@ -36,8 +37,8 @@ const defaultTaskFormatter: TaskItemFormatter = (doc, params) => {
     fachobjekt: params.fk_tree
       ? `Baum ${params.fk_tree}`
       : params.object_name
-        ? String(params.object_name)
-        : "Objekt",
+      ? String(params.object_name)
+      : "Objekt",
     beschreibung:
       (params.description as string) ||
       (params.status_reason as string) ||
@@ -71,10 +72,16 @@ function actionToTask(
   };
 }
 
+export type ActionCompleteCallback = (action: ActionDocument) => void;
+
 interface SyncContextValue {
   status: SyncStatus;
   tasks: TaskItem[];
-  syncedAction: (actionName: string, payload: ActionPayload) => Promise<string>;
+  syncedAction: (
+    actionName: string,
+    payload: ActionPayload,
+    onComplete?: ActionCompleteCallback
+  ) => Promise<string>;
   resync: () => void;
   downloadTasks: () => void;
 }
@@ -108,6 +115,11 @@ export function SyncProvider({
     lastError: null,
   });
 
+  // Store callbacks for actions waiting for completion
+  const actionCallbacksRef = useRef<Map<string, ActionCompleteCallback>>(
+    new Map()
+  );
+
   // Initialize database and replication when jwt/login are available
   useEffect(() => {
     if (!jwt || !login) {
@@ -135,9 +147,25 @@ export function SyncProvider({
           config,
           jwt,
           login,
-          // onUpdate callback
+          // onUpdate callback - called when an action completes on the server
           (action) => {
             console.log(LOG_PREFIX, "Action completed:", action.id);
+            // Look up and call any registered callback for this action
+            const callback = actionCallbacksRef.current.get(action.id);
+            if (callback) {
+              console.log(
+                LOG_PREFIX,
+                "Invoking completion callback for:",
+                action.id
+              );
+              try {
+                callback(action);
+              } catch (err) {
+                console.error(LOG_PREFIX, "Error in action callback:", err);
+              }
+              // Clean up after calling
+              actionCallbacksRef.current.delete(action.id);
+            }
           },
           // onError callback
           (error) => {
@@ -173,7 +201,9 @@ export function SyncProvider({
           .sort({ createdAt: "desc" });
 
         query.$.subscribe((results: ActionDocument[]) => {
-          const taskList = results.map((doc) => actionToTask(doc, taskFormatter));
+          const taskList = results.map((doc) =>
+            actionToTask(doc, taskFormatter)
+          );
           setTasks(taskList);
           setStatus((s) => ({
             ...s,
@@ -204,7 +234,11 @@ export function SyncProvider({
 
   // Synced action - supports multiple action types
   const syncedAction = useCallback(
-    async (actionName: string, payload: ActionPayload): Promise<string> => {
+    async (
+      actionName: string,
+      payload: ActionPayload,
+      onComplete?: ActionCompleteCallback
+    ): Promise<string> => {
       if (!db || !jwt || !login) {
         throw new Error("Sync not ready - database or auth not available");
       }
@@ -214,6 +248,11 @@ export function SyncProvider({
       const now = new Date().toISOString();
 
       console.log(LOG_PREFIX, "Inserting action:", id, "type:", actionName);
+
+      // Register callback if provided
+      if (onComplete) {
+        actionCallbacksRef.current.set(id, onComplete);
+      }
 
       await db.collections.actions.insert({
         id,
@@ -244,14 +283,18 @@ export function SyncProvider({
 
     try {
       const allDocs = await db.collections.actions.find().exec();
-      const data = allDocs.map((doc: { toJSON: () => unknown }) => doc.toJSON());
+      const data = allDocs.map((doc: { toJSON: () => unknown }) =>
+        doc.toJSON()
+      );
       const blob = new Blob([JSON.stringify(data, null, 2)], {
         type: "application/json",
       });
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
-      a.download = `${config.appId}-tasks-${new Date().toISOString().slice(0, 10)}.json`;
+      a.download = `${config.appId}-tasks-${new Date()
+        .toISOString()
+        .slice(0, 10)}.json`;
       a.click();
       URL.revokeObjectURL(url);
       console.log(LOG_PREFIX, "Tasks downloaded");

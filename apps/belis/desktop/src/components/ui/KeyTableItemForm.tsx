@@ -11,6 +11,7 @@ interface KeyTableItemFormProps {
   item: Record<string, unknown>;
   tableName: string;
   onSave: (updatedItem: Record<string, unknown>) => void;
+  onIdUpdated?: (oldId: number, newId: number, tableName: string) => void;
   onFormReady?: (form: FormInstance) => void;
   onValuesChange?: (hasChanges: boolean) => void;
   disabled?: boolean;
@@ -22,6 +23,7 @@ const KeyTableItemForm = ({
   item,
   tableName,
   onSave,
+  onIdUpdated,
   onFormReady,
   onValuesChange,
   disabled = false,
@@ -30,8 +32,16 @@ const KeyTableItemForm = ({
 }: KeyTableItemFormProps) => {
   const [form] = Form.useForm();
   const [saving, setSaving] = useState(false);
+  const [pendingConfirmation, setPendingConfirmation] = useState(false);
   const jwt = useSelector(getJWT);
   const sync = useSyncOptional();
+
+  // Reset pending state when ID becomes positive (server confirmed)
+  useEffect(() => {
+    if ((item.id as number) > 0) {
+      setPendingConfirmation(false);
+    }
+  }, [item.id]);
 
   useEffect(() => {
     if (onFormReady) {
@@ -75,23 +85,49 @@ const KeyTableItemForm = ({
 
       // Use syncedAction to queue the save operation for offline sync
       if (sync?.syncedAction) {
-        sync.syncedAction("SaveObject", {
-          className: apiClassName,
-          data: JSON.stringify(dataToSave),
-          status: "open",
-        });
+        // Capture the original item ID (large negative number like -1736441234567)
+        // This is the ID stored in Redux, not the -1 sent to the server
+        const originalItemId = item.id as number;
+
+        const onComplete = isNewItem
+          ? (action: { result?: string }) => {
+              console.log("New object created, server response:", action.result);
+              if (action.result && onIdUpdated) {
+                try {
+                  const result = JSON.parse(action.result);
+                  const newId = parseInt(result.id, 10);
+                  if (!isNaN(newId)) {
+                    onIdUpdated(originalItemId, newId, tableName);
+                  }
+                } catch (e) {
+                  console.error("Failed to parse server response:", e);
+                }
+              }
+            }
+          : undefined;
+
+        sync.syncedAction(
+          "SaveObject",
+          {
+            className: apiClassName,
+            data: JSON.stringify(dataToSave),
+            status: "open",
+          },
+          onComplete
+        );
         message.success("Aktion zur Synchronisation hinzugefügt");
 
-        // For new items, we use a temporary ID until sync completes
-        // The actual ID will be assigned by the server
-        let savedItem: Record<string, unknown>;
-        if (isNewItem) {
-          // Use negative timestamp as temporary ID for new items
-          savedItem = { ...values, id: -Date.now() };
-        } else {
-          savedItem = { ...values, id: item.id };
-        }
+        // Keep the original item.id (the callback will update it when server responds)
+        const savedItem = { ...values, id: item.id };
         onSave(savedItem);
+
+        // For new items, disable the form until server confirms with real ID
+        if (isNewItem) {
+          setPendingConfirmation(true);
+        }
+
+        // Reset form change state
+        onValuesChange?.(false);
       } else {
         // Fallback: sync not available, show error
         message.error("Synchronisation nicht verfügbar");
@@ -136,7 +172,7 @@ const KeyTableItemForm = ({
       onValuesChange={handleValuesChange}
       layout="vertical"
       style={{ padding: "8px 0" }}
-      disabled={disabled}
+      disabled={disabled || pendingConfirmation}
     >
       {ifTwoColumns ? (
         <Row gutter={24}>
@@ -176,7 +212,7 @@ const KeyTableItemForm = ({
           </Form.Item>
         ))
       )}
-      {!disabled && (
+      {!disabled && !pendingConfirmation && (
         <FormActionButtons formHasChanges={formHasChanges} onReset={onReset} />
       )}
     </Form>
