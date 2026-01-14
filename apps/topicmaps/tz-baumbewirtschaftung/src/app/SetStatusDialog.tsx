@@ -207,7 +207,7 @@ const SetStatusDialog = ({
       cancelText="Abbrechen"
       okButtonProps={{
         loading: isSaving,
-        disabled: true, // TODO: Enable when sync backend is ready:  !syncStatus.isReady
+        disabled: !syncStatus.isReady,
       }}
     >
       <Form
