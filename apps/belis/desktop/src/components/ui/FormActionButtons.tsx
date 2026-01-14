@@ -10,14 +10,7 @@ const FormActionButtons = ({
   onReset,
 }: FormActionButtonsProps) => {
   return (
-    <div
-      style={{
-        display: "flex",
-        justifyContent: "flex-end",
-        gap: 8,
-        marginTop: 16,
-      }}
-    >
+    <div className="flex flex-wrap justify-start xl:justify-end gap-2 mt-4">
       <Button type="primary" htmlType="submit" disabled={!formHasChanges}>
         Speichern
       </Button>

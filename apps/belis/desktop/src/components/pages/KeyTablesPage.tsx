@@ -351,8 +351,8 @@ const KeyTablesPage = () => {
           {/* Column 1: Key Table Names */}
           <div
             style={{
-              width: "20%",
-              flexShrink: 0,
+              flex: 1,
+              minWidth: 240,
               height: adjustedHeight,
             }}
           >
@@ -367,8 +367,8 @@ const KeyTablesPage = () => {
           {selectedTable && (
             <div
               style={{
-                width: "25%",
-                flexShrink: 0,
+                flex: 2,
+                minWidth: 454,
                 height: adjustedHeight,
               }}
             >
@@ -388,9 +388,9 @@ const KeyTablesPage = () => {
           {/* Column 3: Form */}
           <div
             style={{
-              flex: 1,
-              height: adjustedHeight,
+              flex: 3,
               minWidth: 0,
+              height: adjustedHeight,
             }}
           >
             {selectedItem ? (
