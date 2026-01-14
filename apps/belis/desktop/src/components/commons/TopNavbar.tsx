@@ -4,6 +4,7 @@ import { storeJWT, storeLogin } from "../../store/slices/auth";
 import { useDispatch } from "react-redux";
 import { NavLink, useNavigate } from "react-router-dom";
 import SettingsUi from "../ui/SettingsUi";
+import SyncMenuModal from "../ui/SyncMenuModal";
 
 const TopNavbar = () => {
   const dispatch = useDispatch();
@@ -33,8 +34,9 @@ const TopNavbar = () => {
           Schlüsseltabellen
         </NavLink>
       </div>
-      <div className="ml-auto flex items-center gap-2">
-        <Tooltip title="Ausloggen" placement="right">
+      <div className="ml-auto flex items-center gap-4">
+        <SyncMenuModal />
+        <Tooltip title="Ausloggen" placement="bottom">
           <LogoutOutlined
             className="text-base cursor-pointer"
             onClick={() => {
