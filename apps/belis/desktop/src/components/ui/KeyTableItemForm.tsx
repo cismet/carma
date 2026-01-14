@@ -6,6 +6,7 @@ import { useSelector } from "react-redux";
 import { getJWT } from "../../store/slices/auth";
 import { keyTableDisplayConfig } from "../../config/keyTableDisplayConfig";
 import { useSyncOptional } from "@carma-providers/syncing";
+import { saveKeyTableItem } from "../../helper/syncHelper";
 
 interface KeyTableItemFormProps {
   item: Record<string, unknown>;
@@ -77,62 +78,25 @@ const KeyTableItemForm = ({
 
     setSaving(true);
     try {
-      // Check if this is a temporary unsaved item (created with -Date.now())
-      // Temporary IDs are very large negative numbers (like -1736441234567)
-      const isNewItem = !item.id || (item.id as number) < -1000000000;
-      const dataToSave = { ...values, id: isNewItem ? -1 : item.id };
-      // Use apiClassName from config if it differs from tableName (e.g., "teams" -> "team")
-      const apiClassName =
-        keyTableDisplayConfig[tableName]?.apiClassName || tableName;
+      const result = saveKeyTableItem({
+        item,
+        values,
+        tableName,
+        sync,
+        onIdUpdated,
+      });
 
-      // Use syncedAction to queue the save operation for offline sync
-      if (sync?.syncedAction) {
-        // Capture the original item ID (large negative number like -1736441234567)
-        // This is the ID stored in Redux, not the -1 sent to the server
-        const originalItemId = item.id as number;
-
-        const onComplete = isNewItem
-          ? (action: { result?: string }) => {
-              console.log("New object created, server response:", action.result);
-              if (action.result && onIdUpdated) {
-                try {
-                  const result = JSON.parse(action.result);
-                  const newId = parseInt(result.id, 10);
-                  if (!isNaN(newId)) {
-                    onIdUpdated(originalItemId, newId, tableName);
-                  }
-                } catch (e) {
-                  console.error("Failed to parse server response:", e);
-                }
-              }
-            }
-          : undefined;
-
-        sync.syncedAction(
-          "SaveObject",
-          {
-            className: apiClassName,
-            data: JSON.stringify(dataToSave),
-            status: "open",
-          },
-          onComplete
-        );
+      if (result.success) {
         message.success("Aktion zur Synchronisation hinzugefügt");
+        onSave(result.savedItem);
 
-        // Keep the original item.id (the callback will update it when server responds)
-        const savedItem = { ...values, id: item.id };
-        onSave(savedItem);
-
-        // For new items, disable the form until server confirms with real ID
-        if (isNewItem) {
+        if (result.isNewItem) {
           setPendingConfirmation(true);
         }
 
-        // Reset form change state
         onValuesChange?.(false);
       } else {
-        // Fallback: sync not available, show error
-        message.error("Synchronisation nicht verfügbar");
+        message.error(result.error || "Fehler beim Speichern");
       }
     } catch (error) {
       console.error("Save error:", error);

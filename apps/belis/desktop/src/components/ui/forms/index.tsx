@@ -9,6 +9,7 @@ export interface CustomFormProps {
   item: Record<string, unknown>;
   tableName: string;
   onSave: (updatedItem: Record<string, unknown>) => void;
+  onIdUpdated?: (oldId: number, newId: number, tableName: string) => void;
   onFormReady?: (form: FormInstance) => void;
   onValuesChange?: (hasChanges: boolean) => void;
   disabled?: boolean;

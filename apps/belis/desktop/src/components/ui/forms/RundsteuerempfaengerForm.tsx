@@ -1,9 +1,11 @@
-import { useEffect } from "react";
-import { Form, Input, Row, Col, Select, List } from "antd";
+import { useEffect, useState } from "react";
+import { Form, Input, Row, Col, Select, List, message } from "antd";
 import FormActionButtons from "../FormActionButtons";
 import type { FormInstance } from "antd";
 import { FilePdfOutlined } from "@ant-design/icons";
 import { downloadDocument } from "../../../helper/documentHelper";
+import { useSyncOptional } from "@carma-providers/syncing";
+import { saveKeyTableItem } from "../../../helper/syncHelper";
 
 interface DmsUrlInner {
   id: number;
@@ -26,6 +28,7 @@ interface RundsteuerempfaengerFormProps {
   item: Record<string, unknown>;
   tableName: string;
   onSave: (updatedItem: Record<string, unknown>) => void;
+  onIdUpdated?: (oldId: number, newId: number, tableName: string) => void;
   onFormReady?: (form: FormInstance) => void;
   onValuesChange?: (hasChanges: boolean) => void;
   disabled?: boolean;
@@ -37,7 +40,9 @@ interface RundsteuerempfaengerFormProps {
 
 const RundsteuerempfaengerForm = ({
   item,
+  tableName,
   onSave,
+  onIdUpdated,
   onFormReady,
   onValuesChange,
   disabled = false,
@@ -47,6 +52,15 @@ const RundsteuerempfaengerForm = ({
   hideButtons = false,
 }: RundsteuerempfaengerFormProps) => {
   const [form] = Form.useForm();
+  const [pendingConfirmation, setPendingConfirmation] = useState(false);
+  const sync = useSyncOptional();
+
+  // Reset pending state when ID becomes positive (server confirmed)
+  useEffect(() => {
+    if ((item.id as number) > 0) {
+      setPendingConfirmation(false);
+    }
+  }, [item.id]);
 
   useEffect(() => {
     if (onFormReady) {
@@ -65,7 +79,31 @@ const RundsteuerempfaengerForm = ({
   };
 
   const handleSave = (values: Record<string, unknown>) => {
-    onSave({ ...values, id: item.id });
+    if (!jwt) {
+      message.error("Nicht authentifiziert");
+      return;
+    }
+
+    const result = saveKeyTableItem({
+      item,
+      values,
+      tableName,
+      sync,
+      onIdUpdated,
+    });
+
+    if (result.success) {
+      message.success("Aktion zur Synchronisation hinzugefügt");
+      onSave(result.savedItem);
+
+      if (result.isNewItem) {
+        setPendingConfirmation(true);
+      }
+
+      onValuesChange?.(false);
+    } else {
+      message.error(result.error || "Fehler beim Speichern");
+    }
   };
 
   const dmsUrl = item.dms_url as DmsUrlInner | undefined;
@@ -78,7 +116,7 @@ const RundsteuerempfaengerForm = ({
       onValuesChange={handleValuesChange}
       layout="vertical"
       style={{ padding: "8px 0" }}
-      disabled={disabled}
+      disabled={disabled || pendingConfirmation}
     >
       <Row gutter={24}>
         <Col span={12}>
