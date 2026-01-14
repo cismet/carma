@@ -17,14 +17,17 @@ export const CustomCard = ({
   fullHeight,
   ...props
 }: CustomCardProps) => {
+  // Check if using flex layout from style prop
+  const isFlexLayout = style?.display === "flex";
+
   return (
     <Card
       style={style}
       bodyStyle={{
-        overflowY: "auto",
-        overflowX: "hidden",
+        overflow: isFlexLayout ? "hidden" : "auto",
         maxHeight: fullHeight ? "100%" : "calc(100% - 40px)",
         height: "100%",
+        ...(isFlexLayout && { display: "flex", flexDirection: "column" as const }),
       }}
       title={<span className="text-lg">{title}</span>}
       extra={extra}

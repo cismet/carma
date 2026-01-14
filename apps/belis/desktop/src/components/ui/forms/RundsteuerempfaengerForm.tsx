@@ -32,6 +32,7 @@ interface RundsteuerempfaengerFormProps {
   jwt?: string;
   formHasChanges?: boolean;
   onReset?: () => void;
+  hideButtons?: boolean;
 }
 
 const RundsteuerempfaengerForm = ({
@@ -43,6 +44,7 @@ const RundsteuerempfaengerForm = ({
   jwt,
   formHasChanges = false,
   onReset,
+  hideButtons = false,
 }: RundsteuerempfaengerFormProps) => {
   const [form] = Form.useForm();
 
@@ -183,7 +185,7 @@ const RundsteuerempfaengerForm = ({
           />
         </Form.Item>
       )}
-      {!disabled && (
+      {!disabled && !hideButtons && (
         <FormActionButtons formHasChanges={formHasChanges} onReset={onReset} />
       )}
     </Form>

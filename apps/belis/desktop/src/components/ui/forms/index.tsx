@@ -15,6 +15,7 @@ export interface CustomFormProps {
   jwt?: string;
   formHasChanges?: boolean;
   onReset?: () => void;
+  hideButtons?: boolean;
 }
 
 // Registry keyed by form name (referenced in keyTableDisplayConfig.customForm)

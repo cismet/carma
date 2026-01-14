@@ -14,6 +14,7 @@ interface LeuchentypFormProps {
   jwt?: string;
   formHasChanges?: boolean;
   onReset?: () => void;
+  hideButtons?: boolean;
 }
 
 const LeuchentypForm = ({
@@ -25,6 +26,7 @@ const LeuchentypForm = ({
   jwt,
   formHasChanges = false,
   onReset,
+  hideButtons = false,
 }: LeuchentypFormProps) => {
   const [form] = Form.useForm();
 
@@ -205,7 +207,7 @@ const LeuchentypForm = ({
         </Col>
       </Row>
       <DocumentPreview documents={dokumenteArray || []} jwt={jwt} />
-      {!disabled && (
+      {!disabled && !hideButtons && (
         <FormActionButtons formHasChanges={formHasChanges} onReset={onReset} />
       )}
     </Form>

@@ -14,6 +14,7 @@ interface MasttypFormProps {
   jwt?: string;
   formHasChanges?: boolean;
   onReset?: () => void;
+  hideButtons?: boolean;
 }
 
 const MasttypForm = ({
@@ -25,6 +26,7 @@ const MasttypForm = ({
   jwt,
   formHasChanges = false,
   onReset,
+  hideButtons = false,
 }: MasttypFormProps) => {
   const [form] = Form.useForm();
   console.log("xxx form item", item);
@@ -135,7 +137,7 @@ const MasttypForm = ({
         </Col>
       </Row>
       <DocumentPreview documents={dokumenteArray || []} jwt={jwt} />
-      {!disabled && (
+      {!disabled && !hideButtons && (
         <FormActionButtons formHasChanges={formHasChanges} onReset={onReset} />
       )}
     </Form>

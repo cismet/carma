@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useSelector } from "react-redux";
 import type { FormInstance } from "antd";
+import { Button } from "antd";
 import { CustomCard } from "../commons/CustomCard";
 import KeyTableItemForm from "./KeyTableItemForm";
 import { keyTableDisplayConfig } from "../../config/keyTableDisplayConfig";
@@ -45,25 +46,46 @@ const FormWrapper = ({ selectedItem, onSave, onIdUpdated, readOnly = false }: Fo
     setFormHasChanges(false);
   };
 
+  const handleSubmit = () => {
+    formRef.current?.submit();
+  };
+
   return (
-    <CustomCard title={title} style={{ height: "100%" }}>
-      <div className="h-full">
-        <div className="w-full">
-          <FormComponent
-            key={`${selectedItem.tableName}-${selectedItem.item.id}`}
-            item={selectedItem.item}
-            tableName={selectedItem.tableName}
-            onSave={onSave}
-            onIdUpdated={onIdUpdated}
-            onFormReady={(form) => (formRef.current = form)}
-            onValuesChange={setFormHasChanges}
-            disabled={readOnly}
-            jwt={jwt}
-            formHasChanges={formHasChanges}
-            onReset={handleReset}
-          />
-        </div>
+    <CustomCard title={title} style={{ height: "100%", display: "flex", flexDirection: "column" }}>
+      <div style={{ flex: 1, overflowY: "auto", overflowX: "hidden", minHeight: 0 }}>
+        <FormComponent
+          key={`${selectedItem.tableName}-${selectedItem.item.id}`}
+          item={selectedItem.item}
+          tableName={selectedItem.tableName}
+          onSave={onSave}
+          onIdUpdated={onIdUpdated}
+          onFormReady={(form) => (formRef.current = form)}
+          onValuesChange={setFormHasChanges}
+          disabled={readOnly}
+          jwt={jwt}
+          formHasChanges={formHasChanges}
+          onReset={handleReset}
+          hideButtons={true}
+        />
       </div>
+      {!readOnly && (
+        <div style={{
+          flexShrink: 0,
+          display: "flex",
+          justifyContent: "flex-end",
+          gap: 8,
+          paddingTop: 16,
+          borderTop: "1px solid #f0f0f0",
+          marginTop: 16
+        }}>
+          <Button onClick={handleReset} disabled={!formHasChanges}>
+            Abbrechen
+          </Button>
+          <Button type="primary" onClick={handleSubmit} disabled={!formHasChanges}>
+            Speichern
+          </Button>
+        </div>
+      )}
     </CustomCard>
   );
 };

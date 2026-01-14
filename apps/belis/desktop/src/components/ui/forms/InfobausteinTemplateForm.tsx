@@ -27,6 +27,7 @@ interface InfobausteinTemplateFormProps {
   jwt?: string;
   formHasChanges?: boolean;
   onReset?: () => void;
+  hideButtons?: boolean;
 }
 
 const getInitialTableData = (item: Record<string, unknown>): Infobaustein[] => {
@@ -45,6 +46,7 @@ const InfobausteinTemplateForm = ({
   disabled = false,
   formHasChanges = false,
   onReset,
+  hideButtons = false,
 }: InfobausteinTemplateFormProps) => {
   const [form] = Form.useForm();
   const [tableData, setTableData] = useState<Infobaustein[]>(() =>
@@ -283,7 +285,7 @@ const InfobausteinTemplateForm = ({
           })}
         />
       </div>
-      {!disabled && (
+      {!disabled && !hideButtons && (
         <FormActionButtons formHasChanges={formHasChanges} onReset={onReset} />
       )}
     </Form>

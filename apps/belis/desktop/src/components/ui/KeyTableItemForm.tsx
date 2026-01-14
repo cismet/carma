@@ -17,6 +17,7 @@ interface KeyTableItemFormProps {
   disabled?: boolean;
   formHasChanges?: boolean;
   onReset?: () => void;
+  hideButtons?: boolean;
 }
 
 const KeyTableItemForm = ({
@@ -29,6 +30,7 @@ const KeyTableItemForm = ({
   disabled = false,
   formHasChanges = false,
   onReset,
+  hideButtons = false,
 }: KeyTableItemFormProps) => {
   const [form] = Form.useForm();
   const [saving, setSaving] = useState(false);
@@ -212,7 +214,7 @@ const KeyTableItemForm = ({
           </Form.Item>
         ))
       )}
-      {!disabled && !pendingConfirmation && (
+      {!disabled && !pendingConfirmation && !hideButtons && (
         <FormActionButtons formHasChanges={formHasChanges} onReset={onReset} />
       )}
     </Form>
