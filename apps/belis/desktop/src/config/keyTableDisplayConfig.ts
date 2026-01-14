@@ -1,3 +1,5 @@
+import type { Rule } from "antd/es/form";
+
 export type SortMode = "none" | "alphabetical" | "numeric";
 export type GroupingMode = "byKey" | "byStreet";
 
@@ -17,6 +19,7 @@ export interface KeyTableDisplayRule {
   fieldLabels?: Record<string, string>; // Override labels for form fields (key -> display label)
   displayName?: string; // Custom display name for the table in Column 1 (e.g., "Unterhalt - Mast")
   fieldOrder?: string[]; // Order of fields in the form (fields not listed appear at the end)
+  fieldRules?: Record<string, Rule[]>; // Ant Design validation rules per field
 }
 
 export type KeyTableDisplayConfig = Record<string, KeyTableDisplayRule>;
@@ -25,6 +28,11 @@ export const keyTableDisplayConfig: KeyTableDisplayConfig = {
   bauart: {
     template: "{bezeichnung}",
     sortMode: "alphabetical",
+    // fieldRules: {
+    //   bezeichnung: [
+    //     { required: true, message: "Bezeichnung ist erforderlich" },
+    //   ],
+    // },
   },
   teams: {
     template: "{name}",
@@ -92,6 +100,15 @@ export const keyTableDisplayConfig: KeyTableDisplayConfig = {
     sortMode: "numeric",
     fieldLabels: {
       schluessel: "Schlüssel",
+    },
+    fieldRules: {
+      bezeichnung: [
+        { required: true, message: "Bezeichnung ist erforderlich" },
+      ],
+      schluessel: [
+        { required: true, message: "Schlüssel ist erforderlich" },
+        { pattern: /^\d+$/, message: "Schlüssel muss eine Zahl sein" },
+      ],
     },
   },
   kennziffer: {

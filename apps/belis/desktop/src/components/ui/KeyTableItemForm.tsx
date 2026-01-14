@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
-import { Form, Input, message, FormInstance, Row, Col } from "antd";
+import { Form, Input, message, Row, Col } from "antd";
+import type { FormInstance, Rule } from "antd/es/form";
 import { useSelector } from "react-redux";
 import { getJWT } from "../../store/slices/auth";
 import { keyTableDisplayConfig } from "../../config/keyTableDisplayConfig";
@@ -44,6 +45,11 @@ const KeyTableItemForm = ({
   const getLabel = (key: string) => {
     const fieldLabels = keyTableDisplayConfig[tableName]?.fieldLabels;
     return fieldLabels?.[key] ?? formatLabel(key);
+  };
+
+  const getRules = (key: string): Rule[] => {
+    const fieldRules = keyTableDisplayConfig[tableName]?.fieldRules;
+    return fieldRules?.[key] ?? [];
   };
 
   const handleSave = async (values: Record<string, unknown>) => {
@@ -140,6 +146,7 @@ const KeyTableItemForm = ({
                     {getLabel(key)}
                   </span>
                 }
+                rules={getRules(key)}
                 style={{ marginBottom: 16 }}
               >
                 <Input />
@@ -157,6 +164,7 @@ const KeyTableItemForm = ({
                 {getLabel(key)}
               </span>
             }
+            rules={getRules(key)}
             style={{ marginBottom: 16 }}
           >
             <Input />
