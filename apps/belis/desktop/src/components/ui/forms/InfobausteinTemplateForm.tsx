@@ -1,5 +1,6 @@
 import { useEffect, useState, useCallback, useRef } from "react";
 import { Form, Input, Table, Button, Checkbox } from "antd";
+import FormActionButtons from "../FormActionButtons";
 import type { FormInstance } from "antd";
 import type { ColumnsType } from "antd/es/table";
 import { PlusOutlined, MinusOutlined } from "@ant-design/icons";
@@ -24,6 +25,8 @@ interface InfobausteinTemplateFormProps {
   onValuesChange?: (hasChanges: boolean) => void;
   disabled?: boolean;
   jwt?: string;
+  formHasChanges?: boolean;
+  onReset?: () => void;
 }
 
 const getInitialTableData = (item: Record<string, unknown>): Infobaustein[] => {
@@ -40,6 +43,8 @@ const InfobausteinTemplateForm = ({
   onFormReady,
   onValuesChange,
   disabled = false,
+  formHasChanges = false,
+  onReset,
 }: InfobausteinTemplateFormProps) => {
   const [form] = Form.useForm();
   const [tableData, setTableData] = useState<Infobaustein[]>(() =>
@@ -278,6 +283,9 @@ const InfobausteinTemplateForm = ({
           })}
         />
       </div>
+      {!disabled && (
+        <FormActionButtons formHasChanges={formHasChanges} onReset={onReset} />
+      )}
     </Form>
   );
 };

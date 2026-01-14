@@ -1,5 +1,6 @@
 import { useEffect } from "react";
 import { Form, Input, Row, Col } from "antd";
+import FormActionButtons from "../FormActionButtons";
 import type { FormInstance } from "antd";
 import DocumentPreview, { DokumentItem } from "../DocumentPreview";
 
@@ -11,6 +12,8 @@ interface MasttypFormProps {
   onValuesChange?: (hasChanges: boolean) => void;
   disabled?: boolean;
   jwt?: string;
+  formHasChanges?: boolean;
+  onReset?: () => void;
 }
 
 const MasttypForm = ({
@@ -20,6 +23,8 @@ const MasttypForm = ({
   onValuesChange,
   disabled = false,
   jwt,
+  formHasChanges = false,
+  onReset,
 }: MasttypFormProps) => {
   const [form] = Form.useForm();
   console.log("xxx form item", item);
@@ -130,6 +135,9 @@ const MasttypForm = ({
         </Col>
       </Row>
       <DocumentPreview documents={dokumenteArray || []} jwt={jwt} />
+      {!disabled && (
+        <FormActionButtons formHasChanges={formHasChanges} onReset={onReset} />
+      )}
     </Form>
   );
 };

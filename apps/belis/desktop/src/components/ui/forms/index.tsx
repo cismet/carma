@@ -13,6 +13,8 @@ export interface CustomFormProps {
   onValuesChange?: (hasChanges: boolean) => void;
   disabled?: boolean;
   jwt?: string;
+  formHasChanges?: boolean;
+  onReset?: () => void;
 }
 
 // Registry keyed by form name (referenced in keyTableDisplayConfig.customForm)

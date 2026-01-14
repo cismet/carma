@@ -1,5 +1,6 @@
 import { useEffect } from "react";
 import { Form, Input, Row, Col, Select, List } from "antd";
+import FormActionButtons from "../FormActionButtons";
 import type { FormInstance } from "antd";
 import { FilePdfOutlined } from "@ant-design/icons";
 import { downloadDocument } from "../../../helper/documentHelper";
@@ -29,6 +30,8 @@ interface RundsteuerempfaengerFormProps {
   onValuesChange?: (hasChanges: boolean) => void;
   disabled?: boolean;
   jwt?: string;
+  formHasChanges?: boolean;
+  onReset?: () => void;
 }
 
 const RundsteuerempfaengerForm = ({
@@ -38,6 +41,8 @@ const RundsteuerempfaengerForm = ({
   onValuesChange,
   disabled = false,
   jwt,
+  formHasChanges = false,
+  onReset,
 }: RundsteuerempfaengerFormProps) => {
   const [form] = Form.useForm();
 
@@ -177,6 +182,9 @@ const RundsteuerempfaengerForm = ({
             )}
           />
         </Form.Item>
+      )}
+      {!disabled && (
+        <FormActionButtons formHasChanges={formHasChanges} onReset={onReset} />
       )}
     </Form>
   );

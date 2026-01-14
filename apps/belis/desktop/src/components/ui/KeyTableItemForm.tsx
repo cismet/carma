@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { Form, Input, message, Row, Col } from "antd";
+import FormActionButtons from "./FormActionButtons";
 import type { FormInstance, Rule } from "antd/es/form";
 import { useSelector } from "react-redux";
 import { getJWT } from "../../store/slices/auth";
@@ -13,6 +14,8 @@ interface KeyTableItemFormProps {
   onFormReady?: (form: FormInstance) => void;
   onValuesChange?: (hasChanges: boolean) => void;
   disabled?: boolean;
+  formHasChanges?: boolean;
+  onReset?: () => void;
 }
 
 const KeyTableItemForm = ({
@@ -22,6 +25,8 @@ const KeyTableItemForm = ({
   onFormReady,
   onValuesChange,
   disabled = false,
+  formHasChanges = false,
+  onReset,
 }: KeyTableItemFormProps) => {
   const [form] = Form.useForm();
   const [saving, setSaving] = useState(false);
@@ -170,6 +175,9 @@ const KeyTableItemForm = ({
             <Input />
           </Form.Item>
         ))
+      )}
+      {!disabled && (
+        <FormActionButtons formHasChanges={formHasChanges} onReset={onReset} />
       )}
     </Form>
   );

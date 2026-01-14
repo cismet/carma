@@ -1,5 +1,6 @@
 import { useEffect } from "react";
 import { Form, Input, Row, Col } from "antd";
+import FormActionButtons from "../FormActionButtons";
 import type { FormInstance } from "antd";
 import DocumentPreview, { DokumentItem } from "../DocumentPreview";
 
@@ -11,6 +12,8 @@ interface LeuchentypFormProps {
   onValuesChange?: (hasChanges: boolean) => void;
   disabled?: boolean;
   jwt?: string;
+  formHasChanges?: boolean;
+  onReset?: () => void;
 }
 
 const LeuchentypForm = ({
@@ -20,6 +23,8 @@ const LeuchentypForm = ({
   onValuesChange,
   disabled = false,
   jwt,
+  formHasChanges = false,
+  onReset,
 }: LeuchentypFormProps) => {
   const [form] = Form.useForm();
 
@@ -200,6 +205,9 @@ const LeuchentypForm = ({
         </Col>
       </Row>
       <DocumentPreview documents={dokumenteArray || []} jwt={jwt} />
+      {!disabled && (
+        <FormActionButtons formHasChanges={formHasChanges} onReset={onReset} />
+      )}
     </Form>
   );
 };

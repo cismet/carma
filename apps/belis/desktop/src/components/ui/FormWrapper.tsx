@@ -1,6 +1,5 @@
 import { useEffect, useRef, useState } from "react";
 import { useSelector } from "react-redux";
-import { CheckCircleOutlined, CloseOutlined } from "@ant-design/icons";
 import type { FormInstance } from "antd";
 import { CustomCard } from "../commons/CustomCard";
 import KeyTableItemForm from "./KeyTableItemForm";
@@ -40,42 +39,13 @@ const FormWrapper = ({ selectedItem, onSave, readOnly = false }: FormWrapperProp
     ? "Neuer Eintrag"
     : getItemDisplayText(selectedItem.item, selectedItem.tableName, keyTableDisplayConfig);
 
+  const handleReset = () => {
+    formRef.current?.resetFields();
+    setFormHasChanges(false);
+  };
+
   return (
-    <CustomCard
-      title={title}
-      style={{ height: "100%" }}
-      extra={
-        !readOnly && (
-          <div className="flex items-center gap-2">
-            <CheckCircleOutlined
-              className={
-                formHasChanges
-                  ? "cursor-pointer hover:text-green-500"
-                  : "cursor-not-allowed text-gray-300"
-              }
-              onClick={() => {
-                if (formHasChanges) {
-                  formRef.current?.submit();
-                }
-              }}
-            />
-            <CloseOutlined
-              className={
-                formHasChanges
-                  ? "cursor-pointer hover:text-red-500"
-                  : "cursor-not-allowed text-gray-300"
-              }
-              onClick={() => {
-                if (formHasChanges) {
-                  formRef.current?.resetFields();
-                  setFormHasChanges(false);
-                }
-              }}
-            />
-          </div>
-        )
-      }
-    >
+    <CustomCard title={title} style={{ height: "100%" }}>
       <div className="h-full">
         <div className="w-full">
           <FormComponent
@@ -87,6 +57,8 @@ const FormWrapper = ({ selectedItem, onSave, readOnly = false }: FormWrapperProp
             onValuesChange={setFormHasChanges}
             disabled={readOnly}
             jwt={jwt}
+            formHasChanges={formHasChanges}
+            onReset={handleReset}
           />
         </div>
       </div>
