@@ -119,6 +119,7 @@ export const CesiumMeasurementsProvider: React.FC<
   const [measurementMode, setMeasurementMode] = useState<MeasurementMode>(
     initialMeasurementMode ?? MeasurementMode.PointQuery
   );
+
   const [pointRadius, setPointRadius] = useState(pointQueryOptions.radius ?? 1);
   const [heightOffset, setHeightOffset] = useState(
     traverseOptions.heightOffset ?? 1.5

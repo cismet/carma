@@ -1,5 +1,5 @@
 // Built-in Modules
-import { useMemo, useEffect, useCallback, useRef } from "react";
+import { useMemo } from "react";
 import { useDispatch, useSelector } from "react-redux";
 
 // 3rd party Modules
@@ -31,12 +31,9 @@ import {
   MapMeasurementsProvider,
   MEASUREMENT_MODE,
 } from "@carma-commons/measurements";
-import { LabelOverlayProvider } from "@carma-providers/label-overlay";
+// import { LabelOverlayProvider } from "@carma-providers/label-overlay";
 import {
-  CesiumMeasurementsProvider,
-  useCesiumMeasurements,
-  MeasurementMode,
-  useCesiumOverlaySync,
+  CesiumMeasurements,
 } from "@carma-mapping/engines/cesium/measurements";
 
 // Local Modules
@@ -134,44 +131,6 @@ function MeasurementsWrapper({
   );
 }
 
-const CesiumMeasurementsSync = () => {
-  const { setMeasurementMode } = useCesiumMeasurements();
-  const uiMode = useSelector(getUIMode);
-
-  useEffect(() => {
-    if (uiMode === UIMode.MEASUREMENT) {
-      setMeasurementMode(MeasurementMode.PointQuery);
-    } else {
-      setMeasurementMode(MeasurementMode.NONE);
-    }
-  }, [uiMode, setMeasurementMode]);
-
-  return null;
-};
-
-const MeasurementsIntegration = ({
-  children,
-}: {
-  children: React.ReactNode;
-}) => {
-  const requestUpdateCallback = useCesiumOverlaySync();
-
-  const options = useMemo(
-    () => ({
-      pointQueries: { enabled: true, radius: 1 },
-    }),
-    []
-  );
-
-  return (
-    <LabelOverlayProvider requestUpdateCallback={requestUpdateCallback}>
-      <CesiumMeasurementsProvider options={options}>
-        {children}
-        <CesiumMeasurementsSync />
-      </CesiumMeasurementsProvider>
-    </LabelOverlayProvider>
-  );
-};
 
 function App({ published }: { published?: boolean }) {
   const dispatch = useDispatch();
@@ -205,6 +164,13 @@ function App({ published }: { published?: boolean }) {
     []
   );
 
+  const cesiumMeasurementOptions = useMemo(
+    () => ({
+      pointQueries: { enabled: true, radius: 1 },
+    }),
+    []
+  );
+
   if (isLoadingConfig === null) {
     // wait for the loading state to be determined to prevent re-rendering
     console.debug("[CONFIG] APP - Waiting for config loading state...");
@@ -232,7 +198,7 @@ function App({ published }: { published?: boolean }) {
                   setModeExternal={handleSetMode}
                   baseConfig={MEASUREMENTS_BASE_CONFIG}
                 >
-                  <MeasurementsIntegration>
+                  <CesiumMeasurements options={cesiumMeasurementOptions}>
                     <ErrorBoundary FallbackComponent={AppErrorFallback}>
                       <AdhocFeatureRehydration />
                       <div className={TAILWIND_CLASSNAMES_FULLSCREEN_FIXED}>
@@ -275,7 +241,7 @@ function App({ published }: { published?: boolean }) {
                         </Modal>
                       </div>
                     </ErrorBoundary>
-                  </MeasurementsIntegration>
+                  </CesiumMeasurements>
                 </MeasurementsWrapper>
               </ObliqueProvider>
             </CarmaMapProviderWrapper>
