@@ -5,7 +5,10 @@ import type { FormInstance } from "antd";
 import type { ColumnsType } from "antd/es/table";
 import { PlusOutlined, MinusOutlined } from "@ant-design/icons";
 import { useSyncOptional } from "@carma-providers/syncing";
-import { saveKeyTableItem } from "../../../helper/syncHelper";
+import {
+  saveKeyTableItem,
+  TEMP_ID_THRESHOLD,
+} from "../../../helper/syncHelper";
 
 interface Infobaustein {
   id: number;
@@ -120,7 +123,10 @@ const InfobausteinTemplateForm = ({
     }
 
     const updatedArBausteineArray = tableData.map((baustein) => ({
-      infobaustein: baustein,
+      infobaustein: {
+        ...baustein,
+        id: baustein.id < TEMP_ID_THRESHOLD ? -1 : baustein.id,
+      },
     }));
 
     const itemWithTableData = {
@@ -130,7 +136,10 @@ const InfobausteinTemplateForm = ({
 
     const result = saveKeyTableItem({
       item: itemWithTableData,
-      values,
+      values: {
+        ...values,
+        ar_bausteineArray: updatedArBausteineArray,
+      },
       tableName,
       sync,
       onIdUpdated,
@@ -319,7 +328,7 @@ const InfobausteinTemplateForm = ({
           rowKey="id"
           size="small"
           pagination={false}
-          scroll={{ y: 300 }}
+          scroll={{ y: 800 }}
           rowClassName={(record) =>
             selectedRowKey === record.id ? "selected-row" : ""
           }
