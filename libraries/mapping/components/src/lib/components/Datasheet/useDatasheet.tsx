@@ -52,7 +52,10 @@ export const DatasheetProvider = ({ children }: { children: ReactNode }) => {
 
     if (value && feature && leafletMap) {
       setTimeout(() => {
-        utils.zoomToFeature(feature, leafletMap);
+        utils.zoomToFeature({
+          selectedFeature: feature,
+          leafletMap: leafletMap,
+        });
       }, 550);
     } else if (sizes && currentPosition) {
       if (value && !isDatasheetView) {

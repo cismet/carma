@@ -141,7 +141,7 @@ export const FeatureInfobox = ({
           libreMap,
         });
       },
-      onRouteAction: handleRouteAction,
+      // onRouteAction: handleRouteAction,
     });
   }
 

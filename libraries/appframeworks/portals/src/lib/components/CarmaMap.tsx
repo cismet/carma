@@ -41,7 +41,7 @@ export type LibreLayer =
 
 interface CarmaMapProps {
   mapEngine?: "leaflet" | "maplibre" | "cesium";
-  onClick: () => void;
+  onClick?: () => void;
   modalMenu?: React.ReactNode;
   gazetteerSearchControl?: boolean;
   gazetteerSearchComponent?: React.ReactNode;

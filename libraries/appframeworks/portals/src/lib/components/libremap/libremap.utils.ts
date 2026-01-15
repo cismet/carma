@@ -560,7 +560,8 @@ export const objectToFeature = (jsonOutput: any, code: string) => {
 export const createFeature = (
   selectedVectorFeature,
   layerMapping,
-  mapInstance?: maplibregl.Map
+  mapInstance?: maplibregl.Map,
+  setIsDatasheetView?: (value: boolean, feature?: any, libreMap?: any) => void
 ) => {
   let feature = undefined;
 
@@ -572,8 +573,16 @@ export const createFeature = (
   let result = "";
   let featureInfoZoom = 20;
   let blockLegacyGetFeatureInfo = false;
+  let openDatasheet = false;
+
   layerMapping.forEach((keyword) => {
-    result += keyword + "\n";
+    // Check for openDatasheet flag
+    if (keyword.startsWith("openDatasheet:")) {
+      const value = keyword.split(":")[1]?.trim();
+      openDatasheet = value === "true";
+    } else {
+      result += keyword + "\n";
+    }
   });
 
   if (result) {
@@ -593,46 +602,66 @@ export const createFeature = (
     }
     const genericLinks = featureProperties.properties.genericLinks || [];
 
+    // Build the list of generic links
+    const allGenericLinks = [
+      {
+        iconname: "car",
+        tooltip: "Route berechnen",
+        routeAction: true,
+        getRouteParams: () => {
+          // Get endpoint coordinates from feature geometry
+          const geometry = selectedVectorFeature.geometry;
+          let endLat: number, endLng: number;
+
+          if (geometry.type === "Point") {
+            [endLng, endLat] = geometry.coordinates as [number, number];
+          } else if (
+            geometry.type === "Polygon" ||
+            geometry.type === "MultiPolygon"
+          ) {
+            // Use centroid for polygons (simplified: use first coordinate)
+            const coords =
+              geometry.type === "Polygon"
+                ? geometry.coordinates[0][0]
+                : geometry.coordinates[0][0][0];
+            [endLng, endLat] = coords as [number, number];
+          } else {
+            return null;
+          }
+
+          const startLat = 51.2725699;
+          const startLng = 7.199918;
+
+          return {
+            from: { lat: startLat, lng: startLng },
+            to: { lat: endLat, lng: endLng },
+          };
+        },
+      },
+      ...genericLinks,
+    ];
+
+    if (openDatasheet && setIsDatasheetView) {
+      allGenericLinks.push({
+        tooltip: "Datenblatt",
+        iconname: "file",
+        action: () => {
+          setIsDatasheetView(
+            true,
+            {
+              geometry: selectedVectorFeature.geometry,
+              properties: {},
+            },
+            mapInstance
+          );
+        },
+      });
+    }
+
     feature = {
       properties: {
         ...featureProperties.properties,
-        genericLinks: [
-          {
-            iconname: "car",
-            tooltip: "Route berechnen",
-            routeAction: true,
-            getRouteParams: () => {
-              // Get endpoint coordinates from feature geometry
-              const geometry = selectedVectorFeature.geometry;
-              let endLat: number, endLng: number;
-
-              if (geometry.type === "Point") {
-                [endLng, endLat] = geometry.coordinates as [number, number];
-              } else if (
-                geometry.type === "Polygon" ||
-                geometry.type === "MultiPolygon"
-              ) {
-                // Use centroid for polygons (simplified: use first coordinate)
-                const coords =
-                  geometry.type === "Polygon"
-                    ? geometry.coordinates[0][0]
-                    : geometry.coordinates[0][0][0];
-                [endLng, endLat] = coords as [number, number];
-              } else {
-                return null;
-              }
-
-              const startLat = 51.2725699;
-              const startLng = 7.199918;
-
-              return {
-                from: { lat: startLat, lng: startLng },
-                to: { lat: endLat, lng: endLng },
-              };
-            },
-          },
-          ...genericLinks,
-        ],
+        genericLinks: allGenericLinks,
         zoom: featureInfoZoom,
       },
       geometry: selectedVectorFeature.geometry,

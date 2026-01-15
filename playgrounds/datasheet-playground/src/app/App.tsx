@@ -4,7 +4,11 @@ import { EmptySearchComponent } from "@carma-mapping/fuzzy-search";
 import { Datasheet, useDatasheet } from "@carma-mapping/components";
 import { useRef, useEffect, useState, useContext } from "react";
 import { Control, ControlLayout } from "@carma-mapping/map-controls-layout";
-import { FeatureInfobox, InfoBox } from "@carma-appframeworks/portals";
+import {
+  CarmaMap,
+  FeatureInfobox,
+  InfoBox,
+} from "@carma-appframeworks/portals";
 import CismapLayer from "react-cismap/CismapLayer";
 import { TopicMapContext } from "react-cismap/contexts/TopicMapContextProvider";
 
@@ -36,83 +40,33 @@ export function App() {
 
   return (
     <div style={{ width: "100%", height: "100vh" }} ref={wrapperRef}>
-      <ControlLayout>
-        {!isDatasheetView && (
-          <Control position="bottomright" order={10}>
-            <FeatureInfobox
-              selectedFeature={feature}
-              versionData={{
-                version: "0.1",
-              }}
-            />
-          </Control>
-        )}
-      </ControlLayout>
       <Datasheet
         mainComponent={
-          <TopicMapComponent
-            gazetteerSearchControl={true}
-            gazetteerSearchComponent={EmptySearchComponent}
-            hamburgerMenu={false}
-            locatorControl={false}
-            fullScreenControl={false}
-            zoomControls={false}
-            leafletMapProps={{ editable: true }}
-            mapStyle={{
-              width: isDatasheetView ? 300 : wrapperRef.current?.clientWidth,
-              height: isDatasheetView ? 200 : wrapperRef.current?.clientHeight,
-            }}
-          >
-            <CismapLayer
-              type="vector"
-              style="https://tiles.cismet.de/belis/style.json"
-              selectionEnabled={true}
-              manualSelectionManagement={true}
-              maxSelectionCount={10}
-              additionalLayerUniquePane={"vector." + 0}
-              additionalLayersFreeZOrder={0}
-              onSelectionChanged={(e) => {
-                console.log("xxx", e);
-                if (e.hit && e.hit.setSelection) {
-                  if (
-                    e.hit.properties.fabrikat ||
-                    e.hit.properties.bezeichnung ||
-                    e.hit.properties.strasse
-                  ) {
-                    e.hit.setSelection(true);
-                    setFeature({
-                      properties: {
-                        header: "Lampen",
-                        title:
-                          e.hit.properties.fabrikat ||
-                          e.hit.properties.bezeichnung ||
-                          e.hit.properties.strasse,
-                        genericLinks: [
-                          {
-                            tooltip: "Datenblatt",
-                            action: () => {
-                              setIsDatasheetView(
-                                true,
-                                {
-                                  geometry: e.hit.geometry,
-                                  properties: {},
-                                },
-                                routedMapRef
-                              );
-                            },
-                            iconname: "file",
-                          },
-                        ],
-                      },
-                      geometry: e.hit.geometry,
-                    });
-                  }
-                } else {
-                  setFeature(null);
-                }
-              }}
-            />
-          </TopicMapComponent>
+          <CarmaMap
+            mapEngine="maplibre"
+            zoomControls={!isDatasheetView}
+            fullScreenControl={!isDatasheetView}
+            locatorControl={!isDatasheetView}
+            terrainControl={!isDatasheetView}
+            libreLayers={[
+              {
+                name: "Grundschulen",
+                type: "vector",
+                style: "https://tiles.cismet.de/schulen/grundschule.style.json",
+                infoboxMapping: [
+                  "foto:p.foto",
+                  "header:'Grundschule'",
+                  "headerColor:p.farbe",
+                  "title:p.name",
+                  "additionalInfo:'Träger: ' + p.traeger + ', ' + p.adresse",
+                  "subtitle:'OGS: ' + p.ogs + ', Betreuung: ' + p.gruppe + ', jahrgangsübergreifende Klassen: ' + p.jahrgang",
+                  "url:p.homepage",
+                  "tel:p.telefon",
+                  "openDatasheet:true",
+                ],
+              },
+            ]}
+          />
         }
         datasheetComponent={
           <div

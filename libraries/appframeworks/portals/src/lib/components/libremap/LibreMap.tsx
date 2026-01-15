@@ -28,6 +28,7 @@ import { useMapHashRouting } from "../../hooks/useMapHashRouting";
 import { FeatureInfobox } from "../FeatureInfobox";
 import { useLibreContext } from "./LibreContext";
 import { useClusterMarkers } from "./useClusterMarkers";
+import { useDatasheet } from "@carma-mapping/components";
 
 interface LibreMapProps {
   backgroundLayers?: string;
@@ -74,6 +75,7 @@ export const LibreMap = ({
 
   const { selection } = useSelection();
   const selectionRef = useRef(selection);
+  const { setIsDatasheetView } = useDatasheet();
 
   // Keep selectionRef in sync with selection
   useEffect(() => {
@@ -337,7 +339,8 @@ export const LibreMap = ({
             feature = createFeature(
               selectedVectorFeature,
               layerMapping,
-              mapInstance
+              mapInstance,
+              setIsDatasheetView
             );
           }
 
@@ -425,7 +428,7 @@ export const LibreMap = ({
       });
 
       mapInstance.on("move", () => {
-        if (layers.find((layer) => layer.type === "vector")) {
+        if (layers?.find((layer) => layer.type === "vector")) {
           vectorSourcesReadyRef.current = false;
         } else {
           vectorSourcesReadyRef.current = true;
