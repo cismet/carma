@@ -193,6 +193,8 @@ export const updateFeatureCollectionWithNewActions = (
         latestActionStatus: computeLatestStatus(mergedActions),
         hasOpenActions: hasStatus(mergedActions, "open"),
         actionCount: mergedActions.length,
+        // Clear hasUpcomingActions since we now have real data
+        hasUpcomingActions: false,
       },
     };
 
@@ -242,30 +244,34 @@ export const createInfoBoxControlObject = (
   setShowStatusDialog: (show: boolean) => void,
   jwt?: string | null
 ) => {
-  const p = feature.properties;
+  const p = feature.properties as any;
   console.log("xxx feature.properties", p);
+
+  // Check if feature has upcoming (optimistic) actions
+  const hasUpcoming = p.hasUpcomingActions === true;
+  const upcomingSuffix = hasUpcoming ? " *" : "";
+
   let headerColor, header;
   switch (p.latestActionStatus) {
     case "none":
       headerColor = "#A5D6A7";
-      header = "Baumbewirtschaftung";
+      header = "Baumbewirtschaftung" + upcomingSuffix;
       break;
     case "open":
       headerColor = "#FFEB3B";
-      header = "Baumbewirtschaftung (in Bearbeitung)";
-
+      header = "Baumbewirtschaftung (in Bearbeitung)" + upcomingSuffix;
       break;
     case "exception":
       headerColor = "#F44336";
-      header = "Baumbewirtschaftung (Ausnahme)";
+      header = "Baumbewirtschaftung (Ausnahme)" + upcomingSuffix;
       break;
     case "done":
       headerColor = "#4CAF50";
-      header = "Baumbewirtschaftung (erledigt)";
+      header = "Baumbewirtschaftung (erledigt)" + upcomingSuffix;
       break;
     default:
       headerColor = "#A5D6A7";
-      header = "Baumbewirtschaftung";
+      header = "Baumbewirtschaftung" + upcomingSuffix;
   }
 
   // Get the latest action's image

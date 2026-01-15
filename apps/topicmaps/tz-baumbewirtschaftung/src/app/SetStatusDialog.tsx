@@ -41,6 +41,7 @@ interface SetStatusDialogProps {
   close?: () => void;
   onCancel?: () => void;
   onClose?: (parameter: any) => void;
+  onUpcomingAction?: (actionPayload: TreeActionPayload) => void;
   feature?: any;
 }
 
@@ -54,6 +55,7 @@ const SetStatusDialog = ({
   close = () => {},
   onCancel = () => {},
   onClose = () => {},
+  onUpcomingAction,
   feature = {},
 }: SetStatusDialogProps) => {
   const [form] = Form.useForm();
@@ -98,6 +100,11 @@ const SetStatusDialog = ({
       };
 
       console.log("[SetStatusDialog] Uploading action:", actionPayload);
+
+      // Notify parent for optimistic update before syncing
+      if (onUpcomingAction) {
+        onUpcomingAction(actionPayload);
+      }
 
       const actionId = await syncedAction("uploadTzbTreeAction", actionPayload);
 

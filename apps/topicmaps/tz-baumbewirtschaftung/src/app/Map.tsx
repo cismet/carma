@@ -77,6 +77,7 @@ const TZBaumbewirtschaftung = ({
   const [intermediateActions, setIntermediateActions] = useState<any[]>([]);
   const [actionDefinitions, setActionDefinitions] = useState<any[]>([]);
   const [maplibreMap, setMaplibreMap] = useState<any>(null);
+  const [upcomingActions, setUpcomingActions] = useState<any[]>([]);
 
   // Poll for new tree actions (id > maxTreeActionId)
   useEffect(() => {
@@ -123,29 +124,107 @@ const TZBaumbewirtschaftung = ({
         const newActions = result?.data?.tzb_tree_action || [];
         if (newActions.length > 0) {
           // Mark actions as intermediate (from polling)
-          const markedActions = newActions.map((a) => ({ ...a, intermediate: true }));
-          console.log(`[Polling] Found ${newActions.length} new actions:`, markedActions);
+          const markedActions = newActions.map((a) => ({
+            ...a,
+            intermediate: true,
+          }));
+          console.log(
+            `[Polling] Found ${newActions.length} new actions:`,
+            markedActions
+          );
           setIntermediateActions((prev) => [...prev, ...markedActions]);
           // Update maxTreeActionId to the highest id from new actions
           const newMaxId = Math.max(...newActions.map((a) => a.id));
-          console.log(`[Polling] Updating maxTreeActionId: ${maxTreeActionId} -> ${newMaxId}`);
+          console.log(
+            `[Polling] Updating maxTreeActionId: ${maxTreeActionId} -> ${newMaxId}`
+          );
           setMaxTreeActionId(newMaxId);
         }
       } catch (error) {
         console.error("[Polling] Error polling new tree actions:", error);
       }
     };
-    const intervalId = setInterval(pollNewActions, 2500);
+    const intervalId = setInterval(pollNewActions, 5000);
 
     return () => clearInterval(intervalId);
   }, [jwt, maxTreeActionId]);
 
-  // Debug: Log intermediate actions when they change
+
+  // Handler for when user creates an action - add to upcoming for optimistic display
+  const handleUpcomingAction = (actionPayload: any) => {
+    console.log("[Upcoming] Adding upcoming action:", actionPayload);
+    // Add upcoming flag and a temporary id
+    const upcomingAction = {
+      ...actionPayload,
+      upcoming: true,
+      id: `upcoming-${Date.now()}`, // Temporary ID for tracking
+    };
+    setUpcomingActions((prev) => [...prev, upcomingAction]);
+  };
+
+  // Merge upcoming actions into display for optimistic updates
   useEffect(() => {
-    if (intermediateActions.length > 0) {
-      console.log("intermediateActions:", intermediateActions);
+    if (upcomingActions.length === 0 || !featureCollection) {
+      return;
     }
-  }, [intermediateActions]);
+
+    console.log("[Upcoming] Merging upcoming actions into display...");
+
+    // Create a temporary merged featureCollection for display
+    const updatedFeatures = featureCollection.features.map((f: any) => {
+      const upcomingForTree = upcomingActions.filter((a) => a.fk_tree === f.id);
+
+      if (upcomingForTree.length === 0) {
+        return f;
+      }
+
+      // Merge upcoming actions with existing ones
+      const existingActions = f.properties.actions || [];
+      const mergedActions = [...existingActions, ...upcomingForTree];
+
+      return {
+        ...f,
+        properties: {
+          ...f.properties,
+          actions: mergedActions,
+          latestActionStatus:
+            upcomingForTree[upcomingForTree.length - 1].status,
+          hasUpcomingActions: true,
+          actionCount: mergedActions.length,
+        },
+      };
+    });
+
+    const updated = { ...featureCollection, features: updatedFeatures };
+    setFeatureCollection(updated);
+
+    // Update MapLibre source
+    if (maplibreMap) {
+      const source = maplibreMap.getSource("trees");
+      if (source) {
+        console.log("[Upcoming] Updating MapLibre source");
+        source.setData(updated);
+      }
+    }
+
+    // Update selected feature if affected
+    if (selectedFeature) {
+      const updatedSelectedFeature = updatedFeatures.find(
+        (f: any) => f.id === selectedFeature.id
+      );
+      if (updatedSelectedFeature?.properties?.hasUpcomingActions) {
+        console.log("[Upcoming] Updating selectedFeature with upcoming data");
+        updatedSelectedFeature.properties.info = createInfoBoxControlObject(
+          updatedSelectedFeature,
+          setShowStatusDialog,
+          jwt
+        );
+        updatedSelectedFeature.text =
+          updatedSelectedFeature.properties.info.puretitle;
+        setSelectedFeature({ ...updatedSelectedFeature });
+      }
+    }
+  }, [upcomingActions]);
 
   // Merge intermediate actions into feature collection
   useEffect(() => {
@@ -159,11 +238,12 @@ const TZBaumbewirtschaftung = ({
 
     console.log("Merging intermediate actions into featureCollection...");
 
-    const { featureCollection: updated } = updateFeatureCollectionWithNewActions(
-      featureCollection,
-      intermediateActions,
-      actionDefinitions
-    );
+    const { featureCollection: updated } =
+      updateFeatureCollectionWithNewActions(
+        featureCollection,
+        intermediateActions,
+        actionDefinitions
+      );
 
     // Log the feature with the highest action id to verify the merge worked
     let maxId = 0;
@@ -181,7 +261,9 @@ const TZBaumbewirtschaftung = ({
       maxActionId: maxId,
       status: featureWithMax?.properties?.latestActionStatus,
       actionCount: featureWithMax?.properties?.actionCount,
-      hasIntermediate: featureWithMax?.properties?.actions?.some((a: any) => a.intermediate),
+      hasIntermediate: featureWithMax?.properties?.actions?.some(
+        (a: any) => a.intermediate
+      ),
     });
 
     setFeatureCollection(updated);
@@ -189,7 +271,7 @@ const TZBaumbewirtschaftung = ({
     // Update MapLibre source directly to avoid flickering
     console.log("[Merge] maplibreMap available:", !!maplibreMap);
     if (maplibreMap) {
-      const source = maplibreMap.getSource('trees');
+      const source = maplibreMap.getSource("trees");
       console.log("[Merge] source 'trees' found:", !!source);
       if (source) {
         console.log("[Merge] Updating MapLibre source directly");
@@ -197,7 +279,10 @@ const TZBaumbewirtschaftung = ({
       } else {
         // List available sources
         const style = maplibreMap.getStyle();
-        console.log("[Merge] Available sources:", Object.keys(style?.sources || {}));
+        console.log(
+          "[Merge] Available sources:",
+          Object.keys(style?.sources || {})
+        );
       }
     }
 
@@ -219,15 +304,40 @@ const TZBaumbewirtschaftung = ({
             setShowStatusDialog,
             jwt
           );
-          updatedSelectedFeature.text = updatedSelectedFeature.properties.info.puretitle;
+          updatedSelectedFeature.text =
+            updatedSelectedFeature.properties.info.puretitle;
           setSelectedFeature({ ...updatedSelectedFeature });
         }
       }
     }
 
+    // Remove matching upcoming actions now that we have real data
+    if (upcomingActions.length > 0) {
+      const affectedTreeIds = new Set(
+        intermediateActions.map((a) => a.fk_tree)
+      );
+      const remainingUpcoming = upcomingActions.filter(
+        (a) => !affectedTreeIds.has(a.fk_tree)
+      );
+      if (remainingUpcoming.length !== upcomingActions.length) {
+        console.log(
+          "[Merge] Removing upcoming actions for trees that now have real data:",
+          upcomingActions.length - remainingUpcoming.length
+        );
+        setUpcomingActions(remainingUpcoming);
+      }
+    }
+
     // Clear intermediate actions after merge
     setIntermediateActions([]);
-  }, [intermediateActions, actionDefinitions, maplibreMap, selectedFeature, jwt]);
+  }, [
+    intermediateActions,
+    actionDefinitions,
+    maplibreMap,
+    selectedFeature,
+    jwt,
+    upcomingActions,
+  ]);
 
   useEffect(() => {
     if (!jwt) {
@@ -421,6 +531,7 @@ const TZBaumbewirtschaftung = ({
           onCancel={() => {
             console.log("Status dialog cancelled");
           }}
+          onUpcomingAction={handleUpcomingAction}
           onClose={
             ((parameter: any) => {
               console.log("Status changed:", parameter);
