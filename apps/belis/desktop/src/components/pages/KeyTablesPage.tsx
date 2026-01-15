@@ -191,8 +191,6 @@ const KeyTablesPage = () => {
           tableName: currentSelectedItem.tableName,
         });
       }
-
-      console.log(`ID updated: ${oldId} -> ${newId} in table ${tableName}`);
     }
   };
 

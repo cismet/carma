@@ -43,16 +43,19 @@ export const keyTableDisplayConfig: KeyTableDisplayConfig = {
     template: "{masttyp} {bezeichnung}",
     sortMode: "numeric",
     customForm: "masttyp",
+    apiClassName: "tkey_masttyp",
   },
   leuchtentyp: {
     template: "{leuchtentyp} {fabrikat}",
     sortMode: "alphabetical",
     customForm: "leuchtentyp",
+    apiClassName: "tkey_leuchtentyp",
   },
   rundsteuerempfänger: {
     template: "{rs_typ} {fabrikat}",
     sortMode: "alphabetical",
     customForm: "rundsteuerempfaenger",
+    apiClassName: "rundsteuerempfaenger",
   },
   doppelkommando: {
     template: "{pk} - {beschreibung}",
@@ -138,6 +141,7 @@ export const keyTableDisplayConfig: KeyTableDisplayConfig = {
     template: "{schluessel} - {bezeichnung}",
     sortMode: "numeric",
     customForm: "infobausteinTemplate",
+    apiClassName: "infobaustein_template",
   },
   leitungstyp: {
     template: "{bezeichnung}",

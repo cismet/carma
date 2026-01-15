@@ -104,6 +104,13 @@ export const saveKeyTableItem = (
           } catch (e) {
             console.error("Failed to parse server response:", e);
           }
+        } else {
+          console.log(
+            "syncHelper no result or no onIdUpdated. result:",
+            action.result,
+            "onIdUpdated:",
+            !!onIdUpdated
+          );
         }
       }
     : undefined;
