@@ -201,9 +201,33 @@ const TZBaumbewirtschaftung = ({
       }
     }
 
+    // Update selectedFeature if it was affected by the merge
+    if (selectedFeature) {
+      const updatedSelectedFeature = updated.features?.find(
+        (f: any) => f.id === selectedFeature.id
+      );
+      if (updatedSelectedFeature) {
+        // Check if this feature was actually updated (has intermediate actions)
+        const wasUpdated = updatedSelectedFeature.properties?.actions?.some(
+          (a: any) => a.intermediate
+        );
+        if (wasUpdated) {
+          console.log("[Merge] Updating selectedFeature with new data");
+          // Recreate info object with updated actions
+          updatedSelectedFeature.properties.info = createInfoBoxControlObject(
+            updatedSelectedFeature,
+            setShowStatusDialog,
+            jwt
+          );
+          updatedSelectedFeature.text = updatedSelectedFeature.properties.info.puretitle;
+          setSelectedFeature({ ...updatedSelectedFeature });
+        }
+      }
+    }
+
     // Clear intermediate actions after merge
     setIntermediateActions([]);
-  }, [intermediateActions, actionDefinitions, maplibreMap]);
+  }, [intermediateActions, actionDefinitions, maplibreMap, selectedFeature, jwt]);
 
   useEffect(() => {
     if (!jwt) {
