@@ -3,7 +3,7 @@ import { Descriptions, Timeline } from "antd";
 import { faBullseye, faInfoCircle } from "@fortawesome/free-solid-svg-icons";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import Panel from "react-cismap/commons/Panel";
-import { transformImageUrl } from "./helper/imageHelper";
+import { transformImageUrl, getThumbnail } from "./helper/imageHelper";
 
 interface Action {
   id: number;
@@ -228,7 +228,7 @@ const getTimelineForActions = (
                       </div>
                       {actionImage && (
                         <img
-                          src={actionImage}
+                          src={getThumbnail(actionImage) || actionImage}
                           alt="Aktion"
                           onClick={() => {
                             if (

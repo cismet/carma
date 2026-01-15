@@ -21,3 +21,34 @@ export const transformImageUrl = (
   // URL doesn't match expected pattern, return as-is
   return url;
 };
+
+/**
+ * Converts an image URL to its thumbnail version by appending .thumbnail.{ext} to the URL.
+ *
+ * Input:  https://example.com/path/image.jpg
+ * Output: https://example.com/path/image.jpg.thumbnail.jpg
+ *
+ * Input:  https://example.com/path/photo.png
+ * Output: https://example.com/path/photo.png.thumbnail.png
+ *
+ * If no extension is found, returns the original URL.
+ * If URL is undefined/null, returns undefined.
+ */
+export const getThumbnail = (url: string | undefined): string | undefined => {
+  if (!url) return undefined;
+
+  // Don't transform data URLs (base64)
+  if (url.startsWith("data:")) return url;
+
+  const lastDotIndex = url.lastIndexOf(".");
+  const lastSlashIndex = url.lastIndexOf("/");
+
+  // Check if there's a valid extension (dot must be after the last slash)
+  if (lastDotIndex === -1 || lastDotIndex < lastSlashIndex) {
+    return url;
+  }
+
+  const extension = url.substring(lastDotIndex);
+
+  return `${url}.thumbnail${extension}`;
+};
