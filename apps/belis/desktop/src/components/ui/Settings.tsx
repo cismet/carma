@@ -7,6 +7,26 @@ import {
   setBackgroundLayerOpacities,
 } from "../../store/slices/mapSettings";
 import { backgroundLayerConfigurations } from "@carma-appframeworks/belis";
+import versionData from "../../version.json";
+import { getApplicationVersion } from "@carma-commons/utils";
+
+interface VersionInfoProps {
+  textColor?: string;
+  version: string;
+  fontSize?: string;
+}
+
+const VersionInfo = ({
+  textColor = "#888",
+  version,
+  fontSize = "9px",
+}: VersionInfoProps) => {
+  return (
+    <div style={{ color: textColor, fontSize }}>
+      <span>{version}</span>
+    </div>
+  );
+};
 
 const BackgroundLayerRow = ({
   layerkey,
@@ -35,8 +55,8 @@ const Settings = () => {
   const activeBackgroundLayer = useSelector(getActiveBackgroundLayer);
 
   return (
-    <div className="flex flex-col gap-10">
-      <div className="flex flex-col gap-2">
+    <div className="flex flex-col gap-10 h-full">
+      <div className="flex flex-col gap-2 flex-1">
         <h2 className="text-2xl font-medium">Karte</h2>
         <div className="flex flex-col gap-2">
           <h4 className="text-lg font-medium">Hintergrund</h4>
@@ -68,6 +88,7 @@ const Settings = () => {
           </Radio.Group>
         </div>
       </div>
+      <VersionInfo version={getApplicationVersion(versionData)} />
     </div>
   );
 };
