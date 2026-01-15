@@ -43,6 +43,7 @@ interface SetStatusDialogProps {
   onClose?: (parameter: any) => void;
   onUpcomingAction?: (actionPayload: TreeActionPayload) => void;
   feature?: any;
+  username?: string | null;
 }
 
 const dummyRequest = ({ file, onSuccess }: any) => {
@@ -57,6 +58,7 @@ const SetStatusDialog = ({
   onClose = () => {},
   onUpcomingAction,
   feature = {},
+  username,
 }: SetStatusDialogProps) => {
   const [form] = Form.useForm();
   const [imagePreview, setImagePreview] = useState<string | null>(null);
@@ -99,16 +101,12 @@ const SetStatusDialog = ({
         fk_tree: feature.properties?.id || feature.id,
       };
 
-      console.log("[SetStatusDialog] Uploading action:", actionPayload);
-
       // Notify parent for optimistic update before syncing
       if (onUpcomingAction) {
         onUpcomingAction(actionPayload);
       }
 
       const actionId = await syncedAction("uploadTzbTreeAction", actionPayload);
-
-      console.log("[SetStatusDialog] Action uploaded with ID:", actionId);
       message.success("Aktion wurde gespeichert und wird synchronisiert");
 
       // Also call the original onClose for any local updates
@@ -222,7 +220,7 @@ const SetStatusDialog = ({
         layout="vertical"
         name="status_form"
         initialValues={{
-          user: "fschmidt_102", // TODO: Get from auth context
+          user: username || "",
           status: "open",
         }}
       >

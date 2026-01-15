@@ -78,6 +78,7 @@ const TZBaumbewirtschaftung = ({
   const [actionDefinitions, setActionDefinitions] = useState<any[]>([]);
   const [maplibreMap, setMaplibreMap] = useState<any>(null);
   const [upcomingActions, setUpcomingActions] = useState<any[]>([]);
+  const [username, setUsername] = useState<string | null>(null);
 
   // Poll for new tree actions (id > maxTreeActionId)
   useEffect(() => {
@@ -137,7 +138,7 @@ const TZBaumbewirtschaftung = ({
         console.error("[Polling] Error polling new tree actions:", error);
       }
     };
-    const intervalId = setInterval(pollNewActions, 5000);
+    const intervalId = setInterval(pollNewActions, 2500);
 
     return () => clearInterval(intervalId);
   }, [jwt, maxTreeActionId]);
@@ -289,6 +290,16 @@ const TZBaumbewirtschaftung = ({
   useEffect(() => {
     if (!jwt) {
       return;
+    }
+
+    // Extract username from JWT
+    try {
+      const payload = JSON.parse(atob(jwt.split('.')[1]));
+      if (payload.sub) {
+        setUsername(payload.sub);
+      }
+    } catch {
+      // JWT decode failed
     }
 
     (async () => {
