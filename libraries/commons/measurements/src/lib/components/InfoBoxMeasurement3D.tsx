@@ -15,9 +15,7 @@ import {
   isPointMeasurementEntry,
   getEuclideanDistance,
   getENU,
-  getBearing,
-  formatGeographic,
-  formatRelativeENU,
+  formatNumber,
 } from "@carma-mapping/engines/cesium/measurements";
 import { InfoBoxMeasurementProps } from "../..";
 
@@ -47,6 +45,19 @@ export function InfoBoxMeasurement3D({
     }
   }, [measurements.length, prevLen]);
 
+  useEffect(() => {
+    if (measurements.length === 0 && referencePoint) {
+      setReferencePoint(null);
+    } else if (
+      measurements.length === 1 &&
+      measurements[0] &&
+      isPointMeasurementEntry(measurements[0]) &&
+      !referencePoint
+    ) {
+      setReferencePoint(measurements[0].geometryECEF);
+    }
+  }, [measurements, referencePoint, setReferencePoint]);
+
   const decreaseCurrentHandler = () => {
     const newIndex =
       currentIndex <= 0 ? visibleMeasurements.length - 1 : currentIndex - 1;
@@ -66,11 +77,6 @@ export function InfoBoxMeasurement3D({
     }
   };
 
-  const deleteAllHandler = (e: React.MouseEvent) => {
-    e.stopPropagation();
-    clearAllMeasurements();
-  };
-
   const setAsReferenceHandler = (e: React.MouseEvent) => {
     e.stopPropagation();
     if (currentMeasurement && isPointMeasurementEntry(currentMeasurement)) {
@@ -78,52 +84,49 @@ export function InfoBoxMeasurement3D({
     }
   };
 
-  const infoBoxHeaderColor = "#0078a8";
+  const infoBoxHeaderColor = "#3b82f6";
 
-  let geoStrings = ["", "", ""];
-  let relStrings = ["", "", ""];
-  let hasRelative = false;
+  const isSingleMeasurement = measurements.length === 1;
+  let isReference = false;
+  let relativeValues: { distance: number; up: number } | null = null;
 
   if (currentMeasurement && isPointMeasurementEntry(currentMeasurement)) {
-    geoStrings = formatGeographic(
-      currentMeasurement.geometryWGS84.longitude,
-      currentMeasurement.geometryWGS84.latitude,
-      currentMeasurement.geometryWGS84.height
-    );
-
-    if (referencePoint) {
+    if (isSingleMeasurement) {
+      isReference = true;
+    } else if (referencePoint) {
       const dist = getEuclideanDistance(
         currentMeasurement.geometryECEF,
         referencePoint
       );
-      if (dist > 0) {
+      if (dist > 0.001) {
         const enu = getENU(currentMeasurement.geometryECEF, referencePoint);
-        const bearing = getBearing(enu.east, enu.north);
-        relStrings = formatRelativeENU(dist, bearing, enu.up);
-        hasRelative = true;
+        relativeValues = { distance: dist, up: enu.up };
+      } else {
+        isReference = true;
       }
     }
   }
 
   return (
     <div>
-      {currentMeasurement && (
-        <ResponsiveInfoBox
-          pixelwidth={pixelWidth}
-          panelClick={() => {}}
-          header={
-            <div
-              className="w-full"
-              style={{ backgroundColor: infoBoxHeaderColor }}
-            >
-              3D Messungen
-            </div>
-          }
-          alwaysVisibleDiv={
+      <ResponsiveInfoBox
+        pixelwidth={pixelWidth}
+        panelClick={() => {}}
+        isCollapsible={!!currentMeasurement}
+        header={
+          <div
+            className="w-full pl-1"
+            style={{ backgroundColor: infoBoxHeaderColor }}
+          >
+            3D Messungen
+          </div>
+        }
+        alwaysVisibleDiv={
+          currentMeasurement ? (
             <div className="mt-2 mb-2 w-[96%] flex justify-between items-start gap-4">
               <span
                 style={{ cursor: "default", width: "100%" }}
-                className="pl-3 font-bold"
+                className={`pl-3 font-bold ${isReference ? "italic" : ""}`}
               >
                 <MeasurementTitle
                   key={currentMeasurement.id}
@@ -135,21 +138,31 @@ export function InfoBoxMeasurement3D({
                   isCollapsed={collapsedInfoBox}
                   collapsedContent={
                     isPointMeasurementEntry(currentMeasurement)
-                      ? geoStrings[2]
+                      ? `NHN ${formatNumber(
+                          currentMeasurement.geometryWGS84.height
+                        )} m`
                       : ""
                   }
                   editable={false}
                 />
+                {isPointMeasurementEntry(currentMeasurement) && (
+                  <div className="text-[10px] font-normal text-gray-500 -mt-1">
+                    ({currentMeasurement.geometryWGS84.latitude.toFixed(6)},{" "}
+                    {currentMeasurement.geometryWGS84.longitude.toFixed(6)})
+                  </div>
+                )}
               </span>
-              <div className="flex justify-between items-center w-[18%] mt-1 gap-2">
-                <Tooltip title="Alle löschen">
-                  <FontAwesomeIcon
-                    onClick={deleteAllHandler}
-                    className="cursor-pointer text-base text-[#808080] hover:text-[#a0a0a0]"
-                    icon={faTrash}
-                    data-test-id="delete-all-measurement-btn"
-                  />
-                </Tooltip>
+              <div className="flex justify-end items-center w-[18%] mt-1 gap-2">
+                {!isReference && (
+                  <Tooltip title="Als Referenzhöhe setzen">
+                    <FontAwesomeIcon
+                      onClick={setAsReferenceHandler}
+                      className="cursor-pointer text-base text-[#808080] hover:text-[#a0a0a0]"
+                      icon={faArrowsDownToLine}
+                      data-test-id="set-reference-btn"
+                    />
+                  </Tooltip>
+                )}
                 <Tooltip title="Löschen">
                   <FontAwesomeIcon
                     onClick={deleteShapeHandler}
@@ -160,35 +173,55 @@ export function InfoBoxMeasurement3D({
                 </Tooltip>
               </div>
             </div>
-          }
-          collapsibleDiv={
+          ) : (
+            <div
+              className="mt-2 w-[90%] p-2"
+              data-test-id="empty-measurement-info"
+            >
+              <p className="text-[#212529] font-normal text-xs leading-normal">
+                Für Punktmessungen auf das Stadtmodell klicken. Die erste
+                Messung definiert die Referenzhöhe.
+              </p>
+            </div>
+          )
+        }
+        collapsibleDiv={
+          currentMeasurement ? (
             <div>
               <div className="text-[12px] mb-1">
                 {isPointMeasurementEntry(currentMeasurement) && (
                   <>
                     <div className="mt-2 text-sm pl-2">
-                      <div className="grid grid-cols-2 gap-x-4 gap-y-1 mt-1">
-                        {/* Row 1: Height | Delta Height */}
-                        <div className="flex items-center gap-2">
-                          <span>{geoStrings[2]}</span>
-                          <Tooltip title="Als Referenzhöhe setzen">
-                            <FontAwesomeIcon
-                              onClick={setAsReferenceHandler}
-                              className="cursor-pointer text-[#0078a8] hover:text-[#0056b3]"
-                              icon={faArrowsDownToLine}
-                              data-test-id="set-reference-btn"
-                            />
-                          </Tooltip>
-                        </div>
-                        <span>{hasRelative ? relStrings[2] : ""}</span>
+                      <div className={isReference ? "font-semibold" : ""}>
+                        {isReference ? (
+                          <>
+                            NHN-Höhe{" "}
+                            {formatNumber(
+                              currentMeasurement.geometryWGS84.height
+                            )}{" "}
+                            m
+                          </>
+                        ) : (
+                          <>
+                            Höhe<sub>Relativ</sub>{" "}
+                            {formatNumber(relativeValues?.up ?? 0)} m (NHN{" "}
+                            {formatNumber(
+                              currentMeasurement.geometryWGS84.height
+                            )}{" "}
+                            m)
+                          </>
+                        )}
+                      </div>
 
-                        {/* Row 2: Lat | Distance */}
-                        <span>{geoStrings[1]}</span>
-                        <span>{hasRelative ? relStrings[0] : ""}</span>
-
-                        {/* Row 3: Lon | Bearing */}
-                        <span>{geoStrings[0]}</span>
-                        <span>{hasRelative ? relStrings[1] : ""}</span>
+                      <div>
+                        {!isReference ? (
+                          <span>
+                            Distanz{" "}
+                            {formatNumber(relativeValues?.distance ?? 0)} m
+                          </span>
+                        ) : (
+                          !isSingleMeasurement && <em>ist Referenzhöhe</em>
+                        )}
                       </div>
                     </div>
                   </>
@@ -221,38 +254,12 @@ export function InfoBoxMeasurement3D({
                 </a>
               </div>
             </div>
-          }
-          fixedRow={true}
-        />
-      )}
-      {!currentMeasurement && (
-        <ResponsiveInfoBox
-          panelClick={() => {}}
-          header={
-            <div
-              className="w-full"
-              style={{ backgroundColor: infoBoxHeaderColor }}
-            >
-              3D Messungen
-            </div>
-          }
-          pixelwidth={pixelWidth}
-          isCollapsible={false}
-          alwaysVisibleDiv={
-            <div
-              className="mt-2 w-[90%] p-2"
-              data-test-id="empty-measurement-info"
-            >
-              <p className="text-[#212529] font-normal text-xs leading-normal">
-                Für Punktmessungen auf das Stadtmodell klicken. Die erste
-                Messung definiert die Referenzhöhe.
-              </p>
-            </div>
-          }
-          collapsibleDiv={<></>}
-          fixedRow={false}
-        />
-      )}
+          ) : (
+            <></>
+          )
+        }
+        fixedRow={!!currentMeasurement}
+      />
     </div>
   );
 }
