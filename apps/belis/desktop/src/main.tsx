@@ -12,16 +12,26 @@ import store from "./store";
 import persistStore from "redux-persist/es/persistStore";
 import { PersistGate } from "redux-persist/integration/react";
 import TopicMapContextProvider from "react-cismap/contexts/TopicMapContextProvider";
-import MainPage from "./components/MainPage";
-import { checkJWTValidation, getJWT } from "./store/slices/auth";
+import MainPage from "./components/pages/MainPage";
+import KeyTablesPage from "./components/pages/KeyTablesPage";
+import {
+  checkJWTValidation,
+  getJWT,
+  getLogin,
+  getLoginFromJWT,
+} from "./store/slices/auth";
 import type { UnknownAction } from "redux";
 import { gazDataConfig } from "./config/gazData";
+import { SyncProvider } from "@carma-providers/syncing";
+import { APP_CONFIG } from "./config/appConfig";
+import { belisTaskFormatter } from "./config/taskFormatter";
 
 const persistor = persistStore(store);
 
 const NavBarWrapper = () => {
   const dispatch = useDispatch();
   const jwt = useSelector(getJWT);
+  const login = useSelector(getLogin) || (jwt ? getLoginFromJWT(jwt) : null);
   const [isLoading, setIsLoading] = useState(false);
 
   useEffect(() => {
@@ -38,7 +48,16 @@ const NavBarWrapper = () => {
     return <Navigate to="/login" />;
   }
 
-  return <Layout />;
+  return (
+    <SyncProvider
+      jwt={jwt}
+      login={login}
+      config={APP_CONFIG.sync}
+      taskFormatter={belisTaskFormatter}
+    >
+      <Layout />
+    </SyncProvider>
+  );
 };
 
 const router = createHashRouter(
@@ -62,6 +81,10 @@ const router = createHashRouter(
         {
           path: "/",
           element: <MainPage />,
+        },
+        {
+          path: "/key-tables",
+          element: <KeyTablesPage />,
         },
       ],
     },

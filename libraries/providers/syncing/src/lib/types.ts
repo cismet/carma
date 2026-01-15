@@ -37,7 +37,7 @@ export interface SyncStatus {
 export interface TaskItem {
   id: string;
   action: string;
-  actionStatus: "open" | "done" | "exception" | "unknown";
+  actionStatus: "open" | "done" | "exception" | "unknown" | "createObject" | "editObject" | "deleteObject";
   datum: string;
   fachobjekt: string;
   beschreibung: string;

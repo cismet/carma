@@ -10,6 +10,12 @@ export const SAVE_ENDPOINT =
   DOMAIN +
   ".SaveObject/tasks?resultingInstanceType=result";
 
+export const DELETE_ENDPOINT =
+  REST_SERVICE +
+  "/actions/" +
+  DOMAIN +
+  ".DeleteObject/tasks?resultingInstanceType=result";
+
 export const jwtTestQuery = gql`
   ${queries.jwtTestQuery}
 `;
@@ -46,17 +52,17 @@ export const tkeyUnterhaltLeuchteQuery = gql`
   ${queries.tkey_unterh_leuchte}
 `;
 
-export const tkeyStrassenschluesselQuery = gql`
-  ${queries.tkey_strassenschluessel}
-`;
+// export const tkeyStrassenschluesselQuery = gql`
+//   ${queries.tkey_strassenschluessel}
+// `;
 
 export const tkeyEnergielieferantQuery = gql`
   ${queries.tkey_energielieferant}
 `;
 
-export const tkeyBezirkQuery = gql`
-  ${queries.tkey_bezirk}
-`;
+// export const tkeyBezirkQuery = gql`
+//   ${queries.tkey_bezirk}
+// `;
 
 export const leitungstypQuery = gql`
   ${queries.leitungstyp}

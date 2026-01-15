@@ -15,7 +15,7 @@
 }
 
 /* Make lists look good again */
-ul {
+ul:not(.ant-list-items) {
   list-style: disc !important;
   display: block;
   list-style-type: disc;
@@ -280,4 +280,50 @@ iframe {
 /* Ensure stroke color is visible on selection */
 .leaflet-interactive {
   pointer-events: auto;
+}
+
+/* Straßenschlüssel Tree styling */
+.strassen-tree .ant-tree-treenode-selected .ant-tree-node-content-wrapper {
+  background-color: #e6f4ff !important;
+  border-left: 3px solid #1677ff;
+  margin-left: -3px;
+  padding-left: 7px;
+  border-radius: 0 !important;
+}
+
+.strassen-tree .ant-tree-node-content-wrapper:hover {
+  background-color: #f5f5f5 !important;
+}
+
+.strassen-tree .ant-tree-node-content-wrapper {
+  padding: 4px 8px;
+  border-radius: 0 !important;
+}
+
+.strassen-tree .ant-tree-title {
+  font-size: 14px;
+  font-weight: 400;
+  color: #262626;
+}
+
+/* Straßenschlüssel grouping selector */
+.strassen-grouping-select .ant-select-selector {
+  font-size: 12px !important;
+}
+
+.strassen-grouping-select .ant-select-selection-item {
+  font-size: 12px !important;
+}
+
+.strassen-grouping-select-dropdown .ant-select-item {
+  font-size: 12px !important;
+}
+
+/* Fix input background to be white in production */
+.ant-input {
+  background-color: #ffffff !important;
+}
+
+.ant-input:not(:disabled) {
+  background-color: #ffffff !important;
 }

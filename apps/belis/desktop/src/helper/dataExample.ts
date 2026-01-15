@@ -33,87 +33,87 @@ export const bauart = {
   },
 };
 
-export const straßenschluessel = {
-  data: {
-    tkey_strassenschluessel: [
-      {
-        id: 1,
-        pk: "00000",
-        strasse: "AUSSERHALB",
-      },
-      {
-        id: 2,
-        pk: "00001",
-        strasse: "ACHENBACHSTR",
-      },
-      {
-        id: 3,
-        pk: "00002",
-        strasse: "ACHENBACHTREPPE",
-      },
-      {
-        id: 4,
-        pk: "00003",
-        strasse: "ACKERSTR",
-      },
-      {
-        id: 5,
-        pk: "00004",
-        strasse: "ADALBERT-STIFTER-WEG",
-      },
-      {
-        id: 6,
-        pk: "00005",
-        strasse: "ADAMSBUSCH",
-      },
-      {
-        id: 7,
-        pk: "00006",
-        strasse: "ADERSSTR",
-      },
-      {
-        id: 8,
-        pk: "00007",
-        strasse: "ADLERSTR",
-      },
-      {
-        id: 9,
-        pk: "00008",
-        strasse: "ADOLFSTR",
-      },
-      {
-        id: 10,
-        pk: "00009",
-        strasse: "ADOLF-VORWERK-STR",
-      },
-      {
-        id: 11,
-        pk: "00010",
-        strasse: "AHORNSTR",
-      },
-      {
-        id: 12,
-        pk: "00011",
-        strasse: "AHRSTR",
-      },
-      {
-        id: 13,
-        pk: "00012",
-        strasse: "AKAZIENSTR",
-      },
-      {
-        id: 14,
-        pk: "00013",
-        strasse: "ALARICHSTR",
-      },
-      {
-        id: 15,
-        pk: "00014",
-        strasse: "ALBENSTR",
-      },
-    ],
-  },
-};
+// export const straßenschluessel = {
+//   data: {
+//     tkey_strassenschluessel: [
+//       {
+//         id: 1,
+//         pk: "00000",
+//         strasse: "AUSSERHALB",
+//       },
+//       {
+//         id: 2,
+//         pk: "00001",
+//         strasse: "ACHENBACHSTR",
+//       },
+//       {
+//         id: 3,
+//         pk: "00002",
+//         strasse: "ACHENBACHTREPPE",
+//       },
+//       {
+//         id: 4,
+//         pk: "00003",
+//         strasse: "ACKERSTR",
+//       },
+//       {
+//         id: 5,
+//         pk: "00004",
+//         strasse: "ADALBERT-STIFTER-WEG",
+//       },
+//       {
+//         id: 6,
+//         pk: "00005",
+//         strasse: "ADAMSBUSCH",
+//       },
+//       {
+//         id: 7,
+//         pk: "00006",
+//         strasse: "ADERSSTR",
+//       },
+//       {
+//         id: 8,
+//         pk: "00007",
+//         strasse: "ADLERSTR",
+//       },
+//       {
+//         id: 9,
+//         pk: "00008",
+//         strasse: "ADOLFSTR",
+//       },
+//       {
+//         id: 10,
+//         pk: "00009",
+//         strasse: "ADOLF-VORWERK-STR",
+//       },
+//       {
+//         id: 11,
+//         pk: "00010",
+//         strasse: "AHORNSTR",
+//       },
+//       {
+//         id: 12,
+//         pk: "00011",
+//         strasse: "AHRSTR",
+//       },
+//       {
+//         id: 13,
+//         pk: "00012",
+//         strasse: "AKAZIENSTR",
+//       },
+//       {
+//         id: 14,
+//         pk: "00013",
+//         strasse: "ALARICHSTR",
+//       },
+//       {
+//         id: 15,
+//         pk: "00014",
+//         strasse: "ALBENSTR",
+//       },
+//     ],
+//   },
+// };
 
 export const infobausteinTemplate = {
   data: {

@@ -49,6 +49,7 @@ const BelisMapLibWrapper = ({ refRoutedMap, jwt, mapSizes }) => {
     if (feature) {
       const updatedFeature = { ...feature, selected: true };
       dispatch(setSelectedFeature(updatedFeature));
+      console.log("xxx feature", updatedFeature);
     }
   };
 
@@ -83,15 +84,16 @@ const BelisMapLibWrapper = ({ refRoutedMap, jwt, mapSizes }) => {
 
   return (
     <div className="relative">
-      <MapBlocker
+      {/* <MapBlocker
         blocking={fcIsDone === false}
         visible={true}
         width={mapSizes.width}
         height={mapSizes.height}
         setDone={setDoneHandler}
-      />
+      /> */}
       <BelisMap
         refRoutedMap={refRoutedMap}
+        vectorStyleUrl="https://tiles.cismet.de/belis/style.json"
         width={mapSizes.width}
         height={mapSizes.height}
         jwt={jwt}
@@ -117,7 +119,7 @@ const BelisMapLibWrapper = ({ refRoutedMap, jwt, mapSizes }) => {
         filter={filter}
         isShowSearch={true}
       >
-        <InfoBoxWrapper mapWidth={mapSizes.width} />
+        {/* <InfoBoxWrapper mapWidth={mapSizes.width} /> */}
       </BelisMap>
     </div>
   );
