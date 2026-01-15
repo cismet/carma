@@ -101,3 +101,13 @@ export {
 } from "./lib/components/libremap/libremap.utils";
 
 export { RouteOptionsDrawer } from "./lib/components/libremap/RouteOptionsDrawer";
+
+export {
+  Datasheet,
+  DatasheetProvider,
+  useDatasheet,
+  calculateSmallMapPosition,
+  calculateBigMapPosition,
+  getPositionFromUrl,
+  setPositionInUrl,
+} from "./lib/components/Datasheet";

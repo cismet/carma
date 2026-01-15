@@ -11,8 +11,8 @@ import "leaflet/dist/leaflet.css";
 import {
   GazDataProvider,
   SelectionProvider,
+  DatasheetProvider,
 } from "@carma-appframeworks/portals";
-import { DatasheetProvider } from "@carma-mapping/components";
 
 const root = ReactDOM.createRoot(
   document.getElementById("root") as HTMLElement

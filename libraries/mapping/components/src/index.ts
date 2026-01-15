@@ -31,9 +31,3 @@ export {
 } from "./lib/components/LibreMapLocateControl";
 
 export { ZoomControl } from "./lib/components/ZoomControl";
-
-export {
-  Datasheet,
-  DatasheetProvider,
-  useDatasheet,
-} from "./lib/components/Datasheet";

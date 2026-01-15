@@ -1,14 +1,7 @@
-import TopicMapComponent from "react-cismap/topicmaps/TopicMapComponent";
 import { suppressReactCismapErrors } from "@carma-commons/utils";
-import { EmptySearchComponent } from "@carma-mapping/fuzzy-search";
-import { Datasheet, useDatasheet } from "@carma-mapping/components";
+import { Datasheet, useDatasheet } from "@carma-appframeworks/portals";
 import { useRef, useEffect, useState, useContext } from "react";
-import { Control, ControlLayout } from "@carma-mapping/map-controls-layout";
-import {
-  CarmaMap,
-  FeatureInfobox,
-  InfoBox,
-} from "@carma-appframeworks/portals";
+import { CarmaMap } from "@carma-appframeworks/portals";
 import CismapLayer from "react-cismap/CismapLayer";
 import { TopicMapContext } from "react-cismap/contexts/TopicMapContextProvider";
 

@@ -28,7 +28,7 @@ import { useMapHashRouting } from "../../hooks/useMapHashRouting";
 import { FeatureInfobox } from "../FeatureInfobox";
 import { useLibreContext } from "./LibreContext";
 import { useClusterMarkers } from "./useClusterMarkers";
-import { useDatasheet } from "@carma-mapping/components";
+import { useDatasheet } from "../Datasheet";
 
 interface LibreMapProps {
   backgroundLayers?: string;

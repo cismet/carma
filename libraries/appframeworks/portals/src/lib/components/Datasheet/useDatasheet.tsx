@@ -1,5 +1,4 @@
 import { createContext, useContext, useState, ReactNode, useRef } from "react";
-import { utils } from "@carma-appframeworks/portals";
 import type maplibregl from "maplibre-gl";
 import {
   calculateSmallMapPosition,
@@ -7,6 +6,7 @@ import {
   getPositionFromUrl,
   setPositionInUrl,
 } from "./mapPositionUtils";
+import { zoomToFeature } from "../../utils/utils";
 
 interface MapSize {
   width: number;
@@ -65,7 +65,7 @@ export const DatasheetProvider = ({ children }: { children: ReactNode }) => {
 
     if (value && feature && (leafletMap || libreMap)) {
       setTimeout(() => {
-        utils.zoomToFeature({
+        zoomToFeature({
           selectedFeature: feature,
           leafletMap: leafletMap ?? undefined,
           libreMap: libreMap ?? undefined,
