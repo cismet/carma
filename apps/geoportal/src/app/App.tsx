@@ -32,9 +32,7 @@ import {
   MEASUREMENT_MODE,
 } from "@carma-commons/measurements";
 // import { LabelOverlayProvider } from "@carma-providers/label-overlay";
-import {
-  CesiumMeasurements,
-} from "@carma-mapping/engines/cesium/measurements";
+import { CesiumMeasurements } from "@carma-mapping/engines/cesium/measurements";
 
 // Local Modules
 import AppErrorFallback from "./components/AppErrorFallback";
@@ -130,7 +128,6 @@ function MeasurementsWrapper({
     </MapMeasurementsProvider>
   );
 }
-
 
 function App({ published }: { published?: boolean }) {
   const dispatch = useDispatch();

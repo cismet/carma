@@ -48,7 +48,7 @@ import { getCollabedHelpComponentConfig as getCollabedHelpElementsConfig } from 
 
 import { ENDPOINT, isAreaType } from "@carma-commons/resources";
 import type { FeatureInfo } from "@carma/types";
-import { Measurements, InfoBoxMeasurement } from "@carma-commons/measurements";
+import { Measurements, InfoBoxMeasurement, InfoBoxMeasurement3D } from "@carma-commons/measurements";
 
 import {
   useOverlayHelper,
@@ -646,16 +646,20 @@ export const GeoportalMap = ({ height, width, allow3d }: MapProps) => {
           <FeatureInfoBox pos={pos} onZoomToFeature={handleZoomToFeature} />
         );
       }
-    } else if (getIsCesium() && selectedFeature) {
-      // TODO unify with point queries for position information?
-      return (
-        <FeatureInfoBox
-          onZoomToFeature={handleZoomToFeature}
-          displayOrbit={true}
-          isOrbiting={isOrbiting}
-          onOrbitToggle={toggleOrbit}
-        />
-      );
+    } else if (getIsCesium()) {
+      if (isModeMeasurement) {
+        return <InfoBoxMeasurement3D />;
+      }
+      if (selectedFeature) {
+        return (
+          <FeatureInfoBox
+            onZoomToFeature={handleZoomToFeature}
+            displayOrbit={true}
+            isOrbiting={isOrbiting}
+            onOrbitToggle={toggleOrbit}
+          />
+        );
+      }
     }
 
     return <div></div>;

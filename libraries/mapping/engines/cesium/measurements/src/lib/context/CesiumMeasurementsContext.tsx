@@ -11,6 +11,10 @@ import React, {
 import { type Cartesian3 } from "@carma/cesium";
 
 import { normalizeOptions } from "@carma-commons/utils";
+import {
+  MEASUREMENT_MODE,
+  useMapMeasurementsContext,
+} from "@carma-commons/measurements";
 
 import { useCesiumContext } from "@carma-mapping/engines/cesium";
 
@@ -101,6 +105,7 @@ export const CesiumMeasurementsProvider: React.FC<
 > = ({ children, options }) => {
   const { getScene } = useCesiumContext();
   const scene = getScene();
+  const mapMeasurements = useMapMeasurementsContext();
 
   const pointQueryOptions = normalizeOptions(
     options?.pointQueries,
@@ -194,6 +199,26 @@ export const CesiumMeasurementsProvider: React.FC<
     },
     [setMeasurements]
   );
+
+  useEffect(() => {
+    if (options?.mode !== undefined) {
+      setMeasurementMode(options.mode);
+      if (options.mode === MeasurementMode.NONE) {
+        setMeasurements([]);
+      }
+    }
+  }, [options?.mode, setMeasurementMode, setMeasurements]);
+
+  useEffect(() => {
+    if (mapMeasurements.mode === MEASUREMENT_MODE.MEASUREMENT) {
+      setMeasurementMode((prev) =>
+        prev === MeasurementMode.NONE ? MeasurementMode.PointQuery : prev
+      );
+    } else {
+      setMeasurementMode(MeasurementMode.NONE);
+      setMeasurements([]);
+    }
+  }, [mapMeasurements.mode, setMeasurementMode, setMeasurements]);
 
   useEffect(() => {
     if (referencePoint !== null) return;

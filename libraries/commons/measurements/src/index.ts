@@ -1,4 +1,5 @@
 export { InfoBoxMeasurement } from "./lib/components/InfoBoxMeasurement";
+export { InfoBoxMeasurement3D } from "./lib/components/InfoBoxMeasurement3D";
 export { MeasurementControl } from "./lib/components/MeasurementControl";
 export {
   MapMeasurementsProvider,

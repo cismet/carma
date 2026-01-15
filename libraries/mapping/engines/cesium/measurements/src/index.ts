@@ -11,6 +11,8 @@ export * from "./lib/context/CesiumMeasurementsContext";
 export * from "./lib/utils/cesium3DCross";
 export * from "./lib/utils/measurementCollection";
 export * from "./lib/utils/occlusionDetection";
+export * from "./lib/utils/geo";
+export * from "./lib/utils/formatting";
 
 // Hooks
 export { useCesiumOverlaySync } from "./lib/hooks/useCesiumOverlaySync";
