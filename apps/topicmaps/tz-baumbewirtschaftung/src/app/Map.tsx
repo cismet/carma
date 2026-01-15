@@ -24,7 +24,10 @@ import {
   RoutedMapLocateControl,
   ZoomControl,
 } from "@carma-mapping/components";
-import { TAILWIND_CLASSNAMES_FULLSCREEN_FIXED } from "@carma-commons/utils";
+import {
+  TAILWIND_CLASSNAMES_FULLSCREEN_FIXED,
+  fetchGraphQL,
+} from "@carma-commons/utils";
 import { ResponsiveTopicMapContext } from "react-cismap/contexts/ResponsiveTopicMapContextProvider";
 import CismapLayer from "react-cismap/CismapLayer";
 import versionData from "../version.json";
@@ -35,6 +38,7 @@ import { useTreeStyle } from "./hooks/useTreeStyle";
 import {
   createInfoBoxControlObject,
   enrichFeatureCollectionWithActions,
+  updateFeatureCollectionWithNewActions,
 } from "./helper/treeHelper";
 import { LightBoxDispatchContext } from "react-cismap/contexts/LightBoxContextProvider";
 
@@ -69,7 +73,123 @@ const TZBaumbewirtschaftung = ({
   ) as LightboxDispatch;
 
   const { appKey } = useContext(TopicMapContext) as any;
-  const [maxTreeActionId, setMaxTreeActionId] = useState<number>(0);
+  const [maxTreeActionId, setMaxTreeActionId] = useState<number | null>(null);
+  const [intermediateActions, setIntermediateActions] = useState<any[]>([]);
+  const [actionDefinitions, setActionDefinitions] = useState<any[]>([]);
+  const [dataVersion, setDataVersion] = useState(0);
+
+  // Poll for new tree actions (id > maxTreeActionId)
+  useEffect(() => {
+    // Only start polling after initial data is loaded (maxTreeActionId is set)
+    if (!jwt || maxTreeActionId === null) return;
+
+    type TreeAction = {
+      id: number;
+      payload: any;
+      status: string;
+      status_reason: string;
+      fk_tree: number;
+      fk_action: number;
+      created_at: string;
+      action_time: string;
+    };
+
+    type NewActionsResponse = {
+      tzb_tree_action: TreeAction[];
+    };
+
+    const pollNewActions = async () => {
+      const query = `{
+        tzb_tree_action(where: {id: {_gt: ${maxTreeActionId}}}) {
+          id
+          payload
+          status
+          status_reason
+          fk_tree
+          fk_action
+          created_at
+          action_time
+        }
+      }`;
+
+      try {
+        const result = await fetchGraphQL<NewActionsResponse>(
+          query,
+          {},
+          jwt,
+          APP_CONFIG.restService,
+          APP_CONFIG.domain
+        );
+        const newActions = result?.data?.tzb_tree_action || [];
+        if (newActions.length > 0) {
+          // Mark actions as intermediate (from polling)
+          const markedActions = newActions.map((a) => ({ ...a, intermediate: true }));
+          console.log(`[Polling] Found ${newActions.length} new actions:`, markedActions);
+          setIntermediateActions((prev) => [...prev, ...markedActions]);
+          // Update maxTreeActionId to the highest id from new actions
+          const newMaxId = Math.max(...newActions.map((a) => a.id));
+          console.log(`[Polling] Updating maxTreeActionId: ${maxTreeActionId} -> ${newMaxId}`);
+          setMaxTreeActionId(newMaxId);
+        }
+      } catch (error) {
+        console.error("[Polling] Error polling new tree actions:", error);
+      }
+    };
+    const intervalId = setInterval(pollNewActions, 2500);
+
+    return () => clearInterval(intervalId);
+  }, [jwt, maxTreeActionId]);
+
+  // Debug: Log intermediate actions when they change
+  useEffect(() => {
+    if (intermediateActions.length > 0) {
+      console.log("intermediateActions:", intermediateActions);
+    }
+  }, [intermediateActions]);
+
+  // Merge intermediate actions into feature collection
+  useEffect(() => {
+    if (
+      intermediateActions.length === 0 ||
+      !featureCollection ||
+      actionDefinitions.length === 0
+    ) {
+      return;
+    }
+
+    console.log("Merging intermediate actions into featureCollection...");
+
+    const { featureCollection: updated } = updateFeatureCollectionWithNewActions(
+      featureCollection,
+      intermediateActions,
+      actionDefinitions
+    );
+
+    // Log the feature with the highest action id to verify the merge worked
+    let maxId = 0;
+    let featureWithMax: any = null;
+    updated.features?.forEach((f: any) => {
+      (f.properties?.actions || []).forEach((a: any) => {
+        if (a.id > maxId) {
+          maxId = a.id;
+          featureWithMax = f;
+        }
+      });
+    });
+    console.log("[Merge] Setting featureCollection. Feature with max action:", {
+      featureId: featureWithMax?.id,
+      maxActionId: maxId,
+      status: featureWithMax?.properties?.latestActionStatus,
+      actionCount: featureWithMax?.properties?.actionCount,
+      hasIntermediate: featureWithMax?.properties?.actions?.some((a: any) => a.intermediate),
+    });
+
+    setFeatureCollection(updated);
+    // Increment dataVersion to force CismapLayer to re-render
+    setDataVersion((v) => v + 1);
+    // Clear intermediate actions after merge
+    setIntermediateActions([]);
+  }, [intermediateActions, actionDefinitions]);
 
   useEffect(() => {
     if (!jwt) {
@@ -105,6 +225,11 @@ const TZBaumbewirtschaftung = ({
         const treesFC = treesResult.data as any;
         const treeActions = treeActionsResult.data as any[];
         const actions = actionsResult.data as any[];
+
+        console.log("Loaded treeActions:", treeActions);
+
+        // Store action definitions for later use (enriching intermediate actions)
+        setActionDefinitions(actions);
 
         // Enrich feature collection with actions
         const { featureCollection: enriched, maxTreeActionId: maxId } =
@@ -202,7 +327,7 @@ const TZBaumbewirtschaftung = ({
 
             {featureCollection && (
               <CismapLayer
-                key={`tree-layer-${markerSymbolSize}`}
+                key={`tree-layer-${markerSymbolSize}-${dataVersion}`}
                 pane="additionalLayers0"
                 selectionEnabled={true}
                 manualSelectionManagement={false}

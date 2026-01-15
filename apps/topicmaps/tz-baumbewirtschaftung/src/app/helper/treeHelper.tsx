@@ -173,11 +173,18 @@ export const updateFeatureCollectionWithNewActions = (
       return f;
     }
 
+    // Log feature BEFORE change
+    console.log(`[Merge] Feature ${treeId} BEFORE:`, {
+      latestActionStatus: f.properties.latestActionStatus,
+      actionCount: f.properties.actionCount,
+      actions: f.properties.actions,
+    });
+
     // Merge new actions with existing ones
     const existingActions = f.properties.actions || [];
     const mergedActions = [...existingActions, ...newActionsForTree];
 
-    return {
+    const updatedFeature = {
       ...f,
       properties: {
         ...f.properties,
@@ -188,6 +195,15 @@ export const updateFeatureCollectionWithNewActions = (
         actionCount: mergedActions.length,
       },
     };
+
+    // Log feature AFTER change
+    console.log(`[Merge] Feature ${treeId} AFTER:`, {
+      latestActionStatus: updatedFeature.properties.latestActionStatus,
+      actionCount: updatedFeature.properties.actionCount,
+      actions: updatedFeature.properties.actions,
+    });
+
+    return updatedFeature;
   });
 
   return {
