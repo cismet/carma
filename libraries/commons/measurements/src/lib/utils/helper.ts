@@ -1,4 +1,5 @@
 import localforage from "localforage";
+import L from "leaflet";
 
 export const setFromLocalforage = async (
   lfKey: string,
