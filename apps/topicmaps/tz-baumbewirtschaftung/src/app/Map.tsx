@@ -128,16 +128,9 @@ const TZBaumbewirtschaftung = ({
             ...a,
             intermediate: true,
           }));
-          console.log(
-            `[Polling] Found ${newActions.length} new actions:`,
-            markedActions
-          );
+          console.log(`[Polling] Found ${newActions.length} new action(s)`);
           setIntermediateActions((prev) => [...prev, ...markedActions]);
-          // Update maxTreeActionId to the highest id from new actions
           const newMaxId = Math.max(...newActions.map((a) => a.id));
-          console.log(
-            `[Polling] Updating maxTreeActionId: ${maxTreeActionId} -> ${newMaxId}`
-          );
           setMaxTreeActionId(newMaxId);
         }
       } catch (error) {
@@ -152,12 +145,10 @@ const TZBaumbewirtschaftung = ({
 
   // Handler for when user creates an action - add to upcoming for optimistic display
   const handleUpcomingAction = (actionPayload: any) => {
-    console.log("[Upcoming] Adding upcoming action:", actionPayload);
-    // Add upcoming flag and a temporary id
     const upcomingAction = {
       ...actionPayload,
       upcoming: true,
-      id: `upcoming-${Date.now()}`, // Temporary ID for tracking
+      id: `upcoming-${Date.now()}`,
     };
     setUpcomingActions((prev) => [...prev, upcomingAction]);
   };
@@ -167,8 +158,6 @@ const TZBaumbewirtschaftung = ({
     if (upcomingActions.length === 0 || !featureCollection) {
       return;
     }
-
-    console.log("[Upcoming] Merging upcoming actions into display...");
 
     // Create a temporary merged featureCollection for display
     const updatedFeatures = featureCollection.features.map((f: any) => {
@@ -202,7 +191,6 @@ const TZBaumbewirtschaftung = ({
     if (maplibreMap) {
       const source = maplibreMap.getSource("trees");
       if (source) {
-        console.log("[Upcoming] Updating MapLibre source");
         source.setData(updated);
       }
     }
@@ -213,7 +201,6 @@ const TZBaumbewirtschaftung = ({
         (f: any) => f.id === selectedFeature.id
       );
       if (updatedSelectedFeature?.properties?.hasUpcomingActions) {
-        console.log("[Upcoming] Updating selectedFeature with upcoming data");
         updatedSelectedFeature.properties.info = createInfoBoxControlObject(
           updatedSelectedFeature,
           setShowStatusDialog,
@@ -236,8 +223,6 @@ const TZBaumbewirtschaftung = ({
       return;
     }
 
-    console.log("Merging intermediate actions into featureCollection...");
-
     const { featureCollection: updated } =
       updateFeatureCollectionWithNewActions(
         featureCollection,
@@ -245,44 +230,13 @@ const TZBaumbewirtschaftung = ({
         actionDefinitions
       );
 
-    // Log the feature with the highest action id to verify the merge worked
-    let maxId = 0;
-    let featureWithMax: any = null;
-    updated.features?.forEach((f: any) => {
-      (f.properties?.actions || []).forEach((a: any) => {
-        if (a.id > maxId) {
-          maxId = a.id;
-          featureWithMax = f;
-        }
-      });
-    });
-    console.log("[Merge] Setting featureCollection. Feature with max action:", {
-      featureId: featureWithMax?.id,
-      maxActionId: maxId,
-      status: featureWithMax?.properties?.latestActionStatus,
-      actionCount: featureWithMax?.properties?.actionCount,
-      hasIntermediate: featureWithMax?.properties?.actions?.some(
-        (a: any) => a.intermediate
-      ),
-    });
-
     setFeatureCollection(updated);
 
     // Update MapLibre source directly to avoid flickering
-    console.log("[Merge] maplibreMap available:", !!maplibreMap);
     if (maplibreMap) {
       const source = maplibreMap.getSource("trees");
-      console.log("[Merge] source 'trees' found:", !!source);
       if (source) {
-        console.log("[Merge] Updating MapLibre source directly");
         source.setData(updated);
-      } else {
-        // List available sources
-        const style = maplibreMap.getStyle();
-        console.log(
-          "[Merge] Available sources:",
-          Object.keys(style?.sources || {})
-        );
       }
     }
 
@@ -292,13 +246,10 @@ const TZBaumbewirtschaftung = ({
         (f: any) => f.id === selectedFeature.id
       );
       if (updatedSelectedFeature) {
-        // Check if this feature was actually updated (has intermediate actions)
         const wasUpdated = updatedSelectedFeature.properties?.actions?.some(
           (a: any) => a.intermediate
         );
         if (wasUpdated) {
-          console.log("[Merge] Updating selectedFeature with new data");
-          // Recreate info object with updated actions
           updatedSelectedFeature.properties.info = createInfoBoxControlObject(
             updatedSelectedFeature,
             setShowStatusDialog,
@@ -320,10 +271,6 @@ const TZBaumbewirtschaftung = ({
         (a) => !affectedTreeIds.has(a.fk_tree)
       );
       if (remainingUpcoming.length !== upcomingActions.length) {
-        console.log(
-          "[Merge] Removing upcoming actions for trees that now have real data:",
-          upcomingActions.length - remainingUpcoming.length
-        );
         setUpcomingActions(remainingUpcoming);
       }
     }
@@ -341,7 +288,6 @@ const TZBaumbewirtschaftung = ({
 
   useEffect(() => {
     if (!jwt) {
-      console.log("Waiting for JWT...");
       return;
     }
 
@@ -374,8 +320,6 @@ const TZBaumbewirtschaftung = ({
         const treeActions = treeActionsResult.data as any[];
         const actions = actionsResult.data as any[];
 
-        console.log("Loaded treeActions:", treeActions);
-
         // Store action definitions for later use (enriching intermediate actions)
         setActionDefinitions(actions);
 
@@ -387,16 +331,11 @@ const TZBaumbewirtschaftung = ({
         setMaxTreeActionId(maxId);
 
         console.log(
-          `Loaded ${treesFC.features.length} trees, ${treeActions.length} tree actions, max ID: ${maxId}`
-        );
-        console.log(
-          `Data timestamps - Trees: ${treesResult.time}, Actions: ${treeActionsResult.time}`
+          `[Data] Loaded ${treesFC.features.length} trees, ${treeActions.length} actions`
         );
       } catch (error) {
-        console.error("Error loading data:", error);
-        // Handle 401 errors (JWT expired) by showing login modal again
+        console.error("[Data] Error loading:", error);
         if ((error as any)?.status === 401) {
-          console.log("JWT expired, user needs to re-login");
           onAuthError?.();
         }
       }
@@ -506,7 +445,6 @@ const TZBaumbewirtschaftung = ({
                       );
                       feature.text = feature.properties.info.puretitle;
 
-                      console.log("xxx feature", feature);
                       setSelectedFeature(feature);
                     } else {
                       setSelectedFeature(undefined);
@@ -516,7 +454,6 @@ const TZBaumbewirtschaftung = ({
                 style={treeStyle}
                 type="vector"
                 onMapLibreCoreMapReady={(map) => {
-                  console.log("[CismapLayer] MapLibre map ready:", !!map);
                   setMaplibreMap(map);
                 }}
               />
@@ -528,24 +465,10 @@ const TZBaumbewirtschaftung = ({
         <SetStatusDialog
           feature={selectedFeature}
           close={() => setShowStatusDialog(false)}
-          onCancel={() => {
-            console.log("Status dialog cancelled");
-          }}
+          onCancel={() => {}}
           onUpcomingAction={handleUpcomingAction}
-          onClose={
-            ((parameter: any) => {
-              console.log("Status changed:", parameter);
-              // Mock: Update feature status
-              if (selectedFeature) {
-                console.log(
-                  "Would update feature:",
-                  selectedFeature.id,
-                  "with:",
-                  parameter
-                );
-              }
-            }) as any
-          }
+          onClose={() => {}}
+          username={username}
         />
       )}
     </div>

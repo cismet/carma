@@ -173,13 +173,6 @@ export const updateFeatureCollectionWithNewActions = (
       return f;
     }
 
-    // Log feature BEFORE change
-    console.log(`[Merge] Feature ${treeId} BEFORE:`, {
-      latestActionStatus: f.properties.latestActionStatus,
-      actionCount: f.properties.actionCount,
-      actions: f.properties.actions,
-    });
-
     // Merge new actions with existing ones
     const existingActions = f.properties.actions || [];
     const mergedActions = [...existingActions, ...newActionsForTree];
@@ -197,13 +190,6 @@ export const updateFeatureCollectionWithNewActions = (
         hasUpcomingActions: false,
       },
     };
-
-    // Log feature AFTER change
-    console.log(`[Merge] Feature ${treeId} AFTER:`, {
-      latestActionStatus: updatedFeature.properties.latestActionStatus,
-      actionCount: updatedFeature.properties.actionCount,
-      actions: updatedFeature.properties.actions,
-    });
 
     return updatedFeature;
   });
@@ -245,7 +231,6 @@ export const createInfoBoxControlObject = (
   jwt?: string | null
 ) => {
   const p = feature.properties as any;
-  console.log("xxx feature.properties", p);
 
   // Check if feature has upcoming (optimistic) actions
   const hasUpcoming = p.hasUpcomingActions === true;
@@ -344,7 +329,7 @@ export const createInfoBoxControlObject = (
       }
     });
   }
-  console.log("xxx fotos", latestActionImage, fotos, fotoCaptions);
+
   const copyright = (
     <span
       style={{

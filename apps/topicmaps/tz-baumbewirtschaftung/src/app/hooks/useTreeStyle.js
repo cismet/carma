@@ -6,26 +6,6 @@ export const useTreeStyle = (featureCollection, markerSymbolSize) => {
       return null;
     }
 
-    // Find the feature with the highest action id
-    let maxActionId = 0;
-    let featureWithMaxAction = null;
-    featureCollection.features?.forEach((f) => {
-      const actions = f.properties?.actions || [];
-      actions.forEach((a) => {
-        if (a.id > maxActionId) {
-          maxActionId = a.id;
-          featureWithMaxAction = f;
-        }
-      });
-    });
-    console.log("[useTreeStyle] Generating style. Feature with max action id:", {
-      featureId: featureWithMaxAction?.id,
-      maxActionId,
-      latestActionStatus: featureWithMaxAction?.properties?.latestActionStatus,
-      actionCount: featureWithMaxAction?.properties?.actionCount,
-      hasIntermediate: featureWithMaxAction?.properties?.actions?.some((a) => a.intermediate),
-    });
-
     return {
       version: 8,
       sources: {
