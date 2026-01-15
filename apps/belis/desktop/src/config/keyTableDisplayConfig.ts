@@ -144,7 +144,7 @@ export const keyTableDisplayConfig: KeyTableDisplayConfig = {
     sortMode: "numeric",
     customForm: "infobausteinTemplate",
     apiClassName: "infobaustein_template",
-    readOnly: true,
+    // readOnly: true,
   },
   leitungstyp: {
     template: "{bezeichnung}",
