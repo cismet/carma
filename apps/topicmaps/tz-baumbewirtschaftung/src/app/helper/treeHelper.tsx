@@ -1,5 +1,5 @@
 import Icon from "react-cismap/commons/Icon";
-import { transformImageUrl } from "./imageHelper";
+import { transformImageUrl, getThumbnail } from "./imageHelper";
 interface Feature {
   id: number;
   properties: {
@@ -387,7 +387,7 @@ export const createInfoBoxControlObject = (
         iconname: "tasks",
       },
     ],
-    foto: latestActionImage,
+    foto: getThumbnail(latestActionImage),
     fotos: fotos.length > 0 ? fotos : undefined,
     fotoCaptions: fotoCaptions.length > 0 ? fotoCaptions : undefined,
   };
