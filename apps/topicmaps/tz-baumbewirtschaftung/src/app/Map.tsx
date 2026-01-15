@@ -245,7 +245,7 @@ const TZBaumbewirtschaftung = ({
     if (selectedFeature) {
       const updatedSelectedFeature = updated.features?.find(
         (f: any) => f.id === selectedFeature.id
-      );
+      ) as any;
       if (updatedSelectedFeature) {
         const wasUpdated = updatedSelectedFeature.properties?.actions?.some(
           (a: any) => a.intermediate

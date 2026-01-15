@@ -8,6 +8,8 @@ import { transformImageUrl } from "./helper/imageHelper";
 interface Action {
   id: number;
   status: string;
+  key?: string;
+  description?: string;
   payload?: {
     user?: string;
     pic?: string;
@@ -108,7 +110,7 @@ const groupActionsByKey = (actions: Action[]) => {
   const grouped: { [key: string]: Action[] } = {};
 
   actions.forEach((action) => {
-    const key = action.actionDefinition?.key || "unknown";
+    const key = action.actionDefinition?.key || action.key || "unknown";
     if (!grouped[key]) {
       grouped[key] = [];
     }
@@ -143,7 +145,9 @@ const getTimelineForActions = (
       {Object.entries(groupedActions).map(([key, actionsInGroup]) => {
         // Use the description from the first action in the group
         const groupDescription =
-          actionsInGroup[0]?.actionDefinition?.description || key;
+          actionsInGroup[0]?.actionDefinition?.description ||
+          actionsInGroup[0]?.description ||
+          key;
 
         return (
           <div key={key} style={{ marginBottom: "24px" }}>
