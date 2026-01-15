@@ -20,6 +20,9 @@ export {
   md5FetchJSON,
 } from "./lib/fetching/fetching.ts";
 
+export { fetchGraphQL } from "./lib/fetching/cids.ts";
+export type { FetchGraphQLResult } from "./lib/fetching/cids.ts";
+
 export {
   getGazData,
   type GazDataItem,
