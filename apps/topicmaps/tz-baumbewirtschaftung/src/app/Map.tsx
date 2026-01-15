@@ -76,7 +76,7 @@ const TZBaumbewirtschaftung = ({
   const [maxTreeActionId, setMaxTreeActionId] = useState<number | null>(null);
   const [intermediateActions, setIntermediateActions] = useState<any[]>([]);
   const [actionDefinitions, setActionDefinitions] = useState<any[]>([]);
-  const [dataVersion, setDataVersion] = useState(0);
+  const [maplibreMap, setMaplibreMap] = useState<any>(null);
 
   // Poll for new tree actions (id > maxTreeActionId)
   useEffect(() => {
@@ -185,11 +185,25 @@ const TZBaumbewirtschaftung = ({
     });
 
     setFeatureCollection(updated);
-    // Increment dataVersion to force CismapLayer to re-render
-    setDataVersion((v) => v + 1);
+
+    // Update MapLibre source directly to avoid flickering
+    console.log("[Merge] maplibreMap available:", !!maplibreMap);
+    if (maplibreMap) {
+      const source = maplibreMap.getSource('trees');
+      console.log("[Merge] source 'trees' found:", !!source);
+      if (source) {
+        console.log("[Merge] Updating MapLibre source directly");
+        source.setData(updated);
+      } else {
+        // List available sources
+        const style = maplibreMap.getStyle();
+        console.log("[Merge] Available sources:", Object.keys(style?.sources || {}));
+      }
+    }
+
     // Clear intermediate actions after merge
     setIntermediateActions([]);
-  }, [intermediateActions, actionDefinitions]);
+  }, [intermediateActions, actionDefinitions, maplibreMap]);
 
   useEffect(() => {
     if (!jwt) {
@@ -327,7 +341,7 @@ const TZBaumbewirtschaftung = ({
 
             {featureCollection && (
               <CismapLayer
-                key={`tree-layer-${markerSymbolSize}-${dataVersion}`}
+                key={`tree-layer-${markerSymbolSize}`}
                 pane="additionalLayers0"
                 selectionEnabled={true}
                 manualSelectionManagement={false}
@@ -367,6 +381,10 @@ const TZBaumbewirtschaftung = ({
                 }}
                 style={treeStyle}
                 type="vector"
+                onMapLibreCoreMapReady={(map) => {
+                  console.log("[CismapLayer] MapLibre map ready:", !!map);
+                  setMaplibreMap(map);
+                }}
               />
             )}
           </TopicMapComponent>
