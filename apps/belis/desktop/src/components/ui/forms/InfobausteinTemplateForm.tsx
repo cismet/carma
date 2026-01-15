@@ -34,7 +34,9 @@ interface InfobausteinTemplateFormProps {
 }
 
 const getInitialTableData = (item: Record<string, unknown>): Infobaustein[] => {
-  const arBausteineArray = item.ar_bausteineArray as ArBausteinItem[] | undefined;
+  const arBausteineArray = item.ar_bausteineArray as
+    | ArBausteinItem[]
+    | undefined;
   if (arBausteineArray) {
     return arBausteineArray.map((item) => item.infobaustein);
   }
@@ -326,9 +328,9 @@ const InfobausteinTemplateForm = ({
           })}
         />
       </div>
-      {!disabled && !hideButtons && (
+      {/* {!disabled && !hideButtons && (
         <FormActionButtons formHasChanges={formHasChanges} onReset={onReset} />
-      )}
+      )} */}
     </Form>
   );
 };
