@@ -1,9 +1,11 @@
 import { useEffect, useState, useCallback, useRef } from "react";
-import { Form, Input, Table, Button, Checkbox } from "antd";
+import { Form, Input, Table, Button, Checkbox, message } from "antd";
 import FormActionButtons from "../FormActionButtons";
 import type { FormInstance } from "antd";
 import type { ColumnsType } from "antd/es/table";
 import { PlusOutlined, MinusOutlined } from "@ant-design/icons";
+import { useSyncOptional } from "@carma-providers/syncing";
+import { saveKeyTableItem } from "../../../helper/syncHelper";
 
 interface Infobaustein {
   id: number;
@@ -21,6 +23,7 @@ interface InfobausteinTemplateFormProps {
   item: Record<string, unknown>;
   tableName: string;
   onSave: (updatedItem: Record<string, unknown>) => void;
+  onIdUpdated?: (oldId: number, newId: number, tableName: string) => void;
   onFormReady?: (form: FormInstance) => void;
   onValuesChange?: (hasChanges: boolean) => void;
   disabled?: boolean;
@@ -40,20 +43,32 @@ const getInitialTableData = (item: Record<string, unknown>): Infobaustein[] => {
 
 const InfobausteinTemplateForm = ({
   item,
+  tableName,
   onSave,
+  onIdUpdated,
   onFormReady,
   onValuesChange,
   disabled = false,
+  jwt,
   formHasChanges = false,
   onReset,
   hideButtons = false,
 }: InfobausteinTemplateFormProps) => {
   const [form] = Form.useForm();
+  const [pendingConfirmation, setPendingConfirmation] = useState(false);
+  const sync = useSyncOptional();
   const [tableData, setTableData] = useState<Infobaustein[]>(() =>
     getInitialTableData(item)
   );
   const [selectedRowKey, setSelectedRowKey] = useState<number | null>(null);
   const resetTableDataRef = useRef<() => void>();
+
+  // Reset pending state when ID becomes positive (server confirmed)
+  useEffect(() => {
+    if ((item.id as number) > 0) {
+      setPendingConfirmation(false);
+    }
+  }, [item.id]);
 
   const resetTableData = useCallback(() => {
     setTableData(getInitialTableData(item));
@@ -97,14 +112,40 @@ const InfobausteinTemplateForm = ({
   };
 
   const handleSave = (values: Record<string, unknown>) => {
+    if (!jwt) {
+      message.error("Nicht authentifiziert");
+      return;
+    }
+
     const updatedArBausteineArray = tableData.map((baustein) => ({
       infobaustein: baustein,
     }));
-    onSave({
-      ...values,
-      id: item.id,
+
+    const itemWithTableData = {
+      ...item,
       ar_bausteineArray: updatedArBausteineArray,
+    };
+
+    const result = saveKeyTableItem({
+      item: itemWithTableData,
+      values,
+      tableName,
+      sync,
+      onIdUpdated,
     });
+
+    if (result.success) {
+      message.success("Aktion zur Synchronisation hinzugefügt");
+      onSave(result.savedItem);
+
+      if (result.isNewItem) {
+        setPendingConfirmation(true);
+      }
+
+      onValuesChange?.(false);
+    } else {
+      message.error(result.error || "Fehler beim Speichern");
+    }
   };
 
   const handleAddRow = () => {
@@ -218,7 +259,7 @@ const InfobausteinTemplateForm = ({
       onValuesChange={handleValuesChange}
       layout="vertical"
       style={{ padding: "8px 0" }}
-      disabled={disabled}
+      disabled={disabled || pendingConfirmation}
     >
       <Form.Item
         name="schluessel"
