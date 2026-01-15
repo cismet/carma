@@ -1,5 +1,6 @@
 import { createContext, useContext, useState, ReactNode, useRef } from "react";
 import { utils } from "@carma-appframeworks/portals";
+import type maplibregl from "maplibre-gl";
 import {
   calculateSmallMapPosition,
   calculateBigMapPosition,
@@ -14,11 +15,17 @@ interface MapSize {
 
 interface DatasheetContextType {
   isDatasheetView: boolean;
-  setIsDatasheetView: (
-    value: boolean,
-    feature?: any,
-    routedMapRef?: any
-  ) => void;
+  setIsDatasheetView: ({
+    value,
+    feature,
+    routedMapRef,
+    libreMap,
+  }: {
+    value: boolean;
+    feature?: any;
+    routedMapRef?: any;
+    libreMap?: maplibregl.Map | null;
+  }) => void;
   toggleDatasheetView: () => void;
   setMapSizes: (bigSize: MapSize, smallSize: MapSize, padding?: number) => void;
 }
@@ -41,20 +48,27 @@ export const DatasheetProvider = ({ children }: { children: ReactNode }) => {
     mapSizesRef.current = { bigSize, smallSize, padding };
   };
 
-  const setIsDatasheetView = (
-    value: boolean,
-    feature?: any,
-    routedMapRef?: any
-  ) => {
+  const setIsDatasheetView = ({
+    value,
+    feature,
+    routedMapRef,
+    libreMap,
+  }: {
+    value: boolean;
+    feature?: any;
+    routedMapRef?: any;
+    libreMap?: maplibregl.Map | null;
+  }) => {
     const sizes = mapSizesRef.current;
     const currentPosition = getPositionFromUrl();
     const leafletMap = routedMapRef?.leafletMap?.leafletElement;
 
-    if (value && feature && leafletMap) {
+    if (value && feature && (leafletMap || libreMap)) {
       setTimeout(() => {
         utils.zoomToFeature({
           selectedFeature: feature,
-          leafletMap: leafletMap,
+          leafletMap: leafletMap ?? undefined,
+          libreMap: libreMap ?? undefined,
         });
       }, 550);
     } else if (sizes && currentPosition) {
@@ -83,7 +97,7 @@ export const DatasheetProvider = ({ children }: { children: ReactNode }) => {
   };
 
   const toggleDatasheetView = () => {
-    setIsDatasheetView(!isDatasheetView);
+    setIsDatasheetView({ value: !isDatasheetView });
   };
 
   return (

@@ -561,7 +561,17 @@ export const createFeature = (
   selectedVectorFeature,
   layerMapping,
   mapInstance?: maplibregl.Map,
-  setIsDatasheetView?: (value: boolean, feature?: any, libreMap?: any) => void
+  setIsDatasheetView?: ({
+    value,
+    feature,
+    routedMapRef,
+    libreMap,
+  }: {
+    value: boolean;
+    feature?: any;
+    routedMapRef?: any;
+    libreMap?: maplibregl.Map | null;
+  }) => void
 ) => {
   let feature = undefined;
 
@@ -646,14 +656,14 @@ export const createFeature = (
         tooltip: "Datenblatt",
         iconname: "file",
         action: () => {
-          setIsDatasheetView(
-            true,
-            {
+          setIsDatasheetView({
+            value: true,
+            feature: {
               geometry: selectedVectorFeature.geometry,
               properties: {},
             },
-            mapInstance
-          );
+            libreMap: mapInstance,
+          });
         },
       });
     }
