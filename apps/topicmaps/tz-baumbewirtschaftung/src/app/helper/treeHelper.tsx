@@ -259,7 +259,7 @@ export const createInfoBoxControlObject = (
       header = "Baumbewirtschaftung" + upcomingSuffix;
   }
 
-  // Get the latest action's image
+  // Get the latest image from any action (not just the latest action)
   let latestActionImage: string | undefined = undefined;
   if (p.actions && Array.isArray(p.actions) && p.actions.length > 0) {
     // Sort actions by action_time descending to get the most recent
@@ -269,9 +269,12 @@ export const createInfoBoxControlObject = (
       return timeB - timeA;
     });
 
-    const latestAction = sortedActions[0];
-    if (latestAction?.payload?.pic) {
-      latestActionImage = transformImageUrl(latestAction.payload.pic, jwt);
+    // Find the first action that has an image
+    const actionWithImage = sortedActions.find(
+      (action: any) => action?.payload?.pic
+    );
+    if (actionWithImage?.payload?.pic) {
+      latestActionImage = transformImageUrl(actionWithImage.payload.pic, jwt);
     }
   }
 
