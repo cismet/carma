@@ -86,6 +86,15 @@ export function InfoBoxMeasurement3D({
 
   const infoBoxHeaderColor = "#3b82f6";
 
+  const formatCoordinate = (val: number, isLat: boolean) => {
+    const str = Math.abs(val).toLocaleString("de-DE", {
+      minimumFractionDigits: 6,
+      maximumFractionDigits: 6,
+    });
+    const suffix = isLat ? (val >= 0 ? "N" : "S") : val >= 0 ? "O" : "W";
+    return `${str}° ${suffix}`;
+  };
+
   const isSingleMeasurement = measurements.length === 1;
   let isReference = false;
   let relativeValues: { distance: number; up: number } | null = null;
@@ -123,10 +132,10 @@ export function InfoBoxMeasurement3D({
         }
         alwaysVisibleDiv={
           currentMeasurement ? (
-            <div className="mt-2 mb-2 w-[96%] flex justify-between items-start gap-4">
+            <div className="mt-2 mb-2 w-full px-2 flex justify-between items-start gap-4">
               <span
                 style={{ cursor: "default", width: "100%" }}
-                className={`pl-3 font-bold ${isReference ? "italic" : ""}`}
+                className={`font-bold ${isReference ? "italic" : ""}`}
               >
                 <MeasurementTitle
                   key={currentMeasurement.id}
@@ -147,8 +156,14 @@ export function InfoBoxMeasurement3D({
                 />
                 {isPointMeasurementEntry(currentMeasurement) && (
                   <div className="text-[10px] font-normal text-gray-500 -mt-1">
-                    ({currentMeasurement.geometryWGS84.latitude.toFixed(6)},{" "}
-                    {currentMeasurement.geometryWGS84.longitude.toFixed(6)})
+                    {formatCoordinate(
+                      currentMeasurement.geometryWGS84.latitude,
+                      true
+                    )}{" "}
+                    {formatCoordinate(
+                      currentMeasurement.geometryWGS84.longitude,
+                      false
+                    )}
                   </div>
                 )}
               </span>
@@ -191,38 +206,46 @@ export function InfoBoxMeasurement3D({
               <div className="text-[12px] mb-1">
                 {isPointMeasurementEntry(currentMeasurement) && (
                   <>
-                    <div className="mt-2 text-sm pl-2">
-                      <div className={isReference ? "font-semibold" : ""}>
-                        {isReference ? (
-                          <>
-                            NHN-Höhe{" "}
+                    <div className="mt-2 text-sm pl-2 grid grid-cols-[max-content_max-content_1fr] gap-x-2">
+                      {isReference ? (
+                        <>
+                          <div className="font-semibold">NHN-Höhe</div>
+                          <div className="font-semibold text-right tabular-nums">
                             {formatNumber(
                               currentMeasurement.geometryWGS84.height
                             )}{" "}
                             m
-                          </>
-                        ) : (
-                          <>
-                            Höhe<sub>Relativ</sub>{" "}
-                            {formatNumber(relativeValues?.up ?? 0)} m (NHN{" "}
+                          </div>
+                          <div></div>
+                        </>
+                      ) : (
+                        <>
+                          <div>
+                            Höhe<sub>Relativ</sub>
+                          </div>
+                          <div className="text-right tabular-nums">
+                            {formatNumber(relativeValues?.up ?? 0)} m
+                          </div>
+                          <div className="whitespace-nowrap">
+                            (NHN{" "}
                             {formatNumber(
                               currentMeasurement.geometryWGS84.height
                             )}{" "}
                             m)
-                          </>
-                        )}
-                      </div>
+                          </div>
 
-                      <div>
-                        {!isReference ? (
-                          <span>
-                            Distanz{" "}
+                          <div>Distanz</div>
+                          <div className="text-right tabular-nums">
                             {formatNumber(relativeValues?.distance ?? 0)} m
-                          </span>
-                        ) : (
-                          !isSingleMeasurement && <em>ist Referenzhöhe</em>
-                        )}
-                      </div>
+                          </div>
+                          <div></div>
+                        </>
+                      )}
+                      {isReference && !isSingleMeasurement && (
+                        <div className="col-span-3 italic">
+                          ist Referenzhöhe
+                        </div>
+                      )}
                     </div>
                   </>
                 )}
