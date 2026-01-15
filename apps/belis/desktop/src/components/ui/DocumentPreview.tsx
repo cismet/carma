@@ -118,10 +118,7 @@ const DocumentPreview = ({ documents, jwt }: DocumentPreviewProps) => {
     fetchPreview();
   }, [selectedDoc, jwt]);
 
-  const handleDownload = async (
-    doc: DokumentItem,
-    e: React.MouseEvent
-  ) => {
+  const handleDownload = async (doc: DokumentItem, e: React.MouseEvent) => {
     e.stopPropagation();
     const urlData = doc.dms_url?.url;
     if (urlData?.object_name && jwt) {
@@ -250,8 +247,17 @@ const DocumentPreview = ({ documents, jwt }: DocumentPreviewProps) => {
 
   return (
     <Row gutter={16} style={{ minHeight: 300 }}>
-      <Col span={10}>
-        <div style={{ fontSize: 14, fontWeight: 400, color: "#8c8c8c", marginBottom: 8 }}>Dokumente</div>
+      <Col span={12}>
+        <div
+          style={{
+            fontSize: 14,
+            fontWeight: 400,
+            color: "#8c8c8c",
+            marginBottom: 8,
+          }}
+        >
+          Dokumente
+        </div>
         <List
           size="small"
           bordered
@@ -266,7 +272,9 @@ const DocumentPreview = ({ documents, jwt }: DocumentPreviewProps) => {
                 style={{
                   cursor: "pointer",
                   backgroundColor: isSelected ? "#e6f7ff" : undefined,
-                  borderLeft: isSelected ? "3px solid #1890ff" : "3px solid transparent",
+                  borderLeft: isSelected
+                    ? "3px solid #1890ff"
+                    : "3px solid transparent",
                 }}
                 className="hover:bg-gray-50"
                 onClick={() => setSelectedDoc(doc)}
@@ -279,7 +287,9 @@ const DocumentPreview = ({ documents, jwt }: DocumentPreviewProps) => {
                     width: "100%",
                   }}
                 >
-                  <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                  <div
+                    style={{ display: "flex", alignItems: "center", gap: 8 }}
+                  >
                     {getFileIcon(objectName)}
                     <span style={{ fontSize: 13 }}>
                       {doc.dms_url?.description ||
@@ -297,8 +307,17 @@ const DocumentPreview = ({ documents, jwt }: DocumentPreviewProps) => {
           }}
         />
       </Col>
-      <Col span={14}>
-        <div style={{ fontSize: 14, fontWeight: 400, color: "#8c8c8c", marginBottom: 8 }}>Vorschau</div>
+      <Col span={12}>
+        <div
+          style={{
+            fontSize: 14,
+            fontWeight: 400,
+            color: "#8c8c8c",
+            marginBottom: 8,
+          }}
+        >
+          Vorschau
+        </div>
         <div style={{ height: 300 }}>{renderPreview()}</div>
       </Col>
     </Row>
