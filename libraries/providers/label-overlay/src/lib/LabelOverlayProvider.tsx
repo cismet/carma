@@ -178,12 +178,14 @@ export const LabelOverlayProvider: React.FC<LabelOverlayProviderProps> = ({
       removeLabelOverlayElement,
       updateLabelOverlayElement,
       clearLabelOverlayElements,
+      updatePositions,
     }),
     [
       addLabelOverlayElement,
       removeLabelOverlayElement,
       updateLabelOverlayElement,
       clearLabelOverlayElements,
+      updatePositions,
     ]
   );
 

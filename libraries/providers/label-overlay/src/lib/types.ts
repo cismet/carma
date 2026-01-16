@@ -16,4 +16,5 @@ export interface LabelOverlayContextType {
     updates: Partial<LabelOverlayElement>
   ) => void;
   clearLabelOverlayElements: () => void;
+  updatePositions: () => void;
 }

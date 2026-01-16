@@ -1,5 +1,5 @@
 // Built-in Modules
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
 
 // 3rd party Modules
@@ -31,8 +31,8 @@ import {
   MapMeasurementsProvider,
   MEASUREMENT_MODE,
 } from "@carma-commons/measurements";
-// import { LabelOverlayProvider } from "@carma-providers/label-overlay";
-import { CesiumMeasurements } from "@carma-mapping/engines/cesium/measurements";
+import { LabelOverlayProvider } from "@carma-providers/label-overlay";
+import { CesiumMeasurementsProvider } from "@carma-mapping/engines/cesium/measurements";
 
 // Local Modules
 import AppErrorFallback from "./components/AppErrorFallback";
@@ -150,6 +150,14 @@ function App({ published }: { published?: boolean }) {
     dispatch(setUIMode(newUIMode));
   };
 
+  const [labelOverlayContainer, setLabelOverlayContainer] =
+    useState<HTMLDivElement | null>(null);
+
+  const labelOverlayContainerRef = useMemo(
+    () => ({ current: labelOverlayContainer }),
+    [labelOverlayContainer]
+  );
+
   // Memoize config objects to prevent recreation on every render
   const featureFlagsMergedConfig = useMemo(
     () => ({ ...featureFlagConfig, ...customFeatureFlags }),
@@ -195,50 +203,63 @@ function App({ published }: { published?: boolean }) {
                   setModeExternal={handleSetMode}
                   baseConfig={MEASUREMENTS_BASE_CONFIG}
                 >
-                  <CesiumMeasurements options={cesiumMeasurementOptions}>
-                    <ErrorBoundary FallbackComponent={AppErrorFallback}>
-                      <AdhocFeatureRehydration />
-                      <div className={TAILWIND_CLASSNAMES_FULLSCREEN_FIXED}>
-                        {isLoadingConfig && (
-                          <div
-                            id="loading"
-                            className="absolute flex flex-col items-center text-white justify-center h-screen w-full bg-black/50 z-[9999999999999]"
-                          >
-                            <h2>Lade Konfiguration</h2>
-                            <FontAwesomeIcon size="2x" icon={faSpinner} spin />
-                          </div>
-                        )}
-                        {!published && <TopNavbar />}
-                        <MapWrapper />
-                        <MobileWarningMessage
-                          headerText={mobileInfo.headerText}
-                          bodyText={mobileInfo.bodyText}
-                          confirmButtonText={mobileInfo.confirmButtonText}
-                        />
-
-                        <Modal
-                          open={showLoginModal}
-                          closable={false}
-                          footer={null}
-                          styles={{
-                            content: {
-                              padding: "0px",
-                              width: window.innerWidth < 600 ? "100%" : "450px",
-                            },
-                          }}
-                        >
-                          <LoginForm
-                            onSuccess={() => dispatch(setShowLoginModal(false))}
-                            closeLoginForm={() =>
-                              dispatch(setShowLoginModal(false))
-                            }
-                            showHelpText={false}
-                            style={{ padding: "20px" }}
+                  <LabelOverlayProvider containerRef={labelOverlayContainerRef}>
+                    <CesiumMeasurementsProvider
+                      options={cesiumMeasurementOptions}
+                    >
+                      <ErrorBoundary FallbackComponent={AppErrorFallback}>
+                        <AdhocFeatureRehydration />
+                        <div className={TAILWIND_CLASSNAMES_FULLSCREEN_FIXED}>
+                          {isLoadingConfig && (
+                            <div
+                              id="loading"
+                              className="absolute flex flex-col items-center text-white justify-center h-screen w-full bg-black/50 z-[9999999999999]"
+                            >
+                              <h2>Lade Konfiguration</h2>
+                              <FontAwesomeIcon
+                                size="2x"
+                                icon={faSpinner}
+                                spin
+                              />
+                            </div>
+                          )}
+                          {!published && <TopNavbar />}
+                          <MapWrapper
+                            overlayContainerRef={setLabelOverlayContainer}
                           />
-                        </Modal>
-                      </div>
-                    </ErrorBoundary>
-                  </CesiumMeasurements>
+                          <MobileWarningMessage
+                            headerText={mobileInfo.headerText}
+                            bodyText={mobileInfo.bodyText}
+                            confirmButtonText={mobileInfo.confirmButtonText}
+                          />
+
+                          <Modal
+                            open={showLoginModal}
+                            closable={false}
+                            footer={null}
+                            styles={{
+                              content: {
+                                padding: "0px",
+                                width:
+                                  window.innerWidth < 600 ? "100%" : "450px",
+                              },
+                            }}
+                          >
+                            <LoginForm
+                              onSuccess={() =>
+                                dispatch(setShowLoginModal(false))
+                              }
+                              closeLoginForm={() =>
+                                dispatch(setShowLoginModal(false))
+                              }
+                              showHelpText={false}
+                              style={{ padding: "20px" }}
+                            />
+                          </Modal>
+                        </div>
+                      </ErrorBoundary>
+                    </CesiumMeasurementsProvider>
+                  </LabelOverlayProvider>
                 </MeasurementsWrapper>
               </ObliqueProvider>
             </CarmaMapProviderWrapper>

@@ -9,6 +9,7 @@ import React, {
   useEffect,
 } from "react";
 import { type Cartesian3 } from "@carma/cesium";
+import { useLabelOverlay } from "@carma-providers/label-overlay";
 
 import { normalizeOptions } from "@carma-commons/utils";
 import {
@@ -18,7 +19,11 @@ import {
 
 import { useCesiumContext } from "@carma-mapping/engines/cesium";
 
-import { useCesiumPointQuery, useCesiumPointVisualizer } from "../hooks";
+import {
+  useCesiumPointQuery,
+  useCesiumPointVisualizer,
+  useCesiumOverlaySync,
+} from "../hooks";
 
 import {
   isPointMeasurementEntry,
@@ -106,6 +111,15 @@ export const CesiumMeasurementsProvider: React.FC<
   const { getScene } = useCesiumContext();
   const scene = getScene();
   const mapMeasurements = useMapMeasurementsContext();
+  const requestUpdateCallback = useCesiumOverlaySync();
+  const overlayContext = useLabelOverlay();
+
+  useEffect(() => {
+    if (overlayContext && overlayContext.updatePositions) {
+      requestUpdateCallback(overlayContext.updatePositions);
+    }
+  }, [overlayContext, requestUpdateCallback]);
+
 
   const pointQueryOptions = normalizeOptions(
     options?.pointQueries,

@@ -1,5 +1,4 @@
 // Components
-export { CesiumMeasurements } from "./lib/components/CesiumMeasurements";
 
 // Types
 export * from "./lib/types/MeasurementTypes";

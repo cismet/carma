@@ -98,7 +98,11 @@ window.addEventListener("load", testGPU, false);
 
 // TODO: centralize the hash params update behavior
 
-const MapWrapper = () => {
+const MapWrapper = ({
+  overlayContainerRef,
+}: {
+  overlayContainerRef?: React.Ref<HTMLDivElement>;
+}) => {
   const dispatch = useDispatch();
   const flags = useFeatureFlags();
 
@@ -505,6 +509,13 @@ const MapWrapper = () => {
           ) : (
             <>
               <GeoportalMap height={height} width={width} allow3d={allow3d} />
+              <div
+                ref={overlayContainerRef}
+                id="measurement-overlay-container"
+                className={`absolute inset-0 pointer-events-none z-[450] ${
+                  isCesium ? "block" : "hidden"
+                }`}
+              />
               {isCesium && <ObliqueControls hideControls={zenMode} />}
             </>
           )}

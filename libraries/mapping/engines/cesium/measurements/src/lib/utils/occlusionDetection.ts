@@ -18,6 +18,13 @@ export function isPointOccluded(
     return false;
   }
 
+  // Check for valid drawing buffer dimensions to prevent errors during hot reload/resize
+  // when the canvas might have 0 width/height, causing "normalized result is not a number"
+  // in scene.pick -> computeCullingVolume.
+  if (scene.drawingBufferWidth <= 0 || scene.drawingBufferHeight <= 0) {
+    return false;
+  }
+
   // Use Cesium's scene.pick to test visibility against depth buffer
   const pickedObject = scene.pick(canvasPosition);
 
