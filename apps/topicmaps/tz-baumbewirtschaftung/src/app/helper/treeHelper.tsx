@@ -173,9 +173,27 @@ export const updateFeatureCollectionWithNewActions = (
       return f;
     }
 
-    // Merge new actions with existing ones
+    // Merge new actions with existing ones, avoiding duplicates
     const existingActions = f.properties.actions || [];
-    const mergedActions = [...existingActions, ...newActionsForTree];
+
+    // Create a Set of existing action IDs (including upcoming action IDs)
+    const existingIds = new Set(
+      existingActions
+        .map((a: any) => a.id)
+        .filter((id: any) => id !== undefined)
+    );
+
+    // Only add new actions that don't already exist
+    const uniqueNewActions = newActionsForTree.filter(
+      (a: any) => !existingIds.has(a.id)
+    );
+
+    // Also filter out upcoming actions (they have string IDs like "upcoming-...")
+    const cleanedExisting = existingActions.filter(
+      (a: any) => typeof a.id !== 'string' || !a.id.startsWith('upcoming-')
+    );
+
+    const mergedActions = [...cleanedExisting, ...uniqueNewActions];
 
     const updatedFeature = {
       ...f,
