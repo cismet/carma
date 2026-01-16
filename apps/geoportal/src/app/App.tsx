@@ -172,6 +172,7 @@ function App({ published }: { published?: boolean }) {
   const cesiumMeasurementOptions = useMemo(
     () => ({
       pointQueries: { enabled: true, radius: 1 },
+      persistenceKey: `${MEASUREMENTS_BASE_CONFIG.localStorageKey}.geoportal`,
     }),
     []
   );

@@ -24,6 +24,7 @@ import {
   useCesiumPointVisualizer,
   useCesiumOverlaySync,
 } from "../hooks";
+import { useMeasurementPersistence } from "../hooks/useMeasurementPersistence";
 
 import {
   isPointMeasurementEntry,
@@ -75,11 +76,14 @@ export type MeasurementProviderOptions = {
   };
   cartographicCRS?: "string";
   mode?: MeasurementMode;
+  persistenceKey?: string;
+  persistenceEnabled?: boolean;
 };
 
 const defaultOptions: MeasurementProviderOptions = {
   temporary: false,
   mode: MeasurementMode.PointQuery,
+  persistenceEnabled: true,
 };
 
 const defaultPointQueryOptions: MeasurementProviderOptions["pointQueries"] = {
@@ -132,8 +136,12 @@ export const CesiumMeasurementsProvider: React.FC<
   );
 
   const normalizedOptions = normalizeOptions(options, defaultOptions);
-  const { mode: initialMeasurementMode, temporary: initialTemporary } =
-    normalizedOptions;
+  const {
+    mode: initialMeasurementMode,
+    temporary: initialTemporary,
+    persistenceKey,
+    persistenceEnabled,
+  } = normalizedOptions;
 
   const [measurementMode, setMeasurementMode] = useState<MeasurementMode>(
     initialMeasurementMode ?? MeasurementMode.PointQuery
@@ -147,6 +155,14 @@ export const CesiumMeasurementsProvider: React.FC<
     initialTemporary ?? false
   );
   const [measurements, setMeasurements] = useState<MeasurementCollection>([]);
+
+  const isSceneReady = Boolean(scene && !scene.isDestroyed());
+
+  useMeasurementPersistence(measurements, setMeasurements, {
+    storageKey: persistenceKey,
+    enabled: persistenceEnabled,
+    ready: isSceneReady,
+  });
 
   const [referencePoint, setReferencePoint] = useState<Cartesian3 | null>(null);
   const [showLabels, setShowLabels] = useState<boolean>(true);

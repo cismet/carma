@@ -1,0 +1,52 @@
+import type {
+  MeasurementCollection,
+  MeasurementEntry,
+  TraverseMeasurementEntry,
+} from "../types/MeasurementTypes";
+import { MeasurementMode } from "../types/MeasurementTypes";
+
+const DEFAULT_STORAGE_KEY = "cesium-measurements";
+
+const rebuildTraverseEntry = (entry: MeasurementEntry): MeasurementEntry => {
+  if (entry.type !== MeasurementMode.Traverse) {
+    return entry;
+  }
+
+  const traverseEntry: TraverseMeasurementEntry = {
+    ...(entry as TraverseMeasurementEntry),
+    shouldRebuildEntry: true,
+  };
+
+  return traverseEntry;
+};
+
+export const saveMeasurements = (
+  storageKey: string | undefined,
+  measurements: MeasurementCollection
+): void => {
+  const key = storageKey ?? DEFAULT_STORAGE_KEY;
+  try {
+    localStorage.setItem(key, JSON.stringify(measurements));
+  } catch (error) {
+    console.warn("Failed to save measurements to localStorage:", error);
+  }
+};
+
+export const loadMeasurements = (
+  storageKey: string | undefined
+): MeasurementCollection | null => {
+  const key = storageKey ?? DEFAULT_STORAGE_KEY;
+  try {
+    const saved = localStorage.getItem(key);
+    if (!saved) {
+      return null;
+    }
+
+    const measurements = JSON.parse(saved) as MeasurementCollection;
+    return measurements.map(rebuildTraverseEntry);
+  } catch (error) {
+    console.warn("Failed to load measurements from localStorage:", error);
+  }
+
+  return null;
+};
