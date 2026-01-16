@@ -165,6 +165,14 @@ export function SyncProvider({
               }
               // Clean up after calling
               actionCallbacksRef.current.delete(action.id);
+            } else {
+              console.log(
+                LOG_PREFIX,
+                "xxx No callback found for action:",
+                action.id,
+                "registered callbacks:",
+                [...actionCallbacksRef.current.keys()]
+              );
             }
           },
           // onError callback
@@ -252,6 +260,13 @@ export function SyncProvider({
       // Register callback if provided
       if (onComplete) {
         actionCallbacksRef.current.set(id, onComplete);
+        console.log(
+          LOG_PREFIX,
+          "xxx Registered callback for action:",
+          id,
+          "total callbacks:",
+          actionCallbacksRef.current.size
+        );
       }
 
       await db.collections.actions.insert({
