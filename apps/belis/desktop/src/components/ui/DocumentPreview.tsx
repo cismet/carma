@@ -9,6 +9,7 @@ import {
   getDocumentBlobUrl,
   downloadDocument,
 } from "../../helper/documentHelper";
+import DocumentUploader from "./DocumentUploader";
 
 interface DmsUrlInner {
   id: number;
@@ -306,6 +307,9 @@ const DocumentPreview = ({ documents, jwt }: DocumentPreviewProps) => {
             );
           }}
         />
+        <div className="mt-6">
+          <DocumentUploader />
+        </div>
       </Col>
       <Col span={12}>
         <div

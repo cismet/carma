@@ -5,6 +5,7 @@ import type { FormInstance } from "antd";
 import DocumentPreview, { DokumentItem } from "../DocumentPreview";
 import { useSyncOptional } from "@carma-providers/syncing";
 import { saveKeyTableItem } from "../../../helper/syncHelper";
+import DocumentUploader from "../DocumentUploader";
 
 interface LeuchentypFormProps {
   item: Record<string, unknown>;
@@ -245,6 +246,7 @@ const LeuchentypForm = ({
         </Col>
       </Row>
       <DocumentPreview documents={dokumenteArray || []} jwt={jwt} />
+      {/* <DocumentUploader /> */}
       {!disabled && !hideButtons && (
         <FormActionButtons formHasChanges={formHasChanges} onReset={onReset} />
       )}
