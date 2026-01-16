@@ -66,6 +66,34 @@ const SetStatusDialog = ({
 
   const { status: syncStatus, syncedAction } = useSync();
 
+  // Check for devMode URL parameter (supports hash-based routing)
+  const isDevMode = (() => {
+    const hashParams = window.location.hash.split("?")[1];
+    if (hashParams) {
+      return new URLSearchParams(hashParams).has("devMode");
+    }
+    return new URLSearchParams(window.location.search).has("devMode");
+  })();
+
+  // Compute default status based on the 90% rule
+  const getDefaultStatus = (): "open" | "done" | "exception" => {
+    const latestStatus = feature?.properties?.latestActionStatus;
+    // If no action exists, presume the user wants to start
+    if (!latestStatus || latestStatus === "none") {
+      return "open";
+    }
+    // If the task is started (open), presume the user wants to close it
+    if (latestStatus === "open") {
+      return "done";
+    }
+    // If the task is in an exception state, presume the user wants to close it
+    if (latestStatus === "exception") {
+      return "done";
+    }
+    // For any other status (e.g., already done), default to open for a new cycle
+    return "open";
+  };
+
   const handleUploadChange = (info: any) => {
     if (info.file.status === "done") {
       const reader = new FileReader();
@@ -80,6 +108,12 @@ const SetStatusDialog = ({
 
   const handleSave = async () => {
     try {
+      // Validate image is attached (skip in devMode)
+      if (!imagePreview && !isDevMode) {
+        message.error("Bitte ein Foto hinzufügen.");
+        return;
+      }
+
       const values = await form.validateFields();
       setIsSaving(true);
 
@@ -212,7 +246,7 @@ const SetStatusDialog = ({
       cancelText="Abbrechen"
       okButtonProps={{
         loading: isSaving,
-        disabled: !syncStatus.isReady,
+        disabled: !syncStatus.isReady || (!imagePreview && !isDevMode),
       }}
     >
       <Form
@@ -221,7 +255,7 @@ const SetStatusDialog = ({
         name="status_form"
         initialValues={{
           user: username || "",
-          status: "open",
+          status: getDefaultStatus(),
         }}
       >
         <Form.Item
@@ -266,7 +300,12 @@ const SetStatusDialog = ({
           <Input disabled />
         </Form.Item>
 
-        <Form.Item name="picture" label="Foto">
+        <Form.Item
+          name="picture"
+          label="Foto"
+          required={!isDevMode}
+          tooltip={isDevMode ? undefined : "Ein Foto ist erforderlich"}
+        >
           <Upload
             name="upload"
             className="avatar-uploader"
