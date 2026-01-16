@@ -51,7 +51,7 @@ export const keyTableDisplayConfig: KeyTableDisplayConfig = {
     sortMode: "alphabetical",
     customForm: "leuchtentyp",
     apiClassName: "tkey_leuchtentyp",
-    readOnly: true,
+    // readOnly: true,
   },
   rundsteuerempfänger: {
     template: "{rs_typ} {fabrikat}",
