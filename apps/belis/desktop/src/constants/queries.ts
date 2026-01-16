@@ -59,6 +59,24 @@ query MyQuery {
   }
 }`;
 
+queries.infobaustein_template_by_id = `
+query MyQuery($id: Int!) {
+  infobaustein_template(where: {id: {_eq: $id}}) {
+    schluessel
+    id
+    bezeichnung
+    ar_bausteineArray {
+      infobaustein {
+        bezeichnung
+        id
+        pflichtfeld
+        schluessel
+        wert
+      }
+    }
+  }
+}`;
+
 queries.tkey_leuchtentyp = `
 query MyQuery {
   tkey_leuchtentyp {

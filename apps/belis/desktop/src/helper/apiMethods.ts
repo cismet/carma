@@ -24,6 +24,7 @@ import {
   tkeyUnterhaltLeuchteQuery,
   tkeyUnterhaltMastQuery,
   infobausteinTemplateQuery,
+  infobausteinTemplateByIdQuery,
   veranlassungsartQuery,
 } from "../constants/belis";
 
@@ -976,6 +977,42 @@ export const fetchAllInfobausteinTemplate = async (jwt: string) => {
   }
 
   return json.data?.infobaustein_template ?? [];
+};
+
+export const fetchInfobausteinTemplateById = async (jwt: string, id: number) => {
+  const response = await fetch(ENDPOINT, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${jwt}`,
+    },
+    body: JSON.stringify({
+      query: infobausteinTemplateByIdQuery,
+      variables: { id },
+    }),
+  });
+
+  const text = await response.text();
+  if (!response.ok) {
+    throw new Error(
+      `fetchInfobausteinTemplateById failed: ${response.status} ${text}`
+    );
+  }
+
+  const json = JSON.parse(text) as {
+    data?: { infobaustein_template?: unknown[] };
+    errors?: unknown;
+  };
+
+  if (json.errors) {
+    throw new Error(
+      `fetchInfobausteinTemplateById GraphQL errors: ${JSON.stringify(
+        json.errors
+      )}`
+    );
+  }
+
+  return json.data?.infobaustein_template?.[0] ?? null;
 };
 
 export const fetchAllKeyTables = async (jwt: string) => {
