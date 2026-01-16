@@ -1,11 +1,10 @@
-import React from "react";
 import { InboxOutlined } from "@ant-design/icons";
 import type { UploadProps } from "antd";
 import { message, Upload } from "antd";
 
 const { Dragger } = Upload;
 
-const props: UploadProps = {
+const uploadProps: UploadProps = {
   name: "file",
   multiple: true,
   beforeUpload: () => {
@@ -22,19 +21,17 @@ const props: UploadProps = {
 
 const DocumentUploader = () => {
   return (
-    <>
-      <Dragger {...props}>
-        <p className="ant-upload-drag-icon">
-          <InboxOutlined />
-        </p>
-        <p className="ant-upload-text">
-          Klicken oder Datei hierher ziehen zum Hochladen
-        </p>
-        <p className="ant-upload-hint">
-          Unterstützung für Einzel- oder Mehrfach-Upload.
-        </p>
-      </Dragger>
-    </>
+    <Dragger {...uploadProps} style={{ height: "100%" }}>
+      <p className="ant-upload-drag-icon">
+        <InboxOutlined />
+      </p>
+      <p className="ant-upload-text">
+        Klicken oder Datei hierher ziehen zum Hochladen
+      </p>
+      {/* <p className="ant-upload-hint">
+        Unterstützung für Einzel- oder Mehrfach-Upload.
+      </p> */}
+    </Dragger>
   );
 };
 

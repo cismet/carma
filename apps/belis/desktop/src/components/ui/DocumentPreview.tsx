@@ -11,6 +11,8 @@ import {
 } from "../../helper/documentHelper";
 import DocumentUploader from "./DocumentUploader";
 
+const TOTAL_HEIGHT = 330; // Fixed height for both columns
+
 interface DmsUrlInner {
   id: number;
   description: string;
@@ -68,7 +70,6 @@ const DocumentPreview = ({ documents, jwt }: DocumentPreviewProps) => {
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-
   useEffect(() => {
     return () => {
       if (previewUrl) {
@@ -148,6 +149,7 @@ const DocumentPreview = ({ documents, jwt }: DocumentPreviewProps) => {
             backgroundColor: "#f5f5f5",
             border: "1px solid #d9d9d9",
             borderRadius: 4,
+            marginLeft: "2px",
           }}
         >
           Dokument auswählen
@@ -247,82 +249,99 @@ const DocumentPreview = ({ documents, jwt }: DocumentPreviewProps) => {
   const hasDocuments = documents && documents.length > 0;
 
   return (
-    <Row gutter={16} style={{ minHeight: 300 }}>
-      <Col span={12}>
+    <Row gutter={24} style={{ height: TOTAL_HEIGHT }}>
+      <Col span={12} style={{ height: "100%" }}>
         <div
           style={{
-            fontSize: 14,
-            fontWeight: 400,
-            color: "#8c8c8c",
-            marginBottom: 8,
+            display: "flex",
+            flexDirection: "column",
+            height: "100%",
           }}
         >
-          Dokumente
-        </div>
-        <List
-          size="small"
-          bordered
-          dataSource={hasDocuments ? documents : []}
-          locale={{ emptyText: "Keine Dokumente" }}
-          style={{ maxHeight: 300, overflowY: "auto" }}
-          renderItem={(doc) => {
-            const objectName = doc.dms_url?.url?.object_name || "";
-            const isSelected = selectedDoc === doc;
-            return (
-              <List.Item
-                style={{
-                  cursor: "pointer",
-                  backgroundColor: isSelected ? "#e6f7ff" : undefined,
-                  borderLeft: isSelected
-                    ? "3px solid #1890ff"
-                    : "3px solid transparent",
-                }}
-                className="hover:bg-gray-50"
-                onClick={() => setSelectedDoc(doc)}
-              >
-                <div
+          <div
+            style={{
+              fontSize: 14,
+              fontWeight: 400,
+              color: "#8c8c8c",
+              marginBottom: 8,
+            }}
+          >
+            Dokumente
+          </div>
+          <List
+            size="small"
+            bordered
+            dataSource={hasDocuments ? documents : []}
+            locale={{ emptyText: "Keine Dokumente" }}
+            style={{ maxHeight: 150, overflowY: "auto", flexShrink: 0 }}
+            renderItem={(doc) => {
+              const objectName = doc.dms_url?.url?.object_name || "";
+              const isSelected = selectedDoc === doc;
+              return (
+                <List.Item
                   style={{
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "space-between",
-                    width: "100%",
+                    cursor: "pointer",
+                    backgroundColor: isSelected ? "#e6f7ff" : undefined,
+                    borderLeft: isSelected
+                      ? "3px solid #1890ff"
+                      : "3px solid transparent",
                   }}
+                  className="hover:bg-gray-50"
+                  onClick={() => setSelectedDoc(doc)}
                 >
                   <div
-                    style={{ display: "flex", alignItems: "center", gap: 8 }}
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "space-between",
+                      width: "100%",
+                    }}
                   >
-                    {getFileIcon(objectName)}
-                    <span style={{ fontSize: 13 }}>
-                      {doc.dms_url?.description ||
-                        doc.dms_url?.url?.object_name ||
-                        "Dokument"}
-                    </span>
+                    <div
+                      style={{ display: "flex", alignItems: "center", gap: 8 }}
+                    >
+                      {getFileIcon(objectName)}
+                      <span style={{ fontSize: 13 }}>
+                        {doc.dms_url?.description ||
+                          doc.dms_url?.url?.object_name ||
+                          "Dokument"}
+                      </span>
+                    </div>
+                    <DownloadOutlined
+                      style={{ color: "#8c8c8c" }}
+                      onClick={(e) => handleDownload(doc, e)}
+                    />
                   </div>
-                  <DownloadOutlined
-                    style={{ color: "#8c8c8c" }}
-                    onClick={(e) => handleDownload(doc, e)}
-                  />
-                </div>
-              </List.Item>
-            );
-          }}
-        />
-        <div className="mt-6">
-          <DocumentUploader />
+                </List.Item>
+              );
+            }}
+          />
+          <div style={{ marginTop: 16, flex: 1, minHeight: 80 }}>
+            <DocumentUploader />
+          </div>
         </div>
       </Col>
-      <Col span={12}>
+      <Col span={12} style={{ height: "100%" }}>
         <div
           style={{
-            fontSize: 14,
-            fontWeight: 400,
-            color: "#8c8c8c",
-            marginBottom: 8,
+            display: "flex",
+            flexDirection: "column",
+            height: "100%",
           }}
         >
-          Vorschau
+          <div
+            style={{
+              fontSize: 14,
+              fontWeight: 400,
+              color: "#8c8c8c",
+              marginBottom: 8,
+              marginLeft: 2,
+            }}
+          >
+            Vorschau
+          </div>
+          <div style={{ flex: 1 }}>{renderPreview()}</div>
         </div>
-        <div style={{ height: 300 }}>{renderPreview()}</div>
       </Col>
     </Row>
   );
