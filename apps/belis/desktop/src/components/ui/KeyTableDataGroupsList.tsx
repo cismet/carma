@@ -1,7 +1,7 @@
 import { useState, useMemo } from "react";
-import { List } from "antd";
+import { List, Select } from "antd";
 import Fuse from "fuse.js";
-import { PlusOutlined, DeleteOutlined } from "@ant-design/icons";
+import { PlusOutlined, DeleteOutlined, MenuUnfoldOutlined } from "@ant-design/icons";
 import { CustomCard } from "../commons/CustomCard";
 import { SearchInput } from "../commons/SearchInput";
 import {
@@ -23,6 +23,10 @@ interface KeyTableDataGroupsListProps {
   onAddItem: () => void;
   onRemoveItem: () => void;
   sortMode?: SortMode;
+  isFirstColumnCollapsed?: boolean;
+  onExpandFirstColumn?: () => void;
+  data?: Record<string, unknown[]>;
+  onTableSelect?: (tableName: string) => void;
 }
 
 const formatTableName = (key: string) => {
@@ -49,8 +53,27 @@ const KeyTableDataGroupsList = ({
   onAddItem,
   onRemoveItem,
   sortMode = "none",
+  isFirstColumnCollapsed = false,
+  onExpandFirstColumn,
+  data,
+  onTableSelect,
 }: KeyTableDataGroupsListProps) => {
   const [searchText, setSearchText] = useState("");
+
+  // Build dropdown options from data (same sorting as KeyTableDataGroups)
+  const tableOptions = useMemo(() => {
+    if (!data) return [];
+    return Object.keys(data)
+      .sort((a, b) =>
+        getTableDisplayName(a).localeCompare(getTableDisplayName(b), "de", {
+          sensitivity: "base",
+        })
+      )
+      .map((key) => ({
+        value: key,
+        label: `${getTableDisplayName(key)} (${Array.isArray(data[key]) ? data[key].length : 0})`,
+      }));
+  }, [data]);
 
   // Prepare items with display text for Fuse.js search
   const searchableItems = useMemo(() => {
@@ -124,7 +147,31 @@ const KeyTableDataGroupsList = ({
 
   return (
     <CustomCard
-      title={getTableDisplayName(tableName)}
+      title={
+        isFirstColumnCollapsed ? (
+          <div className="flex items-center gap-2">
+            <MenuUnfoldOutlined
+              className="cursor-pointer hover:text-blue-500"
+              onClick={onExpandFirstColumn}
+            />
+            <Select
+              value={tableName}
+              options={tableOptions}
+              onChange={onTableSelect}
+              style={{ minWidth: 200 }}
+              size="small"
+              showSearch
+              filterOption={(input, option) =>
+                (option?.label ?? "")
+                  .toLowerCase()
+                  .includes(input.toLowerCase())
+              }
+            />
+          </div>
+        ) : (
+          getTableDisplayName(tableName)
+        )
+      }
       style={{ height: "100%" }}
       extra={
         <div className="flex items-center gap-2">

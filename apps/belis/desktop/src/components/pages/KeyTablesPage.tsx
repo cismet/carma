@@ -35,6 +35,7 @@ const KeyTablesPage = () => {
   const fetched = useSelector(getKeyTablesFetched);
   const [selectedTable, setSelectedTable] = useState<string | null>(null);
   const [selectedItem, setSelectedItem] = useState<SelectedItem | null>(null);
+  const [isFirstColumnCollapsed, setIsFirstColumnCollapsed] = useState(false);
   const sync = useSyncOptional();
 
   // Keep refs to current data and selectedItem to avoid stale closure in Modal.confirm callback
@@ -353,7 +354,7 @@ const KeyTablesPage = () => {
     : [];
 
   return (
-    <div className="mx-3 mt-1">
+    <div className="mx-3 mt-1" style={{ overflow: "hidden" }}>
       {loading && (
         <div className="flex justify-center items-center py-8">
           <Spin size="large" tip="Laden..." />
@@ -373,28 +374,34 @@ const KeyTablesPage = () => {
       )}
 
       {!loading && Object.keys(data).length > 0 && (
-        <div className="flex gap-4">
+        <div
+          className="flex gap-4"
+          style={{ overflowX: "auto", width: "100%" }}
+        >
           {/* Column 1: Key Table Names */}
-          <div
-            style={{
-              flex: 1,
-              minWidth: 240,
-              height: adjustedHeight,
-            }}
-          >
-            <KeyTableDataGroups
-              data={data}
-              selectedTable={selectedTable}
-              onTableSelect={handleTableClick}
-            />
-          </div>
+          {!isFirstColumnCollapsed && (
+            <div
+              style={{
+                flex: "1 0 240px",
+                minWidth: 240,
+                height: adjustedHeight,
+              }}
+            >
+              <KeyTableDataGroups
+                data={data}
+                selectedTable={selectedTable}
+                onTableSelect={handleTableClick}
+                onCollapse={() => setIsFirstColumnCollapsed(true)}
+              />
+            </div>
+          )}
 
           {/* Column 2: Items List */}
           {selectedTable && (
             <div
               style={{
-                flex: 2,
-                minWidth: 454,
+                flex: "2 0 500px",
+                minWidth: 500,
                 height: adjustedHeight,
               }}
             >
@@ -407,6 +414,10 @@ const KeyTablesPage = () => {
                 onAddItem={handleAddItem}
                 onRemoveItem={handleRemoveItem}
                 sortMode={keyTableDisplayConfig[selectedTable]?.sortMode}
+                isFirstColumnCollapsed={isFirstColumnCollapsed}
+                onExpandFirstColumn={() => setIsFirstColumnCollapsed(false)}
+                data={data}
+                onTableSelect={handleTableClick}
               />
             </div>
           )}
@@ -414,8 +425,8 @@ const KeyTablesPage = () => {
           {/* Column 3: Form */}
           <div
             style={{
-              flex: 3,
-              minWidth: 0,
+              flex: "3 0 530px",
+              minWidth: 530,
               height: adjustedHeight,
             }}
           >
