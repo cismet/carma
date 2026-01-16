@@ -94,6 +94,7 @@ export const saveKeyTableItem = (
   // Create onComplete callback for new items to handle ID update
   const onComplete = isNewItem
     ? (action: { result?: string }) => {
+        console.log("xxx syncHelper onComplete action:", action);
         if (action.result && onIdUpdated) {
           try {
             const result = JSON.parse(action.result);
@@ -102,7 +103,7 @@ export const saveKeyTableItem = (
               onIdUpdated(originalItemId, newId, tableName);
             }
           } catch (e) {
-            console.error("Failed to parse server response:", e);
+            console.error("Failed to parse server response:", e, action.result);
           }
         } else {
           console.log(
@@ -115,7 +116,16 @@ export const saveKeyTableItem = (
       }
     : undefined;
 
-  console.log("xxx dataToSave", JSON.stringify(dataToSave));
+  console.log(
+    "xxx dataToSave " + (onComplete !== undefined ? "with onComplete" : ""),
+    JSON.stringify(dataToSave),
+    "isNewItem:",
+    isNewItem,
+    "item.id:",
+    item.id,
+    "typeof item.id:",
+    typeof item.id
+  );
 
   // Execute the synced action
   sync.syncedAction(
