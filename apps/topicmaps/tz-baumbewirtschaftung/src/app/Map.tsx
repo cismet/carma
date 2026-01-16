@@ -50,6 +50,15 @@ type LightboxDispatch = {
   setVisible: (v: boolean) => void;
 };
 
+// Check for URL parameters (supports hash-based routing)
+const getUrlParam = (param: string) => {
+  const hashParams = window.location.hash.split("?")[1];
+  if (hashParams) {
+    return new URLSearchParams(hashParams).has(param);
+  }
+  return new URLSearchParams(window.location.search).has(param);
+};
+
 const TZBaumbewirtschaftung = ({
   jwt,
   login,
@@ -59,6 +68,8 @@ const TZBaumbewirtschaftung = ({
   login?: string | null;
   onAuthError?: () => void;
 }) => {
+  const isFollowMode = getUrlParam("followMode");
+  const isCrossHairEnabled = getUrlParam("crossHair");
   const { markerSymbolSize } = useContext(TopicMapStylingContext) as any;
   const { clusteringOptions } = useContext(FeatureCollectionContext) as any;
   const [selectedFeature, setSelectedFeature] = useState<any>();
@@ -276,6 +287,32 @@ const TZBaumbewirtschaftung = ({
       }
     }
 
+    // Follow mode: select the affected feature to show the infobox
+    if (isFollowMode && intermediateActions.length > 0) {
+      const affectedTreeId = intermediateActions[0].fk_tree;
+      const affectedFeature = updated.features?.find(
+        (f: any) => f.id === affectedTreeId
+      ) as any;
+
+      if (affectedFeature) {
+        // Parse actions and create info object for selection
+        if (typeof affectedFeature.properties.actions === "string") {
+          affectedFeature.properties.actions = JSON.parse(
+            affectedFeature.properties.actions
+          );
+        }
+        affectedFeature.properties.info = createInfoBoxControlObject(
+          affectedFeature,
+          setShowStatusDialog,
+          jwt
+        );
+        affectedFeature.text = affectedFeature.properties.info.puretitle;
+
+        // Select the feature to show infobox
+        setSelectedFeature({ ...affectedFeature });
+      }
+    }
+
     // Clear intermediate actions after merge
     setIntermediateActions([]);
   }, [
@@ -285,6 +322,7 @@ const TZBaumbewirtschaftung = ({
     selectedFeature,
     jwt,
     upcomingActions,
+    isFollowMode,
   ]);
 
   useEffect(() => {
@@ -352,6 +390,135 @@ const TZBaumbewirtschaftung = ({
       }
     })();
   }, [jwt]);
+
+  // Crosshair visualization for selected feature
+  useEffect(() => {
+    if (!maplibreMap || !isCrossHairEnabled) return;
+
+    const CROSSHAIR_SOURCE = "crosshair-source";
+    const CROSSHAIR_LAYER = "crosshair-layer";
+    const LINE_EXTENT = 10; // degrees to extend in each direction
+
+    // Remove existing crosshair if no selection
+    if (!selectedFeature?.geometry?.coordinates) {
+      if (maplibreMap.getLayer(CROSSHAIR_LAYER)) {
+        maplibreMap.removeLayer(CROSSHAIR_LAYER);
+      }
+      if (maplibreMap.getSource(CROSSHAIR_SOURCE)) {
+        maplibreMap.removeSource(CROSSHAIR_SOURCE);
+      }
+      return;
+    }
+
+    const [lng, lat] = selectedFeature.geometry.coordinates;
+    const pixelGap = (markerSymbolSize || 30) / 2 + 2; // radius + small buffer
+
+    // Function to calculate line coordinates based on current zoom
+    const calculateCrosshairCoords = () => {
+      const centerPixel = maplibreMap.project([lng, lat]);
+      const north = maplibreMap.unproject([centerPixel.x, centerPixel.y - pixelGap]);
+      const south = maplibreMap.unproject([centerPixel.x, centerPixel.y + pixelGap]);
+      const east = maplibreMap.unproject([centerPixel.x + pixelGap, centerPixel.y]);
+      const west = maplibreMap.unproject([centerPixel.x - pixelGap, centerPixel.y]);
+      return { north, south, east, west };
+    };
+
+    const coords = calculateCrosshairCoords();
+
+    // Create crosshair GeoJSON with 4 separate lines
+    const crosshairGeoJSON = {
+      type: "FeatureCollection",
+      features: [
+        // North line
+        {
+          type: "Feature",
+          geometry: {
+            type: "LineString",
+            coordinates: [
+              [coords.north.lng, coords.north.lat],
+              [lng, lat + LINE_EXTENT],
+            ],
+          },
+        },
+        // South line
+        {
+          type: "Feature",
+          geometry: {
+            type: "LineString",
+            coordinates: [
+              [coords.south.lng, coords.south.lat],
+              [lng, lat - LINE_EXTENT],
+            ],
+          },
+        },
+        // East line
+        {
+          type: "Feature",
+          geometry: {
+            type: "LineString",
+            coordinates: [
+              [coords.east.lng, coords.east.lat],
+              [lng + LINE_EXTENT, lat],
+            ],
+          },
+        },
+        // West line
+        {
+          type: "Feature",
+          geometry: {
+            type: "LineString",
+            coordinates: [
+              [coords.west.lng, coords.west.lat],
+              [lng - LINE_EXTENT, lat],
+            ],
+          },
+        },
+      ],
+    };
+
+    // Add or update source
+    const source = maplibreMap.getSource(CROSSHAIR_SOURCE);
+    if (source) {
+      source.setData(crosshairGeoJSON);
+    } else {
+      maplibreMap.addSource(CROSSHAIR_SOURCE, {
+        type: "geojson",
+        data: crosshairGeoJSON,
+      });
+
+      maplibreMap.addLayer({
+        id: CROSSHAIR_LAYER,
+        type: "line",
+        source: CROSSHAIR_SOURCE,
+        paint: {
+          "line-color": "#333333",
+          "line-width": 3,
+          "line-opacity": 0.8,
+        },
+      });
+    }
+
+    // Update crosshair on zoom
+    const updateCrosshair = () => {
+      const newCoords = calculateCrosshairCoords();
+
+      crosshairGeoJSON.features[0].geometry.coordinates = [[newCoords.north.lng, newCoords.north.lat], [lng, lat + LINE_EXTENT]];
+      crosshairGeoJSON.features[1].geometry.coordinates = [[newCoords.south.lng, newCoords.south.lat], [lng, lat - LINE_EXTENT]];
+      crosshairGeoJSON.features[2].geometry.coordinates = [[newCoords.east.lng, newCoords.east.lat], [lng + LINE_EXTENT, lat]];
+      crosshairGeoJSON.features[3].geometry.coordinates = [[newCoords.west.lng, newCoords.west.lat], [lng - LINE_EXTENT, lat]];
+
+      const src = maplibreMap.getSource(CROSSHAIR_SOURCE);
+      if (src) {
+        src.setData(crosshairGeoJSON);
+      }
+    };
+
+    maplibreMap.on("zoomend", updateCrosshair);
+
+    return () => {
+      maplibreMap.off("zoomend", updateCrosshair);
+    };
+  }, [maplibreMap, selectedFeature, isCrossHairEnabled, markerSymbolSize]);
 
   const treeStyle = useTreeStyle(featureCollection, markerSymbolSize);
 
