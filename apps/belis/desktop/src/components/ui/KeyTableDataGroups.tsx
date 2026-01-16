@@ -1,4 +1,5 @@
 import { List } from "antd";
+import { MenuFoldOutlined } from "@ant-design/icons";
 import { CustomCard } from "../commons/CustomCard";
 import { keyTableDisplayConfig } from "../../config/keyTableDisplayConfig";
 
@@ -6,6 +7,7 @@ interface KeyTableDataGroupsProps {
   data: Record<string, unknown[]>;
   selectedTable: string | null;
   onTableSelect: (tableName: string) => void;
+  onCollapse: () => void;
 }
 
 const formatTableName = (key: string) => {
@@ -23,9 +25,19 @@ const KeyTableDataGroups = ({
   data,
   selectedTable,
   onTableSelect,
+  onCollapse,
 }: KeyTableDataGroupsProps) => {
   return (
-    <CustomCard title="Schlüsseltabellen" style={{ height: "100%" }}>
+    <CustomCard
+      title="Schlüsseltabellen"
+      style={{ height: "100%" }}
+      extra={
+        <MenuFoldOutlined
+          className="cursor-pointer hover:text-blue-500"
+          onClick={onCollapse}
+        />
+      }
+    >
       <List
         size="small"
         dataSource={Object.keys(data).sort((a, b) =>
