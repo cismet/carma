@@ -9,6 +9,7 @@ import {
   saveKeyTableItem,
   TEMP_ID_THRESHOLD,
 } from "../../../helper/syncHelper";
+import { fetchInfobausteinTemplateById } from "../../../helper/apiMethods";
 
 interface Infobaustein {
   id: number;
@@ -121,6 +122,31 @@ const InfobausteinTemplateForm = ({
     }
   };
 
+  // Custom handler that fetches fresh data after save and updates the item
+  const handleIdUpdatedWithFetch = async (
+    oldId: number,
+    newId: number,
+    tableName: string
+  ) => {
+    if (!jwt) return;
+
+    try {
+      const freshData = await fetchInfobausteinTemplateById(jwt, newId);
+      if (freshData && onIdUpdated) {
+        onIdUpdated(oldId, newId, tableName);
+      }
+      if (freshData) {
+        onSave(freshData as Record<string, unknown>);
+      }
+    } catch (error) {
+      console.error("Failed to fetch updated InfobausteinTemplate:", error);
+      // Fall back to original onIdUpdated behavior
+      if (onIdUpdated) {
+        onIdUpdated(oldId, newId, tableName);
+      }
+    }
+  };
+
   const handleSave = (values: Record<string, unknown>) => {
     if (!jwt) {
       message.error("Nicht authentifiziert");
@@ -156,14 +182,17 @@ const InfobausteinTemplateForm = ({
       },
       tableName,
       sync,
-      onIdUpdated,
+      onIdUpdated: handleIdUpdatedWithFetch,
     });
 
     if (result.success) {
       message.success("Aktion zur Synchronisation hinzugefügt");
-      onSave(result.savedItem);
 
-      if (result.isNewItem) {
+      // For new items, don't call onSave here - handleIdUpdatedWithFetch will call it
+      // with fresh data from the server after the ID is confirmed
+      if (!result.isNewItem) {
+        onSave(result.savedItem);
+      } else {
         setPendingConfirmation(true);
       }
 
