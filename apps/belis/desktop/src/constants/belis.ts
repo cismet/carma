@@ -111,3 +111,7 @@ export const rundsteuerempfaengerQuery = gql`
 export const infobausteinTemplateQuery = gql`
   ${queries.infobaustein_template}
 `;
+
+export const infobausteinTemplateByIdQuery = gql`
+  ${queries.infobaustein_template_by_id}
+`;
