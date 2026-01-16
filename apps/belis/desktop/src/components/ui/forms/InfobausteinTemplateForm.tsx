@@ -101,7 +101,12 @@ const InfobausteinTemplateForm = ({
       | ArBausteinItem[]
       | undefined;
     if (arBausteineArray) {
-      const data = arBausteineArray.map((item) => item.infobaustein);
+      const data = arBausteineArray.map((item) => ({
+        ...item.infobaustein,
+        // Server sometimes returns "null" string instead of null - convert it back
+        wert: item.infobaustein.wert === "null" ? null : item.infobaustein.wert,
+        bezeichnung: item.infobaustein.bezeichnung === "null" ? null : item.infobaustein.bezeichnung,
+      }));
       setTableData(data);
     }
   }, [item]);
@@ -122,10 +127,19 @@ const InfobausteinTemplateForm = ({
       return;
     }
 
+    // Get original IDs from the item prop to identify which bausteine are truly new
+    const originalBausteinIds = new Set(
+      ((item.ar_bausteineArray as ArBausteinItem[] | undefined) || []).map(
+        (b) => b.infobaustein.id
+      )
+    );
+
     const updatedArBausteineArray = tableData.map((baustein) => ({
       infobaustein: {
         ...baustein,
-        id: baustein.id < TEMP_ID_THRESHOLD ? -1 : baustein.id,
+        // Only use -1 for items that don't exist in the original data (truly new items)
+        // Items with temp IDs that exist in originalBausteinIds have already been saved
+        id: originalBausteinIds.has(baustein.id) ? baustein.id : -1,
       },
     }));
 

@@ -115,6 +115,8 @@ export const saveKeyTableItem = (
       }
     : undefined;
 
+  console.log("xxx dataToSave", JSON.stringify(dataToSave));
+
   // Execute the synced action
   sync.syncedAction(
     "SaveObject",
