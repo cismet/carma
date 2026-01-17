@@ -18,6 +18,6 @@ sips -z 180 180 "$SOURCE" --out "$PUBLIC/apple-touch-icon-180.png"
 sips -z 167 167 "$SOURCE" --out "$PUBLIC/apple-touch-icon-167.png"
 sips -z 152 152 "$SOURCE" --out "$PUBLIC/apple-touch-icon-152.png"
 sips -z 120 120 "$SOURCE" --out "$PUBLIC/apple-touch-icon-120.png"
-sips -z 32 32 "$SOURCE" --out "$PUBLIC/favicon.ico"
+# Note: favicon.ico is managed manually, not generated from Icon-App-rect.png
 
 echo "Done!"
