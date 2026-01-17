@@ -85,7 +85,7 @@ const TZBaumbewirtschaftung = ({
     LightBoxDispatchContext
   ) as LightboxDispatch;
 
-  const { appKey } = useContext(TopicMapContext) as any;
+  const { appKey, routedMapRef } = useContext(TopicMapContext) as any;
   const [maxTreeActionId, setMaxTreeActionId] = useState<number | null>(null);
   const [intermediateActions, setIntermediateActions] = useState<any[]>([]);
   const [actionDefinitions, setActionDefinitions] = useState<any[]>([]);
@@ -309,6 +309,22 @@ const TZBaumbewirtschaftung = ({
         );
         affectedFeature.text = affectedFeature.properties.info.puretitle;
 
+        // Pan to feature if not visible (without changing zoom)
+        if (routedMapRef?.leafletMap?.leafletElement) {
+          try {
+            const leafletMap = routedMapRef.leafletMap.leafletElement;
+            const [lng, lat] = affectedFeature.geometry.coordinates;
+            const featureLatLng = [lat, lng] as [number, number];
+            const bounds = leafletMap.getBounds();
+
+            if (!bounds.contains(featureLatLng)) {
+              leafletMap.panTo(featureLatLng, { animate: true, duration: 2 });
+            }
+          } catch (error) {
+            console.error("Error panning to feature:", error);
+          }
+        }
+
         // Select the feature to show infobox
         setSelectedFeature({ ...affectedFeature });
       }
@@ -324,6 +340,7 @@ const TZBaumbewirtschaftung = ({
     jwt,
     upcomingActions,
     isFollowMode,
+    routedMapRef,
   ]);
 
   useEffect(() => {
@@ -545,7 +562,51 @@ const TZBaumbewirtschaftung = ({
             <Control position="topleft" order={55}>
               <ControlButtonStyler
                 onClick={() => {
-                  console.log("Home button clicked");
+                  try {
+                    console.log("Home button clicked");
+                    if (routedMapRef?.leafletMap?.leafletElement && featureCollection?.features?.length > 0) {
+                      // Calculate bounds from all features
+                      let minLng = Infinity, minLat = Infinity;
+                      let maxLng = -Infinity, maxLat = -Infinity;
+
+                      featureCollection.features.forEach((feature: any) => {
+                        const coords = feature.geometry?.coordinates;
+                        if (!coords || coords.length < 2) return;
+
+                        const [lng, lat] = coords;
+                        // Validate coordinates are in reasonable range for Wuppertal area
+                        if (typeof lng !== 'number' || typeof lat !== 'number') return;
+                        if (lat < 50 || lat > 52 || lng < 6 || lng > 8) return; // Filter to Wuppertal region
+
+                        if (lng < minLng) minLng = lng;
+                        if (lng > maxLng) maxLng = lng;
+                        if (lat < minLat) minLat = lat;
+                        if (lat > maxLat) maxLat = lat;
+                      });
+
+                      // Check if we found valid bounds
+                      if (minLng === Infinity || minLat === Infinity) {
+                        console.warn("No valid coordinates found in features");
+                        return;
+                      }
+
+                      // Leaflet uses [lat, lng] format: [[lat_sw, lng_sw], [lat_ne, lng_ne]]
+                      // Add 0.01 degree padding for better fitting
+                      const padding = 0.01;
+                      const bounds: [[number, number], [number, number]] = [
+                        [minLat - padding, minLng - padding],
+                        [maxLat + padding, maxLng + padding]
+                      ];
+                      console.log("Fitting bounds:", bounds);
+
+                      // Set zoomSnap to 0.1 for smoother fitting in follow mode
+                      const leafletMap = routedMapRef.leafletMap.leafletElement;
+                      leafletMap.options.zoomSnap = 0.1;
+                      leafletMap.fitBounds(bounds);
+                    }
+                  } catch (error) {
+                    console.error("Error fitting bounds:", error);
+                  }
                 }}
                 title="Zur Übersicht"
               >
@@ -621,15 +682,6 @@ const TZBaumbewirtschaftung = ({
                   (async () => {
                     const feature = e.hit;
                     if (feature) {
-                      // if it is confuigured in a string array (comes form vectorlayer metadata)
-                      // const infoBoxControlObject =
-                      //   await getInfoBoxControlObjectFromMappingAndVectorFeature(
-                      //     {
-                      //       mapping: infoBoxMapping,
-                      //       selectedVectorFeature: hit,
-                      //     }
-                      //   );
-
                       // Parse actions first before creating info object
                       feature.properties.actions = JSON.parse(
                         feature.properties.actions
@@ -642,6 +694,23 @@ const TZBaumbewirtschaftung = ({
                         jwt
                       );
                       feature.text = feature.properties.info.puretitle;
+
+                      // In follow mode: if feature is not visible, pan to it without changing zoom
+                      if (isFollowMode && routedMapRef?.leafletMap?.leafletElement) {
+                        try {
+                          const leafletMap = routedMapRef.leafletMap.leafletElement;
+                          const [lng, lat] = feature.geometry.coordinates;
+                          const featureLatLng = [lat, lng] as [number, number];
+                          const bounds = leafletMap.getBounds();
+
+                          if (!bounds.contains(featureLatLng)) {
+                            // Feature not visible - pan to center without changing zoom
+                            leafletMap.panTo(featureLatLng);
+                          }
+                        } catch (error) {
+                          console.error("Error panning to feature:", error);
+                        }
+                      }
 
                       setSelectedFeature(feature);
                     } else {
