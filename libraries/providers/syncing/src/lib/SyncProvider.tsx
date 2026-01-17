@@ -209,18 +209,31 @@ export function SyncProvider({
           .sort({ createdAt: "desc" });
 
         query.$.subscribe((results: ActionDocument[]) => {
-          // Log completed actions that still have callbacks registered
+          // Fallback: invoke callbacks for completed actions that were missed by received$
+          // This handles the multi-tab scenario where another tab pulled the completed action
           results.forEach((doc) => {
-            if (doc.isCompleted && actionCallbacksRef.current.has(doc.id)) {
+            if (
+              (doc.result || doc.isCompleted) &&
+              actionCallbacksRef.current.has(doc.id)
+            ) {
               console.log(
                 LOG_PREFIX,
-                "xxx TASK LIST: Completed action still has callback registered!",
-                doc.id,
-                "result:",
-                doc.result ? "yes" : "no",
-                "all callbacks:",
-                [...actionCallbacksRef.current.keys()]
+                "Invoking callback via task list fallback for:",
+                doc.id
               );
+              const callback = actionCallbacksRef.current.get(doc.id);
+              if (callback) {
+                try {
+                  callback(doc);
+                } catch (err) {
+                  console.error(
+                    LOG_PREFIX,
+                    "Error in fallback callback:",
+                    err
+                  );
+                }
+                actionCallbacksRef.current.delete(doc.id);
+              }
             }
           });
 
