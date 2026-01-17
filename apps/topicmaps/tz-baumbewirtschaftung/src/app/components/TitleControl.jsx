@@ -5,11 +5,7 @@ import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faSignOut, faUser } from "@fortawesome/free-solid-svg-icons";
 // Simple TitleControl modeled after potenzialflächen
 // Expects: props.logout() and props.jwt
-const TitleControl = ({
-  logout,
-  jwt,
-  title = "Baumbewirtschaftung-Online",
-}) => {
+const TitleControl = ({ logout, jwt, title = "BBW-Online" }) => {
   const { windowSize } = useContext(ResponsiveTopicMapContext);
   const { metaInformation } = useContext(FeatureCollectionContext) || {};
 
@@ -37,40 +33,26 @@ const TitleControl = ({
   const isNarrow = (windowSize?.width || 300) < 600;
 
   const titleContent = isNarrow ? (
-    // Mobile layout: Title on first row, username + logout on second row
-    <div>
-      <div style={{ marginBottom: 4, textAlign: "center" }}>
-        <b>{title}</b>
-      </div>
-      <div
-        style={{
-          display: "flex",
-          justifyContent: "space-between",
-          alignItems: "center",
+    // Mobile layout: Single row with title, user icon, and logout icon
+    <div
+      style={{
+        display: "flex",
+        justifyContent: "space-between",
+        alignItems: "center",
+      }}
+    >
+      <span>
+        <b>{title}</b> (<FontAwesomeIcon icon={faUser} /> {username})
+      </span>
+      {/* eslint-disable-next-line jsx-a11y/anchor-is-valid */}
+      <a
+        style={{ color: "#337ab7", cursor: "pointer" }}
+        onClick={() => {
+          logout?.();
         }}
       >
-        <span
-          style={{
-            fontSize: "0.9em",
-            display: "flex",
-            alignItems: "center",
-            gap: "4px",
-          }}
-        >
-          <FontAwesomeIcon icon={faUser} />
-          {username}
-          {dateInfo && <span>, {dateInfo}</span>}
-        </span>
-        {/* eslint-disable-next-line jsx-a11y/anchor-is-valid */}
-        <a
-          style={{ color: "#337ab7", cursor: "pointer", marginLeft: 10 }}
-          onClick={() => {
-            logout?.();
-          }}
-        >
-          {actiontext} <FontAwesomeIcon icon={faSignOut} />
-        </a>
-      </div>
+        <FontAwesomeIcon icon={faSignOut} />
+      </a>
     </div>
   ) : (
     // Desktop layout: Everything on one row
@@ -96,7 +78,7 @@ const TitleControl = ({
       className="mode-container-switcher"
       style={{
         width: (windowSize?.width || 300) - 54 - 12 - 38 - 12 + "px",
-        height: isNarrow ? "auto" : "30px",
+        height: "30px",
         position: "absolute",
         left: 54,
         top: 12,
@@ -112,7 +94,7 @@ const TitleControl = ({
               background: "#ffffff",
               color: "black",
               opacity: "0.9",
-              padding: isNarrow ? "6px 10px" : "0 0 0 10px",
+              padding: "0 10px",
             }}
           >
             {titleContent}
