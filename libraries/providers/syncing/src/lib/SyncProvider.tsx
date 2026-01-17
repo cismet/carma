@@ -209,6 +209,21 @@ export function SyncProvider({
           .sort({ createdAt: "desc" });
 
         query.$.subscribe((results: ActionDocument[]) => {
+          // Log completed actions that still have callbacks registered
+          results.forEach((doc) => {
+            if (doc.isCompleted && actionCallbacksRef.current.has(doc.id)) {
+              console.log(
+                LOG_PREFIX,
+                "xxx TASK LIST: Completed action still has callback registered!",
+                doc.id,
+                "result:",
+                doc.result ? "yes" : "no",
+                "all callbacks:",
+                [...actionCallbacksRef.current.keys()]
+              );
+            }
+          });
+
           const taskList = results.map((doc) =>
             actionToTask(doc, taskFormatter)
           );
