@@ -1,5 +1,5 @@
-import { useEffect, useState, useRef } from "react";
-import { fetchAllKeyTables } from "../../helper/apiMethods";
+import { useEffect, useState, useRef, useCallback } from "react";
+import { fetchAllKeyTables, keyTableFetchers } from "../../helper/apiMethods";
 import { AppDispatch } from "../../store";
 import { useDispatch, useSelector } from "react-redux";
 import { getJWT } from "../../store/slices/auth";
@@ -18,7 +18,10 @@ import KeyTableDataGroups from "../ui/KeyTableDataGroups";
 import KeyTableDataGroupsList from "../ui/KeyTableDataGroupsList";
 import FormWrapper from "../ui/FormWrapper";
 import { CustomCard } from "../commons/CustomCard";
-import { keyTableDisplayConfig } from "../../config/keyTableDisplayConfig";
+import {
+  keyTableDisplayConfig,
+  apiClassNameToTableName,
+} from "../../config/keyTableDisplayConfig";
 import { getItemDisplayText } from "../../utils/templateParser";
 
 interface SelectedItem {
@@ -123,6 +126,96 @@ const KeyTablesPage = () => {
       }
     }
   }, [selectedTable]);
+
+  // Track processed action IDs to avoid duplicate refetches
+  const processedActionIdsRef = useRef<Set<string>>(new Set());
+  // Track pending refetch timers for debouncing
+  const pendingRefetchTimersRef = useRef<Map<string, NodeJS.Timeout>>(
+    new Map()
+  );
+
+  // Refetch a single table and update Redux
+  const refetchTable = useCallback(
+    async (tableName: string) => {
+      if (!storedJWT) return;
+
+      const fetcher = keyTableFetchers[tableName];
+      if (!fetcher) {
+        console.warn(`[CrossTabSync] No fetcher found for table: ${tableName}`);
+        return;
+      }
+
+      try {
+        console.log(`[CrossTabSync] Refetching table: ${tableName}`);
+        const newTableData = await fetcher(storedJWT);
+        const newData = { ...dataRef.current, [tableName]: newTableData };
+        dispatch(setKeyTablesData(newData));
+        console.log(
+          `[CrossTabSync] Updated table ${tableName} with ${newTableData.length} items`
+        );
+      } catch (error) {
+        console.error(`[CrossTabSync] Failed to refetch ${tableName}:`, error);
+      }
+    },
+    [storedJWT, dispatch]
+  );
+
+  // Cross-tab sync: detect completed keytable actions from other tabs
+  useEffect(() => {
+    if (!sync?.tasks) return;
+
+    // Find newly completed SaveObject/DeleteObject actions for keytables
+    const tablesToRefetch = new Set<string>();
+
+    sync.tasks.forEach((task) => {
+      // Skip if already processed or not completed
+      if (!task.isCompleted || processedActionIdsRef.current.has(task.id)) {
+        return;
+      }
+
+      // Only handle keytable-related actions
+      if (task.action !== "SaveObject" && task.action !== "DeleteObject") {
+        processedActionIdsRef.current.add(task.id);
+        return;
+      }
+
+      // Extract className from fachobjekt (format: "className #id" or just "className")
+      const apiClassName = task.fachobjekt.split(" ")[0];
+      const tableName = apiClassNameToTableName[apiClassName];
+
+      if (tableName) {
+        tablesToRefetch.add(tableName);
+        console.log(
+          `[CrossTabSync] Detected completed action ${task.id} for table: ${tableName} (className: ${apiClassName})`
+        );
+      }
+
+      // Mark as processed
+      processedActionIdsRef.current.add(task.id);
+    });
+
+    // Debounce refetches - if same table is triggered multiple times quickly, only fetch once
+    tablesToRefetch.forEach((tableName) => {
+      // Clear any existing timer for this table
+      const existingTimer = pendingRefetchTimersRef.current.get(tableName);
+      if (existingTimer) {
+        clearTimeout(existingTimer);
+      }
+
+      // Set a new debounced timer
+      const timer = setTimeout(() => {
+        refetchTable(tableName);
+        pendingRefetchTimersRef.current.delete(tableName);
+      }, 500); // 500ms debounce
+
+      pendingRefetchTimersRef.current.set(tableName, timer);
+    });
+
+    // Cleanup function to clear pending timers
+    return () => {
+      pendingRefetchTimersRef.current.forEach((timer) => clearTimeout(timer));
+    };
+  }, [sync?.tasks, refetchTable]);
 
   const handleTableClick = (tableName: string) => {
     setSelectedTable(tableName);

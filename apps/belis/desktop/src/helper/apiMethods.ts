@@ -1015,6 +1015,37 @@ export const fetchInfobausteinTemplateById = async (jwt: string, id: number) => 
   return json.data?.infobaustein_template?.[0] ?? null;
 };
 
+/**
+ * Map of table name → fetch function for individual key table refreshes.
+ * Used for cross-tab sync to refetch a specific table when changes are detected.
+ */
+export const keyTableFetchers: Record<
+  string,
+  (jwt: string) => Promise<unknown[]>
+> = {
+  bauart: fetchAllBauart,
+  teams: fetchAllTeams,
+  querschnitt: fetchAllQuerschnitt,
+  leuchtmittel: fetchAllLeuchtmittel,
+  unterhaltMast: fetchAllUnterhaltMast,
+  materialMauerlasche: fetchAllMaterialMauerlasche,
+  anlagengruppe: fetchAllAnlagengruppe,
+  unterhaltLeuchte: fetchAllUnterhaltLeuchte,
+  energielieferant: fetchAllEnergielieferant,
+  leitungstyp: fetchAllLeitungstyp,
+  arbeitsprotokollstatus: fetchAllArbeitsprotokollstatus,
+  materialLeitung: fetchAllMaterialLeitung,
+  kennziffer: fetchAllKennziffer,
+  mastart: fetchAllMastart,
+  veranlassungsart: fetchAllVeranlassungsart,
+  klassifizierung: fetchAllKlassifizierung,
+  doppelkommando: fetchAllDoppelkommando,
+  masttyp: fetchAllMasttyp,
+  leuchtentyp: fetchAllLeuchtentyp,
+  "rundsteuerempfänger": fetchAllRundsteuerempfaenger,
+  infobausteinTemplate: fetchAllInfobausteinTemplate,
+};
+
 export const fetchAllKeyTables = async (jwt: string) => {
   const fetchConfigs = [
     { key: "bauart", fetch: fetchAllBauart },
