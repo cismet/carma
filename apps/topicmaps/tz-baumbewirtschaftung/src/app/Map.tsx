@@ -18,7 +18,7 @@ import {
   EmptySearchComponent,
   LibFuzzySearch,
 } from "@carma-mapping/fuzzy-search";
-import { Control, ControlLayout } from "@carma-mapping/map-controls-layout";
+import { Control, ControlLayout, ControlButtonStyler } from "@carma-mapping/map-controls-layout";
 import {
   FullscreenControl,
   RoutedMapLocateControl,
@@ -28,6 +28,8 @@ import {
   TAILWIND_CLASSNAMES_FULLSCREEN_FIXED,
   fetchGraphQL,
 } from "@carma-commons/utils";
+import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
+import { faHouseChimney } from "@fortawesome/free-solid-svg-icons";
 import { ResponsiveTopicMapContext } from "react-cismap/contexts/ResponsiveTopicMapContextProvider";
 import CismapLayer from "react-cismap/CismapLayer";
 import versionData from "../version.json";
@@ -539,6 +541,18 @@ const TZBaumbewirtschaftung = ({
           <Control position="topleft" order={50}>
             <FullscreenControl />
           </Control>
+          {isFollowMode && (
+            <Control position="topleft" order={55}>
+              <ControlButtonStyler
+                onClick={() => {
+                  console.log("Home button clicked");
+                }}
+                title="Zur Übersicht"
+              >
+                <FontAwesomeIcon icon={faHouseChimney} className="text-lg" />
+              </ControlButtonStyler>
+            </Control>
+          )}
           <Control position="topleft" order={60} title="Mein Standort">
             <RoutedMapLocateControl
               tourRefLabels={null}
