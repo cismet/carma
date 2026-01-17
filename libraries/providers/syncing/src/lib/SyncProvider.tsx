@@ -234,7 +234,13 @@ export function SyncProvider({
     return () => {
       cancelled = true;
       if (replState) {
-        console.log(LOG_PREFIX, "Cancelling replication");
+        console.log(
+          LOG_PREFIX,
+          "xxx Cancelling replication, pending callbacks:",
+          actionCallbacksRef.current.size,
+          "ids:",
+          [...actionCallbacksRef.current.keys()]
+        );
         replState.cancel();
       }
     };
