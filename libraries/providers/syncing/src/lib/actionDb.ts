@@ -165,7 +165,7 @@ export function setupReplication(
         }
 
         const docs: ActionDocumentWithDeleted[] = rawDocs.map((d) => {
-          return {
+          const doc = {
             id: d.id as string,
             jwt: d.jwt as string,
             createdAt: d.createdAt as string,
@@ -178,6 +178,15 @@ export function setupReplication(
             status: d.status === null ? undefined : (d.status as number),
             _deleted: (d.deleted as boolean) || false,
           };
+          log(
+            "xxx PULL doc:",
+            doc.id,
+            "isCompleted:",
+            doc.isCompleted,
+            "result:",
+            doc.result ? "yes" : "no"
+          );
+          return doc;
         });
 
         const last = docs[docs.length - 1];
