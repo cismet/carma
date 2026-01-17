@@ -24,6 +24,35 @@ export interface KeyTableDisplayRule {
 
 export type KeyTableDisplayConfig = Record<string, KeyTableDisplayRule>;
 
+/**
+ * Reverse mapping from API class names to table names (keys in keyTableDisplayConfig).
+ * Used for cross-tab sync to identify which table to refresh when an action completes.
+ */
+export const apiClassNameToTableName: Record<string, string> = {
+  // Tables with custom apiClassName
+  team: "teams",
+  tkey_masttyp: "masttyp",
+  tkey_leuchtentyp: "leuchtentyp",
+  rundsteuerempfaenger: "rundsteuerempfänger",
+  tkey_doppelkommando: "doppelkommando",
+  tkey_unterh_mast: "unterhaltMast",
+  tkey_unterh_leuchte: "unterhaltLeuchte",
+  tkey_energielieferant: "energielieferant",
+  tkey_kennziffer: "kennziffer",
+  tkey_mastart: "mastart",
+  tkey_klassifizierung: "klassifizierung",
+  infobaustein_template: "infobausteinTemplate",
+  material_leitung: "materialLeitung",
+  material_mauerlasche: "materialMauerlasche",
+  // Tables where key equals apiClassName
+  bauart: "bauart",
+  leuchtmittel: "leuchtmittel",
+  anlagengruppe: "anlagengruppe",
+  arbeitsprotokollstatus: "arbeitsprotokollstatus",
+  veranlassungsart: "veranlassungsart",
+  leitungstyp: "leitungstyp",
+};
+
 export const keyTableDisplayConfig: KeyTableDisplayConfig = {
   bauart: {
     template: "{bezeichnung}",
