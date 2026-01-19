@@ -1,7 +1,12 @@
 import { useState, useMemo } from "react";
 import { List, Select } from "antd";
 import Fuse from "fuse.js";
-import { PlusOutlined, DeleteOutlined, MenuUnfoldOutlined } from "@ant-design/icons";
+import {
+  PlusOutlined,
+  DeleteOutlined,
+  MenuUnfoldOutlined,
+  DownOutlined,
+} from "@ant-design/icons";
 import { CustomCard } from "../commons/CustomCard";
 import { SearchInput } from "../commons/SearchInput";
 import {
@@ -59,6 +64,7 @@ const KeyTableDataGroupsList = ({
   onTableSelect,
 }: KeyTableDataGroupsListProps) => {
   const [searchText, setSearchText] = useState("");
+  const [isDropdownOpen, setIsDropdownOpen] = useState(false);
 
   // Build dropdown options from data (same sorting as KeyTableDataGroups)
   const tableOptions = useMemo(() => {
@@ -71,7 +77,9 @@ const KeyTableDataGroupsList = ({
       )
       .map((key) => ({
         value: key,
-        label: `${getTableDisplayName(key)} (${Array.isArray(data[key]) ? data[key].length : 0})`,
+        label: `${getTableDisplayName(key)} (${
+          Array.isArray(data[key]) ? data[key].length : 0
+        })`,
       }));
   }, [data]);
 
@@ -145,32 +153,30 @@ const KeyTableDataGroupsList = ({
 
   const filteredAndSortedItems = getFilteredAndSortedItems();
 
+  const handleTableChange = (value: string) => {
+    onTableSelect?.(value);
+    setIsDropdownOpen(false);
+  };
+
   return (
     <CustomCard
       title={
-        isFirstColumnCollapsed ? (
-          <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2">
+          {isFirstColumnCollapsed && (
             <MenuUnfoldOutlined
-              className="cursor-pointer hover:text-blue-500"
+              className="cursor-pointer hover:text-blue-500 max-w-10"
               onClick={onExpandFirstColumn}
             />
-            <Select
-              value={tableName}
-              options={tableOptions}
-              onChange={onTableSelect}
-              style={{ minWidth: 200 }}
-              size="small"
-              showSearch
-              filterOption={(input, option) =>
-                (option?.label ?? "")
-                  .toLowerCase()
-                  .includes(input.toLowerCase())
-              }
+          )}
+          <span>{getTableDisplayName(tableName)}</span>
+          {isFirstColumnCollapsed && (
+            <DownOutlined
+              className="cursor-pointer hover:text-blue-500"
+              style={{ fontSize: 12 }}
+              onClick={() => setIsDropdownOpen(!isDropdownOpen)}
             />
-          </div>
-        ) : (
-          getTableDisplayName(tableName)
-        )
+          )}
+        </div>
       }
       style={{ height: "100%" }}
       extra={
@@ -187,6 +193,29 @@ const KeyTableDataGroupsList = ({
         </div>
       }
     >
+      {isFirstColumnCollapsed && isDropdownOpen && (
+        <div
+          style={{
+            marginBottom: 8,
+            // marginTop: -4
+          }}
+        >
+          <Select
+            value={tableName}
+            options={tableOptions}
+            onChange={handleTableChange}
+            style={{ width: "100%", fontSize: 14 }}
+            size="small"
+            showSearch
+            autoFocus
+            defaultOpen
+            onBlur={() => setIsDropdownOpen(false)}
+            filterOption={(input, option) =>
+              (option?.label ?? "").toLowerCase().includes(input.toLowerCase())
+            }
+          />
+        </div>
+      )}
       <List
         size="small"
         dataSource={filteredAndSortedItems}
@@ -215,7 +244,11 @@ const KeyTableDataGroupsList = ({
                   color: "#262626",
                 }}
               >
-                {getItemDisplayText(itemRecord, tableName, keyTableDisplayConfig)}
+                {getItemDisplayText(
+                  itemRecord,
+                  tableName,
+                  keyTableDisplayConfig
+                )}
               </span>
             </List.Item>
           );
