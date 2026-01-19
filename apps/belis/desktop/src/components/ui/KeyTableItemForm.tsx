@@ -13,6 +13,7 @@ interface KeyTableItemFormProps {
   tableName: string;
   onSave: (updatedItem: Record<string, unknown>) => void;
   onIdUpdated?: (oldId: number, newId: number, tableName: string) => void;
+  onActionCreated?: (actionId: string) => void;
   onFormReady?: (form: FormInstance) => void;
   onValuesChange?: (hasChanges: boolean) => void;
   disabled?: boolean;
@@ -26,6 +27,7 @@ const KeyTableItemForm = ({
   tableName,
   onSave,
   onIdUpdated,
+  onActionCreated,
   onFormReady,
   onValuesChange,
   disabled = false,
@@ -78,7 +80,7 @@ const KeyTableItemForm = ({
 
     setSaving(true);
     try {
-      const result = saveKeyTableItem({
+      const result = await saveKeyTableItem({
         item,
         values,
         tableName,
@@ -89,6 +91,11 @@ const KeyTableItemForm = ({
       if (result.success) {
         message.success("Aktion zur Synchronisation hinzugefügt");
         onSave(result.savedItem);
+
+        // Notify parent about the action ID for cross-tab sync tracking
+        if (result.actionId) {
+          onActionCreated?.(result.actionId);
+        }
 
         if (result.isNewItem) {
           setPendingConfirmation(true);

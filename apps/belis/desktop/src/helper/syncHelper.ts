@@ -16,7 +16,7 @@ export interface SyncContext {
     actionName: string,
     payload: Record<string, unknown>,
     onComplete?: (action: { result?: string }) => void
-  ) => void;
+  ) => Promise<string>;
 }
 
 /**
@@ -44,6 +44,8 @@ export interface SaveKeyTableItemResult {
   savedItem: Record<string, unknown>;
   /** Whether this was a new item (will need ID update from server) */
   isNewItem: boolean;
+  /** The action ID returned by syncedAction (for tracking local actions) */
+  actionId?: string;
   /** Error message if success is false */
   error?: string;
 }
@@ -61,9 +63,9 @@ export interface SaveKeyTableItemResult {
  * For existing items:
  * - Sends the actual id to the server
  */
-export const saveKeyTableItem = (
+export const saveKeyTableItem = async (
   params: SaveKeyTableItemParams
-): SaveKeyTableItemResult => {
+): Promise<SaveKeyTableItemResult> => {
   const { item, values, tableName, sync, onIdUpdated } = params;
 
   // Check if sync is available
@@ -127,8 +129,8 @@ export const saveKeyTableItem = (
     typeof item.id
   );
 
-  // Execute the synced action
-  sync.syncedAction(
+  // Execute the synced action and get the action ID
+  const actionId = await sync.syncedAction(
     "SaveObject",
     {
       className: apiClassName,
@@ -143,5 +145,6 @@ export const saveKeyTableItem = (
     success: true,
     savedItem: { ...values, id: item.id },
     isNewItem,
+    actionId,
   };
 };
