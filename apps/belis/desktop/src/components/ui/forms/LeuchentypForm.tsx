@@ -30,6 +30,7 @@ interface LeuchentypFormProps {
   tableName: string;
   onSave: (updatedItem: Record<string, unknown>) => void;
   onIdUpdated?: (oldId: number, newId: number, tableName: string) => void;
+  onActionCreated?: (actionId: string) => void;
   onFormReady?: (form: FormInstance) => void;
   onValuesChange?: (hasChanges: boolean) => void;
   disabled?: boolean;
@@ -44,6 +45,7 @@ const LeuchentypForm = ({
   tableName,
   onSave,
   onIdUpdated,
+  onActionCreated,
   onFormReady,
   onValuesChange,
   disabled = false,
@@ -179,7 +181,7 @@ const LeuchentypForm = ({
     console.log("xxx updatedDokumenteArray", updatedDokumenteArray);
 
     // Save form data via sync system with updated documents
-    const result = saveKeyTableItem({
+    const result = await saveKeyTableItem({
       item: {
         ...item,
         dokumenteArray: updatedDokumenteArray,
@@ -196,6 +198,11 @@ const LeuchentypForm = ({
     if (result.success) {
       message.success("Aktion zur Synchronisation hinzugefügt");
       onSave(result.savedItem);
+
+      // Notify parent about the action ID for cross-tab sync tracking
+      if (result.actionId) {
+        onActionCreated?.(result.actionId);
+      }
 
       if (result.isNewItem) {
         setPendingConfirmation(true);

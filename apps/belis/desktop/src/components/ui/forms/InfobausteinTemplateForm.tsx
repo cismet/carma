@@ -28,6 +28,7 @@ interface InfobausteinTemplateFormProps {
   tableName: string;
   onSave: (updatedItem: Record<string, unknown>) => void;
   onIdUpdated?: (oldId: number, newId: number, tableName: string) => void;
+  onActionCreated?: (actionId: string) => void;
   onFormReady?: (form: FormInstance) => void;
   onValuesChange?: (hasChanges: boolean) => void;
   disabled?: boolean;
@@ -52,6 +53,7 @@ const InfobausteinTemplateForm = ({
   tableName,
   onSave,
   onIdUpdated,
+  onActionCreated,
   onFormReady,
   onValuesChange,
   disabled = false,
@@ -147,7 +149,7 @@ const InfobausteinTemplateForm = ({
     }
   };
 
-  const handleSave = (values: Record<string, unknown>) => {
+  const handleSave = async (values: Record<string, unknown>) => {
     if (!jwt) {
       message.error("Nicht authentifiziert");
       return;
@@ -174,7 +176,7 @@ const InfobausteinTemplateForm = ({
       ar_bausteineArray: updatedArBausteineArray,
     };
 
-    const result = saveKeyTableItem({
+    const result = await saveKeyTableItem({
       item: itemWithTableData,
       values: {
         ...values,
@@ -187,6 +189,11 @@ const InfobausteinTemplateForm = ({
 
     if (result.success) {
       message.success("Aktion zur Synchronisation hinzugefügt");
+
+      // Notify parent about the action ID for cross-tab sync tracking
+      if (result.actionId) {
+        onActionCreated?.(result.actionId);
+      }
 
       // For new items, don't call onSave here - handleIdUpdatedWithFetch will call it
       // with fresh data from the server after the ID is confirmed
