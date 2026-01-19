@@ -13,6 +13,7 @@ import {
   rundsteuerempfaengerQuery,
   SAVE_ENDPOINT,
   DELETE_ENDPOINT,
+  UPLOAD_DOCUMENT_ENDPOINT,
   teamQuery,
   // tkeyBezirkQuery,
   tkeyDoppelkommandoQuery,
@@ -979,7 +980,10 @@ export const fetchAllInfobausteinTemplate = async (jwt: string) => {
   return json.data?.infobaustein_template ?? [];
 };
 
-export const fetchInfobausteinTemplateById = async (jwt: string, id: number) => {
+export const fetchInfobausteinTemplateById = async (
+  jwt: string,
+  id: number
+) => {
   const response = await fetch(ENDPOINT, {
     method: "POST",
     headers: {
@@ -1042,8 +1046,81 @@ export const keyTableFetchers: Record<
   doppelkommando: fetchAllDoppelkommando,
   masttyp: fetchAllMasttyp,
   leuchtentyp: fetchAllLeuchtentyp,
-  "rundsteuerempfänger": fetchAllRundsteuerempfaenger,
+  rundsteuerempfänger: fetchAllRundsteuerempfaenger,
   infobausteinTemplate: fetchAllInfobausteinTemplate,
+};
+
+export interface UploadDocumentParams {
+  name: string; // filename (e.g., "test.jpg")
+  data: string; // base64 encoded data URL (e.g., "data:image/jpeg;base64,...")
+}
+
+export interface UploadDocumentResult {
+  success: boolean;
+  data?: unknown;
+  error?: string;
+}
+
+export const fileToBase64 = (file: File): Promise<string> => {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result as string);
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
+};
+
+export const uploadBelisDocument = async (
+  jwt: string,
+  params: UploadDocumentParams
+): Promise<UploadDocumentResult> => {
+  const { name, data } = params;
+
+  const formData = new FormData();
+
+  const taskparams = JSON.stringify({
+    parameters: {
+      name,
+      data,
+    },
+  });
+
+  formData.append(
+    "taskparams",
+    new Blob([taskparams], { type: "application/json" }),
+    "taskparams"
+  );
+
+  try {
+    const response = await fetch(UPLOAD_DOCUMENT_ENDPOINT, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${jwt}`,
+      },
+      body: formData,
+    });
+
+    const text = await response.text();
+
+    if (!response.ok) {
+      return {
+        success: false,
+        error: `Upload failed: ${response.status} ${text}`,
+      };
+    }
+
+    try {
+      const data = JSON.parse(text);
+      return { success: true, data };
+    } catch {
+      return { success: true, data: text };
+    }
+  } catch (error) {
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : "Unknown error occurred",
+    };
+  }
 };
 
 export const fetchAllKeyTables = async (jwt: string) => {
