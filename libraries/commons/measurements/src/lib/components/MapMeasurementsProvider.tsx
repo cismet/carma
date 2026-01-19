@@ -171,6 +171,16 @@ export const MapMeasurementsProvider = ({
     saveToLocalforage(mergedConfig.localStorageKey, shapes);
   }, [shapes]);
 
+  useEffect(() => {
+    if (
+      mode === MEASUREMENT_MODE.MEASUREMENT &&
+      shapes.length > 0 &&
+      visibleShapes.length === 0
+    ) {
+      setVisibleShapes(shapes);
+    }
+  }, [mode, shapes, visibleShapes.length]);
+
   // useEffect(() => {
   //   console.log("xxx visibleShapes", visibleShapes);
   // }, [visibleShapes]);

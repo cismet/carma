@@ -58,4 +58,5 @@ export const LEAFLET_CONFIG: LeafletConfig = {
 export const URL_PARAM_KEYS = {
   mapStyle: "m",
   is3d: "is3d",
+  measurements3d: "mm",
 } as const;

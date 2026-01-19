@@ -59,6 +59,7 @@ import LayerWrapper from "../../layers/LayerWrapper.tsx";
 
 import useLeafletZoomControls from "../../../hooks/leaflet/useLeafletZoomControls.ts";
 import { useAppSearchParams } from "../../../hooks/useAppSearchParams";
+import { useMeasurementHashSync } from "../../../hooks/useMeasurementHashSync";
 import { useDispatchSachdatenInfoText } from "../../../hooks/useDispatchSachdatenInfoText.ts";
 import { useFeatureInfoModeCursorStyle } from "../../../hooks/useFeatureInfoModeCursorStyle.ts";
 import { useMapStyleReduxSync } from "../../../hooks/useMapStyleReduxSync";
@@ -179,6 +180,7 @@ const MapWrapper = ({
   // custom hooks
 
   useAppSearchParams();
+  useMeasurementHashSync();
   useDispatchSachdatenInfoText();
   useMapStyleReduxSync();
 
