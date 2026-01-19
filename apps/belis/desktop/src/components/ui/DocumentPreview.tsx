@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { Row, Col, List, Spin } from "antd";
+import type { UploadFile } from "antd";
 import {
   FilePdfOutlined,
   FileImageOutlined,
@@ -37,6 +38,8 @@ export interface DokumentItem {
 interface DocumentPreviewProps {
   documents: DokumentItem[];
   jwt?: string;
+  onFilesChange?: (files: UploadFile[]) => void;
+  pendingFiles?: UploadFile[];
 }
 
 type FileType = "image" | "pdf" | "other";
@@ -65,7 +68,12 @@ const getFileIcon = (objectName: string) => {
   return <FilePdfOutlined style={{ color: "#ff4d4f" }} />;
 };
 
-const DocumentPreview = ({ documents, jwt }: DocumentPreviewProps) => {
+const DocumentPreview = ({
+  documents,
+  jwt,
+  onFilesChange,
+  pendingFiles,
+}: DocumentPreviewProps) => {
   const [selectedDoc, setSelectedDoc] = useState<DokumentItem | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
@@ -317,7 +325,10 @@ const DocumentPreview = ({ documents, jwt }: DocumentPreviewProps) => {
             }}
           />
           <div style={{ marginTop: 16, flex: 1, minHeight: 80 }}>
-            <DocumentUploader />
+            <DocumentUploader
+              onFilesChange={onFilesChange}
+              fileList={pendingFiles}
+            />
           </div>
         </div>
       </Col>
