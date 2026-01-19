@@ -129,6 +129,7 @@ const MapWrapper = ({
     isCesium,
     isPreparingCesiumTransition,
     preparingCesiumMessage,
+    isTransitioning,
   } = useMapFrameworkSwitcherContext();
   const statusFooterText = isPreparingCesiumTransition
     ? preparingCesiumMessage ?? "3D Modelle werden geladen"
@@ -514,9 +515,9 @@ const MapWrapper = ({
               <div
                 ref={overlayContainerRef}
                 id="measurement-overlay-container"
-                className={`absolute inset-0 pointer-events-none z-[450] ${
+                className={`absolute inset-0 pointer-events-none z-[450] transition-opacity duration-300 ${
                   isCesium ? "block" : "hidden"
-                }`}
+                } ${isTransitioning && isCesium ? "opacity-0" : "opacity-100"}`}
               />
               {isCesium && <ObliqueControls hideControls={zenMode} />}
             </>
