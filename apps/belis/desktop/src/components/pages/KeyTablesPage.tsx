@@ -39,6 +39,7 @@ const KeyTablesPage = () => {
   const [selectedTable, setSelectedTable] = useState<string | null>(null);
   const [selectedItem, setSelectedItem] = useState<SelectedItem | null>(null);
   const [isFirstColumnCollapsed, setIsFirstColumnCollapsed] = useState(false);
+  const [formHasChanges, setFormHasChanges] = useState(false);
   const sync = useSyncOptional();
 
   // Keep refs to current data and selectedItem to avoid stale closure in Modal.confirm callback
@@ -47,8 +48,27 @@ const KeyTablesPage = () => {
   dataRef.current = data;
   const selectedItemRef = useRef(selectedItem);
   selectedItemRef.current = selectedItem;
+  const formHasChangesRef = useRef(formHasChanges);
+  formHasChangesRef.current = formHasChanges;
 
   const adjustedHeight = "calc(100vh - 65px)";
+
+  // Helper to confirm navigation when there are unsaved changes
+  const confirmIfUnsavedChanges = (callback: () => void) => {
+    if (formHasChangesRef.current) {
+      Modal.confirm({
+        title: "Ungespeicherte Änderungen",
+        content:
+          "Sie haben ungespeicherte Änderungen. Wenn Sie fortfahren, gehen diese verloren. Möchten Sie wirklich fortfahren?",
+        okText: "Fortfahren",
+        okType: "danger",
+        cancelText: "Abbrechen",
+        onOk: callback,
+      });
+    } else {
+      callback();
+    }
+  };
 
   useEffect(() => {
     if (fetched) return;
@@ -218,11 +238,15 @@ const KeyTablesPage = () => {
   }, [sync?.tasks, refetchTable]);
 
   const handleTableClick = (tableName: string) => {
-    setSelectedTable(tableName);
+    confirmIfUnsavedChanges(() => {
+      setSelectedTable(tableName);
+    });
   };
 
   const handleItemClick = (item: unknown, tableName: string) => {
-    setSelectedItem({ item: item as Record<string, unknown>, tableName });
+    confirmIfUnsavedChanges(() => {
+      setSelectedItem({ item: item as Record<string, unknown>, tableName });
+    });
   };
 
   const handleItemSaved = (updatedItem: Record<string, unknown>) => {
@@ -290,21 +314,23 @@ const KeyTablesPage = () => {
 
   const handleAddItem = () => {
     if (!selectedTable) return;
-    const tableItems = dataRef.current[selectedTable] as Record<
-      string,
-      unknown
-    >[];
-    const templateItem = tableItems[0] || {};
+    confirmIfUnsavedChanges(() => {
+      const tableItems = dataRef.current[selectedTable] as Record<
+        string,
+        unknown
+      >[];
+      const templateItem = tableItems[0] || {};
 
-    // Create new item with same shape, empty values, and temporary negative id
-    const newItem: Record<string, unknown> = {};
-    Object.keys(templateItem).forEach((key) => {
-      newItem[key] = key === "id" ? -Date.now() : "";
+      // Create new item with same shape, empty values, and temporary negative id
+      const newItem: Record<string, unknown> = {};
+      Object.keys(templateItem).forEach((key) => {
+        newItem[key] = key === "id" ? -Date.now() : "";
+      });
+
+      // Don't add to list yet - just select the new item to show empty form
+      // The item will be added to the list when saved via handleItemSaved
+      setSelectedItem({ item: newItem, tableName: selectedTable });
     });
-
-    // Don't add to list yet - just select the new item to show empty form
-    // The item will be added to the list when saved via handleItemSaved
-    setSelectedItem({ item: newItem, tableName: selectedTable });
   };
 
   const handleRemoveItem = () => {
@@ -531,6 +557,7 @@ const KeyTablesPage = () => {
                 readOnly={
                   keyTableDisplayConfig[selectedItem.tableName]?.readOnly
                 }
+                onFormHasChangesChange={setFormHasChanges}
               />
             ) : (
               <CustomCard title="" style={{ height: "100%" }}>
