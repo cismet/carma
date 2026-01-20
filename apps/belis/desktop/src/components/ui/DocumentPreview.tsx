@@ -81,6 +81,19 @@ const DocumentPreview = ({
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  // Clear selectedDoc if it's no longer in the documents list
+  useEffect(() => {
+    if (selectedDoc) {
+      const stillExists = documents.some(
+        (doc) => doc.dms_url?.id === selectedDoc.dms_url?.id
+      );
+      if (!stillExists) {
+        setSelectedDoc(null);
+      }
+    }
+  }, [documents, selectedDoc]);
+
   useEffect(() => {
     return () => {
       if (previewUrl) {
@@ -148,7 +161,7 @@ const DocumentPreview = ({
   };
 
   const handleRemove = (doc: DokumentItem) => {
-    if (selectedDoc === doc) {
+    if (selectedDoc?.dms_url?.id === doc.dms_url?.id) {
       setSelectedDoc(null);
     }
     onRemoveDocument?.(doc);

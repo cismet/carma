@@ -67,6 +67,20 @@ const LeuchentypForm = ({
     }
   }, [item.id]);
 
+  // Reset removed documents when item changes (e.g., selecting different item)
+  useEffect(() => {
+    setRemovedDocuments([]);
+    setPendingFiles([]);
+  }, [item.id]);
+
+  // Reset removed documents when formHasChanges becomes false (e.g., after Abbrechen)
+  useEffect(() => {
+    if (!formHasChanges && (removedDocuments.length > 0 || pendingFiles.length > 0)) {
+      setRemovedDocuments([]);
+      setPendingFiles([]);
+    }
+  }, [formHasChanges]);
+
   useEffect(() => {
     if (onFormReady) {
       onFormReady(form);
