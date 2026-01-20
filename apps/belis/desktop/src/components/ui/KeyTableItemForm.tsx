@@ -20,6 +20,7 @@ interface KeyTableItemFormProps {
   onReset?: () => void;
   hideButtons?: boolean;
   onSaveError?: () => void;
+  onValidationChange?: (hasErrors: boolean) => void;
 }
 
 const KeyTableItemForm = ({
@@ -34,10 +35,12 @@ const KeyTableItemForm = ({
   onReset,
   hideButtons = false,
   onSaveError,
+  onValidationChange,
 }: KeyTableItemFormProps) => {
   const [form] = Form.useForm();
   const [saving, setSaving] = useState(false);
   const [pendingConfirmation, setPendingConfirmation] = useState(false);
+  const [hasValidationErrors, setHasValidationErrors] = useState(false);
   const jwt = useSelector(getJWT);
   const sync = useSyncOptional();
 
@@ -132,6 +135,19 @@ const KeyTableItemForm = ({
       );
       onValuesChange(hasChanges);
     }
+
+    // Check for validation errors
+    form
+      .validateFields({ validateOnly: true })
+      .then(() => {
+        setHasValidationErrors(false);
+        onValidationChange?.(false);
+      })
+      .catch((errorInfo) => {
+        const hasErrors = errorInfo.errorFields?.length > 0;
+        setHasValidationErrors(hasErrors);
+        onValidationChange?.(hasErrors);
+      });
   };
 
   return (
@@ -183,7 +199,7 @@ const KeyTableItemForm = ({
         ))
       )}
       {!disabled && !pendingConfirmation && !hideButtons && (
-        <FormActionButtons formHasChanges={formHasChanges} onReset={onReset} />
+        <FormActionButtons formHasChanges={formHasChanges} onReset={onReset} hasValidationErrors={hasValidationErrors} />
       )}
     </Form>
   );

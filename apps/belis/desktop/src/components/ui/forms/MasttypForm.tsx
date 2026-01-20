@@ -47,6 +47,7 @@ interface MasttypFormProps {
   hideButtons?: boolean;
   onSaveError?: () => void;
   isSaving?: boolean;
+  onValidationChange?: (hasErrors: boolean) => void;
 }
 
 const MasttypForm = ({
@@ -63,6 +64,7 @@ const MasttypForm = ({
   hideButtons = false,
   onSaveError,
   isSaving = false,
+  onValidationChange,
 }: MasttypFormProps) => {
   const [form] = Form.useForm();
   const [pendingConfirmation, setPendingConfirmation] = useState(false);
@@ -116,6 +118,15 @@ const MasttypForm = ({
       );
       onValuesChange(hasChanges);
     }
+
+    // Check for validation errors
+    form
+      .validateFields({ validateOnly: true })
+      .then(() => onValidationChange?.(false))
+      .catch((errorInfo) => {
+        const hasErrors = errorInfo.errorFields?.length > 0;
+        onValidationChange?.(hasErrors);
+      });
   };
 
   const handleFilesChange = (files: UploadFile[]) => {
