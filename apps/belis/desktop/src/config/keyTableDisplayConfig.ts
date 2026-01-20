@@ -73,25 +73,36 @@ export const keyTableDisplayConfig: KeyTableDisplayConfig = {
     sortMode: "numeric",
     customForm: "masttyp",
     apiClassName: "tkey_masttyp",
-    // readOnly: true,
+    fieldRules: {
+      masttyp: [{ max: 5, message: "Maximal 5 Zeichen erlaubt" }],
+    },
   },
   leuchtentyp: {
     template: "{leuchtentyp} {fabrikat}",
     sortMode: "alphabetical",
     customForm: "leuchtentyp",
     apiClassName: "tkey_leuchtentyp",
-    // readOnly: true,
+    fieldRules: {
+      leuchtentyp: [{ max: 13, message: "Maximal 13 Zeichen erlaubt" }],
+    },
   },
   rundsteuerempfänger: {
     template: "{rs_typ} {fabrikat}",
     sortMode: "alphabetical",
     customForm: "rundsteuerempfaenger",
     apiClassName: "rundsteuerempfaenger",
+    fieldRules: {
+      programm: [{ max: 1, message: "Maximal 1 Zeichen erlaubt" }],
+    },
   },
   doppelkommando: {
     template: "{pk} - {beschreibung}",
     sortMode: "numeric",
     apiClassName: "tkey_doppelkommando",
+    fieldRules: {
+      pk: [{ max: 5, message: "Maximal 5 Zeichen erlaubt" }],
+      beschreibung: [{ max: 50, message: "Maximal 50 Zeichen erlaubt" }],
+    },
   },
   leuchtmittel: {
     template: "{hersteller} {lichtfarbe}",
@@ -105,6 +116,9 @@ export const keyTableDisplayConfig: KeyTableDisplayConfig = {
     fieldLabels: {
       unterhalt_mast: "Unterhalt - Mast",
     },
+    fieldRules: {
+      unterhalt_mast: [{ max: 50, message: "Maximal 50 Zeichen erlaubt" }],
+    },
   },
   unterhaltLeuchte: {
     template: "{pk} - {unterhaltspflichtiger_leuchte}",
@@ -114,11 +128,17 @@ export const keyTableDisplayConfig: KeyTableDisplayConfig = {
       unterhaltspflichtiger_leuchte: "Unterhaltspflichtige - Leuchte",
     },
     displayName: "Unterhalt - Leuchte",
+    fieldRules: {
+      unterhaltspflichtiger_leuchte: [{ max: 50, message: "Maximal 50 Zeichen erlaubt" }],
+    },
   },
   energielieferant: {
     template: "{energielieferant}",
     sortMode: "alphabetical",
     apiClassName: "tkey_energielieferant",
+    fieldRules: {
+      energielieferant: [{ max: 50, message: "Maximal 50 Zeichen erlaubt" }],
+    },
   },
   anlagengruppe: {
     template: "{nummer} - {bezeichnung}",
@@ -149,12 +169,19 @@ export const keyTableDisplayConfig: KeyTableDisplayConfig = {
     template: "{kennziffer} - {beschreibung}",
     sortMode: "numeric",
     apiClassName: "tkey_kennziffer",
+    fieldRules: {
+      beschreibung: [{ max: 50, message: "Maximal 50 Zeichen erlaubt" }],
+    },
   },
   mastart: {
     template: "{mastart}",
     sortMode: "alphabetical",
     apiClassName: "tkey_mastart",
     fieldOrder: ["mastart", "pk"],
+    fieldRules: {
+      pk: [{ max: 1, message: "Maximal 1 Zeichen erlaubt" }],
+      mastart: [{ max: 50, message: "Maximal 50 Zeichen erlaubt" }],
+    },
   },
   veranlassungsart: {
     template: "{schluessel} - {bezeichnung}",
@@ -167,6 +194,9 @@ export const keyTableDisplayConfig: KeyTableDisplayConfig = {
     template: "{pk} - {klassifizierung}",
     sortMode: "numeric",
     apiClassName: "tkey_klassifizierung",
+    fieldRules: {
+      klassifizierung: [{ max: 50, message: "Maximal 50 Zeichen erlaubt" }],
+    },
   },
   infobausteinTemplate: {
     template: "{schluessel} - {bezeichnung}",
