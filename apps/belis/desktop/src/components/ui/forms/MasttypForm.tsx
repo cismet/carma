@@ -302,6 +302,7 @@ const MasttypForm = ({
                 Masttyp
               </span>
             }
+            rules={[{ max: 5, message: "Maximal 5 Zeichen erlaubt" }]}
             style={{ marginBottom: 16 }}
           >
             <Input />

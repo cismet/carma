@@ -302,6 +302,7 @@ const LeuchentypForm = ({
                 Leuchtentyp
               </span>
             }
+            rules={[{ max: 13, message: "Maximal 13 Zeichen erlaubt" }]}
             style={{ marginBottom: 16 }}
           >
             <Input />
