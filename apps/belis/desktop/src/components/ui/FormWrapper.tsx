@@ -23,12 +23,14 @@ interface FormWrapperProps {
 
 const FormWrapper = ({ selectedItem, onSave, onIdUpdated, readOnly = false }: FormWrapperProps) => {
   const [formHasChanges, setFormHasChanges] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
   const formRef = useRef<FormInstance | null>(null);
   const jwt = useSelector(getJWT);
 
-  // Reset formHasChanges when selected item changes
+  // Reset formHasChanges and isSaving when selected item changes
   useEffect(() => {
     setFormHasChanges(false);
+    setIsSaving(false);
   }, [selectedItem.item.id, selectedItem.tableName]);
 
   const customFormKey = keyTableDisplayConfig[selectedItem.tableName]?.customForm;
@@ -47,7 +49,13 @@ const FormWrapper = ({ selectedItem, onSave, onIdUpdated, readOnly = false }: Fo
   };
 
   const handleSubmit = () => {
+    setIsSaving(true);
     formRef.current?.submit();
+  };
+
+  const handleSaveComplete = (updatedItem: Record<string, unknown>) => {
+    setIsSaving(false);
+    onSave(updatedItem);
   };
 
   return (
@@ -57,7 +65,7 @@ const FormWrapper = ({ selectedItem, onSave, onIdUpdated, readOnly = false }: Fo
           key={`${selectedItem.tableName}-${selectedItem.item.id}`}
           item={selectedItem.item}
           tableName={selectedItem.tableName}
-          onSave={onSave}
+          onSave={handleSaveComplete}
           onIdUpdated={onIdUpdated}
           onFormReady={(form) => (formRef.current = form)}
           onValuesChange={setFormHasChanges}
@@ -66,6 +74,7 @@ const FormWrapper = ({ selectedItem, onSave, onIdUpdated, readOnly = false }: Fo
           formHasChanges={formHasChanges}
           onReset={handleReset}
           hideButtons={true}
+          onSaveError={() => setIsSaving(false)}
         />
       </div>
       {!readOnly && (
@@ -78,10 +87,10 @@ const FormWrapper = ({ selectedItem, onSave, onIdUpdated, readOnly = false }: Fo
           borderTop: "1px solid #f0f0f0",
           marginTop: 16
         }}>
-          <Button onClick={handleReset} disabled={!formHasChanges}>
+          <Button onClick={handleReset} disabled={!formHasChanges || isSaving}>
             Abbrechen
           </Button>
-          <Button type="primary" onClick={handleSubmit} disabled={!formHasChanges}>
+          <Button type="primary" onClick={handleSubmit} disabled={!formHasChanges || isSaving} loading={isSaving}>
             Speichern
           </Button>
         </div>

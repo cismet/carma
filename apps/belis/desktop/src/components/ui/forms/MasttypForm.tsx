@@ -15,6 +15,7 @@ interface MasttypFormProps {
   formHasChanges?: boolean;
   onReset?: () => void;
   hideButtons?: boolean;
+  onSaveError?: () => void;
 }
 
 const MasttypForm = ({

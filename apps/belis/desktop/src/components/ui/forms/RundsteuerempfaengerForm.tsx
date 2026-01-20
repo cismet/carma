@@ -36,6 +36,7 @@ interface RundsteuerempfaengerFormProps {
   formHasChanges?: boolean;
   onReset?: () => void;
   hideButtons?: boolean;
+  onSaveError?: () => void;
 }
 
 const RundsteuerempfaengerForm = ({
@@ -50,6 +51,7 @@ const RundsteuerempfaengerForm = ({
   formHasChanges = false,
   onReset,
   hideButtons = false,
+  onSaveError,
 }: RundsteuerempfaengerFormProps) => {
   const [form] = Form.useForm();
   const [pendingConfirmation, setPendingConfirmation] = useState(false);
@@ -81,6 +83,7 @@ const RundsteuerempfaengerForm = ({
   const handleSave = (values: Record<string, unknown>) => {
     if (!jwt) {
       message.error("Nicht authentifiziert");
+      onSaveError?.();
       return;
     }
 
@@ -103,6 +106,7 @@ const RundsteuerempfaengerForm = ({
       onValuesChange?.(false);
     } else {
       message.error(result.error || "Fehler beim Speichern");
+      onSaveError?.();
     }
   };
 

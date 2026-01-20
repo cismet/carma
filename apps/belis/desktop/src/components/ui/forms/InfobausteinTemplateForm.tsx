@@ -35,6 +35,7 @@ interface InfobausteinTemplateFormProps {
   formHasChanges?: boolean;
   onReset?: () => void;
   hideButtons?: boolean;
+  onSaveError?: () => void;
 }
 
 const getInitialTableData = (item: Record<string, unknown>): Infobaustein[] => {
@@ -59,6 +60,7 @@ const InfobausteinTemplateForm = ({
   formHasChanges = false,
   onReset,
   hideButtons = false,
+  onSaveError,
 }: InfobausteinTemplateFormProps) => {
   const [form] = Form.useForm();
   const [pendingConfirmation, setPendingConfirmation] = useState(false);
@@ -150,6 +152,7 @@ const InfobausteinTemplateForm = ({
   const handleSave = (values: Record<string, unknown>) => {
     if (!jwt) {
       message.error("Nicht authentifiziert");
+      onSaveError?.();
       return;
     }
 
@@ -199,6 +202,7 @@ const InfobausteinTemplateForm = ({
       onValuesChange?.(false);
     } else {
       message.error(result.error || "Fehler beim Speichern");
+      onSaveError?.();
     }
   };
 
