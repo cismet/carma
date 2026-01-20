@@ -183,7 +183,7 @@ export const useAdditionalConfig = ({
         )
       );
 
-      sensorConfig.forEach((config, i) => {
+      sensorConfig.reverse().forEach((config, i) => {
         let layers = config.layers
           .filter((layer) => {
             if (layer.ff) {
