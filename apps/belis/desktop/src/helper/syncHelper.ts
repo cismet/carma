@@ -199,6 +199,17 @@ export const saveKeyTableItemWithCallback = (
       }
     : undefined;
 
+  console.log(
+    "xxx dataToSave " + (onComplete !== undefined ? "with onComplete" : ""),
+    JSON.stringify(dataToSave),
+    "isNewItem:",
+    isNewItem,
+    "item.id:",
+    item.id,
+    "typeof item.id:",
+    typeof item.id
+  );
+
   // Execute the synced action
   sync.syncedAction(
     "SaveObject",
