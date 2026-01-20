@@ -145,3 +145,74 @@ export const saveKeyTableItem = (
     isNewItem,
   };
 };
+
+/**
+ * Enhanced version of saveKeyTableItem that ALWAYS triggers onComplete callback.
+ * Use this for forms with nested data (like ar_bausteineArray) that need fresh
+ * server-assigned IDs after save.
+ *
+ * For forms without nested data, use the standard saveKeyTableItem instead.
+ */
+export const saveKeyTableItemWithCallback = (
+  params: SaveKeyTableItemParams
+): SaveKeyTableItemResult => {
+  const { item, values, tableName, sync, onIdUpdated } = params;
+
+  // Check if sync is available
+  if (!sync?.syncedAction) {
+    return {
+      success: false,
+      savedItem: { ...values, id: item.id },
+      isNewItem: false,
+      error: "Synchronisation nicht verfügbar",
+    };
+  }
+
+  // Determine if this is a new item
+  const isNewItem = !item.id || (item.id as number) < TEMP_ID_THRESHOLD;
+
+  // Prepare data to save
+  const dataToSave = { ...values, id: isNewItem ? -1 : item.id };
+
+  // Get the API class name from config
+  const apiClassName =
+    keyTableDisplayConfig[tableName]?.apiClassName || tableName;
+
+  // Capture the original item ID for the callback
+  const originalItemId = item.id as number;
+
+  // ALWAYS create onComplete callback (not just for new items)
+  // This ensures fresh data is fetched after ANY save operation
+  const onComplete = onIdUpdated
+    ? (action: { result?: string }) => {
+        if (action.result) {
+          try {
+            const result = JSON.parse(action.result);
+            const newId = parseInt(result.id, 10);
+            if (!isNaN(newId)) {
+              onIdUpdated(originalItemId, newId, tableName);
+            }
+          } catch (e) {
+            console.error("Failed to parse server response:", e, action.result);
+          }
+        }
+      }
+    : undefined;
+
+  // Execute the synced action
+  sync.syncedAction(
+    "SaveObject",
+    {
+      className: apiClassName,
+      data: JSON.stringify(dataToSave),
+      status: "open",
+    },
+    onComplete
+  );
+
+  return {
+    success: true,
+    savedItem: { ...values, id: item.id },
+    isNewItem,
+  };
+};
