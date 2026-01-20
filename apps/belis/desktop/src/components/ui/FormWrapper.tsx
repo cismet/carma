@@ -24,13 +24,15 @@ interface FormWrapperProps {
 
 const FormWrapper = ({ selectedItem, onSave, onIdUpdated, readOnly = false, onFormHasChangesChange }: FormWrapperProps) => {
   const [formHasChanges, setFormHasChanges] = useState(false);
+  const [hasValidationErrors, setHasValidationErrors] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const formRef = useRef<FormInstance | null>(null);
   const jwt = useSelector(getJWT);
 
-  // Reset formHasChanges and isSaving when selected item changes
+  // Reset formHasChanges, hasValidationErrors and isSaving when selected item changes
   useEffect(() => {
     setFormHasChanges(false);
+    setHasValidationErrors(false);
     setIsSaving(false);
   }, [selectedItem.item.id, selectedItem.tableName]);
 
@@ -82,6 +84,7 @@ const FormWrapper = ({ selectedItem, onSave, onIdUpdated, readOnly = false, onFo
           hideButtons={true}
           onSaveError={() => setIsSaving(false)}
           isSaving={isSaving}
+          onValidationChange={setHasValidationErrors}
         />
       </div>
       {!readOnly && (
@@ -97,7 +100,7 @@ const FormWrapper = ({ selectedItem, onSave, onIdUpdated, readOnly = false, onFo
           <Button onClick={handleReset} disabled={!formHasChanges || isSaving}>
             Abbrechen
           </Button>
-          <Button type="primary" onClick={handleSubmit} disabled={!formHasChanges || isSaving} loading={isSaving}>
+          <Button type="primary" onClick={handleSubmit} disabled={!formHasChanges || isSaving || hasValidationErrors} loading={isSaving}>
             Speichern
           </Button>
         </div>

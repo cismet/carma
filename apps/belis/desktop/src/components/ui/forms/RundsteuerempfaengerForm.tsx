@@ -37,6 +37,7 @@ interface RundsteuerempfaengerFormProps {
   onReset?: () => void;
   hideButtons?: boolean;
   onSaveError?: () => void;
+  onValidationChange?: (hasErrors: boolean) => void;
 }
 
 const RundsteuerempfaengerForm = ({
@@ -52,9 +53,11 @@ const RundsteuerempfaengerForm = ({
   onReset,
   hideButtons = false,
   onSaveError,
+  onValidationChange,
 }: RundsteuerempfaengerFormProps) => {
   const [form] = Form.useForm();
   const [pendingConfirmation, setPendingConfirmation] = useState(false);
+  const [hasValidationErrors, setHasValidationErrors] = useState(false);
   const sync = useSyncOptional();
 
   // Reset pending state when ID becomes positive (server confirmed)
@@ -78,6 +81,19 @@ const RundsteuerempfaengerForm = ({
       );
       onValuesChange(hasChanges);
     }
+
+    // Check for validation errors
+    form
+      .validateFields({ validateOnly: true })
+      .then(() => {
+        setHasValidationErrors(false);
+        onValidationChange?.(false);
+      })
+      .catch((errorInfo) => {
+        const hasErrors = errorInfo.errorFields?.length > 0;
+        setHasValidationErrors(hasErrors);
+        onValidationChange?.(hasErrors);
+      });
   };
 
   const handleSave = (values: Record<string, unknown>) => {
@@ -228,7 +244,7 @@ const RundsteuerempfaengerForm = ({
         </Form.Item>
       )}
       {!disabled && !hideButtons && (
-        <FormActionButtons formHasChanges={formHasChanges} onReset={onReset} />
+        <FormActionButtons formHasChanges={formHasChanges} onReset={onReset} hasValidationErrors={hasValidationErrors} />
       )}
     </Form>
   );

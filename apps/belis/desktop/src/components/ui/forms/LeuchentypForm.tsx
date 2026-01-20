@@ -39,6 +39,7 @@ interface LeuchentypFormProps {
   hideButtons?: boolean;
   onSaveError?: () => void;
   isSaving?: boolean;
+  onValidationChange?: (hasErrors: boolean) => void;
 }
 
 // Helper to get unique identifier for a document (handles id: -1 case)
@@ -63,6 +64,7 @@ const LeuchentypForm = ({
   hideButtons = false,
   onSaveError,
   isSaving = false,
+  onValidationChange,
 }: LeuchentypFormProps) => {
   const [form] = Form.useForm();
   const [pendingConfirmation, setPendingConfirmation] = useState(false);
@@ -116,6 +118,15 @@ const LeuchentypForm = ({
       );
       onValuesChange(hasChanges);
     }
+
+    // Check for validation errors
+    form
+      .validateFields({ validateOnly: true })
+      .then(() => onValidationChange?.(false))
+      .catch((errorInfo) => {
+        const hasErrors = errorInfo.errorFields?.length > 0;
+        onValidationChange?.(hasErrors);
+      });
   };
 
   const handleFilesChange = (files: UploadFile[]) => {

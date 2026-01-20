@@ -36,6 +36,7 @@ interface InfobausteinTemplateFormProps {
   onReset?: () => void;
   hideButtons?: boolean;
   onSaveError?: () => void;
+  onValidationChange?: (hasErrors: boolean) => void;
 }
 
 const getInitialTableData = (item: Record<string, unknown>): Infobaustein[] => {
@@ -69,6 +70,7 @@ const InfobausteinTemplateForm = ({
   onReset,
   hideButtons = false,
   onSaveError,
+  onValidationChange,
 }: InfobausteinTemplateFormProps) => {
   const [form] = Form.useForm();
   const [pendingConfirmation, setPendingConfirmation] = useState(false);
@@ -129,6 +131,15 @@ const InfobausteinTemplateForm = ({
         currentValues.bezeichnung !== item.bezeichnung;
       onValuesChange(hasChanges);
     }
+
+    // Check for validation errors
+    form
+      .validateFields({ validateOnly: true })
+      .then(() => onValidationChange?.(false))
+      .catch((errorInfo) => {
+        const hasErrors = errorInfo.errorFields?.length > 0;
+        onValidationChange?.(hasErrors);
+      });
   };
 
   // Custom handler that fetches fresh data after save and updates the item
