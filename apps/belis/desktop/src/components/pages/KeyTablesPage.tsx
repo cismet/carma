@@ -129,8 +129,6 @@ const KeyTablesPage = () => {
 
   // Track processed action IDs to avoid duplicate refetches
   const processedActionIdsRef = useRef<Set<string>>(new Set());
-  // Track action IDs initiated by this tab (should not trigger refetch)
-  const localActionIdsRef = useRef<Set<string>>(new Set());
   // Track pending refetch timers for debouncing
   const pendingRefetchTimersRef = useRef<Map<string, NodeJS.Timeout>>(
     new Map()
@@ -178,16 +176,6 @@ const KeyTablesPage = () => {
       // Only handle keytable-related actions
       if (task.action !== "SaveObject" && task.action !== "DeleteObject") {
         processedActionIdsRef.current.add(task.id);
-        return;
-      }
-
-      // Skip actions initiated by this tab (they already have optimistic updates)
-      if (localActionIdsRef.current.has(task.id)) {
-        console.log(
-          `[CrossTabSync] Skipping local action ${task.id} (initiated by this tab)`
-        );
-        processedActionIdsRef.current.add(task.id);
-        localActionIdsRef.current.delete(task.id); // Clean up
         return;
       }
 
@@ -540,9 +528,6 @@ const KeyTablesPage = () => {
                 selectedItem={selectedItem}
                 onSave={handleItemSaved}
                 onIdUpdated={handleIdUpdated}
-                onActionCreated={(actionId) => {
-                  localActionIdsRef.current.add(actionId);
-                }}
                 readOnly={
                   keyTableDisplayConfig[selectedItem.tableName]?.readOnly
                 }
