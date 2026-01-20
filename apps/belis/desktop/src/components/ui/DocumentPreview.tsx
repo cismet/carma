@@ -70,6 +70,12 @@ const getFileIcon = (objectName: string) => {
   return <FilePdfOutlined style={{ color: "#ff4d4f" }} />;
 };
 
+// Helper to get unique identifier for a document (handles id: -1 case)
+const getDocumentKey = (doc: DokumentItem) => {
+  // Prefer url.object_name as it's unique, fallback to description or id
+  return doc.dms_url?.url?.object_name || doc.dms_url?.description || doc.dms_url?.id;
+};
+
 const DocumentPreview = ({
   documents,
   jwt,
@@ -85,8 +91,9 @@ const DocumentPreview = ({
   // Clear selectedDoc if it's no longer in the documents list
   useEffect(() => {
     if (selectedDoc) {
+      const selectedKey = getDocumentKey(selectedDoc);
       const stillExists = documents.some(
-        (doc) => doc.dms_url?.id === selectedDoc.dms_url?.id
+        (doc) => getDocumentKey(doc) === selectedKey
       );
       if (!stillExists) {
         setSelectedDoc(null);
@@ -161,7 +168,7 @@ const DocumentPreview = ({
   };
 
   const handleRemove = (doc: DokumentItem) => {
-    if (selectedDoc?.dms_url?.id === doc.dms_url?.id) {
+    if (selectedDoc && getDocumentKey(selectedDoc) === getDocumentKey(doc)) {
       setSelectedDoc(null);
     }
     onRemoveDocument?.(doc);

@@ -5,7 +5,7 @@ import FormActionButtons from "../FormActionButtons";
 import DocumentPreview, { DokumentItem } from "../DocumentPreview";
 import { uploadBelisDocument, fileToBase64 } from "../../../helper/apiMethods";
 import { useSyncOptional } from "@carma-providers/syncing";
-import { saveKeyTableItem } from "../../../helper/syncHelper";
+import { saveKeyTableItemWithCallback } from "../../../helper/syncHelper";
 
 // Server response structure for uploaded documents
 interface UploadedDocumentResponse {
@@ -40,6 +40,14 @@ interface LeuchentypFormProps {
   onSaveError?: () => void;
 }
 
+// Helper to get unique identifier for a document (handles id: -1 case)
+const getDocumentKey = (doc: DokumentItem) => {
+  // Prefer url.object_name as it's unique, fallback to description or id
+  return (
+    doc.dms_url?.url?.object_name || doc.dms_url?.description || doc.dms_url?.id
+  );
+};
+
 const LeuchentypForm = ({
   item,
   tableName,
@@ -60,26 +68,37 @@ const LeuchentypForm = ({
   const [removedDocuments, setRemovedDocuments] = useState<DokumentItem[]>([]);
   const sync = useSyncOptional();
 
-  // Reset pending state when ID becomes positive (server confirmed)
+  // Reset pending state when item changes (server confirmed save or selecting different item)
   useEffect(() => {
-    if ((item.id as number) > 0) {
-      setPendingConfirmation(false);
-    }
-  }, [item.id]);
-
-  // Reset removed documents when item changes (e.g., selecting different item)
-  useEffect(() => {
-    setRemovedDocuments([]);
+    setPendingConfirmation(false);
+    // Only reset removedDocuments if the item no longer contains the removed docs
+    // This prevents the flash of all documents appearing before the updated item arrives
+    setRemovedDocuments((prev) => {
+      if (prev.length === 0) return prev;
+      const currentDocs = (item.dokumenteArray as DokumentItem[]) || [];
+      // Keep only removed docs that still exist in the current item
+      const stillRelevant = prev.filter((removed) =>
+        currentDocs.some(
+          (doc) => getDocumentKey(doc) === getDocumentKey(removed)
+        )
+      );
+      return stillRelevant;
+    });
     setPendingFiles([]);
-  }, [item.id]);
+  }, [item]);
 
   // Reset removed documents when formHasChanges becomes false (e.g., after Abbrechen)
+  // But NOT when we're pending confirmation (waiting for server response after save)
   useEffect(() => {
-    if (!formHasChanges && (removedDocuments.length > 0 || pendingFiles.length > 0)) {
+    if (
+      !formHasChanges &&
+      !pendingConfirmation &&
+      (removedDocuments.length > 0 || pendingFiles.length > 0)
+    ) {
       setRemovedDocuments([]);
       setPendingFiles([]);
     }
-  }, [formHasChanges]);
+  }, [formHasChanges, pendingConfirmation]);
 
   useEffect(() => {
     if (onFormReady) {
@@ -183,6 +202,23 @@ const LeuchentypForm = ({
     return newDocuments;
   };
 
+  // Custom handler that updates item after server confirms save
+  // Called for BOTH new items and updates (via saveKeyTableItemWithCallback)
+  const handleIdUpdatedWithFetch = (
+    oldId: number,
+    newId: number,
+    tableName: string,
+    savedItem: Record<string, unknown>
+  ) => {
+    // For new items, also call the original onIdUpdated to update parent ID in Redux
+    if (oldId !== newId && onIdUpdated) {
+      onIdUpdated(oldId, newId, tableName);
+    }
+
+    // Update with the saved item data (includes updated dokumenteArray)
+    onSave({ ...savedItem, id: newId });
+  };
+
   const handleSave = async (values: Record<string, unknown>) => {
     if (!jwt) {
       message.error("Nicht authentifiziert");
@@ -199,37 +235,43 @@ const LeuchentypForm = ({
     // Combine existing documents with newly uploaded ones, excluding removed ones
     const existingDocuments = (item.dokumenteArray as DokumentItem[]) || [];
     const filteredExistingDocuments = existingDocuments.filter(
-      (doc) => !removedDocuments.some((removed) => removed.dms_url?.id === doc.dms_url?.id)
+      (doc) =>
+        !removedDocuments.some(
+          (removed) => getDocumentKey(removed) === getDocumentKey(doc)
+        )
     );
-    const updatedDokumenteArray = [...filteredExistingDocuments, ...newDocuments];
-    console.log("xxx updatedDokumenteArray", updatedDokumenteArray);
+    const updatedDokumenteArray = [
+      ...filteredExistingDocuments,
+      ...newDocuments,
+    ];
+
+    const updatedItem = {
+      ...item,
+      ...values,
+      dokumenteArray: updatedDokumenteArray,
+    };
 
     // Save form data via sync system with updated documents
-    const result = saveKeyTableItem({
-      item: {
-        ...item,
-        dokumenteArray: updatedDokumenteArray,
-      },
+    const result = saveKeyTableItemWithCallback({
+      item: updatedItem,
       values: {
         ...values,
         dokumenteArray: updatedDokumenteArray,
       },
       tableName,
       sync,
-      onIdUpdated,
+      onIdUpdated: (oldId, newId, tableName) => {
+        handleIdUpdatedWithFetch(oldId, newId, tableName, updatedItem);
+      },
     });
 
     if (result.success) {
       message.success("Aktion zur Synchronisation hinzugefügt");
-      // Pass the complete updated item (not result.savedItem which only has form values)
-      onSave({ ...item, ...values, dokumenteArray: updatedDokumenteArray });
 
-      if (result.isNewItem) {
-        setPendingConfirmation(true);
-      }
+      // Always wait for callback (both new and updates)
+      // Don't call onSave here - the callback will call it with confirmed data
+      setPendingConfirmation(true);
 
-      // Reset removed documents after successful save
-      setRemovedDocuments([]);
       onValuesChange?.(false);
     } else {
       message.error(result.error || "Fehler beim Speichern");
@@ -395,7 +437,10 @@ const LeuchentypForm = ({
       </Row>
       <DocumentPreview
         documents={(dokumenteArray || []).filter(
-          (doc) => !removedDocuments.some((removed) => removed.dms_url?.id === doc.dms_url?.id)
+          (doc) =>
+            !removedDocuments.some(
+              (removed) => getDocumentKey(removed) === getDocumentKey(doc)
+            )
         )}
         jwt={jwt}
         onFilesChange={handleFilesChange}
@@ -403,9 +448,9 @@ const LeuchentypForm = ({
         onRemoveDocument={handleRemoveDocument}
       />
       {/* <DocumentUploader /> */}
-      {!disabled && !hideButtons && (
+      {/* {!disabled && !hideButtons && (
         <FormActionButtons formHasChanges={formHasChanges} onReset={onReset} />
-      )}
+      )} */}
     </Form>
   );
 };
