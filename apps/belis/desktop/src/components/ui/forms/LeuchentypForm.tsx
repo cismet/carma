@@ -57,6 +57,7 @@ const LeuchentypForm = ({
   const [form] = Form.useForm();
   const [pendingConfirmation, setPendingConfirmation] = useState(false);
   const [pendingFiles, setPendingFiles] = useState<UploadFile[]>([]);
+  const [removedDocuments, setRemovedDocuments] = useState<DokumentItem[]>([]);
   const sync = useSyncOptional();
 
   // Reset pending state when ID becomes positive (server confirmed)
@@ -84,7 +85,12 @@ const LeuchentypForm = ({
 
   const handleFilesChange = (files: UploadFile[]) => {
     setPendingFiles(files);
-    onValuesChange?.(files.length > 0);
+    onValuesChange?.(files.length > 0 || removedDocuments.length > 0);
+  };
+
+  const handleRemoveDocument = (doc: DokumentItem) => {
+    setRemovedDocuments((prev) => [...prev, doc]);
+    onValuesChange?.(true);
   };
 
   const uploadPendingFiles = async (): Promise<DokumentItem[]> => {
@@ -175,9 +181,12 @@ const LeuchentypForm = ({
       newDocuments = await uploadPendingFiles();
     }
 
-    // Combine existing documents with newly uploaded ones
+    // Combine existing documents with newly uploaded ones, excluding removed ones
     const existingDocuments = (item.dokumenteArray as DokumentItem[]) || [];
-    const updatedDokumenteArray = [...existingDocuments, ...newDocuments];
+    const filteredExistingDocuments = existingDocuments.filter(
+      (doc) => !removedDocuments.some((removed) => removed.dms_url?.id === doc.dms_url?.id)
+    );
+    const updatedDokumenteArray = [...filteredExistingDocuments, ...newDocuments];
     console.log("xxx updatedDokumenteArray", updatedDokumenteArray);
 
     // Save form data via sync system with updated documents
@@ -197,7 +206,8 @@ const LeuchentypForm = ({
 
     if (result.success) {
       message.success("Aktion zur Synchronisation hinzugefügt");
-      onSave(result.savedItem);
+      // Pass the complete updated item (not result.savedItem which only has form values)
+      onSave({ ...item, ...values, dokumenteArray: updatedDokumenteArray });
 
       // Notify parent about the action ID for cross-tab sync tracking
       if (result.actionId) {
@@ -208,6 +218,8 @@ const LeuchentypForm = ({
         setPendingConfirmation(true);
       }
 
+      // Reset removed documents after successful save
+      setRemovedDocuments([]);
       onValuesChange?.(false);
     } else {
       message.error(result.error || "Fehler beim Speichern");
@@ -371,10 +383,13 @@ const LeuchentypForm = ({
         </Col>
       </Row>
       <DocumentPreview
-        documents={dokumenteArray || []}
+        documents={(dokumenteArray || []).filter(
+          (doc) => !removedDocuments.some((removed) => removed.dms_url?.id === doc.dms_url?.id)
+        )}
         jwt={jwt}
         onFilesChange={handleFilesChange}
         pendingFiles={pendingFiles}
+        onRemoveDocument={handleRemoveDocument}
       />
       {/* <DocumentUploader /> */}
       {!disabled && !hideButtons && (
