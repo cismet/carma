@@ -6,7 +6,7 @@ import type { ColumnsType } from "antd/es/table";
 import { PlusOutlined, MinusOutlined } from "@ant-design/icons";
 import { useSyncOptional } from "@carma-providers/syncing";
 import {
-  saveKeyTableItem,
+  saveKeyTableItemWithCallback,
   TEMP_ID_THRESHOLD,
 } from "../../../helper/syncHelper";
 import { fetchInfobausteinTemplateById } from "../../../helper/apiMethods";
@@ -43,7 +43,15 @@ const getInitialTableData = (item: Record<string, unknown>): Infobaustein[] => {
     | ArBausteinItem[]
     | undefined;
   if (arBausteineArray) {
-    return arBausteineArray.map((item) => item.infobaustein);
+    return arBausteineArray.map((item) => ({
+      ...item.infobaustein,
+      // Server sometimes returns "null" string instead of null - convert it back
+      wert: item.infobaustein.wert === "null" ? null : item.infobaustein.wert,
+      bezeichnung:
+        item.infobaustein.bezeichnung === "null"
+          ? null
+          : item.infobaustein.bezeichnung,
+    }));
   }
   return [];
 };
@@ -71,12 +79,11 @@ const InfobausteinTemplateForm = ({
   const [selectedRowKey, setSelectedRowKey] = useState<number | null>(null);
   const resetTableDataRef = useRef<() => void>();
 
-  // Reset pending state when ID becomes positive (server confirmed)
+  // Reset pending state when item changes (server confirmed save)
+  // This handles both new items (id changes) and updates (item data changes)
   useEffect(() => {
-    if ((item.id as number) > 0) {
-      setPendingConfirmation(false);
-    }
-  }, [item.id]);
+    setPendingConfirmation(false);
+  }, [item]);
 
   const resetTableData = useCallback(() => {
     setTableData(getInitialTableData(item));
@@ -125,6 +132,7 @@ const InfobausteinTemplateForm = ({
   };
 
   // Custom handler that fetches fresh data after save and updates the item
+  // Called for BOTH new items and updates (via saveKeyTableItemWithCallback)
   const handleIdUpdatedWithFetch = async (
     oldId: number,
     newId: number,
@@ -134,16 +142,19 @@ const InfobausteinTemplateForm = ({
 
     try {
       const freshData = await fetchInfobausteinTemplateById(jwt, newId);
-      if (freshData && onIdUpdated) {
+
+      // For new items, also call the original onIdUpdated to update parent ID in Redux
+      if (oldId !== newId && onIdUpdated) {
         onIdUpdated(oldId, newId, tableName);
       }
+
       if (freshData) {
         onSave(freshData as Record<string, unknown>);
       }
     } catch (error) {
       console.error("Failed to fetch updated InfobausteinTemplate:", error);
-      // Fall back to original onIdUpdated behavior
-      if (onIdUpdated) {
+      // Fall back for new items
+      if (oldId !== newId && onIdUpdated) {
         onIdUpdated(oldId, newId, tableName);
       }
     }
@@ -177,7 +188,7 @@ const InfobausteinTemplateForm = ({
       ar_bausteineArray: updatedArBausteineArray,
     };
 
-    const result = saveKeyTableItem({
+    const result = saveKeyTableItemWithCallback({
       item: itemWithTableData,
       values: {
         ...values,
@@ -191,13 +202,9 @@ const InfobausteinTemplateForm = ({
     if (result.success) {
       message.success("Aktion zur Synchronisation hinzugefügt");
 
-      // For new items, don't call onSave here - handleIdUpdatedWithFetch will call it
-      // with fresh data from the server after the ID is confirmed
-      if (!result.isNewItem) {
-        onSave(result.savedItem);
-      } else {
-        setPendingConfirmation(true);
-      }
+      // Always wait for handleIdUpdatedWithFetch callback (both new and updates)
+      // Don't call onSave here - the callback will call it with fresh data
+      setPendingConfirmation(true);
 
       onValuesChange?.(false);
     } else {
@@ -244,6 +251,8 @@ const InfobausteinTemplateForm = ({
     }
   };
 
+  const isFormDisabled = disabled || pendingConfirmation;
+
   const columns: ColumnsType<Infobaustein> = [
     {
       title: "Schlüssel",
@@ -256,7 +265,7 @@ const InfobausteinTemplateForm = ({
           onChange={(e) =>
             handleCellChange(record.id, "schluessel", e.target.value)
           }
-          disabled={disabled}
+          disabled={isFormDisabled}
           size="small"
         />
       ),
@@ -271,7 +280,7 @@ const InfobausteinTemplateForm = ({
           onChange={(e) =>
             handleCellChange(record.id, "bezeichnung", e.target.value)
           }
-          disabled={disabled}
+          disabled={isFormDisabled}
           size="small"
         />
       ),
@@ -286,7 +295,7 @@ const InfobausteinTemplateForm = ({
           onChange={(e) =>
             handleCellChange(record.id, "wert", e.target.value || null)
           }
-          disabled={disabled}
+          disabled={isFormDisabled}
           size="small"
         />
       ),
@@ -303,7 +312,7 @@ const InfobausteinTemplateForm = ({
           onChange={(e) =>
             handleCellChange(record.id, "pflichtfeld", e.target.checked)
           }
-          disabled={disabled}
+          disabled={isFormDisabled}
         />
       ),
     },
@@ -348,13 +357,13 @@ const InfobausteinTemplateForm = ({
           <Button
             icon={<PlusOutlined />}
             onClick={handleAddRow}
-            disabled={disabled}
+            disabled={disabled || pendingConfirmation}
             size="small"
           />
           <Button
             icon={<MinusOutlined />}
             onClick={handleRemoveRow}
-            disabled={disabled || selectedRowKey === null}
+            disabled={disabled || pendingConfirmation || selectedRowKey === null}
             size="small"
           />
         </div>
