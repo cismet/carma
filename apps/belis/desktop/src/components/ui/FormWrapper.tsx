@@ -75,6 +75,7 @@ const FormWrapper = ({ selectedItem, onSave, onIdUpdated, readOnly = false }: Fo
           onReset={handleReset}
           hideButtons={true}
           onSaveError={() => setIsSaving(false)}
+          isSaving={isSaving}
         />
       </div>
       {!readOnly && (

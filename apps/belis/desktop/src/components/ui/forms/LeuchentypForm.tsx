@@ -38,6 +38,7 @@ interface LeuchentypFormProps {
   onReset?: () => void;
   hideButtons?: boolean;
   onSaveError?: () => void;
+  isSaving?: boolean;
 }
 
 // Helper to get unique identifier for a document (handles id: -1 case)
@@ -61,6 +62,7 @@ const LeuchentypForm = ({
   onReset,
   hideButtons = false,
   onSaveError,
+  isSaving = false,
 }: LeuchentypFormProps) => {
   const [form] = Form.useForm();
   const [pendingConfirmation, setPendingConfirmation] = useState(false);
@@ -289,7 +291,7 @@ const LeuchentypForm = ({
       onValuesChange={handleValuesChange}
       layout="vertical"
       style={{ padding: "8px 0" }}
-      disabled={disabled || pendingConfirmation}
+      disabled={disabled || pendingConfirmation || isSaving}
     >
       <Row gutter={24}>
         <Col span={12}>
@@ -446,11 +448,8 @@ const LeuchentypForm = ({
         onFilesChange={handleFilesChange}
         pendingFiles={pendingFiles}
         onRemoveDocument={handleRemoveDocument}
+        isSaving={isSaving}
       />
-      {/* <DocumentUploader /> */}
-      {/* {!disabled && !hideButtons && (
-        <FormActionButtons formHasChanges={formHasChanges} onReset={onReset} />
-      )} */}
     </Form>
   );
 };

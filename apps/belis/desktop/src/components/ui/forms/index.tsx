@@ -17,6 +17,7 @@ export interface CustomFormProps {
   formHasChanges?: boolean;
   onReset?: () => void;
   hideButtons?: boolean;
+  isSaving?: boolean;
 }
 
 // Registry keyed by form name (referenced in keyTableDisplayConfig.customForm)

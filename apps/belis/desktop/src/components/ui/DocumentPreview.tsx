@@ -6,6 +6,7 @@ import {
   FileImageOutlined,
   DownloadOutlined,
   DeleteOutlined,
+  LoadingOutlined,
 } from "@ant-design/icons";
 import {
   getDocumentBlobUrl,
@@ -42,6 +43,7 @@ interface DocumentPreviewProps {
   onFilesChange?: (files: UploadFile[]) => void;
   pendingFiles?: UploadFile[];
   onRemoveDocument?: (doc: DokumentItem) => void;
+  isSaving?: boolean;
 }
 
 type FileType = "image" | "pdf" | "other";
@@ -82,6 +84,7 @@ const DocumentPreview = ({
   onFilesChange,
   pendingFiles,
   onRemoveDocument,
+  isSaving = false,
 }: DocumentPreviewProps) => {
   const [selectedDoc, setSelectedDoc] = useState<DokumentItem | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
@@ -287,8 +290,9 @@ const DocumentPreview = ({
   const hasDocuments = documents && documents.length > 0;
 
   return (
-    <Row gutter={24} style={{ height: TOTAL_HEIGHT }}>
-      <Col span={12} style={{ height: "100%" }}>
+    <Spin spinning={isSaving} indicator={<LoadingOutlined />}>
+      <Row gutter={24} style={{ height: TOTAL_HEIGHT }}>
+        <Col span={12} style={{ height: "100%" }}>
         <div
           style={{
             display: "flex",
@@ -397,8 +401,9 @@ const DocumentPreview = ({
           </div>
           <div style={{ flex: 1 }}>{renderPreview()}</div>
         </div>
-      </Col>
-    </Row>
+        </Col>
+      </Row>
+    </Spin>
   );
 };
 
