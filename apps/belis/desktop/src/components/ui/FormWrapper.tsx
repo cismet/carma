@@ -19,9 +19,10 @@ interface FormWrapperProps {
   onSave: (updatedItem: Record<string, unknown>) => void;
   onIdUpdated?: (oldId: number, newId: number, tableName: string) => void;
   readOnly?: boolean;
+  onFormHasChangesChange?: (hasChanges: boolean) => void;
 }
 
-const FormWrapper = ({ selectedItem, onSave, onIdUpdated, readOnly = false }: FormWrapperProps) => {
+const FormWrapper = ({ selectedItem, onSave, onIdUpdated, readOnly = false, onFormHasChangesChange }: FormWrapperProps) => {
   const [formHasChanges, setFormHasChanges] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const formRef = useRef<FormInstance | null>(null);
@@ -32,6 +33,11 @@ const FormWrapper = ({ selectedItem, onSave, onIdUpdated, readOnly = false }: Fo
     setFormHasChanges(false);
     setIsSaving(false);
   }, [selectedItem.item.id, selectedItem.tableName]);
+
+  // Report formHasChanges to parent component
+  useEffect(() => {
+    onFormHasChangesChange?.(formHasChanges);
+  }, [formHasChanges, onFormHasChangesChange]);
 
   const customFormKey = keyTableDisplayConfig[selectedItem.tableName]?.customForm;
   const FormComponent = (customFormKey && customForms[customFormKey]) || KeyTableItemForm;
