@@ -1,10 +1,11 @@
 import { useState, useEffect } from "react";
-import { Row, Col, List, Spin } from "antd";
+import { Row, Col, List, Spin, Popconfirm } from "antd";
 import type { UploadFile } from "antd";
 import {
   FilePdfOutlined,
   FileImageOutlined,
   DownloadOutlined,
+  DeleteOutlined,
 } from "@ant-design/icons";
 import {
   getDocumentBlobUrl,
@@ -40,6 +41,7 @@ interface DocumentPreviewProps {
   jwt?: string;
   onFilesChange?: (files: UploadFile[]) => void;
   pendingFiles?: UploadFile[];
+  onRemoveDocument?: (doc: DokumentItem) => void;
 }
 
 type FileType = "image" | "pdf" | "other";
@@ -73,6 +75,7 @@ const DocumentPreview = ({
   jwt,
   onFilesChange,
   pendingFiles,
+  onRemoveDocument,
 }: DocumentPreviewProps) => {
   const [selectedDoc, setSelectedDoc] = useState<DokumentItem | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
@@ -142,6 +145,13 @@ const DocumentPreview = ({
         console.error("Download failed:", err);
       }
     }
+  };
+
+  const handleRemove = (doc: DokumentItem) => {
+    if (selectedDoc === doc) {
+      setSelectedDoc(null);
+    }
+    onRemoveDocument?.(doc);
   };
 
   const renderPreview = () => {
@@ -293,6 +303,7 @@ const DocumentPreview = ({
                     borderLeft: isSelected
                       ? "3px solid #1890ff"
                       : "3px solid transparent",
+                    padding: "10px",
                   }}
                   className="hover:bg-gray-50"
                   onClick={() => setSelectedDoc(doc)}
@@ -315,10 +326,23 @@ const DocumentPreview = ({
                           "Dokument"}
                       </span>
                     </div>
-                    <DownloadOutlined
-                      style={{ color: "#8c8c8c" }}
-                      onClick={(e) => handleDownload(doc, e)}
-                    />
+                    <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
+                      <DownloadOutlined
+                        style={{ color: "#8c8c8c", fontSize: 12 }}
+                        onClick={(e) => handleDownload(doc, e)}
+                      />
+                      <Popconfirm
+                        title="Dokument entfernen?"
+                        onConfirm={() => handleRemove(doc)}
+                        okText="Ja"
+                        cancelText="Nein"
+                      >
+                        <DeleteOutlined
+                          style={{ color: "#8c8c8c", fontSize: 12 }}
+                          onClick={(e) => e.stopPropagation()}
+                        />
+                      </Popconfirm>
+                    </div>
                   </div>
                 </List.Item>
               );
