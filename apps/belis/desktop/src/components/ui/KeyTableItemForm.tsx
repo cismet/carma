@@ -19,6 +19,7 @@ interface KeyTableItemFormProps {
   formHasChanges?: boolean;
   onReset?: () => void;
   hideButtons?: boolean;
+  onSaveError?: () => void;
 }
 
 const KeyTableItemForm = ({
@@ -32,6 +33,7 @@ const KeyTableItemForm = ({
   formHasChanges = false,
   onReset,
   hideButtons = false,
+  onSaveError,
 }: KeyTableItemFormProps) => {
   const [form] = Form.useForm();
   const [saving, setSaving] = useState(false);
@@ -97,10 +99,12 @@ const KeyTableItemForm = ({
         onValuesChange?.(false);
       } else {
         message.error(result.error || "Fehler beim Speichern");
+        onSaveError?.();
       }
     } catch (error) {
       console.error("Save error:", error);
       message.error("Fehler beim Speichern");
+      onSaveError?.();
     } finally {
       setSaving(false);
     }

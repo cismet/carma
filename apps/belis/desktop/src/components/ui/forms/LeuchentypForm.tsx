@@ -37,6 +37,7 @@ interface LeuchentypFormProps {
   formHasChanges?: boolean;
   onReset?: () => void;
   hideButtons?: boolean;
+  onSaveError?: () => void;
 }
 
 const LeuchentypForm = ({
@@ -51,6 +52,7 @@ const LeuchentypForm = ({
   formHasChanges = false,
   onReset,
   hideButtons = false,
+  onSaveError,
 }: LeuchentypFormProps) => {
   const [form] = Form.useForm();
   const [pendingConfirmation, setPendingConfirmation] = useState(false);
@@ -184,6 +186,7 @@ const LeuchentypForm = ({
   const handleSave = async (values: Record<string, unknown>) => {
     if (!jwt) {
       message.error("Nicht authentifiziert");
+      onSaveError?.();
       return;
     }
 
@@ -230,6 +233,7 @@ const LeuchentypForm = ({
       onValuesChange?.(false);
     } else {
       message.error(result.error || "Fehler beim Speichern");
+      onSaveError?.();
     }
   };
 
