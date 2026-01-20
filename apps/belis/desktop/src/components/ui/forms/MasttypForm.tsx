@@ -1,13 +1,43 @@
-import { useEffect } from "react";
-import { Form, Input, Row, Col } from "antd";
+import { useEffect, useState } from "react";
+import { Form, Input, Row, Col, message } from "antd";
+import type { FormInstance, UploadFile } from "antd";
 import FormActionButtons from "../FormActionButtons";
-import type { FormInstance } from "antd";
 import DocumentPreview, { DokumentItem } from "../DocumentPreview";
+import { uploadBelisDocument, fileToBase64 } from "../../../helper/apiMethods";
+import { useSyncOptional } from "@carma-providers/syncing";
+import { saveKeyTableItemWithCallback } from "../../../helper/syncHelper";
+
+// Server response structure for uploaded documents
+interface UploadedDocumentResponse {
+  id: number;
+  description: string;
+  name: string | null;
+  typ: string | null;
+  url_id?: {
+    id: number;
+    object_name: string;
+    url_base_id?: {
+      id: number;
+      prot_prefix: string;
+      server: string;
+      path: string;
+    };
+  };
+}
+
+// Helper to get unique identifier for a document (handles id: -1 case)
+const getDocumentKey = (doc: DokumentItem) => {
+  // Prefer url.object_name as it's unique, fallback to description or id
+  return (
+    doc.dms_url?.url?.object_name || doc.dms_url?.description || doc.dms_url?.id
+  );
+};
 
 interface MasttypFormProps {
   item: Record<string, unknown>;
   tableName: string;
   onSave: (updatedItem: Record<string, unknown>) => void;
+  onIdUpdated?: (oldId: number, newId: number, tableName: string) => void;
   onFormReady?: (form: FormInstance) => void;
   onValuesChange?: (hasChanges: boolean) => void;
   disabled?: boolean;
@@ -16,11 +46,14 @@ interface MasttypFormProps {
   onReset?: () => void;
   hideButtons?: boolean;
   onSaveError?: () => void;
+  isSaving?: boolean;
 }
 
 const MasttypForm = ({
   item,
+  tableName,
   onSave,
+  onIdUpdated,
   onFormReady,
   onValuesChange,
   disabled = false,
@@ -28,9 +61,46 @@ const MasttypForm = ({
   formHasChanges = false,
   onReset,
   hideButtons = false,
+  onSaveError,
+  isSaving = false,
 }: MasttypFormProps) => {
   const [form] = Form.useForm();
-  console.log("xxx form item", item);
+  const [pendingConfirmation, setPendingConfirmation] = useState(false);
+  const [pendingFiles, setPendingFiles] = useState<UploadFile[]>([]);
+  const [removedDocuments, setRemovedDocuments] = useState<DokumentItem[]>([]);
+  const sync = useSyncOptional();
+
+  // Reset pending state when item changes (server confirmed save or selecting different item)
+  useEffect(() => {
+    setPendingConfirmation(false);
+    // Only reset removedDocuments if the item no longer contains the removed docs
+    // This prevents the flash of all documents appearing before the updated item arrives
+    setRemovedDocuments((prev) => {
+      if (prev.length === 0) return prev;
+      const currentDocs = (item.dokumenteArray as DokumentItem[]) || [];
+      // Keep only removed docs that still exist in the current item
+      const stillRelevant = prev.filter((removed) =>
+        currentDocs.some(
+          (doc) => getDocumentKey(doc) === getDocumentKey(removed)
+        )
+      );
+      return stillRelevant;
+    });
+    setPendingFiles([]);
+  }, [item]);
+
+  // Reset removed documents when formHasChanges becomes false (e.g., after Abbrechen)
+  // But NOT when we're pending confirmation (waiting for server response after save)
+  useEffect(() => {
+    if (
+      !formHasChanges &&
+      !pendingConfirmation &&
+      (removedDocuments.length > 0 || pendingFiles.length > 0)
+    ) {
+      setRemovedDocuments([]);
+      setPendingFiles([]);
+    }
+  }, [formHasChanges, pendingConfirmation]);
 
   useEffect(() => {
     if (onFormReady) {
@@ -48,8 +118,167 @@ const MasttypForm = ({
     }
   };
 
-  const handleSave = (values: Record<string, unknown>) => {
-    onSave({ ...values, id: item.id });
+  const handleFilesChange = (files: UploadFile[]) => {
+    setPendingFiles(files);
+    onValuesChange?.(files.length > 0 || removedDocuments.length > 0);
+  };
+
+  const handleRemoveDocument = (doc: DokumentItem) => {
+    setRemovedDocuments((prev) => [...prev, doc]);
+    onValuesChange?.(true);
+  };
+
+  const uploadPendingFiles = async (): Promise<DokumentItem[]> => {
+    if (!jwt || pendingFiles.length === 0) return [];
+
+    const uploadPromises = pendingFiles.map(async (uploadFile) => {
+      const file = uploadFile.originFileObj;
+      if (!file) return null;
+
+      try {
+        const data = await fileToBase64(file);
+
+        const result = await uploadBelisDocument(jwt, {
+          name: uploadFile.name,
+          data,
+        });
+
+        return { name: uploadFile.name, result };
+      } catch (error) {
+        return {
+          name: uploadFile.name,
+          result: {
+            success: false,
+            error: error instanceof Error ? error.message : "Unknown error",
+          },
+        };
+      }
+    });
+
+    const results = await Promise.all(uploadPromises);
+
+    const successful = results.filter((r) => r?.result.success);
+    const failed = results.filter((r) => r && !r.result.success);
+
+    if (successful.length > 0) {
+      message.success(`${successful.length} Dokument(e) hochgeladen`);
+    }
+    if (failed.length > 0) {
+      message.error(`${failed.length} Dokument(e) fehlgeschlagen`);
+    }
+
+    setPendingFiles([]);
+
+    // Transform successful uploads to DokumentItem format
+    const newDocuments: DokumentItem[] = successful
+      .filter((r) => r?.result.data)
+      .map((r) => {
+        // Server returns { contentType, res } where res is a JSON string
+        const responseWrapper = r!.result.data as { res: string };
+        const serverResponse = JSON.parse(
+          responseWrapper.res
+        ) as UploadedDocumentResponse;
+        // Server returns url_id, but DokumentItem expects url
+        return {
+          dms_url: {
+            id: serverResponse.id,
+            description: serverResponse.description,
+            name: serverResponse.name,
+            typ: serverResponse.typ,
+            url: {
+              id: serverResponse.url_id?.id,
+              object_name: serverResponse.url_id?.object_name,
+              url_base: serverResponse.url_id?.url_base_id
+                ? {
+                    id: serverResponse.url_id.url_base_id.id,
+                    prot_prefix: serverResponse.url_id.url_base_id.prot_prefix,
+                    server: serverResponse.url_id.url_base_id.server,
+                    path: serverResponse.url_id.url_base_id.path,
+                  }
+                : undefined,
+            },
+          },
+        };
+      });
+
+    return newDocuments;
+  };
+
+  // Custom handler that updates item after server confirms save
+  // Called for BOTH new items and updates (via saveKeyTableItemWithCallback)
+  const handleIdUpdatedWithFetch = (
+    oldId: number,
+    newId: number,
+    tableName: string,
+    savedItem: Record<string, unknown>
+  ) => {
+    // For new items, also call the original onIdUpdated to update parent ID in Redux
+    if (oldId !== newId && onIdUpdated) {
+      onIdUpdated(oldId, newId, tableName);
+    }
+
+    // Update with the saved item data (includes updated dokumenteArray)
+    onSave({ ...savedItem, id: newId });
+  };
+
+  const handleSave = async (values: Record<string, unknown>) => {
+    if (!jwt) {
+      message.error("Nicht authentifiziert");
+      onSaveError?.();
+      return;
+    }
+
+    // Upload pending files first and get the new document items
+    let newDocuments: DokumentItem[] = [];
+    if (pendingFiles.length > 0) {
+      newDocuments = await uploadPendingFiles();
+    }
+
+    // Combine existing documents with newly uploaded ones, excluding removed ones
+    const existingDocuments = (item.dokumenteArray as DokumentItem[]) || [];
+    const filteredExistingDocuments = existingDocuments.filter(
+      (doc) =>
+        !removedDocuments.some(
+          (removed) => getDocumentKey(removed) === getDocumentKey(doc)
+        )
+    );
+    const updatedDokumenteArray = [
+      ...filteredExistingDocuments,
+      ...newDocuments,
+    ];
+
+    const updatedItem = {
+      ...item,
+      ...values,
+      dokumenteArray: updatedDokumenteArray,
+    };
+
+    // Save form data via sync system with updated documents
+    const result = saveKeyTableItemWithCallback({
+      item: updatedItem,
+      values: {
+        ...values,
+        dokumenteArray: updatedDokumenteArray,
+      },
+      tableName,
+      sync,
+      onIdUpdated: (oldId, newId, tableName) => {
+        handleIdUpdatedWithFetch(oldId, newId, tableName, updatedItem);
+      },
+    });
+
+    if (result.success) {
+      message.success("Aktion zur Synchronisation hinzugefügt");
+
+      // Always wait for callback (both new and updates)
+      // Don't call onSave here - the callback will call it with confirmed data
+      setPendingConfirmation(true);
+
+      onValuesChange?.(false);
+    } else {
+      message.error(result.error || "Fehler beim Speichern");
+      onSaveError?.();
+    }
   };
 
   const dokumenteArray = item.dokumenteArray as DokumentItem[] | undefined;
@@ -62,7 +291,7 @@ const MasttypForm = ({
       onValuesChange={handleValuesChange}
       layout="vertical"
       style={{ padding: "8px 0" }}
-      disabled={disabled}
+      disabled={disabled || pendingConfirmation || isSaving}
     >
       <Row gutter={24}>
         <Col span={12}>
@@ -137,10 +366,19 @@ const MasttypForm = ({
           </Form.Item>
         </Col>
       </Row>
-      <DocumentPreview documents={dokumenteArray || []} jwt={jwt} />
-      {!disabled && !hideButtons && (
-        <FormActionButtons formHasChanges={formHasChanges} onReset={onReset} />
-      )}
+      <DocumentPreview
+        documents={(dokumenteArray || []).filter(
+          (doc) =>
+            !removedDocuments.some(
+              (removed) => getDocumentKey(removed) === getDocumentKey(doc)
+            )
+        )}
+        jwt={jwt}
+        onFilesChange={handleFilesChange}
+        pendingFiles={pendingFiles}
+        onRemoveDocument={handleRemoveDocument}
+        isSaving={isSaving}
+      />
     </Form>
   );
 };

@@ -73,7 +73,7 @@ export const keyTableDisplayConfig: KeyTableDisplayConfig = {
     sortMode: "numeric",
     customForm: "masttyp",
     apiClassName: "tkey_masttyp",
-    readOnly: true,
+    // readOnly: true,
   },
   leuchtentyp: {
     template: "{leuchtentyp} {fabrikat}",
