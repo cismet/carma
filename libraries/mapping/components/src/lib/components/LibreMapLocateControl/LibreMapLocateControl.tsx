@@ -21,8 +21,6 @@ export const LibreMapLocateControl = ({
   const { isLocationActive, hasMapMoved, setIsLocationActive, isLoading } =
     useLibreMapLocateControl({ map });
 
-  console.log("xxx", isLocationActive);
-
   const cbs = !isDesktop ? (
     <ControlButtonStyler
       disabled={disabled}
