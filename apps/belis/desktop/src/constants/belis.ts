@@ -137,3 +137,7 @@ export const tdtaLeuchtenByIdQuery = gql`
 export const leitungByIdQuery = gql`
   ${queries.leitung_by_id}
 `;
+
+export const abzweigdoseByIdQuery = gql`
+  ${queries.abzweigdose_by_id}
+`;

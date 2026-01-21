@@ -473,6 +473,36 @@ query MyQuery($id: Int!) {
   }
 }`;
 
+queries.abzweigdose_by_id = `
+query MyQuery($id: Int!) {
+  abzweigdose(where: {id: {_eq: $id}}) {
+    dokumenteArray {
+      abzweigdose_reference
+      fk_dokument
+      id
+      dms_url {
+        description
+        id
+        name
+        typ
+        url {
+          id
+          object_name
+          url_base {
+            id
+            path
+            prot_prefix
+            server
+          }
+        }
+      }
+    }
+    fk_geom
+    id
+    is_deleted
+  }
+}`;
+
 queries.anlagengruppe = `
 query MyQuery {
   anlagengruppe {

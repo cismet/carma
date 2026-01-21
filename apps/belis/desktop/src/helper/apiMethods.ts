@@ -13,6 +13,7 @@ import {
   schaltstelleByIdQuery,
   tdtaLeuchtenByIdQuery,
   leitungByIdQuery,
+  abzweigdoseByIdQuery,
   querschnittQuery,
   rundsteuerempfaengerQuery,
   SAVE_ENDPOINT,
@@ -1149,6 +1150,38 @@ export const fetchLeitungById = async (jwt: string, id: number) => {
   }
 
   return json.data?.leitung?.[0] ?? null;
+};
+
+export const fetchAbzweigdoseById = async (jwt: string, id: number) => {
+  const response = await fetch(ENDPOINT, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${jwt}`,
+    },
+    body: JSON.stringify({
+      query: abzweigdoseByIdQuery,
+      variables: { id },
+    }),
+  });
+
+  const text = await response.text();
+  if (!response.ok) {
+    throw new Error(`fetchAbzweigdoseById failed: ${response.status} ${text}`);
+  }
+
+  const json = JSON.parse(text) as {
+    data?: { abzweigdose?: unknown[] };
+    errors?: unknown;
+  };
+
+  if (json.errors) {
+    throw new Error(
+      `fetchAbzweigdoseById GraphQL errors: ${JSON.stringify(json.errors)}`
+    );
+  }
+
+  return json.data?.abzweigdose?.[0] ?? null;
 };
 
 /**
