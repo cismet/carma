@@ -678,6 +678,52 @@ function App({ name }) {
         };
       }
 
+      // Load helpSections if defined in config
+      if (Array.isArray(config?.tm?.helpSections)) {
+        const loadedHelpSections = [];
+        for (const section of config.tm.helpSections) {
+          let content = section.markdown;
+          // If markdown starts with @, fetch the file
+          if (
+            typeof content === "string" &&
+            content.startsWith("@")
+          ) {
+            const filename = content.slice(1);
+            const mdPath = server + path + slugName + "/" + filename;
+            try {
+              const response = await fetch(mdPath);
+              if (response.ok) {
+                content = await response.text();
+              } else {
+                console.warn(`Failed to load help section: ${mdPath}`);
+                content = "";
+              }
+            } catch (e) {
+              console.warn(`Error loading help section: ${mdPath}`, e);
+              content = "";
+            }
+          }
+          loadedHelpSections.push({
+            title: section.title,
+            bsStyle: section.bsStyle || "secondary",
+            contentBlockConf: {
+              type: "MARKDOWN",
+              content: content,
+            },
+          });
+        }
+        config.helpSections = loadedHelpSections;
+      } else if (config.simpleHelpObject) {
+        // Backwards compatibility: create helpSections from simpleHelpObject
+        config.helpSections = [
+          {
+            title: "Zweckbestimmung",
+            bsStyle: "secondary",
+            contentBlockConf: config.simpleHelpObject,
+          },
+        ];
+      }
+
       if (config.infoBoxConfig !== undefined) {
         config.info = config.infoBoxConfig;
         config.info.city = config.city;

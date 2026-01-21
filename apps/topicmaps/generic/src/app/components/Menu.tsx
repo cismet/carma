@@ -19,12 +19,18 @@ import { useContext } from "react";
 import { UIDispatchContext } from "react-cismap/contexts/UIContextProvider";
 import { RenderMarkdownSectionLinks } from "../helper";
 
+interface HelpSection {
+  title: string;
+  bsStyle: string;
+  contentBlockConf: any;
+}
+
 interface MenuProps {
   menuTitle: string;
   checkBoxSettingsSectionTitle: any;
   skipClusteringSettings: boolean;
   skipSymbolsizeSetting: boolean;
-  simpleHelp: any;
+  helpSections?: HelpSection[];
   previewMapPosition: any;
   previewFeatureCollectionCount: number;
   introductionMarkdown: string;
@@ -42,7 +48,7 @@ const Menu = (props: MenuProps) => {
     checkBoxSettingsSectionTitle,
     skipClusteringSettings,
     skipSymbolsizeSetting,
-    simpleHelp,
+    helpSections,
     previewMapPosition,
     previewFeatureCollectionCount,
     introductionMarkdown,
@@ -79,11 +85,7 @@ const Menu = (props: MenuProps) => {
                     content: <Datengrundlage />,
                   },
                 },
-                simpleHelp && {
-                  title: "Zweckbestimmung",
-                  bsStyle: "secondary",
-                  contentBlockConf: simpleHelp,
-                },
+                ...(helpSections || []),
 
                 ...(layerHelpBlocks || []),
 

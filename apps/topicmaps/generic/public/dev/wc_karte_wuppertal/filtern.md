@@ -1,0 +1,5 @@
+Am oberen Bildschirmrand finden Sie vier Filter-Schaltflächen, mit denen Sie die in der Karte angezeigten WC-Anlagen nach bestimmten Kriterien eingrenzen können. Die verfügbaren Filterkriterien sind "Kostenfrei", "Rollstuhlgerecht", "Wickeltisch" und "(24/7) Geöffnet".
+Standardmäßig sind alle Filter deaktiviert, sodass sämtliche WC-Anlagen in der Karte dargestellt werden. Durch Anklicken einer Filter-Schaltfläche aktivieren Sie das entsprechende Kriterium – die Schaltfläche wird dann blau hinterlegt. 
+In der Karte werden jetzt nur noch die WC-Anlagen angezeigt, die das gewählte Kriterium erfüllen.
+Sie können beliebig viele Filter gleichzeitig aktivieren. Bei Mehrfachauswahl werden nur WC-Anlagen dargestellt, die alle gewählten Kriterien erfüllen. Wenn Sie beispielsweise die Filter "Kostenfrei" und "Rollstuhlgerecht" aktivieren, zeigt die Karte ausschließlich WC-Anlagen an, die sowohl kostenfrei als auch rollstuhlgerecht sind.
+Durch erneutes Anklicken einer aktiven Filter-Schaltfläche deaktivieren Sie das Kriterium wieder. Die Schaltfläche "Alle" ermöglicht es Ihnen, sämtliche aktiven Filter mit einem Klick zu deaktivieren und wieder alle WC-Anlagen anzuzeigen.

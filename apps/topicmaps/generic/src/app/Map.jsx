@@ -338,7 +338,7 @@ const Map = ({
               skipSymbolsizeSetting={
                 config?.tm?.applicationMenuSkipSymbolsizeSetting
               }
-              simpleHelp={config?.simpleHelpObject}
+              helpSections={config?.helpSections}
               previewMapPosition={config?.tm?.previewMapPosition}
               previewChildren={renderCismapLayers(
                 config,
