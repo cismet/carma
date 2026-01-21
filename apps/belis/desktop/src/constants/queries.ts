@@ -320,6 +320,110 @@ query MyQuery($id: Int!) {
   }
 }`;
 
+queries.tdta_leuchten_by_id = `
+query MyQuery($id: Int!) {
+  tdta_leuchten(where: {id: {_eq: $id}}) {
+    anschlussleistung_1dk
+    anschlussleistung_2dk
+    anzahl_1dk
+    bemerkungen
+    einbaudatum
+    fk_dk1_tkey_doppelkommando {
+      beschreibung
+      pk
+      id
+    }
+    fk_dk1
+    fk_dk2
+    fk_dk2_tkey_doppelkommando {
+      beschreibung
+      id
+      pk
+    }
+    fk_energielieferant
+    fk_kennziffer
+    fk_leuchttyp
+    fk_standort
+    fk_strassenschluessel
+    fk_unterhaltspflicht_leuchte
+    id
+    inbetriebnahme_leuchte
+    is_deleted
+    kabeluebergangskasten_sk_ii
+    lebensdauer
+    leuchtennummer
+    leuchtmittel
+    leuchtmittelObject {
+      hersteller
+      id
+      lichtfarbe
+    }
+    lfd_nummer
+    montagefirma_leuchte
+    monteur
+    naechster_wechsel
+    plz
+    rundsteuerempfaenger
+    rundsteuerempfaengerObject {
+      anschlusswert
+      dms_url {
+        description
+        id
+        name
+        typ
+        url {
+          id
+          object_name
+          url_base {
+            id
+            path
+            prot_prefix
+            server
+          }
+        }
+      }
+      foto
+      id
+      herrsteller_rs
+      programm
+      rs_typ
+    }
+    schaltstelle
+    zaehler
+    wechselvorschaltgeraet
+    wechseldatum
+    wartungszyklus
+    vorschaltgeraet
+    tkey_unterh_leuchte {
+      id
+      pk
+      unterhaltspflichtiger_leuchte
+    }
+    anzahl_2dk
+    dokumenteArray {
+      dms_url {
+        description
+        id
+        name
+        typ
+        url {
+          id
+          object_name
+          url_base {
+            id
+            path
+            prot_prefix
+            server
+          }
+        }
+      }
+      fk_dokument
+      id
+      tdta_leuchte_reference
+    }
+  }
+}`;
+
 queries.anlagengruppe = `
 query MyQuery {
   anlagengruppe {

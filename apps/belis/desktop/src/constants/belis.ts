@@ -129,3 +129,7 @@ export const mauerlascheByIdQuery = gql`
 export const schaltstelleByIdQuery = gql`
   ${queries.schaltstelle_by_id}
 `;
+
+export const tdtaLeuchtenByIdQuery = gql`
+  ${queries.tdta_leuchten_by_id}
+`;
