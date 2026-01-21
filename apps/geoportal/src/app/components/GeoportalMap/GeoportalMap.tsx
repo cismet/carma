@@ -206,8 +206,8 @@ export const GeoportalMap = ({ height, width, allow3d }: MapProps) => {
   const { setSecondaryWithKey, showOverlayHandler } = useOverlayTourContext();
 
   const [isLoginFormVisible, setIsLoginFormVisible] = useState(false);
-  const [marker, setMarker] = useState(undefined);
-  const [markerAccent, setMarkerAccent] = useState(undefined);
+  const markerRef = useRef(undefined);
+  const markerAccentRef = useRef(undefined);
   const [pos, setPos] = useState<[number, number] | null>(null);
   // TODO: move all these to a custom hook and collect all calls to updateFeatureInfo there
   const [shouldUpdateFeatureInfo, setShouldUpdateFeatureInfo] =
@@ -463,16 +463,23 @@ export const GeoportalMap = ({ height, width, allow3d }: MapProps) => {
 
   useEffect(() => {
     const leaflet = getLeafletMap();
-    if (uiMode !== UIMode.FEATURE_INFO && marker !== undefined && leaflet) {
-      leaflet.removeLayer(marker);
-      leaflet.removeLayer(markerAccent);
+    if (
+      uiMode !== UIMode.FEATURE_INFO &&
+      markerRef.current !== undefined &&
+      leaflet
+    ) {
+      leaflet.removeLayer(markerRef.current);
+      leaflet.removeLayer(markerAccentRef.current);
+      // Clear refs when leaving feature info mode
+      markerRef.current = undefined;
+      markerAccentRef.current = undefined;
       dispatch(setSelectedFeature(null));
       dispatch(setSecondaryInfoBoxElements([]));
       dispatch(setFeatures([]));
       setPos(null);
       dispatch(setPreferredLayerId(""));
     }
-  }, [uiMode, getLeafletMap, marker, markerAccent, dispatch]);
+  }, [uiMode, getLeafletMap, dispatch]);
 
   useEffect(() => {
     if (isModeFeatureInfo && pos) updateFeatureInfoLeaflet();
@@ -685,22 +692,22 @@ export const GeoportalMap = ({ height, width, allow3d }: MapProps) => {
             if (!map) return;
 
             if (uiMode === UIMode.FEATURE_INFO) {
-              if (marker !== undefined) {
-                map.removeLayer(marker);
+              // Use refs for removal to avoid stale closure issues on zoom change
+              if (markerRef.current !== undefined) {
+                map.removeLayer(markerRef.current);
               }
-              if (markerAccent !== undefined) {
-                map.removeLayer(markerAccent);
+              if (markerAccentRef.current !== undefined) {
+                map.removeLayer(markerAccentRef.current);
               }
 
               map.getPane(
                 "markerPaneWithBlendModeDifference"
               ).style.zIndex = 601;
-              setMarkerAccent(
-                L.marker([e.latlng.lat, e.latlng.lng], {
-                  // pane: "backgroundlayerTooltips",
-                  icon: L.divIcon({
-                    className: "custom-marker", // Optional class for external styles
-                    html: `
+              const newMarkerAccent = L.marker([e.latlng.lat, e.latlng.lng], {
+                // pane: "backgroundlayerTooltips",
+                icon: L.divIcon({
+                  className: "custom-marker", // Optional class for external styles
+                  html: `
                           <div style="
                             position: relative;
                             width: 30px;
@@ -752,16 +759,16 @@ export const GeoportalMap = ({ height, width, allow3d }: MapProps) => {
                             "></div>
                           </div>
                         `,
-                    iconSize: [30, 30],
-                  }),
-                }).addTo(map)
-              );
-              setMarker(
-                L.marker([e.latlng.lat, e.latlng.lng], {
-                  pane: "markerPaneWithBlendModeDifference",
-                  icon: L.divIcon({
-                    className: "custom-marker", // Optional class for external styles
-                    html: `
+                  iconSize: [30, 30],
+                }),
+              }).addTo(map);
+              markerAccentRef.current = newMarkerAccent;
+
+              const newMarker = L.marker([e.latlng.lat, e.latlng.lng], {
+                pane: "markerPaneWithBlendModeDifference",
+                icon: L.divIcon({
+                  className: "custom-marker", // Optional class for external styles
+                  html: `
                           <div style="
                             position: relative;
                             width: 30px;
@@ -780,10 +787,10 @@ export const GeoportalMap = ({ height, width, allow3d }: MapProps) => {
                             ">
                           </div>
                         `,
-                    iconSize: [30, 30],
-                  }),
-                }).addTo(map)
-              );
+                  iconSize: [30, 30],
+                }),
+              }).addTo(map);
+              markerRef.current = newMarker;
 
               setPos([e.latlng.lat, e.latlng.lng]);
             }
