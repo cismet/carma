@@ -33,6 +33,7 @@ import {
 } from "@carma-providers/feature-flag";
 
 import { flattenLayer, wmsLayerToGenericItem } from "../helper/layerHelper";
+import { isCurrentlyFeatured } from "../helper/dateHelper";
 import LayerTabs from "./LayerTabs";
 import { SidebarItem } from "./SidebarItems";
 
@@ -539,83 +540,6 @@ export const NewLibModal = ({
       }
     });
     return allLayersLoaded;
-  };
-
-  const isCurrentlyFeatured = (
-    featuredFrom?: string,
-    featuredUntil?: string
-  ): boolean => {
-    if (!featuredFrom && !featuredUntil) {
-      return false;
-    }
-
-    const parseDate = (dateStr: string) => {
-      const parts = dateStr.split(".");
-      if (parts.length !== 3) return null;
-
-      const [y, m, d] = parts;
-      return {
-        year: y === "*" ? null : parseInt(y, 10),
-        month: m === "*" ? null : parseInt(m, 10),
-        day: d === "*" ? null : parseInt(d, 10),
-      };
-    };
-
-    const today = new Date();
-    const y = today.getFullYear();
-    const m = today.getMonth() + 1;
-    const d = today.getDate();
-
-    let featured = true;
-
-    if (featuredFrom) {
-      const parsed = parseDate(featuredFrom);
-      if (!parsed) return false;
-      const { year: yFrom, month: mFrom, day: dFrom } = parsed;
-      if (yFrom !== null && yFrom > y) {
-        featured = false;
-      } else if (yFrom === null || yFrom < y) {
-        // Year passes
-      } else {
-        // yFrom === y
-        if (mFrom !== null && mFrom > m) {
-          featured = false;
-        } else if (mFrom === null || mFrom < m) {
-          // Month passes
-        } else {
-          // mFrom === m
-          if (dFrom !== null && dFrom > d) {
-            featured = false;
-          }
-        }
-      }
-    }
-
-    if (featured && featuredUntil) {
-      const parsed = parseDate(featuredUntil);
-      if (!parsed) return false;
-      const { year: yUntil, month: mUntil, day: dUntil } = parsed;
-
-      if (yUntil !== null && yUntil < y) {
-        featured = false;
-      } else if (yUntil === null || yUntil > y) {
-        // Year passes
-      } else {
-        // yUntil === y
-        if (mUntil !== null && mUntil < m) {
-          featured = false;
-        } else if (mUntil === null || mUntil > m) {
-          // Month passes
-        } else {
-          // mUntil === m
-          if (dUntil !== null && dUntil < d) {
-            featured = false;
-          }
-        }
-      }
-    }
-
-    return featured;
   };
 
   useEffect(() => {
