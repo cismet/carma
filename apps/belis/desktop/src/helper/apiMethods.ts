@@ -12,6 +12,7 @@ import {
   mauerlascheByIdQuery,
   schaltstelleByIdQuery,
   tdtaLeuchtenByIdQuery,
+  leitungByIdQuery,
   querschnittQuery,
   rundsteuerempfaengerQuery,
   SAVE_ENDPOINT,
@@ -1116,6 +1117,38 @@ export const fetchTdtaLeuchtenById = async (jwt: string, id: number) => {
   }
 
   return json.data?.tdta_leuchten?.[0] ?? null;
+};
+
+export const fetchLeitungById = async (jwt: string, id: number) => {
+  const response = await fetch(ENDPOINT, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${jwt}`,
+    },
+    body: JSON.stringify({
+      query: leitungByIdQuery,
+      variables: { id },
+    }),
+  });
+
+  const text = await response.text();
+  if (!response.ok) {
+    throw new Error(`fetchLeitungById failed: ${response.status} ${text}`);
+  }
+
+  const json = JSON.parse(text) as {
+    data?: { leitung?: unknown[] };
+    errors?: unknown;
+  };
+
+  if (json.errors) {
+    throw new Error(
+      `fetchLeitungById GraphQL errors: ${JSON.stringify(json.errors)}`
+    );
+  }
+
+  return json.data?.leitung?.[0] ?? null;
 };
 
 /**

@@ -424,6 +424,55 @@ query MyQuery($id: Int!) {
   }
 }`;
 
+queries.leitung_by_id = `
+query MyQuery($id: Int!) {
+  leitung(where: {id: {_eq: $id}}) {
+    dokumenteArray {
+      dms_url {
+        description
+        id
+        name
+        typ
+        url {
+          id
+          object_name
+          url_base {
+            id
+            path
+            prot_prefix
+            server
+          }
+        }
+      }
+      fk_dokument
+      id
+      leitung_reference
+    }
+    fk_geom
+    fk_leitungstyp
+    fk_material
+    fk_querschnitt
+    geom {
+      geo_field
+      id
+    }
+    id
+    is_deleted
+    leitungstyp {
+      bezeichnung
+      id
+    }
+    material_leitung {
+      bezeichnung
+      id
+    }
+    querschnitt {
+      groesse
+      id
+    }
+  }
+}`;
+
 queries.anlagengruppe = `
 query MyQuery {
   anlagengruppe {

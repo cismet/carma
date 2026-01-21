@@ -133,3 +133,7 @@ export const schaltstelleByIdQuery = gql`
 export const tdtaLeuchtenByIdQuery = gql`
   ${queries.tdta_leuchten_by_id}
 `;
+
+export const leitungByIdQuery = gql`
+  ${queries.leitung_by_id}
+`;
