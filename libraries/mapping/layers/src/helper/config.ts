@@ -298,7 +298,7 @@ export const topicMapsConfig: Config = {
       ],
       type: "link",
       thumbnail:
-        "https://images.unsplash.com/photo-1618901882511-e7adb73a1ee0?q=80&w=2664&auto=format&fit=crop&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D",
+        "https://geoportal-files.cismet.de/1769010615099-1618901882511-e7adb73a1ee0.jpg",
 
       url: "https://digital-twin-wuppertal-live.github.io/stadtplan/#/",
       keywords: [
@@ -352,7 +352,7 @@ export const topicMapsConfig: Config = {
       ],
       type: "link",
       thumbnail:
-        "https://images.unsplash.com/photo-1558617320-e695f0d420de?q=80&w=2070&auto=format&fit=crop&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D",
+        "https://geoportal-files.cismet.de/1769010650178-1558617320-e695f0d420de.jpg",
       url: "https://digital-twin-wuppertal-live.github.io/baederkarte/",
       serviceName: "wuppTopicMaps",
     },
@@ -374,7 +374,7 @@ export const topicMapsConfig: Config = {
       ],
       type: "link",
       thumbnail:
-        "https://images.unsplash.com/photo-1567746455504-cb3213f8f5b8?q=80&w=2670&auto=format&fit=crop&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D",
+        "https://geoportal-files.cismet.de/1769010862996-1567746455504-cb3213f8f5b8.jpg",
 
       url: "https://digital-twin-wuppertal-live.github.io/kita-finder/",
       keywords: [
@@ -562,7 +562,7 @@ export const topicMapsConfig: Config = {
       ],
       type: "link",
       thumbnail:
-        "https://images.unsplash.com/photo-1580993777851-40514758f716?q=80&w=2669&auto=format&fit=crop&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D",
+        "https://geoportal-files.cismet.de/1769010875988-1580993777851-40514758f716.jpg",
       keywords: [
         "carmaConf://opendata:https://offenedaten-wuppertal.de/dataset/hochwassersimulationen-nrw/resource/2bd13c11-6ae4-4c92-a3c5-3d2897d8ab79",
       ],
@@ -588,7 +588,7 @@ export const topicMapsConfig: Config = {
       ],
       type: "link",
       thumbnail:
-        "https://images.unsplash.com/photo-1527766833261-b09c3163a791?q=80&w=2670&auto=format&fit=crop&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D",
+        "https://geoportal-files.cismet.de/1769010841464-1527766833261-b09c3163a791.jpg",
       keywords: [
         "carmaConf://opendata:https://offenedaten-wuppertal.de/dataset/starkregensimulation-wuppertal-sri-10-version-21-102022/resource/2707b0d7-4601-4b36-926e",
       ],
@@ -637,7 +637,7 @@ export const topicMapsConfig: Config = {
       ],
       type: "link",
       thumbnail:
-        "https://images.unsplash.com/photo-1548337138-e87d889cc369?q=80&w=2096&auto=format&fit=crop&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D",
+        "https://geoportal-files.cismet.de/1769010820993-1548337138-e87d889cc369.jpg",
       keywords: [
         "carmaConf://opendata:https://offenedaten-wuppertal.de/dataset/klimaorte-wuppertal/resource/18dd4a9c-a007-480b-bbde-77ece763e408",
       ],
