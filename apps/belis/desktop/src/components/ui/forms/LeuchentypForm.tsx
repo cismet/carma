@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Form, Input, Row, Col, message } from "antd";
+import { Form, Input, InputNumber, Row, Col, message } from "antd";
 import type { FormInstance, UploadFile } from "antd";
 import FormActionButtons from "../FormActionButtons";
 import DocumentPreview, { DokumentItem } from "../DocumentPreview";
@@ -41,6 +41,16 @@ interface LeuchentypFormProps {
   isSaving?: boolean;
   onValidationChange?: (hasErrors: boolean) => void;
 }
+
+// Numeric fields (double/integer) - empty values should be null, not 0
+const NUMERIC_FIELDS = [
+  "bestueckung",
+  "leistung",
+  "leistung_brutto",
+  "leistung_reduziert",
+  "leistung_brutto_reduziert",
+  "leistung2stufe",
+];
 
 // Helper to get unique identifier for a document (handles id: -1 case)
 const getDocumentKey = (doc: DokumentItem) => {
@@ -239,6 +249,20 @@ const LeuchentypForm = ({
       return;
     }
 
+    // Convert empty numeric fields to null (not 0)
+    const processedValues = { ...values };
+    NUMERIC_FIELDS.forEach((field) => {
+      const value = processedValues[field];
+      // Convert empty string, undefined, or 0 to null for numeric fields
+      if (value === "" || value === undefined || value === 0) {
+        processedValues[field] = null;
+      } else if (typeof value === "string" && value.trim() !== "") {
+        // Convert string numbers to actual numbers
+        const num = parseFloat(value);
+        processedValues[field] = isNaN(num) ? null : num;
+      }
+    });
+
     // Upload pending files first and get the new document items
     let newDocuments: DokumentItem[] = [];
     if (pendingFiles.length > 0) {
@@ -260,7 +284,7 @@ const LeuchentypForm = ({
 
     const updatedItem = {
       ...item,
-      ...values,
+      ...processedValues,
       dokumenteArray: updatedDokumenteArray,
     };
 
@@ -268,7 +292,7 @@ const LeuchentypForm = ({
     const result = saveKeyTableItemWithCallback({
       item: updatedItem,
       values: {
-        ...values,
+        ...processedValues,
         dokumenteArray: updatedDokumenteArray,
       },
       tableName,
@@ -358,7 +382,11 @@ const LeuchentypForm = ({
             }
             style={{ marginBottom: 16 }}
           >
-            <Input />
+            <InputNumber
+              style={{ width: "100%" }}
+              decimalSeparator=","
+              precision={2}
+            />
           </Form.Item>
         </Col>
       </Row>
@@ -374,7 +402,11 @@ const LeuchentypForm = ({
             }
             style={{ marginBottom: 16 }}
           >
-            <Input />
+            <InputNumber
+              style={{ width: "100%" }}
+              decimalSeparator=","
+              precision={2}
+            />
           </Form.Item>
         </Col>
         <Col span={12}>
@@ -387,7 +419,11 @@ const LeuchentypForm = ({
             }
             style={{ marginBottom: 16 }}
           >
-            <Input />
+            <InputNumber
+              style={{ width: "100%" }}
+              decimalSeparator=","
+              precision={2}
+            />
           </Form.Item>
         </Col>
       </Row>
@@ -403,7 +439,11 @@ const LeuchentypForm = ({
             }
             style={{ marginBottom: 16 }}
           >
-            <Input />
+            <InputNumber
+              style={{ width: "100%" }}
+              decimalSeparator=","
+              precision={2}
+            />
           </Form.Item>
         </Col>
         <Col span={12}>
@@ -416,7 +456,11 @@ const LeuchentypForm = ({
             }
             style={{ marginBottom: 16 }}
           >
-            <Input />
+            <InputNumber
+              style={{ width: "100%" }}
+              decimalSeparator=","
+              precision={2}
+            />
           </Form.Item>
         </Col>
       </Row>
