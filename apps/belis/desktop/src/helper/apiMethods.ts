@@ -10,6 +10,7 @@ import {
   materialLeitungQuery,
   materialMauerlascheQuery,
   mauerlascheByIdQuery,
+  schaltstelleByIdQuery,
   querschnittQuery,
   rundsteuerempfaengerQuery,
   SAVE_ENDPOINT,
@@ -1050,6 +1051,38 @@ export const fetchMauerlascheById = async (jwt: string, id: number) => {
   }
 
   return json.data?.mauerlasche?.[0] ?? null;
+};
+
+export const fetchSchaltstelleById = async (jwt: string, id: number) => {
+  const response = await fetch(ENDPOINT, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${jwt}`,
+    },
+    body: JSON.stringify({
+      query: schaltstelleByIdQuery,
+      variables: { id },
+    }),
+  });
+
+  const text = await response.text();
+  if (!response.ok) {
+    throw new Error(`fetchSchaltstelleById failed: ${response.status} ${text}`);
+  }
+
+  const json = JSON.parse(text) as {
+    data?: { schaltstelle?: unknown[] };
+    errors?: unknown;
+  };
+
+  if (json.errors) {
+    throw new Error(
+      `fetchSchaltstelleById GraphQL errors: ${JSON.stringify(json.errors)}`
+    );
+  }
+
+  return json.data?.schaltstelle?.[0] ?? null;
 };
 
 /**

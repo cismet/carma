@@ -224,6 +224,102 @@ query MyQuery($id: Int!) {
   }
 }`;
 
+queries.schaltstelle_by_id = `
+query MyQuery($id: Int!) {
+  schaltstelle(where: {id: {_eq: $id}}) {
+    bauart {
+      bezeichnung
+      id
+    }
+    bemerkung
+    dms_url {
+      description
+      id
+      name
+      typ
+      url {
+        id
+        object_name
+        url_base {
+          id
+          path
+          prot_prefix
+          server
+        }
+      }
+    }
+    dokumenteArray {
+      schaltstelle_reference
+      id
+      fk_dokument
+      dms_url {
+        description
+        id
+        name
+        typ
+        url {
+          object_name
+          id
+          url_base {
+            id
+            path
+            prot_prefix
+            server
+          }
+        }
+      }
+    }
+    einbaudatum_rs
+    erstellungsjahr
+    fk_bauart
+    fk_geom
+    fk_strassenschluessel
+    foto
+    geom {
+      geo_field
+      id
+    }
+    haus_nummer
+    id
+    is_deleted
+    laufende_nummer
+    monteur
+    pruefdatum
+    rundsteuerempfaenger
+    rundsteuerempfaengerObject {
+      anschlusswert
+      foto
+      herrsteller_rs
+      id
+      programm
+      rs_typ
+      dms_url {
+        description
+        id
+        name
+        typ
+        url {
+          id
+          object_name
+          url_base {
+            id
+            path
+            prot_prefix
+            server
+          }
+        }
+      }
+    }
+    tkey_strassenschluessel {
+      id
+      pk
+      strasse
+    }
+    zusaetzliche_standortbezeichnung
+    schaltstellen_nummer
+  }
+}`;
+
 queries.anlagengruppe = `
 query MyQuery {
   anlagengruppe {
