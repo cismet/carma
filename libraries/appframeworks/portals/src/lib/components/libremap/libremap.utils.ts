@@ -870,7 +870,8 @@ export const vectorStylesToMapLibreStyle = async ({
             ...(styleLayer.id.toLowerCase().includes("selection")
               ? {}
               : {
-                  [getPaintProperty(styleLayer)]: 1,
+                  [getPaintProperty(styleLayer)]:
+                    styleLayer.paint?.[getPaintProperty(styleLayer)] || 1,
                 }),
           },
           layout: {
