@@ -2,10 +2,10 @@ import { useContext } from "react";
 import { ResponsiveTopicMapContext } from "react-cismap/contexts/ResponsiveTopicMapContextProvider";
 import { FeatureCollectionContext } from "react-cismap/contexts/FeatureCollectionContextProvider";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
-import { faSignOut, faUser } from "@fortawesome/free-solid-svg-icons";
+import { faSignOut, faUser, faCloud } from "@fortawesome/free-solid-svg-icons";
 // Simple TitleControl modeled after potenzialflächen
 // Expects: props.logout() and props.jwt
-const TitleControl = ({ logout, jwt, title = "BBW-Online" }) => {
+const TitleControl = ({ logout, jwt, title = "BBW-Online", connectionError = false }) => {
   const { windowSize } = useContext(ResponsiveTopicMapContext);
   const { metaInformation } = useContext(FeatureCollectionContext) || {};
 
@@ -32,6 +32,32 @@ const TitleControl = ({ logout, jwt, title = "BBW-Online" }) => {
   // Determine if we're in mobile/narrow mode
   const isNarrow = (windowSize?.width || 300) < 600;
 
+  // Connection error indicator - cloud with strikethrough (black, positioned on right)
+  const connectionErrorIndicator = connectionError ? (
+    <span
+      style={{
+        position: "relative",
+        display: "inline-block",
+        marginLeft: "8px",
+        color: "#333",
+      }}
+      title="Offline"
+    >
+      <FontAwesomeIcon icon={faCloud} />
+      <span
+        style={{
+          position: "absolute",
+          left: "50%",
+          top: "50%",
+          width: "120%",
+          height: "2px",
+          backgroundColor: "#333",
+          transform: "translate(-50%, -50%) rotate(-45deg)",
+        }}
+      />
+    </span>
+  ) : null;
+
   const titleContent = isNarrow ? (
     // Mobile layout: Single row with title, user icon, and logout icon
     <div
@@ -43,6 +69,7 @@ const TitleControl = ({ logout, jwt, title = "BBW-Online" }) => {
     >
       <span>
         <b>{title}</b> (<FontAwesomeIcon icon={faUser} /> {username})
+        {connectionErrorIndicator}
       </span>
       {/* eslint-disable-next-line jsx-a11y/anchor-is-valid */}
       <a
@@ -59,6 +86,7 @@ const TitleControl = ({ logout, jwt, title = "BBW-Online" }) => {
     <div>
       <b>{title}</b> (<FontAwesomeIcon icon={faUser} />{" "}
       {username + (dateInfo ? ", " + dateInfo : "")})
+      {connectionErrorIndicator}
       <div style={{ float: "right", paddingRight: 10 }}>
         {/* eslint-disable-next-line jsx-a11y/anchor-is-valid */}
         <a

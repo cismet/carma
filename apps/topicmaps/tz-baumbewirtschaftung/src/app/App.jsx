@@ -142,6 +142,21 @@ function App() {
   const { progress, showProgress, handleProgressUpdate } = useProgress();
   const [auth, setAuth] = useState({ checked: false, jwt: null });
   const [loginInfo, setLoginInfo] = useState();
+  const [connectionError, setConnectionError] = useState(!navigator.onLine);
+
+  // Listen for browser online/offline events
+  useEffect(() => {
+    const handleOnline = () => setConnectionError(false);
+    const handleOffline = () => setConnectionError(true);
+
+    window.addEventListener("online", handleOnline);
+    window.addEventListener("offline", handleOffline);
+
+    return () => {
+      window.removeEventListener("online", handleOnline);
+      window.removeEventListener("offline", handleOffline);
+    };
+  }, []);
 
   useEffect(() => {
     document.title = "Teilzwilling Baumbewirtschaftung Wuppertal";
@@ -244,6 +259,7 @@ function App() {
           logout={() => {
             setAuth({ checked: true, jwt: undefined });
           }}
+          connectionError={connectionError}
         />
         <Map
           jwt={auth.jwt}
@@ -256,6 +272,7 @@ function App() {
             });
             setTimeout(() => setLoginInfo(), 2500);
           }}
+          onConnectionError={(hasError) => setConnectionError(hasError)}
         />
       </TopicMapContextProvider>
     </SyncProvider>

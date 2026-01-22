@@ -65,10 +65,12 @@ const TZBaumbewirtschaftung = ({
   jwt,
   login,
   onAuthError,
+  onConnectionError,
 }: {
   jwt?: string;
   login?: string | null;
   onAuthError?: () => void;
+  onConnectionError?: (hasError: boolean) => void;
 }) => {
   const isFollowMode = getUrlParam("followMode");
   const isCrossHairEnabled = getUrlParam("crossHair");
@@ -135,6 +137,20 @@ const TZBaumbewirtschaftung = ({
           APP_CONFIG.restService,
           APP_CONFIG.domain
         );
+
+        // Check for HTTP errors (fetchGraphQL returns ok: false for HTTP errors)
+        if (!result.ok) {
+          if (result.status === 401) {
+            // Unauthorized - trigger re-login
+            onAuthError?.();
+            return;
+          } else {
+            // Other HTTP errors - show connection error indicator
+            onConnectionError?.(true);
+            return;
+          }
+        }
+
         const newActions = result?.data?.tzb_tree_action || [];
         if (newActions.length > 0) {
           // Mark actions as intermediate (from polling)
@@ -148,13 +164,15 @@ const TZBaumbewirtschaftung = ({
           setMaxTreeActionId(newMaxId);
         }
       } catch (error) {
-        console.error("[Polling] Error polling new tree actions:", error);
+        // Network errors (offline, DNS failure, etc.) end up here
+        console.error("[Polling] Network error:", error);
+        onConnectionError?.(true);
       }
     };
     const intervalId = setInterval(pollNewActions, 2500);
 
     return () => clearInterval(intervalId);
-  }, [jwt, maxTreeActionId]);
+  }, [jwt, maxTreeActionId, onAuthError, onConnectionError]);
 
   // Handler for when user creates an action - add to upcoming for optimistic display
   const handleUpcomingAction = (actionPayload: any) => {
@@ -402,8 +420,13 @@ const TZBaumbewirtschaftung = ({
         );
       } catch (error) {
         console.error("[Data] Error loading:", error);
-        if ((error as any)?.status === 401) {
+        const status = (error as any)?.status;
+        if (status === 401) {
+          // Unauthorized - trigger re-login
           onAuthError?.();
+        } else {
+          // Other errors (network, etc.) - show connection error indicator
+          onConnectionError?.(true);
         }
       }
     })();

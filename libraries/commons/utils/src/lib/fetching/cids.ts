@@ -44,6 +44,11 @@ export async function fetchGraphQL<T = unknown>(
       }
     );
 
+    // Check for auth errors before parsing JSON (server may return HTML for 401)
+    if (response.status === 401) {
+      return { ok: false, status: 401 };
+    }
+
     const resultjson = await response.json();
 
     if (response.status >= 200 && response.status < 300) {
