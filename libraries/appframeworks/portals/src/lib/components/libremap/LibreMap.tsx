@@ -29,11 +29,21 @@ import { FeatureInfobox } from "../FeatureInfobox";
 import { useLibreContext } from "./LibreContext";
 import { useClusterMarkers } from "./useClusterMarkers";
 
-interface LibreMapProps {
+export interface GeoJsonData {
+  sourceId: string;
+  data: GeoJSON.FeatureCollection;
+}
+
+export interface LibreMapProps {
   backgroundLayers?: string;
   layers?: LibreLayer[];
-  setLibreMap: (map: maplibregl.Map) => void;
+  setLibreMap?: (map: maplibregl.Map) => void;
   onProgressUpdate?: (progress: { current: number; total: number }) => void;
+  filterFunction?: (
+    map: maplibregl.Map,
+    layers?: LibreLayer[],
+    geoJsonData?: GeoJsonData[]
+  ) => void;
 }
 
 export const LibreMap = ({
@@ -41,6 +51,7 @@ export const LibreMap = ({
   layers,
   setLibreMap,
   onProgressUpdate,
+  filterFunction,
 }: LibreMapProps) => {
   const mapContainer = useRef<HTMLDivElement>(null);
   const map = useRef<maplibregl.Map | null>(null);
@@ -425,7 +436,7 @@ export const LibreMap = ({
       });
 
       mapInstance.on("move", () => {
-        if (layers.find((layer) => layer.type === "vector")) {
+        if (layers?.find((layer) => layer.type === "vector")) {
           vectorSourcesReadyRef.current = false;
         } else {
           vectorSourcesReadyRef.current = true;
@@ -488,6 +499,8 @@ export const LibreMap = ({
           // Save terrain state before setting style
           const currentTerrain = map.current?.getTerrain();
 
+          console.log("xxx", style);
+
           map.current?.setStyle(style);
 
           // Update context with the full map style
@@ -528,6 +541,21 @@ export const LibreMap = ({
           });
 
           mappingRef.current = mapping;
+
+          // Apply filter function after style is loaded
+          if (filterFunction && map.current) {
+            const applyFilter = () => {
+              if (map.current) {
+                filterFunction(map.current, layers);
+              }
+            };
+
+            if (map.current.isStyleLoaded()) {
+              applyFilter();
+            } else {
+              map.current.once("styledata", applyFilter);
+            }
+          }
 
           // Track progress for geojson layers
           if (geoJsonMetadata.length > 0 && onProgressUpdate) {
@@ -578,7 +606,13 @@ export const LibreMap = ({
     };
 
     updateMapStyle();
-  }, [backgroundStyle, layers, clusteringEnabled, markerSymbolSize]);
+  }, [
+    backgroundStyle,
+    layers,
+    clusteringEnabled,
+    markerSymbolSize,
+    filterFunction,
+  ]);
 
   const { handleTopicMapLocationChange } = useMapHashRouting({
     getLeafletMap: () => {
