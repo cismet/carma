@@ -657,7 +657,48 @@ export const getVectorMapping = async (vectorStyles: VectorStyle[]) => {
     let capabilitiesUrl = "";
     let infoboxMapping: string[] | string = vectorStyle.infoboxMapping || [];
 
-    if (vectorStyle.layer) {
+    // First, try to get mapping from the vector style's metadata
+    if (!vectorStyle.infoboxMapping && vectorStyle.style) {
+      try {
+        const styleResponse = await fetch(vectorStyle.style);
+        const styleJson = await styleResponse.json();
+
+        const styleKeywords =
+          styleJson.metadata?.carmaConf?.layerInfo?.keywords;
+        if (styleKeywords && Array.isArray(styleKeywords)) {
+          const extractedFromStyle = extractCarmaConfig(styleKeywords);
+          if (extractedFromStyle?.infoboxMapping?.length > 0) {
+            infoboxMapping = extractedFromStyle.infoboxMapping;
+          }
+        }
+
+        if (
+          (!infoboxMapping ||
+            (Array.isArray(infoboxMapping) && infoboxMapping.length === 0)) &&
+          styleJson.layers
+        ) {
+          for (const layer of styleJson.layers) {
+            const layerKeywords = layer.metadata?.carmaConf?.keywords;
+            if (layerKeywords && Array.isArray(layerKeywords)) {
+              const extractedFromLayer = extractCarmaConfig(layerKeywords);
+              if (extractedFromLayer?.infoboxMapping?.length > 0) {
+                infoboxMapping = extractedFromLayer.infoboxMapping;
+                break; // Use first layer with mapping found
+              }
+            }
+          }
+        }
+      } catch (error) {
+        console.warn("Error fetching vector style for carmaConf:", error);
+      }
+    }
+
+    // Fallback to WMS capabilities if no mapping found yet
+    if (
+      vectorStyle.layer &&
+      (!infoboxMapping ||
+        (Array.isArray(infoboxMapping) && infoboxMapping.length === 0))
+    ) {
       const atIdx = vectorStyle.layer.indexOf("@");
       if (atIdx > 0) {
         capabilitiesLayer = vectorStyle.layer.substring(0, atIdx);
@@ -685,6 +726,7 @@ export const getVectorMapping = async (vectorStyles: VectorStyle[]) => {
         }
       }
     }
+
     const layerId = capabilitiesLayer || vectorStyle.name;
 
     if (
