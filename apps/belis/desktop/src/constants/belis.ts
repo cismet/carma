@@ -141,3 +141,7 @@ export const leitungByIdQuery = gql`
 export const abzweigdoseByIdQuery = gql`
   ${queries.abzweigdose_by_id}
 `;
+
+export const tdtaStandortMastByIdQuery = gql`
+  ${queries.tdta_standort_mast_by_id}
+`;

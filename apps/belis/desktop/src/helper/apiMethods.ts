@@ -14,6 +14,7 @@ import {
   tdtaLeuchtenByIdQuery,
   leitungByIdQuery,
   abzweigdoseByIdQuery,
+  tdtaStandortMastByIdQuery,
   querschnittQuery,
   rundsteuerempfaengerQuery,
   SAVE_ENDPOINT,
