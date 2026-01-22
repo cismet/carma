@@ -118,6 +118,7 @@ const CarmaMapContent = (props: CarmaMapProps) => {
           layers={libreLayers}
           onProgressUpdate={props.onProgressUpdate}
           filterFunction={props.filterFunction}
+          useRouting={props.useRouting}
         />
       );
     }
@@ -126,7 +127,13 @@ const CarmaMapContent = (props: CarmaMapProps) => {
   return (
     <HashStateProvider>
       <MapFrameworkSwitcherProvider>
-        <div className={embedded ? "relative flex flex-col w-full h-full" : TAILWIND_CLASSNAMES_FULLSCREEN_FIXED}>
+        <div
+          className={
+            embedded
+              ? "relative flex flex-col w-full h-full"
+              : TAILWIND_CLASSNAMES_FULLSCREEN_FIXED
+          }
+        >
           <ControlLayout ifStorybook={false}>
             {zoomControls && (
               <Control position="topleft" order={10}>

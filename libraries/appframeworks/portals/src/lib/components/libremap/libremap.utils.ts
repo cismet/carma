@@ -564,7 +564,8 @@ export const objectToFeature = (jsonOutput: any, code: string) => {
 export const createFeature = (
   selectedVectorFeature,
   layerMapping,
-  mapInstance?: maplibregl.Map
+  mapInstance?: maplibregl.Map,
+  useRouting?: boolean
 ) => {
   let feature = undefined;
 
@@ -596,47 +597,48 @@ export const createFeature = (
       return undefined;
     }
     const genericLinks = featureProperties.properties.genericLinks || [];
+    console.log("xxx", useRouting);
+    if (useRouting) {
+      genericLinks.unshift({
+        iconname: "car",
+        tooltip: "Route berechnen",
+        routeAction: true,
+        getRouteParams: () => {
+          // Get endpoint coordinates from feature geometry
+          const geometry = selectedVectorFeature.geometry;
+          let endLat: number, endLng: number;
+
+          if (geometry.type === "Point") {
+            [endLng, endLat] = geometry.coordinates as [number, number];
+          } else if (
+            geometry.type === "Polygon" ||
+            geometry.type === "MultiPolygon"
+          ) {
+            // Use centroid for polygons (simplified: use first coordinate)
+            const coords =
+              geometry.type === "Polygon"
+                ? geometry.coordinates[0][0]
+                : geometry.coordinates[0][0][0];
+            [endLng, endLat] = coords as [number, number];
+          } else {
+            return null;
+          }
+
+          const startLat = 51.2725699;
+          const startLng = 7.199918;
+
+          return {
+            from: { lat: startLat, lng: startLng },
+            to: { lat: endLat, lng: endLng },
+          };
+        },
+      });
+    }
 
     feature = {
       properties: {
         ...featureProperties.properties,
-        genericLinks: [
-          {
-            iconname: "car",
-            tooltip: "Route berechnen",
-            routeAction: true,
-            getRouteParams: () => {
-              // Get endpoint coordinates from feature geometry
-              const geometry = selectedVectorFeature.geometry;
-              let endLat: number, endLng: number;
-
-              if (geometry.type === "Point") {
-                [endLng, endLat] = geometry.coordinates as [number, number];
-              } else if (
-                geometry.type === "Polygon" ||
-                geometry.type === "MultiPolygon"
-              ) {
-                // Use centroid for polygons (simplified: use first coordinate)
-                const coords =
-                  geometry.type === "Polygon"
-                    ? geometry.coordinates[0][0]
-                    : geometry.coordinates[0][0][0];
-                [endLng, endLat] = coords as [number, number];
-              } else {
-                return null;
-              }
-
-              const startLat = 51.2725699;
-              const startLng = 7.199918;
-
-              return {
-                from: { lat: startLat, lng: startLng },
-                to: { lat: endLat, lng: endLng },
-              };
-            },
-          },
-          ...genericLinks,
-        ],
+        genericLinks: [...genericLinks],
         zoom: featureInfoZoom,
       },
       geometry: selectedVectorFeature.geometry,
