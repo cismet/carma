@@ -227,7 +227,10 @@ const MapWrapper = () => {
 
   const { setSelection } = useSelection();
 
-  const onGazetteerSelection = (selection: SearchResultItem) => {
+  const onGazetteerSelection = (
+    selection: SearchResultItem,
+    skipMapMovement = false
+  ) => {
     if (!selection) {
       console.debug("onGazetteerSelection", selection);
       setSelection(null);
@@ -238,7 +241,7 @@ const MapWrapper = () => {
       selectedFromMapMode: isLeaflet
         ? SelectionMapMode.MODE_2D
         : SelectionMapMode.MODE_3D,
-      selectionTimestamp: Date.now(),
+      selectionTimestamp: skipMapMovement ? null : Date.now(),
       isAreaSelection: isAreaType(selection.type as ENDPOINT),
     };
 

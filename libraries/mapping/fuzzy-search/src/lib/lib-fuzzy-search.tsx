@@ -166,14 +166,14 @@ export function LibFuzzySearch({
     }
   }, [options]);
 
-  const handleOnSelect = (option) => {
+  const handleOnSelect = (option, skipMapMovement = false) => {
     setCleanBtnDisable(false);
     console.info("[SEARCH] selected option", option);
     if (option.sData) {
-      _onSelection(option.sData);
+      _onSelection(option.sData, skipMapMovement);
       setValue(option.sData.string);
     } else {
-      _onSelection(option);
+      _onSelection(option, skipMapMovement);
       setValue(option.string);
     }
 
@@ -346,7 +346,7 @@ export function LibFuzzySearch({
 
   useEffect(() => {
     if (selection) {
-      handleOnSelect(selection);
+      handleOnSelect(selection, true);
     }
   }, [selection]);
 

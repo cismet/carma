@@ -474,7 +474,7 @@ export const useCreateGazetteerSelectorForLeaflet = ({
 
   const { setSelection } = useSelection();
 
-  const onGazetteerSelection = (selection) => {
+  const onGazetteerSelection = (selection, skipMapMovement = false) => {
     before();
     if (!selection) {
       setSelection(null);
@@ -482,7 +482,7 @@ export const useCreateGazetteerSelectorForLeaflet = ({
     }
     const selectionMetaData = {
       selectedFrom: "gazetteer",
-      selectionTimestamp: Date.now(),
+      selectionTimestamp: skipMapMovement ? null : Date.now(),
       isAreaSelection: isAreaType(selection.type),
     };
     setSelection(Object.assign({}, selection, selectionMetaData));
