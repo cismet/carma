@@ -66,14 +66,18 @@ const TZBaumbewirtschaftung = ({
   login,
   onAuthError,
   onConnectionError,
+  followMode = false,
+  crossHair = false,
 }: {
   jwt?: string;
   login?: string | null;
   onAuthError?: () => void;
   onConnectionError?: (hasError: boolean) => void;
+  followMode?: boolean;
+  crossHair?: boolean;
 }) => {
-  const isFollowMode = getUrlParam("followMode");
-  const isCrossHairEnabled = getUrlParam("crossHair");
+  const isFollowMode = followMode;
+  const isCrossHairEnabled = crossHair;
   const { markerSymbolSize } = useContext(TopicMapStylingContext) as any;
   const { clusteringOptions } = useContext(FeatureCollectionContext) as any;
   const [selectedFeature, setSelectedFeature] = useState<any>();
@@ -434,10 +438,26 @@ const TZBaumbewirtschaftung = ({
 
   // Crosshair visualization for selected feature
   useEffect(() => {
-    if (!maplibreMap || !isCrossHairEnabled) return;
-
     const CROSSHAIR_SOURCE = "crosshair-source";
     const CROSSHAIR_LAYER = "crosshair-layer";
+
+    // Helper to remove crosshair
+    const removeCrosshair = () => {
+      if (!maplibreMap) return;
+      if (maplibreMap.getLayer(CROSSHAIR_LAYER)) {
+        maplibreMap.removeLayer(CROSSHAIR_LAYER);
+      }
+      if (maplibreMap.getSource(CROSSHAIR_SOURCE)) {
+        maplibreMap.removeSource(CROSSHAIR_SOURCE);
+      }
+    };
+
+    // If disabled or no map, remove crosshair and return
+    if (!maplibreMap || !isCrossHairEnabled) {
+      removeCrosshair();
+      return;
+    }
+
     const LINE_EXTENT = 10; // degrees to extend in each direction
 
     // Gap in degrees at reference zoom levels (tuned for consistent visual gap)
@@ -455,12 +475,7 @@ const TZBaumbewirtschaftung = ({
 
     // Remove existing crosshair if no selection
     if (!selectedFeature?.geometry?.coordinates) {
-      if (maplibreMap.getLayer(CROSSHAIR_LAYER)) {
-        maplibreMap.removeLayer(CROSSHAIR_LAYER);
-      }
-      if (maplibreMap.getSource(CROSSHAIR_SOURCE)) {
-        maplibreMap.removeSource(CROSSHAIR_SOURCE);
-      }
+      removeCrosshair();
       return;
     }
 
@@ -565,6 +580,7 @@ const TZBaumbewirtschaftung = ({
 
     return () => {
       maplibreMap.off("zoom", updateCrosshair);
+      removeCrosshair();
     };
   }, [maplibreMap, selectedFeature, isCrossHairEnabled]);
 

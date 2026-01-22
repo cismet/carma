@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { createContext, useContext, useEffect, useState } from "react";
 import localforage from "localforage";
 import TopicMapContextProvider from "react-cismap/contexts/TopicMapContextProvider";
 import { defaultLayerConf } from "react-cismap/tools/layerFactory";
@@ -18,6 +18,19 @@ import {
   backgroundConfWithFastOrtho2024,
   useProgress,
 } from "@carma-appframeworks/portals";
+
+// Context for display modes
+export const DisplayModesContext = createContext();
+export const useDisplayModes = () => useContext(DisplayModesContext);
+
+// Helper to get URL param from hash
+const getUrlParam = (param) => {
+  const hashParams = window.location.hash.split("?")[1];
+  if (hashParams) {
+    return new URLSearchParams(hashParams).has(param);
+  }
+  return new URLSearchParams(window.location.search).has(param);
+};
 
 // Extract username from JWT
 const getUserFromJWT = (jwt) => {
@@ -143,6 +156,8 @@ function App() {
   const [auth, setAuth] = useState({ checked: false, jwt: null });
   const [loginInfo, setLoginInfo] = useState();
   const [connectionError, setConnectionError] = useState(!navigator.onLine);
+  const [followMode, setFollowMode] = useState(getUrlParam("followMode"));
+  const [crossHair, setCrossHair] = useState(getUrlParam("crossHair"));
 
   // Listen for browser online/offline events
   useEffect(() => {
@@ -234,48 +249,54 @@ function App() {
   };
 
   return (
-    <SyncProvider
-      jwt={auth.jwt}
-      login={login}
-      config={APP_CONFIG.sync}
-      taskFormatter={taskFormatter}
+    <DisplayModesContext.Provider
+      value={{ followMode, setFollowMode, crossHair, setCrossHair }}
     >
-      <TopicMapContextProvider
-        appKey="tz.baumbewirtschaftung"
-        backgroundConfigurations={bgConf}
-        backgroundModes={backgroundModes}
-        baseLayerConf={baseLayerConf}
-        offlineCacheConfig={offlineConfig}
+      <SyncProvider
+        jwt={auth.jwt}
+        login={login}
+        config={APP_CONFIG.sync}
+        taskFormatter={taskFormatter}
       >
-        {auth.checked && auth.jwt === undefined && (
-          <LoginForm
-            setJWT={(token) => setAuth({ checked: true, jwt: token })}
-            loginInfo={loginInfo}
-            setLoginInfo={setLoginInfo}
+        <TopicMapContextProvider
+          appKey="tz.baumbewirtschaftung"
+          backgroundConfigurations={bgConf}
+          backgroundModes={backgroundModes}
+          baseLayerConf={baseLayerConf}
+          offlineCacheConfig={offlineConfig}
+        >
+          {auth.checked && auth.jwt === undefined && (
+            <LoginForm
+              setJWT={(token) => setAuth({ checked: true, jwt: token })}
+              loginInfo={loginInfo}
+              setLoginInfo={setLoginInfo}
+            />
+          )}
+          <TitleControl
+            jwt={auth.jwt}
+            logout={() => {
+              setAuth({ checked: true, jwt: undefined });
+            }}
+            connectionError={connectionError}
           />
-        )}
-        <TitleControl
-          jwt={auth.jwt}
-          logout={() => {
-            setAuth({ checked: true, jwt: undefined });
-          }}
-          connectionError={connectionError}
-        />
-        <Map
-          jwt={auth.jwt}
-          login={login}
-          onAuthError={() => {
-            setAuth({ checked: true, jwt: undefined });
-            setLoginInfo({
-              color: "#F9D423",
-              text: "Bitte melden Sie sich erneut an.",
-            });
-            setTimeout(() => setLoginInfo(), 2500);
-          }}
-          onConnectionError={(hasError) => setConnectionError(hasError)}
-        />
-      </TopicMapContextProvider>
-    </SyncProvider>
+          <Map
+            jwt={auth.jwt}
+            login={login}
+            followMode={followMode}
+            crossHair={crossHair}
+            onAuthError={() => {
+              setAuth({ checked: true, jwt: undefined });
+              setLoginInfo({
+                color: "#F9D423",
+                text: "Bitte melden Sie sich erneut an.",
+              });
+              setTimeout(() => setLoginInfo(), 2500);
+            }}
+            onConnectionError={(hasError) => setConnectionError(hasError)}
+          />
+        </TopicMapContextProvider>
+      </SyncProvider>
+    </DisplayModesContext.Provider>
   );
 }
 

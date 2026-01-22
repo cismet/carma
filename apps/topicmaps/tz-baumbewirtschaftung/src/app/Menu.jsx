@@ -13,9 +13,12 @@ import { GenericDigitalTwinReferenceSection } from "@carma-collab/wuppertal/comm
 import versionData from "../version.json";
 import { getApplicationVersion } from "@carma-commons/utils";
 import { TaskPanel } from "@carma-providers/syncing";
+import { Form } from "react-bootstrap";
+import { useDisplayModes } from "./App";
 
 const Menu = () => {
   const { setAppMenuActiveMenuSection } = useContext(UIDispatchContext);
+  const { followMode, setFollowMode, crossHair, setCrossHair } = useDisplayModes();
 
   const previewSVG = (size) => {
     const _size = size * 1.3;
@@ -54,6 +57,36 @@ const Menu = () => {
             key="settings"
             skipClusteringSettings={true}
             getSymbolSVG={previewSVG}
+            sparseSettingsSectionsExtensions={[
+              ,
+              <Form key="display-modes">
+                <label
+                  style={{
+                    display: "inline-block",
+                    maxWidth: "100%",
+                    marginBottom: "5px",
+                    fontWeight: 700,
+                  }}
+                >
+                  Anzeigemodi
+                </label>
+                <br />
+                <Form.Check
+                  type="checkbox"
+                  id="checkbox_followMode"
+                  checked={followMode}
+                  onChange={() => setFollowMode(!followMode)}
+                  label="Follow-Modus (Karte folgt neuen Aktionen)"
+                />
+                <Form.Check
+                  type="checkbox"
+                  id="checkbox_crossHair"
+                  checked={crossHair}
+                  onChange={() => setCrossHair(!crossHair)}
+                  label="Fadenkreuz bei Auswahl anzeigen"
+                />
+              </Form>,
+            ]}
           />,
           <Section
             key="tasks"
