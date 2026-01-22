@@ -389,6 +389,10 @@ const getPaintProperty = (layerStyle: LayerSpecification) => {
       return "line-opacity";
     case "fill":
       return "fill-opacity";
+    case "circle":
+      return "circle-opacity";
+    case "background":
+      return "background-opacity";
     default:
       return "icon-opacity";
   }
