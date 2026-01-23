@@ -20,26 +20,29 @@ const BelisMapLibWrapper = ({ mapSizes }) => {
   const [selectedVectorObject, setSelectedVectorObject] =
     useState<SelectedVectorObject | null>(null);
 
-  const handleSelectedFeature = (feature) => {
+  const handleSelectedFeature = (
+    feature,
+    selectionInfo?: { source: string; sourceLayer?: string; id?: string | number }
+  ) => {
     if (feature) {
       const updatedFeature = { ...feature, selected: true };
       dispatch(setSelectedFeature(updatedFeature));
       console.log("xxx feature", updatedFeature);
 
       // Update the selected vector object for list sync
-      if (feature.source) {
-        setSelectedVectorObject({
-          source: feature.source,
-          sourceLayer: feature.sourceLayer,
-          id: feature.id,
-        });
+      if (selectionInfo) {
+        setSelectedVectorObject(selectionInfo);
       }
     }
   };
 
   const handleListFeatureSelect = (feature) => {
     // When a feature is selected from the list, also trigger the map's feature select
-    handleSelectedFeature(feature);
+    handleSelectedFeature(feature, {
+      source: feature.source,
+      sourceLayer: feature.sourceLayer,
+      id: feature.id,
+    });
   };
 
   const mapWidth = mapSizes.width - LIST_WIDTH;

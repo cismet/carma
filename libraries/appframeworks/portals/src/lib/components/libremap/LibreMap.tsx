@@ -45,7 +45,10 @@ export interface LibreMapProps {
     geoJsonData?: GeoJsonData[]
   ) => void;
   useRouting?: boolean;
-  onFeatureSelect?: (feature: any) => void;
+  onFeatureSelect?: (
+    feature: any,
+    selectionInfo?: { source: string; sourceLayer?: string; id?: string | number }
+  ) => void;
 }
 
 export const LibreMap = ({
@@ -374,7 +377,11 @@ export const LibreMap = ({
               });
             }
             setSelectedFeature(feature);
-            onFeatureSelect?.(feature);
+            onFeatureSelect?.(feature, {
+              source: selectedVectorFeature.source,
+              sourceLayer: selectedVectorFeature.sourceLayer,
+              id: selectedVectorFeature.id,
+            });
           } else {
           }
         } else {
