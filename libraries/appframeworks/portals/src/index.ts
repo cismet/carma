@@ -101,3 +101,5 @@ export {
 } from "./lib/components/libremap/libremap.utils";
 
 export { RouteOptionsDrawer } from "./lib/components/libremap/RouteOptionsDrawer";
+
+export { defaultLayerConf } from "./lib/components/react-cismap/tools/layerFactory";

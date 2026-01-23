@@ -1,24 +1,39 @@
 import type { StyleSpecification } from "maplibre-gl";
 import maplibregl from "maplibre-gl";
 import "maplibre-gl/dist/maplibre-gl.css";
-import { useEffect, useMemo, useRef, ReactNode } from "react";
+import { useContext, useEffect, useMemo, useRef, useState } from "react";
 import { getHashParams } from "@carma-commons/utils";
-
-// Import from our migrated utils
+import { FeatureCollectionContext } from "react-cismap/contexts/FeatureCollectionContextProvider";
+import PhotoLightBox from "react-cismap/topicmaps/PhotoLightbox";
+import { TopicMapStylingContext } from "react-cismap/contexts/TopicMapStylingContextProvider";
+import "../styles/map.css";
 import {
   getVectorMapping,
   styleManipulation,
   vectorStylesToMapLibreStyle,
 } from "../utils/styleBuilder";
 import { createFeature } from "../utils/featureUtils";
-import { zoom512as256 } from "../utils/zoomUtils";
-import "../styles/map.css";
-
-// Import from our migrated context and hooks
+import { zoom256as512, zoom512as256 } from "../utils/zoomUtils";
+import { LibreMapSelectionContent } from "./LibreMapSelectionContent";
+import { ENDPOINT, isAreaType } from "@carma-commons/resources";
+import proj4 from "proj4";
+import { proj4crs3857def, proj4crs4326def } from "@carma-mapping/utils";
+import { useSelectionLibreMap } from "../hooks/useSelectionLibreMap";
 import { useLibreContext } from "../contexts/LibreContext";
 import { useClusterMarkers } from "../hooks/useClusterMarkers";
 
-// Types
+// Import from portals temporarily until these are migrated
+import { FeatureInfobox } from "@carma-appframeworks/portals";
+import { SelectionItem, useSelection } from "@carma-appframeworks/portals";
+import { defaultLayerConf } from "@carma-appframeworks/portals";
+import { useMapHashRouting } from "@carma-appframeworks/portals";
+import { displayRouteOnMap } from "@carma-mapping/routing";
+
+export interface GeoJsonData {
+  sourceId: string;
+  data: GeoJSON.FeatureCollection;
+}
+
 export interface VectorStyle {
   name: string;
   style: string;
@@ -30,81 +45,21 @@ export type LibreLayer =
   | ({ type: "vector" } & VectorStyle)
   | { type: "geojson"; name: string; data: string; infoboxMapping?: string[] };
 
-export interface GeoJsonData {
-  sourceId: string;
-  data: GeoJSON.FeatureCollection;
-}
-
-export interface SelectedFeatureInfo {
-  properties: Record<string, unknown>;
-  geometry?: GeoJSON.Geometry;
-  id?: string | number;
-  showMarker?: boolean;
-}
-
-// Default layer configuration for background layers
-const defaultNamedLayers: Record<string, { type: string; url: string; layers?: string }> = {
-  "wupp-plan-live-tiles-3857": {
-    type: "tiles",
-    url: "https://geodaten.metropoleruhr.de/spw2?SERVICE=WMTS&REQUEST=GetTile&VERSION=1.0.0&LAYER=spw2_light&STYLE=default&FORMAT=image/png&TILEMATRIXSET=webmercator_hq&TILEMATRIX={z}&TILEROW={y}&TILECOL={x}",
-  },
-  "rvrGrau-tiles-3857": {
-    type: "tiles",
-    url: "https://geodaten.metropoleruhr.de/spw2?SERVICE=WMTS&REQUEST=GetTile&VERSION=1.0.0&LAYER=spw2_graublau&STYLE=default&FORMAT=image/png&TILEMATRIXSET=webmercator_hq&TILEMATRIX={z}&TILEROW={y}&TILECOL={x}",
-  },
-  trueOrtho2022: {
-    type: "wms",
-    url: "https://maps.wuppertal.de/karten",
-    layers: "R102:trueortho2022",
-  },
-  trueOrtho2024: {
-    type: "wms",
-    url: "https://maps.wuppertal.de/karten",
-    layers: "R102:trueortho2024",
-  },
-  hillshade: {
-    type: "wms",
-    url: "https://maps.wuppertal.de/karten",
-    layers: "hillshade",
-  },
-};
-
 export interface LibreMapProps {
-  /** Background layer string (e.g., "wupp-plan-live-tiles-3857@100") */
   backgroundLayers?: string;
-  /** Vector/GeoJSON layers to display */
   layers?: LibreLayer[];
-  /** Callback when map instance is created */
   setLibreMap?: (map: maplibregl.Map) => void;
-  /** Progress callback for loading layers */
   onProgressUpdate?: (progress: { current: number; total: number }) => void;
-  /** Filter function to apply to the map */
   filterFunction?: (
     map: maplibregl.Map,
     layers?: LibreLayer[],
     geoJsonData?: GeoJsonData[]
   ) => void;
-  /** Enable routing features */
   useRouting?: boolean;
-  /** Callback when a feature is selected */
   onFeatureSelect?: (
-    feature: SelectedFeatureInfo | null,
+    feature: any,
     selectionInfo?: { source: string; sourceLayer?: string; id?: string | number }
   ) => void;
-  /** Callback for map move events (for hash routing) */
-  onMapMove?: (coords: { lat: number; lng: number; zoom: number }) => void;
-  /** Custom named layers configuration */
-  namedLayers?: Record<string, { type: string; url: string; layers?: string }>;
-  /** Whether clustering is enabled (from context or prop) */
-  clusteringEnabled?: boolean;
-  /** Marker symbol size for scaling */
-  markerSymbolSize?: number;
-  /** Initial center coordinates */
-  initialCenter?: { lng: number; lat: number };
-  /** Initial zoom level */
-  initialZoom?: number;
-  /** Children to render (e.g., selection content, infobox) */
-  children?: ReactNode;
 }
 
 export const LibreMap = ({
@@ -115,30 +70,30 @@ export const LibreMap = ({
   filterFunction,
   useRouting = false,
   onFeatureSelect,
-  onMapMove,
-  namedLayers = defaultNamedLayers,
-  clusteringEnabled = true,
-  markerSymbolSize = 35,
-  initialCenter = { lng: 7.150764, lat: 51.256 },
-  initialZoom = 15,
-  children,
 }: LibreMapProps) => {
   const mapContainer = useRef<HTMLDivElement>(null);
   const map = useRef<maplibregl.Map | null>(null);
-  const selectedFeaturesRef = useRef<Set<{
+  const selectedFeatures: Set<{
     source: string;
     sourceLayer?: string;
     id?: string | number;
     selectionLayerId?: string;
-  }>>(new Set());
-  const mappingRef = useRef<Record<string, string[]>>({});
-  // Track selected feature locally for internal state management
-  const selectedFeatureRef = useRef<SelectedFeatureInfo | null>(null);
+  }> = new Set();
+  const mappingRef = useRef({});
+  const isIdleRef = useRef(false);
+  const vectorSourcesReadyRef = useRef(false);
+  const [selectedFeature, setSelectedFeature] = useState(null);
   const geoJsonMetadataRef = useRef<
     Array<{ sourceId: string; uniqueColors: string[] }>
   >([]);
   const isInitialGeoJsonLoad = useRef(true);
 
+  const { clusteringEnabled } = useContext<typeof FeatureCollectionContext>(
+    FeatureCollectionContext
+  );
+  const { markerSymbolSize } = useContext<typeof TopicMapStylingContext>(
+    TopicMapStylingContext
+  );
   const {
     setMapStyle,
     geoJsonMetadata,
@@ -146,75 +101,78 @@ export const LibreMap = ({
     setMap: setContextMap,
   } = useLibreContext();
 
+  const { selection } = useSelection();
+  const selectionRef = useRef(selection);
+
+  // Keep selectionRef in sync with selection
+  useEffect(() => {
+    selectionRef.current = selection;
+  }, [selection]);
+
   useClusterMarkers({
     map: map.current,
     geoJsonMetadata: clusteringEnabled ? geoJsonMetadata : [],
   });
 
+  const defaultLng = 7.150764;
+  const defaultLat = 51.256;
+  const defaultZoom = 15;
+
   // Helper function to build WMS tile URL from layer config
-  const buildWMSTileUrl = (layerConfig: {
-    url: string;
-    layers: string;
-    version?: string;
-    format?: string;
-  }): string => {
+  const buildWMSTileUrl = (layerConfig: any): string => {
     const {
       url,
-      layers: layerNames,
+      layers,
       version = "1.1.1",
       format = "image/png",
     } = layerConfig;
     const baseUrl = url.endsWith("?") ? url : url + "?";
-    return `${baseUrl}SERVICE=WMS&REQUEST=GetMap&VERSION=${version}&LAYERS=${layerNames}&FORMAT=${format}&styles=default&TRANSPARENT=true&WIDTH=256&HEIGHT=256&crs=EPSG:3857&&srs=EPSG:3857&BBOX={bbox-epsg-3857}`;
+    return `${baseUrl}SERVICE=WMS&REQUEST=GetMap&VERSION=${version}&LAYERS=${layers}&FORMAT=${format}&styles=default&TRANSPARENT=true&WIDTH=256&HEIGHT=256&crs=EPSG:3857&&srs=EPSG:3857&BBOX={bbox-epsg-3857}`;
   };
 
   // Helper function to build WMTS tile URL from layer config
-  const buildWMTSTileUrl = (layerConfig: {
-    url: string;
-    layers: string;
-  }): string => {
-    const { url, layers: layerNames } = layerConfig;
+  const buildWMTSTileUrl = (layerConfig: any): string => {
+    const { url, layers } = layerConfig;
     const baseUrl = url.endsWith("?") ? url : url + "?";
-    return `${baseUrl}SERVICE=WMTS&REQUEST=GetTile&VERSION=1.0.0&LAYER=${layerNames}&STYLE=default&FORMAT=image/png&TILEMATRIXSET=webmercator_hq&TILEMATRIX={z}&TILEROW={y}&TILECOL={x}`;
+    return `${baseUrl}SERVICE=WMTS&REQUEST=GetTile&VERSION=1.0.0&LAYER=${layers}&STYLE=default&FORMAT=image/png&TILEMATRIXSET=webmercator_hq&TILEMATRIX={z}&TILEROW={y}&TILECOL={x}`;
   };
 
   // Parse backgroundLayers string and build style
   const buildBackgroundStyle = (): StyleSpecification => {
-    const defaultStyle: StyleSpecification = {
-      version: 8,
-      sources: {
-        terrainSource: {
-          type: "raster-dem",
-          tiles: [
-            "https://wuppertal-terrain.cismet.de/services/wupp_dgm_01/tiles/{z}/{x}/{y}.png",
-          ],
-          tileSize: 512,
-          maxzoom: 15,
-        },
-        "source-amtlich": {
-          type: "raster",
-          tiles: [
-            "https://geodaten.metropoleruhr.de/spw2?SERVICE=WMTS&REQUEST=GetTile&VERSION=1.0.0&LAYER=spw2_light&STYLE=default&FORMAT=image/png&TILEMATRIXSET=webmercator_hq&TILEMATRIX={z}&TILEROW={y}&TILECOL={x}",
-          ],
-          tileSize: 256,
-        },
-      },
-      layers: [
-        {
-          id: "layer-amtlich",
-          type: "raster",
-          source: "source-amtlich",
-          paint: { "raster-opacity": 0.9 },
-        },
-      ],
-    };
-
     if (!backgroundLayers) {
-      return defaultStyle;
+      // Default fallback style
+      return {
+        version: 8,
+        sources: {
+          terrainSource: {
+            type: "raster-dem",
+            tiles: [
+              "https://wuppertal-terrain.cismet.de/services/wupp_dgm_01/tiles/{z}/{x}/{y}.png",
+            ],
+            tileSize: 512,
+            maxzoom: 15,
+          },
+          "source-amtlich": {
+            type: "raster",
+            tiles: [
+              "https://geodaten.metropoleruhr.de/spw2?SERVICE=WMTS&REQUEST=GetTile&VERSION=1.0.0&LAYER=spw2_light&STYLE=default&FORMAT=image/png&TILEMATRIXSET=webmercator_hq&TILEMATRIX={z}&TILEROW={y}&TILECOL={x}",
+            ],
+            tileSize: 256,
+          },
+        },
+        layers: [
+          {
+            id: "layer-amtlich",
+            type: "raster",
+            source: "source-amtlich",
+            paint: { "raster-opacity": 0.9 },
+          },
+        ],
+      };
     }
 
     const layerSpecs = backgroundLayers.split("|");
-    const sources: Record<string, unknown> = {
+    const sources: Record<string, any> = {
       terrainSource: {
         type: "raster-dem",
         tiles: [
@@ -224,15 +182,15 @@ export const LibreMap = ({
         maxzoom: 15,
       },
     };
-    const styleLayers: StyleSpecification["layers"] = [];
+    const styleLayers: any[] = [];
 
     layerSpecs.forEach((spec, index) => {
       const [layerName, opacityStr] = spec.split("@");
       const opacity = opacityStr ? parseInt(opacityStr, 10) / 100 : 1.0;
-      const layerConfig = namedLayers[layerName];
+      const layerConfig = defaultLayerConf.namedLayers[layerName];
 
       if (!layerConfig) {
-        console.warn(`Layer "${layerName}" not found in namedLayers`);
+        console.warn(`Layer "${layerName}" not found in defaultLayerConf`);
         return;
       }
 
@@ -252,13 +210,13 @@ export const LibreMap = ({
       ) {
         sources[sourceId] = {
           type: "raster",
-          tiles: [buildWMTSTileUrl(layerConfig as { url: string; layers: string })],
+          tiles: [buildWMTSTileUrl(layerConfig)],
           tileSize: 256,
         };
       } else if (layerConfig.type === "wms" || layerConfig.type === "wms-nt") {
         sources[sourceId] = {
           type: "raster",
-          tiles: [buildWMSTileUrl(layerConfig as { url: string; layers: string })],
+          tiles: [buildWMSTileUrl(layerConfig)],
           tileSize: 256,
         };
       } else {
@@ -268,6 +226,7 @@ export const LibreMap = ({
         return;
       }
 
+      // Add layer
       styleLayers.push({
         id: layerId,
         type: "raster",
@@ -276,41 +235,69 @@ export const LibreMap = ({
       });
     });
 
+    // If no valid layers were parsed, return default style
     if (styleLayers.length === 0) {
-      return defaultStyle;
+      return {
+        version: 8,
+        sources: {
+          terrainSource: {
+            type: "raster-dem",
+            tiles: [
+              "https://wuppertal-terrain.cismet.de/services/wupp_dgm_01/tiles/{z}/{x}/{y}.png",
+            ],
+            tileSize: 512,
+            maxzoom: 15,
+          },
+          "source-amtlich": {
+            type: "raster",
+            tiles: [
+              "https://geodaten.metropoleruhr.de/spw2?SERVICE=WMTS&REQUEST=GetTile&VERSION=1.0.0&LAYER=spw2_light&STYLE=default&FORMAT=image/png&TILEMATRIXSET=webmercator_hq&TILEMATRIX={z}&TILEROW={y}&TILECOL={x}",
+            ],
+            tileSize: 256,
+          },
+        },
+        layers: [
+          {
+            id: "layer-amtlich",
+            type: "raster",
+            source: "source-amtlich",
+            paint: { "raster-opacity": 0.9 },
+          },
+        ],
+      };
     }
 
     return {
       version: 8,
       sources,
       layers: styleLayers,
-    } as StyleSpecification;
+    };
   };
 
   const backgroundStyle = useMemo(
     () => buildBackgroundStyle(),
-    [backgroundLayers, namedLayers]
+    [backgroundLayers]
   );
 
-  // Initialize map
   useEffect(() => {
+    // Only initialize if we have a container and no map yet
     if (mapContainer.current && !map.current) {
       const hashParams = getHashParams();
 
       const lng =
         hashParams["lng"] !== undefined
           ? parseFloat(hashParams["lng"])
-          : initialCenter.lng;
+          : defaultLng;
 
       const lat =
         hashParams["lat"] !== undefined
           ? parseFloat(hashParams["lat"])
-          : initialCenter.lat;
+          : defaultLat;
 
       const zoom =
         hashParams["zoom"] !== undefined
           ? parseFloat(hashParams["zoom"]) - 1
-          : initialZoom;
+          : defaultZoom;
 
       const mapInstance = new maplibregl.Map({
         container: mapContainer.current,
@@ -323,24 +310,24 @@ export const LibreMap = ({
       setLibreMap?.(mapInstance);
       setContextMap(mapInstance);
 
-      // Handle click events for feature selection
       mapInstance.on("click", (e) => {
         const point = mapInstance.project([e.lngLat.lng, e.lngLat.lat]);
         const hits = mapInstance.queryRenderedFeatures(point);
-        const filteredHits = hits.filter((hit) => {
+        let filteredHits = hits.filter((hit) => {
           return (
             !hit.layer.id.includes("selection") &&
             !hit.layer.id.includes("cluster")
           );
         });
 
-        // Clear previous selections
-        selectedFeaturesRef.current.forEach((feature) => {
+        selectedFeatures.forEach((feature) => {
           try {
+            // If we have a selection layer ID, reset its filter
             if (
               feature.selectionLayerId &&
               map.current?.getLayer(feature.selectionLayerId)
             ) {
+              // Set a filter that won't match any features
               map.current.setFilter(feature.selectionLayerId, [
                 "==",
                 "__selected__",
@@ -357,28 +344,31 @@ export const LibreMap = ({
               );
             }
           } catch (error) {
-            console.error("Error clearing selection:", error);
+            console.error("Error clearing building selection:", error);
           }
         });
 
-        selectedFeaturesRef.current.clear();
-        selectedFeatureRef.current = null;
-
+        selectedFeatures.clear();
+        setSelectedFeature(null);
         if (filteredHits.length > 0) {
           const selectedVectorFeature = filteredHits[0];
-          const layerId = (selectedVectorFeature.layer as { metadata?: { "layer-id"?: string } })?.metadata?.["layer-id"];
-          const layerMapping =
-            mappingRef.current[layerId as string] ||
+
+          // Try to get layer ID from metadata (for vector layers)
+          const layerId = selectedVectorFeature.layer?.metadata?.["layer-id"];
+
+          // Try to get mapping by layer ID first, then by source (for geojson layers)
+          let layerMapping =
+            mappingRef.current[layerId] ||
             mappingRef.current[selectedVectorFeature.source];
 
-          let feature: SelectedFeatureInfo | null = null;
+          let feature = null;
           if (layerMapping) {
             feature = createFeature(
               selectedVectorFeature,
               layerMapping,
               mapInstance,
               useRouting
-            ) as SelectedFeatureInfo | null;
+            );
           }
 
           if (feature) {
@@ -391,32 +381,92 @@ export const LibreMap = ({
                 },
                 { selected: true }
               );
-              selectedFeaturesRef.current.add({
+              selectedFeatures.add({
                 source: selectedVectorFeature.source,
                 sourceLayer: selectedVectorFeature.sourceLayer,
                 id: selectedVectorFeature.id,
               });
             }
-            selectedFeatureRef.current = feature;
+            setSelectedFeature(feature);
             onFeatureSelect?.(feature, {
               source: selectedVectorFeature.source,
               sourceLayer: selectedVectorFeature.sourceLayer,
               id: selectedVectorFeature.id,
             });
+          } else {
           }
         } else {
-          onFeatureSelect?.(null);
+          if (selectionRef.current) {
+            const pos = proj4(proj4crs3857def, proj4crs4326def, [
+              selectionRef.current.x,
+              selectionRef.current.y,
+            ]);
+            setSelectedFeature({
+              properties: {
+                header: "Informationen",
+                title: selectionRef.current.string,
+                genericLinks: [
+                  {
+                    iconname: "car",
+                    action: async () => {
+                      if (!mapInstance) return;
+                      const startLat = 51.2725699;
+                      const startLng = 7.199918;
+                      await displayRouteOnMap({
+                        mapInstance,
+                        from: { lat: startLat, lng: startLng },
+                        to: { lat: pos[1], lng: pos[0] },
+                      });
+                    },
+                  },
+                ],
+              },
+            });
+          }
         }
       });
 
-      // Handle move events for hash routing
-      if (onMapMove) {
-        mapInstance.on("moveend", () => {
-          const center = mapInstance.getCenter();
-          const zoom = zoom512as256(mapInstance.getZoom());
-          onMapMove({ lat: center.lat, lng: center.lng, zoom });
-        });
-      }
+      const checkVectorSourcesReady = () => {
+        const style = mapInstance.getStyle();
+        if (!style || !style.sources) {
+          vectorSourcesReadyRef.current = false;
+          return;
+        }
+
+        const vectorSources = Object.entries(style.sources).filter(
+          ([_, source]: [string, any]) => source.type === "vector"
+        );
+
+        if (vectorSources.length === 0) {
+          vectorSourcesReadyRef.current = false;
+          return;
+        }
+
+        const allLoaded = vectorSources.every(([sourceId]) =>
+          mapInstance.isSourceLoaded(sourceId)
+        );
+
+        vectorSourcesReadyRef.current = allLoaded;
+      };
+
+      mapInstance.on("sourcedata", (e) => {
+        if (e.isSourceLoaded && e.source.type === "vector") {
+          checkVectorSourcesReady();
+        }
+      });
+
+      mapInstance.on("idle", () => {
+        isIdleRef.current = true;
+      });
+
+      mapInstance.on("move", () => {
+        if (layers?.find((layer) => layer.type === "vector")) {
+          vectorSourcesReadyRef.current = false;
+        } else {
+          vectorSourcesReadyRef.current = true;
+        }
+        isIdleRef.current = false;
+      });
     }
 
     return () => {
@@ -428,17 +478,18 @@ export const LibreMap = ({
     };
   }, []);
 
-  // Update map style when layers change
   useEffect(() => {
     if (!map.current) return;
 
     const updateMapStyle = async () => {
       try {
         if (layers) {
+          // Show initial progress only on first load or when layers change
           const geoJsonLayers = layers.filter(
             (layer) => layer.type === "geojson"
           );
 
+          // Check if geojson layers have changed by comparing with previous metadata
           const hasGeoJsonLayersChanged =
             geoJsonLayers.length !== geoJsonMetadataRef.current.length;
 
@@ -454,23 +505,32 @@ export const LibreMap = ({
             onProgressUpdate({ current: 0, total: geoJsonLayers.length });
           }
 
-          const { style: baseStyle, geoJsonMetadata: newGeoJsonMetadata } =
+          // Update with vector styles and background layers
+          const { style: baseStyle, geoJsonMetadata } =
             await vectorStylesToMapLibreStyle({
               layers,
               backgroundStyle,
               clusteringEnabled,
             });
 
+          // Apply marker symbol size scaling
           const style = styleManipulation(markerSymbolSize, baseStyle);
 
-          geoJsonMetadataRef.current = newGeoJsonMetadata;
-          setGeoJsonMetadata(newGeoJsonMetadata);
+          // Store geojson metadata for pie chart rendering (local ref and context)
+          geoJsonMetadataRef.current = geoJsonMetadata;
+          setGeoJsonMetadata(geoJsonMetadata);
 
+          // Save terrain state before setting style
           const currentTerrain = map.current?.getTerrain();
 
+          console.log("xxx", style);
+
           map.current?.setStyle(style);
+
+          // Update context with the full map style
           setMapStyle(style);
 
+          // Restore terrain after style is loaded if it was previously set
           if (currentTerrain && map.current) {
             const restoreTerrain = () => {
               if (map.current?.getSource("terrainSource")) {
@@ -485,24 +545,28 @@ export const LibreMap = ({
             }
           }
 
+          // Get mapping for vector layers
           const vectorLayers = layers.filter(
             (layer) => layer.type === "vector"
-          ) as VectorStyle[];
-          let mapping: Record<string, string[]> = {};
+          );
+          let mapping = {};
           if (vectorLayers.length > 0) {
-            mapping = await getVectorMapping(vectorLayers) as Record<string, string[]>;
+            mapping = await getVectorMapping(vectorLayers);
           }
 
+          // Add mapping for geojson layers
           geoJsonLayers.forEach((layer, index) => {
             if (layer.infoboxMapping && layer.infoboxMapping.length > 0) {
               const sourceId = `geojson-source-${index}`;
               mapping[layer.name] = layer.infoboxMapping;
+              // Also map by source ID for easier lookup
               mapping[sourceId] = layer.infoboxMapping;
             }
           });
 
           mappingRef.current = mapping;
 
+          // Apply filter function after style is loaded
           if (filterFunction && map.current) {
             const applyFilter = () => {
               if (map.current) {
@@ -517,25 +581,26 @@ export const LibreMap = ({
             }
           }
 
-          if (newGeoJsonMetadata.length > 0 && onProgressUpdate) {
+          // Track progress for geojson layers
+          if (geoJsonMetadata.length > 0 && onProgressUpdate) {
             const loadedSources = new Set<string>();
 
             const handleStyleLoad = () => {
-              const handleData = (e: maplibregl.MapDataEvent & { sourceId?: string; isSourceLoaded?: boolean }) => {
-                const isRelevantSource = newGeoJsonMetadata.some(
+              const handleData = (e: any) => {
+                const isRelevantSource = geoJsonMetadata.some(
                   ({ sourceId }) => e.sourceId === sourceId
                 );
                 if (!isRelevantSource || !e.isSourceLoaded) return;
 
-                if (!loadedSources.has(e.sourceId!)) {
-                  loadedSources.add(e.sourceId!);
+                if (!loadedSources.has(e.sourceId)) {
+                  loadedSources.add(e.sourceId);
                   if (isInitialGeoJsonLoad.current) {
                     onProgressUpdate({
                       current: loadedSources.size,
-                      total: newGeoJsonMetadata.length,
+                      total: geoJsonMetadata.length,
                     });
 
-                    if (loadedSources.size === newGeoJsonMetadata.length) {
+                    if (loadedSources.size === geoJsonMetadata.length) {
                       isInitialGeoJsonLoad.current = false;
                     }
                   }
@@ -554,6 +619,7 @@ export const LibreMap = ({
             onProgressUpdate({ current: 1, total: 1 });
           }
         } else {
+          // Only update background layers
           map.current?.setStyle(backgroundStyle);
           setMapStyle(backgroundStyle);
           geoJsonMetadataRef.current = [];
@@ -572,9 +638,109 @@ export const LibreMap = ({
     filterFunction,
   ]);
 
+  const { handleTopicMapLocationChange } = useMapHashRouting({
+    getLeafletMap: () => {
+      const m = map.current;
+      if (!m) return null;
+      return {
+        setView: (center: { lat: number; lng: number }, zoom?: number) => {
+          if (typeof zoom === "number") m.setZoom(zoom256as512(zoom));
+          m.setCenter([center.lng, center.lat]);
+        },
+        panTo: (center: { lat: number; lng: number }) =>
+          m.panTo([center.lng, center.lat]),
+        setZoom: (zoom: number) => m.setZoom(zoom256as512(zoom)),
+        getCenter: () => m.getCenter(),
+        once: (type: string, fn: (...args: unknown[]) => void) =>
+          m.once(type, fn),
+      };
+    },
+    getLeafletZoom: () => {
+      const m = map.current;
+      return m ? zoom512as256(m.getZoom()) : 12;
+    },
+    labels: {
+      clearCesium: "LGM:2D:clearCesium",
+      writeLeafletLike: "LGM:2D:writeLocation",
+      topicMapLocation: "LGM:2D:location",
+    },
+  });
+
+  useEffect(() => {
+    const mapInstance = map.current;
+    if (!mapInstance) return;
+    const handleMoveEnd = () => {
+      const center = mapInstance.getCenter();
+      const zoom = zoom512as256(mapInstance.getZoom());
+      handleTopicMapLocationChange({ lat: center.lat, lng: center.lng, zoom });
+    };
+    mapInstance.on("moveend", handleMoveEnd);
+    return () => {
+      mapInstance && mapInstance.off("moveend", handleMoveEnd);
+    };
+  }, [handleTopicMapLocationChange]);
+
+  const onComplete = (selection: SelectionItem) => {
+    if (!isAreaType(selection.type as ENDPOINT)) {
+      const selectedPos = proj4(proj4crs3857def, proj4crs4326def, [
+        selection.x,
+        selection.y,
+      ]);
+
+      if (vectorSourcesReadyRef.current) {
+        setTimeout(() => {
+          if (map.current) {
+            map.current.fire("click", {
+              lngLat: {
+                lat: selectedPos[1],
+                lng: selectedPos[0],
+              },
+              target: map.current,
+              type: "click",
+              point: map.current.project([selectedPos[1], selectedPos[0]]),
+              originalEvent: {
+                preventDefault: () => {},
+                stopPropagation: () => {},
+              },
+            });
+          }
+        }, 500);
+      } else {
+        setTimeout(() => {
+          onComplete(selection);
+        }, 20);
+      }
+    }
+  };
+
+  useSelectionLibreMap({
+    map: map.current,
+    onComplete,
+  });
+
   return (
     <>
-      {children}
+      <FeatureInfobox
+        selectedFeature={
+          selectedFeature
+            ? {
+                ...selectedFeature,
+                properties: {
+                  info: {
+                    ...selectedFeature.properties,
+                  },
+                },
+              }
+            : null
+        }
+        libreMap={map.current}
+        versionData={{
+          version: "0.1.0",
+        }}
+      />
+      <PhotoLightBox />
+      <LibreMapSelectionContent map={map.current} />
+
       <div className="map-wrap">
         <div ref={mapContainer} className="map" />
       </div>
