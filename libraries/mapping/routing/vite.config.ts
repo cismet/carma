@@ -6,7 +6,7 @@ import { nxViteTsPaths } from '@nx/vite/plugins/nx-tsconfig-paths.plugin';
 
 export default defineConfig({
   root: __dirname,
-  cacheDir: '../../../../node_modules/.vite/libraries/mapping/engines/maplibre',
+  cacheDir: '../../../node_modules/.vite/libraries/mapping/routing',
 
   plugins: [
     nxViteTsPaths(),
@@ -16,17 +16,15 @@ export default defineConfig({
     }),
   ],
 
-  // Configuration for building your library.
-  // See: https://vitejs.dev/guide/build.html#library-mode
   build: {
-    outDir: '../../../../dist/libraries/mapping/engines/maplibre',
+    outDir: '../../../dist/libraries/mapping/routing',
     reportCompressedSize: true,
     commonjsOptions: {
       transformMixedEsModules: true,
     },
     lib: {
       entry: 'src/index.ts',
-      name: 'carma-map-engines-maplibre',
+      name: 'mapping-routing',
       fileName: 'index',
       formats: ['es', 'cjs'],
     },
@@ -38,15 +36,13 @@ export default defineConfig({
   test: {
     globals: true,
     cache: {
-      dir: '../../../../node_modules/.vitest',
+      dir: '../../../node_modules/.vitest',
     },
     environment: 'node',
     include: ['src/**/*.{test,spec}.{js,mjs,cjs,ts,mts,cts,jsx,tsx}'],
-
     reporters: ['default'],
     coverage: {
-      reportsDirectory:
-        '../../../../coverage/libraries/mapping/engines/maplibre',
+      reportsDirectory: '../../../coverage/libraries/mapping/routing',
       provider: 'v8',
     },
   },
