@@ -482,7 +482,9 @@ export const GeoportalMap = ({ height, width, allow3d }: MapProps) => {
   }, [uiMode, getLeafletMap, dispatch]);
 
   useEffect(() => {
-    if (isModeFeatureInfo && pos) updateFeatureInfoLeaflet();
+    if (isModeFeatureInfo && pos) {
+      setShouldUpdateFeatureInfo(true);
+    }
   }, [layers, maplibreMaps]);
 
   useEffect(() => {
