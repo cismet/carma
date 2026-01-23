@@ -206,56 +206,6 @@ const OnMapList = ({
     Record<string, boolean>
   >({});
   const selectedItemRef = useRef<HTMLDivElement>(null);
-  const prevSelectedRef = useRef<SelectedVectorObject | null>(null);
-
-  // Sync feature states on map when selection changes (from any source)
-  useEffect(() => {
-    if (!maplibreMap) return;
-
-    const prev = prevSelectedRef.current;
-    const curr = selectedVectorObject;
-
-    // Clear previous selection's feature state
-    if (prev && maplibreMap.getSource(prev.source)) {
-      if (
-        !curr ||
-        prev.source !== curr.source ||
-        prev.sourceLayer !== curr.sourceLayer ||
-        prev.id !== curr.id
-      ) {
-        try {
-          maplibreMap.setFeatureState(
-            {
-              source: prev.source,
-              sourceLayer: prev.sourceLayer,
-              id: prev.id,
-            },
-            { selected: false }
-          );
-        } catch (e) {
-          // Ignore errors
-        }
-      }
-    }
-
-    // Set current selection's feature state
-    if (curr && maplibreMap.getSource(curr.source)) {
-      try {
-        maplibreMap.setFeatureState(
-          {
-            source: curr.source,
-            sourceLayer: curr.sourceLayer,
-            id: curr.id,
-          },
-          { selected: true }
-        );
-      } catch (e) {
-        // Ignore errors
-      }
-    }
-
-    prevSelectedRef.current = curr || null;
-  }, [selectedVectorObject, maplibreMap]);
 
   // When selection changes, expand group and scroll into view
   useEffect(() => {
@@ -320,14 +270,40 @@ const OnMapList = ({
   const handleFeatureClick = (feature: VisibleFeature) => {
     if (!maplibreMap) return;
 
-    const selectionObj: SelectedVectorObject = {
-      source: feature.source,
-      sourceLayer: feature.sourceLayer,
-      id: feature.id,
-    };
+    // Get coordinates from feature geometry to fire synthetic click
+    let clickCoords: [number, number] | null = null;
+    const geom = feature.geometry;
 
-    setSelectedVectorObject?.(selectionObj);
-    onFeatureSelect?.(feature);
+    if (geom) {
+      if (geom.type === "Point") {
+        clickCoords = geom.coordinates as [number, number];
+      } else if (geom.type === "LineString" || geom.type === "MultiPoint") {
+        clickCoords = (geom.coordinates as number[][])[0] as [number, number];
+      } else if (geom.type === "Polygon" || geom.type === "MultiLineString") {
+        clickCoords = (geom.coordinates as number[][][])[0][0] as [number, number];
+      } else if (geom.type === "MultiPolygon") {
+        clickCoords = (geom.coordinates as number[][][][])[0][0][0] as [number, number];
+      }
+    }
+
+    if (clickCoords) {
+      // Fire synthetic click on map - this triggers LibreMap's full selection flow
+      const point = maplibreMap.project(clickCoords);
+      maplibreMap.fire("click", {
+        lngLat: { lng: clickCoords[0], lat: clickCoords[1] },
+        point,
+        originalEvent: { preventDefault: () => {}, stopPropagation: () => {} },
+      });
+    } else {
+      // Fallback: manual selection if no geometry
+      const selectionObj: SelectedVectorObject = {
+        source: feature.source,
+        sourceLayer: feature.sourceLayer,
+        id: feature.id,
+      };
+      setSelectedVectorObject?.(selectionObj);
+      onFeatureSelect?.(feature);
+    }
   };
 
   const toggleGroup = (groupKey: string) => {
