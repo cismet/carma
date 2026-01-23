@@ -114,7 +114,10 @@ const CarmaMapContent = (props: CarmaMapProps) => {
             backgroundLayers ??
             backgroundConfigurations[selectedBackground].layerkey
           }
-          setLibreMap={setLibreMap}
+          setLibreMap={(map) => {
+            setLibreMap(map);
+            props.setLibreMap?.(map);
+          }}
           layers={libreLayers}
           onProgressUpdate={props.onProgressUpdate}
           filterFunction={props.filterFunction}
