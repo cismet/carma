@@ -217,7 +217,8 @@ export const GeoportalMap = ({ height, width, allow3d }: MapProps) => {
   useEffect(() => {
     const maps = layers
       .filter((l) => l.layerType === "vector" && l.visible)
-      .map((l) => maplibreMapsRef.current.get(l.id));
+      .map((l) => maplibreMapsRef.current.get(l.id))
+      .filter((m) => m !== undefined);
     setMaplibreMaps(maps);
   }, [layers, layersIdle]);
 
@@ -433,19 +434,13 @@ export const GeoportalMap = ({ height, width, allow3d }: MapProps) => {
   useSelectionCesium(getIsCesium, selectionCesiumOptions, isObliqueMode);
 
   useEffect(() => {
-    let layerType = "";
-
     if (layers.length === 0) {
       dispatch(setSecondaryInfoBoxElements([]));
       dispatch(setFeatures([]));
       dispatch(setSelectedFeature(null));
+    } else {
+      updateLayersIdleState();
     }
-
-    layers.forEach((layer, i) => {
-      if (i === 0) {
-        layerType = layer.layerType;
-      }
-    });
   }, [layers]);
 
   useEffect(() => {
@@ -485,7 +480,7 @@ export const GeoportalMap = ({ height, width, allow3d }: MapProps) => {
     if (isModeFeatureInfo && pos) {
       setShouldUpdateFeatureInfo(true);
     }
-  }, [layers, maplibreMaps]);
+  }, [maplibreMaps]);
 
   useEffect(() => {
     const leaflet = getLeafletMap();
