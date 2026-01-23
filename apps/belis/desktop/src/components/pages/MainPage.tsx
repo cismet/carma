@@ -1,4 +1,4 @@
-import { useContext, useRef } from "react";
+import { useContext } from "react";
 import BelisMapLibWrapper from "../commons/BelisMapWrapper";
 import { useSelector, useDispatch } from "react-redux";
 import { getJWT } from "../../store/slices/auth";
@@ -41,7 +41,6 @@ const MainPage = () => {
   const zoom = useSelector(getZoom);
 
   const [windowWidth, windowHeight] = useWindowSize();
-  let refRoutedMap = useRef(null);
   const { routedMapRef } = useContext<typeof TopicMapContext>(TopicMapContext);
 
   const cardGaps = 24 + 24 + 1;
@@ -128,11 +127,7 @@ const MainPage = () => {
             </div>
           }
         >
-          <BelisMapLibWrapper
-            refRoutedMap={refRoutedMap}
-            jwt={storedJWT}
-            mapSizes={mapStyle}
-          />
+          <BelisMapLibWrapper mapSizes={mapStyle} />
         </CustomCard>
       </div>
     </>

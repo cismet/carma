@@ -18,13 +18,17 @@ import {
   LibFuzzySearch,
 } from "@carma-mapping/fuzzy-search";
 import { ResponsiveTopicMapContext } from "react-cismap/contexts/ResponsiveTopicMapContextProvider";
-import LibreMap from "./libremap/LibreMap";
+import LibreMap, { LibreMapProps } from "./libremap/LibreMap";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faBars, faMountainCity } from "@fortawesome/free-solid-svg-icons";
 import { UIDispatchContext } from "react-cismap/contexts/UIContextProvider";
 import { TopicMapStylingContext } from "react-cismap/contexts/TopicMapStylingContextProvider";
 import { TAILWIND_CLASSNAMES_FULLSCREEN_FIXED } from "@carma-commons/utils";
-import { createHashRouter, RouterProvider } from "react-router-dom";
+import {
+  createHashRouter,
+  RouterProvider,
+  useInRouterContext,
+} from "react-router-dom";
 import { HashStateProvider } from "@carma-providers/hash-state";
 import { Tooltip } from "antd";
 
@@ -39,9 +43,9 @@ export type LibreLayer =
   | ({ type: "vector" } & VectorStyle)
   | { type: "geojson"; name: string; data: string; infoboxMapping?: string[] };
 
-interface CarmaMapProps {
+interface CarmaMapProps extends LibreMapProps {
   mapEngine?: "leaflet" | "maplibre" | "cesium";
-  onClick: () => void;
+  onClick?: () => void;
   modalMenu?: React.ReactNode;
   gazetteerSearchControl?: boolean;
   gazetteerSearchComponent?: React.ReactNode;
@@ -57,9 +61,10 @@ interface CarmaMapProps {
   libreLayers?: LibreLayer[];
   children?: React.ReactNode;
   onProgressUpdate?: (progress: { current: number; total: number }) => void;
+  embedded?: boolean;
 }
 
-export const CarmaMap = (props: CarmaMapProps) => {
+const CarmaMapContent = (props: CarmaMapProps) => {
   const {
     mapEngine = "leaflet",
     locatorControl = true,
@@ -72,6 +77,7 @@ export const CarmaMap = (props: CarmaMapProps) => {
     backgroundLayers,
     libreLayers,
     children,
+    embedded = false,
   } = props;
 
   const { responsiveState, gap, windowSize } = useContext<
@@ -108,147 +114,164 @@ export const CarmaMap = (props: CarmaMapProps) => {
             backgroundLayers ??
             backgroundConfigurations[selectedBackground].layerkey
           }
-          setLibreMap={setLibreMap}
+          setLibreMap={(map) => {
+            setLibreMap(map);
+            props.setLibreMap?.(map);
+          }}
           layers={libreLayers}
           onProgressUpdate={props.onProgressUpdate}
+          filterFunction={props.filterFunction}
+          useRouting={props.useRouting}
+          onFeatureSelect={props.onFeatureSelect}
         />
       );
     }
   }, [mapEngine, selectedBackground]);
 
   return (
+    <HashStateProvider>
+      <MapFrameworkSwitcherProvider>
+        <div
+          className={
+            embedded
+              ? "relative flex flex-col w-full h-full"
+              : TAILWIND_CLASSNAMES_FULLSCREEN_FIXED
+          }
+        >
+          <ControlLayout ifStorybook={false}>
+            {zoomControls && (
+              <Control position="topleft" order={10}>
+                <ZoomControl mapEngine={mapEngine} libreMap={libreMap} />
+              </Control>
+            )}
+
+            {mapEngine === "maplibre" && (
+              <Control position="topleft" order={20}>
+                <ControlButtonStyler
+                  useDisabledStyle={false}
+                  dataTestId="compass-control"
+                >
+                  <LibrePitchingCompass map={libreMap} />
+                </ControlButtonStyler>
+              </Control>
+            )}
+
+            {mapEngine === "maplibre" && terrainControl && (
+              <Control position="topleft" order={30}>
+                <Tooltip title={"Terrain"} placement="right">
+                  <ControlButtonStyler
+                    onClick={() => {
+                      if (libreMap.terrain) {
+                        libreMap.setTerrain(null);
+                        setShowTerrain(false);
+                      } else {
+                        libreMap.setTerrain({
+                          source: "terrainSource",
+                          exaggeration: 1,
+                        });
+                        setShowTerrain(true);
+                      }
+                    }}
+                    className="font-semibold"
+                  >
+                    <FontAwesomeIcon
+                      icon={faMountainCity}
+                      className={showTerrain ? "text-[#1677ff]" : ""}
+                    />
+                  </ControlButtonStyler>
+                </Tooltip>
+              </Control>
+            )}
+
+            {fullScreenControl && (
+              <Control position="topleft" order={50}>
+                <FullscreenControl />
+              </Control>
+            )}
+
+            {locatorControl && mapEngine === "leaflet" && (
+              <Control position="topleft" order={60}>
+                <RoutedMapLocateControl
+                  tourRefLabels={null}
+                  disabled={false}
+                  nativeTooltip={true}
+                />
+              </Control>
+            )}
+
+            {locatorControl && mapEngine === "maplibre" && (
+              <Control position="topleft" order={60}>
+                <LibreMapLocateControl map={libreMap} nativeTooltip={true} />
+              </Control>
+            )}
+
+            {props.modalMenu && (
+              <Control position="topright" order={10}>
+                <ControlButtonStyler
+                  useDisabledStyle={false}
+                  onClick={() => {
+                    setAppMenuVisible(true);
+                  }}
+                >
+                  <FontAwesomeIcon icon={faBars} className="text-base" />
+                </ControlButtonStyler>
+              </Control>
+            )}
+
+            {gazetteerSearchControl && (
+              <Control position="bottomleft" order={10}>
+                {gazetteerSearchComponent ? (
+                  gazetteerSearchComponent
+                ) : (
+                  <div data-test-id="fuzzy-search" style={{ marginTop: "4px" }}>
+                    <LibFuzzySearch
+                      pixelwidth={
+                        responsiveState === "normal"
+                          ? "300px"
+                          : windowSize.width - gap
+                      }
+                      placeholder="Stadtteil | Adresse | POI"
+                      priorityTypes={[
+                        "pois",
+                        "poisAlternativeNames",
+                        "bezirke",
+                        "quartiere",
+                        "adressen",
+                        "streets",
+                        "schulen",
+                        "kitas",
+                      ]}
+                      typeInference={defaultTypeInference}
+                    />
+                  </div>
+                )}
+              </Control>
+            )}
+
+            {map}
+            {modalMenu}
+          </ControlLayout>
+        </div>
+      </MapFrameworkSwitcherProvider>
+    </HashStateProvider>
+  );
+};
+
+export const CarmaMap = (props: CarmaMapProps) => {
+  const isInRouterContext = useInRouterContext();
+
+  // If already inside a router, render content directly
+  if (isInRouterContext) {
+    return <CarmaMapContent {...props} />;
+  }
+
+  // Otherwise, create our own router
+  return (
     <RouterProvider
       router={createHashRouter([
         {
-          element: (
-            <HashStateProvider>
-              <MapFrameworkSwitcherProvider>
-                <div className={TAILWIND_CLASSNAMES_FULLSCREEN_FIXED}>
-                  <ControlLayout ifStorybook={false}>
-                    {zoomControls && (
-                      <Control position="topleft" order={10}>
-                        <ZoomControl
-                          mapEngine={mapEngine}
-                          libreMap={libreMap}
-                        />
-                      </Control>
-                    )}
-
-                    {mapEngine === "maplibre" && (
-                      <Control position="topleft" order={20}>
-                        <ControlButtonStyler
-                          useDisabledStyle={false}
-                          dataTestId="compass-control"
-                        >
-                          <LibrePitchingCompass map={libreMap} />
-                        </ControlButtonStyler>
-                      </Control>
-                    )}
-
-                    {mapEngine === "maplibre" && terrainControl && (
-                      <Control position="topleft" order={30}>
-                        <Tooltip title={"Terrain"} placement="right">
-                          <ControlButtonStyler
-                            onClick={() => {
-                              if (libreMap.terrain) {
-                                libreMap.setTerrain(null);
-                                setShowTerrain(false);
-                              } else {
-                                libreMap.setTerrain({
-                                  source: "terrainSource",
-                                  exaggeration: 1,
-                                });
-                                setShowTerrain(true);
-                              }
-                            }}
-                            className="font-semibold"
-                          >
-                            <FontAwesomeIcon
-                              icon={faMountainCity}
-                              className={showTerrain ? "text-[#1677ff]" : ""}
-                            />
-                          </ControlButtonStyler>
-                        </Tooltip>
-                      </Control>
-                    )}
-
-                    {fullScreenControl && (
-                      <Control position="topleft" order={50}>
-                        <FullscreenControl />
-                      </Control>
-                    )}
-
-                    {locatorControl && mapEngine === "leaflet" && (
-                      <Control position="topleft" order={60}>
-                        <RoutedMapLocateControl
-                          tourRefLabels={null}
-                          disabled={false}
-                          nativeTooltip={true}
-                        />
-                      </Control>
-                    )}
-
-                    {locatorControl && mapEngine === "maplibre" && (
-                      <Control position="topleft" order={60}>
-                        <LibreMapLocateControl
-                          map={libreMap}
-                          nativeTooltip={true}
-                        />
-                      </Control>
-                    )}
-
-                    <Control position="topright" order={10}>
-                      <ControlButtonStyler
-                        useDisabledStyle={false}
-                        onClick={() => {
-                          setAppMenuVisible(true);
-                        }}
-                      >
-                        <FontAwesomeIcon icon={faBars} className="text-base" />
-                      </ControlButtonStyler>
-                    </Control>
-
-                    {gazetteerSearchControl && (
-                      <Control position="bottomleft" order={10}>
-                        {gazetteerSearchComponent ? (
-                          gazetteerSearchComponent
-                        ) : (
-                          <div
-                            data-test-id="fuzzy-search"
-                            style={{ marginTop: "4px" }}
-                          >
-                            <LibFuzzySearch
-                              pixelwidth={
-                                responsiveState === "normal"
-                                  ? "300px"
-                                  : windowSize.width - gap
-                              }
-                              placeholder="Stadtteil | Adresse | POI"
-                              priorityTypes={[
-                                "pois",
-                                "poisAlternativeNames",
-                                "bezirke",
-                                "quartiere",
-                                "adressen",
-                                "streets",
-                                "schulen",
-                                "kitas",
-                              ]}
-                              typeInference={defaultTypeInference}
-                            />
-                          </div>
-                        )}
-                      </Control>
-                    )}
-
-                    {map}
-                    {modalMenu}
-                  </ControlLayout>
-                </div>
-              </MapFrameworkSwitcherProvider>
-            </HashStateProvider>
-          ),
-          path: "/",
+          element: <CarmaMapContent {...props} />,
+          path: "*",
         },
       ])}
     />

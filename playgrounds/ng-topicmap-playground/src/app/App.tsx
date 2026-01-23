@@ -45,23 +45,35 @@ export function App() {
                   ],
                 },
               ]}
-              // vectorStyles={[
-              //   {
-              //     name: "POIs",
-              //     style: "https://tiles.cismet.de/poi/style.json",
-              //     infoboxMapping: [
-              //       "foto: p.foto",
-              //       "headerColor:p.schrift",
-              //       "header:p.kombi",
-              //       "title:p.geographicidentifier",
-              //       "additionalInfo:p.adresse",
-              //       "subtitle: p.info",
-              //       "url:p.url",
-              //       "tel:p.telefon",
-              //       "email:p.email",
-              //     ],
-              //   },
-              // ]}
+              filterFunction={(map, layers) => {
+                layers?.forEach((layer, index) => {
+                  if (layer.type === "geojson") {
+                    const sourceId = `geojson-source-${index}`;
+                    const styleSource = map.getStyle().sources[sourceId] as any;
+
+                    if (styleSource?.data?.features) {
+                      const filteredFeatures = styleSource.data.features.filter(
+                        (feature: any) => {
+                          const identifications =
+                            feature.properties?.identifications;
+                          if (!Array.isArray(identifications)) return true;
+                          return !identifications.some(
+                            (id: any) => id.identification === "Schule"
+                          );
+                        }
+                      );
+
+                      const source = map.getSource(sourceId);
+                      if (source && "setData" in source) {
+                        (source as any).setData({
+                          type: "FeatureCollection",
+                          features: filteredFeatures,
+                        });
+                      }
+                    }
+                  }
+                });
+              }}
               modalMenu={<Menu />}
             />
           </LibreContextProvider>
