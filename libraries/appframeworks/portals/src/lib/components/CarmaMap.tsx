@@ -119,6 +119,7 @@ const CarmaMapContent = (props: CarmaMapProps) => {
           onProgressUpdate={props.onProgressUpdate}
           filterFunction={props.filterFunction}
           useRouting={props.useRouting}
+          onFeatureSelect={props.onFeatureSelect}
         />
       );
     }
