@@ -45,6 +45,7 @@ export interface LibreMapProps {
     geoJsonData?: GeoJsonData[]
   ) => void;
   useRouting?: boolean;
+  onFeatureSelect?: (feature: any) => void;
 }
 
 export const LibreMap = ({
@@ -54,6 +55,7 @@ export const LibreMap = ({
   onProgressUpdate,
   filterFunction,
   useRouting = false,
+  onFeatureSelect,
 }: LibreMapProps) => {
   const mapContainer = useRef<HTMLDivElement>(null);
   const map = useRef<maplibregl.Map | null>(null);
@@ -372,6 +374,7 @@ export const LibreMap = ({
               });
             }
             setSelectedFeature(feature);
+            onFeatureSelect?.(feature);
           } else {
           }
         } else {
