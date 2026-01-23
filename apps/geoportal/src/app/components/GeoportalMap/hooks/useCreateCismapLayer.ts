@@ -145,6 +145,17 @@ export const useCreateCismapLayers = (
   useEffect(() => {
     rearrangeGlobalHits();
     setIdleLayers({});
+
+    if (maplibreMapsRef) {
+      const visibleVectorLayerIds = layers
+        .filter((l) => l.visible && l.layerType === "vector")
+        .map((l) => l.id);
+      maplibreMapsRef.current.forEach((_, layerId) => {
+        if (!visibleVectorLayerIds.includes(layerId)) {
+          maplibreMapsRef.current.delete(layerId);
+        }
+      });
+    }
   }, [layers]);
 
   useEffect(() => {
