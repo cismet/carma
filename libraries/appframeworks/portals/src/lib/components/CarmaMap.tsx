@@ -112,7 +112,7 @@ const CarmaMapContent = (props: CarmaMapProps) => {
         <LibreMap
           backgroundLayers={
             backgroundLayers ??
-            backgroundConfigurations[selectedBackground].layerkey
+            backgroundConfigurations?.[selectedBackground]?.layerkey
           }
           setLibreMap={(map) => {
             setLibreMap(map);
