@@ -27,3 +27,7 @@ export {
   type FetchRouteOptionsParams,
   type RouteOption,
 } from './utils/routeDisplay';
+
+// UI Components
+export { RouteOptionsDrawer } from './components/RouteOptionsDrawer';
+export { InlineRouteOptions } from './components/InlineRouteOptions';

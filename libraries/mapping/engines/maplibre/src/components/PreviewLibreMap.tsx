@@ -2,8 +2,8 @@ import type { StyleSpecification } from "maplibre-gl";
 import maplibregl from "maplibre-gl";
 import "maplibre-gl/dist/maplibre-gl.css";
 import { useEffect, useRef, useState } from "react";
-import { useLibreContext } from "./LibreContext";
-import { useClusterMarkers } from "./useClusterMarkers";
+import { useLibreContext } from "../contexts/LibreContext";
+import { useClusterMarkers } from "../hooks/useClusterMarkers";
 
 interface PreviewLibreMapProps {
   lat?: number;

@@ -16,7 +16,7 @@ import {
   DrawerDescription,
   DrawerClose,
 } from "@carma-commons/ui/shadcn";
-import type { RouteOption } from "./libremap.utils";
+import type { RouteOption } from "../utils/routeDisplay";
 
 interface RouteOptionsDrawerProps {
   open: boolean;

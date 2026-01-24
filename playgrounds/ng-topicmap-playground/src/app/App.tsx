@@ -1,11 +1,11 @@
 import {
-  CarmaMap,
   SelectionProvider,
   ProgressIndicator,
   useProgress,
   GazDataProvider,
-  LibreContextProvider,
 } from "@carma-appframeworks/portals";
+import { CarmaMap } from "@carma-mapping/core";
+import { LibreContextProvider } from "@carma-mapping/engines/maplibre";
 import TopicMapContextProvider from "react-cismap/contexts/TopicMapContextProvider";
 import { defaultGazDataConfig } from "@carma-commons/resources";
 import Menu from "./Menu";

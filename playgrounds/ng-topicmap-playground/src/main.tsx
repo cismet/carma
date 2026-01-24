@@ -9,8 +9,8 @@ import { cjsGlobalShim } from "@carma-commons/utils";
 import {
   SelectionProvider,
   GazDataProvider,
-  LibreContextProvider,
 } from "@carma-appframeworks/portals";
+import { LibreContextProvider } from "@carma-mapping/engines/maplibre";
 import TopicMapContextProvider from "react-cismap/contexts/TopicMapContextProvider";
 import { defaultGazDataConfig } from "@carma-commons/resources";
 import BelisPlayground from "./app/BelisPlayground";

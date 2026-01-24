@@ -7,7 +7,7 @@ import {
   faClock,
   faRoute,
 } from "@fortawesome/free-solid-svg-icons";
-import type { RouteOption } from "./libremap.utils";
+import type { RouteOption } from "../utils/routeDisplay";
 
 interface InlineRouteOptionsProps {
   onSelectRoute: (route: RouteOption) => void;

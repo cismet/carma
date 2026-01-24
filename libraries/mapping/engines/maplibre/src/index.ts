@@ -7,6 +7,7 @@ export const MAPLIBRE_ENGINE_VERSION = '0.0.1';
 export { LibreMap } from './components/LibreMap';
 export type { LibreMapProps, GeoJsonData, VectorStyle, LibreLayer } from './components/LibreMap';
 export { LibreMapSelectionContent } from './components/LibreMapSelectionContent';
+export { PreviewLibreMap } from './components/PreviewLibreMap';
 
 // Context
 export {
