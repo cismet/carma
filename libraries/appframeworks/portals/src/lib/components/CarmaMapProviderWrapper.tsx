@@ -17,7 +17,7 @@ import {
   type APIRootState,
   CarmaMapAPIProvider,
 } from "@carma-mapping/carma-map-api";
-import { SandboxedEvalProvider } from "./SandboxedEvalProvider";
+import { SandboxedEvalProvider } from "@carma-commons/sandbox-eval";
 
 import type { Store } from "redux";
 

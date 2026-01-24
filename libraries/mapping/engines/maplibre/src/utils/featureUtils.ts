@@ -1,11 +1,9 @@
 /**
  * Feature utilities for MapLibre GL
- *
- * TODO: The eval-based functions (functionToFeature, objectToFeature) should be
- * refactored to use @carma-commons/sandbox-eval for safer code evaluation.
  */
 
 import type maplibregl from "maplibre-gl";
+import { functionToFeature, objectToFeature } from "@carma-mapping/utils";
 
 /**
  * Get coordinates from a GeoJSON geometry
@@ -40,72 +38,6 @@ export const truncateString = (text: string, num: number): string => {
   return text;
 };
 
-/**
- * Convert a function string to a feature object
- * WARNING: Uses eval - should be refactored to use SandboxedEvalProvider
- */
-export const functionToFeature = (output: Record<string, unknown>, code: string) => {
-  try {
-    // eslint-disable-next-line no-eval
-    const codeFunction = eval("(" + code + ")");
-    const tmpInfo = codeFunction(output);
-
-    if (!tmpInfo) {
-      return undefined;
-    }
-
-    const properties = {
-      ...tmpInfo,
-      wmsProps: output,
-    };
-
-    return { properties };
-  } catch (error) {
-    console.error("Error in functionToFeature:", error);
-    return undefined;
-  }
-};
-
-/**
- * Convert an object to a feature using configuration lines
- * WARNING: Uses eval - should be refactored to use SandboxedEvalProvider
- */
-export const objectToFeature = (jsonOutput: Record<string, unknown> | null, code: string) => {
-  if (!jsonOutput) {
-    return {
-      properties: {
-        title: "Keine Informationen gefunden",
-      },
-    };
-  }
-
-  const conf = code
-    .split("\n")
-    .filter((line) => line.trim() !== "" && line.trim() !== "undefined");
-
-  let functionString = `(function(p) {
-                    const info = {`;
-
-  conf.forEach((rule) => {
-    functionString += `${rule.trim()},\n`;
-  });
-
-  functionString += `
-                                          };
-                                          return info;
-                    })`;
-
-  // eslint-disable-next-line no-eval
-  const tmpInfo = eval(functionString)(jsonOutput);
-
-  const properties = {
-    ...tmpInfo,
-    wmsProps: jsonOutput,
-  };
-
-  return { properties };
-};
-
 export interface FeatureInfo {
   properties: Record<string, unknown>;
   geometry: GeoJSON.Geometry;
@@ -123,12 +55,12 @@ export interface LayerMappingEntry {
 /**
  * Create a feature object from a selected vector feature
  */
-export const createFeature = (
+export const createFeature = async (
   selectedVectorFeature: maplibregl.MapGeoJSONFeature,
   layerMapping: string[],
   _mapInstance?: maplibregl.Map,
   useRouting?: boolean
-): FeatureInfo | undefined => {
+): Promise<FeatureInfo | undefined> => {
   let feature: FeatureInfo | undefined = undefined;
 
   let properties: Record<string, unknown> = selectedVectorFeature.properties || {};
@@ -153,8 +85,8 @@ export const createFeature = (
     }
 
     const featureProperties = result.includes("function")
-      ? functionToFeature(properties, result)
-      : objectToFeature(properties, result);
+      ? await functionToFeature(properties, result)
+      : await objectToFeature(properties, result);
 
     if (!featureProperties) {
       return undefined;

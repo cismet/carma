@@ -310,7 +310,7 @@ export const LibreMap = ({
       setLibreMap?.(mapInstance);
       setContextMap(mapInstance);
 
-      mapInstance.on("click", (e) => {
+      mapInstance.on("click", async (e) => {
         const point = mapInstance.project([e.lngLat.lng, e.lngLat.lat]);
         const hits = mapInstance.queryRenderedFeatures(point);
         let filteredHits = hits.filter((hit) => {
@@ -363,7 +363,7 @@ export const LibreMap = ({
 
           let feature = null;
           if (layerMapping) {
-            feature = createFeature(
+            feature = await createFeature(
               selectedVectorFeature,
               layerMapping,
               mapInstance,

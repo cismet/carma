@@ -3,6 +3,7 @@ import {
   ProgressIndicator,
   useProgress,
   GazDataProvider,
+  SandboxedEvalProvider,
 } from "@carma-appframeworks/portals";
 import { CarmaMap } from "@carma-mapping/core";
 import { LibreContextProvider } from "@carma-mapping/engines/maplibre";
@@ -19,9 +20,10 @@ export function App() {
 
   return (
     <TopicMapContextProvider infoBoxPixelWidth={350}>
-      <GazDataProvider config={defaultGazDataConfig}>
-        <SelectionProvider>
-          <LibreContextProvider>
+      <SandboxedEvalProvider>
+        <GazDataProvider config={defaultGazDataConfig}>
+          <SelectionProvider>
+            <LibreContextProvider>
             <ProgressIndicator progress={progress} show={showProgress} />
             <CarmaMap
               onClick={() => {}}
@@ -76,9 +78,10 @@ export function App() {
               }}
               modalMenu={<Menu />}
             />
-          </LibreContextProvider>
-        </SelectionProvider>
-      </GazDataProvider>
+            </LibreContextProvider>
+          </SelectionProvider>
+        </GazDataProvider>
+      </SandboxedEvalProvider>
     </TopicMapContextProvider>
   );
 }

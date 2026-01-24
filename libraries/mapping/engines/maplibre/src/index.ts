@@ -36,8 +36,6 @@ export {
   createFeature,
   getCoordinates,
   truncateString,
-  functionToFeature,
-  objectToFeature,
   type FeatureInfo,
   type LayerMappingEntry,
 } from './utils/featureUtils';

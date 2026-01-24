@@ -1,5 +1,5 @@
 import type { FeatureInfo, FeatureInfoProperties } from "@carma/types";
-import { sandboxedEvalExternal } from "../components/SandboxedEvalProvider";
+import { sandboxedEvalExternal } from "@carma-commons/sandbox-eval";
 
 /**
  * @deprecated Use `objectToInfo` instead.
