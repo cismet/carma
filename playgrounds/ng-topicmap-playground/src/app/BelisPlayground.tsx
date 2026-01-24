@@ -1,4 +1,4 @@
-import { CarmaMap } from "@carma-appframeworks/portals";
+import { CarmaMap } from "@carma-mapping/core";
 import { CustomCard } from "./CustomCard";
 import { BelisSwitch } from "@carma-appframeworks/belis";
 
