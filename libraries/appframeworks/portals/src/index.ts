@@ -25,12 +25,6 @@ export { InfoBoxHeader } from "./lib/components/InfoBoxHeader.tsx";
 
 export { GazDataProvider, useGazData } from "./lib/components/GazDataProvider";
 
-// Re-export from @carma-commons/sandbox-eval for backwards compatibility
-export {
-  SandboxedEvalProvider,
-  useSandboxedEval,
-  sandboxedEvalExternal,
-} from "@carma-commons/sandbox-eval";
 
 export {
   MapStyleProvider,

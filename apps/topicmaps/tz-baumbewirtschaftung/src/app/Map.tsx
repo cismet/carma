@@ -8,11 +8,11 @@ import SetStatusDialog from "./SetStatusDialog";
 import {
   createVectorFeature,
   FeatureInfobox,
-  SandboxedEvalProvider,
   TopicMapSelectionContent,
   useSelectionTopicMap,
   getInfoBoxControlObjectFromMappingAndVectorFeature,
 } from "@carma-appframeworks/portals";
+import { SandboxedEvalProvider } from "@carma-commons/sandbox-eval";
 import {
   defaultTypeInference,
   EmptySearchComponent,

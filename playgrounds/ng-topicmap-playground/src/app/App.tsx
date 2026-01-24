@@ -3,8 +3,8 @@ import {
   ProgressIndicator,
   useProgress,
   GazDataProvider,
-  SandboxedEvalProvider,
 } from "@carma-appframeworks/portals";
+import { SandboxedEvalProvider } from "@carma-commons/sandbox-eval";
 import { CarmaMap } from "@carma-mapping/core";
 import { LibreContextProvider } from "@carma-mapping/engines/maplibre";
 import TopicMapContextProvider from "react-cismap/contexts/TopicMapContextProvider";
