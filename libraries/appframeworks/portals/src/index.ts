@@ -62,13 +62,8 @@ export {
   defaultBackgroundConfigurations,
   backgroundConfWithFastOrtho2024,
 } from "./lib/utils/topicmapConfigs";
-export {
-  createUrl,
-  functionToFeature,
-  objectToFeature,
-  createVectorFeature,
-  getInfoBoxControlObjectFromMappingAndVectorFeature,
-} from "./lib/utils/featureInfo";
+// Feature functions moved to @carma-mapping/utils
+// createUrl, functionToFeature, objectToFeature, createVectorFeature, getInfoBoxControlObjectFromMappingAndVectorFeature
 
 export { getActionLinksForFeature } from "./lib/components/helper";
 

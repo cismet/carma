@@ -38,7 +38,7 @@ import CismapLayer from "react-cismap/CismapLayer";
 import Menu from "./components/Menu";
 import { TopicMapStylingContext } from "react-cismap/contexts/TopicMapStylingContextProvider";
 import md5 from "md5";
-import { createVectorFeature } from "@carma-appframeworks/portals";
+import { createVectorFeature } from "@carma-mapping/utils";
 
 const host = import.meta.env.VITE_WUPP_ASSET_BASEURL;
 const downloadText = (text, filename) => {

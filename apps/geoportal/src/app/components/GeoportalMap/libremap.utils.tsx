@@ -7,7 +7,7 @@ import type { BackgroundLayer, Layer } from "@carma/types";
 import {
   functionToFeature,
   objectToFeature,
-} from "@carma-appframeworks/portals";
+} from "@carma-mapping/utils";
 import { defaultLayerConfig } from "../../config";
 import { LibreGeoportalMapOptions } from "./LibreGeoportalMap";
 
