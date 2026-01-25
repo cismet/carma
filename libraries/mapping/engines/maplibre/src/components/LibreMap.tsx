@@ -73,12 +73,12 @@ export const LibreMap = ({
 }: LibreMapProps) => {
   const mapContainer = useRef<HTMLDivElement>(null);
   const map = useRef<maplibregl.Map | null>(null);
-  const selectedFeatures: Set<{
+  const selectedFeaturesRef = useRef<Set<{
     source: string;
     sourceLayer?: string;
     id?: string | number;
     selectionLayerId?: string;
-  }> = new Set();
+  }>>(new Set());
   const mappingRef = useRef({});
   const isIdleRef = useRef(false);
   const vectorSourcesReadyRef = useRef(false);
@@ -320,7 +320,7 @@ export const LibreMap = ({
           );
         });
 
-        selectedFeatures.forEach((feature) => {
+        selectedFeaturesRef.current.forEach((feature) => {
           try {
             // If we have a selection layer ID, reset its filter
             if (
@@ -348,7 +348,7 @@ export const LibreMap = ({
           }
         });
 
-        selectedFeatures.clear();
+        selectedFeaturesRef.current.clear();
         setSelectedFeature(null);
         if (filteredHits.length > 0) {
           const selectedVectorFeature = filteredHits[0];
@@ -381,7 +381,7 @@ export const LibreMap = ({
                 },
                 { selected: true }
               );
-              selectedFeatures.add({
+              selectedFeaturesRef.current.add({
                 source: selectedVectorFeature.source,
                 sourceLayer: selectedVectorFeature.sourceLayer,
                 id: selectedVectorFeature.id,
