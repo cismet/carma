@@ -25,7 +25,6 @@ export const useRoutedMapLocateControl = () => {
       };
 
       const handleLocationFound = () => {
-        console.log("xxx location found");
         setTimeout(() => {
           setIsLoading(false);
           setHasFoundLocation(true);
@@ -84,7 +83,7 @@ export const useRoutedMapLocateControl = () => {
         try {
           locationInstance.stop();
         } catch (e) {
-          console.log("xxx error stopping location instance", e);
+          // Silently ignore - instance may already be stopped
         }
       }
     };
@@ -100,7 +99,7 @@ export const useRoutedMapLocateControl = () => {
         try {
           locationInstance.stop();
         } catch (e) {
-          console.log("xxx error stopping location instance", e);
+          // Silently ignore - instance may already be stopped
         }
       }
     }

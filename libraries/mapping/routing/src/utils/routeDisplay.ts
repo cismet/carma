@@ -201,7 +201,6 @@ export function displaySelectedRouteOnMap(
       mapInstance.fitBounds(bounds, { padding });
     }
 
-    console.log("Selected route displayed on map");
     return coordinates;
   } catch (error) {
     console.error("Error displaying route:", error);
@@ -291,7 +290,6 @@ export async function displayRouteOnMap(
       mapInstance.fitBounds(bounds, { padding });
     }
 
-    console.log("Route displayed on map");
     return coordinates;
   } catch (error) {
     console.error("Routing error:", error);

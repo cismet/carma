@@ -162,7 +162,6 @@ export const createBaseConfig = (layers: XMLLayer[]) => {
       layers: item.layers.map((layer) => ({ name: layer.Name })),
     };
   });
-  console.log(result);
 
   return null;
 };

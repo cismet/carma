@@ -474,8 +474,6 @@ export const LibreMap = ({
           // Save terrain state before setting style
           const currentTerrain = map.current?.getTerrain();
 
-          console.log("xxx", style);
-
           map.current?.setStyle(style);
 
           // Update context with the full map style

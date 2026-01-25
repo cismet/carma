@@ -128,7 +128,7 @@ export const useHandleDrop = ({
             }
           })
           .catch((error) => {
-            console.log("xxx error", error);
+            console.error("Error handling drop:", error);
           });
       }
 
@@ -136,7 +136,6 @@ export const useHandleDrop = ({
         // Handle file drop
         setOpen(true);
         setSelectedNavItemIndex(3);
-        console.log("File dropped:", file.name, file);
 
         const reader = new FileReader();
         reader.onload = (e) => {
@@ -150,7 +149,6 @@ export const useHandleDrop = ({
               );
 
               const jsonData = JSON.parse(processedContent);
-              console.log("xxx Parsed JSON from file:", jsonData);
 
               const newItem = {
                 description: "",

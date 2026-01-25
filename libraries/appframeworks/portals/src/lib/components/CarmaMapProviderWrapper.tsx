@@ -1,6 +1,6 @@
 import { OverlayTourProvider } from "@carma-commons/ui/helper-overlay";
 import { CesiumContextProvider } from "@carma-mapping/engines/cesium";
-import { LibreContextProvider } from "@carma-mapping/engines/maplibre";
+import { LibreContextProvider } from "@carma-mapping/contexts";
 import { TopicMapContextProvider } from "react-cismap/contexts/TopicMapContextProvider";
 
 import { GazDataProvider } from "./GazDataProvider";
