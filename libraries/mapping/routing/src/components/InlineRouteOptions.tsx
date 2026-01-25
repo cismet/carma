@@ -1,64 +1,18 @@
 import { Spin } from "antd";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
-import {
-  faCar,
-  faWalking,
-  faBicycle,
-  faClock,
-  faRoute,
-} from "@fortawesome/free-solid-svg-icons";
+import { faClock, faRoute } from "@fortawesome/free-solid-svg-icons";
 import type { RouteOption } from "../utils/routeDisplay";
+import {
+  formatDuration,
+  formatDistance,
+  getModeIcon,
+  getModeLabel,
+} from "../utils/formatters";
 
 interface InlineRouteOptionsProps {
   onSelectRoute: (route: RouteOption) => void;
   routes: RouteOption[];
   loading?: boolean;
-}
-
-function formatDuration(seconds: number): string {
-  const hours = Math.floor(seconds / 3600);
-  const minutes = Math.floor((seconds % 3600) / 60);
-  if (hours > 0) {
-    return `${hours} Std ${minutes} Min`;
-  }
-  return `${minutes} Min`;
-}
-
-function formatDistance(meters: number): string {
-  if (meters >= 1000) {
-    return `${(meters / 1000).toFixed(1)} km`;
-  }
-  return `${Math.round(meters)} m`;
-}
-
-function getModeIcon(mode: string) {
-  switch (mode?.toLowerCase()) {
-    case "car":
-      return faCar;
-    case "walk":
-    case "walking":
-      return faWalking;
-    case "bike":
-    case "bicycle":
-      return faBicycle;
-    default:
-      return faCar;
-  }
-}
-
-function getModeLabel(mode: string): string {
-  switch (mode?.toLowerCase()) {
-    case "car":
-      return "Auto";
-    case "walk":
-    case "walking":
-      return "Zu Fuß";
-    case "bike":
-    case "bicycle":
-      return "Fahrrad";
-    default:
-      return mode || "Route";
-  }
 }
 
 export const InlineRouteOptions = ({
