@@ -3,7 +3,7 @@ import {
   ControlButtonStyler,
   ControlLayout,
 } from "@carma-mapping/map-controls-layout";
-import { useContext, useEffect, useState } from "react";
+import { useCallback, useContext, useState } from "react";
 import TopicMapComponent from "react-cismap/topicmaps/TopicMapComponent";
 import {
   FullscreenControl,
@@ -82,45 +82,18 @@ const CarmaMapContent = (props: CarmaMapProps) => {
   const { selectedBackground, backgroundConfigurations } = useContext<
     typeof TopicMapStylingContext
   >(TopicMapStylingContext);
-  const [map, setMap] = useState(<></>);
   const [libreMap, setLibreMap] = useState<maplibregl.Map | null>(null);
   const [showTerrain, setShowTerrain] = useState(false);
 
-  useEffect(() => {
-    if (mapEngine === "leaflet") {
-      setMap(
-        <TopicMapComponent
-          {...props}
-          locatorControl={false}
-          fullScreenControl={false}
-          zoomControls={false}
-          gazetteerSearchControl={false}
-        >
-          {children}
-        </TopicMapComponent>
-      );
-    }
+  // Stable callback to avoid re-creating LibreMap on every render
+  const handleLibreMapReady = useCallback((map: maplibregl.Map) => {
+    setLibreMap(map);
+    props.setLibreMap?.(map);
+  }, [props.setLibreMap]);
 
-    if (mapEngine === "maplibre") {
-      setMap(
-        <LibreMap
-          backgroundLayers={
-            backgroundLayers ??
-            backgroundConfigurations?.[selectedBackground]?.layerkey
-          }
-          setLibreMap={(map) => {
-            setLibreMap(map);
-            props.setLibreMap?.(map);
-          }}
-          layers={libreLayers}
-          onProgressUpdate={props.onProgressUpdate}
-          filterFunction={props.filterFunction}
-          useRouting={props.useRouting}
-          onFeatureSelect={props.onFeatureSelect}
-        />
-      );
-    }
-  }, [mapEngine, selectedBackground]);
+  // Compute background layers - either from props or from context
+  const effectiveBackgroundLayers = backgroundLayers ??
+    backgroundConfigurations?.[selectedBackground]?.layerkey;
 
   return (
     <HashStateProvider>
@@ -242,7 +215,28 @@ const CarmaMapContent = (props: CarmaMapProps) => {
               </Control>
             )}
 
-            {map}
+            {mapEngine === "leaflet" && (
+              <TopicMapComponent
+                {...props}
+                locatorControl={false}
+                fullScreenControl={false}
+                zoomControls={false}
+                gazetteerSearchControl={false}
+              >
+                {children}
+              </TopicMapComponent>
+            )}
+            {mapEngine === "maplibre" && (
+              <LibreMap
+                backgroundLayers={effectiveBackgroundLayers}
+                setLibreMap={handleLibreMapReady}
+                layers={libreLayers}
+                onProgressUpdate={props.onProgressUpdate}
+                filterFunction={props.filterFunction}
+                useRouting={props.useRouting}
+                onFeatureSelect={props.onFeatureSelect}
+              />
+            )}
             {modalMenu}
           </ControlLayout>
         </div>
