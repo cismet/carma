@@ -46,5 +46,15 @@ export { zoom512as256, zoom256as512 } from './utils/zoomUtils';
 // Cluster utilities
 export { createPieChart } from './utils/clusterUtils';
 
+// Default styles and city configuration
+export {
+  createDefaultStyle,
+  createPreviewStyle,
+  WUPPERTAL_CONFIG,
+  WUPPERTAL_DEFAULT_STYLE,
+  WUPPERTAL_PREVIEW_STYLE,
+  type CityMapConfig,
+} from './constants/wuppertalDefaultStyle';
+
 // Styles (CSS should be imported by consumers)
 // import '@carma-mapping/engines/maplibre/styles/map.css';

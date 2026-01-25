@@ -1,9 +1,9 @@
-import type { StyleSpecification } from "maplibre-gl";
 import maplibregl from "maplibre-gl";
 import "maplibre-gl/dist/maplibre-gl.css";
 import { useEffect, useRef, useState } from "react";
 import { useLibreContext } from "../contexts/LibreContext";
 import { useClusterMarkers } from "../hooks/useClusterMarkers";
+import { WUPPERTAL_PREVIEW_STYLE } from "../constants/wuppertalDefaultStyle";
 
 interface PreviewLibreMapProps {
   lat?: number;
@@ -15,27 +15,6 @@ interface PreviewLibreMapProps {
 const defaultContainerStyle: React.CSSProperties = {
   width: "100%",
   height: 300,
-};
-
-const defaultMapStyle: StyleSpecification = {
-  version: 8,
-  sources: {
-    "source-amtlich": {
-      type: "raster",
-      tiles: [
-        "https://geodaten.metropoleruhr.de/spw2?SERVICE=WMTS&REQUEST=GetTile&VERSION=1.0.0&LAYER=spw2_light&STYLE=default&FORMAT=image/png&TILEMATRIXSET=webmercator_hq&TILEMATRIX={z}&TILEROW={y}&TILECOL={x}",
-      ],
-      tileSize: 256,
-    },
-  },
-  layers: [
-    {
-      id: "layer-amtlich",
-      type: "raster",
-      source: "source-amtlich",
-      paint: { "raster-opacity": 1 },
-    },
-  ],
 };
 
 export const PreviewLibreMap = ({
@@ -59,7 +38,7 @@ export const PreviewLibreMap = ({
     if (mapContainer.current && !map.current) {
       const instance = new maplibregl.Map({
         container: mapContainer.current,
-        style: mapStyle ?? defaultMapStyle,
+        style: mapStyle ?? WUPPERTAL_PREVIEW_STYLE,
         center: [lng, lat],
         zoom: zoom,
         attributionControl: false,

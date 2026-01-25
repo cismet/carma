@@ -21,6 +21,10 @@ import { proj4crs3857def, proj4crs4326def } from "@carma-mapping/utils";
 import { useSelectionLibreMap } from "../hooks/useSelectionLibreMap";
 import { useLibreContext } from "../contexts/LibreContext";
 import { useClusterMarkers } from "../hooks/useClusterMarkers";
+import {
+  WUPPERTAL_DEFAULT_STYLE,
+  WUPPERTAL_CONFIG,
+} from "../constants/wuppertalDefaultStyle";
 
 // Import from portals temporarily until these are migrated
 import { FeatureInfobox } from "@carma-appframeworks/portals";
@@ -141,47 +145,21 @@ export const LibreMap = ({
   const buildBackgroundStyle = (): StyleSpecification => {
     if (!backgroundLayers) {
       // Default fallback style
-      return {
-        version: 8,
-        sources: {
-          terrainSource: {
-            type: "raster-dem",
-            tiles: [
-              "https://wuppertal-terrain.cismet.de/services/wupp_dgm_01/tiles/{z}/{x}/{y}.png",
-            ],
-            tileSize: 512,
-            maxzoom: 15,
-          },
-          "source-amtlich": {
-            type: "raster",
-            tiles: [
-              "https://geodaten.metropoleruhr.de/spw2?SERVICE=WMTS&REQUEST=GetTile&VERSION=1.0.0&LAYER=spw2_light&STYLE=default&FORMAT=image/png&TILEMATRIXSET=webmercator_hq&TILEMATRIX={z}&TILEROW={y}&TILECOL={x}",
-            ],
-            tileSize: 256,
-          },
-        },
-        layers: [
-          {
-            id: "layer-amtlich",
-            type: "raster",
-            source: "source-amtlich",
-            paint: { "raster-opacity": 0.9 },
-          },
-        ],
-      };
+      return WUPPERTAL_DEFAULT_STYLE;
     }
 
     const layerSpecs = backgroundLayers.split("|");
-    const sources: Record<string, any> = {
-      terrainSource: {
+    const sources: Record<string, any> = {};
+
+    // Add terrain source from config
+    if (WUPPERTAL_CONFIG.terrain) {
+      sources["terrainSource"] = {
         type: "raster-dem",
-        tiles: [
-          "https://wuppertal-terrain.cismet.de/services/wupp_dgm_01/tiles/{z}/{x}/{y}.png",
-        ],
-        tileSize: 512,
-        maxzoom: 15,
-      },
-    };
+        tiles: [WUPPERTAL_CONFIG.terrain.url],
+        tileSize: WUPPERTAL_CONFIG.terrain.tileSize ?? 512,
+        maxzoom: WUPPERTAL_CONFIG.terrain.maxzoom ?? 15,
+      };
+    }
     const styleLayers: any[] = [];
 
     layerSpecs.forEach((spec, index) => {
@@ -237,34 +215,7 @@ export const LibreMap = ({
 
     // If no valid layers were parsed, return default style
     if (styleLayers.length === 0) {
-      return {
-        version: 8,
-        sources: {
-          terrainSource: {
-            type: "raster-dem",
-            tiles: [
-              "https://wuppertal-terrain.cismet.de/services/wupp_dgm_01/tiles/{z}/{x}/{y}.png",
-            ],
-            tileSize: 512,
-            maxzoom: 15,
-          },
-          "source-amtlich": {
-            type: "raster",
-            tiles: [
-              "https://geodaten.metropoleruhr.de/spw2?SERVICE=WMTS&REQUEST=GetTile&VERSION=1.0.0&LAYER=spw2_light&STYLE=default&FORMAT=image/png&TILEMATRIXSET=webmercator_hq&TILEMATRIX={z}&TILEROW={y}&TILECOL={x}",
-            ],
-            tileSize: 256,
-          },
-        },
-        layers: [
-          {
-            id: "layer-amtlich",
-            type: "raster",
-            source: "source-amtlich",
-            paint: { "raster-opacity": 0.9 },
-          },
-        ],
-      };
+      return WUPPERTAL_DEFAULT_STYLE;
     }
 
     return {

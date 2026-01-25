@@ -14,6 +14,7 @@ import type {
 import slugify from "slugify";
 import WMSCapabilities from "wms-capabilities";
 import { extractCarmaConfig, md5FetchJSON } from "@carma-commons/utils";
+import { WUPPERTAL_DEFAULT_STYLE } from "../constants/wuppertalDefaultStyle";
 
 // Inlined from @carma-mapping/layers to avoid circular dependency through portals
 interface WMSLayerLike {
@@ -335,35 +336,8 @@ export const vectorStylesToMapLibreStyle = async ({
   const customSprites: SpriteSpecification = [];
   const geoJsonMetadata: GeoJsonStyleMetadata[] = [];
 
-  // Use provided backgroundStyle or create default
-  const baseStyle: StyleSpecification = backgroundStyle || {
-    version: 8,
-    sources: {
-      terrainSource: {
-        type: "raster-dem",
-        tiles: [
-          "https://wuppertal-terrain.cismet.de/services/wupp_dgm_01/tiles/{z}/{x}/{y}.png",
-        ],
-        tileSize: 512,
-        maxzoom: 15,
-      },
-      "source-amtlich": {
-        type: "raster",
-        tiles: [
-          "https://geodaten.metropoleruhr.de/spw2?SERVICE=WMTS&REQUEST=GetTile&VERSION=1.0.0&LAYER=spw2_light&STYLE=default&FORMAT=image/png&TILEMATRIXSET=webmercator_hq&TILEMATRIX={z}&TILEROW={y}&TILECOL={x}",
-        ],
-        tileSize: 256,
-      },
-    },
-    layers: [
-      {
-        id: "layer-amtlich",
-        type: "raster",
-        source: "source-amtlich",
-        paint: { "raster-opacity": 0.9 },
-      },
-    ],
-  };
+  // Use provided backgroundStyle or Wuppertal default
+  const baseStyle: StyleSpecification = backgroundStyle || WUPPERTAL_DEFAULT_STYLE;
 
   const style: StyleSpecification = {
     ...baseStyle,
