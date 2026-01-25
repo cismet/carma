@@ -680,14 +680,34 @@ export const LibreMap = ({
     };
   }, [handleTopicMapLocationChange]);
 
-  const onComplete = (selection: SelectionItem) => {
+  // Wait for vector sources to be ready, with timeout
+  const waitForVectorSources = (maxAttempts = 50, interval = 20): Promise<boolean> => {
+    return new Promise((resolve) => {
+      let attempts = 0;
+      const check = () => {
+        if (vectorSourcesReadyRef.current) {
+          resolve(true);
+        } else if (attempts < maxAttempts) {
+          attempts++;
+          setTimeout(check, interval);
+        } else {
+          console.warn('Vector sources did not load in time');
+          resolve(false);
+        }
+      };
+      check();
+    });
+  };
+
+  const onComplete = async (selection: SelectionItem) => {
     if (!isAreaType(selection.type as ENDPOINT)) {
       const selectedPos = proj4(proj4crs3857def, proj4crs4326def, [
         selection.x,
         selection.y,
       ]);
 
-      if (vectorSourcesReadyRef.current) {
+      const ready = await waitForVectorSources();
+      if (ready && map.current) {
         setTimeout(() => {
           if (map.current) {
             map.current.fire("click", {
@@ -705,10 +725,6 @@ export const LibreMap = ({
             });
           }
         }, 500);
-      } else {
-        setTimeout(() => {
-          onComplete(selection);
-        }, 20);
       }
     }
   };
