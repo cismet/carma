@@ -50,11 +50,25 @@ import { getImageUrls } from "../utils/imageHandling";
 
 import { CAMERA_ID_INTERIOR_ORIENTATION_PERCENTAGE_OFFSETS } from "../config";
 import { CardinalDirectionEnum } from "../utils/orientationUtils";
+import { strings } from "../strings.de";
 
 interface ObliqueControlsProps {
   headingOffset?: number;
   isObliqueMode?: boolean;
   hideControls?: boolean;
+}
+
+type ObliqueCubeConsoleApi = {
+  show: () => void;
+  hide: () => void;
+};
+
+declare global {
+  interface Window {
+    carmaOblique?: {
+      cube?: ObliqueCubeConsoleApi;
+    };
+  }
 }
 
 export const ObliqueControls: FC<ObliqueControlsProps> = ({
@@ -146,6 +160,30 @@ export const ObliqueControls: FC<ObliqueControlsProps> = ({
   const [contrastBase, setContrastBase] = useState(95);
   const [saturationBase, setSaturationBase] = useState(85);
   const [useLegacyDirControls, setUseLegacyDirControls] = useState(false);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const cubeApi: ObliqueCubeConsoleApi = {
+      show: () => setShowOrientationCube(true),
+      hide: () => setShowOrientationCube(false),
+    };
+    const existing = window.carmaOblique;
+    window.carmaOblique = {
+      ...(existing ?? {}),
+      cube: cubeApi,
+    };
+
+    return () => {
+      if (window.carmaOblique?.cube === cubeApi) {
+        const { cube, ...rest } = window.carmaOblique;
+        if (Object.keys(rest).length === 0) {
+          delete window.carmaOblique;
+        } else {
+          window.carmaOblique = rest;
+        }
+      }
+    };
+  }, []);
 
   const isTransitioning = useSelector(selectViewerIsTransitioning);
   // Track last directional move to prefetch ahead in the same direction on arrival
@@ -616,6 +654,14 @@ export const ObliqueControls: FC<ObliqueControlsProps> = ({
           }}
           isDebugMode={isDebugMode}
           showCompactDirectionControls
+          showOrientationCube={showOrientationCube}
+          directionalButtonType={directionalButtonType}
+          offsetRad={effectiveOffsetRad}
+          offsetCube={offsetCube}
+          invertCardinalLabels={invertLabels}
+          showFacadeLabels={showFacadeLabels}
+          disableCubeDrag
+          disableCubeNorthArrow
           rotateCamera={rotateCameraKeypress}
           rotateToDirection={rotateToDirectionWithPreview}
           activeDirection={activeDirection}
@@ -661,16 +707,18 @@ export const ObliqueControls: FC<ObliqueControlsProps> = ({
               }}
             >
               {imageId && derivedExteriorOrientationRef.current && (
-                <ControlButtonStyler
-                  onClick={flyToNearestExteriorOrientation}
-                  onMouseEnter={() => setIsFlyButtonHovered(true)}
-                  onMouseLeave={() => setIsFlyButtonHovered(false)}
-                  width="160px"
-                  height="40px"
-                  className="pointer-events-auto bg-blue-50 hover:bg-blue-100"
-                >
-                  <span className="flex items-center">Flug zum Bild</span>
-                </ControlButtonStyler>
+                <Tooltip placement="right" title={strings.footprintsFlyToImage}>
+                  <ControlButtonStyler
+                    onClick={flyToNearestExteriorOrientation}
+                    onMouseEnter={() => setIsFlyButtonHovered(true)}
+                    onMouseLeave={() => setIsFlyButtonHovered(false)}
+                    width="160px"
+                    height="40px"
+                    className="pointer-events-auto bg-blue-50 hover:bg-blue-100"
+                  >
+                    <span className="flex items-center">Flug zum Bild</span>
+                  </ControlButtonStyler>
+                </Tooltip>
               )}
 
               {imageId && downloadUrl && (
@@ -686,7 +734,7 @@ export const ObliqueControls: FC<ObliqueControlsProps> = ({
                 >
                   <Tooltip
                     placement="right"
-                    title="Bild in hoher Qualität in neuem Tab öffnen"
+                    title={strings.footprintsOpenImage}
                   >
                     <ControlButtonStyler onClick={openImageLink} width="160px">
                       <span className="flex items-center text-base">
@@ -699,7 +747,10 @@ export const ObliqueControls: FC<ObliqueControlsProps> = ({
                     </ControlButtonStyler>
                   </Tooltip>
 
-                  <Tooltip placement="right" title="Bild direkt herunterladen">
+                  <Tooltip
+                    placement="right"
+                    title={strings.footprintsDownloadImage}
+                  >
                     <ControlButtonStyler
                       onClick={handleDirectDownload}
                       width="160px"
@@ -723,17 +774,17 @@ export const ObliqueControls: FC<ObliqueControlsProps> = ({
                     imageId={imageId}
                     imageUri={downloadUrl}
                     tooltip={{
-                      title: "Datenschutzprüfung Luftbildschrägaufnahme",
+                      title: strings.footprintsRequestReview,
                       placement: "right",
                     }}
                   />
                 </div>
               )}
 
-              {useLegacyDirControls && (
+              {useLegacyDirControls && !showOrientationCube && (
                 <ObliqueDirectionControls
-                  rotateCamera={rotateCamera}
-                  rotateToDirection={rotateToDirection}
+                  rotateCamera={rotateCameraKeypress}
+                  rotateToDirection={rotateToDirectionWithPreview}
                   activeDirection={activeDirection}
                   isLoading={!isAllDataReady}
                   siblingCallbacks={
@@ -743,7 +794,7 @@ export const ObliqueControls: FC<ObliqueControlsProps> = ({
                   }
                 />
               )}
-              {showDirectionControls && (
+              {showDirectionControls && !showOrientationCube && (
                 <ObliqueDirectionControlsCompact
                   rotateCamera={rotateCamera}
                   rotateToDirection={rotateToDirection}
@@ -761,8 +812,8 @@ export const ObliqueControls: FC<ObliqueControlsProps> = ({
                   <div className="flex flex-col items-center">
                     <ObliqueOrientationCube
                       size={70}
-                      rotateCamera={rotateCamera}
-                      onDirectionSelect={rotateToDirection}
+                      rotateCamera={rotateCameraKeypress}
+                      onDirectionSelect={rotateToDirectionWithPreview}
                       onHeadingSelect={rotateToHeading}
                       offsetRad={effectiveOffsetRad}
                       offsetCube={offsetCube}

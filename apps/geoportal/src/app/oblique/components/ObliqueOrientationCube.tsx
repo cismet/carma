@@ -15,6 +15,7 @@ import {
   CardinalLetters,
   InvertedCardinalDirectionEnum,
 } from "../utils/orientationUtils";
+import { strings } from "../strings.de";
 import Face3D from "./ObliqueOrientationCube.Face3D";
 import SelectorAnchor from "./ObliqueOrientationCube.SelectorAnchor";
 import { useOrientationCubeDrag } from "./useOrientationCubeDrag";
@@ -35,6 +36,8 @@ type Props = {
   directionalButtonType?: "captureDirection" | "nextCapture";
   isLoading?: boolean;
   siblingCallbacks?: Partial<Record<CardinalDirectionEnum, () => void>>;
+  disableDrag?: boolean;
+  disableNorthArrow?: boolean;
 };
 
 const eps = 0.001;
@@ -69,7 +72,7 @@ const ArrowSvg = (
       pointerEvents={disabled ? "none" : "visibleFill"}
       role="button"
       tabIndex={disabled ? -1 : 0}
-      aria-label="Auf Nordausrichtung setzen"
+      aria-label={strings.cubeNorthArrowAria}
       style={{ color: styleColor, transition: "color 150ms ease-in-out" }}
       onMouseEnter={() => {
         if (disabled) return;
@@ -115,6 +118,8 @@ const ObliqueOrientationCube: React.FC<Props> = ({
   directionalButtonType = "captureDirection",
   isLoading = false,
   siblingCallbacks,
+  disableDrag = false,
+  disableNorthArrow = false,
 }) => {
   const half = size / 2;
 
@@ -127,6 +132,7 @@ const ObliqueOrientationCube: React.FC<Props> = ({
   // Drag state via custom hook
   const { isDragging, isDraggingRef, handleMouseDown, handleMouseUp } =
     useOrientationCubeDrag({ dragThresholdPx: 2 });
+  const dragEnabled = !disableDrag;
 
   // no-op: angle utils moved into drag hook
 
@@ -142,7 +148,6 @@ const ObliqueOrientationCube: React.FC<Props> = ({
     dir: CardinalDirectionEnum;
     ox: number; // x offset multiplier (-1, 0, 1)
     oy: number; // y offset multiplier (-1, 0, 1)
-    tooltip: string;
     aria: string;
     labelKey: number; // resolved enum value for label mapping (accounts for inversion)
   }> = [
@@ -150,32 +155,28 @@ const ObliqueOrientationCube: React.FC<Props> = ({
       dir: CardinalDirectionEnum.North,
       ox: 0,
       oy: 1,
-      tooltip: "Blick nach Norden auf Südseite",
-      aria: "Select North",
+      aria: strings.cubeSelectorNorthAria,
       labelKey: directionEnum.North,
     },
     {
       dir: CardinalDirectionEnum.South,
       ox: 0,
       oy: -1,
-      tooltip: "Blick nach Süden auf Nordseite",
-      aria: "Select South",
+      aria: strings.cubeSelectorSouthAria,
       labelKey: directionEnum.South,
     },
     {
       dir: CardinalDirectionEnum.East,
       ox: -1,
       oy: 0,
-      tooltip: "Blick nach Osten auf Westseite",
-      aria: "Select East",
+      aria: strings.cubeSelectorEastAria,
       labelKey: directionEnum.East,
     },
     {
       dir: CardinalDirectionEnum.West,
       ox: 1,
       oy: 0,
-      tooltip: "Blick nach Westen auf Ostseite",
-      aria: "Select West",
+      aria: strings.cubeSelectorWestAria,
       labelKey: directionEnum.West,
     },
   ];
@@ -295,18 +296,11 @@ const ObliqueOrientationCube: React.FC<Props> = ({
   // Facade labels (DE) indexed by CardinalDirectionEnum order: [North, East, South, West]
   // leading white space offsets the shy hyphen
   const FACADE_LABELS_DE: readonly string[] = [
-    "NORD\u200bSEITE",
-    "OST\u200bSEITE",
-    "SÜD\u200bSEITE",
-    "WEST\u200bSEITE",
+    strings.cubeFacadeNorth,
+    strings.cubeFacadeEast,
+    strings.cubeFacadeSouth,
+    strings.cubeFacadeWest,
   ];
-  // Tooltips used when directionalButtonType === "nextCapture" (sibling navigation)
-  const NEXT_TOOLTIPS_DE: Record<CardinalDirectionEnum, string> = {
-    [CardinalDirectionEnum.North]: "Nächster Nachbar nach Norden",
-    [CardinalDirectionEnum.East]: "Nächster Nachbar nach Osten",
-    [CardinalDirectionEnum.South]: "Nächster Nachbar nach Süden",
-    [CardinalDirectionEnum.West]: "Nächster Nachbar nach Westen",
-  };
   // Facade label font sizing (~20% larger relative to face)
   const facadeFontSize = face * 0.28;
 
@@ -395,12 +389,12 @@ const ObliqueOrientationCube: React.FC<Props> = ({
       <div
         className="absolute inset-0 grid place-items-center select-none"
         style={{
-          cursor: isDragging ? "grabbing" : "default",
+          cursor: dragEnabled && isDragging ? "grabbing" : "default",
           transformStyle: "preserve-3d",
           transform: sceneTransform,
         }}
         role="button"
-        aria-label="Drag to rotate camera; use Left/Right arrows to rotate"
+        aria-label={strings.cubeContainerAria}
         tabIndex={0}
         onKeyDown={(e) => {
           if (e.key === "ArrowLeft") {
@@ -437,8 +431,8 @@ const ObliqueOrientationCube: React.FC<Props> = ({
           {ArrowSvg(
             arrowSize,
             !isDragging && hoverNorth ? arrowHoverColor : arrowBaseColor,
-            handleNorthArrowClick,
-            isDragging,
+            disableNorthArrow ? undefined : handleNorthArrowClick,
+            isDragging || disableNorthArrow,
             {
               position: "absolute",
               left: "50%",
@@ -461,8 +455,8 @@ const ObliqueOrientationCube: React.FC<Props> = ({
               transformStyle: "preserve-3d",
               overflow: "visible",
             }}
-            onMouseDown={handleMouseDown}
-            onMouseUp={handleMouseUp}
+            onMouseDown={dragEnabled ? handleMouseDown : undefined}
+            onMouseUp={dragEnabled ? handleMouseUp : undefined}
           >
             <div
               className="absolute cursor-grab active:cursor-grabbing"
@@ -486,8 +480,8 @@ const ObliqueOrientationCube: React.FC<Props> = ({
             showLabel={showFacadeLabels}
             facadeFontSize={facadeFontSize}
             label={FACADE_LABELS_DE[CardinalDirectionEnum.South]}
-            onMouseDown={handleMouseDown}
-            onMouseUp={handleMouseUp}
+            onMouseDown={dragEnabled ? handleMouseDown : undefined}
+            onMouseUp={dragEnabled ? handleMouseUp : undefined}
             onMouseEnter={() => setHoveredFace("front")}
             onMouseLeave={() => setHoveredFace(null)}
             style={{
@@ -503,7 +497,7 @@ const ObliqueOrientationCube: React.FC<Props> = ({
             }}
             role="button"
             tabIndex={0}
-            ariaLabel="Select North (front face)"
+            ariaLabel={strings.cubeFaceNorthAria}
             onKeyDown={(e) => {
               if (e.key === "Enter" || e.key === " ") {
                 e.preventDefault();
@@ -521,8 +515,8 @@ const ObliqueOrientationCube: React.FC<Props> = ({
             showLabel={showFacadeLabels}
             facadeFontSize={facadeFontSize}
             label={FACADE_LABELS_DE[CardinalDirectionEnum.North]}
-            onMouseDown={handleMouseDown}
-            onMouseUp={handleMouseUp}
+            onMouseDown={dragEnabled ? handleMouseDown : undefined}
+            onMouseUp={dragEnabled ? handleMouseUp : undefined}
             onMouseEnter={() => setHoveredFace("back")}
             onMouseLeave={() => setHoveredFace(null)}
             style={{
@@ -538,7 +532,7 @@ const ObliqueOrientationCube: React.FC<Props> = ({
             }}
             role="button"
             tabIndex={0}
-            ariaLabel="Select South (back face)"
+            ariaLabel={strings.cubeFaceSouthAria}
             onKeyDown={(e) => {
               if (e.key === "Enter" || e.key === " ") {
                 e.preventDefault();
@@ -556,8 +550,8 @@ const ObliqueOrientationCube: React.FC<Props> = ({
             showLabel={showFacadeLabels}
             facadeFontSize={facadeFontSize}
             label={FACADE_LABELS_DE[CardinalDirectionEnum.West]}
-            onMouseDown={handleMouseDown}
-            onMouseUp={handleMouseUp}
+            onMouseDown={dragEnabled ? handleMouseDown : undefined}
+            onMouseUp={dragEnabled ? handleMouseUp : undefined}
             onMouseEnter={() => setHoveredFace("left")}
             onMouseLeave={() => setHoveredFace(null)}
             style={{
@@ -573,7 +567,7 @@ const ObliqueOrientationCube: React.FC<Props> = ({
             }}
             role="button"
             tabIndex={0}
-            ariaLabel="Select East (left face)"
+            ariaLabel={strings.cubeFaceEastAria}
             onKeyDown={(e) => {
               if (e.key === "Enter" || e.key === " ") {
                 e.preventDefault();
@@ -591,8 +585,8 @@ const ObliqueOrientationCube: React.FC<Props> = ({
             showLabel={showFacadeLabels}
             facadeFontSize={facadeFontSize}
             label={FACADE_LABELS_DE[CardinalDirectionEnum.East]}
-            onMouseDown={handleMouseDown}
-            onMouseUp={handleMouseUp}
+            onMouseDown={dragEnabled ? handleMouseDown : undefined}
+            onMouseUp={dragEnabled ? handleMouseUp : undefined}
             onMouseEnter={() => setHoveredFace("right")}
             onMouseLeave={() => setHoveredFace(null)}
             style={{
@@ -608,7 +602,7 @@ const ObliqueOrientationCube: React.FC<Props> = ({
             }}
             role="button"
             tabIndex={0}
-            ariaLabel="Select West (right face)"
+            ariaLabel={strings.cubeFaceWestAria}
             onKeyDown={(e) => {
               if (e.key === "Enter" || e.key === " ") {
                 e.preventDefault();
@@ -621,25 +615,31 @@ const ObliqueOrientationCube: React.FC<Props> = ({
       </div>
 
       {/* CCW / CW rotate buttons in bottom corners */}
-      <div className="absolute left-0 bottom-0 p-0">
-        <Tooltip title="Gegen Uhrzeigersinn drehen">
+      <div
+        className="absolute left-0 bottom-0 p-0"
+        style={{ pointerEvents: "auto" }}
+      >
+        <Tooltip title={strings.cubeRotateLeftTooltip}>
           <Button
             size="small"
             shape="circle"
             onClick={() => rotateCamera?.(false)}
-            aria-label="Rotate left"
+            aria-label={strings.cubeRotateLeftAria}
           >
             ↺
           </Button>
         </Tooltip>
       </div>
-      <div className="absolute right-0 bottom-0 p-0">
-        <Tooltip title="Im Uhrzeigersinn drehen">
+      <div
+        className="absolute right-0 bottom-0 p-0"
+        style={{ pointerEvents: "auto" }}
+      >
+        <Tooltip title={strings.cubeRotateRightTooltip}>
           <Button
             size="small"
             shape="circle"
             onClick={() => rotateCamera?.(true)}
-            aria-label="Rotate right"
+            aria-label={strings.cubeRotateRightAria}
           >
             ↻
           </Button>
@@ -669,10 +669,6 @@ const ObliqueOrientationCube: React.FC<Props> = ({
             // Rotate the up-arrow (↑) by +90° so that (ox,oy) maps to the visual outward direction
             const rotateRad = -currentHeadingRad + baseAngleRad + offsetRad;
             const label = isNextCapture ? "↑" : getLetter(cfg.labelKey);
-            // Tooltips and mapping: in nextCapture, use raw cardinal directions (no rotation/inversion)
-            const tooltip = isNextCapture
-              ? NEXT_TOOLTIPS_DE[cfg.dir]
-              : cfg.tooltip;
             const onClick = isNextCapture
               ? siblingCallbacks?.[cfg.dir]
               : () => onDirectionSelect?.(cfg.dir);
@@ -685,7 +681,6 @@ const ObliqueOrientationCube: React.FC<Props> = ({
                 translate3d={`translate3d(${cfg.ox * labelRadius}px, ${
                   cfg.oy * labelRadius
                 }px, ${half}px)`}
-                tooltip={tooltip}
                 aria={cfg.aria}
                 onClick={onClick}
                 label={label}

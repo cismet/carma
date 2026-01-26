@@ -24,10 +24,12 @@ import {
 import { Backdrop } from "./ObliqueImagePreview.Backdrop";
 import { ContactMailButton } from "@carma-appframeworks/portals";
 import { ObliqueDirectionControlsCompact } from "./ObliqueDirectionControls.Compact";
+import ObliqueOrientationCube from "./ObliqueOrientationCube";
 import type { CardinalDirectionEnum } from "../utils/orientationUtils";
 import { getViewerSyncedDimensions } from "../utils/getViewerSyncedDimensions";
 import { useProgressivePreviewSource } from "../hooks/useProgressivePreviewSource";
 import { useForwardZoomEventsToCesium } from "../hooks/useForwardZoomEventsToCesium";
+import { strings } from "../strings.de";
 
 interface ObliqueImagePreviewProps {
   // Base path for progressive preview levels (for level 6 initial load)
@@ -59,6 +61,15 @@ interface ObliqueImagePreviewProps {
   saturationBase?: number;
   // Show compact direction controls between download and report
   showCompactDirectionControls?: boolean;
+  // Show orientation cube instead of compact controls
+  showOrientationCube?: boolean;
+  directionalButtonType?: "captureDirection" | "nextCapture";
+  offsetRad?: number;
+  offsetCube?: boolean;
+  invertCardinalLabels?: boolean;
+  showFacadeLabels?: boolean;
+  disableCubeDrag?: boolean;
+  disableCubeNorthArrow?: boolean;
   // Direction controls inputs (optional)
   rotateCamera?: (clockwise: boolean) => void;
   rotateToDirection?: (d: CardinalDirectionEnum) => void;
@@ -116,6 +127,14 @@ export const ObliqueImagePreview: FC<ObliqueImagePreviewProps> = ({
   contrastBase = 85,
   saturationBase = 100,
   showCompactDirectionControls = true,
+  showOrientationCube = false,
+  directionalButtonType = "nextCapture",
+  offsetRad = 0,
+  offsetCube = false,
+  invertCardinalLabels = true,
+  showFacadeLabels = true,
+  disableCubeDrag = false,
+  disableCubeNorthArrow = false,
   rotateCamera,
   rotateToDirection,
   activeDirection,
@@ -421,7 +440,25 @@ export const ObliqueImagePreview: FC<ObliqueImagePreviewProps> = ({
           style={{ zIndex: 1500, pointerEvents: "none" }}
         >
           <div style={ControlsContainerStyle}>
-            <Tooltip title="Bild in neuem Tab öffnen" placement="top">
+            {showOrientationCube && (
+              <div className="flex justify-center w-full">
+                <ObliqueOrientationCube
+                  size={70}
+                  rotateCamera={rotateCamera}
+                  onDirectionSelect={rotateToDirection}
+                  offsetRad={offsetRad}
+                  offsetCube={offsetCube}
+                  invertCardinalLabels={invertCardinalLabels}
+                  showFacadeLabels={showFacadeLabels}
+                  directionalButtonType={directionalButtonType}
+                  isLoading={isDirectionLoading}
+                  siblingCallbacks={siblingCallbacks}
+                  disableDrag={disableCubeDrag}
+                  disableNorthArrow={disableCubeNorthArrow}
+                />
+              </div>
+            )}
+            <Tooltip title={strings.previewOpenImage} placement="top">
               <div>
                 <ControlButtonStyler onClick={onOpenImageLink} width="auto">
                   <span className="flex-1 text-base px-4">
@@ -431,7 +468,7 @@ export const ObliqueImagePreview: FC<ObliqueImagePreviewProps> = ({
                 </ControlButtonStyler>
               </div>
             </Tooltip>
-            <Tooltip title="Bild direkt herunterladen" placement="top">
+            <Tooltip title={strings.previewDownloadImage} placement="top">
               <div>
                 <ControlButtonStyler onClick={onDirectDownload} width="auto">
                   <span className="flex-1 text-base px-4">
@@ -441,15 +478,17 @@ export const ObliqueImagePreview: FC<ObliqueImagePreviewProps> = ({
                 </ControlButtonStyler>
               </div>
             </Tooltip>
-            {showCompactDirectionControls && rotateCamera && (
-              <ObliqueDirectionControlsCompact
-                rotateCamera={rotateCamera}
-                rotateToDirection={rotateToDirection || (() => {})}
-                activeDirection={activeDirection}
-                isLoading={isDirectionLoading}
-                siblingCallbacks={siblingCallbacks}
-              />
-            )}
+            {showCompactDirectionControls &&
+              !showOrientationCube &&
+              rotateCamera && (
+                <ObliqueDirectionControlsCompact
+                  rotateCamera={rotateCamera}
+                  rotateToDirection={rotateToDirection || (() => {})}
+                  activeDirection={activeDirection}
+                  isLoading={isDirectionLoading}
+                  siblingCallbacks={siblingCallbacks}
+                />
+              )}
             <ContactMailButton
               width="160px"
               emailAddress="geodatenzentrum@stadt.wuppertal.de"
@@ -459,11 +498,11 @@ export const ObliqueImagePreview: FC<ObliqueImagePreviewProps> = ({
               imageId={imageId}
               imageUri={finalPreviewSrc || undefined}
               tooltip={{
-                title: "Datenschutzprüfung Luftbildschrägaufnahme",
+                title: strings.previewRequestReview,
                 placement: "top",
               }}
             />
-            <Tooltip title="Vorschau schließen" placement="top">
+            <Tooltip title={strings.previewClose} placement="top">
               <div>
                 <ControlButtonStyler onClick={handleBackdropClick} width="auto">
                   <span className="flex-1 text-base px-4">

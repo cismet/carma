@@ -1,9 +1,8 @@
 import React, { useState } from "react";
-import { Button, Tooltip } from "antd";
+import { Button } from "antd";
 
 export type SelectorAnchorProps = {
   translate3d: string; // e.g. `translate3d(0px, 80px, 0px)`
-  tooltip: string;
   aria: string;
   onClick: () => void;
   label: React.ReactNode;
@@ -16,7 +15,6 @@ export type SelectorAnchorProps = {
 
 const SelectorAnchor: React.FC<SelectorAnchorProps> = ({
   translate3d,
-  tooltip,
   aria,
   onClick,
   label,
@@ -45,28 +43,26 @@ const SelectorAnchor: React.FC<SelectorAnchorProps> = ({
           pointerEvents: disabled ? "none" : "auto",
         }}
       >
-        <Tooltip title={tooltip} open={disabled ? false : undefined}>
-          <Button
-            size="small"
-            shape="circle"
-            onClick={onClick}
-            aria-label={aria}
-            disabled={disabled}
-            aria-disabled={disabled}
-            onMouseEnter={() => setHover(true)}
-            onMouseLeave={() => setHover(false)}
-            style={{
-              color: effectiveColor,
-              cursor: disabled ? "not-allowed" : "pointer",
-              transition: "color 150ms ease-in-out",
-              transform:
-                rotateRad !== undefined ? `rotate(${rotateRad}rad)` : undefined,
-              transformOrigin: "50% 50%",
-            }}
-          >
-            {label}
-          </Button>
-        </Tooltip>
+        <Button
+          size="small"
+          shape="circle"
+          onClick={onClick}
+          aria-label={aria}
+          disabled={disabled}
+          aria-disabled={disabled}
+          onMouseEnter={() => setHover(true)}
+          onMouseLeave={() => setHover(false)}
+          style={{
+            color: effectiveColor,
+            cursor: disabled ? "not-allowed" : "pointer",
+            transition: "color 150ms ease-in-out",
+            transform:
+              rotateRad !== undefined ? `rotate(${rotateRad}rad)` : undefined,
+            transformOrigin: "50% 50%",
+          }}
+        >
+          {label}
+        </Button>
       </div>
     </div>
   );
