@@ -12,6 +12,7 @@ export interface PointLabelData {
   visible?: boolean;
   isOccluded?: boolean;
   isHidden?: boolean;
+  onClick?: () => void;
 }
 
 export const usePointLabels = (
@@ -32,7 +33,7 @@ export const usePointLabels = (
       points
         .map(
           (p) =>
-            `${p.id}:${p.text}:${p.selected}:${p.visible}:${p.isOccluded}:${p.isHidden}:${p.pitch}`
+            `${p.id}:${p.text}:${p.selected}:${p.visible}:${p.isOccluded}:${p.isHidden}:${p.pitch}:${Boolean(p.onClick)}`
         )
         .join("|"),
     [points]
@@ -59,10 +60,12 @@ export const usePointLabels = (
           text: point.text,
           selected: point.selected,
           isOccluded: point.isOccluded,
+          onClick: point.onClick,
           ...styleProps,
         }),
         visible: point.visible !== false,
         isHidden: point.isHidden,
+        onClick: point.onClick,
       });
     });
 

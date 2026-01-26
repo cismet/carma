@@ -36,7 +36,8 @@ export const useCesiumPointVisualizer = (
   showCesiumLabels: boolean = false,
   radius: number,
   referenceElevation: number = 0,
-  debug: boolean = false
+  debug: boolean = false,
+  onPointClick?: (pointId: string) => void
 ) => {
   const labelCollectionRef = useRef<LabelCollection | null>(null);
   const cross3DRefs = useRef<Record<string, Cross3DGroup>>({});
@@ -51,7 +52,13 @@ export const useCesiumPointVisualizer = (
     }, [measurements]);
 
   // Use overlay labels instead of Cesium entity labels
-  useCesiumPointLabels(scene, points, showLabels, referenceElevation);
+  useCesiumPointLabels(
+    scene,
+    points,
+    showLabels,
+    referenceElevation,
+    onPointClick
+  );
 
   // Initialize and clean up LabelCollection
   useEffect(() => {

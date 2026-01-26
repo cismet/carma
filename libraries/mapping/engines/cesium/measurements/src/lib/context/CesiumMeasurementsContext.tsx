@@ -37,6 +37,8 @@ export interface CesiumMeasurementsContextType {
   setMeasurementMode: Dispatch<SetStateAction<MeasurementMode>>;
   measurements: MeasurementCollection;
   setMeasurements: Dispatch<SetStateAction<MeasurementCollection>>;
+  selectedMeasurementId: string | null;
+  selectMeasurementById: (id: string | null) => void;
   // utility functions
   clearAllMeasurements: () => void;
   clearMeasurementsByIds: (ids: string[]) => void;
@@ -155,6 +157,9 @@ export const CesiumMeasurementsProvider: React.FC<
     initialTemporary ?? false
   );
   const [measurements, setMeasurements] = useState<MeasurementCollection>([]);
+  const [selectedMeasurementId, setSelectedMeasurementId] = useState<
+    string | null
+  >(null);
 
   const isSceneReady = Boolean(scene && !scene.isDestroyed());
 
@@ -195,6 +200,26 @@ export const CesiumMeasurementsProvider: React.FC<
     showLabels &&
     !hideLabelsOfType.has(MeasurementMode.PointQuery);
 
+  const selectMeasurementById = useCallback(
+    (id: string | null) => {
+      setSelectedMeasurementId((prev) => (prev === id ? prev : id));
+      setMeasurements((prev) => {
+        const targetId = id ?? null;
+        const needsUpdate = prev.some((measurement) =>
+          measurement.id === targetId
+            ? measurement.isSelected !== true
+            : measurement.isSelected === true
+        );
+        if (!needsUpdate) return prev;
+        return prev.map((measurement) => ({
+          ...measurement,
+          isSelected: targetId !== null && measurement.id === targetId,
+        }));
+      });
+    },
+    [setMeasurements]
+  );
+
   useCesiumPointVisualizer(
     scene,
     measurements,
@@ -203,11 +228,14 @@ export const CesiumMeasurementsProvider: React.FC<
     showPointLabels,
     false,
     pointRadius,
-    referenceElevation
+    referenceElevation,
+    false,
+    selectMeasurementById
   );
 
   const clearAllMeasurements = useCallback(() => {
     setMeasurements([]);
+    setSelectedMeasurementId(null);
     // resetVisibility
     if (hideMeasurementsOfType.size > 0) {
       setHideMeasurementsOfType(new Set());
@@ -217,6 +245,7 @@ export const CesiumMeasurementsProvider: React.FC<
   const clearMeasurementsByType = useCallback(
     (type: MeasurementMode) => {
       setMeasurements((prev) => prev.filter((m) => m.type !== type));
+      setSelectedMeasurementId(null);
       // resetVisibility
       setHideMeasurementsOfType(deleteFromHideMeasurementsOfType(type));
     },
@@ -226,6 +255,9 @@ export const CesiumMeasurementsProvider: React.FC<
   const clearMeasurementsByIds = useCallback(
     (ids: string[]) => {
       setMeasurements((prev) => prev.filter((m) => !ids.includes(m.id)));
+      setSelectedMeasurementId((prev) =>
+        prev && ids.includes(prev) ? null : prev
+      );
     },
     [setMeasurements]
   );
@@ -247,8 +279,41 @@ export const CesiumMeasurementsProvider: React.FC<
     } else {
       setMeasurementMode(MeasurementMode.NONE);
       setMeasurements([]);
+      setSelectedMeasurementId(null);
     }
   }, [mapMeasurements.mode, setMeasurementMode, setMeasurements]);
+
+  useEffect(() => {
+    if (!selectedMeasurementId) return;
+    const hasSelected = measurements.some(
+      (measurement) => measurement.id === selectedMeasurementId
+    );
+    if (!hasSelected) {
+      setSelectedMeasurementId(null);
+      setMeasurements((prev) => {
+        const needsReset = prev.some((measurement) => measurement.isSelected);
+        if (!needsReset) return prev;
+        return prev.map((measurement) => ({
+          ...measurement,
+          isSelected: false,
+        }));
+      });
+      return;
+    }
+    const needsUpdate = measurements.some((measurement) =>
+      measurement.id === selectedMeasurementId
+        ? measurement.isSelected !== true
+        : measurement.isSelected === true
+    );
+    if (needsUpdate) {
+      setMeasurements((prev) =>
+        prev.map((measurement) => ({
+          ...measurement,
+          isSelected: measurement.id === selectedMeasurementId,
+        }))
+      );
+    }
+  }, [measurements, selectedMeasurementId, setMeasurements]);
 
   useEffect(() => {
     if (referencePoint !== null) return;
@@ -268,6 +333,8 @@ export const CesiumMeasurementsProvider: React.FC<
       setMeasurementMode,
       measurements,
       setMeasurements,
+      selectedMeasurementId,
+      selectMeasurementById,
       clearAllMeasurements,
       clearMeasurementsByIds,
       clearMeasurementsByType,
@@ -292,6 +359,8 @@ export const CesiumMeasurementsProvider: React.FC<
       setMeasurementMode,
       measurements,
       setMeasurements,
+      selectedMeasurementId,
+      selectMeasurementById,
       clearAllMeasurements,
       clearMeasurementsByIds,
       clearMeasurementsByType,

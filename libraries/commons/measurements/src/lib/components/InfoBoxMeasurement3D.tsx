@@ -21,20 +21,18 @@ import {
 } from "@carma-mapping/engines/cesium/measurements";
 import { useCesiumContext } from "@carma-mapping/engines/cesium";
 import { flyToPointGroup } from "../utils/cesiumFlyTo";
-import { InfoBoxMeasurementProps } from "../..";
-
-export function InfoBoxMeasurement3D({
-  pixelWidth = 350,
-}: InfoBoxMeasurementProps) {
+export function InfoBoxMeasurement3D({ pixelWidth = 350 }) {
   const {
     measurements,
     clearAllMeasurements,
     clearMeasurementsByIds,
     setReferencePoint,
     referencePoint,
+    selectedMeasurementId,
+    selectMeasurementById,
   } = useCesiumMeasurements();
   const { getScene } = useCesiumContext();
-  const { collapsedInfoBox } = useContext<typeof UIContext>(UIContext);
+  const { collapsedInfoBox } = useContext(UIContext);
 
   const [currentIndex, setCurrentIndex] = useState(0);
   const [prevLen, setPrevLen] = useState(measurements.length);
@@ -45,10 +43,26 @@ export function InfoBoxMeasurement3D({
 
   useEffect(() => {
     if (measurements.length !== prevLen) {
-      setCurrentIndex(0); // Jump to newest on change
       setPrevLen(measurements.length);
+      if (measurements.length === 0) {
+        setCurrentIndex(0);
+        return;
+      }
+      if (currentIndex >= visibleMeasurements.length) {
+        setCurrentIndex(0);
+      }
     }
-  }, [measurements.length, prevLen]);
+  }, [measurements.length, prevLen, currentIndex, visibleMeasurements.length]);
+
+  useEffect(() => {
+    if (!selectedMeasurementId) return;
+    const selectedIndex = visibleMeasurements.findIndex(
+      (measurement) => measurement.id === selectedMeasurementId
+    );
+    if (selectedIndex >= 0 && selectedIndex !== currentIndex) {
+      setCurrentIndex(selectedIndex);
+    }
+  }, [selectedMeasurementId, visibleMeasurements, currentIndex]);
 
   useEffect(() => {
     if (measurements.length === 0 && referencePoint) {
@@ -67,22 +81,26 @@ export function InfoBoxMeasurement3D({
     const newIndex =
       currentIndex <= 0 ? visibleMeasurements.length - 1 : currentIndex - 1;
     setCurrentIndex(newIndex);
+    const nextMeasurement = visibleMeasurements[newIndex];
+    selectMeasurementById(nextMeasurement ? nextMeasurement.id : null);
   };
 
   const increaseCurrentHandler = () => {
     const newIndex =
       currentIndex >= visibleMeasurements.length - 1 ? 0 : currentIndex + 1;
     setCurrentIndex(newIndex);
+    const nextMeasurement = visibleMeasurements[newIndex];
+    selectMeasurementById(nextMeasurement ? nextMeasurement.id : null);
   };
 
-  const deleteShapeHandler = (e: React.MouseEvent) => {
+  const deleteShapeHandler = (e) => {
     e.stopPropagation();
     if (currentMeasurement) {
       clearMeasurementsByIds([currentMeasurement.id]);
     }
   };
 
-  const setAsReferenceHandler = (e: React.MouseEvent) => {
+  const setAsReferenceHandler = (e) => {
     e.stopPropagation();
     if (currentMeasurement && isPointMeasurementEntry(currentMeasurement)) {
       setReferencePoint(currentMeasurement.geometryECEF);
@@ -116,7 +134,7 @@ export function InfoBoxMeasurement3D({
 
   const infoBoxHeaderColor = "#3b82f6";
 
-  const formatCoordinate = (val: number, isLat: boolean) => {
+  const formatCoordinate = (val, isLat) => {
     const str = Math.abs(val).toLocaleString("de-DE", {
       minimumFractionDigits: 6,
       maximumFractionDigits: 6,
@@ -127,7 +145,7 @@ export function InfoBoxMeasurement3D({
 
   const isSingleMeasurement = measurements.length === 1;
   let isReference = false;
-  let relativeValues: { distance: number; up: number } | null = null;
+  let relativeValues = null;
 
   if (currentMeasurement && isPointMeasurementEntry(currentMeasurement)) {
     if (isSingleMeasurement) {

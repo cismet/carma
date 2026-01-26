@@ -6,6 +6,7 @@ export interface LabelOverlayElement {
   content: ReactNode;
   visible?: boolean;
   isHidden?: boolean;
+  onClick?: () => void;
 }
 
 export interface LabelOverlayContextType {

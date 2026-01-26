@@ -27,7 +27,8 @@ export const useCesiumPointLabels = (
   scene: Scene | null,
   points: PointMeasurementEntry[],
   showLabels: boolean,
-  referenceElevation: number = 0
+  referenceElevation: number = 0,
+  onPointClick?: (pointId: string) => void
 ) => {
   const [occlusionResults, setOcclusionResults] = useState<
     Record<string, boolean>
@@ -151,6 +152,7 @@ export const useCesiumPointLabels = (
         visible: true,
         isOccluded: occlusionResults[point.id] || false,
         isHidden: hiddenResults[point.id] || false, // Hidden (outside viewport) vs occluded (behind geometry)
+        onClick: onPointClick ? () => onPointClick(point.id) : undefined,
       })),
     [
       points,
@@ -159,6 +161,7 @@ export const useCesiumPointLabels = (
       hiddenResults,
       scene,
       cameraPitch,
+      onPointClick,
     ]
   );
 

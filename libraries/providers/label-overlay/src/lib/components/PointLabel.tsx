@@ -1,9 +1,13 @@
-import React from "react";
+import React, { useState } from "react";
 
 export interface PointLabelStyleProps {
   fontSize?: string;
+  fontFamily?: string;
+  fontWeight?: string | number;
   textColor?: string;
   textBackgroundColor?: string;
+  selectedBackgroundColor?: string;
+  hoverBackgroundColor?: string;
   lineWidth?: number;
   lineColor?: string;
   markerSize?: number;
@@ -16,13 +20,12 @@ interface PointLabelProps extends PointLabelStyleProps {
   selected?: boolean;
   isOccluded?: boolean;
   pitch?: number;
+  onClick?: () => void;
 }
 
 const baseStyles: React.CSSProperties = {
   padding: "2px 4px",
   boxSizing: "border-box",
-  fontFamily: "Arial, sans-serif",
-  fontWeight: "400",
   whiteSpace: "nowrap",
   userSelect: "none",
   pointerEvents: "none",
@@ -36,8 +39,12 @@ export const PointLabel = React.memo(
     text,
     selected = false,
     fontSize = "12px",
+    fontFamily = "Arial, sans-serif",
+    fontWeight = "400",
     textColor = "black",
     textBackgroundColor = "rgba(200, 200, 200, 0.7)",
+    selectedBackgroundColor = "rgba(255, 229, 143, 0.7)",
+    hoverBackgroundColor = "rgba(255, 247, 230, 0.7)",
     isOccluded = false,
     pitch = defaultPitch,
     lineColor = "white",
@@ -45,7 +52,9 @@ export const PointLabel = React.memo(
     markerSize = 10,
     markerStrokeWidth = 1,
     labelDistance = 20,
+    onClick,
   }: PointLabelProps) => {
+    const [isHovered, setIsHovered] = useState(false);
     const labelAngleRad = -Math.abs(Math.cos(pitch));
     const xComponent = Math.cos(labelAngleRad);
     const yComponent = Math.sin(labelAngleRad);
@@ -53,6 +62,22 @@ export const PointLabel = React.memo(
     const labelOffsetY = yComponent * labelDistance;
     const radius = markerSize / 2;
     const halfLineWidth = lineWidth / 2;
+    const isInteractive = Boolean(onClick);
+    const pointerEvents = isInteractive ? "auto" : "none";
+    const cursor = isInteractive ? "pointer" : "default";
+    const effectiveLineColor = lineColor;
+    const effectiveTextColor = textColor;
+    const effectiveBackgroundColor = selected
+      ? selectedBackgroundColor
+      : isHovered
+      ? hoverBackgroundColor
+      : textBackgroundColor;
+    const handleMouseEnter = () => {
+      if (isInteractive) setIsHovered(true);
+    };
+    const handleMouseLeave = () => {
+      if (isInteractive) setIsHovered(false);
+    };
 
     return (
       <div
@@ -72,11 +97,15 @@ export const PointLabel = React.memo(
             height: `${markerSize}px`,
             border: `${markerStrokeWidth}px ${
               isOccluded ? "dashed" : "solid"
-            } ${selected ? "#1890ff" : "#fff"}`,
+            } #fff`,
             borderRadius: "50%",
             transform: "translate(-50%, -50%)",
-            pointerEvents: "none",
+            pointerEvents,
+            cursor,
           }}
+          onClick={onClick}
+          onMouseEnter={handleMouseEnter}
+          onMouseLeave={handleMouseLeave}
         />
 
         {/* Transform container for hairline rotation */}
@@ -111,15 +140,22 @@ export const PointLabel = React.memo(
             ...baseStyles,
             borderBottom: `${lineWidth}px ${
               isOccluded ? "dashed" : "solid"
-            } ${lineColor}`,
+            } ${effectiveLineColor}`,
             fontSize,
-            backgroundColor: textBackgroundColor,
-            color: textColor,
+            fontFamily,
+            fontWeight,
+            backgroundColor: effectiveBackgroundColor,
+            color: effectiveTextColor,
             position: "absolute",
             left: `${labelOffsetX}px`,
             top: `${labelOffsetY + halfLineWidth}px`,
             transform: "translate(0%, -100%)",
+            pointerEvents,
+            cursor,
           }}
+          onClick={onClick}
+          onMouseEnter={handleMouseEnter}
+          onMouseLeave={handleMouseLeave}
         >
           {text}
         </div>

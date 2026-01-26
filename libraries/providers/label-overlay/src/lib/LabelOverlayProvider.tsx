@@ -200,8 +200,10 @@ export const LabelOverlayProvider: React.FC<LabelOverlayProviderProps> = ({
             data-label-overlay-id={id}
             style={{
               position: "absolute",
-              pointerEvents: "none",
+              pointerEvents: element.onClick ? "auto" : "none",
+              cursor: element.onClick ? "pointer" : "default",
             }}
+            onClick={element.onClick}
           >
             {element.content}
           </div>,
