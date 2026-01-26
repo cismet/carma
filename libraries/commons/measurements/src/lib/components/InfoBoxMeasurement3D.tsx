@@ -21,6 +21,7 @@ import {
 } from "@carma-mapping/engines/cesium/measurements";
 import { useCesiumContext } from "@carma-mapping/engines/cesium";
 import { flyToPointGroup } from "../utils/cesiumFlyTo";
+
 export function InfoBoxMeasurement3D({ pixelWidth = 350 }) {
   const {
     measurements,
@@ -32,7 +33,7 @@ export function InfoBoxMeasurement3D({ pixelWidth = 350 }) {
     selectMeasurementById,
   } = useCesiumMeasurements();
   const { getScene } = useCesiumContext();
-  const { collapsedInfoBox } = useContext(UIContext);
+  const { collapsedInfoBox } = useContext<typeof UIContext>(UIContext);
 
   const [currentIndex, setCurrentIndex] = useState(0);
   const [prevLen, setPrevLen] = useState(measurements.length);
