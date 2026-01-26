@@ -206,12 +206,11 @@ export const useCreateCismapLayers = (
       resetSelection(globalHits);
       if (globalHits[selectedFeature.id]) {
         const hits = globalHits[selectedFeature.id];
+        const vectorId =
+          selectedFeature.vectorId || selectedFeature.properties.wmsProps.id;
         if (hits) {
           hits.forEach((hit) => {
-            if (
-              hit.id === selectedFeature.vectorId ||
-              hit?.properties?.id === selectedFeature.vectorId
-            ) {
+            if (hit.id === vectorId || hit?.properties?.id === vectorId) {
               hit.setSelection(true);
             } else {
               hit.setSelection(false);
