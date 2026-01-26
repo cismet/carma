@@ -209,8 +209,8 @@ export const useCreateCismapLayers = (
         if (hits) {
           hits.forEach((hit) => {
             if (
-              hit.id === selectedFeature.properties.wmsProps.vectorId ||
-              hit?.properties?.id === selectedFeature.properties.wmsProps.id
+              hit.id === selectedFeature.vectorId ||
+              hit?.properties?.id === selectedFeature.vectorId
             ) {
               hit.setSelection(true);
             } else {
@@ -299,6 +299,7 @@ export const useCreateCismapLayers = (
                   leafletMap,
                 });
               } else if (modeRef.current === UIMode.FEATURE_INFO) {
+                console.log("yyy", e);
                 onSelectionChangedVector(e, {
                   layer,
                   dispatch,
