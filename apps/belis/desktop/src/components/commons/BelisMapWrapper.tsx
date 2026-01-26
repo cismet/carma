@@ -22,7 +22,11 @@ const BelisMapLibWrapper = ({ mapSizes }) => {
 
   const handleSelectedFeature = (
     feature,
-    selectionInfo?: { source: string; sourceLayer?: string; id?: string | number }
+    selectionInfo?: {
+      source: string;
+      sourceLayer?: string;
+      id?: string | number;
+    }
   ) => {
     if (feature) {
       const updatedFeature = { ...feature, selected: true };

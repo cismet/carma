@@ -131,7 +131,9 @@ export const keyTableDisplayConfig: KeyTableDisplayConfig = {
     displayName: "Unterhalt - Leuchte",
     fieldRules: {
       pk: [{ pattern: /^-?\d*$/, message: "PK muss eine Ganzzahl sein" }],
-      unterhaltspflichtiger_leuchte: [{ max: 50, message: "Maximal 50 Zeichen erlaubt" }],
+      unterhaltspflichtiger_leuchte: [
+        { max: 50, message: "Maximal 50 Zeichen erlaubt" },
+      ],
     },
   },
   energielieferant: {
@@ -147,7 +149,9 @@ export const keyTableDisplayConfig: KeyTableDisplayConfig = {
     template: "{nummer} - {bezeichnung}",
     sortMode: "numeric",
     fieldRules: {
-      nummer: [{ pattern: /^-?\d*$/, message: "Nummer muss eine Ganzzahl sein" }],
+      nummer: [
+        { pattern: /^-?\d*$/, message: "Nummer muss eine Ganzzahl sein" },
+      ],
     },
   },
   // bezirk: {
@@ -176,7 +180,9 @@ export const keyTableDisplayConfig: KeyTableDisplayConfig = {
     sortMode: "numeric",
     apiClassName: "tkey_kennziffer",
     fieldRules: {
-      kennziffer: [{ pattern: /^-?\d*$/, message: "Kennziffer muss eine Ganzzahl sein" }],
+      kennziffer: [
+        { pattern: /^-?\d*$/, message: "Kennziffer muss eine Ganzzahl sein" },
+      ],
       beschreibung: [{ max: 50, message: "Maximal 50 Zeichen erlaubt" }],
     },
   },

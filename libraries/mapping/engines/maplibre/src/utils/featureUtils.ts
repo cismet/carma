@@ -49,7 +49,10 @@ export interface LayerMappingEntry {
   iconname?: string;
   tooltip?: string;
   routeAction?: boolean;
-  getRouteParams?: () => { from: { lat: number; lng: number }; to: { lat: number; lng: number } } | null;
+  getRouteParams?: () => {
+    from: { lat: number; lng: number };
+    to: { lat: number; lng: number };
+  } | null;
 }
 
 /**
@@ -63,7 +66,8 @@ export const createFeature = async (
 ): Promise<FeatureInfo | undefined> => {
   let feature: FeatureInfo | undefined = undefined;
 
-  let properties: Record<string, unknown> = selectedVectorFeature.properties || {};
+  let properties: Record<string, unknown> =
+    selectedVectorFeature.properties || {};
   properties = {
     ...properties,
     vectorId: selectedVectorFeature.id,
@@ -92,7 +96,8 @@ export const createFeature = async (
       return undefined;
     }
 
-    const genericLinks = (featureProperties.properties.genericLinks as LayerMappingEntry[]) || [];
+    const genericLinks =
+      (featureProperties.properties.genericLinks as LayerMappingEntry[]) || [];
 
     if (useRouting) {
       genericLinks.unshift({

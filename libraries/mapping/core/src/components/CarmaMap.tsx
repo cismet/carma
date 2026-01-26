@@ -33,7 +33,12 @@ import { Tooltip } from "antd";
 import maplibregl from "maplibre-gl";
 
 // Import from the new maplibre engine library
-import { LibreMap, LibreMapProps, LibreLayer, VectorStyle } from "@carma-mapping/engines/maplibre";
+import {
+  LibreMap,
+  LibreMapProps,
+  LibreLayer,
+  VectorStyle,
+} from "@carma-mapping/engines/maplibre";
 
 export type { VectorStyle, LibreLayer };
 
@@ -86,13 +91,17 @@ const CarmaMapContent = (props: CarmaMapProps) => {
   const [showTerrain, setShowTerrain] = useState(false);
 
   // Stable callback to avoid re-creating LibreMap on every render
-  const handleLibreMapReady = useCallback((map: maplibregl.Map) => {
-    setLibreMap(map);
-    props.setLibreMap?.(map);
-  }, [props.setLibreMap]);
+  const handleLibreMapReady = useCallback(
+    (map: maplibregl.Map) => {
+      setLibreMap(map);
+      props.setLibreMap?.(map);
+    },
+    [props.setLibreMap]
+  );
 
   // Compute background layers - either from props or from context
-  const effectiveBackgroundLayers = backgroundLayers ??
+  const effectiveBackgroundLayers =
+    backgroundLayers ??
     backgroundConfigurations?.[selectedBackground]?.layerkey;
 
   return (

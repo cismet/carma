@@ -5,10 +5,7 @@ import { proj4crs3857def, proj4crs4326def } from "@carma-mapping/utils";
 import * as turfHelpers from "@turf/helpers";
 
 // Import from portals - SelectionProvider is a shared concern
-import {
-  SelectionItem,
-  useSelection,
-} from "@carma-appframeworks/portals";
+import { SelectionItem, useSelection } from "@carma-appframeworks/portals";
 
 const NEW_SELECTION_TIMEOUT = 200;
 
@@ -51,10 +48,7 @@ export const useSelectionLibreMap = ({
         selection?.selectionTimestamp &&
         Date.now() - selection.selectionTimestamp < NEW_SELECTION_TIMEOUT;
       if (selection && isNewSelection) {
-        console.debug(
-          "HOOK: useSelectionLibreMap selection",
-          selection
-        );
+        console.debug("HOOK: useSelectionLibreMap selection", selection);
         const pos = proj4(proj4crs3857def, proj4crs4326def, [
           selection.x,
           selection.y,

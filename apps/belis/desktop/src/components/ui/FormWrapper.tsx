@@ -22,7 +22,13 @@ interface FormWrapperProps {
   onFormHasChangesChange?: (hasChanges: boolean) => void;
 }
 
-const FormWrapper = ({ selectedItem, onSave, onIdUpdated, readOnly = false, onFormHasChangesChange }: FormWrapperProps) => {
+const FormWrapper = ({
+  selectedItem,
+  onSave,
+  onIdUpdated,
+  readOnly = false,
+  onFormHasChangesChange,
+}: FormWrapperProps) => {
   const [formHasChanges, setFormHasChanges] = useState(false);
   const [hasValidationErrors, setHasValidationErrors] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
@@ -41,15 +47,21 @@ const FormWrapper = ({ selectedItem, onSave, onIdUpdated, readOnly = false, onFo
     onFormHasChangesChange?.(formHasChanges);
   }, [formHasChanges, onFormHasChangesChange]);
 
-  const customFormKey = keyTableDisplayConfig[selectedItem.tableName]?.customForm;
-  const FormComponent = (customFormKey && customForms[customFormKey]) || KeyTableItemForm;
+  const customFormKey =
+    keyTableDisplayConfig[selectedItem.tableName]?.customForm;
+  const FormComponent =
+    (customFormKey && customForms[customFormKey]) || KeyTableItemForm;
 
   // Check if this is a temporary unsaved item (created with -Date.now())
   // Temporary IDs are very large negative numbers (like -1736441234567)
   const isNewItem = (selectedItem.item.id as number) < -1000000000;
   const title = isNewItem
     ? "Neuer Eintrag"
-    : getItemDisplayText(selectedItem.item, selectedItem.tableName, keyTableDisplayConfig);
+    : getItemDisplayText(
+        selectedItem.item,
+        selectedItem.tableName,
+        keyTableDisplayConfig
+      );
 
   const handleReset = () => {
     formRef.current?.resetFields();
@@ -67,8 +79,18 @@ const FormWrapper = ({ selectedItem, onSave, onIdUpdated, readOnly = false, onFo
   };
 
   return (
-    <CustomCard title={title} style={{ height: "100%", display: "flex", flexDirection: "column" }}>
-      <div style={{ flex: 1, overflowY: "auto", overflowX: "hidden", minHeight: 0 }}>
+    <CustomCard
+      title={title}
+      style={{ height: "100%", display: "flex", flexDirection: "column" }}
+    >
+      <div
+        style={{
+          flex: 1,
+          overflowY: "auto",
+          overflowX: "hidden",
+          minHeight: 0,
+        }}
+      >
         <FormComponent
           key={`${selectedItem.tableName}-${selectedItem.item.id}`}
           item={selectedItem.item}
@@ -88,19 +110,26 @@ const FormWrapper = ({ selectedItem, onSave, onIdUpdated, readOnly = false, onFo
         />
       </div>
       {!readOnly && (
-        <div style={{
-          flexShrink: 0,
-          display: "flex",
-          justifyContent: "flex-end",
-          gap: 8,
-          paddingTop: 16,
-          borderTop: "1px solid #f0f0f0",
-          marginTop: 16
-        }}>
+        <div
+          style={{
+            flexShrink: 0,
+            display: "flex",
+            justifyContent: "flex-end",
+            gap: 8,
+            paddingTop: 16,
+            borderTop: "1px solid #f0f0f0",
+            marginTop: 16,
+          }}
+        >
           <Button onClick={handleReset} disabled={!formHasChanges || isSaving}>
             Abbrechen
           </Button>
-          <Button type="primary" onClick={handleSubmit} disabled={!formHasChanges || isSaving || hasValidationErrors} loading={isSaving}>
+          <Button
+            type="primary"
+            onClick={handleSubmit}
+            disabled={!formHasChanges || isSaving || hasValidationErrors}
+            loading={isSaving}
+          >
             Speichern
           </Button>
         </div>

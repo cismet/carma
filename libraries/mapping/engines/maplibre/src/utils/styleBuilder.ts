@@ -24,9 +24,14 @@ interface WMSLayerLike {
   [key: string]: unknown;
 }
 
-const getLeafLayers = (layer: WMSLayerLike, leafLayers: WMSLayerLike[] = []): WMSLayerLike[] => {
+const getLeafLayers = (
+  layer: WMSLayerLike,
+  leafLayers: WMSLayerLike[] = []
+): WMSLayerLike[] => {
   if (layer.Layer && Array.isArray(layer.Layer) && layer.Layer.length > 0) {
-    layer.Layer.forEach((subLayer) => getLeafLayers(subLayer as WMSLayerLike, leafLayers));
+    layer.Layer.forEach((subLayer) =>
+      getLeafLayers(subLayer as WMSLayerLike, leafLayers)
+    );
   } else {
     leafLayers.push(layer);
   }
@@ -153,7 +158,9 @@ export const styleManipulation = (
               (newTextOffset[i + 1] as unknown[])[0] === "literal"
             ) {
               // Scale the y-offset (second element of the literal array)
-              const literalArray = [...(newTextOffset[i + 1] as unknown[])[1] as number[]] as number[];
+              const literalArray = [
+                ...((newTextOffset[i + 1] as unknown[])[1] as number[]),
+              ] as number[];
               literalArray[1] = literalArray[1] * scale;
               newTextOffset[i + 1] = ["literal", literalArray];
             }
@@ -202,7 +209,10 @@ export const getVectorMapping = async (
           styleJson.metadata?.carmaConf?.layerInfo?.keywords;
         if (styleKeywords && Array.isArray(styleKeywords)) {
           const extractedFromStyle = extractCarmaConfig(styleKeywords);
-          if (extractedFromStyle?.infoboxMapping && extractedFromStyle.infoboxMapping.length > 0) {
+          if (
+            extractedFromStyle?.infoboxMapping &&
+            extractedFromStyle.infoboxMapping.length > 0
+          ) {
             infoboxMapping = extractedFromStyle.infoboxMapping;
           }
         }
@@ -216,7 +226,10 @@ export const getVectorMapping = async (
             const layerKeywords = layer.metadata?.carmaConf?.keywords;
             if (layerKeywords && Array.isArray(layerKeywords)) {
               const extractedFromLayer = extractCarmaConfig(layerKeywords);
-              if (extractedFromLayer?.infoboxMapping && extractedFromLayer.infoboxMapping.length > 0) {
+              if (
+                extractedFromLayer?.infoboxMapping &&
+                extractedFromLayer.infoboxMapping.length > 0
+              ) {
                 infoboxMapping = extractedFromLayer.infoboxMapping;
                 break; // Use first layer with mapping found
               }
@@ -280,7 +293,9 @@ export const getVectorMapping = async (
 /**
  * Extract GeoJSON data from a URL with caching
  */
-const extractGeoJson = async (geoJson: string): Promise<GeoJSON.FeatureCollection> => {
+const extractGeoJson = async (
+  geoJson: string
+): Promise<GeoJSON.FeatureCollection> => {
   const result = await md5FetchJSON("libreGeoJson", geoJson);
   return result as unknown as GeoJSON.FeatureCollection;
 };
@@ -298,7 +313,9 @@ function convertTo4326(x: number, y: number): [number, number] {
 /**
  * Transform POI features from Web Mercator to WGS84
  */
-const transformedPois = (pois: GeoJSON.FeatureCollection): GeoJSON.FeatureCollection => {
+const transformedPois = (
+  pois: GeoJSON.FeatureCollection
+): GeoJSON.FeatureCollection => {
   return {
     ...pois,
     features: pois.features.map((feature) => ({
@@ -306,7 +323,10 @@ const transformedPois = (pois: GeoJSON.FeatureCollection): GeoJSON.FeatureCollec
       geometry: {
         ...feature.geometry,
         coordinates: convertTo4326(
-          ...(feature.geometry as GeoJSON.Point).coordinates as [number, number]
+          ...((feature.geometry as GeoJSON.Point).coordinates as [
+            number,
+            number
+          ])
         ),
       },
     })),
@@ -337,7 +357,8 @@ export const vectorStylesToMapLibreStyle = async ({
   const geoJsonMetadata: GeoJsonStyleMetadata[] = [];
 
   // Use provided backgroundStyle or Wuppertal default
-  const baseStyle: StyleSpecification = backgroundStyle || WUPPERTAL_DEFAULT_STYLE;
+  const baseStyle: StyleSpecification =
+    backgroundStyle || WUPPERTAL_DEFAULT_STYLE;
 
   const style: StyleSpecification = {
     ...baseStyle,
@@ -367,9 +388,9 @@ export const vectorStylesToMapLibreStyle = async ({
             lower: true,
           });
 
-          const spriteExists = (customSprites as Array<{ id: string; url: string }>).some(
-            (sprite) => sprite.id === spriteId
-          );
+          const spriteExists = (
+            customSprites as Array<{ id: string; url: string }>
+          ).some((sprite) => sprite.id === spriteId);
           if (!spriteExists) {
             (customSprites as Array<{ id: string; url: string }>).push({
               id: spriteId,
@@ -377,36 +398,56 @@ export const vectorStylesToMapLibreStyle = async ({
             });
           }
         }
-        additionalStyle.layers = additionalStyle.layers.map((styleLayer: LayerSpecification) => ({
-          ...styleLayer,
-          id: `${layerId}-${styleLayer.id}`,
-          metadata: {
-            ...(styleLayer as LayerSpecification & { metadata?: Record<string, unknown> }).metadata,
-            "z-index": index,
-            "layer-id": layerId,
-          },
-          paint: {
-            ...styleLayer.paint,
-            ...(styleLayer.id.toLowerCase().includes("selection")
-              ? {}
-              : {
-                  [getPaintProperty(styleLayer)]:
-                    (styleLayer.paint as Record<string, unknown>)?.[getPaintProperty(styleLayer)] || 1,
-                }),
-          },
-          layout: {
-            ...(styleLayer as LayerSpecification & { layout?: Record<string, unknown> }).layout,
-            ...((styleLayer as LayerSpecification & { layout?: Record<string, unknown> }).layout?.["icon-image"] !== undefined
-              ? {
-                  "icon-image": [
-                    "concat",
-                    `${spriteId}:`,
-                    (styleLayer as LayerSpecification & { layout?: Record<string, unknown> }).layout?.["icon-image"],
-                  ],
+        additionalStyle.layers = additionalStyle.layers.map(
+          (styleLayer: LayerSpecification) => ({
+            ...styleLayer,
+            id: `${layerId}-${styleLayer.id}`,
+            metadata: {
+              ...(
+                styleLayer as LayerSpecification & {
+                  metadata?: Record<string, unknown>;
                 }
-              : {}),
-          },
-        }));
+              ).metadata,
+              "z-index": index,
+              "layer-id": layerId,
+            },
+            paint: {
+              ...styleLayer.paint,
+              ...(styleLayer.id.toLowerCase().includes("selection")
+                ? {}
+                : {
+                    [getPaintProperty(styleLayer)]:
+                      (styleLayer.paint as Record<string, unknown>)?.[
+                        getPaintProperty(styleLayer)
+                      ] || 1,
+                  }),
+            },
+            layout: {
+              ...(
+                styleLayer as LayerSpecification & {
+                  layout?: Record<string, unknown>;
+                }
+              ).layout,
+              ...((
+                styleLayer as LayerSpecification & {
+                  layout?: Record<string, unknown>;
+                }
+              ).layout?.["icon-image"] !== undefined
+                ? {
+                    "icon-image": [
+                      "concat",
+                      `${spriteId}:`,
+                      (
+                        styleLayer as LayerSpecification & {
+                          layout?: Record<string, unknown>;
+                        }
+                      ).layout?.["icon-image"],
+                    ],
+                  }
+                : {}),
+            },
+          })
+        );
 
         style.sources = { ...style.sources, ...additionalStyle.sources };
         style.layers = [...style.layers!, ...additionalStyle.layers];

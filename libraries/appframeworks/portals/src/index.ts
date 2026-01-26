@@ -25,7 +25,6 @@ export { InfoBoxHeader } from "./lib/components/InfoBoxHeader.tsx";
 
 export { GazDataProvider, useGazData } from "./lib/components/GazDataProvider";
 
-
 export {
   MapStyleProvider,
   useMapStyle,

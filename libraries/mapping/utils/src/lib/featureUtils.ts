@@ -230,7 +230,8 @@ export const createVectorFeature = async (
       return undefined;
     }
 
-    const genericLinks = (featureProperties.properties.genericLinks as unknown[]) || [];
+    const genericLinks =
+      (featureProperties.properties.genericLinks as unknown[]) || [];
 
     feature = {
       sourceFeature: selectedVectorFeature,

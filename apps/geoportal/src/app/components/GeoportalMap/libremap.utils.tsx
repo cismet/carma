@@ -4,10 +4,7 @@ import slugify from "slugify";
 
 import type { BackgroundLayer, Layer } from "@carma/types";
 
-import {
-  functionToFeature,
-  objectToFeature,
-} from "@carma-mapping/utils";
+import { functionToFeature, objectToFeature } from "@carma-mapping/utils";
 import { defaultLayerConfig } from "../../config";
 import { LibreGeoportalMapOptions } from "./LibreGeoportalMap";
 

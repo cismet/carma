@@ -35,14 +35,11 @@ export async function fetchGraphQL<T = unknown>(
   const body = JSON.stringify(queryObject);
 
   try {
-    const response = await fetch(
-      baseUrl + `/graphql/` + domain + "/execute",
-      {
-        method: "POST",
-        headers: myHeaders,
-        body,
-      }
-    );
+    const response = await fetch(baseUrl + `/graphql/` + domain + "/execute", {
+      method: "POST",
+      headers: myHeaders,
+      body,
+    });
 
     // Check for auth errors before parsing JSON (server may return HTML for 401)
     if (response.status === 401) {

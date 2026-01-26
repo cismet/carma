@@ -684,10 +684,7 @@ function App({ name }) {
         for (const section of config.tm.helpSections) {
           let content = section.markdown;
           // If markdown starts with @, fetch the file
-          if (
-            typeof content === "string" &&
-            content.startsWith("@")
-          ) {
+          if (typeof content === "string" && content.startsWith("@")) {
             const filename = content.slice(1);
             const mdPath = server + path + slugName + "/" + filename;
             try {

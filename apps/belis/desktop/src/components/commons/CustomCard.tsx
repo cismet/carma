@@ -27,7 +27,10 @@ export const CustomCard = ({
         overflow: isFlexLayout ? "hidden" : "auto",
         maxHeight: fullHeight ? "100%" : "calc(100% - 40px)",
         height: "100%",
-        ...(isFlexLayout && { display: "flex", flexDirection: "column" as const }),
+        ...(isFlexLayout && {
+          display: "flex",
+          flexDirection: "column" as const,
+        }),
       }}
       title={<span className="text-lg">{title}</span>}
       extra={extra}

@@ -243,8 +243,7 @@ function App() {
     return {
       actionStatus,
       fachobjekt: params.fk_tree ? `Baum ${params.fk_tree}` : "Baum",
-      beschreibung:
-        params.description || params.status_reason || doc.action,
+      beschreibung: params.description || params.status_reason || doc.action,
     };
   };
 

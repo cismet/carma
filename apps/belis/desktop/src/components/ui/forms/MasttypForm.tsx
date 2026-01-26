@@ -376,10 +376,7 @@ const MasttypForm = ({
             }
             style={{ marginBottom: 16 }}
           >
-            <InputNumber
-              style={{ width: "100%" }}
-              precision={0}
-            />
+            <InputNumber style={{ width: "100%" }} precision={0} />
           </Form.Item>
         </Col>
       </Row>

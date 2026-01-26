@@ -280,9 +280,15 @@ const OnMapList = ({
       } else if (geom.type === "LineString" || geom.type === "MultiPoint") {
         clickCoords = (geom.coordinates as number[][])[0] as [number, number];
       } else if (geom.type === "Polygon" || geom.type === "MultiLineString") {
-        clickCoords = (geom.coordinates as number[][][])[0][0] as [number, number];
+        clickCoords = (geom.coordinates as number[][][])[0][0] as [
+          number,
+          number
+        ];
       } else if (geom.type === "MultiPolygon") {
-        clickCoords = (geom.coordinates as number[][][][])[0][0][0] as [number, number];
+        clickCoords = (geom.coordinates as number[][][][])[0][0][0] as [
+          number,
+          number
+        ];
       }
     }
 

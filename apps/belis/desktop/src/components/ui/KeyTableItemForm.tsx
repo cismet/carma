@@ -199,7 +199,11 @@ const KeyTableItemForm = ({
         ))
       )}
       {!disabled && !pendingConfirmation && !hideButtons && (
-        <FormActionButtons formHasChanges={formHasChanges} onReset={onReset} hasValidationErrors={hasValidationErrors} />
+        <FormActionButtons
+          formHasChanges={formHasChanges}
+          onReset={onReset}
+          hasValidationErrors={hasValidationErrors}
+        />
       )}
     </Form>
   );

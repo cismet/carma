@@ -5,7 +5,12 @@
 /**
  * Create an SVG pie segment path
  */
-function pieSegment(start: number, end: number, r: number, color: string): string {
+function pieSegment(
+  start: number,
+  end: number,
+  r: number,
+  color: string
+): string {
   if (end - start === 1) end -= 0.00001;
   const a0 = 2 * Math.PI * (start - 0.25);
   const a1 = 2 * Math.PI * (end - 0.25);
@@ -41,7 +46,10 @@ function pieSegment(start: number, end: number, r: number, color: string): strin
  * @param uniqueColors - Array of unique color values used in the data
  * @returns HTMLElement containing the SVG pie chart
  */
-export function createPieChart(props: Record<string, number>, uniqueColors: string[]): HTMLElement {
+export function createPieChart(
+  props: Record<string, number>,
+  uniqueColors: string[]
+): HTMLElement {
   const offsets: number[] = [];
   const counts = uniqueColors.map((color) => props[color] || 0);
   let total = 0;

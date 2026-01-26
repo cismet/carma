@@ -231,15 +231,23 @@ export function setupReplication(
       db.collections.actions
         .findOne({ selector: { id: action.id } })
         .exec()
-        .then((act: { incrementalModify: (fn: (data: ActionDocument) => ActionDocument) => void } | null) => {
-          if (act) {
-            act.incrementalModify((data: ActionDocument) => ({
-              ...data,
-              isCompleted: true,
-            }));
-            log("  -> Action marked complete locally:", action.id);
+        .then(
+          (
+            act: {
+              incrementalModify: (
+                fn: (data: ActionDocument) => ActionDocument
+              ) => void;
+            } | null
+          ) => {
+            if (act) {
+              act.incrementalModify((data: ActionDocument) => ({
+                ...data,
+                isCompleted: true,
+              }));
+              log("  -> Action marked complete locally:", action.id);
+            }
           }
-        });
+        );
     }
   });
 

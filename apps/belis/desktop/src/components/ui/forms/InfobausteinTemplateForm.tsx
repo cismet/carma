@@ -117,7 +117,10 @@ const InfobausteinTemplateForm = ({
         ...item.infobaustein,
         // Server sometimes returns "null" string instead of null - convert it back
         wert: item.infobaustein.wert === "null" ? null : item.infobaustein.wert,
-        bezeichnung: item.infobaustein.bezeichnung === "null" ? null : item.infobaustein.bezeichnung,
+        bezeichnung:
+          item.infobaustein.bezeichnung === "null"
+            ? null
+            : item.infobaustein.bezeichnung,
       }));
       setTableData(data);
     }
@@ -374,7 +377,9 @@ const InfobausteinTemplateForm = ({
           <Button
             icon={<MinusOutlined />}
             onClick={handleRemoveRow}
-            disabled={disabled || pendingConfirmation || selectedRowKey === null}
+            disabled={
+              disabled || pendingConfirmation || selectedRowKey === null
+            }
             size="small"
           />
         </div>

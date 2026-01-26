@@ -75,7 +75,9 @@ const getFileIcon = (objectName: string) => {
 // Helper to get unique identifier for a document (handles id: -1 case)
 const getDocumentKey = (doc: DokumentItem) => {
   // Prefer url.object_name as it's unique, fallback to description or id
-  return doc.dms_url?.url?.object_name || doc.dms_url?.description || doc.dms_url?.id;
+  return (
+    doc.dms_url?.url?.object_name || doc.dms_url?.description || doc.dms_url?.id
+  );
 };
 
 const DocumentPreview = ({
@@ -293,114 +295,124 @@ const DocumentPreview = ({
     <Spin spinning={isSaving} indicator={<LoadingOutlined />}>
       <Row gutter={24} style={{ height: TOTAL_HEIGHT }}>
         <Col span={12} style={{ height: "100%" }}>
-        <div
-          style={{
-            display: "flex",
-            flexDirection: "column",
-            height: "100%",
-          }}
-        >
           <div
             style={{
-              fontSize: 14,
-              fontWeight: 400,
-              color: "#8c8c8c",
-              marginBottom: 8,
+              display: "flex",
+              flexDirection: "column",
+              height: "100%",
             }}
           >
-            Dokumente
-          </div>
-          <List
-            size="small"
-            bordered
-            dataSource={hasDocuments ? documents : []}
-            locale={{ emptyText: "Keine Dokumente" }}
-            style={{ maxHeight: 150, overflowY: "auto", flexShrink: 0 }}
-            renderItem={(doc) => {
-              const objectName = doc.dms_url?.url?.object_name || "";
-              const isSelected = selectedDoc === doc;
-              return (
-                <List.Item
-                  style={{
-                    cursor: "pointer",
-                    backgroundColor: isSelected ? "#e6f7ff" : undefined,
-                    borderLeft: isSelected
-                      ? "3px solid #1890ff"
-                      : "3px solid transparent",
-                    padding: "10px",
-                  }}
-                  className="hover:bg-gray-50"
-                  onClick={() => setSelectedDoc(doc)}
-                >
-                  <div
+            <div
+              style={{
+                fontSize: 14,
+                fontWeight: 400,
+                color: "#8c8c8c",
+                marginBottom: 8,
+              }}
+            >
+              Dokumente
+            </div>
+            <List
+              size="small"
+              bordered
+              dataSource={hasDocuments ? documents : []}
+              locale={{ emptyText: "Keine Dokumente" }}
+              style={{ maxHeight: 150, overflowY: "auto", flexShrink: 0 }}
+              renderItem={(doc) => {
+                const objectName = doc.dms_url?.url?.object_name || "";
+                const isSelected = selectedDoc === doc;
+                return (
+                  <List.Item
                     style={{
-                      display: "flex",
-                      alignItems: "center",
-                      justifyContent: "space-between",
-                      width: "100%",
+                      cursor: "pointer",
+                      backgroundColor: isSelected ? "#e6f7ff" : undefined,
+                      borderLeft: isSelected
+                        ? "3px solid #1890ff"
+                        : "3px solid transparent",
+                      padding: "10px",
                     }}
+                    className="hover:bg-gray-50"
+                    onClick={() => setSelectedDoc(doc)}
                   >
                     <div
-                      style={{ display: "flex", alignItems: "center", gap: 8 }}
+                      style={{
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "space-between",
+                        width: "100%",
+                      }}
                     >
-                      {getFileIcon(objectName)}
-                      <span style={{ fontSize: 13 }}>
-                        {doc.dms_url?.description ||
-                          doc.dms_url?.url?.object_name ||
-                          "Dokument"}
-                      </span>
-                    </div>
-                    <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
-                      <DownloadOutlined
-                        style={{ color: "#8c8c8c", fontSize: 12 }}
-                        onClick={(e) => handleDownload(doc, e)}
-                      />
-                      <Popconfirm
-                        title="Dokument entfernen?"
-                        onConfirm={() => handleRemove(doc)}
-                        okText="Ja"
-                        cancelText="Nein"
+                      <div
+                        style={{
+                          display: "flex",
+                          alignItems: "center",
+                          gap: 8,
+                        }}
                       >
-                        <DeleteOutlined
+                        {getFileIcon(objectName)}
+                        <span style={{ fontSize: 13 }}>
+                          {doc.dms_url?.description ||
+                            doc.dms_url?.url?.object_name ||
+                            "Dokument"}
+                        </span>
+                      </div>
+                      <div
+                        style={{
+                          display: "flex",
+                          alignItems: "center",
+                          gap: 4,
+                        }}
+                      >
+                        <DownloadOutlined
                           style={{ color: "#8c8c8c", fontSize: 12 }}
-                          onClick={(e) => e.stopPropagation()}
+                          onClick={(e) => handleDownload(doc, e)}
                         />
-                      </Popconfirm>
+                        <Popconfirm
+                          title="Dokument entfernen?"
+                          onConfirm={() => handleRemove(doc)}
+                          okText="Ja"
+                          cancelText="Nein"
+                        >
+                          <DeleteOutlined
+                            style={{ color: "#8c8c8c", fontSize: 12 }}
+                            onClick={(e) => e.stopPropagation()}
+                          />
+                        </Popconfirm>
+                      </div>
                     </div>
-                  </div>
-                </List.Item>
-              );
-            }}
-          />
-          <div style={{ marginTop: 16, flex: 1, minHeight: 80 }}>
-            <DocumentUploader
-              onFilesChange={onFilesChange}
-              fileList={pendingFiles}
+                  </List.Item>
+                );
+              }}
             />
+            <div style={{ marginTop: 16, flex: 1, minHeight: 80 }}>
+              <DocumentUploader
+                onFilesChange={onFilesChange}
+                fileList={pendingFiles}
+              />
+            </div>
           </div>
-        </div>
-      </Col>
-      <Col span={12} style={{ height: "100%" }}>
-        <div
-          style={{
-            display: "flex",
-            flexDirection: "column",
-            height: "100%",
-          }}
-        >
+        </Col>
+        <Col span={12} style={{ height: "100%" }}>
           <div
             style={{
-              fontSize: 14,
-              fontWeight: 400,
-              color: "#8c8c8c",
-              marginBottom: 8,
-              marginLeft: 2,
+              display: "flex",
+              flexDirection: "column",
+              height: "100%",
             }}
           >
-            Vorschau
+            <div
+              style={{
+                fontSize: 14,
+                fontWeight: 400,
+                color: "#8c8c8c",
+                marginBottom: 8,
+                marginLeft: 2,
+              }}
+            >
+              Vorschau
+            </div>
+            <div style={{ flex: 1 }}>{renderPreview()}</div>
           </div>
-          <div style={{ flex: 1 }}>{renderPreview()}</div>
-        </div>
         </Col>
       </Row>
     </Spin>

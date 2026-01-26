@@ -32,5 +32,7 @@ export const { setKeyTablesData, setKeyTablesErrors, setKeyTablesLoading } =
 
 export const getKeyTablesData = (state: RootState) => state.keyTables.data;
 export const getKeyTablesErrors = (state: RootState) => state.keyTables.errors;
-export const getKeyTablesLoading = (state: RootState) => state.keyTables.loading;
-export const getKeyTablesFetched = (state: RootState) => state.keyTables.fetched;
+export const getKeyTablesLoading = (state: RootState) =>
+  state.keyTables.loading;
+export const getKeyTablesFetched = (state: RootState) =>
+  state.keyTables.fetched;

@@ -190,7 +190,7 @@ export const updateFeatureCollectionWithNewActions = (
 
     // Also filter out upcoming actions (they have string IDs like "upcoming-...")
     const cleanedExisting = existingActions.filter(
-      (a: any) => typeof a.id !== 'string' || !a.id.startsWith('upcoming-')
+      (a: any) => typeof a.id !== "string" || !a.id.startsWith("upcoming-")
     );
 
     const mergedActions = [...cleanedExisting, ...uniqueNewActions];

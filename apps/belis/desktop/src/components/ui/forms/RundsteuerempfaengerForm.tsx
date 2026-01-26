@@ -244,7 +244,11 @@ const RundsteuerempfaengerForm = ({
         </Form.Item>
       )}
       {!disabled && !hideButtons && (
-        <FormActionButtons formHasChanges={formHasChanges} onReset={onReset} hasValidationErrors={hasValidationErrors} />
+        <FormActionButtons
+          formHasChanges={formHasChanges}
+          onReset={onReset}
+          hasValidationErrors={hasValidationErrors}
+        />
       )}
     </Form>
   );

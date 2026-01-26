@@ -18,7 +18,8 @@ import { useDisplayModes } from "./App";
 
 const Menu = () => {
   const { setAppMenuActiveMenuSection } = useContext(UIDispatchContext);
-  const { followMode, setFollowMode, crossHair, setCrossHair } = useDisplayModes();
+  const { followMode, setFollowMode, crossHair, setCrossHair } =
+    useDisplayModes();
 
   const previewSVG = (size) => {
     const _size = size * 1.3;

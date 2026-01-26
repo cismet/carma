@@ -29,7 +29,9 @@ function groupByKeyRange(items: StrassenItem[]): Map<string, StrassenItem[]> {
 
     const rangeStart = Math.floor(pkNum / 100) * 100;
     const rangeEnd = rangeStart + 99;
-    const rangeKey = `${String(rangeStart).padStart(5, "0")}-${String(rangeEnd).padStart(5, "0")}`;
+    const rangeKey = `${String(rangeStart).padStart(5, "0")}-${String(
+      rangeEnd
+    ).padStart(5, "0")}`;
 
     if (!groups.has(rangeKey)) {
       groups.set(rangeKey, []);
@@ -39,14 +41,18 @@ function groupByKeyRange(items: StrassenItem[]): Map<string, StrassenItem[]> {
 
   // Sort groups by range key
   return new Map(
-    [...groups.entries()].sort((a, b) => a[0].localeCompare(b[0], "de", { numeric: true }))
+    [...groups.entries()].sort((a, b) =>
+      a[0].localeCompare(b[0], "de", { numeric: true })
+    )
   );
 }
 
 /**
  * Groups items alphabetically by first letter of strasse field
  */
-function groupByStreetLetter(items: StrassenItem[]): Map<string, StrassenItem[]> {
+function groupByStreetLetter(
+  items: StrassenItem[]
+): Map<string, StrassenItem[]> {
   const groups = new Map<string, StrassenItem[]>();
 
   items.forEach((item) => {
@@ -127,7 +133,9 @@ export function buildTreeData(
   groupingMode: GroupingMode
 ): ExtendedDataNode[] {
   const groups =
-    groupingMode === "byKey" ? groupByKeyRange(items) : groupByStreetLetter(items);
+    groupingMode === "byKey"
+      ? groupByKeyRange(items)
+      : groupByStreetLetter(items);
 
   return groupsToTreeData(groups, groupingMode);
 }

@@ -5,7 +5,12 @@ import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faSignOut, faUser, faCloud } from "@fortawesome/free-solid-svg-icons";
 // Simple TitleControl modeled after potenzialflächen
 // Expects: props.logout() and props.jwt
-const TitleControl = ({ logout, jwt, title = "BBW-Online", connectionError = false }) => {
+const TitleControl = ({
+  logout,
+  jwt,
+  title = "BBW-Online",
+  connectionError = false,
+}) => {
   const { windowSize } = useContext(ResponsiveTopicMapContext);
   const { metaInformation } = useContext(FeatureCollectionContext) || {};
 
@@ -85,8 +90,7 @@ const TitleControl = ({ logout, jwt, title = "BBW-Online", connectionError = fal
     // Desktop layout: Everything on one row
     <div>
       <b>{title}</b> (<FontAwesomeIcon icon={faUser} />{" "}
-      {username + (dateInfo ? ", " + dateInfo : "")})
-      {connectionErrorIndicator}
+      {username + (dateInfo ? ", " + dateInfo : "")}){connectionErrorIndicator}
       <div style={{ float: "right", paddingRight: 10 }}>
         {/* eslint-disable-next-line jsx-a11y/anchor-is-valid */}
         <a

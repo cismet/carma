@@ -41,7 +41,9 @@ const KeyTableDataGroups = ({
       <List
         size="small"
         dataSource={Object.keys(data).sort((a, b) =>
-          getTableDisplayName(a).localeCompare(getTableDisplayName(b), "de", { sensitivity: "base" })
+          getTableDisplayName(a).localeCompare(getTableDisplayName(b), "de", {
+            sensitivity: "base",
+          })
         )}
         renderItem={(tableName: string) => {
           const items = data[tableName];

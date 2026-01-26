@@ -226,11 +226,7 @@ export function SyncProvider({
                 try {
                   callback(doc);
                 } catch (err) {
-                  console.error(
-                    LOG_PREFIX,
-                    "Error in fallback callback:",
-                    err
-                  );
+                  console.error(LOG_PREFIX, "Error in fallback callback:", err);
                 }
                 actionCallbacksRef.current.delete(doc.id);
               }

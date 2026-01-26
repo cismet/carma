@@ -20,7 +20,11 @@ import {
   EmptySearchComponent,
   LibFuzzySearch,
 } from "@carma-mapping/fuzzy-search";
-import { Control, ControlLayout, ControlButtonStyler } from "@carma-mapping/map-controls-layout";
+import {
+  Control,
+  ControlLayout,
+  ControlButtonStyler,
+} from "@carma-mapping/map-controls-layout";
 import {
   FullscreenControl,
   RoutedMapLocateControl,
@@ -605,10 +609,15 @@ const TZBaumbewirtschaftung = ({
                 onClick={() => {
                   try {
                     console.log("Home button clicked");
-                    if (routedMapRef?.leafletMap?.leafletElement && featureCollection?.features?.length > 0) {
+                    if (
+                      routedMapRef?.leafletMap?.leafletElement &&
+                      featureCollection?.features?.length > 0
+                    ) {
                       // Calculate bounds from all features
-                      let minLng = Infinity, minLat = Infinity;
-                      let maxLng = -Infinity, maxLat = -Infinity;
+                      let minLng = Infinity,
+                        minLat = Infinity;
+                      let maxLng = -Infinity,
+                        maxLat = -Infinity;
 
                       featureCollection.features.forEach((feature: any) => {
                         const coords = feature.geometry?.coordinates;
@@ -616,7 +625,8 @@ const TZBaumbewirtschaftung = ({
 
                         const [lng, lat] = coords;
                         // Validate coordinates are in reasonable range for Wuppertal area
-                        if (typeof lng !== 'number' || typeof lat !== 'number') return;
+                        if (typeof lng !== "number" || typeof lat !== "number")
+                          return;
                         if (lat < 50 || lat > 52 || lng < 6 || lng > 8) return; // Filter to Wuppertal region
 
                         if (lng < minLng) minLng = lng;
@@ -636,7 +646,7 @@ const TZBaumbewirtschaftung = ({
                       const padding = 0.01;
                       const bounds: [[number, number], [number, number]] = [
                         [minLat - padding, minLng - padding],
-                        [maxLat + padding, maxLng + padding]
+                        [maxLat + padding, maxLng + padding],
                       ];
                       console.log("Fitting bounds:", bounds);
 
@@ -737,9 +747,13 @@ const TZBaumbewirtschaftung = ({
                       feature.text = feature.properties.info.puretitle;
 
                       // In follow mode: if feature is not visible, pan to it without changing zoom
-                      if (isFollowMode && routedMapRef?.leafletMap?.leafletElement) {
+                      if (
+                        isFollowMode &&
+                        routedMapRef?.leafletMap?.leafletElement
+                      ) {
                         try {
-                          const leafletMap = routedMapRef.leafletMap.leafletElement;
+                          const leafletMap =
+                            routedMapRef.leafletMap.leafletElement;
                           const [lng, lat] = feature.geometry.coordinates;
                           const featureLatLng = [lat, lng] as [number, number];
                           const bounds = leafletMap.getBounds();

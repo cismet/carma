@@ -9,7 +9,10 @@ interface DocumentUploaderProps {
   fileList?: UploadFile[];
 }
 
-const DocumentUploader = ({ onFilesChange, fileList }: DocumentUploaderProps) => {
+const DocumentUploader = ({
+  onFilesChange,
+  fileList,
+}: DocumentUploaderProps) => {
   const uploadProps: UploadProps = {
     name: "file",
     multiple: true,

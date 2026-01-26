@@ -62,7 +62,11 @@ export interface LibreMapProps {
   useRouting?: boolean;
   onFeatureSelect?: (
     feature: any,
-    selectionInfo?: { source: string; sourceLayer?: string; id?: string | number }
+    selectionInfo?: {
+      source: string;
+      sourceLayer?: string;
+      id?: string | number;
+    }
   ) => void;
 }
 
@@ -77,12 +81,14 @@ export const LibreMap = ({
 }: LibreMapProps) => {
   const mapContainer = useRef<HTMLDivElement>(null);
   const map = useRef<maplibregl.Map | null>(null);
-  const selectedFeaturesRef = useRef<Set<{
-    source: string;
-    sourceLayer?: string;
-    id?: string | number;
-    selectionLayerId?: string;
-  }>>(new Set());
+  const selectedFeaturesRef = useRef<
+    Set<{
+      source: string;
+      sourceLayer?: string;
+      id?: string | number;
+      selectionLayerId?: string;
+    }>
+  >(new Set());
   const mappingRef = useRef({});
   const isIdleRef = useRef(false);
   const vectorSourcesReadyRef = useRef(false);
@@ -630,7 +636,10 @@ export const LibreMap = ({
   }, [handleTopicMapLocationChange]);
 
   // Wait for vector sources to be ready, with timeout
-  const waitForVectorSources = (maxAttempts = 50, interval = 20): Promise<boolean> => {
+  const waitForVectorSources = (
+    maxAttempts = 50,
+    interval = 20
+  ): Promise<boolean> => {
     return new Promise((resolve) => {
       let attempts = 0;
       const check = () => {
@@ -640,7 +649,7 @@ export const LibreMap = ({
           attempts++;
           setTimeout(check, interval);
         } else {
-          console.warn('Vector sources did not load in time');
+          console.warn("Vector sources did not load in time");
           resolve(false);
         }
       };

@@ -6,9 +6,6 @@ export {
   LibreContext,
   LibreContextProvider,
   useLibreContext,
-} from './LibreContext';
+} from "./LibreContext";
 
-export type {
-  LibreContextType,
-  GeoJsonMetadata,
-} from './LibreContext';
+export type { LibreContextType, GeoJsonMetadata } from "./LibreContext";
