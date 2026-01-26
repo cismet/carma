@@ -412,9 +412,9 @@ const TZBaumbewirtschaftung = ({
           ]);
 
         const treesFC = treesResult.data as any;
-        const treeActions = treeActionsResult.data as any[];
+        const treeActions = (treeActionsResult.data as any[]) || [];
         const actions = actionsResult.data as any[];
-
+        console.log("xxx", { treesFC, treeActions, actions });
         // Store action definitions for later use (enriching intermediate actions)
         setActionDefinitions(actions);
 
