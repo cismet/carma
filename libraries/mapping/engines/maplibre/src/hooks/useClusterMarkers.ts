@@ -1,7 +1,7 @@
 import maplibregl from "maplibre-gl";
 import { useRef, useCallback, useEffect } from "react";
-import { createPieChart } from "./libremap.utils";
-import { GeoJsonMetadata } from "./LibreContext";
+import { createPieChart } from "../utils/clusterUtils";
+import type { GeoJsonMetadata } from "../contexts/LibreContext";
 
 interface UseClusterMarkersOptions {
   map: maplibregl.Map | null;
@@ -90,10 +90,10 @@ export const useClusterMarkers = ({
 
     const handleData = (e: maplibregl.MapDataEvent) => {
       const isRelevantSource = geoJsonMetadata.some(
-        // @ts-expect-error
+        // @ts-expect-error sourceId exists on the event
         ({ sourceId }) => e.sourceId === sourceId
       );
-      // @ts-expect-error
+      // @ts-expect-error isSourceLoaded exists on the event
       if (!isRelevantSource || !e.isSourceLoaded) return;
       updateMarkers();
     };

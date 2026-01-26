@@ -6,33 +6,48 @@ import { getHashParams } from "@carma-commons/utils";
 import { FeatureCollectionContext } from "react-cismap/contexts/FeatureCollectionContextProvider";
 import PhotoLightBox from "react-cismap/topicmaps/PhotoLightbox";
 import { TopicMapStylingContext } from "react-cismap/contexts/TopicMapStylingContextProvider";
-import "./map.css";
+import "../styles/map.css";
 import {
-  createFeature,
-  displayRouteOnMap,
   getVectorMapping,
   styleManipulation,
   vectorStylesToMapLibreStyle,
-  zoom256as512,
-  zoom512as256,
-} from "./libremap.utils";
-import { LibreLayer, VectorStyle } from "../CarmaMap";
-import { LibreMapSelectionContent } from "../LibreMapSelectionContent";
-import { SelectionItem, useSelection } from "../SelectionProvider";
+} from "../utils/styleBuilder";
+import { createFeature } from "../utils/featureUtils";
+import { zoom256as512, zoom512as256 } from "../utils/zoomUtils";
+import { LibreMapSelectionContent } from "./LibreMapSelectionContent";
 import { ENDPOINT, isAreaType } from "@carma-commons/resources";
 import proj4 from "proj4";
 import { proj4crs3857def, proj4crs4326def } from "@carma-mapping/utils";
-import { useSelectionLibreMap } from "../../hooks/useSelectionLibreMap";
-import { defaultLayerConf } from "../react-cismap/tools/layerFactory";
-import { useMapHashRouting } from "../../hooks/useMapHashRouting";
-import { FeatureInfobox } from "../FeatureInfobox";
-import { useLibreContext } from "./LibreContext";
-import { useClusterMarkers } from "./useClusterMarkers";
+import { useSelectionLibreMap } from "../hooks/useSelectionLibreMap";
+import { useLibreContext } from "../contexts/LibreContext";
+import { useClusterMarkers } from "../hooks/useClusterMarkers";
+import {
+  WUPPERTAL_DEFAULT_STYLE,
+  WUPPERTAL_CONFIG,
+} from "../constants/wuppertalDefaultStyle";
+
+// Import from portals temporarily until these are migrated
+import { FeatureInfobox } from "@carma-appframeworks/portals";
+import { SelectionItem, useSelection } from "@carma-appframeworks/portals";
+import { defaultLayerConf } from "@carma-appframeworks/portals";
+import { useMapHashRouting } from "@carma-appframeworks/portals";
+import { displayRouteOnMap } from "@carma-mapping/routing";
 
 export interface GeoJsonData {
   sourceId: string;
   data: GeoJSON.FeatureCollection;
 }
+
+export interface VectorStyle {
+  name: string;
+  style: string;
+  layer?: string;
+  infoboxMapping?: string[];
+}
+
+export type LibreLayer =
+  | ({ type: "vector" } & VectorStyle)
+  | { type: "geojson"; name: string; data: string; infoboxMapping?: string[] };
 
 export interface LibreMapProps {
   backgroundLayers?: string;
@@ -62,12 +77,12 @@ export const LibreMap = ({
 }: LibreMapProps) => {
   const mapContainer = useRef<HTMLDivElement>(null);
   const map = useRef<maplibregl.Map | null>(null);
-  const selectedFeatures: Set<{
+  const selectedFeaturesRef = useRef<Set<{
     source: string;
     sourceLayer?: string;
     id?: string | number;
     selectionLayerId?: string;
-  }> = new Set();
+  }>>(new Set());
   const mappingRef = useRef({});
   const isIdleRef = useRef(false);
   const vectorSourcesReadyRef = useRef(false);
@@ -130,48 +145,22 @@ export const LibreMap = ({
   const buildBackgroundStyle = (): StyleSpecification => {
     if (!backgroundLayers) {
       // Default fallback style
-      return {
-        version: 8,
-        sources: {
-          terrainSource: {
-            type: "raster-dem",
-            tiles: [
-              "https://wuppertal-terrain.cismet.de/services/wupp_dgm_01/tiles/{z}/{x}/{y}.png",
-            ],
-            tileSize: 512,
-            maxzoom: 15,
-          },
-          "source-amtlich": {
-            type: "raster",
-            tiles: [
-              "https://geodaten.metropoleruhr.de/spw2?SERVICE=WMTS&REQUEST=GetTile&VERSION=1.0.0&LAYER=spw2_light&STYLE=default&FORMAT=image/png&TILEMATRIXSET=webmercator_hq&TILEMATRIX={z}&TILEROW={y}&TILECOL={x}",
-            ],
-            tileSize: 256,
-          },
-        },
-        layers: [
-          {
-            id: "layer-amtlich",
-            type: "raster",
-            source: "source-amtlich",
-            paint: { "raster-opacity": 0.9 },
-          },
-        ],
-      };
+      return WUPPERTAL_DEFAULT_STYLE;
     }
 
     const layerSpecs = backgroundLayers.split("|");
-    const sources: Record<string, any> = {
-      terrainSource: {
+    const sources: Record<string, any> = {};
+
+    // Add terrain source from config
+    if (WUPPERTAL_CONFIG.terrain) {
+      sources["terrainSource"] = {
         type: "raster-dem",
-        tiles: [
-          "https://wuppertal-terrain.cismet.de/services/wupp_dgm_01/tiles/{z}/{x}/{y}.png",
-        ],
-        tileSize: 512,
-        maxzoom: 15,
-      },
-    };
-    const layers: any[] = [];
+        tiles: [WUPPERTAL_CONFIG.terrain.url],
+        tileSize: WUPPERTAL_CONFIG.terrain.tileSize ?? 512,
+        maxzoom: WUPPERTAL_CONFIG.terrain.maxzoom ?? 15,
+      };
+    }
+    const styleLayers: any[] = [];
 
     layerSpecs.forEach((spec, index) => {
       const [layerName, opacityStr] = spec.split("@");
@@ -216,7 +205,7 @@ export const LibreMap = ({
       }
 
       // Add layer
-      layers.push({
+      styleLayers.push({
         id: layerId,
         type: "raster",
         source: sourceId,
@@ -225,41 +214,14 @@ export const LibreMap = ({
     });
 
     // If no valid layers were parsed, return default style
-    if (layers.length === 0) {
-      return {
-        version: 8,
-        sources: {
-          terrainSource: {
-            type: "raster-dem",
-            tiles: [
-              "https://wuppertal-terrain.cismet.de/services/wupp_dgm_01/tiles/{z}/{x}/{y}.png",
-            ],
-            tileSize: 512,
-            maxzoom: 15,
-          },
-          "source-amtlich": {
-            type: "raster",
-            tiles: [
-              "https://geodaten.metropoleruhr.de/spw2?SERVICE=WMTS&REQUEST=GetTile&VERSION=1.0.0&LAYER=spw2_light&STYLE=default&FORMAT=image/png&TILEMATRIXSET=webmercator_hq&TILEMATRIX={z}&TILEROW={y}&TILECOL={x}",
-            ],
-            tileSize: 256,
-          },
-        },
-        layers: [
-          {
-            id: "layer-amtlich",
-            type: "raster",
-            source: "source-amtlich",
-            paint: { "raster-opacity": 0.9 },
-          },
-        ],
-      };
+    if (styleLayers.length === 0) {
+      return WUPPERTAL_DEFAULT_STYLE;
     }
 
     return {
       version: 8,
       sources,
-      layers,
+      layers: styleLayers,
     };
   };
 
@@ -296,10 +258,10 @@ export const LibreMap = ({
         attributionControl: false,
       });
       map.current = mapInstance;
-      setLibreMap(mapInstance);
+      setLibreMap?.(mapInstance);
       setContextMap(mapInstance);
 
-      mapInstance.on("click", (e) => {
+      mapInstance.on("click", async (e) => {
         const point = mapInstance.project([e.lngLat.lng, e.lngLat.lat]);
         const hits = mapInstance.queryRenderedFeatures(point);
         let filteredHits = hits.filter((hit) => {
@@ -309,7 +271,7 @@ export const LibreMap = ({
           );
         });
 
-        selectedFeatures.forEach((feature) => {
+        selectedFeaturesRef.current.forEach((feature) => {
           try {
             // If we have a selection layer ID, reset its filter
             if (
@@ -337,7 +299,7 @@ export const LibreMap = ({
           }
         });
 
-        selectedFeatures.clear();
+        selectedFeaturesRef.current.clear();
         setSelectedFeature(null);
         if (filteredHits.length > 0) {
           const selectedVectorFeature = filteredHits[0];
@@ -352,7 +314,7 @@ export const LibreMap = ({
 
           let feature = null;
           if (layerMapping) {
-            feature = createFeature(
+            feature = await createFeature(
               selectedVectorFeature,
               layerMapping,
               mapInstance,
@@ -370,7 +332,7 @@ export const LibreMap = ({
                 },
                 { selected: true }
               );
-              selectedFeatures.add({
+              selectedFeaturesRef.current.add({
                 source: selectedVectorFeature.source,
                 sourceLayer: selectedVectorFeature.sourceLayer,
                 id: selectedVectorFeature.id,
@@ -511,8 +473,6 @@ export const LibreMap = ({
 
           // Save terrain state before setting style
           const currentTerrain = map.current?.getTerrain();
-
-          console.log("xxx", style);
 
           map.current?.setStyle(style);
 
@@ -669,14 +629,34 @@ export const LibreMap = ({
     };
   }, [handleTopicMapLocationChange]);
 
-  const onComplete = (selection: SelectionItem) => {
+  // Wait for vector sources to be ready, with timeout
+  const waitForVectorSources = (maxAttempts = 50, interval = 20): Promise<boolean> => {
+    return new Promise((resolve) => {
+      let attempts = 0;
+      const check = () => {
+        if (vectorSourcesReadyRef.current) {
+          resolve(true);
+        } else if (attempts < maxAttempts) {
+          attempts++;
+          setTimeout(check, interval);
+        } else {
+          console.warn('Vector sources did not load in time');
+          resolve(false);
+        }
+      };
+      check();
+    });
+  };
+
+  const onComplete = async (selection: SelectionItem) => {
     if (!isAreaType(selection.type as ENDPOINT)) {
       const selectedPos = proj4(proj4crs3857def, proj4crs4326def, [
         selection.x,
         selection.y,
       ]);
 
-      if (vectorSourcesReadyRef.current) {
+      const ready = await waitForVectorSources();
+      if (ready && map.current) {
         setTimeout(() => {
           if (map.current) {
             map.current.fire("click", {
@@ -694,10 +674,6 @@ export const LibreMap = ({
             });
           }
         }, 500);
-      } else {
-        setTimeout(() => {
-          onComplete(selection);
-        }, 20);
       }
     }
   };

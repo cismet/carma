@@ -1,7 +1,7 @@
 import {
   functionToFeature,
   objectToFeature,
-} from "@carma-appframeworks/portals";
+} from "@carma-mapping/utils";
 import { GTMComponentDictionary } from "@carma-collab/wuppertal/generic-topicmap";
 
 /**

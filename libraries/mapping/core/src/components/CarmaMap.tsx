@@ -3,7 +3,7 @@ import {
   ControlButtonStyler,
   ControlLayout,
 } from "@carma-mapping/map-controls-layout";
-import { useContext, useEffect, useState } from "react";
+import { useCallback, useContext, useState } from "react";
 import TopicMapComponent from "react-cismap/topicmaps/TopicMapComponent";
 import {
   FullscreenControl,
@@ -18,7 +18,6 @@ import {
   LibFuzzySearch,
 } from "@carma-mapping/fuzzy-search";
 import { ResponsiveTopicMapContext } from "react-cismap/contexts/ResponsiveTopicMapContextProvider";
-import LibreMap, { LibreMapProps } from "./libremap/LibreMap";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faBars, faMountainCity } from "@fortawesome/free-solid-svg-icons";
 import { UIDispatchContext } from "react-cismap/contexts/UIContextProvider";
@@ -31,17 +30,12 @@ import {
 } from "react-router-dom";
 import { HashStateProvider } from "@carma-providers/hash-state";
 import { Tooltip } from "antd";
+import maplibregl from "maplibre-gl";
 
-export type VectorStyle = {
-  name: string;
-  style: string;
-  layer?: string;
-  infoboxMapping?: string[];
-};
+// Import from the new maplibre engine library
+import { LibreMap, LibreMapProps, LibreLayer, VectorStyle } from "@carma-mapping/engines/maplibre";
 
-export type LibreLayer =
-  | ({ type: "vector" } & VectorStyle)
-  | { type: "geojson"; name: string; data: string; infoboxMapping?: string[] };
+export type { VectorStyle, LibreLayer };
 
 interface CarmaMapProps extends LibreMapProps {
   mapEngine?: "leaflet" | "maplibre" | "cesium";
@@ -88,45 +82,18 @@ const CarmaMapContent = (props: CarmaMapProps) => {
   const { selectedBackground, backgroundConfigurations } = useContext<
     typeof TopicMapStylingContext
   >(TopicMapStylingContext);
-  const [map, setMap] = useState(<></>);
   const [libreMap, setLibreMap] = useState<maplibregl.Map | null>(null);
   const [showTerrain, setShowTerrain] = useState(false);
 
-  useEffect(() => {
-    if (mapEngine === "leaflet") {
-      setMap(
-        <TopicMapComponent
-          {...props}
-          locatorControl={false}
-          fullScreenControl={false}
-          zoomControls={false}
-          gazetteerSearchControl={false}
-        >
-          {children}
-        </TopicMapComponent>
-      );
-    }
+  // Stable callback to avoid re-creating LibreMap on every render
+  const handleLibreMapReady = useCallback((map: maplibregl.Map) => {
+    setLibreMap(map);
+    props.setLibreMap?.(map);
+  }, [props.setLibreMap]);
 
-    if (mapEngine === "maplibre") {
-      setMap(
-        <LibreMap
-          backgroundLayers={
-            backgroundLayers ??
-            backgroundConfigurations[selectedBackground].layerkey
-          }
-          setLibreMap={(map) => {
-            setLibreMap(map);
-            props.setLibreMap?.(map);
-          }}
-          layers={libreLayers}
-          onProgressUpdate={props.onProgressUpdate}
-          filterFunction={props.filterFunction}
-          useRouting={props.useRouting}
-          onFeatureSelect={props.onFeatureSelect}
-        />
-      );
-    }
-  }, [mapEngine, selectedBackground]);
+  // Compute background layers - either from props or from context
+  const effectiveBackgroundLayers = backgroundLayers ??
+    backgroundConfigurations?.[selectedBackground]?.layerkey;
 
   return (
     <HashStateProvider>
@@ -161,10 +128,10 @@ const CarmaMapContent = (props: CarmaMapProps) => {
                 <Tooltip title={"Terrain"} placement="right">
                   <ControlButtonStyler
                     onClick={() => {
-                      if (libreMap.terrain) {
+                      if (libreMap?.terrain) {
                         libreMap.setTerrain(null);
                         setShowTerrain(false);
-                      } else {
+                      } else if (libreMap) {
                         libreMap.setTerrain({
                           source: "terrainSource",
                           exaggeration: 1,
@@ -248,7 +215,28 @@ const CarmaMapContent = (props: CarmaMapProps) => {
               </Control>
             )}
 
-            {map}
+            {mapEngine === "leaflet" && (
+              <TopicMapComponent
+                {...props}
+                locatorControl={false}
+                fullScreenControl={false}
+                zoomControls={false}
+                gazetteerSearchControl={false}
+              >
+                {children}
+              </TopicMapComponent>
+            )}
+            {mapEngine === "maplibre" && (
+              <LibreMap
+                backgroundLayers={effectiveBackgroundLayers}
+                setLibreMap={handleLibreMapReady}
+                layers={libreLayers}
+                onProgressUpdate={props.onProgressUpdate}
+                filterFunction={props.filterFunction}
+                useRouting={props.useRouting}
+                onFeatureSelect={props.onFeatureSelect}
+              />
+            )}
             {modalMenu}
           </ControlLayout>
         </div>

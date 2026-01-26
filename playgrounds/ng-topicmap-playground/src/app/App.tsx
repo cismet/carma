@@ -1,11 +1,12 @@
 import {
-  CarmaMap,
   SelectionProvider,
   ProgressIndicator,
   useProgress,
   GazDataProvider,
-  LibreContextProvider,
 } from "@carma-appframeworks/portals";
+import { SandboxedEvalProvider } from "@carma-commons/sandbox-eval";
+import { CarmaMap } from "@carma-mapping/core";
+import { LibreContextProvider } from "@carma-mapping/engines/maplibre";
 import TopicMapContextProvider from "react-cismap/contexts/TopicMapContextProvider";
 import { defaultGazDataConfig } from "@carma-commons/resources";
 import Menu from "./Menu";
@@ -19,9 +20,10 @@ export function App() {
 
   return (
     <TopicMapContextProvider infoBoxPixelWidth={350}>
-      <GazDataProvider config={defaultGazDataConfig}>
-        <SelectionProvider>
-          <LibreContextProvider>
+      <SandboxedEvalProvider>
+        <GazDataProvider config={defaultGazDataConfig}>
+          <SelectionProvider>
+            <LibreContextProvider>
             <ProgressIndicator progress={progress} show={showProgress} />
             <CarmaMap
               onClick={() => {}}
@@ -76,9 +78,10 @@ export function App() {
               }}
               modalMenu={<Menu />}
             />
-          </LibreContextProvider>
-        </SelectionProvider>
-      </GazDataProvider>
+            </LibreContextProvider>
+          </SelectionProvider>
+        </GazDataProvider>
+      </SandboxedEvalProvider>
     </TopicMapContextProvider>
   );
 }

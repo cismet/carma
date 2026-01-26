@@ -9,8 +9,9 @@ import { cjsGlobalShim } from "@carma-commons/utils";
 import {
   SelectionProvider,
   GazDataProvider,
-  LibreContextProvider,
 } from "@carma-appframeworks/portals";
+import { SandboxedEvalProvider } from "@carma-commons/sandbox-eval";
+import { LibreContextProvider } from "@carma-mapping/engines/maplibre";
 import TopicMapContextProvider from "react-cismap/contexts/TopicMapContextProvider";
 import { defaultGazDataConfig } from "@carma-commons/resources";
 import BelisPlayground from "./app/BelisPlayground";
@@ -23,24 +24,26 @@ cjsGlobalShim();
 
 root.render(
   <StrictMode>
-    <HashRouter>
-      <TopicMapContextProvider infoBoxPixelWidth={350}>
-        <GazDataProvider config={defaultGazDataConfig}>
-          <SelectionProvider>
-            <LibreContextProvider>
-              <Routes>
-                <Route path="/" element={<App />} />
-                <Route path="/simple" element={<SimpleMap />} />
-                <Route
-                  path="/simpleWithoutControls"
-                  element={<SimpleMapWithoutControls />}
-                />
-                <Route path="/belis" element={<BelisPlayground />} />
-              </Routes>
-            </LibreContextProvider>
-          </SelectionProvider>
-        </GazDataProvider>
-      </TopicMapContextProvider>
-    </HashRouter>
+    <SandboxedEvalProvider>
+      <HashRouter>
+        <TopicMapContextProvider infoBoxPixelWidth={350}>
+          <GazDataProvider config={defaultGazDataConfig}>
+            <SelectionProvider>
+              <LibreContextProvider>
+                <Routes>
+                  <Route path="/" element={<App />} />
+                  <Route path="/simple" element={<SimpleMap />} />
+                  <Route
+                    path="/simpleWithoutControls"
+                    element={<SimpleMapWithoutControls />}
+                  />
+                  <Route path="/belis" element={<BelisPlayground />} />
+                </Routes>
+              </LibreContextProvider>
+            </SelectionProvider>
+          </GazDataProvider>
+        </TopicMapContextProvider>
+      </HashRouter>
+    </SandboxedEvalProvider>
   </StrictMode>
 );

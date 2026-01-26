@@ -214,7 +214,6 @@ const LayerItem = ({
         onMouseEnter={() => setHovered(true)}
         onMouseLeave={() => setHovered(false)}
         onClick={() => {
-          console.log("xxx", layer);
           if (canShowInfo) {
             dispatch(setSelectedLayer(showInfo ? null : layer));
           }

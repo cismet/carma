@@ -1,3 +1,14 @@
+/**
+ * LibreContext - Shared context for MapLibre map state
+ *
+ * This context is in a separate library to avoid circular dependencies
+ * between @carma-mapping/engines/maplibre and @carma-appframeworks/portals.
+ *
+ * TODO: Long-term, the better solution is to move the portals imports
+ * (FeatureInfobox, useSelection, defaultLayerConf, useMapHashRouting)
+ * out of engines-maplibre to eliminate the dependency entirely.
+ */
+
 import type { StyleSpecification } from "maplibre-gl";
 import type maplibregl from "maplibre-gl";
 import { createContext, useContext, useState, ReactNode } from "react";
@@ -7,7 +18,7 @@ export interface GeoJsonMetadata {
   uniqueColors: string[];
 }
 
-interface LibreContextType {
+export interface LibreContextType {
   mapStyle: StyleSpecification | null;
   setMapStyle: (style: StyleSpecification) => void;
   geoJsonMetadata: GeoJsonMetadata[];

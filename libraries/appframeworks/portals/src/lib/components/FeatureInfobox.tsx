@@ -15,13 +15,15 @@ import {
   InfoBox,
   utils,
   getActionLinksForFeature,
+} from "@carma-appframeworks/portals";
+import {
   fetchRouteOptions,
   displaySelectedRouteOnMap,
+  positionToMotisPlace,
+  InlineRouteOptions,
   type RouteOption,
-} from "@carma-appframeworks/portals";
+} from "@carma-mapping/routing";
 import { useLibreMapLocateControl } from "@carma-mapping/components";
-import { positionToMotisPlace } from "../services/motisService";
-import { InlineRouteOptions } from "./libremap/InlineRouteOptions";
 
 interface InfoboxProps {
   selectedFeature: any;

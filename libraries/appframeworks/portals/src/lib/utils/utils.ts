@@ -4,7 +4,7 @@ import type { FeatureInfoProperties, Item, Layer } from "@carma/types";
 import { extractCarmaConfig } from "@carma-commons/utils";
 import envelope from "@turf/envelope";
 import L from "leaflet";
-import { sandboxedEvalExternal } from "../components/SandboxedEvalProvider";
+import { sandboxedEvalExternal } from "@carma-commons/sandbox-eval";
 import { LeafletMap } from "@carma-mapping/engines/leaflet";
 import localforage from "localforage";
 

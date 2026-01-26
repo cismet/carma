@@ -7,7 +7,7 @@ import proj4 from "proj4";
 import {
   functionToFeature,
   objectToFeature,
-} from "@carma-appframeworks/portals";
+} from "@carma-mapping/utils";
 import type { Layer } from "@carma/types";
 
 import {
@@ -451,7 +451,7 @@ const createVectorFeature = async (
     if (!featureProperties) {
       return undefined;
     }
-    const genericLinks = featureProperties?.properties?.genericLinks || [];
+    const genericLinks = (featureProperties?.properties?.genericLinks || []) as any[];
 
     feature = {
       properties: {

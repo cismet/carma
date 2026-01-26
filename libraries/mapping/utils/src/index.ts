@@ -8,3 +8,17 @@ export type {
   UseVisibleMapFeaturesResult,
   VisibleFeature,
 } from "./lib/hooks/useVisibleMapFeatures";
+
+// Feature utils (sandboxed eval)
+export {
+  functionToFeature,
+  functionToInfo,
+  objectToFeature,
+  objectToInfo,
+  createFeatureInfoUrl,
+  createUrl,
+  createVectorFeature,
+  getInfoBoxControlObjectFromMappingAndVectorFeature,
+  type VectorFeatureInput,
+  type VectorFeatureResult,
+} from "./lib/featureUtils";

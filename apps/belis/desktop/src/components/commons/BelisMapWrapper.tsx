@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { CarmaMap } from "@carma-appframeworks/portals";
+import { CarmaMap } from "@carma-mapping/core";
 import { useDispatch } from "react-redux";
 import { setSelectedFeature } from "../../store/slices/featureCollection";
 import { AppDispatch } from "../../store";

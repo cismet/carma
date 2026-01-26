@@ -19,21 +19,12 @@ export { PieChart } from "./lib/components/PieChart.tsx";
 export { ContactMailButton } from "./lib/components/ContactMailButton.tsx";
 export { FeatureInfobox } from "./lib/components/FeatureInfobox.tsx";
 export { InfoBoxHeader } from "./lib/components/InfoBoxHeader.tsx";
-export { CarmaMap } from "./lib/components/CarmaMap.tsx";
-export { PreviewLibreMap } from "./lib/components/libremap/PreviewLibreMap.tsx";
-export {
-  LibreContext,
-  LibreContextProvider,
-  useLibreContext,
-} from "./lib/components/libremap/LibreContext.tsx";
+// CarmaMap moved to @carma-mapping/core
+// PreviewLibreMap moved to @carma-mapping/engines/maplibre
+// LibreContext moved to @carma-mapping/engines/maplibre
 
 export { GazDataProvider, useGazData } from "./lib/components/GazDataProvider";
 
-export {
-  SandboxedEvalProvider,
-  useSandboxedEval,
-  sandboxedEvalExternal,
-} from "./lib/components/SandboxedEvalProvider";
 
 export {
   MapStyleProvider,
@@ -71,13 +62,8 @@ export {
   defaultBackgroundConfigurations,
   backgroundConfWithFastOrtho2024,
 } from "./lib/utils/topicmapConfigs";
-export {
-  createUrl,
-  functionToFeature,
-  objectToFeature,
-  createVectorFeature,
-  getInfoBoxControlObjectFromMappingAndVectorFeature,
-} from "./lib/utils/featureInfo";
+// Feature functions moved to @carma-mapping/utils
+// createUrl, functionToFeature, objectToFeature, createVectorFeature, getInfoBoxControlObjectFromMappingAndVectorFeature
 
 export { getActionLinksForFeature } from "./lib/components/helper";
 
@@ -92,12 +78,7 @@ export {
   type MotisRouteParams,
 } from "./lib/services/motisService";
 
-export {
-  fetchRouteOptions,
-  displaySelectedRouteOnMap,
-  type RouteOption,
-  type FetchRouteOptionsParams,
-  type DisplaySelectedRouteOptions,
-} from "./lib/components/libremap/libremap.utils";
+// fetchRouteOptions, displaySelectedRouteOnMap, RouteOption moved to @carma-mapping/routing
+// RouteOptionsDrawer moved to @carma-mapping/routing
 
-export { RouteOptionsDrawer } from "./lib/components/libremap/RouteOptionsDrawer";
+export { defaultLayerConf } from "./lib/components/react-cismap/tools/layerFactory";

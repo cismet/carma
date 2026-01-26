@@ -1,5 +1,6 @@
 import { OverlayTourProvider } from "@carma-commons/ui/helper-overlay";
 import { CesiumContextProvider } from "@carma-mapping/engines/cesium";
+import { LibreContextProvider } from "@carma-mapping/contexts";
 import { TopicMapContextProvider } from "react-cismap/contexts/TopicMapContextProvider";
 
 import { GazDataProvider } from "./GazDataProvider";
@@ -17,7 +18,7 @@ import {
   type APIRootState,
   CarmaMapAPIProvider,
 } from "@carma-mapping/carma-map-api";
-import { SandboxedEvalProvider } from "./SandboxedEvalProvider";
+import { SandboxedEvalProvider } from "@carma-commons/sandbox-eval";
 
 import type { Store } from "redux";
 
@@ -86,13 +87,15 @@ export const CarmaMapProviderWrapper = <
                     providerConfig={cesiumOptions.providerConfig}
                     tilesetConfigs={cesiumOptions.tilesetConfigs}
                   >
-                    {store ? (
-                      <CarmaMapAPIProvider store={store}>
-                        {children}
-                      </CarmaMapAPIProvider>
-                    ) : (
-                      children
-                    )}
+                    <LibreContextProvider>
+                      {store ? (
+                        <CarmaMapAPIProvider store={store}>
+                          {children}
+                        </CarmaMapAPIProvider>
+                      ) : (
+                        children
+                      )}
+                    </LibreContextProvider>
                   </CesiumContextProvider>
                 </OverlayTourProvider>
               </TopicMapContextProvider>

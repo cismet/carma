@@ -4,6 +4,7 @@ import {
   GazDataProvider,
   SelectionProvider,
 } from "@carma-appframeworks/portals";
+import { SandboxedEvalProvider } from "@carma-commons/sandbox-eval";
 import { Navigate, RouterProvider, createHashRouter } from "react-router-dom";
 import { Provider, useDispatch, useSelector } from "react-redux";
 import Layout from "./components/commons/Layout";
@@ -103,15 +104,17 @@ const root = ReactDOM.createRoot(
 root.render(
   <StrictMode>
     <Provider store={store}>
-      <GazDataProvider config={gazDataConfig}>
-        <SelectionProvider>
-          <PersistGate loading={null} persistor={persistor}>
-            <TopicMapContextProvider appKey="belis-desktop.map">
-              <RouterProvider router={router} />
-            </TopicMapContextProvider>
-          </PersistGate>
-        </SelectionProvider>
-      </GazDataProvider>
+      <SandboxedEvalProvider>
+        <GazDataProvider config={gazDataConfig}>
+          <SelectionProvider>
+            <PersistGate loading={null} persistor={persistor}>
+              <TopicMapContextProvider appKey="belis-desktop.map">
+                <RouterProvider router={router} />
+              </TopicMapContextProvider>
+            </PersistGate>
+          </SelectionProvider>
+        </GazDataProvider>
+      </SandboxedEvalProvider>
     </Provider>
   </StrictMode>
 );

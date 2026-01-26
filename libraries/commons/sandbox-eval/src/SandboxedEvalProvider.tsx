@@ -6,7 +6,10 @@ import React, {
   useRef,
 } from "react";
 
-// sandboxedEval evaluates "code" with an optional payload and resolves with the result.
+/**
+ * sandboxedEval evaluates "code" with an optional payload and resolves with the result.
+ * The code is executed in an isolated iframe sandbox for security.
+ */
 export type SandboxedEval = (
   code: string,
   payload?: unknown
@@ -34,10 +37,18 @@ function setSandboxedEvalImpl(fn: SandboxedEval) {
   currentSandboxedEvalImpl = fn;
 }
 
+/**
+ * Call sandboxedEval from outside React components.
+ * Requires SandboxedEvalProvider to be mounted in the component tree.
+ */
 export async function sandboxedEvalExternal(code: string, payload?: unknown) {
   return currentSandboxedEvalImpl(code, payload);
 }
 
+/**
+ * Provider that creates an iframe sandbox for safe code evaluation.
+ * All eval() calls are executed in an isolated context.
+ */
 export function SandboxedEvalProvider({
   children,
 }: {
@@ -153,7 +164,9 @@ export function SandboxedEvalProvider({
       pendingRef.current.clear();
       try {
         iframeRef.current?.remove();
-      } catch {}
+      } catch {
+        // ignore
+      }
       iframeRef.current = null;
     };
   }, []);
@@ -224,6 +237,10 @@ export function SandboxedEvalProvider({
   );
 }
 
+/**
+ * Hook to access sandboxedEval from within React components.
+ * Must be used within a SandboxedEvalProvider.
+ */
 export function useSandboxedEval(): SandboxedEval {
   const ctx = useContext(SandboxedEvalContext);
   if (!ctx) {

@@ -6,13 +6,15 @@ import Menu from "./Menu";
 import Modal from "./Modal";
 import SetStatusDialog from "./SetStatusDialog";
 import {
-  createVectorFeature,
   FeatureInfobox,
-  SandboxedEvalProvider,
   TopicMapSelectionContent,
   useSelectionTopicMap,
-  getInfoBoxControlObjectFromMappingAndVectorFeature,
 } from "@carma-appframeworks/portals";
+import {
+  createVectorFeature,
+  getInfoBoxControlObjectFromMappingAndVectorFeature,
+} from "@carma-mapping/utils";
+import { SandboxedEvalProvider } from "@carma-commons/sandbox-eval";
 import {
   defaultTypeInference,
   EmptySearchComponent,
