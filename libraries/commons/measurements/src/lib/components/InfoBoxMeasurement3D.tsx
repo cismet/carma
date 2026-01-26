@@ -7,6 +7,7 @@ import {
 } from "@fortawesome/free-solid-svg-icons";
 import MeasurementTitle from "./MeasurementTitle";
 import { UIContext } from "react-cismap/contexts/UIContextProvider";
+import Icon from "react-cismap/commons/Icon";
 import "../styles/infoBox.css";
 import { Tooltip } from "antd";
 import { ResponsiveInfoBox } from "@carma-appframeworks/portals";
@@ -16,7 +17,10 @@ import {
   getEuclideanDistance,
   getENU,
   formatNumber,
+  isTraverseMeasurementEntry,
 } from "@carma-mapping/engines/cesium/measurements";
+import { useCesiumContext } from "@carma-mapping/engines/cesium";
+import { flyToPointGroup } from "../utils/cesiumFlyTo";
 import { InfoBoxMeasurementProps } from "../..";
 
 export function InfoBoxMeasurement3D({
@@ -29,6 +33,7 @@ export function InfoBoxMeasurement3D({
     setReferencePoint,
     referencePoint,
   } = useCesiumMeasurements();
+  const { getScene } = useCesiumContext();
   const { collapsedInfoBox } = useContext<typeof UIContext>(UIContext);
 
   const [currentIndex, setCurrentIndex] = useState(0);
@@ -82,6 +87,31 @@ export function InfoBoxMeasurement3D({
     if (currentMeasurement && isPointMeasurementEntry(currentMeasurement)) {
       setReferencePoint(currentMeasurement.geometryECEF);
     }
+  };
+
+  const flyToMeasurement = () => {
+    const scene = getScene();
+    if (!currentMeasurement) return;
+    if (isPointMeasurementEntry(currentMeasurement)) {
+      flyToPointGroup(scene, [currentMeasurement.geometryECEF]);
+    } else if (isTraverseMeasurementEntry(currentMeasurement)) {
+      flyToPointGroup(scene, currentMeasurement.geometryECEF);
+    }
+  };
+
+  const flyToAllMeasurements = () => {
+    const scene = getScene();
+    if (measurements.length === 0) return;
+    const points = measurements.flatMap((measurement) => {
+      if (isPointMeasurementEntry(measurement)) {
+        return [measurement.geometryECEF];
+      }
+      if (isTraverseMeasurementEntry(measurement)) {
+        return measurement.geometryECEF;
+      }
+      return [];
+    });
+    flyToPointGroup(scene, points);
   };
 
   const infoBoxHeaderColor = "#3b82f6";
@@ -168,6 +198,17 @@ export function InfoBoxMeasurement3D({
                 )}
               </span>
               <div className="flex justify-end items-center w-[18%] mt-1 gap-2">
+                <Tooltip title="Zur Messung fliegen">
+                  <Icon
+                    name="search-location"
+                    onClick={(event) => {
+                      event.stopPropagation();
+                      flyToMeasurement();
+                    }}
+                    className="cursor-pointer text-[16px] text-[#808080] hover:text-[#a0a0a0]"
+                    data-test-id="flyto-measurement-btn"
+                  />
+                </Tooltip>
                 {!isReference && (
                   <Tooltip title="Als Referenzhöhe setzen">
                     <FontAwesomeIcon
@@ -251,7 +292,10 @@ export function InfoBoxMeasurement3D({
                 )}
               </div>
               <div className="flex justify-center items-center w-[96%] mt-2 pt-3">
-                <span className="mx-4 text-[#0078a8] cursor-default">
+                <span
+                  className="mx-4 text-[#0078a8] cursor-pointer"
+                  onClick={flyToAllMeasurements}
+                >
                   {visibleMeasurements.length} Messungen verfügbar
                 </span>
               </div>
