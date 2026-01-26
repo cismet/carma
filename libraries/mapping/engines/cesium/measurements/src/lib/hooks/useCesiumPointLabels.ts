@@ -38,6 +38,29 @@ export const useCesiumPointLabels = (
   );
   const [cameraPitch, setCameraPitch] = useState<number>(-Math.PI / 4);
 
+  // Keep camera pitch in sync while the camera moves (for hairline angle/offset)
+  useEffect(() => {
+    if (!scene || scene.isDestroyed() || !showLabels) return;
+
+    const updatePitch = () => {
+      const currentPitch = scene.camera.pitch;
+      setCameraPitch((prev) =>
+        Math.abs(currentPitch - prev) > 0.001 ? currentPitch : prev
+      );
+    };
+
+    updatePitch();
+    const removePostRenderListener = scene.postRender.addEventListener(
+      updatePitch
+    );
+
+    return () => {
+      if (removePostRenderListener) {
+        removePostRenderListener();
+      }
+    };
+  }, [scene, showLabels]);
+
   // Cesium-specific visibility and occlusion detection
   useEffect(() => {
     if (!scene || scene.isDestroyed() || !showLabels) return;
@@ -45,13 +68,6 @@ export const useCesiumPointLabels = (
     const checkVisibilityAndOcclusion = () => {
       const newOcclusionResults: Record<string, boolean> = {};
       const newHiddenResults: Record<string, boolean> = {};
-
-      // Get current camera pitch once per frame for all points
-      const currentPitch = scene.camera.pitch;
-      if (Math.abs(currentPitch - cameraPitch) > 0.01) {
-        // 0.01 radian threshold
-        setCameraPitch(currentPitch);
-      }
 
       points.forEach((point) => {
         // Convert 3D position to screen coordinates
@@ -126,7 +142,7 @@ export const useCesiumPointLabels = (
       }
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [scene, points, showLabels, cameraPitch]);
+  }, [scene, points, showLabels]);
 
   // Transform measurement points to point label data
   const pointLabelData: PointLabelData[] = useMemo(
