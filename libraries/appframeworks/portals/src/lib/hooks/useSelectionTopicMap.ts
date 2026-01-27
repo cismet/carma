@@ -51,12 +51,12 @@ export const useSelectionTopicMap = ({
       const isNewSelection =
         selection?.selectionTimestamp &&
         Date.now() - selection.selectionTimestamp < NEW_SELECTION_TIMEOUT;
+      const { leafletElement } = routedMapRef.current?.leafletMap;
       if (selection && isNewSelection) {
         console.debug(
           "HOOK: useSelectionTopicMap selection LEAFLET",
           selection
         );
-        const { leafletElement } = routedMapRef.current?.leafletMap;
 
         // TODO replace builtin react-cismap trigger, handle topicMap map move and polygon generation for overlayFeature with CarmaMap
         builtInGazetteerHitTrigger(
@@ -71,6 +71,8 @@ export const useSelectionTopicMap = ({
         if (leafletElement) {
           onComplete?.(selection, leafletElement);
         }
+      } else if (selection.selectionTimestamp === null && leafletElement) {
+        onComplete?.(selection, leafletElement);
       }
     }
   }, [
