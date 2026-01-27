@@ -13,6 +13,7 @@ const root = ReactDOM.createRoot(
 );
 suppressReactCismapErrors();
 
+document.getElementById("splash-loading")?.remove();
 root.render(
   <StrictMode>
     <GazDataProvider config={gazDataConfig}>
