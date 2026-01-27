@@ -556,8 +556,18 @@ export const onSelectionChangedVector = async (
     hit: any;
     latlng: LatLng | maplibregl.LngLat;
   },
-  { layer, dispatch, selectionHandler, map }
+  { layer, dispatch, selectionHandler, map, store }
 ) => {
+  const layers = getLayers(store.getState());
+  const useInFeatureInfo = layers.some(
+    (l) => l.id === layer.id && l.useInFeatureInfo
+  );
+
+  if (!useInFeatureInfo) {
+    dispatch(addNothingFoundID(layer.id));
+    return;
+  }
+
   selectionHandler(e, layer);
   if (!e.hits) {
   }

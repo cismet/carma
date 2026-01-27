@@ -625,6 +625,7 @@ export const GeoportalMap = ({ height, width, allow3d }: MapProps) => {
       selectedFeature,
       leafletMap: getLeafletMap(),
       maplibreMapsRef,
+      store,
     }),
     [
       uiMode,
@@ -633,6 +634,7 @@ export const GeoportalMap = ({ height, width, allow3d }: MapProps) => {
       selectedFeature,
       getLeafletMap,
       maplibreMapsRef,
+      store,
     ]
   );
 

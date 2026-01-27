@@ -5,7 +5,7 @@ import {
   useRef,
   useState,
 } from "react";
-import type { Dispatch } from "@reduxjs/toolkit";
+import type { Dispatch, Store } from "@reduxjs/toolkit";
 import type { LatLng, Map as LeafletMap } from "leaflet";
 
 import CismapLayer from "react-cismap/CismapLayer";
@@ -72,6 +72,7 @@ export const useCreateCismapLayers = (
     selectedFeature,
     leafletMap,
     maplibreMapsRef,
+    store,
   }: {
     mode: UIMode;
     dispatch: Dispatch;
@@ -79,6 +80,7 @@ export const useCreateCismapLayers = (
     selectedFeature: any;
     leafletMap: LeafletMap;
     maplibreMapsRef?: React.MutableRefObject<Map<string, any>>;
+    store: Store;
   }
 ) => {
   const [globalHits, setGlobalHits] = useState({});
@@ -298,12 +300,12 @@ export const useCreateCismapLayers = (
                   leafletMap,
                 });
               } else if (modeRef.current === UIMode.FEATURE_INFO) {
-                console.log("yyy", e);
                 onSelectionChangedVector(e, {
                   layer,
                   dispatch,
                   selectionHandler,
                   map: leafletMap,
+                  store,
                 });
               }
             },
