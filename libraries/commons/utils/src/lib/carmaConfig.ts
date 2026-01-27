@@ -27,10 +27,12 @@ export const extractCarmaConfig = (
     });
   }
 
-  carmaConfig = {
-    ...carmaConfig,
-    infoboxMapping,
-  };
+  if (infoboxMapping.length > 0) {
+    carmaConfig = {
+      ...carmaConfig,
+      infoboxMapping,
+    };
+  }
 
   return carmaConfig;
 };

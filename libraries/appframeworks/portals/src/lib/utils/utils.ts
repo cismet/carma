@@ -154,7 +154,7 @@ export const parseToMapLayer = async (
       } else if (layer.vectorStyle) {
         vectorStyle = layer.vectorStyle;
       }
-      let metaData = {};
+      let metaData: Record<string, unknown> = {};
       if (vectorStyle) {
         zoom = await fetch(vectorStyle)
           .then((response) => {
@@ -172,17 +172,22 @@ export const parseToMapLayer = async (
           });
       }
 
+      let vectorConf = null;
+
+      if (metaData?.keywords) {
+        vectorConf = extractCarmaConfig(metaData.keywords as string[]);
+      }
+      const mergedConf = { ...vectorConf, ...carmaConf };
+
       newLayer = {
         title: layer.title,
         id: id,
         layerType: "vector",
         opacity: opacity || 1.0,
         description: layer.description,
-        conf: carmaConf ?? undefined,
+        conf: Object.keys(mergedConf).length > 0 ? mergedConf : undefined,
         queryable: !layer.queryable
-          ? layer?.keywords?.some((keyword) =>
-              keyword.includes("carmaconf://infoBoxMapping")
-            )
+          ? "infoboxMapping" in mergedConf
           : layer.queryable,
         useInFeatureInfo: true,
         visible: visible,
