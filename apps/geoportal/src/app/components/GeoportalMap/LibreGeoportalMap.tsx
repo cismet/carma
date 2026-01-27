@@ -411,6 +411,7 @@ const LibreGeoportalMap = ({
                   dispatch,
                   selectionHandler,
                   map: map.current,
+                  store: store,
                 }
               );
             }
