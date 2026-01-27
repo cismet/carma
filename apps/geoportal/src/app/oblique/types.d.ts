@@ -84,6 +84,7 @@ export interface ObliqueDataProviderConfig {
   crs: string;
   previewPath: string;
   previewQualityLevel?: OBLIQUE_PREVIEW_QUALITY;
+  downloadQualityLevel?: OBLIQUE_PREVIEW_QUALITY;
   fixedPitch?: number;
   fixedHeight?: number;
   minFov?: Radians;

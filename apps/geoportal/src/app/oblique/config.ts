@@ -19,6 +19,7 @@ export const OBLIQUE_CONFIG: ObliqueDataProviderConfig = {
   maxFov: degToRad(120 as Degrees), // Maximum field of view in radians
   headingOffset: degToRad(-34.3 as Degrees), // Heading offset in radians
   previewQualityLevel: OBLIQUE_PREVIEW_QUALITY.LEVEL_3,
+  downloadQualityLevel: OBLIQUE_PREVIEW_QUALITY.LEVEL_1,
   previewPath: OBLIQUE_2024_PREVIEW_PATH,
   crs: OBLIQUE_2024_ORIENTATIONS_CRS,
   exteriorOrientationsURI: OBLIQUE_2024_EXT_ORI_UTM32_URI,

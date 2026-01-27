@@ -69,6 +69,7 @@ interface ObliqueContextType {
   error: string | null;
 
   previewQualityLevel: OBLIQUE_PREVIEW_QUALITY;
+  downloadQualityLevel?: OBLIQUE_PREVIEW_QUALITY;
   previewPath: string;
   fixedPitch: number;
   fixedHeight: number;
@@ -133,6 +134,7 @@ export const ObliqueProvider: React.FC<ObliqueProviderProps> = ({
     crs,
     previewPath,
     previewQualityLevel,
+    downloadQualityLevel,
     fixedPitch,
     fixedHeight,
     minFov,
@@ -253,6 +255,7 @@ export const ObliqueProvider: React.FC<ObliqueProviderProps> = ({
       converter,
       previewPath,
       previewQualityLevel,
+      downloadQualityLevel,
       fixedPitch,
       fixedHeight,
       minFov,

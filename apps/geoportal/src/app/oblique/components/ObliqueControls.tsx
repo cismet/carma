@@ -80,6 +80,7 @@ export const ObliqueControls: FC<ObliqueControlsProps> = ({
     isAllDataReady,
     previewPath,
     previewQualityLevel,
+    downloadQualityLevel,
     setLockFootprint,
     animations,
     isObliqueMode,
@@ -518,8 +519,14 @@ export const ObliqueControls: FC<ObliqueControlsProps> = ({
   useFootprints(isDebugMode);
 
   const { downloadUrl } = useMemo(
-    () => getImageUrls(imageId, previewPath, previewQualityLevel),
-    [previewPath, previewQualityLevel, imageId]
+    () =>
+      getImageUrls(
+        imageId,
+        previewPath,
+        previewQualityLevel,
+        downloadQualityLevel
+      ),
+    [previewPath, previewQualityLevel, downloadQualityLevel, imageId]
   );
 
   // Global keybindings for direction controls (WASD/Arrows/QE/Numpad)
