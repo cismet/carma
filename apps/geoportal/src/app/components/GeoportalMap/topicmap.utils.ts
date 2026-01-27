@@ -414,24 +414,15 @@ const createVectorFeature = async (
     vectorId: selectedVectorFeature.id,
   };
   let result = "";
-  let featureInfoZoom = 20;
-  let blockLegacyGetFeatureInfo = false;
-  layer.other.keywords.forEach((keyword) => {
-    const extracted = keyword.split("carmaconf://infoBoxMapping:")[1];
-    const zoom = keyword.split("carmaConf://featureInfoZoom:")[1];
+  let featureInfoZoom = layer.conf?.featureInfoZoom
+    ? parseInt(layer.conf.featureInfoZoom as string)
+    : 20;
+  let blockLegacyGetFeatureInfo =
+    layer.conf && "blockLegacyGetFeatureInfo" in layer.conf;
 
-    if (keyword.includes("blockLegacyGetFeatureInfo")) {
-      blockLegacyGetFeatureInfo = true;
-    }
-
-    if (extracted) {
-      result += extracted + "\n";
-    }
-
-    if (zoom) {
-      featureInfoZoom = parseInt(zoom);
-    }
-  });
+  if (layer.conf?.infoboxMapping && Array.isArray(layer.conf.infoboxMapping)) {
+    result = (layer.conf.infoboxMapping as string[]).join("\n");
+  }
 
   if (result) {
     if (result.includes("function")) {
