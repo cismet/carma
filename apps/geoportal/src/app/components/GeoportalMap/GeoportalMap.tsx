@@ -219,7 +219,9 @@ export const GeoportalMap = ({ height, width, allow3d }: MapProps) => {
       .filter((l) => l.layerType === "vector" && l.visible)
       .map((l) => maplibreMapsRef.current.get(l.id))
       .filter((m) => m !== undefined);
-    setMaplibreMaps(maps);
+    if (maplibreMaps.length !== maps.length) {
+      setMaplibreMaps(maps);
+    }
   }, [layers, layersIdle]);
 
   const version = getApplicationVersion(versionData);
