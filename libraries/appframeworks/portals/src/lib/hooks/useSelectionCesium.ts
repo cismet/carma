@@ -160,6 +160,7 @@ export const useSelectionCesium = (
       const selectionKey = selection.sorter ?? null;
       const selectionTimestamp = selection.selectionTimestamp ?? null;
       const selectionMapMode = selection.selectedFromMapMode ?? null;
+      const isRestoredSelection = selectionTimestamp == null;
 
       const isDuplicateSelection =
         lastSelectionKeyRef.current === selectionKey &&
@@ -253,8 +254,9 @@ export const useSelectionCesium = (
       // Skip flyTo only for selections from Leaflet that are NOT re-selections
       // Re-selections in Cesium should always fly to show the area again
       const skipFlyTo =
-        selection.selectedFromMapMode === SelectionMapMode.MODE_2D &&
-        !isReselection;
+        isRestoredSelection ||
+        (selection.selectedFromMapMode === SelectionMapMode.MODE_2D &&
+          !isReselection);
 
       const setMarkerDataWithMeta = (data: MarkerPrimitiveData | null) => {
         if (data) {
