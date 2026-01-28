@@ -252,34 +252,37 @@ export const GeoportalMap = ({ height, width, allow3d }: MapProps) => {
     zoom: number;
   } | null>(null);
 
-  const updateLayersIdleState = useCallback(() => {
-    if (layersIdle) {
-      const leaflet = getLeafletMap();
-      if (leaflet) {
-        const center = leaflet.getCenter();
-        const zoom = leaflet.getZoom();
-        const newPosition = { lat: center.lat, lng: center.lng, zoom };
+  const updateLayersIdleState = useCallback(
+    (skipPositionChangeCheck?: boolean) => {
+      if (layersIdle) {
+        const leaflet = getLeafletMap();
+        if (leaflet) {
+          const center = leaflet.getCenter();
+          const zoom = leaflet.getZoom();
+          const newPosition = { lat: center.lat, lng: center.lng, zoom };
 
-        if (previousPositionRef.current) {
-          const prev = previousPositionRef.current;
-          const positionChanged =
-            Math.abs(newPosition.lat - prev.lat) > 0.0001 ||
-            Math.abs(newPosition.lng - prev.lng) > 0.0001 ||
-            newPosition.zoom !== prev.zoom;
+          if (previousPositionRef.current && !skipPositionChangeCheck) {
+            const prev = previousPositionRef.current;
+            const positionChanged =
+              Math.abs(newPosition.lat - prev.lat) > 0.0001 ||
+              Math.abs(newPosition.lng - prev.lng) > 0.0001 ||
+              newPosition.zoom !== prev.zoom;
 
-          if (!positionChanged) {
-            console.debug("Position unchanged, skipping idle state update");
-            return;
+            if (!positionChanged) {
+              console.debug("Position unchanged, skipping idle state update");
+              return;
+            }
           }
+
+          previousPositionRef.current = newPosition;
         }
 
-        previousPositionRef.current = newPosition;
+        console.debug("Layers are idle, setting layers idle to false");
+        dispatch(setLayersIdle(false));
       }
-
-      console.debug("Layers are idle, setting layers idle to false");
-      dispatch(setLayersIdle(false));
-    }
-  }, [layersIdle, dispatch, getLeafletMap]);
+    },
+    [layersIdle, dispatch, getLeafletMap]
+  );
 
   useDispatchSachdatenInfoText();
   const modelSelectionDispatcher = useModelSelectionDispatcher();
@@ -468,7 +471,7 @@ export const GeoportalMap = ({ height, width, allow3d }: MapProps) => {
       dispatch(setFeatures([]));
       dispatch(setSelectedFeature(null));
     } else {
-      updateLayersIdleState();
+      updateLayersIdleState(true);
     }
   }, [layers]);
 
