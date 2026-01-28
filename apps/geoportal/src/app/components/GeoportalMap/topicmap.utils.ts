@@ -238,7 +238,8 @@ export const onClickTopicMap = async (
           } else {
             dispatch(setPreferredVectorLayerId(undefined));
           }
-        } else if (preferredLayerId) {
+        }
+        if (preferredLayerId) {
           const preferredLayerIndex = filteredResult.findIndex(
             (feature) => feature.id === preferredLayerId
           );
