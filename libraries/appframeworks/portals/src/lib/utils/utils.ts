@@ -209,7 +209,7 @@ export const parseToMapLayer = async (
         description: layer.description,
         conf: Object.keys(mergedConf).length > 0 ? mergedConf : undefined,
         queryable: !layer.queryable
-          ? "infoboxMapping" in mergedConf
+          ? "infoboxMapping" in mergedConf || "lazyInfoBox" in mergedConf
           : layer.queryable,
         useInFeatureInfo: true,
         visible: visible,

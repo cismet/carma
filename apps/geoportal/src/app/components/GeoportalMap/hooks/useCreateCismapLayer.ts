@@ -209,7 +209,7 @@ export const useCreateCismapLayers = (
       if (globalHits[selectedFeature.id]) {
         const hits = globalHits[selectedFeature.id];
         const vectorId =
-          selectedFeature.vectorId || selectedFeature.properties.wmsProps.id;
+          selectedFeature.vectorId || selectedFeature.properties?.wmsProps?.id;
         if (hits) {
           hits.forEach((hit) => {
             if (hit.id === vectorId || hit?.properties?.id === vectorId) {
