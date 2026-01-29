@@ -26,8 +26,8 @@ import { getElevationAsync } from "@carma-mapping/engines/cesium";
 import {
   useAdhocFeatureDisplay,
   type AdhocFeature,
-  type AdhocGeoJsonPayload,
-  type AdhocModelPayload,
+  type AdhocMapLibreStyleData,
+  type AdhocModelData,
 } from "../components/AdhocFeatureDisplayProvider";
 import { useCesiumModels } from "./useCesiumModels";
 
@@ -35,19 +35,34 @@ const ADHOC_WALL_DEFAULT_HEIGHT = 15;
 
 const isAdhocModelFeature = (
   feature: AdhocFeature
-): feature is AdhocFeature & { payload: AdhocModelPayload } =>
-  feature.payload.kind === "model";
+): feature is AdhocFeature & { kind: "model"; data: AdhocModelData } =>
+  feature.kind === "model";
 
-const isAdhocGeoJsonFeature = (
+const isAdhocMapLibreStyleFeature = (
   feature: AdhocFeature
-): feature is AdhocFeature & { payload: AdhocGeoJsonPayload } =>
-  feature.payload.kind === "geojson";
+): feature is AdhocFeature & {
+  kind: "maplibre-style";
+  data: AdhocMapLibreStyleData;
+} => feature.kind === "maplibre-style";
+
+const getMapLibreLayerInfo = (feature: AdhocFeature) => {
+  if (!isAdhocMapLibreStyleFeature(feature)) return undefined;
+  return feature.data.metadata?.carmaConf?.layerInfo;
+};
+
+const getAdhocAccentColor = (feature: AdhocFeature) => {
+  return (
+    (typeof feature.metadata?.accentColor === "string"
+      ? feature.metadata?.accentColor
+      : undefined) ?? getMapLibreLayerInfo(feature)?.accentColor
+  );
+};
 
 const getAdhocWallColor = (
-  feature: { metadata?: Record<string, unknown> },
+  feature: AdhocFeature,
   isSelected: boolean
 ) => {
-  const accent = feature.metadata?.accentColor;
+  const accent = getAdhocAccentColor(feature);
   if (typeof accent === "string") {
     const color = Color.fromCssColorString(accent);
     return color.withAlpha(isSelected ? 0.95 : 0.7);
@@ -157,11 +172,105 @@ const getPolygonFromGeoJson = (
   return null;
 };
 
+const getGeoJsonFromFeature = (
+  feature: AdhocFeature
+): Feature | FeatureCollection | null => {
+  if (isAdhocMapLibreStyleFeature(feature)) {
+    const sources = feature.data.sources;
+    if (!sources) return null;
+    const source = Object.values(sources).find(
+      (entry) => entry?.type === "geojson" && entry.data
+    );
+    return source?.data ?? null;
+  }
+  return null;
+};
+
 const pickNonEmptyString = (...values: Array<unknown>) => {
   return values.find(
     (value): value is string =>
       typeof value === "string" && value.trim().length > 0
   );
+};
+
+const buildAdhocFeatureInfo = (feature: AdhocFeature): FeatureInfo | null => {
+  const geojson = getGeoJsonFromFeature(feature);
+  if (geojson) {
+    const geojsonFeature =
+      geojson.type === "FeatureCollection" ? geojson.features[0] : geojson;
+
+    const metadataTitle = pickNonEmptyString(
+      typeof feature.metadata?.title === "string"
+        ? feature.metadata?.title
+        : undefined,
+      getMapLibreLayerInfo(feature)?.title
+    );
+    const fallbackTitle = metadataTitle ?? feature.id;
+
+    const properties =
+      feature.properties ??
+      (geojsonFeature?.properties as FeatureInfo["properties"] | undefined) ??
+      {
+        title: fallbackTitle,
+      };
+    const info =
+      typeof (properties as { info?: unknown }).info === "object" &&
+      (properties as { info?: unknown }).info
+        ? (properties as {
+            info?: {
+              title?: unknown;
+              subtitle?: unknown;
+              additionalInfo?: unknown;
+            };
+          }).info
+        : undefined;
+    const infoTitle = pickNonEmptyString(info?.title);
+    const infoSubtitle = pickNonEmptyString(info?.subtitle);
+    const infoAdditionalInfo = pickNonEmptyString(info?.additionalInfo);
+    const title = pickNonEmptyString(
+      metadataTitle,
+      properties.title,
+      infoTitle,
+      fallbackTitle
+    );
+    const subtitle = pickNonEmptyString(properties.subtitle, infoSubtitle);
+    const additionalInfo = pickNonEmptyString(
+      properties.additionalInfo,
+      infoAdditionalInfo
+    );
+
+    return {
+      id: feature.id,
+      properties: {
+        ...properties,
+        title: title ?? fallbackTitle,
+        ...(subtitle ? { subtitle } : {}),
+        ...(additionalInfo ? { additionalInfo } : {}),
+        adhocFeatureId: feature.id,
+      },
+      geometry: geojsonFeature?.geometry,
+    };
+  }
+
+  if (feature.kind === "model") {
+    const metadataTitle = pickNonEmptyString(
+      typeof feature.metadata?.title === "string"
+        ? feature.metadata?.title
+        : undefined,
+      getMapLibreLayerInfo(feature)?.title
+    );
+    const fallbackTitle = metadataTitle ?? feature.id;
+    return {
+      id: feature.id,
+      properties: {
+        ...(feature.properties ?? { title: fallbackTitle }),
+        title: metadataTitle ?? feature.properties?.title ?? fallbackTitle,
+        adhocFeatureId: feature.id,
+      },
+    };
+  }
+
+  return null;
 };
 
 export type UseAdhocCesiumFeatureDisplayOptions = {
@@ -196,6 +305,8 @@ export const useAdhocCesiumFeatureDisplay = (
     selectedFeature: adhocSelectedFeature,
     selectedFeatureId,
     setSelectedFeatureId,
+    shouldFocusSelected,
+    setShouldFocusSelected,
   } = useAdhocFeatureDisplay();
 
   const adhocWallPrimitivesRef = useRef<Map<string, PrimitiveCollection>>(
@@ -207,90 +318,12 @@ export const useAdhocCesiumFeatureDisplay = (
 
   const adhocInfoFeature = useMemo<FeatureInfo | null>(() => {
     if (!adhocSelectedFeature) return null;
-
-    if (adhocSelectedFeature.payload.kind === "geojson") {
-      const geojson = adhocSelectedFeature.payload.data;
-      const feature =
-        geojson.type === "FeatureCollection" ? geojson.features[0] : geojson;
-
-      const metadataTitle =
-        typeof adhocSelectedFeature.metadata?.title === "string"
-          ? adhocSelectedFeature.metadata?.title
-          : undefined;
-      const fallbackTitle = metadataTitle ?? adhocSelectedFeature.id;
-
-      const properties =
-        adhocSelectedFeature.properties ??
-        (feature?.properties as FeatureInfo["properties"] | undefined) ?? {
-          title: fallbackTitle,
-        };
-      const info =
-        typeof (properties as { info?: unknown }).info === "object" &&
-        (properties as { info?: unknown }).info
-          ? (properties as {
-              info?: {
-                title?: unknown;
-                subtitle?: unknown;
-                additionalInfo?: unknown;
-              };
-            }).info
-          : undefined;
-      const infoTitle = pickNonEmptyString(info?.title);
-      const infoSubtitle = pickNonEmptyString(info?.subtitle);
-      const infoAdditionalInfo = pickNonEmptyString(info?.additionalInfo);
-      const title = pickNonEmptyString(
-        metadataTitle,
-        properties.title,
-        infoTitle,
-        fallbackTitle
-      );
-      const subtitle = pickNonEmptyString(
-        properties.subtitle,
-        infoSubtitle
-      );
-      const additionalInfo = pickNonEmptyString(
-        properties.additionalInfo,
-        infoAdditionalInfo
-      );
-
-      return {
-        id: adhocSelectedFeature.id,
-        properties: {
-          ...properties,
-          title: title ?? fallbackTitle,
-          ...(subtitle ? { subtitle } : {}),
-          ...(additionalInfo ? { additionalInfo } : {}),
-          adhocFeatureId: adhocSelectedFeature.id,
-        },
-        geometry: feature?.geometry,
-      };
-    }
-
-    if (adhocSelectedFeature.payload.kind === "model") {
-      const metadataTitle =
-        typeof adhocSelectedFeature.metadata?.title === "string"
-          ? adhocSelectedFeature.metadata?.title
-          : undefined;
-      const fallbackTitle = metadataTitle ?? adhocSelectedFeature.id;
-      return {
-        id: adhocSelectedFeature.id,
-        properties: {
-          ...(adhocSelectedFeature.properties ?? { title: fallbackTitle }),
-          title:
-            metadataTitle ??
-            adhocSelectedFeature.properties?.title ??
-            fallbackTitle,
-          adhocFeatureId: adhocSelectedFeature.id,
-        },
-      };
-    }
-
-    return null;
+    return buildAdhocFeatureInfo(adhocSelectedFeature);
   }, [adhocSelectedFeature]);
 
   const adhocModelConfigs = useMemo(() => {
     return adhocFeatures.filter(isAdhocModelFeature).map((feature) => {
-      const { data } = feature.payload;
+      const { data } = feature;
       const metadataTitle = feature.metadata?.title;
       const fallbackTitle =
         typeof metadataTitle === "string" ? metadataTitle : feature.id;
@@ -374,7 +407,9 @@ export const useAdhocCesiumFeatureDisplay = (
     primitivesByFeature.clear();
     adhocFeatureCoordinatesRef.current.clear();
 
-    const geojsonFeatures = adhocFeatures.filter(isAdhocGeoJsonFeature);
+    const geojsonFeatures = adhocFeatures.filter(
+      (feature) => !!getGeoJsonFromFeature(feature)
+    );
     if (geojsonFeatures.length === 0) {
       scene.requestRender();
       return;
@@ -383,7 +418,9 @@ export const useAdhocCesiumFeatureDisplay = (
     let cancelled = false;
 
     const addWallsForFeature = async (feature: AdhocFeature) => {
-      const polygon = getPolygonFromGeoJson(feature.payload.data);
+      const geojson = getGeoJsonFromFeature(feature);
+      if (!geojson) return;
+      const polygon = getPolygonFromGeoJson(geojson);
       if (!polygon) return;
 
       const ring = polygon[0];
@@ -428,7 +465,8 @@ export const useAdhocCesiumFeatureDisplay = (
       primitivesByFeature.set(feature.id, primitives);
       adhocFeatureCoordinatesRef.current.set(feature.id, coordinatesWithHeight);
 
-      if (feature.id === selectedFeatureId) {
+      if (shouldFocusSelected && feature.id === selectedFeatureId) {
+        setShouldFocusSelected(false);
         const sphere = getBoundingSphereFromCoordinates(coordinatesWithHeight);
         flyToBoundingSphereExtent(scene.camera, sphere, {
           minRange: 50,
@@ -458,6 +496,8 @@ export const useAdhocCesiumFeatureDisplay = (
     getSurfaceProvider,
     getTerrainProvider,
     selectedFeatureId,
+    setShouldFocusSelected,
+    shouldFocusSelected,
   ]);
 
   useEffect(() => {
@@ -477,7 +517,23 @@ export const useAdhocCesiumFeatureDisplay = (
         if (pickedId && typeof pickedId === "object") {
           const adhocFeatureId = pickedId.adhocFeatureId;
           if (typeof adhocFeatureId === "string") {
+            if (adhocFeatureId === selectedFeatureId) {
+              setSelectedFeatureId(null);
+              onFeatureInfoChange?.(null);
+              return;
+            }
+
+            setShouldFocusSelected(false);
             setSelectedFeatureId(adhocFeatureId);
+            const adhocFeature = adhocFeatures.find(
+              (feature) => feature.id === adhocFeatureId
+            );
+            const info = adhocFeature
+              ? buildAdhocFeatureInfo(adhocFeature)
+              : null;
+            if (info) {
+              onFeatureInfoChange?.(info);
+            }
             return;
           }
         }
@@ -486,6 +542,7 @@ export const useAdhocCesiumFeatureDisplay = (
           typeof (picked as { id?: { model?: unknown } } | undefined)?.id
             ?.model !== "undefined";
         if (!isModelPick) {
+          setShouldFocusSelected(false);
           setSelectedFeatureId(null);
           onFeatureInfoChange?.(null);
         }
@@ -496,7 +553,15 @@ export const useAdhocCesiumFeatureDisplay = (
     return () => {
       handler.destroy();
     };
-  }, [getIsCesium, getScene, onFeatureInfoChange, setSelectedFeatureId]);
+  }, [
+    adhocFeatures,
+    getIsCesium,
+    getScene,
+    onFeatureInfoChange,
+    selectedFeatureId,
+    setSelectedFeatureId,
+    setShouldFocusSelected,
+  ]);
 
   const getAdhocBoundingSphere = useCallback(
     (feature: FeatureInfo) => {

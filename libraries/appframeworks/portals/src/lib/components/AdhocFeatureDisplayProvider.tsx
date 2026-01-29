@@ -2,36 +2,56 @@ import { createContext, useCallback, useContext, useMemo, useState } from "react
 import type { Feature, FeatureCollection } from "geojson";
 import type { FeatureInfoProperties } from "@carma/types";
 
-export type AdhocGeoJsonPayload = {
-  kind: "geojson";
-  data: Feature | FeatureCollection;
-  crs?: string;
-};
-
-export type AdhocModelPayload = {
-  kind: "model";
-  data: {
-    url: string;
-    position: {
-      lon: number;
-      lat: number;
-      height?: number;
+export type AdhocMapLibreStyleData = {
+  version?: number;
+  metadata?: {
+    carmaConf?: {
+      layerInfo?: {
+        title?: string;
+        accentColor?: string;
+      };
     };
-    heading?: number;
-    pitch?: number;
-    roll?: number;
-    scale?: number;
   };
+  sources?: Record<
+    string,
+    {
+      type?: string;
+      data?: Feature | FeatureCollection;
+    }
+  >;
+  layers?: Array<Record<string, unknown>>;
 };
 
-export type AdhocSpatialPayload = AdhocGeoJsonPayload | AdhocModelPayload;
+export type AdhocModelData = {
+  url: string;
+  position: {
+    lon: number;
+    lat: number;
+    height?: number;
+  };
+  heading?: number;
+  pitch?: number;
+  roll?: number;
+  scale?: number;
+};
 
-export type AdhocFeature = {
+export type AdhocMapLibreStyleFeature = {
   id: string;
-  payload: AdhocSpatialPayload;
+  kind: "maplibre-style";
+  data: AdhocMapLibreStyleData;
   properties?: FeatureInfoProperties;
   metadata?: Record<string, unknown>;
 };
+
+export type AdhocModelFeature = {
+  id: string;
+  kind: "model";
+  data: AdhocModelData;
+  properties?: FeatureInfoProperties;
+  metadata?: Record<string, unknown>;
+};
+
+export type AdhocFeature = AdhocMapLibreStyleFeature | AdhocModelFeature;
 
 interface AdhocFeatureDisplayContextType {
   features: AdhocFeature[];
@@ -39,10 +59,12 @@ interface AdhocFeatureDisplayContextType {
   activeFeature: AdhocFeature | null;
   selectedFeatureId: string | null;
   selectedFeature: AdhocFeature | null;
+  shouldFocusSelected: boolean;
   addFeature: (feature: AdhocFeature) => void;
   removeFeature: (id: string) => void;
   setActiveFeatureId: (id: string | null) => void;
   setSelectedFeatureId: (id: string | null) => void;
+  setShouldFocusSelected: (shouldFocus: boolean) => void;
   clearFeatures: () => void;
 }
 
@@ -60,6 +82,8 @@ export function AdhocFeatureDisplayProvider({
   const [selectedFeatureId, setSelectedFeatureId] = useState<string | null>(
     null
   );
+  const [shouldFocusSelected, setShouldFocusSelected] =
+    useState<boolean>(false);
 
   const setActiveFeatureId = useCallback(
     (id: string | null) => {
@@ -105,10 +129,12 @@ export function AdhocFeatureDisplayProvider({
       activeFeature,
       selectedFeatureId,
       selectedFeature,
+      shouldFocusSelected,
       addFeature,
       removeFeature,
       setActiveFeatureId,
       setSelectedFeatureId,
+      setShouldFocusSelected,
       clearFeatures,
     }),
     [
@@ -117,10 +143,12 @@ export function AdhocFeatureDisplayProvider({
       activeFeature,
       selectedFeatureId,
       selectedFeature,
+      shouldFocusSelected,
       addFeature,
       removeFeature,
       setActiveFeatureId,
       setSelectedFeatureId,
+      setShouldFocusSelected,
       clearFeatures,
     ]
   );

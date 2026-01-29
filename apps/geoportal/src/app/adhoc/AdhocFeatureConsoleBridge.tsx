@@ -2,12 +2,10 @@ import { useEffect } from "react";
 
 import { useAdhocFeatureDisplay } from "@carma-appframeworks/portals";
 
-import {
-  ADHOC_TEST_FEATURE,
-  ADHOC_TEST_FEATURE_WEST,
-  ADHOC_TEST_FEATURE_Z,
-  ADHOC_TEST_MODEL,
-} from "./adhoc-test-features";
+import { ADHOC_TEST_MODEL } from "./sample-data/adhoc-test-model";
+import { ADHOC_TEST_FEATURE_WEST } from "./sample-data/adhoc-test-feature-west";
+import { ADHOC_TEST_FEATURE_Z } from "./sample-data/adhoc-test-feature-z";
+import { ADHOC_TEST_FEATURE } from "./sample-data/test.style";
 
 const AdhocFeatureConsoleBridge = () => {
   const {
@@ -15,6 +13,7 @@ const AdhocFeatureConsoleBridge = () => {
     removeFeature,
     setActiveFeatureId,
     setSelectedFeatureId,
+    setShouldFocusSelected,
   } = useAdhocFeatureDisplay();
 
   useEffect(() => {
@@ -29,13 +28,16 @@ const AdhocFeatureConsoleBridge = () => {
         addFeature(ADHOC_TEST_MODEL);
         addFeature(ADHOC_TEST_FEATURE);
         addFeature(ADHOC_TEST_FEATURE_WEST);
+        addFeature(ADHOC_TEST_FEATURE_Z);
         setActiveFeatureId(ADHOC_TEST_FEATURE.id);
         setSelectedFeatureId(ADHOC_TEST_FEATURE.id);
+        setShouldFocusSelected(true);
       },
       remove: () => {
         removeFeature(ADHOC_TEST_MODEL.id);
         removeFeature(ADHOC_TEST_FEATURE.id);
         removeFeature(ADHOC_TEST_FEATURE_WEST.id);
+        removeFeature(ADHOC_TEST_FEATURE_Z.id);
       },
     };
 
@@ -44,6 +46,7 @@ const AdhocFeatureConsoleBridge = () => {
         addFeature(ADHOC_TEST_MODEL);
         setActiveFeatureId(ADHOC_TEST_MODEL.id);
         setSelectedFeatureId(ADHOC_TEST_MODEL.id);
+        setShouldFocusSelected(true);
       },
       remove: () => {
         removeFeature(ADHOC_TEST_MODEL.id);
@@ -55,6 +58,7 @@ const AdhocFeatureConsoleBridge = () => {
         addFeature(ADHOC_TEST_FEATURE_Z);
         setActiveFeatureId(ADHOC_TEST_FEATURE_Z.id);
         setSelectedFeatureId(ADHOC_TEST_FEATURE_Z.id);
+        setShouldFocusSelected(true);
       },
       remove: () => {
         removeFeature(ADHOC_TEST_FEATURE_Z.id);
@@ -75,6 +79,7 @@ const AdhocFeatureConsoleBridge = () => {
     removeFeature,
     setActiveFeatureId,
     setSelectedFeatureId,
+    setShouldFocusSelected,
   ]);
 
   return null;
