@@ -246,7 +246,11 @@ const FeatureInfoBox = ({ pos }: InfoBoxProps) => {
         }}
       >
         <InfoBoxHeader
-          content={feature.properties.header || feature.properties._header}
+          content={
+            feature.properties.header ||
+            feature.properties._header ||
+            "Informationen"
+          }
           headerColor={"grey"}
           properties={feature.properties.wmsProps}
         ></InfoBoxHeader>
