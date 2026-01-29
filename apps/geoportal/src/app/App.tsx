@@ -1,5 +1,5 @@
 // Built-in Modules
-import { useMemo } from "react";
+import { useEffect, useMemo } from "react";
 import { useDispatch, useSelector } from "react-redux";
 
 // 3rd party Modules
@@ -64,6 +64,8 @@ const MEASUREMENTS_BASE_CONFIG = {
   localStorageKey: "@" + APP_KEY + ".app.measurements",
 };
 
+import AdhocFeatureConsoleBridge from "./adhoc/AdhocFeatureConsoleBridge";
+
 import { getCustomFeatureFlags } from "./store/slices/layers";
 import {
   getShowLoginModal,
@@ -106,7 +108,7 @@ function MeasurementsWrapper({
       ...baseConfig,
       snappingEnabled: flags.isSnappingEnabled ?? baseConfig.snappingEnabled,
     }),
-    [flags.isSnappingEnabled]
+    [baseConfig, flags.isSnappingEnabled]
   );
 
   return (
@@ -180,6 +182,7 @@ function App({ published }: { published?: boolean }) {
                   baseConfig={MEASUREMENTS_BASE_CONFIG}
                 >
                   <ErrorBoundary FallbackComponent={AppErrorFallback}>
+                    <AdhocFeatureConsoleBridge />
                     <div className={TAILWIND_CLASSNAMES_FULLSCREEN_FIXED}>
                       {isLoadingConfig && (
                         <div

@@ -38,8 +38,4 @@ export const featureFlagConfig: FeatureFlagConfig = {
     default: true,
     alias: "tracking",
   },
-  featureFlagBugaBridge: {
-    default: false,
-    alias: "buga-bruecke",
-  },
 };

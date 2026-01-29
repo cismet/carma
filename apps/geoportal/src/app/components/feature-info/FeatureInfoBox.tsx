@@ -39,12 +39,14 @@ import { InfoBox, InfoBoxHeader, utils } from "@carma-appframeworks/portals";
 import { parseColor } from "../../helper/color";
 import { useFeatureFlags } from "@carma-providers/feature-flag";
 import { addCustomFeatureFlags } from "../../store/slices/layers";
+import type { FeatureInfo } from "@carma/types";
 
 interface InfoBoxProps {
   pos?: [number, number];
+  onZoomToFeature?: (feature: FeatureInfo) => void;
 }
 
-const FeatureInfoBox = ({ pos }: InfoBoxProps) => {
+const FeatureInfoBox = ({ pos, onZoomToFeature }: InfoBoxProps) => {
   const [open, setOpen] = useState(false);
   const [shouldRenderLoadingInfobox, setShouldRenderLoadingInfobox] =
     useState(false);
@@ -165,6 +167,9 @@ const FeatureInfoBox = ({ pos }: InfoBoxProps) => {
           leafletMap: routedMapRef?.leafletMap?.leafletElement,
           padding: [60, 60],
         });
+        if (onZoomToFeature) {
+          onZoomToFeature(selectedFeature as FeatureInfo);
+        }
       },
     });
   }

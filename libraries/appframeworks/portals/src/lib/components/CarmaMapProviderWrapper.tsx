@@ -4,6 +4,7 @@ import { LibreContextProvider } from "@carma-mapping/contexts";
 import { TopicMapContextProvider } from "react-cismap/contexts/TopicMapContextProvider";
 
 import { GazDataProvider } from "./GazDataProvider";
+import { AdhocFeatureDisplayProvider } from "./AdhocFeatureDisplayProvider";
 import { SelectionProvider } from "./SelectionProvider";
 import {
   MapStyleProvider,
@@ -74,33 +75,35 @@ export const CarmaMapProviderWrapper = <
     <AuthProvider>
       <SandboxedEvalProvider>
         <GazDataProvider config={gazDataConfig}>
-          <SelectionProvider>
-            <MapStyleProvider config={mapStyleConfig}>
-              <TopicMapContextProvider
-                infoBoxPixelWidth={350}
-                {...topicMapConfig}
-              >
-                <OverlayTourProvider transparency={transparency} color={color}>
-                  <CesiumContextProvider
-                    //initialViewerState={defaultCesiumState}
-                    // TODO move these to store/slice setup ?
-                    providerConfig={cesiumOptions.providerConfig}
-                    tilesetConfigs={cesiumOptions.tilesetConfigs}
-                  >
-                    <LibreContextProvider>
-                      {store ? (
-                        <CarmaMapAPIProvider store={store}>
-                          {children}
-                        </CarmaMapAPIProvider>
-                      ) : (
-                        children
-                      )}
-                    </LibreContextProvider>
-                  </CesiumContextProvider>
-                </OverlayTourProvider>
-              </TopicMapContextProvider>
-            </MapStyleProvider>
-          </SelectionProvider>
+          <AdhocFeatureDisplayProvider>
+            <SelectionProvider>
+              <MapStyleProvider config={mapStyleConfig}>
+                <TopicMapContextProvider
+                  infoBoxPixelWidth={350}
+                  {...topicMapConfig}
+                >
+                  <OverlayTourProvider transparency={transparency} color={color}>
+                    <CesiumContextProvider
+                      //initialViewerState={defaultCesiumState}
+                      // TODO move these to store/slice setup ?
+                      providerConfig={cesiumOptions.providerConfig}
+                      tilesetConfigs={cesiumOptions.tilesetConfigs}
+                    >
+                      <LibreContextProvider>
+                        {store ? (
+                          <CarmaMapAPIProvider store={store}>
+                            {children}
+                          </CarmaMapAPIProvider>
+                        ) : (
+                          children
+                        )}
+                      </LibreContextProvider>
+                    </CesiumContextProvider>
+                  </OverlayTourProvider>
+                </TopicMapContextProvider>
+              </MapStyleProvider>
+            </SelectionProvider>
+          </AdhocFeatureDisplayProvider>
         </GazDataProvider>
       </SandboxedEvalProvider>
     </AuthProvider>

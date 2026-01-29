@@ -30,6 +30,8 @@ export {
   Polyline,
   PolylineCollection,
   PolylineColorAppearance,
+  PerInstanceColorAppearance,
+  Primitive,
   PrimitiveCollection,
   Quaternion,
   Ray,
@@ -42,6 +44,7 @@ export {
   // Viewer intentionally left out - use CesiumWidget instead
   WebMapServiceImageryProvider,
   WebMapTileServiceImageryProvider,
+  WallGeometry,
 } from "cesium";
 
 // augmented exports

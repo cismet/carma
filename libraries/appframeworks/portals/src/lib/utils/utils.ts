@@ -1,6 +1,7 @@
 import { isNaN } from "lodash";
 
 import type { FeatureInfoProperties, Item, Layer } from "@carma/types";
+import type { Geometry } from "geojson";
 import { extractCarmaConfig } from "@carma-commons/utils";
 import envelope from "@turf/envelope";
 import L from "leaflet";
@@ -323,6 +324,25 @@ export const getCoordinates = (geometry) => {
       return geometry.coordinates[1];
     default:
       return geometry.coordinates;
+  }
+};
+
+export const getPointsFromGeometry = (geometry: Geometry): number[][] => {
+  switch (geometry.type) {
+    case "Point":
+      return [geometry.coordinates as number[]];
+    case "MultiPoint":
+      return geometry.coordinates as number[][];
+    case "LineString":
+      return geometry.coordinates as number[][];
+    case "MultiLineString":
+      return (geometry.coordinates as number[][][]).flat();
+    case "Polygon":
+      return (geometry.coordinates as number[][][]).flat();
+    case "MultiPolygon":
+      return (geometry.coordinates as number[][][][]).flat(2);
+    default:
+      return [];
   }
 };
 

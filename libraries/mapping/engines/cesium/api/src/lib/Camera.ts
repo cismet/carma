@@ -208,6 +208,39 @@ export const flyToTarget = (
   camera.flyToBoundingSphere(scratchBoundingSphere, options);
 };
 
+export type FlyToBoundingSphereExtentOptions = {
+  paddingFactor?: number;
+  minRange?: number;
+  heading?: number;
+  pitch?: number;
+};
+
+export const flyToBoundingSphereExtent = (
+  camera: Camera | null | undefined,
+  sphere: BoundingSphere,
+  options: FlyToBoundingSphereExtentOptions = {}
+): void => {
+  if (!camera) return;
+  const {
+    paddingFactor = 1.2,
+    minRange = 0,
+    heading = camera.heading,
+    pitch = camera.pitch,
+  } = options;
+
+  const frustum = camera.frustum as { fov?: number };
+  const fov = frustum?.fov;
+  const rangeFromFov =
+    typeof fov === "number" && fov > 0
+      ? sphere.radius / Math.sin(fov * 0.5)
+      : sphere.radius * 2;
+  const range = Math.max(rangeFromFov, minRange) * paddingFactor;
+
+  camera.flyToBoundingSphere(sphere, {
+    offset: new HeadingPitchRange(heading, pitch, range),
+  });
+};
+
 export const isValidCamera = (camera: unknown): camera is Camera =>
   camera instanceof Camera;
 

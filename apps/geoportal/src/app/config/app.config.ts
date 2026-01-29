@@ -1,6 +1,5 @@
 import {
   BASEMAP_METROPOLE_RUHR_WMTS_GRAUBLAU_HQ,
-  BRUECKENENTWURF_GLB,
   WUPP_LOD2_TILESET,
   WUPP_MESH_2024,
   WUPP_TERRAIN_PROVIDER,
@@ -48,7 +47,6 @@ export const CESIUM_CONFIG: CesiumConfig = {
     primary: WUPP_MESH_2024,
     secondary: WUPP_LOD2_TILESET,
   },
-  models: [BRUECKENENTWURF_GLB],
 };
 
 export const LEAFLET_CONFIG: LeafletConfig = {
