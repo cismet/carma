@@ -30,6 +30,7 @@ export {
   Polyline,
   PolylineCollection,
   PolylineColorAppearance,
+  PolylineGeometry,
   PerInstanceColorAppearance,
   Primitive,
   PrimitiveCollection,

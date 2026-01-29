@@ -303,6 +303,11 @@ export const GeoportalMap = ({ height, width, allow3d }: MapProps) => {
     getSurfaceProvider,
     getTerrainProvider,
     isCesiumEnabled: isCesium,
+    selectionLineWidthPixels: 1.5,
+    wallOpacity: {
+      selected: 0.4,
+      default: 0.7,
+    },
     onFeatureInfoChange: modelSelectionDispatcher,
   });
 
