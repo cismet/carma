@@ -149,7 +149,9 @@ const ResourceModal = () => {
 
     newLayer = await utils.parseToMapLayer(layer, forceWMS, true);
 
-    const existingLayer = activeLayers.find((activeLayer) => activeLayer.id === id);
+    const existingLayer = activeLayers.find(
+      (activeLayer) => activeLayer.id === id
+    );
     if (existingLayer && !updateExisting) {
       try {
         dispatch(removeLayer(id));
@@ -181,17 +183,19 @@ const ResourceModal = () => {
         return;
       }
       try {
-        dispatch(appendLayer(newLayer));
-        if (!previewLayer) {
-          messageApi.open({
-            type: "success",
-            content: (
-              <span data-test-id="toast-success">
-                {`${layer.title} wurde erfolgreich hinzugefügt.`}
-              </span>
-            ),
-          });
-        }
+        setTimeout(() => {
+          dispatch(appendLayer(newLayer));
+          if (!previewLayer) {
+            messageApi.open({
+              type: "success",
+              content: (
+                <span data-test-id="toast-success">
+                  {`${layer.title} wurde erfolgreich hinzugefügt.`}
+                </span>
+              ),
+            });
+          }
+        }, 1);
       } catch {
         messageApi.open({
           type: "error",
