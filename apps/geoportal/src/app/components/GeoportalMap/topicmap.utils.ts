@@ -446,11 +446,25 @@ const createVectorFeature = async (
         console.error("Failed to parse fotos property:", e);
       }
     }
+    let parsedFotoCaptions = undefined;
+    if (
+      properties.fotoCaptions &&
+      typeof properties.fotoCaptions === "string"
+    ) {
+      try {
+        parsedFotoCaptions = JSON.parse(properties.fotoCaptions);
+      } catch (e) {
+        console.error("Failed to parse fotoCaptions property:", e);
+      }
+    }
     featureProperties = {
       properties: {
         ...properties,
         ...parsedInfo,
         ...(parsedFotos !== undefined && { fotos: parsedFotos }),
+        ...(parsedFotoCaptions !== undefined && {
+          fotoCaptions: parsedFotoCaptions,
+        }),
       },
     };
   }
