@@ -141,21 +141,43 @@ export const parseToMapLayer = async (
     let capabilitiesUrl = layer?.props?.url
       ? layer?.props?.url + "service=WMS&request=GetCapabilities&version=1.1.1"
       : undefined;
+    let localJson = false;
     if ((carmaConf?.vectorStyle && !forceWMS) || layer.vectorStyle) {
       let zoom = {
         minzoom: 9,
         maxzoom: 24,
       };
-      let vectorStyle = "";
+      let vectorStyle:
+        | string
+        | {
+            layers: {
+              id: string;
+              maxzoom: number;
+              minzoom: number;
+              type: string;
+              source: string;
+            }[];
+            metadata?: { carmaConf: { layerInfo: Record<string, unknown> } };
+          } = "";
       if (carmaConf?.vectorStyle) {
-        vectorStyle = isJson(carmaConf.vectorStyle)
+        localJson = isJson(carmaConf.vectorStyle);
+        vectorStyle = localJson
           ? JSON.parse(carmaConf.vectorStyle as string)
           : carmaConf.vectorStyle;
       } else if (layer.vectorStyle) {
         vectorStyle = layer.vectorStyle;
       }
+
       let metaData: Record<string, unknown> = {};
-      if (vectorStyle) {
+      if (vectorStyle && localJson && typeof vectorStyle !== "string") {
+        zoom = parseZoom(vectorStyle.layers, {
+          minzoom: 9,
+          maxzoom: 24,
+        });
+        if (vectorStyle.metadata && vectorStyle.metadata.carmaConf.layerInfo) {
+          metaData = vectorStyle.metadata.carmaConf.layerInfo;
+        }
+      } else if (typeof vectorStyle === "string" && vectorStyle) {
         zoom = await fetch(vectorStyle)
           .then((response) => {
             return response.json();
@@ -192,7 +214,7 @@ export const parseToMapLayer = async (
         useInFeatureInfo: true,
         visible: visible,
         props: {
-          style: vectorStyle,
+          style: vectorStyle as string,
           minZoom:
             Number(carmaConf?.minZoom) || zoom?.minzoom || layer?.minZoom,
           maxZoom:

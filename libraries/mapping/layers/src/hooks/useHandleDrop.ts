@@ -8,6 +8,7 @@ import type { Layer } from "@carma/types";
 import { utils } from "@carma-appframeworks/portals";
 import { useDispatch } from "react-redux";
 import { setCustomLayerConfig } from "../slices/mapLayers";
+import { useMapFrameworkSwitcherContext } from "@carma-mapping/components";
 
 // @ts-expect-error tbd
 const parser = new WMSCapabilities();
@@ -23,6 +24,7 @@ interface UseHandleDropProps {
   getDataFromJson: (data: any) => any;
   activeLayers: ActiveLayers;
   updateActiveLayer: (layer: Layer) => void;
+  setAdditionalLayers: (layers: any[], deleteItem?: boolean) => void;
 }
 
 export const useHandleDrop = ({
@@ -32,15 +34,25 @@ export const useHandleDrop = ({
   getDataFromJson,
   activeLayers,
   updateActiveLayer,
+  setAdditionalLayers,
 }: UseHandleDropProps) => {
   const flags = useFeatureFlags();
   const dispatch = useDispatch();
+  const { isCesium } = useMapFrameworkSwitcherContext();
+  const openModal = () => {
+    if (!isCesium) {
+      setOpen(true);
+      setSelectedNavItemIndex(3);
+    }
+  };
+
   useEffect(() => {
     const handleDrop = async (event: DragEvent) => {
       event.preventDefault();
       const url = event.dataTransfer?.getData("URL");
 
       const file = event?.dataTransfer?.files[0];
+      let instant = false;
 
       if (url && url.endsWith(".json")) {
         // Check if this layer is already in active layers
@@ -64,6 +76,7 @@ export const useHandleDrop = ({
           .then((data) => {
             if (data.metadata && data.metadata.carmaConf.layerInfo) {
               const layerInfo = data.metadata.carmaConf.layerInfo;
+              instant = data.metaData.carmaConf.instant ?? false;
               newItem = {
                 ...newItem,
                 ...layerInfo,
@@ -95,17 +108,20 @@ export const useHandleDrop = ({
             console.error("Error updating layer:", error);
           }
         } else {
-          setOpen(true);
-          setSelectedNavItemIndex(3);
-          addItemToCategory(
-            "mapLayers",
-            { id: "custom", Title: "Externe Dienste" },
-            newItem as unknown as SavedLayerConfig // TODO: Fix type
-          );
+          if (instant) {
+            setAdditionalLayers(newItem, false);
+          } else {
+            openModal();
+            addItemToCategory(
+              "mapLayers",
+              { id: "custom", Title: "Externe Dienste" },
+              newItem as unknown as SavedLayerConfig // TODO: Fix type
+            );
+          }
         }
       } else if (url) {
-        setOpen(true);
-        setSelectedNavItemIndex(3);
+        openModal();
+
         fetch(url)
           .then((response) => {
             return response.text();
@@ -134,8 +150,6 @@ export const useHandleDrop = ({
 
       if (file && file.name.endsWith("style.json")) {
         // Handle file drop
-        setOpen(true);
-        setSelectedNavItemIndex(3);
 
         const reader = new FileReader();
         reader.onload = (e) => {
@@ -150,7 +164,7 @@ export const useHandleDrop = ({
 
               const jsonData = JSON.parse(processedContent);
 
-              const newItem = {
+              let newItem: any = {
                 description: "",
                 id: `custom:${file.name}`,
                 layerType: "vector",
@@ -163,11 +177,29 @@ export const useHandleDrop = ({
                 path: "Externe Dienste",
               };
 
-              addItemToCategory(
-                "mapLayers",
-                { id: "custom", Title: "Externe Dienste" },
-                newItem as unknown as SavedLayerConfig // TODO: Fix type
-              );
+              if (jsonData.metadata && jsonData.metadata.carmaConf) {
+                const carmaConf = jsonData.metadata.carmaConf;
+                newItem = {
+                  ...newItem,
+                  ...carmaConf.layerInfo,
+                  keywords: [
+                    ...newItem.keywords,
+                    ...(carmaConf.layerInfo.keywords || []),
+                  ],
+                };
+                instant = carmaConf.instant ?? false;
+              }
+
+              if (instant) {
+                setAdditionalLayers(newItem, false);
+              } else {
+                openModal();
+                addItemToCategory(
+                  "mapLayers",
+                  { id: "custom", Title: "Externe Dienste" },
+                  newItem as unknown as SavedLayerConfig // TODO: Fix type
+                );
+              }
             }
           } catch (error) {
             console.error("Failed to parse the file as JSON:", error);
@@ -187,12 +219,12 @@ export const useHandleDrop = ({
               dispatch(setCustomLayerConfig(result));
             }
           });
-          setOpen(true);
-          setSelectedNavItemIndex(3);
+          openModal();
+
           return;
         }
-        setOpen(true);
-        setSelectedNavItemIndex(3);
+        openModal();
+
         file
           .text()
           .then((text) => {

@@ -425,6 +425,7 @@ export const NewLibModal = ({
     getDataFromJson,
     activeLayers,
     updateActiveLayer,
+    setAdditionalLayers,
   });
 
   const { loadingAdditionalConfig } = useAdditionalConfig({
