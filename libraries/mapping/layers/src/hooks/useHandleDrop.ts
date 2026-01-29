@@ -82,7 +82,7 @@ export const useHandleDrop = ({
           .then((data) => {
             if (data.metadata && data.metadata.carmaConf.layerInfo) {
               const layerInfo = data.metadata.carmaConf.layerInfo;
-              instant = data.metaData.carmaConf.instant ?? false;
+              instant = data.metaData?.carmaConf?.instant ?? false;
               newItem = {
                 ...newItem,
                 ...layerInfo,
@@ -193,7 +193,7 @@ export const useHandleDrop = ({
                     ...(carmaConf.layerInfo.keywords || []),
                   ],
                 };
-                instant = carmaConf.instant ?? false;
+                instant = carmaConf?.instant ?? false;
               }
 
               if (instant) {
