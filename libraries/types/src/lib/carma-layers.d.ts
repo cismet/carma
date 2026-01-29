@@ -50,6 +50,17 @@ export type Layer = {
   conf?: CarmaConfig;
   icon?: string;
   other?: OtherLayerProps;
+  layerInfo?: {
+    accentColor?: string;
+    title?: string;
+    keywords?: string[];
+    description?: string;
+    tags?: string[];
+    thumbnail?: string;
+    vectorStyle?: string;
+    vectorLegend?: string;
+    [key: string]: unknown;
+  };
 } & (
   | {
       layerType: "wmts" | "wmts-nt";

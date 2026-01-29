@@ -230,6 +230,9 @@ export const parseToMapLayer = async (
           capabilitiesUrl: capabilitiesUrl,
           ...metaData,
         },
+        layerInfo: {
+          ...metaData,
+        },
       };
     } else {
       switch (layer.layerType) {
