@@ -2,10 +2,8 @@ import { useCallback, useEffect, useMemo, useRef } from "react";
 
 import {
   BoundingSphere,
-  Cartesian3,
   Cartographic,
   Color,
-  ColorGeometryInstanceAttribute,
   Primitive,
   ScreenSpaceEventHandler,
   ScreenSpaceEventType,
@@ -14,195 +12,37 @@ import {
   type CesiumTerrainProvider,
   type Scene,
 } from "@carma/cesium";
-import type { Feature, FeatureCollection, Geometry } from "geojson";
 
+import {
+  Easing as EasingFunctions,
+  type Easing as EasingFunction,
+} from "@carma-commons/math";
 import type { ModelConfig } from "@carma-commons/resources";
 import type { FeatureInfo } from "@carma/types";
-import { getElevationAsync } from "@carma-mapping/engines/cesium";
+import {
+  getElevationAsync,
+  useGeometryInstanceOpacityAnimation,
+} from "@carma-mapping/engines/cesium";
 
 import {
   useAdhocFeatureDisplay,
   type AdhocFeature,
-  type AdhocMapLibreStyleData,
-  type AdhocModelData,
 } from "../components/AdhocFeatureDisplayProvider";
+import {
+  buildAdhocFeatureInfo,
+  getAdhocAccentColor,
+  getAdhocWallHeight,
+  getBoundingSphereFromCoordinates,
+  getGeoJsonFromFeature,
+  getPolygonFromGeoJson,
+  isAdhocModelFeature,
+} from "../utils/adhoc-feature-utils";
 import { createSelectionEdgePrimitive } from "../utils/adhoc-primitives/create-selection-edge-primitive";
 import {
   createWallPrimitives,
   type WallPrimitivesResult,
 } from "../utils/adhoc-primitives/create-wall-primitives";
 import { useCesiumModels } from "./useCesiumModels";
-
-const ADHOC_WALL_DEFAULT_HEIGHT = 15;
-
-const isAdhocModelFeature = (
-  feature: AdhocFeature
-): feature is AdhocFeature & { kind: "model"; data: AdhocModelData } =>
-  feature.kind === "model";
-
-const isAdhocMapLibreStyleFeature = (
-  feature: AdhocFeature
-): feature is AdhocFeature & {
-  kind: "maplibre-style";
-  data: AdhocMapLibreStyleData;
-} => feature.kind === "maplibre-style";
-
-const getMapLibreLayerInfo = (feature: AdhocFeature) => {
-  if (!isAdhocMapLibreStyleFeature(feature)) return undefined;
-  return feature.data.metadata?.carmaConf?.layerInfo;
-};
-
-const getAdhocAccentColor = (feature: AdhocFeature) => {
-  return (
-    (typeof feature.metadata?.accentColor === "string"
-      ? feature.metadata?.accentColor
-      : undefined) ?? getMapLibreLayerInfo(feature)?.accentColor
-  );
-};
-
-const getAdhocWallHeight = (
-  feature: { metadata?: Record<string, unknown> },
-  segmentIndex: number
-) => {
-  const heights = feature.metadata?.wallHeights;
-  if (Array.isArray(heights) && typeof heights[segmentIndex] === "number") {
-    return heights[segmentIndex];
-  }
-  const height = feature.metadata?.wallHeightMeters;
-  if (typeof height === "number") {
-    return height;
-  }
-  return ADHOC_WALL_DEFAULT_HEIGHT;
-};
-
-const getBoundingSphereFromCoordinates = (
-  coordinates: number[][]
-): BoundingSphere => {
-  const points = coordinates.map((coord) =>
-    Cartesian3.fromDegrees(coord[0], coord[1], coord[2] ?? 0)
-  );
-  return BoundingSphere.fromPoints(points);
-};
-
-const getPolygonFromGeoJson = (
-  geojson: Feature | FeatureCollection
-): number[][][] | null => {
-  const feature =
-    geojson.type === "FeatureCollection" ? geojson.features[0] : geojson;
-  const geometry = feature?.geometry as Geometry | null | undefined;
-  if (!geometry) return null;
-
-  if (geometry.type === "Polygon") {
-    return geometry.coordinates as number[][][];
-  }
-
-  if (geometry.type === "MultiPolygon") {
-    return (geometry.coordinates as number[][][][])[0] ?? null;
-  }
-
-  return null;
-};
-
-const getGeoJsonFromFeature = (
-  feature: AdhocFeature
-): Feature | FeatureCollection | null => {
-  if (isAdhocMapLibreStyleFeature(feature)) {
-    const sources = feature.data.sources;
-    if (!sources) return null;
-    const source = Object.values(sources).find(
-      (entry) => entry?.type === "geojson" && entry.data
-    );
-    return source?.data ?? null;
-  }
-  return null;
-};
-
-const pickNonEmptyString = (...values: Array<unknown>) => {
-  return values.find(
-    (value): value is string =>
-      typeof value === "string" && value.trim().length > 0
-  );
-};
-
-const buildAdhocFeatureInfo = (feature: AdhocFeature): FeatureInfo | null => {
-  const geojson = getGeoJsonFromFeature(feature);
-  if (geojson) {
-    const geojsonFeature =
-      geojson.type === "FeatureCollection" ? geojson.features[0] : geojson;
-
-    const metadataTitle = pickNonEmptyString(
-      typeof feature.metadata?.title === "string"
-        ? feature.metadata?.title
-        : undefined,
-      getMapLibreLayerInfo(feature)?.title
-    );
-    const fallbackTitle = metadataTitle ?? feature.id;
-
-    const properties = feature.properties ??
-      (geojsonFeature?.properties as FeatureInfo["properties"] | undefined) ?? {
-        title: fallbackTitle,
-      };
-    const info =
-      typeof (properties as { info?: unknown }).info === "object" &&
-      (properties as { info?: unknown }).info
-        ? (
-            properties as {
-              info?: {
-                title?: unknown;
-                subtitle?: unknown;
-                additionalInfo?: unknown;
-              };
-            }
-          ).info
-        : undefined;
-    const infoTitle = pickNonEmptyString(info?.title);
-    const infoSubtitle = pickNonEmptyString(info?.subtitle);
-    const infoAdditionalInfo = pickNonEmptyString(info?.additionalInfo);
-    const title = pickNonEmptyString(
-      metadataTitle,
-      properties.title,
-      infoTitle,
-      fallbackTitle
-    );
-    const subtitle = pickNonEmptyString(properties.subtitle, infoSubtitle);
-    const additionalInfo = pickNonEmptyString(
-      properties.additionalInfo,
-      infoAdditionalInfo
-    );
-
-    return {
-      id: feature.id,
-      properties: {
-        ...properties,
-        title: title ?? fallbackTitle,
-        ...(subtitle ? { subtitle } : {}),
-        ...(additionalInfo ? { additionalInfo } : {}),
-        adhocFeatureId: feature.id,
-      },
-      geometry: geojsonFeature?.geometry,
-    };
-  }
-
-  if (feature.kind === "model") {
-    const metadataTitle = pickNonEmptyString(
-      typeof feature.metadata?.title === "string"
-        ? feature.metadata?.title
-        : undefined,
-      getMapLibreLayerInfo(feature)?.title
-    );
-    const fallbackTitle = metadataTitle ?? feature.id;
-    return {
-      id: feature.id,
-      properties: {
-        ...(feature.properties ?? { title: fallbackTitle }),
-        title: metadataTitle ?? feature.properties?.title ?? fallbackTitle,
-        adhocFeatureId: feature.id,
-      },
-    };
-  }
-
-  return null;
-};
 
 export type UseAdhocCesiumFeatureDisplayOptions = {
   isCesiumEnabled: boolean;
@@ -214,6 +54,10 @@ export type UseAdhocCesiumFeatureDisplayOptions = {
   wallOpacity?: {
     selected: number;
     default: number;
+  };
+  wallOpacityAnimation?: {
+    durationMs?: number;
+    easing?: EasingFunction;
   };
   selectionLineWidthPixels?: number;
   onFeatureInfoChange?: (feature: FeatureInfo | null) => void;
@@ -234,6 +78,7 @@ export const useAdhocCesiumFeatureDisplay = (
     getTerrainProvider,
     isCesiumEnabled,
     wallOpacity,
+    wallOpacityAnimation,
     selectionLineWidthPixels,
     onFeatureInfoChange,
   } = options;
@@ -244,6 +89,14 @@ export const useAdhocCesiumFeatureDisplay = (
       default: wallOpacity?.default ?? 0.7,
     }),
     [wallOpacity?.default, wallOpacity?.selected]
+  );
+
+  const wallOpacityAnimationConfig = useMemo(
+    () => ({
+      durationMs: wallOpacityAnimation?.durationMs ?? 200,
+      easing: wallOpacityAnimation?.easing ?? EasingFunctions.SINUSOIDAL_IN_OUT,
+    }),
+    [wallOpacityAnimation?.durationMs, wallOpacityAnimation?.easing]
   );
 
   const {
@@ -268,6 +121,8 @@ export const useAdhocCesiumFeatureDisplay = (
   const selectionLineWidthPixelsRef = useRef<number | undefined>(
     selectionLineWidthPixels
   );
+  const { animateGeometryInstanceOpacity } =
+    useGeometryInstanceOpacityAnimation(wallOpacityAnimationConfig);
 
   const getAdhocWallColor = useCallback(
     (feature: AdhocFeature, isSelected: boolean) => {
@@ -544,6 +399,18 @@ export const useAdhocCesiumFeatureDisplay = (
     const wallDataByFeature = adhocWallDataRef.current;
     const selectionPrimitives = adhocSelectionPrimitivesRef.current;
     const prevSelectedId = prevSelectedFeatureIdRef.current;
+    const animateWallOpacity = (
+      featureId: string,
+      wallPrimitives: WallPrimitivesResult,
+      targetOpacity: number
+    ) => {
+      animateGeometryInstanceOpacity({
+        key: featureId,
+        instances: wallPrimitives.segments,
+        targetOpacity,
+        requestRender: () => scene.requestRender(),
+      });
+    };
 
     const updateFeatureSelection = (featureId: string, isSelected: boolean) => {
       const data = wallDataByFeature.get(featureId);
@@ -552,16 +419,7 @@ export const useAdhocCesiumFeatureDisplay = (
       const wallPrimitives = primitivesByFeature.get(featureId);
       if (wallPrimitives) {
         const wallColor = getAdhocWallColor(data.feature, isSelected);
-        wallPrimitives.segments.forEach(({ primitive, instanceId }) => {
-          if (!primitive.ready) return;
-          const attributes =
-            primitive.getGeometryInstanceAttributes(instanceId);
-          if (!attributes || !attributes.color) return;
-          attributes.color = ColorGeometryInstanceAttribute.toValue(
-            wallColor,
-            attributes.color
-          );
-        });
+        animateWallOpacity(featureId, wallPrimitives, wallColor.alpha);
       } else {
         const newWallPrimitives = createWallPrimitives({
           ring: data.ring,
@@ -614,8 +472,10 @@ export const useAdhocCesiumFeatureDisplay = (
     getAdhocWallColor,
     getIsCesium,
     getScene,
+    animateGeometryInstanceOpacity,
     selectedFeatureId,
     selectionLineWidthPixels,
+    wallOpacityAnimationConfig,
   ]);
 
   useEffect(() => {

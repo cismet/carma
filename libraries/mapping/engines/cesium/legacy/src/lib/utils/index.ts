@@ -23,6 +23,12 @@ export {
 } from "./cesiumAnimateFov";
 export { getHeadingPitchForMouseEvent } from "./cesiumAnimateOrbits";
 export { animateInterpolateHeadingPitchRange } from "./cesiumAnimations";
+export { animateOpacity } from "./animateOpacity";
+export {
+  applyGeometryInstanceOpacity,
+  readGeometryInstanceOpacity,
+} from "./geometryInstanceOpacity";
+export type { GeometryInstanceRef } from "./geometryInstanceOpacity";
 export {
   type SceneAnimationMap,
   cancelSceneAnimation,
