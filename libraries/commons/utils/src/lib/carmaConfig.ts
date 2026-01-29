@@ -9,10 +9,13 @@ export const extractCarmaConfig = (
   if (keywords) {
     keywords.forEach((keyword) => {
       if (keyword.toLowerCase().startsWith("carmaconf://")) {
-        const mapping = keyword.split("carmaconf://infoBoxMapping:")[1];
-        if (mapping) {
-          infoboxMapping.push(mapping);
-          return;
+        // handle infoBoxMapping
+        if (keyword.toLowerCase().startsWith("carmaconf://infoBoxMapping:")) {
+          const mapping = keyword.split("carmaconf://infoBoxMapping:")[1];
+          if (mapping) {
+            infoboxMapping.push(mapping);
+            return;
+          }
         }
         const objectString = keyword.slice(12);
         let colonIndex = objectString.indexOf(":");
