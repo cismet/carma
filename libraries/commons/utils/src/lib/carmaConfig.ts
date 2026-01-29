@@ -10,7 +10,7 @@ export const extractCarmaConfig = (
     keywords.forEach((keyword) => {
       if (keyword.toLowerCase().startsWith("carmaconf://")) {
         // handle infoBoxMapping
-        if (keyword.toLowerCase().startsWith("carmaconf://infoBoxMapping:")) {
+        if (keyword.toLowerCase().startsWith("carmaconf://infoboxmapping:")) {
           const mapping = keyword.split("carmaconf://infoBoxMapping:")[1];
           if (mapping) {
             infoboxMapping.push(mapping);
