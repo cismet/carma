@@ -511,7 +511,7 @@ export const topicMapsConfig: Config = {
       thumbnail:
         "https://geoportal-files.cismet.de/1769010875988-1580993777851-40514758f716.jpg",
       keywords: [
-        "carmaConf://opendata:https://offenedaten-wuppertal.de/dataset/hochwassersimulationen-nrw/resource/2bd13c11-6ae4-4c92-a3c5-3d2897d8ab79",
+        "carmaConf://opendata:https://offenedaten-wuppertal.de/dataset/hochwassergefahrenkarte-wuppertal/resource/2bd13c11-6ae4-4c92-a3c5-3d2897d8ab79",
       ],
       url: "https://digital-twin-wuppertal-live.github.io/floodingmap/",
       serviceName: "wuppTopicMaps",
