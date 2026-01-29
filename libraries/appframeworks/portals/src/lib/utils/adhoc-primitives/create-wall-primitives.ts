@@ -18,12 +18,23 @@ type CreateWallPrimitivesOptions = {
   getWallHeight: (segmentIndex: number) => number;
 };
 
+export type WallPrimitiveSegment = {
+  primitive: Primitive;
+  instanceId: { adhocFeatureId: string; segmentIndex: number };
+};
+
+export type WallPrimitivesResult = {
+  collection: PrimitiveCollection;
+  segments: WallPrimitiveSegment[];
+};
+
 export const createWallPrimitives = (
   options: CreateWallPrimitivesOptions
-): PrimitiveCollection => {
+): WallPrimitivesResult => {
   const { ring, heights, featureId, isSelected, getWallColor, getWallHeight } =
     options;
   const primitives = new PrimitiveCollection();
+  const segments: WallPrimitiveSegment[] = [];
   const wallColor = getWallColor(isSelected);
   const appearance = new PerInstanceColorAppearance({
     translucent: true,
@@ -52,24 +63,23 @@ export const createWallPrimitives = (
       minimumHeights: [startHeight, endHeight],
     });
 
+    const instanceId = { adhocFeatureId: featureId, segmentIndex: i };
     const instance = new GeometryInstance({
       geometry,
       attributes: {
         color: ColorGeometryInstanceAttribute.fromColor(wallColor),
       },
-      id: {
-        adhocFeatureId: featureId,
-      },
+      id: instanceId,
     });
 
-    primitives.add(
-      new Primitive({
-        geometryInstances: instance,
-        appearance,
-        releaseGeometryInstances: false,
-      })
-    );
+    const primitive = new Primitive({
+      geometryInstances: instance,
+      appearance,
+      releaseGeometryInstances: false,
+    });
+    primitives.add(primitive);
+    segments.push({ primitive, instanceId });
   }
 
-  return primitives;
+  return { collection: primitives, segments };
 };
