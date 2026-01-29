@@ -73,6 +73,8 @@ const ResourceModal = () => {
   const { routedMapRef: routedMap } =
     useContext<typeof TopicMapContext>(TopicMapContext);
 
+  const { addFeature } = useAdhocFeatureDisplay();
+
   const updateLayers = async (
     layer: Item,
     deleteItem: boolean = false,
@@ -167,6 +169,12 @@ const ResourceModal = () => {
           styleData = null;
         }
       }
+
+      addFeature({
+        id: id,
+        kind: "maplibre-style",
+        data: styleData as any,
+      });
 
       await zoomToStyleFeatures(styleData, routedMap);
     }

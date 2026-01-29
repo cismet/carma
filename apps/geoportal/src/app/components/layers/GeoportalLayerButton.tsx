@@ -43,6 +43,7 @@ import { LayerButton, LayerIcon } from "@carma-mapping/components";
 import { Spin } from "antd";
 import { LoadingOutlined } from "@ant-design/icons";
 import { useLayerLoading } from "@carma-mapping/utils";
+import { useAdhocFeatureDisplay } from "@carma-appframeworks/portals";
 
 interface LayerButtonProps {
   title: string;
@@ -94,6 +95,8 @@ const GeoportalLayerButton = ({
       id,
     });
   const buttonRef = useRef<HTMLDivElement>(null);
+
+  const { removeFeature } = useAdhocFeatureDisplay();
 
   const mergedRef = useCallback(
     (el: HTMLDivElement | null) => {
@@ -215,6 +218,7 @@ const GeoportalLayerButton = ({
                   }
                 } else {
                   dispatch(removeLayer(id));
+                  removeFeature(id);
                   dispatch(updateInfoElementsAfterRemovingFeature(id));
                 }
               }}
