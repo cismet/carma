@@ -43,6 +43,8 @@ import store from "../../store";
 import { layerMap } from "../../config";
 import { createBackgroundLayerConfig } from "../../helper/layer";
 import { MapStyleKeys } from "../../constants/MapStyleKeys";
+import { type Map } from "leaflet";
+import { zoomToStyleFeatures } from "../../helper/gisHelper";
 const ResourceModal = () => {
   const [discoverItems, setDiscoverItems] = useState([]);
 
@@ -72,7 +74,8 @@ const ResourceModal = () => {
     deleteItem: boolean = false,
     forceWMS: boolean = false,
     previewLayer: boolean = false,
-    updateExisting: boolean = false
+    updateExisting: boolean = false,
+    zoomTo: boolean = false
   ) => {
     let newLayer: Layer;
     const id = layer.id.startsWith("fav_") ? layer.id.slice(4) : layer.id;
@@ -148,6 +151,20 @@ const ResourceModal = () => {
     }
 
     newLayer = await utils.parseToMapLayer(layer, forceWMS, true);
+
+    if (zoomTo && newLayer.layerType === "vector") {
+      let styleData = newLayer.props?.style;
+
+      if (typeof styleData === "string") {
+        try {
+          const response = await fetch(styleData);
+          styleData = await response.json();
+        } catch {
+          styleData = null;
+        }
+      }
+      await zoomToStyleFeatures(newLayer.props?.style, routedMap);
+    }
 
     const existingLayer = activeLayers.find(
       (activeLayer) => activeLayer.id === id
