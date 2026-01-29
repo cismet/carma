@@ -24,7 +24,13 @@ interface UseHandleDropProps {
   getDataFromJson: (data: any) => any;
   activeLayers: ActiveLayers;
   updateActiveLayer: (layer: Layer) => void;
-  setAdditionalLayers: (layers: any[], deleteItem?: boolean) => void;
+  setAdditionalLayers: (
+    layers: any[],
+    deleteItem?: boolean,
+    forceWMS?: boolean,
+    previewLayer?: boolean,
+    updateExisting?: boolean
+  ) => void;
 }
 
 export const useHandleDrop = ({
@@ -109,7 +115,7 @@ export const useHandleDrop = ({
           }
         } else {
           if (instant) {
-            setAdditionalLayers(newItem, false);
+            setAdditionalLayers(newItem, false, false, false, true);
           } else {
             openModal();
             addItemToCategory(
@@ -191,7 +197,7 @@ export const useHandleDrop = ({
               }
 
               if (instant) {
-                setAdditionalLayers(newItem, false);
+                setAdditionalLayers(newItem, false, false, false, true);
               } else {
                 openModal();
                 addItemToCategory(

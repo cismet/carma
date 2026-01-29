@@ -71,7 +71,8 @@ const ResourceModal = () => {
     layer: Item,
     deleteItem: boolean = false,
     forceWMS: boolean = false,
-    previewLayer: boolean = false
+    previewLayer: boolean = false,
+    updateExisting: boolean = false
   ) => {
     let newLayer: Layer;
     const id = layer.id.startsWith("fav_") ? layer.id.slice(4) : layer.id;
@@ -148,7 +149,8 @@ const ResourceModal = () => {
 
     newLayer = await utils.parseToMapLayer(layer, forceWMS, true);
 
-    if (activeLayers.find((activeLayer) => activeLayer.id === id)) {
+    const existingLayer = activeLayers.find((activeLayer) => activeLayer.id === id);
+    if (existingLayer && !updateExisting) {
       try {
         dispatch(removeLayer(id));
         dispatch(updateInfoElementsAfterRemovingFeature(id));
@@ -167,6 +169,10 @@ const ResourceModal = () => {
         });
       }
     } else {
+      if (existingLayer && updateExisting) {
+        dispatch(removeLayer(id));
+        dispatch(updateInfoElementsAfterRemovingFeature(id));
+      }
       if (activeLayers.length >= MAX_NUM_OF_LAYERS) {
         messageApi.open({
           type: "error",
