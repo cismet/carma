@@ -31,8 +31,7 @@ interface UseHandleDropProps {
     deleteItem?: boolean,
     forceWMS?: boolean,
     previewLayer?: boolean,
-    updateExisting?: boolean,
-    zoomTo?: boolean
+    updateExisting?: boolean
   ) => void;
 }
 
@@ -57,7 +56,7 @@ export const useHandleDrop = ({
 
   const handleAddToMap = (newItem: any, instant = false) => {
     if (instant) {
-      setAdditionalLayers(newItem, false, false, false, true, true);
+      setAdditionalLayers(newItem, false, false, false, true);
     } else {
       openModal();
       addItemToCategory(
@@ -68,12 +67,136 @@ export const useHandleDrop = ({
     }
   };
 
+  const handleJsonStyle = async (file, url) => {
+    let instant = false;
+    if (file) {
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        try {
+          // Attempt to parse the file content as JSON
+          const fileContent = e.target?.result;
+          if (typeof fileContent === "string") {
+            const processedContent = fileContent.replace(
+              /__SERVER_URL__/g,
+              "https://tiles.cismet.de"
+            );
+
+            const jsonData = JSON.parse(processedContent);
+
+            let newItem: any = {
+              description: "",
+              id: `custom:${file.name}`,
+              layerType: "vector",
+              title: file.name,
+              serviceName: "custom",
+              type: "layer",
+              keywords: [`carmaConf://vectorStyle:${JSON.stringify(jsonData)}`],
+              path: "Externe Dienste",
+            };
+
+            if (jsonData.metadata && jsonData.metadata.carmaConf) {
+              const carmaConf = jsonData.metadata.carmaConf;
+              newItem = {
+                ...newItem,
+                ...carmaConf.layerInfo,
+                keywords: [
+                  ...newItem.keywords,
+                  ...(carmaConf.layerInfo.keywords || []),
+                ],
+              };
+              instant = carmaConf?.instant ?? false;
+            }
+
+            if (instant) {
+              setAdditionalLayers(newItem, false, false, false, true);
+            } else {
+              openModal();
+              addItemToCategory(
+                "mapLayers",
+                { id: "custom", Title: "Externe Dienste" },
+                newItem as unknown as SavedLayerConfig // TODO: Fix type
+              );
+            }
+          }
+        } catch (error) {
+          console.error("Failed to parse the file as JSON:", error);
+        }
+      };
+
+      reader.readAsText(file);
+    }
+
+    if (url) {
+      const layerId = `custom:${url}`;
+      const existingLayer = activeLayers.find((layer) => layer.id === layerId);
+
+      let newItem: any = {
+        description: "",
+        id: `custom:${url}`,
+        layerType: "vector",
+        title: url.slice(0, -5),
+        serviceName: "custom",
+        type: "layer",
+        keywords: [`carmaConf://vectorStyle:${url}`],
+        path: "Externe Dienste",
+      };
+      await fetch(url)
+        .then((response) => response.json())
+        .then((data) => {
+          if (data.metadata && data.metadata.carmaConf.layerInfo) {
+            const layerInfo = data.metadata.carmaConf.layerInfo;
+            instant = data.metaData?.carmaConf?.instant ?? false;
+            newItem = {
+              ...newItem,
+              ...layerInfo,
+              keywords: [...newItem.keywords, ...(layerInfo.keywords || [])],
+            };
+          }
+        })
+        .catch((error) => {
+          console.error("Error fetching JSON to check metadata:", error);
+        });
+
+      if (existingLayer) {
+        try {
+          const updatedLayer = await utils.parseToMapLayer(
+            newItem,
+            false,
+            true
+          );
+
+          updateActiveLayer(updatedLayer);
+          addItemToCategory(
+            "mapLayers",
+            { id: "custom", Title: "Externe Dienste" },
+            newItem as unknown as SavedLayerConfig // TODO: Fix type
+          );
+          message.success("Layer wurde aktualisiert");
+        } catch (error) {
+          message.error("Fehler beim Aktualisieren des Layers");
+          console.error("Error updating layer:", error);
+        }
+      } else {
+        if (instant) {
+          setAdditionalLayers(newItem, false, false, false, true);
+        } else {
+          openModal();
+          addItemToCategory(
+            "mapLayers",
+            { id: "custom", Title: "Externe Dienste" },
+            newItem as unknown as SavedLayerConfig // TODO: Fix type
+          );
+        }
+      }
+    }
+  };
+
   const handleTwinFile = async (file, url) => {
     let newItem: any = {
       description: "",
       layerType: "vector",
       serviceName: "custom",
-      type: "layer",
+      type: "object",
       path: "Externe Dienste",
     };
 
@@ -129,8 +252,6 @@ export const useHandleDrop = ({
     }
 
     if (url) {
-      const layerId = `custom:${url}`;
-
       let id = `custom:${url}`;
       let keywords = [`carmaConf://vectorStyle:${url}`];
       let title = url.slice(0, -5);
@@ -178,73 +299,7 @@ export const useHandleDrop = ({
         handleTwinFile(file, url);
       } else {
         if (url && url.endsWith(".json")) {
-          // Check if this layer is already in active layers
-          const layerId = `custom:${url}`;
-          const existingLayer = activeLayers.find(
-            (layer) => layer.id === layerId
-          );
-
-          let newItem: any = {
-            description: "",
-            id: `custom:${url}`,
-            layerType: "vector",
-            title: url.slice(0, -5),
-            serviceName: "custom",
-            type: "layer",
-            keywords: [`carmaConf://vectorStyle:${url}`],
-            path: "Externe Dienste",
-          };
-          await fetch(url)
-            .then((response) => response.json())
-            .then((data) => {
-              if (data.metadata && data.metadata.carmaConf.layerInfo) {
-                const layerInfo = data.metadata.carmaConf.layerInfo;
-                instant = data.metaData?.carmaConf?.instant ?? false;
-                newItem = {
-                  ...newItem,
-                  ...layerInfo,
-                  keywords: [
-                    ...newItem.keywords,
-                    ...(layerInfo.keywords || []),
-                  ],
-                };
-              }
-            })
-            .catch((error) => {
-              console.error("Error fetching JSON to check metadata:", error);
-            });
-
-          if (existingLayer) {
-            try {
-              const updatedLayer = await utils.parseToMapLayer(
-                newItem,
-                false,
-                true
-              );
-
-              updateActiveLayer(updatedLayer);
-              addItemToCategory(
-                "mapLayers",
-                { id: "custom", Title: "Externe Dienste" },
-                newItem as unknown as SavedLayerConfig // TODO: Fix type
-              );
-              message.success("Layer wurde aktualisiert");
-            } catch (error) {
-              message.error("Fehler beim Aktualisieren des Layers");
-              console.error("Error updating layer:", error);
-            }
-          } else {
-            if (instant) {
-              setAdditionalLayers(newItem, false, false, false, true);
-            } else {
-              openModal();
-              addItemToCategory(
-                "mapLayers",
-                { id: "custom", Title: "Externe Dienste" },
-                newItem as unknown as SavedLayerConfig // TODO: Fix type
-              );
-            }
-          }
+          handleJsonStyle(null, url);
         } else if (url) {
           openModal();
 
@@ -275,64 +330,7 @@ export const useHandleDrop = ({
         }
 
         if (file && file.name.endsWith("style.json")) {
-          // Handle file drop
-
-          const reader = new FileReader();
-          reader.onload = (e) => {
-            try {
-              // Attempt to parse the file content as JSON
-              const fileContent = e.target?.result;
-              if (typeof fileContent === "string") {
-                const processedContent = fileContent.replace(
-                  /__SERVER_URL__/g,
-                  "https://tiles.cismet.de"
-                );
-
-                const jsonData = JSON.parse(processedContent);
-
-                let newItem: any = {
-                  description: "",
-                  id: `custom:${file.name}`,
-                  layerType: "vector",
-                  title: file.name,
-                  serviceName: "custom",
-                  type: "layer",
-                  keywords: [
-                    `carmaConf://vectorStyle:${JSON.stringify(jsonData)}`,
-                  ],
-                  path: "Externe Dienste",
-                };
-
-                if (jsonData.metadata && jsonData.metadata.carmaConf) {
-                  const carmaConf = jsonData.metadata.carmaConf;
-                  newItem = {
-                    ...newItem,
-                    ...carmaConf.layerInfo,
-                    keywords: [
-                      ...newItem.keywords,
-                      ...(carmaConf.layerInfo.keywords || []),
-                    ],
-                  };
-                  instant = carmaConf?.instant ?? false;
-                }
-
-                if (instant) {
-                  setAdditionalLayers(newItem, false, false, false, true);
-                } else {
-                  openModal();
-                  addItemToCategory(
-                    "mapLayers",
-                    { id: "custom", Title: "Externe Dienste" },
-                    newItem as unknown as SavedLayerConfig // TODO: Fix type
-                  );
-                }
-              }
-            } catch (error) {
-              console.error("Failed to parse the file as JSON:", error);
-            }
-          };
-
-          reader.readAsText(file);
+          handleJsonStyle(file, null);
         } else if (file) {
           if (
             file.name.includes("config") &&

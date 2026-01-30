@@ -87,8 +87,7 @@ const ResourceModal = () => {
     deleteItem: boolean = false,
     forceWMS: boolean = false,
     previewLayer: boolean = false,
-    updateExisting: boolean = false,
-    zoomTo: boolean = false
+    updateExisting: boolean = false
   ) => {
     let newLayer: Layer;
     const id = layer.id.startsWith("fav_") ? layer.id.slice(4) : layer.id;
@@ -165,7 +164,7 @@ const ResourceModal = () => {
 
     newLayer = await utils.parseToMapLayer(layer, forceWMS, true);
 
-    if (zoomTo && newLayer.layerType === "vector") {
+    if (newLayer.type === "object") {
       let styleData = newLayer.props?.style;
       const conf = newLayer.conf;
 

@@ -138,7 +138,7 @@ export const parseToMapLayer = async (
   const id = layer.id.startsWith("fav_") ? layer.id.slice(4) : layer.id;
 
   const carmaConf = extractCarmaConfig(layer.keywords);
-  if (layer.type === "layer") {
+  if (layer.type === "layer" || layer.type === "object") {
     let capabilitiesUrl = layer?.props?.url
       ? layer?.props?.url + "service=WMS&request=GetCapabilities&version=1.1.1"
       : undefined;
@@ -249,6 +249,7 @@ export const parseToMapLayer = async (
         layerInfo: {
           ...metaData,
         },
+        type: layer.type,
       };
     } else {
       switch (layer.layerType) {
@@ -468,4 +469,3 @@ export const parseHeader = async (
 
   return header;
 };
-
