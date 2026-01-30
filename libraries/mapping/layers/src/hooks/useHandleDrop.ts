@@ -29,7 +29,8 @@ interface UseHandleDropProps {
     deleteItem?: boolean,
     forceWMS?: boolean,
     previewLayer?: boolean,
-    updateExisting?: boolean
+    updateExisting?: boolean,
+    zoomTo?: boolean
   ) => void;
 }
 
@@ -115,7 +116,7 @@ export const useHandleDrop = ({
           }
         } else {
           if (instant) {
-            setAdditionalLayers(newItem, false, false, false, true);
+            setAdditionalLayers(newItem, false, false, false, true, true);
           } else {
             openModal();
             addItemToCategory(
@@ -197,7 +198,7 @@ export const useHandleDrop = ({
               }
 
               if (instant) {
-                setAdditionalLayers(newItem, false, false, false, true);
+                setAdditionalLayers(newItem, false, false, false, true, true);
               } else {
                 openModal();
                 addItemToCategory(
