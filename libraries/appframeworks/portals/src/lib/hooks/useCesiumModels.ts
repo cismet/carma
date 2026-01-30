@@ -198,7 +198,9 @@ export const useCesiumModels = ({
       applyShader(primitive, highlightShader);
     };
 
-    const extractProperties = (picked: PickedObject): Record<string, unknown> => {
+    const extractProperties = (
+      picked: PickedObject
+    ): Record<string, unknown> => {
       const pickId = picked?.id as { properties?: Record<string, unknown> };
       const entityProperties = pickId?.properties;
       const extracted: Record<string, unknown> = {};

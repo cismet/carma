@@ -100,7 +100,7 @@ const layersConfig = {
 const featuresConfig = {
   key: "@" + APP_KEY + "." + STORAGE_PREFIX + ".app.features",
   storage: localForage,
-  whitelist: [],
+  whitelist: ["selectedFeature"],
 };
 
 const printConfig = {

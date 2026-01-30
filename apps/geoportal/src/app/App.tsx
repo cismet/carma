@@ -1,5 +1,5 @@
 // Built-in Modules
-import { useEffect, useMemo } from "react";
+import { useMemo } from "react";
 import { useDispatch, useSelector } from "react-redux";
 
 // 3rd party Modules
@@ -65,6 +65,7 @@ const MEASUREMENTS_BASE_CONFIG = {
 };
 
 import AdhocFeatureConsoleBridge from "./adhoc/AdhocFeatureConsoleBridge";
+import { useAdhocFeatureRehydrate } from "./hooks/use-adhoc-feature-rehydrate";
 
 import { getCustomFeatureFlags } from "./store/slices/layers";
 import {
@@ -86,6 +87,11 @@ function CesiumDevConsoleIntegration() {
   const flags = useFeatureFlags();
   // Explicitly pass through flag; hook no longer performs URL inference
   useCesiumDevConsoleTrigger({ isDeveloperMode: flags.isDeveloperMode });
+  return null;
+}
+
+function AdhocFeatureRehydration() {
+  useAdhocFeatureRehydrate();
   return null;
 }
 
@@ -183,6 +189,7 @@ function App({ published }: { published?: boolean }) {
                 >
                   <ErrorBoundary FallbackComponent={AppErrorFallback}>
                     <AdhocFeatureConsoleBridge />
+                    <AdhocFeatureRehydration />
                     <div className={TAILWIND_CLASSNAMES_FULLSCREEN_FIXED}>
                       {isLoadingConfig && (
                         <div

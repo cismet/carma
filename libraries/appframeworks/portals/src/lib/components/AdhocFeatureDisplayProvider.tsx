@@ -1,4 +1,10 @@
-import { createContext, useCallback, useContext, useMemo, useState } from "react";
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useMemo,
+  useState,
+} from "react";
 import type { Feature, FeatureCollection } from "geojson";
 import type { FeatureInfoProperties } from "@carma/types";
 
@@ -71,8 +77,9 @@ interface AdhocFeatureDisplayContextType {
   clearFeatures: () => void;
 }
 
-const AdhocFeatureDisplayContext =
-  createContext<AdhocFeatureDisplayContextType | undefined>(undefined);
+const AdhocFeatureDisplayContext = createContext<
+  AdhocFeatureDisplayContextType | undefined
+>(undefined);
 
 interface AdhocFeatureDisplayProviderProps {
   children: React.ReactNode;
@@ -88,12 +95,9 @@ export function AdhocFeatureDisplayProvider({
   const [shouldFocusSelected, setShouldFocusSelected] =
     useState<boolean>(false);
 
-  const setActiveFeatureId = useCallback(
-    (id: string | null) => {
-      setSelectedFeatureId(id);
-    },
-    []
-  );
+  const setActiveFeatureId = useCallback((id: string | null) => {
+    setSelectedFeatureId(id);
+  }, []);
 
   const addFeature = useCallback((feature: AdhocFeature) => {
     setFeatures((prev) => {

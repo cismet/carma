@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import {
   BoundingSphere,
@@ -35,7 +35,6 @@ import { useCesiumModels } from "./useCesiumModels";
 
 export type UseAdhocCesiumFeatureDisplayOptions = {
   isCesiumEnabled: boolean;
-  getIsCesium: () => boolean;
   getScene: () => Scene | null | undefined;
   getTerrainProvider: () => CesiumTerrainProvider | null | undefined;
   getSurfaceProvider: () => CesiumTerrainProvider | null | undefined;
@@ -81,7 +80,6 @@ export const useAdhocCesiumFeatureDisplay = (
 ): UseAdhocCesiumFeatureDisplayResult => {
   const {
     baseModels = [],
-    getIsCesium,
     getScene,
     getSurfaceProvider,
     getTerrainProvider,
@@ -94,7 +92,6 @@ export const useAdhocCesiumFeatureDisplay = (
 
   const {
     features: adhocFeatures,
-    selectedFeature: adhocSelectedFeature,
     selectedFeatureId,
     setSelectedFeatureId,
     shouldFocusSelected,
@@ -103,17 +100,38 @@ export const useAdhocCesiumFeatureDisplay = (
 
   // Single ref for all visualizers
   const visualizersRef = useRef<Map<string, ExtrudedWallVisualizer>>(new Map());
+  // Track which features have been successfully registered to Cesium
+  const [registeredFeatureIds, setRegisteredFeatureIds] = useState<Set<string>>(
+    new Set()
+  );
+  // Refs to access current values in async code without triggering re-renders
   const selectedFeatureIdRef = useRef<string | null>(null);
+  const shouldFocusSelectedRef = useRef<boolean>(false);
+  selectedFeatureIdRef.current = selectedFeatureId ?? null;
+  shouldFocusSelectedRef.current = shouldFocusSelected;
 
-  // Keep ref in sync
-  useEffect(() => {
-    selectedFeatureIdRef.current = selectedFeatureId ?? null;
-  }, [selectedFeatureId]);
+  // Compute which geojson features need visualizers
+  const geojsonFeatureIds = useMemo(() => {
+    return new Set(
+      adhocFeatures
+        .filter((feature) => !!getGeoJsonFromFeature(feature))
+        .map((feature) => feature.id)
+    );
+  }, [adhocFeatures]);
 
-  const adhocInfoFeature = useMemo<FeatureInfo | null>(() => {
-    if (!adhocSelectedFeature) return null;
-    return buildAdhocFeatureInfo(adhocSelectedFeature);
-  }, [adhocSelectedFeature]);
+  // Check if there are features that need to be synced to Cesium
+  const needsSync = useMemo(() => {
+    if (!isCesiumEnabled) return false;
+    // Check if any feature ID is not yet registered
+    for (const id of geojsonFeatureIds) {
+      if (!registeredFeatureIds.has(id)) return true;
+    }
+    // Check if any registered ID is no longer in features (needs cleanup)
+    for (const id of registeredFeatureIds) {
+      if (!geojsonFeatureIds.has(id)) return true;
+    }
+    return false;
+  }, [geojsonFeatureIds, isCesiumEnabled, registeredFeatureIds]);
 
   const adhocModelConfigs = useMemo(() => {
     return adhocFeatures.filter(isAdhocModelFeature).map((feature) => {
@@ -180,28 +198,49 @@ export const useAdhocCesiumFeatureDisplay = (
 
   useCesiumModels(useCesiumModelOptions);
 
-  // Notify feature info changes
+  // Main effect: sync visualizers with features when needed
   useEffect(() => {
-    if (!getIsCesium()) return;
-    onFeatureInfoChange?.(adhocInfoFeature ?? null);
-  }, [adhocInfoFeature, getIsCesium, onFeatureInfoChange]);
-
-  // Main effect: create/destroy visualizers for GeoJSON features
-  useEffect(() => {
-    if (!getIsCesium() || !isCesiumEnabled) return;
+    console.log("[CESIUM|SYNC] Effect running, needsSync:", needsSync);
+    if (!needsSync) return;
 
     const scene = getScene();
-    if (!scene || scene.isDestroyed()) return;
+    console.log("[CESIUM|SYNC] Scene ready:", !!scene && !scene.isDestroyed());
+    if (!scene || scene.isDestroyed()) {
+      // Scene not ready yet, poll for it
+      const interval = setInterval(() => {
+        const s = getScene();
+        if (s && !s.isDestroyed()) {
+          clearInterval(interval);
+          // Trigger re-render to run sync
+          setRegisteredFeatureIds((prev) => new Set(prev));
+        }
+      }, 100);
+      return () => clearInterval(interval);
+    }
 
-    // Destroy existing visualizers
-    visualizersRef.current.forEach((visualizer) => visualizer.destroy());
-    visualizersRef.current.clear();
+    // Clean up visualizers for removed features
+    for (const id of registeredFeatureIds) {
+      if (!geojsonFeatureIds.has(id)) {
+        const visualizer = visualizersRef.current.get(id);
+        if (visualizer) {
+          visualizer.destroy();
+          visualizersRef.current.delete(id);
+        }
+      }
+    }
 
-    const geojsonFeatures = adhocFeatures.filter(
-      (feature) => !!getGeoJsonFromFeature(feature)
+    // Get features that need visualizers created
+    const featuresToCreate = adhocFeatures.filter(
+      (feature) =>
+        getGeoJsonFromFeature(feature) && !registeredFeatureIds.has(feature.id)
     );
 
-    if (geojsonFeatures.length === 0) {
+    console.log("[CESIUM|SYNC] featuresToCreate:", featuresToCreate.length);
+    console.log("[CESIUM|SYNC] adhocFeatures count:", adhocFeatures.length);
+
+    if (featuresToCreate.length === 0) {
+      // Just update registered IDs to match current features
+      setRegisteredFeatureIds(geojsonFeatureIds);
       scene.requestRender();
       return;
     }
@@ -209,10 +248,18 @@ export const useAdhocCesiumFeatureDisplay = (
     let cancelled = false;
 
     const createVisualizers = async () => {
-      for (const feature of geojsonFeatures) {
+      const newlyRegistered: string[] = [];
+
+      for (const feature of featuresToCreate) {
         if (cancelled) break;
 
         const geojson = getGeoJsonFromFeature(feature);
+        console.log(
+          "[CESIUM|SYNC] Creating visualizer for:",
+          feature.id,
+          "has geojson:",
+          !!geojson
+        );
         const polygon = getPolygonFromGeoJson(geojson);
         if (!polygon?.[0]) continue;
 
@@ -255,8 +302,11 @@ export const useAdhocCesiumFeatureDisplay = (
 
         try {
           await visualizer.attach(scene, () => scene.requestRender());
+          newlyRegistered.push(feature.id);
+          console.log("[CESIUM|SYNC] Visualizer attached:", feature.id);
         } catch {
-          // Visualizer failed to attach, continue with others
+          // Visualizer failed to attach, remove from map
+          visualizersRef.current.delete(feature.id);
         }
 
         if (cancelled) {
@@ -265,13 +315,40 @@ export const useAdhocCesiumFeatureDisplay = (
           break;
         }
 
-        // Set initial selection state
+        // Set initial selection state and potentially fly to
         if (selectedFeatureIdRef.current === feature.id) {
           visualizer.selected = true;
+
+          // If focus was requested, fly to this feature
+          if (shouldFocusSelectedRef.current) {
+            const sphere = visualizer.getBoundingSphere();
+            if (sphere) {
+              flyToBoundingSphereExtent(scene.camera, sphere, {
+                minRange: 50,
+                paddingFactor: 1.1,
+              });
+              setShouldFocusSelected(false);
+            }
+          }
         }
       }
 
       if (!cancelled) {
+        // Update registered IDs with successfully attached visualizers
+        setRegisteredFeatureIds((prev) => {
+          const next = new Set(prev);
+          // Remove IDs no longer in features
+          for (const id of prev) {
+            if (!geojsonFeatureIds.has(id)) {
+              next.delete(id);
+            }
+          }
+          // Add newly registered IDs
+          for (const id of newlyRegistered) {
+            next.add(id);
+          }
+          return next;
+        });
         scene.requestRender();
       }
     };
@@ -281,16 +358,18 @@ export const useAdhocCesiumFeatureDisplay = (
     return () => {
       cancelled = true;
     };
-    // Note: selectedFeatureId intentionally excluded - selection handled by separate effect
+    // Note: selectedFeatureId/shouldFocusSelected intentionally excluded via refs - handled by separate effect
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [
     adhocFeatures,
-    getIsCesium,
+    geojsonFeatureIds,
     getScene,
     getSurfaceProvider,
     getTerrainProvider,
-    isCesiumEnabled,
+    needsSync,
+    registeredFeatureIds,
     selectionLineWidthPixels,
+    setShouldFocusSelected,
     wallOpacity?.default,
     wallOpacity?.selected,
     wallOpacityAnimation?.durationMs,
@@ -305,34 +384,43 @@ export const useAdhocCesiumFeatureDisplay = (
     };
   }, []);
 
-  // Selection effect: update visualizer selection states
+  // Consolidated selection effect: handles selection state, focus, and infobox
   useEffect(() => {
+    if (!isCesiumEnabled) return;
+
+    // Update all visualizer selection states
     visualizersRef.current.forEach((visualizer, id) => {
       visualizer.selected = id === selectedFeatureId;
     });
-  }, [selectedFeatureId]);
 
-  // Focus on selected feature
-  useEffect(() => {
-    if (!getIsCesium() || !shouldFocusSelected || !selectedFeatureId) return;
+    // Build and notify feature info
+    const selectedFeature = selectedFeatureId
+      ? adhocFeatures.find((f) => f.id === selectedFeatureId)
+      : null;
+    const featureInfo = selectedFeature
+      ? buildAdhocFeatureInfo(selectedFeature)
+      : null;
+    onFeatureInfoChange?.(featureInfo);
 
-    const scene = getScene();
-    if (!scene || scene.isDestroyed()) return;
-
-    const visualizer = visualizersRef.current.get(selectedFeatureId);
-    if (!visualizer) return;
-
-    const sphere = visualizer.getBoundingSphere();
-    if (!sphere) return;
-
-    flyToBoundingSphereExtent(scene.camera, sphere, {
-      minRange: 50,
-      paddingFactor: 1.1,
-    });
-    setShouldFocusSelected(false);
+    // Handle fly-to if requested (only reset flag if fly-to actually happens)
+    if (shouldFocusSelected && selectedFeatureId) {
+      const scene = getScene();
+      const visualizer = visualizersRef.current.get(selectedFeatureId);
+      const sphere = visualizer?.getBoundingSphere();
+      if (scene && !scene.isDestroyed() && sphere) {
+        flyToBoundingSphereExtent(scene.camera, sphere, {
+          minRange: 50,
+          paddingFactor: 1.1,
+        });
+        setShouldFocusSelected(false);
+      }
+      // If visualizer doesn't exist yet, keep flag true - main effect will handle it
+    }
   }, [
-    getIsCesium,
+    adhocFeatures,
     getScene,
+    isCesiumEnabled,
+    onFeatureInfoChange,
     selectedFeatureId,
     setShouldFocusSelected,
     shouldFocusSelected,
@@ -340,19 +428,36 @@ export const useAdhocCesiumFeatureDisplay = (
 
   // Click handler
   useEffect(() => {
-    if (!getIsCesium()) return;
+    console.log(
+      "[CESIUM|CLICK] Effect running, isCesiumEnabled:",
+      isCesiumEnabled
+    );
+    if (!isCesiumEnabled) return;
 
     const scene = getScene();
+    console.log("[CESIUM|CLICK] Scene:", scene?.isDestroyed?.());
     if (!scene || scene.isDestroyed()) return;
 
+    console.log("[CESIUM|CLICK] Setting up click handler");
     const handler = new ScreenSpaceEventHandler(scene.canvas);
     handler.setInputAction((event: { position: Cartesian2 }) => {
       const picked = scene.pick(event.position);
       const pickedId = picked?.id;
 
+      console.log("[CESIUM|CLICK] picked:", picked, "pickedId:", pickedId);
+      console.log(
+        "[CESIUM|CLICK] visualizers count:",
+        visualizersRef.current.size
+      );
+      console.log("[CESIUM|CLICK] visualizer IDs:", [
+        ...visualizersRef.current.keys(),
+      ]);
+
       // Check if any visualizer was picked
       for (const [id, visualizer] of visualizersRef.current) {
-        if (visualizer.isPicked(pickedId)) {
+        const isPicked = visualizer.isPicked(pickedId);
+        console.log(`[CESIUM|CLICK] visualizer ${id} isPicked:`, isPicked);
+        if (isPicked) {
           if (id === selectedFeatureId) {
             setSelectedFeatureId(null);
             onFeatureInfoChange?.(null);
@@ -388,12 +493,13 @@ export const useAdhocCesiumFeatureDisplay = (
     };
   }, [
     adhocFeatures,
-    getIsCesium,
     getScene,
+    isCesiumEnabled,
     onFeatureInfoChange,
     selectedFeatureId,
     setSelectedFeatureId,
     setShouldFocusSelected,
+    registeredFeatureIds,
   ]);
 
   // Get bounding sphere for a feature

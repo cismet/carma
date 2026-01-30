@@ -1,9 +1,4 @@
-import {
-  Cartesian3,
-  HeadingPitchRoll,
-  Model,
-  Transforms,
-} from "@carma/cesium";
+import { Cartesian3, HeadingPitchRoll, Model, Transforms } from "@carma/cesium";
 
 import type { ModelConfig } from "@carma-commons/resources";
 import type { FeatureInfoProperties } from "@carma/types";
@@ -20,10 +15,10 @@ const createModelPickId = (config: ModelConfig): ModelPickId => {
     typeof propsWithId?.id === "string"
       ? propsWithId.id
       : typeof config.name === "string"
-        ? config.name
-        : typeof config.properties?.title === "string"
-          ? config.properties.title
-          : config.model.uri;
+      ? config.name
+      : typeof config.properties?.title === "string"
+      ? config.properties.title
+      : config.model.uri;
 
   return {
     id,
@@ -49,7 +44,8 @@ export const createModelPrimitiveFromConfig = async (
 
   const modelMatrix = Transforms.headingPitchRollToFixedFrame(position, hpr);
 
-  const scale = typeof config.model.scale === "number" ? config.model.scale : 1.0;
+  const scale =
+    typeof config.model.scale === "number" ? config.model.scale : 1.0;
   const model = await Model.fromGltfAsync({
     url: config.model.uri,
     modelMatrix,

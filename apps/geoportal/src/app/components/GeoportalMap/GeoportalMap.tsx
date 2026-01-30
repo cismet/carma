@@ -49,10 +49,7 @@ import { getCollabedHelpComponentConfig as getCollabedHelpElementsConfig } from 
 
 import { ENDPOINT, isAreaType } from "@carma-commons/resources";
 import type { FeatureInfo } from "@carma/types";
-import {
-  Measurements,
-  InfoBoxMeasurement,
-} from "@carma-commons/measurements";
+import { Measurements, InfoBoxMeasurement } from "@carma-commons/measurements";
 
 import {
   useOverlayHelper,
@@ -298,7 +295,6 @@ export const GeoportalMap = ({ height, width, allow3d }: MapProps) => {
 
   const { getAdhocBoundingSphere } = useAdhocCesiumFeatureDisplay({
     baseModels: CESIUM_CONFIG.models ?? [],
-    getIsCesium,
     getScene,
     getSurfaceProvider,
     getTerrainProvider,
@@ -581,7 +577,9 @@ export const GeoportalMap = ({ height, width, allow3d }: MapProps) => {
         return <InfoBoxMeasurement key={uiMode} />;
       }
       if (selectedFeature || loadingFeatureInfo) {
-        return <FeatureInfoBox pos={pos} onZoomToFeature={handleZoomToFeature} />;
+        return (
+          <FeatureInfoBox pos={pos} onZoomToFeature={handleZoomToFeature} />
+        );
       }
     } else if (getIsCesium() && selectedFeature) {
       // TODO unify with point queries for position information?

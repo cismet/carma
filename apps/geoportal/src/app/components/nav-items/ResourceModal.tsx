@@ -1,5 +1,5 @@
 import { message } from "antd";
-import { useContext, useState } from "react";
+import { useContext } from "react";
 import { useDispatch, useSelector } from "react-redux";
 
 import { TopicMapContext } from "react-cismap/contexts/TopicMapContextProvider";
@@ -12,7 +12,6 @@ import {
 } from "@carma-appframeworks/portals";
 import type { Item, Layer } from "@carma/types";
 import { LayerLib } from "@carma-mapping/layers";
-import { useAuth } from "@carma-providers/auth";
 import { useMapFrameworkSwitcherContext } from "@carma-mapping/components";
 
 import {
@@ -23,7 +22,6 @@ import {
   addCustomFeatureFlags,
   addFavorite,
   getFavorites,
-  getThumbnails,
   removeFavorite,
   updateFavorite,
 } from "../../store/slices/layers";
@@ -52,26 +50,23 @@ import store from "../../store";
 import { layerMap } from "../../config";
 import { createBackgroundLayerConfig } from "../../helper/layer";
 import { MapStyleKeys } from "../../constants/MapStyleKeys";
-import { type Map } from "leaflet";
 import { zoomToStyleFeatures } from "../../helper/gisHelper";
+import {
+  isAdhocVectorLayer,
+  resolveAdhocStyleData,
+} from "../../helper/adhoc-feature-utils";
 
 const ResourceModal = () => {
-  const [discoverItems, setDiscoverItems] = useState([]);
-
   const { setCurrentStyle } = useMapStyle();
 
   const dispatch = useDispatch();
 
   const activeLayers = useSelector(getLayers);
   const backgroundLayer = useSelector(getBackgroundLayer);
-  const thumbnails = useSelector(getThumbnails);
   const favorites = useSelector(getFavorites);
   const savedLayerConfigs = useSelector(getSavedLayerConfigs);
   const showResourceModal = useSelector(getUIShowResourceModal);
-  // const jwt = useSelector(getJWT);
-  const { jwt } = useAuth();
 
-  const [isModalOpen, setIsModalOpen] = useState(false);
   const [messageApi, contextHolder] = message.useMessage();
 
   const MAX_NUM_OF_LAYERS = 12;
@@ -79,7 +74,8 @@ const ResourceModal = () => {
   const { routedMapRef: routedMap } =
     useContext<typeof TopicMapContext>(TopicMapContext);
 
-  const { addFeature } = useAdhocFeatureDisplay();
+  const { addFeature, setSelectedFeatureId, setShouldFocusSelected } =
+    useAdhocFeatureDisplay();
   const { toggle, isLeaflet } = useMapFrameworkSwitcherContext();
 
   const updateLayers = async (
@@ -87,7 +83,8 @@ const ResourceModal = () => {
     deleteItem: boolean = false,
     forceWMS: boolean = false,
     previewLayer: boolean = false,
-    updateExisting: boolean = false
+    updateExisting: boolean = false,
+    zoomTo: boolean = false
   ) => {
     let newLayer: Layer;
     const id = layer.id.startsWith("fav_") ? layer.id.slice(4) : layer.id;
@@ -164,24 +161,21 @@ const ResourceModal = () => {
 
     newLayer = await utils.parseToMapLayer(layer, forceWMS, true);
 
-    if (newLayer.type === "object") {
-      let styleData = newLayer.props?.style;
+    if (zoomTo && isAdhocVectorLayer(newLayer)) {
+      // Safe to access style since isAdhocVectorLayer checks layerType === "vector"
+      const style = (newLayer.props as { style?: string | object }).style;
+      const styleData = await resolveAdhocStyleData(style);
       const conf = newLayer.conf;
-
-      if (typeof styleData === "string") {
-        try {
-          const response = await fetch(styleData);
-          styleData = await response.json();
-        } catch {
-          styleData = null;
-        }
-      }
 
       if (
         (conf?.modeSwitch === "3D" && isLeaflet) ||
         (conf?.modeSwitch === "2D" && !isLeaflet)
       ) {
         await toggle();
+      }
+
+      if (!styleData) {
+        return;
       }
 
       addFeature({
@@ -195,6 +189,10 @@ const ResourceModal = () => {
       if ((conf.modeSwitch !== "3D" && isLeaflet) || conf.modeSwitch === "2D") {
         // Signal that this layer should trigger auto-selection when ready
         dispatch(setTriggerSelectionById(id));
+      } else {
+        // 3D (Cesium) mode: select and fly to the feature
+        setSelectedFeatureId(id);
+        setShouldFocusSelected(true);
       }
     }
 
