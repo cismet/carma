@@ -10,6 +10,7 @@ import {
   ScreenSpaceEventHandler,
   ScreenSpaceEventType,
   flyToBoundingSphereExtent,
+  type Cartesian2,
   type CesiumTerrainProvider,
   type Scene,
 } from "@carma/cesium";
@@ -337,9 +338,10 @@ export const useAdhocCesiumFeatureDisplay = (
       selection: {
         enabled: isCesiumEnabled && hasCesiumModels,
         deselectOnEmptyClick: false,
-        onSelect: (feature: FeatureInfo | null) => {
-          onFeatureInfoChange?.(feature);
-          const adhocFeatureId = feature?.properties?.adhocFeatureId;
+        onSelect: (feature: unknown) => {
+          const featureInfo = feature as FeatureInfo | null;
+          onFeatureInfoChange?.(featureInfo);
+          const adhocFeatureId = featureInfo?.properties?.adhocFeatureId;
           if (typeof adhocFeatureId === "string") {
             setSelectedFeatureId(adhocFeatureId);
           }
@@ -623,7 +625,7 @@ export const useAdhocCesiumFeatureDisplay = (
     if (!scene || scene.isDestroyed()) return;
 
     const handler = new ScreenSpaceEventHandler(scene.canvas);
-    handler.setInputAction((event: { position: { x: number; y: number } }) => {
+    handler.setInputAction((event: { position: Cartesian2 }) => {
       const picked = scene.pick(event.position);
       const pickedId = picked?.id as { adhocFeatureId?: unknown } | undefined;
 
