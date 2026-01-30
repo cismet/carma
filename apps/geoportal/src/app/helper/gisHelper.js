@@ -221,10 +221,15 @@ export const zoomToStyleFeatures = async (styleData, routedMap) => {
       if (bbox) {
         const map = routedMap?.leafletMap?.leafletElement;
         if (map) {
-          map.fitBounds([
-            [bbox[1], bbox[0]],
-            [bbox[3], bbox[2]],
-          ]);
+          map.fitBounds(
+            [
+              [bbox[1], bbox[0]],
+              [bbox[3], bbox[2]],
+            ],
+            {
+              padding: [60, 60],
+            }
+          );
         }
       }
     }
