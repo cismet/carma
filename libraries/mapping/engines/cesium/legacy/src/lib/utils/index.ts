@@ -75,6 +75,11 @@ export {
   type ExtrudedWallVisualizerConfig,
   type ExtrudedWallVisualizerOptions,
 } from "./createExtrudedWallVisualizer";
+export {
+  createGroundPolylineVisualizer,
+  type GroundPolylineVisualizer,
+  type GroundPolylineVisualizerOptions,
+} from "./createGroundPolylineVisualizer";
 export { createModelPrimitiveFromConfig } from "./createModelPrimitiveFromConfig";
 export { DEFAULT_MODEL_HIGHLIGHT_SHADER } from "./modelHighlightShader";
 

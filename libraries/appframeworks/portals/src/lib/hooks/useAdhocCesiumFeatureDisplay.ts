@@ -16,7 +16,9 @@ import type { ModelConfig } from "@carma-commons/resources";
 import type { FeatureInfo } from "@carma/types";
 import {
   createExtrudedWallVisualizer,
+  createGroundPolylineVisualizer,
   type ExtrudedWallVisualizer,
+  type GroundPolylineVisualizer,
 } from "@carma-mapping/engines/cesium";
 import type { Feature, Polygon } from "geojson";
 
@@ -75,6 +77,28 @@ const getDefaultWallHeight = (feature: AdhocFeature): number => {
   return 15;
 };
 
+const shouldUseGroundPolyline = (feature: AdhocFeature): boolean => {
+  const properties = feature.properties as { cesiumStyle?: { groundPolyline?: boolean | object; wall?: boolean } } | undefined;
+  const cesiumStyle = properties?.cesiumStyle;
+  if (typeof cesiumStyle?.groundPolyline === "object" && cesiumStyle.groundPolyline !== null) return true;
+  if (cesiumStyle?.groundPolyline === true) return true;
+  if (cesiumStyle?.wall === false) return true;
+  return false;
+};
+
+const getGroundPolylineOptions = (feature: AdhocFeature): { lineColor?: string; opacity?: number; lineWidth?: number } => {
+  const properties = feature.properties as { cesiumStyle?: { groundPolyline?: { lineColor?: string; opacity?: number; lineWidth?: number } } } | undefined;
+  const groundPolyline = properties?.cesiumStyle?.groundPolyline;
+  if (typeof groundPolyline === "object" && groundPolyline !== null) {
+    return {
+      lineColor: groundPolyline.lineColor,
+      opacity: groundPolyline.opacity,
+      lineWidth: groundPolyline.lineWidth,
+    };
+  }
+  return {};
+};
+
 export const useAdhocCesiumFeatureDisplay = (
   options: UseAdhocCesiumFeatureDisplayOptions
 ): UseAdhocCesiumFeatureDisplayResult => {
@@ -98,8 +122,8 @@ export const useAdhocCesiumFeatureDisplay = (
     setShouldFocusSelected,
   } = useAdhocFeatureDisplay();
 
-  // Single ref for all visualizers
-  const visualizersRef = useRef<Map<string, ExtrudedWallVisualizer>>(new Map());
+  // Single ref for all visualizers - union type for different visualizer implementations
+  const visualizersRef = useRef<Map<string, ExtrudedWallVisualizer | GroundPolylineVisualizer>>(new Map());
   // Track which features have been successfully registered to Cesium
   const [registeredFeatureIds, setRegisteredFeatureIds] = useState<Set<string>>(
     new Set()
@@ -276,27 +300,44 @@ export const useAdhocCesiumFeatureDisplay = (
         const terrainProvider = getTerrainProvider();
         const surfaceProvider = getSurfaceProvider();
 
-        const wallHeights = getWallHeights(feature);
-        const defaultWallHeight = getDefaultWallHeight(feature);
+        const useGroundPolyline = shouldUseGroundPolyline(feature);
 
-        const visualizer = createExtrudedWallVisualizer(
-          {
-            id: feature.id,
-            feature: geoJsonFeature,
-            terrainProvider: terrainProvider ?? undefined,
-            surfaceProvider: surfaceProvider ?? undefined,
-          },
-          {
-            wallColor: getAdhocAccentColor(feature) ?? "#3A7CEB",
-            opacity: wallOpacity?.default ?? 0.7,
-            selectedOpacity: wallOpacity?.selected ?? 0.4,
-            selectionLineWidth: selectionLineWidthPixels,
-            selectionColor: Color.YELLOW,
-            wallHeight: wallHeights ?? defaultWallHeight,
-            animationDurationMs: wallOpacityAnimation?.durationMs ?? 200,
-            animationEasing: wallOpacityAnimation?.easing,
-          }
-        );
+        let visualizer: ExtrudedWallVisualizer | GroundPolylineVisualizer;
+
+        if (useGroundPolyline) {
+          const gpOptions = getGroundPolylineOptions(feature);
+          visualizer = createGroundPolylineVisualizer(
+            feature.id,
+            geoJsonFeature,
+            {
+              lineColor: gpOptions.lineColor ?? getAdhocAccentColor(feature) ?? "#3A7CEB",
+              opacity: gpOptions.opacity ?? wallOpacity?.default ?? 0.7,
+              lineWidth: gpOptions.lineWidth ?? 5,
+            }
+          );
+        } else {
+          const wallHeights = getWallHeights(feature);
+          const defaultWallHeight = getDefaultWallHeight(feature);
+
+          visualizer = createExtrudedWallVisualizer(
+            {
+              id: feature.id,
+              feature: geoJsonFeature,
+              terrainProvider: terrainProvider ?? undefined,
+              surfaceProvider: surfaceProvider ?? undefined,
+            },
+            {
+              wallColor: getAdhocAccentColor(feature) ?? "#3A7CEB",
+              opacity: wallOpacity?.default ?? 0.7,
+              selectedOpacity: wallOpacity?.selected ?? 0.4,
+              selectionLineWidth: selectionLineWidthPixels,
+              selectionColor: Color.YELLOW,
+              wallHeight: wallHeights ?? defaultWallHeight,
+              animationDurationMs: wallOpacityAnimation?.durationMs ?? 200,
+              animationEasing: wallOpacityAnimation?.easing,
+            }
+          );
+        }
 
         visualizersRef.current.set(feature.id, visualizer);
 
