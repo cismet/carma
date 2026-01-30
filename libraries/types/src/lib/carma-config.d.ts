@@ -1,1 +1,1 @@
-export type CarmaConfig = Record<string, string | string[]>;
+export type CarmaConfig = Record<string, string | string[] | boolean>;

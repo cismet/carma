@@ -320,22 +320,36 @@ export const useCreateCismapLayers = (
                     }
                   }
 
-                  if (featuresWithGeometry.length === 1) {
-                    const feature = featuresWithGeometry[0];
-                    if (feature.geometry) {
-                      const center = centroid(
-                        feature as GeoJSON.Feature<GeoJSON.Geometry>
-                      );
-                      const [lng, lat] = center.geometry.coordinates;
-                      const latlngPoint = L.latLng(lat, lng);
+                  const autoSelect = layer.conf?.autoSelect;
 
-                      leafletMap.fireEvent("click", {
-                        latlng: latlngPoint,
-                        layerPoint: leafletMap.latLngToLayerPoint(latlngPoint),
-                        containerPoint:
-                          leafletMap.latLngToContainerPoint(latlngPoint),
-                      });
-                    }
+                  if (autoSelect === false) {
+                    return;
+                  }
+
+                  let featureToSelect: GeoJSON.Feature | undefined;
+
+                  if (typeof autoSelect === "string") {
+                    featureToSelect = featuresWithGeometry.find(
+                      (f) =>
+                        f.id === autoSelect || f.properties?.id === autoSelect
+                    );
+                  } else if (featuresWithGeometry.length === 1) {
+                    featureToSelect = featuresWithGeometry[0];
+                  }
+
+                  if (featureToSelect?.geometry) {
+                    const center = centroid(
+                      featureToSelect as GeoJSON.Feature<GeoJSON.Geometry>
+                    );
+                    const [lng, lat] = center.geometry.coordinates;
+                    const latlngPoint = L.latLng(lat, lng);
+
+                    leafletMap.fireEvent("click", {
+                      latlng: latlngPoint,
+                      layerPoint: leafletMap.latLngToLayerPoint(latlngPoint),
+                      containerPoint:
+                        leafletMap.latLngToContainerPoint(latlngPoint),
+                    });
                   }
                 }
               }

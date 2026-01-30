@@ -169,14 +169,23 @@ export const parseToMapLayer = async (
         vectorStyle = layer.vectorStyle;
       }
 
-      let metaData: Record<string, unknown> = {};
-      if (vectorStyle && localJson && typeof vectorStyle !== "string") {
+      let metaData: {
+        carmaConf?: {
+          layerInfo?: {
+            keywords?: string[];
+            [key: string]: unknown;
+          };
+          [key: string]: unknown;
+        };
+        [key: string]: unknown;
+      } = {};
+      if (vectorStyle && typeof vectorStyle === "object") {
         zoom = parseZoom(vectorStyle.layers, {
           minzoom: 9,
           maxzoom: 24,
         });
         if (vectorStyle.metadata && vectorStyle.metadata.carmaConf.layerInfo) {
-          metaData = vectorStyle.metadata.carmaConf.layerInfo;
+          metaData = vectorStyle.metadata;
         }
       } else if (typeof vectorStyle === "string" && vectorStyle) {
         zoom = await fetch(vectorStyle)
@@ -189,7 +198,7 @@ export const parseToMapLayer = async (
               maxzoom: 24,
             });
             if (result.metadata && result.metadata.carmaConf.layerInfo) {
-              metaData = result.metadata.carmaConf.layerInfo;
+              metaData = result.metadata;
             }
             return parsedZoom;
           });
@@ -197,10 +206,16 @@ export const parseToMapLayer = async (
 
       let vectorConf = null;
 
-      if (metaData?.keywords) {
-        vectorConf = extractCarmaConfig(metaData.keywords as string[]);
+      if (metaData?.carmaConf?.layerInfo?.keywords) {
+        vectorConf = extractCarmaConfig(
+          metaData?.carmaConf?.layerInfo?.keywords as string[]
+        );
       }
-      const mergedConf = { ...vectorConf, ...carmaConf };
+
+      const metaDataCarmaConf = metaData?.carmaConf as
+        | Record<string, unknown>
+        | undefined;
+      const mergedConf = { ...vectorConf, ...metaDataCarmaConf, ...carmaConf };
 
       newLayer = {
         title: layer.title,
@@ -401,7 +416,6 @@ export const zoomToFeature = ({
         });
       }
     } else {
-      console.log("xxx", selectedFeature.geometry);
       const bbox = envelope(selectedFeature.geometry).bbox;
 
       if (leafletMap) {
