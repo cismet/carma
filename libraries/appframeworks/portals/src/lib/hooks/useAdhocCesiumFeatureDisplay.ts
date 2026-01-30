@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import {
   BoundingSphere,
@@ -119,8 +119,25 @@ export const useAdhocCesiumFeatureDisplay = (
   const selectionLineWidthPixelsRef = useRef<number | undefined>(
     selectionLineWidthPixels
   );
+  const [renderTick, setRenderTick] = useState(0);
   const { animateGeometryInstanceOpacity } =
     useGeometryInstanceOpacityAnimation(wallOpacityAnimationConfig);
+
+  const clearAdhocPrimitives = useCallback((scene: Scene) => {
+    const primitivesByFeature = adhocWallPrimitivesRef.current;
+    const wallDataByFeature = adhocWallDataRef.current;
+    const selectionPrimitives = adhocSelectionPrimitivesRef.current;
+    primitivesByFeature.forEach(({ collection }) => {
+      scene.primitives.remove(collection);
+    });
+    primitivesByFeature.clear();
+    wallDataByFeature.clear();
+    selectionPrimitives.forEach((primitive) => {
+      scene.primitives.remove(primitive);
+    });
+    selectionPrimitives.clear();
+    adhocFeatureCoordinatesRef.current.clear();
+  }, []);
 
   const getAdhocWallColor = useCallback(
     (feature: AdhocFeature, isSelected: boolean) => {
@@ -225,24 +242,15 @@ export const useAdhocCesiumFeatureDisplay = (
   }, [adhocInfoFeature, getIsCesium, onFeatureInfoChange]);
 
   useEffect(() => {
-    if (!getIsCesium()) return;
+    if (!getIsCesium() || !isCesiumEnabled) return;
 
     const scene = getScene();
     if (!scene || scene.isDestroyed()) return;
 
+    clearAdhocPrimitives(scene);
+
     const primitivesByFeature = adhocWallPrimitivesRef.current;
-    const wallDataByFeature = adhocWallDataRef.current;
     const selectionPrimitives = adhocSelectionPrimitivesRef.current;
-    primitivesByFeature.forEach(({ collection }) => {
-      scene.primitives.remove(collection);
-    });
-    primitivesByFeature.clear();
-    wallDataByFeature.clear();
-    selectionPrimitives.forEach((primitive) => {
-      scene.primitives.remove(primitive);
-    });
-    selectionPrimitives.clear();
-    adhocFeatureCoordinatesRef.current.clear();
 
     const geojsonFeatures = adhocFeatures.filter(
       (feature) => !!getGeoJsonFromFeature(feature)
@@ -265,26 +273,34 @@ export const useAdhocCesiumFeatureDisplay = (
 
       const terrainProvider = getTerrainProvider();
       const surfaceProvider = getSurfaceProvider();
-      if (!terrainProvider || !surfaceProvider) return;
+      let heights = ring.map((coord) =>
+        typeof coord[2] === "number" ? coord[2] : 0
+      );
 
-      const positions = ring.map((coord) =>
-        Cartographic.fromDegrees(coord[0], coord[1], 0)
-      );
-      const elevations = await getElevationAsync(
-        terrainProvider,
-        surfaceProvider,
-        positions
-      );
-      if (cancelled || elevations.length !== positions.length) return;
+      if (terrainProvider && surfaceProvider) {
+        try {
+          const positions = ring.map((coord) =>
+            Cartographic.fromDegrees(coord[0], coord[1], 0)
+          );
+          const elevations = await getElevationAsync(
+            terrainProvider,
+            surfaceProvider,
+            positions
+          );
+          if (cancelled || elevations.length !== positions.length) return;
 
-      const sampledHeights = elevations.map(
-        (result) => result.surface?.height ?? result.terrain.height
-      );
-      const heights = ring.map((coord, index) => {
-        const coordHeight = coord[2];
-        if (typeof coordHeight === "number") return coordHeight;
-        return sampledHeights[index] ?? 0;
-      });
+          const sampledHeights = elevations.map(
+            (result) => result.surface?.height ?? result.terrain.height
+          );
+          heights = ring.map((coord, index) => {
+            const coordHeight = coord[2];
+            if (typeof coordHeight === "number") return coordHeight;
+            return sampledHeights[index] ?? 0;
+          });
+        } catch {
+          // fallback to provided Z/zero heights
+        }
+      }
       const coordinatesWithHeight = ring.map((coord, index) => [
         coord[0],
         coord[1],
@@ -334,34 +350,52 @@ export const useAdhocCesiumFeatureDisplay = (
 
     void Promise.all(geojsonFeatures.map(addWallsForFeature)).then(() => {
       if (!cancelled) {
+        setRenderTick((prev) => prev + 1);
+        const selectedId = selectedFeatureIdRef.current;
+        if (selectedId && !selectionPrimitives.has(selectedId)) {
+          const selectedData = adhocWallDataRef.current.get(selectedId);
+          if (selectedData) {
+            const selectionPrimitive = createSelectionEdgePrimitive({
+              ring: selectedData.ring,
+              heights: selectedData.heights,
+              featureId: selectedData.feature.id,
+              color: Color.YELLOW,
+              getWallHeight: (segmentIndex) =>
+                getAdhocWallHeight(selectedData.feature, segmentIndex),
+              widthPixels: selectionLineWidthPixelsRef.current,
+            });
+            if (selectionPrimitive) {
+              scene.primitives.add(selectionPrimitive);
+              selectionPrimitives.set(selectedId, selectionPrimitive);
+            }
+          }
+        }
         scene.requestRender();
       }
     });
 
     return () => {
       cancelled = true;
-      const cleanupPrimitives = primitivesByFeature;
-      const cleanupSelections = selectionPrimitives;
-      const cleanupWallData = wallDataByFeature;
-      cleanupPrimitives.forEach(({ collection }) => {
-        scene.primitives.remove(collection);
-      });
-      cleanupPrimitives.clear();
-      cleanupSelections.forEach((primitive) => {
-        scene.primitives.remove(primitive);
-      });
-      cleanupSelections.clear();
-      cleanupWallData.clear();
-      scene.requestRender();
     };
   }, [
     adhocFeatures,
+    clearAdhocPrimitives,
     getAdhocWallColor,
     getIsCesium,
     getScene,
     getSurfaceProvider,
     getTerrainProvider,
+    isCesiumEnabled,
   ]);
+
+  useEffect(() => {
+    return () => {
+      const scene = getScene();
+      if (!scene || scene.isDestroyed()) return;
+      clearAdhocPrimitives(scene);
+      scene.requestRender();
+    };
+  }, [clearAdhocPrimitives, getScene]);
 
   useEffect(() => {
     if (!getIsCesium() || !shouldFocusSelected || !selectedFeatureId) return;
@@ -415,10 +449,18 @@ export const useAdhocCesiumFeatureDisplay = (
       if (!data) return;
 
       const wallPrimitives = primitivesByFeature.get(featureId);
-      if (wallPrimitives) {
+      const wallPrimitivesInvalid = wallPrimitives
+        ? wallPrimitives.segments.some(({ primitive }) =>
+            primitive.isDestroyed()
+          )
+        : true;
+      if (!wallPrimitivesInvalid && wallPrimitives) {
         const wallColor = getAdhocWallColor(data.feature, isSelected);
         animateWallOpacity(featureId, wallPrimitives, wallColor.alpha);
       } else {
+        if (wallPrimitives) {
+          scene.primitives.remove(wallPrimitives.collection);
+        }
         const newWallPrimitives = createWallPrimitives({
           ring: data.ring,
           heights: data.heights,
@@ -446,7 +488,7 @@ export const useAdhocCesiumFeatureDisplay = (
           color: Color.YELLOW,
           getWallHeight: (segmentIndex) =>
             getAdhocWallHeight(data.feature, segmentIndex),
-          widthPixels: selectionLineWidthPixels,
+          widthPixels: selectionLineWidthPixelsRef.current,
         });
         if (selectionPrimitive) {
           scene.primitives.add(selectionPrimitive);
@@ -471,8 +513,8 @@ export const useAdhocCesiumFeatureDisplay = (
     getIsCesium,
     getScene,
     animateGeometryInstanceOpacity,
+    renderTick,
     selectedFeatureId,
-    selectionLineWidthPixels,
     wallOpacityAnimationConfig,
   ]);
 
