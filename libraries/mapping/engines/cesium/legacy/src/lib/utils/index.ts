@@ -69,6 +69,12 @@ export {
   type WallPrimitiveSegment,
 } from "./adhoc-primitives/create-wall-primitives";
 export { getBoundingSphereFromCoordinates } from "./getBoundingSphereFromCoordinates";
+export {
+  createExtrudedWallVisualizer,
+  type ExtrudedWallVisualizer,
+  type ExtrudedWallVisualizerConfig,
+  type ExtrudedWallVisualizerOptions,
+} from "./createExtrudedWallVisualizer";
 export { createModelPrimitiveFromConfig } from "./createModelPrimitiveFromConfig";
 export { DEFAULT_MODEL_HIGHLIGHT_SHADER } from "./modelHighlightShader";
 
