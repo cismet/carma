@@ -13,7 +13,10 @@ import type { Item, Layer } from "@carma/types";
 import { LayerLib } from "@carma-mapping/layers";
 import { useAuth } from "@carma-providers/auth";
 
-import { updateInfoElementsAfterRemovingFeature } from "../../store/slices/features";
+import {
+  setTriggerSelectionById,
+  updateInfoElementsAfterRemovingFeature,
+} from "../../store/slices/features";
 import {
   addCustomFeatureFlags,
   addFavorite,
@@ -177,6 +180,9 @@ const ResourceModal = () => {
       });
 
       await zoomToStyleFeatures(styleData, routedMap);
+
+      // Signal that this layer should trigger auto-selection when ready
+      dispatch(setTriggerSelectionById(id));
     }
 
     const existingLayer = activeLayers.find(
