@@ -7,7 +7,6 @@ export const ADHOC_TEST_FEATURE: AdhocFeature = {
     version: 8,
     metadata: {
       carmaConf: {
-        instant: true,
         layerInfo: {
           title: "Rathausvorplatz",
           accentColor: "#155317",
@@ -17,7 +16,6 @@ export const ADHOC_TEST_FEATURE: AdhocFeature = {
     sources: {
       adhoc: {
         type: "geojson",
-        generateId: true,
         data: {
           type: "FeatureCollection",
           features: [
