@@ -6,6 +6,7 @@ export type AdhocMapLibreStyleData = {
   version?: number;
   metadata?: {
     carmaConf?: {
+      instant?: boolean;
       layerInfo?: {
         title?: string;
         accentColor?: string;
@@ -16,6 +17,7 @@ export type AdhocMapLibreStyleData = {
     string,
     {
       type?: string;
+      generateId?: boolean;
       data?: Feature | FeatureCollection;
     }
   >;
