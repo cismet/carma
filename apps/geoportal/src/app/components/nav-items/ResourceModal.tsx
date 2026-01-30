@@ -5,6 +5,7 @@ import { useDispatch, useSelector } from "react-redux";
 import { TopicMapContext } from "react-cismap/contexts/TopicMapContextProvider";
 
 import {
+  AdhocMapLibreStyleData,
   useAdhocFeatureDisplay,
   useMapStyle,
   utils,
@@ -12,6 +13,7 @@ import {
 import type { Item, Layer } from "@carma/types";
 import { LayerLib } from "@carma-mapping/layers";
 import { useAuth } from "@carma-providers/auth";
+import { useMapFrameworkSwitcherContext } from "@carma-mapping/components";
 
 import {
   setTriggerSelectionById,
@@ -52,6 +54,7 @@ import { createBackgroundLayerConfig } from "../../helper/layer";
 import { MapStyleKeys } from "../../constants/MapStyleKeys";
 import { type Map } from "leaflet";
 import { zoomToStyleFeatures } from "../../helper/gisHelper";
+
 const ResourceModal = () => {
   const [discoverItems, setDiscoverItems] = useState([]);
 
@@ -77,6 +80,7 @@ const ResourceModal = () => {
     useContext<typeof TopicMapContext>(TopicMapContext);
 
   const { addFeature } = useAdhocFeatureDisplay();
+  const { toggle, isLeaflet } = useMapFrameworkSwitcherContext();
 
   const updateLayers = async (
     layer: Item,
@@ -163,6 +167,7 @@ const ResourceModal = () => {
 
     if (zoomTo && newLayer.layerType === "vector") {
       let styleData = newLayer.props?.style;
+      const conf = newLayer.conf;
 
       if (typeof styleData === "string") {
         try {
@@ -173,16 +178,25 @@ const ResourceModal = () => {
         }
       }
 
+      if (
+        (conf?.modeSwitch === "3D" && isLeaflet) ||
+        (conf?.modeSwitch === "2D" && !isLeaflet)
+      ) {
+        await toggle();
+      }
+
       addFeature({
         id: id,
         kind: "maplibre-style",
-        data: styleData as any,
+        data: styleData as AdhocMapLibreStyleData,
       });
 
       await zoomToStyleFeatures(styleData, routedMap);
 
-      // Signal that this layer should trigger auto-selection when ready
-      dispatch(setTriggerSelectionById(id));
+      if ((conf.modeSwitch !== "3D" && isLeaflet) || conf.modeSwitch === "2D") {
+        // Signal that this layer should trigger auto-selection when ready
+        dispatch(setTriggerSelectionById(id));
+      }
     }
 
     const existingLayer = activeLayers.find(
