@@ -20,7 +20,6 @@ export type FeatureInfoProperties = {
   title: string;
   subtitle?: string;
   additionalInfo?: string;
-  adhocFeatureId?: string;
   email?: string;
   tel?: string;
   url?: string;

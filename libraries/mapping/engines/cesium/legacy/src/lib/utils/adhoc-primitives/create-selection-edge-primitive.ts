@@ -62,7 +62,7 @@ export const createSelectionEdgePrimitive = (
       color: ColorGeometryInstanceAttribute.fromColor(color),
     },
     id: {
-      adhocFeatureId: featureId,
+      featureId,
       selectionEdge: true,
     },
   });

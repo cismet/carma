@@ -9,6 +9,7 @@ export type AdhocMapLibreStyleData = {
       instant?: boolean;
       layerInfo?: {
         title?: string;
+        header?: string;
         accentColor?: string;
       };
     };

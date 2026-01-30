@@ -139,11 +139,8 @@ export const useAdhocCesiumFeatureDisplay = (
           uri: data.url,
           ...(data.scale !== undefined ? { scale: data.scale } : {}),
         },
-        properties: {
-          ...baseProperties,
-          adhocFeatureId: feature.id,
-        },
-        name: typeof metadataTitle === "string" ? metadataTitle : undefined,
+        properties: baseProperties,
+        name: feature.id,
       };
 
       return modelConfig;
@@ -167,9 +164,8 @@ export const useAdhocCesiumFeatureDisplay = (
         onSelect: (feature: unknown) => {
           const featureInfo = feature as FeatureInfo | null;
           onFeatureInfoChange?.(featureInfo);
-          const adhocFeatureId = featureInfo?.properties?.adhocFeatureId;
-          if (typeof adhocFeatureId === "string") {
-            setSelectedFeatureId(adhocFeatureId);
+          if (typeof featureInfo?.id === "string") {
+            setSelectedFeatureId(featureInfo.id);
           }
         },
       },
@@ -402,9 +398,8 @@ export const useAdhocCesiumFeatureDisplay = (
 
   // Get bounding sphere for a feature
   const getAdhocBoundingSphere = useCallback((feature: FeatureInfo) => {
-    const adhocFeatureId = feature.properties?.adhocFeatureId;
-    if (typeof adhocFeatureId !== "string") return null;
-    const visualizer = visualizersRef.current.get(adhocFeatureId);
+    if (typeof feature.id !== "string") return null;
+    const visualizer = visualizersRef.current.get(feature.id);
     return visualizer?.getBoundingSphere() ?? null;
   }, []);
 

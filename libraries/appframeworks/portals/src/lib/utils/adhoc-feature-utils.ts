@@ -35,6 +35,14 @@ export const getAdhocAccentColor = (feature: AdhocFeature) => {
   );
 };
 
+export const getAdhocHeader = (feature: AdhocFeature) => {
+  return (
+    (typeof feature.metadata?.header === "string"
+      ? feature.metadata?.header
+      : undefined) ?? getMapLibreLayerInfo(feature)?.header
+  );
+};
+
 export const getAdhocWallHeight = (
   feature: { metadata?: Record<string, unknown> },
   segmentIndex: number
@@ -90,9 +98,25 @@ const pickNonEmptyString = (...values: Array<unknown>) => {
   );
 };
 
+export const buildInfoBoxStylingProps = ({
+  header,
+  accentColor,
+  rawProps,
+}: {
+  header?: string;
+  accentColor?: string;
+  rawProps?: Record<string, unknown>;
+}) => ({
+  ...(accentColor ? { accentColor } : {}),
+  ...(header ? { _header: header } : {}),
+  wmsProps: (rawProps ?? {}) as { [key: string]: string },
+});
+
 export const buildAdhocFeatureInfo = (
   feature: AdhocFeature
 ): FeatureInfo | null => {
+  const accentColor = getAdhocAccentColor(feature);
+  const header = getAdhocHeader(feature);
   const geojson = getGeoJsonFromFeature(feature);
   if (geojson) {
     const geojsonFeature =
@@ -145,7 +169,11 @@ export const buildAdhocFeatureInfo = (
         title: title ?? fallbackTitle,
         ...(subtitle ? { subtitle } : {}),
         ...(additionalInfo ? { additionalInfo } : {}),
-        adhocFeatureId: feature.id,
+        ...buildInfoBoxStylingProps({
+          header,
+          accentColor,
+          rawProps: geojsonFeature?.properties ?? {},
+        }),
       },
       geometry: geojsonFeature?.geometry,
     };
@@ -164,7 +192,11 @@ export const buildAdhocFeatureInfo = (
       properties: {
         ...(feature.properties ?? { title: fallbackTitle }),
         title: metadataTitle ?? feature.properties?.title ?? fallbackTitle,
-        adhocFeatureId: feature.id,
+        ...buildInfoBoxStylingProps({
+          header,
+          accentColor,
+          rawProps: feature.properties ?? {},
+        }),
       },
     };
   }

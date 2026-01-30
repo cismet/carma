@@ -403,8 +403,8 @@ export const createExtrudedWallVisualizer = (
 
     isPicked: (pickedId: unknown) => {
       if (!pickedId || typeof pickedId !== "object") return false;
-      const picked = pickedId as { adhocFeatureId?: string };
-      return picked.adhocFeatureId === id;
+      const picked = pickedId as { featureId?: string };
+      return picked.featureId === id;
     },
   };
 

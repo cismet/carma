@@ -20,7 +20,7 @@ type CreateWallPrimitivesOptions = {
 
 export type WallPrimitiveSegment = {
   primitive: Primitive;
-  instanceId: { adhocFeatureId: string; segmentIndex: number };
+  instanceId: { featureId: string; segmentIndex: number };
 };
 
 export type WallPrimitivesResult = {
@@ -63,7 +63,7 @@ export const createWallPrimitives = (
       minimumHeights: [startHeight, endHeight],
     });
 
-    const instanceId = { adhocFeatureId: featureId, segmentIndex: i };
+    const instanceId = { featureId, segmentIndex: i };
     const instance = new GeometryInstance({
       geometry,
       attributes: {
