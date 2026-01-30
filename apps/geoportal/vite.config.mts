@@ -12,7 +12,8 @@ export default defineConfig({
 
   server: {
     port: 4200,
-    host: "localhost",
+    host: true,
+    allowedHosts: ["localhost", "flexo.kg6.cismet.de"],
     fs: {
       allow: ["../.."],
     },

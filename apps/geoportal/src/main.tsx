@@ -27,6 +27,8 @@ preventPinchZoom();
 
 const root = createRoot(document.getElementById("root") as HTMLElement);
 
+document.getElementById("splash-loading")?.remove();
+
 console.debug("RENDER: [GEOPORTAL] ROOT");
 
 root.render(
