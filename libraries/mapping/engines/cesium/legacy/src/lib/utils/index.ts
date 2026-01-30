@@ -61,6 +61,17 @@ export {
 } from "./cesiumGroundPrimitives";
 export { guardPrimitiveCollection } from "./guardPrimitiveCollection";
 
+// Adhoc primitives
+export { createSelectionEdgePrimitive } from "./adhoc-primitives/create-selection-edge-primitive";
+export {
+  createWallPrimitives,
+  type WallPrimitivesResult,
+  type WallPrimitiveSegment,
+} from "./adhoc-primitives/create-wall-primitives";
+export { getBoundingSphereFromCoordinates } from "./getBoundingSphereFromCoordinates";
+export { createModelPrimitiveFromConfig } from "./createModelPrimitiveFromConfig";
+export { DEFAULT_MODEL_HIGHLIGHT_SHADER } from "./modelHighlightShader";
+
 // Tileset
 export { guardTileset } from "./guardTileset";
 

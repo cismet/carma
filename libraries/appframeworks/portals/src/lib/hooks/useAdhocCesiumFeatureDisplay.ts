@@ -20,8 +20,12 @@ import {
 import type { ModelConfig } from "@carma-commons/resources";
 import type { FeatureInfo } from "@carma/types";
 import {
+  createSelectionEdgePrimitive,
+  createWallPrimitives,
+  getBoundingSphereFromCoordinates,
   getElevationAsync,
   useGeometryInstanceOpacityAnimation,
+  type WallPrimitivesResult,
 } from "@carma-mapping/engines/cesium";
 
 import {
@@ -32,16 +36,10 @@ import {
   buildAdhocFeatureInfo,
   getAdhocAccentColor,
   getAdhocWallHeight,
-  getBoundingSphereFromCoordinates,
   getGeoJsonFromFeature,
   getPolygonFromGeoJson,
   isAdhocModelFeature,
 } from "../utils/adhoc-feature-utils";
-import { createSelectionEdgePrimitive } from "../utils/adhoc-primitives/create-selection-edge-primitive";
-import {
-  createWallPrimitives,
-  type WallPrimitivesResult,
-} from "../utils/adhoc-primitives/create-wall-primitives";
 import { useCesiumModels } from "./useCesiumModels";
 
 export type UseAdhocCesiumFeatureDisplayOptions = {
@@ -192,7 +190,7 @@ export const useAdhocCesiumFeatureDisplay = (
       enabled: isCesiumEnabled && hasCesiumModels,
       selection: {
         enabled: isCesiumEnabled && hasCesiumModels,
-        deselectOnEmptyClick: false,
+        deselectOnEmptyClick: true,
         onSelect: (feature: unknown) => {
           const featureInfo = feature as FeatureInfo | null;
           onFeatureInfoChange?.(featureInfo);

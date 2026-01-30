@@ -1,4 +1,3 @@
-import { BoundingSphere, Cartesian3 } from "@carma/cesium";
 import type { Feature, FeatureCollection, Geometry } from "geojson";
 
 import type { FeatureInfo } from "@carma/types";
@@ -49,15 +48,6 @@ export const getAdhocWallHeight = (
     return height;
   }
   return ADHOC_WALL_DEFAULT_HEIGHT;
-};
-
-export const getBoundingSphereFromCoordinates = (
-  coordinates: number[][]
-): BoundingSphere => {
-  const points = coordinates.map((coord) =>
-    Cartesian3.fromDegrees(coord[0], coord[1], coord[2] ?? 0)
-  );
-  return BoundingSphere.fromPoints(points);
 };
 
 export const getPolygonFromGeoJson = (

@@ -1,20 +1,17 @@
 import { useEffect, useRef } from "react";
 import {
-  Entity,
   ScreenSpaceEventHandler,
   ScreenSpaceEventType,
   CustomShader,
+  Model,
   Scene,
-} from "cesium";
+} from "@carma/cesium";
+import type { ModelConfig } from "@carma-commons/resources";
 import {
-  ModelConfig,
-  createModelEntityConstructorOptions,
-} from "@carma-commons/resources";
-import { useCesiumContext } from "@carma-mapping/engines/cesium";
-import { DEFAULT_MODEL_HIGHLIGHT_SHADER } from "../utils/cesiumShaders";
-
-type PrimitiveLike = { isCesium3DTileset?: boolean };
-type WithPrimitive = { primitive?: PrimitiveLike };
+  createModelPrimitiveFromConfig,
+  useCesiumContext,
+} from "@carma-mapping/engines/cesium";
+import { DEFAULT_MODEL_HIGHLIGHT_SHADER } from "@carma-mapping/engines/cesium";
 
 interface UseCesiumModelsOptions {
   models: ModelConfig[];
@@ -27,19 +24,17 @@ interface UseCesiumModelsOptions {
   };
 }
 
-// Manage Cesium 3D model entities with optional selection/highlighting
+// Manage Cesium 3D model primitives with optional selection/highlighting
 export const useCesiumModels = ({
   models,
   enabled,
   selection,
 }: UseCesiumModelsOptions) => {
-  const { viewerRef, isValidViewer, isViewerReady, requestRender } =
-    useCesiumContext();
-  const modelEntitiesRef = useRef<Entity[]>([]);
-  const modelsLoadedRef = useRef(false);
+  const { getScene, requestRender } = useCesiumContext();
+  const modelPrimitivesRef = useRef<Map<string, Model>>(new Map());
   type DrillPickResult = ReturnType<Scene["drillPick"]>;
   type PickedObject = DrillPickResult[0];
-  const selectedEntityRef = useRef<PickedObject | null>(null);
+  const selectedPrimitiveRef = useRef<Model | null>(null);
   const originalShaderRef = useRef<CustomShader | undefined>(undefined);
   const onSelectRef = useRef<((feature: unknown | null) => void) | undefined>(
     undefined
@@ -49,113 +44,167 @@ export const useCesiumModels = ({
     onSelectRef.current = selection?.onSelect;
   }, [selection?.onSelect]);
 
-  useEffect(() => {
-    const v = viewerRef.current;
-    if (
-      !enabled ||
-      !isValidViewer() ||
-      !isViewerReady ||
-      models.length === 0 ||
-      !v
-    )
-      return;
+  const buildModelKey = (config: ModelConfig): string => {
+    const model = config.model;
+    const position = config.position;
+    const orientation = config.orientation ?? {};
+    return JSON.stringify({
+      uri: model.uri,
+      scale: typeof model.scale === "number" ? model.scale : null,
+      position: {
+        longitude: position.longitude,
+        latitude: position.latitude,
+        altitude: position.altitude,
+      },
+      orientation: {
+        heading: orientation.heading ?? null,
+        pitch: orientation.pitch ?? null,
+        roll: orientation.roll ?? null,
+      },
+      name: typeof config.name === "string" ? config.name : null,
+      title:
+        typeof config.properties?.title === "string"
+          ? config.properties.title
+          : null,
+    });
+  };
 
-    // Prevent re-adding models if already loaded
-    if (modelsLoadedRef.current && modelEntitiesRef.current.length > 0) {
+  useEffect(() => {
+    const scene = getScene();
+    if (!enabled || models.length === 0 || !scene || scene.isDestroyed()) {
       return;
     }
 
-    const loadedEntities: Entity[] = [];
+    let cancelled = false;
 
-    try {
-      models.forEach((modelConfig) => {
-        const modelConstructorOptions =
-          createModelEntityConstructorOptions(modelConfig);
-        const modelEntity = new Entity(modelConstructorOptions);
-        v.entities.add(modelEntity);
-        loadedEntities.push(modelEntity);
-      });
-
-      modelEntitiesRef.current = loadedEntities;
-      modelsLoadedRef.current = true;
-      requestRender();
-    } catch (error) {
-      console.warn("[Cesium|Models] Model load failure:", error);
-      loadedEntities.forEach((entity) => {
+    const addModels = async () => {
+      for (const modelConfig of models) {
+        const key = buildModelKey(modelConfig);
+        const existing = modelPrimitivesRef.current.get(key);
+        if (existing && !existing.isDestroyed()) {
+          continue;
+        }
         try {
-          v.entities.remove(entity);
+          const modelPrimitive = await createModelPrimitiveFromConfig(
+            modelConfig
+          );
+          if (cancelled || scene.isDestroyed()) {
+            if (!modelPrimitive.isDestroyed()) {
+              modelPrimitive.destroy();
+            }
+            return;
+          }
+          scene.primitives.add(modelPrimitive);
+          modelPrimitivesRef.current.set(key, modelPrimitive);
+          requestRender();
+        } catch (error) {
+          console.warn("[Cesium|Models] Model load failure:", error);
+        }
+      }
+    };
+
+    void addModels();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [enabled, models, getScene, requestRender]);
+
+  useEffect(() => {
+    const primitivesByKey = modelPrimitivesRef.current;
+    return () => {
+      const scene = getScene();
+      selectedPrimitiveRef.current = null;
+      originalShaderRef.current = undefined;
+      onSelectRef.current?.(null);
+      if (!scene || scene.isDestroyed()) return;
+      primitivesByKey.forEach((primitive) => {
+        try {
+          scene.primitives.remove(primitive);
+          if (!primitive.isDestroyed()) {
+            primitive.destroy();
+          }
         } catch (cleanupError) {
           console.warn(
-            "[Cesium|Models] Failed to cleanup model entity:",
+            "[Cesium|Models] Failed to cleanup model primitive:",
             cleanupError
           );
         }
       });
-    }
-
-    return () => {
-      if (modelEntitiesRef.current.length > 0 && v && !v.isDestroyed()) {
-        try {
-          modelEntitiesRef.current.forEach((entity) => {
-            v.entities.remove(entity);
-          });
-          modelEntitiesRef.current = [];
-          modelsLoadedRef.current = false;
-        } catch (error) {
-          console.warn("[Cesium|Models] Cleanup failed:", error);
-        }
-      }
+      primitivesByKey.clear();
     };
-  }, [enabled, models, viewerRef, isValidViewer, isViewerReady, requestRender]);
+  }, [getScene]);
 
   useEffect(() => {
-    const v = viewerRef.current;
     const selectionEnabled = !!selection?.enabled && enabled;
-    if (!selectionEnabled || !isValidViewer() || !v || !v.scene || !v.canvas)
+    const scene = getScene();
+    if (!selectionEnabled || !scene || scene.isDestroyed() || !scene.canvas) {
       return;
-
-    const { scene, canvas } = v;
+    }
+    const { canvas } = scene;
     const handler = new ScreenSpaceEventHandler(canvas);
 
     const highlightShader =
       selection?.highlightShader ?? DEFAULT_MODEL_HIGHLIGHT_SHADER;
 
+    const applyShader = (primitive: Model, shader?: CustomShader) => {
+      if (primitive.isDestroyed()) return;
+      if (primitive.ready) {
+        primitive.customShader = shader;
+        requestRender();
+        return;
+      }
+      const readyPromise = (
+        primitive as unknown as { readyPromise?: Promise<unknown> }
+      ).readyPromise;
+      if (!readyPromise) {
+        primitive.customShader = shader;
+        requestRender();
+        return;
+      }
+      readyPromise
+        .then(() => {
+          if (!primitive.isDestroyed()) {
+            primitive.customShader = shader;
+            requestRender();
+          }
+        })
+        .catch(() => undefined);
+    };
+
     const isModelPick = (
       obj: PickedObject | undefined | null
-    ): obj is PickedObject => {
-      const candidate = obj as unknown as WithPrimitive | null | undefined;
-      return !!(
-        candidate &&
-        candidate.primitive &&
-        !candidate.primitive.isCesium3DTileset
+    ): obj is PickedObject & { primitive: Model } => {
+      const candidate = obj as { primitive?: unknown } | null | undefined;
+      return (
+        candidate?.primitive instanceof Model &&
+        !candidate.primitive.isDestroyed()
       );
     };
 
     const clearPreviousHighlight = () => {
-      if (selectedEntityRef.current?.id?.model) {
-        selectedEntityRef.current.id.model.customShader =
-          originalShaderRef.current ?? undefined;
-        requestRender();
+      const current = selectedPrimitiveRef.current;
+      if (!current || current.isDestroyed()) {
+        selectedPrimitiveRef.current = null;
+        originalShaderRef.current = undefined;
+        return;
       }
+      applyShader(current, originalShaderRef.current ?? undefined);
     };
 
-    const applyHighlight = (entity: PickedObject): void => {
-      if (!entity.id?.model) return;
-      originalShaderRef.current = entity.id.model.customShader ?? undefined;
-      if (highlightShader) entity.id.model.customShader = highlightShader;
-      requestRender();
+    const applyHighlight = (primitive: Model): void => {
+      if (primitive.isDestroyed()) return;
+      originalShaderRef.current = primitive.customShader ?? undefined;
+      applyShader(primitive, highlightShader);
     };
 
-    const extractProperties = (
-      entity: PickedObject
-    ): Record<string, unknown> => {
-      const entityProperties = entity.id?.properties;
+    const extractProperties = (picked: PickedObject): Record<string, unknown> => {
+      const pickId = picked?.id as { properties?: Record<string, unknown> };
+      const entityProperties = pickId?.properties;
       const extracted: Record<string, unknown> = {};
       if (entityProperties) {
-        const propertyNames = entityProperties.propertyNames || [];
-        propertyNames.forEach((name: string) => {
-          const property = entityProperties[name];
-          extracted[name] = property?.getValue ? property.getValue() : property;
+        Object.entries(entityProperties).forEach(([key, value]) => {
+          extracted[key] = value;
         });
       }
       return extracted;
@@ -163,7 +212,7 @@ export const useCesiumModels = ({
 
     const deselect = () => {
       clearPreviousHighlight();
-      selectedEntityRef.current = null;
+      selectedPrimitiveRef.current = null;
       originalShaderRef.current = undefined;
       onSelectRef.current?.(null);
     };
@@ -171,20 +220,21 @@ export const useCesiumModels = ({
     const handleLeftClick = ({
       position,
     }: ScreenSpaceEventHandler.PositionedEvent) => {
-      if (!position || !isValidViewer()) return;
-      const entities = scene.drillPick(position, 5);
-      for (let i = 0; i < entities.length; i++) {
-        const entity = entities[i];
-        if (isModelPick(entity)) {
+      if (!position) return;
+      const picks = scene.drillPick(position, 5);
+      for (let i = 0; i < picks.length; i++) {
+        const picked = picks[i];
+        if (isModelPick(picked)) {
           clearPreviousHighlight();
-          applyHighlight(entity);
-          const id = (entity.id as Entity).id;
+          applyHighlight(picked.primitive as Model);
+          const pickId = picked.id as { id?: string } | undefined;
+          const id = pickId?.id ?? undefined;
           onSelectRef.current?.({
             id,
-            properties: extractProperties(entity),
+            properties: extractProperties(picked),
             is3dModel: true,
           });
-          selectedEntityRef.current = entity;
+          selectedPrimitiveRef.current = picked.primitive as Model;
           return;
         }
       }
@@ -195,12 +245,8 @@ export const useCesiumModels = ({
 
     return () => {
       try {
-        if (selectedEntityRef.current?.id?.model) {
-          selectedEntityRef.current.id.model.customShader =
-            originalShaderRef.current ?? undefined;
-          requestRender();
-        }
-        selectedEntityRef.current = null;
+        clearPreviousHighlight();
+        selectedPrimitiveRef.current = null;
         originalShaderRef.current = undefined;
         onSelectRef.current?.(null);
         handler.removeInputAction(ScreenSpaceEventType.LEFT_CLICK);
@@ -211,8 +257,7 @@ export const useCesiumModels = ({
     };
   }, [
     enabled,
-    viewerRef,
-    isValidViewer,
+    getScene,
     requestRender,
     selection?.enabled,
     selection?.deselectOnEmptyClick,
