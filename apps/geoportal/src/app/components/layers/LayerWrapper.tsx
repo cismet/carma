@@ -46,6 +46,7 @@ import GeoportalLayerButton from "./GeoportalLayerButton";
 import SecondaryView from "./SecondaryView";
 
 import "./button.css";
+import { useMapFrameworkSwitcherContext } from "@carma-mapping/components";
 
 const LayerWrapper = () => {
   const dispatch: AppDispatch = useDispatch();
@@ -60,6 +61,7 @@ const LayerWrapper = () => {
   const showLeftScrollButton = useSelector(getShowLeftScrollButton);
   const showRightScrollButton = useSelector(getShowRightScrollButton);
 
+  const { isLeaflet } = useMapFrameworkSwitcherContext();
   const { isOver, setNodeRef } = useDroppable({
     id: "droppable",
   });
@@ -156,14 +158,16 @@ const LayerWrapper = () => {
               </div>
             )}
             <div className="w-full flex justify-center items-center h-full gap-2">
-              <GeoportalLayerButton
-                icon="background"
-                layer={backgroundLayer}
-                index={-1}
-                id={backgroundLayer.id}
-                title=""
-                background
-              />
+              {isLeaflet && (
+                <GeoportalLayerButton
+                  icon="background"
+                  layer={backgroundLayer}
+                  index={-1}
+                  id={backgroundLayer.id}
+                  title=""
+                  background
+                />
+              )}
               {size.width > 640 && (
                 <div
                   id="scrollWrapper"
@@ -173,24 +177,28 @@ const LayerWrapper = () => {
                     items={layers}
                     strategy={horizontalListSortingStrategy}
                   >
-                    {layers.map((layer, i) => (
-                      <GeoportalLayerButton
-                        title={layer.title}
-                        id={layer.id}
-                        key={layer.id}
-                        index={i}
-                        icon={
-                          layer.title.includes("Orthofoto")
-                            ? "ortho"
-                            : layer.title === "Bäume"
-                            ? "bäume"
-                            : layer.title.includes("gärten")
-                            ? "gärten"
-                            : undefined
-                        }
-                        layer={layer}
-                      />
-                    ))}
+                    {layers.map((layer, i) =>
+                      layer.type !== "object" && !isLeaflet ? (
+                        <></>
+                      ) : (
+                        <GeoportalLayerButton
+                          title={layer.title}
+                          id={layer.id}
+                          key={layer.id}
+                          index={i}
+                          icon={
+                            layer.title.includes("Orthofoto")
+                              ? "ortho"
+                              : layer.title === "Bäume"
+                              ? "bäume"
+                              : layer.title.includes("gärten")
+                              ? "gärten"
+                              : undefined
+                          }
+                          layer={layer}
+                        />
+                      )
+                    )}
                   </SortableContext>
                 </div>
               )}
