@@ -197,7 +197,8 @@ export const getVectorMapping = async (
   const layerPromises = vectorStyles.map(async (vectorStyle) => {
     let capabilitiesLayer = "";
     let capabilitiesUrl = "";
-    let infoboxMapping: string[] | string = vectorStyle.infoboxMapping || [];
+    let infoboxMapping: string[] | string | boolean =
+      vectorStyle.infoboxMapping || [];
 
     // First, try to get mapping from the vector style's metadata
     if (!vectorStyle.infoboxMapping && vectorStyle.style) {
@@ -211,6 +212,7 @@ export const getVectorMapping = async (
           const extractedFromStyle = extractCarmaConfig(styleKeywords);
           if (
             extractedFromStyle?.infoboxMapping &&
+            typeof extractedFromStyle.infoboxMapping !== "boolean" &&
             extractedFromStyle.infoboxMapping.length > 0
           ) {
             infoboxMapping = extractedFromStyle.infoboxMapping;
@@ -228,6 +230,7 @@ export const getVectorMapping = async (
               const extractedFromLayer = extractCarmaConfig(layerKeywords);
               if (
                 extractedFromLayer?.infoboxMapping &&
+                typeof extractedFromLayer.infoboxMapping !== "boolean" &&
                 extractedFromLayer.infoboxMapping.length > 0
               ) {
                 infoboxMapping = extractedFromLayer.infoboxMapping;
