@@ -15,6 +15,14 @@ import { extractAllRings } from "@carma/geo/utils";
 
 import { getBoundingSphereFromCoordinates } from "./getBoundingSphereFromCoordinates";
 
+const DEFAULT_LINE_COLOR = "#3A7CEB";
+
+const normalizeColor = (color: string | Color | undefined): Color => {
+  if (!color) return Color.fromCssColorString(DEFAULT_LINE_COLOR);
+  if (typeof color === "string") return Color.fromCssColorString(color);
+  return color;
+};
+
 export type GroundPolylineVisualizerOptions = {
   /** Line color (CSS string or Cesium Color) - defaults to white */
   lineColor?: string | Color;
@@ -44,7 +52,7 @@ export const createGroundPolylineVisualizer = (
   options: GroundPolylineVisualizerOptions = {}
 ): GroundPolylineVisualizer => {
   // Normalize options with defaults
-  const lineColor = Color.WHITE;
+  const lineColor = normalizeColor(options.lineColor);
   const opacity = options.opacity ?? 0.5;
   const lineWidth = options.lineWidth ?? 5;
 
