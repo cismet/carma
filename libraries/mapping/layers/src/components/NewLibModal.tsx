@@ -693,6 +693,7 @@ export const NewLibModal = ({
       const featuredLayersWithServiceName = featuredLayers.map((layer) => ({
         ...layer,
         serviceName: "featured",
+        path: "Empfohlen",
       }));
       setAllLayers((prev) => {
         return [
