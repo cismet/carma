@@ -54,6 +54,12 @@ export const useHandleDrop = ({
     }
   };
 
+  const preTransformJson = (input: string) => {
+    return input
+      .replaceAll("__SERVER_URL__", "https://tiles.cismet.de")
+      .replaceAll("__server_url__", "https://tiles.cismet.de");
+  };
+
   const handleAddToMap = (newItem: any, instant = false) => {
     if (instant) {
       setAdditionalLayers(newItem, false, false, false, true);
@@ -76,10 +82,8 @@ export const useHandleDrop = ({
           // Attempt to parse the file content as JSON
           const fileContent = e.target?.result;
           if (typeof fileContent === "string") {
-            const processedContent = fileContent.replace(
-              /__SERVER_URL__/g,
-              "https://tiles.cismet.de"
-            );
+            const processedContent = preTransformJson(fileContent);
+            console.log("xxx", processedContent);
 
             const jsonData = JSON.parse(processedContent);
 
@@ -208,10 +212,7 @@ export const useHandleDrop = ({
           // Attempt to parse the file content as JSON
           const fileContent = e.target?.result;
           if (typeof fileContent === "string") {
-            const processedContent = fileContent.replace(
-              /__SERVER_URL__/g,
-              "https://tiles.cismet.de"
-            );
+            const processedContent = preTransformJson(fileContent);
 
             const jsonData = JSON.parse(processedContent);
 
