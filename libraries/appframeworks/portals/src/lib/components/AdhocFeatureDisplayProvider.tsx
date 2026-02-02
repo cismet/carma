@@ -99,17 +99,28 @@ export function AdhocFeatureDisplayProvider({
     setSelectedFeatureId(id);
   }, []);
 
-  const addFeature = useCallback((feature: AdhocFeature) => {
-    setFeatures((prev) => {
-      const existingIndex = prev.findIndex((item) => item.id === feature.id);
-      if (existingIndex === -1) {
-        return [...prev, feature];
+  const addFeature = useCallback(
+    (feature: AdhocFeature) => {
+      let isNew = false;
+      setFeatures((prev) => {
+        const existingIndex = prev.findIndex((item) => item.id === feature.id);
+        if (existingIndex === -1) {
+          isNew = true;
+          return [...prev, feature];
+        }
+        const next = [...prev];
+        next[existingIndex] = feature;
+        return next;
+      });
+
+      const metadata = feature.metadata as { rehydrated?: boolean } | undefined;
+      if (isNew && !metadata?.rehydrated) {
+        setSelectedFeatureId(feature.id);
+        setShouldFocusSelected(true);
       }
-      const next = [...prev];
-      next[existingIndex] = feature;
-      return next;
-    });
-  }, []);
+    },
+    [setSelectedFeatureId, setShouldFocusSelected]
+  );
 
   const removeFeature = useCallback((id: string) => {
     setFeatures((prev) => prev.filter((feature) => feature.id !== id));

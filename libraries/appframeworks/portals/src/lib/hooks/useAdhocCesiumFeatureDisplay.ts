@@ -86,6 +86,11 @@ const shouldUseGroundPolyline = (feature: AdhocFeature): boolean => {
   return false;
 };
 
+const isRehydratedFeature = (feature: AdhocFeature): boolean => {
+  const metadata = feature.metadata as { rehydrated?: boolean } | undefined;
+  return Boolean(metadata?.rehydrated);
+};
+
 const getGroundPolylineOptions = (feature: AdhocFeature): { lineColor?: string; opacity?: number; lineWidth?: number } => {
   const properties = feature.properties as { cesiumStyle?: { groundPolyline?: { lineColor?: string; opacity?: number; lineWidth?: number } } } | undefined;
   const groundPolyline = properties?.cesiumStyle?.groundPolyline;
@@ -133,6 +138,9 @@ export const useAdhocCesiumFeatureDisplay = (
   const shouldFocusSelectedRef = useRef<boolean>(false);
   selectedFeatureIdRef.current = selectedFeatureId ?? null;
   shouldFocusSelectedRef.current = shouldFocusSelected;
+
+  // Track pending selection/focus requests for features that don't have visualizers yet
+  const pendingSelectionRef = useRef<{ featureId: string; shouldFocus: boolean } | null>(null);
 
   // Compute which geojson features need visualizers
   const geojsonFeatureIds = useMemo(() => {
@@ -348,6 +356,7 @@ export const useAdhocCesiumFeatureDisplay = (
         } catch {
           // Visualizer failed to attach, remove from map
           visualizersRef.current.delete(feature.id);
+          continue;
         }
 
         if (cancelled) {
@@ -357,20 +366,62 @@ export const useAdhocCesiumFeatureDisplay = (
         }
 
         // Set initial selection state and potentially fly to
-        if (selectedFeatureIdRef.current === feature.id) {
+        const pending = pendingSelectionRef.current;
+        if (pending?.featureId === feature.id) {
+          console.log("[CESIUM|SYNC] Applying pending selection/focus for:", feature.id);
           visualizer.selected = true;
+
+          const featureInfo = buildAdhocFeatureInfo(feature);
+          onFeatureInfoChange?.(featureInfo);
+
+          if (pending.shouldFocus) {
+            const isRehydrated = isRehydratedFeature(feature);
+            if (!isRehydrated) {
+              const sphere = visualizer.getBoundingSphere();
+              if (sphere) {
+                flyToBoundingSphereExtent(scene.camera, sphere, {
+                  minRange: 50,
+                  paddingFactor: 1.1,
+                });
+              }
+            }
+            // Clear the global focus flag since we handled it (or skipped on rehydrate)
+            setShouldFocusSelected(false);
+          }
+          pendingSelectionRef.current = null;
+        } else if (selectedFeatureIdRef.current === feature.id) {
+          visualizer.selected = true;
+
+          const featureInfo = buildAdhocFeatureInfo(feature);
+          onFeatureInfoChange?.(featureInfo);
 
           // If focus was requested, fly to this feature
           if (shouldFocusSelectedRef.current) {
-            const sphere = visualizer.getBoundingSphere();
-            if (sphere) {
-              flyToBoundingSphereExtent(scene.camera, sphere, {
-                minRange: 50,
-                paddingFactor: 1.1,
-              });
-              setShouldFocusSelected(false);
+            const isRehydrated = isRehydratedFeature(feature);
+            if (!isRehydrated) {
+              const sphere = visualizer.getBoundingSphere();
+              if (sphere) {
+                flyToBoundingSphereExtent(scene.camera, sphere, {
+                  minRange: 50,
+                  paddingFactor: 1.1,
+                });
+              }
             }
+            setShouldFocusSelected(false);
           }
+        } else if (!isRehydratedFeature(feature)) {
+          setSelectedFeatureId(feature.id);
+          visualizer.selected = true;
+          const featureInfo = buildAdhocFeatureInfo(feature);
+          onFeatureInfoChange?.(featureInfo);
+          const sphere = visualizer.getBoundingSphere();
+          if (sphere) {
+            flyToBoundingSphereExtent(scene.camera, sphere, {
+              minRange: 50,
+              paddingFactor: 1.1,
+            });
+          }
+          setShouldFocusSelected(false);
         }
       }
 
@@ -442,6 +493,15 @@ export const useAdhocCesiumFeatureDisplay = (
       ? buildAdhocFeatureInfo(selectedFeature)
       : null;
     onFeatureInfoChange?.(featureInfo);
+
+    // If feature doesn't have a visualizer yet, queue pending selection/focus
+    if (selectedFeatureId && !visualizersRef.current.has(selectedFeatureId)) {
+      pendingSelectionRef.current = {
+        featureId: selectedFeatureId,
+        shouldFocus: shouldFocusSelected,
+      };
+      console.log("[CESIUM|SELECT] Queued pending selection for:", selectedFeatureId, "focus:", shouldFocusSelected);
+    }
 
     // Handle fly-to if requested (only reset flag if fly-to actually happens)
     if (shouldFocusSelected && selectedFeatureId) {

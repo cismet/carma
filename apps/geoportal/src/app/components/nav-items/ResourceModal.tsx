@@ -219,7 +219,7 @@ const ResourceModal = () => {
       if ((conf.modeSwitch !== "3D" && isLeaflet) || conf.modeSwitch === "2D") {
         // Signal that this layer should trigger auto-selection when ready
         dispatch(setTriggerSelectionById(id));
-      } else {
+      } else if (!isLeaflet || conf.modeSwitch === "3D") {
         // 3D (Cesium) mode: select and fly to the feature
         setSelectedFeatureId(id);
         setShouldFocusSelected(true);

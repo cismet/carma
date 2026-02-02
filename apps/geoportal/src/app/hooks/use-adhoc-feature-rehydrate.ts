@@ -25,6 +25,7 @@ export const useAdhocFeatureRehydrate = () => {
     setSelectedFeatureId,
   } = useAdhocFeatureDisplay();
   const rehydratedRef = useRef<Set<string>>(new Set());
+  const initialAdhocLayerIdsRef = useRef<Set<string> | null>(null);
   // Track if we're syncing to prevent loops
   const isSyncingFromRedux = useRef(false);
   const isSyncingFromProvider = useRef(false);
@@ -38,6 +39,10 @@ export const useAdhocFeatureRehydrate = () => {
     );
 
     const adhocLayers = layers.filter(isAdhocVectorLayer);
+
+    if (initialAdhocLayerIdsRef.current === null) {
+      initialAdhocLayerIdsRef.current = new Set(adhocLayers.map((layer) => layer.id));
+    }
 
     // Add missing features
     adhocLayers.forEach((layer) => {
@@ -66,7 +71,12 @@ export const useAdhocFeatureRehydrate = () => {
             id: layer.id,
             kind: "maplibre-style",
             data: styleData,
-            properties: featureProperties as unknown as Parameters<typeof addFeature>[0]["properties"],
+            properties:
+              featureProperties as unknown as Parameters<typeof addFeature>[0]["properties"],
+            metadata: {
+              rehydrated:
+                initialAdhocLayerIdsRef.current?.has(layer.id) ?? false,
+            },
           });
           rehydratedRef.current.add(layer.id);
         }
