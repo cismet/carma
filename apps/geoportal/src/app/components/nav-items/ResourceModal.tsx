@@ -83,8 +83,7 @@ const ResourceModal = () => {
     deleteItem: boolean = false,
     forceWMS: boolean = false,
     previewLayer: boolean = false,
-    updateExisting: boolean = false,
-    zoomTo: boolean = false
+    updateExisting: boolean = false
   ) => {
     let newLayer: Layer;
     const id = layer.id.startsWith("fav_") ? layer.id.slice(4) : layer.id;
@@ -161,7 +160,7 @@ const ResourceModal = () => {
 
     newLayer = await utils.parseToMapLayer(layer, forceWMS, true);
 
-    if (zoomTo && isAdhocVectorLayer(newLayer)) {
+    if (newLayer.type === "object" && isAdhocVectorLayer(newLayer)) {
       // Safe to access style since isAdhocVectorLayer checks layerType === "vector"
       const style = (newLayer.props as { style?: string | object }).style;
       const styleData = await resolveAdhocStyleData(style);
@@ -180,10 +179,24 @@ const ResourceModal = () => {
 
       // Extract properties from GeoJSON features for cesiumStyle detection
       let featureProperties: Record<string, unknown> | undefined;
-      const sources = styleData.sources as Record<string, { type?: string; data?: { type?: string; features?: Array<{ properties?: Record<string, unknown> }> } }> | undefined;
+      const sources = styleData.sources as
+        | Record<
+            string,
+            {
+              type?: string;
+              data?: {
+                type?: string;
+                features?: Array<{ properties?: Record<string, unknown> }>;
+              };
+            }
+          >
+        | undefined;
       if (sources) {
         for (const source of Object.values(sources)) {
-          if (source?.type === "geojson" && source.data?.features?.[0]?.properties) {
+          if (
+            source?.type === "geojson" &&
+            source.data?.features?.[0]?.properties
+          ) {
             featureProperties = source.data.features[0].properties;
             break;
           }
@@ -194,8 +207,12 @@ const ResourceModal = () => {
         id: id,
         kind: "maplibre-style",
         data: styleData as AdhocMapLibreStyleData,
-        properties: featureProperties as unknown as Parameters<typeof addFeature>[0]["properties"],
+        properties: featureProperties as unknown as Parameters<
+          typeof addFeature
+        >[0]["properties"],
       });
+
+      console.log("xxx zoom");
 
       await zoomToStyleFeatures(styleData, routedMap);
 
