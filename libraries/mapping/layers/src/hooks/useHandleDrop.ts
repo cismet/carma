@@ -301,8 +301,6 @@ export const useHandleDrop = ({
         if (url && url.endsWith(".json")) {
           handleJsonStyle(null, url);
         } else if (url) {
-          openModal();
-
           fetch(url)
             .then((response) => {
               return response.text();
@@ -322,6 +320,7 @@ export const useHandleDrop = ({
                     };
                   })
                 );
+                openModal();
               }
             })
             .catch((error) => {
@@ -347,7 +346,6 @@ export const useHandleDrop = ({
 
             return;
           }
-          openModal();
 
           file
             .text()
@@ -365,6 +363,7 @@ export const useHandleDrop = ({
                     };
                   })
                 );
+                openModal();
               }
             })
             .catch((error) => {
