@@ -100,8 +100,8 @@ export const useHandleDrop = ({
                 ...newItem,
                 ...carmaConf.layerInfo,
                 keywords: [
-                  ...newItem.keywords,
-                  ...(carmaConf.layerInfo.keywords || []),
+                  ...newItem?.keywords,
+                  ...(carmaConf?.layerInfo?.keywords || []),
                 ],
               };
               instant = carmaConf?.instant ?? false;
@@ -149,7 +149,7 @@ export const useHandleDrop = ({
             newItem = {
               ...newItem,
               ...layerInfo,
-              keywords: [...newItem.keywords, ...(layerInfo.keywords || [])],
+              keywords: [...newItem?.keywords, ...(layerInfo?.keywords || [])],
             };
           }
         })
@@ -234,8 +234,8 @@ export const useHandleDrop = ({
                 ...newItem,
                 ...carmaConf.layerInfo,
                 keywords: [
-                  ...newItem.keywords,
-                  ...(carmaConf.layerInfo.keywords || []),
+                  ...newItem?.keywords,
+                  ...(carmaConf?.layerInfo?.keywords || []),
                 ],
               };
               instant = carmaConf?.instant ?? false;
@@ -272,7 +272,7 @@ export const useHandleDrop = ({
             newItem = {
               ...newItem,
               ...layerInfo,
-              keywords: [...newItem.keywords, ...(layerInfo.keywords || [])],
+              keywords: [...newItem?.keywords, ...(layerInfo?.keywords || [])],
             };
           }
         })
