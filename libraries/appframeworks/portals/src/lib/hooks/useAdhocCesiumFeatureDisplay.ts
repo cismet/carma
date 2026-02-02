@@ -328,12 +328,9 @@ export const useAdhocCesiumFeatureDisplay = (
           const defaultWallHeight = getDefaultWallHeight(feature);
 
           visualizer = createExtrudedWallVisualizer(
-            {
-              id: feature.id,
-              feature: geoJsonFeature,
-              terrainProvider: terrainProvider ?? undefined,
-              surfaceProvider: surfaceProvider ?? undefined,
-            },
+            feature.id,
+            geoJsonFeature,
+            terrainProvider ?? undefined,
             {
               wallColor: getAdhocAccentColor(feature) ?? "#3A7CEB",
               opacity: wallOpacity?.default ?? 0.7,

@@ -3,15 +3,17 @@ import {
   Cartographic,
   Color,
   Primitive,
+  PrimitiveCollection,
   type CesiumTerrainProvider,
   type Scene,
 } from "@carma/cesium";
-import type { Feature, Polygon, MultiPolygon } from "geojson";
+import type { Feature, FeatureCollection } from "geojson";
 import { Easing, type Easing as EasingFunction } from "@carma-commons/math";
+
+import { extractAllRings } from "@carma/geo/utils";
 
 import {
   createWallPrimitives,
-  type WallPrimitivesResult,
   type WallPrimitiveSegment,
 } from "./adhoc-primitives/create-wall-primitives";
 import { createSelectionEdgePrimitive } from "./adhoc-primitives/create-selection-edge-primitive";
@@ -50,17 +52,6 @@ export type ExtrudedWallVisualizerOptions = {
   animationEasing?: EasingFunction;
 };
 
-export type ExtrudedWallVisualizerConfig = {
-  /** Unique identifier */
-  id: string;
-  /** GeoJSON Feature with Polygon or MultiPolygon geometry */
-  feature: Feature<Polygon | MultiPolygon>;
-  /** Terrain provider for elevation sampling (DEM) */
-  terrainProvider?: CesiumTerrainProvider;
-  /** Surface provider for elevation sampling (DSM) */
-  surfaceProvider?: CesiumTerrainProvider;
-};
-
 export type ExtrudedWallVisualizer = {
   readonly id: string;
   selected: boolean;
@@ -77,22 +68,6 @@ export type ExtrudedWallVisualizer = {
   isPicked: (pickedId: unknown) => boolean;
 };
 
-const extractRingFromFeature = (
-  feature: Feature<Polygon | MultiPolygon>
-): number[][] | null => {
-  const geometry = feature.geometry;
-  if (!geometry) return null;
-
-  if (geometry.type === "Polygon") {
-    return geometry.coordinates[0] ?? null;
-  }
-
-  if (geometry.type === "MultiPolygon") {
-    return geometry.coordinates[0]?.[0] ?? null;
-  }
-
-  return null;
-};
 
 const normalizeColor = (color: string | Color | undefined): Color => {
   if (!color) return Color.fromCssColorString(DEFAULT_WALL_COLOR);
@@ -101,10 +76,11 @@ const normalizeColor = (color: string | Color | undefined): Color => {
 };
 
 export const createExtrudedWallVisualizer = (
-  config: ExtrudedWallVisualizerConfig,
+  id: string,
+  geojson: Feature | FeatureCollection,
+  terrainProvider?: CesiumTerrainProvider,
   options: ExtrudedWallVisualizerOptions = {}
 ): ExtrudedWallVisualizer => {
-  const { id, feature, terrainProvider, surfaceProvider } = config;
 
   // Normalize options with defaults
   const wallHeightConfig = options.wallHeight ?? DEFAULT_WALL_HEIGHT_METERS;
@@ -124,18 +100,20 @@ export const createExtrudedWallVisualizer = (
   let _isReady = false;
   let _isDestroyed = false;
 
-  // Geometry data
-  const ring = extractRingFromFeature(feature);
-  let heights: number[] | null = ring
-    ? ring.map((coord) => (typeof coord[2] === "number" ? coord[2] : 0))
-    : null;
+  // Geometry data - extract all rings from the geojson
+  const rings = extractAllRings(geojson);
+
+  // Initialize heights for each ring from coordinate Z values
+  let heightsPerRing: number[][] = rings.map((ring) =>
+    ring.map((coord) => (typeof coord[2] === "number" ? coord[2] : 0))
+  );
   let coordinatesWithHeight: number[][] | null = null;
 
   // Cesium primitives
   let scene: Scene | null = null;
   let requestRender: (() => void) | null = null;
-  let wallPrimitives: WallPrimitivesResult | null = null;
-  let selectionPrimitive: Primitive | null = null;
+  let wallPrimitivesCollections: PrimitiveCollection[] = [];
+  let selectionPrimitives: Primitive[] = [];
 
   // Animation state
   let cancelAnimation: (() => void) | null = null;
@@ -154,45 +132,59 @@ export const createExtrudedWallVisualizer = (
   };
 
   const updateCoordinatesWithHeight = () => {
-    if (!ring || !heights) return;
-    coordinatesWithHeight = ring.map((coord, index) => [
-      coord[0],
-      coord[1],
-      heights![index] ?? 0,
-    ]);
+    if (rings.length === 0 || heightsPerRing.length === 0) return;
+    // Flatten all rings with their heights
+    const allCoords: number[][] = [];
+    for (let i = 0; i < rings.length; i++) {
+      const ring = rings[i];
+      const heights = heightsPerRing[i];
+      if (!ring || !heights) continue;
+      for (let j = 0; j < ring.length; j++) {
+        const coord = ring[j];
+        const height = heights[j] ?? 0;
+        allCoords.push([coord[0], coord[1], height]);
+      }
+    }
+    coordinatesWithHeight = allCoords;
   };
 
   const sampleElevations = async (): Promise<void> => {
-    if (!ring || !terrainProvider || !surfaceProvider) {
+    if (rings.length === 0 || !terrainProvider) {
       updateCoordinatesWithHeight();
       return;
     }
 
     try {
-      const positions = ring.map((coord) =>
-        Cartographic.fromDegrees(coord[0], coord[1], 0)
-      );
+      // Sample elevations for each ring
+      for (let i = 0; i < rings.length; i++) {
+        const ring = rings[i];
+        if (!ring || ring.length === 0) continue;
 
-      const elevations = await getElevationAsync(
-        terrainProvider,
-        surfaceProvider,
-        positions
-      );
+        const positions = ring.map((coord) =>
+          Cartographic.fromDegrees(coord[0], coord[1], 0)
+        );
 
-      if (_isDestroyed || elevations.length !== positions.length) {
-        return;
+        const elevations = await getElevationAsync(
+          terrainProvider,
+          terrainProvider,
+          positions
+        );
+
+        if (_isDestroyed || elevations.length !== positions.length) {
+          continue;
+        }
+
+        const sampledHeights = elevations.map(
+          (result) => result.surface?.height ?? result.terrain.height
+        );
+
+        // Merge sampled heights with explicit Z values for this ring
+        heightsPerRing[i] = ring.map((coord, index) => {
+          const coordHeight = coord[2];
+          if (typeof coordHeight === "number") return coordHeight;
+          return sampledHeights[index] ?? 0;
+        });
       }
-
-      const sampledHeights = elevations.map(
-        (result) => result.surface?.height ?? result.terrain.height
-      );
-
-      // Merge sampled heights with explicit Z values
-      heights = ring.map((coord, index) => {
-        const coordHeight = coord[2];
-        if (typeof coordHeight === "number") return coordHeight;
-        return sampledHeights[index] ?? 0;
-      });
 
       updateCoordinatesWithHeight();
     } catch {
@@ -202,41 +194,57 @@ export const createExtrudedWallVisualizer = (
   };
 
   const createWalls = () => {
-    if (!ring || !heights || !scene) return;
+    if (rings.length === 0 || !scene) return;
 
-    wallPrimitives = createWallPrimitives({
-      ring,
-      heights,
-      featureId: id,
-      isSelected: _selected,
-      getWallColor,
-      getWallHeight,
-    });
+    for (let i = 0; i < rings.length; i++) {
+      const ring = rings[i];
+      const heights = heightsPerRing[i];
+      if (!ring || !heights || ring.length < 2) continue;
 
-    scene.primitives.add(wallPrimitives.collection);
+      const wallPrimitives = createWallPrimitives({
+        ring,
+        heights,
+        featureId: id,
+        isSelected: _selected,
+        getWallColor,
+        getWallHeight,
+      });
+
+      wallPrimitivesCollections.push(wallPrimitives.collection);
+      scene.primitives.add(wallPrimitives.collection);
+    }
   };
 
   const addSelectionEdge = () => {
-    if (!ring || !heights || !scene) return;
+    if (rings.length === 0 || !scene) return;
 
-    selectionPrimitive = createSelectionEdgePrimitive({
-      ring,
-      heights,
-      featureId: id,
-      color: selectionColor,
-      getWallHeight,
-      widthPixels: selectionLineWidth,
-    });
+    for (let i = 0; i < rings.length; i++) {
+      const ring = rings[i];
+      const heights = heightsPerRing[i];
+      if (!ring || !heights || ring.length < 2) continue;
 
-    if (selectionPrimitive) {
-      scene.primitives.add(selectionPrimitive);
+      const selectionPrimitive = createSelectionEdgePrimitive({
+        ring,
+        heights,
+        featureId: id,
+        color: selectionColor,
+        getWallHeight,
+        widthPixels: selectionLineWidth,
+      });
+
+      if (selectionPrimitive) {
+        selectionPrimitives.push(selectionPrimitive);
+        scene.primitives.add(selectionPrimitive);
+      }
     }
   };
 
   const removeSelectionEdge = () => {
-    if (!selectionPrimitive || !scene) return;
-    scene.primitives.remove(selectionPrimitive);
-    selectionPrimitive = null;
+    if (selectionPrimitives.length === 0 || !scene) return;
+    for (const primitive of selectionPrimitives) {
+      scene.primitives.remove(primitive);
+    }
+    selectionPrimitives = [];
   };
 
   const cancelPendingAnimation = () => {
@@ -247,12 +255,28 @@ export const createExtrudedWallVisualizer = (
   };
 
   const animateWallOpacity = (targetOpacity: number) => {
-    if (!wallPrimitives || !requestRender) return;
+    if (wallPrimitivesCollections.length === 0 || !requestRender) return;
 
     cancelPendingAnimation();
 
-    const segments = wallPrimitives.segments;
-    const startOpacity = readGeometryInstanceOpacity(segments);
+    // Collect all segments from all wall collections
+    const allSegments: WallPrimitiveSegment[] = [];
+    for (const collection of wallPrimitivesCollections) {
+      for (let i = 0; i < collection.length; i++) {
+        const primitive = collection.get(i) as Primitive | undefined;
+        if (primitive && 'geometryInstances' in primitive) {
+          const geomPrimitive = primitive as unknown as { geometryInstances?: { id?: { featureId: string; segmentIndex: number } } };
+          const instanceId = geomPrimitive.geometryInstances?.id;
+          if (instanceId) {
+            allSegments.push({ primitive, instanceId });
+          }
+        }
+      }
+    }
+
+    if (allSegments.length === 0) return;
+
+    const startOpacity = readGeometryInstanceOpacity(allSegments);
 
     if (startOpacity === null) {
       // Primitives not ready, retry on next frame
@@ -261,7 +285,7 @@ export const createExtrudedWallVisualizer = (
 
       const retry = () => {
         if (cancelled || _isDestroyed) return;
-        const opacity = readGeometryInstanceOpacity(segments);
+        const opacity = readGeometryInstanceOpacity(allSegments);
         if (opacity === null) {
           frameId = requestAnimationFrame(retry);
           return;
@@ -281,7 +305,7 @@ export const createExtrudedWallVisualizer = (
       durationMs: animationDurationMs,
       easing: animationEasing,
       onUpdate: (value) => {
-        applyGeometryInstanceOpacity(segments, value);
+        applyGeometryInstanceOpacity(allSegments, value);
         requestRender?.();
       },
     });
@@ -335,8 +359,8 @@ export const createExtrudedWallVisualizer = (
       if (_isAttached) {
         visualizer.detach();
       }
-      if (!ring || ring.length < 2) {
-        throw new Error("Invalid polygon ring");
+      if (rings.length === 0) {
+        throw new Error("No valid polygon rings");
       }
 
       scene = sceneRef;
@@ -365,15 +389,15 @@ export const createExtrudedWallVisualizer = (
 
       cancelPendingAnimation();
 
-      if (wallPrimitives) {
-        scene.primitives.remove(wallPrimitives.collection);
-        wallPrimitives = null;
+      for (const collection of wallPrimitivesCollections) {
+        scene.primitives.remove(collection);
       }
+      wallPrimitivesCollections = [];
 
-      if (selectionPrimitive) {
-        scene.primitives.remove(selectionPrimitive);
-        selectionPrimitive = null;
+      for (const primitive of selectionPrimitives) {
+        scene.primitives.remove(primitive);
       }
+      selectionPrimitives = [];
 
       _isAttached = false;
       _isReady = false;
@@ -386,7 +410,7 @@ export const createExtrudedWallVisualizer = (
       _isDestroyed = true;
       scene = null;
       requestRender = null;
-      heights = null;
+      heightsPerRing = [];
       coordinatesWithHeight = null;
     },
 
@@ -399,7 +423,21 @@ export const createExtrudedWallVisualizer = (
 
     getCoordinatesWithHeight: () => coordinatesWithHeight,
 
-    getWallSegments: () => wallPrimitives?.segments ?? [],
+    getWallSegments: () => {
+      const allSegments: WallPrimitiveSegment[] = [];
+      for (const collection of wallPrimitivesCollections) {
+        for (let i = 0; i < collection.length; i++) {
+          const primitive = collection.get(i);
+          if (primitive && 'geometryInstances' in primitive) {
+            const instanceId = (primitive as unknown as { geometryInstances?: { id?: unknown } }).geometryInstances?.id;
+            if (instanceId) {
+              allSegments.push({ primitive: primitive as Primitive, instanceId: instanceId as { featureId: string; segmentIndex: number } });
+            }
+          }
+        }
+      }
+      return allSegments;
+    },
 
     isPicked: (pickedId: unknown) => {
       if (!pickedId || typeof pickedId !== "object") return false;

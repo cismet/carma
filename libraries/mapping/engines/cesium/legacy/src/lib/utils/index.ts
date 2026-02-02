@@ -72,7 +72,6 @@ export { getBoundingSphereFromCoordinates } from "./getBoundingSphereFromCoordin
 export {
   createExtrudedWallVisualizer,
   type ExtrudedWallVisualizer,
-  type ExtrudedWallVisualizerConfig,
   type ExtrudedWallVisualizerOptions,
 } from "./createExtrudedWallVisualizer";
 export {
