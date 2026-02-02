@@ -158,16 +158,16 @@ const LayerWrapper = () => {
               </div>
             )}
             <div className="w-full flex justify-center items-center h-full gap-2">
-              {isLeaflet && (
-                <GeoportalLayerButton
-                  icon="background"
-                  layer={backgroundLayer}
-                  index={-1}
-                  id={backgroundLayer.id}
-                  title=""
-                  background
-                />
-              )}
+              <GeoportalLayerButton
+                icon="background"
+                layer={backgroundLayer}
+                index={-1}
+                id={backgroundLayer.id}
+                title=""
+                background
+                hide={!isLeaflet}
+              />
+
               {size.width > 640 && (
                 <div
                   id="scrollWrapper"
@@ -177,28 +177,25 @@ const LayerWrapper = () => {
                     items={layers}
                     strategy={horizontalListSortingStrategy}
                   >
-                    {layers.map((layer, i) =>
-                      layer.type !== "object" && !isLeaflet ? (
-                        <></>
-                      ) : (
-                        <GeoportalLayerButton
-                          title={layer.title}
-                          id={layer.id}
-                          key={layer.id}
-                          index={i}
-                          icon={
-                            layer.title.includes("Orthofoto")
-                              ? "ortho"
-                              : layer.title === "Bäume"
-                              ? "bäume"
-                              : layer.title.includes("gärten")
-                              ? "gärten"
-                              : undefined
-                          }
-                          layer={layer}
-                        />
-                      )
-                    )}
+                    {layers.map((layer, i) => (
+                      <GeoportalLayerButton
+                        title={layer.title}
+                        id={layer.id}
+                        key={layer.id}
+                        index={i}
+                        icon={
+                          layer.title.includes("Orthofoto")
+                            ? "ortho"
+                            : layer.title === "Bäume"
+                            ? "bäume"
+                            : layer.title.includes("gärten")
+                            ? "gärten"
+                            : undefined
+                        }
+                        layer={layer}
+                        hide={layer.type !== "object" && !isLeaflet}
+                      />
+                    ))}
                   </SortableContext>
                 </div>
               )}

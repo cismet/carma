@@ -52,6 +52,7 @@ interface LayerButtonProps {
   icon?: string;
   layer: Layer;
   background?: boolean;
+  hide?: boolean;
 }
 
 const GeoportalLayerButton = ({
@@ -61,6 +62,7 @@ const GeoportalLayerButton = ({
   icon,
   layer,
   background,
+  hide = false,
 }: LayerButtonProps) => {
   const { ref, inView } = useInView({
     threshold: 0.99,
@@ -141,7 +143,8 @@ const GeoportalLayerButton = ({
         "",
         // index === -1 && 'ml-auto',
         // index === layersLength - 1 && 'mr-auto',
-        showLeftScrollButton && index === -1 && "pr-4"
+        showLeftScrollButton && index === -1 && "pr-4",
+        hide && "hidden"
       )}
       id={`layer-${id}`}
     >
