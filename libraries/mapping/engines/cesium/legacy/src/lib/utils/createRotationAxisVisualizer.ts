@@ -24,8 +24,6 @@ export type RotationAxisVisualizerOptions = {
   color?: Color;
   /** Line width in pixels (default: 1) */
   width?: number;
-  /** Whether to show as dotted line (default: true) */
-  dotted?: boolean;
 };
 
 export type RotationAxisVisualizer = {
@@ -71,6 +69,7 @@ export const createRotationAxisVisualizer = (
     lengthMultiplier = DEFAULT_LENGTH_MULTIPLIER,
     dashPixelLength = DEFAULT_DASH_PIXEL_LENGTH,
     gapPixelLength = DEFAULT_GAP_PIXEL_LENGTH,
+    color = DEFAULT_COLOR,
     width = DEFAULT_WIDTH,
   } = options;
 
@@ -82,11 +81,13 @@ export const createRotationAxisVisualizer = (
   let _isDestroyed = false;
   let _isVisible = true;
   let _opacity = 1.0;
+  const baseColor = color;
 
   // Cesium references
   let scene: Scene | null = null;
   let requestRender: (() => void) | null = null;
   let polylineCollection: PolylineCollection | null = null;
+  let lineMaterial: Material | null = null;
 
   // Animation cancel function
   let cancelAnimation: (() => void) | null = null;
@@ -121,6 +122,20 @@ export const createRotationAxisVisualizer = (
     };
   };
 
+  const applyOpacity = (value: number) => {
+    if (!polylineCollection || !lineMaterial) return;
+    const colorUniform = lineMaterial.uniforms.color as Color | undefined;
+    if (colorUniform) {
+      colorUniform.red = baseColor.red;
+      colorUniform.green = baseColor.green;
+      colorUniform.blue = baseColor.blue;
+      colorUniform.alpha = value;
+    } else {
+      lineMaterial.uniforms.color = baseColor.withAlpha(value);
+    }
+    requestRender?.();
+  };
+
   const createPolyline = () => {
     if (!scene) return;
 
@@ -136,6 +151,9 @@ export const createRotationAxisVisualizer = (
     const numSegments = Math.floor(totalLength / segmentLength);
 
     polylineCollection = new PolylineCollection();
+    lineMaterial = Material.fromType("Color", {
+      color: baseColor.withAlpha(_opacity),
+    });
 
     for (let i = 0; i < numSegments; i++) {
       const segmentStart = -lineLength + i * segmentLength;
@@ -147,15 +165,10 @@ export const createRotationAxisVisualizer = (
       const startPoint = Cartesian3.add(_origin, startScaled, new Cartesian3());
       const endPoint = Cartesian3.add(_origin, endScaled, new Cartesian3());
 
-      // Create material with alpha for true opacity animation
-      const material = Material.fromType("Color", {
-        color: new Color(1.0, 1.0, 1.0, _opacity),
-      });
-
       polylineCollection.add({
         positions: [startPoint, endPoint],
         width,
-        material,
+        material: lineMaterial,
         show: _isVisible,
       });
     }
@@ -242,6 +255,7 @@ export const createRotationAxisVisualizer = (
       if (polylineCollection) {
         scene.primitives.remove(polylineCollection);
         polylineCollection = null;
+        lineMaterial = null;
       }
 
       _isAttached = false;
@@ -282,8 +296,8 @@ export const createRotationAxisVisualizer = (
             polyline.show = true;
           }
         }
+        applyOpacity(_opacity);
       }
-      requestRender?.();
     },
 
     hide: () => {
@@ -298,8 +312,8 @@ export const createRotationAxisVisualizer = (
             polyline.show = false;
           }
         }
+        applyOpacity(_opacity);
       }
-      requestRender?.();
     },
 
     fadeIn: (durationMs: number) => {
@@ -322,16 +336,7 @@ export const createRotationAxisVisualizer = (
         durationMs,
         onUpdate: (value) => {
           _opacity = value;
-          if (polylineCollection) {
-            for (let i = 0; i < polylineCollection.length; i++) {
-              const polyline = polylineCollection.get(i);
-              if (polyline && polyline.material) {
-                // Animate material alpha for true opacity
-                polyline.material.uniforms.color.alpha = value;
-              }
-            }
-          }
-          requestRender?.();
+          applyOpacity(value);
         },
       });
     },
@@ -345,22 +350,19 @@ export const createRotationAxisVisualizer = (
         durationMs,
         onUpdate: (value) => {
           _opacity = value;
+          applyOpacity(value);
+        },
+        onComplete: () => {
+          _isVisible = false;
           if (polylineCollection) {
             for (let i = 0; i < polylineCollection.length; i++) {
               const polyline = polylineCollection.get(i);
-              if (polyline && polyline.material) {
-                // Animate material alpha for true opacity
-                polyline.material.uniforms.color.alpha = value;
-                if (value <= 0.01) {
-                  polyline.show = false;
-                }
+              if (polyline) {
+                polyline.show = false;
               }
             }
           }
           requestRender?.();
-        },
-        onComplete: () => {
-          _isVisible = false;
           onComplete?.();
         },
       });
