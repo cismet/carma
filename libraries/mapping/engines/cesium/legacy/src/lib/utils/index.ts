@@ -79,6 +79,11 @@ export {
   type GroundPolylineVisualizer,
   type GroundPolylineVisualizerOptions,
 } from "./createGroundPolylineVisualizer";
+export {
+  createRotationAxisVisualizer,
+  type RotationAxisVisualizer,
+  type RotationAxisVisualizerOptions,
+} from "./createRotationAxisVisualizer";
 export { createModelPrimitiveFromConfig } from "./createModelPrimitiveFromConfig";
 export { DEFAULT_MODEL_HIGHLIGHT_SHADER } from "./modelHighlightShader";
 

@@ -85,6 +85,7 @@ import useLeafletZoomControls from "../../hooks/leaflet/useLeafletZoomControls.t
 import { useDispatchSachdatenInfoText } from "../../hooks/useDispatchSachdatenInfoText.ts";
 import { useFeatureInfoModeCursorStyle } from "../../hooks/useFeatureInfoModeCursorStyle.ts";
 import { useObliqueInitializer } from "../../oblique/hooks/useObliqueInitializer.ts";
+import { useCameraOrbit } from "../../hooks/useCameraOrbit.ts";
 import { useGeoportalFrameworkSwitcher } from "./controls/use-geoportal-framework-switcher.ts";
 
 import { onClickTopicMap } from "./topicmap.utils.ts";
@@ -134,6 +135,7 @@ export const GeoportalMap = ({ height, width, allow3d }: MapProps) => {
     getSurfaceProvider,
     getTerrainProvider,
     getScene,
+    withEntities,
     isValidViewer: isValidViewerCtx,
     isViewerReady,
   } = useCesiumContext();
@@ -369,6 +371,19 @@ export const GeoportalMap = ({ height, width, allow3d }: MapProps) => {
     routedMapRef,
   ]);
 
+  // Camera orbit functionality for 3D mode
+  const { isOrbiting, toggleOrbit, stopOrbit } = useCameraOrbit({
+    scene: cesiumScene,
+    enabled: getIsCesium(),
+  });
+
+  // Stop orbit when feature is deselected
+  useEffect(() => {
+    if (!selectedFeature && isOrbiting) {
+      stopOrbit();
+    }
+  }, [selectedFeature, isOrbiting, stopOrbit]);
+
   useRegisterMapFramework(frameworkOptions);
 
   // Register geoportal-specific framework switcher callbacks
@@ -583,7 +598,14 @@ export const GeoportalMap = ({ height, width, allow3d }: MapProps) => {
       }
     } else if (getIsCesium() && selectedFeature) {
       // TODO unify with point queries for position information?
-      return <FeatureInfoBox onZoomToFeature={handleZoomToFeature} />;
+      return (
+        <FeatureInfoBox
+          onZoomToFeature={handleZoomToFeature}
+          displayOrbit={true}
+          isOrbiting={isOrbiting}
+          onOrbitToggle={toggleOrbit}
+        />
+      );
     }
 
     return <div></div>;
@@ -596,6 +618,8 @@ export const GeoportalMap = ({ height, width, allow3d }: MapProps) => {
     loadingFeatureInfo,
     pos,
     handleZoomToFeature,
+    isOrbiting,
+    toggleOrbit,
   ]);
 
   const showOverlayFromOutside = useCallback(

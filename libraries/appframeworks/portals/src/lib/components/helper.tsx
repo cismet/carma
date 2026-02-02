@@ -10,6 +10,9 @@ interface ActionLinksConfig {
     from: { lat: number; lng: number };
     to: { lat: number; lng: number };
   }) => void;
+  displayOrbit?: boolean;
+  isOrbiting?: boolean;
+  onOrbitToggle?: () => void;
 }
 
 export const getActionLinksForFeature = (
@@ -29,6 +32,9 @@ export const getActionLinksForFeature = (
       );
     },
     onRouteAction,
+    displayOrbit = false,
+    isOrbiting = false,
+    onOrbitToggle,
   }: ActionLinksConfig = {}
 ): JSX.Element[] => {
   const infoxboxControlObject = feature.properties.info;
@@ -43,6 +49,19 @@ export const getActionLinksForFeature = (
           zoomToFeature(feature);
         }}
         iconname={"search-location"}
+      />
+    );
+  }
+  if (displayOrbit === true) {
+    links.push(
+      <IconLink
+        key={`orbit`}
+        tooltip={isOrbiting ? "Orbit stoppen" : "Orbit starten"}
+        onClick={() => {
+          onOrbitToggle?.();
+        }}
+        iconname="sync-alt"
+        spin={isOrbiting}
       />
     );
   }
