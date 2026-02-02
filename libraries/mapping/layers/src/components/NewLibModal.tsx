@@ -48,6 +48,7 @@ import {
   addReplaceLayers,
   setSelectedLayer,
   getAllLayers,
+  setAllLayers,
 } from "../slices/mapLayers";
 import { useDispatch, useSelector } from "react-redux";
 import type { Store } from "redux";
@@ -606,15 +607,6 @@ export const NewLibModal = ({
         return isCurrentlyFeatured(featuredFrom, featuredUntil);
       });
 
-    if (featuredLayers.length > 0) {
-      addItemToCategory(
-        "mapLayers",
-        { id: "featured", Title: "Empfohlen" },
-        // @ts-ignore
-        featuredLayers
-      );
-    }
-
     setAllCategories((prev) => {
       const newCategories = [...prev];
       const currentMapLayers = newCategories.find(
@@ -622,7 +614,6 @@ export const NewLibModal = ({
       )?.categories;
 
       const mergedCategories = JSON.parse(JSON.stringify(allLayers));
-
       if (currentMapLayers) {
         currentMapLayers.forEach((currentCategory) => {
           const mergedCategoryIndex = mergedCategories.findIndex(
@@ -670,7 +661,11 @@ export const NewLibModal = ({
             }
           } else {
             // Category doesn't exist in allLayers, add the entire category
-            mergedCategories.push(currentCategory);
+            if (currentCategory.id === "featured") {
+              mergedCategories.unshift(currentCategory);
+            } else {
+              mergedCategories.push(currentCategory);
+            }
           }
         });
       }
@@ -693,6 +688,29 @@ export const NewLibModal = ({
 
       return newCategories;
     });
+
+    if (featuredLayers.length > 0) {
+      const featuredLayersWithServiceName = featuredLayers.map((layer) => ({
+        ...layer,
+        serviceName: "featured",
+      }));
+      setAllLayers((prev) => {
+        return [
+          {
+            id: "featured",
+            Title: "Empfohlen",
+            layers: featuredLayersWithServiceName,
+          },
+          ...prev,
+        ];
+      });
+      addItemToCategory(
+        "mapLayers",
+        { id: "featured", Title: "Empfohlen" },
+        // @ts-ignore
+        featuredLayersWithServiceName
+      );
+    }
 
     if (searchValue) {
       search(debouncedSearchTerm);
