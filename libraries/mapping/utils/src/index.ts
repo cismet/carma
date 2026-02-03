@@ -22,3 +22,5 @@ export {
   type VectorFeatureInput,
   type VectorFeatureResult,
 } from "./lib/featureUtils";
+
+export { parseToMapLayer } from "./lib/layerUtils";

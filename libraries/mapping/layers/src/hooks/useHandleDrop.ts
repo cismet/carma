@@ -8,6 +8,7 @@ import type { Layer } from "@carma/types";
 import { utils } from "@carma-appframeworks/portals";
 import { useDispatch } from "react-redux";
 import { setCustomLayerConfig } from "../slices/mapLayers";
+import { parseToMapLayer } from "@carma-mapping/utils";
 
 // @ts-expect-error tbd
 const parser = new WMSCapabilities();
@@ -77,11 +78,7 @@ export const useHandleDrop = ({
 
         if (existingLayer) {
           try {
-            const updatedLayer = await utils.parseToMapLayer(
-              newItem,
-              false,
-              true
-            );
+            const updatedLayer = await parseToMapLayer(newItem, false, true);
 
             updateActiveLayer(updatedLayer);
             addItemToCategory(
