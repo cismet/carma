@@ -5,12 +5,15 @@ import { useDispatch, useSelector } from "react-redux";
 import { TopicMapContext } from "react-cismap/contexts/TopicMapContextProvider";
 
 import {
-  AdhocMapLibreStyleData,
   useAdhocFeatureDisplay,
   useMapStyle,
   utils,
 } from "@carma-appframeworks/portals";
-import type { Item, Layer } from "@carma/types";
+import type {
+  CarmaMapLibreStyleData,
+  Item,
+  Layer,
+} from "@carma/types";
 import { LayerLib } from "@carma-mapping/layers";
 import { useMapFrameworkSwitcherContext } from "@carma-mapping/components";
 
@@ -177,7 +180,7 @@ const ResourceModal = () => {
         return;
       }
 
-      // Extract properties from GeoJSON features for cesiumStyle detection
+      // Extract properties from GeoJSON features for carmaConf3D detection
       let featureProperties: Record<string, unknown> | undefined;
       const sources = styleData.sources as
         | Record<
@@ -206,7 +209,7 @@ const ResourceModal = () => {
       addFeature({
         id: id,
         kind: "maplibre-style",
-        data: styleData as AdhocMapLibreStyleData,
+        data: styleData as CarmaMapLibreStyleData,
         properties: featureProperties as unknown as Parameters<
           typeof addFeature
         >[0]["properties"],

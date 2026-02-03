@@ -1,14 +1,21 @@
 import type { Feature, FeatureCollection, Geometry } from "geojson";
+import type { GeoJSONSourceSpecification } from "maplibre-gl";
 
-import type { FeatureInfo } from "@carma/types";
+import type { CarmaMapLibreStyleData, FeatureInfo } from "@carma/types";
 
 import type {
   AdhocFeature,
-  AdhocMapLibreStyleData,
   AdhocModelData,
 } from "../components/AdhocFeatureDisplayProvider";
 
 const ADHOC_WALL_DEFAULT_HEIGHT = 15;
+
+const isGeoJsonSource = (
+  source: unknown
+): source is GeoJSONSourceSpecification =>
+  typeof source === "object" &&
+  source !== null &&
+  (source as { type?: unknown }).type === "geojson";
 
 export const isAdhocModelFeature = (
   feature: AdhocFeature
@@ -19,7 +26,7 @@ export const isAdhocMapLibreStyleFeature = (
   feature: AdhocFeature
 ): feature is AdhocFeature & {
   kind: "maplibre-style";
-  data: AdhocMapLibreStyleData;
+  data: CarmaMapLibreStyleData;
 } => feature.kind === "maplibre-style";
 
 export const getMapLibreLayerInfo = (feature: AdhocFeature) => {
@@ -84,9 +91,13 @@ export const getGeoJsonFromFeature = (
     const sources = feature.data.sources;
     if (!sources) return null;
     const source = Object.values(sources).find(
-      (entry) => entry?.type === "geojson" && entry.data
+      (entry): entry is GeoJSONSourceSpecification =>
+        isGeoJsonSource(entry) &&
+        typeof entry.data === "object" &&
+        entry.data !== null
     );
-    return source?.data ?? null;
+    if (!source) return null;
+    return source.data as Feature | FeatureCollection;
   }
   return null;
 };

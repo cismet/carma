@@ -22,6 +22,9 @@ export const ADHOC_TEST_FEATURE: AdhocFeature = {
             {
               type: "Feature",
               properties: {
+                carmaConf3D: {
+                  groundPolyline: true,
+                },
                 info: {
                   title: "Shell Tankstelle",
                   subtitle:

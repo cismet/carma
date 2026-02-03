@@ -22,6 +22,9 @@ export const ADHOC_TEST_FEATURE_Z: AdhocFeature = {
             {
               type: "Feature",
               properties: {
+                carmaConf3D: {
+                  groundPolyline: true,
+                },
                 info: {
                   title: "Mit Geometrie mit Höhen",
                   subtitle:

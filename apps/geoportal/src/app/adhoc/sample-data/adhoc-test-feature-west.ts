@@ -22,6 +22,9 @@ export const ADHOC_TEST_FEATURE_WEST: AdhocFeature = {
             {
               type: "Feature",
               properties: {
+                carmaConf3D: {
+                  groundPolyline: true,
+                },
                 info: {
                   title: "Testfläche West",
                   subtitle: "Quadrat 200m westlich vom Rathausvorplatz",

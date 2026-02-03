@@ -55,7 +55,7 @@ export const useAdhocFeatureRehydrate = () => {
 
       getVectorLayerStyle(layer).then((styleData) => {
         if (styleData) {
-          // Extract properties from GeoJSON features for cesiumStyle detection
+          // Extract properties from GeoJSON features for carmaConf3D detection
           let featureProperties: Record<string, unknown> | undefined;
           const sources = styleData.sources as Record<string, { type?: string; data?: { type?: string; features?: Array<{ properties?: Record<string, unknown> }> } }> | undefined;
           if (sources) {

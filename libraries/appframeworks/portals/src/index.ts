@@ -45,7 +45,6 @@ export {
   AdhocFeatureDisplayProvider,
   useAdhocFeatureDisplay,
   type AdhocFeature,
-  type AdhocMapLibreStyleData,
   type AdhocModelData,
   type AdhocMapLibreStyleFeature,
   type AdhocModelFeature,

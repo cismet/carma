@@ -1,5 +1,11 @@
-import type { Layer } from "@carma/types";
-import type { AdhocMapLibreStyleData } from "@carma-appframeworks/portals";
+import type {
+  CarmaMapLibreStyleData,
+  Layer,
+} from "@carma/types";
+import type {
+  GeoJSONSourceSpecification,
+  SourceSpecification,
+} from "maplibre-gl";
 
 export const isAdhocVectorLayer = (layer: Layer): boolean =>
   layer.layerType === "vector" &&
@@ -10,16 +16,20 @@ const isUrl = (str: string): boolean =>
   str.startsWith("https://") ||
   str.endsWith(".json");
 
+const isGeoJsonSource = (
+  source: SourceSpecification
+): source is GeoJSONSourceSpecification => source.type === "geojson";
+
 const resolveGeoJsonSources = async (
-  styleData: AdhocMapLibreStyleData
-): Promise<AdhocMapLibreStyleData> => {
+  styleData: CarmaMapLibreStyleData
+): Promise<CarmaMapLibreStyleData> => {
   if (!styleData.sources) return styleData;
 
-  const resolvedSources: Record<string, unknown> = {};
+  const resolvedSources: Record<string, SourceSpecification> = {};
 
   for (const [key, source] of Object.entries(styleData.sources)) {
     if (
-      source?.type === "geojson" &&
+      isGeoJsonSource(source) &&
       typeof source.data === "string" &&
       isUrl(source.data)
     ) {
@@ -42,25 +52,25 @@ const resolveGeoJsonSources = async (
 
 export const resolveAdhocStyleData = async (
   style: string | object | undefined
-): Promise<AdhocMapLibreStyleData | null> => {
+): Promise<CarmaMapLibreStyleData | null> => {
   if (!style) return null;
 
-  let styleData: AdhocMapLibreStyleData | null = null;
+  let styleData: CarmaMapLibreStyleData | null = null;
 
   if (typeof style === "object") {
-    styleData = style as AdhocMapLibreStyleData;
+    styleData = style as CarmaMapLibreStyleData;
   } else if (isUrl(style)) {
     try {
       const res = await fetch(style);
       if (res.ok) {
-        styleData = (await res.json()) as AdhocMapLibreStyleData;
+        styleData = (await res.json()) as CarmaMapLibreStyleData;
       }
     } catch {
       return null;
     }
   } else {
     try {
-      styleData = JSON.parse(style) as AdhocMapLibreStyleData;
+      styleData = JSON.parse(style) as CarmaMapLibreStyleData;
     } catch {
       return null;
     }
@@ -74,7 +84,7 @@ export const resolveAdhocStyleData = async (
 
 export const getVectorLayerStyle = async (
   layer: Layer
-): Promise<AdhocMapLibreStyleData | null> => {
+): Promise<CarmaMapLibreStyleData | null> => {
   const style = (layer as Layer & { props?: { style?: string | object } }).props
     ?.style;
   return resolveAdhocStyleData(style);

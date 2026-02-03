@@ -5,31 +5,10 @@ import {
   useMemo,
   useState,
 } from "react";
-import type { Feature, FeatureCollection } from "geojson";
-import type { FeatureInfoProperties } from "@carma/types";
-
-export type AdhocMapLibreStyleData = {
-  version?: number;
-  metadata?: {
-    carmaConf?: {
-      instant?: boolean;
-      layerInfo?: {
-        title?: string;
-        header?: string;
-        accentColor?: string;
-      };
-    };
-  };
-  sources?: Record<
-    string,
-    {
-      type?: string;
-      generateId?: boolean;
-      data?: Feature | FeatureCollection;
-    }
-  >;
-  layers?: Array<Record<string, unknown>>;
-};
+import type {
+  CarmaMapLibreStyleData,
+  FeatureInfoProperties,
+} from "@carma/types";
 
 export type AdhocModelData = {
   url: string;
@@ -47,7 +26,7 @@ export type AdhocModelData = {
 export type AdhocMapLibreStyleFeature = {
   id: string;
   kind: "maplibre-style";
-  data: AdhocMapLibreStyleData;
+  data: CarmaMapLibreStyleData;
   properties?: FeatureInfoProperties;
   metadata?: Record<string, unknown>;
 };

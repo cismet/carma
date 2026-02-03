@@ -13,7 +13,11 @@ import {
 
 import { type Easing as EasingFunction } from "@carma-commons/math";
 import type { ModelConfig } from "@carma-commons/resources";
-import type { FeatureInfo } from "@carma/types";
+import type {
+  CarmaConf3D,
+  CarmaMapLibreFeatureProperties,
+  FeatureInfo,
+} from "@carma/types";
 import {
   createExtrudedWallVisualizer,
   createGroundPolylineVisualizer,
@@ -57,6 +61,12 @@ export type UseAdhocCesiumFeatureDisplayResult = {
   getAdhocBoundingSphere: (feature: FeatureInfo) => BoundingSphere | null;
 };
 
+const getCarmaConf3D = (feature: AdhocFeature): CarmaConf3D | undefined => {
+  const properties =
+    feature.properties as CarmaMapLibreFeatureProperties | undefined;
+  return properties?.carmaConf3D;
+};
+
 const getWallHeights = (feature: AdhocFeature): number[] | undefined => {
   const metadata = feature.metadata;
   if (!metadata) return undefined;
@@ -78,11 +88,15 @@ const getDefaultWallHeight = (feature: AdhocFeature): number => {
 };
 
 const shouldUseGroundPolyline = (feature: AdhocFeature): boolean => {
-  const properties = feature.properties as { cesiumStyle?: { groundPolyline?: boolean | object; wall?: boolean } } | undefined;
-  const cesiumStyle = properties?.cesiumStyle;
-  if (typeof cesiumStyle?.groundPolyline === "object" && cesiumStyle.groundPolyline !== null) return true;
-  if (cesiumStyle?.groundPolyline === true) return true;
-  if (cesiumStyle?.wall === false) return true;
+  const carmaConf3D = getCarmaConf3D(feature);
+  if (
+    typeof carmaConf3D?.groundPolyline === "object" &&
+    carmaConf3D.groundPolyline !== null
+  ) {
+    return true;
+  }
+  if (carmaConf3D?.groundPolyline === true) return true;
+  if (carmaConf3D?.wall === false) return true;
   return false;
 };
 
@@ -91,9 +105,11 @@ const isRehydratedFeature = (feature: AdhocFeature): boolean => {
   return Boolean(metadata?.rehydrated);
 };
 
-const getGroundPolylineOptions = (feature: AdhocFeature): { lineColor?: string; opacity?: number; lineWidth?: number } => {
-  const properties = feature.properties as { cesiumStyle?: { groundPolyline?: { lineColor?: string; opacity?: number; lineWidth?: number } } } | undefined;
-  const groundPolyline = properties?.cesiumStyle?.groundPolyline;
+const getGroundPolylineOptions = (
+  feature: AdhocFeature
+): { lineColor?: string; opacity?: number; lineWidth?: number } => {
+  const carmaConf3D = getCarmaConf3D(feature);
+  const groundPolyline = carmaConf3D?.groundPolyline;
   if (typeof groundPolyline === "object" && groundPolyline !== null) {
     return {
       lineColor: groundPolyline.lineColor,
