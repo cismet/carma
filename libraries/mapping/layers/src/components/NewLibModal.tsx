@@ -7,6 +7,7 @@ import { useLoadCapabilities } from "../hooks/useLoadCapabilities";
 
 import {
   faBook,
+  faCubes,
   faList,
   faMap,
   faMapPin,
@@ -53,8 +54,19 @@ import {
 import { useDispatch, useSelector } from "react-redux";
 import type { Store } from "redux";
 import { getTriggerRefetch, setTriggerRefetch } from "../slices/ui";
+import { useMapFrameworkSwitcherContext } from "@carma-mapping/components";
 
 const { Search } = Input;
+
+const elements = [
+  { icon: faStar, text: "Favoriten", id: "favorites" },
+  { icon: faList, text: "Entdecken", id: "discover", disabledIn3D: true },
+  { icon: faBook, text: "Teilzwillinge", id: "partialTwins" },
+  { icon: faMap, text: "Kartenebenen", id: "mapLayers", disabledIn3D: true },
+  { icon: faMapPin, text: "Sensoren", id: "sensors" },
+  { icon: faCubes, text: "Objekte", id: "objects" },
+  { icon: faSearch, text: "Suchergebnisse", id: "searchResults" },
+];
 
 type LayerCategories = {
   Title: string;
@@ -112,6 +124,7 @@ export const NewLibModal = ({
   store,
   unauthorizedCallback,
 }: LibModalProps) => {
+  const { isCesium } = useMapFrameworkSwitcherContext();
   const [sidebarElements, setSidebarElements] = useState<
     {
       icon: IconDefinition;
@@ -119,14 +132,7 @@ export const NewLibModal = ({
       id: string;
       disabled?: boolean;
     }[]
-  >([
-    { icon: faStar, text: "Favoriten", id: "favorites" },
-    { icon: faList, text: "Entdecken", id: "discover" },
-    { icon: faBook, text: "Teilzwillinge", id: "partialTwins" },
-    { icon: faMap, text: "Kartenebenen", id: "mapLayers" },
-    { icon: faMapPin, text: "Sensoren", id: "sensors" },
-    { icon: faSearch, text: "Suchergebnisse", id: "searchResults" },
-  ]);
+  >(elements);
   const [preview, setPreview] = useState(false);
   const [layers, setLayers] = useState<any[]>([]);
   const allLayers = useSelector(getAllLayers);
@@ -192,6 +198,17 @@ export const NewLibModal = ({
       fetchDiscoverItems();
     }
   }, [open, triggerRefetch, jwt]);
+
+  useEffect(() => {
+    setSidebarElements(
+      elements.map((element) => {
+        return {
+          ...element,
+          disabled: element.disabledIn3D && isCesium,
+        };
+      })
+    );
+  }, [isCesium]);
 
   const getNumOfCustomLayers = () => {
     return customCategories.reduce((acc, category) => {
@@ -1020,7 +1037,9 @@ export const NewLibModal = ({
                   addFavorite={addFavorite}
                   removeFavorite={removeFavorite}
                   setPreview={setPreview}
-                  isSearchCategory={selectedNavItemIndex === 5}
+                  isSearchCategory={
+                    sidebarElements[selectedNavItemIndex].id === "searchResults"
+                  }
                   loadingData={loadingData}
                   currentCategoryIndex={selectedNavItemIndex}
                   discoverProps={discoverProps}

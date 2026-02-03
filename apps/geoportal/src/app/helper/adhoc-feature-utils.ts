@@ -8,8 +8,7 @@ import type {
 } from "maplibre-gl";
 
 export const isAdhocVectorLayer = (layer: Layer): boolean =>
-  layer.layerType === "vector" &&
-  (layer.id.startsWith("custom:") || layer.other?.serviceName === "custom");
+  layer.layerType === "vector" && layer.type === "object";
 
 const isUrl = (str: string): boolean =>
   str.startsWith("http://") ||

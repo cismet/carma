@@ -96,7 +96,7 @@ export type SavedLayerConfig = {
   type: string;
   id: string;
   thumbnail?: string;
-  layers: Layer[];
+  layers?: Layer[];
   serviceName: string;
 };
 

@@ -77,8 +77,12 @@ const ResourceModal = () => {
   const { routedMapRef: routedMap } =
     useContext<typeof TopicMapContext>(TopicMapContext);
 
-  const { addFeature, setSelectedFeatureId, setShouldFocusSelected } =
-    useAdhocFeatureDisplay();
+  const {
+    addFeature,
+    setSelectedFeatureId,
+    setShouldFocusSelected,
+    removeFeature,
+  } = useAdhocFeatureDisplay();
   const { toggle, isLeaflet } = useMapFrameworkSwitcherContext();
 
   const updateLayers = async (
@@ -163,7 +167,11 @@ const ResourceModal = () => {
 
     newLayer = await utils.parseToMapLayer(layer, forceWMS, true);
 
-    if (newLayer.type === "object" && isAdhocVectorLayer(newLayer)) {
+    const existingLayer = activeLayers.find(
+      (activeLayer) => activeLayer.id === id
+    );
+
+    if (isAdhocVectorLayer(newLayer) && !existingLayer) {
       // Safe to access style since isAdhocVectorLayer checks layerType === "vector"
       const style = (newLayer.props as { style?: string | object }).style;
       const styleData = await resolveAdhocStyleData(style);
@@ -215,8 +223,6 @@ const ResourceModal = () => {
         >[0]["properties"],
       });
 
-      console.log("xxx zoom");
-
       await zoomToStyleFeatures(styleData, routedMap);
 
       if ((conf.modeSwitch !== "3D" && isLeaflet) || conf.modeSwitch === "2D") {
@@ -229,13 +235,13 @@ const ResourceModal = () => {
       }
     }
 
-    const existingLayer = activeLayers.find(
-      (activeLayer) => activeLayer.id === id
-    );
     if (existingLayer && !updateExisting) {
       try {
         dispatch(removeLayer(id));
         dispatch(updateInfoElementsAfterRemovingFeature(id));
+        if (isAdhocVectorLayer(newLayer)) {
+          removeFeature(id);
+        }
         messageApi.open({
           type: "success",
           content: (
@@ -327,7 +333,7 @@ const ResourceModal = () => {
               }),
             id: "favoriteDigitalTwins",
           },
-          {
+          isLeaflet && {
             Title: "Meine Karten",
             layers: savedLayerConfigs.map((layer) => {
               return {
@@ -338,13 +344,14 @@ const ResourceModal = () => {
             }),
             id: "collections",
           },
-          {
+          isLeaflet && {
             Title: "Meine Kartenebenen",
             layers: favorites
               .filter((favorite) => {
                 return (
                   favorite.serviceName !== "wuppTopicMaps" &&
-                  favorite.serviceName !== "wuppArcGisOnline"
+                  favorite.serviceName !== "wuppArcGisOnline" &&
+                  favorite.type !== "object"
                 );
               })
               .map((favorite) => {
@@ -356,7 +363,15 @@ const ResourceModal = () => {
               }),
             id: "favoriteLayers",
           },
-        ]}
+          {
+            Title: "Meine Objekte",
+            layers: favorites.filter((favorite) => {
+              return favorite.type === "object";
+            }),
+
+            id: "favoriteObjects",
+          },
+        ].filter(Boolean)}
         updateActiveLayer={(layer) => {
           dispatch(updateLayer(layer));
         }}
