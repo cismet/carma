@@ -1,5 +1,5 @@
 import L from "leaflet";
-import proj4 from "proj4";
+import { getFromWebMercatorToWGS84 } from "@carma-commons/geo/proj";
 import {
   useCallback,
   useContext,
@@ -10,6 +10,13 @@ import {
   type CSSProperties,
 } from "react";
 import { useDispatch, useSelector } from "react-redux";
+
+import {
+  BoundingSphere,
+  Cartesian3,
+  flyToBoundingSphereExtent,
+} from "@carma/cesium";
+import type { Map as MaplibreMap } from "maplibre-gl";
 
 import { Button, Tooltip } from "antd";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
@@ -26,11 +33,12 @@ import GenericModalApplicationMenu from "react-cismap/topicmaps/menu/ModalApplic
 import {
   SelectionItem,
   TopicMapSelectionContent,
+  useAdhocCesiumFeatureDisplay,
   useGazData,
   useMapHashRouting,
   useSelectionCesium,
   useSelectionTopicMap,
-  useCesiumModels,
+  utils,
 } from "@carma-appframeworks/portals";
 import {
   geoElements,
@@ -41,7 +49,7 @@ import { getCollabedHelpComponentConfig as getCollabedHelpElementsConfig } from 
 
 import { ENDPOINT, isAreaType } from "@carma-commons/resources";
 import type { FeatureInfo } from "@carma/types";
-import { Measurements } from "@carma-commons/measurements";
+import { Measurements, InfoBoxMeasurement } from "@carma-commons/measurements";
 
 import {
   useOverlayHelper,
@@ -64,15 +72,12 @@ import {
 import { EmptySearchComponent } from "@carma-mapping/fuzzy-search";
 import { useAuth } from "@carma-providers/auth";
 import { useFeatureFlags } from "@carma-providers/feature-flag";
-import { useHashState } from "@carma-providers/hash-state";
 
 import FeatureInfoBox from "../feature-info/FeatureInfoBox.tsx";
-import { InfoBoxMeasurement } from "@carma-commons/measurements";
 import PrintPreview from "../map-print/PrintPreview.tsx";
 
 import versionData from "../../../version.json";
 
-import { proj4crs3857def, proj4crs4326def } from "../../helper/gisHelper.js";
 import { getBackgroundLayers } from "../../helper/layer.tsx";
 import { addCssToOverlayHelperItem } from "../../helper/overlayHelper.ts";
 
@@ -80,6 +85,7 @@ import useLeafletZoomControls from "../../hooks/leaflet/useLeafletZoomControls.t
 import { useDispatchSachdatenInfoText } from "../../hooks/useDispatchSachdatenInfoText.ts";
 import { useFeatureInfoModeCursorStyle } from "../../hooks/useFeatureInfoModeCursorStyle.ts";
 import { useObliqueInitializer } from "../../oblique/hooks/useObliqueInitializer.ts";
+import { useCameraOrbit } from "../../hooks/useCameraOrbit.ts";
 import { useGeoportalFrameworkSwitcher } from "./controls/use-geoportal-framework-switcher.ts";
 
 import { onClickTopicMap } from "./topicmap.utils.ts";
@@ -129,6 +135,7 @@ export const GeoportalMap = ({ height, width, allow3d }: MapProps) => {
     getSurfaceProvider,
     getTerrainProvider,
     getScene,
+    withEntities,
     isValidViewer: isValidViewerCtx,
     isViewerReady,
   } = useCesiumContext();
@@ -136,10 +143,9 @@ export const GeoportalMap = ({ height, width, allow3d }: MapProps) => {
   const rerenderCountRef = useRef(0);
   const lastRenderTimeStampRef = useRef(Date.now());
   const lastRenderIntervalRef = useRef(0);
-  const container2dMapRef = useRef<HTMLDivElement>(null);
   const container3dMapRef = useRef<HTMLDivElement>(null);
   // Store MapLibre maps outside Redux to avoid serialization issues
-  const maplibreMapsRef = useRef<Map<string, any>>(new Map());
+  const maplibreMapsRef = useRef<Map<string, MaplibreMap>>(new Map());
 
   // State and Selectors
   const backgroundLayer = useSelector(getBackgroundLayer);
@@ -157,7 +163,7 @@ export const GeoportalMap = ({ height, width, allow3d }: MapProps) => {
   const markerAsset = models[CESIUM_CONFIG.markerKey]; //
   const markerAnchorHeight = CESIUM_CONFIG.markerAnchorHeight ?? 10;
   const layers = useSelector(getLayers);
-  const [maplibreMaps, setMaplibreMaps] = useState<any[]>([]);
+  const [maplibreMaps, setMaplibreMaps] = useState<MaplibreMap[]>([]);
   const uiMode = useSelector(getUIMode);
   const isModeMeasurement = uiMode === UIMode.MEASUREMENT;
   const isModeFeatureInfo = uiMode === UIMode.FEATURE_INFO;
@@ -222,7 +228,7 @@ export const GeoportalMap = ({ height, width, allow3d }: MapProps) => {
     if (maplibreMaps.length !== maps.length) {
       setMaplibreMaps(maps);
     }
-  }, [layers, layersIdle]);
+  }, [layers, layersIdle, maplibreMaps.length]);
 
   const version = getApplicationVersion(versionData);
 
@@ -289,19 +295,19 @@ export const GeoportalMap = ({ height, width, allow3d }: MapProps) => {
   useDispatchSachdatenInfoText();
   const modelSelectionDispatcher = useModelSelectionDispatcher();
 
-  const useCesiumModelOptions = useMemo(() => {
-    return {
-      models: CESIUM_CONFIG.models || [],
-      enabled: flags.featureFlagBugaBridge && isCesium,
-      selection: {
-        enabled: flags.featureFlagBugaBridge && isCesium,
-        deselectOnEmptyClick: true,
-        onSelect: (feature) =>
-          modelSelectionDispatcher(feature as FeatureInfo | null),
-      },
-    };
-  }, [flags.featureFlagBugaBridge, isCesium, modelSelectionDispatcher]);
-  useCesiumModels(useCesiumModelOptions);
+  const { getAdhocBoundingSphere } = useAdhocCesiumFeatureDisplay({
+    baseModels: CESIUM_CONFIG.models ?? [],
+    getScene,
+    getSurfaceProvider,
+    getTerrainProvider,
+    isCesiumEnabled: isCesium,
+    selectionLineWidthPixels: 1.5,
+    wallOpacity: {
+      selected: 0.4,
+      default: 0.7,
+    },
+    onFeatureInfoChange: modelSelectionDispatcher,
+  });
 
   const routingOptions = useMemo(
     () => ({
@@ -365,6 +371,19 @@ export const GeoportalMap = ({ height, width, allow3d }: MapProps) => {
     routedMapRef,
   ]);
 
+  // Camera orbit functionality for 3D mode
+  const { isOrbiting, toggleOrbit } = useCameraOrbit({
+    scene: cesiumScene,
+    enabled: getIsCesium(),
+  });
+
+  // Stop orbit when feature is deselected
+  useEffect(() => {
+    if (!selectedFeature && isOrbiting) {
+      toggleOrbit();
+    }
+  }, [selectedFeature, isOrbiting, toggleOrbit]);
+
   useRegisterMapFramework(frameworkOptions);
 
   // Register geoportal-specific framework switcher callbacks
@@ -383,7 +402,7 @@ export const GeoportalMap = ({ height, width, allow3d }: MapProps) => {
         (uiMode === UIMode.DEFAULT || uiMode === UIMode.FEATURE_INFO) &&
         !isAreaType(selection.type as ENDPOINT)
       ) {
-        const selectedPos = proj4(proj4crs3857def, proj4crs4326def, [
+        const selectedPos = getFromWebMercatorToWGS84([
           selection.x,
           selection.y,
         ]);
@@ -467,6 +486,42 @@ export const GeoportalMap = ({ height, width, allow3d }: MapProps) => {
   useSelectionTopicMap(selectionTopicMapOptions);
   useSelectionCesium(getIsCesium, selectionCesiumOptions, isObliqueMode);
 
+  const handleZoomToFeature = useCallback(
+    (feature: FeatureInfo) => {
+      if (!getIsCesium()) return;
+      const scene = getScene();
+      if (!scene || scene.isDestroyed()) return;
+
+      let coordinates: number[][] = [];
+      if (feature.geometry) {
+        coordinates = utils.getPointsFromGeometry(feature.geometry);
+      }
+
+      if (coordinates.length === 0) return;
+
+      const adhocSphere = getAdhocBoundingSphere(feature);
+      if (adhocSphere) {
+        flyToBoundingSphereExtent(scene.camera, adhocSphere, {
+          minRange: 50,
+          paddingFactor: 1.1,
+        });
+        scene.requestRender();
+        return;
+      }
+
+      const points = coordinates.map((coord) =>
+        Cartesian3.fromDegrees(coord[0], coord[1], coord[2] ?? 0)
+      );
+      const sphere = BoundingSphere.fromPoints(points);
+      flyToBoundingSphereExtent(scene.camera, sphere, {
+        minRange: 50,
+        paddingFactor: 1.1,
+      });
+      scene.requestRender();
+    },
+    [getAdhocBoundingSphere, getIsCesium, getScene]
+  );
+
   useEffect(() => {
     if (layers.length === 0) {
       dispatch(setSecondaryInfoBoxElements([]));
@@ -475,7 +530,7 @@ export const GeoportalMap = ({ height, width, allow3d }: MapProps) => {
     } else {
       updateLayersIdleState(true);
     }
-  }, [layers]);
+  }, [dispatch, layers, updateLayersIdleState]);
 
   useEffect(() => {
     // TODO wrap this with 3d component in own component?
@@ -514,7 +569,7 @@ export const GeoportalMap = ({ height, width, allow3d }: MapProps) => {
     if (isModeFeatureInfo && pos) {
       setShouldUpdateFeatureInfo(true);
     }
-  }, [maplibreMaps]);
+  }, [isModeFeatureInfo, maplibreMaps, pos]);
 
   useEffect(() => {
     const leaflet = getLeafletMap();
@@ -537,15 +592,20 @@ export const GeoportalMap = ({ height, width, allow3d }: MapProps) => {
         return <InfoBoxMeasurement key={uiMode} />;
       }
       if (selectedFeature || loadingFeatureInfo) {
-        return <FeatureInfoBox pos={pos} />;
+        return (
+          <FeatureInfoBox pos={pos} onZoomToFeature={handleZoomToFeature} />
+        );
       }
-    } else if (
-      getIsCesium() &&
-      flags.featureFlagBugaBridge &&
-      selectedFeature
-    ) {
+    } else if (getIsCesium() && selectedFeature) {
       // TODO unify with point queries for position information?
-      return <FeatureInfoBox />;
+      return (
+        <FeatureInfoBox
+          onZoomToFeature={handleZoomToFeature}
+          displayOrbit={true}
+          isOrbiting={isOrbiting}
+          onOrbitToggle={toggleOrbit}
+        />
+      );
     }
 
     return <div></div>;
@@ -557,7 +617,9 @@ export const GeoportalMap = ({ height, width, allow3d }: MapProps) => {
     selectedFeature,
     loadingFeatureInfo,
     pos,
-    flags.featureFlagBugaBridge,
+    handleZoomToFeature,
+    isOrbiting,
+    toggleOrbit,
   ]);
 
   const showOverlayFromOutside = useCallback(
@@ -639,7 +701,6 @@ export const GeoportalMap = ({ height, width, allow3d }: MapProps) => {
       selectedFeature,
       getLeafletMap,
       maplibreMapsRef,
-      store,
     ]
   );
 

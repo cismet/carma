@@ -94,7 +94,6 @@ const ActionButtons = () => {
       </Tooltip>
       <Tooltip title="Karteninhalte hinzufügen">
         <button
-          disabled={!isLeaflet}
           onClick={() => {
             dispatch(setShowResourceModal(true));
           }}
@@ -104,9 +103,7 @@ const ActionButtons = () => {
           <img
             src={baseUrl + "icons/add-layers.png"}
             alt="Kartenebenen hinzufügen"
-            className={`h-5 min-w-fit mb-0.5 cursor-pointer ${
-              isLeaflet ? "" : disabledImageOpacity
-            }`}
+            className={`h-5 min-w-fit mb-0.5 cursor-pointer`}
           />
         </button>
       </Tooltip>

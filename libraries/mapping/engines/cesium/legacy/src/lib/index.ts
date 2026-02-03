@@ -37,6 +37,7 @@ export { useCesiumCameraForceOblique } from "./hooks/useCameraForceOblique";
 export { useHomeControl } from "./hooks/useHomeControl";
 export { useCesiumInitialCameraFromSearchParams } from "./hooks/useCesiumInitialCameraFromSearchParams";
 export { useFovWheelZoom } from "./hooks/useFovWheelZoom";
+export { useGeometryInstanceOpacityAnimation } from "./hooks/useGeometryInstanceOpacityAnimation";
 export { useSceneStyles } from "./hooks/useSceneStyles";
 export { useZoomControls } from "./hooks/useZoomControls";
 

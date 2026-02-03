@@ -46,6 +46,7 @@ import GeoportalLayerButton from "./GeoportalLayerButton";
 import SecondaryView from "./SecondaryView";
 
 import "./button.css";
+import { useMapFrameworkSwitcherContext } from "@carma-mapping/components";
 
 const LayerWrapper = () => {
   const dispatch: AppDispatch = useDispatch();
@@ -60,6 +61,7 @@ const LayerWrapper = () => {
   const showLeftScrollButton = useSelector(getShowLeftScrollButton);
   const showRightScrollButton = useSelector(getShowRightScrollButton);
 
+  const { isLeaflet } = useMapFrameworkSwitcherContext();
   const { isOver, setNodeRef } = useDroppable({
     id: "droppable",
   });
@@ -163,7 +165,9 @@ const LayerWrapper = () => {
                 id={backgroundLayer.id}
                 title=""
                 background
+                hide={!isLeaflet}
               />
+
               {size.width > 640 && (
                 <div
                   id="scrollWrapper"
@@ -189,6 +193,7 @@ const LayerWrapper = () => {
                             : undefined
                         }
                         layer={layer}
+                        hide={layer.type !== "object" && !isLeaflet}
                       />
                     ))}
                   </SortableContext>

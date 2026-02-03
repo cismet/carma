@@ -1,21 +1,26 @@
 import { message } from "antd";
-import { useContext, useState } from "react";
+import { useContext } from "react";
 import { useDispatch, useSelector } from "react-redux";
 
 import { TopicMapContext } from "react-cismap/contexts/TopicMapContextProvider";
 
-import { useMapStyle } from "@carma-appframeworks/portals";
-import { parseToMapLayer } from "@carma-mapping/utils";
-import type { Item, Layer } from "@carma/types";
+import {
+  useAdhocFeatureDisplay,
+  useMapStyle,
+  utils,
+} from "@carma-appframeworks/portals";
+import type { CarmaMapLibreStyleData, Item, Layer } from "@carma/types";
 import { LayerLib } from "@carma-mapping/layers";
-import { useAuth } from "@carma-providers/auth";
+import { useMapFrameworkSwitcherContext } from "@carma-mapping/components";
 
-import { updateInfoElementsAfterRemovingFeature } from "../../store/slices/features";
+import {
+  setTriggerSelectionById,
+  updateInfoElementsAfterRemovingFeature,
+} from "../../store/slices/features";
 import {
   addCustomFeatureFlags,
   addFavorite,
   getFavorites,
-  getThumbnails,
   removeFavorite,
   updateFavorite,
 } from "../../store/slices/layers";
@@ -44,24 +49,23 @@ import store from "../../store";
 import { layerMap } from "../../config";
 import { createBackgroundLayerConfig } from "../../helper/layer";
 import { MapStyleKeys } from "../../constants/MapStyleKeys";
+import { zoomToStyleFeatures } from "../../helper/gisHelper";
+import {
+  isAdhocVectorLayer,
+  resolveAdhocStyleData,
+} from "../../helper/adhoc-feature-utils";
 
 const ResourceModal = () => {
-  const [discoverItems, setDiscoverItems] = useState([]);
-
   const { setCurrentStyle } = useMapStyle();
 
   const dispatch = useDispatch();
 
   const activeLayers = useSelector(getLayers);
   const backgroundLayer = useSelector(getBackgroundLayer);
-  const thumbnails = useSelector(getThumbnails);
   const favorites = useSelector(getFavorites);
   const savedLayerConfigs = useSelector(getSavedLayerConfigs);
   const showResourceModal = useSelector(getUIShowResourceModal);
-  // const jwt = useSelector(getJWT);
-  const { jwt } = useAuth();
 
-  const [isModalOpen, setIsModalOpen] = useState(false);
   const [messageApi, contextHolder] = message.useMessage();
 
   const MAX_NUM_OF_LAYERS = 12;
@@ -69,11 +73,20 @@ const ResourceModal = () => {
   const { routedMapRef: routedMap } =
     useContext<typeof TopicMapContext>(TopicMapContext);
 
+  const {
+    addFeature,
+    setSelectedFeatureId,
+    setShouldFocusSelected,
+    removeFeature,
+  } = useAdhocFeatureDisplay();
+  const { toggle, isLeaflet } = useMapFrameworkSwitcherContext();
+
   const updateLayers = async (
     layer: Item,
     deleteItem: boolean = false,
     forceWMS: boolean = false,
-    previewLayer: boolean = false
+    previewLayer: boolean = false,
+    updateExisting: boolean = false
   ) => {
     let newLayer: Layer;
     const id = layer.id.startsWith("fav_") ? layer.id.slice(4) : layer.id;
@@ -148,12 +161,83 @@ const ResourceModal = () => {
       return;
     }
 
-    newLayer = await parseToMapLayer(layer, forceWMS, true);
+    newLayer = await utils.parseToMapLayer(layer, forceWMS, true);
 
-    if (activeLayers.find((activeLayer) => activeLayer.id === id)) {
+    const existingLayer = activeLayers.find(
+      (activeLayer) => activeLayer.id === id
+    );
+
+    if (isAdhocVectorLayer(newLayer) && !existingLayer) {
+      // Safe to access style since isAdhocVectorLayer checks layerType === "vector"
+      const style = (newLayer.props as { style?: string | object }).style;
+      const styleData = await resolveAdhocStyleData(style);
+      const conf = newLayer.conf;
+
+      if (
+        (conf?.modeSwitch === "3D" && isLeaflet) ||
+        (conf?.modeSwitch === "2D" && !isLeaflet)
+      ) {
+        await toggle();
+      }
+
+      if (!styleData) {
+        return;
+      }
+
+      // Extract properties from GeoJSON features for carmaConf3D detection
+      let featureProperties: Record<string, unknown> | undefined;
+      const sources = styleData.sources as
+        | Record<
+            string,
+            {
+              type?: string;
+              data?: {
+                type?: string;
+                features?: Array<{ properties?: Record<string, unknown> }>;
+              };
+            }
+          >
+        | undefined;
+      if (sources) {
+        for (const source of Object.values(sources)) {
+          if (
+            source?.type === "geojson" &&
+            source.data?.features?.[0]?.properties
+          ) {
+            featureProperties = source.data.features[0].properties;
+            break;
+          }
+        }
+      }
+
+      addFeature({
+        id: id,
+        kind: "maplibre-style",
+        data: styleData as CarmaMapLibreStyleData,
+        properties: featureProperties as unknown as Parameters<
+          typeof addFeature
+        >[0]["properties"],
+      });
+
+      await zoomToStyleFeatures(styleData, routedMap);
+
+      if ((conf.modeSwitch !== "3D" && isLeaflet) || conf.modeSwitch === "2D") {
+        // Signal that this layer should trigger auto-selection when ready
+        dispatch(setTriggerSelectionById(id));
+      } else if (!isLeaflet || conf.modeSwitch === "3D") {
+        // 3D (Cesium) mode: select and fly to the feature
+        setSelectedFeatureId(id);
+        setShouldFocusSelected(true);
+      }
+    }
+
+    if (existingLayer && !updateExisting) {
       try {
         dispatch(removeLayer(id));
         dispatch(updateInfoElementsAfterRemovingFeature(id));
+        if (isAdhocVectorLayer(newLayer)) {
+          removeFeature(id);
+        }
         messageApi.open({
           type: "success",
           content: (
@@ -169,6 +253,10 @@ const ResourceModal = () => {
         });
       }
     } else {
+      if (existingLayer && updateExisting) {
+        dispatch(removeLayer(id));
+        dispatch(updateInfoElementsAfterRemovingFeature(id));
+      }
       if (activeLayers.length >= MAX_NUM_OF_LAYERS) {
         messageApi.open({
           type: "error",
@@ -177,17 +265,19 @@ const ResourceModal = () => {
         return;
       }
       try {
-        dispatch(appendLayer(newLayer));
-        if (!previewLayer) {
-          messageApi.open({
-            type: "success",
-            content: (
-              <span data-test-id="toast-success">
-                {`${layer.title} wurde erfolgreich hinzugefügt.`}
-              </span>
-            ),
-          });
-        }
+        setTimeout(() => {
+          dispatch(appendLayer(newLayer));
+          if (!previewLayer) {
+            messageApi.open({
+              type: "success",
+              content: (
+                <span data-test-id="toast-success">
+                  {`${layer.title} wurde erfolgreich hinzugefügt.`}
+                </span>
+              ),
+            });
+          }
+        }, 1);
       } catch {
         messageApi.open({
           type: "error",
@@ -239,7 +329,7 @@ const ResourceModal = () => {
               }),
             id: "favoriteDigitalTwins",
           },
-          {
+          isLeaflet && {
             Title: "Meine Karten",
             layers: savedLayerConfigs.map((layer) => {
               return {
@@ -250,13 +340,14 @@ const ResourceModal = () => {
             }),
             id: "collections",
           },
-          {
+          isLeaflet && {
             Title: "Meine Kartenebenen",
             layers: favorites
               .filter((favorite) => {
                 return (
                   favorite.serviceName !== "wuppTopicMaps" &&
-                  favorite.serviceName !== "wuppArcGisOnline"
+                  favorite.serviceName !== "wuppArcGisOnline" &&
+                  favorite.type !== "object"
                 );
               })
               .map((favorite) => {
@@ -268,7 +359,15 @@ const ResourceModal = () => {
               }),
             id: "favoriteLayers",
           },
-        ]}
+          {
+            Title: "Meine Objekte",
+            layers: favorites.filter((favorite) => {
+              return favorite.type === "object";
+            }),
+
+            id: "favoriteObjects",
+          },
+        ].filter(Boolean)}
         updateActiveLayer={(layer) => {
           dispatch(updateLayer(layer));
         }}

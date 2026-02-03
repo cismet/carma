@@ -41,6 +41,15 @@ export {
   SelectionMapMode,
 } from "./lib/components/SelectionProvider";
 
+export {
+  AdhocFeatureDisplayProvider,
+  useAdhocFeatureDisplay,
+  type AdhocFeature,
+  type AdhocModelData,
+  type AdhocMapLibreStyleFeature,
+  type AdhocModelFeature,
+} from "./lib/components/AdhocFeatureDisplayProvider";
+
 export { LibreMapSelectionContent } from "./lib/components/LibreMapSelectionContent";
 export { TopicMapSelectionContent } from "./lib/components/TopicMapSelectionContent";
 export { ProgressIndicator } from "./lib/components/ProgressIndicator";
@@ -51,6 +60,7 @@ export { useSelectionLibreMap } from "./lib/hooks/useSelectionLibreMap";
 export { useShareUrl, SHORTENER_URL } from "./lib/hooks/useShareUrl";
 export { useProgress } from "./lib/hooks/useProgress";
 export { useCesiumModels } from "./lib/hooks/useCesiumModels";
+export { useAdhocCesiumFeatureDisplay } from "./lib/hooks/useAdhocCesiumFeatureDisplay";
 export { useUrlFeatureSelection } from "./lib/hooks/useUrlFeatureSelection";
 export {
   useMapHashRouting,
@@ -61,6 +71,7 @@ export {
   defaultBackgroundConfigurations,
   backgroundConfWithFastOrtho2024,
 } from "./lib/utils/topicmapConfigs";
+export { buildInfoBoxStylingProps } from "./lib/utils/adhoc-feature-utils";
 // Feature functions moved to @carma-mapping/utils
 // createUrl, functionToFeature, objectToFeature, createVectorFeature, getInfoBoxControlObjectFromMappingAndVectorFeature
 

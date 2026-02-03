@@ -1,6 +1,7 @@
 import { isNaN } from "lodash";
 
 import type { FeatureInfoProperties, Item, Layer } from "@carma/types";
+import type { Geometry } from "geojson";
 import { extractCarmaConfig } from "@carma-commons/utils";
 import envelope from "@turf/envelope";
 import L from "leaflet";
@@ -137,25 +138,56 @@ export const parseToMapLayer = async (
   const id = layer.id.startsWith("fav_") ? layer.id.slice(4) : layer.id;
 
   const carmaConf = extractCarmaConfig(layer.keywords);
-  if (layer.type === "layer") {
+  if (layer.type === "layer" || layer.type === "object") {
     let capabilitiesUrl = layer?.props?.url
       ? layer?.props?.url + "service=WMS&request=GetCapabilities&version=1.1.1"
       : undefined;
+    let localJson = false;
     if ((carmaConf?.vectorStyle && !forceWMS) || layer.vectorStyle) {
       let zoom = {
         minzoom: 9,
         maxzoom: 24,
       };
-      let vectorStyle = "";
+      let vectorStyle:
+        | string
+        | {
+            layers: {
+              id: string;
+              maxzoom: number;
+              minzoom: number;
+              type: string;
+              source: string;
+            }[];
+            metadata?: { carmaConf: { layerInfo: Record<string, unknown> } };
+          } = "";
       if (carmaConf?.vectorStyle) {
-        vectorStyle = isJson(carmaConf.vectorStyle)
+        localJson = isJson(carmaConf.vectorStyle);
+        vectorStyle = localJson
           ? JSON.parse(carmaConf.vectorStyle as string)
           : carmaConf.vectorStyle;
       } else if (layer.vectorStyle) {
         vectorStyle = layer.vectorStyle;
       }
-      let metaData: Record<string, unknown> = {};
-      if (vectorStyle) {
+
+      let metaData: {
+        carmaConf?: {
+          layerInfo?: {
+            keywords?: string[];
+            [key: string]: unknown;
+          };
+          [key: string]: unknown;
+        };
+        [key: string]: unknown;
+      } = {};
+      if (vectorStyle && typeof vectorStyle === "object") {
+        zoom = parseZoom(vectorStyle.layers, {
+          minzoom: 9,
+          maxzoom: 24,
+        });
+        if (vectorStyle.metadata && vectorStyle.metadata.carmaConf.layerInfo) {
+          metaData = vectorStyle.metadata;
+        }
+      } else if (typeof vectorStyle === "string" && vectorStyle) {
         zoom = await fetch(vectorStyle)
           .then((response) => {
             return response.json();
@@ -166,7 +198,7 @@ export const parseToMapLayer = async (
               maxzoom: 24,
             });
             if (result.metadata && result.metadata.carmaConf.layerInfo) {
-              metaData = result.metadata.carmaConf.layerInfo;
+              metaData = result.metadata;
             }
             return parsedZoom;
           });
@@ -174,10 +206,16 @@ export const parseToMapLayer = async (
 
       let vectorConf = null;
 
-      if (metaData?.keywords) {
-        vectorConf = extractCarmaConfig(metaData.keywords as string[]);
+      if (metaData?.carmaConf?.layerInfo?.keywords) {
+        vectorConf = extractCarmaConfig(
+          metaData?.carmaConf?.layerInfo?.keywords as string[]
+        );
       }
-      const mergedConf = { ...vectorConf, ...carmaConf };
+
+      const metaDataCarmaConf = metaData?.carmaConf as
+        | Record<string, unknown>
+        | undefined;
+      const mergedConf = { ...vectorConf, ...metaDataCarmaConf, ...carmaConf };
 
       newLayer = {
         title: layer.title,
@@ -187,12 +225,12 @@ export const parseToMapLayer = async (
         description: layer.description,
         conf: Object.keys(mergedConf).length > 0 ? mergedConf : undefined,
         queryable: !layer.queryable
-          ? "infoboxMapping" in mergedConf
+          ? "infoboxMapping" in mergedConf || "lazyInfoBox" in mergedConf
           : layer.queryable,
         useInFeatureInfo: true,
         visible: visible,
         props: {
-          style: vectorStyle,
+          style: vectorStyle as string,
           minZoom:
             Number(carmaConf?.minZoom) || zoom?.minzoom || layer?.minZoom,
           maxZoom:
@@ -208,6 +246,10 @@ export const parseToMapLayer = async (
           capabilitiesUrl: capabilitiesUrl,
           ...metaData,
         },
+        layerInfo: {
+          ...metaData,
+        },
+        type: layer.type,
       };
     } else {
       switch (layer.layerType) {
@@ -301,6 +343,25 @@ export const getCoordinates = (geometry) => {
   }
 };
 
+export const getPointsFromGeometry = (geometry: Geometry): number[][] => {
+  switch (geometry.type) {
+    case "Point":
+      return [geometry.coordinates as number[]];
+    case "MultiPoint":
+      return geometry.coordinates as number[][];
+    case "LineString":
+      return geometry.coordinates as number[][];
+    case "MultiLineString":
+      return (geometry.coordinates as number[][][]).flat();
+    case "Polygon":
+      return (geometry.coordinates as number[][][]).flat();
+    case "MultiPolygon":
+      return (geometry.coordinates as number[][][][]).flat(2);
+    default:
+      return [];
+  }
+};
+
 export const zoomToFeature = ({
   selectedFeature,
   leafletMap,
@@ -356,7 +417,6 @@ export const zoomToFeature = ({
         });
       }
     } else {
-      console.log("xxx", selectedFeature.geometry);
       const bbox = envelope(selectedFeature.geometry).bbox;
 
       if (leafletMap) {

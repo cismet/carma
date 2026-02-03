@@ -1,0 +1,216 @@
+import type { Feature, FeatureCollection, Geometry } from "geojson";
+import type { GeoJSONSourceSpecification } from "maplibre-gl";
+
+import type { CarmaMapLibreStyleData, FeatureInfo } from "@carma/types";
+
+import type {
+  AdhocFeature,
+  AdhocModelData,
+} from "../components/AdhocFeatureDisplayProvider";
+
+const ADHOC_WALL_DEFAULT_HEIGHT = 15;
+
+const isGeoJsonSource = (
+  source: unknown
+): source is GeoJSONSourceSpecification =>
+  typeof source === "object" &&
+  source !== null &&
+  (source as { type?: unknown }).type === "geojson";
+
+export const isAdhocModelFeature = (
+  feature: AdhocFeature
+): feature is AdhocFeature & { kind: "model"; data: AdhocModelData } =>
+  feature.kind === "model";
+
+export const isAdhocMapLibreStyleFeature = (
+  feature: AdhocFeature
+): feature is AdhocFeature & {
+  kind: "maplibre-style";
+  data: CarmaMapLibreStyleData;
+} => feature.kind === "maplibre-style";
+
+export const getMapLibreLayerInfo = (feature: AdhocFeature) => {
+  if (!isAdhocMapLibreStyleFeature(feature)) return undefined;
+  return feature.data.metadata?.carmaConf?.layerInfo;
+};
+
+export const getAdhocAccentColor = (feature: AdhocFeature) => {
+  return (
+    (typeof feature.metadata?.accentColor === "string"
+      ? feature.metadata?.accentColor
+      : undefined) ?? getMapLibreLayerInfo(feature)?.accentColor
+  );
+};
+
+export const getAdhocHeader = (feature: AdhocFeature) => {
+  return (
+    (typeof feature.metadata?.header === "string"
+      ? feature.metadata?.header
+      : undefined) ?? getMapLibreLayerInfo(feature)?.header
+  );
+};
+
+export const getAdhocWallHeight = (
+  feature: { metadata?: Record<string, unknown> },
+  segmentIndex: number
+) => {
+  const heights = feature.metadata?.wallHeights;
+  if (Array.isArray(heights) && typeof heights[segmentIndex] === "number") {
+    return heights[segmentIndex];
+  }
+  const height = feature.metadata?.wallHeightMeters;
+  if (typeof height === "number") {
+    return height;
+  }
+  return ADHOC_WALL_DEFAULT_HEIGHT;
+};
+
+export const getPolygonFromGeoJson = (
+  geojson: Feature | FeatureCollection
+): number[][][] | null => {
+  const feature =
+    geojson.type === "FeatureCollection" ? geojson.features[0] : geojson;
+  const geometry = feature?.geometry as Geometry | null | undefined;
+  if (!geometry) return null;
+
+  if (geometry.type === "Polygon") {
+    return geometry.coordinates as number[][][];
+  }
+
+  if (geometry.type === "MultiPolygon") {
+    return (geometry.coordinates as number[][][][])[0] ?? null;
+  }
+
+  return null;
+};
+
+export const getGeoJsonFromFeature = (
+  feature: AdhocFeature
+): Feature | FeatureCollection | null => {
+  if (isAdhocMapLibreStyleFeature(feature)) {
+    const sources = feature.data.sources;
+    if (!sources) return null;
+    const source = Object.values(sources).find(
+      (entry): entry is GeoJSONSourceSpecification =>
+        isGeoJsonSource(entry) &&
+        typeof entry.data === "object" &&
+        entry.data !== null
+    );
+    if (!source) return null;
+    return source.data as Feature | FeatureCollection;
+  }
+  return null;
+};
+
+const pickNonEmptyString = (...values: Array<unknown>) => {
+  return values.find(
+    (value): value is string =>
+      typeof value === "string" && value.trim().length > 0
+  );
+};
+
+export const buildInfoBoxStylingProps = ({
+  header,
+  accentColor,
+  rawProps,
+}: {
+  header?: string;
+  accentColor?: string;
+  rawProps?: Record<string, unknown>;
+}) => ({
+  ...(accentColor ? { accentColor } : {}),
+  ...(header ? { _header: header } : {}),
+  wmsProps: (rawProps ?? {}) as { [key: string]: string },
+});
+
+export const buildAdhocFeatureInfo = (
+  feature: AdhocFeature
+): FeatureInfo | null => {
+  const accentColor = getAdhocAccentColor(feature);
+  const header = getAdhocHeader(feature);
+  const geojson = getGeoJsonFromFeature(feature);
+  if (geojson) {
+    const geojsonFeature =
+      geojson.type === "FeatureCollection" ? geojson.features[0] : geojson;
+
+    const metadataTitle = pickNonEmptyString(
+      typeof feature.metadata?.title === "string"
+        ? feature.metadata?.title
+        : undefined,
+      getMapLibreLayerInfo(feature)?.title
+    );
+    const fallbackTitle = metadataTitle ?? feature.id;
+
+    const properties = feature.properties ??
+      (geojsonFeature?.properties as FeatureInfo["properties"] | undefined) ?? {
+        title: fallbackTitle,
+      };
+    const info =
+      typeof (properties as { info?: unknown }).info === "object" &&
+      (properties as { info?: unknown }).info
+        ? (
+            properties as {
+              info?: {
+                title?: unknown;
+                subtitle?: unknown;
+                additionalInfo?: unknown;
+              };
+            }
+          ).info
+        : undefined;
+    const infoTitle = pickNonEmptyString(info?.title);
+    const infoSubtitle = pickNonEmptyString(info?.subtitle);
+    const infoAdditionalInfo = pickNonEmptyString(info?.additionalInfo);
+    const title = pickNonEmptyString(
+      metadataTitle,
+      properties.title,
+      infoTitle,
+      fallbackTitle
+    );
+    const subtitle = pickNonEmptyString(properties.subtitle, infoSubtitle);
+    const additionalInfo = pickNonEmptyString(
+      properties.additionalInfo,
+      infoAdditionalInfo
+    );
+
+    return {
+      id: feature.id,
+      properties: {
+        ...properties,
+        title: title ?? fallbackTitle,
+        ...(subtitle ? { subtitle } : {}),
+        ...(additionalInfo ? { additionalInfo } : {}),
+        ...buildInfoBoxStylingProps({
+          header,
+          accentColor,
+          rawProps: geojsonFeature?.properties ?? {},
+        }),
+      },
+      geometry: geojsonFeature?.geometry,
+    };
+  }
+
+  if (feature.kind === "model") {
+    const metadataTitle = pickNonEmptyString(
+      typeof feature.metadata?.title === "string"
+        ? feature.metadata?.title
+        : undefined,
+      getMapLibreLayerInfo(feature)?.title
+    );
+    const fallbackTitle = metadataTitle ?? feature.id;
+    return {
+      id: feature.id,
+      properties: {
+        ...(feature.properties ?? { title: fallbackTitle }),
+        title: metadataTitle ?? feature.properties?.title ?? fallbackTitle,
+        ...buildInfoBoxStylingProps({
+          header,
+          accentColor,
+          rawProps: feature.properties ?? {},
+        }),
+      },
+    };
+  }
+
+  return null;
+};

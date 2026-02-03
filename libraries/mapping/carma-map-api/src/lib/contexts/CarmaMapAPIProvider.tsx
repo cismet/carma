@@ -1,7 +1,13 @@
-import { createContext, useContext, useSyncExternalStore, useCallback } from "react";
+import {
+  createContext,
+  useContext,
+  useSyncExternalStore,
+  useCallback,
+} from "react";
 import type { ReactNode } from "react";
 import type { Store, Dispatch, UnknownAction } from "redux";
 import type { Layer } from "@carma/types";
+import { parseToMapLayer } from "../helper/utils";
 
 export type APIRootState = Record<string, unknown>;
 
@@ -12,7 +18,10 @@ export interface AddLayerOptions {
 
 // Context value is the API surface that consumers use
 export interface CarmaMapAPIContextValue {
-  addLayerById: (id: string, options?: AddLayerOptions) => Promise<Layer | undefined>;
+  addLayerById: (
+    id: string,
+    options?: AddLayerOptions
+  ) => Promise<Layer | undefined>;
   useHasLayerById: (id: string) => boolean;
   // Legacy Redux access (optional, only available when store is provided)
   store?: Store;
@@ -26,24 +35,34 @@ const defaultUseHasLayerById = (_id: string): boolean => false;
 // Default no-op implementation (graceful fallback for playgrounds)
 const defaultContextValue: CarmaMapAPIContextValue = {
   addLayerById: async (id) => {
-    console.warn(`CarmaMapAPIProvider: addLayerById("${id}") called but no implementation provided`);
+    console.warn(
+      `CarmaMapAPIProvider: addLayerById("${id}") called but no implementation provided`
+    );
     return undefined;
   },
   useHasLayerById: defaultUseHasLayerById,
 };
 
-const CarmaMapAPIContext = createContext<CarmaMapAPIContextValue>(defaultContextValue);
+const CarmaMapAPIContext =
+  createContext<CarmaMapAPIContextValue>(defaultContextValue);
 
-export interface CarmaMapAPIProviderProps<TState extends APIRootState = APIRootState> {
+export interface CarmaMapAPIProviderProps<
+  TState extends APIRootState = APIRootState
+> {
   children: ReactNode;
   // New callback-based API (injected by consumer)
-  addLayerById?: (id: string, options?: AddLayerOptions) => Promise<Layer | undefined>;
+  addLayerById?: (
+    id: string,
+    options?: AddLayerOptions
+  ) => Promise<Layer | undefined>;
   useHasLayerById?: (id: string) => boolean;
   // Legacy Redux store (for backward compatibility and selector/dispatch hooks)
   store?: Store<TState>;
 }
 
-export const CarmaMapAPIProvider = <TState extends APIRootState = APIRootState>({
+export const CarmaMapAPIProvider = <
+  TState extends APIRootState = APIRootState
+>({
   children,
   addLayerById,
   useHasLayerById,
@@ -88,7 +107,8 @@ export const useCarmaMapAPISelector = <TState extends APIRootState, TSelected>(
   const { store } = useCarmaMapAPI();
 
   const subscribe = useCallback(
-    (onStoreChange: () => void) => store?.subscribe(onStoreChange) ?? (() => {}),
+    (onStoreChange: () => void) =>
+      store?.subscribe(onStoreChange) ?? (() => {}),
     [store]
   );
 
@@ -110,7 +130,12 @@ export const useCarmaMapAPIDispatch = <
 // Selector factories for common patterns (used by CarmaMapProviderWrapper)
 export const createLayerSelectors = {
   getLayerById: (id: string) => (state: APIRootState) => {
-    const allLayers = (state?.mapLayers as { allLayers?: Array<{ layers?: Array<{ id: string }> }> })?.allLayers ?? [];
+    const allLayers =
+      (
+        state?.mapLayers as {
+          allLayers?: Array<{ layers?: Array<{ id: string }> }>;
+        }
+      )?.allLayers ?? [];
     for (const category of allLayers) {
       const found = category.layers?.find((layer) => layer.id === id);
       if (found) return found;
@@ -119,8 +144,12 @@ export const createLayerSelectors = {
   },
 
   hasLayerById: (id: string) => (state: APIRootState) =>
-    (state?.mapping as { layers?: Array<{ id: string }> })?.layers?.some((layer) => layer.id === id) ?? false,
+    (state?.mapping as { layers?: Array<{ id: string }> })?.layers?.some(
+      (layer) => layer.id === id
+    ) ?? false,
 
   getLayersByIds: (ids: string[]) => (state: APIRootState) =>
-    (state?.mapping as { layers?: Array<{ id: string }> })?.layers?.filter((layer) => ids.includes(layer.id)) ?? [],
+    (state?.mapping as { layers?: Array<{ id: string }> })?.layers?.filter(
+      (layer) => ids.includes(layer.id)
+    ) ?? [],
 };

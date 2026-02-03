@@ -130,7 +130,16 @@ export const InfoBox = ({
       fotoCaptions.length > 0 &&
       lightBoxDispatchContext?.setCaptions
     ) {
-      lightBoxDispatchContext.setCaptions(fotoCaptions);
+      // Parse HTML captions if they contain HTML, otherwise pass as-is
+      const parsedCaptions = fotoCaptions.map((caption: string) => {
+        if (typeof caption === "string" && isHtmlString(caption)) {
+          // Extract content from <html>...</html> wrapper if present
+          const match = caption.match(/<html>(.*?)<\/html>/s);
+          return match ? parseHtml(match[1]) : parseHtml(caption);
+        }
+        return caption;
+      });
+      lightBoxDispatchContext.setCaptions(parsedCaptions);
     }
   }, [currentFeature]);
 

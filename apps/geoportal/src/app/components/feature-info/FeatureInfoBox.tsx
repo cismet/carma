@@ -2,7 +2,6 @@ import { useContext, useEffect, useState, useRef } from "react";
 import { useDispatch, useSelector } from "react-redux";
 
 import InfoBoxFotoPreview from "react-cismap/topicmaps/InfoBoxFotoPreview";
-import { getActionLinksForFeature } from "react-cismap/tools/uiHelper";
 import { TopicMapContext } from "react-cismap/contexts/TopicMapContextProvider";
 import { LightBoxDispatchContext } from "react-cismap/contexts/LightBoxContextProvider";
 
@@ -35,16 +34,32 @@ import {
   isHtmlString,
   updateUrl,
 } from "@carma-commons/utils";
-import { InfoBox, InfoBoxHeader, utils } from "@carma-appframeworks/portals";
+import {
+  InfoBox,
+  InfoBoxHeader,
+  utils,
+  getActionLinksForFeature,
+} from "@carma-appframeworks/portals";
 import { parseColor } from "../../helper/color";
 import { useFeatureFlags } from "@carma-providers/feature-flag";
 import { addCustomFeatureFlags } from "../../store/slices/layers";
+import type { FeatureInfo } from "@carma/types";
 
 interface InfoBoxProps {
   pos?: [number, number];
+  onZoomToFeature?: (feature: FeatureInfo) => void;
+  displayOrbit?: boolean;
+  isOrbiting?: boolean;
+  onOrbitToggle?: () => void;
 }
 
-const FeatureInfoBox = ({ pos }: InfoBoxProps) => {
+const FeatureInfoBox = ({
+  pos,
+  onZoomToFeature,
+  displayOrbit = false,
+  isOrbiting = false,
+  onOrbitToggle,
+}: InfoBoxProps) => {
   const [open, setOpen] = useState(false);
   const [shouldRenderLoadingInfobox, setShouldRenderLoadingInfobox] =
     useState(false);
@@ -165,7 +180,13 @@ const FeatureInfoBox = ({ pos }: InfoBoxProps) => {
           leafletMap: routedMapRef?.leafletMap?.leafletElement,
           padding: [60, 60],
         });
+        if (onZoomToFeature) {
+          onZoomToFeature(selectedFeature as FeatureInfo);
+        }
       },
+      displayOrbit,
+      isOrbiting,
+      onOrbitToggle,
     });
   }
 
@@ -246,7 +267,11 @@ const FeatureInfoBox = ({ pos }: InfoBoxProps) => {
         }}
       >
         <InfoBoxHeader
-          content={feature.properties.header || feature.properties._header}
+          content={
+            feature.properties.header ||
+            feature.properties._header ||
+            "Informationen"
+          }
           headerColor={"grey"}
           properties={feature.properties.sourceProps}
         ></InfoBoxHeader>

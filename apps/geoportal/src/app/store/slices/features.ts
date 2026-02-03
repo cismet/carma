@@ -22,6 +22,7 @@ const initialState: FeatureInfoState = {
   vectorInfos: [],
   loading: false,
   completedVectorLayers: [],
+  triggerSelectionById: null,
 };
 
 const slice = createSlice({
@@ -156,6 +157,13 @@ const slice = createSlice({
     setLoading(state, action: PayloadAction<boolean>) {
       state.loading = action.payload;
     },
+
+    setTriggerSelectionById(state, action: PayloadAction<string | null>) {
+      state.triggerSelectionById = action.payload;
+    },
+    clearTriggerSelectionById(state) {
+      state.triggerSelectionById = null;
+    },
   },
 });
 
@@ -196,6 +204,8 @@ export const {
   moveFeatureToFront,
   clearSecondaryInfoBoxElements,
   setLoading,
+  setTriggerSelectionById,
+  clearTriggerSelectionById,
 } = slice.actions;
 
 export const getFeatures = (state: RootState) => state.features.features;
@@ -215,5 +225,7 @@ export const getVectorInfos = (state: RootState) => state.features.vectorInfos;
 export const getLoading = (state: RootState) => state.features.loading;
 export const getCompletedVectorLayers = (state: RootState) =>
   state.features.completedVectorLayers;
+export const getTriggerSelectionById = (state: RootState) =>
+  state.features.triggerSelectionById;
 
 export default slice.reducer;
