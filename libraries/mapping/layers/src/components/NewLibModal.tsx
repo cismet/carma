@@ -200,14 +200,43 @@ export const NewLibModal = ({
   }, [open, triggerRefetch, jwt]);
 
   useEffect(() => {
-    setSidebarElements(
-      elements.map((element) => {
-        return {
-          ...element,
-          disabled: element.disabledIn3D && isCesium,
-        };
-      })
-    );
+    const updatedElements = elements.map((element) => {
+      const currentElement = sidebarElements.find((e) => e.id === element.id);
+      const wasDisabledForOtherReasons =
+        currentElement?.disabled && !element.disabledIn3D;
+      return {
+        ...element,
+        disabled:
+          wasDisabledForOtherReasons || (element.disabledIn3D && isCesium),
+      };
+    });
+    setSidebarElements(updatedElements);
+
+    const currentElement = updatedElements[selectedNavItemIndex];
+    if (currentElement?.disabled) {
+      const firstValidIndex = updatedElements.findIndex((element) => {
+        if (element.disabled) return false;
+        const categoryData = filteredCategories.find(
+          (cat) => cat.id === element.id
+        );
+        if (!categoryData) return false;
+        const hasItems = categoryData.categories.some(
+          (subCat) => subCat.layers?.length > 0
+        );
+        return hasItems;
+      });
+
+      if (firstValidIndex !== -1) {
+        setSelectedNavItemIndex(firstValidIndex);
+      } else {
+        const firstNonDisabled = updatedElements.findIndex(
+          (element) => !element.disabled
+        );
+        if (firstNonDisabled !== -1) {
+          setSelectedNavItemIndex(firstNonDisabled);
+        }
+      }
+    }
   }, [isCesium]);
 
   const getNumOfCustomLayers = () => {
@@ -224,17 +253,25 @@ export const NewLibModal = ({
       const copiedCategories = JSON.parse(JSON.stringify(allCategories));
 
       const categoriesWithResults = copiedCategories.map((category) => {
+        const sidebarElement = sidebarElements.find(
+          (element) => element.id === category.id
+        );
+        const isCategoryDisabled = sidebarElement?.disabled;
+
         category.categories.map((tmp) => {
           const newLayers: any[] = [];
-          results.forEach((result) => {
-            const resultItem = result.item;
 
-            if (tmp.id === resultItem.serviceName && tmp.id) {
-              newLayers.push({
-                ...resultItem,
-              });
-            }
-          });
+          if (!isCategoryDisabled) {
+            results.forEach((result) => {
+              const resultItem = result.item;
+
+              if (tmp.id === resultItem.serviceName && tmp.id) {
+                newLayers.push({
+                  ...resultItem,
+                });
+              }
+            });
+          }
 
           tmp.layers = newLayers;
 
