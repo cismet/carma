@@ -275,12 +275,21 @@ export const useVisibleMapFeatures = ({
     maplibreMap.on("moveend", updateFeatures);
     maplibreMap.on("zoomend", updateFeatures);
 
+    // Re-query after sources finish loading (covers initial tile load and style changes)
+    const handleSourceData = (e: { isSourceLoaded?: boolean }) => {
+      if (e.isSourceLoaded) {
+        updateFeatures();
+      }
+    };
+    maplibreMap.on("sourcedata", handleSourceData);
+
     return () => {
       if (debounceRef.current) {
         clearTimeout(debounceRef.current);
       }
       maplibreMap.off("moveend", updateFeatures);
       maplibreMap.off("zoomend", updateFeatures);
+      maplibreMap.off("sourcedata", handleSourceData);
     };
   }, [maplibreMap, updateFeatures]);
 
