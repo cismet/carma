@@ -33,7 +33,7 @@ root.render(
           <GazDataProvider config={defaultGazDataConfig}>
             <SelectionProvider>
               <LibreContextProvider>
-                <MapSelectionProvider>
+                <MapSelectionProvider debug>
                   <Routes>
                     <Route path="/" element={<App />} />
                     <Route path="/simple" element={<SimpleMap />} />

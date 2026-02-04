@@ -35,7 +35,7 @@ export interface MapSelectionContextType {
   /** Request selection of a feature; optionally pass the raw feature data */
   selectFeature: (
     id: SelectedFeatureIdentifier,
-    rawFeature?: MapGeoJSONFeature,
+    rawFeature?: MapGeoJSONFeature
   ) => void;
   /** Clear the current selection */
   clearSelection: () => void;
@@ -60,10 +60,13 @@ export const MapSelectionContext =
 
 interface MapSelectionProviderProps {
   children: ReactNode;
+  /** Enable console.log output for selection changes. Defaults to false. */
+  debug?: boolean;
 }
 
 export const MapSelectionProvider = ({
   children,
+  debug = false,
 }: MapSelectionProviderProps) => {
   const [selectedFeatureId, setSelectedFeatureId] =
     useState<SelectedFeatureIdentifier | null>(null);
@@ -73,20 +76,29 @@ export const MapSelectionProvider = ({
 
   const selectFeature = useCallback(
     (id: SelectedFeatureIdentifier, raw?: MapGeoJSONFeature) => {
+      if (debug) {
+        console.log("[MapSelection] selectFeature", {
+          identifier: id,
+          maplibreFeature: raw,
+        });
+      }
       setSelectedFeatureId(id);
       setRawFeature(raw ?? null);
       setSelectedFeature(null);
       setSelectionVersion((v) => v + 1);
     },
-    [],
+    [debug]
   );
 
   const clearSelection = useCallback(() => {
+    if (debug) {
+      console.log("[MapSelection] clearSelection");
+    }
     setSelectedFeatureId(null);
     setSelectedFeature(null);
     setRawFeature(null);
     setSelectionVersion((v) => v + 1);
-  }, []);
+  }, [debug]);
 
   const value = useMemo(
     () => ({
@@ -105,7 +117,7 @@ export const MapSelectionProvider = ({
       selectFeature,
       clearSelection,
       selectionVersion,
-    ],
+    ]
   );
 
   return (
