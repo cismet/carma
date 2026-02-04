@@ -77,6 +77,8 @@ const TestSelectionList = () => {
       visibleMapHeight: containerSize.height,
       minZoomForFullFeatures: 17,
       maxFeatures: 2000,
+      //layerFilterExpressions: ["Leuchten.leitungen-base"],
+      layerFilterExpressions: ["Leuchten.*-base", "Leuchten.*-icon"],
     });
 
   // Group features by sourceLayer
@@ -217,12 +219,12 @@ const BelisPlayground = () => {
                 backgroundLayers="basemap_grey@25" // "wupp-plan-live-tiles-3857" // "basemap_grey" // "basemap_relief" // "basemap_color"
                 overrideGlyphs="https://tiles.cismet.de/fonts/{fontstack}/{range}.pbf"
                 libreLayers={[
-                  {
-                    type: "cog",
-                    name: "Orthophoto",
-                    url: "https://cog-wupp.cismet.de/output_3857.tif",
-                    opacity: 0.35,
-                  },
+                  // {
+                  //   type: "cog",
+                  //   name: "Orthophoto",
+                  //   url: "https://cog-wupp.cismet.de/output_3857.tif",
+                  //   opacity: 0.35,
+                  // },
                   {
                     type: "vector",
                     name: "Leuchten",

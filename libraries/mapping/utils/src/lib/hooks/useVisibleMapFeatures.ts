@@ -14,6 +14,11 @@ export interface UseVisibleMapFeaturesOptions {
   debounceMs?: number;
   /** Minimum zoom level to return full features. Below this, only counts are returned. */
   minZoomForFullFeatures?: number;
+  /** Regex patterns matched against MapLibre style layer IDs to restrict queryRenderedFeatures.
+   *  Resolved once when the style loads, then cached. e.g. ["Leuchten.*-base", "Leuchten.*-icon"] */
+  layerFilterExpressions?: string[];
+  /** Optional additional filter predicate applied after the engine-level layer filtering. */
+  filter?: (feature: MapGeoJSONFeature) => boolean;
 }
 
 export interface VisibleFeature extends MapGeoJSONFeature {
@@ -88,6 +93,8 @@ export const useVisibleMapFeatures = ({
   maxFeatures = DEFAULT_MAX_FEATURES,
   debounceMs = DEFAULT_DEBOUNCE_MS,
   minZoomForFullFeatures = DEFAULT_MIN_ZOOM_FOR_FULL_FEATURES,
+  layerFilterExpressions,
+  filter,
 }: UseVisibleMapFeaturesOptions): UseVisibleMapFeaturesResult => {
   const [features, setFeatures] = useState<VisibleFeature[]>([]);
   const [totalCount, setTotalCount] = useState(0);
@@ -97,6 +104,35 @@ export const useVisibleMapFeatures = ({
   const [isLoading, setIsLoading] = useState(false);
   const [isOverviewMode, setIsOverviewMode] = useState(false);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // Use ref for filter to avoid re-creating updateFeatures when the callback reference changes
+  const filterRef = useRef(filter);
+  filterRef.current = filter;
+  // Cached resolved layer IDs from layerFilterExpressions
+  const resolvedLayerIdsRef = useRef<string[] | undefined>(undefined);
+  const layerFilterExpressionsRef = useRef(layerFilterExpressions);
+  layerFilterExpressionsRef.current = layerFilterExpressions;
+
+  // Resolve layerFilterExpressions to MapLibre layer IDs once on style load
+  useEffect(() => {
+    if (!maplibreMap) return;
+    const resolve = () => {
+      const exprs = layerFilterExpressionsRef.current;
+      if (!exprs || exprs.length === 0) {
+        resolvedLayerIdsRef.current = undefined;
+        return;
+      }
+      const style = maplibreMap.getStyle();
+      if (!style?.layers) return;
+      const regexes = exprs.map((e) => new RegExp(e));
+      const ids = style.layers
+        .filter((l) => regexes.some((r) => r.test(l.id)))
+        .map((l) => l.id);
+      resolvedLayerIdsRef.current = ids.length > 0 ? ids : undefined;
+    };
+    resolve();
+    maplibreMap.on("styledata", resolve);
+    return () => { maplibreMap.off("styledata", resolve); };
+  }, [maplibreMap]);
 
   const updateFeatures = useCallback(() => {
     if (!maplibreMap) return;
@@ -218,8 +254,12 @@ export const useVisibleMapFeatures = ({
         const currentZoom = maplibreMap.getZoom() + 1;
         const zoomBelowThreshold = currentZoom < minZoomForFullFeatures;
 
-        // Query ALL rendered features, then filter by VISIBLE geographic bounds
-        const renderedFeatures = maplibreMap.queryRenderedFeatures();
+        // Use cached layer IDs from layerFilterExpressions (resolved on style load)
+        const queryOptions = resolvedLayerIdsRef.current
+          ? { layers: resolvedLayerIdsRef.current }
+          : undefined;
+        const renderedFeatures =
+          maplibreMap.queryRenderedFeatures(queryOptions);
 
         const seen = new Set<string>();
         const uniqueFeatures: VisibleFeature[] = [];
@@ -227,6 +267,7 @@ export const useVisibleMapFeatures = ({
         const layerCounts: Record<string, number> = {};
 
         for (const f of renderedFeatures) {
+          if (filterRef.current && !filterRef.current(f)) continue;
           const key = `${f.source}-${f.sourceLayer}-${f.id}`;
           if (!seen.has(key) && isFeatureInGeoBounds(f, visibleBounds)) {
             seen.add(key);
