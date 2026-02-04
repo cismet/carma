@@ -25,6 +25,16 @@ export type {
   GeoJsonMetadata,
 } from "./contexts/LibreContext";
 
+export {
+  MapSelectionContext,
+  MapSelectionProvider,
+  useMapSelection,
+} from "./contexts/MapSelectionContext";
+export type {
+  MapSelectionContextType,
+  SelectedFeatureIdentifier,
+} from "./contexts/MapSelectionContext";
+
 // Hooks
 export { useClusterMarkers } from "./hooks/useClusterMarkers";
 export { useSelectionLibreMap } from "./hooks/useSelectionLibreMap";

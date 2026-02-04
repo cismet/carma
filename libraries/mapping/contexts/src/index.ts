@@ -9,3 +9,14 @@ export {
 } from "./LibreContext";
 
 export type { LibreContextType, GeoJsonMetadata } from "./LibreContext";
+
+export {
+  MapSelectionContext,
+  MapSelectionProvider,
+  useMapSelection,
+} from "./MapSelectionContext";
+
+export type {
+  MapSelectionContextType,
+  SelectedFeatureIdentifier,
+} from "./MapSelectionContext";

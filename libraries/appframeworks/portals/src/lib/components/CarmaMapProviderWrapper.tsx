@@ -1,6 +1,9 @@
 import { OverlayTourProvider } from "@carma-commons/ui/helper-overlay";
 import { CesiumContextProvider } from "@carma-mapping/engines/cesium";
-import { LibreContextProvider } from "@carma-mapping/contexts";
+import {
+  LibreContextProvider,
+  MapSelectionProvider,
+} from "@carma-mapping/contexts";
 import { TopicMapContextProvider } from "react-cismap/contexts/TopicMapContextProvider";
 
 import { GazDataProvider } from "./GazDataProvider";
@@ -88,13 +91,15 @@ export const CarmaMapProviderWrapper = <
                     tilesetConfigs={cesiumOptions.tilesetConfigs}
                   >
                     <LibreContextProvider>
-                      {store ? (
-                        <CarmaMapAPIProvider store={store}>
-                          {children}
-                        </CarmaMapAPIProvider>
-                      ) : (
-                        children
-                      )}
+                      <MapSelectionProvider>
+                        {store ? (
+                          <CarmaMapAPIProvider store={store}>
+                            {children}
+                          </CarmaMapAPIProvider>
+                        ) : (
+                          children
+                        )}
+                      </MapSelectionProvider>
                     </LibreContextProvider>
                   </CesiumContextProvider>
                 </OverlayTourProvider>
