@@ -68,6 +68,9 @@ const GeoportalLayerButton = ({
     threshold: 0.99,
     onChange: (inView) => {
       console.debug("HOOK: [LayerButton] inView", inView);
+      if (hide) {
+        return;
+      }
       if (index === 0) {
         dispatch(setShowLeftScrollButton(!inView));
       } else if (index === layersLength - 1) {
