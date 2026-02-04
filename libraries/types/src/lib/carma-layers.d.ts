@@ -174,6 +174,9 @@ export type Item = {
   isDraft?: boolean;
   vectorStyle?: string;
   vectorLegend?: string;
+  ff?: string;
+  replaceId?: string;
+  mergeId?: string;
 } & (tmpLayer | Link | Feature | Collection);
 
 /** Bounding box as defined in WMS Capabilities (LatLonBoundingBox) */

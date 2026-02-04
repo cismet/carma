@@ -5,7 +5,7 @@ import {
   type FeatureFlagConfig,
 } from "@carma-providers/feature-flag";
 import { addReplaceLayers, getCustomLayerConfig } from "../slices/mapLayers";
-import type { SavedLayerConfig } from "@carma/types";
+import type { Config, SavedLayerConfig } from "@carma/types";
 
 interface UseAdditionalConfigProps {
   setFeatureFlags?: (flags: FeatureFlagConfig) => void;
@@ -30,23 +30,32 @@ const additionalConfigUrl =
   "https://wupp-digitaltwin-assets.cismet.de/data/additionalLayerConfig.json";
 const sensorUrl =
   "https://wupp-digitaltwin-assets.cismet.de/data/additionalSensorConfig.json";
+const objectUrl =
+  "https://wupp-digitaltwin-assets.cismet.de/data/additionalObjectConfig.json";
 
 export const useAdditionalConfig = ({
   setFeatureFlags,
   addItemToCategory,
   setSidebarElements,
 }: UseAdditionalConfigProps) => {
-  const [additionalConfig, setAdditionalConfig] = useState<any[]>([]);
-  const [sensorConfig, setSensorConfig] = useState<any[]>([]);
+  const [additionalConfig, setAdditionalConfig] = useState<Config[]>([]);
+  const [sensorConfig, setSensorConfig] = useState<Config[]>([]);
+  const [objectConfig, setObjectConfig] = useState<Config[]>([]);
   const [loadingAdditionalConfig, setLoadingAdditionalConfig] = useState(true);
   const [loadingSensorConfig, setLoadingSensorConfig] = useState(true);
+  const [loadingObjectConfig, setLoadingObjectConfig] = useState(true);
   const dispatch = useDispatch();
   const flags = useFeatureFlags();
 
   const customLayerConfig = useSelector(getCustomLayerConfig);
 
-  const fetchAdditionalConfig = () => {
-    fetch(additionalConfigUrl)
+  const fetchConfig = (
+    url: string,
+    setConfig: (data: Config[]) => void,
+    setLoading: (loading: boolean) => void,
+    name: string
+  ) => {
+    fetch(url)
       .then((response) => response.json())
       .then((data) => {
         data.forEach((config) => {
@@ -61,41 +70,23 @@ export const useAdditionalConfig = ({
             }
           });
         });
-        setAdditionalConfig(data);
+        setConfig(data);
       })
       .catch((error) => {
-        setLoadingAdditionalConfig(false);
-        console.error("Error fetching additional config:", error);
-      });
-  };
-
-  const fetchSensorConfig = () => {
-    fetch(sensorUrl)
-      .then((response) => response.json())
-      .then((data) => {
-        data.forEach((config) => {
-          config.layers.forEach((layer) => {
-            if (layer.ff as string) {
-              setFeatureFlags?.({
-                [layer.ff]: {
-                  default: false,
-                  alias: layer.ff,
-                },
-              });
-            }
-          });
-        });
-        setSensorConfig(data);
-      })
-      .catch((error) => {
-        setLoadingSensorConfig(false);
-        console.error("Error fetching sensor config:", error);
+        setLoading(false);
+        console.error(`Error fetching ${name} config:`, error);
       });
   };
 
   useEffect(() => {
-    fetchAdditionalConfig();
-    fetchSensorConfig();
+    fetchConfig(
+      additionalConfigUrl,
+      setAdditionalConfig,
+      setLoadingAdditionalConfig,
+      "additional"
+    );
+    fetchConfig(sensorUrl, setSensorConfig, setLoadingSensorConfig, "sensor");
+    fetchConfig(objectUrl, setObjectConfig, setLoadingObjectConfig, "object");
   }, []);
 
   useEffect(() => {
@@ -156,78 +147,85 @@ export const useAdditionalConfig = ({
     }
   }, [additionalConfig, flags]);
 
-  // Process sensor config for sensors
-  useEffect(() => {
-    if (sensorConfig.length > 0) {
-      const hasSensors = sensorConfig.some((config) => {
-        if (!config.layers || config.layers.length === 0) {
+  const processCategoryConfig = (
+    config: any[],
+    categoryId: string,
+    setLoading: (loading: boolean) => void
+  ) => {
+    if (config.length > 0) {
+      const hasItems = config.some((c) => {
+        if (!c.layers || c.layers.length === 0) {
           return false;
         }
-        // Check if any layers pass the feature flag filter
-        const availableLayers = config.layers.filter((layer) => {
+        const availableLayers = c.layers.filter((layer) => {
           if (layer.ff) {
-            const ff = layer.ff as string;
-            return flags[ff];
+            return flags[layer.ff as string];
           }
           return true;
         });
         return availableLayers.length > 0;
       });
 
-      // Update sidebar elements to enable/disable sensors based on data
       setSidebarElements((prev) =>
         prev.map((element) =>
-          element.id === "sensors"
-            ? { ...element, disabled: !hasSensors }
+          element.id === categoryId
+            ? { ...element, disabled: !hasItems }
             : element
         )
       );
 
-      sensorConfig.reverse().forEach((config, i) => {
-        let layers = config.layers
+      [...config].reverse().forEach((c, i) => {
+        const layers = c.layers
           .filter((layer) => {
             if (layer.ff) {
-              const ff = layer.ff as string;
-              return flags[ff];
+              return flags[layer.ff as string];
             }
             return true;
           })
-          .map((layer) => {
-            return {
-              ...layer,
-              serviceName: config.serviceName || layer.serviceName,
-            };
-          });
+          .map((layer) => ({
+            ...layer,
+            serviceName: c.serviceName || layer.serviceName,
+          }));
 
         if (layers.length === 0) {
           return;
         }
 
-        if (config.Title) {
+        if (c.Title) {
           addItemToCategory(
-            "sensors",
-            { id: config.serviceName, Title: config.Title },
+            categoryId,
+            { id: c.serviceName, Title: c.Title },
             layers
           );
         }
 
-        if (i === sensorConfig.length - 1) {
-          setLoadingSensorConfig(false);
+        if (i === config.length - 1) {
+          setLoading(false);
         }
       });
     } else {
       setSidebarElements((prev) =>
         prev.map((element) =>
-          element.id === "sensors" ? { ...element, disabled: true } : element
+          element.id === categoryId ? { ...element, disabled: true } : element
         )
       );
-      setLoadingSensorConfig(false);
+      setLoading(false);
     }
+  };
+
+  useEffect(() => {
+    processCategoryConfig(sensorConfig, "sensors", setLoadingSensorConfig);
   }, [sensorConfig, flags]);
+
+  useEffect(() => {
+    processCategoryConfig(objectConfig, "objects", setLoadingObjectConfig);
+  }, [objectConfig, flags]);
 
   return {
     additionalConfig,
     sensorConfig,
-    loadingAdditionalConfig: loadingAdditionalConfig || loadingSensorConfig,
+    objectConfig,
+    loadingAdditionalConfig:
+      loadingAdditionalConfig || loadingSensorConfig || loadingObjectConfig,
   };
 };
