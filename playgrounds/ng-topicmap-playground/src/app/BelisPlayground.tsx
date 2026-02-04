@@ -21,7 +21,7 @@ const toTitleCase = (str: string): string => {
       word
         .split("-")
         .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
-        .join("-"),
+        .join("-")
     )
     .join(" ");
 };
@@ -106,7 +106,7 @@ const TestSelectionList = () => {
         sourceLayer: feature.sourceLayer,
         id: feature.id,
       },
-      feature,
+      feature
     );
   };
 
@@ -157,7 +157,9 @@ const TestSelectionList = () => {
                       ref={selected ? selectedItemRef : null}
                       onClick={() => handleClick(feature)}
                       className={`px-3 py-2 pl-4 cursor-pointer border-b border-gray-100 hover:bg-gray-50 ${
-                        selected ? "bg-blue-50 border-l-2 border-l-blue-500" : ""
+                        selected
+                          ? "bg-blue-50 border-l-2 border-l-blue-500"
+                          : ""
                       }`}
                     >
                       <div className="flex justify-between gap-2 overflow-hidden">
@@ -212,7 +214,15 @@ const BelisPlayground = () => {
                 mapEngine="maplibre"
                 embedded
                 terrainControl={false}
+                backgroundLayers="basemap_grey@25" // "wupp-plan-live-tiles-3857" // "basemap_grey" // "basemap_relief" // "basemap_color"
+                overrideGlyphs="https://tiles.cismet.de/fonts/{fontstack}/{range}.pbf"
                 libreLayers={[
+                  {
+                    type: "cog",
+                    name: "Orthophoto",
+                    url: "https://cog-wupp.cismet.de/output_3857.tif",
+                    opacity: 0.35,
+                  },
                   {
                     type: "vector",
                     name: "Leuchten",
