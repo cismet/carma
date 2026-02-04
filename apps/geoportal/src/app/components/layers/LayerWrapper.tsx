@@ -165,7 +165,6 @@ const LayerWrapper = () => {
                 id={backgroundLayer.id}
                 title=""
                 background
-                hide={!isLeaflet}
               />
 
               {size.width > 640 && (
