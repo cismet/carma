@@ -194,7 +194,7 @@ export const useAdditionalConfig = ({
         if (c.Title) {
           addItemToCategory(
             categoryId,
-            { id: c.serviceName, Title: c.Title },
+            { id: c.id || c.serviceName, Title: c.Title },
             layers
           );
         }
