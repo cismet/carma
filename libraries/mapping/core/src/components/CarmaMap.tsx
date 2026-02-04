@@ -56,7 +56,7 @@ interface CarmaMapProps extends LibreMapProps {
   contactButtonEnabled?: boolean;
   infoBox?: React.ReactNode;
   vectorStyles?: VectorStyle[];
-  backgroundLayers?: string;
+  backgroundLayers?: string | null;
   libreLayers?: LibreLayer[];
   children?: React.ReactNode;
   onProgressUpdate?: (progress: { current: number; total: number }) => void;
@@ -99,10 +99,13 @@ const CarmaMapContent = (props: CarmaMapProps) => {
     [props.setLibreMap]
   );
 
-  // Compute background layers - either from props or from context
+  // Compute background layers - either from props or from context.
+  // undefined = prop not provided, fall through to context.
+  // null or "" = explicitly no background layer.
   const effectiveBackgroundLayers =
-    backgroundLayers ??
-    backgroundConfigurations?.[selectedBackground]?.layerkey;
+    backgroundLayers !== undefined
+      ? backgroundLayers
+      : backgroundConfigurations?.[selectedBackground]?.layerkey;
 
   return (
     <HashStateProvider>
@@ -244,6 +247,7 @@ const CarmaMapContent = (props: CarmaMapProps) => {
                 filterFunction={props.filterFunction}
                 useRouting={props.useRouting}
                 onFeatureSelect={props.onFeatureSelect}
+                overrideGlyphs={props.overrideGlyphs}
               />
             )}
             {modalMenu}

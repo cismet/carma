@@ -1,6 +1,10 @@
 import type { StyleSpecification } from "maplibre-gl";
 import maplibregl from "maplibre-gl";
 import "maplibre-gl/dist/maplibre-gl.css";
+import { cogProtocol } from "@geomatico/maplibre-cog-protocol";
+
+// Register COG protocol once
+maplibregl.addProtocol("cog", cogProtocol as any);
 import {
   useCallback,
   useContext,
@@ -50,15 +54,17 @@ export interface VectorStyle {
   name: string;
   style: string;
   layer?: string;
+  opacity?: number;
   infoboxMapping?: string[];
 }
 
 export type LibreLayer =
   | ({ type: "vector" } & VectorStyle)
-  | { type: "geojson"; name: string; data: string; infoboxMapping?: string[] };
+  | { type: "geojson"; name: string; data: string; infoboxMapping?: string[] }
+  | { type: "cog"; name: string; url: string; opacity?: number };
 
 export interface LibreMapProps {
-  backgroundLayers?: string;
+  backgroundLayers?: string | null;
   layers?: LibreLayer[];
   setLibreMap?: (map: maplibregl.Map) => void;
   onProgressUpdate?: (progress: { current: number; total: number }) => void;
@@ -67,6 +73,8 @@ export interface LibreMapProps {
     layers?: LibreLayer[],
     geoJsonData?: GeoJsonData[]
   ) => void;
+  /** Override glyphs (font) URL. undefined = use from first vector layer style, string = use this URL */
+  overrideGlyphs?: string;
   useRouting?: boolean;
   onFeatureSelect?: (
     feature: any,
@@ -84,6 +92,7 @@ export const LibreMap = ({
   setLibreMap,
   onProgressUpdate,
   filterFunction,
+  overrideGlyphs,
   useRouting = false,
   onFeatureSelect,
 }: LibreMapProps) => {
@@ -227,15 +236,28 @@ export const LibreMap = ({
     return `${baseUrl}SERVICE=WMTS&REQUEST=GetTile&VERSION=1.0.0&LAYER=${layers}&STYLE=default&FORMAT=image/png&TILEMATRIXSET=webmercator_hq&TILEMATRIX={z}&TILEROW={y}&TILECOL={x}`;
   };
 
-  // Parse backgroundLayers string and build style
-  const buildBackgroundStyle = (): StyleSpecification => {
-    if (!backgroundLayers) {
-      // Default fallback style
-      return WUPPERTAL_DEFAULT_STYLE;
+  // Parse backgroundLayers string and build style.
+  // Returns { style, vectorBackgroundLayers } where vectorBackgroundLayers
+  // are vector-type backgrounds that need to be prepended to libreLayers.
+  const buildBackgroundStyle = (): {
+    style: StyleSpecification | null;
+    vectorBackgroundLayers: LibreLayer[];
+  } => {
+    if (backgroundLayers === undefined) {
+      // Prop not provided: use default background for backwards compat
+      return { style: WUPPERTAL_DEFAULT_STYLE, vectorBackgroundLayers: [] };
+    }
+    if (backgroundLayers === null || backgroundLayers === "") {
+      // Explicitly null or empty: no background layer
+      return {
+        style: { version: 8 as const, sources: {}, layers: [] },
+        vectorBackgroundLayers: [],
+      };
     }
 
     const layerSpecs = backgroundLayers.split("|");
     const sources: Record<string, any> = {};
+    const vectorBgLayers: LibreLayer[] = [];
 
     // Add terrain source from config
     if (WUPPERTAL_CONFIG.terrain) {
@@ -250,7 +272,6 @@ export const LibreMap = ({
 
     layerSpecs.forEach((spec, index) => {
       const [layerName, opacityStr] = spec.split("@");
-      const opacity = opacityStr ? parseInt(opacityStr, 10) / 100 : 1.0;
       const layerConfig = defaultLayerConf.namedLayers[layerName];
 
       if (!layerConfig) {
@@ -258,6 +279,18 @@ export const LibreMap = ({
         return;
       }
 
+      const opacity = opacityStr ? parseInt(opacityStr, 10) / 100 : 1.0;
+
+      // Vector backgrounds get handled as libreLayers (prepended before data layers)
+      if (layerConfig.type === "vector") {
+        vectorBgLayers.push({
+          type: "vector",
+          name: `bg-${layerName}`,
+          style: layerConfig.style,
+          opacity,
+        });
+        return;
+      }
       const sourceId = `source-${layerName}-${index}`;
       const layerId = `layer-${layerName}-${index}`;
 
@@ -285,7 +318,7 @@ export const LibreMap = ({
         };
       } else {
         console.warn(
-          `Layer type "${layerConfig.type}" not supported for MapLibre`
+          `Layer type "${layerConfig.type}" not supported for MapLibre`,
         );
         return;
       }
@@ -299,21 +332,29 @@ export const LibreMap = ({
       });
     });
 
-    // If no valid layers were parsed, return default style
+    // If only vector backgrounds and no raster layers, use an empty style
+    // so the vector background becomes the sole base layer
+    if (styleLayers.length === 0 && vectorBgLayers.length > 0) {
+      return {
+        style: { version: 8 as const, sources, layers: [] },
+        vectorBackgroundLayers: vectorBgLayers,
+      };
+    }
+
+    // If no valid layers were parsed at all, return default style
     if (styleLayers.length === 0) {
-      return WUPPERTAL_DEFAULT_STYLE;
+      return { style: WUPPERTAL_DEFAULT_STYLE, vectorBackgroundLayers: [] };
     }
 
     return {
-      version: 8,
-      sources,
-      layers: styleLayers,
+      style: { version: 8, sources, layers: styleLayers },
+      vectorBackgroundLayers: vectorBgLayers,
     };
   };
 
-  const backgroundStyle = useMemo(
+  const { style: backgroundStyle, vectorBackgroundLayers } = useMemo(
     () => buildBackgroundStyle(),
-    [backgroundLayers]
+    [backgroundLayers],
   );
 
   useEffect(() => {
@@ -490,9 +531,14 @@ export const LibreMap = ({
 
     const updateMapStyle = async () => {
       try {
-        if (layers) {
+        // Prepend vector background layers before data layers
+        const effectiveLayers = vectorBackgroundLayers.length > 0
+          ? [...vectorBackgroundLayers, ...(layers || [])]
+          : layers;
+
+        if (effectiveLayers) {
           // Show initial progress only on first load or when layers change
-          const geoJsonLayers = layers.filter(
+          const geoJsonLayers = effectiveLayers.filter(
             (layer) => layer.type === "geojson"
           );
 
@@ -515,9 +561,10 @@ export const LibreMap = ({
           // Update with vector styles and background layers
           const { style: baseStyle, geoJsonMetadata } =
             await vectorStylesToMapLibreStyle({
-              layers,
+              layers: effectiveLayers,
               backgroundStyle,
               clusteringEnabled,
+              overrideGlyphs,
             });
 
           // Apply marker symbol size scaling
@@ -535,6 +582,56 @@ export const LibreMap = ({
           // Update context with the full map style
           setMapStyle(style);
 
+          // Add COG layers after style is loaded (requires addSource/addLayer, not setStyle).
+          // Use beforeId to insert at correct z-position based on effectiveLayers order.
+          const cogEntries = effectiveLayers
+            .map((l, i) => ({ layer: l, index: i }))
+            .filter((e) => e.layer.type === "cog");
+          if (cogEntries.length > 0 && map.current) {
+            const addCogLayers = () => {
+              if (!map.current) return;
+              const styleLayers = map.current.getStyle().layers || [];
+              cogEntries.forEach(({ layer, index: cogIndex }) => {
+                if (layer.type !== "cog" || !map.current) return;
+                const sourceId = `cog-source-${layer.name}`;
+                if (map.current.getSource(sourceId)) {
+                  map.current.removeLayer(`cog-layer-${layer.name}`);
+                  map.current.removeSource(sourceId);
+                }
+                // Find first style layer with z-index > cogIndex to insert before
+                let beforeId: string | undefined;
+                for (const sl of styleLayers) {
+                  const meta = (sl as any).metadata;
+                  if (meta && typeof meta["z-index"] === "number" && meta["z-index"] >= cogIndex) {
+                    beforeId = sl.id;
+                    break;
+                  }
+                }
+                map.current.addSource(sourceId, {
+                  type: "raster",
+                  url: `cog://${layer.url}`,
+                  tileSize: 256,
+                });
+                map.current.addLayer(
+                  {
+                    id: `cog-layer-${layer.name}`,
+                    source: sourceId,
+                    type: "raster",
+                    paint: {
+                      "raster-opacity": layer.opacity ?? 1,
+                    },
+                  },
+                  beforeId,
+                );
+              });
+            };
+            if (map.current.isStyleLoaded()) {
+              addCogLayers();
+            } else {
+              map.current.once("styledata", addCogLayers);
+            }
+          }
+
           // Restore terrain after style is loaded if it was previously set
           if (currentTerrain && map.current) {
             const restoreTerrain = () => {
@@ -550,8 +647,8 @@ export const LibreMap = ({
             }
           }
 
-          // Get mapping for vector layers
-          const vectorLayers = layers.filter(
+          // Get mapping for vector layers (only from user-provided layers, not backgrounds)
+          const vectorLayers = (layers || []).filter(
             (layer) => layer.type === "vector"
           );
           let mapping = {};
@@ -637,6 +734,7 @@ export const LibreMap = ({
     updateMapStyle();
   }, [
     backgroundStyle,
+    vectorBackgroundLayers,
     layers,
     clusteringEnabled,
     markerSymbolSize,
