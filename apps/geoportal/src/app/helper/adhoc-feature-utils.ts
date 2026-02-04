@@ -85,3 +85,7 @@ export const getVectorLayerStyle = async (
     ?.style;
   return resolveAdhocStyleData(style);
 };
+
+export const filter3dLayers = (layer: Layer): Boolean => {
+  return layer.type === "object";
+};
