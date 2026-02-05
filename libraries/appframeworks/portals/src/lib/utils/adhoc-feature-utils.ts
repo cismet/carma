@@ -3,10 +3,7 @@ import type { GeoJSONSourceSpecification } from "maplibre-gl";
 
 import type { CarmaMapLibreStyleData, FeatureInfo } from "@carma/types";
 
-import type {
-  AdhocFeature,
-  AdhocModelData,
-} from "../components/AdhocFeatureDisplayProvider";
+import type { AdhocFeature } from "../components/AdhocFeatureDisplayProvider";
 
 const ADHOC_WALL_DEFAULT_HEIGHT = 15;
 
@@ -16,11 +13,6 @@ const isGeoJsonSource = (
   typeof source === "object" &&
   source !== null &&
   (source as { type?: unknown }).type === "geojson";
-
-export const isAdhocModelFeature = (
-  feature: AdhocFeature
-): feature is AdhocFeature & { kind: "model"; data: AdhocModelData } =>
-  feature.kind === "model";
 
 export const isAdhocMapLibreStyleFeature = (
   feature: AdhocFeature
@@ -68,25 +60,32 @@ export const getAdhocWallHeight = (
 export const getPolygonFromGeoJson = (
   geojson: Feature | FeatureCollection
 ): number[][][] | null => {
-  const feature =
-    geojson.type === "FeatureCollection" ? geojson.features[0] : geojson;
-  const geometry = feature?.geometry as Geometry | null | undefined;
-  if (!geometry) return null;
+  const features =
+    geojson.type === "FeatureCollection" ? geojson.features : [geojson];
+  const rings = features.flatMap((feature) => {
+    const geometry = feature?.geometry as Geometry | null | undefined;
+    if (!geometry) return [];
 
-  if (geometry.type === "Polygon") {
-    return geometry.coordinates as number[][][];
-  }
+    if (geometry.type === "Polygon") {
+      return geometry.coordinates as number[][][];
+    }
 
-  if (geometry.type === "MultiPolygon") {
-    return (geometry.coordinates as number[][][][])[0] ?? null;
-  }
+    if (geometry.type === "MultiPolygon") {
+      return (geometry.coordinates as number[][][][]).flat();
+    }
 
-  return null;
+    return [];
+  });
+
+  return rings.length > 0 ? rings : null;
 };
 
 export const getGeoJsonFromFeature = (
   feature: AdhocFeature
 ): Feature | FeatureCollection | null => {
+  if (feature.metadata?.elevatedGeoJson) {
+    return feature.metadata.elevatedGeoJson as Feature | FeatureCollection;
+  }
   if (isAdhocMapLibreStyleFeature(feature)) {
     const sources = feature.data.sources;
     if (!sources) return null;
@@ -187,28 +186,6 @@ export const buildAdhocFeatureInfo = (
         }),
       },
       geometry: geojsonFeature?.geometry,
-    };
-  }
-
-  if (feature.kind === "model") {
-    const metadataTitle = pickNonEmptyString(
-      typeof feature.metadata?.title === "string"
-        ? feature.metadata?.title
-        : undefined,
-      getMapLibreLayerInfo(feature)?.title
-    );
-    const fallbackTitle = metadataTitle ?? feature.id;
-    return {
-      id: feature.id,
-      properties: {
-        ...(feature.properties ?? { title: fallbackTitle }),
-        title: metadataTitle ?? feature.properties?.title ?? fallbackTitle,
-        ...buildInfoBoxStylingProps({
-          header,
-          accentColor,
-          rawProps: feature.properties ?? {},
-        }),
-      },
     };
   }
 

@@ -331,7 +331,9 @@ export const useHandleDrop = ({
 
         if (file && file.name.endsWith("style.json")) {
           handleJsonStyle(file, null);
-        } else if (file) {
+          return;
+        }
+        if (file) {
           if (
             file.name.includes("config") &&
             file.name.endsWith(".json") &&
@@ -345,6 +347,11 @@ export const useHandleDrop = ({
             });
             openModal();
 
+            return;
+          }
+
+          if (file.name.endsWith(".json")) {
+            handleTwinFile(file, null);
             return;
           }
 

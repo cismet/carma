@@ -52,6 +52,12 @@ export {
   type ElevationResult,
 } from "./elevation";
 export { guardSampleTerrainMostDetailedAsync } from "./guardSampleTerrainMostDetailedAsync";
+export {
+  addElevationsToGeoJson,
+  geoJsonHasMissingElevations,
+  type GeoJsonElevationOptions,
+  type GeoJsonElevationResult,
+} from "./geojson-elevation";
 
 // Ground primitives
 export {

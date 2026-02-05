@@ -298,7 +298,6 @@ export const GeoportalMap = ({ height, width, allow3d }: MapProps) => {
   const { getAdhocBoundingSphere } = useAdhocCesiumFeatureDisplay({
     baseModels: CESIUM_CONFIG.models ?? [],
     getScene,
-    getSurfaceProvider,
     getTerrainProvider,
     isCesiumEnabled: isCesium,
     selectionLineWidthPixels: 1.5,

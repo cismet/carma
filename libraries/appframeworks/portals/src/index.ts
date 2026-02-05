@@ -45,9 +45,7 @@ export {
   AdhocFeatureDisplayProvider,
   useAdhocFeatureDisplay,
   type AdhocFeature,
-  type AdhocModelData,
   type AdhocMapLibreStyleFeature,
-  type AdhocModelFeature,
 } from "./lib/components/AdhocFeatureDisplayProvider";
 
 export { LibreMapSelectionContent } from "./lib/components/LibreMapSelectionContent";

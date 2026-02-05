@@ -5,22 +5,22 @@ import {
   useMemo,
   useState,
 } from "react";
+import type { Feature, FeatureCollection } from "geojson";
 import type {
   CarmaMapLibreStyleData,
   FeatureInfoProperties,
 } from "@carma/types";
 
-export type AdhocModelData = {
-  url: string;
-  position: {
-    lon: number;
-    lat: number;
-    height?: number;
-  };
-  heading?: number;
-  pitch?: number;
-  roll?: number;
-  scale?: number;
+export type AdhocFeatureMetadata = {
+  accentColor?: string;
+  elevatedGeoJson?: Feature | FeatureCollection;
+  hasElevations?: boolean;
+  header?: string;
+  rehydrated?: boolean;
+  title?: string;
+  wallHeightMeters?: number;
+  wallHeights?: number[];
+  [key: string]: unknown;
 };
 
 export type AdhocMapLibreStyleFeature = {
@@ -28,18 +28,15 @@ export type AdhocMapLibreStyleFeature = {
   kind: "maplibre-style";
   data: CarmaMapLibreStyleData;
   properties?: FeatureInfoProperties;
-  metadata?: Record<string, unknown>;
+  metadata?: AdhocFeatureMetadata;
 };
 
-export type AdhocModelFeature = {
+export type AdhocFeatureMetadataUpdate = {
   id: string;
-  kind: "model";
-  data: AdhocModelData;
-  properties?: FeatureInfoProperties;
-  metadata?: Record<string, unknown>;
+  metadata: Partial<AdhocFeatureMetadata>;
 };
 
-export type AdhocFeature = AdhocMapLibreStyleFeature | AdhocModelFeature;
+export type AdhocFeature = AdhocMapLibreStyleFeature;
 
 interface AdhocFeatureDisplayContextType {
   features: AdhocFeature[];
@@ -50,6 +47,9 @@ interface AdhocFeatureDisplayContextType {
   shouldFocusSelected: boolean;
   addFeature: (feature: AdhocFeature) => void;
   removeFeature: (id: string) => void;
+  updateFeatureMetadata: (
+    updates: AdhocFeatureMetadataUpdate | AdhocFeatureMetadataUpdate[]
+  ) => void;
   setActiveFeatureId: (id: string | null) => void;
   setSelectedFeatureId: (id: string | null) => void;
   setShouldFocusSelected: (shouldFocus: boolean) => void;
@@ -106,6 +106,36 @@ export function AdhocFeatureDisplayProvider({
     setSelectedFeatureId((current) => (current === id ? null : current));
   }, []);
 
+  const updateFeatureMetadata = useCallback(
+    (updates: AdhocFeatureMetadataUpdate | AdhocFeatureMetadataUpdate[]) => {
+      const updateList = Array.isArray(updates) ? updates : [updates];
+      if (updateList.length === 0) return;
+
+      setFeatures((prev) => {
+        const updatesById = new Map(
+          updateList.map((update) => [update.id, update.metadata])
+        );
+        let didChange = false;
+        const next = prev.map((feature) => {
+          const update = updatesById.get(feature.id);
+          if (!update) return feature;
+          didChange = true;
+          const currentMetadata = feature.metadata ?? {};
+          return {
+            ...feature,
+            metadata: {
+              ...currentMetadata,
+              ...update,
+            },
+          };
+        });
+
+        return didChange ? next : prev;
+      });
+    },
+    []
+  );
+
   const clearFeatures = useCallback(() => {
     setFeatures([]);
     setSelectedFeatureId(null);
@@ -129,6 +159,7 @@ export function AdhocFeatureDisplayProvider({
       shouldFocusSelected,
       addFeature,
       removeFeature,
+      updateFeatureMetadata,
       setActiveFeatureId,
       setSelectedFeatureId,
       setShouldFocusSelected,
@@ -143,6 +174,7 @@ export function AdhocFeatureDisplayProvider({
       shouldFocusSelected,
       addFeature,
       removeFeature,
+      updateFeatureMetadata,
       setActiveFeatureId,
       setSelectedFeatureId,
       setShouldFocusSelected,

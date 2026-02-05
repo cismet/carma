@@ -32,13 +32,7 @@
                 "headerColor": "#155317",
                 "title": "CTP an Nordbahntrasse",
                 "subtitle": "Gestaltungsbeirat Wuppertal 183. Sitzung 16.12.2025",
-                "additionalInfo": "Nordbahntrasse",
-                "actions": [
-                  {
-                    "name": "zoomToFeature"
-                  },
-                  {}
-                ]
+                "additionalInfo": "Nordbahntrasse"
               },
               "url": "https://wupp-digitaltwin-assets.cismet.de/v2/geoportal/tmp/eph5eifeisah7aic6aiphai3daey0zeayugh2/VO_1137_25_MASTERPRAeSENTATION_Nordbahntrasse_reduziert2-1.pdf",
               "foto": "https://wupp-digitaltwin-assets.cismet.de/v2/geoportal/tmp/eph5eifeisah7aic6aiphai3daey0zeayugh2/VO_1137_25_MASTERPRAeSENTATION_Nordbahntrasse_reduziert2-1/page_006.jpg",

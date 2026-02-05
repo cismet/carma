@@ -1,4 +1,4 @@
-import { useEffect, useRef } from "react";
+import { useCallback, useEffect, useRef } from "react";
 import {
   ScreenSpaceEventHandler,
   ScreenSpaceEventType,
@@ -9,9 +9,9 @@ import {
 import type { ModelConfig } from "@carma-commons/resources";
 import {
   createModelPrimitiveFromConfig,
+  DEFAULT_MODEL_HIGHLIGHT_SHADER,
   useCesiumContext,
 } from "@carma-mapping/engines/cesium";
-import { DEFAULT_MODEL_HIGHLIGHT_SHADER } from "@carma-mapping/engines/cesium";
 
 interface UseCesiumModelsOptions {
   models: ModelConfig[];
@@ -21,6 +21,7 @@ interface UseCesiumModelsOptions {
     onSelect?: (feature: unknown | null) => void;
     deselectOnEmptyClick?: boolean;
     highlightShader?: CustomShader;
+    selectedId?: string | null;
   };
 }
 
@@ -39,10 +40,79 @@ export const useCesiumModels = ({
   const onSelectRef = useRef<((feature: unknown | null) => void) | undefined>(
     undefined
   );
+  const selectedIdRef = useRef<string | null>(selection?.selectedId ?? null);
+  const selectionEnabledRef = useRef<boolean>(
+    Boolean(selection?.enabled && enabled)
+  );
+  const highlightShaderRef = useRef<CustomShader>(
+    selection?.highlightShader ?? DEFAULT_MODEL_HIGHLIGHT_SHADER
+  );
 
   useEffect(() => {
     onSelectRef.current = selection?.onSelect;
   }, [selection?.onSelect]);
+
+  useEffect(() => {
+    selectedIdRef.current = selection?.selectedId ?? null;
+  }, [selection?.selectedId]);
+
+  useEffect(() => {
+    selectionEnabledRef.current = Boolean(selection?.enabled && enabled);
+  }, [enabled, selection?.enabled]);
+
+  useEffect(() => {
+    highlightShaderRef.current =
+      selection?.highlightShader ?? DEFAULT_MODEL_HIGHLIGHT_SHADER;
+  }, [selection?.highlightShader]);
+
+  const getPrimitiveSelectionId = (primitive: Model): string | null => {
+    const pickId = primitive.id as { id?: unknown } | undefined;
+    return typeof pickId?.id === "string" ? pickId.id : null;
+  };
+
+  const applyShader = useCallback((primitive: Model, shader?: CustomShader) => {
+    if (primitive.isDestroyed()) return;
+    if (primitive.ready) {
+      primitive.customShader = shader;
+      requestRender();
+      return;
+    }
+    const readyPromise = (
+      primitive as unknown as { readyPromise?: Promise<unknown> }
+    ).readyPromise;
+    if (!readyPromise) {
+      primitive.customShader = shader;
+      requestRender();
+      return;
+    }
+    readyPromise
+      .then(() => {
+        if (!primitive.isDestroyed()) {
+          primitive.customShader = shader;
+          requestRender();
+        }
+      })
+      .catch(() => undefined);
+  }, [requestRender]);
+
+  const clearPreviousHighlight = useCallback(() => {
+    const current = selectedPrimitiveRef.current;
+    if (!current || current.isDestroyed()) {
+      selectedPrimitiveRef.current = null;
+      originalShaderRef.current = undefined;
+      return;
+    }
+    applyShader(current, originalShaderRef.current ?? undefined);
+  }, [applyShader]);
+
+  const applyHighlight = useCallback((
+    primitive: Model,
+    shader: CustomShader
+  ): void => {
+    if (primitive.isDestroyed()) return;
+    originalShaderRef.current = primitive.customShader ?? undefined;
+    applyShader(primitive, shader);
+  }, [applyShader]);
 
   const buildModelKey = (config: ModelConfig): string => {
     const model = config.model;
@@ -71,7 +141,32 @@ export const useCesiumModels = ({
 
   useEffect(() => {
     const scene = getScene();
-    if (!enabled || models.length === 0 || !scene || scene.isDestroyed()) {
+    if (!scene || scene.isDestroyed()) {
+      return;
+    }
+
+    const desiredKeys = new Set(models.map(buildModelKey));
+    const primitivesByKey = modelPrimitivesRef.current;
+    primitivesByKey.forEach((primitive, key) => {
+      if (enabled && desiredKeys.has(key)) return;
+      try {
+        if (selectedPrimitiveRef.current === primitive) {
+          selectedPrimitiveRef.current = null;
+          originalShaderRef.current = undefined;
+          onSelectRef.current?.(null);
+        }
+        scene.primitives.remove(primitive);
+        if (!primitive.isDestroyed()) {
+          primitive.destroy();
+        }
+      } catch (cleanupError) {
+        console.warn("[Cesium|Models] Failed to cleanup model primitive:", cleanupError);
+      }
+      primitivesByKey.delete(key);
+    });
+
+    if (!enabled || models.length === 0) {
+      requestRender();
       return;
     }
 
@@ -96,6 +191,17 @@ export const useCesiumModels = ({
           }
           scene.primitives.add(modelPrimitive);
           modelPrimitivesRef.current.set(key, modelPrimitive);
+
+          const selectedId = selectedIdRef.current;
+          if (selectionEnabledRef.current && selectedId) {
+            const modelSelectionId = getPrimitiveSelectionId(modelPrimitive);
+            if (modelSelectionId === selectedId) {
+              clearPreviousHighlight();
+              applyHighlight(modelPrimitive, highlightShaderRef.current);
+              selectedPrimitiveRef.current = modelPrimitive;
+            }
+          }
+
           requestRender();
         } catch (error) {
           console.warn("[Cesium|Models] Model load failure:", error);
@@ -108,7 +214,14 @@ export const useCesiumModels = ({
     return () => {
       cancelled = true;
     };
-  }, [enabled, models, getScene, requestRender]);
+  }, [
+    applyHighlight,
+    clearPreviousHighlight,
+    enabled,
+    getScene,
+    models,
+    requestRender,
+  ]);
 
   useEffect(() => {
     const primitivesByKey = modelPrimitivesRef.current;
@@ -144,33 +257,7 @@ export const useCesiumModels = ({
     const { canvas } = scene;
     const handler = new ScreenSpaceEventHandler(canvas);
 
-    const highlightShader =
-      selection?.highlightShader ?? DEFAULT_MODEL_HIGHLIGHT_SHADER;
-
-    const applyShader = (primitive: Model, shader?: CustomShader) => {
-      if (primitive.isDestroyed()) return;
-      if (primitive.ready) {
-        primitive.customShader = shader;
-        requestRender();
-        return;
-      }
-      const readyPromise = (
-        primitive as unknown as { readyPromise?: Promise<unknown> }
-      ).readyPromise;
-      if (!readyPromise) {
-        primitive.customShader = shader;
-        requestRender();
-        return;
-      }
-      readyPromise
-        .then(() => {
-          if (!primitive.isDestroyed()) {
-            primitive.customShader = shader;
-            requestRender();
-          }
-        })
-        .catch(() => undefined);
-    };
+    const highlightShader = highlightShaderRef.current;
 
     const isModelPick = (
       obj: PickedObject | undefined | null
@@ -182,20 +269,8 @@ export const useCesiumModels = ({
       );
     };
 
-    const clearPreviousHighlight = () => {
-      const current = selectedPrimitiveRef.current;
-      if (!current || current.isDestroyed()) {
-        selectedPrimitiveRef.current = null;
-        originalShaderRef.current = undefined;
-        return;
-      }
-      applyShader(current, originalShaderRef.current ?? undefined);
-    };
-
-    const applyHighlight = (primitive: Model): void => {
-      if (primitive.isDestroyed()) return;
-      originalShaderRef.current = primitive.customShader ?? undefined;
-      applyShader(primitive, highlightShader);
+    const applyHighlightFromClick = (primitive: Model): void => {
+      applyHighlight(primitive, highlightShader);
     };
 
     const extractProperties = (
@@ -228,7 +303,7 @@ export const useCesiumModels = ({
         const picked = picks[i];
         if (isModelPick(picked)) {
           clearPreviousHighlight();
-          applyHighlight(picked.primitive as Model);
+          applyHighlightFromClick(picked.primitive as Model);
           const pickId = picked.id as { id?: string } | undefined;
           const id = pickId?.id ?? undefined;
           onSelectRef.current?.({
@@ -258,11 +333,68 @@ export const useCesiumModels = ({
       }
     };
   }, [
+    applyHighlight,
+    clearPreviousHighlight,
     enabled,
     getScene,
     requestRender,
     selection?.enabled,
     selection?.deselectOnEmptyClick,
     selection?.highlightShader,
+  ]);
+
+  useEffect(() => {
+    const selectionEnabled = Boolean(selection?.enabled && enabled);
+    if (!selectionEnabled) {
+      if (selectedPrimitiveRef.current) {
+        clearPreviousHighlight();
+        selectedPrimitiveRef.current = null;
+        originalShaderRef.current = undefined;
+      }
+      return;
+    }
+
+    const selectedId = selection?.selectedId ?? null;
+    if (!selectedId) {
+      if (selectedPrimitiveRef.current) {
+        clearPreviousHighlight();
+        selectedPrimitiveRef.current = null;
+        originalShaderRef.current = undefined;
+      }
+      return;
+    }
+
+    let matchingPrimitive: Model | null = null;
+    modelPrimitivesRef.current.forEach((primitive) => {
+      if (primitive.isDestroyed()) return;
+      if (getPrimitiveSelectionId(primitive) === selectedId) {
+        matchingPrimitive = primitive;
+      }
+    });
+
+    if (!matchingPrimitive) {
+      if (selectedPrimitiveRef.current) {
+        clearPreviousHighlight();
+        selectedPrimitiveRef.current = null;
+        originalShaderRef.current = undefined;
+      }
+      return;
+    }
+
+    if (selectedPrimitiveRef.current === matchingPrimitive) return;
+
+    clearPreviousHighlight();
+    applyHighlight(
+      matchingPrimitive,
+      selection?.highlightShader ?? DEFAULT_MODEL_HIGHLIGHT_SHADER
+    );
+    selectedPrimitiveRef.current = matchingPrimitive;
+  }, [
+    applyHighlight,
+    clearPreviousHighlight,
+    enabled,
+    selection?.enabled,
+    selection?.highlightShader,
+    selection?.selectedId,
   ]);
 };

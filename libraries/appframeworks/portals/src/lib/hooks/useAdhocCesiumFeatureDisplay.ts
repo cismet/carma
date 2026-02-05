@@ -2,7 +2,9 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import {
   BoundingSphere,
+  Cartesian3,
   Color,
+  Model,
   ScreenSpaceEventHandler,
   ScreenSpaceEventType,
   flyToBoundingSphereExtent,
@@ -19,12 +21,15 @@ import type {
   FeatureInfo,
 } from "@carma/types";
 import {
+  addElevationsToGeoJson,
   createExtrudedWallVisualizer,
   createGroundPolylineVisualizer,
+  geoJsonHasMissingElevations,
   type ExtrudedWallVisualizer,
+  type GeoJsonElevationOptions,
   type GroundPolylineVisualizer,
 } from "@carma-mapping/engines/cesium";
-import type { Feature, Polygon } from "geojson";
+import type { Feature, FeatureCollection, Polygon } from "geojson";
 
 import {
   useAdhocFeatureDisplay,
@@ -35,7 +40,6 @@ import {
   getAdhocAccentColor,
   getGeoJsonFromFeature,
   getPolygonFromGeoJson,
-  isAdhocModelFeature,
 } from "../utils/adhoc-feature-utils";
 import { useCesiumModels } from "./useCesiumModels";
 
@@ -43,8 +47,8 @@ export type UseAdhocCesiumFeatureDisplayOptions = {
   isCesiumEnabled: boolean;
   getScene: () => Scene | null | undefined;
   getTerrainProvider: () => CesiumTerrainProvider | null | undefined;
-  getSurfaceProvider: () => CesiumTerrainProvider | null | undefined;
   baseModels?: ModelConfig[];
+  elevationSampling?: GeoJsonElevationOptions;
   wallOpacity?: {
     selected: number;
     default: number;
@@ -65,7 +69,17 @@ const getCarmaConf3D = (feature: AdhocFeature): CarmaConf3D | undefined => {
   const properties = feature.properties as
     | CarmaMapLibreFeatureProperties
     | undefined;
-  return properties?.carmaConf3D;
+  if (properties?.carmaConf3D) {
+    return properties.carmaConf3D;
+  }
+
+  const geojson = getGeoJsonFromFeature(feature);
+  const geojsonFeature =
+    geojson?.type === "FeatureCollection" ? geojson.features[0] : geojson;
+  const geojsonProperties = geojsonFeature?.properties as
+    | CarmaMapLibreFeatureProperties
+    | undefined;
+  return geojsonProperties?.carmaConf3D;
 };
 
 const getWallHeights = (feature: AdhocFeature): number[] | undefined => {
@@ -80,12 +94,12 @@ const getWallHeights = (feature: AdhocFeature): number[] | undefined => {
 
 const getDefaultWallHeight = (feature: AdhocFeature): number => {
   const metadata = feature.metadata;
-  if (!metadata) return 15;
+  if (!metadata) return 2;
   const wallHeightMeters = metadata.wallHeightMeters;
   if (typeof wallHeightMeters === "number") {
     return wallHeightMeters;
   }
-  return 15;
+  return 2;
 };
 
 const shouldUseGroundPolyline = (feature: AdhocFeature): boolean => {
@@ -121,13 +135,71 @@ const getGroundPolylineOptions = (
   return {};
 };
 
+const getModelConfig = (feature: AdhocFeature) => {
+  const carmaConf3D = getCarmaConf3D(feature);
+  return carmaConf3D?.model;
+};
+
+const shouldShowFootprintIn3d = (feature: AdhocFeature): boolean => {
+  const modelConfig = getModelConfig(feature);
+  return modelConfig?.showFootprintIn3d !== false;
+};
+
+const getModelProperties = (feature: AdhocFeature): FeatureInfo["properties"] => {
+  const metadataTitle =
+    typeof feature.metadata?.title === "string"
+      ? feature.metadata?.title
+      : undefined;
+  const fallbackTitle = metadataTitle ?? feature.id;
+  const geojson = getGeoJsonFromFeature(feature);
+  const geojsonFeature =
+    geojson?.type === "FeatureCollection" ? geojson.features[0] : geojson;
+  const geojsonProperties = geojsonFeature?.properties as
+    | FeatureInfo["properties"]
+    | undefined;
+  const baseProperties =
+    feature.properties ?? geojsonProperties ?? { title: fallbackTitle };
+  const title =
+    typeof baseProperties.title === "string" ? baseProperties.title : fallbackTitle;
+  return {
+    ...baseProperties,
+    title,
+  };
+};
+
+const getBoundingSphereFromGeojson = (
+  geojson: Feature | FeatureCollection
+): BoundingSphere | null => {
+  const polygon = getPolygonFromGeoJson(geojson);
+  if (!polygon) return null;
+
+  const points: Cartesian3[] = [];
+  for (const ring of polygon) {
+    for (const coord of ring) {
+      if (!coord || coord.length < 2) continue;
+      points.push(Cartesian3.fromDegrees(coord[0], coord[1], coord[2] ?? 0));
+    }
+  }
+
+  if (points.length === 0) return null;
+  return BoundingSphere.fromPoints(points);
+};
+
+const getGeojsonBoundingSphere = (
+  feature: AdhocFeature
+): BoundingSphere | null => {
+  const geojson = getGeoJsonFromFeature(feature);
+  if (!geojson) return null;
+  return getBoundingSphereFromGeojson(geojson);
+};
+
 export const useAdhocCesiumFeatureDisplay = (
   options: UseAdhocCesiumFeatureDisplayOptions
 ): UseAdhocCesiumFeatureDisplayResult => {
   const {
     baseModels = [],
+    elevationSampling,
     getScene,
-    getSurfaceProvider,
     getTerrainProvider,
     isCesiumEnabled,
     wallOpacity,
@@ -142,6 +214,7 @@ export const useAdhocCesiumFeatureDisplay = (
     setSelectedFeatureId,
     shouldFocusSelected,
     setShouldFocusSelected,
+    updateFeatureMetadata,
   } = useAdhocFeatureDisplay();
 
   // Single ref for all visualizers - union type for different visualizer implementations
@@ -163,12 +236,47 @@ export const useAdhocCesiumFeatureDisplay = (
     featureId: string;
     shouldFocus: boolean;
   } | null>(null);
+  const pendingElevationSamplesRef = useRef<Set<string>>(new Set());
+
+  const getFeatureBoundingSphere = useCallback(
+    (featureId: string): BoundingSphere | null => {
+      const visualizer = visualizersRef.current.get(featureId);
+      if (visualizer) {
+        return visualizer.getBoundingSphere();
+      }
+
+      const adhocFeature = adhocFeatures.find(
+        (feature) => feature.id === featureId
+      );
+      if (!adhocFeature) return null;
+      const geojson = getGeoJsonFromFeature(adhocFeature);
+      if (!geojson) return null;
+
+      const terrainProvider = getTerrainProvider();
+      const overrideExisting = elevationSampling?.overrideExisting ?? false;
+      const shouldSampleElevations =
+        !!terrainProvider &&
+        (overrideExisting ||
+          (!adhocFeature.metadata?.hasElevations &&
+            geoJsonHasMissingElevations(geojson)));
+
+      if (shouldSampleElevations && !adhocFeature.metadata?.elevatedGeoJson) {
+        return null;
+      }
+
+      return getGeojsonBoundingSphere(adhocFeature);
+    },
+    [adhocFeatures, elevationSampling?.overrideExisting, getTerrainProvider]
+  );
 
   // Compute which geojson features need visualizers
   const geojsonFeatureIds = useMemo(() => {
     return new Set(
       adhocFeatures
-        .filter((feature) => !!getGeoJsonFromFeature(feature))
+        .filter(
+          (feature) =>
+            shouldShowFootprintIn3d(feature) && !!getGeoJsonFromFeature(feature)
+        )
         .map((feature) => feature.id)
     );
   }, [adhocFeatures]);
@@ -188,34 +296,34 @@ export const useAdhocCesiumFeatureDisplay = (
   }, [geojsonFeatureIds, isCesiumEnabled, registeredFeatureIds]);
 
   const adhocModelConfigs = useMemo(() => {
-    return adhocFeatures.filter(isAdhocModelFeature).map((feature) => {
-      const { data } = feature;
-      const metadataTitle = feature.metadata?.title;
-      const fallbackTitle =
-        typeof metadataTitle === "string" ? metadataTitle : feature.id;
+    return adhocFeatures.flatMap((feature) => {
+      const modelConfig = getModelConfig(feature);
+      if (!modelConfig) return [];
 
-      const baseProperties = feature.properties ?? { title: fallbackTitle };
+      const baseProperties = getModelProperties(feature);
 
-      const modelConfig: ModelConfig = {
-        position: {
-          longitude: data.position.lon,
-          latitude: data.position.lat,
-          altitude: data.position.height ?? 0,
-        },
-        orientation: {
-          heading: data.heading,
-          pitch: data.pitch,
-          roll: data.roll,
-        },
-        model: {
-          uri: data.url,
-          ...(data.scale !== undefined ? { scale: data.scale } : {}),
-        },
-        properties: baseProperties,
-        name: feature.id,
-      };
-
-      return modelConfig;
+      return [
+        {
+          position: {
+            longitude: modelConfig.position.lon,
+            latitude: modelConfig.position.lat,
+            altitude: modelConfig.position.height ?? 0,
+          },
+          orientation: {
+            heading: modelConfig.heading,
+            pitch: modelConfig.pitch,
+            roll: modelConfig.roll,
+          },
+          model: {
+            uri: modelConfig.url,
+            ...(modelConfig.scale !== undefined
+              ? { scale: modelConfig.scale }
+              : {}),
+          },
+          properties: baseProperties,
+          name: feature.id,
+        } satisfies ModelConfig,
+      ];
     });
   }, [adhocFeatures]);
 
@@ -233,20 +341,33 @@ export const useAdhocCesiumFeatureDisplay = (
       selection: {
         enabled: isCesiumEnabled && hasCesiumModels,
         deselectOnEmptyClick: true,
+        selectedId: selectedFeatureId,
         onSelect: (feature: unknown) => {
           const featureInfo = feature as FeatureInfo | null;
-          onFeatureInfoChange?.(featureInfo);
-          if (typeof featureInfo?.id === "string") {
-            setSelectedFeatureId(featureInfo.id);
+          if (!featureInfo || typeof featureInfo.id !== "string") {
+            onFeatureInfoChange?.(null);
+            setSelectedFeatureId(null);
+            return;
           }
+
+          const adhocFeature = adhocFeatures.find(
+            (item) => item.id === featureInfo.id
+          );
+          const resolvedInfo = adhocFeature
+            ? buildAdhocFeatureInfo(adhocFeature)
+            : null;
+          onFeatureInfoChange?.(resolvedInfo ?? featureInfo);
+          setSelectedFeatureId(featureInfo.id);
         },
       },
     };
   }, [
+    adhocFeatures,
     cesiumModelConfigs,
     hasCesiumModels,
     isCesiumEnabled,
     onFeatureInfoChange,
+    selectedFeatureId,
     setSelectedFeatureId,
   ]);
 
@@ -254,11 +375,11 @@ export const useAdhocCesiumFeatureDisplay = (
 
   // Main effect: sync visualizers with features when needed
   useEffect(() => {
-    console.log("[CESIUM|SYNC] Effect running, needsSync:", needsSync);
+    console.debug("[CESIUM|SYNC] Effect running, needsSync:", needsSync);
     if (!needsSync) return;
 
     const scene = getScene();
-    console.log("[CESIUM|SYNC] Scene ready:", !!scene && !scene.isDestroyed());
+    console.debug("[CESIUM|SYNC] Scene ready:", !!scene && !scene.isDestroyed());
     if (!scene || scene.isDestroyed()) {
       // Scene not ready yet, poll for it
       const interval = setInterval(() => {
@@ -286,11 +407,12 @@ export const useAdhocCesiumFeatureDisplay = (
     // Get features that need visualizers created
     const featuresToCreate = adhocFeatures.filter(
       (feature) =>
-        getGeoJsonFromFeature(feature) && !registeredFeatureIds.has(feature.id)
+        geojsonFeatureIds.has(feature.id) &&
+        !registeredFeatureIds.has(feature.id)
     );
 
-    console.log("[CESIUM|SYNC] featuresToCreate:", featuresToCreate.length);
-    console.log("[CESIUM|SYNC] adhocFeatures count:", adhocFeatures.length);
+    console.debug("[CESIUM|SYNC] featuresToCreate:", featuresToCreate.length);
+    console.debug("[CESIUM|SYNC] adhocFeatures count:", adhocFeatures.length);
 
     if (featuresToCreate.length === 0) {
       // Just update registered IDs to match current features
@@ -308,13 +430,45 @@ export const useAdhocCesiumFeatureDisplay = (
         if (cancelled) break;
 
         const geojson = getGeoJsonFromFeature(feature);
-        console.log(
+        console.debug(
           "[CESIUM|SYNC] Creating visualizer for:",
           feature.id,
           "has geojson:",
           !!geojson
         );
-        const polygon = getPolygonFromGeoJson(geojson);
+        if (!geojson) continue;
+
+        let resolvedGeojson = geojson;
+        const terrainProvider = getTerrainProvider();
+        const overrideExisting = elevationSampling?.overrideExisting ?? false;
+        const shouldSampleElevations =
+          !!terrainProvider &&
+          (overrideExisting ||
+            (!feature.metadata?.hasElevations &&
+              geoJsonHasMissingElevations(geojson)));
+
+        if (shouldSampleElevations) {
+          const elevationResult = await addElevationsToGeoJson(
+            geojson,
+            terrainProvider,
+            elevationSampling
+          );
+
+          if (cancelled) break;
+
+          if (elevationResult.hasAugmentedElevation) {
+            resolvedGeojson = elevationResult.geojson;
+            updateFeatureMetadata({
+              id: feature.id,
+              metadata: {
+                elevatedGeoJson: elevationResult.geojson,
+                hasElevations: true,
+              },
+            });
+          }
+        }
+
+        const polygon = getPolygonFromGeoJson(resolvedGeojson);
         if (!polygon?.[0]) continue;
 
         // Create GeoJSON Feature for the visualizer
@@ -326,9 +480,6 @@ export const useAdhocCesiumFeatureDisplay = (
             coordinates: polygon,
           },
         };
-
-        const terrainProvider = getTerrainProvider();
-        const surfaceProvider = getSurfaceProvider();
 
         const useGroundPolyline = shouldUseGroundPolyline(feature);
 
@@ -355,7 +506,6 @@ export const useAdhocCesiumFeatureDisplay = (
           visualizer = createExtrudedWallVisualizer(
             feature.id,
             geoJsonFeature,
-            terrainProvider ?? undefined,
             {
               wallColor: getAdhocAccentColor(feature) ?? "#3A7CEB",
               opacity: wallOpacity?.default ?? 0.7,
@@ -374,7 +524,7 @@ export const useAdhocCesiumFeatureDisplay = (
         try {
           await visualizer.attach(scene, () => scene.requestRender());
           newlyRegistered.push(feature.id);
-          console.log("[CESIUM|SYNC] Visualizer attached:", feature.id);
+          console.debug("[CESIUM|SYNC] Visualizer attached:", feature.id);
         } catch {
           // Visualizer failed to attach, remove from map
           visualizersRef.current.delete(feature.id);
@@ -390,7 +540,7 @@ export const useAdhocCesiumFeatureDisplay = (
         // Set initial selection state and potentially fly to
         const pending = pendingSelectionRef.current;
         if (pending?.featureId === feature.id) {
-          console.log(
+          console.debug(
             "[CESIUM|SYNC] Applying pending selection/focus for:",
             feature.id
           );
@@ -481,10 +631,11 @@ export const useAdhocCesiumFeatureDisplay = (
     adhocFeatures,
     geojsonFeatureIds,
     getScene,
-    getSurfaceProvider,
     getTerrainProvider,
     needsSync,
     registeredFeatureIds,
+    elevationSampling,
+    updateFeatureMetadata,
     selectionLineWidthPixels,
     setShouldFocusSelected,
     wallOpacity?.default,
@@ -495,9 +646,10 @@ export const useAdhocCesiumFeatureDisplay = (
 
   // Cleanup on unmount
   useEffect(() => {
+    const visualizers = visualizersRef.current;
     return () => {
-      visualizersRef.current.forEach((visualizer) => visualizer.destroy());
-      visualizersRef.current.clear();
+      visualizers.forEach((visualizer) => visualizer.destroy());
+      visualizers.clear();
     };
   }, []);
 
@@ -521,73 +673,160 @@ export const useAdhocCesiumFeatureDisplay = (
 
     // If feature doesn't have a visualizer yet, queue pending selection/focus
     if (selectedFeatureId && !visualizersRef.current.has(selectedFeatureId)) {
-      pendingSelectionRef.current = {
-        featureId: selectedFeatureId,
-        shouldFocus: shouldFocusSelected,
-      };
-      console.log(
-        "[CESIUM|SELECT] Queued pending selection for:",
-        selectedFeatureId,
-        "focus:",
-        shouldFocusSelected
-      );
+      const shouldQueueSelection =
+        !!selectedFeature &&
+        shouldShowFootprintIn3d(selectedFeature) &&
+        !!getGeoJsonFromFeature(selectedFeature);
+      if (shouldQueueSelection) {
+        pendingSelectionRef.current = {
+          featureId: selectedFeatureId,
+          shouldFocus: shouldFocusSelected,
+        };
+        console.debug(
+          "[CESIUM|SELECT] Queued pending selection for:",
+          selectedFeatureId,
+          "focus:",
+          shouldFocusSelected
+        );
+      }
     }
 
-    // Handle fly-to if requested (only reset flag if fly-to actually happens)
-    if (shouldFocusSelected && selectedFeatureId) {
+    let cancelled = false;
+
+    const runFlyTo = async () => {
+      if (!shouldFocusSelected || !selectedFeatureId) return;
       const scene = getScene();
-      const visualizer = visualizersRef.current.get(selectedFeatureId);
-      const sphere = visualizer?.getBoundingSphere();
-      if (scene && !scene.isDestroyed() && sphere) {
+      if (!scene || scene.isDestroyed()) return;
+
+      const sphere = getFeatureBoundingSphere(selectedFeatureId);
+      if (sphere) {
         flyToBoundingSphereExtent(scene.camera, sphere, {
           minRange: 50,
           paddingFactor: 1.1,
         });
         setShouldFocusSelected(false);
+        return;
       }
-      // If visualizer doesn't exist yet, keep flag true - main effect will handle it
-    }
+
+      const selectedFeature = adhocFeatures.find(
+        (feature) => feature.id === selectedFeatureId
+      );
+      if (!selectedFeature || shouldShowFootprintIn3d(selectedFeature)) {
+        return;
+      }
+
+      const geojson = getGeoJsonFromFeature(selectedFeature);
+      if (!geojson) return;
+
+      const terrainProvider = getTerrainProvider();
+      const overrideExisting = elevationSampling?.overrideExisting ?? false;
+      const shouldSampleElevations =
+        !!terrainProvider &&
+        (overrideExisting ||
+          (!selectedFeature.metadata?.hasElevations &&
+            geoJsonHasMissingElevations(geojson)));
+
+      if (!shouldSampleElevations || selectedFeature.metadata?.elevatedGeoJson) {
+        const fallbackSphere = getBoundingSphereFromGeojson(geojson);
+        if (fallbackSphere) {
+          flyToBoundingSphereExtent(scene.camera, fallbackSphere, {
+            minRange: 50,
+            paddingFactor: 1.1,
+          });
+          setShouldFocusSelected(false);
+        }
+        return;
+      }
+
+      const pendingSamples = pendingElevationSamplesRef.current;
+      if (pendingSamples.has(selectedFeature.id)) return;
+      pendingSamples.add(selectedFeature.id);
+
+      try {
+        const elevationResult = await addElevationsToGeoJson(
+          geojson,
+          terrainProvider,
+          elevationSampling
+        );
+
+        if (cancelled) return;
+
+        if (elevationResult.hasAugmentedElevation) {
+          updateFeatureMetadata({
+            id: selectedFeature.id,
+            metadata: {
+              elevatedGeoJson: elevationResult.geojson,
+              hasElevations: true,
+            },
+          });
+        }
+
+        const flyToGeojson = elevationResult.hasAugmentedElevation
+          ? elevationResult.geojson
+          : geojson;
+        const elevatedSphere = getBoundingSphereFromGeojson(flyToGeojson);
+        if (elevatedSphere) {
+          flyToBoundingSphereExtent(scene.camera, elevatedSphere, {
+            minRange: 50,
+            paddingFactor: 1.1,
+          });
+          setShouldFocusSelected(false);
+        }
+      } finally {
+        pendingSamples.delete(selectedFeature.id);
+      }
+    };
+
+    void runFlyTo();
+
+    return () => {
+      cancelled = true;
+    };
   }, [
     adhocFeatures,
+    elevationSampling,
+    getFeatureBoundingSphere,
     getScene,
+    getTerrainProvider,
     isCesiumEnabled,
     onFeatureInfoChange,
     selectedFeatureId,
     setShouldFocusSelected,
     shouldFocusSelected,
+    updateFeatureMetadata,
   ]);
 
   // Click handler
   useEffect(() => {
-    console.log(
+    console.debug(
       "[CESIUM|CLICK] Effect running, isCesiumEnabled:",
       isCesiumEnabled
     );
     if (!isCesiumEnabled) return;
 
     const scene = getScene();
-    console.log("[CESIUM|CLICK] Scene:", scene?.isDestroyed?.());
+    console.debug("[CESIUM|CLICK] Scene:", scene?.isDestroyed?.());
     if (!scene || scene.isDestroyed()) return;
 
-    console.log("[CESIUM|CLICK] Setting up click handler");
+    console.debug("[CESIUM|CLICK] Setting up click handler");
     const handler = new ScreenSpaceEventHandler(scene.canvas);
     handler.setInputAction((event: { position: Cartesian2 }) => {
       const picked = scene.pick(event.position);
       const pickedId = picked?.id;
 
-      console.log("[CESIUM|CLICK] picked:", picked, "pickedId:", pickedId);
-      console.log(
+      console.debug("[CESIUM|CLICK] picked:", picked, "pickedId:", pickedId);
+      console.debug(
         "[CESIUM|CLICK] visualizers count:",
         visualizersRef.current.size
       );
-      console.log("[CESIUM|CLICK] visualizer IDs:", [
+      console.debug("[CESIUM|CLICK] visualizer IDs:", [
         ...visualizersRef.current.keys(),
       ]);
 
       // Check if any visualizer was picked
       for (const [id, visualizer] of visualizersRef.current) {
         const isPicked = visualizer.isPicked(pickedId);
-        console.log(`[CESIUM|CLICK] visualizer ${id} isPicked:`, isPicked);
+        console.debug(`[CESIUM|CLICK] visualizer ${id} isPicked:`, isPicked);
         if (isPicked) {
           if (id === selectedFeatureId) {
             setSelectedFeatureId(null);
@@ -609,9 +848,12 @@ export const useAdhocCesiumFeatureDisplay = (
       }
 
       // No visualizer picked - deselect if not a model pick
-      const isModelPick =
-        typeof (picked as { id?: { model?: unknown } } | undefined)?.id
-          ?.model !== "undefined";
+      const isModelPickId =
+        (pickedId as { is3dModel?: boolean } | undefined)?.is3dModel === true;
+      const isModelPickPrimitive =
+        (picked as { primitive?: unknown } | undefined)?.primitive instanceof
+        Model;
+      const isModelPick = isModelPickId || isModelPickPrimitive;
       if (!isModelPick) {
         setShouldFocusSelected(false);
         setSelectedFeatureId(null);
@@ -636,9 +878,8 @@ export const useAdhocCesiumFeatureDisplay = (
   // Get bounding sphere for a feature
   const getAdhocBoundingSphere = useCallback((feature: FeatureInfo) => {
     if (typeof feature.id !== "string") return null;
-    const visualizer = visualizersRef.current.get(feature.id);
-    return visualizer?.getBoundingSphere() ?? null;
-  }, []);
+    return getFeatureBoundingSphere(feature.id);
+  }, [getFeatureBoundingSphere]);
 
   return { getAdhocBoundingSphere };
 };

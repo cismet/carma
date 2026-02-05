@@ -64,7 +64,6 @@ const MEASUREMENTS_BASE_CONFIG = {
   localStorageKey: "@" + APP_KEY + ".app.measurements",
 };
 
-import AdhocFeatureConsoleBridge from "./adhoc/AdhocFeatureConsoleBridge";
 import { useAdhocFeatureRehydrate } from "./hooks/use-adhoc-feature-rehydrate";
 
 import { getCustomFeatureFlags } from "./store/slices/layers";
@@ -188,7 +187,6 @@ function App({ published }: { published?: boolean }) {
                   baseConfig={MEASUREMENTS_BASE_CONFIG}
                 >
                   <ErrorBoundary FallbackComponent={AppErrorFallback}>
-                    <AdhocFeatureConsoleBridge />
                     <AdhocFeatureRehydration />
                     <div className={TAILWIND_CLASSNAMES_FULLSCREEN_FIXED}>
                       {isLoadingConfig && (

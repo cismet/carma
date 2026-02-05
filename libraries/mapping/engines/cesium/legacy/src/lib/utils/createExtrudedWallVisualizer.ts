@@ -1,10 +1,8 @@
 import {
   BoundingSphere,
-  Cartographic,
   Color,
   Primitive,
   PrimitiveCollection,
-  type CesiumTerrainProvider,
   type Scene,
 } from "@carma/cesium";
 import type { Feature, FeatureCollection } from "geojson";
@@ -17,7 +15,6 @@ import {
   type WallPrimitiveSegment,
 } from "./adhoc-primitives/create-wall-primitives";
 import { createSelectionEdgePrimitive } from "./adhoc-primitives/create-selection-edge-primitive";
-import { getElevationAsync } from "./elevation";
 import { getBoundingSphereFromCoordinates } from "./getBoundingSphereFromCoordinates";
 import { animateOpacity } from "./animateOpacity";
 import {
@@ -77,7 +74,6 @@ const normalizeColor = (color: string | Color | undefined): Color => {
 export const createExtrudedWallVisualizer = (
   id: string,
   geojson: Feature | FeatureCollection,
-  terrainProvider?: CesiumTerrainProvider,
   options: ExtrudedWallVisualizerOptions = {}
 ): ExtrudedWallVisualizer => {
   // Normalize options with defaults
@@ -100,6 +96,9 @@ export const createExtrudedWallVisualizer = (
 
   // Geometry data - extract all rings from the geojson
   const rings = extractAllRings(geojson);
+  const hasExplicitHeights = rings.some((ring) =>
+    ring.some((coord) => typeof coord[2] === "number")
+  );
 
   // Initialize heights for each ring from coordinate Z values
   let heightsPerRing: number[][] = rings.map((ring) =>
@@ -144,51 +143,6 @@ export const createExtrudedWallVisualizer = (
       }
     }
     coordinatesWithHeight = allCoords;
-  };
-
-  const sampleElevations = async (): Promise<void> => {
-    if (rings.length === 0 || !terrainProvider) {
-      updateCoordinatesWithHeight();
-      return;
-    }
-
-    try {
-      // Sample elevations for each ring
-      for (let i = 0; i < rings.length; i++) {
-        const ring = rings[i];
-        if (!ring || ring.length === 0) continue;
-
-        const positions = ring.map((coord) =>
-          Cartographic.fromDegrees(coord[0], coord[1], 0)
-        );
-
-        const elevations = await getElevationAsync(
-          terrainProvider,
-          terrainProvider,
-          positions
-        );
-
-        if (_isDestroyed || elevations.length !== positions.length) {
-          continue;
-        }
-
-        const sampledHeights = elevations.map(
-          (result) => result.surface?.height ?? result.terrain.height
-        );
-
-        // Merge sampled heights with explicit Z values for this ring
-        heightsPerRing[i] = ring.map((coord, index) => {
-          const coordHeight = coord[2];
-          if (typeof coordHeight === "number") return coordHeight;
-          return sampledHeights[index] ?? 0;
-        });
-      }
-
-      updateCoordinatesWithHeight();
-    } catch {
-      // Fallback to existing heights
-      updateCoordinatesWithHeight();
-    }
   };
 
   const createWalls = () => {
@@ -368,8 +322,14 @@ export const createExtrudedWallVisualizer = (
       scene = sceneRef;
       requestRender = requestRenderFn;
 
-      // Sample elevations if providers available
-      await sampleElevations();
+      updateCoordinatesWithHeight();
+
+      if (!hasExplicitHeights) {
+        console.warn(
+          "[CESIUM|WALL] No elevations present in geojson coordinates for wall visualizer:",
+          id
+        );
+      }
 
       if (_isDestroyed) return;
 
