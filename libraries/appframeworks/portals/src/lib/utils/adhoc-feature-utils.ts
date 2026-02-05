@@ -5,7 +5,7 @@ import type { CarmaMapLibreStyleData, FeatureInfo } from "@carma/types";
 
 import type { AdhocFeature } from "../components/AdhocFeatureDisplayProvider";
 
-const ADHOC_WALL_DEFAULT_HEIGHT = 15;
+const ADHOC_WALL_DEFAULT_HEIGHT = 20;
 
 const isGeoJsonSource = (
   source: unknown
@@ -42,17 +42,15 @@ export const getAdhocHeader = (feature: AdhocFeature) => {
   );
 };
 
-export const getAdhocWallHeight = (
-  feature: { metadata?: Record<string, unknown> },
-  segmentIndex: number
-) => {
-  const heights = feature.metadata?.wallHeights;
-  if (Array.isArray(heights) && typeof heights[segmentIndex] === "number") {
-    return heights[segmentIndex];
-  }
-  const height = feature.metadata?.wallHeightMeters;
-  if (typeof height === "number") {
-    return height;
+export const getAdhocWallHeight = (feature: {
+  metadata?: Record<string, unknown>;
+}) => {
+  // Check carmaConf3D.wall.height first (new preferred location)
+  const carmaConf3D = feature.metadata?.carmaConf3D as
+    | { wall?: { height?: number } }
+    | undefined;
+  if (typeof carmaConf3D?.wall?.height === "number") {
+    return carmaConf3D.wall.height;
   }
   return ADHOC_WALL_DEFAULT_HEIGHT;
 };

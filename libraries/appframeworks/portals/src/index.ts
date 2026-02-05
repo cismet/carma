@@ -10,6 +10,7 @@ export { utils };
 
 export { Save } from "./lib/components/Save.tsx";
 export { Share } from "./lib/components/Share.tsx";
+export { CarmaIconLink } from "./lib/components/CarmaIconLink.tsx";
 export { FileUploader } from "./lib/components/FileUploader.tsx";
 export { CarmaMapProviderWrapper } from "./lib/components/CarmaMapProviderWrapper.tsx";
 export { InfoBox } from "./lib/components/InfoBox.tsx";

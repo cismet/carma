@@ -70,30 +70,33 @@ export const useCesiumModels = ({
     return typeof pickId?.id === "string" ? pickId.id : null;
   };
 
-  const applyShader = useCallback((primitive: Model, shader?: CustomShader) => {
-    if (primitive.isDestroyed()) return;
-    if (primitive.ready) {
-      primitive.customShader = shader;
-      requestRender();
-      return;
-    }
-    const readyPromise = (
-      primitive as unknown as { readyPromise?: Promise<unknown> }
-    ).readyPromise;
-    if (!readyPromise) {
-      primitive.customShader = shader;
-      requestRender();
-      return;
-    }
-    readyPromise
-      .then(() => {
-        if (!primitive.isDestroyed()) {
-          primitive.customShader = shader;
-          requestRender();
-        }
-      })
-      .catch(() => undefined);
-  }, [requestRender]);
+  const applyShader = useCallback(
+    (primitive: Model, shader?: CustomShader) => {
+      if (primitive.isDestroyed()) return;
+      if (primitive.ready) {
+        primitive.customShader = shader;
+        requestRender();
+        return;
+      }
+      const readyPromise = (
+        primitive as unknown as { readyPromise?: Promise<unknown> }
+      ).readyPromise;
+      if (!readyPromise) {
+        primitive.customShader = shader;
+        requestRender();
+        return;
+      }
+      readyPromise
+        .then(() => {
+          if (!primitive.isDestroyed()) {
+            primitive.customShader = shader;
+            requestRender();
+          }
+        })
+        .catch(() => undefined);
+    },
+    [requestRender]
+  );
 
   const clearPreviousHighlight = useCallback(() => {
     const current = selectedPrimitiveRef.current;
@@ -105,14 +108,14 @@ export const useCesiumModels = ({
     applyShader(current, originalShaderRef.current ?? undefined);
   }, [applyShader]);
 
-  const applyHighlight = useCallback((
-    primitive: Model,
-    shader: CustomShader
-  ): void => {
-    if (primitive.isDestroyed()) return;
-    originalShaderRef.current = primitive.customShader ?? undefined;
-    applyShader(primitive, shader);
-  }, [applyShader]);
+  const applyHighlight = useCallback(
+    (primitive: Model, shader: CustomShader): void => {
+      if (primitive.isDestroyed()) return;
+      originalShaderRef.current = primitive.customShader ?? undefined;
+      applyShader(primitive, shader);
+    },
+    [applyShader]
+  );
 
   const buildModelKey = (config: ModelConfig): string => {
     const model = config.model;
@@ -160,7 +163,10 @@ export const useCesiumModels = ({
           primitive.destroy();
         }
       } catch (cleanupError) {
-        console.warn("[Cesium|Models] Failed to cleanup model primitive:", cleanupError);
+        console.warn(
+          "[Cesium|Models] Failed to cleanup model primitive:",
+          cleanupError
+        );
       }
       primitivesByKey.delete(key);
     });

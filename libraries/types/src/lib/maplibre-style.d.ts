@@ -23,7 +23,12 @@ export type CarmaConf3D = {
         opacity?: number;
         lineWidth?: number;
       };
-  wall?: boolean;
+  wall?:
+    | boolean
+    | {
+        height?: number;
+        selectionColor?: string;
+      };
 };
 
 export type CarmaMapLibreStyleMetadata = {

@@ -28,6 +28,7 @@ const DEFAULT_OPACITY = 0.7;
 const DEFAULT_SELECTED_OPACITY = 0.4;
 const DEFAULT_WALL_COLOR = "#3A7CEB";
 const DEFAULT_SELECTION_LINE_WIDTH = 1.5;
+const DEFAULT_SELECTION_COLOR = "#3b82f6";
 const DEFAULT_ANIMATION_DURATION_MS = 200;
 
 export type ExtrudedWallVisualizerOptions = {
@@ -83,7 +84,8 @@ export const createExtrudedWallVisualizer = (
   const selectedOpacity = options.selectedOpacity ?? DEFAULT_SELECTED_OPACITY;
   const selectionLineWidth =
     options.selectionLineWidth ?? DEFAULT_SELECTION_LINE_WIDTH;
-  const selectionColor = options.selectionColor ?? Color.YELLOW;
+  const selectionColor =
+    options.selectionColor ?? Color.fromCssColorString(DEFAULT_SELECTION_COLOR);
   const animationDurationMs =
     options.animationDurationMs ?? DEFAULT_ANIMATION_DURATION_MS;
   const animationEasing = options.animationEasing ?? Easing.SINUSOIDAL_IN_OUT;
