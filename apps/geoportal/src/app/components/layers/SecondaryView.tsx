@@ -88,6 +88,19 @@ const SecondaryView = forwardRef<Ref, SecondaryViewProps>(({}, ref) => {
   const { isLeaflet, isCesium } = useMapFrameworkSwitcherContext();
 
   useEffect(() => {
+    const handleEscapeKey = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        dispatch(setSelectedLayerIndexNoSelection());
+      }
+    };
+
+    document.addEventListener("keydown", handleEscapeKey);
+    return () => {
+      document.removeEventListener("keydown", handleEscapeKey);
+    };
+  }, [dispatch]);
+
+  useEffect(() => {
     const findElementByIdRecursive = (element: Element, id: string) => {
       if (element.id === id) {
         return element;
