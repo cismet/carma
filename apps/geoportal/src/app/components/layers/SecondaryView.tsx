@@ -248,6 +248,7 @@ const SecondaryView = forwardRef<Ref, SecondaryViewProps>(({}, ref) => {
                   opacity={layer.opacity}
                   id={layer.id}
                   isVisible={layer.visible}
+                  disabled={isCesium}
                 />
               </div>
             </div>
@@ -275,6 +276,7 @@ const SecondaryView = forwardRef<Ref, SecondaryViewProps>(({}, ref) => {
               visible={layer.visible}
               id={layer.id}
               isBackgroundLayer={isBaseLayer}
+              disabled={isCesium}
             />
             <button
               onClick={() => {
