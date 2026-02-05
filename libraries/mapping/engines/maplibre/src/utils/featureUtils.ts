@@ -43,6 +43,8 @@ export interface FeatureInfo {
   geometry: GeoJSON.Geometry;
   id?: string | number;
   showMarker?: boolean;
+  targetProperties?: Record<string, unknown>;
+  carmaInfo?: Record<string, unknown>;
 }
 
 export interface LayerMappingEntry {
@@ -68,10 +70,19 @@ export const createFeature = async (
 
   let properties: Record<string, unknown> =
     selectedVectorFeature.properties || {};
+
+  // Build carmaInfo: spread full carmaConf from layer metadata (for infoboxMapping etc.)
+  // then add source identifiers. This matches the original react-cismap behavior.
+  const layerMetadata = selectedVectorFeature.layer?.metadata as
+    | Record<string, unknown>
+    | undefined;
+  const carmaConf = (layerMetadata?.carmaConf as Record<string, unknown>) || {};
+
   properties = {
     ...properties,
     vectorId: selectedVectorFeature.id,
     carmaInfo: {
+      ...carmaConf,
       sourceLayer: selectedVectorFeature.sourceLayer,
       source: selectedVectorFeature.source,
       layerId: selectedVectorFeature.layer?.id,
@@ -142,6 +153,11 @@ export const createFeature = async (
       });
     }
 
+    // Preserve targetProperties and carmaInfo at TOP level of feature
+    // (AlkisSIM.tsx expects feature.targetProperties, not feature.properties.targetProperties)
+    const targetProperties = properties.targetProperties as Record<string, unknown> | undefined;
+    const carmaInfo = properties.carmaInfo as Record<string, unknown> | undefined;
+
     feature = {
       properties: {
         ...featureProperties.properties,
@@ -153,6 +169,8 @@ export const createFeature = async (
       showMarker:
         selectedVectorFeature.geometry.type === "Polygon" ||
         selectedVectorFeature.geometry.type === "MultiPolygon",
+      targetProperties,
+      carmaInfo,
     };
   }
   return feature;

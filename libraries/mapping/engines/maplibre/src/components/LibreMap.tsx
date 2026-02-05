@@ -24,6 +24,13 @@ import {
   vectorStylesToMapLibreStyle,
 } from "../utils/styleBuilder";
 import { createFeature } from "../utils/featureUtils";
+import { HidingForwardingManager } from "../lib/HidingForwardingManager";
+import {
+  applySelectionForwarding,
+  getCarmaConf,
+  resolvePropertyTarget,
+} from "../lib/SelectionManager";
+import type { FeatureIdentifier } from "../lib/selectionTypes";
 import { zoom256as512, zoom512as256 } from "../utils/zoomUtils";
 import { LibreMapSelectionContent } from "./LibreMapSelectionContent";
 import { ENDPOINT, isAreaType } from "@carma-commons/resources";
@@ -101,12 +108,14 @@ export const LibreMap = ({
 }: LibreMapProps) => {
   const mapContainer = useRef<HTMLDivElement>(null);
   const map = useRef<maplibregl.Map | null>(null);
+  const hidingManagerRef = useRef<HidingForwardingManager | null>(null);
   const selectedFeaturesRef = useRef<
     Set<{
       source: string;
       sourceLayer?: string;
       id?: string | number;
       selectionLayerId?: string;
+      forwardedTo?: FeatureIdentifier[];  // Track forwarded selections for cleanup
     }>
   >(new Set());
   const mappingRef = useRef({});
@@ -174,6 +183,24 @@ export const LibreMap = ({
               },
               { selected: false },
             );
+          }
+
+          // Also clear forwarded selections
+          if (feature.forwardedTo) {
+            for (const forwarded of feature.forwardedTo) {
+              try {
+                mapInstance.setFeatureState(
+                  {
+                    source: forwarded.source,
+                    sourceLayer: forwarded.sourceLayer,
+                    id: forwarded.id,
+                  },
+                  { selected: false },
+                );
+              } catch {
+                // Forwarded feature may not exist
+              }
+            }
           }
         } catch (error) {
           console.error("Error clearing feature selection:", error);
@@ -418,9 +445,46 @@ export const LibreMap = ({
           const layerId = selectedVectorFeature.layer?.metadata?.["layer-id"];
 
           // Try to get mapping by layer ID first, then by source (for geojson layers)
-          const layerMapping =
+          let layerMapping =
             mappingRef.current[layerId] ||
             mappingRef.current[selectedVectorFeature.source];
+
+          // Resolve property target if configured in carmaConf
+          const carmaConf = getCarmaConf(selectedVectorFeature);
+          console.debug("[LibreMap] Click on layer:", selectedVectorFeature.layer?.id);
+          console.debug("[LibreMap] carmaConf:", carmaConf);
+          console.debug("[LibreMap] feature.id:", selectedVectorFeature.id, "type:", typeof selectedVectorFeature.id);
+
+          if (carmaConf?.propertyTarget && selectedVectorFeature.id != null) {
+            console.debug("[LibreMap] Resolving propertyTarget:", carmaConf.propertyTarget);
+            const targetProps = resolvePropertyTarget(
+              mapInstance,
+              selectedVectorFeature.id,
+              carmaConf.propertyTarget
+            );
+            console.debug("[LibreMap] targetProps result:", targetProps);
+            if (targetProps) {
+              selectedVectorFeature.properties = {
+                ...selectedVectorFeature.properties,
+                targetProperties: targetProps,
+              };
+
+              // If no mapping found for this layer, try to use mapping from target layer
+              if (!layerMapping) {
+                const [targetSource, targetSourceLayer] = carmaConf.propertyTarget.split(".");
+                console.debug("[LibreMap] Looking for mapping in:", { targetSource, targetSourceLayer, mappingKeys: Object.keys(mappingRef.current) });
+                // Try various mapping lookups for the target
+                layerMapping =
+                  mappingRef.current[targetSourceLayer] ||  // e.g., "landparcel"
+                  mappingRef.current[targetSource] ||        // e.g., "alkis"
+                  mappingRef.current[carmaConf.propertyTarget];  // e.g., "alkis.landparcel"
+              }
+            }
+          } else if (!carmaConf) {
+            console.debug("[LibreMap] No carmaConf found in layer metadata");
+          } else if (!carmaConf.propertyTarget) {
+            console.debug("[LibreMap] No propertyTarget in carmaConf");
+          }
 
           let feature = null;
           if (layerMapping) {
@@ -435,6 +499,22 @@ export const LibreMap = ({
           // Apply visual selection if we have a mapping OR if selectionEnabled is true
           if (layerMapping || selectionEnabled) {
             applyVisualSelection(mapInstance, featureId);
+
+            // Apply selection forwarding to related layers (if configured in carmaConf)
+            const forwardedTo = applySelectionForwarding(
+              mapInstance,
+              featureId as FeatureIdentifier,
+              true,
+              selectedVectorFeature
+            );
+            // Track forwarded features for cleanup
+            if (forwardedTo.length > 0) {
+              selectedFeaturesRef.current.forEach((f) => {
+                if (f.source === featureId.source && f.id === featureId.id) {
+                  f.forwardedTo = forwardedTo;
+                }
+              });
+            }
           }
 
           if (feature) {
@@ -513,6 +593,9 @@ export const LibreMap = ({
         isIdleRef.current = true;
       });
 
+      // Initialize HidingForwardingManager for collision-based visibility sync
+      hidingManagerRef.current = new HidingForwardingManager(mapInstance);
+
       mapInstance.on("move", () => {
         if (layers?.find((layer) => layer.type === "vector")) {
           vectorSourcesReadyRef.current = false;
@@ -524,6 +607,8 @@ export const LibreMap = ({
     }
 
     return () => {
+      hidingManagerRef.current?.destroy();
+      hidingManagerRef.current = null;
       if (map.current) {
         map.current.remove();
         map.current = null;
@@ -587,6 +672,17 @@ export const LibreMap = ({
 
           // Update context with the full map style
           setMapStyle(style);
+
+          // Refresh hiding forwarding manager with new style (after style is loaded)
+          const startHidingManager = () => {
+            hidingManagerRef.current?.refresh();
+            hidingManagerRef.current?.start();
+          };
+          if (map.current?.isStyleLoaded()) {
+            startHidingManager();
+          } else {
+            map.current?.once("styledata", startHidingManager);
+          }
 
           // Add COG layers after style is loaded (requires addSource/addLayer, not setStyle).
           // Use beforeId to insert at correct z-position based on effectiveLayers order.

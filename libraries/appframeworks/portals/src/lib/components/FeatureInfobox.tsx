@@ -237,6 +237,8 @@ export const FeatureInfobox = ({
           feature={{
             properties:
               infoBoxControlObject?.sourceProps || selectedFeature.properties,
+            targetProperties: selectedFeature.targetProperties,
+            carmaInfo: selectedFeature.carmaInfo,
           }}
           versionString={getApplicationVersion(versionData)}
           Footer={genericSecondaryInfoFooterFactory()}
