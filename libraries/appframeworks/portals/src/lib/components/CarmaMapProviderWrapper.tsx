@@ -195,8 +195,10 @@ export const CarmaMapProviderWrapper = ({
                   <CesiumContextProvider
                     //initialViewerState={defaultCesiumState}
                     // TODO move these to store/slice setup ?
-                    providerConfig={cesiumOptions.providerConfig}
-                    tilesetConfigs={cesiumOptions.tilesetConfigs}
+                    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                    providerConfig={cesiumOptions.providerConfig as any}
+                    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                    tilesetConfigs={cesiumOptions.tilesetConfigs as any}
                   >
                     <LibreContextProvider>
                       <MapSelectionProvider>{wrappedChildren}</MapSelectionProvider>

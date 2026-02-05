@@ -119,7 +119,7 @@ const FeatureInfoBox = ({ pos }: InfoBoxProps) => {
 
   const canZoomToFeature = (selectedFeature) => {
     if (
-      selectedFeature.properties?.wmsProps?.bounds ||
+      selectedFeature.properties?.sourceProps?.bounds ||
       selectedFeature.geometry
     ) {
       return true;
@@ -186,8 +186,8 @@ const FeatureInfoBox = ({ pos }: InfoBoxProps) => {
   }, [loadingFeatureInfo]);
 
   useEffect(() => {
-    if (selectedFeature && selectedFeature.properties.wmsProps) {
-      console.log("feature properties:", selectedFeature.properties.wmsProps);
+    if (selectedFeature && selectedFeature.properties.sourceProps) {
+      console.log("feature properties:", selectedFeature.properties.sourceProps);
     }
 
     const updateHeaderAndColor = async () => {
@@ -195,7 +195,7 @@ const FeatureInfoBox = ({ pos }: InfoBoxProps) => {
       if (selectedFeature?.properties?._header) {
         const header = await utils.parseHeader(
           selectedFeature.properties._header,
-          selectedFeature.properties.wmsProps ?? {}
+          selectedFeature.properties.sourceProps ?? {}
         );
         setParsedHeader(header || "Informationen");
       } else {
@@ -206,7 +206,7 @@ const FeatureInfoBox = ({ pos }: InfoBoxProps) => {
       if (selectedFeature?.properties?.accentColor) {
         const color = await parseColor(
           selectedFeature.properties.accentColor,
-          selectedFeature.properties.wmsProps ?? {}
+          selectedFeature.properties.sourceProps ?? {}
         );
         setHeaderColor(color || "#0078a8");
       } else {
@@ -248,7 +248,7 @@ const FeatureInfoBox = ({ pos }: InfoBoxProps) => {
         <InfoBoxHeader
           content={feature.properties.header || feature.properties._header}
           headerColor={"grey"}
-          properties={feature.properties.wmsProps}
+          properties={feature.properties.sourceProps}
         ></InfoBoxHeader>
       </div>
     );
@@ -317,10 +317,10 @@ const FeatureInfoBox = ({ pos }: InfoBoxProps) => {
         <Modal
           setOpen={() => setOpen(false)}
           feature={
-            selectedFeature.properties.wmsProps?.properties ||
-            selectedFeature.properties.wmsProps?.targetProperties
-              ? selectedFeature.properties.wmsProps
-              : { properties: selectedFeature.properties.wmsProps }
+            selectedFeature.properties.sourceProps?.properties ||
+            selectedFeature.properties.sourceProps?.targetProperties
+              ? selectedFeature.properties.sourceProps
+              : { properties: selectedFeature.properties.sourceProps }
           }
           versionString={getApplicationVersion(versionData)}
           Footer={genericSecondaryInfoFooterFactory({

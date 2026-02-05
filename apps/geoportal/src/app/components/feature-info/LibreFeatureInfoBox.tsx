@@ -269,7 +269,7 @@ const LibreFeatureInfoBox = ({ pos, libreMap }: InfoBoxProps) => {
         <Modal
           setOpen={() => setOpen(false)}
           feature={{
-            properties: selectedFeature.properties.wmsProps,
+            properties: selectedFeature.properties.sourceProps,
           }}
         />
       )}
