@@ -28,6 +28,7 @@ export function App() {
               <CarmaMap
                 onClick={() => {}}
                 mapEngine="maplibre"
+                overrideGlyphs="https://tiles.cismet.de/fonts/{fontstack}/{range}.pbf"
                 onProgressUpdate={handleProgressUpdate}
                 libreLayers={[
                   {
