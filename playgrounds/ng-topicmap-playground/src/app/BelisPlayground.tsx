@@ -216,14 +216,14 @@ const BelisPlayground = () => {
                 mapEngine="maplibre"
                 embedded
                 terrainControl={false}
-                backgroundLayers="basemap_grey@25" // "wupp-plan-live-tiles-3857" // "basemap_grey" // "basemap_relief" // "basemap_color"
+                backgroundLayers="basemap_grey@60" // "wupp-plan-live-tiles-3857" // "basemap_grey" // "basemap_relief" // "basemap_color"
                 overrideGlyphs="https://tiles.cismet.de/fonts/{fontstack}/{range}.pbf"
                 libreLayers={[
                   // {
                   //   type: "cog",
                   //   name: "Orthophoto",
                   //   url: "https://cog-wupp.cismet.de/output_3857.tif",
-                  //   opacity: 0.35,
+                  //   opacity: 1,
                   // },
                   {
                     type: "vector",
