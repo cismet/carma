@@ -236,7 +236,7 @@ export const FeatureInfobox = ({
           setOpen={() => setOpenModal(false)}
           feature={{
             properties:
-              selectedFeature.properties.wmsProps || selectedFeature.properties,
+              infoBoxControlObject?.wmsProps || selectedFeature.properties,
           }}
           versionString={getApplicationVersion(versionData)}
           Footer={genericSecondaryInfoFooterFactory()}
