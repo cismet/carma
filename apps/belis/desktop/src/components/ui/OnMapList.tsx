@@ -175,10 +175,17 @@ const OnMapList = ({ visibleMapWidth, visibleMapHeight }: OnMapListProps) => {
     Record<string, boolean>
   >({});
   const selectedItemRef = useRef<HTMLDivElement>(null);
+  const selectionFromListRef = useRef(false);
 
-  // Scroll selected item into view when selection changes
+  // Scroll selected item into view only when selection comes from map (not list)
   useEffect(() => {
     if (!selectedFeatureId) return;
+
+    // Skip scroll if selection was triggered from list click
+    if (selectionFromListRef.current) {
+      selectionFromListRef.current = false;
+      return;
+    }
 
     const selectedFeature = features.find(
       (f) =>
@@ -235,6 +242,7 @@ const OnMapList = ({ visibleMapWidth, visibleMapHeight }: OnMapListProps) => {
   };
 
   const handleFeatureClick = (feature: VisibleFeature) => {
+    selectionFromListRef.current = true;
     selectFeature(
       {
         source: feature.source,
