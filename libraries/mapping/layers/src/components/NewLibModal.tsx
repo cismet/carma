@@ -552,7 +552,11 @@ export const NewLibModal = ({
   }, [discoverItems]);
 
   useEffect(() => {
-    if (getNumOfCustomLayers() === 0 && selectedNavItemIndex === 0) {
+    if (
+      getNumOfCustomLayers() === 0 &&
+      selectedNavItemIndex === 0 &&
+      !isCesium
+    ) {
       setSelectedNavItemIndex(3);
     }
 
