@@ -76,6 +76,8 @@ export interface LibreMapProps {
   /** Override glyphs (font) URL. undefined = use from first vector layer style, string = use this URL */
   overrideGlyphs?: string;
   useRouting?: boolean;
+  /** Enable visual selection via setFeatureState even without infoboxMapping */
+  selectionEnabled?: boolean;
   onFeatureSelect?: (
     feature: any,
     selectionInfo?: {
@@ -94,6 +96,7 @@ export const LibreMap = ({
   filterFunction,
   overrideGlyphs,
   useRouting = false,
+  selectionEnabled = true,
   onFeatureSelect,
 }: LibreMapProps) => {
   const mapContainer = useRef<HTMLDivElement>(null);
@@ -429,19 +432,22 @@ export const LibreMap = ({
             );
           }
 
+          // Apply visual selection if we have a mapping OR if selectionEnabled is true
+          if (layerMapping || selectionEnabled) {
+            applyVisualSelection(mapInstance, featureId);
+          }
+
           if (feature) {
-            if (layerMapping) {
-              applyVisualSelection(mapInstance, featureId);
-            }
             setSelectedFeature(feature);
-
-            // Update context and fire callback
-            mapSelectionCtxRef.current.selectFeature(featureId, selectedVectorFeature);
             mapSelectionCtxRef.current.setSelectedFeature(feature);
-            // Bump version so we don't re-process our own update
+            mapSelectionCtxRef.current.selectFeature(featureId, selectedVectorFeature);
             lastHandledVersionRef.current = mapSelectionCtxRef.current.selectionVersion + 1;
-
             onFeatureSelect?.(feature, featureId);
+          } else if (selectionEnabled) {
+            // No feature/mapping but selection enabled: still update context
+            mapSelectionCtxRef.current.selectFeature(featureId, selectedVectorFeature);
+            lastHandledVersionRef.current = mapSelectionCtxRef.current.selectionVersion + 1;
+            onFeatureSelect?.(null, featureId);
           }
         } else {
           if (selectionRef.current) {

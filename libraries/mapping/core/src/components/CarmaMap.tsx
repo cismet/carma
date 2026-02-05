@@ -248,6 +248,7 @@ const CarmaMapContent = (props: CarmaMapProps) => {
                 useRouting={props.useRouting}
                 onFeatureSelect={props.onFeatureSelect}
                 overrideGlyphs={props.overrideGlyphs}
+                selectionEnabled={props.selectionEnabled}
               />
             )}
             {modalMenu}
