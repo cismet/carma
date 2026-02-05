@@ -71,6 +71,11 @@ export const createFeature = async (
   properties = {
     ...properties,
     vectorId: selectedVectorFeature.id,
+    carmaInfo: {
+      sourceLayer: selectedVectorFeature.sourceLayer,
+      source: selectedVectorFeature.source,
+      layerId: selectedVectorFeature.layer?.id,
+    },
   };
   let result = "";
   const featureInfoZoom = 20;
