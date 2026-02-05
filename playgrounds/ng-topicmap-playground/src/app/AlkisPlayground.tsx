@@ -16,6 +16,12 @@ const AlkisPlayground = () => {
             style:
               "https://tiles.cismet.de/alkis/flurstuecke.str.hsnr.black.style.json",
           },
+          // {
+          //   type: "cog",
+          //   name: "Orthophoto",
+          //   url: "https://cog-wupp.cismet.de/output_3857.tif",
+          //   opacity: 1,
+          // },
         ]}
       />
     </div>
