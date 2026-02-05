@@ -169,6 +169,7 @@ const OnMapList = ({ visibleMapWidth, visibleMapHeight }: OnMapListProps) => {
       visibleMapHeight,
       minZoomForFullFeatures: 17,
       maxFeatures: 20000,
+      layerFilterExpressions: ["Leuchten.*-base", "Leuchten.*-icon"],
     });
 
   const [collapsedGroups, setCollapsedGroups] = useState<
