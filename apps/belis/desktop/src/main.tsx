@@ -26,6 +26,10 @@ import { gazDataConfig } from "./config/gazData";
 import { SyncProvider } from "@carma-providers/syncing";
 import { APP_CONFIG } from "./config/appConfig";
 import { belisTaskFormatter } from "./config/taskFormatter";
+import {
+  LibreContextProvider,
+  MapSelectionProvider,
+} from "@carma-mapping/engines/maplibre";
 
 const persistor = persistStore(store);
 
@@ -109,7 +113,11 @@ root.render(
           <SelectionProvider>
             <PersistGate loading={null} persistor={persistor}>
               <TopicMapContextProvider appKey="belis-desktop.map">
-                <RouterProvider router={router} />
+                <LibreContextProvider>
+                  <MapSelectionProvider>
+                    <RouterProvider router={router} />
+                  </MapSelectionProvider>
+                </LibreContextProvider>
               </TopicMapContextProvider>
             </PersistGate>
           </SelectionProvider>

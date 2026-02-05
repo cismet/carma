@@ -1,9 +1,11 @@
 import { useEffect, useState, useMemo, useRef } from "react";
 import { useVisibleMapFeatures, VisibleFeature } from "@carma-mapping/utils";
-import type { Map as MaplibreMap } from "maplibre-gl";
+import {
+  useMapSelection,
+  useLibreContext,
+} from "@carma-mapping/engines/maplibre";
 
-// Convert ALL CAPS to Title Case (e.g., "GROSSE FLURSTR" → "Grosse Flurstr")
-// Also handles hyphens: "JOHANNES-RAU-PLATZ" → "Johannes-Rau-Platz"
+// Convert ALL CAPS to Title Case (e.g., "GROSSE FLURSTR" -> "Grosse Flurstr")
 const toTitleCase = (str: string): string => {
   if (!str) return "";
   return str
@@ -24,12 +26,11 @@ interface ListItemData {
   subtitle: string;
 }
 
-// Default extractors for common property patterns
+// Layer-specific extractors for Belis data
 const defaultListItemExtractors: Record<
   string,
   (feature: VisibleFeature) => ListItemData
 > = {
-  // Belis layer extractors - vector tile version (flattened properties)
   leuchten: (feature) => {
     const p = feature.properties || {};
     const leuchttyp = p.leuchtentyp || p.leuchttyp || "L";
@@ -42,7 +43,6 @@ const defaultListItemExtractors: Record<
       subtitle: p.fabrikat || p.leuchttyp_fabrikat || "",
     };
   },
-  // Belis layer extractors - nested JSON version
   tdta_leuchten: (feature) => {
     const p = feature.properties || {};
     const leuchttyp = p.fk_leuchttyp?.leuchtentyp || "L";
@@ -64,7 +64,6 @@ const defaultListItemExtractors: Record<
       subtitle: p.fk_mastart?.mastart || "-ohne Mastart-",
     };
   },
-  // Vector tile version (flattened) - singular and plural
   schaltstelle: (feature) => {
     const p = feature.properties || {};
     const title = p.schaltstellen_nummer
@@ -87,7 +86,6 @@ const defaultListItemExtractors: Record<
       subtitle: p.bezeichnung || p.bauart || "Schaltstelle",
     };
   },
-  // Vector tile version (flattened)
   leitungen: (feature) => {
     const p = feature.properties || {};
     const laenge = p.laenge || p.length || "";
@@ -98,11 +96,10 @@ const defaultListItemExtractors: Record<
       subtitle: p.bezeichnung || p.leitungstyp || "",
     };
   },
-  // Nested JSON version
   leitung: (feature) => {
     const p = feature.properties || {};
     const aPart = p.fk_querschnitt?.groesse
-      ? `, ${p.fk_querschnitt.groesse}mm²`
+      ? `, ${p.fk_querschnitt.groesse}mm`
       : "";
     return {
       main: `L-${p.id}`,
@@ -110,7 +107,6 @@ const defaultListItemExtractors: Record<
       subtitle: aPart ? `Querschnitt${aPart}` : "",
     };
   },
-  // Vector tile version (flattened)
   mauerlaschen: (feature) => {
     const p = feature.properties || {};
     return {
@@ -119,7 +115,6 @@ const defaultListItemExtractors: Record<
       subtitle: p.bezeichnung || p.material || "Mauerlasche",
     };
   },
-  // Nested JSON version
   mauerlasche: (feature) => {
     const p = feature.properties || {};
     return {
@@ -146,20 +141,11 @@ const genericExtractor = (feature: VisibleFeature): ListItemData => {
     props.title ||
     props.label ||
     props.bezeichnung ||
-    props.Name ||
-    props.Title ||
-    props.NAME ||
-    props.TITLE ||
     `ID: ${feature.id || "?"}`;
 
-  const upperrightRaw =
-    props.strasse ||
-    props.street ||
-    props.typ ||
-    props.type ||
-    props.kategorie ||
-    "";
-  const upperright = toTitleCase(upperrightRaw);
+  const upperright = toTitleCase(
+    props.strasse || props.street || props.typ || props.type || ""
+  );
 
   const subtitle =
     props.beschreibung || props.description || props.info || props.status || "";
@@ -167,37 +153,20 @@ const genericExtractor = (feature: VisibleFeature): ListItemData => {
   return { main, upperright, subtitle };
 };
 
-interface SelectedVectorObject {
-  source: string;
-  sourceLayer?: string;
-  id?: string | number;
-}
-
 interface OnMapListProps {
-  maplibreMap: MaplibreMap | null;
-  selectedVectorObject?: SelectedVectorObject | null;
-  setSelectedVectorObject?: (obj: SelectedVectorObject | null) => void;
-  onFeatureSelect?: (feature: VisibleFeature) => void;
   visibleMapWidth: number;
   visibleMapHeight: number;
-  showVisibleBoundsDebug?: boolean;
 }
 
-const OnMapList = ({
-  maplibreMap,
-  selectedVectorObject,
-  setSelectedVectorObject,
-  onFeatureSelect,
-  visibleMapWidth,
-  visibleMapHeight,
-  showVisibleBoundsDebug = false,
-}: OnMapListProps) => {
+const OnMapList = ({ visibleMapWidth, visibleMapHeight }: OnMapListProps) => {
+  const { map } = useLibreContext();
+  const { selectedFeatureId, selectFeature } = useMapSelection();
+
   const { features, totalCount, countsByLayer, isLoading, isOverviewMode } =
     useVisibleMapFeatures({
-      maplibreMap,
+      maplibreMap: map,
       visibleMapWidth,
       visibleMapHeight,
-      showDebugBounds: showVisibleBoundsDebug,
       minZoomForFullFeatures: 17,
       maxFeatures: 20000,
     });
@@ -207,21 +176,22 @@ const OnMapList = ({
   >({});
   const selectedItemRef = useRef<HTMLDivElement>(null);
 
-  // When selection changes, expand group and scroll into view
+  // Scroll selected item into view when selection changes
   useEffect(() => {
-    if (!selectedVectorObject) return;
+    if (!selectedFeatureId) return;
 
     const selectedFeature = features.find(
       (f) =>
-        f.source === selectedVectorObject.source &&
-        f.sourceLayer === selectedVectorObject.sourceLayer &&
-        f.id === selectedVectorObject.id
+        f.source === selectedFeatureId.source &&
+        f.sourceLayer === selectedFeatureId.sourceLayer &&
+        f.id === selectedFeatureId.id
     );
 
     if (selectedFeature) {
       const groupKey =
         selectedFeature.sourceLayer || selectedFeature.source || "Sonstige";
 
+      // Expand group if collapsed
       if (collapsedGroups[groupKey]) {
         setCollapsedGroups((prev) => ({
           ...prev,
@@ -230,15 +200,13 @@ const OnMapList = ({
       }
 
       setTimeout(() => {
-        if (selectedItemRef.current) {
-          selectedItemRef.current.scrollIntoView({
-            behavior: "smooth",
-            block: "start",
-          });
-        }
+        selectedItemRef.current?.scrollIntoView({
+          behavior: "smooth",
+          block: "start",
+        });
       }, 100);
     }
-  }, [selectedVectorObject, features, collapsedGroups]);
+  }, [selectedFeatureId, features, collapsedGroups]);
 
   // Group features by sourceLayer
   const groupedFeatures = useMemo(() => {
@@ -257,7 +225,6 @@ const OnMapList = ({
     return groups;
   }, [features, countsByLayer]);
 
-  // Get list item data using layer-specific extractors
   const getListItem = (feature: VisibleFeature): ListItemData => {
     const layerKey = feature.sourceLayer || feature.source || "";
     const extractor =
@@ -268,48 +235,14 @@ const OnMapList = ({
   };
 
   const handleFeatureClick = (feature: VisibleFeature) => {
-    if (!maplibreMap) return;
-
-    // Get coordinates from feature geometry to fire synthetic click
-    let clickCoords: [number, number] | null = null;
-    const geom = feature.geometry;
-
-    if (geom) {
-      if (geom.type === "Point") {
-        clickCoords = geom.coordinates as [number, number];
-      } else if (geom.type === "LineString" || geom.type === "MultiPoint") {
-        clickCoords = (geom.coordinates as number[][])[0] as [number, number];
-      } else if (geom.type === "Polygon" || geom.type === "MultiLineString") {
-        clickCoords = (geom.coordinates as number[][][])[0][0] as [
-          number,
-          number
-        ];
-      } else if (geom.type === "MultiPolygon") {
-        clickCoords = (geom.coordinates as number[][][][])[0][0][0] as [
-          number,
-          number
-        ];
-      }
-    }
-
-    if (clickCoords) {
-      // Fire synthetic click on map - this triggers LibreMap's full selection flow
-      const point = maplibreMap.project(clickCoords);
-      maplibreMap.fire("click", {
-        lngLat: { lng: clickCoords[0], lat: clickCoords[1] },
-        point,
-        originalEvent: { preventDefault: () => {}, stopPropagation: () => {} },
-      });
-    } else {
-      // Fallback: manual selection if no geometry
-      const selectionObj: SelectedVectorObject = {
+    selectFeature(
+      {
         source: feature.source,
         sourceLayer: feature.sourceLayer,
         id: feature.id,
-      };
-      setSelectedVectorObject?.(selectionObj);
-      onFeatureSelect?.(feature);
-    }
+      },
+      feature
+    );
   };
 
   const toggleGroup = (groupKey: string) => {
@@ -321,10 +254,10 @@ const OnMapList = ({
 
   const isFeatureSelected = (feature: VisibleFeature): boolean => {
     return (
-      !!selectedVectorObject &&
-      selectedVectorObject.source === feature.source &&
-      selectedVectorObject.sourceLayer === feature.sourceLayer &&
-      selectedVectorObject.id === feature.id
+      !!selectedFeatureId &&
+      selectedFeatureId.source === feature.source &&
+      selectedFeatureId.sourceLayer === feature.sourceLayer &&
+      selectedFeatureId.id === feature.id
     );
   };
 
@@ -340,7 +273,7 @@ const OnMapList = ({
       <div className="flex-1 overflow-y-auto overflow-x-hidden">
         {totalCount === 0 && !isLoading ? (
           <div className="p-4 text-gray-500 text-center text-sm">
-            {maplibreMap
+            {map
               ? "Keine Objekte im aktuellen Kartenausschnitt"
               : "Karte wird geladen..."}
           </div>
@@ -369,7 +302,9 @@ const OnMapList = ({
                         ref={selected ? selectedItemRef : null}
                         onClick={() => handleFeatureClick(feature)}
                         className={`px-3 py-2 pl-4 cursor-pointer border-b border-gray-100 hover:bg-gray-50 ${
-                          selected ? "bg-blue-50" : ""
+                          selected
+                            ? "bg-blue-50 border-l-2 border-l-blue-500"
+                            : ""
                         }`}
                       >
                         <div className="flex justify-between gap-2 overflow-hidden">

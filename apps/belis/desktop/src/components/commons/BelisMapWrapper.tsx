@@ -1,53 +1,23 @@
-import { useState } from "react";
 import { CarmaMap } from "@carma-mapping/core";
 import { useDispatch } from "react-redux";
 import { setSelectedFeature } from "../../store/slices/featureCollection";
 import { AppDispatch } from "../../store";
 import OnMapList from "../ui/OnMapList";
-import type { Map as MaplibreMap } from "maplibre-gl";
-
-interface SelectedVectorObject {
-  source: string;
-  sourceLayer?: string;
-  id?: string | number;
-}
+import { useMapSelection } from "@carma-mapping/engines/maplibre";
+import { useEffect } from "react";
 
 const LIST_WIDTH = 300;
 
 const BelisMapLibWrapper = ({ mapSizes }) => {
   const dispatch: AppDispatch = useDispatch();
-  const [libreMap, setLibreMap] = useState<MaplibreMap | null>(null);
-  const [selectedVectorObject, setSelectedVectorObject] =
-    useState<SelectedVectorObject | null>(null);
+  const { selectedFeature } = useMapSelection();
 
-  const handleSelectedFeature = (
-    feature,
-    selectionInfo?: {
-      source: string;
-      sourceLayer?: string;
-      id?: string | number;
+  // Sync selection to Redux store when map selection changes
+  useEffect(() => {
+    if (selectedFeature) {
+      dispatch(setSelectedFeature({ ...selectedFeature, selected: true }));
     }
-  ) => {
-    if (feature) {
-      const updatedFeature = { ...feature, selected: true };
-      dispatch(setSelectedFeature(updatedFeature));
-      console.log("xxx feature", updatedFeature);
-
-      // Update the selected vector object for list sync
-      if (selectionInfo) {
-        setSelectedVectorObject(selectionInfo);
-      }
-    }
-  };
-
-  const handleListFeatureSelect = (feature) => {
-    // When a feature is selected from the list, also trigger the map's feature select
-    handleSelectedFeature(feature, {
-      source: feature.source,
-      sourceLayer: feature.sourceLayer,
-      id: feature.id,
-    });
-  };
+  }, [selectedFeature, dispatch]);
 
   const mapWidth = mapSizes.width - LIST_WIDTH;
 
@@ -57,10 +27,6 @@ const BelisMapLibWrapper = ({ mapSizes }) => {
       style={{ width: mapSizes.width, height: mapSizes.height }}
     >
       <OnMapList
-        maplibreMap={libreMap}
-        selectedVectorObject={selectedVectorObject}
-        setSelectedVectorObject={setSelectedVectorObject}
-        onFeatureSelect={handleListFeatureSelect}
         visibleMapWidth={mapWidth}
         visibleMapHeight={mapSizes.height}
       />
@@ -68,9 +34,9 @@ const BelisMapLibWrapper = ({ mapSizes }) => {
         <CarmaMap
           mapEngine="maplibre"
           embedded
+          backgroundLayers="basemap_grey@60" // "wupp-plan-live-tiles-3857" // "basemap_grey" // "basemap_relief" // "basemap_color"
           terrainControl={false}
           fullScreenControl={false}
-          setLibreMap={setLibreMap}
           libreLayers={[
             {
               type: "vector",
@@ -78,7 +44,6 @@ const BelisMapLibWrapper = ({ mapSizes }) => {
               style: "https://tiles.cismet.de/belis/style.json",
             },
           ]}
-          onFeatureSelect={handleSelectedFeature}
         />
       </div>
     </div>
