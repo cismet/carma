@@ -212,6 +212,8 @@ export const parseToMapLayer = async (
         );
       }
 
+      let layerInfo = metaData?.carmaConf?.layerInfo || [];
+
       const metaDataCarmaConf = metaData?.carmaConf as
         | Record<string, unknown>
         | undefined;
@@ -247,7 +249,7 @@ export const parseToMapLayer = async (
           ...metaData,
         },
         layerInfo: {
-          ...metaData,
+          ...layerInfo,
         },
         type: layer.type,
       };

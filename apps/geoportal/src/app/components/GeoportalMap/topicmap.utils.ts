@@ -425,7 +425,7 @@ const createVectorFeature = async (
 
   const layerInfo = layer.layerInfo;
   let accentColor = null;
-  if (layerInfo) {
+  if (layerInfo && layerInfo.accentColor) {
     accentColor = layerInfo.accentColor;
   }
 
