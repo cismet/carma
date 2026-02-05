@@ -673,16 +673,13 @@ export const LibreMap = ({
           // Update context with the full map style
           setMapStyle(style);
 
-          // Refresh hiding forwarding manager with new style (after style is loaded)
+          // Refresh hiding forwarding manager with new style (after style is fully loaded)
+          // Use 'idle' event to ensure style is completely processed, not 'styledata' which fires early
           const startHidingManager = () => {
             hidingManagerRef.current?.refresh();
             hidingManagerRef.current?.start();
           };
-          if (map.current?.isStyleLoaded()) {
-            startHidingManager();
-          } else {
-            map.current?.once("styledata", startHidingManager);
-          }
+          map.current?.once("idle", startHidingManager);
 
           // Add COG layers after style is loaded (requires addSource/addLayer, not setStyle).
           // Use beforeId to insert at correct z-position based on effectiveLayers order.
