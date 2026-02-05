@@ -641,6 +641,31 @@ export const topicMapsConfig: Config = {
       url: "https://digital-twin-wuppertal-live.github.io/generic-topicmap/#/Wohnlagenkarte_Wuppertal",
       serviceName: "wuppTopicMaps",
     },
+    {
+      id: "wuppTopicMaps_wc",
+      path: "TopicMaps Wuppertal",
+      name: "wuppGenericTopicMaps_wc",
+      title: "WC-Karte",
+      description: `Beschreibung: Die WC-Karte Wuppertal bietet einen Überblick über ausgewählte öffentlich zugängliche Toiletten im Stadtgebiet. Die Erfassung erfolgt fortlaufend; ein Anspruch auf Vollständigkeit besteht nicht.`,
+      tags: [
+        "Generic TopicMaps",
+        "Infrastruktur",
+        "Barrierefreiheit",
+        "sanitäre Anlage",
+        "WC-Anlage",
+        "rollstuhlgerechtes WC",
+        "behindertengerechtes WC",
+        "Wickeltisch",
+        "Klo",
+        "Pissoir",
+      ],
+      type: "link",
+      thumbnail:
+        "https://wupp-digitaltwin-assets.cismet.de/v2/geoportal/thumbnails/wc_anlagen.png",
+      keywords: [],
+      url: "https://digital-twin-wuppertal-live.github.io/generic-topicmap/#/wc_karte_wuppertal",
+      serviceName: "wuppTopicMaps",
+    },
   ],
 };
 
