@@ -412,6 +412,7 @@ export const LibreMap = ({
         style: backgroundStyle,
         center: [lng, lat],
         zoom: zoom,
+        maxZoom: 21.9999,
         attributionControl: false,
       });
       map.current = mapInstance;
