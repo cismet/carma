@@ -249,7 +249,7 @@ export const GeoportalMap = ({ height, width, allow3d }: MapProps) => {
     if (maplibreMaps.length !== maps.length) {
       setMaplibreMaps(maps);
     }
-  }, [layers, layersIdle, maplibreMaps.length]);
+  }, [layers, layersIdle]);
 
   const version = getApplicationVersion(versionData);
 
@@ -577,7 +577,7 @@ export const GeoportalMap = ({ height, width, allow3d }: MapProps) => {
     } else {
       updateLayersIdleState(true);
     }
-  }, [dispatch, layers, updateLayersIdleState]);
+  }, [layers]);
 
   useEffect(() => {
     // TODO wrap this with 3d component in own component?
@@ -613,10 +613,10 @@ export const GeoportalMap = ({ height, width, allow3d }: MapProps) => {
   }, [uiMode, getLeafletMap, dispatch]);
 
   useEffect(() => {
-    if (isModeFeatureInfo && pos) {
+    if (isModeFeatureInfo) {
       setShouldUpdateFeatureInfo(true);
     }
-  }, [isModeFeatureInfo, maplibreMaps, pos]);
+  }, [maplibreMaps]);
 
   useEffect(() => {
     const leaflet = getLeafletMap();
