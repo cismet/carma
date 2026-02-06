@@ -205,6 +205,7 @@ export const parseToMapLayer = async (
           ),
           layerName: layer.name,
           capabilitiesUrl: capabilitiesUrl,
+          vectorLegend: mergedConf?.vectorLegend,
           ...metaData,
         },
       };

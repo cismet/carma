@@ -117,12 +117,15 @@ const InfoCard = ({
 
   const allowPublishing = userGroups.includes("_Geoportal_Publizieren");
 
+  const carmaConf = extractCarmaConfig(layer.keywords);
+  const vectorLegend = layer.vectorLegend || carmaConf?.vectorLegend;
+  const vectorStyle = layer.vectorStyle || carmaConf?.vectorStyle;
+
   const legends =
-    layer.vectorStyle && layer.vectorLegend
-      ? [{ OnlineResource: layer.vectorLegend }]
+    vectorStyle && vectorLegend
+      ? [{ OnlineResource: vectorLegend }]
       : (layer as unknown as any).props?.Style?.[0]?.LegendURL; // TODO: fix type
   const parsedDescriptions = parseDescription(description);
-  const carmaConf = extractCarmaConfig(layer.keywords);
   const isVectorLayer = carmaConf?.vectorStyle;
   const canFavoriteItem =
     layer.type !== "collection" ||
