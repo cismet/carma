@@ -85,7 +85,7 @@ export const getActionLinksForFeature = (
       <IconLink
         key={`CarmaIconLink.tel`}
         tooltip="Anrufen"
-        href={"tel:" + infoxboxControlObject?.tel || feature?.properties?.tel}
+        href={"tel:" + (infoxboxControlObject?.tel || feature?.properties?.tel)}
         iconname="phone"
       />
     );
