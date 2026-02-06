@@ -393,7 +393,7 @@ export const GeoportalMap = ({ height, width, allow3d }: MapProps) => {
   ]);
 
   // Camera orbit functionality for 3D mode
-  const { isOrbiting, toggleOrbit } = useCameraOrbit({
+  const { isOrbiting, toggleOrbit, stopOrbit } = useCameraOrbit({
     scene: cesiumScene,
     enabled: getIsCesium(),
   });
@@ -401,9 +401,9 @@ export const GeoportalMap = ({ height, width, allow3d }: MapProps) => {
   // Stop orbit when feature is deselected
   useEffect(() => {
     if (!selectedFeature && isOrbiting) {
-      toggleOrbit();
+      stopOrbit({ immediate: true });
     }
-  }, [selectedFeature, isOrbiting, toggleOrbit]);
+  }, [selectedFeature, isOrbiting, stopOrbit]);
 
   useRegisterMapFramework(frameworkOptions);
 

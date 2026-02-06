@@ -14,7 +14,7 @@ import {
   createRotationAxisVisualizer,
   type RotationAxisVisualizer,
 } from "@carma-mapping/engines/cesium/legacy";
-import { EXPONENTIAL_IN, EXPONENTIAL_OUT } from "@carma-commons/math";
+import { EXPONENTIAL_IN, EXPONENTIAL_OUT, clamp } from "@carma-commons/math";
 
 interface UseCameraOrbitOptions {
   scene: Scene | null;
@@ -27,12 +27,45 @@ interface StopOrbitOptions {
   immediate?: boolean;
 }
 
-const ORBIT_CENTER_POSITION: [number, number] = [0.5, 0.6];
+const ORBIT_CENTER_X = 0.5;
+const ORBIT_CENTER_Y = 0.5;
+const MIN_ORBIT_CENTER_Y = 0.2;
+const MAX_ORBIT_CENTER_Y = ORBIT_CENTER_Y;
+const BASE_PERSPECTIVE_SHIFT = 0.06;
 const EASE_DURATION = 1000; // 1 second exponential ease in/out
 const LINE_FADE_DURATION = 500; // ms for line fade out
 const DEFAULT_RESTART_DELAY = 300; // ms debounce before orbit resumes
 const STOP_VELOCITY_EPSILON = 0.0001; // radians/sec threshold to stop
 const DRAG_START_THRESHOLD_PX = 4;
+
+const getVerticalFov = (scene: Scene): number => {
+  const frustum = scene.camera.frustum as { fovy?: number };
+  const fovy = frustum?.fovy;
+  if (typeof fovy !== "number" || !Number.isFinite(fovy) || fovy <= 0) {
+    throw new Error("[ORBIT] Camera frustum has no valid vertical FOV (fovy).");
+  }
+  return fovy;
+};
+
+const getOrbitScreenY = (scene: Scene): number => {
+  const tiltFromNadir = clamp(
+    Math.abs(scene.camera.pitch + Math.PI / 2),
+    0,
+    Math.PI / 2
+  );
+  const pitchFactor = Math.sin(tiltFromNadir);
+  if (pitchFactor <= 0) return ORBIT_CENTER_Y;
+
+  // Narrower FOV yields a larger factor, wider FOV yields a smaller factor.
+  const fovScale = clamp(
+    1 / Math.max(getVerticalFov(scene), Number.EPSILON),
+    0.6,
+    1.6
+  );
+  const shift = BASE_PERSPECTIVE_SHIFT * pitchFactor * fovScale;
+
+  return clamp(ORBIT_CENTER_Y - shift, MIN_ORBIT_CENTER_Y, MAX_ORBIT_CENTER_Y);
+};
 
 /**
  * Hook to rotate the camera around a ground point in front of the camera.
@@ -70,10 +103,18 @@ export const useCameraOrbit = ({
     velocityRampStartTimeRef.current = performance.now();
   }, []);
 
+  const getOrbitCenterPosition = useCallback((): [number, number] => {
+    if (!scene) {
+      return [ORBIT_CENTER_X, ORBIT_CENTER_Y];
+    }
+    return [ORBIT_CENTER_X, getOrbitScreenY(scene)];
+  }, [scene]);
+
   const startOrbit = useCallback(() => {
     isDraggingRef.current = false;
     wasDraggingRef.current = false;
     stopPendingRef.current = false;
+    orbitPointRef.current = null;
     setIsStopping(false);
     setIsOrbiting(true);
     startVelocityRamp(angularVelocity);
@@ -232,9 +273,10 @@ export const useCameraOrbit = ({
         return;
       }
       // Update orbit center to new position at screen center
+      const orbitCenterPosition = getOrbitCenterPosition();
       const pickResult = pickScenePositions(
         scene,
-        [ORBIT_CENTER_POSITION],
+        [orbitCenterPosition],
         "orbit-center"
       )[0];
       if (pickResult?.scenePosition) {
@@ -266,9 +308,10 @@ export const useCameraOrbit = ({
         isDraggingRef.current = true;
         startVelocityRamp(0);
 
+        const orbitCenterPosition = getOrbitCenterPosition();
         const pickResult = pickScenePositions(
           scene,
-          [ORBIT_CENTER_POSITION],
+          [orbitCenterPosition],
           "orbit-center"
         )[0];
         if (pickResult?.scenePosition) {
@@ -321,6 +364,7 @@ export const useCameraOrbit = ({
     ensureVisualizer,
     scene,
     angularVelocity,
+    getOrbitCenterPosition,
     isOrbiting,
     restartDelayMs,
     startVelocityRamp,
@@ -359,9 +403,10 @@ export const useCameraOrbit = ({
         wasDraggingRef.current = true;
         const dragVisualizer = ensureVisualizer() ?? visualizer;
         // Continuously update line position to screen center during drag
+        const orbitCenterPosition = getOrbitCenterPosition();
         const pickResult = pickScenePositions(
           scene,
-          [ORBIT_CENTER_POSITION],
+          [orbitCenterPosition],
           "orbit-center"
         )[0];
         if (pickResult?.scenePosition) {
@@ -403,9 +448,10 @@ export const useCameraOrbit = ({
           setIsStopping(false);
           return;
         }
+        const orbitCenterPosition = getOrbitCenterPosition();
         const pickResult = pickScenePositions(
           scene,
-          [ORBIT_CENTER_POSITION],
+          [orbitCenterPosition],
           "orbit-center"
         )[0];
         if (pickResult?.scenePosition) {
@@ -530,6 +576,7 @@ export const useCameraOrbit = ({
     ensureVisualizer,
     scene,
     enabled,
+    getOrbitCenterPosition,
     isOrbiting,
     isStopping,
     angularVelocity,
