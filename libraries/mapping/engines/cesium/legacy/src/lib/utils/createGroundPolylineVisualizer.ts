@@ -7,13 +7,12 @@ import {
   GroundPolylineGeometry,
   GroundPolylinePrimitive,
   PolylineColorAppearance,
+  getBoundingSphereFromCoordinates,
   type Scene,
 } from "@carma/cesium";
 import type { Feature, FeatureCollection } from "geojson";
 
 import { extractAllRings } from "@carma/geo/utils";
-
-import { getBoundingSphereFromCoordinates } from "./getBoundingSphereFromCoordinates";
 
 const DEFAULT_LINE_COLOR = "#3A7CEB";
 
@@ -203,7 +202,7 @@ export const createGroundPolylineVisualizer = (
       const allCoords: number[][] = [];
       for (const ring of rings) {
         for (const coord of ring) {
-          allCoords.push([coord[0], coord[1], 0]);
+          allCoords.push([coord[0], coord[1], coord[2] ?? 0]);
         }
       }
 

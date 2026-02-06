@@ -74,7 +74,17 @@ export {
   type WallPrimitivesResult,
   type WallPrimitiveSegment,
 } from "./adhoc-primitives/create-wall-primitives";
-export { getBoundingSphereFromCoordinates } from "./getBoundingSphereFromCoordinates";
+export { getBoundingSphereFromCoordinates } from "@carma/cesium";
+export {
+  getBoundingSphereFromGeoJson,
+  getBoundingSphereFromGeoJsonGeometry,
+  getCoordinatesFromGeoJson,
+  getGeoJsonGeometryCacheKey,
+  getCoordinatesFromGeoJsonGeometry,
+  getProviderScopedCache,
+  getTerrainAwareBoundingSphereFromFeature,
+  getTerrainAwareBoundingSphereFromGeoJsonGeometry,
+} from "./getBoundingSphereFromGeoJsonGeometry";
 export {
   createExtrudedWallVisualizer,
   type ExtrudedWallVisualizer,

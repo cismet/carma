@@ -10,10 +10,13 @@ import type {
   CarmaMapLibreStyleData,
   FeatureInfoProperties,
 } from "@carma/types";
+import type { BoundingSphere } from "@carma/cesium";
 
 export type AdhocFeatureMetadata = {
   accentColor?: string;
   elevatedGeoJson?: Feature | FeatureCollection;
+  flyToGeoJson?: Feature | FeatureCollection;
+  flyToBoundingSphere?: BoundingSphere;
   hasElevations?: boolean;
   header?: string;
   rehydrated?: boolean;
@@ -88,7 +91,15 @@ export function AdhocFeatureDisplayProvider({
           return [...prev, feature];
         }
         const next = [...prev];
-        next[existingIndex] = feature;
+        const existingFeature = next[existingIndex];
+        next[existingIndex] = {
+          ...existingFeature,
+          ...feature,
+          metadata: {
+            ...(existingFeature.metadata ?? {}),
+            ...(feature.metadata ?? {}),
+          },
+        };
         return next;
       });
 

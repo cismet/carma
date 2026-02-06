@@ -3,6 +3,7 @@ import {
   Color,
   Primitive,
   PrimitiveCollection,
+  getBoundingSphereFromCoordinates,
   type Scene,
 } from "@carma/cesium";
 import type { Feature, FeatureCollection } from "geojson";
@@ -15,7 +16,6 @@ import {
   type WallPrimitiveSegment,
 } from "./adhoc-primitives/create-wall-primitives";
 import { createSelectionEdgePrimitive } from "./adhoc-primitives/create-selection-edge-primitive";
-import { getBoundingSphereFromCoordinates } from "./getBoundingSphereFromCoordinates";
 import { animateOpacity } from "./animateOpacity";
 import {
   applyGeometryInstanceOpacity,

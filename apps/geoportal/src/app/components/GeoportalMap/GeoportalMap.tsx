@@ -13,8 +13,8 @@ import { useDispatch, useSelector } from "react-redux";
 
 import {
   BoundingSphere,
-  Cartesian3,
   flyToBoundingSphereExtent,
+  type CesiumTerrainProvider,
 } from "@carma/cesium";
 import type { Map as MaplibreMap } from "maplibre-gl";
 
@@ -38,7 +38,6 @@ import {
   useMapHashRouting,
   useSelectionCesium,
   useSelectionTopicMap,
-  utils,
 } from "@carma-appframeworks/portals";
 import {
   geoElements,
@@ -59,6 +58,10 @@ import { getApplicationVersion } from "@carma-commons/utils";
 
 import {
   CustomViewer,
+  getGeoJsonGeometryCacheKey,
+  getProviderScopedCache,
+  getTerrainAwareBoundingSphereFromGeoJsonGeometry,
+  selectScreenSpaceCameraControllerMinimumZoomDistance,
   selectShowPrimaryTileset,
   selectViewerModels,
   setCurrentSceneStyle,
@@ -146,6 +149,13 @@ export const GeoportalMap = ({ height, width, allow3d }: MapProps) => {
   const container3dMapRef = useRef<HTMLDivElement>(null);
   // Store MapLibre maps outside Redux to avoid serialization issues
   const maplibreMapsRef = useRef<Map<string, MaplibreMap>>(new Map());
+  // Cache fly-to spheres per terrain provider so elevations stay provider-specific.
+  const flyToSphereCacheByProviderRef = useRef<
+    WeakMap<CesiumTerrainProvider, Map<string, BoundingSphere>>
+  >(new WeakMap());
+  const flyToSphereFallbackCacheRef = useRef<Map<string, BoundingSphere>>(
+    new Map()
+  );
 
   // State and Selectors
   const backgroundLayer = useSelector(getBackgroundLayer);
@@ -162,6 +172,9 @@ export const GeoportalMap = ({ height, width, allow3d }: MapProps) => {
   const models = useSelector(selectViewerModels);
   const markerAsset = models[CESIUM_CONFIG.markerKey]; //
   const markerAnchorHeight = CESIUM_CONFIG.markerAnchorHeight ?? 10;
+  const minimumCameraHeight = useSelector(
+    selectScreenSpaceCameraControllerMinimumZoomDistance
+  );
   const layers = useSelector(getLayers);
   const [maplibreMaps, setMaplibreMaps] = useState<MaplibreMap[]>([]);
   const uiMode = useSelector(getUIMode);
@@ -174,6 +187,14 @@ export const GeoportalMap = ({ height, width, allow3d }: MapProps) => {
 
   const { getLeafletZoom } = useLeafletZoomControls();
   const showPrimaryTileset = useSelector(selectShowPrimaryTileset);
+  const minFlyToRange = useMemo(() => {
+    const minHeight =
+      typeof minimumCameraHeight === "number" &&
+      Number.isFinite(minimumCameraHeight)
+        ? Math.max(0, minimumCameraHeight)
+        : 0;
+    return minHeight * 1.5;
+  }, [minimumCameraHeight]);
 
   const infoBoxOverlay = addCssToOverlayHelperItem(
     getCollabedHelpElementsConfig("INFOBOX", geoElements),
@@ -300,6 +321,7 @@ export const GeoportalMap = ({ height, width, allow3d }: MapProps) => {
     getScene,
     getTerrainProvider,
     isCesiumEnabled: isCesium,
+    minFlyToRange,
     selectionLineWidthPixels: 1.5,
     wallOpacity: {
       selected: 0.4,
@@ -485,40 +507,66 @@ export const GeoportalMap = ({ height, width, allow3d }: MapProps) => {
   useSelectionTopicMap(selectionTopicMapOptions);
   useSelectionCesium(getIsCesium, selectionCesiumOptions, isObliqueMode);
 
-  const handleZoomToFeature = useCallback(
-    (feature: FeatureInfo) => {
-      if (!getIsCesium()) return;
-      const scene = getScene();
-      if (!scene || scene.isDestroyed()) return;
+  const getBoundingSphereFromFeatureGeometry = useCallback(
+    async (feature: FeatureInfo): Promise<BoundingSphere | null> => {
+      if (!feature.geometry) return null;
 
-      let coordinates: number[][] = [];
-      if (feature.geometry) {
-        coordinates = utils.getPointsFromGeometry(feature.geometry);
+      const terrainProvider = getTerrainProvider();
+      const cacheKey = `${feature.id}:${getGeoJsonGeometryCacheKey(
+        feature.geometry
+      )}`;
+      const cache = getProviderScopedCache(
+        terrainProvider,
+        flyToSphereCacheByProviderRef.current,
+        flyToSphereFallbackCacheRef.current
+      );
+      const cachedSphere = cache.get(cacheKey);
+      if (cachedSphere) {
+        return cachedSphere;
       }
 
-      if (coordinates.length === 0) return;
+      const sphere = await getTerrainAwareBoundingSphereFromGeoJsonGeometry(
+        feature.geometry,
+        {
+          terrainProvider,
+          elevationSamplingOptions: { overrideExisting: true },
+        }
+      );
+      if (!sphere) return null;
 
-      const adhocSphere = getAdhocBoundingSphere(feature);
-      if (adhocSphere) {
-        flyToBoundingSphereExtent(scene.camera, adhocSphere, {
-          minRange: 50,
+      cache.set(cacheKey, sphere);
+      return sphere;
+    },
+    [getTerrainProvider]
+  );
+
+  const handleZoomToFeature = useCallback(
+    (feature: FeatureInfo) => {
+      void (async () => {
+        if (!getIsCesium()) return;
+        const scene = getScene();
+        if (!scene || scene.isDestroyed()) return;
+
+        const sphereFromGeometry = await getBoundingSphereFromFeatureGeometry(
+          feature
+        );
+        const sphere = sphereFromGeometry ?? getAdhocBoundingSphere(feature);
+        if (!sphere) return;
+
+        flyToBoundingSphereExtent(scene.camera, sphere, {
+          minRange: minFlyToRange,
           paddingFactor: 1.1,
         });
         scene.requestRender();
-        return;
-      }
-
-      const points = coordinates.map((coord) =>
-        Cartesian3.fromDegrees(coord[0], coord[1], coord[2] ?? 0)
-      );
-      const sphere = BoundingSphere.fromPoints(points);
-      flyToBoundingSphereExtent(scene.camera, sphere, {
-        minRange: 50,
-        paddingFactor: 1.1,
-      });
-      scene.requestRender();
+      })();
     },
-    [getAdhocBoundingSphere, getIsCesium, getScene]
+    [
+      getAdhocBoundingSphere,
+      getBoundingSphereFromFeatureGeometry,
+      getIsCesium,
+      getScene,
+      minFlyToRange,
+    ]
   );
 
   useEffect(() => {

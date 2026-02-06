@@ -2,7 +2,6 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import {
   BoundingSphere,
-  Cartesian3,
   Color,
   Model,
   ScreenSpaceEventHandler,
@@ -24,7 +23,7 @@ import {
   addElevationsToGeoJson,
   createExtrudedWallVisualizer,
   createGroundPolylineVisualizer,
-  geoJsonHasMissingElevations,
+  getBoundingSphereFromGeoJson,
   type ExtrudedWallVisualizer,
   type GeoJsonElevationOptions,
   type GroundPolylineVisualizer,
@@ -47,6 +46,7 @@ export type UseAdhocCesiumFeatureDisplayOptions = {
   isCesiumEnabled: boolean;
   getScene: () => Scene | null | undefined;
   getTerrainProvider: () => CesiumTerrainProvider | null | undefined;
+  minFlyToRange?: number;
   baseModels?: ModelConfig[];
   elevationSampling?: GeoJsonElevationOptions;
   wallOpacity?: {
@@ -180,30 +180,23 @@ const getModelProperties = (
   };
 };
 
-const getBoundingSphereFromGeojson = (
-  geojson: Feature | FeatureCollection
-): BoundingSphere | null => {
-  const polygon = getPolygonFromGeoJson(geojson);
-  if (!polygon) return null;
-
-  const points: Cartesian3[] = [];
-  for (const ring of polygon) {
-    for (const coord of ring) {
-      if (!coord || coord.length < 2) continue;
-      points.push(Cartesian3.fromDegrees(coord[0], coord[1], coord[2] ?? 0));
-    }
-  }
-
-  if (points.length === 0) return null;
-  return BoundingSphere.fromPoints(points);
-};
-
 const getGeojsonBoundingSphere = (
   feature: AdhocFeature
 ): BoundingSphere | null => {
-  const geojson = getGeoJsonFromFeature(feature);
+  const geojson =
+    (feature.metadata?.flyToGeoJson as
+      | Feature
+      | FeatureCollection
+      | undefined) ?? getGeoJsonFromFeature(feature);
   if (!geojson) return null;
-  return getBoundingSphereFromGeojson(geojson);
+  return getBoundingSphereFromGeoJson(geojson);
+};
+
+const getFeatureMetadataBoundingSphere = (
+  feature: AdhocFeature
+): BoundingSphere | null => {
+  const candidate = feature.metadata?.flyToBoundingSphere;
+  return candidate instanceof BoundingSphere ? candidate : null;
 };
 
 export const useAdhocCesiumFeatureDisplay = (
@@ -215,6 +208,7 @@ export const useAdhocCesiumFeatureDisplay = (
     getScene,
     getTerrainProvider,
     isCesiumEnabled,
+    minFlyToRange = 50,
     wallOpacity,
     wallOpacityAnimation,
     selectionLineWidthPixels,
@@ -256,29 +250,25 @@ export const useAdhocCesiumFeatureDisplay = (
 
   const getFeatureBoundingSphere = useCallback(
     (featureId: string): BoundingSphere | null => {
-      // Find any visualizer for this feature (they all share the same bounding sphere)
-      for (const entry of visualizersRef.current.values()) {
-        if (entry.featureId === featureId) {
-          return entry.visualizer.getBoundingSphere();
-        }
-      }
-
       const adhocFeature = adhocFeatures.find(
         (feature) => feature.id === featureId
       );
       if (!adhocFeature) return null;
-      const geojson = getGeoJsonFromFeature(adhocFeature);
-      if (!geojson) return null;
+
+      const metadataSphere = getFeatureMetadataBoundingSphere(adhocFeature);
+      if (metadataSphere) {
+        return metadataSphere;
+      }
 
       const terrainProvider = getTerrainProvider();
       const overrideExisting = elevationSampling?.overrideExisting ?? false;
       const shouldSampleElevations =
         !!terrainProvider &&
         (overrideExisting ||
-          (!adhocFeature.metadata?.hasElevations &&
-            geoJsonHasMissingElevations(geojson)));
+          !adhocFeature.metadata?.flyToGeoJson ||
+          adhocFeature.metadata?.hasElevations !== true);
 
-      if (shouldSampleElevations && !adhocFeature.metadata?.elevatedGeoJson) {
+      if (shouldSampleElevations) {
         return null;
       }
 
@@ -456,34 +446,65 @@ export const useAdhocCesiumFeatureDisplay = (
         );
         if (!geojson) continue;
 
-        let resolvedGeojson = geojson;
+        let resolvedGeojson =
+          (feature.metadata?.flyToGeoJson as Feature | FeatureCollection) ??
+          geojson;
+        let elevatedGeoJson: Feature | FeatureCollection | null = null;
         const terrainProvider = getTerrainProvider();
         const overrideExisting = elevationSampling?.overrideExisting ?? false;
         const shouldSampleElevations =
           !!terrainProvider &&
           (overrideExisting ||
-            (!feature.metadata?.hasElevations &&
-              geoJsonHasMissingElevations(geojson)));
+            !feature.metadata?.flyToGeoJson ||
+            feature.metadata?.hasElevations !== true);
 
         if (shouldSampleElevations) {
+          const elevationSamplingOptions: GeoJsonElevationOptions = {
+            ...elevationSampling,
+            overrideExisting: true,
+          };
           const elevationResult = await addElevationsToGeoJson(
             geojson,
             terrainProvider,
-            elevationSampling
+            elevationSamplingOptions
           );
 
           if (cancelled) break;
 
-          if (elevationResult.hasAugmentedElevation) {
-            resolvedGeojson = elevationResult.geojson;
-            updateFeatureMetadata({
-              id: feature.id,
-              metadata: {
-                elevatedGeoJson: elevationResult.geojson,
-                hasElevations: true,
-              },
-            });
-          }
+          resolvedGeojson = elevationResult.geojson;
+          elevatedGeoJson = elevationResult.geojson;
+        }
+
+        const flyToBoundingSphere =
+          getBoundingSphereFromGeoJson(resolvedGeojson);
+        if (
+          shouldSampleElevations ||
+          overrideExisting ||
+          !feature.metadata?.flyToGeoJson ||
+          !getFeatureMetadataBoundingSphere(feature)
+        ) {
+          updateFeatureMetadata({
+            id: feature.id,
+            metadata: {
+              flyToGeoJson: resolvedGeojson,
+              ...(flyToBoundingSphere
+                ? { flyToBoundingSphere: flyToBoundingSphere }
+                : {}),
+              ...(shouldSampleElevations && elevatedGeoJson
+                ? {
+                    elevatedGeoJson: elevatedGeoJson,
+                    hasElevations: true,
+                  }
+                : {}),
+            },
+          });
+        }
+
+        if (!flyToBoundingSphere) {
+          console.warn(
+            "[CESIUM|SYNC] No fly-to bounding sphere could be computed for feature",
+            feature.id
+          );
         }
 
         const polygon = getPolygonFromGeoJson(resolvedGeojson);
@@ -597,10 +618,10 @@ export const useAdhocCesiumFeatureDisplay = (
           if (pending.shouldFocus) {
             const isRehydrated = isRehydratedFeature(feature);
             if (!isRehydrated) {
-              const sphere = firstVisualizer.getBoundingSphere();
+              const sphere = flyToBoundingSphere;
               if (sphere) {
                 flyToBoundingSphereExtent(scene.camera, sphere, {
-                  minRange: 50,
+                  minRange: minFlyToRange,
                   paddingFactor: 1.1,
                 });
               }
@@ -622,10 +643,10 @@ export const useAdhocCesiumFeatureDisplay = (
           if (shouldFocusSelectedRef.current) {
             const isRehydrated = isRehydratedFeature(feature);
             if (!isRehydrated) {
-              const sphere = firstVisualizer.getBoundingSphere();
+              const sphere = flyToBoundingSphere;
               if (sphere) {
                 flyToBoundingSphereExtent(scene.camera, sphere, {
-                  minRange: 50,
+                  minRange: minFlyToRange,
                   paddingFactor: 1.1,
                 });
               }
@@ -637,10 +658,10 @@ export const useAdhocCesiumFeatureDisplay = (
           firstVisualizer.selected = true;
           const featureInfo = buildAdhocFeatureInfo(feature);
           onFeatureInfoChange?.(featureInfo);
-          const sphere = firstVisualizer.getBoundingSphere();
+          const sphere = flyToBoundingSphere;
           if (sphere) {
             flyToBoundingSphereExtent(scene.camera, sphere, {
-              minRange: 50,
+              minRange: minFlyToRange,
               paddingFactor: 1.1,
             });
           }
@@ -749,7 +770,7 @@ export const useAdhocCesiumFeatureDisplay = (
       const sphere = getFeatureBoundingSphere(selectedFeatureId);
       if (sphere) {
         flyToBoundingSphereExtent(scene.camera, sphere, {
-          minRange: 50,
+          minRange: minFlyToRange,
           paddingFactor: 1.1,
         });
         setShouldFocusSelected(false);
@@ -763,25 +784,41 @@ export const useAdhocCesiumFeatureDisplay = (
         return;
       }
 
-      const geojson = getGeoJsonFromFeature(selectedFeature);
-      if (!geojson) return;
+      const sourceGeojson = getGeoJsonFromFeature(selectedFeature);
+      if (!sourceGeojson) return;
+      const metadataFlyToGeoJson = selectedFeature.metadata?.flyToGeoJson as
+        | Feature
+        | FeatureCollection
+        | undefined;
+      const flyToGeojson = metadataFlyToGeoJson ?? sourceGeojson;
 
       const terrainProvider = getTerrainProvider();
       const overrideExisting = elevationSampling?.overrideExisting ?? false;
       const shouldSampleElevations =
         !!terrainProvider &&
         (overrideExisting ||
-          (!selectedFeature.metadata?.hasElevations &&
-            geoJsonHasMissingElevations(geojson)));
+          !selectedFeature.metadata?.flyToGeoJson ||
+          selectedFeature.metadata?.hasElevations !== true);
 
-      if (
-        !shouldSampleElevations ||
-        selectedFeature.metadata?.elevatedGeoJson
-      ) {
-        const fallbackSphere = getBoundingSphereFromGeojson(geojson);
+      if (!terrainProvider || !shouldSampleElevations) {
+        const fallbackSphere =
+          getFeatureMetadataBoundingSphere(selectedFeature) ??
+          getBoundingSphereFromGeoJson(flyToGeojson);
         if (fallbackSphere) {
+          if (
+            !getFeatureMetadataBoundingSphere(selectedFeature) ||
+            !selectedFeature.metadata?.flyToGeoJson
+          ) {
+            updateFeatureMetadata({
+              id: selectedFeature.id,
+              metadata: {
+                flyToGeoJson: flyToGeojson,
+                flyToBoundingSphere: fallbackSphere,
+              },
+            });
+          }
           flyToBoundingSphereExtent(scene.camera, fallbackSphere, {
-            minRange: 50,
+            minRange: minFlyToRange,
             paddingFactor: 1.1,
           });
           setShouldFocusSelected(false);
@@ -794,31 +831,34 @@ export const useAdhocCesiumFeatureDisplay = (
       pendingSamples.add(selectedFeature.id);
 
       try {
+        const elevationSamplingOptions: GeoJsonElevationOptions = {
+          ...elevationSampling,
+          overrideExisting: true,
+        };
         const elevationResult = await addElevationsToGeoJson(
-          geojson,
+          sourceGeojson,
           terrainProvider,
-          elevationSampling
+          elevationSamplingOptions
         );
 
         if (cancelled) return;
 
-        if (elevationResult.hasAugmentedElevation) {
-          updateFeatureMetadata({
-            id: selectedFeature.id,
-            metadata: {
-              elevatedGeoJson: elevationResult.geojson,
-              hasElevations: true,
-            },
-          });
-        }
+        const elevatedSphere = getBoundingSphereFromGeoJson(
+          elevationResult.geojson
+        );
+        updateFeatureMetadata({
+          id: selectedFeature.id,
+          metadata: {
+            flyToGeoJson: elevationResult.geojson,
+            ...(elevatedSphere ? { flyToBoundingSphere: elevatedSphere } : {}),
+            elevatedGeoJson: elevationResult.geojson,
+            hasElevations: true,
+          },
+        });
 
-        const flyToGeojson = elevationResult.hasAugmentedElevation
-          ? elevationResult.geojson
-          : geojson;
-        const elevatedSphere = getBoundingSphereFromGeojson(flyToGeojson);
         if (elevatedSphere) {
           flyToBoundingSphereExtent(scene.camera, elevatedSphere, {
-            minRange: 50,
+            minRange: minFlyToRange,
             paddingFactor: 1.1,
           });
           setShouldFocusSelected(false);
@@ -844,6 +884,7 @@ export const useAdhocCesiumFeatureDisplay = (
     selectedFeatureId,
     setShouldFocusSelected,
     shouldFocusSelected,
+    minFlyToRange,
     updateFeatureMetadata,
   ]);
 
