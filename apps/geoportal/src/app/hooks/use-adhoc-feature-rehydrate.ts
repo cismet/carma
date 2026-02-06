@@ -109,7 +109,6 @@ export const useAdhocFeatureRehydrate = () => {
         rehydratedRef.current.delete(feature.id);
       }
     });
-
   }, [layers, features, addFeature, removeFeature]);
 
   // Sync 2D selection -> Provider (when user clicks in 2D mode)
@@ -133,7 +132,10 @@ export const useAdhocFeatureRehydrate = () => {
     if (reduxHasAdhocSelection) {
       // If Provider doesn't have this selected, sync from Redux
       if (providerSelectedId !== reduxSelectedId) {
-        console.log("[SYNC] Syncing 2D selection -> Provider:", reduxSelectedId);
+        console.log(
+          "[SYNC] Syncing 2D selection -> Provider:",
+          reduxSelectedId
+        );
         setSelectedFeatureId(reduxSelectedId);
         setShouldFocusSelected(false);
       }

@@ -1,44 +1,55 @@
 import type { Feature, FeatureCollection, Geometry } from "geojson";
 
-/**
- * Extract all linear rings from a GeoJSON geometry
- * Returns array of rings, where each ring is an array of [lon, lat] coordinates
- */
-export const extractRingsFromGeometry = (geometry: Geometry): number[][][] => {
+export type ExtractRingsFromGeoJsonOptions = {
+  includeLineGeometries?: boolean;
+};
+
+const extractRingsFromGeometry = (
+  geometry: Geometry,
+  includeLineGeometries: boolean
+): number[][][] => {
   switch (geometry.type) {
     case "Polygon":
-      // Return all rings (outer + holes)
       return geometry.coordinates;
     case "MultiPolygon":
-      // Flatten all polygons, return all their rings
       return geometry.coordinates.flatMap((polygon) => polygon);
     case "LineString":
-      // Treat as single ring
-      return [geometry.coordinates];
+      return includeLineGeometries ? [geometry.coordinates] : [];
     case "MultiLineString":
-      // Each line is a ring
-      return geometry.coordinates;
+      return includeLineGeometries ? geometry.coordinates : [];
     default:
       return [];
   }
 };
 
-/**
- * Extract all linear rings from a GeoJSON Feature or FeatureCollection
- * Returns array of rings, where each ring is an array of [lon, lat] coordinates
- */
-export const extractAllRings = (
+const collectGeometriesFromGeoJson = (
   geojson: Feature | FeatureCollection
-): number[][][] => {
+): Geometry[] => {
   if (geojson.type === "FeatureCollection") {
     return geojson.features.flatMap((feature) =>
-      feature.geometry ? extractRingsFromGeometry(feature.geometry) : []
+      feature.geometry ? [feature.geometry] : []
     );
   }
 
   if (geojson.geometry) {
-    return extractRingsFromGeometry(geojson.geometry);
+    return [geojson.geometry];
   }
 
   return [];
+};
+
+/**
+ * Extract rings from GeoJSON (Feature or FeatureCollection).
+ *
+ * - Default behavior includes Polygon, MultiPolygon, LineString, MultiLineString.
+ * - Set `includeLineGeometries: false` for polygon-only extraction.
+ */
+export const extractRingsFromGeoJson = (
+  geojson: Feature | FeatureCollection,
+  options: ExtractRingsFromGeoJsonOptions = {}
+): number[][][] => {
+  const includeLineGeometries = options.includeLineGeometries ?? true;
+  return collectGeometriesFromGeoJson(geojson).flatMap((geometry) =>
+    extractRingsFromGeometry(geometry, includeLineGeometries)
+  );
 };

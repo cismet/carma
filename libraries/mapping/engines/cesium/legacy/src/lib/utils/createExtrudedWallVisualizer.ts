@@ -9,7 +9,7 @@ import {
 import type { Feature, FeatureCollection } from "geojson";
 import { Easing, type Easing as EasingFunction } from "@carma-commons/math";
 
-import { extractAllRings } from "@carma/geo/utils";
+import { extractRingsFromGeoJson } from "@carma/geo/utils";
 
 import {
   createWallPrimitives,
@@ -97,7 +97,7 @@ export const createExtrudedWallVisualizer = (
   let _isDestroyed = false;
 
   // Geometry data - extract all rings from the geojson
-  const rings = extractAllRings(geojson);
+  const rings = extractRingsFromGeoJson(geojson);
   const hasExplicitHeights = rings.some((ring) =>
     ring.some((coord) => typeof coord[2] === "number")
   );

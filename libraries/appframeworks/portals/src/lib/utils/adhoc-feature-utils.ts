@@ -1,4 +1,4 @@
-import type { Feature, FeatureCollection, Geometry } from "geojson";
+import type { Feature, FeatureCollection } from "geojson";
 import type { GeoJSONSourceSpecification } from "maplibre-gl";
 
 import type { CarmaMapLibreStyleData, FeatureInfo } from "@carma/types";
@@ -53,29 +53,6 @@ export const getAdhocWallHeight = (feature: {
     return carmaConf3D.wall.height;
   }
   return ADHOC_WALL_DEFAULT_HEIGHT;
-};
-
-export const getPolygonFromGeoJson = (
-  geojson: Feature | FeatureCollection
-): number[][][] | null => {
-  const features =
-    geojson.type === "FeatureCollection" ? geojson.features : [geojson];
-  const rings = features.flatMap((feature) => {
-    const geometry = feature?.geometry as Geometry | null | undefined;
-    if (!geometry) return [];
-
-    if (geometry.type === "Polygon") {
-      return geometry.coordinates as number[][][];
-    }
-
-    if (geometry.type === "MultiPolygon") {
-      return (geometry.coordinates as number[][][][]).flat();
-    }
-
-    return [];
-  });
-
-  return rings.length > 0 ? rings : null;
 };
 
 export const getGeoJsonFromFeature = (
@@ -133,8 +110,7 @@ export const buildAdhocFeatureInfo = (
     const metadataTitle = pickNonEmptyString(
       typeof feature.metadata?.title === "string"
         ? feature.metadata?.title
-        : undefined,
-      getMapLibreLayerInfo(feature)?.title
+        : undefined
     );
     const fallbackTitle = metadataTitle ?? feature.id;
 

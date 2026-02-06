@@ -12,7 +12,7 @@ import {
 } from "@carma/cesium";
 import type { Feature, FeatureCollection } from "geojson";
 
-import { extractAllRings } from "@carma/geo/utils";
+import { extractRingsFromGeoJson } from "@carma/geo/utils";
 
 const DEFAULT_LINE_COLOR = "#3A7CEB";
 
@@ -62,7 +62,7 @@ export const createGroundPolylineVisualizer = (
   let _isDestroyed = false;
 
   // Geometry data - extract all rings from the geojson
-  const rings = extractAllRings(geojson);
+  const rings = extractRingsFromGeoJson(geojson);
 
   // Cesium primitives
   let scene: Scene | null = null;

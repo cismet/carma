@@ -31,6 +31,7 @@ import {
   type GroundPolylineVisualizer,
 } from "@carma-mapping/engines/cesium";
 import type { Feature, FeatureCollection } from "geojson";
+import { extractRingsFromGeoJson } from "@carma/geo/utils";
 
 import {
   useAdhocFeatureDisplay,
@@ -40,7 +41,6 @@ import {
   buildAdhocFeatureInfo,
   getAdhocAccentColor,
   getGeoJsonFromFeature,
-  getPolygonFromGeoJson,
 } from "../utils/adhoc-feature-utils";
 import { useCesiumModels } from "./useCesiumModels";
 
@@ -493,8 +493,10 @@ export const useAdhocCesiumFeatureDisplay = (
           );
         }
 
-        const polygon = getPolygonFromGeoJson(resolvedGeojson);
-        if (!polygon?.[0]) continue;
+        const polygonRings = extractRingsFromGeoJson(resolvedGeojson, {
+          includeLineGeometries: false,
+        });
+        if (polygonRings.length === 0) continue;
 
         const visualizersToCreate: Array<{
           key: string;
