@@ -46,6 +46,10 @@ export {
   AdhocFeatureDisplayProvider,
   useAdhocFeatureDisplay,
   type AdhocFeature,
+  type AdhocFeatureCollection,
+  type AdhocFeatureCollectionSeed,
+  type AddAdhocFeatureOptions,
+  type RemoveAdhocFeatureOptions,
   type AdhocMapLibreStyleFeature,
 } from "./lib/components/AdhocFeatureDisplayProvider";
 

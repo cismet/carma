@@ -182,6 +182,81 @@ const getFeatureMetadataBoundingSphere = (
   return candidate instanceof BoundingSphere ? candidate : null;
 };
 
+type SelectableGeoJsonFeature = {
+  selectionId: string;
+  geojson: Feature;
+};
+
+const extractSelectableGeoJsonFeatures = (
+  featureId: string,
+  geojson: Feature | FeatureCollection
+): SelectableGeoJsonFeature[] => {
+  const features =
+    geojson.type === "FeatureCollection" ? geojson.features : [geojson];
+  return features.flatMap((geojsonFeature, index) => {
+    if (!geojsonFeature?.geometry) return [];
+    return [
+      {
+        selectionId: `${featureId}::${index}`,
+        geojson: geojsonFeature,
+      },
+    ];
+  });
+};
+
+const toSelectionIdSet = (
+  featureId: string,
+  geojson: Feature | FeatureCollection
+): Set<string> =>
+  new Set(
+    extractSelectableGeoJsonFeatures(featureId, geojson).map(
+      (subFeature) => subFeature.selectionId
+    )
+  );
+
+const areEqualStringSets = (left: Set<string>, right: Set<string>): boolean => {
+  if (left.size !== right.size) return false;
+  for (const value of left) {
+    if (!right.has(value)) return false;
+  }
+  return true;
+};
+
+const getGeoJsonForSelection = (
+  feature: AdhocFeature
+): Feature | FeatureCollection | null =>
+  (feature.metadata?.flyToGeoJson as Feature | FeatureCollection | undefined) ??
+  getGeoJsonFromFeature(feature);
+
+const getSelectableGeoJsonFeature = (
+  feature: AdhocFeature,
+  selectionId: string | null
+): Feature | null => {
+  if (!selectionId) return null;
+  const geojson = getGeoJsonForSelection(feature);
+  if (!geojson) return null;
+  const match = extractSelectableGeoJsonFeatures(feature.id, geojson).find(
+    (subFeature) => subFeature.selectionId === selectionId
+  );
+  return match?.geojson ?? null;
+};
+
+const buildAdhocFeatureInfoForSelection = (
+  feature: AdhocFeature,
+  selectionId: string | null
+): FeatureInfo | null => {
+  const selectedGeoJsonFeature = getSelectableGeoJsonFeature(
+    feature,
+    selectionId
+  );
+  if (!selectedGeoJsonFeature) {
+    return buildAdhocFeatureInfo(feature);
+  }
+  return buildAdhocFeatureInfo(feature, {
+    geojsonFeature: selectedGeoJsonFeature,
+  });
+};
+
 export const useAdhocCesiumFeatureDisplay = (
   options: UseAdhocCesiumFeatureDisplayOptions
 ): UseAdhocCesiumFeatureDisplayResult => {
@@ -209,6 +284,7 @@ export const useAdhocCesiumFeatureDisplay = (
 
   type VisualizerEntry = {
     featureId: string;
+    selectionId: string;
     visualizer:
       | ExtrudedWallVisualizer
       | GroundPolylineVisualizer
@@ -233,6 +309,9 @@ export const useAdhocCesiumFeatureDisplay = (
     shouldFocus: boolean;
   } | null>(null);
   const pendingElevationSamplesRef = useRef<Set<string>>(new Set());
+  const selectedSelectionIdByFeatureRef = useRef<Map<string, string>>(
+    new Map()
+  );
 
   const getFeatureBoundingSphere = useCallback(
     (featureId: string): BoundingSphere | null => {
@@ -278,6 +357,18 @@ export const useAdhocCesiumFeatureDisplay = (
   // Check if there are features that need to be synced to Cesium
   const needsSync = useMemo(() => {
     if (!isCesiumEnabled) return false;
+
+    const getRegisteredSelectionIds = (featureId: string): Set<string> =>
+      new Set(
+        [...visualizersRef.current.values()]
+          .filter((entry) => entry.featureId === featureId)
+          .map((entry) => entry.selectionId)
+          .filter(
+            (selectionId): selectionId is string =>
+              typeof selectionId === "string"
+          )
+      );
+
     // Check if any feature ID is not yet registered
     for (const id of geojsonFeatureIds) {
       if (!registeredFeatureIds.has(id)) return true;
@@ -286,8 +377,28 @@ export const useAdhocCesiumFeatureDisplay = (
     for (const id of registeredFeatureIds) {
       if (!geojsonFeatureIds.has(id)) return true;
     }
+
+    // Check if existing visualizers no longer match current feature sub-geometry shape.
+    for (const feature of adhocFeatures) {
+      if (
+        !geojsonFeatureIds.has(feature.id) ||
+        !registeredFeatureIds.has(feature.id)
+      ) {
+        continue;
+      }
+
+      const geojson = getGeoJsonFromFeature(feature);
+      if (!geojson) continue;
+
+      const expectedSelectionIds = toSelectionIdSet(feature.id, geojson);
+      const registeredSelectionIds = getRegisteredSelectionIds(feature.id);
+      if (!areEqualStringSets(expectedSelectionIds, registeredSelectionIds)) {
+        return true;
+      }
+    }
+
     return false;
-  }, [geojsonFeatureIds, isCesiumEnabled, registeredFeatureIds]);
+  }, [adhocFeatures, geojsonFeatureIds, isCesiumEnabled, registeredFeatureIds]);
 
   const adhocModelConfigs = useMemo(() => {
     return adhocFeatures.flatMap((feature) => {
@@ -398,11 +509,64 @@ export const useAdhocCesiumFeatureDisplay = (
       }
     }
 
+    const staleFeatureIds = new Set<string>();
+    for (const feature of adhocFeatures) {
+      if (
+        !geojsonFeatureIds.has(feature.id) ||
+        !registeredFeatureIds.has(feature.id)
+      ) {
+        continue;
+      }
+
+      const geojson = getGeoJsonFromFeature(feature);
+      if (!geojson) continue;
+
+      const expectedSelectionIds = toSelectionIdSet(feature.id, geojson);
+      const registeredSelectionIds = new Set(
+        [...visualizersRef.current.values()]
+          .filter((entry) => entry.featureId === feature.id)
+          .map((entry) => entry.selectionId)
+          .filter(
+            (selectionId): selectionId is string =>
+              typeof selectionId === "string"
+          )
+      );
+
+      if (!areEqualStringSets(expectedSelectionIds, registeredSelectionIds)) {
+        staleFeatureIds.add(feature.id);
+      }
+    }
+
+    if (staleFeatureIds.size > 0) {
+      for (const [key, entry] of visualizersRef.current.entries()) {
+        if (!staleFeatureIds.has(entry.featureId)) continue;
+        entry.visualizer.destroy();
+        visualizersRef.current.delete(key);
+      }
+      for (const featureId of staleFeatureIds) {
+        selectedSelectionIdByFeatureRef.current.delete(featureId);
+      }
+    }
+
+    const activeFeatureIds = new Set(
+      [...visualizersRef.current.values()].map((entry) => entry.featureId)
+    );
+    for (const featureId of selectedSelectionIdByFeatureRef.current.keys()) {
+      if (!activeFeatureIds.has(featureId)) {
+        selectedSelectionIdByFeatureRef.current.delete(featureId);
+      }
+    }
+
+    const effectiveRegisteredFeatureIds = new Set(registeredFeatureIds);
+    for (const staleFeatureId of staleFeatureIds) {
+      effectiveRegisteredFeatureIds.delete(staleFeatureId);
+    }
+
     // Get features that need visualizers created
     const featuresToCreate = adhocFeatures.filter(
       (feature) =>
         geojsonFeatureIds.has(feature.id) &&
-        !registeredFeatureIds.has(feature.id)
+        !effectiveRegisteredFeatureIds.has(feature.id)
     );
 
     console.debug("[CESIUM|SYNC] featuresToCreate:", featuresToCreate.length);
@@ -493,13 +657,15 @@ export const useAdhocCesiumFeatureDisplay = (
           );
         }
 
-        const polygonRings = extractRingsFromGeoJson(resolvedGeojson, {
-          includeLineGeometries: false,
-        });
-        if (polygonRings.length === 0) continue;
+        const subFeatures = extractSelectableGeoJsonFeatures(
+          feature.id,
+          resolvedGeojson
+        );
+        if (subFeatures.length === 0) continue;
 
         const visualizersToCreate: Array<{
           key: string;
+          selectionId: string;
           visualizer:
             | ExtrudedWallVisualizer
             | GroundPolylineVisualizer
@@ -508,84 +674,104 @@ export const useAdhocCesiumFeatureDisplay = (
 
         const config = normalizeCarmaConf3D(feature);
 
-        if (config.groundPolygon) {
-          const gpOptions =
-            typeof config.groundPolygon === "object"
-              ? config.groundPolygon
-              : {};
-          const groundPolygonVisualizer = createGroundPolygonVisualizer(
-            feature.id,
-            resolvedGeojson,
-            {
-              fillColor:
-                gpOptions.fillColor ??
-                getAdhocAccentColor(feature) ??
-                "#3A7CEB",
-              ...(typeof gpOptions.opacity === "number"
-                ? { opacity: gpOptions.opacity }
-                : {}),
-            }
-          );
-          visualizersToCreate.push({
-            key: `${feature.id}-polygon`,
-            visualizer: groundPolygonVisualizer,
+        for (const subFeature of subFeatures) {
+          const polygonRings = extractRingsFromGeoJson(subFeature.geojson, {
+            includeLineGeometries: false,
           });
+          if (polygonRings.length === 0) {
+            continue;
+          }
+
+          if (config.groundPolygon) {
+            const gpOptions =
+              typeof config.groundPolygon === "object"
+                ? config.groundPolygon
+                : {};
+            const groundPolygonVisualizer = createGroundPolygonVisualizer(
+              subFeature.selectionId,
+              subFeature.geojson,
+              {
+                fillColor:
+                  gpOptions.fillColor ??
+                  getAdhocAccentColor(feature) ??
+                  "#3A7CEB",
+                ...(typeof gpOptions.opacity === "number"
+                  ? { opacity: gpOptions.opacity }
+                  : {}),
+              }
+            );
+            visualizersToCreate.push({
+              key: `${subFeature.selectionId}-polygon`,
+              selectionId: subFeature.selectionId,
+              visualizer: groundPolygonVisualizer,
+            });
+          }
+
+          // Create ground polyline if explicitly configured
+          if (config.groundPolyline) {
+            const gpOptions =
+              typeof config.groundPolyline === "object"
+                ? config.groundPolyline
+                : {};
+            const groundPolylineVisualizer = createGroundPolylineVisualizer(
+              subFeature.selectionId,
+              subFeature.geojson,
+              {
+                lineColor:
+                  gpOptions.lineColor ??
+                  getAdhocAccentColor(feature) ??
+                  "#3A7CEB",
+                opacity: gpOptions.opacity ?? wallOpacity?.default ?? 0.7,
+                lineWidth: gpOptions.lineWidth ?? 5,
+              }
+            );
+            visualizersToCreate.push({
+              key: `${subFeature.selectionId}-polyline`,
+              selectionId: subFeature.selectionId,
+              visualizer: groundPolylineVisualizer,
+            });
+          }
+
+          // Create wall if enabled (object with height, not false)
+          if (config.wall && typeof config.wall === "object") {
+            const wallHeights = getWallHeights(feature);
+            const wallHeight = wallHeights ?? config.wall.height ?? 20;
+
+            const wallVisualizer = createExtrudedWallVisualizer(
+              subFeature.selectionId,
+              subFeature.geojson,
+              {
+                wallColor: getAdhocAccentColor(feature) ?? "#3A7CEB",
+                opacity: wallOpacity?.default ?? 0.7,
+                selectedOpacity: wallOpacity?.selected ?? 0.4,
+                selectionLineWidth: selectionLineWidthPixels,
+                selectionColor: config.wall.selectionColor
+                  ? Color.fromCssColorString(config.wall.selectionColor)
+                  : undefined,
+                wallHeight: wallHeight,
+                animationDurationMs: wallOpacityAnimation?.durationMs ?? 200,
+                animationEasing: wallOpacityAnimation?.easing,
+              }
+            );
+            visualizersToCreate.push({
+              key: `${subFeature.selectionId}-wall`,
+              selectionId: subFeature.selectionId,
+              visualizer: wallVisualizer,
+            });
+          }
         }
 
-        // Create ground polyline if explicitly configured
-        if (config.groundPolyline) {
-          const gpOptions =
-            typeof config.groundPolyline === "object"
-              ? config.groundPolyline
-              : {};
-          const groundPolylineVisualizer = createGroundPolylineVisualizer(
-            feature.id,
-            resolvedGeojson,
-            {
-              lineColor:
-                gpOptions.lineColor ??
-                getAdhocAccentColor(feature) ??
-                "#3A7CEB",
-              opacity: gpOptions.opacity ?? wallOpacity?.default ?? 0.7,
-              lineWidth: gpOptions.lineWidth ?? 5,
-            }
-          );
-          visualizersToCreate.push({
-            key: `${feature.id}-polyline`,
-            visualizer: groundPolylineVisualizer,
-          });
+        const uniqueSelectionIds = new Set(
+          visualizersToCreate.map((entry) => entry.selectionId)
+        );
+        if (uniqueSelectionIds.size === 0) {
+          continue;
         }
 
-        // Create wall if enabled (object with height, not false)
-        if (config.wall && typeof config.wall === "object") {
-          const wallHeights = getWallHeights(feature);
-          const wallHeight = wallHeights ?? config.wall.height ?? 20;
-
-          const wallVisualizer = createExtrudedWallVisualizer(
-            feature.id,
-            resolvedGeojson,
-            {
-              wallColor: getAdhocAccentColor(feature) ?? "#3A7CEB",
-              opacity: wallOpacity?.default ?? 0.7,
-              selectedOpacity: wallOpacity?.selected ?? 0.4,
-              selectionLineWidth: selectionLineWidthPixels,
-              selectionColor: config.wall.selectionColor
-                ? Color.fromCssColorString(config.wall.selectionColor)
-                : undefined,
-              wallHeight: wallHeight,
-              animationDurationMs: wallOpacityAnimation?.durationMs ?? 200,
-              animationEasing: wallOpacityAnimation?.easing,
-            }
-          );
-          visualizersToCreate.push({
-            key: `${feature.id}-wall`,
-            visualizer: wallVisualizer,
-          });
-        }
-
-        for (const { key, visualizer } of visualizersToCreate) {
+        for (const { key, selectionId, visualizer } of visualizersToCreate) {
           visualizersRef.current.set(key, {
             featureId: feature.id,
+            selectionId,
             visualizer,
           });
 
@@ -607,17 +793,31 @@ export const useAdhocCesiumFeatureDisplay = (
         }
 
         // Set initial selection state and potentially fly to
-        // Get the first visualizer for selection/focus operations
-        const firstVisualizer = visualizersToCreate[0]?.visualizer;
+        const firstSelectionId = [...uniqueSelectionIds][0] ?? null;
+        const selectedSelectionId =
+          selectedSelectionIdByFeatureRef.current.get(feature.id) ??
+          firstSelectionId;
+        if (selectedSelectionId) {
+          selectedSelectionIdByFeatureRef.current.set(
+            feature.id,
+            selectedSelectionId
+          );
+        }
+
         const pending = pendingSelectionRef.current;
-        if (pending?.featureId === feature.id && firstVisualizer) {
+        if (pending?.featureId === feature.id && selectedSelectionId) {
           console.debug(
             "[CESIUM|SYNC] Applying pending selection/focus for:",
             feature.id
           );
-          firstVisualizer.selected = true;
+          for (const item of visualizersToCreate) {
+            item.visualizer.selected = item.selectionId === selectedSelectionId;
+          }
 
-          const featureInfo = buildAdhocFeatureInfo(feature);
+          const featureInfo = buildAdhocFeatureInfoForSelection(
+            feature,
+            selectedSelectionId
+          );
           onFeatureInfoChange?.(featureInfo);
 
           if (pending.shouldFocus) {
@@ -637,11 +837,16 @@ export const useAdhocCesiumFeatureDisplay = (
           pendingSelectionRef.current = null;
         } else if (
           selectedFeatureIdRef.current === feature.id &&
-          firstVisualizer
+          selectedSelectionId
         ) {
-          firstVisualizer.selected = true;
+          for (const item of visualizersToCreate) {
+            item.visualizer.selected = item.selectionId === selectedSelectionId;
+          }
 
-          const featureInfo = buildAdhocFeatureInfo(feature);
+          const featureInfo = buildAdhocFeatureInfoForSelection(
+            feature,
+            selectedSelectionId
+          );
           onFeatureInfoChange?.(featureInfo);
 
           // If focus was requested, fly to this feature
@@ -665,6 +870,9 @@ export const useAdhocCesiumFeatureDisplay = (
         // Update registered IDs with successfully attached visualizers
         setRegisteredFeatureIds((prev) => {
           const next = new Set(prev);
+          for (const staleFeatureId of staleFeatureIds) {
+            next.delete(staleFeatureId);
+          }
           // Remove IDs no longer in features
           for (const id of prev) {
             if (!geojsonFeatureIds.has(id)) {
@@ -718,9 +926,31 @@ export const useAdhocCesiumFeatureDisplay = (
   useEffect(() => {
     if (!isCesiumEnabled) return;
 
+    const availableSelectionIds = selectedFeatureId
+      ? new Set(
+          [...visualizersRef.current.values()]
+            .filter((entry) => entry.featureId === selectedFeatureId)
+            .map((entry) => entry.selectionId)
+        )
+      : new Set<string>();
+    const preferredSelectionId = selectedFeatureId
+      ? selectedSelectionIdByFeatureRef.current.get(selectedFeatureId) ?? null
+      : null;
+    const selectedSelectionId =
+      preferredSelectionId && availableSelectionIds.has(preferredSelectionId)
+        ? preferredSelectionId
+        : availableSelectionIds.values().next().value ?? null;
+    if (selectedFeatureId && selectedSelectionId) {
+      selectedSelectionIdByFeatureRef.current.set(
+        selectedFeatureId,
+        selectedSelectionId
+      );
+    }
+
     // Update all visualizer selection states
     visualizersRef.current.forEach((entry) => {
-      entry.visualizer.selected = entry.featureId === selectedFeatureId;
+      entry.visualizer.selected =
+        !!selectedSelectionId && entry.selectionId === selectedSelectionId;
     });
 
     // Build and notify feature info
@@ -728,12 +958,17 @@ export const useAdhocCesiumFeatureDisplay = (
       ? adhocFeatures.find((f) => f.id === selectedFeatureId)
       : null;
     const featureInfo = selectedFeature
-      ? buildAdhocFeatureInfo(selectedFeature)
+      ? buildAdhocFeatureInfoForSelection(selectedFeature, selectedSelectionId)
       : null;
     onFeatureInfoChange?.(featureInfo);
 
     // If feature doesn't have a visualizer yet, queue pending selection/focus
-    if (selectedFeatureId && !visualizersRef.current.has(selectedFeatureId)) {
+    const hasVisualizerForSelectedFeature = selectedFeatureId
+      ? [...visualizersRef.current.values()].some(
+          (entry) => entry.featureId === selectedFeatureId
+        )
+      : false;
+    if (selectedFeatureId && !hasVisualizerForSelectedFeature) {
       const shouldQueueSelection =
         !!selectedFeature &&
         shouldShowFootprintIn3d(selectedFeature) &&
@@ -912,23 +1147,45 @@ export const useAdhocCesiumFeatureDisplay = (
         const isPicked = entry.visualizer.isPicked(pickedId);
         console.debug(`[CESIUM|CLICK] visualizer ${key} isPicked:`, isPicked);
         if (isPicked) {
-          if (entry.featureId === selectedFeatureId) {
+          const currentSelectionId =
+            selectedSelectionIdByFeatureRef.current.get(entry.featureId) ??
+            null;
+          const isSameSelection =
+            entry.featureId === selectedFeatureId &&
+            currentSelectionId === entry.selectionId;
+
+          if (isSameSelection) {
+            selectedSelectionIdByFeatureRef.current.delete(entry.featureId);
             setSelectedFeatureId(null);
             onFeatureInfoChange?.(null);
             return;
           }
 
+          selectedSelectionIdByFeatureRef.current.set(
+            entry.featureId,
+            entry.selectionId
+          );
           setShouldFocusSelected(false);
-          setSelectedFeatureId(entry.featureId);
           const adhocFeature = adhocFeatures.find(
             (f) => f.id === entry.featureId
           );
           const info = adhocFeature
-            ? buildAdhocFeatureInfo(adhocFeature)
+            ? buildAdhocFeatureInfoForSelection(adhocFeature, entry.selectionId)
             : null;
-          if (info) {
+
+          if (entry.featureId === selectedFeatureId) {
+            visualizersRef.current.forEach((candidate) => {
+              candidate.visualizer.selected =
+                candidate.featureId === entry.featureId &&
+                candidate.selectionId === entry.selectionId;
+            });
             onFeatureInfoChange?.(info);
+            scene.requestRender();
+            return;
           }
+
+          setSelectedFeatureId(entry.featureId);
+          onFeatureInfoChange?.(info);
           return;
         }
       }
@@ -941,6 +1198,9 @@ export const useAdhocCesiumFeatureDisplay = (
         Model;
       const isModelPick = isModelPickId || isModelPickPrimitive;
       if (!isModelPick) {
+        if (selectedFeatureId) {
+          selectedSelectionIdByFeatureRef.current.delete(selectedFeatureId);
+        }
         setShouldFocusSelected(false);
         setSelectedFeatureId(null);
         onFeatureInfoChange?.(null);

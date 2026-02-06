@@ -98,14 +98,16 @@ export const buildInfoBoxStylingProps = ({
 });
 
 export const buildAdhocFeatureInfo = (
-  feature: AdhocFeature
+  feature: AdhocFeature,
+  options?: { geojsonFeature?: Feature }
 ): FeatureInfo | null => {
   const accentColor = getAdhocAccentColor(feature);
   const header = getAdhocHeader(feature);
   const geojson = getGeoJsonFromFeature(feature);
   if (geojson) {
-    const geojsonFeature =
+    const defaultGeojsonFeature =
       geojson.type === "FeatureCollection" ? geojson.features[0] : geojson;
+    const geojsonFeature = options?.geojsonFeature ?? defaultGeojsonFeature;
 
     const metadataTitle = pickNonEmptyString(
       typeof feature.metadata?.title === "string"
@@ -114,10 +116,19 @@ export const buildAdhocFeatureInfo = (
     );
     const fallbackTitle = metadataTitle ?? feature.id;
 
-    const properties = feature.properties ??
-      (geojsonFeature?.properties as FeatureInfo["properties"] | undefined) ?? {
-        title: fallbackTitle,
-      };
+    const selectedGeoJsonProperties = geojsonFeature?.properties as
+      | FeatureInfo["properties"]
+      | undefined;
+    const hasSelectedGeoJsonFeature = options?.geojsonFeature !== undefined;
+    const properties = hasSelectedGeoJsonFeature
+      ? selectedGeoJsonProperties ??
+        feature.properties ?? {
+          title: fallbackTitle,
+        }
+      : feature.properties ??
+        selectedGeoJsonProperties ?? {
+          title: fallbackTitle,
+        };
     const info =
       typeof (properties as { info?: unknown }).info === "object" &&
       (properties as { info?: unknown }).info
@@ -134,12 +145,19 @@ export const buildAdhocFeatureInfo = (
     const infoTitle = pickNonEmptyString(info?.title);
     const infoSubtitle = pickNonEmptyString(info?.subtitle);
     const infoAdditionalInfo = pickNonEmptyString(info?.additionalInfo);
-    const title = pickNonEmptyString(
-      metadataTitle,
-      properties.title,
-      infoTitle,
-      fallbackTitle
-    );
+    const title = hasSelectedGeoJsonFeature
+      ? pickNonEmptyString(
+          infoTitle,
+          properties.title,
+          metadataTitle,
+          fallbackTitle
+        )
+      : pickNonEmptyString(
+          metadataTitle,
+          properties.title,
+          infoTitle,
+          fallbackTitle
+        );
     const subtitle = pickNonEmptyString(properties.subtitle, infoSubtitle);
     const additionalInfo = pickNonEmptyString(
       properties.additionalInfo,
