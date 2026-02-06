@@ -33,12 +33,11 @@ const defaultListItemExtractors: Record<
 > = {
   leuchten: (feature) => {
     const p = feature.properties || {};
-    const leuchttyp = p.leuchtentyp || p.leuchttyp || "L";
-    const nummer = p.leuchtennummer || p.lfd_nummer || "";
-    const standort = p.standort_lfd_nummer || p.standort || "";
-    const standortPart = standort ? `, ${standort}` : "";
+    const typ = p.leuchtentyp || p.leuchttyp || "L";
+    const nr = p.leuchtennummer || "0";
+    const standort = p.lfd_nummer ? `, ${p.lfd_nummer}` : "";
     return {
-      main: `${leuchttyp}-${nummer}${standortPart}`,
+      main: `${typ}-${nr}${standort}`,
       upperright: toTitleCase(p.strasse || p.strassenschluessel || ""),
       subtitle: p.fabrikat || p.leuchttyp_fabrikat || "",
     };
@@ -230,6 +229,17 @@ const OnMapList = ({ visibleMapWidth, visibleMapHeight }: OnMapListProps) => {
       }
       groups[groupKey].items.push(feature);
     });
+    // Sort items within each group by standort (lfd_nummer), then by leuchtennummer
+    for (const group of Object.values(groups)) {
+      group.items.sort((a, b) => {
+        const aStandort = Number(a.properties?.lfd_nummer) || 0;
+        const bStandort = Number(b.properties?.lfd_nummer) || 0;
+        if (aStandort !== bStandort) return aStandort - bStandort;
+        const aLeuchte = Number(a.properties?.leuchtennummer) || 0;
+        const bLeuchte = Number(b.properties?.leuchtennummer) || 0;
+        return aLeuchte - bLeuchte;
+      });
+    }
     return groups;
   }, [features, countsByLayer]);
 
