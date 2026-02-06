@@ -656,19 +656,6 @@ export const useAdhocCesiumFeatureDisplay = (
             }
             setShouldFocusSelected(false);
           }
-        } else if (!isRehydratedFeature(feature) && firstVisualizer) {
-          setSelectedFeatureId(feature.id);
-          firstVisualizer.selected = true;
-          const featureInfo = buildAdhocFeatureInfo(feature);
-          onFeatureInfoChange?.(featureInfo);
-          const sphere = flyToBoundingSphere;
-          if (sphere) {
-            flyToBoundingSphereExtent(scene.camera, sphere, {
-              minRange: minFlyToRange,
-              paddingFactor: 1.1,
-            });
-          }
-          setShouldFocusSelected(false);
         }
       }
 

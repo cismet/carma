@@ -23,14 +23,11 @@ export const useAdhocFeatureRehydrate = () => {
     removeFeature,
     selectedFeatureId,
     setSelectedFeatureId,
+    shouldFocusSelected,
+    setShouldFocusSelected,
   } = useAdhocFeatureDisplay();
   const rehydratedRef = useRef<Set<string>>(new Set());
   const initialAdhocLayerIdsRef = useRef<Set<string> | null>(null);
-  // Track if we're syncing to prevent loops
-  const isSyncingFromRedux = useRef(false);
-  const isSyncingFromProvider = useRef(false);
-  // Track if we've completed initial rehydration
-  const hasRehydratedRef = useRef(false);
 
   // Rehydrate features from Redux layers
   useEffect(() => {
@@ -112,113 +109,50 @@ export const useAdhocFeatureRehydrate = () => {
         rehydratedRef.current.delete(feature.id);
       }
     });
+
   }, [layers, features, addFeature, removeFeature]);
-
-  // Track initial Redux selection for rehydration sync
-  // Store the initial Redux value in a stable ref that won't change
-  const initialReduxIdRef = useRef<string | null>(
-    reduxSelectedFeature?.id ?? null
-  );
-  // Use a separate ref to track sync state
-  const initialReduxSelectionRef = useRef<string | null | undefined>(undefined);
-
-  // On first run with a Redux selection, capture it
-  if (
-    initialReduxSelectionRef.current === undefined &&
-    initialReduxIdRef.current
-  ) {
-    initialReduxSelectionRef.current = initialReduxIdRef.current;
-    console.log(
-      "[SYNC] Captured initial Redux selection:",
-      initialReduxIdRef.current
-    );
-  }
-
-  console.log(
-    "[SYNC] Render - initialReduxIdRef:",
-    initialReduxIdRef.current,
-    "initialReduxSelectionRef:",
-    initialReduxSelectionRef.current,
-    "reduxSelectedFeature?.id:",
-    reduxSelectedFeature?.id
-  );
-
-  // Sync Redux selectedFeature -> Provider on load/rehydrate
-  useEffect(() => {
-    const targetId = initialReduxSelectionRef.current;
-    console.log(
-      "[SYNC] Effect running, targetId:",
-      targetId,
-      "features.length:",
-      features.length
-    );
-
-    // undefined means not initialized yet, null means already synced or no selection
-    if (
-      targetId === undefined ||
-      targetId === null ||
-      isSyncingFromProvider.current
-    ) {
-      console.log("[SYNC] Skipping: no target or already syncing");
-      return;
-    }
-
-    // Only sync if it's an adhoc feature
-    const isAdhoc = features.some((f) => f.id === targetId);
-    console.log("[SYNC] Checking if adhoc:", isAdhoc, "for target:", targetId);
-    if (!isAdhoc) {
-      console.log("[SYNC] Not adhoc, returning early without clearing ref");
-      return;
-    }
-
-    // If Provider doesn't have this selected, sync from Redux
-    if (selectedFeatureId !== targetId) {
-      console.log("[SYNC] Syncing Redux -> Provider:", targetId);
-      isSyncingFromRedux.current = true;
-      setSelectedFeatureId(targetId);
-
-      // Mark rehydration as complete
-      hasRehydratedRef.current = true;
-      // Clear the ref so we don't sync again
-      initialReduxSelectionRef.current = null;
-      console.log("[SYNC] Cleared initialReduxSelectionRef after sync");
-      // Reset flag after sync (deterministic - immediate)
-      isSyncingFromRedux.current = false;
-    } else {
-      // Already selected, clear the ref and mark rehydrated
-      console.log("[SYNC] Already selected, clearing ref");
-      initialReduxSelectionRef.current = null;
-      hasRehydratedRef.current = true;
-    }
-  }, [features.length, selectedFeatureId, setSelectedFeatureId]);
 
   // Sync 2D selection -> Provider (when user clicks in 2D mode)
   useEffect(() => {
-    // Only sync when in 2D mode and we have a Redux selection
+    // Only sync when in 2D mode
     if (isCesium) return;
-    if (!reduxSelectedFeature?.id) return;
-    if (isSyncingFromProvider.current) return;
 
-    // Check if it's an adhoc feature
-    const isAdhoc = features.some((f) => f.id === reduxSelectedFeature.id);
-    if (!isAdhoc) return;
+    if (shouldFocusSelected) {
+      setShouldFocusSelected(false);
+    }
 
-    // If Provider doesn't have this selected, sync from Redux
-    if (selectedFeatureId !== reduxSelectedFeature.id) {
-      console.log(
-        "[SYNC] Syncing 2D selection -> Provider:",
-        reduxSelectedFeature.id
-      );
-      isSyncingFromRedux.current = true;
-      setSelectedFeatureId(reduxSelectedFeature.id);
-      // Reset flag after sync
-      isSyncingFromRedux.current = false;
+    const reduxSelectedId = reduxSelectedFeature?.id ?? null;
+    const providerSelectedId = selectedFeatureId ?? null;
+    const providerHasAdhocSelection =
+      providerSelectedId !== null &&
+      features.some((feature) => feature.id === providerSelectedId);
+
+    const reduxHasAdhocSelection =
+      reduxSelectedId !== null &&
+      features.some((feature) => feature.id === reduxSelectedId);
+    if (reduxHasAdhocSelection) {
+      // If Provider doesn't have this selected, sync from Redux
+      if (providerSelectedId !== reduxSelectedId) {
+        console.log("[SYNC] Syncing 2D selection -> Provider:", reduxSelectedId);
+        setSelectedFeatureId(reduxSelectedId);
+        setShouldFocusSelected(false);
+      }
+      return;
+    }
+
+    // Redux has no adhoc selection in 2D -> clear stale adhoc selection in provider.
+    if (providerHasAdhocSelection) {
+      console.log("[SYNC] Clearing stale adhoc Provider selection in 2D");
+      setSelectedFeatureId(null);
+      setShouldFocusSelected(false);
     }
   }, [
     reduxSelectedFeature,
     features,
     selectedFeatureId,
+    shouldFocusSelected,
     setSelectedFeatureId,
+    setShouldFocusSelected,
     isCesium,
   ]);
 
@@ -230,40 +164,16 @@ export const useAdhocFeatureRehydrate = () => {
     console.log("[SYNC] Provider -> Redux check:", {
       providerId: selectedFeatureId,
       reduxId: reduxSelectedFeature?.id,
-      isSyncing: isSyncingFromRedux.current,
-      hasRehydrated: hasRehydratedRef.current,
     });
-
-    // Skip during initial load until rehydration is complete
-    if (!hasRehydratedRef.current) {
-      console.log("[SYNC] Skipping: waiting for rehydration");
-      return;
-    }
-
-    if (isSyncingFromRedux.current) {
-      console.log("[SYNC] Skipping: already syncing from Redux");
-      return;
-    }
 
     // If Provider has no selection, check if we should clear Redux
     if (selectedFeatureId === null) {
-      // Don't clear Redux during initial load until rehydration is complete
-      if (!hasRehydratedRef.current) {
-        console.log(
-          "[SYNC] Provider->Redux: Skipping clear - rehydration not complete"
-        );
-        return;
-      }
-
       if (
         reduxSelectedFeature?.id &&
         features.some((f) => f.id === reduxSelectedFeature.id)
       ) {
         console.log("[SYNC] Clearing Redux selection");
-        isSyncingFromProvider.current = true;
         dispatch(setSelectedFeature(null));
-        // Reset flag after sync
-        isSyncingFromProvider.current = false;
       }
       return;
     }
@@ -274,7 +184,6 @@ export const useAdhocFeatureRehydrate = () => {
       const adhocFeature = features.find((f) => f.id === selectedFeatureId);
       if (adhocFeature) {
         console.log("[SYNC] Syncing Provider -> Redux:", selectedFeatureId);
-        isSyncingFromProvider.current = true;
 
         // Get title from metadata, properties, or fallback to id
         const title =
@@ -295,8 +204,6 @@ export const useAdhocFeatureRehydrate = () => {
         };
 
         dispatch(setSelectedFeature(featureInfo));
-        // Reset flag (deterministic - immediate)
-        isSyncingFromProvider.current = false;
       }
     }
   }, [selectedFeatureId, reduxSelectedFeature, features, dispatch, isCesium]);
