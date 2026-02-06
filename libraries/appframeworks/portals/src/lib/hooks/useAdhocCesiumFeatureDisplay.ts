@@ -22,13 +22,15 @@ import type {
 import {
   addElevationsToGeoJson,
   createExtrudedWallVisualizer,
+  createGroundPolygonVisualizer,
   createGroundPolylineVisualizer,
   getBoundingSphereFromGeoJson,
   type ExtrudedWallVisualizer,
   type GeoJsonElevationOptions,
+  type GroundPolygonVisualizer,
   type GroundPolylineVisualizer,
 } from "@carma-mapping/engines/cesium";
-import type { Feature, FeatureCollection, Polygon } from "geojson";
+import type { Feature, FeatureCollection } from "geojson";
 
 import {
   useAdhocFeatureDisplay,
@@ -92,21 +94,12 @@ const getWallHeights = (feature: AdhocFeature): number[] | undefined => {
   return undefined;
 };
 
-const getDefaultWallHeight = (feature: AdhocFeature): number => {
-  const carmaConf3D = getCarmaConf3D(feature);
-  const wall = carmaConf3D?.wall;
-  if (wall && typeof wall === "object" && typeof wall.height === "number") {
-    return wall.height;
-  }
-  return 20;
-};
-
 const normalizeCarmaConf3D = (feature: AdhocFeature): CarmaConf3D => {
   const carmaConf3D = getCarmaConf3D(feature);
 
   if (!carmaConf3D) {
-    // No config = default to wall with default height, no ground polyline
-    return { wall: { height: 20 } };
+    // No config = default wall and default draped ground polygon.
+    return { wall: { height: 20 }, groundPolygon: true };
   }
 
   // Config exists - apply defaults for missing properties
@@ -121,27 +114,17 @@ const normalizeCarmaConf3D = (feature: AdhocFeature): CarmaConf3D => {
         : carmaConf3D.wall === true
         ? { height: 20 }
         : carmaConf3D.wall,
+    // Ground polygon is enabled by default for footprint visibility/picking.
+    groundPolygon:
+      carmaConf3D.groundPolygon === undefined
+        ? true
+        : carmaConf3D.groundPolygon,
   };
 };
 
 const isRehydratedFeature = (feature: AdhocFeature): boolean => {
   const metadata = feature.metadata as { rehydrated?: boolean } | undefined;
   return Boolean(metadata?.rehydrated);
-};
-
-const getGroundPolylineOptions = (
-  feature: AdhocFeature
-): { lineColor?: string; opacity?: number; lineWidth?: number } => {
-  const carmaConf3D = getCarmaConf3D(feature);
-  const groundPolyline = carmaConf3D?.groundPolyline;
-  if (typeof groundPolyline === "object" && groundPolyline !== null) {
-    return {
-      lineColor: groundPolyline.lineColor,
-      opacity: groundPolyline.opacity,
-      lineWidth: groundPolyline.lineWidth,
-    };
-  }
-  return {};
 };
 
 const getModelConfig = (feature: AdhocFeature) => {
@@ -226,7 +209,10 @@ export const useAdhocCesiumFeatureDisplay = (
 
   type VisualizerEntry = {
     featureId: string;
-    visualizer: ExtrudedWallVisualizer | GroundPolylineVisualizer;
+    visualizer:
+      | ExtrudedWallVisualizer
+      | GroundPolylineVisualizer
+      | GroundPolygonVisualizer;
   };
 
   // Single ref for all visualizers - now supports multiple visualizers per feature
@@ -510,22 +496,39 @@ export const useAdhocCesiumFeatureDisplay = (
         const polygon = getPolygonFromGeoJson(resolvedGeojson);
         if (!polygon?.[0]) continue;
 
-        // Create GeoJSON Feature for the visualizer
-        const geoJsonFeature: Feature<Polygon> = {
-          type: "Feature",
-          properties: feature.properties ?? {},
-          geometry: {
-            type: "Polygon",
-            coordinates: polygon,
-          },
-        };
-
         const visualizersToCreate: Array<{
           key: string;
-          visualizer: ExtrudedWallVisualizer | GroundPolylineVisualizer;
+          visualizer:
+            | ExtrudedWallVisualizer
+            | GroundPolylineVisualizer
+            | GroundPolygonVisualizer;
         }> = [];
 
         const config = normalizeCarmaConf3D(feature);
+
+        if (config.groundPolygon) {
+          const gpOptions =
+            typeof config.groundPolygon === "object"
+              ? config.groundPolygon
+              : {};
+          const groundPolygonVisualizer = createGroundPolygonVisualizer(
+            feature.id,
+            resolvedGeojson,
+            {
+              fillColor:
+                gpOptions.fillColor ??
+                getAdhocAccentColor(feature) ??
+                "#3A7CEB",
+              ...(typeof gpOptions.opacity === "number"
+                ? { opacity: gpOptions.opacity }
+                : {}),
+            }
+          );
+          visualizersToCreate.push({
+            key: `${feature.id}-polygon`,
+            visualizer: groundPolygonVisualizer,
+          });
+        }
 
         // Create ground polyline if explicitly configured
         if (config.groundPolyline) {
@@ -535,7 +538,7 @@ export const useAdhocCesiumFeatureDisplay = (
               : {};
           const groundPolylineVisualizer = createGroundPolylineVisualizer(
             feature.id,
-            geoJsonFeature,
+            resolvedGeojson,
             {
               lineColor:
                 gpOptions.lineColor ??
@@ -558,7 +561,7 @@ export const useAdhocCesiumFeatureDisplay = (
 
           const wallVisualizer = createExtrudedWallVisualizer(
             feature.id,
-            geoJsonFeature,
+            resolvedGeojson,
             {
               wallColor: getAdhocAccentColor(feature) ?? "#3A7CEB",
               opacity: wallOpacity?.default ?? 0.7,

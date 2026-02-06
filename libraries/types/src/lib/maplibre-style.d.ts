@@ -23,6 +23,12 @@ export type CarmaConf3D = {
         opacity?: number;
         lineWidth?: number;
       };
+  groundPolygon?:
+    | boolean
+    | {
+        fillColor?: string;
+        opacity?: number;
+      };
   wall?:
     | boolean
     | {
