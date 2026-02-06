@@ -35,6 +35,7 @@ export const LayerIcon = ({
 
   const iconName =
     layer.other?.icon ||
+    layer.conf?.icon ||
     layer.other?.path?.toLowerCase() + "/" + layer.other?.name;
 
   const isIconUrl = isUrl(layer.other?.icon);
