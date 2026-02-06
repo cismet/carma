@@ -3,6 +3,7 @@ import {
   Color,
   Material,
   PolylineCollection,
+  isValidScene,
   type Scene,
 } from "@carma/cesium";
 import { animateOpacity } from "./animateOpacity";
@@ -273,7 +274,13 @@ export const createRotationAxisVisualizer = (
       cancelPendingAnimation();
 
       if (polylineCollection) {
-        scene.primitives.remove(polylineCollection);
+        try {
+          if (isValidScene(scene)) {
+            scene.primitives.remove(polylineCollection);
+          }
+        } catch {
+          // Scene/primitive may already be torn down during rapid lifecycle changes.
+        }
         polylineCollection = null;
         lineMaterial = null;
       }

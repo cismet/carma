@@ -226,7 +226,9 @@ export const useCameraOrbit = ({
     const beginDrag = () => {
       if (isDraggingRef.current) return;
       isDraggingRef.current = true;
-      ensureVisualizer();
+      const visualizer = ensureVisualizer();
+      // If a previous fade-out is still running, cancel it and show immediately.
+      visualizer?.show();
       startVelocityRamp(0);
       if (dragTimeoutRef.current) {
         clearTimeout(dragTimeoutRef.current);
@@ -301,6 +303,8 @@ export const useCameraOrbit = ({
         if (!visualizer) {
           return;
         }
+        // Keep axis responsive when zoom resumes during a pending fade-out.
+        visualizer.show();
         // Clear any pending drag timeout to debounce rapid wheel events
         if (dragTimeoutRef.current) {
           clearTimeout(dragTimeoutRef.current);
@@ -426,18 +430,11 @@ export const useCameraOrbit = ({
       } else if (wasDraggingRef.current) {
         const fadeVisualizer = visualizer;
         if (fadeVisualizer?.fadeOut) {
-          fadeVisualizer.fadeOut(LINE_FADE_DURATION, () => {
-            fadeVisualizer.destroy();
-            if (visualizerRef.current === fadeVisualizer) {
-              visualizerRef.current = null;
-            }
-          });
+          // Keep the visualizer instance alive while orbit is active.
+          // This avoids destroy/recreate races when map movement resumes quickly.
+          fadeVisualizer.fadeOut(LINE_FADE_DURATION);
         } else if (fadeVisualizer) {
           fadeVisualizer.hide();
-          fadeVisualizer.destroy();
-          if (visualizerRef.current === fadeVisualizer) {
-            visualizerRef.current = null;
-          }
         }
         wasDraggingRef.current = false;
       }
