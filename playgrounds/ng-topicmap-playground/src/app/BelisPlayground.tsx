@@ -209,7 +209,9 @@ const BelisPlaygroundContent = () => {
   const [miniMap, setMiniMap] = useState<maplibregl.Map | null>(null);
 
   // Mini-map center: from selected feature geometry, or from last map click
-  const [miniMapCenter, setMiniMapCenter] = useState<[number, number] | undefined>();
+  const [miniMapCenter, setMiniMapCenter] = useState<
+    [number, number] | undefined
+  >();
 
   // Update center from selected feature
   useEffect(() => {
@@ -227,27 +229,37 @@ const BelisPlaygroundContent = () => {
       setMiniMapCenter([e.lngLat.lng, e.lngLat.lat]);
     };
     map.on("click", onClick);
-    return () => { map.off("click", onClick); };
+    return () => {
+      map.off("click", onClick);
+    };
   }, [map]);
 
+  // Mini-map zoom offset relative to main map (configurable, default +2)
+  const [miniMapZoomOffset, setMiniMapZoomOffset] = useState(1);
+
   // Sync mini-map center/zoom
-  const MINI_MAP_ZOOM_OFFSET = 2;
   useEffect(() => {
     if (!miniMap || !miniMapCenter) return;
     const mainZoom = map?.getZoom() ?? 15;
     miniMap.resize();
-    miniMap.jumpTo({ center: miniMapCenter, zoom: mainZoom + MINI_MAP_ZOOM_OFFSET });
-  }, [miniMap, map, miniMapCenter]);
+    miniMap.easeTo({
+      center: miniMapCenter,
+      zoom: mainZoom + miniMapZoomOffset,
+      duration: 200,
+    });
+  }, [miniMap, map, miniMapCenter, miniMapZoomOffset]);
 
   // Keep mini-map zoom in sync when main map zoom changes
   useEffect(() => {
     if (!map || !miniMap) return;
     const onZoom = () => {
-      miniMap.jumpTo({ zoom: map.getZoom() + MINI_MAP_ZOOM_OFFSET });
+      miniMap.jumpTo({ zoom: map.getZoom() + miniMapZoomOffset });
     };
     map.on("zoom", onZoom);
-    return () => { map.off("zoom", onZoom); };
-  }, [map, miniMap]);
+    return () => {
+      map.off("zoom", onZoom);
+    };
+  }, [map, miniMap, miniMapZoomOffset]);
 
   // Sync feature-state selection highlight on the mini-map
   const prevSelectionRef = useRef<typeof selectedFeatureId>(null);
@@ -294,6 +306,26 @@ const BelisPlaygroundContent = () => {
       miniMap.once("styledata", apply);
     }
   }, [miniMap, selectedFeatureId]);
+
+  // Mousewheel on mini-map: smooth zoom offset adjustment
+  const miniMapContainerRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const el = miniMapContainerRef.current;
+    if (!el || !miniMap) return;
+    const onWheel = (e: WheelEvent) => {
+      e.preventDefault();
+      // Proportional delta like MapLibre's native zoom (~1/300 per pixel)
+      const delta = -e.deltaY / 300;
+      setMiniMapZoomOffset((prev) => {
+        const next = Math.max(-5, Math.min(10, prev + delta));
+        const mainZoom = map?.getZoom() ?? 15;
+        miniMap.easeTo({ zoom: mainZoom + next, duration: 50 });
+        return next;
+      });
+    };
+    el.addEventListener("wheel", onWheel, { passive: false });
+    return () => { el.removeEventListener("wheel", onWheel); };
+  }, [miniMap, map]);
 
   const handleReturnToMap = useCallback(() => {
     map?.resize();
@@ -357,6 +389,7 @@ const BelisPlaygroundContent = () => {
                 />
                 {/* Mini-map overlay, bottom-right */}
                 <div
+                  ref={miniMapContainerRef}
                   style={{
                     position: "absolute",
                     bottom: 16,
@@ -365,11 +398,14 @@ const BelisPlaygroundContent = () => {
                     height: 220,
                     borderRadius: 8,
                     overflow: "hidden",
-                    boxShadow: isDatasheetOpen ? "0 4px 20px rgba(0,0,0,0.3)" : "none",
+                    boxShadow: isDatasheetOpen
+                      ? "0 4px 20px rgba(0,0,0,0.3)"
+                      : "none",
                     zIndex: 30,
                     opacity: isDatasheetOpen ? 1 : 0,
                     pointerEvents: isDatasheetOpen ? "auto" : "none",
-                    transition: "opacity 300ms cubic-bezier(0.4, 0, 0.2, 1), box-shadow 300ms cubic-bezier(0.4, 0, 0.2, 1)",
+                    transition:
+                      "opacity 300ms cubic-bezier(0.4, 0, 0.2, 1), box-shadow 300ms cubic-bezier(0.4, 0, 0.2, 1)",
                   }}
                 >
                   {isDatasheetOpen && (
