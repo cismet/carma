@@ -86,6 +86,8 @@ export interface LibreMapProps {
   useRouting?: boolean;
   /** Keep the canvas readable for toDataURL() snapshot capture */
   preserveDrawingBuffer?: boolean;
+  /** Disable all map interaction (pan, zoom, rotate, keyboard) */
+  interactive?: boolean;
   /** Enable visual selection via setFeatureState even without infoboxMapping */
   selectionEnabled?: boolean;
   onFeatureSelect?: (
@@ -106,6 +108,7 @@ export const LibreMap = ({
   filterFunction,
   overrideGlyphs,
   useRouting = false,
+  interactive = true,
   preserveDrawingBuffer = false,
   selectionEnabled = true,
   onFeatureSelect,
@@ -424,6 +427,7 @@ export const LibreMap = ({
         zoom: zoom,
         maxZoom: 21.9999,
         attributionControl: false,
+        interactive,
         canvasContextAttributes: preserveDrawingBuffer
           ? { preserveDrawingBuffer: true }
           : undefined,
@@ -1096,26 +1100,30 @@ export const LibreMap = ({
 
   return (
     <>
-      <FeatureInfobox
-        selectedFeature={
-          selectedFeature
-            ? {
-                ...selectedFeature,
-                properties: {
-                  info: {
-                    ...selectedFeature.properties,
-                  },
-                },
-              }
-            : null
-        }
-        libreMap={map.current}
-        versionData={{
-          version: "0.1.0",
-        }}
-      />
-      <PhotoLightBox />
-      <LibreMapSelectionContent map={map.current} />
+      {interactive && (
+        <>
+          <FeatureInfobox
+            selectedFeature={
+              selectedFeature
+                ? {
+                    ...selectedFeature,
+                    properties: {
+                      info: {
+                        ...selectedFeature.properties,
+                      },
+                    },
+                  }
+                : null
+            }
+            libreMap={map.current}
+            versionData={{
+              version: "0.1.0",
+            }}
+          />
+          <PhotoLightBox />
+          <LibreMapSelectionContent map={map.current} />
+        </>
+      )}
 
       <div className="map-wrap">
         <div ref={mapContainer} className="map" />

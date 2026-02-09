@@ -1,13 +1,17 @@
 import { useRef, useState, useEffect, useMemo, useCallback } from "react";
-import { CarmaMap, FeatureDataView, DatasheetLayout } from "@carma-mapping/core";
+import {
+  CarmaMap,
+  FeatureDataView,
+  DatasheetLayout,
+} from "@carma-mapping/core";
 import { CustomCard } from "./CustomCard";
 import { BelisSwitch } from "@carma-appframeworks/belis";
 import {
   useMapSelection,
   useLibreContext,
+  LibreContextProvider,
   DatasheetProvider,
   useDatasheet,
-  DatasheetMiniMap,
   getCoordinates,
 } from "@carma-mapping/engines/maplibre";
 import {
@@ -188,35 +192,114 @@ const TestSelectionList = () => {
   );
 };
 
+const BELIS_LAYERS = [
+  {
+    type: "vector" as const,
+    name: "Leuchten",
+    style: "https://tiles.cismet.de/belis/style.json",
+  },
+];
+
 const BelisPlaygroundContent = () => {
   const { map } = useLibreContext();
-  const { selectedFeature, rawFeature } = useMapSelection();
-  const { closeDatasheet } = useDatasheet();
-  const miniMapRef = useRef<maplibregl.Map | null>(null);
+  const { selectedFeatureId, selectedFeature, rawFeature } = useMapSelection();
+  const { isDatasheetOpen, closeDatasheet } = useDatasheet();
+  const [miniMap, setMiniMap] = useState<maplibregl.Map | null>(null);
 
-  // Compute mini-map center from the raw feature geometry
-  const featureCenter = useMemo((): [number, number] | undefined => {
-    if (!rawFeature?.geometry) return undefined;
+  // Mini-map center: from selected feature geometry, or from last map click
+  const [miniMapCenter, setMiniMapCenter] = useState<[number, number] | undefined>();
+
+  // Update center from selected feature
+  useEffect(() => {
+    if (!rawFeature?.geometry) return;
     const coords = getCoordinates(rawFeature.geometry);
     if (coords.length >= 2) {
-      return [coords[0], coords[1]];
+      setMiniMapCenter([coords[0], coords[1]]);
     }
-    return undefined;
   }, [rawFeature]);
 
-  const getMainMapSnapshot = useCallback(
-    () => map?.getCanvas().toDataURL() ?? null,
-    [map]
-  );
+  // Update center from map click (covers deselection / empty clicks)
+  useEffect(() => {
+    if (!map) return;
+    const onClick = (e: maplibregl.MapMouseEvent) => {
+      setMiniMapCenter([e.lngLat.lng, e.lngLat.lat]);
+    };
+    map.on("click", onClick);
+    return () => { map.off("click", onClick); };
+  }, [map]);
 
-  const getMiniMapSnapshot = useCallback(
-    () => miniMapRef.current?.getCanvas().toDataURL() ?? null,
-    []
-  );
+  // Sync mini-map center/zoom
+  const MINI_MAP_ZOOM_OFFSET = 2;
+  useEffect(() => {
+    if (!miniMap || !miniMapCenter) return;
+    const mainZoom = map?.getZoom() ?? 15;
+    miniMap.resize();
+    miniMap.jumpTo({ center: miniMapCenter, zoom: mainZoom + MINI_MAP_ZOOM_OFFSET });
+  }, [miniMap, map, miniMapCenter]);
+
+  // Keep mini-map zoom in sync when main map zoom changes
+  useEffect(() => {
+    if (!map || !miniMap) return;
+    const onZoom = () => {
+      miniMap.jumpTo({ zoom: map.getZoom() + MINI_MAP_ZOOM_OFFSET });
+    };
+    map.on("zoom", onZoom);
+    return () => { map.off("zoom", onZoom); };
+  }, [map, miniMap]);
+
+  // Sync feature-state selection highlight on the mini-map
+  const prevSelectionRef = useRef<typeof selectedFeatureId>(null);
+  useEffect(() => {
+    if (!miniMap) return;
+
+    const apply = () => {
+      // Clear previous
+      if (prevSelectionRef.current) {
+        try {
+          miniMap.setFeatureState(
+            {
+              source: prevSelectionRef.current.source,
+              sourceLayer: prevSelectionRef.current.sourceLayer,
+              id: prevSelectionRef.current.id,
+            },
+            { selected: false }
+          );
+        } catch {
+          // source may not exist yet
+        }
+      }
+      // Apply new
+      if (selectedFeatureId) {
+        try {
+          miniMap.setFeatureState(
+            {
+              source: selectedFeatureId.source,
+              sourceLayer: selectedFeatureId.sourceLayer,
+              id: selectedFeatureId.id,
+            },
+            { selected: true }
+          );
+        } catch {
+          // source may not exist yet
+        }
+      }
+      prevSelectionRef.current = selectedFeatureId;
+    };
+
+    if (miniMap.isStyleLoaded()) {
+      apply();
+    } else {
+      miniMap.once("styledata", apply);
+    }
+  }, [miniMap, selectedFeatureId]);
 
   const handleReturnToMap = useCallback(() => {
     map?.resize();
   }, [map]);
+
+  const handleMiniMapReady = useCallback((m: maplibregl.Map) => {
+    setMiniMap(m);
+  }, []);
 
   return (
     <div className="bg-[#F1F1F1] flex flex-col w-full h-screen overflow-hidden">
@@ -246,80 +329,83 @@ const BelisPlaygroundContent = () => {
                 </div>
               }
             >
-              <DatasheetLayout
-                mainMap={
-                  <CarmaMap
-                    mapEngine="maplibre"
-                    embedded
-                    terrainControl={false}
-                    preserveDrawingBuffer
-                    backgroundLayers="basemap_grey@60"
-                    overrideGlyphs="https://tiles.cismet.de/fonts/{fontstack}/{range}.pbf"
-                    libreLayers={[
-                      {
-                        type: "vector",
-                        name: "Leuchten",
-                        style: "https://tiles.cismet.de/belis/style.json",
-                      },
-                    ]}
-                  />
-                }
-                datasheetContent={
-                  <div
-                    style={{
-                      display: "flex",
-                      flexDirection: "column",
-                      height: "100%",
-                    }}
-                  >
-                    <div
-                      style={{
-                        display: "flex",
-                        alignItems: "center",
-                        justifyContent: "space-between",
-                        padding: "8px 16px",
-                        borderBottom: "1px solid #e0e0e0",
-                        background: "#f5f5f5",
-                      }}
-                    >
-                      <span style={{ fontWeight: 600, fontSize: 14 }}>
-                        Datenblatt
-                      </span>
-                      <button
-                        onClick={closeDatasheet}
-                        style={{
-                          background: "#1677ff",
-                          color: "#fff",
-                          border: "none",
-                          borderRadius: 4,
-                          padding: "4px 12px",
-                          cursor: "pointer",
-                          fontSize: 13,
-                        }}
-                      >
-                        Zur Karte
-                      </button>
-                    </div>
-                    <div style={{ flex: 1, overflow: "auto" }}>
+              <div
+                style={{ position: "relative", width: "100%", height: "100%" }}
+              >
+                <DatasheetLayout
+                  mainMap={
+                    <CarmaMap
+                      mapEngine="maplibre"
+                      embedded
+                      terrainControl={false}
+                      backgroundLayers="basemap_grey@60"
+                      overrideGlyphs="https://tiles.cismet.de/fonts/{fontstack}/{range}.pbf"
+                      libreLayers={BELIS_LAYERS}
+                    />
+                  }
+                  datasheetContent={
+                    <div style={{ height: "100%", overflow: "auto" }}>
                       <FeatureDataView
                         feature={selectedFeature}
                         rawFeature={rawFeature}
                       />
                     </div>
-                  </div>
-                }
-                miniMap={
-                  <DatasheetMiniMap
-                    center={featureCenter}
-                    zoom={18}
-                    mapRef={miniMapRef}
-                  />
-                }
-                getMainMapSnapshot={getMainMapSnapshot}
-                getMiniMapSnapshot={getMiniMapSnapshot}
-                onReturnToMap={handleReturnToMap}
-              />
+                  }
+                  onReturnToMap={handleReturnToMap}
+                />
+              </div>
             </CustomCard>
+          </div>
+        </div>
+        {/* Third column: mini-map at bottom for debugging */}
+        <div className="w-[380px] shrink-0 flex flex-col min-h-0 mx-3 my-2">
+          <div className="flex-1" />
+          <div
+            style={{
+              position: "relative",
+              width: 350,
+              height: 220,
+              borderRadius: 8,
+              overflow: "hidden",
+              boxShadow: "0 4px 20px rgba(0,0,0,0.3)",
+            }}
+          >
+            {isDatasheetOpen && (
+              <button
+                onClick={closeDatasheet}
+                title="Zur Karte"
+                style={{
+                  position: "absolute",
+                  top: 6,
+                  right: 6,
+                  zIndex: 10,
+                  width: 24,
+                  height: 24,
+                  borderRadius: "50%",
+                  border: "none",
+                  background: "rgba(0,0,0,0.5)",
+                  color: "#fff",
+                  fontSize: 14,
+                  lineHeight: "24px",
+                  textAlign: "center",
+                  cursor: "pointer",
+                  padding: 0,
+                }}
+              >
+                ✕
+              </button>
+            )}
+            <LibreContextProvider>
+              <CarmaMap
+                mapEngine="maplibre"
+                embedded
+                miniMap
+                backgroundLayers="basemap_relief@60"
+                overrideGlyphs="https://tiles.cismet.de/fonts/{fontstack}/{range}.pbf"
+                libreLayers={BELIS_LAYERS}
+                setLibreMap={handleMiniMapReady}
+              />
+            </LibreContextProvider>
           </div>
         </div>
       </div>

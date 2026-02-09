@@ -5,12 +5,19 @@ import { useLibreContext } from "../contexts/LibreContext";
 import { useClusterMarkers } from "../hooks/useClusterMarkers";
 import { WUPPERTAL_PREVIEW_STYLE } from "../constants/wuppertalDefaultStyle";
 
+export interface SelectedFeatureIdentifier {
+  source: string;
+  sourceLayer?: string;
+  id?: string | number;
+}
+
 export interface DatasheetMiniMapProps {
   center?: [number, number];
   zoom?: number;
   className?: string;
   style?: React.CSSProperties;
   mapRef?: React.MutableRefObject<maplibregl.Map | null>;
+  selectedFeatureId?: SelectedFeatureIdentifier | null;
 }
 
 const defaultContainerStyle: React.CSSProperties = {
@@ -24,6 +31,7 @@ export const DatasheetMiniMap = ({
   className,
   style = defaultContainerStyle,
   mapRef,
+  selectedFeatureId,
 }: DatasheetMiniMapProps) => {
   const mapContainer = useRef<HTMLDivElement>(null);
   const map = useRef<maplibregl.Map | null>(null);
@@ -74,12 +82,69 @@ export const DatasheetMiniMap = ({
     }
   }, [mapStyle]);
 
-  // React to center/zoom prop changes
+  // React to center/zoom prop changes; also resize in case the container
+  // was display:none when the map was created (mini-map starts hidden).
   useEffect(() => {
     if (map.current && center) {
+      map.current.resize();
       map.current.jumpTo({ center, zoom });
     }
   }, [center?.[0], center?.[1], zoom]);
+
+  // Sync feature-state selection highlight with the main map
+  const prevSelectionRef = useRef<SelectedFeatureIdentifier | null>(null);
+
+  useEffect(() => {
+    const m = map.current;
+    if (!m) return;
+
+    const apply = () => {
+      // Clear previous selection
+      if (prevSelectionRef.current) {
+        try {
+          m.setFeatureState(
+            {
+              source: prevSelectionRef.current.source,
+              sourceLayer: prevSelectionRef.current.sourceLayer,
+              id: prevSelectionRef.current.id,
+            },
+            { selected: false }
+          );
+        } catch {
+          // Source may not exist yet
+        }
+      }
+
+      // Apply new selection
+      if (selectedFeatureId) {
+        try {
+          m.setFeatureState(
+            {
+              source: selectedFeatureId.source,
+              sourceLayer: selectedFeatureId.sourceLayer,
+              id: selectedFeatureId.id,
+            },
+            { selected: true }
+          );
+        } catch {
+          // Source may not exist yet
+        }
+      }
+
+      prevSelectionRef.current = selectedFeatureId ?? null;
+    };
+
+    // If the style is already loaded, apply immediately; otherwise wait
+    if (m.isStyleLoaded()) {
+      apply();
+    } else {
+      m.once("styledata", apply);
+    }
+  }, [
+    selectedFeatureId?.source,
+    selectedFeatureId?.sourceLayer,
+    selectedFeatureId?.id,
+  ]);
 
   return <div ref={mapContainer} className={className} style={style} />;
 };
