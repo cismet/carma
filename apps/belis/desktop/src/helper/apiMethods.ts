@@ -1185,6 +1185,73 @@ export const fetchAbzweigdoseById = async (jwt: string, id: number) => {
   return json.data?.abzweigdose?.[0] ?? null;
 };
 
+export type FeatureType =
+  | "leuchten"
+  | "tdta_standort_mast"
+  | "schaltstelle"
+  | "mauerlasche"
+  | "leitungen"
+  | "abzweigdose";
+
+const getQueryByFeatureType = (featureType: FeatureType) => {
+  switch (featureType) {
+    case "leuchten":
+      return tdtaLeuchtenByIdQuery;
+    case "tdta_standort_mast":
+      return tdtaStandortMastByIdQuery;
+    case "schaltstelle":
+      return schaltstelleByIdQuery;
+    case "mauerlasche":
+      return mauerlascheByIdQuery;
+    case "leitungen":
+      return leitungByIdQuery;
+    case "abzweigdose":
+      return abzweigdoseByIdQuery;
+  }
+};
+
+export const fetchFeatureById = async (
+  jwt: string,
+  id: number,
+  featureType: FeatureType
+) => {
+  const query = getQueryByFeatureType(featureType);
+
+  const response = await fetch(ENDPOINT, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${jwt}`,
+    },
+    body: JSON.stringify({
+      query,
+      variables: { id },
+    }),
+  });
+
+  const text = await response.text();
+  if (!response.ok) {
+    throw new Error(
+      `fetchFeatureById(${featureType}) failed: ${response.status} ${text}`
+    );
+  }
+
+  const json = JSON.parse(text) as {
+    data?: Record<string, unknown[]>;
+    errors?: unknown;
+  };
+
+  if (json.errors) {
+    throw new Error(
+      `fetchFeatureById(${featureType}) GraphQL errors: ${JSON.stringify(
+        json.errors
+      )}`
+    );
+  }
+
+  return json.data;
+};
+
 /**
  * Map of table name → fetch function for individual key table refreshes.
  * Used for cross-tab sync to refetch a specific table when changes are detected.

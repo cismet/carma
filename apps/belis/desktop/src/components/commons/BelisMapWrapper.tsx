@@ -6,7 +6,11 @@ import OnMapList from "../ui/OnMapList";
 import { useMapSelection } from "@carma-mapping/engines/maplibre";
 import { useEffect } from "react";
 import { getJWT } from "../../store/slices/auth";
-import { fetchLeitungById } from "../../helper/apiMethods";
+import {
+  FeatureType,
+  fetchFeatureById,
+  fetchLeitungById,
+} from "../../helper/apiMethods";
 
 const LIST_WIDTH = 300;
 
@@ -27,11 +31,12 @@ const BelisMapLibWrapper = ({ mapSizes }) => {
         sourceLayer,
       });
 
-      if (sourceLayer === "leitungen" && selectedFeatureId.id) {
+      if (sourceLayer && selectedFeatureId.id) {
         try {
-          const fullData = await fetchLeitungById(
+          const fullData = await fetchFeatureById(
             jwt,
-            selectedFeatureId.id as number
+            selectedFeatureId.id as number,
+            sourceLayer as FeatureType
           );
           console.log("xxx Fetched full data:", fullData);
         } catch (error) {
