@@ -328,14 +328,14 @@ query MyQuery($id: Int!) {
     anzahl_1dk
     bemerkungen
     einbaudatum
-    fk_dk1_tkey_doppelkommando {
+    fk_dk1Object {
       beschreibung
       pk
       id
     }
     fk_dk1
     fk_dk2
-    fk_dk2_tkey_doppelkommando {
+    fk_dk2Object {
       beschreibung
       id
       pk
@@ -633,12 +633,12 @@ query MyQuery($id: Int!) {
       anzahl_2dk
       bemerkungen
       einbaudatum
-      fk_dk1_tkey_doppelkommando {
+      fk_dk1Object {
         beschreibung
         id
         pk
       }
-      fk_dk2_tkey_doppelkommando {
+      fk_dk2Object {
         beschreibung
         id
         pk
