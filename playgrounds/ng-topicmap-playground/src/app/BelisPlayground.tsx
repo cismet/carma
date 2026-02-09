@@ -1,15 +1,22 @@
-import { useRef, useState, useEffect, useMemo } from "react";
-import { CarmaMap } from "@carma-mapping/core";
+import { useRef, useState, useEffect, useMemo, useCallback } from "react";
+import { CarmaMap, FeatureDataView, DatasheetLayout } from "@carma-mapping/core";
 import { CustomCard } from "./CustomCard";
 import { BelisSwitch } from "@carma-appframeworks/belis";
 import {
   useMapSelection,
   useLibreContext,
+  DatasheetProvider,
+  useDatasheet,
+  DatasheetMiniMap,
+  getCoordinates,
 } from "@carma-mapping/engines/maplibre";
 import {
   useVisibleMapFeatures,
   type VisibleFeature,
 } from "@carma-mapping/utils";
+import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
+import { faFile } from "@fortawesome/free-solid-svg-icons";
+import type maplibregl from "maplibre-gl";
 
 // Convert ALL CAPS to Title Case
 const toTitleCase = (str: string): string => {
@@ -183,7 +190,36 @@ const TestSelectionList = () => {
   );
 };
 
-const BelisPlayground = () => {
+const BelisPlaygroundContent = () => {
+  const { map } = useLibreContext();
+  const { selectedFeature, selectedFeatureId, rawFeature } = useMapSelection();
+  const { openDatasheet, closeDatasheet } = useDatasheet();
+  const miniMapRef = useRef<maplibregl.Map | null>(null);
+
+  // Compute mini-map center from the raw feature geometry
+  const featureCenter = useMemo((): [number, number] | undefined => {
+    if (!rawFeature?.geometry) return undefined;
+    const coords = getCoordinates(rawFeature.geometry);
+    if (coords.length >= 2) {
+      return [coords[0], coords[1]];
+    }
+    return undefined;
+  }, [rawFeature]);
+
+  const getMainMapSnapshot = useCallback(
+    () => map?.getCanvas().toDataURL() ?? null,
+    [map]
+  );
+
+  const getMiniMapSnapshot = useCallback(
+    () => miniMapRef.current?.getCanvas().toDataURL() ?? null,
+    []
+  );
+
+  const handleReturnToMap = useCallback(() => {
+    map?.resize();
+  }, [map]);
+
   return (
     <div className="bg-[#F1F1F1] flex flex-col w-full h-screen overflow-hidden">
       <div className="flex items-center mx-3 mb-2 mt-2">
@@ -212,31 +248,121 @@ const BelisPlayground = () => {
                 </div>
               }
             >
-              <CarmaMap
-                mapEngine="maplibre"
-                embedded
-                terrainControl={false}
-                backgroundLayers="basemap_grey@60" // "wupp-plan-live-tiles-3857" // "basemap_grey" // "basemap_relief" // "basemap_color"
-                overrideGlyphs="https://tiles.cismet.de/fonts/{fontstack}/{range}.pbf"
-                libreLayers={[
-                  // {
-                  //   type: "cog",
-                  //   name: "Orthophoto",
-                  //   url: "https://cog-wupp.cismet.de/output_3857.tif",
-                  //   opacity: 1,
-                  // },
-                  {
-                    type: "vector",
-                    name: "Leuchten",
-                    style: "https://tiles.cismet.de/belis/style.json",
-                  },
-                ]}
+              <DatasheetLayout
+                mainMap={
+                  <div style={{ position: "relative", width: "100%", height: "100%" }}>
+                    <CarmaMap
+                      mapEngine="maplibre"
+                      embedded
+                      terrainControl={false}
+                      preserveDrawingBuffer
+                      backgroundLayers="basemap_grey@60"
+                      overrideGlyphs="https://tiles.cismet.de/fonts/{fontstack}/{range}.pbf"
+                      libreLayers={[
+                        {
+                          type: "vector",
+                          name: "Leuchten",
+                          style: "https://tiles.cismet.de/belis/style.json",
+                        },
+                      ]}
+                    />
+                    {/* Floating datasheet trigger button, overlaid near the info box */}
+                    {selectedFeatureId && (
+                      <button
+                        onClick={openDatasheet}
+                        title="Datenblatt"
+                        style={{
+                          position: "absolute",
+                          bottom: 12,
+                          right: 12,
+                          zIndex: 1000,
+                          width: 36,
+                          height: 36,
+                          borderRadius: "50%",
+                          background: "#0078a8",
+                          color: "#fff",
+                          border: "2px solid #fff",
+                          boxShadow: "0 2px 8px rgba(0,0,0,0.3)",
+                          cursor: "pointer",
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "center",
+                          fontSize: 16,
+                        }}
+                      >
+                        <FontAwesomeIcon icon={faFile} />
+                      </button>
+                    )}
+                  </div>
+                }
+                datasheetContent={
+                  <div
+                    style={{
+                      display: "flex",
+                      flexDirection: "column",
+                      height: "100%",
+                    }}
+                  >
+                    <div
+                      style={{
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "space-between",
+                        padding: "8px 16px",
+                        borderBottom: "1px solid #e0e0e0",
+                        background: "#f5f5f5",
+                      }}
+                    >
+                      <span style={{ fontWeight: 600, fontSize: 14 }}>
+                        Datenblatt
+                      </span>
+                      <button
+                        onClick={closeDatasheet}
+                        style={{
+                          background: "#1677ff",
+                          color: "#fff",
+                          border: "none",
+                          borderRadius: 4,
+                          padding: "4px 12px",
+                          cursor: "pointer",
+                          fontSize: 13,
+                        }}
+                      >
+                        Zur Karte
+                      </button>
+                    </div>
+                    <div style={{ flex: 1, overflow: "auto" }}>
+                      <FeatureDataView
+                        feature={selectedFeature}
+                        rawFeature={rawFeature}
+                      />
+                    </div>
+                  </div>
+                }
+                miniMap={
+                  <DatasheetMiniMap
+                    center={featureCenter}
+                    zoom={18}
+                    mapRef={miniMapRef}
+                  />
+                }
+                getMainMapSnapshot={getMainMapSnapshot}
+                getMiniMapSnapshot={getMiniMapSnapshot}
+                onReturnToMap={handleReturnToMap}
               />
             </CustomCard>
           </div>
         </div>
       </div>
     </div>
+  );
+};
+
+const BelisPlayground = () => {
+  return (
+    <DatasheetProvider>
+      <BelisPlaygroundContent />
+    </DatasheetProvider>
   );
 };
 
