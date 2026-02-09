@@ -1,18 +1,49 @@
 import { CarmaMap } from "@carma-mapping/core";
-import { useDispatch } from "react-redux";
+import { useDispatch, useSelector } from "react-redux";
 import { setSelectedFeature } from "../../store/slices/featureCollection";
 import { AppDispatch } from "../../store";
 import OnMapList from "../ui/OnMapList";
 import { useMapSelection } from "@carma-mapping/engines/maplibre";
 import { useEffect } from "react";
+import { getJWT } from "../../store/slices/auth";
+import { fetchLeitungById } from "../../helper/apiMethods";
 
 const LIST_WIDTH = 300;
 
 const BelisMapLibWrapper = ({ mapSizes }) => {
   const dispatch: AppDispatch = useDispatch();
-  const { selectedFeature } = useMapSelection();
+  const jwt = useSelector(getJWT);
+  const { selectedFeature, selectedFeatureId } = useMapSelection();
 
-  // Sync selection to Redux store when map selection changes
+  useEffect(() => {
+    const fetchData = async () => {
+      if (!jwt || !selectedFeatureId?.id) return;
+
+      // Get sourceLayer from selectedFeatureId or rawFeature
+      const sourceLayer = selectedFeatureId.sourceLayer;
+
+      console.log("xxx BelisMa Selection:", {
+        id: selectedFeatureId.id,
+        sourceLayer,
+      });
+
+      if (sourceLayer === "leitungen" && selectedFeatureId.id) {
+        try {
+          const fullData = await fetchLeitungById(
+            jwt,
+            selectedFeatureId.id as number
+          );
+          console.log("xxx Fetched full data:", fullData);
+        } catch (error) {
+          console.error("xxx Failed to fetch feature:", error);
+        }
+      }
+    };
+
+    fetchData();
+  }, [selectedFeatureId, jwt, dispatch]);
+
+  // Sync selection to Redux store when map selection changes (fallback)
   useEffect(() => {
     if (selectedFeature) {
       dispatch(setSelectedFeature({ ...selectedFeature, selected: true }));
