@@ -1187,17 +1187,17 @@ export const fetchAbzweigdoseById = async (jwt: string, id: number) => {
 
 export type FeatureType =
   | "leuchten"
-  | "tdta_standort_mast"
+  | "mast"
   | "schaltstelle"
   | "mauerlaschen"
   | "leitungen"
-  | "abzweigdose";
+  | "abzweigdosen";
 
 const getQueryByFeatureType = (featureType: FeatureType) => {
   switch (featureType) {
     case "leuchten":
       return tdtaLeuchtenByIdQuery;
-    case "tdta_standort_mast":
+    case "mast":
       return tdtaStandortMastByIdQuery;
     case "schaltstelle":
       return schaltstelleByIdQuery;
@@ -1205,7 +1205,7 @@ const getQueryByFeatureType = (featureType: FeatureType) => {
       return mauerlascheByIdQuery;
     case "leitungen":
       return leitungByIdQuery;
-    case "abzweigdose":
+    case "abzweigdosen":
       return abzweigdoseByIdQuery;
   }
 };
