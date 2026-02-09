@@ -20,3 +20,11 @@ export type {
   MapSelectionContextType,
   SelectedFeatureIdentifier,
 } from "./MapSelectionContext";
+
+export {
+  DatasheetContext,
+  DatasheetProvider,
+  useDatasheet,
+} from "./DatasheetContext";
+
+export type { DatasheetContextType } from "./DatasheetContext";

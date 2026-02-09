@@ -249,6 +249,7 @@ const CarmaMapContent = (props: CarmaMapProps) => {
                 onFeatureSelect={props.onFeatureSelect}
                 overrideGlyphs={props.overrideGlyphs}
                 selectionEnabled={props.selectionEnabled}
+                preserveDrawingBuffer={props.preserveDrawingBuffer}
               />
             )}
             {modalMenu}

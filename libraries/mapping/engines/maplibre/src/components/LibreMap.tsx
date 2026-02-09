@@ -83,6 +83,8 @@ export interface LibreMapProps {
   /** Override glyphs (font) URL. undefined = use from first vector layer style, string = use this URL */
   overrideGlyphs?: string;
   useRouting?: boolean;
+  /** Keep the canvas readable for toDataURL() snapshot capture */
+  preserveDrawingBuffer?: boolean;
   /** Enable visual selection via setFeatureState even without infoboxMapping */
   selectionEnabled?: boolean;
   onFeatureSelect?: (
@@ -103,6 +105,7 @@ export const LibreMap = ({
   filterFunction,
   overrideGlyphs,
   useRouting = false,
+  preserveDrawingBuffer = false,
   selectionEnabled = true,
   onFeatureSelect,
 }: LibreMapProps) => {
@@ -411,6 +414,9 @@ export const LibreMap = ({
         zoom: zoom,
         maxZoom: 21.9999,
         attributionControl: false,
+        canvasContextAttributes: preserveDrawingBuffer
+          ? { preserveDrawingBuffer: true }
+          : undefined,
       });
       map.current = mapInstance;
       setLibreMap?.(mapInstance);
