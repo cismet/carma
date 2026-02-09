@@ -1,24 +1,42 @@
-import { useEffect, useRef, type ReactNode, type CSSProperties } from "react";
+import {
+  useEffect,
+  useRef,
+  useState,
+  type ReactNode,
+  type CSSProperties,
+} from "react";
 import { useDatasheet } from "@carma-mapping/contexts";
 
 export interface DatasheetLayoutProps {
   mainMap: ReactNode;
   datasheetContent: ReactNode;
+  /** Transition duration in ms */
+  transitionDuration?: number;
   /** Called after switching back to map view, so the consumer can call map.resize() */
   onReturnToMap?: () => void;
 }
 
+const EASING = "cubic-bezier(0.4, 0, 0.2, 1)";
+
 export const DatasheetLayout = ({
   mainMap,
   datasheetContent,
+  transitionDuration = 300,
   onReturnToMap,
 }: DatasheetLayoutProps) => {
   const { isDatasheetOpen } = useDatasheet();
   const prevOpenRef = useRef(isDatasheetOpen);
 
+  // Track whether the datasheet has ever been opened (to skip transition on mount)
+  const [hasAnimated, setHasAnimated] = useState(false);
+
   useEffect(() => {
     const wasOpen = prevOpenRef.current;
     prevOpenRef.current = isDatasheetOpen;
+
+    if (isDatasheetOpen && !wasOpen) {
+      setHasAnimated(true);
+    }
 
     if (!isDatasheetOpen && wasOpen) {
       requestAnimationFrame(() => {
@@ -27,6 +45,10 @@ export const DatasheetLayout = ({
     }
   }, [isDatasheetOpen, onReturnToMap]);
 
+  const transition = hasAnimated
+    ? `opacity ${transitionDuration}ms ${EASING}, transform ${transitionDuration}ms ${EASING}`
+    : "none";
+
   const containerStyle: CSSProperties = {
     position: "relative",
     width: "100%",
@@ -34,32 +56,38 @@ export const DatasheetLayout = ({
     overflow: "hidden",
   };
 
-  const layerStyle = (visible: boolean): CSSProperties => ({
+  const mapStyle: CSSProperties = {
     position: "absolute",
     top: 0,
     left: 0,
     width: "100%",
     height: "100%",
-    visibility: visible ? "visible" : "hidden",
-    pointerEvents: visible ? "auto" : "none",
-  });
+    opacity: isDatasheetOpen ? 0 : 1,
+    pointerEvents: isDatasheetOpen ? "none" : "auto",
+    transition,
+    zIndex: 1,
+  };
+
+  const datasheetStyle: CSSProperties = {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    width: "100%",
+    height: "100%",
+    display: "flex",
+    flexDirection: "column",
+    background: "#fff",
+    opacity: isDatasheetOpen ? 1 : 0,
+    transform: isDatasheetOpen ? "translateY(0)" : "translateY(30px)",
+    pointerEvents: isDatasheetOpen ? "auto" : "none",
+    transition,
+    zIndex: 2,
+  };
 
   return (
     <div style={containerStyle}>
-      {/* Main map: always mounted, keeps canvas dimensions via visibility */}
-      <div style={layerStyle(!isDatasheetOpen)}>{mainMap}</div>
-
-      {/* Datasheet content */}
-      <div
-        style={{
-          ...layerStyle(isDatasheetOpen),
-          display: "flex",
-          flexDirection: "column",
-          background: "#fff",
-        }}
-      >
-        {datasheetContent}
-      </div>
+      <div style={mapStyle}>{mainMap}</div>
+      <div style={datasheetStyle}>{datasheetContent}</div>
     </div>
   );
 };

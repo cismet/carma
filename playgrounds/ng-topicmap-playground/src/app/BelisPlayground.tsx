@@ -365,9 +365,11 @@ const BelisPlaygroundContent = () => {
                     height: 220,
                     borderRadius: 8,
                     overflow: "hidden",
-                    boxShadow: "0 4px 20px rgba(0,0,0,0.3)",
+                    boxShadow: isDatasheetOpen ? "0 4px 20px rgba(0,0,0,0.3)" : "none",
                     zIndex: 30,
-                    visibility: isDatasheetOpen ? "visible" : "hidden",
+                    opacity: isDatasheetOpen ? 1 : 0,
+                    pointerEvents: isDatasheetOpen ? "auto" : "none",
+                    transition: "opacity 300ms cubic-bezier(0.4, 0, 0.2, 1), box-shadow 300ms cubic-bezier(0.4, 0, 0.2, 1)",
                   }}
                 >
                   {isDatasheetOpen && (
