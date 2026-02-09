@@ -321,8 +321,8 @@ query MyQuery($id: Int!) {
 }`;
 
 queries.tdta_leuchten_by_id = `
-query MyQuery {
-  tdta_leuchten(where: {id: {_eq: 10}}) {
+query MyQuery($id: Int!) {
+  tdta_leuchten(where: {id: {_eq: $id}}) {
     anschlussleistung_1dk
     anschlussleistung_2dk
     anzahl_1dk
@@ -444,86 +444,6 @@ query MyQuery {
       typenbezeichnung
       vorschaltgeraet
     }
-  }
-}
-}`;
-
-queries.leitung_by_id = `
-query MyQuery($id: Int!) {
-  leitung(where: {id: {_eq: $id}}) {
-    dokumenteArray {
-      dms_url {
-        description
-        id
-        name
-        typ
-        url {
-          id
-          object_name
-          url_base {
-            id
-            path
-            prot_prefix
-            server
-          }
-        }
-      }
-      fk_dokument
-      id
-      leitung_reference
-    }
-    fk_geom
-    fk_leitungstyp
-    fk_material
-    fk_querschnitt
-    geom {
-      geo_field
-      id
-    }
-    id
-    is_deleted
-    leitungstyp {
-      bezeichnung
-      id
-    }
-    material_leitung {
-      bezeichnung
-      id
-    }
-    querschnitt {
-      groesse
-      id
-    }
-  }
-}`;
-
-queries.abzweigdose_by_id = `
-query MyQuery($id: Int!) {
-  abzweigdose(where: {id: {_eq: $id}}) {
-    dokumenteArray {
-      abzweigdose_reference
-      fk_dokument
-      id
-      dms_url {
-        description
-        id
-        name
-        typ
-        url {
-          id
-          object_name
-          url_base {
-            id
-            path
-            prot_prefix
-            server
-          }
-        }
-      }
-    }
-    fk_geom
-    id
-    is_deleted
   }
 }`;
 
