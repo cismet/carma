@@ -51,7 +51,7 @@ query MyQuery {
       infobaustein {
         bezeichnung
         id
-        pflichtfeld
+        pflichtfeldten
         schluessel
         wert
       }
