@@ -6,6 +6,7 @@ import {
 } from "@carma-providers/feature-flag";
 import { addReplaceLayers, getCustomLayerConfig } from "../slices/mapLayers";
 import type { Config, SavedLayerConfig } from "@carma/types";
+import { processCategoryConfig } from "../helper/processCategoryConfig";
 
 interface UseAdditionalConfigProps {
   setFeatureFlags?: (flags: FeatureFlagConfig) => void;
@@ -147,78 +148,26 @@ export const useAdditionalConfig = ({
     }
   }, [additionalConfig, flags]);
 
-  const processCategoryConfig = (
-    config: any[],
-    categoryId: string,
-    setLoading: (loading: boolean) => void
-  ) => {
-    if (config.length > 0) {
-      const hasItems = config.some((c) => {
-        if (!c.layers || c.layers.length === 0) {
-          return false;
-        }
-        const availableLayers = c.layers.filter((layer) => {
-          if (layer.ff) {
-            return flags[layer.ff as string];
-          }
-          return true;
-        });
-        return availableLayers.length > 0;
-      });
-
-      setSidebarElements((prev) =>
-        prev.map((element) =>
-          element.id === categoryId
-            ? { ...element, disabled: !hasItems }
-            : element
-        )
-      );
-
-      [...config].reverse().forEach((c, i) => {
-        const layers = c.layers
-          .filter((layer) => {
-            if (layer.ff) {
-              return flags[layer.ff as string];
-            }
-            return true;
-          })
-          .map((layer) => ({
-            ...layer,
-            serviceName: c.serviceName || layer.serviceName,
-          }));
-
-        if (layers.length === 0) {
-          return;
-        }
-
-        if (c.Title) {
-          addItemToCategory(
-            categoryId,
-            { id: c.id || c.serviceName, Title: c.Title },
-            layers
-          );
-        }
-
-        if (i === config.length - 1) {
-          setLoading(false);
-        }
-      });
-    } else {
-      setSidebarElements((prev) =>
-        prev.map((element) =>
-          element.id === categoryId ? { ...element, disabled: true } : element
-        )
-      );
-      setLoading(false);
-    }
-  };
-
   useEffect(() => {
-    processCategoryConfig(sensorConfig, "sensors", setLoadingSensorConfig);
+    processCategoryConfig({
+      config: sensorConfig,
+      categoryId: "sensors",
+      flags,
+      addItemToCategory,
+      setSidebarElements,
+      setLoading: setLoadingSensorConfig,
+    });
   }, [sensorConfig, flags]);
 
   useEffect(() => {
-    processCategoryConfig(objectConfig, "objects", setLoadingObjectConfig);
+    processCategoryConfig({
+      config: objectConfig,
+      categoryId: "objects",
+      flags,
+      addItemToCategory,
+      setSidebarElements,
+      setLoading: setLoadingObjectConfig,
+    });
   }, [objectConfig, flags]);
 
   return {

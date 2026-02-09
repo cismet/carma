@@ -401,6 +401,7 @@ export const NewLibModal = ({
           subCats.forEach((subCat) => {
             if (subCat.id === subCategory.id) {
               newSubCat = subCat;
+              newSubCat.Title = subCategory.Title;
               if (newSubCat) {
                 if (Array.isArray(item)) {
                   newSubCat.layers.unshift(...item);
@@ -480,6 +481,7 @@ export const NewLibModal = ({
     activeLayers,
     updateActiveLayer,
     setAdditionalLayers,
+    setSidebarElements,
   });
 
   const { loadingAdditionalConfig } = useAdditionalConfig({

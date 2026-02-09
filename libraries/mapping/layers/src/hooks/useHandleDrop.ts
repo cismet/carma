@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { Dispatch, SetStateAction, useEffect } from "react";
 import { message } from "antd";
 import WMSCapabilities from "wms-capabilities";
 import { SavedLayerConfig } from "@carma/types";
@@ -9,11 +9,20 @@ import { utils } from "@carma-appframeworks/portals";
 import { useDispatch } from "react-redux";
 import { setCustomLayerConfig } from "../slices/mapLayers";
 import { useMapFrameworkSwitcherContext } from "@carma-mapping/components";
+import { processCategoryConfig } from "../helper/processCategoryConfig";
 
 // @ts-expect-error tbd
 const parser = new WMSCapabilities();
 
 const TWININDICATOR = ".twin.";
+
+const CONFIG_FILE_LOOKUP: Record<
+  string,
+  { index: number; categoryId: string }
+> = {
+  sensor: { index: 4, categoryId: "sensors" },
+  object: { index: 5, categoryId: "objects" },
+};
 
 interface UseHandleDropProps {
   setOpen: (open: boolean) => void;
@@ -33,6 +42,16 @@ interface UseHandleDropProps {
     previewLayer?: boolean,
     updateExisting?: boolean
   ) => void;
+  setSidebarElements: Dispatch<
+    SetStateAction<
+      {
+        icon: any;
+        text: string;
+        id: string;
+        disabled?: boolean;
+      }[]
+    >
+  >;
 }
 
 export const useHandleDrop = ({
@@ -43,14 +62,15 @@ export const useHandleDrop = ({
   activeLayers,
   updateActiveLayer,
   setAdditionalLayers,
+  setSidebarElements,
 }: UseHandleDropProps) => {
   const flags = useFeatureFlags();
   const dispatch = useDispatch();
   const { isCesium } = useMapFrameworkSwitcherContext();
-  const openModal = () => {
+  const openModal = (index?: number) => {
     if (!isCesium) {
       setOpen(true);
-      setSelectedNavItemIndex(3);
+      setSelectedNavItemIndex(index ?? 3);
     }
   };
 
@@ -335,17 +355,32 @@ export const useHandleDrop = ({
         }
         if (file) {
           if (
-            file.name.includes("config") &&
-            file.name.endsWith(".json") &&
+            file.name.toLowerCase().includes("config") &&
+            file.name.toLowerCase().endsWith(".json") &&
             window.location.hostname === "localhost"
           ) {
+            let index: number | undefined;
             file.text().then((content) => {
               const result = JSON.parse(content);
               if (result) {
-                dispatch(setCustomLayerConfig(result));
+                const configMatch = Object.entries(CONFIG_FILE_LOOKUP).find(
+                  ([key]) => file.name.toLowerCase().includes(key)
+                );
+                if (configMatch) {
+                  index = configMatch[1].index;
+                  processCategoryConfig({
+                    config: result,
+                    categoryId: configMatch[1].categoryId,
+                    flags,
+                    addItemToCategory,
+                    setSidebarElements,
+                  });
+                } else {
+                  dispatch(setCustomLayerConfig(result));
+                }
+                openModal(index);
               }
             });
-            openModal();
 
             return;
           }
