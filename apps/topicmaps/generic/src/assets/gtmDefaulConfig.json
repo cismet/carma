@@ -11,13 +11,6 @@
     "fallbackBackgroundlayers": "wupp-plan-live@90",
     "previewFeatureCollectionCount": -1,
     "previewMapPosition": "lat=51.25487836727032&lng=7.169437408447266&zoom=13",
-    "gazetteerTopicsList": [
-      "pois",
-      "kitas",
-      "quartiere",
-      "bezirke",
-      "adressen"
-    ],
     "home": {
       "center": [51.25487836727032, 7.169437408447266],
       "zoom": 13

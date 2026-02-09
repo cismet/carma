@@ -24,7 +24,11 @@ import {
   SelectionProvider,
 } from "@carma-appframeworks/portals";
 import { SandboxedEvalProvider } from "@carma-commons/sandbox-eval";
-import { gazDataConfig } from "../config/gazData";
+import {
+  gazDataConfig,
+  buildGazDataConfig,
+  defaultEndpoints,
+} from "../config/gazData";
 import WMSCapabilities from "wms-capabilities";
 
 import merge from "lodash/merge";
@@ -35,6 +39,7 @@ import {
   extractInformation,
   getHashParams,
 } from "@carma-commons/utils";
+import { isEndpoint } from "@carma-commons/resources";
 import md5 from "md5";
 import {
   createMetaHelpBlock,
@@ -246,6 +251,7 @@ function App({ name }) {
   const [featureGazData, setFeatureGazData] = useState([]);
   const [faultyConfig, setFaultyConfig] = useState(false);
   const [projectConfigFound, setProjectConfigFound] = useState(true);
+  const [effectiveGazConfig, setEffectiveGazConfig] = useState(gazDataConfig);
   useEffect(() => {
     log(
       `... where i get my config from: ${JSON.stringify({
@@ -428,6 +434,22 @@ function App({ name }) {
       }
       // Deep-merge project config into default config
       merge(config, projectConfig);
+
+      // Compute effective gazetteer config from project config
+      const overwrite = config.tm?.overwriteGazetteerTopics;
+      const additional = config.tm?.additionalGazetteerTopics;
+
+      if (Array.isArray(overwrite) && overwrite.length > 0) {
+        const validEndpoints = overwrite.filter(isEndpoint);
+        setEffectiveGazConfig(buildGazDataConfig(validEndpoints));
+      } else if (Array.isArray(additional) && additional.length > 0) {
+        const validAdditional = additional.filter(isEndpoint);
+        const combined = [
+          ...defaultEndpoints,
+          ...validAdditional.filter((ep) => !defaultEndpoints.includes(ep)),
+        ];
+        setEffectiveGazConfig(buildGazDataConfig(combined));
+      }
 
       if (config?.tm?.windowtitle) {
         document.title = config.tm.windowtitle;
@@ -1263,7 +1285,7 @@ function App({ name }) {
             </div>
           </div>
         )}
-        <GazDataProvider config={gazDataConfig}>
+        <GazDataProvider config={effectiveGazConfig}>
           <SelectionProvider>
             <TopicMapContextProvider
               {...refConfig}
