@@ -5,11 +5,11 @@ import { SavedLayerConfig } from "@carma/types";
 import { useFeatureFlags } from "@carma-providers/feature-flag";
 import { ActiveLayers } from "../components/NewLibModal";
 import type { Layer } from "@carma/types";
-import { utils } from "@carma-appframeworks/portals";
 import { useDispatch } from "react-redux";
 import { setCustomLayerConfig } from "../slices/mapLayers";
 import { useMapFrameworkSwitcherContext } from "@carma-mapping/components";
 import { processCategoryConfig } from "../helper/processCategoryConfig";
+import { parseToMapLayer } from "@carma-mapping/utils";
 
 // @ts-expect-error tbd
 const parser = new WMSCapabilities();
@@ -183,11 +183,7 @@ export const useHandleDrop = ({
 
       if (existingLayer) {
         try {
-          const updatedLayer = await utils.parseToMapLayer(
-            newItem,
-            false,
-            true
-          );
+          const updatedLayer = await parseToMapLayer(newItem, false, true);
 
           updateActiveLayer(updatedLayer);
           addItemToCategory(

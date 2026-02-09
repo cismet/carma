@@ -16,6 +16,7 @@ import {
 } from "../contexts/MapStyleProvider";
 import type { GazDataConfig } from "@carma-commons/utils";
 import { defaultGazDataConfig } from "@carma-commons/resources";
+import { parseToMapLayer } from "@carma-mapping/utils";
 import { AuthProvider } from "@carma-providers/auth";
 
 import type { HashCodecs } from "@carma-providers/hash-state";
@@ -27,7 +28,6 @@ import { SandboxedEvalProvider } from "@carma-commons/sandbox-eval";
 
 import type { Store } from "redux";
 import type { Layer } from "@carma/types";
-import { parseToMapLayer } from "../utils/utils";
 
 // Selector factories for layer state operations
 const createLayerSelectors = {

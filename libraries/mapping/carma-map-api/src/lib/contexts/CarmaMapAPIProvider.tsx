@@ -7,7 +7,6 @@ import {
 import type { ReactNode } from "react";
 import type { Store, Dispatch, UnknownAction } from "redux";
 import type { Layer } from "@carma/types";
-import { parseToMapLayer } from "../helper/utils";
 
 export type APIRootState = Record<string, unknown>;
 

@@ -7,11 +7,11 @@ import { TopicMapContext } from "react-cismap/contexts/TopicMapContextProvider";
 import {
   useAdhocFeatureDisplay,
   useMapStyle,
-  utils,
 } from "@carma-appframeworks/portals";
 import type { CarmaMapLibreStyleData, Item, Layer } from "@carma/types";
 import { LayerLib } from "@carma-mapping/layers";
 import { useMapFrameworkSwitcherContext } from "@carma-mapping/components";
+import { parseToMapLayer } from "@carma-mapping/utils";
 
 import {
   setTriggerSelectionById,
@@ -161,7 +161,7 @@ const ResourceModal = () => {
       return;
     }
 
-    newLayer = await utils.parseToMapLayer(layer, forceWMS, true);
+    newLayer = await parseToMapLayer(layer, forceWMS, true);
 
     const existingLayer = activeLayers.find(
       (activeLayer) => activeLayer.id === id
