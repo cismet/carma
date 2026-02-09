@@ -208,7 +208,10 @@ const FeatureInfoBox = ({
 
   useEffect(() => {
     if (selectedFeature && selectedFeature.properties.sourceProps) {
-      console.log("feature properties:", selectedFeature.properties.sourceProps);
+      console.log(
+        "feature properties:",
+        selectedFeature.properties.sourceProps
+      );
     }
 
     const updateHeaderAndColor = async () => {

@@ -5,13 +5,13 @@ import type { MapGeoJSONFeature } from "maplibre-gl";
  */
 export interface CarmaConf {
   // Selection forwarding
-  selectionForwardingTo?: string[];  // source-layer names to forward selection state
-  propertyTarget?: string;           // "source.sourceLayer" format for property lookup
-  nonSelectable?: boolean;           // exclude from selection hits
-  selectable?: boolean;              // explicitly mark as selectable
+  selectionForwardingTo?: string[]; // source-layer names to forward selection state
+  propertyTarget?: string; // "source.sourceLayer" format for property lookup
+  nonSelectable?: boolean; // exclude from selection hits
+  selectable?: boolean; // explicitly mark as selectable
 
   // Hiding forwarding
-  hidingForwardingTo?: string[];     // layer IDs to sync hidden state with
+  hidingForwardingTo?: string[]; // layer IDs to sync hidden state with
 
   // Existing (used by infobox)
   infoboxMapping?: string[];

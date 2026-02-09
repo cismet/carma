@@ -18,7 +18,12 @@ export type { CarmaConf, FeatureIdentifier };
  */
 export class SelectionManager {
   private map: MaplibreMap;
-  private options: Required<Omit<SelectionManagerOptions, "initialVisualSelection" | "onSelectionChanged">> & {
+  private options: Required<
+    Omit<
+      SelectionManagerOptions,
+      "initialVisualSelection" | "onSelectionChanged"
+    >
+  > & {
     initialVisualSelection?: FeatureIdentifier;
     onSelectionChanged?: (result: SelectionResult) => void;
   };
@@ -177,7 +182,10 @@ export class SelectionManager {
 
       // Resolve property target if configured
       if (carmaConf?.propertyTarget) {
-        const targetProps = this.resolvePropertyTarget(hit, carmaConf.propertyTarget);
+        const targetProps = this.resolvePropertyTarget(
+          hit,
+          carmaConf.propertyTarget
+        );
         if (targetProps) {
           enriched.properties.targetProperties = targetProps;
         }
@@ -271,7 +279,9 @@ export class SelectionManager {
   ): Record<string, unknown> | undefined {
     const [source, sourceLayer] = propertyTarget.split(".");
     if (!source || !sourceLayer) {
-      console.warn(`Invalid propertyTarget format: "${propertyTarget}". Expected "source.sourceLayer"`);
+      console.warn(
+        `Invalid propertyTarget format: "${propertyTarget}". Expected "source.sourceLayer"`
+      );
       return undefined;
     }
 
@@ -289,7 +299,9 @@ export class SelectionManager {
   }
 
   private getCarmaConf(feature: MapGeoJSONFeature): CarmaConf | undefined {
-    const metadata = feature.layer?.metadata as Record<string, unknown> | undefined;
+    const metadata = feature.layer?.metadata as
+      | Record<string, unknown>
+      | undefined;
     return metadata?.carmaConf as CarmaConf | undefined;
   }
 
@@ -355,8 +367,12 @@ export class SelectionManager {
 /**
  * Extract carmaConf metadata from a MapLibre feature.
  */
-export function getCarmaConf(feature: MapGeoJSONFeature): CarmaConf | undefined {
-  const metadata = feature.layer?.metadata as Record<string, unknown> | undefined;
+export function getCarmaConf(
+  feature: MapGeoJSONFeature
+): CarmaConf | undefined {
+  const metadata = feature.layer?.metadata as
+    | Record<string, unknown>
+    | undefined;
   return metadata?.carmaConf as CarmaConf | undefined;
 }
 
@@ -450,7 +466,14 @@ export function resolvePropertyTarget(
   const source = parts[0];
   const sourceLayer = parts[1];
 
-  console.debug("[resolvePropertyTarget] Querying source:", source, "sourceLayer:", sourceLayer, "with fid:", featureId);
+  console.debug(
+    "[resolvePropertyTarget] Querying source:",
+    source,
+    "sourceLayer:",
+    sourceLayer,
+    "with fid:",
+    featureId
+  );
 
   const features = map.querySourceFeatures(source, {
     sourceLayer,
@@ -459,7 +482,12 @@ export function resolvePropertyTarget(
 
   console.debug("[resolvePropertyTarget] Found", features.length, "features");
   if (features.length > 0) {
-    console.debug("[resolvePropertyTarget] First feature fid:", features[0]?.properties?.fid, "id:", features[0]?.id);
+    console.debug(
+      "[resolvePropertyTarget] First feature fid:",
+      features[0]?.properties?.fid,
+      "id:",
+      features[0]?.id
+    );
   }
 
   return features[0]?.properties as Record<string, unknown> | undefined;

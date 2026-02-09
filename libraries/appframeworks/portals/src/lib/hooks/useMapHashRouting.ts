@@ -235,7 +235,7 @@ export function useMapHashRouting({
         "[Routing][hash] Framework switch complete, triggering hash update",
         {
           activeFramework,
-        },
+        }
       );
 
       if (getIsLeaflet()) {

@@ -115,7 +115,7 @@ export const LibreMap = ({
       sourceLayer?: string;
       id?: string | number;
       selectionLayerId?: string;
-      forwardedTo?: FeatureIdentifier[];  // Track forwarded selections for cleanup
+      forwardedTo?: FeatureIdentifier[]; // Track forwarded selections for cleanup
     }>
   >(new Set());
   const mappingRef = useRef({});
@@ -161,61 +161,58 @@ export const LibreMap = ({
   const lastHandledVersionRef = useRef(0);
 
   // Helper: clear all visual selection state on the map
-  const clearVisualSelection = useCallback(
-    (mapInstance: maplibregl.Map) => {
-      selectedFeaturesRef.current.forEach((feature) => {
-        try {
-          if (
-            feature.selectionLayerId &&
-            mapInstance.getLayer(feature.selectionLayerId)
-          ) {
-            mapInstance.setFilter(feature.selectionLayerId, [
-              "==",
-              "__selected__",
-              "true",
-            ]);
-          } else {
-            mapInstance.setFeatureState(
-              {
-                source: feature.source,
-                sourceLayer: feature.sourceLayer,
-                id: feature.id,
-              },
-              { selected: false },
-            );
-          }
+  const clearVisualSelection = useCallback((mapInstance: maplibregl.Map) => {
+    selectedFeaturesRef.current.forEach((feature) => {
+      try {
+        if (
+          feature.selectionLayerId &&
+          mapInstance.getLayer(feature.selectionLayerId)
+        ) {
+          mapInstance.setFilter(feature.selectionLayerId, [
+            "==",
+            "__selected__",
+            "true",
+          ]);
+        } else {
+          mapInstance.setFeatureState(
+            {
+              source: feature.source,
+              sourceLayer: feature.sourceLayer,
+              id: feature.id,
+            },
+            { selected: false }
+          );
+        }
 
-          // Also clear forwarded selections
-          if (feature.forwardedTo) {
-            for (const forwarded of feature.forwardedTo) {
-              try {
-                mapInstance.setFeatureState(
-                  {
-                    source: forwarded.source,
-                    sourceLayer: forwarded.sourceLayer,
-                    id: forwarded.id,
-                  },
-                  { selected: false },
-                );
-              } catch {
-                // Forwarded feature may not exist
-              }
+        // Also clear forwarded selections
+        if (feature.forwardedTo) {
+          for (const forwarded of feature.forwardedTo) {
+            try {
+              mapInstance.setFeatureState(
+                {
+                  source: forwarded.source,
+                  sourceLayer: forwarded.sourceLayer,
+                  id: forwarded.id,
+                },
+                { selected: false }
+              );
+            } catch {
+              // Forwarded feature may not exist
             }
           }
-        } catch (error) {
-          console.error("Error clearing feature selection:", error);
         }
-      });
-      selectedFeaturesRef.current.clear();
-    },
-    [],
-  );
+      } catch (error) {
+        console.error("Error clearing feature selection:", error);
+      }
+    });
+    selectedFeaturesRef.current.clear();
+  }, []);
 
   // Helper: apply visual selection highlighting for a feature
   const applyVisualSelection = useCallback(
     (
       mapInstance: maplibregl.Map,
-      featureId: { source: string; sourceLayer?: string; id?: string | number },
+      featureId: { source: string; sourceLayer?: string; id?: string | number }
     ) => {
       try {
         mapInstance.setFeatureState(
@@ -224,7 +221,7 @@ export const LibreMap = ({
             sourceLayer: featureId.sourceLayer,
             id: featureId.id,
           },
-          { selected: true },
+          { selected: true }
         );
         selectedFeaturesRef.current.add({
           source: featureId.source,
@@ -235,7 +232,7 @@ export const LibreMap = ({
         console.error("Error applying feature selection:", error);
       }
     },
-    [],
+    []
   );
 
   useClusterMarkers({
@@ -348,7 +345,7 @@ export const LibreMap = ({
         };
       } else {
         console.warn(
-          `Layer type "${layerConfig.type}" not supported for MapLibre`,
+          `Layer type "${layerConfig.type}" not supported for MapLibre`
         );
         return;
       }
@@ -384,7 +381,7 @@ export const LibreMap = ({
 
   const { style: backgroundStyle, vectorBackgroundLayers } = useMemo(
     () => buildBackgroundStyle(),
-    [backgroundLayers],
+    [backgroundLayers]
   );
 
   useEffect(() => {
@@ -452,12 +449,23 @@ export const LibreMap = ({
 
           // Resolve property target if configured in carmaConf
           const carmaConf = getCarmaConf(selectedVectorFeature);
-          console.debug("[LibreMap] Click on layer:", selectedVectorFeature.layer?.id);
+          console.debug(
+            "[LibreMap] Click on layer:",
+            selectedVectorFeature.layer?.id
+          );
           console.debug("[LibreMap] carmaConf:", carmaConf);
-          console.debug("[LibreMap] feature.id:", selectedVectorFeature.id, "type:", typeof selectedVectorFeature.id);
+          console.debug(
+            "[LibreMap] feature.id:",
+            selectedVectorFeature.id,
+            "type:",
+            typeof selectedVectorFeature.id
+          );
 
           if (carmaConf?.propertyTarget && selectedVectorFeature.id != null) {
-            console.debug("[LibreMap] Resolving propertyTarget:", carmaConf.propertyTarget);
+            console.debug(
+              "[LibreMap] Resolving propertyTarget:",
+              carmaConf.propertyTarget
+            );
             const targetProps = resolvePropertyTarget(
               mapInstance,
               selectedVectorFeature.id,
@@ -472,13 +480,18 @@ export const LibreMap = ({
 
               // If no mapping found for this layer, try to use mapping from target layer
               if (!layerMapping) {
-                const [targetSource, targetSourceLayer] = carmaConf.propertyTarget.split(".");
-                console.debug("[LibreMap] Looking for mapping in:", { targetSource, targetSourceLayer, mappingKeys: Object.keys(mappingRef.current) });
+                const [targetSource, targetSourceLayer] =
+                  carmaConf.propertyTarget.split(".");
+                console.debug("[LibreMap] Looking for mapping in:", {
+                  targetSource,
+                  targetSourceLayer,
+                  mappingKeys: Object.keys(mappingRef.current),
+                });
                 // Try various mapping lookups for the target
                 layerMapping =
-                  mappingRef.current[targetSourceLayer] ||  // e.g., "landparcel"
-                  mappingRef.current[targetSource] ||        // e.g., "alkis"
-                  mappingRef.current[carmaConf.propertyTarget];  // e.g., "alkis.landparcel"
+                  mappingRef.current[targetSourceLayer] || // e.g., "landparcel"
+                  mappingRef.current[targetSource] || // e.g., "alkis"
+                  mappingRef.current[carmaConf.propertyTarget]; // e.g., "alkis.landparcel"
               }
             }
           } else if (!carmaConf) {
@@ -493,7 +506,7 @@ export const LibreMap = ({
               selectedVectorFeature,
               layerMapping,
               mapInstance,
-              useRouting,
+              useRouting
             );
           }
 
@@ -521,13 +534,21 @@ export const LibreMap = ({
           if (feature) {
             setSelectedFeature(feature);
             mapSelectionCtxRef.current.setSelectedFeature(feature);
-            mapSelectionCtxRef.current.selectFeature(featureId, selectedVectorFeature);
-            lastHandledVersionRef.current = mapSelectionCtxRef.current.selectionVersion + 1;
+            mapSelectionCtxRef.current.selectFeature(
+              featureId,
+              selectedVectorFeature
+            );
+            lastHandledVersionRef.current =
+              mapSelectionCtxRef.current.selectionVersion + 1;
             onFeatureSelect?.(feature, featureId);
           } else if (selectionEnabled) {
             // No feature/mapping but selection enabled: still update context
-            mapSelectionCtxRef.current.selectFeature(featureId, selectedVectorFeature);
-            lastHandledVersionRef.current = mapSelectionCtxRef.current.selectionVersion + 1;
+            mapSelectionCtxRef.current.selectFeature(
+              featureId,
+              selectedVectorFeature
+            );
+            lastHandledVersionRef.current =
+              mapSelectionCtxRef.current.selectionVersion + 1;
             onFeatureSelect?.(null, featureId);
           }
         } else {
@@ -624,9 +645,10 @@ export const LibreMap = ({
     const updateMapStyle = async () => {
       try {
         // Prepend vector background layers before data layers
-        const effectiveLayers = vectorBackgroundLayers.length > 0
-          ? [...vectorBackgroundLayers, ...(layers || [])]
-          : layers;
+        const effectiveLayers =
+          vectorBackgroundLayers.length > 0
+            ? [...vectorBackgroundLayers, ...(layers || [])]
+            : layers;
 
         if (effectiveLayers) {
           // Show initial progress only on first load or when layers change
@@ -702,7 +724,11 @@ export const LibreMap = ({
                 let beforeId: string | undefined;
                 for (const sl of styleLayers) {
                   const meta = (sl as any).metadata;
-                  if (meta && typeof meta["z-index"] === "number" && meta["z-index"] >= cogIndex) {
+                  if (
+                    meta &&
+                    typeof meta["z-index"] === "number" &&
+                    meta["z-index"] >= cogIndex
+                  ) {
                     beforeId = sl.id;
                     break;
                   }
@@ -721,7 +747,7 @@ export const LibreMap = ({
                       "raster-opacity": layer.opacity ?? 1,
                     },
                   },
-                  beforeId,
+                  beforeId
                 );
               });
             };
@@ -869,7 +895,7 @@ export const LibreMap = ({
       writeLeafletLike: "LGM:2D:writeLocation",
       topicMapLocation: "LGM:2D:location",
     }),
-    [],
+    []
   );
 
   const { handleTopicMapLocationChange } = useMapHashRouting({
@@ -933,7 +959,7 @@ export const LibreMap = ({
           ctxRawFeature,
           layerMapping,
           mapInstance,
-          useRoutingRef.current,
+          useRoutingRef.current
         ).then((feature) => {
           if (feature) {
             setSelectedFeature(feature);
@@ -989,7 +1015,7 @@ export const LibreMap = ({
         const filteredHits = hits.filter(
           (hit) =>
             !hit.layer.id.includes("selection") &&
-            !hit.layer.id.includes("cluster"),
+            !hit.layer.id.includes("cluster")
         );
 
         // Clear previous visual selection
@@ -1005,8 +1031,7 @@ export const LibreMap = ({
             id: selectedVectorFeature.id,
           };
 
-          const layerId =
-            selectedVectorFeature.layer?.metadata?.["layer-id"];
+          const layerId = selectedVectorFeature.layer?.metadata?.["layer-id"];
           const layerMapping =
             mappingRef.current[layerId] ||
             mappingRef.current[selectedVectorFeature.source];
@@ -1017,7 +1042,7 @@ export const LibreMap = ({
               selectedVectorFeature,
               layerMapping,
               mapInstance,
-              useRouting,
+              useRouting
             );
           }
 
@@ -1027,7 +1052,10 @@ export const LibreMap = ({
             }
             setSelectedFeature(feature);
 
-            mapSelectionCtxRef.current.selectFeature(featureId, selectedVectorFeature);
+            mapSelectionCtxRef.current.selectFeature(
+              featureId,
+              selectedVectorFeature
+            );
             mapSelectionCtxRef.current.setSelectedFeature(feature);
             lastHandledVersionRef.current =
               mapSelectionCtxRef.current.selectionVersion + 1;

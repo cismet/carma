@@ -393,7 +393,7 @@ export const vectorStylesToMapLibreStyle = async ({
           return { type: "geojson" as const, data: transformedPois(result) };
         }
         return null;
-      }),
+      })
     );
 
     for (let index = 0; index < layers.length; index++) {
@@ -444,7 +444,8 @@ export const vectorStylesToMapLibreStyle = async ({
             paint: {
               ...styleLayer.paint,
               ...(() => {
-                if (styleLayer.id.toLowerCase().includes("selection")) return {};
+                if (styleLayer.id.toLowerCase().includes("selection"))
+                  return {};
                 const prop = getPaintProperty(styleLayer);
                 if (!prop) return {};
                 const baseOpacity =
@@ -454,7 +455,9 @@ export const vectorStylesToMapLibreStyle = async ({
                   [prop]:
                     typeof baseOpacity === "number"
                       ? baseOpacity * layerOpacity
-                      : layerOpacity < 1 ? layerOpacity : baseOpacity,
+                      : layerOpacity < 1
+                      ? layerOpacity
+                      : baseOpacity,
                 };
               })(),
             },

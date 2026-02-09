@@ -85,20 +85,28 @@ export class HidingForwardingManager {
       if ("source" in layer && layer.source) {
         this.layerSourceMap.set(layer.id, {
           source: layer.source as string,
-          sourceLayer: "source-layer" in layer ? (layer["source-layer"] as string) : undefined,
+          sourceLayer:
+            "source-layer" in layer
+              ? (layer["source-layer"] as string)
+              : undefined,
         });
       }
 
       // Check for hiding forwarding config
       const metadata = layer.metadata as Record<string, unknown> | undefined;
       const carmaConf = metadata?.carmaConf as CarmaConf | undefined;
-      if (carmaConf?.hidingForwardingTo && carmaConf.hidingForwardingTo.length > 0) {
+      if (
+        carmaConf?.hidingForwardingTo &&
+        carmaConf.hidingForwardingTo.length > 0
+      ) {
         // Extract prefix from layer-id metadata (added by styleBuilder)
         const layerIdPrefix = metadata?.["layer-id"] as string | undefined;
         const prefix = layerIdPrefix ? `${layerIdPrefix}-` : "";
 
         // Resolve targets by applying the same prefix
-        const resolvedTargets = carmaConf.hidingForwardingTo.map(t => `${prefix}${t}`);
+        const resolvedTargets = carmaConf.hidingForwardingTo.map(
+          (t) => `${prefix}${t}`
+        );
 
         this.configs.set(layer.id, {
           sourceLayerId: layer.id,
@@ -120,7 +128,10 @@ export class HidingForwardingManager {
     }
   }
 
-  private syncLayerHidingState(sourceLayerId: string, config: HidingForwardingConfig): void {
+  private syncLayerHidingState(
+    sourceLayerId: string,
+    config: HidingForwardingConfig
+  ): void {
     // Query rendered features from source layer (only visible after collision)
     const visibleFeatures = this.map.queryRenderedFeatures({
       layers: [sourceLayerId],

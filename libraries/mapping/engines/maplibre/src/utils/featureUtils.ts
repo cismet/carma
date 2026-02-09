@@ -155,8 +155,12 @@ export const createFeature = async (
 
     // Preserve targetProperties and carmaInfo at TOP level of feature
     // (AlkisSIM.tsx expects feature.targetProperties, not feature.properties.targetProperties)
-    const targetProperties = properties.targetProperties as Record<string, unknown> | undefined;
-    const carmaInfo = properties.carmaInfo as Record<string, unknown> | undefined;
+    const targetProperties = properties.targetProperties as
+      | Record<string, unknown>
+      | undefined;
+    const carmaInfo = properties.carmaInfo as
+      | Record<string, unknown>
+      | undefined;
 
     feature = {
       properties: {

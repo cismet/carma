@@ -131,7 +131,9 @@ export const useVisibleMapFeatures = ({
     };
     resolve();
     maplibreMap.on("styledata", resolve);
-    return () => { maplibreMap.off("styledata", resolve); };
+    return () => {
+      maplibreMap.off("styledata", resolve);
+    };
   }, [maplibreMap]);
 
   const updateFeatures = useCallback(() => {
