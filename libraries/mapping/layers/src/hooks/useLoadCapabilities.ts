@@ -25,7 +25,6 @@ import {
   normalizeObject,
 } from "../helper/layerHelper";
 import type { ActiveLayers } from "../components/NewLibModal";
-import { parseToMapLayer } from "@carma-mapping/utils";
 
 // @ts-expect-error
 const parser = new WMSCapabilities();
@@ -132,7 +131,7 @@ export const useLoadCapabilities = ({
                           (layer) => layer.id === activeLayer.id
                         );
                         if (foundLayer) {
-                          const updatedLayer = await parseToMapLayer(
+                          const updatedLayer = await utils.parseToMapLayer(
                             foundLayer,
                             false,
                             activeLayer.visible,

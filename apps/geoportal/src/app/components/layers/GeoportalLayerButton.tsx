@@ -43,6 +43,7 @@ import { LayerButton, LayerIcon } from "@carma-mapping/components";
 import { Spin } from "antd";
 import { LoadingOutlined } from "@ant-design/icons";
 import { useLayerLoading } from "@carma-mapping/utils";
+import { useAdhocFeatureDisplay } from "@carma-appframeworks/portals";
 
 interface LayerButtonProps {
   title: string;
@@ -51,6 +52,7 @@ interface LayerButtonProps {
   icon?: string;
   layer: Layer;
   background?: boolean;
+  hide?: boolean;
 }
 
 const GeoportalLayerButton = ({
@@ -60,11 +62,15 @@ const GeoportalLayerButton = ({
   icon,
   layer,
   background,
+  hide = false,
 }: LayerButtonProps) => {
   const { ref, inView } = useInView({
     threshold: 0.99,
     onChange: (inView) => {
       console.debug("HOOK: [LayerButton] inView", inView);
+      if (hide) {
+        return;
+      }
       if (index === 0) {
         dispatch(setShowLeftScrollButton(!inView));
       } else if (index === layersLength - 1) {
@@ -94,6 +100,8 @@ const GeoportalLayerButton = ({
       id,
     });
   const buttonRef = useRef<HTMLDivElement>(null);
+
+  const { removeFeature } = useAdhocFeatureDisplay();
 
   const mergedRef = useCallback(
     (el: HTMLDivElement | null) => {
@@ -138,14 +146,14 @@ const GeoportalLayerButton = ({
         "",
         // index === -1 && 'ml-auto',
         // index === layersLength - 1 && 'mr-auto',
-        showLeftScrollButton && index === -1 && "pr-4"
+        showLeftScrollButton && index === -1 && "pr-4",
+        hide && "hidden"
       )}
       id={`layer-${id}`}
     >
       <LayerButton
         ref={setNodeRef}
         onClick={(e) => {
-          console.log("xxx", layer);
           e.stopPropagation();
           console.debug(
             "onClick LayerButton settings clickFromInfoView",
@@ -215,6 +223,7 @@ const GeoportalLayerButton = ({
                   }
                 } else {
                   dispatch(removeLayer(id));
+                  removeFeature(id);
                   dispatch(updateInfoElementsAfterRemovingFeature(id));
                 }
               }}

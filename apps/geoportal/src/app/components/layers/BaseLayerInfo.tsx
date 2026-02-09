@@ -18,9 +18,11 @@ import {
 import LayerRow from "./LayerRow";
 import "./text.css";
 import LayerInfoWrapper from "./LayerInfoWrapper";
+import { filter3dLayers } from "../../helper/adhoc-feature-utils";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faX } from "@fortawesome/free-solid-svg-icons";
 import { useState } from "react";
+import { useMapFrameworkSwitcherContext } from "@carma-mapping/components";
 
 const BaseLayerInfo = () => {
   const [activeTab, setActiveTab] = useState("1");
@@ -30,13 +32,12 @@ const BaseLayerInfo = () => {
   const selectedLuftbildLayer = useSelector(getSelectedLuftbildLayer);
   const backgroundLayer = useSelector(getBackgroundLayer);
   const layers = useSelector(getLayers);
+  const { isCesium } = useMapFrameworkSwitcherContext();
 
   const reversedLayers = layers
     .slice()
     .reverse()
-    .map((element, index) => {
-      return element;
-    });
+    .filter((layer) => (isCesium ? filter3dLayers(layer) : true));
 
   const getLayerPos = (id) => layers.findIndex((layer) => layer.id === id);
 

@@ -12,6 +12,7 @@ import { useState } from "react";
 import { useMapStyle } from "@carma-appframeworks/portals";
 import { MapStyleKeys } from "../../constants/MapStyleKeys";
 import { createBackgroundLayerConfig } from "../../helper/layer";
+import { useMapFrameworkSwitcherContext } from "@carma-mapping/components";
 
 const AerialLayerSelection = () => {
   const [hovered, setHovered] = useState(false);
@@ -20,6 +21,7 @@ const AerialLayerSelection = () => {
   const { setCurrentStyle } = useMapStyle();
   const selectedLuftbildLayer = useSelector(getSelectedLuftbildLayer);
   const backgroundLayer = useSelector(getBackgroundLayer);
+  const { isLeaflet } = useMapFrameworkSwitcherContext();
 
   const handleRadioClick = (e) => {
     if (backgroundLayer.id !== "luftbild") {
@@ -56,41 +58,45 @@ const AerialLayerSelection = () => {
         setHovered(false);
       }}
     >
-      <Radio.Group
-        value={selectedLuftbildLayer.id}
-        onChange={(e) => {
-          const config = createBackgroundLayerConfig(e.target.value);
-          dispatch(setSelectedLuftbildLayer(config));
+      {isLeaflet && (
+        <Radio.Group
+          value={selectedLuftbildLayer.id}
+          onChange={(e) => {
+            const config = createBackgroundLayerConfig(e.target.value);
+            dispatch(setSelectedLuftbildLayer(config));
 
-          dispatch(
-            setBackgroundLayer({
-              ...config,
-              id: "luftbild",
-            })
-          );
-        }}
-        className="pb-2 px-2"
-        optionType="default"
-        style={{
-          filter:
-            backgroundLayer.id !== "luftbild" && !hovered ? "saturate(0)" : "",
-        }}
-      >
-        <Radio
-          onClick={handleRadioClick}
-          value="luftbild"
-          className="text-left"
+            dispatch(
+              setBackgroundLayer({
+                ...config,
+                id: "luftbild",
+              })
+            );
+          }}
+          className="pb-2 px-2"
+          optionType="default"
+          style={{
+            filter:
+              backgroundLayer.id !== "luftbild" && !hovered
+                ? "saturate(0)"
+                : "",
+          }}
         >
-          Luftbildkarte 03/24
-        </Radio>
-        <Radio
-          onClick={handleRadioClick}
-          value="luftbild21"
-          className="text-left"
-        >
-          Luftbildkarte 06/21
-        </Radio>
-      </Radio.Group>
+          <Radio
+            onClick={handleRadioClick}
+            value="luftbild"
+            className="text-left"
+          >
+            Luftbildkarte 03/24
+          </Radio>
+          <Radio
+            onClick={handleRadioClick}
+            value="luftbild21"
+            className="text-left"
+          >
+            Luftbildkarte 06/21
+          </Radio>
+        </Radio.Group>
+      )}
     </LayerSelection>
   );
 };

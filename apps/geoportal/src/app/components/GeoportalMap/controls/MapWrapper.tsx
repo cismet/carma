@@ -505,7 +505,7 @@ const MapWrapper = () => {
           )}
           {!isObliquePreviewVisible && (
             <Control position="topcenter" order={10}>
-              {isLeaflet && <LayerWrapper />}
+              <LayerWrapper />
             </Control>
           )}
           <Control position="bottomleft" order={10}>

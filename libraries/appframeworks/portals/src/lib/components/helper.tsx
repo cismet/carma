@@ -1,4 +1,6 @@
 import IconLink from "react-cismap/commons/IconLink";
+import { CarmaIconLink } from "./CarmaIconLink";
+import { faRotate } from "@fortawesome/free-solid-svg-icons";
 
 interface ActionLinksConfig {
   entityClassName?: string;
@@ -10,6 +12,9 @@ interface ActionLinksConfig {
     from: { lat: number; lng: number };
     to: { lat: number; lng: number };
   }) => void;
+  displayOrbit?: boolean;
+  isOrbiting?: boolean;
+  onOrbitToggle?: () => void;
 }
 
 export const getActionLinksForFeature = (
@@ -29,6 +34,9 @@ export const getActionLinksForFeature = (
       );
     },
     onRouteAction,
+    displayOrbit = false,
+    isOrbiting = false,
+    onOrbitToggle,
   }: ActionLinksConfig = {}
 ): JSX.Element[] => {
   const infoxboxControlObject = feature.properties.info;
@@ -46,10 +54,24 @@ export const getActionLinksForFeature = (
       />
     );
   }
+  if (displayOrbit === true) {
+    links.push(
+      <span key={`orbit-wrapper`} className={isOrbiting ? "orbit-active" : ""}>
+        <CarmaIconLink
+          key={`orbit`}
+          tooltip={isOrbiting ? "Orbit stoppen" : "Orbit starten"}
+          onClick={() => {
+            onOrbitToggle?.();
+          }}
+          icon={faRotate}
+        />
+      </span>
+    );
+  }
   if (displaySecondaryInfoAction === true) {
     links.push(
       <IconLink
-        key={`IconLink.secondaryInfo`}
+        key={`CarmaIconLink.secondaryInfo`}
         tooltip="Datenblatt anzeigen"
         onClick={() => {
           setVisibleStateOfSecondaryInfo(true);
@@ -61,9 +83,9 @@ export const getActionLinksForFeature = (
   if (infoxboxControlObject?.tel || feature?.properties?.tel !== undefined) {
     links.push(
       <IconLink
-        key={`IconLink.tel`}
+        key={`CarmaIconLink.tel`}
         tooltip="Anrufen"
-        href={"tel:" + infoxboxControlObject?.tel || feature?.properties?.tel}
+        href={"tel:" + (infoxboxControlObject?.tel || feature?.properties?.tel)}
         iconname="phone"
       />
     );
@@ -74,7 +96,7 @@ export const getActionLinksForFeature = (
   ) {
     links.push(
       <IconLink
-        key={`IconLink.email`}
+        key={`CarmaIconLink.email`}
         tooltip="E-Mail schreiben"
         href={
           "mailto:" + infoxboxControlObject?.email || feature?.properties?.email
@@ -86,7 +108,7 @@ export const getActionLinksForFeature = (
   if (infoxboxControlObject?.url || feature?.properties?.url !== undefined) {
     links.push(
       <IconLink
-        key={`IconLink.web`}
+        key={`CarmaIconLink.web`}
         tooltip="Zur Homepage"
         href={infoxboxControlObject?.url || feature?.properties?.url}
         target="_blank"
@@ -103,7 +125,7 @@ export const getActionLinksForFeature = (
       if (genericLink.url) {
         links.push(
           <IconLink
-            key={`IconLink.generic-${JSON.stringify(genericLink)}`}
+            key={`CarmaIconLink.generic-${JSON.stringify(genericLink)}`}
             tooltip={genericLink.tooltip}
             href={genericLink.url}
             target={genericLink.target || "_blank"}
@@ -114,7 +136,7 @@ export const getActionLinksForFeature = (
       } else if (genericLink.action) {
         links.push(
           <IconLink
-            key={`IconLink.generic-${JSON.stringify(genericLink)}`}
+            key={`CarmaIconLink.generic-${JSON.stringify(genericLink)}`}
             tooltip={genericLink.tooltip}
             onClick={genericLink.action}
             iconname={genericLink.iconname || "globe"}
@@ -128,7 +150,7 @@ export const getActionLinksForFeature = (
       ) {
         links.push(
           <IconLink
-            key={`IconLink.route-${genericLink.iconname}`}
+            key={`CarmaIconLink.route-${genericLink.iconname}`}
             tooltip={genericLink.tooltip || "Route berechnen"}
             onClick={() => {
               const routeParams = genericLink.getRouteParams();

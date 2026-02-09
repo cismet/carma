@@ -51,11 +51,14 @@ export const useSelectionTopicMap = ({
       const isNewSelection =
         selection?.selectionTimestamp &&
         Date.now() - selection.selectionTimestamp < NEW_SELECTION_TIMEOUT;
+      const isRestored = (selection as { properties?: { restored?: boolean } })
+        ?.properties?.restored;
       const { leafletElement } = routedMapRef.current?.leafletMap;
-      if (selection && isNewSelection) {
+      if (selection && (isNewSelection || isRestored)) {
         console.debug(
           "HOOK: useSelectionTopicMap selection LEAFLET",
-          selection
+          selection,
+          isRestored ? "(restored)" : ""
         );
 
         // TODO replace builtin react-cismap trigger, handle topicMap map move and polygon generation for overlayFeature with CarmaMap

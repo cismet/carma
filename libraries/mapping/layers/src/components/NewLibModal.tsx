@@ -7,6 +7,7 @@ import { useLoadCapabilities } from "../hooks/useLoadCapabilities";
 
 import {
   faBook,
+  faCubes,
   faList,
   faMap,
   faMapPin,
@@ -53,8 +54,19 @@ import {
 import { useDispatch, useSelector } from "react-redux";
 import type { Store } from "redux";
 import { getTriggerRefetch, setTriggerRefetch } from "../slices/ui";
+import { useMapFrameworkSwitcherContext } from "@carma-mapping/components";
 
 const { Search } = Input;
+
+const elements = [
+  { icon: faStar, text: "Favoriten", id: "favorites" },
+  { icon: faList, text: "Entdecken", id: "discover", disabledIn3D: true },
+  { icon: faBook, text: "Teilzwillinge", id: "partialTwins" },
+  { icon: faMap, text: "Kartenebenen", id: "mapLayers", disabledIn3D: true },
+  { icon: faMapPin, text: "Sensoren", id: "sensors" },
+  { icon: faCubes, text: "Objekte", id: "objects" },
+  { icon: faSearch, text: "Suchergebnisse", id: "searchResults" },
+];
 
 type LayerCategories = {
   Title: string;
@@ -112,6 +124,7 @@ export const NewLibModal = ({
   store,
   unauthorizedCallback,
 }: LibModalProps) => {
+  const { isCesium } = useMapFrameworkSwitcherContext();
   const [sidebarElements, setSidebarElements] = useState<
     {
       icon: IconDefinition;
@@ -119,14 +132,7 @@ export const NewLibModal = ({
       id: string;
       disabled?: boolean;
     }[]
-  >([
-    { icon: faStar, text: "Favoriten", id: "favorites" },
-    { icon: faList, text: "Entdecken", id: "discover" },
-    { icon: faBook, text: "Teilzwillinge", id: "partialTwins" },
-    { icon: faMap, text: "Kartenebenen", id: "mapLayers" },
-    { icon: faMapPin, text: "Sensoren", id: "sensors" },
-    { icon: faSearch, text: "Suchergebnisse", id: "searchResults" },
-  ]);
+  >(elements);
   const [preview, setPreview] = useState(false);
   const [layers, setLayers] = useState<any[]>([]);
   const allLayers = useSelector(getAllLayers);
@@ -193,6 +199,46 @@ export const NewLibModal = ({
     }
   }, [open, triggerRefetch, jwt]);
 
+  useEffect(() => {
+    const updatedElements = elements.map((element) => {
+      const currentElement = sidebarElements.find((e) => e.id === element.id);
+      const wasDisabledForOtherReasons =
+        currentElement?.disabled && !element.disabledIn3D;
+      return {
+        ...element,
+        disabled:
+          wasDisabledForOtherReasons || (element.disabledIn3D && isCesium),
+      };
+    });
+    setSidebarElements(updatedElements);
+
+    const currentElement = updatedElements[selectedNavItemIndex];
+    if (currentElement?.disabled) {
+      const firstValidIndex = updatedElements.findIndex((element) => {
+        if (element.disabled) return false;
+        const categoryData = filteredCategories.find(
+          (cat) => cat.id === element.id
+        );
+        if (!categoryData) return false;
+        const hasItems = categoryData.categories.some(
+          (subCat) => subCat.layers?.length > 0
+        );
+        return hasItems;
+      });
+
+      if (firstValidIndex !== -1) {
+        setSelectedNavItemIndex(firstValidIndex);
+      } else {
+        const firstNonDisabled = updatedElements.findIndex(
+          (element) => !element.disabled
+        );
+        if (firstNonDisabled !== -1) {
+          setSelectedNavItemIndex(firstNonDisabled);
+        }
+      }
+    }
+  }, [isCesium]);
+
   const getNumOfCustomLayers = () => {
     return customCategories.reduce((acc, category) => {
       return acc + category.layers.length;
@@ -207,17 +253,25 @@ export const NewLibModal = ({
       const copiedCategories = JSON.parse(JSON.stringify(allCategories));
 
       const categoriesWithResults = copiedCategories.map((category) => {
+        const sidebarElement = sidebarElements.find(
+          (element) => element.id === category.id
+        );
+        const isCategoryDisabled = sidebarElement?.disabled;
+
         category.categories.map((tmp) => {
           const newLayers: any[] = [];
-          results.forEach((result) => {
-            const resultItem = result.item;
 
-            if (tmp.id === resultItem.serviceName && tmp.id) {
-              newLayers.push({
-                ...resultItem,
-              });
-            }
-          });
+          if (!isCategoryDisabled) {
+            results.forEach((result) => {
+              const resultItem = result.item;
+
+              if (tmp.id === resultItem.serviceName && tmp.id) {
+                newLayers.push({
+                  ...resultItem,
+                });
+              }
+            });
+          }
 
           tmp.layers = newLayers;
 
@@ -347,6 +401,7 @@ export const NewLibModal = ({
           subCats.forEach((subCat) => {
             if (subCat.id === subCategory.id) {
               newSubCat = subCat;
+              newSubCat.Title = subCategory.Title;
               if (newSubCat) {
                 if (Array.isArray(item)) {
                   newSubCat.layers.unshift(...item);
@@ -425,6 +480,8 @@ export const NewLibModal = ({
     getDataFromJson,
     activeLayers,
     updateActiveLayer,
+    setAdditionalLayers,
+    setSidebarElements,
   });
 
   const { loadingAdditionalConfig } = useAdditionalConfig({
@@ -497,7 +554,11 @@ export const NewLibModal = ({
   }, [discoverItems]);
 
   useEffect(() => {
-    if (getNumOfCustomLayers() === 0 && selectedNavItemIndex === 0) {
+    if (
+      getNumOfCustomLayers() === 0 &&
+      selectedNavItemIndex === 0 &&
+      !isCesium
+    ) {
       setSelectedNavItemIndex(3);
     }
 
@@ -1019,7 +1080,9 @@ export const NewLibModal = ({
                   addFavorite={addFavorite}
                   removeFavorite={removeFavorite}
                   setPreview={setPreview}
-                  isSearchCategory={selectedNavItemIndex === 5}
+                  isSearchCategory={
+                    sidebarElements[selectedNavItemIndex].id === "searchResults"
+                  }
                   loadingData={loadingData}
                   currentCategoryIndex={selectedNavItemIndex}
                   discoverProps={discoverProps}

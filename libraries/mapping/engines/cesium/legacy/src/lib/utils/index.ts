@@ -23,6 +23,12 @@ export {
 } from "./cesiumAnimateFov";
 export { getHeadingPitchForMouseEvent } from "./cesiumAnimateOrbits";
 export { animateInterpolateHeadingPitchRange } from "./cesiumAnimations";
+export { animateOpacity } from "./animateOpacity";
+export {
+  applyGeometryInstanceOpacity,
+  readGeometryInstanceOpacity,
+} from "./geometryInstanceOpacity";
+export type { GeometryInstanceRef } from "./geometryInstanceOpacity";
 export {
   type SceneAnimationMap,
   cancelSceneAnimation,
@@ -46,6 +52,12 @@ export {
   type ElevationResult,
 } from "./elevation";
 export { guardSampleTerrainMostDetailedAsync } from "./guardSampleTerrainMostDetailedAsync";
+export {
+  addElevationsToGeoJson,
+  geoJsonHasMissingElevations,
+  type GeoJsonElevationOptions,
+  type GeoJsonElevationResult,
+} from "./geojson-elevation";
 
 // Ground primitives
 export {
@@ -54,6 +66,47 @@ export {
   removeGroundPrimitiveById,
 } from "./cesiumGroundPrimitives";
 export { guardPrimitiveCollection } from "./guardPrimitiveCollection";
+
+// Adhoc primitives
+export { createSelectionEdgePrimitive } from "./adhoc-primitives/create-selection-edge-primitive";
+export {
+  createWallPrimitives,
+  type WallPrimitivesResult,
+  type WallPrimitiveSegment,
+} from "./adhoc-primitives/create-wall-primitives";
+export { getBoundingSphereFromCoordinates } from "@carma/cesium";
+export {
+  getBoundingSphereFromGeoJson,
+  getBoundingSphereFromGeoJsonGeometry,
+  getCoordinatesFromGeoJson,
+  getGeoJsonGeometryCacheKey,
+  getCoordinatesFromGeoJsonGeometry,
+  getProviderScopedCache,
+  getTerrainAwareBoundingSphereFromFeature,
+  getTerrainAwareBoundingSphereFromGeoJsonGeometry,
+} from "./getBoundingSphereFromGeoJsonGeometry";
+export {
+  createExtrudedWallVisualizer,
+  type ExtrudedWallVisualizer,
+  type ExtrudedWallVisualizerOptions,
+} from "./createExtrudedWallVisualizer";
+export {
+  createGroundPolylineVisualizer,
+  type GroundPolylineVisualizer,
+  type GroundPolylineVisualizerOptions,
+} from "./createGroundPolylineVisualizer";
+export {
+  createGroundPolygonVisualizer,
+  type GroundPolygonVisualizer,
+  type GroundPolygonVisualizerOptions,
+} from "./createGroundPolygonVisualizer";
+export {
+  createRotationAxisVisualizer,
+  type RotationAxisVisualizer,
+  type RotationAxisVisualizerOptions,
+} from "./createRotationAxisVisualizer";
+export { createModelPrimitiveFromConfig } from "./createModelPrimitiveFromConfig";
+export { DEFAULT_MODEL_HIGHLIGHT_SHADER } from "./modelHighlightShader";
 
 // Tileset
 export { guardTileset } from "./guardTileset";

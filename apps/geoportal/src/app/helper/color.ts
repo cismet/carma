@@ -1,9 +1,6 @@
 import { sandboxedEvalExternal } from "@carma-commons/sandbox-eval";
 import { FeatureInfoProperties } from "@carma/types";
-
-const getFunctionRegex = () => {
-  return /(function\s*\([^)]*\)\s*\{[^}]*\})|(\([^)]*\)\s*=>\s*[^}]*)/g;
-};
+import { utils } from "@carma-appframeworks/portals";
 
 export const parseColor = async (
   color: string,
@@ -11,7 +8,7 @@ export const parseColor = async (
 ) => {
   if (color.startsWith("#")) {
     return color;
-  } else if (getFunctionRegex().test(color)) {
+  } else if (utils.getFunctionRegex().test(color)) {
     const result = await sandboxedEvalExternal("(" + color + ")", properties);
     return result.toString();
   }

@@ -141,4 +141,5 @@ export interface FeatureInfoState {
   nothingFoundIDs: string[];
   loading: boolean;
   completedVectorLayers: string[];
+  triggerSelectionById: string | null;
 }

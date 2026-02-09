@@ -1,6 +1,6 @@
 import localForage from "localforage";
 import { createSlice } from "@reduxjs/toolkit";
-import { Item } from "@carma/types";
+import { Config, Item } from "@carma/types";
 
 export type ExtendedItem = Item & { replaceId?: string; mergeId?: string };
 
@@ -12,9 +12,7 @@ interface MapLayersState {
   loadingCapabilities: boolean;
   selectedLayer: Item | null;
   allLayers: { Title: string; id: string; layers: Item[] }[];
-  customLayerConfig: {
-    [key: string]: string;
-  }[];
+  customLayerConfig: Config[];
 }
 
 type RootState = {

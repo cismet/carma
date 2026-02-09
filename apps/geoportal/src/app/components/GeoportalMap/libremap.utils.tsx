@@ -233,7 +233,12 @@ export const layersToMapLibreStyle = async (
       const vectorStyle = layer.props.style;
 
       if (vectorStyle) {
-        const response = await fetch(vectorStyle);
+        let response;
+        if (typeof vectorStyle === "string") {
+          response = await fetch(vectorStyle);
+        } else {
+          response = vectorStyle;
+        }
         const additionalStyle = await response.json();
         const layerId = layer.id;
         let spriteId = layerId.replace(":", "_");

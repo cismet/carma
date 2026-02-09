@@ -6,6 +6,7 @@ import booleanIntersects from "@turf/boolean-intersects";
 import Flatbush from "flatbush";
 import bbox from "@turf/bbox";
 import L from "leaflet";
+import envelope from "@turf/envelope";
 
 export const proj4crs3857def =
   "+proj=merc +a=6378137 +b=6378137 +lat_ts=0.0 +lon_0=0.0 +x_0=0.0 +y_0=0 +k=1.0 +units=m +nadgrids=@null +wktext  +no_defs";
@@ -189,5 +190,48 @@ export const createFlatbushIndex = (polygons) => {
     polyIndex.finish();
 
     return polyIndex;
+  }
+};
+
+export const zoomToStyleFeatures = async (styleData, routedMap) => {
+  if (
+    typeof styleData === "object" &&
+    styleData !== null &&
+    "sources" in styleData
+  ) {
+    const allFeatures = [];
+
+    for (const sourceKey in styleData.sources) {
+      const source = styleData.sources[sourceKey];
+      if (source?.data && source.data.type === "FeatureCollection") {
+        const featureCollection = source.data;
+        if (featureCollection.features) {
+          allFeatures.push(...featureCollection.features);
+        }
+      }
+    }
+
+    if (allFeatures.length > 0) {
+      const combinedCollection = {
+        type: "FeatureCollection",
+        features: allFeatures,
+      };
+
+      const bbox = envelope(combinedCollection).bbox;
+      if (bbox) {
+        const map = routedMap?.leafletMap?.leafletElement;
+        if (map) {
+          map.fitBounds(
+            [
+              [bbox[1], bbox[0]],
+              [bbox[3], bbox[2]],
+            ],
+            {
+              padding: [60, 60],
+            }
+          );
+        }
+      }
+    }
   }
 };

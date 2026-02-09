@@ -10,6 +10,7 @@ export { utils };
 
 export { Save } from "./lib/components/Save.tsx";
 export { Share } from "./lib/components/Share.tsx";
+export { CarmaIconLink } from "./lib/components/CarmaIconLink.tsx";
 export { FileUploader } from "./lib/components/FileUploader.tsx";
 export { CarmaMapProviderWrapper } from "./lib/components/CarmaMapProviderWrapper.tsx";
 export { InfoBox } from "./lib/components/InfoBox.tsx";
@@ -41,6 +42,17 @@ export {
   SelectionMapMode,
 } from "./lib/components/SelectionProvider";
 
+export {
+  AdhocFeatureDisplayProvider,
+  useAdhocFeatureDisplay,
+  type AdhocFeature,
+  type AdhocFeatureCollection,
+  type AdhocFeatureCollectionSeed,
+  type AddAdhocFeatureOptions,
+  type RemoveAdhocFeatureOptions,
+  type AdhocMapLibreStyleFeature,
+} from "./lib/components/AdhocFeatureDisplayProvider";
+
 export { LibreMapSelectionContent } from "./lib/components/LibreMapSelectionContent";
 export { TopicMapSelectionContent } from "./lib/components/TopicMapSelectionContent";
 export { ProgressIndicator } from "./lib/components/ProgressIndicator";
@@ -51,6 +63,7 @@ export { useSelectionLibreMap } from "./lib/hooks/useSelectionLibreMap";
 export { useShareUrl, SHORTENER_URL } from "./lib/hooks/useShareUrl";
 export { useProgress } from "./lib/hooks/useProgress";
 export { useCesiumModels } from "./lib/hooks/useCesiumModels";
+export { useAdhocCesiumFeatureDisplay } from "./lib/hooks/useAdhocCesiumFeatureDisplay";
 export { useUrlFeatureSelection } from "./lib/hooks/useUrlFeatureSelection";
 export {
   useMapHashRouting,
@@ -61,6 +74,7 @@ export {
   defaultBackgroundConfigurations,
   backgroundConfWithFastOrtho2024,
 } from "./lib/utils/topicmapConfigs";
+export { buildInfoBoxStylingProps } from "./lib/utils/adhoc-feature-utils";
 // Feature functions moved to @carma-mapping/utils
 // createUrl, functionToFeature, objectToFeature, createVectorFeature, getInfoBoxControlObjectFromMappingAndVectorFeature
 

@@ -11,17 +11,20 @@ import {
   getSelectedFeature,
   setSelectedFeature,
 } from "../../store/slices/features";
+import { cn } from "@carma-commons/utils";
 
 interface VisibilityToggleProps {
   visible: boolean;
   id: string;
   isBackgroundLayer?: boolean;
+  disabled?: boolean;
 }
 
 const VisibilityToggle = ({
   visible,
   id,
   isBackgroundLayer,
+  disabled,
 }: VisibilityToggleProps) => {
   const dispatch = useDispatch();
   const backgroundLayer = useSelector(getBackgroundLayer);
@@ -29,7 +32,11 @@ const VisibilityToggle = ({
 
   return (
     <button
-      className="hover:text-gray-500 text-gray-600 flex items-center justify-center"
+      className={cn(
+        "hover:text-gray-500 text-gray-600 flex items-center justify-center",
+        disabled && "opacity-40 cursor-not-allowed"
+      )}
+      disabled={disabled}
       onClick={(e) => {
         if (visible) {
           if (isBackgroundLayer) {

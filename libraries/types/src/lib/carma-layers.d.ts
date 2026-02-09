@@ -39,7 +39,7 @@ type OtherLayerProps = Partial<LayerProps & Item> & {
   accentColor?: string;
 };
 
-export type Layer = {
+type BaseLayer = {
   title: string;
   id: string;
   opacity: number;
@@ -50,13 +50,27 @@ export type Layer = {
   conf?: CarmaConfig;
   icon?: string;
   other?: OtherLayerProps;
-} & (
-  | {
+  layerInfo?: {
+    accentColor?: string;
+    title?: string;
+    keywords?: string[];
+    description?: string;
+    tags?: string[];
+    thumbnail?: string;
+    vectorStyle?: string;
+    vectorLegend?: string;
+    [key: string]: unknown;
+  };
+};
+
+export type Layer =
+  | (BaseLayer & {
+      type?: "layer";
       layerType: "wmts" | "wmts-nt";
       props: LayerProps;
-    }
-  | vectorProps
-);
+    })
+  | (BaseLayer & vectorProps & { type?: "layer" })
+  | (BaseLayer & objectProps);
 
 type Link = {
   type: "link";
@@ -82,7 +96,7 @@ export type SavedLayerConfig = {
   type: string;
   id: string;
   thumbnail?: string;
-  layers: Layer[];
+  layers?: Layer[];
   serviceName: string;
 };
 
@@ -91,23 +105,31 @@ export type layerProps = {
   props: XMLLayer;
 };
 
+export type VectorStyleProps = {
+  style: string | object;
+  maxZoom?: number;
+  minZoom?: number;
+  legend?: {
+    format: string;
+    OnlineResource: string;
+    size: [number, number];
+  }[];
+  metaData?: {
+    Format: string;
+    OnlineResource: string;
+    type: string;
+  }[];
+};
+
 export type vectorProps = {
   layerType: "vector";
-  props: {
-    style: string;
-    maxZoom?: number;
-    minZoom?: number;
-    legend?: {
-      format: string;
-      OnlineResource: string;
-      size: [number, number];
-    }[];
-    metaData?: {
-      Format: string;
-      OnlineResource: string;
-      type: string;
-    }[];
-  };
+  props: VectorStyleProps;
+};
+
+export type objectProps = {
+  type: "object";
+  layerType: "vector";
+  props: VectorStyleProps;
 };
 
 type Service = {
@@ -116,7 +138,7 @@ type Service = {
 };
 
 type tmpLayer = {
-  type: "layer";
+  type: "layer" | "object";
 } & layerProps;
 
 type Feature = {
@@ -152,6 +174,9 @@ export type Item = {
   isDraft?: boolean;
   vectorStyle?: string;
   vectorLegend?: string;
+  ff?: string;
+  replaceId?: string;
+  mergeId?: string;
 } & (tmpLayer | Link | Feature | Collection);
 
 /** Bounding box as defined in WMS Capabilities (LatLonBoundingBox) */

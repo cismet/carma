@@ -64,6 +64,8 @@ const MEASUREMENTS_BASE_CONFIG = {
   localStorageKey: "@" + APP_KEY + ".app.measurements",
 };
 
+import { useAdhocFeatureRehydrate } from "./hooks/use-adhoc-feature-rehydrate";
+
 import { getCustomFeatureFlags } from "./store/slices/layers";
 import {
   getShowLoginModal,
@@ -87,6 +89,11 @@ function CesiumDevConsoleIntegration() {
   return null;
 }
 
+function AdhocFeatureRehydration() {
+  useAdhocFeatureRehydrate();
+  return null;
+}
+
 function MeasurementsWrapper({
   children,
   baseConfig,
@@ -106,7 +113,7 @@ function MeasurementsWrapper({
       ...baseConfig,
       snappingEnabled: flags.isSnappingEnabled ?? baseConfig.snappingEnabled,
     }),
-    [flags.isSnappingEnabled]
+    [baseConfig, flags.isSnappingEnabled]
   );
 
   return (
@@ -180,6 +187,7 @@ function App({ published }: { published?: boolean }) {
                   baseConfig={MEASUREMENTS_BASE_CONFIG}
                 >
                   <ErrorBoundary FallbackComponent={AppErrorFallback}>
+                    <AdhocFeatureRehydration />
                     <div className={TAILWIND_CLASSNAMES_FULLSCREEN_FIXED}>
                       {isLoadingConfig && (
                         <div

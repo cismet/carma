@@ -5,6 +5,7 @@ import {
   faChevronLeft,
   faChevronRight,
   faChevronUp,
+  faMagnifyingGlass,
 } from "@fortawesome/free-solid-svg-icons";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import type { SliderSingleProps } from "antd";
@@ -12,7 +13,10 @@ import { forwardRef, useContext, useEffect, useRef } from "react";
 import { TopicMapContext } from "react-cismap/contexts/TopicMapContextProvider";
 import { useDispatch, useSelector } from "react-redux";
 
-import { SELECTED_LAYER_INDEX } from "@carma-appframeworks/portals";
+import {
+  SELECTED_LAYER_INDEX,
+  useAdhocFeatureDisplay,
+} from "@carma-appframeworks/portals";
 import { cn } from "@carma-commons/utils";
 
 import {
@@ -37,7 +41,13 @@ import BaseLayerSelection from "./BaseLayerSelection";
 import LayerInfo from "./LayerInfo";
 import OpacitySlider from "./OpacitySlider";
 import VisibilityToggle from "./VisibilityToggle";
-import { LayerIcon } from "@carma-mapping/components";
+import {
+  LayerIcon,
+  useMapFrameworkSwitcherContext,
+} from "@carma-mapping/components";
+import { resolveAdhocStyleData } from "../../helper/adhoc-feature-utils";
+import { zoomToStyleFeatures } from "../../helper/gisHelper";
+import { setTriggerSelectionById } from "../../store/slices/features";
 
 type Ref = HTMLDivElement;
 
@@ -72,6 +82,23 @@ const SecondaryView = forwardRef<Ref, SecondaryViewProps>(({}, ref) => {
     ? "gärten"
     : undefined;
   const isBaseLayer = selectedLayerIndex === -1;
+
+  const { setSelectedFeatureId, setShouldFocusSelected } =
+    useAdhocFeatureDisplay();
+  const { isLeaflet, isCesium } = useMapFrameworkSwitcherContext();
+
+  useEffect(() => {
+    const handleEscapeKey = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        dispatch(setSelectedLayerIndexNoSelection());
+      }
+    };
+
+    document.addEventListener("keydown", handleEscapeKey);
+    return () => {
+      document.removeEventListener("keydown", handleEscapeKey);
+    };
+  }, [dispatch]);
 
   useEffect(() => {
     const findElementByIdRecursive = (element: Element, id: string) => {
@@ -234,13 +261,35 @@ const SecondaryView = forwardRef<Ref, SecondaryViewProps>(({}, ref) => {
                   opacity={layer.opacity}
                   id={layer.id}
                   isVisible={layer.visible}
+                  disabled={isCesium}
                 />
               </div>
             </div>
+            {layer.type === "object" && (
+              <button
+                className="hover:text-gray-500 text-gray-600 flex items-center justify-center"
+                onClick={async (e) => {
+                  e.stopPropagation();
+                  const styleData = await resolveAdhocStyleData(
+                    layer.props.style
+                  );
+                  if (isLeaflet) {
+                    await zoomToStyleFeatures(styleData, routedMapRef);
+                    dispatch(setTriggerSelectionById(layer.id));
+                  } else if (isCesium) {
+                    setSelectedFeatureId(layer.id);
+                    setShouldFocusSelected(true);
+                  }
+                }}
+              >
+                <FontAwesomeIcon icon={faMagnifyingGlass} />
+              </button>
+            )}
             <VisibilityToggle
               visible={layer.visible}
               id={layer.id}
               isBackgroundLayer={isBaseLayer}
+              disabled={isCesium}
             />
             <button
               onClick={() => {

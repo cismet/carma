@@ -421,6 +421,48 @@ const createVectorFeature = async (
   let blockLegacyGetFeatureInfo =
     layer.conf && "blockLegacyGetFeatureInfo" in layer.conf;
 
+  let featureProperties = null;
+
+  const layerInfo = layer.layerInfo;
+  let accentColor = null;
+  if (layerInfo && layerInfo.accentColor) {
+    accentColor = layerInfo.accentColor;
+  }
+
+  if ("lazyInfoBox" in layer.conf) {
+    let parsedInfo = {};
+    if (properties.info && typeof properties.info === "string") {
+      try {
+        parsedInfo = JSON.parse(properties.info);
+      } catch (e) {
+        console.error("Failed to parse info property:", e);
+      }
+    }
+
+    const parsedProperties: Record<string, unknown> = {};
+    for (const [key, value] of Object.entries(properties)) {
+      if (key === "info") continue;
+      if (
+        typeof value === "string" &&
+        (value.startsWith("[") || value.startsWith("{"))
+      ) {
+        try {
+          parsedProperties[key] = JSON.parse(value);
+        } catch {
+          // Ignore parsing errors, keep original value
+        }
+      }
+    }
+
+    featureProperties = {
+      properties: {
+        ...properties,
+        ...parsedInfo,
+        ...parsedProperties,
+      },
+    };
+  }
+
   if (layer.conf?.infoboxMapping && Array.isArray(layer.conf.infoboxMapping)) {
     result = (layer.conf.infoboxMapping as string[]).join("\n");
   }
@@ -434,17 +476,22 @@ const createVectorFeature = async (
         .join("\n");
     }
 
-    const featureProperties = result.includes("function")
+    featureProperties = result.includes("function")
       ? await functionToFeature(properties, result)
       : await objectToFeature(properties, result);
+
     if (!featureProperties) {
       return undefined;
     }
+  }
+
+  if (featureProperties) {
     const genericLinks = (featureProperties?.properties?.genericLinks ||
       []) as any[];
 
     feature = {
       properties: {
+        ...(accentColor !== null && { accentColor }),
         ...featureProperties.properties,
         genericLinks:
           blockLegacyGetFeatureInfo || !legacyFeatureInfoUrl
@@ -467,6 +514,7 @@ const createVectorFeature = async (
         selectedVectorFeature.geometry.type === "MultiPolygon",
     };
   }
+
   return feature;
 };
 

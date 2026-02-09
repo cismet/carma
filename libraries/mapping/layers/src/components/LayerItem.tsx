@@ -81,6 +81,7 @@ const LayerItem = ({
   const showInfo = selectedLayer?.id === layer.id;
   const canShowInfo =
     layer.type === "layer" ||
+    layer.type === "object" ||
     (layer.type === "link" && layer.description) ||
     (layer.type === "collection" && layer.description);
   const canFavoriteItem =

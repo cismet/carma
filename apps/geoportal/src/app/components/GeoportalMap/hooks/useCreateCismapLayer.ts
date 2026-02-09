@@ -6,14 +6,19 @@ import {
   useState,
 } from "react";
 import type { Dispatch, Store } from "@reduxjs/toolkit";
-import type { LatLng, Map as LeafletMap } from "leaflet";
+import L, { type LatLng, type Map as LeafletMap } from "leaflet";
+import centroid from "@turf/centroid";
 
 import CismapLayer from "react-cismap/CismapLayer";
 
 import type { Layer } from "@carma/types";
 import { useFeatureFlags } from "@carma-providers/feature-flag";
 
-import { setSelectedFeature } from "../../../store/slices/features";
+import {
+  clearTriggerSelectionById,
+  getTriggerSelectionById,
+  setSelectedFeature,
+} from "../../../store/slices/features";
 import { setLayersIdle, updateLayer } from "../../../store/slices/mapping";
 
 import { UIMode } from "../../../store/slices/ui";
@@ -209,7 +214,9 @@ export const useCreateCismapLayers = (
       if (globalHits[selectedFeature.id]) {
         const hits = globalHits[selectedFeature.id];
         const vectorId =
-          selectedFeature.vectorId || selectedFeature.properties.sourceProps.id;
+          selectedFeature.vectorId ||
+          selectedFeature.properties.sourceProps.id ||
+          selectedFeature.properties?.wmsProps?.id;
         if (hits) {
           hits.forEach((hit) => {
             if (hit.id === vectorId || hit?.properties?.id === vectorId) {
@@ -283,6 +290,70 @@ export const useCreateCismapLayers = (
               // Store map reference outside of Redux to avoid serialization issues
               if (maplibreMapsRef) {
                 maplibreMapsRef.current.set(layer.id, map);
+              }
+
+              const triggerSelectionById = getTriggerSelectionById(
+                store.getState()
+              );
+              if (triggerSelectionById !== layer.id) {
+                return;
+              }
+              dispatch(clearTriggerSelectionById());
+
+              if (leafletMap && modeRef.current === UIMode.DEFAULT) {
+                const style = map.getStyle();
+                if (style?.sources) {
+                  const featuresWithGeometry: GeoJSON.Feature[] = [];
+
+                  for (const sourceKey in style.sources) {
+                    const source = style.sources[sourceKey] as any;
+                    if (
+                      source?.data &&
+                      source.data.type === "FeatureCollection"
+                    ) {
+                      const featureCollection = source.data;
+                      if (featureCollection.features) {
+                        featuresWithGeometry.push(
+                          ...featureCollection.features.filter(
+                            (f: GeoJSON.Feature) => f.geometry
+                          )
+                        );
+                      }
+                    }
+                  }
+
+                  const autoSelect = layer.conf?.autoSelect;
+
+                  if (autoSelect === false) {
+                    return;
+                  }
+
+                  let featureToSelect: GeoJSON.Feature | undefined;
+
+                  if (typeof autoSelect === "string") {
+                    featureToSelect = featuresWithGeometry.find(
+                      (f) =>
+                        f.id === autoSelect || f.properties?.id === autoSelect
+                    );
+                  } else if (featuresWithGeometry.length === 1) {
+                    featureToSelect = featuresWithGeometry[0];
+                  }
+
+                  if (featureToSelect?.geometry) {
+                    const center = centroid(
+                      featureToSelect as GeoJSON.Feature<GeoJSON.Geometry>
+                    );
+                    const [lng, lat] = center.geometry.coordinates;
+                    const latlngPoint = L.latLng(lat, lng);
+
+                    leafletMap.fireEvent("click", {
+                      latlng: latlngPoint,
+                      layerPoint: leafletMap.latLngToLayerPoint(latlngPoint),
+                      containerPoint:
+                        leafletMap.latLngToContainerPoint(latlngPoint),
+                    });
+                  }
+                }
               }
             },
             onStyleIdle: (e) => {

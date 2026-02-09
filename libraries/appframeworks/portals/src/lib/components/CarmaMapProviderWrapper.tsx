@@ -8,6 +8,7 @@ import {
 import { TopicMapContextProvider } from "react-cismap/contexts/TopicMapContextProvider";
 
 import { GazDataProvider } from "./GazDataProvider";
+import { AdhocFeatureDisplayProvider } from "./AdhocFeatureDisplayProvider";
 import { SelectionProvider } from "./SelectionProvider";
 import {
   MapStyleProvider,
@@ -33,14 +34,17 @@ const createLayerSelectors = {
   getLayerById: (id: string) => (state: PortalRootState) => {
     const allLayers = state?.mapLayers?.allLayers ?? [];
     for (const category of allLayers) {
-      const found = category.layers?.find((layer: { id: string }) => layer.id === id);
+      const found = category.layers?.find(
+        (layer: { id: string }) => layer.id === id
+      );
       if (found) return found;
     }
     return undefined;
   },
 
   hasLayerById: (id: string) => (state: PortalRootState) =>
-    state?.mapping?.layers?.some((layer: { id: string }) => layer.id === id) ?? false,
+    state?.mapping?.layers?.some((layer: { id: string }) => layer.id === id) ??
+    false,
 };
 
 // Type for the portal Redux state shape (extends APIRootState for compatibility)
@@ -92,8 +96,10 @@ const createUseHasLayerById =
   (id: string): boolean => {
     // These callbacks need to be stable for useSyncExternalStore
     // We can't use useCallback here since this is called as a hook by consumers
-    const subscribe = (onStoreChange: () => void) => store.subscribe(onStoreChange);
-    const getSnapshot = () => createLayerSelectors.hasLayerById(id)(store.getState());
+    const subscribe = (onStoreChange: () => void) =>
+      store.subscribe(onStoreChange);
+    const getSnapshot = () =>
+      createLayerSelectors.hasLayerById(id)(store.getState());
 
     // eslint-disable-next-line react-hooks/rules-of-hooks
     return useSyncExternalStore(subscribe, getSnapshot, getSnapshot);
@@ -185,29 +191,36 @@ export const CarmaMapProviderWrapper = ({
     <AuthProvider>
       <SandboxedEvalProvider>
         <GazDataProvider config={gazDataConfig}>
-          <SelectionProvider>
-            <MapStyleProvider config={mapStyleConfig}>
-              <TopicMapContextProvider
-                infoBoxPixelWidth={350}
-                {...topicMapConfig}
-              >
-                <OverlayTourProvider transparency={transparency} color={color}>
-                  <CesiumContextProvider
-                    //initialViewerState={defaultCesiumState}
-                    // TODO move these to store/slice setup ?
-                    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                    providerConfig={cesiumOptions.providerConfig as any}
-                    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                    tilesetConfigs={cesiumOptions.tilesetConfigs as any}
+          <AdhocFeatureDisplayProvider>
+            <SelectionProvider>
+              <MapStyleProvider config={mapStyleConfig}>
+                <TopicMapContextProvider
+                  infoBoxPixelWidth={350}
+                  {...topicMapConfig}
+                >
+                  <OverlayTourProvider
+                    transparency={transparency}
+                    color={color}
                   >
-                    <LibreContextProvider>
-                      <MapSelectionProvider>{wrappedChildren}</MapSelectionProvider>
-                    </LibreContextProvider>
-                  </CesiumContextProvider>
-                </OverlayTourProvider>
-              </TopicMapContextProvider>
-            </MapStyleProvider>
-          </SelectionProvider>
+                    <CesiumContextProvider
+                      //initialViewerState={defaultCesiumState}
+                      // TODO move these to store/slice setup ?
+                      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                      providerConfig={cesiumOptions.providerConfig as any}
+                      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                      tilesetConfigs={cesiumOptions.tilesetConfigs as any}
+                    >
+                      <LibreContextProvider>
+                        <MapSelectionProvider>
+                          {wrappedChildren}
+                        </MapSelectionProvider>
+                      </LibreContextProvider>
+                    </CesiumContextProvider>
+                  </OverlayTourProvider>
+                </TopicMapContextProvider>
+              </MapStyleProvider>
+            </SelectionProvider>
+          </AdhocFeatureDisplayProvider>
         </GazDataProvider>
       </SandboxedEvalProvider>
     </AuthProvider>

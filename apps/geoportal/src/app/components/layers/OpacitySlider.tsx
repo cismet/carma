@@ -15,6 +15,7 @@ interface OpacitySliderProps {
   isVisible?: boolean;
   opacity: number;
   id: string;
+  disabled?: boolean;
 }
 
 const formatter: NonNullable<SliderSingleProps["tooltip"]>["formatter"] = (
@@ -26,6 +27,7 @@ const OpacitySlider = ({
   opacity,
   isVisible,
   id,
+  disabled,
 }: OpacitySliderProps) => {
   const dispatch = useDispatch();
   const { routedMapRef } = useContext<typeof TopicMapContext>(TopicMapContext);
@@ -39,7 +41,7 @@ const OpacitySlider = ({
         routedMapRef?.leafletMap?.leafletElement.dragging.disable();
       }}
       step={0.1}
-      disabled={!isVisible}
+      disabled={!isVisible || disabled}
       onChange={(value) => {
         if (isBackgroundLayer) {
           dispatch(changeBackgroundOpacity({ opacity: value }));
