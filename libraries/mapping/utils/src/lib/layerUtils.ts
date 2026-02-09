@@ -245,6 +245,7 @@ export const parseToMapLayer = async (
           layerName: layer.name,
           capabilitiesUrl: capabilitiesUrl,
           ...metaData,
+          ...layerInfo,
         },
         layerInfo: {
           ...layerInfo,
