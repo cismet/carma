@@ -1189,7 +1189,7 @@ export type FeatureType =
   | "leuchten"
   | "tdta_standort_mast"
   | "schaltstelle"
-  | "mauerlasche"
+  | "mauerlaschen"
   | "leitungen"
   | "abzweigdose";
 
@@ -1201,7 +1201,7 @@ const getQueryByFeatureType = (featureType: FeatureType) => {
       return tdtaStandortMastByIdQuery;
     case "schaltstelle":
       return schaltstelleByIdQuery;
-    case "mauerlasche":
+    case "mauerlaschen":
       return mauerlascheByIdQuery;
     case "leitungen":
       return leitungByIdQuery;
