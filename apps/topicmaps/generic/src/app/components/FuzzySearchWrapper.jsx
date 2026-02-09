@@ -55,7 +55,7 @@ const FuzzySearchWrapper = ({
             containerPoint: map.latLngToContainerPoint(latlngPoint),
           });
         }
-      }, 300);
+      }, 500);
     }
   };
 
