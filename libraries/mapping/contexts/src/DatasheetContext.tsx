@@ -16,6 +16,8 @@ import {
 } from "react";
 
 export interface DatasheetContextType {
+  /** Whether a DatasheetProvider is mounted (false when using default context) */
+  isEnabled: boolean;
   isDatasheetOpen: boolean;
   toggleDatasheet: () => void;
   openDatasheet: () => void;
@@ -23,6 +25,7 @@ export interface DatasheetContextType {
 }
 
 const defaultContext: DatasheetContextType = {
+  isEnabled: false,
   isDatasheetOpen: false,
   toggleDatasheet: () => {},
   openDatasheet: () => {},
@@ -53,6 +56,7 @@ export const DatasheetProvider = ({ children }: DatasheetProviderProps) => {
 
   const value = useMemo(
     () => ({
+      isEnabled: true,
       isDatasheetOpen,
       toggleDatasheet,
       openDatasheet,

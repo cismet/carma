@@ -39,6 +39,7 @@ import { proj4crs3857def, proj4crs4326def } from "@carma-mapping/utils";
 import { useSelectionLibreMap } from "../hooks/useSelectionLibreMap";
 import { useLibreContext } from "../contexts/LibreContext";
 import { useMapSelection } from "../contexts/MapSelectionContext";
+import { useDatasheet } from "../contexts/DatasheetContext";
 import { useClusterMarkers } from "../hooks/useClusterMarkers";
 import {
   WUPPERTAL_DEFAULT_STYLE,
@@ -162,6 +163,12 @@ export const LibreMap = ({
   const mapSelectionCtxRef = useRef(mapSelectionCtx);
   mapSelectionCtxRef.current = mapSelectionCtx;
   const lastHandledVersionRef = useRef(0);
+
+  // DatasheetContext: when a DatasheetProvider is mounted, isEnabled is true
+  // and openDatasheet is a real function. Otherwise createFeature gets undefined.
+  const { isEnabled: datasheetEnabled, openDatasheet } = useDatasheet();
+  const openDatasheetRef = useRef(datasheetEnabled ? openDatasheet : undefined);
+  openDatasheetRef.current = datasheetEnabled ? openDatasheet : undefined;
 
   // Helper: clear all visual selection state on the map
   const clearVisualSelection = useCallback((mapInstance: maplibregl.Map) => {
@@ -512,7 +519,8 @@ export const LibreMap = ({
               selectedVectorFeature,
               layerMapping,
               mapInstance,
-              useRouting
+              useRouting,
+              openDatasheetRef.current
             );
           }
 
@@ -965,7 +973,8 @@ export const LibreMap = ({
           ctxRawFeature,
           layerMapping,
           mapInstance,
-          useRoutingRef.current
+          useRoutingRef.current,
+          openDatasheetRef.current
         ).then((feature) => {
           if (feature) {
             setSelectedFeature(feature);
@@ -1048,7 +1057,8 @@ export const LibreMap = ({
               selectedVectorFeature,
               layerMapping,
               mapInstance,
-              useRouting
+              useRouting,
+              openDatasheetRef.current
             );
           }
 

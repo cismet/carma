@@ -14,8 +14,6 @@ import {
   useVisibleMapFeatures,
   type VisibleFeature,
 } from "@carma-mapping/utils";
-import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
-import { faFile } from "@fortawesome/free-solid-svg-icons";
 import type maplibregl from "maplibre-gl";
 
 // Convert ALL CAPS to Title Case
@@ -192,8 +190,8 @@ const TestSelectionList = () => {
 
 const BelisPlaygroundContent = () => {
   const { map } = useLibreContext();
-  const { selectedFeature, selectedFeatureId, rawFeature } = useMapSelection();
-  const { openDatasheet, closeDatasheet } = useDatasheet();
+  const { selectedFeature, rawFeature } = useMapSelection();
+  const { closeDatasheet } = useDatasheet();
   const miniMapRef = useRef<maplibregl.Map | null>(null);
 
   // Compute mini-map center from the raw feature geometry
@@ -250,50 +248,21 @@ const BelisPlaygroundContent = () => {
             >
               <DatasheetLayout
                 mainMap={
-                  <div style={{ position: "relative", width: "100%", height: "100%" }}>
-                    <CarmaMap
-                      mapEngine="maplibre"
-                      embedded
-                      terrainControl={false}
-                      preserveDrawingBuffer
-                      backgroundLayers="basemap_grey@60"
-                      overrideGlyphs="https://tiles.cismet.de/fonts/{fontstack}/{range}.pbf"
-                      libreLayers={[
-                        {
-                          type: "vector",
-                          name: "Leuchten",
-                          style: "https://tiles.cismet.de/belis/style.json",
-                        },
-                      ]}
-                    />
-                    {/* Floating datasheet trigger button, overlaid near the info box */}
-                    {selectedFeatureId && (
-                      <button
-                        onClick={openDatasheet}
-                        title="Datenblatt"
-                        style={{
-                          position: "absolute",
-                          bottom: 12,
-                          right: 12,
-                          zIndex: 1000,
-                          width: 36,
-                          height: 36,
-                          borderRadius: "50%",
-                          background: "#0078a8",
-                          color: "#fff",
-                          border: "2px solid #fff",
-                          boxShadow: "0 2px 8px rgba(0,0,0,0.3)",
-                          cursor: "pointer",
-                          display: "flex",
-                          alignItems: "center",
-                          justifyContent: "center",
-                          fontSize: 16,
-                        }}
-                      >
-                        <FontAwesomeIcon icon={faFile} />
-                      </button>
-                    )}
-                  </div>
+                  <CarmaMap
+                    mapEngine="maplibre"
+                    embedded
+                    terrainControl={false}
+                    preserveDrawingBuffer
+                    backgroundLayers="basemap_grey@60"
+                    overrideGlyphs="https://tiles.cismet.de/fonts/{fontstack}/{range}.pbf"
+                    libreLayers={[
+                      {
+                        type: "vector",
+                        name: "Leuchten",
+                        style: "https://tiles.cismet.de/belis/style.json",
+                      },
+                    ]}
+                  />
                 }
                 datasheetContent={
                   <div
