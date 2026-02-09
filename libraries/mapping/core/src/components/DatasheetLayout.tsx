@@ -8,7 +8,11 @@ import {
 } from "react";
 import { useDatasheet } from "@carma-mapping/contexts";
 
-type AnimationState = "map" | "animating-open" | "datasheet" | "animating-close";
+type AnimationState =
+  | "map"
+  | "animating-open"
+  | "datasheet"
+  | "animating-close";
 
 export interface DatasheetLayoutProps {
   mainMap: ReactNode;
@@ -43,7 +47,7 @@ export const DatasheetLayout = ({
   transitionDuration = 400,
   onReturnToMap,
 }: DatasheetLayoutProps) => {
-  const { isDatasheetOpen } = useDatasheet();
+  const { isDatasheetOpen, closeDatasheet } = useDatasheet();
   const containerRef = useRef<HTMLDivElement>(null);
   const snapshotRef = useRef<HTMLImageElement>(null);
 
@@ -210,6 +214,7 @@ export const DatasheetLayout = ({
     ...getMiniMapPosition(),
     display: showMiniMap ? "block" : "none",
     zIndex: 10,
+    cursor: "pointer",
   };
 
   return (
@@ -221,8 +226,23 @@ export const DatasheetLayout = ({
       <div style={datasheetStyle}>
         <div style={{ flex: 1, overflow: "auto" }}>{datasheetContent}</div>
 
-        {/* Live mini-map */}
-        <div style={miniMapContainerStyle}>{miniMap}</div>
+        {/* Live mini-map: click overlay to return to full map view */}
+        <div style={miniMapContainerStyle}>
+          {miniMap}
+          <div
+            onClick={closeDatasheet}
+            title="Zur Karte"
+            style={{
+              position: "absolute",
+              top: 0,
+              left: 0,
+              width: "100%",
+              height: "100%",
+              cursor: "pointer",
+              zIndex: 1,
+            }}
+          />
+        </div>
       </div>
 
       {/* Snapshot image for CSS transition */}
