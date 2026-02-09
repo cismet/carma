@@ -321,8 +321,8 @@ query MyQuery($id: Int!) {
 }`;
 
 queries.tdta_leuchten_by_id = `
-query MyQuery {
-  tdta_leuchten(where: {id: {_eq: 10}}) {
+query MyQuery($id: Int!) {
+  tdta_leuchten(where: {id: {_eq: $id}}) {
     anschlussleistung_1dk
     anschlussleistung_2dk
     anzahl_1dk
@@ -445,7 +445,6 @@ query MyQuery {
       vorschaltgeraet
     }
   }
-}
 }`;
 
 queries.leitung_by_id = `
