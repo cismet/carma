@@ -121,3 +121,7 @@ export const infobausteinTemplateQuery = gql`
 export const infobausteinTemplateByIdQuery = gql`
   ${queries.infobaustein_template_by_id}
 `;
+
+export const mauerlascheByIdQuery = gql`
+  ${queries.mauerlasche_by_id}
+`;

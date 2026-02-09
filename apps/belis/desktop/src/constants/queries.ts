@@ -157,6 +157,73 @@ query MyQuery {
   }
 }`;
 
+queries.mauerlasche_by_id = `
+query MyQuery($id: Int!) {
+  mauerlasche(where: {id: {_eq: $id}}) {
+    bemerkung
+    erstellungsjahr
+    dms_url {
+      description
+      id
+      name
+      typ
+      url {
+        id
+        object_name
+        url_base {
+          server
+          prot_prefix
+          id
+          path
+        }
+      }
+    }
+    dokumenteArray {
+      dms_url {
+        description
+        id
+        name
+        url {
+          object_name
+          id
+          url_base {
+            server
+            prot_prefix
+            path
+            id
+          }
+        }
+        typ
+      }
+      id
+      fk_dokument
+      mauerlasche_reference
+    }
+    fk_geom
+    fk_material
+    fk_strassenschluessel
+    foto
+    geom {
+      geo_field
+      id
+    }
+    id
+    is_deleted
+    laufende_nummer
+    material_mauerlasche {
+      bezeichnung
+      id
+    }
+    monteur
+    pruefdatum
+    tkey_strassenschluessel {
+      id
+      pk
+      strasse
+    }
+  }
+}`;
+
 queries.anlagengruppe = `
 query MyQuery {
   anlagengruppe {
