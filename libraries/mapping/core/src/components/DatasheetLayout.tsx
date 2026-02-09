@@ -34,26 +34,27 @@ export const DatasheetLayout = ({
     overflow: "hidden",
   };
 
+  const layerStyle = (visible: boolean): CSSProperties => ({
+    position: "absolute",
+    top: 0,
+    left: 0,
+    width: "100%",
+    height: "100%",
+    visibility: visible ? "visible" : "hidden",
+    pointerEvents: visible ? "auto" : "none",
+  });
+
   return (
     <div style={containerStyle}>
-      {/* Main map: always mounted, visibility toggled via display */}
-      <div
-        style={{
-          display: isDatasheetOpen ? "none" : "block",
-          width: "100%",
-          height: "100%",
-        }}
-      >
-        {mainMap}
-      </div>
+      {/* Main map: always mounted, keeps canvas dimensions via visibility */}
+      <div style={layerStyle(!isDatasheetOpen)}>{mainMap}</div>
 
       {/* Datasheet content */}
       <div
         style={{
-          display: isDatasheetOpen ? "flex" : "none",
+          ...layerStyle(isDatasheetOpen),
+          display: "flex",
           flexDirection: "column",
-          width: "100%",
-          height: "100%",
           background: "#fff",
         }}
       >

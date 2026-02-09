@@ -19,6 +19,8 @@ import {
   type VisibleFeature,
 } from "@carma-mapping/utils";
 import type maplibregl from "maplibre-gl";
+import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
+import { faMap } from "@fortawesome/free-solid-svg-icons";
 
 // Convert ALL CAPS to Title Case
 const toTitleCase = (str: string): string => {
@@ -311,7 +313,7 @@ const BelisPlaygroundContent = () => {
         <div className="flex-1 flex flex-col min-h-0">
           <div className="mx-3 my-2 flex-1 flex flex-col min-h-0">
             <CustomCard
-              title="Karte"
+              title={isDatasheetOpen ? "Datenblatt" : "Karte"}
               style={{ flex: 1, minHeight: 0 }}
               extra={
                 <div className="flex items-center gap-4">
@@ -377,20 +379,21 @@ const BelisPlaygroundContent = () => {
                         top: 6,
                         right: 6,
                         zIndex: 10,
-                        width: 24,
-                        height: 24,
+                        width: 28,
+                        height: 28,
                         borderRadius: "50%",
                         border: "none",
                         background: "rgba(0,0,0,0.5)",
                         color: "#fff",
                         fontSize: 14,
-                        lineHeight: "24px",
-                        textAlign: "center",
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
                         cursor: "pointer",
                         padding: 0,
                       }}
                     >
-                      ✕
+                      <FontAwesomeIcon icon={faMap} />
                     </button>
                   )}
                   <LibreContextProvider>
