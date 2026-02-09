@@ -353,59 +353,60 @@ const BelisPlaygroundContent = () => {
                   }
                   onReturnToMap={handleReturnToMap}
                 />
+                {/* Mini-map overlay, bottom-right */}
+                <div
+                  style={{
+                    position: "absolute",
+                    bottom: 16,
+                    right: 16,
+                    width: 350,
+                    height: 220,
+                    borderRadius: 8,
+                    overflow: "hidden",
+                    boxShadow: "0 4px 20px rgba(0,0,0,0.3)",
+                    zIndex: 30,
+                    visibility: isDatasheetOpen ? "visible" : "hidden",
+                  }}
+                >
+                  {isDatasheetOpen && (
+                    <button
+                      onClick={closeDatasheet}
+                      title="Zur Karte"
+                      style={{
+                        position: "absolute",
+                        top: 6,
+                        right: 6,
+                        zIndex: 10,
+                        width: 24,
+                        height: 24,
+                        borderRadius: "50%",
+                        border: "none",
+                        background: "rgba(0,0,0,0.5)",
+                        color: "#fff",
+                        fontSize: 14,
+                        lineHeight: "24px",
+                        textAlign: "center",
+                        cursor: "pointer",
+                        padding: 0,
+                      }}
+                    >
+                      ✕
+                    </button>
+                  )}
+                  <LibreContextProvider>
+                    <CarmaMap
+                      mapEngine="maplibre"
+                      embedded
+                      miniMap
+                      backgroundLayers="basemap_relief@60"
+                      overrideGlyphs="https://tiles.cismet.de/fonts/{fontstack}/{range}.pbf"
+                      libreLayers={BELIS_LAYERS}
+                      setLibreMap={handleMiniMapReady}
+                    />
+                  </LibreContextProvider>
+                </div>
               </div>
             </CustomCard>
-          </div>
-        </div>
-        {/* Third column: mini-map at bottom for debugging */}
-        <div className="w-[380px] shrink-0 flex flex-col min-h-0 mx-3 my-2">
-          <div className="flex-1" />
-          <div
-            style={{
-              position: "relative",
-              width: 350,
-              height: 220,
-              borderRadius: 8,
-              overflow: "hidden",
-              boxShadow: "0 4px 20px rgba(0,0,0,0.3)",
-            }}
-          >
-            {isDatasheetOpen && (
-              <button
-                onClick={closeDatasheet}
-                title="Zur Karte"
-                style={{
-                  position: "absolute",
-                  top: 6,
-                  right: 6,
-                  zIndex: 10,
-                  width: 24,
-                  height: 24,
-                  borderRadius: "50%",
-                  border: "none",
-                  background: "rgba(0,0,0,0.5)",
-                  color: "#fff",
-                  fontSize: 14,
-                  lineHeight: "24px",
-                  textAlign: "center",
-                  cursor: "pointer",
-                  padding: 0,
-                }}
-              >
-                ✕
-              </button>
-            )}
-            <LibreContextProvider>
-              <CarmaMap
-                mapEngine="maplibre"
-                embedded
-                miniMap
-                backgroundLayers="basemap_relief@60"
-                overrideGlyphs="https://tiles.cismet.de/fonts/{fontstack}/{range}.pbf"
-                libreLayers={BELIS_LAYERS}
-                setLibreMap={handleMiniMapReady}
-              />
-            </LibreContextProvider>
           </div>
         </div>
       </div>

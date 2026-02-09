@@ -169,12 +169,9 @@ export const LibreMap = ({
 
   // DatasheetContext: when a DatasheetProvider is mounted, isEnabled is true
   // and openDatasheet is a real function. Otherwise createFeature gets undefined.
-  const { isEnabled: datasheetEnabled, openDatasheet, closeDatasheet } =
-    useDatasheet();
+  const { isEnabled: datasheetEnabled, openDatasheet } = useDatasheet();
   const openDatasheetRef = useRef(datasheetEnabled ? openDatasheet : undefined);
   openDatasheetRef.current = datasheetEnabled ? openDatasheet : undefined;
-  const closeDatasheetRef = useRef(closeDatasheet);
-  closeDatasheetRef.current = closeDatasheet;
 
   // Helper: clear all visual selection state on the map
   const clearVisualSelection = useCallback((mapInstance: maplibregl.Map) => {
@@ -437,9 +434,6 @@ export const LibreMap = ({
       setContextMap(mapInstance);
 
       mapInstance.on("click", async (e) => {
-        // Close the datasheet view when the user clicks on the map
-        closeDatasheetRef.current();
-
         const point = mapInstance.project([e.lngLat.lng, e.lngLat.lat]);
         const hits = mapInstance.queryRenderedFeatures(point);
         const filteredHits = hits.filter((hit) => {
