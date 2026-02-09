@@ -154,7 +154,6 @@ const GeoportalLayerButton = ({
       <LayerButton
         ref={setNodeRef}
         onClick={(e) => {
-          console.log("xxx", layer);
           e.stopPropagation();
           console.debug(
             "onClick LayerButton settings clickFromInfoView",
