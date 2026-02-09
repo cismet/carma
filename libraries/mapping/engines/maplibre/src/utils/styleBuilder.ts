@@ -48,9 +48,11 @@ const getAllLeafLayers = (capabilities: unknown): WMSLayerLike[] => {
 // Re-export types that consumers need
 export interface LibreLayer {
   name: string;
-  type: "vector" | "geojson";
+  type: "vector" | "geojson" | "cog";
   style?: string;
   data?: string;
+  url?: string;
+  opacity?: number;
   layer?: string;
   infoboxMapping?: string[];
 }
@@ -74,7 +76,7 @@ const parser = new WMSCapabilities();
 /**
  * Get the correct paint property name for a layer type
  */
-const getPaintProperty = (layerStyle: LayerSpecification): string => {
+const getPaintProperty = (layerStyle: LayerSpecification): string | null => {
   const type = layerStyle.type;
   switch (type) {
     case "symbol":
@@ -89,8 +91,13 @@ const getPaintProperty = (layerStyle: LayerSpecification): string => {
       return "circle-opacity";
     case "background":
       return "background-opacity";
+    case "fill-extrusion":
+      return "fill-extrusion-opacity";
+    case "heatmap":
+      return "heatmap-opacity";
     default:
-      return "icon-opacity";
+      // hillshade and other types have no simple opacity property
+      return null;
   }
 };
 
@@ -337,6 +344,8 @@ export interface VectorStylesToMapLibreStyleOptions {
   layers?: LibreLayer[];
   backgroundStyle?: StyleSpecification;
   clusteringEnabled?: boolean;
+  /** Override glyphs (font) URL. undefined = use from first vector layer style, string = use this URL */
+  overrideGlyphs?: string;
 }
 
 export interface VectorStylesToMapLibreStyleResult {
@@ -351,6 +360,7 @@ export const vectorStylesToMapLibreStyle = async ({
   layers,
   backgroundStyle,
   clusteringEnabled = true,
+  overrideGlyphs,
 }: VectorStylesToMapLibreStyleOptions): Promise<VectorStylesToMapLibreStyleResult> => {
   const defaultSprite = "https://tiles.cismet.de/poi/sprites";
   const customSprites: SpriteSpecification = [];
@@ -362,17 +372,34 @@ export const vectorStylesToMapLibreStyle = async ({
 
   const style: StyleSpecification = {
     ...baseStyle,
-    glyphs: "https://tiles.cismet.de/fonts/{fontstack}/{range}.pbf",
+    // glyphs: set explicitly if provided, otherwise filled from first vector layer below
+    ...(overrideGlyphs ? { glyphs: overrideGlyphs } : {}),
     sprite: defaultSprite,
   };
 
   // Process layers array if provided
   if (layers && layers.length > 0) {
-    const layerPromises = layers.map(async (layer, index) => {
+    // Fetch all remote data in parallel, then merge sequentially
+    const prefetched = await Promise.all(
+      layers.map(async (layer) => {
+        if (layer.type === "vector") {
+          const response = await fetch(layer.style!);
+          return { type: "vector" as const, data: await response.json() };
+        } else if (layer.type === "geojson") {
+          const result = await extractGeoJson(layer.data!);
+          return { type: "geojson" as const, data: transformedPois(result) };
+        }
+        return null;
+      }),
+    );
+
+    for (let index = 0; index < layers.length; index++) {
+      const layer = layers[index];
+      const fetched = prefetched[index];
+      if (!fetched) continue;
+
       if (layer.type === "vector") {
-        // Handle vector layer
-        const response = await fetch(layer.style!);
-        const additionalStyle = await response.json();
+        const additionalStyle = fetched.data;
         let capabilitiesLayer = "";
 
         if (layer.layer) {
@@ -413,14 +440,20 @@ export const vectorStylesToMapLibreStyle = async ({
             },
             paint: {
               ...styleLayer.paint,
-              ...(styleLayer.id.toLowerCase().includes("selection")
-                ? {}
-                : {
-                    [getPaintProperty(styleLayer)]:
-                      (styleLayer.paint as Record<string, unknown>)?.[
-                        getPaintProperty(styleLayer)
-                      ] || 1,
-                  }),
+              ...(() => {
+                if (styleLayer.id.toLowerCase().includes("selection")) return {};
+                const prop = getPaintProperty(styleLayer);
+                if (!prop) return {};
+                const baseOpacity =
+                  (styleLayer.paint as Record<string, unknown>)?.[prop] || 1;
+                const layerOpacity = layer.opacity ?? 1;
+                return {
+                  [prop]:
+                    typeof baseOpacity === "number"
+                      ? baseOpacity * layerOpacity
+                      : layerOpacity < 1 ? layerOpacity : baseOpacity,
+                };
+              })(),
             },
             layout: {
               ...(
@@ -451,11 +484,14 @@ export const vectorStylesToMapLibreStyle = async ({
 
         style.sources = { ...style.sources, ...additionalStyle.sources };
         style.layers = [...style.layers!, ...additionalStyle.layers];
-      } else if (layer.type === "geojson") {
-        // Handle geojson layer
-        const result = await extractGeoJson(layer.data!);
-        const transformedData = transformedPois(result);
 
+        // Adopt glyphs from the first vector style that provides them
+        // (unless explicitly set via the glyphs option)
+        if (!style.glyphs && additionalStyle.glyphs) {
+          style.glyphs = additionalStyle.glyphs;
+        }
+      } else if (layer.type === "geojson") {
+        const transformedData = fetched.data;
         const sourceId = `geojson-source-${index}`;
 
         // Get unique colors from the geojson features
@@ -602,9 +638,8 @@ export const vectorStylesToMapLibreStyle = async ({
 
         style.layers = [...style.layers!, ...geoJsonLayers];
       }
-    });
-
-    await Promise.all(layerPromises);
+      // COG layers are handled separately via map.addSource/addLayer after setStyle
+    }
   }
 
   if ((customSprites as Array<{ id: string; url: string }>).length > 0) {

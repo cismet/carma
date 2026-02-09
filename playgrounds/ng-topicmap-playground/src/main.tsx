@@ -11,10 +11,14 @@ import {
   GazDataProvider,
 } from "@carma-appframeworks/portals";
 import { SandboxedEvalProvider } from "@carma-commons/sandbox-eval";
-import { LibreContextProvider } from "@carma-mapping/engines/maplibre";
+import {
+  LibreContextProvider,
+  MapSelectionProvider,
+} from "@carma-mapping/engines/maplibre";
 import TopicMapContextProvider from "react-cismap/contexts/TopicMapContextProvider";
 import { defaultGazDataConfig } from "@carma-commons/resources";
 import BelisPlayground from "./app/BelisPlayground";
+import AlkisPlayground from "./app/AlkisPlayground";
 
 const root = ReactDOM.createRoot(
   document.getElementById("root") as HTMLElement
@@ -30,15 +34,18 @@ root.render(
           <GazDataProvider config={defaultGazDataConfig}>
             <SelectionProvider>
               <LibreContextProvider>
-                <Routes>
-                  <Route path="/" element={<App />} />
-                  <Route path="/simple" element={<SimpleMap />} />
-                  <Route
-                    path="/simpleWithoutControls"
-                    element={<SimpleMapWithoutControls />}
-                  />
-                  <Route path="/belis" element={<BelisPlayground />} />
-                </Routes>
+                <MapSelectionProvider debug>
+                  <Routes>
+                    <Route path="/" element={<App />} />
+                    <Route path="/simple" element={<SimpleMap />} />
+                    <Route
+                      path="/simpleWithoutControls"
+                      element={<SimpleMapWithoutControls />}
+                    />
+                    <Route path="/belis" element={<BelisPlayground />} />
+                    <Route path="/alkis" element={<AlkisPlayground />} />
+                  </Routes>
+                </MapSelectionProvider>
               </LibreContextProvider>
             </SelectionProvider>
           </GazDataProvider>

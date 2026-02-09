@@ -512,7 +512,7 @@ export const implicitVectorSelection = async (
           5
         )}, ${coordinates[0].toFixed(5)}`,
         subtitle: "(Geogr. Breite und Länge in Dezimalgrad, ETRS89)",
-        wmsProps: selectedVectorFeature.properties,
+        sourceProps: selectedVectorFeature.properties,
       },
       geometry: selectedVectorFeature.geometry,
       id: "information",
@@ -620,7 +620,7 @@ export const onSelectionChangedVector = async (
             5
           )}, ${coordinates[0].toFixed(5)}`,
           subtitle: "(Geogr. Breite und Länge in Dezimalgrad, ETRS89)",
-          wmsProps: selectedVectorFeature.properties,
+          sourceProps: selectedVectorFeature.properties,
         },
         geometry: selectedVectorFeature.geometry,
         id: layer.id,

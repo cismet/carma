@@ -1,9 +1,11 @@
 import { useEffect, useState, useMemo, useRef } from "react";
 import { useVisibleMapFeatures, VisibleFeature } from "@carma-mapping/utils";
-import type { Map as MaplibreMap } from "maplibre-gl";
+import {
+  useMapSelection,
+  useLibreContext,
+} from "@carma-mapping/engines/maplibre";
 
-// Convert ALL CAPS to Title Case (e.g., "GROSSE FLURSTR" → "Grosse Flurstr")
-// Also handles hyphens: "JOHANNES-RAU-PLATZ" → "Johannes-Rau-Platz"
+// Convert ALL CAPS to Title Case (e.g., "GROSSE FLURSTR" -> "Grosse Flurstr")
 const toTitleCase = (str: string): string => {
   if (!str) return "";
   return str
@@ -24,25 +26,22 @@ interface ListItemData {
   subtitle: string;
 }
 
-// Default extractors for common property patterns
+// Layer-specific extractors for Belis data
 const defaultListItemExtractors: Record<
   string,
   (feature: VisibleFeature) => ListItemData
 > = {
-  // Belis layer extractors - vector tile version (flattened properties)
   leuchten: (feature) => {
     const p = feature.properties || {};
-    const leuchttyp = p.leuchtentyp || p.leuchttyp || "L";
-    const nummer = p.leuchtennummer || p.lfd_nummer || "";
-    const standort = p.standort_lfd_nummer || p.standort || "";
-    const standortPart = standort ? `, ${standort}` : "";
+    const typ = p.leuchtentyp || p.leuchttyp || "L";
+    const nr = p.leuchtennummer || "0";
+    const standort = p.lfd_nummer ? `, ${p.lfd_nummer}` : "";
     return {
-      main: `${leuchttyp}-${nummer}${standortPart}`,
+      main: `${typ}-${nr}${standort}`,
       upperright: toTitleCase(p.strasse || p.strassenschluessel || ""),
       subtitle: p.fabrikat || p.leuchttyp_fabrikat || "",
     };
   },
-  // Belis layer extractors - nested JSON version
   tdta_leuchten: (feature) => {
     const p = feature.properties || {};
     const leuchttyp = p.fk_leuchttyp?.leuchtentyp || "L";
@@ -64,7 +63,6 @@ const defaultListItemExtractors: Record<
       subtitle: p.fk_mastart?.mastart || "-ohne Mastart-",
     };
   },
-  // Vector tile version (flattened) - singular and plural
   schaltstelle: (feature) => {
     const p = feature.properties || {};
     const title = p.schaltstellen_nummer
@@ -87,7 +85,6 @@ const defaultListItemExtractors: Record<
       subtitle: p.bezeichnung || p.bauart || "Schaltstelle",
     };
   },
-  // Vector tile version (flattened)
   leitungen: (feature) => {
     const p = feature.properties || {};
     const laenge = p.laenge || p.length || "";
@@ -98,11 +95,10 @@ const defaultListItemExtractors: Record<
       subtitle: p.bezeichnung || p.leitungstyp || "",
     };
   },
-  // Nested JSON version
   leitung: (feature) => {
     const p = feature.properties || {};
     const aPart = p.fk_querschnitt?.groesse
-      ? `, ${p.fk_querschnitt.groesse}mm²`
+      ? `, ${p.fk_querschnitt.groesse}mm`
       : "";
     return {
       main: `L-${p.id}`,
@@ -110,7 +106,6 @@ const defaultListItemExtractors: Record<
       subtitle: aPart ? `Querschnitt${aPart}` : "",
     };
   },
-  // Vector tile version (flattened)
   mauerlaschen: (feature) => {
     const p = feature.properties || {};
     return {
@@ -119,7 +114,6 @@ const defaultListItemExtractors: Record<
       subtitle: p.bezeichnung || p.material || "Mauerlasche",
     };
   },
-  // Nested JSON version
   mauerlasche: (feature) => {
     const p = feature.properties || {};
     return {
@@ -146,20 +140,11 @@ const genericExtractor = (feature: VisibleFeature): ListItemData => {
     props.title ||
     props.label ||
     props.bezeichnung ||
-    props.Name ||
-    props.Title ||
-    props.NAME ||
-    props.TITLE ||
     `ID: ${feature.id || "?"}`;
 
-  const upperrightRaw =
-    props.strasse ||
-    props.street ||
-    props.typ ||
-    props.type ||
-    props.kategorie ||
-    "";
-  const upperright = toTitleCase(upperrightRaw);
+  const upperright = toTitleCase(
+    props.strasse || props.street || props.typ || props.type || ""
+  );
 
   const subtitle =
     props.beschreibung || props.description || props.info || props.status || "";
@@ -167,61 +152,53 @@ const genericExtractor = (feature: VisibleFeature): ListItemData => {
   return { main, upperright, subtitle };
 };
 
-interface SelectedVectorObject {
-  source: string;
-  sourceLayer?: string;
-  id?: string | number;
-}
-
 interface OnMapListProps {
-  maplibreMap: MaplibreMap | null;
-  selectedVectorObject?: SelectedVectorObject | null;
-  setSelectedVectorObject?: (obj: SelectedVectorObject | null) => void;
-  onFeatureSelect?: (feature: VisibleFeature) => void;
   visibleMapWidth: number;
   visibleMapHeight: number;
-  showVisibleBoundsDebug?: boolean;
 }
 
-const OnMapList = ({
-  maplibreMap,
-  selectedVectorObject,
-  setSelectedVectorObject,
-  onFeatureSelect,
-  visibleMapWidth,
-  visibleMapHeight,
-  showVisibleBoundsDebug = false,
-}: OnMapListProps) => {
+const OnMapList = ({ visibleMapWidth, visibleMapHeight }: OnMapListProps) => {
+  const { map } = useLibreContext();
+  const { selectedFeatureId, selectFeature } = useMapSelection();
+
   const { features, totalCount, countsByLayer, isLoading, isOverviewMode } =
     useVisibleMapFeatures({
-      maplibreMap,
+      maplibreMap: map,
       visibleMapWidth,
       visibleMapHeight,
-      showDebugBounds: showVisibleBoundsDebug,
       minZoomForFullFeatures: 17,
       maxFeatures: 20000,
+      layerFilterExpressions: ["Leuchten.*-base", "Leuchten.*-icon"],
     });
 
   const [collapsedGroups, setCollapsedGroups] = useState<
     Record<string, boolean>
   >({});
   const selectedItemRef = useRef<HTMLDivElement>(null);
+  const selectionFromListRef = useRef(false);
 
-  // When selection changes, expand group and scroll into view
+  // Scroll selected item into view only when selection comes from map (not list)
   useEffect(() => {
-    if (!selectedVectorObject) return;
+    if (!selectedFeatureId) return;
+
+    // Skip scroll if selection was triggered from list click
+    if (selectionFromListRef.current) {
+      selectionFromListRef.current = false;
+      return;
+    }
 
     const selectedFeature = features.find(
       (f) =>
-        f.source === selectedVectorObject.source &&
-        f.sourceLayer === selectedVectorObject.sourceLayer &&
-        f.id === selectedVectorObject.id
+        f.source === selectedFeatureId.source &&
+        f.sourceLayer === selectedFeatureId.sourceLayer &&
+        f.id === selectedFeatureId.id
     );
 
     if (selectedFeature) {
       const groupKey =
         selectedFeature.sourceLayer || selectedFeature.source || "Sonstige";
 
+      // Expand group if collapsed
       if (collapsedGroups[groupKey]) {
         setCollapsedGroups((prev) => ({
           ...prev,
@@ -230,15 +207,13 @@ const OnMapList = ({
       }
 
       setTimeout(() => {
-        if (selectedItemRef.current) {
-          selectedItemRef.current.scrollIntoView({
-            behavior: "smooth",
-            block: "start",
-          });
-        }
+        selectedItemRef.current?.scrollIntoView({
+          behavior: "smooth",
+          block: "start",
+        });
       }, 100);
     }
-  }, [selectedVectorObject, features, collapsedGroups]);
+  }, [selectedFeatureId, features, collapsedGroups]);
 
   // Group features by sourceLayer
   const groupedFeatures = useMemo(() => {
@@ -254,10 +229,20 @@ const OnMapList = ({
       }
       groups[groupKey].items.push(feature);
     });
+    // Sort items within each group by standort (lfd_nummer), then by leuchtennummer
+    for (const group of Object.values(groups)) {
+      group.items.sort((a, b) => {
+        const aStandort = Number(a.properties?.lfd_nummer) || 0;
+        const bStandort = Number(b.properties?.lfd_nummer) || 0;
+        if (aStandort !== bStandort) return aStandort - bStandort;
+        const aLeuchte = Number(a.properties?.leuchtennummer) || 0;
+        const bLeuchte = Number(b.properties?.leuchtennummer) || 0;
+        return aLeuchte - bLeuchte;
+      });
+    }
     return groups;
   }, [features, countsByLayer]);
 
-  // Get list item data using layer-specific extractors
   const getListItem = (feature: VisibleFeature): ListItemData => {
     const layerKey = feature.sourceLayer || feature.source || "";
     const extractor =
@@ -268,48 +253,15 @@ const OnMapList = ({
   };
 
   const handleFeatureClick = (feature: VisibleFeature) => {
-    if (!maplibreMap) return;
-
-    // Get coordinates from feature geometry to fire synthetic click
-    let clickCoords: [number, number] | null = null;
-    const geom = feature.geometry;
-
-    if (geom) {
-      if (geom.type === "Point") {
-        clickCoords = geom.coordinates as [number, number];
-      } else if (geom.type === "LineString" || geom.type === "MultiPoint") {
-        clickCoords = (geom.coordinates as number[][])[0] as [number, number];
-      } else if (geom.type === "Polygon" || geom.type === "MultiLineString") {
-        clickCoords = (geom.coordinates as number[][][])[0][0] as [
-          number,
-          number
-        ];
-      } else if (geom.type === "MultiPolygon") {
-        clickCoords = (geom.coordinates as number[][][][])[0][0][0] as [
-          number,
-          number
-        ];
-      }
-    }
-
-    if (clickCoords) {
-      // Fire synthetic click on map - this triggers LibreMap's full selection flow
-      const point = maplibreMap.project(clickCoords);
-      maplibreMap.fire("click", {
-        lngLat: { lng: clickCoords[0], lat: clickCoords[1] },
-        point,
-        originalEvent: { preventDefault: () => {}, stopPropagation: () => {} },
-      });
-    } else {
-      // Fallback: manual selection if no geometry
-      const selectionObj: SelectedVectorObject = {
+    selectionFromListRef.current = true;
+    selectFeature(
+      {
         source: feature.source,
         sourceLayer: feature.sourceLayer,
         id: feature.id,
-      };
-      setSelectedVectorObject?.(selectionObj);
-      onFeatureSelect?.(feature);
-    }
+      },
+      feature
+    );
   };
 
   const toggleGroup = (groupKey: string) => {
@@ -321,10 +273,10 @@ const OnMapList = ({
 
   const isFeatureSelected = (feature: VisibleFeature): boolean => {
     return (
-      !!selectedVectorObject &&
-      selectedVectorObject.source === feature.source &&
-      selectedVectorObject.sourceLayer === feature.sourceLayer &&
-      selectedVectorObject.id === feature.id
+      !!selectedFeatureId &&
+      selectedFeatureId.source === feature.source &&
+      selectedFeatureId.sourceLayer === feature.sourceLayer &&
+      selectedFeatureId.id === feature.id
     );
   };
 
@@ -340,7 +292,7 @@ const OnMapList = ({
       <div className="flex-1 overflow-y-auto overflow-x-hidden">
         {totalCount === 0 && !isLoading ? (
           <div className="p-4 text-gray-500 text-center text-sm">
-            {maplibreMap
+            {map
               ? "Keine Objekte im aktuellen Kartenausschnitt"
               : "Karte wird geladen..."}
           </div>
@@ -369,7 +321,9 @@ const OnMapList = ({
                         ref={selected ? selectedItemRef : null}
                         onClick={() => handleFeatureClick(feature)}
                         className={`px-3 py-2 pl-4 cursor-pointer border-b border-gray-100 hover:bg-gray-50 ${
-                          selected ? "bg-blue-50" : ""
+                          selected
+                            ? "bg-blue-50 border-l-2 border-l-blue-500"
+                            : ""
                         }`}
                       >
                         <div className="flex justify-between gap-2 overflow-hidden">

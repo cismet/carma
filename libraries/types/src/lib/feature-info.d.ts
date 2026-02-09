@@ -29,7 +29,7 @@ export type FeatureInfoProperties = {
     icon: JSX.Element;
     target?: string;
   }[];
-  wmsProps?: {
+  sourceProps?: {
     [key: string]: string;
   };
 };

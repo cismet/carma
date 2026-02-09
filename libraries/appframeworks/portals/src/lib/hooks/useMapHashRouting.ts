@@ -1,3 +1,17 @@
+// TODO: This hook uses Leaflet-specific naming ("getLeafletMap", "getLeafletZoom",
+// "LeafletLikeMap") but is also consumed by LibreMap (MapLibre), which wraps its
+// map instance in a Leaflet-shaped adapter. The framework switcher context similarly
+// labels the 2D slot "leaflet" regardless of the actual engine.
+//
+// Refactor plan:
+// 1. Rename the interface to engine-agnostic names (e.g., "Map2D", "get2DMap",
+//    "get2DZoom") in this hook and in UseMapHashRoutingOptions.
+// 2. Update MapFrameworkSwitcherContext to use "2d" / "3d" (or "maplibre" / "cesium")
+//    instead of "leaflet" / "cesium".
+// 3. Update all consumers (LibreMap, GeoportalMap, floodingmap, etc.).
+// 4. Keep the actual adapter pattern (MapLibre -> simple {setView, getCenter, ...})
+//    since the hash-routing logic only needs center + zoom.
+
 import { useCallback, useEffect, useRef } from "react";
 import {
   useHashState,
@@ -217,11 +231,11 @@ export function useMapHashRouting({
 
     // Debounce hash update by 200ms to ensure map has settled
     frameworkSwitchTimerRef.current = setTimeout(() => {
-      console.log(
+      console.debug(
         "[Routing][hash] Framework switch complete, triggering hash update",
         {
           activeFramework,
-        }
+        },
       );
 
       if (getIsLeaflet()) {

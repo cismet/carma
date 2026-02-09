@@ -25,6 +25,16 @@ export type {
   GeoJsonMetadata,
 } from "./contexts/LibreContext";
 
+export {
+  MapSelectionContext,
+  MapSelectionProvider,
+  useMapSelection,
+} from "./contexts/MapSelectionContext";
+export type {
+  MapSelectionContextType,
+  SelectedFeatureIdentifier,
+} from "./contexts/MapSelectionContext";
+
 // Hooks
 export { useClusterMarkers } from "./hooks/useClusterMarkers";
 export { useSelectionLibreMap } from "./hooks/useSelectionLibreMap";
@@ -53,6 +63,24 @@ export { zoom512as256, zoom256as512 } from "./utils/zoomUtils";
 
 // Cluster utilities
 export { createPieChart } from "./utils/clusterUtils";
+
+// Selection management
+export { SelectionManager } from "./lib/SelectionManager";
+export { HidingForwardingManager } from "./lib/HidingForwardingManager";
+export {
+  getCarmaConf,
+  getCarmaConfFromStyle,
+  applySelectionForwarding,
+  resolvePropertyTarget,
+} from "./lib/SelectionManager";
+export type {
+  CarmaConf,
+  CarmaInfo,
+  EnrichedFeature,
+  FeatureIdentifier,
+  SelectionManagerOptions,
+  SelectionResult,
+} from "./lib/selectionTypes";
 
 // Default styles and city configuration
 export {

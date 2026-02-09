@@ -27,7 +27,7 @@ export const functionToFeature = async (
 
     const properties = {
       ...baseInfo,
-      wmsProps: output,
+      sourceProps: output,
     };
 
     return { properties };
@@ -101,7 +101,7 @@ export const objectToFeature = async (
 
   const properties = {
     ...baseInfo,
-    wmsProps: jsonOutput,
+    sourceProps: jsonOutput,
   };
 
   return { properties };
