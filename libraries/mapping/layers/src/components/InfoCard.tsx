@@ -269,21 +269,20 @@ const InfoCard = ({
               </h3>
             )}
             <div className="flex flex-wrap items-center gap-4">
-              {layer.type === "layer" ||
-                (layer.type === "object" && (
-                  <Button
-                    onClick={handleAddClick}
-                    icon={
-                      <FontAwesomeIcon
-                        icon={isActiveLayer ? faCircleMinus : faCirclePlus}
-                      />
-                    }
-                  >
-                    <span className="!hidden sm:!inline-block">
-                      {isActiveLayer ? "Entfernen" : "Hinzufügen"}
-                    </span>
-                  </Button>
-                ))}
+              {(layer.type === "layer" || layer.type === "object") && (
+                <Button
+                  onClick={handleAddClick}
+                  icon={
+                    <FontAwesomeIcon
+                      icon={isActiveLayer ? faCircleMinus : faCirclePlus}
+                    />
+                  }
+                >
+                  <span className="!hidden sm:!inline-block">
+                    {isActiveLayer ? "Entfernen" : "Hinzufügen"}
+                  </span>
+                </Button>
+              )}
               {layer.type === "collection" && (
                 <>
                   <Button
