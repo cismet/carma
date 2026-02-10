@@ -1,7 +1,7 @@
 import { useEffect } from "react";
 import { useSelector } from "react-redux";
 import { getSelectedFeatureData } from "../../store/slices/featureCollection";
-import { LeitungForm } from "../ui/featuresForm";
+import { LeitungForm, LeuchteForm } from "../ui/featuresForm";
 
 const FeatureFormDemo = () => {
   const selectedFeatureData = useSelector(getSelectedFeatureData);
@@ -11,10 +11,11 @@ const FeatureFormDemo = () => {
   }, [selectedFeatureData]);
 
   return (
-    <div className="h-[900px] bg-white p-4">
-      <LeitungForm data={selectedFeatureData} />
-      {/* <h2 style={{ marginTop: 20 }}>Raw Data</h2>
-      <pre>{JSON.stringify(selectedFeatureData, null, 2)}</pre> */}
+    <div className="h-[1100px] bg-white p-4">
+      {/* <LeitungForm data={selectedFeatureData} /> */}
+      <LeuchteForm data={selectedFeatureData} />
+      {/* <h2 style={{ marginTop: 20 }}>Raw Data</h2>*/}
+      {/* <pre>{JSON.stringify(selectedFeatureData, null, 2)}</pre> */}
     </div>
   );
 };
