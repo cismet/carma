@@ -30,6 +30,9 @@ import { faMap } from "@fortawesome/free-solid-svg-icons";
 
 const LIST_WIDTH = 300;
 
+/** Debug flag: translucent main map + red mini-map border, mini-map always visible */
+const MINI_MAP_DEBUGGING = false;
+
 const BelisMapLibWrapper = ({ mapSizes }) => {
   const dispatch: AppDispatch = useDispatch();
   const { map } = useLibreContext();
@@ -103,6 +106,7 @@ const BelisMapLibWrapper = ({ mapSizes }) => {
     mainMap: map,
     miniMap,
     containerRef: mapContainerRef,
+    debug: MINI_MAP_DEBUGGING,
   });
 
   const handleMiniMapReady = useCallback((m: maplibregl.Map) => {
