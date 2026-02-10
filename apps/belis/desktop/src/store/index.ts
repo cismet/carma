@@ -61,6 +61,8 @@ const mapSettingsConfig = {
   whitelist: [
     "activeBackgroundLayer",
     "backgroundLayerOpacities",
+    "activeAdditionalLayers",
+    "additionalLayerOpacities",
     "inPaleMode",
     "inSearchMode",
   ],
