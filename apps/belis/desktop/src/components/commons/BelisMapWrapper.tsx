@@ -1,6 +1,9 @@
 import { CarmaMap } from "@carma-mapping/core";
 import { useDispatch, useSelector } from "react-redux";
-import { setSelectedFeature } from "../../store/slices/featureCollection";
+import {
+  setSelectedFeature,
+  setSelectedFeatureData,
+} from "../../store/slices/featureCollection";
 import { AppDispatch } from "../../store";
 import OnMapList from "../ui/OnMapList";
 import { useMapSelection } from "@carma-mapping/engines/maplibre";
@@ -39,8 +42,10 @@ const BelisMapLibWrapper = ({ mapSizes }) => {
             sourceLayer as FeatureType
           );
           console.log("xxx Fetched full data:", fullData);
+          dispatch(setSelectedFeatureData(fullData));
         } catch (error) {
           console.error("xxx Failed to fetch feature:", error);
+          dispatch(setSelectedFeatureData(null));
         }
       }
     };

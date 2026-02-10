@@ -12,6 +12,7 @@ const featureCollectionSlice = createSlice({
   initialState: {
     features: [] as any,
     selectedFeature: null as any,
+    selectedFeatureData: null as any,
     mode: MODES.OBJECTS,
     filter: featuresFilter,
     done: true,
@@ -28,6 +29,9 @@ const featureCollectionSlice = createSlice({
         selected: f.id === pickedId,
       }));
       state.selectedFeature = action.payload;
+    },
+    setSelectedFeatureData: (state, action) => {
+      state.selectedFeatureData = action.payload;
     },
     setFilter: (state, action) => {
       state.filter = action.payload;
@@ -46,6 +50,7 @@ export default featureCollectionSlice;
 export const {
   setFeatureCollection,
   setSelectedFeature,
+  setSelectedFeatureData,
   setFilter,
   setDone,
   setFocusModeActive,
@@ -57,6 +62,10 @@ export const getFeatureCollection = (state) => {
 
 export const getSelectedFeature = (state) => {
   return state.featureCollection.selectedFeature;
+};
+
+export const getSelectedFeatureData = (state) => {
+  return state.featureCollection.selectedFeatureData;
 };
 
 export const getFilter = (state) => state.featureCollection.filter;
