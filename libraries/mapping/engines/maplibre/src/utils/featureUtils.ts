@@ -159,9 +159,9 @@ export const createFeature = async (
       });
     }
 
-    if (onOpenDatasheet) {
+    if (onOpenDatasheet && featureProperties.properties.datasheet) {
       genericLinks.push({
-        iconname: "file",
+        iconname: "info",
         tooltip: "Datenblatt",
         action: onOpenDatasheet,
       });
