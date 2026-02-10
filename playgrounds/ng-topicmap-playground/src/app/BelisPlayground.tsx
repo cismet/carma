@@ -212,13 +212,17 @@ const BelisPlaygroundContent = () => {
   const [miniMap, setMiniMap] = useState<maplibregl.Map | null>(null);
   const mapContainerRef = useRef<HTMLDivElement>(null);
 
-  const { containerStyle, debugOutlineStyle, showCloseButton, miniMapContainerRef } =
-    useDatasheetMiniMap({
-      mainMap: map,
-      miniMap,
-      containerRef: mapContainerRef,
-      debug: MINI_MAP_DEBUGGING,
-    });
+  const {
+    containerStyle,
+    debugOutlineStyle,
+    showCloseButton,
+    miniMapContainerRef,
+  } = useDatasheetMiniMap({
+    mainMap: map,
+    miniMap,
+    containerRef: mapContainerRef,
+    debug: MINI_MAP_DEBUGGING,
+  });
 
   const handleReturnToMap = useCallback(() => {
     map?.resize();
@@ -364,7 +368,7 @@ export default BelisPlayground;
 // Liegenschaftskarte (grau)
 // {
 //   type: "wmts",
-//   url: "http://rpr.s10222.wuppertal-intra.de/forwardingTo/s10221/7098/alkis/services",
+//   url: "https://s10222-wuppertal-intra.map-hosting.de/forwardingTo/s10221/7098/alkis/services",
 //   //url: "http://s10221.wuppertal-intra.de:7098/alkis/services",
 //   layers: "alkomgw",
 //   styles: "default",
@@ -378,7 +382,7 @@ export default BelisPlayground;
 // // Liegenschaftskarte (bunt)
 // {
 //   type: "wmts",
-//   url: "http://rpr.s10222.wuppertal-intra.de/forwardingTo/s10221/7098/alkis/services",
+//   url: "https://s10222-wuppertal-intra.map-hosting.de/forwardingTo/s10221/7098/alkis/services",
 //   //url: "http://s10221.wuppertal-intra.de:7098/alkis/services",
 //   layers: "alkomf",
 //   styles: "default",
