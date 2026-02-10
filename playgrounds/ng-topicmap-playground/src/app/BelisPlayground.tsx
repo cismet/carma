@@ -202,37 +202,14 @@ const BELIS_LAYERS = [
   },
 ];
 
-/**
- * Showcase steps for demonstrating the mini-map transition concept:
- * 1: Transparent map, red border, no transition, no zoom change
- * 2: + zoom change when datasheet opens
- * 3: + position/zoom transition animation
- * 4: Production: opaque map, no red border, transitions enabled
- */
-type ShowcaseStep = 0 | 1 | 2 | 3 | 4;
-
-const SHOWCASE_LABELS: Record<ShowcaseStep, string> = {
-  0: "Showcase 0: Opaque Baseline",
-  1: "Showcase 1: Transparent + No Zoom",
-  2: "Showcase 2: + Zoom Offset",
-  3: "Showcase 3: + Transition",
-  4: "Prod",
-};
+/** Debug flag: translucent main map + red mini-map border, mini-map always visible */
+const MINI_MAP_DEBUGGING = false;
 
 const BelisPlaygroundContent = () => {
   const { map } = useLibreContext();
   const { selectedFeatureId, selectedFeature, rawFeature } = useMapSelection();
   const { isDatasheetOpen, closeDatasheet } = useDatasheet();
   const [miniMap, setMiniMap] = useState<maplibregl.Map | null>(null);
-  const [showcaseStep, setShowcaseStep] = useState<ShowcaseStep>(0);
-
-  // Derive behavior from showcase step
-  const showcase = {
-    mapOpacity: showcaseStep >= 1 && showcaseStep < 4 ? 0.5 : 1,
-    redBorder: showcaseStep >= 1 && showcaseStep < 4,
-    zoomOffset: showcaseStep >= 2,
-    transition: showcaseStep >= 3,
-  };
 
   // Mini-map center: from selected feature geometry, or from last map click
   const [miniMapCenter, setMiniMapCenter] = useState<
@@ -264,7 +241,7 @@ const BelisPlaygroundContent = () => {
   // Mini-map zoom offset relative to main map (applied only in datasheet view)
   const [miniMapZoomOffset, setMiniMapZoomOffset] = useState(2);
   const effectiveZoomOffset =
-    showcase.zoomOffset && isDatasheetOpen ? miniMapZoomOffset : 0;
+    isDatasheetOpen ? miniMapZoomOffset : 0;
 
   // Mini-map dimensions and transition
   const MINI_MAP_W = 350;
@@ -285,34 +262,37 @@ const BelisPlaygroundContent = () => {
   useEffect(() => {
     if (prevDatasheetRef.current === isDatasheetOpen) return;
     prevDatasheetRef.current = isDatasheetOpen;
-    if (showcase.transition) {
-      // Phase 1: enable transition CSS (position unchanged yet)
-      setIsTransitioning(true);
-      // Phase 2: change target position in next frame so transition kicks in
-      requestAnimationFrame(() => {
-        setMiniMapTarget(isDatasheetOpen ? "corner" : "feature");
-      });
-      const timer = setTimeout(
-        () => setIsTransitioning(false),
-        MINI_MAP_TRANSITION_MS
-      );
-      return () => clearTimeout(timer);
-    } else {
-      // No transition: change target immediately
+    // Phase 1: enable transition CSS (position unchanged yet)
+    setIsTransitioning(true);
+    // Phase 2: change target position in next frame so transition kicks in
+    requestAnimationFrame(() => {
       setMiniMapTarget(isDatasheetOpen ? "corner" : "feature");
-    }
-  }, [isDatasheetOpen, showcase.transition]);
+    });
+    const timer = setTimeout(
+      () => setIsTransitioning(false),
+      MINI_MAP_TRANSITION_MS
+    );
+    return () => clearTimeout(timer);
+  }, [isDatasheetOpen]);
 
-  // Sync mini-map center/zoom (instant)
+  // Sync mini-map center/zoom: ease when datasheet is visible, jump when hidden
   useEffect(() => {
     if (!miniMap || !miniMapCenter) return;
     const mainZoom = map?.getZoom() ?? 15;
     miniMap.resize();
-    miniMap.jumpTo({
-      center: miniMapCenter,
-      zoom: mainZoom + effectiveZoomOffset,
-    });
-  }, [miniMap, map, miniMapCenter]);
+    if (isDatasheetOpen) {
+      miniMap.easeTo({
+        center: miniMapCenter,
+        zoom: mainZoom + effectiveZoomOffset,
+        duration: MINI_MAP_TRANSITION_MS,
+      });
+    } else {
+      miniMap.jumpTo({
+        center: miniMapCenter,
+        zoom: mainZoom + effectiveZoomOffset,
+      });
+    }
+  }, [miniMap, map, miniMapCenter, isDatasheetOpen, effectiveZoomOffset]);
 
   // Animate zoom when toggling between map/datasheet view
   useEffect(() => {
@@ -438,14 +418,6 @@ const BelisPlaygroundContent = () => {
     <div className="bg-[#F1F1F1] flex flex-col w-full h-screen overflow-hidden">
       <div className="flex items-center mx-3 mb-2 mt-2">
         <span className="font-semibold mr-8 text-lg">BelISDesktop</span>
-        {/* Showcase step button (uncomment to cycle through demo steps)
-        <button
-          onClick={() => setShowcaseStep((s) => (((s + 1) % 5) as ShowcaseStep))}
-          className="px-3 py-1 text-xs rounded bg-gray-200 hover:bg-gray-300"
-        >
-          {SHOWCASE_LABELS[showcaseStep]}
-        </button>
-        */}
       </div>
       <div className="w-full flex-1 flex min-h-0">
         <TestSelectionList />
@@ -499,11 +471,11 @@ const BelisPlaygroundContent = () => {
                     width: MINI_MAP_W,
                     height: MINI_MAP_H,
                     visibility:
-                      showcase.mapOpacity === 1 && !isDatasheetOpen
+                      !MINI_MAP_DEBUGGING && !isDatasheetOpen
                         ? "hidden"
                         : "visible",
                     zIndex: isDatasheetOpen ? 30 : 0,
-                    border: showcase.redBorder ? "3px solid red" : "none",
+                    border: MINI_MAP_DEBUGGING ? "3px solid red" : "none",
                     borderRadius: miniMapTarget === "corner" ? 8 : 0,
                     overflow: "hidden",
                     boxShadow:
@@ -573,7 +545,7 @@ const BelisPlaygroundContent = () => {
                       />
                     </div>
                   }
-                  mapOpacity={showcase.mapOpacity}
+                  mapOpacity={MINI_MAP_DEBUGGING ? 0.5 : 1}
                   onReturnToMap={handleReturnToMap}
                 />
               </div>
