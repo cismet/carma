@@ -245,7 +245,7 @@ const BelisPlaygroundContent = () => {
   // Mini-map dimensions and transition
   const MINI_MAP_W = 350;
   const MINI_MAP_H = 220;
-  const MINI_MAP_TRANSITION_MS = 200;
+  const MINI_MAP_TRANSITION_MS = MINI_MAP_DEBUGGING ? 1500 : 200;
 
   // Position the mini-map so its center (where the selected feature is)
   // aligns with the feature's pixel position on the main map
@@ -257,15 +257,17 @@ const BelisPlaygroundContent = () => {
   const [miniMapTarget, setMiniMapTarget] = useState<"feature" | "corner">(
     isDatasheetOpen ? "corner" : "feature"
   );
+  const [miniMapOpacity, setMiniMapOpacity] = useState(isDatasheetOpen ? 1 : 0);
   const prevDatasheetRef = useRef(isDatasheetOpen);
   useEffect(() => {
     if (prevDatasheetRef.current === isDatasheetOpen) return;
     prevDatasheetRef.current = isDatasheetOpen;
     // Phase 1: enable transition CSS (position unchanged yet)
     setIsTransitioning(true);
-    // Phase 2: change target position in next frame so transition kicks in
+    // Phase 2: change target position + opacity in next frame so transition kicks in
     requestAnimationFrame(() => {
       setMiniMapTarget(isDatasheetOpen ? "corner" : "feature");
+      setMiniMapOpacity(isDatasheetOpen ? 1 : 0);
     });
     const timer = setTimeout(
       () => setIsTransitioning(false),
@@ -450,6 +452,35 @@ const BelisPlaygroundContent = () => {
                   overflow: "hidden",
                 }}
               >
+                {/* Debug outline: always visible, tracks mini-map position */}
+                {MINI_MAP_DEBUGGING && (
+                  <div
+                    style={{
+                      position: "absolute",
+                      left:
+                        miniMapTarget === "corner"
+                          ? (mapContainerRef.current?.clientWidth ?? 0) -
+                            MINI_MAP_W -
+                            16
+                          : miniMapPosition.left,
+                      top:
+                        miniMapTarget === "corner"
+                          ? (mapContainerRef.current?.clientHeight ?? 0) -
+                            MINI_MAP_H -
+                            16
+                          : miniMapPosition.top,
+                      width: MINI_MAP_W,
+                      height: MINI_MAP_H,
+                      border: "3px solid red",
+                      borderRadius: miniMapTarget === "corner" ? 8 : 0,
+                      pointerEvents: "none",
+                      zIndex: 40,
+                      transition: isTransitioning
+                        ? `left ${MINI_MAP_TRANSITION_MS}ms cubic-bezier(0.4, 0, 0.2, 1), top ${MINI_MAP_TRANSITION_MS}ms cubic-bezier(0.4, 0, 0.2, 1), border-radius ${MINI_MAP_TRANSITION_MS}ms cubic-bezier(0.4, 0, 0.2, 1)`
+                        : "none",
+                    }}
+                  />
+                )}
                 {/* Mini-map: small, behind main map, positioned to align selected feature */}
                 <div
                   ref={miniMapContainerRef}
@@ -469,14 +500,12 @@ const BelisPlaygroundContent = () => {
                         : miniMapPosition.top,
                     width: MINI_MAP_W,
                     height: MINI_MAP_H,
+                    opacity: miniMapOpacity,
                     visibility:
-                      !MINI_MAP_DEBUGGING &&
-                      !isDatasheetOpen &&
-                      !isTransitioning
+                      !isDatasheetOpen && !isTransitioning
                         ? "hidden"
                         : "visible",
                     zIndex: isDatasheetOpen || isTransitioning ? 30 : 0,
-                    border: MINI_MAP_DEBUGGING ? "3px solid red" : "none",
                     borderRadius: miniMapTarget === "corner" ? 8 : 0,
                     overflow: "hidden",
                     boxShadow:
@@ -485,7 +514,21 @@ const BelisPlaygroundContent = () => {
                         : "none",
                     pointerEvents: isDatasheetOpen ? "auto" : "none",
                     transition: isTransitioning
-                      ? `left ${MINI_MAP_TRANSITION_MS}ms cubic-bezier(0.4, 0, 0.2, 1), top ${MINI_MAP_TRANSITION_MS}ms cubic-bezier(0.4, 0, 0.2, 1), border-radius ${MINI_MAP_TRANSITION_MS}ms cubic-bezier(0.4, 0, 0.2, 1), box-shadow ${MINI_MAP_TRANSITION_MS}ms cubic-bezier(0.4, 0, 0.2, 1)`
+                      ? (() => {
+                          const e = "cubic-bezier(0.4, 0, 0.2, 1)";
+                          const d = MINI_MAP_TRANSITION_MS;
+                          const half = d / 2;
+                          // Opening: fade in during first half
+                          // Closing: stay visible for first half, fade out during second half
+                          const opacityDelay = isDatasheetOpen ? 0 : half;
+                          return [
+                            `left ${d}ms ${e}`,
+                            `top ${d}ms ${e}`,
+                            `border-radius ${d}ms ${e}`,
+                            `box-shadow ${d}ms ${e}`,
+                            `opacity ${half}ms ${e} ${opacityDelay}ms`,
+                          ].join(", ");
+                        })()
                       : "none",
                   }}
                 >
