@@ -1,4 +1,4 @@
-// this ill be needed if we need modals
+// this will be needed if we need modals
 // import "bootstrap/dist/css/bootstrap.min.css";
 // import "react-cismap/topicMaps.css";
 import { StrictMode, useEffect, useState } from "react";
