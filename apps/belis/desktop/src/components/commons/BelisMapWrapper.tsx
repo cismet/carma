@@ -80,11 +80,11 @@ const BelisMapLibWrapper = ({ mapSizes }) => {
           fullScreenControl={false}
           libreLayers={[
             {
-              type: "wms",
-              name: "True Orthofoto",
-              url: "https://maps.wuppertal.de/karten",
-              layers: "R102:trueortho2024",
-              opacity: 0.8,
+              type: "vector",
+              name: "Stadtplan (bunt)",
+              style:
+                "https://omt.map-hosting.de/styles/osm-bright-grey/style.json",
+              opacity: 0.6,
             },
             {
               type: "vector",
