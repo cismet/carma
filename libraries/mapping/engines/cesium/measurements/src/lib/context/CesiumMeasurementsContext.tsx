@@ -289,7 +289,6 @@ export const CesiumMeasurementsProvider: React.FC<
     showMarkers: showPoints,
     showCesiumMarkers: true,
     showLabels: showPointLabels,
-    showCesiumLabels: false,
     radius: pointRadius,
     referenceElevation,
     debug: false,

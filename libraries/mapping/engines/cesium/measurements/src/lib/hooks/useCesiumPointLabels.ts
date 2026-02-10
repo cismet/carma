@@ -216,7 +216,8 @@ export const useCesiumPointLabels = (
       .map((point, index) => {
         const anchor = projectedPositions[point.id];
         if (!anchor || hiddenResults[point.id]) return null;
-        const includeElevation = showElevationMetricByPointId?.[point.id] !== false;
+        const includeElevation =
+          showElevationMetricByPointId?.[point.id] !== false;
 
         return {
           id: point.id,
@@ -255,7 +256,8 @@ export const useCesiumPointLabels = (
   const pointLabelData: PointLabelData[] = useMemo(
     () =>
       points.map((point, index) => {
-        const includeElevation = showElevationMetricByPointId?.[point.id] !== false;
+        const includeElevation =
+          showElevationMetricByPointId?.[point.id] !== false;
 
         return {
           id: point.id,

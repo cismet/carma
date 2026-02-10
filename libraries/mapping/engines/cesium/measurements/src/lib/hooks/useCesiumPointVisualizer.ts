@@ -1,16 +1,6 @@
 import { useEffect, useMemo, useRef } from "react";
 
-import {
-  Cartesian2,
-  Color,
-  HorizontalOrigin,
-  LabelCollection,
-  LabelStyle,
-  VerticalOrigin,
-  type Scene,
-} from "@carma/cesium";
-
-import { formatNumberToEnclosed } from "@carma-providers/label-overlay";
+import { type Scene } from "@carma/cesium";
 
 import {
   create3DCrossGroup,
@@ -27,14 +17,10 @@ import {
   type CesiumLabelLayoutConfigOverrides,
 } from "./useCesiumPointLabels";
 
-// Font for deprecated Cesium labels - will be removed when Cesium labels are fully deprecated
-const LABEL_FONT = '10px "Helvetica Neue", Arial, Helvetica, sans-serif';
-
 export type CesiumPointVisualizerOptions = {
   showMarkers?: boolean;
   showCesiumMarkers?: boolean;
   showLabels?: boolean;
-  showCesiumLabels?: boolean;
   radius: number;
   referenceElevation?: number;
   debug?: boolean;
@@ -50,7 +36,6 @@ export const useCesiumPointVisualizer = (
     showMarkers = true,
     showCesiumMarkers = false,
     showLabels = false,
-    showCesiumLabels = false,
     radius,
     referenceElevation = 0,
     debug = false,
@@ -59,7 +44,6 @@ export const useCesiumPointVisualizer = (
     showElevationMetricByPointId,
   }: CesiumPointVisualizerOptions
 ) => {
-  const labelCollectionRef = useRef<LabelCollection | null>(null);
   const cross3DRefs = useRef<Record<string, Cross3DGroup>>({});
 
   const [points, currentIds]: [PointMeasurementEntry[], Set<string>] =
@@ -80,21 +64,6 @@ export const useCesiumPointVisualizer = (
     labelLayoutConfig,
     showElevationMetricByPointId
   );
-
-  // Initialize and clean up LabelCollection
-  useEffect(() => {
-    if (!scene || scene.isDestroyed()) return;
-
-    const labels = scene.primitives.add(new LabelCollection());
-    labelCollectionRef.current = labels;
-
-    return () => {
-      if (scene && !scene.isDestroyed()) {
-        scene.primitives.remove(labels);
-      }
-      labelCollectionRef.current = null;
-    };
-  }, [scene]);
 
   useEffect(() => {
     // render markers using primitives instead of entities
@@ -155,40 +124,6 @@ export const useCesiumPointVisualizer = (
     showCesiumMarkers,
     debug,
   ]);
-
-  useEffect(() => {
-    // render Labels using LabelCollection primitive
-    if (!scene || scene.isDestroyed()) return;
-
-    const labels = labelCollectionRef.current;
-    if (!labels) return;
-
-    // Clear and rebuild labels
-    // This is efficient enough for small collections (< 1000)
-    labels.removeAll();
-
-    if (showCesiumLabels) {
-      points.forEach((m, i) => {
-        labels.add({
-          position: m.geometryECEF,
-          text: `${formatNumberToEnclosed(i + 1)} ${(
-            m.geometryWGS84.height - referenceElevation
-          ).toFixed(2)}m`,
-          font: LABEL_FONT,
-          fillColor: Color.BLACK,
-          showBackground: false,
-          outlineColor: Color.WHITE,
-          outlineWidth: 5,
-          style: LabelStyle.FILL_AND_OUTLINE,
-          pixelOffset: new Cartesian2(5, -8),
-          horizontalOrigin: HorizontalOrigin.LEFT,
-          verticalOrigin: VerticalOrigin.BASELINE,
-        });
-      });
-    }
-
-    scene.requestRender(); // Ensure scene updates after changes
-  }, [scene, points, currentIds, showCesiumLabels, referenceElevation]);
 };
 
 export default useCesiumPointVisualizer;
