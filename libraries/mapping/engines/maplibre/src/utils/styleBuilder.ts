@@ -364,6 +364,9 @@ export const vectorStylesToMapLibreStyle = async ({
 
   const style: StyleSpecification = {
     ...baseStyle,
+    // Deep-copy layers and sources so mutations (push, spread-assign) never affect baseStyle
+    layers: [...(baseStyle.layers || [])],
+    sources: { ...(baseStyle.sources || {}) },
     // glyphs: set explicitly if provided, otherwise filled from first vector layer below
     ...(overrideGlyphs ? { glyphs: overrideGlyphs } : {}),
     sprite: defaultSprite,
@@ -635,8 +638,9 @@ export const vectorStylesToMapLibreStyle = async ({
 
         style.layers = [...style.layers!, ...geoJsonLayers];
       } else if (layer.type === "wms" || layer.type === "wmts") {
-        const sourceId = `source-${layer.layers.replace(/[^a-zA-Z0-9]/g, "-")}`;
-        const id = layer.layers.replace(/[^a-zA-Z0-9]/g, "-");
+        const sanitized = layer.layers.replace(/[^a-zA-Z0-9]/g, "-");
+        const sourceId = `source-${sanitized}-${index}`;
+        const id = `${sanitized}-${index}`;
         const version = layer.version || "1.1.1";
         const crsParam = version >= "1.3.0" ? "crs" : "srs";
         const isWmts = layer.type === "wmts";
