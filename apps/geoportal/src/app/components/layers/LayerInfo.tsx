@@ -1,3 +1,4 @@
+import parse from "html-react-parser";
 import { Tabs } from "antd";
 import { tabItems } from "./items";
 import { useDispatch, useSelector } from "react-redux";
@@ -108,7 +109,7 @@ const LayerInfo = ({ description, legend, zoomLevels }: LayerInfoProps) => {
                     return (
                       <div key={`section-${index}`}>
                         <h5 className="font-semibold">{section.title}</h5>
-                        <p className="text-sm">{section.description}</p>
+                        <p className="text-sm">{parse(section.description)}</p>
                       </div>
                     );
                   })}
