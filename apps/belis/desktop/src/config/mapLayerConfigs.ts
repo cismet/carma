@@ -131,6 +131,14 @@ export const additionalLayerConfigs: Record<string, LayerEntry> = {
       format: "image/png",
     },
   },
+  // alkisBlack: {
+  //   title: "Alkis Vektorlayer",
+  //   layer: {
+  //     type: "vector",
+  //     name: "Alkis Vektorlayer",
+  //     style: "https://tiles.cismet.de/alkis/flurstuecke.black.style.json",
+  //   },
+  // },
 };
 
 /** Leuchten data layer, always visible */
