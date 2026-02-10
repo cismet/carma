@@ -139,6 +139,7 @@ export const additionalLayerConfigs: Record<string, LayerEntry> = {
   //     style: "https://tiles.cismet.de/alkis/flurstuecke.black.style.json",
   //   },
   // },
+  // need to import bottstrap and cismap in main.tsx for this one to work, so leaving it out for now
 };
 
 /** Leuchten data layer, always visible */
