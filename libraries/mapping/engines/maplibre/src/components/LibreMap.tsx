@@ -186,7 +186,7 @@ export const LibreMap = ({
             "__selected__",
             "true",
           ]);
-        } else {
+        } else if (feature.id != null) {
           mapInstance.setFeatureState(
             {
               source: feature.source,
@@ -228,14 +228,16 @@ export const LibreMap = ({
       featureId: { source: string; sourceLayer?: string; id?: string | number }
     ) => {
       try {
-        mapInstance.setFeatureState(
-          {
-            source: featureId.source,
-            sourceLayer: featureId.sourceLayer,
-            id: featureId.id,
-          },
-          { selected: true }
-        );
+        if (featureId.id != null) {
+          mapInstance.setFeatureState(
+            {
+              source: featureId.source,
+              sourceLayer: featureId.sourceLayer,
+              id: featureId.id,
+            },
+            { selected: true }
+          );
+        }
         selectedFeaturesRef.current.add({
           source: featureId.source,
           sourceLayer: featureId.sourceLayer,

@@ -202,27 +202,45 @@ const BELIS_LAYERS = [
   },
 ];
 
+/**
+ * Showcase steps for demonstrating the mini-map transition concept:
+ * 1: Transparent map, red border, no transition, no zoom change
+ * 2: + zoom change when datasheet opens
+ * 3: + position/zoom transition animation
+ * 4: Production: opaque map, no red border, transitions enabled
+ */
+type ShowcaseStep = 0 | 1 | 2 | 3 | 4;
+
+const SHOWCASE_LABELS: Record<ShowcaseStep, string> = {
+  0: "Showcase 0: Opaque Baseline",
+  1: "Showcase 1: Transparent + No Zoom",
+  2: "Showcase 2: + Zoom Offset",
+  3: "Showcase 3: + Transition",
+  4: "Prod",
+};
+
 const BelisPlaygroundContent = () => {
   const { map } = useLibreContext();
   const { selectedFeatureId, selectedFeature, rawFeature } = useMapSelection();
   const { isDatasheetOpen, closeDatasheet } = useDatasheet();
   const [miniMap, setMiniMap] = useState<maplibregl.Map | null>(null);
+  const [showcaseStep, setShowcaseStep] = useState<ShowcaseStep>(0);
+
+  // Derive behavior from showcase step
+  const showcase = {
+    mapOpacity: showcaseStep >= 1 && showcaseStep < 4 ? 0.5 : 1,
+    redBorder: showcaseStep >= 1 && showcaseStep < 4,
+    zoomOffset: showcaseStep >= 2,
+    transition: showcaseStep >= 3,
+  };
 
   // Mini-map center: from selected feature geometry, or from last map click
   const [miniMapCenter, setMiniMapCenter] = useState<
     [number, number] | undefined
   >();
 
-  // Update center from selected feature
-  useEffect(() => {
-    if (!rawFeature?.geometry) return;
-    const coords = getCoordinates(rawFeature.geometry);
-    if (coords.length >= 2) {
-      setMiniMapCenter([coords[0], coords[1]]);
-    }
-  }, [rawFeature]);
-
-  // Update center from map click (covers deselection / empty clicks)
+  // Every click sets the mini-map center to the click location.
+  // When a feature is selected, the rawFeature effect below overrides this.
   useEffect(() => {
     if (!map) return;
     const onClick = (e: maplibregl.MapMouseEvent) => {
@@ -234,32 +252,111 @@ const BelisPlaygroundContent = () => {
     };
   }, [map]);
 
-  // Mini-map zoom offset relative to main map (configurable, default +2)
-  const [miniMapZoomOffset, setMiniMapZoomOffset] = useState(1);
+  // When a feature is selected, override center with feature geometry
+  useEffect(() => {
+    if (!rawFeature?.geometry) return;
+    const coords = getCoordinates(rawFeature.geometry);
+    if (coords.length >= 2) {
+      setMiniMapCenter([coords[0], coords[1]]);
+    }
+  }, [rawFeature]);
 
-  // Sync mini-map center/zoom
+  // Mini-map zoom offset relative to main map (applied only in datasheet view)
+  const [miniMapZoomOffset, setMiniMapZoomOffset] = useState(2);
+  const effectiveZoomOffset =
+    showcase.zoomOffset && isDatasheetOpen ? miniMapZoomOffset : 0;
+
+  // Mini-map dimensions and transition
+  const MINI_MAP_W = 350;
+  const MINI_MAP_H = 220;
+  const MINI_MAP_TRANSITION_MS = 200;
+
+  // Position the mini-map so its center (where the selected feature is)
+  // aligns with the feature's pixel position on the main map
+  const [miniMapPosition, setMiniMapPosition] = useState({ left: 0, top: 0 });
+  const mapContainerRef = useRef<HTMLDivElement>(null);
+
+  // Two-phase transition: first enable CSS transition, then change target in next frame
+  const [isTransitioning, setIsTransitioning] = useState(false);
+  const [miniMapTarget, setMiniMapTarget] = useState<"feature" | "corner">(
+    isDatasheetOpen ? "corner" : "feature"
+  );
+  const prevDatasheetRef = useRef(isDatasheetOpen);
+  useEffect(() => {
+    if (prevDatasheetRef.current === isDatasheetOpen) return;
+    prevDatasheetRef.current = isDatasheetOpen;
+    if (showcase.transition) {
+      // Phase 1: enable transition CSS (position unchanged yet)
+      setIsTransitioning(true);
+      // Phase 2: change target position in next frame so transition kicks in
+      requestAnimationFrame(() => {
+        setMiniMapTarget(isDatasheetOpen ? "corner" : "feature");
+      });
+      const timer = setTimeout(
+        () => setIsTransitioning(false),
+        MINI_MAP_TRANSITION_MS
+      );
+      return () => clearTimeout(timer);
+    } else {
+      // No transition: change target immediately
+      setMiniMapTarget(isDatasheetOpen ? "corner" : "feature");
+    }
+  }, [isDatasheetOpen, showcase.transition]);
+
+  // Sync mini-map center/zoom (instant)
   useEffect(() => {
     if (!miniMap || !miniMapCenter) return;
     const mainZoom = map?.getZoom() ?? 15;
     miniMap.resize();
-    miniMap.easeTo({
+    miniMap.jumpTo({
       center: miniMapCenter,
-      zoom: mainZoom + miniMapZoomOffset,
-      duration: 200,
+      zoom: mainZoom + effectiveZoomOffset,
     });
-  }, [miniMap, map, miniMapCenter, miniMapZoomOffset]);
+  }, [miniMap, map, miniMapCenter]);
 
-  // Keep mini-map zoom in sync when main map zoom changes
+  // Animate zoom when toggling between map/datasheet view
+  useEffect(() => {
+    if (!miniMap || !map || !isTransitioning) return;
+    miniMap.easeTo({
+      zoom: map.getZoom() + effectiveZoomOffset,
+      duration: MINI_MAP_TRANSITION_MS,
+    });
+  }, [miniMap, map, effectiveZoomOffset, isTransitioning]);
+
+  // Keep mini-map zoom in sync when main map zoom changes (instant)
   useEffect(() => {
     if (!map || !miniMap) return;
     const onZoom = () => {
-      miniMap.jumpTo({ zoom: map.getZoom() + miniMapZoomOffset });
+      miniMap.jumpTo({ zoom: map.getZoom() + effectiveZoomOffset });
     };
     map.on("zoom", onZoom);
     return () => {
       map.off("zoom", onZoom);
     };
-  }, [map, miniMap, miniMapZoomOffset]);
+  }, [map, miniMap, effectiveZoomOffset]);
+
+  // Position mini-map so its center (the selected feature) aligns with
+  // the feature's pixel position on the main map
+  useEffect(() => {
+    if (!map || !miniMapCenter) {
+      setMiniMapPosition({ left: 0, top: 0 });
+      return;
+    }
+
+    const update = () => {
+      const pixel = map.project(miniMapCenter);
+      setMiniMapPosition({
+        left: pixel.x - MINI_MAP_W / 2,
+        top: pixel.y - MINI_MAP_H / 2,
+      });
+    };
+
+    update();
+    map.on("move", update);
+    return () => {
+      map.off("move", update);
+    };
+  }, [map, miniMapCenter]);
 
   // Sync feature-state selection highlight on the mini-map
   const prevSelectionRef = useRef<typeof selectedFeatureId>(null);
@@ -324,7 +421,9 @@ const BelisPlaygroundContent = () => {
       });
     };
     el.addEventListener("wheel", onWheel, { passive: false });
-    return () => { el.removeEventListener("wheel", onWheel); };
+    return () => {
+      el.removeEventListener("wheel", onWheel);
+    };
   }, [miniMap, map]);
 
   const handleReturnToMap = useCallback(() => {
@@ -339,6 +438,14 @@ const BelisPlaygroundContent = () => {
     <div className="bg-[#F1F1F1] flex flex-col w-full h-screen overflow-hidden">
       <div className="flex items-center mx-3 mb-2 mt-2">
         <span className="font-semibold mr-8 text-lg">BelISDesktop</span>
+        {/* Showcase step button (uncomment to cycle through demo steps)
+        <button
+          onClick={() => setShowcaseStep((s) => (((s + 1) % 5) as ShowcaseStep))}
+          className="px-3 py-1 text-xs rounded bg-gray-200 hover:bg-gray-300"
+        >
+          {SHOWCASE_LABELS[showcaseStep]}
+        </button>
+        */}
       </div>
       <div className="w-full flex-1 flex min-h-0">
         <TestSelectionList />
@@ -364,48 +471,49 @@ const BelisPlaygroundContent = () => {
               }
             >
               <div
-                style={{ position: "relative", width: "100%", height: "100%" }}
+                ref={mapContainerRef}
+                style={{
+                  position: "relative",
+                  width: "100%",
+                  height: "100%",
+                  overflow: "hidden",
+                }}
               >
-                <DatasheetLayout
-                  mainMap={
-                    <CarmaMap
-                      mapEngine="maplibre"
-                      embedded
-                      terrainControl={false}
-                      backgroundLayers="basemap_grey@60"
-                      overrideGlyphs="https://tiles.cismet.de/fonts/{fontstack}/{range}.pbf"
-                      libreLayers={BELIS_LAYERS}
-                    />
-                  }
-                  datasheetContent={
-                    <div style={{ height: "100%", overflow: "auto" }}>
-                      <FeatureDataView
-                        feature={selectedFeature}
-                        rawFeature={rawFeature}
-                      />
-                    </div>
-                  }
-                  onReturnToMap={handleReturnToMap}
-                />
-                {/* Mini-map overlay, bottom-right */}
+                {/* Mini-map: small, behind main map, positioned to align selected feature */}
                 <div
                   ref={miniMapContainerRef}
                   style={{
                     position: "absolute",
-                    bottom: 16,
-                    right: 16,
-                    width: 350,
-                    height: 220,
-                    borderRadius: 8,
+                    left:
+                      miniMapTarget === "corner"
+                        ? (mapContainerRef.current?.clientWidth ?? 0) -
+                          MINI_MAP_W -
+                          16
+                        : miniMapPosition.left,
+                    top:
+                      miniMapTarget === "corner"
+                        ? (mapContainerRef.current?.clientHeight ?? 0) -
+                          MINI_MAP_H -
+                          16
+                        : miniMapPosition.top,
+                    width: MINI_MAP_W,
+                    height: MINI_MAP_H,
+                    visibility:
+                      showcase.mapOpacity === 1 && !isDatasheetOpen
+                        ? "hidden"
+                        : "visible",
+                    zIndex: isDatasheetOpen ? 30 : 0,
+                    border: showcase.redBorder ? "3px solid red" : "none",
+                    borderRadius: miniMapTarget === "corner" ? 8 : 0,
                     overflow: "hidden",
-                    boxShadow: isDatasheetOpen
-                      ? "0 4px 20px rgba(0,0,0,0.3)"
-                      : "none",
-                    zIndex: 30,
-                    opacity: isDatasheetOpen ? 1 : 0,
+                    boxShadow:
+                      miniMapTarget === "corner"
+                        ? "0 4px 20px rgba(0,0,0,0.3)"
+                        : "none",
                     pointerEvents: isDatasheetOpen ? "auto" : "none",
-                    transition:
-                      "opacity 300ms cubic-bezier(0.4, 0, 0.2, 1), box-shadow 300ms cubic-bezier(0.4, 0, 0.2, 1)",
+                    transition: isTransitioning
+                      ? `left ${MINI_MAP_TRANSITION_MS}ms cubic-bezier(0.4, 0, 0.2, 1), top ${MINI_MAP_TRANSITION_MS}ms cubic-bezier(0.4, 0, 0.2, 1), border-radius ${MINI_MAP_TRANSITION_MS}ms cubic-bezier(0.4, 0, 0.2, 1), box-shadow ${MINI_MAP_TRANSITION_MS}ms cubic-bezier(0.4, 0, 0.2, 1)`
+                      : "none",
                   }}
                 >
                   {isDatasheetOpen && (
@@ -446,6 +554,28 @@ const BelisPlaygroundContent = () => {
                     />
                   </LibreContextProvider>
                 </div>
+                <DatasheetLayout
+                  mainMap={
+                    <CarmaMap
+                      mapEngine="maplibre"
+                      embedded
+                      terrainControl={false}
+                      backgroundLayers="basemap_grey@60"
+                      overrideGlyphs="https://tiles.cismet.de/fonts/{fontstack}/{range}.pbf"
+                      libreLayers={BELIS_LAYERS}
+                    />
+                  }
+                  datasheetContent={
+                    <div style={{ height: "100%", overflow: "auto" }}>
+                      <FeatureDataView
+                        feature={selectedFeature}
+                        rawFeature={rawFeature}
+                      />
+                    </div>
+                  }
+                  mapOpacity={showcase.mapOpacity}
+                  onReturnToMap={handleReturnToMap}
+                />
               </div>
             </CustomCard>
           </div>

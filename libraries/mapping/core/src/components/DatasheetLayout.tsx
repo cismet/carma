@@ -12,6 +12,8 @@ export interface DatasheetLayoutProps {
   datasheetContent: ReactNode;
   /** Transition duration in ms */
   transitionDuration?: number;
+  /** Opacity of the main map when visible (default 1) */
+  mapOpacity?: number;
   /** Called after switching back to map view, so the consumer can call map.resize() */
   onReturnToMap?: () => void;
 }
@@ -22,6 +24,7 @@ export const DatasheetLayout = ({
   mainMap,
   datasheetContent,
   transitionDuration = 300,
+  mapOpacity = 1,
   onReturnToMap,
 }: DatasheetLayoutProps) => {
   const { isDatasheetOpen } = useDatasheet();
@@ -62,7 +65,7 @@ export const DatasheetLayout = ({
     left: 0,
     width: "100%",
     height: "100%",
-    opacity: isDatasheetOpen ? 0 : 1,
+    opacity: isDatasheetOpen ? 0 : mapOpacity,
     pointerEvents: isDatasheetOpen ? "none" : "auto",
     transition,
     zIndex: 1,
