@@ -12,7 +12,7 @@ import {
   LibreContextProvider,
   DatasheetProvider,
   useDatasheet,
-  getCoordinates,
+  useDatasheetMiniMap,
 } from "@carma-mapping/engines/maplibre";
 import {
   useVisibleMapFeatures,
@@ -207,205 +207,18 @@ const MINI_MAP_DEBUGGING = false;
 
 const BelisPlaygroundContent = () => {
   const { map } = useLibreContext();
-  const { selectedFeatureId, selectedFeature, rawFeature } = useMapSelection();
+  const { selectedFeature, rawFeature } = useMapSelection();
   const { isDatasheetOpen, closeDatasheet } = useDatasheet();
   const [miniMap, setMiniMap] = useState<maplibregl.Map | null>(null);
-
-  // Mini-map center: from selected feature geometry, or from last map click
-  const [miniMapCenter, setMiniMapCenter] = useState<
-    [number, number] | undefined
-  >();
-
-  // Every click sets the mini-map center to the click location.
-  // When a feature is selected, the rawFeature effect below overrides this.
-  useEffect(() => {
-    if (!map) return;
-    const onClick = (e: maplibregl.MapMouseEvent) => {
-      setMiniMapCenter([e.lngLat.lng, e.lngLat.lat]);
-    };
-    map.on("click", onClick);
-    return () => {
-      map.off("click", onClick);
-    };
-  }, [map]);
-
-  // When a feature is selected, override center with feature geometry
-  useEffect(() => {
-    if (!rawFeature?.geometry) return;
-    const coords = getCoordinates(rawFeature.geometry);
-    if (coords.length >= 2) {
-      setMiniMapCenter([coords[0], coords[1]]);
-    }
-  }, [rawFeature]);
-
-  // Mini-map zoom offset relative to main map (applied only in datasheet view)
-  const [miniMapZoomOffset, setMiniMapZoomOffset] = useState(2);
-  const effectiveZoomOffset = isDatasheetOpen ? miniMapZoomOffset : 0;
-
-  // Mini-map dimensions and transition
-  const MINI_MAP_W = 350;
-  const MINI_MAP_H = 220;
-  const MINI_MAP_TRANSITION_MS = MINI_MAP_DEBUGGING ? 1500 : 200;
-
-  // Position the mini-map so its center (where the selected feature is)
-  // aligns with the feature's pixel position on the main map
-  const [miniMapPosition, setMiniMapPosition] = useState({ left: 0, top: 0 });
   const mapContainerRef = useRef<HTMLDivElement>(null);
 
-  // Two-phase transition: first enable CSS transition, then change target in next frame
-  const [isTransitioning, setIsTransitioning] = useState(false);
-  const [miniMapTarget, setMiniMapTarget] = useState<"feature" | "corner">(
-    isDatasheetOpen ? "corner" : "feature"
-  );
-  const [miniMapOpacity, setMiniMapOpacity] = useState(isDatasheetOpen ? 1 : 0);
-  const prevDatasheetRef = useRef(isDatasheetOpen);
-  useEffect(() => {
-    if (prevDatasheetRef.current === isDatasheetOpen) return;
-    prevDatasheetRef.current = isDatasheetOpen;
-    // Phase 1: enable transition CSS (position unchanged yet)
-    setIsTransitioning(true);
-    // Phase 2: change target position + opacity in next frame so transition kicks in
-    requestAnimationFrame(() => {
-      setMiniMapTarget(isDatasheetOpen ? "corner" : "feature");
-      setMiniMapOpacity(isDatasheetOpen ? 1 : 0);
+  const { containerStyle, debugOutlineStyle, showCloseButton, miniMapContainerRef } =
+    useDatasheetMiniMap({
+      mainMap: map,
+      miniMap,
+      containerRef: mapContainerRef,
+      debug: MINI_MAP_DEBUGGING,
     });
-    const timer = setTimeout(
-      () => setIsTransitioning(false),
-      MINI_MAP_TRANSITION_MS
-    );
-    return () => clearTimeout(timer);
-  }, [isDatasheetOpen]);
-
-  // Sync mini-map center/zoom: ease when datasheet is visible, jump when hidden
-  useEffect(() => {
-    if (!miniMap || !miniMapCenter) return;
-    const mainZoom = map?.getZoom() ?? 15;
-    miniMap.resize();
-    if (isDatasheetOpen) {
-      miniMap.easeTo({
-        center: miniMapCenter,
-        zoom: mainZoom + effectiveZoomOffset,
-        duration: MINI_MAP_TRANSITION_MS,
-      });
-    } else {
-      miniMap.jumpTo({
-        center: miniMapCenter,
-        zoom: mainZoom + effectiveZoomOffset,
-      });
-    }
-  }, [miniMap, map, miniMapCenter, isDatasheetOpen, effectiveZoomOffset]);
-
-  // Animate zoom when toggling between map/datasheet view
-  useEffect(() => {
-    if (!miniMap || !map || !isTransitioning) return;
-    miniMap.easeTo({
-      zoom: map.getZoom() + effectiveZoomOffset,
-      duration: MINI_MAP_TRANSITION_MS,
-    });
-  }, [miniMap, map, effectiveZoomOffset, isTransitioning]);
-
-  // Keep mini-map zoom in sync when main map zoom changes (instant)
-  useEffect(() => {
-    if (!map || !miniMap) return;
-    const onZoom = () => {
-      miniMap.jumpTo({ zoom: map.getZoom() + effectiveZoomOffset });
-    };
-    map.on("zoom", onZoom);
-    return () => {
-      map.off("zoom", onZoom);
-    };
-  }, [map, miniMap, effectiveZoomOffset]);
-
-  // Position mini-map so its center (the selected feature) aligns with
-  // the feature's pixel position on the main map
-  useEffect(() => {
-    if (!map || !miniMapCenter) {
-      setMiniMapPosition({ left: 0, top: 0 });
-      return;
-    }
-
-    const update = () => {
-      const pixel = map.project(miniMapCenter);
-      setMiniMapPosition({
-        left: pixel.x - MINI_MAP_W / 2,
-        top: pixel.y - MINI_MAP_H / 2,
-      });
-    };
-
-    update();
-    map.on("move", update);
-    return () => {
-      map.off("move", update);
-    };
-  }, [map, miniMapCenter]);
-
-  // Sync feature-state selection highlight on the mini-map
-  const prevSelectionRef = useRef<typeof selectedFeatureId>(null);
-  useEffect(() => {
-    if (!miniMap) return;
-
-    const apply = () => {
-      // Clear previous
-      if (prevSelectionRef.current) {
-        try {
-          miniMap.setFeatureState(
-            {
-              source: prevSelectionRef.current.source,
-              sourceLayer: prevSelectionRef.current.sourceLayer,
-              id: prevSelectionRef.current.id,
-            },
-            { selected: false }
-          );
-        } catch {
-          // source may not exist yet
-        }
-      }
-      // Apply new
-      if (selectedFeatureId) {
-        try {
-          miniMap.setFeatureState(
-            {
-              source: selectedFeatureId.source,
-              sourceLayer: selectedFeatureId.sourceLayer,
-              id: selectedFeatureId.id,
-            },
-            { selected: true }
-          );
-        } catch {
-          // source may not exist yet
-        }
-      }
-      prevSelectionRef.current = selectedFeatureId;
-    };
-
-    if (miniMap.isStyleLoaded()) {
-      apply();
-    } else {
-      miniMap.once("styledata", apply);
-    }
-  }, [miniMap, selectedFeatureId]);
-
-  // Mousewheel on mini-map: smooth zoom offset adjustment
-  const miniMapContainerRef = useRef<HTMLDivElement>(null);
-  useEffect(() => {
-    const el = miniMapContainerRef.current;
-    if (!el || !miniMap) return;
-    const onWheel = (e: WheelEvent) => {
-      e.preventDefault();
-      // Proportional delta like MapLibre's native zoom (~1/300 per pixel)
-      const delta = -e.deltaY / 300;
-      setMiniMapZoomOffset((prev) => {
-        const next = Math.max(-5, Math.min(10, prev + delta));
-        const mainZoom = map?.getZoom() ?? 15;
-        miniMap.easeTo({ zoom: mainZoom + next, duration: 50 });
-        return next;
-      });
-    };
-    el.addEventListener("wheel", onWheel, { passive: false });
-    return () => {
-      el.removeEventListener("wheel", onWheel);
-    };
-  }, [miniMap, map]);
 
   const handleReturnToMap = useCallback(() => {
     map?.resize();
@@ -452,87 +265,9 @@ const BelisPlaygroundContent = () => {
                   overflow: "hidden",
                 }}
               >
-                {/* Debug outline: always visible, tracks mini-map position */}
-                {MINI_MAP_DEBUGGING && (
-                  <div
-                    style={{
-                      position: "absolute",
-                      left:
-                        miniMapTarget === "corner"
-                          ? (mapContainerRef.current?.clientWidth ?? 0) -
-                            MINI_MAP_W -
-                            16
-                          : miniMapPosition.left,
-                      top:
-                        miniMapTarget === "corner"
-                          ? (mapContainerRef.current?.clientHeight ?? 0) -
-                            MINI_MAP_H -
-                            16
-                          : miniMapPosition.top,
-                      width: MINI_MAP_W,
-                      height: MINI_MAP_H,
-                      border: "3px solid red",
-                      borderRadius: miniMapTarget === "corner" ? 8 : 0,
-                      pointerEvents: "none",
-                      zIndex: 40,
-                      transition: isTransitioning
-                        ? `left ${MINI_MAP_TRANSITION_MS}ms cubic-bezier(0.4, 0, 0.2, 1), top ${MINI_MAP_TRANSITION_MS}ms cubic-bezier(0.4, 0, 0.2, 1), border-radius ${MINI_MAP_TRANSITION_MS}ms cubic-bezier(0.4, 0, 0.2, 1)`
-                        : "none",
-                    }}
-                  />
-                )}
-                {/* Mini-map: small, behind main map, positioned to align selected feature */}
-                <div
-                  ref={miniMapContainerRef}
-                  style={{
-                    position: "absolute",
-                    left:
-                      miniMapTarget === "corner"
-                        ? (mapContainerRef.current?.clientWidth ?? 0) -
-                          MINI_MAP_W -
-                          16
-                        : miniMapPosition.left,
-                    top:
-                      miniMapTarget === "corner"
-                        ? (mapContainerRef.current?.clientHeight ?? 0) -
-                          MINI_MAP_H -
-                          16
-                        : miniMapPosition.top,
-                    width: MINI_MAP_W,
-                    height: MINI_MAP_H,
-                    opacity: miniMapOpacity,
-                    visibility:
-                      !isDatasheetOpen && !isTransitioning
-                        ? "hidden"
-                        : "visible",
-                    zIndex: isDatasheetOpen || isTransitioning ? 30 : 0,
-                    borderRadius: miniMapTarget === "corner" ? 8 : 0,
-                    overflow: "hidden",
-                    boxShadow:
-                      miniMapTarget === "corner"
-                        ? "0 4px 20px rgba(0,0,0,0.3)"
-                        : "none",
-                    pointerEvents: isDatasheetOpen ? "auto" : "none",
-                    transition: isTransitioning
-                      ? (() => {
-                          const e = "cubic-bezier(0.4, 0, 0.2, 1)";
-                          const d = MINI_MAP_TRANSITION_MS;
-                          const half = d / 2;
-                          // Opening: fade in during first half
-                          // Closing: stay visible for first half, fade out during second half
-                          const opacityDelay = isDatasheetOpen ? 0 : half;
-                          return [
-                            `left ${d}ms ${e}`,
-                            `top ${d}ms ${e}`,
-                            `border-radius ${d}ms ${e}`,
-                            `box-shadow ${d}ms ${e}`,
-                            `opacity ${half}ms ${e} ${opacityDelay}ms`,
-                          ].join(", ");
-                        })()
-                      : "none",
-                  }}
-                >
-                  {isDatasheetOpen && (
+                {debugOutlineStyle && <div style={debugOutlineStyle} />}
+                <div ref={miniMapContainerRef} style={containerStyle}>
+                  {showCloseButton && (
                     <button
                       onClick={closeDatasheet}
                       title="Zur Karte"

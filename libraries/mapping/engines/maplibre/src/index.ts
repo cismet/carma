@@ -47,6 +47,11 @@ export type { DatasheetContextType } from "./contexts/DatasheetContext";
 // Hooks
 export { useClusterMarkers } from "./hooks/useClusterMarkers";
 export { useSelectionLibreMap } from "./hooks/useSelectionLibreMap";
+export { useDatasheetMiniMap } from "./hooks/useDatasheetMiniMap";
+export type {
+  UseDatasheetMiniMapOptions,
+  UseDatasheetMiniMapResult,
+} from "./hooks/useDatasheetMiniMap";
 
 // Style utilities
 export {
