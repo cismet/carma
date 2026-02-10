@@ -75,17 +75,10 @@ const BelisMapLibWrapper = ({ mapSizes }) => {
         <CarmaMap
           mapEngine="maplibre"
           embedded
-          backgroundLayers="empty" // "wupp-plan-live-tiles-3857" // "basemap_grey" // "basemap_relief" // "basemap_color"
+          backgroundLayers="basemap_grey@60" // "wupp-plan-live-tiles-3857" // "basemap_grey" // "basemap_relief" // "basemap_color"
           terrainControl={false}
           fullScreenControl={false}
           libreLayers={[
-            {
-              type: "vector",
-              name: "Stadtplan (bunt)",
-              style:
-                "https://omt.map-hosting.de/styles/osm-bright-grey/style.json",
-              opacity: 0.6,
-            },
             {
               type: "vector",
               name: "Leuchten",
