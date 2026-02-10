@@ -11,11 +11,10 @@ const FeatureFormDemo = () => {
   }, [selectedFeatureData]);
 
   return (
-    <div style={{ padding: 20 }}>
-      <h1>Feature Form Demo</h1>
+    <div className="h-[900px] bg-white p-4">
       <LeitungForm data={selectedFeatureData} />
-      <h2 style={{ marginTop: 20 }}>Raw Data</h2>
-      <pre>{JSON.stringify(selectedFeatureData, null, 2)}</pre>
+      {/* <h2 style={{ marginTop: 20 }}>Raw Data</h2>
+      <pre>{JSON.stringify(selectedFeatureData, null, 2)}</pre> */}
     </div>
   );
 };
