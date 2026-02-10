@@ -50,6 +50,7 @@ export interface FeatureInfo {
 export interface LayerMappingEntry {
   iconname?: string;
   tooltip?: string;
+  action?: () => void;
   routeAction?: boolean;
   getRouteParams?: () => {
     from: { lat: number; lng: number };
@@ -64,7 +65,8 @@ export const createFeature = async (
   selectedVectorFeature: maplibregl.MapGeoJSONFeature,
   layerMapping: string[],
   _mapInstance?: maplibregl.Map,
-  useRouting?: boolean
+  useRouting?: boolean,
+  onOpenDatasheet?: () => void
 ): Promise<FeatureInfo | undefined> => {
   let feature: FeatureInfo | undefined = undefined;
 
@@ -92,6 +94,10 @@ export const createFeature = async (
   const featureInfoZoom = 20;
 
   layerMapping.forEach((keyword) => {
+    // Skip known control flags (not part of the infobox mapping template)
+    if (keyword.startsWith("openDatasheet:")) {
+      return;
+    }
     result += keyword + "\n";
   });
 
@@ -150,6 +156,14 @@ export const createFeature = async (
             to: { lat: endLat, lng: endLng },
           };
         },
+      });
+    }
+
+    if (onOpenDatasheet && featureProperties.properties.datasheet) {
+      genericLinks.push({
+        iconname: "info",
+        tooltip: "Datenblatt",
+        action: onOpenDatasheet,
       });
     }
 

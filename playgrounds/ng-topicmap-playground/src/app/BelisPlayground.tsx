@@ -1,15 +1,26 @@
-import { useRef, useState, useEffect, useMemo } from "react";
-import { CarmaMap } from "@carma-mapping/core";
+import { useRef, useState, useEffect, useMemo, useCallback } from "react";
+import {
+  CarmaMap,
+  FeatureDataView,
+  DatasheetLayout,
+} from "@carma-mapping/core";
 import { CustomCard } from "./CustomCard";
 import { BelisSwitch } from "@carma-appframeworks/belis";
 import {
   useMapSelection,
   useLibreContext,
+  LibreContextProvider,
+  DatasheetProvider,
+  useDatasheet,
+  useDatasheetMiniMap,
 } from "@carma-mapping/engines/maplibre";
 import {
   useVisibleMapFeatures,
   type VisibleFeature,
 } from "@carma-mapping/utils";
+import type maplibregl from "maplibre-gl";
+import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
+import { faMap } from "@fortawesome/free-solid-svg-icons";
 
 // Convert ALL CAPS to Title Case
 const toTitleCase = (str: string): string => {
@@ -183,7 +194,44 @@ const TestSelectionList = () => {
   );
 };
 
-const BelisPlayground = () => {
+const BELIS_LAYERS = [
+  {
+    type: "vector" as const,
+    name: "Leuchten",
+    style: "https://tiles.cismet.de/belis/style.json",
+  },
+];
+
+/** Debug flag: translucent main map + red mini-map border, mini-map always visible */
+const MINI_MAP_DEBUGGING = false;
+
+const BelisPlaygroundContent = () => {
+  const { map } = useLibreContext();
+  const { selectedFeature, rawFeature } = useMapSelection();
+  const { isDatasheetOpen, closeDatasheet } = useDatasheet();
+  const [miniMap, setMiniMap] = useState<maplibregl.Map | null>(null);
+  const mapContainerRef = useRef<HTMLDivElement>(null);
+
+  const {
+    containerStyle,
+    debugOutlineStyle,
+    showCloseButton,
+    miniMapContainerRef,
+  } = useDatasheetMiniMap({
+    mainMap: map,
+    miniMap,
+    containerRef: mapContainerRef,
+    debug: MINI_MAP_DEBUGGING,
+  });
+
+  const handleReturnToMap = useCallback(() => {
+    map?.resize();
+  }, [map]);
+
+  const handleMiniMapReady = useCallback((m: maplibregl.Map) => {
+    setMiniMap(m);
+  }, []);
+
   return (
     <div className="bg-[#F1F1F1] flex flex-col w-full h-screen overflow-hidden">
       <div className="flex items-center mx-3 mb-2 mt-2">
@@ -194,7 +242,7 @@ const BelisPlayground = () => {
         <div className="flex-1 flex flex-col min-h-0">
           <div className="mx-3 my-2 flex-1 flex flex-col min-h-0">
             <CustomCard
-              title="Karte"
+              title={isDatasheetOpen ? "Datenblatt" : "Karte"}
               style={{ flex: 1, minHeight: 0 }}
               extra={
                 <div className="flex items-center gap-4">
@@ -212,26 +260,78 @@ const BelisPlayground = () => {
                 </div>
               }
             >
-              <CarmaMap
-                mapEngine="maplibre"
-                embedded
-                terrainControl={false}
-                backgroundLayers="basemap_grey@60" // "wupp-plan-live-tiles-3857" // "basemap_grey" // "basemap_relief" // "basemap_color"
-                overrideGlyphs="https://tiles.cismet.de/fonts/{fontstack}/{range}.pbf"
-                libreLayers={[
-                  // {
-                  //   type: "cog",
-                  //   name: "Orthophoto",
-                  //   url: "https://cog-wupp.cismet.de/output_3857.tif",
-                  //   opacity: 1,
-                  // },
-                  {
-                    type: "vector",
-                    name: "Leuchten",
-                    style: "https://tiles.cismet.de/belis/style.json",
-                  },
-                ]}
-              />
+              <div
+                ref={mapContainerRef}
+                style={{
+                  position: "relative",
+                  width: "100%",
+                  height: "100%",
+                  overflow: "hidden",
+                }}
+              >
+                {debugOutlineStyle && <div style={debugOutlineStyle} />}
+                <div ref={miniMapContainerRef} style={containerStyle}>
+                  {showCloseButton && (
+                    <button
+                      onClick={closeDatasheet}
+                      title="Zur Karte"
+                      style={{
+                        position: "absolute",
+                        top: 6,
+                        right: 6,
+                        zIndex: 10,
+                        width: 28,
+                        height: 28,
+                        borderRadius: "50%",
+                        border: "none",
+                        background: "rgba(0,0,0,0.5)",
+                        color: "#fff",
+                        fontSize: 14,
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        cursor: "pointer",
+                        padding: 0,
+                      }}
+                    >
+                      <FontAwesomeIcon icon={faMap} />
+                    </button>
+                  )}
+                  <LibreContextProvider>
+                    <CarmaMap
+                      mapEngine="maplibre"
+                      embedded
+                      miniMap
+                      backgroundLayers="basemap_relief@60"
+                      overrideGlyphs="https://tiles.cismet.de/fonts/{fontstack}/{range}.pbf"
+                      libreLayers={BELIS_LAYERS}
+                      setLibreMap={handleMiniMapReady}
+                    />
+                  </LibreContextProvider>
+                </div>
+                <DatasheetLayout
+                  mainMap={
+                    <CarmaMap
+                      mapEngine="maplibre"
+                      embedded
+                      terrainControl={false}
+                      backgroundLayers="basemap_grey@60"
+                      overrideGlyphs="https://tiles.cismet.de/fonts/{fontstack}/{range}.pbf"
+                      libreLayers={BELIS_LAYERS}
+                    />
+                  }
+                  datasheetContent={
+                    <div style={{ height: "100%", overflow: "auto" }}>
+                      <FeatureDataView
+                        feature={selectedFeature}
+                        rawFeature={rawFeature}
+                      />
+                    </div>
+                  }
+                  mapOpacity={MINI_MAP_DEBUGGING ? 0.5 : 1}
+                  onReturnToMap={handleReturnToMap}
+                />
+              </div>
             </CustomCard>
           </div>
         </div>
@@ -240,4 +340,118 @@ const BelisPlayground = () => {
   );
 };
 
+const BelisPlayground = () => {
+  return (
+    <DatasheetProvider>
+      <BelisPlaygroundContent />
+    </DatasheetProvider>
+  );
+};
+
 export default BelisPlayground;
+
+//Working LibreLayers
+
+// libreLayers={[
+//         // --- Background layers for testing ---
+//         // RVR
+//         {
+//           type: "wmts",
+//           url: "https://geodaten.metropoleruhr.de/spw2/service",
+//           layers: "spw2_light",
+//           version: "1.3.0",
+//           transparent: true,
+//           format: "image/png",
+//           tileSize: 512,
+//           maxZoom: 26,
+//         },
+// Liegenschaftskarte (grau)
+// {
+//   type: "wmts",
+//   url: "https://s10222-wuppertal-intra.map-hosting.de/forwardingTo/s10221/7098/alkis/services",
+//   //url: "http://s10221.wuppertal-intra.de:7098/alkis/services",
+//   layers: "alkomgw",
+//   styles: "default",
+//   version: "1.1.1",
+//   tileSize: 256,
+//   maxZoom: 26,
+//   transparent: true,
+//   format: "image/png",
+//   opacity: 0.5,
+// },
+// // Liegenschaftskarte (bunt)
+// {
+//   type: "wmts",
+//   url: "https://s10222-wuppertal-intra.map-hosting.de/forwardingTo/s10221/7098/alkis/services",
+//   //url: "http://s10221.wuppertal-intra.de:7098/alkis/services",
+//   layers: "alkomf",
+//   styles: "default",
+//   version: "1.1.1",
+//   tileSize: 256,
+//   transparent: true,
+//   format: "image/png",
+//   opacity: 0.5,
+// },
+// // True Orthofoto
+// {
+//   type: "wms",
+//   url: "https://geo.udsp.wuppertal.de/geoserver-cloud/ows",
+//   layers: "GIS-102:trueortho2024",
+//   tileSize: 256,
+//   transparent: true,
+//   maxZoom: 26,
+//   format: "image/png",
+// },
+// Luftbildkarte (SPW2 light Grundriss)
+// {
+//   type: "wmts",
+//   url: "https://geodaten.metropoleruhr.de/spw2/service",
+//   layers: "spw2_light_grundriss",
+//   version: "1.3.0",
+//   transparent: true,
+//   format: "image/png",
+//   maxZoom: 26,
+// },
+// // Luftbildkarte (True Ortho underlay)
+// {
+//   type: "wms",
+//   url: "https://geo.udsp.wuppertal.de/geoserver-cloud/ows",
+//   layers: "GIS-102:trueortho2024",
+//   tileSize: 256,
+//   transparent: true,
+//   maxZoom: 26,
+//   format: "image/png",
+// },
+// // Luftbildkarte (DOP Overlay)
+// {
+//   type: "wmts",
+//   url: "https://geodaten.metropoleruhr.de/dop/dop_overlay?language=ger",
+//   layers: "dop_overlay",
+//   version: "1.3.0",
+//   format: "image/png",
+//   transparent: true,
+//   maxZoom: 26,
+// },
+// Stadtplan (grau)
+// {
+//   type: "vector",
+//   name: "Stadtplan grau",
+//   style:
+//     "https://sgx.geodatenzentrum.de/gdz_basemapde_vektor/styles/bm_web_gry.json",
+//   opacity: 0.5,
+// },
+// Stadtplan (bunt)
+// {
+//   type: "vector",
+//   name: "Stadtplan bunt",
+//   style:
+//     "https://sgx.geodatenzentrum.de/gdz_basemapde_vektor/styles/bm_web_top.json",
+//   opacity: 0.5,
+// },
+//   {
+//     type: "vector",
+//     name: "Leuchten",
+//     style: "https://tiles.cismet.de/belis/style.json",
+//     opacity: 1,
+//   },
+// ]}

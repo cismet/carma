@@ -39,6 +39,7 @@ import { proj4crs3857def, proj4crs4326def } from "@carma-mapping/utils";
 import { useSelectionLibreMap } from "../hooks/useSelectionLibreMap";
 import { useLibreContext } from "../contexts/LibreContext";
 import { useMapSelection } from "../contexts/MapSelectionContext";
+import { useDatasheet } from "../contexts/DatasheetContext";
 import { useClusterMarkers } from "../hooks/useClusterMarkers";
 import {
   WUPPERTAL_DEFAULT_STYLE,
@@ -68,6 +69,18 @@ export interface VectorStyle {
 export type LibreLayer =
   | ({ type: "vector" } & VectorStyle)
   | { type: "geojson"; name: string; data: string; infoboxMapping?: string[] }
+  | {
+      type: "wms" | "wmts";
+      url: string;
+      layers: string;
+      styles?: string;
+      version?: string;
+      tileSize?: number;
+      maxZoom?: number;
+      format?: string;
+      opacity?: number;
+      transparent?: boolean;
+    }
   | { type: "cog"; name: string; url: string; opacity?: number };
 
 export interface LibreMapProps {
@@ -83,6 +96,10 @@ export interface LibreMapProps {
   /** Override glyphs (font) URL. undefined = use from first vector layer style, string = use this URL */
   overrideGlyphs?: string;
   useRouting?: boolean;
+  /** Keep the canvas readable for toDataURL() snapshot capture */
+  preserveDrawingBuffer?: boolean;
+  /** Disable all map interaction (pan, zoom, rotate, keyboard) */
+  interactive?: boolean;
   /** Enable visual selection via setFeatureState even without infoboxMapping */
   selectionEnabled?: boolean;
   onFeatureSelect?: (
@@ -103,6 +120,8 @@ export const LibreMap = ({
   filterFunction,
   overrideGlyphs,
   useRouting = false,
+  interactive = true,
+  preserveDrawingBuffer = false,
   selectionEnabled = true,
   onFeatureSelect,
 }: LibreMapProps) => {
@@ -160,6 +179,12 @@ export const LibreMap = ({
   mapSelectionCtxRef.current = mapSelectionCtx;
   const lastHandledVersionRef = useRef(0);
 
+  // DatasheetContext: when a DatasheetProvider is mounted, isEnabled is true
+  // and openDatasheet is a real function. Otherwise createFeature gets undefined.
+  const { isEnabled: datasheetEnabled, openDatasheet } = useDatasheet();
+  const openDatasheetRef = useRef(datasheetEnabled ? openDatasheet : undefined);
+  openDatasheetRef.current = datasheetEnabled ? openDatasheet : undefined;
+
   // Helper: clear all visual selection state on the map
   const clearVisualSelection = useCallback((mapInstance: maplibregl.Map) => {
     selectedFeaturesRef.current.forEach((feature) => {
@@ -173,7 +198,7 @@ export const LibreMap = ({
             "__selected__",
             "true",
           ]);
-        } else {
+        } else if (feature.id != null) {
           mapInstance.setFeatureState(
             {
               source: feature.source,
@@ -215,14 +240,16 @@ export const LibreMap = ({
       featureId: { source: string; sourceLayer?: string; id?: string | number }
     ) => {
       try {
-        mapInstance.setFeatureState(
-          {
-            source: featureId.source,
-            sourceLayer: featureId.sourceLayer,
-            id: featureId.id,
-          },
-          { selected: true }
-        );
+        if (featureId.id != null) {
+          mapInstance.setFeatureState(
+            {
+              source: featureId.source,
+              sourceLayer: featureId.sourceLayer,
+              id: featureId.id,
+            },
+            { selected: true }
+          );
+        }
         selectedFeaturesRef.current.add({
           source: featureId.source,
           sourceLayer: featureId.sourceLayer,
@@ -411,6 +438,10 @@ export const LibreMap = ({
         zoom: zoom,
         maxZoom: 21.9999,
         attributionControl: false,
+        interactive,
+        canvasContextAttributes: preserveDrawingBuffer
+          ? { preserveDrawingBuffer: true }
+          : undefined,
       });
       map.current = mapInstance;
       setLibreMap?.(mapInstance);
@@ -506,7 +537,8 @@ export const LibreMap = ({
               selectedVectorFeature,
               layerMapping,
               mapInstance,
-              useRouting
+              useRouting,
+              openDatasheetRef.current
             );
           }
 
@@ -642,6 +674,8 @@ export const LibreMap = ({
   useEffect(() => {
     if (!map.current) return;
 
+    let aborted = false;
+
     const updateMapStyle = async () => {
       try {
         // Prepend vector background layers before data layers
@@ -680,6 +714,9 @@ export const LibreMap = ({
               clusteringEnabled,
               overrideGlyphs,
             });
+
+          // Bail out if effect was cleaned up during async work (StrictMode double-fire)
+          if (aborted) return;
 
           // Apply marker symbol size scaling
           const style = styleManipulation(markerSymbolSize, baseStyle);
@@ -782,6 +819,9 @@ export const LibreMap = ({
             mapping = await getVectorMapping(vectorLayers);
           }
 
+          // Bail out if effect was cleaned up during async mapping fetch
+          if (aborted) return;
+
           // Add mapping for geojson layers
           geoJsonLayers.forEach((layer, index) => {
             if (layer.infoboxMapping && layer.infoboxMapping.length > 0) {
@@ -848,6 +888,7 @@ export const LibreMap = ({
           }
         } else {
           // Only update background layers
+          if (aborted) return;
           map.current?.setStyle(backgroundStyle);
           setMapStyle(backgroundStyle);
           geoJsonMetadataRef.current = [];
@@ -858,6 +899,10 @@ export const LibreMap = ({
     };
 
     updateMapStyle();
+
+    return () => {
+      aborted = true;
+    };
   }, [
     backgroundStyle,
     vectorBackgroundLayers,
@@ -959,7 +1004,8 @@ export const LibreMap = ({
           ctxRawFeature,
           layerMapping,
           mapInstance,
-          useRoutingRef.current
+          useRoutingRef.current,
+          openDatasheetRef.current
         ).then((feature) => {
           if (feature) {
             setSelectedFeature(feature);
@@ -1042,7 +1088,8 @@ export const LibreMap = ({
               selectedVectorFeature,
               layerMapping,
               mapInstance,
-              useRouting
+              useRouting,
+              openDatasheetRef.current
             );
           }
 
@@ -1074,26 +1121,30 @@ export const LibreMap = ({
 
   return (
     <>
-      <FeatureInfobox
-        selectedFeature={
-          selectedFeature
-            ? {
-                ...selectedFeature,
-                properties: {
-                  info: {
-                    ...selectedFeature.properties,
-                  },
-                },
-              }
-            : null
-        }
-        libreMap={map.current}
-        versionData={{
-          version: "0.1.0",
-        }}
-      />
-      <PhotoLightBox />
-      <LibreMapSelectionContent map={map.current} />
+      {interactive && (
+        <>
+          <FeatureInfobox
+            selectedFeature={
+              selectedFeature
+                ? {
+                    ...selectedFeature,
+                    properties: {
+                      info: {
+                        ...selectedFeature.properties,
+                      },
+                    },
+                  }
+                : null
+            }
+            libreMap={map.current}
+            versionData={{
+              version: "0.1.0",
+            }}
+          />
+          <PhotoLightBox />
+          <LibreMapSelectionContent map={map.current} />
+        </>
+      )}
 
       <div className="map-wrap">
         <div ref={mapContainer} className="map" />

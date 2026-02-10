@@ -13,6 +13,8 @@ export type {
 } from "./components/LibreMap";
 export { LibreMapSelectionContent } from "./components/LibreMapSelectionContent";
 export { PreviewLibreMap } from "./components/PreviewLibreMap";
+export { DatasheetMiniMap } from "./components/DatasheetMiniMap";
+export type { DatasheetMiniMapProps } from "./components/DatasheetMiniMap";
 
 // Context
 export {
@@ -35,9 +37,21 @@ export type {
   SelectedFeatureIdentifier,
 } from "./contexts/MapSelectionContext";
 
+export {
+  DatasheetContext,
+  DatasheetProvider,
+  useDatasheet,
+} from "./contexts/DatasheetContext";
+export type { DatasheetContextType } from "./contexts/DatasheetContext";
+
 // Hooks
 export { useClusterMarkers } from "./hooks/useClusterMarkers";
 export { useSelectionLibreMap } from "./hooks/useSelectionLibreMap";
+export { useDatasheetMiniMap } from "./hooks/useDatasheetMiniMap";
+export type {
+  UseDatasheetMiniMapOptions,
+  UseDatasheetMiniMapResult,
+} from "./hooks/useDatasheetMiniMap";
 
 // Style utilities
 export {

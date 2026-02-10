@@ -1,8 +1,10 @@
 import { createSlice } from "@reduxjs/toolkit";
 
 const initialState = {
-  activeBackgroundLayer: "stadtplan",
-  backgroundLayerOpacities: {},
+  activeBackgroundLayer: "rvrLight",
+  backgroundLayerOpacities: {} as Record<string, number>,
+  activeAdditionalLayers: [] as string[],
+  additionalLayerOpacities: {} as Record<string, number>,
   inPaleMode: false,
   inSearchMode: true,
   inSearchWishedMode: true,
@@ -20,6 +22,14 @@ const slice = createSlice({
     },
     setBackgroundLayerOpacities(state, action) {
       state.backgroundLayerOpacities = action.payload;
+      return state;
+    },
+    setActiveAdditionalLayers(state, action) {
+      state.activeAdditionalLayers = action.payload;
+      return state;
+    },
+    setAdditionalLayerOpacities(state, action) {
+      state.additionalLayerOpacities = action.payload;
       return state;
     },
     setPaleModeActive: (state, action) => {
@@ -42,6 +52,8 @@ export default slice;
 export const {
   setActiveBackgroundLayer,
   setBackgroundLayerOpacities,
+  setActiveAdditionalLayers,
+  setAdditionalLayerOpacities,
   setPaleModeActive,
   setZoom,
   setSearchMode,
@@ -53,6 +65,12 @@ export const getActiveBackgroundLayer = (state) => {
 };
 export const getBackgroundLayerOpacities = (state) => {
   return state.mapSettings.backgroundLayerOpacities;
+};
+export const getActiveAdditionalLayers = (state) => {
+  return state.mapSettings.activeAdditionalLayers;
+};
+export const getAdditionalLayerOpacities = (state) => {
+  return state.mapSettings.additionalLayerOpacities;
 };
 export const isInPaleMode = (state) => {
   return state.mapSettings.inPaleMode;

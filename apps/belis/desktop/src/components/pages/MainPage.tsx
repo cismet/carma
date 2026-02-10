@@ -17,6 +17,7 @@ import {
   setFocusModeActive,
 } from "../../store/slices/featureCollection";
 import { TopicMapContext } from "react-cismap/contexts/TopicMapContextProvider";
+import { useDatasheet } from "@carma-mapping/engines/maplibre";
 import { DOMAIN, REST_SERVICE } from "../../constants/belis";
 import type { UnknownAction } from "redux";
 import {
@@ -40,6 +41,7 @@ const MainPage = () => {
   const inSearchMode = useSelector(isInSearchMode);
   const zoom = useSelector(getZoom);
 
+  const { isDatasheetOpen } = useDatasheet();
   const [windowWidth, windowHeight] = useWindowSize();
   const { routedMapRef } = useContext<typeof TopicMapContext>(TopicMapContext);
 
@@ -57,7 +59,7 @@ const MainPage = () => {
     <>
       <div className="mx-3 mt-1">
         <CustomCard
-          title="Karte"
+          title={isDatasheetOpen ? "Datenblatt" : "Karte"}
           style={{ marginBottom: "8px" }}
           extra={
             <div className="flex items-center gap-4">

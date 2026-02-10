@@ -61,16 +61,19 @@ interface CarmaMapProps extends LibreMapProps {
   children?: React.ReactNode;
   onProgressUpdate?: (progress: { current: number; total: number }) => void;
   embedded?: boolean;
+  /** Non-interactive map: disables all controls, compass, interaction */
+  miniMap?: boolean;
 }
 
 const CarmaMapContent = (props: CarmaMapProps) => {
   const {
     mapEngine = "leaflet",
-    locatorControl = true,
-    fullScreenControl = true,
-    zoomControls = true,
-    terrainControl = true,
-    gazetteerSearchControl = true,
+    miniMap = false,
+    locatorControl: locatorControlProp = true,
+    fullScreenControl: fullScreenControlProp = true,
+    zoomControls: zoomControlsProp = true,
+    terrainControl: terrainControlProp = true,
+    gazetteerSearchControl: gazetteerSearchControlProp = true,
     gazetteerSearchComponent,
     modalMenu,
     backgroundLayers,
@@ -78,6 +81,13 @@ const CarmaMapContent = (props: CarmaMapProps) => {
     children,
     embedded = false,
   } = props;
+
+  // miniMap mode: disable all controls, compass, interaction, infobox
+  const locatorControl = miniMap ? false : locatorControlProp;
+  const fullScreenControl = miniMap ? false : fullScreenControlProp;
+  const zoomControls = miniMap ? false : zoomControlsProp;
+  const terrainControl = miniMap ? false : terrainControlProp;
+  const gazetteerSearchControl = miniMap ? false : gazetteerSearchControlProp;
 
   const { responsiveState, gap, windowSize } = useContext<
     typeof ResponsiveTopicMapContext
@@ -124,7 +134,7 @@ const CarmaMapContent = (props: CarmaMapProps) => {
               </Control>
             )}
 
-            {mapEngine === "maplibre" && (
+            {mapEngine === "maplibre" && !miniMap && (
               <Control position="topleft" order={20}>
                 <ControlButtonStyler
                   useDisabledStyle={false}
@@ -245,10 +255,12 @@ const CarmaMapContent = (props: CarmaMapProps) => {
                 layers={libreLayers}
                 onProgressUpdate={props.onProgressUpdate}
                 filterFunction={props.filterFunction}
-                useRouting={props.useRouting}
-                onFeatureSelect={props.onFeatureSelect}
+                useRouting={miniMap ? false : props.useRouting}
+                onFeatureSelect={miniMap ? undefined : props.onFeatureSelect}
                 overrideGlyphs={props.overrideGlyphs}
-                selectionEnabled={props.selectionEnabled}
+                selectionEnabled={miniMap ? false : props.selectionEnabled}
+                preserveDrawingBuffer={props.preserveDrawingBuffer}
+                interactive={miniMap ? false : undefined}
               />
             )}
             {modalMenu}

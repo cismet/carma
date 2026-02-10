@@ -1,3 +1,6 @@
+// this will be needed if we need modals
+// import "bootstrap/dist/css/bootstrap.min.css";
+// import "react-cismap/topicMaps.css";
 import { StrictMode, useEffect, useState } from "react";
 import * as ReactDOM from "react-dom/client";
 import {
@@ -29,6 +32,7 @@ import { belisTaskFormatter } from "./config/taskFormatter";
 import {
   LibreContextProvider,
   MapSelectionProvider,
+  DatasheetProvider,
 } from "@carma-mapping/engines/maplibre";
 
 const persistor = persistStore(store);
@@ -115,7 +119,9 @@ root.render(
               <TopicMapContextProvider appKey="belis-desktop.map">
                 <LibreContextProvider>
                   <MapSelectionProvider>
-                    <RouterProvider router={router} />
+                    <DatasheetProvider>
+                      <RouterProvider router={router} />
+                    </DatasheetProvider>
                   </MapSelectionProvider>
                 </LibreContextProvider>
               </TopicMapContextProvider>

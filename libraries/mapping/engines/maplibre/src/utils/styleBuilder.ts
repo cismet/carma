@@ -15,6 +15,7 @@ import slugify from "slugify";
 import WMSCapabilities from "wms-capabilities";
 import { extractCarmaConfig, md5FetchJSON } from "@carma-commons/utils";
 import { WUPPERTAL_DEFAULT_STYLE } from "../constants/wuppertalDefaultStyle";
+import { LibreLayer } from "../components/LibreMap";
 
 // Inlined from @carma-mapping/layers to avoid circular dependency through portals
 interface WMSLayerLike {
@@ -44,18 +45,6 @@ const getAllLeafLayers = (capabilities: unknown): WMSLayerLike[] => {
   if (!rootLayer) return [];
   return getLeafLayers(rootLayer);
 };
-
-// Re-export types that consumers need
-export interface LibreLayer {
-  name: string;
-  type: "vector" | "geojson" | "cog";
-  style?: string;
-  data?: string;
-  url?: string;
-  opacity?: number;
-  layer?: string;
-  infoboxMapping?: string[];
-}
 
 export interface VectorStyle {
   name: string;
@@ -375,6 +364,9 @@ export const vectorStylesToMapLibreStyle = async ({
 
   const style: StyleSpecification = {
     ...baseStyle,
+    // Deep-copy layers and sources so mutations (push, spread-assign) never affect baseStyle
+    layers: [...(baseStyle.layers || [])],
+    sources: { ...(baseStyle.sources || {}) },
     // glyphs: set explicitly if provided, otherwise filled from first vector layer below
     ...(overrideGlyphs ? { glyphs: overrideGlyphs } : {}),
     sprite: defaultSprite,
@@ -391,6 +383,8 @@ export const vectorStylesToMapLibreStyle = async ({
         } else if (layer.type === "geojson") {
           const result = await extractGeoJson(layer.data!);
           return { type: "geojson" as const, data: transformedPois(result) };
+        } else if (layer.type === "wms" || layer.type === "wmts") {
+          return { type: "wms" as const, data: layer };
         }
         return null;
       })
@@ -643,6 +637,44 @@ export const vectorStylesToMapLibreStyle = async ({
         });
 
         style.layers = [...style.layers!, ...geoJsonLayers];
+      } else if (layer.type === "wms" || layer.type === "wmts") {
+        const sanitized = layer.layers.replace(/[^a-zA-Z0-9]/g, "-");
+        const sourceId = `source-${sanitized}-${index}`;
+        const id = `${sanitized}-${index}`;
+        const version = layer.version || "1.1.1";
+        const crsParam = version >= "1.3.0" ? "crs" : "srs";
+        const isWmts = layer.type === "wmts";
+
+        style.sources[sourceId] = {
+          type: "raster",
+          tiles: [
+            `${layer.url}${
+              layer.url.endsWith("?") ? "" : "?"
+            }service=WMS&version=${version}&request=GetMap&layers=${
+              layer.layers
+            }&styles=${layer.styles || (isWmts ? "default" : "")}&format=${
+              layer.format || "image/png"
+            }&transparent=${layer.transparent ? "true" : "false"}${
+              isWmts ? "&type=wmts" : ""
+            }&width=${layer.tileSize ?? 256}&height=${
+              layer.tileSize ?? 256
+            }&${crsParam}=EPSG:3857&bbox={bbox-epsg-3857}`,
+          ],
+          tileSize: layer.tileSize ?? 256,
+        };
+
+        style.layers.push({
+          id: id,
+          type: "raster",
+          source: sourceId,
+          paint: {
+            "raster-opacity": layer.opacity ?? 1,
+          },
+          metadata: {
+            "z-index": index,
+            "layer-id": id,
+          },
+        });
       }
       // COG layers are handled separately via map.addSource/addLayer after setStyle
     }
