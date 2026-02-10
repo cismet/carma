@@ -1,10 +1,22 @@
+import { useEffect, useMemo } from "react";
 import { CarmaMap } from "@carma-mapping/core";
-import { useDispatch } from "react-redux";
+import { useDispatch, useSelector } from "react-redux";
 import { setSelectedFeature } from "../../store/slices/featureCollection";
+import {
+  getActiveBackgroundLayer,
+  getBackgroundLayerOpacities,
+  getActiveAdditionalLayers,
+  getAdditionalLayerOpacities,
+} from "../../store/slices/mapSettings";
+import {
+  backgroundLayerConfigs,
+  additionalLayerConfigs,
+  leuchtenDataLayer,
+} from "../../config/mapLayerConfigs";
+import type { LibreLayer } from "@carma-mapping/engines/maplibre";
 import { AppDispatch } from "../../store";
 import OnMapList from "../ui/OnMapList";
 import { useMapSelection } from "@carma-mapping/engines/maplibre";
-import { useEffect } from "react";
 
 const LIST_WIDTH = 300;
 
@@ -12,12 +24,59 @@ const BelisMapLibWrapper = ({ mapSizes }) => {
   const dispatch: AppDispatch = useDispatch();
   const { selectedFeature } = useMapSelection();
 
+  const activeBackgroundLayer = useSelector(getActiveBackgroundLayer);
+  const backgroundLayerOpacities = useSelector(getBackgroundLayerOpacities);
+  const activeAdditionalLayers = useSelector(getActiveAdditionalLayers);
+  const additionalLayerOpacities = useSelector(getAdditionalLayerOpacities);
+
   // Sync selection to Redux store when map selection changes
   useEffect(() => {
     if (selectedFeature) {
       dispatch(setSelectedFeature({ ...selectedFeature, selected: true }));
     }
   }, [selectedFeature, dispatch]);
+
+  const libreLayers = useMemo(() => {
+    const layers: LibreLayer[] = [];
+
+    // Background layer (single active, may be a composite of multiple sub-layers)
+    const bgConfig = backgroundLayerConfigs[activeBackgroundLayer];
+    if (bgConfig) {
+      const bgOpacity = backgroundLayerOpacities[activeBackgroundLayer] ?? 1;
+      const bgLayers = Array.isArray(bgConfig.layer)
+        ? bgConfig.layer
+        : [bgConfig.layer];
+      for (const l of bgLayers) {
+        const withOpacity = { ...l, opacity: bgOpacity };
+        layers.push(withOpacity as LibreLayer);
+      }
+    }
+
+    // Additional layers (multiple can be active)
+    for (const key of activeAdditionalLayers) {
+      const addConfig = additionalLayerConfigs[key];
+      if (addConfig) {
+        const addOpacity = additionalLayerOpacities[key] ?? 1;
+        const addLayers = Array.isArray(addConfig.layer)
+          ? addConfig.layer
+          : [addConfig.layer];
+        for (const l of addLayers) {
+          const withOpacity = { ...l, opacity: addOpacity };
+          layers.push(withOpacity as LibreLayer);
+        }
+      }
+    }
+
+    // Data layer (always on)
+    layers.push(leuchtenDataLayer);
+
+    return layers;
+  }, [
+    activeBackgroundLayer,
+    backgroundLayerOpacities,
+    activeAdditionalLayers,
+    additionalLayerOpacities,
+  ]);
 
   const mapWidth = mapSizes.width - LIST_WIDTH;
 
@@ -34,113 +93,10 @@ const BelisMapLibWrapper = ({ mapSizes }) => {
         <CarmaMap
           mapEngine="maplibre"
           embedded
-          backgroundLayers="" //basemap_grey@60" // "wupp-plan-live-tiles-3857" // "basemap_grey" // "basemap_relief" // "basemap_color"
-          // backgroundLayers="basemap_grey@60" //" // "wupp-plan-live-tiles-3857" // "basemap_grey" // "basemap_relief" // "basemap_color"
+          backgroundLayers=""
           terrainControl={false}
           fullScreenControl={false}
-          libreLayers={[
-            // --- Background layers for testing ---
-            // RVR
-            {
-              type: "wmts",
-              url: "https://geodaten.metropoleruhr.de/spw2/service",
-              layers: "spw2_light",
-              version: "1.3.0",
-              transparent: true,
-              format: "image/png",
-              tileSize: 512,
-              maxZoom: 26,
-            },
-            // Liegenschaftskarte (grau)
-            // {
-            //   type: "wmts",
-            //   url: "http://rpr.s10222.wuppertal-intra.de/forwardingTo/s10221/7098/alkis/services",
-            //   //url: "http://s10221.wuppertal-intra.de:7098/alkis/services",
-            //   layers: "alkomgw",
-            //   styles: "default",
-            //   version: "1.1.1",
-            //   tileSize: 256,
-            //   maxZoom: 26,
-            //   transparent: true,
-            //   format: "image/png",
-            //   opacity: 0.5,
-            // },
-            // // Liegenschaftskarte (bunt)
-            // {
-            //   type: "wmts",
-            //   url: "http://rpr.s10222.wuppertal-intra.de/forwardingTo/s10221/7098/alkis/services",
-            //   //url: "http://s10221.wuppertal-intra.de:7098/alkis/services",
-            //   layers: "alkomf",
-            //   styles: "default",
-            //   version: "1.1.1",
-            //   tileSize: 256,
-            //   transparent: true,
-            //   format: "image/png",
-            //   opacity: 0.5,
-            // },
-            // // True Orthofoto
-            // {
-            //   type: "wms",
-            //   url: "https://geo.udsp.wuppertal.de/geoserver-cloud/ows",
-            //   layers: "GIS-102:trueortho2024",
-            //   tileSize: 256,
-            //   transparent: true,
-            //   maxZoom: 26,
-            //   format: "image/png",
-            // },
-            // Luftbildkarte (SPW2 light Grundriss)
-            // {
-            //   type: "wmts",
-            //   url: "https://geodaten.metropoleruhr.de/spw2/service",
-            //   layers: "spw2_light_grundriss",
-            //   version: "1.3.0",
-            //   transparent: true,
-            //   format: "image/png",
-            //   maxZoom: 26,
-            // },
-            // // Luftbildkarte (True Ortho underlay)
-            // {
-            //   type: "wms",
-            //   url: "https://geo.udsp.wuppertal.de/geoserver-cloud/ows",
-            //   layers: "GIS-102:trueortho2024",
-            //   tileSize: 256,
-            //   transparent: true,
-            //   maxZoom: 26,
-            //   format: "image/png",
-            // },
-            // // Luftbildkarte (DOP Overlay)
-            // {
-            //   type: "wmts",
-            //   url: "https://geodaten.metropoleruhr.de/dop/dop_overlay?language=ger",
-            //   layers: "dop_overlay",
-            //   version: "1.3.0",
-            //   format: "image/png",
-            //   transparent: true,
-            //   maxZoom: 26,
-            // },
-            // Stadtplan (grau)
-            // {
-            //   type: "vector",
-            //   name: "Stadtplan grau",
-            //   style:
-            //     "https://sgx.geodatenzentrum.de/gdz_basemapde_vektor/styles/bm_web_gry.json",
-            //   opacity: 0.5,
-            // },
-            // Stadtplan (bunt)
-            // {
-            //   type: "vector",
-            //   name: "Stadtplan bunt",
-            //   style:
-            //     "https://sgx.geodatenzentrum.de/gdz_basemapde_vektor/styles/bm_web_top.json",
-            //   opacity: 0.5,
-            // },
-            {
-              type: "vector",
-              name: "Leuchten",
-              style: "https://tiles.cismet.de/belis/style.json",
-              opacity: 1,
-            },
-          ]}
+          libreLayers={libreLayers}
         />
       </div>
     </div>
