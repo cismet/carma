@@ -1,5 +1,5 @@
-import { useEffect, useMemo } from "react";
-import { CarmaMap } from "@carma-mapping/core";
+import { useEffect, useMemo, useRef, useState, useCallback } from "react";
+import { CarmaMap, DatasheetLayout } from "@carma-mapping/core";
 import { useDispatch, useSelector } from "react-redux";
 import { setSelectedFeature } from "../../store/slices/featureCollection";
 import {
@@ -16,13 +16,25 @@ import {
 import type { LibreLayer } from "@carma-mapping/engines/maplibre";
 import { AppDispatch } from "../../store";
 import OnMapList from "../ui/OnMapList";
-import { useMapSelection } from "@carma-mapping/engines/maplibre";
+import {
+  useMapSelection,
+  useLibreContext,
+  LibreContextProvider,
+  useDatasheet,
+  useDatasheetMiniMap,
+} from "@carma-mapping/engines/maplibre";
+import type maplibregl from "maplibre-gl";
+import BelisDatasheetView from "../ui/BelisDatasheetView";
+import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
+import { faMap } from "@fortawesome/free-solid-svg-icons";
 
 const LIST_WIDTH = 300;
 
 const BelisMapLibWrapper = ({ mapSizes }) => {
   const dispatch: AppDispatch = useDispatch();
-  const { selectedFeature } = useMapSelection();
+  const { map } = useLibreContext();
+  const { selectedFeature, rawFeature } = useMapSelection();
+  const { closeDatasheet } = useDatasheet();
 
   const activeBackgroundLayer = useSelector(getActiveBackgroundLayer);
   const backgroundLayerOpacities = useSelector(getBackgroundLayerOpacities);
@@ -78,6 +90,29 @@ const BelisMapLibWrapper = ({ mapSizes }) => {
     additionalLayerOpacities,
   ]);
 
+  // Mini-map state
+  const [miniMap, setMiniMap] = useState<maplibregl.Map | null>(null);
+  const mapContainerRef = useRef<HTMLDivElement>(null);
+
+  const {
+    containerStyle,
+    debugOutlineStyle,
+    showCloseButton,
+    miniMapContainerRef,
+  } = useDatasheetMiniMap({
+    mainMap: map,
+    miniMap,
+    containerRef: mapContainerRef,
+  });
+
+  const handleMiniMapReady = useCallback((m: maplibregl.Map) => {
+    setMiniMap(m);
+  }, []);
+
+  const handleReturnToMap = useCallback(() => {
+    map?.resize();
+  }, [map]);
+
   const mapWidth = mapSizes.width - LIST_WIDTH;
 
   return (
@@ -89,14 +124,74 @@ const BelisMapLibWrapper = ({ mapSizes }) => {
         visibleMapWidth={mapWidth}
         visibleMapHeight={mapSizes.height}
       />
-      <div style={{ width: mapWidth, height: mapSizes.height }}>
-        <CarmaMap
-          mapEngine="maplibre"
-          embedded
-          backgroundLayers=""
-          terrainControl={false}
-          fullScreenControl={false}
-          libreLayers={libreLayers}
+      <div
+        ref={mapContainerRef}
+        style={{
+          position: "relative",
+          width: mapWidth,
+          height: mapSizes.height,
+          overflow: "hidden",
+        }}
+      >
+        {debugOutlineStyle && <div style={debugOutlineStyle} />}
+        <div ref={miniMapContainerRef} style={containerStyle}>
+          {showCloseButton && (
+            <button
+              onClick={closeDatasheet}
+              title="Zur Karte"
+              style={{
+                position: "absolute",
+                top: 6,
+                right: 6,
+                zIndex: 10,
+                width: 28,
+                height: 28,
+                borderRadius: "50%",
+                border: "none",
+                background: "rgba(0,0,0,0.5)",
+                color: "#fff",
+                fontSize: 14,
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                cursor: "pointer",
+                padding: 0,
+              }}
+            >
+              <FontAwesomeIcon icon={faMap} />
+            </button>
+          )}
+          <LibreContextProvider>
+            <CarmaMap
+              mapEngine="maplibre"
+              embedded
+              miniMap
+              backgroundLayers="basemap_grey@60"
+              libreLayers={[leuchtenDataLayer]}
+              setLibreMap={handleMiniMapReady}
+            />
+          </LibreContextProvider>
+        </div>
+        <DatasheetLayout
+          mainMap={
+            <CarmaMap
+              mapEngine="maplibre"
+              embedded
+              backgroundLayers=""
+              terrainControl={false}
+              fullScreenControl={false}
+              libreLayers={libreLayers}
+            />
+          }
+          datasheetContent={
+            <div style={{ height: "100%", overflow: "auto" }}>
+              <BelisDatasheetView
+                feature={selectedFeature}
+                rawFeature={rawFeature}
+              />
+            </div>
+          }
+          onReturnToMap={handleReturnToMap}
         />
       </div>
     </div>
