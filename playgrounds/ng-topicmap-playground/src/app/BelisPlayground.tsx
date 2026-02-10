@@ -240,8 +240,7 @@ const BelisPlaygroundContent = () => {
 
   // Mini-map zoom offset relative to main map (applied only in datasheet view)
   const [miniMapZoomOffset, setMiniMapZoomOffset] = useState(2);
-  const effectiveZoomOffset =
-    isDatasheetOpen ? miniMapZoomOffset : 0;
+  const effectiveZoomOffset = isDatasheetOpen ? miniMapZoomOffset : 0;
 
   // Mini-map dimensions and transition
   const MINI_MAP_W = 350;
@@ -471,10 +470,12 @@ const BelisPlaygroundContent = () => {
                     width: MINI_MAP_W,
                     height: MINI_MAP_H,
                     visibility:
-                      !MINI_MAP_DEBUGGING && !isDatasheetOpen
+                      !MINI_MAP_DEBUGGING &&
+                      !isDatasheetOpen &&
+                      !isTransitioning
                         ? "hidden"
                         : "visible",
-                    zIndex: isDatasheetOpen ? 30 : 0,
+                    zIndex: isDatasheetOpen || isTransitioning ? 30 : 0,
                     border: MINI_MAP_DEBUGGING ? "3px solid red" : "none",
                     borderRadius: miniMapTarget === "corner" ? 8 : 0,
                     overflow: "hidden",
