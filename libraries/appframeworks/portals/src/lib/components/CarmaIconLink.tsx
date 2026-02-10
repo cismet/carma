@@ -28,6 +28,7 @@ export const CarmaIconLink = ({
       href={href}
       target={target}
       style={{ padding: 0, margin: 0, lineHeight: 1, display: "inline-flex" }}
+      title={tooltip}
     >
       {icon ? (
         <FontAwesomeIcon icon={icon} style={iconStyle} />
@@ -36,10 +37,6 @@ export const CarmaIconLink = ({
       )}
     </a>
   );
-
-  if (tooltip) {
-    return <Tooltip title={tooltip}>{content}</Tooltip>;
-  }
 
   return content;
 };
