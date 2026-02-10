@@ -674,6 +674,8 @@ export const LibreMap = ({
   useEffect(() => {
     if (!map.current) return;
 
+    let aborted = false;
+
     const updateMapStyle = async () => {
       try {
         // Prepend vector background layers before data layers
@@ -712,6 +714,9 @@ export const LibreMap = ({
               clusteringEnabled,
               overrideGlyphs,
             });
+
+          // Bail out if effect was cleaned up during async work (StrictMode double-fire)
+          if (aborted) return;
 
           // Apply marker symbol size scaling
           const style = styleManipulation(markerSymbolSize, baseStyle);
@@ -814,6 +819,9 @@ export const LibreMap = ({
             mapping = await getVectorMapping(vectorLayers);
           }
 
+          // Bail out if effect was cleaned up during async mapping fetch
+          if (aborted) return;
+
           // Add mapping for geojson layers
           geoJsonLayers.forEach((layer, index) => {
             if (layer.infoboxMapping && layer.infoboxMapping.length > 0) {
@@ -880,6 +888,7 @@ export const LibreMap = ({
           }
         } else {
           // Only update background layers
+          if (aborted) return;
           map.current?.setStyle(backgroundStyle);
           setMapStyle(backgroundStyle);
           geoJsonMetadataRef.current = [];
@@ -890,6 +899,10 @@ export const LibreMap = ({
     };
 
     updateMapStyle();
+
+    return () => {
+      aborted = true;
+    };
   }, [
     backgroundStyle,
     vectorBackgroundLayers,
