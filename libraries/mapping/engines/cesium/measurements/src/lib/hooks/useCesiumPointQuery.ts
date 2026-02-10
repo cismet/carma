@@ -84,7 +84,6 @@ export const useCesiumPointQuery = (
           type: MeasurementMode.PointQuery,
           id: measurementId,
           index: insertionIndex,
-          name: `Messpunkt ${insertionIndex + 1}`,
           geometryECEF: pickedPosition,
           geometryWGS84: {
             longitude: geometryWGS84.longitude,

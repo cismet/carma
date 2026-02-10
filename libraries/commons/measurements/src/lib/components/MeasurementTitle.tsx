@@ -10,11 +10,21 @@ const MeasurementTitle = ({
   isCollapsed,
   collapsedContent,
   editable = false,
+  placeholderText,
+  clearPlaceholderOnFocus = false,
+  showOrder = true,
 }: MeasurementTitleProps) => {
-  const [content, setContent] = useState(title.trim());
-  const [oldContent, setOldContent] = useState(title);
+  const normalizedTitle = title.trim();
+  const [content, setContent] = useState(normalizedTitle);
+  const [oldContent, setOldContent] = useState(normalizedTitle);
 
-  useEffect(() => {}, [content]);
+  useEffect(() => {
+    setContent(normalizedTitle);
+    setOldContent(normalizedTitle);
+  }, [normalizedTitle]);
+
+  const displayText = content || placeholderText || "";
+  const hasPlaceholder = Boolean(placeholderText);
 
   return (
     <div>
@@ -22,28 +32,52 @@ const MeasurementTitle = ({
         <span
           onBlur={(t) => {
             const trimmedContent = t.currentTarget.textContent?.trim() || "";
-            setContent(trimmedContent);
 
             if (trimmedContent.length === 0) {
+              if (hasPlaceholder) {
+                setContent("");
+                t.currentTarget.textContent = capitalizeFirstLetter(
+                  placeholderText || ""
+                );
+                updateTitleMeasurementById(shapeId, "");
+                setUpdateMeasurementStatus(true);
+                return;
+              }
+
               setContent(oldContent);
               t.currentTarget.textContent = capitalizeFirstLetter(oldContent);
-            } else {
-              setContent(trimmedContent);
-              updateTitleMeasurementById(shapeId, trimmedContent);
-              setUpdateMeasurementStatus(true);
+              return;
+            }
+
+            setContent(trimmedContent);
+            setOldContent(trimmedContent);
+            updateTitleMeasurementById(shapeId, trimmedContent);
+            setUpdateMeasurementStatus(true);
+          }}
+          onFocus={(t) => {
+            if (!clearPlaceholderOnFocus || !hasPlaceholder) return;
+
+            const currentText = t.currentTarget.textContent?.trim() || "";
+            if (
+              content.length === 0 ||
+              currentText.toLowerCase() === placeholderText?.toLowerCase()
+            ) {
+              setContent("");
+              t.currentTarget.textContent = "";
             }
           }}
-          onFocus={(t) => {}}
           contentEditable
+          suppressContentEditableWarning
           className="text-[14px] min-h-[20px] min-w-[10px] mr-1"
-          dangerouslySetInnerHTML={{ __html: capitalizeFirstLetter(content) }}
-        ></span>
+        >
+          {capitalizeFirstLetter(displayText)}
+        </span>
       ) : (
         <span className="text-[14px] mr-1">
-          {capitalizeFirstLetter(content)}
+          {capitalizeFirstLetter(displayText)}
         </span>
       )}
-      <span className="text-[14px] mr-2">#{order}</span>
+      {showOrder && <span className="text-[14px] mr-2">#{order}</span>}
       {isCollapsed && (
         <span className="text-[12px] text-[#808080]">{collapsedContent}</span>
       )}

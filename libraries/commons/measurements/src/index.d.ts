@@ -102,6 +102,9 @@ export interface MeasurementTitleProps {
   isCollapsed?: boolean;
   collapsedContent?: string;
   editable?: boolean;
+  placeholderText?: string;
+  clearPlaceholderOnFocus?: boolean;
+  showOrder?: boolean;
 }
 
 export interface MeasurementControlProps {

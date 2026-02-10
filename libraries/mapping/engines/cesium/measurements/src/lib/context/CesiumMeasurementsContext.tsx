@@ -40,6 +40,7 @@ export interface CesiumMeasurementsContextType {
   setMeasurements: Dispatch<SetStateAction<MeasurementCollection>>;
   selectedMeasurementId: string | null;
   selectMeasurementById: (id: string | null) => void;
+  updateMeasurementNameById: (id: string, name: string) => void;
   // utility functions
   clearAllMeasurements: () => void;
   clearMeasurementsByIds: (ids: string[]) => void;
@@ -221,6 +222,30 @@ export const CesiumMeasurementsProvider: React.FC<
     [setMeasurements]
   );
 
+  const updateMeasurementNameById = useCallback(
+    (id: string, name: string) => {
+      const nextName = name.trim();
+
+      setMeasurements((prev) => {
+        const hasChanged = prev.some(
+          (measurement) =>
+            measurement.id === id && (measurement.name ?? "") !== nextName
+        );
+
+        if (!hasChanged) {
+          return prev;
+        }
+
+        return prev.map((measurement) =>
+          measurement.id === id
+            ? { ...measurement, name: nextName }
+            : measurement
+        );
+      });
+    },
+    [setMeasurements]
+  );
+
   useCesiumPointVisualizer(scene, measurements, {
     showMarkers: showPoints,
     showCesiumMarkers: true,
@@ -335,6 +360,7 @@ export const CesiumMeasurementsProvider: React.FC<
       setMeasurements,
       selectedMeasurementId,
       selectMeasurementById,
+      updateMeasurementNameById,
       clearAllMeasurements,
       clearMeasurementsByIds,
       clearMeasurementsByType,
@@ -361,6 +387,7 @@ export const CesiumMeasurementsProvider: React.FC<
       setMeasurements,
       selectedMeasurementId,
       selectMeasurementById,
+      updateMeasurementNameById,
       clearAllMeasurements,
       clearMeasurementsByIds,
       clearMeasurementsByType,

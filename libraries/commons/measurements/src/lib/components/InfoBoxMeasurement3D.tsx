@@ -2,7 +2,6 @@ import { useState, useEffect, useContext } from "react";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import {
   faTrashCan,
-  faTrash,
   faArrowsDownToLine,
 } from "@fortawesome/free-solid-svg-icons";
 import MeasurementTitle from "./MeasurementTitle";
@@ -13,11 +12,13 @@ import { Tooltip } from "antd";
 import { ResponsiveInfoBox } from "@carma-appframeworks/portals";
 import {
   useCesiumMeasurements,
+  DEFAULT_POINT_MEASUREMENT_PLACEHOLDER,
   isPointMeasurementEntry,
   getEuclideanDistance,
   getENU,
   formatNumber,
   isTraverseMeasurementEntry,
+  getCustomPointMeasurementName,
 } from "@carma-mapping/engines/cesium/measurements";
 import { useCesiumContext } from "@carma-mapping/engines/cesium";
 import { flyToPointGroup } from "../utils/cesiumFlyTo";
@@ -25,12 +26,12 @@ import { flyToPointGroup } from "../utils/cesiumFlyTo";
 export function InfoBoxMeasurement3D({ pixelWidth = 350 }) {
   const {
     measurements,
-    clearAllMeasurements,
     clearMeasurementsByIds,
     setReferencePoint,
     referencePoint,
     selectedMeasurementId,
     selectMeasurementById,
+    updateMeasurementNameById,
   } = useCesiumMeasurements();
   const { getScene } = useCesiumContext();
   const { collapsedInfoBox } = useContext<typeof UIContext>(UIContext);
@@ -148,6 +149,14 @@ export function InfoBoxMeasurement3D({ pixelWidth = 350 }) {
   let isReference = false;
   let relativeValues = null;
 
+  const handleMeasurementNameUpdate = (
+    measurementId: string | number,
+    name: string
+  ) => {
+    if (typeof measurementId !== "string") return;
+    updateMeasurementNameById(measurementId, name);
+  };
+
   if (currentMeasurement && isPointMeasurementEntry(currentMeasurement)) {
     if (isSingleMeasurement) {
       isReference = true;
@@ -189,11 +198,18 @@ export function InfoBoxMeasurement3D({ pixelWidth = 350 }) {
                 <MeasurementTitle
                   key={currentMeasurement.id}
                   order={visibleMeasurements.length - currentIndex}
-                  title={"Punktmessung"}
+                  title={
+                    getCustomPointMeasurementName(currentMeasurement.name) || ""
+                  }
                   shapeId={currentMeasurement.id}
                   setUpdateMeasurementStatus={() => {}}
-                  updateTitleMeasurementById={() => {}}
+                  updateTitleMeasurementById={handleMeasurementNameUpdate}
                   isCollapsed={collapsedInfoBox}
+                  placeholderText={`${DEFAULT_POINT_MEASUREMENT_PLACEHOLDER} #${
+                    visibleMeasurements.length - currentIndex
+                  }`}
+                  clearPlaceholderOnFocus
+                  showOrder={false}
                   collapsedContent={
                     isPointMeasurementEntry(currentMeasurement)
                       ? `NHN ${formatNumber(
@@ -201,7 +217,7 @@ export function InfoBoxMeasurement3D({ pixelWidth = 350 }) {
                         )} m`
                       : ""
                   }
-                  editable={false}
+                  editable={true}
                 />
                 {isPointMeasurementEntry(currentMeasurement) && (
                   <div className="text-[10px] font-normal text-gray-500 -mt-1">

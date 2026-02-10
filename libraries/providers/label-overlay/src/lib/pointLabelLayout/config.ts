@@ -10,9 +10,9 @@ import type {
 const DEFAULT_STEM_ANGLE_RAD = Math.PI / 4;
 const ALL_ATTACHES: PointLabelAttach[] = [
   "bottomLeft",
-  "topLeft",
-  "topRight",
   "bottomRight",
+  "topRight",
+  "topLeft",
 ];
 
 export const DEFAULT_DYNAMIC_LABEL_PLACEMENT_CONFIG: DynamicLabelPlacementConfig =
@@ -28,7 +28,7 @@ export const DEFAULT_DYNAMIC_LABEL_PLACEMENT_CONFIG: DynamicLabelPlacementConfig
   };
 
 export const DEFAULT_POINT_LABEL_LAYOUT_CONFIG: PointLabelLayoutConfig = {
-  placementOrder: ["bottomLeft", "topLeft", "topRight", "bottomRight"],
+  placementOrder: ["bottomLeft", "bottomRight", "topRight", "topLeft"],
   stemDistance: 20,
   dynamicLabelPlacement: true,
   dynamicLabelPlacementConfig: DEFAULT_DYNAMIC_LABEL_PLACEMENT_CONFIG,

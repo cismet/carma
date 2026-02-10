@@ -12,6 +12,7 @@ export * from "./lib/utils/measurementCollection";
 export * from "./lib/utils/occlusionDetection";
 export * from "./lib/utils/geo";
 export * from "./lib/utils/formatting";
+export * from "./lib/utils/measurementNaming";
 
 // Hooks
 export { useCesiumOverlaySync } from "./lib/hooks/useCesiumOverlaySync";

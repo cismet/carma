@@ -21,6 +21,7 @@ import {
   isPointOccluded,
   isPointInViewport,
 } from "../utils/occlusionDetection";
+import { getCustomPointMeasurementName } from "../utils/measurementNaming";
 
 export type CesiumLabelLayoutConfig = PointLabelLayoutConfig;
 export type CesiumLabelLayoutConfigOverrides = PointLabelLayoutConfigOverrides;
@@ -58,11 +59,17 @@ const areScreenPointMapsDifferent = (
 const formatPointLabelText = (
   pointIndex: number,
   pointHeight: number,
-  referenceElevation: number
-): string =>
-  `${formatNumberToEnclosed(pointIndex + 1)} ${(
-    pointHeight - referenceElevation
-  ).toFixed(2)}m`;
+  referenceElevation: number,
+  pointName?: string
+): string => {
+  const elevationText = `${(pointHeight - referenceElevation).toFixed(2)}m`;
+  const customPointName = getCustomPointMeasurementName(pointName);
+  if (customPointName) {
+    return `${customPointName} ${elevationText}`;
+  }
+
+  return `${formatNumberToEnclosed(pointIndex + 1)} ${elevationText}`;
+};
 
 export const useCesiumPointLabels = (
   scene: Scene | null,
@@ -209,7 +216,8 @@ export const useCesiumPointLabels = (
           text: formatPointLabelText(
             index,
             point.geometryWGS84.height,
-            referenceElevation
+            referenceElevation,
+            point.name
           ),
           index,
         };
@@ -256,7 +264,8 @@ export const useCesiumPointLabels = (
         text: formatPointLabelText(
           index,
           point.geometryWGS84.height,
-          referenceElevation
+          referenceElevation,
+          point.name
         ),
         selected: point.isSelected,
         visible: true,
