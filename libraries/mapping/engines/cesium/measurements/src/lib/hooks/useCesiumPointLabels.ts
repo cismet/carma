@@ -60,15 +60,22 @@ const formatPointLabelText = (
   pointIndex: number,
   pointHeight: number,
   referenceElevation: number,
-  pointName?: string
+  pointName?: string,
+  includeElevation: boolean = true
 ): string => {
-  const elevationText = `${(pointHeight - referenceElevation).toFixed(2)}m`;
   const customPointName = getCustomPointMeasurementName(pointName);
+  const labelBase = customPointName ?? formatNumberToEnclosed(pointIndex + 1);
+
+  if (!includeElevation) {
+    return labelBase;
+  }
+
+  const elevationText = `${(pointHeight - referenceElevation).toFixed(2)}m`;
   if (customPointName) {
     return `${customPointName} ${elevationText}`;
   }
 
-  return `${formatNumberToEnclosed(pointIndex + 1)} ${elevationText}`;
+  return `${labelBase} ${elevationText}`;
 };
 
 export const useCesiumPointLabels = (
@@ -77,7 +84,8 @@ export const useCesiumPointLabels = (
   showLabels: boolean,
   referenceElevation: number = 0,
   onPointClick?: (pointId: string) => void,
-  layoutConfigOverrides?: CesiumLabelLayoutConfigOverrides
+  layoutConfigOverrides?: CesiumLabelLayoutConfigOverrides,
+  showElevationMetricByPointId?: Readonly<Record<string, boolean>>
 ) => {
   const [occlusionResults, setOcclusionResults] = useState<
     Record<string, boolean>
@@ -208,6 +216,7 @@ export const useCesiumPointLabels = (
       .map((point, index) => {
         const anchor = projectedPositions[point.id];
         if (!anchor || hiddenResults[point.id]) return null;
+        const includeElevation = showElevationMetricByPointId?.[point.id] !== false;
 
         return {
           id: point.id,
@@ -217,7 +226,8 @@ export const useCesiumPointLabels = (
             index,
             point.geometryWGS84.height,
             referenceElevation,
-            point.name
+            point.name,
+            includeElevation
           ),
           index,
         };
@@ -237,45 +247,52 @@ export const useCesiumPointLabels = (
     projectedPositions,
     hiddenResults,
     referenceElevation,
+    showElevationMetricByPointId,
     layoutConfig,
     cameraPitch,
   ]);
 
   const pointLabelData: PointLabelData[] = useMemo(
     () =>
-      points.map((point, index) => ({
-        id: point.id,
-        getCanvasPosition: () => {
-          if (!scene || scene.isDestroyed()) return null;
-          const canvasPosition = SceneTransforms.worldToWindowCoordinates(
-            scene,
-            point.geometryECEF
-          );
-          return defined(canvasPosition)
-            ? { x: canvasPosition.x, y: canvasPosition.y }
-            : null;
-        },
-        pitch: cameraPitch,
-        labelAngleRad: layoutResult.placements[point.id]?.angleRad,
-        labelDistance: layoutResult.placements[point.id]?.distance,
-        labelAttach: layoutResult.placements[point.id]?.attach,
-        anchorSwitchTransitionMs: layoutConfig.anchorSwitchTransitionMs,
-        hideLabelAndStem: layoutResult.hiddenByLayout.has(point.id),
-        text: formatPointLabelText(
-          index,
-          point.geometryWGS84.height,
-          referenceElevation,
-          point.name
-        ),
-        selected: point.isSelected,
-        visible: true,
-        isOccluded: occlusionResults[point.id] || false,
-        isHidden: hiddenResults[point.id] || false,
-        onClick: onPointClick ? () => onPointClick(point.id) : undefined,
-      })),
+      points.map((point, index) => {
+        const includeElevation = showElevationMetricByPointId?.[point.id] !== false;
+
+        return {
+          id: point.id,
+          getCanvasPosition: () => {
+            if (!scene || scene.isDestroyed()) return null;
+            const canvasPosition = SceneTransforms.worldToWindowCoordinates(
+              scene,
+              point.geometryECEF
+            );
+            return defined(canvasPosition)
+              ? { x: canvasPosition.x, y: canvasPosition.y }
+              : null;
+          },
+          pitch: cameraPitch,
+          labelAngleRad: layoutResult.placements[point.id]?.angleRad,
+          labelDistance: layoutResult.placements[point.id]?.distance,
+          labelAttach: layoutResult.placements[point.id]?.attach,
+          anchorSwitchTransitionMs: layoutConfig.anchorSwitchTransitionMs,
+          hideLabelAndStem: layoutResult.hiddenByLayout.has(point.id),
+          text: formatPointLabelText(
+            index,
+            point.geometryWGS84.height,
+            referenceElevation,
+            point.name,
+            includeElevation
+          ),
+          selected: point.isSelected,
+          visible: true,
+          isOccluded: occlusionResults[point.id] || false,
+          isHidden: hiddenResults[point.id] || false,
+          onClick: onPointClick ? () => onPointClick(point.id) : undefined,
+        };
+      }),
     [
       points,
       referenceElevation,
+      showElevationMetricByPointId,
       occlusionResults,
       hiddenResults,
       scene,

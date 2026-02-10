@@ -97,6 +97,10 @@ export const PointLabel = React.memo(
     const handleMouseLeave = () => {
       if (isInteractive) setIsHovered(false);
     };
+    const handleClick = (event: React.MouseEvent<HTMLDivElement>) => {
+      event.stopPropagation();
+      onClick?.();
+    };
     const labelTransform =
       labelAttach === "topLeft"
         ? "translate(0%, 0%)"
@@ -175,7 +179,7 @@ export const PointLabel = React.memo(
             pointerEvents,
             cursor,
           }}
-          onClick={onClick}
+          onClick={handleClick}
           onMouseEnter={handleMouseEnter}
           onMouseLeave={handleMouseLeave}
         />
@@ -230,7 +234,7 @@ export const PointLabel = React.memo(
                 cursor,
                 transition: positionTransition,
               }}
-              onClick={onClick}
+              onClick={handleClick}
               onMouseEnter={handleMouseEnter}
               onMouseLeave={handleMouseLeave}
             >

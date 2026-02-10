@@ -40,6 +40,7 @@ export type CesiumPointVisualizerOptions = {
   debug?: boolean;
   onPointClick?: (pointId: string) => void;
   labelLayoutConfig?: CesiumLabelLayoutConfigOverrides;
+  showElevationMetricByPointId?: Readonly<Record<string, boolean>>;
 };
 
 export const useCesiumPointVisualizer = (
@@ -55,6 +56,7 @@ export const useCesiumPointVisualizer = (
     debug = false,
     onPointClick,
     labelLayoutConfig,
+    showElevationMetricByPointId,
   }: CesiumPointVisualizerOptions
 ) => {
   const labelCollectionRef = useRef<LabelCollection | null>(null);
@@ -75,7 +77,8 @@ export const useCesiumPointVisualizer = (
     showLabels,
     referenceElevation,
     onPointClick,
-    labelLayoutConfig
+    labelLayoutConfig,
+    showElevationMetricByPointId
   );
 
   // Initialize and clean up LabelCollection

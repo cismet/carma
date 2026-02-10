@@ -179,6 +179,8 @@ export const CesiumMeasurementsProvider: React.FC<
   const [hideLabelsOfType, setHideLabelsOfType] = useState<
     Set<MeasurementMode>
   >(new Set());
+  const [showElevationMetricByPointId, setShowElevationMetricByPointId] =
+    useState<Record<string, boolean>>({});
 
   const referenceElevation = useMemo(() => {
     if (!referencePoint || !scene) return 0;
@@ -246,6 +248,43 @@ export const CesiumMeasurementsProvider: React.FC<
     [setMeasurements]
   );
 
+  const toggleShowElevationMetricByPointId = useCallback((id: string) => {
+    setShowElevationMetricByPointId((prev) => {
+      if (prev[id] === false) {
+        const { [id]: _removed, ...rest } = prev;
+        return rest;
+      }
+
+      return {
+        ...prev,
+        [id]: false,
+      };
+    });
+  }, []);
+
+  const handlePointLabelClick = useCallback(
+    (id: string) => {
+      if (selectedMeasurementId === id) {
+        toggleShowElevationMetricByPointId(id);
+        return;
+      }
+
+      // First click should keep the full label text for newly selected points.
+      setShowElevationMetricByPointId((prev) => {
+        if (prev[id] !== false) return prev;
+        const { [id]: _removed, ...rest } = prev;
+        return rest;
+      });
+
+      selectMeasurementById(id);
+    },
+    [
+      selectedMeasurementId,
+      toggleShowElevationMetricByPointId,
+      selectMeasurementById,
+    ]
+  );
+
   useCesiumPointVisualizer(scene, measurements, {
     showMarkers: showPoints,
     showCesiumMarkers: true,
@@ -254,8 +293,9 @@ export const CesiumMeasurementsProvider: React.FC<
     radius: pointRadius,
     referenceElevation,
     debug: false,
-    onPointClick: selectMeasurementById,
+    onPointClick: handlePointLabelClick,
     labelLayoutConfig: options?.labels,
+    showElevationMetricByPointId,
   });
 
   const clearAllMeasurements = useCallback(() => {
@@ -295,6 +335,36 @@ export const CesiumMeasurementsProvider: React.FC<
       }
     }
   }, [options?.mode, setMeasurementMode, setMeasurements]);
+
+  useEffect(() => {
+    setShowElevationMetricByPointId((prev) => {
+      const keys = Object.keys(prev);
+      if (keys.length === 0) return prev;
+
+      const pointIds = new Set(
+        measurements
+          .filter(isPointMeasurementEntry)
+          .map((measurement) => measurement.id)
+      );
+
+      let hasChanged = false;
+      const next: Record<string, boolean> = {};
+
+      keys.forEach((id) => {
+        if (!pointIds.has(id)) {
+          hasChanged = true;
+          return;
+        }
+        if (prev[id] !== false) {
+          hasChanged = true;
+          return;
+        }
+        next[id] = false;
+      });
+
+      return hasChanged ? next : prev;
+    });
+  }, [measurements]);
 
   useEffect(() => {
     if (mapMeasurements.mode === MEASUREMENT_MODE.MEASUREMENT) {
