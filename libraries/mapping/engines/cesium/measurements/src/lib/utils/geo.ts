@@ -1,9 +1,4 @@
-import {
-  Cartesian3,
-  Ellipsoid,
-  Matrix4,
-  Transforms,
-} from "@carma/cesium";
+import { Cartesian3, Ellipsoid, Matrix4, Transforms } from "@carma/cesium";
 
 export const getEuclideanDistance = (
   point1: Cartesian3,
@@ -50,4 +45,3 @@ export const getBearing = (east: number, north: number): number => {
   }
   return bearing;
 };
-

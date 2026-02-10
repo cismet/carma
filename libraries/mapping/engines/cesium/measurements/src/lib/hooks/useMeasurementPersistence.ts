@@ -1,7 +1,10 @@
 import { useEffect, useRef } from "react";
 
 import type { MeasurementCollection } from "../types/MeasurementTypes";
-import { loadMeasurements, saveMeasurements } from "../utils/measurementPersistence";
+import {
+  loadMeasurements,
+  saveMeasurements,
+} from "../utils/measurementPersistence";
 
 interface MeasurementPersistenceOptions {
   storageKey?: string;

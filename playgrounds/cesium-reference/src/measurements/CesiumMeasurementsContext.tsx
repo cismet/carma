@@ -165,16 +165,14 @@ export const CesiumMeasurementsProvider: React.FC<
     showLabels &&
     !hideLabelsOfType.has(MeasurementMode.PointQuery);
 
-  useCesiumPointVisualizer(
-    scene,
-    measurements,
-    showPoints,
-    true,
-    showPointLabels,
-    false,
-    pointRadius,
-    referenceElevation
-  );
+  useCesiumPointVisualizer(scene, measurements, {
+    showMarkers: showPoints,
+    showCesiumMarkers: true,
+    showLabels: showPointLabels,
+    showCesiumLabels: false,
+    radius: pointRadius,
+    referenceElevation,
+  });
 
   const { clearTraverseQuery, isActiveTraverse, currentTraverseId } =
     useCesiumTraverseQuery(

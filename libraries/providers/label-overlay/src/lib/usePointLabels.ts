@@ -1,12 +1,21 @@
 import React, { useEffect, useMemo } from "react";
 
 import { useLabelOverlay } from "./useLabelOverlay";
-import { PointLabel, type PointLabelStyleProps } from "./components/PointLabel";
+import {
+  PointLabel,
+  type PointLabelAttach,
+  type PointLabelStyleProps,
+} from "./components/PointLabel";
 
 export interface PointLabelData {
   id: string;
   getCanvasPosition?: () => { x: number; y: number } | null;
   pitch?: number;
+  labelAngleRad?: number;
+  labelDistance?: number;
+  labelAttach?: PointLabelAttach;
+  anchorSwitchTransitionMs?: number;
+  hideLabelAndStem?: boolean;
   text: string;
   selected?: boolean;
   visible?: boolean;
@@ -33,7 +42,13 @@ export const usePointLabels = (
       points
         .map(
           (p) =>
-            `${p.id}:${p.text}:${p.selected}:${p.visible}:${p.isOccluded}:${p.isHidden}:${p.pitch}:${Boolean(p.onClick)}`
+            `${p.id}:${p.text}:${p.selected}:${p.visible}:${p.isOccluded}:${
+              p.isHidden
+            }:${p.pitch}:${Boolean(p.onClick)}:${p.labelAngleRad}:${
+              p.labelDistance
+            }:${p.labelAttach}:${p.anchorSwitchTransitionMs}:${
+              p.hideLabelAndStem
+            }`
         )
         .join("|"),
     [points]
@@ -57,6 +72,11 @@ export const usePointLabels = (
         getCanvasPosition: point.getCanvasPosition,
         content: React.createElement(PointLabel, {
           pitch,
+          labelAngleRad: point.labelAngleRad,
+          labelDistance: point.labelDistance,
+          labelAttach: point.labelAttach,
+          anchorSwitchTransitionMs: point.anchorSwitchTransitionMs,
+          hideLabelAndStem: point.hideLabelAndStem,
           text: point.text,
           selected: point.selected,
           isOccluded: point.isOccluded,

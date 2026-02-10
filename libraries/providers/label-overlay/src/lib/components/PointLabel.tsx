@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 
 export interface PointLabelStyleProps {
   fontSize?: string;
@@ -15,11 +15,21 @@ export interface PointLabelStyleProps {
   labelDistance?: number;
 }
 
+export type PointLabelAttach =
+  | "bottomLeft"
+  | "topLeft"
+  | "topRight"
+  | "bottomRight";
+
 interface PointLabelProps extends PointLabelStyleProps {
   text: string;
   selected?: boolean;
   isOccluded?: boolean;
   pitch?: number;
+  labelAngleRad?: number;
+  labelAttach?: PointLabelAttach;
+  anchorSwitchTransitionMs?: number;
+  hideLabelAndStem?: boolean;
   onClick?: () => void;
 }
 
@@ -47,6 +57,10 @@ export const PointLabel = React.memo(
     hoverBackgroundColor = "rgba(255, 247, 230, 0.7)",
     isOccluded = false,
     pitch = defaultPitch,
+    labelAngleRad,
+    labelAttach = "bottomLeft",
+    anchorSwitchTransitionMs = 300,
+    hideLabelAndStem = false,
     lineColor = "white",
     lineWidth = 1,
     markerSize = 10,
@@ -55,13 +69,18 @@ export const PointLabel = React.memo(
     onClick,
   }: PointLabelProps) => {
     const [isHovered, setIsHovered] = useState(false);
-    const labelAngleRad = -Math.abs(Math.cos(pitch));
-    const xComponent = Math.cos(labelAngleRad);
-    const yComponent = Math.sin(labelAngleRad);
+    const [isAttachTransitionActive, setIsAttachTransitionActive] =
+      useState(false);
+    const previousAttachRef = useRef<PointLabelAttach>(labelAttach);
+    const effectiveLabelAngleRad =
+      labelAngleRad !== undefined ? labelAngleRad : -Math.abs(Math.cos(pitch));
+    const xComponent = Math.cos(effectiveLabelAngleRad);
+    const yComponent = Math.sin(effectiveLabelAngleRad);
     const labelOffsetX = xComponent * labelDistance;
     const labelOffsetY = yComponent * labelDistance;
     const radius = markerSize / 2;
     const halfLineWidth = lineWidth / 2;
+    const lineLength = Math.max(0, labelDistance - radius);
     const isInteractive = Boolean(onClick);
     const pointerEvents = isInteractive ? "auto" : "none";
     const cursor = isInteractive ? "pointer" : "default";
@@ -78,6 +97,59 @@ export const PointLabel = React.memo(
     const handleMouseLeave = () => {
       if (isInteractive) setIsHovered(false);
     };
+    const labelTransform =
+      labelAttach === "topLeft"
+        ? "translate(0%, 0%)"
+        : labelAttach === "topRight"
+        ? "translate(-100%, 0%)"
+        : labelAttach === "bottomRight"
+        ? "translate(-100%, -100%)"
+        : "translate(0%, -100%)";
+    const isTopAttach = labelAttach === "topLeft" || labelAttach === "topRight";
+    const lineBorderStyle = `${lineWidth}px ${
+      isOccluded ? "dashed" : "solid"
+    } ${lineColor}`;
+    const labelBorderStyle = `${lineWidth}px ${
+      isOccluded ? "dashed" : "solid"
+    } ${effectiveLineColor}`;
+    const labelTop = isTopAttach
+      ? `${labelOffsetY}px`
+      : `${labelOffsetY + halfLineWidth}px`;
+    const sharedAttachTransition =
+      isAttachTransitionActive && anchorSwitchTransitionMs > 0
+        ? `${anchorSwitchTransitionMs}ms ease`
+        : undefined;
+    const positionTransition = sharedAttachTransition
+      ? `left ${sharedAttachTransition}, top ${sharedAttachTransition}, transform ${sharedAttachTransition}`
+      : undefined;
+    const angleTransition = sharedAttachTransition
+      ? `transform ${sharedAttachTransition}`
+      : undefined;
+    const stemTransition = sharedAttachTransition
+      ? `left ${sharedAttachTransition}, top ${sharedAttachTransition}, width ${sharedAttachTransition}`
+      : undefined;
+
+    useEffect(() => {
+      if (anchorSwitchTransitionMs <= 0) {
+        previousAttachRef.current = labelAttach;
+        setIsAttachTransitionActive(false);
+        return;
+      }
+
+      const previousAttach = previousAttachRef.current;
+      previousAttachRef.current = labelAttach;
+
+      if (previousAttach === labelAttach) {
+        return;
+      }
+
+      setIsAttachTransitionActive(true);
+      const timeoutId = window.setTimeout(() => {
+        setIsAttachTransitionActive(false);
+      }, anchorSwitchTransitionMs);
+
+      return () => window.clearTimeout(timeoutId);
+    }, [labelAttach, anchorSwitchTransitionMs]);
 
     return (
       <div
@@ -108,57 +180,64 @@ export const PointLabel = React.memo(
           onMouseLeave={handleMouseLeave}
         />
 
-        {/* Transform container for hairline rotation */}
-        <div
-          style={{
-            position: "absolute",
-            left: "0px",
-            top: "0px",
-            transformOrigin: "0 0",
-            transform: `rotate(${labelAngleRad}rad)`,
-            pointerEvents: "none",
-          }}
-        >
-          {/* Hairline from circle edge to label */}
-          <div
-            style={{
-              position: "absolute",
-              left: `${radius}px`,
-              top: `${-halfLineWidth}px`,
-              width: `${labelDistance - radius}px`,
-              height: `${lineWidth}px`,
-              borderBottom: `${lineWidth}px ${
-                isOccluded ? "dashed" : "solid"
-              } ${lineColor}`,
-            }}
-          />
-        </div>
+        {!hideLabelAndStem && (
+          <>
+            {/* Transform container for hairline rotation */}
+            <div
+              style={{
+                position: "absolute",
+                left: "0px",
+                top: "0px",
+                transformOrigin: "0 0",
+                transform: `rotate(${effectiveLabelAngleRad}rad)`,
+                pointerEvents: "none",
+                transition: angleTransition,
+              }}
+            >
+              {/* Hairline from circle edge to label */}
+              <div
+                style={{
+                  position: "absolute",
+                  left: `${radius}px`,
+                  top: isTopAttach ? "0px" : `${-halfLineWidth}px`,
+                  width: `${lineLength}px`,
+                  height: `${lineWidth}px`,
+                  ...(isTopAttach
+                    ? { borderTop: lineBorderStyle }
+                    : { borderBottom: lineBorderStyle }),
+                  transition: stemTransition,
+                }}
+              />
+            </div>
 
-        {/* Label positioned at the end of the hairline */}
-        <div
-          style={{
-            ...baseStyles,
-            borderBottom: `${lineWidth}px ${
-              isOccluded ? "dashed" : "solid"
-            } ${effectiveLineColor}`,
-            fontSize,
-            fontFamily,
-            fontWeight,
-            backgroundColor: effectiveBackgroundColor,
-            color: effectiveTextColor,
-            position: "absolute",
-            left: `${labelOffsetX}px`,
-            top: `${labelOffsetY + halfLineWidth}px`,
-            transform: "translate(0%, -100%)",
-            pointerEvents,
-            cursor,
-          }}
-          onClick={onClick}
-          onMouseEnter={handleMouseEnter}
-          onMouseLeave={handleMouseLeave}
-        >
-          {text}
-        </div>
+            {/* Label positioned at the end of the hairline */}
+            <div
+              style={{
+                ...baseStyles,
+                ...(isTopAttach
+                  ? { borderTop: labelBorderStyle }
+                  : { borderBottom: labelBorderStyle }),
+                fontSize,
+                fontFamily,
+                fontWeight,
+                backgroundColor: effectiveBackgroundColor,
+                color: effectiveTextColor,
+                position: "absolute",
+                left: `${labelOffsetX}px`,
+                top: labelTop,
+                transform: labelTransform,
+                pointerEvents,
+                cursor,
+                transition: positionTransition,
+              }}
+              onClick={onClick}
+              onMouseEnter={handleMouseEnter}
+              onMouseLeave={handleMouseLeave}
+            >
+              {text}
+            </div>
+          </>
+        )}
       </div>
     );
   }

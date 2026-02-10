@@ -1,34 +1,76 @@
 import { useEffect, useMemo, useState } from "react";
 
-import {
-  Cartesian2,
-  SceneTransforms,
-  defined,
-  type Scene,
-} from "@carma/cesium";
+import { SceneTransforms, defined, type Scene } from "@carma/cesium";
 
 import {
-  usePointLabels,
+  computePointLabelLayout,
+  DEFAULT_POINT_LABEL_LAYOUT_CONFIG,
   formatNumberToEnclosed,
+  resolvePointLabelLayoutConfig,
+  usePointLabels,
+  type LayoutPointInput,
   type PointLabelData,
+  type PointLabelLayoutConfig,
+  type PointLabelLayoutConfigOverrides,
+  type PointLabelLayoutResult,
+  type ScreenPoint,
 } from "@carma-providers/label-overlay";
 
-import { PointMeasurementEntry } from "../types/MeasurementTypes";
+import type { PointMeasurementEntry } from "../types/MeasurementTypes";
 import {
   isPointOccluded,
   isPointInViewport,
 } from "../utils/occlusionDetection";
 
+export type CesiumLabelLayoutConfig = PointLabelLayoutConfig;
+export type CesiumLabelLayoutConfigOverrides = PointLabelLayoutConfigOverrides;
+export const DEFAULT_CESIUM_LABEL_LAYOUT_CONFIG =
+  DEFAULT_POINT_LABEL_LAYOUT_CONFIG;
+
 // Viewport padding constants for smooth label transitions
 const VIEWPORT_PADDING_HORIZONTAL = 100; // pixels
 const VIEWPORT_PADDING_VERTICAL = 50; // pixels
+
+const EMPTY_LAYOUT_RESULT: PointLabelLayoutResult = {
+  placements: {},
+  hiddenByLayout: new Set<string>(),
+};
+
+const areBooleanMapsDifferent = (
+  prev: Record<string, boolean>,
+  next: Record<string, boolean>,
+  ids: string[]
+): boolean => ids.some((id) => Boolean(prev[id]) !== Boolean(next[id]));
+
+const areScreenPointMapsDifferent = (
+  prev: Record<string, ScreenPoint>,
+  next: Record<string, ScreenPoint>,
+  ids: string[]
+): boolean =>
+  ids.some((id) => {
+    const prevPoint = prev[id];
+    const nextPoint = next[id];
+    if (!prevPoint && !nextPoint) return false;
+    if (!prevPoint || !nextPoint) return true;
+    return prevPoint.x !== nextPoint.x || prevPoint.y !== nextPoint.y;
+  });
+
+const formatPointLabelText = (
+  pointIndex: number,
+  pointHeight: number,
+  referenceElevation: number
+): string =>
+  `${formatNumberToEnclosed(pointIndex + 1)} ${(
+    pointHeight - referenceElevation
+  ).toFixed(2)}m`;
 
 export const useCesiumPointLabels = (
   scene: Scene | null,
   points: PointMeasurementEntry[],
   showLabels: boolean,
   referenceElevation: number = 0,
-  onPointClick?: (pointId: string) => void
+  onPointClick?: (pointId: string) => void,
+  layoutConfigOverrides?: CesiumLabelLayoutConfigOverrides
 ) => {
   const [occlusionResults, setOcclusionResults] = useState<
     Record<string, boolean>
@@ -36,9 +78,17 @@ export const useCesiumPointLabels = (
   const [hiddenResults, setHiddenResults] = useState<Record<string, boolean>>(
     {}
   );
+  const [projectedPositions, setProjectedPositions] = useState<
+    Record<string, ScreenPoint>
+  >({});
   const [cameraPitch, setCameraPitch] = useState<number>(-Math.PI / 4);
 
-  // Keep camera pitch in sync while the camera moves (for hairline angle/offset)
+  const layoutConfig = useMemo(
+    () => resolvePointLabelLayoutConfig(layoutConfigOverrides),
+    [layoutConfigOverrides]
+  );
+
+  // Keep camera pitch in sync while the camera moves.
   useEffect(() => {
     if (!scene || scene.isDestroyed() || !showLabels) return;
 
@@ -50,9 +100,8 @@ export const useCesiumPointLabels = (
     };
 
     updatePitch();
-    const removePostRenderListener = scene.postRender.addEventListener(
-      updatePitch
-    );
+    const removePostRenderListener =
+      scene.postRender.addEventListener(updatePitch);
 
     return () => {
       if (removePostRenderListener) {
@@ -61,29 +110,27 @@ export const useCesiumPointLabels = (
     };
   }, [scene, showLabels]);
 
-  // Cesium-specific visibility and occlusion detection
+  // Cesium-specific visibility and occlusion detection.
   useEffect(() => {
     if (!scene || scene.isDestroyed() || !showLabels) return;
 
     const checkVisibilityAndOcclusion = () => {
       const newOcclusionResults: Record<string, boolean> = {};
       const newHiddenResults: Record<string, boolean> = {};
+      const newProjectedPositions: Record<string, ScreenPoint> = {};
 
       points.forEach((point) => {
-        // Convert 3D position to screen coordinates
         const canvasPosition = SceneTransforms.worldToWindowCoordinates(
           scene,
           point.geometryECEF
         );
 
         if (!defined(canvasPosition)) {
-          // Point is behind camera or outside frustum - mark as hidden
           newHiddenResults[point.id] = true;
-          newOcclusionResults[point.id] = false; // Not occluded, just hidden
+          newOcclusionResults[point.id] = false;
           return;
         }
 
-        // Check if point is within viewport bounds with padding for smooth transitions
         const inViewport = isPointInViewport(
           canvasPosition,
           scene.canvas.clientWidth,
@@ -93,64 +140,104 @@ export const useCesiumPointLabels = (
         );
 
         if (!inViewport) {
-          // Point is outside viewport - mark as hidden (no DOM updates)
           newHiddenResults[point.id] = true;
-          newOcclusionResults[point.id] = false; // Not occluded, just hidden
+          newOcclusionResults[point.id] = false;
           return;
         }
 
-        // Point is in viewport, not hidden
         newHiddenResults[point.id] = false;
+        newProjectedPositions[point.id] = {
+          x: canvasPosition.x,
+          y: canvasPosition.y,
+        };
 
-        // Check if point is occluded by terrain or other geometry
         newOcclusionResults[point.id] = isPointOccluded(
           scene,
           point.geometryECEF,
           canvasPosition,
-          1.0 // 1 meter tolerance
+          1.0
         );
       });
 
-      // Only update state if results changed
-      const occlusionChanged = points.some(
-        (point) => occlusionResults[point.id] !== newOcclusionResults[point.id]
-      );
-      const hiddenChanged = points.some(
-        (point) => hiddenResults[point.id] !== newHiddenResults[point.id]
-      );
+      const pointIds = points.map((point) => point.id);
 
-      if (occlusionChanged) {
-        setOcclusionResults(newOcclusionResults);
-      }
-      if (hiddenChanged) {
-        setHiddenResults(newHiddenResults);
-      }
+      setOcclusionResults((prev) =>
+        areBooleanMapsDifferent(prev, newOcclusionResults, pointIds)
+          ? newOcclusionResults
+          : prev
+      );
+      setHiddenResults((prev) =>
+        areBooleanMapsDifferent(prev, newHiddenResults, pointIds)
+          ? newHiddenResults
+          : prev
+      );
+      setProjectedPositions((prev) =>
+        areScreenPointMapsDifferent(prev, newProjectedPositions, pointIds)
+          ? newProjectedPositions
+          : prev
+      );
     };
 
-    // Check visibility and occlusion when camera stops moving (not every frame)
-    // This matches the polyline behavior and prevents competition with tileset rendering
-    const removeMoveEndListener = scene.camera.moveEnd.addEventListener(
+    const removePostRenderListener = scene.postRender.addEventListener(
       checkVisibilityAndOcclusion
     );
 
-    // Initial check
     checkVisibilityAndOcclusion();
 
     return () => {
-      if (removeMoveEndListener) {
-        removeMoveEndListener();
+      if (removePostRenderListener) {
+        removePostRenderListener();
       }
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [scene, points, showLabels]);
 
-  // Transform measurement points to point label data
+  const layoutResult = useMemo((): PointLabelLayoutResult => {
+    if (!scene || scene.isDestroyed()) {
+      return EMPTY_LAYOUT_RESULT;
+    }
+
+    const layoutPoints: LayoutPointInput[] = points
+      .map((point, index) => {
+        const anchor = projectedPositions[point.id];
+        if (!anchor || hiddenResults[point.id]) return null;
+
+        return {
+          id: point.id,
+          selected: Boolean(point.isSelected),
+          anchor,
+          text: formatPointLabelText(
+            index,
+            point.geometryWGS84.height,
+            referenceElevation
+          ),
+          index,
+        };
+      })
+      .filter((point): point is LayoutPointInput => Boolean(point));
+
+    return computePointLabelLayout({
+      points: layoutPoints,
+      viewportWidth: scene.canvas.clientWidth,
+      viewportHeight: scene.canvas.clientHeight,
+      cameraPitch,
+      config: layoutConfig,
+    });
+  }, [
+    scene,
+    points,
+    projectedPositions,
+    hiddenResults,
+    referenceElevation,
+    layoutConfig,
+    cameraPitch,
+  ]);
+
   const pointLabelData: PointLabelData[] = useMemo(
     () =>
       points.map((point, index) => ({
         id: point.id,
         getCanvasPosition: () => {
-          // Fresh screen coordinate calculation at render time
           if (!scene || scene.isDestroyed()) return null;
           const canvasPosition = SceneTransforms.worldToWindowCoordinates(
             scene,
@@ -160,14 +247,21 @@ export const useCesiumPointLabels = (
             ? { x: canvasPosition.x, y: canvasPosition.y }
             : null;
         },
-        pitch: cameraPitch, // Use current camera pitch
-        text: `${formatNumberToEnclosed(index + 1)} ${(
-          point.geometryWGS84.height - referenceElevation
-        ).toFixed(2)}m`,
+        pitch: cameraPitch,
+        labelAngleRad: layoutResult.placements[point.id]?.angleRad,
+        labelDistance: layoutResult.placements[point.id]?.distance,
+        labelAttach: layoutResult.placements[point.id]?.attach,
+        anchorSwitchTransitionMs: layoutConfig.anchorSwitchTransitionMs,
+        hideLabelAndStem: layoutResult.hiddenByLayout.has(point.id),
+        text: formatPointLabelText(
+          index,
+          point.geometryWGS84.height,
+          referenceElevation
+        ),
         selected: point.isSelected,
         visible: true,
         isOccluded: occlusionResults[point.id] || false,
-        isHidden: hiddenResults[point.id] || false, // Hidden (outside viewport) vs occluded (behind geometry)
+        isHidden: hiddenResults[point.id] || false,
         onClick: onPointClick ? () => onPointClick(point.id) : undefined,
       })),
     [
@@ -177,11 +271,12 @@ export const useCesiumPointLabels = (
       hiddenResults,
       scene,
       cameraPitch,
+      layoutConfig.anchorSwitchTransitionMs,
+      layoutResult,
       onPointClick,
     ]
   );
 
-  // Use the built-in point labels hook
   usePointLabels(pointLabelData, showLabels);
 };
 

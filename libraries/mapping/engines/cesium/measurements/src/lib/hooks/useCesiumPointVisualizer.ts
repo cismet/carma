@@ -22,26 +22,43 @@ import {
   MeasurementCollection,
   PointMeasurementEntry,
 } from "../types/MeasurementTypes";
-import { useCesiumPointLabels } from "./useCesiumPointLabels";
+import {
+  useCesiumPointLabels,
+  type CesiumLabelLayoutConfigOverrides,
+} from "./useCesiumPointLabels";
 
 // Font for deprecated Cesium labels - will be removed when Cesium labels are fully deprecated
 const LABEL_FONT = '10px "Helvetica Neue", Arial, Helvetica, sans-serif';
 
+export type CesiumPointVisualizerOptions = {
+  showMarkers?: boolean;
+  showCesiumMarkers?: boolean;
+  showLabels?: boolean;
+  showCesiumLabels?: boolean;
+  radius: number;
+  referenceElevation?: number;
+  debug?: boolean;
+  onPointClick?: (pointId: string) => void;
+  labelLayoutConfig?: CesiumLabelLayoutConfigOverrides;
+};
+
 export const useCesiumPointVisualizer = (
   scene: Scene | null,
   measurements: MeasurementCollection = [],
-  showMarkers: boolean = true,
-  showCesiumMarkers: boolean = false,
-  showLabels: boolean = false,
-  showCesiumLabels: boolean = false,
-  radius: number,
-  referenceElevation: number = 0,
-  debug: boolean = false,
-  onPointClick?: (pointId: string) => void
+  {
+    showMarkers = true,
+    showCesiumMarkers = false,
+    showLabels = false,
+    showCesiumLabels = false,
+    radius,
+    referenceElevation = 0,
+    debug = false,
+    onPointClick,
+    labelLayoutConfig,
+  }: CesiumPointVisualizerOptions
 ) => {
   const labelCollectionRef = useRef<LabelCollection | null>(null);
   const cross3DRefs = useRef<Record<string, Cross3DGroup>>({});
-  const prevIdsRef = useRef<Set<string>>(new Set());
 
   const [points, currentIds]: [PointMeasurementEntry[], Set<string>] =
     useMemo(() => {
@@ -57,7 +74,8 @@ export const useCesiumPointVisualizer = (
     points,
     showLabels,
     referenceElevation,
-    onPointClick
+    onPointClick,
+    labelLayoutConfig
   );
 
   // Initialize and clean up LabelCollection
@@ -77,8 +95,17 @@ export const useCesiumPointVisualizer = (
 
   useEffect(() => {
     // render markers using primitives instead of entities
-    if (!showCesiumMarkers || !scene) return;
+    if (!scene) return;
     const crosses = cross3DRefs.current;
+
+    if (!showCesiumMarkers) {
+      Object.keys(crosses).forEach((id) => {
+        crosses[id].cleanup(scene);
+        delete crosses[id];
+      });
+      scene.requestRender();
+      return;
+    }
 
     points.forEach(({ id, geometryECEF }) => {
       if (!crosses[id]) {
@@ -98,21 +125,13 @@ export const useCesiumPointVisualizer = (
     // Remove refs for points that no longer exist
     Object.keys(crosses).forEach((id) => {
       if (!currentIds.has(id)) {
-        if (scene) {
-          crosses[id].cleanup(scene);
-        }
+        crosses[id].cleanup(scene);
         delete crosses[id];
       }
     });
-    prevIdsRef.current = currentIds;
-    if (scene) {
-      scene.requestRender(); // Ensure scene updates after changes
-    }
-    return () => {
-      if (!scene) {
-        return;
-      }
+    scene.requestRender(); // Ensure scene updates after changes
 
+    return () => {
       try {
         Object.keys(crosses).forEach((id) => {
           if (!currentIds.has(id)) {
@@ -120,7 +139,6 @@ export const useCesiumPointVisualizer = (
             delete crosses[id];
           }
         });
-        prevIdsRef.current = new Set();
       } catch (error) {
         console.warn("Cross3D primitive cleanup failed:", error);
       }
@@ -166,7 +184,6 @@ export const useCesiumPointVisualizer = (
       });
     }
 
-    prevIdsRef.current = currentIds;
     scene.requestRender(); // Ensure scene updates after changes
   }, [scene, points, currentIds, showCesiumLabels, referenceElevation]);
 };

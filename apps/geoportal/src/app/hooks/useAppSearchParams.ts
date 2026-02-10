@@ -31,8 +31,7 @@ export const useAppSearchParams = () => {
     }
 
     // Handle 3D mode parameter
-    const is3dValue =
-      hashValues.isCesium ?? hashValues[URL_PARAM_KEYS.is3d];
+    const is3dValue = hashValues.isCesium ?? hashValues[URL_PARAM_KEYS.is3d];
     if (is3dValue !== undefined) {
       const is3d = is3dValue;
       console.log("[useAppSearchParams] is3d parameter present:", is3d);
@@ -74,6 +73,4 @@ export const useAppSearchParams = () => {
     // run only once on load
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
-
-  
 };

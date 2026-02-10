@@ -23,6 +23,7 @@ import {
   useCesiumPointQuery,
   useCesiumPointVisualizer,
   useCesiumOverlaySync,
+  type CesiumLabelLayoutConfigOverrides,
 } from "../hooks";
 import { useMeasurementPersistence } from "../hooks/useMeasurementPersistence";
 
@@ -80,6 +81,7 @@ export type MeasurementProviderOptions = {
   mode?: MeasurementMode;
   persistenceKey?: string;
   persistenceEnabled?: boolean;
+  labels?: CesiumLabelLayoutConfigOverrides;
 };
 
 const defaultOptions: MeasurementProviderOptions = {
@@ -125,7 +127,6 @@ export const CesiumMeasurementsProvider: React.FC<
       requestUpdateCallback(overlayContext.updatePositions);
     }
   }, [overlayContext, requestUpdateCallback]);
-
 
   const pointQueryOptions = normalizeOptions(
     options?.pointQueries,
@@ -220,18 +221,17 @@ export const CesiumMeasurementsProvider: React.FC<
     [setMeasurements]
   );
 
-  useCesiumPointVisualizer(
-    scene,
-    measurements,
-    showPoints,
-    true,
-    showPointLabels,
-    false,
-    pointRadius,
+  useCesiumPointVisualizer(scene, measurements, {
+    showMarkers: showPoints,
+    showCesiumMarkers: true,
+    showLabels: showPointLabels,
+    showCesiumLabels: false,
+    radius: pointRadius,
     referenceElevation,
-    false,
-    selectMeasurementById
-  );
+    debug: false,
+    onPointClick: selectMeasurementById,
+    labelLayoutConfig: options?.labels,
+  });
 
   const clearAllMeasurements = useCallback(() => {
     setMeasurements([]);

@@ -5,9 +5,11 @@ export type { LabelOverlayElement, LabelOverlayContextType } from "./lib/types";
 export { LabelOverlayContainer } from "./lib/components/LabelOverlayContainer";
 export {
   PointLabel,
+  type PointLabelAttach,
   type PointLabelStyleProps,
 } from "./lib/components/PointLabel";
 export { usePointLabels, type PointLabelData } from "./lib/usePointLabels";
+export * from "./lib/pointLabelLayout";
 
 // Formatters for label text
 export {
