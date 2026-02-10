@@ -16,6 +16,8 @@ const isGeoJsonSource = (
   source: SourceSpecification
 ): source is GeoJSONSourceSpecification => source.type === "geojson";
 
+const HASHED_ADHOC_ID_PATTERN = /^([a-f0-9]{32})_.+$/i;
+
 const resolveGeoJsonSources = async (
   styleData: CarmaMapLibreStyleData
 ): Promise<CarmaMapLibreStyleData> => {
@@ -84,6 +86,13 @@ export const getVectorLayerStyle = async (
   const style = (layer as Layer & { props?: { style?: string | object } }).props
     ?.style;
   return resolveAdhocStyleData(style);
+};
+
+export const getHashedAdhocCollectionIdFromFeatureId = (
+  id: string
+): string | null => {
+  const match = id.match(HASHED_ADHOC_ID_PATTERN);
+  return match?.[1] ?? null;
 };
 
 export const filter3dLayers = (layer: Layer): Boolean => {

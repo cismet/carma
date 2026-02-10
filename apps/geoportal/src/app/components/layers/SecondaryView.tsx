@@ -83,7 +83,7 @@ const SecondaryView = forwardRef<Ref, SecondaryViewProps>(({}, ref) => {
     : undefined;
   const isBaseLayer = selectedLayerIndex === -1;
 
-  const { setSelectedFeatureId, setShouldFocusSelected } =
+  const { setSelectedFeatureById, setShouldFocusSelected } =
     useAdhocFeatureDisplay();
   const { isLeaflet, isCesium } = useMapFrameworkSwitcherContext();
 
@@ -277,7 +277,7 @@ const SecondaryView = forwardRef<Ref, SecondaryViewProps>(({}, ref) => {
                     await zoomToStyleFeatures(styleData, routedMapRef);
                     dispatch(setTriggerSelectionById(layer.id));
                   } else if (isCesium) {
-                    setSelectedFeatureId(layer.id);
+                    setSelectedFeatureById(layer.id);
                     setShouldFocusSelected(true);
                   }
                 }}

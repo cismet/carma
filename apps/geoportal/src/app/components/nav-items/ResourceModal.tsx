@@ -52,6 +52,7 @@ import { MapStyleKeys } from "../../constants/MapStyleKeys";
 import { zoomToStyleFeatures } from "../../helper/gisHelper";
 import {
   isAdhocVectorLayer,
+  getHashedAdhocCollectionIdFromFeatureId,
   resolveAdhocStyleData,
 } from "../../helper/adhoc-feature-utils";
 
@@ -75,7 +76,7 @@ const ResourceModal = () => {
 
   const {
     addFeature,
-    setSelectedFeatureId,
+    setSelectedFeatureById,
     setShouldFocusSelected,
     removeFeature,
   } = useAdhocFeatureDisplay();
@@ -210,14 +211,18 @@ const ResourceModal = () => {
         }
       }
 
-      addFeature({
-        id: id,
-        kind: "maplibre-style",
-        data: styleData as CarmaMapLibreStyleData,
-        properties: featureProperties as unknown as Parameters<
-          typeof addFeature
-        >[0]["properties"],
-      });
+      const adhocCollectionId = getHashedAdhocCollectionIdFromFeatureId(id);
+      addFeature(
+        {
+          id: id,
+          kind: "maplibre-style",
+          data: styleData as CarmaMapLibreStyleData,
+          properties: featureProperties as unknown as Parameters<
+            typeof addFeature
+          >[0]["properties"],
+        },
+        adhocCollectionId ? { collectionId: adhocCollectionId } : undefined
+      );
 
       await zoomToStyleFeatures(styleData, routedMap);
 
@@ -226,7 +231,7 @@ const ResourceModal = () => {
         dispatch(setTriggerSelectionById(id));
       } else if (!isLeaflet || conf.modeSwitch === "3D") {
         // 3D (Cesium) mode: select and fly to the feature
-        setSelectedFeatureId(id);
+        setSelectedFeatureById(id);
         setShouldFocusSelected(true);
       }
     }

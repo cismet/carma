@@ -2,6 +2,7 @@ import {
   createContext,
   useCallback,
   useContext,
+  useEffect,
   useMemo,
   useState,
 } from "react";
@@ -11,6 +12,7 @@ import type {
   FeatureInfoProperties,
 } from "@carma/types";
 import type { BoundingSphere } from "@carma/cesium";
+import { normalizeAdhocFeatureGeoJsonFeatureIds } from "../utils/adhoc-feature-utils";
 
 export type AdhocFeatureMetadata = {
   accentColor?: string;
@@ -67,11 +69,15 @@ export type RemoveAdhocFeatureOptions = {
   collectionId?: string;
 };
 
+export type SelectedAdhocFeature = {
+  id: string;
+  collectionId: string;
+};
+
 interface AdhocFeatureDisplayContextType {
   featureCollections: AdhocFeatureCollection[];
   features: AdhocFeature[];
-  selectedFeatureId: string | null;
-  selectedFeature: AdhocFeature | null;
+  selectedFeature: SelectedAdhocFeature | null;
   shouldFocusSelected: boolean;
   addFeatureCollection: (collection: AdhocFeatureCollectionSeed) => void;
   removeFeatureCollection: (collectionId: string) => void;
@@ -80,7 +86,8 @@ interface AdhocFeatureDisplayContextType {
   updateFeatureMetadata: (
     updates: AdhocFeatureMetadataUpdate | AdhocFeatureMetadataUpdate[]
   ) => void;
-  setSelectedFeatureId: (id: string | null) => void;
+  setSelectedFeatureById: (id: string) => void;
+  clearSelectedFeature: () => void;
   setShouldFocusSelected: (shouldFocus: boolean) => void;
   clearFeatures: (collectionId?: string) => void;
 }
@@ -109,11 +116,11 @@ const mergeAdhocFeature = (
 
 const hasFeatureInCollection = (
   collection: AdhocFeatureCollection | undefined,
-  featureId: string | null
+  id: string | null
 ): boolean =>
-  featureId !== null &&
+  id !== null &&
   !!collection &&
-  collection.features.some((feature) => feature.id === featureId);
+  collection.features.some((feature) => feature.id === id);
 
 const upsertAdhocFeatureCollection = (
   collections: AdhocFeatureCollection[],
@@ -162,12 +169,10 @@ const upsertAdhocFeatureCollection = (
 
 const findAdhocFeatureById = (
   collections: AdhocFeatureCollection[],
-  featureId: string
+  id: string
 ): AdhocFeature | null => {
   for (const collection of collections) {
-    const candidate = collection.features.find(
-      (feature) => feature.id === featureId
-    );
+    const candidate = collection.features.find((feature) => feature.id === id);
     if (candidate) {
       return candidate;
     }
@@ -177,7 +182,7 @@ const findAdhocFeatureById = (
 
 const removeAdhocFeatureFromCollections = (
   collections: AdhocFeatureCollection[],
-  featureId: string,
+  id: string,
   options?: RemoveAdhocFeatureOptions
 ): AdhocFeatureCollection[] => {
   const collectionId = options?.collectionId;
@@ -185,7 +190,7 @@ const removeAdhocFeatureFromCollections = (
   const nextCollections = collections.map((collection) => {
     if (collectionId && collection.id !== collectionId) return collection;
     const nextFeatures = collection.features.filter(
-      (feature) => feature.id !== featureId
+      (feature) => feature.id !== id
     );
     if (nextFeatures.length === collection.features.length) return collection;
     didChange = true;
@@ -274,21 +279,44 @@ export function AdhocFeatureDisplayProvider({
     [selectedFeatureId]
   );
 
+  const setSelectedFeatureById = useCallback((id: string) => {
+    setSelectedFeatureId(id);
+  }, []);
+
   const addFeature = useCallback(
     (feature: AdhocFeature, options?: AddAdhocFeatureOptions) => {
+      const targetCollectionId =
+        options?.collectionId ?? DEFAULT_ADHOC_FEATURE_COLLECTION_ID;
+      const { feature: normalizedFeature, generatedGeoJsonFeatureIds } =
+        normalizeAdhocFeatureGeoJsonFeatureIds(feature, {
+          collectionId: targetCollectionId,
+        });
+      if (generatedGeoJsonFeatureIds.length > 0) {
+        console.debug("[ADHOC|IMPORT] Generated GeoJSON feature ids", {
+          id: feature.id,
+          collectionId: targetCollectionId,
+          generatedGeoJsonFeatureIds,
+        });
+      }
       let isNew = false;
       setFeatureCollections((prev) => {
-        isNew = findAdhocFeatureById(prev, feature.id) === null;
-        return upsertAdhocFeatureInCollections(prev, feature, options);
+        isNew = findAdhocFeatureById(prev, normalizedFeature.id) === null;
+        return upsertAdhocFeatureInCollections(
+          prev,
+          normalizedFeature,
+          options
+        );
       });
 
-      const metadata = feature.metadata as { rehydrated?: boolean } | undefined;
+      const metadata = normalizedFeature.metadata as
+        | { rehydrated?: boolean }
+        | undefined;
       if (isNew && !metadata?.rehydrated) {
-        setSelectedFeatureId(feature.id);
+        setSelectedFeatureById(normalizedFeature.id);
         setShouldFocusSelected(true);
       }
     },
-    [setSelectedFeatureId, setShouldFocusSelected]
+    [setSelectedFeatureById, setShouldFocusSelected]
   );
 
   const removeFeature = useCallback(
@@ -300,6 +328,10 @@ export function AdhocFeatureDisplayProvider({
     },
     []
   );
+
+  const clearSelectedFeature = useCallback(() => {
+    setSelectedFeatureId(null);
+  }, []);
 
   const updateFeatureMetadata = useCallback(
     (updates: AdhocFeatureMetadataUpdate | AdhocFeatureMetadataUpdate[]) => {
@@ -373,16 +405,38 @@ export function AdhocFeatureDisplayProvider({
     [featureCollections]
   );
 
-  const selectedFeature = useMemo(
-    () => features.find((feature) => feature.id === selectedFeatureId) ?? null,
-    [features, selectedFeatureId]
-  );
+  const selectedFeature = useMemo(() => {
+    if (!selectedFeatureId) {
+      return null;
+    }
+
+    for (const collection of featureCollections) {
+      const hasSelectedFeature = collection.features.some(
+        (feature) => feature.id === selectedFeatureId
+      );
+      if (hasSelectedFeature) {
+        return {
+          id: selectedFeatureId,
+          collectionId: collection.id,
+        } satisfies SelectedAdhocFeature;
+      }
+    }
+
+    return null;
+  }, [featureCollections, selectedFeatureId]);
+
+  useEffect(() => {
+    if (!selectedFeature) return;
+    console.debug("[ADHOC|SELECT] Feature selected", {
+      id: selectedFeature.id,
+      collectionId: selectedFeature.collectionId,
+    });
+  }, [selectedFeature]);
 
   const value = useMemo(
     () => ({
       featureCollections,
       features,
-      selectedFeatureId,
       selectedFeature,
       shouldFocusSelected,
       addFeatureCollection,
@@ -390,14 +444,14 @@ export function AdhocFeatureDisplayProvider({
       addFeature,
       removeFeature,
       updateFeatureMetadata,
-      setSelectedFeatureId,
+      setSelectedFeatureById,
+      clearSelectedFeature,
       setShouldFocusSelected,
       clearFeatures,
     }),
     [
       featureCollections,
       features,
-      selectedFeatureId,
       selectedFeature,
       shouldFocusSelected,
       addFeatureCollection,
@@ -405,7 +459,8 @@ export function AdhocFeatureDisplayProvider({
       addFeature,
       removeFeature,
       updateFeatureMetadata,
-      setSelectedFeatureId,
+      setSelectedFeatureById,
+      clearSelectedFeature,
       setShouldFocusSelected,
       clearFeatures,
     ]

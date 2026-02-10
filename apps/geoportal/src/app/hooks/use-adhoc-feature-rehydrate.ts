@@ -9,6 +9,7 @@ import {
 } from "../store/slices/features";
 import {
   isAdhocVectorLayer,
+  getHashedAdhocCollectionIdFromFeatureId,
   getVectorLayerStyle,
 } from "../helper/adhoc-feature-utils";
 
@@ -21,11 +22,13 @@ export const useAdhocFeatureRehydrate = () => {
     features,
     addFeature,
     removeFeature,
-    selectedFeatureId,
-    setSelectedFeatureId,
+    selectedFeature,
+    setSelectedFeatureById,
+    clearSelectedFeature,
     shouldFocusSelected,
     setShouldFocusSelected,
   } = useAdhocFeatureDisplay();
+  const selectedFeatureId = selectedFeature?.id ?? null;
   const rehydratedRef = useRef<Set<string>>(new Set());
   const initialAdhocLayerIdsRef = useRef<Set<string> | null>(null);
 
@@ -80,18 +83,24 @@ export const useAdhocFeatureRehydrate = () => {
             }
           }
 
-          addFeature({
-            id: layer.id,
-            kind: "maplibre-style",
-            data: styleData,
-            properties: featureProperties as unknown as Parameters<
-              typeof addFeature
-            >[0]["properties"],
-            metadata: {
-              rehydrated:
-                initialAdhocLayerIdsRef.current?.has(layer.id) ?? false,
+          const adhocCollectionId = getHashedAdhocCollectionIdFromFeatureId(
+            layer.id
+          );
+          addFeature(
+            {
+              id: layer.id,
+              kind: "maplibre-style",
+              data: styleData,
+              properties: featureProperties as unknown as Parameters<
+                typeof addFeature
+              >[0]["properties"],
+              metadata: {
+                rehydrated:
+                  initialAdhocLayerIdsRef.current?.has(layer.id) ?? false,
+              },
             },
-          });
+            adhocCollectionId ? { collectionId: adhocCollectionId } : undefined
+          );
           rehydratedRef.current.add(layer.id);
         }
       });
@@ -121,7 +130,7 @@ export const useAdhocFeatureRehydrate = () => {
     }
 
     const reduxSelectedId = reduxSelectedFeature?.id ?? null;
-    const providerSelectedId = selectedFeatureId ?? null;
+    const providerSelectedId = selectedFeatureId;
     const providerHasAdhocSelection =
       providerSelectedId !== null &&
       features.some((feature) => feature.id === providerSelectedId);
@@ -131,12 +140,8 @@ export const useAdhocFeatureRehydrate = () => {
       features.some((feature) => feature.id === reduxSelectedId);
     if (reduxHasAdhocSelection) {
       // If Provider doesn't have this selected, sync from Redux
-      if (providerSelectedId !== reduxSelectedId) {
-        console.log(
-          "[SYNC] Syncing 2D selection -> Provider:",
-          reduxSelectedId
-        );
-        setSelectedFeatureId(reduxSelectedId);
+      if (providerSelectedId !== reduxSelectedId && reduxSelectedId !== null) {
+        setSelectedFeatureById(reduxSelectedId);
         setShouldFocusSelected(false);
       }
       return;
@@ -144,8 +149,7 @@ export const useAdhocFeatureRehydrate = () => {
 
     // Redux has no adhoc selection in 2D -> clear stale adhoc selection in provider.
     if (providerHasAdhocSelection) {
-      console.log("[SYNC] Clearing stale adhoc Provider selection in 2D");
-      setSelectedFeatureId(null);
+      clearSelectedFeature();
       setShouldFocusSelected(false);
     }
   }, [
@@ -153,7 +157,8 @@ export const useAdhocFeatureRehydrate = () => {
     features,
     selectedFeatureId,
     shouldFocusSelected,
-    setSelectedFeatureId,
+    clearSelectedFeature,
+    setSelectedFeatureById,
     setShouldFocusSelected,
     isCesium,
   ]);
@@ -163,18 +168,12 @@ export const useAdhocFeatureRehydrate = () => {
     // Only sync to Redux when in 3D mode (Cesium is active)
     if (!isCesium) return;
 
-    console.log("[SYNC] Provider -> Redux check:", {
-      providerId: selectedFeatureId,
-      reduxId: reduxSelectedFeature?.id,
-    });
-
     // If Provider has no selection, check if we should clear Redux
     if (selectedFeatureId === null) {
       if (
         reduxSelectedFeature?.id &&
         features.some((f) => f.id === reduxSelectedFeature.id)
       ) {
-        console.log("[SYNC] Clearing Redux selection");
         dispatch(setSelectedFeature(null));
       }
       return;
@@ -185,8 +184,6 @@ export const useAdhocFeatureRehydrate = () => {
       // Check if it's an adhoc feature
       const adhocFeature = features.find((f) => f.id === selectedFeatureId);
       if (adhocFeature) {
-        console.log("[SYNC] Syncing Provider -> Redux:", selectedFeatureId);
-
         // Get title from metadata, properties, or fallback to id
         const title =
           (typeof adhocFeature.metadata?.title === "string"
