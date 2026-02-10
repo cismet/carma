@@ -48,12 +48,15 @@ const getAllLeafLayers = (capabilities: unknown): WMSLayerLike[] => {
 // Re-export types that consumers need
 export interface LibreLayer {
   name: string;
-  type: "vector" | "geojson" | "cog";
+  type: "vector" | "geojson" | "cog" | "wms";
   style?: string;
   data?: string;
   url?: string;
   opacity?: number;
   layer?: string;
+  layers?: string; // WMS layer name(s)
+  version?: string; // WMS version (default: "1.1.1")
+  format?: string; // WMS format (default: "image/png")
   infoboxMapping?: string[];
 }
 
@@ -388,6 +391,8 @@ export const vectorStylesToMapLibreStyle = async ({
         } else if (layer.type === "geojson") {
           const result = await extractGeoJson(layer.data!);
           return { type: "geojson" as const, data: transformedPois(result) };
+        } else if (layer.type === "wms") {
+          return { type: "wms" as const };
         }
         return null;
       }),
@@ -637,6 +642,42 @@ export const vectorStylesToMapLibreStyle = async ({
         });
 
         style.layers = [...style.layers!, ...geoJsonLayers];
+      } else if (layer.type === "wms") {
+        // Build WMS tile URL
+        const {
+          url,
+          layers: wmsLayers,
+          version = "1.1.1",
+          format = "image/png",
+          opacity = 1,
+        } = layer;
+        const baseUrl = url.endsWith("?") ? url : url + "?";
+        const wmsUrl = `${baseUrl}SERVICE=WMS&REQUEST=GetMap&VERSION=${version}&LAYERS=${wmsLayers}&FORMAT=${format}&styles=default&TRANSPARENT=true&WIDTH=256&HEIGHT=256&crs=EPSG:3857&srs=EPSG:3857&BBOX={bbox-epsg-3857}`;
+
+        const sourceId = `wms-source-${index}`;
+        const layerId = `wms-layer-${index}`;
+
+        // Add raster source
+        style.sources = {
+          ...style.sources,
+          [sourceId]: {
+            type: "raster",
+            tiles: [wmsUrl],
+            tileSize: 256,
+          } as SourceSpecification,
+        };
+
+        // Add raster layer
+        style.layers = [
+          ...(style.layers || []),
+          {
+            id: layerId,
+            type: "raster",
+            source: sourceId,
+            paint: { "raster-opacity": opacity },
+            metadata: { "z-index": index, "layer-id": layer.name },
+          } as LayerSpecification,
+        ];
       }
       // COG layers are handled separately via map.addSource/addLayer after setStyle
     }

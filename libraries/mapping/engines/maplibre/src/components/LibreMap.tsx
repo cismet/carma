@@ -68,7 +68,8 @@ export interface VectorStyle {
 export type LibreLayer =
   | ({ type: "vector" } & VectorStyle)
   | { type: "geojson"; name: string; data: string; infoboxMapping?: string[] }
-  | { type: "cog"; name: string; url: string; opacity?: number };
+  | { type: "cog"; name: string; url: string; opacity?: number }
+  | { type: "wms"; name: string; url: string; layers: string; opacity?: number; version?: string; format?: string };
 
 export interface LibreMapProps {
   backgroundLayers?: string | null;
