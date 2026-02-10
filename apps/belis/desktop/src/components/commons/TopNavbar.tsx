@@ -33,6 +33,15 @@ const TopNavbar = () => {
         >
           Schlüsseltabellen
         </NavLink>
+        <NavLink
+          to="/feature-form-demo"
+          className={({ isActive }) => `text-base hover:text-gray-600`}
+          style={({ isActive }) => ({
+            color: isActive ? "#1677ff" : undefined,
+          })}
+        >
+          Feature Form Demo
+        </NavLink>
       </div>
       <div className="ml-auto flex items-center gap-4">
         <SyncMenuModal />

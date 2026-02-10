@@ -15,6 +15,7 @@ import { PersistGate } from "redux-persist/integration/react";
 import TopicMapContextProvider from "react-cismap/contexts/TopicMapContextProvider";
 import MainPage from "./components/pages/MainPage";
 import KeyTablesPage from "./components/pages/KeyTablesPage";
+import FeatureFormDemo from "./components/pages/FeatureFormDemo";
 import {
   checkJWTValidation,
   getJWT,
@@ -90,6 +91,10 @@ const router = createHashRouter(
         {
           path: "/key-tables",
           element: <KeyTablesPage />,
+        },
+        {
+          path: "/feature-form-demo",
+          element: <FeatureFormDemo />,
         },
       ],
     },
