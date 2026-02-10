@@ -59,7 +59,7 @@ export const getActionLinksForFeature = (
       <span key={`orbit-wrapper`} className={isOrbiting ? "orbit-active" : ""}>
         <CarmaIconLink
           key={`orbit`}
-          tooltip={isOrbiting ? "Orbit stoppen" : "Orbit starten"}
+          tooltip={isOrbiting ? "Rundflug stoppen" : "Rundflug starten"}
           onClick={() => {
             onOrbitToggle?.();
           }}
