@@ -253,7 +253,7 @@ export function useDatasheetMiniMap(
       setMiniMapZoomOffset((prev) => {
         const next = Math.max(-5, Math.min(10, prev + delta));
         const mainZoom = mainMap?.getZoom() ?? 15;
-        miniMap.easeTo({ zoom: mainZoom + next, duration: 50 });
+        miniMap.jumpTo({ zoom: mainZoom + next });
         return next;
       });
     };
