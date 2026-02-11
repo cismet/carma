@@ -53,9 +53,9 @@ const BelisDatasheetView = ({
   const props = rawFeature?.properties ?? feature?.properties ?? {};
 
   return (
-    <div style={{ height: "100%", overflow: "auto", padding: 16 }}>
+    <div style={{ height: "100%", padding: 16 }}>
       {/* Header */}
-      <div
+      {/* <div
         style={{
           marginBottom: 16,
           paddingBottom: 12,
@@ -75,7 +75,7 @@ const BelisDatasheetView = ({
             {infobox.subtitle}
           </div>
         )}
-      </div>
+      </div> */}
 
       {/* Fetched feature data - render form or JSON fallback */}
       {fetchedData && (

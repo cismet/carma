@@ -71,8 +71,20 @@ interface StrassenschluesselItem {
 const LeuchteForm = ({ data, rawFeature, onClose }: LeuchteFormProps) => {
   const [form] = Form.useForm();
   const [pendingFiles, setPendingFiles] = useState<UploadFile[]>([]);
+  const [isWideScreen, setIsWideScreen] = useState(
+    typeof window !== "undefined" ? window.innerWidth > 1200 : false
+  );
   const keyTablesData = useSelector(getKeyTablesData);
   const jwt = useSelector(getJWT);
+
+  // Listen for window resize to toggle layout
+  useEffect(() => {
+    const handleResize = () => {
+      setIsWideScreen(window.innerWidth > 1300);
+    };
+    window.addEventListener("resize", handleResize);
+    return () => window.removeEventListener("resize", handleResize);
+  }, []);
 
   // Key table options
   const leuchttypOptions = (keyTablesData.leuchtentyp || []) as LeuchttypItem[];
@@ -99,12 +111,22 @@ const LeuchteForm = ({ data, rawFeature, onClose }: LeuchteFormProps) => {
 
   // Extract fabrikat for subtitle - use rawFeature (vector tile) to match list display
   const rawProps = rawFeature?.properties;
-  const subtitle = (rawProps?.fabrikat as string) || (rawProps?.leuchttyp_fabrikat as string) || "-ohne Fabrikat-";
+  const subtitle =
+    (rawProps?.fabrikat as string) ||
+    (rawProps?.leuchttyp_fabrikat as string) ||
+    "-ohne Fabrikat-";
 
   useEffect(() => {
     if (data) {
       const leuchteData = data as Record<string, unknown>;
       const { tdta_leuchten } = leuchteData;
+      if (
+        !tdta_leuchten ||
+        !Array.isArray(tdta_leuchten) ||
+        tdta_leuchten.length === 0
+      ) {
+        return;
+      }
       const leuchte = tdta_leuchten[0];
       console.log("xxx leuchteData", leuchte);
       console.log(
@@ -189,457 +211,481 @@ const LeuchteForm = ({ data, rawFeature, onClose }: LeuchteFormProps) => {
     <span className="text-sm font-medium text-gray-700">{children}</span>
   );
 
-  return (
-    <div className="bg-white rounded-xl border border-gray-100 max-w-4xl w-full">
-      {/* Header */}
-      <FormHeader title="Leuchte bearbeiten" subtitle={subtitle} />
+  // Form content - reused in both layouts
+  const formContent = (
+    <Form form={form} layout="vertical" requiredMark={false} className="pr-2">
+      {/* Straßenschlüssel */}
+      <Row gutter={16}>
+        <Col span={6}>
+          <Form.Item
+            name="strassenschluessel_pk"
+            label={<FormLabel>Straßenschlüssel</FormLabel>}
+            className="mb-4"
+          >
+            <Input size="large" />
+          </Form.Item>
+        </Col>
+        <Col span={18}>
+          <Form.Item
+            name="strassenschluessel_strasse"
+            label={<FormLabel>&nbsp;</FormLabel>}
+            className="mb-4"
+          >
+            <Input size="large" />
+          </Form.Item>
+        </Col>
+      </Row>
 
-      {/* Tabbed Content */}
-      <div className="px-6 py-4">
+      {/* Kennziffer */}
+      <Form.Item
+        name="fk_kennziffer"
+        label={<FormLabel>Kennziffer</FormLabel>}
+        className="mb-4"
+      >
+        <Select
+          placeholder="Kennziffer auswählen"
+          className="w-full"
+          size="large"
+          showSearch
+          optionFilterProp="children"
+        >
+          {kennzifferOptions.map((item) => (
+            <Select.Option key={item.id} value={item.id}>
+              {item.kennziffer} - {item.beschreibung}
+            </Select.Option>
+          ))}
+        </Select>
+      </Form.Item>
+
+      {/* Laufende Nr. and Leuchtennummer */}
+      <Row gutter={16}>
+        <Col span={12}>
+          <Form.Item
+            name="lfd_nummer"
+            label={<FormLabel>Laufende Nr.</FormLabel>}
+            className="mb-4"
+          >
+            <InputNumber className="w-full" size="large" />
+          </Form.Item>
+        </Col>
+        <Col span={12}>
+          <Form.Item
+            name="leuchtennummer"
+            label={<FormLabel>Leuchtennummer</FormLabel>}
+            className="mb-4"
+          >
+            <InputNumber className="w-full" size="large" />
+          </Form.Item>
+        </Col>
+      </Row>
+
+      {/* Leuchtentyp */}
+      <Form.Item
+        name="fk_leuchttyp"
+        label={<FormLabel>Leuchtentyp</FormLabel>}
+        className="mb-4"
+      >
+        <Select
+          placeholder="Leuchtentyp auswählen"
+          className="w-full"
+          size="large"
+          showSearch
+          optionFilterProp="children"
+        >
+          {leuchttypOptions.map((item) => (
+            <Select.Option key={item.id} value={item.id}>
+              {item.leuchtentyp} {item.fabrikat}
+            </Select.Option>
+          ))}
+        </Select>
+      </Form.Item>
+
+      {/* Inbetriebnahme and Zähler */}
+      <Row gutter={16}>
+        <Col span={12}>
+          <Form.Item
+            name="inbetriebnahme_leuchte"
+            label={<FormLabel>Inbetriebnahme</FormLabel>}
+            className="mb-4"
+          >
+            <DatePicker
+              className="w-full"
+              size="large"
+              format="DD.MM.YYYY"
+              placeholder="Datum auswählen"
+            />
+          </Form.Item>
+        </Col>
+        <Col span={12}>
+          <Form.Item
+            name="zaehler"
+            valuePropName="checked"
+            className="mb-4 mt-8"
+          >
+            <Checkbox>Zähler vorhanden</Checkbox>
+          </Form.Item>
+        </Col>
+      </Row>
+
+      {/* Montagefirma */}
+      <Form.Item
+        name="montagefirma_leuchte"
+        label={<FormLabel>Montagefirma</FormLabel>}
+        className="mb-4"
+      >
+        <Input size="large" />
+      </Form.Item>
+
+      {/* Energielieferant */}
+      <Form.Item
+        name="fk_energielieferant"
+        label={<FormLabel>Energielieferant</FormLabel>}
+        className="mb-4"
+      >
+        <Select
+          placeholder="Energielieferant auswählen"
+          className="w-full"
+          size="large"
+          showSearch
+          optionFilterProp="children"
+        >
+          {energielieferantOptions.map((item) => (
+            <Select.Option key={item.id} value={item.id}>
+              {item.energielieferant}
+            </Select.Option>
+          ))}
+        </Select>
+      </Form.Item>
+
+      {/* Schaltstelle */}
+      <Form.Item
+        name="schaltstelle"
+        label={<FormLabel>Schaltstelle</FormLabel>}
+        className="mb-4"
+      >
+        <Input size="large" />
+      </Form.Item>
+
+      {/* Rundsteuerempfänger */}
+      <Form.Item
+        name="fk_rundsteuerempfaenger"
+        label={<FormLabel>Rundsteuerempf.</FormLabel>}
+        className="mb-4"
+      >
+        <Select
+          placeholder="Rundsteuerempfänger auswählen"
+          className="w-full"
+          size="large"
+          showSearch
+          optionFilterProp="children"
+        >
+          {rundsteuerempfaengerOptions.map((item) => (
+            <Select.Option key={item.id} value={item.id}>
+              {item.rs_typ}
+            </Select.Option>
+          ))}
+        </Select>
+      </Form.Item>
+
+      {/* Einbaudatum */}
+      <Form.Item
+        name="einbaudatum"
+        label={<FormLabel>Einbaudatum</FormLabel>}
+        className="mb-4"
+      >
+        <DatePicker
+          className="w-full"
+          size="large"
+          format="DD.MM.YYYY"
+          placeholder="Datum auswählen"
+        />
+      </Form.Item>
+
+      {/* Doppelkommando 1 */}
+      <Row gutter={16}>
+        <Col span={16}>
+          <Form.Item
+            name="fk_dk1"
+            label={<FormLabel>Doppelkommando 1</FormLabel>}
+            className="mb-4"
+          >
+            <Select
+              placeholder="Auswählen"
+              className="w-full"
+              size="large"
+              showSearch
+              optionFilterProp="children"
+            >
+              {doppelkommandoOptions.map((item) => (
+                <Select.Option key={item.id} value={item.id}>
+                  {item.pk} - {item.beschreibung}
+                </Select.Option>
+              ))}
+            </Select>
+          </Form.Item>
+        </Col>
+        <Col span={8}>
+          <Form.Item
+            name="anzahl_1dk"
+            label={<FormLabel>Anzahl</FormLabel>}
+            className="mb-4"
+          >
+            <InputNumber className="w-full" size="large" />
+          </Form.Item>
+        </Col>
+      </Row>
+
+      {/* Anschlussleistung 1 */}
+      <Form.Item
+        name="anschlussleistung_1dk"
+        label={<FormLabel>Anschlussleistung</FormLabel>}
+        className="mb-4"
+      >
+        <InputNumber
+          className="w-full"
+          size="large"
+          precision={2}
+          decimalSeparator=","
+        />
+      </Form.Item>
+
+      {/* Doppelkommando 2 */}
+      <Row gutter={16}>
+        <Col span={16}>
+          <Form.Item
+            name="fk_dk2"
+            label={<FormLabel>Doppelkommando 2</FormLabel>}
+            className="mb-4"
+          >
+            <Select
+              placeholder="Auswählen"
+              className="w-full"
+              size="large"
+              allowClear
+              showSearch
+              optionFilterProp="children"
+            >
+              {doppelkommandoOptions.map((item) => (
+                <Select.Option key={item.id} value={item.id}>
+                  {item.pk} - {item.beschreibung}
+                </Select.Option>
+              ))}
+            </Select>
+          </Form.Item>
+        </Col>
+        <Col span={8}>
+          <Form.Item
+            name="anzahl_2dk"
+            label={<FormLabel>Anzahl</FormLabel>}
+            className="mb-4"
+          >
+            <InputNumber className="w-full" size="large" />
+          </Form.Item>
+        </Col>
+      </Row>
+
+      {/* Anschlussleistung 2 */}
+      <Form.Item
+        name="anschlussleistung_2dk"
+        label={<FormLabel>Anschlussleistung</FormLabel>}
+        className="mb-4"
+      >
+        <InputNumber
+          className="w-full"
+          size="large"
+          precision={2}
+          decimalSeparator=","
+        />
+      </Form.Item>
+
+      {/* Unterhalt Leuchte */}
+      <Form.Item
+        name="fk_unterhalt_leuchte"
+        label={<FormLabel>Unterhalt Leuchte</FormLabel>}
+        className="mb-4"
+      >
+        <Select
+          placeholder="Auswählen"
+          className="w-full"
+          size="large"
+          showSearch
+          optionFilterProp="children"
+        >
+          {unterhaltLeuchteOptions.map((item) => (
+            <Select.Option key={item.id} value={item.id}>
+              {item.unterhaltspflichtiger_leuchte}
+            </Select.Option>
+          ))}
+        </Select>
+      </Form.Item>
+
+      {/* Leuchtmittelwechsel / Nächster Wechsel */}
+      <Row gutter={16}>
+        <Col span={12}>
+          <Form.Item
+            name="wechseldatum"
+            label={<FormLabel>Leuchtmittelwechsel</FormLabel>}
+            className="mb-4"
+          >
+            <DatePicker
+              className="w-full"
+              size="large"
+              format="DD.MM.YYYY"
+              placeholder="Datum auswählen"
+            />
+          </Form.Item>
+        </Col>
+        <Col span={12}>
+          <Form.Item
+            name="naechster_wechsel"
+            label={<FormLabel>Nächster Wechsel</FormLabel>}
+            className="mb-4"
+          >
+            <DatePicker
+              className="w-full"
+              size="large"
+              format="DD.MM.YYYY"
+              placeholder="Datum auswählen"
+            />
+          </Form.Item>
+        </Col>
+      </Row>
+
+      {/* Leuchtmittel */}
+      <Form.Item
+        name="fk_leuchtmittel"
+        label={<FormLabel>Leuchtmittel</FormLabel>}
+        className="mb-4"
+      >
+        <Select
+          placeholder="Leuchtmittel auswählen"
+          className="w-full"
+          size="large"
+          showSearch
+          optionFilterProp="children"
+        >
+          {leuchtmittelOptions.map((item) => (
+            <Select.Option key={item.id} value={item.id}>
+              {item.hersteller} {item.lichtfarbe}
+            </Select.Option>
+          ))}
+        </Select>
+      </Form.Item>
+
+      {/* Lebensdauer */}
+      <Form.Item
+        name="lebensdauer"
+        label={<FormLabel>Lebensdauer</FormLabel>}
+        className="mb-4"
+      >
+        <InputNumber
+          className="w-full"
+          size="large"
+          precision={2}
+          decimalSeparator=","
+        />
+      </Form.Item>
+
+      {/* Sonderturnus */}
+      <Form.Item
+        name="sonderturnus"
+        label={<FormLabel>Sonderturnus</FormLabel>}
+        className="mb-4"
+      >
+        <DatePicker
+          className="w-full"
+          size="large"
+          format="DD.MM.YYYY"
+          placeholder="Datum auswählen"
+        />
+      </Form.Item>
+
+      {/* Vorschaltgerät */}
+      <Form.Item
+        name="vorschaltgeraet"
+        label={<FormLabel>Vorschaltgerät</FormLabel>}
+        className="mb-4"
+      >
+        <Input size="large" />
+      </Form.Item>
+
+      {/* Erneuerung VG */}
+      <Form.Item
+        name="wechselvorschaltgeraet"
+        label={<FormLabel>Erneuerung VG</FormLabel>}
+        className="mb-4"
+      >
+        <DatePicker
+          className="w-full"
+          size="large"
+          format="DD.MM.YYYY"
+          placeholder="Datum auswählen"
+        />
+      </Form.Item>
+
+      {/* Bemerkung */}
+      <Form.Item
+        name="bemerkungen"
+        label={<FormLabel>Bemerkung</FormLabel>}
+        className="mb-4"
+      >
+        <Input.TextArea rows={4} size="large" />
+      </Form.Item>
+    </Form>
+  );
+
+  // Documents content - reused in both layouts
+  const documentsContent = (
+    <DocumentPreview
+      documents={documents}
+      jwt={jwt}
+      onFilesChange={setPendingFiles}
+      pendingFiles={pendingFiles}
+    />
+  );
+
+  // Wide screen: two-column layout (form left, documents right)
+  if (isWideScreen) {
+    return (
+      <div className="bg-white rounded-xl border border-gray-100 w-full h-full flex flex-col">
+        <FormHeader title="Leuchte bearbeiten" subtitle={subtitle} />
+        <div className="flex flex-1 overflow-hidden">
+          {/* Form column - 60% */}
+          <div className="w-3/5 min-w-[400px] px-6 py-4 overflow-y-auto border-r border-gray-100">
+            {formContent}
+          </div>
+          {/* Documents column - 40% */}
+          <div className="w-2/5 min-w-[300px] px-6 py-4 overflow-y-auto">
+            <h3 className="text-sm font-semibold text-gray-700 mb-4">
+              Dokumente
+            </h3>
+            {documentsContent}
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // Narrow screen: tabbed layout
+  return (
+    <div
+      id="leuchte-form-narrow"
+      className="bg-white rounded-xl border border-gray-100 max-w-4xl w-full h-full flex flex-col"
+    >
+      <FormHeader title="Leuchte bearbeiten" subtitle={subtitle} />
+      <div className="px-6 py-4 pb-60 overflow-y-auto flex-1">
         <Tabs
           defaultActiveKey="general"
           items={[
             {
               key: "general",
               label: <span>Allgemein</span>,
-              children: (
-                <Form
-                  form={form}
-                  layout="vertical"
-                  requiredMark={false}
-                  className="max-h-[5000px] overflow-y-auto pr-2"
-                >
-                  {/* Straßenschlüssel */}
-                  <Row gutter={16}>
-                    <Col span={6}>
-                      <Form.Item
-                        name="strassenschluessel_pk"
-                        label={<FormLabel>Straßenschlüssel</FormLabel>}
-                        className="mb-4"
-                      >
-                        <Input size="large" />
-                      </Form.Item>
-                    </Col>
-                    <Col span={18}>
-                      <Form.Item
-                        name="strassenschluessel_strasse"
-                        label={<FormLabel>&nbsp;</FormLabel>}
-                        className="mb-4"
-                      >
-                        <Input size="large" />
-                      </Form.Item>
-                    </Col>
-                  </Row>
-
-                  {/* Kennziffer */}
-                  <Form.Item
-                    name="fk_kennziffer"
-                    label={<FormLabel>Kennziffer</FormLabel>}
-                    className="mb-4"
-                  >
-                    <Select
-                      placeholder="Kennziffer auswählen"
-                      className="w-full"
-                      size="large"
-                      showSearch
-                      optionFilterProp="children"
-                    >
-                      {kennzifferOptions.map((item) => (
-                        <Select.Option key={item.id} value={item.id}>
-                          {item.kennziffer} - {item.beschreibung}
-                        </Select.Option>
-                      ))}
-                    </Select>
-                  </Form.Item>
-
-                  {/* Laufende Nr. and Leuchtennummer */}
-                  <Row gutter={16}>
-                    <Col span={12}>
-                      <Form.Item
-                        name="lfd_nummer"
-                        label={<FormLabel>Laufende Nr.</FormLabel>}
-                        className="mb-4"
-                      >
-                        <InputNumber className="w-full" size="large" />
-                      </Form.Item>
-                    </Col>
-                    <Col span={12}>
-                      <Form.Item
-                        name="leuchtennummer"
-                        label={<FormLabel>Leuchtennummer</FormLabel>}
-                        className="mb-4"
-                      >
-                        <InputNumber className="w-full" size="large" />
-                      </Form.Item>
-                    </Col>
-                  </Row>
-
-                  {/* Leuchtentyp */}
-                  <Form.Item
-                    name="fk_leuchttyp"
-                    label={<FormLabel>Leuchtentyp</FormLabel>}
-                    className="mb-4"
-                  >
-                    <Select
-                      placeholder="Leuchtentyp auswählen"
-                      className="w-full"
-                      size="large"
-                      showSearch
-                      optionFilterProp="children"
-                    >
-                      {leuchttypOptions.map((item) => (
-                        <Select.Option key={item.id} value={item.id}>
-                          {item.leuchtentyp} {item.fabrikat}
-                        </Select.Option>
-                      ))}
-                    </Select>
-                  </Form.Item>
-
-                  {/* Inbetriebnahme and Zähler */}
-                  <Row gutter={16}>
-                    <Col span={12}>
-                      <Form.Item
-                        name="inbetriebnahme_leuchte"
-                        label={<FormLabel>Inbetriebnahme</FormLabel>}
-                        className="mb-4"
-                      >
-                        <DatePicker
-                          className="w-full"
-                          size="large"
-                          format="DD.MM.YYYY"
-                          placeholder="Datum auswählen"
-                        />
-                      </Form.Item>
-                    </Col>
-                    <Col span={12}>
-                      <Form.Item
-                        name="zaehler"
-                        valuePropName="checked"
-                        className="mb-4 mt-8"
-                      >
-                        <Checkbox>Zähler vorhanden</Checkbox>
-                      </Form.Item>
-                    </Col>
-                  </Row>
-
-                  {/* Montagefirma */}
-                  <Form.Item
-                    name="montagefirma_leuchte"
-                    label={<FormLabel>Montagefirma</FormLabel>}
-                    className="mb-4"
-                  >
-                    <Input size="large" />
-                  </Form.Item>
-
-                  {/* Energielieferant */}
-                  <Form.Item
-                    name="fk_energielieferant"
-                    label={<FormLabel>Energielieferant</FormLabel>}
-                    className="mb-4"
-                  >
-                    <Select
-                      placeholder="Energielieferant auswählen"
-                      className="w-full"
-                      size="large"
-                      showSearch
-                      optionFilterProp="children"
-                    >
-                      {energielieferantOptions.map((item) => (
-                        <Select.Option key={item.id} value={item.id}>
-                          {item.energielieferant}
-                        </Select.Option>
-                      ))}
-                    </Select>
-                  </Form.Item>
-
-                  {/* Schaltstelle */}
-                  <Form.Item
-                    name="schaltstelle"
-                    label={<FormLabel>Schaltstelle</FormLabel>}
-                    className="mb-4"
-                  >
-                    <Input size="large" />
-                  </Form.Item>
-
-                  {/* Rundsteuerempfänger */}
-                  <Form.Item
-                    name="fk_rundsteuerempfaenger"
-                    label={<FormLabel>Rundsteuerempf.</FormLabel>}
-                    className="mb-4"
-                  >
-                    <Select
-                      placeholder="Rundsteuerempfänger auswählen"
-                      className="w-full"
-                      size="large"
-                      showSearch
-                      optionFilterProp="children"
-                    >
-                      {rundsteuerempfaengerOptions.map((item) => (
-                        <Select.Option key={item.id} value={item.id}>
-                          {item.rs_typ}
-                        </Select.Option>
-                      ))}
-                    </Select>
-                  </Form.Item>
-
-                  {/* Einbaudatum */}
-                  <Form.Item
-                    name="einbaudatum"
-                    label={<FormLabel>Einbaudatum</FormLabel>}
-                    className="mb-4"
-                  >
-                    <DatePicker
-                      className="w-full"
-                      size="large"
-                      format="DD.MM.YYYY"
-                      placeholder="Datum auswählen"
-                    />
-                  </Form.Item>
-
-                  {/* Doppelkommando 1 */}
-                  <Row gutter={16}>
-                    <Col span={16}>
-                      <Form.Item
-                        name="fk_dk1"
-                        label={<FormLabel>Doppelkommando 1</FormLabel>}
-                        className="mb-4"
-                      >
-                        <Select
-                          placeholder="Auswählen"
-                          className="w-full"
-                          size="large"
-                          showSearch
-                          optionFilterProp="children"
-                        >
-                          {doppelkommandoOptions.map((item) => (
-                            <Select.Option key={item.id} value={item.id}>
-                              {item.pk} - {item.beschreibung}
-                            </Select.Option>
-                          ))}
-                        </Select>
-                      </Form.Item>
-                    </Col>
-                    <Col span={8}>
-                      <Form.Item
-                        name="anzahl_1dk"
-                        label={<FormLabel>Anzahl</FormLabel>}
-                        className="mb-4"
-                      >
-                        <InputNumber className="w-full" size="large" />
-                      </Form.Item>
-                    </Col>
-                  </Row>
-
-                  {/* Anschlussleistung 1 */}
-                  <Form.Item
-                    name="anschlussleistung_1dk"
-                    label={<FormLabel>Anschlussleistung</FormLabel>}
-                    className="mb-4"
-                  >
-                    <InputNumber
-                      className="w-full"
-                      size="large"
-                      precision={2}
-                      decimalSeparator=","
-                    />
-                  </Form.Item>
-
-                  {/* Doppelkommando 2 */}
-                  <Row gutter={16}>
-                    <Col span={16}>
-                      <Form.Item
-                        name="fk_dk2"
-                        label={<FormLabel>Doppelkommando 2</FormLabel>}
-                        className="mb-4"
-                      >
-                        <Select
-                          placeholder="Auswählen"
-                          className="w-full"
-                          size="large"
-                          allowClear
-                          showSearch
-                          optionFilterProp="children"
-                        >
-                          {doppelkommandoOptions.map((item) => (
-                            <Select.Option key={item.id} value={item.id}>
-                              {item.pk} - {item.beschreibung}
-                            </Select.Option>
-                          ))}
-                        </Select>
-                      </Form.Item>
-                    </Col>
-                    <Col span={8}>
-                      <Form.Item
-                        name="anzahl_2dk"
-                        label={<FormLabel>Anzahl</FormLabel>}
-                        className="mb-4"
-                      >
-                        <InputNumber className="w-full" size="large" />
-                      </Form.Item>
-                    </Col>
-                  </Row>
-
-                  {/* Anschlussleistung 2 */}
-                  <Form.Item
-                    name="anschlussleistung_2dk"
-                    label={<FormLabel>Anschlussleistung</FormLabel>}
-                    className="mb-4"
-                  >
-                    <InputNumber
-                      className="w-full"
-                      size="large"
-                      precision={2}
-                      decimalSeparator=","
-                    />
-                  </Form.Item>
-
-                  {/* Unterhalt Leuchte */}
-                  <Form.Item
-                    name="fk_unterhalt_leuchte"
-                    label={<FormLabel>Unterhalt Leuchte</FormLabel>}
-                    className="mb-4"
-                  >
-                    <Select
-                      placeholder="Auswählen"
-                      className="w-full"
-                      size="large"
-                      showSearch
-                      optionFilterProp="children"
-                    >
-                      {unterhaltLeuchteOptions.map((item) => (
-                        <Select.Option key={item.id} value={item.id}>
-                          {item.unterhaltspflichtiger_leuchte}
-                        </Select.Option>
-                      ))}
-                    </Select>
-                  </Form.Item>
-
-                  {/* Leuchtmittelwechsel / Nächster Wechsel */}
-                  <Row gutter={16}>
-                    <Col span={12}>
-                      <Form.Item
-                        name="wechseldatum"
-                        label={<FormLabel>Leuchtmittelwechsel</FormLabel>}
-                        className="mb-4"
-                      >
-                        <DatePicker
-                          className="w-full"
-                          size="large"
-                          format="DD.MM.YYYY"
-                          placeholder="Datum auswählen"
-                        />
-                      </Form.Item>
-                    </Col>
-                    <Col span={12}>
-                      <Form.Item
-                        name="naechster_wechsel"
-                        label={<FormLabel>Nächster Wechsel</FormLabel>}
-                        className="mb-4"
-                      >
-                        <DatePicker
-                          className="w-full"
-                          size="large"
-                          format="DD.MM.YYYY"
-                          placeholder="Datum auswählen"
-                        />
-                      </Form.Item>
-                    </Col>
-                  </Row>
-
-                  {/* Leuchtmittel */}
-                  <Form.Item
-                    name="fk_leuchtmittel"
-                    label={<FormLabel>Leuchtmittel</FormLabel>}
-                    className="mb-4"
-                  >
-                    <Select
-                      placeholder="Leuchtmittel auswählen"
-                      className="w-full"
-                      size="large"
-                      showSearch
-                      optionFilterProp="children"
-                    >
-                      {leuchtmittelOptions.map((item) => (
-                        <Select.Option key={item.id} value={item.id}>
-                          {item.hersteller} {item.lichtfarbe}
-                        </Select.Option>
-                      ))}
-                    </Select>
-                  </Form.Item>
-
-                  {/* Lebensdauer */}
-                  <Form.Item
-                    name="lebensdauer"
-                    label={<FormLabel>Lebensdauer</FormLabel>}
-                    className="mb-4"
-                  >
-                    <InputNumber
-                      className="w-full"
-                      size="large"
-                      precision={2}
-                      decimalSeparator=","
-                    />
-                  </Form.Item>
-
-                  {/* Sonderturnus */}
-                  <Form.Item
-                    name="sonderturnus"
-                    label={<FormLabel>Sonderturnus</FormLabel>}
-                    className="mb-4"
-                  >
-                    <DatePicker
-                      className="w-full"
-                      size="large"
-                      format="DD.MM.YYYY"
-                      placeholder="Datum auswählen"
-                    />
-                  </Form.Item>
-
-                  {/* Vorschaltgerät */}
-                  <Form.Item
-                    name="vorschaltgeraet"
-                    label={<FormLabel>Vorschaltgerät</FormLabel>}
-                    className="mb-4"
-                  >
-                    <Input size="large" />
-                  </Form.Item>
-
-                  {/* Erneuerung VG */}
-                  <Form.Item
-                    name="wechselvorschaltgeraet"
-                    label={<FormLabel>Erneuerung VG</FormLabel>}
-                    className="mb-4"
-                  >
-                    <DatePicker
-                      className="w-full"
-                      size="large"
-                      format="DD.MM.YYYY"
-                      placeholder="Datum auswählen"
-                    />
-                  </Form.Item>
-
-                  {/* Bemerkung */}
-                  <Form.Item
-                    name="bemerkungen"
-                    label={<FormLabel>Bemerkung</FormLabel>}
-                    className="mb-4"
-                  >
-                    <Input.TextArea rows={4} size="large" />
-                  </Form.Item>
-                </Form>
-              ),
+              children: formContent,
             },
             {
               key: "documents",
               label: <span>Dokumente</span>,
-              children: (
-                <DocumentPreview
-                  documents={documents}
-                  jwt={jwt}
-                  onFilesChange={setPendingFiles}
-                  pendingFiles={pendingFiles}
-                />
-              ),
+              children: documentsContent,
             },
           ]}
         />
