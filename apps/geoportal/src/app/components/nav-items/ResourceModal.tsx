@@ -226,14 +226,13 @@ const ResourceModal = () => {
 
       await zoomToStyleFeatures(styleData, routedMap);
 
-      if ((conf.modeSwitch !== "3D" && isLeaflet) || conf.modeSwitch === "2D") {
-        // Signal that this layer should trigger auto-selection when ready
-        dispatch(setTriggerSelectionById(id));
-      } else if (!isLeaflet || conf.modeSwitch === "3D") {
+      if (!isLeaflet || conf.modeSwitch === "3D") {
         // 3D (Cesium) mode: select and fly to the feature
         setSelectedFeatureById(id);
         setShouldFocusSelected(true);
       }
+
+      dispatch(setTriggerSelectionById(id));
     }
 
     if (existingLayer && !updateExisting) {
