@@ -27,6 +27,8 @@ import type maplibregl from "maplibre-gl";
 import BelisDatasheetView from "../ui/BelisDatasheetView";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faMap } from "@fortawesome/free-solid-svg-icons";
+import { getJWT } from "../../store/slices/auth";
+import { FeatureType, fetchFeatureById } from "../../helper/apiMethods";
 
 const LIST_WIDTH = 300;
 
@@ -35,8 +37,9 @@ const MINI_MAP_DEBUGGING = false;
 
 const BelisMapLibWrapper = ({ mapSizes }) => {
   const dispatch: AppDispatch = useDispatch();
+  const jwt = useSelector(getJWT);
   const { map } = useLibreContext();
-  const { selectedFeature, rawFeature } = useMapSelection();
+  const { selectedFeature, rawFeature, selectedFeatureId } = useMapSelection();
   const { closeDatasheet } = useDatasheet();
 
   const activeBackgroundLayer = useSelector(getActiveBackgroundLayer);
@@ -118,6 +121,35 @@ const BelisMapLibWrapper = ({ mapSizes }) => {
   }, [map]);
 
   const mapWidth = mapSizes.width - LIST_WIDTH;
+
+  useEffect(() => {
+    const fetchData = async () => {
+      if (!jwt || !selectedFeatureId?.id) return;
+
+      // Get sourceLayer from selectedFeatureId or rawFeature
+      const sourceLayer = selectedFeatureId.sourceLayer;
+
+      console.log("xxx BelisMa Selection:", {
+        id: selectedFeatureId.id,
+        sourceLayer,
+      });
+
+      if (sourceLayer && selectedFeatureId.id) {
+        try {
+          const fullData = await fetchFeatureById(
+            jwt,
+            selectedFeatureId.id as number,
+            sourceLayer as FeatureType
+          );
+          console.log("xxx Fetched full data:", fullData);
+        } catch (error) {
+          console.error("xxx Failed to fetch feature:", error);
+        }
+      }
+    };
+
+    fetchData();
+  }, [selectedFeatureId, jwt, dispatch]);
 
   return (
     <div
