@@ -121,11 +121,14 @@ export class StyleComposer {
     vectorLayer: Extract<LibreLayer, { type: "vector" }>,
     opts: AddVectorSubStyleOptions
   ): Promise<void> {
-    const response = await fetch(vectorLayer.style!);
-    const styleJson = await response.json();
-
     // Compute layerId from the style URL (slugified)
     const layerId = slugifyUrl(vectorLayer.style!);
+
+    // Idempotency: skip if already managed
+    if (this.managed.has(layerId)) return;
+
+    const response = await fetch(vectorLayer.style!);
+    const styleJson = await response.json();
     let spriteId = layerId;
     if (styleJson.sprite) {
       spriteId = slugify(styleJson.sprite, {
@@ -259,6 +262,9 @@ export class StyleComposer {
     dataUrl: string,
     opts: AddGeoJsonSubStyleOptions
   ): Promise<GeoJsonSubStyleMeta> {
+    // Idempotency: skip if already managed
+    if (this.managed.has(id)) return { sourceId: `${id}::geojson`, uniqueColors: [] };
+
     const raw = await extractGeoJson(dataUrl);
     const data = transformedPois(raw);
 
@@ -437,6 +443,9 @@ export class StyleComposer {
     layer: Extract<LibreLayer, { type: "wms" | "wmts" }>,
     opts: AddRasterSubStyleOptions
   ): void {
+    // Idempotency: skip if already managed
+    if (this.managed.has(id)) return;
+
     const firstId = `---${id}:first---`;
     const lastId = `---${id}:last---`;
     const sanitized = layer.layers.replace(/[^a-zA-Z0-9]/g, "-");
@@ -511,6 +520,9 @@ export class StyleComposer {
     layer: Extract<LibreLayer, { type: "cog" }>,
     opts: AddRasterSubStyleOptions
   ): void {
+    // Idempotency: skip if already managed
+    if (this.managed.has(id)) return;
+
     const firstId = `---${id}:first---`;
     const lastId = `---${id}:last---`;
     const sourceId = `${id}::cog`;
@@ -620,6 +632,20 @@ export class StyleComposer {
 
   destroy(): void {
     this.removeAll();
+  }
+
+  /**
+   * Fetch the glyphs URL from a remote vector style.
+   * Useful for pre-setting glyphs on the base style before adding layers.
+   */
+  static async fetchGlyphsUrl(styleUrl: string): Promise<string | undefined> {
+    try {
+      const resp = await fetch(styleUrl);
+      const json = await resp.json();
+      return json.glyphs as string | undefined;
+    } catch {
+      return undefined;
+    }
   }
 
   /** Check whether a sub-style with the given ID is currently managed. */

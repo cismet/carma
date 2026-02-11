@@ -226,7 +226,8 @@ export function useImperativeStyle({
       if (aborted) return;
       console.log("[LAYER_MODE] imperative: resetAndApply firing, setting base style + adding layers");
 
-      // Set glyphs on background style for imperative mode
+      // Set base style with glyphs included (overrideGlyphs must be set for imperative mode
+      // when the background style has no glyphs, e.g. backgroundLayers="")
       const baseStyle: StyleSpecification = {
         ...backgroundStyle,
         ...(overrideGlyphs ? { glyphs: overrideGlyphs } : {}),
@@ -268,6 +269,8 @@ export function useImperativeStyle({
     const diffAndApply = async () => {
       const composer = composerRef.current;
       if (!composer || aborted) return;
+      // Skip if a full applyAllLayers is already in progress (race with Effect 2)
+      if (isApplyingRef.current) return;
 
       const effectiveLayers = [
         ...vectorBackgroundLayers,

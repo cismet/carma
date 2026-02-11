@@ -7,7 +7,7 @@ const AlkisPlayground = () => {
         mapEngine="maplibre"
         embedded
         terrainControl={false}
-        // layerMode="imperative"
+        layerMode="imperative"
         backgroundLayers="basemap_grey@20"
         overrideGlyphs="https://tiles.cismet.de/fonts/{fontstack}/{range}.pbf"
         libreLayers={[
