@@ -35,6 +35,9 @@ const LeitungForm = ({ data, onClose }: LeitungFormProps) => {
   const documents: DokumentItem[] = (data?.dokumente as DokumentItem[]) || [];
 
   useEffect(() => {
+    // Reset form when data changes to clear old values
+    form.resetFields();
+
     if (data) {
       const leitungData = data.leitung?.[0] as
         | Record<string, unknown>

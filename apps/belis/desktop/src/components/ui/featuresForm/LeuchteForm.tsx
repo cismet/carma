@@ -94,6 +94,9 @@ const LeuchteForm = ({ data, rawFeature, onClose }: LeuchteFormProps) => {
     "-ohne Fabrikat-";
 
   useEffect(() => {
+    // Reset form when data changes to clear old values
+    form.resetFields();
+
     if (data) {
       const leuchteData = data as Record<string, unknown>;
       const { tdta_leuchten } = leuchteData;
