@@ -1,4 +1,5 @@
 import type { StyleSpecification } from "maplibre-gl";
+import { slugifyUrl } from "../utils/styleComposer";
 
 /**
  * Configuration for creating a city-specific MapLibre default style.
@@ -36,9 +37,9 @@ export function createDefaultStyle(config: CityMapConfig): StyleSpecification {
   const sources: StyleSpecification["sources"] = {};
   const layers: StyleSpecification["layers"] = [];
 
-  // Add terrain source if configured
+  // Add terrain source if configured (slugified URL as ID)
   if (config.terrain) {
-    sources["terrainSource"] = {
+    sources[slugifyUrl(config.terrain.url)] = {
       type: "raster-dem",
       tiles: [config.terrain.url],
       tileSize: config.terrain.tileSize ?? 512,

@@ -7,7 +7,8 @@ const AlkisPlayground = () => {
         mapEngine="maplibre"
         embedded
         terrainControl={false}
-        backgroundLayers="basemap_grey@60"
+        // layerMode="imperative"
+        backgroundLayers="basemap_grey@20"
         overrideGlyphs="https://tiles.cismet.de/fonts/{fontstack}/{range}.pbf"
         libreLayers={[
           {
@@ -17,10 +18,10 @@ const AlkisPlayground = () => {
               "https://tiles.cismet.de/alkis/flurstuecke.str.hsnr.black.style.json",
           },
           // {
-          //   type: "cog",
-          //   name: "Orthophoto",
-          //   url: "https://cog-wupp.cismet.de/output_3857.tif",
-          //   opacity: 1,
+          //   type: "vector",
+          //   name: "Flurstuecke",
+          //   style:
+          //     "https://tiles.cismet.de/alkis/flurstuecke.str.hsnr.yellow.style.json",
           // },
         ]}
       />

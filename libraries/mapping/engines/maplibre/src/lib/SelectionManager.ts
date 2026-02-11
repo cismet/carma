@@ -466,16 +466,28 @@ export function resolvePropertyTarget(
   const source = parts[0];
   const sourceLayer = parts[1];
 
+  // Try exact source name first, then look for a namespaced match (e.g. "prefix::source")
+  let resolvedSource = source;
+  if (!map.getSource(source)) {
+    const style = map.getStyle();
+    if (style?.sources) {
+      const match = Object.keys(style.sources).find(
+        (s) => s.endsWith(`::${source}`)
+      );
+      if (match) resolvedSource = match;
+    }
+  }
+
   console.debug(
     "[resolvePropertyTarget] Querying source:",
-    source,
+    resolvedSource,
     "sourceLayer:",
     sourceLayer,
     "with fid:",
     featureId
   );
 
-  const features = map.querySourceFeatures(source, {
+  const features = map.querySourceFeatures(resolvedSource, {
     sourceLayer,
     filter: ["==", ["get", "fid"], featureId],
   });
