@@ -3,6 +3,7 @@ import { featureFormRegistry } from "./index";
 interface FeaturesFormsWrapperProps {
   featureType?: string;
   data: any;
+  rawFeature?: any;
 }
 
 // Map sourceLayer values to registry keys
@@ -17,12 +18,13 @@ const featureTypeToFormKey: Record<string, string> = {
 const FeaturesFormsWrapper = ({
   featureType,
   data,
+  rawFeature,
 }: FeaturesFormsWrapperProps) => {
   const formKey = featureType ? featureTypeToFormKey[featureType] : undefined;
   const FormComponent = formKey ? featureFormRegistry[formKey] : undefined;
 
   if (FormComponent) {
-    return <FormComponent data={data} />;
+    return <FormComponent data={data} rawFeature={rawFeature} />;
   }
 
   // Fallback: JSON display for feature types without forms

@@ -13,14 +13,15 @@ import {
 } from "antd";
 import type { UploadFile } from "antd";
 import { useSelector } from "react-redux";
-import { CloseOutlined, EditOutlined } from "@ant-design/icons";
 import { getKeyTablesData } from "../../../store/slices/keyTables";
+import FormHeader from "./FormHeader";
 import { getJWT } from "../../../store/slices/auth";
 import DocumentPreview, { DokumentItem } from "../DocumentPreview";
 import dayjs from "dayjs";
 
 interface LeuchteFormProps {
   data: Record<string, unknown> | null;
+  rawFeature?: { properties?: Record<string, unknown> } | null;
   onClose?: () => void;
 }
 
@@ -68,7 +69,7 @@ interface StrassenschluesselItem {
   strasse: string;
 }
 
-const LeuchteForm = ({ data, onClose }: LeuchteFormProps) => {
+const LeuchteForm = ({ data, rawFeature, onClose }: LeuchteFormProps) => {
   const [form] = Form.useForm();
   const [pendingFiles, setPendingFiles] = useState<UploadFile[]>([]);
   const keyTablesData = useSelector(getKeyTablesData);
@@ -96,6 +97,10 @@ const LeuchteForm = ({ data, onClose }: LeuchteFormProps) => {
   const strassenschluessel = data?.tkey_strassenschluessel as
     | StrassenschluesselItem
     | undefined;
+
+  // Extract fabrikat for subtitle - use rawFeature (vector tile) to match list display
+  const rawProps = rawFeature?.properties;
+  const subtitle = (rawProps?.fabrikat as string) || (rawProps?.leuchttyp_fabrikat as string) || "-ohne Fabrikat-";
 
   useEffect(() => {
     if (data) {
@@ -188,27 +193,7 @@ const LeuchteForm = ({ data, onClose }: LeuchteFormProps) => {
   return (
     <div className="bg-white rounded-xl border border-gray-100 max-w-4xl w-full">
       {/* Header */}
-      <div className="flex items-start justify-between p-6 pb-2">
-        <div className="flex items-center gap-3">
-          <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center">
-            <EditOutlined className="text-xl text-blue-600" />
-          </div>
-          <div>
-            <h2 className="text-lg font-semibold text-gray-900">
-              Leuchte bearbeiten
-            </h2>
-            <p className="text-sm text-gray-500">Bearbeiten</p>
-          </div>
-        </div>
-        {onClose && (
-          <button
-            onClick={onClose}
-            className="text-gray-400 hover:text-gray-600 transition-colors p-1"
-          >
-            <CloseOutlined className="text-lg" />
-          </button>
-        )}
-      </div>
+      <FormHeader title="Leuchte bearbeiten" subtitle={subtitle} />
 
       {/* Tabbed Content */}
       <div className="px-6 py-4">
@@ -323,6 +308,7 @@ const LeuchteForm = ({ data, onClose }: LeuchteFormProps) => {
                           className="w-full"
                           size="large"
                           format="DD.MM.YYYY"
+                          placeholder="Datum auswählen"
                         />
                       </Form.Item>
                     </Col>
@@ -407,6 +393,7 @@ const LeuchteForm = ({ data, onClose }: LeuchteFormProps) => {
                       className="w-full"
                       size="large"
                       format="DD.MM.YYYY"
+                      placeholder="Datum auswählen"
                     />
                   </Form.Item>
 
@@ -450,7 +437,12 @@ const LeuchteForm = ({ data, onClose }: LeuchteFormProps) => {
                     label={<FormLabel>Anschlussleistung</FormLabel>}
                     className="mb-4"
                   >
-                    <InputNumber className="w-full" size="large" />
+                    <InputNumber
+                      className="w-full"
+                      size="large"
+                      precision={2}
+                      decimalSeparator=","
+                    />
                   </Form.Item>
 
                   {/* Doppelkommando 2 */}
@@ -494,7 +486,12 @@ const LeuchteForm = ({ data, onClose }: LeuchteFormProps) => {
                     label={<FormLabel>Anschlussleistung</FormLabel>}
                     className="mb-4"
                   >
-                    <InputNumber className="w-full" size="large" />
+                    <InputNumber
+                      className="w-full"
+                      size="large"
+                      precision={2}
+                      decimalSeparator=","
+                    />
                   </Form.Item>
 
                   {/* Unterhalt Leuchte */}
@@ -530,6 +527,7 @@ const LeuchteForm = ({ data, onClose }: LeuchteFormProps) => {
                           className="w-full"
                           size="large"
                           format="DD.MM.YYYY"
+                          placeholder="Datum auswählen"
                         />
                       </Form.Item>
                     </Col>
@@ -543,6 +541,7 @@ const LeuchteForm = ({ data, onClose }: LeuchteFormProps) => {
                           className="w-full"
                           size="large"
                           format="DD.MM.YYYY"
+                          placeholder="Datum auswählen"
                         />
                       </Form.Item>
                     </Col>
@@ -575,7 +574,12 @@ const LeuchteForm = ({ data, onClose }: LeuchteFormProps) => {
                     label={<FormLabel>Lebensdauer</FormLabel>}
                     className="mb-4"
                   >
-                    <InputNumber className="w-full" size="large" />
+                    <InputNumber
+                      className="w-full"
+                      size="large"
+                      precision={2}
+                      decimalSeparator=","
+                    />
                   </Form.Item>
 
                   {/* Sonderturnus */}
@@ -588,6 +592,7 @@ const LeuchteForm = ({ data, onClose }: LeuchteFormProps) => {
                       className="w-full"
                       size="large"
                       format="DD.MM.YYYY"
+                      placeholder="Datum auswählen"
                     />
                   </Form.Item>
 
@@ -610,6 +615,7 @@ const LeuchteForm = ({ data, onClose }: LeuchteFormProps) => {
                       className="w-full"
                       size="large"
                       format="DD.MM.YYYY"
+                      placeholder="Datum auswählen"
                     />
                   </Form.Item>
 

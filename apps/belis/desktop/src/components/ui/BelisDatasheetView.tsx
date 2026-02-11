@@ -79,7 +79,11 @@ const BelisDatasheetView = ({
 
       {/* Fetched feature data - render form or JSON fallback */}
       {fetchedData && (
-        <FeaturesFormsWrapper featureType={featureType} data={fetchedData} />
+        <FeaturesFormsWrapper
+          featureType={featureType}
+          data={fetchedData}
+          rawFeature={rawFeature}
+        />
       )}
 
       {/* Feature data placeholder (original - hidden when fetchedData available) */}
