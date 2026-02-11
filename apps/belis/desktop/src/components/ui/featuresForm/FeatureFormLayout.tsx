@@ -118,7 +118,7 @@ const FeatureFormLayout = ({
 
   // Narrow screen: tabbed layout
   return (
-    <div className="bg-white rounded-xl border border-gray-100 max-w-4xl w-full h-full flex flex-col">
+    <div className="bg-white rounded-xl border border-gray-100 max-w-4xl w-full h-full flex flex-col min-w-[350px]">
       <FormHeader
         title={title}
         subtitle={subtitle}
