@@ -14,6 +14,7 @@ interface FeatureFormLayoutProps {
   onFilesChange?: (files: UploadFile[]) => void;
   onCancel?: () => void;
   onSave?: () => void;
+  debugData?: unknown;
 }
 
 const FeatureFormLayout = ({
@@ -26,7 +27,13 @@ const FeatureFormLayout = ({
   onFilesChange,
   onCancel,
   onSave,
+  debugData,
 }: FeatureFormLayoutProps) => {
+  // Support both regular query params and hash-based routing (/#/?param=value)
+  const hashQuery = window.location.hash.split("?")[1] || "";
+  const showRaw =
+    new URLSearchParams(hashQuery || window.location.search).get("showRaw") ===
+    "true";
   const [isWideScreen, setIsWideScreen] = useState(
     typeof window !== "undefined" ? window.innerWidth > 1200 : false
   );
@@ -60,6 +67,25 @@ const FeatureFormLayout = ({
     />
   );
 
+  // Debug content (only shown when ?showRaw=true)
+  const debugContent = debugData ? (
+    <pre
+      style={{
+        fontSize: 11,
+        lineHeight: 1.5,
+        background: "#e8f5e9",
+        padding: 12,
+        borderRadius: 4,
+        overflow: "auto",
+        maxHeight: 3000,
+        whiteSpace: "pre-wrap",
+        wordBreak: "break-word",
+      }}
+    >
+      {JSON.stringify(debugData, null, 2)}
+    </pre>
+  ) : null;
+
   // Wide screen: two-column layout (form left, documents right)
   if (isWideScreen) {
     return (
@@ -78,6 +104,12 @@ const FeatureFormLayout = ({
           {/* Documents column - 40% */}
           <div className="w-2/5 min-w-[480px] px-6 py-4 overflow-y-auto">
             {documentsContent}
+            {showRaw && (
+              <div style={{ marginTop: 16 }}>
+                <div style={labelStyle}>Rohdaten</div>
+                {debugContent}
+              </div>
+            )}
           </div>
         </div>
       </div>
@@ -107,6 +139,15 @@ const FeatureFormLayout = ({
               label: <span>Dokumente</span>,
               children: documentsContent,
             },
+            ...(showRaw
+              ? [
+                  {
+                    key: "debug",
+                    label: <span>Rohdaten</span>,
+                    children: debugContent,
+                  },
+                ]
+              : []),
           ]}
         />
       </div>

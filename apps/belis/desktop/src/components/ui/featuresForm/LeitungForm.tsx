@@ -69,6 +69,7 @@ const LeitungForm = ({ data, onClose }: LeitungFormProps) => {
       jwt={jwt}
       pendingFiles={pendingFiles}
       onFilesChange={setPendingFiles}
+      debugData={data}
     >
       <Form form={form} layout="vertical" requiredMark={false} className="pr-2">
         {/* Leitungstyp - Full Width */}
