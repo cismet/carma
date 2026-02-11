@@ -121,3 +121,27 @@ export const infobausteinTemplateQuery = gql`
 export const infobausteinTemplateByIdQuery = gql`
   ${queries.infobaustein_template_by_id}
 `;
+
+export const mauerlascheByIdQuery = gql`
+  ${queries.mauerlasche_by_id}
+`;
+
+export const schaltstelleByIdQuery = gql`
+  ${queries.schaltstelle_by_id}
+`;
+
+export const tdtaLeuchtenByIdQuery = gql`
+  ${queries.tdta_leuchten_by_id}
+`;
+
+export const leitungByIdQuery = gql`
+  ${queries.leitung_by_id}
+`;
+
+export const abzweigdoseByIdQuery = gql`
+  ${queries.abzweigdose_by_id}
+`;
+
+export const tdtaStandortMastByIdQuery = gql`
+  ${queries.tdta_standort_mast_by_id}
+`;

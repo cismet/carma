@@ -27,6 +27,12 @@ import {
   infobausteinTemplateQuery,
   infobausteinTemplateByIdQuery,
   veranlassungsartQuery,
+  tdtaLeuchtenByIdQuery,
+  tdtaStandortMastByIdQuery,
+  schaltstelleByIdQuery,
+  mauerlascheByIdQuery,
+  leitungByIdQuery,
+  abzweigdoseByIdQuery,
 } from "../constants/belis";
 
 export const savebauart = async (jwt: string) => {
@@ -1168,4 +1174,71 @@ export const fetchAllKeyTables = async (jwt: string) => {
   });
 
   return { data, errors };
+};
+
+export type FeatureType =
+  | "leuchten"
+  | "mast"
+  | "schaltstelle"
+  | "mauerlaschen"
+  | "leitungen"
+  | "abzweigdosen";
+
+const getQueryByFeatureType = (featureType: FeatureType) => {
+  switch (featureType) {
+    case "leuchten":
+      return tdtaLeuchtenByIdQuery;
+    case "mast":
+      return tdtaStandortMastByIdQuery;
+    case "schaltstelle":
+      return schaltstelleByIdQuery;
+    case "mauerlaschen":
+      return mauerlascheByIdQuery;
+    case "leitungen":
+      return leitungByIdQuery;
+    case "abzweigdosen":
+      return abzweigdoseByIdQuery;
+  }
+};
+
+export const fetchFeatureById = async (
+  jwt: string,
+  id: number,
+  featureType: FeatureType
+) => {
+  const query = getQueryByFeatureType(featureType);
+
+  const response = await fetch(ENDPOINT, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${jwt}`,
+    },
+    body: JSON.stringify({
+      query,
+      variables: { id },
+    }),
+  });
+
+  const text = await response.text();
+  if (!response.ok) {
+    throw new Error(
+      `fetchFeatureById(${featureType}) failed: ${response.status} ${text}`
+    );
+  }
+
+  const json = JSON.parse(text) as {
+    data?: Record<string, unknown[]>;
+    errors?: unknown;
+  };
+
+  if (json.errors) {
+    throw new Error(
+      `fetchFeatureById(${featureType}) GraphQL errors: ${JSON.stringify(
+        json.errors
+      )}`
+    );
+  }
+
+  return json.data;
 };
