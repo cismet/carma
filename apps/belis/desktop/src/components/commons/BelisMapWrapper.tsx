@@ -41,6 +41,7 @@ const BelisMapLibWrapper = ({ mapSizes }) => {
   const { map } = useLibreContext();
   const { selectedFeature, rawFeature, selectedFeatureId } = useMapSelection();
   const { closeDatasheet } = useDatasheet();
+  const [fetchedFeatureData, setFetchedFeatureData] = useState<any>(null);
 
   const activeBackgroundLayer = useSelector(getActiveBackgroundLayer);
   const backgroundLayerOpacities = useSelector(getBackgroundLayerOpacities);
@@ -124,7 +125,10 @@ const BelisMapLibWrapper = ({ mapSizes }) => {
 
   useEffect(() => {
     const fetchData = async () => {
-      if (!jwt || !selectedFeatureId?.id) return;
+      if (!jwt || !selectedFeatureId?.id) {
+        setFetchedFeatureData(null);
+        return;
+      }
 
       // Get sourceLayer from selectedFeatureId or rawFeature
       const sourceLayer = selectedFeatureId.sourceLayer;
@@ -142,14 +146,20 @@ const BelisMapLibWrapper = ({ mapSizes }) => {
             sourceLayer as FeatureType
           );
           console.log("xxx Fetched full data:", fullData);
+          // Extract first element from the array (e.g., tdta_leuchten[0])
+          const dataKey = Object.keys(fullData)?.[0];
+          const dataArray = dataKey ? fullData[dataKey] : null;
+          const firstItem = Array.isArray(dataArray) ? dataArray[0] : null;
+          setFetchedFeatureData(firstItem);
         } catch (error) {
           console.error("xxx Failed to fetch feature:", error);
+          setFetchedFeatureData(null);
         }
       }
     };
 
     fetchData();
-  }, [selectedFeatureId, jwt, dispatch]);
+  }, [selectedFeatureId, jwt]);
 
   return (
     <div
@@ -229,6 +239,7 @@ const BelisMapLibWrapper = ({ mapSizes }) => {
               <BelisDatasheetView
                 feature={selectedFeature}
                 rawFeature={rawFeature}
+                fetchedData={fetchedFeatureData}
               />
             </div>
           }

@@ -11,11 +11,13 @@ import { getVCard } from "@carma-appframeworks/belis";
 interface BelisDatasheetViewProps {
   feature: any | null;
   rawFeature: any | null;
+  fetchedData?: any | null;
 }
 
 const BelisDatasheetView = ({
   feature,
   rawFeature,
+  fetchedData,
 }: BelisDatasheetViewProps) => {
   if (!feature && !rawFeature) {
     return (
@@ -72,36 +74,71 @@ const BelisDatasheetView = ({
         )}
       </div>
 
-      {/* Feature data placeholder */}
-      <div>
-        <div
-          style={{
-            fontSize: 12,
-            fontWeight: 600,
-            color: "#888",
-            marginBottom: 8,
-            textTransform: "uppercase",
-            letterSpacing: "0.05em",
-          }}
-        >
-          Feature-Daten (Vorschau)
+      {/* Fetched feature data */}
+      {fetchedData && (
+        <div>
+          <div
+            style={{
+              fontSize: 12,
+              fontWeight: 600,
+              color: "#888",
+              marginBottom: 8,
+              textTransform: "uppercase",
+              letterSpacing: "0.05em",
+            }}
+          >
+            Feature-Daten (Server)
+          </div>
+          <pre
+            style={{
+              fontSize: 11,
+              lineHeight: 1.5,
+              background: "#e8f5e9",
+              padding: 12,
+              borderRadius: 4,
+              overflow: "auto",
+              maxHeight: 600,
+              whiteSpace: "pre-wrap",
+              wordBreak: "break-word",
+            }}
+          >
+            {JSON.stringify(fetchedData, null, 2)}
+          </pre>
         </div>
-        <pre
-          style={{
-            fontSize: 11,
-            lineHeight: 1.5,
-            background: "#f5f5f5",
-            padding: 12,
-            borderRadius: 4,
-            overflow: "auto",
-            maxHeight: 600,
-            whiteSpace: "pre-wrap",
-            wordBreak: "break-word",
-          }}
-        >
-          {JSON.stringify(props, null, 2)}
-        </pre>
-      </div>
+      )}
+
+      {/* Feature data placeholder (original - hidden when fetchedData available) */}
+      {!fetchedData && (
+        <div>
+          <div
+            style={{
+              fontSize: 12,
+              fontWeight: 600,
+              color: "#888",
+              marginBottom: 8,
+              textTransform: "uppercase",
+              letterSpacing: "0.05em",
+            }}
+          >
+            Feature-Daten (Vorschau)
+          </div>
+          <pre
+            style={{
+              fontSize: 11,
+              lineHeight: 1.5,
+              background: "#f5f5f5",
+              padding: 12,
+              borderRadius: 4,
+              overflow: "auto",
+              maxHeight: 600,
+              whiteSpace: "pre-wrap",
+              wordBreak: "break-word",
+            }}
+          >
+            {JSON.stringify(props, null, 2)}
+          </pre>
+        </div>
+      )}
     </div>
   );
 };
