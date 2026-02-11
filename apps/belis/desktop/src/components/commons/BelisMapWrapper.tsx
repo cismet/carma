@@ -146,11 +146,8 @@ const BelisMapLibWrapper = ({ mapSizes }) => {
             sourceLayer as FeatureType
           );
           console.log("xxx Fetched full data:", fullData);
-          // Extract first element from the array (e.g., tdta_leuchten[0])
-          const dataKey = Object.keys(fullData)?.[0];
-          const dataArray = dataKey ? fullData[dataKey] : null;
-          const firstItem = Array.isArray(dataArray) ? dataArray[0] : null;
-          setFetchedFeatureData(firstItem);
+          // Pass full data - forms will extract what they need internally
+          setFetchedFeatureData(fullData);
         } catch (error) {
           console.error("xxx Failed to fetch feature:", error);
           setFetchedFeatureData(null);
@@ -240,6 +237,7 @@ const BelisMapLibWrapper = ({ mapSizes }) => {
                 feature={selectedFeature}
                 rawFeature={rawFeature}
                 fetchedData={fetchedFeatureData}
+                featureType={selectedFeatureId?.sourceLayer}
               />
             </div>
           }

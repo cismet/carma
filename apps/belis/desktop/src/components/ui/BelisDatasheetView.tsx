@@ -7,17 +7,20 @@
  */
 
 import { getVCard } from "@carma-appframeworks/belis";
+import { FeaturesFormsWrapper } from "./featuresForm";
 
 interface BelisDatasheetViewProps {
   feature: any | null;
   rawFeature: any | null;
   fetchedData?: any | null;
+  featureType?: string;
 }
 
 const BelisDatasheetView = ({
   feature,
   rawFeature,
   fetchedData,
+  featureType,
 }: BelisDatasheetViewProps) => {
   if (!feature && !rawFeature) {
     return (
@@ -74,37 +77,9 @@ const BelisDatasheetView = ({
         )}
       </div>
 
-      {/* Fetched feature data */}
+      {/* Fetched feature data - render form or JSON fallback */}
       {fetchedData && (
-        <div>
-          <div
-            style={{
-              fontSize: 12,
-              fontWeight: 600,
-              color: "#888",
-              marginBottom: 8,
-              textTransform: "uppercase",
-              letterSpacing: "0.05em",
-            }}
-          >
-            Feature-Daten (Server)
-          </div>
-          <pre
-            style={{
-              fontSize: 11,
-              lineHeight: 1.5,
-              background: "#e8f5e9",
-              padding: 12,
-              borderRadius: 4,
-              overflow: "auto",
-              maxHeight: 600,
-              whiteSpace: "pre-wrap",
-              wordBreak: "break-word",
-            }}
-          >
-            {JSON.stringify(fetchedData, null, 2)}
-          </pre>
-        </div>
+        <FeaturesFormsWrapper featureType={featureType} data={fetchedData} />
       )}
 
       {/* Feature data placeholder (original - hidden when fetchedData available) */}
