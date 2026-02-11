@@ -40,6 +40,14 @@ const FeatureFormLayout = ({
     return () => window.removeEventListener("resize", handleResize);
   }, []);
 
+  // Label style matching FormLabel: text-sm font-medium text-gray-700
+  const labelStyle: React.CSSProperties = {
+    fontSize: 14,
+    fontWeight: 500,
+    color: "#374151",
+    marginBottom: 8,
+  };
+
   // Documents content
   const documentsContent = (
     <DocumentPreview
@@ -47,6 +55,8 @@ const FeatureFormLayout = ({
       jwt={jwt}
       onFilesChange={onFilesChange}
       pendingFiles={pendingFiles}
+      dokumenteTitleStyle={labelStyle}
+      vorschauTitleStyle={labelStyle}
     />
   );
 
@@ -66,10 +76,7 @@ const FeatureFormLayout = ({
             {children}
           </div>
           {/* Documents column - 40% */}
-          <div className="w-2/5 min-w-[300px] px-6 py-4 overflow-y-auto">
-            <h3 className="text-sm font-semibold text-gray-700 mb-4">
-              Dokumente
-            </h3>
+          <div className="w-2/5 min-w-[480px] px-6 py-4 overflow-y-auto">
             {documentsContent}
           </div>
         </div>

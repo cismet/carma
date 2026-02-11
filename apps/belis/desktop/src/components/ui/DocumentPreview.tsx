@@ -44,6 +44,8 @@ interface DocumentPreviewProps {
   pendingFiles?: UploadFile[];
   onRemoveDocument?: (doc: DokumentItem) => void;
   isSaving?: boolean;
+  dokumenteTitleStyle?: React.CSSProperties;
+  vorschauTitleStyle?: React.CSSProperties;
 }
 
 type FileType = "image" | "pdf" | "other";
@@ -80,6 +82,13 @@ const getDocumentKey = (doc: DokumentItem) => {
   );
 };
 
+const defaultTitleStyle: React.CSSProperties = {
+  fontSize: 14,
+  fontWeight: 400,
+  color: "#8c8c8c",
+  marginBottom: 8,
+};
+
 const DocumentPreview = ({
   documents,
   jwt,
@@ -87,6 +96,8 @@ const DocumentPreview = ({
   pendingFiles,
   onRemoveDocument,
   isSaving = false,
+  dokumenteTitleStyle,
+  vorschauTitleStyle,
 }: DocumentPreviewProps) => {
   const [selectedDoc, setSelectedDoc] = useState<DokumentItem | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
@@ -302,14 +313,7 @@ const DocumentPreview = ({
               height: "100%",
             }}
           >
-            <div
-              style={{
-                fontSize: 14,
-                fontWeight: 400,
-                color: "#8c8c8c",
-                marginBottom: 8,
-              }}
-            >
+            <div style={{ ...defaultTitleStyle, ...dokumenteTitleStyle }}>
               Dokumente
             </div>
             <List
@@ -401,13 +405,7 @@ const DocumentPreview = ({
             }}
           >
             <div
-              style={{
-                fontSize: 14,
-                fontWeight: 400,
-                color: "#8c8c8c",
-                marginBottom: 8,
-                marginLeft: 2,
-              }}
+              style={{ ...defaultTitleStyle, marginLeft: 2, ...vorschauTitleStyle }}
             >
               Vorschau
             </div>
