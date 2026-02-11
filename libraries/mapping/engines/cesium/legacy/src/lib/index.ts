@@ -34,6 +34,10 @@ export {
   useCesiumContextOptional,
 } from "./hooks/useCesiumContext";
 export { useCesiumCameraForceOblique } from "./hooks/useCameraForceOblique";
+export {
+  useCesiumModelManager,
+  type UseCesiumModelManagerOptions,
+} from "./hooks/useCesiumModelManager";
 export { useHomeControl } from "./hooks/useHomeControl";
 export { useCesiumInitialCameraFromSearchParams } from "./hooks/useCesiumInitialCameraFromSearchParams";
 export { useFovWheelZoom } from "./hooks/useFovWheelZoom";

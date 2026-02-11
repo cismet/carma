@@ -14,17 +14,14 @@ import {
 
 import { type Easing as EasingFunction } from "@carma-commons/math";
 import type { ModelConfig } from "@carma-commons/resources";
-import type {
-  CarmaConf3D,
-  CarmaMapLibreFeatureProperties,
-  FeatureInfo,
-} from "@carma/types";
+import type { FeatureInfo } from "@carma/types";
 import {
   addElevationsToGeoJson,
   createExtrudedWallVisualizer,
   createGroundPolygonVisualizer,
   createGroundPolylineVisualizer,
   getBoundingSphereFromGeoJson,
+  useCesiumModelManager,
   type ExtrudedWallVisualizer,
   type GeoJsonElevationOptions,
   type GroundPolygonVisualizer,
@@ -33,16 +30,26 @@ import {
 import type { Feature, FeatureCollection } from "geojson";
 import { extractRingsFromGeoJson } from "@carma/geo/utils";
 
-import {
-  useAdhocFeatureDisplay,
-  type AdhocFeature,
-} from "../components/AdhocFeatureDisplayProvider";
+import { useAdhocFeatureDisplay } from "../components/AdhocFeatureDisplayProvider";
 import {
   buildAdhocFeatureInfo,
   getAdhocAccentColor,
   getGeoJsonFromFeature,
 } from "../utils/adhoc-feature-utils";
-import { useCesiumModels } from "./useCesiumModels";
+import {
+  areEqualStringSets,
+  buildAdhocFeatureInfoForSelection,
+  extractSelectableGeoJsonFeatures,
+  getFeatureMetadataBoundingSphere,
+  getGeojsonBoundingSphere,
+  getModelConfig,
+  getModelProperties,
+  getWallHeights,
+  isRehydratedFeature,
+  normalizeCarmaConf3D,
+  shouldShowFootprintIn3d,
+  toSelectionIdSet,
+} from "../utils/adhoc-cesium-feature-display-utils";
 
 export type UseAdhocCesiumFeatureDisplayOptions = {
   isCesiumEnabled: boolean;
@@ -65,227 +72,6 @@ export type UseAdhocCesiumFeatureDisplayOptions = {
 
 export type UseAdhocCesiumFeatureDisplayResult = {
   getAdhocBoundingSphere: (feature: FeatureInfo) => BoundingSphere | null;
-};
-
-const getCarmaConf3D = (feature: AdhocFeature): CarmaConf3D | undefined => {
-  const properties = feature.properties as
-    | CarmaMapLibreFeatureProperties
-    | undefined;
-  if (properties?.carmaConf3D) {
-    return properties.carmaConf3D;
-  }
-
-  const geojson = getGeoJsonFromFeature(feature);
-  const geojsonFeature =
-    geojson?.type === "FeatureCollection" ? geojson.features[0] : geojson;
-  const geojsonProperties = geojsonFeature?.properties as
-    | CarmaMapLibreFeatureProperties
-    | undefined;
-  return geojsonProperties?.carmaConf3D;
-};
-
-const getWallHeights = (feature: AdhocFeature): number[] | undefined => {
-  const metadata = feature.metadata;
-  if (!metadata) return undefined;
-  const wallHeights = metadata.wallHeights;
-  if (Array.isArray(wallHeights)) {
-    return wallHeights as number[];
-  }
-  return undefined;
-};
-
-const normalizeCarmaConf3D = (feature: AdhocFeature): CarmaConf3D => {
-  const carmaConf3D = getCarmaConf3D(feature);
-
-  if (!carmaConf3D) {
-    // No config = default wall and default draped ground polygon.
-    return { wall: { height: 20 }, groundPolygon: true };
-  }
-
-  // Config exists - apply defaults for missing properties
-  return {
-    ...carmaConf3D,
-    // wall: undefined -> false (explicitly disabled when config exists but wall not set)
-    // wall: true -> { height: 20 }
-    // wall: { height: 5 } -> preserved
-    wall:
-      carmaConf3D.wall === undefined
-        ? false
-        : carmaConf3D.wall === true
-        ? { height: 20 }
-        : carmaConf3D.wall,
-    // Ground polygon is enabled by default for footprint visibility/picking.
-    groundPolygon:
-      carmaConf3D.groundPolygon === undefined
-        ? true
-        : carmaConf3D.groundPolygon,
-  };
-};
-
-const isRehydratedFeature = (feature: AdhocFeature): boolean => {
-  const metadata = feature.metadata as { rehydrated?: boolean } | undefined;
-  return Boolean(metadata?.rehydrated);
-};
-
-const getModelConfig = (feature: AdhocFeature) => {
-  const carmaConf3D = getCarmaConf3D(feature);
-  return carmaConf3D?.model;
-};
-
-const shouldShowFootprintIn3d = (feature: AdhocFeature): boolean => {
-  const modelConfig = getModelConfig(feature);
-  return modelConfig?.showFootprintIn3d !== false;
-};
-
-const getModelProperties = (
-  feature: AdhocFeature
-): FeatureInfo["properties"] => {
-  const metadataTitle =
-    typeof feature.metadata?.title === "string"
-      ? feature.metadata?.title
-      : undefined;
-  const fallbackTitle = metadataTitle ?? feature.id;
-  const geojson = getGeoJsonFromFeature(feature);
-  const geojsonFeature =
-    geojson?.type === "FeatureCollection" ? geojson.features[0] : geojson;
-  const geojsonProperties = geojsonFeature?.properties as
-    | FeatureInfo["properties"]
-    | undefined;
-  const baseProperties = feature.properties ??
-    geojsonProperties ?? { title: fallbackTitle };
-  const title =
-    typeof baseProperties.title === "string"
-      ? baseProperties.title
-      : fallbackTitle;
-  return {
-    ...baseProperties,
-    title,
-  };
-};
-
-const getGeojsonBoundingSphere = (
-  feature: AdhocFeature
-): BoundingSphere | null => {
-  const geojson =
-    (feature.metadata?.flyToGeoJson as
-      | Feature
-      | FeatureCollection
-      | undefined) ?? getGeoJsonFromFeature(feature);
-  if (!geojson) return null;
-  return getBoundingSphereFromGeoJson(geojson);
-};
-
-const getFeatureMetadataBoundingSphere = (
-  feature: AdhocFeature
-): BoundingSphere | null => {
-  const candidate = feature.metadata?.flyToBoundingSphere;
-  return candidate instanceof BoundingSphere ? candidate : null;
-};
-
-type SelectableGeoJsonFeature = {
-  selectionId: string;
-  geojson: Feature;
-};
-
-const getGeoJsonFeatureKey = (
-  geojsonFeature: Feature,
-  featureIndex: number
-): string => {
-  const id = geojsonFeature.id;
-  if (typeof id === "string" || typeof id === "number") {
-    return `id:${String(id)}`;
-  }
-
-  const propertiesId = (geojsonFeature.properties as { id?: unknown } | null)
-    ?.id;
-  if (typeof propertiesId === "string" || typeof propertiesId === "number") {
-    return `id:${String(propertiesId)}`;
-  }
-
-  return `index:${featureIndex}`;
-};
-
-const extractSelectableGeoJsonFeatures = (
-  id: string,
-  geojson: Feature | FeatureCollection
-): SelectableGeoJsonFeature[] => {
-  const features =
-    geojson.type === "FeatureCollection" ? geojson.features : [geojson];
-  const selectionIdCounts = new Map<string, number>();
-
-  return features.flatMap((geojsonFeature, featureIndex) => {
-    if (!geojsonFeature?.geometry) return [];
-    const geoJsonFeatureKey = getGeoJsonFeatureKey(
-      geojsonFeature,
-      featureIndex
-    );
-    const baseSelectionId = `${id}::${geoJsonFeatureKey}`;
-    const count = selectionIdCounts.get(baseSelectionId) ?? 0;
-    selectionIdCounts.set(baseSelectionId, count + 1);
-
-    const selectionId =
-      count === 0 ? baseSelectionId : `${baseSelectionId}::dup:${count}`;
-
-    return [
-      {
-        selectionId,
-        geojson: geojsonFeature,
-      },
-    ];
-  });
-};
-
-const toSelectionIdSet = (
-  id: string,
-  geojson: Feature | FeatureCollection
-): Set<string> =>
-  new Set(
-    extractSelectableGeoJsonFeatures(id, geojson).map(
-      (geoJsonFeature) => geoJsonFeature.selectionId
-    )
-  );
-
-const areEqualStringSets = (left: Set<string>, right: Set<string>): boolean => {
-  if (left.size !== right.size) return false;
-  for (const value of left) {
-    if (!right.has(value)) return false;
-  }
-  return true;
-};
-
-const getGeoJsonForSelection = (
-  feature: AdhocFeature
-): Feature | FeatureCollection | null =>
-  (feature.metadata?.flyToGeoJson as Feature | FeatureCollection | undefined) ??
-  getGeoJsonFromFeature(feature);
-
-const getSelectableGeoJsonFeature = (
-  feature: AdhocFeature,
-  selectionId: string | null
-): Feature | null => {
-  if (!selectionId) return null;
-  const geojson = getGeoJsonForSelection(feature);
-  if (!geojson) return null;
-  const match = extractSelectableGeoJsonFeatures(feature.id, geojson).find(
-    (geoJsonFeature) => geoJsonFeature.selectionId === selectionId
-  );
-  return match?.geojson ?? null;
-};
-
-const buildAdhocFeatureInfoForSelection = (
-  feature: AdhocFeature,
-  selectionId: string | null
-): FeatureInfo | null => {
-  const selectedGeoJsonFeature = getSelectableGeoJsonFeature(
-    feature,
-    selectionId
-  );
-  if (!selectedGeoJsonFeature) {
-    return buildAdhocFeatureInfo(feature);
-  }
-  return buildAdhocFeatureInfo(feature, {
-    geojsonFeature: selectedGeoJsonFeature,
-  });
 };
 
 export const useAdhocCesiumFeatureDisplay = (
@@ -478,9 +264,13 @@ export const useAdhocCesiumFeatureDisplay = (
         enabled: isCesiumEnabled && hasCesiumModels,
         deselectOnEmptyClick: true,
         selectedId: selectedFeatureId,
+        onClearSelection: () => {
+          onFeatureInfoChange?.(null);
+          clearSelectedFeature();
+        },
         onSelect: (feature: unknown) => {
-          const featureInfo = feature as FeatureInfo | null;
-          if (!featureInfo || typeof featureInfo.id !== "string") {
+          const featureInfo = feature as FeatureInfo;
+          if (typeof featureInfo.id !== "string") {
             onFeatureInfoChange?.(null);
             clearSelectedFeature();
             return;
@@ -508,7 +298,7 @@ export const useAdhocCesiumFeatureDisplay = (
     setSelectedFeatureById,
   ]);
 
-  useCesiumModels(useCesiumModelOptions);
+  useCesiumModelManager(useCesiumModelOptions);
 
   // Main effect: sync visualizers with features when needed
   useEffect(() => {

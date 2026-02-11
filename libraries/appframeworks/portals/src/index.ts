@@ -62,7 +62,6 @@ export { useSelectionCesium } from "./lib/hooks/useSelectionCesium";
 export { useSelectionLibreMap } from "./lib/hooks/useSelectionLibreMap";
 export { useShareUrl, SHORTENER_URL } from "./lib/hooks/useShareUrl";
 export { useProgress } from "./lib/hooks/useProgress";
-export { useCesiumModels } from "./lib/hooks/useCesiumModels";
 export { useAdhocCesiumFeatureDisplay } from "./lib/hooks/useAdhocCesiumFeatureDisplay";
 export { useUrlFeatureSelection } from "./lib/hooks/useUrlFeatureSelection";
 export {

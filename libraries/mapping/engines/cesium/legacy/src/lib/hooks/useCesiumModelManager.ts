@@ -4,42 +4,45 @@ import {
   ScreenSpaceEventType,
   CustomShader,
   Model,
-  Scene,
 } from "@carma/cesium";
 import type { ModelConfig } from "@carma-commons/resources";
-import {
-  createModelPrimitiveFromConfig,
-  DEFAULT_MODEL_HIGHLIGHT_SHADER,
-  useCesiumContext,
-} from "@carma-mapping/engines/cesium";
 
-interface UseCesiumModelsOptions {
+import { DEFAULT_MODEL_HIGHLIGHT_SHADER } from "../utils/modelHighlightShader";
+import { createModelPrimitiveFromConfig } from "../utils/createModelPrimitiveFromConfig";
+import {
+  buildModelKey,
+  extractPickedProperties,
+  getPrimitiveSelectionId,
+  isModelPick,
+} from "../utils/modelManager";
+import { useCesiumContext } from "./useCesiumContext";
+
+export interface UseCesiumModelManagerOptions {
   models: ModelConfig[];
   enabled: boolean;
   selection?: {
     enabled?: boolean;
-    onSelect?: (feature: unknown | null) => void;
+    onSelect?: (feature: unknown) => void;
+    onClearSelection?: () => void;
     deselectOnEmptyClick?: boolean;
     highlightShader?: CustomShader;
     selectedId?: string | null;
   };
 }
 
-// Manage Cesium 3D model primitives with optional selection/highlighting
-export const useCesiumModels = ({
+export const useCesiumModelManager = ({
   models,
   enabled,
   selection,
-}: UseCesiumModelsOptions) => {
+}: UseCesiumModelManagerOptions) => {
   const { getScene, requestRender } = useCesiumContext();
   const modelPrimitivesRef = useRef<Map<string, Model>>(new Map());
-  type DrillPickResult = ReturnType<Scene["drillPick"]>;
-  type PickedObject = DrillPickResult[0];
   const selectedPrimitiveRef = useRef<Model | null>(null);
   const originalShaderRef = useRef<CustomShader | undefined>(undefined);
-  const onSelectRef = useRef<((feature: unknown | null) => void) | undefined>(
+  const onSelectRef = useRef<((feature: unknown) => void) | undefined>(
     undefined
   );
+  const onClearSelectionRef = useRef<(() => void) | undefined>(undefined);
   const selectedIdRef = useRef<string | null>(selection?.selectedId ?? null);
   const selectionEnabledRef = useRef<boolean>(
     Boolean(selection?.enabled && enabled)
@@ -53,6 +56,10 @@ export const useCesiumModels = ({
   }, [selection?.onSelect]);
 
   useEffect(() => {
+    onClearSelectionRef.current = selection?.onClearSelection;
+  }, [selection?.onClearSelection]);
+
+  useEffect(() => {
     selectedIdRef.current = selection?.selectedId ?? null;
   }, [selection?.selectedId]);
 
@@ -64,11 +71,6 @@ export const useCesiumModels = ({
     highlightShaderRef.current =
       selection?.highlightShader ?? DEFAULT_MODEL_HIGHLIGHT_SHADER;
   }, [selection?.highlightShader]);
-
-  const getPrimitiveSelectionId = (primitive: Model): string | null => {
-    const pickId = primitive.id as { id?: unknown } | undefined;
-    return typeof pickId?.id === "string" ? pickId.id : null;
-  };
 
   const applyShader = useCallback(
     (primitive: Model, shader?: CustomShader) => {
@@ -117,31 +119,6 @@ export const useCesiumModels = ({
     [applyShader]
   );
 
-  const buildModelKey = (config: ModelConfig): string => {
-    const model = config.model;
-    const position = config.position;
-    const orientation = config.orientation ?? {};
-    return JSON.stringify({
-      uri: model.uri,
-      scale: typeof model.scale === "number" ? model.scale : null,
-      position: {
-        longitude: position.longitude,
-        latitude: position.latitude,
-        altitude: position.altitude,
-      },
-      orientation: {
-        heading: orientation.heading ?? null,
-        pitch: orientation.pitch ?? null,
-        roll: orientation.roll ?? null,
-      },
-      name: typeof config.name === "string" ? config.name : null,
-      title:
-        typeof config.properties?.title === "string"
-          ? config.properties.title
-          : null,
-    });
-  };
-
   useEffect(() => {
     const scene = getScene();
     if (!scene || scene.isDestroyed()) {
@@ -156,7 +133,9 @@ export const useCesiumModels = ({
         if (selectedPrimitiveRef.current === primitive) {
           selectedPrimitiveRef.current = null;
           originalShaderRef.current = undefined;
-          onSelectRef.current?.(null);
+          if (enabled) {
+            onClearSelectionRef.current?.();
+          }
         }
         scene.primitives.remove(primitive);
         if (!primitive.isDestroyed()) {
@@ -235,7 +214,6 @@ export const useCesiumModels = ({
       const scene = getScene();
       selectedPrimitiveRef.current = null;
       originalShaderRef.current = undefined;
-      onSelectRef.current?.(null);
       if (!scene || scene.isDestroyed()) return;
       primitivesByKey.forEach((primitive) => {
         try {
@@ -265,39 +243,15 @@ export const useCesiumModels = ({
 
     const highlightShader = highlightShaderRef.current;
 
-    const isModelPick = (
-      obj: PickedObject | undefined | null
-    ): obj is PickedObject & { primitive: Model } => {
-      const candidate = obj as { primitive?: unknown } | null | undefined;
-      return (
-        candidate?.primitive instanceof Model &&
-        !candidate.primitive.isDestroyed()
-      );
-    };
-
     const applyHighlightFromClick = (primitive: Model): void => {
       applyHighlight(primitive, highlightShader);
-    };
-
-    const extractProperties = (
-      picked: PickedObject
-    ): Record<string, unknown> => {
-      const pickId = picked?.id as { properties?: Record<string, unknown> };
-      const entityProperties = pickId?.properties;
-      const extracted: Record<string, unknown> = {};
-      if (entityProperties) {
-        Object.entries(entityProperties).forEach(([key, value]) => {
-          extracted[key] = value;
-        });
-      }
-      return extracted;
     };
 
     const deselect = () => {
       clearPreviousHighlight();
       selectedPrimitiveRef.current = null;
       originalShaderRef.current = undefined;
-      onSelectRef.current?.(null);
+      onClearSelectionRef.current?.();
     };
 
     const handleLeftClick = ({
@@ -314,7 +268,7 @@ export const useCesiumModels = ({
           const id = pickId?.id ?? undefined;
           onSelectRef.current?.({
             id,
-            properties: extractProperties(picked),
+            properties: extractPickedProperties(picked),
             is3dModel: true,
           });
           selectedPrimitiveRef.current = picked.primitive as Model;
@@ -331,7 +285,6 @@ export const useCesiumModels = ({
         clearPreviousHighlight();
         selectedPrimitiveRef.current = null;
         originalShaderRef.current = undefined;
-        onSelectRef.current?.(null);
         handler.removeInputAction(ScreenSpaceEventType.LEFT_CLICK);
         handler.destroy();
       } catch (error) {
