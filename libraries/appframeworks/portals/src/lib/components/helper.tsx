@@ -99,7 +99,8 @@ export const getActionLinksForFeature = (
         key={`CarmaIconLink.email`}
         tooltip="E-Mail schreiben"
         href={
-          "mailto:" + infoxboxControlObject?.email || feature?.properties?.email
+          "mailto:" +
+          (infoxboxControlObject?.email || feature?.properties?.email)
         }
         iconname="envelope-square"
       />
