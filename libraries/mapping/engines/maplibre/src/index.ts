@@ -58,10 +58,23 @@ export {
   vectorStylesToMapLibreStyle,
   styleManipulation,
   getVectorMapping,
+  getPaintProperty,
+  prefixPatternExpression,
   type GeoJsonStyleMetadata,
   type VectorStylesToMapLibreStyleOptions,
   type VectorStylesToMapLibreStyleResult,
 } from "./utils/styleBuilder";
+
+// Imperative style composition
+export { StyleComposer, slugifyUrl } from "./utils/styleComposer";
+export type {
+  GeoJsonSubStyleMeta,
+  AddVectorSubStyleOptions,
+  AddGeoJsonSubStyleOptions,
+  AddRasterSubStyleOptions,
+} from "./utils/styleComposer";
+export { useImperativeStyle } from "./hooks/useImperativeStyle";
+export type { UseImperativeStyleOptions } from "./hooks/useImperativeStyle";
 
 // Feature utilities
 export {

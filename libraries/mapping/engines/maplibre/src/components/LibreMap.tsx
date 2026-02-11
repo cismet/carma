@@ -23,6 +23,7 @@ import {
   styleManipulation,
   vectorStylesToMapLibreStyle,
 } from "../utils/styleBuilder";
+import { slugifyUrl } from "../utils/styleComposer";
 import { createFeature } from "../utils/featureUtils";
 import { HidingForwardingManager } from "../lib/HidingForwardingManager";
 import {
@@ -41,6 +42,7 @@ import { useLibreContext } from "../contexts/LibreContext";
 import { useMapSelection } from "../contexts/MapSelectionContext";
 import { useDatasheet } from "../contexts/DatasheetContext";
 import { useClusterMarkers } from "../hooks/useClusterMarkers";
+import { useImperativeStyle } from "../hooks/useImperativeStyle";
 import {
   WUPPERTAL_DEFAULT_STYLE,
   WUPPERTAL_CONFIG,
@@ -102,6 +104,10 @@ export interface LibreMapProps {
   interactive?: boolean;
   /** Enable visual selection via setFeatureState even without infoboxMapping */
   selectionEnabled?: boolean;
+  /** Layer composition strategy.
+   * - 'merged' (default): builds a single StyleSpecification and calls setStyle()
+   * - 'imperative': uses addSource/addLayer/addSprite for incremental updates */
+  layerMode?: "merged" | "imperative";
   onFeatureSelect?: (
     feature: any,
     selectionInfo?: {
@@ -123,6 +129,7 @@ export const LibreMap = ({
   interactive = true,
   preserveDrawingBuffer = false,
   selectionEnabled = true,
+  layerMode = "merged",
   onFeatureSelect,
 }: LibreMapProps) => {
   const mapContainer = useRef<HTMLDivElement>(null);
@@ -313,9 +320,10 @@ export const LibreMap = ({
     const sources: Record<string, any> = {};
     const vectorBgLayers: LibreLayer[] = [];
 
-    // Add terrain source from config
+    // Add terrain source from config (slugified URL as ID)
     if (WUPPERTAL_CONFIG.terrain) {
-      sources["terrainSource"] = {
+      const terrainId = slugifyUrl(WUPPERTAL_CONFIG.terrain.url);
+      sources[terrainId] = {
         type: "raster-dem",
         tiles: [WUPPERTAL_CONFIG.terrain.url],
         tileSize: WUPPERTAL_CONFIG.terrain.tileSize ?? 512,
@@ -410,6 +418,47 @@ export const LibreMap = ({
     () => buildBackgroundStyle(),
     [backgroundLayers]
   );
+
+  // Stable callbacks for useImperativeStyle
+  const handleImperativeMappingUpdate = useCallback(
+    (mapping: Record<string, string[] | string>) => {
+      mappingRef.current = mapping;
+    },
+    []
+  );
+  const handleImperativeGeoJsonMeta = useCallback(
+    (meta: Array<{ sourceId: string; uniqueColors: string[] }>) => {
+      geoJsonMetadataRef.current = meta;
+      setGeoJsonMetadata(meta);
+    },
+    [setGeoJsonMetadata]
+  );
+  const handleImperativeStyleReady = useCallback(
+    (style: StyleSpecification) => {
+      setMapStyle(style);
+    },
+    [setMapStyle]
+  );
+  const handleImperativeHidingRefresh = useCallback(() => {
+    hidingManagerRef.current?.refresh();
+    hidingManagerRef.current?.start();
+  }, []);
+
+  useImperativeStyle({
+    enabled: layerMode === "imperative",
+    map: map.current,
+    layers,
+    backgroundStyle,
+    vectorBackgroundLayers,
+    clusteringEnabled,
+    markerSymbolSize,
+    overrideGlyphs,
+    filterFunction,
+    onMappingUpdate: handleImperativeMappingUpdate,
+    onGeoJsonMetadataUpdate: handleImperativeGeoJsonMeta,
+    onStyleReady: handleImperativeStyleReady,
+    onHidingManagerRefresh: handleImperativeHidingRefresh,
+  });
 
   useEffect(() => {
     // Only initialize if we have a container and no map yet
@@ -673,6 +722,12 @@ export const LibreMap = ({
 
   useEffect(() => {
     if (!map.current) return;
+    // Skip merged-mode style updates when imperative mode is active
+    if (layerMode === "imperative") {
+      console.log("[LAYER_MODE] merged-mode effect SKIPPED (imperative active)");
+      return;
+    }
+    console.log("[LAYER_MODE] merged-mode effect RUNNING");
 
     let aborted = false;
 
@@ -729,6 +784,7 @@ export const LibreMap = ({
           const currentTerrain = map.current?.getTerrain();
 
           map.current?.setStyle(style);
+          console.log("[LAYER_MODE] merged: derived style", style);
 
           // Update context with the full map style
           setMapStyle(style);
@@ -798,7 +854,8 @@ export const LibreMap = ({
           // Restore terrain after style is loaded if it was previously set
           if (currentTerrain && map.current) {
             const restoreTerrain = () => {
-              if (map.current?.getSource("terrainSource")) {
+              const terrainSrcId = WUPPERTAL_CONFIG.terrain ? slugifyUrl(WUPPERTAL_CONFIG.terrain.url) : "";
+              if (terrainSrcId && map.current?.getSource(terrainSrcId)) {
                 map.current.setTerrain(currentTerrain);
               }
             };
@@ -910,6 +967,7 @@ export const LibreMap = ({
     clusteringEnabled,
     markerSymbolSize,
     filterFunction,
+    layerMode,
   ]);
 
   const getLeafletMap = useCallback(() => {
