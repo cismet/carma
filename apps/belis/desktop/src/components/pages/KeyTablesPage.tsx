@@ -1,17 +1,14 @@
 import { useEffect, useState, useRef, useCallback } from "react";
-import { fetchAllKeyTables, keyTableFetchers } from "../../helper/apiMethods";
+import { keyTableFetchers } from "../../helper/apiMethods";
 import { AppDispatch } from "../../store";
 import { useDispatch, useSelector } from "react-redux";
 import { getJWT } from "../../store/slices/auth";
 import { useSyncOptional } from "@carma-providers/syncing";
 import {
   setKeyTablesData,
-  setKeyTablesErrors,
-  setKeyTablesLoading,
   getKeyTablesData,
   getKeyTablesErrors,
   getKeyTablesLoading,
-  getKeyTablesFetched,
 } from "../../store/slices/keyTables";
 import { Spin, Alert, Modal, message, List } from "antd";
 import KeyTableDataGroups from "../ui/KeyTableDataGroups";
@@ -35,7 +32,6 @@ const KeyTablesPage = () => {
   const data = useSelector(getKeyTablesData);
   const errors = useSelector(getKeyTablesErrors);
   const loading = useSelector(getKeyTablesLoading);
-  const fetched = useSelector(getKeyTablesFetched);
   const [selectedTable, setSelectedTable] = useState<string | null>(null);
   const [selectedItem, setSelectedItem] = useState<SelectedItem | null>(null);
   const [isFirstColumnCollapsed, setIsFirstColumnCollapsed] = useState(false);
@@ -70,25 +66,6 @@ const KeyTablesPage = () => {
     }
   };
 
-  useEffect(() => {
-    if (fetched) return;
-
-    const fetchData = async () => {
-      if (!storedJWT) return;
-
-      dispatch(setKeyTablesLoading(true));
-      try {
-        const { data, errors } = await fetchAllKeyTables(storedJWT);
-        dispatch(setKeyTablesData(data));
-        dispatch(setKeyTablesErrors(errors));
-      } catch (error) {
-        console.error("Failed to fetch key tables:", error);
-      } finally {
-        dispatch(setKeyTablesLoading(false));
-      }
-    };
-    fetchData();
-  }, []);
 
   // Select first table by default when data loads (sorted alphabetically to match display)
   useEffect(() => {

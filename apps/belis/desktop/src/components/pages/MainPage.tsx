@@ -1,7 +1,15 @@
-import { useContext } from "react";
+import { useContext, useEffect } from "react";
 import BelisMapLibWrapper from "../commons/BelisMapWrapper";
 import { useSelector, useDispatch } from "react-redux";
 import { getJWT } from "../../store/slices/auth";
+import { fetchAllKeyTables } from "../../helper/apiMethods";
+import {
+  setKeyTablesData,
+  setKeyTablesErrors,
+  setKeyTablesLoading,
+  getKeyTablesFetched,
+} from "../../store/slices/keyTables";
+import { message } from "antd";
 import { CustomCard } from "../commons/CustomCard";
 import { useWindowSize } from "@react-hook/window-size";
 import {
@@ -40,8 +48,34 @@ const MainPage = () => {
   const inPaleMode = useSelector(isInPaleMode);
   const inSearchMode = useSelector(isInSearchMode);
   const zoom = useSelector(getZoom);
+  const keyTablesFetched = useSelector(getKeyTablesFetched);
 
   const { isDatasheetOpen } = useDatasheet();
+
+  // Fetch key tables data on mount
+  useEffect(() => {
+    if (keyTablesFetched) return;
+
+    const fetchData = async () => {
+      if (!storedJWT) return;
+
+      dispatch(setKeyTablesLoading(true));
+      try {
+        const { data, errors } = await fetchAllKeyTables(storedJWT);
+        dispatch(setKeyTablesData(data));
+        dispatch(setKeyTablesErrors(errors));
+        if (Object.keys(errors).length > 0) {
+          message.error("Einige Schlüsseltabellen konnten nicht geladen werden");
+        }
+      } catch (error) {
+        console.error("Failed to fetch key tables:", error);
+        message.error("Fehler beim Laden der Schlüsseltabellen");
+      } finally {
+        dispatch(setKeyTablesLoading(false));
+      }
+    };
+    fetchData();
+  }, [storedJWT, keyTablesFetched, dispatch]);
   const [windowWidth, windowHeight] = useWindowSize();
   const { routedMapRef } = useContext<typeof TopicMapContext>(TopicMapContext);
 
