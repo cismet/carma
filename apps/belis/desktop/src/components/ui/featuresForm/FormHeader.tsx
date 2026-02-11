@@ -1,11 +1,14 @@
 import { EditOutlined } from "@ant-design/icons";
+import FormActions from "./FormActions";
 
 interface FormHeaderProps {
   title: string;
   subtitle: string;
+  onCancel?: () => void;
+  onSave?: () => void;
 }
 
-const FormHeader = ({ title, subtitle }: FormHeaderProps) => {
+const FormHeader = ({ title, subtitle, onCancel, onSave }: FormHeaderProps) => {
   return (
     <div className="flex items-start justify-between p-6 pb-2">
       <div className="flex items-center gap-3">
@@ -17,6 +20,7 @@ const FormHeader = ({ title, subtitle }: FormHeaderProps) => {
           <p className="text-sm text-gray-500">{subtitle}</p>
         </div>
       </div>
+      <FormActions onCancel={onCancel} onSave={onSave} />
     </div>
   );
 };

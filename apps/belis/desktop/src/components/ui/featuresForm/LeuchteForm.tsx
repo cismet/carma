@@ -4,7 +4,6 @@ import {
   Row,
   Col,
   Select,
-  Button,
   Tabs,
   Input,
   DatePicker,
@@ -644,23 +643,6 @@ const LeuchteForm = ({ data, rawFeature, onClose }: LeuchteFormProps) => {
             },
           ]}
         />
-      </div>
-
-      {/* Footer Buttons */}
-      <div className="flex justify-start gap-3 px-6 py-4 border-t border-gray-100">
-        <Button
-          size="large"
-          className="px-6 rounded-lg border-gray-200 text-gray-600 hover:text-gray-800 hover:border-gray-300"
-        >
-          Abbrechen
-        </Button>
-        <Button
-          type="primary"
-          size="large"
-          className="px-6 rounded-lg bg-blue-600 hover:bg-blue-700"
-        >
-          Speichern
-        </Button>
       </div>
     </div>
   );
