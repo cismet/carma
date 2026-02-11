@@ -10,7 +10,6 @@ import { setCustomLayerConfig } from "../slices/mapLayers";
 import { useMapFrameworkSwitcherContext } from "@carma-mapping/components";
 import { processCategoryConfig } from "../helper/processCategoryConfig";
 import { parseToMapLayer } from "@carma-mapping/utils";
-import md5 from "md5";
 
 // @ts-expect-error tbd
 const parser = new WMSCapabilities();
@@ -81,98 +80,6 @@ export const useHandleDrop = ({
       .replaceAll("__server_url__", "https://tiles.cismet.de");
   };
 
-  const hashValue = (value: unknown): string => {
-    try {
-      return md5(JSON.stringify(value));
-    } catch {
-      return md5(String(value));
-    }
-  };
-
-  const getPrimaryGeoJsonPayload = (jsonData: unknown): unknown => {
-    if (!jsonData || typeof jsonData !== "object") return null;
-    const sources = (jsonData as { sources?: Record<string, unknown> }).sources;
-    if (!sources || typeof sources !== "object") return null;
-
-    for (const source of Object.values(sources)) {
-      if (!source || typeof source !== "object") continue;
-      const typedSource = source as { type?: unknown; data?: unknown };
-      if (typedSource.type === "geojson") {
-        return typedSource.data ?? null;
-      }
-    }
-    return null;
-  };
-
-  const toGeoJsonFeatureId = (value: unknown): string | null => {
-    if (typeof value === "string" || typeof value === "number") {
-      return String(value);
-    }
-    return null;
-  };
-
-  const getGeoJsonFeatures = (geoJson: unknown): Array<{ id?: unknown }> => {
-    if (!geoJson || typeof geoJson !== "object") return [];
-    const typedGeoJson = geoJson as {
-      type?: unknown;
-      features?: unknown;
-      id?: unknown;
-    };
-
-    if (
-      typedGeoJson.type === "FeatureCollection" &&
-      Array.isArray(typedGeoJson.features)
-    ) {
-      return typedGeoJson.features.filter(
-        (feature): feature is { id?: unknown } =>
-          typeof feature === "object" && feature !== null
-      );
-    }
-
-    if (typedGeoJson.type === "Feature") {
-      return [typedGeoJson];
-    }
-
-    return [];
-  };
-
-  const buildHashedImportIds = (
-    jsonData: unknown
-  ): { collectionId: string; id: string } => {
-    const collectionHash = hashValue(jsonData);
-    const featurePayload = getPrimaryGeoJsonPayload(jsonData) ?? jsonData;
-    const featureHash = hashValue(featurePayload);
-    const geoJsonFeatures = getGeoJsonFeatures(featurePayload);
-    const firstFeatureId = toGeoJsonFeatureId(geoJsonFeatures[0]?.id);
-
-    const duplicateCount = firstFeatureId
-      ? geoJsonFeatures.reduce((count, feature) => {
-          const id = toGeoJsonFeatureId(feature.id);
-          return id === firstFeatureId ? count + 1 : count;
-        }, 0)
-      : 0;
-
-    const hasDuplicateFirstFeatureId = duplicateCount > 1;
-    if (hasDuplicateFirstFeatureId) {
-      console.warn(
-        "[ADHOC|IMPORT] Duplicate GeoJSON feature id in collection; appending hash suffix",
-        {
-          id: firstFeatureId,
-          duplicateCount,
-        }
-      );
-    }
-
-    const resolvedFeatureId = firstFeatureId
-      ? hasDuplicateFirstFeatureId
-        ? `${firstFeatureId}_${featureHash}`
-        : firstFeatureId
-      : featureHash;
-
-    const collectionId = collectionHash;
-    return { collectionId, id: `${collectionId}_${resolvedFeatureId}` };
-  };
-
   const handleAddToMap = (newItem: any, instant = false) => {
     if (instant) {
       setAdditionalLayers(newItem, false, false, false, true);
@@ -198,11 +105,10 @@ export const useHandleDrop = ({
             const processedContent = preTransformJson(fileContent);
 
             const jsonData = JSON.parse(processedContent);
-            const hashedIds = buildHashedImportIds(jsonData);
 
             let newItem: any = {
               description: "",
-              id: hashedIds.id,
+              id: file.name,
               layerType: "vector",
               title: file.name,
               serviceName: "custom",
@@ -244,7 +150,7 @@ export const useHandleDrop = ({
     }
 
     if (url) {
-      let importedId = buildHashedImportIds(url).id;
+      let importedId = url;
 
       let newItem: any = {
         description: "",
@@ -259,8 +165,6 @@ export const useHandleDrop = ({
       await fetch(url)
         .then((response) => response.json())
         .then((data) => {
-          const hashedIds = buildHashedImportIds(data);
-          importedId = hashedIds.id;
           if (data.metadata && data.metadata.carmaConf.layerInfo) {
             const layerInfo = data.metadata.carmaConf.layerInfo;
             instant = data.metaData?.carmaConf?.instant ?? false;
@@ -335,9 +239,7 @@ export const useHandleDrop = ({
             const processedContent = preTransformJson(fileContent);
 
             const jsonData = JSON.parse(processedContent);
-            const hashedIds = buildHashedImportIds(jsonData);
-
-            let id = hashedIds.id;
+            const id = file.name;
             let keywords = [
               `carmaConf://vectorStyle:${JSON.stringify(jsonData)}`,
             ];
@@ -374,7 +276,7 @@ export const useHandleDrop = ({
     }
 
     if (url) {
-      let id = buildHashedImportIds(url).id;
+      let id = url;
       let keywords = [`carmaConf://vectorStyle:${url}`];
       let title = url.slice(0, -5);
 
@@ -388,8 +290,6 @@ export const useHandleDrop = ({
       await fetch(url)
         .then((response) => response.json())
         .then((data) => {
-          const hashedIds = buildHashedImportIds(data);
-          id = hashedIds.id;
           newItem = {
             ...newItem,
             id,

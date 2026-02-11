@@ -14,6 +14,7 @@ import { TopicMapContext } from "react-cismap/contexts/TopicMapContextProvider";
 import { useDispatch, useSelector } from "react-redux";
 
 import {
+  DEFAULT_ADHOC_FEATURE_COLLECTION_ID,
   SELECTED_LAYER_INDEX,
   useAdhocFeatureDisplay,
 } from "@carma-appframeworks/portals";
@@ -277,7 +278,10 @@ const SecondaryView = forwardRef<Ref, SecondaryViewProps>(({}, ref) => {
                     await zoomToStyleFeatures(styleData, routedMapRef);
                     dispatch(setTriggerSelectionById(layer.id));
                   } else if (isCesium) {
-                    setSelectedFeatureById(layer.id);
+                    setSelectedFeatureById(
+                      layer.id,
+                      DEFAULT_ADHOC_FEATURE_COLLECTION_ID
+                    );
                     setShouldFocusSelected(true);
                   }
                 }}

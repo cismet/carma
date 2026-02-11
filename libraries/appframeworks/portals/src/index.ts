@@ -51,6 +51,9 @@ export {
   type AddAdhocFeatureOptions,
   type RemoveAdhocFeatureOptions,
   type AdhocMapLibreStyleFeature,
+  type AdhocFeatureSelectionChange,
+  type AdhocFeatureSelectionChangeListener,
+  DEFAULT_ADHOC_FEATURE_COLLECTION_ID,
 } from "./lib/components/AdhocFeatureDisplayProvider";
 
 export { LibreMapSelectionContent } from "./lib/components/LibreMapSelectionContent";
