@@ -24,11 +24,43 @@ interface LeuchteFormProps {
   onClose?: () => void;
 }
 
-interface KeyTableItem {
+interface LeuchttypItem {
   id: number;
-  bezeichnung?: string;
+  leuchtentyp?: string;
+  fabrikat?: string;
+}
+
+interface KennzifferItem {
+  id: number;
+  kennziffer?: string;
+  beschreibung?: string;
+}
+
+interface EnergielieferantItem {
+  id: number;
+  energielieferant?: string;
+}
+
+interface RundsteuerempfaengerItem {
+  id: number;
+  rs_typ?: string;
+}
+
+interface DoppelkommandoItem {
+  id: number;
   pk?: string;
   beschreibung?: string;
+}
+
+interface UnterhaltLeuchteItem {
+  id: number;
+  unterhaltspflichtiger_leuchte?: string;
+}
+
+interface LeuchtmittelItem {
+  id: number;
+  lichtfarbe?: string;
+  hersteller?: string;
 }
 
 interface StrassenschluesselItem {
@@ -43,18 +75,19 @@ const LeuchteForm = ({ data, onClose }: LeuchteFormProps) => {
   const jwt = useSelector(getJWT);
 
   // Key table options
-  const leuchttypOptions = (keyTablesData.leuchtentyp || []) as KeyTableItem[];
-  const kennzifferOptions = (keyTablesData.kennziffer || []) as KeyTableItem[];
+  const leuchttypOptions = (keyTablesData.leuchtentyp || []) as LeuchttypItem[];
+  const kennzifferOptions = (keyTablesData.kennziffer ||
+    []) as KennzifferItem[];
   const energielieferantOptions = (keyTablesData.energielieferant ||
-    []) as KeyTableItem[];
+    []) as EnergielieferantItem[];
   const doppelkommandoOptions = (keyTablesData.doppelkommando ||
-    []) as KeyTableItem[];
+    []) as DoppelkommandoItem[];
   const unterhaltLeuchteOptions = (keyTablesData.unterhaltLeuchte ||
-    []) as KeyTableItem[];
+    []) as UnterhaltLeuchteItem[];
   const leuchtmittelOptions = (keyTablesData.leuchtmittel ||
-    []) as KeyTableItem[];
-  const rundsteuerempfaengerOptions = (keyTablesData.rundsteuerempfaenger ||
-    []) as KeyTableItem[];
+    []) as LeuchtmittelItem[];
+  const rundsteuerempfaengerOptions = (keyTablesData["rundsteuerempfänger"] ||
+    []) as RundsteuerempfaengerItem[];
 
   // Extract documents from data
   const documents: DokumentItem[] = (data?.dokumente as DokumentItem[]) || [];
@@ -79,19 +112,13 @@ const LeuchteForm = ({ data, onClose }: LeuchteFormProps) => {
         // Straßenschlüssel
         strassenschluessel_pk: leuchte.tkey_strassenschluessel?.pk,
         strassenschluessel_strasse: leuchte.tkey_strassenschluessel?.strasse,
-        // Kennziffer - extract id from nested object
-        fk_kennziffer:
-          leuchte.tkey_kennziffer?.kennziffer +
-          " - " +
-          leuchte.tkey_kennziffer?.beschreibung,
+        // Kennziffer - use id for Select value
+        fk_kennziffer: leuchte.tkey_kennziffer?.id ?? null,
         // Laufende Nr. / Leuchtennummer
         lfd_nummer: leuchte.lfd_nummer,
         leuchtennummer: leuchte.leuchtennummer,
-        // Leuchtentyp - extract id from nested object
-        fk_leuchttyp:
-          leuchte.tkey_leuchtentyp?.leuchtentyp +
-          " " +
-          (leuchte.tkey_leuchtentyp?.fabrikat ?? ""),
+        // Leuchtentyp - use id for Select value
+        fk_leuchttyp: leuchte.tkey_leuchtentyp?.id ?? null,
         // Inbetriebnahme / Zähler
         inbetriebnahme_leuchte: leuchte.inbetriebnahme_leuchte
           ? dayjs(leuchte.inbetriebnahme_leuchte as string)
@@ -99,28 +126,26 @@ const LeuchteForm = ({ data, onClose }: LeuchteFormProps) => {
         zaehler: leuchte.zaehler,
         // Montagefirma
         montagefirma_leuchte: leuchte.montagefirma_leuchte,
-        // Energielieferant - extract id from nested object
-        fk_energielieferant:
-          leuchte.tkey_energielieferant?.energielieferant ?? null,
+        // Energielieferant - use id for Select value
+        fk_energielieferant: leuchte.tkey_energielieferant?.id ?? null,
         // Schaltstelle
         schaltstelle: leuchte.schaltstelle,
-        // Rundsteuerempfänger - use flat field
-        fk_rundsteuerempfaenger:
-          leuchte.rundsteuerempfaengerObject?.rs_typ ?? null,
+        // Rundsteuerempfänger - use id for Select value
+        fk_rundsteuerempfaenger: leuchte.rundsteuerempfaengerObject?.id ?? null,
         // Einbaudatum
         einbaudatum: leuchte.einbaudatum
           ? dayjs(leuchte.einbaudatum as string)
           : null,
-        // Doppelkommando 1 - extract id from nested object or use flat field
+        // Doppelkommando 1 - use id for Select value
         fk_dk1: leuchte.fk_dk1Object?.id ?? leuchte.fk_dk1,
         anzahl_1dk: leuchte.anzahl_1dk,
         anschlussleistung_1dk: leuchte.anschlussleistung_1dk,
-        // Doppelkommando 2 - extract id from nested object or use flat field
+        // Doppelkommando 2 - use id for Select value
         fk_dk2: leuchte.fk_dk2Object?.id ?? leuchte.fk_dk2,
         anzahl_2dk: leuchte.anzahl_2dk,
         anschlussleistung_2dk: leuchte.anschlussleistung_2dk,
-        // Unterhalt Leuchte - extract id from nested object
-        fk_unterhalt_leuchte: leuchte.tkey_unterh_leuchte?.id,
+        // Unterhalt Leuchte - use id for Select value
+        fk_unterhalt_leuchte: leuchte.tkey_unterh_leuchte?.id ?? null,
         // Leuchtmittelwechsel
         wechseldatum: leuchte.wechseldatum
           ? dayjs(leuchte.wechseldatum as string)
@@ -128,7 +153,7 @@ const LeuchteForm = ({ data, onClose }: LeuchteFormProps) => {
         naechster_wechsel: leuchte.naechster_wechsel
           ? dayjs(leuchte.naechster_wechsel as string)
           : null,
-        // Leuchtmittel - use flat field or nested object
+        // Leuchtmittel - use id for Select value
         fk_leuchtmittel: leuchte.leuchtmittelObject?.id ?? leuchte.leuchtmittel,
         // Lebensdauer
         lebensdauer: leuchte.lebensdauer,
@@ -198,7 +223,7 @@ const LeuchteForm = ({ data, onClose }: LeuchteFormProps) => {
                   form={form}
                   layout="vertical"
                   requiredMark={false}
-                  className="max-h-[700px] overflow-y-auto pr-2"
+                  className="max-h-[5000px] overflow-y-auto pr-2"
                 >
                   {/* Straßenschlüssel */}
                   <Row gutter={16}>
@@ -232,10 +257,12 @@ const LeuchteForm = ({ data, onClose }: LeuchteFormProps) => {
                       placeholder="Kennziffer auswählen"
                       className="w-full"
                       size="large"
+                      showSearch
+                      optionFilterProp="children"
                     >
                       {kennzifferOptions.map((item) => (
                         <Select.Option key={item.id} value={item.id}>
-                          {item.bezeichnung}
+                          {item.kennziffer} - {item.beschreibung}
                         </Select.Option>
                       ))}
                     </Select>
@@ -278,7 +305,7 @@ const LeuchteForm = ({ data, onClose }: LeuchteFormProps) => {
                     >
                       {leuchttypOptions.map((item) => (
                         <Select.Option key={item.id} value={item.id}>
-                          {item.bezeichnung}
+                          {item.leuchtentyp} {item.fabrikat}
                         </Select.Option>
                       ))}
                     </Select>
@@ -329,10 +356,12 @@ const LeuchteForm = ({ data, onClose }: LeuchteFormProps) => {
                       placeholder="Energielieferant auswählen"
                       className="w-full"
                       size="large"
+                      showSearch
+                      optionFilterProp="children"
                     >
                       {energielieferantOptions.map((item) => (
                         <Select.Option key={item.id} value={item.id}>
-                          {item.bezeichnung}
+                          {item.energielieferant}
                         </Select.Option>
                       ))}
                     </Select>
@@ -357,10 +386,12 @@ const LeuchteForm = ({ data, onClose }: LeuchteFormProps) => {
                       placeholder="Rundsteuerempfänger auswählen"
                       className="w-full"
                       size="large"
+                      showSearch
+                      optionFilterProp="children"
                     >
                       {rundsteuerempfaengerOptions.map((item) => (
                         <Select.Option key={item.id} value={item.id}>
-                          {item.bezeichnung}
+                          {item.rs_typ}
                         </Select.Option>
                       ))}
                     </Select>
@@ -391,10 +422,12 @@ const LeuchteForm = ({ data, onClose }: LeuchteFormProps) => {
                           placeholder="Auswählen"
                           className="w-full"
                           size="large"
+                          showSearch
+                          optionFilterProp="children"
                         >
                           {doppelkommandoOptions.map((item) => (
                             <Select.Option key={item.id} value={item.id}>
-                              {item.beschreibung || item.bezeichnung}
+                              {item.pk} - {item.beschreibung}
                             </Select.Option>
                           ))}
                         </Select>
@@ -433,10 +466,12 @@ const LeuchteForm = ({ data, onClose }: LeuchteFormProps) => {
                           className="w-full"
                           size="large"
                           allowClear
+                          showSearch
+                          optionFilterProp="children"
                         >
                           {doppelkommandoOptions.map((item) => (
                             <Select.Option key={item.id} value={item.id}>
-                              {item.beschreibung || item.bezeichnung}
+                              {item.pk} - {item.beschreibung}
                             </Select.Option>
                           ))}
                         </Select>
@@ -472,10 +507,12 @@ const LeuchteForm = ({ data, onClose }: LeuchteFormProps) => {
                       placeholder="Auswählen"
                       className="w-full"
                       size="large"
+                      showSearch
+                      optionFilterProp="children"
                     >
                       {unterhaltLeuchteOptions.map((item) => (
                         <Select.Option key={item.id} value={item.id}>
-                          {item.bezeichnung}
+                          {item.unterhaltspflichtiger_leuchte}
                         </Select.Option>
                       ))}
                     </Select>
@@ -521,10 +558,12 @@ const LeuchteForm = ({ data, onClose }: LeuchteFormProps) => {
                       placeholder="Leuchtmittel auswählen"
                       className="w-full"
                       size="large"
+                      showSearch
+                      optionFilterProp="children"
                     >
                       {leuchtmittelOptions.map((item) => (
                         <Select.Option key={item.id} value={item.id}>
-                          {item.bezeichnung}
+                          {item.hersteller} {item.lichtfarbe}
                         </Select.Option>
                       ))}
                     </Select>

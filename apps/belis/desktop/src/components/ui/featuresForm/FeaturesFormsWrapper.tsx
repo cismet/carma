@@ -14,7 +14,10 @@ const featureTypeToFormKey: Record<string, string> = {
   // Add more mappings as forms are created
 };
 
-const FeaturesFormsWrapper = ({ featureType, data }: FeaturesFormsWrapperProps) => {
+const FeaturesFormsWrapper = ({
+  featureType,
+  data,
+}: FeaturesFormsWrapperProps) => {
   const formKey = featureType ? featureTypeToFormKey[featureType] : undefined;
   const FormComponent = formKey ? featureFormRegistry[formKey] : undefined;
 
@@ -50,7 +53,7 @@ const FeaturesFormsWrapper = ({ featureType, data }: FeaturesFormsWrapperProps) 
           padding: 12,
           borderRadius: 4,
           overflow: "auto",
-          maxHeight: 600,
+          maxHeight: 3000,
           whiteSpace: "pre-wrap",
           wordBreak: "break-word",
         }}
