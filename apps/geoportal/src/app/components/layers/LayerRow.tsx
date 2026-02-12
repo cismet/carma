@@ -17,7 +17,10 @@ import {
 } from "../../store/slices/mapping";
 import OpacitySlider from "./OpacitySlider";
 import VisibilityToggle from "./VisibilityToggle";
-import { LayerIcon } from "@carma-mapping/components";
+import {
+  LayerIcon,
+  useMapFrameworkSwitcherContext,
+} from "@carma-mapping/components";
 import { useAdhocFeatureDisplay } from "@carma-appframeworks/portals";
 import { isAdhocVectorLayer } from "../../helper/adhoc-feature-utils";
 
@@ -31,6 +34,7 @@ interface LayerRowProps {
 const LayerRow = ({ layer, id, isBackgroundLayer, index }: LayerRowProps) => {
   const dispatch = useDispatch();
   const { clearFeatureCollections } = useAdhocFeatureDisplay();
+  const { isCesium } = useMapFrameworkSwitcherContext();
   const icon = layer?.other?.icon;
   const { attributes, listeners, setNodeRef, transform, transition } =
     useSortable({
@@ -69,7 +73,9 @@ const LayerRow = ({ layer, id, isBackgroundLayer, index }: LayerRowProps) => {
             }
           }}
         >
-          {layer.title}
+          {isCesium && isBackgroundLayer
+            ? layer.id.charAt(0).toUpperCase() + layer.id.slice(1)
+            : layer.title}
         </p>
       </div>
       <OpacitySlider
