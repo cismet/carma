@@ -35,9 +35,8 @@ const AbzweigdoseForm = ({
   const documents: DokumentItem[] =
     (abzweigdoseArray?.[0]?.dokumenteArray as DokumentItem[]) || [];
 
-  // Extract ID for subtitle
-  const rawProps = rawFeature?.properties;
-  const subtitle = rawProps?.id ? `ID: ${rawProps.id}` : "-ohne Bezeichnung-";
+  // Extract subtitle
+  const subtitle = "Nur Dokumente verfügbar";
 
   if (!data) {
     return (
@@ -91,7 +90,7 @@ const AbzweigdoseForm = ({
     <div className="bg-white rounded-xl border border-gray-100 w-full h-full flex flex-col">
       <FormHeader
         title="Abzweigdose / Zugkasten"
-        subtitle="Füllen Sie die folgenden Informationen aus"
+        subtitle={subtitle}
       />
       <div className="flex-1 overflow-y-auto px-6 py-4">
         {showRaw ? (

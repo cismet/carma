@@ -5,6 +5,7 @@ import { getJWT } from "../../../store/slices/auth";
 import { DokumentItem } from "../DocumentPreview";
 import FeatureFormLayout from "./FeatureFormLayout";
 import MastFormFields from "./MastFormFields";
+import LeuchteFormFields from "./LeuchteFormFields";
 
 interface MastFormProps {
   data: Record<string, unknown> | null;
@@ -27,12 +28,23 @@ const MastForm = ({ data, rawFeature, onClose }: MastFormProps) => {
   // Extract mast object for the form
   const mast = mastArray?.[0] || null;
 
+  // Extract leuchtenArray from mast and sort by leuchtennummer
+  const leuchtenArray = [
+    ...((mast?.leuchtenArray as Array<Record<string, unknown>>) || []),
+  ].sort((a, b) => {
+    const numA = Number(a.leuchtennummer) || 0;
+    const numB = Number(b.leuchtennummer) || 0;
+    return numA - numB;
+  });
+
   // Extract subtitle - use rawFeature (vector tile) to match list display
-  const rawProps = rawFeature?.properties;
+  const rawProps = rawFeature?.properties as Record<string, unknown> | undefined;
+  const strassenschluessel = rawProps?.fk_strassenschluessel as { strasse?: string } | undefined;
   const subtitle =
+    strassenschluessel?.strasse ||
+    (rawProps?.strasse as string) ||
     (rawProps?.standortangabe as string) ||
-    (rawProps?.masttyp as string) ||
-    "-ohne Standortangabe-";
+    "-ohne Straße-";
 
   if (!data) {
     return (
@@ -42,15 +54,24 @@ const MastForm = ({ data, rawFeature, onClose }: MastFormProps) => {
     );
   }
 
+  // Build additional tabs - add Leuchte tab for each element in leuchtenArray
+  // Use index + 1 for label since array is already sorted by leuchtennummer
+  const additionalTabs = leuchtenArray.map((leuchte, index) => ({
+    key: `leuchte-${leuchte.id || index}`,
+    label: leuchtenArray.length === 1 ? "Leuchte" : `Leuchte ${index + 1}`,
+    children: <LeuchteFormFields leuchte={leuchte} />,
+  }));
+
   return (
     <FeatureFormLayout
       title="Mast bearbeiten"
-      subtitle="Füllen Sie die folgenden Informationen aus"
+      subtitle={subtitle}
       documents={documents}
       jwt={jwt}
       pendingFiles={pendingFiles}
       onFilesChange={setPendingFiles}
       debugData={data}
+      additionalTabs={additionalTabs}
     >
       <MastFormFields mast={mast} />
     </FeatureFormLayout>

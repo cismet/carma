@@ -40,12 +40,15 @@ const MauerlascheForm = ({
   const documents: DokumentItem[] =
     (mauerlascheArray?.[0]?.dokumenteArray as DokumentItem[]) || [];
 
-  // Extract subtitle
-  const rawProps = rawFeature?.properties;
+  // Extract subtitle - use rawFeature (vector tile) to match list display
+  const rawProps = rawFeature?.properties as Record<string, unknown> | undefined;
+  const strassenschluessel = rawProps?.fk_strassenschluessel as
+    | { strasse?: string }
+    | undefined;
   const subtitle =
-    (rawProps?.material_bezeichnung as string) ||
+    strassenschluessel?.strasse ||
     (rawProps?.strasse as string) ||
-    "-ohne Bezeichnung-";
+    "-ohne Straße-";
 
   useEffect(() => {
     // Reset form when data changes to clear old values
@@ -98,7 +101,7 @@ const MauerlascheForm = ({
   return (
     <FeatureFormLayout
       title="Mauerlasche bearbeiten"
-      subtitle="Füllen Sie die folgenden Informationen aus"
+      subtitle={subtitle}
       documents={documents}
       jwt={jwt}
       pendingFiles={pendingFiles}
