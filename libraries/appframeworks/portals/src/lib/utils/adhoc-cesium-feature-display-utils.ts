@@ -84,32 +84,6 @@ export const shouldShowFootprintIn3d = (feature: AdhocFeature): boolean => {
   return modelConfig?.showFootprintIn3d !== false;
 };
 
-export const getModelProperties = (
-  feature: AdhocFeature
-): FeatureInfo["properties"] => {
-  const metadataTitle =
-    typeof feature.metadata?.title === "string"
-      ? feature.metadata?.title
-      : undefined;
-  const fallbackTitle = metadataTitle ?? feature.id;
-  const geojson = getGeoJsonFromFeature(feature);
-  const geojsonFeature =
-    geojson?.type === "FeatureCollection" ? geojson.features[0] : geojson;
-  const geojsonProperties = geojsonFeature?.properties as
-    | FeatureInfo["properties"]
-    | undefined;
-  const baseProperties = feature.properties ??
-    geojsonProperties ?? { title: fallbackTitle };
-  const title =
-    typeof baseProperties.title === "string"
-      ? baseProperties.title
-      : fallbackTitle;
-  return {
-    ...baseProperties,
-    title,
-  };
-};
-
 export const getGeojsonBoundingSphere = (
   feature: AdhocFeature
 ): BoundingSphere | null => {
@@ -145,6 +119,21 @@ const getGeoJsonFeatureKey = (
   }
 
   return `index:${featureIndex}`;
+};
+
+export const toGeoJsonFeatureId = (geojsonFeature: Feature): string | null => {
+  if (
+    typeof geojsonFeature.id === "string" ||
+    typeof geojsonFeature.id === "number"
+  ) {
+    return String(geojsonFeature.id);
+  }
+  const propertiesId = (geojsonFeature.properties as { id?: unknown } | null)
+    ?.id;
+  if (typeof propertiesId === "string" || typeof propertiesId === "number") {
+    return String(propertiesId);
+  }
+  return null;
 };
 
 export const extractSelectableGeoJsonFeatures = (
@@ -206,12 +195,13 @@ const getGeoJsonForSelection = (
 
 const getSelectableGeoJsonFeature = (
   feature: AdhocFeature,
-  selectionId: string | null
+  selectionId: string | null,
+  selectionIdBase: string
 ): Feature | null => {
   if (!selectionId) return null;
   const geojson = getGeoJsonForSelection(feature);
   if (!geojson) return null;
-  const match = extractSelectableGeoJsonFeatures(feature.id, geojson).find(
+  const match = extractSelectableGeoJsonFeatures(selectionIdBase, geojson).find(
     (geoJsonFeature) => geoJsonFeature.selectionId === selectionId
   );
   return match?.geojson ?? null;
@@ -219,11 +209,13 @@ const getSelectableGeoJsonFeature = (
 
 export const buildAdhocFeatureInfoForSelection = (
   feature: AdhocFeature,
-  selectionId: string | null
+  selectionId: string | null,
+  selectionIdBase: string = feature.id
 ): FeatureInfo | null => {
   const selectedGeoJsonFeature = getSelectableGeoJsonFeature(
     feature,
-    selectionId
+    selectionId,
+    selectionIdBase
   );
   if (!selectedGeoJsonFeature) {
     return buildAdhocFeatureInfo(feature);
@@ -231,4 +223,32 @@ export const buildAdhocFeatureInfoForSelection = (
   return buildAdhocFeatureInfo(feature, {
     geojsonFeature: selectedGeoJsonFeature,
   });
+};
+
+export const resolveGeoJsonFeatureIdForSelection = (
+  feature: AdhocFeature,
+  selectionId: string | null,
+  selectionIdBase: string = feature.id
+): string | null => {
+  const selectedGeoJsonFeature = getSelectableGeoJsonFeature(
+    feature,
+    selectionId,
+    selectionIdBase
+  );
+  if (!selectedGeoJsonFeature) {
+    return null;
+  }
+  return toGeoJsonFeatureId(selectedGeoJsonFeature);
+};
+
+export const resolveSelectionIdForGeoJsonFeatureId = (
+  geojson: Feature | FeatureCollection,
+  selectionIdBase: string,
+  geoJsonFeatureId: string
+): string | null => {
+  const match = extractSelectableGeoJsonFeatures(selectionIdBase, geojson).find(
+    (geoJsonFeature) =>
+      toGeoJsonFeatureId(geoJsonFeature.geojson) === geoJsonFeatureId
+  );
+  return match?.selectionId ?? null;
 };

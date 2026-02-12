@@ -4,6 +4,7 @@ import {
   useContext,
   useEffect,
   useMemo,
+  useRef,
   useState,
 } from "react";
 import type { Feature, FeatureCollection } from "geojson";
@@ -12,7 +13,12 @@ import type {
   FeatureInfoProperties,
 } from "@carma/types";
 import type { BoundingSphere } from "@carma/cesium";
-import { normalizeAdhocFeatureGeoJsonFeatureIds } from "../utils/adhoc-feature-utils";
+import { getGeoJsonFromFeature } from "../utils/adhoc-feature-utils";
+import {
+  DEFAULT_ADHOC_FEATURE_COLLECTION_ID,
+  DEFAULT_ADHOC_FEATURE_LAYER_ID,
+} from "../constants/adhoc";
+import { resolveAdhocFeatureLayerId } from "../utils/adhoc-selection-utils";
 
 export type AdhocFeatureMetadata = {
   accentColor?: string;
@@ -22,6 +28,7 @@ export type AdhocFeatureMetadata = {
   hasElevations?: boolean;
   header?: string;
   rehydrated?: boolean;
+  shouldRemove?: boolean;
   title?: string;
   wallHeightMeters?: number;
   wallHeights?: number[];
@@ -30,6 +37,7 @@ export type AdhocFeatureMetadata = {
 
 export type AdhocMapLibreStyleFeature = {
   id: string;
+  layerId?: string;
   kind: "maplibre-style";
   data: CarmaMapLibreStyleData;
   properties?: FeatureInfoProperties;
@@ -38,6 +46,8 @@ export type AdhocMapLibreStyleFeature = {
 
 export type AdhocFeatureMetadataUpdate = {
   id: string;
+  collectionId?: string;
+  layerId?: string;
   metadata: Partial<AdhocFeatureMetadata>;
 };
 
@@ -61,18 +71,41 @@ export type AdhocFeatureCollectionSeed = Omit<
 
 export type AddAdhocFeatureOptions = {
   collectionId?: string;
+  layerId?: string;
   collectionTitle?: string;
   collectionMetadata?: AdhocFeatureCollectionMetadata;
 };
 
 export type RemoveAdhocFeatureOptions = {
   collectionId?: string;
+  layerId?: string;
+};
+
+export type ClearAdhocFeaturesOptions = {
+  markForRemoval?: boolean;
+};
+
+export type ClearAdhocFeaturesTarget = {
+  id: string;
+  collectionId: string;
+  layerId?: string;
 };
 
 export type SelectedAdhocFeature = {
   id: string;
   collectionId: string;
+  layerId: string;
 };
+
+export type AdhocFeatureSelectionChange = {
+  feature: AdhocFeature;
+  collectionId: string;
+  layerId: string;
+};
+
+export type AdhocFeatureSelectionChangeListener = (
+  selection: AdhocFeatureSelectionChange | null
+) => void;
 
 interface AdhocFeatureDisplayContextType {
   featureCollections: AdhocFeatureCollection[];
@@ -86,10 +119,24 @@ interface AdhocFeatureDisplayContextType {
   updateFeatureMetadata: (
     updates: AdhocFeatureMetadataUpdate | AdhocFeatureMetadataUpdate[]
   ) => void;
-  setSelectedFeatureById: (id: string) => void;
+  setSelectedFeatureById: (
+    id: string,
+    collectionId: string,
+    layerId?: string
+  ) => void;
   clearSelectedFeature: () => void;
   setShouldFocusSelected: (shouldFocus: boolean) => void;
-  clearFeatures: (collectionId?: string) => void;
+  clearFeatures: (
+    targets: ClearAdhocFeaturesTarget[],
+    options?: ClearAdhocFeaturesOptions
+  ) => void;
+  clearFeatureCollections: (
+    collectionIds?: string[],
+    options?: ClearAdhocFeaturesOptions
+  ) => void;
+  onSelectionChange: (
+    listener: AdhocFeatureSelectionChangeListener
+  ) => () => void;
 }
 
 const AdhocFeatureDisplayContext = createContext<
@@ -98,29 +145,125 @@ const AdhocFeatureDisplayContext = createContext<
 
 interface AdhocFeatureDisplayProviderProps {
   children: React.ReactNode;
+  onSelectionChange?: AdhocFeatureSelectionChangeListener;
 }
 
-const DEFAULT_ADHOC_FEATURE_COLLECTION_ID = "default";
+const resolveTargetLayerId = (
+  feature: AdhocFeature,
+  options?: { layerId?: string }
+): string => options?.layerId ?? resolveAdhocFeatureLayerId(feature);
+
+const toSelectionSignature = (
+  selection: SelectedAdhocFeature | null
+): string | null =>
+  selection
+    ? `${selection.collectionId}::${selection.layerId}::${selection.id}`
+    : null;
+
+const matchesClearTarget = (
+  feature: AdhocFeature,
+  collectionId: string,
+  target: ClearAdhocFeaturesTarget
+): boolean =>
+  target.collectionId === collectionId &&
+  target.id === feature.id &&
+  (!target.layerId || resolveAdhocFeatureLayerId(feature) === target.layerId);
+
+const matchesSelectedAdhocFeature = (
+  feature: AdhocFeature,
+  selectedFeature: SelectedAdhocFeature
+): boolean => {
+  if (feature.metadata?.shouldRemove === true) {
+    return false;
+  }
+  const matchesById =
+    feature.id === selectedFeature.id ||
+    (() => {
+      if (feature.kind !== "maplibre-style") {
+        return false;
+      }
+      const geojson = getGeoJsonFromFeature(feature);
+      if (!geojson) {
+        return false;
+      }
+      const features =
+        geojson.type === "FeatureCollection" ? geojson.features : [geojson];
+      return features.some((geojsonFeature) => {
+        if (!geojsonFeature) return false;
+        if (
+          typeof geojsonFeature.id === "string" ||
+          typeof geojsonFeature.id === "number"
+        ) {
+          return String(geojsonFeature.id) === selectedFeature.id;
+        }
+        const propertiesId = (
+          geojsonFeature.properties as { id?: unknown } | null | undefined
+        )?.id;
+        if (
+          typeof propertiesId === "string" ||
+          typeof propertiesId === "number"
+        ) {
+          return String(propertiesId) === selectedFeature.id;
+        }
+        return false;
+      });
+    })();
+
+  return (
+    matchesById &&
+    resolveAdhocFeatureLayerId(feature) === selectedFeature.layerId
+  );
+};
+
+const findSelectedFeatureInCollection = (
+  collection: AdhocFeatureCollection | undefined,
+  selectedFeature: SelectedAdhocFeature | null
+): AdhocFeature | null => {
+  if (!collection || !selectedFeature) {
+    return null;
+  }
+  return (
+    collection.features.find((feature) =>
+      matchesSelectedAdhocFeature(feature, selectedFeature)
+    ) ?? null
+  );
+};
 
 const mergeAdhocFeature = (
   existingFeature: AdhocFeature,
   incomingFeature: AdhocFeature
-): AdhocFeature => ({
-  ...existingFeature,
-  ...incomingFeature,
-  metadata: {
+): AdhocFeature => {
+  const mergedMetadata = {
     ...(existingFeature.metadata ?? {}),
     ...(incomingFeature.metadata ?? {}),
-  },
-});
+  };
+
+  // Clearing marks can be applied asynchronously. If the same feature is added
+  // again before the hard-clear pass runs, treat the incoming add as a revive.
+  if (
+    existingFeature.metadata?.shouldRemove === true &&
+    incomingFeature.metadata?.shouldRemove !== true
+  ) {
+    delete mergedMetadata.shouldRemove;
+  }
+
+  return {
+    ...existingFeature,
+    ...incomingFeature,
+    ...(Object.keys(mergedMetadata).length > 0
+      ? { metadata: mergedMetadata }
+      : {}),
+  };
+};
 
 const hasFeatureInCollection = (
   collection: AdhocFeatureCollection | undefined,
-  id: string | null
+  selectedFeature: SelectedAdhocFeature | null
 ): boolean =>
-  id !== null &&
+  selectedFeature !== null &&
   !!collection &&
-  collection.features.some((feature) => feature.id === id);
+  collection.id === selectedFeature.collectionId &&
+  findSelectedFeatureInCollection(collection, selectedFeature) !== null;
 
 const upsertAdhocFeatureCollection = (
   collections: AdhocFeatureCollection[],
@@ -167,30 +310,22 @@ const upsertAdhocFeatureCollection = (
   return nextCollections;
 };
 
-const findAdhocFeatureById = (
-  collections: AdhocFeatureCollection[],
-  id: string
-): AdhocFeature | null => {
-  for (const collection of collections) {
-    const candidate = collection.features.find((feature) => feature.id === id);
-    if (candidate) {
-      return candidate;
-    }
-  }
-  return null;
-};
-
 const removeAdhocFeatureFromCollections = (
   collections: AdhocFeatureCollection[],
   id: string,
   options?: RemoveAdhocFeatureOptions
 ): AdhocFeatureCollection[] => {
   const collectionId = options?.collectionId;
+  const layerId = options?.layerId;
   let didChange = false;
   const nextCollections = collections.map((collection) => {
     if (collectionId && collection.id !== collectionId) return collection;
     const nextFeatures = collection.features.filter(
-      (feature) => feature.id !== id
+      (feature) =>
+        !(
+          feature.id === id &&
+          (!layerId || resolveAdhocFeatureLayerId(feature) === layerId)
+        )
     );
     if (nextFeatures.length === collection.features.length) return collection;
     didChange = true;
@@ -208,6 +343,11 @@ const upsertAdhocFeatureInCollections = (
   feature: AdhocFeature,
   options?: AddAdhocFeatureOptions
 ): AdhocFeatureCollection[] => {
+  const layerId = resolveTargetLayerId(feature, options);
+  const normalizedFeature: AdhocFeature = {
+    ...feature,
+    layerId,
+  };
   const collectionSeed: AdhocFeatureCollectionSeed = {
     id: options?.collectionId ?? DEFAULT_ADHOC_FEATURE_COLLECTION_ID,
     ...(options?.collectionTitle ? { title: options.collectionTitle } : {}),
@@ -216,40 +356,51 @@ const upsertAdhocFeatureInCollections = (
       : {}),
   };
 
-  const existingFeature = findAdhocFeatureById(collections, feature.id);
-  const mergedFeature = existingFeature
-    ? mergeAdhocFeature(existingFeature, feature)
-    : feature;
-
   const withTargetCollection = upsertAdhocFeatureCollection(
     collections,
     collectionSeed
   );
-  const withoutFeature = removeAdhocFeatureFromCollections(
-    withTargetCollection,
-    feature.id
-  );
-  return withoutFeature.map((collection) =>
+  return withTargetCollection.map((collection) =>
     collection.id !== collectionSeed.id
       ? collection
       : {
           ...collection,
-          features: [...collection.features, mergedFeature],
+          features: (() => {
+            const existingIndex = collection.features.findIndex(
+              (candidate) =>
+                candidate.id === normalizedFeature.id &&
+                resolveAdhocFeatureLayerId(candidate) === layerId
+            );
+            if (existingIndex === -1) {
+              return [...collection.features, normalizedFeature];
+            }
+
+            const existingFeature = collection.features[existingIndex];
+            const nextFeatures = [...collection.features];
+            nextFeatures[existingIndex] = mergeAdhocFeature(
+              existingFeature,
+              normalizedFeature
+            );
+            return nextFeatures;
+          })(),
         }
   );
 };
 
 export function AdhocFeatureDisplayProvider({
   children,
+  onSelectionChange: onSelectionChangeProp,
 }: AdhocFeatureDisplayProviderProps) {
   const [featureCollections, setFeatureCollections] = useState<
     AdhocFeatureCollection[]
   >([]);
-  const [selectedFeatureId, setSelectedFeatureId] = useState<string | null>(
-    null
-  );
+  const [selectedFeatureSelection, setSelectedFeatureSelection] =
+    useState<SelectedAdhocFeature | null>(null);
   const [shouldFocusSelected, setShouldFocusSelected] =
     useState<boolean>(false);
+  const selectionChangeListenersRef = useRef<
+    Set<AdhocFeatureSelectionChangeListener>
+  >(new Set());
 
   const addFeatureCollection = useCallback(
     (collection: AdhocFeatureCollectionSeed) => {
@@ -267,40 +418,53 @@ export function AdhocFeatureDisplayProvider({
         const collectionToRemove = prev.find(
           (collection) => collection.id === collectionId
         );
-        if (hasFeatureInCollection(collectionToRemove, selectedFeatureId)) {
+        if (
+          hasFeatureInCollection(collectionToRemove, selectedFeatureSelection)
+        ) {
           shouldClearSelected = true;
         }
         return prev.filter((collection) => collection.id !== collectionId);
       });
       if (shouldClearSelected) {
-        setSelectedFeatureId(null);
+        setSelectedFeatureSelection(null);
       }
     },
-    [selectedFeatureId]
+    [selectedFeatureSelection]
   );
 
-  const setSelectedFeatureById = useCallback((id: string) => {
-    setSelectedFeatureId(id);
-  }, []);
+  const setSelectedFeatureById = useCallback(
+    (id: string, collectionId: string, layerId?: string) => {
+      setSelectedFeatureSelection({
+        id,
+        collectionId,
+        layerId: layerId ?? DEFAULT_ADHOC_FEATURE_LAYER_ID,
+      });
+    },
+    []
+  );
 
   const addFeature = useCallback(
     (feature: AdhocFeature, options?: AddAdhocFeatureOptions) => {
       const targetCollectionId =
         options?.collectionId ?? DEFAULT_ADHOC_FEATURE_COLLECTION_ID;
-      const { feature: normalizedFeature, generatedGeoJsonFeatureIds } =
-        normalizeAdhocFeatureGeoJsonFeatureIds(feature, {
-          collectionId: targetCollectionId,
-        });
-      if (generatedGeoJsonFeatureIds.length > 0) {
-        console.debug("[ADHOC|IMPORT] Generated GeoJSON feature ids", {
-          id: feature.id,
-          collectionId: targetCollectionId,
-          generatedGeoJsonFeatureIds,
-        });
-      }
+      const targetLayerId = resolveTargetLayerId(feature, options);
+      const normalizedFeature: AdhocFeature = {
+        ...feature,
+        layerId: targetLayerId,
+      };
       let isNew = false;
       setFeatureCollections((prev) => {
-        isNew = findAdhocFeatureById(prev, normalizedFeature.id) === null;
+        const targetCollection = prev.find(
+          (collection) => collection.id === targetCollectionId
+        );
+        isNew =
+          !targetCollection ||
+          !targetCollection.features.some(
+            (candidate) =>
+              candidate.id === normalizedFeature.id &&
+              resolveAdhocFeatureLayerId(candidate) === targetLayerId &&
+              candidate.metadata?.shouldRemove !== true
+          );
         return upsertAdhocFeatureInCollections(
           prev,
           normalizedFeature,
@@ -312,7 +476,11 @@ export function AdhocFeatureDisplayProvider({
         | { rehydrated?: boolean }
         | undefined;
       if (isNew && !metadata?.rehydrated) {
-        setSelectedFeatureById(normalizedFeature.id);
+        setSelectedFeatureById(
+          normalizedFeature.id,
+          targetCollectionId,
+          targetLayerId
+        );
         setShouldFocusSelected(true);
       }
     },
@@ -324,13 +492,27 @@ export function AdhocFeatureDisplayProvider({
       setFeatureCollections((prev) =>
         removeAdhocFeatureFromCollections(prev, id, options)
       );
-      setSelectedFeatureId((current) => (current === id ? null : current));
+      setSelectedFeatureSelection((current) => {
+        if (!current || current.id !== id) {
+          return current;
+        }
+        if (
+          options?.collectionId &&
+          current.collectionId !== options.collectionId
+        ) {
+          return current;
+        }
+        if (options?.layerId && current.layerId !== options.layerId) {
+          return current;
+        }
+        return null;
+      });
     },
     []
   );
 
   const clearSelectedFeature = useCallback(() => {
-    setSelectedFeatureId(null);
+    setSelectedFeatureSelection(null);
   }, []);
 
   const updateFeatureMetadata = useCallback(
@@ -339,15 +521,21 @@ export function AdhocFeatureDisplayProvider({
       if (updateList.length === 0) return;
 
       setFeatureCollections((prev) => {
-        const updatesById = new Map(
-          updateList.map((update) => [update.id, update.metadata])
-        );
         let didChange = false;
         const next = prev.map((collection) => {
           let collectionChanged = false;
           const nextFeatures = collection.features.map((feature) => {
-            const update = updatesById.get(feature.id);
-            if (!update) return feature;
+            const update = updateList.find(
+              (candidate) =>
+                candidate.id === feature.id &&
+                (!candidate.collectionId ||
+                  candidate.collectionId === collection.id) &&
+                (!candidate.layerId ||
+                  candidate.layerId === resolveAdhocFeatureLayerId(feature))
+            );
+            if (!update) {
+              return feature;
+            }
             didChange = true;
             collectionChanged = true;
             const currentMetadata = feature.metadata ?? {};
@@ -355,7 +543,7 @@ export function AdhocFeatureDisplayProvider({
               ...feature,
               metadata: {
                 ...currentMetadata,
-                ...update,
+                ...update.metadata,
               },
             };
           });
@@ -373,31 +561,133 @@ export function AdhocFeatureDisplayProvider({
   );
 
   const clearFeatures = useCallback(
-    (collectionId?: string) => {
-      if (!collectionId) {
-        setFeatureCollections([]);
-        setSelectedFeatureId(null);
+    (
+      targets: ClearAdhocFeaturesTarget[],
+      options?: ClearAdhocFeaturesOptions
+    ) => {
+      if (targets.length === 0) {
         return;
       }
 
-      let shouldClearSelected = false;
+      const shouldMarkForRemoval = options?.markForRemoval ?? true;
+      if (shouldMarkForRemoval) {
+        setFeatureCollections((prev) => {
+          let didChange = false;
+          const next = prev.map((collection) => {
+            const hasTargetsForCollection = targets.some(
+              (target) => target.collectionId === collection.id
+            );
+            if (!hasTargetsForCollection) return collection;
+            let collectionChanged = false;
+            const nextFeatures = collection.features.map((feature) => {
+              const isTargeted = targets.some((target) =>
+                matchesClearTarget(feature, collection.id, target)
+              );
+              if (!isTargeted) {
+                return feature;
+              }
+              if (feature.metadata?.shouldRemove === true) {
+                return feature;
+              }
+              didChange = true;
+              collectionChanged = true;
+              return {
+                ...feature,
+                metadata: {
+                  ...(feature.metadata ?? {}),
+                  shouldRemove: true,
+                },
+              };
+            });
+            if (!collectionChanged) return collection;
+            return {
+              ...collection,
+              features: nextFeatures,
+            };
+          });
+          return didChange ? next : prev;
+        });
+
+        setTimeout(() => {
+          clearFeatures(targets, { markForRemoval: false });
+        }, 0);
+        return;
+      }
+
+      const shouldClearSelected =
+        selectedFeatureSelection !== null &&
+        targets.some(
+          (target) =>
+            target.collectionId === selectedFeatureSelection.collectionId &&
+            target.id === selectedFeatureSelection.id &&
+            (!target.layerId ||
+              target.layerId === selectedFeatureSelection.layerId)
+        );
       setFeatureCollections((prev) =>
         prev.map((collection) => {
-          if (collection.id !== collectionId) return collection;
-          if (hasFeatureInCollection(collection, selectedFeatureId)) {
-            shouldClearSelected = true;
+          const hasTargetsForCollection = targets.some(
+            (target) => target.collectionId === collection.id
+          );
+          if (!hasTargetsForCollection) return collection;
+          const nextFeatures = collection.features.filter((feature) => {
+            const isTargeted = targets.some((target) =>
+              matchesClearTarget(feature, collection.id, target)
+            );
+            if (!isTargeted) {
+              return true;
+            }
+            return feature.metadata?.shouldRemove !== true;
+          });
+          if (nextFeatures.length === collection.features.length) {
+            return collection;
           }
           return {
             ...collection,
-            features: [],
+            features: nextFeatures,
           };
         })
       );
       if (shouldClearSelected) {
-        setSelectedFeatureId(null);
+        setSelectedFeatureSelection(null);
       }
     },
-    [selectedFeatureId]
+    [selectedFeatureSelection]
+  );
+
+  const clearFeatureCollections = useCallback(
+    (collectionIds?: string[], options?: ClearAdhocFeaturesOptions) => {
+      const targetCollectionIds = new Set(
+        collectionIds && collectionIds.length > 0
+          ? collectionIds
+          : featureCollections.map((collection) => collection.id)
+      );
+      if (targetCollectionIds.size === 0) {
+        return;
+      }
+
+      const targets: ClearAdhocFeaturesTarget[] = featureCollections.flatMap(
+        (collection) =>
+          targetCollectionIds.has(collection.id)
+            ? collection.features.map((feature) => ({
+                id: feature.id,
+                collectionId: collection.id,
+                layerId: resolveAdhocFeatureLayerId(feature),
+              }))
+            : []
+      );
+      clearFeatures(targets, options);
+    },
+    [clearFeatures, featureCollections]
+  );
+
+  const onSelectionChange = useCallback(
+    (listener: AdhocFeatureSelectionChangeListener) => {
+      selectionChangeListenersRef.current.add(listener);
+      return () => {
+        selectionChangeListenersRef.current.delete(listener);
+      };
+    },
+    []
   );
 
   const features = useMemo(
@@ -406,32 +696,121 @@ export function AdhocFeatureDisplayProvider({
   );
 
   const selectedFeature = useMemo(() => {
-    if (!selectedFeatureId) {
+    if (!selectedFeatureSelection) {
       return null;
     }
 
-    for (const collection of featureCollections) {
-      const hasSelectedFeature = collection.features.some(
-        (feature) => feature.id === selectedFeatureId
-      );
-      if (hasSelectedFeature) {
-        return {
-          id: selectedFeatureId,
-          collectionId: collection.id,
-        } satisfies SelectedAdhocFeature;
-      }
+    const selectedCollection = featureCollections.find(
+      (collection) => collection.id === selectedFeatureSelection.collectionId
+    );
+    if (
+      !selectedCollection ||
+      !findSelectedFeatureInCollection(
+        selectedCollection,
+        selectedFeatureSelection
+      )
+    ) {
+      return null;
     }
 
-    return null;
-  }, [featureCollections, selectedFeatureId]);
+    return selectedFeatureSelection;
+  }, [featureCollections, selectedFeatureSelection]);
+
+  const selectedFeatureWithCollection = useMemo(() => {
+    if (!selectedFeature) {
+      return null;
+    }
+    const selectedCollection = featureCollections.find(
+      (collection) => collection.id === selectedFeature.collectionId
+    );
+    if (!selectedCollection) {
+      return null;
+    }
+    const feature = findSelectedFeatureInCollection(
+      selectedCollection,
+      selectedFeature
+    );
+    if (!feature) {
+      return null;
+    }
+    const selectedFeaturePayload =
+      feature.id === selectedFeature.id
+        ? feature
+        : {
+            ...feature,
+            id: selectedFeature.id,
+          };
+    return {
+      feature: selectedFeaturePayload,
+      collectionId: selectedCollection.id,
+      layerId: selectedFeature.layerId,
+    } satisfies AdhocFeatureSelectionChange;
+  }, [featureCollections, selectedFeature]);
+
+  const selectedFeatureSignature = useMemo(
+    () => toSelectionSignature(selectedFeature),
+    [selectedFeature]
+  );
+  const lastEmittedSelectionSignatureRef = useRef<string | null>(null);
 
   useEffect(() => {
-    if (!selectedFeature) return;
-    console.debug("[ADHOC|SELECT] Feature selected", {
-      id: selectedFeature.id,
-      collectionId: selectedFeature.collectionId,
+    if (!selectedFeatureSelection) {
+      return;
+    }
+
+    if (selectedFeature) {
+      return;
+    }
+
+    // During add/update flows, selection can be set one tick before the
+    // matching collection/feature is present in state. In that case we keep
+    // the selection and let the next state update resolve it.
+    const selectedCollection = featureCollections.find(
+      (collection) => collection.id === selectedFeatureSelection.collectionId
+    );
+    if (!selectedCollection) {
+      console.debug(
+        "[ADHOC|SELECT] keep pending selection until collection exists",
+        {
+          selectedFeatureSelection,
+        }
+      );
+      return;
+    }
+
+    console.debug(
+      "[ADHOC|SELECT] clearing stale selection (feature missing in existing collection)",
+      {
+        selectedFeatureSelection,
+        collectionId: selectedCollection.id,
+      }
+    );
+    setSelectedFeatureSelection(null);
+  }, [featureCollections, selectedFeatureSelection, selectedFeature]);
+
+  useEffect(() => {
+    if (lastEmittedSelectionSignatureRef.current === selectedFeatureSignature) {
+      return;
+    }
+    lastEmittedSelectionSignatureRef.current = selectedFeatureSignature;
+
+    if (selectedFeatureWithCollection) {
+      console.debug("[ADHOC|SELECT] Feature selected", {
+        id: selectedFeatureWithCollection.feature.id,
+        collectionId: selectedFeatureWithCollection.collectionId,
+        layerId: selectedFeatureWithCollection.layerId,
+      });
+    }
+
+    onSelectionChangeProp?.(selectedFeatureWithCollection);
+    selectionChangeListenersRef.current.forEach((listener) => {
+      listener(selectedFeatureWithCollection);
     });
-  }, [selectedFeature]);
+  }, [
+    onSelectionChangeProp,
+    selectedFeatureSignature,
+    selectedFeatureWithCollection,
+  ]);
 
   const value = useMemo(
     () => ({
@@ -448,6 +827,8 @@ export function AdhocFeatureDisplayProvider({
       clearSelectedFeature,
       setShouldFocusSelected,
       clearFeatures,
+      clearFeatureCollections,
+      onSelectionChange,
     }),
     [
       featureCollections,
@@ -463,6 +844,8 @@ export function AdhocFeatureDisplayProvider({
       clearSelectedFeature,
       setShouldFocusSelected,
       clearFeatures,
+      clearFeatureCollections,
+      onSelectionChange,
     ]
   );
 

@@ -24,6 +24,7 @@ export interface UseCesiumModelManagerOptions {
     enabled?: boolean;
     onSelect?: (feature: unknown) => void;
     onClearSelection?: () => void;
+    onModelAdded?: (primitiveId: string, primitive: Model) => void;
     deselectOnEmptyClick?: boolean;
     highlightShader?: CustomShader;
     selectedId?: string | null;
@@ -37,12 +38,19 @@ export const useCesiumModelManager = ({
 }: UseCesiumModelManagerOptions) => {
   const { getScene, requestRender } = useCesiumContext();
   const modelPrimitivesRef = useRef<Map<string, Model>>(new Map());
+  const pendingModelLoadsRef = useRef<Map<string, Promise<Model>>>(new Map());
+  const desiredModelKeysRef = useRef<Set<string>>(new Set());
+  const enabledRef = useRef<boolean>(enabled);
+  const isUnmountedRef = useRef<boolean>(false);
   const selectedPrimitiveRef = useRef<Model | null>(null);
   const originalShaderRef = useRef<CustomShader | undefined>(undefined);
   const onSelectRef = useRef<((feature: unknown) => void) | undefined>(
     undefined
   );
   const onClearSelectionRef = useRef<(() => void) | undefined>(undefined);
+  const onModelAddedRef = useRef<
+    ((primitiveId: string, primitive: Model) => void) | undefined
+  >(undefined);
   const selectedIdRef = useRef<string | null>(selection?.selectedId ?? null);
   const selectionEnabledRef = useRef<boolean>(
     Boolean(selection?.enabled && enabled)
@@ -60,6 +68,10 @@ export const useCesiumModelManager = ({
   }, [selection?.onClearSelection]);
 
   useEffect(() => {
+    onModelAddedRef.current = selection?.onModelAdded;
+  }, [selection?.onModelAdded]);
+
+  useEffect(() => {
     selectedIdRef.current = selection?.selectedId ?? null;
   }, [selection?.selectedId]);
 
@@ -71,6 +83,11 @@ export const useCesiumModelManager = ({
     highlightShaderRef.current =
       selection?.highlightShader ?? DEFAULT_MODEL_HIGHLIGHT_SHADER;
   }, [selection?.highlightShader]);
+
+  useEffect(() => {
+    enabledRef.current = enabled;
+    desiredModelKeysRef.current = new Set(models.map(buildModelKey));
+  }, [enabled, models]);
 
   const applyShader = useCallback(
     (primitive: Model, shader?: CustomShader) => {
@@ -129,6 +146,12 @@ export const useCesiumModelManager = ({
     const primitivesByKey = modelPrimitivesRef.current;
     primitivesByKey.forEach((primitive, key) => {
       if (enabled && desiredKeys.has(key)) return;
+      const primitiveId = getPrimitiveSelectionId(primitive);
+      console.debug("[ADHOC|MODEL] removing primitive from scene", {
+        key,
+        primitiveId,
+        reason: enabled ? "no-longer-desired" : "manager-disabled",
+      });
       try {
         if (selectedPrimitiveRef.current === primitive) {
           selectedPrimitiveRef.current = null;
@@ -141,6 +164,10 @@ export const useCesiumModelManager = ({
         if (!primitive.isDestroyed()) {
           primitive.destroy();
         }
+        console.debug("[ADHOC|MODEL] primitive removed", {
+          key,
+          primitiveId,
+        });
       } catch (cleanupError) {
         console.warn(
           "[Cesium|Models] Failed to cleanup model primitive:",
@@ -159,28 +186,100 @@ export const useCesiumModelManager = ({
 
     const addModels = async () => {
       for (const modelConfig of models) {
+        if (cancelled) break;
+
         const key = buildModelKey(modelConfig);
         const existing = modelPrimitivesRef.current.get(key);
         if (existing && !existing.isDestroyed()) {
           continue;
         }
+
+        const pendingLoad = pendingModelLoadsRef.current.get(key);
+        if (pendingLoad) {
+          continue;
+        }
+
+        const loadPromise = createModelPrimitiveFromConfig(modelConfig);
+        pendingModelLoadsRef.current.set(key, loadPromise);
+
         try {
-          const modelPrimitive = await createModelPrimitiveFromConfig(
-            modelConfig
-          );
-          if (cancelled || scene.isDestroyed()) {
+          const modelPrimitive = await loadPromise;
+          if (pendingModelLoadsRef.current.get(key) === loadPromise) {
+            pendingModelLoadsRef.current.delete(key);
+          }
+
+          const existingAfterLoad = modelPrimitivesRef.current.get(key);
+          if (existingAfterLoad && !existingAfterLoad.isDestroyed()) {
             if (!modelPrimitive.isDestroyed()) {
               modelPrimitive.destroy();
             }
-            return;
+            continue;
           }
-          scene.primitives.add(modelPrimitive);
+
+          const attachScene = getScene();
+          const shouldAttach =
+            !isUnmountedRef.current &&
+            enabledRef.current &&
+            desiredModelKeysRef.current.has(key) &&
+            !!attachScene &&
+            !attachScene.isDestroyed();
+          if (!shouldAttach) {
+            if (!modelPrimitive.isDestroyed()) {
+              modelPrimitive.destroy();
+            }
+            continue;
+          }
+
+          const modelPrimitiveId = getPrimitiveSelectionId(modelPrimitive);
+          console.debug("[ADHOC|MODEL] primitive created", {
+            key,
+            primitiveId: modelPrimitiveId,
+            ready: modelPrimitive.ready,
+          });
+          attachScene.primitives.add(modelPrimitive);
           modelPrimitivesRef.current.set(key, modelPrimitive);
+
+          console.debug("[ADHOC|MODEL] primitive added to scene", {
+            key,
+            primitiveId: modelPrimitiveId,
+            ready: modelPrimitive.ready,
+            selectedId: selectedIdRef.current,
+          });
+          if (modelPrimitiveId) {
+            onModelAddedRef.current?.(modelPrimitiveId, modelPrimitive);
+          }
+
+          if (!modelPrimitive.ready) {
+            const readyPromise = (
+              modelPrimitive as unknown as { readyPromise?: Promise<unknown> }
+            ).readyPromise;
+            if (readyPromise) {
+              readyPromise
+                .then(() => {
+                  if (!modelPrimitive.isDestroyed()) {
+                    console.debug("[ADHOC|MODEL] primitive ready", {
+                      key,
+                      primitiveId: modelPrimitiveId,
+                    });
+                  }
+                })
+                .catch((error) => {
+                  console.warn("[ADHOC|MODEL] readyPromise failed", {
+                    key,
+                    primitiveId: modelPrimitiveId,
+                    error,
+                  });
+                });
+            }
+          }
 
           const selectedId = selectedIdRef.current;
           if (selectionEnabledRef.current && selectedId) {
-            const modelSelectionId = getPrimitiveSelectionId(modelPrimitive);
-            if (modelSelectionId === selectedId) {
+            if (modelPrimitiveId === selectedId) {
+              console.debug("[ADHOC|MODEL] applying selected highlight", {
+                key,
+                selectedId,
+              });
               clearPreviousHighlight();
               applyHighlight(modelPrimitive, highlightShaderRef.current);
               selectedPrimitiveRef.current = modelPrimitive;
@@ -189,6 +288,9 @@ export const useCesiumModelManager = ({
 
           requestRender();
         } catch (error) {
+          if (pendingModelLoadsRef.current.get(key) === loadPromise) {
+            pendingModelLoadsRef.current.delete(key);
+          }
           console.warn("[Cesium|Models] Model load failure:", error);
         }
       }
@@ -210,7 +312,10 @@ export const useCesiumModelManager = ({
 
   useEffect(() => {
     const primitivesByKey = modelPrimitivesRef.current;
+    const pendingLoads = pendingModelLoadsRef.current;
     return () => {
+      isUnmountedRef.current = true;
+      pendingLoads.clear();
       const scene = getScene();
       selectedPrimitiveRef.current = null;
       originalShaderRef.current = undefined;
@@ -234,59 +339,79 @@ export const useCesiumModelManager = ({
 
   useEffect(() => {
     const selectionEnabled = !!selection?.enabled && enabled;
-    const scene = getScene();
-    if (!selectionEnabled || !scene || scene.isDestroyed() || !scene.canvas) {
+    if (!selectionEnabled) {
       return;
     }
-    const { canvas } = scene;
-    const handler = new ScreenSpaceEventHandler(canvas);
 
-    const highlightShader = highlightShaderRef.current;
+    let disposed = false;
+    let retryTimeout: ReturnType<typeof setTimeout> | null = null;
+    let handler: ScreenSpaceEventHandler | null = null;
 
-    const applyHighlightFromClick = (primitive: Model): void => {
-      applyHighlight(primitive, highlightShader);
-    };
+    const attachSelectionHandler = () => {
+      if (disposed) return;
 
-    const deselect = () => {
-      clearPreviousHighlight();
-      selectedPrimitiveRef.current = null;
-      originalShaderRef.current = undefined;
-      onClearSelectionRef.current?.();
-    };
-
-    const handleLeftClick = ({
-      position,
-    }: ScreenSpaceEventHandler.PositionedEvent) => {
-      if (!position) return;
-      const picks = scene.drillPick(position, 5);
-      for (let i = 0; i < picks.length; i++) {
-        const picked = picks[i];
-        if (isModelPick(picked)) {
-          clearPreviousHighlight();
-          applyHighlightFromClick(picked.primitive as Model);
-          const pickId = picked.id as { id?: string } | undefined;
-          const id = pickId?.id ?? undefined;
-          onSelectRef.current?.({
-            id,
-            properties: extractPickedProperties(picked),
-            is3dModel: true,
-          });
-          selectedPrimitiveRef.current = picked.primitive as Model;
-          return;
-        }
+      const scene = getScene();
+      if (!scene || scene.isDestroyed() || !scene.canvas) {
+        retryTimeout = setTimeout(attachSelectionHandler, 100);
+        return;
       }
-      if (selection?.deselectOnEmptyClick ?? true) deselect();
+
+      const { canvas } = scene;
+      handler = new ScreenSpaceEventHandler(canvas);
+
+      const highlightShader = highlightShaderRef.current;
+
+      const applyHighlightFromClick = (primitive: Model): void => {
+        applyHighlight(primitive, highlightShader);
+      };
+
+      const deselect = () => {
+        clearPreviousHighlight();
+        selectedPrimitiveRef.current = null;
+        originalShaderRef.current = undefined;
+        onClearSelectionRef.current?.();
+      };
+
+      const handleLeftClick = ({
+        position,
+      }: ScreenSpaceEventHandler.PositionedEvent) => {
+        if (!position) return;
+        const picks = scene.drillPick(position, 5);
+        for (let i = 0; i < picks.length; i++) {
+          const picked = picks[i];
+          if (isModelPick(picked)) {
+            clearPreviousHighlight();
+            applyHighlightFromClick(picked.primitive as Model);
+            const pickId = picked.id as { id?: string } | undefined;
+            const id = pickId?.id ?? undefined;
+            onSelectRef.current?.({
+              id,
+              properties: extractPickedProperties(picked),
+              is3dModel: true,
+            });
+            selectedPrimitiveRef.current = picked.primitive as Model;
+            return;
+          }
+        }
+        if (selection?.deselectOnEmptyClick ?? true) deselect();
+      };
+
+      handler.setInputAction(handleLeftClick, ScreenSpaceEventType.LEFT_CLICK);
     };
 
-    handler.setInputAction(handleLeftClick, ScreenSpaceEventType.LEFT_CLICK);
+    attachSelectionHandler();
 
     return () => {
+      disposed = true;
+      if (retryTimeout) {
+        clearTimeout(retryTimeout);
+      }
       try {
         clearPreviousHighlight();
         selectedPrimitiveRef.current = null;
         originalShaderRef.current = undefined;
-        handler.removeInputAction(ScreenSpaceEventType.LEFT_CLICK);
-        handler.destroy();
+        handler?.removeInputAction(ScreenSpaceEventType.LEFT_CLICK);
+        handler?.destroy();
       } catch (error) {
         console.warn("[Cesium|Models] Selection cleanup failed:", error);
       }

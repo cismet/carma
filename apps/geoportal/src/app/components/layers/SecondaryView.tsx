@@ -8,13 +8,14 @@ import {
   faMagnifyingGlass,
 } from "@fortawesome/free-solid-svg-icons";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
-import type { SliderSingleProps } from "antd";
 import { forwardRef, useContext, useEffect, useRef } from "react";
 import { TopicMapContext } from "react-cismap/contexts/TopicMapContextProvider";
 import { useDispatch, useSelector } from "react-redux";
 
 import {
+  DEFAULT_ADHOC_FEATURE_LAYER_ID,
   SELECTED_LAYER_INDEX,
+  resolveAdhocSelectionTargetByCollectionId,
   useAdhocFeatureDisplay,
 } from "@carma-appframeworks/portals";
 import { cn } from "@carma-commons/utils";
@@ -48,16 +49,14 @@ import {
 import { resolveAdhocStyleData } from "../../helper/adhoc-feature-utils";
 import { zoomToStyleFeatures } from "../../helper/gisHelper";
 import { setTriggerSelectionById } from "../../store/slices/features";
+import { addAdhocFeatureFromLayer } from "../../helper/adhoc-layer-feature";
 
 type Ref = HTMLDivElement;
 
 interface SecondaryViewProps {}
 
-export const formatter: NonNullable<
-  SliderSingleProps["tooltip"]
->["formatter"] = (value) => `${100 - value * 100}%`;
-
-const SecondaryView = forwardRef<Ref, SecondaryViewProps>(({}, ref) => {
+const SecondaryView = forwardRef<Ref, SecondaryViewProps>(({}, _ref) => {
+  void _ref;
   const { routedMapRef } = useContext<typeof TopicMapContext>(TopicMapContext);
   const infoRef = useRef<HTMLDivElement>(null);
   const dispatch = useDispatch();
@@ -73,7 +72,6 @@ const SecondaryView = forwardRef<Ref, SecondaryViewProps>(({}, ref) => {
       ? [{ OnlineResource: layer.other.vectorLegend }]
       : layer.props?.legend || [];
 
-  const iconName = layer?.other?.icon;
   const icon = layer.title.includes("Orthofoto")
     ? "ortho"
     : layer.title === "Bäume"
@@ -83,8 +81,12 @@ const SecondaryView = forwardRef<Ref, SecondaryViewProps>(({}, ref) => {
     : undefined;
   const isBaseLayer = selectedLayerIndex === -1;
 
-  const { setSelectedFeatureById, setShouldFocusSelected } =
-    useAdhocFeatureDisplay();
+  const {
+    featureCollections,
+    addFeature,
+    setSelectedFeatureById,
+    setShouldFocusSelected,
+  } = useAdhocFeatureDisplay();
   const { isLeaflet, isCesium } = useMapFrameworkSwitcherContext();
 
   useEffect(() => {
@@ -128,7 +130,7 @@ const SecondaryView = forwardRef<Ref, SecondaryViewProps>(({}, ref) => {
         '[id^="openBaseLayerView"]'
       );
 
-      openBaseLayerViewButtons.forEach((layerButton, i) => {
+      openBaseLayerViewButtons.forEach((layerButton) => {
         if (layerButton.contains(event.target as Node)) {
           returnFunction = true;
           return;
@@ -148,7 +150,7 @@ const SecondaryView = forwardRef<Ref, SecondaryViewProps>(({}, ref) => {
         return;
       }
 
-      removeLayerButtons.forEach((layerButton, i) => {
+      removeLayerButtons.forEach((layerButton) => {
         if (layerButton.contains(event.target as Node)) {
           removedOtherLayer = true;
         }
@@ -270,15 +272,46 @@ const SecondaryView = forwardRef<Ref, SecondaryViewProps>(({}, ref) => {
                 className="hover:text-gray-500 text-gray-600 flex items-center justify-center"
                 onClick={async (e) => {
                   e.stopPropagation();
-                  const styleData = await resolveAdhocStyleData(
-                    layer.props.style
-                  );
                   if (isLeaflet) {
+                    const styleData = await resolveAdhocStyleData(
+                      layer.props.style
+                    );
                     await zoomToStyleFeatures(styleData, routedMapRef);
                     dispatch(setTriggerSelectionById(layer.id));
                   } else if (isCesium) {
-                    setSelectedFeatureById(layer.id);
-                    setShouldFocusSelected(true);
+                    let didSelectFeature = false;
+                    const selectionTarget =
+                      resolveAdhocSelectionTargetByCollectionId(
+                        featureCollections,
+                        layer.id
+                      );
+
+                    if (selectionTarget) {
+                      setSelectedFeatureById(
+                        selectionTarget.id,
+                        selectionTarget.collectionId,
+                        selectionTarget.layerId
+                      );
+                      didSelectFeature = true;
+                    } else {
+                      const addedFeature = await addAdhocFeatureFromLayer({
+                        layer,
+                        collectionId: layer.id,
+                        layerId: DEFAULT_ADHOC_FEATURE_LAYER_ID,
+                        addFeature,
+                      });
+                      if (addedFeature) {
+                        setSelectedFeatureById(
+                          addedFeature.id,
+                          addedFeature.collectionId,
+                          addedFeature.layerId
+                        );
+                        didSelectFeature = true;
+                      }
+                    }
+                    if (didSelectFeature) {
+                      setShouldFocusSelected(true);
+                    }
                   }
                 }}
               >

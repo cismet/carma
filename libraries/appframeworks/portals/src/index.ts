@@ -50,8 +50,23 @@ export {
   type AdhocFeatureCollectionSeed,
   type AddAdhocFeatureOptions,
   type RemoveAdhocFeatureOptions,
+  type ClearAdhocFeaturesOptions,
+  type ClearAdhocFeaturesTarget,
   type AdhocMapLibreStyleFeature,
+  type AdhocFeatureSelectionChange,
+  type AdhocFeatureSelectionChangeListener,
 } from "./lib/components/AdhocFeatureDisplayProvider";
+export {
+  DEFAULT_ADHOC_FEATURE_COLLECTION_ID,
+  DEFAULT_ADHOC_FEATURE_LAYER_ID,
+} from "./lib/constants/adhoc";
+export {
+  resolveAdhocFeatureLayerId,
+  resolveAdhocSelectionTargetByCollectionId,
+  pickPreferredAdhocFeature,
+  type AdhocCollectionLike,
+  type AdhocSelectionTarget,
+} from "./lib/utils/adhoc-selection-utils";
 
 export { LibreMapSelectionContent } from "./lib/components/LibreMapSelectionContent";
 export { TopicMapSelectionContent } from "./lib/components/TopicMapSelectionContent";

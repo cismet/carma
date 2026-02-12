@@ -44,6 +44,7 @@ import { Spin } from "antd";
 import { LoadingOutlined } from "@ant-design/icons";
 import { useLayerLoading } from "@carma-mapping/utils";
 import { useAdhocFeatureDisplay } from "@carma-appframeworks/portals";
+import { isAdhocVectorLayer } from "../../helper/adhoc-feature-utils";
 
 interface LayerButtonProps {
   title: string;
@@ -101,7 +102,7 @@ const GeoportalLayerButton = ({
     });
   const buttonRef = useRef<HTMLDivElement>(null);
 
-  const { removeFeature } = useAdhocFeatureDisplay();
+  const { clearFeatureCollections } = useAdhocFeatureDisplay();
 
   const mergedRef = useCallback(
     (el: HTMLDivElement | null) => {
@@ -223,7 +224,15 @@ const GeoportalLayerButton = ({
                   }
                 } else {
                   dispatch(removeLayer(id));
-                  removeFeature(id);
+                  if (isAdhocVectorLayer(layer)) {
+                    clearFeatureCollections([id]);
+                    console.debug(
+                      "[ADHOC|REMOVE] layer button clearFeatureCollections",
+                      {
+                        collectionId: id,
+                      }
+                    );
+                  }
                   dispatch(updateInfoElementsAfterRemovingFeature(id));
                 }
               }}
