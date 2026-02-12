@@ -19,6 +19,7 @@ import {
   type VisibleFeature,
 } from "@carma-mapping/utils";
 import type maplibregl from "maplibre-gl";
+import { slugifyUrl } from "@carma-mapping/engines/maplibre";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faMap } from "@fortawesome/free-solid-svg-icons";
 
@@ -58,7 +59,11 @@ const getFeatureStreet = (feature: VisibleFeature): string => {
  * Minimal sidebar list that exercises the MapSelectionContext.
  * Clicking an item calls selectFeature(); clicking on the map updates the highlight here.
  */
-const TestSelectionList = () => {
+const TestSelectionList = ({
+  searchFilter,
+}: {
+  searchFilter?: string | null;
+}) => {
   const listRef = useRef<HTMLDivElement>(null);
   const selectedItemRef = useRef<HTMLDivElement>(null);
   const { map } = useLibreContext();
@@ -92,16 +97,26 @@ const TestSelectionList = () => {
       layerFilterExpressions: ["Leuchten.*-base", "Leuchten.*-icon"],
     });
 
+  // Filter features by search criteria when highlighting is active
+  const filteredFeatures = useMemo(() => {
+    if (!searchFilter) return features;
+    const regex = new RegExp(searchFilter, "i");
+    return features.filter((f) => {
+      const val = String(f.properties?.strassenschluessel ?? "");
+      return regex.test(val);
+    });
+  }, [features, searchFilter]);
+
   // Group features by sourceLayer
   const groupedFeatures = useMemo(() => {
     const groups: Record<string, VisibleFeature[]> = {};
-    for (const f of features) {
+    for (const f of filteredFeatures) {
       const key = f.sourceLayer || f.source || "other";
       if (!groups[key]) groups[key] = [];
       groups[key].push(f);
     }
     return groups;
-  }, [features]);
+  }, [filteredFeatures]);
 
   const isSelected = (feature: VisibleFeature): boolean => {
     if (!selectedFeatureId) return false;
@@ -139,7 +154,9 @@ const TestSelectionList = () => {
       className="w-[300px] h-full bg-white border-r border-gray-300 flex flex-col overflow-hidden shrink-0"
     >
       <div className="px-3 py-2 border-b border-gray-300 bg-gray-50 font-bold text-sm flex justify-between items-center">
-        <span>Objekte ({totalCount})</span>
+        <span>
+          Objekte ({searchFilter ? filteredFeatures.length : totalCount})
+        </span>
         {isLoading && <span className="text-xs text-gray-500">...</span>}
         {isOverviewMode && !isLoading && (
           <span className="text-[10px] text-gray-400">zoom in</span>
@@ -198,12 +215,25 @@ const BELIS_LAYERS = [
   {
     type: "vector" as const,
     name: "Leuchten",
-    style: "https://tiles.cismet.de/belis/style.json",
+    style: "https://tiles.cismet.de/belis/styleX.json",
   },
 ];
 
 /** Debug flag: translucent main map + red mini-map border, mini-map always visible */
 const MINI_MAP_DEBUGGING = false;
+
+const BELIS_STYLE_URL = "https://tiles.cismet.de/belis/styleX.json";
+const BELIS_ORIGINAL_SOURCE = "belis-source";
+const BELIS_SOURCE_LAYERS = [
+  "leuchten",
+  "mast",
+  "mauerlaschen",
+  "schaltstelle",
+];
+
+type MapWithGlobalState = maplibregl.Map & {
+  setGlobalStateProperty(key: string, value: unknown): void;
+};
 
 const BelisPlaygroundContent = () => {
   const { map } = useLibreContext();
@@ -211,6 +241,117 @@ const BelisPlaygroundContent = () => {
   const { isDatasheetOpen, closeDatasheet } = useDatasheet();
   const [miniMap, setMiniMap] = useState<maplibregl.Map | null>(null);
   const mapContainerRef = useRef<HTMLDivElement>(null);
+  const [searchText, setSearchText] = useState("00026");
+  const [highlightingActive, setHighlightingActive] = useState(false);
+  const searchCriteriaRef = useRef<string | null>(null);
+  const sourceListenerRef = useRef<(() => void) | null>(null);
+
+  const namespacedSource = `${slugifyUrl(
+    BELIS_STYLE_URL
+  )}::${BELIS_ORIGINAL_SOURCE}`;
+
+  const applyHighlights = useCallback(
+    (mapInst: maplibregl.Map, searchStr: string) => {
+      const regex = new RegExp(searchStr, "i");
+      console.log("[BELIS-HL] applyHighlights called", {
+        searchStr,
+        namespacedSource,
+      });
+      const allSources = Object.keys(mapInst.getStyle().sources ?? {});
+      console.log("[BELIS-HL] available sources:", allSources);
+      let totalFeatures = 0;
+      let totalMatches = 0;
+      for (const sourceLayer of BELIS_SOURCE_LAYERS) {
+        const features = mapInst.querySourceFeatures(namespacedSource, {
+          sourceLayer,
+        });
+        console.log("[BELIS-HL]", sourceLayer, "features:", features.length);
+        if (features.length > 0) {
+          const sample = features[0];
+          console.log(
+            "[BELIS-HL]",
+            sourceLayer,
+            "sample props:",
+            sample.properties
+          );
+        }
+        for (const f of features) {
+          if (f.id == null) continue;
+          totalFeatures++;
+          const val = String(f.properties?.strassenschluessel ?? "");
+          const matches = regex.test(val);
+          if (matches) {
+            totalMatches++;
+            mapInst.setFeatureState(
+              { source: namespacedSource, sourceLayer, id: f.id },
+              { highlighted: true }
+            );
+          }
+        }
+      }
+      console.log(
+        "[BELIS-HL] total features with id:",
+        totalFeatures,
+        "matches:",
+        totalMatches
+      );
+    },
+    [namespacedSource]
+  );
+
+  const handleSearch = useCallback(() => {
+    console.log("[BELIS-HL] handleSearch called", { map: !!map, searchText });
+    if (!map || !searchText.trim()) return;
+    const m = map as MapWithGlobalState;
+
+    // Enable highlighting mode
+    m.setGlobalStateProperty("highlightingEnabled", true);
+    setHighlightingActive(true);
+    searchCriteriaRef.current = searchText.trim();
+    console.log(
+      "[BELIS-HL] highlighting enabled, criteria set to:",
+      searchCriteriaRef.current
+    );
+
+    // Apply to currently loaded features
+    applyHighlights(map, searchText.trim());
+
+    // Listen for new tiles
+    if (sourceListenerRef.current) sourceListenerRef.current();
+    const handler = () => {
+      if (searchCriteriaRef.current) {
+        applyHighlights(map, searchCriteriaRef.current);
+      }
+    };
+    map.on("sourcedata", handler);
+    sourceListenerRef.current = () => map.off("sourcedata", handler);
+  }, [map, searchText, applyHighlights]);
+
+  const handleClearSearch = useCallback(() => {
+    if (!map) return;
+    const m = map as MapWithGlobalState;
+
+    // Clear feature states
+    for (const sourceLayer of BELIS_SOURCE_LAYERS) {
+      const features = map.querySourceFeatures(namespacedSource, {
+        sourceLayer,
+      });
+      for (const f of features) {
+        if (f.id == null) continue;
+        map.setFeatureState(
+          { source: namespacedSource, sourceLayer, id: f.id },
+          { highlighted: false }
+        );
+      }
+    }
+
+    m.setGlobalStateProperty("highlightingEnabled", false);
+    setHighlightingActive(false);
+    searchCriteriaRef.current = null;
+    sourceListenerRef.current?.();
+    sourceListenerRef.current = null;
+    setSearchText("");
+  }, [map, namespacedSource]);
 
   const {
     containerStyle,
@@ -234,11 +375,13 @@ const BelisPlaygroundContent = () => {
 
   return (
     <div className="bg-[#F1F1F1] flex flex-col w-full h-screen overflow-hidden">
-      <div className="flex items-center mx-3 mb-2 mt-2">
+      <div className="flex items-center mx-3 mb-2 mt-2 gap-4">
         <span className="font-semibold mr-8 text-lg">BelISDesktop</span>
       </div>
       <div className="w-full flex-1 flex min-h-0">
-        <TestSelectionList />
+        <TestSelectionList
+          searchFilter={highlightingActive ? searchCriteriaRef.current : null}
+        />
         <div className="flex-1 flex flex-col min-h-0">
           <div className="mx-3 my-2 flex-1 flex flex-col min-h-0">
             <CustomCard
@@ -246,6 +389,31 @@ const BelisPlaygroundContent = () => {
               style={{ flex: 1, minHeight: 0 }}
               extra={
                 <div className="flex items-center gap-4">
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="text"
+                      value={searchText}
+                      onChange={(e) => setSearchText(e.target.value)}
+                      onKeyDown={(e) => e.key === "Enter" && handleSearch()}
+                      placeholder="Strassenschluessel..."
+                      className="border border-gray-300 rounded px-2 py-1 text-sm w-48"
+                    />
+                    <button
+                      onClick={handleSearch}
+                      disabled={!searchText.trim()}
+                      className="bg-blue-600 text-white px-3 py-1 rounded text-sm hover:bg-blue-700 disabled:opacity-50"
+                    >
+                      Suche
+                    </button>
+                    {highlightingActive && (
+                      <button
+                        onClick={handleClearSearch}
+                        className="bg-gray-500 text-white px-3 py-1 rounded text-sm hover:bg-gray-600"
+                      >
+                        {"\u2715"}
+                      </button>
+                    )}
+                  </div>
                   <BelisSwitch
                     preLabel="Fokus"
                     switched={false}
@@ -303,6 +471,7 @@ const BelisPlaygroundContent = () => {
                       embedded
                       exposeMapToWindow
                       miniMap
+                      layerMode="imperative"
                       backgroundLayers="basemap_relief@60"
                       overrideGlyphs="https://tiles.cismet.de/fonts/{fontstack}/{range}.pbf"
                       libreLayers={BELIS_LAYERS}
@@ -316,8 +485,10 @@ const BelisPlaygroundContent = () => {
                       mapEngine="maplibre"
                       embedded
                       exposeMapToWindow
+                      layerMode="imperative"
+                      debugLog
                       terrainControl={false}
-                      backgroundLayers="basemap_grey@60"
+                      backgroundLayers="basemap_grey@20"
                       overrideGlyphs="https://tiles.cismet.de/fonts/{fontstack}/{range}.pbf"
                       libreLayers={BELIS_LAYERS}
                     />
