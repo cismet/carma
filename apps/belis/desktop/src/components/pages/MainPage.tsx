@@ -24,6 +24,7 @@ import {
   setDone,
   setFeatureCollection,
   setFocusModeActive,
+  getFeatureLoading,
 } from "../../store/slices/featureCollection";
 import { TopicMapContext } from "react-cismap/contexts/TopicMapContextProvider";
 import { useDatasheet } from "@carma-mapping/engines/maplibre";
@@ -51,6 +52,7 @@ const MainPage = () => {
   const zoom = useSelector(getZoom);
   const keyTablesFetched = useSelector(getKeyTablesFetched);
   const keyTablesLoading = useSelector(getKeyTablesLoading);
+  const featureLoading = useSelector(getFeatureLoading);
 
   const { isDatasheetOpen } = useDatasheet();
 
@@ -94,7 +96,7 @@ const MainPage = () => {
   };
 
   return (
-    <Spin spinning={keyTablesLoading}>
+    <Spin spinning={keyTablesLoading || featureLoading}>
       <div className="mx-3 mt-1">
         <CustomCard
           title={isDatasheetOpen ? "Datenblatt" : "Karte"}

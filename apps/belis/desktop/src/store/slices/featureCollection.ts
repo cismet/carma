@@ -16,6 +16,7 @@ const featureCollectionSlice = createSlice({
     filter: featuresFilter,
     done: true,
     inFocusMode: false,
+    featureLoading: false,
   },
   reducers: {
     setFeatureCollection: (state, action) => {
@@ -38,6 +39,9 @@ const featureCollectionSlice = createSlice({
     setFocusModeActive: (state, action) => {
       state.inFocusMode = action.payload;
     },
+    setFeatureLoading: (state, action) => {
+      state.featureLoading = action.payload;
+    },
   },
 });
 
@@ -49,6 +53,7 @@ export const {
   setFilter,
   setDone,
   setFocusModeActive,
+  setFeatureLoading,
 } = featureCollectionSlice.actions;
 
 export const getFeatureCollection = (state) => {
@@ -62,3 +67,4 @@ export const getSelectedFeature = (state) => {
 export const getFilter = (state) => state.featureCollection.filter;
 export const getDone = (state) => state.featureCollection.done;
 export const isInFocusMode = (state) => state.featureCollection.inFocusMode;
+export const getFeatureLoading = (state) => state.featureCollection.featureLoading;
