@@ -19,6 +19,7 @@ import TopicMapContextProvider from "react-cismap/contexts/TopicMapContextProvid
 import { defaultGazDataConfig } from "@carma-commons/resources";
 import BelisPlayground from "./app/BelisPlayground";
 import AlkisPlayground from "./app/AlkisPlayground";
+import Stadtplan2 from "./app/Stadtplan2";
 
 const root = ReactDOM.createRoot(
   document.getElementById("root") as HTMLElement
@@ -45,6 +46,7 @@ root.render(
                     />
                     <Route path="/belis" element={<BelisPlayground />} />
                     <Route path="/alkis" element={<AlkisPlayground />} />
+                    <Route path="/stadtplan2" element={<Stadtplan2 />} />
                   </Routes>
                 </MapSelectionProvider>
               </LibreContextProvider>
