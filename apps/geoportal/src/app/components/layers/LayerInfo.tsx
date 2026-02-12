@@ -10,6 +10,7 @@ import { TopicMapContext } from "react-cismap/contexts/TopicMapContextProvider";
 import LayerInfoWrapper from "./LayerInfoWrapper";
 import { parseDescription } from "@carma-mapping/layers";
 import { updateUrl } from "@carma-commons/utils";
+import { useMapFrameworkSwitcherContext } from "@carma-mapping/components";
 
 interface LayerInfoProps {
   description: string;
@@ -37,6 +38,7 @@ const LayerInfo = ({ description, legend, zoomLevels }: LayerInfoProps) => {
   const currentLayer = layers[selectedLayerIndex];
   const parsedDescription = parseDescription(description);
   const metadataUrl = currentLayer?.props?.metaData?.[0]?.OnlineResource;
+  const { isCesium } = useMapFrameworkSwitcherContext();
   // @ts-ignore
   const layerType = currentLayer?.props?.style
     ? "Vektorlayer (Mapbox-konformer Vector-Tiles-Service)"
@@ -83,7 +85,7 @@ const LayerInfo = ({ description, legend, zoomLevels }: LayerInfoProps) => {
       zoom < zoomLevels.maxZoom && zoom > zoomLevels.minZoom;
 
     return (
-      layerType +
+      (isCesium ? "3D-Objekt" : layerType) +
       (!layerCurrentlyVisible ? " | keine Anzeige im aktuellen Maßstab" : "")
     );
   };
