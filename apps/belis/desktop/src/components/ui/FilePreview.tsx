@@ -8,11 +8,22 @@ import {
 import { getDocumentBlobUrl } from "../../helper/documentHelper";
 import type { DokumentItem } from "./DocumentPreview";
 
+type FilePreviewSize = "sm" | "md" | "xl" | "xxl";
+
+const SIZE_MAP: Record<FilePreviewSize, { box: number; icon: number }> = {
+  sm: { box: 48, icon: 24 },
+  md: { box: 80, icon: 40 },
+  xl: { box: 120, icon: 60 },
+  xxl: { box: 160, icon: 80 },
+};
+
 interface FilePreviewProps {
   documents: DokumentItem[];
   jwt?: string;
   titleStyle?: React.CSSProperties;
   title?: string;
+  size?: FilePreviewSize;
+  showDescription?: boolean;
 }
 
 type FileType = "image" | "pdf" | "other";
@@ -33,9 +44,9 @@ const getFileType = (objectName: string): FileType => {
   return "other";
 };
 
-const getFileIcon = (objectName: string, size = 48) => {
+const getFileIcon = (objectName: string, iconSize: number) => {
   const fileType = getFileType(objectName);
-  const style = { fontSize: size, color: "#8c8c8c" };
+  const style = { fontSize: iconSize, color: "#8c8c8c" };
 
   if (fileType === "image") {
     return <FileImageOutlined style={{ ...style, color: "#1890ff" }} />;
@@ -49,13 +60,16 @@ const getFileIcon = (objectName: string, size = 48) => {
 interface FileItemProps {
   doc: DokumentItem;
   jwt?: string;
+  size: FilePreviewSize;
+  showDescription: boolean;
 }
 
-const FileItem = ({ doc, jwt }: FileItemProps) => {
+const FileItem = ({ doc, jwt, size, showDescription }: FileItemProps) => {
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(false);
 
+  const { box: boxSize, icon: iconSize } = SIZE_MAP[size];
   const objectName = doc.dms_url?.url?.object_name || "";
   const fileType = getFileType(objectName);
   const description =
@@ -90,62 +104,32 @@ const FileItem = ({ doc, jwt }: FileItemProps) => {
     };
   }, [jwt, objectName, fileType]);
 
+  const boxStyle: React.CSSProperties = {
+    width: boxSize,
+    height: boxSize,
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "#f5f5f5",
+    borderRadius: 4,
+    border: "1px solid #d9d9d9",
+  };
+
   const renderContent = () => {
     if (fileType !== "image") {
-      return (
-        <div
-          style={{
-            width: 80,
-            height: 80,
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            backgroundColor: "#f5f5f5",
-            borderRadius: 4,
-            border: "1px solid #d9d9d9",
-          }}
-        >
-          {getFileIcon(objectName)}
-        </div>
-      );
+      return <div style={boxStyle}>{getFileIcon(objectName, iconSize)}</div>;
     }
 
     if (loading) {
       return (
-        <div
-          style={{
-            width: 80,
-            height: 80,
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            backgroundColor: "#f5f5f5",
-            borderRadius: 4,
-            border: "1px solid #d9d9d9",
-          }}
-        >
-          <Spin size="small" />
+        <div style={boxStyle}>
+          <Spin size={size === "sm" ? "small" : "default"} />
         </div>
       );
     }
 
     if (error || !previewUrl) {
-      return (
-        <div
-          style={{
-            width: 80,
-            height: 80,
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            backgroundColor: "#f5f5f5",
-            borderRadius: 4,
-            border: "1px solid #d9d9d9",
-          }}
-        >
-          {getFileIcon(objectName)}
-        </div>
-      );
+      return <div style={boxStyle}>{getFileIcon(objectName, iconSize)}</div>;
     }
 
     return (
@@ -153,8 +137,8 @@ const FileItem = ({ doc, jwt }: FileItemProps) => {
         src={previewUrl}
         alt={description}
         style={{
-          width: 80,
-          height: 80,
+          width: boxSize,
+          height: boxSize,
           objectFit: "cover",
           borderRadius: 4,
           border: "1px solid #d9d9d9",
@@ -173,20 +157,22 @@ const FileItem = ({ doc, jwt }: FileItemProps) => {
       }}
     >
       {renderContent()}
-      <span
-        style={{
-          fontSize: 11,
-          color: "#595959",
-          maxWidth: 80,
-          overflow: "hidden",
-          textOverflow: "ellipsis",
-          whiteSpace: "nowrap",
-          textAlign: "center",
-        }}
-        title={description}
-      >
-        {description}
-      </span>
+      {showDescription && (
+        <span
+          style={{
+            fontSize: size === "sm" ? 10 : 11,
+            color: "#595959",
+            maxWidth: boxSize,
+            overflow: "hidden",
+            textOverflow: "ellipsis",
+            whiteSpace: "nowrap",
+            textAlign: "center",
+          }}
+          title={description}
+        >
+          {description}
+        </span>
+      )}
     </div>
   );
 };
@@ -203,6 +189,8 @@ const FilePreview = ({
   jwt,
   titleStyle,
   title = "Dateien",
+  size = "md",
+  showDescription = true,
 }: FilePreviewProps) => {
   if (!documents || documents.length === 0) {
     return (
@@ -236,6 +224,8 @@ const FilePreview = ({
             key={doc.dms_url?.url?.object_name || doc.dms_url?.id || index}
             doc={doc}
             jwt={jwt}
+            size={size}
+            showDescription={showDescription}
           />
         ))}
       </div>

@@ -84,6 +84,8 @@ const FeatureFormLayout = ({
       jwt={jwt}
       titleStyle={labelStyle}
       title="Dokumente"
+      size="xl"
+      showDescription={false}
     />
   );
 
@@ -173,31 +175,31 @@ const FeatureFormLayout = ({
           <Tabs
             defaultActiveKey="general"
             items={[
-            {
-              key: "general",
-              label: <span>Allgemein</span>,
-              children: children,
-            },
-            ...additionalTabs.map((tab) => ({
-              key: tab.key,
-              label: <span>{tab.label}</span>,
-              children: tab.children,
-            })),
-            {
-              key: "documents",
-              label: <span>Dokumente</span>,
-              children: documentsContent,
-            },
-            ...(showRaw
-              ? [
-                  {
-                    key: "debug",
-                    label: <span>Rohdaten</span>,
-                    children: debugContent,
-                  },
-                ]
-              : []),
-          ]}
+              {
+                key: "general",
+                label: <span>Allgemein</span>,
+                children: children,
+              },
+              ...additionalTabs.map((tab) => ({
+                key: tab.key,
+                label: <span>{tab.label}</span>,
+                children: tab.children,
+              })),
+              {
+                key: "documents",
+                label: <span>Dokumente</span>,
+                children: documentsContent,
+              },
+              ...(showRaw
+                ? [
+                    {
+                      key: "debug",
+                      label: <span>Rohdaten</span>,
+                      children: debugContent,
+                    },
+                  ]
+                : []),
+            ]}
           />
         </div>
       </div>
