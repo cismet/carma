@@ -1,6 +1,5 @@
 import { useState, useEffect } from "react";
 import type { UploadFile } from "antd";
-import { Spin } from "antd";
 import { useSelector } from "react-redux";
 import { getJWT } from "../../../store/slices/auth";
 import { DokumentItem } from "../DocumentPreview";
@@ -20,7 +19,6 @@ const LeuchteForm = ({ data, rawFeature, onClose }: LeuchteFormProps) => {
   const [mastData, setMastData] = useState<Record<string, unknown> | null>(
     null
   );
-  const [mastLoading, setMastLoading] = useState(false);
   const jwt = useSelector(getJWT);
 
   // Extract documents from tdta_leuchten[0].dokumenteArray
@@ -43,7 +41,6 @@ const LeuchteForm = ({ data, rawFeature, onClose }: LeuchteFormProps) => {
   // Fetch mast data if mastId exists
   useEffect(() => {
     if (mastId && jwt) {
-      setMastLoading(true);
       fetchFeatureById(jwt, mastId, "mast")
         .then((result) => {
           const mastArray = result?.tdta_standort_mast as
@@ -54,9 +51,6 @@ const LeuchteForm = ({ data, rawFeature, onClose }: LeuchteFormProps) => {
         .catch((error) => {
           console.error("Failed to fetch mast data:", error);
           setMastData(null);
-        })
-        .finally(() => {
-          setMastLoading(false);
         });
     } else {
       setMastData(null);
@@ -78,21 +72,16 @@ const LeuchteForm = ({ data, rawFeature, onClose }: LeuchteFormProps) => {
     );
   }
 
-  // Build additional tabs - add Mast tab if mast data is available or loading
-  const additionalTabs =
-    mastData || mastLoading
-      ? [
-          {
-            key: "mast",
-            label: "Mast",
-            children: (
-              <Spin spinning={mastLoading}>
-                <MastFormFields mast={mastData} />
-              </Spin>
-            ),
-          },
-        ]
-      : [];
+  // Build additional tabs - add Mast tab if mast data is available
+  const additionalTabs = mastData
+    ? [
+        {
+          key: "mast",
+          label: "Mast",
+          children: <MastFormFields mast={mastData} />,
+        },
+      ]
+    : [];
 
   return (
     <FeatureFormLayout

@@ -29,7 +29,6 @@ import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faMap } from "@fortawesome/free-solid-svg-icons";
 import { getJWT } from "../../store/slices/auth";
 import { FeatureType, fetchFeatureById } from "../../helper/apiMethods";
-import { Spin } from "antd";
 
 const LIST_WIDTH = 300;
 
@@ -43,7 +42,6 @@ const BelisMapLibWrapper = ({ mapSizes }) => {
   const { selectedFeature, rawFeature, selectedFeatureId } = useMapSelection();
   const { closeDatasheet } = useDatasheet();
   const [fetchedFeatureData, setFetchedFeatureData] = useState<any>(null);
-  const [featureLoading, setFeatureLoading] = useState(false);
 
   const activeBackgroundLayer = useSelector(getActiveBackgroundLayer);
   const backgroundLayerOpacities = useSelector(getBackgroundLayerOpacities);
@@ -141,7 +139,6 @@ const BelisMapLibWrapper = ({ mapSizes }) => {
       });
 
       if (sourceLayer && selectedFeatureId.id) {
-        setFeatureLoading(true);
         try {
           const fullData = await fetchFeatureById(
             jwt,
@@ -154,8 +151,6 @@ const BelisMapLibWrapper = ({ mapSizes }) => {
         } catch (error) {
           console.error("xxx Failed to fetch feature:", error);
           setFetchedFeatureData(null);
-        } finally {
-          setFeatureLoading(false);
         }
       }
     };
@@ -237,16 +232,14 @@ const BelisMapLibWrapper = ({ mapSizes }) => {
             />
           }
           datasheetContent={
-            <Spin spinning={featureLoading}>
-              <div style={{ height: "100%", overflow: "auto" }}>
-                <BelisDatasheetView
-                  feature={selectedFeature}
-                  rawFeature={rawFeature}
-                  fetchedData={fetchedFeatureData}
-                  featureType={selectedFeatureId?.sourceLayer}
-                />
-              </div>
-            </Spin>
+            <div style={{ height: "100%", overflow: "auto" }}>
+              <BelisDatasheetView
+                feature={selectedFeature}
+                rawFeature={rawFeature}
+                fetchedData={fetchedFeatureData}
+                featureType={selectedFeatureId?.sourceLayer}
+              />
+            </div>
           }
           onReturnToMap={handleReturnToMap}
         />
