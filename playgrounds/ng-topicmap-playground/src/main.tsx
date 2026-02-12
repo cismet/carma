@@ -1,7 +1,7 @@
 import { StrictMode } from "react";
 import * as ReactDOM from "react-dom/client";
 import { HashRouter, Routes, Route, Navigate } from "react-router-dom";
-import { App } from "./app/App";
+import { Stadtplan } from "./app/Stadtplan";
 import { SimpleMap } from "./app/SimpleMap";
 import { SimpleMapWithoutControls } from "./app/SimpleMapWithoutControls";
 import "./styles.css";
@@ -37,7 +37,7 @@ root.render(
                 <MapSelectionProvider debug>
                   <Routes>
                     <Route path="/" element={<Navigate to="/stadtplan" replace />} />
-                    <Route path="/stadtplan" element={<App />} />
+                    <Route path="/stadtplan" element={<Stadtplan />} />
                     <Route path="/simple" element={<SimpleMap />} />
                     <Route
                       path="/simpleWithoutControls"

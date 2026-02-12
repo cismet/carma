@@ -301,6 +301,7 @@ const BelisPlaygroundContent = () => {
                     <CarmaMap
                       mapEngine="maplibre"
                       embedded
+                      exposeMapToWindow
                       miniMap
                       backgroundLayers="basemap_relief@60"
                       overrideGlyphs="https://tiles.cismet.de/fonts/{fontstack}/{range}.pbf"
@@ -314,6 +315,7 @@ const BelisPlaygroundContent = () => {
                     <CarmaMap
                       mapEngine="maplibre"
                       embedded
+                      exposeMapToWindow
                       terrainControl={false}
                       backgroundLayers="basemap_grey@60"
                       overrideGlyphs="https://tiles.cismet.de/fonts/{fontstack}/{range}.pbf"
