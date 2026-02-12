@@ -8,8 +8,9 @@ import {
   setKeyTablesErrors,
   setKeyTablesLoading,
   getKeyTablesFetched,
+  getKeyTablesLoading,
 } from "../../store/slices/keyTables";
-import { message } from "antd";
+import { message, Spin } from "antd";
 import { CustomCard } from "../commons/CustomCard";
 import { useWindowSize } from "@react-hook/window-size";
 import {
@@ -49,6 +50,7 @@ const MainPage = () => {
   const inSearchMode = useSelector(isInSearchMode);
   const zoom = useSelector(getZoom);
   const keyTablesFetched = useSelector(getKeyTablesFetched);
+  const keyTablesLoading = useSelector(getKeyTablesLoading);
 
   const { isDatasheetOpen } = useDatasheet();
 
@@ -65,7 +67,9 @@ const MainPage = () => {
         dispatch(setKeyTablesData(data));
         dispatch(setKeyTablesErrors(errors));
         if (Object.keys(errors).length > 0) {
-          message.error("Einige Schlüsseltabellen konnten nicht geladen werden");
+          message.error(
+            "Einige Schlüsseltabellen konnten nicht geladen werden"
+          );
         }
       } catch (error) {
         console.error("Failed to fetch key tables:", error);
@@ -90,7 +94,7 @@ const MainPage = () => {
   };
 
   return (
-    <>
+    <Spin spinning={keyTablesLoading}>
       <div className="mx-3 mt-1">
         <CustomCard
           title={isDatasheetOpen ? "Datenblatt" : "Karte"}
@@ -166,7 +170,7 @@ const MainPage = () => {
           <BelisMapLibWrapper mapSizes={mapStyle} />
         </CustomCard>
       </div>
-    </>
+    </Spin>
   );
 };
 
