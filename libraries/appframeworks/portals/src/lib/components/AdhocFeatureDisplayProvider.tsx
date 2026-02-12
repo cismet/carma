@@ -13,10 +13,7 @@ import type {
   FeatureInfoProperties,
 } from "@carma/types";
 import type { BoundingSphere } from "@carma/cesium";
-import {
-  getGeoJsonFromFeature,
-  normalizeAdhocFeatureGeoJsonFeatureIds,
-} from "../utils/adhoc-feature-utils";
+import { getGeoJsonFromFeature } from "../utils/adhoc-feature-utils";
 import {
   DEFAULT_ADHOC_FEATURE_COLLECTION_ID,
   DEFAULT_ADHOC_FEATURE_LAYER_ID,
@@ -393,20 +390,10 @@ export function AdhocFeatureDisplayProvider({
       const targetCollectionId =
         options?.collectionId ?? DEFAULT_ADHOC_FEATURE_COLLECTION_ID;
       const targetLayerId = resolveAdhocFeatureLayerId(feature, options);
-      const featureWithLayerId: AdhocFeature = {
+      const normalizedFeature: AdhocFeature = {
         ...feature,
         layerId: targetLayerId,
       };
-      const { feature: normalizedFeature, generatedGeoJsonFeatureIds } =
-        normalizeAdhocFeatureGeoJsonFeatureIds(featureWithLayerId);
-      if (generatedGeoJsonFeatureIds.length > 0) {
-        console.debug("[ADHOC|IMPORT] Generated GeoJSON feature ids", {
-          id: feature.id,
-          collectionId: targetCollectionId,
-          layerId: targetLayerId,
-          generatedGeoJsonFeatureIds,
-        });
-      }
       let isNew = false;
       setFeatureCollections((prev) => {
         const targetCollection = prev.find(

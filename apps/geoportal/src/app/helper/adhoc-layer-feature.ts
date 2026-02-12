@@ -129,6 +129,89 @@ const getFeatureIdCandidate = (feature: Feature): string | null => {
   return null;
 };
 
+const hasGeoJsonFeatureId = (feature: Feature): boolean => {
+  const id = feature.id;
+  return typeof id === "string" || typeof id === "number";
+};
+
+const createGeneratedGeoJsonFeatureId = (
+  feature: Feature,
+  featureIndex: number
+): string => {
+  try {
+    return md5(JSON.stringify(feature));
+  } catch {
+    return md5(String(featureIndex));
+  }
+};
+
+const ensureGeoJsonFeatureIds = (
+  geojson: Feature | FeatureCollection
+): {
+  geojson: Feature | FeatureCollection;
+  changed: boolean;
+  generatedFeatureIds: string[];
+} => {
+  if (geojson.type === "FeatureCollection") {
+    let changed = false;
+    const generatedFeatureIds: string[] = [];
+    const usedIds = new Set<string>(
+      geojson.features.flatMap((feature) =>
+        hasGeoJsonFeatureId(feature) ? [String(feature.id)] : []
+      )
+    );
+    const nextFeatures = geojson.features.map((feature, featureIndex) => {
+      if (!hasGeoJsonFeatureId(feature)) {
+        changed = true;
+        const baseGeneratedFeatureId = createGeneratedGeoJsonFeatureId(
+          feature,
+          featureIndex
+        );
+        let generatedFeatureId = baseGeneratedFeatureId;
+        let duplicateSuffix = 1;
+        while (usedIds.has(generatedFeatureId)) {
+          generatedFeatureId = `${baseGeneratedFeatureId}:${duplicateSuffix}`;
+          duplicateSuffix += 1;
+        }
+        usedIds.add(generatedFeatureId);
+        generatedFeatureIds.push(generatedFeatureId);
+        return {
+          ...feature,
+          id: generatedFeatureId,
+        };
+      }
+      usedIds.add(String(feature.id));
+      return feature;
+    });
+
+    if (!changed) {
+      return { geojson, changed: false, generatedFeatureIds: [] };
+    }
+    return {
+      geojson: {
+        ...geojson,
+        features: nextFeatures,
+      },
+      changed: true,
+      generatedFeatureIds,
+    };
+  }
+
+  if (hasGeoJsonFeatureId(geojson)) {
+    return { geojson, changed: false, generatedFeatureIds: [] };
+  }
+
+  const generatedFeatureId = createGeneratedGeoJsonFeatureId(geojson, 0);
+  return {
+    geojson: {
+      ...geojson,
+      id: generatedFeatureId,
+    },
+    changed: true,
+    generatedFeatureIds: [generatedFeatureId],
+  };
+};
+
 const isGeoJsonSource = (
   source: SourceSpecification
 ): source is GeoJSONSourceSpecification => source.type === "geojson";
@@ -179,9 +262,9 @@ const buildGeneratedFeatureId = (
   fallbackLayerId: string
 ): string => {
   try {
-    return `autogen:${fallbackLayerId}:${md5(JSON.stringify(geoJson))}`;
+    return md5(`${fallbackLayerId}:${JSON.stringify(geoJson)}`);
   } catch {
-    return `autogen:${fallbackLayerId}:${md5(String(geoJson))}`;
+    return md5(`${fallbackLayerId}:${String(geoJson)}`);
   }
 };
 
@@ -246,6 +329,77 @@ const extractFirstGeoJsonFeatureProperties = (
   return undefined;
 };
 
+const normalizeStyleDataGeoJsonFeatureIds = (
+  styleData: CarmaMapLibreStyleData
+): {
+  styleData: CarmaMapLibreStyleData;
+  generatedGeoJsonFeatureIds: string[];
+} => {
+  const sources = styleData.sources;
+  if (!sources) {
+    return { styleData, generatedGeoJsonFeatureIds: [] };
+  }
+
+  let hasChanges = false;
+  const generatedGeoJsonFeatureIds: string[] = [];
+  const normalizedSources = Object.fromEntries(
+    Object.entries(sources).map(([sourceId, sourceValue]) => {
+      if (
+        !isGeoJsonSource(sourceValue) ||
+        typeof sourceValue.data !== "object" ||
+        sourceValue.data === null
+      ) {
+        return [sourceId, sourceValue];
+      }
+
+      const sourceData = sourceValue.data as
+        | Feature
+        | FeatureCollection
+        | Record<string, unknown>;
+      if (
+        sourceData.type !== "Feature" &&
+        sourceData.type !== "FeatureCollection"
+      ) {
+        return [sourceId, sourceValue];
+      }
+
+      const normalized = ensureGeoJsonFeatureIds(
+        sourceData as Feature | FeatureCollection
+      );
+      if (normalized.generatedFeatureIds.length > 0) {
+        generatedGeoJsonFeatureIds.push(...normalized.generatedFeatureIds);
+      }
+      if (!normalized.changed) {
+        return [sourceId, sourceValue];
+      }
+
+      hasChanges = true;
+      return [
+        sourceId,
+        {
+          ...sourceValue,
+          data: normalized.geojson,
+        },
+      ];
+    })
+  );
+
+  if (!hasChanges) {
+    return {
+      styleData,
+      generatedGeoJsonFeatureIds,
+    };
+  }
+
+  return {
+    styleData: {
+      ...styleData,
+      sources: normalizedSources as CarmaMapLibreStyleData["sources"],
+    },
+    generatedGeoJsonFeatureIds,
+  };
+};
+
 const buildAdhocMapLibreStyleFeature = ({
   styleData,
   fallbackLayerId,
@@ -295,9 +449,25 @@ export const addAdhocFeatureFromLayer = async <
   if (!styleData) {
     return null;
   }
+  const { styleData: normalizedStyleData, generatedGeoJsonFeatureIds } =
+    normalizeStyleDataGeoJsonFeatureIds(styleData);
+  if (generatedGeoJsonFeatureIds.length > 0) {
+    const mutableLayer = layer as Layer & {
+      props?: { style?: string | object };
+    };
+    mutableLayer.props = {
+      ...(mutableLayer.props ?? {}),
+      style: normalizedStyleData,
+    };
+    console.debug("[ADHOC|IMPORT] Generated GeoJSON feature ids", {
+      collectionId,
+      layerId,
+      generatedGeoJsonFeatureIds,
+    });
+  }
 
   const adhocFeature = buildAdhocMapLibreStyleFeature({
-    styleData,
+    styleData: normalizedStyleData,
     fallbackLayerId: `${collectionId}:${layerId}`,
     layerId,
     ...(metadata ? { metadata } : {}),
@@ -310,7 +480,7 @@ export const addAdhocFeatureFromLayer = async <
     id,
     collectionId,
     layerId,
-    styleData,
+    styleData: normalizedStyleData,
   };
 };
 
