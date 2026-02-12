@@ -19,6 +19,10 @@ export interface UseVisibleMapFeaturesOptions {
   layerFilterExpressions?: string[];
   /** Optional additional filter predicate applied after the engine-level layer filtering. */
   filter?: (feature: MapGeoJSONFeature) => boolean;
+  /** When true, only return features where getFeatureState().highlighted === true */
+  highlightedOnly?: boolean;
+  /** External trigger to force re-query (e.g. highlightVersion from context) */
+  refreshTrigger?: number;
 }
 
 export interface VisibleFeature extends MapGeoJSONFeature {
@@ -95,6 +99,8 @@ export const useVisibleMapFeatures = ({
   minZoomForFullFeatures = DEFAULT_MIN_ZOOM_FOR_FULL_FEATURES,
   layerFilterExpressions,
   filter,
+  highlightedOnly = false,
+  refreshTrigger,
 }: UseVisibleMapFeaturesOptions): UseVisibleMapFeaturesResult => {
   const [features, setFeatures] = useState<VisibleFeature[]>([]);
   const [totalCount, setTotalCount] = useState(0);
@@ -107,6 +113,8 @@ export const useVisibleMapFeatures = ({
   // Use ref for filter to avoid re-creating updateFeatures when the callback reference changes
   const filterRef = useRef(filter);
   filterRef.current = filter;
+  const highlightedOnlyRef = useRef(highlightedOnly);
+  highlightedOnlyRef.current = highlightedOnly;
   // Cached resolved layer IDs from layerFilterExpressions
   const resolvedLayerIdsRef = useRef<string[] | undefined>(undefined);
   const layerFilterExpressionsRef = useRef(layerFilterExpressions);
@@ -309,10 +317,24 @@ export const useVisibleMapFeatures = ({
           }
         }
 
+        // Filter to only highlighted features if requested
+        let finalFeatures = uniqueFeatures;
+        if (highlightedOnlyRef.current && maplibreMap) {
+          finalFeatures = uniqueFeatures.filter((f) => {
+            if (f.id == null || !f.source) return false;
+            const state = maplibreMap.getFeatureState({
+              source: f.source,
+              sourceLayer: f.sourceLayer,
+              id: f.id,
+            });
+            return state?.highlighted === true;
+          });
+        }
+
         // Overview mode: zoom below threshold OR hit max features
         const inOverviewMode = zoomBelowThreshold || count > maxFeatures;
 
-        setFeatures(inOverviewMode ? [] : uniqueFeatures);
+        setFeatures(inOverviewMode ? [] : finalFeatures);
         setTotalCount(count);
         setCountsByLayer(layerCounts);
         setIsOverviewMode(inOverviewMode);
@@ -330,6 +352,7 @@ export const useVisibleMapFeatures = ({
     maxFeatures,
     debounceMs,
     minZoomForFullFeatures,
+    refreshTrigger,
   ]);
 
   useEffect(() => {
