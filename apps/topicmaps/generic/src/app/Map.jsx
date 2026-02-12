@@ -365,6 +365,7 @@ const Map = ({
                   <MenuFooter
                     version={getApplicationVersion(versionData)}
                     setAppMenuActiveMenuSection={setAppMenuActiveMenuSection}
+                    sectionKey="HelpSection"
                   />
                 )
               }
