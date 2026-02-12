@@ -14,6 +14,7 @@ import { SandboxedEvalProvider } from "@carma-commons/sandbox-eval";
 import {
   LibreContextProvider,
   MapSelectionProvider,
+  MapHighlightProvider,
 } from "@carma-mapping/engines/maplibre";
 import TopicMapContextProvider from "react-cismap/contexts/TopicMapContextProvider";
 import { defaultGazDataConfig } from "@carma-commons/resources";
@@ -36,6 +37,7 @@ root.render(
             <SelectionProvider>
               <LibreContextProvider>
                 <MapSelectionProvider debug>
+                <MapHighlightProvider debug>
                   <Routes>
                     <Route path="/" element={<Navigate to="/stadtplan" replace />} />
                     <Route path="/stadtplan" element={<Stadtplan />} />
@@ -48,6 +50,7 @@ root.render(
                     <Route path="/alkis" element={<AlkisPlayground />} />
                     <Route path="/stadtplan2" element={<Stadtplan2 />} />
                   </Routes>
+                </MapHighlightProvider>
                 </MapSelectionProvider>
               </LibreContextProvider>
             </SelectionProvider>

@@ -12,6 +12,10 @@ import {
   DatasheetProvider,
   useDatasheet,
   useDatasheetMiniMap,
+  useMapHighlight,
+  useMapHighlighting,
+  useLayerFilter,
+  type FilterCategory,
 } from "@carma-mapping/engines/maplibre";
 import {
   useVisibleMapFeatures,
@@ -60,69 +64,55 @@ const getFeatureStreet = (feature: VisibleFeature): string => {
  * Clicking an item calls selectFeature(); clicking on the map updates the highlight here.
  */
 
-interface FilterCategory {
-  label: string;
-  /** Source layers in the tile data that belong to this category */
-  sourceLayers: string[];
-  /** Layer ID patterns to toggle visibility on the map (matched with includes) */
-  layerPatterns: string[];
-  /** Sprite position {x,y} in the 3x sheet, or null for text fallback */
-  sprite: { x: number; y: number } | null;
-}
-
-const FILTER_CATEGORIES: FilterCategory[] = [
+const BELIS_FILTER_CATEGORIES: FilterCategory[] = [
   {
+    key: "leuchten",
     label: "Leuchten",
     sourceLayers: ["leuchten"],
     layerPatterns: ["leuchten"],
-    sprite: { x: 0, y: 198 },
   },
   {
+    key: "masten",
     label: "Masten",
     sourceLayers: ["mast"],
     layerPatterns: ["mast"],
-    sprite: { x: 1188, y: 0 },
   },
   {
+    key: "mauerlaschen",
     label: "Mauerlaschen",
     sourceLayers: ["mauerlaschen"],
     layerPatterns: ["mauerlaschen"],
-    sprite: { x: 792, y: 0 },
   },
   {
+    key: "leitungen",
     label: "Leitungen",
     sourceLayers: ["leitungen"],
     layerPatterns: ["leitungen"],
-    sprite: null,
   },
   {
+    key: "schaltstellen",
     label: "Schaltstellen",
     sourceLayers: ["schaltstelle"],
     layerPatterns: ["schaltstelle"],
-    sprite: { x: 990, y: 0 },
   },
   {
+    key: "abzweigdosen",
     label: "Abzweigdosen",
     sourceLayers: ["abzweigdosen"],
     layerPatterns: ["abzweigdose"],
-    sprite: { x: 198, y: 0 },
   },
 ];
 
-
 const TestSelectionList = ({
   activeSourceLayers,
-  highlightingActive,
-  highlightVersion,
 }: {
   activeSourceLayers?: Set<string> | null;
-  highlightingActive?: boolean;
-  highlightVersion?: number;
 }) => {
   const listRef = useRef<HTMLDivElement>(null);
   const selectedItemRef = useRef<HTMLDivElement>(null);
   const { map } = useLibreContext();
   const { selectedFeatureId, selectFeature } = useMapSelection();
+  const { highlightingActive, highlightVersion } = useMapHighlight();
 
   const [containerSize, setContainerSize] = useState({
     width: 600,
@@ -148,33 +138,19 @@ const TestSelectionList = ({
       visibleMapHeight: containerSize.height,
       minZoomForFullFeatures: 17,
       maxFeatures: 2000,
-      //layerFilterExpressions: ["Leuchten.leitungen-base"],
       layerFilterExpressions: ["Leuchten.*-base", "Leuchten.*-icon"],
+      highlightedOnly: highlightingActive,
+      refreshTrigger: highlightVersion,
     });
 
-  // Filter features by active source layers and highlight state
+  // Filter features by active source layers
   const filteredFeatures = useMemo(() => {
-    let result = features;
-    if (activeSourceLayers) {
-      result = result.filter((f) => {
-        const sl = f.sourceLayer || "";
-        return activeSourceLayers.has(sl);
-      });
-    }
-    if (highlightingActive && map) {
-      result = result.filter((f) => {
-        if (f.id == null || !f.source) return false;
-        const state = map.getFeatureState({
-          source: f.source,
-          sourceLayer: f.sourceLayer,
-          id: f.id,
-        });
-        return state?.highlighted === true;
-      });
-    }
-    return result;
-  // eslint-disable-next-line react-hooks/exhaustive-deps -- highlightVersion forces re-filter on click-highlight
-  }, [features, activeSourceLayers, highlightingActive, map, highlightVersion]);
+    if (!activeSourceLayers) return features;
+    return features.filter((f) => {
+      const sl = f.sourceLayer || "";
+      return activeSourceLayers.has(sl);
+    });
+  }, [features, activeSourceLayers]);
 
   // Group features by sourceLayer
   const groupedFeatures = useMemo(() => {
@@ -326,16 +302,6 @@ const MINI_MAP_DEBUGGING = false;
 
 const BELIS_STYLE_URL = "https://tiles.cismet.de/belis/styleX.json";
 const BELIS_ORIGINAL_SOURCE = "belis-source";
-const BELIS_SOURCE_LAYERS = [
-  "leuchten",
-  "mast",
-  "mauerlaschen",
-  "schaltstelle",
-];
-
-type MapWithGlobalState = maplibregl.Map & {
-  setGlobalStateProperty(key: string, value: unknown): void;
-};
 
 const BelisPlaygroundContent = () => {
   const { map } = useLibreContext();
@@ -344,209 +310,49 @@ const BelisPlaygroundContent = () => {
   const [miniMap, setMiniMap] = useState<maplibregl.Map | null>(null);
   const mapContainerRef = useRef<HTMLDivElement>(null);
   const [searchText, setSearchText] = useState("00026");
-  const [highlightingActive, setHighlightingActive] = useState(false);
-  const searchCriteriaRef = useRef<string | null>(null);
-  const sourceListenerRef = useRef<(() => void) | null>(null);
-  const clickHighlightedIdsRef = useRef<Set<string | number>>(new Set());
-  const [highlightVersion, setHighlightVersion] = useState(0);
 
-  // Filter state: all categories on by default
-  const [enabledFilters, setEnabledFilters] = useState<Record<string, boolean>>(
-    () =>
-      Object.fromEntries(FILTER_CATEGORIES.map((c) => [c.label, true]))
+  // Highlighting via context + hook
+  const {
+    highlightingActive,
+    setHighlightingActive,
+    highlightByProperty,
+    clearHighlights,
+  } = useMapHighlight();
+
+  const namespacedSource = `${slugifyUrl(BELIS_STYLE_URL)}::${BELIS_ORIGINAL_SOURCE}`;
+  const BELIS_SOURCE_LAYERS = useMemo(
+    () => ["leuchten", "mast", "mauerlaschen", "schaltstelle", "leitungen", "abzweigdosen"],
+    []
+  );
+  const highlightSources = useMemo(
+    () => [{ source: namespacedSource, sourceLayers: BELIS_SOURCE_LAYERS }],
+    [namespacedSource, BELIS_SOURCE_LAYERS]
   );
 
-  // Collect active source layers from enabled filter categories
-  const activeSourceLayers = useMemo(() => {
-    const set = new Set<string>();
-    for (const cat of FILTER_CATEGORIES) {
-      if (enabledFilters[cat.label]) {
-        for (const sl of cat.sourceLayers) set.add(sl);
-      }
-    }
-    return set;
-  }, [enabledFilters]);
+  useMapHighlighting({
+    map,
+    sources: highlightSources,
+    modifierClick: "alt",
+  });
 
-  // Toggle map layer visibility when filters change
-  useEffect(() => {
-    if (!map) return;
-    const style = map.getStyle();
-    if (!style?.layers) return;
-    for (const cat of FILTER_CATEGORIES) {
-      const visible = enabledFilters[cat.label];
-      for (const layer of style.layers) {
-        const matchesPattern = cat.layerPatterns.some((p) =>
-          layer.id.toLowerCase().includes(p)
-        );
-        if (matchesPattern) {
-          map.setLayoutProperty(
-            layer.id,
-            "visibility",
-            visible ? "visible" : "none"
-          );
-        }
-      }
-    }
-  }, [map, enabledFilters]);
-
-  const namespacedSource = `${slugifyUrl(
-    BELIS_STYLE_URL
-  )}::${BELIS_ORIGINAL_SOURCE}`;
-
-  const applyHighlights = useCallback(
-    (mapInst: maplibregl.Map, searchStr: string) => {
-      const regex = new RegExp(searchStr, "i");
-      console.log("[BELIS-HL] applyHighlights called", {
-        searchStr,
-        namespacedSource,
-      });
-      const allSources = Object.keys(mapInst.getStyle().sources ?? {});
-      console.log("[BELIS-HL] available sources:", allSources);
-      let totalFeatures = 0;
-      let totalMatches = 0;
-      for (const sourceLayer of BELIS_SOURCE_LAYERS) {
-        const features = mapInst.querySourceFeatures(namespacedSource, {
-          sourceLayer,
-        });
-        console.log("[BELIS-HL]", sourceLayer, "features:", features.length);
-        if (features.length > 0) {
-          const sample = features[0];
-          console.log(
-            "[BELIS-HL]",
-            sourceLayer,
-            "sample props:",
-            sample.properties
-          );
-        }
-        for (const f of features) {
-          if (f.id == null) continue;
-          totalFeatures++;
-          const val = String(f.properties?.strassenschluessel ?? "");
-          const matches = regex.test(val);
-          if (matches) {
-            totalMatches++;
-            mapInst.setFeatureState(
-              { source: namespacedSource, sourceLayer, id: f.id },
-              { highlighted: true }
-            );
-          }
-        }
-      }
-      console.log(
-        "[BELIS-HL] total features with id:",
-        totalFeatures,
-        "matches:",
-        totalMatches
-      );
-    },
-    [namespacedSource]
-  );
+  // Layer filtering via hook
+  const { enabledFilters, setFilterEnabled, activeSourceLayers } =
+    useLayerFilter({
+      map,
+      categories: BELIS_FILTER_CATEGORIES,
+    });
 
   const handleSearch = useCallback(() => {
-    console.log("[BELIS-HL] handleSearch called", { map: !!map, searchText });
     if (!map || !searchText.trim()) return;
-    const m = map as MapWithGlobalState;
-
-    // Enable highlighting mode
-    m.setGlobalStateProperty("highlightingEnabled", true);
     setHighlightingActive(true);
-    searchCriteriaRef.current = searchText.trim();
-    console.log(
-      "[BELIS-HL] highlighting enabled, criteria set to:",
-      searchCriteriaRef.current
-    );
-
-    // Apply to currently loaded features
-    applyHighlights(map, searchText.trim());
-    setHighlightVersion((v) => v + 1);
-
-    // Listen for new tiles
-    if (sourceListenerRef.current) sourceListenerRef.current();
-    const handler = () => {
-      if (searchCriteriaRef.current) {
-        applyHighlights(map, searchCriteriaRef.current);
-        setHighlightVersion((v) => v + 1);
-      }
-    };
-    map.on("sourcedata", handler);
-    sourceListenerRef.current = () => map.off("sourcedata", handler);
-  }, [map, searchText, applyHighlights]);
+    highlightByProperty("strassenschluessel", new RegExp(searchText.trim(), "i"));
+  }, [map, searchText, setHighlightingActive, highlightByProperty]);
 
   const handleClearSearch = useCallback(() => {
-    if (!map) return;
-    const m = map as MapWithGlobalState;
-
-    // Clear feature states
-    for (const sourceLayer of BELIS_SOURCE_LAYERS) {
-      const features = map.querySourceFeatures(namespacedSource, {
-        sourceLayer,
-      });
-      for (const f of features) {
-        if (f.id == null) continue;
-        map.setFeatureState(
-          { source: namespacedSource, sourceLayer, id: f.id },
-          { highlighted: false }
-        );
-      }
-    }
-
-    m.setGlobalStateProperty("highlightingEnabled", false);
     setHighlightingActive(false);
-    searchCriteriaRef.current = null;
-    clickHighlightedIdsRef.current.clear();
-    sourceListenerRef.current?.();
-    sourceListenerRef.current = null;
+    clearHighlights();
     setSearchText("");
-  }, [map, namespacedSource]);
-
-  // Alt+click (Option+click on Mac) toggles highlight on individual features
-  useEffect(() => {
-    if (!map) return;
-    const handler = (e: maplibregl.MapMouseEvent & { originalEvent: MouseEvent }) => {
-      if (!e.originalEvent.altKey) return;
-
-      const hits = map.queryRenderedFeatures(e.point);
-      const feature = hits.find(
-        (f) =>
-          f.id != null &&
-          f.source &&
-          f.sourceLayer &&
-          !f.layer.id.includes("selection") &&
-          !f.layer.id.includes("background")
-      );
-      if (!feature) return;
-
-      const fId = feature.id!;
-      const ids = clickHighlightedIdsRef.current;
-
-      // Enable highlighting mode if not already
-      if (!highlightingActive) {
-        (map as MapWithGlobalState).setGlobalStateProperty("highlightingEnabled", true);
-        setHighlightingActive(true);
-      }
-
-      if (ids.has(fId) || ids.has(String(fId))) {
-        ids.delete(fId);
-        ids.delete(String(fId));
-        map.setFeatureState(
-          { source: feature.source, sourceLayer: feature.sourceLayer!, id: fId },
-          { highlighted: false }
-        );
-        console.log("[BELIS-HL] alt+click un-highlighted feature", fId);
-        setHighlightVersion((v) => v + 1);
-      } else {
-        ids.add(fId);
-        map.setFeatureState(
-          { source: feature.source, sourceLayer: feature.sourceLayer!, id: fId },
-          { highlighted: true }
-        );
-        console.log("[BELIS-HL] alt+click highlighted feature", fId);
-        setHighlightVersion((v) => v + 1);
-      }
-    };
-    map.on("click", handler);
-    return () => { map.off("click", handler); };
-  }, [map, highlightingActive]);
+  }, [setHighlightingActive, clearHighlights]);
 
   const {
     containerStyle,
@@ -574,11 +380,7 @@ const BelisPlaygroundContent = () => {
         <span className="font-semibold mr-8 text-lg">BelISDesktop</span>
       </div>
       <div className="w-full flex-1 flex min-h-0">
-        <TestSelectionList
-          highlightingActive={highlightingActive}
-          activeSourceLayers={activeSourceLayers}
-          highlightVersion={highlightVersion}
-        />
+        <TestSelectionList activeSourceLayers={activeSourceLayers} />
         <div className="flex-1 flex flex-col min-h-0">
           <div className="mx-3 my-2 flex-1 flex flex-col min-h-0">
             <CustomCard
@@ -612,18 +414,13 @@ const BelisPlaygroundContent = () => {
                     )}
                   </div>
                   <div className="flex items-center gap-2 border-l border-gray-300 pl-4 flex-wrap">
-                    {FILTER_CATEGORIES.map((cat) => (
+                    {BELIS_FILTER_CATEGORIES.map((cat) => (
                       <Switch
-                        key={cat.label}
+                        key={cat.key}
                         checkedChildren={cat.label}
                         unCheckedChildren={cat.label}
-                        checked={enabledFilters[cat.label]}
-                        onChange={(on) =>
-                          setEnabledFilters((prev) => ({
-                            ...prev,
-                            [cat.label]: on,
-                          }))
-                        }
+                        checked={enabledFilters[cat.key]}
+                        onChange={(on) => setFilterEnabled(cat.key, on)}
                       />
                     ))}
                   </div>
@@ -724,109 +521,3 @@ const BelisPlayground = () => {
 };
 
 export default BelisPlayground;
-
-//Working LibreLayers
-
-// libreLayers={[
-//         // --- Background layers for testing ---
-//         // RVR
-//         {
-//           type: "wmts",
-//           url: "https://geodaten.metropoleruhr.de/spw2/service",
-//           layers: "spw2_light",
-//           version: "1.3.0",
-//           transparent: true,
-//           format: "image/png",
-//           tileSize: 512,
-//           maxZoom: 26,
-//         },
-// Liegenschaftskarte (grau)
-// {
-//   type: "wmts",
-//   url: "https://s10222-wuppertal-intra.map-hosting.de/forwardingTo/s10221/7098/alkis/services",
-//   //url: "http://s10221.wuppertal-intra.de:7098/alkis/services",
-//   layers: "alkomgw",
-//   styles: "default",
-//   version: "1.1.1",
-//   tileSize: 256,
-//   maxZoom: 26,
-//   transparent: true,
-//   format: "image/png",
-//   opacity: 0.5,
-// },
-// // Liegenschaftskarte (bunt)
-// {
-//   type: "wmts",
-//   url: "https://s10222-wuppertal-intra.map-hosting.de/forwardingTo/s10221/7098/alkis/services",
-//   //url: "http://s10221.wuppertal-intra.de:7098/alkis/services",
-//   layers: "alkomf",
-//   styles: "default",
-//   version: "1.1.1",
-//   tileSize: 256,
-//   transparent: true,
-//   format: "image/png",
-//   opacity: 0.5,
-// },
-// // True Orthofoto
-// {
-//   type: "wms",
-//   url: "https://geo.udsp.wuppertal.de/geoserver-cloud/ows",
-//   layers: "GIS-102:trueortho2024",
-//   tileSize: 256,
-//   transparent: true,
-//   maxZoom: 26,
-//   format: "image/png",
-// },
-// Luftbildkarte (SPW2 light Grundriss)
-// {
-//   type: "wmts",
-//   url: "https://geodaten.metropoleruhr.de/spw2/service",
-//   layers: "spw2_light_grundriss",
-//   version: "1.3.0",
-//   transparent: true,
-//   format: "image/png",
-//   maxZoom: 26,
-// },
-// // Luftbildkarte (True Ortho underlay)
-// {
-//   type: "wms",
-//   url: "https://geo.udsp.wuppertal.de/geoserver-cloud/ows",
-//   layers: "GIS-102:trueortho2024",
-//   tileSize: 256,
-//   transparent: true,
-//   maxZoom: 26,
-//   format: "image/png",
-// },
-// // Luftbildkarte (DOP Overlay)
-// {
-//   type: "wmts",
-//   url: "https://geodaten.metropoleruhr.de/dop/dop_overlay?language=ger",
-//   layers: "dop_overlay",
-//   version: "1.3.0",
-//   format: "image/png",
-//   transparent: true,
-//   maxZoom: 26,
-// },
-// Stadtplan (grau)
-// {
-//   type: "vector",
-//   name: "Stadtplan grau",
-//   style:
-//     "https://sgx.geodatenzentrum.de/gdz_basemapde_vektor/styles/bm_web_gry.json",
-//   opacity: 0.5,
-// },
-// Stadtplan (bunt)
-// {
-//   type: "vector",
-//   name: "Stadtplan bunt",
-//   style:
-//     "https://sgx.geodatenzentrum.de/gdz_basemapde_vektor/styles/bm_web_top.json",
-//   opacity: 0.5,
-// },
-//   {
-//     type: "vector",
-//     name: "Leuchten",
-//     style: "https://tiles.cismet.de/belis/style.json",
-//     opacity: 1,
-//   },
-// ]}
