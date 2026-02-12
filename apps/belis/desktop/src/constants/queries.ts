@@ -444,6 +444,12 @@ query MyQuery($id: Int!) {
       typenbezeichnung
       vorschaltgeraet
     }
+    tdta_standort_mast {
+      id
+      leuchtenArray {
+        id
+      }
+    }
   }
 }`;
 
