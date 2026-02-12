@@ -412,7 +412,7 @@ const DocumentPreview = ({
             >
               Vorschau
             </div>
-            <div style={{ flex: 1 }}>{renderPreview()}</div>
+            <div style={{ flex: 1, overflow: "hidden" }}>{renderPreview()}</div>
           </div>
         </Col>
       </Row>

@@ -88,10 +88,7 @@ const AbzweigdoseForm = ({
 
   return (
     <div className="bg-white rounded-xl border border-gray-100 w-full h-full flex flex-col">
-      <FormHeader
-        title="Abzweigdose / Zugkasten"
-        subtitle={subtitle}
-      />
+      <FormHeader title="Abzweigdose / Zugkasten" subtitle={subtitle} />
       <div className="flex-1 overflow-y-auto px-6 py-4">
         {showRaw ? (
           <Tabs
