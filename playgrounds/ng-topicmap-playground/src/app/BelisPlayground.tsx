@@ -118,6 +118,15 @@ const TestSelectionList = ({
     return groups;
   }, [filteredFeatures]);
 
+  // Flat ordered list matching render order (for keyboard navigation)
+  const flatFeatures = useMemo(() => {
+    const flat: VisibleFeature[] = [];
+    for (const [, items] of Object.entries(groupedFeatures)) {
+      if (!isOverviewMode) flat.push(...items);
+    }
+    return flat;
+  }, [groupedFeatures, isOverviewMode]);
+
   const isSelected = (feature: VisibleFeature): boolean => {
     if (!selectedFeatureId) return false;
     return (
@@ -138,6 +147,28 @@ const TestSelectionList = ({
     );
   };
 
+  const handleKeyDown = useCallback(
+    (e: React.KeyboardEvent) => {
+      if (e.key !== "ArrowDown" && e.key !== "ArrowUp") return;
+      e.preventDefault();
+      if (flatFeatures.length === 0) return;
+
+      const currentIdx = flatFeatures.findIndex((f) => isSelected(f));
+      let nextIdx: number;
+      if (e.key === "ArrowDown") {
+        nextIdx = currentIdx < 0 ? 0 : Math.min(currentIdx + 1, flatFeatures.length - 1);
+      } else {
+        nextIdx = currentIdx < 0 ? 0 : Math.max(currentIdx - 1, 0);
+      }
+      const next = flatFeatures[nextIdx];
+      selectFeature(
+        { source: next.source, sourceLayer: next.sourceLayer, id: next.id },
+        next
+      );
+    },
+    [flatFeatures, selectFeature, selectedFeatureId]
+  );
+
   // Scroll selected item into view
   useEffect(() => {
     if (selectedItemRef.current) {
@@ -151,7 +182,9 @@ const TestSelectionList = ({
   return (
     <div
       ref={listRef}
-      className="w-[300px] h-full bg-white border-r border-gray-300 flex flex-col overflow-hidden shrink-0"
+      tabIndex={0}
+      onKeyDown={handleKeyDown}
+      className="w-[300px] h-full bg-white border-r border-gray-300 flex flex-col overflow-hidden shrink-0 outline-none"
     >
       <div className="px-3 py-2 border-b border-gray-300 bg-gray-50 font-bold text-sm flex justify-between items-center">
         <span>
