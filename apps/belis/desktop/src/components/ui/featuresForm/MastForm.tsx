@@ -65,13 +65,27 @@ const MastForm = ({ data, rawFeature, onClose }: MastFormProps) => {
   const keyTablesData = useSelector(getKeyTablesData);
   const jwt = useSelector(getJWT);
 
-  // Key table options
-  const masttypOptions = (keyTablesData.masttyp || []) as MasttypItem[];
-  const mastartOptions = (keyTablesData.mastart || []) as MastartItem[];
-  const klassifizierungOptions = (keyTablesData.klassifizierung ||
-    []) as KlassifizierungItem[];
-  const unterhaltMastOptions = (keyTablesData.unterhaltMast ||
-    []) as UnterhaltMastItem[];
+  // Key table options - sorted alphabetically
+  const masttypOptions = [
+    ...((keyTablesData.masttyp || []) as MasttypItem[]),
+  ].sort((a, b) =>
+    `${a.masttyp || ""} ${a.bezeichnung || ""}`.localeCompare(
+      `${b.masttyp || ""} ${b.bezeichnung || ""}`
+    )
+  );
+  const mastartOptions = [
+    ...((keyTablesData.mastart || []) as MastartItem[]),
+  ].sort((a, b) => (a.mastart || "").localeCompare(b.mastart || ""));
+  const klassifizierungOptions = [
+    ...((keyTablesData.klassifizierung || []) as KlassifizierungItem[]),
+  ].sort((a, b) =>
+    (a.klassifizierung || "").localeCompare(b.klassifizierung || "")
+  );
+  const unterhaltMastOptions = [
+    ...((keyTablesData.unterhaltMast || []) as UnterhaltMastItem[]),
+  ].sort((a, b) =>
+    (a.unterhalt_mast || "").localeCompare(b.unterhalt_mast || "")
+  );
   const kennzifferOptions = (keyTablesData.kennziffer ||
     []) as KennzifferItem[];
   const anlagengruppeOptions = (keyTablesData.anlagengruppe ||
@@ -191,7 +205,7 @@ const MastForm = ({ data, rawFeature, onClose }: MastFormProps) => {
   return (
     <FeatureFormLayout
       title="Mast bearbeiten"
-      subtitle={subtitle}
+      subtitle="Füllen Sie die folgenden Informationen aus"
       documents={documents}
       jwt={jwt}
       pendingFiles={pendingFiles}
@@ -279,7 +293,7 @@ const MastForm = ({ data, rawFeature, onClose }: MastFormProps) => {
           label={<FormLabel>Stadtbezirk</FormLabel>}
           className="mb-4"
         >
-          <Input size="large" disabled />
+          <Input size="large" />
         </Form.Item>
 
         {/* Mastart */}
@@ -582,12 +596,7 @@ const MastForm = ({ data, rawFeature, onClose }: MastFormProps) => {
           label={<FormLabel>Letzte Anderung</FormLabel>}
           className="mb-4"
         >
-          <DatePicker
-            className="w-full"
-            size="large"
-            format="DD.MM.YYYY"
-            disabled
-          />
+          <DatePicker className="w-full" size="large" format="DD.MM.YYYY" />
         </Form.Item>
       </Form>
     </FeatureFormLayout>
