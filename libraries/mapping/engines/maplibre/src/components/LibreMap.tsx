@@ -728,7 +728,10 @@ export const LibreMap = ({
     if (!map.current) return;
     // Skip merged-mode style updates when imperative mode is active
     if (layerMode === "imperative") {
-      if (debugLog) console.log("[LAYER_MODE] merged-mode effect SKIPPED (imperative active)");
+      if (debugLog)
+        console.log(
+          "[LAYER_MODE] merged-mode effect SKIPPED (imperative active)"
+        );
       return;
     }
     if (debugLog) console.log("[LAYER_MODE] merged-mode effect RUNNING");
@@ -788,7 +791,8 @@ export const LibreMap = ({
           const currentTerrain = map.current?.getTerrain();
 
           map.current?.setStyle(style);
-          if (debugLog) console.log("[LAYER_MODE] merged: derived style", style);
+          if (debugLog)
+            console.log("[LAYER_MODE] merged: derived style", style);
 
           // Update context with the full map style
           setMapStyle(style);
@@ -858,7 +862,9 @@ export const LibreMap = ({
           // Restore terrain after style is loaded if it was previously set
           if (currentTerrain && map.current) {
             const restoreTerrain = () => {
-              const terrainSrcId = WUPPERTAL_CONFIG.terrain ? slugifyUrl(WUPPERTAL_CONFIG.terrain.url) : "";
+              const terrainSrcId = WUPPERTAL_CONFIG.terrain
+                ? slugifyUrl(WUPPERTAL_CONFIG.terrain.url)
+                : "";
               if (terrainSrcId && map.current?.getSource(terrainSrcId)) {
                 map.current.setTerrain(currentTerrain);
               }

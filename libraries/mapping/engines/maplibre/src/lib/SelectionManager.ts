@@ -471,8 +471,8 @@ export function resolvePropertyTarget(
   if (!map.getSource(source)) {
     const style = map.getStyle();
     if (style?.sources) {
-      const match = Object.keys(style.sources).find(
-        (s) => s.endsWith(`::${source}`)
+      const match = Object.keys(style.sources).find((s) =>
+        s.endsWith(`::${source}`)
       );
       if (match) resolvedSource = match;
     }

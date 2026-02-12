@@ -31,7 +31,6 @@ export function slugifyUrl(url: string): string {
   return slugify(cleaned, { remove: /[^a-zA-Z0-9]/g, lower: true });
 }
 
-
 /** Tracks everything added for a single sub-style so it can be cleanly removed. */
 interface ManagedSubStyle {
   sourceIds: string[];
@@ -81,7 +80,9 @@ function applySymbolScaling(
 ): void {
   if (layer.type !== "symbol") return;
   const scale = (markerSymbolSize / 35) * 1.35;
-  const layout = (layer as LayerSpecification & { layout?: Record<string, unknown> }).layout;
+  const layout = (
+    layer as LayerSpecification & { layout?: Record<string, unknown> }
+  ).layout;
   if (!layout) return;
 
   if (layout["icon-size"] !== undefined) {
@@ -122,8 +123,12 @@ export interface CarmaLayerIdMap {
 const LAYER_ID_MAP_KEY = "__carmaLayerIdMap";
 
 /** Read the layer ID mapping from a map instance (if set by StyleComposer). */
-export function getCarmaLayerIdMap(map: MaplibreMap): CarmaLayerIdMap | undefined {
-  return (map as unknown as Record<string, unknown>)[LAYER_ID_MAP_KEY] as CarmaLayerIdMap | undefined;
+export function getCarmaLayerIdMap(
+  map: MaplibreMap
+): CarmaLayerIdMap | undefined {
+  return (map as unknown as Record<string, unknown>)[LAYER_ID_MAP_KEY] as
+    | CarmaLayerIdMap
+    | undefined;
 }
 
 export class StyleComposer {
@@ -146,7 +151,8 @@ export class StyleComposer {
       mergedToNamespaced: this.mergedToNamespaced,
       namespacedToMerged: this.namespacedToMerged,
     };
-    (this.map as unknown as Record<string, unknown>)[LAYER_ID_MAP_KEY] = mapping;
+    (this.map as unknown as Record<string, unknown>)[LAYER_ID_MAP_KEY] =
+      mapping;
   }
 
   /** Resolve a merged-mode-equivalent ID to its namespaced map layer ID. */
@@ -224,7 +230,9 @@ export class StyleComposer {
     }
 
     // 3. Add sources (namespaced to prevent collisions)
-    const remoteSources = styleJson.sources as Record<string, SourceSpecification> | undefined;
+    const remoteSources = styleJson.sources as
+      | Record<string, SourceSpecification>
+      | undefined;
     if (remoteSources) {
       for (const [srcId, srcDef] of Object.entries(remoteSources)) {
         const namespacedSrc = `${layerId}::${srcId}`;
@@ -245,7 +253,9 @@ export class StyleComposer {
       if (styleLayer.type === "background") continue;
 
       // Deep clone to avoid mutating the fetched JSON
-      const layer = JSON.parse(JSON.stringify(styleLayer)) as LayerSpecification & {
+      const layer = JSON.parse(
+        JSON.stringify(styleLayer)
+      ) as LayerSpecification & {
         source?: string;
         "source-layer"?: string;
         metadata?: Record<string, unknown>;
@@ -280,8 +290,8 @@ export class StyleComposer {
             typeof baseOpacity === "number"
               ? baseOpacity * opacity
               : opacity < 1
-                ? opacity
-                : baseOpacity;
+              ? opacity
+              : baseOpacity;
           layer.paint = paint;
         }
       }
@@ -296,7 +306,11 @@ export class StyleComposer {
 
       // Prefix icon-image with sprite namespace
       if (layer.layout?.["icon-image"] !== undefined) {
-        layer.layout["icon-image"] = ["concat", `${spriteId}:`, layer.layout["icon-image"]];
+        layer.layout["icon-image"] = [
+          "concat",
+          `${spriteId}:`,
+          layer.layout["icon-image"],
+        ];
       }
 
       // Apply marker symbol size scaling
@@ -307,9 +321,19 @@ export class StyleComposer {
       layerIds.push(layer.id);
     }
 
-    this.managed.set(layerId, { sourceIds, layerIds, spriteId, firstId, lastId });
+    this.managed.set(layerId, {
+      sourceIds,
+      layerIds,
+      spriteId,
+      firstId,
+      lastId,
+    });
     this.syncToMapInstance();
-    if (this.debugLog) console.log("[StyleComposer] layer ID mapping:", Object.fromEntries(this.mergedToNamespaced));
+    if (this.debugLog)
+      console.log(
+        "[StyleComposer] layer ID mapping:",
+        Object.fromEntries(this.mergedToNamespaced)
+      );
   }
 
   // -------------------------------------------------------------------------
@@ -322,7 +346,8 @@ export class StyleComposer {
     opts: AddGeoJsonSubStyleOptions
   ): Promise<GeoJsonSubStyleMeta> {
     // Idempotency: skip if already managed
-    if (this.managed.has(id)) return { sourceId: `${id}::geojson`, uniqueColors: [] };
+    if (this.managed.has(id))
+      return { sourceId: `${id}::geojson`, uniqueColors: [] };
 
     const raw = await extractGeoJson(dataUrl);
     const data = transformedPois(raw);
@@ -489,7 +514,13 @@ export class StyleComposer {
     );
     layerIds.push(lblId);
 
-    this.managed.set(id, { sourceIds, layerIds, spriteId: null, firstId, lastId });
+    this.managed.set(id, {
+      sourceIds,
+      layerIds,
+      spriteId: null,
+      firstId,
+      lastId,
+    });
     return { sourceId, uniqueColors };
   }
 

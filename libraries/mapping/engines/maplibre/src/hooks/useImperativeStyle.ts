@@ -33,7 +33,9 @@ export interface UseImperativeStyleOptions {
   debugLog?: boolean;
   /** Callbacks for feeding results back into LibreMap state */
   onMappingUpdate: (mapping: Record<string, string[] | string>) => void;
-  onGeoJsonMetadataUpdate: (meta: Array<{ sourceId: string; uniqueColors: string[] }>) => void;
+  onGeoJsonMetadataUpdate: (
+    meta: Array<{ sourceId: string; uniqueColors: string[] }>
+  ) => void;
   onStyleReady: (style: StyleSpecification) => void;
   onHidingManagerRefresh: () => void;
 }
@@ -103,13 +105,14 @@ export function useImperativeStyle({
     async (composer: StyleComposer, mapInst: MaplibreMap) => {
       if (isApplyingRef.current) return;
       isApplyingRef.current = true;
-      if (debugLog) console.log("[LAYER_MODE] imperative: applyAllLayers, count:", [...vectorBackgroundLayers, ...(layers || [])].length);
+      if (debugLog)
+        console.log(
+          "[LAYER_MODE] imperative: applyAllLayers, count:",
+          [...vectorBackgroundLayers, ...(layers || [])].length
+        );
 
       try {
-        const effectiveLayers = [
-          ...vectorBackgroundLayers,
-          ...(layers || []),
-        ];
+        const effectiveLayers = [...vectorBackgroundLayers, ...(layers || [])];
 
         const newKeys: string[] = [];
         const newIds: string[] = [];
@@ -150,11 +153,11 @@ export function useImperativeStyle({
         // getVectorMapping keys by capabilitiesLayer || name, but layer-id metadata
         // uses the slugified URL. Re-key so the click handler can find mappings.
         const vectorLayers = (layers || []).filter(
-          (l): l is Extract<LibreLayer, { type: "vector" }> => l.type === "vector"
+          (l): l is Extract<LibreLayer, { type: "vector" }> =>
+            l.type === "vector"
         );
-        const rawMapping: Record<string, string[] | string> = vectorLayers.length > 0
-          ? await getVectorMapping(vectorLayers)
-          : {};
+        const rawMapping: Record<string, string[] | string> =
+          vectorLayers.length > 0 ? await getVectorMapping(vectorLayers) : {};
         const mapping: Record<string, string[] | string> = {};
         for (const vl of vectorLayers) {
           const oldKey = vl.name;
@@ -166,7 +169,11 @@ export function useImperativeStyle({
         }
         // GeoJSON layer mappings
         (layers || []).forEach((l, idx) => {
-          if (l.type === "geojson" && l.infoboxMapping && l.infoboxMapping.length > 0) {
+          if (
+            l.type === "geojson" &&
+            l.infoboxMapping &&
+            l.infoboxMapping.length > 0
+          ) {
             const geoId = subStyleId(l, vectorBackgroundLayers.length + idx);
             mapping[l.name] = l.infoboxMapping;
             mapping[`${geoId}::geojson`] = l.infoboxMapping;
@@ -177,7 +184,8 @@ export function useImperativeStyle({
         // Notify that the style is ready
         const currentStyle = mapInst.getStyle();
         if (currentStyle) {
-          if (debugLog) console.log("[LAYER_MODE] imperative: derived style", currentStyle);
+          if (debugLog)
+            console.log("[LAYER_MODE] imperative: derived style", currentStyle);
           onStyleReady(currentStyle);
         }
 
@@ -227,7 +235,10 @@ export function useImperativeStyle({
 
     const resetAndApply = () => {
       if (aborted) return;
-      if (debugLog) console.log("[LAYER_MODE] imperative: resetAndApply firing, setting base style + adding layers");
+      if (debugLog)
+        console.log(
+          "[LAYER_MODE] imperative: resetAndApply firing, setting base style + adding layers"
+        );
 
       // Set base style with glyphs included (overrideGlyphs must be set for imperative mode
       // when the background style has no glyphs, e.g. backgroundLayers="")
@@ -275,10 +286,7 @@ export function useImperativeStyle({
       // Skip if a full applyAllLayers is already in progress (race with Effect 2)
       if (isApplyingRef.current) return;
 
-      const effectiveLayers = [
-        ...vectorBackgroundLayers,
-        ...(layers || []),
-      ];
+      const effectiveLayers = [...vectorBackgroundLayers, ...(layers || [])];
 
       const newKeys = effectiveLayers.map((l, i) => layerKey(l, i));
       const newIds = effectiveLayers.map((l, i) => subStyleId(l, i));
@@ -345,9 +353,8 @@ export function useImperativeStyle({
       const vectorLayers2 = (layers || []).filter(
         (l): l is Extract<LibreLayer, { type: "vector" }> => l.type === "vector"
       );
-      const rawMapping2: Record<string, string[] | string> = vectorLayers2.length > 0
-        ? await getVectorMapping(vectorLayers2)
-        : {};
+      const rawMapping2: Record<string, string[] | string> =
+        vectorLayers2.length > 0 ? await getVectorMapping(vectorLayers2) : {};
       if (aborted) return;
       const mapping: Record<string, string[] | string> = {};
       for (const vl of vectorLayers2) {
@@ -359,7 +366,11 @@ export function useImperativeStyle({
         }
       }
       (layers || []).forEach((l, idx) => {
-        if (l.type === "geojson" && l.infoboxMapping && l.infoboxMapping.length > 0) {
+        if (
+          l.type === "geojson" &&
+          l.infoboxMapping &&
+          l.infoboxMapping.length > 0
+        ) {
           const geoId = subStyleId(l, vectorBackgroundLayers.length + idx);
           mapping[l.name] = l.infoboxMapping;
           mapping[`${geoId}::geojson`] = l.infoboxMapping;

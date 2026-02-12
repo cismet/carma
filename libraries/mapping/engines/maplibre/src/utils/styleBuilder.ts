@@ -65,7 +65,9 @@ const parser = new WMSCapabilities();
 /**
  * Get the correct paint property name for a layer type
  */
-export const getPaintProperty = (layerStyle: LayerSpecification): string | null => {
+export const getPaintProperty = (
+  layerStyle: LayerSpecification
+): string | null => {
   const type = layerStyle.type;
   switch (type) {
     case "symbol":
@@ -357,9 +359,11 @@ export const prefixPatternExpression = (
     return [
       "step",
       rest[0],
-      ...rest.slice(1).map((v, i) =>
-        i % 2 === 0 ? prefixPatternExpression(spriteId, v) : v
-      ),
+      ...rest
+        .slice(1)
+        .map((v, i) =>
+          i % 2 === 0 ? prefixPatternExpression(spriteId, v) : v
+        ),
     ];
   }
   if (op === "interpolate") {
@@ -368,9 +372,11 @@ export const prefixPatternExpression = (
       "interpolate",
       rest[0],
       rest[1],
-      ...rest.slice(2).map((v, i) =>
-        i % 2 === 1 ? prefixPatternExpression(spriteId, v) : v
-      ),
+      ...rest
+        .slice(2)
+        .map((v, i) =>
+          i % 2 === 1 ? prefixPatternExpression(spriteId, v) : v
+        ),
     ];
   }
   // For all other expressions (case, match, etc.): let MapLibre resolve at runtime

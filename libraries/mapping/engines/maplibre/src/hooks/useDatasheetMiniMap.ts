@@ -144,7 +144,14 @@ export function useDatasheetMiniMap(
         zoom: mainZoom + effectiveZoomOffset,
       });
     }
-  }, [miniMap, mainMap, miniMapCenter, isDatasheetOpen, effectiveZoomOffset, MINI_MAP_TRANSITION_MS]);
+  }, [
+    miniMap,
+    mainMap,
+    miniMapCenter,
+    isDatasheetOpen,
+    effectiveZoomOffset,
+    MINI_MAP_TRANSITION_MS,
+  ]);
 
   // Animate zoom when toggling between map/datasheet view
   useEffect(() => {
@@ -153,7 +160,13 @@ export function useDatasheetMiniMap(
       zoom: mainMap.getZoom() + effectiveZoomOffset,
       duration: MINI_MAP_TRANSITION_MS,
     });
-  }, [miniMap, mainMap, effectiveZoomOffset, isTransitioning, MINI_MAP_TRANSITION_MS]);
+  }, [
+    miniMap,
+    mainMap,
+    effectiveZoomOffset,
+    isTransitioning,
+    MINI_MAP_TRANSITION_MS,
+  ]);
 
   // Keep mini-map zoom in sync when main map zoom changes (instant)
   useEffect(() => {
@@ -311,8 +324,7 @@ export function useDatasheetMiniMap(
     width: MINI_MAP_W,
     height: MINI_MAP_H,
     opacity: miniMapOpacity,
-    visibility:
-      !isDatasheetOpen && !isTransitioning ? "hidden" : "visible",
+    visibility: !isDatasheetOpen && !isTransitioning ? "hidden" : "visible",
     zIndex: isDatasheetOpen || isTransitioning ? 30 : 0,
     borderRadius: miniMapTarget === "corner" ? 8 : 0,
     overflow: "hidden",

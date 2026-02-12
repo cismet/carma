@@ -140,7 +140,10 @@ export const useVisibleMapFeatures = ({
         | undefined;
       if (layerIdMap?.mergedToNamespaced) {
         for (const [mergedKey, namespacedId] of layerIdMap.mergedToNamespaced) {
-          if (regexes.some((r) => r.test(mergedKey)) && !ids.includes(namespacedId)) {
+          if (
+            regexes.some((r) => r.test(mergedKey)) &&
+            !ids.includes(namespacedId)
+          ) {
             ids.push(namespacedId);
           }
         }

@@ -157,7 +157,9 @@ const CarmaMapContent = (props: CarmaMapProps) => {
                         setShowTerrain(false);
                       } else if (libreMap) {
                         libreMap.setTerrain({
-                          source: WUPPERTAL_CONFIG.terrain ? slugifyUrl(WUPPERTAL_CONFIG.terrain.url) : "terrainSource",
+                          source: WUPPERTAL_CONFIG.terrain
+                            ? slugifyUrl(WUPPERTAL_CONFIG.terrain.url)
+                            : "terrainSource",
                           exaggeration: 1,
                         });
                         setShowTerrain(true);
