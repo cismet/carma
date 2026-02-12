@@ -132,11 +132,13 @@ const FeatureFormLayout = ({
         />
         <div className="flex flex-1 overflow-hidden">
           {/* Form column - 60% */}
-          <div className="w-3/5 min-w-[400px] px-6 py-4 overflow-y-auto border-r border-gray-100">
+          <div className="w-3/5 min-w-[400px] px-6 pb-4 overflow-y-auto border-r border-gray-100">
             {showRaw || additionalTabs.length > 0 ? (
-              <Tabs defaultActiveKey="general" items={leftColumnTabs} />
+              <div className="[&_.ant-tabs-nav]:sticky [&_.ant-tabs-nav]:top-0 [&_.ant-tabs-nav]:bg-white [&_.ant-tabs-nav]:z-10">
+                <Tabs defaultActiveKey="general" items={leftColumnTabs} />
+              </div>
             ) : (
-              children
+              <div className="pt-4">{children}</div>
             )}
           </div>
           {/* Documents column - 40% */}
@@ -157,10 +159,11 @@ const FeatureFormLayout = ({
         onCancel={onCancel}
         onSave={onSave}
       />
-      <div className="px-6 py-4 pb-60 overflow-y-auto flex-1">
-        <Tabs
-          defaultActiveKey="general"
-          items={[
+      <div className="px-6 pb-60 overflow-y-auto flex-1">
+        <div className="[&_.ant-tabs-nav]:sticky [&_.ant-tabs-nav]:top-0 [&_.ant-tabs-nav]:bg-white [&_.ant-tabs-nav]:z-10">
+          <Tabs
+            defaultActiveKey="general"
+            items={[
             {
               key: "general",
               label: <span>Allgemein</span>,
@@ -186,7 +189,8 @@ const FeatureFormLayout = ({
                 ]
               : []),
           ]}
-        />
+          />
+        </div>
       </div>
     </div>
   );
