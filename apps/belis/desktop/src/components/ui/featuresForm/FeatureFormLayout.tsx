@@ -73,7 +73,7 @@ const FeatureFormLayout = ({
       style={{
         fontSize: 11,
         lineHeight: 1.5,
-        background: "#e8f5e9",
+        background: "#f5f5f5",
         padding: 12,
         borderRadius: 4,
         overflow: "auto",
@@ -88,6 +88,24 @@ const FeatureFormLayout = ({
 
   // Wide screen: two-column layout (form left, documents right)
   if (isWideScreen) {
+    // Build tabs for the left column - Allgemein first, then Rohdaten
+    const leftColumnTabs = [
+      {
+        key: "general",
+        label: <span>Allgemein</span>,
+        children: children,
+      },
+      ...(showRaw
+        ? [
+            {
+              key: "debug",
+              label: <span>Rohdaten</span>,
+              children: debugContent,
+            },
+          ]
+        : []),
+    ];
+
     return (
       <div className="bg-white rounded-xl border border-gray-100 w-full h-full flex flex-col">
         <FormHeader
@@ -99,17 +117,15 @@ const FeatureFormLayout = ({
         <div className="flex flex-1 overflow-hidden">
           {/* Form column - 60% */}
           <div className="w-3/5 min-w-[400px] px-6 py-4 overflow-y-auto border-r border-gray-100">
-            {children}
+            {showRaw ? (
+              <Tabs defaultActiveKey="general" items={leftColumnTabs} />
+            ) : (
+              children
+            )}
           </div>
           {/* Documents column - 40% */}
           <div className="w-2/5 min-w-[480px] px-6 py-4 overflow-y-auto">
             {documentsContent}
-            {showRaw && (
-              <div style={{ marginTop: 16 }}>
-                <div style={labelStyle}>Rohdaten</div>
-                {debugContent}
-              </div>
-            )}
           </div>
         </div>
       </div>
