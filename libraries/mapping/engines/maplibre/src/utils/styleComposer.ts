@@ -31,6 +31,7 @@ export function slugifyUrl(url: string): string {
   return slugify(cleaned, { remove: /[^a-zA-Z0-9]/g, lower: true });
 }
 
+
 /** Tracks everything added for a single sub-style so it can be cleanly removed. */
 interface ManagedSubStyle {
   sourceIds: string[];
@@ -108,9 +109,25 @@ function applySymbolScaling(
 export class StyleComposer {
   private map: MaplibreMap;
   private managed: Map<string, ManagedSubStyle> = new Map();
+  /** original layer ID -> namespaced layer ID */
+  private originalToNamespaced: Map<string, string> = new Map();
+  /** namespaced layer ID -> original layer ID */
+  private namespacedToOriginal: Map<string, string> = new Map();
+  private debugLog: boolean;
 
-  constructor(map: MaplibreMap) {
+  constructor(map: MaplibreMap, debugLog = false) {
     this.map = map;
+    this.debugLog = debugLog;
+  }
+
+  /** Resolve an original layer ID to its namespaced map layer ID, or undefined. */
+  resolveNamespaced(originalId: string): string | undefined {
+    return this.originalToNamespaced.get(originalId);
+  }
+
+  /** Resolve a namespaced map layer ID back to its original ID, or undefined. */
+  resolveOriginal(namespacedId: string): string | undefined {
+    return this.namespacedToOriginal.get(namespacedId);
   }
 
   // -------------------------------------------------------------------------
@@ -202,6 +219,8 @@ export class StyleComposer {
 
       // Namespace IDs (prefix::layerName for layers, layerId::source for sources)
       layer.id = `${layerId}::${styleLayer.id}`;
+      this.originalToNamespaced.set(styleLayer.id, layer.id);
+      this.namespacedToOriginal.set(layer.id, styleLayer.id);
       if (layer.source) {
         layer.source = `${layerId}::${layer.source}`;
       }
@@ -251,6 +270,7 @@ export class StyleComposer {
     }
 
     this.managed.set(layerId, { sourceIds, layerIds, spriteId, firstId, lastId });
+    if (this.debugLog) console.log("[StyleComposer] layer ID mapping:", Object.fromEntries(this.originalToNamespaced));
   }
 
   // -------------------------------------------------------------------------
@@ -579,11 +599,17 @@ export class StyleComposer {
     const entry = this.managed.get(id);
     if (!entry) return;
 
-    // Remove layers in reverse order (top to bottom)
+    // Remove layers in reverse order (top to bottom) and clean up ID mappings
     for (let i = entry.layerIds.length - 1; i >= 0; i--) {
+      const namespacedId = entry.layerIds[i];
+      const originalId = this.namespacedToOriginal.get(namespacedId);
+      if (originalId) {
+        this.originalToNamespaced.delete(originalId);
+      }
+      this.namespacedToOriginal.delete(namespacedId);
       try {
-        if (this.map.getLayer(entry.layerIds[i])) {
-          this.map.removeLayer(entry.layerIds[i]);
+        if (this.map.getLayer(namespacedId)) {
+          this.map.removeLayer(namespacedId);
         }
       } catch {
         // Layer may already be gone

@@ -264,6 +264,7 @@ const CarmaMapContent = (props: CarmaMapProps) => {
                 selectionEnabled={miniMap ? false : props.selectionEnabled}
                 preserveDrawingBuffer={props.preserveDrawingBuffer}
                 interactive={miniMap ? false : undefined}
+                debugLog={props.debugLog}
               />
             )}
             {modalMenu}

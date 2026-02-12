@@ -116,6 +116,8 @@ export interface LibreMapProps {
       id?: string | number;
     }
   ) => void;
+  /** Enable debug logging for [LAYER_MODE] and [StyleComposer] messages */
+  debugLog?: boolean;
 }
 
 export const LibreMap = ({
@@ -131,6 +133,7 @@ export const LibreMap = ({
   selectionEnabled = true,
   layerMode = "merged",
   onFeatureSelect,
+  debugLog = false,
 }: LibreMapProps) => {
   const mapContainer = useRef<HTMLDivElement>(null);
   const map = useRef<maplibregl.Map | null>(null);
@@ -458,6 +461,7 @@ export const LibreMap = ({
     onGeoJsonMetadataUpdate: handleImperativeGeoJsonMeta,
     onStyleReady: handleImperativeStyleReady,
     onHidingManagerRefresh: handleImperativeHidingRefresh,
+    debugLog,
   });
 
   useEffect(() => {
@@ -724,10 +728,10 @@ export const LibreMap = ({
     if (!map.current) return;
     // Skip merged-mode style updates when imperative mode is active
     if (layerMode === "imperative") {
-      console.log("[LAYER_MODE] merged-mode effect SKIPPED (imperative active)");
+      if (debugLog) console.log("[LAYER_MODE] merged-mode effect SKIPPED (imperative active)");
       return;
     }
-    console.log("[LAYER_MODE] merged-mode effect RUNNING");
+    if (debugLog) console.log("[LAYER_MODE] merged-mode effect RUNNING");
 
     let aborted = false;
 
@@ -784,7 +788,7 @@ export const LibreMap = ({
           const currentTerrain = map.current?.getTerrain();
 
           map.current?.setStyle(style);
-          console.log("[LAYER_MODE] merged: derived style", style);
+          if (debugLog) console.log("[LAYER_MODE] merged: derived style", style);
 
           // Update context with the full map style
           setMapStyle(style);

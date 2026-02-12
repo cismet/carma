@@ -29,6 +29,8 @@ export interface UseImperativeStyleOptions {
   markerSymbolSize: number;
   overrideGlyphs?: string;
   filterFunction?: (map: MaplibreMap, layers?: LibreLayer[]) => void;
+  /** Enable debug logging */
+  debugLog?: boolean;
   /** Callbacks for feeding results back into LibreMap state */
   onMappingUpdate: (mapping: Record<string, string[] | string>) => void;
   onGeoJsonMetadataUpdate: (meta: Array<{ sourceId: string; uniqueColors: string[] }>) => void;
@@ -89,6 +91,7 @@ export function useImperativeStyle({
   onGeoJsonMetadataUpdate,
   onStyleReady,
   onHidingManagerRefresh,
+  debugLog = false,
 }: UseImperativeStyleOptions): void {
   const composerRef = useRef<StyleComposer | null>(null);
   const prevKeysRef = useRef<string[]>([]);
@@ -100,7 +103,7 @@ export function useImperativeStyle({
     async (composer: StyleComposer, mapInst: MaplibreMap) => {
       if (isApplyingRef.current) return;
       isApplyingRef.current = true;
-      console.log("[LAYER_MODE] imperative: applyAllLayers, count:", [...vectorBackgroundLayers, ...(layers || [])].length);
+      if (debugLog) console.log("[LAYER_MODE] imperative: applyAllLayers, count:", [...vectorBackgroundLayers, ...(layers || [])].length);
 
       try {
         const effectiveLayers = [
@@ -174,7 +177,7 @@ export function useImperativeStyle({
         // Notify that the style is ready
         const currentStyle = mapInst.getStyle();
         if (currentStyle) {
-          console.log("[LAYER_MODE] imperative: derived style", currentStyle);
+          if (debugLog) console.log("[LAYER_MODE] imperative: derived style", currentStyle);
           onStyleReady(currentStyle);
         }
 
@@ -208,7 +211,7 @@ export function useImperativeStyle({
       composerRef.current = null;
       return;
     }
-    composerRef.current = new StyleComposer(map);
+    composerRef.current = new StyleComposer(map, debugLog);
     return () => {
       composerRef.current?.destroy();
       composerRef.current = null;
@@ -224,7 +227,7 @@ export function useImperativeStyle({
 
     const resetAndApply = () => {
       if (aborted) return;
-      console.log("[LAYER_MODE] imperative: resetAndApply firing, setting base style + adding layers");
+      if (debugLog) console.log("[LAYER_MODE] imperative: resetAndApply firing, setting base style + adding layers");
 
       // Set base style with glyphs included (overrideGlyphs must be set for imperative mode
       // when the background style has no glyphs, e.g. backgroundLayers="")
@@ -240,7 +243,7 @@ export function useImperativeStyle({
         if (aborted) return;
         // Re-create composer with fresh map state
         composerRef.current?.destroy();
-        composerRef.current = new StyleComposer(map);
+        composerRef.current = new StyleComposer(map, debugLog);
         prevKeysRef.current = [];
         prevIdsRef.current = [];
         void applyAllLayers(composerRef.current, map);
