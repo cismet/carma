@@ -146,6 +146,6 @@ export const additionalLayerConfigs: Record<string, LayerEntry> = {
 export const leuchtenDataLayer: LibreLayer = {
   type: "vector",
   name: "Leuchten",
-  style: "https://tiles.cismet.de/belis/style.json",
+  style: "https://tiles.cismet.de/belis/styleX.json",
   opacity: 1,
 };

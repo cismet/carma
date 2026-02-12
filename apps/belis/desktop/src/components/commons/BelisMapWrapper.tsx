@@ -185,6 +185,7 @@ const BelisMapLibWrapper = ({ mapSizes }) => {
               layerMode="imperative"
               embedded
               debugLog
+              exposeMapToWindow
               overrideGlyphs="https://tiles.cismet.de/fonts/{fontstack}/{range}.pbf"
               backgroundLayers=""
               terrainControl={false}
