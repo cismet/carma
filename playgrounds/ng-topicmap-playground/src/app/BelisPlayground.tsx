@@ -5,7 +5,6 @@ import {
   DatasheetLayout,
 } from "@carma-mapping/core";
 import { CustomCard } from "./CustomCard";
-import { BelisSwitch } from "@carma-appframeworks/belis";
 import {
   useMapSelection,
   useLibreContext,
@@ -22,6 +21,7 @@ import type maplibregl from "maplibre-gl";
 import { slugifyUrl } from "@carma-mapping/engines/maplibre";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faMap } from "@fortawesome/free-solid-svg-icons";
+import { Switch } from "antd";
 
 // Convert ALL CAPS to Title Case
 const toTitleCase = (str: string): string => {
@@ -59,10 +59,65 @@ const getFeatureStreet = (feature: VisibleFeature): string => {
  * Minimal sidebar list that exercises the MapSelectionContext.
  * Clicking an item calls selectFeature(); clicking on the map updates the highlight here.
  */
+
+interface FilterCategory {
+  label: string;
+  /** Source layers in the tile data that belong to this category */
+  sourceLayers: string[];
+  /** Layer ID patterns to toggle visibility on the map (matched with includes) */
+  layerPatterns: string[];
+  /** Sprite position {x,y} in the 3x sheet, or null for text fallback */
+  sprite: { x: number; y: number } | null;
+}
+
+const FILTER_CATEGORIES: FilterCategory[] = [
+  {
+    label: "Leuchten",
+    sourceLayers: ["leuchten"],
+    layerPatterns: ["leuchten"],
+    sprite: { x: 0, y: 198 },
+  },
+  {
+    label: "Masten",
+    sourceLayers: ["mast"],
+    layerPatterns: ["mast"],
+    sprite: { x: 1188, y: 0 },
+  },
+  {
+    label: "Mauerlaschen",
+    sourceLayers: ["mauerlaschen"],
+    layerPatterns: ["mauerlaschen"],
+    sprite: { x: 792, y: 0 },
+  },
+  {
+    label: "Leitungen",
+    sourceLayers: ["leitungen"],
+    layerPatterns: ["leitungen"],
+    sprite: null,
+  },
+  {
+    label: "Schaltstellen",
+    sourceLayers: ["schaltstelle"],
+    layerPatterns: ["schaltstelle"],
+    sprite: { x: 990, y: 0 },
+  },
+  {
+    label: "Abzweigdosen",
+    sourceLayers: ["abzweigdosen"],
+    layerPatterns: ["abzweigdose"],
+    sprite: { x: 198, y: 0 },
+  },
+];
+
+
 const TestSelectionList = ({
-  searchFilter,
+  activeSourceLayers,
+  highlightingActive,
+  highlightVersion,
 }: {
-  searchFilter?: string | null;
+  activeSourceLayers?: Set<string> | null;
+  highlightingActive?: boolean;
+  highlightVersion?: number;
 }) => {
   const listRef = useRef<HTMLDivElement>(null);
   const selectedItemRef = useRef<HTMLDivElement>(null);
@@ -97,15 +152,29 @@ const TestSelectionList = ({
       layerFilterExpressions: ["Leuchten.*-base", "Leuchten.*-icon"],
     });
 
-  // Filter features by search criteria when highlighting is active
+  // Filter features by active source layers and highlight state
   const filteredFeatures = useMemo(() => {
-    if (!searchFilter) return features;
-    const regex = new RegExp(searchFilter, "i");
-    return features.filter((f) => {
-      const val = String(f.properties?.strassenschluessel ?? "");
-      return regex.test(val);
-    });
-  }, [features, searchFilter]);
+    let result = features;
+    if (activeSourceLayers) {
+      result = result.filter((f) => {
+        const sl = f.sourceLayer || "";
+        return activeSourceLayers.has(sl);
+      });
+    }
+    if (highlightingActive && map) {
+      result = result.filter((f) => {
+        if (f.id == null || !f.source) return false;
+        const state = map.getFeatureState({
+          source: f.source,
+          sourceLayer: f.sourceLayer,
+          id: f.id,
+        });
+        return state?.highlighted === true;
+      });
+    }
+    return result;
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- highlightVersion forces re-filter on click-highlight
+  }, [features, activeSourceLayers, highlightingActive, map, highlightVersion]);
 
   // Group features by sourceLayer
   const groupedFeatures = useMemo(() => {
@@ -188,7 +257,7 @@ const TestSelectionList = ({
     >
       <div className="px-3 py-2 border-b border-gray-300 bg-gray-50 font-bold text-sm flex justify-between items-center">
         <span>
-          Objekte ({searchFilter ? filteredFeatures.length : totalCount})
+          Objekte ({highlightingActive ? filteredFeatures.length : totalCount})
         </span>
         {isLoading && <span className="text-xs text-gray-500">...</span>}
         {isOverviewMode && !isLoading && (
@@ -278,6 +347,47 @@ const BelisPlaygroundContent = () => {
   const [highlightingActive, setHighlightingActive] = useState(false);
   const searchCriteriaRef = useRef<string | null>(null);
   const sourceListenerRef = useRef<(() => void) | null>(null);
+  const clickHighlightedIdsRef = useRef<Set<string | number>>(new Set());
+  const [highlightVersion, setHighlightVersion] = useState(0);
+
+  // Filter state: all categories on by default
+  const [enabledFilters, setEnabledFilters] = useState<Record<string, boolean>>(
+    () =>
+      Object.fromEntries(FILTER_CATEGORIES.map((c) => [c.label, true]))
+  );
+
+  // Collect active source layers from enabled filter categories
+  const activeSourceLayers = useMemo(() => {
+    const set = new Set<string>();
+    for (const cat of FILTER_CATEGORIES) {
+      if (enabledFilters[cat.label]) {
+        for (const sl of cat.sourceLayers) set.add(sl);
+      }
+    }
+    return set;
+  }, [enabledFilters]);
+
+  // Toggle map layer visibility when filters change
+  useEffect(() => {
+    if (!map) return;
+    const style = map.getStyle();
+    if (!style?.layers) return;
+    for (const cat of FILTER_CATEGORIES) {
+      const visible = enabledFilters[cat.label];
+      for (const layer of style.layers) {
+        const matchesPattern = cat.layerPatterns.some((p) =>
+          layer.id.toLowerCase().includes(p)
+        );
+        if (matchesPattern) {
+          map.setLayoutProperty(
+            layer.id,
+            "visibility",
+            visible ? "visible" : "none"
+          );
+        }
+      }
+    }
+  }, [map, enabledFilters]);
 
   const namespacedSource = `${slugifyUrl(
     BELIS_STYLE_URL
@@ -348,12 +458,14 @@ const BelisPlaygroundContent = () => {
 
     // Apply to currently loaded features
     applyHighlights(map, searchText.trim());
+    setHighlightVersion((v) => v + 1);
 
     // Listen for new tiles
     if (sourceListenerRef.current) sourceListenerRef.current();
     const handler = () => {
       if (searchCriteriaRef.current) {
         applyHighlights(map, searchCriteriaRef.current);
+        setHighlightVersion((v) => v + 1);
       }
     };
     map.on("sourcedata", handler);
@@ -381,10 +493,60 @@ const BelisPlaygroundContent = () => {
     m.setGlobalStateProperty("highlightingEnabled", false);
     setHighlightingActive(false);
     searchCriteriaRef.current = null;
+    clickHighlightedIdsRef.current.clear();
     sourceListenerRef.current?.();
     sourceListenerRef.current = null;
     setSearchText("");
   }, [map, namespacedSource]);
+
+  // Alt+click (Option+click on Mac) toggles highlight on individual features
+  useEffect(() => {
+    if (!map) return;
+    const handler = (e: maplibregl.MapMouseEvent & { originalEvent: MouseEvent }) => {
+      if (!e.originalEvent.altKey) return;
+
+      const hits = map.queryRenderedFeatures(e.point);
+      const feature = hits.find(
+        (f) =>
+          f.id != null &&
+          f.source &&
+          f.sourceLayer &&
+          !f.layer.id.includes("selection") &&
+          !f.layer.id.includes("background")
+      );
+      if (!feature) return;
+
+      const fId = feature.id!;
+      const ids = clickHighlightedIdsRef.current;
+
+      // Enable highlighting mode if not already
+      if (!highlightingActive) {
+        (map as MapWithGlobalState).setGlobalStateProperty("highlightingEnabled", true);
+        setHighlightingActive(true);
+      }
+
+      if (ids.has(fId) || ids.has(String(fId))) {
+        ids.delete(fId);
+        ids.delete(String(fId));
+        map.setFeatureState(
+          { source: feature.source, sourceLayer: feature.sourceLayer!, id: fId },
+          { highlighted: false }
+        );
+        console.log("[BELIS-HL] alt+click un-highlighted feature", fId);
+        setHighlightVersion((v) => v + 1);
+      } else {
+        ids.add(fId);
+        map.setFeatureState(
+          { source: feature.source, sourceLayer: feature.sourceLayer!, id: fId },
+          { highlighted: true }
+        );
+        console.log("[BELIS-HL] alt+click highlighted feature", fId);
+        setHighlightVersion((v) => v + 1);
+      }
+    };
+    map.on("click", handler);
+    return () => { map.off("click", handler); };
+  }, [map, highlightingActive]);
 
   const {
     containerStyle,
@@ -413,7 +575,9 @@ const BelisPlaygroundContent = () => {
       </div>
       <div className="w-full flex-1 flex min-h-0">
         <TestSelectionList
-          searchFilter={highlightingActive ? searchCriteriaRef.current : null}
+          highlightingActive={highlightingActive}
+          activeSourceLayers={activeSourceLayers}
+          highlightVersion={highlightVersion}
         />
         <div className="flex-1 flex flex-col min-h-0">
           <div className="mx-3 my-2 flex-1 flex flex-col min-h-0">
@@ -447,17 +611,22 @@ const BelisPlaygroundContent = () => {
                       </button>
                     )}
                   </div>
-                  <BelisSwitch
-                    preLabel="Fokus"
-                    switched={false}
-                    stateChanged={(switched) => {}}
-                  />
-                  <BelisSwitch
-                    id="pale-toggle"
-                    preLabel="Blass"
-                    switched={false}
-                    stateChanged={(switched) => {}}
-                  />
+                  <div className="flex items-center gap-2 border-l border-gray-300 pl-4 flex-wrap">
+                    {FILTER_CATEGORIES.map((cat) => (
+                      <Switch
+                        key={cat.label}
+                        checkedChildren={cat.label}
+                        unCheckedChildren={cat.label}
+                        checked={enabledFilters[cat.label]}
+                        onChange={(on) =>
+                          setEnabledFilters((prev) => ({
+                            ...prev,
+                            [cat.label]: on,
+                          }))
+                        }
+                      />
+                    ))}
+                  </div>
                 </div>
               }
             >
