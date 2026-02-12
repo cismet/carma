@@ -90,12 +90,13 @@ const MainPage = () => {
   // Search handlers
   const handleSearch = useCallback(() => {
     if (!map || !searchText.trim()) return;
+    clearHighlights();
     setHighlightingActive(true);
     highlightByProperty(
       "strassenschluessel",
       new RegExp(searchText.trim(), "i")
     );
-  }, [map, searchText, setHighlightingActive, highlightByProperty]);
+  }, [map, searchText, setHighlightingActive, highlightByProperty, clearHighlights]);
 
   const handleClearSearch = useCallback(() => {
     setHighlightingActive(false);

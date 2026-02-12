@@ -1,4 +1,4 @@
-import { useEffect, useState, useMemo, useRef } from "react";
+import { useEffect, useState, useMemo, useRef, useCallback } from "react";
 import { useVisibleMapFeatures, VisibleFeature } from "@carma-mapping/utils";
 import {
   useMapSelection,
@@ -261,6 +261,46 @@ const OnMapList = ({
     return groups;
   }, [filteredFeatures, countsByLayer, activeSourceLayers]);
 
+  // Flat ordered list matching render order (for keyboard navigation)
+  const flatFeatures = useMemo(() => {
+    const flat: VisibleFeature[] = [];
+    for (const [groupKey, group] of Object.entries(groupedFeatures)) {
+      if (!isOverviewMode && !collapsedGroups[groupKey]) {
+        flat.push(...group.items);
+      }
+    }
+    return flat;
+  }, [groupedFeatures, isOverviewMode, collapsedGroups]);
+
+  const listRef = useRef<HTMLDivElement>(null);
+
+  const handleKeyDown = useCallback(
+    (e: React.KeyboardEvent) => {
+      if (e.key !== "ArrowDown" && e.key !== "ArrowUp") return;
+      e.preventDefault();
+      if (flatFeatures.length === 0) return;
+
+      const currentIdx = flatFeatures.findIndex((f) => isFeatureSelected(f));
+      let nextIdx: number;
+      if (e.key === "ArrowDown") {
+        nextIdx =
+          currentIdx < 0 ? 0 : (currentIdx + 1) % flatFeatures.length;
+      } else {
+        nextIdx =
+          currentIdx < 0
+            ? flatFeatures.length - 1
+            : (currentIdx - 1 + flatFeatures.length) % flatFeatures.length;
+      }
+      const next = flatFeatures[nextIdx];
+      selectionFromListRef.current = true;
+      selectFeature(
+        { source: next.source, sourceLayer: next.sourceLayer, id: next.id },
+        next
+      );
+    },
+    [flatFeatures, selectFeature, selectedFeatureId]
+  );
+
   const getListItem = (feature: VisibleFeature): ListItemData => {
     const layerKey = feature.sourceLayer || feature.source || "";
     const extractor =
@@ -299,7 +339,12 @@ const OnMapList = ({
   };
 
   return (
-    <div className="w-[300px] h-full bg-white border-r border-gray-300 flex flex-col overflow-hidden z-[1000] shrink-0">
+    <div
+      ref={listRef}
+      tabIndex={0}
+      onKeyDown={handleKeyDown}
+      className="w-[300px] h-full bg-white border-r border-gray-300 flex flex-col overflow-hidden z-[1000] shrink-0 outline-none"
+    >
       <div className="px-3 py-2 border-b border-gray-300 bg-gray-50 font-bold text-sm flex justify-between items-center">
         <span>
           Objekte (

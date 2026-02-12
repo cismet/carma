@@ -331,12 +331,25 @@ export const useVisibleMapFeatures = ({
           });
         }
 
+        // Recompute counts when filtering to highlighted-only
+        let finalCount = count;
+        let finalLayerCounts = layerCounts;
+        if (highlightedOnlyRef.current && finalFeatures !== uniqueFeatures) {
+          finalLayerCounts = {};
+          for (const f of finalFeatures) {
+            const layerKey = f.sourceLayer || f.source || "other";
+            finalLayerCounts[layerKey] =
+              (finalLayerCounts[layerKey] || 0) + 1;
+          }
+          finalCount = finalFeatures.length;
+        }
+
         // Overview mode: zoom below threshold OR hit max features
         const inOverviewMode = zoomBelowThreshold || count > maxFeatures;
 
         setFeatures(inOverviewMode ? [] : finalFeatures);
-        setTotalCount(count);
-        setCountsByLayer(layerCounts);
+        setTotalCount(finalCount);
+        setCountsByLayer(finalLayerCounts);
         setIsOverviewMode(inOverviewMode);
       } catch (e) {
         console.warn("Error querying features:", e);
