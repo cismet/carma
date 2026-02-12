@@ -18,6 +18,8 @@ const featureTypeToFormKey: Record<string, string> = {
   mast: "mast",
   schaltstelle: "schaltstelle",
   schaltstellen: "schaltstelle",
+  mauerlasche: "mauerlasche",
+  mauerlaschen: "mauerlasche",
 };
 
 const FeaturesFormsWrapper = ({
