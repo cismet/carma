@@ -1,16 +1,22 @@
 import { useRef, useState, useCallback } from "react";
 import type { Map as MaplibreMap } from "maplibre-gl";
 import { CarmaMap } from "@carma-mapping/core";
-
-interface HighlightedFeature {
-  source: string;
-  sourceLayer: string;
-  id: string | number;
-}
+import { slugifyUrl } from "@carma-mapping/engines/maplibre";
 
 type MapWithGlobalState = MaplibreMap & {
   setGlobalStateProperty(key: string, value: unknown): void;
 };
+
+const STYLE_URL = "https://tiles.cismet.de/poi/styleX.json";
+const ORIGINAL_SOURCE = "poi-source";
+const SOURCE_LAYER = "poi";
+
+interface HighlightCriteria {
+  regexes: RegExp[];
+  ids: Set<string>;
+  /** Individually toggled feature IDs (from click) */
+  clickedIds: Set<string | number>;
+}
 
 const controlButtonStyle: React.CSSProperties = {
   backgroundColor: "#fff",
@@ -35,110 +41,162 @@ const activeStyle: React.CSSProperties = {
 const Stadtplan2 = () => {
   const mapRef = useRef<MapWithGlobalState | null>(null);
   const [highlightingActive, setHighlightingActive] = useState(false);
-  const highlightedRef = useRef<HighlightedFeature[]>([]);
+  const highlightingActiveRef = useRef(false);
+  const criteriaRef = useRef<HighlightCriteria>({
+    regexes: [],
+    ids: new Set(),
+    clickedIds: new Set(),
+  });
+  const sourceDataListenerRef = useRef<(() => void) | null>(null);
 
-  const handleMapReady = useCallback((map: MaplibreMap) => {
-    mapRef.current = map as MapWithGlobalState;
+  const namespacedSource = `${slugifyUrl(STYLE_URL)}::${ORIGINAL_SOURCE}`;
+
+  /** Apply highlight feature-state to all currently loaded features matching criteria. */
+  const applyHighlights = useCallback(
+    (map: MaplibreMap) => {
+      const criteria = criteriaRef.current;
+      if (
+        criteria.regexes.length === 0 &&
+        criteria.ids.size === 0 &&
+        criteria.clickedIds.size === 0
+      )
+        return;
+
+      const features = map.querySourceFeatures(namespacedSource, {
+        sourceLayer: SOURCE_LAYER,
+      });
+
+      for (const f of features) {
+        if (f.id == null) continue;
+        const geo = String(f.properties?.geographicidentifier ?? "");
+        const propId = String(f.properties?.id ?? "");
+
+        const matchesRegex = criteria.regexes.some((r) => r.test(geo));
+        const matchesId = criteria.ids.has(propId);
+        const matchesClick =
+          criteria.clickedIds.has(f.id) || criteria.clickedIds.has(String(f.id));
+
+        if (matchesRegex || matchesId || matchesClick) {
+          map.setFeatureState(
+            { source: namespacedSource, sourceLayer: SOURCE_LAYER, id: f.id },
+            { highlighted: true }
+          );
+        }
+      }
+    },
+    [namespacedSource]
+  );
+
+  /** Start listening for new tile data to re-apply highlights. */
+  const startSourceListener = useCallback(
+    (map: MaplibreMap) => {
+      if (sourceDataListenerRef.current) return;
+      const handler = () => applyHighlights(map);
+      map.on("sourcedata", handler);
+      sourceDataListenerRef.current = () => map.off("sourcedata", handler);
+    },
+    [applyHighlights]
+  );
+
+  const stopSourceListener = useCallback(() => {
+    sourceDataListenerRef.current?.();
+    sourceDataListenerRef.current = null;
   }, []);
 
-  const highlightByRegex = useCallback((regex: RegExp) => {
-    const map = mapRef.current;
-    if (!map) return;
+  const handleMapReady = useCallback(
+    (map: MaplibreMap) => {
+      mapRef.current = map as MapWithGlobalState;
 
-    const allFeatures = map.queryRenderedFeatures(undefined, {});
-    const matching = allFeatures.filter(
-      (f) =>
-        f.id != null &&
-        f.source &&
-        f.sourceLayer &&
-        !f.layer.id.includes("selection") &&
-        !f.layer.id.includes("background") &&
-        regex.test(String(f.properties?.geographicidentifier ?? ""))
-    );
+      map.on("click", (e) => {
+        if (!highlightingActiveRef.current) return;
 
-    // Deduplicate by id
-    const seen = new Set(highlightedRef.current.map((h) => h.id));
-    const added: HighlightedFeature[] = [];
-    for (const f of matching) {
-      if (seen.has(f.id!)) continue;
-      seen.add(f.id!);
-      const entry: HighlightedFeature = {
-        source: f.source,
-        sourceLayer: f.sourceLayer!,
-        id: f.id!,
-      };
-      map.setFeatureState(
-        { source: entry.source, sourceLayer: entry.sourceLayer, id: entry.id },
-        { highlighted: true }
-      );
-      added.push(entry);
-    }
+        const hits = map.queryRenderedFeatures(e.point);
+        const feature = hits.find(
+          (f) =>
+            f.id != null &&
+            f.source &&
+            f.sourceLayer &&
+            !f.layer.id.includes("selection") &&
+            !f.layer.id.includes("background")
+        );
+        if (!feature) return;
 
-    highlightedRef.current = [...highlightedRef.current, ...added];
-    console.log(
-      "[Stadtplan2] highlighted",
-      added.length,
-      "features matching",
-      regex,
-      "(total:",
-      highlightedRef.current.length,
-      ")"
-    );
-  }, []);
+        const fId = feature.id!;
+        const criteria = criteriaRef.current;
 
-  const highlightByIds = useCallback((ids: (string | number)[]) => {
-    const map = mapRef.current;
-    if (!map) return;
+        if (criteria.clickedIds.has(fId)) {
+          criteria.clickedIds.delete(fId);
+          map.setFeatureState(
+            {
+              source: feature.source,
+              sourceLayer: feature.sourceLayer!,
+              id: fId,
+            },
+            { highlighted: false }
+          );
+          console.log("[Stadtplan2] un-highlighted feature", fId);
+        } else {
+          criteria.clickedIds.add(fId);
+          map.setFeatureState(
+            {
+              source: feature.source,
+              sourceLayer: feature.sourceLayer!,
+              id: fId,
+            },
+            { highlighted: true }
+          );
+          console.log("[Stadtplan2] highlighted feature", fId);
+        }
+      });
+    },
+    []
+  );
 
-    const allFeatures = map.queryRenderedFeatures(undefined, {});
-    const idSet = new Set(ids.map(String));
-    const matching = allFeatures.filter(
-      (f) =>
-        f.id != null &&
-        f.source &&
-        f.sourceLayer &&
-        idSet.has(String(f.properties?.id ?? ""))
-    );
+  const highlightByRegex = useCallback(
+    (regex: RegExp) => {
+      const map = mapRef.current;
+      if (!map) return;
 
-    const seen = new Set(highlightedRef.current.map((h) => h.id));
-    const added: HighlightedFeature[] = [];
-    for (const f of matching) {
-      if (seen.has(f.id!)) continue;
-      seen.add(f.id!);
-      const entry: HighlightedFeature = {
-        source: f.source,
-        sourceLayer: f.sourceLayer!,
-        id: f.id!,
-      };
-      map.setFeatureState(
-        { source: entry.source, sourceLayer: entry.sourceLayer, id: entry.id },
-        { highlighted: true }
-      );
-      added.push(entry);
-    }
+      criteriaRef.current.regexes.push(regex);
+      applyHighlights(map);
+      startSourceListener(map);
+      console.log("[Stadtplan2] added regex criteria:", regex);
+    },
+    [applyHighlights, startSourceListener]
+  );
 
-    highlightedRef.current = [...highlightedRef.current, ...added];
-    console.log(
-      "[Stadtplan2] highlighted",
-      added.length,
-      "features by ID (total:",
-      highlightedRef.current.length,
-      ")"
-    );
-  }, []);
+  const highlightByIds = useCallback(
+    (ids: (string | number)[]) => {
+      const map = mapRef.current;
+      if (!map) return;
+
+      for (const id of ids) criteriaRef.current.ids.add(String(id));
+      applyHighlights(map);
+      startSourceListener(map);
+      console.log("[Stadtplan2] added ID criteria:", ids);
+    },
+    [applyHighlights, startSourceListener]
+  );
 
   const clearHighlights = useCallback(() => {
     const map = mapRef.current;
     if (!map) return;
 
-    for (const f of highlightedRef.current) {
+    // Clear feature state on all loaded features
+    const features = map.querySourceFeatures(namespacedSource, {
+      sourceLayer: SOURCE_LAYER,
+    });
+    for (const f of features) {
+      if (f.id == null) continue;
       map.setFeatureState(
-        { source: f.source, sourceLayer: f.sourceLayer, id: f.id },
+        { source: namespacedSource, sourceLayer: SOURCE_LAYER, id: f.id },
         { highlighted: false }
       );
     }
-    highlightedRef.current = [];
-  }, []);
+
+    criteriaRef.current = { regexes: [], ids: new Set(), clickedIds: new Set() };
+    stopSourceListener();
+  }, [namespacedSource, stopSourceListener]);
 
   const toggleHighlighting = useCallback(() => {
     const map = mapRef.current;
@@ -147,9 +205,11 @@ const Stadtplan2 = () => {
     if (highlightingActive) {
       clearHighlights();
       map.setGlobalStateProperty("highlightingEnabled", false);
+      highlightingActiveRef.current = false;
       setHighlightingActive(false);
     } else {
       map.setGlobalStateProperty("highlightingEnabled", true);
+      highlightingActiveRef.current = true;
       setHighlightingActive(true);
     }
   }, [highlightingActive, clearHighlights]);
@@ -181,7 +241,7 @@ const Stadtplan2 = () => {
           {
             type: "vector",
             name: "POIs",
-            style: "https://tiles.cismet.de/poi/styleX.json",
+            style: STYLE_URL,
             infoboxMapping: [
               "foto: p.foto",
               "headerColor:p.schrift",
