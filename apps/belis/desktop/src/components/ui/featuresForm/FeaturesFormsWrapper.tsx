@@ -16,6 +16,8 @@ const featureTypeToFormKey: Record<string, string> = {
   standort_mast: "mast",
   masten: "mast",
   mast: "mast",
+  schaltstelle: "schaltstelle",
+  schaltstellen: "schaltstelle",
 };
 
 const FeaturesFormsWrapper = ({
