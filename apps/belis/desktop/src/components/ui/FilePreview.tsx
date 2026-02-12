@@ -1,12 +1,27 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useContext, useMemo, useCallback } from "react";
 import { Spin } from "antd";
 import {
   FilePdfOutlined,
   FileOutlined,
   FileImageOutlined,
 } from "@ant-design/icons";
+// eslint-disable-next-line @typescript-eslint/ban-ts-comment
+// @ts-ignore
+import { LightBoxDispatchContext } from "react-cismap/contexts/LightBoxContextProvider";
 import { getDocumentBlobUrl } from "../../helper/documentHelper";
 import type { DokumentItem } from "./DocumentPreview";
+
+interface LightBoxDispatch {
+  setAll?: (data: {
+    title: string;
+    index: number;
+    photourls: string[];
+    caption: string[];
+    visible: boolean;
+  }) => void;
+  setIndex?: (index: number) => void;
+  setVisible?: (visible: boolean) => void;
+}
 
 type FilePreviewSize = "sm" | "md" | "xl" | "xxl";
 
@@ -62,9 +77,16 @@ interface FileItemProps {
   jwt?: string;
   size: FilePreviewSize;
   showDescription: boolean;
+  onImageClick?: () => void;
 }
 
-const FileItem = ({ doc, jwt, size, showDescription }: FileItemProps) => {
+const FileItem = ({
+  doc,
+  jwt,
+  size,
+  showDescription,
+  onImageClick,
+}: FileItemProps) => {
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(false);
@@ -136,12 +158,14 @@ const FileItem = ({ doc, jwt, size, showDescription }: FileItemProps) => {
       <img
         src={previewUrl}
         alt={description}
+        onClick={onImageClick}
         style={{
           width: boxSize,
           height: boxSize,
           objectFit: "cover",
           borderRadius: 4,
           border: "1px solid #d9d9d9",
+          cursor: onImageClick ? "pointer" : "default",
         }}
       />
     );
@@ -184,6 +208,10 @@ const defaultTitleStyle: React.CSSProperties = {
   marginBottom: 8,
 };
 
+interface ImageUrlCache {
+  [objectName: string]: string;
+}
+
 const FilePreview = ({
   documents,
   jwt,
@@ -192,6 +220,99 @@ const FilePreview = ({
   size = "md",
   showDescription = true,
 }: FilePreviewProps) => {
+  const [imageUrls, setImageUrls] = useState<ImageUrlCache>({});
+  const lightBoxDispatch = useContext(
+    LightBoxDispatchContext
+  ) as LightBoxDispatch;
+
+  // Memoize image documents to avoid recreating the array on every render
+  const imageDocuments = useMemo(
+    () =>
+      documents.filter((doc) => {
+        const objectName = doc.dms_url?.url?.object_name || "";
+        return getFileType(objectName) === "image";
+      }),
+    [documents]
+  );
+
+  // Create a stable key for dependency tracking
+  const imageDocumentsKey = useMemo(
+    () =>
+      imageDocuments
+        .map((doc) => doc.dms_url?.url?.object_name || "")
+        .join(","),
+    [imageDocuments]
+  );
+
+  // Fetch all image URLs for the lightbox
+  useEffect(() => {
+    if (!jwt || imageDocuments.length === 0) return;
+
+    const fetchAllImages = async () => {
+      const newUrls: ImageUrlCache = {};
+      let hasNewUrls = false;
+
+      for (const doc of imageDocuments) {
+        const objectName = doc.dms_url?.url?.object_name;
+        if (!objectName) continue;
+
+        // Skip if already loaded
+        if (imageUrls[objectName]) {
+          newUrls[objectName] = imageUrls[objectName];
+          continue;
+        }
+
+        try {
+          const url = await getDocumentBlobUrl(jwt, objectName);
+          newUrls[objectName] = url;
+          hasNewUrls = true;
+        } catch (err) {
+          console.error("Failed to load image for lightbox:", err);
+        }
+      }
+
+      if (hasNewUrls) {
+        setImageUrls((prev) => ({ ...prev, ...newUrls }));
+      }
+    };
+
+    fetchAllImages();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [jwt, imageDocumentsKey]);
+
+  // Handle image click - set up lightbox and show it
+  const handleImageClick = useCallback(
+    (clickedIndex: number) => {
+      if (!lightBoxDispatch) return;
+
+      // Build photo URLs and captions at click time
+      const photourls: string[] = [];
+      const captions: string[] = [];
+
+      for (const doc of imageDocuments) {
+        const objectName = doc.dms_url?.url?.object_name || "";
+        const url = imageUrls[objectName];
+        if (url) {
+          photourls.push(url);
+          captions.push(
+            doc.dms_url?.description || doc.dms_url?.url?.object_name || "Datei"
+          );
+        }
+      }
+
+      if (photourls.length > 0 && lightBoxDispatch.setAll) {
+        lightBoxDispatch.setAll({
+          title: title,
+          index: clickedIndex,
+          photourls,
+          caption: captions,
+          visible: true,
+        });
+      }
+    },
+    [imageDocuments, imageUrls, title, lightBoxDispatch]
+  );
+
   if (!documents || documents.length === 0) {
     return (
       <div>
@@ -209,6 +330,17 @@ const FilePreview = ({
     );
   }
 
+  // Build a map from objectName to lightbox index (only images with loaded URLs)
+  let lightboxIndex = 0;
+  const objectNameToLightboxIndex: Record<string, number> = {};
+  for (const doc of imageDocuments) {
+    const objectName = doc.dms_url?.url?.object_name || "";
+    if (imageUrls[objectName]) {
+      objectNameToLightboxIndex[objectName] = lightboxIndex;
+      lightboxIndex++;
+    }
+  }
+
   return (
     <div>
       <div style={{ ...defaultTitleStyle, ...titleStyle }}>{title}</div>
@@ -219,15 +351,26 @@ const FilePreview = ({
           gap: 16,
         }}
       >
-        {documents.map((doc, index) => (
-          <FileItem
-            key={doc.dms_url?.url?.object_name || doc.dms_url?.id || index}
-            doc={doc}
-            jwt={jwt}
-            size={size}
-            showDescription={showDescription}
-          />
-        ))}
+        {documents.map((doc, index) => {
+          const objectName = doc.dms_url?.url?.object_name || "";
+          const fileType = getFileType(objectName);
+          const lbIndex = objectNameToLightboxIndex[objectName];
+
+          return (
+            <FileItem
+              key={doc.dms_url?.url?.object_name || doc.dms_url?.id || index}
+              doc={doc}
+              jwt={jwt}
+              size={size}
+              showDescription={showDescription}
+              onImageClick={
+                fileType === "image" && lbIndex !== undefined
+                  ? () => handleImageClick(lbIndex)
+                  : undefined
+              }
+            />
+          );
+        })}
       </div>
     </div>
   );

@@ -1,6 +1,11 @@
 // this will be needed if we need modals
 // import "bootstrap/dist/css/bootstrap.min.css";
 // import "react-cismap/topicMaps.css";
+
+// Fix for react-image-lightbox in Vite (needs global to be defined)
+// @ts-ignore
+window.global = window;
+
 import { StrictMode, useEffect, useState } from "react";
 import * as ReactDOM from "react-dom/client";
 import {
