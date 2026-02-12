@@ -118,6 +118,8 @@ export interface LibreMapProps {
   ) => void;
   /** Enable debug logging for [LAYER_MODE] and [StyleComposer] messages */
   debugLog?: boolean;
+  /** Expose the map instance as window.__carmaMap for console debugging */
+  exposeMapToWindow?: boolean;
 }
 
 export const LibreMap = ({
@@ -134,6 +136,7 @@ export const LibreMap = ({
   layerMode = "merged",
   onFeatureSelect,
   debugLog = false,
+  exposeMapToWindow = false,
 }: LibreMapProps) => {
   const mapContainer = useRef<HTMLDivElement>(null);
   const map = useRef<maplibregl.Map | null>(null);
@@ -499,6 +502,9 @@ export const LibreMap = ({
       map.current = mapInstance;
       setLibreMap?.(mapInstance);
       setContextMap(mapInstance);
+      if (exposeMapToWindow) {
+        (window as unknown as Record<string, unknown>).__carmaMap = mapInstance;
+      }
 
       mapInstance.on("click", async (e) => {
         const point = mapInstance.project([e.lngLat.lng, e.lngLat.lat]);
