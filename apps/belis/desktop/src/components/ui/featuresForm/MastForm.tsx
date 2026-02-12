@@ -97,6 +97,7 @@ const MastForm = ({ data, rawFeature, onClose }: MastFormProps) => {
       onFilesChange={setPendingFiles}
       debugData={data}
       additionalTabs={additionalTabs}
+      uploadText="Datei hochladen"
     >
       <MastFormFields mast={mast} />
     </FeatureFormLayout>

@@ -7,11 +7,13 @@ const { Dragger } = Upload;
 interface DocumentUploaderProps {
   onFilesChange?: (files: UploadFile[]) => void;
   fileList?: UploadFile[];
+  uploadText?: string;
 }
 
 const DocumentUploader = ({
   onFilesChange,
   fileList,
+  uploadText = "Klicken oder Datei hierher ziehen zum Hochladen",
 }: DocumentUploaderProps) => {
   const uploadProps: UploadProps = {
     name: "file",
@@ -39,9 +41,7 @@ const DocumentUploader = ({
       <p className="ant-upload-drag-icon">
         <InboxOutlined />
       </p>
-      <p className="ant-upload-text">
-        Klicken oder Datei hierher ziehen zum Hochladen
-      </p>
+      <p className="ant-upload-text">{uploadText}</p>
     </Dragger>
   );
 };

@@ -22,6 +22,7 @@ interface FeatureFormLayoutProps {
   onSave?: () => void;
   debugData?: unknown;
   additionalTabs?: AdditionalTab[];
+  uploadText?: string;
 }
 
 const FeatureFormLayout = ({
@@ -36,6 +37,7 @@ const FeatureFormLayout = ({
   onSave,
   debugData,
   additionalTabs = [],
+  uploadText,
 }: FeatureFormLayoutProps) => {
   // Support both regular query params and hash-based routing (/#/?param=value)
   const hashQuery = window.location.hash.split("?")[1] || "";
@@ -72,6 +74,7 @@ const FeatureFormLayout = ({
       pendingFiles={pendingFiles}
       dokumenteTitleStyle={labelStyle}
       vorschauTitleStyle={labelStyle}
+      uploadText={uploadText}
     />
   );
 

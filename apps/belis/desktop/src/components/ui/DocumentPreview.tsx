@@ -46,6 +46,7 @@ interface DocumentPreviewProps {
   isSaving?: boolean;
   dokumenteTitleStyle?: React.CSSProperties;
   vorschauTitleStyle?: React.CSSProperties;
+  uploadText?: string;
 }
 
 type FileType = "image" | "pdf" | "other";
@@ -98,6 +99,7 @@ const DocumentPreview = ({
   isSaving = false,
   dokumenteTitleStyle,
   vorschauTitleStyle,
+  uploadText,
 }: DocumentPreviewProps) => {
   const [selectedDoc, setSelectedDoc] = useState<DokumentItem | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
@@ -392,6 +394,7 @@ const DocumentPreview = ({
               <DocumentUploader
                 onFilesChange={onFilesChange}
                 fileList={pendingFiles}
+                uploadText={uploadText}
               />
             </div>
           </div>
