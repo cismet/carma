@@ -66,9 +66,9 @@ export const tkeyEnergielieferantQuery = gql`
   ${queries.tkey_energielieferant}
 `;
 
-// export const tkeyBezirkQuery = gql`
-//   ${queries.tkey_bezirk}
-// `;
+export const tkeyBezirkQuery = gql`
+  ${queries.tkey_bezirk}
+`;
 
 export const leitungstypQuery = gql`
   ${queries.leitungstyp}

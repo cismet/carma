@@ -59,6 +59,12 @@ interface AnlagengruppeItem {
   bezeichnung?: string;
 }
 
+interface BezirkItem {
+  id: number;
+  pk?: string;
+  bezirk?: string;
+}
+
 const MastForm = ({ data, rawFeature, onClose }: MastFormProps) => {
   const [form] = Form.useForm();
   const [pendingFiles, setPendingFiles] = useState<UploadFile[]>([]);
@@ -90,6 +96,11 @@ const MastForm = ({ data, rawFeature, onClose }: MastFormProps) => {
     []) as KennzifferItem[];
   const anlagengruppeOptions = (keyTablesData.anlagengruppe ||
     []) as AnlagengruppeItem[];
+  const bezirkOptions = [
+    ...((keyTablesData.bezirk || []) as BezirkItem[]),
+  ].sort((a, b) => (a.bezirk || "").localeCompare(b.bezirk || ""));
+
+  console.log("xxx bezirkOptions", bezirkOptions);
 
   // Extract documents from data
   const documents: DokumentItem[] = (data?.dokumente as DokumentItem[]) || [];
@@ -128,8 +139,8 @@ const MastForm = ({ data, rawFeature, onClose }: MastFormProps) => {
         haus_nr: mast.haus_nr,
         // Standortangabe
         standortangabe: mast.standortangabe,
-        // Stadtbezirk
-        stadtbezirk: mast.tkey_bezirk?.bezirk,
+        // Stadtbezirk - use id for Select value
+        fk_bezirk: mast.tkey_bezirk?.id ?? null,
         // Mastart - use id for Select value
         fk_mastart: mast.tkey_mastart?.id ?? null,
         // Masttyp - use id for Select value
@@ -287,13 +298,25 @@ const MastForm = ({ data, rawFeature, onClose }: MastFormProps) => {
           <Input size="large" />
         </Form.Item>
 
-        {/* Stadtbezirk (readonly) */}
+        {/* Stadtbezirk */}
         <Form.Item
-          name="stadtbezirk"
+          name="fk_bezirk"
           label={<FormLabel>Stadtbezirk</FormLabel>}
           className="mb-4"
         >
-          <Input size="large" />
+          <Select
+            placeholder="Stadtbezirk auswahlen"
+            className="w-full"
+            size="large"
+            showSearch
+            optionFilterProp="children"
+          >
+            {bezirkOptions.map((item) => (
+              <Select.Option key={item.id} value={item.id}>
+                {item.bezirk}
+              </Select.Option>
+            ))}
+          </Select>
         </Form.Item>
 
         {/* Mastart */}

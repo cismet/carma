@@ -978,14 +978,14 @@ query MyQuery {
   }
 }`;
 
-// queries.tkey_bezirk = `
-// query MyQuery {
-//   tkey_bezirk {
-//     bezirk
-//     id
-//     pk
-//   }
-// }`;
+queries.tkey_bezirk = `
+query MyQuery {
+  tkey_bezirk {
+    bezirk
+    id
+    pk
+  }
+}`;
 
 queries.leitungstyp = `
 query MyQuery {

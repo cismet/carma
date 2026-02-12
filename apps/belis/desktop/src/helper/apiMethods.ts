@@ -15,7 +15,7 @@ import {
   DELETE_ENDPOINT,
   UPLOAD_DOCUMENT_ENDPOINT,
   teamQuery,
-  // tkeyBezirkQuery,
+  tkeyBezirkQuery,
   tkeyDoppelkommandoQuery,
   tkeyEnergielieferantQuery,
   tkeyKennzifferQuery,
@@ -527,38 +527,38 @@ export const fetchAllEnergielieferant = async (jwt: string) => {
   return json.data?.tkey_energielieferant ?? [];
 };
 
-// export const fetchAllBezirk = async (jwt: string) => {
-//   const response = await fetch(ENDPOINT, {
-//     method: "POST",
-//     headers: {
-//       "Content-Type": "application/json",
-//       Authorization: `Bearer ${jwt}`,
-//     },
-//     body: JSON.stringify({
-//       query: tkeyBezirkQuery,
-//     }),
-//   });
+export const fetchAllBezirk = async (jwt: string) => {
+  const response = await fetch(ENDPOINT, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${jwt}`,
+    },
+    body: JSON.stringify({
+      query: tkeyBezirkQuery,
+    }),
+  });
 
-//   const text = await response.text();
-//   if (!response.ok) {
-//     throw new Error(`fetchAllBezirk failed: ${response.status} ${text}`);
-//   }
+  const text = await response.text();
+  if (!response.ok) {
+    throw new Error(`fetchAllBezirk failed: ${response.status} ${text}`);
+  }
 
-//   const json = JSON.parse(text) as {
-//     data?: {
-//       tkey_bezirk?: Array<{ id: number; pk: string; bezirk: string }>;
-//     };
-//     errors?: unknown;
-//   };
+  const json = JSON.parse(text) as {
+    data?: {
+      tkey_bezirk?: Array<{ id: number; pk: string; bezirk: string }>;
+    };
+    errors?: unknown;
+  };
 
-//   if (json.errors) {
-//     throw new Error(
-//       `fetchAllBezirk GraphQL errors: ${JSON.stringify(json.errors)}`
-//     );
-//   }
+  if (json.errors) {
+    throw new Error(
+      `fetchAllBezirk GraphQL errors: ${JSON.stringify(json.errors)}`
+    );
+  }
 
-//   return json.data?.tkey_bezirk ?? [];
-// };
+  return json.data?.tkey_bezirk ?? [];
+};
 
 export const fetchAllLeitungstyp = async (jwt: string) => {
   const response = await fetch(ENDPOINT, {
@@ -1042,6 +1042,7 @@ export const keyTableFetchers: Record<
   anlagengruppe: fetchAllAnlagengruppe,
   unterhaltLeuchte: fetchAllUnterhaltLeuchte,
   energielieferant: fetchAllEnergielieferant,
+  bezirk: fetchAllBezirk,
   leitungstyp: fetchAllLeitungstyp,
   arbeitsprotokollstatus: fetchAllArbeitsprotokollstatus,
   materialLeitung: fetchAllMaterialLeitung,
@@ -1141,7 +1142,7 @@ export const fetchAllKeyTables = async (jwt: string) => {
     { key: "unterhaltLeuchte", fetch: fetchAllUnterhaltLeuchte },
     // { key: "straßenschlüssel", fetch: fetchAllStrassenschluessel },
     { key: "energielieferant", fetch: fetchAllEnergielieferant },
-    // { key: "bezirk", fetch: fetchAllBezirk },
+    { key: "bezirk", fetch: fetchAllBezirk },
     { key: "leitungstyp", fetch: fetchAllLeitungstyp },
     { key: "arbeitsprotokollstatus", fetch: fetchAllArbeitsprotokollstatus },
     { key: "materialLeitung", fetch: fetchAllMaterialLeitung },
