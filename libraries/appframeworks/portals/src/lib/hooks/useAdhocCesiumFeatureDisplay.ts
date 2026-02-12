@@ -35,6 +35,7 @@ import {
   type AdhocFeature,
   type SelectedAdhocFeature,
 } from "../components/AdhocFeatureDisplayProvider";
+import { DEFAULT_ADHOC_FEATURE_LAYER_ID } from "../constants/adhoc";
 import {
   buildAdhocFeatureInfo,
   getAdhocAccentColor,
@@ -50,7 +51,9 @@ import {
   getWallHeights,
   isRehydratedFeature,
   normalizeCarmaConf3D,
+  resolveGeoJsonFeatureIdForSelection,
   shouldShowFootprintIn3d,
+  toGeoJsonFeatureId,
   toSelectionIdSet,
 } from "../utils/adhoc-cesium-feature-display-utils";
 
@@ -81,27 +84,35 @@ type AdhocFeatureEntry = {
   feature: AdhocFeature;
   id: string;
   collectionId: string;
+  layerId: string;
   key: string;
 };
 
 const FEATURE_KEY_SEPARATOR = "::";
 
 const toAdhocFeatureKey = (selection: SelectedAdhocFeature): string =>
-  `${selection.collectionId}${FEATURE_KEY_SEPARATOR}${selection.id}`;
+  `${selection.collectionId}${FEATURE_KEY_SEPARATOR}${selection.layerId}${FEATURE_KEY_SEPARATOR}${selection.id}`;
 
 const parseAdhocFeatureKey = (
   featureKey: string
 ): SelectedAdhocFeature | null => {
-  const separatorIndex = featureKey.indexOf(FEATURE_KEY_SEPARATOR);
-  if (separatorIndex === -1) {
+  const parts = featureKey.split(FEATURE_KEY_SEPARATOR);
+  if (parts.length === 2) {
+    const [collectionId, id] = parts;
+    if (!collectionId || !id) {
+      return null;
+    }
+    return { collectionId, layerId: DEFAULT_ADHOC_FEATURE_LAYER_ID, id };
+  }
+  if (parts.length < 3) {
     return null;
   }
-  const collectionId = featureKey.slice(0, separatorIndex);
-  const id = featureKey.slice(separatorIndex + FEATURE_KEY_SEPARATOR.length);
-  if (!collectionId || !id) {
+  const [collectionId, layerId, ...idParts] = parts;
+  const id = idParts.join(FEATURE_KEY_SEPARATOR);
+  if (!collectionId || !layerId || !id) {
     return null;
   }
-  return { collectionId, id };
+  return { collectionId, layerId, id };
 };
 
 const buildModelFeatureInfo = (feature: AdhocFeature): FeatureInfo | null => {
@@ -141,9 +152,6 @@ export const useAdhocCesiumFeatureDisplay = (
     setShouldFocusSelected,
     updateFeatureMetadata,
   } = useAdhocFeatureDisplay();
-  const selectedFeatureKey = selectedAdhocFeature
-    ? toAdhocFeatureKey(selectedAdhocFeature)
-    : null;
 
   const adhocFeatureEntries = useMemo<AdhocFeatureEntry[]>(
     () =>
@@ -152,9 +160,11 @@ export const useAdhocCesiumFeatureDisplay = (
           feature,
           id: feature.id,
           collectionId: collection.id,
+          layerId: feature.layerId ?? DEFAULT_ADHOC_FEATURE_LAYER_ID,
           key: toAdhocFeatureKey({
             id: feature.id,
             collectionId: collection.id,
+            layerId: feature.layerId ?? DEFAULT_ADHOC_FEATURE_LAYER_ID,
           }),
         }))
       ),
@@ -167,22 +177,145 @@ export const useAdhocCesiumFeatureDisplay = (
     [adhocFeatureEntries]
   );
 
+  const geoJsonSelectionLookup = useMemo(() => {
+    const featureKeyByGeoJsonFeatureId = new Map<string, string>();
+    const selectionIdByFeatureKeyAndGeoJsonFeatureId = new Map<
+      string,
+      Map<string, string>
+    >();
+
+    for (const entry of adhocFeatureEntries) {
+      const geojson = getGeoJsonFromFeature(entry.feature);
+      if (!geojson) {
+        continue;
+      }
+      const selectionMap = new Map<string, string>();
+      for (const selectable of extractSelectableGeoJsonFeatures(
+        entry.key,
+        geojson
+      )) {
+        const geoJsonFeatureId = toGeoJsonFeatureId(selectable.geojson);
+        if (!geoJsonFeatureId) {
+          continue;
+        }
+        if (!selectionMap.has(geoJsonFeatureId)) {
+          selectionMap.set(geoJsonFeatureId, selectable.selectionId);
+        }
+        if (!featureKeyByGeoJsonFeatureId.has(geoJsonFeatureId)) {
+          featureKeyByGeoJsonFeatureId.set(geoJsonFeatureId, entry.key);
+        }
+      }
+      if (selectionMap.size > 0) {
+        selectionIdByFeatureKeyAndGeoJsonFeatureId.set(entry.key, selectionMap);
+      }
+    }
+
+    return {
+      featureKeyByGeoJsonFeatureId,
+      selectionIdByFeatureKeyAndGeoJsonFeatureId,
+    };
+  }, [adhocFeatureEntries]);
+
+  const selectedFeatureKey = useMemo(() => {
+    if (!selectedAdhocFeature) {
+      return null;
+    }
+    const directKey = toAdhocFeatureKey(selectedAdhocFeature);
+    if (adhocFeatureByKey.has(directKey)) {
+      return directKey;
+    }
+    return (
+      geoJsonSelectionLookup.featureKeyByGeoJsonFeatureId.get(
+        selectedAdhocFeature.id
+      ) ?? null
+    );
+  }, [adhocFeatureByKey, geoJsonSelectionLookup, selectedAdhocFeature]);
+
+  const selectedFeatureSelectionId = useMemo(() => {
+    if (!selectedAdhocFeature || !selectedFeatureKey) {
+      return null;
+    }
+    return (
+      geoJsonSelectionLookup.selectionIdByFeatureKeyAndGeoJsonFeatureId
+        .get(selectedFeatureKey)
+        ?.get(selectedAdhocFeature.id) ?? null
+    );
+  }, [geoJsonSelectionLookup, selectedAdhocFeature, selectedFeatureKey]);
+
   const resolveAdhocFeatureEntryByFeatureId = useCallback(
     (featureId: string): AdhocFeatureEntry | null => {
       if (selectedAdhocFeature?.id === featureId) {
         const selectedKey = toAdhocFeatureKey(selectedAdhocFeature);
-        return adhocFeatureByKey.get(selectedKey) ?? null;
+        const fromSelected = adhocFeatureByKey.get(selectedKey);
+        if (fromSelected) {
+          return fromSelected;
+        }
+        const keyByGeoJsonFeatureId =
+          geoJsonSelectionLookup.featureKeyByGeoJsonFeatureId.get(featureId);
+        if (keyByGeoJsonFeatureId) {
+          return adhocFeatureByKey.get(keyByGeoJsonFeatureId) ?? null;
+        }
       }
-      return (
-        adhocFeatureEntries.find((entry) => entry.id === featureId) ?? null
+      const matchingEntries = adhocFeatureEntries.filter(
+        (entry) => entry.id === featureId
       );
+      if (matchingEntries.length === 0) {
+        const keyByGeoJsonFeatureId =
+          geoJsonSelectionLookup.featureKeyByGeoJsonFeatureId.get(featureId);
+        if (keyByGeoJsonFeatureId) {
+          return adhocFeatureByKey.get(keyByGeoJsonFeatureId) ?? null;
+        }
+        return null;
+      }
+      if (matchingEntries.length === 1) {
+        return matchingEntries[0];
+      }
+      const defaultLayerMatches = matchingEntries.filter(
+        (entry) => entry.layerId === DEFAULT_ADHOC_FEATURE_LAYER_ID
+      );
+      if (defaultLayerMatches.length === 1) {
+        return defaultLayerMatches[0];
+      }
+      const keyByGeoJsonFeatureId =
+        geoJsonSelectionLookup.featureKeyByGeoJsonFeatureId.get(featureId);
+      if (keyByGeoJsonFeatureId) {
+        return adhocFeatureByKey.get(keyByGeoJsonFeatureId) ?? null;
+      }
+      return matchingEntries[0];
     },
-    [adhocFeatureByKey, adhocFeatureEntries, selectedAdhocFeature]
+    [
+      adhocFeatureByKey,
+      adhocFeatureEntries,
+      geoJsonSelectionLookup,
+      selectedAdhocFeature,
+    ]
+  );
+
+  const resolveAdhocFeatureEntryFromSelectionId = useCallback(
+    (selectionId: string): AdhocFeatureEntry | null => {
+      const entryFromKey = adhocFeatureByKey.get(selectionId);
+      if (entryFromKey) {
+        return entryFromKey;
+      }
+
+      const parsedSelection = parseAdhocFeatureKey(selectionId);
+      if (parsedSelection) {
+        const parsedKey = toAdhocFeatureKey(parsedSelection);
+        const entryFromParsedSelection = adhocFeatureByKey.get(parsedKey);
+        if (entryFromParsedSelection) {
+          return entryFromParsedSelection;
+        }
+      }
+
+      return resolveAdhocFeatureEntryByFeatureId(selectionId);
+    },
+    [adhocFeatureByKey, resolveAdhocFeatureEntryByFeatureId]
   );
 
   type VisualizerEntry = {
     featureId: string;
     collectionId: string;
+    layerId: string;
     featureKey: string;
     selectionId: string;
     visualizer:
@@ -312,8 +445,10 @@ export const useAdhocCesiumFeatureDisplay = (
 
       const featureInfo = buildModelFeatureInfo(entry.feature);
       const baseProperties = featureInfo?.properties ?? {};
-      const { id: _ignoredModelId, ...modelPropertiesWithoutId } =
-        baseProperties as Record<string, unknown>;
+      const modelPropertiesWithoutId = {
+        ...(baseProperties as Record<string, unknown>),
+      };
+      delete modelPropertiesWithoutId.id;
 
       return [
         {
@@ -367,15 +502,7 @@ export const useAdhocCesiumFeatureDisplay = (
             return;
           }
 
-          const entryFromKey = adhocFeatureByKey.get(featureInfo.id);
-          const parsedSelection = parseAdhocFeatureKey(featureInfo.id);
-          const entryFromParsedSelection = parsedSelection
-            ? adhocFeatureByKey.get(toAdhocFeatureKey(parsedSelection))
-            : null;
-          const entry =
-            entryFromKey ??
-            entryFromParsedSelection ??
-            resolveAdhocFeatureEntryByFeatureId(featureInfo.id);
+          const entry = resolveAdhocFeatureEntryFromSelectionId(featureInfo.id);
 
           if (!entry) {
             onFeatureInfoChange?.(featureInfo);
@@ -383,20 +510,19 @@ export const useAdhocCesiumFeatureDisplay = (
           }
 
           const resolvedInfo = buildModelFeatureInfo(entry.feature);
-          setSelectedFeatureById(entry.id, entry.collectionId);
+          setSelectedFeatureById(entry.id, entry.collectionId, entry.layerId);
           onFeatureInfoChange?.(resolvedInfo ?? featureInfo);
         },
       },
     };
   }, [
-    adhocFeatureByKey,
     cesiumModelConfigs,
     hasCesiumModels,
     isCesiumEnabled,
     onFeatureInfoChange,
     selectedFeatureKey,
     clearSelectedFeature,
-    resolveAdhocFeatureEntryByFeatureId,
+    resolveAdhocFeatureEntryFromSelectionId,
     setSelectedFeatureById,
   ]);
 
@@ -507,6 +633,7 @@ export const useAdhocCesiumFeatureDisplay = (
         const featureKey = entry.key;
         const featureId = entry.id;
         const collectionId = entry.collectionId;
+        const layerId = entry.layerId;
 
         const geojson = getGeoJsonFromFeature(feature);
         if (!geojson) continue;
@@ -551,6 +678,7 @@ export const useAdhocCesiumFeatureDisplay = (
           updateFeatureMetadata({
             id: featureId,
             collectionId,
+            layerId,
             metadata: {
               flyToGeoJson: resolvedGeojson,
               ...(flyToBoundingSphere
@@ -688,6 +816,7 @@ export const useAdhocCesiumFeatureDisplay = (
           visualizersRef.current.set(key, {
             featureId,
             collectionId,
+            layerId,
             featureKey,
             selectionId,
             visualizer,
@@ -729,7 +858,8 @@ export const useAdhocCesiumFeatureDisplay = (
 
           const featureInfo = buildAdhocFeatureInfoForSelection(
             feature,
-            selectedSelectionId
+            selectedSelectionId,
+            featureKey
           );
           onFeatureInfoChange?.(featureInfo);
 
@@ -758,7 +888,8 @@ export const useAdhocCesiumFeatureDisplay = (
 
           const featureInfo = buildAdhocFeatureInfoForSelection(
             feature,
-            selectedSelectionId
+            selectedSelectionId,
+            featureKey
           );
           onFeatureInfoChange?.(featureInfo);
 
@@ -847,7 +978,9 @@ export const useAdhocCesiumFeatureDisplay = (
         )
       : new Set<string>();
     const preferredSelectionId = selectedFeatureKey
-      ? selectedSelectionIdByFeatureRef.current.get(selectedFeatureKey) ?? null
+      ? selectedFeatureSelectionId ??
+        selectedSelectionIdByFeatureRef.current.get(selectedFeatureKey) ??
+        null
       : null;
     const selectedSelectionId =
       preferredSelectionId && availableSelectionIds.has(preferredSelectionId)
@@ -874,7 +1007,11 @@ export const useAdhocCesiumFeatureDisplay = (
       : null;
     const selectedFeature = selectedFeatureEntry?.feature ?? null;
     const featureInfo = selectedFeature
-      ? buildAdhocFeatureInfoForSelection(selectedFeature, selectedSelectionId)
+      ? buildAdhocFeatureInfoForSelection(
+          selectedFeature,
+          selectedSelectionId,
+          selectedFeatureKey ?? selectedFeature.id
+        )
       : null;
     onFeatureInfoChange?.(featureInfo);
 
@@ -948,6 +1085,7 @@ export const useAdhocCesiumFeatureDisplay = (
             updateFeatureMetadata({
               id: selectedEntry.id,
               collectionId: selectedEntry.collectionId,
+              layerId: selectedEntry.layerId,
               metadata: {
                 flyToGeoJson: flyToGeojson,
                 flyToBoundingSphere: fallbackSphere,
@@ -986,6 +1124,7 @@ export const useAdhocCesiumFeatureDisplay = (
         updateFeatureMetadata({
           id: selectedEntry.id,
           collectionId: selectedEntry.collectionId,
+          layerId: selectedEntry.layerId,
           metadata: {
             flyToGeoJson: elevationResult.geojson,
             ...(elevatedSphere ? { flyToBoundingSphere: elevatedSphere } : {}),
@@ -1020,6 +1159,7 @@ export const useAdhocCesiumFeatureDisplay = (
     isCesiumEnabled,
     onFeatureInfoChange,
     selectedFeatureKey,
+    selectedFeatureSelectionId,
     setShouldFocusSelected,
     shouldFocusSelected,
     minFlyToRange,
@@ -1080,14 +1220,30 @@ export const useAdhocCesiumFeatureDisplay = (
             const adhocFeature = adhocFeatureByKey.get(
               entry.featureKey
             )?.feature;
+            const selectedGeoJsonFeatureId = adhocFeature
+              ? resolveGeoJsonFeatureIdForSelection(
+                  adhocFeature,
+                  entry.selectionId,
+                  entry.featureKey
+                )
+              : null;
             const info = adhocFeature
               ? buildAdhocFeatureInfoForSelection(
                   adhocFeature,
-                  entry.selectionId
+                  entry.selectionId,
+                  entry.featureKey
                 )
               : null;
 
+            const selectedFeatureId =
+              selectedGeoJsonFeatureId ?? entry.featureId;
+
             if (entry.featureKey === selectedFeatureKey) {
+              setSelectedFeatureById(
+                selectedFeatureId,
+                entry.collectionId,
+                entry.layerId
+              );
               visualizersRef.current.forEach((candidate) => {
                 candidate.visualizer.selected =
                   candidate.featureKey === entry.featureKey &&
@@ -1098,7 +1254,11 @@ export const useAdhocCesiumFeatureDisplay = (
               return;
             }
 
-            setSelectedFeatureById(entry.featureId, entry.collectionId);
+            setSelectedFeatureById(
+              selectedFeatureId,
+              entry.collectionId,
+              entry.layerId
+            );
             onFeatureInfoChange?.(info);
             return;
           }
@@ -1112,25 +1272,18 @@ export const useAdhocCesiumFeatureDisplay = (
           Model;
         const isModelPick = isModelPickId || isModelPickPrimitive;
         if (isModelPick) {
-          const entryFromKey = pickedSelectionId
-            ? adhocFeatureByKey.get(pickedSelectionId)
+          const modelEntry = pickedSelectionId
+            ? resolveAdhocFeatureEntryFromSelectionId(pickedSelectionId)
             : null;
-          const parsedSelection = pickedSelectionId
-            ? parseAdhocFeatureKey(pickedSelectionId)
-            : null;
-          const entryFromParsedSelection = parsedSelection
-            ? adhocFeatureByKey.get(toAdhocFeatureKey(parsedSelection))
-            : null;
-          const entryFromFeatureId = pickedSelectionId
-            ? resolveAdhocFeatureEntryByFeatureId(pickedSelectionId)
-            : null;
-          const modelEntry =
-            entryFromKey ?? entryFromParsedSelection ?? entryFromFeatureId;
           if (!modelEntry) {
             return;
           }
           setShouldFocusSelected(false);
-          setSelectedFeatureById(modelEntry.id, modelEntry.collectionId);
+          setSelectedFeatureById(
+            modelEntry.id,
+            modelEntry.collectionId,
+            modelEntry.layerId
+          );
           const info = buildModelFeatureInfo(modelEntry.feature);
           onFeatureInfoChange?.(info);
           return;
@@ -1165,7 +1318,7 @@ export const useAdhocCesiumFeatureDisplay = (
     setSelectedFeatureById,
     setShouldFocusSelected,
     registeredFeatureKeys,
-    resolveAdhocFeatureEntryByFeatureId,
+    resolveAdhocFeatureEntryFromSelectionId,
   ]);
 
   // Get bounding sphere for a feature

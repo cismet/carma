@@ -2,6 +2,7 @@ import type { Dispatch } from "redux";
 import { createElement, type ReactNode } from "react";
 import type { BackgroundLayer, Item, Layer } from "@carma/types";
 import { parseToMapLayer } from "@carma-mapping/utils";
+import { DEFAULT_ADHOC_FEATURE_LAYER_ID } from "@carma-appframeworks/portals";
 
 import {
   setTriggerSelectionById,
@@ -36,9 +37,13 @@ type MessageApiLike = {
 
 type RoutedMapRef = Parameters<typeof zoomToStyleFeatures>[1];
 
-type SetSelectedFeatureByIdFn = (id: string, collectionId: string) => void;
+type SetSelectedFeatureByIdFn = (
+  id: string,
+  collectionId: string,
+  layerId?: string
+) => void;
 type SetShouldFocusSelectedFn = (shouldFocus: boolean) => void;
-type ClearFeaturesFn = (collectionId?: string) => void;
+type ClearFeaturesFn = (collectionId?: string, layerId?: string) => void;
 type ToggleFrameworkFn = () => Promise<unknown>;
 type SetCurrentStyleFn = (style: MapStyleKeys) => void;
 
@@ -205,7 +210,8 @@ const maybeAddAdhocFeature = async ({
 
   const addedFeature = await addAdhocFeatureFromLayer({
     layer,
-    id,
+    collectionId: id,
+    layerId: DEFAULT_ADHOC_FEATURE_LAYER_ID,
     addFeature,
   });
   if (!addedFeature) {
@@ -215,7 +221,11 @@ const maybeAddAdhocFeature = async ({
   await zoomToStyleFeatures(addedFeature.styleData, routedMap);
 
   if (shouldSelectIn3D(layer, isLeaflet)) {
-    setSelectedFeatureById(addedFeature.featureId, addedFeature.collectionId);
+    setSelectedFeatureById(
+      addedFeature.id,
+      addedFeature.collectionId,
+      addedFeature.layerId
+    );
     setShouldFocusSelected(true);
   }
 

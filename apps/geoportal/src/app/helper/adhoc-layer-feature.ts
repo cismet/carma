@@ -3,6 +3,7 @@ import type {
   GeoJSONSourceSpecification,
   SourceSpecification,
 } from "maplibre-gl";
+import { DEFAULT_ADHOC_FEATURE_LAYER_ID } from "@carma-appframeworks/portals";
 import md5 from "md5";
 import type { Feature, FeatureCollection } from "geojson";
 
@@ -10,6 +11,7 @@ import { getVectorLayerStyle, isAdhocVectorLayer } from "./adhoc-feature-utils";
 
 export type AdhocMapLibreLikeFeature = {
   id: string;
+  layerId?: string;
   kind: "maplibre-style";
   data: CarmaMapLibreStyleData;
   properties?: Record<string, unknown>;
@@ -18,28 +20,93 @@ export type AdhocMapLibreLikeFeature = {
 
 export type AddFeatureFn<
   TFeature extends AdhocMapLibreLikeFeature = AdhocMapLibreLikeFeature
-> = (feature: TFeature, options?: { collectionId?: string }) => void;
+> = (
+  feature: TFeature,
+  options?: { collectionId?: string; layerId?: string }
+) => void;
 
-export type AddAdhocFeatureFromLayerOptions<
+type AddAdhocFeatureFromLayerOptions<
   TFeature extends AdhocMapLibreLikeFeature = AdhocMapLibreLikeFeature
 > = {
   layer: Layer;
-  id: string;
+  collectionId: string;
+  layerId?: string;
   addFeature: AddFeatureFn<TFeature>;
   metadata?: Record<string, unknown>;
 };
 
-export type AddedAdhocFeature = {
-  featureId: string;
+type AdhocFeatureRef = {
+  id: string;
   collectionId: string;
+  layerId: string;
+};
+
+type AddedAdhocFeature = AdhocFeatureRef & {
   styleData: CarmaMapLibreStyleData;
 };
+
+type AdhocCollectionLike<TFeature extends { id: string }> = {
+  id: string;
+  features: TFeature[];
+};
+
+type AdhocSelectionTarget<TFeature extends { id: string }> = TFeature &
+  Pick<AdhocFeatureRef, "collectionId" | "layerId">;
 
 const pickNonEmptyString = (...values: Array<unknown>): string | undefined =>
   values.find(
     (value): value is string =>
       typeof value === "string" && value.trim().length > 0
   );
+
+const pickPreferredAdhocFeature = <
+  TFeature extends { id: string; kind?: string; layerId?: string }
+>(
+  collection: AdhocCollectionLike<TFeature> | undefined,
+  preferredLayerId?: string
+): TFeature | null => {
+  if (!collection) {
+    return null;
+  }
+  const featuresInPreferredLayer =
+    preferredLayerId === undefined
+      ? collection.features
+      : collection.features.filter(
+          (feature) =>
+            (feature.layerId ?? DEFAULT_ADHOC_FEATURE_LAYER_ID) ===
+            preferredLayerId
+        );
+  const sourceFeatures =
+    featuresInPreferredLayer.length > 0
+      ? featuresInPreferredLayer
+      : collection.features;
+  return (
+    sourceFeatures.find((feature) => feature.kind === "maplibre-style") ??
+    sourceFeatures[0] ??
+    null
+  );
+};
+
+export const resolveAdhocSelectionTargetByCollectionId = <
+  TFeature extends { id: string; kind?: string; layerId?: string }
+>(
+  collections: AdhocCollectionLike<TFeature>[],
+  collectionId: string,
+  preferredLayerId: string = DEFAULT_ADHOC_FEATURE_LAYER_ID
+): AdhocSelectionTarget<TFeature> | null => {
+  const collection = collections.find(
+    (candidate) => candidate.id === collectionId
+  );
+  const feature = pickPreferredAdhocFeature(collection, preferredLayerId);
+  if (!feature) {
+    return null;
+  }
+  return {
+    ...feature,
+    collectionId: collection.id,
+    layerId: feature.layerId ?? preferredLayerId,
+  };
+};
 
 const toStringId = (value: unknown): string | null => {
   if (typeof value === "string" || typeof value === "number") {
@@ -182,10 +249,12 @@ const extractFirstGeoJsonFeatureProperties = (
 const buildAdhocMapLibreStyleFeature = ({
   styleData,
   fallbackLayerId,
+  layerId,
   metadata,
 }: {
   styleData: CarmaMapLibreStyleData;
   fallbackLayerId: string;
+  layerId: string;
   metadata?: Record<string, unknown>;
 }) => {
   const feature = {
@@ -193,6 +262,7 @@ const buildAdhocMapLibreStyleFeature = ({
       styleData,
       fallbackLayerId,
     }),
+    layerId,
     kind: "maplibre-style" as const,
     data: styleData,
     properties: extractFirstGeoJsonFeatureProperties(styleData),
@@ -212,7 +282,8 @@ export const addAdhocFeatureFromLayer = async <
   TFeature extends AdhocMapLibreLikeFeature = AdhocMapLibreLikeFeature
 >({
   layer,
-  id,
+  collectionId,
+  layerId = DEFAULT_ADHOC_FEATURE_LAYER_ID,
   addFeature,
   metadata,
 }: AddAdhocFeatureFromLayerOptions<TFeature>): Promise<AddedAdhocFeature | null> => {
@@ -227,17 +298,18 @@ export const addAdhocFeatureFromLayer = async <
 
   const adhocFeature = buildAdhocMapLibreStyleFeature({
     styleData,
-    fallbackLayerId: id,
+    fallbackLayerId: `${collectionId}:${layerId}`,
+    layerId,
     ...(metadata ? { metadata } : {}),
   });
-  const featureId = adhocFeature.id;
-  const collectionId = id;
+  const id = adhocFeature.id;
 
-  addFeature(adhocFeature as TFeature, { collectionId });
+  addFeature(adhocFeature as TFeature, { collectionId, layerId });
 
   return {
-    featureId,
+    id,
     collectionId,
+    layerId,
     styleData,
   };
 };
@@ -245,9 +317,11 @@ export const addAdhocFeatureFromLayer = async <
 export const buildAdhocFallbackFeatureInfo = ({
   feature,
   collectionId,
+  layerId = feature.layerId ?? DEFAULT_ADHOC_FEATURE_LAYER_ID,
 }: {
   feature: AdhocMapLibreLikeFeature;
   collectionId: string;
+  layerId?: string;
 }) => {
   const rawProperties = (feature.properties ?? {}) as Record<string, unknown>;
   const info =
@@ -282,6 +356,7 @@ export const buildAdhocFallbackFeatureInfo = ({
       ...(additionalInfo ? { additionalInfo } : {}),
       restored: true,
       collectionId,
+      layerId,
     },
     ...(primaryGeoJsonFeature?.geometry
       ? { geometry: primaryGeoJsonFeature.geometry }

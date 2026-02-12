@@ -8,12 +8,12 @@ import {
   faMagnifyingGlass,
 } from "@fortawesome/free-solid-svg-icons";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
-import type { SliderSingleProps } from "antd";
 import { forwardRef, useContext, useEffect, useRef } from "react";
 import { TopicMapContext } from "react-cismap/contexts/TopicMapContextProvider";
 import { useDispatch, useSelector } from "react-redux";
 
 import {
+  DEFAULT_ADHOC_FEATURE_LAYER_ID,
   SELECTED_LAYER_INDEX,
   useAdhocFeatureDisplay,
 } from "@carma-appframeworks/portals";
@@ -48,17 +48,17 @@ import {
 import { resolveAdhocStyleData } from "../../helper/adhoc-feature-utils";
 import { zoomToStyleFeatures } from "../../helper/gisHelper";
 import { setTriggerSelectionById } from "../../store/slices/features";
-import { addAdhocFeatureFromLayer } from "../../helper/adhoc-layer-feature";
+import {
+  addAdhocFeatureFromLayer,
+  resolveAdhocSelectionTargetByCollectionId,
+} from "../../helper/adhoc-layer-feature";
 
 type Ref = HTMLDivElement;
 
 interface SecondaryViewProps {}
 
-export const formatter: NonNullable<
-  SliderSingleProps["tooltip"]
->["formatter"] = (value) => `${100 - value * 100}%`;
-
-const SecondaryView = forwardRef<Ref, SecondaryViewProps>(({}, ref) => {
+const SecondaryView = forwardRef<Ref, SecondaryViewProps>(({}, _ref) => {
+  void _ref;
   const { routedMapRef } = useContext<typeof TopicMapContext>(TopicMapContext);
   const infoRef = useRef<HTMLDivElement>(null);
   const dispatch = useDispatch();
@@ -74,7 +74,6 @@ const SecondaryView = forwardRef<Ref, SecondaryViewProps>(({}, ref) => {
       ? [{ OnlineResource: layer.other.vectorLegend }]
       : layer.props?.legend || [];
 
-  const iconName = layer?.other?.icon;
   const icon = layer.title.includes("Orthofoto")
     ? "ortho"
     : layer.title === "Bäume"
@@ -133,7 +132,7 @@ const SecondaryView = forwardRef<Ref, SecondaryViewProps>(({}, ref) => {
         '[id^="openBaseLayerView"]'
       );
 
-      openBaseLayerViewButtons.forEach((layerButton, i) => {
+      openBaseLayerViewButtons.forEach((layerButton) => {
         if (layerButton.contains(event.target as Node)) {
           returnFunction = true;
           return;
@@ -153,7 +152,7 @@ const SecondaryView = forwardRef<Ref, SecondaryViewProps>(({}, ref) => {
         return;
       }
 
-      removeLayerButtons.forEach((layerButton, i) => {
+      removeLayerButtons.forEach((layerButton) => {
         if (layerButton.contains(event.target as Node)) {
           removedOtherLayer = true;
         }
@@ -283,30 +282,31 @@ const SecondaryView = forwardRef<Ref, SecondaryViewProps>(({}, ref) => {
                     dispatch(setTriggerSelectionById(layer.id));
                   } else if (isCesium) {
                     let didSelectFeature = false;
-                    const collection = featureCollections.find(
-                      (candidate) => candidate.id === layer.id
-                    );
-                    const candidateFeature =
-                      collection?.features.find(
-                        (feature) => feature.kind === "maplibre-style"
-                      ) ?? collection?.features[0];
+                    const selectionTarget =
+                      resolveAdhocSelectionTargetByCollectionId(
+                        featureCollections,
+                        layer.id
+                      );
 
-                    if (candidateFeature) {
+                    if (selectionTarget) {
                       setSelectedFeatureById(
-                        candidateFeature.id,
-                        collection.id
+                        selectionTarget.id,
+                        selectionTarget.collectionId,
+                        selectionTarget.layerId
                       );
                       didSelectFeature = true;
                     } else {
                       const addedFeature = await addAdhocFeatureFromLayer({
                         layer,
-                        id: layer.id,
+                        collectionId: layer.id,
+                        layerId: DEFAULT_ADHOC_FEATURE_LAYER_ID,
                         addFeature,
                       });
                       if (addedFeature) {
                         setSelectedFeatureById(
-                          addedFeature.featureId,
-                          addedFeature.collectionId
+                          addedFeature.id,
+                          addedFeature.collectionId,
+                          addedFeature.layerId
                         );
                         didSelectFeature = true;
                       }

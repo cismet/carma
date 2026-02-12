@@ -53,8 +53,11 @@ export {
   type AdhocMapLibreStyleFeature,
   type AdhocFeatureSelectionChange,
   type AdhocFeatureSelectionChangeListener,
-  DEFAULT_ADHOC_FEATURE_COLLECTION_ID,
 } from "./lib/components/AdhocFeatureDisplayProvider";
+export {
+  DEFAULT_ADHOC_FEATURE_COLLECTION_ID,
+  DEFAULT_ADHOC_FEATURE_LAYER_ID,
+} from "./lib/constants/adhoc";
 
 export { LibreMapSelectionContent } from "./lib/components/LibreMapSelectionContent";
 export { TopicMapSelectionContent } from "./lib/components/TopicMapSelectionContent";

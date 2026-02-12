@@ -1,6 +1,9 @@
 import { useEffect, useRef } from "react";
 import { useDispatch, useSelector } from "react-redux";
-import { useAdhocFeatureDisplay } from "@carma-appframeworks/portals";
+import {
+  DEFAULT_ADHOC_FEATURE_LAYER_ID,
+  useAdhocFeatureDisplay,
+} from "@carma-appframeworks/portals";
 import { useMapFrameworkSwitcherContext } from "@carma-mapping/components";
 import { getLayers } from "../store/slices/mapping";
 import {
@@ -10,8 +13,26 @@ import {
 import {
   addAdhocFeatureFromLayer,
   buildAdhocFallbackFeatureInfo,
+  resolveAdhocSelectionTargetByCollectionId,
 } from "../helper/adhoc-layer-feature";
 import { isAdhocVectorLayer } from "../helper/adhoc-feature-utils";
+
+const resolveAdhocLayerId = (feature: { layerId?: string }) =>
+  feature.layerId ?? DEFAULT_ADHOC_FEATURE_LAYER_ID;
+
+const getFeatureInfoLayerId = (
+  featureInfo: ReturnType<typeof getSelectedFeature>
+): string =>
+  typeof featureInfo?.properties?.layerId === "string"
+    ? featureInfo.properties.layerId
+    : DEFAULT_ADHOC_FEATURE_LAYER_ID;
+
+const getFeatureInfoCollectionId = (
+  featureInfo: ReturnType<typeof getSelectedFeature>
+): string | null =>
+  typeof featureInfo?.properties?.collectionId === "string"
+    ? featureInfo.properties.collectionId
+    : null;
 
 export const useAdhocFeatureRehydrate = () => {
   const dispatch = useDispatch();
@@ -55,7 +76,8 @@ export const useAdhocFeatureRehydrate = () => {
 
       void addAdhocFeatureFromLayer({
         layer,
-        id: layer.id,
+        collectionId: layer.id,
+        layerId: DEFAULT_ADHOC_FEATURE_LAYER_ID,
         addFeature,
         metadata: { rehydrated: true },
       }).then((addedFeature) => {
@@ -86,28 +108,43 @@ export const useAdhocFeatureRehydrate = () => {
     }
 
     const reduxSelectedId = reduxSelectedFeature?.id ?? null;
+    const reduxSelectedLayerId = getFeatureInfoLayerId(reduxSelectedFeature);
     const providerHasAdhocSelection = selectedFeature !== null;
+    const allFeatureEntries = featureCollections.flatMap((collection) =>
+      collection.features.map((feature) => ({
+        feature,
+        collectionId: collection.id,
+        layerId: resolveAdhocLayerId(feature),
+      }))
+    );
 
     const reduxSelectedEntry = reduxSelectedId
       ? (() => {
-          const collectionMatch = featureCollections.find(
-            (collection) => collection.id === reduxSelectedId
+          const collectionSelection = resolveAdhocSelectionTargetByCollectionId(
+            featureCollections,
+            reduxSelectedId,
+            reduxSelectedLayerId
           );
-          if (collectionMatch?.features[0]) {
+          if (collectionSelection) {
             return {
-              feature: collectionMatch.features[0],
-              collectionId: collectionMatch.id,
+              feature: collectionSelection,
+              collectionId: collectionSelection.collectionId,
+              layerId: collectionSelection.layerId,
             };
           }
+          const entryWithLayer =
+            allFeatureEntries.find(
+              (entry) =>
+                entry.feature.id === reduxSelectedId &&
+                entry.layerId === reduxSelectedLayerId
+            ) ?? null;
+          if (entryWithLayer) {
+            return entryWithLayer;
+          }
           return (
-            featureCollections
-              .flatMap((collection) =>
-                collection.features.map((feature) => ({
-                  feature,
-                  collectionId: collection.id,
-                }))
-              )
-              .find((entry) => entry.feature.id === reduxSelectedId) ?? null
+            allFeatureEntries.find(
+              (entry) => entry.feature.id === reduxSelectedId
+            ) ?? null
           );
         })()
       : null;
@@ -116,11 +153,13 @@ export const useAdhocFeatureRehydrate = () => {
       // If Provider doesn't have this selected, sync from Redux
       if (
         selectedFeature?.id !== reduxSelectedEntry.feature.id ||
-        selectedFeature?.collectionId !== reduxSelectedEntry.collectionId
+        selectedFeature?.collectionId !== reduxSelectedEntry.collectionId ||
+        selectedFeature?.layerId !== reduxSelectedEntry.layerId
       ) {
         setSelectedFeatureById(
           reduxSelectedEntry.feature.id,
-          reduxSelectedEntry.collectionId
+          reduxSelectedEntry.collectionId,
+          reduxSelectedEntry.layerId
         );
         setShouldFocusSelected(false);
       }
@@ -154,14 +193,24 @@ export const useAdhocFeatureRehydrate = () => {
         reduxSelectedFeature?.properties &&
         "restored" in reduxSelectedFeature.properties &&
         reduxSelectedFeature.properties.restored === true;
+      const reduxSelectedLayerId = getFeatureInfoLayerId(reduxSelectedFeature);
+      const reduxSelectedCollectionId =
+        getFeatureInfoCollectionId(reduxSelectedFeature);
       if (
         isRestoredSelection &&
         reduxSelectedFeature?.id &&
         featureCollections.some(
           (collection) =>
-            collection.id === reduxSelectedFeature.id ||
+            (reduxSelectedCollectionId
+              ? collection.id === reduxSelectedCollectionId
+              : collection.id === reduxSelectedFeature.id ||
+                collection.features.some(
+                  (feature) => feature.id === reduxSelectedFeature.id
+                )) &&
             collection.features.some(
-              (feature) => feature.id === reduxSelectedFeature.id
+              (feature) =>
+                feature.id === reduxSelectedFeature.id &&
+                resolveAdhocLayerId(feature) === reduxSelectedLayerId
             )
         )
       ) {
@@ -173,10 +222,21 @@ export const useAdhocFeatureRehydrate = () => {
     const selectedAdhocFeature =
       featureCollections
         .find((collection) => collection.id === selectedFeature.collectionId)
-        ?.features.find((feature) => feature.id === selectedFeature.id) ?? null;
+        ?.features.find(
+          (feature) =>
+            feature.id === selectedFeature.id &&
+            resolveAdhocLayerId(feature) === selectedFeature.layerId
+        ) ?? null;
 
     // Do not overwrite richer feature info that was already set by Cesium selection callbacks.
-    if (selectedFeature.id === reduxSelectedFeature?.id) {
+    const reduxSelectedLayerId = getFeatureInfoLayerId(reduxSelectedFeature);
+    const reduxSelectedCollectionId =
+      getFeatureInfoCollectionId(reduxSelectedFeature);
+    if (
+      selectedFeature.id === reduxSelectedFeature?.id &&
+      selectedFeature.layerId === reduxSelectedLayerId &&
+      selectedFeature.collectionId === reduxSelectedCollectionId
+    ) {
       return;
     }
 
@@ -187,6 +247,7 @@ export const useAdhocFeatureRehydrate = () => {
     const featureInfo = buildAdhocFallbackFeatureInfo({
       feature: selectedAdhocFeature,
       collectionId: selectedFeature.collectionId,
+      layerId: selectedFeature.layerId,
     });
 
     dispatch(setSelectedFeature(featureInfo));

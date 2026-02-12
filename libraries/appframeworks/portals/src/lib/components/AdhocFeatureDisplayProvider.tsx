@@ -13,7 +13,14 @@ import type {
   FeatureInfoProperties,
 } from "@carma/types";
 import type { BoundingSphere } from "@carma/cesium";
-import { normalizeAdhocFeatureGeoJsonFeatureIds } from "../utils/adhoc-feature-utils";
+import {
+  getGeoJsonFromFeature,
+  normalizeAdhocFeatureGeoJsonFeatureIds,
+} from "../utils/adhoc-feature-utils";
+import {
+  DEFAULT_ADHOC_FEATURE_COLLECTION_ID,
+  DEFAULT_ADHOC_FEATURE_LAYER_ID,
+} from "../constants/adhoc";
 
 export type AdhocFeatureMetadata = {
   accentColor?: string;
@@ -31,6 +38,7 @@ export type AdhocFeatureMetadata = {
 
 export type AdhocMapLibreStyleFeature = {
   id: string;
+  layerId?: string;
   kind: "maplibre-style";
   data: CarmaMapLibreStyleData;
   properties?: FeatureInfoProperties;
@@ -40,6 +48,7 @@ export type AdhocMapLibreStyleFeature = {
 export type AdhocFeatureMetadataUpdate = {
   id: string;
   collectionId?: string;
+  layerId?: string;
   metadata: Partial<AdhocFeatureMetadata>;
 };
 
@@ -63,22 +72,26 @@ export type AdhocFeatureCollectionSeed = Omit<
 
 export type AddAdhocFeatureOptions = {
   collectionId?: string;
+  layerId?: string;
   collectionTitle?: string;
   collectionMetadata?: AdhocFeatureCollectionMetadata;
 };
 
 export type RemoveAdhocFeatureOptions = {
   collectionId?: string;
+  layerId?: string;
 };
 
 export type SelectedAdhocFeature = {
   id: string;
   collectionId: string;
+  layerId: string;
 };
 
 export type AdhocFeatureSelectionChange = {
   feature: AdhocFeature;
   collectionId: string;
+  layerId: string;
 };
 
 export type AdhocFeatureSelectionChangeListener = (
@@ -97,10 +110,14 @@ interface AdhocFeatureDisplayContextType {
   updateFeatureMetadata: (
     updates: AdhocFeatureMetadataUpdate | AdhocFeatureMetadataUpdate[]
   ) => void;
-  setSelectedFeatureById: (id: string, collectionId: string) => void;
+  setSelectedFeatureById: (
+    id: string,
+    collectionId: string,
+    layerId?: string
+  ) => void;
   clearSelectedFeature: () => void;
   setShouldFocusSelected: (shouldFocus: boolean) => void;
-  clearFeatures: (collectionId?: string) => void;
+  clearFeatures: (collectionId?: string, layerId?: string) => void;
   onSelectionChange: (
     listener: AdhocFeatureSelectionChangeListener
   ) => () => void;
@@ -115,7 +132,62 @@ interface AdhocFeatureDisplayProviderProps {
   onSelectionChange?: AdhocFeatureSelectionChangeListener;
 }
 
-export const DEFAULT_ADHOC_FEATURE_COLLECTION_ID = "default";
+const resolveAdhocFeatureLayerId = (
+  feature: AdhocFeature,
+  options?: { layerId?: string }
+): string =>
+  options?.layerId ?? feature.layerId ?? DEFAULT_ADHOC_FEATURE_LAYER_ID;
+
+const matchesSelectedAdhocFeature = (
+  feature: AdhocFeature,
+  selectedFeature: SelectedAdhocFeature
+): boolean =>
+  (feature.id === selectedFeature.id ||
+    ((): boolean => {
+      if (feature.kind !== "maplibre-style") {
+        return false;
+      }
+      const geojson = getGeoJsonFromFeature(feature);
+      if (!geojson) {
+        return false;
+      }
+      const features =
+        geojson.type === "FeatureCollection" ? geojson.features : [geojson];
+      return features.some((geojsonFeature) => {
+        if (!geojsonFeature) return false;
+        if (
+          typeof geojsonFeature.id === "string" ||
+          typeof geojsonFeature.id === "number"
+        ) {
+          return String(geojsonFeature.id) === selectedFeature.id;
+        }
+        const propertiesId = (
+          geojsonFeature.properties as { id?: unknown } | null | undefined
+        )?.id;
+        if (
+          typeof propertiesId === "string" ||
+          typeof propertiesId === "number"
+        ) {
+          return String(propertiesId) === selectedFeature.id;
+        }
+        return false;
+      });
+    })()) &&
+  resolveAdhocFeatureLayerId(feature) === selectedFeature.layerId;
+
+const findSelectedFeatureInCollection = (
+  collection: AdhocFeatureCollection | undefined,
+  selectedFeature: SelectedAdhocFeature | null
+): AdhocFeature | null => {
+  if (!collection || !selectedFeature) {
+    return null;
+  }
+  return (
+    collection.features.find((feature) =>
+      matchesSelectedAdhocFeature(feature, selectedFeature)
+    ) ?? null
+  );
+};
 
 const mergeAdhocFeature = (
   existingFeature: AdhocFeature,
@@ -136,7 +208,7 @@ const hasFeatureInCollection = (
   selectedFeature !== null &&
   !!collection &&
   collection.id === selectedFeature.collectionId &&
-  collection.features.some((feature) => feature.id === selectedFeature.id);
+  findSelectedFeatureInCollection(collection, selectedFeature) !== null;
 
 const upsertAdhocFeatureCollection = (
   collections: AdhocFeatureCollection[],
@@ -189,11 +261,16 @@ const removeAdhocFeatureFromCollections = (
   options?: RemoveAdhocFeatureOptions
 ): AdhocFeatureCollection[] => {
   const collectionId = options?.collectionId;
+  const layerId = options?.layerId;
   let didChange = false;
   const nextCollections = collections.map((collection) => {
     if (collectionId && collection.id !== collectionId) return collection;
     const nextFeatures = collection.features.filter(
-      (feature) => feature.id !== id
+      (feature) =>
+        !(
+          feature.id === id &&
+          (!layerId || resolveAdhocFeatureLayerId(feature) === layerId)
+        )
     );
     if (nextFeatures.length === collection.features.length) return collection;
     didChange = true;
@@ -211,6 +288,11 @@ const upsertAdhocFeatureInCollections = (
   feature: AdhocFeature,
   options?: AddAdhocFeatureOptions
 ): AdhocFeatureCollection[] => {
+  const layerId = resolveAdhocFeatureLayerId(feature, options);
+  const normalizedFeature: AdhocFeature = {
+    ...feature,
+    layerId,
+  };
   const collectionSeed: AdhocFeatureCollectionSeed = {
     id: options?.collectionId ?? DEFAULT_ADHOC_FEATURE_COLLECTION_ID,
     ...(options?.collectionTitle ? { title: options.collectionTitle } : {}),
@@ -230,17 +312,19 @@ const upsertAdhocFeatureInCollections = (
           ...collection,
           features: (() => {
             const existingIndex = collection.features.findIndex(
-              (candidate) => candidate.id === feature.id
+              (candidate) =>
+                candidate.id === normalizedFeature.id &&
+                resolveAdhocFeatureLayerId(candidate) === layerId
             );
             if (existingIndex === -1) {
-              return [...collection.features, feature];
+              return [...collection.features, normalizedFeature];
             }
 
             const existingFeature = collection.features[existingIndex];
             const nextFeatures = [...collection.features];
             nextFeatures[existingIndex] = mergeAdhocFeature(
               existingFeature,
-              feature
+              normalizedFeature
             );
             return nextFeatures;
           })(),
@@ -294,8 +378,12 @@ export function AdhocFeatureDisplayProvider({
   );
 
   const setSelectedFeatureById = useCallback(
-    (id: string, collectionId: string) => {
-      setSelectedFeatureSelection({ id, collectionId });
+    (id: string, collectionId: string, layerId?: string) => {
+      setSelectedFeatureSelection({
+        id,
+        collectionId,
+        layerId: layerId ?? DEFAULT_ADHOC_FEATURE_LAYER_ID,
+      });
     },
     []
   );
@@ -304,14 +392,18 @@ export function AdhocFeatureDisplayProvider({
     (feature: AdhocFeature, options?: AddAdhocFeatureOptions) => {
       const targetCollectionId =
         options?.collectionId ?? DEFAULT_ADHOC_FEATURE_COLLECTION_ID;
+      const targetLayerId = resolveAdhocFeatureLayerId(feature, options);
+      const featureWithLayerId: AdhocFeature = {
+        ...feature,
+        layerId: targetLayerId,
+      };
       const { feature: normalizedFeature, generatedGeoJsonFeatureIds } =
-        normalizeAdhocFeatureGeoJsonFeatureIds(feature, {
-          collectionId: targetCollectionId,
-        });
+        normalizeAdhocFeatureGeoJsonFeatureIds(featureWithLayerId);
       if (generatedGeoJsonFeatureIds.length > 0) {
         console.debug("[ADHOC|IMPORT] Generated GeoJSON feature ids", {
           id: feature.id,
           collectionId: targetCollectionId,
+          layerId: targetLayerId,
           generatedGeoJsonFeatureIds,
         });
       }
@@ -323,7 +415,9 @@ export function AdhocFeatureDisplayProvider({
         isNew =
           !targetCollection ||
           !targetCollection.features.some(
-            (candidate) => candidate.id === normalizedFeature.id
+            (candidate) =>
+              candidate.id === normalizedFeature.id &&
+              resolveAdhocFeatureLayerId(candidate) === targetLayerId
           );
         return upsertAdhocFeatureInCollections(
           prev,
@@ -336,7 +430,11 @@ export function AdhocFeatureDisplayProvider({
         | { rehydrated?: boolean }
         | undefined;
       if (isNew && !metadata?.rehydrated) {
-        setSelectedFeatureById(normalizedFeature.id, targetCollectionId);
+        setSelectedFeatureById(
+          normalizedFeature.id,
+          targetCollectionId,
+          targetLayerId
+        );
         setShouldFocusSelected(true);
       }
     },
@@ -356,6 +454,9 @@ export function AdhocFeatureDisplayProvider({
           options?.collectionId &&
           current.collectionId !== options.collectionId
         ) {
+          return current;
+        }
+        if (options?.layerId && current.layerId !== options.layerId) {
           return current;
         }
         return null;
@@ -382,7 +483,9 @@ export function AdhocFeatureDisplayProvider({
               (candidate) =>
                 candidate.id === feature.id &&
                 (!candidate.collectionId ||
-                  candidate.collectionId === collection.id)
+                  candidate.collectionId === collection.id) &&
+                (!candidate.layerId ||
+                  candidate.layerId === resolveAdhocFeatureLayerId(feature))
             );
             if (!update) {
               return feature;
@@ -394,7 +497,7 @@ export function AdhocFeatureDisplayProvider({
               ...feature,
               metadata: {
                 ...currentMetadata,
-                ...update,
+                ...update.metadata,
               },
             };
           });
@@ -412,7 +515,7 @@ export function AdhocFeatureDisplayProvider({
   );
 
   const clearFeatures = useCallback(
-    (collectionId?: string) => {
+    (collectionId?: string, layerId?: string) => {
       if (!collectionId) {
         setFeatureCollections([]);
         setSelectedFeatureSelection(null);
@@ -423,12 +526,29 @@ export function AdhocFeatureDisplayProvider({
       setFeatureCollections((prev) =>
         prev.map((collection) => {
           if (collection.id !== collectionId) return collection;
-          if (hasFeatureInCollection(collection, selectedFeatureSelection)) {
+          const hasMatchingSelectedFeature =
+            selectedFeatureSelection !== null &&
+            selectedFeatureSelection.collectionId === collectionId &&
+            (!layerId || selectedFeatureSelection.layerId === layerId);
+          if (
+            hasMatchingSelectedFeature &&
+            collection.features.some(
+              (feature) =>
+                feature.id === selectedFeatureSelection?.id &&
+                resolveAdhocFeatureLayerId(feature) ===
+                  selectedFeatureSelection?.layerId
+            )
+          ) {
             shouldClearSelected = true;
           }
+          const nextFeatures = layerId
+            ? collection.features.filter(
+                (feature) => resolveAdhocFeatureLayerId(feature) !== layerId
+              )
+            : [];
           return {
             ...collection,
-            features: [],
+            features: nextFeatures,
           };
         })
       );
@@ -462,10 +582,13 @@ export function AdhocFeatureDisplayProvider({
     const selectedCollection = featureCollections.find(
       (collection) => collection.id === selectedFeatureSelection.collectionId
     );
-    const hasSelectedFeature = selectedCollection?.features.some(
-      (feature) => feature.id === selectedFeatureSelection.id
-    );
-    if (!selectedCollection || !hasSelectedFeature) {
+    if (
+      !selectedCollection ||
+      !findSelectedFeatureInCollection(
+        selectedCollection,
+        selectedFeatureSelection
+      )
+    ) {
       return null;
     }
 
@@ -482,15 +605,24 @@ export function AdhocFeatureDisplayProvider({
     if (!selectedCollection) {
       return null;
     }
-    const feature = selectedCollection.features.find(
-      (candidate) => candidate.id === selectedFeature.id
+    const feature = findSelectedFeatureInCollection(
+      selectedCollection,
+      selectedFeature
     );
     if (!feature) {
       return null;
     }
+    const selectedFeaturePayload =
+      feature.id === selectedFeature.id
+        ? feature
+        : {
+            ...feature,
+            id: selectedFeature.id,
+          };
     return {
-      feature,
+      feature: selectedFeaturePayload,
       collectionId: selectedCollection.id,
+      layerId: selectedFeature.layerId,
     } satisfies AdhocFeatureSelectionChange;
   }, [featureCollections, selectedFeature]);
 
@@ -509,6 +641,7 @@ export function AdhocFeatureDisplayProvider({
     console.debug("[ADHOC|SELECT] Feature selected", {
       id: selectedFeatureWithCollection.feature.id,
       collectionId: selectedFeatureWithCollection.collectionId,
+      layerId: selectedFeatureWithCollection.layerId,
     });
   }, [selectedFeatureWithCollection]);
 
