@@ -71,7 +71,7 @@ const mapSettingsConfig = {
 const featureCollectionConfig = {
   key: "@app.featureCollection",
   storage: localForage,
-  whitelist: ["filter", "inFocusMode"],
+  whitelist: ["inFocusMode"],
 };
 
 const store = configureStore({

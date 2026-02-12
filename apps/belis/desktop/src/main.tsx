@@ -32,6 +32,7 @@ import { belisTaskFormatter } from "./config/taskFormatter";
 import {
   LibreContextProvider,
   MapSelectionProvider,
+  MapHighlightProvider,
   DatasheetProvider,
 } from "@carma-mapping/engines/maplibre";
 
@@ -119,9 +120,11 @@ root.render(
               <TopicMapContextProvider appKey="belis-desktop.map">
                 <LibreContextProvider>
                   <MapSelectionProvider>
-                    <DatasheetProvider>
-                      <RouterProvider router={router} />
-                    </DatasheetProvider>
+                    <MapHighlightProvider>
+                      <DatasheetProvider>
+                        <RouterProvider router={router} />
+                      </DatasheetProvider>
+                    </MapHighlightProvider>
                   </MapSelectionProvider>
                 </LibreContextProvider>
               </TopicMapContextProvider>

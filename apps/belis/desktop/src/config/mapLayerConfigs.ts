@@ -6,7 +6,10 @@
  * The Leuchten data layer is always on and stays hardcoded in BelisMapWrapper.
  */
 
-import type { LibreLayer } from "@carma-mapping/engines/maplibre";
+import type {
+  LibreLayer,
+  FilterCategory,
+} from "@carma-mapping/engines/maplibre";
 
 export interface LayerEntry {
   title: string;
@@ -143,9 +146,60 @@ export const additionalLayerConfigs: Record<string, LayerEntry> = {
 };
 
 /** Leuchten data layer, always visible */
+export const BELIS_STYLE_URL = "https://tiles.cismet.de/belis/styleX.json";
+export const BELIS_ORIGINAL_SOURCE = "belis-source";
+
 export const leuchtenDataLayer: LibreLayer = {
   type: "vector",
   name: "Leuchten",
-  style: "https://tiles.cismet.de/belis/styleX.json",
+  style: BELIS_STYLE_URL,
   opacity: 1,
 };
+
+export const BELIS_SOURCE_LAYERS = [
+  "leuchten",
+  "mast",
+  "mauerlaschen",
+  "schaltstelle",
+  "leitungen",
+  "abzweigdosen",
+] as const;
+
+export const BELIS_FILTER_CATEGORIES: FilterCategory[] = [
+  {
+    key: "leuchten",
+    label: "Leuchten",
+    sourceLayers: ["leuchten"],
+    layerPatterns: ["leuchten"],
+  },
+  {
+    key: "masten",
+    label: "Masten",
+    sourceLayers: ["mast"],
+    layerPatterns: ["mast"],
+  },
+  {
+    key: "mauerlaschen",
+    label: "Mauerlaschen",
+    sourceLayers: ["mauerlaschen"],
+    layerPatterns: ["mauerlaschen"],
+  },
+  {
+    key: "leitungen",
+    label: "Leitungen",
+    sourceLayers: ["leitungen"],
+    layerPatterns: ["leitungen"],
+  },
+  {
+    key: "schaltstellen",
+    label: "Schaltstellen",
+    sourceLayers: ["schaltstelle"],
+    layerPatterns: ["schaltstelle"],
+  },
+  {
+    key: "abzweigdosen",
+    label: "Abzweigdosen",
+    sourceLayers: ["abzweigdosen"],
+    layerPatterns: ["abzweigdose"],
+  },
+];

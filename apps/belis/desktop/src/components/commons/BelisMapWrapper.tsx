@@ -12,6 +12,9 @@ import {
   backgroundLayerConfigs,
   additionalLayerConfigs,
   leuchtenDataLayer,
+  BELIS_STYLE_URL,
+  BELIS_ORIGINAL_SOURCE,
+  BELIS_SOURCE_LAYERS,
 } from "../../config/mapLayerConfigs";
 import type { LibreLayer } from "@carma-mapping/engines/maplibre";
 import { AppDispatch } from "../../store";
@@ -22,6 +25,8 @@ import {
   LibreContextProvider,
   useDatasheet,
   useDatasheetMiniMap,
+  useMapHighlighting,
+  slugifyUrl,
 } from "@carma-mapping/engines/maplibre";
 import type maplibregl from "maplibre-gl";
 import BelisDatasheetView from "../ui/BelisDatasheetView";
@@ -33,7 +38,15 @@ const LIST_WIDTH = 300;
 /** Debug flag: translucent main map + red mini-map border, mini-map always visible */
 const MINI_MAP_DEBUGGING = false;
 
-const BelisMapLibWrapper = ({ mapSizes }) => {
+interface BelisMapLibWrapperProps {
+  mapSizes: { width: number; height: number };
+  activeSourceLayers: Set<string>;
+}
+
+const BelisMapLibWrapper = ({
+  mapSizes,
+  activeSourceLayers,
+}: BelisMapLibWrapperProps) => {
   const dispatch: AppDispatch = useDispatch();
   const { map } = useLibreContext();
   const { selectedFeature, rawFeature } = useMapSelection();
@@ -43,6 +56,19 @@ const BelisMapLibWrapper = ({ mapSizes }) => {
   const backgroundLayerOpacities = useSelector(getBackgroundLayerOpacities);
   const activeAdditionalLayers = useSelector(getActiveAdditionalLayers);
   const additionalLayerOpacities = useSelector(getAdditionalLayerOpacities);
+
+  // Highlighting: compute namespaced source + call useMapHighlighting
+  const namespacedSource = `${slugifyUrl(BELIS_STYLE_URL)}::${BELIS_ORIGINAL_SOURCE}`;
+  const highlightSources = useMemo(
+    () => [{ source: namespacedSource, sourceLayers: [...BELIS_SOURCE_LAYERS] }],
+    [namespacedSource]
+  );
+
+  useMapHighlighting({
+    map,
+    sources: highlightSources,
+    modifierClick: "alt",
+  });
 
   // Sync selection to Redux store when map selection changes
   useEffect(() => {
@@ -127,6 +153,7 @@ const BelisMapLibWrapper = ({ mapSizes }) => {
       <OnMapList
         visibleMapWidth={mapWidth}
         visibleMapHeight={mapSizes.height}
+        activeSourceLayers={activeSourceLayers}
       />
       <div
         ref={mapContainerRef}
