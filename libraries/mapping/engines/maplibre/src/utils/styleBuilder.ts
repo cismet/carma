@@ -491,19 +491,24 @@ export const vectorStylesToMapLibreStyle = async ({
               ...(() => {
                 if (styleLayer.id.toLowerCase().includes("selection"))
                   return {};
-                const prop = getPaintProperty(styleLayer);
-                if (!prop) return {};
-                const baseOpacity =
-                  (styleLayer.paint as Record<string, unknown>)?.[prop] || 1;
+                // Symbol layers need both text-opacity and icon-opacity
+                const props = styleLayer.type === "symbol"
+                  ? ["text-opacity", "icon-opacity"]
+                  : [getPaintProperty(styleLayer)].filter(Boolean) as string[];
+                if (props.length === 0) return {};
                 const layerOpacity = layer.opacity ?? 1;
-                return {
-                  [prop]:
+                const result: Record<string, unknown> = {};
+                for (const prop of props) {
+                  const baseOpacity =
+                    (styleLayer.paint as Record<string, unknown>)?.[prop] || 1;
+                  result[prop] =
                     typeof baseOpacity === "number"
                       ? baseOpacity * layerOpacity
                       : layerOpacity < 1
-                      ? layerOpacity
-                      : baseOpacity,
-                };
+                        ? layerOpacity
+                        : baseOpacity;
+                }
+                return result;
               })(),
               ...((styleLayer.paint as Record<string, unknown>)?.[
                 "fill-pattern"

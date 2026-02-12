@@ -98,6 +98,7 @@ export function useImperativeStyle({
   const composerRef = useRef<StyleComposer | null>(null);
   const prevKeysRef = useRef<string[]>([]);
   const prevIdsRef = useRef<string[]>([]);
+  const prevOpacitiesRef = useRef<Map<string, number>>(new Map());
   const isApplyingRef = useRef(false);
 
   // Stable callback: add all effective layers to the composer
@@ -146,6 +147,14 @@ export function useImperativeStyle({
 
         prevKeysRef.current = newKeys;
         prevIdsRef.current = newIds;
+
+        // Track initial opacities
+        const opacities = new Map<string, number>();
+        for (let i = 0; i < effectiveLayers.length; i++) {
+          const layer = effectiveLayers[i];
+          opacities.set(newIds[i], ("opacity" in layer ? layer.opacity : undefined) ?? 1);
+        }
+        prevOpacitiesRef.current = opacities;
 
         onGeoJsonMetadataUpdate(geoMeta);
 
@@ -213,6 +222,10 @@ export function useImperativeStyle({
     ]
   );
 
+  // Keep applyAllLayers in a ref so Effect 2 doesn't re-fire when layers change
+  const applyAllLayersRef = useRef(applyAllLayers);
+  applyAllLayersRef.current = applyAllLayers;
+
   // Effect 1: Create/destroy composer when map becomes available
   useEffect(() => {
     if (!enabled || !map) {
@@ -257,7 +270,7 @@ export function useImperativeStyle({
         composerRef.current = new StyleComposer(map, debugLog);
         prevKeysRef.current = [];
         prevIdsRef.current = [];
-        void applyAllLayers(composerRef.current, map);
+        void applyAllLayersRef.current(composerRef.current!, map);
       };
 
       if (map.isStyleLoaded()) {
@@ -271,7 +284,7 @@ export function useImperativeStyle({
     return () => {
       aborted = true;
     };
-  }, [enabled, map, backgroundStyle, overrideGlyphs, applyAllLayers]);
+  }, [enabled, map, backgroundStyle, overrideGlyphs]);
 
   // Effect 3: Diff layer changes (when layers/clusteringEnabled/markerSymbolSize change
   // but background stays the same)
@@ -293,11 +306,25 @@ export function useImperativeStyle({
       const oldKeys = prevKeysRef.current;
       const oldIds = prevIdsRef.current;
 
-      // If keys haven't changed, nothing to do
+      // If keys haven't changed, check for opacity-only updates
       if (
         newKeys.length === oldKeys.length &&
         newKeys.every((k, i) => k === oldKeys[i])
       ) {
+        for (let i = 0; i < effectiveLayers.length; i++) {
+          const layer = effectiveLayers[i];
+          const id = newIds[i];
+          const newOpacity = ("opacity" in layer ? layer.opacity : undefined) ?? 1;
+          const prevOpacity = prevOpacitiesRef.current.get(id) ?? 1;
+          if (newOpacity !== prevOpacity) {
+            if (layer.type === "vector") {
+              composer.updateVectorOpacity(layer.style!, newOpacity);
+            } else if (layer.type === "wms" || layer.type === "wmts" || layer.type === "cog") {
+              composer.updateRasterOpacity(id, newOpacity);
+            }
+            prevOpacitiesRef.current.set(id, newOpacity);
+          }
+        }
         return;
       }
 

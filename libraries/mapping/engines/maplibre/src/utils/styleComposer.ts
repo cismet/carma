@@ -282,18 +282,21 @@ export class StyleComposer {
 
       // Apply opacity (skip selection layers)
       if (!styleLayer.id.toLowerCase().includes("selection")) {
-        const prop = getPaintProperty(styleLayer);
-        if (prop) {
-          const paint = (layer.paint || {}) as Record<string, unknown>;
+        const paint = (layer.paint || {}) as Record<string, unknown>;
+        // Symbol layers need both text-opacity and icon-opacity
+        const props = styleLayer.type === "symbol"
+          ? ["text-opacity", "icon-opacity"]
+          : [getPaintProperty(styleLayer)].filter(Boolean) as string[];
+        for (const prop of props) {
           const baseOpacity = paint[prop] ?? 1;
           paint[prop] =
             typeof baseOpacity === "number"
               ? baseOpacity * opacity
               : opacity < 1
-              ? opacity
-              : baseOpacity;
-          layer.paint = paint;
+                ? opacity
+                : baseOpacity;
         }
+        layer.paint = paint;
       }
 
       // Prefix fill-pattern with sprite namespace
@@ -659,6 +662,51 @@ export class StyleComposer {
       firstId,
       lastId,
     });
+  }
+
+  // -------------------------------------------------------------------------
+  // In-place opacity updates (no layer rebuild)
+  // -------------------------------------------------------------------------
+
+  updateVectorOpacity(styleUrl: string, opacity: number): void {
+    const id = slugifyUrl(styleUrl);
+    const entry = this.managed.get(id);
+    if (!entry) return;
+    for (const namespacedId of entry.layerIds) {
+      const layer = this.map.getLayer(namespacedId);
+      if (!layer) continue;
+      // Skip selection layers
+      if (namespacedId.toLowerCase().includes("selection")) continue;
+      const type = layer.type;
+      if (type === "symbol") {
+        this.map.setPaintProperty(namespacedId, "text-opacity", opacity);
+        this.map.setPaintProperty(namespacedId, "icon-opacity", opacity);
+      } else if (type === "fill") {
+        this.map.setPaintProperty(namespacedId, "fill-opacity", opacity);
+      } else if (type === "line") {
+        this.map.setPaintProperty(namespacedId, "line-opacity", opacity);
+      } else if (type === "circle") {
+        this.map.setPaintProperty(namespacedId, "circle-opacity", opacity);
+      } else if (type === "raster") {
+        this.map.setPaintProperty(namespacedId, "raster-opacity", opacity);
+      } else if (type === "background") {
+        this.map.setPaintProperty(namespacedId, "background-opacity", opacity);
+      } else if (type === "fill-extrusion") {
+        this.map.setPaintProperty(namespacedId, "fill-extrusion-opacity", opacity);
+      } else if (type === "heatmap") {
+        this.map.setPaintProperty(namespacedId, "heatmap-opacity", opacity);
+      }
+    }
+  }
+
+  updateRasterOpacity(id: string, opacity: number): void {
+    const entry = this.managed.get(id);
+    if (!entry) return;
+    for (const layerId of entry.layerIds) {
+      if (this.map.getLayer(layerId)) {
+        this.map.setPaintProperty(layerId, "raster-opacity", opacity);
+      }
+    }
   }
 
   // -------------------------------------------------------------------------
