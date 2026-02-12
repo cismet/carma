@@ -20,6 +20,8 @@ const featureTypeToFormKey: Record<string, string> = {
   schaltstellen: "schaltstelle",
   mauerlasche: "mauerlasche",
   mauerlaschen: "mauerlasche",
+  abzweigdose: "abzweigdose",
+  abzweigdosen: "abzweigdose",
 };
 
 const FeaturesFormsWrapper = ({
