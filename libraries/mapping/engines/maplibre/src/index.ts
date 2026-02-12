@@ -44,6 +44,19 @@ export {
 } from "./contexts/DatasheetContext";
 export type { DatasheetContextType } from "./contexts/DatasheetContext";
 
+export {
+  MapHighlightContext,
+  MapHighlightProvider,
+  useMapHighlight,
+} from "./contexts/MapHighlightContext";
+export type {
+  MapHighlightContextType,
+  HighlightCriteria,
+  PropertyMatcher,
+  QueryId,
+  ToggledFeature,
+} from "./contexts/MapHighlightContext";
+
 // Hooks
 export { useClusterMarkers } from "./hooks/useClusterMarkers";
 export { useSelectionLibreMap } from "./hooks/useSelectionLibreMap";
@@ -52,6 +65,14 @@ export type {
   UseDatasheetMiniMapOptions,
   UseDatasheetMiniMapResult,
 } from "./hooks/useDatasheetMiniMap";
+export { useMapHighlighting } from "./hooks/useMapHighlighting";
+export type { UseMapHighlightingOptions } from "./hooks/useMapHighlighting";
+export { useLayerFilter } from "./hooks/useLayerFilter";
+export type {
+  FilterCategory,
+  UseLayerFilterOptions,
+  UseLayerFilterResult,
+} from "./hooks/useLayerFilter";
 
 // Style utilities
 export {
