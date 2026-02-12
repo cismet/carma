@@ -57,6 +57,13 @@ interface LeuchtmittelItem {
   hersteller?: string;
 }
 
+// Helper type for nested objects with common properties
+interface NestedObject {
+  id?: number;
+  pk?: string;
+  strasse?: string;
+}
+
 const FormLabel = ({ children }: { children: React.ReactNode }) => (
   <span className="text-sm font-medium text-gray-700">{children}</span>
 );
@@ -88,17 +95,27 @@ const LeuchteFormFields = ({ leuchte, namePrefix }: LeuchteFormFieldsProps) => {
     form.resetFields();
 
     if (leuchte) {
+      const strassenschluessel = leuchte.tkey_strassenschluessel as NestedObject | undefined;
+      const kennziffer = leuchte.tkey_kennziffer as NestedObject | undefined;
+      const leuchtentyp = leuchte.tkey_leuchtentyp as NestedObject | undefined;
+      const energielieferant = leuchte.tkey_energielieferant as NestedObject | undefined;
+      const rundsteuerempfaenger = leuchte.rundsteuerempfaengerObject as NestedObject | undefined;
+      const dk1Object = leuchte.fk_dk1Object as NestedObject | undefined;
+      const dk2Object = leuchte.fk_dk2Object as NestedObject | undefined;
+      const unterhLeuchte = leuchte.tkey_unterh_leuchte as NestedObject | undefined;
+      const leuchtmittelObj = leuchte.leuchtmittelObject as NestedObject | undefined;
+
       form.setFieldsValue({
         // Straßenschlüssel
-        strassenschluessel_pk: leuchte.tkey_strassenschluessel?.pk,
-        strassenschluessel_strasse: leuchte.tkey_strassenschluessel?.strasse,
+        strassenschluessel_pk: strassenschluessel?.pk,
+        strassenschluessel_strasse: strassenschluessel?.strasse,
         // Kennziffer - use id for Select value
-        fk_kennziffer: leuchte.tkey_kennziffer?.id ?? null,
+        fk_kennziffer: kennziffer?.id ?? null,
         // Laufende Nr. / Leuchtennummer
         lfd_nummer: leuchte.lfd_nummer,
         leuchtennummer: leuchte.leuchtennummer,
         // Leuchtentyp - use id for Select value
-        fk_leuchttyp: leuchte.tkey_leuchtentyp?.id ?? null,
+        fk_leuchttyp: leuchtentyp?.id ?? null,
         // Inbetriebnahme / Zähler
         inbetriebnahme_leuchte: leuchte.inbetriebnahme_leuchte
           ? dayjs(leuchte.inbetriebnahme_leuchte as string)
@@ -107,25 +124,25 @@ const LeuchteFormFields = ({ leuchte, namePrefix }: LeuchteFormFieldsProps) => {
         // Montagefirma
         montagefirma_leuchte: leuchte.montagefirma_leuchte,
         // Energielieferant - use id for Select value
-        fk_energielieferant: leuchte.tkey_energielieferant?.id ?? null,
+        fk_energielieferant: energielieferant?.id ?? null,
         // Schaltstelle
         schaltstelle: leuchte.schaltstelle,
         // Rundsteuerempfänger - use id for Select value
-        fk_rundsteuerempfaenger: leuchte.rundsteuerempfaengerObject?.id ?? null,
+        fk_rundsteuerempfaenger: rundsteuerempfaenger?.id ?? null,
         // Einbaudatum
         einbaudatum: leuchte.einbaudatum
           ? dayjs(leuchte.einbaudatum as string)
           : null,
         // Doppelkommando 1 - use id for Select value
-        fk_dk1: leuchte.fk_dk1Object?.id ?? leuchte.fk_dk1,
+        fk_dk1: dk1Object?.id ?? leuchte.fk_dk1,
         anzahl_1dk: leuchte.anzahl_1dk,
         anschlussleistung_1dk: leuchte.anschlussleistung_1dk,
         // Doppelkommando 2 - use id for Select value
-        fk_dk2: leuchte.fk_dk2Object?.id ?? leuchte.fk_dk2,
+        fk_dk2: dk2Object?.id ?? leuchte.fk_dk2,
         anzahl_2dk: leuchte.anzahl_2dk,
         anschlussleistung_2dk: leuchte.anschlussleistung_2dk,
         // Unterhalt Leuchte - use id for Select value
-        fk_unterhalt_leuchte: leuchte.tkey_unterh_leuchte?.id ?? null,
+        fk_unterhalt_leuchte: unterhLeuchte?.id ?? null,
         // Leuchtmittelwechsel
         wechseldatum: leuchte.wechseldatum
           ? dayjs(leuchte.wechseldatum as string)
@@ -134,7 +151,7 @@ const LeuchteFormFields = ({ leuchte, namePrefix }: LeuchteFormFieldsProps) => {
           ? dayjs(leuchte.naechster_wechsel as string)
           : null,
         // Leuchtmittel - use id for Select value
-        fk_leuchtmittel: leuchte.leuchtmittelObject?.id ?? leuchte.leuchtmittel,
+        fk_leuchtmittel: leuchtmittelObj?.id ?? leuchte.leuchtmittel,
         // Lebensdauer
         lebensdauer: leuchte.lebensdauer,
         // Sonderturnus

@@ -45,7 +45,7 @@ const MastForm = ({ data, rawFeature, onClose }: MastFormProps) => {
   return (
     <FeatureFormLayout
       title="Mast bearbeiten"
-      subtitle={subtitle}
+      subtitle="Füllen Sie die folgenden Informationen aus"
       documents={documents}
       jwt={jwt}
       pendingFiles={pendingFiles}

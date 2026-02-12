@@ -60,6 +60,13 @@ interface BezirkItem {
   bezirk?: string;
 }
 
+// Helper type for nested objects with common properties
+interface NestedObject {
+  id?: number;
+  pk?: string;
+  strasse?: string;
+}
+
 const FormLabel = ({ children }: { children: React.ReactNode }) => (
   <span className="text-sm font-medium text-gray-700">{children}</span>
 );
@@ -105,12 +112,21 @@ const MastFormFields = ({ mast, namePrefix }: MastFormFieldsProps) => {
     form.resetFields();
 
     if (mast) {
+      const strassenschluessel = mast.tkey_strassenschluessel as NestedObject | undefined;
+      const kennziffer = mast.tkey_kennziffer as NestedObject | undefined;
+      const bezirk = mast.tkey_bezirk as NestedObject | undefined;
+      const mastart = mast.tkey_mastart as NestedObject | undefined;
+      const masttyp = mast.tkey_masttyp as NestedObject | undefined;
+      const klassifizierung = mast.tkey_klassifizierung as NestedObject | undefined;
+      const unterhMast = mast.tkey_unterh_mast as NestedObject | undefined;
+      const anlagengruppeObj = mast.anlagengruppeObject as NestedObject | undefined;
+
       form.setFieldsValue({
         // Strassenschluessel
-        strassenschluessel_pk: mast.tkey_strassenschluessel?.pk,
-        strassenschluessel_strasse: mast.tkey_strassenschluessel?.strasse,
+        strassenschluessel_pk: strassenschluessel?.pk,
+        strassenschluessel_strasse: strassenschluessel?.strasse,
         // Kennziffer - use id for Select value
-        fk_kennziffer: mast.tkey_kennziffer?.id ?? null,
+        fk_kennziffer: kennziffer?.id ?? null,
         // Laufende Nr.
         lfd_nummer: mast.lfd_nummer,
         // Hausnummer
@@ -118,15 +134,15 @@ const MastFormFields = ({ mast, namePrefix }: MastFormFieldsProps) => {
         // Standortangabe
         standortangabe: mast.standortangabe,
         // Stadtbezirk - use id for Select value
-        fk_bezirk: mast.tkey_bezirk?.id ?? null,
+        fk_bezirk: bezirk?.id ?? null,
         // Mastart - use id for Select value
-        fk_mastart: mast.tkey_mastart?.id ?? null,
+        fk_mastart: mastart?.id ?? null,
         // Masttyp - use id for Select value
-        fk_masttyp: mast.tkey_masttyp?.id ?? null,
+        fk_masttyp: masttyp?.id ?? null,
         // Klassifizierung - use id for Select value
-        fk_klassifizierung: mast.tkey_klassifizierung?.id ?? null,
+        fk_klassifizierung: klassifizierung?.id ?? null,
         // Unterhalt - use id for Select value
-        fk_unterhalt_mast: mast.tkey_unterh_mast?.id ?? null,
+        fk_unterhalt_mast: unterhMast?.id ?? null,
         // Inbetriebnahme
         inbetriebnahme_mast: mast.inbetriebnahme_mast
           ? dayjs(mast.inbetriebnahme_mast as string)
@@ -166,7 +182,7 @@ const MastFormFields = ({ mast, namePrefix }: MastFormFieldsProps) => {
         // Revision
         revision: mast.revision,
         // Anlagengruppe - use id for Select value
-        fk_anlagengruppe: mast.anlagengruppeObject?.id ?? mast.anlagengruppe,
+        fk_anlagengruppe: anlagengruppeObj?.id ?? mast.anlagengruppe,
         // Anbauten
         anbauten: mast.anbauten,
         // Bemerkungen
