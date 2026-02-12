@@ -4,6 +4,12 @@ import type { UploadFile } from "antd";
 import FormHeader from "./FormHeader";
 import DocumentPreview, { DokumentItem } from "../DocumentPreview";
 
+interface AdditionalTab {
+  key: string;
+  label: string;
+  children: ReactNode;
+}
+
 interface FeatureFormLayoutProps {
   title: string;
   subtitle: string;
@@ -15,6 +21,7 @@ interface FeatureFormLayoutProps {
   onCancel?: () => void;
   onSave?: () => void;
   debugData?: unknown;
+  additionalTabs?: AdditionalTab[];
 }
 
 const FeatureFormLayout = ({
@@ -28,6 +35,7 @@ const FeatureFormLayout = ({
   onCancel,
   onSave,
   debugData,
+  additionalTabs = [],
 }: FeatureFormLayoutProps) => {
   // Support both regular query params and hash-based routing (/#/?param=value)
   const hashQuery = window.location.hash.split("?")[1] || "";
@@ -88,13 +96,18 @@ const FeatureFormLayout = ({
 
   // Wide screen: two-column layout (form left, documents right)
   if (isWideScreen) {
-    // Build tabs for the left column - Allgemein first, then Rohdaten
+    // Build tabs for the left column - Allgemein first, then additional tabs, then Rohdaten
     const leftColumnTabs = [
       {
         key: "general",
         label: <span>Allgemein</span>,
         children: children,
       },
+      ...additionalTabs.map((tab) => ({
+        key: tab.key,
+        label: <span>{tab.label}</span>,
+        children: tab.children,
+      })),
       ...(showRaw
         ? [
             {
@@ -117,7 +130,7 @@ const FeatureFormLayout = ({
         <div className="flex flex-1 overflow-hidden">
           {/* Form column - 60% */}
           <div className="w-3/5 min-w-[400px] px-6 py-4 overflow-y-auto border-r border-gray-100">
-            {showRaw ? (
+            {showRaw || additionalTabs.length > 0 ? (
               <Tabs defaultActiveKey="general" items={leftColumnTabs} />
             ) : (
               children
@@ -150,6 +163,11 @@ const FeatureFormLayout = ({
               label: <span>Allgemein</span>,
               children: children,
             },
+            ...additionalTabs.map((tab) => ({
+              key: tab.key,
+              label: <span>{tab.label}</span>,
+              children: tab.children,
+            })),
             {
               key: "documents",
               label: <span>Dokumente</span>,
