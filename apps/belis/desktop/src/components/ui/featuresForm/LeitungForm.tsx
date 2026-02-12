@@ -9,6 +9,7 @@ import FeatureFormLayout from "./FeatureFormLayout";
 
 interface LeitungFormProps {
   data: Record<string, unknown> | null;
+  rawFeature?: { properties?: Record<string, unknown> } | null;
   onClose?: () => void;
 }
 
@@ -18,18 +19,21 @@ interface KeyTableItem {
   groesse?: string;
 }
 
-const LeitungForm = ({ data, onClose }: LeitungFormProps) => {
+const LeitungForm = ({ data, rawFeature, onClose }: LeitungFormProps) => {
   const [form] = Form.useForm();
   const [pendingFiles, setPendingFiles] = useState<UploadFile[]>([]);
   const keyTablesData = useSelector(getKeyTablesData);
   const jwt = useSelector(getJWT);
 
-  const leitungstypOptions = (keyTablesData.leitungstyp ||
-    []) as KeyTableItem[];
-  const materialOptions = (keyTablesData.materialLeitung ||
-    []) as KeyTableItem[];
-  const querschnittOptions = (keyTablesData.querschnitt ||
-    []) as KeyTableItem[];
+  const leitungstypOptions = [
+    ...((keyTablesData.leitungstyp || []) as KeyTableItem[]),
+  ].sort((a, b) => (a.bezeichnung || "").localeCompare(b.bezeichnung || ""));
+  const materialOptions = [
+    ...((keyTablesData.materialLeitung || []) as KeyTableItem[]),
+  ].sort((a, b) => (a.bezeichnung || "").localeCompare(b.bezeichnung || ""));
+  const querschnittOptions = [
+    ...((keyTablesData.querschnitt || []) as KeyTableItem[]),
+  ].sort((a, b) => Number(a.groesse || 0) - Number(b.groesse || 0));
 
   // Extract documents from leitung[0].dokumenteArray
   const leitungData = data as Record<string, unknown>;
@@ -38,6 +42,13 @@ const LeitungForm = ({ data, onClose }: LeitungFormProps) => {
     | undefined;
   const documents: DokumentItem[] =
     (leitungArray?.[0]?.dokumenteArray as DokumentItem[]) || [];
+
+  // Extract subtitle - use rawFeature (vector tile) to match list display
+  const rawProps = rawFeature?.properties;
+  const subtitle =
+    (rawProps?.leitungstyp_bezeichnung as string) ||
+    (rawProps?.bezeichnung as string) ||
+    "-ohne Bezeichnung-";
 
   useEffect(() => {
     // Reset form when data changes to clear old values
@@ -72,7 +83,7 @@ const LeitungForm = ({ data, onClose }: LeitungFormProps) => {
   return (
     <FeatureFormLayout
       title="Leitung bearbeiten"
-      subtitle="Füllen Sie die folgenden Informationen aus"
+      subtitle={subtitle}
       documents={documents}
       jwt={jwt}
       pendingFiles={pendingFiles}
