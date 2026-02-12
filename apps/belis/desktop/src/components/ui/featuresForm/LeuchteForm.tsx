@@ -96,7 +96,7 @@ const LeuchteForm = ({ data, rawFeature, onClose }: LeuchteFormProps) => {
 
   return (
     <FeatureFormLayout
-      title="Leuchte bearbeiten"
+      title="Leuchte"
       subtitle={subtitle}
       documents={documents}
       jwt={jwt}

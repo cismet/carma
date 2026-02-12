@@ -82,7 +82,7 @@ const LeitungForm = ({ data, rawFeature, onClose }: LeitungFormProps) => {
 
   return (
     <FeatureFormLayout
-      title="Leitung bearbeiten"
+      title="Leitung"
       subtitle={subtitle}
       documents={documents}
       jwt={jwt}

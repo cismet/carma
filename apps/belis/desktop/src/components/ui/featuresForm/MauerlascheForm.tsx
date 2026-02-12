@@ -36,12 +36,16 @@ const MauerlascheForm = ({
 
   // Extract documents from mauerlasche[0].dokumenteArray
   const mauerlascheData = data as Record<string, unknown>;
-  const mauerlascheArray = mauerlascheData?.mauerlasche as Array<Record<string, unknown>> | undefined;
+  const mauerlascheArray = mauerlascheData?.mauerlasche as
+    | Array<Record<string, unknown>>
+    | undefined;
   const documents: DokumentItem[] =
     (mauerlascheArray?.[0]?.dokumenteArray as DokumentItem[]) || [];
 
   // Extract subtitle - use rawFeature (vector tile) to match list display
-  const rawProps = rawFeature?.properties as Record<string, unknown> | undefined;
+  const rawProps = rawFeature?.properties as
+    | Record<string, unknown>
+    | undefined;
   const strassenschluessel = rawProps?.fk_strassenschluessel as
     | { strasse?: string }
     | undefined;
@@ -100,7 +104,7 @@ const MauerlascheForm = ({
 
   return (
     <FeatureFormLayout
-      title="Mauerlasche bearbeiten"
+      title="Mauerlasche"
       subtitle={subtitle}
       documents={documents}
       jwt={jwt}

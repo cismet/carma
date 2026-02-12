@@ -16,11 +16,13 @@ const FormHeader = ({ title, subtitle, onCancel, onSave }: FormHeaderProps) => {
           <EditOutlined className="text-xl text-blue-600" />
         </div>
         <div>
-          <h2 className="text-lg font-semibold text-gray-900 whitespace-nowrap">{title}</h2>
+          <h2 className="text-lg font-semibold text-gray-900 whitespace-nowrap">
+            {title}
+          </h2>
           <p className="text-sm text-gray-500">{subtitle}</p>
         </div>
       </div>
-      <FormActions onCancel={onCancel} onSave={onSave} />
+      {/* <FormActions onCancel={onCancel} onSave={onSave} /> */}
     </div>
   );
 };

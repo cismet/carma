@@ -1,13 +1,5 @@
 import { useEffect, useState } from "react";
-import {
-  Form,
-  Row,
-  Col,
-  Select,
-  Input,
-  DatePicker,
-  InputNumber,
-} from "antd";
+import { Form, Row, Col, Select, Input, DatePicker, InputNumber } from "antd";
 import type { UploadFile } from "antd";
 import { useSelector } from "react-redux";
 import { getKeyTablesData } from "../../../store/slices/keyTables";
@@ -47,7 +39,8 @@ const SchaltstelleForm = ({
     ...((keyTablesData.bauart || []) as BauartItem[]),
   ].sort((a, b) => (a.bezeichnung || "").localeCompare(b.bezeichnung || ""));
   const rundsteuerempfaengerOptions = [
-    ...((keyTablesData["rundsteuerempfänger"] || []) as RundsteuerempfaengerItem[]),
+    ...((keyTablesData["rundsteuerempfänger"] ||
+      []) as RundsteuerempfaengerItem[]),
   ].sort((a, b) => (a.rs_typ || "").localeCompare(b.rs_typ || ""));
 
   // Extract documents from schaltstelle[0].dokumenteArray
@@ -126,7 +119,7 @@ const SchaltstelleForm = ({
 
   return (
     <FeatureFormLayout
-      title="Schaltstelle bearbeiten"
+      title="Schaltstelle"
       subtitle={subtitle}
       documents={documents}
       jwt={jwt}

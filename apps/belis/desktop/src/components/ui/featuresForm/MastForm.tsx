@@ -89,7 +89,7 @@ const MastForm = ({ data, rawFeature, onClose }: MastFormProps) => {
 
   return (
     <FeatureFormLayout
-      title="Mast bearbeiten"
+      title="Mast"
       subtitle={subtitle}
       documents={documents}
       jwt={jwt}
