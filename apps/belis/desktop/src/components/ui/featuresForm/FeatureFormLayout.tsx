@@ -3,6 +3,7 @@ import { Tabs } from "antd";
 import type { UploadFile } from "antd";
 import FormHeader from "./FormHeader";
 import DocumentPreview, { DokumentItem } from "../DocumentPreview";
+import FilePreview from "../FilePreview";
 
 interface AdditionalTab {
   key: string;
@@ -66,15 +67,23 @@ const FeatureFormLayout = ({
   };
 
   // Documents content
+  // const documentsContent = (
+  //   <DocumentPreview
+  //     documents={documents}
+  //     jwt={jwt}
+  //     onFilesChange={onFilesChange}
+  //     pendingFiles={pendingFiles}
+  //     dokumenteTitleStyle={labelStyle}
+  //     vorschauTitleStyle={labelStyle}
+  //     uploadText={uploadText}
+  //   />
+  // );
   const documentsContent = (
-    <DocumentPreview
+    <FilePreview
       documents={documents}
       jwt={jwt}
-      onFilesChange={onFilesChange}
-      pendingFiles={pendingFiles}
-      dokumenteTitleStyle={labelStyle}
-      vorschauTitleStyle={labelStyle}
-      uploadText={uploadText}
+      titleStyle={labelStyle}
+      title="Dokumente"
     />
   );
 
