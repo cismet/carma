@@ -47,7 +47,6 @@ import {
   getFeatureMetadataBoundingSphere,
   getGeojsonBoundingSphere,
   getModelConfig,
-  getModelProperties,
   getWallHeights,
   isRehydratedFeature,
   normalizeCarmaConf3D,
@@ -103,6 +102,18 @@ const parseAdhocFeatureKey = (
     return null;
   }
   return { collectionId, id };
+};
+
+const buildModelFeatureInfo = (feature: AdhocFeature): FeatureInfo | null => {
+  const geojson = getGeoJsonFromFeature(feature);
+  const defaultGeoJsonFeature =
+    geojson?.type === "FeatureCollection" ? geojson.features[0] : geojson;
+  if (defaultGeoJsonFeature) {
+    return buildAdhocFeatureInfo(feature, {
+      geojsonFeature: defaultGeoJsonFeature,
+    });
+  }
+  return buildAdhocFeatureInfo(feature);
 };
 
 export const useAdhocCesiumFeatureDisplay = (
@@ -299,7 +310,8 @@ export const useAdhocCesiumFeatureDisplay = (
       const modelConfig = getModelConfig(entry.feature);
       if (!modelConfig) return [];
 
-      const baseProperties = getModelProperties(entry.feature);
+      const featureInfo = buildModelFeatureInfo(entry.feature);
+      const baseProperties = featureInfo?.properties ?? {};
       const { id: _ignoredModelId, ...modelPropertiesWithoutId } =
         baseProperties as Record<string, unknown>;
 
@@ -370,9 +382,9 @@ export const useAdhocCesiumFeatureDisplay = (
             return;
           }
 
-          const resolvedInfo = buildAdhocFeatureInfo(entry.feature);
-          onFeatureInfoChange?.(resolvedInfo ?? featureInfo);
+          const resolvedInfo = buildModelFeatureInfo(entry.feature);
           setSelectedFeatureById(entry.id, entry.collectionId);
+          onFeatureInfoChange?.(resolvedInfo ?? featureInfo);
         },
       },
     };
@@ -1018,78 +1030,130 @@ export const useAdhocCesiumFeatureDisplay = (
   useEffect(() => {
     if (!isCesiumEnabled) return;
 
-    const scene = getScene();
-    if (!scene || scene.isDestroyed()) return;
+    let disposed = false;
+    let retryTimeout: ReturnType<typeof setTimeout> | null = null;
+    let handler: ScreenSpaceEventHandler | null = null;
 
-    const handler = new ScreenSpaceEventHandler(scene.canvas);
-    handler.setInputAction((event: { position: Cartesian2 }) => {
-      const picked = scene.pick(event.position);
-      const pickedId = picked?.id;
+    const attachClickHandler = () => {
+      if (disposed) return;
 
-      // Check if any visualizer was picked
-      for (const entry of visualizersRef.current.values()) {
-        const isPicked = entry.visualizer.isPicked(pickedId);
-        if (isPicked) {
-          const currentSelectionId =
-            selectedSelectionIdByFeatureRef.current.get(entry.featureKey) ??
-            null;
-          const isSameSelection =
-            entry.featureKey === selectedFeatureKey &&
-            currentSelectionId === entry.selectionId;
+      const scene = getScene();
+      if (!scene || scene.isDestroyed() || !scene.canvas) {
+        retryTimeout = setTimeout(attachClickHandler, 100);
+        return;
+      }
 
-          if (isSameSelection) {
-            selectedSelectionIdByFeatureRef.current.delete(entry.featureKey);
-            clearSelectedFeature();
-            onFeatureInfoChange?.(null);
-            return;
-          }
-
-          selectedSelectionIdByFeatureRef.current.set(
-            entry.featureKey,
-            entry.selectionId
-          );
-          setShouldFocusSelected(false);
-          const adhocFeature = adhocFeatureByKey.get(entry.featureKey)?.feature;
-          const info = adhocFeature
-            ? buildAdhocFeatureInfoForSelection(adhocFeature, entry.selectionId)
+      handler = new ScreenSpaceEventHandler(scene.canvas);
+      handler.setInputAction((event: { position: Cartesian2 }) => {
+        const picked = scene.pick(event.position);
+        const pickedId = picked?.id;
+        const pickedSelectionId =
+          typeof pickedId === "string"
+            ? pickedId
+            : typeof (pickedId as { id?: unknown } | undefined)?.id === "string"
+            ? (pickedId as { id?: string }).id ?? null
             : null;
 
-          if (entry.featureKey === selectedFeatureKey) {
-            visualizersRef.current.forEach((candidate) => {
-              candidate.visualizer.selected =
-                candidate.featureKey === entry.featureKey &&
-                candidate.selectionId === entry.selectionId;
-            });
+        // Check if any visualizer was picked
+        for (const entry of visualizersRef.current.values()) {
+          const isPicked = entry.visualizer.isPicked(pickedId);
+          if (isPicked) {
+            const currentSelectionId =
+              selectedSelectionIdByFeatureRef.current.get(entry.featureKey) ??
+              null;
+            const isSameSelection =
+              entry.featureKey === selectedFeatureKey &&
+              currentSelectionId === entry.selectionId;
+
+            if (isSameSelection) {
+              selectedSelectionIdByFeatureRef.current.delete(entry.featureKey);
+              clearSelectedFeature();
+              onFeatureInfoChange?.(null);
+              return;
+            }
+
+            selectedSelectionIdByFeatureRef.current.set(
+              entry.featureKey,
+              entry.selectionId
+            );
+            setShouldFocusSelected(false);
+            const adhocFeature = adhocFeatureByKey.get(
+              entry.featureKey
+            )?.feature;
+            const info = adhocFeature
+              ? buildAdhocFeatureInfoForSelection(
+                  adhocFeature,
+                  entry.selectionId
+                )
+              : null;
+
+            if (entry.featureKey === selectedFeatureKey) {
+              visualizersRef.current.forEach((candidate) => {
+                candidate.visualizer.selected =
+                  candidate.featureKey === entry.featureKey &&
+                  candidate.selectionId === entry.selectionId;
+              });
+              onFeatureInfoChange?.(info);
+              scene.requestRender();
+              return;
+            }
+
+            setSelectedFeatureById(entry.featureId, entry.collectionId);
             onFeatureInfoChange?.(info);
-            scene.requestRender();
             return;
           }
+        }
 
-          setSelectedFeatureById(entry.featureId, entry.collectionId);
+        // No visualizer picked - deselect if not a model pick
+        const isModelPickId =
+          (pickedId as { is3dModel?: boolean } | undefined)?.is3dModel === true;
+        const isModelPickPrimitive =
+          (picked as { primitive?: unknown } | undefined)?.primitive instanceof
+          Model;
+        const isModelPick = isModelPickId || isModelPickPrimitive;
+        if (isModelPick) {
+          const entryFromKey = pickedSelectionId
+            ? adhocFeatureByKey.get(pickedSelectionId)
+            : null;
+          const parsedSelection = pickedSelectionId
+            ? parseAdhocFeatureKey(pickedSelectionId)
+            : null;
+          const entryFromParsedSelection = parsedSelection
+            ? adhocFeatureByKey.get(toAdhocFeatureKey(parsedSelection))
+            : null;
+          const entryFromFeatureId = pickedSelectionId
+            ? resolveAdhocFeatureEntryByFeatureId(pickedSelectionId)
+            : null;
+          const modelEntry =
+            entryFromKey ?? entryFromParsedSelection ?? entryFromFeatureId;
+          if (!modelEntry) {
+            return;
+          }
+          setShouldFocusSelected(false);
+          setSelectedFeatureById(modelEntry.id, modelEntry.collectionId);
+          const info = buildModelFeatureInfo(modelEntry.feature);
           onFeatureInfoChange?.(info);
           return;
         }
-      }
-
-      // No visualizer picked - deselect if not a model pick
-      const isModelPickId =
-        (pickedId as { is3dModel?: boolean } | undefined)?.is3dModel === true;
-      const isModelPickPrimitive =
-        (picked as { primitive?: unknown } | undefined)?.primitive instanceof
-        Model;
-      const isModelPick = isModelPickId || isModelPickPrimitive;
-      if (!isModelPick) {
-        if (selectedFeatureKey) {
-          selectedSelectionIdByFeatureRef.current.delete(selectedFeatureKey);
+        if (!isModelPick) {
+          if (selectedFeatureKey) {
+            selectedSelectionIdByFeatureRef.current.delete(selectedFeatureKey);
+          }
+          setShouldFocusSelected(false);
+          clearSelectedFeature();
+          onFeatureInfoChange?.(null);
         }
-        setShouldFocusSelected(false);
-        clearSelectedFeature();
-        onFeatureInfoChange?.(null);
-      }
-    }, ScreenSpaceEventType.LEFT_CLICK);
+      }, ScreenSpaceEventType.LEFT_CLICK);
+    };
+
+    attachClickHandler();
 
     return () => {
-      handler.destroy();
+      disposed = true;
+      if (retryTimeout) {
+        clearTimeout(retryTimeout);
+      }
+      handler?.destroy();
     };
   }, [
     adhocFeatureByKey,
@@ -1101,6 +1165,7 @@ export const useAdhocCesiumFeatureDisplay = (
     setSelectedFeatureById,
     setShouldFocusSelected,
     registeredFeatureKeys,
+    resolveAdhocFeatureEntryByFeatureId,
   ]);
 
   // Get bounding sphere for a feature

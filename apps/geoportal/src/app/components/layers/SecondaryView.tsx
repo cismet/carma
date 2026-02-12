@@ -14,7 +14,6 @@ import { TopicMapContext } from "react-cismap/contexts/TopicMapContextProvider";
 import { useDispatch, useSelector } from "react-redux";
 
 import {
-  DEFAULT_ADHOC_FEATURE_COLLECTION_ID,
   SELECTED_LAYER_INDEX,
   useAdhocFeatureDisplay,
 } from "@carma-appframeworks/portals";
@@ -49,6 +48,7 @@ import {
 import { resolveAdhocStyleData } from "../../helper/adhoc-feature-utils";
 import { zoomToStyleFeatures } from "../../helper/gisHelper";
 import { setTriggerSelectionById } from "../../store/slices/features";
+import { addAdhocFeatureFromLayer } from "../../helper/adhoc-layer-feature";
 
 type Ref = HTMLDivElement;
 
@@ -84,8 +84,12 @@ const SecondaryView = forwardRef<Ref, SecondaryViewProps>(({}, ref) => {
     : undefined;
   const isBaseLayer = selectedLayerIndex === -1;
 
-  const { setSelectedFeatureById, setShouldFocusSelected } =
-    useAdhocFeatureDisplay();
+  const {
+    featureCollections,
+    addFeature,
+    setSelectedFeatureById,
+    setShouldFocusSelected,
+  } = useAdhocFeatureDisplay();
   const { isLeaflet, isCesium } = useMapFrameworkSwitcherContext();
 
   useEffect(() => {
@@ -271,18 +275,45 @@ const SecondaryView = forwardRef<Ref, SecondaryViewProps>(({}, ref) => {
                 className="hover:text-gray-500 text-gray-600 flex items-center justify-center"
                 onClick={async (e) => {
                   e.stopPropagation();
-                  const styleData = await resolveAdhocStyleData(
-                    layer.props.style
-                  );
                   if (isLeaflet) {
+                    const styleData = await resolveAdhocStyleData(
+                      layer.props.style
+                    );
                     await zoomToStyleFeatures(styleData, routedMapRef);
                     dispatch(setTriggerSelectionById(layer.id));
                   } else if (isCesium) {
-                    setSelectedFeatureById(
-                      layer.id,
-                      DEFAULT_ADHOC_FEATURE_COLLECTION_ID
+                    let didSelectFeature = false;
+                    const collection = featureCollections.find(
+                      (candidate) => candidate.id === layer.id
                     );
-                    setShouldFocusSelected(true);
+                    const candidateFeature =
+                      collection?.features.find(
+                        (feature) => feature.kind === "maplibre-style"
+                      ) ?? collection?.features[0];
+
+                    if (candidateFeature) {
+                      setSelectedFeatureById(
+                        candidateFeature.id,
+                        collection.id
+                      );
+                      didSelectFeature = true;
+                    } else {
+                      const addedFeature = await addAdhocFeatureFromLayer({
+                        layer,
+                        id: layer.id,
+                        addFeature,
+                      });
+                      if (addedFeature) {
+                        setSelectedFeatureById(
+                          addedFeature.featureId,
+                          addedFeature.collectionId
+                        );
+                        didSelectFeature = true;
+                      }
+                    }
+                    if (didSelectFeature) {
+                      setShouldFocusSelected(true);
+                    }
                   }
                 }}
               >

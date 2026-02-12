@@ -84,32 +84,6 @@ export const shouldShowFootprintIn3d = (feature: AdhocFeature): boolean => {
   return modelConfig?.showFootprintIn3d !== false;
 };
 
-export const getModelProperties = (
-  feature: AdhocFeature
-): FeatureInfo["properties"] => {
-  const metadataTitle =
-    typeof feature.metadata?.title === "string"
-      ? feature.metadata?.title
-      : undefined;
-  const fallbackTitle = metadataTitle ?? feature.id;
-  const geojson = getGeoJsonFromFeature(feature);
-  const geojsonFeature =
-    geojson?.type === "FeatureCollection" ? geojson.features[0] : geojson;
-  const geojsonProperties = geojsonFeature?.properties as
-    | FeatureInfo["properties"]
-    | undefined;
-  const baseProperties = feature.properties ??
-    geojsonProperties ?? { title: fallbackTitle };
-  const title =
-    typeof baseProperties.title === "string"
-      ? baseProperties.title
-      : fallbackTitle;
-  return {
-    ...baseProperties,
-    title,
-  };
-};
-
 export const getGeojsonBoundingSphere = (
   feature: AdhocFeature
 ): BoundingSphere | null => {

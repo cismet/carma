@@ -234,59 +234,79 @@ export const useCesiumModelManager = ({
 
   useEffect(() => {
     const selectionEnabled = !!selection?.enabled && enabled;
-    const scene = getScene();
-    if (!selectionEnabled || !scene || scene.isDestroyed() || !scene.canvas) {
+    if (!selectionEnabled) {
       return;
     }
-    const { canvas } = scene;
-    const handler = new ScreenSpaceEventHandler(canvas);
 
-    const highlightShader = highlightShaderRef.current;
+    let disposed = false;
+    let retryTimeout: ReturnType<typeof setTimeout> | null = null;
+    let handler: ScreenSpaceEventHandler | null = null;
 
-    const applyHighlightFromClick = (primitive: Model): void => {
-      applyHighlight(primitive, highlightShader);
-    };
+    const attachSelectionHandler = () => {
+      if (disposed) return;
 
-    const deselect = () => {
-      clearPreviousHighlight();
-      selectedPrimitiveRef.current = null;
-      originalShaderRef.current = undefined;
-      onClearSelectionRef.current?.();
-    };
-
-    const handleLeftClick = ({
-      position,
-    }: ScreenSpaceEventHandler.PositionedEvent) => {
-      if (!position) return;
-      const picks = scene.drillPick(position, 5);
-      for (let i = 0; i < picks.length; i++) {
-        const picked = picks[i];
-        if (isModelPick(picked)) {
-          clearPreviousHighlight();
-          applyHighlightFromClick(picked.primitive as Model);
-          const pickId = picked.id as { id?: string } | undefined;
-          const id = pickId?.id ?? undefined;
-          onSelectRef.current?.({
-            id,
-            properties: extractPickedProperties(picked),
-            is3dModel: true,
-          });
-          selectedPrimitiveRef.current = picked.primitive as Model;
-          return;
-        }
+      const scene = getScene();
+      if (!scene || scene.isDestroyed() || !scene.canvas) {
+        retryTimeout = setTimeout(attachSelectionHandler, 100);
+        return;
       }
-      if (selection?.deselectOnEmptyClick ?? true) deselect();
+
+      const { canvas } = scene;
+      handler = new ScreenSpaceEventHandler(canvas);
+
+      const highlightShader = highlightShaderRef.current;
+
+      const applyHighlightFromClick = (primitive: Model): void => {
+        applyHighlight(primitive, highlightShader);
+      };
+
+      const deselect = () => {
+        clearPreviousHighlight();
+        selectedPrimitiveRef.current = null;
+        originalShaderRef.current = undefined;
+        onClearSelectionRef.current?.();
+      };
+
+      const handleLeftClick = ({
+        position,
+      }: ScreenSpaceEventHandler.PositionedEvent) => {
+        if (!position) return;
+        const picks = scene.drillPick(position, 5);
+        for (let i = 0; i < picks.length; i++) {
+          const picked = picks[i];
+          if (isModelPick(picked)) {
+            clearPreviousHighlight();
+            applyHighlightFromClick(picked.primitive as Model);
+            const pickId = picked.id as { id?: string } | undefined;
+            const id = pickId?.id ?? undefined;
+            onSelectRef.current?.({
+              id,
+              properties: extractPickedProperties(picked),
+              is3dModel: true,
+            });
+            selectedPrimitiveRef.current = picked.primitive as Model;
+            return;
+          }
+        }
+        if (selection?.deselectOnEmptyClick ?? true) deselect();
+      };
+
+      handler.setInputAction(handleLeftClick, ScreenSpaceEventType.LEFT_CLICK);
     };
 
-    handler.setInputAction(handleLeftClick, ScreenSpaceEventType.LEFT_CLICK);
+    attachSelectionHandler();
 
     return () => {
+      disposed = true;
+      if (retryTimeout) {
+        clearTimeout(retryTimeout);
+      }
       try {
         clearPreviousHighlight();
         selectedPrimitiveRef.current = null;
         originalShaderRef.current = undefined;
-        handler.removeInputAction(ScreenSpaceEventType.LEFT_CLICK);
-        handler.destroy();
+        handler?.removeInputAction(ScreenSpaceEventType.LEFT_CLICK);
+        handler?.destroy();
       } catch (error) {
         console.warn("[Cesium|Models] Selection cleanup failed:", error);
       }

@@ -1,11 +1,6 @@
 import type { Dispatch } from "redux";
 import { createElement, type ReactNode } from "react";
-import type {
-  BackgroundLayer,
-  CarmaMapLibreStyleData,
-  Item,
-  Layer,
-} from "@carma/types";
+import type { BackgroundLayer, Item, Layer } from "@carma/types";
 import { parseToMapLayer } from "@carma-mapping/utils";
 
 import {
@@ -26,10 +21,10 @@ import { createBackgroundLayerConfig } from "../../helper/layer";
 import { MapStyleKeys } from "../../constants/MapStyleKeys";
 import { zoomToStyleFeatures } from "../../helper/gisHelper";
 import {
-  isAdhocVectorLayer,
-  resolveAdhocFeatureId,
-  resolveAdhocStyleData,
-} from "../../helper/adhoc-feature-utils";
+  addAdhocFeatureFromLayer,
+  type AddFeatureFn,
+} from "../../helper/adhoc-layer-feature";
+import { isAdhocVectorLayer } from "../../helper/adhoc-feature-utils";
 
 type MessageType = "success" | "error";
 
@@ -40,16 +35,6 @@ type MessageApiLike = {
 };
 
 type RoutedMapRef = Parameters<typeof zoomToStyleFeatures>[1];
-
-type AddFeatureFn = (
-  feature: {
-    id: string;
-    kind: "maplibre-style";
-    data: CarmaMapLibreStyleData;
-    properties?: Record<string, unknown>;
-  },
-  options?: { collectionId?: string }
-) => void;
 
 type SetSelectedFeatureByIdFn = (id: string, collectionId: string) => void;
 type SetShouldFocusSelectedFn = (shouldFocus: boolean) => void;
@@ -105,35 +90,6 @@ const shouldToggleFramework = (layer: Layer, isLeaflet: boolean): boolean => {
 const shouldSelectIn3D = (layer: Layer, isLeaflet: boolean): boolean => {
   const modeSwitch = getLayerModeSwitch(layer);
   return !isLeaflet || modeSwitch === "3D";
-};
-
-const extractFirstGeoJsonFeatureProperties = (
-  styleData: CarmaMapLibreStyleData
-): Record<string, unknown> | undefined => {
-  const sources = styleData.sources as
-    | Record<
-        string,
-        {
-          type?: string;
-          data?: {
-            type?: string;
-            features?: Array<{ properties?: Record<string, unknown> }>;
-          };
-        }
-      >
-    | undefined;
-
-  if (!sources) {
-    return undefined;
-  }
-
-  for (const source of Object.values(sources)) {
-    if (source?.type === "geojson" && source.data?.features?.[0]?.properties) {
-      return source.data.features[0].properties;
-    }
-  }
-
-  return undefined;
 };
 
 const toSuccessToastContent = (text: string): ReactNode =>
@@ -243,36 +199,23 @@ const maybeAddAdhocFeature = async ({
     return;
   }
 
-  const style = (layer.props as { style?: string | object }).style;
-  const styleData = await resolveAdhocStyleData(style);
-
-  if (!styleData) {
-    return;
-  }
-
   if (shouldToggleFramework(layer, isLeaflet)) {
     await toggleFramework();
   }
 
-  const featureId = resolveAdhocFeatureId({
-    styleData,
-    fallbackLayerId: id,
+  const addedFeature = await addAdhocFeatureFromLayer({
+    layer,
+    id,
+    addFeature,
   });
-  const targetCollectionId = id;
-  addFeature(
-    {
-      id: featureId,
-      kind: "maplibre-style",
-      data: styleData,
-      properties: extractFirstGeoJsonFeatureProperties(styleData),
-    },
-    { collectionId: targetCollectionId }
-  );
+  if (!addedFeature) {
+    return;
+  }
 
-  await zoomToStyleFeatures(styleData, routedMap);
+  await zoomToStyleFeatures(addedFeature.styleData, routedMap);
 
   if (shouldSelectIn3D(layer, isLeaflet)) {
-    setSelectedFeatureById(featureId, targetCollectionId);
+    setSelectedFeatureById(addedFeature.featureId, addedFeature.collectionId);
     setShouldFocusSelected(true);
   }
 

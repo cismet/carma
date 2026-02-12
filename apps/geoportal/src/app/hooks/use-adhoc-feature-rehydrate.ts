@@ -8,10 +8,10 @@ import {
   setSelectedFeature,
 } from "../store/slices/features";
 import {
-  isAdhocVectorLayer,
-  resolveAdhocFeatureId,
-  getVectorLayerStyle,
-} from "../helper/adhoc-feature-utils";
+  addAdhocFeatureFromLayer,
+  buildAdhocFallbackFeatureInfo,
+} from "../helper/adhoc-layer-feature";
+import { isAdhocVectorLayer } from "../helper/adhoc-feature-utils";
 
 export const useAdhocFeatureRehydrate = () => {
   const dispatch = useDispatch();
@@ -29,7 +29,6 @@ export const useAdhocFeatureRehydrate = () => {
     setShouldFocusSelected,
   } = useAdhocFeatureDisplay();
   const rehydratedRef = useRef<Set<string>>(new Set());
-  const initialAdhocLayerIdsRef = useRef<Set<string> | null>(null);
 
   // Rehydrate features from Redux layers
   useEffect(() => {
@@ -45,12 +44,6 @@ export const useAdhocFeatureRehydrate = () => {
 
     const adhocLayers = layers.filter(isAdhocVectorLayer);
 
-    if (initialAdhocLayerIdsRef.current === null) {
-      initialAdhocLayerIdsRef.current = new Set(
-        adhocLayers.map((layer) => layer.id)
-      );
-    }
-
     // Add missing features
     adhocLayers.forEach((layer) => {
       if (
@@ -60,54 +53,13 @@ export const useAdhocFeatureRehydrate = () => {
         return;
       }
 
-      getVectorLayerStyle(layer).then((styleData) => {
-        if (styleData) {
-          // Extract properties from GeoJSON features for carmaConf3D detection
-          let featureProperties: Record<string, unknown> | undefined;
-          const sources = styleData.sources as
-            | Record<
-                string,
-                {
-                  type?: string;
-                  data?: {
-                    type?: string;
-                    features?: Array<{ properties?: Record<string, unknown> }>;
-                  };
-                }
-              >
-            | undefined;
-          if (sources) {
-            for (const source of Object.values(sources)) {
-              if (
-                source?.type === "geojson" &&
-                source.data?.features?.[0]?.properties
-              ) {
-                featureProperties = source.data.features[0].properties;
-                break;
-              }
-            }
-          }
-
-          const targetCollectionId = layer.id;
-          const featureId = resolveAdhocFeatureId({
-            styleData,
-            fallbackLayerId: layer.id,
-          });
-          addFeature(
-            {
-              id: featureId,
-              kind: "maplibre-style",
-              data: styleData,
-              properties: featureProperties as unknown as Parameters<
-                typeof addFeature
-              >[0]["properties"],
-              metadata: {
-                rehydrated:
-                  initialAdhocLayerIdsRef.current?.has(layer.id) ?? false,
-              },
-            },
-            { collectionId: targetCollectionId }
-          );
+      void addAdhocFeatureFromLayer({
+        layer,
+        id: layer.id,
+        addFeature,
+        metadata: { rehydrated: true },
+      }).then((addedFeature) => {
+        if (addedFeature) {
           rehydratedRef.current.add(layer.id);
         }
       });
@@ -198,7 +150,12 @@ export const useAdhocFeatureRehydrate = () => {
 
     // If Provider has no selection, check if we should clear Redux
     if (selectedFeature === null) {
+      const isRestoredSelection =
+        reduxSelectedFeature?.properties &&
+        "restored" in reduxSelectedFeature.properties &&
+        reduxSelectedFeature.properties.restored === true;
       if (
+        isRestoredSelection &&
         reduxSelectedFeature?.id &&
         featureCollections.some(
           (collection) =>
@@ -227,23 +184,10 @@ export const useAdhocFeatureRehydrate = () => {
       return;
     }
 
-    // Fallback selection payload for programmatic selection sync.
-    const title =
-      (typeof selectedAdhocFeature.metadata?.title === "string"
-        ? selectedAdhocFeature.metadata.title
-        : undefined) ||
-      selectedAdhocFeature.properties?.title ||
-      selectedAdhocFeature.id;
-
-    const featureInfo = {
-      id: selectedAdhocFeature.id,
-      properties: {
-        ...(selectedAdhocFeature.properties || {}),
-        title,
-        restored: true,
-        collectionId: selectedFeature.collectionId,
-      },
-    };
+    const featureInfo = buildAdhocFallbackFeatureInfo({
+      feature: selectedAdhocFeature,
+      collectionId: selectedFeature.collectionId,
+    });
 
     dispatch(setSelectedFeature(featureInfo));
   }, [

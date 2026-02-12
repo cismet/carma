@@ -3,8 +3,6 @@ import type {
   GeoJSONSourceSpecification,
   SourceSpecification,
 } from "maplibre-gl";
-import md5 from "md5";
-import type { Feature, FeatureCollection } from "geojson";
 
 export const isAdhocVectorLayer = (layer: Layer): boolean =>
   layer.layerType === "vector" && layer.type === "object";
@@ -86,95 +84,6 @@ export const getVectorLayerStyle = async (
   const style = (layer as Layer & { props?: { style?: string | object } }).props
     ?.style;
   return resolveAdhocStyleData(style);
-};
-
-const toStringId = (value: unknown): string | null => {
-  if (typeof value === "string" || typeof value === "number") {
-    return String(value);
-  }
-  return null;
-};
-
-const getFeatureIdCandidate = (feature: Feature): string | null => {
-  const explicitFeatureId = toStringId(feature.id);
-  if (explicitFeatureId) {
-    return explicitFeatureId;
-  }
-  const propertiesId = toStringId(
-    (feature.properties as { id?: unknown } | null | undefined)?.id
-  );
-  if (propertiesId) {
-    return propertiesId;
-  }
-  return null;
-};
-
-const getPrimaryGeoJson = (
-  styleData: CarmaMapLibreStyleData
-): Feature | FeatureCollection | null => {
-  const sources = styleData.sources;
-  if (!sources) {
-    return null;
-  }
-
-  for (const source of Object.values(sources)) {
-    if (
-      !isGeoJsonSource(source) ||
-      typeof source.data !== "object" ||
-      source.data === null
-    ) {
-      continue;
-    }
-    const geojson = source.data as Feature | FeatureCollection;
-    if (geojson.type === "Feature" || geojson.type === "FeatureCollection") {
-      return geojson;
-    }
-  }
-
-  return null;
-};
-
-const buildGeneratedFeatureId = (
-  geoJson: Feature | FeatureCollection,
-  fallbackLayerId: string
-): string => {
-  try {
-    return `autogen:${fallbackLayerId}:${md5(JSON.stringify(geoJson))}`;
-  } catch {
-    return `autogen:${fallbackLayerId}:${md5(String(geoJson))}`;
-  }
-};
-
-export const resolveAdhocFeatureId = ({
-  styleData,
-  fallbackLayerId,
-}: {
-  styleData: CarmaMapLibreStyleData;
-  fallbackLayerId: string;
-}): string => {
-  const geoJson = getPrimaryGeoJson(styleData);
-  if (!geoJson) {
-    return fallbackLayerId;
-  }
-
-  if (geoJson.type === "Feature") {
-    return (
-      getFeatureIdCandidate(geoJson) ??
-      buildGeneratedFeatureId(geoJson, fallbackLayerId)
-    );
-  }
-
-  const firstFeature = geoJson.features.find(
-    (feature): feature is Feature => !!feature
-  );
-  if (!firstFeature) {
-    return buildGeneratedFeatureId(geoJson, fallbackLayerId);
-  }
-
-  return (
-    getFeatureIdCandidate(firstFeature) ??
-    buildGeneratedFeatureId(firstFeature, fallbackLayerId)
-  );
 };
 
 export const filter3dLayers = (layer: Layer): Boolean => {
