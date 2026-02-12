@@ -18,6 +18,8 @@ import {
 import OpacitySlider from "./OpacitySlider";
 import VisibilityToggle from "./VisibilityToggle";
 import { LayerIcon } from "@carma-mapping/components";
+import { useAdhocFeatureDisplay } from "@carma-appframeworks/portals";
+import { isAdhocVectorLayer } from "../../helper/adhoc-feature-utils";
 
 interface LayerRowProps {
   layer: Layer;
@@ -28,6 +30,7 @@ interface LayerRowProps {
 
 const LayerRow = ({ layer, id, isBackgroundLayer, index }: LayerRowProps) => {
   const dispatch = useDispatch();
+  const { clearFeatureCollections } = useAdhocFeatureDisplay();
   const icon = layer?.other?.icon;
   const { attributes, listeners, setNodeRef, transform, transition } =
     useSortable({
@@ -86,6 +89,12 @@ const LayerRow = ({ layer, id, isBackgroundLayer, index }: LayerRowProps) => {
         }`}
         onClick={(e) => {
           dispatch(removeLayer(id));
+          if (isAdhocVectorLayer(layer)) {
+            clearFeatureCollections([id]);
+            console.debug("[ADHOC|REMOVE] row clearFeatureCollections", {
+              collectionId: id,
+            });
+          }
         }}
       >
         <FontAwesomeIcon icon={faX} />

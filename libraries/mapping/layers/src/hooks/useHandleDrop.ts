@@ -441,6 +441,11 @@ export const useHandleDrop = ({
     getDataFromJson,
     activeLayers,
     updateActiveLayer,
+    setAdditionalLayers,
+    setSidebarElements,
+    flags,
+    dispatch,
+    isCesium,
   ]);
 };
 

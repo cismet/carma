@@ -1,5 +1,5 @@
 import { message } from "antd";
-import { useContext } from "react";
+import { useCallback, useContext } from "react";
 import { useDispatch, useSelector } from "react-redux";
 
 import { TopicMapContext } from "react-cismap/contexts/TopicMapContextProvider";
@@ -55,9 +55,19 @@ const ResourceModal = () => {
     addFeature,
     setSelectedFeatureById,
     setShouldFocusSelected,
-    clearFeatures,
+    clearFeatureCollections,
   } = useAdhocFeatureDisplay();
-  const { toggle, isLeaflet } = useMapFrameworkSwitcherContext();
+  const { toggle, getIsLeaflet, getIsCesium } =
+    useMapFrameworkSwitcherContext();
+  const isLeaflet = getIsLeaflet();
+
+  const getFrameworkMode = useCallback(
+    () => ({
+      isLeaflet: getIsLeaflet(),
+      isCesium: getIsCesium(),
+    }),
+    [getIsCesium, getIsLeaflet]
+  );
 
   const updateLayers = createResourceLayerUpdater({
     dispatch,
@@ -65,9 +75,9 @@ const ResourceModal = () => {
     addFeature,
     setSelectedFeatureById,
     setShouldFocusSelected,
-    clearFeatures,
+    clearFeatureCollections,
     toggleFramework: toggle,
-    isLeaflet,
+    getFrameworkMode,
     routedMap,
     setCurrentStyle,
     messageApi,

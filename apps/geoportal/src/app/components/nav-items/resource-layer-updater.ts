@@ -43,9 +43,13 @@ type SetSelectedFeatureByIdFn = (
   layerId?: string
 ) => void;
 type SetShouldFocusSelectedFn = (shouldFocus: boolean) => void;
-type ClearFeaturesFn = (collectionId?: string, layerId?: string) => void;
+type ClearFeatureCollectionsFn = (collectionIds?: string[]) => void;
 type ToggleFrameworkFn = () => Promise<unknown>;
 type SetCurrentStyleFn = (style: MapStyleKeys) => void;
+type GetFrameworkModeFn = () => {
+  isLeaflet: boolean;
+  isCesium: boolean;
+};
 
 type CollectionLayerItem = Item & {
   type: "collection";
@@ -66,9 +70,9 @@ type ResourceLayerUpdaterDeps = {
   addFeature: AddFeatureFn;
   setSelectedFeatureById: SetSelectedFeatureByIdFn;
   setShouldFocusSelected: SetShouldFocusSelectedFn;
-  clearFeatures: ClearFeaturesFn;
+  clearFeatureCollections: ClearFeatureCollectionsFn;
   toggleFramework: ToggleFrameworkFn;
-  isLeaflet: boolean;
+  getFrameworkMode: GetFrameworkModeFn;
   routedMap: RoutedMapRef;
   setCurrentStyle: SetCurrentStyleFn;
   messageApi: MessageApiLike;
@@ -92,9 +96,14 @@ const shouldToggleFramework = (layer: Layer, isLeaflet: boolean): boolean => {
   );
 };
 
-const shouldSelectIn3D = (layer: Layer, isLeaflet: boolean): boolean => {
+const shouldSelectIn3D = (
+  layer: Layer,
+  mode: { isLeaflet: boolean; isCesium: boolean }
+): boolean => {
   const modeSwitch = getLayerModeSwitch(layer);
-  return !isLeaflet || modeSwitch === "3D";
+  // Keep legacy behavior (select when operating in 3D context) while also
+  // allowing explicit 3D layers to auto-select after a framework switch.
+  return mode.isCesium || !mode.isLeaflet || modeSwitch === "3D";
 };
 
 const toSuccessToastContent = (text: string): ReactNode =>
@@ -177,12 +186,11 @@ const applyCollectionLayer = ({
   }
 };
 
-const maybeAddAdhocFeature = async ({
+const addAdhocFeatureIfApplicable = async ({
   layer,
   id,
-  existingLayer,
   addFeature,
-  isLeaflet,
+  getFrameworkMode,
   routedMap,
   setSelectedFeatureById,
   setShouldFocusSelected,
@@ -191,20 +199,30 @@ const maybeAddAdhocFeature = async ({
 }: {
   layer: Layer;
   id: string;
-  existingLayer: Layer | undefined;
   addFeature: AddFeatureFn;
-  isLeaflet: boolean;
+  getFrameworkMode: GetFrameworkModeFn;
   routedMap: RoutedMapRef;
   setSelectedFeatureById: SetSelectedFeatureByIdFn;
   setShouldFocusSelected: SetShouldFocusSelectedFn;
   dispatch: Dispatch;
   toggleFramework: ToggleFrameworkFn;
 }) => {
-  if (!isAdhocVectorLayer(layer) || existingLayer) {
+  if (!isAdhocVectorLayer(layer)) {
     return;
   }
 
-  if (shouldToggleFramework(layer, isLeaflet)) {
+  const initialMode = getFrameworkMode();
+  const { isLeaflet: startedInLeaflet, isCesium: startedInCesium } =
+    initialMode;
+  console.debug("[ADHOC|ADD] addAdhocFeatureIfApplicable:start", {
+    id,
+    modeSwitch: getLayerModeSwitch(layer),
+    startedInLeaflet,
+    startedInCesium,
+  });
+
+  if (shouldToggleFramework(layer, startedInLeaflet)) {
+    console.debug("[ADHOC|ADD] toggling framework before add", { id });
     await toggleFramework();
   }
 
@@ -215,43 +233,85 @@ const maybeAddAdhocFeature = async ({
     addFeature,
   });
   if (!addedFeature) {
+    console.debug("[ADHOC|ADD] no adhoc feature added", { id });
     return;
   }
+  console.debug("[ADHOC|ADD] feature added", {
+    id,
+    featureId: addedFeature.id,
+    collectionId: addedFeature.collectionId,
+    layerId: addedFeature.layerId,
+  });
+
+  const mutableLayer = layer as Layer & {
+    props?: { style?: string | object };
+  };
+  mutableLayer.props = {
+    ...(mutableLayer.props ?? {}),
+    style: addedFeature.styleData,
+  };
 
   await zoomToStyleFeatures(addedFeature.styleData, routedMap);
 
-  if (shouldSelectIn3D(layer, isLeaflet)) {
+  const modeAfterAdd = getFrameworkMode();
+  const shouldAutoSelectIn3D = shouldSelectIn3D(layer, modeAfterAdd);
+  console.debug("[ADHOC|ADD] selection gate", {
+    id,
+    shouldAutoSelectIn3D,
+    modeAfterAdd,
+  });
+  if (shouldAutoSelectIn3D) {
     setSelectedFeatureById(
       addedFeature.id,
       addedFeature.collectionId,
       addedFeature.layerId
     );
     setShouldFocusSelected(true);
+    console.debug("[ADHOC|ADD] selected + focus requested", {
+      id,
+      featureId: addedFeature.id,
+    });
   }
 
   // Keep cross-framework auto-selection sync semantics:
   // 2D consumes this directly; 3D can still hand off when switching framework.
   dispatch(setTriggerSelectionById(id));
+  console.debug("[ADHOC|ADD] triggerSelectionById dispatched", { id });
 };
 
 const removeExistingLayer = ({
   id,
   layer,
+  existingLayer,
   dispatch,
-  clearFeatures,
+  clearFeatureCollections,
   messageApi,
 }: {
   id: string;
   layer: Layer;
+  existingLayer: Layer;
   dispatch: Dispatch;
-  clearFeatures: ClearFeaturesFn;
+  clearFeatureCollections: ClearFeatureCollectionsFn;
   messageApi: MessageApiLike;
 }) => {
   try {
     dispatch(removeLayer(id));
     dispatch(updateInfoElementsAfterRemovingFeature(id));
-    if (isAdhocVectorLayer(layer)) {
-      clearFeatures(id);
+    const shouldClearAdhocCollection =
+      isAdhocVectorLayer(existingLayer) || isAdhocVectorLayer(layer);
+    console.debug("[ADHOC|REMOVE] removeExistingLayer", {
+      id,
+      shouldClearAdhocCollection,
+      existingLayerType: existingLayer.type,
+      existingLayerLayerType: existingLayer.layerType,
+      parsedLayerType: layer.type,
+      parsedLayerLayerType: layer.layerType,
+    });
+    if (shouldClearAdhocCollection) {
+      clearFeatureCollections([id]);
+      console.debug("[ADHOC|REMOVE] clearFeatureCollections called", {
+        collectionId: id,
+      });
     }
     messageApi.open({
       type: "success",
@@ -327,9 +387,9 @@ export const createResourceLayerUpdater = ({
   addFeature,
   setSelectedFeatureById,
   setShouldFocusSelected,
-  clearFeatures,
+  clearFeatureCollections,
   toggleFramework,
-  isLeaflet,
+  getFrameworkMode,
   routedMap,
   setCurrentStyle,
   messageApi,
@@ -360,29 +420,29 @@ export const createResourceLayerUpdater = ({
       (activeLayer) => activeLayer.id === id
     );
 
-    await maybeAddAdhocFeature({
+    if (existingLayer && !updateExisting) {
+      removeExistingLayer({
+        id,
+        layer: parsedLayer,
+        existingLayer,
+        dispatch,
+        clearFeatureCollections,
+        messageApi,
+      });
+      return;
+    }
+
+    await addAdhocFeatureIfApplicable({
       layer: parsedLayer,
       id,
-      existingLayer,
       addFeature,
-      isLeaflet,
+      getFrameworkMode,
       routedMap,
       setSelectedFeatureById,
       setShouldFocusSelected,
       dispatch,
       toggleFramework,
     });
-
-    if (existingLayer && !updateExisting) {
-      removeExistingLayer({
-        id,
-        layer: parsedLayer,
-        dispatch,
-        clearFeatures,
-        messageApi,
-      });
-      return;
-    }
 
     addOrUpdateLayer({
       id,

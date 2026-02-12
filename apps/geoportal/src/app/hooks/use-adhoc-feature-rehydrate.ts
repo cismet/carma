@@ -2,6 +2,8 @@ import { useEffect, useRef } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import {
   DEFAULT_ADHOC_FEATURE_LAYER_ID,
+  resolveAdhocFeatureLayerId,
+  resolveAdhocSelectionTargetByCollectionId,
   useAdhocFeatureDisplay,
 } from "@carma-appframeworks/portals";
 import { useMapFrameworkSwitcherContext } from "@carma-mapping/components";
@@ -13,12 +15,8 @@ import {
 import {
   addAdhocFeatureFromLayer,
   buildAdhocFallbackFeatureInfo,
-  resolveAdhocSelectionTargetByCollectionId,
 } from "../helper/adhoc-layer-feature";
 import { isAdhocVectorLayer } from "../helper/adhoc-feature-utils";
-
-const resolveAdhocLayerId = (feature: { layerId?: string }) =>
-  feature.layerId ?? DEFAULT_ADHOC_FEATURE_LAYER_ID;
 
 const getFeatureInfoLayerId = (
   featureInfo: ReturnType<typeof getSelectedFeature>
@@ -38,11 +36,11 @@ export const useAdhocFeatureRehydrate = () => {
   const dispatch = useDispatch();
   const layers = useSelector(getLayers);
   const reduxSelectedFeature = useSelector(getSelectedFeature);
-  const { isCesium } = useMapFrameworkSwitcherContext();
+  const { isCesium, isTransitioning } = useMapFrameworkSwitcherContext();
   const {
     featureCollections,
     addFeature,
-    clearFeatures,
+    clearFeatureCollections,
     selectedFeature,
     setSelectedFeatureById,
     clearSelectedFeature,
@@ -87,19 +85,32 @@ export const useAdhocFeatureRehydrate = () => {
       });
     });
 
-    // Remove orphaned features
+    // Remove orphaned *rehydrated* features (for example when a layer was
+    // deleted in 2D). Do not treat freshly added runtime adhoc features as
+    // orphaned while their layer append is still in flight.
     const adhocLayerIds = new Set(adhocLayers.map((l) => l.id));
-    for (const layerId of [...rehydratedRef.current]) {
-      if (adhocLayerIds.has(layerId)) {
-        continue;
+    const orphanedCollectionIds = [...rehydratedRef.current].filter(
+      (collectionId) => !adhocLayerIds.has(collectionId)
+    );
+
+    if (orphanedCollectionIds.length > 0) {
+      console.debug(
+        "[ADHOC|REHYDRATE] removing orphaned rehydrated collections",
+        {
+          orphanedCollectionIds,
+        }
+      );
+      clearFeatureCollections(orphanedCollectionIds);
+      for (const collectionId of orphanedCollectionIds) {
+        rehydratedRef.current.delete(collectionId);
       }
-      clearFeatures(layerId);
-      rehydratedRef.current.delete(layerId);
     }
-  }, [layers, featureCollections, addFeature, clearFeatures]);
+  }, [layers, featureCollections, addFeature, clearFeatureCollections]);
 
   // Sync 2D selection -> Provider (when user clicks in 2D mode)
   useEffect(() => {
+    if (isTransitioning) return;
+
     // Only sync when in 2D mode
     if (isCesium) return;
 
@@ -114,7 +125,7 @@ export const useAdhocFeatureRehydrate = () => {
       collection.features.map((feature) => ({
         feature,
         collectionId: collection.id,
-        layerId: resolveAdhocLayerId(feature),
+        layerId: resolveAdhocFeatureLayerId(feature),
       }))
     );
 
@@ -180,10 +191,13 @@ export const useAdhocFeatureRehydrate = () => {
     setSelectedFeatureById,
     setShouldFocusSelected,
     isCesium,
+    isTransitioning,
   ]);
 
   // Sync Provider -> Redux (when changed from 3D)
   useEffect(() => {
+    if (isTransitioning) return;
+
     // Only sync to Redux when in 3D mode (Cesium is active)
     if (!isCesium) return;
 
@@ -210,7 +224,7 @@ export const useAdhocFeatureRehydrate = () => {
             collection.features.some(
               (feature) =>
                 feature.id === reduxSelectedFeature.id &&
-                resolveAdhocLayerId(feature) === reduxSelectedLayerId
+                resolveAdhocFeatureLayerId(feature) === reduxSelectedLayerId
             )
         )
       ) {
@@ -225,7 +239,7 @@ export const useAdhocFeatureRehydrate = () => {
         ?.features.find(
           (feature) =>
             feature.id === selectedFeature.id &&
-            resolveAdhocLayerId(feature) === selectedFeature.layerId
+            resolveAdhocFeatureLayerId(feature) === selectedFeature.layerId
         ) ?? null;
 
     // Do not overwrite richer feature info that was already set by Cesium selection callbacks.
@@ -257,5 +271,6 @@ export const useAdhocFeatureRehydrate = () => {
     reduxSelectedFeature,
     dispatch,
     isCesium,
+    isTransitioning,
   ]);
 };

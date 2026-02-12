@@ -15,6 +15,7 @@ import { useDispatch, useSelector } from "react-redux";
 import {
   DEFAULT_ADHOC_FEATURE_LAYER_ID,
   SELECTED_LAYER_INDEX,
+  resolveAdhocSelectionTargetByCollectionId,
   useAdhocFeatureDisplay,
 } from "@carma-appframeworks/portals";
 import { cn } from "@carma-commons/utils";
@@ -48,10 +49,7 @@ import {
 import { resolveAdhocStyleData } from "../../helper/adhoc-feature-utils";
 import { zoomToStyleFeatures } from "../../helper/gisHelper";
 import { setTriggerSelectionById } from "../../store/slices/features";
-import {
-  addAdhocFeatureFromLayer,
-  resolveAdhocSelectionTargetByCollectionId,
-} from "../../helper/adhoc-layer-feature";
+import { addAdhocFeatureFromLayer } from "../../helper/adhoc-layer-feature";
 
 type Ref = HTMLDivElement;
 
