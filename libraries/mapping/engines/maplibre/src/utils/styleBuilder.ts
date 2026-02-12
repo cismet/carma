@@ -65,7 +65,7 @@ const parser = new WMSCapabilities();
 /**
  * Get the correct paint property name for a layer type
  */
-const getPaintProperty = (layerStyle: LayerSpecification): string | null => {
+export const getPaintProperty = (layerStyle: LayerSpecification): string | null => {
   const type = layerStyle.type;
   switch (type) {
     case "symbol":
@@ -292,7 +292,7 @@ export const getVectorMapping = async (
 /**
  * Extract GeoJSON data from a URL with caching
  */
-const extractGeoJson = async (
+export const extractGeoJson = async (
   geoJson: string
 ): Promise<GeoJSON.FeatureCollection> => {
   const result = await md5FetchJSON("libreGeoJson", geoJson);
@@ -312,7 +312,7 @@ function convertTo4326(x: number, y: number): [number, number] {
 /**
  * Transform POI features from Web Mercator to WGS84
  */
-const transformedPois = (
+export const transformedPois = (
   pois: GeoJSON.FeatureCollection
 ): GeoJSON.FeatureCollection => {
   return {
@@ -330,6 +330,51 @@ const transformedPois = (
       },
     })),
   } as GeoJSON.FeatureCollection;
+};
+
+/**
+ * Prefix image names inside a fill-pattern expression with the sprite namespace.
+ *
+ * Two strategies depending on expression type:
+ * - step/interpolate (zoom-dependent): MapLibre requires these as the top-level
+ *   expression, so we walk the structure in JS and prefix each string image name.
+ * - Everything else (case, match, feature-property-driven, plain string): we use
+ *   ["concat", "spriteId:", expr] and let MapLibre resolve it at runtime, because
+ *   feature properties (["get", ...]) can't be resolved at build time.
+ */
+export const prefixPatternExpression = (
+  spriteId: string,
+  expr: unknown
+): unknown => {
+  if (typeof expr === "string") {
+    return `${spriteId}:${expr}`;
+  }
+  if (!Array.isArray(expr)) return expr;
+
+  const [op, ...rest] = expr;
+  if (op === "step") {
+    // ["step", input, defaultValue, stop1, value1, stop2, value2, ...]
+    return [
+      "step",
+      rest[0],
+      ...rest.slice(1).map((v, i) =>
+        i % 2 === 0 ? prefixPatternExpression(spriteId, v) : v
+      ),
+    ];
+  }
+  if (op === "interpolate") {
+    // ["interpolate", interpolation, input, stop1, value1, stop2, value2, ...]
+    return [
+      "interpolate",
+      rest[0],
+      rest[1],
+      ...rest.slice(2).map((v, i) =>
+        i % 2 === 1 ? prefixPatternExpression(spriteId, v) : v
+      ),
+    ];
+  }
+  // For all other expressions (case, match, etc.): let MapLibre resolve at runtime
+  return ["concat", `${spriteId}:`, expr];
 };
 
 export interface VectorStylesToMapLibreStyleOptions {
@@ -454,6 +499,18 @@ export const vectorStylesToMapLibreStyle = async ({
                       : baseOpacity,
                 };
               })(),
+              ...((styleLayer.paint as Record<string, unknown>)?.[
+                "fill-pattern"
+              ] !== undefined
+                ? {
+                    "fill-pattern": prefixPatternExpression(
+                      spriteId,
+                      (styleLayer.paint as Record<string, unknown>)[
+                        "fill-pattern"
+                      ]
+                    ),
+                  }
+                : {}),
             },
             layout: {
               ...(

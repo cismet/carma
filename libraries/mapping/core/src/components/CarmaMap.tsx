@@ -38,6 +38,8 @@ import {
   LibreMapProps,
   LibreLayer,
   VectorStyle,
+  slugifyUrl,
+  WUPPERTAL_CONFIG,
 } from "@carma-mapping/engines/maplibre";
 
 export type { VectorStyle, LibreLayer };
@@ -155,7 +157,7 @@ const CarmaMapContent = (props: CarmaMapProps) => {
                         setShowTerrain(false);
                       } else if (libreMap) {
                         libreMap.setTerrain({
-                          source: "terrainSource",
+                          source: WUPPERTAL_CONFIG.terrain ? slugifyUrl(WUPPERTAL_CONFIG.terrain.url) : "terrainSource",
                           exaggeration: 1,
                         });
                         setShowTerrain(true);
@@ -253,6 +255,7 @@ const CarmaMapContent = (props: CarmaMapProps) => {
                 backgroundLayers={effectiveBackgroundLayers}
                 setLibreMap={handleLibreMapReady}
                 layers={libreLayers}
+                layerMode={props.layerMode}
                 onProgressUpdate={props.onProgressUpdate}
                 filterFunction={props.filterFunction}
                 useRouting={miniMap ? false : props.useRouting}
@@ -261,6 +264,7 @@ const CarmaMapContent = (props: CarmaMapProps) => {
                 selectionEnabled={miniMap ? false : props.selectionEnabled}
                 preserveDrawingBuffer={props.preserveDrawingBuffer}
                 interactive={miniMap ? false : undefined}
+                debugLog={props.debugLog}
               />
             )}
             {modalMenu}

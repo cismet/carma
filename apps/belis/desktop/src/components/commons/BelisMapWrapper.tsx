@@ -170,7 +170,9 @@ const BelisMapLibWrapper = ({ mapSizes }) => {
               mapEngine="maplibre"
               embedded
               miniMap
+              overrideGlyphs="https://tiles.cismet.de/fonts/{fontstack}/{range}.pbf"
               backgroundLayers="basemap_grey@60"
+              layerMode="imperative"
               libreLayers={[leuchtenDataLayer]}
               setLibreMap={handleMiniMapReady}
             />
@@ -180,7 +182,10 @@ const BelisMapLibWrapper = ({ mapSizes }) => {
           mainMap={
             <CarmaMap
               mapEngine="maplibre"
+              layerMode="imperative"
               embedded
+              debugLog
+              overrideGlyphs="https://tiles.cismet.de/fonts/{fontstack}/{range}.pbf"
               backgroundLayers=""
               terrainControl={false}
               fullScreenControl={false}

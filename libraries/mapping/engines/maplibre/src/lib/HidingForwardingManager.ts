@@ -100,8 +100,13 @@ export class HidingForwardingManager {
         carmaConf.hidingForwardingTo.length > 0
       ) {
         // Extract prefix from layer-id metadata (added by styleBuilder)
+        // Detect separator from the layer's own ID: imperative mode uses "::", merged uses "-"
         const layerIdPrefix = metadata?.["layer-id"] as string | undefined;
-        const prefix = layerIdPrefix ? `${layerIdPrefix}-` : "";
+        let sep = "-";
+        if (layerIdPrefix && layer.id.startsWith(`${layerIdPrefix}::`)) {
+          sep = "::";
+        }
+        const prefix = layerIdPrefix ? `${layerIdPrefix}${sep}` : "";
 
         // Resolve targets by applying the same prefix
         const resolvedTargets = carmaConf.hidingForwardingTo.map(

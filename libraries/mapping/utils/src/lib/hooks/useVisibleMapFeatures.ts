@@ -112,7 +112,10 @@ export const useVisibleMapFeatures = ({
   const layerFilterExpressionsRef = useRef(layerFilterExpressions);
   layerFilterExpressionsRef.current = layerFilterExpressions;
 
-  // Resolve layerFilterExpressions to MapLibre layer IDs once on style load
+  // Resolve layerFilterExpressions to MapLibre layer IDs once on style load.
+  // In imperative mode, actual layer IDs are namespaced (e.g. "slug::leitungen-base")
+  // but the caller writes patterns against merged-mode IDs (e.g. "Leuchten.*-base").
+  // We read the bidirectional mapping from the map instance to resolve transparently.
   useEffect(() => {
     if (!maplibreMap) return;
     const resolve = () => {
@@ -124,9 +127,25 @@ export const useVisibleMapFeatures = ({
       const style = maplibreMap.getStyle();
       if (!style?.layers) return;
       const regexes = exprs.map((e) => new RegExp(e));
+
+      // Direct match against actual map layer IDs (works in merged mode)
       const ids = style.layers
         .filter((l) => regexes.some((r) => r.test(l.id)))
         .map((l) => l.id);
+
+      // Also try matching against merged-mode-equivalent keys (imperative mode)
+      const layerIdMap = (maplibreMap as unknown as Record<string, unknown>)
+        .__carmaLayerIdMap as
+        | { mergedToNamespaced: Map<string, string> }
+        | undefined;
+      if (layerIdMap?.mergedToNamespaced) {
+        for (const [mergedKey, namespacedId] of layerIdMap.mergedToNamespaced) {
+          if (regexes.some((r) => r.test(mergedKey)) && !ids.includes(namespacedId)) {
+            ids.push(namespacedId);
+          }
+        }
+      }
+
       resolvedLayerIdsRef.current = ids.length > 0 ? ids : undefined;
     };
     resolve();
