@@ -330,7 +330,10 @@ export const useCreateCismapLayers = (
 
                   let featureToSelect: GeoJSON.Feature | undefined;
 
-                  if (typeof autoSelect === "string") {
+                  if (
+                    typeof autoSelect === "string" ||
+                    typeof autoSelect === "number"
+                  ) {
                     featureToSelect = featuresWithGeometry.find(
                       (f) =>
                         f.id === autoSelect || f.properties?.id === autoSelect

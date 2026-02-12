@@ -119,6 +119,7 @@ import { CESIUM_CONFIG, LEAFLET_CONFIG } from "../../config/app.config";
 
 import "cesium/Build/Cesium/Widgets/widgets.css";
 import "../leaflet.css";
+import AdhocSelectionSync from "../feature-info/AdhocSelectionSync.tsx";
 
 interface MapProps {
   height: number;
@@ -961,6 +962,7 @@ export const GeoportalMap = ({ height, width, allow3d }: MapProps) => {
           <PrintPreview />
           <Measurements snappingLayers={maplibreMaps} />
         </TopicMapComponent>
+        <AdhocSelectionSync maplibreMapsRef={maplibreMapsRef} />
       </div>
       {allow3d && cesiumCanInitializeRef.current && (
         <div
