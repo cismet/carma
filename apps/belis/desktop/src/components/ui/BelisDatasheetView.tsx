@@ -64,7 +64,7 @@ const BelisDatasheetView = ({
       )}
 
       {/* Feature data placeholder (original - hidden when fetchedData available) */}
-      {!fetchedData && (
+      {/* {!fetchedData && (
         <div>
           <div
             style={{
@@ -93,8 +93,8 @@ const BelisDatasheetView = ({
           >
             {JSON.stringify(props, null, 2)}
           </pre>
-        </div>
-      )}
+        </div> */}
+      {/* )} */}
     </div>
   );
 };

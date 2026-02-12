@@ -136,7 +136,7 @@ const SchaltstelleForm = ({
               label={<FormLabel>Strassenschlussel</FormLabel>}
               className="mb-4"
             >
-              <Input size="large" />
+              <Input size="large" disabled />
             </Form.Item>
           </Col>
           <Col span={18}>
@@ -145,7 +145,7 @@ const SchaltstelleForm = ({
               label={<FormLabel>&nbsp;</FormLabel>}
               className="mb-4"
             >
-              <Input size="large" />
+              <Input size="large" disabled />
             </Form.Item>
           </Col>
         </Row>

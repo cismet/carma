@@ -121,7 +121,7 @@ const MauerlascheForm = ({
               label={<FormLabel>Strassenschlussel</FormLabel>}
               className="mb-4"
             >
-              <Input size="large" />
+              <Input size="large" disabled />
             </Form.Item>
           </Col>
           <Col span={18}>
@@ -130,7 +130,7 @@ const MauerlascheForm = ({
               label={<FormLabel>&nbsp;</FormLabel>}
               className="mb-4"
             >
-              <Input size="large" />
+              <Input size="large" disabled />
             </Form.Item>
           </Col>
         </Row>

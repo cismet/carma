@@ -112,14 +112,20 @@ const MastFormFields = ({ mast, namePrefix }: MastFormFieldsProps) => {
     form.resetFields();
 
     if (mast) {
-      const strassenschluessel = mast.tkey_strassenschluessel as NestedObject | undefined;
+      const strassenschluessel = mast.tkey_strassenschluessel as
+        | NestedObject
+        | undefined;
       const kennziffer = mast.tkey_kennziffer as NestedObject | undefined;
       const bezirk = mast.tkey_bezirk as NestedObject | undefined;
       const mastart = mast.tkey_mastart as NestedObject | undefined;
       const masttyp = mast.tkey_masttyp as NestedObject | undefined;
-      const klassifizierung = mast.tkey_klassifizierung as NestedObject | undefined;
+      const klassifizierung = mast.tkey_klassifizierung as
+        | NestedObject
+        | undefined;
       const unterhMast = mast.tkey_unterh_mast as NestedObject | undefined;
-      const anlagengruppeObj = mast.anlagengruppeObject as NestedObject | undefined;
+      const anlagengruppeObj = mast.anlagengruppeObject as
+        | NestedObject
+        | undefined;
 
       form.setFieldsValue({
         // Strassenschluessel
@@ -205,7 +211,7 @@ const MastFormFields = ({ mast, namePrefix }: MastFormFieldsProps) => {
             label={<FormLabel>Strassenschlüssel</FormLabel>}
             className="mb-4"
           >
-            <Input size="large" />
+            <Input size="large" disabled />
           </Form.Item>
         </Col>
         <Col span={18}>
@@ -214,7 +220,7 @@ const MastFormFields = ({ mast, namePrefix }: MastFormFieldsProps) => {
             label={<FormLabel>&nbsp;</FormLabel>}
             className="mb-4"
           >
-            <Input size="large" />
+            <Input size="large" disabled />
           </Form.Item>
         </Col>
       </Row>
