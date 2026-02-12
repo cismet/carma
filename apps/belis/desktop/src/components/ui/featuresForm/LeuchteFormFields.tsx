@@ -95,15 +95,25 @@ const LeuchteFormFields = ({ leuchte, namePrefix }: LeuchteFormFieldsProps) => {
     form.resetFields();
 
     if (leuchte) {
-      const strassenschluessel = leuchte.tkey_strassenschluessel as NestedObject | undefined;
+      const strassenschluessel = leuchte.tkey_strassenschluessel as
+        | NestedObject
+        | undefined;
       const kennziffer = leuchte.tkey_kennziffer as NestedObject | undefined;
       const leuchtentyp = leuchte.tkey_leuchtentyp as NestedObject | undefined;
-      const energielieferant = leuchte.tkey_energielieferant as NestedObject | undefined;
-      const rundsteuerempfaenger = leuchte.rundsteuerempfaengerObject as NestedObject | undefined;
+      const energielieferant = leuchte.tkey_energielieferant as
+        | NestedObject
+        | undefined;
+      const rundsteuerempfaenger = leuchte.rundsteuerempfaengerObject as
+        | NestedObject
+        | undefined;
       const dk1Object = leuchte.fk_dk1Object as NestedObject | undefined;
       const dk2Object = leuchte.fk_dk2Object as NestedObject | undefined;
-      const unterhLeuchte = leuchte.tkey_unterh_leuchte as NestedObject | undefined;
-      const leuchtmittelObj = leuchte.leuchtmittelObject as NestedObject | undefined;
+      const unterhLeuchte = leuchte.tkey_unterh_leuchte as
+        | NestedObject
+        | undefined;
+      const leuchtmittelObj = leuchte.leuchtmittelObject as
+        | NestedObject
+        | undefined;
 
       form.setFieldsValue({
         // Straßenschlüssel
@@ -180,7 +190,7 @@ const LeuchteFormFields = ({ leuchte, namePrefix }: LeuchteFormFieldsProps) => {
             label={<FormLabel>Straßenschlüssel</FormLabel>}
             className="mb-4"
           >
-            <Input size="large" />
+            <Input size="large" disabled />
           </Form.Item>
         </Col>
         <Col span={18}>
@@ -189,7 +199,7 @@ const LeuchteFormFields = ({ leuchte, namePrefix }: LeuchteFormFieldsProps) => {
             label={<FormLabel>&nbsp;</FormLabel>}
             className="mb-4"
           >
-            <Input size="large" />
+            <Input size="large" disabled />
           </Form.Item>
         </Col>
       </Row>
