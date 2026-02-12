@@ -12,6 +12,7 @@ import {
   setSelectedFeature,
 } from "../../store/slices/features";
 import { cn } from "@carma-commons/utils";
+import { useMapFrameworkSwitcherContext } from "@carma-mapping/components";
 
 interface VisibilityToggleProps {
   visible: boolean;
@@ -29,14 +30,15 @@ const VisibilityToggle = ({
   const dispatch = useDispatch();
   const backgroundLayer = useSelector(getBackgroundLayer);
   const selectedFeature = useSelector(getSelectedFeature);
+  const { isCesium } = useMapFrameworkSwitcherContext();
 
   return (
     <button
       className={cn(
         "hover:text-gray-500 text-gray-600 flex items-center justify-center",
-        disabled && "opacity-40 cursor-not-allowed"
+        (isCesium || disabled) && "opacity-40 cursor-not-allowed"
       )}
-      disabled={disabled}
+      disabled={isCesium || disabled}
       onClick={(e) => {
         if (visible) {
           if (isBackgroundLayer) {
