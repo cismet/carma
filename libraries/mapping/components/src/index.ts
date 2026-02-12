@@ -8,6 +8,7 @@ export {
 export { MobileWarningMessage } from "./lib/components/MobileWarningMessage";
 export { LayerButton } from "./lib/components/LayerButton";
 export { LayerIcon } from "./lib/components/LayerIcon";
+export { ResponsiveStatusFooter } from "./lib/components/ResponsiveStatusFooter";
 export { LibrePitchingCompass } from "./lib/components/PitchingControl/LibrePitchingCompass";
 
 export {

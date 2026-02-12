@@ -139,7 +139,6 @@ export const GeoportalMap = ({ height, width, allow3d }: MapProps) => {
     getSurfaceProvider,
     getTerrainProvider,
     getScene,
-    withEntities,
     isValidViewer: isValidViewerCtx,
     isViewerReady,
   } = useCesiumContext();
@@ -317,19 +316,20 @@ export const GeoportalMap = ({ height, width, allow3d }: MapProps) => {
   useDispatchSachdatenInfoText();
   const modelSelectionDispatcher = useModelSelectionDispatcher();
 
-  const { getAdhocBoundingSphere } = useAdhocCesiumFeatureDisplay({
-    baseModels: CESIUM_CONFIG.models ?? [],
-    getScene,
-    getTerrainProvider,
-    isCesiumEnabled: isCesium,
-    minFlyToRange,
-    selectionLineWidthPixels: 1.5,
-    wallOpacity: {
-      selected: 0.4,
-      default: 0.7,
-    },
-    onFeatureInfoChange: modelSelectionDispatcher,
-  });
+  const { getAdhocBoundingSphere, stageCesiumPrimitivesForTransition } =
+    useAdhocCesiumFeatureDisplay({
+      baseModels: CESIUM_CONFIG.models ?? [],
+      getScene,
+      getTerrainProvider,
+      isCesiumEnabled: isCesium,
+      minFlyToRange,
+      selectionLineWidthPixels: 1.5,
+      wallOpacity: {
+        selected: 0.4,
+        default: 0.7,
+      },
+      onFeatureInfoChange: modelSelectionDispatcher,
+    });
 
   const routingOptions = useMemo(
     () => ({
@@ -409,7 +409,9 @@ export const GeoportalMap = ({ height, width, allow3d }: MapProps) => {
   useRegisterMapFramework(frameworkOptions);
 
   // Register geoportal-specific framework switcher callbacks
-  useGeoportalFrameworkSwitcher();
+  useGeoportalFrameworkSwitcher({
+    onBeforeTransitionToCesium: stageCesiumPrimitivesForTransition,
+  });
 
   const { gazData } = useGazData();
 

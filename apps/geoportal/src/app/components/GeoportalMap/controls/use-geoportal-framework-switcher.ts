@@ -8,14 +8,21 @@ import { useEffect } from "react";
 import { useHashState } from "@carma-providers/hash-state";
 import { useMapFrameworkSwitcherContext } from "@carma-mapping/components";
 
+type UseGeoportalFrameworkSwitcherOptions = {
+  onBeforeTransitionToCesium?: () => Promise<void> | void;
+};
+
 /**
  * Registers geoportal-specific callbacks for framework transitions
  * - Updates hash with Leaflet coordinates after Cesium→Leaflet transition
  * - Clears Cesium-specific hash parameters (h, heading, pitch, fov, is3d)
  */
-export const useGeoportalFrameworkSwitcher = () => {
+export const useGeoportalFrameworkSwitcher = (
+  options?: UseGeoportalFrameworkSwitcherOptions
+) => {
   const { updateHash } = useHashState();
   const { registerCallbacks } = useMapFrameworkSwitcherContext();
+  const onBeforeTransitionToCesium = options?.onBeforeTransitionToCesium;
 
   useEffect(() => {
     const callback = ({
@@ -36,7 +43,8 @@ export const useGeoportalFrameworkSwitcher = () => {
     };
 
     registerCallbacks({
+      onBeforeTransitionToCesium,
       onLeafletViewSet: callback,
     });
-  }, [registerCallbacks, updateHash]);
+  }, [onBeforeTransitionToCesium, registerCallbacks, updateHash]);
 };

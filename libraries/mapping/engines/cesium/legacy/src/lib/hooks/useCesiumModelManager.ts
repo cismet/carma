@@ -25,6 +25,7 @@ export interface UseCesiumModelManagerOptions {
     onSelect?: (feature: unknown) => void;
     onClearSelection?: () => void;
     onModelAdded?: (primitiveId: string, primitive: Model) => void;
+    onModelFirstRendered?: (primitiveId: string, primitive: Model) => void;
     deselectOnEmptyClick?: boolean;
     highlightShader?: CustomShader;
     selectedId?: string | null;
@@ -51,6 +52,9 @@ export const useCesiumModelManager = ({
   const onModelAddedRef = useRef<
     ((primitiveId: string, primitive: Model) => void) | undefined
   >(undefined);
+  const onModelFirstRenderedRef = useRef<
+    ((primitiveId: string, primitive: Model) => void) | undefined
+  >(undefined);
   const selectedIdRef = useRef<string | null>(selection?.selectedId ?? null);
   const selectionEnabledRef = useRef<boolean>(
     Boolean(selection?.enabled && enabled)
@@ -70,6 +74,10 @@ export const useCesiumModelManager = ({
   useEffect(() => {
     onModelAddedRef.current = selection?.onModelAdded;
   }, [selection?.onModelAdded]);
+
+  useEffect(() => {
+    onModelFirstRenderedRef.current = selection?.onModelFirstRendered;
+  }, [selection?.onModelFirstRendered]);
 
   useEffect(() => {
     selectedIdRef.current = selection?.selectedId ?? null;
@@ -249,28 +257,28 @@ export const useCesiumModelManager = ({
             onModelAddedRef.current?.(modelPrimitiveId, modelPrimitive);
           }
 
-          if (!modelPrimitive.ready) {
-            const readyPromise = (
-              modelPrimitive as unknown as { readyPromise?: Promise<unknown> }
-            ).readyPromise;
-            if (readyPromise) {
-              readyPromise
-                .then(() => {
-                  if (!modelPrimitive.isDestroyed()) {
-                    console.debug("[ADHOC|MODEL] primitive ready", {
-                      key,
-                      primitiveId: modelPrimitiveId,
-                    });
-                  }
-                })
-                .catch((error) => {
-                  console.warn("[ADHOC|MODEL] readyPromise failed", {
-                    key,
-                    primitiveId: modelPrimitiveId,
-                    error,
-                  });
+          if (modelPrimitiveId) {
+            let emittedFirstRender = false;
+            const removePostRenderListener =
+              attachScene.postRender.addEventListener(() => {
+                if (emittedFirstRender || modelPrimitive.isDestroyed()) {
+                  removePostRenderListener();
+                  return;
+                }
+                if (!modelPrimitive.ready) {
+                  return;
+                }
+                emittedFirstRender = true;
+                console.debug("[ADHOC|MODEL] primitive first rendered", {
+                  key,
+                  primitiveId: modelPrimitiveId,
                 });
-            }
+                onModelFirstRenderedRef.current?.(
+                  modelPrimitiveId,
+                  modelPrimitive
+                );
+                removePostRenderListener();
+              });
           }
 
           const selectedId = selectedIdRef.current;
