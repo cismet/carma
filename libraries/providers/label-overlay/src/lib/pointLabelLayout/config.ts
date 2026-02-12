@@ -36,7 +36,7 @@ export const DEFAULT_POINT_LABEL_LAYOUT_CONFIG: PointLabelLayoutConfig = {
   pitchResponseStrength: 1,
   // Full perspective mimic default: 45deg max when camera is side-on.
   pitchResponseClampRad: Math.PI / 4,
-  anchorSwitchTransitionMs: 300,
+  transitionDurationMs: 300,
 };
 
 const clamp = (value: number, min: number, max: number): number =>
@@ -79,6 +79,8 @@ export const resolvePointLabelLayoutConfig = (
 ): PointLabelLayoutConfig => {
   const {
     placementOrder,
+    transitionDurationMs,
+    anchorSwitchTransitionMs,
     dynamicLabelPlacementConfig,
     dynamicLabelPlacement,
     forceDirectedPlacement,
@@ -102,10 +104,15 @@ export const resolvePointLabelLayoutConfig = (
         )
       ) as Partial<DynamicLabelPlacementConfig>)
     : undefined;
+  const resolvedTransitionDurationMs =
+    transitionDurationMs ??
+    anchorSwitchTransitionMs ??
+    DEFAULT_POINT_LABEL_LAYOUT_CONFIG.transitionDurationMs;
 
   return {
     ...DEFAULT_POINT_LABEL_LAYOUT_CONFIG,
     ...restOverrides,
+    transitionDurationMs: resolvedTransitionDurationMs,
     stemDistance,
     placementOrder: normalizePlacementOrder(placementOrder),
     dynamicLabelPlacement:

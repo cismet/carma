@@ -14,9 +14,10 @@ export interface PointLabelData {
   labelAngleRad?: number;
   labelDistance?: number;
   labelAttach?: PointLabelAttach;
-  anchorSwitchTransitionMs?: number;
   hideLabelAndStem?: boolean;
   text: string;
+  content?: React.ReactNode;
+  contentSignature?: string;
   selected?: boolean;
   visible?: boolean;
   isOccluded?: boolean;
@@ -24,11 +25,16 @@ export interface PointLabelData {
   onClick?: () => void;
 }
 
+export type PointLabelLayoutOptions = {
+  transitionDurationMs?: number;
+};
+
 export const usePointLabels = (
   points: PointLabelData[],
   showLabels: boolean = true,
   getPitch?: () => number,
-  styleProps?: PointLabelStyleProps
+  styleProps?: PointLabelStyleProps,
+  layoutOptions?: PointLabelLayoutOptions
 ) => {
   const {
     addLabelOverlayElement,
@@ -44,14 +50,12 @@ export const usePointLabels = (
           (p) =>
             `${p.id}:${p.text}:${p.selected}:${p.visible}:${p.isOccluded}:${
               p.isHidden
-            }:${p.pitch}:${Boolean(p.onClick)}:${p.labelAngleRad}:${
-              p.labelDistance
-            }:${p.labelAttach}:${p.anchorSwitchTransitionMs}:${
-              p.hideLabelAndStem
-            }`
+            }:${p.contentSignature ?? ""}:${p.pitch}:${Boolean(p.onClick)}:${
+              p.labelAngleRad
+            }:${p.labelDistance}:${p.labelAttach}:${p.hideLabelAndStem}`
         )
-        .join("|"),
-    [points]
+        .join("|") + `:transition:${layoutOptions?.transitionDurationMs ?? ""}`,
+    [points, layoutOptions?.transitionDurationMs]
   );
 
   useEffect(() => {
@@ -75,9 +79,9 @@ export const usePointLabels = (
           labelAngleRad: point.labelAngleRad,
           labelDistance: point.labelDistance,
           labelAttach: point.labelAttach,
-          anchorSwitchTransitionMs: point.anchorSwitchTransitionMs,
+          transitionDurationMs: layoutOptions?.transitionDurationMs,
           hideLabelAndStem: point.hideLabelAndStem,
-          text: point.text,
+          text: point.content ?? point.text,
           selected: point.selected,
           isOccluded: point.isOccluded,
           onClick: point.onClick,
@@ -103,5 +107,6 @@ export const usePointLabels = (
     clearLabelOverlayElements,
     getPitch,
     styleProps,
+    layoutOptions?.transitionDurationMs,
   ]);
 };

@@ -1,4 +1,12 @@
-import { useEffect, useMemo, useState } from "react";
+import {
+  Fragment,
+  createElement,
+  useEffect,
+  useMemo,
+  useState,
+  type CSSProperties,
+  type ReactNode,
+} from "react";
 
 import { SceneTransforms, defined, type Scene } from "@carma/cesium";
 
@@ -16,17 +24,31 @@ import {
   type ScreenPoint,
 } from "@carma-providers/label-overlay";
 
-import type { PointMeasurementEntry } from "../types/MeasurementTypes";
+import {
+  DEFAULT_POINT_LABEL_METRIC_MODE,
+  type PointLabelMetricMode,
+  type PointMeasurementEntry,
+} from "../types/MeasurementTypes";
 import {
   isPointOccluded,
   isPointInViewport,
 } from "../utils/occlusionDetection";
 import { getCustomPointMeasurementName } from "../utils/measurementNaming";
+import { formatNumber } from "../utils/formatting";
 
 export type CesiumLabelLayoutConfig = PointLabelLayoutConfig;
 export type CesiumLabelLayoutConfigOverrides = PointLabelLayoutConfigOverrides;
 export const DEFAULT_CESIUM_LABEL_LAYOUT_CONFIG =
   DEFAULT_POINT_LABEL_LAYOUT_CONFIG;
+export type { PointLabelMetricMode };
+export { DEFAULT_POINT_LABEL_METRIC_MODE };
+const ELEVATION_NEUTRAL_THRESHOLD_METERS = 0.03;
+const REFERENCE_POINT_DISTANCE_EPSILON_METERS = 0.001;
+const GLYPH_SIZE_EM = 1;
+const ELEVATION_GLYPH_UP = "↥";
+const ELEVATION_GLYPH_DOWN = "↧";
+const DISTANCE_GLYPH_LEFT = "⭠";
+const DISTANCE_GLYPH_RIGHT = "⭢";
 
 // Viewport padding constants for smooth label transitions
 const VIEWPORT_PADDING_HORIZONTAL = 100; // pixels
@@ -35,6 +57,64 @@ const VIEWPORT_PADDING_VERTICAL = 50; // pixels
 const EMPTY_LAYOUT_RESULT: PointLabelLayoutResult = {
   placements: {},
   hiddenByLayout: new Set<string>(),
+};
+
+const formatMeters = (value: number): string => `${formatNumber(value)}m`;
+const GLYPH_BASE_STYLE: CSSProperties = {
+  display: "inline-block",
+  fontSize: `${GLYPH_SIZE_EM}em`,
+  lineHeight: 1,
+};
+
+const renderGlyph = (glyph: string, rotationDeg?: number) =>
+  createElement(
+    "span",
+    {
+      style:
+        rotationDeg === undefined
+          ? GLYPH_BASE_STYLE
+          : {
+              ...GLYPH_BASE_STYLE,
+              transform: `rotate(${rotationDeg}deg)`,
+              transformOrigin: "50% 50%",
+            },
+    },
+    glyph
+  );
+
+type PointLabelTextRepresentation = {
+  layoutText: string;
+  content?: ReactNode;
+  contentSignature?: string;
+};
+
+const getPointLabelBase = (
+  pointName: string | undefined,
+  pointIndex: number
+): string => {
+  const customPointName = getCustomPointMeasurementName(pointName);
+  return customPointName ?? formatNumberToEnclosed(pointIndex + 1);
+};
+
+const getReferenceLabelBase = (
+  points: PointMeasurementEntry[],
+  distanceToReferenceByPointId?: Readonly<Record<string, number>>
+): string | undefined => {
+  const referencePointIndex = points.findIndex((candidatePoint) => {
+    const distanceToReference =
+      distanceToReferenceByPointId?.[candidatePoint.id];
+    return (
+      distanceToReference !== undefined &&
+      Math.abs(distanceToReference) <= REFERENCE_POINT_DISTANCE_EPSILON_METERS
+    );
+  });
+
+  if (referencePointIndex < 0) return undefined;
+
+  return getPointLabelBase(
+    points[referencePointIndex]?.name,
+    referencePointIndex
+  );
 };
 
 const areBooleanMapsDifferent = (
@@ -56,26 +136,103 @@ const areScreenPointMapsDifferent = (
     return prevPoint.x !== nextPoint.x || prevPoint.y !== nextPoint.y;
   });
 
+const formatNoneLabelText = (
+  labelBase: string
+): PointLabelTextRepresentation => ({
+  layoutText: labelBase,
+});
+
+const formatElevationLabelText = (
+  labelBase: string,
+  pointHeight: number,
+  referenceElevation: number
+): PointLabelTextRepresentation => {
+  const elevationDelta = pointHeight - referenceElevation;
+  const absoluteElevationDelta = Math.abs(elevationDelta);
+  const elevationValue = formatMeters(elevationDelta);
+
+  if (absoluteElevationDelta < ELEVATION_NEUTRAL_THRESHOLD_METERS) {
+    return {
+      layoutText: `${labelBase} ${elevationValue}`,
+    };
+  }
+
+  const elevationGlyph =
+    elevationDelta > 0 ? ELEVATION_GLYPH_UP : ELEVATION_GLYPH_DOWN;
+
+  return {
+    layoutText: `${labelBase} ${elevationValue} ${elevationGlyph}`,
+    content: createElement(
+      Fragment,
+      null,
+      labelBase,
+      " ",
+      elevationValue,
+      " ",
+      renderGlyph(elevationGlyph)
+    ),
+    contentSignature: `${labelBase}:${elevationGlyph}:${elevationValue}`,
+  };
+};
+
+const formatDistanceLabelText = (
+  labelBase: string,
+  pointDistanceToReference?: number,
+  referenceLabelBase?: string
+): PointLabelTextRepresentation => {
+  const distanceToReference = pointDistanceToReference ?? 0;
+  const isReferencePointLabel =
+    Math.abs(distanceToReference) <= REFERENCE_POINT_DISTANCE_EPSILON_METERS;
+
+  if (isReferencePointLabel || !referenceLabelBase) {
+    return formatNoneLabelText(labelBase);
+  }
+
+  const distanceValue = formatMeters(distanceToReference);
+
+  return {
+    layoutText: `${referenceLabelBase} ${DISTANCE_GLYPH_LEFT} ${distanceValue} ${DISTANCE_GLYPH_RIGHT} ${labelBase}`,
+    content: createElement(
+      Fragment,
+      null,
+      referenceLabelBase,
+      " ",
+      renderGlyph(DISTANCE_GLYPH_LEFT),
+      " ",
+      distanceValue,
+      " ",
+      renderGlyph(DISTANCE_GLYPH_RIGHT),
+      " ",
+      labelBase
+    ),
+    contentSignature: `${referenceLabelBase}:${distanceValue}:${labelBase}`,
+  };
+};
+
 const formatPointLabelText = (
   pointIndex: number,
   pointHeight: number,
   referenceElevation: number,
   pointName?: string,
-  includeElevation: boolean = true
-): string => {
-  const customPointName = getCustomPointMeasurementName(pointName);
-  const labelBase = customPointName ?? formatNumberToEnclosed(pointIndex + 1);
+  pointLabelMetricMode: PointLabelMetricMode = DEFAULT_POINT_LABEL_METRIC_MODE,
+  pointDistanceToReference?: number,
+  referenceLabelBase?: string
+): PointLabelTextRepresentation => {
+  const labelBase = getPointLabelBase(pointName, pointIndex);
 
-  if (!includeElevation) {
-    return labelBase;
+  if (pointLabelMetricMode === "distance") {
+    return formatDistanceLabelText(
+      labelBase,
+      pointDistanceToReference,
+      referenceLabelBase
+    );
   }
 
-  const elevationText = `${(pointHeight - referenceElevation).toFixed(2)}m`;
-  if (customPointName) {
-    return `${customPointName} ${elevationText}`;
+  if (pointLabelMetricMode === "elevation") {
+    return formatElevationLabelText(labelBase, pointHeight, referenceElevation);
   }
 
-  return `${labelBase} ${elevationText}`;
+  return formatNoneLabelText(labelBase);
 };
 
 export const useCesiumPointLabels = (
@@ -85,7 +242,7 @@ export const useCesiumPointLabels = (
   referenceElevation: number = 0,
   onPointClick?: (pointId: string) => void,
   layoutConfigOverrides?: CesiumLabelLayoutConfigOverrides,
-  showElevationMetricByPointId?: Readonly<Record<string, boolean>>
+  distanceToReferenceByPointId?: Readonly<Record<string, number>>
 ) => {
   const [occlusionResults, setOcclusionResults] = useState<
     Record<string, boolean>
@@ -212,24 +369,32 @@ export const useCesiumPointLabels = (
       return EMPTY_LAYOUT_RESULT;
     }
 
+    const referenceLabelBase = getReferenceLabelBase(
+      points,
+      distanceToReferenceByPointId
+    );
+
     const layoutPoints: LayoutPointInput[] = points
       .map((point, index) => {
         const anchor = projectedPositions[point.id];
         if (!anchor || hiddenResults[point.id]) return null;
-        const includeElevation =
-          showElevationMetricByPointId?.[point.id] !== false;
+        const pointLabelMetricMode =
+          point.pointLabelMode ?? DEFAULT_POINT_LABEL_METRIC_MODE;
+        const labelTextRepresentation = formatPointLabelText(
+          index,
+          point.geometryWGS84.height,
+          referenceElevation,
+          point.name,
+          pointLabelMetricMode,
+          distanceToReferenceByPointId?.[point.id],
+          referenceLabelBase
+        );
 
         return {
           id: point.id,
           selected: Boolean(point.isSelected),
           anchor,
-          text: formatPointLabelText(
-            index,
-            point.geometryWGS84.height,
-            referenceElevation,
-            point.name,
-            includeElevation
-          ),
+          text: labelTextRepresentation.layoutText,
           index,
         };
       })
@@ -248,64 +413,72 @@ export const useCesiumPointLabels = (
     projectedPositions,
     hiddenResults,
     referenceElevation,
-    showElevationMetricByPointId,
+    distanceToReferenceByPointId,
     layoutConfig,
     cameraPitch,
   ]);
 
-  const pointLabelData: PointLabelData[] = useMemo(
-    () =>
-      points.map((point, index) => {
-        const includeElevation =
-          showElevationMetricByPointId?.[point.id] !== false;
-
-        return {
-          id: point.id,
-          getCanvasPosition: () => {
-            if (!scene || scene.isDestroyed()) return null;
-            const canvasPosition = SceneTransforms.worldToWindowCoordinates(
-              scene,
-              point.geometryECEF
-            );
-            return defined(canvasPosition)
-              ? { x: canvasPosition.x, y: canvasPosition.y }
-              : null;
-          },
-          pitch: cameraPitch,
-          labelAngleRad: layoutResult.placements[point.id]?.angleRad,
-          labelDistance: layoutResult.placements[point.id]?.distance,
-          labelAttach: layoutResult.placements[point.id]?.attach,
-          anchorSwitchTransitionMs: layoutConfig.anchorSwitchTransitionMs,
-          hideLabelAndStem: layoutResult.hiddenByLayout.has(point.id),
-          text: formatPointLabelText(
-            index,
-            point.geometryWGS84.height,
-            referenceElevation,
-            point.name,
-            includeElevation
-          ),
-          selected: point.isSelected,
-          visible: true,
-          isOccluded: occlusionResults[point.id] || false,
-          isHidden: hiddenResults[point.id] || false,
-          onClick: onPointClick ? () => onPointClick(point.id) : undefined,
-        };
-      }),
-    [
+  const pointLabelData: PointLabelData[] = useMemo(() => {
+    const referenceLabelBase = getReferenceLabelBase(
       points,
-      referenceElevation,
-      showElevationMetricByPointId,
-      occlusionResults,
-      hiddenResults,
-      scene,
-      cameraPitch,
-      layoutConfig.anchorSwitchTransitionMs,
-      layoutResult,
-      onPointClick,
-    ]
-  );
+      distanceToReferenceByPointId
+    );
 
-  usePointLabels(pointLabelData, showLabels);
+    return points.map((point, index) => {
+      const pointLabelMetricMode =
+        point.pointLabelMode ?? DEFAULT_POINT_LABEL_METRIC_MODE;
+      const labelTextRepresentation = formatPointLabelText(
+        index,
+        point.geometryWGS84.height,
+        referenceElevation,
+        point.name,
+        pointLabelMetricMode,
+        distanceToReferenceByPointId?.[point.id],
+        referenceLabelBase
+      );
+
+      return {
+        id: point.id,
+        getCanvasPosition: () => {
+          if (!scene || scene.isDestroyed()) return null;
+          const canvasPosition = SceneTransforms.worldToWindowCoordinates(
+            scene,
+            point.geometryECEF
+          );
+          return defined(canvasPosition)
+            ? { x: canvasPosition.x, y: canvasPosition.y }
+            : null;
+        },
+        pitch: cameraPitch,
+        labelAngleRad: layoutResult.placements[point.id]?.angleRad,
+        labelDistance: layoutResult.placements[point.id]?.distance,
+        labelAttach: layoutResult.placements[point.id]?.attach,
+        hideLabelAndStem: layoutResult.hiddenByLayout.has(point.id),
+        text: labelTextRepresentation.layoutText,
+        content: labelTextRepresentation.content,
+        contentSignature: labelTextRepresentation.contentSignature,
+        selected: point.isSelected,
+        visible: true,
+        isOccluded: occlusionResults[point.id] || false,
+        isHidden: hiddenResults[point.id] || false,
+        onClick: onPointClick ? () => onPointClick(point.id) : undefined,
+      };
+    });
+  }, [
+    points,
+    referenceElevation,
+    distanceToReferenceByPointId,
+    occlusionResults,
+    hiddenResults,
+    scene,
+    cameraPitch,
+    layoutResult,
+    onPointClick,
+  ]);
+
+  usePointLabels(pointLabelData, showLabels, undefined, undefined, {
+    transitionDurationMs: layoutConfig.transitionDurationMs,
+  });
 };
 
 export default useCesiumPointLabels;

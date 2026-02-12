@@ -26,7 +26,7 @@ export type CesiumPointVisualizerOptions = {
   debug?: boolean;
   onPointClick?: (pointId: string) => void;
   labelLayoutConfig?: CesiumLabelLayoutConfigOverrides;
-  showElevationMetricByPointId?: Readonly<Record<string, boolean>>;
+  distanceToReferenceByPointId?: Readonly<Record<string, number>>;
 };
 
 export const useCesiumPointVisualizer = (
@@ -41,7 +41,7 @@ export const useCesiumPointVisualizer = (
     debug = false,
     onPointClick,
     labelLayoutConfig,
-    showElevationMetricByPointId,
+    distanceToReferenceByPointId,
   }: CesiumPointVisualizerOptions
 ) => {
   const cross3DRefs = useRef<Record<string, Cross3DGroup>>({});
@@ -62,7 +62,7 @@ export const useCesiumPointVisualizer = (
     referenceElevation,
     onPointClick,
     labelLayoutConfig,
-    showElevationMetricByPointId
+    distanceToReferenceByPointId
   );
 
   useEffect(() => {

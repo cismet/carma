@@ -7,6 +7,10 @@ export enum MeasurementMode {
   Elevation = "elevation",
 }
 
+export type PointLabelMetricMode = "elevation" | "none" | "distance";
+export const DEFAULT_POINT_LABEL_METRIC_MODE: PointLabelMetricMode =
+  "elevation";
+
 export type GeomPoint = Partial<Cartographic> & {
   longitude: number;
   latitude: number;
@@ -27,6 +31,7 @@ export type MeasurementEntry = {
   derived?: unknown;
   temporary?: boolean;
   isSelected?: boolean;
+  pointLabelMode?: PointLabelMetricMode;
 };
 
 export type PointMeasurementEntry = MeasurementEntry & {

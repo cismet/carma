@@ -47,13 +47,15 @@ export type PointLabelLayoutConfig = {
   pitchResponseStrength: number;
   // Maximum connector angle away from horizontal when pitch responsiveness is enabled.
   pitchResponseClampRad: number;
-  anchorSwitchTransitionMs: number;
+  transitionDurationMs: number;
 };
 
 export type PointLabelLayoutConfigOverrides = Partial<
   Omit<PointLabelLayoutConfig, "dynamicLabelPlacementConfig">
 > & {
   dynamicLabelPlacementConfig?: Partial<DynamicLabelPlacementConfig>;
+  // Backward compatibility for previous option name.
+  anchorSwitchTransitionMs?: number;
   // Backward compatibility for older option shape.
   forceDirectedPlacement?: Partial<DynamicLabelPlacementConfig> & {
     enabled?: boolean;

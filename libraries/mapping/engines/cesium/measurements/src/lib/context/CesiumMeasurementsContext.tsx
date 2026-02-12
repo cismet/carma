@@ -28,10 +28,13 @@ import {
 import { useMeasurementPersistence } from "../hooks/useMeasurementPersistence";
 
 import {
+  DEFAULT_POINT_LABEL_METRIC_MODE,
   isPointMeasurementEntry,
   type MeasurementCollection,
   MeasurementMode,
+  type PointLabelMetricMode,
 } from "../types/MeasurementTypes";
+import { getEuclideanDistance } from "../utils/geo";
 
 export interface CesiumMeasurementsContextType {
   measurementMode: MeasurementMode;
@@ -98,6 +101,20 @@ const defaultPointQueryOptions: MeasurementProviderOptions["pointQueries"] = {
 
 const defaultTraverseOptions: MeasurementProviderOptions["traverse"] = {
   heightOffset: 1.5,
+};
+
+const POINT_LABEL_METRIC_CLICK_ORDER: PointLabelMetricMode[] = [
+  "elevation",
+  "none",
+  "distance",
+];
+
+const getNextPointLabelMetricMode = (
+  currentMode: PointLabelMetricMode = DEFAULT_POINT_LABEL_METRIC_MODE
+): PointLabelMetricMode => {
+  const currentIndex = POINT_LABEL_METRIC_CLICK_ORDER.indexOf(currentMode);
+  const nextIndex = (currentIndex + 1) % POINT_LABEL_METRIC_CLICK_ORDER.length;
+  return POINT_LABEL_METRIC_CLICK_ORDER[nextIndex];
 };
 
 interface CesiumMeasurementsProviderProps {
@@ -179,8 +196,6 @@ export const CesiumMeasurementsProvider: React.FC<
   const [hideLabelsOfType, setHideLabelsOfType] = useState<
     Set<MeasurementMode>
   >(new Set());
-  const [showElevationMetricByPointId, setShowElevationMetricByPointId] =
-    useState<Record<string, boolean>>({});
 
   const referenceElevation = useMemo(() => {
     if (!referencePoint || !scene) return 0;
@@ -188,6 +203,20 @@ export const CesiumMeasurementsProvider: React.FC<
       scene.globe.ellipsoid.cartesianToCartographic(referencePoint);
     return cartographic?.height ?? 0;
   }, [referencePoint, scene]);
+
+  const distanceToReferenceByPointId = useMemo(() => {
+    if (!referencePoint) return {};
+
+    const distances: Record<string, number> = {};
+    measurements.forEach((measurement) => {
+      if (!isPointMeasurementEntry(measurement)) return;
+      distances[measurement.id] = getEuclideanDistance(
+        measurement.geometryECEF,
+        referencePoint
+      );
+    });
+    return distances;
+  }, [measurements, referencePoint]);
 
   // point query hooks
   useCesiumPointQuery(
@@ -198,7 +227,9 @@ export const CesiumMeasurementsProvider: React.FC<
     pointRadius
   );
 
-  const showPoints = !hideMeasurementsOfType.has(MeasurementMode.PointQuery);
+  const showPoints =
+    measurementMode !== MeasurementMode.NONE &&
+    !hideMeasurementsOfType.has(MeasurementMode.PointQuery);
   const showPointLabels =
     showPoints &&
     showLabels &&
@@ -248,39 +279,76 @@ export const CesiumMeasurementsProvider: React.FC<
     [setMeasurements]
   );
 
-  const toggleShowElevationMetricByPointId = useCallback((id: string) => {
-    setShowElevationMetricByPointId((prev) => {
-      if (prev[id] === false) {
-        const { [id]: _removed, ...rest } = prev;
-        return rest;
-      }
+  const cyclePointLabelMetricModeByMeasurementId = useCallback(
+    (id: string) => {
+      setMeasurements((prev) => {
+        let hasChanged = false;
 
-      return {
-        ...prev,
-        [id]: false,
-      };
-    });
-  }, []);
+        const next = prev.map((measurement) => {
+          if (!isPointMeasurementEntry(measurement) || measurement.id !== id) {
+            return measurement;
+          }
+
+          const currentMode =
+            measurement.pointLabelMode ?? DEFAULT_POINT_LABEL_METRIC_MODE;
+          const nextMode = getNextPointLabelMetricMode(currentMode);
+          const normalizedNextMode =
+            nextMode === DEFAULT_POINT_LABEL_METRIC_MODE ? undefined : nextMode;
+
+          if (measurement.pointLabelMode === normalizedNextMode) {
+            return measurement;
+          }
+
+          hasChanged = true;
+          return { ...measurement, pointLabelMode: normalizedNextMode };
+        });
+
+        return hasChanged ? next : prev;
+      });
+    },
+    [setMeasurements]
+  );
+
+  const resetPointLabelMetricModeByMeasurementId = useCallback(
+    (id: string) => {
+      setMeasurements((prev) => {
+        let hasChanged = false;
+
+        const next = prev.map((measurement) => {
+          if (!isPointMeasurementEntry(measurement) || measurement.id !== id) {
+            return measurement;
+          }
+
+          if (measurement.pointLabelMode === undefined) {
+            return measurement;
+          }
+
+          hasChanged = true;
+          return { ...measurement, pointLabelMode: undefined };
+        });
+
+        return hasChanged ? next : prev;
+      });
+    },
+    [setMeasurements]
+  );
 
   const handlePointLabelClick = useCallback(
     (id: string) => {
       if (selectedMeasurementId === id) {
-        toggleShowElevationMetricByPointId(id);
+        cyclePointLabelMetricModeByMeasurementId(id);
         return;
       }
 
       // First click should keep the full label text for newly selected points.
-      setShowElevationMetricByPointId((prev) => {
-        if (prev[id] !== false) return prev;
-        const { [id]: _removed, ...rest } = prev;
-        return rest;
-      });
+      resetPointLabelMetricModeByMeasurementId(id);
 
       selectMeasurementById(id);
     },
     [
       selectedMeasurementId,
-      toggleShowElevationMetricByPointId,
+      cyclePointLabelMetricModeByMeasurementId,
+      resetPointLabelMetricModeByMeasurementId,
       selectMeasurementById,
     ]
   );
@@ -294,7 +362,7 @@ export const CesiumMeasurementsProvider: React.FC<
     debug: false,
     onPointClick: handlePointLabelClick,
     labelLayoutConfig: options?.labels,
-    showElevationMetricByPointId,
+    distanceToReferenceByPointId,
   });
 
   const clearAllMeasurements = useCallback(() => {
@@ -336,46 +404,15 @@ export const CesiumMeasurementsProvider: React.FC<
   }, [options?.mode, setMeasurementMode, setMeasurements]);
 
   useEffect(() => {
-    setShowElevationMetricByPointId((prev) => {
-      const keys = Object.keys(prev);
-      if (keys.length === 0) return prev;
-
-      const pointIds = new Set(
-        measurements
-          .filter(isPointMeasurementEntry)
-          .map((measurement) => measurement.id)
-      );
-
-      let hasChanged = false;
-      const next: Record<string, boolean> = {};
-
-      keys.forEach((id) => {
-        if (!pointIds.has(id)) {
-          hasChanged = true;
-          return;
-        }
-        if (prev[id] !== false) {
-          hasChanged = true;
-          return;
-        }
-        next[id] = false;
-      });
-
-      return hasChanged ? next : prev;
-    });
-  }, [measurements]);
-
-  useEffect(() => {
     if (mapMeasurements.mode === MEASUREMENT_MODE.MEASUREMENT) {
       setMeasurementMode((prev) =>
         prev === MeasurementMode.NONE ? MeasurementMode.PointQuery : prev
       );
     } else {
       setMeasurementMode(MeasurementMode.NONE);
-      setMeasurements([]);
       setSelectedMeasurementId(null);
     }
-  }, [mapMeasurements.mode, setMeasurementMode, setMeasurements]);
+  }, [mapMeasurements.mode, setMeasurementMode]);
 
   useEffect(() => {
     if (!selectedMeasurementId) return;

@@ -22,13 +22,13 @@ export type PointLabelAttach =
   | "bottomRight";
 
 interface PointLabelProps extends PointLabelStyleProps {
-  text: string;
+  text: React.ReactNode;
   selected?: boolean;
   isOccluded?: boolean;
   pitch?: number;
   labelAngleRad?: number;
   labelAttach?: PointLabelAttach;
-  anchorSwitchTransitionMs?: number;
+  transitionDurationMs?: number;
   hideLabelAndStem?: boolean;
   onClick?: () => void;
 }
@@ -59,7 +59,7 @@ export const PointLabel = React.memo(
     pitch = defaultPitch,
     labelAngleRad,
     labelAttach = "bottomLeft",
-    anchorSwitchTransitionMs = 300,
+    transitionDurationMs = 300,
     hideLabelAndStem = false,
     lineColor = "white",
     lineWidth = 1,
@@ -120,8 +120,8 @@ export const PointLabel = React.memo(
       ? `${labelOffsetY}px`
       : `${labelOffsetY + halfLineWidth}px`;
     const sharedAttachTransition =
-      isAttachTransitionActive && anchorSwitchTransitionMs > 0
-        ? `${anchorSwitchTransitionMs}ms ease`
+      isAttachTransitionActive && transitionDurationMs > 0
+        ? `${transitionDurationMs}ms ease`
         : undefined;
     const positionTransition = sharedAttachTransition
       ? `left ${sharedAttachTransition}, top ${sharedAttachTransition}, transform ${sharedAttachTransition}`
@@ -134,7 +134,7 @@ export const PointLabel = React.memo(
       : undefined;
 
     useEffect(() => {
-      if (anchorSwitchTransitionMs <= 0) {
+      if (transitionDurationMs <= 0) {
         previousAttachRef.current = labelAttach;
         setIsAttachTransitionActive(false);
         return;
@@ -150,10 +150,10 @@ export const PointLabel = React.memo(
       setIsAttachTransitionActive(true);
       const timeoutId = window.setTimeout(() => {
         setIsAttachTransitionActive(false);
-      }, anchorSwitchTransitionMs);
+      }, transitionDurationMs);
 
       return () => window.clearTimeout(timeoutId);
-    }, [labelAttach, anchorSwitchTransitionMs]);
+    }, [labelAttach, transitionDurationMs]);
 
     return (
       <div
