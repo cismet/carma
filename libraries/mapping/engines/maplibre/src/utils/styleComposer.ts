@@ -106,13 +106,33 @@ function applySymbolScaling(
   }
 }
 
+/**
+ * Bidirectional layer ID mapping attached to the MapLibre map instance.
+ * Maps merged-mode-equivalent IDs (e.g. "Leuchten-leitungen-base") to
+ * namespaced IDs (e.g. "tilescismetdebelisstyle::leitungen-base") and back.
+ * Used by useVisibleMapFeatures to resolve regex patterns transparently.
+ */
+export interface CarmaLayerIdMap {
+  /** merged-mode-equivalent ID -> namespaced map layer ID */
+  mergedToNamespaced: Map<string, string>;
+  /** namespaced map layer ID -> merged-mode-equivalent ID */
+  namespacedToMerged: Map<string, string>;
+}
+
+const LAYER_ID_MAP_KEY = "__carmaLayerIdMap";
+
+/** Read the layer ID mapping from a map instance (if set by StyleComposer). */
+export function getCarmaLayerIdMap(map: MaplibreMap): CarmaLayerIdMap | undefined {
+  return (map as unknown as Record<string, unknown>)[LAYER_ID_MAP_KEY] as CarmaLayerIdMap | undefined;
+}
+
 export class StyleComposer {
   private map: MaplibreMap;
   private managed: Map<string, ManagedSubStyle> = new Map();
-  /** original layer ID -> namespaced layer ID */
-  private originalToNamespaced: Map<string, string> = new Map();
-  /** namespaced layer ID -> original layer ID */
-  private namespacedToOriginal: Map<string, string> = new Map();
+  /** merged-mode-equivalent ID -> namespaced layer ID */
+  private mergedToNamespaced: Map<string, string> = new Map();
+  /** namespaced layer ID -> merged-mode-equivalent ID */
+  private namespacedToMerged: Map<string, string> = new Map();
   private debugLog: boolean;
 
   constructor(map: MaplibreMap, debugLog = false) {
@@ -120,14 +140,23 @@ export class StyleComposer {
     this.debugLog = debugLog;
   }
 
-  /** Resolve an original layer ID to its namespaced map layer ID, or undefined. */
-  resolveNamespaced(originalId: string): string | undefined {
-    return this.originalToNamespaced.get(originalId);
+  /** Sync the bidirectional map to the map instance so other hooks can read it. */
+  private syncToMapInstance(): void {
+    const mapping: CarmaLayerIdMap = {
+      mergedToNamespaced: this.mergedToNamespaced,
+      namespacedToMerged: this.namespacedToMerged,
+    };
+    (this.map as unknown as Record<string, unknown>)[LAYER_ID_MAP_KEY] = mapping;
   }
 
-  /** Resolve a namespaced map layer ID back to its original ID, or undefined. */
-  resolveOriginal(namespacedId: string): string | undefined {
-    return this.namespacedToOriginal.get(namespacedId);
+  /** Resolve a merged-mode-equivalent ID to its namespaced map layer ID. */
+  resolveNamespaced(mergedId: string): string | undefined {
+    return this.mergedToNamespaced.get(mergedId);
+  }
+
+  /** Resolve a namespaced map layer ID back to its merged-mode-equivalent ID. */
+  resolveMerged(namespacedId: string): string | undefined {
+    return this.namespacedToMerged.get(namespacedId);
   }
 
   // -------------------------------------------------------------------------
@@ -140,6 +169,13 @@ export class StyleComposer {
   ): Promise<void> {
     // Compute layerId from the style URL (slugified)
     const layerId = slugifyUrl(vectorLayer.style!);
+
+    // Compute the merged-mode-equivalent prefix (same logic as styleBuilder)
+    let mergedPrefix = vectorLayer.name;
+    if (vectorLayer.layer) {
+      const atIdx = vectorLayer.layer.indexOf("@");
+      if (atIdx > 0) mergedPrefix = vectorLayer.layer.substring(0, atIdx);
+    }
 
     // Idempotency: skip if already managed
     if (this.managed.has(layerId)) return;
@@ -219,8 +255,10 @@ export class StyleComposer {
 
       // Namespace IDs (prefix::layerName for layers, layerId::source for sources)
       layer.id = `${layerId}::${styleLayer.id}`;
-      this.originalToNamespaced.set(styleLayer.id, layer.id);
-      this.namespacedToOriginal.set(layer.id, styleLayer.id);
+      // Store merged-mode-equivalent key so regex patterns work in both modes
+      const mergedKey = `${mergedPrefix}-${styleLayer.id}`;
+      this.mergedToNamespaced.set(mergedKey, layer.id);
+      this.namespacedToMerged.set(layer.id, mergedKey);
       if (layer.source) {
         layer.source = `${layerId}::${layer.source}`;
       }
@@ -270,7 +308,8 @@ export class StyleComposer {
     }
 
     this.managed.set(layerId, { sourceIds, layerIds, spriteId, firstId, lastId });
-    if (this.debugLog) console.log("[StyleComposer] layer ID mapping:", Object.fromEntries(this.originalToNamespaced));
+    this.syncToMapInstance();
+    if (this.debugLog) console.log("[StyleComposer] layer ID mapping:", Object.fromEntries(this.mergedToNamespaced));
   }
 
   // -------------------------------------------------------------------------
@@ -602,11 +641,11 @@ export class StyleComposer {
     // Remove layers in reverse order (top to bottom) and clean up ID mappings
     for (let i = entry.layerIds.length - 1; i >= 0; i--) {
       const namespacedId = entry.layerIds[i];
-      const originalId = this.namespacedToOriginal.get(namespacedId);
-      if (originalId) {
-        this.originalToNamespaced.delete(originalId);
+      const mergedKey = this.namespacedToMerged.get(namespacedId);
+      if (mergedKey) {
+        this.mergedToNamespaced.delete(mergedKey);
       }
-      this.namespacedToOriginal.delete(namespacedId);
+      this.namespacedToMerged.delete(namespacedId);
       try {
         if (this.map.getLayer(namespacedId)) {
           this.map.removeLayer(namespacedId);
@@ -648,6 +687,7 @@ export class StyleComposer {
     }
 
     this.managed.delete(id);
+    this.syncToMapInstance();
   }
 
   removeAll(): void {

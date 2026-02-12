@@ -66,8 +66,9 @@ export {
 } from "./utils/styleBuilder";
 
 // Imperative style composition
-export { StyleComposer, slugifyUrl } from "./utils/styleComposer";
+export { StyleComposer, slugifyUrl, getCarmaLayerIdMap } from "./utils/styleComposer";
 export type {
+  CarmaLayerIdMap,
   GeoJsonSubStyleMeta,
   AddVectorSubStyleOptions,
   AddGeoJsonSubStyleOptions,
