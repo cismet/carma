@@ -1,6 +1,6 @@
 import { StrictMode } from "react";
 import * as ReactDOM from "react-dom/client";
-import { HashRouter, Routes, Route } from "react-router-dom";
+import { HashRouter, Routes, Route, Navigate } from "react-router-dom";
 import { App } from "./app/App";
 import { SimpleMap } from "./app/SimpleMap";
 import { SimpleMapWithoutControls } from "./app/SimpleMapWithoutControls";
@@ -36,7 +36,8 @@ root.render(
               <LibreContextProvider>
                 <MapSelectionProvider debug>
                   <Routes>
-                    <Route path="/" element={<App />} />
+                    <Route path="/" element={<Navigate to="/stadtplan" replace />} />
+                    <Route path="/stadtplan" element={<App />} />
                     <Route path="/simple" element={<SimpleMap />} />
                     <Route
                       path="/simpleWithoutControls"
