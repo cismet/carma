@@ -12,7 +12,10 @@ const featureTypeToFormKey: Record<string, string> = {
   tdta_leuchten: "leuchte",
   leitungen: "leitung",
   leitung: "leitung",
-  // Add more mappings as forms are created
+  tdta_standort_mast: "mast",
+  standort_mast: "mast",
+  masten: "mast",
+  mast: "mast",
 };
 
 const FeaturesFormsWrapper = ({
