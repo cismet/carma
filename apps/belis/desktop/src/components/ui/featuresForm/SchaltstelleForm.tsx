@@ -50,8 +50,13 @@ const SchaltstelleForm = ({
     ...((keyTablesData["rundsteuerempfänger"] || []) as RundsteuerempfaengerItem[]),
   ].sort((a, b) => (a.rs_typ || "").localeCompare(b.rs_typ || ""));
 
-  // Extract documents from data
-  const documents: DokumentItem[] = (data?.dokumente as DokumentItem[]) || [];
+  // Extract documents from schaltstelle[0].dokumenteArray
+  const schaltstelleData = data as Record<string, unknown>;
+  const schaltstelleArray = schaltstelleData?.schaltstelle as
+    | Array<Record<string, unknown>>
+    | undefined;
+  const documents: DokumentItem[] =
+    (schaltstelleArray?.[0]?.dokumenteArray as DokumentItem[]) || [];
 
   // Extract subtitle - use rawFeature (vector tile) to match list display
   const rawProps = rawFeature?.properties;

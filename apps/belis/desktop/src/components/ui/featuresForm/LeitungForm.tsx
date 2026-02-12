@@ -31,8 +31,13 @@ const LeitungForm = ({ data, onClose }: LeitungFormProps) => {
   const querschnittOptions = (keyTablesData.querschnitt ||
     []) as KeyTableItem[];
 
-  // Extract documents from data
-  const documents: DokumentItem[] = (data?.dokumente as DokumentItem[]) || [];
+  // Extract documents from leitung[0].dokumenteArray
+  const leitungData = data as Record<string, unknown>;
+  const leitungArray = leitungData?.leitung as
+    | Array<Record<string, unknown>>
+    | undefined;
+  const documents: DokumentItem[] =
+    (leitungArray?.[0]?.dokumenteArray as DokumentItem[]) || [];
 
   useEffect(() => {
     // Reset form when data changes to clear old values

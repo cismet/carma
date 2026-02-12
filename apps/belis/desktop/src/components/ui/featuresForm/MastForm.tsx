@@ -102,8 +102,13 @@ const MastForm = ({ data, rawFeature, onClose }: MastFormProps) => {
 
   console.log("xxx bezirkOptions", bezirkOptions);
 
-  // Extract documents from data
-  const documents: DokumentItem[] = (data?.dokumente as DokumentItem[]) || [];
+  // Extract documents from tdta_standort_mast[0].dokumenteArray
+  const mastData = data as Record<string, unknown>;
+  const mastArray = mastData?.tdta_standort_mast as
+    | Array<Record<string, unknown>>
+    | undefined;
+  const documents: DokumentItem[] =
+    (mastArray?.[0]?.dokumenteArray as DokumentItem[]) || [];
 
   // Extract subtitle - use rawFeature (vector tile) to match list display
   const rawProps = rawFeature?.properties;

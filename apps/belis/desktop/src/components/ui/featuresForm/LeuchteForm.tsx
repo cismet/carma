@@ -83,8 +83,13 @@ const LeuchteForm = ({ data, rawFeature, onClose }: LeuchteFormProps) => {
   const rundsteuerempfaengerOptions = (keyTablesData["rundsteuerempfänger"] ||
     []) as RundsteuerempfaengerItem[];
 
-  // Extract documents from data
-  const documents: DokumentItem[] = (data?.dokumente as DokumentItem[]) || [];
+  // Extract documents from tdta_leuchten[0].dokumenteArray
+  const leuchteData = data as Record<string, unknown>;
+  const leuchtenArray = leuchteData?.tdta_leuchten as
+    | Array<Record<string, unknown>>
+    | undefined;
+  const documents: DokumentItem[] =
+    (leuchtenArray?.[0]?.dokumenteArray as DokumentItem[]) || [];
 
   // Extract fabrikat for subtitle - use rawFeature (vector tile) to match list display
   const rawProps = rawFeature?.properties;
