@@ -1,10 +1,8 @@
-import { useState } from "react";
-import type { UploadFile } from "antd";
 import { Tabs } from "antd";
 import { useSelector } from "react-redux";
 import { getJWT } from "../../../store/slices/auth";
 import { DokumentItem } from "../DocumentPreview";
-import DocumentPreview from "../DocumentPreview";
+import FilePreview from "../FilePreview";
 import FormHeader from "./FormHeader";
 
 interface AbzweigdoseFormProps {
@@ -18,7 +16,6 @@ const AbzweigdoseForm = ({
   rawFeature,
   onClose,
 }: AbzweigdoseFormProps) => {
-  const [pendingFiles, setPendingFiles] = useState<UploadFile[]>([]);
   const jwt = useSelector(getJWT);
 
   // Support both regular query params and hash-based routing (/#/?param=value)
@@ -56,13 +53,13 @@ const AbzweigdoseForm = ({
   // Documents content - constrained width to prevent oversized preview
   const documentsContent = (
     <div style={{ maxWidth: 700 }}>
-      <DocumentPreview
+      <FilePreview
         documents={documents}
         jwt={jwt}
-        onFilesChange={setPendingFiles}
-        pendingFiles={pendingFiles}
-        dokumenteTitleStyle={labelStyle}
-        vorschauTitleStyle={labelStyle}
+        titleStyle={labelStyle}
+        title="Dokumente"
+        size="xl"
+        showDescription={false}
       />
     </div>
   );
