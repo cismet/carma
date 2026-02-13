@@ -30,7 +30,7 @@ const MainPage = () => {
   const [windowWidth, windowHeight] = useWindowSize();
 
   // Search state
-  const [searchText, setSearchText] = useState("00026");
+  const [searchText, setSearchText] = useState("");
 
   // Highlighting via context
   const {
