@@ -284,7 +284,9 @@ export const useVisibleMapFeatures = ({
         // Check if we're in overview mode due to zoom level
         // +1 offset to align with RoutedMap/Leaflet zoom convention (temporary until native MapLibre)
         const currentZoom = maplibreMap.getZoom() + 1;
-        const zoomBelowThreshold = currentZoom < minZoomForFullFeatures;
+        // Skip zoom restriction when highlighting is active (show all highlighted features)
+        const zoomBelowThreshold =
+          !highlightedOnlyRef.current && currentZoom < minZoomForFullFeatures;
 
         // Use cached layer IDs from layerFilterExpressions (resolved on style load)
         const queryOptions = resolvedLayerIdsRef.current
@@ -373,28 +375,15 @@ export const useVisibleMapFeatures = ({
 
     updateFeatures();
 
-    maplibreMap.on("moveend", updateFeatures);
-    maplibreMap.on("zoomend", updateFeatures);
-
-    // Re-query after sources finish loading (covers initial tile load and style changes)
-    const handleSourceData = (e: { isSourceLoaded?: boolean }) => {
-      if (e.isSourceLoaded) {
-        updateFeatures();
-      }
-    };
-    maplibreMap.on("sourcedata", handleSourceData);
-
-    // Re-query when the map becomes idle (all tiles loaded AND rendered).
-    // queryRenderedFeatures needs features to be rendered, not just loaded.
+    // Only use idle: fires after move/zoom AND after all tiles are rendered.
+    // moveend/zoomend fire before tile processing is complete, causing
+    // "feature index out of bounds" errors in queryRenderedFeatures.
     maplibreMap.on("idle", updateFeatures);
 
     return () => {
       if (debounceRef.current) {
         clearTimeout(debounceRef.current);
       }
-      maplibreMap.off("moveend", updateFeatures);
-      maplibreMap.off("zoomend", updateFeatures);
-      maplibreMap.off("sourcedata", handleSourceData);
       maplibreMap.off("idle", updateFeatures);
     };
   }, [maplibreMap, updateFeatures]);
