@@ -51,8 +51,13 @@ export const MapFrameworkSwitcher = forwardRef<
     },
     ref
   ) => {
-    const { isTransitioning, toggle, isReady, isLeaflet } =
-      useMapFrameworkSwitcherContext();
+    const {
+      isTransitioning,
+      isPreparingCesiumTransition,
+      toggle,
+      isReady,
+      isLeaflet,
+    } = useMapFrameworkSwitcherContext();
     const [hasConfirmed, setHasConfirmed] = useState(false);
 
     const handleSwitchMapMode = async (e: MouseEvent) => {
@@ -76,7 +81,9 @@ export const MapFrameworkSwitcher = forwardRef<
 
     // Disable button if not ready or transitioning (unless forceEnabled)
     const isDisabled =
-      disabled === true || ((!isReady || isTransitioning) && !forceEnabled);
+      disabled === true ||
+      ((!isReady || isTransitioning || isPreparingCesiumTransition) &&
+        !forceEnabled);
 
     const button = (
       <ControlButtonStyler

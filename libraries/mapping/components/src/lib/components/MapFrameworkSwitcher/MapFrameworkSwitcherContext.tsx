@@ -67,6 +67,7 @@ export interface MapFrameworkSwitcherRefs {
 }
 
 export interface MapFrameworkSwitcherCallbacks {
+  onBeforeTransitionToCesium?: () => Promise<void> | void;
   onLeafletViewSet?: (params: {
     center: { lat: number; lng: number };
     zoom: number;
@@ -77,6 +78,8 @@ export interface MapFrameworkSwitcherContextValue {
   // State
   activeFramework: CarmaMapFramework;
   isTransitioning: boolean;
+  isPreparingCesiumTransition: boolean;
+  preparingCesiumMessage: string | null;
   isReady: boolean;
 
   // Computed helpers (no need to redefine everywhere)
@@ -136,6 +139,11 @@ export const MapFrameworkSwitcherProvider = ({
   const [activeFramework, setActiveFramework] =
     useState<CarmaMapFramework>(initialFramework);
   const [isTransitioning, setIsTransitioning] = useState(false);
+  const [isPreparingCesiumTransition, setIsPreparingCesiumTransition] =
+    useState(false);
+  const [preparingCesiumMessage, setPreparingCesiumMessage] = useState<
+    string | null
+  >(null);
   const [isReady, setIsReady] = useState(false);
 
   // derived setters
@@ -158,12 +166,14 @@ export const MapFrameworkSwitcherProvider = ({
   const isLeafletRef = useRef(isLeaflet);
   const isCesiumRef = useRef(isCesium);
   const isTransitioningRef = useRef(isTransitioning);
+  const isPreparingCesiumTransitionRef = useRef(isPreparingCesiumTransition);
 
   // Keep refs in sync with state
   activeFrameworkRef.current = activeFramework;
   isLeafletRef.current = isLeaflet;
   isCesiumRef.current = isCesium;
   isTransitioningRef.current = isTransitioning;
+  isPreparingCesiumTransitionRef.current = isPreparingCesiumTransition;
 
   // Refs for map engines and containers
   const refsRef = useRef<MapFrameworkSwitcherRefs>({
@@ -178,6 +188,8 @@ export const MapFrameworkSwitcherProvider = ({
 
   // Refs for callbacks (rerender-free)
   const callbacksRef = useRef<MapFrameworkSwitcherCallbacks>({});
+  const stagedCesiumSceneRef = useRef<Scene | null>(null);
+  const cesiumStagingPromiseRef = useRef<Promise<void> | null>(null);
 
   // Register callbacks from app (rerender-free)
   const registerCallbacks = useCallback(
@@ -235,9 +247,60 @@ export const MapFrameworkSwitcherProvider = ({
   // Track engine-specific state for transitions (e.g., camera orientation)
   const lastEngineStateRef = useRef<EngineState>({});
 
+  const ensureCesiumSceneStaged = useCallback(async (scene: Scene) => {
+    setIsPreparingCesiumTransition(true);
+    setPreparingCesiumMessage("3D Modelle werden geladen");
+
+    // Always allow app-level pre-transition staging for dynamic content
+    // (for example adhoc models/primitives added while staying in 2D).
+    const beforeTransition = callbacksRef.current.onBeforeTransitionToCesium;
+      try {
+        if (beforeTransition) {
+          setPreparingCesiumMessage("3D Modelle werden geladen");
+          await beforeTransition();
+        }
+
+      const isSameLiveScene =
+        stagedCesiumSceneRef.current === scene && !scene.isDestroyed();
+      if (isSameLiveScene) {
+        console.debug("[FRAMEWORK-SWITCHER] Cesium scene already staged");
+        return;
+      }
+
+      if (cesiumStagingPromiseRef.current) {
+        await cesiumStagingPromiseRef.current;
+        return;
+      }
+
+        const stagingPromise = (async () => {
+          console.debug("[FRAMEWORK-SWITCHER] Cesium staging start");
+          setPreparingCesiumMessage("3D Modelle werden geladen");
+          // Ensure Cesium has completed a few render cycles before first fade/animation.
+          await waitForRenderFrames(scene, 5);
+
+        if (!scene.isDestroyed()) {
+          stagedCesiumSceneRef.current = scene;
+        }
+        console.debug("[FRAMEWORK-SWITCHER] Cesium staging complete");
+      })();
+
+      cesiumStagingPromiseRef.current = stagingPromise;
+      try {
+        await stagingPromise;
+      } finally {
+        if (cesiumStagingPromiseRef.current === stagingPromise) {
+          cesiumStagingPromiseRef.current = null;
+        }
+      }
+    } finally {
+      setIsPreparingCesiumTransition(false);
+      setPreparingCesiumMessage(null);
+    }
+  }, []);
+
   // Transition to Cesium
   const requestTransitionToCesium = useCallback(async () => {
-    if (isTransitioning || !isReady) {
+    if (isTransitioning || isPreparingCesiumTransitionRef.current || !isReady) {
       console.warn(
         "[FRAMEWORK-SWITCHER] Cannot transition - not ready or already transitioning"
       );
@@ -263,10 +326,11 @@ export const MapFrameworkSwitcherProvider = ({
     }
 
     try {
-      // Wait for Cesium to complete render cycles after React re-renders
-      // This ensures WebGL state is stable before transition operations
-      // See: https://github.com/CesiumGS/cesium/issues/11427
-      await waitForRenderFrames(scene, 5);
+      // Explicit first-request staging step (and scene-change restaging) before transition starts.
+      await ensureCesiumSceneStaged(scene);
+
+      // Keep a short preflight wait for every 2D->3D transition attempt.
+      await waitForRenderFrames(scene, 2);
 
       setIsTransitioning(true);
 
@@ -277,8 +341,8 @@ export const MapFrameworkSwitcherProvider = ({
         terrainProviders,
         lastEngineStateRef.current.cesium,
         {
-          onStageChange: (stage: TransitionStage, message: string) => {
-            //console.debug(`[CESIUM] Transition stage: ${stage} - ${message}`);
+          onStageChange: () => {
+            // required by transition callback contract
           },
           onComplete: () => {
             setActiveFrameworkCesium();
@@ -299,6 +363,7 @@ export const MapFrameworkSwitcherProvider = ({
       setActiveFrameworkLeaflet();
     }
   }, [
+    ensureCesiumSceneStaged,
     isTransitioning,
     isReady,
     setActiveFrameworkCesium,
@@ -408,6 +473,8 @@ export const MapFrameworkSwitcherProvider = ({
     () => ({
       activeFramework,
       isTransitioning,
+      isPreparingCesiumTransition,
+      preparingCesiumMessage,
       isReady,
       // Computed helpers
       isLeaflet,
@@ -432,6 +499,8 @@ export const MapFrameworkSwitcherProvider = ({
     [
       activeFramework,
       isTransitioning,
+      isPreparingCesiumTransition,
+      preparingCesiumMessage,
       isReady,
       isLeaflet,
       isCesium,

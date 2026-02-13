@@ -78,6 +78,7 @@ export type UseAdhocCesiumFeatureDisplayOptions = {
 
 export type UseAdhocCesiumFeatureDisplayResult = {
   getAdhocBoundingSphere: (feature: FeatureInfo) => BoundingSphere | null;
+  stageCesiumPrimitivesForTransition: () => Promise<void>;
 };
 
 type AdhocFeatureEntry = {
@@ -381,7 +382,15 @@ export const useAdhocCesiumFeatureDisplay = (
   const selectedPrimitiveIdByFeatureRef = useRef<Map<string, string>>(
     new Map()
   );
+  const firstRenderedModelPrimitiveIdsRef = useRef<Set<string>>(new Set());
+  const isStagingForTransitionRef = useRef<boolean>(false);
   const [modelAddedVersion, setModelAddedVersion] = useState(0);
+  const [isStagingForTransition, setIsStagingForTransition] =
+    useState<boolean>(false);
+  const [hasActivatedCesiumOnce, setHasActivatedCesiumOnce] =
+    useState<boolean>(false);
+  const isCesiumRenderingEnabled =
+    isCesiumEnabled || isStagingForTransition || hasActivatedCesiumOnce;
 
   const findModelPrimitiveByPrimitiveId = useCallback(
     (scene: Scene, primitiveId: string): Model | null => {
@@ -472,7 +481,7 @@ export const useAdhocCesiumFeatureDisplay = (
 
   // Check if there are features that need to be synced to Cesium
   const needsSync = useMemo(() => {
-    if (!isCesiumEnabled) return false;
+    if (!isCesiumRenderingEnabled) return false;
 
     const getRegisteredPrimitiveIds = (featureKey: string): Set<string> =>
       new Set(
@@ -517,9 +526,12 @@ export const useAdhocCesiumFeatureDisplay = (
   }, [
     adhocFeatureEntries,
     geojsonFeatureKeys,
-    isCesiumEnabled,
+    isCesiumRenderingEnabled,
     registeredFeatureKeys,
   ]);
+
+  const needsSyncRef = useRef<boolean>(needsSync);
+  needsSyncRef.current = needsSync;
 
   const adhocModelConfigs = useMemo(() => {
     return adhocFeatureEntries.flatMap((entry) => {
@@ -568,12 +580,23 @@ export const useAdhocCesiumFeatureDisplay = (
   const useCesiumModelOptions = useMemo(() => {
     return {
       models: cesiumModelConfigs,
-      enabled: isCesiumEnabled && hasCesiumModels,
+      enabled: isCesiumRenderingEnabled && hasCesiumModels,
       selection: {
         enabled: isCesiumEnabled && hasCesiumModels,
         deselectOnEmptyClick: true,
         selectedId: selectedFeatureKey,
         onModelAdded: onModelAddedToScene,
+        onModelFirstRendered: (primitiveId: string, primitive: Model) => {
+          if (!primitiveId || primitive.isDestroyed()) {
+            return;
+          }
+          firstRenderedModelPrimitiveIdsRef.current.add(primitiveId);
+          console.debug("[ADHOC|MODEL] onModelFirstRendered callback", {
+            primitiveId,
+            modelReady: primitive.ready,
+            primitiveDestroyed: primitive.isDestroyed(),
+          });
+        },
         onClearSelection: () => {
           onFeatureInfoChange?.(null);
           clearSelectedFeature();
@@ -622,6 +645,7 @@ export const useAdhocCesiumFeatureDisplay = (
   }, [
     cesiumModelConfigs,
     hasCesiumModels,
+    isCesiumRenderingEnabled,
     isCesiumEnabled,
     onFeatureInfoChange,
     selectedFeatureKey,
@@ -632,6 +656,128 @@ export const useAdhocCesiumFeatureDisplay = (
   ]);
 
   useCesiumModelManager(useCesiumModelOptions);
+
+  useEffect(() => {
+    isStagingForTransitionRef.current = isStagingForTransition;
+  }, [isStagingForTransition]);
+
+  useEffect(() => {
+    if (isCesiumEnabled && !hasActivatedCesiumOnce) {
+      console.debug(
+        "[ADHOC|STAGE] Cesium activated for first time, keeping primitives mounted across transitions"
+      );
+      setHasActivatedCesiumOnce(true);
+    }
+  }, [hasActivatedCesiumOnce, isCesiumEnabled]);
+
+  useEffect(() => {
+    if (isCesiumEnabled && isStagingForTransition) {
+      console.debug(
+        "[ADHOC|STAGE] transition reached Cesium mode, clearing staging flag"
+      );
+      setIsStagingForTransition(false);
+    }
+  }, [isCesiumEnabled, isStagingForTransition]);
+
+  useEffect(() => {
+    if (!isStagingForTransition || isCesiumEnabled) {
+      return;
+    }
+
+    const timeoutId = setTimeout(() => {
+      console.debug(
+        "[ADHOC|STAGE] clearing stale staging flag after timeout (no 3D activation)"
+      );
+      setIsStagingForTransition(false);
+    }, 15000);
+
+    return () => {
+      clearTimeout(timeoutId);
+    };
+  }, [isCesiumEnabled, isStagingForTransition]);
+
+  const stageCesiumPrimitivesForTransition = useCallback(async () => {
+    const initialScene = getScene();
+    if (!initialScene || initialScene.isDestroyed()) {
+      console.debug("[ADHOC|STAGE] skipped - Cesium scene not available");
+      return;
+    }
+
+    const shouldEnableStagingFlag =
+      !isCesiumEnabled &&
+      !hasActivatedCesiumOnce &&
+      !isStagingForTransitionRef.current;
+    if (shouldEnableStagingFlag) {
+      console.debug("[ADHOC|STAGE] enabling staging mode");
+      setIsStagingForTransition(true);
+    }
+
+    const requiredModelPrimitiveIds = cesiumModelConfigs
+      .map((config) => {
+        const propertiesWithId = config.properties as
+          | { id?: unknown }
+          | undefined;
+        if (typeof propertiesWithId?.id === "string" && propertiesWithId.id) {
+          return propertiesWithId.id;
+        }
+        if (typeof config.name === "string" && config.name.length > 0) {
+          return config.name;
+        }
+        if (
+          typeof config.properties?.title === "string" &&
+          config.properties.title.length > 0
+        ) {
+          return config.properties.title;
+        }
+        return config.model.uri;
+      })
+      .filter((id): id is string => typeof id === "string" && id.length > 0);
+
+    const deadline = Date.now() + 10000;
+    while (Date.now() < deadline) {
+      const scene = getScene();
+      if (!scene || scene.isDestroyed()) {
+        break;
+      }
+
+      const hasAllRequiredModelPrimitives = requiredModelPrimitiveIds.every(
+        (primitiveId) => {
+          const primitive = findModelPrimitiveByPrimitiveId(scene, primitiveId);
+          if (!primitive || primitive.isDestroyed()) {
+            return false;
+          }
+          if (!primitive.ready) {
+            return false;
+          }
+          return firstRenderedModelPrimitiveIdsRef.current.has(primitiveId);
+        }
+      );
+      const visualizersSynced = !needsSyncRef.current;
+
+      if (visualizersSynced && hasAllRequiredModelPrimitives) {
+        console.debug("[ADHOC|STAGE] scene primitives staged", {
+          visualizersSynced,
+          modelPrimitiveCount: requiredModelPrimitiveIds.length,
+        });
+        return;
+      }
+
+      await new Promise<void>((resolve) => {
+        setTimeout(resolve, 50);
+      });
+    }
+
+    console.warn("[ADHOC|STAGE] timeout while staging scene primitives", {
+      visualizersSynced: !needsSyncRef.current,
+      modelPrimitiveCount: requiredModelPrimitiveIds.length,
+    });
+  }, [
+    cesiumModelConfigs,
+    findModelPrimitiveByPrimitiveId,
+    getScene,
+    hasActivatedCesiumOnce,
+    isCesiumEnabled,
+  ]);
 
   // Main effect: sync visualizers with features when needed
   useEffect(() => {
@@ -1678,5 +1824,8 @@ export const useAdhocCesiumFeatureDisplay = (
     [getFeatureBoundingSphere, resolveAdhocFeatureEntryByFeatureId]
   );
 
-  return { getAdhocBoundingSphere };
+  return {
+    getAdhocBoundingSphere,
+    stageCesiumPrimitivesForTransition,
+  };
 };

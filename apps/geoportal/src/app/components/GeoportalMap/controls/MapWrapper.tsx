@@ -30,7 +30,6 @@ import { detectWebGLContext } from "@carma-commons/utils";
 
 import {
   PitchingCompass,
-  selectViewerModels,
   useCesiumContext,
   useHomeControl,
   useZoomControls as useZoomControlsCesium,
@@ -39,6 +38,7 @@ import {
   MapFrameworkSwitcher,
   FullscreenControl,
   LibrePitchingCompass,
+  ResponsiveStatusFooter,
   RoutedMapLocateControl,
   useMapFrameworkSwitcherContext,
 } from "@carma-mapping/components";
@@ -112,20 +112,23 @@ const MapWrapper = () => {
 
   const showLibreMap = flags.featureFlagLibreMap;
 
-  const rerenderCountRef = useRef(0);
-  const lastRenderTimeStampRef = useRef(Date.now());
-  const lastRenderIntervalRef = useRef(0);
   const wrapperRef = useRef<HTMLDivElement>(null);
 
   // State and Selectors
   const libreMapRef = useSelector(getLibreMapRef);
   const allow3d = useSelector(getUIAllow3d) && hasGPU;
-  const models = useSelector(selectViewerModels);
 
   // Get framework switcher state from context
-  const { isLeaflet, isCesium } = useMapFrameworkSwitcherContext();
+  const {
+    isLeaflet,
+    isCesium,
+    isPreparingCesiumTransition,
+    preparingCesiumMessage,
+  } = useMapFrameworkSwitcherContext();
+  const statusFooterText = isPreparingCesiumTransition
+    ? preparingCesiumMessage ?? "3D Modelle werden geladen"
+    : null;
 
-  const effectiveMode2d = isLeaflet || !allow3d;
   const uiMode = useSelector(getUIMode);
   const isModeMeasurement = uiMode === UIMode.MEASUREMENT;
   const isModeFeatureInfo = uiMode === UIMode.FEATURE_INFO;
@@ -154,49 +157,10 @@ const MapWrapper = () => {
   const { routedMapRef: routedMap } =
     useContext<typeof TopicMapContext>(TopicMapContext);
 
-  const [pos, setPos] = useState<[number, number] | null>(null);
-  const [layoutHeight, setLayoutHeight] = useState(null);
-  const [isLocationActive, setIsLocationActive] = useState(false);
-  const [hasMapMoved, setHasMapMoved] = useState(false);
-  const [hasFoundLocation, setHasFoundLocation] = useState(false);
   const [showTerrain, setShowTerrain] = useState(false);
 
   const [zenButtonHidden, setZenButtonHidden] = useState(false);
   const [isHoveringZenButton, setIsHoveringZenButton] = useState(false);
-
-  useEffect(() => {
-    if (routedMap?.leafletMap) {
-      const map = routedMap.leafletMap.leafletElement;
-
-      const handleMapMove = () => {
-        if (isLocationActive && hasFoundLocation) {
-          setHasMapMoved(true);
-        }
-      };
-
-      const handleLocationFound = () => {
-        setTimeout(() => {
-          setHasFoundLocation(true);
-        }, 300);
-      };
-
-      map.on("dragend zoomend", handleMapMove);
-      map.on("locationfound", handleLocationFound);
-
-      return () => {
-        map.off("dragend", handleMapMove);
-        map.off("zoomend", handleMapMove);
-        map.off("locationfound", handleLocationFound);
-      };
-    }
-  }, [routedMap, isLocationActive, hasFoundLocation]);
-
-  useEffect(() => {
-    if (!isLocationActive) {
-      setHasMapMoved(false);
-      setHasFoundLocation(false);
-    }
-  }, [isLocationActive]);
 
   useEffect(() => {
     if (zenMode && !zenButtonHidden && !isHoveringZenButton) {
@@ -247,10 +211,6 @@ const MapWrapper = () => {
 
     setSelection(Object.assign({}, selection, selectionMetaData));
   };
-
-  rerenderCountRef.current++;
-  lastRenderIntervalRef.current = Date.now() - lastRenderTimeStampRef.current;
-  lastRenderTimeStampRef.current = Date.now();
 
   return (
     <ControlLayout>
@@ -461,7 +421,6 @@ const MapWrapper = () => {
                     dispatch(setSelectedFeature(null));
                     dispatch(setSecondaryInfoBoxElements([]));
                     dispatch(setFeatures([]));
-                    setPos(null);
                     dispatch(setPreferredLayerId(""));
                   }}
                   className="font-semibold"
@@ -551,6 +510,7 @@ const MapWrapper = () => {
           )}
         </div>
       </ControlLayoutCanvas>
+      <ResponsiveStatusFooter text={statusFooterText} />
     </ControlLayout>
   );
 };
