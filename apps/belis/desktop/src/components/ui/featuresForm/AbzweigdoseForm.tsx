@@ -1,9 +1,11 @@
 import { Tabs } from "antd";
 import { useSelector } from "react-redux";
+import { useState, useEffect, useMemo } from "react";
 import { getJWT } from "../../../store/slices/auth";
 import { DokumentItem } from "../DocumentPreview";
-import FilePreview from "../FilePreview";
+import FilePreview, { SavedImageUrls, getFileType } from "../FilePreview";
 import FormHeader from "./FormHeader";
+import { getDocumentBlobUrl } from "../../../helper/documentHelper";
 
 interface AbzweigdoseFormProps {
   data: Record<string, unknown> | null;
@@ -31,6 +33,63 @@ const AbzweigdoseForm = ({
     | undefined;
   const documents: DokumentItem[] =
     (abzweigdoseArray?.[0]?.dokumenteArray as DokumentItem[]) || [];
+
+  // Cache image URLs at this level to persist across layout changes
+  const [savedImageUrls, setSavedImageUrls] = useState<SavedImageUrls>({});
+
+  // Memoize image documents
+  const imageDocuments = useMemo(
+    () =>
+      documents.filter((doc) => {
+        const objectName = doc.dms_url?.url?.object_name || "";
+        return getFileType(objectName) === "image";
+      }),
+    [documents]
+  );
+
+  // Create a stable key for dependency tracking
+  const imageDocumentsKey = useMemo(
+    () =>
+      imageDocuments
+        .map((doc) => doc.dms_url?.url?.object_name || "")
+        .join(","),
+    [imageDocuments]
+  );
+
+  // Fetch all image URLs and cache them
+  useEffect(() => {
+    if (!jwt || imageDocuments.length === 0) return;
+
+    const fetchAllImages = async () => {
+      const newUrls: SavedImageUrls = {};
+      let hasNewUrls = false;
+
+      for (const doc of imageDocuments) {
+        const objectName = doc.dms_url?.url?.object_name;
+        if (!objectName) continue;
+
+        if (savedImageUrls[objectName]) {
+          newUrls[objectName] = savedImageUrls[objectName];
+          continue;
+        }
+
+        try {
+          const url = await getDocumentBlobUrl(jwt, objectName);
+          newUrls[objectName] = url;
+          hasNewUrls = true;
+        } catch (err) {
+          console.error("Failed to load image:", err);
+        }
+      }
+
+      if (hasNewUrls) {
+        setSavedImageUrls((prev) => ({ ...prev, ...newUrls }));
+      }
+    };
+
+    fetchAllImages();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [jwt, imageDocumentsKey]);
 
   // Extract subtitle
   const subtitle = "Nur Dokumente verfügbar";
@@ -60,6 +119,7 @@ const AbzweigdoseForm = ({
         title="Dokumente"
         size="xl"
         showDescription={false}
+        savedImageUrls={savedImageUrls}
       />
     </div>
   );

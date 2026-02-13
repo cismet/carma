@@ -40,11 +40,12 @@ interface FilePreviewProps {
   title?: string;
   size?: FilePreviewSize;
   showDescription?: boolean;
+  savedImageUrls?: SavedImageUrls;
 }
 
 type FileType = "image" | "pdf" | "other";
 
-const getFileType = (objectName: string): FileType => {
+export const getFileType = (objectName: string): FileType => {
   const lowerName = objectName.toLowerCase();
   if (
     lowerName.endsWith(".jpg") ||
@@ -79,6 +80,7 @@ interface FileItemProps {
   size: FilePreviewSize;
   showDescription: boolean;
   onImageClick?: () => void;
+  savedUrl?: string;
 }
 
 const FileItem = ({
@@ -87,8 +89,9 @@ const FileItem = ({
   size,
   showDescription,
   onImageClick,
+  savedUrl,
 }: FileItemProps) => {
-  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const [previewUrl, setPreviewUrl] = useState<string | null>(savedUrl || null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(false);
 
@@ -98,8 +101,16 @@ const FileItem = ({
   const description =
     doc.dms_url?.description || doc.dms_url?.url?.object_name || "Datei";
 
+  // Update previewUrl if savedUrl changes (e.g., parent finished loading)
   useEffect(() => {
-    if (!jwt || !objectName || fileType !== "image") {
+    if (savedUrl && !previewUrl) {
+      setPreviewUrl(savedUrl);
+    }
+  }, [savedUrl, previewUrl]);
+
+  useEffect(() => {
+    // Skip fetching if we already have a URL (from cache or previous fetch)
+    if (!jwt || !objectName || fileType !== "image" || previewUrl) {
       return;
     }
 
@@ -121,11 +132,12 @@ const FileItem = ({
     fetchPreview();
 
     return () => {
-      if (previewUrl) {
+      // Only revoke URLs that we created (not cached ones from parent)
+      if (previewUrl && !savedUrl) {
         window.URL.revokeObjectURL(previewUrl);
       }
     };
-  }, [jwt, objectName, fileType]);
+  }, [jwt, objectName, fileType, previewUrl, savedUrl]);
 
   const boxStyle: React.CSSProperties = {
     width: boxSize,
@@ -209,7 +221,7 @@ const defaultTitleStyle: React.CSSProperties = {
   marginBottom: 8,
 };
 
-interface ImageUrlCache {
+export interface SavedImageUrls {
   [objectName: string]: string;
 }
 
@@ -220,8 +232,10 @@ const FilePreview = ({
   title = "Dateien",
   size = "md",
   showDescription = true,
+  savedImageUrls = {},
 }: FilePreviewProps) => {
-  const [imageUrls, setImageUrls] = useState<ImageUrlCache>({});
+  // Use cached URLs from parent - no local fetching needed
+  const imageUrls = savedImageUrls;
   const lightBoxDispatch = useContext(
     LightBoxDispatchContext
   ) as LightBoxDispatch;
@@ -235,51 +249,6 @@ const FilePreview = ({
       }),
     [documents]
   );
-
-  // Create a stable key for dependency tracking
-  const imageDocumentsKey = useMemo(
-    () =>
-      imageDocuments
-        .map((doc) => doc.dms_url?.url?.object_name || "")
-        .join(","),
-    [imageDocuments]
-  );
-
-  // Fetch all image URLs for the lightbox
-  useEffect(() => {
-    if (!jwt || imageDocuments.length === 0) return;
-
-    const fetchAllImages = async () => {
-      const newUrls: ImageUrlCache = {};
-      let hasNewUrls = false;
-
-      for (const doc of imageDocuments) {
-        const objectName = doc.dms_url?.url?.object_name;
-        if (!objectName) continue;
-
-        // Skip if already loaded
-        if (imageUrls[objectName]) {
-          newUrls[objectName] = imageUrls[objectName];
-          continue;
-        }
-
-        try {
-          const url = await getDocumentBlobUrl(jwt, objectName);
-          newUrls[objectName] = url;
-          hasNewUrls = true;
-        } catch (err) {
-          console.error("Failed to load image for lightbox:", err);
-        }
-      }
-
-      if (hasNewUrls) {
-        setImageUrls((prev) => ({ ...prev, ...newUrls }));
-      }
-    };
-
-    fetchAllImages();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [jwt, imageDocumentsKey]);
 
   // Handle image click - set up lightbox and show it
   const handleImageClick = useCallback(
@@ -364,6 +333,7 @@ const FilePreview = ({
               jwt={jwt}
               size={size}
               showDescription={showDescription}
+              savedUrl={imageUrls[objectName]}
               onImageClick={
                 fileType === "image" && lbIndex !== undefined
                   ? () => handleImageClick(lbIndex)

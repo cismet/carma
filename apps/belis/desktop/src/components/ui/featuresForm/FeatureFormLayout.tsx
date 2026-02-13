@@ -1,9 +1,10 @@
-import { useEffect, useState, ReactNode } from "react";
+import { useEffect, useState, ReactNode, useMemo } from "react";
 import { Tabs } from "antd";
 import type { UploadFile } from "antd";
 import FormHeader from "./FormHeader";
 import DocumentPreview, { DokumentItem } from "../DocumentPreview";
-import FilePreview from "../FilePreview";
+import FilePreview, { SavedImageUrls, getFileType } from "../FilePreview";
+import { getDocumentBlobUrl } from "../../../helper/documentHelper";
 
 interface AdditionalTab {
   key: string;
@@ -49,6 +50,9 @@ const FeatureFormLayout = ({
     typeof window !== "undefined" ? window.innerWidth > 1200 : false
   );
 
+  // Cache image URLs at this level to persist across layout changes (resize)
+  const [savedImageUrls, setSavedImageUrls] = useState<SavedImageUrls>({});
+
   // Listen for window resize to toggle layout
   useEffect(() => {
     const handleResize = () => {
@@ -57,6 +61,61 @@ const FeatureFormLayout = ({
     window.addEventListener("resize", handleResize);
     return () => window.removeEventListener("resize", handleResize);
   }, []);
+
+  // Memoize image documents to avoid recreating the array on every render
+  const imageDocuments = useMemo(
+    () =>
+      documents.filter((doc) => {
+        const objectName = doc.dms_url?.url?.object_name || "";
+        return getFileType(objectName) === "image";
+      }),
+    [documents]
+  );
+
+  // Create a stable key for dependency tracking
+  const imageDocumentsKey = useMemo(
+    () =>
+      imageDocuments
+        .map((doc) => doc.dms_url?.url?.object_name || "")
+        .join(","),
+    [imageDocuments]
+  );
+
+  // Fetch all image URLs and cache them at this level
+  useEffect(() => {
+    if (!jwt || imageDocuments.length === 0) return;
+
+    const fetchAllImages = async () => {
+      const newUrls: SavedImageUrls = {};
+      let hasNewUrls = false;
+
+      for (const doc of imageDocuments) {
+        const objectName = doc.dms_url?.url?.object_name;
+        if (!objectName) continue;
+
+        // Skip if already cached
+        if (savedImageUrls[objectName]) {
+          newUrls[objectName] = savedImageUrls[objectName];
+          continue;
+        }
+
+        try {
+          const url = await getDocumentBlobUrl(jwt, objectName);
+          newUrls[objectName] = url;
+          hasNewUrls = true;
+        } catch (err) {
+          console.error("Failed to load image:", err);
+        }
+      }
+
+      if (hasNewUrls) {
+        setSavedImageUrls((prev) => ({ ...prev, ...newUrls }));
+      }
+    };
+
+    fetchAllImages();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [jwt, imageDocumentsKey]);
 
   // Label style matching FormLabel: text-sm font-medium text-gray-700
   const labelStyle: React.CSSProperties = {
@@ -86,6 +145,7 @@ const FeatureFormLayout = ({
       title="Dokumente"
       size="xl"
       showDescription={false}
+      savedImageUrls={savedImageUrls}
     />
   );
 

@@ -85,3 +85,17 @@
 .reducedSizeInputComponnet button {
   font-size: 0.8rem !important;
 }
+
+/* Speed up react-image-lightbox animations */
+.ril-outer,
+.ril__outer,
+.ReactModal__Overlay,
+.ReactModal__Content {
+  transition-duration: 0.02s !important;
+  animation-duration: 0.02s !important;
+}
+
+.ril-inner,
+.ril__inner {
+  transition-duration: 0.02s !important;
+}
