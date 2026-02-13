@@ -268,6 +268,7 @@ const CarmaMapContent = (props: CarmaMapProps) => {
                 interactive={miniMap ? false : undefined}
                 debugLog={props.debugLog}
                 exposeMapToWindow={props.exposeMapToWindow}
+                selectFromHits={miniMap ? undefined : props.selectFromHits}
               />
             )}
             {modalMenu}

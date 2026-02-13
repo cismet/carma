@@ -160,6 +160,22 @@ const BelisMapLibWrapper = ({
     setMiniMap(m);
   }, []);
 
+  // Deterministic click selection: prefer leuchten, sort by leuchtennummer
+  const handleSelectFromHits = useCallback(
+    (hits: maplibregl.MapGeoJSONFeature[]) => {
+      const leuchten = hits.filter((h) => h.sourceLayer === "leuchten");
+      if (leuchten.length > 0) {
+        return leuchten.sort(
+          (a, b) =>
+            Number(a.properties?.leuchtennummer ?? 0) -
+            Number(b.properties?.leuchtennummer ?? 0)
+        )[0];
+      }
+      return hits[0];
+    },
+    []
+  );
+
   const handleReturnToMap = useCallback(() => {
     map?.resize();
   }, [map]);
@@ -239,6 +255,7 @@ const BelisMapLibWrapper = ({
               terrainControl={false}
               fullScreenControl={false}
               libreLayers={libreLayers}
+              selectFromHits={handleSelectFromHits}
             />
           }
           datasheetContent={

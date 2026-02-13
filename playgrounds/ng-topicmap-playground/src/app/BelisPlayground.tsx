@@ -406,6 +406,22 @@ const BelisPlaygroundContent = () => {
     setMiniMap(m);
   }, []);
 
+  // Deterministic click selection: prefer leuchten, sort by leuchtennummer
+  const handleSelectFromHits = useCallback(
+    (hits: maplibregl.MapGeoJSONFeature[]) => {
+      const leuchten = hits.filter((h) => h.sourceLayer === "leuchten");
+      if (leuchten.length > 0) {
+        return leuchten.sort(
+          (a, b) =>
+            Number(a.properties?.leuchtennummer ?? 0) -
+            Number(b.properties?.leuchtennummer ?? 0)
+        )[0];
+      }
+      return hits[0];
+    },
+    []
+  );
+
   return (
     <div className="bg-[#F1F1F1] flex flex-col w-full h-screen overflow-hidden">
       <div className="flex items-center mx-3 mb-2 mt-2 gap-4">
@@ -522,6 +538,7 @@ const BelisPlaygroundContent = () => {
                       backgroundLayers="basemap_grey@20"
                       overrideGlyphs="https://tiles.cismet.de/fonts/{fontstack}/{range}.pbf"
                       libreLayers={BELIS_LAYERS}
+                      selectFromHits={handleSelectFromHits}
                     />
                   }
                   datasheetContent={
