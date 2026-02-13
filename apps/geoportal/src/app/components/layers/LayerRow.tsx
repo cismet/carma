@@ -1,6 +1,6 @@
 /* eslint-disable jsx-a11y/no-noninteractive-element-interactions */
 /* eslint-disable jsx-a11y/click-events-have-key-events */
-import { useDispatch, useSelector } from "react-redux";
+import { useDispatch } from "react-redux";
 
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
@@ -9,12 +9,7 @@ import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 
 import type { Layer } from "@carma/types";
 
-import { getSelectedFeature } from "../../store/slices/features";
-import {
-  getBackgroundLayer,
-  removeLayer,
-  setSelectedLayerIndex,
-} from "../../store/slices/mapping";
+import { removeLayer, setSelectedLayerIndex } from "../../store/slices/mapping";
 import OpacitySlider from "./OpacitySlider";
 import VisibilityToggle from "./VisibilityToggle";
 import {
@@ -41,10 +36,11 @@ const LayerRow = ({ layer, id, isBackgroundLayer, index }: LayerRowProps) => {
       id,
     });
 
+  const cesiumBackgroundlayerNames = {
+    karte: "LoD2-Gebäude (NRW)",
+    luftbild: "3D-Mesh 03/2024",
+  };
   const style = { transform: CSS.Translate.toString(transform) };
-
-  const backgroundLayer = useSelector(getBackgroundLayer);
-  const selectedFeature = useSelector(getSelectedFeature);
 
   return (
     <div
@@ -74,7 +70,7 @@ const LayerRow = ({ layer, id, isBackgroundLayer, index }: LayerRowProps) => {
           }}
         >
           {isCesium && isBackgroundLayer
-            ? layer.id.charAt(0).toUpperCase() + layer.id.slice(1)
+            ? cesiumBackgroundlayerNames[layer.id]
             : layer.title}
         </p>
       </div>
