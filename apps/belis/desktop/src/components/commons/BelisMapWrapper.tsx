@@ -42,7 +42,7 @@ const BelisMapLibWrapper = ({ mapSizes }) => {
   const dispatch: AppDispatch = useDispatch();
   const jwt = useSelector(getJWT);
   const { map } = useLibreContext();
-  const { selectedFeature, rawFeature, selectedFeatureId } = useMapSelection();
+  const { selectedFeature, rawFeature } = useMapSelection();
   const { closeDatasheet } = useDatasheet();
   const [fetchedFeatureData, setFetchedFeatureData] = useState<any>(null);
 
@@ -126,27 +126,41 @@ const BelisMapLibWrapper = ({ mapSizes }) => {
 
   const mapWidth = mapSizes.width - LIST_WIDTH;
 
+  const validFeatureTypes: FeatureType[] = [
+    "leuchten",
+    "mast",
+    "schaltstelle",
+    "mauerlaschen",
+    "leitungen",
+    "abzweigdosen",
+  ];
+
   useEffect(() => {
     const fetchData = async () => {
-      if (!jwt || !selectedFeatureId?.id) {
+      if (!jwt || !selectedFeature) {
         setFetchedFeatureData(null);
         return;
       }
 
-      // Get sourceLayer from selectedFeatureId or rawFeature
-      const sourceLayer = selectedFeatureId.sourceLayer;
+      // Get sourceLayer from selectedFeature
+      const sourceLayer = selectedFeature?.carmaInfo?.sourceLayer;
+      const featureId = selectedFeature?.properties?.sourceProps?.id;
 
       console.log("xxx BelisMa Selection:", {
-        id: selectedFeatureId.id,
+        featureId,
         sourceLayer,
       });
 
-      if (sourceLayer && selectedFeatureId.id) {
+      const isValidFeatureType =
+        typeof sourceLayer === "string" &&
+        validFeatureTypes.includes(sourceLayer as FeatureType);
+
+      if (isValidFeatureType && featureId) {
         dispatch(setFeatureLoading(true));
         try {
           const fullData = await fetchFeatureById(
             jwt,
-            selectedFeatureId.id as number,
+            featureId as number,
             sourceLayer as FeatureType
           );
           console.log("xxx Fetched full data:", fullData);
@@ -162,7 +176,7 @@ const BelisMapLibWrapper = ({ mapSizes }) => {
     };
 
     fetchData();
-  }, [selectedFeatureId, jwt]);
+  }, [selectedFeature, jwt]);
 
   return (
     <div
@@ -243,7 +257,7 @@ const BelisMapLibWrapper = ({ mapSizes }) => {
                 feature={selectedFeature}
                 rawFeature={rawFeature}
                 fetchedData={fetchedFeatureData}
-                featureType={selectedFeatureId?.sourceLayer}
+                featureType={selectedFeature?.carmaInfo?.sourceLayer}
               />
             </div>
           }

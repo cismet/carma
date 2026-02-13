@@ -309,8 +309,6 @@ const FilePreview = ({
           caption: captions,
           visible: true,
         });
-        // Also call setCaptions separately (required for caption updates when navigating)
-        lightBoxDispatch.setCaptions?.(captions);
       }
     },
     [imageDocuments, imageUrls, title, lightBoxDispatch]
