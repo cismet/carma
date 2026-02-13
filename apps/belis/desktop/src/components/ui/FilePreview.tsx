@@ -21,6 +21,7 @@ interface LightBoxDispatch {
   }) => void;
   setIndex?: (index: number) => void;
   setVisible?: (visible: boolean) => void;
+  setCaptions?: (captions: string[]) => void;
 }
 
 type FilePreviewSize = "sm" | "md" | "xl" | "xxl";
@@ -308,6 +309,8 @@ const FilePreview = ({
           caption: captions,
           visible: true,
         });
+        // Also call setCaptions separately (required for caption updates when navigating)
+        lightBoxDispatch.setCaptions?.(captions);
       }
     },
     [imageDocuments, imageUrls, title, lightBoxDispatch]
