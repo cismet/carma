@@ -53,7 +53,10 @@ function discoverSources(
   }));
 }
 
-/** Check whether a feature matches the current highlight criteria. */
+/** Check whether a feature matches the current highlight criteria.
+ *  Toggled features act as a flip (XOR): toggling a feature that already
+ *  matches a property/query criterion removes it from the result set,
+ *  while toggling a non-matching feature adds it. */
 function matchesCriteria(
   criteria: HighlightCriteria,
   featureProps: Record<string, unknown>,
@@ -61,7 +64,11 @@ function matchesCriteria(
   sourceLayer: string,
   source: string,
 ): boolean {
+  const toggleKey = `${source}::${sourceLayer}::${featureId}`;
+  const isToggled = criteria.toggledFeatures.has(toggleKey);
+
   // Check property matchers
+  let matchedByCriteria = false;
   for (const matcher of criteria.propertyMatchers) {
     if (
       matcher.sourceLayers &&
@@ -71,21 +78,27 @@ function matchesCriteria(
       continue;
     }
     const val = String(featureProps[matcher.property] ?? "");
-    if (matcher.regex.test(val)) return true;
+    if (matcher.regex.test(val)) {
+      matchedByCriteria = true;
+      break;
+    }
   }
 
   // Check query IDs
-  for (const qid of criteria.queryIds) {
-    if (qid.sourceLayer !== "*" && qid.sourceLayer !== sourceLayer) continue;
-    const val = String(featureProps[qid.property] ?? "");
-    if (val === String(qid.value)) return true;
+  if (!matchedByCriteria) {
+    for (const qid of criteria.queryIds) {
+      if (qid.sourceLayer !== "*" && qid.sourceLayer !== sourceLayer) continue;
+      const val = String(featureProps[qid.property] ?? "");
+      if (val === String(qid.value)) {
+        matchedByCriteria = true;
+        break;
+      }
+    }
   }
 
-  // Check toggled features
-  const toggleKey = `${source}::${sourceLayer}::${featureId}`;
-  if (criteria.toggledFeatures.has(toggleKey)) return true;
-
-  return false;
+  // XOR: toggle flips the match state
+  if (isToggled) return !matchedByCriteria;
+  return matchedByCriteria;
 }
 
 export const useMapHighlighting = ({
