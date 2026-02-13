@@ -247,9 +247,20 @@ const OnMapList = ({
       }
       groups[groupKey].items.push(feature);
     });
-    // Sort items within each group by standort (lfd_nummer), then by leuchtennummer
+    // Sort items within each group by street name, then standort, then leuchtennummer
     for (const group of Object.values(groups)) {
       group.items.sort((a, b) => {
+        const aStreet = (
+          a.properties?.strasse ||
+          a.properties?.strassenschluessel ||
+          ""
+        ).toLowerCase();
+        const bStreet = (
+          b.properties?.strasse ||
+          b.properties?.strassenschluessel ||
+          ""
+        ).toLowerCase();
+        if (aStreet !== bStreet) return aStreet.localeCompare(bStreet);
         const aStandort = Number(a.properties?.lfd_nummer) || 0;
         const bStandort = Number(b.properties?.lfd_nummer) || 0;
         if (aStandort !== bStandort) return aStandort - bStandort;
