@@ -143,3 +143,16 @@ export interface FeatureInfoState {
   completedVectorLayers: string[];
   triggerSelectionById: string | null;
 }
+
+export interface SelectedObject {
+  geometry?: Geometry;
+  id: string;
+  properties: {
+    restored: boolean;
+    collectionId: string;
+    layerId: string;
+    additionalInfo?: string;
+    subtitle?: string;
+    title: string;
+  };
+}

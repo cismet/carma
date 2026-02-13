@@ -191,36 +191,31 @@ export const CarmaMapProviderWrapper = ({
     <AuthProvider>
       <SandboxedEvalProvider>
         <GazDataProvider config={gazDataConfig}>
-          <AdhocFeatureDisplayProvider>
-            <SelectionProvider>
-              <MapStyleProvider config={mapStyleConfig}>
-                <TopicMapContextProvider
-                  infoBoxPixelWidth={350}
-                  {...topicMapConfig}
-                >
-                  <OverlayTourProvider
-                    transparency={transparency}
-                    color={color}
+          <SelectionProvider>
+            <MapStyleProvider config={mapStyleConfig}>
+              <TopicMapContextProvider
+                infoBoxPixelWidth={350}
+                {...topicMapConfig}
+              >
+                <OverlayTourProvider transparency={transparency} color={color}>
+                  <CesiumContextProvider
+                    //initialViewerState={defaultCesiumState}
+                    // TODO move these to store/slice setup ?
+                    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                    providerConfig={cesiumOptions.providerConfig as any}
+                    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                    tilesetConfigs={cesiumOptions.tilesetConfigs as any}
                   >
-                    <CesiumContextProvider
-                      //initialViewerState={defaultCesiumState}
-                      // TODO move these to store/slice setup ?
-                      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                      providerConfig={cesiumOptions.providerConfig as any}
-                      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                      tilesetConfigs={cesiumOptions.tilesetConfigs as any}
-                    >
-                      <LibreContextProvider>
-                        <MapSelectionProvider>
-                          {wrappedChildren}
-                        </MapSelectionProvider>
-                      </LibreContextProvider>
-                    </CesiumContextProvider>
-                  </OverlayTourProvider>
-                </TopicMapContextProvider>
-              </MapStyleProvider>
-            </SelectionProvider>
-          </AdhocFeatureDisplayProvider>
+                    <LibreContextProvider>
+                      <MapSelectionProvider>
+                        {wrappedChildren}
+                      </MapSelectionProvider>
+                    </LibreContextProvider>
+                  </CesiumContextProvider>
+                </OverlayTourProvider>
+              </TopicMapContextProvider>
+            </MapStyleProvider>
+          </SelectionProvider>
         </GazDataProvider>
       </SandboxedEvalProvider>
     </AuthProvider>

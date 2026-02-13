@@ -3,6 +3,8 @@ import { useDispatch } from "react-redux";
 import { useLocation } from "react-router-dom";
 
 import {
+  type SelectedObject,
+  useAdhocFeatureDisplay,
   type LayerMap,
   type SelectionItem,
   type Settings,
@@ -30,7 +32,8 @@ type Config = {
   backgroundLayer: BackgroundLayer & { selectedLayerId: string };
   settings?: Settings;
   view?: View;
-  selection?: SelectionItem;
+  gazetteerSelection?: SelectionItem;
+  selectedFeature?: SelectedObject;
 };
 
 const DEFAULT_CONFIG_KEY = "config";
@@ -38,7 +41,12 @@ const DEFAULT_CONFIG_KEY = "config";
 const onLoadedConfig = (
   config: Config,
   layerMap: LayerMap,
-  dispatch: AppDispatch
+  dispatch: AppDispatch,
+  setSelectedFeatureById: (
+    id: string,
+    collectionId: string,
+    layerId: string
+  ) => void
 ) => {
   dispatch(setLayers(config.layers));
   const selectedMapLayerId = config.backgroundLayer.selectedLayerId;
@@ -68,8 +76,22 @@ const onLoadedConfig = (
   } else {
     dispatch(setSelectedMapLayer(selectedBackgroundLayer));
   }
-  if (config.selection) {
-    dispatch(setConfigSelection(config.selection));
+  if (config.gazetteerSelection) {
+    dispatch(setConfigSelection(config.gazetteerSelection));
+  }
+  if (config.selectedFeature) {
+    if (
+      config.selectedFeature.id &&
+      config.selectedFeature.properties.collectionId &&
+      config.selectedFeature.properties.layerId
+    ) {
+      // 3d selection
+      setSelectedFeatureById(
+        config.selectedFeature.id,
+        config.selectedFeature.properties.collectionId,
+        config.selectedFeature.properties.layerId
+      );
+    }
   }
 };
 
@@ -80,6 +102,7 @@ export const useAppConfig = (
 ) => {
   const dispatch = useDispatch();
   const { pathname } = useLocation();
+  const { setSelectedFeatureById } = useAdhocFeatureDisplay();
   const [isLoadingConfig, setIsLoadingConfig] = useState<boolean | null>(null); // initially null to indicate undetermined state
 
   useEffect(() => {
@@ -116,7 +139,7 @@ export const useAppConfig = (
     fetch(configBaseUrl + config, { signal: controller.signal })
       .then((response) => response.json())
       .then((newConfig: Config) => {
-        onLoadedConfig(newConfig, layerMap, dispatch);
+        onLoadedConfig(newConfig, layerMap, dispatch, setSelectedFeatureById);
         setIsLoadingConfig(false);
       })
       .catch((error) => {

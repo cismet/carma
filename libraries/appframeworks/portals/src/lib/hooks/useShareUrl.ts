@@ -1,6 +1,6 @@
 import { useCopyToClipboard } from "@uidotdev/usehooks";
 import { message } from "antd";
-import type { LayerState } from "../types";
+import type { LayerState, SelectedObject } from "../types";
 import { SelectionItem } from "../components/SelectionProvider";
 import { getHashParams } from "@carma-commons/utils";
 
@@ -14,11 +14,13 @@ export const useShareUrl = () => {
   const copyShareUrl = async ({
     layerState,
     closePopover = () => {},
-    selection,
+    gazetteerSelection,
+    selectedFeature,
   }: {
     layerState: LayerState;
     closePopover?: () => void;
-    selection?: SelectionItem;
+    gazetteerSelection?: SelectionItem;
+    selectedFeature?: SelectedObject;
   }) => {
     try {
       const {
@@ -48,7 +50,8 @@ export const useShareUrl = () => {
         },
         layers,
         view,
-        selection,
+        gazetteerSelection,
+        selectedFeature,
       };
       const jsonString = JSON.stringify(newConfig);
       const baseUrl = window.location.origin + window.location.pathname;

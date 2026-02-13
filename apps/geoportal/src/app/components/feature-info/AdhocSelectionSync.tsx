@@ -1,6 +1,8 @@
 import { useAdhocFeatureDisplay } from "@carma-appframeworks/portals";
 import { useEffect, useRef } from "react";
 import type { Map as MaplibreMap } from "maplibre-gl";
+import { useDispatch } from "react-redux";
+import { setTriggerSelectionById } from "../../store/slices/features";
 
 interface SelectedFeatureState {
   source: string;
@@ -13,6 +15,7 @@ const AdhocSelectionSync = ({
 }: {
   maplibreMapsRef: React.MutableRefObject<Map<string, MaplibreMap>>;
 }) => {
+  const dispatch = useDispatch();
   const selectedFeatures = useRef(new Set<SelectedFeatureState>());
   const { onSelectionChange } = useAdhocFeatureDisplay();
 
@@ -73,6 +76,8 @@ const AdhocSelectionSync = ({
               } catch (e) {}
             }
           }
+        } else {
+          dispatch(setTriggerSelectionById(layerId));
         }
       }
     });

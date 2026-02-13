@@ -10,7 +10,7 @@ import {
 } from "@carma-commons/resources";
 import { useFeatureFlags } from "@carma-providers/feature-flag";
 
-import type { LayerState } from "../types";
+import type { LayerState, SelectedObject } from "../types";
 import { SelectionItem } from "./SelectionProvider";
 import { useShareUrl } from "../hooks/useShareUrl";
 import { FileUploader } from "./FileUploader";
@@ -25,6 +25,7 @@ export type ShareProps = {
   jwt?: string;
   apiUrl?: string;
   serviceOptions?: ServiceOption[];
+  selectedFeature?: SelectedObject;
 };
 
 export const Share = ({
@@ -35,6 +36,7 @@ export const Share = ({
   jwt,
   apiUrl = "https://wunda-cloud-api.cismet.de",
   serviceOptions = defaultServiceOptions,
+  selectedFeature,
 }: ShareProps) => {
   const [loading, setLoading] = useState(false);
   // form states
@@ -291,7 +293,8 @@ export const Share = ({
             copyShareUrl({
               layerState,
               closePopover,
-              selection,
+              gazetteerSelection: selection,
+              selectedFeature,
             });
           }}
         >
