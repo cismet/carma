@@ -384,6 +384,10 @@ export const useVisibleMapFeatures = ({
     };
     maplibreMap.on("sourcedata", handleSourceData);
 
+    // Re-query when the map becomes idle (all tiles loaded AND rendered).
+    // queryRenderedFeatures needs features to be rendered, not just loaded.
+    maplibreMap.on("idle", updateFeatures);
+
     return () => {
       if (debounceRef.current) {
         clearTimeout(debounceRef.current);
@@ -391,6 +395,7 @@ export const useVisibleMapFeatures = ({
       maplibreMap.off("moveend", updateFeatures);
       maplibreMap.off("zoomend", updateFeatures);
       maplibreMap.off("sourcedata", handleSourceData);
+      maplibreMap.off("idle", updateFeatures);
     };
   }, [maplibreMap, updateFeatures]);
 
