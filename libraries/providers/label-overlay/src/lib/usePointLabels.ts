@@ -15,6 +15,9 @@ export interface PointLabelData {
   labelDistance?: number;
   labelAttach?: PointLabelAttach;
   hideLabelAndStem?: boolean;
+  markerSize?: number;
+  markerStrokeWidth?: number;
+  stemReferenceMarkerSize?: number;
   text: string;
   content?: React.ReactNode;
   contentSignature?: string;
@@ -24,6 +27,8 @@ export interface PointLabelData {
   isHidden?: boolean;
   onClick?: () => void;
   onDoubleClick?: () => void;
+  onLongPress?: () => void;
+  longPressDurationMs?: number;
   onHoverChange?: (hovered: boolean) => void;
 }
 
@@ -51,9 +56,13 @@ export const usePointLabels = (
               p.isHidden
             }:${p.contentSignature ?? ""}:${p.pitch}:${Boolean(p.onClick)}:${
               p.labelAngleRad
-            }:${p.labelDistance}:${p.labelAttach}:${
-              p.hideLabelAndStem
-            }:${Boolean(p.onHoverChange)}:${Boolean(p.onDoubleClick)}`
+            }:${p.labelDistance}:${p.labelAttach}:${p.hideLabelAndStem}:${
+              p.markerSize
+            }:${p.markerStrokeWidth}:${p.stemReferenceMarkerSize}:${Boolean(
+              p.onHoverChange
+            )}:${Boolean(p.onDoubleClick)}:${Boolean(p.onLongPress)}:${
+              p.longPressDurationMs
+            }`
         )
         .join("|") + `:transition:${layoutOptions?.transitionDurationMs ?? ""}`,
     [points, layoutOptions?.transitionDurationMs]
@@ -84,11 +93,16 @@ export const usePointLabels = (
           labelAttach: point.labelAttach,
           transitionDurationMs: layoutOptions?.transitionDurationMs,
           hideLabelAndStem: point.hideLabelAndStem,
+          markerSize: point.markerSize,
+          markerStrokeWidth: point.markerStrokeWidth,
+          stemReferenceMarkerSize: point.stemReferenceMarkerSize,
           text: point.content ?? point.text,
           selected: point.selected,
           isOccluded: point.isOccluded,
           onClick: point.onClick,
           onDoubleClick: point.onDoubleClick,
+          onLongPress: point.onLongPress,
+          longPressDurationMs: point.longPressDurationMs,
           onHoverChange: point.onHoverChange,
           ...styleProps,
         }),

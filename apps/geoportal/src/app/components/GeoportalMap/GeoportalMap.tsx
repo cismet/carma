@@ -748,7 +748,7 @@ export const GeoportalMap = ({ height, width, allow3d }: MapProps) => {
       dispatch,
       zoom: getLeafletZoom(),
       selectedFeature,
-      leafletMap: getLeafletMap(),
+      leafletMap,
       maplibreMapsRef,
       store,
     }),
@@ -757,8 +757,9 @@ export const GeoportalMap = ({ height, width, allow3d }: MapProps) => {
       dispatch,
       getLeafletZoom,
       selectedFeature,
-      getLeafletMap,
+      leafletMap,
       maplibreMapsRef,
+      store,
     ]
   );
 

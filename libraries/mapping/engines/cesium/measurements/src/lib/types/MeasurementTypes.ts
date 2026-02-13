@@ -7,7 +7,11 @@ export enum MeasurementMode {
   Elevation = "elevation",
 }
 
-export type PointLabelMetricMode = "elevation" | "none" | "distance";
+export type PointLabelMetricMode =
+  | "elevation"
+  | "absoluteElevation"
+  | "none"
+  | "distance";
 export const DEFAULT_POINT_LABEL_METRIC_MODE: PointLabelMetricMode =
   "elevation";
 

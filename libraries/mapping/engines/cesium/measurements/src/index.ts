@@ -20,3 +20,4 @@ export { useCesiumMousePosition } from "./lib/hooks/useCesiumMousePosition";
 export { useCesiumPointLabels } from "./lib/hooks/useCesiumPointLabels";
 export { useCesiumPointQuery } from "./lib/hooks/useCesiumPointQuery";
 export { useCesiumPointVisualizer } from "./lib/hooks/useCesiumPointVisualizer";
+export { useCesiumPointMoveGizmo } from "./lib/hooks/useCesiumPointMoveGizmo";

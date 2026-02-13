@@ -83,7 +83,7 @@ export const useCreateCismapLayers = (
     dispatch: Dispatch;
     zoom: number;
     selectedFeature: any;
-    leafletMap: LeafletMap;
+    leafletMap?: LeafletMap;
     maplibreMapsRef?: React.MutableRefObject<Map<string, any>>;
     store: Store;
   }
@@ -253,8 +253,6 @@ export const useCreateCismapLayers = (
             format: "image/png",
             tiled: true,
             transparent: "true",
-            additionalLayerUniquePane: layer.id,
-            additionalLayersFreeZOrder: i,
             opacity: layer.opacity.toFixed(1) || 0.7,
             type: "wmts-nt",
           });
@@ -267,8 +265,6 @@ export const useCreateCismapLayers = (
             format: "image/png",
             tiled: true,
             transparent: "true",
-            additionalLayerUniquePane: layer.id,
-            additionalLayersFreeZOrder: i,
             opacity: layer.opacity.toFixed(1) || 0.7,
             type: "wmts",
           });
@@ -278,8 +274,6 @@ export const useCreateCismapLayers = (
             style: layer.props.style,
             maxZoom: MAX_ZOOM,
             showTileBoundaries: showTileBoundaries,
-            additionalLayerUniquePane: layer.id,
-            additionalLayersFreeZOrder: i,
             opacity: layer.opacity === 0 ? "0" : layer.opacity || 0.7,
             type: "vector",
             selectionEnabled: true,

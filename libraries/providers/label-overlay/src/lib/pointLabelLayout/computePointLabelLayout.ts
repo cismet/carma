@@ -153,9 +153,12 @@ export const computePointLabelLayout = ({
     createPlacement(attach, config.stemDistance, perspectiveStemAngle)
   );
 
-  const sortedPoints = [...points].sort(
-    (left, right) => left.index - right.index
-  );
+  const sortedPoints = [...points].sort((left, right) => {
+    const priorityDelta =
+      (right.layoutPriority ?? 0) - (left.layoutPriority ?? 0);
+    if (priorityDelta !== 0) return priorityDelta;
+    return left.index - right.index;
+  });
 
   // Static mode: keep labels on preferred slot, skip dynamic collision resolution.
   if (!config.dynamicLabelPlacement) {
@@ -172,6 +175,21 @@ export const computePointLabelLayout = ({
 
   const finalState = sortedPoints.reduce<LayoutAccumulator>(
     (state, point) => {
+      const preferredPlacement = regularCandidates[0];
+      if (point.lockPreferredPlacement && preferredPlacement) {
+        return {
+          placements: {
+            ...state.placements,
+            [point.id]: preferredPlacement,
+          },
+          hiddenByLayout: state.hiddenByLayout,
+          occupiedLabelRects: [
+            ...state.occupiedLabelRects,
+            createLabelRect(point.anchor, point.text, preferredPlacement),
+          ],
+        };
+      }
+
       const otherAnchorRects = sortedPoints
         .filter((candidate) => candidate.id !== point.id)
         .map((candidate) => anchorRectsById[candidate.id]);

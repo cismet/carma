@@ -49,6 +49,12 @@ const ELEVATION_GLYPH_UP = "↥";
 const ELEVATION_GLYPH_DOWN = "↧";
 const DISTANCE_GLYPH_LEFT = "⭠";
 const DISTANCE_GLYPH_RIGHT = "⭢";
+const NORMAL_MARKER_SIZE_PX = 10;
+const MOVE_GIZMO_MARKER_SIZE_PX = 36;
+const MOVE_GIZMO_MARKER_SIZE_DRAGGING_PX = 40;
+const MOVE_GIZMO_MARKER_INNER_SCALE_IDLE = 0;
+const MOVE_GIZMO_MARKER_INNER_SCALE_DRAGGING = 0.68;
+const MOVE_GIZMO_MARKER_INNER_COLOR = "rgba(255, 255, 255, 0.96)";
 
 // Viewport padding constants for smooth label transitions
 const VIEWPORT_PADDING_HORIZONTAL = 100; // pixels
@@ -175,6 +181,13 @@ const formatElevationLabelText = (
   };
 };
 
+const formatAbsoluteElevationLabelText = (
+  labelBase: string,
+  pointHeight: number
+): PointLabelTextRepresentation => ({
+  layoutText: `${labelBase} ${formatMeters(pointHeight)}`,
+});
+
 const formatDistanceLabelText = (
   labelBase: string,
   pointDistanceToReference?: number,
@@ -232,6 +245,10 @@ const formatPointLabelText = (
     return formatElevationLabelText(labelBase, pointHeight, referenceElevation);
   }
 
+  if (pointLabelMetricMode === "absoluteElevation") {
+    return formatAbsoluteElevationLabelText(labelBase, pointHeight);
+  }
+
   return formatNoneLabelText(labelBase);
 };
 
@@ -241,8 +258,12 @@ export const useCesiumPointLabels = (
   showLabels: boolean,
   referenceElevation: number = 0,
   selectedPointId: string | null = null,
+  moveGizmoPointId: string | null = null,
+  moveGizmoIsDragging: boolean = false,
   onPointClick?: (pointId: string) => void,
   onPointDoubleClick?: (pointId: string) => void,
+  onPointLongPress?: (pointId: string) => void,
+  pointLongPressDurationMs: number = 300,
   layoutConfigOverrides?: CesiumLabelLayoutConfigOverrides,
   distanceToReferenceByPointId?: Readonly<Record<string, number>>
 ) => {
@@ -404,12 +425,20 @@ export const useCesiumPointLabels = (
         if (!anchor || hiddenResults[point.id]) return null;
         const labelTextRepresentation = pointLabelTextById[point.id];
         if (!labelTextRepresentation) return null;
+        const isDraggedMoveGizmoPoint =
+          moveGizmoIsDragging && point.id === moveGizmoPointId;
 
         return {
           id: point.id,
           anchor,
           text: labelTextRepresentation.layoutText,
           index,
+          ...(isDraggedMoveGizmoPoint
+            ? {
+                layoutPriority: Number.MAX_SAFE_INTEGER,
+                lockPreferredPlacement: true,
+              }
+            : {}),
         };
       })
       .filter((point): point is LayoutPointInput => Boolean(point));
@@ -427,6 +456,8 @@ export const useCesiumPointLabels = (
     projectedPositions,
     hiddenResults,
     pointLabelTextById,
+    moveGizmoPointId,
+    moveGizmoIsDragging,
     layoutConfig,
     cameraPitch,
   ]);
@@ -436,6 +467,8 @@ export const useCesiumPointLabels = (
       const labelTextRepresentation =
         pointLabelTextById[point.id] ??
         formatNoneLabelText(getPointLabelBase(point.name, index));
+      const isMoveGizmoPoint = point.id === moveGizmoPointId;
+      const disableInteractionsForMoveGizmoPoint = isMoveGizmoPoint;
 
       return {
         id: point.id,
@@ -457,20 +490,48 @@ export const useCesiumPointLabels = (
         text: labelTextRepresentation.layoutText,
         content: labelTextRepresentation.content,
         contentSignature: labelTextRepresentation.contentSignature,
+        markerSize: isMoveGizmoPoint
+          ? moveGizmoIsDragging
+            ? MOVE_GIZMO_MARKER_SIZE_DRAGGING_PX
+            : MOVE_GIZMO_MARKER_SIZE_PX
+          : undefined,
+        markerInnerScale: isMoveGizmoPoint
+          ? moveGizmoIsDragging
+            ? MOVE_GIZMO_MARKER_INNER_SCALE_DRAGGING
+            : MOVE_GIZMO_MARKER_INNER_SCALE_IDLE
+          : undefined,
+        markerInnerColor: isMoveGizmoPoint
+          ? MOVE_GIZMO_MARKER_INNER_COLOR
+          : undefined,
+        markerInnerOpacity: isMoveGizmoPoint ? 1 : undefined,
+        stemReferenceMarkerSize: isMoveGizmoPoint
+          ? NORMAL_MARKER_SIZE_PX
+          : undefined,
         selected: point.id === selectedPointId,
         visible: true,
         isOccluded: occlusionResults[point.id] || false,
         isHidden: hiddenResults[point.id] || false,
-        onClick: onPointClick ? () => onPointClick(point.id) : undefined,
-        onDoubleClick: onPointDoubleClick
-          ? () => onPointDoubleClick(point.id)
-          : undefined,
+        onClick:
+          !disableInteractionsForMoveGizmoPoint && onPointClick
+            ? () => onPointClick(point.id)
+            : undefined,
+        onDoubleClick:
+          !disableInteractionsForMoveGizmoPoint && onPointDoubleClick
+            ? () => onPointDoubleClick(point.id)
+            : undefined,
+        onLongPress:
+          !disableInteractionsForMoveGizmoPoint && onPointLongPress
+            ? () => onPointLongPress(point.id)
+            : undefined,
+        longPressDurationMs: pointLongPressDurationMs,
       };
     });
   }, [
     points,
     pointLabelTextById,
     selectedPointId,
+    moveGizmoPointId,
+    moveGizmoIsDragging,
     occlusionResults,
     hiddenResults,
     scene,
@@ -478,6 +539,8 @@ export const useCesiumPointLabels = (
     layoutResult,
     onPointClick,
     onPointDoubleClick,
+    onPointLongPress,
+    pointLongPressDurationMs,
   ]);
 
   usePointLabels(pointLabelData, showLabels, undefined, undefined, {

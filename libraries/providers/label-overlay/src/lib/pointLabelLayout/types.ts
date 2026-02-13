@@ -70,6 +70,8 @@ export type LayoutPointInput = {
   anchor: ScreenPoint;
   text: string;
   index: number;
+  layoutPriority?: number;
+  lockPreferredPlacement?: boolean;
 };
 
 export type PointLabelLayoutResult = {

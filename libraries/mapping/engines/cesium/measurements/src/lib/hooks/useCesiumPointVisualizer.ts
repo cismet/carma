@@ -32,6 +32,7 @@ import {
   useCesiumPointLabels,
   type CesiumLabelLayoutConfigOverrides,
 } from "./useCesiumPointLabels";
+import { useCesiumPointMoveGizmo } from "./useCesiumPointMoveGizmo";
 import { formatNumber } from "../utils/formatting";
 
 export type CesiumPointVisualizerOptions = {
@@ -48,8 +49,18 @@ export type CesiumPointVisualizerOptions = {
   debug?: boolean;
   onPointClick?: (pointId: string) => void;
   onPointDoubleClick?: (pointId: string) => void;
+  onPointLongPress?: (pointId: string) => void;
+  pointLongPressDurationMs?: number;
   labelLayoutConfig?: CesiumLabelLayoutConfigOverrides;
   distanceToReferenceByPointId?: Readonly<Record<string, number>>;
+  moveGizmoPointId?: string | null;
+  moveGizmoIsDragging?: boolean;
+  onMoveGizmoPointPositionChange?: (
+    pointId: string,
+    nextPosition: Cartesian3
+  ) => void;
+  onMoveGizmoDragStateChange?: (isDragging: boolean) => void;
+  onMoveGizmoExit?: () => void;
 };
 
 const REFERENCE_LINE_EPSILON_METERS = 0.001;
@@ -71,8 +82,15 @@ export const useCesiumPointVisualizer = (
     debug = false,
     onPointClick,
     onPointDoubleClick,
+    onPointLongPress,
+    pointLongPressDurationMs = 300,
     labelLayoutConfig,
     distanceToReferenceByPointId,
+    moveGizmoPointId = null,
+    moveGizmoIsDragging = false,
+    onMoveGizmoPointPositionChange,
+    onMoveGizmoDragStateChange,
+    onMoveGizmoExit,
   }: CesiumPointVisualizerOptions
 ) => {
   const cross3DRefs = useRef<Record<string, Cross3DGroup>>({});
@@ -116,11 +134,24 @@ export const useCesiumPointVisualizer = (
     showLabels,
     referenceElevation,
     selectedPointId,
+    moveGizmoPointId,
+    moveGizmoIsDragging,
     onPointClick,
     onPointDoubleClick,
+    onPointLongPress,
+    pointLongPressDurationMs,
     labelLayoutConfig,
     distanceToReferenceByPointId
   );
+
+  useCesiumPointMoveGizmo(scene, {
+    points,
+    movePointId: moveGizmoPointId,
+    radius,
+    onPointPositionChange: onMoveGizmoPointPositionChange,
+    onDragStateChange: onMoveGizmoDragStateChange,
+    onExit: onMoveGizmoExit,
+  });
   useLineVisualizers(
     shouldShowSelectedReferenceLine && scene && referencePoint && selectedPoint
       ? [
@@ -199,6 +230,7 @@ export const useCesiumPointVisualizer = (
         origin: selectedPoint.geometryECEF,
         upVector,
         radius,
+        screenPixelRadius: 50,
         color: Color.WHITE.withAlpha(0.65),
         width: 1,
         segmentCount: 48,

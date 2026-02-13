@@ -8,7 +8,7 @@ import React, {
   SetStateAction,
   useEffect,
 } from "react";
-import { type Cartesian3 } from "@carma/cesium";
+import { Cartesian3, getDegreesFromCartesian } from "@carma/cesium";
 import { useLabelOverlay } from "@carma-providers/label-overlay";
 
 import { normalizeOptions } from "@carma-commons/utils";
@@ -48,6 +48,20 @@ export interface CesiumMeasurementsContextType {
   selectedMeasurementId: string | null;
   selectMeasurementById: (id: string | null) => void;
   updateMeasurementNameById: (id: string, name: string) => void;
+  moveGizmoPointId: string | null;
+  isMoveGizmoDragging: boolean;
+  startMoveGizmoForMeasurementId: (id: string) => void;
+  stopMoveGizmo: () => void;
+  setPointMeasurementElevationById: (
+    id: string,
+    elevationMeters: number
+  ) => void;
+  setPointMeasurementCoordinatesById: (
+    id: string,
+    latitude: number,
+    longitude: number,
+    elevationMeters?: number
+  ) => void;
   // utility functions
   clearAllMeasurements: () => void;
   clearMeasurementsByIds: (ids: string[]) => void;
@@ -108,6 +122,8 @@ const defaultPointQueryOptions: MeasurementProviderOptions["pointQueries"] = {
 const defaultTraverseOptions: MeasurementProviderOptions["traverse"] = {
   heightOffset: 1.5,
 };
+const POINT_LABEL_LONG_PRESS_DURATION_MS = 300;
+const REFERENCE_POINT_SYNC_EPSILON_METERS = 0.001;
 
 interface CesiumMeasurementsProviderProps {
   children: React.ReactNode;
@@ -172,6 +188,9 @@ export const CesiumMeasurementsProvider: React.FC<
   const [selectedMeasurementId, setSelectedMeasurementId] = useState<
     string | null
   >(null);
+  const [moveGizmoPointId, setMoveGizmoPointId] = useState<string | null>(null);
+  const [isMoveGizmoDragging, setIsMoveGizmoDragging] =
+    useState<boolean>(false);
 
   const isSceneReady = Boolean(scene && !scene.isDestroyed());
 
@@ -216,7 +235,10 @@ export const CesiumMeasurementsProvider: React.FC<
   // point query hooks
   useCesiumPointQuery(
     scene,
-    measurementMode === MeasurementMode.PointQuery && pointQueryEnabled,
+    measurementMode === MeasurementMode.PointQuery &&
+      pointQueryEnabled &&
+      !moveGizmoPointId &&
+      !isMoveGizmoDragging,
     setMeasurements,
     temporaryMode
   );
@@ -287,22 +309,6 @@ export const CesiumMeasurementsProvider: React.FC<
     [setMeasurements]
   );
 
-  const handlePointLabelClick = useCallback(
-    (id: string) => {
-      runPointLabelClickInteraction({
-        pointId: id,
-        selectedMeasurementId,
-        selectMeasurementById,
-        cyclePointLabelMetricModeByMeasurementId,
-      });
-    },
-    [
-      selectedMeasurementId,
-      selectMeasurementById,
-      cyclePointLabelMetricModeByMeasurementId,
-    ]
-  );
-
   const handlePointLabelDoubleClick = useCallback(
     (id: string) => {
       runPointLabelDoubleClickInteraction({
@@ -314,6 +320,186 @@ export const CesiumMeasurementsProvider: React.FC<
     [measurements, setReferencePoint]
   );
 
+  const updatePointMeasurementPositionById = useCallback(
+    (id: string, nextPosition: Cartesian3) => {
+      const measurementToUpdate = measurements.find(
+        (measurement) =>
+          isPointMeasurementEntry(measurement) && measurement.id === id
+      );
+      const shouldSyncReferencePoint = Boolean(
+        referencePoint &&
+          measurementToUpdate &&
+          isPointMeasurementEntry(measurementToUpdate) &&
+          Cartesian3.distance(
+            measurementToUpdate.geometryECEF,
+            referencePoint
+          ) <= REFERENCE_POINT_SYNC_EPSILON_METERS
+      );
+      const geometryWGS84 = getDegreesFromCartesian(nextPosition);
+
+      setMeasurements((prev) => {
+        let hasChanged = false;
+
+        const next = prev.map((measurement) => {
+          if (!isPointMeasurementEntry(measurement) || measurement.id !== id) {
+            return measurement;
+          }
+
+          hasChanged = true;
+          return {
+            ...measurement,
+            geometryECEF: nextPosition,
+            geometryWGS84: {
+              longitude: geometryWGS84.longitude,
+              latitude: geometryWGS84.latitude,
+              height: geometryWGS84.altitude ?? 0,
+            },
+          };
+        });
+
+        return hasChanged ? next : prev;
+      });
+
+      if (shouldSyncReferencePoint) {
+        setReferencePoint(nextPosition);
+      }
+    },
+    [measurements, referencePoint, setMeasurements, setReferencePoint]
+  );
+
+  const startMoveGizmoForMeasurementId = useCallback(
+    (id: string) => {
+      const measurement = measurements.find(
+        (entry) => isPointMeasurementEntry(entry) && entry.id === id
+      );
+      if (!measurement || !isPointMeasurementEntry(measurement)) return;
+
+      setSelectedMeasurementId((prev) => (prev === id ? prev : id));
+      setMoveGizmoPointId(id);
+      setIsMoveGizmoDragging(false);
+    },
+    [measurements]
+  );
+
+  const stopMoveGizmo = useCallback(() => {
+    setMoveGizmoPointId(null);
+    setIsMoveGizmoDragging(false);
+  }, []);
+
+  const setPointMeasurementElevationById = useCallback(
+    (id: string, elevationMeters: number) => {
+      if (!Number.isFinite(elevationMeters)) return;
+
+      const measurement = measurements.find(
+        (entry) => isPointMeasurementEntry(entry) && entry.id === id
+      );
+      if (!measurement || !isPointMeasurementEntry(measurement)) return;
+
+      const nextPosition = Cartesian3.fromDegrees(
+        measurement.geometryWGS84.longitude,
+        measurement.geometryWGS84.latitude,
+        elevationMeters
+      );
+      updatePointMeasurementPositionById(id, nextPosition);
+    },
+    [measurements, updatePointMeasurementPositionById]
+  );
+
+  const setPointMeasurementCoordinatesById = useCallback(
+    (
+      id: string,
+      latitude: number,
+      longitude: number,
+      elevationMeters?: number
+    ) => {
+      if (!Number.isFinite(latitude) || !Number.isFinite(longitude)) return;
+
+      const measurement = measurements.find(
+        (entry) => isPointMeasurementEntry(entry) && entry.id === id
+      );
+      if (!measurement || !isPointMeasurementEntry(measurement)) return;
+
+      const nextElevation =
+        elevationMeters ?? measurement.geometryWGS84.height ?? 0;
+      const nextPosition = Cartesian3.fromDegrees(
+        longitude,
+        latitude,
+        nextElevation
+      );
+      updatePointMeasurementPositionById(id, nextPosition);
+    },
+    [measurements, updatePointMeasurementPositionById]
+  );
+
+  const setMoveGizmoPointElevationFromMeasurementById = useCallback(
+    (sourcePointId: string) => {
+      if (!moveGizmoPointId || sourcePointId === moveGizmoPointId) return;
+
+      const sourceMeasurement = measurements.find(
+        (measurement) =>
+          isPointMeasurementEntry(measurement) &&
+          measurement.id === sourcePointId
+      );
+      const moveMeasurement = measurements.find(
+        (measurement) =>
+          isPointMeasurementEntry(measurement) &&
+          measurement.id === moveGizmoPointId
+      );
+
+      if (
+        !sourceMeasurement ||
+        !moveMeasurement ||
+        !isPointMeasurementEntry(sourceMeasurement) ||
+        !isPointMeasurementEntry(moveMeasurement)
+      ) {
+        return;
+      }
+
+      const nextPosition = Cartesian3.fromDegrees(
+        moveMeasurement.geometryWGS84.longitude,
+        moveMeasurement.geometryWGS84.latitude,
+        sourceMeasurement.geometryWGS84.height
+      );
+      updatePointMeasurementPositionById(moveGizmoPointId, nextPosition);
+    },
+    [moveGizmoPointId, measurements, updatePointMeasurementPositionById]
+  );
+
+  const handlePointLabelLongPress = useCallback(
+    (id: string) => {
+      selectMeasurementById(id);
+      setMoveGizmoPointId(id);
+    },
+    [selectMeasurementById]
+  );
+
+  const handleMoveGizmoExit = useCallback(() => {
+    stopMoveGizmo();
+  }, [stopMoveGizmo]);
+
+  const handlePointLabelClick = useCallback(
+    (id: string) => {
+      if (moveGizmoPointId) {
+        setMoveGizmoPointElevationFromMeasurementById(id);
+        return;
+      }
+
+      runPointLabelClickInteraction({
+        pointId: id,
+        selectedMeasurementId,
+        selectMeasurementById,
+        cyclePointLabelMetricModeByMeasurementId,
+      });
+    },
+    [
+      moveGizmoPointId,
+      setMoveGizmoPointElevationFromMeasurementById,
+      selectedMeasurementId,
+      selectMeasurementById,
+      cyclePointLabelMetricModeByMeasurementId,
+    ]
+  );
+
   useCesiumPointVisualizer(scene, measurements, {
     showMarkers: showPoints,
     showCesiumMarkers: false,
@@ -323,16 +509,26 @@ export const CesiumMeasurementsProvider: React.FC<
     referencePoint,
     selectedPointId: selectedMeasurementId,
     showSelectedReferenceLine,
+    showSelectedDisc: Boolean(moveGizmoPointId),
     debug: false,
     onPointClick: handlePointLabelClick,
     onPointDoubleClick: handlePointLabelDoubleClick,
+    onPointLongPress: handlePointLabelLongPress,
+    pointLongPressDurationMs: POINT_LABEL_LONG_PRESS_DURATION_MS,
     labelLayoutConfig: options?.labels,
     distanceToReferenceByPointId,
+    moveGizmoPointId,
+    moveGizmoIsDragging: isMoveGizmoDragging,
+    onMoveGizmoPointPositionChange: updatePointMeasurementPositionById,
+    onMoveGizmoDragStateChange: setIsMoveGizmoDragging,
+    onMoveGizmoExit: handleMoveGizmoExit,
   });
 
   const clearAllMeasurements = useCallback(() => {
     setMeasurements([]);
     setSelectedMeasurementId(null);
+    setMoveGizmoPointId(null);
+    setIsMoveGizmoDragging(false);
     // resetVisibility
     if (hideMeasurementsOfType.size > 0) {
       setHideMeasurementsOfType(new Set());
@@ -343,6 +539,8 @@ export const CesiumMeasurementsProvider: React.FC<
     (type: MeasurementMode) => {
       setMeasurements((prev) => prev.filter((m) => m.type !== type));
       setSelectedMeasurementId(null);
+      setMoveGizmoPointId(null);
+      setIsMoveGizmoDragging(false);
       // resetVisibility
       setHideMeasurementsOfType(deleteFromHideMeasurementsOfType(type));
     },
@@ -355,6 +553,8 @@ export const CesiumMeasurementsProvider: React.FC<
       setSelectedMeasurementId((prev) =>
         prev && ids.includes(prev) ? null : prev
       );
+      setMoveGizmoPointId((prev) => (prev && ids.includes(prev) ? null : prev));
+      setIsMoveGizmoDragging(false);
     },
     [setMeasurements]
   );
@@ -376,6 +576,8 @@ export const CesiumMeasurementsProvider: React.FC<
     } else {
       setMeasurementMode(MeasurementMode.NONE);
       setSelectedMeasurementId(null);
+      setMoveGizmoPointId(null);
+      setIsMoveGizmoDragging(false);
     }
   }, [mapMeasurements.mode, setMeasurementMode]);
 
@@ -388,6 +590,17 @@ export const CesiumMeasurementsProvider: React.FC<
       setSelectedMeasurementId(null);
     }
   }, [measurements, selectedMeasurementId]);
+
+  useEffect(() => {
+    if (!moveGizmoPointId) return;
+    const hasMoveGizmoPoint = measurements.some(
+      (measurement) => measurement.id === moveGizmoPointId
+    );
+    if (!hasMoveGizmoPoint) {
+      setMoveGizmoPointId(null);
+      setIsMoveGizmoDragging(false);
+    }
+  }, [measurements, moveGizmoPointId]);
 
   useEffect(() => {
     if (referencePoint !== null) return;
@@ -410,6 +623,12 @@ export const CesiumMeasurementsProvider: React.FC<
       selectedMeasurementId,
       selectMeasurementById,
       updateMeasurementNameById,
+      moveGizmoPointId,
+      isMoveGizmoDragging,
+      startMoveGizmoForMeasurementId,
+      stopMoveGizmo,
+      setPointMeasurementElevationById,
+      setPointMeasurementCoordinatesById,
       clearAllMeasurements,
       clearMeasurementsByIds,
       clearMeasurementsByType,
@@ -439,6 +658,12 @@ export const CesiumMeasurementsProvider: React.FC<
       selectedMeasurementId,
       selectMeasurementById,
       updateMeasurementNameById,
+      moveGizmoPointId,
+      isMoveGizmoDragging,
+      startMoveGizmoForMeasurementId,
+      stopMoveGizmo,
+      setPointMeasurementElevationById,
+      setPointMeasurementCoordinatesById,
       clearAllMeasurements,
       clearMeasurementsByIds,
       clearMeasurementsByType,

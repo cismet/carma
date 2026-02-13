@@ -1,5 +1,8 @@
 import { Cartesian2, Cartesian3, defined, type Scene } from "@carma/cesium";
 
+const isFiniteCartesian2 = (position: Cartesian2): boolean =>
+  Number.isFinite(position.x) && Number.isFinite(position.y);
+
 /**
  * Checks if a 3D point is occluded by terrain or other geometry
  * @param scene - The Cesium scene instance
@@ -18,19 +21,40 @@ export function isPointOccluded(
     return false;
   }
 
-  // Check for valid drawing buffer dimensions to prevent errors during hot reload/resize
-  // when the canvas might have 0 width/height, causing "normalized result is not a number"
-  // in scene.pick -> computeCullingVolume.
-  if (scene.drawingBufferWidth <= 0 || scene.drawingBufferHeight <= 0) {
+  if (!isFiniteCartesian2(canvasPosition)) {
     return false;
   }
 
-  // Use Cesium's scene.pick to test visibility against depth buffer
-  const pickedObject = scene.pick(canvasPosition);
+  // Check for valid drawing buffer dimensions to prevent errors during hot reload/resize
+  // when the canvas might have 0 width/height, causing "normalized result is not a number"
+  // in scene.pick -> computeCullingVolume.
+  if (
+    scene.drawingBufferWidth <= 0 ||
+    scene.drawingBufferHeight <= 0 ||
+    scene.canvas.clientWidth <= 0 ||
+    scene.canvas.clientHeight <= 0
+  ) {
+    return false;
+  }
+
+  let pickedObject;
+  try {
+    // Use Cesium's scene.pick to test visibility against depth buffer
+    pickedObject = scene.pick(canvasPosition);
+  } catch {
+    // During HMR / resize Cesium can have a transient invalid frustum state.
+    // Treat as "not occluded" and continue rendering labels.
+    return false;
+  }
 
   if (defined(pickedObject)) {
-    // Get the depth of the picked object
-    const pickedCartesian = scene.pickPosition(canvasPosition);
+    let pickedCartesian;
+    try {
+      // Get the depth of the picked object
+      pickedCartesian = scene.pickPosition(canvasPosition);
+    } catch {
+      return false;
+    }
 
     if (defined(pickedCartesian)) {
       // Calculate distances from camera
@@ -65,6 +89,14 @@ export function isPointInViewport(
   paddingHorizontal: number = 0,
   paddingVertical?: number
 ): boolean {
+  if (
+    !isFiniteCartesian2(canvasPosition) ||
+    !Number.isFinite(canvasWidth) ||
+    !Number.isFinite(canvasHeight)
+  ) {
+    return false;
+  }
+
   const verticalPadding = paddingVertical ?? paddingHorizontal;
   return (
     canvasPosition.x >= -paddingHorizontal &&

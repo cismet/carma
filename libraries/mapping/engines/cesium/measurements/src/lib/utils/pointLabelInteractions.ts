@@ -9,6 +9,7 @@ import {
 
 const POINT_LABEL_METRIC_CLICK_ORDER: PointLabelMetricMode[] = [
   "elevation",
+  "absoluteElevation",
   "none",
   "distance",
 ];
