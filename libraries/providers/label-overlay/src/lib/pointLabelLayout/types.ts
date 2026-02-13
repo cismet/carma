@@ -67,7 +67,6 @@ export type PointLabelLayoutConfigOverrides = Partial<
 
 export type LayoutPointInput = {
   id: string;
-  selected: boolean;
   anchor: ScreenPoint;
   text: string;
   index: number;

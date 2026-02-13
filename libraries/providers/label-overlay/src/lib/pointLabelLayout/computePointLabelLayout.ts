@@ -108,8 +108,7 @@ const sortByScoreThenOrder = (
 
 const pickEvaluation = (
   regularEvaluations: CandidateEvaluation[],
-  forcedEvaluations: CandidateEvaluation[],
-  isSelected: boolean
+  forcedEvaluations: CandidateEvaluation[]
 ): CandidateEvaluation | undefined => {
   const regularStrict = regularEvaluations.find(
     (evaluation) => evaluation.collisionFree
@@ -130,17 +129,12 @@ const pickEvaluation = (
     .filter((evaluation) => !evaluation.intersectsLabel)
     .sort(sortByScoreThenOrder)[0];
 
-  const bestAny = [...regularEvaluations, ...forcedEvaluations].sort(
-    sortByScoreThenOrder
-  )[0];
-
   return (
     regularStrict ??
     regularNoLabelOverlap ??
     forceStrict ??
     forceNoLabelOverlap ??
-    bestNonOverlapping ??
-    (isSelected ? bestAny : undefined)
+    bestNonOverlapping
   );
 };
 
@@ -159,10 +153,9 @@ export const computePointLabelLayout = ({
     createPlacement(attach, config.stemDistance, perspectiveStemAngle)
   );
 
-  const sortedPoints = [...points].sort((left, right) => {
-    if (left.selected !== right.selected) return left.selected ? -1 : 1;
-    return left.index - right.index;
-  });
+  const sortedPoints = [...points].sort(
+    (left, right) => left.index - right.index
+  );
 
   // Static mode: keep labels on preferred slot, skip dynamic collision resolution.
   if (!config.dynamicLabelPlacement) {
@@ -227,8 +220,7 @@ export const computePointLabelLayout = ({
 
       const selectedEvaluation = pickEvaluation(
         regularEvaluations,
-        forcedEvaluations,
-        point.selected
+        forcedEvaluations
       );
 
       if (!selectedEvaluation) {

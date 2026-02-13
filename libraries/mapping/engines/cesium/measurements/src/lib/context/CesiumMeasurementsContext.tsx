@@ -32,9 +32,13 @@ import {
   isPointMeasurementEntry,
   type MeasurementCollection,
   MeasurementMode,
-  type PointLabelMetricMode,
 } from "../types/MeasurementTypes";
 import { getEuclideanDistance } from "../utils/geo";
+import {
+  getNextPointLabelMetricMode,
+  runPointLabelClickInteraction,
+  runPointLabelDoubleClickInteraction,
+} from "../utils/pointLabelInteractions";
 
 export interface CesiumMeasurementsContextType {
   measurementMode: MeasurementMode;
@@ -103,20 +107,6 @@ const defaultPointQueryOptions: MeasurementProviderOptions["pointQueries"] = {
 
 const defaultTraverseOptions: MeasurementProviderOptions["traverse"] = {
   heightOffset: 1.5,
-};
-
-const POINT_LABEL_METRIC_CLICK_ORDER: PointLabelMetricMode[] = [
-  "elevation",
-  "none",
-  "distance",
-];
-
-const getNextPointLabelMetricMode = (
-  currentMode: PointLabelMetricMode = DEFAULT_POINT_LABEL_METRIC_MODE
-): PointLabelMetricMode => {
-  const currentIndex = POINT_LABEL_METRIC_CLICK_ORDER.indexOf(currentMode);
-  const nextIndex = (currentIndex + 1) % POINT_LABEL_METRIC_CLICK_ORDER.length;
-  return POINT_LABEL_METRIC_CLICK_ORDER[nextIndex];
 };
 
 interface CesiumMeasurementsProviderProps {
@@ -297,64 +287,31 @@ export const CesiumMeasurementsProvider: React.FC<
     [setMeasurements]
   );
 
-  const resetPointLabelMetricModeByMeasurementId = useCallback(
-    (id: string) => {
-      setMeasurements((prev) => {
-        let hasChanged = false;
-
-        const next = prev.map((measurement) => {
-          if (!isPointMeasurementEntry(measurement) || measurement.id !== id) {
-            return measurement;
-          }
-
-          if (measurement.pointLabelMode === undefined) {
-            return measurement;
-          }
-
-          hasChanged = true;
-          return { ...measurement, pointLabelMode: undefined };
-        });
-
-        return hasChanged ? next : prev;
-      });
-    },
-    [setMeasurements]
-  );
-
   const handlePointLabelClick = useCallback(
     (id: string) => {
-      if (selectedMeasurementId === id) {
-        cyclePointLabelMetricModeByMeasurementId(id);
-        return;
-      }
-
-      // First click should keep the full label text for newly selected points.
-      resetPointLabelMetricModeByMeasurementId(id);
-
-      selectMeasurementById(id);
+      runPointLabelClickInteraction({
+        pointId: id,
+        selectedMeasurementId,
+        selectMeasurementById,
+        cyclePointLabelMetricModeByMeasurementId,
+      });
     },
     [
       selectedMeasurementId,
-      cyclePointLabelMetricModeByMeasurementId,
-      resetPointLabelMetricModeByMeasurementId,
       selectMeasurementById,
+      cyclePointLabelMetricModeByMeasurementId,
     ]
   );
 
   const handlePointLabelDoubleClick = useCallback(
     (id: string) => {
-      const pointMeasurement = measurements.find(
-        (measurement) =>
-          isPointMeasurementEntry(measurement) && measurement.id === id
-      );
-      if (!pointMeasurement || !isPointMeasurementEntry(pointMeasurement)) {
-        return;
-      }
-
-      setReferencePoint(pointMeasurement.geometryECEF);
-      selectMeasurementById(id);
+      runPointLabelDoubleClickInteraction({
+        pointId: id,
+        measurements,
+        setReferencePoint,
+      });
     },
-    [measurements, setReferencePoint, selectMeasurementById]
+    [measurements, setReferencePoint]
   );
 
   useCesiumPointVisualizer(scene, measurements, {

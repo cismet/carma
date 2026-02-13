@@ -407,7 +407,6 @@ export const useCesiumPointLabels = (
 
         return {
           id: point.id,
-          selected: point.id === selectedPointId,
           anchor,
           text: labelTextRepresentation.layoutText,
           index,
@@ -428,7 +427,6 @@ export const useCesiumPointLabels = (
     projectedPositions,
     hiddenResults,
     pointLabelTextById,
-    selectedPointId,
     layoutConfig,
     cameraPitch,
   ]);
