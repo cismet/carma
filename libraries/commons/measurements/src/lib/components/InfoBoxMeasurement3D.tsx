@@ -32,6 +32,8 @@ export function InfoBoxMeasurement3D({ pixelWidth = 350 }) {
     selectedMeasurementId,
     selectMeasurementById,
     updateMeasurementNameById,
+    showSelectedReferenceLine,
+    setShowSelectedReferenceLine,
   } = useCesiumMeasurements();
   const { getScene } = useCesiumContext();
   const { collapsedInfoBox } = useContext<typeof UIContext>(UIContext);
@@ -107,6 +109,15 @@ export function InfoBoxMeasurement3D({ pixelWidth = 350 }) {
     if (currentMeasurement && isPointMeasurementEntry(currentMeasurement)) {
       setReferencePoint(currentMeasurement.geometryECEF);
     }
+  };
+
+  const toggleSelectedReferenceLineHandler = (e) => {
+    e.stopPropagation();
+    if (!currentMeasurement || !isPointMeasurementEntry(currentMeasurement)) {
+      return;
+    }
+    selectMeasurementById(currentMeasurement.id);
+    setShowSelectedReferenceLine((prev) => !prev);
   };
 
   const flyToMeasurement = () => {
@@ -314,7 +325,21 @@ export function InfoBoxMeasurement3D({ pixelWidth = 350 }) {
                           <div className="text-right tabular-nums">
                             {formatNumber(relativeValues?.distance ?? 0)} m
                           </div>
-                          <div></div>
+                          <div className="flex items-center pl-1">
+                            <button
+                              type="button"
+                              onClick={toggleSelectedReferenceLineHandler}
+                              aria-pressed={showSelectedReferenceLine}
+                              className={`px-2 py-[1px] text-[10px] leading-[14px] border rounded ${
+                                showSelectedReferenceLine
+                                  ? "bg-[#0078a8] text-white border-[#0078a8]"
+                                  : "bg-white text-[#0078a8] border-[#0078a8]"
+                              }`}
+                              data-test-id="toggle-selected-reference-line-btn"
+                            >
+                              Distanz Anzeigen
+                            </button>
+                          </div>
                         </>
                       )}
                       {isReference && !isSingleMeasurement && (

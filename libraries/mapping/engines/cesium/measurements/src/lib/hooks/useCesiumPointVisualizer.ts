@@ -5,13 +5,18 @@ import {
   Cartesian4,
   Color,
   Matrix4,
+  SceneTransforms,
   Transforms,
+  defined,
   type Scene,
 } from "@carma/cesium";
 import {
   createDiscVisualizer,
+  createLineVisualizer,
   type DiscVisualizer,
+  type LineVisualizer,
 } from "@carma-mapping/engines/cesium/legacy";
+import { useLineVisualizers } from "@carma-providers/label-overlay";
 
 import {
   create3DCrossGroup,
@@ -27,6 +32,7 @@ import {
   useCesiumPointLabels,
   type CesiumLabelLayoutConfigOverrides,
 } from "./useCesiumPointLabels";
+import { formatNumber } from "../utils/formatting";
 
 export type CesiumPointVisualizerOptions = {
   showMarkers?: boolean;
@@ -34,12 +40,19 @@ export type CesiumPointVisualizerOptions = {
   showLabels?: boolean;
   radius: number;
   referenceElevation?: number;
+  referencePoint?: Cartesian3 | null;
   selectedPointId?: string | null;
+  showSelectedReferenceLine?: boolean;
+  selectedReferenceLineLabelMinDistancePx?: number;
+  showSelectedDisc?: boolean;
   debug?: boolean;
   onPointClick?: (pointId: string) => void;
+  onPointDoubleClick?: (pointId: string) => void;
   labelLayoutConfig?: CesiumLabelLayoutConfigOverrides;
   distanceToReferenceByPointId?: Readonly<Record<string, number>>;
 };
+
+const REFERENCE_LINE_EPSILON_METERS = 0.001;
 
 export const useCesiumPointVisualizer = (
   scene: Scene | null,
@@ -50,15 +63,21 @@ export const useCesiumPointVisualizer = (
     showLabels = false,
     radius,
     referenceElevation = 0,
+    referencePoint = null,
     selectedPointId = null,
+    showSelectedReferenceLine = false,
+    selectedReferenceLineLabelMinDistancePx = 50,
+    showSelectedDisc = false,
     debug = false,
     onPointClick,
+    onPointDoubleClick,
     labelLayoutConfig,
     distanceToReferenceByPointId,
   }: CesiumPointVisualizerOptions
 ) => {
   const cross3DRefs = useRef<Record<string, Cross3DGroup>>({});
   const selectedDiscRef = useRef<DiscVisualizer | null>(null);
+  const selectedReferenceLineRef = useRef<LineVisualizer | null>(null);
 
   const [points, currentIds]: [PointMeasurementEntry[], Set<string>] =
     useMemo(() => {
@@ -67,6 +86,28 @@ export const useCesiumPointVisualizer = (
       const currentIds = new Set(points.map((m) => m.id));
       return [points, currentIds];
     }, [measurements]);
+  const selectedPoint = useMemo(
+    () =>
+      selectedPointId
+        ? points.find((point) => point.id === selectedPointId) ?? null
+        : null,
+    [points, selectedPointId]
+  );
+  const shouldShowSelectedReferenceLine = Boolean(
+    showSelectedReferenceLine &&
+      referencePoint &&
+      selectedPoint &&
+      Cartesian3.distance(referencePoint, selectedPoint.geometryECEF) >
+        REFERENCE_LINE_EPSILON_METERS
+  );
+  const selectedReferenceLineDistanceText = useMemo(() => {
+    if (!referencePoint || !selectedPoint) return "";
+    const distanceMeters = Cartesian3.distance(
+      referencePoint,
+      selectedPoint.geometryECEF
+    );
+    return `${formatNumber(distanceMeters)} m`;
+  }, [referencePoint, selectedPoint]);
 
   // Use overlay labels instead of Cesium entity labels
   useCesiumPointLabels(
@@ -76,8 +117,47 @@ export const useCesiumPointVisualizer = (
     referenceElevation,
     selectedPointId,
     onPointClick,
+    onPointDoubleClick,
     labelLayoutConfig,
     distanceToReferenceByPointId
+  );
+  useLineVisualizers(
+    shouldShowSelectedReferenceLine && scene && referencePoint && selectedPoint
+      ? [
+          {
+            id: `selected-reference-${selectedPoint.id}`,
+            getCanvasLine: () => {
+              if (!scene || scene.isDestroyed()) return null;
+
+              const start = SceneTransforms.worldToWindowCoordinates(
+                scene,
+                referencePoint
+              );
+              const end = SceneTransforms.worldToWindowCoordinates(
+                scene,
+                selectedPoint.geometryECEF
+              );
+
+              if (!defined(start) || !defined(end)) return null;
+              return {
+                start: { x: start.x, y: start.y },
+                end: { x: end.x, y: end.y },
+              };
+            },
+            stroke: "rgba(255, 255, 255, 0.9)",
+            strokeWidth: 1.5,
+            strokeDasharray: "6 4",
+            labelText: selectedReferenceLineDistanceText,
+            labelColor: "#000000",
+            labelStroke: "rgba(255, 255, 255, 0.95)",
+            labelFontSize: 12,
+            labelFontFamily: "Arial, sans-serif",
+            labelFontWeight: "400",
+            labelMinLineLengthPx: selectedReferenceLineLabelMinDistancePx,
+          },
+        ]
+      : [],
+    shouldShowSelectedReferenceLine
   );
 
   useEffect(() => {
@@ -86,6 +166,11 @@ export const useCesiumPointVisualizer = (
     if (selectedDiscRef.current) {
       selectedDiscRef.current.destroy();
       selectedDiscRef.current = null;
+    }
+
+    if (!showSelectedDisc) {
+      scene.requestRender();
+      return;
     }
 
     if (!selectedPointId) {
@@ -130,7 +215,44 @@ export const useCesiumPointVisualizer = (
       if (!scene || scene.isDestroyed()) return;
       scene.requestRender();
     };
-  }, [scene, points, selectedPointId, radius]);
+  }, [scene, points, selectedPointId, radius, showSelectedDisc]);
+
+  useEffect(() => {
+    if (!scene) return;
+
+    if (selectedReferenceLineRef.current) {
+      selectedReferenceLineRef.current.destroy();
+      selectedReferenceLineRef.current = null;
+    }
+
+    if (!shouldShowSelectedReferenceLine || !referencePoint || !selectedPoint) {
+      scene.requestRender();
+      return;
+    }
+
+    selectedReferenceLineRef.current = createLineVisualizer(
+      `selected-reference-line-${selectedPoint.id}`,
+      {
+        start: referencePoint,
+        end: selectedPoint.geometryECEF,
+        color: Color.WHITE,
+        width: 1,
+        dashed: false,
+      }
+    );
+
+    selectedReferenceLineRef.current.attach(scene, () => scene.requestRender());
+    scene.requestRender();
+
+    return () => {
+      if (selectedReferenceLineRef.current) {
+        selectedReferenceLineRef.current.destroy();
+        selectedReferenceLineRef.current = null;
+      }
+      if (!scene || scene.isDestroyed()) return;
+      scene.requestRender();
+    };
+  }, [scene, referencePoint, selectedPoint, shouldShowSelectedReferenceLine]);
 
   useEffect(() => {
     // render markers using primitives instead of entities

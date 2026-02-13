@@ -66,6 +66,8 @@ export interface CesiumMeasurementsContextType {
   referencePoint: Cartesian3 | null;
   setReferencePoint: Dispatch<SetStateAction<Cartesian3 | null>>;
   referenceElevation: number; // derived from referencePoint
+  showSelectedReferenceLine: boolean;
+  setShowSelectedReferenceLine: Dispatch<SetStateAction<boolean>>;
 }
 
 const CesiumMeasurementsContext = createContext<
@@ -197,6 +199,8 @@ export const CesiumMeasurementsProvider: React.FC<
   const [hideLabelsOfType, setHideLabelsOfType] = useState<
     Set<MeasurementMode>
   >(new Set());
+  const [showSelectedReferenceLine, setShowSelectedReferenceLine] =
+    useState<boolean>(false);
 
   const referenceElevation = useMemo(() => {
     if (!referencePoint || !scene) return 0;
@@ -337,15 +341,34 @@ export const CesiumMeasurementsProvider: React.FC<
     ]
   );
 
+  const handlePointLabelDoubleClick = useCallback(
+    (id: string) => {
+      const pointMeasurement = measurements.find(
+        (measurement) =>
+          isPointMeasurementEntry(measurement) && measurement.id === id
+      );
+      if (!pointMeasurement || !isPointMeasurementEntry(pointMeasurement)) {
+        return;
+      }
+
+      setReferencePoint(pointMeasurement.geometryECEF);
+      selectMeasurementById(id);
+    },
+    [measurements, setReferencePoint, selectMeasurementById]
+  );
+
   useCesiumPointVisualizer(scene, measurements, {
     showMarkers: showPoints,
     showCesiumMarkers: false,
     showLabels: showPointLabels,
     radius: pointRadius,
     referenceElevation,
+    referencePoint,
     selectedPointId: selectedMeasurementId,
+    showSelectedReferenceLine,
     debug: false,
     onPointClick: handlePointLabelClick,
+    onPointDoubleClick: handlePointLabelDoubleClick,
     labelLayoutConfig: options?.labels,
     distanceToReferenceByPointId,
   });
@@ -448,6 +471,8 @@ export const CesiumMeasurementsProvider: React.FC<
       referencePoint,
       setReferencePoint,
       referenceElevation,
+      showSelectedReferenceLine,
+      setShowSelectedReferenceLine,
     }),
     [
       measurementMode,
@@ -475,6 +500,8 @@ export const CesiumMeasurementsProvider: React.FC<
       referencePoint,
       setReferencePoint,
       referenceElevation,
+      showSelectedReferenceLine,
+      setShowSelectedReferenceLine,
     ]
   );
 

@@ -31,6 +31,7 @@ interface PointLabelProps extends PointLabelStyleProps {
   transitionDurationMs?: number;
   hideLabelAndStem?: boolean;
   onClick?: () => void;
+  onDoubleClick?: () => void;
   onHoverChange?: (hovered: boolean) => void;
 }
 
@@ -68,6 +69,7 @@ export const PointLabel = React.memo(
     markerStrokeWidth = 1,
     labelDistance = 20,
     onClick,
+    onDoubleClick,
     onHoverChange,
   }: PointLabelProps) => {
     const [isHovered, setIsHovered] = useState(false);
@@ -75,6 +77,7 @@ export const PointLabel = React.memo(
       useState(false);
     const previousAttachRef = useRef<PointLabelAttach>(labelAttach);
     const isHoveredRef = useRef(false);
+    const clickTimeoutRef = useRef<number | undefined>(undefined);
     const effectiveLabelAngleRad =
       labelAngleRad !== undefined ? labelAngleRad : -Math.abs(Math.cos(pitch));
     const xComponent = Math.cos(effectiveLabelAngleRad);
@@ -84,9 +87,9 @@ export const PointLabel = React.memo(
     const radius = markerSize / 2;
     const halfLineWidth = lineWidth / 2;
     const lineLength = Math.max(0, labelDistance - radius);
-    const isInteractive = Boolean(onClick || onHoverChange);
+    const isInteractive = Boolean(onClick || onDoubleClick || onHoverChange);
     const pointerEvents = isInteractive ? "auto" : "none";
-    const cursor = onClick ? "pointer" : "default";
+    const cursor = onClick || onDoubleClick ? "pointer" : "default";
     const effectiveLineColor = lineColor;
     const effectiveTextColor = textColor;
     const effectiveBackgroundColor = selected
@@ -108,7 +111,29 @@ export const PointLabel = React.memo(
     };
     const handleClick = (event: React.MouseEvent<HTMLDivElement>) => {
       event.stopPropagation();
-      onClick?.();
+      if (!onClick) return;
+      if (!onDoubleClick) {
+        onClick();
+        return;
+      }
+
+      if (event.detail > 1) return;
+
+      if (clickTimeoutRef.current !== undefined) {
+        window.clearTimeout(clickTimeoutRef.current);
+      }
+      clickTimeoutRef.current = window.setTimeout(() => {
+        onClick();
+        clickTimeoutRef.current = undefined;
+      }, 220);
+    };
+    const handleDoubleClick = (event: React.MouseEvent<HTMLDivElement>) => {
+      event.stopPropagation();
+      if (clickTimeoutRef.current !== undefined) {
+        window.clearTimeout(clickTimeoutRef.current);
+        clickTimeoutRef.current = undefined;
+      }
+      onDoubleClick?.();
     };
     const labelTransform =
       labelAttach === "topLeft"
@@ -166,6 +191,9 @@ export const PointLabel = React.memo(
 
     useEffect(
       () => () => {
+        if (clickTimeoutRef.current !== undefined) {
+          window.clearTimeout(clickTimeoutRef.current);
+        }
         if (isHoveredRef.current) {
           onHoverChange?.(false);
         }
@@ -198,6 +226,7 @@ export const PointLabel = React.memo(
             cursor,
           }}
           onClick={handleClick}
+          onDoubleClick={handleDoubleClick}
           onMouseEnter={handleMouseEnter}
           onMouseLeave={handleMouseLeave}
         />
@@ -253,6 +282,7 @@ export const PointLabel = React.memo(
                 transition: positionTransition,
               }}
               onClick={handleClick}
+              onDoubleClick={handleDoubleClick}
               onMouseEnter={handleMouseEnter}
               onMouseLeave={handleMouseLeave}
             >

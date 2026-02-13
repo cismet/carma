@@ -8,7 +8,16 @@ export {
   type PointLabelAttach,
   type PointLabelStyleProps,
 } from "./lib/components/PointLabel";
+export {
+  LineVisualizer,
+  type LineVisualizerProps,
+} from "./lib/components/LineVisualizer";
 export { usePointLabels, type PointLabelData } from "./lib/usePointLabels";
+export {
+  useLineVisualizers,
+  type LineVisualizerData,
+  type ScreenPoint,
+} from "./lib/useLineVisualizers";
 export * from "./lib/pointLabelLayout";
 
 // Formatters for label text

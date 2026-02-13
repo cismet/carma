@@ -3,10 +3,12 @@ import type { ReactNode } from "react";
 export interface LabelOverlayElement {
   id: string;
   getCanvasPosition?: () => { x: number; y: number } | null;
+  updatePosition?: (elementDiv: HTMLElement) => boolean;
   content: ReactNode;
   visible?: boolean;
   isHidden?: boolean;
   onClick?: () => void;
+  onDoubleClick?: () => void;
 }
 
 export interface LabelOverlayContextType {

@@ -132,6 +132,13 @@ export const LabelOverlayProvider: React.FC<LabelOverlayProviderProps> = ({
         return;
       }
 
+      if (element.updatePosition) {
+        const hasPosition = element.updatePosition(elementDiv);
+        elementDiv.style.display =
+          hasPosition && element.visible !== false ? "block" : "none";
+        return;
+      }
+
       const canvasPosition = element.getCanvasPosition
         ? element.getCanvasPosition()
         : null;
@@ -200,10 +207,15 @@ export const LabelOverlayProvider: React.FC<LabelOverlayProviderProps> = ({
             data-label-overlay-id={id}
             style={{
               position: "absolute",
-              pointerEvents: element.onClick ? "auto" : "none",
-              cursor: element.onClick ? "pointer" : "default",
+              pointerEvents:
+                element.onClick || element.onDoubleClick ? "auto" : "none",
+              cursor:
+                element.onClick || element.onDoubleClick
+                  ? "pointer"
+                  : "default",
             }}
             onClick={element.onClick}
+            onDoubleClick={element.onDoubleClick}
           >
             {element.content}
           </div>,

@@ -242,6 +242,7 @@ export const useCesiumPointLabels = (
   referenceElevation: number = 0,
   selectedPointId: string | null = null,
   onPointClick?: (pointId: string) => void,
+  onPointDoubleClick?: (pointId: string) => void,
   layoutConfigOverrides?: CesiumLabelLayoutConfigOverrides,
   distanceToReferenceByPointId?: Readonly<Record<string, number>>
 ) => {
@@ -463,6 +464,9 @@ export const useCesiumPointLabels = (
         isOccluded: occlusionResults[point.id] || false,
         isHidden: hiddenResults[point.id] || false,
         onClick: onPointClick ? () => onPointClick(point.id) : undefined,
+        onDoubleClick: onPointDoubleClick
+          ? () => onPointDoubleClick(point.id)
+          : undefined,
       };
     });
   }, [
@@ -475,6 +479,7 @@ export const useCesiumPointLabels = (
     cameraPitch,
     layoutResult,
     onPointClick,
+    onPointDoubleClick,
   ]);
 
   usePointLabels(pointLabelData, showLabels, undefined, undefined, {

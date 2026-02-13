@@ -106,6 +106,11 @@ export {
   type DiscVisualizerOptions,
 } from "./createDiscVisualizer";
 export {
+  createLineVisualizer,
+  type LineVisualizer,
+  type LineVisualizerOptions,
+} from "./createLineVisualizer";
+export {
   createRotationAxisVisualizer,
   type RotationAxisVisualizer,
   type RotationAxisVisualizerOptions,

@@ -23,6 +23,7 @@ export interface PointLabelData {
   isOccluded?: boolean;
   isHidden?: boolean;
   onClick?: () => void;
+  onDoubleClick?: () => void;
   onHoverChange?: (hovered: boolean) => void;
 }
 
@@ -37,11 +38,8 @@ export const usePointLabels = (
   styleProps?: PointLabelStyleProps,
   layoutOptions?: PointLabelLayoutOptions
 ) => {
-  const {
-    addLabelOverlayElement,
-    removeLabelOverlayElement,
-    clearLabelOverlayElements,
-  } = useLabelOverlay();
+  const { addLabelOverlayElement, removeLabelOverlayElement } =
+    useLabelOverlay();
 
   // Create a stable reference for selection, visibility, occlusion, and hidden state
   const stateSignature = useMemo(
@@ -55,7 +53,7 @@ export const usePointLabels = (
               p.labelAngleRad
             }:${p.labelDistance}:${p.labelAttach}:${
               p.hideLabelAndStem
-            }:${Boolean(p.onHoverChange)}`
+            }:${Boolean(p.onHoverChange)}:${Boolean(p.onDoubleClick)}`
         )
         .join("|") + `:transition:${layoutOptions?.transitionDurationMs ?? ""}`,
     [points, layoutOptions?.transitionDurationMs]
@@ -63,7 +61,9 @@ export const usePointLabels = (
 
   useEffect(() => {
     if (!showLabels) {
-      clearLabelOverlayElements();
+      points.forEach((point) => {
+        removeLabelOverlayElement(`point-label-${point.id}`);
+      });
       return;
     }
 
@@ -88,12 +88,14 @@ export const usePointLabels = (
           selected: point.selected,
           isOccluded: point.isOccluded,
           onClick: point.onClick,
+          onDoubleClick: point.onDoubleClick,
           onHoverChange: point.onHoverChange,
           ...styleProps,
         }),
         visible: point.visible !== false,
         isHidden: point.isHidden,
         onClick: point.onClick,
+        onDoubleClick: point.onDoubleClick,
       });
     });
 
@@ -108,7 +110,6 @@ export const usePointLabels = (
     stateSignature,
     addLabelOverlayElement,
     removeLabelOverlayElement,
-    clearLabelOverlayElements,
     getPitch,
     styleProps,
     layoutOptions?.transitionDurationMs,
