@@ -155,8 +155,7 @@ export const CesiumMeasurementsProvider: React.FC<
     scene,
     measurementMode === MeasurementMode.PointQuery,
     setMeasurements,
-    temporaryMode,
-    pointRadius
+    temporaryMode
   );
 
   const showPoints = !hideMeasurementsOfType.has(MeasurementMode.PointQuery);
