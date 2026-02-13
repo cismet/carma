@@ -18,6 +18,7 @@ import {
 } from "@carma-mapping/components";
 import { useAdhocFeatureDisplay } from "@carma-appframeworks/portals";
 import { isAdhocVectorLayer } from "../../helper/adhoc-feature-utils";
+import { cesiumBackgroundlayerNames } from "../../config";
 
 interface LayerRowProps {
   layer: Layer;
@@ -36,10 +37,6 @@ const LayerRow = ({ layer, id, isBackgroundLayer, index }: LayerRowProps) => {
       id,
     });
 
-  const cesiumBackgroundlayerNames = {
-    karte: "LoD2-Gebäude (NRW)",
-    luftbild: "3D-Mesh 03/2024",
-  };
   const style = { transform: CSS.Translate.toString(transform) };
 
   return (

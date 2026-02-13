@@ -6,7 +6,7 @@ import {
   setSelectedMapLayer,
 } from "../../store/slices/mapping";
 import { Radio } from "antd";
-import { layerMap } from "../../config";
+import { cesiumBackgroundlayerNames, layerMap } from "../../config";
 import LayerSelection from "./LayerSelection";
 import { useState } from "react";
 import { useMapStyle } from "@carma-appframeworks/portals";
@@ -49,7 +49,7 @@ const BaseLayerSelection = () => {
   return (
     <LayerSelection
       id="karte"
-      title="Karte"
+      title={isLeaflet ? "Karte" : cesiumBackgroundlayerNames.karte}
       selectedLayer={{ ...selectedMapLayer, id: "karte" }}
       onMouseEnter={() => {
         setHovered(true);

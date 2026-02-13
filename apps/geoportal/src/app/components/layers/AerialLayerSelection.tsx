@@ -6,7 +6,7 @@ import {
   setSelectedLuftbildLayer,
 } from "../../store/slices/mapping";
 import { Radio } from "antd";
-import { layerMap } from "../../config";
+import { cesiumBackgroundlayerNames, layerMap } from "../../config";
 import LayerSelection from "./LayerSelection";
 import { useState } from "react";
 import { useMapStyle } from "@carma-appframeworks/portals";
@@ -49,7 +49,7 @@ const AerialLayerSelection = () => {
   return (
     <LayerSelection
       id="luftbild"
-      title="Luftbild"
+      title={isLeaflet ? "Luftbild" : cesiumBackgroundlayerNames.luftbild}
       selectedLayer={{ ...selectedLuftbildLayer, id: "luftbild" }}
       onMouseEnter={() => {
         setHovered(true);

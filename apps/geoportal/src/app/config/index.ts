@@ -8,6 +8,11 @@ export const host = import.meta.env.VITE_WUPP_ASSET_BASEURL;
 export const APP_KEY = "geoportal";
 export const STORAGE_PREFIX = "1";
 
+export const cesiumBackgroundlayerNames = {
+  karte: "LoD2-Gebäude (NRW)",
+  luftbild: "3D-Mesh 03/2024",
+};
+
 export const namedStyles: NamedStyles = {
   default: { opacity: 0.6 },
   night: {
