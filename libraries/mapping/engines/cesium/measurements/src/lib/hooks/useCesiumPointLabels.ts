@@ -240,6 +240,7 @@ export const useCesiumPointLabels = (
   points: PointMeasurementEntry[],
   showLabels: boolean,
   referenceElevation: number = 0,
+  selectedPointId: string | null = null,
   onPointClick?: (pointId: string) => void,
   layoutConfigOverrides?: CesiumLabelLayoutConfigOverrides,
   distanceToReferenceByPointId?: Readonly<Record<string, number>>
@@ -364,20 +365,16 @@ export const useCesiumPointLabels = (
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [scene, points, showLabels]);
 
-  const layoutResult = useMemo((): PointLabelLayoutResult => {
-    if (!scene || scene.isDestroyed()) {
-      return EMPTY_LAYOUT_RESULT;
-    }
-
+  const pointLabelTextById = useMemo<
+    Readonly<Record<string, PointLabelTextRepresentation>>
+  >(() => {
     const referenceLabelBase = getReferenceLabelBase(
       points,
       distanceToReferenceByPointId
     );
 
-    const layoutPoints: LayoutPointInput[] = points
-      .map((point, index) => {
-        const anchor = projectedPositions[point.id];
-        if (!anchor || hiddenResults[point.id]) return null;
+    return Object.fromEntries(
+      points.map((point, index) => {
         const pointLabelMetricMode =
           point.pointLabelMode ?? DEFAULT_POINT_LABEL_METRIC_MODE;
         const labelTextRepresentation = formatPointLabelText(
@@ -390,9 +387,26 @@ export const useCesiumPointLabels = (
           referenceLabelBase
         );
 
+        return [point.id, labelTextRepresentation];
+      })
+    );
+  }, [points, referenceElevation, distanceToReferenceByPointId]);
+
+  const layoutResult = useMemo((): PointLabelLayoutResult => {
+    if (!scene || scene.isDestroyed()) {
+      return EMPTY_LAYOUT_RESULT;
+    }
+
+    const layoutPoints: LayoutPointInput[] = points
+      .map((point, index) => {
+        const anchor = projectedPositions[point.id];
+        if (!anchor || hiddenResults[point.id]) return null;
+        const labelTextRepresentation = pointLabelTextById[point.id];
+        if (!labelTextRepresentation) return null;
+
         return {
           id: point.id,
-          selected: Boolean(point.isSelected),
+          selected: point.id === selectedPointId,
           anchor,
           text: labelTextRepresentation.layoutText,
           index,
@@ -412,30 +426,17 @@ export const useCesiumPointLabels = (
     points,
     projectedPositions,
     hiddenResults,
-    referenceElevation,
-    distanceToReferenceByPointId,
+    pointLabelTextById,
+    selectedPointId,
     layoutConfig,
     cameraPitch,
   ]);
 
   const pointLabelData: PointLabelData[] = useMemo(() => {
-    const referenceLabelBase = getReferenceLabelBase(
-      points,
-      distanceToReferenceByPointId
-    );
-
     return points.map((point, index) => {
-      const pointLabelMetricMode =
-        point.pointLabelMode ?? DEFAULT_POINT_LABEL_METRIC_MODE;
-      const labelTextRepresentation = formatPointLabelText(
-        index,
-        point.geometryWGS84.height,
-        referenceElevation,
-        point.name,
-        pointLabelMetricMode,
-        distanceToReferenceByPointId?.[point.id],
-        referenceLabelBase
-      );
+      const labelTextRepresentation =
+        pointLabelTextById[point.id] ??
+        formatNoneLabelText(getPointLabelBase(point.name, index));
 
       return {
         id: point.id,
@@ -457,7 +458,7 @@ export const useCesiumPointLabels = (
         text: labelTextRepresentation.layoutText,
         content: labelTextRepresentation.content,
         contentSignature: labelTextRepresentation.contentSignature,
-        selected: point.isSelected,
+        selected: point.id === selectedPointId,
         visible: true,
         isOccluded: occlusionResults[point.id] || false,
         isHidden: hiddenResults[point.id] || false,
@@ -466,8 +467,8 @@ export const useCesiumPointLabels = (
     });
   }, [
     points,
-    referenceElevation,
-    distanceToReferenceByPointId,
+    pointLabelTextById,
+    selectedPointId,
     occlusionResults,
     hiddenResults,
     scene,

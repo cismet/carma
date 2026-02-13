@@ -101,6 +101,11 @@ export {
   type GroundPolygonVisualizerOptions,
 } from "./createGroundPolygonVisualizer";
 export {
+  createDiscVisualizer,
+  type DiscVisualizer,
+  type DiscVisualizerOptions,
+} from "./createDiscVisualizer";
+export {
   createRotationAxisVisualizer,
   type RotationAxisVisualizer,
   type RotationAxisVisualizerOptions,

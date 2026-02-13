@@ -23,6 +23,7 @@ export interface PointLabelData {
   isOccluded?: boolean;
   isHidden?: boolean;
   onClick?: () => void;
+  onHoverChange?: (hovered: boolean) => void;
 }
 
 export type PointLabelLayoutOptions = {
@@ -52,7 +53,9 @@ export const usePointLabels = (
               p.isHidden
             }:${p.contentSignature ?? ""}:${p.pitch}:${Boolean(p.onClick)}:${
               p.labelAngleRad
-            }:${p.labelDistance}:${p.labelAttach}:${p.hideLabelAndStem}`
+            }:${p.labelDistance}:${p.labelAttach}:${
+              p.hideLabelAndStem
+            }:${Boolean(p.onHoverChange)}`
         )
         .join("|") + `:transition:${layoutOptions?.transitionDurationMs ?? ""}`,
     [points, layoutOptions?.transitionDurationMs]
@@ -85,6 +88,7 @@ export const usePointLabels = (
           selected: point.selected,
           isOccluded: point.isOccluded,
           onClick: point.onClick,
+          onHoverChange: point.onHoverChange,
           ...styleProps,
         }),
         visible: point.visible !== false,

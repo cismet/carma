@@ -30,7 +30,6 @@ export type MeasurementEntry = {
   metadata?: unknown;
   derived?: unknown;
   temporary?: boolean;
-  isSelected?: boolean;
   pointLabelMode?: PointLabelMetricMode;
 };
 

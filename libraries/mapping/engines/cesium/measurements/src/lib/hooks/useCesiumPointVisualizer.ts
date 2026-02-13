@@ -1,6 +1,17 @@
 import { useEffect, useMemo, useRef } from "react";
 
-import { type Scene } from "@carma/cesium";
+import {
+  Cartesian3,
+  Cartesian4,
+  Color,
+  Matrix4,
+  Transforms,
+  type Scene,
+} from "@carma/cesium";
+import {
+  createDiscVisualizer,
+  type DiscVisualizer,
+} from "@carma-mapping/engines/cesium/legacy";
 
 import {
   create3DCrossGroup,
@@ -23,6 +34,7 @@ export type CesiumPointVisualizerOptions = {
   showLabels?: boolean;
   radius: number;
   referenceElevation?: number;
+  selectedPointId?: string | null;
   debug?: boolean;
   onPointClick?: (pointId: string) => void;
   labelLayoutConfig?: CesiumLabelLayoutConfigOverrides;
@@ -38,6 +50,7 @@ export const useCesiumPointVisualizer = (
     showLabels = false,
     radius,
     referenceElevation = 0,
+    selectedPointId = null,
     debug = false,
     onPointClick,
     labelLayoutConfig,
@@ -45,6 +58,7 @@ export const useCesiumPointVisualizer = (
   }: CesiumPointVisualizerOptions
 ) => {
   const cross3DRefs = useRef<Record<string, Cross3DGroup>>({});
+  const selectedDiscRef = useRef<DiscVisualizer | null>(null);
 
   const [points, currentIds]: [PointMeasurementEntry[], Set<string>] =
     useMemo(() => {
@@ -60,10 +74,63 @@ export const useCesiumPointVisualizer = (
     points,
     showLabels,
     referenceElevation,
+    selectedPointId,
     onPointClick,
     labelLayoutConfig,
     distanceToReferenceByPointId
   );
+
+  useEffect(() => {
+    if (!scene) return;
+
+    if (selectedDiscRef.current) {
+      selectedDiscRef.current.destroy();
+      selectedDiscRef.current = null;
+    }
+
+    if (!selectedPointId) {
+      scene.requestRender();
+      return;
+    }
+
+    const selectedPoint = points.find((point) => point.id === selectedPointId);
+    if (!selectedPoint) {
+      scene.requestRender();
+      return;
+    }
+
+    const eastNorthUpMatrix = Transforms.eastNorthUpToFixedFrame(
+      selectedPoint.geometryECEF
+    );
+    const upAxis4 = Matrix4.getColumn(eastNorthUpMatrix, 2, new Cartesian4());
+    const upVector = Cartesian3.normalize(
+      new Cartesian3(upAxis4.x, upAxis4.y, upAxis4.z),
+      new Cartesian3()
+    );
+
+    selectedDiscRef.current = createDiscVisualizer(
+      `selectedGuide-${selectedPoint.id}`,
+      {
+        origin: selectedPoint.geometryECEF,
+        upVector,
+        radius,
+        color: Color.WHITE.withAlpha(0.65),
+        width: 1,
+        segmentCount: 48,
+      }
+    );
+    selectedDiscRef.current.attach(scene, () => scene.requestRender());
+    scene.requestRender();
+
+    return () => {
+      if (selectedDiscRef.current) {
+        selectedDiscRef.current.destroy();
+        selectedDiscRef.current = null;
+      }
+      if (!scene || scene.isDestroyed()) return;
+      scene.requestRender();
+    };
+  }, [scene, points, selectedPointId, radius]);
 
   useEffect(() => {
     // render markers using primitives instead of entities

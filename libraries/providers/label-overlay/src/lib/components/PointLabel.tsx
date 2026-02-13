@@ -31,6 +31,7 @@ interface PointLabelProps extends PointLabelStyleProps {
   transitionDurationMs?: number;
   hideLabelAndStem?: boolean;
   onClick?: () => void;
+  onHoverChange?: (hovered: boolean) => void;
 }
 
 const baseStyles: React.CSSProperties = {
@@ -67,11 +68,13 @@ export const PointLabel = React.memo(
     markerStrokeWidth = 1,
     labelDistance = 20,
     onClick,
+    onHoverChange,
   }: PointLabelProps) => {
     const [isHovered, setIsHovered] = useState(false);
     const [isAttachTransitionActive, setIsAttachTransitionActive] =
       useState(false);
     const previousAttachRef = useRef<PointLabelAttach>(labelAttach);
+    const isHoveredRef = useRef(false);
     const effectiveLabelAngleRad =
       labelAngleRad !== undefined ? labelAngleRad : -Math.abs(Math.cos(pitch));
     const xComponent = Math.cos(effectiveLabelAngleRad);
@@ -81,9 +84,9 @@ export const PointLabel = React.memo(
     const radius = markerSize / 2;
     const halfLineWidth = lineWidth / 2;
     const lineLength = Math.max(0, labelDistance - radius);
-    const isInteractive = Boolean(onClick);
+    const isInteractive = Boolean(onClick || onHoverChange);
     const pointerEvents = isInteractive ? "auto" : "none";
-    const cursor = isInteractive ? "pointer" : "default";
+    const cursor = onClick ? "pointer" : "default";
     const effectiveLineColor = lineColor;
     const effectiveTextColor = textColor;
     const effectiveBackgroundColor = selected
@@ -92,10 +95,16 @@ export const PointLabel = React.memo(
       ? hoverBackgroundColor
       : textBackgroundColor;
     const handleMouseEnter = () => {
-      if (isInteractive) setIsHovered(true);
+      if (!isInteractive || isHoveredRef.current) return;
+      isHoveredRef.current = true;
+      setIsHovered(true);
+      onHoverChange?.(true);
     };
     const handleMouseLeave = () => {
-      if (isInteractive) setIsHovered(false);
+      if (!isInteractive || !isHoveredRef.current) return;
+      isHoveredRef.current = false;
+      setIsHovered(false);
+      onHoverChange?.(false);
     };
     const handleClick = (event: React.MouseEvent<HTMLDivElement>) => {
       event.stopPropagation();
@@ -154,6 +163,15 @@ export const PointLabel = React.memo(
 
       return () => window.clearTimeout(timeoutId);
     }, [labelAttach, transitionDurationMs]);
+
+    useEffect(
+      () => () => {
+        if (isHoveredRef.current) {
+          onHoverChange?.(false);
+        }
+      },
+      [onHoverChange]
+    );
 
     return (
       <div

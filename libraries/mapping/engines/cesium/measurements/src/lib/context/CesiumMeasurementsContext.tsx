@@ -150,6 +150,7 @@ export const CesiumMeasurementsProvider: React.FC<
     options?.pointQueries,
     defaultPointQueryOptions
   );
+  const pointQueryEnabled = pointQueryOptions.enabled !== false;
 
   const traverseOptions = normalizeOptions(
     options?.traverse,
@@ -221,10 +222,9 @@ export const CesiumMeasurementsProvider: React.FC<
   // point query hooks
   useCesiumPointQuery(
     scene,
-    measurementMode === MeasurementMode.PointQuery,
+    measurementMode === MeasurementMode.PointQuery && pointQueryEnabled,
     setMeasurements,
-    temporaryMode,
-    pointRadius
+    temporaryMode
   );
 
   const showPoints =
@@ -235,25 +235,9 @@ export const CesiumMeasurementsProvider: React.FC<
     showLabels &&
     !hideLabelsOfType.has(MeasurementMode.PointQuery);
 
-  const selectMeasurementById = useCallback(
-    (id: string | null) => {
-      setSelectedMeasurementId((prev) => (prev === id ? prev : id));
-      setMeasurements((prev) => {
-        const targetId = id ?? null;
-        const needsUpdate = prev.some((measurement) =>
-          measurement.id === targetId
-            ? measurement.isSelected !== true
-            : measurement.isSelected === true
-        );
-        if (!needsUpdate) return prev;
-        return prev.map((measurement) => ({
-          ...measurement,
-          isSelected: targetId !== null && measurement.id === targetId,
-        }));
-      });
-    },
-    [setMeasurements]
-  );
+  const selectMeasurementById = useCallback((id: string | null) => {
+    setSelectedMeasurementId((prev) => (prev === id ? prev : id));
+  }, []);
 
   const updateMeasurementNameById = useCallback(
     (id: string, name: string) => {
@@ -355,10 +339,11 @@ export const CesiumMeasurementsProvider: React.FC<
 
   useCesiumPointVisualizer(scene, measurements, {
     showMarkers: showPoints,
-    showCesiumMarkers: true,
+    showCesiumMarkers: false,
     showLabels: showPointLabels,
     radius: pointRadius,
     referenceElevation,
+    selectedPointId: selectedMeasurementId,
     debug: false,
     onPointClick: handlePointLabelClick,
     labelLayoutConfig: options?.labels,
@@ -416,35 +401,13 @@ export const CesiumMeasurementsProvider: React.FC<
 
   useEffect(() => {
     if (!selectedMeasurementId) return;
-    const hasSelected = measurements.some(
+    const hasSelectedMeasurement = measurements.some(
       (measurement) => measurement.id === selectedMeasurementId
     );
-    if (!hasSelected) {
+    if (!hasSelectedMeasurement) {
       setSelectedMeasurementId(null);
-      setMeasurements((prev) => {
-        const needsReset = prev.some((measurement) => measurement.isSelected);
-        if (!needsReset) return prev;
-        return prev.map((measurement) => ({
-          ...measurement,
-          isSelected: false,
-        }));
-      });
-      return;
     }
-    const needsUpdate = measurements.some((measurement) =>
-      measurement.id === selectedMeasurementId
-        ? measurement.isSelected !== true
-        : measurement.isSelected === true
-    );
-    if (needsUpdate) {
-      setMeasurements((prev) =>
-        prev.map((measurement) => ({
-          ...measurement,
-          isSelected: measurement.id === selectedMeasurementId,
-        }))
-      );
-    }
-  }, [measurements, selectedMeasurementId, setMeasurements]);
+  }, [measurements, selectedMeasurementId]);
 
   useEffect(() => {
     if (referencePoint !== null) return;

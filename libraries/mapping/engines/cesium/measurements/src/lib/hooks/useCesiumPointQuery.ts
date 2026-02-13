@@ -18,20 +18,15 @@ import {
   updateCollection,
   makeTemporaryMeasurementsPermanent,
 } from "../utils/measurementCollection";
-import { useCesiumMousePosition } from "./useCesiumMousePosition";
 
 export const useCesiumPointQuery = (
   scene: Scene | null,
   enabled: boolean = true,
   setCollection: Dispatch<SetStateAction<MeasurementCollection>>,
-  temporaryMode: boolean = true,
-  radius: number = 10
+  temporaryMode: boolean = true
 ) => {
   const handlerRef = useRef<ScreenSpaceEventHandler | null>(null);
   const prevTemporaryModeRef = useRef(temporaryMode);
-
-  // Use mouse position hook to track cursor and show crosshair
-  const mousePosition = useCesiumMousePosition(scene, enabled);
 
   // Handle temporary-to-permanent conversion when temporary mode is turned off
   useEffect(() => {
@@ -44,6 +39,17 @@ export const useCesiumPointQuery = (
     }
     prevTemporaryModeRef.current = temporaryMode;
   }, [temporaryMode, setCollection]);
+
+  useEffect(() => {
+    if (!scene || scene.isDestroyed()) return;
+
+    scene.canvas.style.cursor = enabled ? "crosshair" : "";
+    return () => {
+      if (!scene.isDestroyed()) {
+        scene.canvas.style.cursor = "";
+      }
+    };
+  }, [scene, enabled]);
 
   useEffect(() => {
     if (!scene || scene.isDestroyed() || !enabled) {
@@ -113,11 +119,7 @@ export const useCesiumPointQuery = (
       }
       console.debug("[SceneClick] Terrain click handler cleaned up");
     };
-  }, [scene, enabled, radius, temporaryMode, setCollection]);
-
-  return {
-    mousePosition, // Current mouse position in 3D space
-  };
+  }, [scene, enabled, temporaryMode, setCollection]);
 };
 
 export default useCesiumPointQuery;
