@@ -137,7 +137,6 @@ const TestSelectionList = ({
       maplibreMap: map,
       visibleMapWidth: containerSize.width,
       visibleMapHeight: containerSize.height,
-      minZoomForFullFeatures: 17,
       maxFeatures: 2000,
       layerFilterExpressions: ["Leuchten.*-base", "Leuchten.*-icon"],
       highlightedOnly: highlightingActive,

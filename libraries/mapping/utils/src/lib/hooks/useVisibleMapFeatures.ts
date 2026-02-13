@@ -3,8 +3,6 @@ import type { Map as MaplibreMap, MapGeoJSONFeature } from "maplibre-gl";
 
 const DEFAULT_MAX_FEATURES = 2000;
 const DEFAULT_DEBOUNCE_MS = 300;
-const DEFAULT_MIN_ZOOM_FOR_FULL_FEATURES = 17;
-
 export interface UseVisibleMapFeaturesOptions {
   maplibreMap: MaplibreMap | null;
   visibleMapWidth: number;
@@ -12,8 +10,6 @@ export interface UseVisibleMapFeaturesOptions {
   showDebugBounds?: boolean;
   maxFeatures?: number;
   debounceMs?: number;
-  /** Minimum zoom level to return full features. Below this, only counts are returned. */
-  minZoomForFullFeatures?: number;
   /** Regex patterns matched against MapLibre style layer IDs to restrict queryRenderedFeatures.
    *  Resolved once when the style loads, then cached. e.g. ["Leuchten.*-base", "Leuchten.*-icon"] */
   layerFilterExpressions?: string[];
@@ -34,7 +30,7 @@ export interface UseVisibleMapFeaturesResult {
   totalCount: number;
   countsByLayer: Record<string, number>;
   isLoading: boolean;
-  /** True when in overview mode (zoom below threshold or hit max features) */
+  /** True when in overview mode (feature count exceeds maxFeatures) */
   isOverviewMode: boolean;
 }
 
@@ -96,7 +92,6 @@ export const useVisibleMapFeatures = ({
   showDebugBounds = false,
   maxFeatures = DEFAULT_MAX_FEATURES,
   debounceMs = DEFAULT_DEBOUNCE_MS,
-  minZoomForFullFeatures = DEFAULT_MIN_ZOOM_FOR_FULL_FEATURES,
   layerFilterExpressions,
   filter,
   highlightedOnly = false,
@@ -281,13 +276,6 @@ export const useVisibleMapFeatures = ({
           getSouth: () => visibleSouth,
         };
 
-        // Check if we're in overview mode due to zoom level
-        // +1 offset to align with RoutedMap/Leaflet zoom convention (temporary until native MapLibre)
-        const currentZoom = maplibreMap.getZoom() + 1;
-        // Skip zoom restriction when highlighting is active (show all highlighted features)
-        const zoomBelowThreshold =
-          !highlightedOnlyRef.current && currentZoom < minZoomForFullFeatures;
-
         // Use cached layer IDs from layerFilterExpressions (resolved on style load)
         const queryOptions = resolvedLayerIdsRef.current
           ? { layers: resolvedLayerIdsRef.current }
@@ -299,19 +287,30 @@ export const useVisibleMapFeatures = ({
         const uniqueFeatures: VisibleFeature[] = [];
         let count = 0;
         const layerCounts: Record<string, number> = {};
+        const checkHighlight = highlightedOnlyRef.current && maplibreMap;
 
         for (const f of renderedFeatures) {
           if (filterRef.current && !filterRef.current(f)) continue;
           const key = `${f.source}-${f.sourceLayer}-${f.id}`;
           if (!seen.has(key) && isFeatureInGeoBounds(f, visibleBounds)) {
             seen.add(key);
+
+            // When highlightedOnly is active, skip non-highlighted features early
+            // so the maxFeatures cap only counts features we actually care about
+            if (checkHighlight) {
+              if (f.id == null || !f.source) continue;
+              const state = maplibreMap.getFeatureState({
+                source: f.source,
+                sourceLayer: f.sourceLayer,
+                id: f.id,
+              });
+              if (!state?.highlighted) continue;
+            }
+
             count++;
-            // Track count per layer
             const layerKey = f.sourceLayer || f.source || "other";
             layerCounts[layerKey] = (layerCounts[layerKey] || 0) + 1;
-            // Only add to array if not in overview mode and under maxFeatures
-            if (!zoomBelowThreshold && uniqueFeatures.length < maxFeatures) {
-              // Store the original maplibre feature reference
+            if (uniqueFeatures.length < maxFeatures) {
               const featureWithOriginal = f as VisibleFeature;
               featureWithOriginal.original = f;
               uniqueFeatures.push(featureWithOriginal);
@@ -319,42 +318,17 @@ export const useVisibleMapFeatures = ({
           }
         }
 
-        // Filter to only highlighted features if requested
-        let finalFeatures = uniqueFeatures;
-        if (highlightedOnlyRef.current && maplibreMap) {
-          finalFeatures = uniqueFeatures.filter((f) => {
-            if (f.id == null || !f.source) return false;
-            const state = maplibreMap.getFeatureState({
-              source: f.source,
-              sourceLayer: f.sourceLayer,
-              id: f.id,
-            });
-            return state?.highlighted === true;
-          });
-        }
+        // Overview mode: feature count exceeds the sidebar limit
+        const inOverviewMode = count > maxFeatures;
 
-        // Recompute counts when filtering to highlighted-only
-        let finalCount = count;
-        let finalLayerCounts = layerCounts;
-        if (highlightedOnlyRef.current && finalFeatures !== uniqueFeatures) {
-          finalLayerCounts = {};
-          for (const f of finalFeatures) {
-            const layerKey = f.sourceLayer || f.source || "other";
-            finalLayerCounts[layerKey] =
-              (finalLayerCounts[layerKey] || 0) + 1;
-          }
-          finalCount = finalFeatures.length;
-        }
-
-        // Overview mode: zoom below threshold OR hit max features
-        const inOverviewMode = zoomBelowThreshold || count > maxFeatures;
-
-        setFeatures(inOverviewMode ? [] : finalFeatures);
-        setTotalCount(finalCount);
-        setCountsByLayer(finalLayerCounts);
+        setFeatures(inOverviewMode ? [] : uniqueFeatures);
+        setTotalCount(count);
+        setCountsByLayer(layerCounts);
         setIsOverviewMode(inOverviewMode);
-      } catch (e) {
-        console.warn("Error querying features:", e);
+      } catch {
+        // queryRenderedFeatures can throw "feature index out of bounds"
+        // when tile indices are momentarily stale. Silently ignore;
+        // the next idle event will re-query successfully.
       } finally {
         setIsLoading(false);
       }
@@ -366,7 +340,6 @@ export const useVisibleMapFeatures = ({
     showDebugBounds,
     maxFeatures,
     debounceMs,
-    minZoomForFullFeatures,
     refreshTrigger,
   ]);
 
