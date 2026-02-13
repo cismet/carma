@@ -7,6 +7,7 @@ import {
   getBackgroundLayerOpacities,
   getActiveAdditionalLayers,
   getAdditionalLayerOpacities,
+  isInPaleMode,
 } from "../../store/slices/mapSettings";
 import {
   backgroundLayerConfigs,
@@ -56,6 +57,7 @@ const BelisMapLibWrapper = ({
   const backgroundLayerOpacities = useSelector(getBackgroundLayerOpacities);
   const activeAdditionalLayers = useSelector(getActiveAdditionalLayers);
   const additionalLayerOpacities = useSelector(getAdditionalLayerOpacities);
+  const inPaleMode = useSelector(isInPaleMode);
 
   // Highlighting: compute namespaced source + call useMapHighlighting
   const namespacedSource = `${slugifyUrl(BELIS_STYLE_URL)}::${BELIS_ORIGINAL_SOURCE}`;
@@ -84,11 +86,12 @@ const BelisMapLibWrapper = ({
     const bgConfig = backgroundLayerConfigs[activeBackgroundLayer];
     if (bgConfig) {
       const bgOpacity = backgroundLayerOpacities[activeBackgroundLayer] ?? 1;
+      const effectiveOpacity = inPaleMode ? bgOpacity * 0.1 : bgOpacity;
       const bgLayers = Array.isArray(bgConfig.layer)
         ? bgConfig.layer
         : [bgConfig.layer];
       for (const l of bgLayers) {
-        const withOpacity = { ...l, opacity: bgOpacity };
+        const withOpacity = { ...l, opacity: effectiveOpacity };
         layers.push(withOpacity as LibreLayer);
       }
     }
@@ -117,6 +120,7 @@ const BelisMapLibWrapper = ({
     backgroundLayerOpacities,
     activeAdditionalLayers,
     additionalLayerOpacities,
+    inPaleMode,
   ]);
 
   // Mini-map state

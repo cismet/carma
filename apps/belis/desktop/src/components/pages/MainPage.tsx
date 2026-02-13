@@ -1,33 +1,18 @@
-import { useCallback, useContext, useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import BelisMapLibWrapper from "../commons/BelisMapWrapper";
 import { useSelector, useDispatch } from "react-redux";
-import { getJWT } from "../../store/slices/auth";
 import { CustomCard } from "../commons/CustomCard";
 import { useWindowSize } from "@react-hook/window-size";
-import {
-  BelisSwitch,
-  featuresFilter,
-  loadObjectsIntoFeatureCollection,
-} from "@carma-appframeworks/belis";
+import { BelisSwitch } from "@carma-appframeworks/belis";
 import { AppDispatch } from "../../store";
-import {
-  isInFocusMode,
-  setDone,
-  setFeatureCollection,
-  setFocusModeActive,
-} from "../../store/slices/featureCollection";
-import { TopicMapContext } from "react-cismap/contexts/TopicMapContextProvider";
 import {
   useDatasheet,
   useLibreContext,
   useMapHighlight,
   useLayerFilter,
 } from "@carma-mapping/engines/maplibre";
-import { DOMAIN, REST_SERVICE } from "../../constants/belis";
-import type { UnknownAction } from "redux";
 import {
   isInPaleMode,
-  isSearchForbidden,
   setPaleModeActive,
 } from "../../store/slices/mapSettings";
 import { BELIS_FILTER_CATEGORIES } from "../../config/mapLayerConfigs";
@@ -38,14 +23,11 @@ const FILTER_STORAGE_KEY = "@belis-desktop.layerFilter";
 
 const MainPage = () => {
   const dispatch: AppDispatch = useDispatch();
-  const storedJWT = useSelector(getJWT);
-  const inFocusMode = useSelector(isInFocusMode);
   const inPaleMode = useSelector(isInPaleMode);
 
   const { map } = useLibreContext();
   const { isDatasheetOpen } = useDatasheet();
   const [windowWidth, windowHeight] = useWindowSize();
-  const { routedMapRef } = useContext<typeof TopicMapContext>(TopicMapContext);
 
   // Search state
   const [searchText, setSearchText] = useState("00026");
@@ -162,32 +144,8 @@ const MainPage = () => {
                 ))}
               </div>
 
-              {/* Existing Fokus/Blass switches */}
+              {/* Blass switch */}
               <div className="flex items-center gap-4 border-l border-gray-300 pl-4">
-                <BelisSwitch
-                  preLabel="Fokus"
-                  switched={inFocusMode}
-                  stateChanged={(switched) => {
-                    dispatch(setFocusModeActive(switched));
-                    setTimeout(() => {
-                      dispatch(
-                        loadObjectsIntoFeatureCollection(
-                          {
-                            boundingBox: routedMapRef.getBoundingBox(),
-                            inFocusMode: switched,
-                            jwt: storedJWT,
-                          },
-                          REST_SERVICE,
-                          DOMAIN,
-                          setFeatureCollection,
-                          featuresFilter,
-                          setDone,
-                          isSearchForbidden
-                        ) as unknown as UnknownAction
-                      );
-                    }, 300);
-                  }}
-                />
                 <BelisSwitch
                   id="pale-toggle"
                   preLabel="Blass"

@@ -134,6 +134,14 @@ export const additionalLayerConfigs: Record<string, LayerEntry> = {
       format: "image/png",
     },
   },
+  strassen: {
+    title: "Straßen",
+    layer: {
+      type: "vector",
+      name: "Straßen",
+      style: "https://tiles.cismet.de/alkis/streets.style.json",
+    },
+  },
   // alkisBlack: {
   //   title: "Alkis Vektorlayer",
   //   layer: {
