@@ -15,6 +15,7 @@ import {
   useMapHighlight,
   useMapHighlighting,
   useLayerFilter,
+  useSelectionNeighborhood,
   type FilterCategory,
 } from "@carma-mapping/engines/maplibre";
 import {
@@ -201,7 +202,10 @@ const TestSelectionList = ({
       const currentIdx = flatFeatures.findIndex((f) => isSelected(f));
       let nextIdx: number;
       if (e.key === "ArrowDown") {
-        nextIdx = currentIdx < 0 ? 0 : Math.min(currentIdx + 1, flatFeatures.length - 1);
+        nextIdx =
+          currentIdx < 0
+            ? 0
+            : Math.min(currentIdx + 1, flatFeatures.length - 1);
       } else {
         nextIdx = currentIdx < 0 ? 0 : Math.max(currentIdx - 1, 0);
       }
@@ -319,9 +323,18 @@ const BelisPlaygroundContent = () => {
     clearHighlights,
   } = useMapHighlight();
 
-  const namespacedSource = `${slugifyUrl(BELIS_STYLE_URL)}::${BELIS_ORIGINAL_SOURCE}`;
+  const namespacedSource = `${slugifyUrl(
+    BELIS_STYLE_URL
+  )}::${BELIS_ORIGINAL_SOURCE}`;
   const BELIS_SOURCE_LAYERS = useMemo(
-    () => ["leuchten", "mast", "mauerlaschen", "schaltstelle", "leitungen", "abzweigdosen"],
+    () => [
+      "leuchten",
+      "mast",
+      "mauerlaschen",
+      "schaltstelle",
+      "leitungen",
+      "abzweigdosen",
+    ],
     []
   );
   const highlightSources = useMemo(
@@ -335,6 +348,22 @@ const BelisPlaygroundContent = () => {
     modifierClick: "alt",
   });
 
+  // Neighborhood: mark leuchten sharing the same Standort as the selected feature
+  useSelectionNeighborhood({
+    map,
+    sources: highlightSources,
+    isNeighbor: (selectedProps, candidateProps, candidateSourceLayer, selectedSourceLayer) => {
+      if (selectedSourceLayer !== "leuchten" || candidateSourceLayer !== "leuchten") return false;
+      const selected = selectedProps.fk_standort;
+      const candidate = candidateProps.fk_standort;
+      return (
+        selected != null &&
+        candidate != null &&
+        String(selected) === String(candidate)
+      );
+    },
+  });
+
   // Layer filtering via hook
   const { enabledFilters, setFilterEnabled, activeSourceLayers } =
     useLayerFilter({
@@ -345,7 +374,10 @@ const BelisPlaygroundContent = () => {
   const handleSearch = useCallback(() => {
     if (!map || !searchText.trim()) return;
     setHighlightingActive(true);
-    highlightByProperty("strassenschluessel", new RegExp(searchText.trim(), "i"));
+    highlightByProperty(
+      "strassenschluessel",
+      new RegExp(searchText.trim(), "i")
+    );
   }, [map, searchText, setHighlightingActive, highlightByProperty]);
 
   const handleClearSearch = useCallback(() => {

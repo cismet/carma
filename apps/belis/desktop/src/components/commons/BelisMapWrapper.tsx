@@ -27,6 +27,7 @@ import {
   useDatasheet,
   useDatasheetMiniMap,
   useMapHighlighting,
+  useSelectionNeighborhood,
   slugifyUrl,
 } from "@carma-mapping/engines/maplibre";
 import type maplibregl from "maplibre-gl";
@@ -70,6 +71,22 @@ const BelisMapLibWrapper = ({
     map,
     sources: highlightSources,
     modifierClick: "alt",
+  });
+
+  // Neighborhood: mark leuchten sharing the same Standort as the selected feature
+  useSelectionNeighborhood({
+    map,
+    sources: highlightSources,
+    isNeighbor: (selectedProps, candidateProps, candidateSourceLayer, selectedSourceLayer) => {
+      if (selectedSourceLayer !== "leuchten" || candidateSourceLayer !== "leuchten") return false;
+      const selectedStandort = selectedProps.fk_standort;
+      const candidateStandort = candidateProps.fk_standort;
+      return (
+        selectedStandort != null &&
+        candidateStandort != null &&
+        String(selectedStandort) === String(candidateStandort)
+      );
+    },
   });
 
   // Sync selection to Redux store when map selection changes

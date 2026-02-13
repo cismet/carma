@@ -73,6 +73,11 @@ export type {
   UseLayerFilterOptions,
   UseLayerFilterResult,
 } from "./hooks/useLayerFilter";
+export { useSelectionNeighborhood } from "./hooks/useSelectionNeighborhood";
+export type {
+  NeighborPredicate,
+  UseSelectionNeighborhoodOptions,
+} from "./hooks/useSelectionNeighborhood";
 
 // Style utilities
 export {
