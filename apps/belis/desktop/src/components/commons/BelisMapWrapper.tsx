@@ -34,6 +34,8 @@ import type maplibregl from "maplibre-gl";
 import BelisDatasheetView from "../ui/BelisDatasheetView";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faMap } from "@fortawesome/free-solid-svg-icons";
+import { FeatureType, fetchFeatureById } from "../../helper/apiMethods";
+import { getJWT } from "../../store/slices/auth";
 
 const LIST_WIDTH = 300;
 
@@ -50,10 +52,11 @@ const BelisMapLibWrapper = ({
   activeSourceLayers,
 }: BelisMapLibWrapperProps) => {
   const dispatch: AppDispatch = useDispatch();
+  const jwt = useSelector(getJWT);
   const { map } = useLibreContext();
   const { selectedFeature, rawFeature } = useMapSelection();
   const { closeDatasheet } = useDatasheet();
-
+  const [fetchedFeatureData, setFetchedFeatureData] = useState<any>(null);
   const activeBackgroundLayer = useSelector(getActiveBackgroundLayer);
   const backgroundLayerOpacities = useSelector(getBackgroundLayerOpacities);
   const activeAdditionalLayers = useSelector(getActiveAdditionalLayers);
@@ -61,9 +64,13 @@ const BelisMapLibWrapper = ({
   const inPaleMode = useSelector(isInPaleMode);
 
   // Highlighting: compute namespaced source + call useMapHighlighting
-  const namespacedSource = `${slugifyUrl(BELIS_STYLE_URL)}::${BELIS_ORIGINAL_SOURCE}`;
+  const namespacedSource = `${slugifyUrl(
+    BELIS_STYLE_URL
+  )}::${BELIS_ORIGINAL_SOURCE}`;
   const highlightSources = useMemo(
-    () => [{ source: namespacedSource, sourceLayers: [...BELIS_SOURCE_LAYERS] }],
+    () => [
+      { source: namespacedSource, sourceLayers: [...BELIS_SOURCE_LAYERS] },
+    ],
     [namespacedSource]
   );
 
@@ -77,8 +84,17 @@ const BelisMapLibWrapper = ({
   useSelectionNeighborhood({
     map,
     sources: highlightSources,
-    isNeighbor: (selectedProps, candidateProps, candidateSourceLayer, selectedSourceLayer) => {
-      if (selectedSourceLayer !== "leuchten" || candidateSourceLayer !== "leuchten") return false;
+    isNeighbor: (
+      selectedProps,
+      candidateProps,
+      candidateSourceLayer,
+      selectedSourceLayer
+    ) => {
+      if (
+        selectedSourceLayer !== "leuchten" ||
+        candidateSourceLayer !== "leuchten"
+      )
+        return false;
       const selectedStandort = selectedProps.fk_standort;
       const candidateStandort = candidateProps.fk_standort;
       return (
@@ -95,6 +111,58 @@ const BelisMapLibWrapper = ({
       dispatch(setSelectedFeature({ ...selectedFeature, selected: true }));
     }
   }, [selectedFeature, dispatch]);
+
+  const validFeatureTypes: FeatureType[] = [
+    "leuchten",
+    "mast",
+    "schaltstelle",
+    "mauerlaschen",
+    "leitungen",
+    "abzweigdosen",
+  ];
+
+  useEffect(() => {
+    const fetchData = async () => {
+      if (!jwt || !selectedFeature) {
+        setFetchedFeatureData(null);
+        return;
+      }
+
+      // Get sourceLayer from selectedFeature
+      const sourceLayer = selectedFeature?.carmaInfo?.sourceLayer;
+      const featureId = selectedFeature?.properties?.sourceProps?.id;
+
+      console.log("xxx BelisMa Selection:", {
+        featureId,
+        sourceLayer,
+      });
+
+      const isValidFeatureType =
+        typeof sourceLayer === "string" &&
+        validFeatureTypes.includes(sourceLayer as FeatureType);
+
+      if (isValidFeatureType && featureId) {
+        // dispatch(setFeatureLoading(true));
+        try {
+          const fullData = await fetchFeatureById(
+            jwt,
+            featureId as number,
+            sourceLayer as FeatureType
+          );
+          console.log("xxx Fetched full data:", fullData);
+          // Pass full data - forms will extract what they need internally
+          setFetchedFeatureData(fullData);
+        } catch (error) {
+          console.error("xxx Failed to fetch feature:", error);
+          setFetchedFeatureData(null);
+        } finally {
+          // dispatch(setFeatureLoading(false));
+        }
+      }
+    };
+
+    fetchData();
+  }, [selectedFeature, jwt]);
 
   const libreLayers = useMemo(() => {
     const layers: LibreLayer[] = [];
@@ -263,6 +331,8 @@ const BelisMapLibWrapper = ({
               <BelisDatasheetView
                 feature={selectedFeature}
                 rawFeature={rawFeature}
+                fetchedData={fetchedFeatureData}
+                featureType={selectedFeature?.carmaInfo?.sourceLayer}
               />
             </div>
           }

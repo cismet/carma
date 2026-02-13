@@ -7,15 +7,20 @@
  */
 
 import { getVCard } from "@carma-appframeworks/belis";
+import { FeaturesFormsWrapper } from "./featuresForm";
 
 interface BelisDatasheetViewProps {
   feature: any | null;
   rawFeature: any | null;
+  fetchedData?: any | null;
+  featureType?: string;
 }
 
 const BelisDatasheetView = ({
   feature,
   rawFeature,
+  fetchedData,
+  featureType,
 }: BelisDatasheetViewProps) => {
   if (!feature && !rawFeature) {
     return (
@@ -48,60 +53,15 @@ const BelisDatasheetView = ({
   const props = rawFeature?.properties ?? feature?.properties ?? {};
 
   return (
-    <div style={{ height: "100%", overflow: "auto", padding: 16 }}>
-      {/* Header */}
-      <div
-        style={{
-          marginBottom: 16,
-          paddingBottom: 12,
-          borderBottom: "1px solid #ddd",
-        }}
-      >
-        {infobox?.header && (
-          <div style={{ fontSize: 11, color: "#666", marginBottom: 2 }}>
-            {infobox.header}
-          </div>
-        )}
-        <div style={{ fontSize: 16, fontWeight: 600 }}>
-          {infobox?.title ?? rawFeature?.id ?? "Objekt"}
-        </div>
-        {infobox?.subtitle && (
-          <div style={{ fontSize: 13, color: "#555", marginTop: 2 }}>
-            {infobox.subtitle}
-          </div>
-        )}
-      </div>
-
-      {/* Feature data placeholder */}
-      <div>
-        <div
-          style={{
-            fontSize: 12,
-            fontWeight: 600,
-            color: "#888",
-            marginBottom: 8,
-            textTransform: "uppercase",
-            letterSpacing: "0.05em",
-          }}
-        >
-          Feature-Daten (Vorschau)
-        </div>
-        <pre
-          style={{
-            fontSize: 11,
-            lineHeight: 1.5,
-            background: "#f5f5f5",
-            padding: 12,
-            borderRadius: 4,
-            overflow: "auto",
-            maxHeight: 600,
-            whiteSpace: "pre-wrap",
-            wordBreak: "break-word",
-          }}
-        >
-          {JSON.stringify(props, null, 2)}
-        </pre>
-      </div>
+    <div style={{ height: "100%", padding: "10px 4px 8px 16px" }}>
+      {/* Fetched feature data - render form or JSON fallback */}
+      {fetchedData && (
+        <FeaturesFormsWrapper
+          featureType={featureType}
+          data={fetchedData}
+          rawFeature={rawFeature}
+        />
+      )}
     </div>
   );
 };
