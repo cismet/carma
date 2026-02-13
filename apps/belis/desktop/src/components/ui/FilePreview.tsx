@@ -8,7 +8,10 @@ import {
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
 // @ts-ignore
 import { LightBoxDispatchContext } from "react-cismap/contexts/LightBoxContextProvider";
-import { getDocumentBlobUrl } from "../../helper/documentHelper";
+import {
+  getDocumentBlobUrl,
+  getSecureDocumentUrl,
+} from "../../helper/documentHelper";
 import type { DokumentItem } from "./DocumentPreview";
 
 interface LightBoxDispatch {
@@ -16,12 +19,12 @@ interface LightBoxDispatch {
     title: string;
     index: number;
     photourls: string[];
-    caption: string[];
+    caption: React.ReactNode[];
     visible: boolean;
   }) => void;
   setIndex?: (index: number) => void;
   setVisible?: (visible: boolean) => void;
-  setCaptions?: (captions: string[]) => void;
+  setCaptions?: (captions: React.ReactNode[]) => void;
 }
 
 type FilePreviewSize = "sm" | "md" | "xl" | "xxl";
@@ -110,7 +113,12 @@ const FileItem = ({
 
   useEffect(() => {
     // Skip fetching if we already have a URL (from cache or previous fetch)
-    if (!jwt || !objectName || fileType !== "image" || previewUrl) {
+    if (!jwt || !objectName || previewUrl) {
+      return;
+    }
+
+    // Only fetch for images and PDFs
+    if (fileType !== "image" && fileType !== "pdf") {
       return;
     }
 
@@ -119,7 +127,10 @@ const FileItem = ({
       setError(false);
 
       try {
-        const url = await getDocumentBlobUrl(jwt, objectName);
+        // For PDFs, fetch the thumbnail; for images, fetch the image itself
+        const urlToFetch =
+          fileType === "pdf" ? objectName + ".thumbnail.jpg" : objectName;
+        const url = await getDocumentBlobUrl(jwt, urlToFetch);
         setPreviewUrl(url);
       } catch (err) {
         console.error("Failed to load preview:", err);
@@ -151,7 +162,8 @@ const FileItem = ({
   };
 
   const renderContent = () => {
-    if (fileType !== "image") {
+    // Handle other non-image/non-pdf files
+    if (fileType !== "image" && fileType !== "pdf") {
       return <div style={boxStyle}>{getFileIcon(objectName, iconSize)}</div>;
     }
 
@@ -164,23 +176,50 @@ const FileItem = ({
     }
 
     if (error || !previewUrl) {
-      return <div style={boxStyle}>{getFileIcon(objectName, iconSize)}</div>;
+      return (
+        <div
+          style={{
+            ...boxStyle,
+            cursor: onImageClick ? "pointer" : "default",
+          }}
+          onClick={onImageClick}
+        >
+          {getFileIcon(objectName, iconSize)}
+        </div>
+      );
     }
 
+    // Show image/PDF thumbnail with optional PDF icon overlay
     return (
-      <img
-        src={previewUrl}
-        alt={description}
-        onClick={onImageClick}
-        style={{
-          width: boxSize,
-          height: boxSize,
-          objectFit: "cover",
-          borderRadius: 4,
-          border: "1px solid #d9d9d9",
-          cursor: onImageClick ? "pointer" : "default",
-        }}
-      />
+      <div style={{ position: "relative" }}>
+        {fileType === "pdf" && (
+          <FilePdfOutlined
+            style={{
+              position: "absolute",
+              bottom: 8,
+              left: 8,
+              zIndex: 10,
+              fontSize: size === "sm" ? 16 : size === "md" ? 24 : 32,
+              color: "#ff4d4f",
+              opacity: 0.8,
+              filter: "drop-shadow(0 0 2px white)",
+            }}
+          />
+        )}
+        <img
+          src={previewUrl}
+          alt={description}
+          onClick={onImageClick}
+          style={{
+            width: boxSize,
+            height: boxSize,
+            objectFit: "cover",
+            borderRadius: 4,
+            border: "1px solid #d9d9d9",
+            cursor: onImageClick ? "pointer" : "default",
+          }}
+        />
+      </div>
     );
   };
 
@@ -240,32 +279,59 @@ const FilePreview = ({
     LightBoxDispatchContext
   ) as LightBoxDispatch;
 
-  // Memoize image documents to avoid recreating the array on every render
-  const imageDocuments = useMemo(
+  // Memoize lightbox-compatible documents (images and PDFs)
+  const lightboxDocuments = useMemo(
     () =>
       documents.filter((doc) => {
         const objectName = doc.dms_url?.url?.object_name || "";
-        return getFileType(objectName) === "image";
+        const fileType = getFileType(objectName);
+        return fileType === "image" || fileType === "pdf";
       }),
     [documents]
   );
 
-  // Handle image click - set up lightbox and show it
-  const handleImageClick = useCallback(
+  // Handle image/PDF click - set up lightbox and show it
+  const handleLightboxClick = useCallback(
     (clickedIndex: number) => {
-      if (!lightBoxDispatch) return;
+      if (!lightBoxDispatch || !jwt) return;
 
       // Build photo URLs and captions at click time
       const photourls: string[] = [];
-      const captions: string[] = [];
+      const captions: React.ReactNode[] = [];
 
-      for (const doc of imageDocuments) {
+      for (const doc of lightboxDocuments) {
         const objectName = doc.dms_url?.url?.object_name || "";
-        const url = imageUrls[objectName];
-        if (url) {
-          photourls.push(url);
+        const fileType = getFileType(objectName);
+        const description =
+          doc.dms_url?.description || doc.dms_url?.url?.object_name || "Datei";
+
+        if (fileType === "image") {
+          // Use secure URL directly for images
+          const imageUrl = getSecureDocumentUrl(jwt, objectName);
+          photourls.push(imageUrl);
+          captions.push(description);
+        } else if (fileType === "pdf") {
+          // For PDFs, use thumbnail URL (server generates .thumbnail.jpg from PDF)
+          const thumbnailUrl = getSecureDocumentUrl(
+            jwt,
+            objectName + ".thumbnail.jpg"
+          );
+          const pdfUrl = getSecureDocumentUrl(jwt, objectName);
+          photourls.push(thumbnailUrl);
           captions.push(
-            doc.dms_url?.description || doc.dms_url?.url?.object_name || "Datei"
+            <div>
+              {description}
+              <span style={{ marginLeft: 30 }}>
+                <a
+                  href={pdfUrl}
+                  target="_pdf"
+                  rel="noopener noreferrer"
+                  style={{ color: "#1890ff" }}
+                >
+                  PDF extern öffnen
+                </a>
+              </span>
+            </div>
           );
         }
       }
@@ -278,9 +344,13 @@ const FilePreview = ({
           caption: captions,
           visible: true,
         });
+        // Also set captions separately (like Belis online does)
+        if (lightBoxDispatch.setCaptions) {
+          lightBoxDispatch.setCaptions(captions);
+        }
       }
     },
-    [imageDocuments, imageUrls, title, lightBoxDispatch]
+    [lightboxDocuments, jwt, title, lightBoxDispatch]
   );
 
   if (!documents || documents.length === 0) {
@@ -300,12 +370,13 @@ const FilePreview = ({
     );
   }
 
-  // Build a map from objectName to lightbox index (only images with loaded URLs)
+  // Build a map from objectName to lightbox index (images and PDFs)
   let lightboxIndex = 0;
   const objectNameToLightboxIndex: Record<string, number> = {};
-  for (const doc of imageDocuments) {
+  for (const doc of lightboxDocuments) {
     const objectName = doc.dms_url?.url?.object_name || "";
-    if (imageUrls[objectName]) {
+    const fileType = getFileType(objectName);
+    if (fileType === "image" || fileType === "pdf") {
       objectNameToLightboxIndex[objectName] = lightboxIndex;
       lightboxIndex++;
     }
@@ -335,8 +406,9 @@ const FilePreview = ({
               showDescription={showDescription}
               savedUrl={imageUrls[objectName]}
               onImageClick={
-                fileType === "image" && lbIndex !== undefined
-                  ? () => handleImageClick(lbIndex)
+                (fileType === "image" || fileType === "pdf") &&
+                lbIndex !== undefined
+                  ? () => handleLightboxClick(lbIndex)
                   : undefined
               }
             />
