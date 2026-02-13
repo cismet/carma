@@ -5,7 +5,6 @@ import {
   DatasheetLayout,
 } from "@carma-mapping/core";
 import { CustomCard } from "./CustomCard";
-import { BelisSwitch } from "@carma-appframeworks/belis";
 import {
   useMapSelection,
   useLibreContext,
@@ -13,14 +12,21 @@ import {
   DatasheetProvider,
   useDatasheet,
   useDatasheetMiniMap,
+  useMapHighlight,
+  useMapHighlighting,
+  useLayerFilter,
+  useSelectionNeighborhood,
+  type FilterCategory,
 } from "@carma-mapping/engines/maplibre";
 import {
   useVisibleMapFeatures,
   type VisibleFeature,
 } from "@carma-mapping/utils";
 import type maplibregl from "maplibre-gl";
+import { slugifyUrl } from "@carma-mapping/engines/maplibre";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faMap } from "@fortawesome/free-solid-svg-icons";
+import { Switch } from "antd";
 
 // Convert ALL CAPS to Title Case
 const toTitleCase = (str: string): string => {
@@ -58,11 +64,56 @@ const getFeatureStreet = (feature: VisibleFeature): string => {
  * Minimal sidebar list that exercises the MapSelectionContext.
  * Clicking an item calls selectFeature(); clicking on the map updates the highlight here.
  */
-const TestSelectionList = () => {
+
+const BELIS_FILTER_CATEGORIES: FilterCategory[] = [
+  {
+    key: "leuchten",
+    label: "Leuchten",
+    sourceLayers: ["leuchten"],
+    layerPatterns: ["leuchten"],
+  },
+  {
+    key: "masten",
+    label: "Masten",
+    sourceLayers: ["mast"],
+    layerPatterns: ["mast"],
+  },
+  {
+    key: "mauerlaschen",
+    label: "Mauerlaschen",
+    sourceLayers: ["mauerlaschen"],
+    layerPatterns: ["mauerlaschen"],
+  },
+  {
+    key: "leitungen",
+    label: "Leitungen",
+    sourceLayers: ["leitungen"],
+    layerPatterns: ["leitungen"],
+  },
+  {
+    key: "schaltstellen",
+    label: "Schaltstellen",
+    sourceLayers: ["schaltstelle"],
+    layerPatterns: ["schaltstelle"],
+  },
+  {
+    key: "abzweigdosen",
+    label: "Abzweigdosen",
+    sourceLayers: ["abzweigdosen"],
+    layerPatterns: ["abzweigdose"],
+  },
+];
+
+const TestSelectionList = ({
+  activeSourceLayers,
+}: {
+  activeSourceLayers?: Set<string> | null;
+}) => {
   const listRef = useRef<HTMLDivElement>(null);
   const selectedItemRef = useRef<HTMLDivElement>(null);
   const { map } = useLibreContext();
   const { selectedFeatureId, selectFeature } = useMapSelection();
+  const { highlightingActive, highlightVersion } = useMapHighlight();
 
   const [containerSize, setContainerSize] = useState({
     width: 600,
@@ -86,22 +137,40 @@ const TestSelectionList = () => {
       maplibreMap: map,
       visibleMapWidth: containerSize.width,
       visibleMapHeight: containerSize.height,
-      minZoomForFullFeatures: 17,
       maxFeatures: 2000,
-      //layerFilterExpressions: ["Leuchten.leitungen-base"],
       layerFilterExpressions: ["Leuchten.*-base", "Leuchten.*-icon"],
+      highlightedOnly: highlightingActive,
+      refreshTrigger: highlightVersion,
     });
+
+  // Filter features by active source layers
+  const filteredFeatures = useMemo(() => {
+    if (!activeSourceLayers) return features;
+    return features.filter((f) => {
+      const sl = f.sourceLayer || "";
+      return activeSourceLayers.has(sl);
+    });
+  }, [features, activeSourceLayers]);
 
   // Group features by sourceLayer
   const groupedFeatures = useMemo(() => {
     const groups: Record<string, VisibleFeature[]> = {};
-    for (const f of features) {
+    for (const f of filteredFeatures) {
       const key = f.sourceLayer || f.source || "other";
       if (!groups[key]) groups[key] = [];
       groups[key].push(f);
     }
     return groups;
-  }, [features]);
+  }, [filteredFeatures]);
+
+  // Flat ordered list matching render order (for keyboard navigation)
+  const flatFeatures = useMemo(() => {
+    const flat: VisibleFeature[] = [];
+    for (const [, items] of Object.entries(groupedFeatures)) {
+      if (!isOverviewMode) flat.push(...items);
+    }
+    return flat;
+  }, [groupedFeatures, isOverviewMode]);
 
   const isSelected = (feature: VisibleFeature): boolean => {
     if (!selectedFeatureId) return false;
@@ -123,6 +192,31 @@ const TestSelectionList = () => {
     );
   };
 
+  const handleKeyDown = useCallback(
+    (e: React.KeyboardEvent) => {
+      if (e.key !== "ArrowDown" && e.key !== "ArrowUp") return;
+      e.preventDefault();
+      if (flatFeatures.length === 0) return;
+
+      const currentIdx = flatFeatures.findIndex((f) => isSelected(f));
+      let nextIdx: number;
+      if (e.key === "ArrowDown") {
+        nextIdx =
+          currentIdx < 0
+            ? 0
+            : Math.min(currentIdx + 1, flatFeatures.length - 1);
+      } else {
+        nextIdx = currentIdx < 0 ? 0 : Math.max(currentIdx - 1, 0);
+      }
+      const next = flatFeatures[nextIdx];
+      selectFeature(
+        { source: next.source, sourceLayer: next.sourceLayer, id: next.id },
+        next
+      );
+    },
+    [flatFeatures, selectFeature, selectedFeatureId]
+  );
+
   // Scroll selected item into view
   useEffect(() => {
     if (selectedItemRef.current) {
@@ -136,10 +230,14 @@ const TestSelectionList = () => {
   return (
     <div
       ref={listRef}
-      className="w-[300px] h-full bg-white border-r border-gray-300 flex flex-col overflow-hidden shrink-0"
+      tabIndex={0}
+      onKeyDown={handleKeyDown}
+      className="w-[300px] h-full bg-white border-r border-gray-300 flex flex-col overflow-hidden shrink-0 outline-none"
     >
       <div className="px-3 py-2 border-b border-gray-300 bg-gray-50 font-bold text-sm flex justify-between items-center">
-        <span>Objekte ({totalCount})</span>
+        <span>
+          Objekte ({highlightingActive ? filteredFeatures.length : totalCount})
+        </span>
         {isLoading && <span className="text-xs text-gray-500">...</span>}
         {isOverviewMode && !isLoading && (
           <span className="text-[10px] text-gray-400">zoom in</span>
@@ -198,12 +296,15 @@ const BELIS_LAYERS = [
   {
     type: "vector" as const,
     name: "Leuchten",
-    style: "https://tiles.cismet.de/belis/style.json",
+    style: "https://tiles.cismet.de/belis/styleX.json",
   },
 ];
 
 /** Debug flag: translucent main map + red mini-map border, mini-map always visible */
 const MINI_MAP_DEBUGGING = false;
+
+const BELIS_STYLE_URL = "https://tiles.cismet.de/belis/styleX.json";
+const BELIS_ORIGINAL_SOURCE = "belis-source";
 
 const BelisPlaygroundContent = () => {
   const { map } = useLibreContext();
@@ -211,6 +312,78 @@ const BelisPlaygroundContent = () => {
   const { isDatasheetOpen, closeDatasheet } = useDatasheet();
   const [miniMap, setMiniMap] = useState<maplibregl.Map | null>(null);
   const mapContainerRef = useRef<HTMLDivElement>(null);
+  const [searchText, setSearchText] = useState("00026");
+
+  // Highlighting via context + hook
+  const {
+    highlightingActive,
+    setHighlightingActive,
+    highlightByProperty,
+    clearHighlights,
+  } = useMapHighlight();
+
+  const namespacedSource = `${slugifyUrl(
+    BELIS_STYLE_URL
+  )}::${BELIS_ORIGINAL_SOURCE}`;
+  const BELIS_SOURCE_LAYERS = useMemo(
+    () => [
+      "leuchten",
+      "mast",
+      "mauerlaschen",
+      "schaltstelle",
+      "leitungen",
+      "abzweigdosen",
+    ],
+    []
+  );
+  const highlightSources = useMemo(
+    () => [{ source: namespacedSource, sourceLayers: BELIS_SOURCE_LAYERS }],
+    [namespacedSource, BELIS_SOURCE_LAYERS]
+  );
+
+  useMapHighlighting({
+    map,
+    sources: highlightSources,
+    modifierClick: "alt",
+  });
+
+  // Neighborhood: mark leuchten sharing the same Standort as the selected feature
+  useSelectionNeighborhood({
+    map,
+    sources: highlightSources,
+    isNeighbor: (selectedProps, candidateProps, candidateSourceLayer, selectedSourceLayer) => {
+      if (selectedSourceLayer !== "leuchten" || candidateSourceLayer !== "leuchten") return false;
+      const selected = selectedProps.fk_standort;
+      const candidate = candidateProps.fk_standort;
+      return (
+        selected != null &&
+        candidate != null &&
+        String(selected) === String(candidate)
+      );
+    },
+  });
+
+  // Layer filtering via hook
+  const { enabledFilters, setFilterEnabled, activeSourceLayers } =
+    useLayerFilter({
+      map,
+      categories: BELIS_FILTER_CATEGORIES,
+    });
+
+  const handleSearch = useCallback(() => {
+    if (!map || !searchText.trim()) return;
+    setHighlightingActive(true);
+    highlightByProperty(
+      "strassenschluessel",
+      new RegExp(searchText.trim(), "i")
+    );
+  }, [map, searchText, setHighlightingActive, highlightByProperty]);
+
+  const handleClearSearch = useCallback(() => {
+    setHighlightingActive(false);
+    clearHighlights();
+    setSearchText("");
+  }, [setHighlightingActive, clearHighlights]);
 
   const {
     containerStyle,
@@ -232,13 +405,29 @@ const BelisPlaygroundContent = () => {
     setMiniMap(m);
   }, []);
 
+  // Deterministic click selection: prefer leuchten, sort by leuchtennummer
+  const handleSelectFromHits = useCallback(
+    (hits: maplibregl.MapGeoJSONFeature[]) => {
+      const leuchten = hits.filter((h) => h.sourceLayer === "leuchten");
+      if (leuchten.length > 0) {
+        return leuchten.sort(
+          (a, b) =>
+            Number(a.properties?.leuchtennummer ?? 0) -
+            Number(b.properties?.leuchtennummer ?? 0)
+        )[0];
+      }
+      return hits[0];
+    },
+    []
+  );
+
   return (
     <div className="bg-[#F1F1F1] flex flex-col w-full h-screen overflow-hidden">
-      <div className="flex items-center mx-3 mb-2 mt-2">
+      <div className="flex items-center mx-3 mb-2 mt-2 gap-4">
         <span className="font-semibold mr-8 text-lg">BelISDesktop</span>
       </div>
       <div className="w-full flex-1 flex min-h-0">
-        <TestSelectionList />
+        <TestSelectionList activeSourceLayers={activeSourceLayers} />
         <div className="flex-1 flex flex-col min-h-0">
           <div className="mx-3 my-2 flex-1 flex flex-col min-h-0">
             <CustomCard
@@ -246,17 +435,42 @@ const BelisPlaygroundContent = () => {
               style={{ flex: 1, minHeight: 0 }}
               extra={
                 <div className="flex items-center gap-4">
-                  <BelisSwitch
-                    preLabel="Fokus"
-                    switched={false}
-                    stateChanged={(switched) => {}}
-                  />
-                  <BelisSwitch
-                    id="pale-toggle"
-                    preLabel="Blass"
-                    switched={false}
-                    stateChanged={(switched) => {}}
-                  />
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="text"
+                      value={searchText}
+                      onChange={(e) => setSearchText(e.target.value)}
+                      onKeyDown={(e) => e.key === "Enter" && handleSearch()}
+                      placeholder="Strassenschluessel..."
+                      className="border border-gray-300 rounded px-2 py-1 text-sm w-48"
+                    />
+                    <button
+                      onClick={handleSearch}
+                      disabled={!searchText.trim()}
+                      className="bg-blue-600 text-white px-3 py-1 rounded text-sm hover:bg-blue-700 disabled:opacity-50"
+                    >
+                      Suche
+                    </button>
+                    {highlightingActive && (
+                      <button
+                        onClick={handleClearSearch}
+                        className="bg-gray-500 text-white px-3 py-1 rounded text-sm hover:bg-gray-600"
+                      >
+                        {"\u2715"}
+                      </button>
+                    )}
+                  </div>
+                  <div className="flex items-center gap-2 border-l border-gray-300 pl-4 flex-wrap">
+                    {BELIS_FILTER_CATEGORIES.map((cat) => (
+                      <Switch
+                        key={cat.key}
+                        checkedChildren={cat.label}
+                        unCheckedChildren={cat.label}
+                        checked={enabledFilters[cat.key]}
+                        onChange={(on) => setFilterEnabled(cat.key, on)}
+                      />
+                    ))}
+                  </div>
                 </div>
               }
             >
@@ -301,7 +515,9 @@ const BelisPlaygroundContent = () => {
                     <CarmaMap
                       mapEngine="maplibre"
                       embedded
+                      exposeMapToWindow
                       miniMap
+                      layerMode="imperative"
                       backgroundLayers="basemap_relief@60"
                       overrideGlyphs="https://tiles.cismet.de/fonts/{fontstack}/{range}.pbf"
                       libreLayers={BELIS_LAYERS}
@@ -314,10 +530,14 @@ const BelisPlaygroundContent = () => {
                     <CarmaMap
                       mapEngine="maplibre"
                       embedded
+                      exposeMapToWindow
+                      layerMode="imperative"
+                      debugLog
                       terrainControl={false}
-                      backgroundLayers="basemap_grey@60"
+                      backgroundLayers="basemap_grey@20"
                       overrideGlyphs="https://tiles.cismet.de/fonts/{fontstack}/{range}.pbf"
                       libreLayers={BELIS_LAYERS}
+                      selectFromHits={handleSelectFromHits}
                     />
                   }
                   datasheetContent={
@@ -349,109 +569,3 @@ const BelisPlayground = () => {
 };
 
 export default BelisPlayground;
-
-//Working LibreLayers
-
-// libreLayers={[
-//         // --- Background layers for testing ---
-//         // RVR
-//         {
-//           type: "wmts",
-//           url: "https://geodaten.metropoleruhr.de/spw2/service",
-//           layers: "spw2_light",
-//           version: "1.3.0",
-//           transparent: true,
-//           format: "image/png",
-//           tileSize: 512,
-//           maxZoom: 26,
-//         },
-// Liegenschaftskarte (grau)
-// {
-//   type: "wmts",
-//   url: "https://s10222-wuppertal-intra.map-hosting.de/forwardingTo/s10221/7098/alkis/services",
-//   //url: "http://s10221.wuppertal-intra.de:7098/alkis/services",
-//   layers: "alkomgw",
-//   styles: "default",
-//   version: "1.1.1",
-//   tileSize: 256,
-//   maxZoom: 26,
-//   transparent: true,
-//   format: "image/png",
-//   opacity: 0.5,
-// },
-// // Liegenschaftskarte (bunt)
-// {
-//   type: "wmts",
-//   url: "https://s10222-wuppertal-intra.map-hosting.de/forwardingTo/s10221/7098/alkis/services",
-//   //url: "http://s10221.wuppertal-intra.de:7098/alkis/services",
-//   layers: "alkomf",
-//   styles: "default",
-//   version: "1.1.1",
-//   tileSize: 256,
-//   transparent: true,
-//   format: "image/png",
-//   opacity: 0.5,
-// },
-// // True Orthofoto
-// {
-//   type: "wms",
-//   url: "https://geo.udsp.wuppertal.de/geoserver-cloud/ows",
-//   layers: "GIS-102:trueortho2024",
-//   tileSize: 256,
-//   transparent: true,
-//   maxZoom: 26,
-//   format: "image/png",
-// },
-// Luftbildkarte (SPW2 light Grundriss)
-// {
-//   type: "wmts",
-//   url: "https://geodaten.metropoleruhr.de/spw2/service",
-//   layers: "spw2_light_grundriss",
-//   version: "1.3.0",
-//   transparent: true,
-//   format: "image/png",
-//   maxZoom: 26,
-// },
-// // Luftbildkarte (True Ortho underlay)
-// {
-//   type: "wms",
-//   url: "https://geo.udsp.wuppertal.de/geoserver-cloud/ows",
-//   layers: "GIS-102:trueortho2024",
-//   tileSize: 256,
-//   transparent: true,
-//   maxZoom: 26,
-//   format: "image/png",
-// },
-// // Luftbildkarte (DOP Overlay)
-// {
-//   type: "wmts",
-//   url: "https://geodaten.metropoleruhr.de/dop/dop_overlay?language=ger",
-//   layers: "dop_overlay",
-//   version: "1.3.0",
-//   format: "image/png",
-//   transparent: true,
-//   maxZoom: 26,
-// },
-// Stadtplan (grau)
-// {
-//   type: "vector",
-//   name: "Stadtplan grau",
-//   style:
-//     "https://sgx.geodatenzentrum.de/gdz_basemapde_vektor/styles/bm_web_gry.json",
-//   opacity: 0.5,
-// },
-// Stadtplan (bunt)
-// {
-//   type: "vector",
-//   name: "Stadtplan bunt",
-//   style:
-//     "https://sgx.geodatenzentrum.de/gdz_basemapde_vektor/styles/bm_web_top.json",
-//   opacity: 0.5,
-// },
-//   {
-//     type: "vector",
-//     name: "Leuchten",
-//     style: "https://tiles.cismet.de/belis/style.json",
-//     opacity: 1,
-//   },
-// ]}

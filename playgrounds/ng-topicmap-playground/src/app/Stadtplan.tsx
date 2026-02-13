@@ -15,7 +15,7 @@ import "react-bootstrap-typeahead/css/Typeahead.css";
 import "react-cismap/topicMaps.css";
 import "leaflet/dist/leaflet.css";
 
-export function App() {
+export function Stadtplan() {
   const { progress, showProgress, handleProgressUpdate } = useProgress();
 
   return (
@@ -28,6 +28,7 @@ export function App() {
               <CarmaMap
                 onClick={() => {}}
                 mapEngine="maplibre"
+                exposeMapToWindow
                 overrideGlyphs="https://tiles.cismet.de/fonts/{fontstack}/{range}.pbf"
                 onProgressUpdate={handleProgressUpdate}
                 libreLayers={[

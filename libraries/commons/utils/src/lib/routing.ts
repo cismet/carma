@@ -113,9 +113,9 @@ export const updateHashHistoryState = (
     keyOrder
   );
   sortedAllPairs.forEach(([key, value]) => {
-    typeof value === "string" &&
-      value.length > 0 &&
+    if (typeof value === "string") {
       combinedSearchParams.append(key, value); // append preserves insertion order
+    }
   });
 
   const combinedHash = combinedSearchParams.toString();

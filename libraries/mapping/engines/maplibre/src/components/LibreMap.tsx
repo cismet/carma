@@ -116,8 +116,15 @@ export interface LibreMapProps {
       id?: string | number;
     }
   ) => void;
+  /** Pick which feature to select from all click hits.
+   * Receives filtered hits (no selection/cluster layers).
+   * Return the preferred feature, or undefined to clear selection.
+   * If omitted, the first hit is selected (default behavior). */
+  selectFromHits?: (hits: maplibregl.MapGeoJSONFeature[]) => maplibregl.MapGeoJSONFeature | undefined;
   /** Enable debug logging for [LAYER_MODE] and [StyleComposer] messages */
   debugLog?: boolean;
+  /** Expose the map instance as window.__carmaMap for console debugging */
+  exposeMapToWindow?: boolean;
 }
 
 export const LibreMap = ({
@@ -133,7 +140,9 @@ export const LibreMap = ({
   selectionEnabled = true,
   layerMode = "merged",
   onFeatureSelect,
+  selectFromHits,
   debugLog = false,
+  exposeMapToWindow = false,
 }: LibreMapProps) => {
   const mapContainer = useRef<HTMLDivElement>(null);
   const map = useRef<maplibregl.Map | null>(null);
@@ -150,6 +159,8 @@ export const LibreMap = ({
   const mappingRef = useRef({});
   const onFeatureSelectRef = useRef(onFeatureSelect);
   onFeatureSelectRef.current = onFeatureSelect;
+  const selectFromHitsRef = useRef(selectFromHits);
+  selectFromHitsRef.current = selectFromHits;
   const useRoutingRef = useRef(useRouting);
   useRoutingRef.current = useRouting;
   const isIdleRef = useRef(false);
@@ -499,6 +510,9 @@ export const LibreMap = ({
       map.current = mapInstance;
       setLibreMap?.(mapInstance);
       setContextMap(mapInstance);
+      if (exposeMapToWindow) {
+        (window as unknown as Record<string, unknown>).__carmaMap = mapInstance;
+      }
 
       mapInstance.on("click", async (e) => {
         const point = mapInstance.project([e.lngLat.lng, e.lngLat.lat]);
@@ -516,7 +530,9 @@ export const LibreMap = ({
         mapSelectionCtxRef.current.clearSelection();
 
         if (filteredHits.length > 0) {
-          const selectedVectorFeature = filteredHits[0];
+          const selectedVectorFeature = selectFromHitsRef.current
+            ? selectFromHitsRef.current(filteredHits) ?? filteredHits[0]
+            : filteredHits[0];
           const featureId = {
             source: selectedVectorFeature.source,
             sourceLayer: selectedVectorFeature.sourceLayer,
@@ -1138,7 +1154,9 @@ export const LibreMap = ({
         mapSelectionCtxRef.current.clearSelection();
 
         if (filteredHits.length > 0) {
-          const selectedVectorFeature = filteredHits[0];
+          const selectedVectorFeature = selectFromHitsRef.current
+            ? selectFromHitsRef.current(filteredHits) ?? filteredHits[0]
+            : filteredHits[0];
           const featureId = {
             source: selectedVectorFeature.source,
             sourceLayer: selectedVectorFeature.sourceLayer,

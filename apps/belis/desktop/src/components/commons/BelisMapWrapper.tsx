@@ -7,11 +7,15 @@ import {
   getBackgroundLayerOpacities,
   getActiveAdditionalLayers,
   getAdditionalLayerOpacities,
+  isInPaleMode,
 } from "../../store/slices/mapSettings";
 import {
   backgroundLayerConfigs,
   additionalLayerConfigs,
   leuchtenDataLayer,
+  BELIS_STYLE_URL,
+  BELIS_ORIGINAL_SOURCE,
+  BELIS_SOURCE_LAYERS,
 } from "../../config/mapLayerConfigs";
 import type { LibreLayer } from "@carma-mapping/engines/maplibre";
 import { AppDispatch } from "../../store";
@@ -22,6 +26,9 @@ import {
   LibreContextProvider,
   useDatasheet,
   useDatasheetMiniMap,
+  useMapHighlighting,
+  useSelectionNeighborhood,
+  slugifyUrl,
 } from "@carma-mapping/engines/maplibre";
 import type maplibregl from "maplibre-gl";
 import BelisDatasheetView from "../ui/BelisDatasheetView";
@@ -33,7 +40,15 @@ const LIST_WIDTH = 300;
 /** Debug flag: translucent main map + red mini-map border, mini-map always visible */
 const MINI_MAP_DEBUGGING = false;
 
-const BelisMapLibWrapper = ({ mapSizes }) => {
+interface BelisMapLibWrapperProps {
+  mapSizes: { width: number; height: number };
+  activeSourceLayers: Set<string>;
+}
+
+const BelisMapLibWrapper = ({
+  mapSizes,
+  activeSourceLayers,
+}: BelisMapLibWrapperProps) => {
   const dispatch: AppDispatch = useDispatch();
   const { map } = useLibreContext();
   const { selectedFeature, rawFeature } = useMapSelection();
@@ -43,6 +58,36 @@ const BelisMapLibWrapper = ({ mapSizes }) => {
   const backgroundLayerOpacities = useSelector(getBackgroundLayerOpacities);
   const activeAdditionalLayers = useSelector(getActiveAdditionalLayers);
   const additionalLayerOpacities = useSelector(getAdditionalLayerOpacities);
+  const inPaleMode = useSelector(isInPaleMode);
+
+  // Highlighting: compute namespaced source + call useMapHighlighting
+  const namespacedSource = `${slugifyUrl(BELIS_STYLE_URL)}::${BELIS_ORIGINAL_SOURCE}`;
+  const highlightSources = useMemo(
+    () => [{ source: namespacedSource, sourceLayers: [...BELIS_SOURCE_LAYERS] }],
+    [namespacedSource]
+  );
+
+  useMapHighlighting({
+    map,
+    sources: highlightSources,
+    modifierClick: "alt",
+  });
+
+  // Neighborhood: mark leuchten sharing the same Standort as the selected feature
+  useSelectionNeighborhood({
+    map,
+    sources: highlightSources,
+    isNeighbor: (selectedProps, candidateProps, candidateSourceLayer, selectedSourceLayer) => {
+      if (selectedSourceLayer !== "leuchten" || candidateSourceLayer !== "leuchten") return false;
+      const selectedStandort = selectedProps.fk_standort;
+      const candidateStandort = candidateProps.fk_standort;
+      return (
+        selectedStandort != null &&
+        candidateStandort != null &&
+        String(selectedStandort) === String(candidateStandort)
+      );
+    },
+  });
 
   // Sync selection to Redux store when map selection changes
   useEffect(() => {
@@ -58,11 +103,12 @@ const BelisMapLibWrapper = ({ mapSizes }) => {
     const bgConfig = backgroundLayerConfigs[activeBackgroundLayer];
     if (bgConfig) {
       const bgOpacity = backgroundLayerOpacities[activeBackgroundLayer] ?? 1;
+      const effectiveOpacity = inPaleMode ? bgOpacity * 0.1 : bgOpacity;
       const bgLayers = Array.isArray(bgConfig.layer)
         ? bgConfig.layer
         : [bgConfig.layer];
       for (const l of bgLayers) {
-        const withOpacity = { ...l, opacity: bgOpacity };
+        const withOpacity = { ...l, opacity: effectiveOpacity };
         layers.push(withOpacity as LibreLayer);
       }
     }
@@ -91,6 +137,7 @@ const BelisMapLibWrapper = ({ mapSizes }) => {
     backgroundLayerOpacities,
     activeAdditionalLayers,
     additionalLayerOpacities,
+    inPaleMode,
   ]);
 
   // Mini-map state
@@ -113,6 +160,22 @@ const BelisMapLibWrapper = ({ mapSizes }) => {
     setMiniMap(m);
   }, []);
 
+  // Deterministic click selection: prefer leuchten, sort by leuchtennummer
+  const handleSelectFromHits = useCallback(
+    (hits: maplibregl.MapGeoJSONFeature[]) => {
+      const leuchten = hits.filter((h) => h.sourceLayer === "leuchten");
+      if (leuchten.length > 0) {
+        return leuchten.sort(
+          (a, b) =>
+            Number(a.properties?.leuchtennummer ?? 0) -
+            Number(b.properties?.leuchtennummer ?? 0)
+        )[0];
+      }
+      return hits[0];
+    },
+    []
+  );
+
   const handleReturnToMap = useCallback(() => {
     map?.resize();
   }, [map]);
@@ -127,6 +190,7 @@ const BelisMapLibWrapper = ({ mapSizes }) => {
       <OnMapList
         visibleMapWidth={mapWidth}
         visibleMapHeight={mapSizes.height}
+        activeSourceLayers={activeSourceLayers}
       />
       <div
         ref={mapContainerRef}
@@ -185,11 +249,13 @@ const BelisMapLibWrapper = ({ mapSizes }) => {
               layerMode="imperative"
               embedded
               debugLog
+              exposeMapToWindow
               overrideGlyphs="https://tiles.cismet.de/fonts/{fontstack}/{range}.pbf"
               backgroundLayers=""
               terrainControl={false}
               fullScreenControl={false}
               libreLayers={libreLayers}
+              selectFromHits={handleSelectFromHits}
             />
           }
           datasheetContent={

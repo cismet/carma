@@ -1,7 +1,7 @@
 import { StrictMode } from "react";
 import * as ReactDOM from "react-dom/client";
-import { HashRouter, Routes, Route } from "react-router-dom";
-import { App } from "./app/App";
+import { HashRouter, Routes, Route, Navigate } from "react-router-dom";
+import { Stadtplan } from "./app/Stadtplan";
 import { SimpleMap } from "./app/SimpleMap";
 import { SimpleMapWithoutControls } from "./app/SimpleMapWithoutControls";
 import "./styles.css";
@@ -14,11 +14,13 @@ import { SandboxedEvalProvider } from "@carma-commons/sandbox-eval";
 import {
   LibreContextProvider,
   MapSelectionProvider,
+  MapHighlightProvider,
 } from "@carma-mapping/engines/maplibre";
 import TopicMapContextProvider from "react-cismap/contexts/TopicMapContextProvider";
 import { defaultGazDataConfig } from "@carma-commons/resources";
 import BelisPlayground from "./app/BelisPlayground";
 import AlkisPlayground from "./app/AlkisPlayground";
+import Stadtplan2 from "./app/Stadtplan2";
 
 const root = ReactDOM.createRoot(
   document.getElementById("root") as HTMLElement
@@ -35,8 +37,10 @@ root.render(
             <SelectionProvider>
               <LibreContextProvider>
                 <MapSelectionProvider debug>
+                <MapHighlightProvider debug>
                   <Routes>
-                    <Route path="/" element={<App />} />
+                    <Route path="/" element={<Navigate to="/stadtplan" replace />} />
+                    <Route path="/stadtplan" element={<Stadtplan />} />
                     <Route path="/simple" element={<SimpleMap />} />
                     <Route
                       path="/simpleWithoutControls"
@@ -44,7 +48,9 @@ root.render(
                     />
                     <Route path="/belis" element={<BelisPlayground />} />
                     <Route path="/alkis" element={<AlkisPlayground />} />
+                    <Route path="/stadtplan2" element={<Stadtplan2 />} />
                   </Routes>
+                </MapHighlightProvider>
                 </MapSelectionProvider>
               </LibreContextProvider>
             </SelectionProvider>

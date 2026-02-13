@@ -6,6 +6,7 @@ const AlkisPlayground = () => {
       <CarmaMap
         mapEngine="maplibre"
         embedded
+        exposeMapToWindow
         terrainControl={false}
         layerMode="imperative"
         backgroundLayers="basemap_grey@20"

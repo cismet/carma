@@ -28,3 +28,17 @@ export {
 } from "./DatasheetContext";
 
 export type { DatasheetContextType } from "./DatasheetContext";
+
+export {
+  MapHighlightContext,
+  MapHighlightProvider,
+  useMapHighlight,
+} from "./MapHighlightContext";
+
+export type {
+  MapHighlightContextType,
+  HighlightCriteria,
+  PropertyMatcher,
+  QueryId,
+  ToggledFeature,
+} from "./MapHighlightContext";

@@ -57,15 +57,12 @@ function layerKey(layer: LibreLayer, index: number): string {
   }
 }
 
-/** Derive a human-readable sub-style ID from a layer. */
+/** Derive a sub-style ID that matches the key used by StyleComposer.managed. */
 function subStyleId(layer: LibreLayer, index: number): string {
   switch (layer.type) {
     case "vector": {
-      if (layer.layer) {
-        const atIdx = layer.layer.indexOf("@");
-        if (atIdx > 0) return layer.layer.substring(0, atIdx);
-      }
-      return layer.name;
+      // Must match the layerId used in StyleComposer.addVectorSubStyle
+      return layer.style ? slugifyUrl(layer.style) : layer.name;
     }
     case "geojson":
       return `geojson-${layer.name}-${index}`;
@@ -339,7 +336,8 @@ export function useImperativeStyle({
         }
       }
 
-      // Add sub-styles that are new
+      // Add sub-styles that are new, inserting before the next existing
+      // sub-style so z-order is preserved (last layer stays on top).
       const geoMeta: GeoJsonSubStyleMeta[] = [];
       for (let i = 0; i < effectiveLayers.length; i++) {
         if (aborted) return;
@@ -347,22 +345,37 @@ export function useImperativeStyle({
           const layer = effectiveLayers[i];
           const id = newIds[i];
 
+          // Find the first sub-style after this one that already exists
+          // in the composer, and insert before it to maintain order.
+          let beforeId: string | undefined;
+          for (let j = i + 1; j < newIds.length; j++) {
+            const nextFirstId = composer.getLastId(newIds[j]);
+            if (nextFirstId) {
+              // Insert before the *first* boundary of the next sub-style
+              // (the first boundary ID follows the pattern ---id:first---)
+              beforeId = `---${newIds[j]}:first---`;
+              break;
+            }
+          }
+
           if (layer.type === "vector") {
             await composer.addVectorSubStyle(layer, {
               opacity: layer.opacity,
               markerSymbolSize,
               zIndex: i,
+              beforeId,
             });
           } else if (layer.type === "geojson") {
             const meta = await composer.addGeoJsonSubStyle(id, layer.data!, {
               zIndex: i,
               clusteringEnabled,
+              beforeId,
             });
             geoMeta.push(meta);
           } else if (layer.type === "wms" || layer.type === "wmts") {
-            composer.addRasterSubStyle(id, layer, { zIndex: i });
+            composer.addRasterSubStyle(id, layer, { zIndex: i, beforeId });
           } else if (layer.type === "cog") {
-            composer.addCogSubStyle(id, layer, { zIndex: i });
+            composer.addCogSubStyle(id, layer, { zIndex: i, beforeId });
           }
         }
       }

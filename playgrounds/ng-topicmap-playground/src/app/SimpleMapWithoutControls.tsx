@@ -8,6 +8,7 @@ export function SimpleMapWithoutControls() {
       terrainControl={false}
       gazetteerSearchControl={false}
       mapEngine="maplibre"
+      exposeMapToWindow
     />
   );
 }

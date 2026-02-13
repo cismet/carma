@@ -1,8 +1,9 @@
-import { useEffect, useState, useMemo, useRef } from "react";
+import { useEffect, useState, useMemo, useRef, useCallback } from "react";
 import { useVisibleMapFeatures, VisibleFeature } from "@carma-mapping/utils";
 import {
   useMapSelection,
   useLibreContext,
+  useMapHighlight,
 } from "@carma-mapping/engines/maplibre";
 
 // Convert ALL CAPS to Title Case (e.g., "GROSSE FLURSTR" -> "Grosse Flurstr")
@@ -155,21 +156,36 @@ const genericExtractor = (feature: VisibleFeature): ListItemData => {
 interface OnMapListProps {
   visibleMapWidth: number;
   visibleMapHeight: number;
+  activeSourceLayers: Set<string>;
 }
 
-const OnMapList = ({ visibleMapWidth, visibleMapHeight }: OnMapListProps) => {
+const OnMapList = ({
+  visibleMapWidth,
+  visibleMapHeight,
+  activeSourceLayers,
+}: OnMapListProps) => {
   const { map } = useLibreContext();
   const { selectedFeatureId, selectFeature } = useMapSelection();
+  const { highlightingActive, highlightVersion } = useMapHighlight();
 
   const { features, totalCount, countsByLayer, isLoading, isOverviewMode } =
     useVisibleMapFeatures({
       maplibreMap: map,
       visibleMapWidth,
       visibleMapHeight,
-      minZoomForFullFeatures: 17,
-      maxFeatures: 20000,
+      maxFeatures: 2000,
       layerFilterExpressions: ["Leuchten.*-base", "Leuchten.*-icon"],
+      highlightedOnly: highlightingActive,
+      refreshTrigger: highlightVersion,
     });
+
+  // Filter features by active source layers
+  const filteredFeatures = useMemo(() => {
+    return features.filter((f) => {
+      const sl = f.sourceLayer || "";
+      return activeSourceLayers.has(sl);
+    });
+  }, [features, activeSourceLayers]);
 
   const [collapsedGroups, setCollapsedGroups] = useState<
     Record<string, boolean>
@@ -187,7 +203,7 @@ const OnMapList = ({ visibleMapWidth, visibleMapHeight }: OnMapListProps) => {
       return;
     }
 
-    const selectedFeature = features.find(
+    const selectedFeature = filteredFeatures.find(
       (f) =>
         f.source === selectedFeatureId.source &&
         f.sourceLayer === selectedFeatureId.sourceLayer &&
@@ -213,25 +229,37 @@ const OnMapList = ({ visibleMapWidth, visibleMapHeight }: OnMapListProps) => {
         });
       }, 100);
     }
-  }, [selectedFeatureId, features, collapsedGroups]);
+  }, [selectedFeatureId, filteredFeatures, collapsedGroups]);
 
   // Group features by sourceLayer
   const groupedFeatures = useMemo(() => {
     const groups: Record<string, { items: VisibleFeature[]; total: number }> =
       {};
     for (const [layerKey, count] of Object.entries(countsByLayer)) {
+      if (!activeSourceLayers.has(layerKey)) continue;
       groups[layerKey] = { items: [], total: count };
     }
-    features.forEach((feature) => {
+    filteredFeatures.forEach((feature) => {
       const groupKey = feature.sourceLayer || feature.source || "Sonstige";
       if (!groups[groupKey]) {
         groups[groupKey] = { items: [], total: 0 };
       }
       groups[groupKey].items.push(feature);
     });
-    // Sort items within each group by standort (lfd_nummer), then by leuchtennummer
+    // Sort items within each group by street name, then standort, then leuchtennummer
     for (const group of Object.values(groups)) {
       group.items.sort((a, b) => {
+        const aStreet = (
+          a.properties?.strasse ||
+          a.properties?.strassenschluessel ||
+          ""
+        ).toLowerCase();
+        const bStreet = (
+          b.properties?.strasse ||
+          b.properties?.strassenschluessel ||
+          ""
+        ).toLowerCase();
+        if (aStreet !== bStreet) return aStreet.localeCompare(bStreet);
         const aStandort = Number(a.properties?.lfd_nummer) || 0;
         const bStandort = Number(b.properties?.lfd_nummer) || 0;
         if (aStandort !== bStandort) return aStandort - bStandort;
@@ -241,7 +269,47 @@ const OnMapList = ({ visibleMapWidth, visibleMapHeight }: OnMapListProps) => {
       });
     }
     return groups;
-  }, [features, countsByLayer]);
+  }, [filteredFeatures, countsByLayer, activeSourceLayers]);
+
+  // Flat ordered list matching render order (for keyboard navigation)
+  const flatFeatures = useMemo(() => {
+    const flat: VisibleFeature[] = [];
+    for (const [groupKey, group] of Object.entries(groupedFeatures)) {
+      if (!isOverviewMode && !collapsedGroups[groupKey]) {
+        flat.push(...group.items);
+      }
+    }
+    return flat;
+  }, [groupedFeatures, isOverviewMode, collapsedGroups]);
+
+  const listRef = useRef<HTMLDivElement>(null);
+
+  const handleKeyDown = useCallback(
+    (e: React.KeyboardEvent) => {
+      if (e.key !== "ArrowDown" && e.key !== "ArrowUp") return;
+      e.preventDefault();
+      if (flatFeatures.length === 0) return;
+
+      const currentIdx = flatFeatures.findIndex((f) => isFeatureSelected(f));
+      let nextIdx: number;
+      if (e.key === "ArrowDown") {
+        nextIdx =
+          currentIdx < 0 ? 0 : (currentIdx + 1) % flatFeatures.length;
+      } else {
+        nextIdx =
+          currentIdx < 0
+            ? flatFeatures.length - 1
+            : (currentIdx - 1 + flatFeatures.length) % flatFeatures.length;
+      }
+      const next = flatFeatures[nextIdx];
+      selectionFromListRef.current = true;
+      selectFeature(
+        { source: next.source, sourceLayer: next.sourceLayer, id: next.id },
+        next
+      );
+    },
+    [flatFeatures, selectFeature, selectedFeatureId]
+  );
 
   const getListItem = (feature: VisibleFeature): ListItemData => {
     const layerKey = feature.sourceLayer || feature.source || "";
@@ -281,9 +349,17 @@ const OnMapList = ({ visibleMapWidth, visibleMapHeight }: OnMapListProps) => {
   };
 
   return (
-    <div className="w-[300px] h-full bg-white border-r border-gray-300 flex flex-col overflow-hidden z-[1000] shrink-0">
+    <div
+      ref={listRef}
+      tabIndex={0}
+      onKeyDown={handleKeyDown}
+      className="w-[300px] h-full bg-white border-r border-gray-300 flex flex-col overflow-hidden z-[1000] shrink-0 outline-none"
+    >
       <div className="px-3 py-2 border-b border-gray-300 bg-gray-50 font-bold text-sm flex justify-between items-center">
-        <span>Objekte ({totalCount})</span>
+        <span>
+          Objekte (
+          {highlightingActive ? filteredFeatures.length : totalCount})
+        </span>
         {isLoading && <span className="text-xs text-gray-500">...</span>}
         {isOverviewMode && !isLoading && (
           <span className="text-[10px] text-gray-400">zoom in</span>
