@@ -30,6 +30,9 @@ export interface PointLabelData {
   onLongPress?: () => void;
   longPressDurationMs?: number;
   onHoverChange?: (hovered: boolean) => void;
+  onMarkerDragStart?: (clientX: number, clientY: number) => void;
+  onMarkerDragMove?: (clientX: number, clientY: number) => void;
+  onMarkerDragEnd?: () => void;
 }
 
 export type PointLabelLayoutOptions = {
@@ -62,7 +65,9 @@ export const usePointLabels = (
               p.onHoverChange
             )}:${Boolean(p.onDoubleClick)}:${Boolean(p.onLongPress)}:${
               p.longPressDurationMs
-            }`
+            }:${Boolean(p.onMarkerDragStart)}:${Boolean(
+              p.onMarkerDragMove
+            )}:${Boolean(p.onMarkerDragEnd)}`
         )
         .join("|") + `:transition:${layoutOptions?.transitionDurationMs ?? ""}`,
     [points, layoutOptions?.transitionDurationMs]
@@ -105,6 +110,9 @@ export const usePointLabels = (
           onLongPress: point.onLongPress,
           longPressDurationMs: point.longPressDurationMs,
           onHoverChange: point.onHoverChange,
+          onMarkerDragStart: point.onMarkerDragStart,
+          onMarkerDragMove: point.onMarkerDragMove,
+          onMarkerDragEnd: point.onMarkerDragEnd,
           ...styleProps,
         }),
         visible: point.visible !== false,

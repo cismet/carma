@@ -42,16 +42,22 @@ import {
 } from "@carma-mapping/engines/cesium/measurements";
 import { useCesiumContext } from "@carma-mapping/engines/cesium";
 import { flyToPointGroup } from "../utils/cesiumFlyTo";
+import {
+  getConnectedPolygonGroups,
+  getDistanceRelationId,
+  getDistanceRelationLineVisibilityByKind,
+  getElevationInputWidthPx,
+  getPolygonGroupAreaSumsByType,
+  getPolygonGroupSurfaceTypeLabel,
+  getPolygonTiltAndNormalDirection,
+  getRoofAverageSlopeDeg,
+  getRoofSlopeLabels,
+} from "./InfoBoxMeasurement3D.helpers";
 
 const MIN_ELEVATION_STEP_METERS = 0.1;
 const MIN_COORDINATE_STEP_DEGREES = 0.000001;
 const STEP_DISTANCE_FACTOR = 0.001;
 const METERS_PER_DEGREE_LAT = 111320;
-const ELEVATION_MAX_RESOLUTION_DECIMALS = 2;
-const ELEVATION_INPUT_MIN_WIDTH_PX = 76;
-const ELEVATION_INPUT_MAX_WIDTH_PX = 126;
-const ELEVATION_INPUT_CHARACTER_WIDTH_PX = 8;
-const ELEVATION_INPUT_CONTROLS_PADDING_PX = 34;
 const COORDINATE_INPUT_WIDTH_PX = 112;
 const MOVE_GIZMO_VERTICAL_AXIS_COLOR = "rgba(59, 130, 246, 0.98)";
 const MOVE_GIZMO_HORIZONTAL_PRIMARY_AXIS_COLOR = "rgba(239, 68, 68, 0.98)";
@@ -77,53 +83,6 @@ const DEFAULT_DISTANCE_RELATION_LABEL_VISIBILITY = {
   vertical: true,
   horizontal: true,
 } as const;
-
-const getDistanceRelationId = (pointAId: string, pointBId: string) => {
-  const [left, right] = [pointAId, pointBId].sort((a, b) => a.localeCompare(b));
-  return `distance-relation:${left}:${right}`;
-};
-
-const getDistanceRelationLineVisibilityByKind = (relation: {
-  showDirectLine?: boolean;
-  showVerticalLine?: boolean;
-  showHorizontalLine?: boolean;
-  showComponentLines?: boolean;
-}) => ({
-  direct: relation.showDirectLine ?? false,
-  vertical: relation.showVerticalLine ?? relation.showComponentLines ?? false,
-  horizontal:
-    relation.showHorizontalLine ?? relation.showComponentLines ?? false,
-});
-
-const formatElevationValueForWidth = (value: number): string => {
-  const roundedValue = Number(value.toFixed(ELEVATION_MAX_RESOLUTION_DECIMALS));
-  const decimalDigits =
-    roundedValue
-      .toFixed(ELEVATION_MAX_RESOLUTION_DECIMALS)
-      .split(".")[1]
-      ?.replace(/0+$/, "").length ?? 0;
-
-  return roundedValue.toLocaleString("de-DE", {
-    minimumFractionDigits: decimalDigits,
-    maximumFractionDigits: decimalDigits,
-  });
-};
-
-const getElevationInputWidthPx = (value: number | null | undefined): number => {
-  if (value === null || value === undefined || !Number.isFinite(value)) {
-    return ELEVATION_INPUT_MIN_WIDTH_PX;
-  }
-
-  const valueText = formatElevationValueForWidth(value);
-  const estimatedWidth =
-    valueText.length * ELEVATION_INPUT_CHARACTER_WIDTH_PX +
-    ELEVATION_INPUT_CONTROLS_PADDING_PX;
-
-  return Math.max(
-    ELEVATION_INPUT_MIN_WIDTH_PX,
-    Math.min(ELEVATION_INPUT_MAX_WIDTH_PX, estimatedWidth)
-  );
-};
 
 const stopEventPropagation = (event: React.MouseEvent<HTMLElement>) => {
   event.stopPropagation();
@@ -241,6 +200,11 @@ export function InfoBoxMeasurement3D({ pixelWidth = 350 }) {
     updateMeasurementNameById,
     distanceRelations,
     setDistanceRelations,
+    planarPolygonGroups,
+    setPlanarPolygonGroups,
+    selectedPlanarPolygonGroupId,
+    selectPlanarPolygonGroupById,
+    updatePlanarPolygonNameById,
     moveGizmoPointId,
     isMoveGizmoDragging,
     startMoveGizmoForMeasurementId,
@@ -274,6 +238,56 @@ export function InfoBoxMeasurement3D({ pixelWidth = 350 }) {
     () => measurements.filter(isPointMeasurementEntry),
     [measurements]
   );
+  const selectedConnectedPlanarPolygonGroups = useMemo(
+    () =>
+      getConnectedPolygonGroups(
+        planarPolygonGroups,
+        selectedPlanarPolygonGroupId
+      ),
+    [planarPolygonGroups, selectedPlanarPolygonGroupId]
+  );
+  const selectedPlanarPolygonGroup = useMemo(() => {
+    if (!selectedPlanarPolygonGroupId) return null;
+    return (
+      selectedConnectedPlanarPolygonGroups.find(
+        (group) => group.id === selectedPlanarPolygonGroupId
+      ) ?? null
+    );
+  }, [selectedConnectedPlanarPolygonGroups, selectedPlanarPolygonGroupId]);
+  const selectedPlanarPolygonOrder = useMemo(() => {
+    if (selectedConnectedPlanarPolygonGroups.length === 0) return 0;
+    const firstConnectedGroup = selectedConnectedPlanarPolygonGroups[0];
+    if (!firstConnectedGroup) return 0;
+    const index = planarPolygonGroups.findIndex(
+      (group) => group.id === firstConnectedGroup.id
+    );
+    return index >= 0 ? index + 1 : 0;
+  }, [planarPolygonGroups, selectedConnectedPlanarPolygonGroups]);
+  const {
+    roofAreaSquareMeters: selectedConnectedRoofAreaSquareMeters,
+    facadeAreaSquareMeters: selectedConnectedFacadeAreaSquareMeters,
+    totalAreaSquareMeters: selectedConnectedPlanarPolygonTotalAreaSquareMeters,
+  } = useMemo(
+    () => getPolygonGroupAreaSumsByType(selectedConnectedPlanarPolygonGroups),
+    [selectedConnectedPlanarPolygonGroups]
+  );
+  const selectedConnectedPlanarPolygonSurfaceTypeLabel = useMemo(
+    () => getPolygonGroupSurfaceTypeLabel(selectedConnectedPlanarPolygonGroups),
+    [selectedConnectedPlanarPolygonGroups]
+  );
+  const selectedConnectedRoofAverageSlopeDeg = useMemo(
+    () => getRoofAverageSlopeDeg(selectedConnectedPlanarPolygonGroups),
+    [selectedConnectedPlanarPolygonGroups]
+  );
+  const selectedConnectedRoofSlopeLabels = useMemo(
+    () =>
+      getRoofSlopeLabels(
+        selectedConnectedPlanarPolygonGroups,
+        planarPolygonGroups
+      ),
+    [planarPolygonGroups, selectedConnectedPlanarPolygonGroups]
+  );
+  const isPolygonInfoMode = Boolean(selectedPlanarPolygonGroup);
   const isElevationEditModeActive =
     Boolean(moveGizmoPointId) &&
     isPointMeasurementEntry(currentMeasurement) &&
@@ -310,6 +324,16 @@ export function InfoBoxMeasurement3D({ pixelWidth = 350 }) {
     setEditedLatitude(null);
     setEditedLongitude(null);
   }, [currentMeasurement?.id]);
+
+  useEffect(() => {
+    if (!isPolygonInfoMode) return;
+    setIsCoordinateEditModeActive(false);
+    setElevationEditTarget(null);
+    setRelationMetricEdit(null);
+    setEditStepDistanceMeters(null);
+    setEditedLatitude(null);
+    setEditedLongitude(null);
+  }, [isPolygonInfoMode]);
 
   useEffect(() => {
     if (
@@ -872,6 +896,72 @@ export function InfoBoxMeasurement3D({ pixelWidth = 350 }) {
     updateMeasurementNameById(measurementId, name);
   };
 
+  const handlePolygonNameUpdate = (
+    polygonGroupId: string | number,
+    name: string
+  ) => {
+    if (typeof polygonGroupId !== "string") return;
+    updatePlanarPolygonNameById(polygonGroupId, name);
+  };
+
+  const flyToSelectedPolygon = () => {
+    if (!selectedPlanarPolygonGroup) return;
+    const scene = getScene();
+    const pointIds = new Set<string>();
+    selectedConnectedPlanarPolygonGroups.forEach((group) => {
+      group.vertexPointIds.forEach((pointId) => pointIds.add(pointId));
+    });
+    const polygonPoints = Array.from(pointIds).flatMap((pointId) => {
+      const pointMeasurement = pointMeasurements.find(
+        (measurement) => measurement.id === pointId
+      );
+      return pointMeasurement ? [pointMeasurement.geometryECEF] : [];
+    });
+
+    if (polygonPoints.length === 0) return;
+    flyToPointGroup(scene, polygonPoints);
+  };
+
+  const deleteSelectedPolygon = (
+    e?: ReactMouseEvent | MouseEvent
+  ) => {
+    e?.stopPropagation?.();
+    if (!selectedPlanarPolygonGroup) return;
+    const deletedGroupId = selectedPlanarPolygonGroup.id;
+    const deletedVertexPointIds = new Set(selectedPlanarPolygonGroup.vertexPointIds);
+
+    const remainingPolygonGroups = planarPolygonGroups.filter(
+      (group) => group.id !== deletedGroupId
+    );
+    const remainingPolygonVertexIds = new Set<string>();
+    remainingPolygonGroups.forEach((group) => {
+      group.vertexPointIds.forEach((pointId) => {
+        remainingPolygonVertexIds.add(pointId);
+      });
+    });
+
+    const remainingRelations = distanceRelations.filter(
+      (relation) => relation.polygonGroupId !== deletedGroupId
+    );
+    const remainingRelationPointIds = new Set<string>();
+    remainingRelations.forEach((relation) => {
+      remainingRelationPointIds.add(relation.pointAId);
+      remainingRelationPointIds.add(relation.pointBId);
+    });
+
+    const orphanPointIdsToDelete = Array.from(deletedVertexPointIds).filter(
+      (pointId) =>
+        !remainingPolygonVertexIds.has(pointId) &&
+        !remainingRelationPointIds.has(pointId)
+    );
+
+    setPlanarPolygonGroups(remainingPolygonGroups);
+    if (orphanPointIdsToDelete.length > 0) {
+      clearMeasurementsByIds(orphanPointIdsToDelete);
+    }
+    selectPlanarPolygonGroupById(null);
+  };
+
   const referencePointMeasurementId = useMemo(() => {
     if (!referencePoint) return null;
     const referenceMeasurement = pointMeasurements.find(
@@ -1000,7 +1090,7 @@ export function InfoBoxMeasurement3D({ pixelWidth = 350 }) {
   const absoluteElevationInputWidthPx =
     currentMeasurement && isPointMeasurementEntry(currentMeasurement)
       ? getElevationInputWidthPx(currentMeasurement.geometryWGS84.height)
-      : ELEVATION_INPUT_MIN_WIDTH_PX;
+      : getElevationInputWidthPx(null);
   const relativeElevationValue =
     currentMeasurement && isPointMeasurementEntry(currentMeasurement)
       ? referencePoint
@@ -1138,6 +1228,31 @@ export function InfoBoxMeasurement3D({ pixelWidth = 350 }) {
     referencePointMeasurementId,
   ]);
 
+  const selectedPolygonVertexLabels = useMemo(() => {
+    if (selectedConnectedPlanarPolygonGroups.length === 0) return [];
+    const vertexPointIds = new Set<string>();
+    selectedConnectedPlanarPolygonGroups.forEach((group) => {
+      group.vertexPointIds.forEach((pointId) => vertexPointIds.add(pointId));
+    });
+    return Array.from(vertexPointIds).map((pointId) => {
+      const point = pointMeasurements.find(
+        (measurement) => measurement.id === pointId
+      );
+      if (!point) return pointId;
+      const pointIndex = pointMeasurements.findIndex(
+        (measurement) => measurement.id === pointId
+      );
+      return getCustomPointMeasurementName(point.name) ?? `${pointIndex + 1}`;
+    });
+  }, [pointMeasurements, selectedConnectedPlanarPolygonGroups]);
+
+  const selectedPolygonSurfaceTypeLabel =
+    selectedConnectedPlanarPolygonSurfaceTypeLabel;
+  const selectedPolygonTiltInfo = useMemo(
+    () => getPolygonTiltAndNormalDirection(selectedPlanarPolygonGroup?.plane),
+    [selectedPlanarPolygonGroup?.plane]
+  );
+
   const isReferencePointWithoutEdges =
     Boolean(currentMeasurement) &&
     isPointMeasurementEntry(currentMeasurement) &&
@@ -1149,7 +1264,7 @@ export function InfoBoxMeasurement3D({ pixelWidth = 350 }) {
       <ResponsiveInfoBox
         pixelwidth={pixelWidth}
         panelClick={() => {}}
-        isCollapsible={!!currentMeasurement}
+        isCollapsible={!!currentMeasurement || isPolygonInfoMode}
         header={
           <div
             className="w-full pl-1"
@@ -1159,7 +1274,57 @@ export function InfoBoxMeasurement3D({ pixelWidth = 350 }) {
           </div>
         }
         alwaysVisibleDiv={
-          currentMeasurement ? (
+          selectedPlanarPolygonGroup ? (
+            <div className="mt-1 mb-0 w-full px-2">
+              <div className="flex justify-between items-start gap-2">
+                <span style={{ cursor: "default" }} className="font-bold flex-1 min-w-0">
+                  <MeasurementTitle
+                    key={selectedPlanarPolygonGroup.id}
+                    order={selectedPlanarPolygonOrder}
+                    title={selectedPlanarPolygonGroup.name ?? ""}
+                    shapeId={selectedPlanarPolygonGroup.id}
+                    setUpdateMeasurementStatus={() => {}}
+                    updateTitleMeasurementById={handlePolygonNameUpdate}
+                    isCollapsed={collapsedInfoBox}
+                    placeholderText={`Polygongruppe #${selectedPlanarPolygonOrder || 1}`}
+                    clearPlaceholderOnFocus
+                    showOrder={false}
+                    collapsedContent={`${formatNumber(
+                      selectedConnectedPlanarPolygonTotalAreaSquareMeters
+                    )} m²`}
+                    editable={true}
+                  />
+                </span>
+                <div className="flex justify-end items-center shrink-0 mt-0 gap-2">
+                  <Tooltip title="Zum Polygon fliegen">
+                    <Icon
+                      name="search-location"
+                      onClick={(event) => {
+                        event.stopPropagation();
+                        flyToSelectedPolygon();
+                      }}
+                      className="cursor-pointer text-[16px] text-[#808080] hover:text-[#a0a0a0]"
+                      data-test-id="flyto-polygon-btn"
+                    />
+                  </Tooltip>
+                  <Tooltip title="Polygon löschen">
+                    <FontAwesomeIcon
+                      onClick={deleteSelectedPolygon}
+                      className="cursor-pointer text-base text-[#808080] hover:text-[#a0a0a0]"
+                      icon={faTrashCan}
+                      data-test-id="delete-polygon-btn"
+                    />
+                  </Tooltip>
+                </div>
+              </div>
+              <div className="w-full text-[10px] font-normal text-gray-500 -mt-1 min-h-[16px] flex items-center gap-2 whitespace-nowrap">
+                <span>
+                  {selectedPolygonSurfaceTypeLabel} •{" "}
+                  {formatNumber(selectedConnectedPlanarPolygonTotalAreaSquareMeters)} m²
+                </span>
+              </div>
+            </div>
+          ) : currentMeasurement ? (
             <div className="mt-1 mb-0 w-full px-2">
               <div className="flex justify-between items-start gap-2">
                 <span
@@ -1365,7 +1530,73 @@ export function InfoBoxMeasurement3D({ pixelWidth = 350 }) {
           )
         }
         collapsibleDiv={
-          currentMeasurement ? (
+          selectedPlanarPolygonGroup ? (
+            <div className="text-[12px] mb-0">
+              <div className="mt-1 text-sm pl-2 pr-1">
+                <div className="mb-1">
+                  <span className="text-gray-500 mr-1">Gesamtfläche:</span>
+                  <span className="tabular-nums">
+                    {formatNumber(selectedConnectedPlanarPolygonTotalAreaSquareMeters)} m²
+                  </span>
+                </div>
+                <div className="mb-1">
+                  <span className="text-gray-500 mr-1">Teilflächen:</span>
+                  <span>{selectedConnectedPlanarPolygonGroups.length}</span>
+                </div>
+                <div className="mb-1">
+                  <span className="text-gray-500 mr-1">Dachfläche:</span>
+                  <span className="tabular-nums">
+                    {formatNumber(selectedConnectedRoofAreaSquareMeters)} m²
+                  </span>
+                </div>
+                <div className="mb-1">
+                  <span className="text-gray-500 mr-1">Fassadenfläche:</span>
+                  <span className="tabular-nums">
+                    {formatNumber(selectedConnectedFacadeAreaSquareMeters)} m²
+                  </span>
+                </div>
+                <div className="mb-1">
+                  <span className="text-gray-500 mr-1">Ø Dachneigung:</span>
+                  <span className="tabular-nums">
+                    {selectedConnectedRoofAverageSlopeDeg === null
+                      ? "Keine Dächer"
+                      : `${formatNumber(selectedConnectedRoofAverageSlopeDeg)}°`}
+                  </span>
+                </div>
+                <div className="mb-1">
+                  <span className="text-gray-500 mr-1">Dachneigung je Dach:</span>
+                  <span>
+                    {selectedConnectedRoofSlopeLabels.length > 0
+                      ? selectedConnectedRoofSlopeLabels.join(" • ")
+                      : "Keine Dächer"}
+                  </span>
+                </div>
+                <div className="mb-1">
+                  <span className="text-gray-500 mr-1">Typ:</span>
+                  <span>{selectedPolygonSurfaceTypeLabel}</span>
+                </div>
+                <div className="mb-1">
+                  <span className="text-gray-500 mr-1">Kippwinkel:</span>
+                  <span className="tabular-nums">
+                    {formatNumber(selectedPolygonTiltInfo.tiltDeg)}° (
+                    {selectedPolygonTiltInfo.slopePercentText})
+                  </span>
+                </div>
+                <div className="mb-1">
+                  <span className="text-gray-500 mr-1">Normalrichtung:</span>
+                  <span>{selectedPolygonTiltInfo.normalDirectionText}</span>
+                </div>
+                <div className="mb-1">
+                  <span className="text-gray-500 mr-1">Knoten:</span>
+                  <span>
+                    {selectedPolygonVertexLabels.length > 0
+                      ? selectedPolygonVertexLabels.join(" - ")
+                      : "Keine"}
+                  </span>
+                </div>
+              </div>
+            </div>
+          ) : currentMeasurement ? (
             <div>
               {!isReferencePointWithoutEdges ? (
                 <div className="text-[12px] mb-0">

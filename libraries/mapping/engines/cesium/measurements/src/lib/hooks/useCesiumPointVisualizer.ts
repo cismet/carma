@@ -22,6 +22,8 @@ import {
 import {
   isPointMeasurementEntry,
   MeasurementCollection,
+  type PlanarPolygonGroup,
+  type PlanarPolygonPlane,
   type PointDistanceRelation,
   type PointMeasurementEntry,
   type ReferenceLineLabelKind,
@@ -40,11 +42,23 @@ export type CesiumPointVisualizerOptions = {
   radius: number;
   referenceElevation?: number;
   selectedPointId?: string | null;
+  selectedPlanarPolygonGroupId?: string | null;
   distanceRelations?: PointDistanceRelation[];
+  planarPolygonGroups?: PlanarPolygonGroup[];
+  onPlanarPolygonClick?: (polygonGroupId: string) => void;
+  pointDragPlaneByPointId?: Readonly<Record<string, PlanarPolygonPlane>>;
+  onPointPlaneDragStart?: (pointId: string) => void;
+  onPointPlaneDragPositionChange?: (
+    pointId: string,
+    nextPosition: Cartesian3
+  ) => void;
+  onPointPlaneDragEnd?: (pointId: string) => void;
+  hiddenPointLabelIds?: ReadonlySet<string>;
   onDistanceRelationLineLabelToggle?: (
     relationId: string,
     kind: ReferenceLineLabelKind
   ) => void;
+  onDistanceRelationMidpointClick?: (relationId: string) => void;
   distanceLineLabelMinDistancePx?: number;
   showSelectedDisc?: boolean;
   debug?: boolean;
@@ -87,8 +101,17 @@ export const useCesiumPointVisualizer = (
     radius,
     referenceElevation = 0,
     selectedPointId = null,
+    selectedPlanarPolygonGroupId = null,
     distanceRelations = [],
+    planarPolygonGroups = [],
+    onPlanarPolygonClick,
+    pointDragPlaneByPointId,
+    onPointPlaneDragStart,
+    onPointPlaneDragPositionChange,
+    onPointPlaneDragEnd,
+    hiddenPointLabelIds,
     onDistanceRelationLineLabelToggle,
+    onDistanceRelationMidpointClick,
     distanceLineLabelMinDistancePx = 50,
     showSelectedDisc = false,
     debug = false,
@@ -135,7 +158,12 @@ export const useCesiumPointVisualizer = (
     onPointLongPress,
     pointLongPressDurationMs,
     labelLayoutConfig,
-    distanceToReferenceByPointId
+    distanceToReferenceByPointId,
+    hiddenPointLabelIds,
+    pointDragPlaneByPointId,
+    onPointPlaneDragStart,
+    onPointPlaneDragPositionChange,
+    onPointPlaneDragEnd
   );
 
   useCesiumPointMoveGizmo(scene, {
@@ -153,7 +181,11 @@ export const useCesiumPointVisualizer = (
 
   useCesiumDistanceVisualizer(scene, points, {
     distanceRelations,
+    planarPolygonGroups,
+    selectedPlanarPolygonGroupId,
+    onPlanarPolygonClick,
     onDistanceLineLabelToggle: onDistanceRelationLineLabelToggle,
+    onDistanceRelationMidpointClick,
     lineLabelMinDistancePx: distanceLineLabelMinDistancePx,
     onDistanceRelationCornerClick,
   });

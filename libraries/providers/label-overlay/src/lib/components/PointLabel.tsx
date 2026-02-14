@@ -36,6 +36,9 @@ interface PointLabelProps extends PointLabelStyleProps {
   onLongPress?: () => void;
   longPressDurationMs?: number;
   onHoverChange?: (hovered: boolean) => void;
+  onMarkerDragStart?: (clientX: number, clientY: number) => void;
+  onMarkerDragMove?: (clientX: number, clientY: number) => void;
+  onMarkerDragEnd?: () => void;
 }
 
 const baseStyles: React.CSSProperties = {
@@ -48,6 +51,7 @@ const baseStyles: React.CSSProperties = {
 };
 
 const defaultPitch = -Math.PI / 4;
+const DRAG_START_THRESHOLD_PX = 3;
 
 export const PointLabel = React.memo(
   ({
@@ -77,6 +81,9 @@ export const PointLabel = React.memo(
     onLongPress,
     longPressDurationMs = 300,
     onHoverChange,
+    onMarkerDragStart,
+    onMarkerDragMove,
+    onMarkerDragEnd,
   }: PointLabelProps) => {
     const [isHovered, setIsHovered] = useState(false);
     const [isAttachTransitionActive, setIsAttachTransitionActive] =
@@ -86,6 +93,10 @@ export const PointLabel = React.memo(
     const clickTimeoutRef = useRef<number | undefined>(undefined);
     const longPressTimeoutRef = useRef<number | undefined>(undefined);
     const longPressTriggeredRef = useRef(false);
+    const dragMouseDownPosRef = useRef<{ x: number; y: number } | null>(null);
+    const isMarkerDragActiveRef = useRef(false);
+    const suppressNextClickRef = useRef(false);
+    const cleanupMarkerDragListenersRef = useRef<(() => void) | null>(null);
     const effectiveLabelAngleRad =
       labelAngleRad !== undefined ? labelAngleRad : -Math.abs(Math.cos(pitch));
     const xComponent = Math.cos(effectiveLabelAngleRad);
@@ -98,7 +109,13 @@ export const PointLabel = React.memo(
     const labelOffsetY = yComponent * labelAnchorDistance;
     const halfLineWidth = lineWidth / 2;
     const isInteractive = Boolean(
-      onClick || onDoubleClick || onLongPress || onHoverChange
+      onClick ||
+        onDoubleClick ||
+        onLongPress ||
+        onHoverChange ||
+        onMarkerDragStart ||
+        onMarkerDragMove ||
+        onMarkerDragEnd
     );
     const pointerEvents = isInteractive ? "auto" : "none";
     const cursor =
@@ -125,6 +142,10 @@ export const PointLabel = React.memo(
     };
     const handleClick = (event: React.MouseEvent<HTMLDivElement>) => {
       event.stopPropagation();
+      if (suppressNextClickRef.current) {
+        suppressNextClickRef.current = false;
+        return;
+      }
       if (longPressTriggeredRef.current) {
         longPressTriggeredRef.current = false;
         return;
@@ -159,8 +180,83 @@ export const PointLabel = React.memo(
         longPressTimeoutRef.current = undefined;
       }
     };
-    const handleMouseDown = (event: React.MouseEvent<HTMLDivElement>) => {
+    const clearMarkerDragListeners = () => {
+      cleanupMarkerDragListenersRef.current?.();
+      cleanupMarkerDragListenersRef.current = null;
+    };
+    const endMarkerDrag = (didDrag: boolean) => {
+      clearMarkerDragListeners();
+      if (isMarkerDragActiveRef.current) {
+        onMarkerDragEnd?.();
+      }
+      isMarkerDragActiveRef.current = false;
+      dragMouseDownPosRef.current = null;
+      if (didDrag) {
+        suppressNextClickRef.current = true;
+      }
+    };
+    const beginMarkerDragTracking = (
+      event: React.MouseEvent<HTMLDivElement>
+    ) => {
+      if (
+        !onMarkerDragStart &&
+        !onMarkerDragMove &&
+        !onMarkerDragEnd
+      ) {
+        return false;
+      }
+      if (event.button !== 0) return false;
+
+      dragMouseDownPosRef.current = { x: event.clientX, y: event.clientY };
+      isMarkerDragActiveRef.current = false;
+      suppressNextClickRef.current = false;
+
+      const handleWindowMouseMove = (moveEvent: MouseEvent) => {
+        if (!dragMouseDownPosRef.current) return;
+        const deltaX = moveEvent.clientX - dragMouseDownPosRef.current.x;
+        const deltaY = moveEvent.clientY - dragMouseDownPosRef.current.y;
+        const pixelDistance = Math.hypot(deltaX, deltaY);
+
+        if (
+          !isMarkerDragActiveRef.current &&
+          pixelDistance >= DRAG_START_THRESHOLD_PX
+        ) {
+          isMarkerDragActiveRef.current = true;
+          onMarkerDragStart?.(
+            dragMouseDownPosRef.current.x,
+            dragMouseDownPosRef.current.y
+          );
+        }
+        if (isMarkerDragActiveRef.current) {
+          onMarkerDragMove?.(moveEvent.clientX, moveEvent.clientY);
+        }
+      };
+      const handleWindowMouseUp = () =>
+        endMarkerDrag(isMarkerDragActiveRef.current);
+      const handleWindowBlur = () =>
+        endMarkerDrag(isMarkerDragActiveRef.current);
+
+      window.addEventListener("mousemove", handleWindowMouseMove);
+      window.addEventListener("mouseup", handleWindowMouseUp);
+      window.addEventListener("blur", handleWindowBlur);
+      cleanupMarkerDragListenersRef.current = () => {
+        window.removeEventListener("mousemove", handleWindowMouseMove);
+        window.removeEventListener("mouseup", handleWindowMouseUp);
+        window.removeEventListener("blur", handleWindowBlur);
+      };
+
+      return true;
+    };
+    const handleMouseDown = (
+      event: React.MouseEvent<HTMLDivElement>,
+      allowMarkerDrag: boolean = true
+    ) => {
       event.stopPropagation();
+      if (allowMarkerDrag && beginMarkerDragTracking(event)) {
+        event.preventDefault();
+        clearLongPressTimeout();
+        return;
+      }
       if (!onLongPress) return;
       longPressTriggeredRef.current = false;
       clearLongPressTimeout();
@@ -234,6 +330,7 @@ export const PointLabel = React.memo(
         if (longPressTimeoutRef.current !== undefined) {
           window.clearTimeout(longPressTimeoutRef.current);
         }
+        clearMarkerDragListeners();
         if (isHoveredRef.current) {
           onHoverChange?.(false);
         }
@@ -325,7 +422,7 @@ export const PointLabel = React.memo(
               }}
               onClick={handleClick}
               onDoubleClick={handleDoubleClick}
-              onMouseDown={handleMouseDown}
+              onMouseDown={(event) => handleMouseDown(event, false)}
               onMouseUp={handleMouseUp}
               onMouseEnter={handleMouseEnter}
               onMouseLeave={handleMouseLeave}

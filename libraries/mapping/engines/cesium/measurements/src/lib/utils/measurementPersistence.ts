@@ -1,5 +1,6 @@
 import type {
   PointDistanceRelation,
+  PlanarPolygonGroup,
   MeasurementCollection,
   MeasurementEntry,
   TraverseMeasurementEntry,
@@ -8,6 +9,7 @@ import { MeasurementMode } from "../types/MeasurementTypes";
 
 const DEFAULT_STORAGE_KEY = "cesium-measurements";
 const DISTANCE_RELATIONS_STORAGE_SUFFIX = ":distance-relations";
+const PLANAR_POLYGONS_STORAGE_SUFFIX = ":planar-polygons";
 
 const rebuildTraverseEntry = (entry: MeasurementEntry): MeasurementEntry => {
   if (entry.type !== MeasurementMode.Traverse) {
@@ -84,6 +86,38 @@ export const loadDistanceRelations = (
     return relations;
   } catch (error) {
     console.warn("Failed to load distance relations from localStorage:", error);
+  }
+
+  return null;
+};
+
+export const savePlanarPolygonGroups = (
+  storageKey: string | undefined,
+  groups: PlanarPolygonGroup[]
+): void => {
+  const key = `${storageKey ?? DEFAULT_STORAGE_KEY}${PLANAR_POLYGONS_STORAGE_SUFFIX}`;
+  try {
+    localStorage.setItem(key, JSON.stringify(groups));
+  } catch (error) {
+    console.warn("Failed to save planar polygon groups to localStorage:", error);
+  }
+};
+
+export const loadPlanarPolygonGroups = (
+  storageKey: string | undefined
+): PlanarPolygonGroup[] | null => {
+  const key = `${storageKey ?? DEFAULT_STORAGE_KEY}${PLANAR_POLYGONS_STORAGE_SUFFIX}`;
+  try {
+    const saved = localStorage.getItem(key);
+    if (!saved) {
+      return null;
+    }
+
+    const groups = JSON.parse(saved) as PlanarPolygonGroup[];
+    if (!Array.isArray(groups)) return null;
+    return groups;
+  } catch (error) {
+    console.warn("Failed to load planar polygon groups from localStorage:", error);
   }
 
   return null;

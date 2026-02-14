@@ -2,6 +2,7 @@ import { Dispatch, SetStateAction, useEffect, useRef } from "react";
 
 import {
   Cartesian2,
+  Cartesian3,
   ScreenSpaceEventHandler,
   ScreenSpaceEventType,
   getDegreesFromCartesian,
@@ -26,11 +27,30 @@ export const useCesiumPointQuery = (
   enabled: boolean = true,
   setCollection: Dispatch<SetStateAction<MeasurementCollection>>,
   temporaryMode: boolean = true,
-  onPointCreated?: (pointId: string) => void,
-  onLineFinish?: () => void
+  onPointCreated?: (pointId: string, positionECEF: Cartesian3) => void,
+  onLineFinish?: () => void,
+  onBeforePointCreate?: (
+    positionECEF: Cartesian3 | null,
+    screenPosition: Cartesian2
+  ) => boolean
 ) => {
   const handlerRef = useRef<ScreenSpaceEventHandler | null>(null);
   const prevTemporaryModeRef = useRef(temporaryMode);
+  const onPointCreatedRef = useRef(onPointCreated);
+  const onLineFinishRef = useRef(onLineFinish);
+  const onBeforePointCreateRef = useRef(onBeforePointCreate);
+
+  useEffect(() => {
+    onPointCreatedRef.current = onPointCreated;
+  }, [onPointCreated]);
+
+  useEffect(() => {
+    onLineFinishRef.current = onLineFinish;
+  }, [onLineFinish]);
+
+  useEffect(() => {
+    onBeforePointCreateRef.current = onBeforePointCreate;
+  }, [onBeforePointCreate]);
 
   // Handle temporary-to-permanent conversion when temporary mode is turned off
   useEffect(() => {
@@ -74,6 +94,14 @@ export const useCesiumPointQuery = (
     const createPointAt = (position: Cartesian2) => {
       const pickedPosition = scene.pickPosition(position);
 
+      if (
+        onBeforePointCreateRef.current &&
+        !onBeforePointCreateRef.current(pickedPosition ?? null, position)
+      ) {
+        scene.requestRender();
+        return;
+      }
+
       if (!pickedPosition) {
         console.debug("[SceneClick] No position picked");
         return;
@@ -104,7 +132,7 @@ export const useCesiumPointQuery = (
       };
 
       updateCollection(setCollection, measurementConstructor, temporaryMode);
-      onPointCreated?.(measurementId);
+      onPointCreatedRef.current?.(measurementId, pickedPosition);
 
       scene.requestRender();
       console.log(
@@ -129,7 +157,7 @@ export const useCesiumPointQuery = (
         window.clearTimeout(clickTimeoutId);
         clickTimeoutId = undefined;
       }
-      onLineFinish?.();
+      onLineFinishRef.current?.();
     }, ScreenSpaceEventType.LEFT_DOUBLE_CLICK);
 
     console.debug("[SceneClick] Terrain click handler enabled");
@@ -150,8 +178,6 @@ export const useCesiumPointQuery = (
     enabled,
     temporaryMode,
     setCollection,
-    onPointCreated,
-    onLineFinish,
   ]);
 };
 

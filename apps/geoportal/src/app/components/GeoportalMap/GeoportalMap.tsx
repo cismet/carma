@@ -65,6 +65,7 @@ import {
   getGeoJsonGeometryCacheKey,
   getProviderScopedCache,
   getTerrainAwareBoundingSphereFromGeoJsonGeometry,
+  setScreenSpaceCameraControllerMinimumZoomDistance,
   selectScreenSpaceCameraControllerMinimumZoomDistance,
   selectShowPrimaryTileset,
   selectViewerModels,
@@ -179,6 +180,7 @@ export const GeoportalMap = ({ height, width, allow3d }: MapProps) => {
   const minimumCameraHeight = useSelector(
     selectScreenSpaceCameraControllerMinimumZoomDistance
   );
+  const baseMinimumZoomDistanceRef = useRef<number | null>(null);
   const layers = useSelector(getLayers);
   const [maplibreMaps, setMaplibreMaps] = useState<MaplibreMap[]>([]);
   const uiMode = useSelector(getUIMode);
@@ -199,6 +201,35 @@ export const GeoportalMap = ({ height, width, allow3d }: MapProps) => {
         : 0;
     return minHeight * 1.5;
   }, [minimumCameraHeight]);
+
+  useEffect(() => {
+    if (
+      baseMinimumZoomDistanceRef.current === null &&
+      Number.isFinite(minimumCameraHeight)
+    ) {
+      baseMinimumZoomDistanceRef.current = Math.max(0, minimumCameraHeight);
+    }
+
+    const defaultMinZoomDistance =
+      baseMinimumZoomDistanceRef.current !== null
+        ? baseMinimumZoomDistanceRef.current
+        : 1;
+    const measurementMinZoomDistance = 1;
+    const targetMinimumZoomDistance = isModeMeasurement
+      ? measurementMinZoomDistance
+      : defaultMinZoomDistance;
+
+    if (
+      Number.isFinite(minimumCameraHeight) &&
+      minimumCameraHeight !== targetMinimumZoomDistance
+    ) {
+      dispatch(
+        setScreenSpaceCameraControllerMinimumZoomDistance(
+          targetMinimumZoomDistance
+        )
+      );
+    }
+  }, [dispatch, isModeMeasurement, minimumCameraHeight]);
 
   const infoBoxOverlay = addCssToOverlayHelperItem(
     getCollabedHelpElementsConfig("INFOBOX", geoElements),
@@ -983,7 +1014,11 @@ export const GeoportalMap = ({ height, width, allow3d }: MapProps) => {
         >
           <CustomViewer
             containerRef={container3dMapRef}
-            cameraLimiterOptions={CESIUM_CONFIG.camera}
+            cameraLimiterOptions={
+              isModeMeasurement
+                ? { ...CESIUM_CONFIG.camera, pitchLimiter: false }
+                : CESIUM_CONFIG.camera
+            }
             initialCameraView={cesiumInitialCameraViewRef.current ?? undefined}
             onSceneChange={onSceneChange}
           />

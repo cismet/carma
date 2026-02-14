@@ -21,12 +21,39 @@ export type DistanceRelationLabelVisibilityByKind = Partial<
   Record<ReferenceLineLabelKind, boolean>
 >;
 
+export type SurfaceType = "roof" | "facade";
+
+export type SerializableCartesian3 = {
+  x: number;
+  y: number;
+  z: number;
+};
+
+export type PlanarPolygonPlane = {
+  anchorECEF: SerializableCartesian3;
+  normalECEF: SerializableCartesian3;
+};
+
+export type PlanarPolygonGroup = {
+  id: string;
+  name?: string;
+  vertexPointIds: string[];
+  edgeRelationIds: string[];
+  closed: boolean;
+  planeLocked: boolean;
+  plane?: PlanarPolygonPlane;
+  areaSquareMeters?: number;
+  verticalityDeg?: number;
+  surfaceType?: SurfaceType;
+};
+
 export type PointDistanceRelation = {
   id: string;
   pointAId: string;
   pointBId: string;
   // The anchor point defines the "from" side for component visualization.
   anchorPointId: string;
+  polygonGroupId?: string;
   showDirectLine?: boolean;
   showVerticalLine?: boolean;
   showHorizontalLine?: boolean;

@@ -8,7 +8,13 @@ import {
   type ReactNode,
 } from "react";
 
-import { SceneTransforms, defined, type Scene } from "@carma/cesium";
+import {
+  Cartesian2,
+  Cartesian3,
+  SceneTransforms,
+  defined,
+  type Scene,
+} from "@carma/cesium";
 
 import {
   computePointLabelLayout,
@@ -26,6 +32,7 @@ import {
 
 import {
   DEFAULT_POINT_LABEL_METRIC_MODE,
+  type PlanarPolygonPlane,
   type PointLabelMetricMode,
   type PointMeasurementEntry,
 } from "../types/MeasurementTypes";
@@ -59,6 +66,7 @@ const MOVE_GIZMO_MARKER_INNER_COLOR = "rgba(255, 255, 255, 0.96)";
 // Viewport padding constants for smooth label transitions
 const VIEWPORT_PADDING_HORIZONTAL = 100; // pixels
 const VIEWPORT_PADDING_VERTICAL = 50; // pixels
+const PLANE_INTERSECTION_EPSILON = 1e-8;
 
 const EMPTY_LAYOUT_RESULT: PointLabelLayoutResult = {
   placements: {},
@@ -252,6 +260,62 @@ const formatPointLabelText = (
   return formatNoneLabelText(labelBase);
 };
 
+const getPlaneIntersectionForClientPosition = (
+  scene: Scene | null,
+  clientX: number,
+  clientY: number,
+  plane: PlanarPolygonPlane
+): Cartesian3 | null => {
+  if (!scene || scene.isDestroyed()) return null;
+
+  const canvasRect = scene.canvas.getBoundingClientRect();
+  const windowPosition = new Cartesian2(
+    clientX - canvasRect.left,
+    clientY - canvasRect.top
+  );
+  const pickRay = scene.camera.getPickRay(windowPosition);
+  if (!pickRay) return null;
+
+  const planeAnchor = new Cartesian3(
+    plane.anchorECEF.x,
+    plane.anchorECEF.y,
+    plane.anchorECEF.z
+  );
+  const planeNormalRaw = new Cartesian3(
+    plane.normalECEF.x,
+    plane.normalECEF.y,
+    plane.normalECEF.z
+  );
+  if (Cartesian3.magnitudeSquared(planeNormalRaw) <= PLANE_INTERSECTION_EPSILON) {
+    return null;
+  }
+  const planeNormal = Cartesian3.normalize(planeNormalRaw, new Cartesian3());
+  const denominator = Cartesian3.dot(planeNormal, pickRay.direction);
+  if (Math.abs(denominator) <= PLANE_INTERSECTION_EPSILON) {
+    return null;
+  }
+
+  const originToPlane = Cartesian3.subtract(
+    planeAnchor,
+    pickRay.origin,
+    new Cartesian3()
+  );
+  const axisParameter = Cartesian3.dot(planeNormal, originToPlane) / denominator;
+  if (!Number.isFinite(axisParameter) || axisParameter < 0) {
+    return null;
+  }
+
+  return Cartesian3.add(
+    pickRay.origin,
+    Cartesian3.multiplyByScalar(
+      pickRay.direction,
+      axisParameter,
+      new Cartesian3()
+    ),
+    new Cartesian3()
+  );
+};
+
 export const useCesiumPointLabels = (
   scene: Scene | null,
   points: PointMeasurementEntry[],
@@ -265,7 +329,15 @@ export const useCesiumPointLabels = (
   onPointLongPress?: (pointId: string) => void,
   pointLongPressDurationMs: number = 300,
   layoutConfigOverrides?: CesiumLabelLayoutConfigOverrides,
-  distanceToReferenceByPointId?: Readonly<Record<string, number>>
+  distanceToReferenceByPointId?: Readonly<Record<string, number>>,
+  hiddenPointLabelIds?: ReadonlySet<string>,
+  pointDragPlaneByPointId?: Readonly<Record<string, PlanarPolygonPlane>>,
+  onPointPlaneDragStart?: (pointId: string) => void,
+  onPointPlaneDragPositionChange?: (
+    pointId: string,
+    nextPosition: Cartesian3
+  ) => void,
+  onPointPlaneDragEnd?: (pointId: string) => void
 ) => {
   const [occlusionResults, setOcclusionResults] = useState<
     Record<string, boolean>
@@ -469,6 +541,21 @@ export const useCesiumPointLabels = (
         formatNoneLabelText(getPointLabelBase(point.name, index));
       const isMoveGizmoPoint = point.id === moveGizmoPointId;
       const disableInteractionsForMoveGizmoPoint = isMoveGizmoPoint;
+      const dragPlane = pointDragPlaneByPointId?.[point.id];
+      const canDirectPlaneDrag = Boolean(
+        dragPlane && onPointPlaneDragPositionChange
+      );
+      const updatePointFromDragPosition = (clientX: number, clientY: number) => {
+        if (!dragPlane || !onPointPlaneDragPositionChange) return;
+        const nextPosition = getPlaneIntersectionForClientPosition(
+          scene,
+          clientX,
+          clientY,
+          dragPlane
+        );
+        if (!nextPosition) return;
+        onPointPlaneDragPositionChange(point.id, nextPosition);
+      };
 
       return {
         id: point.id,
@@ -486,7 +573,9 @@ export const useCesiumPointLabels = (
         labelAngleRad: layoutResult.placements[point.id]?.angleRad,
         labelDistance: layoutResult.placements[point.id]?.distance,
         labelAttach: layoutResult.placements[point.id]?.attach,
-        hideLabelAndStem: layoutResult.hiddenByLayout.has(point.id),
+        hideLabelAndStem:
+          layoutResult.hiddenByLayout.has(point.id) ||
+          Boolean(hiddenPointLabelIds?.has(point.id)),
         text: labelTextRepresentation.layoutText,
         content: labelTextRepresentation.content,
         contentSignature: labelTextRepresentation.contentSignature,
@@ -520,10 +609,26 @@ export const useCesiumPointLabels = (
             ? () => onPointDoubleClick(point.id)
             : undefined,
         onLongPress:
-          !disableInteractionsForMoveGizmoPoint && onPointLongPress
+          !disableInteractionsForMoveGizmoPoint &&
+          !canDirectPlaneDrag &&
+          onPointLongPress
             ? () => onPointLongPress(point.id)
             : undefined,
         longPressDurationMs: pointLongPressDurationMs,
+        onMarkerDragStart: canDirectPlaneDrag
+          ? (clientX: number, clientY: number) => {
+              onPointPlaneDragStart?.(point.id);
+              updatePointFromDragPosition(clientX, clientY);
+            }
+          : undefined,
+        onMarkerDragMove: canDirectPlaneDrag
+          ? (clientX: number, clientY: number) => {
+              updatePointFromDragPosition(clientX, clientY);
+            }
+          : undefined,
+        onMarkerDragEnd: canDirectPlaneDrag
+          ? () => onPointPlaneDragEnd?.(point.id)
+          : undefined,
       };
     });
   }, [
@@ -541,6 +646,11 @@ export const useCesiumPointLabels = (
     onPointDoubleClick,
     onPointLongPress,
     pointLongPressDurationMs,
+    hiddenPointLabelIds,
+    pointDragPlaneByPointId,
+    onPointPlaneDragStart,
+    onPointPlaneDragPositionChange,
+    onPointPlaneDragEnd,
   ]);
 
   usePointLabels(pointLabelData, showLabels, undefined, undefined, {
