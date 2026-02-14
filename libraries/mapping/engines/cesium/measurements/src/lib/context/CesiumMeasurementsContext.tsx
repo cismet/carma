@@ -1,9 +1,11 @@
+/* @refresh reset */
 import React, {
   createContext,
   useContext,
   useState,
   useMemo,
   useCallback,
+  useRef,
   Dispatch,
   SetStateAction,
   useEffect,
@@ -30,15 +32,31 @@ import { useMeasurementPersistence } from "../hooks/useMeasurementPersistence";
 import {
   DEFAULT_POINT_LABEL_METRIC_MODE,
   isPointMeasurementEntry,
+  type PointDistanceRelation,
+  type ReferenceLineLabelKind,
   type MeasurementCollection,
   MeasurementMode,
 } from "../types/MeasurementTypes";
 import { getEuclideanDistance } from "../utils/geo";
 import {
+  loadDistanceRelations,
+  saveDistanceRelations,
+} from "../utils/measurementPersistence";
+import {
   getNextPointLabelMetricMode,
   runPointLabelClickInteraction,
-  runPointLabelDoubleClickInteraction,
 } from "../utils/pointLabelInteractions";
+
+type MoveGizmoStartOptions = {
+  axisDirection?: Cartesian3 | null;
+  axisTitle?: string | null;
+  axisCandidates?: Array<{
+    id: string;
+    direction: Cartesian3;
+    color?: string;
+    title?: string | null;
+  }> | null;
+};
 
 export interface CesiumMeasurementsContextType {
   measurementMode: MeasurementMode;
@@ -50,7 +68,10 @@ export interface CesiumMeasurementsContextType {
   updateMeasurementNameById: (id: string, name: string) => void;
   moveGizmoPointId: string | null;
   isMoveGizmoDragging: boolean;
-  startMoveGizmoForMeasurementId: (id: string) => void;
+  startMoveGizmoForMeasurementId: (
+    id: string,
+    options?: MoveGizmoStartOptions
+  ) => void;
   stopMoveGizmo: () => void;
   setPointMeasurementElevationById: (
     id: string,
@@ -84,8 +105,12 @@ export interface CesiumMeasurementsContextType {
   referencePoint: Cartesian3 | null;
   setReferencePoint: Dispatch<SetStateAction<Cartesian3 | null>>;
   referenceElevation: number; // derived from referencePoint
+  distanceRelations: PointDistanceRelation[];
+  setDistanceRelations: Dispatch<SetStateAction<PointDistanceRelation[]>>;
   showSelectedReferenceLine: boolean;
   setShowSelectedReferenceLine: Dispatch<SetStateAction<boolean>>;
+  showSelectedReferenceLineComponents: boolean;
+  setShowSelectedReferenceLineComponents: Dispatch<SetStateAction<boolean>>;
 }
 
 const CesiumMeasurementsContext = createContext<
@@ -124,6 +149,36 @@ const defaultTraverseOptions: MeasurementProviderOptions["traverse"] = {
 };
 const POINT_LABEL_LONG_PRESS_DURATION_MS = 300;
 const REFERENCE_POINT_SYNC_EPSILON_METERS = 0.001;
+const DISTANCE_RELATION_RESTORE_DELAY_MS = 250;
+const DEFAULT_DISTANCE_RELATION_LABEL_VISIBILITY: Record<
+  ReferenceLineLabelKind,
+  boolean
+> = {
+  direct: true,
+  vertical: true,
+  horizontal: true,
+};
+
+const getDistanceRelationId = (pointAId: string, pointBId: string) => {
+  const [left, right] = [pointAId, pointBId].sort((a, b) => a.localeCompare(b));
+  return `distance-relation:${left}:${right}`;
+};
+
+const isSameDistanceRelationPair = (
+  relation: PointDistanceRelation,
+  pointAId: string,
+  pointBId: string
+) =>
+  (relation.pointAId === pointAId && relation.pointBId === pointBId) ||
+  (relation.pointAId === pointBId && relation.pointBId === pointAId);
+
+const hasAnyVisibleDistanceRelationLine = (relation: PointDistanceRelation) =>
+  Boolean(
+    relation.showDirectLine ||
+      relation.showVerticalLine ||
+      relation.showHorizontalLine ||
+      relation.showComponentLines
+  );
 
 interface CesiumMeasurementsProviderProps {
   children: React.ReactNode;
@@ -138,6 +193,23 @@ const deleteFromHideMeasurementsOfType =
     newSet.delete(type);
     return newSet;
   };
+
+const isKeyboardTargetEditable = (target: EventTarget | null): boolean => {
+  if (typeof HTMLElement === "undefined" || !(target instanceof HTMLElement)) {
+    return false;
+  }
+
+  const tagName = target.tagName.toLowerCase();
+  if (tagName === "input" || tagName === "textarea" || tagName === "select") {
+    return true;
+  }
+
+  if (target.isContentEditable) {
+    return true;
+  }
+
+  return Boolean(target.closest("[contenteditable='true']"));
+};
 
 export const CesiumMeasurementsProvider: React.FC<
   CesiumMeasurementsProviderProps
@@ -189,6 +261,17 @@ export const CesiumMeasurementsProvider: React.FC<
     string | null
   >(null);
   const [moveGizmoPointId, setMoveGizmoPointId] = useState<string | null>(null);
+  const [moveGizmoAxisDirection, setMoveGizmoAxisDirection] =
+    useState<Cartesian3 | null>(null);
+  const [moveGizmoAxisTitle, setMoveGizmoAxisTitle] = useState<string | null>(
+    null
+  );
+  const [moveGizmoAxisCandidates, setMoveGizmoAxisCandidates] = useState<Array<{
+    id: string;
+    direction: Cartesian3;
+    color?: string;
+    title?: string | null;
+  }> | null>(null);
   const [isMoveGizmoDragging, setIsMoveGizmoDragging] =
     useState<boolean>(false);
 
@@ -208,8 +291,49 @@ export const CesiumMeasurementsProvider: React.FC<
   const [hideLabelsOfType, setHideLabelsOfType] = useState<
     Set<MeasurementMode>
   >(new Set());
-  const [showSelectedReferenceLine, setShowSelectedReferenceLine] =
-    useState<boolean>(false);
+  const [distanceRelations, setDistanceRelations] = useState<
+    PointDistanceRelation[]
+  >([]);
+  const [previousSelectedMeasurementId, setPreviousSelectedMeasurementId] =
+    useState<string | null>(null);
+  const [doubleClickChainSourcePointId, setDoubleClickChainSourcePointId] =
+    useState<string | null>(null);
+
+  const hasRestoredDistanceRelationsRef = useRef(false);
+  const lastSavedDistanceRelationsRef = useRef<string | null>(null);
+
+  useEffect(() => {
+    if (
+      !persistenceEnabled ||
+      !isSceneReady ||
+      hasRestoredDistanceRelationsRef.current
+    ) {
+      return;
+    }
+
+    const savedRelations = loadDistanceRelations(persistenceKey);
+    if (savedRelations && savedRelations.length > 0) {
+      setTimeout(() => {
+        setDistanceRelations(savedRelations);
+      }, DISTANCE_RELATION_RESTORE_DELAY_MS);
+    }
+
+    hasRestoredDistanceRelationsRef.current = true;
+  }, [isSceneReady, persistenceEnabled, persistenceKey]);
+
+  useEffect(() => {
+    if (!persistenceEnabled || !hasRestoredDistanceRelationsRef.current) {
+      return;
+    }
+
+    const serialized = JSON.stringify(distanceRelations);
+    if (serialized === lastSavedDistanceRelationsRef.current) {
+      return;
+    }
+
+    saveDistanceRelations(persistenceKey, distanceRelations);
+    lastSavedDistanceRelationsRef.current = serialized;
+  }, [distanceRelations, persistenceEnabled, persistenceKey]);
 
   const referenceElevation = useMemo(() => {
     if (!referencePoint || !scene) return 0;
@@ -232,17 +356,6 @@ export const CesiumMeasurementsProvider: React.FC<
     return distances;
   }, [measurements, referencePoint]);
 
-  // point query hooks
-  useCesiumPointQuery(
-    scene,
-    measurementMode === MeasurementMode.PointQuery &&
-      pointQueryEnabled &&
-      !moveGizmoPointId &&
-      !isMoveGizmoDragging,
-    setMeasurements,
-    temporaryMode
-  );
-
   const showPoints =
     measurementMode !== MeasurementMode.NONE &&
     !hideMeasurementsOfType.has(MeasurementMode.PointQuery);
@@ -251,9 +364,313 @@ export const CesiumMeasurementsProvider: React.FC<
     showLabels &&
     !hideLabelsOfType.has(MeasurementMode.PointQuery);
 
+  const selectedMeasurementIdRef = useRef<string | null>(selectedMeasurementId);
+  useEffect(() => {
+    selectedMeasurementIdRef.current = selectedMeasurementId;
+  }, [selectedMeasurementId]);
+
   const selectMeasurementById = useCallback((id: string | null) => {
+    const currentSelectedMeasurementId = selectedMeasurementIdRef.current;
+    if (
+      id &&
+      id !== currentSelectedMeasurementId &&
+      currentSelectedMeasurementId
+    ) {
+      setPreviousSelectedMeasurementId(currentSelectedMeasurementId);
+    }
+    selectedMeasurementIdRef.current = id;
     setSelectedMeasurementId((prev) => (prev === id ? prev : id));
   }, []);
+
+  const pointMeasurementIds = useMemo(() => {
+    const ids = new Set<string>();
+    measurements.forEach((measurement) => {
+      if (!isPointMeasurementEntry(measurement)) return;
+      ids.add(measurement.id);
+    });
+    return ids;
+  }, [measurements]);
+
+  const selectedDistancePair = useMemo(() => {
+    if (!selectedMeasurementId || !previousSelectedMeasurementId) {
+      return null;
+    }
+    if (selectedMeasurementId === previousSelectedMeasurementId) {
+      return null;
+    }
+    if (
+      !pointMeasurementIds.has(selectedMeasurementId) ||
+      !pointMeasurementIds.has(previousSelectedMeasurementId)
+    ) {
+      return null;
+    }
+    return {
+      activePointId: selectedMeasurementId,
+      previousPointId: previousSelectedMeasurementId,
+    };
+  }, [
+    pointMeasurementIds,
+    previousSelectedMeasurementId,
+    selectedMeasurementId,
+  ]);
+
+  const selectedDistanceRelation = useMemo(() => {
+    if (!selectedDistancePair) return null;
+    return (
+      distanceRelations.find((relation) =>
+        isSameDistanceRelationPair(
+          relation,
+          selectedDistancePair.activePointId,
+          selectedDistancePair.previousPointId
+        )
+      ) ?? null
+    );
+  }, [distanceRelations, selectedDistancePair]);
+
+  const showSelectedReferenceLine =
+    selectedDistanceRelation?.showDirectLine ?? false;
+  const selectedVerticalLineVisible =
+    selectedDistanceRelation?.showVerticalLine ??
+    selectedDistanceRelation?.showComponentLines ??
+    false;
+  const selectedHorizontalLineVisible =
+    selectedDistanceRelation?.showHorizontalLine ??
+    selectedDistanceRelation?.showComponentLines ??
+    false;
+  const showSelectedReferenceLineComponents =
+    selectedVerticalLineVisible || selectedHorizontalLineVisible;
+
+  const resolveDistanceRelationSourcePointId = useCallback(
+    (targetPointId: string) => {
+      const hasChainSource = Boolean(
+        doubleClickChainSourcePointId &&
+          pointMeasurementIds.has(doubleClickChainSourcePointId)
+      );
+      if (!hasChainSource) return null;
+      return doubleClickChainSourcePointId === targetPointId
+        ? null
+        : doubleClickChainSourcePointId;
+    },
+    [doubleClickChainSourcePointId, pointMeasurementIds]
+  );
+
+  const upsertDirectDistanceRelation = useCallback(
+    (sourcePointId: string, targetPointId: string) => {
+      if (!sourcePointId || !targetPointId || sourcePointId === targetPointId) {
+        return;
+      }
+
+      setDistanceRelations((prev) => {
+        const relationIndex = prev.findIndex((relation) =>
+          isSameDistanceRelationPair(relation, sourcePointId, targetPointId)
+        );
+        const relation =
+          relationIndex >= 0
+            ? prev[relationIndex]
+            : ({
+                id: getDistanceRelationId(sourcePointId, targetPointId),
+                pointAId: sourcePointId,
+                pointBId: targetPointId,
+                anchorPointId: sourcePointId,
+                showDirectLine: false,
+                showVerticalLine: false,
+                showHorizontalLine: false,
+                showComponentLines: false,
+                labelVisibilityByKind:
+                  DEFAULT_DISTANCE_RELATION_LABEL_VISIBILITY,
+              } satisfies PointDistanceRelation);
+
+        const nextRelation: PointDistanceRelation = {
+          ...relation,
+          anchorPointId: sourcePointId,
+          showDirectLine: true,
+          showVerticalLine:
+            relation.showVerticalLine ?? relation.showComponentLines ?? false,
+          showHorizontalLine:
+            relation.showHorizontalLine ?? relation.showComponentLines ?? false,
+          labelVisibilityByKind: {
+            ...DEFAULT_DISTANCE_RELATION_LABEL_VISIBILITY,
+            ...(relation.labelVisibilityByKind ?? {}),
+          },
+        };
+
+        if (relationIndex < 0) return [...prev, nextRelation];
+        return prev.map((entry, index) =>
+          index === relationIndex ? nextRelation : entry
+        );
+      });
+    },
+    []
+  );
+
+  const handlePointQueryPointCreated = useCallback(
+    (newPointId: string) => {
+      const sourcePointId = resolveDistanceRelationSourcePointId(newPointId);
+      if (sourcePointId) {
+        upsertDirectDistanceRelation(sourcePointId, newPointId);
+      }
+
+      setDoubleClickChainSourcePointId(newPointId);
+      selectMeasurementById(newPointId);
+    },
+    [
+      resolveDistanceRelationSourcePointId,
+      selectMeasurementById,
+      upsertDirectDistanceRelation,
+    ]
+  );
+
+  const handlePointQueryDoubleClick = useCallback(() => {
+    // Finish current line chain.
+    setDoubleClickChainSourcePointId(null);
+  }, []);
+
+  const setShowSelectedReferenceLine = useCallback<
+    Dispatch<SetStateAction<boolean>>
+  >(
+    (value) => {
+      if (!selectedDistancePair) return;
+
+      const { activePointId, previousPointId } = selectedDistancePair;
+      setDistanceRelations((prev) => {
+        const relationIndex = prev.findIndex((relation) =>
+          isSameDistanceRelationPair(relation, activePointId, previousPointId)
+        );
+        const relation =
+          relationIndex >= 0
+            ? prev[relationIndex]
+            : ({
+                id: getDistanceRelationId(activePointId, previousPointId),
+                pointAId: activePointId,
+                pointBId: previousPointId,
+                anchorPointId: activePointId,
+                showDirectLine: false,
+                showVerticalLine: false,
+                showHorizontalLine: false,
+                showComponentLines: false,
+                labelVisibilityByKind:
+                  DEFAULT_DISTANCE_RELATION_LABEL_VISIBILITY,
+              } satisfies PointDistanceRelation);
+        const currentValue = relation.showDirectLine ?? false;
+        const nextValue =
+          typeof value === "function" ? value(currentValue) : value;
+
+        if (nextValue === currentValue && relationIndex >= 0) {
+          return prev;
+        }
+
+        const nextRelation: PointDistanceRelation = {
+          ...relation,
+          anchorPointId: activePointId,
+          showDirectLine: nextValue,
+          showVerticalLine:
+            relation.showVerticalLine ?? relation.showComponentLines ?? false,
+          showHorizontalLine:
+            relation.showHorizontalLine ?? relation.showComponentLines ?? false,
+          labelVisibilityByKind: {
+            ...DEFAULT_DISTANCE_RELATION_LABEL_VISIBILITY,
+            ...(relation.labelVisibilityByKind ?? {}),
+          },
+        };
+
+        if (!hasAnyVisibleDistanceRelationLine(nextRelation)) {
+          if (relationIndex < 0) return prev;
+          return prev.filter((_, index) => index !== relationIndex);
+        }
+
+        if (relationIndex < 0) return [...prev, nextRelation];
+        return prev.map((entry, index) =>
+          index === relationIndex ? nextRelation : entry
+        );
+      });
+    },
+    [selectedDistancePair]
+  );
+
+  const setShowSelectedReferenceLineComponents = useCallback<
+    Dispatch<SetStateAction<boolean>>
+  >(
+    (value) => {
+      if (!selectedDistancePair) return;
+
+      const { activePointId, previousPointId } = selectedDistancePair;
+      setDistanceRelations((prev) => {
+        const relationIndex = prev.findIndex((relation) =>
+          isSameDistanceRelationPair(relation, activePointId, previousPointId)
+        );
+        const relation =
+          relationIndex >= 0
+            ? prev[relationIndex]
+            : ({
+                id: getDistanceRelationId(activePointId, previousPointId),
+                pointAId: activePointId,
+                pointBId: previousPointId,
+                anchorPointId: activePointId,
+                showDirectLine: false,
+                showVerticalLine: false,
+                showHorizontalLine: false,
+                showComponentLines: false,
+                labelVisibilityByKind:
+                  DEFAULT_DISTANCE_RELATION_LABEL_VISIBILITY,
+              } satisfies PointDistanceRelation);
+        const currentValue =
+          (relation.showVerticalLine ?? relation.showComponentLines ?? false) ||
+          (relation.showHorizontalLine ?? relation.showComponentLines ?? false);
+        const nextValue =
+          typeof value === "function" ? value(currentValue) : value;
+
+        if (nextValue === currentValue && relationIndex >= 0) {
+          return prev;
+        }
+
+        const nextRelation: PointDistanceRelation = {
+          ...relation,
+          anchorPointId: activePointId,
+          showVerticalLine: nextValue,
+          showHorizontalLine: nextValue,
+          showComponentLines: nextValue,
+          labelVisibilityByKind: {
+            ...DEFAULT_DISTANCE_RELATION_LABEL_VISIBILITY,
+            ...(relation.labelVisibilityByKind ?? {}),
+          },
+        };
+
+        if (!hasAnyVisibleDistanceRelationLine(nextRelation)) {
+          if (relationIndex < 0) return prev;
+          return prev.filter((_, index) => index !== relationIndex);
+        }
+
+        if (relationIndex < 0) return [...prev, nextRelation];
+        return prev.map((entry, index) =>
+          index === relationIndex ? nextRelation : entry
+        );
+      });
+    },
+    [selectedDistancePair]
+  );
+
+  const toggleDistanceRelationLineLabelVisibility = useCallback(
+    (relationId: string, kind: ReferenceLineLabelKind) => {
+      if (!relationId) return;
+      setDistanceRelations((prev) =>
+        prev.map((relation) => {
+          if (relation.id !== relationId) return relation;
+          const currentValue =
+            relation.labelVisibilityByKind?.[kind] ??
+            DEFAULT_DISTANCE_RELATION_LABEL_VISIBILITY[kind];
+          return {
+            ...relation,
+            labelVisibilityByKind: {
+              ...DEFAULT_DISTANCE_RELATION_LABEL_VISIBILITY,
+              ...(relation.labelVisibilityByKind ?? {}),
+              [kind]: !currentValue,
+            },
+          };
+        })
+      );
+    },
+    []
+  );
 
   const updateMeasurementNameById = useCallback(
     (id: string, name: string) => {
@@ -311,13 +728,15 @@ export const CesiumMeasurementsProvider: React.FC<
 
   const handlePointLabelDoubleClick = useCallback(
     (id: string) => {
-      runPointLabelDoubleClickInteraction({
-        pointId: id,
-        measurements,
-        setReferencePoint,
-      });
+      if (!pointMeasurementIds.has(id)) {
+        return;
+      }
+
+      // Double click finishes the current line chain.
+      setDoubleClickChainSourcePointId(null);
+      selectMeasurementById(id);
     },
-    [measurements, setReferencePoint]
+    [pointMeasurementIds, selectMeasurementById]
   );
 
   const updatePointMeasurementPositionById = useCallback(
@@ -368,14 +787,22 @@ export const CesiumMeasurementsProvider: React.FC<
   );
 
   const startMoveGizmoForMeasurementId = useCallback(
-    (id: string) => {
+    (id: string, options?: MoveGizmoStartOptions) => {
       const measurement = measurements.find(
         (entry) => isPointMeasurementEntry(entry) && entry.id === id
       );
       if (!measurement || !isPointMeasurementEntry(measurement)) return;
 
+      const axisDirection = options?.axisDirection ?? null;
+      const axisCandidates = options?.axisCandidates?.map((candidate) => ({
+        ...candidate,
+        direction: Cartesian3.clone(candidate.direction),
+      }));
       setSelectedMeasurementId((prev) => (prev === id ? prev : id));
       setMoveGizmoPointId(id);
+      setMoveGizmoAxisDirection(axisDirection);
+      setMoveGizmoAxisTitle(options?.axisTitle ?? null);
+      setMoveGizmoAxisCandidates(axisCandidates ?? null);
       setIsMoveGizmoDragging(false);
     },
     [measurements]
@@ -383,6 +810,9 @@ export const CesiumMeasurementsProvider: React.FC<
 
   const stopMoveGizmo = useCallback(() => {
     setMoveGizmoPointId(null);
+    setMoveGizmoAxisDirection(null);
+    setMoveGizmoAxisTitle(null);
+    setMoveGizmoAxisCandidates(null);
     setIsMoveGizmoDragging(false);
   }, []);
 
@@ -468,19 +898,54 @@ export const CesiumMeasurementsProvider: React.FC<
   const handlePointLabelLongPress = useCallback(
     (id: string) => {
       selectMeasurementById(id);
-      setMoveGizmoPointId(id);
+      startMoveGizmoForMeasurementId(id);
     },
-    [selectMeasurementById]
+    [selectMeasurementById, startMoveGizmoForMeasurementId]
   );
 
   const handleMoveGizmoExit = useCallback(() => {
     stopMoveGizmo();
   }, [stopMoveGizmo]);
 
+  const handleMoveGizmoAxisChange = useCallback(
+    (axisDirection: Cartesian3, axisTitle?: string | null) => {
+      setMoveGizmoAxisDirection(Cartesian3.clone(axisDirection));
+      setMoveGizmoAxisTitle(axisTitle ?? null);
+    },
+    []
+  );
+
   const handlePointLabelClick = useCallback(
     (id: string) => {
       if (moveGizmoPointId) {
         setMoveGizmoPointElevationFromMeasurementById(id);
+        return;
+      }
+
+      if (measurementMode === MeasurementMode.PointQuery) {
+        if (!pointMeasurementIds.has(id)) return;
+
+        const hasOpenLineDrawing = Boolean(
+          doubleClickChainSourcePointId &&
+            pointMeasurementIds.has(doubleClickChainSourcePointId)
+        );
+        if (!hasOpenLineDrawing) {
+          runPointLabelClickInteraction({
+            pointId: id,
+            selectedMeasurementId,
+            selectMeasurementById,
+            cyclePointLabelMetricModeByMeasurementId,
+          });
+          return;
+        }
+
+        const sourcePointId = resolveDistanceRelationSourcePointId(id);
+        if (sourcePointId) {
+          upsertDirectDistanceRelation(sourcePointId, id);
+        }
+
+        setDoubleClickChainSourcePointId(id);
+        selectMeasurementById(id);
         return;
       }
 
@@ -493,11 +958,49 @@ export const CesiumMeasurementsProvider: React.FC<
     },
     [
       moveGizmoPointId,
+      measurementMode,
+      doubleClickChainSourcePointId,
+      pointMeasurementIds,
+      resolveDistanceRelationSourcePointId,
       setMoveGizmoPointElevationFromMeasurementById,
       selectedMeasurementId,
       selectMeasurementById,
       cyclePointLabelMetricModeByMeasurementId,
+      upsertDirectDistanceRelation,
     ]
+  );
+
+  // point query hooks
+  useCesiumPointQuery(
+    scene,
+    measurementMode === MeasurementMode.PointQuery &&
+      pointQueryEnabled &&
+      !moveGizmoPointId &&
+      !isMoveGizmoDragging,
+    setMeasurements,
+    temporaryMode,
+    handlePointQueryPointCreated,
+    handlePointQueryDoubleClick
+  );
+
+  const handleDistanceRelationCornerClick = useCallback(
+    (relationId: string) => {
+      if (!relationId) return;
+      setDistanceRelations((prev) =>
+        prev.map((relation) => {
+          if (relation.id !== relationId) return relation;
+          const nextAnchorPointId =
+            relation.anchorPointId === relation.pointAId
+              ? relation.pointBId
+              : relation.pointAId;
+          return {
+            ...relation,
+            anchorPointId: nextAnchorPointId,
+          };
+        })
+      );
+    },
+    []
   );
 
   useCesiumPointVisualizer(scene, measurements, {
@@ -506,58 +1009,143 @@ export const CesiumMeasurementsProvider: React.FC<
     showLabels: showPointLabels,
     radius: pointRadius,
     referenceElevation,
-    referencePoint,
     selectedPointId: selectedMeasurementId,
-    showSelectedReferenceLine,
+    distanceRelations,
     showSelectedDisc: Boolean(moveGizmoPointId),
     debug: false,
     onPointClick: handlePointLabelClick,
     onPointDoubleClick: handlePointLabelDoubleClick,
     onPointLongPress: handlePointLabelLongPress,
+    onDistanceRelationCornerClick: handleDistanceRelationCornerClick,
     pointLongPressDurationMs: POINT_LABEL_LONG_PRESS_DURATION_MS,
     labelLayoutConfig: options?.labels,
     distanceToReferenceByPointId,
+    onDistanceRelationLineLabelToggle:
+      toggleDistanceRelationLineLabelVisibility,
+    distanceLineLabelMinDistancePx: 50,
     moveGizmoPointId,
+    moveGizmoAxisDirection,
+    moveGizmoAxisTitle,
+    moveGizmoAxisCandidates,
     moveGizmoIsDragging: isMoveGizmoDragging,
     onMoveGizmoPointPositionChange: updatePointMeasurementPositionById,
     onMoveGizmoDragStateChange: setIsMoveGizmoDragging,
+    onMoveGizmoAxisChange: handleMoveGizmoAxisChange,
     onMoveGizmoExit: handleMoveGizmoExit,
   });
 
   const clearAllMeasurements = useCallback(() => {
     setMeasurements([]);
+    setDistanceRelations([]);
     setSelectedMeasurementId(null);
+    setPreviousSelectedMeasurementId(null);
+    setDoubleClickChainSourcePointId(null);
     setMoveGizmoPointId(null);
+    setMoveGizmoAxisDirection(null);
+    setMoveGizmoAxisTitle(null);
+    setMoveGizmoAxisCandidates(null);
     setIsMoveGizmoDragging(false);
     // resetVisibility
     if (hideMeasurementsOfType.size > 0) {
       setHideMeasurementsOfType(new Set());
     }
-  }, [setMeasurements, hideMeasurementsOfType.size]);
+  }, [hideMeasurementsOfType.size]);
 
-  const clearMeasurementsByType = useCallback(
-    (type: MeasurementMode) => {
-      setMeasurements((prev) => prev.filter((m) => m.type !== type));
-      setSelectedMeasurementId(null);
-      setMoveGizmoPointId(null);
-      setIsMoveGizmoDragging(false);
-      // resetVisibility
-      setHideMeasurementsOfType(deleteFromHideMeasurementsOfType(type));
-    },
-    [setMeasurements]
-  );
+  const clearMeasurementsByType = useCallback((type: MeasurementMode) => {
+    setMeasurements((prev) =>
+      prev.filter((measurement) => measurement.type !== type)
+    );
+    if (type === MeasurementMode.PointQuery) {
+      setDistanceRelations([]);
+      setDoubleClickChainSourcePointId(null);
+    }
+    setSelectedMeasurementId(null);
+    setPreviousSelectedMeasurementId(null);
+    setMoveGizmoPointId(null);
+    setMoveGizmoAxisDirection(null);
+    setMoveGizmoAxisTitle(null);
+    setMoveGizmoAxisCandidates(null);
+    setIsMoveGizmoDragging(false);
+    // resetVisibility
+    setHideMeasurementsOfType(deleteFromHideMeasurementsOfType(type));
+  }, []);
 
   const clearMeasurementsByIds = useCallback(
     (ids: string[]) => {
       setMeasurements((prev) => prev.filter((m) => !ids.includes(m.id)));
+      setDistanceRelations((prev) =>
+        prev.filter(
+          (relation) =>
+            !ids.includes(relation.pointAId) && !ids.includes(relation.pointBId)
+        )
+      );
       setSelectedMeasurementId((prev) =>
         prev && ids.includes(prev) ? null : prev
       );
+      setPreviousSelectedMeasurementId((prev) =>
+        prev && ids.includes(prev) ? null : prev
+      );
+      setDoubleClickChainSourcePointId((prev) =>
+        prev && ids.includes(prev) ? null : prev
+      );
       setMoveGizmoPointId((prev) => (prev && ids.includes(prev) ? null : prev));
+      setMoveGizmoAxisDirection((prev) =>
+        moveGizmoPointId && ids.includes(moveGizmoPointId) ? null : prev
+      );
+      setMoveGizmoAxisTitle((prev) =>
+        moveGizmoPointId && ids.includes(moveGizmoPointId) ? null : prev
+      );
+      setMoveGizmoAxisCandidates((prev) =>
+        moveGizmoPointId && ids.includes(moveGizmoPointId) ? null : prev
+      );
       setIsMoveGizmoDragging(false);
     },
-    [setMeasurements]
+    [moveGizmoPointId]
   );
+
+  useEffect(() => {
+    const handleDeleteKey = (event: KeyboardEvent) => {
+      if (event.key !== "Delete") return;
+      if (event.defaultPrevented) return;
+      if (event.metaKey || event.ctrlKey || event.altKey) return;
+      if (isKeyboardTargetEditable(event.target)) return;
+      if (!selectedMeasurementId) return;
+
+      const selectedMeasurement = measurements.find(
+        (measurement) => measurement.id === selectedMeasurementId
+      );
+      if (
+        !selectedMeasurement ||
+        !isPointMeasurementEntry(selectedMeasurement)
+      ) {
+        return;
+      }
+
+      const remainingPointMeasurements = measurements.filter(
+        (measurement) =>
+          isPointMeasurementEntry(measurement) &&
+          measurement.id !== selectedMeasurementId
+      );
+      const fallbackSelectionId =
+        remainingPointMeasurements[remainingPointMeasurements.length - 1]?.id ??
+        null;
+
+      event.preventDefault();
+      event.stopPropagation();
+      clearMeasurementsByIds([selectedMeasurementId]);
+      selectMeasurementById(fallbackSelectionId);
+    };
+
+    window.addEventListener("keydown", handleDeleteKey, true);
+    return () => {
+      window.removeEventListener("keydown", handleDeleteKey, true);
+    };
+  }, [
+    clearMeasurementsByIds,
+    measurements,
+    selectMeasurementById,
+    selectedMeasurementId,
+  ]);
 
   useEffect(() => {
     if (options?.mode !== undefined) {
@@ -576,10 +1164,25 @@ export const CesiumMeasurementsProvider: React.FC<
     } else {
       setMeasurementMode(MeasurementMode.NONE);
       setSelectedMeasurementId(null);
+      setPreviousSelectedMeasurementId(null);
+      setDoubleClickChainSourcePointId(null);
       setMoveGizmoPointId(null);
+      setMoveGizmoAxisDirection(null);
+      setMoveGizmoAxisTitle(null);
+      setMoveGizmoAxisCandidates(null);
       setIsMoveGizmoDragging(false);
     }
   }, [mapMeasurements.mode, setMeasurementMode]);
+
+  useEffect(() => {
+    if (!doubleClickChainSourcePointId) return;
+    const hasChainSourceMeasurement = measurements.some(
+      (measurement) => measurement.id === doubleClickChainSourcePointId
+    );
+    if (!hasChainSourceMeasurement) {
+      setDoubleClickChainSourcePointId(null);
+    }
+  }, [doubleClickChainSourcePointId, measurements]);
 
   useEffect(() => {
     if (!selectedMeasurementId) return;
@@ -592,12 +1195,94 @@ export const CesiumMeasurementsProvider: React.FC<
   }, [measurements, selectedMeasurementId]);
 
   useEffect(() => {
+    if (!previousSelectedMeasurementId) return;
+    const hasPreviousSelection = measurements.some(
+      (measurement) => measurement.id === previousSelectedMeasurementId
+    );
+    if (!hasPreviousSelection) {
+      setPreviousSelectedMeasurementId(null);
+    }
+  }, [measurements, previousSelectedMeasurementId]);
+
+  useEffect(() => {
+    const pointMeasurementIds = new Set(
+      measurements
+        .filter(isPointMeasurementEntry)
+        .map((measurement) => measurement.id)
+    );
+    setDistanceRelations((prev) => {
+      const next = prev
+        .filter(
+          (relation) =>
+            pointMeasurementIds.has(relation.pointAId) &&
+            pointMeasurementIds.has(relation.pointBId)
+        )
+        .map((relation) => {
+          const fallbackAnchorPointId = relation.pointAId;
+          const anchorPointId = pointMeasurementIds.has(relation.anchorPointId)
+            ? relation.anchorPointId
+            : fallbackAnchorPointId;
+          return {
+            ...relation,
+            anchorPointId,
+          };
+        });
+      if (next.length !== prev.length) return next;
+      for (let index = 0; index < next.length; index += 1) {
+        if (next[index]?.anchorPointId !== prev[index]?.anchorPointId) {
+          return next;
+        }
+      }
+      return prev;
+    });
+  }, [measurements]);
+
+  useEffect(() => {
+    if (!referencePoint) return;
+
+    const pointMeasurements = measurements.filter(isPointMeasurementEntry);
+    if (pointMeasurements.length === 0) {
+      setReferencePoint(null);
+      return;
+    }
+
+    const hasReferenceMeasurement = pointMeasurements.some(
+      (measurement) =>
+        Cartesian3.distance(measurement.geometryECEF, referencePoint) <=
+        REFERENCE_POINT_SYNC_EPSILON_METERS
+    );
+
+    if (hasReferenceMeasurement) {
+      return;
+    }
+
+    // Reference point was deleted: fallback to the latest remaining point.
+    const nextReferencePoint =
+      pointMeasurements[pointMeasurements.length - 1]?.geometryECEF ?? null;
+    setReferencePoint(nextReferencePoint);
+  }, [measurements, referencePoint, setReferencePoint]);
+
+  useEffect(() => {
+    if (selectedMeasurementId) return;
+
+    const relationWithVisibleLine = distanceRelations.find(
+      hasAnyVisibleDistanceRelationLine
+    );
+    if (relationWithVisibleLine) {
+      selectMeasurementById(relationWithVisibleLine.anchorPointId);
+    }
+  }, [distanceRelations, selectedMeasurementId, selectMeasurementById]);
+
+  useEffect(() => {
     if (!moveGizmoPointId) return;
     const hasMoveGizmoPoint = measurements.some(
       (measurement) => measurement.id === moveGizmoPointId
     );
     if (!hasMoveGizmoPoint) {
       setMoveGizmoPointId(null);
+      setMoveGizmoAxisDirection(null);
+      setMoveGizmoAxisTitle(null);
+      setMoveGizmoAxisCandidates(null);
       setIsMoveGizmoDragging(false);
     }
   }, [measurements, moveGizmoPointId]);
@@ -647,8 +1332,12 @@ export const CesiumMeasurementsProvider: React.FC<
       referencePoint,
       setReferencePoint,
       referenceElevation,
+      distanceRelations,
+      setDistanceRelations,
       showSelectedReferenceLine,
       setShowSelectedReferenceLine,
+      showSelectedReferenceLineComponents,
+      setShowSelectedReferenceLineComponents,
     }),
     [
       measurementMode,
@@ -682,8 +1371,12 @@ export const CesiumMeasurementsProvider: React.FC<
       referencePoint,
       setReferencePoint,
       referenceElevation,
+      distanceRelations,
+      setDistanceRelations,
       showSelectedReferenceLine,
       setShowSelectedReferenceLine,
+      showSelectedReferenceLineComponents,
+      setShowSelectedReferenceLineComponents,
     ]
   );
 

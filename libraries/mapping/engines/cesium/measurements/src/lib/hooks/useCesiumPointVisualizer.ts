@@ -1,3 +1,4 @@
+/* @refresh reset */
 import { useEffect, useMemo, useRef } from "react";
 
 import {
@@ -5,18 +6,13 @@ import {
   Cartesian4,
   Color,
   Matrix4,
-  SceneTransforms,
   Transforms,
-  defined,
   type Scene,
 } from "@carma/cesium";
 import {
   createDiscVisualizer,
-  createLineVisualizer,
   type DiscVisualizer,
-  type LineVisualizer,
 } from "@carma-mapping/engines/cesium/legacy";
-import { useLineVisualizers } from "@carma-providers/label-overlay";
 
 import {
   create3DCrossGroup,
@@ -26,14 +22,16 @@ import {
 import {
   isPointMeasurementEntry,
   MeasurementCollection,
-  PointMeasurementEntry,
+  type PointDistanceRelation,
+  type PointMeasurementEntry,
+  type ReferenceLineLabelKind,
 } from "../types/MeasurementTypes";
 import {
   useCesiumPointLabels,
   type CesiumLabelLayoutConfigOverrides,
 } from "./useCesiumPointLabels";
 import { useCesiumPointMoveGizmo } from "./useCesiumPointMoveGizmo";
-import { formatNumber } from "../utils/formatting";
+import { useCesiumDistanceVisualizer } from "./useCesiumDistanceVisualizer";
 
 export type CesiumPointVisualizerOptions = {
   showMarkers?: boolean;
@@ -41,29 +39,43 @@ export type CesiumPointVisualizerOptions = {
   showLabels?: boolean;
   radius: number;
   referenceElevation?: number;
-  referencePoint?: Cartesian3 | null;
   selectedPointId?: string | null;
-  showSelectedReferenceLine?: boolean;
-  selectedReferenceLineLabelMinDistancePx?: number;
+  distanceRelations?: PointDistanceRelation[];
+  onDistanceRelationLineLabelToggle?: (
+    relationId: string,
+    kind: ReferenceLineLabelKind
+  ) => void;
+  distanceLineLabelMinDistancePx?: number;
   showSelectedDisc?: boolean;
   debug?: boolean;
   onPointClick?: (pointId: string) => void;
   onPointDoubleClick?: (pointId: string) => void;
   onPointLongPress?: (pointId: string) => void;
+  onDistanceRelationCornerClick?: (relationId: string) => void;
   pointLongPressDurationMs?: number;
   labelLayoutConfig?: CesiumLabelLayoutConfigOverrides;
   distanceToReferenceByPointId?: Readonly<Record<string, number>>;
   moveGizmoPointId?: string | null;
+  moveGizmoAxisDirection?: Cartesian3 | null;
+  moveGizmoAxisTitle?: string | null;
+  moveGizmoAxisCandidates?: Array<{
+    id: string;
+    direction: Cartesian3;
+    color?: string;
+    title?: string | null;
+  }> | null;
   moveGizmoIsDragging?: boolean;
   onMoveGizmoPointPositionChange?: (
     pointId: string,
     nextPosition: Cartesian3
   ) => void;
   onMoveGizmoDragStateChange?: (isDragging: boolean) => void;
+  onMoveGizmoAxisChange?: (
+    axisDirection: Cartesian3,
+    axisTitle?: string | null
+  ) => void;
   onMoveGizmoExit?: () => void;
 };
-
-const REFERENCE_LINE_EPSILON_METERS = 0.001;
 
 export const useCesiumPointVisualizer = (
   scene: Scene | null,
@@ -74,58 +86,40 @@ export const useCesiumPointVisualizer = (
     showLabels = false,
     radius,
     referenceElevation = 0,
-    referencePoint = null,
     selectedPointId = null,
-    showSelectedReferenceLine = false,
-    selectedReferenceLineLabelMinDistancePx = 50,
+    distanceRelations = [],
+    onDistanceRelationLineLabelToggle,
+    distanceLineLabelMinDistancePx = 50,
     showSelectedDisc = false,
     debug = false,
     onPointClick,
     onPointDoubleClick,
     onPointLongPress,
+    onDistanceRelationCornerClick,
     pointLongPressDurationMs = 300,
     labelLayoutConfig,
     distanceToReferenceByPointId,
     moveGizmoPointId = null,
+    moveGizmoAxisDirection = null,
+    moveGizmoAxisTitle = null,
+    moveGizmoAxisCandidates = null,
     moveGizmoIsDragging = false,
     onMoveGizmoPointPositionChange,
     onMoveGizmoDragStateChange,
+    onMoveGizmoAxisChange,
     onMoveGizmoExit,
   }: CesiumPointVisualizerOptions
 ) => {
   const cross3DRefs = useRef<Record<string, Cross3DGroup>>({});
   const selectedDiscRef = useRef<DiscVisualizer | null>(null);
-  const selectedReferenceLineRef = useRef<LineVisualizer | null>(null);
 
   const [points, currentIds]: [PointMeasurementEntry[], Set<string>] =
     useMemo(() => {
       // memoize derived values of measurements
-      const points = measurements.filter(isPointMeasurementEntry);
-      const currentIds = new Set(points.map((m) => m.id));
-      return [points, currentIds];
+      const derivedPoints = measurements.filter(isPointMeasurementEntry);
+      const ids = new Set(derivedPoints.map((measurement) => measurement.id));
+      return [derivedPoints, ids];
     }, [measurements]);
-  const selectedPoint = useMemo(
-    () =>
-      selectedPointId
-        ? points.find((point) => point.id === selectedPointId) ?? null
-        : null,
-    [points, selectedPointId]
-  );
-  const shouldShowSelectedReferenceLine = Boolean(
-    showSelectedReferenceLine &&
-      referencePoint &&
-      selectedPoint &&
-      Cartesian3.distance(referencePoint, selectedPoint.geometryECEF) >
-        REFERENCE_LINE_EPSILON_METERS
-  );
-  const selectedReferenceLineDistanceText = useMemo(() => {
-    if (!referencePoint || !selectedPoint) return "";
-    const distanceMeters = Cartesian3.distance(
-      referencePoint,
-      selectedPoint.geometryECEF
-    );
-    return `${formatNumber(distanceMeters)} m`;
-  }, [referencePoint, selectedPoint]);
 
   // Use overlay labels instead of Cesium entity labels
   useCesiumPointLabels(
@@ -147,49 +141,22 @@ export const useCesiumPointVisualizer = (
   useCesiumPointMoveGizmo(scene, {
     points,
     movePointId: moveGizmoPointId,
+    axisDirection: moveGizmoAxisDirection,
+    axisTitle: moveGizmoAxisTitle,
+    axisCandidates: moveGizmoAxisCandidates,
     radius,
     onPointPositionChange: onMoveGizmoPointPositionChange,
     onDragStateChange: onMoveGizmoDragStateChange,
+    onAxisDirectionChange: onMoveGizmoAxisChange,
     onExit: onMoveGizmoExit,
   });
-  useLineVisualizers(
-    shouldShowSelectedReferenceLine && scene && referencePoint && selectedPoint
-      ? [
-          {
-            id: `selected-reference-${selectedPoint.id}`,
-            getCanvasLine: () => {
-              if (!scene || scene.isDestroyed()) return null;
 
-              const start = SceneTransforms.worldToWindowCoordinates(
-                scene,
-                referencePoint
-              );
-              const end = SceneTransforms.worldToWindowCoordinates(
-                scene,
-                selectedPoint.geometryECEF
-              );
-
-              if (!defined(start) || !defined(end)) return null;
-              return {
-                start: { x: start.x, y: start.y },
-                end: { x: end.x, y: end.y },
-              };
-            },
-            stroke: "rgba(255, 255, 255, 0.9)",
-            strokeWidth: 1.5,
-            strokeDasharray: "6 4",
-            labelText: selectedReferenceLineDistanceText,
-            labelColor: "#000000",
-            labelStroke: "rgba(255, 255, 255, 0.95)",
-            labelFontSize: 12,
-            labelFontFamily: "Arial, sans-serif",
-            labelFontWeight: "400",
-            labelMinLineLengthPx: selectedReferenceLineLabelMinDistancePx,
-          },
-        ]
-      : [],
-    shouldShowSelectedReferenceLine
-  );
+  useCesiumDistanceVisualizer(scene, points, {
+    distanceRelations,
+    onDistanceLineLabelToggle: onDistanceRelationLineLabelToggle,
+    lineLabelMinDistancePx: distanceLineLabelMinDistancePx,
+    onDistanceRelationCornerClick,
+  });
 
   useEffect(() => {
     if (!scene) return;
@@ -219,16 +186,25 @@ export const useCesiumPointVisualizer = (
       selectedPoint.geometryECEF
     );
     const upAxis4 = Matrix4.getColumn(eastNorthUpMatrix, 2, new Cartesian4());
-    const upVector = Cartesian3.normalize(
+    const fallbackUpVector = Cartesian3.normalize(
       new Cartesian3(upAxis4.x, upAxis4.y, upAxis4.z),
       new Cartesian3()
     );
+    const hasAxisOverride =
+      Boolean(moveGizmoAxisDirection) &&
+      Cartesian3.magnitudeSquared(moveGizmoAxisDirection as Cartesian3) > 1e-8;
+    const discNormal = hasAxisOverride
+      ? Cartesian3.normalize(
+          moveGizmoAxisDirection as Cartesian3,
+          new Cartesian3()
+        )
+      : fallbackUpVector;
 
     selectedDiscRef.current = createDiscVisualizer(
       `selectedGuide-${selectedPoint.id}`,
       {
         origin: selectedPoint.geometryECEF,
-        upVector,
+        upVector: discNormal,
         radius,
         screenPixelRadius: 50,
         color: Color.WHITE.withAlpha(0.65),
@@ -247,44 +223,14 @@ export const useCesiumPointVisualizer = (
       if (!scene || scene.isDestroyed()) return;
       scene.requestRender();
     };
-  }, [scene, points, selectedPointId, radius, showSelectedDisc]);
-
-  useEffect(() => {
-    if (!scene) return;
-
-    if (selectedReferenceLineRef.current) {
-      selectedReferenceLineRef.current.destroy();
-      selectedReferenceLineRef.current = null;
-    }
-
-    if (!shouldShowSelectedReferenceLine || !referencePoint || !selectedPoint) {
-      scene.requestRender();
-      return;
-    }
-
-    selectedReferenceLineRef.current = createLineVisualizer(
-      `selected-reference-line-${selectedPoint.id}`,
-      {
-        start: referencePoint,
-        end: selectedPoint.geometryECEF,
-        color: Color.WHITE,
-        width: 1,
-        dashed: false,
-      }
-    );
-
-    selectedReferenceLineRef.current.attach(scene, () => scene.requestRender());
-    scene.requestRender();
-
-    return () => {
-      if (selectedReferenceLineRef.current) {
-        selectedReferenceLineRef.current.destroy();
-        selectedReferenceLineRef.current = null;
-      }
-      if (!scene || scene.isDestroyed()) return;
-      scene.requestRender();
-    };
-  }, [scene, referencePoint, selectedPoint, shouldShowSelectedReferenceLine]);
+  }, [
+    scene,
+    points,
+    selectedPointId,
+    radius,
+    showSelectedDisc,
+    moveGizmoAxisDirection,
+  ]);
 
   useEffect(() => {
     // render markers using primitives instead of entities

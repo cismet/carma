@@ -69,6 +69,7 @@ export const LabelOverlayProvider: React.FC<LabelOverlayProviderProps> = ({
         // Compare content to avoid unnecessary re-renders
         if (
           existing.content === element.content &&
+          existing.zIndex === element.zIndex &&
           existing.visible === element.visible &&
           existing.isHidden === element.isHidden
         ) {
@@ -207,6 +208,7 @@ export const LabelOverlayProvider: React.FC<LabelOverlayProviderProps> = ({
             data-label-overlay-id={id}
             style={{
               position: "absolute",
+              zIndex: element.zIndex ?? 0,
               pointerEvents:
                 element.onClick || element.onDoubleClick ? "auto" : "none",
               cursor:

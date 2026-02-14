@@ -19,11 +19,15 @@ import {
   makeTemporaryMeasurementsPermanent,
 } from "../utils/measurementCollection";
 
+const POINT_CLICK_DELAY_MS = 220;
+
 export const useCesiumPointQuery = (
   scene: Scene | null,
   enabled: boolean = true,
   setCollection: Dispatch<SetStateAction<MeasurementCollection>>,
-  temporaryMode: boolean = true
+  temporaryMode: boolean = true,
+  onPointCreated?: (pointId: string) => void,
+  onLineFinish?: () => void
 ) => {
   const handlerRef = useRef<ScreenSpaceEventHandler | null>(null);
   const prevTemporaryModeRef = useRef(temporaryMode);
@@ -65,10 +69,10 @@ export const useCesiumPointQuery = (
     // Create click handler
     const handler = new ScreenSpaceEventHandler(scene.canvas);
     handlerRef.current = handler;
+    let clickTimeoutId: number | undefined;
 
-    handler.setInputAction((event: { position: Cartesian2 }) => {
-      // Try to pick terrain/mesh position
-      const pickedPosition = scene.pickPosition(event.position);
+    const createPointAt = (position: Cartesian2) => {
+      const pickedPosition = scene.pickPosition(position);
 
       if (!pickedPosition) {
         console.debug("[SceneClick] No position picked");
@@ -77,7 +81,6 @@ export const useCesiumPointQuery = (
 
       const geometryWGS84 = getDegreesFromCartesian(pickedPosition);
       const height = geometryWGS84.altitude;
-
       const measurementId = `point-${Date.now()}`;
 
       const measurementConstructor = (
@@ -101,6 +104,7 @@ export const useCesiumPointQuery = (
       };
 
       updateCollection(setCollection, measurementConstructor, temporaryMode);
+      onPointCreated?.(measurementId);
 
       scene.requestRender();
       console.log(
@@ -108,18 +112,47 @@ export const useCesiumPointQuery = (
           height ?? 0
         ).toFixed(3)}m`
       );
+    };
+
+    handler.setInputAction((event: { position: Cartesian2 }) => {
+      if (clickTimeoutId !== undefined) {
+        window.clearTimeout(clickTimeoutId);
+      }
+      clickTimeoutId = window.setTimeout(() => {
+        createPointAt(event.position);
+        clickTimeoutId = undefined;
+      }, POINT_CLICK_DELAY_MS);
     }, ScreenSpaceEventType.LEFT_CLICK);
+
+    handler.setInputAction(() => {
+      if (clickTimeoutId !== undefined) {
+        window.clearTimeout(clickTimeoutId);
+        clickTimeoutId = undefined;
+      }
+      onLineFinish?.();
+    }, ScreenSpaceEventType.LEFT_DOUBLE_CLICK);
 
     console.debug("[SceneClick] Terrain click handler enabled");
 
     return () => {
+      if (clickTimeoutId !== undefined) {
+        window.clearTimeout(clickTimeoutId);
+        clickTimeoutId = undefined;
+      }
       if (handlerRef.current) {
         handlerRef.current.destroy();
         handlerRef.current = null;
       }
       console.debug("[SceneClick] Terrain click handler cleaned up");
     };
-  }, [scene, enabled, temporaryMode, setCollection]);
+  }, [
+    scene,
+    enabled,
+    temporaryMode,
+    setCollection,
+    onPointCreated,
+    onLineFinish,
+  ]);
 };
 
 export default useCesiumPointQuery;

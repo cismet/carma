@@ -85,6 +85,7 @@ export const usePointLabels = (
 
       addLabelOverlayElement({
         id: labelId,
+        zIndex: 20,
         getCanvasPosition: point.getCanvasPosition,
         content: React.createElement(PointLabel, {
           pitch,

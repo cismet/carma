@@ -5,12 +5,14 @@ export interface LineVisualizerProps {
   strokeWidth?: number;
   strokeDasharray?: string;
   opacity?: number;
+  hitTargetStrokeWidth?: number;
   labelText?: string;
   labelColor?: string;
   labelStroke?: string;
   labelFontSize?: number;
   labelFontFamily?: string;
   labelFontWeight?: string | number;
+  onLineClick?: () => void;
 }
 
 export const LineVisualizer = React.memo(
@@ -19,13 +21,17 @@ export const LineVisualizer = React.memo(
     strokeWidth = 1.5,
     strokeDasharray = "6 4",
     opacity = 1,
+    hitTargetStrokeWidth,
     labelText,
     labelColor = "#000000",
     labelStroke = "rgba(255, 255, 255, 0.95)",
     labelFontSize = 12,
     labelFontFamily = "Arial, sans-serif",
     labelFontWeight = "400",
+    onLineClick,
   }: LineVisualizerProps) => {
+    const isInteractive = typeof onLineClick === "function";
+
     return (
       <svg
         width="100%"
@@ -38,6 +44,24 @@ export const LineVisualizer = React.memo(
         }}
       >
         <line
+          data-line-visualizer-hit-target="true"
+          x1="0"
+          y1="0"
+          x2="0"
+          y2="0"
+          stroke="transparent"
+          strokeWidth={
+            hitTargetStrokeWidth ?? Math.max(Number(strokeWidth) + 8, 10)
+          }
+          strokeLinecap="round"
+          vectorEffect="non-scaling-stroke"
+          style={{
+            pointerEvents: isInteractive ? "stroke" : "none",
+            cursor: isInteractive ? "pointer" : "default",
+          }}
+          onClick={onLineClick}
+        />
+        <line
           data-line-visualizer-segment="true"
           x1="0"
           y1="0"
@@ -49,6 +73,11 @@ export const LineVisualizer = React.memo(
           strokeLinecap="round"
           opacity={opacity}
           vectorEffect="non-scaling-stroke"
+          style={{
+            pointerEvents: isInteractive ? "stroke" : "none",
+            cursor: isInteractive ? "pointer" : "default",
+          }}
+          onClick={onLineClick}
         />
         <text
           data-line-visualizer-text="true"
@@ -63,7 +92,12 @@ export const LineVisualizer = React.memo(
           fontSize={labelFontSize}
           fontFamily={labelFontFamily}
           fontWeight={labelFontWeight}
-          style={{ userSelect: "none", pointerEvents: "none" }}
+          style={{
+            userSelect: "none",
+            pointerEvents: isInteractive ? "auto" : "none",
+            cursor: isInteractive ? "pointer" : "default",
+          }}
+          onClick={onLineClick}
         >
           {labelText ?? ""}
         </text>

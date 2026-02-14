@@ -1,4 +1,5 @@
 import type {
+  PointDistanceRelation,
   MeasurementCollection,
   MeasurementEntry,
   TraverseMeasurementEntry,
@@ -6,6 +7,7 @@ import type {
 import { MeasurementMode } from "../types/MeasurementTypes";
 
 const DEFAULT_STORAGE_KEY = "cesium-measurements";
+const DISTANCE_RELATIONS_STORAGE_SUFFIX = ":distance-relations";
 
 const rebuildTraverseEntry = (entry: MeasurementEntry): MeasurementEntry => {
   if (entry.type !== MeasurementMode.Traverse) {
@@ -46,6 +48,42 @@ export const loadMeasurements = (
     return measurements.map(rebuildTraverseEntry);
   } catch (error) {
     console.warn("Failed to load measurements from localStorage:", error);
+  }
+
+  return null;
+};
+
+export const saveDistanceRelations = (
+  storageKey: string | undefined,
+  relations: PointDistanceRelation[]
+): void => {
+  const key = `${
+    storageKey ?? DEFAULT_STORAGE_KEY
+  }${DISTANCE_RELATIONS_STORAGE_SUFFIX}`;
+  try {
+    localStorage.setItem(key, JSON.stringify(relations));
+  } catch (error) {
+    console.warn("Failed to save distance relations to localStorage:", error);
+  }
+};
+
+export const loadDistanceRelations = (
+  storageKey: string | undefined
+): PointDistanceRelation[] | null => {
+  const key = `${
+    storageKey ?? DEFAULT_STORAGE_KEY
+  }${DISTANCE_RELATIONS_STORAGE_SUFFIX}`;
+  try {
+    const saved = localStorage.getItem(key);
+    if (!saved) {
+      return null;
+    }
+
+    const relations = JSON.parse(saved) as PointDistanceRelation[];
+    if (!Array.isArray(relations)) return null;
+    return relations;
+  } catch (error) {
+    console.warn("Failed to load distance relations from localStorage:", error);
   }
 
   return null;

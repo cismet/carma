@@ -15,6 +15,30 @@ export type PointLabelMetricMode =
 export const DEFAULT_POINT_LABEL_METRIC_MODE: PointLabelMetricMode =
   "elevation";
 
+export type ReferenceLineLabelKind = "direct" | "vertical" | "horizontal";
+
+export type DistanceRelationLabelVisibilityByKind = Partial<
+  Record<ReferenceLineLabelKind, boolean>
+>;
+
+export type PointDistanceRelation = {
+  id: string;
+  pointAId: string;
+  pointBId: string;
+  // The anchor point defines the "from" side for component visualization.
+  anchorPointId: string;
+  showDirectLine?: boolean;
+  showVerticalLine?: boolean;
+  showHorizontalLine?: boolean;
+  showComponentLines?: boolean;
+  labelVisibilityByKind?: DistanceRelationLabelVisibilityByKind;
+};
+
+export type PointReferenceLineAnnotation = {
+  showDirectLine?: boolean;
+  showComponentLines?: boolean;
+};
+
 export type GeomPoint = Partial<Cartographic> & {
   longitude: number;
   latitude: number;
@@ -42,6 +66,7 @@ export type PointMeasurementEntry = MeasurementEntry & {
   geometryECEF: Cartesian3;
   geometryWGS84: GeomPoint;
   radius?: number;
+  referenceLineAnnotation?: PointReferenceLineAnnotation;
 };
 
 export function isPointMeasurementEntry(
