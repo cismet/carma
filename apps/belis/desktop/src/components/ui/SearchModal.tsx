@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { Modal, Button } from "antd";
 import { SearchOutlined } from "@ant-design/icons";
-import { LeuchteSearch } from "./featuresSearches";
+import { LeuchteSearch, MastSearch } from "./featuresSearches";
 
 interface SearchModalProps {
   defaultOpen?: boolean;
@@ -67,11 +67,12 @@ const SearchModal = ({ defaultOpen = false }: SearchModalProps) => {
         }
         width={600}
         styles={{
-          body: { maxHeight: "70vh", overflowY: "auto", paddingTop: 16 },
+          body: { paddingTop: 16 },
           header: { borderBottom: "1px solid #f3f4f6", paddingBottom: 16 },
         }}
       >
-        <LeuchteSearch onValuesChange={handleSearch} />
+        <MastSearch onValuesChange={handleSearch} />
+        {/* <LeuchteSearch onValuesChange={handleSearch} /> */}
       </Modal>
     </>
   );
