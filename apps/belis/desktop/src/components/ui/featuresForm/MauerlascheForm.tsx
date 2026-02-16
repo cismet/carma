@@ -75,13 +75,14 @@ const MauerlascheForm = ({
         strassenschluessel_strasse: ml.tkey_strassenschluessel?.strasse,
         // Laufende Nr.
         laufende_nummer: ml.laufende_nummer,
-        // Montage (Erstellungsjahr)
+        // Montage (Erstellungsjahr) - can be a date string or year number
         erstellungsjahr: ml.erstellungsjahr
-          ? dayjs().year(ml.erstellungsjahr as number)
+          ? dayjs(ml.erstellungsjahr as string | number)
           : null,
-        // Material - use id for Select value
+        // Material - use id from material_mauerlasche object or fk_material
         fk_material:
-          ml.material_mauerlascheObject?.id ?? ml.material_mauerlasche,
+          (ml.material_mauerlasche as { id?: number } | undefined)?.id ??
+          ml.fk_material,
         // Pruefung
         pruefdatum: ml.pruefdatum ? dayjs(ml.pruefdatum as string) : null,
         // Bemerkung
@@ -153,8 +154,8 @@ const MauerlascheForm = ({
           <DatePicker
             className="w-full"
             size="large"
-            picker="year"
-            placeholder="Jahr auswahlen"
+            format="DD.MM.YYYY"
+            placeholder="Datum auswahlen"
           />
         </Form.Item>
 
