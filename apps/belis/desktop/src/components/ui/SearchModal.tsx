@@ -92,13 +92,22 @@ const SearchModal = ({ defaultOpen = false }: SearchModalProps) => {
             </Button>
           </div>
         }
-        width={600}
+        width={900}
+        centered
         styles={{
           body: { paddingTop: 16 },
           header: { borderBottom: "1px solid #f3f4f6", paddingBottom: 16 },
         }}
       >
-{renderSearchComponent()}
+        <div
+          style={{
+            height: "min(640px, calc(100vh - 250px))",
+            overflowY: "auto",
+            paddingRight: 8,
+          }}
+        >
+          {renderSearchComponent()}
+        </div>
       </Modal>
     </>
   );
