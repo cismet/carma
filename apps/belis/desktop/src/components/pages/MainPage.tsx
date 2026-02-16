@@ -29,6 +29,7 @@ import {
 } from "../../store/slices/keyTables";
 import { fetchAllKeyTables } from "../../helper/apiMethods";
 import localForage from "localforage";
+import SearchModal from "../ui/SearchModal";
 
 const FILTER_STORAGE_KEY = "@belis-desktop.layerFilter";
 
@@ -210,6 +211,11 @@ const MainPage = () => {
                     dispatch(setPaleModeActive(switched))
                   }
                 />
+              </div>
+
+              {/* Search Modal */}
+              <div className="flex items-center border-l border-gray-300 pl-4">
+                <SearchModal defaultOpen={true} />
               </div>
 
               {/* GraphQL Demo (only visible with ?graphqlDemo in hash) */}
