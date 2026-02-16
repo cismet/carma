@@ -22,6 +22,7 @@ const LeuchteForm = ({ data, rawFeature, onClose }: LeuchteFormProps) => {
   const [mastData, setMastData] = useState<Record<string, unknown> | null>(
     null
   );
+  const [isMastLoading, setIsMastLoading] = useState(false);
   const jwt = useSelector(getJWT);
 
   // Extract documents from tdta_leuchten[0].dokumenteArray
@@ -44,6 +45,7 @@ const LeuchteForm = ({ data, rawFeature, onClose }: LeuchteFormProps) => {
   // Fetch mast data if mastId exists
   useEffect(() => {
     if (mastId && jwt) {
+      setIsMastLoading(true);
       dispatch(setFeatureLoading(true));
       fetchFeatureById(jwt, mastId, "mast")
         .then((result) => {
@@ -57,6 +59,7 @@ const LeuchteForm = ({ data, rawFeature, onClose }: LeuchteFormProps) => {
           setMastData(null);
         })
         .finally(() => {
+          setIsMastLoading(false);
           dispatch(setFeatureLoading(false));
         });
     } else {
@@ -79,16 +82,20 @@ const LeuchteForm = ({ data, rawFeature, onClose }: LeuchteFormProps) => {
     );
   }
 
-  // Build additional tabs - add Mast tab if mast data is available
-  const additionalTabs = mastData
-    ? [
-        {
-          key: "mast",
-          label: "Mast",
-          children: <MastFormFields mast={mastData} />,
-        },
-      ]
-    : [];
+  // Build additional tabs - always show Mast tab
+  const additionalTabs = [
+    {
+      key: "mast",
+      label: "Mast",
+      children: isMastLoading ? (
+        <div className="flex items-center justify-center h-40 text-gray-400">
+          Lade Mast-Daten...
+        </div>
+      ) : (
+        <MastFormFields mast={mastData} />
+      ),
+    },
+  ];
 
   return (
     <FeatureFormLayout
