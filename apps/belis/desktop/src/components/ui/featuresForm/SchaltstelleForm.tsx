@@ -87,9 +87,9 @@ const SchaltstelleForm = ({
         schaltstellen_nummer: ss.schaltstellen_nummer,
         // Bauart - use id for Select value
         fk_bauart: ss.bauart?.id ?? null,
-        // Erstellungsjahr
+        // Erstellungsjahr - parse as date string
         erstellungsjahr: ss.erstellungsjahr
-          ? dayjs().year(ss.erstellungsjahr as number)
+          ? dayjs(ss.erstellungsjahr as string)
           : null,
         // Rundsteuerempfaenger - use id for Select value
         fk_rundsteuerempfaenger: ss.rundsteuerempfaengerObject?.id ?? null,
@@ -220,8 +220,8 @@ const SchaltstelleForm = ({
           <DatePicker
             className="w-full"
             size="large"
-            picker="year"
-            placeholder="Jahr auswahlen"
+            format="DD.MM.YYYY"
+            placeholder="Datum auswahlen"
           />
         </Form.Item>
 
