@@ -1,6 +1,8 @@
 import { useState, useEffect } from "react";
 import { Modal, Button, Segmented } from "antd";
 import { SearchOutlined } from "@ant-design/icons";
+import { FontAwesomeIcon as Icon } from "@fortawesome/react-fontawesome";
+import { faFilter } from "@fortawesome/free-solid-svg-icons";
 import { LeuchteSearch, MastSearch } from "./featuresSearches";
 
 type SearchType = "leuchte" | "mast";
@@ -66,14 +68,12 @@ const SearchModal = ({ defaultOpen = false }: SearchModalProps) => {
 
   return (
     <>
-      <Button
-        type="text"
-        icon={<SearchOutlined />}
+      <Icon
+        icon={faFilter}
         onClick={() => setIsOpen(true)}
         title="Erweiterte Suche"
-      >
-        Suche
-      </Button>
+        className="text-blue-600 cursor-pointer hover:text-blue-800"
+      />
 
       <Modal
         title={
