@@ -19,7 +19,15 @@ import { getJWT } from "../../store/slices/auth";
 import { ENDPOINT } from "../../constants/belis";
 import { getFromUTM32ToWGS84 } from "@carma/geo/proj";
 import { BELIS_FILTER_CATEGORIES } from "../../config/mapLayerConfigs";
-import { Switch } from "antd";
+import { message, Spin, Switch } from "antd";
+import {
+  getKeyTablesLoading,
+  getKeyTablesFetched,
+  setKeyTablesData,
+  setKeyTablesErrors,
+  setKeyTablesLoading,
+} from "../../store/slices/keyTables";
+import { fetchAllKeyTables } from "../../helper/apiMethods";
 import localForage from "localforage";
 
 const FILTER_STORAGE_KEY = "@belis-desktop.layerFilter";
@@ -28,8 +36,36 @@ const MainPage = () => {
   const dispatch: AppDispatch = useDispatch();
   const inPaleMode = useSelector(isInPaleMode);
   const jwt = useSelector(getJWT);
+  const keyTablesLoading = useSelector(getKeyTablesLoading);
+  const keyTablesFetched = useSelector(getKeyTablesFetched);
 
   const { map } = useLibreContext();
+
+  // Fetch key tables on mount if not already fetched
+  useEffect(() => {
+    if (keyTablesFetched) return;
+
+    const fetchData = async () => {
+      if (!jwt) return;
+
+      dispatch(setKeyTablesLoading(true));
+      try {
+        const { data, errors } = await fetchAllKeyTables(jwt);
+        dispatch(setKeyTablesData(data));
+        dispatch(setKeyTablesErrors(errors));
+        if (Object.keys(errors).length > 0) {
+          message.error(
+            "Einige Schlüsseltabellen konnten nicht geladen werden"
+          );
+        }
+      } catch (error) {
+        console.error("Failed to fetch key tables:", error);
+      } finally {
+        dispatch(setKeyTablesLoading(false));
+      }
+    };
+    fetchData();
+  }, [jwt, keyTablesFetched, dispatch]);
   const { isDatasheetOpen } = useDatasheet();
   const [windowWidth, windowHeight] = useWindowSize();
 
@@ -117,7 +153,7 @@ const MainPage = () => {
   };
 
   return (
-    <>
+    <Spin spinning={keyTablesLoading}>
       <div className="mx-3 mt-1">
         <CustomCard
           title={isDatasheetOpen ? "Datenblatt" : "Karte"}
@@ -297,7 +333,7 @@ const MainPage = () => {
           />
         </CustomCard>
       </div>
-    </>
+    </Spin>
   );
 };
 
