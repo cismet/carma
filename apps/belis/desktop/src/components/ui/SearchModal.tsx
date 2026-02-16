@@ -1,32 +1,49 @@
 import { useState, useEffect } from "react";
-import { Modal, Button } from "antd";
+import { Modal, Button, Segmented } from "antd";
 import { SearchOutlined } from "@ant-design/icons";
 import { LeuchteSearch, MastSearch } from "./featuresSearches";
+
+type SearchType = "leuchte" | "mast";
 
 interface SearchModalProps {
   defaultOpen?: boolean;
 }
 
+const searchTypeLabels: Record<SearchType, string> = {
+  leuchte: "Leuchte",
+  mast: "Mast",
+};
+
 const SearchModalHeader = ({
-  title,
-  subtitle,
+  searchType,
+  onSearchTypeChange,
 }: {
-  title: string;
-  subtitle: string;
+  searchType: SearchType;
+  onSearchTypeChange: (type: SearchType) => void;
 }) => (
   <div className="flex items-center gap-3">
     <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center flex-shrink-0">
       <SearchOutlined className="text-xl text-blue-600" />
     </div>
-    <div>
-      <h2 className="text-lg font-semibold text-gray-900">{title}</h2>
-      <p className="text-sm text-gray-500">{subtitle}</p>
+    <div className="flex-1">
+      <h2 className="text-lg font-semibold text-gray-900">Erweiterte Suche</h2>
+      <Segmented
+        size="small"
+        value={searchType}
+        onChange={(value) => onSearchTypeChange(value as SearchType)}
+        options={Object.entries(searchTypeLabels).map(([value, label]) => ({
+          value,
+          label,
+        }))}
+        className="mt-1"
+      />
     </div>
   </div>
 );
 
 const SearchModal = ({ defaultOpen = false }: SearchModalProps) => {
   const [isOpen, setIsOpen] = useState(defaultOpen);
+  const [searchType, setSearchType] = useState<SearchType>("leuchte");
 
   useEffect(() => {
     setIsOpen(defaultOpen);
@@ -35,6 +52,16 @@ const SearchModal = ({ defaultOpen = false }: SearchModalProps) => {
   const handleSearch = (values: unknown) => {
     console.log("Search values:", values);
     // TODO: Implement search functionality
+  };
+
+  const renderSearchComponent = () => {
+    switch (searchType) {
+      case "mast":
+        return <MastSearch onValuesChange={handleSearch} />;
+      case "leuchte":
+      default:
+        return <LeuchteSearch onValuesChange={handleSearch} />;
+    }
   };
 
   return (
@@ -51,8 +78,8 @@ const SearchModal = ({ defaultOpen = false }: SearchModalProps) => {
       <Modal
         title={
           <SearchModalHeader
-            title="Leuchten Suche"
-            subtitle="Erweiterte Filteroptionen"
+            searchType={searchType}
+            onSearchTypeChange={setSearchType}
           />
         }
         open={isOpen}
@@ -71,8 +98,7 @@ const SearchModal = ({ defaultOpen = false }: SearchModalProps) => {
           header: { borderBottom: "1px solid #f3f4f6", paddingBottom: 16 },
         }}
       >
-        <MastSearch onValuesChange={handleSearch} />
-        {/* <LeuchteSearch onValuesChange={handleSearch} /> */}
+{renderSearchComponent()}
       </Modal>
     </>
   );
