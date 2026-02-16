@@ -186,6 +186,7 @@ const MainPage = () => {
                     {"\u2715"}
                   </button>
                 )}
+                <SearchModal />
               </div>
 
               {/* Filter switches */}
@@ -211,11 +212,6 @@ const MainPage = () => {
                     dispatch(setPaleModeActive(switched))
                   }
                 />
-              </div>
-
-              {/* Search Modal */}
-              <div className="flex items-center border-l border-gray-300 pl-4">
-                <SearchModal defaultOpen={true} />
               </div>
 
               {/* GraphQL Demo (only visible with ?graphqlDemo in hash) */}
