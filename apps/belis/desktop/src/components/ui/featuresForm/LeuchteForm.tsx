@@ -1,7 +1,9 @@
 import { useState, useEffect } from "react";
 import type { UploadFile } from "antd";
-import { useSelector } from "react-redux";
+import { useSelector, useDispatch } from "react-redux";
 import { getJWT } from "../../../store/slices/auth";
+import { setFeatureLoading } from "../../../store/slices/featureCollection";
+import { AppDispatch } from "../../../store";
 import { DokumentItem } from "../DocumentPreview";
 import FeatureFormLayout from "./FeatureFormLayout";
 import LeuchteFormFields from "./LeuchteFormFields";
@@ -15,6 +17,7 @@ interface LeuchteFormProps {
 }
 
 const LeuchteForm = ({ data, rawFeature, onClose }: LeuchteFormProps) => {
+  const dispatch: AppDispatch = useDispatch();
   const [pendingFiles, setPendingFiles] = useState<UploadFile[]>([]);
   const [mastData, setMastData] = useState<Record<string, unknown> | null>(
     null
@@ -41,6 +44,7 @@ const LeuchteForm = ({ data, rawFeature, onClose }: LeuchteFormProps) => {
   // Fetch mast data if mastId exists
   useEffect(() => {
     if (mastId && jwt) {
+      dispatch(setFeatureLoading(true));
       fetchFeatureById(jwt, mastId, "mast")
         .then((result) => {
           const mastArray = result?.tdta_standort_mast as
@@ -51,11 +55,14 @@ const LeuchteForm = ({ data, rawFeature, onClose }: LeuchteFormProps) => {
         .catch((error) => {
           console.error("Failed to fetch mast data:", error);
           setMastData(null);
+        })
+        .finally(() => {
+          dispatch(setFeatureLoading(false));
         });
     } else {
       setMastData(null);
     }
-  }, [mastId, jwt]);
+  }, [mastId, jwt, dispatch]);
 
   // Extract fabrikat for subtitle - use rawFeature (vector tile) to match list display
   const rawProps = rawFeature?.properties;

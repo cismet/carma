@@ -8,6 +8,9 @@
 
 import { getVCard } from "@carma-appframeworks/belis";
 import { FeaturesFormsWrapper } from "./featuresForm";
+import { useSelector } from "react-redux";
+import { getFeatureLoading } from "../../store/slices/featureCollection";
+import { Spin } from "antd";
 
 interface BelisDatasheetViewProps {
   feature: any | null;
@@ -22,6 +25,8 @@ const BelisDatasheetView = ({
   fetchedData,
   featureType,
 }: BelisDatasheetViewProps) => {
+  const featureLoading = useSelector(getFeatureLoading);
+
   if (!feature && !rawFeature) {
     return (
       <div
@@ -53,16 +58,18 @@ const BelisDatasheetView = ({
   const props = rawFeature?.properties ?? feature?.properties ?? {};
 
   return (
-    <div style={{ height: "100%", padding: "10px 4px 8px 16px" }}>
-      {/* Fetched feature data - render form or JSON fallback */}
-      {fetchedData && (
-        <FeaturesFormsWrapper
-          featureType={featureType}
-          data={fetchedData}
-          rawFeature={rawFeature}
-        />
-      )}
-    </div>
+    <Spin spinning={featureLoading}>
+      <div style={{ height: "100%", padding: "10px 4px 8px 16px" }}>
+        {/* Fetched feature data - render form or JSON fallback */}
+        {fetchedData && (
+          <FeaturesFormsWrapper
+            featureType={featureType}
+            data={fetchedData}
+            rawFeature={rawFeature}
+          />
+        )}
+      </div>
+    </Spin>
   );
 };
 

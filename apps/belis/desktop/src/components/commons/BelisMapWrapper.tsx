@@ -1,7 +1,10 @@
 import { useEffect, useMemo, useRef, useState, useCallback } from "react";
 import { CarmaMap, DatasheetLayout } from "@carma-mapping/core";
 import { useDispatch, useSelector } from "react-redux";
-import { setSelectedFeature } from "../../store/slices/featureCollection";
+import {
+  setSelectedFeature,
+  setFeatureLoading,
+} from "../../store/slices/featureCollection";
 import {
   getActiveBackgroundLayer,
   getBackgroundLayerOpacities,
@@ -142,7 +145,7 @@ const BelisMapLibWrapper = ({
         validFeatureTypes.includes(sourceLayer as FeatureType);
 
       if (isValidFeatureType && featureId) {
-        // dispatch(setFeatureLoading(true));
+        dispatch(setFeatureLoading(true));
         try {
           const fullData = await fetchFeatureById(
             jwt,
@@ -156,7 +159,7 @@ const BelisMapLibWrapper = ({
           console.error("xxx Failed to fetch feature:", error);
           setFetchedFeatureData(null);
         } finally {
-          // dispatch(setFeatureLoading(false));
+          dispatch(setFeatureLoading(false));
         }
       }
     };
