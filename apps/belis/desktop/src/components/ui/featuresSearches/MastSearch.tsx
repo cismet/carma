@@ -198,100 +198,106 @@ const MastSearch = ({ onValuesChange }: MastSearchProps) => {
       />
 
       <SectionHeader>Eigenschaften</SectionHeader>
-      <Form.Item label={<FormLabel>Mastart</FormLabel>} className="mb-3">
-        <Select
-          placeholder="Mastart auswählen"
-          className="w-full"
-          allowClear
-          showSearch
-          optionFilterProp="children"
-          onChange={(value) =>
-            updateField("mastart", { value: value as number })
-          }
-        >
-          {mastartOptions.map((item) => (
-            <Select.Option key={item.id} value={item.id}>
-              {item.mastart}
-            </Select.Option>
-          ))}
-        </Select>
-      </Form.Item>
+      <Row gutter={24}>
+        <Col span={12}>
+          <Form.Item label={<FormLabel>Mastart</FormLabel>} className="mb-3">
+            <Select
+              placeholder="Mastart auswählen"
+              className="w-full"
+              allowClear
+              showSearch
+              optionFilterProp="children"
+              onChange={(value) =>
+                updateField("mastart", { value: value as number })
+              }
+            >
+              {mastartOptions.map((item) => (
+                <Select.Option key={item.id} value={item.id}>
+                  {item.mastart}
+                </Select.Option>
+              ))}
+            </Select>
+          </Form.Item>
 
-      <Form.Item label={<FormLabel>Masttyp</FormLabel>} className="mb-3">
-        <Select
-          placeholder="Masttyp auswählen"
-          className="w-full"
-          allowClear
-          showSearch
-          optionFilterProp="children"
-          onChange={(value) =>
-            updateField("masttyp", { value: value as number })
-          }
-        >
-          {masttypOptions.map((item) => (
-            <Select.Option key={item.id} value={item.id}>
-              {item.masttyp} {item.bezeichnung}
-            </Select.Option>
-          ))}
-        </Select>
-      </Form.Item>
+          <Form.Item label={<FormLabel>Masttyp</FormLabel>} className="mb-3">
+            <Select
+              placeholder="Masttyp auswählen"
+              className="w-full"
+              allowClear
+              showSearch
+              optionFilterProp="children"
+              onChange={(value) =>
+                updateField("masttyp", { value: value as number })
+              }
+            >
+              {masttypOptions.map((item) => (
+                <Select.Option key={item.id} value={item.id}>
+                  {item.masttyp} {item.bezeichnung}
+                </Select.Option>
+              ))}
+            </Select>
+          </Form.Item>
 
-      <Form.Item label={<FormLabel>Klassifizierung</FormLabel>} className="mb-3">
-        <Select
-          placeholder="Klassifizierung auswählen"
-          className="w-full"
-          allowClear
-          showSearch
-          optionFilterProp="children"
-          onChange={(value) =>
-            updateField("klassifizierung", { value: value as number })
-          }
-        >
-          {klassifizierungOptions.map((item) => (
-            <Select.Option key={item.id} value={item.id}>
-              {item.klassifizierung}
-            </Select.Option>
-          ))}
-        </Select>
-      </Form.Item>
+          <Form.Item label={<FormLabel>Klassifizierung</FormLabel>} className="mb-3">
+            <Select
+              placeholder="Klassifizierung auswählen"
+              className="w-full"
+              allowClear
+              showSearch
+              optionFilterProp="children"
+              onChange={(value) =>
+                updateField("klassifizierung", { value: value as number })
+              }
+            >
+              {klassifizierungOptions.map((item) => (
+                <Select.Option key={item.id} value={item.id}>
+                  {item.klassifizierung}
+                </Select.Option>
+              ))}
+            </Select>
+          </Form.Item>
+        </Col>
 
-      <Form.Item label={<FormLabel>Anlagengruppe</FormLabel>} className="mb-3">
-        <Select
-          placeholder="Anlagengruppe auswählen"
-          className="w-full"
-          allowClear
-          showSearch
-          optionFilterProp="children"
-          onChange={(value) =>
-            updateField("anlagengruppe", { value: value as number })
-          }
-        >
-          {anlagengruppeOptions.map((item) => (
-            <Select.Option key={item.id} value={item.id}>
-              {item.nummer} - {item.bezeichnung}
-            </Select.Option>
-          ))}
-        </Select>
-      </Form.Item>
+        <Col span={12}>
+          <Form.Item label={<FormLabel>Anlagengruppe</FormLabel>} className="mb-3">
+            <Select
+              placeholder="Anlagengruppe auswählen"
+              className="w-full"
+              allowClear
+              showSearch
+              optionFilterProp="children"
+              onChange={(value) =>
+                updateField("anlagengruppe", { value: value as number })
+              }
+            >
+              {anlagengruppeOptions.map((item) => (
+                <Select.Option key={item.id} value={item.id}>
+                  {item.nummer} - {item.bezeichnung}
+                </Select.Option>
+              ))}
+            </Select>
+          </Form.Item>
 
-      <Form.Item label={<FormLabel>Unterhaltspfl. Mast</FormLabel>} className="mb-3">
-        <Select
-          placeholder="Unterhalt auswählen"
-          className="w-full"
-          allowClear
-          showSearch
-          optionFilterProp="children"
-          onChange={(value) =>
-            updateField("unterhaltMast", { value: value as number })
-          }
-        >
-          {unterhaltMastOptions.map((item) => (
-            <Select.Option key={item.id} value={item.id}>
-              {item.unterhalt_mast}
-            </Select.Option>
-          ))}
-        </Select>
-      </Form.Item>
+          <Form.Item label={<FormLabel>Unterhaltspfl. Mast</FormLabel>} className="mb-3">
+            <Select
+              placeholder="Unterhalt auswählen"
+              className="w-full"
+              allowClear
+              showSearch
+              optionFilterProp="children"
+              onChange={(value) =>
+                updateField("unterhaltMast", { value: value as number })
+              }
+            >
+              {unterhaltMastOptions.map((item) => (
+                <Select.Option key={item.id} value={item.id}>
+                  {item.unterhalt_mast}
+                </Select.Option>
+              ))}
+            </Select>
+          </Form.Item>
+        </Col>
+      </Row>
     </Form>
   );
 };

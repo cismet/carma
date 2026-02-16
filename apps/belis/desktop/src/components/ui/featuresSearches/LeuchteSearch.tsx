@@ -216,38 +216,44 @@ const LeuchteSearch = ({ onValuesChange }: LeuchteSearchProps) => {
       </Row>
 
       <SectionHeader>Doppelkommando</SectionHeader>
-      <Form.Item label={<FormLabel>DK 1</FormLabel>} className="mb-3">
-        <Select
-          placeholder="Auswählen"
-          className="w-full"
-          allowClear
-          showSearch
-          optionFilterProp="children"
-          onChange={(value) => updateField("dk1", { value: value as number })}
-        >
-          {doppelkommandoOptions.map((item) => (
-            <Select.Option key={item.id} value={item.id}>
-              {item.pk} - {item.beschreibung}
-            </Select.Option>
-          ))}
-        </Select>
-      </Form.Item>
-      <Form.Item label={<FormLabel>DK 2</FormLabel>} className="mb-3">
-        <Select
-          placeholder="Auswählen"
-          className="w-full"
-          allowClear
-          showSearch
-          optionFilterProp="children"
-          onChange={(value) => updateField("dk2", { value: value as number })}
-        >
-          {doppelkommandoOptions.map((item) => (
-            <Select.Option key={item.id} value={item.id}>
-              {item.pk} - {item.beschreibung}
-            </Select.Option>
-          ))}
-        </Select>
-      </Form.Item>
+      <Row gutter={24}>
+        <Col span={12}>
+          <Form.Item label={<FormLabel>DK 1</FormLabel>} className="mb-3">
+            <Select
+              placeholder="Auswählen"
+              className="w-full"
+              allowClear
+              showSearch
+              optionFilterProp="children"
+              onChange={(value) => updateField("dk1", { value: value as number })}
+            >
+              {doppelkommandoOptions.map((item) => (
+                <Select.Option key={item.id} value={item.id}>
+                  {item.pk} - {item.beschreibung}
+                </Select.Option>
+              ))}
+            </Select>
+          </Form.Item>
+        </Col>
+        <Col span={12}>
+          <Form.Item label={<FormLabel>DK 2</FormLabel>} className="mb-3">
+            <Select
+              placeholder="Auswählen"
+              className="w-full"
+              allowClear
+              showSearch
+              optionFilterProp="children"
+              onChange={(value) => updateField("dk2", { value: value as number })}
+            >
+              {doppelkommandoOptions.map((item) => (
+                <Select.Option key={item.id} value={item.id}>
+                  {item.pk} - {item.beschreibung}
+                </Select.Option>
+              ))}
+            </Select>
+          </Form.Item>
+        </Col>
+      </Row>
     </Form>
   );
 };
