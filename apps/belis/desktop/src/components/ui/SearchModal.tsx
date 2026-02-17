@@ -83,24 +83,44 @@ const buildLeuchteWhereClause = (values: LeuchteSearchValues): string => {
 
   // Date range conditions
   if (values.inbetriebnahmeLeuchte?.von) {
-    conditions.push(`einbaudatum: {_gte: "${values.inbetriebnahmeLeuchte.von.split("T")[0]}"}`);
+    conditions.push(
+      `einbaudatum: {_gte: "${values.inbetriebnahmeLeuchte.von.split("T")[0]}"}`
+    );
   }
   if (values.inbetriebnahmeLeuchte?.bis) {
-    conditions.push(`einbaudatum: {_lte: "${values.inbetriebnahmeLeuchte.bis.split("T")[0]}"}`);
+    conditions.push(
+      `einbaudatum: {_lte: "${values.inbetriebnahmeLeuchte.bis.split("T")[0]}"}`
+    );
   }
 
   if (values.wechseldatumLeuchtmittel?.von) {
-    conditions.push(`wpiw_leuchtmittelwechsel: {wechsel: {datum: {_gte: "${values.wechseldatumLeuchtmittel.von.split("T")[0]}"}}}`);
+    conditions.push(
+      `wpiw_leuchtmittelwechsel: {wechsel: {datum: {_gte: "${
+        values.wechseldatumLeuchtmittel.von.split("T")[0]
+      }"}}}`
+    );
   }
   if (values.wechseldatumLeuchtmittel?.bis) {
-    conditions.push(`wpiw_leuchtmittelwechsel: {wechsel: {datum: {_lte: "${values.wechseldatumLeuchtmittel.bis.split("T")[0]}"}}}`);
+    conditions.push(
+      `wpiw_leuchtmittelwechsel: {wechsel: {datum: {_lte: "${
+        values.wechseldatumLeuchtmittel.bis.split("T")[0]
+      }"}}}`
+    );
   }
 
   if (values.naechsterLeuchtmittelwechsel?.von) {
-    conditions.push(`naechster_wechsel: {_gte: "${values.naechsterLeuchtmittelwechsel.von.split("T")[0]}"}`);
+    conditions.push(
+      `naechster_wechsel: {_gte: "${
+        values.naechsterLeuchtmittelwechsel.von.split("T")[0]
+      }"}`
+    );
   }
   if (values.naechsterLeuchtmittelwechsel?.bis) {
-    conditions.push(`naechster_wechsel: {_lte: "${values.naechsterLeuchtmittelwechsel.bis.split("T")[0]}"}`);
+    conditions.push(
+      `naechster_wechsel: {_lte: "${
+        values.naechsterLeuchtmittelwechsel.bis.split("T")[0]
+      }"}`
+    );
   }
 
   // Property conditions
@@ -108,7 +128,9 @@ const buildLeuchteWhereClause = (values: LeuchteSearchValues): string => {
     conditions.push(`fk_leuchttyp: {_eq: ${values.leuchtentyp.value}}`);
   }
   if (values.rundsteuerempfaenger?.value) {
-    conditions.push(`rundsteuerempfaenger: {_eq: ${values.rundsteuerempfaenger.value}}`);
+    conditions.push(
+      `rundsteuerempfaenger: {_eq: ${values.rundsteuerempfaenger.value}}`
+    );
   }
   if (values.schaltstelle?.value) {
     conditions.push(`schaltstelle: {_ilike: "%${values.schaltstelle.value}%"}`);
@@ -128,38 +150,66 @@ const buildMastWhereClause = (values: MastSearchValues): string => {
 
   // Date range conditions
   if (values.inbetriebnahmeMast?.von) {
-    conditions.push(`inbetriebnahme_mast: {_gte: "${values.inbetriebnahmeMast.von.split("T")[0]}"}`);
+    conditions.push(
+      `inbetriebnahme_mast: {_gte: "${
+        values.inbetriebnahmeMast.von.split("T")[0]
+      }"}`
+    );
   }
   if (values.inbetriebnahmeMast?.bis) {
-    conditions.push(`inbetriebnahme_mast: {_lte: "${values.inbetriebnahmeMast.bis.split("T")[0]}"}`);
+    conditions.push(
+      `inbetriebnahme_mast: {_lte: "${
+        values.inbetriebnahmeMast.bis.split("T")[0]
+      }"}`
+    );
   }
 
   if (values.mastschutz?.von) {
-    conditions.push(`mastschutz: {_gte: "${values.mastschutz.von.split("T")[0]}"}`);
+    conditions.push(
+      `mastschutz: {_gte: "${values.mastschutz.von.split("T")[0]}"}`
+    );
   }
   if (values.mastschutz?.bis) {
-    conditions.push(`mastschutz: {_lte: "${values.mastschutz.bis.split("T")[0]}"}`);
+    conditions.push(
+      `mastschutz: {_lte: "${values.mastschutz.bis.split("T")[0]}"}`
+    );
   }
 
   if (values.mastanstrich?.von) {
-    conditions.push(`mastanstrich: {_gte: "${values.mastanstrich.von.split("T")[0]}"}`);
+    conditions.push(
+      `mastanstrich: {_gte: "${values.mastanstrich.von.split("T")[0]}"}`
+    );
   }
   if (values.mastanstrich?.bis) {
-    conditions.push(`mastanstrich: {_lte: "${values.mastanstrich.bis.split("T")[0]}"}`);
+    conditions.push(
+      `mastanstrich: {_lte: "${values.mastanstrich.bis.split("T")[0]}"}`
+    );
   }
 
   if (values.elektrischePruefung?.von) {
-    conditions.push(`elek_pruefung: {_gte: "${values.elektrischePruefung.von.split("T")[0]}"}`);
+    conditions.push(
+      `elek_pruefung: {_gte: "${values.elektrischePruefung.von.split("T")[0]}"}`
+    );
   }
   if (values.elektrischePruefung?.bis) {
-    conditions.push(`elek_pruefung: {_lte: "${values.elektrischePruefung.bis.split("T")[0]}"}`);
+    conditions.push(
+      `elek_pruefung: {_lte: "${values.elektrischePruefung.bis.split("T")[0]}"}`
+    );
   }
 
   if (values.standsicherheitspruefung?.von) {
-    conditions.push(`standsicherheitspruefung: {_gte: "${values.standsicherheitspruefung.von.split("T")[0]}"}`);
+    conditions.push(
+      `standsicherheitspruefung: {_gte: "${
+        values.standsicherheitspruefung.von.split("T")[0]
+      }"}`
+    );
   }
   if (values.standsicherheitspruefung?.bis) {
-    conditions.push(`standsicherheitspruefung: {_lte: "${values.standsicherheitspruefung.bis.split("T")[0]}"}`);
+    conditions.push(
+      `standsicherheitspruefung: {_lte: "${
+        values.standsicherheitspruefung.bis.split("T")[0]
+      }"}`
+    );
   }
 
   // Property conditions
@@ -170,7 +220,9 @@ const buildMastWhereClause = (values: MastSearchValues): string => {
     conditions.push(`fk_masttyp: {_eq: ${values.masttyp.value}}`);
   }
   if (values.klassifizierung?.value) {
-    conditions.push(`fk_klassifizierung: {_eq: ${values.klassifizierung.value}}`);
+    conditions.push(
+      `fk_klassifizierung: {_eq: ${values.klassifizierung.value}}`
+    );
   }
   if (values.anlagengruppe?.value) {
     conditions.push(`fk_anlagengruppe: {_eq: ${values.anlagengruppe.value}}`);
@@ -189,11 +241,8 @@ const SearchModal = ({ defaultOpen = false }: SearchModalProps) => {
 
   const jwt = useSelector(getJWT);
   const { map } = useLibreContext();
-  const {
-    setHighlightingActive,
-    highlightByIds,
-    clearHighlights,
-  } = useMapHighlight();
+  const { setHighlightingActive, highlightByIds, clearHighlights } =
+    useMapHighlight();
 
   // Store current search values
   const searchValuesRef = useRef<SearchValues>({});
@@ -212,10 +261,18 @@ const SearchModal = ({ defaultOpen = false }: SearchModalProps) => {
       query: string;
       dataKey: string;
       featurePrefix: string;
-      getGeometry: (item: Record<string, unknown>) => [number, number] | undefined;
+      getGeometry: (
+        item: Record<string, unknown>
+      ) => [number, number] | undefined;
       logPrefix?: string;
     }) => {
-      const { query, dataKey, featurePrefix, getGeometry, logPrefix = "[SEARCH]" } = options;
+      const {
+        query,
+        dataKey,
+        featurePrefix,
+        getGeometry,
+        logPrefix = "[SEARCH]",
+      } = options;
 
       if (!jwt) {
         console.warn(`${logPrefix} No JWT available, please log in first`);
@@ -223,7 +280,8 @@ const SearchModal = ({ defaultOpen = false }: SearchModalProps) => {
       }
 
       setIsSearching(true);
-      console.log(`${logPrefix} Fetching data...`);
+      console.log(`xxx ${logPrefix} Fetching data...`);
+      console.log(`xxx ${logPrefix} Query:`, query);
 
       fetch(ENDPOINT, {
         method: "POST",
@@ -235,12 +293,12 @@ const SearchModal = ({ defaultOpen = false }: SearchModalProps) => {
       })
         .then((res) => res.json())
         .then((json) => {
-          console.log(`${logPrefix} Raw result:`, json);
+          console.log(`xxx ${logPrefix} Raw result:`, json);
           const results = json.data?.[dataKey] ?? [];
-          console.log(`${logPrefix} Result count:`, results.length);
+          console.log(`xxx ${logPrefix} Result count:`, results.length);
 
           if (results.length === 0) {
-            console.warn(`${logPrefix} No results found`);
+            console.warn(`xxx ${logPrefix} No results found`);
             setIsSearching(false);
             return;
           }
@@ -274,7 +332,9 @@ const SearchModal = ({ defaultOpen = false }: SearchModalProps) => {
             .filter(Boolean);
           clearHighlights();
           setHighlightingActive(true);
-          const highlightArray = ids.map((id: string) => `${featurePrefix}:${id}`);
+          const highlightArray = ids.map(
+            (id: string) => `${featurePrefix}:${id}`
+          );
 
           highlightByIds(highlightArray);
           console.log(`${logPrefix} Highlighted`, ids.length, "features");
@@ -307,9 +367,13 @@ const SearchModal = ({ defaultOpen = false }: SearchModalProps) => {
     const values = searchValuesRef.current;
 
     if (searchType === "leuchte") {
-      const whereClause = buildLeuchteWhereClause(values as LeuchteSearchValues);
+      const whereClause = buildLeuchteWhereClause(
+        values as LeuchteSearchValues
+      );
       const query = `query LeuchtenSearch {
-        tdta_leuchten(limit: 500${whereClause ? `, ${whereClause}` : ""}, order_by: {einbaudatum: desc}) {
+        tdta_leuchten(limit: 500${
+          whereClause ? `, ${whereClause}` : ""
+        }, order_by: {einbaudatum: desc}) {
           id
           tdta_standort_mast {
             geom {
@@ -325,16 +389,22 @@ const SearchModal = ({ defaultOpen = false }: SearchModalProps) => {
         featurePrefix: "leuchten",
         logPrefix: "[LEUCHTE_SEARCH]",
         getGeometry: (item) => {
-          const mast = item.tdta_standort_mast as Record<string, unknown> | undefined;
+          const mast = item.tdta_standort_mast as
+            | Record<string, unknown>
+            | undefined;
           const geom = mast?.geom as Record<string, unknown> | undefined;
-          const geoField = geom?.geo_field as { coordinates?: [number, number] } | undefined;
+          const geoField = geom?.geo_field as
+            | { coordinates?: [number, number] }
+            | undefined;
           return geoField?.coordinates;
         },
       });
     } else if (searchType === "mast") {
       const whereClause = buildMastWhereClause(values as MastSearchValues);
       const query = `query MastSearch {
-        tdta_standort_mast(limit: 500${whereClause ? `, ${whereClause}` : ""}, order_by: {inbetriebnahme_mast: desc}) {
+        tdta_standort_mast(limit: 500${
+          whereClause ? `, ${whereClause}` : ""
+        }, order_by: {inbetriebnahme_mast: desc}) {
           id
           geom {
             geo_field
@@ -349,7 +419,9 @@ const SearchModal = ({ defaultOpen = false }: SearchModalProps) => {
         logPrefix: "[MAST_SEARCH]",
         getGeometry: (item) => {
           const geom = item.geom as Record<string, unknown> | undefined;
-          const geoField = geom?.geo_field as { coordinates?: [number, number] } | undefined;
+          const geoField = geom?.geo_field as
+            | { coordinates?: [number, number] }
+            | undefined;
           return geoField?.coordinates;
         },
       });
