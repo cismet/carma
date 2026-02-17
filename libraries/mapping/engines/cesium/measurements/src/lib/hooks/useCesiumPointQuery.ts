@@ -173,12 +173,7 @@ export const useCesiumPointQuery = (
       }
       console.debug("[SceneClick] Terrain click handler cleaned up");
     };
-  }, [
-    scene,
-    enabled,
-    temporaryMode,
-    setCollection,
-  ]);
+  }, [scene, enabled, temporaryMode, setCollection]);
 };
 
 export default useCesiumPointQuery;

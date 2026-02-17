@@ -17,6 +17,35 @@ import {
   WUPPERTAL,
 } from "@carma-commons/resources";
 
+const STORYBOOK_TERRAIN_PROXY_BASE = "/__wupp_terrain__";
+const STORYBOOK_3D_PROXY_BASE = "/__wupp_3d__";
+
+const toStorybookProxyUrl = (url: string, proxyBase: string): string => {
+  if (!import.meta.env.DEV) return url;
+
+  try {
+    const parsed = new URL(url);
+    return `${proxyBase}${parsed.pathname}${parsed.search}`;
+  } catch {
+    return url;
+  }
+};
+
+const DEFAULT_TERRAIN_PROVIDER_URL = toStorybookProxyUrl(
+  WUPP_TERRAIN_PROVIDER.url,
+  STORYBOOK_TERRAIN_PROXY_BASE
+);
+
+const DEFAULT_SURFACE_PROVIDER_URL = toStorybookProxyUrl(
+  WUPP_TERRAIN_PROVIDER_DSM_MESH_2024_1M.url,
+  STORYBOOK_TERRAIN_PROXY_BASE
+);
+
+const DEFAULT_TILESET_URL = toStorybookProxyUrl(
+  WUPP_MESH_2024.url,
+  STORYBOOK_3D_PROXY_BASE
+);
+
 export interface CesiumSetupOptions {
   useBrowserRecommendedResolution?: boolean;
   terrainProviderUrl?: string;
@@ -37,8 +66,8 @@ export interface CesiumSetupResult {
  * Initialize terrain providers
  */
 export const initializeTerrainProviders = async (
-  terrainProviderUrl: string = WUPP_TERRAIN_PROVIDER.url,
-  surfaceProviderUrl: string = WUPP_TERRAIN_PROVIDER_DSM_MESH_2024_1M.url
+  terrainProviderUrl: string = DEFAULT_TERRAIN_PROVIDER_URL,
+  surfaceProviderUrl: string = DEFAULT_SURFACE_PROVIDER_URL
 ): Promise<{
   TERRAIN: CesiumTerrainProvider | null;
   SURFACE: CesiumTerrainProvider | null;
@@ -70,7 +99,7 @@ export const initializeTerrainProviders = async (
  */
 export const loadTileset = async (
   widget: CesiumWidget,
-  tilesetUrl: string = WUPP_MESH_2024.url
+  tilesetUrl: string = DEFAULT_TILESET_URL
 ): Promise<Cesium3DTileset | null> => {
   try {
     const tileset = await Cesium3DTileset.fromUrl(tilesetUrl, {
@@ -114,7 +143,7 @@ export const initializeCesium = (
   // Position camera over Wuppertal
   const position = Cartesian3.fromDegrees(
     WUPPERTAL.position.longitude,
-    WUPPERTAL.position.latitude,
+    WUPPERTAL.position.latitude - 0.003,
     500
   );
   widget.camera.setView({
@@ -137,9 +166,9 @@ export const setupCesium = async (
   options: CesiumSetupOptions = {}
 ): Promise<CesiumSetupResult> => {
   const {
-    terrainProviderUrl = WUPP_TERRAIN_PROVIDER.url,
-    surfaceProviderUrl = WUPP_TERRAIN_PROVIDER_DSM_MESH_2024_1M.url,
-    tilesetUrl = WUPP_MESH_2024.url,
+    terrainProviderUrl = DEFAULT_TERRAIN_PROVIDER_URL,
+    surfaceProviderUrl = DEFAULT_SURFACE_PROVIDER_URL,
+    tilesetUrl = DEFAULT_TILESET_URL,
   } = options;
 
   // Initialize widget

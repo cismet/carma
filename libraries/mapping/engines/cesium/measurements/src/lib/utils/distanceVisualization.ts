@@ -248,7 +248,11 @@ export const isPointInsidePolygon2D = (
   if (polygonPoints.length < 3) return false;
 
   let inside = false;
-  for (let i = 0, j = polygonPoints.length - 1; i < polygonPoints.length; j = i) {
+  for (
+    let i = 0, j = polygonPoints.length - 1;
+    i < polygonPoints.length;
+    j = i
+  ) {
     const current = polygonPoints[i];
     const previous = polygonPoints[j];
     if (!current || !previous) continue;
@@ -303,9 +307,7 @@ export const computeDistanceToPolygonEdges2D = (
   return Number.isFinite(minDistancePx) ? minDistancePx : 0;
 };
 
-export const computePolygonCentroid2D = (
-  points: ScreenPoint2D[]
-) => {
+export const computePolygonCentroid2D = (points: ScreenPoint2D[]) => {
   if (points.length < 3) return null;
 
   let signedArea = 0;
@@ -324,8 +326,10 @@ export const computePolygonCentroid2D = (
 
   signedArea *= 0.5;
   if (Math.abs(signedArea) <= 1e-6) {
-    const avgX = points.reduce((sum, point) => sum + point.x, 0) / points.length;
-    const avgY = points.reduce((sum, point) => sum + point.y, 0) / points.length;
+    const avgX =
+      points.reduce((sum, point) => sum + point.x, 0) / points.length;
+    const avgY =
+      points.reduce((sum, point) => sum + point.y, 0) / points.length;
     return { x: avgX, y: avgY };
   }
 
@@ -400,7 +404,10 @@ const findInteriorSamplePoint2D = (
       const x = minX + width * tX;
       const candidate = { x, y };
       if (!isPointInsidePolygon2D(polygonPoints, candidate)) continue;
-      const radiusPx = computeDistanceToPolygonEdges2D(polygonPoints, candidate);
+      const radiusPx = computeDistanceToPolygonEdges2D(
+        polygonPoints,
+        candidate
+      );
       if (radiusPx > bestRadiusPx) {
         bestRadiusPx = radiusPx;
         bestPoint = candidate;
@@ -461,12 +468,7 @@ export const findLargestInscribedPoint2D = (
 
   let bestCell =
     computePolygonCentroidCell2D(polygonPoints) ??
-    createPolylabelCell(
-      polygonPoints,
-      minX + width / 2,
-      minY + height / 2,
-      0
-    );
+    createPolylabelCell(polygonPoints, minX + width / 2, minY + height / 2, 0);
 
   const bboxCell = createPolylabelCell(
     polygonPoints,
@@ -501,10 +503,30 @@ export const findLargestInscribedPoint2D = (
 
     const childH = cell.h / 2;
     cellQueue.push(
-      createPolylabelCell(polygonPoints, cell.x - childH, cell.y - childH, childH),
-      createPolylabelCell(polygonPoints, cell.x + childH, cell.y - childH, childH),
-      createPolylabelCell(polygonPoints, cell.x - childH, cell.y + childH, childH),
-      createPolylabelCell(polygonPoints, cell.x + childH, cell.y + childH, childH)
+      createPolylabelCell(
+        polygonPoints,
+        cell.x - childH,
+        cell.y - childH,
+        childH
+      ),
+      createPolylabelCell(
+        polygonPoints,
+        cell.x + childH,
+        cell.y - childH,
+        childH
+      ),
+      createPolylabelCell(
+        polygonPoints,
+        cell.x - childH,
+        cell.y + childH,
+        childH
+      ),
+      createPolylabelCell(
+        polygonPoints,
+        cell.x + childH,
+        cell.y + childH,
+        childH
+      )
     );
   }
 
@@ -631,8 +653,7 @@ export const computePolygonLabelFitMetrics = (
   const fallbackCentroid = computePolygonCentroid2D(polygonPoints);
   const bestAnchorCandidate =
     largestInscribedPoint?.center ??
-    (fallbackCentroid &&
-    isPointInsidePolygon2D(polygonPoints, fallbackCentroid)
+    (fallbackCentroid && isPointInsidePolygon2D(polygonPoints, fallbackCentroid)
       ? fallbackCentroid
       : null) ??
     findInteriorSamplePoint2D(polygonPoints)?.center ??
@@ -642,7 +663,9 @@ export const computePolygonLabelFitMetrics = (
     : null;
   const maxInscribedRadiusPx =
     largestInscribedPoint?.radiusPx ??
-    (bestAnchor ? computeDistanceToPolygonEdges2D(polygonPoints, bestAnchor) : 0);
+    (bestAnchor
+      ? computeDistanceToPolygonEdges2D(polygonPoints, bestAnchor)
+      : 0);
 
   const paddingX = 6;
   const paddingY = 4;

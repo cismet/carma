@@ -198,11 +198,7 @@ export const PointLabel = React.memo(
     const beginMarkerDragTracking = (
       event: React.MouseEvent<HTMLDivElement>
     ) => {
-      if (
-        !onMarkerDragStart &&
-        !onMarkerDragMove &&
-        !onMarkerDragEnd
-      ) {
+      if (!onMarkerDragStart && !onMarkerDragMove && !onMarkerDragEnd) {
         return false;
       }
       if (event.button !== 0) return false;

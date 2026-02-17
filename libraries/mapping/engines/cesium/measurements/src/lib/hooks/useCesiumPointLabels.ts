@@ -260,6 +260,9 @@ const formatPointLabelText = (
   return formatNoneLabelText(labelBase);
 };
 
+const sanitizePositiveScale = (value: number | undefined): number =>
+  Number.isFinite(value) && (value as number) > 0 ? (value as number) : 1;
+
 const getPlaneIntersectionForClientPosition = (
   scene: Scene | null,
   clientX: number,
@@ -286,7 +289,9 @@ const getPlaneIntersectionForClientPosition = (
     plane.normalECEF.y,
     plane.normalECEF.z
   );
-  if (Cartesian3.magnitudeSquared(planeNormalRaw) <= PLANE_INTERSECTION_EPSILON) {
+  if (
+    Cartesian3.magnitudeSquared(planeNormalRaw) <= PLANE_INTERSECTION_EPSILON
+  ) {
     return null;
   }
   const planeNormal = Cartesian3.normalize(planeNormalRaw, new Cartesian3());
@@ -300,7 +305,8 @@ const getPlaneIntersectionForClientPosition = (
     pickRay.origin,
     new Cartesian3()
   );
-  const axisParameter = Cartesian3.dot(planeNormal, originToPlane) / denominator;
+  const axisParameter =
+    Cartesian3.dot(planeNormal, originToPlane) / denominator;
   if (!Number.isFinite(axisParameter) || axisParameter < 0) {
     return null;
   }
@@ -337,7 +343,9 @@ export const useCesiumPointLabels = (
     pointId: string,
     nextPosition: Cartesian3
   ) => void,
-  onPointPlaneDragEnd?: (pointId: string) => void
+  onPointPlaneDragEnd?: (pointId: string) => void,
+  moveGizmoMarkerSizeScale: number = 1,
+  moveGizmoLabelDistanceScale: number = 1
 ) => {
   const [occlusionResults, setOcclusionResults] = useState<
     Record<string, boolean>
@@ -353,6 +361,22 @@ export const useCesiumPointLabels = (
   const layoutConfig = useMemo(
     () => resolvePointLabelLayoutConfig(layoutConfigOverrides),
     [layoutConfigOverrides]
+  );
+  const resolvedMoveGizmoMarkerSizeScale = useMemo(
+    () => sanitizePositiveScale(moveGizmoMarkerSizeScale),
+    [moveGizmoMarkerSizeScale]
+  );
+  const resolvedMoveGizmoLabelDistanceScale = useMemo(
+    () => sanitizePositiveScale(moveGizmoLabelDistanceScale),
+    [moveGizmoLabelDistanceScale]
+  );
+  const moveGizmoMarkerSizePx = useMemo(
+    () => MOVE_GIZMO_MARKER_SIZE_PX * resolvedMoveGizmoMarkerSizeScale,
+    [resolvedMoveGizmoMarkerSizeScale]
+  );
+  const moveGizmoMarkerSizeDraggingPx = useMemo(
+    () => MOVE_GIZMO_MARKER_SIZE_DRAGGING_PX * resolvedMoveGizmoMarkerSizeScale,
+    [resolvedMoveGizmoMarkerSizeScale]
   );
 
   // Keep camera pitch in sync while the camera moves.
@@ -545,7 +569,10 @@ export const useCesiumPointLabels = (
       const canDirectPlaneDrag = Boolean(
         dragPlane && onPointPlaneDragPositionChange
       );
-      const updatePointFromDragPosition = (clientX: number, clientY: number) => {
+      const updatePointFromDragPosition = (
+        clientX: number,
+        clientY: number
+      ) => {
         if (!dragPlane || !onPointPlaneDragPositionChange) return;
         const nextPosition = getPlaneIntersectionForClientPosition(
           scene,
@@ -571,7 +598,12 @@ export const useCesiumPointLabels = (
         },
         pitch: cameraPitch,
         labelAngleRad: layoutResult.placements[point.id]?.angleRad,
-        labelDistance: layoutResult.placements[point.id]?.distance,
+        labelDistance:
+          isMoveGizmoPoint &&
+          layoutResult.placements[point.id]?.distance !== undefined
+            ? layoutResult.placements[point.id].distance *
+              resolvedMoveGizmoLabelDistanceScale
+            : layoutResult.placements[point.id]?.distance,
         labelAttach: layoutResult.placements[point.id]?.attach,
         hideLabelAndStem:
           layoutResult.hiddenByLayout.has(point.id) ||
@@ -581,8 +613,8 @@ export const useCesiumPointLabels = (
         contentSignature: labelTextRepresentation.contentSignature,
         markerSize: isMoveGizmoPoint
           ? moveGizmoIsDragging
-            ? MOVE_GIZMO_MARKER_SIZE_DRAGGING_PX
-            : MOVE_GIZMO_MARKER_SIZE_PX
+            ? moveGizmoMarkerSizeDraggingPx
+            : moveGizmoMarkerSizePx
           : undefined,
         markerInnerScale: isMoveGizmoPoint
           ? moveGizmoIsDragging
@@ -642,6 +674,9 @@ export const useCesiumPointLabels = (
     scene,
     cameraPitch,
     layoutResult,
+    moveGizmoMarkerSizePx,
+    moveGizmoMarkerSizeDraggingPx,
+    resolvedMoveGizmoLabelDistanceScale,
     onPointClick,
     onPointDoubleClick,
     onPointLongPress,

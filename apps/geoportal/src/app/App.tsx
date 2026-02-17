@@ -172,6 +172,12 @@ function App({ published }: { published?: boolean }) {
   const cesiumMeasurementOptions = useMemo(
     () => ({
       pointQueries: { enabled: true, radius: 1 },
+      moveGizmo: {
+        markerSizeScale: 0.5,
+        labelDistanceScale: 2,
+        snapPlaneDragToGround: true,
+        showRotationHandle: false,
+      },
       persistenceKey: `${MEASUREMENTS_BASE_CONFIG.localStorageKey}.geoportal`,
     }),
     []

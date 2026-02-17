@@ -11,6 +11,7 @@ export {
   ClassificationType,
   ClippingPlaneCollection,
   ClippingPolygonCollection,
+  CoplanarPolygonGeometry,
   ColorGeometryInstanceAttribute,
   ColorMaterialProperty,
   ConstantProperty,

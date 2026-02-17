@@ -10,6 +10,22 @@ const CESIUM_PATHNAME = "__cesium__";
 export default defineConfig({
   root: __dirname,
   cacheDir: "../../node_modules/.vite/playgrounds/stories",
+  server: {
+    proxy: {
+      "/__wupp_terrain__": {
+        target: "https://cesium-wupp-terrain.cismet.de",
+        changeOrigin: true,
+        secure: true,
+        rewrite: (path) => path.replace(/^\/__wupp_terrain__/, ""),
+      },
+      "/__wupp_3d__": {
+        target: "https://wupp-3d-data.cismet.de",
+        changeOrigin: true,
+        secure: true,
+        rewrite: (path) => path.replace(/^\/__wupp_3d__/, ""),
+      },
+    },
+  },
   plugins: [
     react(),
     nxViteTsPaths(),

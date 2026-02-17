@@ -144,7 +144,11 @@ const getPlaneBasisU = (
     const edge = Cartesian3.subtract(next, current, new Cartesian3());
     const edgeOnPlane = Cartesian3.subtract(
       edge,
-      Cartesian3.multiplyByScalar(normal, Cartesian3.dot(edge, normal), new Cartesian3()),
+      Cartesian3.multiplyByScalar(
+        normal,
+        Cartesian3.dot(edge, normal),
+        new Cartesian3()
+      ),
       new Cartesian3()
     );
     if (Cartesian3.magnitudeSquared(edgeOnPlane) > EPSILON) {
@@ -160,14 +164,21 @@ const getPlaneBasisU = (
   );
   const eastOnPlane = Cartesian3.subtract(
     east,
-    Cartesian3.multiplyByScalar(normal, Cartesian3.dot(east, normal), new Cartesian3()),
+    Cartesian3.multiplyByScalar(
+      normal,
+      Cartesian3.dot(east, normal),
+      new Cartesian3()
+    ),
     new Cartesian3()
   );
   if (Cartesian3.magnitudeSquared(eastOnPlane) > EPSILON) {
     return Cartesian3.normalize(eastOnPlane, new Cartesian3());
   }
 
-  return Cartesian3.normalize(Cartesian3.cross(normal, Cartesian3.UNIT_X, new Cartesian3()), new Cartesian3());
+  return Cartesian3.normalize(
+    Cartesian3.cross(normal, Cartesian3.UNIT_X, new Cartesian3()),
+    new Cartesian3()
+  );
 };
 
 export const computePlanarPolygonArea = (
@@ -181,7 +192,10 @@ export const computePlanarPolygonArea = (
     new Cartesian3()
   );
   const u = getPlaneBasisU(vertices, anchor, normal);
-  const v = Cartesian3.normalize(Cartesian3.cross(normal, u, new Cartesian3()), new Cartesian3());
+  const v = Cartesian3.normalize(
+    Cartesian3.cross(normal, u, new Cartesian3()),
+    new Cartesian3()
+  );
 
   const coords = vertices.map((vertex) => {
     const delta = Cartesian3.subtract(vertex, anchor, new Cartesian3());

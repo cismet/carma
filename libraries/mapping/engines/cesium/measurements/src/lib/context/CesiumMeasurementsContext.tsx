@@ -155,6 +155,12 @@ export type MeasurementProviderOptions = {
   persistenceKey?: string;
   persistenceEnabled?: boolean;
   labels?: CesiumLabelLayoutConfigOverrides;
+  moveGizmo?: {
+    markerSizeScale?: number;
+    labelDistanceScale?: number;
+    snapPlaneDragToGround?: boolean;
+    showRotationHandle?: boolean;
+  };
 };
 
 const defaultOptions: MeasurementProviderOptions = {
@@ -170,6 +176,14 @@ const defaultPointQueryOptions: MeasurementProviderOptions["pointQueries"] = {
 
 const defaultTraverseOptions: MeasurementProviderOptions["traverse"] = {
   heightOffset: 1.5,
+};
+const defaultMoveGizmoOptions: NonNullable<
+  MeasurementProviderOptions["moveGizmo"]
+> = {
+  markerSizeScale: 1,
+  labelDistanceScale: 1,
+  snapPlaneDragToGround: false,
+  showRotationHandle: true,
 };
 const POINT_LABEL_LONG_PRESS_DURATION_MS = 300;
 const REFERENCE_POINT_SYNC_EPSILON_METERS = 0.001;
@@ -208,12 +222,10 @@ const hasAnyVisibleDistanceRelationLine = (relation: PointDistanceRelation) =>
       relation.showComponentLines
   );
 
-const getPointById = (
-  measurements: MeasurementCollection,
-  id: string
-) =>
+const getPointById = (measurements: MeasurementCollection, id: string) =>
   measurements.find(
-    (measurement) => isPointMeasurementEntry(measurement) && measurement.id === id
+    (measurement) =>
+      isPointMeasurementEntry(measurement) && measurement.id === id
   );
 
 const getPointPositionMap = (
@@ -288,6 +300,10 @@ export const CesiumMeasurementsProvider: React.FC<
   const traverseOptions = normalizeOptions(
     options?.traverse,
     defaultTraverseOptions
+  );
+  const moveGizmoOptions = normalizeOptions(
+    options?.moveGizmo,
+    defaultMoveGizmoOptions
   );
 
   const normalizedOptions = normalizeOptions(options, defaultOptions);
@@ -457,7 +473,8 @@ export const CesiumMeasurementsProvider: React.FC<
       planarPolygonGroups
         .filter(
           (group) =>
-            group.closed || (group.planeLocked && group.vertexPointIds.length >= 4)
+            group.closed ||
+            (group.planeLocked && group.vertexPointIds.length >= 4)
         )
         .map((group) => group.id)
     );
@@ -514,7 +531,8 @@ export const CesiumMeasurementsProvider: React.FC<
   const showPoints =
     measurementMode !== MeasurementMode.NONE &&
     !hideMeasurementsOfType.has(MeasurementMode.PointQuery);
-  const showDistanceAndPolygonVisuals = measurementMode !== MeasurementMode.NONE;
+  const showDistanceAndPolygonVisuals =
+    measurementMode !== MeasurementMode.NONE;
   const showPointLabels =
     showPoints &&
     showLabels &&
@@ -722,13 +740,15 @@ export const CesiumMeasurementsProvider: React.FC<
             (group) => group.id === activePlanarPolygonGroupId && !group.closed
           ) ?? null
         : null;
-      const isActiveChainDrawing = hasOpenLineDrawing && Boolean(activeOpenGroup);
+      const isActiveChainDrawing =
+        hasOpenLineDrawing && Boolean(activeOpenGroup);
 
       if (isActiveChainDrawing) {
         return true;
       }
 
-      const hitPolygonGroupId = getPlanarPolygonGroupIdAtSceneClick(screenPosition);
+      const hitPolygonGroupId =
+        getPlanarPolygonGroupIdAtSceneClick(screenPosition);
       if (hitPolygonGroupId) {
         if (selectedPlanarPolygonGroupId !== hitPolygonGroupId) {
           selectPlanarPolygonGroupById(hitPolygonGroupId);
@@ -821,7 +841,11 @@ export const CesiumMeasurementsProvider: React.FC<
           const pointBId = orderedVertices[index + 1];
           if (!pointAId || !pointBId) continue;
           const relationId = getDistanceRelationId(pointAId, pointBId);
-          desiredById.set(relationId, { groupId: group.id, pointAId, pointBId });
+          desiredById.set(relationId, {
+            groupId: group.id,
+            pointAId,
+            pointBId,
+          });
         }
         if (group.closed && orderedVertices.length >= 3) {
           const first = orderedVertices[0];
@@ -879,7 +903,9 @@ export const CesiumMeasurementsProvider: React.FC<
           showVerticalLine: false,
           showHorizontalLine: false,
           showComponentLines: false,
-          labelVisibilityByKind: { ...DEFAULT_DISTANCE_RELATION_LABEL_VISIBILITY },
+          labelVisibilityByKind: {
+            ...DEFAULT_DISTANCE_RELATION_LABEL_VISIBILITY,
+          },
         });
       });
 
@@ -956,7 +982,10 @@ export const CesiumMeasurementsProvider: React.FC<
         let nextPointPosition = newPointPositionECEF;
 
         if (nextPlaneLocked && nextPlane) {
-          nextPointPosition = projectPointOntoPlane(nextPointPosition, nextPlane);
+          nextPointPosition = projectPointOntoPlane(
+            nextPointPosition,
+            nextPlane
+          );
           projectedPointPosition = nextPointPosition;
           pointById.set(newPointId, nextPointPosition);
         } else if (nextVertexPointIds.length >= 4) {
@@ -964,7 +993,11 @@ export const CesiumMeasurementsProvider: React.FC<
           const second = pointById.get(nextVertexPointIds[1] ?? "");
           const third = pointById.get(nextVertexPointIds[2] ?? "");
           if (first && second && third) {
-            const candidatePlane = createPlaneFromThreePoints(first, second, third);
+            const candidatePlane = createPlaneFromThreePoints(
+              first,
+              second,
+              third
+            );
             if (candidatePlane) {
               const planeDistance = distancePointToPlane(
                 nextPointPosition,
@@ -1045,7 +1078,10 @@ export const CesiumMeasurementsProvider: React.FC<
         const geometryWGS84 = getDegreesFromCartesian(projectedPointPosition);
         setMeasurements((prev) =>
           prev.map((measurement) => {
-            if (!isPointMeasurementEntry(measurement) || measurement.id !== newPointId) {
+            if (
+              !isPointMeasurementEntry(measurement) ||
+              measurement.id !== newPointId
+            ) {
               return measurement;
             }
             return {
@@ -1196,7 +1232,11 @@ export const CesiumMeasurementsProvider: React.FC<
           const second = pointById.get(nextVertexPointIds[1] ?? "");
           const third = pointById.get(nextVertexPointIds[2] ?? "");
           if (first && second && third) {
-            const candidatePlane = createPlaneFromThreePoints(first, second, third);
+            const candidatePlane = createPlaneFromThreePoints(
+              first,
+              second,
+              third
+            );
             if (candidatePlane) {
               const planeDistance = distancePointToPlane(
                 existingPointPosition,
@@ -1219,8 +1259,7 @@ export const CesiumMeasurementsProvider: React.FC<
                   vertexCount: nextVertexPointIds.length,
                   planeDistance,
                   planarAngleSum,
-                  distanceThreshold:
-                    PLANAR_PROMOTION_DISTANCE_THRESHOLD_METERS,
+                  distanceThreshold: PLANAR_PROMOTION_DISTANCE_THRESHOLD_METERS,
                   angleThreshold: PLANAR_PROMOTION_ANGLE_SUM_THRESHOLD_DEG,
                 }
               );
@@ -1871,7 +1910,10 @@ export const CesiumMeasurementsProvider: React.FC<
         new Cartesian3()
       );
       if (targetGroup.planeLocked && targetGroup.plane) {
-        midpointPosition = projectPointOntoPlane(midpointPosition, targetGroup.plane);
+        midpointPosition = projectPointOntoPlane(
+          midpointPosition,
+          targetGroup.plane
+        );
       }
 
       const nextPointId = `point-${Date.now()}-split`;
@@ -1957,7 +1999,9 @@ export const CesiumMeasurementsProvider: React.FC<
       ? selectedPlanarPolygonGroupId
       : null,
     distanceRelations: showDistanceAndPolygonVisuals ? distanceRelations : [],
-    planarPolygonGroups: showDistanceAndPolygonVisuals ? planarPolygonGroups : [],
+    planarPolygonGroups: showDistanceAndPolygonVisuals
+      ? planarPolygonGroups
+      : [],
     onPlanarPolygonClick: handlePlanarPolygonClick,
     pointDragPlaneByPointId,
     onPointPlaneDragStart: handlePointPlaneDragStart,
@@ -1980,6 +2024,11 @@ export const CesiumMeasurementsProvider: React.FC<
     moveGizmoAxisDirection,
     moveGizmoAxisTitle,
     moveGizmoAxisCandidates,
+    moveGizmoMarkerSizeScale: moveGizmoOptions.markerSizeScale ?? 1,
+    moveGizmoLabelDistanceScale: moveGizmoOptions.labelDistanceScale ?? 1,
+    moveGizmoSnapPlaneDragToGround:
+      moveGizmoOptions.snapPlaneDragToGround ?? false,
+    moveGizmoShowRotationHandle: moveGizmoOptions.showRotationHandle ?? true,
     moveGizmoIsDragging: isMoveGizmoDragging,
     onMoveGizmoPointPositionChange: updatePointMeasurementPositionById,
     onMoveGizmoDragStateChange: setIsMoveGizmoDragging,
@@ -2097,7 +2146,9 @@ export const CesiumMeasurementsProvider: React.FC<
       });
       setActivePlanarPolygonGroupId((prev) => {
         if (!prev) return prev;
-        const activeGroup = planarPolygonGroups.find((group) => group.id === prev);
+        const activeGroup = planarPolygonGroups.find(
+          (group) => group.id === prev
+        );
         if (!activeGroup) return null;
         return activeGroup.vertexPointIds.some((id) => ids.includes(id))
           ? null

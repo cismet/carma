@@ -190,7 +190,9 @@ export const getConnectedPolygonGroups = (
   if (!selectedPolygonGroupId) return [];
   if (planarPolygonGroups.length === 0) return [];
 
-  const groupById = new Map(planarPolygonGroups.map((group) => [group.id, group]));
+  const groupById = new Map(
+    planarPolygonGroups.map((group) => [group.id, group])
+  );
   if (!groupById.has(selectedPolygonGroupId)) return [];
 
   const edgeToGroupIds = new Map<string, string[]>();
@@ -274,8 +276,10 @@ export const getPolygonGroupAreaSumsByType = (
 
       return {
         ...accumulator,
-        roofAreaSquareMeters: accumulator.roofAreaSquareMeters + areaSquareMeters,
-        totalAreaSquareMeters: accumulator.totalAreaSquareMeters + areaSquareMeters,
+        roofAreaSquareMeters:
+          accumulator.roofAreaSquareMeters + areaSquareMeters,
+        totalAreaSquareMeters:
+          accumulator.totalAreaSquareMeters + areaSquareMeters,
       };
     },
     {
@@ -330,10 +334,9 @@ export const getRoofSlopeLabels = (
   return roofGroups.map((group, index) => {
     const fallbackOrder =
       allGroups.findIndex((candidate) => candidate.id === group.id) + 1;
-    const roofLabel =
-      group.name?.trim().length
-        ? group.name.trim()
-        : `Dach ${fallbackOrder > 0 ? fallbackOrder : index + 1}`;
+    const roofLabel = group.name?.trim().length
+      ? group.name.trim()
+      : `Dach ${fallbackOrder > 0 ? fallbackOrder : index + 1}`;
     return `${roofLabel}: ${formatNumber(group.verticalityDeg ?? 0)}°`;
   });
 };

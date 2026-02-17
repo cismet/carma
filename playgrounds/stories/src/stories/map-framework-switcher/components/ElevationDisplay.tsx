@@ -13,7 +13,21 @@ export const ElevationDisplay = () => {
   const cesiumScene = refs.getCesiumScene();
   const leafletMap = refs.getLeafletMap();
   const terrainProviders = refs.getCesiumTerrainProviders();
-  const devicePixelRatio = refs.getResolutionScale() ?? window.devicePixelRatio;
+  const devicePixelRatio = useMemo(() => {
+    if (!cesiumScene) return window.devicePixelRatio;
+
+    const clientWidth = cesiumScene.canvas?.clientWidth ?? 0;
+    const clientHeight = cesiumScene.canvas?.clientHeight ?? 0;
+    const bufferWidth = cesiumScene.drawingBufferWidth ?? 0;
+    const bufferHeight = cesiumScene.drawingBufferHeight ?? 0;
+
+    const ratioX = clientWidth > 0 ? bufferWidth / clientWidth : NaN;
+    const ratioY = clientHeight > 0 ? bufferHeight / clientHeight : NaN;
+
+    if (Number.isFinite(ratioX) && ratioX > 0) return ratioX;
+    if (Number.isFinite(ratioY) && ratioY > 0) return ratioY;
+    return window.devicePixelRatio;
+  }, [cesiumScene]);
   const [terrainElevation, setTerrainElevation] = useState<number | null>(null);
   const [surfaceElevation, setSurfaceElevation] = useState<number | null>(null);
   const [cameraElevation, setCameraElevation] = useState<number | null>(null);

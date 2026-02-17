@@ -32,7 +32,7 @@ import {
   useCesiumPointLabels,
   type CesiumLabelLayoutConfigOverrides,
 } from "./useCesiumPointLabels";
-import { useCesiumPointMoveGizmo } from "./useCesiumPointMoveGizmo";
+import { useCesiumPointMoveGizmo } from "@carma-mapping/engines-interop/gizmo/cesium-integration";
 import { useCesiumDistanceVisualizer } from "./useCesiumDistanceVisualizer";
 
 export type CesiumPointVisualizerOptions = {
@@ -78,6 +78,10 @@ export type CesiumPointVisualizerOptions = {
     color?: string;
     title?: string | null;
   }> | null;
+  moveGizmoMarkerSizeScale?: number;
+  moveGizmoLabelDistanceScale?: number;
+  moveGizmoSnapPlaneDragToGround?: boolean;
+  moveGizmoShowRotationHandle?: boolean;
   moveGizmoIsDragging?: boolean;
   onMoveGizmoPointPositionChange?: (
     pointId: string,
@@ -126,6 +130,10 @@ export const useCesiumPointVisualizer = (
     moveGizmoAxisDirection = null,
     moveGizmoAxisTitle = null,
     moveGizmoAxisCandidates = null,
+    moveGizmoMarkerSizeScale = 1,
+    moveGizmoLabelDistanceScale = 1,
+    moveGizmoSnapPlaneDragToGround = false,
+    moveGizmoShowRotationHandle = true,
     moveGizmoIsDragging = false,
     onMoveGizmoPointPositionChange,
     onMoveGizmoDragStateChange,
@@ -163,7 +171,9 @@ export const useCesiumPointVisualizer = (
     pointDragPlaneByPointId,
     onPointPlaneDragStart,
     onPointPlaneDragPositionChange,
-    onPointPlaneDragEnd
+    onPointPlaneDragEnd,
+    moveGizmoMarkerSizeScale,
+    moveGizmoLabelDistanceScale
   );
 
   useCesiumPointMoveGizmo(scene, {
@@ -172,6 +182,8 @@ export const useCesiumPointVisualizer = (
     axisDirection: moveGizmoAxisDirection,
     axisTitle: moveGizmoAxisTitle,
     axisCandidates: moveGizmoAxisCandidates,
+    snapPlaneDragToGround: moveGizmoSnapPlaneDragToGround,
+    showRotationHandle: moveGizmoShowRotationHandle,
     radius,
     onPointPositionChange: onMoveGizmoPointPositionChange,
     onDragStateChange: onMoveGizmoDragStateChange,
@@ -208,6 +220,15 @@ export const useCesiumPointVisualizer = (
       return;
     }
 
+    const moveGizmoOnSelectedPoint =
+      moveGizmoPointId !== null && moveGizmoPointId === selectedPointId;
+    if (moveGizmoOnSelectedPoint) {
+      // Prevent two overlapping disc polygons (selected-guide + move-gizmo disc),
+      // which can produce visual z-fighting artifacts.
+      scene.requestRender();
+      return;
+    }
+
     const selectedPoint = points.find((point) => point.id === selectedPointId);
     if (!selectedPoint) {
       scene.requestRender();
@@ -239,9 +260,8 @@ export const useCesiumPointVisualizer = (
         upVector: discNormal,
         radius,
         screenPixelRadius: 50,
-        color: Color.WHITE.withAlpha(0.65),
-        width: 1,
-        segmentCount: 48,
+        color: Color.WHITE.withAlpha(0.5),
+        unitCircleSegments: 24,
       }
     );
     selectedDiscRef.current.attach(scene, () => scene.requestRender());
@@ -262,6 +282,7 @@ export const useCesiumPointVisualizer = (
     radius,
     showSelectedDisc,
     moveGizmoAxisDirection,
+    moveGizmoPointId,
   ]);
 
   useEffect(() => {

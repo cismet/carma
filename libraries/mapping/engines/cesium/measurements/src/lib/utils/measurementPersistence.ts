@@ -95,18 +95,25 @@ export const savePlanarPolygonGroups = (
   storageKey: string | undefined,
   groups: PlanarPolygonGroup[]
 ): void => {
-  const key = `${storageKey ?? DEFAULT_STORAGE_KEY}${PLANAR_POLYGONS_STORAGE_SUFFIX}`;
+  const key = `${
+    storageKey ?? DEFAULT_STORAGE_KEY
+  }${PLANAR_POLYGONS_STORAGE_SUFFIX}`;
   try {
     localStorage.setItem(key, JSON.stringify(groups));
   } catch (error) {
-    console.warn("Failed to save planar polygon groups to localStorage:", error);
+    console.warn(
+      "Failed to save planar polygon groups to localStorage:",
+      error
+    );
   }
 };
 
 export const loadPlanarPolygonGroups = (
   storageKey: string | undefined
 ): PlanarPolygonGroup[] | null => {
-  const key = `${storageKey ?? DEFAULT_STORAGE_KEY}${PLANAR_POLYGONS_STORAGE_SUFFIX}`;
+  const key = `${
+    storageKey ?? DEFAULT_STORAGE_KEY
+  }${PLANAR_POLYGONS_STORAGE_SUFFIX}`;
   try {
     const saved = localStorage.getItem(key);
     if (!saved) {
@@ -117,7 +124,10 @@ export const loadPlanarPolygonGroups = (
     if (!Array.isArray(groups)) return null;
     return groups;
   } catch (error) {
-    console.warn("Failed to load planar polygon groups from localStorage:", error);
+    console.warn(
+      "Failed to load planar polygon groups from localStorage:",
+      error
+    );
   }
 
   return null;

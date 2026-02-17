@@ -108,7 +108,9 @@ const getPolygonPreviewFillColor = (
       : POLYGON_PREVIEW_FILL_FACADE_OPEN;
   }
 
-  return isClosed ? POLYGON_PREVIEW_FILL_ROOF_CLOSED : POLYGON_PREVIEW_FILL_ROOF_OPEN;
+  return isClosed
+    ? POLYGON_PREVIEW_FILL_ROOF_CLOSED
+    : POLYGON_PREVIEW_FILL_ROOF_OPEN;
 };
 
 const getProjectedHorizontalAreaSquareMeters = (group: PlanarPolygonGroup) => {
@@ -189,7 +191,8 @@ export const useCesiumDistanceVisualizer = (
       planarPolygonGroups
         .filter(
           (group) =>
-            group.vertexPointIds.length >= 3 && (group.planeLocked || group.closed)
+            group.vertexPointIds.length >= 3 &&
+            (group.planeLocked || group.closed)
         )
         .map((group) => {
           const vertexPoints = group.vertexPointIds
@@ -221,7 +224,9 @@ export const useCesiumDistanceVisualizer = (
         auxiliaryPoint,
       }) => {
         if (relation.showDirectLine) {
-          const isPolygonEdgeRelation = splitMarkerRelationIdSet.has(relation.id);
+          const isPolygonEdgeRelation = splitMarkerRelationIdSet.has(
+            relation.id
+          );
           const shouldShowPolygonEdgeLengthLabel =
             !isPolygonEdgeRelation || Boolean(selectedPlanarPolygonGroupId);
           const showDirectLabel =
@@ -470,7 +475,9 @@ export const useCesiumDistanceVisualizer = (
           if (!scene || scene.isDestroyed()) return false;
 
           const screenPoints = vertexPoints
-            .map((point) => SceneTransforms.worldToWindowCoordinates(scene, point))
+            .map((point) =>
+              SceneTransforms.worldToWindowCoordinates(scene, point)
+            )
             .filter(
               (point): point is Cartesian2 =>
                 defined(point) &&
@@ -568,7 +575,8 @@ export const useCesiumDistanceVisualizer = (
               );
 
               if (areaLabelSecondaryEl) {
-                areaLabelSecondaryEl.textContent = projectedHorizontalText ?? "";
+                areaLabelSecondaryEl.textContent =
+                  projectedHorizontalText ?? "";
                 areaLabelSecondaryEl.setAttribute("x", `${clampedAnchor.x}`);
                 areaLabelSecondaryEl.setAttribute(
                   "y",
@@ -932,8 +940,10 @@ export const useCesiumDistanceVisualizer = (
               pointB.geometryECEF,
               new Cartesian3()
             );
-            const center =
-              SceneTransforms.worldToWindowCoordinates(scene, midpointWorld);
+            const center = SceneTransforms.worldToWindowCoordinates(
+              scene,
+              midpointWorld
+            );
             if (!defined(center)) return false;
             const angleDeg =
               (Math.atan2(end.y - start.y, end.x - start.x) * 180) / Math.PI +

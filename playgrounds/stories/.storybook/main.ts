@@ -1,4 +1,5 @@
 import type { StorybookConfig } from "@storybook/react-vite";
+import { mergeConfig, type UserConfig } from "vite";
 
 const config: StorybookConfig = {
   stories: ["../src/**/*.stories.@(ts|tsx)", "../src/**/*.@(mdx)"],
@@ -10,6 +11,28 @@ const config: StorybookConfig = {
         viteConfigPath: "playgrounds/stories/vite.config.mts",
       },
     },
+  },
+  async viteFinal(baseConfig) {
+    const proxyConfig: UserConfig = {
+      server: {
+        proxy: {
+          "/__wupp_terrain__": {
+            target: "https://cesium-wupp-terrain.cismet.de",
+            changeOrigin: true,
+            secure: true,
+            rewrite: (path) => path.replace(/^\/__wupp_terrain__/, ""),
+          },
+          "/__wupp_3d__": {
+            target: "https://wupp-3d-data.cismet.de",
+            changeOrigin: true,
+            secure: true,
+            rewrite: (path) => path.replace(/^\/__wupp_3d__/, ""),
+          },
+        },
+      },
+    };
+
+    return mergeConfig(baseConfig, proxyConfig);
   },
 };
 

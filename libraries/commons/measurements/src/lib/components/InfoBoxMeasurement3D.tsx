@@ -922,13 +922,13 @@ export function InfoBoxMeasurement3D({ pixelWidth = 350 }) {
     flyToPointGroup(scene, polygonPoints);
   };
 
-  const deleteSelectedPolygon = (
-    e?: ReactMouseEvent | MouseEvent
-  ) => {
+  const deleteSelectedPolygon = (e?: ReactMouseEvent | MouseEvent) => {
     e?.stopPropagation?.();
     if (!selectedPlanarPolygonGroup) return;
     const deletedGroupId = selectedPlanarPolygonGroup.id;
-    const deletedVertexPointIds = new Set(selectedPlanarPolygonGroup.vertexPointIds);
+    const deletedVertexPointIds = new Set(
+      selectedPlanarPolygonGroup.vertexPointIds
+    );
 
     const remainingPolygonGroups = planarPolygonGroups.filter(
       (group) => group.id !== deletedGroupId
@@ -1277,7 +1277,10 @@ export function InfoBoxMeasurement3D({ pixelWidth = 350 }) {
           selectedPlanarPolygonGroup ? (
             <div className="mt-1 mb-0 w-full px-2">
               <div className="flex justify-between items-start gap-2">
-                <span style={{ cursor: "default" }} className="font-bold flex-1 min-w-0">
+                <span
+                  style={{ cursor: "default" }}
+                  className="font-bold flex-1 min-w-0"
+                >
                   <MeasurementTitle
                     key={selectedPlanarPolygonGroup.id}
                     order={selectedPlanarPolygonOrder}
@@ -1286,7 +1289,9 @@ export function InfoBoxMeasurement3D({ pixelWidth = 350 }) {
                     setUpdateMeasurementStatus={() => {}}
                     updateTitleMeasurementById={handlePolygonNameUpdate}
                     isCollapsed={collapsedInfoBox}
-                    placeholderText={`Polygongruppe #${selectedPlanarPolygonOrder || 1}`}
+                    placeholderText={`Polygongruppe #${
+                      selectedPlanarPolygonOrder || 1
+                    }`}
                     clearPlaceholderOnFocus
                     showOrder={false}
                     collapsedContent={`${formatNumber(
@@ -1320,7 +1325,10 @@ export function InfoBoxMeasurement3D({ pixelWidth = 350 }) {
               <div className="w-full text-[10px] font-normal text-gray-500 -mt-1 min-h-[16px] flex items-center gap-2 whitespace-nowrap">
                 <span>
                   {selectedPolygonSurfaceTypeLabel} •{" "}
-                  {formatNumber(selectedConnectedPlanarPolygonTotalAreaSquareMeters)} m²
+                  {formatNumber(
+                    selectedConnectedPlanarPolygonTotalAreaSquareMeters
+                  )}{" "}
+                  m²
                 </span>
               </div>
             </div>
@@ -1536,7 +1544,10 @@ export function InfoBoxMeasurement3D({ pixelWidth = 350 }) {
                 <div className="mb-1">
                   <span className="text-gray-500 mr-1">Gesamtfläche:</span>
                   <span className="tabular-nums">
-                    {formatNumber(selectedConnectedPlanarPolygonTotalAreaSquareMeters)} m²
+                    {formatNumber(
+                      selectedConnectedPlanarPolygonTotalAreaSquareMeters
+                    )}{" "}
+                    m²
                   </span>
                 </div>
                 <div className="mb-1">
@@ -1560,11 +1571,15 @@ export function InfoBoxMeasurement3D({ pixelWidth = 350 }) {
                   <span className="tabular-nums">
                     {selectedConnectedRoofAverageSlopeDeg === null
                       ? "Keine Dächer"
-                      : `${formatNumber(selectedConnectedRoofAverageSlopeDeg)}°`}
+                      : `${formatNumber(
+                          selectedConnectedRoofAverageSlopeDeg
+                        )}°`}
                   </span>
                 </div>
                 <div className="mb-1">
-                  <span className="text-gray-500 mr-1">Dachneigung je Dach:</span>
+                  <span className="text-gray-500 mr-1">
+                    Dachneigung je Dach:
+                  </span>
                   <span>
                     {selectedConnectedRoofSlopeLabels.length > 0
                       ? selectedConnectedRoofSlopeLabels.join(" • ")
