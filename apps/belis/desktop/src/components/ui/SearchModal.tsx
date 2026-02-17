@@ -47,8 +47,8 @@ interface MastSearchValues {
 type SearchValues = LeuchteSearchValues | MastSearchValues;
 
 const searchTypeLabels: Record<SearchType, string> = {
-  leuchte: "Leuchte",
-  mast: "Mast",
+  leuchte: "Leuchten",
+  mast: "Masten",
 };
 
 const SearchModalHeader = ({
@@ -79,6 +79,7 @@ const SearchModalHeader = ({
 );
 
 // Helper to build date range condition (combines von/bis into single object)
+// Database stores timestamps, so we need to include the full day for _lte
 const buildDateRangeCondition = (
   fieldName: string,
   von?: string,
@@ -89,7 +90,7 @@ const buildDateRangeCondition = (
     parts.push(`_gte: "${von.split("T")[0]}"`);
   }
   if (bis) {
-    parts.push(`_lte: "${bis.split("T")[0]}"`);
+    parts.push(`_lte: "${bis.split("T")[0]} 23:59:59"`);
   }
   return parts.length > 0 ? `${fieldName}: {${parts.join(", ")}}` : null;
 };
@@ -99,7 +100,9 @@ const buildLeuchteWhereClause = (values: LeuchteSearchValues): string => {
   const conditions: string[] = [];
 
   // Exclude deleted records (handle both false and null values)
-  conditions.push(`_or: [{is_deleted: {_eq: false}}, {is_deleted: {_is_null: true}}]`);
+  conditions.push(
+    `_or: [{is_deleted: {_eq: false}}, {is_deleted: {_is_null: true}}]`
+  );
 
   // Date range conditions (combined into single objects)
   const inbetriebnahmeCondition = buildDateRangeCondition(
@@ -156,7 +159,9 @@ const buildMastWhereClause = (values: MastSearchValues): string => {
   const conditions: string[] = [];
 
   // Exclude deleted records (handle both false and null values)
-  conditions.push(`_or: [{is_deleted: {_eq: false}}, {is_deleted: {_is_null: true}}]`);
+  conditions.push(
+    `_or: [{is_deleted: {_eq: false}}, {is_deleted: {_is_null: true}}]`
+  );
 
   // Date range conditions (combined into single objects)
   const inbetriebnahmeCondition = buildDateRangeCondition(

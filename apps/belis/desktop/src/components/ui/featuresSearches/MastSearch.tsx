@@ -79,7 +79,7 @@ const DateRangeField = ({
           className="w-full"
           format="DD.MM.YYYY"
           placeholder="von"
-          onChange={(date) => onChangeVon(date?.toISOString())}
+          onChange={(date) => onChangeVon(date?.format("YYYY-MM-DD"))}
         />
       </Col>
       <Col span={12}>
@@ -87,7 +87,7 @@ const DateRangeField = ({
           className="w-full"
           format="DD.MM.YYYY"
           placeholder="bis"
-          onChange={(date) => onChangeBis(date?.toISOString())}
+          onChange={(date) => onChangeBis(date?.format("YYYY-MM-DD"))}
         />
       </Col>
     </Row>
