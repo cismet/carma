@@ -108,16 +108,14 @@ const buildLeuchteWhereClause = (values: LeuchteSearchValues): string => {
     conditions.push(inbetriebnahmeCondition);
   }
 
-  // Wechseldatum needs nested structure
-  if (values.wechseldatumLeuchtmittel?.von || values.wechseldatumLeuchtmittel?.bis) {
-    const datumParts: string[] = [];
-    if (values.wechseldatumLeuchtmittel?.von) {
-      datumParts.push(`_gte: "${values.wechseldatumLeuchtmittel.von.split("T")[0]}"`);
-    }
-    if (values.wechseldatumLeuchtmittel?.bis) {
-      datumParts.push(`_lte: "${values.wechseldatumLeuchtmittel.bis.split("T")[0]}"`);
-    }
-    conditions.push(`wpiw_leuchtmittelwechsel: {wechsel: {datum: {${datumParts.join(", ")}}}}`);
+  // Wechseldatum - use direct field on tdta_leuchten
+  const wechseldatumCondition = buildDateRangeCondition(
+    "wechseldatum",
+    values.wechseldatumLeuchtmittel?.von,
+    values.wechseldatumLeuchtmittel?.bis
+  );
+  if (wechseldatumCondition) {
+    conditions.push(wechseldatumCondition);
   }
 
   const naechsterWechselCondition = buildDateRangeCondition(
