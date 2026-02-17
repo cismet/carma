@@ -17,6 +17,7 @@ type SearchType = "leuchte" | "mast";
 
 interface SearchModalProps {
   defaultOpen?: boolean;
+  showFinalQuery?: boolean;
 }
 
 interface LeuchteSearchValues {
@@ -77,50 +78,55 @@ const SearchModalHeader = ({
   </div>
 );
 
+// Helper to build date range condition (combines von/bis into single object)
+const buildDateRangeCondition = (
+  fieldName: string,
+  von?: string,
+  bis?: string
+): string | null => {
+  const parts: string[] = [];
+  if (von) {
+    parts.push(`_gte: "${von.split("T")[0]}"`);
+  }
+  if (bis) {
+    parts.push(`_lte: "${bis.split("T")[0]}"`);
+  }
+  return parts.length > 0 ? `${fieldName}: {${parts.join(", ")}}` : null;
+};
+
 // Build GraphQL where clause from search values
 const buildLeuchteWhereClause = (values: LeuchteSearchValues): string => {
   const conditions: string[] = [];
 
-  // Date range conditions
-  if (values.inbetriebnahmeLeuchte?.von) {
-    conditions.push(
-      `einbaudatum: {_gte: "${values.inbetriebnahmeLeuchte.von.split("T")[0]}"}`
-    );
-  }
-  if (values.inbetriebnahmeLeuchte?.bis) {
-    conditions.push(
-      `einbaudatum: {_lte: "${values.inbetriebnahmeLeuchte.bis.split("T")[0]}"}`
-    );
+  // Date range conditions (combined into single objects)
+  const inbetriebnahmeCondition = buildDateRangeCondition(
+    "inbetriebnahme_leuchte",
+    values.inbetriebnahmeLeuchte?.von,
+    values.inbetriebnahmeLeuchte?.bis
+  );
+  if (inbetriebnahmeCondition) {
+    conditions.push(inbetriebnahmeCondition);
   }
 
-  if (values.wechseldatumLeuchtmittel?.von) {
-    conditions.push(
-      `wpiw_leuchtmittelwechsel: {wechsel: {datum: {_gte: "${
-        values.wechseldatumLeuchtmittel.von.split("T")[0]
-      }"}}}`
-    );
-  }
-  if (values.wechseldatumLeuchtmittel?.bis) {
-    conditions.push(
-      `wpiw_leuchtmittelwechsel: {wechsel: {datum: {_lte: "${
-        values.wechseldatumLeuchtmittel.bis.split("T")[0]
-      }"}}}`
-    );
+  // Wechseldatum needs nested structure
+  if (values.wechseldatumLeuchtmittel?.von || values.wechseldatumLeuchtmittel?.bis) {
+    const datumParts: string[] = [];
+    if (values.wechseldatumLeuchtmittel?.von) {
+      datumParts.push(`_gte: "${values.wechseldatumLeuchtmittel.von.split("T")[0]}"`);
+    }
+    if (values.wechseldatumLeuchtmittel?.bis) {
+      datumParts.push(`_lte: "${values.wechseldatumLeuchtmittel.bis.split("T")[0]}"`);
+    }
+    conditions.push(`wpiw_leuchtmittelwechsel: {wechsel: {datum: {${datumParts.join(", ")}}}}`);
   }
 
-  if (values.naechsterLeuchtmittelwechsel?.von) {
-    conditions.push(
-      `naechster_wechsel: {_gte: "${
-        values.naechsterLeuchtmittelwechsel.von.split("T")[0]
-      }"}`
-    );
-  }
-  if (values.naechsterLeuchtmittelwechsel?.bis) {
-    conditions.push(
-      `naechster_wechsel: {_lte: "${
-        values.naechsterLeuchtmittelwechsel.bis.split("T")[0]
-      }"}`
-    );
+  const naechsterWechselCondition = buildDateRangeCondition(
+    "naechster_wechsel",
+    values.naechsterLeuchtmittelwechsel?.von,
+    values.naechsterLeuchtmittelwechsel?.bis
+  );
+  if (naechsterWechselCondition) {
+    conditions.push(naechsterWechselCondition);
   }
 
   // Property conditions
@@ -148,68 +154,50 @@ const buildLeuchteWhereClause = (values: LeuchteSearchValues): string => {
 const buildMastWhereClause = (values: MastSearchValues): string => {
   const conditions: string[] = [];
 
-  // Date range conditions
-  if (values.inbetriebnahmeMast?.von) {
-    conditions.push(
-      `inbetriebnahme_mast: {_gte: "${
-        values.inbetriebnahmeMast.von.split("T")[0]
-      }"}`
-    );
-  }
-  if (values.inbetriebnahmeMast?.bis) {
-    conditions.push(
-      `inbetriebnahme_mast: {_lte: "${
-        values.inbetriebnahmeMast.bis.split("T")[0]
-      }"}`
-    );
+  // Date range conditions (combined into single objects)
+  const inbetriebnahmeCondition = buildDateRangeCondition(
+    "inbetriebnahme_mast",
+    values.inbetriebnahmeMast?.von,
+    values.inbetriebnahmeMast?.bis
+  );
+  if (inbetriebnahmeCondition) {
+    conditions.push(inbetriebnahmeCondition);
   }
 
-  if (values.mastschutz?.von) {
-    conditions.push(
-      `mastschutz: {_gte: "${values.mastschutz.von.split("T")[0]}"}`
-    );
-  }
-  if (values.mastschutz?.bis) {
-    conditions.push(
-      `mastschutz: {_lte: "${values.mastschutz.bis.split("T")[0]}"}`
-    );
+  const mastschutzCondition = buildDateRangeCondition(
+    "mastschutz",
+    values.mastschutz?.von,
+    values.mastschutz?.bis
+  );
+  if (mastschutzCondition) {
+    conditions.push(mastschutzCondition);
   }
 
-  if (values.mastanstrich?.von) {
-    conditions.push(
-      `mastanstrich: {_gte: "${values.mastanstrich.von.split("T")[0]}"}`
-    );
-  }
-  if (values.mastanstrich?.bis) {
-    conditions.push(
-      `mastanstrich: {_lte: "${values.mastanstrich.bis.split("T")[0]}"}`
-    );
+  const mastanstrichCondition = buildDateRangeCondition(
+    "mastanstrich",
+    values.mastanstrich?.von,
+    values.mastanstrich?.bis
+  );
+  if (mastanstrichCondition) {
+    conditions.push(mastanstrichCondition);
   }
 
-  if (values.elektrischePruefung?.von) {
-    conditions.push(
-      `elek_pruefung: {_gte: "${values.elektrischePruefung.von.split("T")[0]}"}`
-    );
-  }
-  if (values.elektrischePruefung?.bis) {
-    conditions.push(
-      `elek_pruefung: {_lte: "${values.elektrischePruefung.bis.split("T")[0]}"}`
-    );
+  const elekPruefungCondition = buildDateRangeCondition(
+    "elek_pruefung",
+    values.elektrischePruefung?.von,
+    values.elektrischePruefung?.bis
+  );
+  if (elekPruefungCondition) {
+    conditions.push(elekPruefungCondition);
   }
 
-  if (values.standsicherheitspruefung?.von) {
-    conditions.push(
-      `standsicherheitspruefung: {_gte: "${
-        values.standsicherheitspruefung.von.split("T")[0]
-      }"}`
-    );
-  }
-  if (values.standsicherheitspruefung?.bis) {
-    conditions.push(
-      `standsicherheitspruefung: {_lte: "${
-        values.standsicherheitspruefung.bis.split("T")[0]
-      }"}`
-    );
+  const standsicherheitCondition = buildDateRangeCondition(
+    "standsicherheitspruefung",
+    values.standsicherheitspruefung?.von,
+    values.standsicherheitspruefung?.bis
+  );
+  if (standsicherheitCondition) {
+    conditions.push(standsicherheitCondition);
   }
 
   // Property conditions
@@ -234,10 +222,44 @@ const buildMastWhereClause = (values: MastSearchValues): string => {
   return conditions.length > 0 ? `where: {${conditions.join(", ")}}` : "";
 };
 
-const SearchModal = ({ defaultOpen = false }: SearchModalProps) => {
+// Helper to generate query string for preview
+const generateQueryString = (
+  searchType: SearchType,
+  values: SearchValues
+): string => {
+  if (searchType === "leuchte") {
+    const whereClause = buildLeuchteWhereClause(values as LeuchteSearchValues);
+    return `query LeuchtenSearch {
+  tdta_leuchten(limit: 500${whereClause ? `, ${whereClause}` : ""}, order_by: {einbaudatum: desc}) {
+    id
+    tdta_standort_mast {
+      geom {
+        geo_field
+      }
+    }
+  }
+}`;
+  } else {
+    const whereClause = buildMastWhereClause(values as MastSearchValues);
+    return `query MastSearch {
+  tdta_standort_mast(limit: 500${whereClause ? `, ${whereClause}` : ""}, order_by: {inbetriebnahme_mast: desc}) {
+    id
+    geom {
+      geo_field
+    }
+  }
+}`;
+  }
+};
+
+const SearchModal = ({
+  defaultOpen = false,
+  showFinalQuery = false,
+}: SearchModalProps) => {
   const [isOpen, setIsOpen] = useState(defaultOpen);
   const [searchType, setSearchType] = useState<SearchType>("leuchte");
   const [isSearching, setIsSearching] = useState(false);
+  const [queryPreview, setQueryPreview] = useState<string>("");
 
   const jwt = useSelector(getJWT);
   const { map } = useLibreContext();
@@ -251,9 +273,22 @@ const SearchModal = ({ defaultOpen = false }: SearchModalProps) => {
     setIsOpen(defaultOpen);
   }, [defaultOpen]);
 
-  const handleValuesChange = useCallback((values: SearchValues) => {
-    searchValuesRef.current = values;
-  }, []);
+  // Update query preview when search type changes
+  useEffect(() => {
+    if (showFinalQuery) {
+      setQueryPreview(generateQueryString(searchType, searchValuesRef.current));
+    }
+  }, [searchType, showFinalQuery]);
+
+  const handleValuesChange = useCallback(
+    (values: SearchValues) => {
+      searchValuesRef.current = values;
+      if (showFinalQuery) {
+        setQueryPreview(generateQueryString(searchType, values));
+      }
+    },
+    [searchType, showFinalQuery]
+  );
 
   // Generic GraphQL search handler
   const handleGraphQLSearch = useCallback(
@@ -477,13 +512,28 @@ const SearchModal = ({ defaultOpen = false }: SearchModalProps) => {
       >
         <div
           style={{
-            height: "min(640px, calc(100vh - 250px))",
+            height: showFinalQuery
+              ? "min(400px, calc(100vh - 450px))"
+              : "min(640px, calc(100vh - 250px))",
             overflowY: "auto",
             paddingRight: 8,
           }}
         >
           {renderSearchComponent()}
         </div>
+        {showFinalQuery && (
+          <div className="mt-4 border-t border-gray-200 pt-4">
+            <div className="text-sm font-medium text-gray-500 mb-2">
+              GraphQL Query:
+            </div>
+            <pre
+              className="bg-gray-900 text-green-400 p-3 rounded text-xs overflow-auto"
+              style={{ maxHeight: "200px" }}
+            >
+              {queryPreview}
+            </pre>
+          </div>
+        )}
       </Modal>
     </>
   );
