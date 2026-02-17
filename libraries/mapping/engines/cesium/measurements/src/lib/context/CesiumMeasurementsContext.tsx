@@ -10,13 +10,7 @@ import React, {
   SetStateAction,
   useEffect,
 } from "react";
-import {
-  Cartesian2,
-  Cartesian3,
-  SceneTransforms,
-  defined,
-  getDegreesFromCartesian,
-} from "@carma/cesium";
+import { Cartesian3, getDegreesFromCartesian } from "@carma/cesium";
 import { useLabelOverlay } from "@carma-providers/label-overlay";
 
 import { normalizeOptions } from "@carma-commons/utils";
@@ -64,7 +58,6 @@ import {
   distancePointToPlane,
   projectPointOntoPlane,
 } from "../utils/planarPolygon";
-import { isPointInsidePolygon2D } from "../utils/distanceVisualization";
 
 type MoveGizmoStartOptions = {
   axisDirection?: Cartesian3 | null;
@@ -191,7 +184,6 @@ const DISTANCE_RELATION_RESTORE_DELAY_MS = 250;
 const PLANAR_POLYGON_RESTORE_DELAY_MS = 250;
 const PLANAR_PROMOTION_DISTANCE_THRESHOLD_METERS = 0.2;
 const PLANAR_PROMOTION_ANGLE_SUM_THRESHOLD_DEG = 150;
-const POLYGON_CLICK_MAX_BOUNDS_SCALE = 2.5;
 const DEFAULT_DISTANCE_RELATION_LABEL_VISIBILITY: Record<
   ReferenceLineLabelKind,
   boolean
@@ -647,132 +639,36 @@ export const CesiumMeasurementsProvider: React.FC<
     [doubleClickChainSourcePointId, pointMeasurementIds]
   );
 
-  const getPlanarPolygonGroupIdAtSceneClick = useCallback(
-    (screenPosition: Cartesian2) => {
-      if (!scene || scene.isDestroyed()) return null;
+  const handlePointQueryBeforePointCreate = useCallback(() => {
+    const hasOpenLineDrawing = Boolean(
+      doubleClickChainSourcePointId &&
+        pointMeasurementIds.has(doubleClickChainSourcePointId)
+    );
+    const activeOpenGroup = activePlanarPolygonGroupId
+      ? planarPolygonGroups.find(
+          (group) => group.id === activePlanarPolygonGroupId && !group.closed
+        ) ?? null
+      : null;
+    const isActiveChainDrawing = hasOpenLineDrawing && Boolean(activeOpenGroup);
 
-      const pointById = getPointPositionMap(measurements);
-      const canvasWidth = Math.max(
-        1,
-        scene.canvas.clientWidth || scene.canvas.width || 1
-      );
-      const canvasHeight = Math.max(
-        1,
-        scene.canvas.clientHeight || scene.canvas.height || 1
-      );
-      const targetPoint = {
-        x: screenPosition.x,
-        y: screenPosition.y,
-      };
-
-      for (let index = planarPolygonGroups.length - 1; index >= 0; index -= 1) {
-        const group = planarPolygonGroups[index];
-        if (!group || group.vertexPointIds.length < 3) continue;
-
-        const screenPolygonPoints = group.vertexPointIds
-          .map((vertexPointId) => {
-            const worldPoint = pointById.get(vertexPointId);
-            if (!worldPoint) return null;
-            const projected = SceneTransforms.worldToWindowCoordinates(
-              scene,
-              worldPoint
-            );
-            if (
-              !defined(projected) ||
-              !Number.isFinite(projected.x) ||
-              !Number.isFinite(projected.y)
-            ) {
-              return null;
-            }
-            return { x: projected.x, y: projected.y };
-          })
-          .filter((point): point is { x: number; y: number } => Boolean(point));
-
-        if (screenPolygonPoints.length < 3) {
-          continue;
-        }
-
-        const minX = Math.min(...screenPolygonPoints.map((point) => point.x));
-        const maxX = Math.max(...screenPolygonPoints.map((point) => point.x));
-        const minY = Math.min(...screenPolygonPoints.map((point) => point.y));
-        const maxY = Math.max(...screenPolygonPoints.map((point) => point.y));
-        const width = maxX - minX;
-        const height = maxY - minY;
-
-        if (
-          !Number.isFinite(width) ||
-          !Number.isFinite(height) ||
-          width <= 0 ||
-          height <= 0 ||
-          width > canvasWidth * POLYGON_CLICK_MAX_BOUNDS_SCALE ||
-          height > canvasHeight * POLYGON_CLICK_MAX_BOUNDS_SCALE
-        ) {
-          continue;
-        }
-
-        if (
-          targetPoint.x < minX ||
-          targetPoint.x > maxX ||
-          targetPoint.y < minY ||
-          targetPoint.y > maxY
-        ) {
-          continue;
-        }
-
-        if (isPointInsidePolygon2D(screenPolygonPoints, targetPoint)) {
-          return group.id;
-        }
-      }
-
-      return null;
-    },
-    [measurements, planarPolygonGroups, scene]
-  );
-
-  const handlePointQueryBeforePointCreate = useCallback(
-    (_positionECEF: Cartesian3 | null, screenPosition: Cartesian2) => {
-      const hasOpenLineDrawing = Boolean(
-        doubleClickChainSourcePointId &&
-          pointMeasurementIds.has(doubleClickChainSourcePointId)
-      );
-      const activeOpenGroup = activePlanarPolygonGroupId
-        ? planarPolygonGroups.find(
-            (group) => group.id === activePlanarPolygonGroupId && !group.closed
-          ) ?? null
-        : null;
-      const isActiveChainDrawing =
-        hasOpenLineDrawing && Boolean(activeOpenGroup);
-
-      if (isActiveChainDrawing) {
-        return true;
-      }
-
-      const hitPolygonGroupId =
-        getPlanarPolygonGroupIdAtSceneClick(screenPosition);
-      if (hitPolygonGroupId) {
-        if (selectedPlanarPolygonGroupId !== hitPolygonGroupId) {
-          selectPlanarPolygonGroupById(hitPolygonGroupId);
-        }
-        return false;
-      }
-
-      if (selectedPlanarPolygonGroupId) {
-        selectPlanarPolygonGroupById(null);
-        return false;
-      }
-
+    if (isActiveChainDrawing) {
       return true;
-    },
-    [
-      activePlanarPolygonGroupId,
-      doubleClickChainSourcePointId,
-      getPlanarPolygonGroupIdAtSceneClick,
-      planarPolygonGroups,
-      pointMeasurementIds,
-      selectPlanarPolygonGroupById,
-      selectedPlanarPolygonGroupId,
-    ]
-  );
+    }
+
+    if (selectedPlanarPolygonGroupId) {
+      selectPlanarPolygonGroupById(null);
+      return false;
+    }
+
+    return true;
+  }, [
+    activePlanarPolygonGroupId,
+    doubleClickChainSourcePointId,
+    planarPolygonGroups,
+    pointMeasurementIds,
+    selectPlanarPolygonGroupById,
+    selectedPlanarPolygonGroupId,
+  ]);
 
   const upsertDirectDistanceRelation = useCallback(
     (sourcePointId: string, targetPointId: string) => {

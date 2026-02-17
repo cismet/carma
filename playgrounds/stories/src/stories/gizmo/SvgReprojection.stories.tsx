@@ -240,7 +240,7 @@ const translationControl = {
 };
 
 const meta: Meta<SvgReprojectionProps> = {
-  title: "Gizmo",
+  title: "Gizmo/SVG Reprojection",
   component: SvgReprojectionStory,
   parameters: {
     layout: "fullscreen",

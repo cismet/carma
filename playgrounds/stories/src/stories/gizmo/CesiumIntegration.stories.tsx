@@ -519,7 +519,7 @@ const GizmoSandbox = (props: GizmoSandboxProps) => {
 };
 
 const meta: Meta<GizmoSandboxProps> = {
-  title: "Gizmo",
+  title: "Gizmo/Cesium Integration",
   component: GizmoSandbox,
   parameters: {
     layout: "fullscreen",

@@ -1,5 +1,12 @@
 /* @refresh reset */
-import { createElement, useCallback, useEffect, useMemo, useRef } from "react";
+import {
+  createElement,
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  type MouseEvent as ReactMouseEvent,
+} from "react";
 
 import {
   BoundingSphere,
@@ -145,6 +152,7 @@ export const useCesiumDistanceVisualizer = (
     distanceRelations = [],
     planarPolygonGroups = [],
     selectedPlanarPolygonGroupId = null,
+    onPlanarPolygonClick,
     onDistanceLineLabelToggle,
     onDistanceRelationMidpointClick,
     lineLabelMinDistancePx = 50,
@@ -411,9 +419,16 @@ export const useCesiumDistanceVisualizer = (
             strokeWidth: POLYGON_PREVIEW_STROKE_WIDTH_PX,
             vectorEffect: "non-scaling-stroke",
             strokeLinejoin: "round",
+            onClick: onPlanarPolygonClick
+              ? (event: ReactMouseEvent<SVGPolygonElement>) => {
+                  event.preventDefault();
+                  event.stopPropagation();
+                  onPlanarPolygonClick(group.id);
+                }
+              : undefined,
             style: {
-              cursor: "default",
-              pointerEvents: "none",
+              cursor: onPlanarPolygonClick ? "pointer" : "default",
+              pointerEvents: onPlanarPolygonClick ? "visiblePainted" : "none",
             },
           }),
           createElement("text", {
@@ -449,7 +464,7 @@ export const useCesiumDistanceVisualizer = (
           })
         )
       ),
-    []
+    [onPlanarPolygonClick]
   );
 
   useEffect(() => {
