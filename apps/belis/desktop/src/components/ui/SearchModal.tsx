@@ -7,6 +7,7 @@ import { useSelector } from "react-redux";
 import { LeuchteSearch, MastSearch } from "./featuresSearches";
 import { getJWT } from "../../store/slices/auth";
 import { ENDPOINT } from "../../constants/belis";
+import { rawDataPreStyle } from "../../helper/uiHelper";
 import { getFromUTM32ToWGS84 } from "@carma/geo/proj";
 import {
   useLibreContext,
@@ -539,10 +540,7 @@ const SearchModal = ({
             <div className="text-sm font-medium text-gray-500 mb-2">
               GraphQL Query:
             </div>
-            <pre
-              className="bg-gray-900 text-green-400 p-3 rounded text-xs overflow-auto"
-              style={{ maxHeight: "200px" }}
-            >
+            <pre style={{ ...rawDataPreStyle, maxHeight: 200 }}>
               {queryPreview}
             </pre>
           </div>
