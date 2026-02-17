@@ -98,6 +98,9 @@ const buildDateRangeCondition = (
 const buildLeuchteWhereClause = (values: LeuchteSearchValues): string => {
   const conditions: string[] = [];
 
+  // Exclude deleted records (handle both false and null values)
+  conditions.push(`_or: [{is_deleted: {_eq: false}}, {is_deleted: {_is_null: true}}]`);
+
   // Date range conditions (combined into single objects)
   const inbetriebnahmeCondition = buildDateRangeCondition(
     "inbetriebnahme_leuchte",
@@ -151,6 +154,9 @@ const buildLeuchteWhereClause = (values: LeuchteSearchValues): string => {
 
 const buildMastWhereClause = (values: MastSearchValues): string => {
   const conditions: string[] = [];
+
+  // Exclude deleted records (handle both false and null values)
+  conditions.push(`_or: [{is_deleted: {_eq: false}}, {is_deleted: {_is_null: true}}]`);
 
   // Date range conditions (combined into single objects)
   const inbetriebnahmeCondition = buildDateRangeCondition(
@@ -228,7 +234,9 @@ const generateQueryString = (
   if (searchType === "leuchte") {
     const whereClause = buildLeuchteWhereClause(values as LeuchteSearchValues);
     return `query LeuchtenSearch {
-  tdta_leuchten(limit: 500${whereClause ? `, ${whereClause}` : ""}, order_by: {einbaudatum: desc}) {
+  tdta_leuchten(limit: 500${
+    whereClause ? `, ${whereClause}` : ""
+  }, order_by: {einbaudatum: desc}) {
     id
     tdta_standort_mast {
       geom {
@@ -240,7 +248,9 @@ const generateQueryString = (
   } else {
     const whereClause = buildMastWhereClause(values as MastSearchValues);
     return `query MastSearch {
-  tdta_standort_mast(limit: 500${whereClause ? `, ${whereClause}` : ""}, order_by: {inbetriebnahme_mast: desc}) {
+  tdta_standort_mast(limit: 500${
+    whereClause ? `, ${whereClause}` : ""
+  }, order_by: {inbetriebnahme_mast: desc}) {
     id
     geom {
       geo_field
@@ -313,8 +323,8 @@ const SearchModal = ({
       }
 
       setIsSearching(true);
-      console.log(`xxx ${logPrefix} Fetching data...`);
-      console.log(`xxx ${logPrefix} Query:`, query);
+      // console.log(`xxx ${logPrefix} Fetching data...`);
+      // console.log(`xxx ${logPrefix} Query:`, query);
 
       fetch(ENDPOINT, {
         method: "POST",
@@ -326,7 +336,7 @@ const SearchModal = ({
       })
         .then((res) => res.json())
         .then((json) => {
-          console.log(`xxx ${logPrefix} Raw result:`, json);
+          // console.log(`xxx ${logPrefix} Raw result:`, json);
           const results = json.data?.[dataKey] ?? [];
           console.log(`xxx ${logPrefix} Result count:`, results.length);
 
@@ -356,8 +366,8 @@ const SearchModal = ({
             minLat: Math.min(...coords.map((c) => c[1])),
             maxLat: Math.max(...coords.map((c) => c[1])),
           };
-          console.log(`${logPrefix} BBox:`, bbox);
-          console.log(`${logPrefix} Coordinates:`, coords);
+          // console.log(`${logPrefix} BBox:`, bbox);
+          // console.log(`${logPrefix} Coordinates:`, coords);
 
           // Highlight the returned features on the map
           const ids = results
@@ -370,8 +380,8 @@ const SearchModal = ({
           );
 
           highlightByIds(highlightArray);
-          console.log(`${logPrefix} Highlighted`, ids.length, "features");
-          console.log(`${logPrefix} Highlight Array`, highlightArray);
+          // console.log(`${logPrefix} Highlighted`, ids.length, "features");
+          // console.log(`${logPrefix} Highlight Array`, highlightArray);
 
           if (map) {
             map.fitBounds(
@@ -381,7 +391,7 @@ const SearchModal = ({
               ],
               { padding: 50 }
             );
-            console.log(`${logPrefix} Map fitted to bounds`);
+            // console.log(`${logPrefix} Map fitted to bounds`);
           }
 
           setIsSearching(false);
