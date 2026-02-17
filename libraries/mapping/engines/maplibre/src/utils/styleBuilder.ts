@@ -492,9 +492,12 @@ export const vectorStylesToMapLibreStyle = async ({
                 if (styleLayer.id.toLowerCase().includes("selection"))
                   return {};
                 // Symbol layers need both text-opacity and icon-opacity
-                const props = styleLayer.type === "symbol"
-                  ? ["text-opacity", "icon-opacity"]
-                  : [getPaintProperty(styleLayer)].filter(Boolean) as string[];
+                const props =
+                  styleLayer.type === "symbol"
+                    ? ["text-opacity", "icon-opacity"]
+                    : ([getPaintProperty(styleLayer)].filter(
+                        Boolean
+                      ) as string[]);
                 if (props.length === 0) return {};
                 const layerOpacity = layer.opacity ?? 1;
                 const result: Record<string, unknown> = {};
@@ -505,8 +508,8 @@ export const vectorStylesToMapLibreStyle = async ({
                     typeof baseOpacity === "number"
                       ? baseOpacity * layerOpacity
                       : layerOpacity < 1
-                        ? layerOpacity
-                        : baseOpacity;
+                      ? layerOpacity
+                      : baseOpacity;
                 }
                 return result;
               })(),

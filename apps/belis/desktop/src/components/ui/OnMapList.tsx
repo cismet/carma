@@ -293,8 +293,7 @@ const OnMapList = ({
       const currentIdx = flatFeatures.findIndex((f) => isFeatureSelected(f));
       let nextIdx: number;
       if (e.key === "ArrowDown") {
-        nextIdx =
-          currentIdx < 0 ? 0 : (currentIdx + 1) % flatFeatures.length;
+        nextIdx = currentIdx < 0 ? 0 : (currentIdx + 1) % flatFeatures.length;
       } else {
         nextIdx =
           currentIdx < 0
@@ -357,8 +356,7 @@ const OnMapList = ({
     >
       <div className="px-3 py-2 border-b border-gray-300 bg-gray-50 font-bold text-sm flex justify-between items-center">
         <span>
-          Objekte (
-          {highlightingActive ? filteredFeatures.length : totalCount})
+          Objekte ({highlightingActive ? filteredFeatures.length : totalCount})
         </span>
         {isLoading && <span className="text-xs text-gray-500">...</span>}
         {isOverviewMode && !isLoading && (

@@ -39,30 +39,20 @@ export const useLayerFilter = ({
 }: UseLayerFilterOptions): UseLayerFilterResult => {
   const [enabledFilters, setEnabledFilters] = useState<Record<string, boolean>>(
     () =>
-      initialState ??
-      Object.fromEntries(categories.map((c) => [c.key, true])),
+      initialState ?? Object.fromEntries(categories.map((c) => [c.key, true]))
   );
 
-  const setFilterEnabled = useCallback(
-    (key: string, enabled: boolean) => {
-      setEnabledFilters((prev) => ({ ...prev, [key]: enabled }));
-    },
-    [],
-  );
+  const setFilterEnabled = useCallback((key: string, enabled: boolean) => {
+    setEnabledFilters((prev) => ({ ...prev, [key]: enabled }));
+  }, []);
 
-  const toggleFilter = useCallback(
-    (key: string) => {
-      setEnabledFilters((prev) => ({ ...prev, [key]: !prev[key] }));
-    },
-    [],
-  );
+  const toggleFilter = useCallback((key: string) => {
+    setEnabledFilters((prev) => ({ ...prev, [key]: !prev[key] }));
+  }, []);
 
-  const setAllFilters = useCallback(
-    (state: Record<string, boolean>) => {
-      setEnabledFilters(state);
-    },
-    [],
-  );
+  const setAllFilters = useCallback((state: Record<string, boolean>) => {
+    setEnabledFilters(state);
+  }, []);
 
   // Compute the set of active source layers from enabled categories
   const activeSourceLayers = useMemo(() => {
@@ -85,13 +75,13 @@ export const useLayerFilter = ({
       const visible = enabledFilters[cat.key] !== false;
       for (const layer of style.layers) {
         const matchesPattern = cat.layerPatterns.some((p) =>
-          layer.id.toLowerCase().includes(p),
+          layer.id.toLowerCase().includes(p)
         );
         if (matchesPattern) {
           map.setLayoutProperty(
             layer.id,
             "visibility",
-            visible ? "visible" : "none",
+            visible ? "visible" : "none"
           );
         }
       }

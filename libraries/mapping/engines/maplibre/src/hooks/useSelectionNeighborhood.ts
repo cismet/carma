@@ -48,7 +48,11 @@ export const useSelectionNeighborhood = ({
   const enabled = typeof isNeighbor === "function";
 
   const applyNeighborhood = useCallback(
-    (mapInst: MaplibreMap, selectedProps: Record<string, unknown>, selSourceLayer: string) => {
+    (
+      mapInst: MaplibreMap,
+      selectedProps: Record<string, unknown>,
+      selSourceLayer: string
+    ) => {
       if (!sources) return;
       for (const { source, sourceLayers } of sources) {
         for (const sourceLayer of sourceLayers) {

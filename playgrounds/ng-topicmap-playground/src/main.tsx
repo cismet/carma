@@ -37,20 +37,23 @@ root.render(
             <SelectionProvider>
               <LibreContextProvider>
                 <MapSelectionProvider debug>
-                <MapHighlightProvider debug>
-                  <Routes>
-                    <Route path="/" element={<Navigate to="/stadtplan" replace />} />
-                    <Route path="/stadtplan" element={<Stadtplan />} />
-                    <Route path="/simple" element={<SimpleMap />} />
-                    <Route
-                      path="/simpleWithoutControls"
-                      element={<SimpleMapWithoutControls />}
-                    />
-                    <Route path="/belis" element={<BelisPlayground />} />
-                    <Route path="/alkis" element={<AlkisPlayground />} />
-                    <Route path="/stadtplan2" element={<Stadtplan2 />} />
-                  </Routes>
-                </MapHighlightProvider>
+                  <MapHighlightProvider debug>
+                    <Routes>
+                      <Route
+                        path="/"
+                        element={<Navigate to="/stadtplan" replace />}
+                      />
+                      <Route path="/stadtplan" element={<Stadtplan />} />
+                      <Route path="/simple" element={<SimpleMap />} />
+                      <Route
+                        path="/simpleWithoutControls"
+                        element={<SimpleMapWithoutControls />}
+                      />
+                      <Route path="/belis" element={<BelisPlayground />} />
+                      <Route path="/alkis" element={<AlkisPlayground />} />
+                      <Route path="/stadtplan2" element={<Stadtplan2 />} />
+                    </Routes>
+                  </MapHighlightProvider>
                 </MapSelectionProvider>
               </LibreContextProvider>
             </SelectionProvider>

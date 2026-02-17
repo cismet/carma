@@ -120,7 +120,9 @@ export interface LibreMapProps {
    * Receives filtered hits (no selection/cluster layers).
    * Return the preferred feature, or undefined to clear selection.
    * If omitted, the first hit is selected (default behavior). */
-  selectFromHits?: (hits: maplibregl.MapGeoJSONFeature[]) => maplibregl.MapGeoJSONFeature | undefined;
+  selectFromHits?: (
+    hits: maplibregl.MapGeoJSONFeature[]
+  ) => maplibregl.MapGeoJSONFeature | undefined;
   /** Enable debug logging for [LAYER_MODE] and [StyleComposer] messages */
   debugLog?: boolean;
   /** Expose the map instance as window.__carmaMap for console debugging */

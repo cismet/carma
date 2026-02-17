@@ -60,4 +60,5 @@ export const getSelectedFeature = (state) => {
 
 export const getDone = (state) => state.featureCollection.done;
 export const isInFocusMode = (state) => state.featureCollection.inFocusMode;
-export const getFeatureLoading = (state) => state.featureCollection.featureLoading;
+export const getFeatureLoading = (state) =>
+  state.featureCollection.featureLoading;

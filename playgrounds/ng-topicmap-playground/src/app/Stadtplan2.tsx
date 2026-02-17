@@ -64,7 +64,9 @@ const Stadtplan2 = () => {
     map.on("click", (e) => {
       // We don't have access to highlightingActive here via closure (it would be stale),
       // so we read the global state directly from the map.
-      const globalState = (map as unknown as { getGlobalState(): Record<string, unknown> }).getGlobalState();
+      const globalState = (
+        map as unknown as { getGlobalState(): Record<string, unknown> }
+      ).getGlobalState();
       if (!globalState?.highlightingEnabled) return;
 
       const hits = map.queryRenderedFeatures(e.point);
@@ -158,7 +160,9 @@ const Stadtplan2 = () => {
         <button
           onClick={toggleHighlighting}
           style={highlightingActive ? activeStyle : controlButtonStyle}
-          title={highlightingActive ? "Stop Highlighting" : "Start Highlighting"}
+          title={
+            highlightingActive ? "Stop Highlighting" : "Start Highlighting"
+          }
         >
           {highlightingActive ? "\u25A0" : "\u2606"}
         </button>

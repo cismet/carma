@@ -55,13 +55,10 @@ export interface MapHighlightContextType {
   highlightByProperty: (
     property: string,
     regex: RegExp,
-    sourceLayers?: string[],
+    sourceLayers?: string[]
   ) => void;
   /** Parse "sourceLayer:value" strings, match against properties.id by default */
-  highlightByIds: (
-    ids: string[],
-    options?: { property?: string },
-  ) => void;
+  highlightByIds: (ids: string[], options?: { property?: string }) => void;
   /** Toggle a single feature (for click interactions) */
   toggleFeatureHighlight: (id: ToggledFeature) => void;
   /** Clear everything */
@@ -128,7 +125,7 @@ export const MapHighlightProvider = ({
       });
       bump();
     },
-    [debug, bump],
+    [debug, bump]
   );
 
   const highlightByIds = useCallback(
@@ -156,7 +153,7 @@ export const MapHighlightProvider = ({
       }
       bump();
     },
-    [debug, bump],
+    [debug, bump]
   );
 
   const toggleFeatureHighlight = useCallback(
@@ -172,7 +169,7 @@ export const MapHighlightProvider = ({
       }
       bump();
     },
-    [debug, bump],
+    [debug, bump]
   );
 
   const clearHighlights = useCallback(() => {
@@ -203,7 +200,7 @@ export const MapHighlightProvider = ({
       toggleFeatureHighlight,
       clearHighlights,
       highlightVersion,
-    ],
+    ]
   );
 
   return (

@@ -284,17 +284,18 @@ export class StyleComposer {
       if (!styleLayer.id.toLowerCase().includes("selection")) {
         const paint = (layer.paint || {}) as Record<string, unknown>;
         // Symbol layers need both text-opacity and icon-opacity
-        const props = styleLayer.type === "symbol"
-          ? ["text-opacity", "icon-opacity"]
-          : [getPaintProperty(styleLayer)].filter(Boolean) as string[];
+        const props =
+          styleLayer.type === "symbol"
+            ? ["text-opacity", "icon-opacity"]
+            : ([getPaintProperty(styleLayer)].filter(Boolean) as string[]);
         for (const prop of props) {
           const baseOpacity = paint[prop] ?? 1;
           paint[prop] =
             typeof baseOpacity === "number"
               ? baseOpacity * opacity
               : opacity < 1
-                ? opacity
-                : baseOpacity;
+              ? opacity
+              : baseOpacity;
         }
         layer.paint = paint;
       }
@@ -692,7 +693,11 @@ export class StyleComposer {
       } else if (type === "background") {
         this.map.setPaintProperty(namespacedId, "background-opacity", opacity);
       } else if (type === "fill-extrusion") {
-        this.map.setPaintProperty(namespacedId, "fill-extrusion-opacity", opacity);
+        this.map.setPaintProperty(
+          namespacedId,
+          "fill-extrusion-opacity",
+          opacity
+        );
       } else if (type === "heatmap") {
         this.map.setPaintProperty(namespacedId, "heatmap-opacity", opacity);
       }

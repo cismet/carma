@@ -254,11 +254,11 @@ export const MapFrameworkSwitcherProvider = ({
     // Always allow app-level pre-transition staging for dynamic content
     // (for example adhoc models/primitives added while staying in 2D).
     const beforeTransition = callbacksRef.current.onBeforeTransitionToCesium;
-      try {
-        if (beforeTransition) {
-          setPreparingCesiumMessage("3D Modelle werden geladen");
-          await beforeTransition();
-        }
+    try {
+      if (beforeTransition) {
+        setPreparingCesiumMessage("3D Modelle werden geladen");
+        await beforeTransition();
+      }
 
       const isSameLiveScene =
         stagedCesiumSceneRef.current === scene && !scene.isDestroyed();
@@ -272,11 +272,11 @@ export const MapFrameworkSwitcherProvider = ({
         return;
       }
 
-        const stagingPromise = (async () => {
-          console.debug("[FRAMEWORK-SWITCHER] Cesium staging start");
-          setPreparingCesiumMessage("3D Modelle werden geladen");
-          // Ensure Cesium has completed a few render cycles before first fade/animation.
-          await waitForRenderFrames(scene, 5);
+      const stagingPromise = (async () => {
+        console.debug("[FRAMEWORK-SWITCHER] Cesium staging start");
+        setPreparingCesiumMessage("3D Modelle werden geladen");
+        // Ensure Cesium has completed a few render cycles before first fade/animation.
+        await waitForRenderFrames(scene, 5);
 
         if (!scene.isDestroyed()) {
           stagedCesiumSceneRef.current = scene;

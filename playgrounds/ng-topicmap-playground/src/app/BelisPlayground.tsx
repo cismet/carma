@@ -351,8 +351,17 @@ const BelisPlaygroundContent = () => {
   useSelectionNeighborhood({
     map,
     sources: highlightSources,
-    isNeighbor: (selectedProps, candidateProps, candidateSourceLayer, selectedSourceLayer) => {
-      if (selectedSourceLayer !== "leuchten" || candidateSourceLayer !== "leuchten") return false;
+    isNeighbor: (
+      selectedProps,
+      candidateProps,
+      candidateSourceLayer,
+      selectedSourceLayer
+    ) => {
+      if (
+        selectedSourceLayer !== "leuchten" ||
+        candidateSourceLayer !== "leuchten"
+      )
+        return false;
       const selected = selectedProps.fk_standort;
       const candidate = candidateProps.fk_standort;
       return (

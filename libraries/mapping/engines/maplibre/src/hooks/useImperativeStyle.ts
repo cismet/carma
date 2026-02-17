@@ -149,7 +149,10 @@ export function useImperativeStyle({
         const opacities = new Map<string, number>();
         for (let i = 0; i < effectiveLayers.length; i++) {
           const layer = effectiveLayers[i];
-          opacities.set(newIds[i], ("opacity" in layer ? layer.opacity : undefined) ?? 1);
+          opacities.set(
+            newIds[i],
+            ("opacity" in layer ? layer.opacity : undefined) ?? 1
+          );
         }
         prevOpacitiesRef.current = opacities;
 
@@ -311,12 +314,17 @@ export function useImperativeStyle({
         for (let i = 0; i < effectiveLayers.length; i++) {
           const layer = effectiveLayers[i];
           const id = newIds[i];
-          const newOpacity = ("opacity" in layer ? layer.opacity : undefined) ?? 1;
+          const newOpacity =
+            ("opacity" in layer ? layer.opacity : undefined) ?? 1;
           const prevOpacity = prevOpacitiesRef.current.get(id) ?? 1;
           if (newOpacity !== prevOpacity) {
             if (layer.type === "vector") {
               composer.updateVectorOpacity(layer.style!, newOpacity);
-            } else if (layer.type === "wms" || layer.type === "wmts" || layer.type === "cog") {
+            } else if (
+              layer.type === "wms" ||
+              layer.type === "wmts" ||
+              layer.type === "cog"
+            ) {
               composer.updateRasterOpacity(id, newOpacity);
             }
             prevOpacitiesRef.current.set(id, newOpacity);

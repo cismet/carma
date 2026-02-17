@@ -31,7 +31,7 @@ export interface UseMapHighlightingOptions {
 
 /** Discover all vector sources and their source layers from the map style. */
 function discoverSources(
-  map: MaplibreMap,
+  map: MaplibreMap
 ): Array<{ source: string; sourceLayers: string[] }> {
   const style = map.getStyle();
   if (!style?.layers) return [];
@@ -39,7 +39,12 @@ function discoverSources(
   // Collect source layers per source from layers
   const sourceMap = new Map<string, Set<string>>();
   for (const layer of style.layers) {
-    if ("source" in layer && layer.source && "source-layer" in layer && layer["source-layer"]) {
+    if (
+      "source" in layer &&
+      layer.source &&
+      "source-layer" in layer &&
+      layer["source-layer"]
+    ) {
       const src = layer.source as string;
       const sl = layer["source-layer"] as string;
       if (!sourceMap.has(src)) sourceMap.set(src, new Set());
@@ -62,7 +67,7 @@ function matchesCriteria(
   featureProps: Record<string, unknown>,
   featureId: string | number,
   sourceLayer: string,
-  source: string,
+  source: string
 ): boolean {
   const toggleKey = `${source}::${sourceLayer}::${featureId}`;
   const isToggled = criteria.toggledFeatures.has(toggleKey);
@@ -136,17 +141,17 @@ export const useMapHighlighting = ({
               props,
               f.id,
               sourceLayer,
-              source,
+              source
             );
             mapInst.setFeatureState(
               { source, sourceLayer, id: f.id },
-              { [stateKey]: shouldHighlight },
+              { [stateKey]: shouldHighlight }
             );
           }
         }
       }
     },
-    [criteria, explicitSources, stateKey],
+    [criteria, explicitSources, stateKey]
   );
 
   // Clear all highlight state from loaded features
@@ -162,13 +167,13 @@ export const useMapHighlighting = ({
             if (f.id == null) continue;
             mapInst.setFeatureState(
               { source, sourceLayer, id: f.id },
-              { [stateKey]: false },
+              { [stateKey]: false }
             );
           }
         }
       }
     },
-    [explicitSources, stateKey],
+    [explicitSources, stateKey]
   );
 
   // Sync highlightingActive to map global state
@@ -213,9 +218,7 @@ export const useMapHighlighting = ({
   useEffect(() => {
     if (!map || !modifierClick) return;
 
-    const handler = (
-      e: MapMouseEvent & { originalEvent: MouseEvent },
-    ) => {
+    const handler = (e: MapMouseEvent & { originalEvent: MouseEvent }) => {
       const orig = e.originalEvent;
       const modifierPressed =
         (modifierClick === "alt" && orig.altKey) ||
@@ -231,7 +234,7 @@ export const useMapHighlighting = ({
           f.source &&
           f.sourceLayer &&
           !f.layer.id.includes("selection") &&
-          !f.layer.id.includes("background"),
+          !f.layer.id.includes("background")
       );
       if (!feature) return;
 
@@ -251,5 +254,11 @@ export const useMapHighlighting = ({
     return () => {
       map.off("click", handler);
     };
-  }, [map, modifierClick, highlightingActive, setHighlightingActive, toggleFeatureHighlight]);
+  }, [
+    map,
+    modifierClick,
+    highlightingActive,
+    setHighlightingActive,
+    toggleFeatureHighlight,
+  ]);
 };
