@@ -471,7 +471,7 @@ const SearchModal = ({
       handleGraphQLSearch({
         query,
         dataKey: "tdta_standort_mast",
-        featurePrefix: "masten",
+        featurePrefix: "mast",
         logPrefix: "[MAST_SEARCH]",
         getGeometry: (item) => {
           const geom = item.geom as Record<string, unknown> | undefined;
