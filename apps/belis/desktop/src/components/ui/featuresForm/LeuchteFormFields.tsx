@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useMemo } from "react";
 import {
   Form,
   Row,
@@ -12,6 +12,28 @@ import {
 import { useSelector } from "react-redux";
 import { getKeyTablesData } from "../../../store/slices/keyTables";
 import dayjs from "dayjs";
+
+// Helper to sort options based on display text (same sorting as KeyTablesPage)
+type SortMode = "none" | "alphabetical" | "numeric";
+
+const sortOptions = <T,>(
+  options: T[],
+  getDisplayText: (item: T) => string,
+  sortMode: SortMode = "none"
+): T[] => {
+  if (sortMode === "none") return options;
+  return [...options].sort((a, b) => {
+    const aText = getDisplayText(a);
+    const bText = getDisplayText(b);
+    if (sortMode === "alphabetical") {
+      return aText.localeCompare(bText, "de", { sensitivity: "base" });
+    }
+    if (sortMode === "numeric") {
+      return aText.localeCompare(bText, "de", { numeric: true });
+    }
+    return 0;
+  });
+};
 
 interface LeuchteFormFieldsProps {
   leuchte: Record<string, unknown> | null;
@@ -48,6 +70,7 @@ interface DoppelkommandoItem {
 
 interface UnterhaltLeuchteItem {
   id: number;
+  pk?: number;
   unterhaltspflichtiger_leuchte?: string;
 }
 
@@ -72,20 +95,64 @@ const LeuchteFormFields = ({ leuchte, namePrefix }: LeuchteFormFieldsProps) => {
   const [form] = Form.useForm();
   const keyTablesData = useSelector(getKeyTablesData);
 
-  // Key table options
-  const leuchttypOptions = (keyTablesData.leuchtentyp || []) as LeuchttypItem[];
-  const kennzifferOptions = (keyTablesData.kennziffer ||
-    []) as KennzifferItem[];
-  const energielieferantOptions = (keyTablesData.energielieferant ||
-    []) as EnergielieferantItem[];
-  const doppelkommandoOptions = (keyTablesData.doppelkommando ||
-    []) as DoppelkommandoItem[];
-  const unterhaltLeuchteOptions = (keyTablesData.unterhaltLeuchte ||
-    []) as UnterhaltLeuchteItem[];
+  // Key table options (sorted to match KeyTablesPage display order)
+  const leuchttypOptions = useMemo(
+    () =>
+      sortOptions(
+        (keyTablesData.leuchtentyp || []) as LeuchttypItem[],
+        (item) => `${item.leuchtentyp || ""} ${item.fabrikat || ""}`.trim(),
+        "alphabetical"
+      ),
+    [keyTablesData.leuchtentyp]
+  );
+  const kennzifferOptions = useMemo(
+    () =>
+      sortOptions(
+        (keyTablesData.kennziffer || []) as KennzifferItem[],
+        (item) => `${item.kennziffer || ""} - ${item.beschreibung || ""}`,
+        "numeric"
+      ),
+    [keyTablesData.kennziffer]
+  );
+  const energielieferantOptions = useMemo(
+    () =>
+      sortOptions(
+        (keyTablesData.energielieferant || []) as EnergielieferantItem[],
+        (item) => item.energielieferant || "",
+        "alphabetical"
+      ),
+    [keyTablesData.energielieferant]
+  );
+  const doppelkommandoOptions = useMemo(
+    () =>
+      sortOptions(
+        (keyTablesData.doppelkommando || []) as DoppelkommandoItem[],
+        (item) => `${item.pk || ""} - ${item.beschreibung || ""}`,
+        "numeric"
+      ),
+    [keyTablesData.doppelkommando]
+  );
+  const unterhaltLeuchteOptions = useMemo(
+    () =>
+      sortOptions(
+        (keyTablesData.unterhaltLeuchte || []) as UnterhaltLeuchteItem[],
+        (item) =>
+          `${item.pk ?? ""} - ${item.unterhaltspflichtiger_leuchte || ""}`,
+        "numeric"
+      ),
+    [keyTablesData.unterhaltLeuchte]
+  );
   const leuchtmittelOptions = (keyTablesData.leuchtmittel ||
     []) as LeuchtmittelItem[];
-  const rundsteuerempfaengerOptions = (keyTablesData["rundsteuerempfänger"] ||
-    []) as RundsteuerempfaengerItem[];
+  const rundsteuerempfaengerOptions = useMemo(
+    () =>
+      sortOptions(
+        (keyTablesData["rundsteuerempfänger"] || []) as RundsteuerempfaengerItem[],
+        (item) => `${item.rs_typ || ""}`,
+        "alphabetical"
+      ),
+    [keyTablesData["rundsteuerempfänger"]]
+  );
 
   // Helper to create field name with optional prefix
   const fieldName = (name: string) => (namePrefix ? [namePrefix, name] : name);
