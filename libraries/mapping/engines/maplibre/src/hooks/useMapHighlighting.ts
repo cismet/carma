@@ -121,6 +121,9 @@ export const useMapHighlighting = ({
   // Apply highlight feature state to all currently loaded features
   const applyHighlights = useCallback(
     (mapInst: MaplibreMap) => {
+      // Guard: style must be loaded before we can query sources/features
+      if (!mapInst.isStyleLoaded()) return;
+
       const srcs = explicitSources ?? discoverSources(mapInst);
 
       for (const { source, sourceLayers } of srcs) {
@@ -152,6 +155,9 @@ export const useMapHighlighting = ({
   // Clear all highlight state from loaded features
   const clearAllState = useCallback(
     (mapInst: MaplibreMap) => {
+      // Guard: style must be loaded before we can query sources/features
+      if (!mapInst.isStyleLoaded()) return;
+
       const srcs = explicitSources ?? discoverSources(mapInst);
       for (const { source, sourceLayers } of srcs) {
         for (const sourceLayer of sourceLayers) {
