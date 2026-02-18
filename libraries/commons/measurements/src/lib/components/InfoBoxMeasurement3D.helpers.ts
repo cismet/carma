@@ -29,7 +29,7 @@ type DistanceRelationLike = {
   showComponentLines?: boolean;
 };
 
-type PolygonSurfaceType = "roof" | "facade";
+type PolygonSurfaceType = "roof" | "facade" | "terrain" | "footprint";
 
 export type PolygonGroupLike = {
   id: string;
@@ -249,12 +249,15 @@ export const getConnectedPolygonGroups = (
 export const getPolygonGroupSurfaceTypeLabel = (
   connectedGroups: PolygonGroupLike[]
 ) => {
-  if (connectedGroups.length === 0) return "Dach";
+  if (connectedGroups.length === 0) return "Dachfläche";
   const normalizedSurfaceTypes = new Set(
     connectedGroups.map((group) => group.surfaceType ?? "roof")
   );
   if (normalizedSurfaceTypes.size > 1) return "Gemischt";
-  return normalizedSurfaceTypes.has("facade") ? "Fassade" : "Dach";
+  if (normalizedSurfaceTypes.has("facade")) return "Fassadenfläche";
+  if (normalizedSurfaceTypes.has("terrain")) return "Gelände";
+  if (normalizedSurfaceTypes.has("footprint")) return "Grundriss";
+  return "Dachfläche";
 };
 
 export const getPolygonGroupAreaSumsByType = (

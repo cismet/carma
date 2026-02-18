@@ -698,14 +698,36 @@ export const getSplitMarkerRelationIdSet = (
   return ids;
 };
 
+export const getSplitMarkerRelationIdSetForGroups = (
+  planarPolygonGroups: PlanarPolygonGroup[],
+  groupIds: ReadonlySet<string>
+) => {
+  if (groupIds.size === 0) return new Set<string>();
+  const ids = new Set<string>();
+  planarPolygonGroups.forEach((group) => {
+    if (!groupIds.has(group.id)) return;
+    group.edgeRelationIds.forEach((edgeRelationId) => {
+      ids.add(edgeRelationId);
+    });
+  });
+  return ids;
+};
+
 export const getRoofRoofSharedEdgeRelationIdSet = (
   planarPolygonGroups: PlanarPolygonGroup[]
 ) => {
   const relationUsageCount = new Map<string, number>();
-  const relationSurfaceTypes = new Map<string, Set<"roof" | "facade">>();
+  const relationSurfaceTypes = new Map<
+    string,
+    Set<"roof" | "facade" | "terrain" | "footprint">
+  >();
 
   planarPolygonGroups.forEach((group) => {
-    const surfaceType = (group.surfaceType ?? "roof") as "roof" | "facade";
+    const surfaceType = (group.surfaceType ?? "roof") as
+      | "roof"
+      | "facade"
+      | "terrain"
+      | "footprint";
     group.edgeRelationIds.forEach((edgeRelationId) => {
       if (!edgeRelationId) return;
       relationUsageCount.set(

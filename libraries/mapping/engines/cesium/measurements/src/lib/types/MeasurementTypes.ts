@@ -20,8 +20,16 @@ export type ReferenceLineLabelKind = "direct" | "vertical" | "horizontal";
 export type DistanceRelationLabelVisibilityByKind = Partial<
   Record<ReferenceLineLabelKind, boolean>
 >;
+export type DirectLineLabelMode = "segment" | "cumulative" | "none";
 
-export type SurfaceType = "roof" | "facade";
+export type PolylinePointLabelMode =
+  | "cumulativeDistance"
+  | "elevationSinceStart"
+  | "elevationSinceLastNode";
+export const DEFAULT_POLYLINE_POINT_LABEL_MODE: PolylinePointLabelMode =
+  "cumulativeDistance";
+
+export type SurfaceType = "roof" | "facade" | "terrain" | "footprint";
 
 export type SerializableCartesian3 = {
   x: number;
@@ -39,12 +47,24 @@ export type PlanarPolygonGroup = {
   name?: string;
   vertexPointIds: string[];
   edgeRelationIds: string[];
+  distanceMeasurementStartPointId?: string;
   closed: boolean;
   planeLocked: boolean;
   plane?: PlanarPolygonPlane;
   areaSquareMeters?: number;
   verticalityDeg?: number;
   surfaceType?: SurfaceType;
+};
+
+export type PolylineCollection = {
+  id: string;
+  name?: string;
+  vertexPointIds: string[];
+  edgeRelationIds: string[];
+  distanceMeasurementStartPointId: string | null;
+  segmentLengthsMeters: number[];
+  segmentLengthsCumulativeMeters: number[];
+  totalLengthMeters: number;
 };
 
 export type PointDistanceRelation = {
@@ -59,6 +79,7 @@ export type PointDistanceRelation = {
   showHorizontalLine?: boolean;
   showComponentLines?: boolean;
   labelVisibilityByKind?: DistanceRelationLabelVisibilityByKind;
+  directLabelMode?: DirectLineLabelMode;
 };
 
 export type PointReferenceLineAnnotation = {

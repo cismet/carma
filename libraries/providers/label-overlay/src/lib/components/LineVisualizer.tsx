@@ -13,6 +13,7 @@ export interface LineVisualizerProps {
   labelFontFamily?: string;
   labelFontWeight?: string | number;
   onLineClick?: () => void;
+  onLabelClick?: () => void;
 }
 
 export const LineVisualizer = React.memo(
@@ -29,8 +30,11 @@ export const LineVisualizer = React.memo(
     labelFontFamily = "Arial, sans-serif",
     labelFontWeight = "400",
     onLineClick,
+    onLabelClick,
   }: LineVisualizerProps) => {
     const isInteractive = typeof onLineClick === "function";
+    const isLabelInteractive =
+      typeof onLabelClick === "function" || isInteractive;
 
     return (
       <svg
@@ -94,10 +98,10 @@ export const LineVisualizer = React.memo(
           fontWeight={labelFontWeight}
           style={{
             userSelect: "none",
-            pointerEvents: isInteractive ? "auto" : "none",
-            cursor: isInteractive ? "pointer" : "default",
+            pointerEvents: isLabelInteractive ? "auto" : "none",
+            cursor: isLabelInteractive ? "pointer" : "default",
           }}
-          onClick={onLineClick}
+          onClick={onLabelClick ?? onLineClick}
         >
           {labelText ?? ""}
         </text>

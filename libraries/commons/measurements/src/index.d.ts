@@ -105,6 +105,8 @@ export interface MeasurementTitleProps {
   placeholderText?: string;
   clearPlaceholderOnFocus?: boolean;
   showOrder?: boolean;
+  capitalize?: boolean;
+  multiline?: boolean;
 }
 
 export interface MeasurementControlProps {

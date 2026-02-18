@@ -43,6 +43,7 @@ export type CesiumPointVisualizerOptions = {
   referenceElevation?: number;
   selectedPointId?: string | null;
   selectedPlanarPolygonGroupId?: string | null;
+  activePlanarPolygonGroupId?: string | null;
   distanceRelations?: PointDistanceRelation[];
   planarPolygonGroups?: PlanarPolygonGroup[];
   onPlanarPolygonClick?: (polygonGroupId: string) => void;
@@ -54,12 +55,18 @@ export type CesiumPointVisualizerOptions = {
   ) => void;
   onPointPlaneDragEnd?: (pointId: string) => void;
   hiddenPointLabelIds?: ReadonlySet<string>;
+  fullyHiddenPointIds?: ReadonlySet<string>;
   onDistanceRelationLineLabelToggle?: (
+    relationId: string,
+    kind: ReferenceLineLabelKind
+  ) => void;
+  onDistanceRelationLineClick?: (
     relationId: string,
     kind: ReferenceLineLabelKind
   ) => void;
   onDistanceRelationMidpointClick?: (relationId: string) => void;
   distanceLineLabelMinDistancePx?: number;
+  cumulativeDistanceByRelationId?: Readonly<Record<string, number>>;
   showSelectedDisc?: boolean;
   debug?: boolean;
   onPointClick?: (pointId: string) => void;
@@ -67,8 +74,12 @@ export type CesiumPointVisualizerOptions = {
   onPointLongPress?: (pointId: string) => void;
   onDistanceRelationCornerClick?: (relationId: string) => void;
   pointLongPressDurationMs?: number;
+  occlusionChecksEnabled?: boolean;
   labelLayoutConfig?: CesiumLabelLayoutConfigOverrides;
   distanceToReferenceByPointId?: Readonly<Record<string, number>>;
+  pointLabelIndexByPointId?: Readonly<Record<string, number>>;
+  referenceLabelPointId?: string | null;
+  polylinePointLabelTextByPointId?: Readonly<Record<string, string>>;
   moveGizmoPointId?: string | null;
   moveGizmoAxisDirection?: Cartesian3 | null;
   moveGizmoAxisTitle?: string | null;
@@ -106,6 +117,7 @@ export const useCesiumPointVisualizer = (
     referenceElevation = 0,
     selectedPointId = null,
     selectedPlanarPolygonGroupId = null,
+    activePlanarPolygonGroupId = null,
     distanceRelations = [],
     planarPolygonGroups = [],
     onPlanarPolygonClick,
@@ -114,9 +126,12 @@ export const useCesiumPointVisualizer = (
     onPointPlaneDragPositionChange,
     onPointPlaneDragEnd,
     hiddenPointLabelIds,
+    fullyHiddenPointIds,
     onDistanceRelationLineLabelToggle,
+    onDistanceRelationLineClick,
     onDistanceRelationMidpointClick,
     distanceLineLabelMinDistancePx = 50,
+    cumulativeDistanceByRelationId,
     showSelectedDisc = false,
     debug = false,
     onPointClick,
@@ -124,8 +139,12 @@ export const useCesiumPointVisualizer = (
     onPointLongPress,
     onDistanceRelationCornerClick,
     pointLongPressDurationMs = 300,
+    occlusionChecksEnabled = true,
     labelLayoutConfig,
     distanceToReferenceByPointId,
+    pointLabelIndexByPointId,
+    referenceLabelPointId = null,
+    polylinePointLabelTextByPointId,
     moveGizmoPointId = null,
     moveGizmoAxisDirection = null,
     moveGizmoAxisTitle = null,
@@ -165,9 +184,14 @@ export const useCesiumPointVisualizer = (
     onPointDoubleClick,
     onPointLongPress,
     pointLongPressDurationMs,
+    occlusionChecksEnabled,
     labelLayoutConfig,
     distanceToReferenceByPointId,
+    pointLabelIndexByPointId,
+    referenceLabelPointId,
+    polylinePointLabelTextByPointId,
     hiddenPointLabelIds,
+    fullyHiddenPointIds,
     pointDragPlaneByPointId,
     onPointPlaneDragStart,
     onPointPlaneDragPositionChange,
@@ -195,11 +219,14 @@ export const useCesiumPointVisualizer = (
     distanceRelations,
     planarPolygonGroups,
     selectedPlanarPolygonGroupId,
+    activePlanarPolygonGroupId,
     onPlanarPolygonClick,
     onDistanceLineLabelToggle: onDistanceRelationLineLabelToggle,
+    onDistanceLineClick: onDistanceRelationLineClick,
     onDistanceRelationMidpointClick,
     lineLabelMinDistancePx: distanceLineLabelMinDistancePx,
     onDistanceRelationCornerClick,
+    cumulativeDistanceByRelationId,
   });
 
   useEffect(() => {

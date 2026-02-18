@@ -3,7 +3,7 @@ import {
   useEffect,
   useContext,
   useMemo,
-  type MouseEvent as ReactMouseEvent,
+  MouseEvent as ReactMouseEvent,
 } from "react";
 import {
   Cartesian3,
@@ -28,7 +28,7 @@ import MeasurementTitle from "./MeasurementTitle";
 import { UIContext } from "react-cismap/contexts/UIContextProvider";
 import Icon from "react-cismap/commons/Icon";
 import "../styles/infoBox.css";
-import { InputNumber, Tooltip } from "antd";
+import { InputNumber, Select, Tooltip } from "antd";
 import { ResponsiveInfoBox } from "@carma-appframeworks/portals";
 import {
   useCesiumMeasurements,
@@ -36,6 +36,7 @@ import {
   isPointMeasurementEntry,
   getEuclideanDistance,
   getENU,
+  formatAreaAdaptive,
   formatNumber,
   isTraverseMeasurementEntry,
   getCustomPointMeasurementName,
@@ -64,6 +65,7 @@ const MOVE_GIZMO_HORIZONTAL_PRIMARY_AXIS_COLOR = "rgba(239, 68, 68, 0.98)";
 const MOVE_GIZMO_HORIZONTAL_SECONDARY_AXIS_COLOR = "rgba(34, 197, 94, 0.98)";
 const MOVE_GIZMO_RELATION_AXIS_COLOR = "rgba(148, 163, 184, 0.98)";
 const AXIS_DIRECTION_EPSILON = 1e-8;
+const DEFAULT_SIGNIFICANT_DIGITS = 3;
 type ElevationEditTarget = "absolute" | "relative";
 type DistanceLineVisibilityKind =
   | "direct"
@@ -83,6 +85,99 @@ const DEFAULT_DISTANCE_RELATION_LABEL_VISIBILITY = {
   vertical: true,
   horizontal: true,
 } as const;
+
+const formatSignificant = (
+  value: number,
+  significantDigits = DEFAULT_SIGNIFICANT_DIGITS
+) => {
+  if (!Number.isFinite(value)) return "0";
+  const absolute = Math.abs(value);
+  if (absolute === 0) return "0";
+  const digitsBeforeDecimal = Math.floor(Math.log10(absolute)) + 1;
+  const fractionDigits = Math.max(0, significantDigits - digitsBeforeDecimal);
+  return value.toLocaleString("de-DE", {
+    minimumFractionDigits: 0,
+    maximumFractionDigits: fractionDigits,
+  });
+};
+
+type PolygonSurfaceTypeOption = "roof" | "facade" | "terrain" | "footprint";
+
+const POLYGON_SURFACE_TYPE_OPTIONS: Array<{
+  value: PolygonSurfaceTypeOption;
+  label: string;
+}> = [
+  { value: "roof", label: "Dachfläche" },
+  { value: "facade", label: "Fassadenfläche" },
+  { value: "terrain", label: "Gelände" },
+  { value: "footprint", label: "Grundriss" },
+];
+
+const computeHorizontalAreaAtLowestElevation = (
+  verticesECEF: Cartesian3[]
+): number => {
+  if (verticesECEF.length < 3) return 0;
+
+  const ellipsoid = Ellipsoid.WGS84;
+  const cartographics = verticesECEF
+    .map((vertex) => ellipsoid.cartesianToCartographic(vertex))
+    .filter((cartographic): cartographic is NonNullable<typeof cartographic> =>
+      Boolean(cartographic)
+    );
+  if (cartographics.length < 3) return 0;
+
+  let lowestIndex = 0;
+  for (let index = 1; index < cartographics.length; index += 1) {
+    if (
+      (cartographics[index]?.height ?? Number.POSITIVE_INFINITY) <
+      (cartographics[lowestIndex]?.height ?? Number.POSITIVE_INFINITY)
+    ) {
+      lowestIndex = index;
+    }
+  }
+
+  const lowest = cartographics[lowestIndex];
+  if (!lowest) return 0;
+  const lowestHeight = lowest.height;
+  const anchor = Cartesian3.fromRadians(
+    lowest.longitude,
+    lowest.latitude,
+    lowestHeight
+  );
+  const enuFrame = Transforms.eastNorthUpToFixedFrame(anchor, ellipsoid);
+  const east4 = Matrix4.getColumn(enuFrame, 0, new Cartesian4());
+  const north4 = Matrix4.getColumn(enuFrame, 1, new Cartesian4());
+  const east = Cartesian3.normalize(
+    new Cartesian3(east4.x, east4.y, east4.z),
+    new Cartesian3()
+  );
+  const north = Cartesian3.normalize(
+    new Cartesian3(north4.x, north4.y, north4.z),
+    new Cartesian3()
+  );
+
+  const coords = cartographics.map((cartographic) => {
+    const auxiliaryPoint = Cartesian3.fromRadians(
+      cartographic.longitude,
+      cartographic.latitude,
+      lowestHeight
+    );
+    const delta = Cartesian3.subtract(auxiliaryPoint, anchor, new Cartesian3());
+    return {
+      x: Cartesian3.dot(delta, east),
+      y: Cartesian3.dot(delta, north),
+    };
+  });
+
+  let shoelace = 0;
+  for (let index = 0; index < coords.length; index += 1) {
+    const current = coords[index];
+    const next = coords[(index + 1) % coords.length];
+    if (!current || !next) continue;
+    shoelace += current.x * next.y - current.y * next.x;
+  }
+  return Math.abs(shoelace) * 0.5;
+};
 
 const stopEventPropagation = (event: React.MouseEvent<HTMLElement>) => {
   event.stopPropagation();
@@ -202,7 +297,9 @@ export function InfoBoxMeasurement3D({ pixelWidth = 350 }) {
     setDistanceRelations,
     planarPolygonGroups,
     setPlanarPolygonGroups,
+    polylines,
     selectedPlanarPolygonGroupId,
+    activePlanarPolygonGroupId,
     selectPlanarPolygonGroupById,
     updatePlanarPolygonNameById,
     moveGizmoPointId,
@@ -238,22 +335,32 @@ export function InfoBoxMeasurement3D({ pixelWidth = 350 }) {
     () => measurements.filter(isPointMeasurementEntry),
     [measurements]
   );
+  const focusedPlanarPolygonGroupId =
+    selectedPlanarPolygonGroupId ?? activePlanarPolygonGroupId;
   const selectedConnectedPlanarPolygonGroups = useMemo(
     () =>
       getConnectedPolygonGroups(
         planarPolygonGroups,
-        selectedPlanarPolygonGroupId
+        focusedPlanarPolygonGroupId
       ),
-    [planarPolygonGroups, selectedPlanarPolygonGroupId]
+    [focusedPlanarPolygonGroupId, planarPolygonGroups]
   );
   const selectedPlanarPolygonGroup = useMemo(() => {
-    if (!selectedPlanarPolygonGroupId) return null;
+    if (!focusedPlanarPolygonGroupId) return null;
     return (
       selectedConnectedPlanarPolygonGroups.find(
-        (group) => group.id === selectedPlanarPolygonGroupId
+        (group) => group.id === focusedPlanarPolygonGroupId
       ) ?? null
     );
-  }, [selectedConnectedPlanarPolygonGroups, selectedPlanarPolygonGroupId]);
+  }, [focusedPlanarPolygonGroupId, selectedConnectedPlanarPolygonGroups]);
+  const selectedPolyline = useMemo(() => {
+    if (!focusedPlanarPolygonGroupId) return null;
+    return (
+      polylines.find(
+        (polyline) => polyline.id === focusedPlanarPolygonGroupId
+      ) ?? null
+    );
+  }, [focusedPlanarPolygonGroupId, polylines]);
   const selectedPlanarPolygonOrder = useMemo(() => {
     if (selectedConnectedPlanarPolygonGroups.length === 0) return 0;
     const firstConnectedGroup = selectedConnectedPlanarPolygonGroups[0];
@@ -264,8 +371,6 @@ export function InfoBoxMeasurement3D({ pixelWidth = 350 }) {
     return index >= 0 ? index + 1 : 0;
   }, [planarPolygonGroups, selectedConnectedPlanarPolygonGroups]);
   const {
-    roofAreaSquareMeters: selectedConnectedRoofAreaSquareMeters,
-    facadeAreaSquareMeters: selectedConnectedFacadeAreaSquareMeters,
     totalAreaSquareMeters: selectedConnectedPlanarPolygonTotalAreaSquareMeters,
   } = useMemo(
     () => getPolygonGroupAreaSumsByType(selectedConnectedPlanarPolygonGroups),
@@ -287,7 +392,121 @@ export function InfoBoxMeasurement3D({ pixelWidth = 350 }) {
       ),
     [planarPolygonGroups, selectedConnectedPlanarPolygonGroups]
   );
-  const isPolygonInfoMode = Boolean(selectedPlanarPolygonGroup);
+  const isCurrentMeasurementFirstNodeOfFocusedGroup = useMemo(() => {
+    if (!focusedPlanarPolygonGroupId) return false;
+    if (!currentMeasurement || !isPointMeasurementEntry(currentMeasurement)) {
+      return false;
+    }
+    const focusedGroup = planarPolygonGroups.find(
+      (group) => group.id === focusedPlanarPolygonGroupId
+    );
+    if (!focusedGroup) return false;
+    return (focusedGroup.vertexPointIds[0] ?? null) === currentMeasurement.id;
+  }, [currentMeasurement, focusedPlanarPolygonGroupId, planarPolygonGroups]);
+  const isCurrentMeasurementExplicitlySelectedPoint = Boolean(
+    currentMeasurement &&
+      isPointMeasurementEntry(currentMeasurement) &&
+      selectedMeasurementId === currentMeasurement.id
+  );
+  const hasFocusedPlanarGroup = Boolean(focusedPlanarPolygonGroupId);
+  const showPointInfoMode =
+    Boolean(
+      currentMeasurement && isPointMeasurementEntry(currentMeasurement)
+    ) &&
+    (!hasFocusedPlanarGroup ||
+      (isCurrentMeasurementExplicitlySelectedPoint &&
+        (!activePlanarPolygonGroupId ||
+          isCurrentMeasurementFirstNodeOfFocusedGroup)));
+  const isPolygonInfoMode =
+    Boolean(selectedPlanarPolygonGroup) && !showPointInfoMode;
+  const selectedPolylineSummary = useMemo(() => {
+    if (!selectedPolyline) return null;
+
+    const nodes = selectedPolyline.vertexPointIds
+      .map((pointId) =>
+        pointMeasurements.find((measurement) => measurement.id === pointId)
+      )
+      .filter((point): point is (typeof pointMeasurements)[number] =>
+        Boolean(point)
+      );
+
+    const segmentCount = selectedPolyline.segmentLengthsMeters.length;
+    const nodeCount = selectedPolyline.vertexPointIds.length;
+    const totalLengthMeters = selectedPolyline.totalLengthMeters;
+
+    const firstHeight = nodes[0]?.geometryWGS84.height ?? null;
+    const lastHeight = nodes[nodes.length - 1]?.geometryWGS84.height ?? null;
+    const startEndElevationDeltaMeters =
+      firstHeight !== null && lastHeight !== null
+        ? lastHeight - firstHeight
+        : 0;
+
+    let ascentMeters = 0;
+    let descentMeters = 0;
+    for (let index = 1; index < nodes.length; index += 1) {
+      const previousHeight = nodes[index - 1]?.geometryWGS84.height ?? 0;
+      const currentHeight = nodes[index]?.geometryWGS84.height ?? 0;
+      const delta = currentHeight - previousHeight;
+      if (delta > 0) {
+        ascentMeters += delta;
+      } else if (delta < 0) {
+        descentMeters += Math.abs(delta);
+      }
+    }
+
+    return {
+      nodeCount,
+      segmentCount,
+      totalLengthMeters,
+      meanSegmentLengthMeters:
+        segmentCount > 0 ? totalLengthMeters / segmentCount : 0,
+      totalAbsoluteElevationChangeMeters: ascentMeters + descentMeters,
+      startEndElevationDeltaMeters,
+      ascentMeters,
+      descentMeters,
+    };
+  }, [pointMeasurements, selectedPolyline]);
+  const selectedPolygonCircumferenceSummary = useMemo(() => {
+    if (selectedConnectedPlanarPolygonGroups.length === 0) {
+      return {
+        planarMeters: 0,
+        threeDMeters: 0,
+      };
+    }
+
+    const pointById = new Map(
+      pointMeasurements.map((point) => [point.id, point])
+    );
+    const handledEdgeIds = new Set<string>();
+    let planarMeters = 0;
+    let threeDMeters = 0;
+
+    selectedConnectedPlanarPolygonGroups.forEach((group) => {
+      group.edgeRelationIds.forEach((edgeRelationId) => {
+        if (!edgeRelationId || handledEdgeIds.has(edgeRelationId)) return;
+        handledEdgeIds.add(edgeRelationId);
+
+        const [prefix, pointAId, pointBId] = edgeRelationId.split(":");
+        if (prefix !== "distance-relation" || !pointAId || !pointBId) return;
+
+        const pointA = pointById.get(pointAId);
+        const pointB = pointById.get(pointBId);
+        if (!pointA || !pointB) return;
+
+        threeDMeters += getEuclideanDistance(
+          pointA.geometryECEF,
+          pointB.geometryECEF
+        );
+        const enu = getENU(pointA.geometryECEF, pointB.geometryECEF);
+        planarMeters += Math.hypot(enu.east, enu.north);
+      });
+    });
+
+    return {
+      planarMeters,
+      threeDMeters,
+    };
+  }, [pointMeasurements, selectedConnectedPlanarPolygonGroups]);
   const isElevationEditModeActive =
     Boolean(moveGizmoPointId) &&
     isPointMeasurementEntry(currentMeasurement) &&
@@ -1248,10 +1467,50 @@ export function InfoBoxMeasurement3D({ pixelWidth = 350 }) {
 
   const selectedPolygonSurfaceTypeLabel =
     selectedConnectedPlanarPolygonSurfaceTypeLabel;
+  const selectedPolygonSurfaceTypeValue: PolygonSurfaceTypeOption = useMemo(
+    () =>
+      (selectedPlanarPolygonGroup?.surfaceType as PolygonSurfaceTypeOption) ??
+      "roof",
+    [selectedPlanarPolygonGroup?.surfaceType]
+  );
   const selectedPolygonTiltInfo = useMemo(
     () => getPolygonTiltAndNormalDirection(selectedPlanarPolygonGroup?.plane),
     [selectedPlanarPolygonGroup?.plane]
   );
+  const selectedPolygonHorizontalAreaSquareMeters = useMemo(() => {
+    if (selectedConnectedPlanarPolygonGroups.length === 0) return 0;
+    const pointById = new Map(
+      pointMeasurements.map((point) => [point.id, point])
+    );
+    return selectedConnectedPlanarPolygonGroups.reduce((sum, group) => {
+      const vertices = group.vertexPointIds
+        .map((pointId) => pointById.get(pointId)?.geometryECEF)
+        .filter((point): point is Cartesian3 => Boolean(point));
+      return sum + computeHorizontalAreaAtLowestElevation(vertices);
+    }, 0);
+  }, [pointMeasurements, selectedConnectedPlanarPolygonGroups]);
+  const showSurfaceAreaForType =
+    selectedPolygonSurfaceTypeValue !== "footprint";
+  const showHorizontalAreaForType =
+    selectedPolygonSurfaceTypeValue === "terrain" ||
+    selectedPolygonSurfaceTypeValue === "footprint" ||
+    selectedPolygonSurfaceTypeValue === "roof";
+  const selectedPolygonPrimaryAreaSquareMeters = showSurfaceAreaForType
+    ? selectedConnectedPlanarPolygonTotalAreaSquareMeters
+    : selectedPolygonHorizontalAreaSquareMeters;
+
+  const updateSelectedPolygonSurfaceType = (
+    nextType: PolygonSurfaceTypeOption
+  ) => {
+    if (!selectedPlanarPolygonGroup) return;
+    setPlanarPolygonGroups((prev) =>
+      prev.map((group) =>
+        group.id === selectedPlanarPolygonGroup.id
+          ? { ...group, surfaceType: nextType }
+          : group
+      )
+    );
+  };
 
   const isReferencePointWithoutEdges =
     Boolean(currentMeasurement) &&
@@ -1267,14 +1526,14 @@ export function InfoBoxMeasurement3D({ pixelWidth = 350 }) {
         isCollapsible={!!currentMeasurement || isPolygonInfoMode}
         header={
           <div
-            className="w-full pl-1"
+            className="w-full pl-1 pr-2 flex items-center justify-between"
             style={{ backgroundColor: infoBoxHeaderColor }}
           >
-            3D Messungen
+            <span>3D Messungen</span>
           </div>
         }
         alwaysVisibleDiv={
-          selectedPlanarPolygonGroup ? (
+          isPolygonInfoMode ? (
             <div className="mt-1 mb-0 w-full px-2">
               <div className="flex justify-between items-start gap-2">
                 <span
@@ -1289,15 +1548,17 @@ export function InfoBoxMeasurement3D({ pixelWidth = 350 }) {
                     setUpdateMeasurementStatus={() => {}}
                     updateTitleMeasurementById={handlePolygonNameUpdate}
                     isCollapsed={collapsedInfoBox}
-                    placeholderText={`Polygongruppe #${
+                    placeholderText={`Polygonzug #${
                       selectedPlanarPolygonOrder || 1
                     }`}
                     clearPlaceholderOnFocus
                     showOrder={false}
-                    collapsedContent={`${formatNumber(
-                      selectedConnectedPlanarPolygonTotalAreaSquareMeters
-                    )} m²`}
+                    collapsedContent={formatAreaAdaptive(
+                      selectedPolygonPrimaryAreaSquareMeters
+                    )}
                     editable={true}
+                    capitalize={false}
+                    multiline={true}
                   />
                 </span>
                 <div className="flex justify-end items-center shrink-0 mt-0 gap-2">
@@ -1323,13 +1584,24 @@ export function InfoBoxMeasurement3D({ pixelWidth = 350 }) {
                 </div>
               </div>
               <div className="w-full text-[10px] font-normal text-gray-500 -mt-1 min-h-[16px] flex items-center gap-2 whitespace-nowrap">
-                <span>
-                  {selectedPolygonSurfaceTypeLabel} •{" "}
-                  {formatNumber(
-                    selectedConnectedPlanarPolygonTotalAreaSquareMeters
-                  )}{" "}
-                  m²
-                </span>
+                {selectedPolylineSummary ? (
+                  <span>
+                    Polygonzug •{" "}
+                    {formatNumber(selectedPolylineSummary.totalLengthMeters)} m
+                    • Höhendifferenz:{" "}
+                    {formatNumber(
+                      Math.abs(
+                        selectedPolylineSummary.startEndElevationDeltaMeters
+                      )
+                    )}{" "}
+                    m
+                  </span>
+                ) : (
+                  <span>
+                    {selectedPolygonSurfaceTypeLabel} •{" "}
+                    {formatAreaAdaptive(selectedPolygonPrimaryAreaSquareMeters)}
+                  </span>
+                )}
               </div>
             </div>
           ) : currentMeasurement ? (
@@ -1365,6 +1637,8 @@ export function InfoBoxMeasurement3D({ pixelWidth = 350 }) {
                         : ""
                     }
                     editable={true}
+                    capitalize={false}
+                    multiline={true}
                   />
                 </span>
                 <div className="flex justify-end items-center shrink-0 mt-0 gap-2">
@@ -1538,77 +1812,161 @@ export function InfoBoxMeasurement3D({ pixelWidth = 350 }) {
           )
         }
         collapsibleDiv={
-          selectedPlanarPolygonGroup ? (
+          isPolygonInfoMode ? (
             <div className="text-[12px] mb-0">
               <div className="mt-1 text-sm pl-2 pr-1">
-                <div className="mb-1">
-                  <span className="text-gray-500 mr-1">Gesamtfläche:</span>
-                  <span className="tabular-nums">
-                    {formatNumber(
-                      selectedConnectedPlanarPolygonTotalAreaSquareMeters
-                    )}{" "}
-                    m²
-                  </span>
-                </div>
-                <div className="mb-1">
-                  <span className="text-gray-500 mr-1">Teilflächen:</span>
-                  <span>{selectedConnectedPlanarPolygonGroups.length}</span>
-                </div>
-                <div className="mb-1">
-                  <span className="text-gray-500 mr-1">Dachfläche:</span>
-                  <span className="tabular-nums">
-                    {formatNumber(selectedConnectedRoofAreaSquareMeters)} m²
-                  </span>
-                </div>
-                <div className="mb-1">
-                  <span className="text-gray-500 mr-1">Fassadenfläche:</span>
-                  <span className="tabular-nums">
-                    {formatNumber(selectedConnectedFacadeAreaSquareMeters)} m²
-                  </span>
-                </div>
-                <div className="mb-1">
-                  <span className="text-gray-500 mr-1">Ø Dachneigung:</span>
-                  <span className="tabular-nums">
-                    {selectedConnectedRoofAverageSlopeDeg === null
-                      ? "Keine Dächer"
-                      : `${formatNumber(
-                          selectedConnectedRoofAverageSlopeDeg
-                        )}°`}
-                  </span>
-                </div>
-                <div className="mb-1">
-                  <span className="text-gray-500 mr-1">
-                    Dachneigung je Dach:
-                  </span>
-                  <span>
-                    {selectedConnectedRoofSlopeLabels.length > 0
-                      ? selectedConnectedRoofSlopeLabels.join(" • ")
-                      : "Keine Dächer"}
-                  </span>
-                </div>
-                <div className="mb-1">
-                  <span className="text-gray-500 mr-1">Typ:</span>
-                  <span>{selectedPolygonSurfaceTypeLabel}</span>
-                </div>
-                <div className="mb-1">
-                  <span className="text-gray-500 mr-1">Kippwinkel:</span>
-                  <span className="tabular-nums">
-                    {formatNumber(selectedPolygonTiltInfo.tiltDeg)}° (
-                    {selectedPolygonTiltInfo.slopePercentText})
-                  </span>
-                </div>
-                <div className="mb-1">
-                  <span className="text-gray-500 mr-1">Normalrichtung:</span>
-                  <span>{selectedPolygonTiltInfo.normalDirectionText}</span>
-                </div>
-                <div className="mb-1">
-                  <span className="text-gray-500 mr-1">Knoten:</span>
-                  <span>
-                    {selectedPolygonVertexLabels.length > 0
-                      ? selectedPolygonVertexLabels.join(" - ")
-                      : "Keine"}
-                  </span>
-                </div>
+                {selectedPolylineSummary ? (
+                  <>
+                    <div className="mb-1">
+                      <span className="text-gray-500 mr-1">Gesamtlänge:</span>
+                      <span className="tabular-nums">
+                        {formatNumber(
+                          selectedPolylineSummary.totalLengthMeters
+                        )}{" "}
+                        m
+                      </span>
+                    </div>
+                    <div className="mb-1 flex flex-wrap items-baseline gap-x-2 gap-y-1 text-[10px]">
+                      <span className="text-gray-500">Aufstieg:</span>
+                      <span className="tabular-nums">
+                        {formatNumber(selectedPolylineSummary.ascentMeters)} m
+                      </span>
+                      <span className="text-gray-500">Abstieg:</span>
+                      <span className="tabular-nums">
+                        {formatNumber(selectedPolylineSummary.descentMeters)} m
+                      </span>
+                      <span className="text-gray-500">Summe:</span>
+                      <span className="tabular-nums">
+                        {formatNumber(
+                          selectedPolylineSummary.totalAbsoluteElevationChangeMeters
+                        )}{" "}
+                        m
+                      </span>
+                    </div>
+                    <div className="mb-1">
+                      <span className="text-gray-500 mr-1">Δ Start/Ende:</span>
+                      <span className="tabular-nums">
+                        {formatNumber(
+                          selectedPolylineSummary.startEndElevationDeltaMeters
+                        )}{" "}
+                        m
+                      </span>
+                    </div>
+                    <div className="mb-1">
+                      <span className="text-gray-500 mr-1">
+                        Ø Segmentlänge:
+                      </span>
+                      <span className="tabular-nums">
+                        {formatNumber(
+                          selectedPolylineSummary.meanSegmentLengthMeters
+                        )}{" "}
+                        m
+                      </span>
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    <div className="mb-1">
+                      <span className="text-gray-500 mr-1">Typ:</span>
+                      <Select
+                        size="small"
+                        value={selectedPolygonSurfaceTypeValue}
+                        options={POLYGON_SURFACE_TYPE_OPTIONS}
+                        onChange={updateSelectedPolygonSurfaceType}
+                        style={{ minWidth: 148 }}
+                        onClick={stopEventPropagation}
+                        onMouseDown={stopEventPropagation}
+                      />
+                    </div>
+                    {showSurfaceAreaForType && (
+                      <div className="mb-1">
+                        <span className="text-gray-500 mr-1">Oberfläche:</span>
+                        <span className="tabular-nums">
+                          {formatAreaAdaptive(
+                            selectedConnectedPlanarPolygonTotalAreaSquareMeters
+                          )}
+                        </span>
+                      </div>
+                    )}
+                    {showHorizontalAreaForType && (
+                      <div className="mb-1">
+                        <span className="text-gray-500 mr-1">
+                          Horizontalfläche:
+                        </span>
+                        <span className="tabular-nums">
+                          {formatAreaAdaptive(
+                            selectedPolygonHorizontalAreaSquareMeters
+                          )}
+                        </span>
+                      </div>
+                    )}
+                    <div className="mb-1">
+                      <span className="text-gray-500 mr-1">
+                        Planarer Umfang:
+                      </span>
+                      <span className="tabular-nums">
+                        {formatSignificant(
+                          selectedPolygonCircumferenceSummary.planarMeters
+                        )}{" "}
+                        m
+                      </span>
+                    </div>
+                    <div className="mb-1">
+                      <span className="text-gray-500 mr-1">3D-Umfang:</span>
+                      <span className="tabular-nums">
+                        {formatSignificant(
+                          selectedPolygonCircumferenceSummary.threeDMeters
+                        )}{" "}
+                        m
+                      </span>
+                    </div>
+                    <div className="mb-1">
+                      <span className="text-gray-500 mr-1">Teilflächen:</span>
+                      <span>{selectedConnectedPlanarPolygonGroups.length}</span>
+                    </div>
+                    <div className="mb-1">
+                      <span className="text-gray-500 mr-1">Ø Dachneigung:</span>
+                      <span className="tabular-nums">
+                        {selectedConnectedRoofAverageSlopeDeg === null
+                          ? "Keine Dächer"
+                          : `${formatNumber(
+                              selectedConnectedRoofAverageSlopeDeg
+                            )}°`}
+                      </span>
+                    </div>
+                    <div className="mb-1">
+                      <span className="text-gray-500 mr-1">
+                        Dachneigung je Dach:
+                      </span>
+                      <span>
+                        {selectedConnectedRoofSlopeLabels.length > 0
+                          ? selectedConnectedRoofSlopeLabels.join(" • ")
+                          : "Keine Dächer"}
+                      </span>
+                    </div>
+                    <div className="mb-1">
+                      <span className="text-gray-500 mr-1">Kippwinkel:</span>
+                      <span className="tabular-nums">
+                        {formatNumber(selectedPolygonTiltInfo.tiltDeg)}° (
+                        {selectedPolygonTiltInfo.slopePercentText})
+                      </span>
+                    </div>
+                    <div className="mb-1">
+                      <span className="text-gray-500 mr-1">
+                        Normalrichtung:
+                      </span>
+                      <span>{selectedPolygonTiltInfo.normalDirectionText}</span>
+                    </div>
+                    <div className="mb-1">
+                      <span className="text-gray-500 mr-1">Knoten:</span>
+                      <span>
+                        {selectedPolygonVertexLabels.length > 0
+                          ? selectedPolygonVertexLabels.join(" - ")
+                          : "Keine"}
+                      </span>
+                    </div>
+                  </>
+                )}
               </div>
             </div>
           ) : currentMeasurement ? (

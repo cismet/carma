@@ -11,8 +11,12 @@ import {
 import {
   BoundingSphere,
   Cartesian3,
+  Cartesian4,
   Color,
+  Ellipsoid,
+  Matrix4,
   SceneTransforms,
+  Transforms,
   defined,
   type Cartesian2,
   type Scene,
@@ -28,6 +32,7 @@ import {
 } from "@carma-providers/label-overlay";
 
 import {
+  type DirectLineLabelMode,
   type PlanarPolygonGroup,
   type PointDistanceRelation,
   type PointMeasurementEntry,
@@ -38,6 +43,7 @@ import {
   computePolygonCentroid2D,
   getArcPointsInSpannedPlane,
   getRoofRoofSharedEdgeRelationIdSet,
+  getSplitMarkerRelationIdSetForGroups,
   getSplitMarkerRelationIdSet,
   hasVisibleDistanceRelationComponentLines,
   isDistanceRelationHorizontalLineVisible,
@@ -46,20 +52,26 @@ import {
   type ResolvedDistanceRelation,
   type ScreenPoint2D,
 } from "../utils/distanceVisualization";
-import { formatNumber } from "../utils/formatting";
+import { formatAreaAdaptive, formatNumber } from "../utils/formatting";
 
 export type CesiumDistanceVisualizerOptions = {
   distanceRelations?: PointDistanceRelation[];
   planarPolygonGroups?: PlanarPolygonGroup[];
   selectedPlanarPolygonGroupId?: string | null;
+  activePlanarPolygonGroupId?: string | null;
   onPlanarPolygonClick?: (polygonGroupId: string) => void;
   onDistanceLineLabelToggle?: (
+    relationId: string,
+    kind: ReferenceLineLabelKind
+  ) => void;
+  onDistanceLineClick?: (
     relationId: string,
     kind: ReferenceLineLabelKind
   ) => void;
   onDistanceRelationMidpointClick?: (relationId: string) => void;
   lineLabelMinDistancePx?: number;
   onDistanceRelationCornerClick?: (relationId: string) => void;
+  cumulativeDistanceByRelationId?: Readonly<Record<string, number>>;
 };
 
 // EN component color: light mix of the standard East (red) and North (green) axis colors.
@@ -85,6 +97,10 @@ const POLYGON_PREVIEW_FILL_ROOF_OPEN = "rgba(239, 223, 145, 0.20)";
 const POLYGON_PREVIEW_FILL_ROOF_CLOSED = "rgba(239, 223, 145, 0.30)";
 const POLYGON_PREVIEW_FILL_FACADE_OPEN = "rgba(111, 168, 255, 0.20)";
 const POLYGON_PREVIEW_FILL_FACADE_CLOSED = "rgba(111, 168, 255, 0.30)";
+const POLYGON_PREVIEW_FILL_TERRAIN_OPEN = "rgba(107, 188, 123, 0.20)";
+const POLYGON_PREVIEW_FILL_TERRAIN_CLOSED = "rgba(107, 188, 123, 0.30)";
+const POLYGON_PREVIEW_FILL_FOOTPRINT_OPEN = "rgba(226, 232, 240, 0.20)";
+const POLYGON_PREVIEW_FILL_FOOTPRINT_CLOSED = "rgba(226, 232, 240, 0.32)";
 const POLYGON_PREVIEW_STROKE = "rgba(255, 255, 255, 0.65)";
 const POLYGON_PREVIEW_STROKE_WIDTH_PX = 1;
 const POLYGON_AREA_LABEL_COLOR = "#111111";
@@ -114,33 +130,99 @@ const getPolygonPreviewFillColor = (
       ? POLYGON_PREVIEW_FILL_FACADE_CLOSED
       : POLYGON_PREVIEW_FILL_FACADE_OPEN;
   }
+  if (surfaceType === "terrain") {
+    return isClosed
+      ? POLYGON_PREVIEW_FILL_TERRAIN_CLOSED
+      : POLYGON_PREVIEW_FILL_TERRAIN_OPEN;
+  }
+  if (surfaceType === "footprint") {
+    return isClosed
+      ? POLYGON_PREVIEW_FILL_FOOTPRINT_CLOSED
+      : POLYGON_PREVIEW_FILL_FOOTPRINT_OPEN;
+  }
 
   return isClosed
     ? POLYGON_PREVIEW_FILL_ROOF_CLOSED
     : POLYGON_PREVIEW_FILL_ROOF_OPEN;
 };
 
-const getProjectedHorizontalAreaSquareMeters = (group: PlanarPolygonGroup) => {
-  const planarArea = group.areaSquareMeters ?? 0;
-  if (!Number.isFinite(planarArea) || planarArea <= 0) return 0;
-  const verticalityDeg = Math.max(0, Math.min(90, group.verticalityDeg ?? 0));
-  const projectionFactor = Math.max(
-    0,
-    Math.cos((verticalityDeg * Math.PI) / 180)
+const getProjectedHorizontalAreaSquareMeters = (vertices: Cartesian3[]) => {
+  if (vertices.length < 3) return 0;
+  const ellipsoid = Ellipsoid.WGS84;
+  const cartographics = vertices
+    .map((vertex) => ellipsoid.cartesianToCartographic(vertex))
+    .filter((cartographic): cartographic is NonNullable<typeof cartographic> =>
+      Boolean(cartographic)
+    );
+  if (cartographics.length < 3) return 0;
+
+  let lowestIndex = 0;
+  for (let index = 1; index < cartographics.length; index += 1) {
+    if (
+      (cartographics[index]?.height ?? Number.POSITIVE_INFINITY) <
+      (cartographics[lowestIndex]?.height ?? Number.POSITIVE_INFINITY)
+    ) {
+      lowestIndex = index;
+    }
+  }
+
+  const lowest = cartographics[lowestIndex];
+  if (!lowest) return 0;
+  const lowestHeight = lowest.height;
+  const anchor = Cartesian3.fromRadians(
+    lowest.longitude,
+    lowest.latitude,
+    lowestHeight
   );
-  return planarArea * projectionFactor;
+  const enuFrame = Transforms.eastNorthUpToFixedFrame(anchor, ellipsoid);
+  const east4 = Matrix4.getColumn(enuFrame, 0, new Cartesian4());
+  const north4 = Matrix4.getColumn(enuFrame, 1, new Cartesian4());
+  const east = Cartesian3.normalize(
+    new Cartesian3(east4.x, east4.y, east4.z),
+    new Cartesian3()
+  );
+  const north = Cartesian3.normalize(
+    new Cartesian3(north4.x, north4.y, north4.z),
+    new Cartesian3()
+  );
+
+  const coords = cartographics.map((cartographic) => {
+    const auxiliaryPoint = Cartesian3.fromRadians(
+      cartographic.longitude,
+      cartographic.latitude,
+      lowestHeight
+    );
+    const delta = Cartesian3.subtract(auxiliaryPoint, anchor, new Cartesian3());
+    return {
+      x: Cartesian3.dot(delta, east),
+      y: Cartesian3.dot(delta, north),
+    };
+  });
+
+  let shoelace = 0;
+  for (let index = 0; index < coords.length; index += 1) {
+    const current = coords[index];
+    const next = coords[(index + 1) % coords.length];
+    if (!current || !next) continue;
+    shoelace += current.x * next.y - current.y * next.x;
+  }
+  return Math.abs(shoelace) * 0.5;
 };
 
-const getPolygonAreaLabelText = (group: PlanarPolygonGroup) => {
+const getPolygonAreaLabelText = (
+  group: PlanarPolygonGroup,
+  vertices: Cartesian3[]
+) => {
   const planarArea = Math.max(0, group.areaSquareMeters ?? 0);
-  const projectedHorizontalArea = getProjectedHorizontalAreaSquareMeters(group);
+  const projectedHorizontalArea =
+    getProjectedHorizontalAreaSquareMeters(vertices);
   const showProjectedHorizontalArea =
     planarArea > 0 && projectedHorizontalArea < planarArea * 0.99;
 
   return {
-    planarText: `${formatNumber(planarArea)} m²`,
+    planarText: formatAreaAdaptive(planarArea),
     projectedHorizontalText: showProjectedHorizontalArea
-      ? `(${formatNumber(projectedHorizontalArea)} m²)`
+      ? `(${formatAreaAdaptive(projectedHorizontalArea)})`
       : null,
   };
 };
@@ -152,11 +234,14 @@ export const useCesiumDistanceVisualizer = (
     distanceRelations = [],
     planarPolygonGroups = [],
     selectedPlanarPolygonGroupId = null,
+    activePlanarPolygonGroupId = null,
     onPlanarPolygonClick,
     onDistanceLineLabelToggle,
+    onDistanceLineClick,
     onDistanceRelationMidpointClick,
     lineLabelMinDistancePx = 50,
     onDistanceRelationCornerClick,
+    cumulativeDistanceByRelationId,
   }: CesiumDistanceVisualizerOptions
 ) => {
   const directLineRefs = useRef<Record<string, LineVisualizer>>({});
@@ -183,6 +268,32 @@ export const useCesiumDistanceVisualizer = (
   const roofRoofSharedEdgeRelationIdSet = useMemo(() => {
     return getRoofRoofSharedEdgeRelationIdSet(planarPolygonGroups);
   }, [planarPolygonGroups]);
+  const midpointTickRelationIdSet = useMemo(() => {
+    const activeOrSelectedGroupIds = new Set<string>();
+    if (selectedPlanarPolygonGroupId) {
+      activeOrSelectedGroupIds.add(selectedPlanarPolygonGroupId);
+    }
+    if (activePlanarPolygonGroupId) {
+      activeOrSelectedGroupIds.add(activePlanarPolygonGroupId);
+    }
+    return getSplitMarkerRelationIdSetForGroups(
+      planarPolygonGroups,
+      activeOrSelectedGroupIds
+    );
+  }, [
+    activePlanarPolygonGroupId,
+    planarPolygonGroups,
+    selectedPlanarPolygonGroupId,
+  ]);
+  const focusedGroupId =
+    selectedPlanarPolygonGroupId ?? activePlanarPolygonGroupId ?? null;
+  const edgeRelationOwnerGroupIdSet = useMemo(() => {
+    if (!focusedGroupId) return new Set<string>();
+    const focusedGroup = planarPolygonGroups.find(
+      (group) => group.id === focusedGroupId
+    );
+    return new Set(focusedGroup?.edgeRelationIds ?? []);
+  }, [focusedGroupId, planarPolygonGroups]);
 
   const resolvedRelations = useMemo(
     () =>
@@ -235,10 +346,25 @@ export const useCesiumDistanceVisualizer = (
           const isPolygonEdgeRelation = splitMarkerRelationIdSet.has(
             relation.id
           );
+          const directLabelMode: DirectLineLabelMode =
+            relation.directLabelMode ?? "segment";
           const shouldShowPolygonEdgeLengthLabel =
-            !isPolygonEdgeRelation || Boolean(selectedPlanarPolygonGroupId);
+            !isPolygonEdgeRelation ||
+            edgeRelationOwnerGroupIdSet.has(relation.id);
+          const segmentDistanceMeters = Cartesian3.distance(
+            pointA.geometryECEF,
+            pointB.geometryECEF
+          );
+          const cumulativeDistanceMeters =
+            cumulativeDistanceByRelationId?.[relation.id] ??
+            segmentDistanceMeters;
+          const directLabelDistanceMeters =
+            directLabelMode === "cumulative"
+              ? cumulativeDistanceMeters
+              : segmentDistanceMeters;
           const showDirectLabel =
             (relation.labelVisibilityByKind?.direct ?? true) &&
+            directLabelMode !== "none" &&
             !roofRoofSharedEdgeRelationIdSet.has(relation.id) &&
             shouldShowPolygonEdgeLengthLabel;
           lines.push({
@@ -266,9 +392,7 @@ export const useCesiumDistanceVisualizer = (
             strokeDasharray: "6 4",
             hitTargetStrokeWidth: 10,
             labelText: showDirectLabel
-              ? `${formatNumber(
-                  Cartesian3.distance(pointA.geometryECEF, pointB.geometryECEF)
-                )} m`
+              ? `${formatNumber(directLabelDistanceMeters)} m`
               : undefined,
             labelColor: "#000000",
             labelStroke: "rgba(255, 255, 255, 0.95)",
@@ -276,7 +400,8 @@ export const useCesiumDistanceVisualizer = (
             labelFontFamily: "Arial, sans-serif",
             labelFontWeight: "400",
             labelMinLineLengthPx: lineLabelMinDistancePx,
-            onLineClick: () =>
+            onLineClick: () => onDistanceLineClick?.(relation.id, "direct"),
+            onLabelClick: () =>
               onDistanceLineLabelToggle?.(relation.id, "direct"),
           });
         }
@@ -377,10 +502,12 @@ export const useCesiumDistanceVisualizer = (
   }, [
     lineLabelMinDistancePx,
     onDistanceLineLabelToggle,
+    onDistanceLineClick,
+    cumulativeDistanceByRelationId,
     roofRoofSharedEdgeRelationIdSet,
     resolvedRelations,
     scene,
-    selectedPlanarPolygonGroupId,
+    edgeRelationOwnerGroupIdSet,
     splitMarkerRelationIdSet,
   ]);
 
@@ -429,6 +556,7 @@ export const useCesiumDistanceVisualizer = (
             style: {
               cursor: onPlanarPolygonClick ? "pointer" : "default",
               pointerEvents: onPlanarPolygonClick ? "visiblePainted" : "none",
+              mixBlendMode: "screen",
             },
           }),
           createElement("text", {
@@ -562,7 +690,7 @@ export const useCesiumDistanceVisualizer = (
           ) as SVGTextElement | null;
           if (areaLabelEl) {
             const { planarText, projectedHorizontalText } =
-              getPolygonAreaLabelText(group);
+              getPolygonAreaLabelText(group, vertexPoints);
             areaLabelEl.textContent = planarText;
             areaLabelEl.setAttribute("transform", "");
 
@@ -925,9 +1053,11 @@ export const useCesiumDistanceVisualizer = (
 
     resolvedRelations
       .filter(({ relation }) => {
-        if (!selectedPlanarPolygonGroupId) return false;
+        if (!selectedPlanarPolygonGroupId && !activePlanarPolygonGroupId) {
+          return false;
+        }
         if (!relation.showDirectLine) return false;
-        return splitMarkerRelationIdSet.has(relation.id);
+        return midpointTickRelationIdSet.has(relation.id);
       })
       .forEach(({ relation, pointA, pointB }) => {
         const overlayId = `${MIDPOINT_OVERLAY_ID_PREFIX}-${relation.id}`;
@@ -997,8 +1127,9 @@ export const useCesiumDistanceVisualizer = (
     removeLabelOverlayElement,
     resolvedRelations,
     scene,
+    activePlanarPolygonGroupId,
+    midpointTickRelationIdSet,
     selectedPlanarPolygonGroupId,
-    splitMarkerRelationIdSet,
   ]);
 
   const relationsWithDirectLine = useMemo(

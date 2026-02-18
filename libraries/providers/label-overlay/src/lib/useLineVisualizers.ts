@@ -75,6 +75,7 @@ export const useLineVisualizers = (
           labelFontFamily: line.labelFontFamily,
           labelFontWeight: line.labelFontWeight,
           onLineClick: line.onLineClick,
+          onLabelClick: line.onLabelClick,
         }),
         visible: line.visible !== false,
         isHidden: line.isHidden,

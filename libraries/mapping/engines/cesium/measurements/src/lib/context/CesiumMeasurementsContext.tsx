@@ -31,7 +31,11 @@ import { useMeasurementPersistence } from "../hooks/useMeasurementPersistence";
 
 import {
   DEFAULT_POINT_LABEL_METRIC_MODE,
+  DEFAULT_POLYLINE_POINT_LABEL_MODE,
+  type DirectLineLabelMode,
   isPointMeasurementEntry,
+  type PolylineCollection,
+  type PolylinePointLabelMode,
   type PlanarPolygonGroup,
   type PlanarPolygonPlane,
   type PointDistanceRelation,
@@ -39,6 +43,7 @@ import {
   type MeasurementCollection,
   MeasurementMode,
 } from "../types/MeasurementTypes";
+import { formatNumber } from "../utils/formatting";
 import { getEuclideanDistance } from "../utils/geo";
 import {
   loadDistanceRelations,
@@ -79,6 +84,7 @@ export interface CesiumMeasurementsContextType {
   selectMeasurementById: (id: string | null) => void;
   updateMeasurementNameById: (id: string, name: string) => void;
   selectedPlanarPolygonGroupId: string | null;
+  activePlanarPolygonGroupId: string | null;
   selectPlanarPolygonGroupById: (id: string | null) => void;
   updatePlanarPolygonNameById: (id: string, name: string) => void;
   moveGizmoPointId: string | null;
@@ -124,10 +130,14 @@ export interface CesiumMeasurementsContextType {
   setDistanceRelations: Dispatch<SetStateAction<PointDistanceRelation[]>>;
   planarPolygonGroups: PlanarPolygonGroup[];
   setPlanarPolygonGroups: Dispatch<SetStateAction<PlanarPolygonGroup[]>>;
+  polylines: PolylineCollection[];
+  setPolylines: Dispatch<SetStateAction<PolylineCollection[]>>;
   showSelectedReferenceLine: boolean;
   setShowSelectedReferenceLine: Dispatch<SetStateAction<boolean>>;
   showSelectedReferenceLineComponents: boolean;
   setShowSelectedReferenceLineComponents: Dispatch<SetStateAction<boolean>>;
+  occlusionChecksEnabled: boolean;
+  setOcclusionChecksEnabled: Dispatch<SetStateAction<boolean>>;
 }
 
 const CesiumMeasurementsContext = createContext<
@@ -192,6 +202,62 @@ const DEFAULT_DISTANCE_RELATION_LABEL_VISIBILITY: Record<
   vertical: true,
   horizontal: true,
 };
+const DEFAULT_DIRECT_LINE_LABEL_MODE: DirectLineLabelMode = "segment";
+
+const getNextDirectLineLabelMode = (
+  currentMode: DirectLineLabelMode
+): DirectLineLabelMode => {
+  if (currentMode === "segment") return "none";
+  return "segment";
+};
+
+const getNextPolylinePointLabelMode = (
+  currentMode: PolylinePointLabelMode
+): PolylinePointLabelMode => {
+  if (currentMode === "cumulativeDistance") return "elevationSinceStart";
+  if (currentMode === "elevationSinceStart") return "elevationSinceLastNode";
+  return "cumulativeDistance";
+};
+
+const getConnectedOpenPolylineGroupIds = (
+  groups: PlanarPolygonGroup[],
+  startGroupId: string
+) => {
+  const openGroups = groups.filter((group) => !group.closed);
+  const startGroup = openGroups.find((group) => group.id === startGroupId);
+  if (!startGroup) return new Set<string>();
+
+  const groupById = new Map(openGroups.map((group) => [group.id, group]));
+  const vertexIdsByGroupId = new Map(
+    openGroups.map((group) => [group.id, new Set(group.vertexPointIds)])
+  );
+
+  const connectedIds = new Set<string>();
+  const queue: string[] = [startGroupId];
+
+  while (queue.length > 0) {
+    const groupId = queue.shift();
+    if (!groupId || connectedIds.has(groupId)) continue;
+    const currentVertices = vertexIdsByGroupId.get(groupId);
+    if (!currentVertices) continue;
+    connectedIds.add(groupId);
+
+    groupById.forEach((candidateGroup, candidateId) => {
+      if (connectedIds.has(candidateId)) return;
+      const candidateVertices = vertexIdsByGroupId.get(candidateId);
+      if (!candidateVertices) return;
+
+      const sharesVertex = Array.from(currentVertices).some((vertexId) =>
+        candidateVertices.has(vertexId)
+      );
+      if (sharesVertex) {
+        queue.push(candidateGroup.id);
+      }
+    });
+  }
+
+  return connectedIds;
+};
 
 const getDistanceRelationId = (pointAId: string, pointBId: string) => {
   const [left, right] = [pointAId, pointBId].sort((a, b) => a.localeCompare(b));
@@ -235,6 +301,55 @@ const getPointPositionMap = (
     });
   }
   return map;
+};
+
+const buildDerivedPolylineCollection = (
+  group: PlanarPolygonGroup,
+  pointById: Map<string, Cartesian3>
+): PolylineCollection | null => {
+  if (group.closed || group.vertexPointIds.length < 2) {
+    return null;
+  }
+
+  const segmentLengthsMeters: number[] = [];
+  const segmentLengthsCumulativeMeters: number[] = [0];
+  let totalLengthMeters = 0;
+  const edgeRelationIds: string[] = [];
+
+  for (let index = 0; index < group.vertexPointIds.length - 1; index += 1) {
+    const startId = group.vertexPointIds[index];
+    const endId = group.vertexPointIds[index + 1];
+    if (!startId || !endId) continue;
+    const start = pointById.get(startId);
+    const end = pointById.get(endId);
+    if (!start || !end) continue;
+    const segmentLength = Cartesian3.distance(start, end);
+    segmentLengthsMeters.push(segmentLength);
+    totalLengthMeters += segmentLength;
+    segmentLengthsCumulativeMeters.push(totalLengthMeters);
+    edgeRelationIds.push(getDistanceRelationId(startId, endId));
+  }
+
+  if (segmentLengthsMeters.length === 0) {
+    return null;
+  }
+
+  const hasStartPoint =
+    !!group.distanceMeasurementStartPointId &&
+    group.vertexPointIds.includes(group.distanceMeasurementStartPointId);
+
+  return {
+    id: group.id,
+    name: group.name,
+    vertexPointIds: [...group.vertexPointIds],
+    edgeRelationIds,
+    distanceMeasurementStartPointId: hasStartPoint
+      ? group.distanceMeasurementStartPointId ?? null
+      : group.vertexPointIds[0] ?? null,
+    segmentLengthsMeters,
+    segmentLengthsCumulativeMeters,
+    totalLengthMeters,
+  };
 };
 
 interface CesiumMeasurementsProviderProps {
@@ -346,6 +461,8 @@ export const CesiumMeasurementsProvider: React.FC<
 
   const [referencePoint, setReferencePoint] = useState<Cartesian3 | null>(null);
   const [showLabels, setShowLabels] = useState<boolean>(true);
+  const [occlusionChecksEnabled, setOcclusionChecksEnabled] =
+    useState<boolean>(true);
   const [hideMeasurementsOfType, setHideMeasurementsOfType] = useState<
     Set<MeasurementMode>
   >(new Set());
@@ -358,11 +475,14 @@ export const CesiumMeasurementsProvider: React.FC<
   const [planarPolygonGroups, setPlanarPolygonGroups] = useState<
     PlanarPolygonGroup[]
   >([]);
+  const [polylines, setPolylines] = useState<PolylineCollection[]>([]);
   const [activePlanarPolygonGroupId, setActivePlanarPolygonGroupId] = useState<
     string | null
   >(null);
   const [selectedPlanarPolygonGroupId, setSelectedPlanarPolygonGroupId] =
     useState<string | null>(null);
+  const [polylinePointLabelMode, setPolylinePointLabelMode] =
+    useState<PolylinePointLabelMode>(DEFAULT_POLYLINE_POINT_LABEL_MODE);
   const [previousSelectedMeasurementId, setPreviousSelectedMeasurementId] =
     useState<string | null>(null);
   const [doubleClickChainSourcePointId, setDoubleClickChainSourcePointId] =
@@ -446,6 +566,155 @@ export const CesiumMeasurementsProvider: React.FC<
     return cartographic?.height ?? 0;
   }, [referencePoint, scene]);
 
+  const derivedPolylines = useMemo(() => {
+    const pointById = getPointPositionMap(measurements);
+    return planarPolygonGroups
+      .map((group) => buildDerivedPolylineCollection(group, pointById))
+      .filter((collection): collection is PolylineCollection =>
+        Boolean(collection)
+      );
+  }, [measurements, planarPolygonGroups]);
+
+  useEffect(() => {
+    setPolylines(derivedPolylines);
+  }, [derivedPolylines]);
+
+  const focusedPlanarPolygonGroupId =
+    selectedPlanarPolygonGroupId ?? activePlanarPolygonGroupId;
+  const focusedPolyline = useMemo(() => {
+    if (!focusedPlanarPolygonGroupId) return null;
+    return (
+      polylines.find(
+        (polyline) => polyline.id === focusedPlanarPolygonGroupId
+      ) ?? null
+    );
+  }, [focusedPlanarPolygonGroupId, polylines]);
+  const focusedPolylineStartPointId =
+    focusedPolyline?.distanceMeasurementStartPointId ??
+    focusedPolyline?.vertexPointIds[0] ??
+    null;
+
+  const focusedPolylinePointLabelIndexByPointId = useMemo(() => {
+    if (!focusedPolyline) return {};
+    const byId: Record<string, number> = {};
+    focusedPolyline.vertexPointIds.forEach((pointId, index) => {
+      byId[pointId] = index;
+    });
+    return byId;
+  }, [focusedPolyline]);
+
+  const focusedPolylineDistanceToStartByPointId = useMemo(() => {
+    if (!focusedPolyline) return {};
+    const byId: Record<string, number> = {};
+    focusedPolyline.vertexPointIds.forEach((pointId, index) => {
+      byId[pointId] =
+        focusedPolyline.segmentLengthsCumulativeMeters[index] ?? 0;
+    });
+    return byId;
+  }, [focusedPolyline]);
+
+  const focusedPolylineElevationSinceStartByPointId = useMemo(() => {
+    if (!focusedPolyline) return {};
+    const startPointId = focusedPolyline.vertexPointIds[0];
+    const startPoint = startPointId
+      ? measurements.find(
+          (m) => isPointMeasurementEntry(m) && m.id === startPointId
+        )
+      : null;
+    if (!startPoint || !isPointMeasurementEntry(startPoint)) return {};
+    const startHeight = startPoint.geometryWGS84.height;
+    const byId: Record<string, number> = {};
+    focusedPolyline.vertexPointIds.forEach((pointId) => {
+      const point = measurements.find(
+        (m) => isPointMeasurementEntry(m) && m.id === pointId
+      );
+      if (point && isPointMeasurementEntry(point)) {
+        byId[pointId] = point.geometryWGS84.height - startHeight;
+      }
+    });
+    return byId;
+  }, [focusedPolyline, measurements]);
+
+  const focusedPolylineElevationSinceLastNodeByPointId = useMemo(() => {
+    if (!focusedPolyline) return {};
+    const byId: Record<string, number> = {};
+    const vertexPoints = focusedPolyline.vertexPointIds.map((pointId) => {
+      const point = measurements.find(
+        (m) => isPointMeasurementEntry(m) && m.id === pointId
+      );
+      return point && isPointMeasurementEntry(point) ? point : null;
+    });
+    vertexPoints.forEach((point, index) => {
+      if (!point) return;
+      if (index === 0) {
+        byId[point.id] = 0;
+      } else {
+        const prevPoint = vertexPoints[index - 1];
+        byId[point.id] = prevPoint
+          ? point.geometryWGS84.height - prevPoint.geometryWGS84.height
+          : 0;
+      }
+    });
+    return byId;
+  }, [focusedPolyline, measurements]);
+
+  const focusedPolylinePointLabelTextByPointId = useMemo(() => {
+    if (!focusedPolyline) return {};
+    const byId: Record<string, string> = {};
+    const formatElevDelta = (prefix: string, delta: number): string => {
+      const arrow = Math.abs(delta) < 0.03 ? "" : delta > 0 ? " ↥" : " ↧";
+      return `${prefix} ${formatNumber(delta)}m${arrow}`;
+    };
+    focusedPolyline.vertexPointIds.forEach((pointId) => {
+      if (polylinePointLabelMode === "cumulativeDistance") {
+        const distance = focusedPolylineDistanceToStartByPointId[pointId] ?? 0;
+        byId[pointId] = `${formatNumber(distance)}m`;
+      } else if (polylinePointLabelMode === "elevationSinceStart") {
+        const delta = focusedPolylineElevationSinceStartByPointId[pointId] ?? 0;
+        byId[pointId] = formatElevDelta("Δ", delta);
+      } else {
+        const delta =
+          focusedPolylineElevationSinceLastNodeByPointId[pointId] ?? 0;
+        byId[pointId] = formatElevDelta("±", delta);
+      }
+    });
+    return byId;
+  }, [
+    focusedPolyline,
+    polylinePointLabelMode,
+    focusedPolylineDistanceToStartByPointId,
+    focusedPolylineElevationSinceStartByPointId,
+    focusedPolylineElevationSinceLastNodeByPointId,
+  ]);
+
+  const cumulativeDistanceByRelationId = useMemo(() => {
+    const byRelationId: Record<string, number> = {};
+    polylines.forEach((polyline) => {
+      polyline.edgeRelationIds.forEach((relationId, segmentIndex) => {
+        byRelationId[relationId] =
+          polyline.segmentLengthsCumulativeMeters[segmentIndex + 1] ??
+          polyline.segmentLengthsCumulativeMeters[segmentIndex] ??
+          0;
+      });
+    });
+    return byRelationId;
+  }, [polylines]);
+
+  const effectiveReferenceElevation = useMemo(() => {
+    if (!focusedPolylineStartPointId) {
+      return referenceElevation;
+    }
+    const focusedStartPoint = measurements.find(
+      (measurement) =>
+        isPointMeasurementEntry(measurement) &&
+        measurement.id === focusedPolylineStartPointId
+    );
+    if (!focusedStartPoint || !isPointMeasurementEntry(focusedStartPoint)) {
+      return referenceElevation;
+    }
+    return focusedStartPoint.geometryWGS84.height;
+  }, [focusedPolylineStartPointId, measurements, referenceElevation]);
+
   const distanceToReferenceByPointId = useMemo(() => {
     if (!referencePoint) return {};
 
@@ -459,6 +728,18 @@ export const CesiumMeasurementsProvider: React.FC<
     });
     return distances;
   }, [measurements, referencePoint]);
+
+  const effectiveDistanceToReferenceByPointId = useMemo(() => {
+    if (!focusedPolyline) return distanceToReferenceByPointId;
+    return {
+      ...distanceToReferenceByPointId,
+      ...focusedPolylineDistanceToStartByPointId,
+    };
+  }, [
+    distanceToReferenceByPointId,
+    focusedPolyline,
+    focusedPolylineDistanceToStartByPointId,
+  ]);
 
   const polygonOnlyPointIdSet = useMemo(() => {
     const displayReadyPolygonGroupIds = new Set(
@@ -504,6 +785,31 @@ export const CesiumMeasurementsProvider: React.FC<
 
     return ids;
   }, [planarPolygonGroups, distanceRelations, selectedMeasurementId]);
+
+  // For unfocused polylines: endpoints show marker-only, interior points are fully hidden
+  const unfocusedPolylineEndpointIds = useMemo(() => {
+    const ids = new Set<string>();
+    polylines.forEach((polyline) => {
+      if (polyline.id === focusedPlanarPolygonGroupId) return;
+      const first = polyline.vertexPointIds[0];
+      const last = polyline.vertexPointIds[polyline.vertexPointIds.length - 1];
+      if (first) ids.add(first);
+      if (last && last !== first) ids.add(last);
+    });
+    return ids;
+  }, [polylines, focusedPlanarPolygonGroupId]);
+
+  const unfocusedPolylineInteriorIds = useMemo(() => {
+    const ids = new Set<string>();
+    polylines.forEach((polyline) => {
+      if (polyline.id === focusedPlanarPolygonGroupId) return;
+      polyline.vertexPointIds.forEach((pointId, index) => {
+        if (index === 0 || index === polyline.vertexPointIds.length - 1) return;
+        ids.add(pointId);
+      });
+    });
+    return ids;
+  }, [polylines, focusedPlanarPolygonGroupId]);
 
   const pointDragPlaneByPointId = useMemo<
     Readonly<Record<string, PlanarPolygonPlane>>
@@ -599,6 +905,21 @@ export const CesiumMeasurementsProvider: React.FC<
     selectedMeasurementId,
   ]);
 
+  // Internal drawing-session signal for an active open polyline/polygon chain.
+  const isActiveDrawMode = useMemo(() => {
+    if (!doubleClickChainSourcePointId) return false;
+    if (!pointMeasurementIds.has(doubleClickChainSourcePointId)) return false;
+    if (!activePlanarPolygonGroupId) return false;
+    return planarPolygonGroups.some(
+      (group) => group.id === activePlanarPolygonGroupId && !group.closed
+    );
+  }, [
+    activePlanarPolygonGroupId,
+    doubleClickChainSourcePointId,
+    planarPolygonGroups,
+    pointMeasurementIds,
+  ]);
+
   const selectedDistanceRelation = useMemo(() => {
     if (!selectedDistancePair) return null;
     return (
@@ -640,18 +961,7 @@ export const CesiumMeasurementsProvider: React.FC<
   );
 
   const handlePointQueryBeforePointCreate = useCallback(() => {
-    const hasOpenLineDrawing = Boolean(
-      doubleClickChainSourcePointId &&
-        pointMeasurementIds.has(doubleClickChainSourcePointId)
-    );
-    const activeOpenGroup = activePlanarPolygonGroupId
-      ? planarPolygonGroups.find(
-          (group) => group.id === activePlanarPolygonGroupId && !group.closed
-        ) ?? null
-      : null;
-    const isActiveChainDrawing = hasOpenLineDrawing && Boolean(activeOpenGroup);
-
-    if (isActiveChainDrawing) {
+    if (isActiveDrawMode) {
       return true;
     }
 
@@ -662,10 +972,7 @@ export const CesiumMeasurementsProvider: React.FC<
 
     return true;
   }, [
-    activePlanarPolygonGroupId,
-    doubleClickChainSourcePointId,
-    planarPolygonGroups,
-    pointMeasurementIds,
+    isActiveDrawMode,
     selectPlanarPolygonGroupById,
     selectedPlanarPolygonGroupId,
   ]);
@@ -708,6 +1015,8 @@ export const CesiumMeasurementsProvider: React.FC<
             ...DEFAULT_DISTANCE_RELATION_LABEL_VISIBILITY,
             ...(relation.labelVisibilityByKind ?? {}),
           },
+          directLabelMode:
+            relation.directLabelMode ?? DEFAULT_DIRECT_LINE_LABEL_MODE,
         };
 
         if (relationIndex < 0) return [...prev, nextRelation];
@@ -784,6 +1093,8 @@ export const CesiumMeasurementsProvider: React.FC<
             ...DEFAULT_DISTANCE_RELATION_LABEL_VISIBILITY,
             ...(relation.labelVisibilityByKind ?? {}),
           },
+          directLabelMode:
+            relation.directLabelMode ?? DEFAULT_DIRECT_LINE_LABEL_MODE,
         });
       });
 
@@ -802,6 +1113,7 @@ export const CesiumMeasurementsProvider: React.FC<
           labelVisibilityByKind: {
             ...DEFAULT_DISTANCE_RELATION_LABEL_VISIBILITY,
           },
+          directLabelMode: DEFAULT_DIRECT_LINE_LABEL_MODE,
         });
       });
 
@@ -863,6 +1175,8 @@ export const CesiumMeasurementsProvider: React.FC<
               id: nextActiveGroupId,
               vertexPointIds: seedVertexPointIds,
               edgeRelationIds: seedEdgeRelationIds,
+              distanceMeasurementStartPointId:
+                seedVertexPointIds[0] ?? undefined,
               closed: false,
               planeLocked: false,
               areaSquareMeters: 0,
@@ -994,7 +1308,14 @@ export const CesiumMeasurementsProvider: React.FC<
       }
 
       setDoubleClickChainSourcePointId(newPointId);
-      selectMeasurementById(newPointId);
+      if (sourcePointId) {
+        setSelectedPlanarPolygonGroupId(nextActiveGroupId);
+        selectedMeasurementIdRef.current = null;
+        setSelectedMeasurementId(null);
+        setPreviousSelectedMeasurementId(null);
+      } else {
+        selectMeasurementById(newPointId);
+      }
     },
     [
       activePlanarPolygonGroupId,
@@ -1008,6 +1329,8 @@ export const CesiumMeasurementsProvider: React.FC<
   );
 
   const closeActivePlanarPolygonGroup = useCallback(() => {
+    let closedGroupId: string | null = null;
+
     setPlanarPolygonGroups((prev) => {
       if (!activePlanarPolygonGroupId) return prev;
       const activeGroup = prev.find(
@@ -1039,18 +1362,48 @@ export const CesiumMeasurementsProvider: React.FC<
         vertexCount: activeGroup.vertexPointIds.length,
         planeLocked: activeGroup.planeLocked,
       });
+      closedGroupId = activeGroup.id;
       return prev.map((group) =>
         group.id === activeGroup.id ? closedGroup : group
       );
     });
+
     setActivePlanarPolygonGroupId(null);
+    setDoubleClickChainSourcePointId(null);
+
+    if (closedGroupId) {
+      setSelectedPlanarPolygonGroupId(closedGroupId);
+      selectedMeasurementIdRef.current = null;
+      setSelectedMeasurementId(null);
+      setPreviousSelectedMeasurementId(null);
+      setMoveGizmoPointId(null);
+      setMoveGizmoAxisDirection(null);
+      setMoveGizmoAxisTitle(null);
+      setMoveGizmoAxisCandidates(null);
+      setIsMoveGizmoDragging(false);
+    }
   }, [activePlanarPolygonGroupId, measurements]);
 
-  const handlePointQueryDoubleClick = useCallback(() => {
-    // Finish current line chain.
+  const finishActivePlanarPolylineGroup = useCallback(() => {
+    if (!activePlanarPolygonGroupId) return;
+    const finishedGroupId = activePlanarPolygonGroupId;
+    setActivePlanarPolygonGroupId(null);
     setDoubleClickChainSourcePointId(null);
-    closeActivePlanarPolygonGroup();
-  }, [closeActivePlanarPolygonGroup]);
+    setSelectedPlanarPolygonGroupId(finishedGroupId);
+    selectedMeasurementIdRef.current = null;
+    setSelectedMeasurementId(null);
+    setPreviousSelectedMeasurementId(null);
+    setMoveGizmoPointId(null);
+    setMoveGizmoAxisDirection(null);
+    setMoveGizmoAxisTitle(null);
+    setMoveGizmoAxisCandidates(null);
+    setIsMoveGizmoDragging(false);
+  }, [activePlanarPolygonGroupId]);
+
+  const handlePointQueryDoubleClick = useCallback(() => {
+    // Finish current open line chain without forcing polygon closure.
+    finishActivePlanarPolylineGroup();
+  }, [finishActivePlanarPolylineGroup]);
 
   const appendExistingPointToActivePlanarPolygonGroup = useCallback(
     (existingPointId: string, sourcePointId?: string | null) => {
@@ -1100,6 +1453,8 @@ export const CesiumMeasurementsProvider: React.FC<
               id: nextActiveGroupId,
               vertexPointIds: seedVertexPointIds,
               edgeRelationIds: seedEdgeRelationIds,
+              distanceMeasurementStartPointId:
+                seedVertexPointIds[0] ?? undefined,
               closed: false,
               planeLocked: false,
               areaSquareMeters: 0,
@@ -1362,6 +1717,188 @@ export const CesiumMeasurementsProvider: React.FC<
     []
   );
 
+  const handleDistanceRelationLineLabelToggle = useCallback(
+    (relationId: string, kind: ReferenceLineLabelKind) => {
+      if (!relationId) return;
+
+      const ownerGroupIdsFromPolygons = planarPolygonGroups
+        .filter((group) => group.edgeRelationIds.includes(relationId))
+        .map((group) => group.id);
+      const ownerGroupIdsFromPolylines = polylines
+        .filter((polyline) => polyline.edgeRelationIds.includes(relationId))
+        .map((polyline) => polyline.id);
+      const ownerGroupIds = Array.from(
+        new Set([...ownerGroupIdsFromPolygons, ...ownerGroupIdsFromPolylines])
+      );
+      const selectedGroupOwnsRelation =
+        !!selectedPlanarPolygonGroupId &&
+        ownerGroupIds.includes(selectedPlanarPolygonGroupId);
+
+      if (ownerGroupIds.length > 0 && !selectedGroupOwnsRelation) {
+        const preferredOwnerGroupId =
+          (activePlanarPolygonGroupId &&
+          ownerGroupIds.includes(activePlanarPolygonGroupId)
+            ? activePlanarPolygonGroupId
+            : ownerGroupIds[0]) ?? null;
+        selectPlanarPolygonGroupById(preferredOwnerGroupId);
+        return;
+      }
+
+      // For "direct" kind on open polylines, cycle mode on ALL edges in the connected polyline
+      if (kind === "direct" && selectedPlanarPolygonGroupId) {
+        const connectedOpenGroupIds = getConnectedOpenPolylineGroupIds(
+          planarPolygonGroups,
+          selectedPlanarPolygonGroupId
+        );
+        if (connectedOpenGroupIds.size > 0) {
+          const allRelationIds = new Set<string>();
+          planarPolygonGroups.forEach((group) => {
+            if (!connectedOpenGroupIds.has(group.id)) return;
+            group.edgeRelationIds.forEach((rid) => allRelationIds.add(rid));
+          });
+
+          if (allRelationIds.size > 0) {
+            setDistanceRelations((prev) => {
+              const currentMode: DirectLineLabelMode =
+                prev.find((r) => r.id === relationId)?.directLabelMode ??
+                DEFAULT_DIRECT_LINE_LABEL_MODE;
+              const nextMode = getNextDirectLineLabelMode(currentMode);
+              return prev.map((relation) => {
+                if (!allRelationIds.has(relation.id)) return relation;
+                return {
+                  ...relation,
+                  directLabelMode: nextMode,
+                  labelVisibilityByKind: {
+                    ...DEFAULT_DISTANCE_RELATION_LABEL_VISIBILITY,
+                    ...(relation.labelVisibilityByKind ?? {}),
+                    direct: nextMode !== "none",
+                  },
+                };
+              });
+            });
+            return;
+          }
+        }
+      }
+
+      toggleDistanceRelationLineLabelVisibility(relationId, kind);
+    },
+    [
+      activePlanarPolygonGroupId,
+      planarPolygonGroups,
+      polylines,
+      selectedPlanarPolygonGroupId,
+      selectPlanarPolygonGroupById,
+      setDistanceRelations,
+      toggleDistanceRelationLineLabelVisibility,
+    ]
+  );
+
+  const handleDistanceRelationLineClick = useCallback(
+    (relationId: string, kind: ReferenceLineLabelKind) => {
+      if (!relationId || kind !== "direct") return;
+
+      const ownerGroupIdsFromPolygons = planarPolygonGroups
+        .filter((group) => group.edgeRelationIds.includes(relationId))
+        .map((group) => group.id);
+      const ownerGroupIdsFromPolylines = polylines
+        .filter((polyline) => polyline.edgeRelationIds.includes(relationId))
+        .map((polyline) => polyline.id);
+      const ownerGroupIds = Array.from(
+        new Set([...ownerGroupIdsFromPolygons, ...ownerGroupIdsFromPolylines])
+      );
+      const selectedGroupOwnsRelation =
+        !!selectedPlanarPolygonGroupId &&
+        ownerGroupIds.includes(selectedPlanarPolygonGroupId);
+
+      if (ownerGroupIds.length > 0 && !selectedGroupOwnsRelation) {
+        const preferredOwnerGroupId =
+          (activePlanarPolygonGroupId &&
+          ownerGroupIds.includes(activePlanarPolygonGroupId)
+            ? activePlanarPolygonGroupId
+            : ownerGroupIds[0]) ?? null;
+        selectPlanarPolygonGroupById(preferredOwnerGroupId);
+        return;
+      }
+
+      // Toggle showComponentLines on all edges in connected polyline
+      if (selectedPlanarPolygonGroupId) {
+        const connectedOpenGroupIds = getConnectedOpenPolylineGroupIds(
+          planarPolygonGroups,
+          selectedPlanarPolygonGroupId
+        );
+        if (connectedOpenGroupIds.size > 0) {
+          const allRelationIds = new Set<string>();
+          planarPolygonGroups.forEach((group) => {
+            if (!connectedOpenGroupIds.has(group.id)) return;
+            group.edgeRelationIds.forEach((rid) => allRelationIds.add(rid));
+          });
+
+          if (allRelationIds.size > 0) {
+            setDistanceRelations((prev) => {
+              const clickedRelation = prev.find((r) => r.id === relationId);
+              const currentValue =
+                (clickedRelation?.showVerticalLine ??
+                  clickedRelation?.showComponentLines ??
+                  false) ||
+                (clickedRelation?.showHorizontalLine ??
+                  clickedRelation?.showComponentLines ??
+                  false);
+              const nextValue = !currentValue;
+              return prev.map((relation) => {
+                if (!allRelationIds.has(relation.id)) return relation;
+                return {
+                  ...relation,
+                  showVerticalLine: nextValue,
+                  showHorizontalLine: nextValue,
+                  showComponentLines: nextValue,
+                  labelVisibilityByKind: {
+                    ...DEFAULT_DISTANCE_RELATION_LABEL_VISIBILITY,
+                    ...(relation.labelVisibilityByKind ?? {}),
+                  },
+                };
+              });
+            });
+            return;
+          }
+        }
+      }
+
+      // Fallback: toggle component lines on the single relation
+      setDistanceRelations((prev) => {
+        return prev.map((relation) => {
+          if (relation.id !== relationId) return relation;
+          const currentValue =
+            (relation.showVerticalLine ??
+              relation.showComponentLines ??
+              false) ||
+            (relation.showHorizontalLine ??
+              relation.showComponentLines ??
+              false);
+          const nextValue = !currentValue;
+          return {
+            ...relation,
+            showVerticalLine: nextValue,
+            showHorizontalLine: nextValue,
+            showComponentLines: nextValue,
+            labelVisibilityByKind: {
+              ...DEFAULT_DISTANCE_RELATION_LABEL_VISIBILITY,
+              ...(relation.labelVisibilityByKind ?? {}),
+            },
+          };
+        });
+      });
+    },
+    [
+      activePlanarPolygonGroupId,
+      planarPolygonGroups,
+      polylines,
+      selectedPlanarPolygonGroupId,
+      selectPlanarPolygonGroupById,
+      setDistanceRelations,
+    ]
+  );
+
   const updateMeasurementNameById = useCallback(
     (id: string, name: string) => {
       const nextName = name.trim();
@@ -1607,10 +2144,23 @@ export const CesiumMeasurementsProvider: React.FC<
 
   const handlePointLabelLongPress = useCallback(
     (id: string) => {
-      selectMeasurementById(id);
+      // If the point is on the focused polygon/polyline, keep the group selected
+      const focusedGroup = focusedPlanarPolygonGroupId
+        ? planarPolygonGroups.find((g) => g.id === focusedPlanarPolygonGroupId)
+        : null;
+      const isOnFocusedGroup =
+        focusedGroup && focusedGroup.vertexPointIds.includes(id);
+      if (!isOnFocusedGroup) {
+        selectMeasurementById(id);
+      }
       startMoveGizmoForMeasurementId(id);
     },
-    [selectMeasurementById, startMoveGizmoForMeasurementId]
+    [
+      focusedPlanarPolygonGroupId,
+      planarPolygonGroups,
+      selectMeasurementById,
+      startMoveGizmoForMeasurementId,
+    ]
   );
 
   const handleMoveGizmoExit = useCallback(() => {
@@ -1627,12 +2177,25 @@ export const CesiumMeasurementsProvider: React.FC<
 
   const handlePointPlaneDragStart = useCallback(
     (pointId: string) => {
-      selectMeasurementById(pointId);
+      const focusedGroup = focusedPlanarPolygonGroupId
+        ? planarPolygonGroups.find((g) => g.id === focusedPlanarPolygonGroupId)
+        : null;
+      const isOnFocusedGroup =
+        focusedGroup && focusedGroup.vertexPointIds.includes(pointId);
+      if (!isOnFocusedGroup) {
+        selectMeasurementById(pointId);
+      }
       if (moveGizmoPointId) {
         stopMoveGizmo();
       }
     },
-    [moveGizmoPointId, selectMeasurementById, stopMoveGizmo]
+    [
+      focusedPlanarPolygonGroupId,
+      planarPolygonGroups,
+      moveGizmoPointId,
+      selectMeasurementById,
+      stopMoveGizmo,
+    ]
   );
 
   const handlePointLabelClick = useCallback(
@@ -1644,12 +2207,7 @@ export const CesiumMeasurementsProvider: React.FC<
 
       if (measurementMode === MeasurementMode.PointQuery) {
         if (!pointMeasurementIds.has(id)) return;
-
-        const hasOpenLineDrawing = Boolean(
-          doubleClickChainSourcePointId &&
-            pointMeasurementIds.has(doubleClickChainSourcePointId)
-        );
-        if (!hasOpenLineDrawing) {
+        if (!isActiveDrawMode) {
           runPointLabelClickInteraction({
             pointId: id,
             selectedMeasurementId,
@@ -1674,9 +2232,7 @@ export const CesiumMeasurementsProvider: React.FC<
             activeOpenGroup.vertexPointIds.length >= 3
         );
         if (shouldCloseRingOnFirstVertexClick) {
-          setDoubleClickChainSourcePointId(null);
           closeActivePlanarPolygonGroup();
-          selectMeasurementById(id);
           return;
         }
 
@@ -1701,8 +2257,8 @@ export const CesiumMeasurementsProvider: React.FC<
     [
       moveGizmoPointId,
       measurementMode,
-      doubleClickChainSourcePointId,
       activePlanarPolygonGroupId,
+      isActiveDrawMode,
       planarPolygonGroups,
       pointMeasurementIds,
       resolveDistanceRelationSourcePointId,
@@ -1822,6 +2378,7 @@ export const CesiumMeasurementsProvider: React.FC<
             type: MeasurementMode.PointQuery,
             id: nextPointId,
             index: insertionIndex,
+            name: "Exzenterpunkt",
             geometryECEF: midpointPosition,
             geometryWGS84: {
               longitude: midpointWGS84.longitude,
@@ -1879,9 +2436,54 @@ export const CesiumMeasurementsProvider: React.FC<
         (group) => group.id === polygonGroupId
       );
       if (!hasPolygonGroup) return;
+
+      const isAlreadySelected = selectedPlanarPolygonGroupId === polygonGroupId;
+      if (isAlreadySelected) {
+        const connectedOpenGroupIds = getConnectedOpenPolylineGroupIds(
+          planarPolygonGroups,
+          polygonGroupId
+        );
+        if (connectedOpenGroupIds.size > 0) {
+          const relationIds = new Set<string>();
+          planarPolygonGroups.forEach((group) => {
+            if (!connectedOpenGroupIds.has(group.id)) return;
+            group.edgeRelationIds.forEach((relationId) => {
+              relationIds.add(relationId);
+            });
+          });
+
+          if (relationIds.size > 0) {
+            setDistanceRelations((prev) => {
+              const currentMode: DirectLineLabelMode =
+                prev.find((relation) => relationIds.has(relation.id))
+                  ?.directLabelMode ?? DEFAULT_DIRECT_LINE_LABEL_MODE;
+              const nextMode = getNextDirectLineLabelMode(currentMode);
+              return prev.map((relation) => {
+                if (!relationIds.has(relation.id)) return relation;
+                return {
+                  ...relation,
+                  directLabelMode: nextMode,
+                  labelVisibilityByKind: {
+                    ...DEFAULT_DISTANCE_RELATION_LABEL_VISIBILITY,
+                    ...(relation.labelVisibilityByKind ?? {}),
+                    direct: nextMode !== "none",
+                  },
+                };
+              });
+            });
+            return;
+          }
+        }
+      }
+
       selectPlanarPolygonGroupById(polygonGroupId);
     },
-    [planarPolygonGroups, selectPlanarPolygonGroupById]
+    [
+      planarPolygonGroups,
+      selectedPlanarPolygonGroupId,
+      setDistanceRelations,
+      selectPlanarPolygonGroupById,
+    ]
   );
 
   useCesiumPointVisualizer(scene, measurements, {
@@ -1889,10 +2491,13 @@ export const CesiumMeasurementsProvider: React.FC<
     showCesiumMarkers: false,
     showLabels: showPointLabels,
     radius: pointRadius,
-    referenceElevation,
+    referenceElevation: effectiveReferenceElevation,
     selectedPointId: selectedMeasurementId,
     selectedPlanarPolygonGroupId: showDistanceAndPolygonVisuals
       ? selectedPlanarPolygonGroupId
+      : null,
+    activePlanarPolygonGroupId: showDistanceAndPolygonVisuals
+      ? activePlanarPolygonGroupId
       : null,
     distanceRelations: showDistanceAndPolygonVisuals ? distanceRelations : [],
     planarPolygonGroups: showDistanceAndPolygonVisuals
@@ -1902,7 +2507,11 @@ export const CesiumMeasurementsProvider: React.FC<
     pointDragPlaneByPointId,
     onPointPlaneDragStart: handlePointPlaneDragStart,
     onPointPlaneDragPositionChange: updatePointMeasurementPositionById,
-    hiddenPointLabelIds: polygonOnlyPointIdSet,
+    hiddenPointLabelIds: new Set([
+      ...polygonOnlyPointIdSet,
+      ...unfocusedPolylineEndpointIds,
+    ]),
+    fullyHiddenPointIds: unfocusedPolylineInteriorIds,
     showSelectedDisc: Boolean(moveGizmoPointId),
     debug: false,
     onPointClick: handlePointLabelClick,
@@ -1911,11 +2520,16 @@ export const CesiumMeasurementsProvider: React.FC<
     onDistanceRelationCornerClick: handleDistanceRelationCornerClick,
     onDistanceRelationMidpointClick: handleDistanceRelationMidpointClick,
     pointLongPressDurationMs: POINT_LABEL_LONG_PRESS_DURATION_MS,
+    occlusionChecksEnabled,
     labelLayoutConfig: options?.labels,
-    distanceToReferenceByPointId,
-    onDistanceRelationLineLabelToggle:
-      toggleDistanceRelationLineLabelVisibility,
+    distanceToReferenceByPointId: effectiveDistanceToReferenceByPointId,
+    pointLabelIndexByPointId: focusedPolylinePointLabelIndexByPointId,
+    referenceLabelPointId: focusedPolylineStartPointId,
+    polylinePointLabelTextByPointId: focusedPolylinePointLabelTextByPointId,
+    onDistanceRelationLineLabelToggle: handleDistanceRelationLineLabelToggle,
+    onDistanceRelationLineClick: handleDistanceRelationLineClick,
     distanceLineLabelMinDistancePx: 50,
+    cumulativeDistanceByRelationId,
     moveGizmoPointId,
     moveGizmoAxisDirection,
     moveGizmoAxisTitle,
@@ -2330,6 +2944,7 @@ export const CesiumMeasurementsProvider: React.FC<
       selectMeasurementById,
       updateMeasurementNameById,
       selectedPlanarPolygonGroupId,
+      activePlanarPolygonGroupId,
       selectPlanarPolygonGroupById,
       updatePlanarPolygonNameById,
       moveGizmoPointId,
@@ -2360,10 +2975,14 @@ export const CesiumMeasurementsProvider: React.FC<
       setDistanceRelations,
       planarPolygonGroups,
       setPlanarPolygonGroups,
+      polylines,
+      setPolylines,
       showSelectedReferenceLine,
       setShowSelectedReferenceLine,
       showSelectedReferenceLineComponents,
       setShowSelectedReferenceLineComponents,
+      occlusionChecksEnabled,
+      setOcclusionChecksEnabled,
     }),
     [
       measurementMode,
@@ -2374,6 +2993,7 @@ export const CesiumMeasurementsProvider: React.FC<
       selectMeasurementById,
       updateMeasurementNameById,
       selectedPlanarPolygonGroupId,
+      activePlanarPolygonGroupId,
       selectPlanarPolygonGroupById,
       updatePlanarPolygonNameById,
       moveGizmoPointId,
@@ -2387,6 +3007,8 @@ export const CesiumMeasurementsProvider: React.FC<
       clearMeasurementsByType,
       showLabels,
       setShowLabels,
+      occlusionChecksEnabled,
+      setOcclusionChecksEnabled,
       hideMeasurementsOfType,
       setHideMeasurementsOfType,
       hideLabelsOfType,
@@ -2404,6 +3026,8 @@ export const CesiumMeasurementsProvider: React.FC<
       setDistanceRelations,
       planarPolygonGroups,
       setPlanarPolygonGroups,
+      polylines,
+      setPolylines,
       showSelectedReferenceLine,
       setShowSelectedReferenceLine,
       showSelectedReferenceLineComponents,

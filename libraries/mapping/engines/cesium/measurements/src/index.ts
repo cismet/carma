@@ -22,3 +22,4 @@ export { useCesiumPointLabels } from "./lib/hooks/useCesiumPointLabels";
 export { useCesiumPointQuery } from "./lib/hooks/useCesiumPointQuery";
 export { useCesiumPointVisualizer } from "./lib/hooks/useCesiumPointVisualizer";
 export { useCesiumPointMoveGizmo } from "@carma-mapping/engines-interop/gizmo/cesium-integration";
+export { useCesiumSceneVisibilityIndex } from "./lib/hooks/useCesiumSceneVisibilityIndex";

@@ -13,3 +13,16 @@ export function generateRandomString(
   }
   return result;
 }
+
+export function capitalizeFirstLetter(text: string): string {
+  if (!text) return "";
+  return text.charAt(0).toUpperCase() + text.slice(1).toLowerCase();
+}
+
+export function trimLines(text: string): string {
+  return text
+    .split("\n")
+    .map((line) => line.trim())
+    .join("\n")
+    .replace(/^\n+|\n+$/g, "");
+}

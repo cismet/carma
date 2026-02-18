@@ -3,6 +3,7 @@ import {
   createElement,
   useEffect,
   useMemo,
+  useRef,
   useState,
   type CSSProperties,
   type ReactNode,
@@ -27,7 +28,6 @@ import {
   type PointLabelLayoutConfig,
   type PointLabelLayoutConfigOverrides,
   type PointLabelLayoutResult,
-  type ScreenPoint,
 } from "@carma-providers/label-overlay";
 
 import {
@@ -36,12 +36,9 @@ import {
   type PointLabelMetricMode,
   type PointMeasurementEntry,
 } from "../types/MeasurementTypes";
-import {
-  isPointOccluded,
-  isPointInViewport,
-} from "../utils/occlusionDetection";
 import { getCustomPointMeasurementName } from "../utils/measurementNaming";
 import { formatNumber } from "../utils/formatting";
+import { useCesiumSceneVisibilityIndex } from "./useCesiumSceneVisibilityIndex";
 
 export type CesiumLabelLayoutConfig = PointLabelLayoutConfig;
 export type CesiumLabelLayoutConfigOverrides = PointLabelLayoutConfigOverrides;
@@ -112,8 +109,23 @@ const getPointLabelBase = (
 
 const getReferenceLabelBase = (
   points: PointMeasurementEntry[],
-  distanceToReferenceByPointId?: Readonly<Record<string, number>>
+  distanceToReferenceByPointId?: Readonly<Record<string, number>>,
+  referenceLabelPointId?: string | null,
+  pointLabelIndexByPointId?: Readonly<Record<string, number>>
 ): string | undefined => {
+  if (referenceLabelPointId) {
+    const referencePointIndex = points.findIndex(
+      (candidatePoint) => candidatePoint.id === referenceLabelPointId
+    );
+    if (referencePointIndex >= 0) {
+      const referencePoint = points[referencePointIndex];
+      if (!referencePoint) return undefined;
+      const effectiveReferenceIndex =
+        pointLabelIndexByPointId?.[referencePoint.id] ?? referencePointIndex;
+      return getPointLabelBase(referencePoint.name, effectiveReferenceIndex);
+    }
+  }
+
   const referencePointIndex = points.findIndex((candidatePoint) => {
     const distanceToReference =
       distanceToReferenceByPointId?.[candidatePoint.id];
@@ -125,30 +137,12 @@ const getReferenceLabelBase = (
 
   if (referencePointIndex < 0) return undefined;
 
-  return getPointLabelBase(
-    points[referencePointIndex]?.name,
-    referencePointIndex
-  );
+  const referencePoint = points[referencePointIndex];
+  if (!referencePoint) return undefined;
+  const effectiveReferenceIndex =
+    pointLabelIndexByPointId?.[referencePoint.id] ?? referencePointIndex;
+  return getPointLabelBase(referencePoint.name, effectiveReferenceIndex);
 };
-
-const areBooleanMapsDifferent = (
-  prev: Record<string, boolean>,
-  next: Record<string, boolean>,
-  ids: string[]
-): boolean => ids.some((id) => Boolean(prev[id]) !== Boolean(next[id]));
-
-const areScreenPointMapsDifferent = (
-  prev: Record<string, ScreenPoint>,
-  next: Record<string, ScreenPoint>,
-  ids: string[]
-): boolean =>
-  ids.some((id) => {
-    const prevPoint = prev[id];
-    const nextPoint = next[id];
-    if (!prevPoint && !nextPoint) return false;
-    if (!prevPoint || !nextPoint) return true;
-    return prevPoint.x !== nextPoint.x || prevPoint.y !== nextPoint.y;
-  });
 
 const formatNoneLabelText = (
   labelBase: string
@@ -334,9 +328,14 @@ export const useCesiumPointLabels = (
   onPointDoubleClick?: (pointId: string) => void,
   onPointLongPress?: (pointId: string) => void,
   pointLongPressDurationMs: number = 300,
+  occlusionChecksEnabled: boolean = true,
   layoutConfigOverrides?: CesiumLabelLayoutConfigOverrides,
   distanceToReferenceByPointId?: Readonly<Record<string, number>>,
+  pointLabelIndexByPointId?: Readonly<Record<string, number>>,
+  referenceLabelPointId?: string | null,
+  polylinePointLabelTextByPointId?: Readonly<Record<string, string>>,
   hiddenPointLabelIds?: ReadonlySet<string>,
+  fullyHiddenPointIds?: ReadonlySet<string>,
   pointDragPlaneByPointId?: Readonly<Record<string, PlanarPolygonPlane>>,
   onPointPlaneDragStart?: (pointId: string) => void,
   onPointPlaneDragPositionChange?: (
@@ -347,16 +346,8 @@ export const useCesiumPointLabels = (
   moveGizmoMarkerSizeScale: number = 1,
   moveGizmoLabelDistanceScale: number = 1
 ) => {
-  const [occlusionResults, setOcclusionResults] = useState<
-    Record<string, boolean>
-  >({});
-  const [hiddenResults, setHiddenResults] = useState<Record<string, boolean>>(
-    {}
-  );
-  const [projectedPositions, setProjectedPositions] = useState<
-    Record<string, ScreenPoint>
-  >({});
   const [cameraPitch, setCameraPitch] = useState<number>(-Math.PI / 4);
+  const registeredPointIdSetRef = useRef<Set<string>>(new Set());
 
   const layoutConfig = useMemo(
     () => resolvePointLabelLayoutConfig(layoutConfigOverrides),
@@ -382,121 +373,111 @@ export const useCesiumPointLabels = (
   // Keep camera pitch in sync while the camera moves.
   useEffect(() => {
     if (!scene || scene.isDestroyed() || !showLabels) return;
+    const camera = scene.camera;
 
     const updatePitch = () => {
-      const currentPitch = scene.camera.pitch;
+      const currentPitch = camera.pitch;
       setCameraPitch((prev) =>
         Math.abs(currentPitch - prev) > 0.001 ? currentPitch : prev
       );
     };
 
     updatePitch();
-    const removePostRenderListener =
-      scene.postRender.addEventListener(updatePitch);
+    const removeChangedListener = camera.changed.addEventListener(updatePitch);
+    const removeMoveEndListener = camera.moveEnd.addEventListener(updatePitch);
 
     return () => {
-      if (removePostRenderListener) {
-        removePostRenderListener();
+      if (removeChangedListener) {
+        removeChangedListener();
+      }
+      if (removeMoveEndListener) {
+        removeMoveEndListener();
       }
     };
   }, [scene, showLabels]);
 
-  // Cesium-specific visibility and occlusion detection.
+  const realtimeOcclusionPointIds = useMemo(() => {
+    if (!occlusionChecksEnabled || !moveGizmoIsDragging) return [];
+    if (!selectedPointId || selectedPointId !== moveGizmoPointId) return [];
+    return [selectedPointId];
+  }, [
+    moveGizmoIsDragging,
+    moveGizmoPointId,
+    occlusionChecksEnabled,
+    selectedPointId,
+  ]);
+
+  const { registerPoints, unregisterPointIds, visibilityStateById } =
+    useCesiumSceneVisibilityIndex(scene, {
+      shouldTestVisibility: showLabels,
+      shouldTestOcclusion: occlusionChecksEnabled,
+      realtimeOcclusionPointIds,
+      viewportPaddingHorizontal: VIEWPORT_PADDING_HORIZONTAL,
+      viewportPaddingVertical: VIEWPORT_PADDING_VERTICAL,
+      occlusionToleranceMeters: 1.0,
+    });
+
   useEffect(() => {
-    if (!scene || scene.isDestroyed() || !showLabels) return;
+    const indexedPoints = points.map((point) => ({
+      id: point.id,
+      positionECEF: point.geometryECEF,
+    }));
+    registerPoints(indexedPoints);
 
-    const checkVisibilityAndOcclusion = () => {
-      const newOcclusionResults: Record<string, boolean> = {};
-      const newHiddenResults: Record<string, boolean> = {};
-      const newProjectedPositions: Record<string, ScreenPoint> = {};
-
-      points.forEach((point) => {
-        const canvasPosition = SceneTransforms.worldToWindowCoordinates(
-          scene,
-          point.geometryECEF
-        );
-
-        if (!defined(canvasPosition)) {
-          newHiddenResults[point.id] = true;
-          newOcclusionResults[point.id] = false;
-          return;
-        }
-
-        const inViewport = isPointInViewport(
-          canvasPosition,
-          scene.canvas.clientWidth,
-          scene.canvas.clientHeight,
-          VIEWPORT_PADDING_HORIZONTAL,
-          VIEWPORT_PADDING_VERTICAL
-        );
-
-        if (!inViewport) {
-          newHiddenResults[point.id] = true;
-          newOcclusionResults[point.id] = false;
-          return;
-        }
-
-        newHiddenResults[point.id] = false;
-        newProjectedPositions[point.id] = {
-          x: canvasPosition.x,
-          y: canvasPosition.y,
-        };
-
-        newOcclusionResults[point.id] = isPointOccluded(
-          scene,
-          point.geometryECEF,
-          canvasPosition,
-          1.0
-        );
-      });
-
-      const pointIds = points.map((point) => point.id);
-
-      setOcclusionResults((prev) =>
-        areBooleanMapsDifferent(prev, newOcclusionResults, pointIds)
-          ? newOcclusionResults
-          : prev
-      );
-      setHiddenResults((prev) =>
-        areBooleanMapsDifferent(prev, newHiddenResults, pointIds)
-          ? newHiddenResults
-          : prev
-      );
-      setProjectedPositions((prev) =>
-        areScreenPointMapsDifferent(prev, newProjectedPositions, pointIds)
-          ? newProjectedPositions
-          : prev
-      );
-    };
-
-    const removePostRenderListener = scene.postRender.addEventListener(
-      checkVisibilityAndOcclusion
-    );
-
-    checkVisibilityAndOcclusion();
-
-    return () => {
-      if (removePostRenderListener) {
-        removePostRenderListener();
+    const nextIdSet = new Set(indexedPoints.map((point) => point.id));
+    const removedIds: string[] = [];
+    registeredPointIdSetRef.current.forEach((id) => {
+      if (!nextIdSet.has(id)) {
+        removedIds.push(id);
       }
+    });
+
+    if (removedIds.length > 0) {
+      unregisterPointIds(removedIds);
+    }
+    registeredPointIdSetRef.current = nextIdSet;
+  }, [points, registerPoints, unregisterPointIds]);
+
+  useEffect(() => {
+    return () => {
+      const ids = Array.from(registeredPointIdSetRef.current);
+      if (ids.length > 0) {
+        unregisterPointIds(ids);
+      }
+      registeredPointIdSetRef.current = new Set();
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [scene, points, showLabels]);
+  }, [unregisterPointIds]);
 
   const pointLabelTextById = useMemo<
     Readonly<Record<string, PointLabelTextRepresentation>>
   >(() => {
     const referenceLabelBase = getReferenceLabelBase(
       points,
-      distanceToReferenceByPointId
+      distanceToReferenceByPointId,
+      referenceLabelPointId,
+      pointLabelIndexByPointId
     );
 
     return Object.fromEntries(
       points.map((point, index) => {
+        // For polyline points, show override text without index
+        const polylineOverrideText =
+          polylinePointLabelTextByPointId?.[point.id];
+        if (polylineOverrideText !== undefined) {
+          return [
+            point.id,
+            {
+              layoutText: polylineOverrideText,
+            } as PointLabelTextRepresentation,
+          ];
+        }
+
+        const effectivePointIndex =
+          pointLabelIndexByPointId?.[point.id] ?? index;
         const pointLabelMetricMode =
           point.pointLabelMode ?? DEFAULT_POINT_LABEL_METRIC_MODE;
         const labelTextRepresentation = formatPointLabelText(
-          index,
+          effectivePointIndex,
           point.geometryWGS84.height,
           referenceElevation,
           point.name,
@@ -508,7 +489,14 @@ export const useCesiumPointLabels = (
         return [point.id, labelTextRepresentation];
       })
     );
-  }, [points, referenceElevation, distanceToReferenceByPointId]);
+  }, [
+    points,
+    referenceElevation,
+    distanceToReferenceByPointId,
+    referenceLabelPointId,
+    pointLabelIndexByPointId,
+    polylinePointLabelTextByPointId,
+  ]);
 
   const layoutResult = useMemo((): PointLabelLayoutResult => {
     if (!scene || scene.isDestroyed()) {
@@ -517,8 +505,9 @@ export const useCesiumPointLabels = (
 
     const layoutPoints: LayoutPointInput[] = points
       .map((point, index) => {
-        const anchor = projectedPositions[point.id];
-        if (!anchor || hiddenResults[point.id]) return null;
+        const visibilityState = visibilityStateById[point.id];
+        const anchor = visibilityState?.screenPosition ?? null;
+        if (!anchor || visibilityState?.isHidden) return null;
         const labelTextRepresentation = pointLabelTextById[point.id];
         if (!labelTextRepresentation) return null;
         const isDraggedMoveGizmoPoint =
@@ -549,8 +538,7 @@ export const useCesiumPointLabels = (
   }, [
     scene,
     points,
-    projectedPositions,
-    hiddenResults,
+    visibilityStateById,
     pointLabelTextById,
     moveGizmoPointId,
     moveGizmoIsDragging,
@@ -560,9 +548,15 @@ export const useCesiumPointLabels = (
 
   const pointLabelData: PointLabelData[] = useMemo(() => {
     return points.map((point, index) => {
+      const polylineOverrideText = polylinePointLabelTextByPointId?.[point.id];
+      const effectivePointIndex = pointLabelIndexByPointId?.[point.id] ?? index;
       const labelTextRepresentation =
         pointLabelTextById[point.id] ??
-        formatNoneLabelText(getPointLabelBase(point.name, index));
+        (polylineOverrideText !== undefined
+          ? { layoutText: polylineOverrideText }
+          : formatNoneLabelText(
+              getPointLabelBase(point.name, effectivePointIndex)
+            ));
       const isMoveGizmoPoint = point.id === moveGizmoPointId;
       const disableInteractionsForMoveGizmoPoint = isMoveGizmoPoint;
       const dragPlane = pointDragPlaneByPointId?.[point.id];
@@ -587,7 +581,9 @@ export const useCesiumPointLabels = (
       return {
         id: point.id,
         getCanvasPosition: () => {
-          if (!scene || scene.isDestroyed()) return null;
+          if (!scene || scene.isDestroyed()) {
+            return visibilityStateById[point.id]?.screenPosition ?? null;
+          }
           const canvasPosition = SceneTransforms.worldToWindowCoordinates(
             scene,
             point.geometryECEF
@@ -630,8 +626,10 @@ export const useCesiumPointLabels = (
           : undefined,
         selected: point.id === selectedPointId,
         visible: true,
-        isOccluded: occlusionResults[point.id] || false,
-        isHidden: hiddenResults[point.id] || false,
+        isOccluded: visibilityStateById[point.id]?.isOccluded ?? false,
+        isHidden:
+          (visibilityStateById[point.id]?.isHidden ?? false) ||
+          Boolean(fullyHiddenPointIds?.has(point.id)),
         onClick:
           !disableInteractionsForMoveGizmoPoint && onPointClick
             ? () => onPointClick(point.id)
@@ -669,8 +667,7 @@ export const useCesiumPointLabels = (
     selectedPointId,
     moveGizmoPointId,
     moveGizmoIsDragging,
-    occlusionResults,
-    hiddenResults,
+    visibilityStateById,
     scene,
     cameraPitch,
     layoutResult,
@@ -682,6 +679,9 @@ export const useCesiumPointLabels = (
     onPointLongPress,
     pointLongPressDurationMs,
     hiddenPointLabelIds,
+    fullyHiddenPointIds,
+    pointLabelIndexByPointId,
+    polylinePointLabelTextByPointId,
     pointDragPlaneByPointId,
     onPointPlaneDragStart,
     onPointPlaneDragPositionChange,

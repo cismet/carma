@@ -311,7 +311,7 @@ export const computePolygonGroupDerivedData = (
     ? computePlanarPolygonArea(vertices, plane)
     : 0;
   const verticalityDeg = computeVerticalityDeg(plane);
-  const surfaceType = classifySurfaceType(verticalityDeg);
+  const surfaceType = group.surfaceType ?? classifySurfaceType(verticalityDeg);
 
   return {
     ...group,

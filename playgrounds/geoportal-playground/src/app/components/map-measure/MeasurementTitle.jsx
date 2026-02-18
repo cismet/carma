@@ -1,5 +1,23 @@
 import { useState, useEffect } from "react";
 
+function textToHtml(text) {
+  if (!text) return "";
+  return text
+    .split("\n")
+    .map((line) => line.trim())
+    .join("<br>");
+}
+
+function htmlToText(html) {
+  return html
+    .replace(/<br\s*\/?>/gi, "\n")
+    .replace(/<[^>]*>/g, "")
+    .split("\n")
+    .map((line) => line.trim())
+    .join("\n")
+    .replace(/^\n+|\n+$/g, "");
+}
+
 const MeasurementTitle = ({
   title,
   shapeId,
@@ -18,22 +36,27 @@ const MeasurementTitle = ({
       {/* <Tooltip title={tooltip} placement="topRight"> */}
       <span
         onBlur={(t) => {
-          const trimmedContent = t.currentTarget.textContent.trim();
-          setContent(trimmedContent);
+          const newContent = htmlToText(t.currentTarget.innerHTML);
 
-          if (trimmedContent.length === 0) {
+          if (newContent.length === 0) {
             setContent(oldContent);
-            t.currentTarget.textContent = capitalizeFirstLetter(oldContent);
+            t.currentTarget.innerHTML = textToHtml(oldContent);
           } else {
-            setContent(trimmedContent);
-            updateTitleMeasurementById(shapeId, trimmedContent);
+            setContent(newContent);
+            updateTitleMeasurementById(shapeId, newContent);
             setUpdateMeasurementStatus(true);
+          }
+        }}
+        onKeyDown={(e) => {
+          if (e.key === "Enter" && !e.shiftKey) {
+            e.preventDefault();
+            e.currentTarget.blur();
           }
         }}
         onFocus={(t) => {}}
         contentEditable
-        className="text-[14px] min-h-[20px] min-w-[10px]"
-        dangerouslySetInnerHTML={{ __html: capitalizeFirstLetter(content) }}
+        className="text-[14px] min-h-[20px] min-w-[10px] whitespace-pre-wrap"
+        dangerouslySetInnerHTML={{ __html: textToHtml(content) }}
       ></span>
       <span className="ml-1 text-[14px] text-[#979797]">#{order}</span>
       {/* </Tooltip> */}
@@ -42,8 +65,3 @@ const MeasurementTitle = ({
 };
 
 export default MeasurementTitle;
-
-function capitalizeFirstLetter(text) {
-  if (!text) return "";
-  return text.charAt(0).toUpperCase() + text.slice(1).toLowerCase();
-}
