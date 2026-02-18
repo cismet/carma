@@ -289,10 +289,14 @@ export const useVisibleMapFeatures = ({
         const layerCounts: Record<string, number> = {};
         const checkHighlight = highlightedOnlyRef.current && maplibreMap;
 
+        // Use full map bounds for highlighted features (search results),
+        // calculated visible bounds for normal browsing
+        const boundsToUse = checkHighlight ? fullBounds : visibleBounds;
+
         for (const f of renderedFeatures) {
           if (filterRef.current && !filterRef.current(f)) continue;
           const key = `${f.source}-${f.sourceLayer}-${f.id}`;
-          if (!seen.has(key) && isFeatureInGeoBounds(f, visibleBounds)) {
+          if (!seen.has(key) && isFeatureInGeoBounds(f, boundsToUse)) {
             seen.add(key);
 
             // When highlightedOnly is active, skip non-highlighted features early
