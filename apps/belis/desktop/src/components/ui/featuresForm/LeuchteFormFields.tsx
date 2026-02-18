@@ -548,7 +548,7 @@ const LeuchteFormFields = ({ leuchte, namePrefix }: LeuchteFormFieldsProps) => {
         >
           {unterhaltLeuchteOptions.map((item) => (
             <Select.Option key={item.id} value={item.id}>
-              {item.unterhaltspflichtiger_leuchte}
+              {item.pk} - {item.unterhaltspflichtiger_leuchte}
             </Select.Option>
           ))}
         </Select>

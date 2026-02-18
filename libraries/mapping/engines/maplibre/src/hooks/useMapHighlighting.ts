@@ -185,6 +185,8 @@ export const useMapHighlighting = ({
   // Sync highlightingActive to map global state
   useEffect(() => {
     if (!map) return;
+    // Guard: style must be loaded before setting global state
+    if (!map.isStyleLoaded()) return;
     const m = map as MapWithGlobalState;
     if (typeof m.setGlobalStateProperty === "function") {
       m.setGlobalStateProperty("highlightingEnabled", highlightingActive);
