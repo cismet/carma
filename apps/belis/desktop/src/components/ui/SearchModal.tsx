@@ -164,6 +164,9 @@ const buildMastWhereClause = (values: MastSearchValues): string => {
     `_or: [{is_deleted: {_eq: false}}, {is_deleted: {_is_null: true}}]`
   );
 
+  // Only masts without leuchten
+  conditions.push(`_not: {leuchtenArray: {}}`);
+
   // Date range conditions (combined into single objects)
   const inbetriebnahmeCondition = buildDateRangeCondition(
     "inbetriebnahme_mast",
@@ -223,10 +226,10 @@ const buildMastWhereClause = (values: MastSearchValues): string => {
     );
   }
   if (values.anlagengruppe?.value) {
-    conditions.push(`fk_anlagengruppe: {_eq: ${values.anlagengruppe.value}}`);
+    conditions.push(`anlagengruppe: {_eq: ${values.anlagengruppe.value}}`);
   }
   if (values.unterhaltMast?.value) {
-    conditions.push(`fk_unterhalt_mast: {_eq: ${values.unterhaltMast.value}}`);
+    conditions.push(`tkey_unterh_mast: {id: {_eq: ${values.unterhaltMast.value}}}`);
   }
 
   return conditions.length > 0 ? `where: {${conditions.join(", ")}}` : "";
@@ -274,6 +277,7 @@ const SearchModal = ({
   const [searchType, setSearchType] = useState<SearchType>("leuchte");
   const [isSearching, setIsSearching] = useState(false);
   const [queryPreview, setQueryPreview] = useState<string>("");
+  const [noResults, setNoResults] = useState(false);
 
   const jwt = useSelector(getJWT);
   const { map } = useLibreContext();
@@ -286,6 +290,14 @@ const SearchModal = ({
   useEffect(() => {
     setIsOpen(defaultOpen);
   }, [defaultOpen]);
+
+  // Clear noResults message after 2 seconds
+  useEffect(() => {
+    if (noResults) {
+      const timer = setTimeout(() => setNoResults(false), 2000);
+      return () => clearTimeout(timer);
+    }
+  }, [noResults]);
 
   // Update query preview when search type changes
   useEffect(() => {
@@ -329,6 +341,7 @@ const SearchModal = ({
       }
 
       setIsSearching(true);
+      setNoResults(false);
       // console.log(`xxx ${logPrefix} Fetching data...`);
       // console.log(`xxx ${logPrefix} Query:`, query);
 
@@ -348,6 +361,7 @@ const SearchModal = ({
 
           if (results.length === 0) {
             console.warn(`xxx ${logPrefix} No results found`);
+            setNoResults(true);
             setIsSearching(false);
             return;
           }
@@ -513,15 +527,20 @@ const SearchModal = ({
         open={isOpen}
         onCancel={() => setIsOpen(false)}
         footer={
-          <div className="flex justify-end gap-2 pt-2 border-t border-gray-100">
-            <Button onClick={() => setIsOpen(false)}>Abbrechen</Button>
-            <Button
-              type="primary"
-              onClick={executeSearch}
-              loading={isSearching}
-            >
-              Suchen
-            </Button>
+          <div className="flex justify-between items-center pt-2 border-t border-gray-100">
+            <div className="text-sm text-gray-500">
+              {noResults && "Keine Ergebnisse gefunden"}
+            </div>
+            <div className="flex gap-2">
+              <Button onClick={() => setIsOpen(false)}>Abbrechen</Button>
+              <Button
+                type="primary"
+                onClick={executeSearch}
+                loading={isSearching}
+              >
+                Suchen
+              </Button>
+            </div>
           </div>
         }
         width={900}
