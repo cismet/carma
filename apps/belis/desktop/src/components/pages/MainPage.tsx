@@ -187,7 +187,7 @@ const MainPage = () => {
                     {"\u2715"}
                   </button>
                 )}
-                <SearchModal showFinalQuery={false} />
+                <SearchModal showFinalQuery={true} />
               </div>
 
               {/* Filter switches */}
