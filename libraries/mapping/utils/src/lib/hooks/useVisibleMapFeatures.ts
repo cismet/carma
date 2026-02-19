@@ -200,10 +200,42 @@ export const useVisibleMapFeatures = ({
         //
         // Vertical: The canvas is simply centered on the visible height.
         // Formula: (canvasHeight - visibleMapHeight) / 2
-        const sidebarWidth = 300;
-        const fullWindowWidth = visibleMapWidth + sidebarWidth;
-        const horizontalOffset = (canvasWidth - fullWindowWidth) / 2;
-        const verticalOffset = (canvasHeight - visibleMapHeight) / 2;
+
+        // OLD CODE - commented out because it causes negative offset when canvas is not oversized
+        // const sidebarWidth = 300;
+        // const fullWindowWidth = visibleMapWidth + sidebarWidth;
+        // const horizontalOffset = (canvasWidth - fullWindowWidth) / 2;
+        // const verticalOffset = (canvasHeight - visibleMapHeight) / 2;
+
+        // NEW CODE - check if canvas is oversized before applying offset
+        const isOversized =
+          canvasWidth > visibleMapWidth || canvasHeight > visibleMapHeight;
+
+        let horizontalOffset = 0;
+        let verticalOffset = 0;
+
+        if (isOversized) {
+          const sidebarWidth = 300;
+          const fullWindowWidth = visibleMapWidth + sidebarWidth;
+          horizontalOffset = (canvasWidth - fullWindowWidth) / 2;
+          verticalOffset = (canvasHeight - visibleMapHeight) / 2;
+        }
+
+        console.log("yyy BOUNDS DEBUG", {
+          canvasWidth,
+          canvasHeight,
+          visibleMapWidth,
+          visibleMapHeight,
+          isOversized,
+          horizontalOffset,
+          verticalOffset,
+          fullBounds: {
+            west: fullWest,
+            east: fullEast,
+            north: fullNorth,
+            south: fullSouth,
+          },
+        });
 
         // Visible bounds with offset
         const visibleWest =
@@ -291,7 +323,8 @@ export const useVisibleMapFeatures = ({
 
         // Use full map bounds for highlighted features (search results),
         // calculated visible bounds for normal browsing
-        const boundsToUse = checkHighlight ? fullBounds : visibleBounds;
+        // const boundsToUse = checkHighlight ? fullBounds : visibleBounds;
+        const boundsToUse = visibleBounds;
 
         for (const f of renderedFeatures) {
           if (filterRef.current && !filterRef.current(f)) continue;
