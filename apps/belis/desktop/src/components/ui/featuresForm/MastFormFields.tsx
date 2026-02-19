@@ -184,7 +184,9 @@ const MastFormFields = ({ mast, namePrefix }: MastFormFieldsProps) => {
         // Monteur
         monteur: mast.monteur,
         // Mastschutz
-        mastschutz: mast.mastschutz,
+        mastschutz: mast.mastschutz
+          ? dayjs(mast.mastschutz as string)
+          : null,
         // Revision
         revision: mast.revision,
         // Anlagengruppe - use id for Select value
@@ -539,7 +541,12 @@ const MastFormFields = ({ mast, namePrefix }: MastFormFieldsProps) => {
             label={<FormLabel>Mastschutz</FormLabel>}
             className="mb-4"
           >
-            <Input size="large" />
+            <DatePicker
+              className="w-full"
+              size="large"
+              format="DD.MM.YYYY"
+              placeholder="Datum auswählen"
+            />
           </Form.Item>
         </Col>
         <Col span={12}>
@@ -598,7 +605,7 @@ const MastFormFields = ({ mast, namePrefix }: MastFormFieldsProps) => {
         label={<FormLabel>Letzte Änderung</FormLabel>}
         className="mb-4"
       >
-        <DatePicker className="w-full" size="large" format="DD.MM.YYYY" />
+        <DatePicker className="w-full" size="large" format="DD.MM.YYYY" placeholder="Datum auswählen" />
       </Form.Item>
     </Form>
   );
