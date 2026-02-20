@@ -4,7 +4,7 @@ import { SearchOutlined } from "@ant-design/icons";
 import { FontAwesomeIcon as Icon } from "@fortawesome/react-fontawesome";
 import { faFilter } from "@fortawesome/free-solid-svg-icons";
 import { useSelector } from "react-redux";
-import { LeuchteSearch, MastSearch, SchaltstelleSearch } from "./featuresSearches";
+import { LeuchteSearch, MastSearch, SchaltstelleSearch, MauerlascheSearch } from "./featuresSearches";
 import { getJWT } from "../../store/slices/auth";
 import { ENDPOINT } from "../../constants/belis";
 import { rawDataPreStyle } from "../../helper/uiHelper";
@@ -14,7 +14,7 @@ import {
   useMapHighlight,
 } from "@carma-mapping/engines/maplibre";
 
-type SearchType = "leuchte" | "mast" | "schaltstelle";
+type SearchType = "leuchte" | "mast" | "schaltstelle" | "mauerlasche";
 
 interface SearchModalProps {
   defaultOpen?: boolean;
@@ -53,12 +53,19 @@ interface SchaltstelleSearchValues {
   pruefdatum?: { von?: string; bis?: string };
 }
 
-type SearchValues = LeuchteSearchValues | MastSearchValues | SchaltstelleSearchValues;
+interface MauerlascheSearchValues {
+  montage?: { von?: string; bis?: string };
+  material?: { value?: number };
+  pruefdatum?: { von?: string; bis?: string };
+}
+
+type SearchValues = LeuchteSearchValues | MastSearchValues | SchaltstelleSearchValues | MauerlascheSearchValues;
 
 const searchTypeLabels: Record<SearchType, string> = {
   leuchte: "Leuchten",
   mast: "Masten",
   schaltstelle: "Schaltstellen",
+  mauerlasche: "Mauerlaschen",
 };
 
 const SearchModalHeader = ({
@@ -291,6 +298,41 @@ const buildSchaltstelleWhereClause = (values: SchaltstelleSearchValues): string 
   return conditions.length > 0 ? `where: {${conditions.join(", ")}}` : "";
 };
 
+const buildMauerlascheWhereClause = (values: MauerlascheSearchValues): string => {
+  const conditions: string[] = [];
+
+  // Exclude deleted records (handle both false and null values)
+  conditions.push(
+    `_or: [{is_deleted: {_eq: false}}, {is_deleted: {_is_null: true}}]`
+  );
+
+  // Property conditions
+  if (values.material?.value) {
+    conditions.push(`fk_material: {_eq: ${values.material.value}}`);
+  }
+
+  // Date range conditions - montage uses erstellungsjahr field
+  const montageCondition = buildDateRangeCondition(
+    "erstellungsjahr",
+    values.montage?.von,
+    values.montage?.bis
+  );
+  if (montageCondition) {
+    conditions.push(montageCondition);
+  }
+
+  const pruefdatumCondition = buildDateRangeCondition(
+    "pruefdatum",
+    values.pruefdatum?.von,
+    values.pruefdatum?.bis
+  );
+  if (pruefdatumCondition) {
+    conditions.push(pruefdatumCondition);
+  }
+
+  return conditions.length > 0 ? `where: {${conditions.join(", ")}}` : "";
+};
+
 // Helper to generate query string for preview
 const generateQueryString = (
   searchType: SearchType,
@@ -322,10 +364,22 @@ const generateQueryString = (
     }
   }
 }`;
-  } else {
+  } else if (searchType === "schaltstelle") {
     const whereClause = buildSchaltstelleWhereClause(values as SchaltstelleSearchValues);
     return `query SchaltstelleSearch {
   schaltstelle(limit: 500${
+    whereClause ? `, ${whereClause}` : ""
+  }, order_by: {erstellungsjahr: desc}) {
+    id
+    geom {
+      geo_field
+    }
+  }
+}`;
+  } else {
+    const whereClause = buildMauerlascheWhereClause(values as MauerlascheSearchValues);
+    return `query MauerlascheSearch {
+  mauerlasche(limit: 500${
     whereClause ? `, ${whereClause}` : ""
   }, order_by: {erstellungsjahr: desc}) {
     id
@@ -591,6 +645,34 @@ const SearchModal = ({
           return geoField?.coordinates;
         },
       });
+    } else if (searchType === "mauerlasche") {
+      const whereClause = buildMauerlascheWhereClause(
+        values as MauerlascheSearchValues
+      );
+      const query = `query MauerlascheSearch {
+        mauerlasche(limit: 500${
+          whereClause ? `, ${whereClause}` : ""
+        }, order_by: {erstellungsjahr: desc}) {
+          id
+          geom {
+            geo_field
+          }
+        }
+      }`;
+
+      handleGraphQLSearch({
+        query,
+        dataKey: "mauerlasche",
+        featurePrefix: "mauerlaschen",
+        logPrefix: "[MAUERLASCHE_SEARCH]",
+        getGeometry: (item) => {
+          const geom = item.geom as Record<string, unknown> | undefined;
+          const geoField = geom?.geo_field as
+            | { coordinates?: [number, number] }
+            | undefined;
+          return geoField?.coordinates;
+        },
+      });
     }
   }, [searchType, handleGraphQLSearch]);
 
@@ -600,6 +682,8 @@ const SearchModal = ({
         return <MastSearch onValuesChange={handleValuesChange} />;
       case "schaltstelle":
         return <SchaltstelleSearch onValuesChange={handleValuesChange} />;
+      case "mauerlasche":
+        return <MauerlascheSearch onValuesChange={handleValuesChange} />;
       case "leuchte":
       default:
         return <LeuchteSearch onValuesChange={handleValuesChange} />;

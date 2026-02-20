@@ -1,8 +1,9 @@
 import LeuchteSearch from "./LeuchteSearch";
 import MastSearch from "./MastSearch";
 import SchaltstelleSearch from "./SchaltstelleSearch";
+import MauerlascheSearch from "./MauerlascheSearch";
 
-export { LeuchteSearch, MastSearch, SchaltstelleSearch };
+export { LeuchteSearch, MastSearch, SchaltstelleSearch, MauerlascheSearch };
 
 export const featureSearchRegistry: Record<
   string,
@@ -11,4 +12,5 @@ export const featureSearchRegistry: Record<
   leuchte: LeuchteSearch,
   mast: MastSearch,
   schaltstelle: SchaltstelleSearch,
+  mauerlasche: MauerlascheSearch,
 };
