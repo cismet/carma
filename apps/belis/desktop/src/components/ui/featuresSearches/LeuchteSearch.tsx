@@ -116,7 +116,8 @@ const LeuchteSearch = ({ onValuesChange }: LeuchteSearchProps) => {
   });
 
   const rundsteuerempfaengerOptions = [
-    ...((keyTablesData["rundsteuerempfänger"] || []) as RundsteuerempfaengerItem[]),
+    ...((keyTablesData["rundsteuerempfänger"] ||
+      []) as RundsteuerempfaengerItem[]),
   ].sort((a, b) => {
     const aText = a.rs_typ || "";
     const bText = b.rs_typ || "";
@@ -184,7 +185,10 @@ const LeuchteSearch = ({ onValuesChange }: LeuchteSearchProps) => {
 
       <Row gutter={12}>
         <Col span={12}>
-          <Form.Item label={<FormLabel>Schaltstelle</FormLabel>} className="mb-3">
+          <Form.Item
+            label={<FormLabel>Schaltstelle</FormLabel>}
+            className="mb-3"
+          >
             <Input
               placeholder="eingeben"
               onChange={(e) =>
@@ -194,7 +198,10 @@ const LeuchteSearch = ({ onValuesChange }: LeuchteSearchProps) => {
           </Form.Item>
         </Col>
         <Col span={12}>
-          <Form.Item label={<FormLabel>Rundsteuerempf.</FormLabel>} className="mb-3">
+          <Form.Item
+            label={<FormLabel>Rundsteuerempf.</FormLabel>}
+            className="mb-3"
+          >
             <Select
               placeholder="auswählen"
               className="w-full"
@@ -225,7 +232,9 @@ const LeuchteSearch = ({ onValuesChange }: LeuchteSearchProps) => {
               allowClear
               showSearch
               optionFilterProp="children"
-              onChange={(value) => updateField("dk1", { value: value as number })}
+              onChange={(value) =>
+                updateField("dk1", { value: value as number })
+              }
             >
               {doppelkommandoOptions.map((item) => (
                 <Select.Option key={item.id} value={item.id}>
@@ -243,7 +252,9 @@ const LeuchteSearch = ({ onValuesChange }: LeuchteSearchProps) => {
               allowClear
               showSearch
               optionFilterProp="children"
-              onChange={(value) => updateField("dk2", { value: value as number })}
+              onChange={(value) =>
+                updateField("dk2", { value: value as number })
+              }
             >
               {doppelkommandoOptions.map((item) => (
                 <Select.Option key={item.id} value={item.id}>

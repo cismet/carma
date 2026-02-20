@@ -147,7 +147,8 @@ const LeuchteFormFields = ({ leuchte, namePrefix }: LeuchteFormFieldsProps) => {
   const rundsteuerempfaengerOptions = useMemo(
     () =>
       sortOptions(
-        (keyTablesData["rundsteuerempfänger"] || []) as RundsteuerempfaengerItem[],
+        (keyTablesData["rundsteuerempfänger"] ||
+          []) as RundsteuerempfaengerItem[],
         (item) => `${item.rs_typ || ""}`,
         "alphabetical"
       ),

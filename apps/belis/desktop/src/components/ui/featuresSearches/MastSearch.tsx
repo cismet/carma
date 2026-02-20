@@ -184,8 +184,12 @@ const MastSearch = ({ onValuesChange }: MastSearchProps) => {
       />
       <DateRangeField
         label="Elektrische Prüfung"
-        onChangeVon={(date) => updateField("elektrischePruefung", { von: date })}
-        onChangeBis={(date) => updateField("elektrischePruefung", { bis: date })}
+        onChangeVon={(date) =>
+          updateField("elektrischePruefung", { von: date })
+        }
+        onChangeBis={(date) =>
+          updateField("elektrischePruefung", { bis: date })
+        }
       />
       <DateRangeField
         label="Standsicherheitsprüfung"
@@ -238,7 +242,10 @@ const MastSearch = ({ onValuesChange }: MastSearchProps) => {
             </Select>
           </Form.Item>
 
-          <Form.Item label={<FormLabel>Klassifizierung</FormLabel>} className="mb-3">
+          <Form.Item
+            label={<FormLabel>Klassifizierung</FormLabel>}
+            className="mb-3"
+          >
             <Select
               placeholder="Klassifizierung auswählen"
               className="w-full"
@@ -259,7 +266,10 @@ const MastSearch = ({ onValuesChange }: MastSearchProps) => {
         </Col>
 
         <Col span={12}>
-          <Form.Item label={<FormLabel>Anlagengruppe</FormLabel>} className="mb-3">
+          <Form.Item
+            label={<FormLabel>Anlagengruppe</FormLabel>}
+            className="mb-3"
+          >
             <Select
               placeholder="Anlagengruppe auswählen"
               className="w-full"
@@ -278,7 +288,10 @@ const MastSearch = ({ onValuesChange }: MastSearchProps) => {
             </Select>
           </Form.Item>
 
-          <Form.Item label={<FormLabel>Unterhaltspfl. Mast</FormLabel>} className="mb-3">
+          <Form.Item
+            label={<FormLabel>Unterhaltspfl. Mast</FormLabel>}
+            className="mb-3"
+          >
             <Select
               placeholder="Unterhalt auswählen"
               className="w-full"
