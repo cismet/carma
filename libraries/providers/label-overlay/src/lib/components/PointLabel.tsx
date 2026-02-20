@@ -23,6 +23,7 @@ export type PointLabelAttach =
   | "bottomRight";
 
 interface PointLabelProps extends PointLabelStyleProps {
+  pointId?: string;
   text: React.ReactNode;
   selected?: boolean;
   isOccluded?: boolean;
@@ -31,6 +32,7 @@ interface PointLabelProps extends PointLabelStyleProps {
   labelAttach?: PointLabelAttach;
   transitionDurationMs?: number;
   hideLabelAndStem?: boolean;
+  hideMarker?: boolean;
   onClick?: () => void;
   onDoubleClick?: () => void;
   onLongPress?: () => void;
@@ -52,24 +54,29 @@ const baseStyles: React.CSSProperties = {
 
 const defaultPitch = -Math.PI / 4;
 const DRAG_START_THRESHOLD_PX = 3;
+export const POINT_LABEL_TEXT_BACKGROUND_COLOR = "rgba(200, 200, 200, 0.7)";
+export const POINT_LABEL_HOVER_BACKGROUND_COLOR = "rgba(255, 247, 230, 0.7)";
+export const POINT_LABEL_SELECTED_BACKGROUND_COLOR = "rgba(255, 229, 143, 0.7)";
 
 export const PointLabel = React.memo(
   ({
+    pointId,
     text,
     selected = false,
     fontSize = "12px",
     fontFamily = "Arial, sans-serif",
     fontWeight = "400",
     textColor = "black",
-    textBackgroundColor = "rgba(200, 200, 200, 0.7)",
-    selectedBackgroundColor = "rgba(255, 229, 143, 0.7)",
-    hoverBackgroundColor = "rgba(255, 247, 230, 0.7)",
+    textBackgroundColor = POINT_LABEL_TEXT_BACKGROUND_COLOR,
+    selectedBackgroundColor = POINT_LABEL_SELECTED_BACKGROUND_COLOR,
+    hoverBackgroundColor = POINT_LABEL_HOVER_BACKGROUND_COLOR,
     isOccluded = false,
     pitch = defaultPitch,
     labelAngleRad,
     labelAttach = "bottomLeft",
     transitionDurationMs = 300,
     hideLabelAndStem = false,
+    hideMarker = false,
     lineColor = "white",
     lineWidth = 1,
     markerSize = 10,
@@ -103,8 +110,10 @@ export const PointLabel = React.memo(
     const yComponent = Math.sin(effectiveLabelAngleRad);
     const radius = markerSize / 2;
     const stemReferenceRadius = (stemReferenceMarkerSize ?? markerSize) / 2;
-    const lineLength = Math.max(0, labelDistance - stemReferenceRadius);
-    const labelAnchorDistance = radius + lineLength;
+    const stemStartDistance = hideMarker ? 0 : radius;
+    const stemEndInsetDistance = hideMarker ? 0 : stemReferenceRadius;
+    const lineLength = Math.max(0, labelDistance - stemEndInsetDistance);
+    const labelAnchorDistance = stemStartDistance + lineLength;
     const labelOffsetX = xComponent * labelAnchorDistance;
     const labelOffsetY = yComponent * labelAnchorDistance;
     const halfLineWidth = lineWidth / 2;
@@ -342,29 +351,32 @@ export const PointLabel = React.memo(
           opacity: isOccluded ? 0.75 : 1,
         }}
       >
-        {/* Measurement dot at anchor position */}
-        <div
-          style={{
-            position: "absolute",
-            left: "0px",
-            top: "0px",
-            width: `${markerSize}px`,
-            height: `${markerSize}px`,
-            border: `${markerStrokeWidth}px ${
-              isOccluded ? "dashed" : "solid"
-            } #fff`,
-            borderRadius: "50%",
-            transform: "translate(-50%, -50%)",
-            pointerEvents,
-            cursor,
-          }}
-          onClick={handleClick}
-          onDoubleClick={handleDoubleClick}
-          onMouseDown={handleMouseDown}
-          onMouseUp={handleMouseUp}
-          onMouseEnter={handleMouseEnter}
-          onMouseLeave={handleMouseLeave}
-        />
+        {!hideMarker && (
+          <div
+            data-point-label-interactive="true"
+            data-point-label-id={pointId}
+            style={{
+              position: "absolute",
+              left: "0px",
+              top: "0px",
+              width: `${markerSize}px`,
+              height: `${markerSize}px`,
+              border: `${markerStrokeWidth}px ${
+                isOccluded ? "dashed" : "solid"
+              } #fff`,
+              borderRadius: "50%",
+              transform: "translate(-50%, -50%)",
+              pointerEvents,
+              cursor,
+            }}
+            onClick={handleClick}
+            onDoubleClick={handleDoubleClick}
+            onMouseDown={handleMouseDown}
+            onMouseUp={handleMouseUp}
+            onMouseEnter={handleMouseEnter}
+            onMouseLeave={handleMouseLeave}
+          />
+        )}
 
         {!hideLabelAndStem && (
           <>
@@ -384,7 +396,7 @@ export const PointLabel = React.memo(
               <div
                 style={{
                   position: "absolute",
-                  left: `${radius}px`,
+                  left: `${stemStartDistance}px`,
                   top: isTopAttach ? "0px" : `${-halfLineWidth}px`,
                   width: `${lineLength}px`,
                   height: `${lineWidth}px`,
@@ -398,6 +410,8 @@ export const PointLabel = React.memo(
 
             {/* Label positioned at the end of the hairline */}
             <div
+              data-point-label-interactive="true"
+              data-point-label-id={pointId}
               style={{
                 ...baseStyles,
                 ...(isTopAttach

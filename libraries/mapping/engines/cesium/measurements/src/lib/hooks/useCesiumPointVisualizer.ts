@@ -42,6 +42,7 @@ export type CesiumPointVisualizerOptions = {
   radius: number;
   referenceElevation?: number;
   selectedPointId?: string | null;
+  selectedPointIds?: string[];
   selectedPlanarPolygonGroupId?: string | null;
   activePlanarPolygonGroupId?: string | null;
   distanceRelations?: PointDistanceRelation[];
@@ -56,6 +57,7 @@ export type CesiumPointVisualizerOptions = {
   onPointPlaneDragEnd?: (pointId: string) => void;
   hiddenPointLabelIds?: ReadonlySet<string>;
   fullyHiddenPointIds?: ReadonlySet<string>;
+  markerlessPointIds?: ReadonlySet<string>;
   onDistanceRelationLineLabelToggle?: (
     relationId: string,
     kind: ReferenceLineLabelKind
@@ -72,6 +74,9 @@ export type CesiumPointVisualizerOptions = {
   onPointClick?: (pointId: string) => void;
   onPointDoubleClick?: (pointId: string) => void;
   onPointLongPress?: (pointId: string) => void;
+  selectionModeEnabled?: boolean;
+  selectionAdditiveMode?: boolean;
+  onPointRectangleSelect?: (pointIds: string[], additive: boolean) => void;
   onDistanceRelationCornerClick?: (relationId: string) => void;
   pointLongPressDurationMs?: number;
   occlusionChecksEnabled?: boolean;
@@ -116,6 +121,7 @@ export const useCesiumPointVisualizer = (
     radius,
     referenceElevation = 0,
     selectedPointId = null,
+    selectedPointIds = [],
     selectedPlanarPolygonGroupId = null,
     activePlanarPolygonGroupId = null,
     distanceRelations = [],
@@ -127,6 +133,7 @@ export const useCesiumPointVisualizer = (
     onPointPlaneDragEnd,
     hiddenPointLabelIds,
     fullyHiddenPointIds,
+    markerlessPointIds,
     onDistanceRelationLineLabelToggle,
     onDistanceRelationLineClick,
     onDistanceRelationMidpointClick,
@@ -137,6 +144,9 @@ export const useCesiumPointVisualizer = (
     onPointClick,
     onPointDoubleClick,
     onPointLongPress,
+    selectionModeEnabled = false,
+    selectionAdditiveMode = false,
+    onPointRectangleSelect,
     onDistanceRelationCornerClick,
     pointLongPressDurationMs = 300,
     occlusionChecksEnabled = true,
@@ -171,6 +181,24 @@ export const useCesiumPointVisualizer = (
       return [derivedPoints, ids];
     }, [measurements]);
 
+  const moveGizmoPoints = useMemo(
+    () =>
+      points.map((point) => {
+        if (!point.verticalOffsetAnchorECEF) {
+          return point;
+        }
+        return {
+          ...point,
+          geometryECEF: new Cartesian3(
+            point.verticalOffsetAnchorECEF.x,
+            point.verticalOffsetAnchorECEF.y,
+            point.verticalOffsetAnchorECEF.z
+          ),
+        };
+      }),
+    [points]
+  );
+
   // Use overlay labels instead of Cesium entity labels
   useCesiumPointLabels(
     scene,
@@ -178,11 +206,15 @@ export const useCesiumPointVisualizer = (
     showLabels,
     referenceElevation,
     selectedPointId,
+    selectedPointIds,
     moveGizmoPointId,
     moveGizmoIsDragging,
     onPointClick,
     onPointDoubleClick,
     onPointLongPress,
+    selectionModeEnabled,
+    selectionAdditiveMode,
+    onPointRectangleSelect,
     pointLongPressDurationMs,
     occlusionChecksEnabled,
     labelLayoutConfig,
@@ -192,6 +224,7 @@ export const useCesiumPointVisualizer = (
     polylinePointLabelTextByPointId,
     hiddenPointLabelIds,
     fullyHiddenPointIds,
+    markerlessPointIds,
     pointDragPlaneByPointId,
     onPointPlaneDragStart,
     onPointPlaneDragPositionChange,
@@ -201,7 +234,7 @@ export const useCesiumPointVisualizer = (
   );
 
   useCesiumPointMoveGizmo(scene, {
-    points,
+    points: moveGizmoPoints,
     movePointId: moveGizmoPointId,
     axisDirection: moveGizmoAxisDirection,
     axisTitle: moveGizmoAxisTitle,

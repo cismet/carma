@@ -4,6 +4,7 @@ export interface LineVisualizerProps {
   stroke?: string;
   strokeWidth?: number;
   strokeDasharray?: string;
+  strokeDashoffset?: number;
   opacity?: number;
   hitTargetStrokeWidth?: number;
   labelText?: string;
@@ -12,6 +13,15 @@ export interface LineVisualizerProps {
   labelFontSize?: number;
   labelFontFamily?: string;
   labelFontWeight?: string | number;
+  labelDominantBaseline?:
+    | "middle"
+    | "central"
+    | "text-before-edge"
+    | "text-after-edge"
+    | "alphabetic"
+    | "hanging"
+    | "ideographic"
+    | "auto";
   onLineClick?: () => void;
   onLabelClick?: () => void;
 }
@@ -21,6 +31,7 @@ export const LineVisualizer = React.memo(
     stroke = "rgba(255, 255, 255, 0.9)",
     strokeWidth = 1.5,
     strokeDasharray = "6 4",
+    strokeDashoffset = 0,
     opacity = 1,
     hitTargetStrokeWidth,
     labelText,
@@ -29,6 +40,7 @@ export const LineVisualizer = React.memo(
     labelFontSize = 12,
     labelFontFamily = "Arial, sans-serif",
     labelFontWeight = "400",
+    labelDominantBaseline = "middle",
     onLineClick,
     onLabelClick,
   }: LineVisualizerProps) => {
@@ -74,6 +86,7 @@ export const LineVisualizer = React.memo(
           stroke={stroke}
           strokeWidth={strokeWidth}
           strokeDasharray={strokeDasharray}
+          strokeDashoffset={strokeDashoffset}
           strokeLinecap="round"
           opacity={opacity}
           vectorEffect="non-scaling-stroke"
@@ -88,7 +101,7 @@ export const LineVisualizer = React.memo(
           x="0"
           y="0"
           textAnchor="middle"
-          dominantBaseline="middle"
+          dominantBaseline={labelDominantBaseline}
           fill={labelColor}
           stroke={labelStroke}
           strokeWidth={3}

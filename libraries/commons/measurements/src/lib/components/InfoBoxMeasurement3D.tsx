@@ -1,8 +1,10 @@
 import {
   useState,
   useEffect,
+  useRef,
   useContext,
   useMemo,
+  useCallback,
   MouseEvent as ReactMouseEvent,
 } from "react";
 import {
@@ -19,8 +21,6 @@ import {
   faArrowsDownToLine,
   faCheck,
   faPlus,
-  faEye,
-  faEyeSlash,
   faAnglesLeft,
   faAnglesRight,
 } from "@fortawesome/free-solid-svg-icons";
@@ -28,12 +28,17 @@ import MeasurementTitle from "./MeasurementTitle";
 import { UIContext } from "react-cismap/contexts/UIContextProvider";
 import Icon from "react-cismap/commons/Icon";
 import "../styles/infoBox.css";
-import { InputNumber, Select, Tooltip } from "antd";
-import { ResponsiveInfoBox } from "@carma-appframeworks/portals";
+import { InputNumber, Modal, Select, Tooltip } from "antd";
+import {
+  CarmaResponsiveInfoBox,
+  LockToggleButton,
+  VisibilityToggleButton,
+} from "@carma-commons/ui/components";
+import { formatNumberToEnclosed } from "@carma-providers/label-overlay";
 import {
   useCesiumMeasurements,
-  DEFAULT_POINT_MEASUREMENT_PLACEHOLDER,
   isPointMeasurementEntry,
+  MeasurementMode,
   getEuclideanDistance,
   getENU,
   formatAreaAdaptive,
@@ -66,6 +71,17 @@ const MOVE_GIZMO_HORIZONTAL_SECONDARY_AXIS_COLOR = "rgba(34, 197, 94, 0.98)";
 const MOVE_GIZMO_RELATION_AXIS_COLOR = "rgba(148, 163, 184, 0.98)";
 const AXIS_DIRECTION_EPSILON = 1e-8;
 const DEFAULT_SIGNIFICANT_DIGITS = 3;
+const INFOBOX_ACTION_TOGGLE_SIZE_PX = 16;
+const INFOBOX_ACTION_TOGGLE_BUTTON_STYLE = {
+  background: "transparent",
+  border: "none",
+  padding: 0,
+  width: INFOBOX_ACTION_TOGGLE_SIZE_PX,
+  height: INFOBOX_ACTION_TOGGLE_SIZE_PX,
+  display: "inline-flex",
+  alignItems: "center",
+  justifyContent: "center",
+};
 type ElevationEditTarget = "absolute" | "relative";
 type DistanceLineVisibilityKind =
   | "direct"
@@ -80,11 +96,24 @@ type RelationMoveAxisCandidate = {
   color: string;
   title: string;
 };
+type ContextNavigationEntry = {
+  id: string;
+  selectMeasurementId: string;
+};
 const DEFAULT_DISTANCE_RELATION_LABEL_VISIBILITY = {
   direct: true,
   vertical: true,
   horizontal: true,
 } as const;
+
+const isKeyboardTargetEditable = (target: EventTarget | null): boolean => {
+  if (!(target instanceof HTMLElement)) return false;
+  const tagName = target.tagName;
+  if (tagName === "INPUT" || tagName === "TEXTAREA" || tagName === "SELECT") {
+    return true;
+  }
+  return target.isContentEditable;
+};
 
 const formatSignificant = (
   value: number,
@@ -99,6 +128,18 @@ const formatSignificant = (
     minimumFractionDigits: 0,
     maximumFractionDigits: fractionDigits,
   });
+};
+
+const formatDistanceTitleNodeLabel = (label: string): string => {
+  const trimmed = label.trim();
+  if (!trimmed) return "";
+  const enclosedMatch = trimmed.match(/^\[(\d+)\]$/);
+  if (enclosedMatch?.[1]) {
+    return formatNumberToEnclosed(Number(enclosedMatch[1]));
+  }
+  return /^\d+$/.test(trimmed)
+    ? formatNumberToEnclosed(Number(trimmed))
+    : trimmed;
 };
 
 type PolygonSurfaceTypeOption = "roof" | "facade" | "terrain" | "footprint";
@@ -286,13 +327,19 @@ const buildRelationMoveAxisCandidates = (
 
 export function InfoBoxMeasurement3D({ pixelWidth = 350 }) {
   const {
+    measurementMode,
+    setMeasurementMode,
     measurements,
+    setMeasurements,
     clearMeasurementsByIds,
     setReferencePoint,
     referencePoint,
     selectedMeasurementId,
+    selectedMeasurementIds,
+    selectionModeActive,
     selectMeasurementById,
     updateMeasurementNameById,
+    toggleMeasurementLockById,
     distanceRelations,
     setDistanceRelations,
     planarPolygonGroups,
@@ -304,10 +351,14 @@ export function InfoBoxMeasurement3D({ pixelWidth = 350 }) {
     updatePlanarPolygonNameById,
     moveGizmoPointId,
     isMoveGizmoDragging,
+    lockedEditMeasurementId,
+    clearLockedEditMeasurementId,
     startMoveGizmoForMeasurementId,
     stopMoveGizmo,
     setPointMeasurementElevationById,
     setPointMeasurementCoordinatesById,
+    pointLabelOnCreate,
+    setPointLabelMetricModeById,
   } = useCesiumMeasurements();
   const { getScene } = useCesiumContext();
   const { collapsedInfoBox } = useContext<typeof UIContext>(UIContext);
@@ -319,6 +370,8 @@ export function InfoBoxMeasurement3D({ pixelWidth = 350 }) {
   >(null);
   const [isCoordinateEditModeActive, setIsCoordinateEditModeActive] =
     useState(false);
+  const [isVerticalOffsetEditModeActive, setIsVerticalOffsetEditModeActive] =
+    useState(false);
   const [elevationEditTarget, setElevationEditTarget] =
     useState<ElevationEditTarget | null>(null);
   const [relationMetricEdit, setRelationMetricEdit] = useState<{
@@ -327,6 +380,80 @@ export function InfoBoxMeasurement3D({ pixelWidth = 350 }) {
   } | null>(null);
   const [editedLatitude, setEditedLatitude] = useState<number | null>(null);
   const [editedLongitude, setEditedLongitude] = useState<number | null>(null);
+  const [labelFocusTrigger, setLabelFocusTrigger] = useState<
+    number | undefined
+  >(undefined);
+  const [lastCustomPointLabel, setLastCustomPointLabel] = useState<string>("");
+  const prevSelectedMeasurementIdRef = useRef<string | null>(null);
+  const measurementById = useMemo(
+    () =>
+      new Map(measurements.map((measurement) => [measurement.id, measurement])),
+    [measurements]
+  );
+  const selectedPointIds = useMemo(
+    () =>
+      selectedMeasurementIds
+        .map((id) => {
+          const measurement = measurementById.get(id);
+          return measurement && isPointMeasurementEntry(measurement)
+            ? id
+            : null;
+        })
+        .filter((id) => typeof id === "string"),
+    [measurementById, selectedMeasurementIds]
+  );
+
+  useEffect(() => {
+    if (!lockedEditMeasurementId) return;
+    const targetMeasurement = measurementById.get(lockedEditMeasurementId);
+    if (!targetMeasurement || !isPointMeasurementEntry(targetMeasurement)) {
+      clearLockedEditMeasurementId();
+      return;
+    }
+    if (!targetMeasurement.locked) {
+      clearLockedEditMeasurementId();
+      return;
+    }
+
+    Modal.confirm({
+      centered: true,
+      title: "Punkt ist gesperrt",
+      content:
+        "Dieser Punkt ist gesperrt und kann nicht bearbeitet werden. Jetzt entsperren?",
+      okText: "Entsperren",
+      cancelText: "Abbrechen",
+      onOk: () => {
+        toggleMeasurementLockById(lockedEditMeasurementId);
+      },
+      onCancel: () => {
+        clearLockedEditMeasurementId();
+      },
+      afterClose: () => {
+        clearLockedEditMeasurementId();
+      },
+    });
+  }, [
+    clearLockedEditMeasurementId,
+    lockedEditMeasurementId,
+    measurementById,
+    toggleMeasurementLockById,
+  ]);
+
+  useEffect(() => {
+    if (selectedMeasurementId === prevSelectedMeasurementIdRef.current) return;
+    prevSelectedMeasurementIdRef.current = selectedMeasurementId;
+    if (!selectedMeasurementId) return;
+    const selectedPoint = measurements.find(
+      (m) => m.id === selectedMeasurementId && isPointMeasurementEntry(m)
+    );
+    if (selectedPoint) {
+      const customLabel = getCustomPointMeasurementName(selectedPoint.name);
+      if (customLabel) setLastCustomPointLabel(customLabel);
+    }
+    if (pointLabelOnCreate) {
+      setLabelFocusTrigger((prev) => (prev ?? 0) + 1);
+    }
+  }, [selectedMeasurementId, pointLabelOnCreate]);
 
   // Measurements reversed to show newest first
   const visibleMeasurements = [...measurements].reverse();
@@ -419,6 +546,20 @@ export function InfoBoxMeasurement3D({ pixelWidth = 350 }) {
           isCurrentMeasurementFirstNodeOfFocusedGroup)));
   const isPolygonInfoMode =
     Boolean(selectedPlanarPolygonGroup) && !showPointInfoMode;
+  const isAnnotationMode = Boolean(
+    currentMeasurement &&
+      isPointMeasurementEntry(currentMeasurement) &&
+      currentMeasurement.auxiliaryLabelAnchor
+  );
+  const isCurrentMeasurementHidden = Boolean(currentMeasurement?.hidden);
+  const isCurrentMeasurementLocked = Boolean(currentMeasurement?.locked);
+  const isSelectedPolygonHidden = useMemo(() => {
+    if (!selectedPlanarPolygonGroup) return false;
+    const sourceGroup = planarPolygonGroups.find(
+      (group) => group.id === selectedPlanarPolygonGroup.id
+    );
+    return Boolean(sourceGroup?.hidden);
+  }, [planarPolygonGroups, selectedPlanarPolygonGroup]);
   const selectedPolylineSummary = useMemo(() => {
     if (!selectedPolyline) return null;
 
@@ -537,6 +678,7 @@ export function InfoBoxMeasurement3D({ pixelWidth = 350 }) {
 
   useEffect(() => {
     setIsCoordinateEditModeActive(false);
+    setIsVerticalOffsetEditModeActive(false);
     setElevationEditTarget(null);
     setRelationMetricEdit(null);
     setEditStepDistanceMeters(null);
@@ -547,6 +689,7 @@ export function InfoBoxMeasurement3D({ pixelWidth = 350 }) {
   useEffect(() => {
     if (!isPolygonInfoMode) return;
     setIsCoordinateEditModeActive(false);
+    setIsVerticalOffsetEditModeActive(false);
     setElevationEditTarget(null);
     setRelationMetricEdit(null);
     setEditStepDistanceMeters(null);
@@ -603,34 +746,156 @@ export function InfoBoxMeasurement3D({ pixelWidth = 350 }) {
     } else if (
       measurements.length === 1 &&
       measurements[0] &&
-      isPointMeasurementEntry(measurements[0]) &&
-      !referencePoint
+      isPointMeasurementEntry(measurements[0])
     ) {
-      setReferencePoint(measurements[0].geometryECEF);
+      const firstPointMeasurement = measurements[0].geometryECEF;
+      if (
+        !referencePoint ||
+        getEuclideanDistance(firstPointMeasurement, referencePoint) > 0.001
+      ) {
+        setReferencePoint(firstPointMeasurement);
+      }
     }
   }, [measurements, referencePoint, setReferencePoint]);
 
-  const decreaseCurrentHandler = () => {
+  const contextNavigationEntries = useMemo(() => {
+    const pointMeasurementsOnly = pointMeasurements;
+    const filtered = pointMeasurementsOnly.filter((measurement) =>
+      isAnnotationMode
+        ? Boolean(measurement.auxiliaryLabelAnchor)
+        : !measurement.auxiliaryLabelAnchor
+    );
+    const basePoints = filtered.length > 0 ? filtered : pointMeasurementsOnly;
+
+    if (measurementMode !== MeasurementMode.PointQuery || isAnnotationMode) {
+      return basePoints.map<ContextNavigationEntry>((measurement) => ({
+        id: `point-${measurement.id}`,
+        selectMeasurementId: measurement.id,
+      }));
+    }
+
+    const seenEntryIds = new Set<string>();
+    const entries: ContextNavigationEntry[] = [];
+
+    basePoints.forEach((measurement) => {
+      const relation = distanceRelations.find(
+        (entry) =>
+          entry.pointAId === measurement.id || entry.pointBId === measurement.id
+      );
+
+      if (relation) {
+        const entryId = `distance-relation-${relation.id}`;
+        if (seenEntryIds.has(entryId)) return;
+        seenEntryIds.add(entryId);
+        entries.push({
+          id: entryId,
+          selectMeasurementId: relation.anchorPointId ?? relation.pointAId,
+        });
+        return;
+      }
+
+      const entryId = `point-${measurement.id}`;
+      if (seenEntryIds.has(entryId)) return;
+      seenEntryIds.add(entryId);
+      entries.push({
+        id: entryId,
+        selectMeasurementId: measurement.id,
+      });
+    });
+
+    return entries;
+  }, [distanceRelations, isAnnotationMode, measurementMode, pointMeasurements]);
+  const currentContextEntryId =
+    currentMeasurement && isPointMeasurementEntry(currentMeasurement)
+      ? measurementMode === MeasurementMode.PointQuery && !isAnnotationMode
+        ? (() => {
+            const relation = distanceRelations.find(
+              (entry) =>
+                entry.pointAId === currentMeasurement.id ||
+                entry.pointBId === currentMeasurement.id
+            );
+            return relation
+              ? `distance-relation-${relation.id}`
+              : `point-${currentMeasurement.id}`;
+          })()
+        : `point-${currentMeasurement.id}`
+      : null;
+  const currentContextMeasurementIndex = currentContextEntryId
+    ? contextNavigationEntries.findIndex(
+        (entry) => entry.id === currentContextEntryId
+      )
+    : -1;
+  const showContextNavigation = contextNavigationEntries.length > 1;
+  const pointAndAnnotationCount = visibleMeasurements.filter(
+    isPointMeasurementEntry
+  ).length;
+
+  const decreaseContextHandler = () => {
+    if (contextNavigationEntries.length <= 1) return;
+    const currentIndexInContext =
+      currentContextMeasurementIndex >= 0 ? currentContextMeasurementIndex : 0;
     const newIndex =
-      currentIndex <= 0 ? visibleMeasurements.length - 1 : currentIndex - 1;
-    setCurrentIndex(newIndex);
-    const nextMeasurement = visibleMeasurements[newIndex];
-    selectMeasurementById(nextMeasurement ? nextMeasurement.id : null);
+      currentIndexInContext <= 0
+        ? contextNavigationEntries.length - 1
+        : currentIndexInContext - 1;
+    const nextEntry = contextNavigationEntries[newIndex];
+    if (!nextEntry) return;
+    selectMeasurementById(nextEntry.selectMeasurementId);
   };
 
-  const increaseCurrentHandler = () => {
+  const increaseContextHandler = () => {
+    if (contextNavigationEntries.length <= 1) return;
+    const currentIndexInContext =
+      currentContextMeasurementIndex >= 0 ? currentContextMeasurementIndex : 0;
     const newIndex =
-      currentIndex >= visibleMeasurements.length - 1 ? 0 : currentIndex + 1;
-    setCurrentIndex(newIndex);
-    const nextMeasurement = visibleMeasurements[newIndex];
-    selectMeasurementById(nextMeasurement ? nextMeasurement.id : null);
+      currentIndexInContext >= contextNavigationEntries.length - 1
+        ? 0
+        : currentIndexInContext + 1;
+    const nextEntry = contextNavigationEntries[newIndex];
+    if (!nextEntry) return;
+    selectMeasurementById(nextEntry.selectMeasurementId);
   };
 
   const deleteShapeHandler = (e) => {
     e.stopPropagation();
+    if (
+      measurementMode === MeasurementMode.PointQuery &&
+      !isAnnotationMode &&
+      pointRelationRows.length > 0
+    ) {
+      const relationId = pointRelationRows[0]?.relationId;
+      if (relationId) {
+        removeDistanceRelationById(relationId);
+        return;
+      }
+    }
     if (currentMeasurement) {
       clearMeasurementsByIds([currentMeasurement.id]);
     }
+  };
+
+  const toggleCurrentMeasurementHidden = (e?: ReactMouseEvent | MouseEvent) => {
+    e?.stopPropagation?.();
+    if (!currentMeasurement) return;
+    setMeasurements((prev) =>
+      prev.map((measurement) =>
+        measurement.id === currentMeasurement.id
+          ? { ...measurement, hidden: !measurement.hidden }
+          : measurement
+      )
+    );
+  };
+
+  const toggleSelectedPolygonHidden = (e?: ReactMouseEvent | MouseEvent) => {
+    e?.stopPropagation?.();
+    if (!selectedPlanarPolygonGroup) return;
+    setPlanarPolygonGroups((prev) =>
+      prev.map((group) =>
+        group.id === selectedPlanarPolygonGroup.id
+          ? { ...group, hidden: !group.hidden }
+          : group
+      )
+    );
   };
 
   const setAsReferenceHandler = (e) => {
@@ -681,6 +946,79 @@ export function InfoBoxMeasurement3D({ pixelWidth = 350 }) {
     setElevationEditTarget(null);
     setEditStepDistanceMeters(null);
     stopMoveGizmo();
+  };
+
+  const startVerticalOffsetEditMode = (e?) => {
+    e?.stopPropagation?.();
+    if (!currentMeasurement || !isPointMeasurementEntry(currentMeasurement)) {
+      return;
+    }
+    if (!currentMeasurement.verticalOffsetAnchorECEF) return;
+    selectMeasurementById(currentMeasurement.id);
+    setRelationMetricEdit(null);
+    setElevationEditTarget(null);
+    setIsVerticalOffsetEditModeActive(true);
+    setEditStepDistanceMeters(getCameraDistanceToCurrentPoint());
+  };
+
+  const stopVerticalOffsetEditMode = (e?) => {
+    e?.stopPropagation?.();
+    setIsVerticalOffsetEditModeActive(false);
+    setEditStepDistanceMeters(null);
+  };
+
+  const handleVerticalOffsetInputChange = (value: number | null) => {
+    if (!currentMeasurement || !isPointMeasurementEntry(currentMeasurement)) {
+      return;
+    }
+    if (value === null || !Number.isFinite(value)) {
+      return;
+    }
+    const anchor = currentMeasurement.verticalOffsetAnchorECEF;
+    if (!anchor) return;
+
+    const anchorPositionEcef = new Cartesian3(anchor.x, anchor.y, anchor.z);
+    const localEnuFrame = Transforms.eastNorthUpToFixedFrame(
+      anchorPositionEcef,
+      Ellipsoid.WGS84
+    );
+    const upDirectionColumn = Matrix4.getColumn(
+      localEnuFrame,
+      2,
+      new Cartesian4()
+    );
+    const upDirectionEcef = Cartesian3.normalize(
+      new Cartesian3(
+        upDirectionColumn.x,
+        upDirectionColumn.y,
+        upDirectionColumn.z
+      ),
+      new Cartesian3()
+    );
+    const offsetVectorEcef = Cartesian3.multiplyByScalar(
+      upDirectionEcef,
+      value,
+      new Cartesian3()
+    );
+    const nextPositionEcef = Cartesian3.add(
+      anchorPositionEcef,
+      offsetVectorEcef,
+      new Cartesian3()
+    );
+    const nextWgs84 = getDegreesFromCartesian(nextPositionEcef);
+    if (
+      !Number.isFinite(nextWgs84.latitude) ||
+      !Number.isFinite(nextWgs84.longitude)
+    ) {
+      return;
+    }
+
+    setPointMeasurementCoordinatesById(
+      currentMeasurement.id,
+      nextWgs84.latitude,
+      nextWgs84.longitude,
+      Number.isFinite(nextWgs84.altitude) ? nextWgs84.altitude : 0
+    );
   };
 
   const handleElevationInputChange = (value: number | null) => {
@@ -1073,7 +1411,7 @@ export function InfoBoxMeasurement3D({ pixelWidth = 350 }) {
     flyToPointGroup(scene, points);
   };
 
-  const infoBoxHeaderColor = "#3b82f6";
+  const infoBoxHeaderColor = "rgba(59, 130, 246, 0.7)";
 
   const formatCoordinate = (val, isLat) => {
     const str = Math.abs(val).toLocaleString("de-DE", {
@@ -1113,6 +1451,7 @@ export function InfoBoxMeasurement3D({ pixelWidth = 350 }) {
   ) => {
     if (typeof measurementId !== "string") return;
     updateMeasurementNameById(measurementId, name);
+    if (name.trim()) setLastCustomPointLabel(name.trim());
   };
 
   const handlePolygonNameUpdate = (
@@ -1195,9 +1534,42 @@ export function InfoBoxMeasurement3D({ pixelWidth = 350 }) {
     e?: ReactMouseEvent | MouseEvent
   ) => {
     e?.stopPropagation?.();
-    setDistanceRelations((prev) =>
-      prev.filter((relation) => relation.id !== relationId)
+    const relationToRemove = distanceRelations.find((relation) => {
+      return relation.id === relationId;
+    });
+    if (!relationToRemove) {
+      setDistanceRelations((prev) =>
+        prev.filter((relation) => relation.id !== relationId)
+      );
+      return;
+    }
+
+    const remainingRelations = distanceRelations.filter(
+      (relation) => relation.id !== relationId
     );
+
+    const orphanAdhocPointIds = [
+      relationToRemove.pointAId,
+      relationToRemove.pointBId,
+    ].filter((pointId) => {
+      const point = measurements.find(
+        (measurement) => measurement.id === pointId
+      );
+      if (!point || !isPointMeasurementEntry(point)) return false;
+      if (!point.distanceAdhocNode) return false;
+      return !remainingRelations.some(
+        (relation) =>
+          relation.pointAId === pointId || relation.pointBId === pointId
+      );
+    });
+
+    if (orphanAdhocPointIds.length > 0) {
+      clearMeasurementsByIds(orphanAdhocPointIds);
+      return;
+    }
+
+    // Existing (non-adhoc) point measures are first-class nodes and must remain.
+    setDistanceRelations(remainingRelations);
   };
 
   const addDistanceRelationForCurrentPoint = (
@@ -1319,6 +1691,29 @@ export function InfoBoxMeasurement3D({ pixelWidth = 350 }) {
   const relativeElevationInputWidthPx = getElevationInputWidthPx(
     relativeElevationValue
   );
+  const absoluteElevationWithNhnSuffix =
+    currentMeasurement && isPointMeasurementEntry(currentMeasurement)
+      ? `${formatNumber(currentMeasurement.geometryWGS84.height)} m NHN`
+      : null;
+  const isRelativeElevationLabelEnabled =
+    currentMeasurement &&
+    isPointMeasurementEntry(currentMeasurement) &&
+    (currentMeasurement.pointLabelMode ?? "elevation") === "elevation";
+  const verticalOffsetValue =
+    currentMeasurement &&
+    isPointMeasurementEntry(currentMeasurement) &&
+    currentMeasurement.verticalOffsetAnchorECEF
+      ? getENU(
+          currentMeasurement.geometryECEF,
+          new Cartesian3(
+            currentMeasurement.verticalOffsetAnchorECEF.x,
+            currentMeasurement.verticalOffsetAnchorECEF.y,
+            currentMeasurement.verticalOffsetAnchorECEF.z
+          )
+        ).up
+      : null;
+  const verticalOffsetInputWidthPx =
+    getElevationInputWidthPx(verticalOffsetValue);
   const pointRelationRows = useMemo(() => {
     if (!currentMeasurement || !isPointMeasurementEntry(currentMeasurement)) {
       return [];
@@ -1446,6 +1841,106 @@ export function InfoBoxMeasurement3D({ pixelWidth = 350 }) {
     pointMeasurements,
     referencePointMeasurementId,
   ]);
+  const distanceTitleContext = useMemo(() => {
+    if (
+      measurementMode !== MeasurementMode.PointQuery ||
+      !currentMeasurement ||
+      !isPointMeasurementEntry(currentMeasurement) ||
+      isAnnotationMode
+    ) {
+      return null;
+    }
+
+    const currentPointIndex = pointMeasurements.findIndex(
+      (measurement) => measurement.id === currentMeasurement.id
+    );
+    const currentPointLabel =
+      getCustomPointMeasurementName(currentMeasurement.name) ||
+      formatNumberToEnclosed(currentPointIndex + 1);
+
+    const primaryRelationRow = pointRelationRows[0];
+    if (!primaryRelationRow) {
+      return {
+        shapeId: currentMeasurement.id,
+        title: getCustomPointMeasurementName(currentMeasurement.name) || "",
+        placeholderText: undefined,
+      };
+    }
+
+    const relationId = getDistanceRelationId(
+      currentMeasurement.id,
+      primaryRelationRow.relatedPointId
+    );
+    const relation = distanceRelations.find((entry) => entry.id === relationId);
+    const anchorPointId = relation?.anchorPointId ?? currentMeasurement.id;
+    const relationPointA = relation
+      ? pointMeasurements.find(
+          (measurement) => measurement.id === relation.pointAId
+        )
+      : currentMeasurement;
+    const relationPointB = relation
+      ? pointMeasurements.find(
+          (measurement) => measurement.id === relation.pointBId
+        )
+      : pointMeasurements.find(
+          (measurement) => measurement.id === primaryRelationRow.relatedPointId
+        );
+    const anchorPointMeasurement = pointMeasurements.find(
+      (measurement) => measurement.id === anchorPointId
+    );
+    const anchorPointIndex = pointMeasurements.findIndex(
+      (measurement) => measurement.id === anchorPointId
+    );
+    const anchorPointLabel = anchorPointMeasurement
+      ? getCustomPointMeasurementName(anchorPointMeasurement.name) ||
+        formatNumberToEnclosed(anchorPointIndex + 1)
+      : currentPointLabel;
+
+    const connectedPointLabel = formatDistanceTitleNodeLabel(
+      primaryRelationRow.label
+    );
+    const relationPointALabel = relationPointA
+      ? formatDistanceTitleNodeLabel(
+          getCustomPointMeasurementName(relationPointA.name) ||
+            formatNumberToEnclosed(
+              pointMeasurements.findIndex(
+                (measurement) => measurement.id === relationPointA.id
+              ) + 1
+            )
+        )
+      : connectedPointLabel;
+    const relationPointBLabel = relationPointB
+      ? formatDistanceTitleNodeLabel(
+          getCustomPointMeasurementName(relationPointB.name) ||
+            formatNumberToEnclosed(
+              pointMeasurements.findIndex(
+                (measurement) => measurement.id === relationPointB.id
+              ) + 1
+            )
+        )
+      : anchorPointLabel;
+    const pairLabelByHeight =
+      relationPointA &&
+      relationPointB &&
+      relationPointA.geometryWGS84.height < relationPointB.geometryWGS84.height
+        ? `${relationPointBLabel} ↔ ${relationPointALabel}`
+        : `${relationPointALabel} ↔ ${relationPointBLabel}`;
+
+    return {
+      shapeId: anchorPointId,
+      title: anchorPointMeasurement
+        ? getCustomPointMeasurementName(anchorPointMeasurement.name) || ""
+        : "",
+      placeholderText: pairLabelByHeight,
+    };
+  }, [
+    currentMeasurement,
+    distanceRelations,
+    isAnnotationMode,
+    measurementMode,
+    pointMeasurements,
+    pointRelationRows,
+  ]);
 
   const selectedPolygonVertexLabels = useMemo(() => {
     if (selectedConnectedPlanarPolygonGroups.length === 0) return [];
@@ -1517,974 +2012,1451 @@ export function InfoBoxMeasurement3D({ pixelWidth = 350 }) {
     isPointMeasurementEntry(currentMeasurement) &&
     isReference &&
     pointRelationRows.length === 0;
+  const activeMeasurementTypeTitle = useMemo(() => {
+    if (isPolygonInfoMode) {
+      if (selectedPolylineSummary) {
+        return "3D Polygonzugmessung";
+      }
+      if (selectedPolygonSurfaceTypeValue === "footprint") {
+        return "3D Flächenmessung · Grundriss";
+      }
+      if (selectedPolygonSurfaceTypeValue === "facade") {
+        return "3D Flächenmessung · Fassade";
+      }
+      if (selectedPolygonSurfaceTypeValue === "terrain") {
+        return "3D Flächenmessung · Gelände";
+      }
+      if (selectedPolygonSurfaceTypeValue === "roof") {
+        return "3D Flächenmessung · Dach";
+      }
+      return `3D Flächenmessung · ${selectedPolygonSurfaceTypeLabel}`;
+    }
 
+    if (currentMeasurement && isTraverseMeasurementEntry(currentMeasurement)) {
+      return "3D Polygonzugmessung";
+    }
+
+    if (
+      showPointInfoMode &&
+      measurementMode === MeasurementMode.PointQuery &&
+      !isAnnotationMode
+    ) {
+      return "Distanzmessung";
+    }
+
+    if (showPointInfoMode && isAnnotationMode) {
+      return "Anmerkung";
+    }
+
+    if (showPointInfoMode) {
+      return "Punktmessung";
+    }
+
+    return "3D Messungen";
+  }, [
+    currentMeasurement,
+    isPolygonInfoMode,
+    selectedPolygonSurfaceTypeLabel,
+    selectedPolygonSurfaceTypeValue,
+    selectedPolylineSummary,
+    measurementMode,
+    isAnnotationMode,
+    showPointInfoMode,
+  ]);
+  const hasInfoBoxContent = Boolean(currentMeasurement) || isPolygonInfoMode;
   return (
     <div>
-      <ResponsiveInfoBox
-        pixelwidth={pixelWidth}
-        panelClick={() => {}}
-        isCollapsible={!!currentMeasurement || isPolygonInfoMode}
-        header={
-          <div
-            className="w-full pl-1 pr-2 flex items-center justify-between"
-            style={{ backgroundColor: infoBoxHeaderColor }}
-          >
-            <span>3D Messungen</span>
-          </div>
-        }
-        alwaysVisibleDiv={
-          isPolygonInfoMode ? (
-            <div className="mt-1 mb-0 w-full px-2">
-              <div className="flex justify-between items-start gap-2">
-                <span
-                  style={{ cursor: "default" }}
-                  className="font-bold flex-1 min-w-0"
-                >
-                  <MeasurementTitle
-                    key={selectedPlanarPolygonGroup.id}
-                    order={selectedPlanarPolygonOrder}
-                    title={selectedPlanarPolygonGroup.name ?? ""}
-                    shapeId={selectedPlanarPolygonGroup.id}
-                    setUpdateMeasurementStatus={() => {}}
-                    updateTitleMeasurementById={handlePolygonNameUpdate}
-                    isCollapsed={collapsedInfoBox}
-                    placeholderText={`Polygonzug #${
-                      selectedPlanarPolygonOrder || 1
-                    }`}
-                    clearPlaceholderOnFocus
-                    showOrder={false}
-                    collapsedContent={formatAreaAdaptive(
-                      selectedPolygonPrimaryAreaSquareMeters
-                    )}
-                    editable={true}
-                    capitalize={false}
-                    multiline={true}
-                  />
-                </span>
-                <div className="flex justify-end items-center shrink-0 mt-0 gap-2">
-                  <Tooltip title="Zum Polygon fliegen">
-                    <Icon
-                      name="search-location"
-                      onClick={(event) => {
-                        event.stopPropagation();
-                        flyToSelectedPolygon();
-                      }}
-                      className="cursor-pointer text-[16px] text-[#808080] hover:text-[#a0a0a0]"
-                      data-test-id="flyto-polygon-btn"
-                    />
-                  </Tooltip>
-                  <Tooltip title="Polygon löschen">
-                    <FontAwesomeIcon
-                      onClick={deleteSelectedPolygon}
-                      className="cursor-pointer text-base text-[#808080] hover:text-[#a0a0a0]"
-                      icon={faTrashCan}
-                      data-test-id="delete-polygon-btn"
-                    />
-                  </Tooltip>
-                </div>
-              </div>
-              <div className="w-full text-[10px] font-normal text-gray-500 -mt-1 min-h-[16px] flex items-center gap-2 whitespace-nowrap">
-                {selectedPolylineSummary ? (
-                  <span>
-                    Polygonzug •{" "}
-                    {formatNumber(selectedPolylineSummary.totalLengthMeters)} m
-                    • Höhendifferenz:{" "}
-                    {formatNumber(
-                      Math.abs(
-                        selectedPolylineSummary.startEndElevationDeltaMeters
-                      )
-                    )}{" "}
-                    m
-                  </span>
-                ) : (
-                  <span>
-                    {selectedPolygonSurfaceTypeLabel} •{" "}
-                    {formatAreaAdaptive(selectedPolygonPrimaryAreaSquareMeters)}
-                  </span>
-                )}
-              </div>
+      {hasInfoBoxContent && (
+        <CarmaResponsiveInfoBox
+          width={pixelWidth}
+          onPanelClick={() => {}}
+          collapsible={!!currentMeasurement || isPolygonInfoMode}
+          headingColor={infoBoxHeaderColor}
+          heading={
+            <div className="w-full px-2 flex items-center justify-between">
+              <span
+                className="truncate font-bold text-white"
+                title={activeMeasurementTypeTitle}
+              >
+                {activeMeasurementTypeTitle}
+              </span>
             </div>
-          ) : currentMeasurement ? (
-            <div className="mt-1 mb-0 w-full px-2">
-              <div className="flex justify-between items-start gap-2">
-                <span
-                  style={{ cursor: "default" }}
-                  className={`font-bold flex-1 min-w-0 ${
-                    isReference ? "italic" : ""
-                  }`}
-                >
-                  <MeasurementTitle
-                    key={currentMeasurement.id}
-                    order={visibleMeasurements.length - currentIndex}
-                    title={
-                      getCustomPointMeasurementName(currentMeasurement.name) ||
-                      ""
-                    }
-                    shapeId={currentMeasurement.id}
-                    setUpdateMeasurementStatus={() => {}}
-                    updateTitleMeasurementById={handleMeasurementNameUpdate}
-                    isCollapsed={collapsedInfoBox}
-                    placeholderText={`${DEFAULT_POINT_MEASUREMENT_PLACEHOLDER} #${
-                      visibleMeasurements.length - currentIndex
-                    }`}
-                    clearPlaceholderOnFocus
-                    showOrder={false}
-                    collapsedContent={
-                      isPointMeasurementEntry(currentMeasurement)
-                        ? `NHN ${formatNumber(
-                            currentMeasurement.geometryWGS84.height
-                          )} m`
-                        : ""
-                    }
-                    editable={true}
-                    capitalize={false}
-                    multiline={true}
-                  />
-                </span>
-                <div className="flex justify-end items-center shrink-0 mt-0 gap-2">
-                  <Tooltip title="Zur Messung fliegen">
-                    <Icon
-                      name="search-location"
-                      onClick={(event) => {
-                        event.stopPropagation();
-                        flyToMeasurement();
-                      }}
-                      className="cursor-pointer text-[16px] text-[#808080] hover:text-[#a0a0a0]"
-                      data-test-id="flyto-measurement-btn"
-                    />
-                  </Tooltip>
-                  {!isReference && (
-                    <Tooltip title="Als Referenzhöhe setzen">
-                      <FontAwesomeIcon
-                        onClick={setAsReferenceHandler}
-                        className="cursor-pointer text-base text-[#808080] hover:text-[#a0a0a0]"
-                        icon={faArrowsDownToLine}
-                        data-test-id="set-reference-btn"
-                      />
-                    </Tooltip>
-                  )}
-                  <Tooltip title="Löschen">
-                    <FontAwesomeIcon
-                      onClick={deleteShapeHandler}
-                      className="cursor-pointer text-base text-[#808080] hover:text-[#a0a0a0]"
-                      icon={faTrashCan}
-                      data-test-id="delete-measurement-btn"
-                    />
-                  </Tooltip>
-                </div>
-              </div>
-              {isPointMeasurementEntry(currentMeasurement) &&
-                (isCoordinateEditModeActive ? (
-                  <div
-                    className="w-full text-[10px] font-normal text-gray-500 -mt-1 min-h-[16px] flex items-center gap-1"
-                    onClick={(event) => event.stopPropagation()}
-                  >
-                    <span className="inline-flex items-center gap-1">
-                      <InputNumber
-                        value={coordinateEditValues?.latitude}
-                        onChange={(value) => {
-                          const nextLatitude =
-                            typeof value === "number" ? value : null;
-                          setEditedLatitude(nextLatitude);
-                          applyCoordinateDraft(
-                            nextLatitude,
-                            coordinateEditValues?.longitude ?? null
-                          );
-                        }}
-                        step={inputStepConfig.latitudeStep}
-                        precision={6}
-                        min={-90}
-                        max={90}
-                        controls
-                        changeOnWheel
-                        onPressEnter={handleCoordinateInputPressEnter}
-                        style={{ width: COORDINATE_INPUT_WIDTH_PX }}
-                        data-test-id="latitude-edit-input"
-                      />
-                      <span className="text-[9px] uppercase tracking-wide text-gray-500">
-                        Lat °{coordinateEditValues?.latitudeHemisphere ?? "N"}
-                      </span>
-                    </span>
-                    <span className="inline-flex items-center gap-1">
-                      <InputNumber
-                        value={coordinateEditValues?.longitude}
-                        onChange={(value) => {
-                          const nextLongitude =
-                            typeof value === "number" ? value : null;
-                          setEditedLongitude(nextLongitude);
-                          applyCoordinateDraft(
-                            coordinateEditValues?.latitude ?? null,
-                            nextLongitude
-                          );
-                        }}
-                        step={inputStepConfig.longitudeStep}
-                        precision={6}
-                        min={-180}
-                        max={180}
-                        controls
-                        changeOnWheel
-                        onPressEnter={handleCoordinateInputPressEnter}
-                        style={{ width: COORDINATE_INPUT_WIDTH_PX }}
-                        data-test-id="longitude-edit-input"
-                      />
-                      <span className="text-[9px] uppercase tracking-wide text-gray-500">
-                        Lon °{coordinateEditValues?.longitudeHemisphere ?? "O"}
-                      </span>
-                    </span>
-                    <button
-                      type="button"
-                      onClick={completeCoordinateEditMode}
-                      className="px-1.5 py-[1px] text-[11px] leading-[14px] border rounded border-[#0078a8] text-[#0078a8] bg-white hover:bg-[#e8f4fa]"
-                      data-test-id="coordinates-edit-complete-btn"
-                      aria-label="Koordinatenbearbeitung abschließen"
+          }
+          subtitle={
+            <>
+              {isPolygonInfoMode ? (
+                <div className="mt-1 mb-0 w-full px-2">
+                  <div className="flex justify-between items-start gap-2">
+                    <span
+                      style={{ cursor: "default" }}
+                      className="font-bold flex-1 min-w-0"
                     >
-                      <FontAwesomeIcon icon={faCheck} />
-                    </button>
-                  </div>
-                ) : (
-                  <div
-                    className="w-full text-[10px] font-normal text-gray-500 -mt-1 min-h-[16px] flex items-center gap-2 whitespace-nowrap"
-                    data-test-id="coordinates-display-btn"
-                  >
-                    <button
-                      type="button"
-                      onClick={startCoordinateEditMode}
-                      className="cursor-pointer bg-transparent border-0 p-0 m-0 text-left text-[10px] font-normal text-gray-500 whitespace-nowrap"
-                    >
-                      {formatCoordinate(
-                        currentMeasurement.geometryWGS84.latitude,
-                        true
-                      )}{" "}
-                      {formatCoordinate(
-                        currentMeasurement.geometryWGS84.longitude,
-                        false
-                      )}
-                    </button>
-                    {isAbsoluteElevationEditActive ? (
-                      <span
-                        className="inline-flex items-center gap-1"
-                        onClick={stopEventPropagation}
+                      <MeasurementTitle
+                        key={selectedPlanarPolygonGroup.id}
+                        order={selectedPlanarPolygonOrder}
+                        title={selectedPlanarPolygonGroup.name ?? ""}
+                        shapeId={selectedPlanarPolygonGroup.id}
+                        setUpdateMeasurementStatus={() => {}}
+                        updateTitleMeasurementById={handlePolygonNameUpdate}
+                        isCollapsed={collapsedInfoBox}
+                        placeholderText={`Polygonzug #${
+                          selectedPlanarPolygonOrder || 1
+                        }`}
+                        clearPlaceholderOnFocus
+                        showOrder={false}
+                        collapsedContent={formatAreaAdaptive(
+                          selectedPolygonPrimaryAreaSquareMeters
+                        )}
+                        editable={true}
+                        capitalize={false}
+                        multiline={true}
+                      />
+                    </span>
+                    <div className="flex justify-end items-center shrink-0 mt-0 gap-2">
+                      <Tooltip
+                        getPopupContainer={() => document.body}
+                        title="Zum Polygon fliegen"
                       >
-                        <InputNumber
-                          value={currentMeasurement.geometryWGS84.height}
-                          onChange={handleElevationInputChange}
-                          {...elevationInputSharedProps}
-                          style={{
-                            width: absoluteElevationInputWidthPx,
+                        <Icon
+                          name="search-location"
+                          onClick={(event) => {
+                            event.stopPropagation();
+                            flyToSelectedPolygon();
                           }}
-                          data-test-id="elevation-edit-input"
+                          className="cursor-pointer text-[16px] text-[#808080] hover:text-[#a0a0a0]"
+                          data-test-id="flyto-polygon-btn"
                         />
-                        <button
-                          type="button"
-                          onClick={stopElevationEditMode}
-                          className="px-1.5 py-[1px] text-[11px] leading-[14px] border rounded border-[#0078a8] text-[#0078a8] bg-white hover:bg-[#e8f4fa]"
-                          data-test-id="elevation-edit-complete-btn"
-                          aria-label="Höhenbearbeitung abschließen"
-                        >
-                          <FontAwesomeIcon icon={faCheck} />
-                        </button>
-                      </span>
-                    ) : (
-                      <button
-                        type="button"
-                        onClick={startAbsoluteElevationEditMode}
-                        className="cursor-pointer bg-transparent border-0 p-0 m-0 text-left text-[10px] font-normal text-gray-500 whitespace-nowrap"
-                        data-test-id="elevation-display-btn"
+                      </Tooltip>
+                      <Tooltip
+                        getPopupContainer={() => document.body}
+                        title={
+                          isSelectedPolygonHidden
+                            ? "Polygon einblenden"
+                            : "Polygon ausblenden"
+                        }
                       >
-                        {formatNumber(currentMeasurement.geometryWGS84.height)}{" "}
-                        m ü. NHN
-                        {isReference ? " ist Bezugshöhe" : ""}
-                      </button>
-                    )}
+                        <VisibilityToggleButton
+                          isVisible={!isSelectedPolygonHidden}
+                          onToggle={() => toggleSelectedPolygonHidden()}
+                          ariaLabel={
+                            isSelectedPolygonHidden
+                              ? "Polygon einblenden"
+                              : "Polygon ausblenden"
+                          }
+                          dataTestId="toggle-polygon-visibility-btn"
+                          className="cursor-pointer text-base text-[#808080] hover:text-[#a0a0a0]"
+                          fontSize={INFOBOX_ACTION_TOGGLE_SIZE_PX}
+                          iconSlotWidth={INFOBOX_ACTION_TOGGLE_SIZE_PX}
+                          iconSlotHeight={INFOBOX_ACTION_TOGGLE_SIZE_PX}
+                          style={INFOBOX_ACTION_TOGGLE_BUTTON_STYLE}
+                        />
+                      </Tooltip>
+                      <Tooltip
+                        getPopupContainer={() => document.body}
+                        title="Polygon löschen"
+                      >
+                        <FontAwesomeIcon
+                          onClick={deleteSelectedPolygon}
+                          className="cursor-pointer text-base text-[#808080] hover:text-[#a0a0a0]"
+                          icon={faTrashCan}
+                          data-test-id="delete-polygon-btn"
+                        />
+                      </Tooltip>
+                    </div>
                   </div>
-                ))}
-            </div>
-          ) : (
-            <div
-              className="mt-2 w-[90%] p-2"
-              data-test-id="empty-measurement-info"
-            >
-              <p className="text-[#212529] font-normal text-xs leading-normal">
-                Für Punktmessungen auf das Stadtmodell klicken. Die erste
-                Messung definiert die Referenzhöhe.
-              </p>
-            </div>
-          )
-        }
-        collapsibleDiv={
-          isPolygonInfoMode ? (
-            <div className="text-[12px] mb-0">
-              <div className="mt-1 text-sm pl-2 pr-1">
-                {selectedPolylineSummary ? (
-                  <>
-                    <div className="mb-1">
-                      <span className="text-gray-500 mr-1">Gesamtlänge:</span>
-                      <span className="tabular-nums">
+                  <div className="w-full text-[10px] font-normal text-gray-500 -mt-1 min-h-[16px] flex items-center gap-2 whitespace-nowrap">
+                    {selectedPolylineSummary ? (
+                      <span>
+                        Polygonzug •{" "}
                         {formatNumber(
                           selectedPolylineSummary.totalLengthMeters
                         )}{" "}
-                        m
-                      </span>
-                    </div>
-                    <div className="mb-1 flex flex-wrap items-baseline gap-x-2 gap-y-1 text-[10px]">
-                      <span className="text-gray-500">Aufstieg:</span>
-                      <span className="tabular-nums">
-                        {formatNumber(selectedPolylineSummary.ascentMeters)} m
-                      </span>
-                      <span className="text-gray-500">Abstieg:</span>
-                      <span className="tabular-nums">
-                        {formatNumber(selectedPolylineSummary.descentMeters)} m
-                      </span>
-                      <span className="text-gray-500">Summe:</span>
-                      <span className="tabular-nums">
+                        m • Höhendifferenz:{" "}
                         {formatNumber(
-                          selectedPolylineSummary.totalAbsoluteElevationChangeMeters
+                          Math.abs(
+                            selectedPolylineSummary.startEndElevationDeltaMeters
+                          )
                         )}{" "}
                         m
                       </span>
-                    </div>
-                    <div className="mb-1">
-                      <span className="text-gray-500 mr-1">Δ Start/Ende:</span>
-                      <span className="tabular-nums">
-                        {formatNumber(
-                          selectedPolylineSummary.startEndElevationDeltaMeters
-                        )}{" "}
-                        m
+                    ) : (
+                      <span>
+                        {selectedPolygonSurfaceTypeLabel} •{" "}
+                        {formatAreaAdaptive(
+                          selectedPolygonPrimaryAreaSquareMeters
+                        )}
                       </span>
-                    </div>
-                    <div className="mb-1">
-                      <span className="text-gray-500 mr-1">
-                        Ø Segmentlänge:
-                      </span>
-                      <span className="tabular-nums">
-                        {formatNumber(
-                          selectedPolylineSummary.meanSegmentLengthMeters
-                        )}{" "}
-                        m
-                      </span>
-                    </div>
-                  </>
-                ) : (
-                  <>
-                    <div className="mb-1">
-                      <span className="text-gray-500 mr-1">Typ:</span>
-                      <Select
-                        size="small"
-                        value={selectedPolygonSurfaceTypeValue}
-                        options={POLYGON_SURFACE_TYPE_OPTIONS}
-                        onChange={updateSelectedPolygonSurfaceType}
-                        style={{ minWidth: 148 }}
-                        onClick={stopEventPropagation}
-                        onMouseDown={stopEventPropagation}
+                    )}
+                  </div>
+                </div>
+              ) : currentMeasurement ? (
+                <div className="mt-1 mb-0 w-full px-2">
+                  <div className="flex justify-between items-start gap-2">
+                    <span
+                      style={{ cursor: "default" }}
+                      className={`font-bold flex-1 min-w-0 ${
+                        isReference ? "italic" : ""
+                      }`}
+                    >
+                      <MeasurementTitle
+                        key={
+                          distanceTitleContext?.shapeId ?? currentMeasurement.id
+                        }
+                        order={visibleMeasurements.length - currentIndex}
+                        title={
+                          distanceTitleContext?.title ??
+                          (getCustomPointMeasurementName(
+                            currentMeasurement.name
+                          ) ||
+                            "")
+                        }
+                        shapeId={
+                          distanceTitleContext?.shapeId ?? currentMeasurement.id
+                        }
+                        setUpdateMeasurementStatus={() => {}}
+                        updateTitleMeasurementById={handleMeasurementNameUpdate}
+                        isCollapsed={collapsedInfoBox}
+                        placeholderText={
+                          measurementMode === MeasurementMode.PointQuery
+                            ? distanceTitleContext?.placeholderText
+                            : pointLabelOnCreate
+                            ? lastCustomPointLabel
+                            : isPointMeasurementEntry(currentMeasurement) &&
+                              !isAnnotationMode
+                            ? `Punkt ${
+                                pointMeasurements.findIndex(
+                                  (measurement) =>
+                                    measurement.id === currentMeasurement.id
+                                ) + 1
+                              }`
+                            : undefined
+                        }
+                        clearPlaceholderOnFocus={false}
+                        showOrder={false}
+                        collapsedContent={
+                          isPointMeasurementEntry(currentMeasurement)
+                            ? isAnnotationMode
+                              ? ""
+                              : `NHN ${formatNumber(
+                                  currentMeasurement.geometryWGS84.height
+                                )} m`
+                            : ""
+                        }
+                        editable={true}
+                        capitalize={false}
+                        multiline={true}
+                        autoFocusTrigger={labelFocusTrigger}
                       />
+                    </span>
+                    <div className="flex justify-end items-center shrink-0 mt-0 gap-2">
+                      {!isReference && !isAnnotationMode && (
+                        <Tooltip
+                          getPopupContainer={() => document.body}
+                          title="Als Referenzhöhe setzen"
+                        >
+                          <FontAwesomeIcon
+                            onClick={setAsReferenceHandler}
+                            className="cursor-pointer text-base text-[#808080] hover:text-[#a0a0a0]"
+                            icon={faArrowsDownToLine}
+                            data-test-id="set-reference-btn"
+                          />
+                        </Tooltip>
+                      )}
+                      <Tooltip
+                        getPopupContainer={() => document.body}
+                        title="Zur Messung fliegen"
+                      >
+                        <Icon
+                          name="search-location"
+                          onClick={(event) => {
+                            event.stopPropagation();
+                            flyToMeasurement();
+                          }}
+                          className="cursor-pointer text-[16px] text-[#808080] hover:text-[#a0a0a0]"
+                          data-test-id="flyto-measurement-btn"
+                        />
+                      </Tooltip>
+                      <Tooltip
+                        getPopupContainer={() => document.body}
+                        title={
+                          isCurrentMeasurementHidden
+                            ? "Messung einblenden"
+                            : "Messung ausblenden"
+                        }
+                      >
+                        <VisibilityToggleButton
+                          isVisible={!isCurrentMeasurementHidden}
+                          onToggle={() => toggleCurrentMeasurementHidden()}
+                          ariaLabel={
+                            isCurrentMeasurementHidden
+                              ? "Messung einblenden"
+                              : "Messung ausblenden"
+                          }
+                          dataTestId="toggle-measurement-visibility-btn"
+                          className="cursor-pointer text-base text-[#808080] hover:text-[#a0a0a0]"
+                          fontSize={INFOBOX_ACTION_TOGGLE_SIZE_PX}
+                          iconSlotWidth={INFOBOX_ACTION_TOGGLE_SIZE_PX}
+                          iconSlotHeight={INFOBOX_ACTION_TOGGLE_SIZE_PX}
+                          style={INFOBOX_ACTION_TOGGLE_BUTTON_STYLE}
+                        />
+                      </Tooltip>
+                      {currentMeasurement && (
+                        <Tooltip
+                          getPopupContainer={() => document.body}
+                          title={
+                            isCurrentMeasurementLocked
+                              ? "Sperre aufheben"
+                              : "Messung sperren"
+                          }
+                        >
+                          <LockToggleButton
+                            isLocked={isCurrentMeasurementLocked}
+                            onToggle={() =>
+                              toggleMeasurementLockById(currentMeasurement.id)
+                            }
+                            ariaLabel={
+                              isCurrentMeasurementLocked
+                                ? "Sperre aufheben"
+                                : "Messung sperren"
+                            }
+                            dataTestId="toggle-measurement-lock-btn"
+                            className="cursor-pointer text-base text-[#808080] hover:text-[#a0a0a0]"
+                            fontSize={INFOBOX_ACTION_TOGGLE_SIZE_PX}
+                            iconSlotWidth={INFOBOX_ACTION_TOGGLE_SIZE_PX}
+                            iconSlotHeight={INFOBOX_ACTION_TOGGLE_SIZE_PX}
+                            style={INFOBOX_ACTION_TOGGLE_BUTTON_STYLE}
+                          />
+                        </Tooltip>
+                      )}
+                      <Tooltip
+                        getPopupContainer={() => document.body}
+                        title="Löschen"
+                      >
+                        <FontAwesomeIcon
+                          onClick={deleteShapeHandler}
+                          className="cursor-pointer text-base text-[#808080] hover:text-[#a0a0a0]"
+                          icon={faTrashCan}
+                          data-test-id="delete-measurement-btn"
+                        />
+                      </Tooltip>
                     </div>
-                    {showSurfaceAreaForType && (
-                      <div className="mb-1">
-                        <span className="text-gray-500 mr-1">Oberfläche:</span>
-                        <span className="tabular-nums">
-                          {formatAreaAdaptive(
-                            selectedConnectedPlanarPolygonTotalAreaSquareMeters
-                          )}
+                  </div>
+                  {!isAnnotationMode &&
+                    isPointMeasurementEntry(currentMeasurement) &&
+                    (isCoordinateEditModeActive ? (
+                      <div
+                        className="w-full text-[10px] font-normal text-gray-500 -mt-1 min-h-[16px] flex items-center gap-1"
+                        onClick={(event) => event.stopPropagation()}
+                      >
+                        <span className="inline-flex items-center gap-1">
+                          <InputNumber
+                            value={coordinateEditValues?.latitude}
+                            onChange={(value) => {
+                              const nextLatitude =
+                                typeof value === "number" ? value : null;
+                              setEditedLatitude(nextLatitude);
+                              applyCoordinateDraft(
+                                nextLatitude,
+                                coordinateEditValues?.longitude ?? null
+                              );
+                            }}
+                            step={inputStepConfig.latitudeStep}
+                            precision={6}
+                            min={-90}
+                            max={90}
+                            controls
+                            changeOnWheel
+                            onPressEnter={handleCoordinateInputPressEnter}
+                            style={{ width: COORDINATE_INPUT_WIDTH_PX }}
+                            data-test-id="latitude-edit-input"
+                          />
+                          <span className="text-[9px] uppercase tracking-wide text-gray-500">
+                            Lat °
+                            {coordinateEditValues?.latitudeHemisphere ?? "N"}
+                          </span>
                         </span>
+                        <span className="inline-flex items-center gap-1">
+                          <InputNumber
+                            value={coordinateEditValues?.longitude}
+                            onChange={(value) => {
+                              const nextLongitude =
+                                typeof value === "number" ? value : null;
+                              setEditedLongitude(nextLongitude);
+                              applyCoordinateDraft(
+                                coordinateEditValues?.latitude ?? null,
+                                nextLongitude
+                              );
+                            }}
+                            step={inputStepConfig.longitudeStep}
+                            precision={6}
+                            min={-180}
+                            max={180}
+                            controls
+                            changeOnWheel
+                            onPressEnter={handleCoordinateInputPressEnter}
+                            style={{ width: COORDINATE_INPUT_WIDTH_PX }}
+                            data-test-id="longitude-edit-input"
+                          />
+                          <span className="text-[9px] uppercase tracking-wide text-gray-500">
+                            Lon °
+                            {coordinateEditValues?.longitudeHemisphere ?? "O"}
+                          </span>
+                        </span>
+                        <button
+                          type="button"
+                          onClick={completeCoordinateEditMode}
+                          className="px-1.5 py-[1px] text-[11px] leading-[14px] border rounded border-[#0078a8] text-[#0078a8] bg-white hover:bg-[#e8f4fa]"
+                          data-test-id="coordinates-edit-complete-btn"
+                          aria-label="Koordinatenbearbeitung abschließen"
+                        >
+                          <FontAwesomeIcon icon={faCheck} />
+                        </button>
                       </div>
-                    )}
-                    {showHorizontalAreaForType && (
-                      <div className="mb-1">
-                        <span className="text-gray-500 mr-1">
-                          Horizontalfläche:
-                        </span>
-                        <span className="tabular-nums">
-                          {formatAreaAdaptive(
-                            selectedPolygonHorizontalAreaSquareMeters
+                    ) : (
+                      <div
+                        className="w-full text-[10px] font-normal text-gray-500 -mt-1 min-h-[16px] flex items-center gap-2 whitespace-nowrap"
+                        data-test-id="coordinates-display-btn"
+                      >
+                        <button
+                          type="button"
+                          onClick={startCoordinateEditMode}
+                          className="cursor-pointer bg-transparent border-0 p-0 m-0 text-left text-[10px] font-normal text-gray-500 whitespace-nowrap"
+                        >
+                          {formatCoordinate(
+                            currentMeasurement.geometryWGS84.latitude,
+                            true
+                          )}{" "}
+                          {formatCoordinate(
+                            currentMeasurement.geometryWGS84.longitude,
+                            false
                           )}
-                        </span>
-                      </div>
-                    )}
-                    <div className="mb-1">
-                      <span className="text-gray-500 mr-1">
-                        Planarer Umfang:
-                      </span>
-                      <span className="tabular-nums">
-                        {formatSignificant(
-                          selectedPolygonCircumferenceSummary.planarMeters
-                        )}{" "}
-                        m
-                      </span>
-                    </div>
-                    <div className="mb-1">
-                      <span className="text-gray-500 mr-1">3D-Umfang:</span>
-                      <span className="tabular-nums">
-                        {formatSignificant(
-                          selectedPolygonCircumferenceSummary.threeDMeters
-                        )}{" "}
-                        m
-                      </span>
-                    </div>
-                    <div className="mb-1">
-                      <span className="text-gray-500 mr-1">Teilflächen:</span>
-                      <span>{selectedConnectedPlanarPolygonGroups.length}</span>
-                    </div>
-                    <div className="mb-1">
-                      <span className="text-gray-500 mr-1">Ø Dachneigung:</span>
-                      <span className="tabular-nums">
-                        {selectedConnectedRoofAverageSlopeDeg === null
-                          ? "Keine Dächer"
-                          : `${formatNumber(
-                              selectedConnectedRoofAverageSlopeDeg
-                            )}°`}
-                      </span>
-                    </div>
-                    <div className="mb-1">
-                      <span className="text-gray-500 mr-1">
-                        Dachneigung je Dach:
-                      </span>
-                      <span>
-                        {selectedConnectedRoofSlopeLabels.length > 0
-                          ? selectedConnectedRoofSlopeLabels.join(" • ")
-                          : "Keine Dächer"}
-                      </span>
-                    </div>
-                    <div className="mb-1">
-                      <span className="text-gray-500 mr-1">Kippwinkel:</span>
-                      <span className="tabular-nums">
-                        {formatNumber(selectedPolygonTiltInfo.tiltDeg)}° (
-                        {selectedPolygonTiltInfo.slopePercentText})
-                      </span>
-                    </div>
-                    <div className="mb-1">
-                      <span className="text-gray-500 mr-1">
-                        Normalrichtung:
-                      </span>
-                      <span>{selectedPolygonTiltInfo.normalDirectionText}</span>
-                    </div>
-                    <div className="mb-1">
-                      <span className="text-gray-500 mr-1">Knoten:</span>
-                      <span>
-                        {selectedPolygonVertexLabels.length > 0
-                          ? selectedPolygonVertexLabels.join(" - ")
-                          : "Keine"}
-                      </span>
-                    </div>
-                  </>
-                )}
-              </div>
-            </div>
-          ) : currentMeasurement ? (
-            <div>
-              {!isReferencePointWithoutEdges ? (
-                <div className="text-[12px] mb-0">
-                  {isPointMeasurementEntry(currentMeasurement) && (
-                    <>
-                      <div className="mt-1 text-sm pl-2">
-                        {pointRelationRows.length > 0 ? (
-                          <div className="pr-1">
-                            <div className="flex items-center gap-1 mb-1">
-                              {isRelativeElevationEditActive ? (
-                                <span
-                                  className="inline-flex items-center gap-1"
-                                  onClick={stopEventPropagation}
+                        </button>
+                        {isAbsoluteElevationEditActive ? (
+                          <span
+                            className="inline-flex items-center gap-1"
+                            onClick={stopEventPropagation}
+                          >
+                            <InputNumber
+                              value={currentMeasurement.geometryWGS84.height}
+                              onChange={handleElevationInputChange}
+                              {...elevationInputSharedProps}
+                              style={{
+                                width: absoluteElevationInputWidthPx,
+                              }}
+                              data-test-id="elevation-edit-input"
+                            />
+                            <button
+                              type="button"
+                              onClick={stopElevationEditMode}
+                              className="px-1.5 py-[1px] text-[11px] leading-[14px] border rounded border-[#0078a8] text-[#0078a8] bg-white hover:bg-[#e8f4fa]"
+                              data-test-id="elevation-edit-complete-btn"
+                              aria-label="Höhenbearbeitung abschließen"
+                            >
+                              <FontAwesomeIcon icon={faCheck} />
+                            </button>
+                          </span>
+                        ) : (
+                          <span className="inline-flex items-center gap-1">
+                            <button
+                              type="button"
+                              onClick={startAbsoluteElevationEditMode}
+                              className="cursor-pointer bg-transparent border-0 p-0 m-0 text-left text-[10px] font-normal text-gray-500 whitespace-nowrap"
+                              data-test-id="elevation-display-btn"
+                            >
+                              {formatNumber(
+                                currentMeasurement.geometryWGS84.height
+                              )}{" "}
+                              m ü. NHN
+                              {isReference ? " ist Bezugshöhe" : ""}
+                            </button>
+                            {(() => {
+                              const isAbsElevVisible =
+                                currentMeasurement.pointLabelMode ===
+                                "absoluteElevation";
+                              return (
+                                <Tooltip
+                                  getPopupContainer={() => document.body}
+                                  title={
+                                    isAbsElevVisible
+                                      ? "NHN-Höhe im Label ausblenden"
+                                      : "NHN-Höhe im Label anzeigen"
+                                  }
                                 >
-                                  <InputNumber
-                                    value={relativeElevationValue}
-                                    onChange={handleElevationInputChange}
-                                    {...elevationInputSharedProps}
-                                    style={{
-                                      width: relativeElevationInputWidthPx,
+                                  <VisibilityToggleButton
+                                    isVisible={isAbsElevVisible}
+                                    onToggle={(nextVisible) => {
+                                      setPointLabelMetricModeById(
+                                        currentMeasurement.id,
+                                        nextVisible
+                                          ? "absoluteElevation"
+                                          : "elevation"
+                                      );
                                     }}
-                                    data-test-id="relative-elevation-edit-input"
+                                    stopPropagation
+                                    ariaLabel={
+                                      isAbsElevVisible
+                                        ? "NHN-Höhe im Label ausblenden"
+                                        : "NHN-Höhe im Label anzeigen"
+                                    }
+                                    dataTestId="toggle-abs-elevation-label-btn"
+                                    className="cursor-pointer text-[10px] text-[#808080] hover:text-[#a0a0a0]"
+                                    iconSlotWidth={12}
+                                    style={{
+                                      background: "transparent",
+                                      border: "none",
+                                      padding: 0,
+                                    }}
                                   />
-                                  <button
-                                    type="button"
-                                    onClick={stopElevationEditMode}
-                                    className="px-1.5 py-[1px] text-[11px] leading-[14px] border rounded border-[#0078a8] text-[#0078a8] bg-white hover:bg-[#e8f4fa]"
-                                    data-test-id="relative-elevation-edit-complete-btn"
-                                    aria-label="Relative Höhenbearbeitung abschließen"
-                                  >
-                                    <FontAwesomeIcon icon={faCheck} />
-                                  </button>
-                                  <span>m relative Höhe über Bezugspunkt</span>
-                                </span>
-                              ) : (
-                                <>
-                                  <button
-                                    type="button"
-                                    onClick={startRelativeElevationEditMode}
-                                    className="cursor-pointer bg-transparent border-0 p-0 m-0 text-left"
-                                    data-test-id="relative-elevation-display-btn"
-                                  >
-                                    {formatNumber(relativeElevationValue)} m
-                                  </button>
-                                  <span>relative Höhe über Bezugspunkt</span>
-                                </>
+                                </Tooltip>
+                              );
+                            })()}
+                          </span>
+                        )}
+                      </div>
+                    ))}
+                </div>
+              ) : null}
+            </>
+          }
+          content={
+            <>
+              {isPolygonInfoMode ? (
+                <div className="text-[12px] mb-0">
+                  <div className="text-sm pl-2 pr-1">
+                    {selectedPolylineSummary ? (
+                      <>
+                        <div className="mb-1">
+                          <span className="text-gray-500 mr-1">
+                            Gesamtlänge:
+                          </span>
+                          <span className="tabular-nums">
+                            {formatNumber(
+                              selectedPolylineSummary.totalLengthMeters
+                            )}{" "}
+                            m
+                          </span>
+                        </div>
+                        <div className="mb-1 flex flex-wrap items-baseline gap-x-2 gap-y-1 text-[10px]">
+                          <span className="text-gray-500">Aufstieg:</span>
+                          <span className="tabular-nums">
+                            {formatNumber(selectedPolylineSummary.ascentMeters)}{" "}
+                            m
+                          </span>
+                          <span className="text-gray-500">Abstieg:</span>
+                          <span className="tabular-nums">
+                            {formatNumber(
+                              selectedPolylineSummary.descentMeters
+                            )}{" "}
+                            m
+                          </span>
+                          <span className="text-gray-500">Summe:</span>
+                          <span className="tabular-nums">
+                            {formatNumber(
+                              selectedPolylineSummary.totalAbsoluteElevationChangeMeters
+                            )}{" "}
+                            m
+                          </span>
+                        </div>
+                        <div className="mb-1">
+                          <span className="text-gray-500 mr-1">
+                            Δ Start/Ende:
+                          </span>
+                          <span className="tabular-nums">
+                            {formatNumber(
+                              selectedPolylineSummary.startEndElevationDeltaMeters
+                            )}{" "}
+                            m
+                          </span>
+                        </div>
+                        <div className="mb-1">
+                          <span className="text-gray-500 mr-1">
+                            Ø Segmentlänge:
+                          </span>
+                          <span className="tabular-nums">
+                            {formatNumber(
+                              selectedPolylineSummary.meanSegmentLengthMeters
+                            )}{" "}
+                            m
+                          </span>
+                        </div>
+                      </>
+                    ) : (
+                      <>
+                        <div className="mb-1">
+                          <span className="text-gray-500 mr-1">Typ:</span>
+                          <Select
+                            size="small"
+                            value={selectedPolygonSurfaceTypeValue}
+                            options={POLYGON_SURFACE_TYPE_OPTIONS}
+                            onChange={updateSelectedPolygonSurfaceType}
+                            style={{ minWidth: 148 }}
+                            onClick={stopEventPropagation}
+                            onMouseDown={stopEventPropagation}
+                          />
+                        </div>
+                        {showSurfaceAreaForType && (
+                          <div className="mb-1">
+                            <span className="text-gray-500 mr-1">
+                              Oberfläche:
+                            </span>
+                            <span className="tabular-nums">
+                              {formatAreaAdaptive(
+                                selectedConnectedPlanarPolygonTotalAreaSquareMeters
                               )}
-                            </div>
-                            <table className="w-full text-[10px] leading-tight">
-                              <thead>
-                                <tr className="text-left text-gray-500">
-                                  <th className="font-normal pr-2">Punkt</th>
-                                  <th className="font-normal text-right pr-2">
-                                    Vertikal
-                                  </th>
-                                  <th className="font-normal text-right pr-2">
-                                    Horizontal
-                                  </th>
-                                  <th className="font-normal text-right pr-2">
-                                    Distanz
-                                  </th>
-                                  <th className="font-normal text-right w-[14px]"></th>
-                                </tr>
-                              </thead>
-                              <tbody>
-                                {pointRelationRows.map((row) => (
-                                  <tr
-                                    key={`${row.relatedPointId}-${row.relationId}`}
-                                    className={
-                                      row.isReference ? "italic" : undefined
-                                    }
-                                    style={
-                                      row.isImplicitReferenceRow
-                                        ? { opacity: 0.8 }
-                                        : undefined
-                                    }
-                                  >
-                                    <td
-                                      className={`pr-2 ${
-                                        row.isReference ? "italic" : ""
-                                      }`}
-                                    >
-                                      {row.label}
-                                    </td>
-                                    <td className="text-right tabular-nums pr-2">
-                                      {relationMetricEdit?.relatedPointId ===
-                                        row.relatedPointId &&
-                                      relationMetricEdit.kind === "vertical" ? (
+                            </span>
+                          </div>
+                        )}
+                        {showHorizontalAreaForType && (
+                          <div className="mb-1">
+                            <span className="text-gray-500 mr-1">
+                              Horizontalfläche:
+                            </span>
+                            <span className="tabular-nums">
+                              {formatAreaAdaptive(
+                                selectedPolygonHorizontalAreaSquareMeters
+                              )}
+                            </span>
+                          </div>
+                        )}
+                        <div className="mb-1">
+                          <span className="text-gray-500 mr-1">
+                            Planarer Umfang:
+                          </span>
+                          <span className="tabular-nums">
+                            {formatSignificant(
+                              selectedPolygonCircumferenceSummary.planarMeters
+                            )}{" "}
+                            m
+                          </span>
+                        </div>
+                        <div className="mb-1">
+                          <span className="text-gray-500 mr-1">3D-Umfang:</span>
+                          <span className="tabular-nums">
+                            {formatSignificant(
+                              selectedPolygonCircumferenceSummary.threeDMeters
+                            )}{" "}
+                            m
+                          </span>
+                        </div>
+                        <div className="mb-1">
+                          <span className="text-gray-500 mr-1">
+                            Teilflächen:
+                          </span>
+                          <span>
+                            {selectedConnectedPlanarPolygonGroups.length}
+                          </span>
+                        </div>
+                        <div className="mb-1">
+                          <span className="text-gray-500 mr-1">
+                            Ø Dachneigung:
+                          </span>
+                          <span className="tabular-nums">
+                            {selectedConnectedRoofAverageSlopeDeg === null
+                              ? "Keine Dächer"
+                              : `${formatNumber(
+                                  selectedConnectedRoofAverageSlopeDeg
+                                )}°`}
+                          </span>
+                        </div>
+                        <div className="mb-1">
+                          <span className="text-gray-500 mr-1">
+                            Dachneigung je Dach:
+                          </span>
+                          <span>
+                            {selectedConnectedRoofSlopeLabels.length > 0
+                              ? selectedConnectedRoofSlopeLabels.join(" • ")
+                              : "Keine Dächer"}
+                          </span>
+                        </div>
+                        <div className="mb-1">
+                          <span className="text-gray-500 mr-1">
+                            Kippwinkel:
+                          </span>
+                          <span className="tabular-nums">
+                            {formatNumber(selectedPolygonTiltInfo.tiltDeg)}° (
+                            {selectedPolygonTiltInfo.slopePercentText})
+                          </span>
+                        </div>
+                        <div className="mb-1">
+                          <span className="text-gray-500 mr-1">
+                            Normalrichtung:
+                          </span>
+                          <span>
+                            {selectedPolygonTiltInfo.normalDirectionText}
+                          </span>
+                        </div>
+                        <div className="mb-1">
+                          <span className="text-gray-500 mr-1">Knoten:</span>
+                          <span>
+                            {selectedPolygonVertexLabels.length > 0
+                              ? selectedPolygonVertexLabels.join(" - ")
+                              : "Keine"}
+                          </span>
+                        </div>
+                      </>
+                    )}
+                  </div>
+                </div>
+              ) : currentMeasurement ? (
+                <div>
+                  {!isAnnotationMode && !isReferencePointWithoutEdges ? (
+                    <div className="text-[12px] mb-0">
+                      {isPointMeasurementEntry(currentMeasurement) && (
+                        <>
+                          <div className="mt-1 text-sm pl-2">
+                            {pointRelationRows.length > 0 ? (
+                              <div className="pr-1">
+                                <div className="flex flex-col items-start gap-1 mb-1">
+                                  {verticalOffsetValue !== null && (
+                                    <div className="inline-flex items-center gap-1">
+                                      {isVerticalOffsetEditModeActive ? (
                                         <span
                                           className="inline-flex items-center gap-1"
                                           onClick={stopEventPropagation}
                                         >
-                                          {!row.isImplicitReferenceRow && (
+                                          <InputNumber
+                                            value={verticalOffsetValue}
+                                            onChange={
+                                              handleVerticalOffsetInputChange
+                                            }
+                                            {...elevationInputSharedProps}
+                                            style={{
+                                              width: verticalOffsetInputWidthPx,
+                                            }}
+                                            data-test-id="vertical-offset-edit-input"
+                                          />
+                                          <button
+                                            type="button"
+                                            onClick={stopVerticalOffsetEditMode}
+                                            className="px-1.5 py-[1px] text-[11px] leading-[14px] border rounded border-[#0078a8] text-[#0078a8] bg-white hover:bg-[#e8f4fa]"
+                                            data-test-id="vertical-offset-edit-complete-btn"
+                                            aria-label="Vertikalversatzbearbeitung abschließen"
+                                          >
+                                            <FontAwesomeIcon icon={faCheck} />
+                                          </button>
+                                          <span>
+                                            m Vertikalversatz ab Ankerpunkt
+                                          </span>
+                                        </span>
+                                      ) : (
+                                        <>
+                                          <button
+                                            type="button"
+                                            onClick={
+                                              startVerticalOffsetEditMode
+                                            }
+                                            className="cursor-pointer bg-transparent border-0 p-0 m-0 text-left"
+                                            data-test-id="vertical-offset-display-btn"
+                                          >
+                                            {formatNumber(verticalOffsetValue)}{" "}
+                                            m
+                                          </button>
+                                          <span>
+                                            Vertikalversatz ab Ankerpunkt
+                                          </span>
+                                        </>
+                                      )}
+                                    </div>
+                                  )}
+                                  {!isReference &&
+                                    (isRelativeElevationEditActive ? (
+                                      <span
+                                        className="inline-flex items-center gap-1"
+                                        onClick={stopEventPropagation}
+                                      >
+                                        <InputNumber
+                                          value={relativeElevationValue}
+                                          onChange={handleElevationInputChange}
+                                          {...elevationInputSharedProps}
+                                          style={{
+                                            width:
+                                              relativeElevationInputWidthPx,
+                                          }}
+                                          data-test-id="relative-elevation-edit-input"
+                                        />
+                                        <button
+                                          type="button"
+                                          onClick={stopElevationEditMode}
+                                          className="px-1.5 py-[1px] text-[11px] leading-[14px] border rounded border-[#0078a8] text-[#0078a8] bg-white hover:bg-[#e8f4fa]"
+                                          data-test-id="relative-elevation-edit-complete-btn"
+                                          aria-label="Relative Höhenbearbeitung abschließen"
+                                        >
+                                          <FontAwesomeIcon icon={faCheck} />
+                                        </button>
+                                        <span>
+                                          m relative Höhe über Bezugspunkt
+                                        </span>
+                                        {isRelativeElevationLabelEnabled &&
+                                        absoluteElevationWithNhnSuffix ? (
+                                          <span>
+                                            ({absoluteElevationWithNhnSuffix})
+                                          </span>
+                                        ) : null}
+                                      </span>
+                                    ) : (
+                                      <span className="inline-flex items-center gap-1 flex-wrap">
+                                        <button
+                                          type="button"
+                                          onClick={
+                                            startRelativeElevationEditMode
+                                          }
+                                          className="cursor-pointer bg-transparent border-0 p-0 m-0 text-left"
+                                          data-test-id="relative-elevation-display-btn"
+                                        >
+                                          {formatNumber(relativeElevationValue)}{" "}
+                                          m
+                                        </button>
+                                        {(() => {
+                                          const isRelElevVisible =
+                                            (currentMeasurement.pointLabelMode ??
+                                              "elevation") === "elevation";
+                                          return (
+                                            <Tooltip
+                                              getPopupContainer={() =>
+                                                document.body
+                                              }
+                                              title={
+                                                isRelElevVisible
+                                                  ? "Relative Höhe im Label ausblenden"
+                                                  : "Relative Höhe im Label anzeigen"
+                                              }
+                                            >
+                                              <VisibilityToggleButton
+                                                isVisible={isRelElevVisible}
+                                                onToggle={(nextVisible) => {
+                                                  setPointLabelMetricModeById(
+                                                    currentMeasurement.id,
+                                                    nextVisible
+                                                      ? "elevation"
+                                                      : "none"
+                                                  );
+                                                }}
+                                                stopPropagation
+                                                ariaLabel={
+                                                  isRelElevVisible
+                                                    ? "Relative Höhe im Label ausblenden"
+                                                    : "Relative Höhe im Label anzeigen"
+                                                }
+                                                dataTestId="toggle-rel-elevation-label-btn"
+                                                className="cursor-pointer text-[10px] text-[#808080] hover:text-[#a0a0a0]"
+                                                iconSlotWidth={12}
+                                                style={{
+                                                  background: "transparent",
+                                                  border: "none",
+                                                  padding: 0,
+                                                }}
+                                              />
+                                            </Tooltip>
+                                          );
+                                        })()}
+                                        <span>
+                                          relative Höhe über Bezugspunkt
+                                        </span>
+                                        {isRelativeElevationLabelEnabled &&
+                                        absoluteElevationWithNhnSuffix ? (
+                                          <span>
+                                            ({absoluteElevationWithNhnSuffix})
+                                          </span>
+                                        ) : null}
+                                      </span>
+                                    ))}
+                                </div>
+                                <table className="w-full text-[10px] leading-tight">
+                                  <thead>
+                                    <tr className="text-left text-gray-500">
+                                      <th className="font-normal pr-2">
+                                        Punkt
+                                      </th>
+                                      <th className="font-normal text-right pr-2">
+                                        Vertikal
+                                      </th>
+                                      <th className="font-normal text-right pr-2">
+                                        Horizontal
+                                      </th>
+                                      <th className="font-normal text-right pr-2">
+                                        Distanz
+                                      </th>
+                                      <th className="font-normal text-right w-[14px]"></th>
+                                    </tr>
+                                  </thead>
+                                  <tbody>
+                                    {pointRelationRows.map((row) => (
+                                      <tr
+                                        key={`${row.relatedPointId}-${row.relationId}`}
+                                        className={
+                                          row.isReference ? "italic" : undefined
+                                        }
+                                        style={
+                                          row.isImplicitReferenceRow
+                                            ? { opacity: 0.8 }
+                                            : undefined
+                                        }
+                                      >
+                                        <td
+                                          className={`pr-2 ${
+                                            row.isReference ? "italic" : ""
+                                          }`}
+                                        >
+                                          {row.label}
+                                        </td>
+                                        <td className="text-right tabular-nums pr-2">
+                                          {relationMetricEdit?.relatedPointId ===
+                                            row.relatedPointId &&
+                                          relationMetricEdit.kind ===
+                                            "vertical" ? (
+                                            <span
+                                              className="inline-flex items-center gap-1"
+                                              onClick={stopEventPropagation}
+                                            >
+                                              {!row.isImplicitReferenceRow && (
+                                                <VisibilityToggleButton
+                                                  isVisible={
+                                                    row.lineVisibility
+                                                      .vertical &&
+                                                    row.lineVisibility
+                                                      .horizontal
+                                                  }
+                                                  onToggle={() =>
+                                                    toggleDistanceRelationLineVisibilityByKind(
+                                                      row.relationId,
+                                                      "components"
+                                                    )
+                                                  }
+                                                  disabled={!row.relationId}
+                                                  ariaLabel="Komponentenlinien ein- oder ausblenden"
+                                                  className="cursor-pointer text-[9px] text-[#808080] hover:text-[#a0a0a0] disabled:opacity-40 disabled:cursor-default"
+                                                  iconSlotWidth={10}
+                                                  style={{
+                                                    border: 0,
+                                                    background: "transparent",
+                                                    padding: 0,
+                                                  }}
+                                                />
+                                              )}
+                                              <InputNumber
+                                                value={row.elevation}
+                                                onChange={(value) =>
+                                                  handleRelationMetricValueChange(
+                                                    row.relatedPointId,
+                                                    "vertical",
+                                                    value
+                                                  )
+                                                }
+                                                {...relationMetricInputSharedProps}
+                                                style={{
+                                                  width:
+                                                    getElevationInputWidthPx(
+                                                      row.elevation
+                                                    ),
+                                                }}
+                                                data-test-id={`relation-vertical-edit-input-${row.relatedPointId}`}
+                                              />
+                                              <button
+                                                type="button"
+                                                onClick={
+                                                  stopRelationMetricEditMode
+                                                }
+                                                className="px-1.5 py-[1px] text-[11px] leading-[14px] border rounded border-[#0078a8] text-[#0078a8] bg-white hover:bg-[#e8f4fa]"
+                                                data-test-id={`relation-vertical-edit-complete-btn-${row.relatedPointId}`}
+                                                aria-label="Vertikale Distanz bearbeiten abschließen"
+                                              >
+                                                <FontAwesomeIcon
+                                                  icon={faCheck}
+                                                />
+                                              </button>
+                                            </span>
+                                          ) : row.isImplicitReferenceRow ? (
                                             <button
                                               type="button"
                                               onClick={(event) =>
-                                                toggleDistanceRelationLineVisibilityByKind(
-                                                  row.relationId,
-                                                  "components",
+                                                startRelationMetricEditMode(
+                                                  row.relatedPointId,
+                                                  "vertical",
                                                   event
                                                 )
                                               }
-                                              className="cursor-pointer border-0 bg-transparent p-0 text-[#808080] hover:text-[#a0a0a0] disabled:opacity-40 disabled:cursor-default"
-                                              aria-label="Komponentenlinien ein- oder ausblenden"
-                                              disabled={!row.relationId}
+                                              className="cursor-pointer bg-transparent border-0 p-0 m-0 text-right tabular-nums"
+                                              data-test-id={`relation-vertical-display-btn-${row.relatedPointId}`}
                                             >
-                                              <FontAwesomeIcon
-                                                icon={
+                                              {formatNumber(row.elevation)} m
+                                            </button>
+                                          ) : (
+                                            <span className="inline-flex items-center gap-1">
+                                              <VisibilityToggleButton
+                                                isVisible={
                                                   row.lineVisibility.vertical &&
                                                   row.lineVisibility.horizontal
-                                                    ? faEye
-                                                    : faEyeSlash
                                                 }
-                                                className="text-[9px]"
+                                                onToggle={() =>
+                                                  toggleDistanceRelationLineVisibilityByKind(
+                                                    row.relationId,
+                                                    "components"
+                                                  )
+                                                }
+                                                disabled={!row.relationId}
+                                                ariaLabel="Komponentenlinien ein- oder ausblenden"
+                                                className="cursor-pointer text-[9px] text-[#808080] hover:text-[#a0a0a0] disabled:opacity-40 disabled:cursor-default"
+                                                iconSlotWidth={10}
+                                                style={{
+                                                  border: 0,
+                                                  background: "transparent",
+                                                  padding: 0,
+                                                }}
                                               />
-                                            </button>
+                                              <button
+                                                type="button"
+                                                onClick={(event) =>
+                                                  startRelationMetricEditMode(
+                                                    row.relatedPointId,
+                                                    "vertical",
+                                                    event
+                                                  )
+                                                }
+                                                className="cursor-pointer bg-transparent border-0 p-0 m-0 text-right tabular-nums"
+                                                data-test-id={`relation-vertical-display-btn-${row.relatedPointId}`}
+                                              >
+                                                {formatNumber(row.elevation)} m
+                                              </button>
+                                            </span>
                                           )}
-                                          <InputNumber
-                                            value={row.elevation}
-                                            onChange={(value) =>
-                                              handleRelationMetricValueChange(
-                                                row.relatedPointId,
-                                                "vertical",
-                                                value
-                                              )
-                                            }
-                                            {...relationMetricInputSharedProps}
-                                            style={{
-                                              width: getElevationInputWidthPx(
-                                                row.elevation
-                                              ),
-                                            }}
-                                            data-test-id={`relation-vertical-edit-input-${row.relatedPointId}`}
-                                          />
-                                          <button
-                                            type="button"
-                                            onClick={stopRelationMetricEditMode}
-                                            className="px-1.5 py-[1px] text-[11px] leading-[14px] border rounded border-[#0078a8] text-[#0078a8] bg-white hover:bg-[#e8f4fa]"
-                                            data-test-id={`relation-vertical-edit-complete-btn-${row.relatedPointId}`}
-                                            aria-label="Vertikale Distanz bearbeiten abschließen"
-                                          >
-                                            <FontAwesomeIcon icon={faCheck} />
-                                          </button>
-                                        </span>
-                                      ) : row.isImplicitReferenceRow ? (
-                                        <button
-                                          type="button"
-                                          onClick={(event) =>
-                                            startRelationMetricEditMode(
-                                              row.relatedPointId,
-                                              "vertical",
-                                              event
-                                            )
-                                          }
-                                          className="cursor-pointer bg-transparent border-0 p-0 m-0 text-right tabular-nums"
-                                          data-test-id={`relation-vertical-display-btn-${row.relatedPointId}`}
-                                        >
-                                          {formatNumber(row.elevation)} m
-                                        </button>
-                                      ) : (
-                                        <span className="inline-flex items-center gap-1">
-                                          <button
-                                            type="button"
-                                            onClick={(event) =>
-                                              toggleDistanceRelationLineVisibilityByKind(
-                                                row.relationId,
-                                                "components",
-                                                event
-                                              )
-                                            }
-                                            className="cursor-pointer border-0 bg-transparent p-0 text-[#808080] hover:text-[#a0a0a0] disabled:opacity-40 disabled:cursor-default"
-                                            aria-label="Komponentenlinien ein- oder ausblenden"
-                                            disabled={!row.relationId}
-                                          >
-                                            <FontAwesomeIcon
-                                              icon={
-                                                row.lineVisibility.vertical &&
-                                                row.lineVisibility.horizontal
-                                                  ? faEye
-                                                  : faEyeSlash
-                                              }
-                                              className="text-[9px]"
-                                            />
-                                          </button>
-                                          <button
-                                            type="button"
-                                            onClick={(event) =>
-                                              startRelationMetricEditMode(
-                                                row.relatedPointId,
-                                                "vertical",
-                                                event
-                                              )
-                                            }
-                                            className="cursor-pointer bg-transparent border-0 p-0 m-0 text-right tabular-nums"
-                                            data-test-id={`relation-vertical-display-btn-${row.relatedPointId}`}
-                                          >
-                                            {formatNumber(row.elevation)} m
-                                          </button>
-                                        </span>
-                                      )}
-                                    </td>
-                                    <td className="text-right tabular-nums pr-2">
-                                      {relationMetricEdit?.relatedPointId ===
-                                        row.relatedPointId &&
-                                      relationMetricEdit.kind ===
-                                        "horizontal" ? (
-                                        <span
-                                          className="inline-flex items-center gap-1"
-                                          onClick={stopEventPropagation}
-                                        >
-                                          <InputNumber
-                                            value={row.horizontalDistance}
-                                            onChange={(value) =>
-                                              handleRelationMetricValueChange(
-                                                row.relatedPointId,
-                                                "horizontal",
-                                                value
-                                              )
-                                            }
-                                            min={0}
-                                            {...relationMetricInputSharedProps}
-                                            style={{
-                                              width: getElevationInputWidthPx(
-                                                row.horizontalDistance
-                                              ),
-                                            }}
-                                            data-test-id={`relation-horizontal-edit-input-${row.relatedPointId}`}
-                                          />
-                                          <button
-                                            type="button"
-                                            onClick={stopRelationMetricEditMode}
-                                            className="px-1.5 py-[1px] text-[11px] leading-[14px] border rounded border-[#0078a8] text-[#0078a8] bg-white hover:bg-[#e8f4fa]"
-                                            data-test-id={`relation-horizontal-edit-complete-btn-${row.relatedPointId}`}
-                                            aria-label="Horizontale Distanz bearbeiten abschließen"
-                                          >
-                                            <FontAwesomeIcon icon={faCheck} />
-                                          </button>
-                                        </span>
-                                      ) : row.isImplicitReferenceRow ? (
-                                        <button
-                                          type="button"
-                                          onClick={(event) =>
-                                            startRelationMetricEditMode(
-                                              row.relatedPointId,
-                                              "horizontal",
-                                              event
-                                            )
-                                          }
-                                          className="cursor-pointer bg-transparent border-0 p-0 m-0 text-right tabular-nums"
-                                          data-test-id={`relation-horizontal-display-btn-${row.relatedPointId}`}
-                                        >
-                                          {formatNumber(row.horizontalDistance)}{" "}
-                                          m
-                                        </button>
-                                      ) : (
-                                        <button
-                                          type="button"
-                                          onClick={(event) =>
-                                            startRelationMetricEditMode(
-                                              row.relatedPointId,
-                                              "horizontal",
-                                              event
-                                            )
-                                          }
-                                          className="cursor-pointer bg-transparent border-0 p-0 m-0 text-right tabular-nums"
-                                          data-test-id={`relation-horizontal-display-btn-${row.relatedPointId}`}
-                                        >
-                                          {formatNumber(row.horizontalDistance)}{" "}
-                                          m
-                                        </button>
-                                      )}
-                                    </td>
-                                    <td className="text-right tabular-nums pr-2">
-                                      {relationMetricEdit?.relatedPointId ===
-                                        row.relatedPointId &&
-                                      relationMetricEdit.kind === "direct" ? (
-                                        <span
-                                          className="inline-flex items-center gap-1"
-                                          onClick={stopEventPropagation}
-                                        >
-                                          {!row.isImplicitReferenceRow && (
+                                        </td>
+                                        <td className="text-right tabular-nums pr-2">
+                                          {relationMetricEdit?.relatedPointId ===
+                                            row.relatedPointId &&
+                                          relationMetricEdit.kind ===
+                                            "horizontal" ? (
+                                            <span
+                                              className="inline-flex items-center gap-1"
+                                              onClick={stopEventPropagation}
+                                            >
+                                              <InputNumber
+                                                value={row.horizontalDistance}
+                                                onChange={(value) =>
+                                                  handleRelationMetricValueChange(
+                                                    row.relatedPointId,
+                                                    "horizontal",
+                                                    value
+                                                  )
+                                                }
+                                                min={0}
+                                                {...relationMetricInputSharedProps}
+                                                style={{
+                                                  width:
+                                                    getElevationInputWidthPx(
+                                                      row.horizontalDistance
+                                                    ),
+                                                }}
+                                                data-test-id={`relation-horizontal-edit-input-${row.relatedPointId}`}
+                                              />
+                                              <button
+                                                type="button"
+                                                onClick={
+                                                  stopRelationMetricEditMode
+                                                }
+                                                className="px-1.5 py-[1px] text-[11px] leading-[14px] border rounded border-[#0078a8] text-[#0078a8] bg-white hover:bg-[#e8f4fa]"
+                                                data-test-id={`relation-horizontal-edit-complete-btn-${row.relatedPointId}`}
+                                                aria-label="Horizontale Distanz bearbeiten abschließen"
+                                              >
+                                                <FontAwesomeIcon
+                                                  icon={faCheck}
+                                                />
+                                              </button>
+                                            </span>
+                                          ) : row.isImplicitReferenceRow ? (
                                             <button
                                               type="button"
                                               onClick={(event) =>
-                                                toggleDistanceRelationLineVisibilityByKind(
-                                                  row.relationId,
+                                                startRelationMetricEditMode(
+                                                  row.relatedPointId,
+                                                  "horizontal",
+                                                  event
+                                                )
+                                              }
+                                              className="cursor-pointer bg-transparent border-0 p-0 m-0 text-right tabular-nums"
+                                              data-test-id={`relation-horizontal-display-btn-${row.relatedPointId}`}
+                                            >
+                                              {formatNumber(
+                                                row.horizontalDistance
+                                              )}{" "}
+                                              m
+                                            </button>
+                                          ) : (
+                                            <button
+                                              type="button"
+                                              onClick={(event) =>
+                                                startRelationMetricEditMode(
+                                                  row.relatedPointId,
+                                                  "horizontal",
+                                                  event
+                                                )
+                                              }
+                                              className="cursor-pointer bg-transparent border-0 p-0 m-0 text-right tabular-nums"
+                                              data-test-id={`relation-horizontal-display-btn-${row.relatedPointId}`}
+                                            >
+                                              {formatNumber(
+                                                row.horizontalDistance
+                                              )}{" "}
+                                              m
+                                            </button>
+                                          )}
+                                        </td>
+                                        <td className="text-right tabular-nums pr-2">
+                                          {relationMetricEdit?.relatedPointId ===
+                                            row.relatedPointId &&
+                                          relationMetricEdit.kind ===
+                                            "direct" ? (
+                                            <span
+                                              className="inline-flex items-center gap-1"
+                                              onClick={stopEventPropagation}
+                                            >
+                                              {!row.isImplicitReferenceRow && (
+                                                <VisibilityToggleButton
+                                                  isVisible={
+                                                    row.lineVisibility.direct
+                                                  }
+                                                  onToggle={() =>
+                                                    toggleDistanceRelationLineVisibilityByKind(
+                                                      row.relationId,
+                                                      "direct"
+                                                    )
+                                                  }
+                                                  disabled={!row.relationId}
+                                                  ariaLabel="Direkte Linie ein- oder ausblenden"
+                                                  className="cursor-pointer text-[9px] text-[#808080] hover:text-[#a0a0a0] disabled:opacity-40 disabled:cursor-default"
+                                                  iconSlotWidth={10}
+                                                  style={{
+                                                    border: 0,
+                                                    background: "transparent",
+                                                    padding: 0,
+                                                  }}
+                                                />
+                                              )}
+                                              <InputNumber
+                                                value={row.distance}
+                                                onChange={(value) =>
+                                                  handleRelationMetricValueChange(
+                                                    row.relatedPointId,
+                                                    "direct",
+                                                    value
+                                                  )
+                                                }
+                                                min={0}
+                                                {...relationMetricInputSharedProps}
+                                                style={{
+                                                  width:
+                                                    getElevationInputWidthPx(
+                                                      row.distance
+                                                    ),
+                                                }}
+                                                data-test-id={`relation-direct-edit-input-${row.relatedPointId}`}
+                                              />
+                                              <button
+                                                type="button"
+                                                onClick={
+                                                  stopRelationMetricEditMode
+                                                }
+                                                className="px-1.5 py-[1px] text-[11px] leading-[14px] border rounded border-[#0078a8] text-[#0078a8] bg-white hover:bg-[#e8f4fa]"
+                                                data-test-id={`relation-direct-edit-complete-btn-${row.relatedPointId}`}
+                                                aria-label="Direkte Distanz bearbeiten abschließen"
+                                              >
+                                                <FontAwesomeIcon
+                                                  icon={faCheck}
+                                                />
+                                              </button>
+                                            </span>
+                                          ) : row.isImplicitReferenceRow ? (
+                                            <button
+                                              type="button"
+                                              onClick={(event) =>
+                                                startRelationMetricEditMode(
+                                                  row.relatedPointId,
                                                   "direct",
                                                   event
                                                 )
                                               }
-                                              className="cursor-pointer border-0 bg-transparent p-0 text-[#808080] hover:text-[#a0a0a0] disabled:opacity-40 disabled:cursor-default"
-                                              aria-label="Direkte Linie ein- oder ausblenden"
-                                              disabled={!row.relationId}
+                                              className="cursor-pointer bg-transparent border-0 p-0 m-0 text-right tabular-nums"
+                                              data-test-id={`relation-direct-display-btn-${row.relatedPointId}`}
+                                            >
+                                              {formatNumber(row.distance)} m
+                                            </button>
+                                          ) : (
+                                            <span className="inline-flex items-center gap-1">
+                                              <VisibilityToggleButton
+                                                isVisible={
+                                                  row.lineVisibility.direct
+                                                }
+                                                onToggle={() =>
+                                                  toggleDistanceRelationLineVisibilityByKind(
+                                                    row.relationId,
+                                                    "direct"
+                                                  )
+                                                }
+                                                disabled={!row.relationId}
+                                                ariaLabel="Direkte Linie ein- oder ausblenden"
+                                                className="cursor-pointer text-[9px] text-[#808080] hover:text-[#a0a0a0] disabled:opacity-40 disabled:cursor-default"
+                                                iconSlotWidth={10}
+                                                style={{
+                                                  border: 0,
+                                                  background: "transparent",
+                                                  padding: 0,
+                                                }}
+                                              />
+                                              <button
+                                                type="button"
+                                                onClick={(event) =>
+                                                  startRelationMetricEditMode(
+                                                    row.relatedPointId,
+                                                    "direct",
+                                                    event
+                                                  )
+                                                }
+                                                className="cursor-pointer bg-transparent border-0 p-0 m-0 text-right tabular-nums"
+                                                data-test-id={`relation-direct-display-btn-${row.relatedPointId}`}
+                                              >
+                                                {formatNumber(row.distance)} m
+                                              </button>
+                                            </span>
+                                          )}
+                                        </td>
+                                        <td className="text-right">
+                                          {row.isImplicitReferenceRow ? (
+                                            <button
+                                              type="button"
+                                              onClick={(event) =>
+                                                addDistanceRelationForCurrentPoint(
+                                                  row.relatedPointId,
+                                                  event
+                                                )
+                                              }
+                                              className="cursor-pointer border-0 bg-transparent p-0 text-[#808080] hover:text-[#a0a0a0]"
+                                              aria-label="Referenzlinie als Kante hinzufügen"
                                             >
                                               <FontAwesomeIcon
-                                                icon={
-                                                  row.lineVisibility.direct
-                                                    ? faEye
-                                                    : faEyeSlash
-                                                }
+                                                icon={faPlus}
                                                 className="text-[9px]"
                                               />
                                             </button>
-                                          )}
-                                          <InputNumber
-                                            value={row.distance}
-                                            onChange={(value) =>
-                                              handleRelationMetricValueChange(
-                                                row.relatedPointId,
-                                                "direct",
-                                                value
-                                              )
-                                            }
-                                            min={0}
-                                            {...relationMetricInputSharedProps}
-                                            style={{
-                                              width: getElevationInputWidthPx(
-                                                row.distance
-                                              ),
-                                            }}
-                                            data-test-id={`relation-direct-edit-input-${row.relatedPointId}`}
-                                          />
-                                          <button
-                                            type="button"
-                                            onClick={stopRelationMetricEditMode}
-                                            className="px-1.5 py-[1px] text-[11px] leading-[14px] border rounded border-[#0078a8] text-[#0078a8] bg-white hover:bg-[#e8f4fa]"
-                                            data-test-id={`relation-direct-edit-complete-btn-${row.relatedPointId}`}
-                                            aria-label="Direkte Distanz bearbeiten abschließen"
-                                          >
-                                            <FontAwesomeIcon icon={faCheck} />
-                                          </button>
-                                        </span>
-                                      ) : row.isImplicitReferenceRow ? (
-                                        <button
-                                          type="button"
-                                          onClick={(event) =>
-                                            startRelationMetricEditMode(
-                                              row.relatedPointId,
-                                              "direct",
-                                              event
-                                            )
-                                          }
-                                          className="cursor-pointer bg-transparent border-0 p-0 m-0 text-right tabular-nums"
-                                          data-test-id={`relation-direct-display-btn-${row.relatedPointId}`}
-                                        >
-                                          {formatNumber(row.distance)} m
-                                        </button>
-                                      ) : (
-                                        <span className="inline-flex items-center gap-1">
-                                          <button
-                                            type="button"
-                                            onClick={(event) =>
-                                              toggleDistanceRelationLineVisibilityByKind(
-                                                row.relationId,
-                                                "direct",
-                                                event
-                                              )
-                                            }
-                                            className="cursor-pointer border-0 bg-transparent p-0 text-[#808080] hover:text-[#a0a0a0] disabled:opacity-40 disabled:cursor-default"
-                                            aria-label="Direkte Linie ein- oder ausblenden"
-                                            disabled={!row.relationId}
-                                          >
-                                            <FontAwesomeIcon
-                                              icon={
-                                                row.lineVisibility.direct
-                                                  ? faEye
-                                                  : faEyeSlash
+                                          ) : row.relationId ? (
+                                            <button
+                                              type="button"
+                                              onClick={(event) =>
+                                                removeDistanceRelationById(
+                                                  row.relationId,
+                                                  event
+                                                )
                                               }
-                                              className="text-[9px]"
-                                            />
-                                          </button>
-                                          <button
-                                            type="button"
-                                            onClick={(event) =>
-                                              startRelationMetricEditMode(
-                                                row.relatedPointId,
-                                                "direct",
-                                                event
-                                              )
-                                            }
-                                            className="cursor-pointer bg-transparent border-0 p-0 m-0 text-right tabular-nums"
-                                            data-test-id={`relation-direct-display-btn-${row.relatedPointId}`}
-                                          >
-                                            {formatNumber(row.distance)} m
-                                          </button>
-                                        </span>
-                                      )}
-                                    </td>
-                                    <td className="text-right">
-                                      {row.isImplicitReferenceRow ? (
-                                        <button
-                                          type="button"
-                                          onClick={(event) =>
-                                            addDistanceRelationForCurrentPoint(
-                                              row.relatedPointId,
-                                              event
-                                            )
-                                          }
-                                          className="cursor-pointer border-0 bg-transparent p-0 text-[#808080] hover:text-[#a0a0a0]"
-                                          aria-label="Referenzlinie als Kante hinzufügen"
-                                        >
-                                          <FontAwesomeIcon
-                                            icon={faPlus}
-                                            className="text-[9px]"
-                                          />
-                                        </button>
-                                      ) : row.relationId ? (
-                                        <button
-                                          type="button"
-                                          onClick={(event) =>
-                                            removeDistanceRelationById(
-                                              row.relationId,
-                                              event
-                                            )
-                                          }
-                                          className="cursor-pointer border-0 bg-transparent p-0 text-[#808080] hover:text-[#a0a0a0]"
-                                          aria-label="Punktbeziehung löschen"
-                                        >
-                                          <FontAwesomeIcon
-                                            icon={faTrashCan}
-                                            className="text-[9px]"
-                                          />
-                                        </button>
-                                      ) : null}
-                                    </td>
-                                  </tr>
-                                ))}
-                              </tbody>
-                            </table>
-                          </div>
-                        ) : (
-                          <div className="pr-1 flex items-center gap-1">
-                            {isRelativeElevationEditActive ? (
-                              <span
-                                className="inline-flex items-center gap-1"
-                                onClick={stopEventPropagation}
-                              >
-                                <InputNumber
-                                  value={relativeElevationValue}
-                                  onChange={handleElevationInputChange}
-                                  {...elevationInputSharedProps}
-                                  style={{
-                                    width: relativeElevationInputWidthPx,
-                                  }}
-                                  data-test-id="relative-elevation-edit-input"
-                                />
-                                <button
-                                  type="button"
-                                  onClick={stopElevationEditMode}
-                                  className="px-1.5 py-[1px] text-[11px] leading-[14px] border rounded border-[#0078a8] text-[#0078a8] bg-white hover:bg-[#e8f4fa]"
-                                  data-test-id="relative-elevation-edit-complete-btn"
-                                  aria-label="Relative Höhenbearbeitung abschließen"
-                                >
-                                  <FontAwesomeIcon icon={faCheck} />
-                                </button>
-                                <span>m relative Höhe über Bezugspunkt</span>
-                              </span>
+                                              className="cursor-pointer border-0 bg-transparent p-0 text-[#808080] hover:text-[#a0a0a0]"
+                                              aria-label="Punktbeziehung löschen"
+                                            >
+                                              <FontAwesomeIcon
+                                                icon={faTrashCan}
+                                                className="text-[9px]"
+                                              />
+                                            </button>
+                                          ) : null}
+                                        </td>
+                                      </tr>
+                                    ))}
+                                  </tbody>
+                                </table>
+                              </div>
                             ) : (
-                              <>
-                                <button
-                                  type="button"
-                                  onClick={startRelativeElevationEditMode}
-                                  className="cursor-pointer bg-transparent border-0 p-0 m-0 text-left"
-                                  data-test-id="relative-elevation-display-btn"
-                                >
-                                  {formatNumber(relativeElevationValue)} m
-                                </button>
-                                <span>relative Höhe über Bezugspunkt</span>
-                              </>
+                              <div className="pr-1 flex flex-col items-start gap-1">
+                                {verticalOffsetValue !== null && (
+                                  <div className="inline-flex items-center gap-1">
+                                    {isVerticalOffsetEditModeActive ? (
+                                      <span
+                                        className="inline-flex items-center gap-1"
+                                        onClick={stopEventPropagation}
+                                      >
+                                        <InputNumber
+                                          value={verticalOffsetValue}
+                                          onChange={
+                                            handleVerticalOffsetInputChange
+                                          }
+                                          {...elevationInputSharedProps}
+                                          style={{
+                                            width: verticalOffsetInputWidthPx,
+                                          }}
+                                          data-test-id="vertical-offset-edit-input"
+                                        />
+                                        <button
+                                          type="button"
+                                          onClick={stopVerticalOffsetEditMode}
+                                          className="px-1.5 py-[1px] text-[11px] leading-[14px] border rounded border-[#0078a8] text-[#0078a8] bg-white hover:bg-[#e8f4fa]"
+                                          data-test-id="vertical-offset-edit-complete-btn"
+                                          aria-label="Vertikalversatzbearbeitung abschließen"
+                                        >
+                                          <FontAwesomeIcon icon={faCheck} />
+                                        </button>
+                                        <span>
+                                          m Vertikalversatz ab Ankerpunkt
+                                        </span>
+                                      </span>
+                                    ) : (
+                                      <>
+                                        <button
+                                          type="button"
+                                          onClick={startVerticalOffsetEditMode}
+                                          className="cursor-pointer bg-transparent border-0 p-0 m-0 text-left"
+                                          data-test-id="vertical-offset-display-btn"
+                                        >
+                                          {formatNumber(verticalOffsetValue)} m
+                                        </button>
+                                        <span>
+                                          Vertikalversatz ab Ankerpunkt
+                                        </span>
+                                      </>
+                                    )}
+                                  </div>
+                                )}
+                                {isRelativeElevationEditActive ? (
+                                  <span
+                                    className="inline-flex items-center gap-1"
+                                    onClick={stopEventPropagation}
+                                  >
+                                    <InputNumber
+                                      value={relativeElevationValue}
+                                      onChange={handleElevationInputChange}
+                                      {...elevationInputSharedProps}
+                                      style={{
+                                        width: relativeElevationInputWidthPx,
+                                      }}
+                                      data-test-id="relative-elevation-edit-input"
+                                    />
+                                    <button
+                                      type="button"
+                                      onClick={stopElevationEditMode}
+                                      className="px-1.5 py-[1px] text-[11px] leading-[14px] border rounded border-[#0078a8] text-[#0078a8] bg-white hover:bg-[#e8f4fa]"
+                                      data-test-id="relative-elevation-edit-complete-btn"
+                                      aria-label="Relative Höhenbearbeitung abschließen"
+                                    >
+                                      <FontAwesomeIcon icon={faCheck} />
+                                    </button>
+                                    <span>
+                                      m relative Höhe über Bezugspunkt
+                                    </span>
+                                    {isRelativeElevationLabelEnabled &&
+                                    absoluteElevationWithNhnSuffix ? (
+                                      <span>
+                                        ({absoluteElevationWithNhnSuffix})
+                                      </span>
+                                    ) : null}
+                                  </span>
+                                ) : (
+                                  <span className="inline-flex items-center gap-1 flex-wrap">
+                                    <button
+                                      type="button"
+                                      onClick={startRelativeElevationEditMode}
+                                      className="cursor-pointer bg-transparent border-0 p-0 m-0 text-left"
+                                      data-test-id="relative-elevation-display-btn"
+                                    >
+                                      {formatNumber(relativeElevationValue)} m
+                                    </button>
+                                    {(() => {
+                                      const isRelElevVisible =
+                                        (currentMeasurement.pointLabelMode ??
+                                          "elevation") === "elevation";
+                                      return (
+                                        <Tooltip
+                                          getPopupContainer={() =>
+                                            document.body
+                                          }
+                                          title={
+                                            isRelElevVisible
+                                              ? "Relative Höhe im Label ausblenden"
+                                              : "Relative Höhe im Label anzeigen"
+                                          }
+                                        >
+                                          <VisibilityToggleButton
+                                            isVisible={isRelElevVisible}
+                                            onToggle={(nextVisible) => {
+                                              setPointLabelMetricModeById(
+                                                currentMeasurement.id,
+                                                nextVisible
+                                                  ? "elevation"
+                                                  : "none"
+                                              );
+                                            }}
+                                            stopPropagation
+                                            ariaLabel={
+                                              isRelElevVisible
+                                                ? "Relative Höhe im Label ausblenden"
+                                                : "Relative Höhe im Label anzeigen"
+                                            }
+                                            dataTestId="toggle-rel-elevation-label-btn"
+                                            className="cursor-pointer text-[10px] text-[#808080] hover:text-[#a0a0a0]"
+                                            iconSlotWidth={12}
+                                            style={{
+                                              background: "transparent",
+                                              border: "none",
+                                              padding: 0,
+                                            }}
+                                          />
+                                        </Tooltip>
+                                      );
+                                    })()}
+                                    <span>relative Höhe über Bezugspunkt</span>
+                                    {isRelativeElevationLabelEnabled &&
+                                    absoluteElevationWithNhnSuffix ? (
+                                      <span>
+                                        ({absoluteElevationWithNhnSuffix})
+                                      </span>
+                                    ) : null}
+                                  </span>
+                                )}
+                              </div>
                             )}
                           </div>
-                        )}
-                      </div>
-                    </>
+                        </>
+                      )}
+                    </div>
+                  ) : null}
+                  <div className="flex justify-center items-center w-full px-2 mt-1 pt-1">
+                    <span
+                      className="text-[#0078a8] cursor-pointer"
+                      onClick={flyToAllMeasurements}
+                    >
+                      {pointAndAnnotationCount} Messungen und Anmerkungen
+                      verfügbar
+                    </span>
+                  </div>
+                  {showContextNavigation && (
+                    <div className="flex justify-between items-center w-full px-2 mt-0 mb-1">
+                      <a
+                        className="renderAsLink text-[#0078a8] cursor-pointer"
+                        onClick={decreaseContextHandler}
+                        data-test-id="switch-measurement-left"
+                        style={{ fontSize: "10.5px" }}
+                        aria-label="Vorherige Messung"
+                      >
+                        <FontAwesomeIcon icon={faAnglesLeft} />
+                      </a>
+                      <span className="mx-4">
+                        {currentContextMeasurementIndex >= 0
+                          ? currentContextMeasurementIndex + 1
+                          : 1}{" "}
+                        von {contextNavigationEntries.length}
+                      </span>
+                      <a
+                        className="renderAsLink text-[#0078a8] cursor-pointer"
+                        onClick={increaseContextHandler}
+                        data-test-id="switch-measurement-right"
+                        style={{ fontSize: "10.5px" }}
+                        aria-label="Nächste Messung"
+                      >
+                        <FontAwesomeIcon icon={faAnglesRight} />
+                      </a>
+                    </div>
                   )}
                 </div>
-              ) : null}
-              <div className="flex justify-center items-center w-[96%] mt-1 pt-1">
-                <span
-                  className="mx-4 text-[#0078a8] cursor-pointer"
-                  onClick={flyToAllMeasurements}
-                >
-                  {visibleMeasurements.length} Messungen verfügbar
-                </span>
-              </div>
-              <div className="flex justify-between items-center w-[96%] mt-0 mb-1">
-                <a
-                  className="renderAsLink text-[#0078a8] cursor-pointer"
-                  onClick={decreaseCurrentHandler}
-                  data-test-id="switch-measurement-left"
-                  style={{ fontSize: "10.5px" }}
-                  aria-label="Vorherige Messung"
-                >
-                  <FontAwesomeIcon icon={faAnglesLeft} />
-                </a>
-                <span className="mx-4">
-                  {currentIndex + 1} von {visibleMeasurements.length}
-                </span>
-                <a
-                  className="renderAsLink text-[#0078a8] cursor-pointer"
-                  onClick={increaseCurrentHandler}
-                  data-test-id="switch-measurement-right"
-                  style={{ fontSize: "10.5px" }}
-                  aria-label="Nächste Messung"
-                >
-                  <FontAwesomeIcon icon={faAnglesRight} />
-                </a>
-              </div>
-            </div>
-          ) : (
-            <></>
-          )
-        }
-        fixedRow={!!currentMeasurement}
-      />
+              ) : (
+                <></>
+              )}
+            </>
+          }
+        />
+      )}
     </div>
   );
 }

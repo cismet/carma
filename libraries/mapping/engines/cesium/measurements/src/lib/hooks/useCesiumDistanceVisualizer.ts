@@ -5,7 +5,7 @@ import {
   useEffect,
   useMemo,
   useRef,
-  type MouseEvent as ReactMouseEvent,
+  useState,
 } from "react";
 
 import {
@@ -13,8 +13,14 @@ import {
   Cartesian3,
   Cartesian4,
   Color,
+  ColorGeometryInstanceAttribute,
+  CoplanarPolygonGeometry,
   Ellipsoid,
+  GeometryInstance,
   Matrix4,
+  PerInstanceColorAppearance,
+  Primitive,
+  PrimitiveCollection,
   SceneTransforms,
   Transforms,
   defined,
@@ -26,9 +32,21 @@ import {
   type LineVisualizer,
 } from "@carma-mapping/engines/cesium/legacy";
 import {
+  createPlacement,
+  computePointLabelLayout,
+  formatNumberToEnclosed,
+  getPerspectiveStemAngleMagnitude,
+  PointLabel,
+  POINT_LABEL_HOVER_BACKGROUND_COLOR,
+  POINT_LABEL_SELECTED_BACKGROUND_COLOR,
+  POINT_LABEL_TEXT_BACKGROUND_COLOR,
+  resolvePointLabelLayoutConfig,
   useLabelOverlay,
   useLineVisualizers,
+  type LayoutPointInput,
   type LineVisualizerData,
+  type PointLabelAttach,
+  type PointLabelLayoutResult,
 } from "@carma-providers/label-overlay";
 
 import {
@@ -53,6 +71,7 @@ import {
   type ScreenPoint2D,
 } from "../utils/distanceVisualization";
 import { formatAreaAdaptive, formatNumber } from "../utils/formatting";
+import { getCustomPointMeasurementName } from "../utils/measurementNaming";
 
 export type CesiumDistanceVisualizerOptions = {
   distanceRelations?: PointDistanceRelation[];
@@ -101,6 +120,10 @@ const POLYGON_PREVIEW_FILL_TERRAIN_OPEN = "rgba(107, 188, 123, 0.20)";
 const POLYGON_PREVIEW_FILL_TERRAIN_CLOSED = "rgba(107, 188, 123, 0.30)";
 const POLYGON_PREVIEW_FILL_FOOTPRINT_OPEN = "rgba(226, 232, 240, 0.20)";
 const POLYGON_PREVIEW_FILL_FOOTPRINT_CLOSED = "rgba(226, 232, 240, 0.32)";
+const POLYGON_FILL_ALPHA = 0.25;
+const POLYGON_FILL_SELECTED_ALPHA = 0.35;
+const POLYGON_STRIPE_SIZE_PX = 6;
+const POLYGON_STRIPE_WIDTH_PX = 1.5;
 const POLYGON_PREVIEW_STROKE = "rgba(255, 255, 255, 0.65)";
 const POLYGON_PREVIEW_STROKE_WIDTH_PX = 1;
 const POLYGON_AREA_LABEL_COLOR = "#111111";
@@ -108,6 +131,28 @@ const POLYGON_AREA_LABEL_FONT_SIZE_PX = 12;
 const POLYGON_AREA_LABEL_FONT_FAMILY = "Arial, sans-serif";
 const POLYGON_AREA_LABEL_FONT_WEIGHT = "400";
 const POLYGON_OVERLAY_MAX_BOUNDS_SCALE = 2.5;
+const LABEL_REFERENCE_MIN_DISTANCE_PX = 24;
+const LABEL_REFERENCE_MAX_DISTANCE_PX = 48;
+const LABEL_INSIDE_BLEND_FACTOR = 0.35;
+const VERTICAL_COMPONENT_LABEL_OFFSET_PX = 8;
+const DISTANCE_PAIR_LABEL_OVERLAY_ID_PREFIX = "distance-pair-label";
+const DEFAULT_PAIR_LABEL_ATTACH = "bottomLeft";
+const LABEL_ATTACH_ORDER_WITH_POINT_LABEL: PointLabelAttach[] = [
+  "topLeft",
+  "topRight",
+  "bottomRight",
+  "bottomLeft",
+];
+const LABEL_ATTACH_ORDER_NO_POINT_LABEL: PointLabelAttach[] = [
+  "bottomLeft",
+  "bottomRight",
+  "topRight",
+  "topLeft",
+];
+const EMPTY_PAIR_LABEL_LAYOUT_RESULT: PointLabelLayoutResult = {
+  placements: {},
+  hiddenByLayout: new Set<string>(),
+};
 
 const clampToRange = (value: number, min: number, max: number) =>
   Math.max(min, Math.min(max, value));
@@ -144,6 +189,26 @@ const getPolygonPreviewFillColor = (
   return isClosed
     ? POLYGON_PREVIEW_FILL_ROOF_CLOSED
     : POLYGON_PREVIEW_FILL_ROOF_OPEN;
+};
+
+const getPolygonFillCesiumColor = (
+  surfaceType: PlanarPolygonGroup["surfaceType"],
+  isSelected: boolean
+): Color => {
+  const alpha = isSelected ? POLYGON_FILL_SELECTED_ALPHA : POLYGON_FILL_ALPHA;
+  if (surfaceType === "facade") return new Color(0.44, 0.66, 1.0, alpha);
+  if (surfaceType === "terrain") return new Color(0.42, 0.74, 0.48, alpha);
+  if (surfaceType === "footprint") return new Color(0.89, 0.91, 0.94, alpha);
+  return new Color(0.94, 0.87, 0.57, alpha); // roof
+};
+
+const getPolygonStripeColor = (
+  surfaceType: PlanarPolygonGroup["surfaceType"]
+): string => {
+  if (surfaceType === "facade") return "rgba(111, 168, 255, 0.35)";
+  if (surfaceType === "terrain") return "rgba(107, 188, 123, 0.35)";
+  if (surfaceType === "footprint") return "rgba(226, 232, 240, 0.35)";
+  return "rgba(239, 223, 145, 0.35)"; // roof
 };
 
 const getProjectedHorizontalAreaSquareMeters = (vertices: Cartesian3[]) => {
@@ -250,6 +315,11 @@ export const useCesiumDistanceVisualizer = (
   const cornerOverlayIdsRef = useRef<string[]>([]);
   const midpointOverlayIdsRef = useRef<string[]>([]);
   const polygonPreviewOverlayIdsRef = useRef<string[]>([]);
+  const distancePairLabelOverlayIdsRef = useRef<string[]>([]);
+  const [cameraPitch, setCameraPitch] = useState(-Math.PI / 4);
+  const polygonPrimitiveCollectionRef = useRef<PrimitiveCollection | null>(
+    null
+  );
 
   const { addLabelOverlayElement, removeLabelOverlayElement } =
     useLabelOverlay();
@@ -260,6 +330,19 @@ export const useCesiumDistanceVisualizer = (
       map.set(point.id, point);
     });
     return map;
+  }, [points]);
+  const pointLabelLayoutConfig = useMemo(
+    () => resolvePointLabelLayoutConfig(),
+    []
+  );
+  const enclosedPointLabelById = useMemo(() => {
+    const labelById: Record<string, string> = {};
+    points.forEach((point, index) => {
+      labelById[point.id] =
+        getCustomPointMeasurementName(point.name) ??
+        formatNumberToEnclosed(index + 1);
+    });
+    return labelById;
   }, [points]);
 
   const splitMarkerRelationIdSet = useMemo(() => {
@@ -285,6 +368,28 @@ export const useCesiumDistanceVisualizer = (
     planarPolygonGroups,
     selectedPlanarPolygonGroupId,
   ]);
+
+  useEffect(() => {
+    if (!scene || scene.isDestroyed()) return;
+    const camera = scene.camera;
+
+    const updatePitch = () => {
+      const nextPitch = camera.pitch;
+      setCameraPitch((prev) =>
+        Math.abs(nextPitch - prev) > 0.001 ? nextPitch : prev
+      );
+    };
+
+    updatePitch();
+    const removeChangedListener = camera.changed.addEventListener(updatePitch);
+    const removeMoveEndListener = camera.moveEnd.addEventListener(updatePitch);
+
+    return () => {
+      removeChangedListener?.();
+      removeMoveEndListener?.();
+    };
+  }, [scene]);
+
   const focusedGroupId =
     selectedPlanarPolygonGroupId ?? activePlanarPolygonGroupId ?? null;
   const edgeRelationOwnerGroupIdSet = useMemo(() => {
@@ -304,6 +409,219 @@ export const useCesiumDistanceVisualizer = (
         ),
     [distanceRelations, pointsById]
   );
+
+  const distancePairLabels = useMemo(
+    () =>
+      resolvedRelations
+        .filter(({ relation }) => relation.showDirectLine)
+        .map(({ relation, pointA, pointB }) => {
+          const higherPoint =
+            pointA.geometryWGS84.height >= pointB.geometryWGS84.height
+              ? pointA
+              : pointB;
+          const lowerPoint = higherPoint.id === pointA.id ? pointB : pointA;
+          const higherLabel = enclosedPointLabelById[higherPoint.id];
+          const lowerLabel = enclosedPointLabelById[lowerPoint.id];
+
+          return {
+            relationId: relation.id,
+            higherPoint,
+            text: `${higherLabel} ↔ ${lowerLabel}`,
+          };
+        }),
+    [enclosedPointLabelById, resolvedRelations]
+  );
+
+  const distancePairLabelAttachOverrideByRelationId = useMemo(() => {
+    const relationIdsByPointId = new Map<string, string[]>();
+
+    distancePairLabels.forEach(({ relationId, higherPoint }) => {
+      const existingRelationIds =
+        relationIdsByPointId.get(higherPoint.id) ?? [];
+      relationIdsByPointId.set(higherPoint.id, [
+        ...existingRelationIds,
+        relationId,
+      ]);
+    });
+
+    return Array.from(relationIdsByPointId.entries()).reduce<
+      Record<string, PointLabelAttach>
+    >((accumulator, [pointId, relationIds]) => {
+      const point = pointsById.get(pointId);
+      const hasCompanionPointLabel = Boolean(point && !point.distanceAdhocNode);
+      const attachOrder = hasCompanionPointLabel
+        ? LABEL_ATTACH_ORDER_WITH_POINT_LABEL
+        : LABEL_ATTACH_ORDER_NO_POINT_LABEL;
+
+      relationIds.forEach((relationId, index) => {
+        if (!hasCompanionPointLabel && relationIds.length <= 1) {
+          return;
+        }
+        const attach = attachOrder[index % attachOrder.length];
+        if (!attach) return;
+        accumulator[relationId] = attach;
+      });
+
+      return accumulator;
+    }, {});
+  }, [distancePairLabels, pointsById]);
+
+  const distancePairLabelLayoutResult = useMemo(() => {
+    if (!scene || scene.isDestroyed()) {
+      return EMPTY_PAIR_LABEL_LAYOUT_RESULT;
+    }
+
+    const pointLabelObstacleLayoutPoints: LayoutPointInput[] = points
+      .map((point, index) => {
+        const anchor = SceneTransforms.worldToWindowCoordinates(
+          scene,
+          point.geometryECEF
+        );
+        if (!defined(anchor)) return null;
+        return {
+          id: `point-label-obstacle-${point.id}`,
+          anchor: { x: anchor.x, y: anchor.y },
+          text: enclosedPointLabelById[point.id] ?? "",
+          index,
+          layoutPriority: 1,
+        };
+      })
+      .filter((entry) => entry !== null);
+
+    const pairLabelLayoutPoints: LayoutPointInput[] = distancePairLabels
+      .map((entry, index) => {
+        const anchor = SceneTransforms.worldToWindowCoordinates(
+          scene,
+          entry.higherPoint.geometryECEF
+        );
+        if (!defined(anchor)) return null;
+        return {
+          id: entry.relationId,
+          anchor: { x: anchor.x, y: anchor.y },
+          text: entry.text,
+          index: points.length + index,
+          layoutPriority: 2,
+        };
+      })
+      .filter((entry) => entry !== null);
+
+    const layoutPoints: LayoutPointInput[] = [
+      ...pointLabelObstacleLayoutPoints,
+      ...pairLabelLayoutPoints,
+    ];
+
+    if (layoutPoints.length === 0) {
+      return EMPTY_PAIR_LABEL_LAYOUT_RESULT;
+    }
+
+    return computePointLabelLayout({
+      points: layoutPoints,
+      viewportWidth: Math.max(
+        1,
+        scene.canvas.clientWidth || scene.canvas.width
+      ),
+      viewportHeight: Math.max(
+        1,
+        scene.canvas.clientHeight || scene.canvas.height
+      ),
+      cameraPitch,
+      config: pointLabelLayoutConfig,
+    });
+  }, [
+    cameraPitch,
+    distancePairLabels,
+    enclosedPointLabelById,
+    pointLabelLayoutConfig,
+    points,
+    scene,
+  ]);
+
+  useEffect(() => {
+    distancePairLabelOverlayIdsRef.current.forEach((overlayId) => {
+      removeLabelOverlayElement(overlayId);
+    });
+    distancePairLabelOverlayIdsRef.current = [];
+
+    if (!scene || scene.isDestroyed()) {
+      return;
+    }
+
+    const nextOverlayIds: string[] = [];
+    const cameraResponsiveAngleMagnitude = getPerspectiveStemAngleMagnitude(
+      cameraPitch,
+      pointLabelLayoutConfig
+    );
+
+    distancePairLabels.forEach(({ relationId, higherPoint, text }) => {
+      const overlayId = `${DISTANCE_PAIR_LABEL_OVERLAY_ID_PREFIX}-${relationId}`;
+      const layoutPlacement =
+        distancePairLabelLayoutResult.placements[relationId] ?? undefined;
+      const attachOverride =
+        distancePairLabelAttachOverrideByRelationId[relationId] ?? undefined;
+      const placement = attachOverride
+        ? createPlacement(
+            attachOverride,
+            layoutPlacement?.distance ?? pointLabelLayoutConfig.stemDistance,
+            cameraResponsiveAngleMagnitude
+          )
+        : layoutPlacement;
+      const isHiddenByLayout = attachOverride
+        ? false
+        : distancePairLabelLayoutResult.hiddenByLayout.has(relationId);
+
+      addLabelOverlayElement({
+        id: overlayId,
+        zIndex: 18,
+        getCanvasPosition: () => {
+          if (!scene || scene.isDestroyed()) return null;
+          const anchor = SceneTransforms.worldToWindowCoordinates(
+            scene,
+            higherPoint.geometryECEF
+          );
+          if (!defined(anchor)) return null;
+          return { x: anchor.x, y: anchor.y };
+        },
+        content: createElement(PointLabel, {
+          pointId: relationId,
+          text,
+          pitch: cameraPitch,
+          labelAngleRad: placement?.angleRad,
+          labelDistance: placement?.distance,
+          labelAttach: placement?.attach ?? DEFAULT_PAIR_LABEL_ATTACH,
+          hideMarker: true,
+          hideLabelAndStem: false,
+          fontSize: "11px",
+          fontFamily: "Arial, sans-serif",
+          textColor: "#111111",
+          textBackgroundColor: POINT_LABEL_TEXT_BACKGROUND_COLOR,
+          selectedBackgroundColor: POINT_LABEL_SELECTED_BACKGROUND_COLOR,
+          hoverBackgroundColor: POINT_LABEL_HOVER_BACKGROUND_COLOR,
+        }),
+        visible: true,
+        isHidden: isHiddenByLayout,
+      });
+
+      nextOverlayIds.push(overlayId);
+    });
+
+    distancePairLabelOverlayIdsRef.current = nextOverlayIds;
+
+    return () => {
+      nextOverlayIds.forEach((overlayId) => {
+        removeLabelOverlayElement(overlayId);
+      });
+      distancePairLabelOverlayIdsRef.current = [];
+    };
+  }, [
+    addLabelOverlayElement,
+    distancePairLabels,
+    distancePairLabelAttachOverrideByRelationId,
+    distancePairLabelLayoutResult,
+    removeLabelOverlayElement,
+    cameraPitch,
+    pointLabelLayoutConfig,
+    scene,
+  ]);
 
   const polygonPreviewGroups = useMemo(
     () =>
@@ -342,6 +660,246 @@ export const useCesiumDistanceVisualizer = (
         targetPoint,
         auxiliaryPoint,
       }) => {
+        const getWorldToScreen = (
+          position: Cartesian3
+        ): ScreenPoint2D | null => {
+          if (!scene || scene.isDestroyed()) return null;
+          const p = SceneTransforms.worldToWindowCoordinates(scene, position);
+          return defined(p) ? { x: p.x, y: p.y } : null;
+        };
+        const highestPoint =
+          pointA.geometryWGS84.height >= pointB.geometryWGS84.height
+            ? pointA
+            : pointB;
+
+        type ScreenTriangleData = {
+          anchor: ScreenPoint2D;
+          target: ScreenPoint2D;
+          aux: ScreenPoint2D;
+          centroid: ScreenPoint2D;
+          highest: ScreenPoint2D;
+        };
+
+        let cachedTriangleFrameNumber: number | null = null;
+        let cachedTriangle: ScreenTriangleData | null = null;
+
+        const getSceneFrameNumber = (): number | null => {
+          const frameNumber = (
+            scene as unknown as { frameState?: { frameNumber?: number } }
+          ).frameState?.frameNumber;
+          return typeof frameNumber === "number" ? frameNumber : null;
+        };
+
+        const computeScreenTriangle = (): ScreenTriangleData | null => {
+          const anchor = getWorldToScreen(anchorPoint.geometryECEF);
+          const target = getWorldToScreen(targetPoint.geometryECEF);
+          const aux = getWorldToScreen(auxiliaryPoint);
+          const highest = getWorldToScreen(highestPoint.geometryECEF);
+          if (!anchor || !target || !aux || !highest) return null;
+          return {
+            anchor,
+            target,
+            aux,
+            highest,
+            centroid: {
+              x: (anchor.x + target.x + aux.x) / 3,
+              y: (anchor.y + target.y + aux.y) / 3,
+            },
+          };
+        };
+
+        const getScreenTriangle = (): ScreenTriangleData | null => {
+          const frameNumber = getSceneFrameNumber();
+          if (
+            frameNumber !== null &&
+            frameNumber === cachedTriangleFrameNumber
+          ) {
+            return cachedTriangle;
+          }
+
+          const triangle = computeScreenTriangle();
+          if (frameNumber !== null) {
+            cachedTriangleFrameNumber = frameNumber;
+            cachedTriangle = triangle;
+          }
+          return triangle;
+        };
+
+        const getScreenAnchor = (): ScreenPoint2D | null =>
+          getScreenTriangle()?.anchor ?? null;
+        const getScreenTarget = (): ScreenPoint2D | null =>
+          getScreenTriangle()?.target ?? null;
+        const getScreenAux = (): ScreenPoint2D | null =>
+          getScreenTriangle()?.aux ?? null;
+
+        const buildStableOutsideReferencePoint = (
+          start: ScreenPoint2D,
+          end: ScreenPoint2D,
+          insidePoint: ScreenPoint2D
+        ): ScreenPoint2D | null => {
+          const dx = end.x - start.x;
+          const dy = end.y - start.y;
+          const lineLength = Math.hypot(dx, dy);
+          if (lineLength <= 1e-3) return null;
+          const midX = (start.x + end.x) * 0.5;
+          const midY = (start.y + end.y) * 0.5;
+          const normalX = -dy / lineLength;
+          const normalY = dx / lineLength;
+          const dot =
+            (insidePoint.x - midX) * normalX + (insidePoint.y - midY) * normalY;
+          const insideSign = dot >= 0 ? 1 : -1;
+          const refDistancePx = clampToRange(
+            lineLength * 0.2,
+            LABEL_REFERENCE_MIN_DISTANCE_PX,
+            LABEL_REFERENCE_MAX_DISTANCE_PX
+          );
+          return {
+            x: midX + normalX * insideSign * refDistancePx,
+            y: midY + normalY * insideSign * refDistancePx,
+          };
+        };
+
+        const getStableInsidePointForDirectAndHorizontal =
+          (): ScreenPoint2D | null => {
+            const triangle = getScreenTriangle();
+            if (!triangle) return null;
+            const auxHeight = targetPoint.geometryWGS84.height;
+            const highestHeight = highestPoint.geometryWGS84.height;
+            const elevationDriverPoint =
+              auxHeight < highestHeight - REFERENCE_LINE_EPSILON_METERS
+                ? triangle.highest
+                : triangle.aux;
+            return {
+              x:
+                elevationDriverPoint.x +
+                (triangle.centroid.x - elevationDriverPoint.x) *
+                  LABEL_INSIDE_BLEND_FACTOR,
+              y:
+                elevationDriverPoint.y +
+                (triangle.centroid.y - elevationDriverPoint.y) *
+                  LABEL_INSIDE_BLEND_FACTOR,
+            };
+          };
+
+        const getDirectLabelOutsideReferencePoint =
+          (): ScreenPoint2D | null => {
+            const triangle = getScreenTriangle();
+            const insidePoint = getStableInsidePointForDirectAndHorizontal();
+            if (!triangle || !insidePoint) return null;
+            return buildStableOutsideReferencePoint(
+              triangle.anchor,
+              triangle.target,
+              insidePoint
+            );
+          };
+
+        const getHorizontalLabelOutsideReferencePoint =
+          (): ScreenPoint2D | null => {
+            const triangle = getScreenTriangle();
+            const insidePoint = getStableInsidePointForDirectAndHorizontal();
+            if (!triangle || !insidePoint) return null;
+            return buildStableOutsideReferencePoint(
+              triangle.aux,
+              triangle.target,
+              insidePoint
+            );
+          };
+
+        const getVerticalLineScreenData = (): {
+          start: ScreenPoint2D;
+          end: ScreenPoint2D;
+          inside: ScreenPoint2D;
+          midX: number;
+          midY: number;
+          normalX: number;
+          normalY: number;
+          lineLength: number;
+        } | null => {
+          const triangle = getScreenTriangle();
+          if (!triangle) return null;
+
+          let start = triangle.anchor;
+          let end = triangle.aux;
+          const inside = triangle.target;
+
+          const recompute = (
+            s: ScreenPoint2D,
+            e: ScreenPoint2D
+          ): {
+            midX: number;
+            midY: number;
+            normalX: number;
+            normalY: number;
+            lineLength: number;
+            insideDot: number;
+          } | null => {
+            const dx = e.x - s.x;
+            const dy = e.y - s.y;
+            const lineLength = Math.hypot(dx, dy);
+            if (lineLength <= 1e-3) return null;
+            const midX = (s.x + e.x) * 0.5;
+            const midY = (s.y + e.y) * 0.5;
+            const normalX = -dy / lineLength;
+            const normalY = dx / lineLength;
+            const insideDot =
+              (inside.x - midX) * normalX + (inside.y - midY) * normalY;
+            return {
+              midX,
+              midY,
+              normalX,
+              normalY,
+              lineLength,
+              insideDot,
+            };
+          };
+
+          let edgeData = recompute(start, end);
+          if (!edgeData) return null;
+
+          // Canonical direction for vertical line labels:
+          // keep triangle interior on the clockwise/right side of the directed edge.
+          if (edgeData.insideDot < 0) {
+            start = triangle.aux;
+            end = triangle.anchor;
+            edgeData = recompute(start, end);
+            if (!edgeData) return null;
+          }
+
+          return {
+            start,
+            end,
+            inside,
+            midX: edgeData.midX,
+            midY: edgeData.midY,
+            normalX: edgeData.normalX,
+            normalY: edgeData.normalY,
+            lineLength: edgeData.lineLength,
+          };
+        };
+
+        const getVerticalLabelOutsideReferencePoint =
+          (): ScreenPoint2D | null => {
+            const edge = getVerticalLineScreenData();
+            if (!edge) return null;
+
+            const insideDot =
+              (edge.inside.x - edge.midX) * edge.normalX +
+              (edge.inside.y - edge.midY) * edge.normalY;
+            const insideSign = insideDot >= 0 ? 1 : -1;
+            const refDistancePx = clampToRange(
+              edge.lineLength * 0.2,
+              LABEL_REFERENCE_MIN_DISTANCE_PX,
+              LABEL_REFERENCE_MAX_DISTANCE_PX
+            );
+
+            // Use an inside-side reference point; overlay logic places the label on
+            // the opposite side, i.e. outside the triangle.
+            return {
+              x: edge.midX + edge.normalX * insideSign * refDistancePx,
+              y: edge.midY + edge.normalY * insideSign * refDistancePx,
+            };
+          };
+
         if (relation.showDirectLine) {
           const isPolygonEdgeRelation = splitMarkerRelationIdSet.has(
             relation.id
@@ -363,6 +921,7 @@ export const useCesiumDistanceVisualizer = (
               ? cumulativeDistanceMeters
               : segmentDistanceMeters;
           const showDirectLabel =
+            false &&
             (relation.labelVisibilityByKind?.direct ?? true) &&
             directLabelMode !== "none" &&
             !roofRoofSharedEdgeRelationIdSet.has(relation.id) &&
@@ -370,26 +929,15 @@ export const useCesiumDistanceVisualizer = (
           lines.push({
             id: `reference-direct-${relation.id}`,
             getCanvasLine: () => {
-              if (!scene || scene.isDestroyed()) return null;
-
-              const start = SceneTransforms.worldToWindowCoordinates(
-                scene,
-                pointA.geometryECEF
-              );
-              const end = SceneTransforms.worldToWindowCoordinates(
-                scene,
-                pointB.geometryECEF
-              );
-
-              if (!defined(start) || !defined(end)) return null;
-              return {
-                start: { x: start.x, y: start.y },
-                end: { x: end.x, y: end.y },
-              };
+              const start = getScreenAnchor();
+              const end = getScreenTarget();
+              if (!start || !end) return null;
+              return { start, end };
             },
+            getLabelOutsideReferencePoint: getDirectLabelOutsideReferencePoint,
             stroke: "rgba(255, 255, 255, 0.9)",
             strokeWidth: 1.5,
-            strokeDasharray: "6 4",
+            strokeDasharray: "6 8",
             hitTargetStrokeWidth: 10,
             labelText: showDirectLabel
               ? `${formatNumber(directLabelDistanceMeters)} m`
@@ -410,41 +958,25 @@ export const useCesiumDistanceVisualizer = (
           lines.push({
             id: `reference-vertical-${relation.id}`,
             getCanvasLine: () => {
-              if (!scene || scene.isDestroyed()) return null;
-
-              const start = SceneTransforms.worldToWindowCoordinates(
-                scene,
-                anchorPoint.geometryECEF
-              );
-              const end = SceneTransforms.worldToWindowCoordinates(
-                scene,
-                auxiliaryPoint
-              );
-
-              if (!defined(start) || !defined(end)) return null;
-              return {
-                start: { x: start.x, y: start.y },
-                end: { x: end.x, y: end.y },
-              };
+              const edge = getVerticalLineScreenData();
+              if (!edge) return null;
+              return { start: edge.start, end: edge.end };
             },
+            getLabelOutsideReferencePoint:
+              getVerticalLabelOutsideReferencePoint,
             stroke: REFERENCE_COMPONENT_VERTICAL_COLOR,
             strokeWidth: REFERENCE_COMPONENT_LINE_STROKE_WIDTH_PX,
-            strokeDasharray: "6 4",
+            strokeDasharray: "6 8",
             hitTargetStrokeWidth: 10,
-            labelText:
-              relation.labelVisibilityByKind?.vertical ?? true
-                ? `${formatNumber(
-                    Cartesian3.distance(
-                      anchorPoint.geometryECEF,
-                      auxiliaryPoint
-                    )
-                  )} m`
-                : undefined,
+            labelText: undefined,
             labelColor: "#000000",
             labelStroke: "rgba(255, 255, 255, 0.95)",
             labelFontSize: 12,
             labelFontFamily: "Arial, sans-serif",
             labelFontWeight: "400",
+            labelRotationMode: "clockwise",
+            labelOffsetPx: VERTICAL_COMPONENT_LABEL_OFFSET_PX,
+            labelDominantBaseline: "alphabetic",
             labelMinLineLengthPx: lineLabelMinDistancePx,
             onLineClick: () =>
               onDistanceLineLabelToggle?.(relation.id, "vertical"),
@@ -455,36 +987,18 @@ export const useCesiumDistanceVisualizer = (
           lines.push({
             id: `reference-horizontal-${relation.id}`,
             getCanvasLine: () => {
-              if (!scene || scene.isDestroyed()) return null;
-
-              const start = SceneTransforms.worldToWindowCoordinates(
-                scene,
-                auxiliaryPoint
-              );
-              const end = SceneTransforms.worldToWindowCoordinates(
-                scene,
-                targetPoint.geometryECEF
-              );
-
-              if (!defined(start) || !defined(end)) return null;
-              return {
-                start: { x: start.x, y: start.y },
-                end: { x: end.x, y: end.y },
-              };
+              const start = getScreenAux();
+              const end = getScreenTarget();
+              if (!start || !end) return null;
+              return { start, end };
             },
+            getLabelOutsideReferencePoint:
+              getHorizontalLabelOutsideReferencePoint,
             stroke: REFERENCE_COMPONENT_HORIZONTAL_COLOR,
             strokeWidth: REFERENCE_COMPONENT_LINE_STROKE_WIDTH_PX,
-            strokeDasharray: "6 4",
+            strokeDasharray: "6 8",
             hitTargetStrokeWidth: 10,
-            labelText:
-              relation.labelVisibilityByKind?.horizontal ?? true
-                ? `${formatNumber(
-                    Cartesian3.distance(
-                      auxiliaryPoint,
-                      targetPoint.geometryECEF
-                    )
-                  )} m`
-                : undefined,
+            labelText: undefined,
             labelColor: "#000000",
             labelStroke: "rgba(255, 255, 255, 0.95)",
             labelFontSize: 12,
@@ -513,87 +1027,106 @@ export const useCesiumDistanceVisualizer = (
 
   useLineVisualizers(overlayLines, overlayLines.length > 0);
 
-  const polygonPreviewContent = useCallback(
-    (group: PlanarPolygonGroup) =>
+  const polygonPreviewContent = useCallback((group: PlanarPolygonGroup) => {
+    const patternId = `stripe-${group.id}`;
+    const stripeColor = getPolygonStripeColor(group.surfaceType);
+    return createElement(
+      "div",
+      {
+        style: {
+          position: "relative",
+          width: "100%",
+          height: "100%",
+          overflow: "visible",
+          pointerEvents: "none",
+        },
+      },
       createElement(
-        "div",
+        "svg",
         {
+          width: "100%",
+          height: "100%",
           style: {
-            position: "relative",
-            width: "100%",
-            height: "100%",
+            position: "absolute",
+            left: 0,
+            top: 0,
             overflow: "visible",
             pointerEvents: "none",
           },
         },
         createElement(
-          "svg",
-          {
-            width: "100%",
-            height: "100%",
-            style: {
-              position: "absolute",
-              left: 0,
-              top: 0,
-              overflow: "visible",
-              pointerEvents: "none",
+          "defs",
+          null,
+          createElement(
+            "pattern",
+            {
+              id: patternId,
+              width: POLYGON_STRIPE_SIZE_PX,
+              height: POLYGON_STRIPE_SIZE_PX,
+              patternUnits: "userSpaceOnUse",
+              patternTransform: "rotate(45)",
             },
+            createElement("line", {
+              x1: 0,
+              y1: 0,
+              x2: 0,
+              y2: POLYGON_STRIPE_SIZE_PX,
+              stroke: stripeColor,
+              strokeWidth: POLYGON_STRIPE_WIDTH_PX,
+            })
+          )
+        ),
+        createElement("polygon", {
+          "data-polygon-preview-shape": "true",
+          fill: "none",
+          stroke: "none",
+          style: {
+            pointerEvents: "none",
           },
-          createElement("polygon", {
-            "data-polygon-preview-shape": "true",
-            fill: POLYGON_PREVIEW_FILL_ROOF_OPEN,
-            stroke: POLYGON_PREVIEW_STROKE,
-            strokeWidth: POLYGON_PREVIEW_STROKE_WIDTH_PX,
-            vectorEffect: "non-scaling-stroke",
-            strokeLinejoin: "round",
-            onClick: onPlanarPolygonClick
-              ? (event: ReactMouseEvent<SVGPolygonElement>) => {
-                  event.preventDefault();
-                  event.stopPropagation();
-                  onPlanarPolygonClick(group.id);
-                }
-              : undefined,
-            style: {
-              cursor: onPlanarPolygonClick ? "pointer" : "default",
-              pointerEvents: onPlanarPolygonClick ? "visiblePainted" : "none",
-              mixBlendMode: "screen",
-            },
-          }),
-          createElement("text", {
-            "data-polygon-preview-area-label": "true",
-            x: "0",
-            y: "0",
-            textAnchor: "middle",
-            dominantBaseline: "middle",
-            fill: POLYGON_AREA_LABEL_COLOR,
-            fontSize: POLYGON_AREA_LABEL_FONT_SIZE_PX,
-            fontFamily: POLYGON_AREA_LABEL_FONT_FAMILY,
-            fontWeight: POLYGON_AREA_LABEL_FONT_WEIGHT,
-            style: {
-              userSelect: "none",
-              pointerEvents: "none",
-            },
-          }),
-          createElement("text", {
-            "data-polygon-preview-area-label-secondary": "true",
-            x: "0",
-            y: "0",
-            textAnchor: "middle",
-            dominantBaseline: "middle",
-            fill: POLYGON_AREA_LABEL_COLOR,
-            fontSize: Math.max(10, POLYGON_AREA_LABEL_FONT_SIZE_PX - 1),
-            fontFamily: POLYGON_AREA_LABEL_FONT_FAMILY,
-            fontWeight: POLYGON_AREA_LABEL_FONT_WEIGHT,
-            style: {
-              userSelect: "none",
-              pointerEvents: "none",
-              display: "none",
-            },
-          })
-        )
-      ),
-    [onPlanarPolygonClick]
-  );
+        }),
+        createElement("polygon", {
+          "data-polygon-preview-stripe": "true",
+          fill: `url(#${patternId})`,
+          stroke: "none",
+          style: {
+            pointerEvents: "none",
+            mixBlendMode: "multiply",
+          },
+        }),
+        createElement("text", {
+          "data-polygon-preview-area-label": "true",
+          x: "0",
+          y: "0",
+          textAnchor: "middle",
+          dominantBaseline: "middle",
+          fill: POLYGON_AREA_LABEL_COLOR,
+          fontSize: POLYGON_AREA_LABEL_FONT_SIZE_PX,
+          fontFamily: POLYGON_AREA_LABEL_FONT_FAMILY,
+          fontWeight: POLYGON_AREA_LABEL_FONT_WEIGHT,
+          style: {
+            userSelect: "none",
+            pointerEvents: "none",
+          },
+        }),
+        createElement("text", {
+          "data-polygon-preview-area-label-secondary": "true",
+          x: "0",
+          y: "0",
+          textAnchor: "middle",
+          dominantBaseline: "middle",
+          fill: POLYGON_AREA_LABEL_COLOR,
+          fontSize: Math.max(10, POLYGON_AREA_LABEL_FONT_SIZE_PX - 1),
+          fontFamily: POLYGON_AREA_LABEL_FONT_FAMILY,
+          fontWeight: POLYGON_AREA_LABEL_FONT_WEIGHT,
+          style: {
+            userSelect: "none",
+            pointerEvents: "none",
+            display: "none",
+          },
+        })
+      )
+    );
+  }, []);
 
   useEffect(() => {
     polygonPreviewOverlayIdsRef.current.forEach((overlayId) => {
@@ -677,10 +1210,13 @@ export const useCesiumDistanceVisualizer = (
             return false;
           }
           polygonEl.setAttribute("points", pointsAttr);
-          polygonEl.setAttribute(
-            "fill",
-            getPolygonPreviewFillColor(group.surfaceType, group.closed)
-          );
+
+          const stripeEl = elementDiv.querySelector(
+            '[data-polygon-preview-stripe="true"]'
+          ) as SVGPolygonElement | null;
+          if (stripeEl) {
+            stripeEl.setAttribute("points", pointsAttr);
+          }
 
           const areaLabelEl = elementDiv.querySelector(
             '[data-polygon-preview-area-label="true"]'
@@ -770,6 +1306,70 @@ export const useCesiumDistanceVisualizer = (
     removeLabelOverlayElement,
     scene,
   ]);
+
+  // Sync Cesium polygon fill primitives for picking
+  const focusedPolygonGroupId =
+    selectedPlanarPolygonGroupId ?? activePlanarPolygonGroupId;
+
+  useEffect(() => {
+    if (!scene || scene.isDestroyed()) return;
+
+    // Remove previous collection
+    if (polygonPrimitiveCollectionRef.current) {
+      scene.primitives.remove(polygonPrimitiveCollectionRef.current);
+      polygonPrimitiveCollectionRef.current = null;
+    }
+
+    if (polygonPreviewGroups.length === 0) return;
+
+    const collection = new PrimitiveCollection();
+    polygonPrimitiveCollectionRef.current = collection;
+
+    for (const { group, vertexPoints } of polygonPreviewGroups) {
+      if (vertexPoints.length < 3) continue;
+
+      const isSelected = group.id === focusedPolygonGroupId;
+      const fillColor = getPolygonFillCesiumColor(
+        group.surfaceType,
+        isSelected
+      );
+
+      const geometry = CoplanarPolygonGeometry.fromPositions({
+        positions: vertexPoints,
+        vertexFormat: PerInstanceColorAppearance.VERTEX_FORMAT,
+      });
+
+      const instance = new GeometryInstance({
+        geometry,
+        id: { polygonGroupId: group.id },
+        attributes: {
+          color: ColorGeometryInstanceAttribute.fromColor(fillColor),
+        },
+      });
+
+      collection.add(
+        new Primitive({
+          geometryInstances: [instance],
+          appearance: new PerInstanceColorAppearance({
+            flat: true,
+            translucent: true,
+          }),
+          asynchronous: false,
+        })
+      );
+    }
+
+    scene.primitives.add(collection);
+    scene.requestRender();
+
+    return () => {
+      if (polygonPrimitiveCollectionRef.current && !scene.isDestroyed()) {
+        scene.primitives.remove(polygonPrimitiveCollectionRef.current);
+        polygonPrimitiveCollectionRef.current = null;
+        scene.requestRender();
+      }
+    };
+  }, [scene, polygonPreviewGroups, focusedPolygonGroupId]);
 
   const rightAngleCornerContent = useMemo(
     () =>
@@ -1259,9 +1859,14 @@ export const useCesiumDistanceVisualizer = (
         removeLabelOverlayElement(overlayId);
       });
       polygonPreviewOverlayIdsRef.current = [];
+      distancePairLabelOverlayIdsRef.current.forEach((overlayId) => {
+        removeLabelOverlayElement(overlayId);
+      });
+      distancePairLabelOverlayIdsRef.current = [];
       destroyLineVisualizerMap(directLineRefs);
       destroyLineVisualizerMap(verticalLineRefs);
       destroyLineVisualizerMap(horizontalLineRefs);
+      // polygon primitives are cleaned up by their own effect
     };
   }, [removeLabelOverlayElement]);
 };

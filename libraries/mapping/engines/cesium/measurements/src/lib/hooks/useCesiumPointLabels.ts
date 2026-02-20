@@ -22,7 +22,9 @@ import {
   DEFAULT_POINT_LABEL_LAYOUT_CONFIG,
   formatNumberToEnclosed,
   resolvePointLabelLayoutConfig,
+  useLineVisualizers,
   usePointLabels,
+  type LineVisualizerData,
   type LayoutPointInput,
   type PointLabelData,
   type PointLabelLayoutConfig,
@@ -39,6 +41,7 @@ import {
 import { getCustomPointMeasurementName } from "../utils/measurementNaming";
 import { formatNumber } from "../utils/formatting";
 import { useCesiumSceneVisibilityIndex } from "./useCesiumSceneVisibilityIndex";
+import { usePointRectangleSelectionOverlay } from "./usePointRectangleSelectionOverlay";
 
 export type CesiumLabelLayoutConfig = PointLabelLayoutConfig;
 export type CesiumLabelLayoutConfigOverrides = PointLabelLayoutConfigOverrides;
@@ -51,8 +54,6 @@ const REFERENCE_POINT_DISTANCE_EPSILON_METERS = 0.001;
 const GLYPH_SIZE_EM = 1;
 const ELEVATION_GLYPH_UP = "↥";
 const ELEVATION_GLYPH_DOWN = "↧";
-const DISTANCE_GLYPH_LEFT = "⭠";
-const DISTANCE_GLYPH_RIGHT = "⭢";
 const NORMAL_MARKER_SIZE_PX = 10;
 const MOVE_GIZMO_MARKER_SIZE_PX = 36;
 const MOVE_GIZMO_MARKER_SIZE_DRAGGING_PX = 40;
@@ -101,10 +102,12 @@ type PointLabelTextRepresentation = {
 
 const getPointLabelBase = (
   pointName: string | undefined,
-  pointIndex: number
+  pointIndex: number,
+  isAuxiliaryLabelAnchor: boolean = false
 ): string => {
   const customPointName = getCustomPointMeasurementName(pointName);
-  return customPointName ?? formatNumberToEnclosed(pointIndex + 1);
+  if (customPointName) return customPointName;
+  return isAuxiliaryLabelAnchor ? "" : formatNumberToEnclosed(pointIndex + 1);
 };
 
 const getReferenceLabelBase = (
@@ -203,24 +206,18 @@ const formatDistanceLabelText = (
     return formatNoneLabelText(labelBase);
   }
 
-  const distanceValue = formatMeters(distanceToReference);
-
   return {
-    layoutText: `${referenceLabelBase} ${DISTANCE_GLYPH_LEFT} ${distanceValue} ${DISTANCE_GLYPH_RIGHT} ${labelBase}`,
+    layoutText: `${referenceLabelBase} ↔ ${labelBase}`,
     content: createElement(
       Fragment,
       null,
       referenceLabelBase,
       " ",
-      renderGlyph(DISTANCE_GLYPH_LEFT),
-      " ",
-      distanceValue,
-      " ",
-      renderGlyph(DISTANCE_GLYPH_RIGHT),
+      "↔",
       " ",
       labelBase
     ),
-    contentSignature: `${referenceLabelBase}:${distanceValue}:${labelBase}`,
+    contentSignature: `${referenceLabelBase}:↔:${labelBase}`,
   };
 };
 
@@ -229,11 +226,16 @@ const formatPointLabelText = (
   pointHeight: number,
   referenceElevation: number,
   pointName?: string,
+  isAuxiliaryLabelAnchor: boolean = false,
   pointLabelMetricMode: PointLabelMetricMode = DEFAULT_POINT_LABEL_METRIC_MODE,
   pointDistanceToReference?: number,
   referenceLabelBase?: string
 ): PointLabelTextRepresentation => {
-  const labelBase = getPointLabelBase(pointName, pointIndex);
+  const labelBase = getPointLabelBase(
+    pointName,
+    pointIndex,
+    isAuxiliaryLabelAnchor
+  );
 
   if (pointLabelMetricMode === "distance") {
     return formatDistanceLabelText(
@@ -322,11 +324,15 @@ export const useCesiumPointLabels = (
   showLabels: boolean,
   referenceElevation: number = 0,
   selectedPointId: string | null = null,
+  selectedPointIds: string[] = [],
   moveGizmoPointId: string | null = null,
   moveGizmoIsDragging: boolean = false,
   onPointClick?: (pointId: string) => void,
   onPointDoubleClick?: (pointId: string) => void,
   onPointLongPress?: (pointId: string) => void,
+  selectionModeEnabled: boolean = false,
+  selectionAdditiveMode: boolean = false,
+  onPointRectangleSelect?: (pointIds: string[], additive: boolean) => void,
   pointLongPressDurationMs: number = 300,
   occlusionChecksEnabled: boolean = true,
   layoutConfigOverrides?: CesiumLabelLayoutConfigOverrides,
@@ -336,6 +342,7 @@ export const useCesiumPointLabels = (
   polylinePointLabelTextByPointId?: Readonly<Record<string, string>>,
   hiddenPointLabelIds?: ReadonlySet<string>,
   fullyHiddenPointIds?: ReadonlySet<string>,
+  markerlessPointIds?: ReadonlySet<string>,
   pointDragPlaneByPointId?: Readonly<Record<string, PlanarPolygonPlane>>,
   onPointPlaneDragStart?: (pointId: string) => void,
   onPointPlaneDragPositionChange?: (
@@ -348,6 +355,13 @@ export const useCesiumPointLabels = (
 ) => {
   const [cameraPitch, setCameraPitch] = useState<number>(-Math.PI / 4);
   const registeredPointIdSetRef = useRef<Set<string>>(new Set());
+  const selectedPointIdSet = useMemo(() => {
+    const ids = new Set(selectedPointIds);
+    if (selectedPointId) {
+      ids.add(selectedPointId);
+    }
+    return ids;
+  }, [selectedPointId, selectedPointIds]);
 
   const layoutConfig = useMemo(
     () => resolvePointLabelLayoutConfig(layoutConfigOverrides),
@@ -481,10 +495,32 @@ export const useCesiumPointLabels = (
           point.geometryWGS84.height,
           referenceElevation,
           point.name,
+          Boolean(point.auxiliaryLabelAnchor),
           pointLabelMetricMode,
           distanceToReferenceByPointId?.[point.id],
           referenceLabelBase
         );
+
+        const distanceToRef = distanceToReferenceByPointId?.[point.id];
+        const isReferencePoint =
+          distanceToRef !== undefined &&
+          Math.abs(distanceToRef) <= REFERENCE_POINT_DISTANCE_EPSILON_METERS;
+        if (isReferencePoint) {
+          const inner =
+            labelTextRepresentation.content ??
+            labelTextRepresentation.layoutText;
+          return [
+            point.id,
+            {
+              ...labelTextRepresentation,
+              content: createElement("em", null, inner),
+              contentSignature: `ref:${
+                labelTextRepresentation.contentSignature ??
+                labelTextRepresentation.layoutText
+              }`,
+            } as PointLabelTextRepresentation,
+          ];
+        }
 
         return [point.id, labelTextRepresentation];
       })
@@ -555,7 +591,11 @@ export const useCesiumPointLabels = (
         (polylineOverrideText !== undefined
           ? { layoutText: polylineOverrideText }
           : formatNoneLabelText(
-              getPointLabelBase(point.name, effectivePointIndex)
+              getPointLabelBase(
+                point.name,
+                effectivePointIndex,
+                Boolean(point.auxiliaryLabelAnchor)
+              )
             ));
       const isMoveGizmoPoint = point.id === moveGizmoPointId;
       const disableInteractionsForMoveGizmoPoint = isMoveGizmoPoint;
@@ -607,6 +647,7 @@ export const useCesiumPointLabels = (
         text: labelTextRepresentation.layoutText,
         content: labelTextRepresentation.content,
         contentSignature: labelTextRepresentation.contentSignature,
+        hideMarker: Boolean(markerlessPointIds?.has(point.id)),
         markerSize: isMoveGizmoPoint
           ? moveGizmoIsDragging
             ? moveGizmoMarkerSizeDraggingPx
@@ -624,7 +665,7 @@ export const useCesiumPointLabels = (
         stemReferenceMarkerSize: isMoveGizmoPoint
           ? NORMAL_MARKER_SIZE_PX
           : undefined,
-        selected: point.id === selectedPointId,
+        selected: selectedPointIdSet.has(point.id),
         visible: true,
         isOccluded: visibilityStateById[point.id]?.isOccluded ?? false,
         isHidden:
@@ -664,7 +705,7 @@ export const useCesiumPointLabels = (
   }, [
     points,
     pointLabelTextById,
-    selectedPointId,
+    selectedPointIdSet,
     moveGizmoPointId,
     moveGizmoIsDragging,
     visibilityStateById,
@@ -686,7 +727,61 @@ export const useCesiumPointLabels = (
     onPointPlaneDragStart,
     onPointPlaneDragPositionChange,
     onPointPlaneDragEnd,
+    markerlessPointIds,
   ]);
+
+  usePointRectangleSelectionOverlay({
+    scene,
+    enabled:
+      showLabels && selectionModeEnabled && Boolean(onPointRectangleSelect),
+    additiveMode: selectionAdditiveMode,
+    points: pointLabelData,
+    onSelect: (pointIds, additive) => {
+      onPointRectangleSelect?.(pointIds, additive);
+    },
+  });
+
+  const verticalOffsetStemLines = useMemo<LineVisualizerData[]>(() => {
+    if (!scene || scene.isDestroyed()) return [];
+    return points
+      .map((point) => {
+        const anchor = point.verticalOffsetAnchorECEF;
+        if (!anchor) return null;
+        const anchorECEF = new Cartesian3(anchor.x, anchor.y, anchor.z);
+        return {
+          id: `point-vertical-offset-stem-${point.id}`,
+          stroke: "rgba(255, 255, 255, 1)",
+          strokeWidth: 2,
+          strokeDasharray: "0 3",
+          strokeDashoffset: 0,
+          opacity: 0.9,
+          visible: true,
+          getCanvasLine: () => {
+            if (!scene || scene.isDestroyed()) {
+              return null;
+            }
+            const start = SceneTransforms.worldToWindowCoordinates(
+              scene,
+              point.geometryECEF
+            );
+            const end = SceneTransforms.worldToWindowCoordinates(
+              scene,
+              anchorECEF
+            );
+            if (!defined(start) || !defined(end)) {
+              return null;
+            }
+            return {
+              start: { x: start.x, y: start.y },
+              end: { x: end.x, y: end.y },
+            };
+          },
+        } as LineVisualizerData;
+      })
+      .filter((line): line is LineVisualizerData => Boolean(line));
+  }, [points, scene]);
+
+  useLineVisualizers(verticalOffsetStemLines, showLabels);
 
   usePointLabels(pointLabelData, showLabels, undefined, undefined, {
     transitionDurationMs: layoutConfig.transitionDurationMs,

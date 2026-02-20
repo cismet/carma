@@ -15,6 +15,10 @@ export type LineVisualizerData = LineVisualizerProps & {
     end: ScreenPoint;
   } | null;
   labelMinLineLengthPx?: number;
+  labelOffsetPx?: number;
+  labelRotationMode?: "auto" | "clockwise";
+  getLabelOutsideReferencePoint?: () => ScreenPoint | null;
+  getLabelInsideReferencePoint?: () => ScreenPoint | null;
   visible?: boolean;
   isHidden?: boolean;
   contentSignature?: string;
@@ -24,6 +28,7 @@ const DEFAULT_MIN_LABEL_LINE_LENGTH_PX = 50;
 const LABEL_OFFSET_PX = 10;
 const LABEL_MIN_PADDING_PX = 6;
 const LINE_OVERLAY_Z_INDEX = 5;
+const LABEL_SIDE_HYSTERESIS_PX = 1.5;
 
 export const useLineVisualizers = (
   lines: LineVisualizerData[],
@@ -39,11 +44,15 @@ export const useLineVisualizers = (
           (line) =>
             `${line.id}:${line.visible}:${line.isHidden}:${line.stroke}:${
               line.strokeWidth
-            }:${line.strokeDasharray}:${line.opacity}:${line.labelText}:${
-              line.labelColor
-            }:${line.labelFontSize}:${line.labelFontFamily}:${
-              line.labelFontWeight
-            }:${line.labelMinLineLengthPx}
+            }:${line.strokeDasharray}:${line.strokeDashoffset}:${
+              line.opacity
+            }:${line.labelText}:${line.labelColor}:${line.labelFontSize}:${
+              line.labelFontFamily
+            }:${line.labelFontWeight}:${line.labelMinLineLengthPx}:${
+              line.labelOffsetPx
+            }:${line.labelRotationMode ?? "auto"}:${
+              line.labelDominantBaseline ?? "middle"
+            }
             }:${line.contentSignature ?? ""}`
         )
         .join("|"),
@@ -66,6 +75,7 @@ export const useLineVisualizers = (
           stroke: line.stroke,
           strokeWidth: line.strokeWidth,
           strokeDasharray: line.strokeDasharray,
+          strokeDashoffset: line.strokeDashoffset,
           opacity: line.opacity,
           hitTargetStrokeWidth: line.hitTargetStrokeWidth,
           labelText: line.labelText,
@@ -74,6 +84,7 @@ export const useLineVisualizers = (
           labelFontSize: line.labelFontSize,
           labelFontFamily: line.labelFontFamily,
           labelFontWeight: line.labelFontWeight,
+          labelDominantBaseline: line.labelDominantBaseline,
           onLineClick: line.onLineClick,
           onLabelClick: line.onLabelClick,
         }),
@@ -123,15 +134,58 @@ export const useLineVisualizers = (
             if (lineLength > MIN_LINE_LENGTH_PX) {
               const midX = (canvasLine.start.x + canvasLine.end.x) * 0.5;
               const midY = (canvasLine.start.y + canvasLine.end.y) * 0.5;
-              const normalX = -dy / lineLength;
-              const normalY = dx / lineLength;
-              const textX = midX + normalX * LABEL_OFFSET_PX;
-              const textY = midY + normalY * LABEL_OFFSET_PX;
+              let normalX = -dy / lineLength;
+              let normalY = dx / lineLength;
+              const outsideRef = line.getLabelOutsideReferencePoint?.();
+              const insideRef = line.getLabelInsideReferencePoint?.();
+              const previousShouldFlip = textEl.dataset.normalFlip === "1";
+              let shouldFlip = previousShouldFlip;
+              if (outsideRef) {
+                const refDx = outsideRef.x - midX;
+                const refDy = outsideRef.y - midY;
+                const dotWithNormal = refDx * normalX + refDy * normalY;
+                if (dotWithNormal > LABEL_SIDE_HYSTERESIS_PX) {
+                  shouldFlip = true;
+                } else if (dotWithNormal < -LABEL_SIDE_HYSTERESIS_PX) {
+                  shouldFlip = false;
+                }
+              } else if (insideRef) {
+                const refDx = insideRef.x - midX;
+                const refDy = insideRef.y - midY;
+                const dotWithNormal = refDx * normalX + refDy * normalY;
+                if (dotWithNormal < -LABEL_SIDE_HYSTERESIS_PX) {
+                  shouldFlip = true;
+                } else if (dotWithNormal > LABEL_SIDE_HYSTERESIS_PX) {
+                  shouldFlip = false;
+                }
+              }
+              if (shouldFlip) {
+                normalX = -normalX;
+                normalY = -normalY;
+              }
+              textEl.dataset.normalFlip = shouldFlip ? "1" : "0";
               const rawAngleDeg = (Math.atan2(dy, dx) * 180) / Math.PI;
+              const labelOffsetPx = line.labelOffsetPx ?? LABEL_OFFSET_PX;
+              const textX = midX + normalX * labelOffsetPx;
+              const textY = midY + normalY * labelOffsetPx;
               const angleDeg =
-                rawAngleDeg > 90 || rawAngleDeg < -90
-                  ? rawAngleDeg + 180
-                  : rawAngleDeg;
+                line.labelRotationMode === "clockwise"
+                  ? (rawAngleDeg + 360) % 360
+                  : (() => {
+                      // cross product of line direction and final normal:
+                      // positive → label is to the right of the line direction → read forward
+                      // negative → label is to the left → read backward (flip 180°)
+                      const crossProduct =
+                        (dx / lineLength) * normalY -
+                        (dy / lineLength) * normalX;
+                      const sideAdjustedAngle =
+                        crossProduct >= 0 ? rawAngleDeg : rawAngleDeg + 180;
+                      const normalizedAngle =
+                        ((sideAdjustedAngle % 360) + 360) % 360;
+                      return normalizedAngle > 90 && normalizedAngle < 270
+                        ? (normalizedAngle + 180) % 360
+                        : normalizedAngle;
+                    })();
 
               textEl.setAttribute("x", `${textX}`);
               textEl.setAttribute("y", `${textY}`);

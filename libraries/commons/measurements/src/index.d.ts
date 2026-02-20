@@ -107,6 +107,7 @@ export interface MeasurementTitleProps {
   showOrder?: boolean;
   capitalize?: boolean;
   multiline?: boolean;
+  autoFocusTrigger?: number;
 }
 
 export interface MeasurementControlProps {

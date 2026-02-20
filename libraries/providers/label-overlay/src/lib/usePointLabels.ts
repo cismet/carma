@@ -15,6 +15,7 @@ export interface PointLabelData {
   labelDistance?: number;
   labelAttach?: PointLabelAttach;
   hideLabelAndStem?: boolean;
+  hideMarker?: boolean;
   markerSize?: number;
   markerStrokeWidth?: number;
   stemReferenceMarkerSize?: number;
@@ -93,12 +94,14 @@ export const usePointLabels = (
         zIndex: 20,
         getCanvasPosition: point.getCanvasPosition,
         content: React.createElement(PointLabel, {
+          pointId: point.id,
           pitch,
           labelAngleRad: point.labelAngleRad,
           labelDistance: point.labelDistance,
           labelAttach: point.labelAttach,
           transitionDurationMs: layoutOptions?.transitionDurationMs,
           hideLabelAndStem: point.hideLabelAndStem,
+          hideMarker: point.hideMarker,
           markerSize: point.markerSize,
           markerStrokeWidth: point.markerStrokeWidth,
           stemReferenceMarkerSize: point.stemReferenceMarkerSize,

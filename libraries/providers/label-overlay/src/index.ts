@@ -5,6 +5,9 @@ export type { LabelOverlayElement, LabelOverlayContextType } from "./lib/types";
 export { LabelOverlayContainer } from "./lib/components/LabelOverlayContainer";
 export {
   PointLabel,
+  POINT_LABEL_TEXT_BACKGROUND_COLOR,
+  POINT_LABEL_HOVER_BACKGROUND_COLOR,
+  POINT_LABEL_SELECTED_BACKGROUND_COLOR,
   type PointLabelAttach,
   type PointLabelStyleProps,
 } from "./lib/components/PointLabel";

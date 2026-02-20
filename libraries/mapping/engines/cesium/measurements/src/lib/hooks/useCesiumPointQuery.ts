@@ -3,8 +3,11 @@ import { Dispatch, SetStateAction, useEffect, useRef } from "react";
 import {
   Cartesian2,
   Cartesian3,
+  Cartesian4,
+  Matrix4,
   ScreenSpaceEventHandler,
   ScreenSpaceEventType,
+  Transforms,
   getDegreesFromCartesian,
   type Scene,
 } from "@carma/cesium";
@@ -14,6 +17,7 @@ import {
   MeasurementCollection,
   MeasurementEntry,
   MeasurementMode,
+  type PointLabelMetricMode,
 } from "../types/MeasurementTypes";
 import {
   updateCollection,
@@ -32,7 +36,14 @@ export const useCesiumPointQuery = (
   onBeforePointCreate?: (
     positionECEF: Cartesian3 | null,
     screenPosition: Cartesian2
-  ) => boolean
+  ) => boolean,
+  verticalOffsetMeters: number = 0,
+  nameOnCreate?: string,
+  labelOnCreate: PointLabelMetricMode | undefined = undefined,
+  hiddenOnCreate: boolean = false,
+  auxiliaryOnCreate: boolean = false,
+  useTemporaryForCreatedPoints: boolean = true,
+  markCreatedPointsAsDistanceAdhoc: boolean = false
 ) => {
   const handlerRef = useRef<ScreenSpaceEventHandler | null>(null);
   const prevTemporaryModeRef = useRef(temporaryMode);
@@ -107,32 +118,89 @@ export const useCesiumPointQuery = (
         return;
       }
 
-      const geometryWGS84 = getDegreesFromCartesian(pickedPosition);
-      const height = geometryWGS84.altitude;
+      const pickedPositionWGS84 = getDegreesFromCartesian(pickedPosition);
+      const height = pickedPositionWGS84.altitude;
+      const offsetMeters = Number.isFinite(verticalOffsetMeters)
+        ? verticalOffsetMeters
+        : 0;
+      const hasVerticalOffsetStem = Math.abs(offsetMeters) > 1e-9;
+      const localEnuFrame = Transforms.eastNorthUpToFixedFrame(pickedPosition);
+      const upDirectionColumn = Matrix4.getColumn(
+        localEnuFrame,
+        2,
+        new Cartesian4()
+      );
+      const upDirectionECEF = Cartesian3.normalize(
+        new Cartesian3(
+          upDirectionColumn.x,
+          upDirectionColumn.y,
+          upDirectionColumn.z
+        ),
+        new Cartesian3()
+      );
+      const offsetVectorECEF = Cartesian3.multiplyByScalar(
+        upDirectionECEF,
+        offsetMeters,
+        new Cartesian3()
+      );
+      const geometryECEF = Cartesian3.add(
+        pickedPosition,
+        offsetVectorECEF,
+        new Cartesian3()
+      );
+      const geometryWGS84 = getDegreesFromCartesian(geometryECEF);
       const measurementId = `point-${Date.now()}`;
 
       const measurementConstructor = (
         prev?: MeasurementCollection
       ): MeasurementEntry => {
+        const useTemporaryForCreate =
+          temporaryMode && useTemporaryForCreatedPoints;
         const insertionIndex = temporaryMode
-          ? 0
+          ? useTemporaryForCreate
+            ? 0
+            : prev?.filter(isPointMeasurementEntry).length || 0
           : prev?.filter(isPointMeasurementEntry).length || 0;
         return {
           type: MeasurementMode.PointQuery,
           id: measurementId,
           index: insertionIndex,
-          geometryECEF: pickedPosition,
+          geometryECEF,
           geometryWGS84: {
             longitude: geometryWGS84.longitude,
             latitude: geometryWGS84.latitude,
             height: geometryWGS84.altitude ?? 0,
           },
           timestamp: new Date().getTime(),
+          ...(nameOnCreate && nameOnCreate.trim().length > 0
+            ? { name: nameOnCreate.trim() }
+            : {}),
+          ...(hiddenOnCreate ? { hidden: true } : {}),
+          ...(auxiliaryOnCreate ? { auxiliaryLabelAnchor: true } : {}),
+          ...(markCreatedPointsAsDistanceAdhoc
+            ? { distanceAdhocNode: true }
+            : {}),
+          ...(hasVerticalOffsetStem
+            ? {
+                verticalOffsetAnchorECEF: {
+                  x: pickedPosition.x,
+                  y: pickedPosition.y,
+                  z: pickedPosition.z,
+                },
+              }
+            : {}),
+          ...(labelOnCreate !== undefined
+            ? { pointLabelMode: labelOnCreate }
+            : {}),
         };
       };
 
-      updateCollection(setCollection, measurementConstructor, temporaryMode);
-      onPointCreatedRef.current?.(measurementId, pickedPosition);
+      updateCollection(
+        setCollection,
+        measurementConstructor,
+        temporaryMode && useTemporaryForCreatedPoints
+      );
+      onPointCreatedRef.current?.(measurementId, geometryECEF);
 
       scene.requestRender();
       console.log(
@@ -173,7 +241,19 @@ export const useCesiumPointQuery = (
       }
       console.debug("[SceneClick] Terrain click handler cleaned up");
     };
-  }, [scene, enabled, temporaryMode, setCollection]);
+  }, [
+    scene,
+    enabled,
+    temporaryMode,
+    setCollection,
+    verticalOffsetMeters,
+    nameOnCreate,
+    labelOnCreate,
+    hiddenOnCreate,
+    auxiliaryOnCreate,
+    useTemporaryForCreatedPoints,
+    markCreatedPointsAsDistanceAdhoc,
+  ]);
 };
 
 export default useCesiumPointQuery;

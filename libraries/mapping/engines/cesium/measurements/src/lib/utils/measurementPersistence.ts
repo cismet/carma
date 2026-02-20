@@ -1,4 +1,5 @@
 import type {
+  MeasurementPersistenceEnvelopeV2,
   PointDistanceRelation,
   PlanarPolygonGroup,
   MeasurementCollection,
@@ -10,6 +11,22 @@ import { MeasurementMode } from "../types/MeasurementTypes";
 const DEFAULT_STORAGE_KEY = "cesium-measurements";
 const DISTANCE_RELATIONS_STORAGE_SUFFIX = ":distance-relations";
 const PLANAR_POLYGONS_STORAGE_SUFFIX = ":planar-polygons";
+const NORMALIZED_STORAGE_SUFFIX = ":normalized-v2";
+
+const getMeasurementEdgeId = (pointAId: string, pointBId: string) => {
+  const [left, right] = [pointAId, pointBId].sort((a, b) => a.localeCompare(b));
+  return `edge:${left}:${right}`;
+};
+
+const normalizeDistanceRelation = (
+  relation: PointDistanceRelation
+): PointDistanceRelation => ({
+  ...relation,
+  edgeId:
+    relation.edgeId && relation.edgeId.length > 0
+      ? relation.edgeId
+      : getMeasurementEdgeId(relation.pointAId, relation.pointBId),
+});
 
 const rebuildTraverseEntry = (entry: MeasurementEntry): MeasurementEntry => {
   if (entry.type !== MeasurementMode.Traverse) {
@@ -55,6 +72,65 @@ export const loadMeasurements = (
   return null;
 };
 
+export const saveNormalizedMeasurements = (
+  storageKey: string | undefined,
+  state: MeasurementPersistenceEnvelopeV2
+): void => {
+  const key = `${
+    storageKey ?? DEFAULT_STORAGE_KEY
+  }${NORMALIZED_STORAGE_SUFFIX}`;
+  try {
+    localStorage.setItem(key, JSON.stringify(state));
+  } catch (error) {
+    console.warn(
+      "Failed to save normalized measurements to localStorage:",
+      error
+    );
+  }
+};
+
+export const loadNormalizedMeasurements = (
+  storageKey: string | undefined
+): MeasurementPersistenceEnvelopeV2 | null => {
+  const key = `${
+    storageKey ?? DEFAULT_STORAGE_KEY
+  }${NORMALIZED_STORAGE_SUFFIX}`;
+  try {
+    const saved = localStorage.getItem(key);
+    if (!saved) {
+      return null;
+    }
+
+    const parsed = JSON.parse(saved) as MeasurementPersistenceEnvelopeV2;
+    if (parsed?.version !== 2) return null;
+    if (!parsed.geometry || !parsed.tables) return null;
+    if (!Array.isArray(parsed.geometry.points)) return null;
+    if (!Array.isArray(parsed.geometry.edges)) return null;
+    if (!Array.isArray(parsed.tables.measurements)) return null;
+    if (!Array.isArray(parsed.tables.distanceRelations)) return null;
+    if (!Array.isArray(parsed.tables.planarPolygonGroups)) return null;
+    if (!Array.isArray(parsed.tables.planarPolygonGroupVertices)) return null;
+
+    return {
+      ...parsed,
+      tables: {
+        ...parsed.tables,
+        measurements: parsed.tables.measurements.map(rebuildTraverseEntry),
+        distanceRelations: parsed.tables.distanceRelations.map(
+          normalizeDistanceRelation
+        ),
+      },
+    };
+  } catch (error) {
+    console.warn(
+      "Failed to load normalized measurements from localStorage:",
+      error
+    );
+  }
+
+  return null;
+};
+
 export const saveDistanceRelations = (
   storageKey: string | undefined,
   relations: PointDistanceRelation[]
@@ -83,7 +159,7 @@ export const loadDistanceRelations = (
 
     const relations = JSON.parse(saved) as PointDistanceRelation[];
     if (!Array.isArray(relations)) return null;
-    return relations;
+    return relations.map(normalizeDistanceRelation);
   } catch (error) {
     console.warn("Failed to load distance relations from localStorage:", error);
   }

@@ -2,6 +2,7 @@ import { Cartesian3, type Cartographic } from "@carma/cesium";
 
 export enum MeasurementMode {
   NONE = "none",
+  PointMeasure = "point_measure",
   PointQuery = "point_query",
   Traverse = "traverse",
   Elevation = "elevation",
@@ -45,6 +46,7 @@ export type PlanarPolygonPlane = {
 export type PlanarPolygonGroup = {
   id: string;
   name?: string;
+  hidden?: boolean;
   vertexPointIds: string[];
   edgeRelationIds: string[];
   distanceMeasurementStartPointId?: string;
@@ -69,6 +71,7 @@ export type PolylineCollection = {
 
 export type PointDistanceRelation = {
   id: string;
+  edgeId: string;
   pointAId: string;
   pointBId: string;
   // The anchor point defines the "from" side for component visualization.
@@ -101,6 +104,9 @@ export type MeasurementEntry = {
   timestamp: number;
   index?: number;
   name?: string;
+  hidden?: boolean;
+  locked?: boolean;
+  auxiliaryLabelAnchor?: boolean;
   geometryECEF: Cartesian3[] | Cartesian3;
   geometryWGS84: GeomPoint | GeomPolyline;
   metadata?: unknown;
@@ -115,6 +121,13 @@ export type PointMeasurementEntry = MeasurementEntry & {
   geometryWGS84: GeomPoint;
   radius?: number;
   referenceLineAnnotation?: PointReferenceLineAnnotation;
+  verticalOffsetAnchorECEF?: SerializableCartesian3;
+  /** True when point was created ad-hoc in distance mode (PointQuery).
+   *  Such points can be auto-removed once no relation references them. */
+  distanceAdhocNode?: boolean;
+  /** Set when this point was created exclusively as a node for a distance relation.
+   *  Used to auto-delete the point when its owning relation is removed. */
+  distanceRelationId?: string;
 };
 
 export function isPointMeasurementEntry(
@@ -143,3 +156,43 @@ export function isTraverseMeasurementEntry(
 }
 
 export type MeasurementCollection = MeasurementEntry[];
+
+export type MeasurementGeometryPoint = {
+  id: string;
+  longitude: number;
+  latitude: number;
+  height: number;
+  geometryECEF: SerializableCartesian3;
+  hidden?: boolean;
+  locked?: boolean;
+  pointLabelMode?: PointLabelMetricMode;
+  auxiliaryLabelAnchor?: boolean;
+  verticalOffsetAnchorECEF?: SerializableCartesian3;
+};
+
+export type MeasurementGeometryEdge = {
+  id: string;
+  pointAId: string;
+  pointBId: string;
+};
+
+export type PlanarPolygonGroupVertex = {
+  id: string;
+  groupId: string;
+  pointId: string;
+  order: number;
+};
+
+export type MeasurementPersistenceEnvelopeV2 = {
+  version: 2;
+  geometry: {
+    points: MeasurementGeometryPoint[];
+    edges: MeasurementGeometryEdge[];
+  };
+  tables: {
+    measurements: MeasurementCollection;
+    distanceRelations: PointDistanceRelation[];
+    planarPolygonGroups: PlanarPolygonGroup[];
+    planarPolygonGroupVertices: PlanarPolygonGroupVertex[];
+  };
+};
