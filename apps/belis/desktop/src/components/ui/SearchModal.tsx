@@ -4,7 +4,7 @@ import { SearchOutlined } from "@ant-design/icons";
 import { FontAwesomeIcon as Icon } from "@fortawesome/react-fontawesome";
 import { faFilter } from "@fortawesome/free-solid-svg-icons";
 import { useSelector } from "react-redux";
-import { LeuchteSearch, MastSearch } from "./featuresSearches";
+import { LeuchteSearch, MastSearch, SchaltstelleSearch } from "./featuresSearches";
 import { getJWT } from "../../store/slices/auth";
 import { ENDPOINT } from "../../constants/belis";
 import { rawDataPreStyle } from "../../helper/uiHelper";
@@ -14,7 +14,7 @@ import {
   useMapHighlight,
 } from "@carma-mapping/engines/maplibre";
 
-type SearchType = "leuchte" | "mast";
+type SearchType = "leuchte" | "mast" | "schaltstelle";
 
 interface SearchModalProps {
   defaultOpen?: boolean;
@@ -45,11 +45,20 @@ interface MastSearchValues {
   unterhaltMast?: { value?: number };
 }
 
-type SearchValues = LeuchteSearchValues | MastSearchValues;
+interface SchaltstelleSearchValues {
+  bauart?: { value?: number };
+  erstellungsjahr?: { von?: string; bis?: string };
+  rundsteuerempfaenger?: { value?: number };
+  einbaudatumRs?: { von?: string; bis?: string };
+  pruefdatum?: { von?: string; bis?: string };
+}
+
+type SearchValues = LeuchteSearchValues | MastSearchValues | SchaltstelleSearchValues;
 
 const searchTypeLabels: Record<SearchType, string> = {
   leuchte: "Leuchten",
   mast: "Masten",
+  schaltstelle: "Schaltstellen",
 };
 
 const SearchModalHeader = ({
@@ -235,6 +244,53 @@ const buildMastWhereClause = (values: MastSearchValues): string => {
   return conditions.length > 0 ? `where: {${conditions.join(", ")}}` : "";
 };
 
+const buildSchaltstelleWhereClause = (values: SchaltstelleSearchValues): string => {
+  const conditions: string[] = [];
+
+  // Exclude deleted records (handle both false and null values)
+  conditions.push(
+    `_or: [{is_deleted: {_eq: false}}, {is_deleted: {_is_null: true}}]`
+  );
+
+  // Property conditions
+  if (values.bauart?.value) {
+    conditions.push(`fk_bauart: {_eq: ${values.bauart.value}}`);
+  }
+  if (values.rundsteuerempfaenger?.value) {
+    conditions.push(`rundsteuerempfaenger: {_eq: ${values.rundsteuerempfaenger.value}}`);
+  }
+
+  // Date range conditions
+  const erstellungsjahrCondition = buildDateRangeCondition(
+    "erstellungsjahr",
+    values.erstellungsjahr?.von,
+    values.erstellungsjahr?.bis
+  );
+  if (erstellungsjahrCondition) {
+    conditions.push(erstellungsjahrCondition);
+  }
+
+  const einbaudatumRsCondition = buildDateRangeCondition(
+    "einbaudatum_rs",
+    values.einbaudatumRs?.von,
+    values.einbaudatumRs?.bis
+  );
+  if (einbaudatumRsCondition) {
+    conditions.push(einbaudatumRsCondition);
+  }
+
+  const pruefdatumCondition = buildDateRangeCondition(
+    "pruefdatum",
+    values.pruefdatum?.von,
+    values.pruefdatum?.bis
+  );
+  if (pruefdatumCondition) {
+    conditions.push(pruefdatumCondition);
+  }
+
+  return conditions.length > 0 ? `where: {${conditions.join(", ")}}` : "";
+};
+
 // Helper to generate query string for preview
 const generateQueryString = (
   searchType: SearchType,
@@ -254,12 +310,24 @@ const generateQueryString = (
     }
   }
 }`;
-  } else {
+  } else if (searchType === "mast") {
     const whereClause = buildMastWhereClause(values as MastSearchValues);
     return `query MastSearch {
   tdta_standort_mast(limit: 500${
     whereClause ? `, ${whereClause}` : ""
   }, order_by: {inbetriebnahme_mast: desc}) {
+    id
+    geom {
+      geo_field
+    }
+  }
+}`;
+  } else {
+    const whereClause = buildSchaltstelleWhereClause(values as SchaltstelleSearchValues);
+    return `query SchaltstelleSearch {
+  schaltstelle(limit: 500${
+    whereClause ? `, ${whereClause}` : ""
+  }, order_by: {erstellungsjahr: desc}) {
     id
     geom {
       geo_field
@@ -495,6 +563,34 @@ const SearchModal = ({
           return geoField?.coordinates;
         },
       });
+    } else if (searchType === "schaltstelle") {
+      const whereClause = buildSchaltstelleWhereClause(
+        values as SchaltstelleSearchValues
+      );
+      const query = `query SchaltstelleSearch {
+        schaltstelle(limit: 500${
+          whereClause ? `, ${whereClause}` : ""
+        }, order_by: {erstellungsjahr: desc}) {
+          id
+          geom {
+            geo_field
+          }
+        }
+      }`;
+
+      handleGraphQLSearch({
+        query,
+        dataKey: "schaltstelle",
+        featurePrefix: "schaltstelle",
+        logPrefix: "[SCHALTSTELLE_SEARCH]",
+        getGeometry: (item) => {
+          const geom = item.geom as Record<string, unknown> | undefined;
+          const geoField = geom?.geo_field as
+            | { coordinates?: [number, number] }
+            | undefined;
+          return geoField?.coordinates;
+        },
+      });
     }
   }, [searchType, handleGraphQLSearch]);
 
@@ -502,6 +598,8 @@ const SearchModal = ({
     switch (searchType) {
       case "mast":
         return <MastSearch onValuesChange={handleValuesChange} />;
+      case "schaltstelle":
+        return <SchaltstelleSearch onValuesChange={handleValuesChange} />;
       case "leuchte":
       default:
         return <LeuchteSearch onValuesChange={handleValuesChange} />;
