@@ -177,6 +177,7 @@ const OnMapList = ({
       layerFilterExpressions: ["Leuchten.*-base", "Leuchten.*-icon"],
       highlightedOnly: highlightingActive,
       refreshTrigger: highlightVersion,
+      showDebugBounds: true,
     });
 
   // Filter features by active source layers
