@@ -29,6 +29,7 @@ import {
 } from "../../store/slices/keyTables";
 import { fetchAllKeyTables } from "../../helper/apiMethods";
 import localForage from "localforage";
+import SearchModal from "../ui/SearchModal";
 // import SearchModal from "../ui/SearchModal";
 
 const FILTER_STORAGE_KEY = "@belis-desktop.layerFilter";
@@ -186,7 +187,7 @@ const MainPage = () => {
                     {"\u2715"}
                   </button>
                 )}
-                {/* <SearchModal showFinalQuery={true} /> */}
+                <SearchModal showFinalQuery={true} />
               </div>
 
               {/* Filter switches */}
