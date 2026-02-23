@@ -366,14 +366,21 @@ const SearchModal = ({
             return;
           }
 
-          const bbox = {
+          const rawBbox = {
             minLng: Math.min(...coords.map((c) => c[0])),
             maxLng: Math.max(...coords.map((c) => c[0])),
             minLat: Math.min(...coords.map((c) => c[1])),
             maxLat: Math.max(...coords.map((c) => c[1])),
           };
-          // console.log(`${logPrefix} BBox:`, bbox);
-          // console.log(`${logPrefix} Coordinates:`, coords);
+          // Expand bbox by 10% on each side to ensure all features are visible
+          const lngPadding = (rawBbox.maxLng - rawBbox.minLng) * 0.1 || 0.001;
+          const latPadding = (rawBbox.maxLat - rawBbox.minLat) * 0.1 || 0.001;
+          const bbox = {
+            minLng: rawBbox.minLng - lngPadding,
+            maxLng: rawBbox.maxLng + lngPadding,
+            minLat: rawBbox.minLat - latPadding,
+            maxLat: rawBbox.maxLat + latPadding,
+          };
 
           // Highlight the returned features on the map
           const ids = results
