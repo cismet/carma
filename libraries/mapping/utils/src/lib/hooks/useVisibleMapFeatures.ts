@@ -114,6 +114,8 @@ export const useVisibleMapFeatures = ({
   const resolvedLayerIdsRef = useRef<string[] | undefined>(undefined);
   const layerFilterExpressionsRef = useRef(layerFilterExpressions);
   layerFilterExpressionsRef.current = layerFilterExpressions;
+  // Track last debug bounds to avoid infinite loop when updating debug source
+  const lastDebugBoundsRef = useRef<string | null>(null);
 
   // Resolve layerFilterExpressions to MapLibre layer IDs once on style load.
   // In imperative mode, actual layer IDs are namespaced (e.g. "slug::leitungen-base")
@@ -221,22 +223,6 @@ export const useVisibleMapFeatures = ({
           verticalOffset = (canvasHeight - visibleMapHeight) / 2;
         }
 
-        console.log("yyy BOUNDS DEBUG", {
-          canvasWidth,
-          canvasHeight,
-          visibleMapWidth,
-          visibleMapHeight,
-          isOversized,
-          horizontalOffset,
-          verticalOffset,
-          fullBounds: {
-            west: fullWest,
-            east: fullEast,
-            north: fullNorth,
-            south: fullSouth,
-          },
-        });
-
         // Visible bounds with offset
         const visibleWest =
           fullWest + lngRange * (horizontalOffset / canvasWidth);
@@ -254,44 +240,52 @@ export const useVisibleMapFeatures = ({
         const debugLayerId = "debug-bbox-layer";
 
         if (showDebugBounds) {
-          const bboxGeoJSON: GeoJSON.Feature = {
-            type: "Feature",
-            properties: {},
-            geometry: {
-              type: "Polygon",
-              coordinates: [
-                [
-                  [visibleWest, visibleNorth],
-                  [visibleEast, visibleNorth],
-                  [visibleEast, visibleSouth],
-                  [visibleWest, visibleSouth],
-                  [visibleWest, visibleNorth],
-                ],
-              ],
-            },
-          };
+          // Create a key to track if bounds have changed (avoid infinite loop from setData triggering idle)
+          const boundsKey = `${visibleWest.toFixed(6)},${visibleEast.toFixed(6)},${visibleNorth.toFixed(6)},${visibleSouth.toFixed(6)}`;
 
-          if (maplibreMap.getSource(debugSourceId)) {
-            (
-              maplibreMap.getSource(debugSourceId) as maplibregl.GeoJSONSource
-            ).setData(bboxGeoJSON);
-          } else {
-            maplibreMap.addSource(debugSourceId, {
-              type: "geojson",
-              data: bboxGeoJSON,
-            });
-            maplibreMap.addLayer({
-              id: debugLayerId,
-              type: "line",
-              source: debugSourceId,
-              paint: {
-                "line-color": "yellow",
-                "line-width": 4,
+          if (lastDebugBoundsRef.current !== boundsKey) {
+            lastDebugBoundsRef.current = boundsKey;
+
+            const bboxGeoJSON: GeoJSON.Feature = {
+              type: "Feature",
+              properties: {},
+              geometry: {
+                type: "Polygon",
+                coordinates: [
+                  [
+                    [visibleWest, visibleNorth],
+                    [visibleEast, visibleNorth],
+                    [visibleEast, visibleSouth],
+                    [visibleWest, visibleSouth],
+                    [visibleWest, visibleNorth],
+                  ],
+                ],
               },
-            });
+            };
+
+            if (maplibreMap.getSource(debugSourceId)) {
+              (
+                maplibreMap.getSource(debugSourceId) as maplibregl.GeoJSONSource
+              ).setData(bboxGeoJSON);
+            } else {
+              maplibreMap.addSource(debugSourceId, {
+                type: "geojson",
+                data: bboxGeoJSON,
+              });
+              maplibreMap.addLayer({
+                id: debugLayerId,
+                type: "line",
+                source: debugSourceId,
+                paint: {
+                  "line-color": "yellow",
+                  "line-width": 4,
+                },
+              });
+            }
           }
         } else {
-          // Remove debug layer if it exists
+          // Remove debug layer if it exists and reset bounds tracking
+          lastDebugBoundsRef.current = null;
           if (maplibreMap.getLayer(debugLayerId)) {
             maplibreMap.removeLayer(debugLayerId);
           }
