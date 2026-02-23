@@ -115,6 +115,7 @@ export type UseCesiumPointMoveGizmoOptions = {
   movePointId?: string | null;
   axisDirection?: Cartesian3 | null;
   axisTitle?: string | null;
+  preferredAxisId?: string | null;
   axisCandidates?: CesiumMoveGizmoAxisCandidate[] | null;
   showRotationHandle?: boolean;
   showDiscVisualizer?: boolean;
@@ -295,6 +296,7 @@ export const useCesiumPointMoveGizmo = (
     movePointId = null,
     axisDirection = null,
     axisTitle = null,
+    preferredAxisId = null,
     axisCandidates = null,
     showRotationHandle = true,
     showDiscVisualizer = true,
@@ -329,6 +331,7 @@ export const useCesiumPointMoveGizmo = (
   >({});
   const axisAnchorDistanceRef = useRef<Record<string, number>>({});
   const axisDirectionRef = useRef<Cartesian3 | null>(axisDirection);
+  const preferredAxisIdRef = useRef<string | null>(preferredAxisId);
   const axisCandidatesRef = useRef<CesiumMoveGizmoAxisCandidate[] | null>(
     axisCandidates
   );
@@ -391,6 +394,10 @@ export const useCesiumPointMoveGizmo = (
   }, [axisDirection]);
 
   useEffect(() => {
+    preferredAxisIdRef.current = preferredAxisId;
+  }, [preferredAxisId]);
+
+  useEffect(() => {
     radiusRef.current = radius;
   }, [radius]);
 
@@ -406,6 +413,16 @@ export const useCesiumPointMoveGizmo = (
         ? axisCandidates
         : getDefaultAxisCandidatesAtPosition(movePoint.geometryECEF, axisTitle);
     if (candidates.length === 0) return;
+
+    if (preferredAxisId) {
+      const preferredAxis = candidates.find(
+        (candidate) => candidate.id === preferredAxisId
+      );
+      if (preferredAxis) {
+        activeAxisIdRef.current = preferredAxis.id;
+        return;
+      }
+    }
 
     const normalizedOverride =
       axisDirection &&
@@ -446,7 +463,7 @@ export const useCesiumPointMoveGizmo = (
     }
 
     activeAxisIdRef.current = candidates[0].id;
-  }, [axisCandidates, axisDirection, axisTitle, movePoint]);
+  }, [axisCandidates, axisDirection, axisTitle, movePoint, preferredAxisId]);
 
   const getAxisCandidatesAtPosition = useCallback(
     (origin: Cartesian3): CesiumMoveGizmoAxisCandidate[] => {
@@ -536,6 +553,17 @@ export const useCesiumPointMoveGizmo = (
         (candidate) => candidate.id === activeAxisIdRef.current
       );
       if (byId) return byId;
+
+      const preferredAxisId = preferredAxisIdRef.current;
+      if (preferredAxisId) {
+        const byPreferredAxisId = candidates.find(
+          (candidate) => candidate.id === preferredAxisId
+        );
+        if (byPreferredAxisId) {
+          activeAxisIdRef.current = byPreferredAxisId.id;
+          return byPreferredAxisId;
+        }
+      }
 
       const overrideDirection = axisDirectionRef.current;
       if (

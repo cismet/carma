@@ -45,6 +45,13 @@ export type PlanarPolygonPlane = {
   normalECEF: SerializableCartesian3;
 };
 
+export type PlanarPolygonLocalFrame = {
+  originECEF: SerializableCartesian3;
+  eastECEF: SerializableCartesian3;
+  northECEF: SerializableCartesian3;
+  upECEF: SerializableCartesian3;
+};
+
 export type PlanarPolygonGroup = {
   id: string;
   name?: string;
@@ -57,6 +64,7 @@ export type PlanarPolygonGroup = {
   closed: boolean;
   planeLocked: boolean;
   plane?: PlanarPolygonPlane;
+  planarPolygonLocalFrame?: PlanarPolygonLocalFrame;
   areaSquareMeters?: number;
   verticalityDeg?: number;
   surfaceType?: SurfaceType;

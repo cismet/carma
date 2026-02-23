@@ -92,6 +92,7 @@ export type CesiumPointVisualizerOptions = {
   moveGizmoPointId?: string | null;
   moveGizmoAxisDirection?: Cartesian3 | null;
   moveGizmoAxisTitle?: string | null;
+  moveGizmoPreferredAxisId?: string | null;
   moveGizmoAxisCandidates?: Array<{
     id: string;
     direction: Cartesian3;
@@ -164,6 +165,7 @@ export const useCesiumPointVisualizer = (
     moveGizmoPointId = null,
     moveGizmoAxisDirection = null,
     moveGizmoAxisTitle = null,
+    moveGizmoPreferredAxisId = null,
     moveGizmoAxisCandidates = null,
     moveGizmoMarkerSizeScale = 1,
     moveGizmoLabelDistanceScale = 1,
@@ -245,6 +247,7 @@ export const useCesiumPointVisualizer = (
     movePointId: moveGizmoPointId,
     axisDirection: moveGizmoAxisDirection,
     axisTitle: moveGizmoAxisTitle,
+    preferredAxisId: moveGizmoPreferredAxisId,
     axisCandidates: moveGizmoAxisCandidates,
     snapPlaneDragToGround: moveGizmoSnapPlaneDragToGround,
     showRotationHandle: moveGizmoShowRotationHandle,

@@ -148,6 +148,11 @@ const TOOL_BUTTONS: ToolButtonDef[] = [
   },
 ];
 
+const DISABLED_POLYGON_SUB_TYPES = new Set<PolygonSubType>([
+  "horizontal",
+  "oblique",
+]);
+
 const ACTIVE_ACCENT_COLOR = "#1677ff";
 const INACTIVE_ICON_COLOR = "#4b5563";
 const LAYER_BUTTON_SHADOW =
@@ -271,25 +276,28 @@ const toolButtonStyle = (
   opacity: disabled ? 0.45 : 1,
 });
 
-const subButtonStyle = (isActive: boolean): CSSProperties => ({
+const subButtonStyle = (
+  isActive: boolean,
+  disabled: boolean = false
+): CSSProperties => ({
   display: "inline-flex",
   alignItems: "center",
   justifyContent: "center",
-  minWidth: 70,
+  width: 28,
   height: 28,
-  gap: 4,
-  borderRadius: 8,
+  borderRadius: 999,
   border: isActive
     ? `1px solid rgba(22, 119, 255, 0.45)`
     : "1px solid rgba(0, 0, 0, 0.05)",
   backgroundColor: isActive ? "#ffffff" : "#f3f4f6",
   color: isActive ? ACTIVE_ACCENT_COLOR : INACTIVE_ICON_COLOR,
-  cursor: "pointer",
+  cursor: disabled ? "not-allowed" : "pointer",
   fontSize: 10,
   boxShadow: LAYER_BUTTON_SHADOW,
-  padding: "0 8px",
+  padding: 0,
   transition: "all 0.15s ease",
   flexShrink: 0,
+  opacity: disabled ? 0.35 : 1,
 });
 
 const optionsContainerStyle: CSSProperties = {
@@ -1031,24 +1039,34 @@ export function MeasurementModeToolbar({
             "Bei Fassaden entsteht aus zwei Punkten eine rechteckige Fläche mit Live-Vorschau.",
           ])}
         >
-          <span style={optionsLabelStyle}>Flächenmodus:</span>
-          <div style={{ display: "inline-flex", gap: 6, alignItems: "center" }}>
+          <div
+            role="radiogroup"
+            aria-label="Flächenmodus"
+            style={{ display: "inline-flex", gap: 6, alignItems: "center" }}
+          >
             {POLYGON_SUB_BUTTONS.map(
               ({ subType, icon, shortLabel, tooltip }) => (
                 <Tooltip key={subType} title={tooltip} placement="bottom">
                   <button
                     type="button"
-                    style={subButtonStyle(activePolygonSubType === subType)}
+                    style={subButtonStyle(
+                      activePolygonSubType === subType,
+                      DISABLED_POLYGON_SUB_TYPES.has(subType)
+                    )}
                     onClick={() => {
+                      if (DISABLED_POLYGON_SUB_TYPES.has(subType)) {
+                        return;
+                      }
                       onToolTypeChange("polygon");
                       onPolygonSubTypeChange?.(subType);
                     }}
-                    aria-pressed={activePolygonSubType === subType}
+                    role="radio"
+                    aria-checked={activePolygonSubType === subType}
                     aria-label={tooltip}
                     data-test-id={`polygon-sub-${subType}`}
+                    disabled={DISABLED_POLYGON_SUB_TYPES.has(subType)}
                   >
                     {icon}
-                    <span>{shortLabel}</span>
                   </button>
                 </Tooltip>
               )

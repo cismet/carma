@@ -917,6 +917,38 @@ export function InfoBoxMeasurement3D({ pixelWidth = 350 }) {
       }
     }
     if (currentMeasurement) {
+      if (isPointMeasurementEntry(currentMeasurement)) {
+        const owningPolygonGroup =
+          (selectedPlanarPolygonGroup &&
+          selectedPlanarPolygonGroup.vertexPointIds.includes(
+            currentMeasurement.id
+          )
+            ? selectedPlanarPolygonGroup
+            : null) ??
+          planarPolygonGroups.find(
+            (group) =>
+              group.closed &&
+              group.vertexPointIds.includes(currentMeasurement.id)
+          ) ??
+          null;
+
+        if (owningPolygonGroup && owningPolygonGroup.vertexPointIds.length <= 3) {
+          Modal.confirm({
+            centered: true,
+            title: "Polygon löschen?",
+            content:
+              "Ein einzelner Knoten kann bei Polygonen mit 3 oder weniger Punkten nicht gelöscht werden. Soll stattdessen das gesamte Polygon gelöscht werden?",
+            okText: "Polygon löschen",
+            cancelText: "Abbrechen",
+            okButtonProps: { danger: true },
+            onOk: () => {
+              deletePolygonGroupById(owningPolygonGroup.id);
+            },
+          });
+          return;
+        }
+      }
+
       clearMeasurementsByIds([currentMeasurement.id]);
     }
   };
@@ -1552,13 +1584,14 @@ export function InfoBoxMeasurement3D({ pixelWidth = 350 }) {
     flyToPointGroup(scene, polygonPoints);
   };
 
-  const deleteSelectedPolygon = (e?: ReactMouseEvent | MouseEvent) => {
-    e?.stopPropagation?.();
-    if (!selectedPlanarPolygonGroup) return;
-    const deletedGroupId = selectedPlanarPolygonGroup.id;
-    const deletedVertexPointIds = new Set(
-      selectedPlanarPolygonGroup.vertexPointIds
+  const deletePolygonGroupById = (polygonGroupId: string) => {
+    const deletedGroup = planarPolygonGroups.find(
+      (group) => group.id === polygonGroupId
     );
+    if (!deletedGroup) return;
+
+    const deletedGroupId = deletedGroup.id;
+    const deletedVertexPointIds = new Set(deletedGroup.vertexPointIds);
 
     const remainingPolygonGroups = planarPolygonGroups.filter(
       (group) => group.id !== deletedGroupId
@@ -1590,6 +1623,12 @@ export function InfoBoxMeasurement3D({ pixelWidth = 350 }) {
       clearMeasurementsByIds(orphanPointIdsToDelete);
     }
     selectPlanarPolygonGroupById(null);
+  };
+
+  const deleteSelectedPolygon = (e?: ReactMouseEvent | MouseEvent) => {
+    e?.stopPropagation?.();
+    if (!selectedPlanarPolygonGroup) return;
+    deletePolygonGroupById(selectedPlanarPolygonGroup.id);
   };
 
   const referencePointMeasurementId = useMemo(() => {

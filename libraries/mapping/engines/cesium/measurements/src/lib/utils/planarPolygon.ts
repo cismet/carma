@@ -8,6 +8,7 @@ import {
 
 import type {
   PlanarPolygonGroup,
+  PlanarPolygonLocalFrame,
   PlanarPolygonPlane,
   SurfaceType,
 } from "../types/MeasurementTypes";
@@ -25,6 +26,13 @@ export const fromSerializableCartesian3 = (value: {
   y: number;
   z: number;
 }) => new Cartesian3(value.x, value.y, value.z);
+
+const normalizeDirection = (direction: Cartesian3): Cartesian3 | null => {
+  if (Cartesian3.magnitudeSquared(direction) <= EPSILON) {
+    return null;
+  }
+  return Cartesian3.normalize(direction, new Cartesian3());
+};
 
 export const createPlaneFromThreePoints = (
   a: Cartesian3,
@@ -278,6 +286,96 @@ const derivePlaneFromVertices = (
   return null;
 };
 
+const deriveVerticalPolygonLocalFrame = (
+  vertices: Cartesian3[],
+  plane: PlanarPolygonPlane,
+  previousFrame?: PlanarPolygonLocalFrame
+): PlanarPolygonLocalFrame | undefined => {
+  if (vertices.length === 0) return undefined;
+
+  const origin = vertices[0] ?? fromSerializableCartesian3(plane.anchorECEF);
+  let north = normalizeDirection(fromSerializableCartesian3(plane.normalECEF));
+  if (!north) return undefined;
+
+  if (previousFrame) {
+    const previousNorth = normalizeDirection(
+      fromSerializableCartesian3(previousFrame.northECEF)
+    );
+    if (previousNorth && Cartesian3.dot(north, previousNorth) < 0) {
+      north = Cartesian3.multiplyByScalar(north, -1, new Cartesian3());
+    }
+  }
+
+  const geocentricUp = normalizeDirection(origin);
+  let upInPlane = geocentricUp
+    ? normalizeDirection(
+        Cartesian3.subtract(
+          geocentricUp,
+          Cartesian3.multiplyByScalar(
+            north,
+            Cartesian3.dot(geocentricUp, north),
+            new Cartesian3()
+          ),
+          new Cartesian3()
+        )
+      )
+    : null;
+
+  let east = upInPlane
+    ? normalizeDirection(Cartesian3.cross(north, upInPlane, new Cartesian3()))
+    : null;
+
+  if (!east) {
+    for (let index = 0; index < vertices.length - 1; index += 1) {
+      const start = vertices[index];
+      const end = vertices[index + 1];
+      if (!start || !end) continue;
+      const edge = Cartesian3.subtract(end, start, new Cartesian3());
+      const inPlaneEdge = Cartesian3.subtract(
+        edge,
+        Cartesian3.multiplyByScalar(
+          north,
+          Cartesian3.dot(edge, north),
+          new Cartesian3()
+        ),
+        new Cartesian3()
+      );
+      east = normalizeDirection(inPlaneEdge);
+      if (east) break;
+    }
+  }
+
+  if (!east) {
+    east = normalizeDirection(Cartesian3.cross(north, Cartesian3.UNIT_X, new Cartesian3()));
+  }
+  if (!east) {
+    east = normalizeDirection(Cartesian3.cross(north, Cartesian3.UNIT_Y, new Cartesian3()));
+  }
+  if (!east) {
+    return undefined;
+  }
+
+  upInPlane = normalizeDirection(Cartesian3.cross(east, north, new Cartesian3()));
+  if (!upInPlane) return undefined;
+
+  if (previousFrame) {
+    const previousEast = normalizeDirection(
+      fromSerializableCartesian3(previousFrame.eastECEF)
+    );
+    if (previousEast && Cartesian3.dot(east, previousEast) < 0) {
+      east = Cartesian3.multiplyByScalar(east, -1, new Cartesian3());
+      north = Cartesian3.multiplyByScalar(north, -1, new Cartesian3());
+    }
+  }
+
+  return {
+    originECEF: toSerializableCartesian3(origin),
+    eastECEF: toSerializableCartesian3(east),
+    northECEF: toSerializableCartesian3(north),
+    upECEF: toSerializableCartesian3(upInPlane),
+  };
+};
+
 export const computePolygonGroupDerivedData = (
   group: PlanarPolygonGroup,
   pointById: Map<string, Cartesian3>
@@ -312,10 +410,19 @@ export const computePolygonGroupDerivedData = (
     : 0;
   const verticalityDeg = computeVerticalityDeg(plane);
   const surfaceType = group.surfaceType ?? classifySurfaceType(verticalityDeg);
+  const planarPolygonLocalFrame =
+    surfaceType === "facade"
+      ? deriveVerticalPolygonLocalFrame(
+          vertices,
+          plane,
+          group.planarPolygonLocalFrame
+        )
+      : undefined;
 
   return {
     ...group,
     plane,
+    planarPolygonLocalFrame,
     areaSquareMeters,
     verticalityDeg,
     surfaceType,

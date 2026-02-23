@@ -10,7 +10,14 @@ import React, {
   SetStateAction,
   useEffect,
 } from "react";
-import { Cartesian2, Cartesian3, getDegreesFromCartesian } from "@carma/cesium";
+import {
+  Cartesian2,
+  Cartesian3,
+  Cartesian4,
+  Matrix4,
+  Transforms,
+  getDegreesFromCartesian,
+} from "@carma/cesium";
 import { useLabelOverlay } from "@carma-providers/label-overlay";
 
 import { normalizeOptions } from "@carma-commons/utils";
@@ -71,6 +78,7 @@ import {
   computePolylinePlanarAngleSumDeg,
   createPlaneFromThreePoints,
   distancePointToPlane,
+  fromSerializableCartesian3,
   projectPointOntoPlane,
 } from "../utils/planarPolygon";
 import {
@@ -84,6 +92,7 @@ import {
 type MoveGizmoStartOptions = {
   axisDirection?: Cartesian3 | null;
   axisTitle?: string | null;
+  preferredAxisId?: string | null;
   axisCandidates?: Array<{
     id: string;
     direction: Cartesian3;
@@ -96,6 +105,152 @@ type MoveGizmoStartOptions = {
 
 const getLocalUpDirectionAtAnchor = (anchorECEF: Cartesian3): Cartesian3 =>
   Cartesian3.normalize(anchorECEF, new Cartesian3());
+
+const DIRECTION_EPSILON = 1e-12;
+const VERTICAL_POLYGON_AXIS_ALIGNMENT_DOT_EPSILON = 0.999;
+const VERTICAL_POLYGON_EN_MATCH_EPSILON_METERS = 0.05;
+const VERTICAL_POLYGON_AXIS_ID_ENU_UP = "enu-up";
+const VERTICAL_POLYGON_AXIS_ID_ENU_EAST = "enu-east";
+const VERTICAL_POLYGON_AXIS_ID_ENU_NORTH = "enu-north";
+
+const normalizeDirection = (direction: Cartesian3): Cartesian3 | null => {
+  if (Cartesian3.magnitudeSquared(direction) <= DIRECTION_EPSILON) {
+    return null;
+  }
+  return Cartesian3.normalize(direction, new Cartesian3());
+};
+
+const getSignedAngleDegAroundAxis = (
+  fromDirection: Cartesian3,
+  toDirection: Cartesian3,
+  axisDirection: Cartesian3
+): number | null => {
+  const normalizedAxis = normalizeDirection(axisDirection);
+  if (!normalizedAxis) return null;
+
+  const fromProjected = normalizeDirection(
+    Cartesian3.subtract(
+      fromDirection,
+      Cartesian3.multiplyByScalar(
+        normalizedAxis,
+        Cartesian3.dot(fromDirection, normalizedAxis),
+        new Cartesian3()
+      ),
+      new Cartesian3()
+    )
+  );
+  const toProjected = normalizeDirection(
+    Cartesian3.subtract(
+      toDirection,
+      Cartesian3.multiplyByScalar(
+        normalizedAxis,
+        Cartesian3.dot(toDirection, normalizedAxis),
+        new Cartesian3()
+      ),
+      new Cartesian3()
+    )
+  );
+  if (!fromProjected || !toProjected) {
+    return null;
+  }
+
+  const sinComponent = Cartesian3.dot(
+    Cartesian3.cross(fromProjected, toProjected, new Cartesian3()),
+    normalizedAxis
+  );
+  const cosComponent = Math.max(
+    -1,
+    Math.min(1, Cartesian3.dot(fromProjected, toProjected))
+  );
+  return (Math.atan2(sinComponent, cosComponent) * 180) / Math.PI;
+};
+
+const getVerticalPolygonAxisRotationSuffix = (
+  eastRotationDegVsEnuEast: number | null
+): string => {
+  if (eastRotationDegVsEnuEast === null) {
+    return "";
+  }
+  const roundedRotationDeg = Math.round(eastRotationDegVsEnuEast * 10) / 10;
+  const safeRoundedRotationDeg = Object.is(roundedRotationDeg, -0)
+    ? 0
+    : roundedRotationDeg;
+  const signedRotation =
+    safeRoundedRotationDeg > 0
+      ? `+${safeRoundedRotationDeg}`
+      : `${safeRoundedRotationDeg}`;
+  return ` (rot. ${signedRotation}° ggü. ENU-E)`;
+};
+
+type VerticalPolygonLocalFrameVectors = {
+  origin: Cartesian3;
+  east: Cartesian3;
+  north: Cartesian3;
+  up: Cartesian3;
+};
+
+const resolveVerticalPolygonLocalFrameVectors = (
+  group: PlanarPolygonGroup
+): VerticalPolygonLocalFrameVectors | null => {
+  const frame = group.planarPolygonLocalFrame;
+  if (!frame) return null;
+
+  const east = normalizeDirection(
+    new Cartesian3(frame.eastECEF.x, frame.eastECEF.y, frame.eastECEF.z)
+  );
+  const north = normalizeDirection(
+    new Cartesian3(frame.northECEF.x, frame.northECEF.y, frame.northECEF.z)
+  );
+  const up = normalizeDirection(
+    new Cartesian3(frame.upECEF.x, frame.upECEF.y, frame.upECEF.z)
+  );
+  if (!east || !north || !up) {
+    return null;
+  }
+
+  return {
+    origin: new Cartesian3(
+      frame.originECEF.x,
+      frame.originECEF.y,
+      frame.originECEF.z
+    ),
+    east,
+    north,
+    up,
+  };
+};
+
+const getPositionInVerticalPolygonLocalFrame = (
+  position: Cartesian3,
+  frame: VerticalPolygonLocalFrameVectors
+) => {
+  const delta = Cartesian3.subtract(position, frame.origin, new Cartesian3());
+  return {
+    eastMeters: Cartesian3.dot(delta, frame.east),
+    northMeters: Cartesian3.dot(delta, frame.north),
+    upMeters: Cartesian3.dot(delta, frame.up),
+  };
+};
+
+const getPositionFromVerticalPolygonLocalFrame = (
+  frame: VerticalPolygonLocalFrameVectors,
+  eastMeters: number,
+  northMeters: number,
+  upMeters: number
+) =>
+  Cartesian3.add(
+    frame.origin,
+    Cartesian3.add(
+      Cartesian3.multiplyByScalar(frame.east, eastMeters, new Cartesian3()),
+      Cartesian3.add(
+        Cartesian3.multiplyByScalar(frame.north, northMeters, new Cartesian3()),
+        Cartesian3.multiplyByScalar(frame.up, upMeters, new Cartesian3()),
+        new Cartesian3()
+      ),
+      new Cartesian3()
+    ),
+    new Cartesian3()
+  );
 
 const getPositionWithVerticalOffsetFromAnchor = (
   anchorECEF: Cartesian3,
@@ -832,6 +987,9 @@ export const CesiumMeasurementsProvider: React.FC<
     color?: string;
     title?: string | null;
   }> | null>(null);
+  const [moveGizmoPreferredAxisId, setMoveGizmoPreferredAxisId] = useState<
+    string | null
+  >(null);
   const [moveGizmoVerticalOffsetEditMode, setMoveGizmoVerticalOffsetEditMode] =
     useState<"point" | "polyline" | null>(null);
   const [
@@ -846,6 +1004,7 @@ export const CesiumMeasurementsProvider: React.FC<
 
   useEffect(() => {
     if (moveGizmoPointId) return;
+    setMoveGizmoPreferredAxisId(null);
     setMoveGizmoVerticalOffsetEditMode(null);
     setMoveGizmoVerticalOffsetPlanarGroupId(null);
   }, [moveGizmoPointId]);
@@ -3517,6 +3676,92 @@ export const CesiumMeasurementsProvider: React.FC<
       const currentMoveOrigin =
         movedPointAnchor ?? movedPointMeasurement.geometryECEF;
 
+      const delta = computeMoveDelta(nextPosition, currentMoveOrigin);
+      const targetVerticalPolygonGroup =
+        planarPolygonGroups.find(
+          (group) =>
+            group.closed &&
+            (group.surfaceType ?? "roof") === "facade" &&
+            group.vertexPointIds.includes(pointId)
+        ) ?? null;
+      const moveNorthAxisCandidate =
+        moveGizmoAxisCandidates?.find(
+          (candidate) => candidate.id === VERTICAL_POLYGON_AXIS_ID_ENU_NORTH
+        ) ??
+        moveGizmoAxisCandidates?.find(
+          (candidate) => candidate.id === "horizontal-north"
+        ) ??
+        null;
+      const moveEastAxisCandidate =
+        moveGizmoAxisCandidates?.find(
+          (candidate) => candidate.id === VERTICAL_POLYGON_AXIS_ID_ENU_EAST
+        ) ??
+        moveGizmoAxisCandidates?.find(
+          (candidate) => candidate.id === "horizontal-east"
+        ) ??
+        null;
+      const normalizedActiveAxisDirection = moveGizmoAxisDirection
+        ? normalizeDirection(moveGizmoAxisDirection)
+        : null;
+      const normalizedNorthAxisDirection = moveNorthAxisCandidate
+        ? normalizeDirection(moveNorthAxisCandidate.direction)
+        : null;
+      const normalizedEastAxisDirection = moveEastAxisCandidate
+        ? normalizeDirection(moveEastAxisCandidate.direction)
+        : null;
+      const isVerticalPolygonNorthAxisActive = Boolean(
+        targetVerticalPolygonGroup &&
+          normalizedActiveAxisDirection &&
+          normalizedNorthAxisDirection &&
+          Math.abs(
+            Cartesian3.dot(
+              normalizedActiveAxisDirection,
+              normalizedNorthAxisDirection
+            )
+          ) >= VERTICAL_POLYGON_AXIS_ALIGNMENT_DOT_EPSILON
+      );
+
+      const verticalPolygonCoupledPointIdSet = new Set<string>();
+      if (
+        targetVerticalPolygonGroup &&
+        isVerticalPolygonNorthAxisActive &&
+        normalizedNorthAxisDirection &&
+        normalizedEastAxisDirection
+      ) {
+        const pointById = getPointPositionMap(measurements);
+        targetVerticalPolygonGroup.vertexPointIds.forEach((candidatePointId) => {
+          if (!candidatePointId || candidatePointId === pointId) {
+            return;
+          }
+          if (lockedMeasurementIdSet.has(candidatePointId)) {
+            return;
+          }
+          const candidatePosition = pointById.get(candidatePointId);
+          if (!candidatePosition) {
+            return;
+          }
+          const candidateDelta = Cartesian3.subtract(
+            candidatePosition,
+            movedPointMeasurement.geometryECEF,
+            new Cartesian3()
+          );
+          const deltaE = Cartesian3.dot(
+            candidateDelta,
+            normalizedEastAxisDirection
+          );
+          const deltaN = Cartesian3.dot(
+            candidateDelta,
+            normalizedNorthAxisDirection
+          );
+          if (
+            Math.abs(deltaE) <= VERTICAL_POLYGON_EN_MATCH_EPSILON_METERS &&
+            Math.abs(deltaN) <= VERTICAL_POLYGON_EN_MATCH_EPSILON_METERS
+          ) {
+            verticalPolygonCoupledPointIdSet.add(candidatePointId);
+          }
+        });
+      }
+
       if (movedPointAnchor && moveGizmoVerticalOffsetEditMode) {
         const deltaFromAnchor = Cartesian3.subtract(
           nextPosition,
@@ -3634,7 +3879,6 @@ export const CesiumMeasurementsProvider: React.FC<
         return;
       }
 
-      const delta = computeMoveDelta(nextPosition, currentMoveOrigin);
       if (!delta) {
         return;
       }
@@ -3646,6 +3890,11 @@ export const CesiumMeasurementsProvider: React.FC<
       const selectedPointIdSet = new Set(
         selectedPointIds.filter((selectedId) => selectedId !== pointId)
       );
+      verticalPolygonCoupledPointIdSet.forEach((candidatePointId) => {
+        if (candidatePointId !== pointId) {
+          selectedPointIdSet.add(candidatePointId);
+        }
+      });
       if (selectedPointIdSet.size === 0) {
         return;
       }
@@ -3673,6 +3922,8 @@ export const CesiumMeasurementsProvider: React.FC<
     [
       lockedMeasurementIdSet,
       measurements,
+      moveGizmoAxisCandidates,
+      moveGizmoAxisDirection,
       moveGizmoVerticalOffsetEditMode,
       moveGizmoVerticalOffsetPlanarGroupId,
       moveGizmoPointId,
@@ -3708,6 +3959,7 @@ export const CesiumMeasurementsProvider: React.FC<
       setMoveGizmoAxisDirection(axisDirection);
       setMoveGizmoAxisTitle(options?.axisTitle ?? null);
       setMoveGizmoAxisCandidates(axisCandidates ?? null);
+      setMoveGizmoPreferredAxisId(options?.preferredAxisId ?? null);
       setMoveGizmoVerticalOffsetEditMode(
         options?.verticalOffsetEditMode ?? null
       );
@@ -3728,6 +3980,7 @@ export const CesiumMeasurementsProvider: React.FC<
     setMoveGizmoAxisDirection(null);
     setMoveGizmoAxisTitle(null);
     setMoveGizmoAxisCandidates(null);
+    setMoveGizmoPreferredAxisId(null);
     setMoveGizmoVerticalOffsetEditMode(null);
     setMoveGizmoVerticalOffsetPlanarGroupId(null);
     setIsMoveGizmoDragging(false);
@@ -3857,10 +4110,253 @@ export const CesiumMeasurementsProvider: React.FC<
 
   const handlePointLabelLongPress = useCallback(
     (id: string) => {
+      const targetVerticalPolygonGroup =
+        (selectedPlanarPolygonGroupId
+          ? planarPolygonGroups.find(
+              (group) =>
+                group.id === selectedPlanarPolygonGroupId &&
+                (group.surfaceType ?? "roof") === "facade" &&
+                group.vertexPointIds.includes(id)
+            )
+          : null) ??
+        planarPolygonGroups.find(
+          (group) =>
+            group.closed &&
+            (group.surfaceType ?? "roof") === "facade" &&
+            group.vertexPointIds.includes(id)
+        ) ??
+        null;
+
+      if (targetVerticalPolygonGroup) {
+        const pointById = getPointPositionMap(measurements);
+        const pointPosition = pointById.get(id);
+        if (pointPosition) {
+          const persistedVerticalPolygonFrame =
+            resolveVerticalPolygonLocalFrameVectors(targetVerticalPolygonGroup);
+          if (persistedVerticalPolygonFrame) {
+            const enuMatrix = Transforms.eastNorthUpToFixedFrame(pointPosition);
+            const enuEastAxis4 = Matrix4.getColumn(enuMatrix, 0, new Cartesian4());
+            const enuEastDirection = normalizeDirection(
+              new Cartesian3(enuEastAxis4.x, enuEastAxis4.y, enuEastAxis4.z)
+            );
+            const eastRotationDegVsEnuEast =
+              enuEastDirection &&
+              getSignedAngleDegAroundAxis(
+                enuEastDirection,
+                persistedVerticalPolygonFrame.east,
+                persistedVerticalPolygonFrame.north
+              );
+            const axisRotationSuffix = getVerticalPolygonAxisRotationSuffix(
+              eastRotationDegVsEnuEast
+            );
+            const upAxisTitle = `Punkt entlang der ENU-U-Achse${axisRotationSuffix} verschieben`;
+            const verticalPolygonAxisCandidates = [
+              {
+                id: VERTICAL_POLYGON_AXIS_ID_ENU_UP,
+                direction: persistedVerticalPolygonFrame.up,
+                color: "rgba(59, 130, 246, 0.98)",
+                title: upAxisTitle,
+              },
+              {
+                id: VERTICAL_POLYGON_AXIS_ID_ENU_EAST,
+                direction: persistedVerticalPolygonFrame.east,
+                color: "rgba(239, 68, 68, 0.98)",
+                title: `Punkt entlang der ENU-E-Achse${axisRotationSuffix} verschieben`,
+              },
+              {
+                id: VERTICAL_POLYGON_AXIS_ID_ENU_NORTH,
+                direction: persistedVerticalPolygonFrame.north,
+                color: "rgba(34, 197, 94, 0.98)",
+                title: "Punkt entlang der ENU-N-Achse (Flächennormale) verschieben",
+              },
+            ] as const;
+
+            selectMeasurementById(id);
+            startMoveGizmoForMeasurementId(id, {
+              axisDirection: persistedVerticalPolygonFrame.up,
+              axisTitle: upAxisTitle,
+              preferredAxisId: VERTICAL_POLYGON_AXIS_ID_ENU_UP,
+              axisCandidates: verticalPolygonAxisCandidates.map((axisCandidate) => ({
+                ...axisCandidate,
+                direction: Cartesian3.clone(axisCandidate.direction),
+              })),
+            });
+            return;
+          }
+
+          const pointIndex = targetVerticalPolygonGroup.vertexPointIds.findIndex(
+            (vertexId) => vertexId === id
+          );
+          const oppositePointId =
+            pointIndex >= 0 && targetVerticalPolygonGroup.vertexPointIds.length === 4
+              ? targetVerticalPolygonGroup.vertexPointIds[(pointIndex + 2) % 4] ?? null
+              : null;
+          const oppositePointPosition = oppositePointId
+            ? pointById.get(oppositePointId) ?? null
+            : null;
+
+          const planeNormalFromGroup = targetVerticalPolygonGroup.plane
+            ? normalizeDirection(
+                fromSerializableCartesian3(targetVerticalPolygonGroup.plane.normalECEF)
+              )
+            : null;
+          let planeNormal = planeNormalFromGroup;
+          if (!planeNormal) {
+            const vertices = targetVerticalPolygonGroup.vertexPointIds
+              .map((vertexId) => pointById.get(vertexId))
+              .filter((vertex): vertex is Cartesian3 => Boolean(vertex));
+            if (vertices.length >= 3) {
+              const derivedPlane = createPlaneFromThreePoints(
+                vertices[0],
+                vertices[1],
+                vertices[2]
+              );
+              if (derivedPlane) {
+                planeNormal = normalizeDirection(
+                  fromSerializableCartesian3(derivedPlane.normalECEF)
+                );
+              }
+            }
+          }
+
+          if (planeNormal) {
+            const upDirection = getLocalUpDirectionAtAnchor(pointPosition);
+            const enuMatrix = Transforms.eastNorthUpToFixedFrame(pointPosition);
+            const eastAxis4 = Matrix4.getColumn(enuMatrix, 0, new Cartesian4());
+            const fallbackEastDirection = normalizeDirection(
+              new Cartesian3(eastAxis4.x, eastAxis4.y, eastAxis4.z)
+            );
+
+            let eastDirection: Cartesian3 | null = null;
+            if (oppositePointPosition) {
+              const oppositeDelta = Cartesian3.subtract(
+                oppositePointPosition,
+                pointPosition,
+                new Cartesian3()
+              );
+              const horizontalHint = Cartesian3.subtract(
+                oppositeDelta,
+                Cartesian3.multiplyByScalar(
+                  upDirection,
+                  Cartesian3.dot(oppositeDelta, upDirection),
+                  new Cartesian3()
+                ),
+                new Cartesian3()
+              );
+              const hintOnPlane = Cartesian3.subtract(
+                horizontalHint,
+                Cartesian3.multiplyByScalar(
+                  planeNormal,
+                  Cartesian3.dot(horizontalHint, planeNormal),
+                  new Cartesian3()
+                ),
+                new Cartesian3()
+              );
+              eastDirection = normalizeDirection(hintOnPlane);
+            }
+
+            if (!eastDirection) {
+              const inPlaneHorizontal = Cartesian3.cross(
+                planeNormal,
+                upDirection,
+                new Cartesian3()
+              );
+              eastDirection = normalizeDirection(inPlaneHorizontal);
+            }
+
+            if (!eastDirection && fallbackEastDirection) {
+              const fallbackOnPlane = Cartesian3.subtract(
+                fallbackEastDirection,
+                Cartesian3.multiplyByScalar(
+                  planeNormal,
+                  Cartesian3.dot(fallbackEastDirection, planeNormal),
+                  new Cartesian3()
+                ),
+                new Cartesian3()
+              );
+              eastDirection = normalizeDirection(fallbackOnPlane);
+            }
+
+            if (eastDirection) {
+              let northDirection = normalizeDirection(
+                Cartesian3.cross(upDirection, eastDirection, new Cartesian3())
+              );
+              if (!northDirection) {
+                northDirection = planeNormal;
+              }
+
+              if (Cartesian3.dot(northDirection, planeNormal) < 0) {
+                northDirection = Cartesian3.multiplyByScalar(
+                  northDirection,
+                  -1,
+                  new Cartesian3()
+                );
+                eastDirection = Cartesian3.multiplyByScalar(
+                  eastDirection,
+                  -1,
+                  new Cartesian3()
+                );
+              }
+
+              const eastRotationDegVsEnuEast =
+                fallbackEastDirection &&
+                getSignedAngleDegAroundAxis(
+                  fallbackEastDirection,
+                  eastDirection,
+                  northDirection
+                );
+              const axisRotationSuffix = getVerticalPolygonAxisRotationSuffix(
+                eastRotationDegVsEnuEast
+              );
+              const upAxisTitle = `Punkt entlang der ENU-U-Achse${axisRotationSuffix} verschieben`;
+
+              const verticalPolygonAxisCandidates = [
+                {
+                  id: VERTICAL_POLYGON_AXIS_ID_ENU_UP,
+                  direction: upDirection,
+                  color: "rgba(59, 130, 246, 0.98)",
+                  title: upAxisTitle,
+                },
+                {
+                  id: VERTICAL_POLYGON_AXIS_ID_ENU_EAST,
+                  direction: eastDirection,
+                  color: "rgba(239, 68, 68, 0.98)",
+                  title: `Punkt entlang der ENU-E-Achse${axisRotationSuffix} verschieben`,
+                },
+                {
+                  id: VERTICAL_POLYGON_AXIS_ID_ENU_NORTH,
+                  direction: northDirection,
+                  color: "rgba(34, 197, 94, 0.98)",
+                  title: "Punkt entlang der ENU-N-Achse (Flächennormale) verschieben",
+                },
+              ] as const;
+
+              selectMeasurementById(id);
+              startMoveGizmoForMeasurementId(id, {
+                axisDirection: upDirection,
+                axisTitle: upAxisTitle,
+                preferredAxisId: VERTICAL_POLYGON_AXIS_ID_ENU_UP,
+                axisCandidates: verticalPolygonAxisCandidates.map((axisCandidate) => ({
+                  ...axisCandidate,
+                  direction: Cartesian3.clone(axisCandidate.direction),
+                })),
+              });
+              return;
+            }
+          }
+        }
+      }
+
       selectMeasurementById(id);
       startMoveGizmoForMeasurementId(id);
     },
-    [selectMeasurementById, startMoveGizmoForMeasurementId]
+    [
+      measurements,
+      planarPolygonGroups,
+      selectedPlanarPolygonGroupId,
+      selectMeasurementById,
+      startMoveGizmoForMeasurementId,
+    ]
   );
 
   const handleMoveGizmoExit = useCallback(() => {
@@ -4177,6 +4673,26 @@ export const CesiumMeasurementsProvider: React.FC<
         endPoint,
         new Cartesian3()
       );
+      const targetGroupVerticalPolygonFrame =
+        (targetGroup.surfaceType ?? "roof") === "facade"
+          ? resolveVerticalPolygonLocalFrameVectors(targetGroup)
+          : null;
+      if (targetGroupVerticalPolygonFrame) {
+        const startLocal = getPositionInVerticalPolygonLocalFrame(
+          startPoint,
+          targetGroupVerticalPolygonFrame
+        );
+        const endLocal = getPositionInVerticalPolygonLocalFrame(
+          endPoint,
+          targetGroupVerticalPolygonFrame
+        );
+        midpointPosition = getPositionFromVerticalPolygonLocalFrame(
+          targetGroupVerticalPolygonFrame,
+          (startLocal.eastMeters + endLocal.eastMeters) / 2,
+          (startLocal.northMeters + endLocal.northMeters) / 2,
+          (startLocal.upMeters + endLocal.upMeters) / 2
+        );
+      }
       if (targetGroup.planeLocked && targetGroup.plane) {
         midpointPosition = projectPointOntoPlane(
           midpointPosition,
@@ -4519,6 +5035,7 @@ export const CesiumMeasurementsProvider: React.FC<
     distanceLineLabelMinDistancePx: 50,
     cumulativeDistanceByRelationId,
     moveGizmoAxisDirection,
+    moveGizmoPreferredAxisId,
     moveGizmoPointId,
     moveGizmoMarkerSizeScale: moveGizmoOptions.markerSizeScale ?? 1,
     moveGizmoLabelDistanceScale: moveGizmoOptions.labelDistanceScale ?? 1,
@@ -4584,7 +5101,41 @@ export const CesiumMeasurementsProvider: React.FC<
           .map((measurement) => [measurement.id, measurement] as const)
       );
 
-      const idsToDelete = new Set(ids);
+      const requestedIdSet = new Set(ids);
+      const protectedPolygonVertexPointIdSet = new Set<string>();
+      planarPolygonGroups.forEach((group) => {
+        if (!group.closed || group.vertexPointIds.length > 3) {
+          return;
+        }
+        const vertexPointIds = group.vertexPointIds.filter(
+          (vertexId): vertexId is string => Boolean(vertexId)
+        );
+        if (vertexPointIds.length === 0) {
+          return;
+        }
+        const includesAnyVertex = vertexPointIds.some((vertexId) =>
+          requestedIdSet.has(vertexId)
+        );
+        if (!includesAnyVertex) {
+          return;
+        }
+        const includesAllVertices = vertexPointIds.every((vertexId) =>
+          requestedIdSet.has(vertexId)
+        );
+        if (includesAllVertices) {
+          return;
+        }
+        vertexPointIds.forEach((vertexId) => {
+          protectedPolygonVertexPointIdSet.add(vertexId);
+        });
+      });
+
+      const idsToDelete = new Set(
+        ids.filter((id) => !protectedPolygonVertexPointIdSet.has(id))
+      );
+      if (idsToDelete.size === 0) {
+        return;
+      }
       let remainingRelations = [...distanceRelations];
 
       // Expand deletion set: if deleting a point removes a relation, and the

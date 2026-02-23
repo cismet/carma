@@ -36,7 +36,9 @@ export function MeasurementToolbar3D({
     setSelectionModeActive,
     selectModeAdditive,
     setSelectModeAdditive,
+    clearMeasurementsByIds,
     deleteSelectedPointMeasurements,
+    planarPolygonGroups,
     temporaryMode,
     setTemporaryMode,
     distanceModeStickyToFirstPoint,
@@ -153,6 +155,45 @@ export function MeasurementToolbar3D({
   }, [measurementById, selectedPointIds, setMeasurements]);
 
   const requestDeleteSelectedPoints = useCallback(() => {
+    const selectedPointIdSet = new Set(deletableSelectedPointIds);
+    const protectedPolygonCandidate = planarPolygonGroups.find((group) => {
+      if (!group.closed || group.vertexPointIds.length > 3) {
+        return false;
+      }
+      const vertexIds = group.vertexPointIds.filter(
+        (vertexId): vertexId is string => Boolean(vertexId)
+      );
+      if (vertexIds.length === 0) {
+        return false;
+      }
+      const includesAnyVertex = vertexIds.some((vertexId) =>
+        selectedPointIdSet.has(vertexId)
+      );
+      if (!includesAnyVertex) {
+        return false;
+      }
+      const includesAllVertices = vertexIds.every((vertexId) =>
+        selectedPointIdSet.has(vertexId)
+      );
+      return !includesAllVertices;
+    });
+
+    if (protectedPolygonCandidate) {
+      Modal.confirm({
+        centered: true,
+        title: "Polygon löschen?",
+        content:
+          "Ein einzelner Knoten kann bei Polygonen mit 3 oder weniger Punkten nicht gelöscht werden. Soll stattdessen das gesamte Polygon gelöscht werden?",
+        okText: "Polygon löschen",
+        cancelText: "Abbrechen",
+        okButtonProps: { danger: true },
+        onOk: () => {
+          clearMeasurementsByIds(protectedPolygonCandidate.vertexPointIds);
+        },
+      });
+      return;
+    }
+
     if (deletableSelectedPointCount > 1) {
       Modal.confirm({
         centered: true,
@@ -168,7 +209,13 @@ export function MeasurementToolbar3D({
       return;
     }
     deleteSelectedPointMeasurements();
-  }, [deleteSelectedPointMeasurements, deletableSelectedPointCount]);
+  }, [
+    clearMeasurementsByIds,
+    deleteSelectedPointMeasurements,
+    deletableSelectedPointCount,
+    deletableSelectedPointIds,
+    planarPolygonGroups,
+  ]);
 
   useEffect(() => {
     const handleMultiDeleteKey = (event: KeyboardEvent) => {
