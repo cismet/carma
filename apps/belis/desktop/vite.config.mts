@@ -59,6 +59,19 @@ export default defineConfig({
     },
   },
 
+  optimizeDeps: {
+    include: ['maplibre-gl'],
+    esbuildOptions: {
+      target: 'es2022',
+    },
+  },
+
+  esbuild: {
+    supported: {
+      'class-static-field': true,
+    },
+  },
+
   define: {
     'import.meta.vitest': undefined,
   },

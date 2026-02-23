@@ -30,6 +30,19 @@ export default defineConfig({
   //  plugins: [ nxViteTsPaths() ],
   // },
 
+  optimizeDeps: {
+    include: ["maplibre-gl"],
+    esbuildOptions: {
+      target: "es2022",
+    },
+  },
+
+  esbuild: {
+    supported: {
+      "class-static-field": true,
+    },
+  },
+
   build: {
     outDir: "../../dist/playgrounds/ng-topicmap-playground",
     reportCompressedSize: true,
