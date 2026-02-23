@@ -15,6 +15,27 @@ import type { Map as MaplibreMap, MapMouseEvent } from "maplibre-gl";
 import { useMapHighlight } from "../contexts/MapHighlightContext";
 import type { HighlightCriteria } from "../contexts/MapHighlightContext";
 
+/**
+ * Pre-built index for O(1) queryId lookups.
+ * Keys: "sourceLayer::property::value" and "*::property::value" (wildcard)
+ */
+type QueryIdIndex = Set<string>;
+
+interface QueryIdLookup {
+  index: QueryIdIndex;
+  properties: Set<string>;
+}
+
+function buildQueryIdLookup(criteria: HighlightCriteria): QueryIdLookup {
+  const index: QueryIdIndex = new Set();
+  const properties = new Set<string>();
+  for (const qid of criteria.queryIds) {
+    index.add(`${qid.sourceLayer}::${qid.property}::${qid.value}`);
+    properties.add(qid.property);
+  }
+  return { index, properties };
+}
+
 type MapWithGlobalState = MaplibreMap & {
   setGlobalStateProperty(key: string, value: unknown): void;
 };
@@ -64,6 +85,7 @@ function discoverSources(
  *  while toggling a non-matching feature adds it. */
 function matchesCriteria(
   criteria: HighlightCriteria,
+  queryIdLookup: QueryIdLookup,
   featureProps: Record<string, unknown>,
   featureId: string | number,
   sourceLayer: string,
@@ -89,12 +111,14 @@ function matchesCriteria(
     }
   }
 
-  // Check query IDs
-  if (!matchedByCriteria) {
-    for (const qid of criteria.queryIds) {
-      if (qid.sourceLayer !== "*" && qid.sourceLayer !== sourceLayer) continue;
-      const val = String(featureProps[qid.property] ?? "");
-      if (val === String(qid.value)) {
+  // Check query IDs via Set index (O(1) per property instead of O(N))
+  if (!matchedByCriteria && queryIdLookup.index.size > 0) {
+    for (const prop of queryIdLookup.properties) {
+      const val = String(featureProps[prop] ?? "");
+      if (
+        queryIdLookup.index.has(`${sourceLayer}::${prop}::${val}`) ||
+        queryIdLookup.index.has(`*::${prop}::${val}`)
+      ) {
         matchedByCriteria = true;
         break;
       }
@@ -122,6 +146,7 @@ export const useMapHighlighting = ({
 
   const sourceDataCleanupRef = useRef<(() => void) | null>(null);
   const prevVersionRef = useRef(-1);
+  const debounceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Apply highlight feature state to all currently loaded features
   const applyHighlights = useCallback(
@@ -130,6 +155,7 @@ export const useMapHighlighting = ({
       if (!mapInst.isStyleLoaded()) return;
 
       const srcs = explicitSources ?? discoverSources(mapInst);
+      const queryIdLookup = buildQueryIdLookup(criteria);
 
       for (const { source, sourceLayers } of srcs) {
         for (const sourceLayer of sourceLayers) {
@@ -141,6 +167,7 @@ export const useMapHighlighting = ({
             const props = (f.properties ?? {}) as Record<string, unknown>;
             const shouldHighlight = matchesCriteria(
               criteria,
+              queryIdLookup,
               props,
               f.id,
               sourceLayer,
@@ -202,11 +229,20 @@ export const useMapHighlighting = ({
 
     applyHighlights(map);
 
-    // Start sourcedata listener for new tiles
+    // Start debounced sourcedata listener for new tiles
     sourceDataCleanupRef.current?.();
-    const handler = () => applyHighlights(map);
+    const handler = () => {
+      if (debounceTimerRef.current) clearTimeout(debounceTimerRef.current);
+      debounceTimerRef.current = setTimeout(() => applyHighlights(map), 100);
+    };
     map.on("sourcedata", handler);
-    sourceDataCleanupRef.current = () => map.off("sourcedata", handler);
+    sourceDataCleanupRef.current = () => {
+      map.off("sourcedata", handler);
+      if (debounceTimerRef.current) {
+        clearTimeout(debounceTimerRef.current);
+        debounceTimerRef.current = null;
+      }
+    };
 
     return () => {
       sourceDataCleanupRef.current?.();
