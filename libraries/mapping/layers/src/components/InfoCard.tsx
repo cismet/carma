@@ -115,7 +115,8 @@ const InfoCard = ({
 
   const { jwt, userGroups } = useAuth();
 
-  const allowPublishing = userGroups.includes("_Geoportal_Publizieren");
+  const allowPublishing =
+    userGroups.includes("_Geoportal_Publizieren") && !!jwt;
 
   const carmaConf = extractCarmaConfig(layer.keywords);
   const vectorLegend = layer.vectorLegend || carmaConf?.vectorLegend;
