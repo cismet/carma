@@ -28,7 +28,7 @@ import MeasurementTitle from "./MeasurementTitle";
 import { UIContext } from "react-cismap/contexts/UIContextProvider";
 import Icon from "react-cismap/commons/Icon";
 import "../styles/infoBox.css";
-import { InputNumber, Modal, Select, Tooltip } from "antd";
+import { InputNumber, Modal, Select, Switch, Tooltip } from "antd";
 import {
   CarmaResponsiveInfoBox,
   LockToggleButton,
@@ -357,6 +357,10 @@ export function InfoBoxMeasurement3D({ pixelWidth = 350 }) {
     stopMoveGizmo,
     setPointMeasurementElevationById,
     setPointMeasurementCoordinatesById,
+    polylineVerticalOffsetMeters,
+    setPolylineVerticalOffsetMeters,
+    polylineSegmentLineMode,
+    setPolylineSegmentLineMode,
     pointLabelOnCreate,
     setPointLabelMetricModeById,
   } = useCesiumMeasurements();
@@ -372,6 +376,10 @@ export function InfoBoxMeasurement3D({ pixelWidth = 350 }) {
     useState(false);
   const [isVerticalOffsetEditModeActive, setIsVerticalOffsetEditModeActive] =
     useState(false);
+  const [
+    isPolylineVerticalOffsetEditModeActive,
+    setIsPolylineVerticalOffsetEditModeActive,
+  ] = useState(false);
   const [elevationEditTarget, setElevationEditTarget] =
     useState<ElevationEditTarget | null>(null);
   const [relationMetricEdit, setRelationMetricEdit] = useState<{
@@ -560,23 +568,47 @@ export function InfoBoxMeasurement3D({ pixelWidth = 350 }) {
     );
     return Boolean(sourceGroup?.hidden);
   }, [planarPolygonGroups, selectedPlanarPolygonGroup]);
+  const selectedPlanarPolygonClosed = useMemo(() => {
+    if (!focusedPlanarPolygonGroupId) return false;
+    return Boolean(
+      planarPolygonGroups.find(
+        (group) => group.id === focusedPlanarPolygonGroupId
+      )?.closed
+    );
+  }, [focusedPlanarPolygonGroupId, planarPolygonGroups]);
   const selectedPolylineSummary = useMemo(() => {
     if (!selectedPolyline) return null;
-
-    const nodes = selectedPolyline.vertexPointIds
-      .map((pointId) =>
-        pointMeasurements.find((measurement) => measurement.id === pointId)
-      )
-      .filter((point): point is (typeof pointMeasurements)[number] =>
-        Boolean(point)
-      );
+    if (selectedPlanarPolygonClosed) return null;
 
     const segmentCount = selectedPolyline.segmentLengthsMeters.length;
     const nodeCount = selectedPolyline.vertexPointIds.length;
     const totalLengthMeters = selectedPolyline.totalLengthMeters;
+    const totalHorizontalLengthMeters =
+      selectedPolyline.segmentLengthsMeters.reduce(
+        (sum, segmentLengthMeters, segmentIndex) => {
+          const startHeight =
+            selectedPolyline.vertexHeightsMeters[segmentIndex] ?? 0;
+          const endHeight =
+            selectedPolyline.vertexHeightsMeters[segmentIndex + 1] ??
+            startHeight;
+          const elevationDelta = endHeight - startHeight;
+          const horizontalLengthMeters = Math.sqrt(
+            Math.max(
+              0,
+              segmentLengthMeters * segmentLengthMeters -
+                elevationDelta * elevationDelta
+            )
+          );
+          return sum + horizontalLengthMeters;
+        },
+        0
+      );
 
-    const firstHeight = nodes[0]?.geometryWGS84.height ?? null;
-    const lastHeight = nodes[nodes.length - 1]?.geometryWGS84.height ?? null;
+    const firstHeight = selectedPolyline.vertexHeightsMeters[0] ?? null;
+    const lastHeight =
+      selectedPolyline.vertexHeightsMeters[
+        selectedPolyline.vertexHeightsMeters.length - 1
+      ] ?? null;
     const startEndElevationDeltaMeters =
       firstHeight !== null && lastHeight !== null
         ? lastHeight - firstHeight
@@ -584,9 +616,14 @@ export function InfoBoxMeasurement3D({ pixelWidth = 350 }) {
 
     let ascentMeters = 0;
     let descentMeters = 0;
-    for (let index = 1; index < nodes.length; index += 1) {
-      const previousHeight = nodes[index - 1]?.geometryWGS84.height ?? 0;
-      const currentHeight = nodes[index]?.geometryWGS84.height ?? 0;
+    for (
+      let index = 1;
+      index < selectedPolyline.vertexHeightsMeters.length;
+      index += 1
+    ) {
+      const previousHeight =
+        selectedPolyline.vertexHeightsMeters[index - 1] ?? 0;
+      const currentHeight = selectedPolyline.vertexHeightsMeters[index] ?? 0;
       const delta = currentHeight - previousHeight;
       if (delta > 0) {
         ascentMeters += delta;
@@ -599,14 +636,17 @@ export function InfoBoxMeasurement3D({ pixelWidth = 350 }) {
       nodeCount,
       segmentCount,
       totalLengthMeters,
+      totalHorizontalLengthMeters,
       meanSegmentLengthMeters:
         segmentCount > 0 ? totalLengthMeters / segmentCount : 0,
+      meanHorizontalSegmentLengthMeters:
+        segmentCount > 0 ? totalHorizontalLengthMeters / segmentCount : 0,
       totalAbsoluteElevationChangeMeters: ascentMeters + descentMeters,
       startEndElevationDeltaMeters,
       ascentMeters,
       descentMeters,
     };
-  }, [pointMeasurements, selectedPolyline]);
+  }, [selectedPlanarPolygonClosed, selectedPolyline]);
   const selectedPolygonCircumferenceSummary = useMemo(() => {
     if (selectedConnectedPlanarPolygonGroups.length === 0) {
       return {
@@ -679,6 +719,7 @@ export function InfoBoxMeasurement3D({ pixelWidth = 350 }) {
   useEffect(() => {
     setIsCoordinateEditModeActive(false);
     setIsVerticalOffsetEditModeActive(false);
+    setIsPolylineVerticalOffsetEditModeActive(false);
     setElevationEditTarget(null);
     setRelationMetricEdit(null);
     setEditStepDistanceMeters(null);
@@ -690,11 +731,17 @@ export function InfoBoxMeasurement3D({ pixelWidth = 350 }) {
     if (!isPolygonInfoMode) return;
     setIsCoordinateEditModeActive(false);
     setIsVerticalOffsetEditModeActive(false);
+    setIsPolylineVerticalOffsetEditModeActive(false);
     setElevationEditTarget(null);
     setRelationMetricEdit(null);
     setEditStepDistanceMeters(null);
     setEditedLatitude(null);
     setEditedLongitude(null);
+  }, [isPolygonInfoMode]);
+
+  useEffect(() => {
+    if (isPolygonInfoMode) return;
+    setIsPolylineVerticalOffsetEditModeActive(false);
   }, [isPolygonInfoMode]);
 
   useEffect(() => {
@@ -965,6 +1012,31 @@ export function InfoBoxMeasurement3D({ pixelWidth = 350 }) {
     e?.stopPropagation?.();
     setIsVerticalOffsetEditModeActive(false);
     setEditStepDistanceMeters(null);
+  };
+
+  const startPolylineVerticalOffsetEditMode = (e?) => {
+    e?.stopPropagation?.();
+    setRelationMetricEdit(null);
+    setElevationEditTarget(null);
+    setIsVerticalOffsetEditModeActive(false);
+    setIsPolylineVerticalOffsetEditModeActive(true);
+  };
+
+  const stopPolylineVerticalOffsetEditMode = (e?) => {
+    e?.stopPropagation?.();
+    setIsPolylineVerticalOffsetEditModeActive(false);
+  };
+
+  const handlePolylineVerticalOffsetInputPressEnter = (e?) => {
+    e?.stopPropagation?.();
+    stopPolylineVerticalOffsetEditMode(e);
+  };
+
+  const handlePolylineVerticalOffsetInputChange = (value: number | null) => {
+    if (value === null || !Number.isFinite(value)) {
+      return;
+    }
+    setPolylineVerticalOffsetMeters(value);
   };
 
   const handleVerticalOffsetInputChange = (value: number | null) => {
@@ -1599,6 +1671,9 @@ export function InfoBoxMeasurement3D({ pixelWidth = 350 }) {
         ...prev,
         {
           id: getDistanceRelationId(currentPointId, relatedPointId),
+          edgeId: `edge:${[currentPointId, relatedPointId]
+            .sort((left, right) => left.localeCompare(right))
+            .join(":")}`,
           pointAId: currentPointId,
           pointBId: relatedPointId,
           anchorPointId: currentPointId,
@@ -1714,6 +1789,9 @@ export function InfoBoxMeasurement3D({ pixelWidth = 350 }) {
       : null;
   const verticalOffsetInputWidthPx =
     getElevationInputWidthPx(verticalOffsetValue);
+  const polylineVerticalOffsetInputWidthPx = getElevationInputWidthPx(
+    polylineVerticalOffsetMeters
+  );
   const pointRelationRows = useMemo(() => {
     if (!currentMeasurement || !isPointMeasurementEntry(currentMeasurement)) {
       return [];
@@ -1993,6 +2071,24 @@ export function InfoBoxMeasurement3D({ pixelWidth = 350 }) {
   const selectedPolygonPrimaryAreaSquareMeters = showSurfaceAreaForType
     ? selectedConnectedPlanarPolygonTotalAreaSquareMeters
     : selectedPolygonHorizontalAreaSquareMeters;
+  const selectedPolygonDefaultHeading = useMemo(() => {
+    if (selectedPolylineSummary) {
+      return `Polygonzug #${selectedPlanarPolygonOrder || 1}`;
+    }
+    if (selectedPolygonSurfaceTypeValue === "facade") {
+      return `Fassade ${formatAreaAdaptive(
+        selectedPolygonPrimaryAreaSquareMeters
+      )}`;
+    }
+    return `Fläche ${formatAreaAdaptive(
+      selectedPolygonPrimaryAreaSquareMeters
+    )}`;
+  }, [
+    selectedPolygonPrimaryAreaSquareMeters,
+    selectedPolygonSurfaceTypeValue,
+    selectedPlanarPolygonOrder,
+    selectedPolylineSummary,
+  ]);
 
   const updateSelectedPolygonSurfaceType = (
     nextType: PolygonSurfaceTypeOption
@@ -2099,9 +2195,7 @@ export function InfoBoxMeasurement3D({ pixelWidth = 350 }) {
                         setUpdateMeasurementStatus={() => {}}
                         updateTitleMeasurementById={handlePolygonNameUpdate}
                         isCollapsed={collapsedInfoBox}
-                        placeholderText={`Polygonzug #${
-                          selectedPlanarPolygonOrder || 1
-                        }`}
+                        placeholderText={selectedPolygonDefaultHeading}
                         clearPlaceholderOnFocus
                         showOrder={false}
                         collapsedContent={formatAreaAdaptive(
@@ -2170,6 +2264,10 @@ export function InfoBoxMeasurement3D({ pixelWidth = 350 }) {
                         Polygonzug •{" "}
                         {formatNumber(
                           selectedPolylineSummary.totalLengthMeters
+                        )}{" "}
+                        m • Horizontal:{" "}
+                        {formatNumber(
+                          selectedPolylineSummary.totalHorizontalLengthMeters
                         )}{" "}
                         m • Höhendifferenz:{" "}
                         {formatNumber(
@@ -2536,6 +2634,80 @@ export function InfoBoxMeasurement3D({ pixelWidth = 350 }) {
                             m
                           </span>
                         </div>
+                        <div className="mb-1">
+                          <span className="text-gray-500 mr-1">
+                            Horizontaldistanz:
+                          </span>
+                          <span className="tabular-nums">
+                            {formatNumber(
+                              selectedPolylineSummary.totalHorizontalLengthMeters
+                            )}{" "}
+                            m
+                          </span>
+                        </div>
+                        <div className="mb-1 inline-flex items-center gap-2">
+                          <span className="text-gray-500">
+                            Segmentdarstellung:
+                          </span>
+                          <span className="text-gray-500">Direkt</span>
+                          <Switch
+                            size="small"
+                            checked={polylineSegmentLineMode === "components"}
+                            onChange={(checked) =>
+                              setPolylineSegmentLineMode(
+                                checked ? "components" : "direct"
+                              )
+                            }
+                            aria-label="Polygonzug-Segmentdarstellung umschalten"
+                            data-test-id="infobox-polyline-line-mode-toggle"
+                          />
+                          <span className="text-gray-500">Komponenten</span>
+                        </div>
+                        <div className="mb-1">
+                          {isPolylineVerticalOffsetEditModeActive ? (
+                            <span
+                              className="inline-flex items-center gap-1"
+                              onClick={stopEventPropagation}
+                            >
+                              <InputNumber
+                                value={polylineVerticalOffsetMeters}
+                                onChange={
+                                  handlePolylineVerticalOffsetInputChange
+                                }
+                                {...elevationInputSharedProps}
+                                onPressEnter={
+                                  handlePolylineVerticalOffsetInputPressEnter
+                                }
+                                style={{
+                                  width: polylineVerticalOffsetInputWidthPx,
+                                }}
+                                data-test-id="infobox-polyline-vertical-offset-edit-input"
+                              />
+                              <button
+                                type="button"
+                                onClick={stopPolylineVerticalOffsetEditMode}
+                                className="px-1.5 py-[1px] text-[11px] leading-[14px] border rounded border-[#0078a8] text-[#0078a8] bg-white hover:bg-[#e8f4fa]"
+                                data-test-id="infobox-polyline-vertical-offset-edit-complete-btn"
+                                aria-label="Polygonzug-Vertikalversatzbearbeitung abschließen"
+                              >
+                                <FontAwesomeIcon icon={faCheck} />
+                              </button>
+                              <span>m Vertikalversatz ab Ankerpunkt</span>
+                            </span>
+                          ) : (
+                            <span className="inline-flex items-center gap-1">
+                              <button
+                                type="button"
+                                onClick={startPolylineVerticalOffsetEditMode}
+                                className="cursor-pointer bg-transparent border-0 p-0 m-0 text-left tabular-nums"
+                                data-test-id="infobox-polyline-vertical-offset-display-btn"
+                              >
+                                {formatNumber(polylineVerticalOffsetMeters)} m
+                              </button>
+                              <span>Vertikalversatz ab Ankerpunkt</span>
+                            </span>
+                          )}
+                        </div>
                         <div className="mb-1 flex flex-wrap items-baseline gap-x-2 gap-y-1 text-[10px]">
                           <span className="text-gray-500">Aufstieg:</span>
                           <span className="tabular-nums">
@@ -2575,6 +2747,17 @@ export function InfoBoxMeasurement3D({ pixelWidth = 350 }) {
                           <span className="tabular-nums">
                             {formatNumber(
                               selectedPolylineSummary.meanSegmentLengthMeters
+                            )}{" "}
+                            m
+                          </span>
+                        </div>
+                        <div className="mb-1">
+                          <span className="text-gray-500 mr-1">
+                            Ø horizontales Segment:
+                          </span>
+                          <span className="tabular-nums">
+                            {formatNumber(
+                              selectedPolylineSummary.meanHorizontalSegmentLengthMeters
                             )}{" "}
                             m
                           </span>

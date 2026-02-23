@@ -7,21 +7,32 @@ export interface DismissibleHelpBoxProps {
   content: ReactNode;
   onClose?: () => void;
   dataTestId?: string;
+  collapsed?: boolean;
+  onCollapsedChange?: (collapsed: boolean) => void;
 }
 
 export const DismissibleHelpBox = ({
   content,
   onClose,
   dataTestId,
+  collapsed,
+  onCollapsedChange,
 }: DismissibleHelpBoxProps) => {
-  const [collapsed, setCollapsed] = useState(false);
+  const [internalCollapsed, setInternalCollapsed] = useState(false);
+  const isCollapsed = collapsed ?? internalCollapsed;
+  const setCollapsedState = (nextCollapsed: boolean) => {
+    onCollapsedChange?.(nextCollapsed);
+    if (collapsed === undefined) {
+      setInternalCollapsed(nextCollapsed);
+    }
+  };
 
-  if (collapsed) {
+  if (isCollapsed) {
     return (
       <button
         type="button"
         aria-label="Hilfe anzeigen"
-        onClick={() => setCollapsed(false)}
+        onClick={() => setCollapsedState(false)}
         style={{
           width: 20,
           height: 20,
@@ -64,7 +75,7 @@ export const DismissibleHelpBox = ({
         aria-label="Hilfe schließen"
         onClick={() => {
           onClose?.();
-          setCollapsed(true);
+          setCollapsedState(true);
         }}
         style={{
           position: "absolute",

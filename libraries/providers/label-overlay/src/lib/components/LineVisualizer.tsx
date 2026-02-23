@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useCallback, useRef } from "react";
 
 export interface LineVisualizerProps {
   stroke?: string;
@@ -23,6 +23,8 @@ export interface LineVisualizerProps {
     | "ideographic"
     | "auto";
   onLineClick?: () => void;
+  onLineLongPress?: () => void;
+  longPressDurationMs?: number;
   onLabelClick?: () => void;
 }
 
@@ -42,9 +44,43 @@ export const LineVisualizer = React.memo(
     labelFontWeight = "400",
     labelDominantBaseline = "middle",
     onLineClick,
+    onLineLongPress,
+    longPressDurationMs = 300,
     onLabelClick,
   }: LineVisualizerProps) => {
-    const isInteractive = typeof onLineClick === "function";
+    const longPressTimerRef = useRef<ReturnType<typeof setTimeout> | null>(
+      null
+    );
+    const longPressTriggeredRef = useRef(false);
+
+    const clearLongPressTimer = useCallback(() => {
+      if (longPressTimerRef.current) {
+        clearTimeout(longPressTimerRef.current);
+        longPressTimerRef.current = null;
+      }
+    }, []);
+
+    const startLongPressTimer = useCallback(() => {
+      if (!onLineLongPress) return;
+      clearLongPressTimer();
+      longPressTriggeredRef.current = false;
+      longPressTimerRef.current = setTimeout(() => {
+        longPressTriggeredRef.current = true;
+        onLineLongPress();
+      }, longPressDurationMs);
+    }, [clearLongPressTimer, longPressDurationMs, onLineLongPress]);
+
+    const handleLineClick = useCallback(() => {
+      if (longPressTriggeredRef.current) {
+        longPressTriggeredRef.current = false;
+        return;
+      }
+      onLineClick?.();
+    }, [onLineClick]);
+
+    const isInteractive =
+      typeof onLineClick === "function" ||
+      typeof onLineLongPress === "function";
     const isLabelInteractive =
       typeof onLabelClick === "function" || isInteractive;
 
@@ -75,7 +111,11 @@ export const LineVisualizer = React.memo(
             pointerEvents: isInteractive ? "stroke" : "none",
             cursor: isInteractive ? "pointer" : "default",
           }}
-          onClick={onLineClick}
+          onClick={handleLineClick}
+          onPointerDown={startLongPressTimer}
+          onPointerUp={clearLongPressTimer}
+          onPointerLeave={clearLongPressTimer}
+          onPointerCancel={clearLongPressTimer}
         />
         <line
           data-line-visualizer-segment="true"
@@ -94,7 +134,11 @@ export const LineVisualizer = React.memo(
             pointerEvents: isInteractive ? "stroke" : "none",
             cursor: isInteractive ? "pointer" : "default",
           }}
-          onClick={onLineClick}
+          onClick={handleLineClick}
+          onPointerDown={startLongPressTimer}
+          onPointerUp={clearLongPressTimer}
+          onPointerLeave={clearLongPressTimer}
+          onPointerCancel={clearLongPressTimer}
         />
         <text
           data-line-visualizer-text="true"
@@ -114,7 +158,7 @@ export const LineVisualizer = React.memo(
             pointerEvents: isLabelInteractive ? "auto" : "none",
             cursor: isLabelInteractive ? "pointer" : "default",
           }}
-          onClick={onLabelClick ?? onLineClick}
+          onClick={onLabelClick ?? handleLineClick}
         >
           {labelText ?? ""}
         </text>

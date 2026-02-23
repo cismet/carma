@@ -37,6 +37,7 @@ export type MeasurementToolType =
   | "polygon";
 
 export type PolygonSubType = "horizontal" | "vertical" | "oblique";
+export type PolylineSegmentLineMode = "direct" | "components";
 
 export interface MeasurementModeToolbarProps {
   activeToolType: MeasurementToolType;
@@ -64,6 +65,10 @@ export interface MeasurementModeToolbarProps {
   onDistanceStickyToFirstPointChange?: (enabled: boolean) => void;
   pointVerticalOffsetMeters?: number;
   onPointVerticalOffsetChange?: (offsetMeters: number) => void;
+  polylineVerticalOffsetMeters?: number;
+  onPolylineVerticalOffsetChange?: (offsetMeters: number) => void;
+  polylineSegmentLineMode?: PolylineSegmentLineMode;
+  onPolylineSegmentLineModeChange?: (mode: PolylineSegmentLineMode) => void;
   pointSoloMode?: boolean;
   onPointSoloModeChange?: (enabled: boolean) => void;
   activePolygonSubType?: PolygonSubType;
@@ -151,6 +156,37 @@ const INFOBOX_SURFACE_BG = "rgba(245, 245, 245, 0.8)";
 const INFOBOX_SURFACE_BLUR = "blur(2px)";
 const DISTANCE_VERTICAL_COLOR = "rgba(111, 168, 255, 0.96)";
 const DISTANCE_HORIZONTAL_COLOR = "rgba(188, 194, 102, 0.95)";
+const SECONDARY_TOOLBAR_HELP_STORAGE_KEY =
+  "carma.measurements.secondary-toolbar-help-collapsed.v1";
+
+type SecondaryToolbarHelpKey =
+  | "selection"
+  | "point"
+  | "distance"
+  | "polyline"
+  | "polygon"
+  | "label";
+
+const SECONDARY_TOOLBAR_HELP_KEYS: SecondaryToolbarHelpKey[] = [
+  "selection",
+  "point",
+  "distance",
+  "polyline",
+  "polygon",
+  "label",
+];
+
+const DEFAULT_SECONDARY_TOOLBAR_HELP_COLLAPSED: Record<
+  SecondaryToolbarHelpKey,
+  boolean
+> = {
+  selection: false,
+  point: false,
+  distance: false,
+  polyline: false,
+  polygon: false,
+  label: false,
+};
 
 type PolygonSubButtonDef = {
   subType: PolygonSubType;
@@ -160,6 +196,12 @@ type PolygonSubButtonDef = {
 };
 
 const POLYGON_SUB_BUTTONS: PolygonSubButtonDef[] = [
+  {
+    subType: "vertical",
+    icon: <FontAwesomeIcon icon={faBuilding} />,
+    shortLabel: "Fassade",
+    tooltip: "Fassade (vertikal)",
+  },
   {
     subType: "horizontal",
     icon: (
@@ -180,12 +222,6 @@ const POLYGON_SUB_BUTTONS: PolygonSubButtonDef[] = [
     ),
     shortLabel: "Grundriss",
     tooltip: "Grundriss",
-  },
-  {
-    subType: "vertical",
-    icon: <FontAwesomeIcon icon={faBuilding} />,
-    shortLabel: "Fassade",
-    tooltip: "Fassade (vertikal)",
   },
   {
     subType: "oblique",
@@ -301,6 +337,49 @@ const distanceToggleButtonStyle: CSSProperties = {
   boxShadow: "none",
 };
 
+type SecondaryToolbarSectionProps = {
+  dataTestId: string;
+  helpDataTestId: string;
+  helpContent: ReactNode;
+  helpCollapsed: boolean;
+  onHelpCollapsedChange: (collapsed: boolean) => void;
+  helpItemSlot?: ReactNode;
+  optionsStyle?: CSSProperties;
+  children: ReactNode;
+};
+
+const SecondaryToolbarSection = ({
+  dataTestId,
+  helpDataTestId,
+  helpContent,
+  helpCollapsed,
+  onHelpCollapsedChange,
+  helpItemSlot,
+  optionsStyle,
+  children,
+}: SecondaryToolbarSectionProps) => {
+  return (
+    <div
+      style={
+        optionsStyle
+          ? { ...optionsContainerStyle, ...optionsStyle }
+          : optionsContainerStyle
+      }
+      data-test-id={dataTestId}
+    >
+      {children}
+      {helpItemSlot ?? (
+        <DismissibleHelpBox
+          dataTestId={helpDataTestId}
+          content={helpContent}
+          collapsed={helpCollapsed}
+          onCollapsedChange={onHelpCollapsedChange}
+        />
+      )}
+    </div>
+  );
+};
+
 export function MeasurementModeToolbar({
   activeToolType,
   onToolTypeChange,
@@ -320,6 +399,10 @@ export function MeasurementModeToolbar({
   onDistanceStickyToFirstPointChange,
   pointVerticalOffsetMeters = 0,
   onPointVerticalOffsetChange,
+  polylineVerticalOffsetMeters = 0,
+  onPolylineVerticalOffsetChange,
+  polylineSegmentLineMode = "components",
+  onPolylineSegmentLineModeChange,
   pointSoloMode = false,
   onPointSoloModeChange,
   activePolygonSubType = "oblique",
@@ -330,13 +413,81 @@ export function MeasurementModeToolbar({
   const isSelectionModeActive = activeToolType === "select";
   const showPointOptions = activeToolType === "point";
   const showDistanceOptions = activeToolType === "distance";
+  const showPolylineOptions = activeToolType === "polyline";
   const showPolygonSubButtons = activeToolType === "polygon";
+  const showLabelOptions = activeToolType === "label";
   const [pointOffsetForceCloseSignal, setPointOffsetForceCloseSignal] =
     useState(0);
   const lastPointVerticalOffsetRef = useRef(1);
   const pointVerticalOffsetEnabled = Math.abs(pointVerticalOffsetMeters) > 1e-9;
+  const [polylineOffsetForceCloseSignal, setPolylineOffsetForceCloseSignal] =
+    useState(0);
+  const lastPolylineVerticalOffsetRef = useRef(1);
+  const polylineVerticalOffsetEnabled =
+    Math.abs(polylineVerticalOffsetMeters) > 1e-9;
   const selectedTotalCount = selectedMeasurementCount + selectedLabelCount;
   const hasSelection = selectedTotalCount > 0;
+  const [
+    secondaryToolbarHelpCollapsedByKey,
+    setSecondaryToolbarHelpCollapsedByKey,
+  ] = useState<Record<SecondaryToolbarHelpKey, boolean>>(
+    DEFAULT_SECONDARY_TOOLBAR_HELP_COLLAPSED
+  );
+
+  const setSecondaryToolbarHelpCollapsed = (
+    key: SecondaryToolbarHelpKey,
+    collapsed: boolean
+  ) => {
+    setSecondaryToolbarHelpCollapsedByKey((prev) =>
+      prev[key] === collapsed ? prev : { ...prev, [key]: collapsed }
+    );
+  };
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    try {
+      const storedRaw = window.localStorage.getItem(
+        SECONDARY_TOOLBAR_HELP_STORAGE_KEY
+      );
+      if (!storedRaw) return;
+      const parsed = JSON.parse(storedRaw) as Partial<
+        Record<SecondaryToolbarHelpKey, unknown>
+      >;
+      if (!parsed || typeof parsed !== "object") return;
+
+      setSecondaryToolbarHelpCollapsedByKey((prev) => {
+        const next = { ...prev };
+        SECONDARY_TOOLBAR_HELP_KEYS.forEach((key) => {
+          if (typeof parsed[key] === "boolean") {
+            next[key] = parsed[key] as boolean;
+          }
+        });
+        return next;
+      });
+    } catch {
+      // ignore invalid persisted data
+    }
+  }, []);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    try {
+      window.localStorage.setItem(
+        SECONDARY_TOOLBAR_HELP_STORAGE_KEY,
+        JSON.stringify(secondaryToolbarHelpCollapsedByKey)
+      );
+    } catch {
+      // ignore storage write errors
+    }
+  }, [secondaryToolbarHelpCollapsedByKey]);
+
+  const buildHelpContent = (lines: string[]) => (
+    <div style={pointManualStyle}>
+      {lines.map((line) => (
+        <span key={line}>{line}</span>
+      ))}
+    </div>
+  );
 
   useEffect(() => {
     if (!pointVerticalOffsetEnabled) return;
@@ -344,10 +495,21 @@ export function MeasurementModeToolbar({
   }, [pointVerticalOffsetEnabled, pointVerticalOffsetMeters]);
 
   useEffect(() => {
+    if (!polylineVerticalOffsetEnabled) return;
+    lastPolylineVerticalOffsetRef.current = polylineVerticalOffsetMeters;
+  }, [polylineVerticalOffsetEnabled, polylineVerticalOffsetMeters]);
+
+  useEffect(() => {
     if (!showPointOptions) {
       setPointOffsetForceCloseSignal((prev) => prev + 1);
     }
   }, [showPointOptions]);
+
+  useEffect(() => {
+    if (!showPolylineOptions) {
+      setPolylineOffsetForceCloseSignal((prev) => prev + 1);
+    }
+  }, [showPolylineOptions]);
 
   return (
     <div
@@ -381,8 +543,8 @@ export function MeasurementModeToolbar({
         {[
           { type: "point", disabled: false },
           { type: "distance", disabled: false },
-          { type: "polyline", disabled: true },
-          { type: "polygon", disabled: true },
+          { type: "polyline", disabled: false },
+          { type: "polygon", disabled: false },
           { type: "label", disabled: false },
         ]
           .map(({ type, disabled }) => {
@@ -454,9 +616,18 @@ export function MeasurementModeToolbar({
         </Tooltip>
       </div>
       {showSelectionOptions && (
-        <div
-          style={optionsContainerStyle}
-          data-test-id="measurement-selection-options"
+        <SecondaryToolbarSection
+          dataTestId="measurement-selection-options"
+          helpDataTestId="measurement-selection-help"
+          helpCollapsed={secondaryToolbarHelpCollapsedByKey.selection}
+          onHelpCollapsedChange={(collapsed) =>
+            setSecondaryToolbarHelpCollapsed("selection", collapsed)
+          }
+          helpContent={buildHelpContent([
+            "Rechteck aufziehen, um Punkte zu selektieren.",
+            'Shift oder "Additiv" erweitert die Auswahl.',
+            "Ausgewählte Messungen können ein-/ausgeblendet, gesperrt und gelöscht werden.",
+          ])}
         >
           <div style={{ display: "inline-flex", gap: 8, alignItems: "center" }}>
             <span style={optionsLabelStyle}>Additiv</span>
@@ -530,28 +701,25 @@ export function MeasurementModeToolbar({
               </>
             )}
           </div>
-          <DismissibleHelpBox
-            dataTestId="measurement-selection-help"
-            onClose={() => {
-              // collapse state is handled internally by DismissibleHelpBox
-            }}
-            content={
-              <div style={pointManualStyle}>
-                <span>Rechteck aufziehen, um Punkte zu selektieren.</span>
-                <span>Shift oder „Additiv“ erweitert die Auswahl.</span>
-                <span>Touch: „Additiv“ als Sekundäroption verwenden.</span>
-              </div>
-            }
-          />
-        </div>
+        </SecondaryToolbarSection>
       )}
       {showDistanceOptions && (
-        <div
-          style={{
-            ...optionsContainerStyle,
+        <SecondaryToolbarSection
+          dataTestId="measurement-distance-options"
+          helpDataTestId="measurement-distance-help"
+          helpCollapsed={secondaryToolbarHelpCollapsedByKey.distance}
+          onHelpCollapsedChange={(collapsed) =>
+            setSecondaryToolbarHelpCollapsed("distance", collapsed)
+          }
+          optionsStyle={{
             padding: "8px 6px",
           }}
-          data-test-id="measurement-distance-options"
+          helpContent={buildHelpContent([
+            "Erster Klick setzt den Startpunkt, zweiter Klick setzt den Zielpunkt.",
+            "Doppelklick auf einen Punkt setzt die Referenzhöhe.",
+            'Mit "An Referenzpunkt starten" beginnen Folgemessungen am Referenzpunkt.',
+            "Direkt/Vertikal/Horizontal steuern die Sichtbarkeit der Distanzkomponenten.",
+          ])}
         >
           <div
             style={{
@@ -667,124 +835,201 @@ export function MeasurementModeToolbar({
               aria-label="Distanzmessung am Referenzpunkt starten"
             />
           </div>
-          <DismissibleHelpBox
-            dataTestId="measurement-distance-help"
-            onClose={() => {
-              // collapse state is handled internally by DismissibleHelpBox
-            }}
-            content={
-              <div style={pointManualStyle}>
-                <span>
-                  Erster Klick setzt den Startpunkt, zweiter Klick misst die
-                  Distanz.
-                </span>
-                <span>
-                  Mit „Ref.-Start“ bleiben Folgemessungen am Referenzpunkt
-                  verankert.
-                </span>
-                <span>
-                  Direkt/Vertikal/Horizontal steuern die Sichtbarkeit neuer
-                  Distanzlinien.
-                </span>
-              </div>
-            }
-          />
-        </div>
+        </SecondaryToolbarSection>
       )}
       {showPointOptions && (
-        <>
-          <div
-            style={optionsContainerStyle}
-            data-test-id="measurement-point-options"
-          >
-            <div
-              style={{ display: "inline-flex", gap: 4, alignItems: "center" }}
-            >
-              <span style={optionsLabelStyle}>Temporär/Solo</span>
-              <Switch
-                size="small"
-                checked={pointSoloMode}
-                onChange={(checked) => onPointSoloModeChange?.(checked)}
-                aria-label="Temporär/Solo"
-                data-test-id="measurement-point-solo-toggle"
-              />
-            </div>
-            <div
-              style={{
-                display: "inline-flex",
-                alignItems: "center",
-                gap: 6,
-                flexWrap: "wrap",
-              }}
-            >
-              <span style={optionsLabelStyle}>Vertikalversatz</span>
-              <Switch
-                size="small"
-                checked={pointVerticalOffsetEnabled}
-                onChange={(checked) => {
-                  if (!checked) {
-                    if (Math.abs(pointVerticalOffsetMeters) > 1e-9) {
-                      lastPointVerticalOffsetRef.current =
-                        pointVerticalOffsetMeters;
-                    }
-                    onPointVerticalOffsetChange?.(0);
-                    setPointOffsetForceCloseSignal((prev) => prev + 1);
-                    return;
-                  }
-                  const restoredOffset =
-                    Math.abs(lastPointVerticalOffsetRef.current) > 1e-9
-                      ? lastPointVerticalOffsetRef.current
-                      : 1;
-                  onPointVerticalOffsetChange?.(restoredOffset);
-                }}
-                data-test-id="measurement-point-vertical-offset-enabled-toggle"
-                aria-label="Vertikalversatz aktivieren"
-              />
-              {pointVerticalOffsetEnabled && (
-                <EditableMetricValue
-                  value={pointVerticalOffsetMeters}
-                  onValueChange={(nextValue) =>
-                    onPointVerticalOffsetChange?.(nextValue)
-                  }
-                  label="Vertikalversatz"
-                  locale="de-DE"
-                  decimalSeparator=","
-                  min={-100}
-                  max={100}
-                  step={1}
-                  precision={2}
-                  inputWidth={88}
-                  inputClassName="measurement-elevation-input"
-                  dataTestIdPrefix="measurement-point-vertical-offset"
-                  forceCloseSignal={pointOffsetForceCloseSignal}
-                />
-              )}
-            </div>
-            <DismissibleHelpBox
-              dataTestId="measurement-point-help"
-              onClose={() => {
-                // collapse state is handled internally by DismissibleHelpBox
-              }}
-              content={
-                <div style={pointManualStyle}>
-                  <span>
-                    Für Punktmessungen auf das Stadtmodell klicken. Die erste
-                    Messung definiert die Referenzhöhe.
-                  </span>
-                  <span>Klicken um Höhenmessung zu setzen.</span>
-                  <span>Doppelklick auf Punkt setzt Referenzhöhe.</span>
-                  <span>Langer Klick startet Editiermodus.</span>
-                  <span>Rückstelltaste löscht den letzten Punkt.</span>
-                </div>
-              }
+        <SecondaryToolbarSection
+          dataTestId="measurement-point-options"
+          helpDataTestId="measurement-point-help"
+          helpCollapsed={secondaryToolbarHelpCollapsedByKey.point}
+          onHelpCollapsedChange={(collapsed) =>
+            setSecondaryToolbarHelpCollapsed("point", collapsed)
+          }
+          helpContent={buildHelpContent([
+            "Für Punktmessungen auf das Stadtmodell klicken. Die erste Messung definiert die Referenzhöhe.",
+            "Klicken um Höhenmessung zu setzen.",
+            "Doppelklick auf Punkt setzt Referenzhöhe.",
+            "Langer Klick startet Editiermodus.",
+            "Rückstelltaste löscht den letzten Punkt.",
+          ])}
+        >
+          <div style={{ display: "inline-flex", gap: 4, alignItems: "center" }}>
+            <span style={optionsLabelStyle}>Temporär/Solo</span>
+            <Switch
+              size="small"
+              checked={pointSoloMode}
+              onChange={(checked) => onPointSoloModeChange?.(checked)}
+              aria-label="Temporär/Solo"
+              data-test-id="measurement-point-solo-toggle"
             />
           </div>
-        </>
+          <div
+            style={{
+              display: "inline-flex",
+              alignItems: "center",
+              gap: 6,
+              flexWrap: "wrap",
+            }}
+          >
+            <span style={optionsLabelStyle}>Vertikalversatz</span>
+            <Switch
+              size="small"
+              checked={pointVerticalOffsetEnabled}
+              onChange={(checked) => {
+                if (!checked) {
+                  if (Math.abs(pointVerticalOffsetMeters) > 1e-9) {
+                    lastPointVerticalOffsetRef.current =
+                      pointVerticalOffsetMeters;
+                  }
+                  onPointVerticalOffsetChange?.(0);
+                  setPointOffsetForceCloseSignal((prev) => prev + 1);
+                  return;
+                }
+                const restoredOffset =
+                  Math.abs(lastPointVerticalOffsetRef.current) > 1e-9
+                    ? lastPointVerticalOffsetRef.current
+                    : 1;
+                onPointVerticalOffsetChange?.(restoredOffset);
+              }}
+              data-test-id="measurement-point-vertical-offset-enabled-toggle"
+              aria-label="Vertikalversatz aktivieren"
+            />
+            {pointVerticalOffsetEnabled && (
+              <EditableMetricValue
+                value={pointVerticalOffsetMeters}
+                onValueChange={(nextValue) =>
+                  onPointVerticalOffsetChange?.(nextValue)
+                }
+                label="Vertikalversatz"
+                locale="de-DE"
+                decimalSeparator=","
+                min={-100}
+                max={100}
+                step={1}
+                precision={2}
+                inputWidth={88}
+                inputClassName="measurement-elevation-input"
+                dataTestIdPrefix="measurement-point-vertical-offset"
+                forceCloseSignal={pointOffsetForceCloseSignal}
+              />
+            )}
+          </div>
+        </SecondaryToolbarSection>
+      )}
+      {showLabelOptions && (
+        <SecondaryToolbarSection
+          dataTestId="measurement-label-options"
+          helpDataTestId="measurement-label-help"
+          helpCollapsed={secondaryToolbarHelpCollapsedByKey.label}
+          onHelpCollapsedChange={(collapsed) =>
+            setSecondaryToolbarHelpCollapsed("label", collapsed)
+          }
+          helpContent={buildHelpContent([
+            "Im Anmerkungsmodus setzt ein Klick eine Beschriftung am Punkt.",
+            "Die Beschriftung kann danach in der Infobox bearbeitet werden.",
+            "Über den Auswahlmodus lassen sich Anmerkungen gemeinsam ein-/ausblenden, sperren und löschen.",
+          ])}
+        >
+          <span style={optionsLabelStyle}>Anmerkungsmodus aktiv</span>
+        </SecondaryToolbarSection>
+      )}
+      {showPolylineOptions && (
+        <SecondaryToolbarSection
+          dataTestId="measurement-polyline-options"
+          helpDataTestId="measurement-polyline-help"
+          helpCollapsed={secondaryToolbarHelpCollapsedByKey.polyline}
+          onHelpCollapsedChange={(collapsed) =>
+            setSecondaryToolbarHelpCollapsed("polyline", collapsed)
+          }
+          helpContent={buildHelpContent([
+            "Klicken setzt Stützpunkte des Polygonzugs.",
+            "Doppelklick beendet den aktuellen Polygonzug.",
+            "Vertikalversatz verschiebt die Darstellung entlang der lokalen Up-Achse.",
+            "Segmentdarstellung wechselt zwischen Direktlinie und Komponenten.",
+          ])}
+        >
+          <div
+            style={{
+              display: "inline-flex",
+              alignItems: "center",
+              gap: 6,
+              flexWrap: "wrap",
+            }}
+          >
+            <span style={optionsLabelStyle}>Vertikalversatz</span>
+            <Switch
+              size="small"
+              checked={polylineVerticalOffsetEnabled}
+              onChange={(checked) => {
+                if (!checked) {
+                  if (Math.abs(polylineVerticalOffsetMeters) > 1e-9) {
+                    lastPolylineVerticalOffsetRef.current =
+                      polylineVerticalOffsetMeters;
+                  }
+                  onPolylineVerticalOffsetChange?.(0);
+                  setPolylineOffsetForceCloseSignal((prev) => prev + 1);
+                  return;
+                }
+                const restoredOffset =
+                  Math.abs(lastPolylineVerticalOffsetRef.current) > 1e-9
+                    ? lastPolylineVerticalOffsetRef.current
+                    : 1;
+                onPolylineVerticalOffsetChange?.(restoredOffset);
+              }}
+              data-test-id="measurement-polyline-vertical-offset-enabled-toggle"
+              aria-label="Polyline-Vertikalversatz aktivieren"
+            />
+            {polylineVerticalOffsetEnabled && (
+              <EditableMetricValue
+                value={polylineVerticalOffsetMeters}
+                onValueChange={(nextValue) =>
+                  onPolylineVerticalOffsetChange?.(nextValue)
+                }
+                label="Polyline-Vertikalversatz"
+                locale="de-DE"
+                decimalSeparator=","
+                min={-100}
+                max={100}
+                step={1}
+                precision={2}
+                inputWidth={88}
+                inputClassName="measurement-elevation-input"
+                dataTestIdPrefix="measurement-polyline-vertical-offset"
+                forceCloseSignal={polylineOffsetForceCloseSignal}
+              />
+            )}
+          </div>
+          <div style={{ display: "inline-flex", gap: 6, alignItems: "center" }}>
+            <span style={optionsLabelStyle}>Segmentdarstellung</span>
+            <span style={optionsLabelStyle}>Direkt</span>
+            <Switch
+              size="small"
+              checked={polylineSegmentLineMode === "components"}
+              onChange={(checked) =>
+                onPolylineSegmentLineModeChange?.(
+                  checked ? "components" : "direct"
+                )
+              }
+              aria-label="Polyline-Segmentdarstellung umschalten"
+              data-test-id="measurement-polyline-line-mode-toggle"
+            />
+            <span style={optionsLabelStyle}>Komponenten</span>
+          </div>
+        </SecondaryToolbarSection>
       )}
       {showPolygonSubButtons && (
-        <div
-          style={optionsContainerStyle}
-          data-test-id="measurement-polygon-options"
+        <SecondaryToolbarSection
+          dataTestId="measurement-polygon-options"
+          helpDataTestId="measurement-polygon-help"
+          helpCollapsed={secondaryToolbarHelpCollapsedByKey.polygon}
+          onHelpCollapsedChange={(collapsed) =>
+            setSecondaryToolbarHelpCollapsed("polygon", collapsed)
+          }
+          helpContent={buildHelpContent([
+            "Flächenmodus bestimmt den Typ: Grundriss, Fassade oder Dach.",
+            "Klicken setzt Eckpunkte; Klick auf den Startpunkt oder Doppelklick schließt die Fläche.",
+            "Bei Fassaden entsteht aus zwei Punkten eine rechteckige Fläche mit Live-Vorschau.",
+          ])}
         >
           <span style={optionsLabelStyle}>Flächenmodus:</span>
           <div style={{ display: "inline-flex", gap: 6, alignItems: "center" }}>
@@ -809,7 +1054,7 @@ export function MeasurementModeToolbar({
               )
             )}
           </div>
-        </div>
+        </SecondaryToolbarSection>
       )}
     </div>
   );

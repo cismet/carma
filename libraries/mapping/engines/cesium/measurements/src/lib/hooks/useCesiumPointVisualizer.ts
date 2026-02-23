@@ -47,6 +47,9 @@ export type CesiumPointVisualizerOptions = {
   activePlanarPolygonGroupId?: string | null;
   distanceRelations?: PointDistanceRelation[];
   planarPolygonGroups?: PlanarPolygonGroup[];
+  facadeRectanglePreviewOppositeByGroupId?: Readonly<
+    Record<string, Cartesian3>
+  >;
   onPlanarPolygonClick?: (polygonGroupId: string) => void;
   pointDragPlaneByPointId?: Readonly<Record<string, PlanarPolygonPlane>>;
   onPointPlaneDragStart?: (pointId: string) => void;
@@ -74,6 +77,7 @@ export type CesiumPointVisualizerOptions = {
   onPointClick?: (pointId: string) => void;
   onPointDoubleClick?: (pointId: string) => void;
   onPointLongPress?: (pointId: string) => void;
+  onPointVerticalOffsetStemLongPress?: (pointId: string) => void;
   selectionModeEnabled?: boolean;
   selectionAdditiveMode?: boolean;
   onPointRectangleSelect?: (pointIds: string[], additive: boolean) => void;
@@ -126,6 +130,7 @@ export const useCesiumPointVisualizer = (
     activePlanarPolygonGroupId = null,
     distanceRelations = [],
     planarPolygonGroups = [],
+    facadeRectanglePreviewOppositeByGroupId,
     onPlanarPolygonClick,
     pointDragPlaneByPointId,
     onPointPlaneDragStart,
@@ -144,6 +149,7 @@ export const useCesiumPointVisualizer = (
     onPointClick,
     onPointDoubleClick,
     onPointLongPress,
+    onPointVerticalOffsetStemLongPress,
     selectionModeEnabled = false,
     selectionAdditiveMode = false,
     onPointRectangleSelect,
@@ -212,6 +218,7 @@ export const useCesiumPointVisualizer = (
     onPointClick,
     onPointDoubleClick,
     onPointLongPress,
+    onPointVerticalOffsetStemLongPress,
     selectionModeEnabled,
     selectionAdditiveMode,
     onPointRectangleSelect,
@@ -251,6 +258,7 @@ export const useCesiumPointVisualizer = (
   useCesiumDistanceVisualizer(scene, points, {
     distanceRelations,
     planarPolygonGroups,
+    facadeRectanglePreviewOppositeByGroupId,
     selectedPlanarPolygonGroupId,
     activePlanarPolygonGroupId,
     onPlanarPolygonClick,

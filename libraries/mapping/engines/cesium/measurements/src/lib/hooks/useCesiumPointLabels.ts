@@ -330,6 +330,7 @@ export const useCesiumPointLabels = (
   onPointClick?: (pointId: string) => void,
   onPointDoubleClick?: (pointId: string) => void,
   onPointLongPress?: (pointId: string) => void,
+  onPointVerticalOffsetStemLongPress?: (pointId: string) => void,
   selectionModeEnabled: boolean = false,
   selectionAdditiveMode: boolean = false,
   onPointRectangleSelect?: (pointIds: string[], additive: boolean) => void,
@@ -756,6 +757,10 @@ export const useCesiumPointLabels = (
           strokeDashoffset: 0,
           opacity: 0.9,
           visible: true,
+          onLineLongPress: onPointVerticalOffsetStemLongPress
+            ? () => onPointVerticalOffsetStemLongPress(point.id)
+            : undefined,
+          longPressDurationMs: pointLongPressDurationMs,
           getCanvasLine: () => {
             if (!scene || scene.isDestroyed()) {
               return null;
@@ -779,7 +784,12 @@ export const useCesiumPointLabels = (
         } as LineVisualizerData;
       })
       .filter((line): line is LineVisualizerData => Boolean(line));
-  }, [points, scene]);
+  }, [
+    onPointVerticalOffsetStemLongPress,
+    pointLongPressDurationMs,
+    points,
+    scene,
+  ]);
 
   useLineVisualizers(verticalOffsetStemLines, showLabels);
 

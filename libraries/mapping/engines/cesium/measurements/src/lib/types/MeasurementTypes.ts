@@ -4,6 +4,7 @@ export enum MeasurementMode {
   NONE = "none",
   PointMeasure = "point_measure",
   PointQuery = "point_query",
+  PolylineMeasure = "polyline_measure",
   Traverse = "traverse",
   Elevation = "elevation",
 }
@@ -29,6 +30,7 @@ export type PolylinePointLabelMode =
   | "elevationSinceLastNode";
 export const DEFAULT_POLYLINE_POINT_LABEL_MODE: PolylinePointLabelMode =
   "cumulativeDistance";
+export type PolylineSegmentLineMode = "direct" | "components";
 
 export type SurfaceType = "roof" | "facade" | "terrain" | "footprint";
 
@@ -47,6 +49,8 @@ export type PlanarPolygonGroup = {
   id: string;
   name?: string;
   hidden?: boolean;
+  segmentLineMode?: PolylineSegmentLineMode;
+  verticalOffsetMeters?: number;
   vertexPointIds: string[];
   edgeRelationIds: string[];
   distanceMeasurementStartPointId?: string;
@@ -64,6 +68,7 @@ export type PolylineCollection = {
   vertexPointIds: string[];
   edgeRelationIds: string[];
   distanceMeasurementStartPointId: string | null;
+  vertexHeightsMeters: number[];
   segmentLengthsMeters: number[];
   segmentLengthsCumulativeMeters: number[];
   totalLengthMeters: number;
@@ -120,6 +125,7 @@ export type PointMeasurementEntry = MeasurementEntry & {
   geometryECEF: Cartesian3;
   geometryWGS84: GeomPoint;
   radius?: number;
+  isFacadeAutoCorner?: boolean;
   referenceLineAnnotation?: PointReferenceLineAnnotation;
   verticalOffsetAnchorECEF?: SerializableCartesian3;
   /** True when point was created ad-hoc in distance mode (PointQuery).

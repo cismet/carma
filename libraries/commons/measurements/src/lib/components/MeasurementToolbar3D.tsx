@@ -4,6 +4,7 @@ import {
   useCesiumMeasurements,
   isPointMeasurementEntry,
   MeasurementMode,
+  SurfaceType,
 } from "@carma-mapping/engines/cesium/measurements";
 import {
   MeasurementModeToolbar,
@@ -44,12 +45,28 @@ export function MeasurementToolbar3D({
     setDistanceCreationLineVisibilityByKind,
     pointVerticalOffsetMeters,
     setPointVerticalOffsetMeters,
+    polylineVerticalOffsetMeters,
+    setPolylineVerticalOffsetMeters,
+    polylineSegmentLineMode,
+    setPolylineSegmentLineMode,
+    planarMeasurementCreationMode,
+    setPlanarMeasurementCreationMode,
+    setPolygonSurfaceTypePreset,
     pointLabelOnCreate,
     setPointLabelOnCreate,
   } = useCesiumMeasurements();
 
   const [activePolygonSubType, setActivePolygonSubType] =
-    useState<PolygonSubType>("oblique");
+    useState<PolygonSubType>("vertical");
+
+  useEffect(() => {
+    const surfaceTypeBySubType: Record<PolygonSubType, SurfaceType> = {
+      horizontal: "footprint",
+      vertical: "facade",
+      oblique: "roof",
+    };
+    setPolygonSurfaceTypePreset(surfaceTypeBySubType[activePolygonSubType]);
+  }, [activePolygonSubType, setPolygonSurfaceTypePreset]);
 
   const measurementById = useMemo(
     () => new Map(measurements.map((m) => [m.id, m])),
@@ -173,7 +190,13 @@ export function MeasurementToolbar3D({
   const { activeToolType, handleToolTypeChange } = useMeasurementToolMode({
     isSelectionMode: selectionModeActive,
     isLabelMode: pointLabelOnCreate,
-    isImplicitMode: measurementMode === MeasurementMode.PointQuery,
+    isDistanceMode: measurementMode === MeasurementMode.PointQuery,
+    isPolygonMode:
+      measurementMode === MeasurementMode.PolylineMeasure &&
+      planarMeasurementCreationMode === "polygon",
+    isPolylineMode:
+      measurementMode === MeasurementMode.PolylineMeasure &&
+      planarMeasurementCreationMode === "polyline",
     onSelectMode: () => {
       setPointLabelOnCreate(false);
       if (measurementMode === MeasurementMode.NONE) {
@@ -191,9 +214,21 @@ export function MeasurementToolbar3D({
       setMeasurementMode(MeasurementMode.PointMeasure);
       setSelectionModeActive(false);
     },
-    onImplicitMode: () => {
+    onDistanceMode: () => {
       setPointLabelOnCreate(false);
       setMeasurementMode(MeasurementMode.PointQuery);
+      setSelectionModeActive(false);
+    },
+    onPolygonMode: () => {
+      setPointLabelOnCreate(false);
+      setMeasurementMode(MeasurementMode.PolylineMeasure);
+      setPlanarMeasurementCreationMode("polygon");
+      setSelectionModeActive(false);
+    },
+    onPolylineMode: () => {
+      setPointLabelOnCreate(false);
+      setMeasurementMode(MeasurementMode.PolylineMeasure);
+      setPlanarMeasurementCreationMode("polyline");
       setSelectionModeActive(false);
     },
   });
@@ -229,6 +264,10 @@ export function MeasurementToolbar3D({
         onDistanceStickyToFirstPointChange={setDistanceModeStickyToFirstPoint}
         pointVerticalOffsetMeters={pointVerticalOffsetMeters}
         onPointVerticalOffsetChange={setPointVerticalOffsetMeters}
+        polylineVerticalOffsetMeters={polylineVerticalOffsetMeters}
+        onPolylineVerticalOffsetChange={setPolylineVerticalOffsetMeters}
+        polylineSegmentLineMode={polylineSegmentLineMode}
+        onPolylineSegmentLineModeChange={setPolylineSegmentLineMode}
         pointSoloMode={temporaryMode}
         onPointSoloModeChange={setTemporaryMode}
         activePolygonSubType={activePolygonSubType}

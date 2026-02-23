@@ -4,33 +4,53 @@ import { MeasurementToolType } from "../MeasurementModeToolbar";
 interface UseMeasurementToolModeProps {
   isSelectionMode: boolean;
   isLabelMode: boolean;
-  isImplicitMode: boolean;
+  isDistanceMode: boolean;
+  isPolygonMode: boolean;
+  isPolylineMode: boolean;
   onSelectMode: () => void;
   onLabelMode: () => void;
   onPointMode: () => void;
-  onImplicitMode: () => void;
+  onDistanceMode: () => void;
+  onPolygonMode: () => void;
+  onPolylineMode: () => void;
 }
 
 export const useMeasurementToolMode = ({
   isSelectionMode,
   isLabelMode,
-  isImplicitMode,
+  isDistanceMode,
+  isPolygonMode,
+  isPolylineMode,
   onSelectMode,
   onLabelMode,
   onPointMode,
-  onImplicitMode,
+  onDistanceMode,
+  onPolygonMode,
+  onPolylineMode,
 }: UseMeasurementToolModeProps) => {
   const [lastNonSelectionToolType, setLastNonSelectionToolType] =
     useState<MeasurementToolType>(
-      isLabelMode ? "label" : isImplicitMode ? "distance" : "point"
+      isLabelMode
+        ? "label"
+        : isDistanceMode
+        ? "distance"
+        : isPolygonMode
+        ? "polygon"
+        : isPolylineMode
+        ? "polyline"
+        : "point"
     );
   const [activeToolType, setActiveToolType] = useState<MeasurementToolType>(
     isSelectionMode
       ? "select"
       : isLabelMode
       ? "label"
-      : isImplicitMode
+      : isDistanceMode
       ? "distance"
+      : isPolygonMode
+      ? "polygon"
+      : isPolylineMode
+      ? "polyline"
       : "point"
   );
 
@@ -47,7 +67,15 @@ export const useMeasurementToolMode = ({
       onPointMode();
       return;
     }
-    onImplicitMode();
+    if (toolType === "polyline") {
+      onPolylineMode();
+      return;
+    }
+    if (toolType === "polygon") {
+      onPolygonMode();
+      return;
+    }
+    onDistanceMode();
   };
 
   useEffect(() => {
@@ -60,14 +88,30 @@ export const useMeasurementToolMode = ({
       setLastNonSelectionToolType("label");
       return;
     }
-    if (isImplicitMode) {
+    if (isDistanceMode) {
       setActiveToolType("distance");
       setLastNonSelectionToolType("distance");
       return;
     }
+    if (isPolygonMode) {
+      setActiveToolType("polygon");
+      setLastNonSelectionToolType("polygon");
+      return;
+    }
+    if (isPolylineMode) {
+      setActiveToolType("polyline");
+      setLastNonSelectionToolType("polyline");
+      return;
+    }
     setActiveToolType("point");
     setLastNonSelectionToolType("point");
-  }, [isImplicitMode, isSelectionMode, isLabelMode]);
+  }, [
+    isDistanceMode,
+    isPolygonMode,
+    isPolylineMode,
+    isSelectionMode,
+    isLabelMode,
+  ]);
 
   const handleToolTypeChange = (toolType: MeasurementToolType) => {
     if (toolType === "select" && activeToolType === "select") {

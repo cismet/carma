@@ -86,6 +86,8 @@ export const useLineVisualizers = (
           labelFontWeight: line.labelFontWeight,
           labelDominantBaseline: line.labelDominantBaseline,
           onLineClick: line.onLineClick,
+          onLineLongPress: line.onLineLongPress,
+          longPressDurationMs: line.longPressDurationMs,
           onLabelClick: line.onLabelClick,
         }),
         visible: line.visible !== false,

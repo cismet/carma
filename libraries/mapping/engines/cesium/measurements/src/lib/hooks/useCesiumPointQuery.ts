@@ -43,13 +43,18 @@ export const useCesiumPointQuery = (
   hiddenOnCreate: boolean = false,
   auxiliaryOnCreate: boolean = false,
   useTemporaryForCreatedPoints: boolean = true,
-  markCreatedPointsAsDistanceAdhoc: boolean = false
+  markCreatedPointsAsDistanceAdhoc: boolean = false,
+  onPointerMove?: (
+    positionECEF: Cartesian3 | null,
+    screenPosition: Cartesian2
+  ) => void
 ) => {
   const handlerRef = useRef<ScreenSpaceEventHandler | null>(null);
   const prevTemporaryModeRef = useRef(temporaryMode);
   const onPointCreatedRef = useRef(onPointCreated);
   const onLineFinishRef = useRef(onLineFinish);
   const onBeforePointCreateRef = useRef(onBeforePointCreate);
+  const onPointerMoveRef = useRef(onPointerMove);
 
   useEffect(() => {
     onPointCreatedRef.current = onPointCreated;
@@ -62,6 +67,10 @@ export const useCesiumPointQuery = (
   useEffect(() => {
     onBeforePointCreateRef.current = onBeforePointCreate;
   }, [onBeforePointCreate]);
+
+  useEffect(() => {
+    onPointerMoveRef.current = onPointerMove;
+  }, [onPointerMove]);
 
   // Handle temporary-to-permanent conversion when temporary mode is turned off
   useEffect(() => {
@@ -227,6 +236,11 @@ export const useCesiumPointQuery = (
       }
       onLineFinishRef.current?.();
     }, ScreenSpaceEventType.LEFT_DOUBLE_CLICK);
+
+    handler.setInputAction((event: { endPosition: Cartesian2 }) => {
+      const pickedPosition = scene.pickPosition(event.endPosition);
+      onPointerMoveRef.current?.(pickedPosition ?? null, event.endPosition);
+    }, ScreenSpaceEventType.MOUSE_MOVE);
 
     console.debug("[SceneClick] Terrain click handler enabled");
 

@@ -76,6 +76,9 @@ import { getCustomPointMeasurementName } from "../utils/measurementNaming";
 export type CesiumDistanceVisualizerOptions = {
   distanceRelations?: PointDistanceRelation[];
   planarPolygonGroups?: PlanarPolygonGroup[];
+  facadeRectanglePreviewOppositeByGroupId?: Readonly<
+    Record<string, Cartesian3>
+  >;
   selectedPlanarPolygonGroupId?: string | null;
   activePlanarPolygonGroupId?: string | null;
   onPlanarPolygonClick?: (polygonGroupId: string) => void;
@@ -102,6 +105,7 @@ const REFERENCE_COMPONENT_LINE_STROKE_WIDTH_PX = 1.25;
 const CORNER_OVERLAY_ID_PREFIX = "distance-right-angle-corner";
 const MIDPOINT_OVERLAY_ID_PREFIX = "distance-edge-midpoint";
 const POLYGON_PREVIEW_OVERLAY_ID_PREFIX = "distance-polygon-preview";
+const FACADE_CORNER_OVERLAY_ID_PREFIX = "distance-facade-corner";
 const CORNER_OVERLAY_MIN_BOX_PX = 20;
 const CORNER_OVERLAY_PADDING_PX = 6;
 const CORNER_OVERLAY_TARGET_RADIUS_PX = 20;
@@ -120,12 +124,15 @@ const POLYGON_PREVIEW_FILL_TERRAIN_OPEN = "rgba(107, 188, 123, 0.20)";
 const POLYGON_PREVIEW_FILL_TERRAIN_CLOSED = "rgba(107, 188, 123, 0.30)";
 const POLYGON_PREVIEW_FILL_FOOTPRINT_OPEN = "rgba(226, 232, 240, 0.20)";
 const POLYGON_PREVIEW_FILL_FOOTPRINT_CLOSED = "rgba(226, 232, 240, 0.32)";
+const FACADE_RECTANGLE_COMPONENT_EPSILON_METERS = 0.05;
 const POLYGON_FILL_ALPHA = 0.25;
 const POLYGON_FILL_SELECTED_ALPHA = 0.35;
 const POLYGON_STRIPE_SIZE_PX = 6;
 const POLYGON_STRIPE_WIDTH_PX = 1.5;
 const POLYGON_PREVIEW_STROKE = "rgba(255, 255, 255, 0.65)";
 const POLYGON_PREVIEW_STROKE_WIDTH_PX = 1;
+const FACADE_CORNER_MARKER_SIZE_PX = 10;
+const FACADE_CORNER_MARKER_STROKE_WIDTH_PX = 1;
 const POLYGON_AREA_LABEL_COLOR = "#111111";
 const POLYGON_AREA_LABEL_FONT_SIZE_PX = 12;
 const POLYGON_AREA_LABEL_FONT_FAMILY = "Arial, sans-serif";
@@ -209,6 +216,54 @@ const getPolygonStripeColor = (
   if (surfaceType === "terrain") return "rgba(107, 188, 123, 0.35)";
   if (surfaceType === "footprint") return "rgba(226, 232, 240, 0.35)";
   return "rgba(239, 223, 145, 0.35)"; // roof
+};
+
+const buildFacadeRectangleCornerFromDiagonal = (
+  firstCorner: Cartesian3,
+  oppositeCorner: Cartesian3
+) => {
+  const up = Cartesian3.normalize(firstCorner, new Cartesian3());
+  const diagonal = Cartesian3.subtract(
+    oppositeCorner,
+    firstCorner,
+    new Cartesian3()
+  );
+  const verticalMeters = Cartesian3.dot(diagonal, up);
+  const verticalComponent = Cartesian3.multiplyByScalar(
+    up,
+    verticalMeters,
+    new Cartesian3()
+  );
+  const horizontalComponent = Cartesian3.subtract(
+    diagonal,
+    verticalComponent,
+    new Cartesian3()
+  );
+  const horizontalMeters = Cartesian3.magnitude(horizontalComponent);
+  const verticalAbsoluteMeters = Math.abs(verticalMeters);
+
+  if (
+    horizontalMeters < FACADE_RECTANGLE_COMPONENT_EPSILON_METERS ||
+    verticalAbsoluteMeters < FACADE_RECTANGLE_COMPONENT_EPSILON_METERS
+  ) {
+    return null;
+  }
+
+  const adjacentHorizontalCorner = Cartesian3.add(
+    firstCorner,
+    horizontalComponent,
+    new Cartesian3()
+  );
+  const adjacentVerticalCorner = Cartesian3.add(
+    firstCorner,
+    verticalComponent,
+    new Cartesian3()
+  );
+
+  return {
+    adjacentHorizontalCorner,
+    adjacentVerticalCorner,
+  };
 };
 
 const getProjectedHorizontalAreaSquareMeters = (vertices: Cartesian3[]) => {
@@ -298,6 +353,7 @@ export const useCesiumDistanceVisualizer = (
   {
     distanceRelations = [],
     planarPolygonGroups = [],
+    facadeRectanglePreviewOppositeByGroupId,
     selectedPlanarPolygonGroupId = null,
     activePlanarPolygonGroupId = null,
     onPlanarPolygonClick,
@@ -310,8 +366,10 @@ export const useCesiumDistanceVisualizer = (
   }: CesiumDistanceVisualizerOptions
 ) => {
   const directLineRefs = useRef<Record<string, LineVisualizer>>({});
+  const facadePreviewEdgeLineRefs = useRef<Record<string, LineVisualizer>>({});
   const verticalLineRefs = useRef<Record<string, LineVisualizer>>({});
   const horizontalLineRefs = useRef<Record<string, LineVisualizer>>({});
+  const facadeCornerOverlayIdsRef = useRef<string[]>([]);
   const cornerOverlayIdsRef = useRef<string[]>([]);
   const midpointOverlayIdsRef = useRef<string[]>([]);
   const polygonPreviewOverlayIdsRef = useRef<string[]>([]);
@@ -413,7 +471,11 @@ export const useCesiumDistanceVisualizer = (
   const distancePairLabels = useMemo(
     () =>
       resolvedRelations
-        .filter(({ relation }) => relation.showDirectLine)
+        .filter(
+          ({ relation }) =>
+            relation.showDirectLine &&
+            !splitMarkerRelationIdSet.has(relation.id)
+        )
         .map(({ relation, pointA, pointB }) => {
           const higherPoint =
             pointA.geometryWGS84.height >= pointB.geometryWGS84.height
@@ -429,7 +491,7 @@ export const useCesiumDistanceVisualizer = (
             text: `${higherLabel} ↔ ${lowerLabel}`,
           };
         }),
-    [enclosedPointLabelById, resolvedRelations]
+    [enclosedPointLabelById, resolvedRelations, splitMarkerRelationIdSet]
   );
 
   const distancePairLabelAttachOverrideByRelationId = useMemo(() => {
@@ -626,22 +688,119 @@ export const useCesiumDistanceVisualizer = (
   const polygonPreviewGroups = useMemo(
     () =>
       planarPolygonGroups
-        .filter(
-          (group) =>
-            group.vertexPointIds.length >= 3 &&
-            (group.planeLocked || group.closed)
-        )
         .map((group) => {
-          const vertexPoints = group.vertexPointIds
-            .map((pointId) => pointsById.get(pointId)?.geometryECEF)
-            .filter((point): point is Cartesian3 => Boolean(point));
-          return {
-            group,
-            vertexPoints,
-          };
+          if (group.closed && group.vertexPointIds.length >= 3) {
+            const vertexPoints = group.vertexPointIds
+              .map((pointId) => pointsById.get(pointId)?.geometryECEF)
+              .filter((point): point is Cartesian3 => Boolean(point));
+            return {
+              group,
+              vertexPoints,
+            };
+          }
+
+          if (
+            !group.closed &&
+            (group.surfaceType ?? "roof") === "facade" &&
+            group.vertexPointIds.length === 1
+          ) {
+            const firstVertexId = group.vertexPointIds[0] ?? null;
+            const firstVertex = firstVertexId
+              ? pointsById.get(firstVertexId)?.geometryECEF
+              : null;
+            const previewOppositeCorner =
+              facadeRectanglePreviewOppositeByGroupId?.[group.id];
+            if (!firstVertex || !previewOppositeCorner) {
+              return null;
+            }
+
+            const facadeCorners = buildFacadeRectangleCornerFromDiagonal(
+              firstVertex,
+              previewOppositeCorner
+            );
+            if (!facadeCorners) {
+              return null;
+            }
+
+            return {
+              group,
+              vertexPoints: [
+                firstVertex,
+                facadeCorners.adjacentHorizontalCorner,
+                previewOppositeCorner,
+                facadeCorners.adjacentVerticalCorner,
+              ],
+            };
+          }
+
+          return null;
         })
-        .filter(({ vertexPoints }) => vertexPoints.length >= 3),
-    [planarPolygonGroups, pointsById]
+        .filter(
+          (
+            previewGroup
+          ): previewGroup is {
+            group: PlanarPolygonGroup;
+            vertexPoints: Cartesian3[];
+          } => Boolean(previewGroup && previewGroup.vertexPoints.length >= 3)
+        ),
+    [facadeRectanglePreviewOppositeByGroupId, planarPolygonGroups, pointsById]
+  );
+
+  const facadePreviewEdgeSegments = useMemo(
+    () =>
+      polygonPreviewGroups
+        .filter(
+          ({ group, vertexPoints }) =>
+            !group.closed &&
+            (group.surfaceType ?? "roof") === "facade" &&
+            vertexPoints.length === 4
+        )
+        .flatMap(({ group, vertexPoints }) => {
+          const segments: Array<{
+            id: string;
+            start: Cartesian3;
+            end: Cartesian3;
+          }> = [];
+          for (let index = 0; index < vertexPoints.length; index += 1) {
+            const start = vertexPoints[index];
+            const end = vertexPoints[(index + 1) % vertexPoints.length];
+            if (!start || !end) continue;
+            segments.push({
+              id: `${group.id}:${index}`,
+              start,
+              end,
+            });
+          }
+          return segments;
+        }),
+    [polygonPreviewGroups]
+  );
+
+  const facadeCornerMarkers = useMemo(
+    () =>
+      polygonPreviewGroups
+        .filter(
+          ({ group, vertexPoints }) =>
+            !group.closed &&
+            (group.surfaceType ?? "roof") === "facade" &&
+            vertexPoints.length === 4
+        )
+        .flatMap(({ group, vertexPoints }) => {
+          const horizontalCorner = vertexPoints[1];
+          const verticalCorner = vertexPoints[3];
+          if (!horizontalCorner || !verticalCorner) return [];
+          return [
+            {
+              id: `${group.id}:horizontal`,
+              position: horizontalCorner,
+            },
+            {
+              id: `${group.id}:vertical`,
+              position: verticalCorner,
+            },
+          ];
+        }),
+    [polygonPreviewGroups]
   );
 
   const overlayLines = useMemo(() => {
@@ -900,6 +1059,21 @@ export const useCesiumDistanceVisualizer = (
             };
           };
 
+        const verticalDistanceMeters = Cartesian3.distance(
+          anchorPoint.geometryECEF,
+          auxiliaryPoint
+        );
+        const horizontalDistanceMeters = Cartesian3.distance(
+          auxiliaryPoint,
+          targetPoint.geometryECEF
+        );
+        const showVerticalLabel =
+          (relation.labelVisibilityByKind?.vertical ?? true) &&
+          verticalDistanceMeters > REFERENCE_LINE_EPSILON_METERS;
+        const showHorizontalLabel =
+          (relation.labelVisibilityByKind?.horizontal ?? true) &&
+          horizontalDistanceMeters > REFERENCE_LINE_EPSILON_METERS;
+
         if (relation.showDirectLine) {
           const isPolygonEdgeRelation = splitMarkerRelationIdSet.has(
             relation.id
@@ -921,7 +1095,6 @@ export const useCesiumDistanceVisualizer = (
               ? cumulativeDistanceMeters
               : segmentDistanceMeters;
           const showDirectLabel =
-            false &&
             (relation.labelVisibilityByKind?.direct ?? true) &&
             directLabelMode !== "none" &&
             !roofRoofSharedEdgeRelationIdSet.has(relation.id) &&
@@ -968,7 +1141,9 @@ export const useCesiumDistanceVisualizer = (
             strokeWidth: REFERENCE_COMPONENT_LINE_STROKE_WIDTH_PX,
             strokeDasharray: "6 8",
             hitTargetStrokeWidth: 10,
-            labelText: undefined,
+            labelText: showVerticalLabel
+              ? `${formatNumber(verticalDistanceMeters)} m`
+              : undefined,
             labelColor: "#000000",
             labelStroke: "rgba(255, 255, 255, 0.95)",
             labelFontSize: 12,
@@ -998,7 +1173,9 @@ export const useCesiumDistanceVisualizer = (
             strokeWidth: REFERENCE_COMPONENT_LINE_STROKE_WIDTH_PX,
             strokeDasharray: "6 8",
             hitTargetStrokeWidth: 10,
-            labelText: undefined,
+            labelText: showHorizontalLabel
+              ? `${formatNumber(horizontalDistanceMeters)} m`
+              : undefined,
             labelColor: "#000000",
             labelStroke: "rgba(255, 255, 255, 0.95)",
             labelFontSize: 12,
@@ -1012,8 +1189,34 @@ export const useCesiumDistanceVisualizer = (
       }
     );
 
+    facadePreviewEdgeSegments.forEach((segment) => {
+      lines.push({
+        id: `polygon-preview-edge-${segment.id}`,
+        getCanvasLine: () => {
+          if (!scene || scene.isDestroyed()) return null;
+          const start = SceneTransforms.worldToWindowCoordinates(
+            scene,
+            segment.start
+          );
+          const end = SceneTransforms.worldToWindowCoordinates(
+            scene,
+            segment.end
+          );
+          if (!defined(start) || !defined(end)) return null;
+          return {
+            start: { x: start.x, y: start.y },
+            end: { x: end.x, y: end.y },
+          };
+        },
+        stroke: POLYGON_PREVIEW_STROKE,
+        strokeWidth: POLYGON_PREVIEW_STROKE_WIDTH_PX,
+        hitTargetStrokeWidth: 10,
+      });
+    });
+
     return lines;
   }, [
+    facadePreviewEdgeSegments,
     lineLabelMinDistancePx,
     onDistanceLineLabelToggle,
     onDistanceLineClick,
@@ -1026,6 +1229,73 @@ export const useCesiumDistanceVisualizer = (
   ]);
 
   useLineVisualizers(overlayLines, overlayLines.length > 0);
+
+  const facadeCornerMarkerContent = useMemo(
+    () =>
+      createElement("div", {
+        style: {
+          width: `${FACADE_CORNER_MARKER_SIZE_PX}px`,
+          height: `${FACADE_CORNER_MARKER_SIZE_PX}px`,
+          borderRadius: "50%",
+          border: `${FACADE_CORNER_MARKER_STROKE_WIDTH_PX}px solid rgba(255, 255, 255, 0.95)`,
+          background: "transparent",
+          boxSizing: "border-box",
+          pointerEvents: "none",
+        },
+      }),
+    []
+  );
+
+  useEffect(() => {
+    facadeCornerOverlayIdsRef.current.forEach((overlayId) => {
+      removeLabelOverlayElement(overlayId);
+    });
+    facadeCornerOverlayIdsRef.current = [];
+
+    if (!scene || scene.isDestroyed()) {
+      return;
+    }
+
+    const nextOverlayIds: string[] = [];
+    facadeCornerMarkers.forEach((marker) => {
+      const overlayId = `${FACADE_CORNER_OVERLAY_ID_PREFIX}-${marker.id}`;
+      addLabelOverlayElement({
+        id: overlayId,
+        zIndex: 9,
+        content: facadeCornerMarkerContent,
+        updatePosition: (elementDiv) => {
+          if (!scene || scene.isDestroyed()) return false;
+          const screenPosition = SceneTransforms.worldToWindowCoordinates(
+            scene,
+            marker.position
+          );
+          if (!defined(screenPosition)) return false;
+          elementDiv.style.position = "absolute";
+          elementDiv.style.left = `${screenPosition.x}px`;
+          elementDiv.style.top = `${screenPosition.y}px`;
+          elementDiv.style.transform = "translate(-50%, -50%)";
+          elementDiv.style.pointerEvents = "none";
+          return true;
+        },
+      });
+      nextOverlayIds.push(overlayId);
+    });
+
+    facadeCornerOverlayIdsRef.current = nextOverlayIds;
+
+    return () => {
+      nextOverlayIds.forEach((overlayId) => {
+        removeLabelOverlayElement(overlayId);
+      });
+      facadeCornerOverlayIdsRef.current = [];
+    };
+  }, [
+    addLabelOverlayElement,
+    facadeCornerMarkerContent,
+    facadeCornerMarkers,
+    removeLabelOverlayElement,
+    scene,
+  ]);
 
   const polygonPreviewContent = useCallback((group: PlanarPolygonGroup) => {
     const patternId = `stripe-${group.id}`;
@@ -1789,6 +2059,40 @@ export const useCesiumDistanceVisualizer = (
   useEffect(() => {
     if (!scene) return;
 
+    destroyLineVisualizerMap(facadePreviewEdgeLineRefs);
+
+    if (facadePreviewEdgeSegments.length === 0) {
+      scene.requestRender();
+      return;
+    }
+
+    const facadeEdgeColor = Color.WHITE;
+    facadePreviewEdgeSegments.forEach((segment) => {
+      const lineVisualizer = createLineVisualizer(
+        `polygon-preview-edge-${segment.id}`,
+        {
+          start: segment.start,
+          end: segment.end,
+          color: facadeEdgeColor,
+          width: POLYGON_PREVIEW_STROKE_WIDTH_PX,
+          dashed: false,
+        }
+      );
+      facadePreviewEdgeLineRefs.current[segment.id] = lineVisualizer;
+      lineVisualizer.attach(scene, () => scene.requestRender());
+    });
+    scene.requestRender();
+
+    return () => {
+      destroyLineVisualizerMap(facadePreviewEdgeLineRefs);
+      if (!scene || scene.isDestroyed()) return;
+      scene.requestRender();
+    };
+  }, [facadePreviewEdgeSegments, scene]);
+
+  useEffect(() => {
+    if (!scene) return;
+
     destroyLineVisualizerMap(verticalLineRefs);
     destroyLineVisualizerMap(horizontalLineRefs);
 
@@ -1847,6 +2151,10 @@ export const useCesiumDistanceVisualizer = (
 
   useEffect(() => {
     return () => {
+      facadeCornerOverlayIdsRef.current.forEach((overlayId) => {
+        removeLabelOverlayElement(overlayId);
+      });
+      facadeCornerOverlayIdsRef.current = [];
       cornerOverlayIdsRef.current.forEach((overlayId) => {
         removeLabelOverlayElement(overlayId);
       });
@@ -1864,6 +2172,7 @@ export const useCesiumDistanceVisualizer = (
       });
       distancePairLabelOverlayIdsRef.current = [];
       destroyLineVisualizerMap(directLineRefs);
+      destroyLineVisualizerMap(facadePreviewEdgeLineRefs);
       destroyLineVisualizerMap(verticalLineRefs);
       destroyLineVisualizerMap(horizontalLineRefs);
       // polygon primitives are cleaned up by their own effect
