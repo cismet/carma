@@ -133,15 +133,18 @@ const POLYGON_PREVIEW_STROKE = "rgba(255, 255, 255, 0.65)";
 const POLYGON_PREVIEW_STROKE_WIDTH_PX = 1;
 const FACADE_CORNER_MARKER_SIZE_PX = 10;
 const FACADE_CORNER_MARKER_STROKE_WIDTH_PX = 1;
-const POLYGON_AREA_LABEL_COLOR = "#111111";
+const POLYGON_AREA_LABEL_COLOR = "#000000";
 const POLYGON_AREA_LABEL_FONT_SIZE_PX = 12;
 const POLYGON_AREA_LABEL_FONT_FAMILY = "Arial, sans-serif";
 const POLYGON_AREA_LABEL_FONT_WEIGHT = "400";
+const POLYGON_AREA_LABEL_STROKE = "rgba(255, 255, 255, 0.95)";
+const POLYGON_AREA_LABEL_STROKE_WIDTH_PX = 3;
 const POLYGON_OVERLAY_MAX_BOUNDS_SCALE = 2.5;
 const LABEL_REFERENCE_MIN_DISTANCE_PX = 24;
 const LABEL_REFERENCE_MAX_DISTANCE_PX = 48;
 const LABEL_INSIDE_BLEND_FACTOR = 0.35;
 const VERTICAL_COMPONENT_LABEL_OFFSET_PX = 8;
+const FACADE_OPPOSING_EDGE_LABEL_EPSILON_METERS = 0.01;
 const DISTANCE_PAIR_LABEL_OVERLAY_ID_PREFIX = "distance-pair-label";
 const DEFAULT_PAIR_LABEL_ATTACH = "bottomLeft";
 const LABEL_ATTACH_ORDER_WITH_POINT_LABEL: PointLabelAttach[] = [
@@ -163,6 +166,11 @@ const EMPTY_PAIR_LABEL_LAYOUT_RESULT: PointLabelLayoutResult = {
 
 const clampToRange = (value: number, min: number, max: number) =>
   Math.max(min, Math.min(max, value));
+
+const getDistanceRelationId = (pointAId: string, pointBId: string) => {
+  const [left, right] = [pointAId, pointBId].sort((a, b) => a.localeCompare(b));
+  return `distance-relation:${left}:${right}`;
+};
 
 const destroyLineVisualizerMap = (lineRefs: {
   current: Record<string, LineVisualizer>;
@@ -334,10 +342,13 @@ const getPolygonAreaLabelText = (
   vertices: Cartesian3[]
 ) => {
   const planarArea = Math.max(0, group.areaSquareMeters ?? 0);
+  const isFacadeSurface = (group.surfaceType ?? "roof") === "facade";
   const projectedHorizontalArea =
     getProjectedHorizontalAreaSquareMeters(vertices);
   const showProjectedHorizontalArea =
-    planarArea > 0 && projectedHorizontalArea < planarArea * 0.99;
+    !isFacadeSurface &&
+    planarArea > 0 &&
+    projectedHorizontalArea < planarArea * 0.99;
 
   return {
     planarText: formatAreaAdaptive(planarArea),
@@ -457,6 +468,45 @@ export const useCesiumDistanceVisualizer = (
     );
     return new Set(focusedGroup?.edgeRelationIds ?? []);
   }, [focusedGroupId, planarPolygonGroups]);
+
+  const duplicateFacadeOpposingEdgeRelationIdSet = useMemo(() => {
+    const relationIds = new Set<string>();
+
+    planarPolygonGroups.forEach((group) => {
+      if (!group.closed) return;
+      if ((group.surfaceType ?? "roof") !== "facade") return;
+      if (group.vertexPointIds.length !== 4) return;
+
+      const [point0Id, point1Id, point2Id, point3Id] = group.vertexPointIds;
+      if (!point0Id || !point1Id || !point2Id || !point3Id) return;
+
+      const point0 = pointsById.get(point0Id)?.geometryECEF;
+      const point1 = pointsById.get(point1Id)?.geometryECEF;
+      const point2 = pointsById.get(point2Id)?.geometryECEF;
+      const point3 = pointsById.get(point3Id)?.geometryECEF;
+      if (!point0 || !point1 || !point2 || !point3) return;
+
+      const length01 = Cartesian3.distance(point0, point1);
+      const length23 = Cartesian3.distance(point2, point3);
+      if (
+        Math.abs(length01 - length23) <=
+        FACADE_OPPOSING_EDGE_LABEL_EPSILON_METERS
+      ) {
+        relationIds.add(getDistanceRelationId(point2Id, point3Id));
+      }
+
+      const length12 = Cartesian3.distance(point1, point2);
+      const length30 = Cartesian3.distance(point3, point0);
+      if (
+        Math.abs(length12 - length30) <=
+        FACADE_OPPOSING_EDGE_LABEL_EPSILON_METERS
+      ) {
+        relationIds.add(getDistanceRelationId(point3Id, point0Id));
+      }
+    });
+
+    return relationIds;
+  }, [planarPolygonGroups, pointsById]);
 
   const resolvedRelations = useMemo(
     () =>
@@ -1098,7 +1148,8 @@ export const useCesiumDistanceVisualizer = (
             (relation.labelVisibilityByKind?.direct ?? true) &&
             directLabelMode !== "none" &&
             !roofRoofSharedEdgeRelationIdSet.has(relation.id) &&
-            shouldShowPolygonEdgeLengthLabel;
+            shouldShowPolygonEdgeLengthLabel &&
+            !duplicateFacadeOpposingEdgeRelationIdSet.has(relation.id);
           lines.push({
             id: `reference-direct-${relation.id}`,
             getCanvasLine: () => {
@@ -1222,6 +1273,7 @@ export const useCesiumDistanceVisualizer = (
     onDistanceLineClick,
     cumulativeDistanceByRelationId,
     roofRoofSharedEdgeRelationIdSet,
+    duplicateFacadeOpposingEdgeRelationIdSet,
     resolvedRelations,
     scene,
     edgeRelationOwnerGroupIdSet,
@@ -1370,6 +1422,9 @@ export const useCesiumDistanceVisualizer = (
           textAnchor: "middle",
           dominantBaseline: "middle",
           fill: POLYGON_AREA_LABEL_COLOR,
+          stroke: POLYGON_AREA_LABEL_STROKE,
+          strokeWidth: POLYGON_AREA_LABEL_STROKE_WIDTH_PX,
+          paintOrder: "stroke",
           fontSize: POLYGON_AREA_LABEL_FONT_SIZE_PX,
           fontFamily: POLYGON_AREA_LABEL_FONT_FAMILY,
           fontWeight: POLYGON_AREA_LABEL_FONT_WEIGHT,
@@ -1385,6 +1440,9 @@ export const useCesiumDistanceVisualizer = (
           textAnchor: "middle",
           dominantBaseline: "middle",
           fill: POLYGON_AREA_LABEL_COLOR,
+          stroke: POLYGON_AREA_LABEL_STROKE,
+          strokeWidth: POLYGON_AREA_LABEL_STROKE_WIDTH_PX,
+          paintOrder: "stroke",
           fontSize: Math.max(10, POLYGON_AREA_LABEL_FONT_SIZE_PX - 1),
           fontFamily: POLYGON_AREA_LABEL_FONT_FAMILY,
           fontWeight: POLYGON_AREA_LABEL_FONT_WEIGHT,

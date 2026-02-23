@@ -153,9 +153,23 @@ const buildFacadeRectangleCornerFromDiagonal = (
     new Cartesian3()
   );
 
+  const planeUpAnchor = Cartesian3.add(firstCorner, up, new Cartesian3());
+  const verticalPlane = createPlaneFromThreePoints(
+    firstCorner,
+    planeUpAnchor,
+    adjacentHorizontalCorner
+  );
+
+  const enforcedAdjacentHorizontalCorner = verticalPlane
+    ? projectPointOntoPlane(adjacentHorizontalCorner, verticalPlane)
+    : adjacentHorizontalCorner;
+  const enforcedAdjacentVerticalCorner = verticalPlane
+    ? projectPointOntoPlane(adjacentVerticalCorner, verticalPlane)
+    : adjacentVerticalCorner;
+
   return {
-    adjacentHorizontalCorner,
-    adjacentVerticalCorner,
+    adjacentHorizontalCorner: enforcedAdjacentHorizontalCorner,
+    adjacentVerticalCorner: enforcedAdjacentVerticalCorner,
   };
 };
 
@@ -1595,6 +1609,45 @@ export const CesiumMeasurementsProvider: React.FC<
     return planeByPointId;
   }, [planarPolygonGroups]);
 
+  const facadeVertexPointIdSet = useMemo(() => {
+    const ids = new Set<string>();
+    planarPolygonGroups.forEach((group) => {
+      if ((group.surfaceType ?? "roof") !== "facade") return;
+      group.vertexPointIds.forEach((pointId) => {
+        if (pointId) {
+          ids.add(pointId);
+        }
+      });
+    });
+    return ids;
+  }, [planarPolygonGroups]);
+
+  const openFacadeSingleVertexPointIdSet = useMemo(() => {
+    const ids = new Set<string>();
+    planarPolygonGroups.forEach((group) => {
+      if (group.closed) return;
+      if ((group.surfaceType ?? "roof") !== "facade") return;
+      if (group.vertexPointIds.length !== 1) return;
+      const onlyPointId = group.vertexPointIds[0];
+      if (onlyPointId) {
+        ids.add(onlyPointId);
+      }
+    });
+    return ids;
+  }, [planarPolygonGroups]);
+
+  const pointDragPlaneByPointIdForMarkerDrag = useMemo<
+    Readonly<Record<string, PlanarPolygonPlane>>
+  >(() => {
+    const planeByPointId: Record<string, PlanarPolygonPlane> = {
+      ...pointDragPlaneByPointId,
+    };
+    facadeVertexPointIdSet.forEach((pointId) => {
+      delete planeByPointId[pointId];
+    });
+    return planeByPointId;
+  }, [pointDragPlaneByPointId, facadeVertexPointIdSet]);
+
   const showPoints = !hideMeasurementsOfType.has(MeasurementMode.PointQuery);
   const showDistanceAndPolygonVisuals = true;
 
@@ -1863,12 +1916,16 @@ export const CesiumMeasurementsProvider: React.FC<
 
       if (selectedPlanarPolygonGroupId) {
         selectPlanarPolygonGroupById(null);
+        if (measurementMode === MeasurementMode.PolylineMeasure) {
+          return true;
+        }
         return false;
       }
 
       return true;
     },
     [
+      measurementMode,
       scene,
       isActiveDrawMode,
       selectPlanarPolygonGroupById,
@@ -2093,9 +2150,6 @@ export const CesiumMeasurementsProvider: React.FC<
       }
 
       const sourcePointId = resolveDistanceRelationSourcePointId(newPointId);
-      if (sourcePointId) {
-        upsertDirectDistanceRelation(sourcePointId, newPointId);
-      }
 
       let projectedPointPosition: Cartesian3 | null = null;
       const activeGroupSnapshot =
@@ -2142,6 +2196,10 @@ export const CesiumMeasurementsProvider: React.FC<
       })();
       const createdFacadeAutoCorners = facadeAutoCloseFromNewPoint?.autoCorners;
       const autoClosedAsFacadeRectangle = Boolean(facadeAutoCloseFromNewPoint);
+
+      if (sourcePointId && !autoClosedAsFacadeRectangle) {
+        upsertDirectDistanceRelation(sourcePointId, newPointId);
+      }
 
       setPlanarPolygonGroups((prev) => {
         const activeGroup =
@@ -3907,13 +3965,14 @@ export const CesiumMeasurementsProvider: React.FC<
         }
 
         const sourcePointId = resolveDistanceRelationSourcePointId(id);
-        if (sourcePointId) {
-          upsertDirectDistanceRelation(sourcePointId, id);
-        }
         const didAutoCloseFacadeRectangle =
           appendExistingPointToActivePlanarPolygonGroup(id, sourcePointId);
         if (didAutoCloseFacadeRectangle) {
           return;
+        }
+
+        if (sourcePointId) {
+          upsertDirectDistanceRelation(sourcePointId, id);
         }
 
         setDoubleClickChainSourcePointId(id);
@@ -3955,13 +4014,14 @@ export const CesiumMeasurementsProvider: React.FC<
         }
 
         const sourcePointId = resolveDistanceRelationSourcePointId(id);
-        if (sourcePointId) {
-          upsertDirectDistanceRelation(sourcePointId, id);
-        }
         const didAutoCloseFacadeRectangle =
           appendExistingPointToActivePlanarPolygonGroup(id, sourcePointId);
         if (didAutoCloseFacadeRectangle) {
           return;
+        }
+
+        if (sourcePointId) {
+          upsertDirectDistanceRelation(sourcePointId, id);
         }
 
         setDoubleClickChainSourcePointId(id);
@@ -4284,6 +4344,29 @@ export const CesiumMeasurementsProvider: React.FC<
     [measurements]
   );
 
+  const closedFacadeRectangleVertexIdSet = useMemo(() => {
+    const ids = new Set<string>();
+    planarPolygonGroups.forEach((group) => {
+      if (!group.closed) return;
+      if ((group.surfaceType ?? "roof") !== "facade") return;
+      if (group.vertexPointIds.length !== 4) return;
+      group.vertexPointIds.forEach((pointId) => {
+        if (pointId) {
+          ids.add(pointId);
+        }
+      });
+    });
+    return ids;
+  }, [planarPolygonGroups]);
+
+  const markerlessPointIds = useMemo(() => {
+    const ids = new Set(auxiliaryLabelAnchorIdSet);
+    closedFacadeRectangleVertexIdSet.forEach((pointId) => {
+      ids.delete(pointId);
+    });
+    return ids;
+  }, [auxiliaryLabelAnchorIdSet, closedFacadeRectangleVertexIdSet]);
+
   const hiddenPlanarPolygonGroupIdSet = useMemo(
     () =>
       new Set(
@@ -4331,6 +4414,9 @@ export const CesiumMeasurementsProvider: React.FC<
       ...hiddenMeasurementIdSet,
       ...distanceModeHiddenPointLabelIds,
     ]);
+    openFacadeSingleVertexPointIdSet.forEach((pointId) => {
+      ids.add(pointId);
+    });
     measurements.forEach((measurement) => {
       if (
         isPointMeasurementEntry(measurement) &&
@@ -4342,6 +4428,9 @@ export const CesiumMeasurementsProvider: React.FC<
     pointLabelIdsWithForcedVisibility.forEach((pointId) => {
       ids.delete(pointId);
     });
+    closedFacadeRectangleVertexIdSet.forEach((pointId) => {
+      ids.add(pointId);
+    });
     return ids;
   }, [
     measurements,
@@ -4349,7 +4438,9 @@ export const CesiumMeasurementsProvider: React.FC<
     unfocusedPolylineMarkerOnlyPointIds,
     hiddenMeasurementIdSet,
     distanceModeHiddenPointLabelIds,
+    openFacadeSingleVertexPointIdSet,
     pointLabelIdsWithForcedVisibility,
+    closedFacadeRectangleVertexIdSet,
   ]);
 
   const fullyHiddenPointIds = useMemo(() => {
@@ -4365,8 +4456,16 @@ export const CesiumMeasurementsProvider: React.FC<
         ids.delete(measurement.id);
       }
     });
+    closedFacadeRectangleVertexIdSet.forEach((pointId) => {
+      ids.delete(pointId);
+    });
     return ids;
-  }, [measurements, unfocusedPolylineInteriorIds, hiddenMeasurementIdSet]);
+  }, [
+    measurements,
+    unfocusedPolylineInteriorIds,
+    hiddenMeasurementIdSet,
+    closedFacadeRectangleVertexIdSet,
+  ]);
 
   useCesiumPointVisualizer(scene, visibleMeasurementsForRendering, {
     showMarkers: showPoints,
@@ -4390,12 +4489,12 @@ export const CesiumMeasurementsProvider: React.FC<
       : [],
     facadeRectanglePreviewOppositeByGroupId,
     onPlanarPolygonClick: handlePlanarPolygonClick,
-    pointDragPlaneByPointId,
+    pointDragPlaneByPointId: pointDragPlaneByPointIdForMarkerDrag,
     onPointPlaneDragStart: handlePointPlaneDragStart,
     onPointPlaneDragPositionChange: updatePointMeasurementPositionById,
     hiddenPointLabelIds,
     fullyHiddenPointIds,
-    markerlessPointIds: auxiliaryLabelAnchorIdSet,
+    markerlessPointIds,
     showSelectedDisc: Boolean(moveGizmoPointId),
     debug: false,
     onPointClick: handlePointLabelClick,
@@ -4804,6 +4903,74 @@ export const CesiumMeasurementsProvider: React.FC<
     setDoubleClickChainSourcePointId(null);
     setActivePlanarPolygonGroupId(null);
   }, [measurementMode]);
+
+  useEffect(() => {
+    if (measurementMode === MeasurementMode.PolylineMeasure) return;
+
+    const invalidOpenFacadeGroups = planarPolygonGroups.filter((group) => {
+      return (
+        !group.closed &&
+        (group.surfaceType ?? "roof") === "facade" &&
+        group.vertexPointIds.length === 1
+      );
+    });
+    if (invalidOpenFacadeGroups.length === 0) return;
+
+    const invalidGroupIdSet = new Set(
+      invalidOpenFacadeGroups.map((group) => group.id)
+    );
+    const removablePointIdSet = new Set<string>();
+    invalidOpenFacadeGroups.forEach((group) => {
+      const onlyPointId = group.vertexPointIds[0];
+      if (onlyPointId) {
+        removablePointIdSet.add(onlyPointId);
+      }
+    });
+
+    const remainingGroups = planarPolygonGroups.filter(
+      (group) => !invalidGroupIdSet.has(group.id)
+    );
+    const protectedPointIdSet = new Set<string>();
+    remainingGroups.forEach((group) => {
+      group.vertexPointIds.forEach((pointId) => {
+        if (pointId) {
+          protectedPointIdSet.add(pointId);
+        }
+      });
+    });
+    distanceRelations.forEach((relation) => {
+      protectedPointIdSet.add(relation.pointAId);
+      protectedPointIdSet.add(relation.pointBId);
+      protectedPointIdSet.add(relation.anchorPointId);
+    });
+
+    setPlanarPolygonGroups(remainingGroups);
+
+    if (
+      selectedPlanarPolygonGroupId &&
+      invalidGroupIdSet.has(selectedPlanarPolygonGroupId)
+    ) {
+      setSelectedPlanarPolygonGroupId(null);
+    }
+
+    if (removablePointIdSet.size === 0) return;
+    setMeasurements((prev) =>
+      prev.filter((measurement) => {
+        if (!isPointMeasurementEntry(measurement)) {
+          return true;
+        }
+        if (!removablePointIdSet.has(measurement.id)) {
+          return true;
+        }
+        return protectedPointIdSet.has(measurement.id);
+      })
+    );
+  }, [
+    measurementMode,
+    planarPolygonGroups,
+    distanceRelations,
+    selectedPlanarPolygonGroupId,
+  ]);
 
   useEffect(() => {
     if (!doubleClickChainSourcePointId) return;
