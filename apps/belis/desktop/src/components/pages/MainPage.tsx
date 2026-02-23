@@ -144,6 +144,13 @@ const MainPage = () => {
     return params.has("graphqlDemo");
   }, []);
 
+  const showRaw = useMemo(() => {
+    const params = new URLSearchParams(
+      window.location.hash.split("?")[1] ?? ""
+    );
+    return params.get("showRaw") === "true";
+  }, []);
+
   const cardGaps = 24 + 24 + 1;
   const navbarHeight = 60;
 
@@ -187,7 +194,7 @@ const MainPage = () => {
                     {"\u2715"}
                   </button>
                 )}
-                <SearchModal showFinalQuery={false} />
+                <SearchModal showFinalQuery={showRaw} />
               </div>
 
               {/* Filter switches */}
