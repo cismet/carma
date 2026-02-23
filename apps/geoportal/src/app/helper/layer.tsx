@@ -174,10 +174,6 @@ export const createBackgroundLayerConfig = (
     eignung: layerMap[id].eignung,
     layerType: "wmts",
     visible: true,
-    props: {
-      name: "",
-      url: layerMap[id].url,
-    },
     layers: layerMap[id].layers,
   };
 };

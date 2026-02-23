@@ -30,10 +30,6 @@ const initialState: MappingState = {
     eignung: layerMap["stadtplan"].eignung,
     visible: true,
     layerType: "wmts",
-    props: {
-      name: "",
-      url: layerMap["stadtplan"].url,
-    },
     layers: layerMap["stadtplan"].layers,
   },
 
@@ -46,10 +42,6 @@ const initialState: MappingState = {
     eignung: layerMap["luftbild"].eignung,
     visible: true,
     layerType: "wmts",
-    props: {
-      name: "",
-      url: layerMap["luftbild"].url,
-    },
     layers: layerMap["luftbild"].layers,
   },
 
@@ -62,10 +54,6 @@ const initialState: MappingState = {
     eignung: layerMap["stadtplan"].eignung,
     visible: true,
     layerType: "wmts",
-    props: {
-      name: "",
-      url: layerMap["stadtplan"].url,
-    },
     layers: layerMap["stadtplan"].layers,
   },
 

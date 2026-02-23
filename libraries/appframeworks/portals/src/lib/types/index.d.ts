@@ -20,7 +20,6 @@ export type LayerInfo = {
   description: string;
   inhalt: string;
   eignung: string;
-  url: string;
 };
 
 export type LayerMap = {

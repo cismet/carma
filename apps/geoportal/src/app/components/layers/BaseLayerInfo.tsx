@@ -7,7 +7,7 @@ import {
 } from "@dnd-kit/sortable";
 import { Tabs } from "antd";
 import { useDispatch, useSelector } from "react-redux";
-import { layerMap } from "../../config";
+import { cesiumDescriptions, layerMap } from "../../config";
 import {
   getBackgroundLayer,
   getLayers,
@@ -126,68 +126,32 @@ const BaseLayerInfo = () => {
                   label: "Informationen",
                   children: (
                     <div className="h-full overflow-auto flex flex-col">
-                      {isCesium ? (
-                        <>
-                          {backgroundLayer.id === "karte" ? (
-                            <p>
-                              Einfaches 3D-Modell von Wuppertal, das aus einem
-                              größeren Modell für ganz NRW erstellt wurde. Es
-                              stellt einen Ausschnitt des für ganz
-                              Nordrhein-Westfalen vorliegenden 3D-Gebäudemodells
-                              der Landesvermessung NRW (Geobasis NRW) in der
-                              inhaltlichen Ausbaustufe "Level of Detail 2
-                              (LoD2)" dar. Dieses Modell umfasst einfache
-                              Gebäudeformen mit standardisierten Dachformen.
-                            </p>
-                          ) : (
-                            <p>
-                              Die 3D-Betrachtung erfolgt auf der Grundlage eines
-                              sog. 3D-Mesh, das von der Firma Aerowest
-                              GmbH/Dortmund aus den Ergebnisdaten (Senkrecht-
-                              und Schrägaufnahmen) der ebenfalls von Aerowest
-                              durchgeführten Bildflüge vom 14.03. und 17.03.2024
-                              berechnet worden ist. Ein 3D-Mesh wird in einem
-                              automatisierten Prozess berechnet. <b>Achtung:</b>{" "}
-                              Beim gegenwärtigen Stand der der Technik ist ein
-                              3D-Mesh ein unvollkommenes Modell der realen Welt.
-                              Die Oberfläche einschließlich der künstlichen
-                              Objekte, insbesondere der Gebäude, wird über ein
-                              Dreiecksnetz angenähert, auf das dann die
-                              Bildinhalte projiziert werden. Dieser Ansatz
-                              erzeugt stark verzerrte Darstellungen bei
-                              unstetigen Krümmungen, z. B. bei Balkonen.
-                              Gegenstände der realen Welt, die in den
-                              ausgewerteten Bildern nicht sichtbar waren (z. B.
-                              Baumstämme unter Baumkronen), fehlen zwangsläufig
-                              im 3D-Mesh. Wenn sich mehrere Bezugsebenen
-                              vertikal überlagern (z. B. Wasseroberfläche der
-                              Wupper, Brücke, Schwebebahngerüst) kann es zu
-                              erheblichen Modellfehlern kommen.
-                            </p>
-                          )}
-                        </>
-                      ) : (
-                        <>
-                          <h5 className="font-semibold text-lg mb-1">
-                            Eignung
-                          </h5>
-                          <div
-                            className="text-base"
-                            dangerouslySetInnerHTML={{
-                              __html: backgroundLayer.eignung,
-                            }}
-                          />
-                          <h5 className="font-semibold text-lg mb-1 mt-2">
-                            Inhalt
-                          </h5>
-                          <div
-                            className="text-base"
-                            dangerouslySetInnerHTML={{
-                              __html: backgroundLayer.inhalt,
-                            }}
-                          />
-                        </>
-                      )}
+                      <>
+                        <h5 className="font-semibold text-lg mb-1">
+                          {isCesium ? "Hintergrundmodell" : "Hintergrundkarte"}:
+                          Eignung
+                        </h5>
+                        <div
+                          className="text-base"
+                          dangerouslySetInnerHTML={{
+                            __html: isCesium
+                              ? cesiumDescriptions[backgroundLayer.id]?.eignung
+                              : backgroundLayer.eignung,
+                          }}
+                        />
+                        <h5 className="font-semibold text-lg mb-1 mt-2">
+                          {isCesium ? "Hintergrundmodell" : "Hintergrundkarte"}:
+                          Inhalt
+                        </h5>
+                        <div
+                          className="text-base"
+                          dangerouslySetInnerHTML={{
+                            __html: isCesium
+                              ? cesiumDescriptions[backgroundLayer.id]?.inhalt
+                              : backgroundLayer.inhalt,
+                          }}
+                        />
+                      </>
                     </div>
                   ),
                 },

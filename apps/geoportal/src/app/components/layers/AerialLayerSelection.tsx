@@ -36,10 +36,6 @@ const AerialLayerSelection = () => {
           eignung: layerMap[e.target.value].eignung,
           layerType: "wmts",
           visible: true,
-          props: {
-            name: "",
-            url: layerMap[e.target.value].url,
-          },
           layers: layerMap[e.target.value].layers,
         })
       );

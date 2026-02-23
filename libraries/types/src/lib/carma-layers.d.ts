@@ -67,7 +67,7 @@ export type Layer =
   | (BaseLayer & {
       type?: "layer";
       layerType: "wmts" | "wmts-nt";
-      props: LayerProps;
+      props?: LayerProps;
     })
   | (BaseLayer & vectorProps & { type?: "layer" })
   | (BaseLayer & objectProps);

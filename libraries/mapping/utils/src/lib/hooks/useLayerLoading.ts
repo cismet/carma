@@ -162,7 +162,7 @@ export const useLayerLoading = ({ map, layer }: UseLayerLoadingProps) => {
 
   const wmsName =
     layer.layerType === "wmts" || layer.layerType === "wmts-nt"
-      ? layer.props.name
+      ? layer?.props?.name
       : layer?.other?.name;
 
   const shouldShowLoading = () => {

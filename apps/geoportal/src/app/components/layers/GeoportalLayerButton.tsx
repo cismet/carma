@@ -133,7 +133,7 @@ const GeoportalLayerButton = ({
   }, [layersLength]);
 
   const isCurrentlyVisible = () => {
-    if (zoom >= layer.props.maxZoom || zoom <= layer.props.minZoom) {
+    if (zoom >= layer?.props?.maxZoom || zoom <= layer?.props?.minZoom) {
       return false;
     } else {
       return true;

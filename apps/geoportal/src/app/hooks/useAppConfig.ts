@@ -59,10 +59,6 @@ const onLoadedConfig = (
     eignung: layerMap[selectedMapLayerId].eignung,
     visible: config.backgroundLayer.visible,
     layerType: "wmts",
-    props: {
-      name: "",
-      url: layerMap[selectedMapLayerId].url,
-    },
     layers: layerMap[selectedMapLayerId].layers,
   };
   dispatch(

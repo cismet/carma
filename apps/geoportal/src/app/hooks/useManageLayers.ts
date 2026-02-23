@@ -32,10 +32,6 @@ export const useManageLayers = (layerMap: LayerMap) => {
         inhalt: layerMap[getId()].inhalt,
         eignung: layerMap[getId()].eignung,
         layerType: "wmts",
-        props: {
-          name: "",
-          url: layerMap[getId()].url,
-        },
         layers: layerMap[getId()].layers,
       })
     );
@@ -50,10 +46,6 @@ export const useManageLayers = (layerMap: LayerMap) => {
         eignung: layerMap[selectedMapLayerId].eignung,
         visible: selectedMapLayer.visible,
         layerType: "wmts",
-        props: {
-          name: "",
-          url: layerMap[selectedMapLayerId].url,
-        },
         layers: layerMap[selectedMapLayerId].layers,
       })
     );
