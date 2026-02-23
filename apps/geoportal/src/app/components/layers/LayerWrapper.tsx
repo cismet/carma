@@ -170,7 +170,12 @@ const LayerWrapper = () => {
               {size.width > 640 && (
                 <div
                   id="scrollWrapper"
-                  className="flex overflow-x-hidden items-center h-20 gap-2"
+                  className="flex overflow-x-auto items-center h-20 gap-2 scrollbar-hide"
+                  onWheel={(e) => {
+                    if (e.deltaY !== 0) {
+                      e.currentTarget.scrollLeft += e.deltaY;
+                    }
+                  }}
                 >
                   <SortableContext
                     items={layers}
