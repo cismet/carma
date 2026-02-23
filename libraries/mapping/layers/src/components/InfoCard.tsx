@@ -488,10 +488,15 @@ const InfoCard = ({
                                     return {
                                       title: l.title,
                                       opacity: l.opacity,
+                                      id: l.id,
                                     };
                                   }),
                                 activeLayers.map((l) => {
-                                  return { title: l.title, opacity: l.opacity };
+                                  return {
+                                    title: l.title,
+                                    opacity: l.opacity,
+                                    id: l.id,
+                                  };
                                 })
                               )
                             }

@@ -34,6 +34,7 @@ import {
 import { apiUrl } from "../../constants/discover";
 import store from "../../store";
 import { createResourceLayerUpdater } from "./resource-layer-updater";
+import { useCarmaMapAPIActions } from "@carma-mapping/carma-map-api";
 
 const ResourceModal = () => {
   const { setCurrentStyle } = useMapStyle();
@@ -59,6 +60,7 @@ const ResourceModal = () => {
   } = useAdhocFeatureDisplay();
   const { toggle, getIsLeaflet, getIsCesium } =
     useMapFrameworkSwitcherContext();
+  const { addLayerById } = useCarmaMapAPIActions();
   const isLeaflet = getIsLeaflet();
 
   const getFrameworkMode = useCallback(
@@ -81,6 +83,7 @@ const ResourceModal = () => {
     routedMap,
     setCurrentStyle,
     messageApi,
+    addLayerById,
   });
 
   return (

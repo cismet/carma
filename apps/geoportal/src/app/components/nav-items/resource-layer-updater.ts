@@ -26,6 +26,7 @@ import {
   type AddFeatureFn,
 } from "../../helper/adhoc-layer-feature";
 import { isAdhocVectorLayer } from "../../helper/adhoc-feature-utils";
+import { AddLayerOptions } from "@carma-mapping/carma-map-api";
 
 type MessageType = "success" | "error";
 
@@ -77,6 +78,10 @@ type ResourceLayerUpdaterDeps = {
   setCurrentStyle: SetCurrentStyleFn;
   messageApi: MessageApiLike;
   maxLayers?: number;
+  addLayerById?: (
+    id: string,
+    options?: AddLayerOptions
+  ) => Promise<Layer | undefined>;
 };
 
 const DEFAULT_MAX_LAYERS = 12;
@@ -109,13 +114,14 @@ const shouldSelectIn3D = (
 const toSuccessToastContent = (text: string): ReactNode =>
   createElement("span", { "data-test-id": "toast-success" }, text);
 
-const applyCollectionLayer = ({
+const applyCollectionLayer = async ({
   layer,
   dispatch,
   messageApi,
   routedMap,
   setCurrentStyle,
   deleteItem,
+  addLayerById,
 }: {
   layer: CollectionLayerItem;
   dispatch: Dispatch;
@@ -123,6 +129,10 @@ const applyCollectionLayer = ({
   routedMap: RoutedMapRef;
   setCurrentStyle: SetCurrentStyleFn;
   deleteItem: boolean;
+  addLayerById?: (
+    id: string,
+    options?: AddLayerOptions
+  ) => Promise<Layer | undefined>;
 }) => {
   if (deleteItem) {
     dispatch(deleteSavedLayerConfig(layer.id));
@@ -130,7 +140,24 @@ const applyCollectionLayer = ({
   }
 
   try {
-    dispatch(setLayers(layer.layers));
+    let useSetLayersFallback = false;
+
+    if (addLayerById) {
+      dispatch(setLayers([]));
+      for (const l of layer.layers) {
+        const result = await addLayerById(l.id);
+        if (!result) {
+          useSetLayersFallback = true;
+        }
+      }
+    } else {
+      useSetLayersFallback = true;
+    }
+
+    if (useSetLayersFallback) {
+      dispatch(setLayers(layer.layers));
+    }
+
     if (layer.backgroundLayer) {
       dispatch(setBackgroundLayer(layer.backgroundLayer));
       const layerKey = Object.keys(layerMap).find(
@@ -394,6 +421,7 @@ export const createResourceLayerUpdater = ({
   setCurrentStyle,
   messageApi,
   maxLayers = DEFAULT_MAX_LAYERS,
+  addLayerById,
 }: ResourceLayerUpdaterDeps) => {
   return async (
     layer: Item,
@@ -410,6 +438,7 @@ export const createResourceLayerUpdater = ({
         routedMap,
         setCurrentStyle,
         deleteItem,
+        addLayerById,
       });
       return;
     }
