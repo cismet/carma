@@ -4,7 +4,12 @@ import { SearchOutlined } from "@ant-design/icons";
 import { FontAwesomeIcon as Icon } from "@fortawesome/react-fontawesome";
 import { faFilter } from "@fortawesome/free-solid-svg-icons";
 import { useSelector } from "react-redux";
-import { LeuchteSearch, MastSearch, SchaltstelleSearch, MauerlascheSearch } from "./featuresSearches";
+import {
+  LeuchteSearch,
+  MastSearch,
+  SchaltstelleSearch,
+  MauerlascheSearch,
+} from "./featuresSearches";
 import { getJWT } from "../../store/slices/auth";
 import { ENDPOINT } from "../../constants/belis";
 import { rawDataPreStyle } from "../../helper/uiHelper";
@@ -59,7 +64,11 @@ interface MauerlascheSearchValues {
   pruefdatum?: { von?: string; bis?: string };
 }
 
-type SearchValues = LeuchteSearchValues | MastSearchValues | SchaltstelleSearchValues | MauerlascheSearchValues;
+type SearchValues =
+  | LeuchteSearchValues
+  | MastSearchValues
+  | SchaltstelleSearchValues
+  | MauerlascheSearchValues;
 
 const searchTypeLabels: Record<SearchType, string> = {
   leuchte: "Leuchten",
@@ -245,13 +254,17 @@ const buildMastWhereClause = (values: MastSearchValues): string => {
     conditions.push(`anlagengruppe: {_eq: ${values.anlagengruppe.value}}`);
   }
   if (values.unterhaltMast?.value) {
-    conditions.push(`tkey_unterh_mast: {id: {_eq: ${values.unterhaltMast.value}}}`);
+    conditions.push(
+      `tkey_unterh_mast: {id: {_eq: ${values.unterhaltMast.value}}}`
+    );
   }
 
   return conditions.length > 0 ? `where: {${conditions.join(", ")}}` : "";
 };
 
-const buildSchaltstelleWhereClause = (values: SchaltstelleSearchValues): string => {
+const buildSchaltstelleWhereClause = (
+  values: SchaltstelleSearchValues
+): string => {
   const conditions: string[] = [];
 
   // Exclude deleted records (handle both false and null values)
@@ -264,7 +277,9 @@ const buildSchaltstelleWhereClause = (values: SchaltstelleSearchValues): string 
     conditions.push(`fk_bauart: {_eq: ${values.bauart.value}}`);
   }
   if (values.rundsteuerempfaenger?.value) {
-    conditions.push(`rundsteuerempfaenger: {_eq: ${values.rundsteuerempfaenger.value}}`);
+    conditions.push(
+      `rundsteuerempfaenger: {_eq: ${values.rundsteuerempfaenger.value}}`
+    );
   }
 
   // Date range conditions
@@ -298,7 +313,9 @@ const buildSchaltstelleWhereClause = (values: SchaltstelleSearchValues): string 
   return conditions.length > 0 ? `where: {${conditions.join(", ")}}` : "";
 };
 
-const buildMauerlascheWhereClause = (values: MauerlascheSearchValues): string => {
+const buildMauerlascheWhereClause = (
+  values: MauerlascheSearchValues
+): string => {
   const conditions: string[] = [];
 
   // Exclude deleted records (handle both false and null values)
@@ -365,7 +382,9 @@ const generateQueryString = (
   }
 }`;
   } else if (searchType === "schaltstelle") {
-    const whereClause = buildSchaltstelleWhereClause(values as SchaltstelleSearchValues);
+    const whereClause = buildSchaltstelleWhereClause(
+      values as SchaltstelleSearchValues
+    );
     return `query SchaltstelleSearch {
   schaltstelle(limit: 500${
     whereClause ? `, ${whereClause}` : ""
@@ -377,7 +396,9 @@ const generateQueryString = (
   }
 }`;
   } else {
-    const whereClause = buildMauerlascheWhereClause(values as MauerlascheSearchValues);
+    const whereClause = buildMauerlascheWhereClause(
+      values as MauerlascheSearchValues
+    );
     return `query MauerlascheSearch {
   mauerlasche(limit: 500${
     whereClause ? `, ${whereClause}` : ""
@@ -540,7 +561,11 @@ const SearchModal = ({
               ],
               { padding: 50 }
             );
-            // console.log(`${logPrefix} Map fitted to bounds`);
+            map.once("idle", () => {
+              clearHighlights();
+              setHighlightingActive(true);
+              highlightByIds(highlightArray);
+            });
           }
 
           setIsSearching(false);
