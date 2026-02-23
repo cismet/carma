@@ -358,9 +358,7 @@ const generateQueryString = (
   if (searchType === "leuchte") {
     const whereClause = buildLeuchteWhereClause(values as LeuchteSearchValues);
     return `query LeuchtenSearch {
-  tdta_leuchten(limit: 500${
-    whereClause ? `, ${whereClause}` : ""
-  }, order_by: {einbaudatum: desc}) {
+  tdta_leuchten(${whereClause ? `${whereClause}, ` : ""}order_by: {einbaudatum: desc}) {
     id
     tdta_standort_mast {
       geom {
@@ -372,9 +370,7 @@ const generateQueryString = (
   } else if (searchType === "mast") {
     const whereClause = buildMastWhereClause(values as MastSearchValues);
     return `query MastSearch {
-  tdta_standort_mast(limit: 500${
-    whereClause ? `, ${whereClause}` : ""
-  }, order_by: {inbetriebnahme_mast: desc}) {
+  tdta_standort_mast(${whereClause ? `${whereClause}, ` : ""}order_by: {inbetriebnahme_mast: desc}) {
     id
     geom {
       geo_field
@@ -386,9 +382,7 @@ const generateQueryString = (
       values as SchaltstelleSearchValues
     );
     return `query SchaltstelleSearch {
-  schaltstelle(limit: 500${
-    whereClause ? `, ${whereClause}` : ""
-  }, order_by: {erstellungsjahr: desc}) {
+  schaltstelle(${whereClause ? `${whereClause}, ` : ""}order_by: {erstellungsjahr: desc}) {
     id
     geom {
       geo_field
@@ -400,9 +394,7 @@ const generateQueryString = (
       values as MauerlascheSearchValues
     );
     return `query MauerlascheSearch {
-  mauerlasche(limit: 500${
-    whereClause ? `, ${whereClause}` : ""
-  }, order_by: {erstellungsjahr: desc}) {
+  mauerlasche(${whereClause ? `${whereClause}, ` : ""}order_by: {erstellungsjahr: desc}) {
     id
     geom {
       geo_field
@@ -588,9 +580,9 @@ const SearchModal = ({
         values as LeuchteSearchValues
       );
       const query = `query LeuchtenSearch {
-        tdta_leuchten(limit: 500${
-          whereClause ? `, ${whereClause}` : ""
-        }, order_by: {einbaudatum: desc}) {
+        tdta_leuchten(${
+          whereClause ? `${whereClause}, ` : ""
+        }order_by: {einbaudatum: desc}) {
           id
           tdta_standort_mast {
             geom {
@@ -619,9 +611,9 @@ const SearchModal = ({
     } else if (searchType === "mast") {
       const whereClause = buildMastWhereClause(values as MastSearchValues);
       const query = `query MastSearch {
-        tdta_standort_mast(limit: 500${
-          whereClause ? `, ${whereClause}` : ""
-        }, order_by: {inbetriebnahme_mast: desc}) {
+        tdta_standort_mast(${
+          whereClause ? `${whereClause}, ` : ""
+        }order_by: {inbetriebnahme_mast: desc}) {
           id
           geom {
             geo_field
@@ -647,9 +639,9 @@ const SearchModal = ({
         values as SchaltstelleSearchValues
       );
       const query = `query SchaltstelleSearch {
-        schaltstelle(limit: 500${
-          whereClause ? `, ${whereClause}` : ""
-        }, order_by: {erstellungsjahr: desc}) {
+        schaltstelle(${
+          whereClause ? `${whereClause}, ` : ""
+        }order_by: {erstellungsjahr: desc}) {
           id
           geom {
             geo_field
@@ -675,9 +667,9 @@ const SearchModal = ({
         values as MauerlascheSearchValues
       );
       const query = `query MauerlascheSearch {
-        mauerlasche(limit: 500${
-          whereClause ? `, ${whereClause}` : ""
-        }, order_by: {erstellungsjahr: desc}) {
+        mauerlasche(${
+          whereClause ? `${whereClause}, ` : ""
+        }order_by: {erstellungsjahr: desc}) {
           id
           geom {
             geo_field
