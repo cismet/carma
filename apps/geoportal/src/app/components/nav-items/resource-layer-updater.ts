@@ -147,7 +147,7 @@ const applyCollectionLayer = async ({
       for (const l of layer.layers) {
         const result = await addLayerById(l.id);
         if (!result) {
-          useSetLayersFallback = true;
+          dispatch(appendLayer(l));
         }
       }
     } else {
