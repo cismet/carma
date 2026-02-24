@@ -77,8 +77,8 @@ interface ProtokollItem {
     id?: number;
     abzweigdose?: { id?: number };
     leitung?: { id?: number };
-    mauerlasche?: { id?: number };
-    schaltstelle?: { id?: number };
+    mauerlasche?: { id?: number; geom_84?: { x?: number; y?: number } };
+    schaltstelle?: { id?: number; geom_84?: { x?: number; y?: number } };
     tdta_leuchten?: {
       id?: number;
       tdta_standort_mast?: { geom_84?: { x?: number; y?: number } };
@@ -158,8 +158,8 @@ const ARBEITSAUFTRAG_FIELDS = `id
         id
         abzweigdose { id }
         leitung { id }
-        mauerlasche { id }
-        schaltstelle { id }
+        mauerlasche { id geom_84 { x y } }
+        schaltstelle { id geom_84 { x y } }
         tdta_leuchten { id tdta_standort_mast { geom_84 { x y } } }
         tdta_standort_mast { id geom_84 { x y } }
       }
@@ -772,19 +772,28 @@ const SearchModal = ({
           if (!protokolle || protokolle.length === 0) return undefined;
 
           for (const p of protokolle) {
-            const mast = p.arbeitsprotokoll?.tdta_standort_mast;
-            if (mast?.geom_84?.x != null && mast?.geom_84?.y != null) {
-              return [mast.geom_84.x, mast.geom_84.y];
+            const ap = p.arbeitsprotokoll;
+            if (!ap) continue;
+
+            // Check features that have direct geometry (mast, schaltstelle, mauerlasche)
+            const featuresToCheck = [
+              ap.tdta_standort_mast,
+              ap.schaltstelle,
+              ap.mauerlasche,
+            ];
+
+            for (const feature of featuresToCheck) {
+              if (feature?.geom_84?.x != null && feature?.geom_84?.y != null) {
+                return [feature.geom_84.x, feature.geom_84.y];
+              }
             }
-            const leuchte = p.arbeitsprotokoll?.tdta_leuchten;
-            if (
-              leuchte?.tdta_standort_mast?.geom_84?.x != null &&
-              leuchte?.tdta_standort_mast?.geom_84?.y != null
-            ) {
-              return [
-                leuchte.tdta_standort_mast.geom_84.x,
-                leuchte.tdta_standort_mast.geom_84.y,
-              ];
+
+            // Leuchte has nested geometry via its mast
+            if (ap.tdta_leuchten?.tdta_standort_mast?.geom_84) {
+              const geom = ap.tdta_leuchten.tdta_standort_mast.geom_84;
+              if (geom.x != null && geom.y != null) {
+                return [geom.x, geom.y];
+              }
             }
           }
           return undefined;
@@ -798,20 +807,29 @@ const SearchModal = ({
             const ap = p.arbeitsprotokoll;
             if (!ap) continue;
 
-            const mast = ap.tdta_standort_mast;
-            if (mast?.geom_84?.x != null && mast?.geom_84?.y != null) {
-              geometries.push([mast.geom_84.x, mast.geom_84.y]);
+            let found = false;
+
+            // Check features that have direct geometry (mast, schaltstelle, mauerlasche)
+            const featuresToCheck = [
+              ap.tdta_standort_mast,
+              ap.schaltstelle,
+              ap.mauerlasche,
+            ];
+
+            for (const feature of featuresToCheck) {
+              if (feature?.geom_84?.x != null && feature?.geom_84?.y != null) {
+                geometries.push([feature.geom_84.x, feature.geom_84.y]);
+                found = true;
+                break;
+              }
             }
 
-            const leuchte = ap.tdta_leuchten;
-            if (
-              leuchte?.tdta_standort_mast?.geom_84?.x != null &&
-              leuchte?.tdta_standort_mast?.geom_84?.y != null
-            ) {
-              geometries.push([
-                leuchte.tdta_standort_mast.geom_84.x,
-                leuchte.tdta_standort_mast.geom_84.y,
-              ]);
+            // Leuchte has nested geometry via its mast
+            if (!found && ap.tdta_leuchten?.tdta_standort_mast?.geom_84) {
+              const geom = ap.tdta_leuchten.tdta_standort_mast.geom_84;
+              if (geom.x != null && geom.y != null) {
+                geometries.push([geom.x, geom.y]);
+              }
             }
           }
           return geometries;
