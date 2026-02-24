@@ -530,7 +530,7 @@ const SearchModal = ({
           console.log(
             `xxx ${logPrefix} Result count:`,
             results.length,
-            results
+            ...(showFinalQuery ? [results] : [])
           );
 
           if (results.length === 0) {
