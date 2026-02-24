@@ -125,6 +125,8 @@ export interface LibreMapProps {
   ) => maplibregl.MapGeoJSONFeature | undefined;
   /** Enable debug logging for [LAYER_MODE] and [StyleComposer] messages */
   debugLog?: boolean;
+  /** Log MapLibre-internal errors (tile loading, worker failures, etc.) to the console */
+  logErrors?: boolean;
   /** Expose the map instance as window.__carmaMap for console debugging */
   exposeMapToWindow?: boolean;
 }
@@ -144,6 +146,7 @@ export const LibreMap = ({
   onFeatureSelect,
   selectFromHits,
   debugLog = false,
+  logErrors = false,
   exposeMapToWindow = false,
 }: LibreMapProps) => {
   const mapContainer = useRef<HTMLDivElement>(null);
@@ -514,6 +517,18 @@ export const LibreMap = ({
       setContextMap(mapInstance);
       if (exposeMapToWindow) {
         (window as unknown as Record<string, unknown>).__carmaMap = mapInstance;
+      }
+
+      // Surface MapLibre-internal errors (tile loading, worker failures, etc.)
+      // so they are never silently swallowed.
+      if (logErrors) {
+        mapInstance.on("error", (e) => {
+          console.error(
+            "[MAPLIBRE]",
+            (e as unknown as { sourceId?: string }).sourceId ?? "",
+            (e as unknown as { error?: Error }).error ?? e,
+          );
+        });
       }
 
       mapInstance.on("click", async (e) => {

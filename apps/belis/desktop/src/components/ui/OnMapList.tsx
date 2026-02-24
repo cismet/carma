@@ -170,11 +170,9 @@ const OnMapList = ({
 
   const showRaw = useMemo(() => {
     const hashQuery = window.location.hash.split("?")[1] || "";
-    return (
-      new URLSearchParams(hashQuery || window.location.search).get(
-        "showRaw"
-      ) === "true"
-    );
+    const param = new URLSearchParams(hashQuery || window.location.search).get("showRaw");
+    if (param !== null) return param === "true";
+    return window.location.hostname === "localhost";
   }, []);
 
   const { features, totalCount, countsByLayer, isLoading, isOverviewMode } =

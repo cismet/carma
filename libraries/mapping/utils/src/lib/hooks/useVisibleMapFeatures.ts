@@ -116,6 +116,8 @@ export const useVisibleMapFeatures = ({
   layerFilterExpressionsRef.current = layerFilterExpressions;
   // Track last debug bounds to avoid infinite loop when updating debug source
   const lastDebugBoundsRef = useRef<string | null>(null);
+  // Track whether previous query used the source fallback
+  const wasUsingFallbackRef = useRef(false);
 
   // Resolve layerFilterExpressions to MapLibre layer IDs once on style load.
   // In imperative mode, actual layer IDs are namespaced (e.g. "slug::leitungen-base")
@@ -306,8 +308,74 @@ export const useVisibleMapFeatures = ({
         const queryOptions = resolvedLayerIdsRef.current
           ? { layers: resolvedLayerIdsRef.current }
           : undefined;
-        const renderedFeatures =
-          maplibreMap.queryRenderedFeatures(queryOptions);
+
+        // MapLibre's symbol feature index can overflow on very large vector
+        // tiles (e.g. 2.5 MB at z=10), throwing "feature index out of bounds".
+        // When that happens we fall back to querySourceFeatures, which reads
+        // directly from the tile cache and bypasses the symbol index.
+        // The fallback is transparent: bounds filtering, dedup, and highlight
+        // checks all work identically on querySourceFeatures results.
+        let renderedFeatures: MapGeoJSONFeature[];
+        try {
+          renderedFeatures = maplibreMap.queryRenderedFeatures(queryOptions);
+          if (wasUsingFallbackRef.current) {
+            wasUsingFallbackRef.current = false;
+            if (showDebugBounds) {
+              console.info(
+                "[VISIBLE_FEATURES] queryRenderedFeatures recovered at zoom=" +
+                  maplibreMap.getZoom().toFixed(2)
+              );
+            }
+          }
+        } catch (queryErr) {
+          if (showDebugBounds) {
+            console.warn(
+              "[VISIBLE_FEATURES] queryRenderedFeatures threw at zoom=" +
+                maplibreMap.getZoom().toFixed(2) +
+                ", falling back to querySourceFeatures:",
+              (queryErr as Error).message
+            );
+          }
+          wasUsingFallbackRef.current = true;
+          // Collect features from the tile cache instead (no symbol index needed).
+          // querySourceFeatures without explicit sourceLayer returns 0 on large
+          // tiles, so we query each sourceLayer individually and stamp the
+          // source/sourceLayer properties that querySourceFeatures omits.
+          renderedFeatures = [];
+          const style = maplibreMap.getStyle();
+          const sourceLayers = [
+            "leuchten", "mast", "schaltstelle",
+            "mauerlaschen", "leitungen", "abzweigdosen",
+          ];
+          if (style?.sources) {
+            for (const srcId of Object.keys(style.sources)) {
+              if (style.sources[srcId].type !== "vector") continue;
+              for (const sl of sourceLayers) {
+                try {
+                  const slFeats = maplibreMap.querySourceFeatures(srcId, {
+                    sourceLayer: sl,
+                  });
+                  for (const f of slFeats) {
+                    const rec = f as unknown as Record<string, unknown>;
+                    if (!rec.source) rec.source = srcId;
+                    if (!rec.sourceLayer) rec.sourceLayer = sl;
+                  }
+                  renderedFeatures.push(
+                    ...(slFeats as unknown as MapGeoJSONFeature[])
+                  );
+                } catch (slErr) {
+                  if (showDebugBounds) {
+                    console.warn(
+                      "[VISIBLE_FEATURES] querySourceFeatures failed for " +
+                        srcId + "/" + sl + ":",
+                      (slErr as Error).message
+                    );
+                  }
+                }
+              }
+            }
+          }
+        }
 
         const seen = new Set<string>();
         const uniqueFeatures: VisibleFeature[] = [];
@@ -356,10 +424,12 @@ export const useVisibleMapFeatures = ({
         setTotalCount(count);
         setCountsByLayer(layerCounts);
         setIsOverviewMode(inOverviewMode);
-      } catch {
-        // queryRenderedFeatures can throw "feature index out of bounds"
-        // when tile indices are momentarily stale. Silently ignore;
-        // the next idle event will re-query successfully.
+      } catch (err) {
+        console.error(
+          "[VISIBLE_FEATURES] updateFeatures error at zoom=" +
+            maplibreMap.getZoom().toFixed(2),
+          err
+        );
       } finally {
         setIsLoading(false);
       }
