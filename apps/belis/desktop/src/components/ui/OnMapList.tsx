@@ -168,6 +168,15 @@ const OnMapList = ({
   const { selectedFeatureId, selectFeature } = useMapSelection();
   const { highlightingActive, highlightVersion } = useMapHighlight();
 
+  const showRaw = useMemo(() => {
+    const hashQuery = window.location.hash.split("?")[1] || "";
+    return (
+      new URLSearchParams(hashQuery || window.location.search).get(
+        "showRaw"
+      ) === "true"
+    );
+  }, []);
+
   const { features, totalCount, countsByLayer, isLoading, isOverviewMode } =
     useVisibleMapFeatures({
       maplibreMap: map,
@@ -177,7 +186,7 @@ const OnMapList = ({
       layerFilterExpressions: ["Leuchten.*-base", "Leuchten.*-icon"],
       highlightedOnly: highlightingActive,
       refreshTrigger: highlightVersion,
-      showDebugBounds: true,
+      showDebugBounds: showRaw,
     });
 
   // Filter features by active source layers

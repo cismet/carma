@@ -22,10 +22,14 @@ const AbzweigdoseForm = ({
   const jwt = useSelector(getJWT);
 
   // Support both regular query params and hash-based routing (/#/?param=value)
-  const hashQuery = window.location.hash.split("?")[1] || "";
-  const showRaw =
-    new URLSearchParams(hashQuery || window.location.search).get("showRaw") ===
-    "true";
+  const showRaw = useMemo(() => {
+    const hashQuery = window.location.hash.split("?")[1] || "";
+    return (
+      new URLSearchParams(hashQuery || window.location.search).get(
+        "showRaw"
+      ) === "true"
+    );
+  }, []);
 
   // Extract documents from abzweigdose[0].dokumenteArray
   const abzweigdoseData = data as Record<string, unknown>;
