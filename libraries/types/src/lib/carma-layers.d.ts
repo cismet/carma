@@ -12,6 +12,27 @@ export type LayerConfig = {
   type?: "topicmaps";
 };
 
+export type FilterConfig = {
+  /** The "show all" button label (not shown if filterMode is "or") */
+  allLabel?: string;
+  /** Layer name pattern to match (case-insensitive includes) */
+  layerPattern: string;
+  /** Filter mode: "and" (all conditions must match) or "or" (any condition matches). Default: "and" */
+  filterMode?: "and" | "or";
+  /** Available filter options */
+  filters: FilterOption[];
+  /** Style customizations */
+  styles?: {
+    buttonBorderRadius?: string;
+    /** Border color when selected. Set to "none" to disable border entirely. */
+    selectedBorderColor?: string;
+    iconSize?: string;
+    fontSize?: string;
+    gap?: string;
+    maxWidth?: string;
+  };
+};
+
 export type LayerProps = {
   url: string;
   name: string;
@@ -51,6 +72,7 @@ type BaseLayer = {
   conf?: CarmaConfig;
   icon?: string;
   other?: OtherLayerProps;
+  filterConfig?: FilterConfig;
   layerInfo?: {
     accentColor?: string;
     title?: string;
@@ -67,12 +89,10 @@ type BaseLayer = {
 export type Layer =
   | ((BaseLayer & {
       type?: "layer";
-      filterConfig?: any;
-    }) &
-      {
-        layerType: "wmts" | "wmts-nt";
-        props?: LayerProps;
-      })
+    }) & {
+      layerType: "wmts" | "wmts-nt";
+      props?: LayerProps;
+    })
   | (BaseLayer & vectorProps & { type?: "layer" })
   | (BaseLayer & objectProps);
 

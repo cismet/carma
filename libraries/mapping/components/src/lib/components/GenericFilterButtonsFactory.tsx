@@ -1,4 +1,5 @@
-import { useState, useEffect, ReactNode } from "react";
+import type { FilterConfig } from "@carma/types";
+import { useState, useEffect } from "react";
 
 // Types for filter configuration
 export interface FilterOption {
@@ -13,27 +14,6 @@ export interface FilterOption {
   propertyValue: string;
   /** Whether to show icon in grayscale when not selected (ignored if inactiveIcon is set) */
   grayscaleWhenInactive?: boolean;
-}
-
-export interface FilterConfig {
-  /** The "show all" button label (not shown if filterMode is "or") */
-  allLabel?: string;
-  /** Layer name pattern to match (case-insensitive includes) */
-  layerPattern: string;
-  /** Filter mode: "and" (all conditions must match) or "or" (any condition matches). Default: "and" */
-  filterMode?: "and" | "or";
-  /** Available filter options */
-  filters: FilterOption[];
-  /** Style customizations */
-  styles?: {
-    buttonBorderRadius?: string;
-    /** Border color when selected. Set to "none" to disable border entirely. */
-    selectedBorderColor?: string;
-    iconSize?: string;
-    fontSize?: string;
-    gap?: string;
-    maxWidth?: string;
-  };
 }
 
 export interface FilterInfo {
