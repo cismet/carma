@@ -25,6 +25,110 @@ import {
 } from "../utils/measurementCollection";
 
 const POINT_CLICK_DELAY_MS = 220;
+const POINTER_NORMAL_SAMPLE_OFFSET_PX = 2;
+const POINTER_NORMAL_EPSILON_SQUARED = 1e-8;
+const CLEARED_POINTER_POSITION = new Cartesian2(Number.NaN, Number.NaN);
+
+const pickPositionWithMeasurementFillBypass = (
+  scene: Scene,
+  screenPosition: Cartesian2
+): Cartesian3 | null => scene.pickPosition(screenPosition) ?? null;
+
+const getLocalUpVector = (positionECEF: Cartesian3): Cartesian3 => {
+  const localEnuFrame = Transforms.eastNorthUpToFixedFrame(positionECEF);
+  const upDirectionColumn = Matrix4.getColumn(
+    localEnuFrame,
+    2,
+    new Cartesian4()
+  );
+  const upDirection = new Cartesian3(
+    upDirectionColumn.x,
+    upDirectionColumn.y,
+    upDirectionColumn.z
+  );
+
+  if (
+    Cartesian3.magnitudeSquared(upDirection) <= POINTER_NORMAL_EPSILON_SQUARED
+  ) {
+    return Cartesian3.normalize(positionECEF, new Cartesian3());
+  }
+
+  return Cartesian3.normalize(upDirection, new Cartesian3());
+};
+
+const estimateSurfaceNormalAtPointer = (
+  scene: Scene,
+  screenPosition: Cartesian2,
+  centerPosition: Cartesian3
+): Cartesian3 | null => {
+  const rightPosition = pickPositionWithMeasurementFillBypass(
+    scene,
+    new Cartesian2(
+      screenPosition.x + POINTER_NORMAL_SAMPLE_OFFSET_PX,
+      screenPosition.y
+    )
+  );
+  const leftPosition = pickPositionWithMeasurementFillBypass(
+    scene,
+    new Cartesian2(
+      screenPosition.x - POINTER_NORMAL_SAMPLE_OFFSET_PX,
+      screenPosition.y
+    )
+  );
+  const upPosition = pickPositionWithMeasurementFillBypass(
+    scene,
+    new Cartesian2(
+      screenPosition.x,
+      screenPosition.y - POINTER_NORMAL_SAMPLE_OFFSET_PX
+    )
+  );
+  const downPosition = pickPositionWithMeasurementFillBypass(
+    scene,
+    new Cartesian2(
+      screenPosition.x,
+      screenPosition.y + POINTER_NORMAL_SAMPLE_OFFSET_PX
+    )
+  );
+
+  if (!rightPosition || !leftPosition || !upPosition || !downPosition) {
+    return getLocalUpVector(centerPosition);
+  }
+
+  const tangentX = Cartesian3.subtract(
+    rightPosition,
+    leftPosition,
+    new Cartesian3()
+  );
+  const tangentY = Cartesian3.subtract(
+    downPosition,
+    upPosition,
+    new Cartesian3()
+  );
+  if (
+    Cartesian3.magnitudeSquared(tangentX) <= POINTER_NORMAL_EPSILON_SQUARED ||
+    Cartesian3.magnitudeSquared(tangentY) <= POINTER_NORMAL_EPSILON_SQUARED
+  ) {
+    return getLocalUpVector(centerPosition);
+  }
+
+  const sampledNormal = Cartesian3.cross(tangentX, tangentY, new Cartesian3());
+  if (
+    Cartesian3.magnitudeSquared(sampledNormal) <= POINTER_NORMAL_EPSILON_SQUARED
+  ) {
+    return getLocalUpVector(centerPosition);
+  }
+
+  const normalizedNormal = Cartesian3.normalize(
+    sampledNormal,
+    new Cartesian3()
+  );
+  const localUp = getLocalUpVector(centerPosition);
+  if (Cartesian3.dot(normalizedNormal, localUp) < 0) {
+    return Cartesian3.negate(normalizedNormal, new Cartesian3());
+  }
+
+  return normalizedNormal;
+};
 
 export const useCesiumPointQuery = (
   scene: Scene | null,
@@ -46,10 +150,13 @@ export const useCesiumPointQuery = (
   markCreatedPointsAsDistanceAdhoc: boolean = false,
   onPointerMove?: (
     positionECEF: Cartesian3 | null,
-    screenPosition: Cartesian2
+    screenPosition: Cartesian2,
+    surfaceNormalECEF?: Cartesian3 | null
   ) => void
 ) => {
   const handlerRef = useRef<ScreenSpaceEventHandler | null>(null);
+  const pendingPointerMovePositionRef = useRef<Cartesian2 | null>(null);
+  const pointerMoveFrameRef = useRef<number | null>(null);
   const prevTemporaryModeRef = useRef(temporaryMode);
   const onPointCreatedRef = useRef(onPointCreated);
   const onLineFinishRef = useRef(onLineFinish);
@@ -87,7 +194,7 @@ export const useCesiumPointQuery = (
   useEffect(() => {
     if (!scene || scene.isDestroyed()) return;
 
-    scene.canvas.style.cursor = enabled ? "crosshair" : "";
+    scene.canvas.style.cursor = enabled ? "none" : "";
     return () => {
       if (!scene.isDestroyed()) {
         scene.canvas.style.cursor = "";
@@ -98,6 +205,12 @@ export const useCesiumPointQuery = (
   useEffect(() => {
     if (!scene || scene.isDestroyed() || !enabled) {
       // Clean up if disabled
+      if (pointerMoveFrameRef.current !== null) {
+        window.cancelAnimationFrame(pointerMoveFrameRef.current);
+        pointerMoveFrameRef.current = null;
+      }
+      pendingPointerMovePositionRef.current = null;
+      onPointerMoveRef.current?.(null, CLEARED_POINTER_POSITION, null);
       if (handlerRef.current) {
         handlerRef.current.destroy();
         handlerRef.current = null;
@@ -111,8 +224,82 @@ export const useCesiumPointQuery = (
     handlerRef.current = handler;
     let clickTimeoutId: number | undefined;
 
+    const clearLivePreview = () => {
+      pendingPointerMovePositionRef.current = null;
+      if (pointerMoveFrameRef.current !== null) {
+        window.cancelAnimationFrame(pointerMoveFrameRef.current);
+        pointerMoveFrameRef.current = null;
+      }
+      onPointerMoveRef.current?.(null, CLEARED_POINTER_POSITION, null);
+      scene.requestRender();
+    };
+
+    const handleCanvasPointerLeave = () => {
+      clearLivePreview();
+    };
+
+    const handleCanvasBlur = () => {
+      clearLivePreview();
+    };
+
+    const handleWindowBlur = () => {
+      clearLivePreview();
+    };
+
+    const handleDocumentVisibilityChange = () => {
+      if (document.visibilityState !== "visible") {
+        clearLivePreview();
+      }
+    };
+
+    scene.canvas.addEventListener("mouseleave", handleCanvasPointerLeave);
+    scene.canvas.addEventListener("blur", handleCanvasBlur);
+    window.addEventListener("blur", handleWindowBlur);
+    document.addEventListener(
+      "visibilitychange",
+      handleDocumentVisibilityChange
+    );
+
+    const flushPointerMove = () => {
+      pointerMoveFrameRef.current = null;
+      if (!scene || scene.isDestroyed()) {
+        pendingPointerMovePositionRef.current = null;
+        return;
+      }
+
+      const pendingPosition = pendingPointerMovePositionRef.current;
+      pendingPointerMovePositionRef.current = null;
+      if (!pendingPosition) {
+        return;
+      }
+
+      const pickedPosition = pickPositionWithMeasurementFillBypass(
+        scene,
+        pendingPosition
+      );
+      const sampledSurfaceNormal = pickedPosition
+        ? estimateSurfaceNormalAtPointer(scene, pendingPosition, pickedPosition)
+        : null;
+      onPointerMoveRef.current?.(
+        pickedPosition ?? null,
+        pendingPosition,
+        sampledSurfaceNormal
+      );
+
+      if (
+        pendingPointerMovePositionRef.current &&
+        pointerMoveFrameRef.current === null
+      ) {
+        pointerMoveFrameRef.current =
+          window.requestAnimationFrame(flushPointerMove);
+      }
+    };
+
     const createPointAt = (position: Cartesian2) => {
-      const pickedPosition = scene.pickPosition(position);
+      const pickedPosition = pickPositionWithMeasurementFillBypass(
+        scene,
+        position
+      );
 
       if (
         onBeforePointCreateRef.current &&
@@ -133,20 +320,7 @@ export const useCesiumPointQuery = (
         ? verticalOffsetMeters
         : 0;
       const hasVerticalOffsetStem = Math.abs(offsetMeters) > 1e-9;
-      const localEnuFrame = Transforms.eastNorthUpToFixedFrame(pickedPosition);
-      const upDirectionColumn = Matrix4.getColumn(
-        localEnuFrame,
-        2,
-        new Cartesian4()
-      );
-      const upDirectionECEF = Cartesian3.normalize(
-        new Cartesian3(
-          upDirectionColumn.x,
-          upDirectionColumn.y,
-          upDirectionColumn.z
-        ),
-        new Cartesian3()
-      );
+      const upDirectionECEF = getLocalUpVector(pickedPosition);
       const offsetVectorECEF = Cartesian3.multiplyByScalar(
         upDirectionECEF,
         offsetMeters,
@@ -238,8 +412,15 @@ export const useCesiumPointQuery = (
     }, ScreenSpaceEventType.LEFT_DOUBLE_CLICK);
 
     handler.setInputAction((event: { endPosition: Cartesian2 }) => {
-      const pickedPosition = scene.pickPosition(event.endPosition);
-      onPointerMoveRef.current?.(pickedPosition ?? null, event.endPosition);
+      pendingPointerMovePositionRef.current = Cartesian2.clone(
+        event.endPosition,
+        new Cartesian2()
+      );
+
+      if (pointerMoveFrameRef.current === null) {
+        pointerMoveFrameRef.current =
+          window.requestAnimationFrame(flushPointerMove);
+      }
     }, ScreenSpaceEventType.MOUSE_MOVE);
 
     console.debug("[SceneClick] Terrain click handler enabled");
@@ -249,6 +430,18 @@ export const useCesiumPointQuery = (
         window.clearTimeout(clickTimeoutId);
         clickTimeoutId = undefined;
       }
+      scene.canvas.removeEventListener("mouseleave", handleCanvasPointerLeave);
+      scene.canvas.removeEventListener("blur", handleCanvasBlur);
+      window.removeEventListener("blur", handleWindowBlur);
+      document.removeEventListener(
+        "visibilitychange",
+        handleDocumentVisibilityChange
+      );
+      if (pointerMoveFrameRef.current !== null) {
+        window.cancelAnimationFrame(pointerMoveFrameRef.current);
+        pointerMoveFrameRef.current = null;
+      }
+      pendingPointerMovePositionRef.current = null;
       if (handlerRef.current) {
         handlerRef.current.destroy();
         handlerRef.current = null;

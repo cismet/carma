@@ -20,7 +20,6 @@ import {
 import {
   computePointLabelLayout,
   DEFAULT_POINT_LABEL_LAYOUT_CONFIG,
-  formatNumberToEnclosed,
   resolvePointLabelLayoutConfig,
   useLineVisualizers,
   usePointLabels,
@@ -49,6 +48,11 @@ export const DEFAULT_CESIUM_LABEL_LAYOUT_CONFIG =
   DEFAULT_POINT_LABEL_LAYOUT_CONFIG;
 export type { PointLabelMetricMode };
 export { DEFAULT_POINT_LABEL_METRIC_MODE };
+export type PointMarkerBadge = {
+  text: string;
+  backgroundColor?: string;
+  textColor?: string;
+};
 const ELEVATION_NEUTRAL_THRESHOLD_METERS = 0.03;
 const REFERENCE_POINT_DISTANCE_EPSILON_METERS = 0.001;
 const GLYPH_SIZE_EM = 1;
@@ -60,6 +64,8 @@ const MOVE_GIZMO_MARKER_SIZE_DRAGGING_PX = 40;
 const MOVE_GIZMO_MARKER_INNER_SCALE_IDLE = 0;
 const MOVE_GIZMO_MARKER_INNER_SCALE_DRAGGING = 0.68;
 const MOVE_GIZMO_MARKER_INNER_COLOR = "rgba(255, 255, 255, 0.96)";
+const LABEL_BADGE_GAP_PX = 4;
+const INPUT_CARET_BLINK_INTERVAL_MS = 530;
 
 // Viewport padding constants for smooth label transitions
 const VIEWPORT_PADDING_HORIZONTAL = 100; // pixels
@@ -69,6 +75,7 @@ const PLANE_INTERSECTION_EPSILON = 1e-8;
 const EMPTY_LAYOUT_RESULT: PointLabelLayoutResult = {
   placements: {},
   hiddenByLayout: new Set<string>(),
+  collapsedToCompact: new Set<string>(),
 };
 
 const formatMeters = (value: number): string => `${formatNumber(value)}m`;
@@ -76,6 +83,14 @@ const GLYPH_BASE_STYLE: CSSProperties = {
   display: "inline-block",
   fontSize: `${GLYPH_SIZE_EM}em`,
   lineHeight: 1,
+};
+const INPUT_CARET_STYLE: CSSProperties = {
+  display: "inline-block",
+  width: 1,
+  height: "1em",
+  marginLeft: 2,
+  verticalAlign: "-0.1em",
+  backgroundColor: "currentColor",
 };
 
 const renderGlyph = (glyph: string, rotationDeg?: number) =>
@@ -94,6 +109,25 @@ const renderGlyph = (glyph: string, rotationDeg?: number) =>
     glyph
   );
 
+const BlinkingInputCaret = () => {
+  const [visible, setVisible] = useState(true);
+
+  useEffect(() => {
+    const intervalId = window.setInterval(() => {
+      setVisible((previousVisible) => !previousVisible);
+    }, INPUT_CARET_BLINK_INTERVAL_MS);
+    return () => window.clearInterval(intervalId);
+  }, []);
+
+  return createElement("span", {
+    "aria-hidden": true,
+    style: {
+      ...INPUT_CARET_STYLE,
+      opacity: visible ? 1 : 0,
+    },
+  });
+};
+
 type PointLabelTextRepresentation = {
   layoutText: string;
   content?: ReactNode;
@@ -103,18 +137,28 @@ type PointLabelTextRepresentation = {
 const getPointLabelBase = (
   pointName: string | undefined,
   pointIndex: number,
-  isAuxiliaryLabelAnchor: boolean = false
+  isAuxiliaryLabelAnchor: boolean = false,
+  pointLabelOverride?: string,
+  preferDefaultNaming: boolean = false
 ): string => {
-  const customPointName = getCustomPointMeasurementName(pointName);
-  if (customPointName) return customPointName;
-  return isAuxiliaryLabelAnchor ? "" : formatNumberToEnclosed(pointIndex + 1);
+  if (!preferDefaultNaming) {
+    const customPointName = getCustomPointMeasurementName(pointName);
+    if (customPointName) return customPointName;
+  }
+  if (isAuxiliaryLabelAnchor) return "";
+  if (pointLabelOverride && pointLabelOverride.trim().length > 0) {
+    return pointLabelOverride;
+  }
+  return `${pointIndex + 1}`;
 };
 
 const getReferenceLabelBase = (
   points: PointMeasurementEntry[],
   distanceToReferenceByPointId?: Readonly<Record<string, number>>,
   referenceLabelPointId?: string | null,
-  pointLabelIndexByPointId?: Readonly<Record<string, number>>
+  pointLabelIndexByPointId?: Readonly<Record<string, number>>,
+  pointMarkerBadgeByPointId?: Readonly<Record<string, PointMarkerBadge>>,
+  preferDefaultNaming: boolean = false
 ): string | undefined => {
   if (referenceLabelPointId) {
     const referencePointIndex = points.findIndex(
@@ -125,7 +169,13 @@ const getReferenceLabelBase = (
       if (!referencePoint) return undefined;
       const effectiveReferenceIndex =
         pointLabelIndexByPointId?.[referencePoint.id] ?? referencePointIndex;
-      return getPointLabelBase(referencePoint.name, effectiveReferenceIndex);
+      return getPointLabelBase(
+        referencePoint.name,
+        effectiveReferenceIndex,
+        false,
+        pointMarkerBadgeByPointId?.[referencePoint.id]?.text,
+        preferDefaultNaming
+      );
     }
   }
 
@@ -144,7 +194,13 @@ const getReferenceLabelBase = (
   if (!referencePoint) return undefined;
   const effectiveReferenceIndex =
     pointLabelIndexByPointId?.[referencePoint.id] ?? referencePointIndex;
-  return getPointLabelBase(referencePoint.name, effectiveReferenceIndex);
+  return getPointLabelBase(
+    referencePoint.name,
+    effectiveReferenceIndex,
+    false,
+    pointMarkerBadgeByPointId?.[referencePoint.id]?.text,
+    preferDefaultNaming
+  );
 };
 
 const formatNoneLabelText = (
@@ -206,6 +262,10 @@ const formatDistanceLabelText = (
     return formatNoneLabelText(labelBase);
   }
 
+  if (referenceLabelBase === labelBase) {
+    return formatNoneLabelText(labelBase);
+  }
+
   return {
     layoutText: `${referenceLabelBase} ↔ ${labelBase}`,
     content: createElement(
@@ -229,12 +289,16 @@ const formatPointLabelText = (
   isAuxiliaryLabelAnchor: boolean = false,
   pointLabelMetricMode: PointLabelMetricMode = DEFAULT_POINT_LABEL_METRIC_MODE,
   pointDistanceToReference?: number,
-  referenceLabelBase?: string
+  referenceLabelBase?: string,
+  pointLabelOverride?: string,
+  preferDefaultNaming: boolean = false
 ): PointLabelTextRepresentation => {
   const labelBase = getPointLabelBase(
     pointName,
     pointIndex,
-    isAuxiliaryLabelAnchor
+    isAuxiliaryLabelAnchor,
+    pointLabelOverride,
+    preferDefaultNaming
   );
 
   if (pointLabelMetricMode === "distance") {
@@ -254,6 +318,68 @@ const formatPointLabelText = (
   }
 
   return formatNoneLabelText(labelBase);
+};
+
+const getLabelTextWithoutLeadingBadge = (
+  labelText: string,
+  badgeText: string
+): string => {
+  if (!labelText) return "";
+  const normalizedLabelText = labelText.trim();
+  const normalizedBadgeText = badgeText.trim();
+  if (!normalizedBadgeText) return normalizedLabelText;
+  if (normalizedLabelText === normalizedBadgeText) return "";
+  if (normalizedLabelText.startsWith(`${normalizedBadgeText} `)) {
+    return normalizedLabelText.slice(normalizedBadgeText.length + 1);
+  }
+  return normalizedLabelText;
+};
+
+const createInlineLabelBadgeContent = (
+  labelText: string,
+  badgeText: string,
+  badgeBackgroundColor?: string,
+  badgeTextColor?: string
+): ReactNode => {
+  const suffixText = getLabelTextWithoutLeadingBadge(labelText, badgeText);
+  return createElement(
+    Fragment,
+    null,
+    createElement(
+      "span",
+      {
+        style: {
+          display: "inline-flex",
+          alignItems: "center",
+          justifyContent: "center",
+          minWidth: "16px",
+          height: "16px",
+          padding: "0 4px",
+          borderRadius: "999px",
+          border: "1px solid rgba(255, 255, 255, 0.95)",
+          backgroundColor: badgeBackgroundColor ?? "rgba(200, 200, 200, 0.92)",
+          color: badgeTextColor ?? "#111111",
+          fontSize: "10px",
+          fontWeight: 600,
+          lineHeight: 1,
+          boxSizing: "border-box",
+          verticalAlign: "middle",
+        } satisfies CSSProperties,
+      },
+      badgeText
+    ),
+    suffixText
+      ? createElement(
+          "span",
+          {
+            style: {
+              marginLeft: LABEL_BADGE_GAP_PX,
+            } satisfies CSSProperties,
+          },
+          suffixText
+        )
+      : null
+  );
 };
 
 const sanitizePositiveScale = (value: number | undefined): number =>
@@ -330,6 +456,7 @@ export const useCesiumPointLabels = (
   onPointClick?: (pointId: string) => void,
   onPointDoubleClick?: (pointId: string) => void,
   onPointLongPress?: (pointId: string) => void,
+  onPointHoverChange?: (pointId: string, hovered: boolean) => void,
   onPointVerticalOffsetStemLongPress?: (pointId: string) => void,
   selectionModeEnabled: boolean = false,
   selectionAdditiveMode: boolean = false,
@@ -344,6 +471,7 @@ export const useCesiumPointLabels = (
   hiddenPointLabelIds?: ReadonlySet<string>,
   fullyHiddenPointIds?: ReadonlySet<string>,
   markerlessPointIds?: ReadonlySet<string>,
+  pillMarkerPointIds?: ReadonlySet<string>,
   pointDragPlaneByPointId?: Readonly<Record<string, PlanarPolygonPlane>>,
   onPointPlaneDragStart?: (pointId: string) => void,
   onPointPlaneDragPositionChange?: (
@@ -352,7 +480,9 @@ export const useCesiumPointLabels = (
   ) => void,
   onPointPlaneDragEnd?: (pointId: string) => void,
   moveGizmoMarkerSizeScale: number = 1,
-  moveGizmoLabelDistanceScale: number = 1
+  moveGizmoLabelDistanceScale: number = 1,
+  labelInputPromptPointId: string | null = null,
+  pointMarkerBadgeByPointId?: Readonly<Record<string, PointMarkerBadge>>
 ) => {
   const [cameraPitch, setCameraPitch] = useState<number>(-Math.PI / 4);
   const registeredPointIdSetRef = useRef<Set<string>>(new Set());
@@ -470,7 +600,16 @@ export const useCesiumPointLabels = (
       points,
       distanceToReferenceByPointId,
       referenceLabelPointId,
-      pointLabelIndexByPointId
+      pointLabelIndexByPointId,
+      pointMarkerBadgeByPointId
+    );
+    const defaultNamedReferenceLabelBase = getReferenceLabelBase(
+      points,
+      distanceToReferenceByPointId,
+      referenceLabelPointId,
+      pointLabelIndexByPointId,
+      pointMarkerBadgeByPointId,
+      true
     );
 
     return Object.fromEntries(
@@ -489,8 +628,10 @@ export const useCesiumPointLabels = (
 
         const effectivePointIndex =
           pointLabelIndexByPointId?.[point.id] ?? index;
+        const pointLabelOverride = pointMarkerBadgeByPointId?.[point.id]?.text;
         const pointLabelMetricMode =
           point.pointLabelMode ?? DEFAULT_POINT_LABEL_METRIC_MODE;
+        const preferDefaultNaming = pointLabelMetricMode === "distance";
         const labelTextRepresentation = formatPointLabelText(
           effectivePointIndex,
           point.geometryWGS84.height,
@@ -499,8 +640,14 @@ export const useCesiumPointLabels = (
           Boolean(point.auxiliaryLabelAnchor),
           pointLabelMetricMode,
           distanceToReferenceByPointId?.[point.id],
-          referenceLabelBase
+          preferDefaultNaming
+            ? defaultNamedReferenceLabelBase
+            : referenceLabelBase,
+          pointLabelOverride,
+          preferDefaultNaming
         );
+
+        let effectiveLabelTextRepresentation = labelTextRepresentation;
 
         const distanceToRef = distanceToReferenceByPointId?.[point.id];
         const isReferencePoint =
@@ -508,22 +655,43 @@ export const useCesiumPointLabels = (
           Math.abs(distanceToRef) <= REFERENCE_POINT_DISTANCE_EPSILON_METERS;
         if (isReferencePoint) {
           const inner =
-            labelTextRepresentation.content ??
-            labelTextRepresentation.layoutText;
-          return [
-            point.id,
-            {
-              ...labelTextRepresentation,
-              content: createElement("em", null, inner),
-              contentSignature: `ref:${
-                labelTextRepresentation.contentSignature ??
-                labelTextRepresentation.layoutText
-              }`,
-            } as PointLabelTextRepresentation,
-          ];
+            effectiveLabelTextRepresentation.content ??
+            effectiveLabelTextRepresentation.layoutText;
+          effectiveLabelTextRepresentation = {
+            ...effectiveLabelTextRepresentation,
+            content: createElement("em", null, inner),
+            contentSignature: `ref:${
+              effectiveLabelTextRepresentation.contentSignature ??
+              effectiveLabelTextRepresentation.layoutText
+            }`,
+          };
         }
 
-        return [point.id, labelTextRepresentation];
+        if (labelInputPromptPointId === point.id) {
+          const promptBaseContent =
+            effectiveLabelTextRepresentation.content ??
+            effectiveLabelTextRepresentation.layoutText;
+          const promptLayoutText =
+            effectiveLabelTextRepresentation.layoutText.trim().length > 0
+              ? `${effectiveLabelTextRepresentation.layoutText}|`
+              : "|";
+          effectiveLabelTextRepresentation = {
+            ...effectiveLabelTextRepresentation,
+            layoutText: promptLayoutText,
+            content: createElement(
+              Fragment,
+              null,
+              promptBaseContent,
+              createElement(BlinkingInputCaret)
+            ),
+            contentSignature: `prompt:${
+              effectiveLabelTextRepresentation.contentSignature ??
+              effectiveLabelTextRepresentation.layoutText
+            }`,
+          };
+        }
+
+        return [point.id, effectiveLabelTextRepresentation];
       })
     );
   }, [
@@ -532,7 +700,9 @@ export const useCesiumPointLabels = (
     distanceToReferenceByPointId,
     referenceLabelPointId,
     pointLabelIndexByPointId,
+    pointMarkerBadgeByPointId,
     polylinePointLabelTextByPointId,
+    labelInputPromptPointId,
   ]);
 
   const layoutResult = useMemo((): PointLabelLayoutResult => {
@@ -541,7 +711,7 @@ export const useCesiumPointLabels = (
     }
 
     const layoutPoints: LayoutPointInput[] = points
-      .map((point, index) => {
+      .map<LayoutPointInput | null>((point, index) => {
         const visibilityState = visibilityStateById[point.id];
         const anchor = visibilityState?.screenPosition ?? null;
         if (!anchor || visibilityState?.isHidden) return null;
@@ -549,11 +719,20 @@ export const useCesiumPointLabels = (
         if (!labelTextRepresentation) return null;
         const isDraggedMoveGizmoPoint =
           moveGizmoIsDragging && point.id === moveGizmoPointId;
+        const effectivePointIndex =
+          pointLabelIndexByPointId?.[point.id] ?? index;
+        const compactText = getPointLabelBase(
+          point.name,
+          effectivePointIndex,
+          Boolean(point.auxiliaryLabelAnchor),
+          pointMarkerBadgeByPointId?.[point.id]?.text
+        );
 
         return {
           id: point.id,
           anchor,
           text: labelTextRepresentation.layoutText,
+          compactText,
           index,
           ...(isDraggedMoveGizmoPoint
             ? {
@@ -563,7 +742,7 @@ export const useCesiumPointLabels = (
             : {}),
         };
       })
-      .filter((point): point is LayoutPointInput => Boolean(point));
+      .filter((point): point is LayoutPointInput => point !== null);
 
     return computePointLabelLayout({
       points: layoutPoints,
@@ -579,6 +758,8 @@ export const useCesiumPointLabels = (
     pointLabelTextById,
     moveGizmoPointId,
     moveGizmoIsDragging,
+    pointLabelIndexByPointId,
+    pointMarkerBadgeByPointId,
     layoutConfig,
     cameraPitch,
   ]);
@@ -587,6 +768,8 @@ export const useCesiumPointLabels = (
     return points.map((point, index) => {
       const polylineOverrideText = polylinePointLabelTextByPointId?.[point.id];
       const effectivePointIndex = pointLabelIndexByPointId?.[point.id] ?? index;
+      const pointMarkerBadge = pointMarkerBadgeByPointId?.[point.id];
+      const customPointName = getCustomPointMeasurementName(point.name);
       const labelTextRepresentation =
         pointLabelTextById[point.id] ??
         (polylineOverrideText !== undefined
@@ -595,10 +778,66 @@ export const useCesiumPointLabels = (
               getPointLabelBase(
                 point.name,
                 effectivePointIndex,
-                Boolean(point.auxiliaryLabelAnchor)
+                Boolean(point.auxiliaryLabelAnchor),
+                pointMarkerBadge?.text
               )
             ));
       const isMoveGizmoPoint = point.id === moveGizmoPointId;
+      const compactLabelText = getPointLabelBase(
+        point.name,
+        effectivePointIndex,
+        Boolean(point.auxiliaryLabelAnchor),
+        pointMarkerBadge?.text
+      );
+      const usesPillMarkerVariant =
+        !isMoveGizmoPoint && Boolean(pillMarkerPointIds?.has(point.id));
+      const isPolylineLabelPoint = polylineOverrideText !== undefined;
+      const collapsedByLayout = layoutResult.collapsedToCompact.has(point.id);
+      const pointLabelMetricMode =
+        point.pointLabelMode ?? DEFAULT_POINT_LABEL_METRIC_MODE;
+      const isDistanceMetricPoint = pointLabelMetricMode === "distance";
+      const isAnnotationMarker = Boolean(point.auxiliaryLabelAnchor);
+      const isStandalonePointMeasureBadge = Boolean(
+        pointMarkerBadge?.text && /^\d+$/.test(pointMarkerBadge.text.trim())
+      );
+      const usePillbuttonLabel =
+        !isMoveGizmoPoint &&
+        (usesPillMarkerVariant ||
+          isPolylineLabelPoint ||
+          collapsedByLayout ||
+          isStandalonePointMeasureBadge ||
+          isAnnotationMarker ||
+          isDistanceMetricPoint);
+      const isPreviewPillPoint = Boolean(point.temporary);
+      const compactLayoutBadgeText =
+        pointMarkerBadge?.text?.trim().length && pointMarkerBadge.text
+          ? pointMarkerBadge.text
+          : `${effectivePointIndex + 1}`;
+      const compactContent = isAnnotationMarker
+        ? undefined
+        : collapsedByLayout
+        ? compactLayoutBadgeText
+        : isPolylineLabelPoint
+        ? compactLayoutBadgeText
+        : isDistanceMetricPoint
+        ? undefined
+        : compactLabelText || customPointName || pointMarkerBadge?.text;
+      const forceCollapseToCompactByLayout =
+        collapsedByLayout && !isAnnotationMarker && Boolean(compactContent);
+      const showInlineLabelBadge =
+        !usePillbuttonLabel &&
+        !isMoveGizmoPoint &&
+        !Boolean(markerlessPointIds?.has(point.id)) &&
+        Boolean(pointMarkerBadge?.text);
+      const inlineLabelBadgeContent =
+        showInlineLabelBadge && pointMarkerBadge
+          ? createInlineLabelBadgeContent(
+              labelTextRepresentation.layoutText,
+              pointMarkerBadge.text,
+              pointMarkerBadge.backgroundColor,
+              pointMarkerBadge.textColor
+            )
+          : undefined;
       const disableInteractionsForMoveGizmoPoint = isMoveGizmoPoint;
       const dragPlane = pointDragPlaneByPointId?.[point.id];
       const canDirectPlaneDrag = Boolean(
@@ -645,15 +884,34 @@ export const useCesiumPointLabels = (
         hideLabelAndStem:
           layoutResult.hiddenByLayout.has(point.id) ||
           Boolean(hiddenPointLabelIds?.has(point.id)),
-        text: labelTextRepresentation.layoutText,
-        content: labelTextRepresentation.content,
-        contentSignature: labelTextRepresentation.contentSignature,
-        hideMarker: Boolean(markerlessPointIds?.has(point.id)),
+        content: usePillbuttonLabel
+          ? labelTextRepresentation.layoutText
+          : inlineLabelBadgeContent ??
+            labelTextRepresentation.content ??
+            labelTextRepresentation.layoutText,
+        contentSignature: inlineLabelBadgeContent
+          ? `${pointMarkerBadge?.text ?? ""}:${
+              labelTextRepresentation.layoutText
+            }`
+          : labelTextRepresentation.contentSignature,
+        hideMarker:
+          usesPillMarkerVariant || Boolean(markerlessPointIds?.has(point.id)),
         markerSize: isMoveGizmoPoint
           ? moveGizmoIsDragging
             ? moveGizmoMarkerSizeDraggingPx
             : moveGizmoMarkerSizePx
           : undefined,
+        compactContent: usePillbuttonLabel ? compactContent : undefined,
+        collapse:
+          usePillbuttonLabel &&
+          !isPolylineLabelPoint &&
+          !isStandalonePointMeasureBadge &&
+          !isAnnotationMarker &&
+          !isDistanceMetricPoint,
+        forceCollapse: forceCollapseToCompactByLayout,
+        fullBorder:
+          usePillbuttonLabel &&
+          (isPreviewPillPoint || isAnnotationMarker || isDistanceMetricPoint),
         markerInnerScale: isMoveGizmoPoint
           ? moveGizmoIsDragging
             ? MOVE_GIZMO_MARKER_INNER_SCALE_DRAGGING
@@ -685,6 +943,10 @@ export const useCesiumPointLabels = (
           !canDirectPlaneDrag &&
           onPointLongPress
             ? () => onPointLongPress(point.id)
+            : undefined,
+        onHoverChange:
+          !disableInteractionsForMoveGizmoPoint && onPointHoverChange
+            ? (hovered: boolean) => onPointHoverChange(point.id, hovered)
             : undefined,
         longPressDurationMs: pointLongPressDurationMs,
         onMarkerDragStart: canDirectPlaneDrag
@@ -719,11 +981,14 @@ export const useCesiumPointLabels = (
     onPointClick,
     onPointDoubleClick,
     onPointLongPress,
+    onPointHoverChange,
     pointLongPressDurationMs,
     hiddenPointLabelIds,
     fullyHiddenPointIds,
     pointLabelIndexByPointId,
+    pointMarkerBadgeByPointId,
     polylinePointLabelTextByPointId,
+    pillMarkerPointIds,
     pointDragPlaneByPointId,
     onPointPlaneDragStart,
     onPointPlaneDragPositionChange,

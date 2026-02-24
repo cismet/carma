@@ -38,6 +38,7 @@ type ComputePointLabelLayoutInput = {
 type LayoutAccumulator = {
   placements: Record<string, CandidateEvaluation["placement"]>;
   hiddenByLayout: Set<string>;
+  collapsedToCompact: Set<string>;
   occupiedLabelRects: Rect[];
 };
 
@@ -51,11 +52,21 @@ const createStaticPlacements = (
           points.map((point) => [point.id, defaultPlacement])
         ),
         hiddenByLayout: new Set<string>(),
+        collapsedToCompact: new Set<string>(),
       }
     : {
         placements: {},
         hiddenByLayout: new Set<string>(),
+        collapsedToCompact: new Set<string>(),
       };
+
+const resolveCompactText = (point: LayoutPointInput): string | null => {
+  const normalizedCompactText = point.compactText?.trim() ?? "";
+  const normalizedDefaultText = point.text.trim();
+  if (!normalizedCompactText) return null;
+  if (normalizedCompactText === normalizedDefaultText) return null;
+  return normalizedCompactText;
+};
 
 const evaluatePlacement = ({
   anchor,
@@ -183,6 +194,7 @@ export const computePointLabelLayout = ({
             [point.id]: preferredPlacement,
           },
           hiddenByLayout: state.hiddenByLayout,
+          collapsedToCompact: state.collapsedToCompact,
           occupiedLabelRects: [
             ...state.occupiedLabelRects,
             createLabelRect(point.anchor, point.text, preferredPlacement),
@@ -241,31 +253,100 @@ export const computePointLabelLayout = ({
         forcedEvaluations
       );
 
-      if (!selectedEvaluation) {
-        const hiddenByLayout = new Set(state.hiddenByLayout);
-        hiddenByLayout.add(point.id);
-
+      if (selectedEvaluation) {
         return {
-          ...state,
-          hiddenByLayout,
+          placements: {
+            ...state.placements,
+            [point.id]: selectedEvaluation.placement,
+          },
+          hiddenByLayout: state.hiddenByLayout,
+          collapsedToCompact: state.collapsedToCompact,
+          occupiedLabelRects: [
+            ...state.occupiedLabelRects,
+            selectedEvaluation.rect,
+          ],
         };
       }
 
+      const compactText = resolveCompactText(point);
+      if (compactText) {
+        const compactRegularEvaluations = regularCandidates.map(
+          (placement, orderIndex) =>
+            evaluatePlacement({
+              anchor: point.anchor,
+              labelText: compactText,
+              placement,
+              orderIndex,
+              occupiedLabelRects: state.occupiedLabelRects,
+              otherAnchorRects,
+              viewportWidth,
+              viewportHeight,
+            })
+        );
+
+        const compactForcedEvaluations = !compactRegularEvaluations.some(
+          (evaluation) => evaluation.collisionFree
+        )
+          ? regularCandidates.map((placement, orderIndex) => {
+              const forcedPlacement = relaxPlacementWithForces({
+                anchor: point.anchor,
+                labelText: compactText,
+                basePlacement: placement,
+                occupiedLabelRects: state.occupiedLabelRects,
+                otherAnchorRects,
+                viewportWidth,
+                viewportHeight,
+                config: config.dynamicLabelPlacementConfig,
+              });
+
+              return evaluatePlacement({
+                anchor: point.anchor,
+                labelText: compactText,
+                placement: forcedPlacement,
+                orderIndex,
+                occupiedLabelRects: state.occupiedLabelRects,
+                otherAnchorRects,
+                viewportWidth,
+                viewportHeight,
+              });
+            })
+          : [];
+
+        const compactSelectedEvaluation = pickEvaluation(
+          compactRegularEvaluations,
+          compactForcedEvaluations
+        );
+
+        if (compactSelectedEvaluation) {
+          const collapsedToCompact = new Set(state.collapsedToCompact);
+          collapsedToCompact.add(point.id);
+          return {
+            placements: {
+              ...state.placements,
+              [point.id]: compactSelectedEvaluation.placement,
+            },
+            hiddenByLayout: state.hiddenByLayout,
+            collapsedToCompact,
+            occupiedLabelRects: [
+              ...state.occupiedLabelRects,
+              compactSelectedEvaluation.rect,
+            ],
+          };
+        }
+      }
+
+      const hiddenByLayout = new Set(state.hiddenByLayout);
+      hiddenByLayout.add(point.id);
+
       return {
-        placements: {
-          ...state.placements,
-          [point.id]: selectedEvaluation.placement,
-        },
-        hiddenByLayout: state.hiddenByLayout,
-        occupiedLabelRects: [
-          ...state.occupiedLabelRects,
-          selectedEvaluation.rect,
-        ],
+        ...state,
+        hiddenByLayout,
       };
     },
     {
       placements: {},
       hiddenByLayout: new Set<string>(),
+      collapsedToCompact: new Set<string>(),
       occupiedLabelRects: [],
     }
   );
@@ -273,5 +354,6 @@ export const computePointLabelLayout = ({
   return {
     placements: finalState.placements,
     hiddenByLayout: finalState.hiddenByLayout,
+    collapsedToCompact: finalState.collapsedToCompact,
   };
 };

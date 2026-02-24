@@ -69,6 +69,7 @@ export type LayoutPointInput = {
   id: string;
   anchor: ScreenPoint;
   text: string;
+  compactText?: string;
   index: number;
   layoutPriority?: number;
   lockPreferredPlacement?: boolean;
@@ -77,4 +78,5 @@ export type LayoutPointInput = {
 export type PointLabelLayoutResult = {
   placements: Record<string, LabelPlacement>;
   hiddenByLayout: Set<string>;
+  collapsedToCompact: Set<string>;
 };

@@ -19,8 +19,16 @@ export interface PointLabelData {
   markerSize?: number;
   markerStrokeWidth?: number;
   stemReferenceMarkerSize?: number;
-  text: string;
-  content?: React.ReactNode;
+  stemStartDistance?: number;
+  markerContent?: React.ReactNode;
+  markerBackgroundColor?: string;
+  markerTextColor?: string;
+  compactContent?: React.ReactNode;
+  collapse?: boolean;
+  forceCollapse?: boolean;
+  fullBorder?: boolean;
+  resizeMode?: "none" | "fast-grow-slow-shrink";
+  content: React.ReactNode;
   contentSignature?: string;
   selected?: boolean;
   visible?: boolean;
@@ -56,13 +64,19 @@ export const usePointLabels = (
       points
         .map(
           (p) =>
-            `${p.id}:${p.text}:${p.selected}:${p.visible}:${p.isOccluded}:${
-              p.isHidden
-            }:${p.contentSignature ?? ""}:${p.pitch}:${Boolean(p.onClick)}:${
-              p.labelAngleRad
-            }:${p.labelDistance}:${p.labelAttach}:${p.hideLabelAndStem}:${
-              p.markerSize
-            }:${p.markerStrokeWidth}:${p.stemReferenceMarkerSize}:${Boolean(
+            `${p.id}:${String(p.content)}:${p.selected}:${p.visible}:${
+              p.isOccluded
+            }:${p.isHidden}:${p.contentSignature ?? ""}:${p.pitch}:${Boolean(
+              p.onClick
+            )}:${p.labelAngleRad}:${p.labelDistance}:${p.labelAttach}:${
+              p.hideLabelAndStem
+            }:${p.markerSize}:${p.markerStrokeWidth}:${
+              p.stemReferenceMarkerSize
+            }:${p.stemStartDistance}:${String(p.markerContent)}:${
+              p.markerBackgroundColor
+            }:${p.markerTextColor}:${String(p.compactContent)}:${p.collapse}:${
+              p.forceCollapse
+            }:${p.fullBorder}:${p.resizeMode ?? "none"}:${Boolean(
               p.onHoverChange
             )}:${Boolean(p.onDoubleClick)}:${Boolean(p.onLongPress)}:${
               p.longPressDurationMs
@@ -105,7 +119,16 @@ export const usePointLabels = (
           markerSize: point.markerSize,
           markerStrokeWidth: point.markerStrokeWidth,
           stemReferenceMarkerSize: point.stemReferenceMarkerSize,
-          text: point.content ?? point.text,
+          stemStartDistance: point.stemStartDistance,
+          markerContent: point.markerContent,
+          markerBackgroundColor: point.markerBackgroundColor,
+          markerTextColor: point.markerTextColor,
+          compactContent: point.compactContent,
+          collapse: point.collapse,
+          forceCollapse: point.forceCollapse,
+          fullBorder: point.fullBorder,
+          resizeMode: point.resizeMode,
+          content: point.content,
           selected: point.selected,
           isOccluded: point.isOccluded,
           onClick: point.onClick,

@@ -10,7 +10,6 @@ import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faSquare } from "@fortawesome/free-regular-svg-icons";
 import {
   faArrowPointer,
-  faArrowsLeftRightToLine,
   faArrowsToCircle,
   faLocationDot,
   faMessage,
@@ -38,6 +37,7 @@ export type MeasurementToolType =
 
 export type PolygonSubType = "horizontal" | "vertical" | "oblique";
 export type PolylineSegmentLineMode = "direct" | "components";
+type DistanceLineModePreset = "direct" | "components" | "componentsWithDirect";
 
 export interface MeasurementModeToolbarProps {
   activeToolType: MeasurementToolType;
@@ -148,19 +148,42 @@ const TOOL_BUTTONS: ToolButtonDef[] = [
   },
 ];
 
-const DISABLED_POLYGON_SUB_TYPES = new Set<PolygonSubType>([
-  "horizontal",
-  "oblique",
-]);
+const POLYGON_HELP_CONTENT_BY_SUB_TYPE: Record<PolygonSubType, string[]> = {
+  horizontal: [
+    "Grundriss: Jeder Klick setzt einen Bodenpunkt; die Vorschau folgt dem Cursor auf dem Gelände.",
+    "Klick auf Startpunkt oder Doppelklick schließt die Fläche.",
+  ],
+  vertical: [
+    "Fassade: Der 1. Punkt startet die Fläche, der 2. Punkt erzeugt eine rechteckige Fassade mit Auto-Ecken.",
+    "Klick auf Startpunkt oder Doppelklick schließt die Fläche.",
+  ],
+  oblique: [
+    "Dach: 1.+2. Punkt definieren eine horizontale Kante, der 3. Punkt spannt die Dach-Ebene auf; weitere Punkte werden auf diese Ebene projiziert.",
+    "Klick auf Startpunkt oder Doppelklick schließt die Fläche.",
+  ],
+};
+
+const POLYGON_SUB_TYPE_LABEL_BY_SUB_TYPE: Record<PolygonSubType, string> = {
+  horizontal: "Grundriss",
+  vertical: "Fassade",
+  oblique: "Dach",
+};
+
+const DISABLED_POLYGON_SUB_TYPES = new Set<PolygonSubType>([]);
 
 const ACTIVE_ACCENT_COLOR = "#1677ff";
 const INACTIVE_ICON_COLOR = "#4b5563";
+const CUSTOM_ICON_STROKE = "currentColor";
+const CUSTOM_ICON_LINE_WIDTH = 1.35;
+const CUSTOM_ICON_ARROW_WIDTH = 1.15;
+const DISTANCE_MODE_ICON_STROKE = CUSTOM_ICON_STROKE;
+const DISTANCE_MODE_ICON_LINE_WIDTH = CUSTOM_ICON_LINE_WIDTH;
+const DISTANCE_MODE_ICON_ARROW_WIDTH = CUSTOM_ICON_ARROW_WIDTH;
 const LAYER_BUTTON_SHADOW =
   "0 1px 2px rgba(60, 64, 67, 0.3), 0 1px 3px 1px rgba(60, 64, 67, 0.15)";
 const INFOBOX_SURFACE_BG = "rgba(245, 245, 245, 0.8)";
 const INFOBOX_SURFACE_BLUR = "blur(2px)";
-const DISTANCE_VERTICAL_COLOR = "rgba(111, 168, 255, 0.96)";
-const DISTANCE_HORIZONTAL_COLOR = "rgba(188, 194, 102, 0.95)";
+const TOOLBOX_SURFACE_RADIUS_PX = 4;
 const SECONDARY_TOOLBAR_HELP_STORAGE_KEY =
   "carma.measurements.secondary-toolbar-help-collapsed.v1";
 
@@ -200,57 +223,46 @@ type PolygonSubButtonDef = {
   tooltip: string;
 };
 
+type RoofTrapezoidIconProps = {
+  fontSize?: number | string;
+};
+
+const RoofTrapezoidIcon = ({ fontSize = "1em" }: RoofTrapezoidIconProps) => (
+  <svg
+    width="1em"
+    height="1em"
+    viewBox="0 0 14 14"
+    aria-hidden="true"
+    style={{ display: "block", fontSize }}
+  >
+    <path
+      d="M5 3 L9 3 L12 6 L2 6 Z"
+      fill="none"
+      stroke={CUSTOM_ICON_STROKE}
+      strokeWidth={CUSTOM_ICON_LINE_WIDTH}
+      strokeLinejoin="round"
+    />
+  </svg>
+);
+
 const POLYGON_SUB_BUTTONS: PolygonSubButtonDef[] = [
   {
-    subType: "vertical",
-    icon: <FontAwesomeIcon icon={faBuilding} />,
-    shortLabel: "Fassade",
-    tooltip: "Fassade (vertikal)",
-  },
-  {
     subType: "horizontal",
-    icon: (
-      <svg width="14" height="14" viewBox="0 0 14 14" aria-hidden="true">
-        <rect x="1" y="1" width="8" height="4" rx="0.8" fill="currentColor" />
-        <rect x="1" y="1" width="4" height="8" rx="0.8" fill="currentColor" />
-        <rect
-          x="7.6"
-          y="6.6"
-          width="5.4"
-          height="5.4"
-          rx="0.8"
-          fill="none"
-          stroke="currentColor"
-          strokeWidth="1.2"
-        />
-      </svg>
-    ),
+    icon: <FontAwesomeIcon icon={faDrawPolygon} />,
     shortLabel: "Grundriss",
     tooltip: "Grundriss",
   },
   {
     subType: "oblique",
-    icon: (
-      <svg width="14" height="14" viewBox="0 0 14 14" aria-hidden="true">
-        <path
-          d="M1 10.5 L7 2.3 L13 10.5 Z"
-          fill="none"
-          stroke="currentColor"
-          strokeWidth="1.4"
-          strokeLinejoin="round"
-        />
-        <line
-          x1="1.4"
-          y1="10.5"
-          x2="12.6"
-          y2="10.5"
-          stroke="currentColor"
-          strokeWidth="1.2"
-        />
-      </svg>
-    ),
+    icon: <RoofTrapezoidIcon fontSize="1.33em" />,
     shortLabel: "Dach",
     tooltip: "Dachfläche (schräg)",
+  },
+  {
+    subType: "vertical",
+    icon: <FontAwesomeIcon icon={faBuilding} />,
+    shortLabel: "Fassade",
+    tooltip: "Fassade (vertikal)",
   },
 ];
 
@@ -276,30 +288,6 @@ const toolButtonStyle = (
   opacity: disabled ? 0.45 : 1,
 });
 
-const subButtonStyle = (
-  isActive: boolean,
-  disabled: boolean = false
-): CSSProperties => ({
-  display: "inline-flex",
-  alignItems: "center",
-  justifyContent: "center",
-  width: 28,
-  height: 28,
-  borderRadius: 999,
-  border: isActive
-    ? `1px solid rgba(22, 119, 255, 0.45)`
-    : "1px solid rgba(0, 0, 0, 0.05)",
-  backgroundColor: isActive ? "#ffffff" : "#f3f4f6",
-  color: isActive ? ACTIVE_ACCENT_COLOR : INACTIVE_ICON_COLOR,
-  cursor: disabled ? "not-allowed" : "pointer",
-  fontSize: 10,
-  boxShadow: LAYER_BUTTON_SHADOW,
-  padding: 0,
-  transition: "all 0.15s ease",
-  flexShrink: 0,
-  opacity: disabled ? 0.35 : 1,
-});
-
 const optionsContainerStyle: CSSProperties = {
   display: "flex",
   alignItems: "center",
@@ -307,11 +295,10 @@ const optionsContainerStyle: CSSProperties = {
   flexWrap: "wrap",
   width: "100%",
   maxWidth: "100%",
-  borderRadius: 8,
+  borderRadius: TOOLBOX_SURFACE_RADIUS_PX,
   backgroundColor: INFOBOX_SURFACE_BG,
   backdropFilter: INFOBOX_SURFACE_BLUR,
   WebkitBackdropFilter: INFOBOX_SURFACE_BLUR,
-  border: "1px solid #d1d5db",
   padding: "4px 6px",
   boxSizing: "border-box",
 };
@@ -332,18 +319,126 @@ const pointManualStyle: CSSProperties = {
   lineHeight: 1.3,
 };
 
-const distanceToggleButtonStyle: CSSProperties = {
-  ...toolButtonStyle(false),
-  width: 32,
-  height: 32,
-  display: "inline-flex",
-  alignItems: "center",
-  justifyContent: "center",
-  gap: 4,
-  padding: "0 4px",
-  border: "none",
-  boxShadow: "none",
+const DISTANCE_DIRECT_MODE_ICON = (
+  <svg width="14" height="14" viewBox="0 0 14 14" aria-hidden="true">
+    <path
+      d="M2 7H12"
+      stroke={DISTANCE_MODE_ICON_STROKE}
+      strokeWidth={DISTANCE_MODE_ICON_LINE_WIDTH}
+      strokeLinecap="round"
+    />
+    <path
+      d="M2 7L3.2 5.8M2 7L3.2 8.2"
+      stroke={DISTANCE_MODE_ICON_STROKE}
+      strokeWidth={DISTANCE_MODE_ICON_ARROW_WIDTH}
+      strokeLinecap="round"
+    />
+    <path
+      d="M12 7L10.8 5.8M12 7L10.8 8.2"
+      stroke={DISTANCE_MODE_ICON_STROKE}
+      strokeWidth={DISTANCE_MODE_ICON_ARROW_WIDTH}
+      strokeLinecap="round"
+    />
+  </svg>
+);
+
+const DISTANCE_COMPONENTS_MODE_ICON = (
+  <svg width="14" height="14" viewBox="0 0 14 14" aria-hidden="true">
+    <path
+      d="M11.5 12V2.3"
+      stroke={DISTANCE_MODE_ICON_STROKE}
+      strokeWidth={DISTANCE_MODE_ICON_LINE_WIDTH}
+      strokeLinecap="round"
+    />
+    <path
+      d="M11.5 12H1.8"
+      stroke={DISTANCE_MODE_ICON_STROKE}
+      strokeWidth={DISTANCE_MODE_ICON_LINE_WIDTH}
+      strokeLinecap="round"
+    />
+    <path
+      d="M11.5 2.3L10.3 3.5M11.5 2.3L12.7 3.5"
+      stroke={DISTANCE_MODE_ICON_STROKE}
+      strokeWidth={DISTANCE_MODE_ICON_ARROW_WIDTH}
+      strokeLinecap="round"
+    />
+    <path
+      d="M1.8 12L3 10.8M1.8 12L3 13.2"
+      stroke={DISTANCE_MODE_ICON_STROKE}
+      strokeWidth={DISTANCE_MODE_ICON_ARROW_WIDTH}
+      strokeLinecap="round"
+    />
+  </svg>
+);
+
+const DISTANCE_COMPONENTS_WITH_DIRECT_MODE_ICON = (
+  <svg width="14" height="14" viewBox="0 0 14 14" aria-hidden="true">
+    <path
+      d="M11.5 12V2.6"
+      stroke={DISTANCE_MODE_ICON_STROKE}
+      strokeWidth={DISTANCE_MODE_ICON_LINE_WIDTH}
+      strokeLinecap="round"
+    />
+    <path
+      d="M11.5 12H2.1"
+      stroke={DISTANCE_MODE_ICON_STROKE}
+      strokeWidth={DISTANCE_MODE_ICON_LINE_WIDTH}
+      strokeLinecap="round"
+    />
+    <path
+      d="M11.5 2.6L2.1 12"
+      stroke={DISTANCE_MODE_ICON_STROKE}
+      strokeWidth={DISTANCE_MODE_ICON_LINE_WIDTH - 0.1}
+      strokeLinecap="round"
+    />
+  </svg>
+);
+
+type DistanceLineModeOption = {
+  mode: DistanceLineModePreset;
+  label: string;
+  tooltip: string;
+  icon: ReactNode;
+  dataTestId: string;
 };
+
+const DISTANCE_LINE_MODE_OPTIONS: DistanceLineModeOption[] = [
+  {
+    mode: "direct",
+    label: "Direkt",
+    tooltip: "Nur Direktlinie anzeigen",
+    icon: DISTANCE_DIRECT_MODE_ICON,
+    dataTestId: "measurement-distance-mode-direct",
+  },
+  {
+    mode: "components",
+    label: "Komponenten",
+    tooltip: "Nur Komponenten anzeigen",
+    icon: DISTANCE_COMPONENTS_MODE_ICON,
+    dataTestId: "measurement-distance-mode-components",
+  },
+  {
+    mode: "componentsWithDirect",
+    label: "Komponenten + Direkt",
+    tooltip: "Komponenten und Direktlinie anzeigen",
+    icon: DISTANCE_COMPONENTS_WITH_DIRECT_MODE_ICON,
+    dataTestId: "measurement-distance-components-direct-toggle",
+  },
+];
+
+const distanceModeOptionButtonStyle = (active: boolean): CSSProperties => ({
+  ...toolButtonStyle(active),
+  width: 24,
+  height: 24,
+  padding: 0,
+  borderRadius: 6,
+  border: `1px solid ${
+    active ? "rgba(75, 85, 99, 0.72)" : "rgba(107, 114, 128, 0.4)"
+  }`,
+  backgroundColor: active ? "rgba(75, 85, 99, 0.12)" : "transparent",
+  boxShadow: "none",
+  color: INACTIVE_ICON_COLOR,
+});
 
 type SecondaryToolbarSectionProps = {
   dataTestId: string;
@@ -435,6 +530,16 @@ export function MeasurementModeToolbar({
     Math.abs(polylineVerticalOffsetMeters) > 1e-9;
   const selectedTotalCount = selectedMeasurementCount + selectedLabelCount;
   const hasSelection = selectedTotalCount > 0;
+  const distanceComponentsModeEnabled =
+    Boolean(distanceLineVisibility?.vertical ?? true) ||
+    Boolean(distanceLineVisibility?.horizontal ?? true);
+  const distanceDirectLineEnabled = distanceLineVisibility?.direct ?? true;
+  const distanceLineMode: DistanceLineModePreset =
+    !distanceComponentsModeEnabled
+      ? "direct"
+      : distanceDirectLineEnabled
+      ? "componentsWithDirect"
+      : "components";
   const [
     secondaryToolbarHelpCollapsedByKey,
     setSecondaryToolbarHelpCollapsedByKey,
@@ -497,6 +602,14 @@ export function MeasurementModeToolbar({
     </div>
   );
 
+  const setDistanceLineMode = (mode: DistanceLineModePreset) => {
+    const nextComponentsEnabled = mode !== "direct";
+    const nextDirectEnabled = mode !== "components";
+    onDistanceLineVisibilityChange?.("direct", nextDirectEnabled);
+    onDistanceLineVisibilityChange?.("vertical", nextComponentsEnabled);
+    onDistanceLineVisibilityChange?.("horizontal", nextComponentsEnabled);
+  };
+
   useEffect(() => {
     if (!pointVerticalOffsetEnabled) return;
     lastPointVerticalOffsetRef.current = pointVerticalOffsetMeters;
@@ -538,11 +651,10 @@ export function MeasurementModeToolbar({
           alignItems: "center",
           flexWrap: "wrap",
           padding: "4px 6px",
-          borderRadius: 8,
+          borderRadius: TOOLBOX_SURFACE_RADIUS_PX,
           backgroundColor: INFOBOX_SURFACE_BG,
           backdropFilter: INFOBOX_SURFACE_BLUR,
           WebkitBackdropFilter: INFOBOX_SURFACE_BLUR,
-          border: "1px solid #d1d5db",
           width: "100%",
           maxWidth: "100%",
           boxSizing: "border-box",
@@ -564,6 +676,60 @@ export function MeasurementModeToolbar({
           )
           .map(({ type, icon, tooltip, alwaysDisabled }) => {
             const isDisabled = alwaysDisabled || isSelectionModeActive;
+            if (type === "polygon") {
+              return (
+                <Fragment key={type}>
+                  {POLYGON_SUB_BUTTONS.map(
+                    ({
+                      subType,
+                      icon: subIcon,
+                      shortLabel,
+                      tooltip: subTooltip,
+                    }) => {
+                      const isSubTypeDisabled =
+                        isDisabled || DISABLED_POLYGON_SUB_TYPES.has(subType);
+                      const isSubTypeActive =
+                        activeToolType === "polygon" &&
+                        activePolygonSubType === subType;
+
+                      return (
+                        <Tooltip
+                          key={subType}
+                          title={
+                            isSubTypeDisabled
+                              ? `${subTooltip} (demnächst)`
+                              : `${subTooltip} (Flächenmodus)`
+                          }
+                          placement="top"
+                        >
+                          <button
+                            type="button"
+                            style={toolButtonStyle(
+                              isSubTypeActive,
+                              isSubTypeDisabled
+                            )}
+                            onClick={() => {
+                              if (isSubTypeDisabled) {
+                                return;
+                              }
+                              onToolTypeChange("polygon");
+                              onPolygonSubTypeChange?.(subType);
+                            }}
+                            aria-pressed={isSubTypeActive}
+                            aria-label={`Flächenmodus ${shortLabel}`}
+                            data-test-id={`measurement-tool-polygon-${subType}`}
+                            disabled={isSubTypeDisabled}
+                          >
+                            {subIcon}
+                          </button>
+                        </Tooltip>
+                      );
+                    }
+                  )}
+                </Fragment>
+              );
+            }
+
             return (
               <Fragment key={type}>
                 {type === "label" && (
@@ -726,7 +892,7 @@ export function MeasurementModeToolbar({
             "Erster Klick setzt den Startpunkt, zweiter Klick setzt den Zielpunkt.",
             "Doppelklick auf einen Punkt setzt die Referenzhöhe.",
             'Mit "An Referenzpunkt starten" beginnen Folgemessungen am Referenzpunkt.',
-            "Direkt/Vertikal/Horizontal steuern die Sichtbarkeit der Distanzkomponenten.",
+            "Distanzmodus schaltet zwischen Direktlinie, Komponenten oder beidem um.",
           ])}
         >
           <div
@@ -734,74 +900,53 @@ export function MeasurementModeToolbar({
               display: "inline-flex",
               alignItems: "center",
               gap: 6,
-              paddingLeft: 4,
+              paddingLeft: 2,
             }}
           >
-            {[
-              {
-                kind: "direct" as const,
-                tooltip: "Direkte Distanzlinie",
-                iconStyle: { transform: "rotate(135deg)" },
-                iconColor: INACTIVE_ICON_COLOR,
-                dataTestId: "measurement-distance-direct-toggle",
-              },
-              {
-                kind: "vertical" as const,
-                tooltip: "Vertikale Komponente",
-                iconStyle: { transform: "rotate(90deg)" },
-                iconColor: DISTANCE_VERTICAL_COLOR,
-                dataTestId: "measurement-distance-vertical-toggle",
-              },
-              {
-                kind: "horizontal" as const,
-                tooltip: "Horizontale Komponente",
-                iconStyle: undefined,
-                iconColor: DISTANCE_HORIZONTAL_COLOR,
-                dataTestId: "measurement-distance-horizontal-toggle",
-              },
-            ].map(({ kind, tooltip, iconStyle, iconColor, dataTestId }) => {
-              const isVisible = distanceLineVisibility?.[kind] ?? true;
-              return (
-                <Tooltip
-                  key={kind}
-                  title={`${tooltip} ${
-                    isVisible ? "ausblenden" : "einblenden"
-                  }`}
-                >
-                  <VisibilityToggleButton
-                    isVisible={isVisible}
-                    onToggle={(nextVisible) =>
-                      onDistanceLineVisibilityChange?.(kind, nextVisible)
-                    }
-                    leadingIcon={
-                      <FontAwesomeIcon
-                        icon={faArrowsLeftRightToLine}
-                        style={{
-                          ...iconStyle,
-                          color: iconColor,
-                        }}
-                      />
-                    }
-                    fontSize={11}
-                    stopPropagation
-                    ariaLabel={`${tooltip} ${
-                      isVisible ? "ausblenden" : "einblenden"
-                    }`}
-                    dataTestId={dataTestId}
-                    iconSlotWidth={14}
-                    iconSlotHeight={14}
-                    style={{
-                      ...distanceToggleButtonStyle,
-                      backgroundColor: "transparent",
-                      color: INACTIVE_ICON_COLOR,
-                      border: "none",
-                      boxShadow: "none",
-                      padding: 0,
-                    }}
-                  />
-                </Tooltip>
-              );
-            })}
+            <div
+              role="radiogroup"
+              aria-label="Distanz-Linienmodus auswählen"
+              data-test-id="measurement-distance-mode-toggle"
+              style={{
+                display: "inline-flex",
+                alignItems: "center",
+                gap: 4,
+              }}
+            >
+              {DISTANCE_LINE_MODE_OPTIONS.map(
+                ({ mode, label, tooltip, icon, dataTestId }) => {
+                  const isActive = distanceLineMode === mode;
+                  return (
+                    <Tooltip key={mode} title={tooltip}>
+                      <button
+                        type="button"
+                        role="radio"
+                        aria-checked={isActive}
+                        aria-label={`${label} ${
+                          isActive ? "aktiv" : "aktivieren"
+                        }`}
+                        onClick={() => setDistanceLineMode(mode)}
+                        data-test-id={dataTestId}
+                        style={distanceModeOptionButtonStyle(isActive)}
+                      >
+                        <span
+                          style={{
+                            display: "inline-flex",
+                            alignItems: "center",
+                            justifyContent: "center",
+                            width: 14,
+                            height: 14,
+                          }}
+                          aria-hidden="true"
+                        >
+                          {icon}
+                        </span>
+                      </button>
+                    </Tooltip>
+                  );
+                }
+              )}
+            </div>
           </div>
           <span
             style={{
@@ -1033,45 +1178,17 @@ export function MeasurementModeToolbar({
           onHelpCollapsedChange={(collapsed) =>
             setSecondaryToolbarHelpCollapsed("polygon", collapsed)
           }
-          helpContent={buildHelpContent([
-            "Flächenmodus bestimmt den Typ: Grundriss, Fassade oder Dach.",
-            "Klicken setzt Eckpunkte; Klick auf den Startpunkt oder Doppelklick schließt die Fläche.",
-            "Bei Fassaden entsteht aus zwei Punkten eine rechteckige Fläche mit Live-Vorschau.",
-          ])}
+          helpContent={buildHelpContent(
+            POLYGON_HELP_CONTENT_BY_SUB_TYPE[activePolygonSubType]
+          )}
         >
-          <div
-            role="radiogroup"
-            aria-label="Flächenmodus"
-            style={{ display: "inline-flex", gap: 6, alignItems: "center" }}
+          <span
+            style={optionsLabelStyle}
+            data-test-id="measurement-polygon-mode-label"
           >
-            {POLYGON_SUB_BUTTONS.map(
-              ({ subType, icon, shortLabel, tooltip }) => (
-                <Tooltip key={subType} title={tooltip} placement="bottom">
-                  <button
-                    type="button"
-                    style={subButtonStyle(
-                      activePolygonSubType === subType,
-                      DISABLED_POLYGON_SUB_TYPES.has(subType)
-                    )}
-                    onClick={() => {
-                      if (DISABLED_POLYGON_SUB_TYPES.has(subType)) {
-                        return;
-                      }
-                      onToolTypeChange("polygon");
-                      onPolygonSubTypeChange?.(subType);
-                    }}
-                    role="radio"
-                    aria-checked={activePolygonSubType === subType}
-                    aria-label={tooltip}
-                    data-test-id={`polygon-sub-${subType}`}
-                    disabled={DISABLED_POLYGON_SUB_TYPES.has(subType)}
-                  >
-                    {icon}
-                  </button>
-                </Tooltip>
-              )
-            )}
-          </div>
+            Aktiver Flächenmodus:{" "}
+            {POLYGON_SUB_TYPE_LABEL_BY_SUB_TYPE[activePolygonSubType]}
+          </span>
         </SecondaryToolbarSection>
       )}
     </div>

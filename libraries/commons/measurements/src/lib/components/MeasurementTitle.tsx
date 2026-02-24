@@ -17,6 +17,7 @@ const MeasurementTitle = ({
   capitalize = true,
   multiline = false,
   autoFocusTrigger,
+  leadingBadgeText,
 }: MeasurementTitleProps) => {
   const focusCaretAtEndOnFocus = true;
   const clearAllOnBackspaceWhenPrefilled = true;
@@ -53,6 +54,8 @@ const MeasurementTitle = ({
   const effectivePlaceholder = lastSavedLabel || placeholderText || "";
   const displayText = content || effectivePlaceholder;
   const hasPlaceholder = Boolean(effectivePlaceholder);
+  const normalizedLeadingBadgeText = leadingBadgeText?.trim() ?? "";
+  const hasLeadingBadge = normalizedLeadingBadgeText.length > 0;
   const formatText = (text: string) =>
     capitalize ? capitalizeFirstLetter(text) : text;
 
@@ -92,7 +95,15 @@ const MeasurementTitle = ({
   }, [displayText, editable, isEditing, multiline]);
 
   return (
-    <div>
+    <div className="inline-flex items-center gap-1 min-w-0">
+      {hasLeadingBadge && (
+        <span
+          className="inline-flex items-center justify-center min-w-[16px] h-[16px] px-1 rounded-full border border-white/95 bg-[rgba(200,200,200,0.92)] text-[10px] font-semibold leading-none text-[#111111]"
+          aria-hidden="true"
+        >
+          {normalizedLeadingBadgeText}
+        </span>
+      )}
       {editable ? (
         <span
           ref={editableTitleRef}

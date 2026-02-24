@@ -346,16 +346,22 @@ const deriveVerticalPolygonLocalFrame = (
   }
 
   if (!east) {
-    east = normalizeDirection(Cartesian3.cross(north, Cartesian3.UNIT_X, new Cartesian3()));
+    east = normalizeDirection(
+      Cartesian3.cross(north, Cartesian3.UNIT_X, new Cartesian3())
+    );
   }
   if (!east) {
-    east = normalizeDirection(Cartesian3.cross(north, Cartesian3.UNIT_Y, new Cartesian3()));
+    east = normalizeDirection(
+      Cartesian3.cross(north, Cartesian3.UNIT_Y, new Cartesian3())
+    );
   }
   if (!east) {
     return undefined;
   }
 
-  upInPlane = normalizeDirection(Cartesian3.cross(east, north, new Cartesian3()));
+  upInPlane = normalizeDirection(
+    Cartesian3.cross(east, north, new Cartesian3())
+  );
   if (!upInPlane) return undefined;
 
   if (previousFrame) {

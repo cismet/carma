@@ -1,14 +1,31 @@
 /* @refresh reset */
-import { useEffect, useMemo, useRef } from "react";
+import {
+  createElement,
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 
 import {
   Cartesian3,
   Cartesian4,
   Color,
   Matrix4,
+  SceneTransforms,
   Transforms,
+  defined,
   type Scene,
 } from "@carma/cesium";
+import {
+  createPlacement,
+  getPerspectiveStemAngleMagnitude,
+  type PointLabelData,
+  resolvePointLabelLayoutConfig,
+  useLabelOverlay,
+  usePointLabels,
+} from "@carma-providers/label-overlay";
 import {
   createDiscVisualizer,
   type DiscVisualizer,
@@ -31,9 +48,148 @@ import {
 import {
   useCesiumPointLabels,
   type CesiumLabelLayoutConfigOverrides,
+  type PointMarkerBadge,
 } from "./useCesiumPointLabels";
 import { useCesiumPointMoveGizmo } from "@carma-mapping/engines-interop/gizmo/cesium-integration";
 import { useCesiumDistanceVisualizer } from "./useCesiumDistanceVisualizer";
+import { formatNumber } from "../utils/formatting";
+
+const LIVE_PREVIEW_HEIGHT_LABEL_ID = "measurement-live-preview-height";
+const LIVE_PREVIEW_CROSSHAIR_ID = "measurement-live-preview-crosshair";
+
+const CROSSHAIR_STROKE_COLOR = "rgba(255, 255, 255, 0.96)";
+const CROSSHAIR_CONTRAST_FILTER =
+  "drop-shadow(0 0 1px rgba(0, 0, 0, 1)) drop-shadow(0 0 2px rgba(0, 0, 0, 0.95))";
+const CROSSHAIR_THICKNESS_PX = 3;
+const CROSSHAIR_CENTER_DOT_SIZE_PX = 1;
+const CROSSHAIR_CENTER_GAP_PX = 5;
+const CROSSHAIR_FAR_DASH_LENGTH_PX = 12;
+const CROSSHAIR_INNER_TIP_PX = CROSSHAIR_THICKNESS_PX / 2;
+const CROSSHAIR_HALF_EXTENT_PX =
+  CROSSHAIR_CENTER_GAP_PX + CROSSHAIR_FAR_DASH_LENGTH_PX;
+const CROSSHAIR_SIZE_PX =
+  CROSSHAIR_HALF_EXTENT_PX * 2 + CROSSHAIR_CENTER_DOT_SIZE_PX;
+const CROSSHAIR_CENTER_PX = CROSSHAIR_HALF_EXTENT_PX;
+const CROSSHAIR_ANCHOR_OFFSET_Y_PX = 1;
+
+const ELEVATION_NEUTRAL_THRESHOLD_METERS = 0.03;
+const ELEVATION_GLYPH_UP = "↥";
+const ELEVATION_GLYPH_DOWN = "↧";
+
+const LIVE_PREVIEW_DISC_RADIUS_SCALE = 1.4;
+const LIVE_PREVIEW_DISC_SCREEN_RADIUS_PX = 48;
+const LIVE_PREVIEW_DISC_ALPHA = 0.66;
+const LIVE_PREVIEW_HEIGHT_LABEL_ANCHOR_DISTANCE_PX = 14;
+const LIVE_PREVIEW_HEIGHT_LABEL_STEM_START_DISTANCE_PX = 5;
+const LIVE_PREVIEW_HEIGHT_LABEL_STEM_DISTANCE_PX = Math.max(
+  0,
+  LIVE_PREVIEW_HEIGHT_LABEL_ANCHOR_DISTANCE_PX -
+    LIVE_PREVIEW_HEIGHT_LABEL_STEM_START_DISTANCE_PX
+);
+const LIVE_PREVIEW_PILL_STEM_EXTRA_DISTANCE_PX = 4;
+
+const LIVE_PREVIEW_SURFACE_NORMAL_EPSILON_SQUARED = 1e-8;
+const LIVE_PREVIEW_STEEP_SURFACE_UP_DOT_THRESHOLD = Math.cos(
+  (45 * Math.PI) / 180
+);
+
+const formatMeters = (value: number): string => `${formatNumber(value)}m`;
+
+const formatLivePreviewElevationText = (
+  pointHeightMeters: number,
+  referenceElevation: number,
+  hasReferenceElevation: boolean
+): string => {
+  if (!hasReferenceElevation) {
+    return formatMeters(pointHeightMeters);
+  }
+
+  const elevationDelta = pointHeightMeters - referenceElevation;
+  const elevationText = formatMeters(elevationDelta);
+
+  if (Math.abs(elevationDelta) < ELEVATION_NEUTRAL_THRESHOLD_METERS) {
+    return elevationText;
+  }
+
+  return `${elevationText} ${
+    elevationDelta > 0 ? ELEVATION_GLYPH_UP : ELEVATION_GLYPH_DOWN
+  }`;
+};
+
+const getLivePreviewDiscUpVector = (
+  scene: Scene | null,
+  pointECEF: Cartesian3,
+  surfaceNormalECEF: Cartesian3 | null
+): Cartesian3 => {
+  const localUp = Cartesian3.normalize(pointECEF, new Cartesian3());
+
+  if (
+    !surfaceNormalECEF ||
+    Cartesian3.magnitudeSquared(surfaceNormalECEF) <=
+      LIVE_PREVIEW_SURFACE_NORMAL_EPSILON_SQUARED
+  ) {
+    return localUp;
+  }
+
+  const normalizedNormal = Cartesian3.normalize(
+    surfaceNormalECEF,
+    new Cartesian3()
+  );
+  const upDot = Math.abs(Cartesian3.dot(normalizedNormal, localUp));
+
+  // For flatter surfaces keep a horizontal disc (up-normal). For steep surfaces
+  // (>45° from horizon), use a vertical disc by projecting the normal onto the
+  // local tangent plane.
+  if (upDot > LIVE_PREVIEW_STEEP_SURFACE_UP_DOT_THRESHOLD) {
+    return localUp;
+  }
+
+  const verticalComponent = Cartesian3.multiplyByScalar(
+    localUp,
+    Cartesian3.dot(normalizedNormal, localUp),
+    new Cartesian3()
+  );
+  const projectedHorizontalNormal = Cartesian3.subtract(
+    normalizedNormal,
+    verticalComponent,
+    new Cartesian3()
+  );
+
+  if (
+    Cartesian3.magnitudeSquared(projectedHorizontalNormal) <=
+    LIVE_PREVIEW_SURFACE_NORMAL_EPSILON_SQUARED
+  ) {
+    return localUp;
+  }
+
+  const cameraPosition = scene?.camera?.position;
+  if (cameraPosition) {
+    const pointToCamera = Cartesian3.subtract(
+      cameraPosition,
+      pointECEF,
+      new Cartesian3()
+    );
+    const cameraVerticalComponent = Cartesian3.multiplyByScalar(
+      localUp,
+      Cartesian3.dot(pointToCamera, localUp),
+      new Cartesian3()
+    );
+    const cameraTangentDirection = Cartesian3.subtract(
+      pointToCamera,
+      cameraVerticalComponent,
+      new Cartesian3()
+    );
+
+    if (
+      Cartesian3.magnitudeSquared(cameraTangentDirection) >
+      LIVE_PREVIEW_SURFACE_NORMAL_EPSILON_SQUARED
+    ) {
+      return Cartesian3.normalize(cameraTangentDirection, new Cartesian3());
+    }
+  }
+
+  return Cartesian3.normalize(projectedHorizontalNormal, new Cartesian3());
+};
 
 export type CesiumPointVisualizerOptions = {
   showMarkers?: boolean;
@@ -61,6 +217,7 @@ export type CesiumPointVisualizerOptions = {
   hiddenPointLabelIds?: ReadonlySet<string>;
   fullyHiddenPointIds?: ReadonlySet<string>;
   markerlessPointIds?: ReadonlySet<string>;
+  pillMarkerPointIds?: ReadonlySet<string>;
   onDistanceRelationLineLabelToggle?: (
     relationId: string,
     kind: ReferenceLineLabelKind
@@ -77,6 +234,7 @@ export type CesiumPointVisualizerOptions = {
   onPointClick?: (pointId: string) => void;
   onPointDoubleClick?: (pointId: string) => void;
   onPointLongPress?: (pointId: string) => void;
+  onPointHoverChange?: (pointId: string, hovered: boolean) => void;
   onPointVerticalOffsetStemLongPress?: (pointId: string) => void;
   selectionModeEnabled?: boolean;
   selectionAdditiveMode?: boolean;
@@ -87,8 +245,21 @@ export type CesiumPointVisualizerOptions = {
   labelLayoutConfig?: CesiumLabelLayoutConfigOverrides;
   distanceToReferenceByPointId?: Readonly<Record<string, number>>;
   pointLabelIndexByPointId?: Readonly<Record<string, number>>;
+  pointMarkerBadgeByPointId?: Readonly<Record<string, PointMarkerBadge>>;
   referenceLabelPointId?: string | null;
   polylinePointLabelTextByPointId?: Readonly<Record<string, string>>;
+  labelInputPromptPointId?: string | null;
+  livePreviewPointECEF?: Cartesian3 | null;
+  livePreviewSurfaceNormalECEF?: Cartesian3 | null;
+  livePreviewDistanceLine?: {
+    anchorPointECEF: Cartesian3;
+    targetPointECEF: Cartesian3;
+    showDirectLine: boolean;
+    showVerticalLine: boolean;
+    showHorizontalLine: boolean;
+  } | null;
+  livePreviewReferenceElevation?: number;
+  livePreviewHasReferenceElevation?: boolean;
   moveGizmoPointId?: string | null;
   moveGizmoAxisDirection?: Cartesian3 | null;
   moveGizmoAxisTitle?: string | null;
@@ -140,6 +311,7 @@ export const useCesiumPointVisualizer = (
     hiddenPointLabelIds,
     fullyHiddenPointIds,
     markerlessPointIds,
+    pillMarkerPointIds,
     onDistanceRelationLineLabelToggle,
     onDistanceRelationLineClick,
     onDistanceRelationMidpointClick,
@@ -150,6 +322,7 @@ export const useCesiumPointVisualizer = (
     onPointClick,
     onPointDoubleClick,
     onPointLongPress,
+    onPointHoverChange,
     onPointVerticalOffsetStemLongPress,
     selectionModeEnabled = false,
     selectionAdditiveMode = false,
@@ -160,8 +333,15 @@ export const useCesiumPointVisualizer = (
     labelLayoutConfig,
     distanceToReferenceByPointId,
     pointLabelIndexByPointId,
+    pointMarkerBadgeByPointId,
     referenceLabelPointId = null,
     polylinePointLabelTextByPointId,
+    labelInputPromptPointId = null,
+    livePreviewPointECEF = null,
+    livePreviewSurfaceNormalECEF = null,
+    livePreviewDistanceLine = null,
+    livePreviewReferenceElevation = 0,
+    livePreviewHasReferenceElevation = false,
     moveGizmoPointId = null,
     moveGizmoAxisDirection = null,
     moveGizmoAxisTitle = null,
@@ -178,8 +358,57 @@ export const useCesiumPointVisualizer = (
     onMoveGizmoExit,
   }: CesiumPointVisualizerOptions
 ) => {
+  const { addLabelOverlayElement, removeLabelOverlayElement } =
+    useLabelOverlay();
   const cross3DRefs = useRef<Record<string, Cross3DGroup>>({});
   const selectedDiscRef = useRef<DiscVisualizer | null>(null);
+  const livePreviewDiscRef = useRef<DiscVisualizer | null>(null);
+  const livePreviewPointRef = useRef<Cartesian3 | null>(null);
+  const hasLivePreviewPoint = Boolean(livePreviewPointECEF);
+  const [cameraPitch, setCameraPitch] = useState<number>(-Math.PI / 4);
+  const livePreviewDiscColor = useMemo(
+    () => Color.WHITE.withAlpha(LIVE_PREVIEW_DISC_ALPHA),
+    []
+  );
+
+  const livePreviewLabelLayoutConfig = useMemo(
+    () => resolvePointLabelLayoutConfig(labelLayoutConfig),
+    [labelLayoutConfig]
+  );
+
+  const livePreviewHeightLabelPlacement = useMemo(() => {
+    return createPlacement(
+      "bottomLeft",
+      LIVE_PREVIEW_HEIGHT_LABEL_STEM_DISTANCE_PX,
+      getPerspectiveStemAngleMagnitude(
+        cameraPitch,
+        livePreviewLabelLayoutConfig
+      )
+    );
+  }, [cameraPitch, livePreviewLabelLayoutConfig]);
+
+  useEffect(() => {
+    if (!scene || scene.isDestroyed() || !hasLivePreviewPoint) return;
+
+    const camera = scene.camera;
+    const updatePitch = () => {
+      const currentPitch = camera.pitch;
+      setCameraPitch((previousPitch) =>
+        Math.abs(currentPitch - previousPitch) > 0.001
+          ? currentPitch
+          : previousPitch
+      );
+    };
+
+    updatePitch();
+    const removeChangedListener = camera.changed.addEventListener(updatePitch);
+    const removeMoveEndListener = camera.moveEnd.addEventListener(updatePitch);
+
+    return () => {
+      removeChangedListener?.();
+      removeMoveEndListener?.();
+    };
+  }, [scene, hasLivePreviewPoint]);
 
   const [points, currentIds]: [PointMeasurementEntry[], Set<string>] =
     useMemo(() => {
@@ -220,6 +449,7 @@ export const useCesiumPointVisualizer = (
     onPointClick,
     onPointDoubleClick,
     onPointLongPress,
+    onPointHoverChange,
     onPointVerticalOffsetStemLongPress,
     selectionModeEnabled,
     selectionAdditiveMode,
@@ -234,12 +464,15 @@ export const useCesiumPointVisualizer = (
     hiddenPointLabelIds,
     fullyHiddenPointIds,
     markerlessPointIds,
+    pillMarkerPointIds,
     pointDragPlaneByPointId,
     onPointPlaneDragStart,
     onPointPlaneDragPositionChange,
     onPointPlaneDragEnd,
     moveGizmoMarkerSizeScale,
-    moveGizmoLabelDistanceScale
+    moveGizmoLabelDistanceScale,
+    labelInputPromptPointId,
+    pointMarkerBadgeByPointId
   );
 
   useCesiumPointMoveGizmo(scene, {
@@ -271,7 +504,280 @@ export const useCesiumPointVisualizer = (
     lineLabelMinDistancePx: distanceLineLabelMinDistancePx,
     onDistanceRelationCornerClick,
     cumulativeDistanceByRelationId,
+    pointMarkerBadgeByPointId,
+    livePreviewDistanceLine,
   });
+
+  const livePreviewHeightLabelData = useMemo<PointLabelData[]>(() => {
+    if (!scene || scene.isDestroyed() || !livePreviewPointECEF) {
+      return [];
+    }
+
+    const cartographic =
+      scene.globe.ellipsoid.cartesianToCartographic(livePreviewPointECEF);
+    if (!cartographic) {
+      return [];
+    }
+
+    const pointHeightMeters = cartographic.height ?? 0;
+    const text = formatLivePreviewElevationText(
+      pointHeightMeters,
+      livePreviewReferenceElevation,
+      livePreviewHasReferenceElevation
+    );
+
+    return [
+      {
+        id: LIVE_PREVIEW_HEIGHT_LABEL_ID,
+        getCanvasPosition: () => {
+          if (!scene || scene.isDestroyed()) {
+            return null;
+          }
+          const canvasPosition = SceneTransforms.worldToWindowCoordinates(
+            scene,
+            livePreviewPointECEF
+          );
+          if (!defined(canvasPosition)) {
+            return null;
+          }
+          return {
+            x: canvasPosition.x,
+            y: canvasPosition.y,
+          };
+        },
+        content: text,
+        collapse: true,
+        fullBorder: true,
+        resizeMode: "fast-grow-slow-shrink",
+        pitch: cameraPitch,
+        labelAngleRad: livePreviewHeightLabelPlacement.angleRad,
+        labelAttach: livePreviewHeightLabelPlacement.attach,
+        hideMarker: true,
+        labelDistance:
+          livePreviewHeightLabelPlacement.distance +
+          LIVE_PREVIEW_PILL_STEM_EXTRA_DISTANCE_PX,
+        stemStartDistance: LIVE_PREVIEW_HEIGHT_LABEL_STEM_START_DISTANCE_PX,
+      },
+    ];
+  }, [
+    cameraPitch,
+    livePreviewHeightLabelPlacement,
+    scene,
+    livePreviewPointECEF,
+    livePreviewHasReferenceElevation,
+    livePreviewReferenceElevation,
+  ]);
+
+  usePointLabels(
+    livePreviewHeightLabelData,
+    hasLivePreviewPoint,
+    undefined,
+    undefined,
+    {
+      transitionDurationMs: 0,
+    }
+  );
+
+  const livePreviewCrosshairContent = useMemo(() => {
+    const crosshairStrokeBlendStyle = {
+      backgroundColor: CROSSHAIR_STROKE_COLOR,
+    };
+
+    return createElement(
+      "div",
+      {
+        style: {
+          position: "relative",
+          width: `${CROSSHAIR_SIZE_PX}px`,
+          height: `${CROSSHAIR_SIZE_PX}px`,
+          pointerEvents: "none",
+          filter: CROSSHAIR_CONTRAST_FILTER,
+        },
+      },
+      createElement("div", {
+        key: "center-dot",
+        style: {
+          position: "absolute",
+          left: `${CROSSHAIR_CENTER_PX}px`,
+          top: `${CROSSHAIR_CENTER_PX}px`,
+          width: `${CROSSHAIR_CENTER_DOT_SIZE_PX}px`,
+          height: `${CROSSHAIR_CENTER_DOT_SIZE_PX}px`,
+          transform: "translate(-50%, -50%)",
+          ...crosshairStrokeBlendStyle,
+        },
+      }),
+      createElement("div", {
+        key: "h-right-dash",
+        style: {
+          position: "absolute",
+          left: `${CROSSHAIR_CENTER_PX + CROSSHAIR_CENTER_GAP_PX}px`,
+          top: `${CROSSHAIR_CENTER_PX}px`,
+          width: `${CROSSHAIR_FAR_DASH_LENGTH_PX}px`,
+          height: `${CROSSHAIR_THICKNESS_PX}px`,
+          transform: "translateY(-50%)",
+          clipPath: `polygon(0 50%, ${CROSSHAIR_INNER_TIP_PX}px 0, 100% 0, 100% 100%, ${CROSSHAIR_INNER_TIP_PX}px 100%)`,
+          ...crosshairStrokeBlendStyle,
+        },
+      }),
+      createElement("div", {
+        key: "h-left-dash",
+        style: {
+          position: "absolute",
+          left: `${
+            CROSSHAIR_CENTER_PX -
+            CROSSHAIR_CENTER_GAP_PX -
+            CROSSHAIR_FAR_DASH_LENGTH_PX
+          }px`,
+          top: `${CROSSHAIR_CENTER_PX}px`,
+          width: `${CROSSHAIR_FAR_DASH_LENGTH_PX}px`,
+          height: `${CROSSHAIR_THICKNESS_PX}px`,
+          transform: "translateY(-50%)",
+          clipPath: `polygon(0 0, calc(100% - ${CROSSHAIR_INNER_TIP_PX}px) 0, 100% 50%, calc(100% - ${CROSSHAIR_INNER_TIP_PX}px) 100%, 0 100%)`,
+          ...crosshairStrokeBlendStyle,
+        },
+      }),
+      createElement("div", {
+        key: "v-bottom-dash",
+        style: {
+          position: "absolute",
+          left: `${CROSSHAIR_CENTER_PX}px`,
+          top: `${CROSSHAIR_CENTER_PX + CROSSHAIR_CENTER_GAP_PX}px`,
+          width: `${CROSSHAIR_THICKNESS_PX}px`,
+          height: `${CROSSHAIR_FAR_DASH_LENGTH_PX}px`,
+          transform: "translateX(-50%)",
+          clipPath: `polygon(0 ${CROSSHAIR_INNER_TIP_PX}px, 50% 0, 100% ${CROSSHAIR_INNER_TIP_PX}px, 100% 100%, 0 100%)`,
+          ...crosshairStrokeBlendStyle,
+        },
+      }),
+      createElement("div", {
+        key: "v-top-dash",
+        style: {
+          position: "absolute",
+          left: `${CROSSHAIR_CENTER_PX}px`,
+          top: `${
+            CROSSHAIR_CENTER_PX -
+            CROSSHAIR_CENTER_GAP_PX -
+            CROSSHAIR_FAR_DASH_LENGTH_PX
+          }px`,
+          width: `${CROSSHAIR_THICKNESS_PX}px`,
+          height: `${CROSSHAIR_FAR_DASH_LENGTH_PX}px`,
+          transform: "translateX(-50%)",
+          clipPath: `polygon(0 0, 100% 0, 100% calc(100% - ${CROSSHAIR_INNER_TIP_PX}px), 50% 100%, 0 calc(100% - ${CROSSHAIR_INNER_TIP_PX}px))`,
+          ...crosshairStrokeBlendStyle,
+        },
+      })
+    );
+  }, []);
+
+  const getLivePreviewCanvasPosition = useCallback(() => {
+    if (!scene || scene.isDestroyed()) {
+      return null;
+    }
+    const position = livePreviewPointRef.current;
+    if (!position) {
+      return null;
+    }
+    const canvasPosition = SceneTransforms.worldToWindowCoordinates(
+      scene,
+      position
+    );
+    if (!defined(canvasPosition)) {
+      return null;
+    }
+    return {
+      x: canvasPosition.x,
+      y: canvasPosition.y + CROSSHAIR_ANCHOR_OFFSET_Y_PX,
+    };
+  }, [scene]);
+
+  useEffect(() => {
+    livePreviewPointRef.current = livePreviewPointECEF;
+  }, [livePreviewPointECEF]);
+
+  useEffect(() => {
+    if (!scene || scene.isDestroyed()) {
+      removeLabelOverlayElement(LIVE_PREVIEW_CROSSHAIR_ID);
+      return;
+    }
+
+    addLabelOverlayElement({
+      id: LIVE_PREVIEW_CROSSHAIR_ID,
+      zIndex: 22,
+      getCanvasPosition: getLivePreviewCanvasPosition,
+      content: livePreviewCrosshairContent,
+      visible: hasLivePreviewPoint,
+    });
+
+    return () => {
+      removeLabelOverlayElement(LIVE_PREVIEW_CROSSHAIR_ID);
+    };
+  }, [
+    scene,
+    hasLivePreviewPoint,
+    addLabelOverlayElement,
+    removeLabelOverlayElement,
+    getLivePreviewCanvasPosition,
+    livePreviewCrosshairContent,
+  ]);
+
+  useEffect(() => {
+    if (!scene) return;
+
+    let disc = livePreviewDiscRef.current;
+    if (!livePreviewPointECEF) {
+      if (disc) {
+        disc.destroy();
+        livePreviewDiscRef.current = null;
+        scene.requestRender();
+      }
+      return;
+    }
+
+    const upVector = getLivePreviewDiscUpVector(
+      scene,
+      livePreviewPointECEF,
+      livePreviewSurfaceNormalECEF
+    );
+    const livePreviewDiscRadius = Math.max(
+      radius * LIVE_PREVIEW_DISC_RADIUS_SCALE,
+      0.1
+    );
+
+    if (!disc) {
+      const nextDisc = createDiscVisualizer(
+        "measurement-live-pointer-preview",
+        {
+          origin: livePreviewPointECEF,
+          upVector,
+          radius: livePreviewDiscRadius,
+          screenPixelRadius: LIVE_PREVIEW_DISC_SCREEN_RADIUS_PX,
+          color: livePreviewDiscColor,
+          unitCircleSegments: 20,
+        }
+      );
+      nextDisc.attach(scene, () => scene.requestRender());
+      livePreviewDiscRef.current = nextDisc;
+    } else {
+      disc.update(livePreviewPointECEF, upVector, livePreviewDiscRadius);
+    }
+
+    scene.requestRender();
+  }, [
+    scene,
+    livePreviewPointECEF,
+    livePreviewSurfaceNormalECEF,
+    radius,
+    livePreviewDiscColor,
+  ]);
+
+  useEffect(() => {
+    return () => {
+      if (livePreviewDiscRef.current) {
+        livePreviewDiscRef.current.destroy();
+        livePreviewDiscRef.current = null;
+      }
+    };
+  }, []);
 
   useEffect(() => {
     if (!scene) return;

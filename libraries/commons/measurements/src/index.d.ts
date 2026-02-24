@@ -108,6 +108,7 @@ export interface MeasurementTitleProps {
   capitalize?: boolean;
   multiline?: boolean;
   autoFocusTrigger?: number;
+  leadingBadgeText?: string;
 }
 
 export interface MeasurementControlProps {

@@ -12,6 +12,14 @@ export {
   type PointLabelStyleProps,
 } from "./lib/components/PointLabel";
 export {
+  PointLabelMarker,
+  getPillbuttonAnchorBorderStyle,
+  getPillbuttonAnchorTransform,
+  resolvePillbuttonMountSide,
+  type PillbuttonMountSide,
+} from "./lib/components/PointLabelMarker";
+export { PillbuttonLabelMarker } from "./lib/components/PillbuttonLabelMarker";
+export {
   LineVisualizer,
   type LineVisualizerProps,
 } from "./lib/components/LineVisualizer";

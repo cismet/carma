@@ -1,4 +1,8 @@
 import React, { useEffect, useRef, useState } from "react";
+import { PointLabelMarker, type PointLabelAttach } from "./PointLabelMarker";
+import { PillbuttonLabelMarker } from "./PillbuttonLabelMarker";
+
+export type { PointLabelAttach };
 
 export interface PointLabelStyleProps {
   fontSize?: string;
@@ -13,18 +17,21 @@ export interface PointLabelStyleProps {
   markerSize?: number;
   markerStrokeWidth?: number;
   stemReferenceMarkerSize?: number;
+  stemStartDistance?: number;
+  markerContent?: React.ReactNode;
+  markerBackgroundColor?: string;
+  markerTextColor?: string;
+  compactContent?: React.ReactNode;
+  collapse?: boolean;
+  forceCollapse?: boolean;
+  fullBorder?: boolean;
+  resizeMode?: "none" | "fast-grow-slow-shrink";
   labelDistance?: number;
 }
 
-export type PointLabelAttach =
-  | "bottomLeft"
-  | "topLeft"
-  | "topRight"
-  | "bottomRight";
-
 interface PointLabelProps extends PointLabelStyleProps {
   pointId?: string;
-  text: React.ReactNode;
+  content: React.ReactNode;
   selected?: boolean;
   isOccluded?: boolean;
   pitch?: number;
@@ -54,14 +61,60 @@ const baseStyles: React.CSSProperties = {
 
 const defaultPitch = -Math.PI / 4;
 const DRAG_START_THRESHOLD_PX = 3;
+const PILL_STEM_EXTRA_LENGTH_PX = 9;
+const POINT_PILL_STEM_EXTRA_LENGTH_PX = 12;
+const PREVIEW_PILL_STEM_EXTRA_LENGTH_PX = 0;
 export const POINT_LABEL_TEXT_BACKGROUND_COLOR = "rgba(200, 200, 200, 0.7)";
 export const POINT_LABEL_HOVER_BACKGROUND_COLOR = "rgba(255, 247, 230, 0.7)";
 export const POINT_LABEL_SELECTED_BACKGROUND_COLOR = "rgba(255, 229, 143, 0.7)";
 
+const stripLeadingBadgeFromText = (
+  textValue: React.ReactNode,
+  badgeTextValue: React.ReactNode
+): React.ReactNode => {
+  if (typeof badgeTextValue !== "string") return textValue;
+  const normalizedBadge = badgeTextValue.trim();
+  if (!normalizedBadge) return textValue;
+
+  if (typeof textValue === "string") {
+    const normalizedText = textValue.trimStart();
+    if (normalizedText === normalizedBadge) return "";
+    if (normalizedText.startsWith(`${normalizedBadge} `)) {
+      return normalizedText.slice(normalizedBadge.length + 1);
+    }
+    return textValue;
+  }
+
+  const children = React.Children.toArray(textValue);
+  if (children.length === 0) return textValue;
+
+  const first = children[0];
+  if (typeof first !== "string") return textValue;
+  const trimmedFirst = first.trimStart();
+
+  if (trimmedFirst === normalizedBadge) {
+    const remainingChildren = children.slice(1);
+    if (typeof remainingChildren[0] === "string") {
+      remainingChildren[0] = (remainingChildren[0] as string).replace(
+        /^\s+/,
+        ""
+      );
+    }
+    return React.createElement(React.Fragment, null, ...remainingChildren);
+  }
+
+  if (trimmedFirst.startsWith(`${normalizedBadge} `)) {
+    children[0] = trimmedFirst.slice(normalizedBadge.length + 1);
+    return React.createElement(React.Fragment, null, ...children);
+  }
+
+  return textValue;
+};
+
 export const PointLabel = React.memo(
   ({
     pointId,
-    text,
+    content,
     selected = false,
     fontSize = "12px",
     fontFamily = "Arial, sans-serif",
@@ -82,6 +135,15 @@ export const PointLabel = React.memo(
     markerSize = 10,
     markerStrokeWidth = 1,
     stemReferenceMarkerSize,
+    stemStartDistance,
+    markerContent,
+    markerBackgroundColor = "rgba(200, 200, 200, 0.92)",
+    markerTextColor = "#111111",
+    compactContent,
+    collapse = false,
+    forceCollapse = false,
+    fullBorder = false,
+    resizeMode = "none",
     labelDistance = 20,
     onClick,
     onDoubleClick,
@@ -110,10 +172,44 @@ export const PointLabel = React.memo(
     const yComponent = Math.sin(effectiveLabelAngleRad);
     const radius = markerSize / 2;
     const stemReferenceRadius = (stemReferenceMarkerSize ?? markerSize) / 2;
-    const stemStartDistance = hideMarker ? 0 : radius;
+    const parsedFontSizePx = Number.parseFloat(fontSize);
+    const effectivePillCornerRadiusPx =
+      Number.isFinite(parsedFontSizePx) && parsedFontSizePx > 0
+        ? parsedFontSizePx * 0.95
+        : 10;
+    const hasCompactContent =
+      compactContent !== null &&
+      compactContent !== undefined &&
+      (typeof compactContent !== "string" || compactContent.trim().length > 0);
+    const usePillbuttonLabelMarker = collapse;
+    const defaultStemStartDistance = hideMarker ? 0 : radius;
+    const resolvedStemStartDistance = Math.max(
+      0,
+      stemStartDistance ?? defaultStemStartDistance
+    );
     const stemEndInsetDistance = hideMarker ? 0 : stemReferenceRadius;
-    const lineLength = Math.max(0, labelDistance - stemEndInsetDistance);
-    const labelAnchorDistance = stemStartDistance + lineLength;
+    const baseLineLength = Math.max(0, labelDistance - stemEndInsetDistance);
+    const hasAnyPillShape = collapse || hasCompactContent || fullBorder;
+    const pointLikePillShape = hasCompactContent || fullBorder;
+    const pillStemExtraLengthPx = hasAnyPillShape
+      ? pointLikePillShape
+        ? POINT_PILL_STEM_EXTRA_LENGTH_PX
+        : PILL_STEM_EXTRA_LENGTH_PX
+      : 0;
+    const previewPillStemExtraLengthPx =
+      collapse && fullBorder ? PREVIEW_PILL_STEM_EXTRA_LENGTH_PX : 0;
+    const pillStemInvisibleTailPx = pointLikePillShape
+      ? effectivePillCornerRadiusPx
+      : 0;
+    const anchorLineDistance = Math.max(
+      0,
+      baseLineLength + pillStemExtraLengthPx + previewPillStemExtraLengthPx
+    );
+    const lineLength = Math.max(
+      0,
+      anchorLineDistance - pillStemInvisibleTailPx
+    );
+    const labelAnchorDistance = resolvedStemStartDistance + anchorLineDistance;
     const labelOffsetX = xComponent * labelAnchorDistance;
     const labelOffsetY = yComponent * labelAnchorDistance;
     const halfLineWidth = lineWidth / 2;
@@ -136,6 +232,17 @@ export const PointLabel = React.memo(
       : isHovered
       ? hoverBackgroundColor
       : textBackgroundColor;
+    const collapseToCompact =
+      hasCompactContent &&
+      (forceCollapse || (collapse && !selected && !isHovered));
+    const expandedPillContent = stripLeadingBadgeFromText(
+      content,
+      compactContent
+    );
+    const shouldRenderPillbuttonMarker =
+      usePillbuttonLabelMarker || hasCompactContent || fullBorder;
+    const usePillLabelShape =
+      shouldRenderPillbuttonMarker || (!collapse && hasCompactContent);
     const handleMouseEnter = () => {
       if (!isInteractive || isHoveredRef.current) return;
       isHoveredRef.current = true;
@@ -288,6 +395,7 @@ export const PointLabel = React.memo(
     const labelBorderStyle = `${lineWidth}px ${
       isOccluded ? "dashed" : "solid"
     } ${effectiveLineColor}`;
+    const solidLabelBorderStyle = `${lineWidth}px solid ${effectiveLineColor}`;
     const labelTop = isTopAttach
       ? `${labelOffsetY}px`
       : `${labelOffsetY + halfLineWidth}px`;
@@ -352,26 +460,19 @@ export const PointLabel = React.memo(
         }}
       >
         {!hideMarker && (
-          <div
-            data-point-label-interactive="true"
-            data-point-label-id={pointId}
-            style={{
-              position: "absolute",
-              left: "0px",
-              top: "0px",
-              width: `${markerSize}px`,
-              height: `${markerSize}px`,
-              border: `${markerStrokeWidth}px ${
-                isOccluded ? "dashed" : "solid"
-              } #fff`,
-              borderRadius: "50%",
-              transform: "translate(-50%, -50%)",
-              pointerEvents,
-              cursor,
-            }}
+          <PointLabelMarker
+            pointId={pointId}
+            markerContent={markerContent}
+            markerSize={markerSize}
+            markerStrokeWidth={markerStrokeWidth}
+            isOccluded={isOccluded}
+            markerBackgroundColor={markerBackgroundColor}
+            markerTextColor={markerTextColor}
+            pointerEvents={pointerEvents}
+            cursor={cursor}
             onClick={handleClick}
             onDoubleClick={handleDoubleClick}
-            onMouseDown={handleMouseDown}
+            onMouseDown={(event) => handleMouseDown(event)}
             onMouseUp={handleMouseUp}
             onMouseEnter={handleMouseEnter}
             onMouseLeave={handleMouseLeave}
@@ -396,7 +497,7 @@ export const PointLabel = React.memo(
               <div
                 style={{
                   position: "absolute",
-                  left: `${stemStartDistance}px`,
+                  left: `${resolvedStemStartDistance}px`,
                   top: isTopAttach ? "0px" : `${-halfLineWidth}px`,
                   width: `${lineLength}px`,
                   height: `${lineWidth}px`,
@@ -409,36 +510,75 @@ export const PointLabel = React.memo(
             </div>
 
             {/* Label positioned at the end of the hairline */}
-            <div
-              data-point-label-interactive="true"
-              data-point-label-id={pointId}
-              style={{
-                ...baseStyles,
-                ...(isTopAttach
-                  ? { borderTop: labelBorderStyle }
-                  : { borderBottom: labelBorderStyle }),
-                fontSize,
-                fontFamily,
-                fontWeight,
-                backgroundColor: effectiveBackgroundColor,
-                color: effectiveTextColor,
-                position: "absolute",
-                left: `${labelOffsetX}px`,
-                top: labelTop,
-                transform: labelTransform,
-                pointerEvents,
-                cursor,
-                transition: positionTransition,
-              }}
-              onClick={handleClick}
-              onDoubleClick={handleDoubleClick}
-              onMouseDown={(event) => handleMouseDown(event, false)}
-              onMouseUp={handleMouseUp}
-              onMouseEnter={handleMouseEnter}
-              onMouseLeave={handleMouseLeave}
-            >
-              {text}
-            </div>
+            {shouldRenderPillbuttonMarker ? (
+              <PillbuttonLabelMarker
+                pointId={pointId}
+                labelAttach={labelAttach}
+                labelOffsetX={labelOffsetX}
+                labelOffsetY={labelOffsetY}
+                baseStyles={baseStyles}
+                labelBorderStyle={labelBorderStyle}
+                fontSize={fontSize}
+                fontFamily={fontFamily}
+                fontWeight={fontWeight}
+                backgroundColor={effectiveBackgroundColor}
+                textColor={effectiveTextColor}
+                pointerEvents={pointerEvents}
+                cursor={cursor}
+                transition={positionTransition}
+                collapse={collapseToCompact}
+                markerContent={hasCompactContent ? compactContent : undefined}
+                markerBackgroundColor={markerBackgroundColor}
+                markerTextColor={markerTextColor}
+                fullBorder={fullBorder}
+                solidBorderStyle={solidLabelBorderStyle}
+                resizeMode={resizeMode}
+                content={expandedPillContent}
+                onClick={handleClick}
+                onDoubleClick={handleDoubleClick}
+                onMouseDown={(event) => handleMouseDown(event, false)}
+                onMouseUp={handleMouseUp}
+                onMouseEnter={handleMouseEnter}
+                onMouseLeave={handleMouseLeave}
+              />
+            ) : (
+              <div
+                data-point-label-interactive="true"
+                data-point-label-id={pointId}
+                style={{
+                  ...baseStyles,
+                  ...(isTopAttach
+                    ? { borderTop: labelBorderStyle }
+                    : { borderBottom: labelBorderStyle }),
+                  ...(usePillLabelShape
+                    ? {
+                        borderRadius: "999px",
+                        padding: collapseToCompact ? "0px 7px" : "1px 7px",
+                      }
+                    : null),
+                  fontSize,
+                  fontFamily,
+                  fontWeight,
+                  backgroundColor: effectiveBackgroundColor,
+                  color: effectiveTextColor,
+                  position: "absolute",
+                  left: `${labelOffsetX}px`,
+                  top: labelTop,
+                  transform: labelTransform,
+                  pointerEvents,
+                  cursor,
+                  transition: positionTransition,
+                }}
+                onClick={handleClick}
+                onDoubleClick={handleDoubleClick}
+                onMouseDown={(event) => handleMouseDown(event, false)}
+                onMouseUp={handleMouseUp}
+                onMouseEnter={handleMouseEnter}
+                onMouseLeave={handleMouseLeave}
+              >
+                {collapseToCompact ? compactContent : content}
+              </div>
+            )}
           </>
         )}
       </div>

@@ -357,7 +357,7 @@ const GizmoSandboxContent = ({
       zIndex: 20,
       content: (
         <PointLabel
-          text="Demo Point"
+          content="Demo Point"
           lineColor="rgba(255,255,255,0.95)"
           textColor="white"
           textBackgroundColor="rgba(15,23,42,0.85)"

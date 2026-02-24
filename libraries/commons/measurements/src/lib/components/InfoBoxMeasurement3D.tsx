@@ -363,6 +363,7 @@ export function InfoBoxMeasurement3D({ pixelWidth = 350 }) {
     setPolylineSegmentLineMode,
     pointLabelOnCreate,
     setPointLabelMetricModeById,
+    pointMarkerBadgeByPointId,
   } = useCesiumMeasurements();
   const { getScene } = useCesiumContext();
   const { collapsedInfoBox } = useContext<typeof UIContext>(UIContext);
@@ -469,6 +470,13 @@ export function InfoBoxMeasurement3D({ pixelWidth = 350 }) {
   const pointMeasurements = useMemo(
     () => measurements.filter(isPointMeasurementEntry),
     [measurements]
+  );
+  const getBadgeTextForPointId = useCallback(
+    (pointId: string | null | undefined): string | undefined => {
+      if (!pointId) return undefined;
+      return pointMarkerBadgeByPointId[pointId]?.text;
+    },
+    [pointMarkerBadgeByPointId]
   );
   const focusedPlanarPolygonGroupId =
     selectedPlanarPolygonGroupId ?? activePlanarPolygonGroupId;
@@ -932,7 +940,10 @@ export function InfoBoxMeasurement3D({ pixelWidth = 350 }) {
           ) ??
           null;
 
-        if (owningPolygonGroup && owningPolygonGroup.vertexPointIds.length <= 3) {
+        if (
+          owningPolygonGroup &&
+          owningPolygonGroup.vertexPointIds.length <= 3
+        ) {
           Modal.confirm({
             centered: true,
             title: "Polygon löschen?",
@@ -1973,6 +1984,7 @@ export function InfoBoxMeasurement3D({ pixelWidth = 350 }) {
     );
     const currentPointLabel =
       getCustomPointMeasurementName(currentMeasurement.name) ||
+      getBadgeTextForPointId(currentMeasurement.id) ||
       formatNumberToEnclosed(currentPointIndex + 1);
 
     const primaryRelationRow = pointRelationRows[0];
@@ -2010,6 +2022,7 @@ export function InfoBoxMeasurement3D({ pixelWidth = 350 }) {
     );
     const anchorPointLabel = anchorPointMeasurement
       ? getCustomPointMeasurementName(anchorPointMeasurement.name) ||
+        getBadgeTextForPointId(anchorPointMeasurement.id) ||
         formatNumberToEnclosed(anchorPointIndex + 1)
       : currentPointLabel;
 
@@ -2019,6 +2032,7 @@ export function InfoBoxMeasurement3D({ pixelWidth = 350 }) {
     const relationPointALabel = relationPointA
       ? formatDistanceTitleNodeLabel(
           getCustomPointMeasurementName(relationPointA.name) ||
+            getBadgeTextForPointId(relationPointA.id) ||
             formatNumberToEnclosed(
               pointMeasurements.findIndex(
                 (measurement) => measurement.id === relationPointA.id
@@ -2029,6 +2043,7 @@ export function InfoBoxMeasurement3D({ pixelWidth = 350 }) {
     const relationPointBLabel = relationPointB
       ? formatDistanceTitleNodeLabel(
           getCustomPointMeasurementName(relationPointB.name) ||
+            getBadgeTextForPointId(relationPointB.id) ||
             formatNumberToEnclosed(
               pointMeasurements.findIndex(
                 (measurement) => measurement.id === relationPointB.id
@@ -2057,6 +2072,7 @@ export function InfoBoxMeasurement3D({ pixelWidth = 350 }) {
     measurementMode,
     pointMeasurements,
     pointRelationRows,
+    getBadgeTextForPointId,
   ]);
 
   const selectedPolygonVertexLabels = useMemo(() => {
@@ -2122,13 +2138,12 @@ export function InfoBoxMeasurement3D({ pixelWidth = 350 }) {
     return `Fläche ${formatAreaAdaptive(
       selectedPolygonPrimaryAreaSquareMeters
     )}`;
-  }, [
-    selectedPolygonPrimaryAreaSquareMeters,
-    selectedPolygonSurfaceTypeValue,
-    selectedPlanarPolygonOrder,
-    selectedPolylineSummary,
-  ]);
-
+  }, [selectedPolygonPrimaryAreaSquareMeters, selectedPolygonSurfaceTypeValue]);
+  const selectedPolygonBadgeText = useMemo(() => {
+    const firstVertexPointId =
+      selectedPlanarPolygonGroup?.vertexPointIds[0] ?? null;
+    return getBadgeTextForPointId(firstVertexPointId);
+  }, [getBadgeTextForPointId, selectedPlanarPolygonGroup?.vertexPointIds]);
   const updateSelectedPolygonSurfaceType = (
     nextType: PolygonSurfaceTypeOption
   ) => {
@@ -2199,6 +2214,16 @@ export function InfoBoxMeasurement3D({ pixelWidth = 350 }) {
     showPointInfoMode,
   ]);
   const hasInfoBoxContent = Boolean(currentMeasurement) || isPolygonInfoMode;
+  const currentMeasurementBadgeText = useMemo(() => {
+    if (!currentMeasurement || !isPointMeasurementEntry(currentMeasurement)) {
+      return undefined;
+    }
+    return getBadgeTextForPointId(currentMeasurement.id);
+  }, [currentMeasurement, getBadgeTextForPointId]);
+  const distanceTitleBadgeText = useMemo(() => {
+    if (measurementMode !== MeasurementMode.PointQuery) return undefined;
+    return getBadgeTextForPointId(distanceTitleContext?.shapeId ?? null);
+  }, [distanceTitleContext?.shapeId, getBadgeTextForPointId, measurementMode]);
   return (
     <div>
       {hasInfoBoxContent && (
@@ -2237,6 +2262,7 @@ export function InfoBoxMeasurement3D({ pixelWidth = 350 }) {
                         placeholderText={selectedPolygonDefaultHeading}
                         clearPlaceholderOnFocus
                         showOrder={false}
+                        leadingBadgeText={selectedPolygonBadgeText}
                         collapsedContent={formatAreaAdaptive(
                           selectedPolygonPrimaryAreaSquareMeters
                         )}
@@ -2370,6 +2396,12 @@ export function InfoBoxMeasurement3D({ pixelWidth = 350 }) {
                         }
                         clearPlaceholderOnFocus={false}
                         showOrder={false}
+                        leadingBadgeText={
+                          measurementMode === MeasurementMode.PointQuery
+                            ? distanceTitleBadgeText ??
+                              currentMeasurementBadgeText
+                            : currentMeasurementBadgeText
+                        }
                         collapsedContent={
                           isPointMeasurementEntry(currentMeasurement)
                             ? isAnnotationMode
