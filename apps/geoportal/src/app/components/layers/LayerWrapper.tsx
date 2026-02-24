@@ -1,7 +1,7 @@
 /* eslint-disable jsx-a11y/no-static-element-interactions */
 /* eslint-disable jsx-a11y/click-events-have-key-events */
 
-import { useContext, useEffect, useMemo, useState, useRef } from "react";
+import { useContext, useEffect } from "react";
 import { useDispatch, useSelector } from "react-redux";
 
 import {
@@ -27,10 +27,6 @@ import { useWindowSize } from "@uidotdev/usehooks";
 import { TopicMapContext } from "react-cismap/contexts/TopicMapContextProvider";
 
 import { cn } from "@carma-commons/utils";
-import {
-  createFilterButtons,
-  type FilterInfo,
-} from "@carma-mapping/components";
 
 import { AppDispatch } from "../../store";
 import {
@@ -38,7 +34,6 @@ import {
   getLayers,
   getSelectedLayerIndex,
   getSelectedLayerIndexIsNoSelection,
-  getActiveFilterLayerID,
   getShowLeftScrollButton,
   getShowRightScrollButton,
   setLayers,
@@ -46,19 +41,7 @@ import {
   setSelectedLayerIndexNoSelection,
   setShowLeftScrollButton,
   setShowRightScrollButton,
-  getMaplibreMaps,
 } from "../../store/slices/mapping";
-import {
-  getFeatures,
-  getSelectedFeature,
-  getSecondaryInfoBoxElements,
-  setSelectedFeature as setSelectedFeatureAction,
-} from "../../store/slices/features";
-import {
-  getUIMode,
-  triggerFeatureInfoUpdateAction,
-  UIMode,
-} from "../../store/slices/ui";
 import GeoportalLayerButton from "./GeoportalLayerButton";
 import SecondaryView from "./SecondaryView";
 
@@ -70,26 +53,15 @@ const LayerWrapper = () => {
   const { routedMapRef } = useContext<typeof TopicMapContext>(TopicMapContext);
   const size = useWindowSize();
 
-  const [layerFilterInfo, setLayerFilterInfo] = useState<
-    Record<string, FilterInfo>
-  >({});
-
-  const filterComponentsCache = useRef<Map<string, any>>(new Map());
-
   const layers = useSelector(getLayers);
   const backgroundLayer = useSelector(getBackgroundLayer);
-  const maplibreMaps = useSelector(getMaplibreMaps);
-  const selectedFeature = useSelector(getSelectedFeature);
-  const uiMode = useSelector(getUIMode);
 
   const selectedLayerIndex = useSelector(getSelectedLayerIndex);
   const isNoSelectionIndex = useSelector(getSelectedLayerIndexIsNoSelection);
   const showLeftScrollButton = useSelector(getShowLeftScrollButton);
   const showRightScrollButton = useSelector(getShowRightScrollButton);
-  const activeFilterLayerID = useSelector(getActiveFilterLayerID);
 
   const { isLeaflet } = useMapFrameworkSwitcherContext();
-  const isModeFeatureInfo = uiMode === UIMode.FEATURE_INFO;
 
   const { isOver, setNodeRef } = useDroppable({
     id: "droppable",
@@ -130,34 +102,6 @@ const LayerWrapper = () => {
       dispatch(setShowRightScrollButton(false));
     }
   }, [size]);
-
-  // Create filter components for all layers that have filterConfig
-  // We render all but hide inactive ones to preserve state
-  // Cache components by layer ID to preserve state when layers are reordered
-  const filterComponents = useMemo(() => {
-    const cache = filterComponentsCache.current;
-
-    const currentLayerIds = new Set(layers.map((l) => l.id));
-    for (const [id] of cache) {
-      if (!currentLayerIds.has(id)) {
-        cache.delete(id);
-      }
-    }
-
-    layers.forEach((layer) => {
-      if (layer.filterConfig && !cache.has(layer.id)) {
-        cache.set(layer.id, {
-          id: layer.id,
-          Component: createFilterButtons(layer.filterConfig),
-        });
-      }
-    });
-
-    // Return only components for layers that currently exist and have filterConfig
-    return layers
-      .filter((layer) => layer.filterConfig && cache.has(layer.id))
-      .map((layer) => cache.get(layer.id));
-  }, [layers]);
 
   console.debug("RENDER: LayerWrapper selectedLayerIndex", selectedLayerIndex);
 
@@ -216,7 +160,6 @@ const LayerWrapper = () => {
             )}
             <div className="w-full flex justify-center items-center h-full gap-2">
               <GeoportalLayerButton
-                icon="background"
                 layer={backgroundLayer}
                 index={-1}
                 id={backgroundLayer.id}
@@ -244,18 +187,8 @@ const LayerWrapper = () => {
                         id={layer.id}
                         key={layer.id}
                         index={i}
-                        icon={
-                          layer.title.includes("Orthofoto")
-                            ? "ortho"
-                            : layer.title === "Bäume"
-                            ? "bäume"
-                            : layer.title.includes("gärten")
-                            ? "gärten"
-                            : undefined
-                        }
                         layer={layer}
                         hide={layer.type !== "object" && !isLeaflet}
-                        filterInfo={layerFilterInfo[layer.id]}
                       />
                     ))}
                   </SortableContext>
@@ -266,39 +199,7 @@ const LayerWrapper = () => {
         </div>
       </DndContext>
 
-      {filterComponents.map((filterEntry) => {
-        const isActive = filterEntry.id === activeFilterLayerID;
-        const maplibreMap = maplibreMaps
-          ? maplibreMaps.find((entry) => entry.id === filterEntry.id)?.map ??
-            null
-          : null;
-        const FilterComponent = filterEntry.Component;
-        return (
-          <div
-            key={filterEntry.id}
-            className={cn(
-              "pt-3 w-full flex items-center justify-center",
-              !isActive && "hidden"
-            )}
-          >
-            <FilterComponent
-              maplibreMap={maplibreMap}
-              selectedFeature={selectedFeature}
-              skipFeatureMatchCheck={isModeFeatureInfo}
-              setSelectedFeature={(feature) => {
-                dispatch(setSelectedFeatureAction(feature));
-              }}
-              onFilterChange={(info: FilterInfo) => {
-                setLayerFilterInfo((prev) => ({
-                  ...prev,
-                  [filterEntry.id]: info,
-                }));
-                dispatch(triggerFeatureInfoUpdateAction());
-              }}
-            />
-          </div>
-        );
-      })}
+      <div id="interactionLevel" />
       {!isNoSelectionIndex && <SecondaryView />}
     </>
   );

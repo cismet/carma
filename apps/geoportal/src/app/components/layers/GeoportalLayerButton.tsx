@@ -1,6 +1,14 @@
 /* eslint-disable jsx-a11y/no-static-element-interactions */
 /* eslint-disable jsx-a11y/click-events-have-key-events */
-import { useCallback, useContext, useEffect, useRef, useState } from "react";
+import {
+  useCallback,
+  useContext,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
+import { createPortal } from "react-dom";
 import { useInView } from "react-intersection-observer";
 import { useDispatch, useSelector } from "react-redux";
 
@@ -20,9 +28,16 @@ import { TopicMapContext } from "react-cismap/contexts/TopicMapContextProvider";
 
 import type { Layer } from "@carma/types";
 import { cn, getHashParams } from "@carma-commons/utils";
-import type { FilterInfo } from "@carma-mapping/components";
+import {
+  createFilterButtons,
+  type FilterInfo,
+} from "@carma-mapping/components";
 
-import { updateInfoElementsAfterRemovingFeature } from "../../store/slices/features";
+import {
+  getSelectedFeature,
+  setSelectedFeature as setSelectedFeatureAction,
+  updateInfoElementsAfterRemovingFeature,
+} from "../../store/slices/features";
 import {
   changeVisibility,
   getClickFromInfoView,
@@ -38,11 +53,13 @@ import {
   setShowLeftScrollButton,
   setShowRightScrollButton,
   toggleUseInFeatureInfo,
+  getMaplibreMaps,
 } from "../../store/slices/mapping";
 import {
   UIMode,
   getUIMode,
   getUIShowLayerHideButtons,
+  triggerFeatureInfoUpdateAction,
 } from "../../store/slices/ui";
 import "./pulsing.css";
 import "./tabs.css";
@@ -58,22 +75,18 @@ interface LayerButtonProps {
   title: string;
   id: string;
   index: number;
-  icon?: string;
   layer: Layer;
   background?: boolean;
   hide?: boolean;
-  filterInfo?: FilterInfo;
 }
 
 const GeoportalLayerButton = ({
   title,
   id,
   index,
-  icon,
   layer,
   background,
   hide = false,
-  filterInfo,
 }: LayerButtonProps) => {
   const { ref, inView } = useInView({
     threshold: 0.99,
@@ -89,6 +102,7 @@ const GeoportalLayerButton = ({
       }
     },
   });
+  const [filterInfo, setFilterInfo] = useState<FilterInfo | undefined>();
   const dispatch = useDispatch();
   const { routedMapRef } = useContext<typeof TopicMapContext>(TopicMapContext);
 
@@ -102,10 +116,23 @@ const GeoportalLayerButton = ({
   const showLeftScrollButton = useSelector(getShowLeftScrollButton);
   const clickFromInfoView = useSelector(getClickFromInfoView);
   const activeFilterLayerID = useSelector(getActiveFilterLayerID);
+  const maplibreMaps = useSelector(getMaplibreMaps);
+  const selectedFeature = useSelector(getSelectedFeature);
   const mode = useSelector(getUIMode);
+  const isModeFeatureInfo = mode === UIMode.FEATURE_INFO;
   const showSettings = index === selectedLayerIndex;
   const layers = useSelector(getLayers);
   const layersLength = layers.length;
+
+  const FilterComponent = useMemo(
+    () => (layer.filterConfig ? createFilterButtons(layer.filterConfig) : null),
+    [layer.filterConfig]
+  );
+
+  const isFilterActive = activeFilterLayerID === id;
+  const maplibreMap = maplibreMaps
+    ? maplibreMaps.find((entry) => entry.id === id)?.map ?? null
+    : null;
 
   const { attributes, listeners, setNodeRef, transform, transition } =
     useSortable({
@@ -316,6 +343,33 @@ const GeoportalLayerButton = ({
           </div>
         )}
       </LayerButton>
+      {FilterComponent &&
+        (() => {
+          const portalTarget = document.getElementById("interactionLevel");
+          if (!portalTarget) return null;
+          return createPortal(
+            <div
+              className={cn(
+                "pt-3 w-full flex items-center justify-center",
+                !isFilterActive && "hidden"
+              )}
+            >
+              <FilterComponent
+                maplibreMap={maplibreMap}
+                selectedFeature={selectedFeature}
+                skipFeatureMatchCheck={isModeFeatureInfo}
+                setSelectedFeature={(feature) => {
+                  dispatch(setSelectedFeatureAction(feature));
+                }}
+                onFilterChange={(info: FilterInfo) => {
+                  setFilterInfo(info);
+                  dispatch(triggerFeatureInfoUpdateAction());
+                }}
+              />
+            </div>,
+            portalTarget
+          );
+        })()}
     </div>
   );
 };
