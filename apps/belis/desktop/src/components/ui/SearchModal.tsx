@@ -76,6 +76,48 @@ const searchTypeLabels: Record<SearchType, string> = {
   mauerlasche: "Mauerlaschen",
 };
 
+// When true, GraphQL queries include all display fields (for future search results sidebar).
+// When false, queries fetch only id + geom_84 (minimal, faster).
+// Extended: ~527 KB / 341ms vs minimal: ~127 KB / 203ms (benchmarked).
+const FETCH_EXTENDED_SEARCH_RESULTS = true;
+
+const LEUCHTEN_FIELDS = FETCH_EXTENDED_SEARCH_RESULTS
+  ? `id
+    leuchtennummer lfd_nummer fk_standort
+    tkey_leuchtentyp { leuchtentyp fabrikat }
+    tkey_strassenschluessel { pk strasse }
+    tdta_standort_mast { lfd_nummer tkey_mastart { mastart } tkey_masttyp { masttyp } geom_84 { x y } }`
+  : `id
+    tdta_standort_mast { geom_84 { x y } }`;
+
+const MAST_FIELDS = FETCH_EXTENDED_SEARCH_RESULTS
+  ? `id
+    lfd_nummer
+    tkey_mastart { mastart }
+    tkey_masttyp { masttyp }
+    tkey_strassenschluessel { pk strasse }
+    geom_84 { x y }`
+  : `id
+    geom_84 { x y }`;
+
+const SCHALTSTELLE_FIELDS = FETCH_EXTENDED_SEARCH_RESULTS
+  ? `id
+    schaltstellen_nummer
+    bauart { bezeichnung }
+    tkey_strassenschluessel { pk strasse }
+    geom_84 { x y }`
+  : `id
+    geom_84 { x y }`;
+
+const MAUERLASCHE_FIELDS = FETCH_EXTENDED_SEARCH_RESULTS
+  ? `id
+    laufende_nummer
+    material_mauerlasche { bezeichnung }
+    tkey_strassenschluessel { pk strasse }
+    geom_84 { x y }`
+  : `id
+    geom_84 { x y }`;
+
 const SearchModalHeader = ({
   searchType,
   onSearchTypeChange,
@@ -357,23 +399,19 @@ const generateQueryString = (
   if (searchType === "leuchte") {
     const whereClause = buildLeuchteWhereClause(values as LeuchteSearchValues);
     return `query LeuchtenSearch {
-  tdta_leuchten(${whereClause ? `${whereClause}, ` : ""}order_by: {einbaudatum: desc}) {
-    id
-    tdta_standort_mast {
-      geom {
-        geo_field
-      }
-    }
+  tdta_leuchten(${
+    whereClause ? `${whereClause}, ` : ""
+  }order_by: {einbaudatum: desc}) {
+    ${LEUCHTEN_FIELDS}
   }
 }`;
   } else if (searchType === "mast") {
     const whereClause = buildMastWhereClause(values as MastSearchValues);
     return `query MastSearch {
-  tdta_standort_mast(${whereClause ? `${whereClause}, ` : ""}order_by: {inbetriebnahme_mast: desc}) {
-    id
-    geom {
-      geo_field
-    }
+  tdta_standort_mast(${
+    whereClause ? `${whereClause}, ` : ""
+  }order_by: {inbetriebnahme_mast: desc}) {
+    ${MAST_FIELDS}
   }
 }`;
   } else if (searchType === "schaltstelle") {
@@ -381,11 +419,10 @@ const generateQueryString = (
       values as SchaltstelleSearchValues
     );
     return `query SchaltstelleSearch {
-  schaltstelle(${whereClause ? `${whereClause}, ` : ""}order_by: {erstellungsjahr: desc}) {
-    id
-    geom {
-      geo_field
-    }
+  schaltstelle(${
+    whereClause ? `${whereClause}, ` : ""
+  }order_by: {erstellungsjahr: desc}) {
+    ${SCHALTSTELLE_FIELDS}
   }
 }`;
   } else {
@@ -393,11 +430,10 @@ const generateQueryString = (
       values as MauerlascheSearchValues
     );
     return `query MauerlascheSearch {
-  mauerlasche(${whereClause ? `${whereClause}, ` : ""}order_by: {erstellungsjahr: desc}) {
-    id
-    geom {
-      geo_field
-    }
+  mauerlasche(${
+    whereClause ? `${whereClause}, ` : ""
+  }order_by: {erstellungsjahr: desc}) {
+    ${MAUERLASCHE_FIELDS}
   }
 }`;
   }
@@ -491,7 +527,11 @@ const SearchModal = ({
         .then((json) => {
           // console.log(`xxx ${logPrefix} Raw result:`, json);
           const results = json.data?.[dataKey] ?? [];
-          console.log(`xxx ${logPrefix} Result count:`, results.length);
+          console.log(
+            `xxx ${logPrefix} Result count:`,
+            results.length,
+            results
+          );
 
           if (results.length === 0) {
             console.warn(`xxx ${logPrefix} No results found`);
@@ -522,7 +562,11 @@ const SearchModal = ({
           };
           const t2 = performance.now();
           console.log(
-            `[SEARCH] ${coords.length} coords: transform=${(t1 - t0).toFixed(1)}ms, bbox=${(t2 - t1).toFixed(1)}ms, total=${(t2 - t0).toFixed(1)}ms`
+            `[SEARCH] ${coords.length} coords: transform=${(t1 - t0).toFixed(
+              1
+            )}ms, bbox=${(t2 - t1).toFixed(1)}ms, total=${(t2 - t0).toFixed(
+              1
+            )}ms`
           );
           // Expand bbox by 10% on each side to ensure all features are visible
           const lngPadding = (rawBbox.maxLng - rawBbox.minLng) * 0.1 || 0.001;
@@ -586,13 +630,7 @@ const SearchModal = ({
         tdta_leuchten(${
           whereClause ? `${whereClause}, ` : ""
         }order_by: {einbaudatum: desc}) {
-          id
-          tdta_standort_mast {
-            geom_84 {
-              x
-              y
-            }
-          }
+          ${LEUCHTEN_FIELDS}
         }
       }`;
 
@@ -605,9 +643,7 @@ const SearchModal = ({
           const mast = item.tdta_standort_mast as
             | Record<string, unknown>
             | undefined;
-          const geom = mast?.geom_84 as
-            | { x?: number; y?: number }
-            | undefined;
+          const geom = mast?.geom_84 as { x?: number; y?: number } | undefined;
           if (geom?.x == null || geom?.y == null) return undefined;
           return [geom.x, geom.y];
         },
@@ -618,11 +654,7 @@ const SearchModal = ({
         tdta_standort_mast(${
           whereClause ? `${whereClause}, ` : ""
         }order_by: {inbetriebnahme_mast: desc}) {
-          id
-          geom_84 {
-            x
-            y
-          }
+          ${MAST_FIELDS}
         }
       }`;
 
@@ -632,9 +664,7 @@ const SearchModal = ({
         featurePrefix: "mast",
         logPrefix: "[MAST_SEARCH]",
         getGeometry: (item) => {
-          const geom = item.geom_84 as
-            | { x?: number; y?: number }
-            | undefined;
+          const geom = item.geom_84 as { x?: number; y?: number } | undefined;
           if (geom?.x == null || geom?.y == null) return undefined;
           return [geom.x, geom.y];
         },
@@ -647,11 +677,7 @@ const SearchModal = ({
         schaltstelle(${
           whereClause ? `${whereClause}, ` : ""
         }order_by: {erstellungsjahr: desc}) {
-          id
-          geom_84 {
-            x
-            y
-          }
+          ${SCHALTSTELLE_FIELDS}
         }
       }`;
 
@@ -661,9 +687,7 @@ const SearchModal = ({
         featurePrefix: "schaltstelle",
         logPrefix: "[SCHALTSTELLE_SEARCH]",
         getGeometry: (item) => {
-          const geom = item.geom_84 as
-            | { x?: number; y?: number }
-            | undefined;
+          const geom = item.geom_84 as { x?: number; y?: number } | undefined;
           if (geom?.x == null || geom?.y == null) return undefined;
           return [geom.x, geom.y];
         },
@@ -676,11 +700,7 @@ const SearchModal = ({
         mauerlasche(${
           whereClause ? `${whereClause}, ` : ""
         }order_by: {erstellungsjahr: desc}) {
-          id
-          geom_84 {
-            x
-            y
-          }
+          ${MAUERLASCHE_FIELDS}
         }
       }`;
 
@@ -690,9 +710,7 @@ const SearchModal = ({
         featurePrefix: "mauerlaschen",
         logPrefix: "[MAUERLASCHE_SEARCH]",
         getGeometry: (item) => {
-          const geom = item.geom_84 as
-            | { x?: number; y?: number }
-            | undefined;
+          const geom = item.geom_84 as { x?: number; y?: number } | undefined;
           if (geom?.x == null || geom?.y == null) return undefined;
           return [geom.x, geom.y];
         },
@@ -769,8 +787,16 @@ const SearchModal = ({
         </div>
         {showFinalQuery && (
           <div className="mt-4 border-t border-gray-200 pt-4">
-            <div className="text-sm font-medium text-gray-500 mb-2">
-              GraphQL Query:
+            <div className="flex justify-between items-center mb-2">
+              <div className="text-sm font-medium text-gray-500">
+                GraphQL Query:
+              </div>
+              <Button
+                size="small"
+                onClick={() => navigator.clipboard.writeText(queryPreview)}
+              >
+                Copy
+              </Button>
             </div>
             <pre style={{ ...rawDataPreStyle, maxHeight: 200 }}>
               {queryPreview}
