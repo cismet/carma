@@ -53,9 +53,27 @@ const normalizeDegrees0To360 = (degrees: number) => {
 };
 
 const getGermanCardinalDirectionFromAzimuth = (azimuthDeg: number) => {
-  const directionLabels = ["N", "NO", "O", "SO", "S", "SW", "W", "NW"];
+  const directionLabels = [
+    "Nord",
+    "Nordost",
+    "Ost",
+    "Südost",
+    "Süd",
+    "Südwest",
+    "West",
+    "Nordwest",
+  ];
   const index = Math.round(normalizeDegrees0To360(azimuthDeg) / 45) % 8;
   return directionLabels[index] ?? "N";
+};
+
+const formatCardinalBearingVsNorth = (azimuthDeg: number) => {
+  const normalizedAzimuthDeg = normalizeDegrees0To360(azimuthDeg);
+  const cardinalDirection =
+    getGermanCardinalDirectionFromAzimuth(normalizedAzimuthDeg);
+  return `${cardinalDirection} (${formatNumber(
+    normalizedAzimuthDeg
+  )}° ggü. Nord)`;
 };
 
 export const getDistanceRelationId = (pointAId: string, pointBId: string) => {
@@ -140,16 +158,11 @@ export const getPolygonTiltAndNormalDirection = (plane?: PolygonPlaneLike) => {
 
   const azimuthDeg =
     (Math.atan2(eastComponent, northComponent) * 180) / Math.PI;
-  const normalizedAzimuthDeg = normalizeDegrees0To360(azimuthDeg);
-  const cardinalDirection =
-    getGermanCardinalDirectionFromAzimuth(normalizedAzimuthDeg);
 
   return {
     tiltDeg,
     slopePercentText,
-    normalDirectionText: `${cardinalDirection} (${formatNumber(
-      normalizedAzimuthDeg
-    )}°)`,
+    normalDirectionText: formatCardinalBearingVsNorth(azimuthDeg),
   };
 };
 

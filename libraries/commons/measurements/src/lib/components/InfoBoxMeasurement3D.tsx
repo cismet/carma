@@ -34,7 +34,6 @@ import {
   LockToggleButton,
   VisibilityToggleButton,
 } from "@carma-commons/ui/components";
-import { formatNumberToEnclosed } from "@carma-providers/label-overlay";
 import {
   useCesiumMeasurements,
   isPointMeasurementEntry,
@@ -130,16 +129,15 @@ const formatSignificant = (
   });
 };
 
-const formatDistanceTitleNodeLabel = (label: string): string => {
-  const trimmed = label.trim();
-  if (!trimmed) return "";
-  const enclosedMatch = trimmed.match(/^\[(\d+)\]$/);
-  if (enclosedMatch?.[1]) {
-    return formatNumberToEnclosed(Number(enclosedMatch[1]));
-  }
-  return /^\d+$/.test(trimmed)
-    ? formatNumberToEnclosed(Number(trimmed))
-    : trimmed;
+const getAlphabeticDistanceIndexLabel = (zeroBasedIndex: number): string => {
+  if (!Number.isFinite(zeroBasedIndex) || zeroBasedIndex < 0) return "A";
+  let n = Math.floor(zeroBasedIndex);
+  let out = "";
+  do {
+    out = String.fromCharCode(65 + (n % 26)) + out;
+    n = Math.floor(n / 26) - 1;
+  } while (n >= 0);
+  return out;
 };
 
 type PolygonSurfaceTypeOption = "roof" | "facade" | "terrain" | "footprint";
@@ -361,6 +359,7 @@ export function InfoBoxMeasurement3D({ pixelWidth = 350 }) {
     setPolylineVerticalOffsetMeters,
     polylineSegmentLineMode,
     setPolylineSegmentLineMode,
+    planarMeasurementCreationMode,
     pointLabelOnCreate,
     setPointLabelMetricModeById,
     pointMarkerBadgeByPointId,
@@ -393,6 +392,8 @@ export function InfoBoxMeasurement3D({ pixelWidth = 350 }) {
     number | undefined
   >(undefined);
   const [lastCustomPointLabel, setLastCustomPointLabel] = useState<string>("");
+  const [isPolygonSurfaceTypePickerOpen, setIsPolygonSurfaceTypePickerOpen] =
+    useState(false);
   const prevSelectedMeasurementIdRef = useRef<string | null>(null);
   const measurementById = useMemo(
     () =>
@@ -552,7 +553,12 @@ export function InfoBoxMeasurement3D({ pixelWidth = 350 }) {
       selectedMeasurementId === currentMeasurement.id
   );
   const hasFocusedPlanarGroup = Boolean(focusedPlanarPolygonGroupId);
+  const suppressPointInfoWhileConstructingPolygon =
+    measurementMode === MeasurementMode.PolylineMeasure &&
+    planarMeasurementCreationMode === "polygon" &&
+    Boolean(activePlanarPolygonGroupId);
   const showPointInfoMode =
+    !suppressPointInfoWhileConstructingPolygon &&
     Boolean(
       currentMeasurement && isPointMeasurementEntry(currentMeasurement)
     ) &&
@@ -587,6 +593,7 @@ export function InfoBoxMeasurement3D({ pixelWidth = 350 }) {
   const selectedPolylineSummary = useMemo(() => {
     if (!selectedPolyline) return null;
     if (selectedPlanarPolygonClosed) return null;
+    if (planarMeasurementCreationMode === "polygon") return null;
 
     const segmentCount = selectedPolyline.segmentLengthsMeters.length;
     const nodeCount = selectedPolyline.vertexPointIds.length;
@@ -654,7 +661,11 @@ export function InfoBoxMeasurement3D({ pixelWidth = 350 }) {
       ascentMeters,
       descentMeters,
     };
-  }, [selectedPlanarPolygonClosed, selectedPolyline]);
+  }, [
+    planarMeasurementCreationMode,
+    selectedPlanarPolygonClosed,
+    selectedPolyline,
+  ]);
   const selectedPolygonCircumferenceSummary = useMemo(() => {
     if (selectedConnectedPlanarPolygonGroups.length === 0) {
       return {
@@ -696,6 +707,11 @@ export function InfoBoxMeasurement3D({ pixelWidth = 350 }) {
       threeDMeters,
     };
   }, [pointMeasurements, selectedConnectedPlanarPolygonGroups]);
+  useEffect(() => {
+    if (!isPolygonInfoMode || selectedPolylineSummary) {
+      setIsPolygonSurfaceTypePickerOpen(false);
+    }
+  }, [isPolygonInfoMode, selectedPolylineSummary]);
   const isElevationEditModeActive =
     Boolean(moveGizmoPointId) &&
     isPointMeasurementEntry(currentMeasurement) &&
@@ -1982,17 +1998,16 @@ export function InfoBoxMeasurement3D({ pixelWidth = 350 }) {
     const currentPointIndex = pointMeasurements.findIndex(
       (measurement) => measurement.id === currentMeasurement.id
     );
-    const currentPointLabel =
-      getCustomPointMeasurementName(currentMeasurement.name) ||
-      getBadgeTextForPointId(currentMeasurement.id) ||
-      formatNumberToEnclosed(currentPointIndex + 1);
 
     const primaryRelationRow = pointRelationRows[0];
     if (!primaryRelationRow) {
+      const pointDistanceLabel =
+        getBadgeTextForPointId(currentMeasurement.id) ||
+        getAlphabeticDistanceIndexLabel(currentPointIndex);
       return {
         shapeId: currentMeasurement.id,
         title: getCustomPointMeasurementName(currentMeasurement.name) || "",
-        placeholderText: undefined,
+        placeholderText: `Distanz ${pointDistanceLabel}`,
       };
     }
 
@@ -2002,68 +2017,24 @@ export function InfoBoxMeasurement3D({ pixelWidth = 350 }) {
     );
     const relation = distanceRelations.find((entry) => entry.id === relationId);
     const anchorPointId = relation?.anchorPointId ?? currentMeasurement.id;
-    const relationPointA = relation
-      ? pointMeasurements.find(
-          (measurement) => measurement.id === relation.pointAId
-        )
-      : currentMeasurement;
-    const relationPointB = relation
-      ? pointMeasurements.find(
-          (measurement) => measurement.id === relation.pointBId
-        )
-      : pointMeasurements.find(
-          (measurement) => measurement.id === primaryRelationRow.relatedPointId
-        );
     const anchorPointMeasurement = pointMeasurements.find(
       (measurement) => measurement.id === anchorPointId
     );
     const anchorPointIndex = pointMeasurements.findIndex(
       (measurement) => measurement.id === anchorPointId
     );
-    const anchorPointLabel = anchorPointMeasurement
-      ? getCustomPointMeasurementName(anchorPointMeasurement.name) ||
-        getBadgeTextForPointId(anchorPointMeasurement.id) ||
-        formatNumberToEnclosed(anchorPointIndex + 1)
-      : currentPointLabel;
-
-    const connectedPointLabel = formatDistanceTitleNodeLabel(
-      primaryRelationRow.label
-    );
-    const relationPointALabel = relationPointA
-      ? formatDistanceTitleNodeLabel(
-          getCustomPointMeasurementName(relationPointA.name) ||
-            getBadgeTextForPointId(relationPointA.id) ||
-            formatNumberToEnclosed(
-              pointMeasurements.findIndex(
-                (measurement) => measurement.id === relationPointA.id
-              ) + 1
-            )
-        )
-      : connectedPointLabel;
-    const relationPointBLabel = relationPointB
-      ? formatDistanceTitleNodeLabel(
-          getCustomPointMeasurementName(relationPointB.name) ||
-            getBadgeTextForPointId(relationPointB.id) ||
-            formatNumberToEnclosed(
-              pointMeasurements.findIndex(
-                (measurement) => measurement.id === relationPointB.id
-              ) + 1
-            )
-        )
-      : anchorPointLabel;
-    const pairLabelByHeight =
-      relationPointA &&
-      relationPointB &&
-      relationPointA.geometryWGS84.height < relationPointB.geometryWGS84.height
-        ? `${relationPointBLabel} ↔ ${relationPointALabel}`
-        : `${relationPointALabel} ↔ ${relationPointBLabel}`;
+    const anchorDistanceLabel =
+      getBadgeTextForPointId(anchorPointId) ||
+      getAlphabeticDistanceIndexLabel(
+        anchorPointIndex >= 0 ? anchorPointIndex : currentPointIndex
+      );
 
     return {
       shapeId: anchorPointId,
       title: anchorPointMeasurement
         ? getCustomPointMeasurementName(anchorPointMeasurement.name) || ""
         : "",
-      placeholderText: pairLabelByHeight,
+      placeholderText: `Distanz ${anchorDistanceLabel}`,
     };
   }, [
     currentMeasurement,
@@ -2074,24 +2045,6 @@ export function InfoBoxMeasurement3D({ pixelWidth = 350 }) {
     pointRelationRows,
     getBadgeTextForPointId,
   ]);
-
-  const selectedPolygonVertexLabels = useMemo(() => {
-    if (selectedConnectedPlanarPolygonGroups.length === 0) return [];
-    const vertexPointIds = new Set<string>();
-    selectedConnectedPlanarPolygonGroups.forEach((group) => {
-      group.vertexPointIds.forEach((pointId) => vertexPointIds.add(pointId));
-    });
-    return Array.from(vertexPointIds).map((pointId) => {
-      const point = pointMeasurements.find(
-        (measurement) => measurement.id === pointId
-      );
-      if (!point) return pointId;
-      const pointIndex = pointMeasurements.findIndex(
-        (measurement) => measurement.id === pointId
-      );
-      return getCustomPointMeasurementName(point.name) ?? `${pointIndex + 1}`;
-    });
-  }, [pointMeasurements, selectedConnectedPlanarPolygonGroups]);
 
   const selectedPolygonSurfaceTypeLabel =
     selectedConnectedPlanarPolygonSurfaceTypeLabel;
@@ -2121,24 +2074,48 @@ export function InfoBoxMeasurement3D({ pixelWidth = 350 }) {
     selectedPolygonSurfaceTypeValue !== "footprint";
   const showHorizontalAreaForType =
     selectedPolygonSurfaceTypeValue === "terrain" ||
-    selectedPolygonSurfaceTypeValue === "footprint" ||
     selectedPolygonSurfaceTypeValue === "roof";
   const selectedPolygonPrimaryAreaSquareMeters = showSurfaceAreaForType
     ? selectedConnectedPlanarPolygonTotalAreaSquareMeters
     : selectedPolygonHorizontalAreaSquareMeters;
+  const hasConnectedPlanarPolygonGroups =
+    selectedConnectedPlanarPolygonGroups.length > 1;
   const selectedPolygonDefaultHeading = useMemo(() => {
     if (selectedPolylineSummary) {
-      return `Polygonzug #${selectedPlanarPolygonOrder || 1}`;
+      return `Polygonzug ${formatNumber(
+        selectedPolylineSummary.totalLengthMeters
+      )} m`;
+    }
+    if (selectedPolygonSurfaceTypeValue === "footprint") {
+      return `Grundriss ${formatAreaAdaptive(
+        selectedPolygonHorizontalAreaSquareMeters
+      )}`;
+    }
+    if (selectedPolygonSurfaceTypeValue === "roof") {
+      return `Dachfläche ${formatAreaAdaptive(
+        selectedConnectedPlanarPolygonTotalAreaSquareMeters
+      )}`;
     }
     if (selectedPolygonSurfaceTypeValue === "facade") {
       return `Fassade ${formatAreaAdaptive(
-        selectedPolygonPrimaryAreaSquareMeters
+        selectedConnectedPlanarPolygonTotalAreaSquareMeters
+      )}`;
+    }
+    if (selectedPolygonSurfaceTypeValue === "terrain") {
+      return `Gelände ${formatAreaAdaptive(
+        selectedConnectedPlanarPolygonTotalAreaSquareMeters
       )}`;
     }
     return `Fläche ${formatAreaAdaptive(
       selectedPolygonPrimaryAreaSquareMeters
     )}`;
-  }, [selectedPolygonPrimaryAreaSquareMeters, selectedPolygonSurfaceTypeValue]);
+  }, [
+    selectedConnectedPlanarPolygonTotalAreaSquareMeters,
+    selectedPolygonHorizontalAreaSquareMeters,
+    selectedPolygonPrimaryAreaSquareMeters,
+    selectedPolygonSurfaceTypeValue,
+    selectedPolylineSummary,
+  ]);
   const selectedPolygonBadgeText = useMemo(() => {
     const firstVertexPointId =
       selectedPlanarPolygonGroup?.vertexPointIds[0] ?? null;
@@ -2343,11 +2320,41 @@ export function InfoBoxMeasurement3D({ pixelWidth = 350 }) {
                         m
                       </span>
                     ) : (
-                      <span>
-                        {selectedPolygonSurfaceTypeLabel} •{" "}
-                        {formatAreaAdaptive(
-                          selectedPolygonPrimaryAreaSquareMeters
+                      <span className="inline-flex items-center gap-2 flex-wrap">
+                        <button
+                          type="button"
+                          onClick={(event) => {
+                            event.stopPropagation();
+                            setIsPolygonSurfaceTypePickerOpen((prev) => !prev);
+                          }}
+                          className="cursor-pointer bg-transparent border-0 p-0 m-0 text-left text-gray-500 underline-offset-2 hover:underline"
+                          data-test-id="infobox-polygon-surface-type-toggle"
+                        >
+                          {selectedPolygonSurfaceTypeLabel}
+                        </button>
+                        {isPolygonSurfaceTypePickerOpen && (
+                          <Select
+                            size="small"
+                            value={selectedPolygonSurfaceTypeValue}
+                            options={POLYGON_SURFACE_TYPE_OPTIONS}
+                            onChange={(nextType) => {
+                              updateSelectedPolygonSurfaceType(
+                                nextType as PolygonSurfaceTypeOption
+                              );
+                              setIsPolygonSurfaceTypePickerOpen(false);
+                            }}
+                            style={{ minWidth: 148 }}
+                            onClick={stopEventPropagation}
+                            onMouseDown={stopEventPropagation}
+                            data-test-id="infobox-polygon-surface-type-select"
+                          />
                         )}
+                        <span>
+                          •{" "}
+                          {formatAreaAdaptive(
+                            selectedPolygonPrimaryAreaSquareMeters
+                          )}
+                        </span>
                       </span>
                     )}
                   </div>
@@ -2837,29 +2844,19 @@ export function InfoBoxMeasurement3D({ pixelWidth = 350 }) {
                     ) : (
                       <>
                         <div className="mb-1">
-                          <span className="text-gray-500 mr-1">Typ:</span>
-                          <Select
-                            size="small"
-                            value={selectedPolygonSurfaceTypeValue}
-                            options={POLYGON_SURFACE_TYPE_OPTIONS}
-                            onChange={updateSelectedPolygonSurfaceType}
-                            style={{ minWidth: 148 }}
-                            onClick={stopEventPropagation}
-                            onMouseDown={stopEventPropagation}
-                          />
+                          <span className="text-gray-500 mr-1">
+                            {selectedPolygonSurfaceTypeValue === "footprint"
+                              ? "Fläche:"
+                              : "Oberfläche:"}
+                          </span>
+                          <span className="tabular-nums">
+                            {formatAreaAdaptive(
+                              selectedPolygonSurfaceTypeValue === "footprint"
+                                ? selectedPolygonHorizontalAreaSquareMeters
+                                : selectedConnectedPlanarPolygonTotalAreaSquareMeters
+                            )}
+                          </span>
                         </div>
-                        {showSurfaceAreaForType && (
-                          <div className="mb-1">
-                            <span className="text-gray-500 mr-1">
-                              Oberfläche:
-                            </span>
-                            <span className="tabular-nums">
-                              {formatAreaAdaptive(
-                                selectedConnectedPlanarPolygonTotalAreaSquareMeters
-                              )}
-                            </span>
-                          </div>
-                        )}
                         {showHorizontalAreaForType && (
                           <div className="mb-1">
                             <span className="text-gray-500 mr-1">
@@ -2869,6 +2866,19 @@ export function InfoBoxMeasurement3D({ pixelWidth = 350 }) {
                               {formatAreaAdaptive(
                                 selectedPolygonHorizontalAreaSquareMeters
                               )}
+                            </span>
+                          </div>
+                        )}
+                        {showSurfaceAreaForType && (
+                          <div className="mb-1">
+                            <span className="text-gray-500 mr-1">
+                              3D-Umfang:
+                            </span>
+                            <span className="tabular-nums">
+                              {formatSignificant(
+                                selectedPolygonCircumferenceSummary.threeDMeters
+                              )}{" "}
+                              m
                             </span>
                           </div>
                         )}
@@ -2883,70 +2893,68 @@ export function InfoBoxMeasurement3D({ pixelWidth = 350 }) {
                             m
                           </span>
                         </div>
-                        <div className="mb-1">
-                          <span className="text-gray-500 mr-1">3D-Umfang:</span>
-                          <span className="tabular-nums">
-                            {formatSignificant(
-                              selectedPolygonCircumferenceSummary.threeDMeters
-                            )}{" "}
-                            m
-                          </span>
-                        </div>
-                        <div className="mb-1">
-                          <span className="text-gray-500 mr-1">
-                            Teilflächen:
-                          </span>
-                          <span>
-                            {selectedConnectedPlanarPolygonGroups.length}
-                          </span>
-                        </div>
-                        <div className="mb-1">
-                          <span className="text-gray-500 mr-1">
-                            Ø Dachneigung:
-                          </span>
-                          <span className="tabular-nums">
-                            {selectedConnectedRoofAverageSlopeDeg === null
-                              ? "Keine Dächer"
-                              : `${formatNumber(
-                                  selectedConnectedRoofAverageSlopeDeg
-                                )}°`}
-                          </span>
-                        </div>
-                        <div className="mb-1">
-                          <span className="text-gray-500 mr-1">
-                            Dachneigung je Dach:
-                          </span>
-                          <span>
-                            {selectedConnectedRoofSlopeLabels.length > 0
-                              ? selectedConnectedRoofSlopeLabels.join(" • ")
-                              : "Keine Dächer"}
-                          </span>
-                        </div>
-                        <div className="mb-1">
-                          <span className="text-gray-500 mr-1">
-                            Kippwinkel:
-                          </span>
-                          <span className="tabular-nums">
-                            {formatNumber(selectedPolygonTiltInfo.tiltDeg)}° (
-                            {selectedPolygonTiltInfo.slopePercentText})
-                          </span>
-                        </div>
-                        <div className="mb-1">
-                          <span className="text-gray-500 mr-1">
-                            Normalrichtung:
-                          </span>
-                          <span>
-                            {selectedPolygonTiltInfo.normalDirectionText}
-                          </span>
-                        </div>
-                        <div className="mb-1">
-                          <span className="text-gray-500 mr-1">Knoten:</span>
-                          <span>
-                            {selectedPolygonVertexLabels.length > 0
-                              ? selectedPolygonVertexLabels.join(" - ")
-                              : "Keine"}
-                          </span>
-                        </div>
+                        {hasConnectedPlanarPolygonGroups && (
+                          <div className="mb-1">
+                            <span className="text-gray-500 mr-1">
+                              Teilflächen:
+                            </span>
+                            <span>
+                              {selectedConnectedPlanarPolygonGroups.length}
+                            </span>
+                          </div>
+                        )}
+                        {(selectedPolygonSurfaceTypeValue === "facade" ||
+                          selectedPolygonSurfaceTypeValue === "roof") && (
+                          <div className="mb-1">
+                            <span className="text-gray-500 mr-1">
+                              {selectedPolygonSurfaceTypeValue === "facade"
+                                ? "Fassadenrichtung:"
+                                : "Dachrichtung:"}
+                            </span>
+                            <span>
+                              {selectedPolygonTiltInfo.normalDirectionText}
+                            </span>
+                          </div>
+                        )}
+                        {selectedPolygonSurfaceTypeValue === "roof" && (
+                          <>
+                            <div className="mb-1">
+                              <span className="text-gray-500 mr-1">
+                                Ø Dachneigung:
+                              </span>
+                              <span className="tabular-nums">
+                                {selectedConnectedRoofAverageSlopeDeg === null
+                                  ? "Keine Dächer"
+                                  : `${formatNumber(
+                                      selectedConnectedRoofAverageSlopeDeg
+                                    )}°`}
+                              </span>
+                            </div>
+                            {hasConnectedPlanarPolygonGroups && (
+                              <div className="mb-1">
+                                <span className="text-gray-500 mr-1">
+                                  Dachneigung je Dach:
+                                </span>
+                                <span>
+                                  {selectedConnectedRoofSlopeLabels.length > 0
+                                    ? selectedConnectedRoofSlopeLabels.join(
+                                        " • "
+                                      )
+                                    : "Keine Dächer"}
+                                </span>
+                              </div>
+                            )}
+                            <div className="mb-1">
+                              <span className="text-gray-500 mr-1">
+                                Kippwinkel:
+                              </span>
+                              <span className="tabular-nums">
+                                {formatNumber(selectedPolygonTiltInfo.tiltDeg)}°
+                                ({selectedPolygonTiltInfo.slopePercentText})
+                              </span>
+                            </div>
+                          </>
+                        )}
                       </>
                     )}
                   </div>

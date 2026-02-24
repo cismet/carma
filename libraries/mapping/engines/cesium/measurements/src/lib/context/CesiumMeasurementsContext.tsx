@@ -3565,7 +3565,7 @@ export const CesiumMeasurementsProvider: React.FC<
         if (planarMeasurementCreationMode === "polygon") {
           closeActivePlanarPolygonGroup();
         } else {
-          closeActivePlanarPolylineGroupAsRing(firstVertexId);
+          finishActivePlanarPolylineGroup();
         }
         return;
       }
@@ -3579,7 +3579,6 @@ export const CesiumMeasurementsProvider: React.FC<
     planarPolygonGroups,
     planarMeasurementCreationMode,
     closeActivePlanarPolygonGroup,
-    closeActivePlanarPolylineGroupAsRing,
     finishActivePlanarPolylineGroup,
   ]);
 
@@ -5458,7 +5457,7 @@ export const CesiumMeasurementsProvider: React.FC<
           if (planarMeasurementCreationMode === "polygon") {
             closeActivePlanarPolygonGroup();
           } else {
-            closeActivePlanarPolylineGroupAsRing(firstVertexId);
+            finishActivePlanarPolylineGroup();
           }
           return;
         }
@@ -5499,7 +5498,7 @@ export const CesiumMeasurementsProvider: React.FC<
       pointMeasurementIds,
       resolveDistanceRelationSourcePointId,
       closeActivePlanarPolygonGroup,
-      closeActivePlanarPolylineGroupAsRing,
+      finishActivePlanarPolylineGroup,
       setMoveGizmoPointElevationFromMeasurementById,
       selectedMeasurementId,
       selectMeasurementIds,
