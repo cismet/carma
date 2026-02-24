@@ -177,6 +177,7 @@ export const parseToMapLayer = async (
         };
         [key: string]: unknown;
       } = {};
+      let filterConfig = null;
       if (vectorStyle && typeof vectorStyle === "object") {
         zoom = parseZoom(vectorStyle.layers, {
           minzoom: 9,
@@ -184,6 +185,9 @@ export const parseToMapLayer = async (
         });
         if (vectorStyle.metadata && vectorStyle.metadata.carmaConf.layerInfo) {
           metaData = vectorStyle.metadata;
+          if (metaData?.carmaConf?.filterConfig) {
+            filterConfig = metaData?.carmaConf?.filterConfig;
+          }
         }
       } else if (typeof vectorStyle === "string" && vectorStyle) {
         zoom = await fetch(vectorStyle)
@@ -197,6 +201,9 @@ export const parseToMapLayer = async (
             });
             if (result.metadata && result.metadata.carmaConf.layerInfo) {
               metaData = result.metadata;
+              if (metaData?.carmaConf?.filterConfig) {
+                filterConfig = metaData?.carmaConf?.filterConfig;
+              }
             }
             return parsedZoom;
           });
@@ -250,6 +257,7 @@ export const parseToMapLayer = async (
         layerInfo: {
           ...layerInfo,
         },
+        filterConfig,
         type: layer.type,
       };
     } else {
