@@ -172,8 +172,6 @@ export const useVisibleMapFeatures = ({
       clearTimeout(debounceRef.current);
     }
 
-    setIsLoading(true);
-
     debounceRef.current = setTimeout(() => {
       try {
         // Get the full map bounds (for the oversized canvas)
@@ -447,6 +445,11 @@ export const useVisibleMapFeatures = ({
   useEffect(() => {
     if (!maplibreMap) return;
 
+    // Mark data as stale immediately when the map starts moving
+    const onMoveStart = () => setIsLoading(true);
+    maplibreMap.on("movestart", onMoveStart);
+
+    setIsLoading(true);
     updateFeatures();
 
     // Only use idle: fires after move/zoom AND after all tiles are rendered.
@@ -458,6 +461,7 @@ export const useVisibleMapFeatures = ({
       if (debounceRef.current) {
         clearTimeout(debounceRef.current);
       }
+      maplibreMap.off("movestart", onMoveStart);
       maplibreMap.off("idle", updateFeatures);
     };
   }, [maplibreMap, updateFeatures]);
