@@ -72,6 +72,24 @@ interface ArbeitsauftragSearchValues {
   angelegtVon?: { value?: string };
 }
 
+interface ProtokollItem {
+  arbeitsprotokoll?: {
+    id?: number;
+    abzweigdose?: { id?: number };
+    leitung?: { id?: number };
+    mauerlasche?: { id?: number };
+    schaltstelle?: { id?: number };
+    tdta_leuchten?: {
+      id?: number;
+      tdta_standort_mast?: { geom_84?: { x?: number; y?: number } };
+    };
+    tdta_standort_mast?: {
+      id?: number;
+      geom_84?: { x?: number; y?: number };
+    };
+  };
+}
+
 type SearchValues =
   | LeuchteSearchValues
   | MastSearchValues
@@ -586,6 +604,10 @@ const SearchModal = ({
       getGeometry: (
         item: Record<string, unknown>
       ) => [number, number] | undefined;
+      getAllGeometries?: (
+        item: Record<string, unknown>
+      ) => Array<[number, number]>;
+      getHighlightIds?: (item: Record<string, unknown>) => string[];
       logPrefix?: string;
     }) => {
       const {
@@ -593,6 +615,8 @@ const SearchModal = ({
         dataKey,
         featurePrefix,
         getGeometry,
+        getAllGeometries,
+        getHighlightIds,
         logPrefix = "[SEARCH]",
       } = options;
 
@@ -632,11 +656,15 @@ const SearchModal = ({
           }
 
           const t0 = performance.now();
-          const coords = results
-            .map((item: Record<string, unknown>) => {
-              return getGeometry(item);
-            })
-            .filter(Boolean) as [number, number][];
+          const coords: [number, number][] = [];
+          for (const item of results as Record<string, unknown>[]) {
+            if (getAllGeometries) {
+              coords.push(...getAllGeometries(item));
+            } else {
+              const geom = getGeometry(item);
+              if (geom) coords.push(geom);
+            }
+          }
           const t1 = performance.now();
 
           if (coords.length === 0) {
@@ -670,16 +698,25 @@ const SearchModal = ({
           };
 
           // Highlight the returned features on the map
-          const ids = results
-            .map((item: Record<string, unknown>) => String(item.id))
-            .filter(Boolean);
+          let highlightArray: string[];
+          if (getHighlightIds) {
+            highlightArray = [
+              ...new Set(
+                (results as Record<string, unknown>[]).flatMap((item) =>
+                  getHighlightIds(item)
+                )
+              ),
+            ];
+          } else {
+            const ids = results
+              .map((item: Record<string, unknown>) => String(item.id))
+              .filter(Boolean);
+            highlightArray = ids.map((id: string) => `${featurePrefix}:${id}`);
+          }
           clearHighlights();
           setHighlightingActive(true);
-          const highlightArray = ids.map(
-            (id: string) => `${featurePrefix}:${id}`
-          );
-
           highlightByIds(highlightArray);
+          console.log(`${logPrefix} Highlighting:`, highlightArray);
           // console.log(`${logPrefix} Highlighted`, ids.length, "features");
           // console.log(`${logPrefix} Highlight Array`, highlightArray);
 
@@ -731,29 +768,83 @@ const SearchModal = ({
         featurePrefix: "arbeitsauftrag",
         logPrefix: "[ARBEITSAUFTRAG_SEARCH]",
         getGeometry: (item) => {
-          // Get geometry from nested protokoll objects
-          const protokolle = item.ar_protokolleArray as Array<{
-            arbeitsprotokoll?: {
-              tdta_standort_mast?: { geom_84?: { x?: number; y?: number } };
-              tdta_leuchten?: { tdta_standort_mast?: { geom_84?: { x?: number; y?: number } } };
-            };
-          }> | undefined;
-
+          const protokolle = item.ar_protokolleArray as ProtokollItem[] | undefined;
           if (!protokolle || protokolle.length === 0) return undefined;
 
-          // Try to get geometry from first protokoll with a mast or leuchte
           for (const p of protokolle) {
             const mast = p.arbeitsprotokoll?.tdta_standort_mast;
             if (mast?.geom_84?.x != null && mast?.geom_84?.y != null) {
               return [mast.geom_84.x, mast.geom_84.y];
             }
             const leuchte = p.arbeitsprotokoll?.tdta_leuchten;
-            if (leuchte?.tdta_standort_mast?.geom_84?.x != null &&
-                leuchte?.tdta_standort_mast?.geom_84?.y != null) {
-              return [leuchte.tdta_standort_mast.geom_84.x, leuchte.tdta_standort_mast.geom_84.y];
+            if (
+              leuchte?.tdta_standort_mast?.geom_84?.x != null &&
+              leuchte?.tdta_standort_mast?.geom_84?.y != null
+            ) {
+              return [
+                leuchte.tdta_standort_mast.geom_84.x,
+                leuchte.tdta_standort_mast.geom_84.y,
+              ];
             }
           }
           return undefined;
+        },
+        getAllGeometries: (item) => {
+          const protokolle = item.ar_protokolleArray as ProtokollItem[] | undefined;
+          if (!protokolle) return [];
+
+          const geometries: [number, number][] = [];
+          for (const p of protokolle) {
+            const ap = p.arbeitsprotokoll;
+            if (!ap) continue;
+
+            const mast = ap.tdta_standort_mast;
+            if (mast?.geom_84?.x != null && mast?.geom_84?.y != null) {
+              geometries.push([mast.geom_84.x, mast.geom_84.y]);
+            }
+
+            const leuchte = ap.tdta_leuchten;
+            if (
+              leuchte?.tdta_standort_mast?.geom_84?.x != null &&
+              leuchte?.tdta_standort_mast?.geom_84?.y != null
+            ) {
+              geometries.push([
+                leuchte.tdta_standort_mast.geom_84.x,
+                leuchte.tdta_standort_mast.geom_84.y,
+              ]);
+            }
+          }
+          return geometries;
+        },
+        getHighlightIds: (item) => {
+          const protokolle = item.ar_protokolleArray as ProtokollItem[] | undefined;
+          if (!protokolle) return [];
+
+          const ids: string[] = [];
+          for (const p of protokolle) {
+            const ap = p.arbeitsprotokoll;
+            if (!ap) continue;
+
+            if (ap.tdta_standort_mast?.id != null) {
+              ids.push(`mast:${ap.tdta_standort_mast.id}`);
+            }
+            if (ap.tdta_leuchten?.id != null) {
+              ids.push(`leuchten:${ap.tdta_leuchten.id}`);
+            }
+            if (ap.schaltstelle?.id != null) {
+              ids.push(`schaltstelle:${ap.schaltstelle.id}`);
+            }
+            if (ap.mauerlasche?.id != null) {
+              ids.push(`mauerlaschen:${ap.mauerlasche.id}`);
+            }
+            if (ap.leitung?.id != null) {
+              ids.push(`leitungen:${ap.leitung.id}`);
+            }
+            if (ap.abzweigdose?.id != null) {
+              ids.push(`abzweigdosen:${ap.abzweigdose.id}`);
+            }
+          }
+          return ids;
         },
       });
     } else if (searchType === "leuchte") {
