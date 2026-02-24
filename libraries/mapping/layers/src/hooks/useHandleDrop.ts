@@ -108,7 +108,7 @@ export const useHandleDrop = ({
 
             let newItem: any = {
               description: "",
-              id: file.name,
+              id: `custom:${file.name}`,
               layerType: "vector",
               title: file.name,
               serviceName: "custom",
@@ -150,7 +150,7 @@ export const useHandleDrop = ({
     }
 
     if (url) {
-      let importedId = url;
+      let importedId = `custom:${url}`;
 
       let newItem: any = {
         description: "",
