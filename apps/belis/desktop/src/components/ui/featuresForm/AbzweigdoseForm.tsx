@@ -5,6 +5,7 @@ import { getJWT } from "../../../store/slices/auth";
 import { DokumentItem } from "../DocumentPreview";
 import FilePreview, { SavedImageUrls, getFileType } from "../FilePreview";
 import FormHeader from "./FormHeader";
+import RawDisplay from "../RawDisplay";
 import { getDocumentBlobUrl } from "../../../helper/documentHelper";
 
 interface AbzweigdoseFormProps {
@@ -126,21 +127,7 @@ const AbzweigdoseForm = ({
 
   // Debug content (only shown when ?showRaw=true)
   const debugContent = (
-    <pre
-      style={{
-        fontSize: 11,
-        lineHeight: 1.5,
-        background: "#f5f5f5",
-        padding: 12,
-        borderRadius: 4,
-        overflow: "auto",
-        maxHeight: 3000,
-        whiteSpace: "pre-wrap",
-        wordBreak: "break-word",
-      }}
-    >
-      {JSON.stringify(data, null, 2)}
-    </pre>
+    <RawDisplay>{JSON.stringify(data, null, 2)}</RawDisplay>
   );
 
   return (

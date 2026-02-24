@@ -5,7 +5,7 @@ import FormHeader from "./FormHeader";
 import DocumentPreview, { DokumentItem } from "../DocumentPreview";
 import FilePreview, { SavedImageUrls, getFileType } from "../FilePreview";
 import { getDocumentBlobUrl } from "../../../helper/documentHelper";
-import { rawDataPreStyle } from "../../../helper/uiHelper";
+import RawDisplay from "../RawDisplay";
 
 interface AdditionalTab {
   key: string;
@@ -152,7 +152,7 @@ const FeatureFormLayout = ({
 
   // Debug content (only shown when ?showRaw=true)
   const debugContent = debugData ? (
-    <pre style={rawDataPreStyle}>{JSON.stringify(debugData, null, 2)}</pre>
+    <RawDisplay>{JSON.stringify(debugData, null, 2)}</RawDisplay>
   ) : null;
 
   // Wide screen: two-column layout (form left, documents right)

@@ -12,7 +12,7 @@ import {
 } from "./featuresSearches";
 import { getJWT } from "../../store/slices/auth";
 import { ENDPOINT } from "../../constants/belis";
-import { rawDataPreStyle } from "../../helper/uiHelper";
+import RawDisplay from "./RawDisplay";
 import {
   useLibreContext,
   useMapHighlight,
@@ -79,7 +79,7 @@ const searchTypeLabels: Record<SearchType, string> = {
 // When true, GraphQL queries include all display fields (for future search results sidebar).
 // When false, queries fetch only id + geom_84 (minimal, faster).
 // Extended: ~527 KB / 341ms vs minimal: ~127 KB / 203ms (benchmarked).
-const FETCH_EXTENDED_SEARCH_RESULTS = true;
+const FETCH_EXTENDED_SEARCH_RESULTS = false;
 
 const LEUCHTEN_FIELDS = FETCH_EXTENDED_SEARCH_RESULTS
   ? `id
@@ -787,20 +787,10 @@ const SearchModal = ({
         </div>
         {showFinalQuery && (
           <div className="mt-4 border-t border-gray-200 pt-4">
-            <div className="flex justify-between items-center mb-2">
-              <div className="text-sm font-medium text-gray-500">
-                GraphQL Query:
-              </div>
-              <Button
-                size="small"
-                onClick={() => navigator.clipboard.writeText(queryPreview)}
-              >
-                Copy
-              </Button>
+            <div className="text-sm font-medium text-gray-500 mb-2">
+              GraphQL Query:
             </div>
-            <pre style={{ ...rawDataPreStyle, maxHeight: 200 }}>
-              {queryPreview}
-            </pre>
+            <RawDisplay maxHeight={200}>{queryPreview}</RawDisplay>
           </div>
         )}
       </Modal>
