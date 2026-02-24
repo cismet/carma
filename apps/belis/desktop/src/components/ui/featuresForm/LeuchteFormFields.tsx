@@ -38,6 +38,7 @@ const sortOptions = <T,>(
 interface LeuchteFormFieldsProps {
   leuchte: Record<string, unknown> | null;
   namePrefix?: string;
+  readOnly?: boolean;
 }
 
 interface LeuchttypItem {
@@ -91,7 +92,7 @@ const FormLabel = ({ children }: { children: React.ReactNode }) => (
   <span className="text-sm font-medium text-gray-700">{children}</span>
 );
 
-const LeuchteFormFields = ({ leuchte, namePrefix }: LeuchteFormFieldsProps) => {
+const LeuchteFormFields = ({ leuchte, namePrefix, readOnly = true }: LeuchteFormFieldsProps) => {
   const [form] = Form.useForm();
   const keyTablesData = useSelector(getKeyTablesData);
 
@@ -249,7 +250,13 @@ const LeuchteFormFields = ({ leuchte, namePrefix }: LeuchteFormFieldsProps) => {
   }, [leuchte, form]);
 
   return (
-    <Form form={form} layout="vertical" requiredMark={false} className="pr-2">
+    <Form
+      form={form}
+      layout="vertical"
+      requiredMark={false}
+      className="pr-2 [&_.ant-input-disabled]:bg-white [&_.ant-input-number-disabled]:bg-white [&_.ant-picker-disabled]:bg-white [&_.ant-select-disabled_.ant-select-selector]:!bg-white [&_.ant-checkbox-disabled+span]:opacity-70"
+      disabled={readOnly}
+    >
       {/* Straßenschlüssel */}
       <Row gutter={16}>
         <Col span={6}>

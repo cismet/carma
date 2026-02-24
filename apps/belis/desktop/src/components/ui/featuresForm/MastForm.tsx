@@ -10,9 +10,10 @@ interface MastFormProps {
   data: Record<string, unknown> | null;
   rawFeature?: { properties?: Record<string, unknown> } | null;
   onClose?: () => void;
+  readOnly?: boolean;
 }
 
-const MastForm = ({ data, rawFeature, onClose }: MastFormProps) => {
+const MastForm = ({ data, rawFeature, onClose, readOnly = true }: MastFormProps) => {
   const [pendingFiles, setPendingFiles] = useState<UploadFile[]>([]);
   const jwt = useSelector(getJWT);
 
@@ -59,7 +60,7 @@ const MastForm = ({ data, rawFeature, onClose }: MastFormProps) => {
       debugData={data}
       uploadText="Datei hochladen"
     >
-      <MastFormFields mast={mast} />
+      <MastFormFields mast={mast} readOnly={readOnly} />
     </FeatureFormLayout>
   );
 };

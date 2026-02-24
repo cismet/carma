@@ -17,6 +17,7 @@ interface BelisDatasheetViewProps {
   rawFeature: any | null;
   fetchedData?: any | null;
   featureType?: string;
+  readOnly?: boolean;
 }
 
 const BelisDatasheetView = ({
@@ -24,6 +25,7 @@ const BelisDatasheetView = ({
   rawFeature,
   fetchedData,
   featureType,
+  readOnly = true,
 }: BelisDatasheetViewProps) => {
   const featureLoading = useSelector(getFeatureLoading);
 
@@ -66,6 +68,7 @@ const BelisDatasheetView = ({
             featureType={featureType}
             data={fetchedData}
             rawFeature={rawFeature}
+            readOnly={readOnly}
           />
         )}
       </div>

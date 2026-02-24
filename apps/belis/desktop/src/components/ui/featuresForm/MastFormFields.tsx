@@ -16,6 +16,7 @@ import dayjs from "dayjs";
 interface MastFormFieldsProps {
   mast: Record<string, unknown> | null;
   namePrefix?: string;
+  readOnly?: boolean;
 }
 
 interface MasttypItem {
@@ -71,7 +72,7 @@ const FormLabel = ({ children }: { children: React.ReactNode }) => (
   <span className="text-sm font-medium text-gray-700">{children}</span>
 );
 
-const MastFormFields = ({ mast, namePrefix }: MastFormFieldsProps) => {
+const MastFormFields = ({ mast, namePrefix, readOnly = true }: MastFormFieldsProps) => {
   const [form] = Form.useForm();
   const keyTablesData = useSelector(getKeyTablesData);
 
@@ -204,7 +205,13 @@ const MastFormFields = ({ mast, namePrefix }: MastFormFieldsProps) => {
   }, [mast, form]);
 
   return (
-    <Form form={form} layout="vertical" requiredMark={false} className="pr-2">
+    <Form
+      form={form}
+      layout="vertical"
+      requiredMark={false}
+      className="pr-2 [&_.ant-input-disabled]:bg-white [&_.ant-input-number-disabled]:bg-white [&_.ant-picker-disabled]:bg-white [&_.ant-select-disabled_.ant-select-selector]:!bg-white [&_.ant-checkbox-disabled+span]:opacity-70"
+      disabled={readOnly}
+    >
       {/* Strassenschluessel */}
       <Row gutter={16}>
         <Col span={6}>

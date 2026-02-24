@@ -11,6 +11,7 @@ interface LeitungFormProps {
   data: Record<string, unknown> | null;
   rawFeature?: { properties?: Record<string, unknown> } | null;
   onClose?: () => void;
+  readOnly?: boolean;
 }
 
 interface KeyTableItem {
@@ -19,7 +20,7 @@ interface KeyTableItem {
   groesse?: string;
 }
 
-const LeitungForm = ({ data, rawFeature, onClose }: LeitungFormProps) => {
+const LeitungForm = ({ data, rawFeature, onClose, readOnly = true }: LeitungFormProps) => {
   const [form] = Form.useForm();
   const [pendingFiles, setPendingFiles] = useState<UploadFile[]>([]);
   const keyTablesData = useSelector(getKeyTablesData);
@@ -90,7 +91,13 @@ const LeitungForm = ({ data, rawFeature, onClose }: LeitungFormProps) => {
       onFilesChange={setPendingFiles}
       debugData={data}
     >
-      <Form form={form} layout="vertical" requiredMark={false} className="pr-2">
+      <Form
+        form={form}
+        layout="vertical"
+        requiredMark={false}
+        className="pr-2 [&_.ant-input-disabled]:bg-white [&_.ant-input-number-disabled]:bg-white [&_.ant-picker-disabled]:bg-white [&_.ant-select-disabled_.ant-select-selector]:!bg-white [&_.ant-checkbox-disabled+span]:opacity-70"
+        disabled={readOnly}
+      >
         {/* Leitungstyp - Full Width */}
         <Form.Item
           name="fk_leitungstyp"

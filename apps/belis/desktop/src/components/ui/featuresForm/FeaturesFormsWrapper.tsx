@@ -4,6 +4,7 @@ interface FeaturesFormsWrapperProps {
   featureType?: string;
   data: any;
   rawFeature?: any;
+  readOnly?: boolean;
 }
 
 // Map sourceLayer values to registry keys
@@ -28,12 +29,13 @@ const FeaturesFormsWrapper = ({
   featureType,
   data,
   rawFeature,
+  readOnly = true,
 }: FeaturesFormsWrapperProps) => {
   const formKey = featureType ? featureTypeToFormKey[featureType] : undefined;
   const FormComponent = formKey ? featureFormRegistry[formKey] : undefined;
 
   if (FormComponent) {
-    return <FormComponent data={data} rawFeature={rawFeature} />;
+    return <FormComponent data={data} rawFeature={rawFeature} readOnly={readOnly} />;
   }
 };
 
