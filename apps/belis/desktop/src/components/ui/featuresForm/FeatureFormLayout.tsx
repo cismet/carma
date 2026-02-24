@@ -43,10 +43,14 @@ const FeatureFormLayout = ({
   uploadText,
 }: FeatureFormLayoutProps) => {
   // Support both regular query params and hash-based routing (/#/?param=value)
-  const hashQuery = window.location.hash.split("?")[1] || "";
-  const showRaw =
-    new URLSearchParams(hashQuery || window.location.search).get("showRaw") ===
-    "true";
+  const showRaw = useMemo(() => {
+    const hashQuery = window.location.hash.split("?")[1] || "";
+    return (
+      new URLSearchParams(hashQuery || window.location.search).get(
+        "showRaw"
+      ) === "true"
+    );
+  }, []);
   const [isWideScreen, setIsWideScreen] = useState(
     typeof window !== "undefined" ? window.innerWidth > 1200 : false
   );
