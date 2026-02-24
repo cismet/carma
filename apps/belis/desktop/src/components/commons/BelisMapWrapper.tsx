@@ -252,6 +252,13 @@ const BelisMapLibWrapper = ({
     map?.resize();
   }, [map]);
 
+  const logErrors = useMemo(() => {
+    const hashQuery = window.location.hash.split("?")[1] || "";
+    const param = new URLSearchParams(hashQuery || window.location.search).get("showRaw");
+    if (param !== null) return param === "true";
+    return window.location.hostname === "localhost";
+  }, []);
+
   const mapWidth = mapSizes.width - LIST_WIDTH;
 
   return (
@@ -321,6 +328,7 @@ const BelisMapLibWrapper = ({
               layerMode="imperative"
               embedded
               debugLog
+              logErrors={logErrors}
               exposeMapToWindow
               overrideGlyphs="https://tiles.cismet.de/fonts/{fontstack}/{range}.pbf"
               backgroundLayers=""
