@@ -9,6 +9,7 @@ import {
   MastSearch,
   SchaltstelleSearch,
   MauerlascheSearch,
+  ArbeitsauftragSearch,
 } from "./featuresSearches";
 import { getJWT } from "../../store/slices/auth";
 import { ENDPOINT } from "../../constants/belis";
@@ -18,7 +19,7 @@ import {
   useMapHighlight,
 } from "@carma-mapping/engines/maplibre";
 
-type SearchType = "leuchte" | "mast" | "schaltstelle" | "mauerlasche";
+type SearchType = "arbeitsauftrag" | "leuchte" | "mast" | "schaltstelle" | "mauerlasche";
 
 interface SearchModalProps {
   defaultOpen?: boolean;
@@ -63,13 +64,23 @@ interface MauerlascheSearchValues {
   pruefdatum?: { von?: string; bis?: string };
 }
 
+interface ArbeitsauftragSearchValues {
+  bearbeitungsstand?: { value?: string };
+  auftragsnummer?: { value?: string };
+  zugewiesenAn?: { value?: number };
+  angelegtAm?: { von?: string; bis?: string };
+  angelegtVon?: { value?: string };
+}
+
 type SearchValues =
   | LeuchteSearchValues
   | MastSearchValues
   | SchaltstelleSearchValues
-  | MauerlascheSearchValues;
+  | MauerlascheSearchValues
+  | ArbeitsauftragSearchValues;
 
 const searchTypeLabels: Record<SearchType, string> = {
+  arbeitsauftrag: "Arbeitsaufträge",
   leuchte: "Leuchten",
   mast: "Masten",
   schaltstelle: "Schaltstellen",
@@ -117,6 +128,24 @@ const MAUERLASCHE_FIELDS = FETCH_EXTENDED_SEARCH_RESULTS
     geom_84 { x y }`
   : `id
     geom_84 { x y }`;
+
+const ARBEITSAUFTRAG_FIELDS = `id
+    nummer
+    angelegt_am
+    angelegt_von
+    zugewiesen_an
+    team { id name }
+    ar_protokolleArray {
+      arbeitsprotokoll {
+        id
+        abzweigdose { id }
+        leitung { id }
+        mauerlasche { id }
+        schaltstelle { id }
+        tdta_leuchten { id tdta_standort_mast { geom_84 { x y } } }
+        tdta_standort_mast { id geom_84 { x y } }
+      }
+    }`;
 
 const SearchModalHeader = ({
   searchType,
@@ -391,12 +420,74 @@ const buildMauerlascheWhereClause = (
   return conditions.length > 0 ? `where: {${conditions.join(", ")}}` : "";
 };
 
+const buildArbeitsauftragWhereClause = (
+  values: ArbeitsauftragSearchValues
+): string => {
+  const conditions: string[] = [];
+
+  // Exclude deleted records
+  conditions.push(
+    `_or: [{is_deleted: {_eq: false}}, {is_deleted: {_is_null: true}}]`
+  );
+
+  // Bearbeitungsstand - filter by protokoll status
+  // "alle" = no condition, "offen" = at least one protokoll with schluessel "0", "abgearbeitet" = no protokoll with schluessel "0"
+  if (values.bearbeitungsstand?.value === "offen") {
+    conditions.push(
+      `ar_protokolleArray: {arbeitsprotokoll: {arbeitsprotokollstatus: {schluessel: {_eq: "0"}}}}`
+    );
+  } else if (values.bearbeitungsstand?.value === "abgearbeitet") {
+    conditions.push(
+      `_not: {ar_protokolleArray: {arbeitsprotokoll: {arbeitsprotokollstatus: {schluessel: {_eq: "0"}}}}}`
+    );
+  }
+  // "alle" or undefined = no condition added
+
+  // Auftragsnummer
+  if (values.auftragsnummer?.value) {
+    conditions.push(`nummer: {_ilike: "%${values.auftragsnummer.value}%"}`);
+  }
+
+  // Zugewiesen an (Team)
+  if (values.zugewiesenAn?.value) {
+    conditions.push(`zugewiesen_an: {_eq: ${values.zugewiesenAn.value}}`);
+  }
+
+  // Angelegt am - date range
+  const angelegtAmCondition = buildDateRangeCondition(
+    "angelegt_am",
+    values.angelegtAm?.von,
+    values.angelegtAm?.bis
+  );
+  if (angelegtAmCondition) {
+    conditions.push(angelegtAmCondition);
+  }
+
+  // Angelegt von
+  if (values.angelegtVon?.value) {
+    conditions.push(`angelegt_von: {_ilike: "%${values.angelegtVon.value}%"}`);
+  }
+
+  return conditions.length > 0 ? `where: {${conditions.join(", ")}}` : "";
+};
+
 // Helper to generate query string for preview
 const generateQueryString = (
   searchType: SearchType,
   values: SearchValues
 ): string => {
-  if (searchType === "leuchte") {
+  if (searchType === "arbeitsauftrag") {
+    const whereClause = buildArbeitsauftragWhereClause(
+      values as ArbeitsauftragSearchValues
+    );
+    return `query ArbeitsauftragSearch {
+  arbeitsauftrag(${
+    whereClause ? `${whereClause}, ` : ""
+  }order_by: {angelegt_am: desc}) {
+    ${ARBEITSAUFTRAG_FIELDS}
+  }
+}`;
+  } else if (searchType === "leuchte") {
     const whereClause = buildLeuchteWhereClause(values as LeuchteSearchValues);
     return `query LeuchtenSearch {
   tdta_leuchten(${
@@ -444,7 +535,7 @@ const SearchModal = ({
   showFinalQuery = false,
 }: SearchModalProps) => {
   const [isOpen, setIsOpen] = useState(defaultOpen);
-  const [searchType, setSearchType] = useState<SearchType>("leuchte");
+  const [searchType, setSearchType] = useState<SearchType>("arbeitsauftrag");
   const [isSearching, setIsSearching] = useState(false);
   const [queryPreview, setQueryPreview] = useState<string>("");
   const [noResults, setNoResults] = useState(false);
@@ -622,7 +713,50 @@ const SearchModal = ({
   const executeSearch = useCallback(() => {
     const values = searchValuesRef.current;
 
-    if (searchType === "leuchte") {
+    if (searchType === "arbeitsauftrag") {
+      const whereClause = buildArbeitsauftragWhereClause(
+        values as ArbeitsauftragSearchValues
+      );
+      const query = `query ArbeitsauftragSearch {
+        arbeitsauftrag(${
+          whereClause ? `${whereClause}, ` : ""
+        }order_by: {angelegt_am: desc}) {
+          ${ARBEITSAUFTRAG_FIELDS}
+        }
+      }`;
+
+      handleGraphQLSearch({
+        query,
+        dataKey: "arbeitsauftrag",
+        featurePrefix: "arbeitsauftrag",
+        logPrefix: "[ARBEITSAUFTRAG_SEARCH]",
+        getGeometry: (item) => {
+          // Get geometry from nested protokoll objects
+          const protokolle = item.ar_protokolleArray as Array<{
+            arbeitsprotokoll?: {
+              tdta_standort_mast?: { geom_84?: { x?: number; y?: number } };
+              tdta_leuchten?: { tdta_standort_mast?: { geom_84?: { x?: number; y?: number } } };
+            };
+          }> | undefined;
+
+          if (!protokolle || protokolle.length === 0) return undefined;
+
+          // Try to get geometry from first protokoll with a mast or leuchte
+          for (const p of protokolle) {
+            const mast = p.arbeitsprotokoll?.tdta_standort_mast;
+            if (mast?.geom_84?.x != null && mast?.geom_84?.y != null) {
+              return [mast.geom_84.x, mast.geom_84.y];
+            }
+            const leuchte = p.arbeitsprotokoll?.tdta_leuchten;
+            if (leuchte?.tdta_standort_mast?.geom_84?.x != null &&
+                leuchte?.tdta_standort_mast?.geom_84?.y != null) {
+              return [leuchte.tdta_standort_mast.geom_84.x, leuchte.tdta_standort_mast.geom_84.y];
+            }
+          }
+          return undefined;
+        },
+      });
+    } else if (searchType === "leuchte") {
       const whereClause = buildLeuchteWhereClause(
         values as LeuchteSearchValues
       );
@@ -720,15 +854,17 @@ const SearchModal = ({
 
   const renderSearchComponent = () => {
     switch (searchType) {
+      case "leuchte":
+        return <LeuchteSearch onValuesChange={handleValuesChange} />;
       case "mast":
         return <MastSearch onValuesChange={handleValuesChange} />;
       case "schaltstelle":
         return <SchaltstelleSearch onValuesChange={handleValuesChange} />;
       case "mauerlasche":
         return <MauerlascheSearch onValuesChange={handleValuesChange} />;
-      case "leuchte":
+      case "arbeitsauftrag":
       default:
-        return <LeuchteSearch onValuesChange={handleValuesChange} />;
+        return <ArbeitsauftragSearch onValuesChange={handleValuesChange} />;
     }
   };
 
