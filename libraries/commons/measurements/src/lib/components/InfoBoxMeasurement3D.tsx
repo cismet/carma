@@ -868,29 +868,70 @@ export function InfoBoxMeasurement3D({ pixelWidth = 350 }) {
     );
     const basePoints = filtered.length > 0 ? filtered : pointMeasurementsOnly;
 
-    if (measurementMode !== MeasurementMode.PointQuery || isAnnotationMode) {
+    if (isAnnotationMode) {
       return basePoints.map<ContextNavigationEntry>((measurement) => ({
         id: `point-${measurement.id}`,
         selectMeasurementId: measurement.id,
       }));
     }
 
+    const planarGroupByPointId = new Map<string, string>();
+    const planarGroupStartPointByGroupId = new Map<string, string>();
+    planarPolygonGroups.forEach((group) => {
+      const startPointId =
+        group.distanceMeasurementStartPointId ??
+        group.vertexPointIds[0] ??
+        null;
+      if (startPointId) {
+        planarGroupStartPointByGroupId.set(group.id, startPointId);
+      }
+      group.vertexPointIds.forEach((pointId) => {
+        if (!pointId || planarGroupByPointId.has(pointId)) return;
+        planarGroupByPointId.set(pointId, group.id);
+      });
+    });
+
+    const distanceRelationByPointId = new Map<string, string>();
+    const distanceRelationAnchorById = new Map<string, string>();
+    distanceRelations
+      .filter((relation) => !relation.polygonGroupId)
+      .forEach((relation) => {
+        distanceRelationAnchorById.set(
+          relation.id,
+          relation.anchorPointId ?? relation.pointAId
+        );
+        [relation.pointAId, relation.pointBId].forEach((pointId) => {
+          if (!pointId || distanceRelationByPointId.has(pointId)) return;
+          distanceRelationByPointId.set(pointId, relation.id);
+        });
+      });
+
     const seenEntryIds = new Set<string>();
     const entries: ContextNavigationEntry[] = [];
 
     basePoints.forEach((measurement) => {
-      const relation = distanceRelations.find(
-        (entry) =>
-          entry.pointAId === measurement.id || entry.pointBId === measurement.id
-      );
-
-      if (relation) {
-        const entryId = `distance-relation-${relation.id}`;
+      const planarGroupId = planarGroupByPointId.get(measurement.id);
+      if (planarGroupId) {
+        const entryId = `planar-group-${planarGroupId}`;
         if (seenEntryIds.has(entryId)) return;
         seenEntryIds.add(entryId);
         entries.push({
           id: entryId,
-          selectMeasurementId: relation.anchorPointId ?? relation.pointAId,
+          selectMeasurementId:
+            planarGroupStartPointByGroupId.get(planarGroupId) ?? measurement.id,
+        });
+        return;
+      }
+
+      const relationId = distanceRelationByPointId.get(measurement.id);
+      if (relationId) {
+        const entryId = `distance-relation-${relationId}`;
+        if (seenEntryIds.has(entryId)) return;
+        seenEntryIds.add(entryId);
+        entries.push({
+          id: entryId,
+          selectMeasurementId:
+            distanceRelationAnchorById.get(relationId) ?? measurement.id,
         });
         return;
       }
@@ -905,15 +946,30 @@ export function InfoBoxMeasurement3D({ pixelWidth = 350 }) {
     });
 
     return entries;
-  }, [distanceRelations, isAnnotationMode, measurementMode, pointMeasurements]);
+  }, [
+    distanceRelations,
+    isAnnotationMode,
+    planarPolygonGroups,
+    pointMeasurements,
+  ]);
   const currentContextEntryId =
-    currentMeasurement && isPointMeasurementEntry(currentMeasurement)
-      ? measurementMode === MeasurementMode.PointQuery && !isAnnotationMode
+    isPolygonInfoMode && selectedPlanarPolygonGroup
+      ? `planar-group-${selectedPlanarPolygonGroup.id}`
+      : currentMeasurement && isPointMeasurementEntry(currentMeasurement)
+      ? !isAnnotationMode
         ? (() => {
+            const planarGroup = planarPolygonGroups.find((group) =>
+              group.vertexPointIds.includes(currentMeasurement.id)
+            );
+            if (planarGroup) {
+              return `planar-group-${planarGroup.id}`;
+            }
+
             const relation = distanceRelations.find(
               (entry) =>
-                entry.pointAId === currentMeasurement.id ||
-                entry.pointBId === currentMeasurement.id
+                !entry.polygonGroupId &&
+                (entry.pointAId === currentMeasurement.id ||
+                  entry.pointBId === currentMeasurement.id)
             );
             return relation
               ? `distance-relation-${relation.id}`
@@ -927,9 +983,7 @@ export function InfoBoxMeasurement3D({ pixelWidth = 350 }) {
       )
     : -1;
   const showContextNavigation = contextNavigationEntries.length > 1;
-  const pointAndAnnotationCount = visibleMeasurements.filter(
-    isPointMeasurementEntry
-  ).length;
+  const pointAndAnnotationCount = contextNavigationEntries.length;
 
   const decreaseContextHandler = () => {
     if (contextNavigationEntries.length <= 1) return;
