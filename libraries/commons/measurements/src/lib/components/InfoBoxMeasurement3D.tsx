@@ -360,6 +360,7 @@ export function InfoBoxMeasurement3D({ pixelWidth = 350 }) {
     polylineSegmentLineMode,
     setPolylineSegmentLineMode,
     planarMeasurementCreationMode,
+    polygonSurfaceTypePreset,
     pointLabelOnCreate,
     setPointLabelMetricModeById,
     pointMarkerBadgeByPointId,
@@ -394,6 +395,9 @@ export function InfoBoxMeasurement3D({ pixelWidth = 350 }) {
   const [lastCustomPointLabel, setLastCustomPointLabel] = useState<string>("");
   const [isPolygonSurfaceTypePickerOpen, setIsPolygonSurfaceTypePickerOpen] =
     useState(false);
+  const previousActiveMeasurementTypeRef = useRef<string>(
+    `${measurementMode}:${planarMeasurementCreationMode}:${polygonSurfaceTypePreset}`
+  );
   const prevSelectedMeasurementIdRef = useRef<string | null>(null);
   const measurementById = useMemo(
     () =>
@@ -447,6 +451,27 @@ export function InfoBoxMeasurement3D({ pixelWidth = 350 }) {
     lockedEditMeasurementId,
     measurementById,
     toggleMeasurementLockById,
+  ]);
+
+  useEffect(() => {
+    const nextActiveMeasurementTypeKey = `${measurementMode}:${planarMeasurementCreationMode}:${polygonSurfaceTypePreset}`;
+    if (
+      previousActiveMeasurementTypeRef.current === nextActiveMeasurementTypeKey
+    )
+      return;
+    previousActiveMeasurementTypeRef.current = nextActiveMeasurementTypeKey;
+    selectMeasurementById(null);
+    selectPlanarPolygonGroupById(null);
+    if (currentIndex !== -1) {
+      setCurrentIndex(-1);
+    }
+  }, [
+    currentIndex,
+    measurementMode,
+    planarMeasurementCreationMode,
+    polygonSurfaceTypePreset,
+    selectMeasurementById,
+    selectPlanarPolygonGroupById,
   ]);
 
   useEffect(() => {
@@ -731,7 +756,12 @@ export function InfoBoxMeasurement3D({ pixelWidth = 350 }) {
   }, [measurements.length, prevLen, currentIndex, visibleMeasurements.length]);
 
   useEffect(() => {
-    if (!selectedMeasurementId) return;
+    if (!selectedMeasurementId) {
+      if (currentIndex !== -1) {
+        setCurrentIndex(-1);
+      }
+      return;
+    }
     const selectedIndex = visibleMeasurements.findIndex(
       (measurement) => measurement.id === selectedMeasurementId
     );
@@ -2142,21 +2172,21 @@ export function InfoBoxMeasurement3D({ pixelWidth = 350 }) {
   const activeMeasurementTypeTitle = useMemo(() => {
     if (isPolygonInfoMode) {
       if (selectedPolylineSummary) {
-        return "3D Polygonzugmessung";
+        return "Polygonzug";
       }
       if (selectedPolygonSurfaceTypeValue === "footprint") {
-        return "3D Flächenmessung · Grundriss";
+        return "Grundriss";
       }
       if (selectedPolygonSurfaceTypeValue === "facade") {
-        return "3D Flächenmessung · Fassade";
+        return "Fassadenfläche";
       }
       if (selectedPolygonSurfaceTypeValue === "terrain") {
-        return "3D Flächenmessung · Gelände";
+        return "Gelände";
       }
       if (selectedPolygonSurfaceTypeValue === "roof") {
-        return "3D Flächenmessung · Dach";
+        return "Dachfläche";
       }
-      return `3D Flächenmessung · ${selectedPolygonSurfaceTypeLabel}`;
+      return selectedPolygonSurfaceTypeLabel;
     }
 
     if (currentMeasurement && isTraverseMeasurementEntry(currentMeasurement)) {
@@ -2179,6 +2209,25 @@ export function InfoBoxMeasurement3D({ pixelWidth = 350 }) {
       return "Punktmessung";
     }
 
+    if (measurementMode === MeasurementMode.PointQuery) {
+      return "Distanzmessung";
+    }
+
+    if (measurementMode === MeasurementMode.PointMeasure) {
+      return pointLabelOnCreate ? "Anmerkung" : "Punktmessung";
+    }
+
+    if (measurementMode === MeasurementMode.PolylineMeasure) {
+      if (planarMeasurementCreationMode === "polyline") {
+        return "Polygonzug";
+      }
+      const activeSurfaceType = polygonSurfaceTypePreset;
+      if (activeSurfaceType === "footprint") return "Grundriss";
+      if (activeSurfaceType === "facade") return "Fassadenfläche";
+      if (activeSurfaceType === "terrain") return "Gelände";
+      return "Dachfläche";
+    }
+
     return "3D Messungen";
   }, [
     currentMeasurement,
@@ -2189,8 +2238,16 @@ export function InfoBoxMeasurement3D({ pixelWidth = 350 }) {
     measurementMode,
     isAnnotationMode,
     showPointInfoMode,
+    planarMeasurementCreationMode,
+    pointLabelOnCreate,
+    polygonSurfaceTypePreset,
   ]);
-  const hasInfoBoxContent = Boolean(currentMeasurement) || isPolygonInfoMode;
+  const hasMeasurementData =
+    measurements.length > 0 || planarPolygonGroups.length > 0;
+  const hasInfoBoxContent =
+    Boolean(currentMeasurement) ||
+    isPolygonInfoMode ||
+    (measurementMode !== MeasurementMode.NONE && hasMeasurementData);
   const currentMeasurementBadgeText = useMemo(() => {
     if (!currentMeasurement || !isPointMeasurementEntry(currentMeasurement)) {
       return undefined;

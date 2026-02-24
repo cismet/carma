@@ -6450,6 +6450,11 @@ export const CesiumMeasurementsProvider: React.FC<
   useEffect(() => {
     if (previousMeasurementModeRef.current === measurementMode) return;
     previousMeasurementModeRef.current = measurementMode;
+    selectedMeasurementIdRef.current = null;
+    setSelectedMeasurementId(null);
+    setSelectedMeasurementIds([]);
+    setPreviousSelectedMeasurementId(null);
+    setSelectedPlanarPolygonGroupId(null);
     setDoubleClickChainSourcePointId(null);
     setActivePlanarPolygonGroupId(null);
     setPendingPolylinePromotionRingClosurePointId(null);
