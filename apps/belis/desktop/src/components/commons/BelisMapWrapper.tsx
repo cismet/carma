@@ -135,9 +135,10 @@ const BelisMapLibWrapper = ({
       const sourceLayer = selectedFeature?.carmaInfo?.sourceLayer;
       const featureId = selectedFeature?.properties?.sourceProps?.id;
 
-      console.log("xxx BelisMa Selection:", {
+      console.log("[SELECTION] vector feature:", {
         featureId,
         sourceLayer,
+        rawFeature,
       });
 
       const isValidFeatureType =

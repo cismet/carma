@@ -13,7 +13,6 @@ import {
 import { getJWT } from "../../store/slices/auth";
 import { ENDPOINT } from "../../constants/belis";
 import { rawDataPreStyle } from "../../helper/uiHelper";
-import { getFromUTM32ToWGS84 } from "@carma/geo/proj";
 import {
   useLibreContext,
   useMapHighlight,
@@ -501,13 +500,13 @@ const SearchModal = ({
             return;
           }
 
+          const t0 = performance.now();
           const coords = results
             .map((item: Record<string, unknown>) => {
-              const utm = getGeometry(item);
-              if (!utm) return undefined;
-              return getFromUTM32ToWGS84(utm) as [number, number];
+              return getGeometry(item);
             })
             .filter(Boolean) as [number, number][];
+          const t1 = performance.now();
 
           if (coords.length === 0) {
             console.warn(`${logPrefix} No coordinates found`);
@@ -521,6 +520,10 @@ const SearchModal = ({
             minLat: Math.min(...coords.map((c) => c[1])),
             maxLat: Math.max(...coords.map((c) => c[1])),
           };
+          const t2 = performance.now();
+          console.log(
+            `[SEARCH] ${coords.length} coords: transform=${(t1 - t0).toFixed(1)}ms, bbox=${(t2 - t1).toFixed(1)}ms, total=${(t2 - t0).toFixed(1)}ms`
+          );
           // Expand bbox by 10% on each side to ensure all features are visible
           const lngPadding = (rawBbox.maxLng - rawBbox.minLng) * 0.1 || 0.001;
           const latPadding = (rawBbox.maxLat - rawBbox.minLat) * 0.1 || 0.001;
@@ -585,8 +588,9 @@ const SearchModal = ({
         }order_by: {einbaudatum: desc}) {
           id
           tdta_standort_mast {
-            geom {
-              geo_field
+            geom_84 {
+              x
+              y
             }
           }
         }
@@ -601,11 +605,11 @@ const SearchModal = ({
           const mast = item.tdta_standort_mast as
             | Record<string, unknown>
             | undefined;
-          const geom = mast?.geom as Record<string, unknown> | undefined;
-          const geoField = geom?.geo_field as
-            | { coordinates?: [number, number] }
+          const geom = mast?.geom_84 as
+            | { x?: number; y?: number }
             | undefined;
-          return geoField?.coordinates;
+          if (geom?.x == null || geom?.y == null) return undefined;
+          return [geom.x, geom.y];
         },
       });
     } else if (searchType === "mast") {
@@ -615,8 +619,9 @@ const SearchModal = ({
           whereClause ? `${whereClause}, ` : ""
         }order_by: {inbetriebnahme_mast: desc}) {
           id
-          geom {
-            geo_field
+          geom_84 {
+            x
+            y
           }
         }
       }`;
@@ -627,11 +632,11 @@ const SearchModal = ({
         featurePrefix: "mast",
         logPrefix: "[MAST_SEARCH]",
         getGeometry: (item) => {
-          const geom = item.geom as Record<string, unknown> | undefined;
-          const geoField = geom?.geo_field as
-            | { coordinates?: [number, number] }
+          const geom = item.geom_84 as
+            | { x?: number; y?: number }
             | undefined;
-          return geoField?.coordinates;
+          if (geom?.x == null || geom?.y == null) return undefined;
+          return [geom.x, geom.y];
         },
       });
     } else if (searchType === "schaltstelle") {
@@ -643,8 +648,9 @@ const SearchModal = ({
           whereClause ? `${whereClause}, ` : ""
         }order_by: {erstellungsjahr: desc}) {
           id
-          geom {
-            geo_field
+          geom_84 {
+            x
+            y
           }
         }
       }`;
@@ -655,11 +661,11 @@ const SearchModal = ({
         featurePrefix: "schaltstelle",
         logPrefix: "[SCHALTSTELLE_SEARCH]",
         getGeometry: (item) => {
-          const geom = item.geom as Record<string, unknown> | undefined;
-          const geoField = geom?.geo_field as
-            | { coordinates?: [number, number] }
+          const geom = item.geom_84 as
+            | { x?: number; y?: number }
             | undefined;
-          return geoField?.coordinates;
+          if (geom?.x == null || geom?.y == null) return undefined;
+          return [geom.x, geom.y];
         },
       });
     } else if (searchType === "mauerlasche") {
@@ -671,8 +677,9 @@ const SearchModal = ({
           whereClause ? `${whereClause}, ` : ""
         }order_by: {erstellungsjahr: desc}) {
           id
-          geom {
-            geo_field
+          geom_84 {
+            x
+            y
           }
         }
       }`;
@@ -683,11 +690,11 @@ const SearchModal = ({
         featurePrefix: "mauerlaschen",
         logPrefix: "[MAUERLASCHE_SEARCH]",
         getGeometry: (item) => {
-          const geom = item.geom as Record<string, unknown> | undefined;
-          const geoField = geom?.geo_field as
-            | { coordinates?: [number, number] }
+          const geom = item.geom_84 as
+            | { x?: number; y?: number }
             | undefined;
-          return geoField?.coordinates;
+          if (geom?.x == null || geom?.y == null) return undefined;
+          return [geom.x, geom.y];
         },
       });
     }
