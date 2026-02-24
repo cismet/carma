@@ -12,6 +12,7 @@ interface SchaltstelleFormProps {
   data: Record<string, unknown> | null;
   rawFeature?: { properties?: Record<string, unknown> } | null;
   onClose?: () => void;
+  readOnly?: boolean;
 }
 
 interface BauartItem {
@@ -28,6 +29,7 @@ const SchaltstelleForm = ({
   data,
   rawFeature,
   onClose,
+  readOnly = true,
 }: SchaltstelleFormProps) => {
   const [form] = Form.useForm();
   const [pendingFiles, setPendingFiles] = useState<UploadFile[]>([]);
@@ -127,7 +129,13 @@ const SchaltstelleForm = ({
       onFilesChange={setPendingFiles}
       debugData={data}
     >
-      <Form form={form} layout="vertical" requiredMark={false} className="pr-2">
+      <Form
+        form={form}
+        layout="vertical"
+        requiredMark={false}
+        className="pr-2 [&_.ant-input-disabled]:bg-white [&_.ant-input-number-disabled]:bg-white [&_.ant-picker-disabled]:bg-white [&_.ant-select-disabled_.ant-select-selector]:!bg-white [&_.ant-checkbox-disabled+span]:opacity-70"
+        disabled={readOnly}
+      >
         {/* Strassenschluessel */}
         <Row gutter={16}>
           <Col span={6}>

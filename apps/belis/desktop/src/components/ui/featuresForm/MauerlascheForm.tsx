@@ -12,6 +12,7 @@ interface MauerlascheFormProps {
   data: Record<string, unknown> | null;
   rawFeature?: { properties?: Record<string, unknown> } | null;
   onClose?: () => void;
+  readOnly?: boolean;
 }
 
 interface MaterialMauerlascheItem {
@@ -23,6 +24,7 @@ const MauerlascheForm = ({
   data,
   rawFeature,
   onClose,
+  readOnly = true,
 }: MauerlascheFormProps) => {
   const [form] = Form.useForm();
   const [pendingFiles, setPendingFiles] = useState<UploadFile[]>([]);
@@ -113,7 +115,13 @@ const MauerlascheForm = ({
       onFilesChange={setPendingFiles}
       debugData={data}
     >
-      <Form form={form} layout="vertical" requiredMark={false} className="pr-2">
+      <Form
+        form={form}
+        layout="vertical"
+        requiredMark={false}
+        className="pr-2 [&_.ant-input-disabled]:bg-white [&_.ant-input-number-disabled]:bg-white [&_.ant-picker-disabled]:bg-white [&_.ant-select-disabled_.ant-select-selector]:!bg-white [&_.ant-checkbox-disabled+span]:opacity-70"
+        disabled={readOnly}
+      >
         {/* Strassenschluessel */}
         <Row gutter={16}>
           <Col span={6}>

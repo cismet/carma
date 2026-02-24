@@ -14,9 +14,10 @@ interface LeuchteFormProps {
   data: Record<string, unknown> | null;
   rawFeature?: { properties?: Record<string, unknown> } | null;
   onClose?: () => void;
+  readOnly?: boolean;
 }
 
-const LeuchteForm = ({ data, rawFeature, onClose }: LeuchteFormProps) => {
+const LeuchteForm = ({ data, rawFeature, onClose, readOnly = true }: LeuchteFormProps) => {
   const dispatch: AppDispatch = useDispatch();
   const [pendingFiles, setPendingFiles] = useState<UploadFile[]>([]);
   const [mastData, setMastData] = useState<Record<string, unknown> | null>(
@@ -92,7 +93,7 @@ const LeuchteForm = ({ data, rawFeature, onClose }: LeuchteFormProps) => {
           Lade Mast-Daten...
         </div>
       ) : (
-        <MastFormFields mast={mastData} />
+        <MastFormFields mast={mastData} readOnly={readOnly} />
       ),
     },
   ];
@@ -108,7 +109,7 @@ const LeuchteForm = ({ data, rawFeature, onClose }: LeuchteFormProps) => {
       debugData={data}
       additionalTabs={additionalTabs}
     >
-      <LeuchteFormFields leuchte={leuchte} />
+      <LeuchteFormFields leuchte={leuchte} readOnly={readOnly} />
     </FeatureFormLayout>
   );
 };
