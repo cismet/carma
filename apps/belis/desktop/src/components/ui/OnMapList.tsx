@@ -5,6 +5,8 @@ import {
   useLibreContext,
   useMapHighlight,
 } from "@carma-mapping/engines/maplibre";
+import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
+import { faSpinner } from "@fortawesome/free-solid-svg-icons";
 
 // Convert ALL CAPS to Title Case (e.g., "GROSSE FLURSTR" -> "Grosse Flurstr")
 const toTitleCase = (str: string): string => {
@@ -362,13 +364,9 @@ const OnMapList = ({
       onKeyDown={handleKeyDown}
       className="w-[300px] h-full bg-white border-r border-gray-300 flex flex-col overflow-hidden z-[1000] shrink-0 outline-none"
     >
-      <div className="px-3 py-2 border-b border-gray-300 bg-gray-50 font-bold text-sm flex justify-between items-center">
-        <span>
-          Objekte ({highlightingActive ? filteredFeatures.length : totalCount})
-        </span>
-        {isLoading && <span className="text-xs text-gray-500">...</span>}
-        {isOverviewMode && !isLoading && (
-          <span className="text-[10px] text-gray-400">zoom in</span>
+      <div className="px-3 py-2 border-b border-gray-300 bg-gray-50 text-sm flex justify-end items-center" style={{ minHeight: 36 }}>
+        {isLoading && (
+          <FontAwesomeIcon icon={faSpinner} spin className="text-gray-400" />
         )}
       </div>
       <div className="flex-1 overflow-y-auto overflow-x-hidden">
