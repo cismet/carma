@@ -12,6 +12,7 @@ interface LeitungFormProps {
   rawFeature?: { properties?: Record<string, unknown> } | null;
   onClose?: () => void;
   readOnly?: boolean;
+  loading?: boolean;
 }
 
 interface KeyTableItem {
@@ -20,7 +21,7 @@ interface KeyTableItem {
   groesse?: string;
 }
 
-const LeitungForm = ({ data, rawFeature, onClose, readOnly = true }: LeitungFormProps) => {
+const LeitungForm = ({ data, rawFeature, onClose, readOnly = true, loading }: LeitungFormProps) => {
   const [form] = Form.useForm();
   const [pendingFiles, setPendingFiles] = useState<UploadFile[]>([]);
   const keyTablesData = useSelector(getKeyTablesData);
@@ -90,6 +91,7 @@ const LeitungForm = ({ data, rawFeature, onClose, readOnly = true }: LeitungForm
       pendingFiles={pendingFiles}
       onFilesChange={setPendingFiles}
       debugData={data}
+      loading={loading}
     >
       <Form
         form={form}

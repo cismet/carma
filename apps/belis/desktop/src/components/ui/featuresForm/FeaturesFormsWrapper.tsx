@@ -5,6 +5,7 @@ interface FeaturesFormsWrapperProps {
   data: any;
   rawFeature?: any;
   readOnly?: boolean;
+  loading?: boolean;
 }
 
 // Map sourceLayer values to registry keys
@@ -30,6 +31,7 @@ const FeaturesFormsWrapper = ({
   data,
   rawFeature,
   readOnly = true,
+  loading,
 }: FeaturesFormsWrapperProps) => {
   const formKey = featureType ? featureTypeToFormKey[featureType] : undefined;
   const FormComponent = formKey ? featureFormRegistry[formKey] : undefined;
@@ -37,7 +39,7 @@ const FeaturesFormsWrapper = ({
   if (FormComponent) {
     return (
       <div className="h-full">
-        <FormComponent data={data} rawFeature={rawFeature} readOnly={readOnly} />
+        <FormComponent data={data} rawFeature={rawFeature} readOnly={readOnly} loading={loading} />
       </div>
     );
   }

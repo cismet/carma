@@ -1,9 +1,7 @@
 import { useState, useEffect } from "react";
 import type { UploadFile } from "antd";
-import { useSelector, useDispatch } from "react-redux";
+import { useSelector } from "react-redux";
 import { getJWT } from "../../../store/slices/auth";
-import { setFeatureLoading } from "../../../store/slices/featureCollection";
-import { AppDispatch } from "../../../store";
 import { DokumentItem } from "../DocumentPreview";
 import FeatureFormLayout from "./FeatureFormLayout";
 import LeuchteFormFields from "./LeuchteFormFields";
@@ -15,10 +13,10 @@ interface LeuchteFormProps {
   rawFeature?: { properties?: Record<string, unknown> } | null;
   onClose?: () => void;
   readOnly?: boolean;
+  loading?: boolean;
 }
 
-const LeuchteForm = ({ data, rawFeature, onClose, readOnly = true }: LeuchteFormProps) => {
-  const dispatch: AppDispatch = useDispatch();
+const LeuchteForm = ({ data, rawFeature, onClose, readOnly = true, loading }: LeuchteFormProps) => {
   const [pendingFiles, setPendingFiles] = useState<UploadFile[]>([]);
   const [mastData, setMastData] = useState<Record<string, unknown> | null>(
     null
@@ -47,7 +45,6 @@ const LeuchteForm = ({ data, rawFeature, onClose, readOnly = true }: LeuchteForm
   useEffect(() => {
     if (mastId && jwt) {
       setIsMastLoading(true);
-      dispatch(setFeatureLoading(true));
       fetchFeatureById(jwt, mastId, "mast")
         .then((result) => {
           const mastArray = result?.tdta_standort_mast as
@@ -61,12 +58,11 @@ const LeuchteForm = ({ data, rawFeature, onClose, readOnly = true }: LeuchteForm
         })
         .finally(() => {
           setIsMastLoading(false);
-          dispatch(setFeatureLoading(false));
         });
     } else {
       setMastData(null);
     }
-  }, [mastId, jwt, dispatch]);
+  }, [mastId, jwt]);
 
   // Extract fabrikat for subtitle - use rawFeature (vector tile) to match list display
   const rawProps = rawFeature?.properties;
@@ -108,6 +104,7 @@ const LeuchteForm = ({ data, rawFeature, onClose, readOnly = true }: LeuchteForm
       onFilesChange={setPendingFiles}
       debugData={data}
       additionalTabs={additionalTabs}
+      loading={loading}
     >
       <LeuchteFormFields leuchte={leuchte} readOnly={readOnly} />
     </FeatureFormLayout>

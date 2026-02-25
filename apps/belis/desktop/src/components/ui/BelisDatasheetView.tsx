@@ -10,7 +10,6 @@ import { getVCard } from "@carma-appframeworks/belis";
 import { FeaturesFormsWrapper } from "./featuresForm";
 import { useSelector } from "react-redux";
 import { getFeatureLoading } from "../../store/slices/featureCollection";
-import { Spin } from "antd";
 
 interface BelisDatasheetViewProps {
   feature: any | null;
@@ -60,20 +59,19 @@ const BelisDatasheetView = ({
   const props = rawFeature?.properties ?? feature?.properties ?? {};
 
   return (
-    <div className="h-full [&_.ant-spin-nested-loading]:h-full [&_.ant-spin-container]:h-full">
-      <Spin spinning={featureLoading}>
-        <div className="h-full p-2 pl-4">
-          {/* Fetched feature data - render form or JSON fallback */}
-          {fetchedData && (
-            <FeaturesFormsWrapper
-              featureType={featureType}
-              data={fetchedData}
-              rawFeature={rawFeature}
-              readOnly={readOnly}
-            />
-          )}
-        </div>
-      </Spin>
+    <div className="h-full">
+      <div className="h-full p-2 pl-4">
+        {/* Fetched feature data - render form or JSON fallback */}
+        {fetchedData && (
+          <FeaturesFormsWrapper
+            featureType={featureType}
+            data={fetchedData}
+            rawFeature={rawFeature}
+            readOnly={readOnly}
+            loading={featureLoading}
+          />
+        )}
+      </div>
     </div>
   );
 };

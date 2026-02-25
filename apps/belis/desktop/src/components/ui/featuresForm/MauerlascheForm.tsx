@@ -13,6 +13,7 @@ interface MauerlascheFormProps {
   rawFeature?: { properties?: Record<string, unknown> } | null;
   onClose?: () => void;
   readOnly?: boolean;
+  loading?: boolean;
 }
 
 interface MaterialMauerlascheItem {
@@ -25,6 +26,7 @@ const MauerlascheForm = ({
   rawFeature,
   onClose,
   readOnly = true,
+  loading,
 }: MauerlascheFormProps) => {
   const [form] = Form.useForm();
   const [pendingFiles, setPendingFiles] = useState<UploadFile[]>([]);
@@ -114,6 +116,7 @@ const MauerlascheForm = ({
       pendingFiles={pendingFiles}
       onFilesChange={setPendingFiles}
       debugData={data}
+      loading={loading}
     >
       <Form
         form={form}
