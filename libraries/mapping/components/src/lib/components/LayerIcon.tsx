@@ -92,9 +92,13 @@ export const LayerIcon = ({
         <div
           style={{
             fontSize: 11,
-            color: "#888",
+            fontFamily: "monospace",
+            color: "#718096",
             wordBreak: "break-all",
-            maxWidth: 300,
+            marginTop: 8,
+            padding: "2px 6px",
+            backgroundColor: "#f0f2f5",
+            borderRadius: 4,
           }}
         >
           {iconSrc}
