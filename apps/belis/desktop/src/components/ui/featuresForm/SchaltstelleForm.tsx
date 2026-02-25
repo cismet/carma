@@ -13,6 +13,7 @@ interface SchaltstelleFormProps {
   rawFeature?: { properties?: Record<string, unknown> } | null;
   onClose?: () => void;
   readOnly?: boolean;
+  loading?: boolean;
 }
 
 interface BauartItem {
@@ -30,6 +31,7 @@ const SchaltstelleForm = ({
   rawFeature,
   onClose,
   readOnly = true,
+  loading,
 }: SchaltstelleFormProps) => {
   const [form] = Form.useForm();
   const [pendingFiles, setPendingFiles] = useState<UploadFile[]>([]);
@@ -128,6 +130,7 @@ const SchaltstelleForm = ({
       pendingFiles={pendingFiles}
       onFilesChange={setPendingFiles}
       debugData={data}
+      loading={loading}
     >
       <Form
         form={form}
