@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo } from "react";
+import React, { useEffect, useMemo, useRef } from "react";
 
 import { useLabelOverlay } from "./useLabelOverlay";
 import {
@@ -29,6 +29,9 @@ const LABEL_OFFSET_PX = 10;
 const LABEL_MIN_PADDING_PX = 6;
 const LINE_OVERLAY_Z_INDEX = 5;
 const LABEL_SIDE_HYSTERESIS_PX = 1.5;
+const LABEL_POSITION_STABILITY_EPSILON_PX = 0.85;
+const LABEL_ANGLE_STABILITY_EPSILON_DEG = 0.75;
+const LABEL_VISIBILITY_HYSTERESIS_PX = 2;
 
 export const useLineVisualizers = (
   lines: LineVisualizerData[],
@@ -36,38 +39,54 @@ export const useLineVisualizers = (
 ) => {
   const { addLabelOverlayElement, removeLabelOverlayElement } =
     useLabelOverlay();
+  const previousLineSignatureByIdRef = useRef<Map<string, string>>(new Map());
 
-  const stateSignature = useMemo(
+  const lineSignatureById = useMemo(
     () =>
-      lines
-        .map(
-          (line) =>
-            `${line.id}:${line.visible}:${line.isHidden}:${line.stroke}:${
-              line.strokeWidth
-            }:${line.strokeDasharray}:${line.strokeDashoffset}:${
-              line.opacity
-            }:${line.labelText}:${line.labelColor}:${line.labelFontSize}:${
-              line.labelFontFamily
-            }:${line.labelFontWeight}:${line.labelMinLineLengthPx}:${
-              line.labelOffsetPx
-            }:${line.labelRotationMode ?? "auto"}:${
-              line.labelDominantBaseline ?? "middle"
-            }
-            }:${line.contentSignature ?? ""}`
-        )
-        .join("|"),
+      new Map(
+        lines.map((line) => [
+          line.id,
+          `${line.id}:${line.visible}:${line.isHidden}:${line.stroke}:${
+            line.strokeWidth
+          }:${line.strokeDasharray}:${line.strokeDashoffset}:${line.opacity}:${
+            line.labelText
+          }:${line.labelColor}:${line.labelFontSize}:${line.labelFontFamily}:${
+            line.labelFontWeight
+          }:${line.labelMinLineLengthPx}:${line.labelOffsetPx}:${
+            line.labelRotationMode ?? "auto"
+          }:${line.labelDominantBaseline ?? "middle"}:${Boolean(
+            line.onLineClick
+          )}:${Boolean(line.onLineLongPress)}:${Boolean(line.onLabelClick)}:${
+            line.longPressDurationMs ?? ""
+          }:${line.contentSignature ?? ""}`,
+        ])
+      ),
+    [lines]
+  );
+
+  const lineIndexById = useMemo(
+    () => new Map(lines.map((line) => [line.id, line])),
     [lines]
   );
 
   useEffect(() => {
     if (!showLines) {
-      lines.forEach((line) => {
-        removeLabelOverlayElement(`line-visualizer-${line.id}`);
+      previousLineSignatureByIdRef.current.forEach((_, lineId) => {
+        removeLabelOverlayElement(`line-visualizer-${lineId}`);
       });
+      previousLineSignatureByIdRef.current.clear();
       return;
     }
 
-    lines.forEach((line) => {
+    const nextSignatureById = new Map<string, string>();
+    lineIndexById.forEach((line, lineId) => {
+      const nextSignature = lineSignatureById.get(lineId) ?? "";
+      nextSignatureById.set(lineId, nextSignature);
+      const previousSignature =
+        previousLineSignatureByIdRef.current.get(lineId) ?? null;
+      if (previousSignature === nextSignature) {
+        return;
+      }
       addLabelOverlayElement({
         id: `line-visualizer-${line.id}`,
         zIndex: LINE_OVERLAY_Z_INDEX,
@@ -189,23 +208,66 @@ export const useLineVisualizers = (
                         : normalizedAngle;
                     })();
 
-              textEl.setAttribute("x", `${textX}`);
-              textEl.setAttribute("y", `${textY}`);
+              const previousTextX = Number.parseFloat(
+                textEl.dataset.stableTextX ?? ""
+              );
+              const previousTextY = Number.parseFloat(
+                textEl.dataset.stableTextY ?? ""
+              );
+              const hasPreviousTextPosition =
+                Number.isFinite(previousTextX) &&
+                Number.isFinite(previousTextY);
+              const stableTextPosition =
+                hasPreviousTextPosition &&
+                Math.hypot(textX - previousTextX, textY - previousTextY) <=
+                  LABEL_POSITION_STABILITY_EPSILON_PX
+                  ? { x: previousTextX, y: previousTextY }
+                  : { x: textX, y: textY };
+
+              const previousAngleDeg = Number.parseFloat(
+                textEl.dataset.stableAngleDeg ?? ""
+              );
+              const hasPreviousAngle = Number.isFinite(previousAngleDeg);
+              const normalizedAngleDelta = hasPreviousAngle
+                ? Math.abs(((angleDeg - previousAngleDeg + 540) % 360) - 180)
+                : Number.POSITIVE_INFINITY;
+              const stableAngleDeg =
+                hasPreviousAngle &&
+                normalizedAngleDelta <= LABEL_ANGLE_STABILITY_EPSILON_DEG
+                  ? previousAngleDeg
+                  : angleDeg;
+
+              textEl.dataset.stableTextX = `${stableTextPosition.x}`;
+              textEl.dataset.stableTextY = `${stableTextPosition.y}`;
+              textEl.dataset.stableAngleDeg = `${stableAngleDeg}`;
+
+              textEl.setAttribute("x", `${stableTextPosition.x}`);
+              textEl.setAttribute("y", `${stableTextPosition.y}`);
               textEl.setAttribute(
                 "transform",
-                `rotate(${angleDeg} ${textX} ${textY})`
+                `rotate(${stableAngleDeg} ${stableTextPosition.x} ${stableTextPosition.y})`
               );
               const textLengthPx = textEl.getComputedTextLength();
               const minLabelLineLengthPx =
                 line.labelMinLineLengthPx ?? DEFAULT_MIN_LABEL_LINE_LENGTH_PX;
+              const previousVisible = textEl.dataset.labelVisible === "1";
+              const lengthThreshold = previousVisible
+                ? minLabelLineLengthPx - LABEL_VISIBILITY_HYSTERESIS_PX
+                : minLabelLineLengthPx + LABEL_VISIBILITY_HYSTERESIS_PX;
+              const fitThreshold = previousVisible
+                ? lineLength + LABEL_VISIBILITY_HYSTERESIS_PX
+                : lineLength - LABEL_VISIBILITY_HYSTERESIS_PX;
               const shouldShowLabel =
-                lineLength >= minLabelLineLengthPx &&
-                textLengthPx + LABEL_MIN_PADDING_PX <= lineLength;
+                lineLength >= lengthThreshold &&
+                textLengthPx + LABEL_MIN_PADDING_PX <= fitThreshold;
+              textEl.dataset.labelVisible = shouldShowLabel ? "1" : "0";
               textEl.style.display = shouldShowLabel ? "block" : "none";
             } else {
+              textEl.dataset.labelVisible = "0";
               textEl.style.display = "none";
             }
           } else if (textEl) {
+            textEl.dataset.labelVisible = "0";
             textEl.style.display = "none";
           }
 
@@ -214,16 +276,26 @@ export const useLineVisualizers = (
       });
     });
 
-    return () => {
-      lines.forEach((line) => {
-        removeLabelOverlayElement(`line-visualizer-${line.id}`);
-      });
-    };
+    previousLineSignatureByIdRef.current.forEach((_, previousLineId) => {
+      if (nextSignatureById.has(previousLineId)) return;
+      removeLabelOverlayElement(`line-visualizer-${previousLineId}`);
+    });
+    previousLineSignatureByIdRef.current = nextSignatureById;
   }, [
-    lines,
     showLines,
-    stateSignature,
+    lineIndexById,
+    lineSignatureById,
     addLabelOverlayElement,
     removeLabelOverlayElement,
   ]);
+
+  useEffect(
+    () => () => {
+      previousLineSignatureByIdRef.current.forEach((_, lineId) => {
+        removeLabelOverlayElement(`line-visualizer-${lineId}`);
+      });
+      previousLineSignatureByIdRef.current.clear();
+    },
+    [removeLabelOverlayElement]
+  );
 };

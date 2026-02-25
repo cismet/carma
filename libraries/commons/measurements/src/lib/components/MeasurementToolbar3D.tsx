@@ -1,15 +1,11 @@
-import { useState, useMemo, useCallback, useEffect } from "react";
+import { useMemo, useCallback, useEffect } from "react";
 import { Modal } from "antd";
 import {
   useCesiumMeasurements,
   isPointMeasurementEntry,
   MeasurementMode,
-  SurfaceType,
 } from "@carma-mapping/engines/cesium/measurements";
-import {
-  MeasurementModeToolbar,
-  PolygonSubType,
-} from "./MeasurementModeToolbar";
+import { MeasurementModeToolbar } from "./MeasurementModeToolbar";
 import { useMeasurementToolMode } from "./hooks/useMeasurementToolMode";
 
 const isKeyboardTargetEditable = (target: EventTarget | null): boolean => {
@@ -36,6 +32,8 @@ export function MeasurementToolbar3D({
     setSelectionModeActive,
     selectModeAdditive,
     setSelectModeAdditive,
+    selectModeRectangle,
+    setSelectModeRectangle,
     clearMeasurementsByIds,
     deleteSelectedPointMeasurements,
     planarPolygonGroups,
@@ -54,21 +52,10 @@ export function MeasurementToolbar3D({
     planarMeasurementCreationMode,
     setPlanarMeasurementCreationMode,
     setPolygonSurfaceTypePreset,
+    polygonSurfaceTypePreset,
     pointLabelOnCreate,
     setPointLabelOnCreate,
   } = useCesiumMeasurements();
-
-  const [activePolygonSubType, setActivePolygonSubType] =
-    useState<PolygonSubType>("vertical");
-
-  useEffect(() => {
-    const surfaceTypeBySubType: Record<PolygonSubType, SurfaceType> = {
-      horizontal: "footprint",
-      vertical: "facade",
-      oblique: "roof",
-    };
-    setPolygonSurfaceTypePreset(surfaceTypeBySubType[activePolygonSubType]);
-  }, [activePolygonSubType, setPolygonSurfaceTypePreset]);
 
   const measurementById = useMemo(
     () => new Map(measurements.map((m) => [m.id, m])),
@@ -234,21 +221,26 @@ export function MeasurementToolbar3D({
     };
   }, [deletableSelectedPointCount, requestDeleteSelectedPoints]);
 
+  const isAreaMode =
+    measurementMode === MeasurementMode.PolylineMeasure &&
+    planarMeasurementCreationMode === "polygon";
+
   const { activeToolType, handleToolTypeChange } = useMeasurementToolMode({
     isSelectionMode: selectionModeActive,
     isLabelMode: pointLabelOnCreate,
     isDistanceMode: measurementMode === MeasurementMode.PointQuery,
-    isPolygonMode:
-      measurementMode === MeasurementMode.PolylineMeasure &&
-      planarMeasurementCreationMode === "polygon",
+    isAreaFootprintMode: isAreaMode && polygonSurfaceTypePreset === "footprint",
+    isAreaFacadeMode: isAreaMode && polygonSurfaceTypePreset === "facade",
+    isAreaRoofMode:
+      isAreaMode &&
+      (polygonSurfaceTypePreset === "roof" ||
+        polygonSurfaceTypePreset === "terrain"),
     isPolylineMode:
       measurementMode === MeasurementMode.PolylineMeasure &&
       planarMeasurementCreationMode === "polyline",
     onSelectMode: () => {
       setPointLabelOnCreate(false);
-      if (measurementMode === MeasurementMode.NONE) {
-        setMeasurementMode(MeasurementMode.PointMeasure);
-      }
+      setMeasurementMode(MeasurementMode.NONE);
       setSelectionModeActive(true);
     },
     onLabelMode: () => {
@@ -266,10 +258,25 @@ export function MeasurementToolbar3D({
       setMeasurementMode(MeasurementMode.PointQuery);
       setSelectionModeActive(false);
     },
-    onPolygonMode: () => {
+    onAreaFootprintMode: () => {
       setPointLabelOnCreate(false);
       setMeasurementMode(MeasurementMode.PolylineMeasure);
       setPlanarMeasurementCreationMode("polygon");
+      setPolygonSurfaceTypePreset("footprint");
+      setSelectionModeActive(false);
+    },
+    onAreaFacadeMode: () => {
+      setPointLabelOnCreate(false);
+      setMeasurementMode(MeasurementMode.PolylineMeasure);
+      setPlanarMeasurementCreationMode("polygon");
+      setPolygonSurfaceTypePreset("facade");
+      setSelectionModeActive(false);
+    },
+    onAreaRoofMode: () => {
+      setPointLabelOnCreate(false);
+      setMeasurementMode(MeasurementMode.PolylineMeasure);
+      setPlanarMeasurementCreationMode("polygon");
+      setPolygonSurfaceTypePreset("roof");
       setSelectionModeActive(false);
     },
     onPolylineMode: () => {
@@ -297,6 +304,8 @@ export function MeasurementToolbar3D({
         onToolTypeChange={handleToolTypeChange}
         selectAdditiveMode={selectModeAdditive}
         onSelectAdditiveModeChange={setSelectModeAdditive}
+        selectRectangleMode={selectModeRectangle}
+        onSelectRectangleModeChange={setSelectModeRectangle}
         selectedMeasurementCount={selectedMeasurementCount}
         selectedLabelCount={selectedLabelCount}
         onDeleteSelectedPoints={requestDeleteSelectedPoints}
@@ -317,8 +326,6 @@ export function MeasurementToolbar3D({
         onPolylineSegmentLineModeChange={setPolylineSegmentLineMode}
         pointSoloMode={temporaryMode}
         onPointSoloModeChange={setTemporaryMode}
-        activePolygonSubType={activePolygonSubType}
-        onPolygonSubTypeChange={setActivePolygonSubType}
         pixelWidth={pixelWidth}
       />
     </div>

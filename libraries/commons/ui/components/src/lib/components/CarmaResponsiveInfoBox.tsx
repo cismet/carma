@@ -10,6 +10,7 @@ export interface CarmaResponsiveInfoBoxProps {
   headingColor?: string;
   subtitle?: React.ReactNode;
   content?: React.ReactNode;
+  footer?: React.ReactNode;
   collapsed?: boolean;
   onCollapsedChange?: (value: boolean) => void;
   collapsible?: boolean;
@@ -23,6 +24,7 @@ export const CarmaResponsiveInfoBox = ({
   headingColor,
   subtitle,
   content,
+  footer,
   collapsed,
   onCollapsedChange,
   collapsible = false,
@@ -65,6 +67,7 @@ export const CarmaResponsiveInfoBox = ({
             headerColor={headingColor}
             subtitle={subtitle}
             content={content}
+            footer={footer}
             collapsed={actualCollapsed}
             onCollapsedChange={actualSetCollapsed}
             style={{ pointerEvents: "auto" }}

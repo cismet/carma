@@ -713,7 +713,7 @@ export const getSplitMarkerRelationIdSetForGroups = (
   return ids;
 };
 
-export const getRoofRoofSharedEdgeRelationIdSet = (
+export const getPlanarPolygonSharedEdgeRelationIdSet = (
   planarPolygonGroups: PlanarPolygonGroup[]
 ) => {
   const relationUsageCount = new Map<string, number>();
@@ -754,3 +754,7 @@ export const getRoofRoofSharedEdgeRelationIdSet = (
 
   return hiddenLabelEdgeIds;
 };
+
+// Backward compatibility alias.
+export const getRoofRoofSharedEdgeRelationIdSet =
+  getPlanarPolygonSharedEdgeRelationIdSet;

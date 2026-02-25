@@ -22,6 +22,8 @@ export interface PointLabelStyleProps {
   markerBackgroundColor?: string;
   markerTextColor?: string;
   compactContent?: React.ReactNode;
+  compactBorderless?: boolean;
+  labelStyle?: "auto" | "capsule";
   collapse?: boolean;
   forceCollapse?: boolean;
   fullBorder?: boolean;
@@ -45,6 +47,7 @@ interface PointLabelProps extends PointLabelStyleProps {
   onLongPress?: () => void;
   longPressDurationMs?: number;
   onHoverChange?: (hovered: boolean) => void;
+  markerOnlyPointerEvents?: boolean;
   onMarkerDragStart?: (clientX: number, clientY: number) => void;
   onMarkerDragMove?: (clientX: number, clientY: number) => void;
   onMarkerDragEnd?: () => void;
@@ -94,6 +97,7 @@ const stripLeadingBadgeFromText = (
 
   if (trimmedFirst === normalizedBadge) {
     const remainingChildren = children.slice(1);
+    if (remainingChildren.length === 0) return "";
     if (typeof remainingChildren[0] === "string") {
       remainingChildren[0] = (remainingChildren[0] as string).replace(
         /^\s+/,
@@ -140,6 +144,8 @@ export const PointLabel = React.memo(
     markerBackgroundColor = "rgba(200, 200, 200, 0.92)",
     markerTextColor = "#111111",
     compactContent,
+    compactBorderless = false,
+    labelStyle = "auto",
     collapse = false,
     forceCollapse = false,
     fullBorder = false,
@@ -150,6 +156,7 @@ export const PointLabel = React.memo(
     onLongPress,
     longPressDurationMs = 300,
     onHoverChange,
+    markerOnlyPointerEvents = false,
     onMarkerDragStart,
     onMarkerDragMove,
     onMarkerDragEnd,
@@ -189,8 +196,12 @@ export const PointLabel = React.memo(
     );
     const stemEndInsetDistance = hideMarker ? 0 : stemReferenceRadius;
     const baseLineLength = Math.max(0, labelDistance - stemEndInsetDistance);
-    const hasAnyPillShape = collapse || hasCompactContent || fullBorder;
-    const pointLikePillShape = hasCompactContent || fullBorder;
+    const useCapsuleStyle = labelStyle === "capsule";
+    const hasAnyPillShape =
+      useCapsuleStyle || collapse || hasCompactContent || fullBorder;
+    const anchorAtSemicircleCenter =
+      useCapsuleStyle || collapse || hasCompactContent || fullBorder;
+    const pointLikePillShape = anchorAtSemicircleCenter;
     const pillStemExtraLengthPx = hasAnyPillShape
       ? pointLikePillShape
         ? POINT_PILL_STEM_EXTRA_LENGTH_PX
@@ -222,7 +233,11 @@ export const PointLabel = React.memo(
         onMarkerDragMove ||
         onMarkerDragEnd
     );
-    const pointerEvents = isInteractive ? "auto" : "none";
+    const markerPointerEvents = isInteractive ? "auto" : "none";
+    const labelPointerEvents =
+      isInteractive && !markerOnlyPointerEvents ? "auto" : "none";
+    const renderInvisibleInteractionMarker =
+      markerOnlyPointerEvents && hideMarker && isInteractive;
     const cursor =
       onClick || onDoubleClick || onLongPress ? "pointer" : "default";
     const effectiveLineColor = lineColor;
@@ -232,6 +247,12 @@ export const PointLabel = React.memo(
       : isHovered
       ? hoverBackgroundColor
       : textBackgroundColor;
+    const effectiveCompactBackgroundColor = selected
+      ? effectiveBackgroundColor
+      : markerBackgroundColor;
+    const effectiveCompactTextColor = selected
+      ? effectiveTextColor
+      : markerTextColor;
     const collapseToCompact =
       hasCompactContent &&
       (forceCollapse || (collapse && !selected && !isHovered));
@@ -240,7 +261,10 @@ export const PointLabel = React.memo(
       compactContent
     );
     const shouldRenderPillbuttonMarker =
-      usePillbuttonLabelMarker || hasCompactContent || fullBorder;
+      useCapsuleStyle ||
+      usePillbuttonLabelMarker ||
+      hasCompactContent ||
+      fullBorder;
     const usePillLabelShape =
       shouldRenderPillbuttonMarker || (!collapse && hasCompactContent);
     const handleMouseEnter = () => {
@@ -459,16 +483,26 @@ export const PointLabel = React.memo(
           opacity: isOccluded ? 0.75 : 1,
         }}
       >
-        {!hideMarker && (
+        {(!hideMarker || renderInvisibleInteractionMarker) && (
           <PointLabelMarker
             pointId={pointId}
-            markerContent={markerContent}
+            markerContent={
+              renderInvisibleInteractionMarker ? undefined : markerContent
+            }
             markerSize={markerSize}
-            markerStrokeWidth={markerStrokeWidth}
+            markerStrokeWidth={
+              renderInvisibleInteractionMarker ? 0 : markerStrokeWidth
+            }
             isOccluded={isOccluded}
-            markerBackgroundColor={markerBackgroundColor}
-            markerTextColor={markerTextColor}
-            pointerEvents={pointerEvents}
+            markerBackgroundColor={
+              renderInvisibleInteractionMarker
+                ? "rgba(0, 0, 0, 0)"
+                : markerBackgroundColor
+            }
+            markerTextColor={
+              renderInvisibleInteractionMarker ? "transparent" : markerTextColor
+            }
+            pointerEvents={markerPointerEvents}
             cursor={cursor}
             onClick={handleClick}
             onDoubleClick={handleDoubleClick}
@@ -523,13 +557,15 @@ export const PointLabel = React.memo(
                 fontWeight={fontWeight}
                 backgroundColor={effectiveBackgroundColor}
                 textColor={effectiveTextColor}
-                pointerEvents={pointerEvents}
+                pointerEvents={labelPointerEvents}
                 cursor={cursor}
                 transition={positionTransition}
                 collapse={collapseToCompact}
                 markerContent={hasCompactContent ? compactContent : undefined}
-                markerBackgroundColor={markerBackgroundColor}
-                markerTextColor={markerTextColor}
+                markerBackgroundColor={effectiveCompactBackgroundColor}
+                markerTextColor={effectiveCompactTextColor}
+                compactBorderless={compactBorderless}
+                anchorAtSemicircleCenter={anchorAtSemicircleCenter}
                 fullBorder={fullBorder}
                 solidBorderStyle={solidLabelBorderStyle}
                 resizeMode={resizeMode}
@@ -565,7 +601,7 @@ export const PointLabel = React.memo(
                   left: `${labelOffsetX}px`,
                   top: labelTop,
                   transform: labelTransform,
-                  pointerEvents,
+                  pointerEvents: labelPointerEvents,
                   cursor,
                   transition: positionTransition,
                 }}

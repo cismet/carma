@@ -66,6 +66,7 @@ const MOVE_GIZMO_MARKER_INNER_SCALE_DRAGGING = 0.68;
 const MOVE_GIZMO_MARKER_INNER_COLOR = "rgba(255, 255, 255, 0.96)";
 const LABEL_BADGE_GAP_PX = 4;
 const INPUT_CARET_BLINK_INTERVAL_MS = 530;
+const AREA_NODE_BADGE_REGEX = /^[ADF]\d+$/i;
 
 // Viewport padding constants for smooth label transitions
 const VIEWPORT_PADDING_HORIZONTAL = 100; // pixels
@@ -459,6 +460,7 @@ export const useCesiumPointLabels = (
   onPointHoverChange?: (pointId: string, hovered: boolean) => void,
   onPointVerticalOffsetStemLongPress?: (pointId: string) => void,
   selectionModeEnabled: boolean = false,
+  selectionRectangleModeEnabled: boolean = false,
   selectionAdditiveMode: boolean = false,
   onPointRectangleSelect?: (pointIds: string[], additive: boolean) => void,
   pointLongPressDurationMs: number = 300,
@@ -482,7 +484,9 @@ export const useCesiumPointLabels = (
   moveGizmoMarkerSizeScale: number = 1,
   moveGizmoLabelDistanceScale: number = 1,
   labelInputPromptPointId: string | null = null,
-  pointMarkerBadgeByPointId?: Readonly<Record<string, PointMarkerBadge>>
+  pointMarkerBadgeByPointId?: Readonly<Record<string, PointMarkerBadge>>,
+  suppressCompactLabelPointIds?: ReadonlySet<string>,
+  markerOnlyOverlayNodeInteractions: boolean = false
 ) => {
   const [cameraPitch, setCameraPitch] = useState<number>(-Math.PI / 4);
   const registeredPointIdSetRef = useRef<Set<string>>(new Set());
@@ -628,7 +632,13 @@ export const useCesiumPointLabels = (
 
         const effectivePointIndex =
           pointLabelIndexByPointId?.[point.id] ?? index;
-        const pointLabelOverride = pointMarkerBadgeByPointId?.[point.id]?.text;
+        const pointMarkerBadgeText =
+          pointMarkerBadgeByPointId?.[point.id]?.text?.trim() ?? "";
+        const isAreaNodeBadge =
+          AREA_NODE_BADGE_REGEX.test(pointMarkerBadgeText);
+        const pointLabelOverride = isAreaNodeBadge
+          ? undefined
+          : pointMarkerBadgeByPointId?.[point.id]?.text;
         const pointLabelMetricMode =
           point.pointLabelMode ?? DEFAULT_POINT_LABEL_METRIC_MODE;
         const preferDefaultNaming = pointLabelMetricMode === "distance";
@@ -725,7 +735,13 @@ export const useCesiumPointLabels = (
           point.name,
           effectivePointIndex,
           Boolean(point.auxiliaryLabelAnchor),
-          pointMarkerBadgeByPointId?.[point.id]?.text
+          (() => {
+            const badgeText = pointMarkerBadgeByPointId?.[point.id]?.text;
+            const normalizedBadgeText = badgeText?.trim() ?? "";
+            return AREA_NODE_BADGE_REGEX.test(normalizedBadgeText)
+              ? undefined
+              : badgeText;
+          })()
         );
 
         return {
@@ -769,6 +785,13 @@ export const useCesiumPointLabels = (
       const polylineOverrideText = polylinePointLabelTextByPointId?.[point.id];
       const effectivePointIndex = pointLabelIndexByPointId?.[point.id] ?? index;
       const pointMarkerBadge = pointMarkerBadgeByPointId?.[point.id];
+      const pointMarkerBadgeText = pointMarkerBadge?.text?.trim() ?? "";
+      const isAreaNodeBadge = AREA_NODE_BADGE_REGEX.test(pointMarkerBadgeText);
+      const isMoveGizmoPoint = point.id === moveGizmoPointId;
+      const suppressCompactLabel =
+        Boolean(suppressCompactLabelPointIds?.has(point.id)) ||
+        isAreaNodeBadge ||
+        isMoveGizmoPoint;
       const customPointName = getCustomPointMeasurementName(point.name);
       const labelTextRepresentation =
         pointLabelTextById[point.id] ??
@@ -779,53 +802,113 @@ export const useCesiumPointLabels = (
                 point.name,
                 effectivePointIndex,
                 Boolean(point.auxiliaryLabelAnchor),
-                pointMarkerBadge?.text
+                suppressCompactLabel ? undefined : pointMarkerBadge?.text
               )
             ));
-      const isMoveGizmoPoint = point.id === moveGizmoPointId;
       const compactLabelText = getPointLabelBase(
         point.name,
         effectivePointIndex,
         Boolean(point.auxiliaryLabelAnchor),
-        pointMarkerBadge?.text
+        suppressCompactLabel ? undefined : pointMarkerBadge?.text
       );
       const usesPillMarkerVariant =
         !isMoveGizmoPoint && Boolean(pillMarkerPointIds?.has(point.id));
       const isPolylineLabelPoint = polylineOverrideText !== undefined;
+      const isFocusedPolylinePoint =
+        pointLabelIndexByPointId?.[point.id] !== undefined;
+      const isFirstFocusedPolylinePoint =
+        isFocusedPolylinePoint && effectivePointIndex === 0;
+      const shouldShowCompactForPolylinePoint =
+        !isFocusedPolylinePoint || isFirstFocusedPolylinePoint;
       const collapsedByLayout = layoutResult.collapsedToCompact.has(point.id);
       const pointLabelMetricMode =
         point.pointLabelMode ?? DEFAULT_POINT_LABEL_METRIC_MODE;
       const isDistanceMetricPoint = pointLabelMetricMode === "distance";
       const isAnnotationMarker = Boolean(point.auxiliaryLabelAnchor);
+      const declaredLabelAnchor =
+        point.labelAnchor && point.labelAnchor.anchorPointId === point.id
+          ? point.labelAnchor
+          : undefined;
+      const declaredCompactContent =
+        declaredLabelAnchor?.compactContent?.trim();
+      const declaredCollapseToCompact =
+        declaredLabelAnchor?.collapseToCompact ?? false;
+      const hasDeclaredLabelAnchor = Boolean(declaredLabelAnchor);
+      const isLabelInputPromptPoint = labelInputPromptPointId === point.id;
       const isStandalonePointMeasureBadge = Boolean(
         pointMarkerBadge?.text && /^\d+$/.test(pointMarkerBadge.text.trim())
       );
-      const usePillbuttonLabel =
-        !isMoveGizmoPoint &&
-        (usesPillMarkerVariant ||
-          isPolylineLabelPoint ||
-          collapsedByLayout ||
-          isStandalonePointMeasureBadge ||
-          isAnnotationMarker ||
-          isDistanceMetricPoint);
-      const isPreviewPillPoint = Boolean(point.temporary);
+      const useMarkerLabel = true;
+      const useBorderlessExtendedLabel = isAreaNodeBadge || isMoveGizmoPoint;
+      const isPreviewLabelPoint = Boolean(point.temporary);
       const compactLayoutBadgeText =
         pointMarkerBadge?.text?.trim().length && pointMarkerBadge.text
           ? pointMarkerBadge.text
           : `${effectivePointIndex + 1}`;
-      const compactContent = isAnnotationMarker
+      const compactContent =
+        suppressCompactLabel || isAnnotationMarker
+          ? undefined
+          : declaredCompactContent
+          ? declaredCompactContent
+          : collapsedByLayout
+          ? compactLayoutBadgeText
+          : isPolylineLabelPoint
+          ? shouldShowCompactForPolylinePoint
+            ? compactLayoutBadgeText
+            : undefined
+          : isDistanceMetricPoint
+          ? compactLayoutBadgeText
+          : compactLabelText || customPointName || pointMarkerBadge?.text;
+      const fallbackCompactContent = suppressCompactLabel
         ? undefined
-        : collapsedByLayout
-        ? compactLayoutBadgeText
-        : isPolylineLabelPoint
-        ? compactLayoutBadgeText
-        : isDistanceMetricPoint
-        ? undefined
-        : compactLabelText || customPointName || pointMarkerBadge?.text;
+        : compactContent ??
+          (declaredCollapseToCompact ? compactLayoutBadgeText : undefined);
+      const compactContentText =
+        typeof fallbackCompactContent === "string"
+          ? fallbackCompactContent
+          : undefined;
+      const compactAreaBadgeWithoutOutline = Boolean(
+        compactContentText &&
+          AREA_NODE_BADGE_REGEX.test(compactContentText.trim())
+      );
+      const extendedLabelContent = isLabelInputPromptPoint
+        ? createElement(
+            Fragment,
+            null,
+            getLabelTextWithoutLeadingBadge(
+              labelTextRepresentation.layoutText.replace(/\|$/, ""),
+              compactContentText ?? ""
+            ),
+            createElement(BlinkingInputCaret)
+          )
+        : useMarkerLabel && compactContentText
+        ? getLabelTextWithoutLeadingBadge(
+            labelTextRepresentation.layoutText,
+            compactContentText
+          )
+        : useMarkerLabel &&
+          suppressCompactLabel &&
+          pointMarkerBadge?.text?.trim().length
+        ? getLabelTextWithoutLeadingBadge(
+            labelTextRepresentation.layoutText,
+            pointMarkerBadge.text
+          )
+        : labelTextRepresentation.layoutText;
       const forceCollapseToCompactByLayout =
-        collapsedByLayout && !isAnnotationMarker && Boolean(compactContent);
+        collapsedByLayout &&
+        !isAnnotationMarker &&
+        Boolean(fallbackCompactContent);
+      const forceCollapseToCompactByAnchor =
+        declaredCollapseToCompact &&
+        !isAnnotationMarker &&
+        Boolean(fallbackCompactContent);
+      const collapseByLegacyRules =
+        !hasDeclaredLabelAnchor &&
+        !isPolylineLabelPoint &&
+        !isStandalonePointMeasureBadge &&
+        !isAnnotationMarker;
       const showInlineLabelBadge =
-        !usePillbuttonLabel &&
+        !useMarkerLabel &&
         !isMoveGizmoPoint &&
         !Boolean(markerlessPointIds?.has(point.id)) &&
         Boolean(pointMarkerBadge?.text);
@@ -884,8 +967,8 @@ export const useCesiumPointLabels = (
         hideLabelAndStem:
           layoutResult.hiddenByLayout.has(point.id) ||
           Boolean(hiddenPointLabelIds?.has(point.id)),
-        content: usePillbuttonLabel
-          ? labelTextRepresentation.layoutText
+        content: useMarkerLabel
+          ? extendedLabelContent
           : inlineLabelBadgeContent ??
             labelTextRepresentation.content ??
             labelTextRepresentation.layoutText,
@@ -895,23 +978,29 @@ export const useCesiumPointLabels = (
             }`
           : labelTextRepresentation.contentSignature,
         hideMarker:
-          usesPillMarkerVariant || Boolean(markerlessPointIds?.has(point.id)),
+          usesPillMarkerVariant ||
+          declaredCollapseToCompact ||
+          isDistanceMetricPoint ||
+          Boolean(markerlessPointIds?.has(point.id)),
         markerSize: isMoveGizmoPoint
           ? moveGizmoIsDragging
             ? moveGizmoMarkerSizeDraggingPx
             : moveGizmoMarkerSizePx
           : undefined,
-        compactContent: usePillbuttonLabel ? compactContent : undefined,
+        compactContent: useMarkerLabel ? fallbackCompactContent : undefined,
+        compactBorderless: useMarkerLabel && compactAreaBadgeWithoutOutline,
+        labelStyle: useMarkerLabel ? "capsule" : "auto",
         collapse:
-          usePillbuttonLabel &&
-          !isPolylineLabelPoint &&
-          !isStandalonePointMeasureBadge &&
-          !isAnnotationMarker &&
-          !isDistanceMetricPoint,
-        forceCollapse: forceCollapseToCompactByLayout,
+          useMarkerLabel &&
+          (declaredCollapseToCompact ||
+            collapseByLegacyRules ||
+            isPolylineLabelPoint),
+        forceCollapse:
+          forceCollapseToCompactByLayout || forceCollapseToCompactByAnchor,
         fullBorder:
-          usePillbuttonLabel &&
-          (isPreviewPillPoint || isAnnotationMarker || isDistanceMetricPoint),
+          useMarkerLabel &&
+          !useBorderlessExtendedLabel &&
+          (isPreviewLabelPoint || isAnnotationMarker || isDistanceMetricPoint),
         markerInnerScale: isMoveGizmoPoint
           ? moveGizmoIsDragging
             ? MOVE_GIZMO_MARKER_INNER_SCALE_DRAGGING
@@ -948,6 +1037,8 @@ export const useCesiumPointLabels = (
           !disableInteractionsForMoveGizmoPoint && onPointHoverChange
             ? (hovered: boolean) => onPointHoverChange(point.id, hovered)
             : undefined,
+        markerOnlyPointerEvents: markerOnlyOverlayNodeInteractions,
+        attachOverlayClickHandlers: !markerOnlyOverlayNodeInteractions,
         longPressDurationMs: pointLongPressDurationMs,
         onMarkerDragStart: canDirectPlaneDrag
           ? (clientX: number, clientY: number) => {
@@ -994,12 +1085,17 @@ export const useCesiumPointLabels = (
     onPointPlaneDragPositionChange,
     onPointPlaneDragEnd,
     markerlessPointIds,
+    suppressCompactLabelPointIds,
+    markerOnlyOverlayNodeInteractions,
   ]);
 
   usePointRectangleSelectionOverlay({
     scene,
     enabled:
-      showLabels && selectionModeEnabled && Boolean(onPointRectangleSelect),
+      showLabels &&
+      selectionModeEnabled &&
+      selectionRectangleModeEnabled &&
+      Boolean(onPointRectangleSelect),
     additiveMode: selectionAdditiveMode,
     points: pointLabelData,
     onSelect: (pointIds, additive) => {

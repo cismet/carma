@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo } from "react";
+import React, { useEffect, useMemo, useRef } from "react";
 
 import { useLabelOverlay } from "./useLabelOverlay";
 import {
@@ -24,6 +24,8 @@ export interface PointLabelData {
   markerBackgroundColor?: string;
   markerTextColor?: string;
   compactContent?: React.ReactNode;
+  compactBorderless?: boolean;
+  labelStyle?: "auto" | "capsule";
   collapse?: boolean;
   forceCollapse?: boolean;
   fullBorder?: boolean;
@@ -39,6 +41,8 @@ export interface PointLabelData {
   onLongPress?: () => void;
   longPressDurationMs?: number;
   onHoverChange?: (hovered: boolean) => void;
+  markerOnlyPointerEvents?: boolean;
+  attachOverlayClickHandlers?: boolean;
   onMarkerDragStart?: (clientX: number, clientY: number) => void;
   onMarkerDragMove?: (clientX: number, clientY: number) => void;
   onMarkerDragEnd?: () => void;
@@ -57,52 +61,71 @@ export const usePointLabels = (
 ) => {
   const { addLabelOverlayElement, removeLabelOverlayElement } =
     useLabelOverlay();
+  const previousPointSignatureByIdRef = useRef<Map<string, string>>(new Map());
 
-  // Create a stable reference for selection, visibility, occlusion, and hidden state
-  const stateSignature = useMemo(
+  const pointSignatureById = useMemo(
     () =>
-      points
-        .map(
-          (p) =>
-            `${p.id}:${String(p.content)}:${p.selected}:${p.visible}:${
-              p.isOccluded
-            }:${p.isHidden}:${p.contentSignature ?? ""}:${p.pitch}:${Boolean(
-              p.onClick
-            )}:${p.labelAngleRad}:${p.labelDistance}:${p.labelAttach}:${
-              p.hideLabelAndStem
-            }:${p.markerSize}:${p.markerStrokeWidth}:${
-              p.stemReferenceMarkerSize
-            }:${p.stemStartDistance}:${String(p.markerContent)}:${
-              p.markerBackgroundColor
-            }:${p.markerTextColor}:${String(p.compactContent)}:${p.collapse}:${
-              p.forceCollapse
-            }:${p.fullBorder}:${p.resizeMode ?? "none"}:${Boolean(
-              p.onHoverChange
-            )}:${Boolean(p.onDoubleClick)}:${Boolean(p.onLongPress)}:${
-              p.longPressDurationMs
-            }:${Boolean(p.onMarkerDragStart)}:${Boolean(
-              p.onMarkerDragMove
-            )}:${Boolean(p.onMarkerDragEnd)}`
-        )
-        .join("|") + `:transition:${layoutOptions?.transitionDurationMs ?? ""}`,
+      new Map(
+        points.map((p) => [
+          p.id,
+          `${p.id}:${String(p.content)}:${p.selected}:${p.visible}:${
+            p.isOccluded
+          }:${p.isHidden}:${p.contentSignature ?? ""}:${p.pitch}:${Boolean(
+            p.onClick
+          )}:${p.labelAngleRad}:${p.labelDistance}:${p.labelAttach}:${
+            p.hideLabelAndStem
+          }:${p.hideMarker}:${p.markerSize}:${p.markerStrokeWidth}:${
+            p.stemReferenceMarkerSize
+          }:${p.stemStartDistance}:${String(p.markerContent)}:${
+            p.markerBackgroundColor
+          }:${p.markerTextColor}:${String(p.compactContent)}:${Boolean(
+            p.compactBorderless
+          )}:${p.labelStyle}:${p.collapse}:${p.forceCollapse}:${p.fullBorder}:${
+            p.resizeMode ?? "none"
+          }:${Boolean(p.onHoverChange)}:${Boolean(p.onDoubleClick)}:${Boolean(
+            p.onLongPress
+          )}:${p.longPressDurationMs}:${Boolean(p.onMarkerDragStart)}:${Boolean(
+            p.onMarkerDragMove
+          )}:${Boolean(p.onMarkerDragEnd)}:${Boolean(
+            p.markerOnlyPointerEvents
+          )}:${Boolean(p.attachOverlayClickHandlers)}:transition:${
+            layoutOptions?.transitionDurationMs ?? ""
+          }`,
+        ])
+      ),
     [points, layoutOptions?.transitionDurationMs]
+  );
+
+  const pointIndexById = useMemo(
+    () => new Map(points.map((point) => [point.id, point])),
+    [points]
   );
 
   useEffect(() => {
     if (!showLabels) {
-      points.forEach((point) => {
-        removeLabelOverlayElement(`point-label-${point.id}`);
+      previousPointSignatureByIdRef.current.forEach((_, pointId) => {
+        removeLabelOverlayElement(`point-label-${pointId}`);
       });
+      previousPointSignatureByIdRef.current.clear();
       return;
     }
 
-    // Add/update labels for all points using the React PointLabel component
-    points.forEach((point) => {
+    const nextSignatureById = new Map<string, string>();
+    pointIndexById.forEach((point, pointId) => {
+      const nextSignature = pointSignatureById.get(pointId) ?? "";
+      nextSignatureById.set(pointId, nextSignature);
+      const previousSignature =
+        previousPointSignatureByIdRef.current.get(pointId) ?? null;
+      if (previousSignature === nextSignature) {
+        return;
+      }
       const labelId = `point-label-${point.id}`;
 
       // Use pitch from point data or fallback to getPitch callback
       const pitch = point.pitch ?? (getPitch ? getPitch() : -Math.PI / 4);
 
+      const attachOverlayClickHandlers =
+        point.attachOverlayClickHandlers ?? true;
       addLabelOverlayElement({
         id: labelId,
         zIndex: 20,
@@ -124,6 +147,8 @@ export const usePointLabels = (
           markerBackgroundColor: point.markerBackgroundColor,
           markerTextColor: point.markerTextColor,
           compactContent: point.compactContent,
+          compactBorderless: point.compactBorderless,
+          labelStyle: point.labelStyle,
           collapse: point.collapse,
           forceCollapse: point.forceCollapse,
           fullBorder: point.fullBorder,
@@ -136,6 +161,7 @@ export const usePointLabels = (
           onLongPress: point.onLongPress,
           longPressDurationMs: point.longPressDurationMs,
           onHoverChange: point.onHoverChange,
+          markerOnlyPointerEvents: point.markerOnlyPointerEvents,
           onMarkerDragStart: point.onMarkerDragStart,
           onMarkerDragMove: point.onMarkerDragMove,
           onMarkerDragEnd: point.onMarkerDragEnd,
@@ -143,24 +169,36 @@ export const usePointLabels = (
         }),
         visible: point.visible !== false,
         isHidden: point.isHidden,
-        onClick: point.onClick,
-        onDoubleClick: point.onDoubleClick,
+        onClick: attachOverlayClickHandlers ? point.onClick : undefined,
+        onDoubleClick: attachOverlayClickHandlers
+          ? point.onDoubleClick
+          : undefined,
       });
     });
 
-    return () => {
-      points.forEach((point) => {
-        removeLabelOverlayElement(`point-label-${point.id}`);
-      });
-    };
+    previousPointSignatureByIdRef.current.forEach((_, previousPointId) => {
+      if (nextSignatureById.has(previousPointId)) return;
+      removeLabelOverlayElement(`point-label-${previousPointId}`);
+    });
+    previousPointSignatureByIdRef.current = nextSignatureById;
   }, [
-    points,
     showLabels,
-    stateSignature,
+    pointIndexById,
+    pointSignatureById,
     addLabelOverlayElement,
     removeLabelOverlayElement,
     getPitch,
     styleProps,
     layoutOptions?.transitionDurationMs,
   ]);
+
+  useEffect(
+    () => () => {
+      previousPointSignatureByIdRef.current.forEach((_, pointId) => {
+        removeLabelOverlayElement(`point-label-${pointId}`);
+      });
+      previousPointSignatureByIdRef.current.clear();
+    },
+    [removeLabelOverlayElement]
+  );
 };

@@ -13,6 +13,10 @@ export interface LineVisualizerProps {
   labelFontSize?: number;
   labelFontFamily?: string;
   labelFontWeight?: string | number;
+  labelPill?: boolean;
+  labelPillBackgroundColor?: string;
+  labelPillBorderColor?: string;
+  labelPillBorderWidth?: number;
   labelDominantBaseline?:
     | "middle"
     | "central"
@@ -42,6 +46,10 @@ export const LineVisualizer = React.memo(
     labelFontSize = 12,
     labelFontFamily = "Arial, sans-serif",
     labelFontWeight = "400",
+    labelPill = false,
+    labelPillBackgroundColor = "rgba(200, 200, 200, 0.72)",
+    labelPillBorderColor = "rgba(255, 255, 255, 0.95)",
+    labelPillBorderWidth = 1,
     labelDominantBaseline = "middle",
     onLineClick,
     onLineLongPress,
@@ -83,6 +91,7 @@ export const LineVisualizer = React.memo(
       typeof onLineLongPress === "function";
     const isLabelInteractive =
       typeof onLabelClick === "function" || isInteractive;
+    const showPill = Boolean(labelPill && labelText);
 
     return (
       <svg
@@ -139,6 +148,25 @@ export const LineVisualizer = React.memo(
           onPointerUp={clearLongPressTimer}
           onPointerLeave={clearLongPressTimer}
           onPointerCancel={clearLongPressTimer}
+        />
+        <text
+          data-line-visualizer-text-pill="true"
+          x="0"
+          y="0"
+          width="0"
+          height="0"
+          rx="0"
+          ry="0"
+          fill={labelPillBackgroundColor}
+          stroke={labelPillBorderColor}
+          strokeWidth={labelPillBorderWidth}
+          style={{
+            userSelect: "none",
+            pointerEvents: showPill && isLabelInteractive ? "auto" : "none",
+            cursor: showPill && isLabelInteractive ? "pointer" : "default",
+            display: "none",
+          }}
+          onClick={showPill ? onLabelClick ?? handleLineClick : undefined}
         />
         <text
           data-line-visualizer-text="true"

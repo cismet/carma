@@ -8,6 +8,8 @@ export interface CarmaCardProps {
   subtitle?: React.ReactNode;
   /** Collapsible body content. */
   content?: React.ReactNode;
+  /** Always-visible line below collapsible content. */
+  footer?: React.ReactNode;
   collapsed?: boolean;
   onCollapsedChange?: (collapsed: boolean) => void;
   collapsible?: boolean;
@@ -27,6 +29,7 @@ const CarmaCard = ({
   headerColor,
   subtitle,
   content,
+  footer,
   collapsed,
   onCollapsedChange,
   collapsible = false,
@@ -100,6 +103,7 @@ const CarmaCard = ({
           >
             <div style={{ overflow: "hidden" }}>{content}</div>
           </div>
+          {footer ? <div style={{ paddingTop: 2 }}>{footer}</div> : null}
         </div>
         {collapsible && (
           <div

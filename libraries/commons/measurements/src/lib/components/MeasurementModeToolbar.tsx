@@ -7,16 +7,14 @@ import {
   useState,
 } from "react";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
-import { faSquare } from "@fortawesome/free-regular-svg-icons";
 import {
   faArrowPointer,
   faArrowsToCircle,
   faLocationDot,
   faMessage,
   faRuler,
-  faRoute,
-  faDrawPolygon,
   faBuilding,
+  faBorderNone,
   faTrashCan,
 } from "@fortawesome/free-solid-svg-icons";
 import { Switch, Tooltip } from "antd";
@@ -24,6 +22,9 @@ import {
   DismissibleHelpBox,
   EditableMetricValue,
   LockToggleButton,
+  VectorPolylineIcon,
+  VectorSquareIcon,
+  VectorTrapezoidIcon,
   VisibilityToggleButton,
 } from "@carma-commons/ui/components";
 
@@ -33,9 +34,10 @@ export type MeasurementToolType =
   | "point"
   | "distance"
   | "polyline"
-  | "polygon";
+  | "area-footprint"
+  | "area-facade"
+  | "area-roof";
 
-export type PolygonSubType = "horizontal" | "vertical" | "oblique";
 export type PolylineSegmentLineMode = "direct" | "components";
 type DistanceLineModePreset = "direct" | "components" | "componentsWithDirect";
 
@@ -44,6 +46,8 @@ export interface MeasurementModeToolbarProps {
   onToolTypeChange: (toolType: MeasurementToolType) => void;
   selectAdditiveMode?: boolean;
   onSelectAdditiveModeChange?: (enabled: boolean) => void;
+  selectRectangleMode?: boolean;
+  onSelectRectangleModeChange?: (enabled: boolean) => void;
   selectedMeasurementCount?: number;
   selectedLabelCount?: number;
   onDeleteSelectedPoints?: () => void;
@@ -71,8 +75,6 @@ export interface MeasurementModeToolbarProps {
   onPolylineSegmentLineModeChange?: (mode: PolylineSegmentLineMode) => void;
   pointSoloMode?: boolean;
   onPointSoloModeChange?: (enabled: boolean) => void;
-  activePolygonSubType?: PolygonSubType;
-  onPolygonSubTypeChange?: (subType: PolygonSubType) => void;
   pixelWidth?: number;
 }
 
@@ -83,93 +85,6 @@ type ToolButtonDef = {
   icon: ReactNode;
   tooltip: string;
 };
-
-const TOOL_BUTTONS: ToolButtonDef[] = [
-  {
-    type: "select",
-    icon: (
-      <span
-        style={{
-          position: "relative",
-          display: "inline-flex",
-          width: 14,
-          height: 14,
-          alignItems: "center",
-          justifyContent: "center",
-        }}
-      >
-        <FontAwesomeIcon
-          icon={faSquare}
-          style={{
-            position: "absolute",
-            left: -2,
-            top: -3,
-            fontSize: 16,
-            opacity: 0.5,
-          }}
-        />
-        <FontAwesomeIcon
-          icon={faArrowPointer}
-          style={{
-            position: "absolute",
-            right: -1,
-            bottom: -4,
-            fontSize: 14,
-          }}
-        />
-      </span>
-    ),
-    tooltip: "Messung auswählen",
-  },
-  {
-    type: "point",
-    icon: <FontAwesomeIcon icon={faLocationDot} />,
-    tooltip: "Punkt messen",
-  },
-  {
-    type: "label",
-    icon: <FontAwesomeIcon icon={faMessage} />,
-    tooltip: "Anmerkung",
-  },
-  {
-    type: "distance",
-    icon: <FontAwesomeIcon icon={faRuler} />,
-    tooltip: "Strecke messen",
-  },
-  {
-    type: "polyline",
-    icon: <FontAwesomeIcon icon={faRoute} />,
-    tooltip: "Polygonzug messen",
-  },
-  {
-    type: "polygon",
-    icon: <FontAwesomeIcon icon={faDrawPolygon} />,
-    tooltip: "Fläche messen",
-  },
-];
-
-const POLYGON_HELP_CONTENT_BY_SUB_TYPE: Record<PolygonSubType, string[]> = {
-  horizontal: [
-    "Grundriss: Jeder Klick setzt einen Bodenpunkt; die Vorschau folgt dem Cursor auf dem Gelände.",
-    "Klick auf Startpunkt oder Doppelklick schließt die Fläche.",
-  ],
-  vertical: [
-    "Fassade: Der 1. Punkt startet die Fläche, der 2. Punkt erzeugt eine rechteckige Fassade mit Auto-Ecken.",
-    "Klick auf Startpunkt oder Doppelklick schließt die Fläche.",
-  ],
-  oblique: [
-    "Dach: 1.+2. Punkt definieren eine horizontale Kante, der 3. Punkt spannt die Dach-Ebene auf; weitere Punkte werden auf diese Ebene projiziert.",
-    "Klick auf Startpunkt oder Doppelklick schließt die Fläche.",
-  ],
-};
-
-const POLYGON_SUB_TYPE_LABEL_BY_SUB_TYPE: Record<PolygonSubType, string> = {
-  horizontal: "Grundriss",
-  vertical: "Fassade",
-  oblique: "Dach",
-};
-
-const DISABLED_POLYGON_SUB_TYPES = new Set<PolygonSubType>([]);
 
 const ACTIVE_ACCENT_COLOR = "#1677ff";
 const INACTIVE_ICON_COLOR = "#4b5563";
@@ -187,12 +102,79 @@ const TOOLBOX_SURFACE_RADIUS_PX = 4;
 const SECONDARY_TOOLBAR_HELP_STORAGE_KEY =
   "carma.measurements.secondary-toolbar-help-collapsed.v1";
 
+const TOOL_BUTTONS: ToolButtonDef[] = [
+  {
+    type: "point",
+    icon: <FontAwesomeIcon icon={faLocationDot} />,
+    tooltip: "Punkt messen",
+  },
+  {
+    type: "distance",
+    icon: <FontAwesomeIcon icon={faRuler} />,
+    tooltip: "Strecke messen",
+  },
+  {
+    type: "polyline",
+    icon: <VectorPolylineIcon fontSize="1.33em" />,
+    tooltip: "Polygonzug messen",
+  },
+  {
+    type: "area-footprint",
+    icon: <VectorSquareIcon fontSize="1.33em" />,
+    tooltip: "Grundriss",
+  },
+  {
+    type: "area-roof",
+    icon: <VectorTrapezoidIcon fontSize="1.33em" />,
+    tooltip: "Dachfläche",
+  },
+  {
+    type: "area-facade",
+    icon: <FontAwesomeIcon icon={faBuilding} />,
+    tooltip: "Fassadenfläche",
+  },
+  {
+    type: "label",
+    icon: <FontAwesomeIcon icon={faMessage} />,
+    tooltip: "Anmerkung",
+  },
+];
+
+const AREA_HELP_CONTENT: Record<
+  "area-footprint" | "area-facade" | "area-roof",
+  string[]
+> = {
+  "area-footprint": [
+    "Grundriss: Jeder Klick setzt einen Bodenpunkt; die Vorschau folgt dem Cursor auf dem Gelände.",
+    "Klick auf Startpunkt oder Doppelklick schließt die Fläche.",
+  ],
+  "area-facade": [
+    "Fassade: Der 1. Punkt startet die Fläche, der 2. Punkt erzeugt eine rechteckige Fassade mit Auto-Ecken.",
+    "Klick auf Startpunkt oder Doppelklick schließt die Fläche.",
+  ],
+  "area-roof": [
+    "Dach: 1.+2. Punkt definieren eine horizontale Kante, der 3. Punkt spannt die Dach-Ebene auf; weitere Punkte werden auf diese Ebene projiziert.",
+    "Klick auf Startpunkt oder Doppelklick schließt die Fläche.",
+  ],
+};
+
+const AREA_LABEL: Record<
+  "area-footprint" | "area-facade" | "area-roof",
+  string
+> = {
+  "area-footprint": "Grundriss",
+  "area-facade": "Fassade",
+  "area-roof": "Dach",
+};
+
 type SecondaryToolbarHelpKey =
   | "selection"
   | "point"
   | "distance"
   | "polyline"
-  | "polygon"
+  | "area-footprint"
+  | "area-facade"
+  | "area-roof"
   | "label";
 
 const SECONDARY_TOOLBAR_HELP_KEYS: SecondaryToolbarHelpKey[] = [
@@ -200,7 +182,9 @@ const SECONDARY_TOOLBAR_HELP_KEYS: SecondaryToolbarHelpKey[] = [
   "point",
   "distance",
   "polyline",
-  "polygon",
+  "area-footprint",
+  "area-facade",
+  "area-roof",
   "label",
 ];
 
@@ -212,59 +196,11 @@ const DEFAULT_SECONDARY_TOOLBAR_HELP_COLLAPSED: Record<
   point: false,
   distance: false,
   polyline: false,
-  polygon: false,
+  "area-footprint": false,
+  "area-facade": false,
+  "area-roof": false,
   label: false,
 };
-
-type PolygonSubButtonDef = {
-  subType: PolygonSubType;
-  icon: ReactNode;
-  shortLabel: string;
-  tooltip: string;
-};
-
-type RoofTrapezoidIconProps = {
-  fontSize?: number | string;
-};
-
-const RoofTrapezoidIcon = ({ fontSize = "1em" }: RoofTrapezoidIconProps) => (
-  <svg
-    width="1em"
-    height="1em"
-    viewBox="0 0 14 14"
-    aria-hidden="true"
-    style={{ display: "block", fontSize }}
-  >
-    <path
-      d="M5 3 L9 3 L12 6 L2 6 Z"
-      fill="none"
-      stroke={CUSTOM_ICON_STROKE}
-      strokeWidth={CUSTOM_ICON_LINE_WIDTH}
-      strokeLinejoin="round"
-    />
-  </svg>
-);
-
-const POLYGON_SUB_BUTTONS: PolygonSubButtonDef[] = [
-  {
-    subType: "horizontal",
-    icon: <FontAwesomeIcon icon={faDrawPolygon} />,
-    shortLabel: "Grundriss",
-    tooltip: "Grundriss",
-  },
-  {
-    subType: "oblique",
-    icon: <RoofTrapezoidIcon fontSize="1.33em" />,
-    shortLabel: "Dach",
-    tooltip: "Dachfläche (schräg)",
-  },
-  {
-    subType: "vertical",
-    icon: <FontAwesomeIcon icon={faBuilding} />,
-    shortLabel: "Fassade",
-    tooltip: "Fassade (vertikal)",
-  },
-];
 
 const toolButtonStyle = (
   isActive: boolean,
@@ -483,11 +419,18 @@ const SecondaryToolbarSection = ({
   );
 };
 
+const isAreaToolType = (
+  type: MeasurementToolType
+): type is "area-footprint" | "area-facade" | "area-roof" =>
+  type === "area-footprint" || type === "area-facade" || type === "area-roof";
+
 export function MeasurementModeToolbar({
   activeToolType,
   onToolTypeChange,
   selectAdditiveMode = false,
   onSelectAdditiveModeChange,
+  selectRectangleMode = false,
+  onSelectRectangleModeChange,
   selectedMeasurementCount = 0,
   selectedLabelCount = 0,
   onDeleteSelectedPoints,
@@ -508,8 +451,6 @@ export function MeasurementModeToolbar({
   onPolylineSegmentLineModeChange,
   pointSoloMode = false,
   onPointSoloModeChange,
-  activePolygonSubType = "oblique",
-  onPolygonSubTypeChange,
   pixelWidth,
 }: MeasurementModeToolbarProps) {
   const showSelectionOptions = activeToolType === "select";
@@ -517,7 +458,7 @@ export function MeasurementModeToolbar({
   const showPointOptions = activeToolType === "point";
   const showDistanceOptions = activeToolType === "distance";
   const showPolylineOptions = activeToolType === "polyline";
-  const showPolygonSubButtons = activeToolType === "polygon";
+  const showAreaOptions = isAreaToolType(activeToolType);
   const showLabelOptions = activeToolType === "label";
   const [pointOffsetForceCloseSignal, setPointOffsetForceCloseSignal] =
     useState(0);
@@ -660,119 +601,46 @@ export function MeasurementModeToolbar({
           boxSizing: "border-box",
         }}
       >
-        {[
-          { type: "point", disabled: false },
-          { type: "distance", disabled: false },
-          { type: "polyline", disabled: false },
-          { type: "polygon", disabled: false },
-          { type: "label", disabled: false },
-        ]
-          .map(({ type, disabled }) => {
-            const btn = TOOL_BUTTONS.find((b) => b.type === type);
-            return btn ? { ...btn, alwaysDisabled: disabled } : null;
-          })
-          .filter((button): button is NonNullable<typeof button> =>
-            Boolean(button)
-          )
-          .map(({ type, icon, tooltip, alwaysDisabled }) => {
-            const isDisabled = alwaysDisabled || isSelectionModeActive;
-            if (type === "polygon") {
-              return (
-                <Fragment key={type}>
-                  {POLYGON_SUB_BUTTONS.map(
-                    ({
-                      subType,
-                      icon: subIcon,
-                      shortLabel,
-                      tooltip: subTooltip,
-                    }) => {
-                      const isSubTypeDisabled =
-                        isDisabled || DISABLED_POLYGON_SUB_TYPES.has(subType);
-                      const isSubTypeActive =
-                        activeToolType === "polygon" &&
-                        activePolygonSubType === subType;
-
-                      return (
-                        <Tooltip
-                          key={subType}
-                          title={
-                            isSubTypeDisabled
-                              ? `${subTooltip} (demnächst)`
-                              : `${subTooltip} (Flächenmodus)`
-                          }
-                          placement="top"
-                        >
-                          <button
-                            type="button"
-                            style={toolButtonStyle(
-                              isSubTypeActive,
-                              isSubTypeDisabled
-                            )}
-                            onClick={() => {
-                              if (isSubTypeDisabled) {
-                                return;
-                              }
-                              onToolTypeChange("polygon");
-                              onPolygonSubTypeChange?.(subType);
-                            }}
-                            aria-pressed={isSubTypeActive}
-                            aria-label={`Flächenmodus ${shortLabel}`}
-                            data-test-id={`measurement-tool-polygon-${subType}`}
-                            disabled={isSubTypeDisabled}
-                          >
-                            {subIcon}
-                          </button>
-                        </Tooltip>
-                      );
-                    }
-                  )}
-                </Fragment>
-              );
-            }
-
-            return (
-              <Fragment key={type}>
-                {type === "label" && (
-                  <span
-                    style={{
-                      width: 1,
-                      height: 22,
-                      backgroundColor: "rgba(0, 0, 0, 0.12)",
-                      margin: "0 2px",
-                    }}
-                    aria-hidden="true"
-                  />
-                )}
-                <Tooltip
-                  title={alwaysDisabled ? `${tooltip} (demnächst)` : tooltip}
-                  placement="top"
+        {TOOL_BUTTONS.map(({ type, icon, tooltip }) => {
+          return (
+            <Fragment key={type}>
+              {type === "label" && (
+                <span
+                  style={{
+                    width: 1,
+                    height: 22,
+                    backgroundColor: "rgba(0, 0, 0, 0.12)",
+                    margin: "0 2px",
+                  }}
+                  aria-hidden="true"
+                />
+              )}
+              <Tooltip title={tooltip} placement="top">
+                <button
+                  type="button"
+                  style={toolButtonStyle(activeToolType === type, false)}
+                  onClick={() => onToolTypeChange(type)}
+                  aria-pressed={activeToolType === type}
+                  aria-label={tooltip}
+                  data-test-id={`measurement-tool-${type}`}
                 >
-                  <button
-                    type="button"
-                    style={toolButtonStyle(activeToolType === type, isDisabled)}
-                    onClick={() => !isDisabled && onToolTypeChange(type)}
-                    aria-pressed={activeToolType === type}
-                    aria-label={tooltip}
-                    data-test-id={`measurement-tool-${type}`}
-                    disabled={isDisabled}
-                  >
-                    {icon}
-                  </button>
-                </Tooltip>
-                {type === "label" && (
-                  <span
-                    style={{
-                      width: 1,
-                      height: 22,
-                      backgroundColor: "rgba(0, 0, 0, 0.12)",
-                      margin: "0 2px",
-                    }}
-                    aria-hidden="true"
-                  />
-                )}
-              </Fragment>
-            );
-          })}
+                  {icon}
+                </button>
+              </Tooltip>
+              {type === "label" && (
+                <span
+                  style={{
+                    width: 1,
+                    height: 22,
+                    backgroundColor: "rgba(0, 0, 0, 0.12)",
+                    margin: "0 2px",
+                  }}
+                  aria-hidden="true"
+                />
+              )}
+            </Fragment>
+          );
+        })}
         <Tooltip title="Messung auswählen" placement="top">
           <button
             type="button"
@@ -798,7 +666,8 @@ export function MeasurementModeToolbar({
             setSecondaryToolbarHelpCollapsed("selection", collapsed)
           }
           helpContent={buildHelpContent([
-            "Rechteck aufziehen, um Punkte zu selektieren.",
+            "Messungen anklicken, um sie ohne Modus-Nebeneffekte zu selektieren.",
+            "Optional: Rechteckmodus aktivieren und aufziehen, um Punkte live im Bildausschnitt zu selektieren.",
             'Shift oder "Additiv" erweitert die Auswahl.',
             "Ausgewählte Messungen können ein-/ausgeblendet, gesperrt und gelöscht werden.",
           ])}
@@ -811,6 +680,29 @@ export function MeasurementModeToolbar({
               onChange={(checked) => onSelectAdditiveModeChange?.(checked)}
               aria-label="Additive Auswahl"
               data-test-id="measurement-selection-additive-toggle"
+            />
+          </div>
+          <div style={{ display: "inline-flex", gap: 8, alignItems: "center" }}>
+            <Tooltip title="Rechteckauswahl">
+              <span
+                style={{
+                  display: "inline-flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  color: INACTIVE_ICON_COLOR,
+                  width: 14,
+                }}
+                aria-hidden="true"
+              >
+                <FontAwesomeIcon icon={faBorderNone} />
+              </span>
+            </Tooltip>
+            <Switch
+              size="small"
+              checked={selectRectangleMode}
+              onChange={(checked) => onSelectRectangleModeChange?.(checked)}
+              aria-label="Rechteckauswahl"
+              data-test-id="measurement-selection-rectangle-toggle"
             />
           </div>
           <div style={{ display: "inline-flex", alignItems: "center", gap: 8 }}>
@@ -1170,24 +1062,37 @@ export function MeasurementModeToolbar({
           </div>
         </SecondaryToolbarSection>
       )}
-      {showPolygonSubButtons && (
+      {showAreaOptions && (
         <SecondaryToolbarSection
-          dataTestId="measurement-polygon-options"
-          helpDataTestId="measurement-polygon-help"
-          helpCollapsed={secondaryToolbarHelpCollapsedByKey.polygon}
+          dataTestId={`measurement-${activeToolType}-options`}
+          helpDataTestId={`measurement-${activeToolType}-help`}
+          helpCollapsed={
+            secondaryToolbarHelpCollapsedByKey[
+              activeToolType as "area-footprint" | "area-facade" | "area-roof"
+            ]
+          }
           onHelpCollapsedChange={(collapsed) =>
-            setSecondaryToolbarHelpCollapsed("polygon", collapsed)
+            setSecondaryToolbarHelpCollapsed(
+              activeToolType as "area-footprint" | "area-facade" | "area-roof",
+              collapsed
+            )
           }
           helpContent={buildHelpContent(
-            POLYGON_HELP_CONTENT_BY_SUB_TYPE[activePolygonSubType]
+            AREA_HELP_CONTENT[
+              activeToolType as "area-footprint" | "area-facade" | "area-roof"
+            ]
           )}
         >
           <span
             style={optionsLabelStyle}
-            data-test-id="measurement-polygon-mode-label"
+            data-test-id="measurement-area-mode-label"
           >
             Aktiver Flächenmodus:{" "}
-            {POLYGON_SUB_TYPE_LABEL_BY_SUB_TYPE[activePolygonSubType]}
+            {
+              AREA_LABEL[
+                activeToolType as "area-footprint" | "area-facade" | "area-roof"
+              ]
+            }
           </span>
         </SecondaryToolbarSection>
       )}

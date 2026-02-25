@@ -16,6 +16,7 @@ import {
   isPointMeasurementEntry,
   MeasurementCollection,
   MeasurementEntry,
+  type MeasurementLabelAnchor,
   MeasurementMode,
   type PointLabelMetricMode,
 } from "../types/MeasurementTypes";
@@ -146,6 +147,13 @@ export const useCesiumPointQuery = (
   labelOnCreate: PointLabelMetricMode | undefined = undefined,
   hiddenOnCreate: boolean = false,
   auxiliaryOnCreate: boolean = false,
+  labelAnchorOnCreate:
+    | MeasurementLabelAnchor
+    | ((
+        pointId: string,
+        prev?: MeasurementCollection
+      ) => MeasurementLabelAnchor | undefined)
+    | undefined = undefined,
   useTemporaryForCreatedPoints: boolean = true,
   markCreatedPointsAsDistanceAdhoc: boolean = false,
   onPointerMove?: (
@@ -339,6 +347,10 @@ export const useCesiumPointQuery = (
       ): MeasurementEntry => {
         const useTemporaryForCreate =
           temporaryMode && useTemporaryForCreatedPoints;
+        const resolvedLabelAnchor =
+          typeof labelAnchorOnCreate === "function"
+            ? labelAnchorOnCreate(measurementId, prev)
+            : labelAnchorOnCreate;
         const insertionIndex = temporaryMode
           ? useTemporaryForCreate
             ? 0
@@ -375,6 +387,7 @@ export const useCesiumPointQuery = (
           ...(labelOnCreate !== undefined
             ? { pointLabelMode: labelOnCreate }
             : {}),
+          ...(resolvedLabelAnchor ? { labelAnchor: resolvedLabelAnchor } : {}),
         };
       };
 
@@ -458,6 +471,7 @@ export const useCesiumPointQuery = (
     labelOnCreate,
     hiddenOnCreate,
     auxiliaryOnCreate,
+    labelAnchorOnCreate,
     useTemporaryForCreatedPoints,
     markCreatedPointsAsDistanceAdhoc,
   ]);

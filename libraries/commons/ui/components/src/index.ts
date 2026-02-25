@@ -22,4 +22,16 @@ export {
   LockToggleButton,
   type LockToggleButtonProps,
 } from "./lib/components/LockToggleButton";
+export {
+  VectorSquareIcon,
+  type VectorSquareIconProps,
+} from "./lib/components/VectorSquareIcon";
+export {
+  VectorPolylineIcon,
+  type VectorPolylineIconProps,
+} from "./lib/components/VectorPolylineIcon";
+export {
+  VectorTrapezoidIcon,
+  type VectorTrapezoidIconProps,
+} from "./lib/components/VectorTrapezoidIcon";
 export { MODES } from "./lib/components/responsiveInfoBoxModes";

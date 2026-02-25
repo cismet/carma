@@ -64,7 +64,7 @@ import {
   REFERENCE_LINE_EPSILON_METERS,
   computePolygonCentroid2D,
   getArcPointsInSpannedPlane,
-  getRoofRoofSharedEdgeRelationIdSet,
+  getPlanarPolygonSharedEdgeRelationIdSet,
   getSplitMarkerRelationIdSetForGroups,
   getSplitMarkerRelationIdSet,
   hasVisibleDistanceRelationComponentLines,
@@ -76,6 +76,12 @@ import {
 } from "../utils/distanceVisualization";
 import { formatAreaAdaptive, formatNumber } from "../utils/formatting";
 import { getCustomPointMeasurementName } from "../utils/measurementNaming";
+import { type DistanceRelationRenderContext } from "./measurementVisualizationContext";
+import {
+  buildPolygonPreviewGroups,
+  POLYGON_PREVIEW_STROKE,
+  POLYGON_PREVIEW_STROKE_WIDTH_PX,
+} from "./measurementPreviewVisuals";
 
 export type CesiumDistanceVisualizerOptions = {
   distanceRelations?: PointDistanceRelation[];
@@ -98,7 +104,16 @@ export type CesiumDistanceVisualizerOptions = {
   lineLabelMinDistancePx?: number;
   onDistanceRelationCornerClick?: (relationId: string) => void;
   cumulativeDistanceByRelationId?: Readonly<Record<string, number>>;
-  pointMarkerBadgeByPointId?: Readonly<Record<string, { text: string }>>;
+  pointMarkerBadgeByPointId?: Readonly<
+    Record<
+      string,
+      {
+        text: string;
+        backgroundColor?: string;
+        textColor?: string;
+      }
+    >
+  >;
   livePreviewDistanceLine?: {
     anchorPointECEF: Cartesian3;
     targetPointECEF: Cartesian3;
@@ -106,7 +121,26 @@ export type CesiumDistanceVisualizerOptions = {
     showVerticalLine: boolean;
     showHorizontalLine: boolean;
   } | null;
+  distanceRelationRenderContext?: DistanceRelationRenderContext;
+  renderAreaAndPolylineVisuals?: boolean;
 };
+
+export type CesiumDistanceRelationsVisualizerOptions = Omit<
+  CesiumDistanceVisualizerOptions,
+  | "renderAreaAndPolylineVisuals"
+  | "facadeRectanglePreviewOppositeByGroupId"
+  | "planarPolygonGroups"
+  | "selectedPlanarPolygonGroupId"
+  | "activePlanarPolygonGroupId"
+> & {
+  distanceRelationRenderContext: DistanceRelationRenderContext;
+};
+
+export type CesiumDistanceRelationsVisualizerHookOptions =
+  CesiumDistanceRelationsVisualizerOptions & {
+    scene: Scene | null;
+    points: PointMeasurementEntry[];
+  };
 
 // EN component color: light mix of the standard East (red) and North (green) axis colors.
 const REFERENCE_COMPONENT_HORIZONTAL_COLOR = "rgba(188, 194, 102, 0.95)";
@@ -128,26 +162,32 @@ const MIDPOINT_MARKER_HIT_TARGET_PX = 14;
 const MIDPOINT_MARKER_TICK_LENGTH_PX = 8;
 const MIDPOINT_MARKER_TICK_WIDTH_PX = 1.25;
 const POLYGON_PREVIEW_PADDING_PX = 6;
-const FACADE_RECTANGLE_COMPONENT_EPSILON_METERS = 0.05;
 const POLYGON_FILL_ALPHA = 0.25;
 const POLYGON_FILL_SELECTED_ALPHA = 0.35;
 const POLYGON_STRIPE_SIZE_PX = 6;
 const POLYGON_STRIPE_WIDTH_PX = 1.5;
-const POLYGON_PREVIEW_STROKE = "rgba(255, 255, 255, 0.65)";
-const POLYGON_PREVIEW_STROKE_WIDTH_PX = 1;
 const FACADE_CORNER_MARKER_SIZE_PX = 10;
 const FACADE_CORNER_MARKER_STROKE_WIDTH_PX = 1;
-const POLYGON_AREA_LABEL_COLOR = "#000000";
-const POLYGON_AREA_LABEL_FONT_SIZE_PX = 12;
-const POLYGON_AREA_LABEL_FONT_FAMILY = "Arial, sans-serif";
-const POLYGON_AREA_LABEL_FONT_WEIGHT = "400";
-const POLYGON_AREA_LABEL_STROKE = "rgba(255, 255, 255, 0.95)";
-const POLYGON_AREA_LABEL_STROKE_WIDTH_PX = 3;
+const POLYGON_AREA_PILL_FONT_SIZE_PX = 12;
+const POLYGON_AREA_PILL_FONT_FAMILY = "Arial, sans-serif";
+const POLYGON_AREA_PILL_FONT_WEIGHT = "400";
+const POLYGON_AREA_PILL_BACKGROUND = POINT_LABEL_TEXT_BACKGROUND_COLOR;
+const POLYGON_AREA_PILL_SELECTED_BACKGROUND =
+  POINT_LABEL_SELECTED_BACKGROUND_COLOR;
+const POLYGON_AREA_PILL_TEXT_COLOR = "#111111";
+const POLYGON_AREA_PILL_BORDER = "1px solid rgba(255, 255, 255, 0.95)";
+const POLYGON_AREA_PILL_COMPACT_DIAMETER_EM = 1.9;
+const POLYGON_AREA_PILL_COMPACT_HORIZONTAL_PADDING_PX = 6;
+const POLYGON_AREA_PILL_EXTENDED_VERTICAL_PADDING_PX = 0;
+const POLYGON_AREA_PILL_EXTENDED_HORIZONTAL_PADDING_PX = 8;
+const POLYGON_AREA_PILL_COMPACT_GAP_PX = 4;
 const POLYGON_OVERLAY_MAX_BOUNDS_SCALE = 2.5;
 const LABEL_REFERENCE_MIN_DISTANCE_PX = 24;
 const LABEL_REFERENCE_MAX_DISTANCE_PX = 48;
 const LABEL_INSIDE_BLEND_FACTOR = 0.35;
 const VERTICAL_COMPONENT_LABEL_OFFSET_PX = 8;
+const VERTICAL_LABEL_SIDE_SWITCH_THRESHOLD_PX = 4;
+const VERTICAL_LABEL_POSITION_STABILITY_EPSILON_PX = 0.85;
 const FACADE_OPPOSING_EDGE_LABEL_EPSILON_METERS = 0.01;
 const DISTANCE_PAIR_LABEL_OVERLAY_ID_PREFIX = "distance-pair-label";
 const DEFAULT_PAIR_LABEL_ATTACH = "bottomLeft";
@@ -171,6 +211,32 @@ const EMPTY_PAIR_LABEL_LAYOUT_RESULT: PointLabelLayoutResult = {
 
 const clampToRange = (value: number, min: number, max: number) =>
   Math.max(min, Math.min(max, value));
+
+const resolveStableSideSign = (
+  signedDistance: number,
+  previousSign: -1 | 1 | undefined,
+  flipThresholdPx = VERTICAL_LABEL_SIDE_SWITCH_THRESHOLD_PX
+): -1 | 1 => {
+  if (!Number.isFinite(signedDistance)) return previousSign ?? 1;
+  const nextSign: -1 | 1 = signedDistance >= 0 ? 1 : -1;
+  if (!previousSign || previousSign === nextSign) return nextSign;
+  if (Math.abs(signedDistance) < flipThresholdPx) return previousSign;
+  return nextSign;
+};
+
+const stabilizeScreenPoint = (
+  nextPoint: ScreenPoint2D,
+  previousPoint: ScreenPoint2D | null | undefined,
+  epsilonPx = VERTICAL_LABEL_POSITION_STABILITY_EPSILON_PX
+): ScreenPoint2D => {
+  if (!previousPoint) return nextPoint;
+  const dx = nextPoint.x - previousPoint.x;
+  const dy = nextPoint.y - previousPoint.y;
+  if (Math.hypot(dx, dy) <= epsilonPx) {
+    return previousPoint;
+  }
+  return nextPoint;
+};
 
 const getDistanceRelationId = (pointAId: string, pointBId: string) => {
   const [left, right] = [pointAId, pointBId].sort((a, b) => a.localeCompare(b));
@@ -201,7 +267,13 @@ const getPolygonFillCesiumColor = (
   const alpha = isSelected ? POLYGON_FILL_SELECTED_ALPHA : POLYGON_FILL_ALPHA;
   if (surfaceType === "facade") return new Color(0.44, 0.66, 1.0, alpha);
   if (surfaceType === "terrain") return new Color(0.42, 0.74, 0.48, alpha);
-  if (surfaceType === "footprint") return new Color(0.89, 0.91, 0.94, alpha);
+  if (surfaceType === "footprint")
+    return new Color(
+      0.89,
+      0.91,
+      0.94,
+      isSelected ? POLYGON_FILL_SELECTED_ALPHA : POLYGON_FILL_ALPHA
+    );
   return new Color(0.94, 0.87, 0.57, alpha); // roof
 };
 
@@ -212,55 +284,6 @@ const getPolygonStripeColor = (
   if (surfaceType === "terrain") return "rgba(107, 188, 123, 0.35)";
   if (surfaceType === "footprint") return "rgba(226, 232, 240, 0.35)";
   return "rgba(239, 223, 145, 0.35)"; // roof
-};
-
-const buildFacadeRectangleCornerFromDiagonal = (
-  firstCorner: Cartesian3,
-  oppositeCorner: Cartesian3
-) => {
-  const up = Cartesian3.normalize(firstCorner, new Cartesian3());
-  const diagonal = Cartesian3.subtract(
-    oppositeCorner,
-    firstCorner,
-    new Cartesian3()
-  );
-
-  const verticalMeters = Cartesian3.dot(diagonal, up);
-  const verticalComponent = Cartesian3.multiplyByScalar(
-    up,
-    verticalMeters,
-    new Cartesian3()
-  );
-  const horizontalComponent = Cartesian3.subtract(
-    diagonal,
-    verticalComponent,
-    new Cartesian3()
-  );
-  const horizontalMeters = Cartesian3.magnitude(horizontalComponent);
-  const verticalAbsoluteMeters = Math.abs(verticalMeters);
-
-  if (
-    horizontalMeters < FACADE_RECTANGLE_COMPONENT_EPSILON_METERS ||
-    verticalAbsoluteMeters < FACADE_RECTANGLE_COMPONENT_EPSILON_METERS
-  ) {
-    return null;
-  }
-
-  const adjacentHorizontalCorner = Cartesian3.add(
-    firstCorner,
-    horizontalComponent,
-    new Cartesian3()
-  );
-  const adjacentVerticalCorner = Cartesian3.add(
-    firstCorner,
-    verticalComponent,
-    new Cartesian3()
-  );
-
-  return {
-    adjacentHorizontalCorner,
-    adjacentVerticalCorner,
-  };
 };
 
 const getProjectedHorizontalAreaSquareMeters = (vertices: Cartesian3[]) => {
@@ -364,6 +387,8 @@ export const useCesiumDistanceVisualizer = (
     cumulativeDistanceByRelationId,
     pointMarkerBadgeByPointId,
     livePreviewDistanceLine = null,
+    distanceRelationRenderContext,
+    renderAreaAndPolylineVisuals = true,
   }: CesiumDistanceVisualizerOptions
 ) => {
   const directLineRefs = useRef<Record<string, LineVisualizer>>({});
@@ -378,6 +403,14 @@ export const useCesiumDistanceVisualizer = (
   const midpointOverlayIdsRef = useRef<string[]>([]);
   const polygonPreviewOverlayIdsRef = useRef<string[]>([]);
   const distancePairLabelOverlayIdsRef = useRef<string[]>([]);
+  const verticalLabelSideByRelationIdRef = useRef<Record<string, -1 | 1>>({});
+  const verticalLabelReferencePointByRelationIdRef = useRef<
+    Record<string, ScreenPoint2D>
+  >({});
+  const previewVerticalLabelSideRef = useRef<-1 | 1>(1);
+  const previewVerticalLabelReferencePointRef = useRef<ScreenPoint2D | null>(
+    null
+  );
   const [cameraPitch, setCameraPitch] = useState(-Math.PI / 4);
   const polygonPrimitiveCollectionRef = useRef<PrimitiveCollection | null>(
     null
@@ -416,14 +449,46 @@ export const useCesiumDistanceVisualizer = (
     });
     return labelById;
   }, [pointMarkerBadgeByPointId, points]);
+  const polygonAreaBadgeByGroupId = useMemo(() => {
+    const byGroupId: Record<
+      string,
+      {
+        text: string;
+        backgroundColor?: string;
+        textColor?: string;
+      }
+    > = {};
+    planarPolygonGroups.forEach((group) => {
+      const firstVertexPointId = group.vertexPointIds[0] ?? null;
+      if (!firstVertexPointId) return;
+      const badge = pointMarkerBadgeByPointId?.[firstVertexPointId];
+      const badgeText = badge?.text?.trim();
+      if (!badgeText) return;
+      byGroupId[group.id] = {
+        text: badgeText,
+        backgroundColor: badge?.backgroundColor,
+        textColor: badge?.textColor,
+      };
+    });
+    return byGroupId;
+  }, [planarPolygonGroups, pointMarkerBadgeByPointId]);
 
   const splitMarkerRelationIdSet = useMemo(() => {
+    if (distanceRelationRenderContext) {
+      return distanceRelationRenderContext.polygonEdgeRelationIds;
+    }
     return getSplitMarkerRelationIdSet(planarPolygonGroups);
-  }, [planarPolygonGroups]);
-  const roofRoofSharedEdgeRelationIdSet = useMemo(() => {
-    return getRoofRoofSharedEdgeRelationIdSet(planarPolygonGroups);
-  }, [planarPolygonGroups]);
+  }, [distanceRelationRenderContext, planarPolygonGroups]);
+  const planarPolygonSharedEdgeRelationIdSet = useMemo(() => {
+    if (distanceRelationRenderContext) {
+      return distanceRelationRenderContext.planarPolygonSharedEdgeRelationIds;
+    }
+    return getPlanarPolygonSharedEdgeRelationIdSet(planarPolygonGroups);
+  }, [distanceRelationRenderContext, planarPolygonGroups]);
   const midpointTickRelationIdSet = useMemo(() => {
+    if (distanceRelationRenderContext) {
+      return distanceRelationRenderContext.midpointTickRelationIds;
+    }
     const activeOrSelectedGroupIds = new Set<string>();
     if (selectedPlanarPolygonGroupId) {
       activeOrSelectedGroupIds.add(selectedPlanarPolygonGroupId);
@@ -437,9 +502,16 @@ export const useCesiumDistanceVisualizer = (
     );
   }, [
     activePlanarPolygonGroupId,
+    distanceRelationRenderContext,
     planarPolygonGroups,
     selectedPlanarPolygonGroupId,
   ]);
+
+  useEffect(() => {
+    if (livePreviewDistanceLine) return;
+    previewVerticalLabelSideRef.current = 1;
+    previewVerticalLabelReferencePointRef.current = null;
+  }, [livePreviewDistanceLine]);
 
   useEffect(() => {
     if (!scene || scene.isDestroyed()) return;
@@ -464,15 +536,47 @@ export const useCesiumDistanceVisualizer = (
 
   const focusedGroupId =
     selectedPlanarPolygonGroupId ?? activePlanarPolygonGroupId ?? null;
-  const edgeRelationOwnerGroupIdSet = useMemo(() => {
-    if (!focusedGroupId) return new Set<string>();
-    const focusedGroup = planarPolygonGroups.find(
-      (group) => group.id === focusedGroupId
+  const focusedGroup = useMemo(() => {
+    if (!focusedGroupId) return null;
+    return (
+      planarPolygonGroups.find((group) => group.id === focusedGroupId) ?? null
     );
-    return new Set(focusedGroup?.edgeRelationIds ?? []);
   }, [focusedGroupId, planarPolygonGroups]);
+  const edgeRelationOwnerGroupIdSet = useMemo(() => {
+    if (distanceRelationRenderContext) {
+      return distanceRelationRenderContext.focusedRelationIds;
+    }
+    return new Set(focusedGroup?.edgeRelationIds ?? []);
+  }, [distanceRelationRenderContext, focusedGroup]);
+  const selectedOrActiveOpenPolylineEdgeRelationIdSet = useMemo(() => {
+    if (distanceRelationRenderContext) {
+      return distanceRelationRenderContext.selectedOrActiveOpenPolylineRelationIds;
+    }
+    const edgeRelationIdSet = new Set<string>();
+    planarPolygonGroups.forEach((group) => {
+      if (group.closed) return;
+      if (
+        group.id !== selectedPlanarPolygonGroupId &&
+        group.id !== activePlanarPolygonGroupId
+      ) {
+        return;
+      }
+      (group.edgeRelationIds ?? []).forEach((relationId) => {
+        edgeRelationIdSet.add(relationId);
+      });
+    });
+    return edgeRelationIdSet;
+  }, [
+    activePlanarPolygonGroupId,
+    distanceRelationRenderContext,
+    planarPolygonGroups,
+    selectedPlanarPolygonGroupId,
+  ]);
 
   const duplicateFacadeOpposingEdgeRelationIdSet = useMemo(() => {
+    if (distanceRelationRenderContext) {
+      return distanceRelationRenderContext.duplicateFacadeOpposingRelationIds;
+    }
     const relationIds = new Set<string>();
 
     planarPolygonGroups.forEach((group) => {
@@ -509,7 +613,7 @@ export const useCesiumDistanceVisualizer = (
     });
 
     return relationIds;
-  }, [planarPolygonGroups, pointsById]);
+  }, [distanceRelationRenderContext, planarPolygonGroups, pointsById]);
 
   const resolvedRelations = useMemo(
     () =>
@@ -520,6 +624,26 @@ export const useCesiumDistanceVisualizer = (
         ),
     [distanceRelations, pointsById]
   );
+
+  useEffect(() => {
+    const activeRelationIdSet = new Set(
+      resolvedRelations.map(({ relation }) => relation.id)
+    );
+    Object.keys(verticalLabelSideByRelationIdRef.current).forEach(
+      (relationId) => {
+        if (!activeRelationIdSet.has(relationId)) {
+          delete verticalLabelSideByRelationIdRef.current[relationId];
+        }
+      }
+    );
+    Object.keys(verticalLabelReferencePointByRelationIdRef.current).forEach(
+      (relationId) => {
+        if (!activeRelationIdSet.has(relationId)) {
+          delete verticalLabelReferencePointByRelationIdRef.current[relationId];
+        }
+      }
+    );
+  }, [resolvedRelations]);
 
   const distancePairLabels = useMemo(
     () =>
@@ -537,16 +661,28 @@ export const useCesiumDistanceVisualizer = (
           const lowerPoint = higherPoint.id === pointA.id ? pointB : pointA;
           const higherLabel = defaultPointLabelById[higherPoint.id];
           const lowerLabel = defaultPointLabelById[lowerPoint.id];
+          if (!higherLabel || !lowerLabel) return null;
+          if (higherLabel === lowerLabel) {
+            // Avoid duplicate compact badges like "C" + "C" for the same
+            // standalone distance component.
+            return null;
+          }
 
           return {
             relationId: relation.id,
             higherPoint,
-            text:
-              higherLabel === lowerLabel
-                ? higherLabel
-                : `${higherLabel} ↔ ${lowerLabel}`,
+            text: `${higherLabel} ↔ ${lowerLabel}`,
           };
-        }),
+        })
+        .filter(
+          (
+            entry
+          ): entry is {
+            relationId: string;
+            higherPoint: PointMeasurementEntry;
+            text: string;
+          } => Boolean(entry)
+        ),
     [defaultPointLabelById, resolvedRelations, splitMarkerRelationIdSet]
   );
 
@@ -742,109 +878,25 @@ export const useCesiumDistanceVisualizer = (
     scene,
   ]);
 
-  const polygonPreviewGroups = useMemo(
-    () =>
-      planarPolygonGroups
-        .map((group) => {
-          if (group.closed && group.vertexPointIds.length >= 3) {
-            const vertexPoints = group.vertexPointIds
-              .map((pointId) => pointsById.get(pointId)?.geometryECEF)
-              .filter((point): point is Cartesian3 => Boolean(point));
-            return {
-              group,
-              vertexPoints,
-            };
-          }
-
-          if (
-            !group.closed &&
-            (group.surfaceType ?? "roof") === "facade" &&
-            group.vertexPointIds.length === 1
-          ) {
-            const firstVertexId = group.vertexPointIds[0] ?? null;
-            const firstVertex = firstVertexId
-              ? pointsById.get(firstVertexId)?.geometryECEF
-              : null;
-            const previewOppositeCorner =
-              facadeRectanglePreviewOppositeByGroupId?.[group.id];
-            if (!firstVertex || !previewOppositeCorner) {
-              return null;
-            }
-
-            const facadeCorners = buildFacadeRectangleCornerFromDiagonal(
-              firstVertex,
-              previewOppositeCorner
-            );
-            if (!facadeCorners) {
-              return null;
-            }
-
-            return {
-              group,
-              vertexPoints: [
-                firstVertex,
-                facadeCorners.adjacentHorizontalCorner,
-                previewOppositeCorner,
-                facadeCorners.adjacentVerticalCorner,
-              ],
-            };
-          }
-
-          if (
-            !group.closed &&
-            group.id === activePlanarPolygonGroupId &&
-            ((group.surfaceType ?? "roof") === "footprint" ||
-              (group.surfaceType ?? "roof") === "roof") &&
-            livePreviewDistanceLine?.showDirectLine
-          ) {
-            const baseVertexPoints = group.vertexPointIds
-              .map((pointId) => pointsById.get(pointId)?.geometryECEF)
-              .filter((point): point is Cartesian3 => Boolean(point));
-            if (baseVertexPoints.length < 2) {
-              return null;
-            }
-
-            const previewTargetPoint = livePreviewDistanceLine.targetPointECEF;
-            const lastBaseVertex =
-              baseVertexPoints[baseVertexPoints.length - 1];
-            if (
-              !previewTargetPoint ||
-              (lastBaseVertex &&
-                Cartesian3.distanceSquared(
-                  lastBaseVertex,
-                  previewTargetPoint
-                ) <= 1e-6)
-            ) {
-              return null;
-            }
-
-            return {
-              group,
-              vertexPoints: [
-                ...baseVertexPoints,
-                Cartesian3.clone(previewTargetPoint),
-              ],
-            };
-          }
-
-          return null;
-        })
-        .filter(
-          (
-            previewGroup
-          ): previewGroup is {
-            group: PlanarPolygonGroup;
-            vertexPoints: Cartesian3[];
-          } => Boolean(previewGroup && previewGroup.vertexPoints.length >= 3)
-        ),
-    [
-      activePlanarPolygonGroupId,
-      facadeRectanglePreviewOppositeByGroupId,
-      livePreviewDistanceLine,
+  const polygonPreviewGroups = useMemo(() => {
+    if (!renderAreaAndPolylineVisuals) {
+      return [];
+    }
+    return buildPolygonPreviewGroups({
       planarPolygonGroups,
       pointsById,
-    ]
-  );
+      facadeRectanglePreviewOppositeByGroupId,
+      activePlanarPolygonGroupId,
+      livePreviewDistanceLine,
+    });
+  }, [
+    renderAreaAndPolylineVisuals,
+    activePlanarPolygonGroupId,
+    facadeRectanglePreviewOppositeByGroupId,
+    livePreviewDistanceLine,
+    planarPolygonGroups,
+    pointsById,
+  ]);
 
   const facadePreviewEdgeSegments = useMemo(
     () =>
@@ -1068,6 +1120,7 @@ export const useCesiumDistanceVisualizer = (
           start: ScreenPoint2D;
           end: ScreenPoint2D;
           inside: ScreenPoint2D;
+          insideSign: -1 | 1;
           midX: number;
           midY: number;
           normalX: number;
@@ -1115,9 +1168,16 @@ export const useCesiumDistanceVisualizer = (
           let edgeData = recompute(start, end);
           if (!edgeData) return null;
 
+          const stableInsideSign = resolveStableSideSign(
+            edgeData.insideDot,
+            verticalLabelSideByRelationIdRef.current[relation.id]
+          );
+          verticalLabelSideByRelationIdRef.current[relation.id] =
+            stableInsideSign;
+
           // Canonical direction for vertical line labels:
           // keep triangle interior on the clockwise/right side of the directed edge.
-          if (edgeData.insideDot < 0) {
+          if (stableInsideSign < 0) {
             start = triangle.aux;
             end = triangle.anchor;
             edgeData = recompute(start, end);
@@ -1128,6 +1188,7 @@ export const useCesiumDistanceVisualizer = (
             start,
             end,
             inside,
+            insideSign: stableInsideSign,
             midX: edgeData.midX,
             midY: edgeData.midY,
             normalX: edgeData.normalX,
@@ -1140,11 +1201,6 @@ export const useCesiumDistanceVisualizer = (
           (): ScreenPoint2D | null => {
             const edge = getVerticalLineScreenData();
             if (!edge) return null;
-
-            const insideDot =
-              (edge.inside.x - edge.midX) * edge.normalX +
-              (edge.inside.y - edge.midY) * edge.normalY;
-            const insideSign = insideDot >= 0 ? 1 : -1;
             const refDistancePx = clampToRange(
               edge.lineLength * 0.2,
               LABEL_REFERENCE_MIN_DISTANCE_PX,
@@ -1153,10 +1209,17 @@ export const useCesiumDistanceVisualizer = (
 
             // Use an inside-side reference point; overlay logic places the label on
             // the opposite side, i.e. outside the triangle.
-            return {
-              x: edge.midX + edge.normalX * insideSign * refDistancePx,
-              y: edge.midY + edge.normalY * insideSign * refDistancePx,
+            const nextReferencePoint = {
+              x: edge.midX + edge.normalX * edge.insideSign * refDistancePx,
+              y: edge.midY + edge.normalY * edge.insideSign * refDistancePx,
             };
+            const stabilizedReferencePoint = stabilizeScreenPoint(
+              nextReferencePoint,
+              verticalLabelReferencePointByRelationIdRef.current[relation.id]
+            );
+            verticalLabelReferencePointByRelationIdRef.current[relation.id] =
+              stabilizedReferencePoint;
+            return stabilizedReferencePoint;
           };
 
         const verticalDistanceMeters = Cartesian3.distance(
@@ -1167,21 +1230,35 @@ export const useCesiumDistanceVisualizer = (
           auxiliaryPoint,
           targetPoint.geometryECEF
         );
+        const isPolygonEdgeRelation = splitMarkerRelationIdSet.has(relation.id);
+        const isSelectedOrActiveEdgeRelation =
+          edgeRelationOwnerGroupIdSet.has(relation.id) ||
+          selectedOrActiveOpenPolylineEdgeRelationIdSet.has(relation.id);
+        const forceComponentLabelsForSelectedOrActivePolylineEdges =
+          isPolygonEdgeRelation && isSelectedOrActiveEdgeRelation;
         const showVerticalLabel =
-          (relation.labelVisibilityByKind?.vertical ?? true) &&
+          (forceComponentLabelsForSelectedOrActivePolylineEdges ||
+            (relation.labelVisibilityByKind?.vertical ?? true)) &&
           verticalDistanceMeters > REFERENCE_LINE_EPSILON_METERS;
         const showHorizontalLabel =
-          (relation.labelVisibilityByKind?.horizontal ?? true) &&
+          (forceComponentLabelsForSelectedOrActivePolylineEdges ||
+            (relation.labelVisibilityByKind?.horizontal ?? true)) &&
           horizontalDistanceMeters > REFERENCE_LINE_EPSILON_METERS;
 
         if (relation.showDirectLine) {
-          const isPolygonEdgeRelation = splitMarkerRelationIdSet.has(
-            relation.id
-          );
+          const forceSegmentLabelsForVisiblePolylineEdges =
+            isPolygonEdgeRelation && isSelectedOrActiveEdgeRelation;
           const directLabelMode: DirectLineLabelMode =
-            relation.directLabelMode ?? "segment";
+            forceSegmentLabelsForVisiblePolylineEdges
+              ? "segment"
+              : relation.directLabelMode ?? "segment";
+          const directLabelVisibilityEnabled =
+            forceSegmentLabelsForVisiblePolylineEdges
+              ? true
+              : relation.labelVisibilityByKind?.direct ?? true;
           const shouldShowPolygonEdgeLengthLabel =
             !isPolygonEdgeRelation ||
+            forceSegmentLabelsForVisiblePolylineEdges ||
             edgeRelationOwnerGroupIdSet.has(relation.id);
           const segmentDistanceMeters = Cartesian3.distance(
             pointA.geometryECEF,
@@ -1195,11 +1272,17 @@ export const useCesiumDistanceVisualizer = (
               ? cumulativeDistanceMeters
               : segmentDistanceMeters;
           const showDirectLabel =
-            (relation.labelVisibilityByKind?.direct ?? true) &&
+            directLabelVisibilityEnabled &&
             directLabelMode !== "none" &&
-            !roofRoofSharedEdgeRelationIdSet.has(relation.id) &&
+            !planarPolygonSharedEdgeRelationIdSet.has(relation.id) &&
             shouldShowPolygonEdgeLengthLabel &&
             !duplicateFacadeOpposingEdgeRelationIdSet.has(relation.id);
+          const onDirectLineClick = onDistanceLineClick
+            ? () => onDistanceLineClick(relation.id, "direct")
+            : undefined;
+          const onDirectLabelClick = onDistanceLineLabelToggle
+            ? () => onDistanceLineLabelToggle(relation.id, "direct")
+            : undefined;
           lines.push({
             id: `reference-direct-${relation.id}`,
             getCanvasLine: () => {
@@ -1221,14 +1304,18 @@ export const useCesiumDistanceVisualizer = (
             labelFontSize: 12,
             labelFontFamily: "Arial, sans-serif",
             labelFontWeight: "400",
-            labelMinLineLengthPx: lineLabelMinDistancePx,
-            onLineClick: () => onDistanceLineClick?.(relation.id, "direct"),
-            onLabelClick: () =>
-              onDistanceLineLabelToggle?.(relation.id, "direct"),
+            labelMinLineLengthPx: forceSegmentLabelsForVisiblePolylineEdges
+              ? 0
+              : lineLabelMinDistancePx,
+            onLineClick: onDirectLineClick,
+            onLabelClick: onDirectLabelClick,
           });
         }
 
         if (isDistanceRelationVerticalLineVisible(relation)) {
+          const onVerticalLineClick = onDistanceLineLabelToggle
+            ? () => onDistanceLineLabelToggle(relation.id, "vertical")
+            : undefined;
           lines.push({
             id: `reference-vertical-${relation.id}`,
             getCanvasLine: () => {
@@ -1253,13 +1340,18 @@ export const useCesiumDistanceVisualizer = (
             labelRotationMode: "clockwise",
             labelOffsetPx: VERTICAL_COMPONENT_LABEL_OFFSET_PX,
             labelDominantBaseline: "alphabetic",
-            labelMinLineLengthPx: lineLabelMinDistancePx,
-            onLineClick: () =>
-              onDistanceLineLabelToggle?.(relation.id, "vertical"),
+            labelMinLineLengthPx:
+              forceComponentLabelsForSelectedOrActivePolylineEdges
+                ? 0
+                : lineLabelMinDistancePx,
+            onLineClick: onVerticalLineClick,
           });
         }
 
         if (isDistanceRelationHorizontalLineVisible(relation)) {
+          const onHorizontalLineClick = onDistanceLineLabelToggle
+            ? () => onDistanceLineLabelToggle(relation.id, "horizontal")
+            : undefined;
           lines.push({
             id: `reference-horizontal-${relation.id}`,
             getCanvasLine: () => {
@@ -1282,9 +1374,11 @@ export const useCesiumDistanceVisualizer = (
             labelFontSize: 12,
             labelFontFamily: "Arial, sans-serif",
             labelFontWeight: "400",
-            labelMinLineLengthPx: lineLabelMinDistancePx,
-            onLineClick: () =>
-              onDistanceLineLabelToggle?.(relation.id, "horizontal"),
+            labelMinLineLengthPx:
+              forceComponentLabelsForSelectedOrActivePolylineEdges
+                ? 0
+                : lineLabelMinDistancePx,
+            onLineClick: onHorizontalLineClick,
           });
         }
       }
@@ -1348,13 +1442,31 @@ export const useCesiumDistanceVisualizer = (
           centroid: ScreenPoint2D;
         };
 
+        let cachedPreviewTriangleFrameNumber: number | null = null;
+        let cachedPreviewTriangle: PreviewScreenTriangleData | null = null;
+
+        const getSceneFrameNumber = (): number | null => {
+          const frameNumber = (
+            scene as unknown as { frameState?: { frameNumber?: number } }
+          ).frameState?.frameNumber;
+          return typeof frameNumber === "number" ? frameNumber : null;
+        };
+
         const getPreviewScreenTriangle =
           (): PreviewScreenTriangleData | null => {
+            const frameNumber = getSceneFrameNumber();
+            if (
+              frameNumber !== null &&
+              frameNumber === cachedPreviewTriangleFrameNumber
+            ) {
+              return cachedPreviewTriangle;
+            }
+
             const anchor = getPreviewScreenAnchor();
             const target = getPreviewScreenTarget();
             const aux = getPreviewScreenAux();
             if (!anchor || !target || !aux) return null;
-            return {
+            const triangle = {
               anchor,
               target,
               aux,
@@ -1363,6 +1475,11 @@ export const useCesiumDistanceVisualizer = (
                 y: (anchor.y + target.y + aux.y) / 3,
               },
             };
+            if (frameNumber !== null) {
+              cachedPreviewTriangleFrameNumber = frameNumber;
+              cachedPreviewTriangle = triangle;
+            }
+            return triangle;
           };
 
         const buildStableOutsideReferencePoint = (
@@ -1436,6 +1553,7 @@ export const useCesiumDistanceVisualizer = (
           start: ScreenPoint2D;
           end: ScreenPoint2D;
           inside: ScreenPoint2D;
+          insideSign: -1 | 1;
           midX: number;
           midY: number;
           normalX: number;
@@ -1483,7 +1601,13 @@ export const useCesiumDistanceVisualizer = (
           let edgeData = recompute(start, end);
           if (!edgeData) return null;
 
-          if (edgeData.insideDot < 0) {
+          const stableInsideSign = resolveStableSideSign(
+            edgeData.insideDot,
+            previewVerticalLabelSideRef.current
+          );
+          previewVerticalLabelSideRef.current = stableInsideSign;
+
+          if (stableInsideSign < 0) {
             start = triangle.aux;
             end = triangle.anchor;
             edgeData = recompute(start, end);
@@ -1494,6 +1618,7 @@ export const useCesiumDistanceVisualizer = (
             start,
             end,
             inside,
+            insideSign: stableInsideSign,
             midX: edgeData.midX,
             midY: edgeData.midY,
             normalX: edgeData.normalX,
@@ -1506,21 +1631,23 @@ export const useCesiumDistanceVisualizer = (
           (): ScreenPoint2D | null => {
             const edge = getPreviewVerticalLineScreenData();
             if (!edge) return null;
-
-            const insideDot =
-              (edge.inside.x - edge.midX) * edge.normalX +
-              (edge.inside.y - edge.midY) * edge.normalY;
-            const insideSign = insideDot >= 0 ? 1 : -1;
             const refDistancePx = clampToRange(
               edge.lineLength * 0.2,
               LABEL_REFERENCE_MIN_DISTANCE_PX,
               LABEL_REFERENCE_MAX_DISTANCE_PX
             );
 
-            return {
-              x: edge.midX + edge.normalX * insideSign * refDistancePx,
-              y: edge.midY + edge.normalY * insideSign * refDistancePx,
+            const nextReferencePoint = {
+              x: edge.midX + edge.normalX * edge.insideSign * refDistancePx,
+              y: edge.midY + edge.normalY * edge.insideSign * refDistancePx,
             };
+            const stabilizedReferencePoint = stabilizeScreenPoint(
+              nextReferencePoint,
+              previewVerticalLabelReferencePointRef.current
+            );
+            previewVerticalLabelReferencePointRef.current =
+              stabilizedReferencePoint;
+            return stabilizedReferencePoint;
           };
 
         const directDistanceMeters = Cartesian3.distance(
@@ -1653,12 +1780,13 @@ export const useCesiumDistanceVisualizer = (
     onDistanceLineLabelToggle,
     onDistanceLineClick,
     cumulativeDistanceByRelationId,
-    roofRoofSharedEdgeRelationIdSet,
+    planarPolygonSharedEdgeRelationIdSet,
     duplicateFacadeOpposingEdgeRelationIdSet,
     livePreviewDistanceLine,
     resolvedRelations,
     scene,
     edgeRelationOwnerGroupIdSet,
+    selectedOrActiveOpenPolylineEdgeRelationIdSet,
     splitMarkerRelationIdSet,
   ]);
 
@@ -1681,6 +1809,9 @@ export const useCesiumDistanceVisualizer = (
   );
 
   useEffect(() => {
+    if (!renderAreaAndPolylineVisuals) {
+      return;
+    }
     facadeCornerOverlayIdsRef.current.forEach((overlayId) => {
       removeLabelOverlayElement(overlayId);
     });
@@ -1724,6 +1855,7 @@ export const useCesiumDistanceVisualizer = (
       facadeCornerOverlayIdsRef.current = [];
     };
   }, [
+    renderAreaAndPolylineVisuals,
     addLabelOverlayElement,
     facadeCornerMarkerContent,
     facadeCornerMarkers,
@@ -1784,8 +1916,8 @@ export const useCesiumDistanceVisualizer = (
         createElement("polygon", {
           "data-polygon-preview-shape": "true",
           fill: "none",
-          stroke: isFootprintSurface ? POLYGON_PREVIEW_STROKE : "none",
-          strokeWidth: isFootprintSurface ? POLYGON_PREVIEW_STROKE_WIDTH_PX : 0,
+          stroke: "none",
+          strokeWidth: 0,
           style: {
             pointerEvents: "none",
           },
@@ -1798,42 +1930,55 @@ export const useCesiumDistanceVisualizer = (
             pointerEvents: "none",
             mixBlendMode: "multiply",
           },
-        }),
-        createElement("text", {
-          "data-polygon-preview-area-label": "true",
-          x: "0",
-          y: "0",
-          textAnchor: "middle",
-          dominantBaseline: "middle",
-          fill: POLYGON_AREA_LABEL_COLOR,
-          stroke: POLYGON_AREA_LABEL_STROKE,
-          strokeWidth: POLYGON_AREA_LABEL_STROKE_WIDTH_PX,
-          paintOrder: "stroke",
-          fontSize: POLYGON_AREA_LABEL_FONT_SIZE_PX,
-          fontFamily: POLYGON_AREA_LABEL_FONT_FAMILY,
-          fontWeight: POLYGON_AREA_LABEL_FONT_WEIGHT,
+        })
+      ),
+      createElement(
+        "div",
+        {
+          "data-polygon-preview-area-pill": "true",
           style: {
+            position: "absolute",
+            left: "0px",
+            top: "0px",
+            transform: "translate(-50%, -50%)",
+            display: "none",
+            alignItems: "center",
+            boxSizing: "border-box",
+            borderRadius: "999px",
+            border: POLYGON_AREA_PILL_BORDER,
+            backgroundColor: POLYGON_AREA_PILL_BACKGROUND,
+            color: POLYGON_AREA_PILL_TEXT_COLOR,
+            fontSize: `${POLYGON_AREA_PILL_FONT_SIZE_PX}px`,
+            fontFamily: POLYGON_AREA_PILL_FONT_FAMILY,
+            fontWeight: POLYGON_AREA_PILL_FONT_WEIGHT,
+            minHeight: `${POLYGON_AREA_PILL_COMPACT_DIAMETER_EM}em`,
+            whiteSpace: "nowrap",
             userSelect: "none",
             pointerEvents: "none",
           },
-        }),
-        createElement("text", {
-          "data-polygon-preview-area-label-secondary": "true",
-          x: "0",
-          y: "0",
-          textAnchor: "middle",
-          dominantBaseline: "middle",
-          fill: POLYGON_AREA_LABEL_COLOR,
-          stroke: POLYGON_AREA_LABEL_STROKE,
-          strokeWidth: POLYGON_AREA_LABEL_STROKE_WIDTH_PX,
-          paintOrder: "stroke",
-          fontSize: Math.max(10, POLYGON_AREA_LABEL_FONT_SIZE_PX - 1),
-          fontFamily: POLYGON_AREA_LABEL_FONT_FAMILY,
-          fontWeight: POLYGON_AREA_LABEL_FONT_WEIGHT,
+        },
+        createElement("span", {
+          "data-polygon-preview-area-pill-compact": "true",
           style: {
-            userSelect: "none",
-            pointerEvents: "none",
             display: "none",
+            alignItems: "center",
+            justifyContent: "center",
+            minWidth: `${POLYGON_AREA_PILL_COMPACT_DIAMETER_EM}em`,
+            height: `${POLYGON_AREA_PILL_COMPACT_DIAMETER_EM}em`,
+            padding: `0 ${POLYGON_AREA_PILL_COMPACT_HORIZONTAL_PADDING_PX}px`,
+            borderRadius: "999px",
+            border: POLYGON_AREA_PILL_BORDER,
+            boxSizing: "border-box",
+            lineHeight: 1,
+          },
+        }),
+        createElement("span", {
+          "data-polygon-preview-area-pill-extended": "true",
+          style: {
+            display: "inline-flex",
+            alignItems: "center",
+            padding: `${POLYGON_AREA_PILL_EXTENDED_VERTICAL_PADDING_PX}px ${POLYGON_AREA_PILL_EXTENDED_HORIZONTAL_PADDING_PX}px`,
+            lineHeight: 1.2,
           },
         })
       )
@@ -1841,6 +1986,9 @@ export const useCesiumDistanceVisualizer = (
   }, []);
 
   useEffect(() => {
+    if (!renderAreaAndPolylineVisuals) {
+      return;
+    }
     polygonPreviewOverlayIdsRef.current.forEach((overlayId) => {
       removeLabelOverlayElement(overlayId);
     });
@@ -1930,60 +2078,74 @@ export const useCesiumDistanceVisualizer = (
             stripeEl.setAttribute("points", pointsAttr);
           }
 
-          const areaLabelEl = elementDiv.querySelector(
-            '[data-polygon-preview-area-label="true"]'
-          ) as SVGTextElement | null;
-          const areaLabelSecondaryEl = elementDiv.querySelector(
-            '[data-polygon-preview-area-label-secondary="true"]'
-          ) as SVGTextElement | null;
-          if (areaLabelEl) {
-            const { planarText, projectedHorizontalText } =
-              getPolygonAreaLabelText(group, vertexPoints);
-            areaLabelEl.textContent = planarText;
-            areaLabelEl.setAttribute("transform", "");
-
-            const centroidAnchor = computePolygonCentroid2D(localPoints);
-            if (!centroidAnchor) {
-              areaLabelEl.style.display = "none";
-              if (areaLabelSecondaryEl) {
-                areaLabelSecondaryEl.style.display = "none";
-              }
+          const areaPillEl = elementDiv.querySelector(
+            '[data-polygon-preview-area-pill="true"]'
+          ) as HTMLDivElement | null;
+          const areaPillCompactEl = elementDiv.querySelector(
+            '[data-polygon-preview-area-pill-compact="true"]'
+          ) as HTMLSpanElement | null;
+          const areaPillExtendedEl = elementDiv.querySelector(
+            '[data-polygon-preview-area-pill-extended="true"]'
+          ) as HTMLSpanElement | null;
+          if (areaPillEl && areaPillExtendedEl) {
+            const surfaceType = group.surfaceType ?? "roof";
+            const hideAreaLabelInDirectPolylinePreview =
+              !group.closed &&
+              group.id === activePlanarPolygonGroupId &&
+              (surfaceType === "roof" || surfaceType === "footprint") &&
+              (group.segmentLineMode ?? "components") === "direct";
+            if (hideAreaLabelInDirectPolylinePreview) {
+              areaPillEl.style.display = "none";
             } else {
-              const clampedAnchor: ScreenPoint2D = {
-                x: clampToRange(centroidAnchor.x, 0, width),
-                y: clampToRange(centroidAnchor.y, 0, height),
-              };
-
-              areaLabelEl.setAttribute("x", `${clampedAnchor.x}`);
-              areaLabelEl.setAttribute(
-                "y",
-                `${
-                  clampedAnchor.y -
-                  (projectedHorizontalText
-                    ? POLYGON_AREA_LABEL_FONT_SIZE_PX * 0.45
-                    : 0)
-                }`
-              );
-
-              if (areaLabelSecondaryEl) {
-                areaLabelSecondaryEl.textContent =
-                  projectedHorizontalText ?? "";
-                areaLabelSecondaryEl.setAttribute("x", `${clampedAnchor.x}`);
-                areaLabelSecondaryEl.setAttribute(
-                  "y",
-                  `${
-                    clampedAnchor.y +
-                    (projectedHorizontalText
-                      ? POLYGON_AREA_LABEL_FONT_SIZE_PX * 0.55
-                      : 0)
-                  }`
-                );
-                areaLabelSecondaryEl.style.display = projectedHorizontalText
-                  ? "block"
-                  : "none";
+              const { planarText, projectedHorizontalText } =
+                getPolygonAreaLabelText(group, vertexPoints);
+              const compactBadge = polygonAreaBadgeByGroupId[group.id];
+              const compactBadgeText = compactBadge?.text?.trim() ?? "";
+              const isSelectedGroup = group.id === focusedGroupId;
+              const areaText = projectedHorizontalText
+                ? `${planarText} ${projectedHorizontalText}`
+                : planarText;
+              areaPillExtendedEl.textContent = areaText;
+              if (areaPillCompactEl) {
+                if (compactBadgeText.length > 0) {
+                  areaPillCompactEl.style.display = "inline-flex";
+                  areaPillCompactEl.textContent = compactBadgeText;
+                  areaPillCompactEl.style.backgroundColor = isSelectedGroup
+                    ? POLYGON_AREA_PILL_SELECTED_BACKGROUND
+                    : compactBadge?.backgroundColor ??
+                      POLYGON_AREA_PILL_BACKGROUND;
+                  areaPillCompactEl.style.color = isSelectedGroup
+                    ? POLYGON_AREA_PILL_TEXT_COLOR
+                    : compactBadge?.textColor ?? POLYGON_AREA_PILL_TEXT_COLOR;
+                } else {
+                  areaPillCompactEl.style.display = "none";
+                  areaPillCompactEl.textContent = "";
+                }
               }
 
-              areaLabelEl.style.display = "block";
+              const centroidAnchor = computePolygonCentroid2D(localPoints);
+              if (!centroidAnchor) {
+                areaPillEl.style.display = "none";
+              } else {
+                const clampedAnchor: ScreenPoint2D = {
+                  x: clampToRange(centroidAnchor.x, 0, width),
+                  y: clampToRange(centroidAnchor.y, 0, height),
+                };
+                areaPillEl.style.display = "inline-flex";
+                areaPillEl.style.left = `${clampedAnchor.x}px`;
+                areaPillEl.style.top = `${clampedAnchor.y}px`;
+                areaPillEl.style.backgroundColor = isSelectedGroup
+                  ? POLYGON_AREA_PILL_SELECTED_BACKGROUND
+                  : POLYGON_AREA_PILL_BACKGROUND;
+                areaPillEl.style.color = POLYGON_AREA_PILL_TEXT_COLOR;
+                areaPillEl.style.paddingLeft =
+                  compactBadgeText.length > 0 ? "0px" : "8px";
+                areaPillEl.style.paddingRight = "8px";
+                areaPillEl.style.gap =
+                  compactBadgeText.length > 0
+                    ? `${POLYGON_AREA_PILL_COMPACT_GAP_PX}px`
+                    : "0px";
+              }
             }
           }
 
@@ -2012,7 +2174,11 @@ export const useCesiumDistanceVisualizer = (
       polygonPreviewOverlayIdsRef.current = [];
     };
   }, [
+    renderAreaAndPolylineVisuals,
     addLabelOverlayElement,
+    activePlanarPolygonGroupId,
+    focusedGroupId,
+    polygonAreaBadgeByGroupId,
     polygonPreviewContent,
     polygonPreviewGroups,
     removeLabelOverlayElement,
@@ -2024,6 +2190,9 @@ export const useCesiumDistanceVisualizer = (
     selectedPlanarPolygonGroupId ?? activePlanarPolygonGroupId;
 
   useEffect(() => {
+    if (!renderAreaAndPolylineVisuals) {
+      return;
+    }
     if (!scene || scene.isDestroyed()) return;
 
     // Remove previous collection
@@ -2132,7 +2301,12 @@ export const useCesiumDistanceVisualizer = (
       polygonGroundPrimitivesRef.current = [];
       scene.requestRender();
     };
-  }, [scene, polygonPreviewGroups, focusedPolygonGroupId]);
+  }, [
+    renderAreaAndPolylineVisuals,
+    scene,
+    polygonPreviewGroups,
+    focusedPolygonGroupId,
+  ]);
 
   const rightAngleCornerContent = useMemo(
     () =>
@@ -2416,7 +2590,7 @@ export const useCesiumDistanceVisualizer = (
 
     resolvedRelations
       .filter(({ relation }) => {
-        if (!selectedPlanarPolygonGroupId && !activePlanarPolygonGroupId) {
+        if (midpointTickRelationIdSet.size === 0) {
           return false;
         }
         if (!relation.showDirectLine) return false;
@@ -2490,9 +2664,7 @@ export const useCesiumDistanceVisualizer = (
     removeLabelOverlayElement,
     resolvedRelations,
     scene,
-    activePlanarPolygonGroupId,
     midpointTickRelationIdSet,
-    selectedPlanarPolygonGroupId,
   ]);
 
   const relationsWithDirectLine = useMemo(
@@ -2517,6 +2689,9 @@ export const useCesiumDistanceVisualizer = (
   );
 
   useEffect(() => {
+    if (!renderAreaAndPolylineVisuals) {
+      return;
+    }
     if (!scene) return;
 
     destroyLineVisualizerMap(directLineRefs);
@@ -2581,7 +2756,7 @@ export const useCesiumDistanceVisualizer = (
       if (!scene || scene.isDestroyed()) return;
       scene.requestRender();
     };
-  }, [facadePreviewEdgeSegments, scene]);
+  }, [renderAreaAndPolylineVisuals, facadePreviewEdgeSegments, scene]);
 
   useEffect(() => {
     if (!scene) return;
@@ -2777,6 +2952,16 @@ export const useCesiumDistanceVisualizer = (
       // polygon primitives are cleaned up by their own effect
     };
   }, [removeLabelOverlayElement]);
+};
+
+export const useCesiumDistanceRelationsVisualizer = (
+  options: CesiumDistanceRelationsVisualizerHookOptions
+) => {
+  const { scene, points, ...distanceOptions } = options;
+  useCesiumDistanceVisualizer(scene, points, {
+    ...distanceOptions,
+    renderAreaAndPolylineVisuals: false,
+  });
 };
 
 export default useCesiumDistanceVisualizer;

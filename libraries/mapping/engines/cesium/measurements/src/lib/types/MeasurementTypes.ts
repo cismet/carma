@@ -31,6 +31,7 @@ export type PolylinePointLabelMode =
 export const DEFAULT_POLYLINE_POINT_LABEL_MODE: PolylinePointLabelMode =
   "cumulativeDistance";
 export type PolylineSegmentLineMode = "direct" | "components";
+export type PlanarMeasurementKind = "polyline" | "area";
 
 export type SurfaceType = "roof" | "facade" | "terrain" | "footprint";
 
@@ -56,6 +57,7 @@ export type PlanarPolygonGroup = {
   id: string;
   name?: string;
   hidden?: boolean;
+  measurementKind?: PlanarMeasurementKind;
   segmentLineMode?: PolylineSegmentLineMode;
   verticalOffsetMeters?: number;
   vertexPointIds: string[];
@@ -111,6 +113,12 @@ export type GeomPoint = Partial<Cartographic> & {
 
 type GeomPolyline = GeomPoint[];
 
+export type MeasurementLabelAnchor = {
+  anchorPointId: string;
+  compactContent?: string;
+  collapseToCompact: boolean;
+};
+
 export type MeasurementEntry = {
   id: string;
   type: MeasurementMode;
@@ -126,6 +134,7 @@ export type MeasurementEntry = {
   derived?: unknown;
   temporary?: boolean;
   pointLabelMode?: PointLabelMetricMode;
+  labelAnchor?: MeasurementLabelAnchor;
 };
 
 export type PointMeasurementEntry = MeasurementEntry & {
@@ -182,6 +191,7 @@ export type MeasurementGeometryPoint = {
   pointLabelMode?: PointLabelMetricMode;
   auxiliaryLabelAnchor?: boolean;
   verticalOffsetAnchorECEF?: SerializableCartesian3;
+  labelAnchor?: MeasurementLabelAnchor;
 };
 
 export type MeasurementGeometryEdge = {

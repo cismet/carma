@@ -51,7 +51,7 @@ import {
   type PointMarkerBadge,
 } from "./useCesiumPointLabels";
 import { useCesiumPointMoveGizmo } from "@carma-mapping/engines-interop/gizmo/cesium-integration";
-import { useCesiumDistanceVisualizer } from "./useCesiumDistanceVisualizer";
+import { useMeasurementsVisualizer } from "./useMeasurementsVisualizer";
 import { formatNumber } from "../utils/formatting";
 
 const LIVE_PREVIEW_HEIGHT_LABEL_ID = "measurement-live-preview-height";
@@ -218,6 +218,7 @@ export type CesiumPointVisualizerOptions = {
   fullyHiddenPointIds?: ReadonlySet<string>;
   markerlessPointIds?: ReadonlySet<string>;
   pillMarkerPointIds?: ReadonlySet<string>;
+  suppressCompactLabelPointIds?: ReadonlySet<string>;
   onDistanceRelationLineLabelToggle?: (
     relationId: string,
     kind: ReferenceLineLabelKind
@@ -237,6 +238,7 @@ export type CesiumPointVisualizerOptions = {
   onPointHoverChange?: (pointId: string, hovered: boolean) => void;
   onPointVerticalOffsetStemLongPress?: (pointId: string) => void;
   selectionModeEnabled?: boolean;
+  selectionRectangleModeEnabled?: boolean;
   selectionAdditiveMode?: boolean;
   onPointRectangleSelect?: (pointIds: string[], additive: boolean) => void;
   onDistanceRelationCornerClick?: (relationId: string) => void;
@@ -249,6 +251,7 @@ export type CesiumPointVisualizerOptions = {
   referenceLabelPointId?: string | null;
   polylinePointLabelTextByPointId?: Readonly<Record<string, string>>;
   labelInputPromptPointId?: string | null;
+  markerOnlyOverlayNodeInteractions?: boolean;
   livePreviewPointECEF?: Cartesian3 | null;
   livePreviewSurfaceNormalECEF?: Cartesian3 | null;
   livePreviewDistanceLine?: {
@@ -257,6 +260,7 @@ export type CesiumPointVisualizerOptions = {
     showDirectLine: boolean;
     showVerticalLine: boolean;
     showHorizontalLine: boolean;
+    previewTotalDistanceMeters?: number;
   } | null;
   livePreviewReferenceElevation?: number;
   livePreviewHasReferenceElevation?: boolean;
@@ -312,6 +316,7 @@ export const useCesiumPointVisualizer = (
     fullyHiddenPointIds,
     markerlessPointIds,
     pillMarkerPointIds,
+    suppressCompactLabelPointIds,
     onDistanceRelationLineLabelToggle,
     onDistanceRelationLineClick,
     onDistanceRelationMidpointClick,
@@ -325,6 +330,7 @@ export const useCesiumPointVisualizer = (
     onPointHoverChange,
     onPointVerticalOffsetStemLongPress,
     selectionModeEnabled = false,
+    selectionRectangleModeEnabled = false,
     selectionAdditiveMode = false,
     onPointRectangleSelect,
     onDistanceRelationCornerClick,
@@ -337,6 +343,7 @@ export const useCesiumPointVisualizer = (
     referenceLabelPointId = null,
     polylinePointLabelTextByPointId,
     labelInputPromptPointId = null,
+    markerOnlyOverlayNodeInteractions = false,
     livePreviewPointECEF = null,
     livePreviewSurfaceNormalECEF = null,
     livePreviewDistanceLine = null,
@@ -452,6 +459,7 @@ export const useCesiumPointVisualizer = (
     onPointHoverChange,
     onPointVerticalOffsetStemLongPress,
     selectionModeEnabled,
+    selectionRectangleModeEnabled,
     selectionAdditiveMode,
     onPointRectangleSelect,
     pointLongPressDurationMs,
@@ -472,7 +480,9 @@ export const useCesiumPointVisualizer = (
     moveGizmoMarkerSizeScale,
     moveGizmoLabelDistanceScale,
     labelInputPromptPointId,
-    pointMarkerBadgeByPointId
+    pointMarkerBadgeByPointId,
+    suppressCompactLabelPointIds,
+    markerOnlyOverlayNodeInteractions
   );
 
   useCesiumPointMoveGizmo(scene, {
@@ -491,7 +501,7 @@ export const useCesiumPointVisualizer = (
     onExit: onMoveGizmoExit,
   });
 
-  useCesiumDistanceVisualizer(scene, points, {
+  useMeasurementsVisualizer(scene, points, {
     distanceRelations,
     planarPolygonGroups,
     facadeRectanglePreviewOppositeByGroupId,
@@ -520,11 +530,14 @@ export const useCesiumPointVisualizer = (
     }
 
     const pointHeightMeters = cartographic.height ?? 0;
-    const text = formatLivePreviewElevationText(
-      pointHeightMeters,
-      livePreviewReferenceElevation,
-      livePreviewHasReferenceElevation
-    );
+    const text =
+      livePreviewDistanceLine?.previewTotalDistanceMeters !== undefined
+        ? formatMeters(livePreviewDistanceLine.previewTotalDistanceMeters)
+        : formatLivePreviewElevationText(
+            pointHeightMeters,
+            livePreviewReferenceElevation,
+            livePreviewHasReferenceElevation
+          );
 
     return [
       {
@@ -564,6 +577,7 @@ export const useCesiumPointVisualizer = (
     livePreviewHeightLabelPlacement,
     scene,
     livePreviewPointECEF,
+    livePreviewDistanceLine,
     livePreviewHasReferenceElevation,
     livePreviewReferenceElevation,
   ]);

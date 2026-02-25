@@ -5,19 +5,22 @@ import {
   type PointLabelAttach,
 } from "./PointLabelMarker";
 
-const BADGE_DIAMETER_EM = 1.9;
-const PILL_BODY_VERTICAL_PADDING_PX = 0;
-const PILL_BODY_HORIZONTAL_PADDING_PX = 8;
-const PILL_BADGE_GAP_PX = 4;
-const EXTENDED_BODY_LEFT_EXTRA_PADDING_PX = 2;
-const EXTENDED_BODY_RIGHT_EXTRA_PADDING_PX = 2;
+const COMPACT_DIAMETER_EM = 1.9;
+const COMPACT_HORIZONTAL_PADDING_PX = 6;
+const COMPACT_WIDTH_SHRINK_PX = 2;
+const COMPACT_WIDTH_EXTRA_PADDING_PX = 6;
+const EXTENDED_VERTICAL_PADDING_PX = 0;
+const EXTENDED_HORIZONTAL_PADDING_PX = 8;
+const COMPACT_EXTENDED_GAP_PX = 4;
+const EXTENDED_LEFT_EXTRA_PADDING_PX = 2;
+const EXTENDED_RIGHT_EXTRA_PADDING_PX = 2;
 const FAST_GROW_WIDTH_TRANSITION_MS = 200;
 const SLOW_SHRINK_WIDTH_TRANSITION_MS = 5000;
 
-const estimateBadgeAnchorOffsetPx = (fontSize: string): number => {
+const estimateCompactAnchorOffsetPx = (fontSize: string): number => {
   const parsed = Number.parseFloat(fontSize);
   if (!Number.isFinite(parsed) || parsed <= 0) return 8;
-  return parsed * (BADGE_DIAMETER_EM / 2);
+  return parsed * (COMPACT_DIAMETER_EM / 2);
 };
 
 interface PillbuttonLabelMarkerProps {
@@ -39,6 +42,8 @@ interface PillbuttonLabelMarkerProps {
   markerContent?: React.ReactNode;
   markerBackgroundColor?: string;
   markerTextColor?: string;
+  compactBorderless?: boolean;
+  anchorAtSemicircleCenter?: boolean;
   fullBorder?: boolean;
   solidBorderStyle?: string;
   resizeMode?: "none" | "fast-grow-slow-shrink";
@@ -70,6 +75,8 @@ export const PillbuttonLabelMarker = ({
   markerContent,
   markerBackgroundColor,
   markerTextColor,
+  compactBorderless = false,
+  anchorAtSemicircleCenter: anchorAtSemicircleCenterOverride,
   fullBorder = false,
   solidBorderStyle,
   resizeMode = "none",
@@ -82,89 +89,112 @@ export const PillbuttonLabelMarker = ({
   onMouseLeave,
 }: PillbuttonLabelMarkerProps) => {
   const mountSide = resolvePillbuttonMountSide(labelAttach);
-  const hasMarker =
+  const hasCompact =
     markerContent !== undefined &&
     markerContent !== null &&
     (typeof markerContent !== "string" || markerContent.trim().length > 0);
-  const hasBodyContent =
+  const hasExtendedContent =
     content !== undefined &&
     content !== null &&
     (typeof content !== "string" || content.trim().length > 0);
-  const showBody = !collapse && hasBodyContent;
+  const showExtended = !collapse && hasExtendedContent;
   const effectiveMarkerBorderStyle =
     fullBorder && solidBorderStyle ? solidBorderStyle : labelBorderStyle;
-  const bodyBorderStyle = fullBorder ? effectiveMarkerBorderStyle : "none";
-  const badgeAnchorOffsetPx = estimateBadgeAnchorOffsetPx(fontSize);
-  const anchorAtSemicircleCenter = hasMarker || fullBorder;
-  const bodyPaddingBySide =
-    hasMarker && showBody
+  const extendedBorderStyle = fullBorder ? effectiveMarkerBorderStyle : "none";
+  const compactAnchorOffsetPx = estimateCompactAnchorOffsetPx(fontSize);
+  const anchorAtSemicircleCenter =
+    anchorAtSemicircleCenterOverride ?? (hasCompact || fullBorder);
+  const extendedPaddingBySide =
+    hasCompact && showExtended
       ? mountSide === "right"
         ? {
-            paddingRight: `calc(${PILL_BODY_HORIZONTAL_PADDING_PX}px + ${
-              BADGE_DIAMETER_EM / 2
-            }em + ${PILL_BADGE_GAP_PX}px + ${EXTENDED_BODY_RIGHT_EXTRA_PADDING_PX}px)`,
+            paddingRight: `calc(${EXTENDED_HORIZONTAL_PADDING_PX}px + ${
+              COMPACT_DIAMETER_EM / 2
+            }em + ${COMPACT_EXTENDED_GAP_PX}px + ${EXTENDED_RIGHT_EXTRA_PADDING_PX}px)`,
             paddingLeft: `${
-              PILL_BODY_HORIZONTAL_PADDING_PX +
-              EXTENDED_BODY_LEFT_EXTRA_PADDING_PX
+              EXTENDED_HORIZONTAL_PADDING_PX + EXTENDED_LEFT_EXTRA_PADDING_PX
             }px`,
           }
         : {
-            paddingLeft: `calc(${PILL_BODY_HORIZONTAL_PADDING_PX}px + ${
-              BADGE_DIAMETER_EM / 2
-            }em + ${PILL_BADGE_GAP_PX}px + ${EXTENDED_BODY_LEFT_EXTRA_PADDING_PX}px)`,
+            paddingLeft: `calc(${EXTENDED_HORIZONTAL_PADDING_PX}px + ${
+              COMPACT_DIAMETER_EM / 2
+            }em + ${COMPACT_EXTENDED_GAP_PX}px + ${EXTENDED_LEFT_EXTRA_PADDING_PX}px)`,
           }
       : null;
-  const bodyOffsetBySide =
-    hasMarker && showBody
+  const extendedOffsetBySide =
+    hasCompact && showExtended
       ? mountSide === "right"
-        ? { marginRight: `-${BADGE_DIAMETER_EM / 2}em` }
-        : { marginLeft: `-${BADGE_DIAMETER_EM / 2}em` }
+        ? { marginRight: `-${COMPACT_DIAMETER_EM / 2}em` }
+        : { marginLeft: `-${COMPACT_DIAMETER_EM / 2}em` }
       : null;
-  const bodyRef = useRef<HTMLSpanElement | null>(null);
-  const previousBodyWidthPxRef = useRef<number | null>(null);
-  const [animatedBodyWidthPx, setAnimatedBodyWidthPx] = useState<number | null>(
-    null
-  );
-  const [bodyWidthTransitionMs, setBodyWidthTransitionMs] = useState(0);
+  const compactRef = useRef<HTMLSpanElement | null>(null);
+  const [compactWidthPx, setCompactWidthPx] = useState<number | null>(null);
 
   useLayoutEffect(() => {
-    if (resizeMode !== "fast-grow-slow-shrink" || !showBody) {
-      previousBodyWidthPxRef.current = null;
-      setAnimatedBodyWidthPx(null);
-      setBodyWidthTransitionMs(0);
+    const el = compactRef.current;
+    if (!el || !hasCompact) {
+      setCompactWidthPx(null);
+      return;
+    }
+    const scrollW = el.scrollWidth;
+    const circlePx = el.offsetHeight;
+    if (scrollW > circlePx) {
+      setCompactWidthPx(
+        scrollW +
+          COMPACT_HORIZONTAL_PADDING_PX * 2 +
+          COMPACT_WIDTH_EXTRA_PADDING_PX -
+          COMPACT_WIDTH_SHRINK_PX
+      );
+    } else {
+      setCompactWidthPx(null);
+    }
+  }, [hasCompact, markerContent, fontSize, fontFamily, fontWeight]);
+
+  const extendedRef = useRef<HTMLSpanElement | null>(null);
+  const previousExtendedWidthPxRef = useRef<number | null>(null);
+  const [animatedExtendedWidthPx, setAnimatedExtendedWidthPx] = useState<
+    number | null
+  >(null);
+  const [extendedWidthTransitionMs, setExtendedWidthTransitionMs] = useState(0);
+
+  useLayoutEffect(() => {
+    if (resizeMode !== "fast-grow-slow-shrink" || !showExtended) {
+      previousExtendedWidthPxRef.current = null;
+      setAnimatedExtendedWidthPx(null);
+      setExtendedWidthTransitionMs(0);
       return;
     }
 
-    const bodyElement = bodyRef.current;
-    if (!bodyElement) return;
+    const extendedElement = extendedRef.current;
+    if (!extendedElement) return;
 
-    const nextWidthPx = Math.ceil(bodyElement.scrollWidth);
-    const previousWidthPx = previousBodyWidthPxRef.current;
+    const nextWidthPx = Math.ceil(extendedElement.scrollWidth);
+    const previousWidthPx = previousExtendedWidthPxRef.current;
 
     if (previousWidthPx === null) {
-      setBodyWidthTransitionMs(0);
+      setExtendedWidthTransitionMs(0);
     } else if (nextWidthPx > previousWidthPx) {
-      setBodyWidthTransitionMs(FAST_GROW_WIDTH_TRANSITION_MS);
+      setExtendedWidthTransitionMs(FAST_GROW_WIDTH_TRANSITION_MS);
     } else if (nextWidthPx < previousWidthPx) {
-      setBodyWidthTransitionMs(SLOW_SHRINK_WIDTH_TRANSITION_MS);
+      setExtendedWidthTransitionMs(SLOW_SHRINK_WIDTH_TRANSITION_MS);
     }
 
-    previousBodyWidthPxRef.current = nextWidthPx;
-    setAnimatedBodyWidthPx(nextWidthPx);
-  }, [resizeMode, showBody, content, fontFamily, fontSize, fontWeight]);
+    previousExtendedWidthPxRef.current = nextWidthPx;
+    setAnimatedExtendedWidthPx(nextWidthPx);
+  }, [resizeMode, showExtended, content, fontFamily, fontSize, fontWeight]);
 
   const anchorTransform = useMemo(() => {
     if (mountSide === "right") {
-      if (!anchorAtSemicircleCenter || hasMarker) {
+      if (!anchorAtSemicircleCenter || hasCompact) {
         return "translate(-100%, -50%)";
       }
-      return `translate(calc(-100% + ${badgeAnchorOffsetPx}px), -50%)`;
+      return `translate(calc(-100% + ${compactAnchorOffsetPx}px), -50%)`;
     }
-    if (!anchorAtSemicircleCenter || hasMarker) {
+    if (!anchorAtSemicircleCenter || hasCompact) {
       return "translate(0%, -50%)";
     }
-    return `translate(${-badgeAnchorOffsetPx}px, -50%)`;
-  }, [anchorAtSemicircleCenter, badgeAnchorOffsetPx, hasMarker, mountSide]);
+    return `translate(${-compactAnchorOffsetPx}px, -50%)`;
+  }, [anchorAtSemicircleCenter, compactAnchorOffsetPx, hasCompact, mountSide]);
 
   return (
     <div
@@ -192,8 +222,9 @@ export const PillbuttonLabelMarker = ({
       onMouseEnter={onMouseEnter}
       onMouseLeave={onMouseLeave}
     >
-      {hasMarker ? (
+      {hasCompact ? (
         <span
+          ref={compactRef}
           style={{
             position: "absolute",
             ...(mountSide === "right" ? { right: 0 } : { left: 0 }),
@@ -202,12 +233,18 @@ export const PillbuttonLabelMarker = ({
               mountSide === "right"
                 ? "translate(50%, -50%)"
                 : "translate(-50%, -50%)",
-            width: `${BADGE_DIAMETER_EM}em`,
-            minWidth: `${BADGE_DIAMETER_EM}em`,
-            height: `${BADGE_DIAMETER_EM}em`,
-            padding: 0,
+            width:
+              compactWidthPx != null
+                ? `${compactWidthPx}px`
+                : `${COMPACT_DIAMETER_EM}em`,
+            minWidth: `${COMPACT_DIAMETER_EM}em`,
+            height: `${COMPACT_DIAMETER_EM}em`,
+            padding:
+              compactWidthPx != null
+                ? `0 ${COMPACT_HORIZONTAL_PADDING_PX}px`
+                : 0,
             borderRadius: "999px",
-            border: effectiveMarkerBorderStyle,
+            border: compactBorderless ? "none" : effectiveMarkerBorderStyle,
             boxSizing: "border-box",
             display: "inline-flex",
             alignItems: "center",
@@ -223,21 +260,20 @@ export const PillbuttonLabelMarker = ({
         </span>
       ) : null}
 
-      {showBody ? (
+      {showExtended ? (
         <span
-          ref={bodyRef}
+          ref={extendedRef}
           style={{
             borderRadius: "999px",
-            padding: `${PILL_BODY_VERTICAL_PADDING_PX}px ${PILL_BODY_HORIZONTAL_PADDING_PX}px`,
+            padding: `${EXTENDED_VERTICAL_PADDING_PX}px ${EXTENDED_HORIZONTAL_PADDING_PX}px`,
             paddingLeft: `${
-              PILL_BODY_HORIZONTAL_PADDING_PX +
-              EXTENDED_BODY_LEFT_EXTRA_PADDING_PX
+              EXTENDED_HORIZONTAL_PADDING_PX + EXTENDED_LEFT_EXTRA_PADDING_PX
             }px`,
-            ...(bodyPaddingBySide ?? null),
-            ...(bodyOffsetBySide ?? null),
+            ...(extendedPaddingBySide ?? null),
+            ...(extendedOffsetBySide ?? null),
             backgroundColor,
             color: textColor,
-            border: bodyBorderStyle,
+            border: extendedBorderStyle,
             boxSizing: "border-box",
             display: "inline-flex",
             alignItems: "center",
@@ -246,27 +282,27 @@ export const PillbuttonLabelMarker = ({
             zIndex: 1,
             width:
               resizeMode === "fast-grow-slow-shrink" &&
-              animatedBodyWidthPx !== null
-                ? `${animatedBodyWidthPx}px`
+              animatedExtendedWidthPx !== null
+                ? `${animatedExtendedWidthPx}px`
                 : undefined,
             overflow:
               resizeMode === "fast-grow-slow-shrink" ? "hidden" : undefined,
             transition:
               resizeMode === "fast-grow-slow-shrink"
-                ? `width ${bodyWidthTransitionMs}ms ease`
+                ? `width ${extendedWidthTransitionMs}ms ease`
                 : undefined,
           }}
         >
           {content}
         </span>
-      ) : !hasMarker ? (
+      ) : !hasCompact ? (
         <span
           style={{
             borderRadius: "999px",
-            padding: `${PILL_BODY_VERTICAL_PADDING_PX}px ${PILL_BODY_HORIZONTAL_PADDING_PX}px`,
+            padding: `${EXTENDED_VERTICAL_PADDING_PX}px ${EXTENDED_HORIZONTAL_PADDING_PX}px`,
             backgroundColor,
             color: textColor,
-            border: bodyBorderStyle,
+            border: extendedBorderStyle,
             boxSizing: "border-box",
             display: "inline-flex",
             alignItems: "center",
