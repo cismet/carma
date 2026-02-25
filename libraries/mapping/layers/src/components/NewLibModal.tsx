@@ -63,7 +63,7 @@ const elements = [
   { icon: faList, text: "Entdecken", id: "discover", disabledIn3D: true },
   { icon: faBook, text: "Teilzwillinge", id: "partialTwins" },
   { icon: faMap, text: "Kartenebenen", id: "mapLayers", disabledIn3D: true },
-  { icon: faMapPin, text: "Sensoren", id: "sensors" },
+  { icon: faMapPin, text: "Sensoren", id: "sensors", disabledIn3D: true },
   { icon: faCubes, text: "Objekte", id: "objects" },
   { icon: faSearch, text: "Suchergebnisse", id: "searchResults" },
 ];
