@@ -35,7 +35,11 @@ const FeaturesFormsWrapper = ({
   const FormComponent = formKey ? featureFormRegistry[formKey] : undefined;
 
   if (FormComponent) {
-    return <FormComponent data={data} rawFeature={rawFeature} readOnly={readOnly} />;
+    return (
+      <div className="h-full">
+        <FormComponent data={data} rawFeature={rawFeature} readOnly={readOnly} />
+      </div>
+    );
   }
 };
 

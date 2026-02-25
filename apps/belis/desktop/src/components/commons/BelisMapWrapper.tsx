@@ -339,7 +339,7 @@ const BelisMapLibWrapper = ({
             />
           }
           datasheetContent={
-            <div style={{ height: "100%", overflow: "auto" }}>
+            <div style={{ height: "100%", overflow: "hidden" }}>
               <BelisDatasheetView
                 feature={selectedFeature}
                 rawFeature={rawFeature}

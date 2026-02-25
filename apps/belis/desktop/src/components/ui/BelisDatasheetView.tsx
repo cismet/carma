@@ -60,19 +60,21 @@ const BelisDatasheetView = ({
   const props = rawFeature?.properties ?? feature?.properties ?? {};
 
   return (
-    <Spin spinning={featureLoading}>
-      <div style={{ height: "100%", padding: "10px 4px 8px 16px" }}>
-        {/* Fetched feature data - render form or JSON fallback */}
-        {fetchedData && (
-          <FeaturesFormsWrapper
-            featureType={featureType}
-            data={fetchedData}
-            rawFeature={rawFeature}
-            readOnly={readOnly}
-          />
-        )}
-      </div>
-    </Spin>
+    <div className="h-full [&_.ant-spin-nested-loading]:h-full [&_.ant-spin-container]:h-full">
+      <Spin spinning={featureLoading}>
+        <div className="h-full p-2 pl-4">
+          {/* Fetched feature data - render form or JSON fallback */}
+          {fetchedData && (
+            <FeaturesFormsWrapper
+              featureType={featureType}
+              data={fetchedData}
+              rawFeature={rawFeature}
+              readOnly={readOnly}
+            />
+          )}
+        </div>
+      </Spin>
+    </div>
   );
 };
 
