@@ -201,17 +201,31 @@ const OnMapList = ({
     Record<string, boolean>
   >({});
   const selectedItemRef = useRef<HTMLDivElement>(null);
-  const selectionFromListRef = useRef(false);
+  // Store the feature ID that was selected from the list (not just a boolean)
+  // This prevents scroll even if the effect runs multiple times due to filteredFeatures changing
+  const selectionFromListRef = useRef<{
+    source: string;
+    sourceLayer?: string;
+    id?: string | number;
+  } | null>(null);
 
   // Scroll selected item into view only when selection comes from map (not list)
   useEffect(() => {
     if (!selectedFeatureId) return;
 
-    // Skip scroll if selection was triggered from list click
-    if (selectionFromListRef.current) {
-      selectionFromListRef.current = false;
+    // Skip scroll if this selection was triggered from list click
+    const listSelection = selectionFromListRef.current;
+    if (
+      listSelection &&
+      listSelection.source === selectedFeatureId.source &&
+      listSelection.sourceLayer === selectedFeatureId.sourceLayer &&
+      listSelection.id === selectedFeatureId.id
+    ) {
+      // Don't reset here - keep skipping until a different feature is selected
       return;
     }
+    // Clear the ref since a different feature was selected (from map)
+    selectionFromListRef.current = null;
 
     const selectedFeature = filteredFeatures.find(
       (f) =>
@@ -311,7 +325,11 @@ const OnMapList = ({
             : (currentIdx - 1 + flatFeatures.length) % flatFeatures.length;
       }
       const next = flatFeatures[nextIdx];
-      selectionFromListRef.current = true;
+      selectionFromListRef.current = {
+        source: next.source,
+        sourceLayer: next.sourceLayer,
+        id: next.id,
+      };
       selectFeature(
         { source: next.source, sourceLayer: next.sourceLayer, id: next.id },
         next
@@ -330,7 +348,11 @@ const OnMapList = ({
   };
 
   const handleFeatureClick = (feature: VisibleFeature) => {
-    selectionFromListRef.current = true;
+    selectionFromListRef.current = {
+      source: feature.source,
+      sourceLayer: feature.sourceLayer,
+      id: feature.id,
+    };
     selectFeature(
       {
         source: feature.source,
