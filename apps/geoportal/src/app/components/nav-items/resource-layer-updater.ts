@@ -444,7 +444,16 @@ export const createResourceLayerUpdater = ({
     }
 
     const id = toLayerId(layer);
-    const parsedLayer = await parseToMapLayer(layer, forceWMS, true);
+    let parsedLayer = null;
+    try {
+      parsedLayer = await parseToMapLayer(layer, forceWMS, true);
+    } catch {
+      messageApi.open({
+        type: "error",
+        content: `Es gab einen Fehler beim hinzufügen von ${layer.title}`,
+      });
+      return;
+    }
     const existingLayer = activeLayers.find(
       (activeLayer) => activeLayer.id === id
     );
