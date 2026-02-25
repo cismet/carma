@@ -28,6 +28,9 @@ const ImageList = () => {
   const [legendErrors, setLegendErrors] = useState<
     { title: string; url: string }[]
   >([]);
+  const [parseErrors, setParseErrors] = useState<
+    { title: string; url: string }[]
+  >([]);
   const [search, setSearch] = useState("");
 
   const addError = useCallback(
@@ -68,8 +71,18 @@ const ImageList = () => {
           try {
             const parsed = await parseToMapLayer(layer, false, false);
             map[layer.id] = parsed;
-          } catch {
-            // skip layers that fail to parse
+          } catch (err) {
+            setParseErrors((prev) =>
+              prev.some((e) => e.title === layer.title)
+                ? prev
+                : [
+                    ...prev,
+                    {
+                      title: layer.title,
+                      url: String(err),
+                    },
+                  ]
+            );
           }
         }
       }
@@ -192,6 +205,7 @@ const ImageList = () => {
           </strong>
         </div>
       )}
+      {renderErrorBox("Parse Errors", parseErrors)}
       {renderErrorBox("Icon Errors", iconErrors)}
       {renderErrorBox("Thumbnail Errors", thumbnailErrors)}
       {renderErrorBox("Legend Errors", legendErrors)}
