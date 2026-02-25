@@ -1,6 +1,6 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useSelector } from "react-redux";
-import type { Layer } from "@carma/types";
+import type { Item, Layer } from "@carma/types";
 import { getAllLayers } from "./slices/mapLayers";
 import { LayerIcon } from "@carma-mapping/components";
 import { updateUrl, extractCarmaConfig } from "@carma-commons/utils";
@@ -28,6 +28,7 @@ const ImageList = () => {
   const [legendErrors, setLegendErrors] = useState<
     { title: string; url: string }[]
   >([]);
+  const [search, setSearch] = useState("");
 
   const addError = useCallback(
     (
@@ -77,6 +78,42 @@ const ImageList = () => {
     parseLayers();
   }, [allLayers]);
 
+  const getLayerUrls = useCallback((layer: Item): string[] => {
+    const urls: string[] = [];
+    const carmaConf = extractCarmaConfig(layer.keywords);
+    const vectorLegend = layer.vectorLegend || carmaConf?.vectorLegend;
+    const vectorStyle = layer.vectorStyle || carmaConf?.vectorStyle;
+    const legends =
+      vectorStyle && vectorLegend
+        ? [{ OnlineResource: vectorLegend as string }]
+        : (layer as any).props?.Style?.[0]?.LegendURL;
+
+    if (layer.thumbnail) {
+      urls.push(updateUrl(layer.thumbnail), layer.thumbnail);
+    }
+    if (legends) {
+      for (const legend of legends) {
+        urls.push(updateUrl(legend.OnlineResource), legend.OnlineResource);
+      }
+    }
+    // icon urls are harder to reconstruct exactly, so also match title
+    urls.push(layer.title);
+    return urls;
+  }, []);
+
+  const filteredLayers = useMemo(() => {
+    if (!search.trim()) return allLayers;
+    const term = search.toLowerCase();
+    return allLayers
+      .map((category) => ({
+        ...category,
+        layers: category.layers.filter((layer) =>
+          getLayerUrls(layer).some((url) => url.toLowerCase().includes(term))
+        ),
+      }))
+      .filter((category) => category.layers.length > 0);
+  }, [allLayers, search, getLayerUrls]);
+
   const renderErrorBox = (
     label: string,
     errors: { title: string; url: string }[]
@@ -122,12 +159,43 @@ const ImageList = () => {
     );
   };
 
+  const getNumberOfLayers = (layerCategories: any) => {
+    let numberOfLayers = 0;
+    layerCategories?.forEach((category) => {
+      numberOfLayers += category?.layers?.length;
+    });
+    return numberOfLayers;
+  };
+
   return (
     <div style={{ padding: "24px", fontFamily: "sans-serif" }}>
+      <input
+        type="text"
+        placeholder="Filter by URL..."
+        value={search}
+        onChange={(e) => setSearch(e.target.value)}
+        style={{
+          width: "100%",
+          padding: "8px 12px",
+          marginBottom: "24px",
+          fontSize: 14,
+          border: "1px solid #ccc",
+          borderRadius: 4,
+          boxSizing: "border-box",
+        }}
+      />
+      {getNumberOfLayers(filteredLayers) !== getNumberOfLayers(allLayers) && (
+        <div style={{ marginBottom: "24px" }}>
+          <strong>
+            Showing: {getNumberOfLayers(filteredLayers)} of{" "}
+            {getNumberOfLayers(allLayers)} layers
+          </strong>
+        </div>
+      )}
       {renderErrorBox("Icon Errors", iconErrors)}
       {renderErrorBox("Thumbnail Errors", thumbnailErrors)}
       {renderErrorBox("Legend Errors", legendErrors)}
-      {allLayers.map((category) => (
+      {filteredLayers.map((category) => (
         <div key={category.id} style={{ marginBottom: "48px" }}>
           <h2 style={{ paddingBottom: "8px" }}>{category.Title}</h2>
           {category.layers.map((layer) => {
