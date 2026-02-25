@@ -3,6 +3,7 @@ export {
   createFilterButtons,
   type FilterInfo,
   type FilterOption,
+  type FilterState,
   type GenericFilterButtonsProps,
 } from "./lib/components/GenericFilterButtonsFactory.tsx";
 

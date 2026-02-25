@@ -199,7 +199,7 @@ const LayerWrapper = () => {
         </div>
       </DndContext>
 
-      <div id="interactionLevel" />
+      <div className="pt-3 w-full flex items-center justify-center" id="interactionLevel" />
       {!isNoSelectionIndex && <SecondaryView />}
     </>
   );

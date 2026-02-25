@@ -27,14 +27,20 @@ export interface GenericFilterButtonsProps {
   selectedFeature: any;
   setSelectedFeature: (feature: any) => void;
   config: FilterConfig;
-  onFilterChange?: (filterInfo: FilterInfo) => void;
+  onFilterChange?: (filterInfo: FilterInfo, filterState: FilterState) => void;
   skipFeatureMatchCheck?: boolean;
+  initialFilters?: FilterState;
 }
 
-type FilterState = Record<string, boolean>;
+export type FilterState = Record<string, boolean>;
 
 export const createFilterButtons = (config: FilterConfig) => {
   const isOrMode = config.filterMode === "or";
+
+  // Store original layer filters in the closure so they persist across
+  // mount/unmount cycles of the inner component (the closure is preserved
+  // by the useMemo in the parent).
+  let capturedOriginalFilters: Record<string, any[] | null> | null = null;
 
   const GenericFilterButtons = ({
     maplibreMap,
@@ -42,30 +48,33 @@ export const createFilterButtons = (config: FilterConfig) => {
     setSelectedFeature,
     onFilterChange,
     skipFeatureMatchCheck = false,
+    initialFilters,
   }: Omit<GenericFilterButtonsProps, "config">) => {
     // Initialize filter state
     // In AND mode: "alle" starts as true, all filters false
     // In OR mode: no "alle" button, all filters start as true (show all)
-    const initialState: FilterState = isOrMode
-      ? config.filters.reduce(
-          (acc, filter) => ({ ...acc, [filter.key]: true }),
-          {}
-        )
-      : {
-          alle: true,
-          ...config.filters.reduce(
-            (acc, filter) => ({ ...acc, [filter.key]: false }),
+    const initialState: FilterState =
+      initialFilters ??
+      (isOrMode
+        ? config.filters.reduce(
+            (acc, filter) => ({ ...acc, [filter.key]: true }),
             {}
-          ),
-        };
+          )
+        : {
+            alle: true,
+            ...config.filters.reduce(
+              (acc, filter) => ({ ...acc, [filter.key]: false }),
+              {}
+            ),
+          });
 
     const [selectedFilters, setSelectedFilters] =
       useState<FilterState>(initialState);
 
-    // Store original layer filters (captured once when map is ready)
+    // Local state that syncs with the closure-scoped original filters
     const [originalFilters, setOriginalFilters] = useState<
       Record<string, any[] | null>
-    >({});
+    >(capturedOriginalFilters ?? {});
 
     // Function to build filter expression from selected filters
     const buildFilterExpression = (filters: FilterState): any[] | null => {
@@ -184,10 +193,11 @@ export const createFilterButtons = (config: FilterConfig) => {
       };
     };
 
-    // Capture original filters once when map becomes available
+    // Capture original filters once when map becomes available.
+    // Uses the closure-scoped variable so they survive unmount/remount.
     useEffect(() => {
       if (!maplibreMap) return;
-      if (Object.keys(originalFilters).length > 0) return; // Already captured
+      if (capturedOriginalFilters) return; // Already captured
 
       const layers = maplibreMap.getStyle()?.layers || [];
       const targetLayers = layers.filter((layer: any) =>
@@ -199,6 +209,7 @@ export const createFilterButtons = (config: FilterConfig) => {
         captured[layer.id] = layer.filter || null;
       });
 
+      capturedOriginalFilters = captured;
       setOriginalFilters(captured);
     }, [maplibreMap]);
 
@@ -277,7 +288,7 @@ export const createFilterButtons = (config: FilterConfig) => {
 
     useEffect(() => {
       if (onFilterChange) {
-        onFilterChange(computeFilterInfo(selectedFilters));
+        onFilterChange(computeFilterInfo(selectedFilters), selectedFilters);
       }
     }, [selectedFilters]);
 

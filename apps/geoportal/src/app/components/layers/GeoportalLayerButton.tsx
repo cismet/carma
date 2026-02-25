@@ -31,6 +31,7 @@ import { cn, getHashParams } from "@carma-commons/utils";
 import {
   createFilterButtons,
   type FilterInfo,
+  type FilterState,
 } from "@carma-mapping/components";
 
 import {
@@ -103,6 +104,7 @@ const GeoportalLayerButton = ({
     },
   });
   const [filterInfo, setFilterInfo] = useState<FilterInfo | undefined>();
+  const [filterState, setFilterState] = useState<FilterState | undefined>();
   const dispatch = useDispatch();
   const { routedMapRef } = useContext<typeof TopicMapContext>(TopicMapContext);
 
@@ -343,30 +345,26 @@ const GeoportalLayerButton = ({
           </div>
         )}
       </LayerButton>
-      {FilterComponent &&
+      {isFilterActive &&
+        FilterComponent &&
         (() => {
           const portalTarget = document.getElementById("interactionLevel");
           if (!portalTarget) return null;
           return createPortal(
-            <div
-              className={cn(
-                "pt-3 w-full flex items-center justify-center",
-                !isFilterActive && "hidden"
-              )}
-            >
-              <FilterComponent
-                maplibreMap={maplibreMap}
-                selectedFeature={selectedFeature}
-                skipFeatureMatchCheck={isModeFeatureInfo}
-                setSelectedFeature={(feature) => {
-                  dispatch(setSelectedFeatureAction(feature));
-                }}
-                onFilterChange={(info: FilterInfo) => {
-                  setFilterInfo(info);
-                  dispatch(triggerFeatureInfoUpdateAction());
-                }}
-              />
-            </div>,
+            <FilterComponent
+              maplibreMap={maplibreMap}
+              selectedFeature={selectedFeature}
+              skipFeatureMatchCheck={isModeFeatureInfo}
+              setSelectedFeature={(feature) => {
+                dispatch(setSelectedFeatureAction(feature));
+              }}
+              onFilterChange={(info: FilterInfo, state: FilterState) => {
+                setFilterState(state);
+                setFilterInfo(info);
+                dispatch(triggerFeatureInfoUpdateAction());
+              }}
+              initialFilters={filterState}
+            />,
             portalTarget
           );
         })()}
