@@ -11,6 +11,8 @@ import {
 } from "antd";
 import { useSelector } from "react-redux";
 import { getKeyTablesData } from "../../../store/slices/keyTables";
+import StrassenschluesselFields from "./StrassenschluesselFields";
+import { getFormClassName, getPlaceholder } from "./readOnlyFormUtils";
 import dayjs from "dayjs";
 
 interface MastFormFieldsProps {
@@ -209,30 +211,10 @@ const MastFormFields = ({ mast, namePrefix, readOnly = true }: MastFormFieldsPro
       form={form}
       layout="vertical"
       requiredMark={false}
-      className="pr-2 [&_.ant-input-disabled]:bg-white [&_.ant-input-number-disabled]:bg-white [&_.ant-picker-disabled]:bg-white [&_.ant-select-disabled_.ant-select-selector]:!bg-white [&_.ant-checkbox-disabled+span]:opacity-70"
-      disabled={readOnly}
+      className={getFormClassName(readOnly, "pr-2")}
     >
-      {/* Strassenschluessel */}
-      <Row gutter={16}>
-        <Col span={6}>
-          <Form.Item
-            name={fieldName("strassenschluessel_pk")}
-            label={<FormLabel>Strassenschlüssel</FormLabel>}
-            className="mb-4"
-          >
-            <Input size="large" disabled />
-          </Form.Item>
-        </Col>
-        <Col span={18}>
-          <Form.Item
-            name={fieldName("strassenschluessel_strasse")}
-            label={<FormLabel>&nbsp;</FormLabel>}
-            className="mb-4"
-          >
-            <Input size="large" disabled />
-          </Form.Item>
-        </Col>
-      </Row>
+      {/* Strassenschluessel - always disabled */}
+      <StrassenschluesselFields namePrefix={namePrefix} />
 
       {/* Kennziffer */}
       <Form.Item
@@ -241,7 +223,7 @@ const MastFormFields = ({ mast, namePrefix, readOnly = true }: MastFormFieldsPro
         className="mb-4"
       >
         <Select
-          placeholder="Kennziffer auswählen"
+          placeholder={getPlaceholder(readOnly, "Kennziffer auswählen")}
           className="w-full"
           size="large"
           showSearch
@@ -293,7 +275,7 @@ const MastFormFields = ({ mast, namePrefix, readOnly = true }: MastFormFieldsPro
         className="mb-4"
       >
         <Select
-          placeholder="Stadtbezirk auswählen"
+          placeholder={getPlaceholder(readOnly, "Stadtbezirk auswählen")}
           className="w-full"
           size="large"
           showSearch
@@ -314,7 +296,7 @@ const MastFormFields = ({ mast, namePrefix, readOnly = true }: MastFormFieldsPro
         className="mb-4"
       >
         <Select
-          placeholder="Mastart auswählen"
+          placeholder={getPlaceholder(readOnly, "Mastart auswählen")}
           className="w-full"
           size="large"
           showSearch
@@ -335,7 +317,7 @@ const MastFormFields = ({ mast, namePrefix, readOnly = true }: MastFormFieldsPro
         className="mb-4"
       >
         <Select
-          placeholder="Masttyp auswählen"
+          placeholder={getPlaceholder(readOnly, "Masttyp auswählen")}
           className="w-full"
           size="large"
           showSearch
@@ -356,7 +338,7 @@ const MastFormFields = ({ mast, namePrefix, readOnly = true }: MastFormFieldsPro
         className="mb-4"
       >
         <Select
-          placeholder="Klassifizierung auswählen"
+          placeholder={getPlaceholder(readOnly, "Klassifizierung auswählen")}
           className="w-full"
           size="large"
           showSearch
@@ -377,7 +359,7 @@ const MastFormFields = ({ mast, namePrefix, readOnly = true }: MastFormFieldsPro
         className="mb-4"
       >
         <Select
-          placeholder="Unterhalt auswählen"
+          placeholder={getPlaceholder(readOnly, "Unterhalt auswählen")}
           className="w-full"
           size="large"
           showSearch
@@ -403,7 +385,7 @@ const MastFormFields = ({ mast, namePrefix, readOnly = true }: MastFormFieldsPro
               className="w-full"
               size="large"
               format="DD.MM.YYYY"
-              placeholder="Datum auswählen"
+              placeholder={getPlaceholder(readOnly, "Datum auswählen")}
             />
           </Form.Item>
         </Col>
@@ -430,7 +412,7 @@ const MastFormFields = ({ mast, namePrefix, readOnly = true }: MastFormFieldsPro
               className="w-full"
               size="large"
               format="DD.MM.YYYY"
-              placeholder="Datum auswählen"
+              placeholder={getPlaceholder(readOnly, "Datum auswählen")}
             />
           </Form.Item>
         </Col>
@@ -475,7 +457,7 @@ const MastFormFields = ({ mast, namePrefix, readOnly = true }: MastFormFieldsPro
               className="w-full"
               size="large"
               format="DD.MM.YYYY"
-              placeholder="Datum auswählen"
+              placeholder={getPlaceholder(readOnly, "Datum auswählen")}
             />
           </Form.Item>
         </Col>
@@ -489,7 +471,7 @@ const MastFormFields = ({ mast, namePrefix, readOnly = true }: MastFormFieldsPro
               className="w-full"
               size="large"
               format="DD.MM.YYYY"
-              placeholder="Datum auswählen"
+              placeholder={getPlaceholder(readOnly, "Datum auswählen")}
             />
           </Form.Item>
         </Col>
@@ -516,7 +498,7 @@ const MastFormFields = ({ mast, namePrefix, readOnly = true }: MastFormFieldsPro
               className="w-full"
               size="large"
               format="DD.MM.YYYY"
-              placeholder="Datum auswählen"
+              placeholder={getPlaceholder(readOnly, "Datum auswählen")}
             />
           </Form.Item>
         </Col>
@@ -552,7 +534,7 @@ const MastFormFields = ({ mast, namePrefix, readOnly = true }: MastFormFieldsPro
               className="w-full"
               size="large"
               format="DD.MM.YYYY"
-              placeholder="Datum auswählen"
+              placeholder={getPlaceholder(readOnly, "Datum auswählen")}
             />
           </Form.Item>
         </Col>
@@ -574,7 +556,7 @@ const MastFormFields = ({ mast, namePrefix, readOnly = true }: MastFormFieldsPro
         className="mb-4"
       >
         <Select
-          placeholder="Anlagengruppe auswählen"
+          placeholder={getPlaceholder(readOnly, "Anlagengruppe auswählen")}
           className="w-full"
           size="large"
           showSearch
@@ -612,7 +594,7 @@ const MastFormFields = ({ mast, namePrefix, readOnly = true }: MastFormFieldsPro
         label={<FormLabel>Letzte Änderung</FormLabel>}
         className="mb-4"
       >
-        <DatePicker className="w-full" size="large" format="DD.MM.YYYY" placeholder="Datum auswählen" />
+        <DatePicker className="w-full" size="large" format="DD.MM.YYYY" placeholder={getPlaceholder(readOnly, "Datum auswählen")} />
       </Form.Item>
     </Form>
   );

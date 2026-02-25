@@ -6,6 +6,7 @@ import { getKeyTablesData } from "../../../store/slices/keyTables";
 import { getJWT } from "../../../store/slices/auth";
 import { DokumentItem } from "../DocumentPreview";
 import FeatureFormLayout from "./FeatureFormLayout";
+import { getFormClassName, getPlaceholder } from "./readOnlyFormUtils";
 
 interface LeitungFormProps {
   data: Record<string, unknown> | null;
@@ -97,8 +98,7 @@ const LeitungForm = ({ data, rawFeature, onClose, readOnly = true, loading }: Le
         form={form}
         layout="vertical"
         requiredMark={false}
-        className="pr-2 [&_.ant-input-disabled]:bg-white [&_.ant-input-number-disabled]:bg-white [&_.ant-picker-disabled]:bg-white [&_.ant-select-disabled_.ant-select-selector]:!bg-white [&_.ant-checkbox-disabled+span]:opacity-70"
-        disabled={readOnly}
+        className={getFormClassName(readOnly, "pr-2")}
       >
         {/* Leitungstyp - Full Width */}
         <Form.Item
@@ -107,7 +107,7 @@ const LeitungForm = ({ data, rawFeature, onClose, readOnly = true, loading }: Le
           className="mb-4"
         >
           <Select
-            placeholder="Leitungstyp auswählen"
+            placeholder={getPlaceholder(readOnly, "Leitungstyp auswählen")}
             className="w-full"
             size="large"
             showSearch
@@ -130,7 +130,7 @@ const LeitungForm = ({ data, rawFeature, onClose, readOnly = true, loading }: Le
               className="mb-4"
             >
               <Select
-                placeholder="Material auswählen"
+                placeholder={getPlaceholder(readOnly, "Material auswählen")}
                 className="w-full"
                 size="large"
                 showSearch
@@ -151,7 +151,7 @@ const LeitungForm = ({ data, rawFeature, onClose, readOnly = true, loading }: Le
               className="mb-4"
             >
               <Select
-                placeholder="Querschnitt auswählen"
+                placeholder={getPlaceholder(readOnly, "Querschnitt auswählen")}
                 className="w-full"
                 size="large"
                 showSearch

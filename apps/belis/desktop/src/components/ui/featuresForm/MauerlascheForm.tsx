@@ -1,11 +1,13 @@
 import { useEffect, useState } from "react";
-import { Form, Row, Col, Select, Input, DatePicker, InputNumber } from "antd";
+import { Form, Select, Input, DatePicker, InputNumber } from "antd";
 import type { UploadFile } from "antd";
 import { useSelector } from "react-redux";
 import { getKeyTablesData } from "../../../store/slices/keyTables";
 import { getJWT } from "../../../store/slices/auth";
 import { DokumentItem } from "../DocumentPreview";
 import FeatureFormLayout from "./FeatureFormLayout";
+import StrassenschluesselFields from "./StrassenschluesselFields";
+import { getFormClassName, getPlaceholder } from "./readOnlyFormUtils";
 import dayjs from "dayjs";
 
 interface MauerlascheFormProps {
@@ -122,30 +124,10 @@ const MauerlascheForm = ({
         form={form}
         layout="vertical"
         requiredMark={false}
-        className="pr-2 [&_.ant-input-disabled]:bg-white [&_.ant-input-number-disabled]:bg-white [&_.ant-picker-disabled]:bg-white [&_.ant-select-disabled_.ant-select-selector]:!bg-white [&_.ant-checkbox-disabled+span]:opacity-70"
-        disabled={readOnly}
+        className={getFormClassName(readOnly, "pr-2")}
       >
-        {/* Strassenschluessel */}
-        <Row gutter={16}>
-          <Col span={6}>
-            <Form.Item
-              name="strassenschluessel_pk"
-              label={<FormLabel>Strassenschlussel</FormLabel>}
-              className="mb-4"
-            >
-              <Input size="large" disabled />
-            </Form.Item>
-          </Col>
-          <Col span={18}>
-            <Form.Item
-              name="strassenschluessel_strasse"
-              label={<FormLabel>&nbsp;</FormLabel>}
-              className="mb-4"
-            >
-              <Input size="large" disabled />
-            </Form.Item>
-          </Col>
-        </Row>
+        {/* Strassenschluessel - always disabled */}
+        <StrassenschluesselFields label="Strassenschlussel" />
 
         {/* Laufende Nr. */}
         <Form.Item
@@ -166,7 +148,7 @@ const MauerlascheForm = ({
             className="w-full"
             size="large"
             format="DD.MM.YYYY"
-            placeholder="Datum auswahlen"
+            placeholder={getPlaceholder(readOnly, "Datum auswahlen")}
           />
         </Form.Item>
 
@@ -177,7 +159,7 @@ const MauerlascheForm = ({
           className="mb-4"
         >
           <Select
-            placeholder="Material auswahlen"
+            placeholder={getPlaceholder(readOnly, "Material auswahlen")}
             className="w-full"
             size="large"
             showSearch
@@ -201,7 +183,7 @@ const MauerlascheForm = ({
             className="w-full"
             size="large"
             format="DD.MM.YYYY"
-            placeholder="Datum auswahlen"
+            placeholder={getPlaceholder(readOnly, "Datum auswahlen")}
           />
         </Form.Item>
 

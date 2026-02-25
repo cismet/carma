@@ -11,6 +11,8 @@ import {
 } from "antd";
 import { useSelector } from "react-redux";
 import { getKeyTablesData } from "../../../store/slices/keyTables";
+import StrassenschluesselFields from "./StrassenschluesselFields";
+import { getFormClassName, getPlaceholder } from "./readOnlyFormUtils";
 import dayjs from "dayjs";
 
 // Helper to sort options based on display text (same sorting as KeyTablesPage)
@@ -254,30 +256,10 @@ const LeuchteFormFields = ({ leuchte, namePrefix, readOnly = true }: LeuchteForm
       form={form}
       layout="vertical"
       requiredMark={false}
-      className="pr-2 [&_.ant-input-disabled]:bg-white [&_.ant-input-number-disabled]:bg-white [&_.ant-picker-disabled]:bg-white [&_.ant-select-disabled_.ant-select-selector]:!bg-white [&_.ant-checkbox-disabled+span]:opacity-70"
-      disabled={readOnly}
+      className={getFormClassName(readOnly, "pr-2")}
     >
-      {/* Straßenschlüssel */}
-      <Row gutter={16}>
-        <Col span={6}>
-          <Form.Item
-            name={fieldName("strassenschluessel_pk")}
-            label={<FormLabel>Straßenschlüssel</FormLabel>}
-            className="mb-4"
-          >
-            <Input size="large" disabled />
-          </Form.Item>
-        </Col>
-        <Col span={18}>
-          <Form.Item
-            name={fieldName("strassenschluessel_strasse")}
-            label={<FormLabel>&nbsp;</FormLabel>}
-            className="mb-4"
-          >
-            <Input size="large" disabled />
-          </Form.Item>
-        </Col>
-      </Row>
+      {/* Straßenschlüssel - always disabled */}
+      <StrassenschluesselFields namePrefix={namePrefix} />
 
       {/* Kennziffer */}
       <Form.Item
@@ -286,7 +268,7 @@ const LeuchteFormFields = ({ leuchte, namePrefix, readOnly = true }: LeuchteForm
         className="mb-4"
       >
         <Select
-          placeholder="Kennziffer auswählen"
+          placeholder={getPlaceholder(readOnly, "Kennziffer auswählen")}
           className="w-full"
           size="large"
           showSearch
@@ -329,7 +311,7 @@ const LeuchteFormFields = ({ leuchte, namePrefix, readOnly = true }: LeuchteForm
         className="mb-4"
       >
         <Select
-          placeholder="Leuchtentyp auswählen"
+          placeholder={getPlaceholder(readOnly, "Leuchtentyp auswählen")}
           className="w-full"
           size="large"
           showSearch
@@ -355,7 +337,7 @@ const LeuchteFormFields = ({ leuchte, namePrefix, readOnly = true }: LeuchteForm
               className="w-full"
               size="large"
               format="DD.MM.YYYY"
-              placeholder="Datum auswählen"
+              placeholder={getPlaceholder(readOnly, "Datum auswählen")}
             />
           </Form.Item>
         </Col>
@@ -386,7 +368,7 @@ const LeuchteFormFields = ({ leuchte, namePrefix, readOnly = true }: LeuchteForm
         className="mb-4"
       >
         <Select
-          placeholder="Energielieferant auswählen"
+          placeholder={getPlaceholder(readOnly, "Energielieferant auswählen")}
           className="w-full"
           size="large"
           showSearch
@@ -416,7 +398,7 @@ const LeuchteFormFields = ({ leuchte, namePrefix, readOnly = true }: LeuchteForm
         className="mb-4"
       >
         <Select
-          placeholder="Rundsteuerempfänger auswählen"
+          placeholder={getPlaceholder(readOnly, "Rundsteuerempfänger auswählen")}
           className="w-full"
           size="large"
           showSearch
@@ -440,7 +422,7 @@ const LeuchteFormFields = ({ leuchte, namePrefix, readOnly = true }: LeuchteForm
           className="w-full"
           size="large"
           format="DD.MM.YYYY"
-          placeholder="Datum auswählen"
+          placeholder={getPlaceholder(readOnly, "Datum auswählen")}
         />
       </Form.Item>
 
@@ -453,7 +435,7 @@ const LeuchteFormFields = ({ leuchte, namePrefix, readOnly = true }: LeuchteForm
             className="mb-4"
           >
             <Select
-              placeholder="Auswählen"
+              placeholder={getPlaceholder(readOnly, "Auswählen")}
               className="w-full"
               size="large"
               showSearch
@@ -501,7 +483,7 @@ const LeuchteFormFields = ({ leuchte, namePrefix, readOnly = true }: LeuchteForm
             className="mb-4"
           >
             <Select
-              placeholder="Auswählen"
+              placeholder={getPlaceholder(readOnly, "Auswählen")}
               className="w-full"
               size="large"
               allowClear
@@ -548,7 +530,7 @@ const LeuchteFormFields = ({ leuchte, namePrefix, readOnly = true }: LeuchteForm
         className="mb-4"
       >
         <Select
-          placeholder="Auswählen"
+          placeholder={getPlaceholder(readOnly, "Auswählen")}
           className="w-full"
           size="large"
           showSearch
@@ -574,7 +556,7 @@ const LeuchteFormFields = ({ leuchte, namePrefix, readOnly = true }: LeuchteForm
               className="w-full"
               size="large"
               format="DD.MM.YYYY"
-              placeholder="Datum auswählen"
+              placeholder={getPlaceholder(readOnly, "Datum auswählen")}
             />
           </Form.Item>
         </Col>
@@ -588,7 +570,7 @@ const LeuchteFormFields = ({ leuchte, namePrefix, readOnly = true }: LeuchteForm
               className="w-full"
               size="large"
               format="DD.MM.YYYY"
-              placeholder="Datum auswählen"
+              placeholder={getPlaceholder(readOnly, "Datum auswählen")}
             />
           </Form.Item>
         </Col>
@@ -601,7 +583,7 @@ const LeuchteFormFields = ({ leuchte, namePrefix, readOnly = true }: LeuchteForm
         className="mb-4"
       >
         <Select
-          placeholder="Leuchtmittel auswählen"
+          placeholder={getPlaceholder(readOnly, "Leuchtmittel auswählen")}
           className="w-full"
           size="large"
           showSearch
@@ -639,7 +621,7 @@ const LeuchteFormFields = ({ leuchte, namePrefix, readOnly = true }: LeuchteForm
           className="w-full"
           size="large"
           format="DD.MM.YYYY"
-          placeholder="Datum auswählen"
+          placeholder={getPlaceholder(readOnly, "Datum auswählen")}
         />
       </Form.Item>
 
@@ -662,7 +644,7 @@ const LeuchteFormFields = ({ leuchte, namePrefix, readOnly = true }: LeuchteForm
           className="w-full"
           size="large"
           format="DD.MM.YYYY"
-          placeholder="Datum auswählen"
+          placeholder={getPlaceholder(readOnly, "Datum auswählen")}
         />
       </Form.Item>
 
