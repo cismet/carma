@@ -60,6 +60,8 @@ const BelisMapLibWrapper = ({
   const { selectedFeature, rawFeature } = useMapSelection();
   const { closeDatasheet } = useDatasheet();
   const [fetchedFeatureData, setFetchedFeatureData] = useState<any>(null);
+  // Preserve last valid featureType to prevent unmount when selectedFeature briefly becomes undefined
+  const [lastFeatureType, setLastFeatureType] = useState<string | undefined>(undefined);
   const activeBackgroundLayer = useSelector(getActiveBackgroundLayer);
   const backgroundLayerOpacities = useSelector(getBackgroundLayerOpacities);
   const activeAdditionalLayers = useSelector(getActiveAdditionalLayers);
@@ -126,13 +128,18 @@ const BelisMapLibWrapper = ({
 
   useEffect(() => {
     const fetchData = async () => {
+      // Don't clear data when selectedFeature is undefined - keep form mounted with old data
       if (!jwt || !selectedFeature) {
-        setFetchedFeatureData(null);
         return;
       }
 
       // Get sourceLayer from selectedFeature
       const sourceLayer = selectedFeature?.carmaInfo?.sourceLayer;
+
+      // Preserve featureType for when selectedFeature briefly becomes undefined
+      if (sourceLayer) {
+        setLastFeatureType(sourceLayer);
+      }
       const featureId = selectedFeature?.properties?.sourceProps?.id;
 
       console.log("[SELECTION] vector feature:", {
@@ -344,7 +351,7 @@ const BelisMapLibWrapper = ({
                 feature={selectedFeature}
                 rawFeature={rawFeature}
                 fetchedData={fetchedFeatureData}
-                featureType={selectedFeature?.carmaInfo?.sourceLayer}
+                featureType={selectedFeature?.carmaInfo?.sourceLayer || lastFeatureType}
               />
             </div>
           }
