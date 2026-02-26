@@ -4,6 +4,7 @@
 // Fix for react-image-lightbox in Vite (needs global to be defined)
 // @ts-ignore
 window.global = window;
+import "./index.css";
 import { StrictMode, useEffect, useState } from "react";
 import * as ReactDOM from "react-dom/client";
 import {
