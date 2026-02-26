@@ -75,8 +75,10 @@ export type PlanarPolygonGroup = {
   planeLocked: boolean;
   plane?: PlanarPolygonPlane;
   planarPolygonLocalFrame?: PlanarPolygonLocalFrame;
+  perimeterMeters?: number;
   areaSquareMeters?: number;
   verticalityDeg?: number;
+  bearingDeg?: number;
   surfaceType?: SurfaceType;
 };
 

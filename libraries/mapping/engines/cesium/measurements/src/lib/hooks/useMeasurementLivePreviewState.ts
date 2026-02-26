@@ -89,14 +89,16 @@ export const useMeasurementLivePreviewState = ({
     activePreview.type === "distance" ||
     activePreview.type === "polyline" ||
     activePreview.type === "polygon-ground" ||
-    activePreview.type === "polygon-planar";
+    activePreview.type === "polygon-planar" ||
+    activePreview.type === "polygon-vertical";
   const activePreviewUsesPolylineDistanceRules =
     activePreview.type === "polyline" ||
     activePreview.type === "polygon-ground" ||
     activePreview.type === "polygon-planar";
   const activePreviewForceDirectDistanceLine =
     activePreview.type === "polygon-ground" ||
-    activePreview.type === "polygon-planar";
+    activePreview.type === "polygon-planar" ||
+    activePreview.type === "polygon-vertical";
 
   const handlePointQueryPointerMove = useCallback(
     (

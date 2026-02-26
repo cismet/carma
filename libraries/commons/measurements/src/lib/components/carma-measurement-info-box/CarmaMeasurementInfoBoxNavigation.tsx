@@ -1,7 +1,7 @@
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faAnglesLeft, faAnglesRight } from "@fortawesome/free-solid-svg-icons";
 
-type InfoBoxMeasurement3DNavigationProps = {
+type CarmaMeasurementInfoBoxNavigationProps = {
   totalEntries: number;
   currentIndex: number;
   instructionText?: string | null;
@@ -10,14 +10,14 @@ type InfoBoxMeasurement3DNavigationProps = {
   onNextMeasurement: () => void;
 };
 
-export const InfoBoxMeasurement3DNavigation = ({
+export const CarmaMeasurementInfoBoxNavigation = ({
   totalEntries,
   currentIndex,
   instructionText,
   onFlyToAllMeasurements,
   onPreviousMeasurement,
   onNextMeasurement,
-}: InfoBoxMeasurement3DNavigationProps) => {
+}: CarmaMeasurementInfoBoxNavigationProps) => {
   if (totalEntries <= 0 && !instructionText) return null;
 
   return (

@@ -34,6 +34,35 @@ const normalizeDirection = (direction: Cartesian3): Cartesian3 | null => {
   return Cartesian3.normalize(direction, new Cartesian3());
 };
 
+const normalizeBearingDeg = (bearingDeg: number): number =>
+  ((bearingDeg % 360) + 360) % 360;
+
+const computeBearingDegFromPlaneNormal = (
+  plane: PlanarPolygonPlane
+): number | undefined => {
+  const normal = normalizeDirection(
+    fromSerializableCartesian3(plane.normalECEF)
+  );
+  if (!normal) return undefined;
+
+  const anchor = fromSerializableCartesian3(plane.anchorECEF);
+  const enuFrame = Transforms.eastNorthUpToFixedFrame(anchor, Ellipsoid.WGS84);
+  const worldToEnu = Matrix4.inverse(enuFrame, new Matrix4());
+
+  const normalEnu4 = Matrix4.multiplyByVector(
+    worldToEnu,
+    new Cartesian4(normal.x, normal.y, normal.z, 0),
+    new Cartesian4()
+  );
+  const east = normalEnu4.x;
+  const north = normalEnu4.y;
+  const horizontalMagnitude = Math.hypot(east, north);
+  if (horizontalMagnitude <= EPSILON) return undefined;
+
+  const bearingDeg = (Math.atan2(east, north) * 180) / Math.PI;
+  return normalizeBearingDeg(bearingDeg);
+};
+
 export const createPlaneFromThreePoints = (
   a: Cartesian3,
   b: Cartesian3,
@@ -386,12 +415,33 @@ export const computePolygonGroupDerivedData = (
   group: PlanarPolygonGroup,
   pointById: Map<string, Cartesian3>
 ): PlanarPolygonGroup => {
+  const computePerimeterMeters = () => {
+    if (vertices.length < 2) return 0;
+    let perimeterMeters = 0;
+    for (let index = 1; index < vertices.length; index += 1) {
+      const start = vertices[index - 1];
+      const end = vertices[index];
+      if (!start || !end) continue;
+      perimeterMeters += Cartesian3.distance(start, end);
+    }
+    if (group.closed && vertices.length >= 3) {
+      const first = vertices[0];
+      const last = vertices[vertices.length - 1];
+      if (first && last) {
+        perimeterMeters += Cartesian3.distance(last, first);
+      }
+    }
+    return perimeterMeters;
+  };
+
   const vertices = group.vertexPointIds
     .map((id) => pointById.get(id))
     .filter((value): value is Cartesian3 => Boolean(value));
+  const perimeterMeters = computePerimeterMeters();
   if (vertices.length < 3) {
     return {
       ...group,
+      perimeterMeters,
       areaSquareMeters: 0,
       verticalityDeg: group.verticalityDeg ?? 0,
       surfaceType: group.surfaceType ?? "roof",
@@ -403,6 +453,7 @@ export const computePolygonGroupDerivedData = (
   if (!plane) {
     return {
       ...group,
+      perimeterMeters,
       areaSquareMeters: 0,
       verticalityDeg: group.verticalityDeg ?? 0,
       surfaceType: group.surfaceType ?? "roof",
@@ -415,6 +466,7 @@ export const computePolygonGroupDerivedData = (
     ? computePlanarPolygonArea(vertices, plane)
     : 0;
   const verticalityDeg = computeVerticalityDeg(plane);
+  const bearingDeg = computeBearingDegFromPlaneNormal(plane);
   const surfaceType = group.surfaceType ?? classifySurfaceType(verticalityDeg);
   const planarPolygonLocalFrame =
     surfaceType === "facade"
@@ -429,8 +481,10 @@ export const computePolygonGroupDerivedData = (
     ...group,
     plane,
     planarPolygonLocalFrame,
+    perimeterMeters,
     areaSquareMeters,
     verticalityDeg,
+    bearingDeg,
     surfaceType,
   };
 };

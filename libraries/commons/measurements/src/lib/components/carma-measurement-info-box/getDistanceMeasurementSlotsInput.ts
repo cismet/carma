@@ -4,6 +4,7 @@ import type {
   PointDistanceRelation,
   PointMeasurementEntry,
 } from "@carma-mapping/engines/cesium/measurements";
+import { SPATIAL_MARKUP_KIND_DISTANCE } from "../../types/measurementKindRegistry";
 import {
   getCustomPointMeasurementName,
   getENU,
@@ -256,7 +257,7 @@ export const getDistanceMeasurementSlotsInput = ({
 
   return {
     slotsInput: {
-      kind: "distance",
+      kind: SPATIAL_MARKUP_KIND_DISTANCE,
       measurement,
       displayPoint,
       relativeElevation: resolveRelativeElevation({

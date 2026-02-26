@@ -9,9 +9,11 @@ import {
 
 import { useMeasurements } from "../../context/MeasurementsContext";
 import { useMeasurementSelection } from "../../context/MeasurementSelectionContext";
-import { InfoBoxMeasurement3DNavigation } from "../infobox/InfoBoxMeasurement3DNavigation";
+import { CarmaMeasurementInfoBoxNavigation } from "./CarmaMeasurementInfoBoxNavigation";
 import type { CarmaMeasurementInfoBoxPayload } from "./CarmaMeasurementInfo.types";
 import { getDistanceMeasurementSlotsInput } from "./getDistanceMeasurementSlotsInput";
+import { getLabelMeasurementSlotsInput } from "./getLabelMeasurementSlotsInput";
+import { getPlanarMeasurementSlotsInput } from "./getPlanarMeasurementSlotsInput";
 import {
   getMeasurementInfoBoxSlots,
   type MeasurementSlotActions,
@@ -33,6 +35,7 @@ export const useCarmaMeasurementInfoBoxPayload = ({
     measurements,
     liveMeasurementCandidate,
     getMeasurementsForNavigation,
+    measurementsByType,
     getMeasurementOrderByType,
     getNextMeasurementOrderByType,
     pointLabelOnCreate,
@@ -40,6 +43,8 @@ export const useCarmaMeasurementInfoBoxPayload = ({
     updateMeasurementById,
     deleteMeasurementById,
     toggleMeasurementLockById,
+    updatePointLabelAppearanceById,
+    clearMeasurementsByIds,
   } = useMeasurements<MeasurementMode, MeasurementEntry>();
   const { selectedMeasurementId, selectMeasurementById } =
     useMeasurementSelection();
@@ -52,12 +57,25 @@ export const useCarmaMeasurementInfoBoxPayload = ({
     flyToMeasurementById,
     flyToAllMeasurements,
     setReferencePoint,
+    selectedPlanarPolygonGroupId,
+    activePlanarPolygonGroupId,
+    planarPolygonGroups,
+    polylineGroups,
+    areaPolygonGroups,
+    planarSurfacePolygonGroups,
+    verticalPolygonGroups,
+    updatePlanarPolygonNameById,
+    selectPlanarPolygonGroupById,
   } = useCesiumMeasurements();
 
   const isPointModeLivePreviewActive =
     measurementMode === "point_measure" && !pointLabelOnCreate;
   const isDistanceModeLivePreviewActive = measurementMode === "point_query";
-  const effectiveMeasurementId = activeMeasurementId ?? selectedMeasurementId;
+  const isLivePreviewMode =
+    isPointModeLivePreviewActive || isDistanceModeLivePreviewActive;
+  const effectiveMeasurementId = isLivePreviewMode
+    ? activeMeasurementId ?? selectedMeasurementId
+    : selectedMeasurementId ?? activeMeasurementId;
 
   const pointMeasurements = useMemo(
     () => measurements.filter(isPointMeasurementEntry),
@@ -93,11 +111,6 @@ export const useCarmaMeasurementInfoBoxPayload = ({
       livePreviewMeasurement,
     ]
   );
-  const navigationMeasurements = useMemo(
-    () => getMeasurementsForNavigation(),
-    [getMeasurementsForNavigation]
-  );
-
   const slotActions = useMemo<MeasurementSlotActions>(
     () => ({
       updateMeasurementNameById,
@@ -106,14 +119,31 @@ export const useCarmaMeasurementInfoBoxPayload = ({
       toggleMeasurementLockById,
       flyToMeasurementById,
       setReferencePoint,
+      updatePointLabelAppearanceById,
+      updatePlanarPolygonNameById,
+      deletePlanarPolygonGroupById: (groupId: string) => {
+        const group = planarPolygonGroups.find((entry) => entry.id === groupId);
+        if (!group) return;
+        const vertexIds = group.vertexPointIds.filter(
+          (vertexId): vertexId is string => Boolean(vertexId)
+        );
+        if (vertexIds.length === 0) return;
+        clearMeasurementsByIds(vertexIds);
+        selectPlanarPolygonGroupById(null);
+      },
     }),
     [
+      clearMeasurementsByIds,
       deleteMeasurementById,
       flyToMeasurementById,
+      planarPolygonGroups,
+      selectPlanarPolygonGroupById,
       setReferencePoint,
       toggleMeasurementLockById,
+      updatePlanarPolygonNameById,
       updateMeasurementById,
       updateMeasurementNameById,
+      updatePointLabelAppearanceById,
     ]
   );
 
@@ -169,6 +199,40 @@ export const useCarmaMeasurementInfoBoxPayload = ({
     ]
   );
 
+  const labelSlotsInputResult = useMemo(
+    () =>
+      getLabelMeasurementSlotsInput({
+        measurement: displayMeasurement,
+        labelMeasurements: measurementsByType("pointLabel").filter(
+          isPointMeasurementEntry
+        ),
+        actions: slotActions,
+      }),
+    [displayMeasurement, measurementsByType, slotActions]
+  );
+
+  const planarSlotsInputResult = useMemo(
+    () =>
+      getPlanarMeasurementSlotsInput({
+        polylineGroups,
+        areaPolygonGroups,
+        planarSurfacePolygonGroups,
+        verticalPolygonGroups,
+        selectedPlanarPolygonGroupId,
+        activePlanarPolygonGroupId,
+        actions: slotActions,
+      }),
+    [
+      activePlanarPolygonGroupId,
+      areaPolygonGroups,
+      planarSurfacePolygonGroups,
+      polylineGroups,
+      selectedPlanarPolygonGroupId,
+      slotActions,
+      verticalPolygonGroups,
+    ]
+  );
+
   const kind: MeasurementSlotKind =
     isDistanceModeLivePreviewActive ||
     distanceSlotsInputResult.isDistanceMeasurement
@@ -177,7 +241,68 @@ export const useCarmaMeasurementInfoBoxPayload = ({
         (displayMeasurement !== null &&
           !displayMeasurement.auxiliaryLabelAnchor)
       ? "point"
-      : "unsupported";
+      : labelSlotsInputResult.isLabelLivePreview ||
+        labelSlotsInputResult.isLabelMeasurement
+      ? "label"
+      : planarSlotsInputResult.slotsInput?.kind ?? "unsupported";
+
+  const navigationMeasurements = useMemo(() => {
+    if (kind === "label") {
+      return measurementsByType("pointLabel").filter(isPointMeasurementEntry);
+    }
+    if (
+      kind === "polyline" ||
+      kind === "area" ||
+      kind === "planar" ||
+      kind === "vertical"
+    ) {
+      return planarPolygonGroups.map((group) => ({ id: group.id }));
+    }
+    return getMeasurementsForNavigation();
+  }, [
+    getMeasurementsForNavigation,
+    kind,
+    measurementsByType,
+    planarPolygonGroups,
+  ]);
+
+  const currentNavigationId =
+    kind === "polyline" ||
+    kind === "area" ||
+    kind === "planar" ||
+    kind === "vertical"
+      ? activePlanarPolygonGroupId ?? selectedPlanarPolygonGroupId
+      : currentMeasurement?.id ?? null;
+
+  const handleNavigationSelection = (id: string | null) => {
+    if (
+      kind === "polyline" ||
+      kind === "area" ||
+      kind === "planar" ||
+      kind === "vertical"
+    ) {
+      selectPlanarPolygonGroupById(id);
+      return;
+    }
+    selectMeasurementById(id);
+  };
+
+  const handleNavigationFlyTo = (id: string) => {
+    if (
+      kind === "polyline" ||
+      kind === "area" ||
+      kind === "planar" ||
+      kind === "vertical"
+    ) {
+      const group = planarPolygonGroups.find((entry) => entry.id === id);
+      const firstVertexId = group?.vertexPointIds[0] ?? null;
+      if (firstVertexId) {
+        flyToMeasurementById(firstVertexId);
+      }
+      return;
+    }
+    flyToMeasurementById(id);
+  };
 
   const {
     currentIndex,
@@ -187,20 +312,26 @@ export const useCarmaMeasurementInfoBoxPayload = ({
     onNextMeasurement,
   } = useCarmaMeasurementInfoNavigationState({
     navigationMeasurements,
-    currentMeasurementId: currentMeasurement?.id ?? null,
-    onSelectMeasurementById: selectMeasurementById,
-    onFlyToMeasurementById: flyToMeasurementById,
+    currentMeasurementId: currentNavigationId,
+    onSelectMeasurementById: handleNavigationSelection,
+    onFlyToMeasurementById: handleNavigationFlyTo,
     onFlyToAllMeasurements: flyToAllMeasurements,
   });
 
-  const slotsInput: MeasurementSlotsInput =
-    kind === "point"
-      ? pointSlotsInputResult.slotsInput
-      : kind === "distance"
-      ? distanceSlotsInputResult.slotsInput
-      : {
-          kind: "unsupported",
-        };
+  const slotsInput: MeasurementSlotsInput = (() => {
+    if (kind === "point") return pointSlotsInputResult.slotsInput;
+    if (kind === "distance") return distanceSlotsInputResult.slotsInput;
+    if (kind === "label") return labelSlotsInputResult.slotsInput;
+    if (
+      kind === "polyline" ||
+      kind === "area" ||
+      kind === "planar" ||
+      kind === "vertical"
+    ) {
+      return planarSlotsInputResult.slotsInput ?? { kind: "unsupported" };
+    }
+    return { kind: "unsupported" };
+  })();
 
   const slots = getMeasurementInfoBoxSlots(slotsInput);
 
@@ -210,7 +341,7 @@ export const useCarmaMeasurementInfoBoxPayload = ({
     headingTitle: slots.headingTitle,
     collapsible: slots.collapsible,
     footer: (
-      <InfoBoxMeasurement3DNavigation
+      <CarmaMeasurementInfoBoxNavigation
         totalEntries={totalEntries}
         currentIndex={currentIndex}
         instructionText={slots.instructionText}

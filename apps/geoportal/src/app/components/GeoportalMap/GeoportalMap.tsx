@@ -52,7 +52,6 @@ import {
   Measurements,
   CarmaMeasurementInfoBox,
   InfoBoxMeasurement,
-  InfoBoxMeasurement3D,
 } from "@carma-commons/measurements";
 
 import {
@@ -676,12 +675,7 @@ export const GeoportalMap = ({ height, width, allow3d }: MapProps) => {
     const isCesiumMeasurementMode = getIsCesium() && isModeMeasurement;
 
     if (isCesiumMeasurementMode) {
-      return (
-        <div className="flex flex-col gap-2">
-          <InfoBoxMeasurement3D />
-          <CarmaMeasurementInfoBox />
-        </div>
-      );
+      return <CarmaMeasurementInfoBox />;
     }
 
     if (getIsLeaflet()) {

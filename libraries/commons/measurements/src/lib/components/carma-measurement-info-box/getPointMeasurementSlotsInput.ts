@@ -3,6 +3,7 @@ import type {
   MeasurementMode,
   PointMeasurementEntry,
 } from "@carma-mapping/engines/cesium/measurements";
+import { SPATIAL_MARKUP_KIND_POINT } from "../../types/measurementKindRegistry";
 
 import type { MeasurementListType } from "../../context/MeasurementsContext";
 import type {
@@ -54,7 +55,7 @@ export const getPointMeasurementSlotsInput = ({
 
   return {
     slotsInput: {
-      kind: "point",
+      kind: SPATIAL_MARKUP_KIND_POINT,
       measurement,
       displayPoint,
       relativeElevation: resolveRelativeElevation({

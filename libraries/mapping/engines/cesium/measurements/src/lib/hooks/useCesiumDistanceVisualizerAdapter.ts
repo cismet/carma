@@ -1,6 +1,6 @@
 import { useMemo } from "react";
 
-import { type Scene } from "@carma/cesium";
+import { Cartesian3, type Scene } from "@carma/cesium";
 
 import {
   isPointMeasurementEntry,
@@ -11,7 +11,7 @@ import {
   type ReferenceLineLabelKind,
 } from "../types/MeasurementTypes";
 import { useMeasurementFamilyPartition } from "./measurementFamilyPartition";
-import { useCesiumDistanceRelationsVisualizer } from "./useCesiumDistanceVisualizer";
+import useCesiumDistanceVisualizer from "./useCesiumDistanceVisualizer";
 import { type PointMarkerBadge } from "./useCesiumPointLabels";
 
 type DistanceLivePreviewLine = {
@@ -68,19 +68,54 @@ export const useCesiumDistanceVisualizerAdapter = ({
     [measurements]
   );
 
+  const facadeRectanglePreviewOppositeByGroupId = useMemo(() => {
+    if (!enabled || !livePreviewDistanceLine) {
+      return undefined;
+    }
+    const target = livePreviewDistanceLine.targetPointECEF;
+    if (!target) {
+      return undefined;
+    }
+    const activeGroup = activePlanarPolygonGroupId
+      ? planarPolygonGroups.find(
+          (group) => group.id === activePlanarPolygonGroupId
+        )
+      : null;
+    if (!activeGroup || activeGroup.closed) {
+      return undefined;
+    }
+    if ((activeGroup.surfaceType ?? "roof") !== "facade") {
+      return undefined;
+    }
+    if (activeGroup.vertexPointIds.length !== 1) {
+      return undefined;
+    }
+    return {
+      [activeGroup.id]: Cartesian3.clone(target),
+    };
+  }, [
+    activePlanarPolygonGroupId,
+    enabled,
+    livePreviewDistanceLine,
+    planarPolygonGroups,
+  ]);
+
   const { distanceModel } = useMeasurementFamilyPartition({
     planarPolygonGroups,
     points,
     pointMarkerBadgeByPointId,
     selectedPlanarPolygonGroupId,
     activePlanarPolygonGroupId,
+    facadeRectanglePreviewOppositeByGroupId,
     livePreviewDistanceLine,
   });
 
-  useCesiumDistanceRelationsVisualizer({
-    scene,
-    points,
+  useCesiumDistanceVisualizer(scene, points, {
     distanceRelations: enabled ? distanceRelations : [],
+    planarPolygonGroups: enabled ? planarPolygonGroups : [],
+    facadeRectanglePreviewOppositeByGroupId,
+    selectedPlanarPolygonGroupId,
+    activePlanarPolygonGroupId,
     onDistanceLineLabelToggle,
     onDistanceLineClick,
     onDistanceRelationMidpointClick,
@@ -92,5 +127,6 @@ export const useCesiumDistanceVisualizerAdapter = ({
       ? distanceModel.livePreviewDistanceLine
       : null,
     distanceRelationRenderContext: distanceModel.distanceRelationRenderContext,
+    renderAreaAndPolylineVisuals: enabled,
   });
 };

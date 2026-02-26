@@ -12,6 +12,10 @@ import type {
 
 export type MeasurementModeOptionsContextType = {
   planarPolygonGroups: PlanarPolygonGroup[];
+  polylineGroups: PlanarPolygonGroup[];
+  areaPolygonGroups: PlanarPolygonGroup[];
+  planarSurfacePolygonGroups: PlanarPolygonGroup[];
+  verticalPolygonGroups: PlanarPolygonGroup[];
   distanceModeStickyToFirstPoint: boolean;
   setDistanceModeStickyToFirstPoint: Dispatch<SetStateAction<boolean>>;
   distanceCreationLineVisibility: {

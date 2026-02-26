@@ -34,7 +34,7 @@ export const useCarmaMeasurementInfoNavigationState = ({
 
   const onPreviousMeasurement = useCallback(() => {
     if (totalEntries === 0) return;
-    const nextIndex = (currentIndex + 1) % totalEntries;
+    const nextIndex = (currentIndex - 1 + totalEntries) % totalEntries;
     onSelectMeasurementById(navigableMeasurements[nextIndex]?.id ?? null);
   }, [
     currentIndex,
@@ -45,7 +45,7 @@ export const useCarmaMeasurementInfoNavigationState = ({
 
   const onNextMeasurement = useCallback(() => {
     if (totalEntries === 0) return;
-    const nextIndex = (currentIndex - 1 + totalEntries) % totalEntries;
+    const nextIndex = (currentIndex + 1) % totalEntries;
     onSelectMeasurementById(navigableMeasurements[nextIndex]?.id ?? null);
   }, [
     currentIndex,

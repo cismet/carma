@@ -284,6 +284,10 @@ export interface CesiumMeasurementsContextType {
   distanceRelations: PointDistanceRelation[];
   setDistanceRelations: Dispatch<SetStateAction<PointDistanceRelation[]>>;
   planarPolygonGroups: PlanarPolygonGroup[];
+  polylineGroups: PlanarPolygonGroup[];
+  areaPolygonGroups: PlanarPolygonGroup[];
+  planarSurfacePolygonGroups: PlanarPolygonGroup[];
+  verticalPolygonGroups: PlanarPolygonGroup[];
   setPlanarPolygonGroups: Dispatch<SetStateAction<PlanarPolygonGroup[]>>;
   polylines: PolylineCollection[];
   setPolylines: Dispatch<SetStateAction<PolylineCollection[]>>;
@@ -1518,7 +1522,7 @@ export const CesiumMeasurementsProvider: React.FC<
           };
         }
         return {
-          type: "none",
+          type: "polygon-vertical",
           verticalOffsetMeters: 0,
         };
       }
@@ -8533,9 +8537,46 @@ export const CesiumMeasurementsProvider: React.FC<
     ]
   );
 
+  const polylineGroups = useMemo(
+    () =>
+      planarPolygonGroups.filter(
+        (group) => getPlanarGroupMeasurementKind(group) === "polyline"
+      ),
+    [planarPolygonGroups]
+  );
+  const areaPolygonGroups = useMemo(
+    () =>
+      planarPolygonGroups.filter((group) => {
+        if (getPlanarGroupMeasurementKind(group) !== "area") return false;
+        const surfaceType = group.surfaceType ?? "roof";
+        return surfaceType === "footprint" || surfaceType === "terrain";
+      }),
+    [planarPolygonGroups]
+  );
+  const planarSurfacePolygonGroups = useMemo(
+    () =>
+      planarPolygonGroups.filter((group) => {
+        if (getPlanarGroupMeasurementKind(group) !== "area") return false;
+        return (group.surfaceType ?? "roof") === "roof";
+      }),
+    [planarPolygonGroups]
+  );
+  const verticalPolygonGroups = useMemo(
+    () =>
+      planarPolygonGroups.filter((group) => {
+        if (getPlanarGroupMeasurementKind(group) !== "area") return false;
+        return (group.surfaceType ?? "roof") === "facade";
+      }),
+    [planarPolygonGroups]
+  );
+
   const modeOptionsContextValue = useMemo<MeasurementModeOptionsContextType>(
     () => ({
       planarPolygonGroups,
+      polylineGroups,
+      areaPolygonGroups,
+      planarSurfacePolygonGroups,
+      verticalPolygonGroups,
       distanceModeStickyToFirstPoint,
       setDistanceModeStickyToFirstPoint,
       distanceCreationLineVisibility,
@@ -8551,6 +8592,10 @@ export const CesiumMeasurementsProvider: React.FC<
     }),
     [
       planarPolygonGroups,
+      polylineGroups,
+      areaPolygonGroups,
+      planarSurfacePolygonGroups,
+      verticalPolygonGroups,
       distanceModeStickyToFirstPoint,
       setDistanceModeStickyToFirstPoint,
       distanceCreationLineVisibility,
@@ -8661,6 +8706,10 @@ export const CesiumMeasurementsProvider: React.FC<
       distanceRelations,
       setDistanceRelations,
       planarPolygonGroups,
+      polylineGroups,
+      areaPolygonGroups,
+      planarSurfacePolygonGroups,
+      verticalPolygonGroups,
       setPlanarPolygonGroups,
       polylines,
       setPolylines,
@@ -8748,6 +8797,10 @@ export const CesiumMeasurementsProvider: React.FC<
       distanceRelations,
       setDistanceRelations,
       planarPolygonGroups,
+      polylineGroups,
+      areaPolygonGroups,
+      planarSurfacePolygonGroups,
+      verticalPolygonGroups,
       setPlanarPolygonGroups,
       polylines,
       setPolylines,

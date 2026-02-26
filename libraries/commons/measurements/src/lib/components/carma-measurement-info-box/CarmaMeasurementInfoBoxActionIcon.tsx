@@ -6,7 +6,7 @@ import type { MouseEvent as ReactMouseEvent } from "react";
 const DEFAULT_ICON_CLASSNAME =
   "cursor-pointer text-base text-[#808080] hover:text-[#a0a0a0]";
 
-type InfoBoxMeasurement3DActionIconProps = {
+type CarmaMeasurementInfoBoxActionIconProps = {
   title: string;
   icon: IconDefinition;
   onClick: (event: ReactMouseEvent<SVGSVGElement, MouseEvent>) => void;
@@ -15,14 +15,14 @@ type InfoBoxMeasurement3DActionIconProps = {
   ariaLabel?: string;
 };
 
-export const InfoBoxMeasurement3DActionIcon = ({
+export const CarmaMeasurementInfoBoxActionIcon = ({
   title,
   icon,
   onClick,
   dataTestId,
   className,
   ariaLabel,
-}: InfoBoxMeasurement3DActionIconProps) => {
+}: CarmaMeasurementInfoBoxActionIconProps) => {
   return (
     <Tooltip title={title}>
       <FontAwesomeIcon

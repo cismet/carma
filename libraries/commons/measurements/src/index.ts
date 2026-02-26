@@ -1,5 +1,4 @@
 export { InfoBoxMeasurement } from "./lib/components/infobox/InfoBoxMeasurement";
-export { InfoBoxMeasurement3D } from "./lib/components/infobox/InfoBoxMeasurement3D";
 export { CarmaMeasurementInfoBox } from "./lib/components/carma-measurement-info-box/CarmaMeasurementInfoBox";
 export { MeasurementToolbar3D } from "./lib/components/MeasurementToolbar3D";
 export { MeasurementControl } from "./lib/components/MeasurementControl";
