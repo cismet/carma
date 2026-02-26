@@ -25,6 +25,15 @@ const isUrl = (str: string | undefined): boolean => {
   return str.startsWith("http://") || str.startsWith("https://");
 };
 
+const iconPathAliases: Record<string, string> = {
+  verkehr: "mobi",
+};
+
+const mapIconPath = (path: string): string => {
+  const lower = path.toLowerCase();
+  return iconPathAliases[lower] ?? lower;
+};
+
 export const LayerIcon = ({
   layer,
   iconPrefix = ICON_PREFIX,
@@ -41,7 +50,7 @@ export const LayerIcon = ({
     layer.other?.icon ||
     layer.conf?.icon ||
     (layer.other?.path && layer.other?.name
-      ? layer.other.path.toLowerCase() + "/" + layer.other.name
+      ? mapIconPath(layer.other.path) + "/" + layer.other.name
       : undefined);
 
   const isIconUrl = isUrl(layer.other?.icon);
