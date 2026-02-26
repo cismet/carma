@@ -237,16 +237,84 @@ const ImageList = () => {
       }}
     >
       <div style={{ maxWidth: 1200, margin: "0 auto" }}>
-        <h1
+        <div
           style={{
-            margin: "0 0 24px",
-            fontSize: 24,
-            fontWeight: 700,
-            color: "#2d3748",
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "center",
+            marginBottom: 24,
           }}
         >
-          Geoportal Bilderübersicht
-        </h1>
+          <h1
+            style={{
+              margin: 0,
+              fontSize: 24,
+              fontWeight: 700,
+              color: "#2d3748",
+            }}
+          >
+            Geoportal Bilderübersicht
+          </h1>
+          <div
+            style={{ display: "flex", alignItems: "center", gap: 8, margin: 5 }}
+          >
+            <div style={{ textAlign: "center" }}>
+              <a href="https://cismet.de">
+                <img
+                  src="https://cismet.de/images/cismet_signet_rgb_buntesC.png"
+                  alt="cismet logo"
+                  style={{ height: 36 }}
+                />
+              </a>
+              <p
+                style={{
+                  color: "rgb(100,100,100)",
+                  textShadow: "0 1px 1px rgba(250,250,250,0.9)",
+                  margin: "2px 0 0",
+                  fontSize: 12,
+                  fontWeight: 700,
+                }}
+              >
+                one step ahead
+              </p>
+            </div>
+          </div>
+        </div>
+
+        <div
+          style={{
+            marginBottom: 24,
+            padding: "16px 20px",
+            background: "#fff",
+            borderRadius: 10,
+            boxShadow: "0 1px 4px rgba(0,0,0,0.07)",
+            color: "#4a5568",
+            fontSize: 14,
+            lineHeight: 1.7,
+          }}
+        >
+          <p style={{ margin: "0 0 8px", fontWeight: 600, color: "#2d3748" }}>
+            Diese Seite zeigt alle konfigurierten Layer des Geoportals mit ihren
+            zugehörigen Bildern (Icons, Vorschaubilder und Legenden) an.
+          </p>
+          <ul style={{ margin: "0 0 8px", paddingLeft: 20 }}>
+            <li>
+              <strong>Angepasst</strong> zeigt die URL nach Anwendung der
+              internen URL-Umschreibung.
+            </li>
+            <li>
+              <strong>Original</strong> zeigt die unveränderte Quell-URL.
+            </li>
+            <li>
+              Fehlerhafte Bilder und Layer werden in den roten Fehlerboxen oben
+              aufgelistet.
+            </li>
+          </ul>
+          <p style={{ margin: 0, fontSize: 13, color: "#718096" }}>
+            Über das Suchfeld können Layer nach URL oder Titel gefiltert werden.
+          </p>
+        </div>
+
         <input
           type="text"
           placeholder="Filtern..."
