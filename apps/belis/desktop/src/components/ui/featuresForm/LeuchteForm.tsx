@@ -16,7 +16,13 @@ interface LeuchteFormProps {
   loading?: boolean;
 }
 
-const LeuchteForm = ({ data, rawFeature, onClose, readOnly = true, loading }: LeuchteFormProps) => {
+const LeuchteForm = ({
+  data,
+  rawFeature,
+  onClose,
+  readOnly = true,
+  loading,
+}: LeuchteFormProps) => {
   const [pendingFiles, setPendingFiles] = useState<UploadFile[]>([]);
   const [mastData, setMastData] = useState<Record<string, unknown> | null>(
     null
@@ -37,9 +43,27 @@ const LeuchteForm = ({ data, rawFeature, onClose, readOnly = true, loading }: Le
 
   // Extract tdta_standort_mast id from leuchte
   const standortMast = leuchte?.tdta_standort_mast as
-    | { id?: number }
+    | Record<string, unknown>
     | undefined;
-  const mastId = standortMast?.id;
+  const mastId = standortMast?.id as number | undefined;
+
+  // Extra document sections from related entities
+  const leuchtenTyp = leuchte?.tkey_leuchtentyp as
+    | Record<string, unknown>
+    | undefined;
+  const leuchtenTypDocuments =
+    (leuchtenTyp?.dokumenteArray as DokumentItem[]) ?? [];
+  const standortMastDocuments =
+    (standortMast?.dokumenteArray as DokumentItem[]) ?? [];
+
+  const leuchtenTypTitle = leuchtenTyp?.typenbezeichnung
+    ? `Leuchtentyp (${leuchtenTyp.typenbezeichnung as string})`
+    : "Leuchtentyp";
+
+  const extraDocumentSections = [
+    { title: leuchtenTypTitle, documents: leuchtenTypDocuments },
+    { title: "Mast", documents: standortMastDocuments },
+  ];
 
   // Fetch mast data if mastId exists
   useEffect(() => {
@@ -99,6 +123,8 @@ const LeuchteForm = ({ data, rawFeature, onClose, readOnly = true, loading }: Le
       title="Leuchte"
       subtitle={subtitle}
       documents={documents}
+      mainDocumentsTitle="Leuchte"
+      extraDocumentSections={extraDocumentSections}
       jwt={jwt}
       pendingFiles={pendingFiles}
       onFilesChange={setPendingFiles}

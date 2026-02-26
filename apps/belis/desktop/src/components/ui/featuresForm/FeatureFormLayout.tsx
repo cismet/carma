@@ -2,7 +2,7 @@ import { useEffect, useState, ReactNode, useMemo } from "react";
 import { Tabs } from "antd";
 import type { UploadFile } from "antd";
 import FormHeader from "./FormHeader";
-import DocumentPreview, { DokumentItem } from "../DocumentPreview";
+import { DokumentItem } from "../DocumentPreview";
 import FilePreview, { SavedImageUrls, getFileType } from "../FilePreview";
 import { getDocumentBlobUrl } from "../../../helper/documentHelper";
 import RawDisplay from "../RawDisplay";
@@ -13,11 +13,18 @@ interface AdditionalTab {
   children: ReactNode;
 }
 
+export interface ExtraDocumentSection {
+  title: string;
+  documents: DokumentItem[];
+}
+
 interface FeatureFormLayoutProps {
   title: string;
   subtitle: string;
   children: ReactNode;
   documents?: DokumentItem[];
+  mainDocumentsTitle?: string;
+  extraDocumentSections?: ExtraDocumentSection[];
   jwt?: string | null;
   pendingFiles?: UploadFile[];
   onFilesChange?: (files: UploadFile[]) => void;
@@ -34,14 +41,13 @@ const FeatureFormLayout = ({
   subtitle,
   children,
   documents = [],
+  mainDocumentsTitle = "Dateien",
+  extraDocumentSections = [],
   jwt,
-  pendingFiles = [],
-  onFilesChange,
   onCancel,
   onSave,
   debugData,
   additionalTabs = [],
-  uploadText,
   loading,
 }: FeatureFormLayoutProps) => {
   // Support both regular query params and hash-based routing (/#/?param=value)
@@ -69,14 +75,20 @@ const FeatureFormLayout = ({
     return () => window.removeEventListener("resize", handleResize);
   }, []);
 
+  // Combine main + extra documents for image pre-fetching
+  const allDocumentsForImages = useMemo(
+    () => [...documents, ...extraDocumentSections.flatMap((s) => s.documents)],
+    [documents, extraDocumentSections]
+  );
+
   // Memoize image documents to avoid recreating the array on every render
   const imageDocuments = useMemo(
     () =>
-      documents.filter((doc) => {
+      allDocumentsForImages.filter((doc) => {
         const objectName = doc.dms_url?.url?.object_name || "";
         return getFileType(objectName) === "image";
       }),
-    [documents]
+    [allDocumentsForImages]
   );
 
   // Create a stable key for dependency tracking
@@ -144,16 +156,49 @@ const FeatureFormLayout = ({
   //     uploadText={uploadText}
   //   />
   // );
+  const hasAnyDocuments =
+    documents.length > 0 ||
+    extraDocumentSections.some((s) => s.documents.length > 0);
+
   const documentsContent = (
-    <FilePreview
-      documents={documents}
-      jwt={jwt}
-      titleStyle={labelStyle}
-      title="Dokumente"
-      size="xl"
-      showDescription={false}
-      savedImageUrls={savedImageUrls}
-    />
+    <div className="flex flex-col gap-4">
+      {!hasAnyDocuments ? (
+        <div>
+          <div style={{ ...labelStyle }}>{mainDocumentsTitle}</div>
+          <div style={{ color: "#8c8c8c", fontSize: 13, padding: "16px 0" }}>
+            Keine Dateien vorhanden
+          </div>
+        </div>
+      ) : (
+        <>
+          {documents.length > 0 && (
+            <FilePreview
+              documents={documents}
+              jwt={jwt}
+              titleStyle={labelStyle}
+              title={mainDocumentsTitle}
+              size="xl"
+              showDescription={false}
+              savedImageUrls={savedImageUrls}
+            />
+          )}
+          {extraDocumentSections
+            .filter((s) => s.documents.length > 0)
+            .map((section) => (
+              <FilePreview
+                key={section.title}
+                documents={section.documents}
+                jwt={jwt}
+                titleStyle={labelStyle}
+                title={section.title}
+                size="xl"
+                showDescription={false}
+                savedImageUrls={savedImageUrls}
+              />
+            ))}
+        </>
+      )}
+    </div>
   );
 
   // Debug content (only shown when ?showRaw=true)
