@@ -54,6 +54,8 @@ import {
 } from "@carma-providers/label-overlay";
 
 import {
+  LINEAR_SEGMENT_LINE_MODE_COMPONENTS,
+  LINEAR_SEGMENT_LINE_MODE_DIRECT,
   type DirectLineLabelMode,
   type PlanarPolygonGroup,
   type PointDistanceRelation,
@@ -190,18 +192,16 @@ const VERTICAL_LABEL_SIDE_SWITCH_THRESHOLD_PX = 4;
 const VERTICAL_LABEL_POSITION_STABILITY_EPSILON_PX = 0.85;
 const FACADE_OPPOSING_EDGE_LABEL_EPSILON_METERS = 0.01;
 const DISTANCE_PAIR_LABEL_OVERLAY_ID_PREFIX = "distance-pair-label";
-const DEFAULT_PAIR_LABEL_ATTACH = "bottomLeft";
+const DEFAULT_PAIR_LABEL_ATTACH = "left";
 const LABEL_ATTACH_ORDER_WITH_POINT_LABEL: PointLabelAttach[] = [
-  "topLeft",
-  "topRight",
-  "bottomRight",
-  "bottomLeft",
+  "left",
+  "right",
+  "center",
 ];
 const LABEL_ATTACH_ORDER_NO_POINT_LABEL: PointLabelAttach[] = [
-  "bottomLeft",
-  "bottomRight",
-  "topRight",
-  "topLeft",
+  "left",
+  "right",
+  "center",
 ];
 const EMPTY_PAIR_LABEL_LAYOUT_RESULT: PointLabelLayoutResult = {
   placements: {},
@@ -2093,7 +2093,8 @@ export const useCesiumDistanceVisualizer = (
               !group.closed &&
               group.id === activePlanarPolygonGroupId &&
               (surfaceType === "roof" || surfaceType === "footprint") &&
-              (group.segmentLineMode ?? "components") === "direct";
+              (group.segmentLineMode ?? LINEAR_SEGMENT_LINE_MODE_COMPONENTS) ===
+                LINEAR_SEGMENT_LINE_MODE_DIRECT;
             if (hideAreaLabelInDirectPolylinePreview) {
               areaPillEl.style.display = "none";
             } else {
@@ -2689,9 +2690,6 @@ export const useCesiumDistanceVisualizer = (
   );
 
   useEffect(() => {
-    if (!renderAreaAndPolylineVisuals) {
-      return;
-    }
     if (!scene) return;
 
     destroyLineVisualizerMap(directLineRefs);

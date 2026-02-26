@@ -8,12 +8,7 @@ import type {
 } from "./types";
 
 const DEFAULT_STEM_ANGLE_RAD = Math.PI / 4;
-const ALL_ATTACHES: PointLabelAttach[] = [
-  "bottomLeft",
-  "bottomRight",
-  "topRight",
-  "topLeft",
-];
+const ALL_ATTACHES: PointLabelAttach[] = ["left", "right", "center"];
 
 export const DEFAULT_DYNAMIC_LABEL_PLACEMENT_CONFIG: DynamicLabelPlacementConfig =
   {
@@ -28,7 +23,7 @@ export const DEFAULT_DYNAMIC_LABEL_PLACEMENT_CONFIG: DynamicLabelPlacementConfig
   };
 
 export const DEFAULT_POINT_LABEL_LAYOUT_CONFIG: PointLabelLayoutConfig = {
-  placementOrder: ["bottomLeft", "bottomRight", "topRight", "topLeft"],
+  placementOrder: ["left", "right", "center"],
   stemDistance: 20,
   dynamicLabelPlacement: true,
   dynamicLabelPlacementConfig: DEFAULT_DYNAMIC_LABEL_PLACEMENT_CONFIG,
@@ -144,15 +139,14 @@ const getPlacementAngleForAttach = (
   angleMagnitudeRad: number
 ): number => {
   switch (attach) {
-    case "topLeft":
-      return angleMagnitudeRad;
-    case "topRight":
-      return Math.PI - angleMagnitudeRad;
-    case "bottomRight":
-      return -Math.PI + angleMagnitudeRad;
-    case "bottomLeft":
-    default:
+    case "left":
       return -angleMagnitudeRad;
+    case "right":
+      return -Math.PI + angleMagnitudeRad;
+    case "center":
+      return -Math.PI / 2;
+    default:
+      return -Math.PI / 2;
   }
 };
 

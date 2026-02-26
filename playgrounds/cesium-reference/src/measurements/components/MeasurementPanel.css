@@ -1,4 +1,0 @@
-/* Fix Antd List item meta content width constraint */
-.measurement-panel-collapse .ant-list-item-meta-content {
-  width: auto !important;
-}

@@ -10,6 +10,13 @@ import {
 export interface PointLabelData {
   id: string;
   getCanvasPosition?: () => { x: number; y: number } | null;
+  fontSize?: string;
+  fontFamily?: string;
+  fontWeight?: string | number;
+  textColor?: string;
+  textBackgroundColor?: string;
+  selectedBackgroundColor?: string;
+  hoverBackgroundColor?: string;
   pitch?: number;
   labelAngleRad?: number;
   labelDistance?: number;
@@ -82,6 +89,10 @@ export const usePointLabels = (
             p.compactBorderless
           )}:${p.labelStyle}:${p.collapse}:${p.forceCollapse}:${p.fullBorder}:${
             p.resizeMode ?? "none"
+          }:${p.fontSize ?? ""}:${p.fontFamily ?? ""}:${p.fontWeight ?? ""}:${
+            p.textColor ?? ""
+          }:${p.textBackgroundColor ?? ""}:${p.selectedBackgroundColor ?? ""}:${
+            p.hoverBackgroundColor ?? ""
           }:${Boolean(p.onHoverChange)}:${Boolean(p.onDoubleClick)}:${Boolean(
             p.onLongPress
           )}:${p.longPressDurationMs}:${Boolean(p.onMarkerDragStart)}:${Boolean(
@@ -126,6 +137,28 @@ export const usePointLabels = (
 
       const attachOverlayClickHandlers =
         point.attachOverlayClickHandlers ?? true;
+      const pointStyleProps: PointLabelStyleProps = {
+        ...styleProps,
+        ...(point.fontSize !== undefined ? { fontSize: point.fontSize } : {}),
+        ...(point.fontFamily !== undefined
+          ? { fontFamily: point.fontFamily }
+          : {}),
+        ...(point.fontWeight !== undefined
+          ? { fontWeight: point.fontWeight }
+          : {}),
+        ...(point.textColor !== undefined
+          ? { textColor: point.textColor }
+          : {}),
+        ...(point.textBackgroundColor !== undefined
+          ? { textBackgroundColor: point.textBackgroundColor }
+          : {}),
+        ...(point.selectedBackgroundColor !== undefined
+          ? { selectedBackgroundColor: point.selectedBackgroundColor }
+          : {}),
+        ...(point.hoverBackgroundColor !== undefined
+          ? { hoverBackgroundColor: point.hoverBackgroundColor }
+          : {}),
+      };
       addLabelOverlayElement({
         id: labelId,
         zIndex: 20,
@@ -165,7 +198,7 @@ export const usePointLabels = (
           onMarkerDragStart: point.onMarkerDragStart,
           onMarkerDragMove: point.onMarkerDragMove,
           onMarkerDragEnd: point.onMarkerDragEnd,
-          ...styleProps,
+          ...pointStyleProps,
         }),
         visible: point.visible !== false,
         isHidden: point.isHidden,

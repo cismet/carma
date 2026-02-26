@@ -36,36 +36,36 @@ export const createLabelRectFromConnector = (
   attach: LabelPlacement["attach"]
 ): Rect => {
   const width = estimateLabelWidth(labelText);
+  const halfHeight = LABEL_HEIGHT / 2;
 
   switch (attach) {
-    case "topLeft":
+    case "left":
       return {
         left: connector.x,
-        top: connector.y,
+        top: connector.y - halfHeight,
         right: connector.x + width,
-        bottom: connector.y + LABEL_HEIGHT,
+        bottom: connector.y + halfHeight,
       };
-    case "topRight":
+    case "right":
       return {
         left: connector.x - width,
-        top: connector.y,
+        top: connector.y - halfHeight,
         right: connector.x,
-        bottom: connector.y + LABEL_HEIGHT,
+        bottom: connector.y + halfHeight,
       };
-    case "bottomRight":
+    case "center":
       return {
-        left: connector.x - width,
-        top: connector.y - LABEL_HEIGHT,
-        right: connector.x,
-        bottom: connector.y,
+        left: connector.x - width / 2,
+        top: connector.y - halfHeight,
+        right: connector.x + width / 2,
+        bottom: connector.y + halfHeight,
       };
-    case "bottomLeft":
     default:
       return {
-        left: connector.x,
-        top: connector.y - LABEL_HEIGHT,
-        right: connector.x + width,
-        bottom: connector.y,
+        left: connector.x - width / 2,
+        top: connector.y - halfHeight,
+        right: connector.x + width / 2,
+        bottom: connector.y + halfHeight,
       };
   }
 };

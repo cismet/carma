@@ -7,7 +7,6 @@ const ViewShed = lazy(() => import("./views/ViewShed"));
 const ObliqueAndMesh = lazy(() => import("./views/ObliqueAndMesh"));
 const NavigationControlView = lazy(() => import("./views/NavigationControl"));
 const TestMesh = lazy(() => import("./views/TestMesh"));
-const Measurements = lazy(() => import("./views/Measurements"));
 const ModelPlacement = lazy(() => import("./views/ModelPlacement"));
 
 export const views = [
@@ -26,7 +25,6 @@ export const views = [
     component: NavigationControlView,
   },
   { path: "/test-mesh", name: "Test Mesh", component: TestMesh },
-  { path: "/measurements", name: "Measurements", component: Measurements },
   {
     path: "/model-placement",
     name: "Model Placement",

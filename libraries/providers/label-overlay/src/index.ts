@@ -20,6 +20,10 @@ export {
 } from "./lib/components/PointLabelMarker";
 export { PillbuttonLabelMarker } from "./lib/components/PillbuttonLabelMarker";
 export {
+  PointLabelStem,
+  type PointLabelStemAnchorPoints,
+} from "./lib/components/PointLabelStem";
+export {
   LineVisualizer,
   type LineVisualizerProps,
 } from "./lib/components/LineVisualizer";

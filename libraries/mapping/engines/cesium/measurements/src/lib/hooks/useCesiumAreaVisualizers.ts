@@ -27,7 +27,11 @@ import {
   type LayoutPointInput,
 } from "@carma-providers/label-overlay";
 
-import { type PlanarPolygonGroup } from "../types/MeasurementTypes";
+import {
+  LINEAR_SEGMENT_LINE_MODE_COMPONENTS,
+  LINEAR_SEGMENT_LINE_MODE_DIRECT,
+  type PlanarPolygonGroup,
+} from "../types/MeasurementTypes";
 import {
   computePolygonCentroid2D,
   type ScreenPoint2D,
@@ -66,7 +70,7 @@ const POLYGON_AREA_PILL_EXTENDED_VERTICAL_PADDING_PX = 0;
 const POLYGON_AREA_PILL_EXTENDED_HORIZONTAL_PADDING_PX = 8;
 const POLYGON_AREA_PILL_COMPACT_GAP_PX = 4;
 const POLYGON_AREA_LABEL_LAYOUT_CONFIG = resolvePointLabelLayoutConfig({
-  placementOrder: ["bottomLeft"],
+  placementOrder: ["center"],
   stemDistance: 0,
   pitchResponsiveAngle: false,
   dynamicLabelPlacement: true,
@@ -165,7 +169,8 @@ const shouldHideAreaLabelInDirectPolylinePreview = (
     !group.closed &&
     group.id === activePlanarPolygonGroupId &&
     (surfaceType === "roof" || surfaceType === "footprint") &&
-    (group.segmentLineMode ?? "components") === "direct"
+    (group.segmentLineMode ?? LINEAR_SEGMENT_LINE_MODE_COMPONENTS) ===
+      LINEAR_SEGMENT_LINE_MODE_DIRECT
   );
 };
 

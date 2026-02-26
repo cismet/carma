@@ -4,11 +4,10 @@ import {
   type PlanarPolygonGroup,
   type PointMeasurementEntry,
 } from "../types/MeasurementTypes";
+import { buildFacadeRectangleCornerFromDiagonal } from "../utils/cartesianGeometry";
 
 export const POLYGON_PREVIEW_STROKE = "rgba(255, 255, 255, 0.65)";
 export const POLYGON_PREVIEW_STROKE_WIDTH_PX = 1;
-
-const FACADE_RECTANGLE_COMPONENT_EPSILON_METERS = 0.05;
 
 export type PolygonPreviewGroup = {
   group: PlanarPolygonGroup;
@@ -71,55 +70,6 @@ const isPlanarPolygonPreviewGroup = (
   previewGroup: PolygonPreviewGroup
 ): previewGroup is PlanarPolygonPreviewGroup =>
   (previewGroup.group.surfaceType ?? "roof") === "roof";
-
-export const buildFacadeRectangleCornerFromDiagonal = (
-  firstCorner: Cartesian3,
-  oppositeCorner: Cartesian3
-) => {
-  const up = Cartesian3.normalize(firstCorner, new Cartesian3());
-  const diagonal = Cartesian3.subtract(
-    oppositeCorner,
-    firstCorner,
-    new Cartesian3()
-  );
-
-  const verticalMeters = Cartesian3.dot(diagonal, up);
-  const verticalComponent = Cartesian3.multiplyByScalar(
-    up,
-    verticalMeters,
-    new Cartesian3()
-  );
-  const horizontalComponent = Cartesian3.subtract(
-    diagonal,
-    verticalComponent,
-    new Cartesian3()
-  );
-  const horizontalMeters = Cartesian3.magnitude(horizontalComponent);
-  const verticalAbsoluteMeters = Math.abs(verticalMeters);
-
-  if (
-    horizontalMeters < FACADE_RECTANGLE_COMPONENT_EPSILON_METERS ||
-    verticalAbsoluteMeters < FACADE_RECTANGLE_COMPONENT_EPSILON_METERS
-  ) {
-    return null;
-  }
-
-  const adjacentHorizontalCorner = Cartesian3.add(
-    firstCorner,
-    horizontalComponent,
-    new Cartesian3()
-  );
-  const adjacentVerticalCorner = Cartesian3.add(
-    firstCorner,
-    verticalComponent,
-    new Cartesian3()
-  );
-
-  return {
-    adjacentHorizontalCorner,
-    adjacentVerticalCorner,
-  };
-};
 
 export const buildPolygonPreviewGroups = ({
   planarPolygonGroups,

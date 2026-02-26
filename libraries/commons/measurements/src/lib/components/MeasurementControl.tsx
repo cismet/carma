@@ -4,7 +4,7 @@ import {
   Control,
   ControlButtonStyler,
 } from "@carma-mapping/map-controls-layout";
-import { InfoBoxMeasurement } from "./InfoBoxMeasurement";
+import { InfoBoxMeasurement } from "./infobox/InfoBoxMeasurement";
 import { MeasurementControlProps, MEASUREMENT_MODE } from "../../index.d";
 import { useMapMeasurementsContext } from "./MapMeasurementsProvider";
 import measureActive from "../assets/measure-active.png";

@@ -386,6 +386,20 @@ const createInlineLabelBadgeContent = (
 const sanitizePositiveScale = (value: number | undefined): number =>
   Number.isFinite(value) && (value as number) > 0 ? (value as number) : 1;
 
+const sanitizePointLabelFontSizePx = (value: number | undefined): number => {
+  if (!Number.isFinite(value)) return 12;
+  const parsed = Math.round(Number(value));
+  return Math.min(48, Math.max(10, parsed));
+};
+
+const sanitizeCssColorString = (
+  value: string | undefined
+): string | undefined => {
+  if (!value) return undefined;
+  const normalized = value.trim();
+  return normalized.length > 0 ? normalized : undefined;
+};
+
 const getPlaneIntersectionForClientPosition = (
   scene: Scene | null,
   clientX: number,
@@ -825,6 +839,16 @@ export const useCesiumPointLabels = (
         point.pointLabelMode ?? DEFAULT_POINT_LABEL_METRIC_MODE;
       const isDistanceMetricPoint = pointLabelMetricMode === "distance";
       const isAnnotationMarker = Boolean(point.auxiliaryLabelAnchor);
+      const pointLabelAppearance = point.labelAppearance;
+      const resolvedPointLabelFontSizePx = sanitizePointLabelFontSizePx(
+        pointLabelAppearance?.fontSizePx
+      );
+      const resolvedPointLabelBackgroundColor = sanitizeCssColorString(
+        pointLabelAppearance?.backgroundColor
+      );
+      const resolvedPointLabelTextColor = sanitizeCssColorString(
+        pointLabelAppearance?.textColor
+      );
       const declaredLabelAnchor =
         point.labelAnchor && point.labelAnchor.anchorPointId === point.id
           ? point.labelAnchor
@@ -987,8 +1011,13 @@ export const useCesiumPointLabels = (
             ? moveGizmoMarkerSizeDraggingPx
             : moveGizmoMarkerSizePx
           : undefined,
+        fontSize: `${resolvedPointLabelFontSizePx}px`,
+        textColor: resolvedPointLabelTextColor,
+        textBackgroundColor: resolvedPointLabelBackgroundColor,
         compactContent: useMarkerLabel ? fallbackCompactContent : undefined,
-        compactBorderless: useMarkerLabel && compactAreaBadgeWithoutOutline,
+        compactBorderless:
+          useMarkerLabel &&
+          (compactAreaBadgeWithoutOutline || isPreviewLabelPoint),
         labelStyle: useMarkerLabel ? "capsule" : "auto",
         collapse:
           useMarkerLabel &&
@@ -1000,7 +1029,7 @@ export const useCesiumPointLabels = (
         fullBorder:
           useMarkerLabel &&
           !useBorderlessExtendedLabel &&
-          (isPreviewLabelPoint || isAnnotationMarker || isDistanceMetricPoint),
+          isDistanceMetricPoint,
         markerInnerScale: isMoveGizmoPoint
           ? moveGizmoIsDragging
             ? MOVE_GIZMO_MARKER_INNER_SCALE_DRAGGING

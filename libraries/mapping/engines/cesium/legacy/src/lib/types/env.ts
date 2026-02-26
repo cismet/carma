@@ -13,6 +13,13 @@ declare global {
         err?: unknown
       ) => void;
     };
+    CARMA_MEASUREMENTS_SCRIPT?: {
+      version?: string;
+      execute?: (request: unknown) => unknown;
+      getState?: () => unknown;
+      requestEventName?: string;
+      responseEventName?: string;
+    };
   }
 }
 

@@ -95,7 +95,11 @@ const MeasurementTitle = ({
   }, [displayText, editable, isEditing, multiline]);
 
   return (
-    <div className="inline-flex items-center gap-1 min-w-0">
+    <div
+      className="inline-flex items-center gap-1 min-w-0"
+      onMouseDown={(event) => event.stopPropagation()}
+      onClick={(event) => event.stopPropagation()}
+    >
       {hasLeadingBadge && (
         <span
           className="inline-flex items-center justify-center min-w-[16px] h-[16px] px-1 rounded-full border border-white/95 bg-[rgba(200,200,200,0.92)] text-[10px] font-semibold leading-none text-[#111111]"
@@ -196,6 +200,8 @@ const MeasurementTitle = ({
               ? "bg-[#fef3c7] outline outline-2 outline-[#1677ff] rounded-[3px]"
               : "bg-transparent"
           }`}
+          onMouseDown={(event) => event.stopPropagation()}
+          onClick={(event) => event.stopPropagation()}
         />
       ) : (
         <span className="text-[14px] mr-1">{formatText(displayText)}</span>

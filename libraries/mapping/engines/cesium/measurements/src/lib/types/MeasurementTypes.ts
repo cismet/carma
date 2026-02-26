@@ -1,111 +1,53 @@
-import { Cartesian3, type Cartographic } from "@carma/cesium";
+import { Cartesian3 } from "@carma/cesium";
+import {
+  MeasurementMode as SharedMeasurementMode,
+  DEFAULT_LINEAR_SEGMENT_LINE_MODE,
+  DEFAULT_POINT_LABEL_METRIC_MODE,
+  DEFAULT_POLYLINE_POINT_LABEL_MODE,
+  LINEAR_SEGMENT_LINE_MODES,
+  LINEAR_SEGMENT_LINE_MODE_COMPONENTS,
+  LINEAR_SEGMENT_LINE_MODE_DIRECT,
+  type BaseMeasurementEntry,
+  type MeasurementPersistenceEnvelopeV2Base,
+  type PointReferenceLineAnnotation,
+  type SerializableCartesian3,
+} from "@carma-commons/measurements";
 
-export enum MeasurementMode {
-  NONE = "none",
-  PointMeasure = "point_measure",
-  PointQuery = "point_query",
-  PolylineMeasure = "polyline_measure",
-  Traverse = "traverse",
-  Elevation = "elevation",
-}
-
-export type PointLabelMetricMode =
-  | "elevation"
-  | "absoluteElevation"
-  | "none"
-  | "distance";
-export const DEFAULT_POINT_LABEL_METRIC_MODE: PointLabelMetricMode =
-  "elevation";
-
-export type ReferenceLineLabelKind = "direct" | "vertical" | "horizontal";
-
-export type DistanceRelationLabelVisibilityByKind = Partial<
-  Record<ReferenceLineLabelKind, boolean>
->;
-export type DirectLineLabelMode = "segment" | "cumulative" | "none";
-
-export type PolylinePointLabelMode =
-  | "cumulativeDistance"
-  | "elevationSinceStart"
-  | "elevationSinceLastNode";
-export const DEFAULT_POLYLINE_POINT_LABEL_MODE: PolylinePointLabelMode =
-  "cumulativeDistance";
-export type PolylineSegmentLineMode = "direct" | "components";
-export type PlanarMeasurementKind = "polyline" | "area";
-
-export type SurfaceType = "roof" | "facade" | "terrain" | "footprint";
-
-export type SerializableCartesian3 = {
-  x: number;
-  y: number;
-  z: number;
+export {
+  DEFAULT_LINEAR_SEGMENT_LINE_MODE,
+  DEFAULT_POINT_LABEL_METRIC_MODE,
+  DEFAULT_POLYLINE_POINT_LABEL_MODE,
+  LINEAR_SEGMENT_LINE_MODES,
+  LINEAR_SEGMENT_LINE_MODE_COMPONENTS,
+  LINEAR_SEGMENT_LINE_MODE_DIRECT,
+  SharedMeasurementMode as MeasurementMode,
 };
 
-export type PlanarPolygonPlane = {
-  anchorECEF: SerializableCartesian3;
-  normalECEF: SerializableCartesian3;
-};
+export type {
+  DirectLineLabelMode,
+  DistanceRelationLabelVisibilityByKind,
+  LinearSegmentLineMode,
+  MeasurementGeometryEdge,
+  MeasurementGeometryPoint,
+  MeasurementLabelAnchor,
+  MeasurementLabelAppearance,
+  PlanarMeasurementKind,
+  PlanarPolygonGroup,
+  PlanarPolygonGroupVertex,
+  PlanarPolygonLocalFrame,
+  PlanarPolygonPlane,
+  PointDistanceRelation,
+  PointLabelMetricMode,
+  PointReferenceLineAnnotation,
+  PolylineCollection,
+  PolylinePointLabelMode,
+  PolylineSegmentLineMode,
+  ReferenceLineLabelKind,
+  SerializableCartesian3,
+  SurfaceType,
+} from "@carma-commons/measurements";
 
-export type PlanarPolygonLocalFrame = {
-  originECEF: SerializableCartesian3;
-  eastECEF: SerializableCartesian3;
-  northECEF: SerializableCartesian3;
-  upECEF: SerializableCartesian3;
-};
-
-export type PlanarPolygonGroup = {
-  id: string;
-  name?: string;
-  hidden?: boolean;
-  measurementKind?: PlanarMeasurementKind;
-  segmentLineMode?: PolylineSegmentLineMode;
-  verticalOffsetMeters?: number;
-  vertexPointIds: string[];
-  edgeRelationIds: string[];
-  distanceMeasurementStartPointId?: string;
-  closed: boolean;
-  planeLocked: boolean;
-  plane?: PlanarPolygonPlane;
-  planarPolygonLocalFrame?: PlanarPolygonLocalFrame;
-  areaSquareMeters?: number;
-  verticalityDeg?: number;
-  surfaceType?: SurfaceType;
-};
-
-export type PolylineCollection = {
-  id: string;
-  name?: string;
-  vertexPointIds: string[];
-  edgeRelationIds: string[];
-  distanceMeasurementStartPointId: string | null;
-  vertexHeightsMeters: number[];
-  segmentLengthsMeters: number[];
-  segmentLengthsCumulativeMeters: number[];
-  totalLengthMeters: number;
-};
-
-export type PointDistanceRelation = {
-  id: string;
-  edgeId: string;
-  pointAId: string;
-  pointBId: string;
-  // The anchor point defines the "from" side for component visualization.
-  anchorPointId: string;
-  polygonGroupId?: string;
-  showDirectLine?: boolean;
-  showVerticalLine?: boolean;
-  showHorizontalLine?: boolean;
-  showComponentLines?: boolean;
-  labelVisibilityByKind?: DistanceRelationLabelVisibilityByKind;
-  directLabelMode?: DirectLineLabelMode;
-};
-
-export type PointReferenceLineAnnotation = {
-  showDirectLine?: boolean;
-  showComponentLines?: boolean;
-};
-
-export type GeomPoint = Partial<Cartographic> & {
+export type GeomPoint = {
   longitude: number;
   latitude: number;
   height: number;
@@ -113,32 +55,13 @@ export type GeomPoint = Partial<Cartographic> & {
 
 type GeomPolyline = GeomPoint[];
 
-export type MeasurementLabelAnchor = {
-  anchorPointId: string;
-  compactContent?: string;
-  collapseToCompact: boolean;
-};
-
-export type MeasurementEntry = {
-  id: string;
-  type: MeasurementMode;
-  timestamp: number;
-  index?: number;
-  name?: string;
-  hidden?: boolean;
-  locked?: boolean;
-  auxiliaryLabelAnchor?: boolean;
+export type MeasurementEntry = BaseMeasurementEntry<SharedMeasurementMode> & {
   geometryECEF: Cartesian3[] | Cartesian3;
   geometryWGS84: GeomPoint | GeomPolyline;
-  metadata?: unknown;
-  derived?: unknown;
-  temporary?: boolean;
-  pointLabelMode?: PointLabelMetricMode;
-  labelAnchor?: MeasurementLabelAnchor;
 };
 
 export type PointMeasurementEntry = MeasurementEntry & {
-  type: MeasurementMode.PointQuery;
+  type: typeof SharedMeasurementMode.PointQuery;
   geometryECEF: Cartesian3;
   geometryWGS84: GeomPoint;
   radius?: number;
@@ -156,11 +79,11 @@ export type PointMeasurementEntry = MeasurementEntry & {
 export function isPointMeasurementEntry(
   entry: MeasurementEntry
 ): entry is PointMeasurementEntry {
-  return entry && entry.type === MeasurementMode.PointQuery;
+  return entry && entry.type === SharedMeasurementMode.PointQuery;
 }
 
 export type TraverseMeasurementEntry = MeasurementEntry & {
-  type: MeasurementMode.Traverse;
+  type: typeof SharedMeasurementMode.Traverse;
   geometryECEF: Cartesian3[];
   geometryWGS84: GeomPolyline;
   heightOffset?: number;
@@ -175,48 +98,10 @@ export type TraverseMeasurementEntry = MeasurementEntry & {
 export function isTraverseMeasurementEntry(
   entry: MeasurementEntry
 ): entry is TraverseMeasurementEntry {
-  return entry && entry.type === MeasurementMode.Traverse;
+  return entry && entry.type === SharedMeasurementMode.Traverse;
 }
 
 export type MeasurementCollection = MeasurementEntry[];
 
-export type MeasurementGeometryPoint = {
-  id: string;
-  longitude: number;
-  latitude: number;
-  height: number;
-  geometryECEF: SerializableCartesian3;
-  hidden?: boolean;
-  locked?: boolean;
-  pointLabelMode?: PointLabelMetricMode;
-  auxiliaryLabelAnchor?: boolean;
-  verticalOffsetAnchorECEF?: SerializableCartesian3;
-  labelAnchor?: MeasurementLabelAnchor;
-};
-
-export type MeasurementGeometryEdge = {
-  id: string;
-  pointAId: string;
-  pointBId: string;
-};
-
-export type PlanarPolygonGroupVertex = {
-  id: string;
-  groupId: string;
-  pointId: string;
-  order: number;
-};
-
-export type MeasurementPersistenceEnvelopeV2 = {
-  version: 2;
-  geometry: {
-    points: MeasurementGeometryPoint[];
-    edges: MeasurementGeometryEdge[];
-  };
-  tables: {
-    measurements: MeasurementCollection;
-    distanceRelations: PointDistanceRelation[];
-    planarPolygonGroups: PlanarPolygonGroup[];
-    planarPolygonGroupVertices: PlanarPolygonGroupVertex[];
-  };
-};
+export type MeasurementPersistenceEnvelopeV2 =
+  MeasurementPersistenceEnvelopeV2Base<MeasurementEntry>;

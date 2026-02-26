@@ -35,3 +35,9 @@ export {
   type VectorTrapezoidIconProps,
 } from "./lib/components/VectorTrapezoidIcon";
 export { MODES } from "./lib/components/responsiveInfoBoxModes";
+export {
+  createToolManager,
+  type ToolDescriptor,
+  type ToolDescriptorI18n,
+  type ToolManager,
+} from "./lib/utils/createToolManager";

@@ -8,38 +8,42 @@ import {
 } from "react";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import {
-  faArrowPointer,
   faArrowsToCircle,
-  faLocationDot,
-  faMessage,
-  faRuler,
-  faBuilding,
   faBorderNone,
   faTrashCan,
 } from "@fortawesome/free-solid-svg-icons";
 import { Switch, Tooltip } from "antd";
 import {
+  LINEAR_SEGMENT_LINE_MODE_COMPONENTS,
+  LINEAR_SEGMENT_LINE_MODE_DIRECT,
+  type PolylineSegmentLineMode,
+} from "../types/measurementTypes";
+import {
   DismissibleHelpBox,
   EditableMetricValue,
   LockToggleButton,
-  VectorPolylineIcon,
-  VectorSquareIcon,
-  VectorTrapezoidIcon,
   VisibilityToggleButton,
 } from "@carma-commons/ui/components";
+import {
+  measurementToolManager as defaultMeasurementToolManager,
+  resolveMeasurementToolText,
+  type MeasurementToolManager,
+  type MeasurementToolManagerContext,
+} from "../tools/measurementToolManager";
+import type { MeasurementToolType } from "../tools/measurementToolTypes";
+import {
+  SELECT_TOOL_TYPE,
+  SPATIAL_MARKUP_KIND_AREA,
+  SPATIAL_MARKUP_KIND_DISTANCE,
+  SPATIAL_MARKUP_KIND_LABEL,
+  SPATIAL_MARKUP_KIND_PLANAR,
+  SPATIAL_MARKUP_KIND_POINT,
+  SPATIAL_MARKUP_KIND_POLYLINE,
+  SPATIAL_MARKUP_KIND_VERTICAL,
+} from "../types/measurementKindRegistry";
+export type { MeasurementToolType } from "../tools/measurementToolTypes";
 
-export type MeasurementToolType =
-  | "select"
-  | "label"
-  | "point"
-  | "distance"
-  | "polyline"
-  | "area-footprint"
-  | "area-facade"
-  | "area-roof";
-
-export type PolylineSegmentLineMode = "direct" | "components";
-type DistanceLineModePreset = "direct" | "components" | "componentsWithDirect";
+type DistanceLineModePreset = PolylineSegmentLineMode | "componentsWithDirect";
 
 export interface MeasurementModeToolbarProps {
   activeToolType: MeasurementToolType;
@@ -76,15 +80,12 @@ export interface MeasurementModeToolbarProps {
   pointSoloMode?: boolean;
   onPointSoloModeChange?: (enabled: boolean) => void;
   pixelWidth?: number;
+  toolManager?: MeasurementToolManager;
+  toolManagerContext?: MeasurementToolManagerContext;
 }
 
 const TOOL_BUTTON_SIZE_PX = 32;
-
-type ToolButtonDef = {
-  type: MeasurementToolType;
-  icon: ReactNode;
-  tooltip: string;
-};
+const defaultToolManager = defaultMeasurementToolManager;
 
 const ACTIVE_ACCENT_COLOR = "#1677ff";
 const INACTIVE_ICON_COLOR = "#4b5563";
@@ -102,90 +103,53 @@ const TOOLBOX_SURFACE_RADIUS_PX = 4;
 const SECONDARY_TOOLBAR_HELP_STORAGE_KEY =
   "carma.measurements.secondary-toolbar-help-collapsed.v1";
 
-const TOOL_BUTTONS: ToolButtonDef[] = [
-  {
-    type: "point",
-    icon: <FontAwesomeIcon icon={faLocationDot} />,
-    tooltip: "Punkt messen",
-  },
-  {
-    type: "distance",
-    icon: <FontAwesomeIcon icon={faRuler} />,
-    tooltip: "Strecke messen",
-  },
-  {
-    type: "polyline",
-    icon: <VectorPolylineIcon fontSize="1.33em" />,
-    tooltip: "Polygonzug messen",
-  },
-  {
-    type: "area-footprint",
-    icon: <VectorSquareIcon fontSize="1.33em" />,
-    tooltip: "Grundriss",
-  },
-  {
-    type: "area-roof",
-    icon: <VectorTrapezoidIcon fontSize="1.33em" />,
-    tooltip: "Dachfläche",
-  },
-  {
-    type: "area-facade",
-    icon: <FontAwesomeIcon icon={faBuilding} />,
-    tooltip: "Fassadenfläche",
-  },
-  {
-    type: "label",
-    icon: <FontAwesomeIcon icon={faMessage} />,
-    tooltip: "Anmerkung",
-  },
+type AreaToolType =
+  | typeof SPATIAL_MARKUP_KIND_AREA
+  | typeof SPATIAL_MARKUP_KIND_VERTICAL
+  | typeof SPATIAL_MARKUP_KIND_PLANAR;
+
+const AREA_TOOL_TYPES: AreaToolType[] = [
+  SPATIAL_MARKUP_KIND_AREA,
+  SPATIAL_MARKUP_KIND_VERTICAL,
+  SPATIAL_MARKUP_KIND_PLANAR,
 ];
 
-const AREA_HELP_CONTENT: Record<
-  "area-footprint" | "area-facade" | "area-roof",
-  string[]
-> = {
-  "area-footprint": [
+const AREA_HELP_CONTENT: Record<AreaToolType, string[]> = {
+  [SPATIAL_MARKUP_KIND_AREA]: [
     "Grundriss: Jeder Klick setzt einen Bodenpunkt; die Vorschau folgt dem Cursor auf dem Gelände.",
     "Klick auf Startpunkt oder Doppelklick schließt die Fläche.",
   ],
-  "area-facade": [
+  [SPATIAL_MARKUP_KIND_VERTICAL]: [
     "Fassade: Der 1. Punkt startet die Fläche, der 2. Punkt erzeugt eine rechteckige Fassade mit Auto-Ecken.",
     "Klick auf Startpunkt oder Doppelklick schließt die Fläche.",
   ],
-  "area-roof": [
+  [SPATIAL_MARKUP_KIND_PLANAR]: [
     "Dach: 1.+2. Punkt definieren eine horizontale Kante, der 3. Punkt spannt die Dach-Ebene auf; weitere Punkte werden auf diese Ebene projiziert.",
     "Klick auf Startpunkt oder Doppelklick schließt die Fläche.",
   ],
 };
 
-const AREA_LABEL: Record<
-  "area-footprint" | "area-facade" | "area-roof",
-  string
-> = {
-  "area-footprint": "Grundriss",
-  "area-facade": "Fassade",
-  "area-roof": "Dach",
+const AREA_LABEL: Record<AreaToolType, string> = {
+  [SPATIAL_MARKUP_KIND_AREA]: "Grundriss",
+  [SPATIAL_MARKUP_KIND_VERTICAL]: "Fassade",
+  [SPATIAL_MARKUP_KIND_PLANAR]: "Dach",
 };
 
 type SecondaryToolbarHelpKey =
   | "selection"
-  | "point"
-  | "distance"
-  | "polyline"
-  | "area-footprint"
-  | "area-facade"
-  | "area-roof"
-  | "label";
+  | typeof SPATIAL_MARKUP_KIND_POINT
+  | typeof SPATIAL_MARKUP_KIND_DISTANCE
+  | typeof SPATIAL_MARKUP_KIND_POLYLINE
+  | AreaToolType
+  | typeof SPATIAL_MARKUP_KIND_LABEL;
 
 const SECONDARY_TOOLBAR_HELP_KEYS: SecondaryToolbarHelpKey[] = [
   "selection",
-  "point",
-  "distance",
-  "polyline",
-  "area-footprint",
-  "area-facade",
-  "area-roof",
-  "label",
+  SPATIAL_MARKUP_KIND_POINT,
+  SPATIAL_MARKUP_KIND_DISTANCE,
+  SPATIAL_MARKUP_KIND_POLYLINE,
+  ...AREA_TOOL_TYPES,
+  SPATIAL_MARKUP_KIND_LABEL,
 ];
 
 const DEFAULT_SECONDARY_TOOLBAR_HELP_COLLAPSED: Record<
@@ -193,13 +157,13 @@ const DEFAULT_SECONDARY_TOOLBAR_HELP_COLLAPSED: Record<
   boolean
 > = {
   selection: false,
-  point: false,
-  distance: false,
-  polyline: false,
-  "area-footprint": false,
-  "area-facade": false,
-  "area-roof": false,
-  label: false,
+  [SPATIAL_MARKUP_KIND_POINT]: false,
+  [SPATIAL_MARKUP_KIND_DISTANCE]: false,
+  [SPATIAL_MARKUP_KIND_POLYLINE]: false,
+  [SPATIAL_MARKUP_KIND_AREA]: false,
+  [SPATIAL_MARKUP_KIND_VERTICAL]: false,
+  [SPATIAL_MARKUP_KIND_PLANAR]: false,
+  [SPATIAL_MARKUP_KIND_LABEL]: false,
 };
 
 const toolButtonStyle = (
@@ -340,14 +304,14 @@ type DistanceLineModeOption = {
 
 const DISTANCE_LINE_MODE_OPTIONS: DistanceLineModeOption[] = [
   {
-    mode: "direct",
+    mode: LINEAR_SEGMENT_LINE_MODE_DIRECT,
     label: "Direkt",
     tooltip: "Nur Direktlinie anzeigen",
     icon: DISTANCE_DIRECT_MODE_ICON,
     dataTestId: "measurement-distance-mode-direct",
   },
   {
-    mode: "components",
+    mode: LINEAR_SEGMENT_LINE_MODE_COMPONENTS,
     label: "Komponenten",
     tooltip: "Nur Komponenten anzeigen",
     icon: DISTANCE_COMPONENTS_MODE_ICON,
@@ -419,10 +383,8 @@ const SecondaryToolbarSection = ({
   );
 };
 
-const isAreaToolType = (
-  type: MeasurementToolType
-): type is "area-footprint" | "area-facade" | "area-roof" =>
-  type === "area-footprint" || type === "area-facade" || type === "area-roof";
+const isAreaToolType = (type: MeasurementToolType): type is AreaToolType =>
+  AREA_TOOL_TYPES.includes(type as AreaToolType);
 
 export function MeasurementModeToolbar({
   activeToolType,
@@ -447,19 +409,21 @@ export function MeasurementModeToolbar({
   onPointVerticalOffsetChange,
   polylineVerticalOffsetMeters = 0,
   onPolylineVerticalOffsetChange,
-  polylineSegmentLineMode = "components",
+  polylineSegmentLineMode = LINEAR_SEGMENT_LINE_MODE_COMPONENTS,
   onPolylineSegmentLineModeChange,
   pointSoloMode = false,
   onPointSoloModeChange,
   pixelWidth,
+  toolManager = defaultToolManager,
+  toolManagerContext,
 }: MeasurementModeToolbarProps) {
-  const showSelectionOptions = activeToolType === "select";
-  const isSelectionModeActive = activeToolType === "select";
-  const showPointOptions = activeToolType === "point";
-  const showDistanceOptions = activeToolType === "distance";
-  const showPolylineOptions = activeToolType === "polyline";
+  const showSelectionOptions = activeToolType === SELECT_TOOL_TYPE;
+  const isSelectionModeActive = activeToolType === SELECT_TOOL_TYPE;
+  const showPointOptions = activeToolType === SPATIAL_MARKUP_KIND_POINT;
+  const showDistanceOptions = activeToolType === SPATIAL_MARKUP_KIND_DISTANCE;
+  const showPolylineOptions = activeToolType === SPATIAL_MARKUP_KIND_POLYLINE;
   const showAreaOptions = isAreaToolType(activeToolType);
-  const showLabelOptions = activeToolType === "label";
+  const showLabelOptions = activeToolType === SPATIAL_MARKUP_KIND_LABEL;
   const [pointOffsetForceCloseSignal, setPointOffsetForceCloseSignal] =
     useState(0);
   const lastPointVerticalOffsetRef = useRef(1);
@@ -477,10 +441,10 @@ export function MeasurementModeToolbar({
   const distanceDirectLineEnabled = distanceLineVisibility?.direct ?? true;
   const distanceLineMode: DistanceLineModePreset =
     !distanceComponentsModeEnabled
-      ? "direct"
+      ? LINEAR_SEGMENT_LINE_MODE_DIRECT
       : distanceDirectLineEnabled
       ? "componentsWithDirect"
-      : "components";
+      : LINEAR_SEGMENT_LINE_MODE_COMPONENTS;
   const [
     secondaryToolbarHelpCollapsedByKey,
     setSecondaryToolbarHelpCollapsedByKey,
@@ -544,8 +508,8 @@ export function MeasurementModeToolbar({
   );
 
   const setDistanceLineMode = (mode: DistanceLineModePreset) => {
-    const nextComponentsEnabled = mode !== "direct";
-    const nextDirectEnabled = mode !== "components";
+    const nextComponentsEnabled = mode !== LINEAR_SEGMENT_LINE_MODE_DIRECT;
+    const nextDirectEnabled = mode !== LINEAR_SEGMENT_LINE_MODE_COMPONENTS;
     onDistanceLineVisibilityChange?.("direct", nextDirectEnabled);
     onDistanceLineVisibilityChange?.("vertical", nextComponentsEnabled);
     onDistanceLineVisibilityChange?.("horizontal", nextComponentsEnabled);
@@ -572,6 +536,15 @@ export function MeasurementModeToolbar({
       setPolylineOffsetForceCloseSignal((prev) => prev + 1);
     }
   }, [showPolylineOptions]);
+
+  const availableTools = toolManager.listTools(
+    toolManagerContext ?? { modeActive: true }
+  );
+  const primaryTools = availableTools.filter(
+    ({ id }) => id !== SELECT_TOOL_TYPE
+  );
+  const selectTool =
+    availableTools.find(({ id }) => id === SELECT_TOOL_TYPE) ?? null;
 
   return (
     <div
@@ -601,10 +574,11 @@ export function MeasurementModeToolbar({
           boxSizing: "border-box",
         }}
       >
-        {TOOL_BUTTONS.map(({ type, icon, tooltip }) => {
+        {primaryTools.map((tool) => {
+          const tooltip = resolveMeasurementToolText(tool.i18n.tooltipKey);
           return (
-            <Fragment key={type}>
-              {type === "label" && (
+            <Fragment key={tool.id}>
+              {tool.id === SPATIAL_MARKUP_KIND_LABEL && (
                 <span
                   style={{
                     width: 1,
@@ -618,16 +592,16 @@ export function MeasurementModeToolbar({
               <Tooltip title={tooltip} placement="top">
                 <button
                   type="button"
-                  style={toolButtonStyle(activeToolType === type, false)}
-                  onClick={() => onToolTypeChange(type)}
-                  aria-pressed={activeToolType === type}
+                  style={toolButtonStyle(activeToolType === tool.id, false)}
+                  onClick={() => onToolTypeChange(tool.id)}
+                  aria-pressed={activeToolType === tool.id}
                   aria-label={tooltip}
-                  data-test-id={`measurement-tool-${type}`}
+                  data-test-id={`measurement-tool-${tool.id}`}
                 >
-                  {icon}
+                  {tool.icon}
                 </button>
               </Tooltip>
-              {type === "label" && (
+              {tool.id === SPATIAL_MARKUP_KIND_LABEL && (
                 <span
                   style={{
                     width: 1,
@@ -641,21 +615,28 @@ export function MeasurementModeToolbar({
             </Fragment>
           );
         })}
-        <Tooltip title="Messung auswählen" placement="top">
-          <button
-            type="button"
-            style={{
-              ...toolButtonStyle(isSelectionModeActive),
-              marginLeft: "auto",
-            }}
-            onClick={() => onToolTypeChange("select")}
-            aria-pressed={isSelectionModeActive}
-            aria-label="Messung auswählen"
-            data-test-id="measurement-tool-select-toggle"
+        {selectTool && (
+          <Tooltip
+            title={resolveMeasurementToolText(selectTool.i18n.tooltipKey)}
+            placement="top"
           >
-            <FontAwesomeIcon icon={faArrowPointer} />
-          </button>
-        </Tooltip>
+            <button
+              type="button"
+              style={{
+                ...toolButtonStyle(isSelectionModeActive),
+                marginLeft: "auto",
+              }}
+              onClick={() => onToolTypeChange(SELECT_TOOL_TYPE)}
+              aria-pressed={isSelectionModeActive}
+              aria-label={resolveMeasurementToolText(
+                selectTool.i18n.tooltipKey
+              )}
+              data-test-id="measurement-tool-select-toggle"
+            >
+              {selectTool.icon}
+            </button>
+          </Tooltip>
+        )}
       </div>
       {showSelectionOptions && (
         <SecondaryToolbarSection
@@ -773,9 +754,14 @@ export function MeasurementModeToolbar({
         <SecondaryToolbarSection
           dataTestId="measurement-distance-options"
           helpDataTestId="measurement-distance-help"
-          helpCollapsed={secondaryToolbarHelpCollapsedByKey.distance}
+          helpCollapsed={
+            secondaryToolbarHelpCollapsedByKey[SPATIAL_MARKUP_KIND_DISTANCE]
+          }
           onHelpCollapsedChange={(collapsed) =>
-            setSecondaryToolbarHelpCollapsed("distance", collapsed)
+            setSecondaryToolbarHelpCollapsed(
+              SPATIAL_MARKUP_KIND_DISTANCE,
+              collapsed
+            )
           }
           optionsStyle={{
             padding: "8px 6px",
@@ -886,9 +872,14 @@ export function MeasurementModeToolbar({
         <SecondaryToolbarSection
           dataTestId="measurement-point-options"
           helpDataTestId="measurement-point-help"
-          helpCollapsed={secondaryToolbarHelpCollapsedByKey.point}
+          helpCollapsed={
+            secondaryToolbarHelpCollapsedByKey[SPATIAL_MARKUP_KIND_POINT]
+          }
           onHelpCollapsedChange={(collapsed) =>
-            setSecondaryToolbarHelpCollapsed("point", collapsed)
+            setSecondaryToolbarHelpCollapsed(
+              SPATIAL_MARKUP_KIND_POINT,
+              collapsed
+            )
           }
           helpContent={buildHelpContent([
             "Für Punktmessungen auf das Stadtmodell klicken. Die erste Messung definiert die Referenzhöhe.",
@@ -965,9 +956,14 @@ export function MeasurementModeToolbar({
         <SecondaryToolbarSection
           dataTestId="measurement-label-options"
           helpDataTestId="measurement-label-help"
-          helpCollapsed={secondaryToolbarHelpCollapsedByKey.label}
+          helpCollapsed={
+            secondaryToolbarHelpCollapsedByKey[SPATIAL_MARKUP_KIND_LABEL]
+          }
           onHelpCollapsedChange={(collapsed) =>
-            setSecondaryToolbarHelpCollapsed("label", collapsed)
+            setSecondaryToolbarHelpCollapsed(
+              SPATIAL_MARKUP_KIND_LABEL,
+              collapsed
+            )
           }
           helpContent={buildHelpContent([
             "Im Anmerkungsmodus setzt ein Klick eine Beschriftung am Punkt.",
@@ -982,9 +978,14 @@ export function MeasurementModeToolbar({
         <SecondaryToolbarSection
           dataTestId="measurement-polyline-options"
           helpDataTestId="measurement-polyline-help"
-          helpCollapsed={secondaryToolbarHelpCollapsedByKey.polyline}
+          helpCollapsed={
+            secondaryToolbarHelpCollapsedByKey[SPATIAL_MARKUP_KIND_POLYLINE]
+          }
           onHelpCollapsedChange={(collapsed) =>
-            setSecondaryToolbarHelpCollapsed("polyline", collapsed)
+            setSecondaryToolbarHelpCollapsed(
+              SPATIAL_MARKUP_KIND_POLYLINE,
+              collapsed
+            )
           }
           helpContent={buildHelpContent([
             "Klicken setzt Stützpunkte des Polygonzugs.",
@@ -1049,10 +1050,14 @@ export function MeasurementModeToolbar({
             <span style={optionsLabelStyle}>Direkt</span>
             <Switch
               size="small"
-              checked={polylineSegmentLineMode === "components"}
+              checked={
+                polylineSegmentLineMode === LINEAR_SEGMENT_LINE_MODE_COMPONENTS
+              }
               onChange={(checked) =>
                 onPolylineSegmentLineModeChange?.(
-                  checked ? "components" : "direct"
+                  checked
+                    ? LINEAR_SEGMENT_LINE_MODE_COMPONENTS
+                    : LINEAR_SEGMENT_LINE_MODE_DIRECT
                 )
               }
               aria-label="Polyline-Segmentdarstellung umschalten"
@@ -1067,32 +1072,23 @@ export function MeasurementModeToolbar({
           dataTestId={`measurement-${activeToolType}-options`}
           helpDataTestId={`measurement-${activeToolType}-help`}
           helpCollapsed={
-            secondaryToolbarHelpCollapsedByKey[
-              activeToolType as "area-footprint" | "area-facade" | "area-roof"
-            ]
+            secondaryToolbarHelpCollapsedByKey[activeToolType as AreaToolType]
           }
           onHelpCollapsedChange={(collapsed) =>
             setSecondaryToolbarHelpCollapsed(
-              activeToolType as "area-footprint" | "area-facade" | "area-roof",
+              activeToolType as AreaToolType,
               collapsed
             )
           }
           helpContent={buildHelpContent(
-            AREA_HELP_CONTENT[
-              activeToolType as "area-footprint" | "area-facade" | "area-roof"
-            ]
+            AREA_HELP_CONTENT[activeToolType as AreaToolType]
           )}
         >
           <span
             style={optionsLabelStyle}
             data-test-id="measurement-area-mode-label"
           >
-            Aktiver Flächenmodus:{" "}
-            {
-              AREA_LABEL[
-                activeToolType as "area-footprint" | "area-facade" | "area-roof"
-              ]
-            }
+            Aktiver Flächenmodus: {AREA_LABEL[activeToolType as AreaToolType]}
           </span>
         </SecondaryToolbarSection>
       )}

@@ -50,6 +50,7 @@ import { ENDPOINT, isAreaType } from "@carma-commons/resources";
 import type { FeatureInfo } from "@carma/types";
 import {
   Measurements,
+  CarmaMeasurementInfoBox,
   InfoBoxMeasurement,
   InfoBoxMeasurement3D,
 } from "@carma-commons/measurements";
@@ -672,6 +673,17 @@ export const GeoportalMap = ({ height, width, allow3d }: MapProps) => {
   }, [getLeafletMap]);
 
   const renderInfoBox = useCallback(() => {
+    const isCesiumMeasurementMode = getIsCesium() && isModeMeasurement;
+
+    if (isCesiumMeasurementMode) {
+      return (
+        <div className="flex flex-col gap-2">
+          <InfoBoxMeasurement3D />
+          <CarmaMeasurementInfoBox />
+        </div>
+      );
+    }
+
     if (getIsLeaflet()) {
       if (isModeMeasurement) {
         return <InfoBoxMeasurement key={uiMode} />;
@@ -682,9 +694,6 @@ export const GeoportalMap = ({ height, width, allow3d }: MapProps) => {
         );
       }
     } else if (getIsCesium()) {
-      if (isModeMeasurement) {
-        return <InfoBoxMeasurement3D />;
-      }
       if (selectedFeature) {
         return (
           <FeatureInfoBox

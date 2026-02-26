@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState } from "react";
 import { PointLabelMarker, type PointLabelAttach } from "./PointLabelMarker";
 import { PillbuttonLabelMarker } from "./PillbuttonLabelMarker";
+import { PointLabelStem } from "./PointLabelStem";
 
 export type { PointLabelAttach };
 
@@ -130,7 +131,7 @@ export const PointLabel = React.memo(
     isOccluded = false,
     pitch = defaultPitch,
     labelAngleRad,
-    labelAttach = "bottomLeft",
+    labelAttach = "left",
     transitionDurationMs = 300,
     hideLabelAndStem = false,
     hideMarker = false,
@@ -223,7 +224,6 @@ export const PointLabel = React.memo(
     const labelAnchorDistance = resolvedStemStartDistance + anchorLineDistance;
     const labelOffsetX = xComponent * labelAnchorDistance;
     const labelOffsetY = yComponent * labelAnchorDistance;
-    const halfLineWidth = lineWidth / 2;
     const isInteractive = Boolean(
       onClick ||
         onDoubleClick ||
@@ -405,24 +405,16 @@ export const PointLabel = React.memo(
       clearLongPressTimeout();
     };
     const labelTransform =
-      labelAttach === "topLeft"
-        ? "translate(0%, 0%)"
-        : labelAttach === "topRight"
-        ? "translate(-100%, 0%)"
-        : labelAttach === "bottomRight"
-        ? "translate(-100%, -100%)"
-        : "translate(0%, -100%)";
-    const isTopAttach = labelAttach === "topLeft" || labelAttach === "topRight";
-    const lineBorderStyle = `${lineWidth}px ${
-      isOccluded ? "dashed" : "solid"
-    } ${lineColor}`;
+      labelAttach === "right"
+        ? "translate(-100%, -50%)"
+        : labelAttach === "center"
+        ? "translate(-50%, -50%)"
+        : "translate(0%, -50%)";
     const labelBorderStyle = `${lineWidth}px ${
       isOccluded ? "dashed" : "solid"
     } ${effectiveLineColor}`;
     const solidLabelBorderStyle = `${lineWidth}px solid ${effectiveLineColor}`;
-    const labelTop = isTopAttach
-      ? `${labelOffsetY}px`
-      : `${labelOffsetY + halfLineWidth}px`;
+    const labelTop = `${labelOffsetY}px`;
     const sharedAttachTransition =
       isAttachTransitionActive && transitionDurationMs > 0
         ? `${transitionDurationMs}ms ease`
@@ -516,32 +508,17 @@ export const PointLabel = React.memo(
         {!hideLabelAndStem && (
           <>
             {/* Transform container for hairline rotation */}
-            <div
-              style={{
-                position: "absolute",
-                left: "0px",
-                top: "0px",
-                transformOrigin: "0 0",
-                transform: `rotate(${effectiveLabelAngleRad}rad)`,
-                pointerEvents: "none",
-                transition: angleTransition,
+            <PointLabelStem
+              angleRad={effectiveLabelAngleRad}
+              anchors={{
+                startDistancePx: resolvedStemStartDistance,
+                endDistancePx: resolvedStemStartDistance + lineLength,
               }}
-            >
-              {/* Hairline from circle edge to label */}
-              <div
-                style={{
-                  position: "absolute",
-                  left: `${resolvedStemStartDistance}px`,
-                  top: isTopAttach ? "0px" : `${-halfLineWidth}px`,
-                  width: `${lineLength}px`,
-                  height: `${lineWidth}px`,
-                  ...(isTopAttach
-                    ? { borderTop: lineBorderStyle }
-                    : { borderBottom: lineBorderStyle }),
-                  transition: stemTransition,
-                }}
-              />
-            </div>
+              lineColor={lineColor}
+              lineWidth={lineWidth}
+              isOccluded={isOccluded}
+              transition={angleTransition ?? stemTransition}
+            />
 
             {/* Label positioned at the end of the hairline */}
             {shouldRenderPillbuttonMarker ? (
@@ -583,9 +560,7 @@ export const PointLabel = React.memo(
                 data-point-label-id={pointId}
                 style={{
                   ...baseStyles,
-                  ...(isTopAttach
-                    ? { borderTop: labelBorderStyle }
-                    : { borderBottom: labelBorderStyle }),
+                  border: labelBorderStyle,
                   ...(usePillLabelShape
                     ? {
                         borderRadius: "999px",

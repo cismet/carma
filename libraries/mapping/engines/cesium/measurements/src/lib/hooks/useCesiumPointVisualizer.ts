@@ -50,8 +50,7 @@ import {
   type CesiumLabelLayoutConfigOverrides,
   type PointMarkerBadge,
 } from "./useCesiumPointLabels";
-import { useCesiumPointMoveGizmo } from "@carma-mapping/engines-interop/gizmo/cesium-integration";
-import { useMeasurementsVisualizer } from "./useMeasurementsVisualizer";
+import { useMeasurementMoveGizmoAdapter } from "./useMeasurementMoveGizmoAdapter";
 import { formatNumber } from "../utils/formatting";
 
 const LIVE_PREVIEW_HEIGHT_LABEL_ID = "measurement-live-preview-height";
@@ -385,7 +384,7 @@ export const useCesiumPointVisualizer = (
 
   const livePreviewHeightLabelPlacement = useMemo(() => {
     return createPlacement(
-      "bottomLeft",
+      "left",
       LIVE_PREVIEW_HEIGHT_LABEL_STEM_DISTANCE_PX,
       getPerspectiveStemAngleMagnitude(
         cameraPitch,
@@ -424,24 +423,6 @@ export const useCesiumPointVisualizer = (
       const ids = new Set(derivedPoints.map((measurement) => measurement.id));
       return [derivedPoints, ids];
     }, [measurements]);
-
-  const moveGizmoPoints = useMemo(
-    () =>
-      points.map((point) => {
-        if (!point.verticalOffsetAnchorECEF) {
-          return point;
-        }
-        return {
-          ...point,
-          geometryECEF: new Cartesian3(
-            point.verticalOffsetAnchorECEF.x,
-            point.verticalOffsetAnchorECEF.y,
-            point.verticalOffsetAnchorECEF.z
-          ),
-        };
-      }),
-    [points]
-  );
 
   // Use overlay labels instead of Cesium entity labels
   useCesiumPointLabels(
@@ -485,37 +466,21 @@ export const useCesiumPointVisualizer = (
     markerOnlyOverlayNodeInteractions
   );
 
-  useCesiumPointMoveGizmo(scene, {
-    points: moveGizmoPoints,
-    movePointId: moveGizmoPointId,
-    axisDirection: moveGizmoAxisDirection,
-    axisTitle: moveGizmoAxisTitle,
-    preferredAxisId: moveGizmoPreferredAxisId,
-    axisCandidates: moveGizmoAxisCandidates,
-    snapPlaneDragToGround: moveGizmoSnapPlaneDragToGround,
-    showRotationHandle: moveGizmoShowRotationHandle,
+  useMeasurementMoveGizmoAdapter({
+    scene,
+    points,
+    moveGizmoPointId,
+    moveGizmoAxisDirection,
+    moveGizmoAxisTitle,
+    moveGizmoPreferredAxisId,
+    moveGizmoAxisCandidates,
+    moveGizmoSnapPlaneDragToGround,
+    moveGizmoShowRotationHandle,
     radius,
-    onPointPositionChange: onMoveGizmoPointPositionChange,
-    onDragStateChange: onMoveGizmoDragStateChange,
-    onAxisDirectionChange: onMoveGizmoAxisChange,
-    onExit: onMoveGizmoExit,
-  });
-
-  useMeasurementsVisualizer(scene, points, {
-    distanceRelations,
-    planarPolygonGroups,
-    facadeRectanglePreviewOppositeByGroupId,
-    selectedPlanarPolygonGroupId,
-    activePlanarPolygonGroupId,
-    onPlanarPolygonClick,
-    onDistanceLineLabelToggle: onDistanceRelationLineLabelToggle,
-    onDistanceLineClick: onDistanceRelationLineClick,
-    onDistanceRelationMidpointClick,
-    lineLabelMinDistancePx: distanceLineLabelMinDistancePx,
-    onDistanceRelationCornerClick,
-    cumulativeDistanceByRelationId,
-    pointMarkerBadgeByPointId,
-    livePreviewDistanceLine,
+    onMoveGizmoPointPositionChange,
+    onMoveGizmoDragStateChange,
+    onMoveGizmoAxisChange,
+    onMoveGizmoExit,
   });
 
   const livePreviewHeightLabelData = useMemo<PointLabelData[]>(() => {
@@ -530,14 +495,15 @@ export const useCesiumPointVisualizer = (
     }
 
     const pointHeightMeters = cartographic.height ?? 0;
-    const text =
-      livePreviewDistanceLine?.previewTotalDistanceMeters !== undefined
-        ? formatMeters(livePreviewDistanceLine.previewTotalDistanceMeters)
-        : formatLivePreviewElevationText(
-            pointHeightMeters,
-            livePreviewReferenceElevation,
-            livePreviewHasReferenceElevation
-          );
+    const showsDistancePreview =
+      livePreviewDistanceLine?.previewTotalDistanceMeters !== undefined;
+    const text = showsDistancePreview
+      ? formatMeters(livePreviewDistanceLine.previewTotalDistanceMeters)
+      : formatLivePreviewElevationText(
+          pointHeightMeters,
+          livePreviewReferenceElevation,
+          livePreviewHasReferenceElevation
+        );
 
     return [
       {
@@ -560,7 +526,7 @@ export const useCesiumPointVisualizer = (
         },
         content: text,
         collapse: true,
-        fullBorder: true,
+        fullBorder: showsDistancePreview,
         resizeMode: "fast-grow-slow-shrink",
         pitch: cameraPitch,
         labelAngleRad: livePreviewHeightLabelPlacement.angleRad,

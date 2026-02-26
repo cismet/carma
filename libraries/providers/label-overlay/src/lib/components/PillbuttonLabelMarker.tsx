@@ -2,6 +2,7 @@ import React, { useLayoutEffect, useMemo, useRef, useState } from "react";
 
 import {
   resolvePillbuttonMountSide,
+  type PillbuttonMountSide,
   type PointLabelAttach,
 } from "./PointLabelMarker";
 
@@ -115,17 +116,28 @@ export const PillbuttonLabelMarker = ({
               EXTENDED_HORIZONTAL_PADDING_PX + EXTENDED_LEFT_EXTRA_PADDING_PX
             }px`,
           }
+        : mountSide === "left"
+        ? {
+            paddingLeft: `calc(${EXTENDED_HORIZONTAL_PADDING_PX}px + ${
+              COMPACT_DIAMETER_EM / 2
+            }em + ${COMPACT_EXTENDED_GAP_PX}px + ${EXTENDED_LEFT_EXTRA_PADDING_PX}px)`,
+          }
         : {
             paddingLeft: `calc(${EXTENDED_HORIZONTAL_PADDING_PX}px + ${
               COMPACT_DIAMETER_EM / 2
             }em + ${COMPACT_EXTENDED_GAP_PX}px + ${EXTENDED_LEFT_EXTRA_PADDING_PX}px)`,
+            paddingRight: `calc(${EXTENDED_HORIZONTAL_PADDING_PX}px + ${
+              COMPACT_DIAMETER_EM / 2
+            }em + ${COMPACT_EXTENDED_GAP_PX}px + ${EXTENDED_RIGHT_EXTRA_PADDING_PX}px)`,
           }
       : null;
   const extendedOffsetBySide =
     hasCompact && showExtended
       ? mountSide === "right"
         ? { marginRight: `-${COMPACT_DIAMETER_EM / 2}em` }
-        : { marginLeft: `-${COMPACT_DIAMETER_EM / 2}em` }
+        : mountSide === "left"
+        ? { marginLeft: `-${COMPACT_DIAMETER_EM / 2}em` }
+        : null
       : null;
   const compactRef = useRef<HTMLSpanElement | null>(null);
   const [compactWidthPx, setCompactWidthPx] = useState<number | null>(null);
@@ -183,12 +195,36 @@ export const PillbuttonLabelMarker = ({
     setAnimatedExtendedWidthPx(nextWidthPx);
   }, [resizeMode, showExtended, content, fontFamily, fontSize, fontWeight]);
 
+  const getCompactStylesByMountSide = (
+    side: PillbuttonMountSide
+  ): React.CSSProperties => {
+    if (side === "right") {
+      return {
+        right: 0,
+        transform: "translate(50%, -50%)",
+      };
+    }
+    if (side === "left") {
+      return {
+        left: 0,
+        transform: "translate(-50%, -50%)",
+      };
+    }
+    return {
+      left: "50%",
+      transform: "translate(-50%, -50%)",
+    };
+  };
+
   const anchorTransform = useMemo(() => {
     if (mountSide === "right") {
       if (!anchorAtSemicircleCenter || hasCompact) {
         return "translate(-100%, -50%)";
       }
       return `translate(calc(-100% + ${compactAnchorOffsetPx}px), -50%)`;
+    }
+    if (mountSide === "center") {
+      return "translate(-50%, -50%)";
     }
     if (!anchorAtSemicircleCenter || hasCompact) {
       return "translate(0%, -50%)";
@@ -227,12 +263,8 @@ export const PillbuttonLabelMarker = ({
           ref={compactRef}
           style={{
             position: "absolute",
-            ...(mountSide === "right" ? { right: 0 } : { left: 0 }),
+            ...getCompactStylesByMountSide(mountSide),
             top: "50%",
-            transform:
-              mountSide === "right"
-                ? "translate(50%, -50%)"
-                : "translate(-50%, -50%)",
             width:
               compactWidthPx != null
                 ? `${compactWidthPx}px`

@@ -1,27 +1,22 @@
 import React from "react";
 import { Button } from "antd";
 
-export type PointLabelAttach =
-  | "bottomLeft"
-  | "topLeft"
-  | "topRight"
-  | "bottomRight";
+export type PointLabelAttach = "left" | "center" | "right";
 
-export type PillbuttonMountSide = "left" | "right";
+export type PillbuttonMountSide = "left" | "center" | "right";
 
 export const resolvePillbuttonMountSide = (
   labelAttach: PointLabelAttach
-): PillbuttonMountSide =>
-  labelAttach === "topRight" || labelAttach === "bottomRight"
-    ? "right"
-    : "left";
+): PillbuttonMountSide => labelAttach;
 
 export const getPillbuttonAnchorTransform = (
   labelAttach: PointLabelAttach
 ): string =>
   resolvePillbuttonMountSide(labelAttach) === "right"
     ? "translate(-100%, -50%)"
-    : "translate(0%, -50%)";
+    : resolvePillbuttonMountSide(labelAttach) === "left"
+    ? "translate(0%, -50%)"
+    : "translate(-50%, -50%)";
 
 export const getPillbuttonAnchorBorderStyle = (
   labelAttach: PointLabelAttach,
@@ -29,7 +24,9 @@ export const getPillbuttonAnchorBorderStyle = (
 ): React.CSSProperties =>
   resolvePillbuttonMountSide(labelAttach) === "right"
     ? { borderRight: borderStyle }
-    : { borderLeft: borderStyle };
+    : resolvePillbuttonMountSide(labelAttach) === "left"
+    ? { borderLeft: borderStyle }
+    : { borderLeft: borderStyle, borderRight: borderStyle };
 
 interface PointLabelMarkerProps {
   pointId?: string;
