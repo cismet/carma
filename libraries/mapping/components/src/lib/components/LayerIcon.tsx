@@ -16,6 +16,8 @@ interface LayerIconProps {
   isBaseLayer?: boolean;
   id?: string;
   className?: string;
+  displayUrl?: boolean;
+  onError?: (title: string, url: string) => void;
 }
 
 const isUrl = (str: string | undefined): boolean => {
@@ -30,13 +32,17 @@ export const LayerIcon = ({
   isBaseLayer,
   id,
   className,
+  displayUrl = false,
+  onError,
 }: LayerIconProps) => {
   const [imgError, setImgError] = useState(!layer.other?.icon);
 
   const iconName =
     layer.other?.icon ||
     layer.conf?.icon ||
-    layer.other?.path?.toLowerCase() + "/" + layer.other?.name;
+    (layer.other?.path && layer.other?.name
+      ? layer.other.path.toLowerCase() + "/" + layer.other.name
+      : undefined);
 
   const isIconUrl = isUrl(layer.other?.icon);
   const iconSrc = isIconUrl
@@ -49,7 +55,12 @@ export const LayerIcon = ({
     if (iconSrc) {
       const img = new Image();
       img.onload = () => setImgError(false);
-      img.onerror = () => setImgError(true);
+      img.onerror = () => {
+        setImgError(true);
+        if (onError) {
+          onError(layer.title, iconSrc);
+        }
+      };
       img.src = iconSrc;
     }
   }, [iconSrc]);
@@ -76,6 +87,22 @@ export const LayerIcon = ({
           style={{ color: fallbackIcon ? iconColorMap[fallbackIcon] : "" }}
           id={id}
         />
+      )}
+      {displayUrl && iconSrc && (
+        <div
+          style={{
+            fontSize: 11,
+            fontFamily: "monospace",
+            color: "#718096",
+            wordBreak: "break-all",
+            marginTop: 8,
+            padding: "2px 6px",
+            backgroundColor: "#f0f2f5",
+            borderRadius: 4,
+          }}
+        >
+          {iconSrc}
+        </div>
       )}
     </>
   );

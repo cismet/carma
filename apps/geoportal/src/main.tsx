@@ -15,6 +15,7 @@ import App from "./app/App";
 import store from "./app/store";
 import { CESIUM_CONFIG } from "./app/config/app.config";
 import { AdhocFeatureDisplayProvider } from "@carma-appframeworks/portals";
+import { ImageList } from "@carma-mapping/layers";
 
 cjsGlobalShim();
 // Set up Cesium environment (CESIUM_BASE_URL) via engine helper
@@ -45,6 +46,10 @@ root.render(
             {
               path: "/publish",
               element: <App published={true} />,
+            },
+            {
+              path: "/about/images",
+              element: <ImageList />,
             },
           ])}
         />
