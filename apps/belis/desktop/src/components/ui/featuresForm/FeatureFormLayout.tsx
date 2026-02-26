@@ -91,6 +91,27 @@ const FeatureFormLayout = ({
     [allDocumentsForImages]
   );
 
+  // All lightbox-compatible docs (images + PDFs) across every section, each
+  // tagged with its section title so the lightbox can show it top-left per slide.
+  const allLightboxDocuments = useMemo(() => {
+    const canShowInLightbox = (doc: DokumentItem) => {
+      const ft = getFileType(doc.dms_url?.url?.object_name || "");
+      return ft === "image" || ft === "pdf";
+    };
+    return [
+      ...documents.filter(canShowInLightbox).map((doc) => ({
+        doc,
+        sectionTitle: mainDocumentsTitle,
+      })),
+      ...extraDocumentSections.flatMap((section) =>
+        section.documents.filter(canShowInLightbox).map((doc) => ({
+          doc,
+          sectionTitle: section.title,
+        }))
+      ),
+    ];
+  }, [documents, extraDocumentSections, mainDocumentsTitle]);
+
   // Create a stable key for dependency tracking
   const imageDocumentsKey = useMemo(
     () =>
@@ -180,6 +201,7 @@ const FeatureFormLayout = ({
               size="xl"
               showDescription={false}
               savedImageUrls={savedImageUrls}
+              allLightboxDocuments={allLightboxDocuments}
             />
           )}
           {extraDocumentSections
@@ -194,6 +216,7 @@ const FeatureFormLayout = ({
                 size="xl"
                 showDescription={false}
                 savedImageUrls={savedImageUrls}
+                allLightboxDocuments={allLightboxDocuments}
               />
             ))}
         </>

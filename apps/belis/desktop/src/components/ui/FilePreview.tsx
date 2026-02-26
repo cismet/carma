@@ -44,6 +44,9 @@ interface FilePreviewProps {
   size?: FilePreviewSize;
   showDescription?: boolean;
   savedImageUrls?: SavedImageUrls;
+  // All lightbox-compatible docs across all sections — enables unified sliding.
+  // Each entry carries its section title shown in the top-left of the lightbox.
+  allLightboxDocuments?: Array<{ doc: DokumentItem; sectionTitle: string }>;
 }
 
 type FileType = "image" | "pdf" | "other";
@@ -272,6 +275,7 @@ const FilePreview = ({
   size = "md",
   showDescription = true,
   savedImageUrls = {},
+  allLightboxDocuments,
 }: FilePreviewProps) => {
   // Use cached URLs from parent - no local fetching needed
   const imageUrls = savedImageUrls;
@@ -279,7 +283,7 @@ const FilePreview = ({
     LightBoxDispatchContext
   ) as LightBoxDispatch;
 
-  // Memoize lightbox-compatible documents (images and PDFs)
+  // Memoize lightbox-compatible documents (images and PDFs) for this section
   const lightboxDocuments = useMemo(
     () =>
       documents.filter((doc) => {
@@ -290,67 +294,117 @@ const FilePreview = ({
     [documents]
   );
 
+  // When a unified allLightboxDocuments list is provided, find where this
+  // section's first doc starts in that list so we can compute global indices.
+  const globalLightboxOffset = useMemo(() => {
+    if (!allLightboxDocuments || lightboxDocuments.length === 0) return 0;
+    const firstObjectName = lightboxDocuments[0]?.dms_url?.url?.object_name;
+    if (!firstObjectName) return 0;
+    const idx = allLightboxDocuments.findIndex(
+      (entry) => entry.doc.dms_url?.url?.object_name === firstObjectName
+    );
+    return idx >= 0 ? idx : 0;
+  }, [allLightboxDocuments, lightboxDocuments]);
+
   // Handle image/PDF click - set up lightbox and show it
   const handleLightboxClick = useCallback(
     (clickedIndex: number) => {
       if (!lightBoxDispatch || !jwt) return;
 
-      // Build photo URLs and captions at click time
+      const globalIndex = allLightboxDocuments
+        ? globalLightboxOffset + clickedIndex
+        : clickedIndex;
+
       const photourls: string[] = [];
       const captions: React.ReactNode[] = [];
 
-      for (const doc of lightboxDocuments) {
-        const objectName = doc.dms_url?.url?.object_name || "";
-        const fileType = getFileType(objectName);
-        const description =
-          doc.dms_url?.description || doc.dms_url?.url?.object_name || "Datei";
+      if (allLightboxDocuments) {
+        // Unified mode: iterate all sections; show section name top-left per slide
+        for (const { doc, sectionTitle } of allLightboxDocuments) {
+          const objectName = doc.dms_url?.url?.object_name || "";
+          const fileType = getFileType(objectName);
+          const description =
+            doc.dms_url?.description || doc.dms_url?.url?.object_name || "Datei";
 
-        if (fileType === "image") {
-          // Use secure URL directly for images
-          const imageUrl = getSecureDocumentUrl(jwt, objectName);
-          photourls.push(imageUrl);
-          captions.push(description);
-        } else if (fileType === "pdf") {
-          // For PDFs, use thumbnail URL (server generates .thumbnail.jpg from PDF)
-          const thumbnailUrl = getSecureDocumentUrl(
-            jwt,
-            objectName + ".thumbnail.jpg"
+          const sectionLabel = (
+            <span
+              style={{
+                position: "fixed",
+                top: 58,
+                left: 16,
+                color: "#fff",
+                fontSize: 16,
+                fontWeight: 500,
+                textShadow: "0 1px 3px rgba(0,0,0,0.8)",
+                zIndex: 1500,
+              }}
+            >
+              {sectionTitle}
+            </span>
           );
-          const pdfUrl = getSecureDocumentUrl(jwt, objectName);
-          photourls.push(thumbnailUrl);
-          captions.push(
-            <div>
-              {description}
-              <span style={{ marginLeft: 30 }}>
-                <a
-                  href={pdfUrl}
-                  target="_pdf"
-                  rel="noopener noreferrer"
-                  style={{ color: "#1890ff" }}
-                >
-                  PDF extern öffnen
-                </a>
-              </span>
-            </div>
-          );
+
+          if (fileType === "image") {
+            photourls.push(getSecureDocumentUrl(jwt, objectName));
+            captions.push(<div>{sectionLabel}{description}</div>);
+          } else if (fileType === "pdf") {
+            const pdfUrl = getSecureDocumentUrl(jwt, objectName);
+            photourls.push(getSecureDocumentUrl(jwt, objectName + ".thumbnail.jpg"));
+            captions.push(
+              <div>
+                {sectionLabel}
+                {description}
+                <span style={{ marginLeft: 30 }}>
+                  <a href={pdfUrl} target="_pdf" rel="noopener noreferrer" style={{ color: "#1890ff" }}>
+                    PDF extern öffnen
+                  </a>
+                </span>
+              </div>
+            );
+          }
+        }
+      } else {
+        // Single-section fallback — original behaviour, unchanged
+        for (const doc of lightboxDocuments) {
+          const objectName = doc.dms_url?.url?.object_name || "";
+          const fileType = getFileType(objectName);
+          const description =
+            doc.dms_url?.description || doc.dms_url?.url?.object_name || "Datei";
+
+          if (fileType === "image") {
+            photourls.push(getSecureDocumentUrl(jwt, objectName));
+            captions.push(description);
+          } else if (fileType === "pdf") {
+            const thumbnailUrl = getSecureDocumentUrl(jwt, objectName + ".thumbnail.jpg");
+            const pdfUrl = getSecureDocumentUrl(jwt, objectName);
+            photourls.push(thumbnailUrl);
+            captions.push(
+              <div>
+                {description}
+                <span style={{ marginLeft: 30 }}>
+                  <a href={pdfUrl} target="_pdf" rel="noopener noreferrer" style={{ color: "#1890ff" }}>
+                    PDF extern öffnen
+                  </a>
+                </span>
+              </div>
+            );
+          }
         }
       }
 
       if (photourls.length > 0 && lightBoxDispatch.setAll) {
         lightBoxDispatch.setAll({
-          title: title,
-          index: clickedIndex,
+          title: "",
+          index: globalIndex,
           photourls,
           caption: captions,
           visible: true,
         });
-        // Also set captions separately (like Belis online does)
         if (lightBoxDispatch.setCaptions) {
           lightBoxDispatch.setCaptions(captions);
         }
       }
     },
-    [lightboxDocuments, jwt, title, lightBoxDispatch]
+    [allLightboxDocuments, lightboxDocuments, globalLightboxOffset, jwt, lightBoxDispatch]
   );
 
   if (!documents || documents.length === 0) {
