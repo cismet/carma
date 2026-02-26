@@ -1,10 +1,15 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
-import { useSelector } from "react-redux";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useDispatch, useSelector } from "react-redux";
+import { useStore } from "react-redux";
+import WMSCapabilities from "wms-capabilities";
 import type { Item, Layer } from "@carma/types";
-import { getAllLayers } from "./slices/mapLayers";
+import { getAllLayers, setAllLayers } from "./slices/mapLayers";
+import { useAdditionalConfig } from "./hooks/useAdditionalConfig";
 import { LayerIcon } from "@carma-mapping/components";
 import { updateUrl, extractCarmaConfig } from "@carma-commons/utils";
 import { parseToMapLayer } from "@carma-mapping/utils";
+import { serviceConfig, baseConfig as config } from "./helper/config";
+import { getLayerStructure, mergeStructures } from "./helper/layerHelper";
 
 const imgStyle: React.CSSProperties = {
   maxWidth: 300,
@@ -37,8 +42,17 @@ const urlStyle: React.CSSProperties = {
   borderRadius: 4,
 };
 
+// @ts-expect-error
+const parser = new WMSCapabilities();
+
 const ImageList = () => {
   const allLayers = useSelector(getAllLayers);
+  const dispatch = useDispatch();
+  const store = useStore();
+  const fetchStarted = useRef(false);
+  const additionalLayersRef = useRef<
+    { serviceName: string; title: string; layers: any[] }[]
+  >([]);
   const [parsedLayerMap, setParsedLayerMap] = useState<Record<string, Layer>>(
     {}
   );
@@ -55,6 +69,8 @@ const ImageList = () => {
     { title: string; url: string }[]
   >([]);
   const [search, setSearch] = useState("");
+  console.log("xxx", allLayers);
+  const [loading, setLoading] = useState(allLayers.length === 0);
 
   const addError = useCallback(
     (
@@ -85,6 +101,98 @@ const ImageList = () => {
     (title: string, url: string) => addError(setLegendErrors, title, url),
     [addError]
   );
+
+  const addItemToCategory = useCallback(
+    (
+      categoryId: string,
+      subCategory: { id: string; Title: string },
+      item: any
+    ) => {
+      if (categoryId === "mapLayers") {
+        const layers = Array.isArray(item) ? item : [item];
+        additionalLayersRef.current.push({
+          serviceName: subCategory.id,
+          title: subCategory.Title,
+          layers,
+        });
+      }
+    },
+    []
+  );
+
+  const noopSetSidebarElements = useCallback((() => {}) as any, []);
+
+  const { loadingAdditionalConfig } = useAdditionalConfig({
+    addItemToCategory,
+    setSidebarElements: noopSetSidebarElements,
+  });
+
+  useEffect(() => {
+    if (loadingAdditionalConfig || fetchStarted.current) return;
+    fetchStarted.current = true;
+
+    const loadCapabilities = async () => {
+      let newLayers: any[] = [];
+
+      for (const key in serviceConfig) {
+        const service = serviceConfig[key];
+        if (service.url) {
+          try {
+            const response = await fetch(
+              `${service.url}?service=WMS&request=GetCapabilities&version=1.1.1`
+            );
+            const text = await response.text();
+            const result = parser.toJSON(text);
+            if (result && config) {
+              const layerStructure = getLayerStructure({
+                config,
+                wms: result,
+                serviceName: service.name,
+                skipTopicMaps: true,
+                store,
+              });
+              newLayers = mergeStructures(layerStructure, newLayers);
+            }
+          } catch (error) {
+            console.error(`[ImageList] Error loading ${service.name}:`, error);
+          }
+        } else if (service.type !== "topicmaps") {
+          const layerStructure = getLayerStructure({
+            config,
+            serviceName: service.name,
+            skipTopicMaps: true,
+            store,
+          });
+          newLayers = mergeStructures(layerStructure, newLayers);
+        }
+      }
+
+      // Merge additional standalone layers into the WMS results
+      for (const entry of additionalLayersRef.current) {
+        const existing = newLayers.find(
+          (cat: any) => cat.id === entry.serviceName
+        );
+        if (existing) {
+          for (const layer of entry.layers) {
+            if (!existing.layers.some((l: any) => l.id === layer.id)) {
+              existing.layers.push(layer);
+            }
+          }
+        } else {
+          newLayers.push({
+            id: entry.serviceName,
+            Title: entry.title,
+            layers: entry.layers,
+          });
+        }
+      }
+
+      dispatch(setAllLayers(newLayers));
+      setLoading(false);
+    };
+
+    loadCapabilities();
+  }, [loadingAdditionalConfig, dispatch, store]);
 
   useEffect(() => {
     const parseLayers = async () => {
@@ -314,6 +422,36 @@ const ImageList = () => {
             Über das Suchfeld können Layer nach URL oder Titel gefiltert werden.
           </p>
         </div>
+
+        {loading && (
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: 12,
+              marginBottom: 24,
+              padding: "16px 20px",
+              background: "#fff",
+              borderRadius: 10,
+              boxShadow: "0 1px 4px rgba(0,0,0,0.07)",
+            }}
+          >
+            <div
+              style={{
+                width: 20,
+                height: 20,
+                border: "3px solid #e2e8f0",
+                borderTopColor: "#667eea",
+                borderRadius: "50%",
+                animation: "spin 0.8s linear infinite",
+              }}
+            />
+            <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
+            <span style={{ fontSize: 14, color: "#4a5568", fontWeight: 500 }}>
+              Lade Kartendienste...
+            </span>
+          </div>
+        )}
 
         <input
           type="text"
