@@ -448,7 +448,7 @@ const ImageList = () => {
             />
             <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
             <span style={{ fontSize: 14, color: "#4a5568", fontWeight: 500 }}>
-              Lade Kartendienste...
+              Layer werden geladen...
             </span>
           </div>
         )}
