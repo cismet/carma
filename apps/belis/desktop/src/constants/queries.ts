@@ -642,6 +642,24 @@ query MyQuery($id: Int!) {
       lph
       masttyp
       wandstaerke
+      dokumenteArray {
+        dms_url {
+          description
+          id
+          name
+          typ
+          url {
+            id
+            object_name
+            url_base {
+              id
+              path
+              prot_prefix
+              server
+            }
+          }
+        }
+      }
     }
     tkey_mastart {
       id
@@ -767,6 +785,24 @@ query MyQuery($id: Int!) {
         leuchtentyp
         typenbezeichnung
         vorschaltgeraet
+        dokumenteArray {
+          dms_url {
+            description
+            id
+            name
+            typ
+            url {
+              id
+              object_name
+              url_base {
+                id
+                path
+                prot_prefix
+                server
+              }
+            }
+          }
+        }
       }
     }
   }
