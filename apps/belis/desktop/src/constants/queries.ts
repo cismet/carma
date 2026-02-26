@@ -443,11 +443,47 @@ query MyQuery($id: Int!) {
       leuchtentyp
       typenbezeichnung
       vorschaltgeraet
+      dokumenteArray {
+        dms_url {
+          description
+          id
+          name
+          typ
+          url {
+            id
+            object_name
+            url_base {
+              id
+              path
+              prot_prefix
+              server
+            }
+          }
+        }
+      }
     }
     tdta_standort_mast {
       id
       leuchtenArray {
         id
+      }
+      dokumenteArray {
+        dms_url {
+          description
+          id
+          name
+          typ
+          url {
+            id
+            object_name
+            url_base {
+              id
+              path
+              prot_prefix
+              server
+            }
+          }
+        }
       }
     }
   }
