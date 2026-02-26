@@ -13,6 +13,12 @@ export const buildModelKey = (config: ModelConfig): string => {
   return JSON.stringify({
     uri: model.uri,
     scale: typeof model.scale === "number" ? model.scale : null,
+    show: typeof model.show === "boolean" ? model.show : null,
+    opacity:
+      typeof (model.color as { alpha?: unknown } | undefined)?.alpha ===
+      "number"
+        ? (model.color as { alpha: number }).alpha
+        : null,
     position: {
       longitude: position.longitude,
       latitude: position.latitude,

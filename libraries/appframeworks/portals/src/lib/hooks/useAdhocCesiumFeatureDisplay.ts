@@ -2,7 +2,11 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import {
   BoundingSphere,
+  Cartesian3,
+  ClippingPolygon,
+  ClippingPolygonCollection,
   Color,
+  isValidTileset,
   Model,
   ScreenSpaceEventHandler,
   ScreenSpaceEventType,
@@ -14,7 +18,7 @@ import {
 
 import { type Easing as EasingFunction } from "@carma-commons/math";
 import type { ModelConfig } from "@carma-commons/resources";
-import type { FeatureInfo } from "@carma/types";
+import type { CarmaMapLibreFeatureProperties, FeatureInfo } from "@carma/types";
 import {
   addElevationsToGeoJson,
   createExtrudedWallVisualizer,
@@ -91,6 +95,10 @@ type AdhocFeatureEntry = {
 
 type VisualizerType = "ground-polygon" | "ground-polyline" | "extruded-wall";
 type ElementType = "polygon" | "polyline" | "wall" | "model";
+type TilesetClippingPolygon = {
+  coordinates: [number, number][];
+  inverse: boolean;
+};
 
 const FEATURE_KEY_SEPARATOR = "::";
 
@@ -156,6 +164,69 @@ const withPrimitiveMetadata = (
         : {}),
       ...(context.elementType ? { elementType: context.elementType } : {}),
     } as FeatureInfo["properties"],
+  };
+};
+
+const toLonLatRing = (coordinates: unknown): [number, number][] | null => {
+  if (!Array.isArray(coordinates) || coordinates.length === 0) {
+    return null;
+  }
+  const outerRing = coordinates[0];
+  if (!Array.isArray(outerRing) || outerRing.length < 3) {
+    return null;
+  }
+  const ring = outerRing.flatMap((pos) => {
+    if (
+      Array.isArray(pos) &&
+      pos.length >= 2 &&
+      Number.isFinite(pos[0]) &&
+      Number.isFinite(pos[1])
+    ) {
+      return [[pos[0], pos[1]] as [number, number]];
+    }
+    return [];
+  });
+  return ring.length >= 3 ? ring : null;
+};
+
+const getTilesetClippingPolygon = (
+  feature: AdhocFeature
+): TilesetClippingPolygon | null => {
+  const modelVisible = (
+    feature.metadata as { modelVisible?: unknown } | undefined
+  )?.modelVisible;
+  if (modelVisible === false) {
+    return null;
+  }
+
+  const properties = feature.properties as CarmaMapLibreFeatureProperties;
+  const clippingPolygon =
+    properties?.carmaConf3D?.clippingPolygon ??
+    (() => {
+      const geojson = getGeoJsonFromFeature(feature);
+      const firstFeature =
+        geojson?.type === "FeatureCollection" ? geojson.features[0] : geojson;
+      const geojsonProps =
+        firstFeature?.properties as CarmaMapLibreFeatureProperties;
+      return geojsonProps?.carmaConf3D?.clippingPolygon;
+    })() ??
+    null;
+
+  if (!clippingPolygon || clippingPolygon.type !== "Polygon") {
+    return null;
+  }
+  if (clippingPolygon.enabled === false) {
+    return null;
+  }
+
+  const ring = toLonLatRing(clippingPolygon.coordinates);
+  if (!ring) {
+    return null;
+  }
+
+  return {
+    coordinates: ring,
+    inverse: clippingPolygon.inverse ?? true,
   };
 };
 
@@ -533,10 +604,28 @@ export const useAdhocCesiumFeatureDisplay = (
   const needsSyncRef = useRef<boolean>(needsSync);
   needsSyncRef.current = needsSync;
 
+  const tilesetClippingPolygons = useMemo<TilesetClippingPolygon[]>(
+    () =>
+      adhocFeatureEntries.flatMap((entry) => {
+        const clippingPolygon = getTilesetClippingPolygon(entry.feature);
+        return clippingPolygon ? [clippingPolygon] : [];
+      }),
+    [adhocFeatureEntries]
+  );
+
   const adhocModelConfigs = useMemo(() => {
     return adhocFeatureEntries.flatMap((entry) => {
       const modelConfig = getModelConfig(entry.feature);
       if (!modelConfig) return [];
+      const modelVisible = (
+        entry.feature.metadata as { modelVisible?: unknown } | undefined
+      )?.modelVisible;
+      const modelOpacity = (
+        entry.feature.metadata as { modelOpacity?: unknown } | undefined
+      )?.modelOpacity;
+      const visible = typeof modelVisible === "boolean" ? modelVisible : true;
+      const opacityRaw = typeof modelOpacity === "number" ? modelOpacity : 1;
+      const opacity = Math.min(1, Math.max(0, opacityRaw));
 
       const featureInfo = buildModelFeatureInfo(entry.feature);
       const baseProperties = featureInfo?.properties ?? {};
@@ -562,6 +651,8 @@ export const useAdhocCesiumFeatureDisplay = (
             ...(modelConfig.scale !== undefined
               ? { scale: modelConfig.scale }
               : {}),
+            show: visible,
+            color: Color.fromAlpha(Color.WHITE, opacity),
           },
           properties: modelPropertiesWithoutId as FeatureInfo["properties"],
           name: entry.key,
@@ -576,6 +667,57 @@ export const useAdhocCesiumFeatureDisplay = (
   );
 
   const hasCesiumModels = cesiumModelConfigs.length > 0;
+
+  useEffect(() => {
+    if (!isCesiumRenderingEnabled) return;
+    const scene = getScene();
+    if (!scene || scene.isDestroyed?.()) return;
+
+    const tilesets = [] as Array<{
+      tileset: import("@carma/cesium").Cesium3DTileset;
+      clipping: ClippingPolygonCollection;
+    }>;
+
+    for (let i = 0; i < scene.primitives.length; i += 1) {
+      const primitive = scene.primitives.get(i);
+      if (!isValidTileset(primitive)) {
+        continue;
+      }
+
+      if (tilesetClippingPolygons.length === 0) {
+        if (primitive.clippingPolygons) {
+          primitive.clippingPolygons.enabled = false;
+          primitive.clippingPolygons.removeAll?.();
+        }
+        continue;
+      }
+
+      const clipping = new ClippingPolygonCollection({
+        enabled: true,
+        inverse: tilesetClippingPolygons[0]?.inverse ?? true,
+        polygons: tilesetClippingPolygons.map(
+          (clippingPolygon) =>
+            new ClippingPolygon({
+              positions: clippingPolygon.coordinates.map(([lon, lat]) =>
+                Cartesian3.fromDegrees(lon, lat)
+              ),
+            })
+        ),
+      });
+
+      primitive.clippingPolygons = clipping;
+      tilesets.push({ tileset: primitive, clipping });
+    }
+
+    scene.requestRender();
+
+    return () => {
+      tilesets.forEach(({ tileset, clipping }) => {
+        if (tileset.isDestroyed()) return;
+        clipping.removeAll?.();
+      });
+    };
+  }, [getScene, isCesiumRenderingEnabled, tilesetClippingPolygons]);
 
   const useCesiumModelOptions = useMemo(() => {
     return {

@@ -8,6 +8,7 @@
 // Pure re-exports from Cesium
 export {
   ClassificationType,
+  ClippingPolygon,
   ClippingPlaneCollection,
   ClippingPolygonCollection,
   ColorGeometryInstanceAttribute,

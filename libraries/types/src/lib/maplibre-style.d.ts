@@ -14,8 +14,19 @@ export type CarmaConf3DModel = {
   showFootprintIn3d?: boolean;
 };
 
+export type CarmaConf3DClippingPolygon = {
+  type: "Polygon";
+  /** GeoJSON polygon coordinates in [lon, lat] */
+  coordinates: number[][][];
+  /** true means "keep outside", clipping out the polygon interior */
+  inverse?: boolean;
+  /** optional runtime toggle for clipping */
+  enabled?: boolean;
+};
+
 export type CarmaConf3D = {
   model?: CarmaConf3DModel;
+  clippingPolygon?: CarmaConf3DClippingPolygon;
   groundPolyline?:
     | boolean
     | {

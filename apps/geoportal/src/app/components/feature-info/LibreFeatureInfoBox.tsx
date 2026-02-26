@@ -265,7 +265,7 @@ const LibreFeatureInfoBox = ({ pos, libreMap }: InfoBoxProps) => {
         }
         links={links}
       />
-      {open && (
+      {open && Modal && (
         <Modal
           setOpen={() => setOpen(false)}
           feature={{
