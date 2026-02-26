@@ -1657,7 +1657,6 @@ export const baseConfig = {
           790674.1752103989, 6660065.764058432, 795253.2309361077,
           6662991.869047475,
         ],
-        icon: "planung/Festsetzungstext",
       },
       {
         name: "lpnord_festsetzung",
@@ -1665,7 +1664,6 @@ export const baseConfig = {
           786460.5840261785, 6664637.653812743, 788750.111889033,
           6666100.706307263,
         ],
-        icon: "planung/LPlan_Nord_Festsetzungskarte",
       },
       {
         name: "lpnord_entwicklung",
@@ -1673,7 +1671,6 @@ export const baseConfig = {
           786460.5840261785, 6664637.653812743, 788750.111889033,
           6666100.706307263,
         ],
-        icon: "planung/LPlan_Nord_Entwicklungskarte",
       },
       {
         name: "lpost_festsetzung",
@@ -1681,7 +1678,6 @@ export const baseConfig = {
           799296.0331352534, 6665023.421939869, 801585.5609981079,
           6666486.474434387,
         ],
-        icon: "planung/LPlan_Ost_Festsetzungskarte",
       },
       {
         name: "lpost_entwicklung",
@@ -1689,7 +1685,6 @@ export const baseConfig = {
           799296.0331352534, 6665023.421939869, 801585.5609981079,
           6666486.474434387,
         ],
-        icon: "planung/LPlan_Ost_Entwicklungskarte",
       },
       {
         name: "lpgelpe_festsetzung",
@@ -1697,7 +1692,6 @@ export const baseConfig = {
           798245.0239963323, 6661616.002538341, 799389.7879277592,
           6662347.528785604,
         ],
-        icon: "planung/LPlan_Gelpe_Festsetzungskarte",
       },
       {
         name: "lpgelpe_entwicklung",
@@ -1705,7 +1699,6 @@ export const baseConfig = {
           798245.0239963323, 6661616.002538341, 799389.7879277592,
           6662347.528785604,
         ],
-        icon: "planung/LPlan_Gelpe_Entwicklungskarte",
       },
       {
         name: "lpwest_festsetzung",
@@ -1713,7 +1706,6 @@ export const baseConfig = {
           792702.14511709, 6659814.95505937, 794991.6729799444,
           6661278.007553893,
         ],
-        icon: "planung/LPlan_West_Festsetzungskarte",
       },
       {
         name: "lpwest_entwicklung",
@@ -1721,7 +1713,6 @@ export const baseConfig = {
           792702.14511709, 6659814.95505937, 794991.6729799444,
           6661278.007553893,
         ],
-        icon: "planung/LPlan_West_Entwicklungskarte",
       },
       {
         name: "baudenkmale",
