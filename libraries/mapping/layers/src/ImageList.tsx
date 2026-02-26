@@ -565,9 +565,8 @@ const ImageList = () => {
                   <div
                     style={{
                       display: "flex",
-                      gap: 24,
-                      flexWrap: "wrap",
-                      alignItems: "flex-start",
+                      flexDirection: "column",
+                      gap: 16,
                     }}
                   >
                     <div>
