@@ -48,7 +48,7 @@ root.render(
               element: <App published={true} />,
             },
             {
-              path: "/images",
+              path: "/about/images",
               element: <ImageList />,
             },
           ])}
