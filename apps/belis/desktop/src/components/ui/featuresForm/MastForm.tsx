@@ -29,6 +29,17 @@ const MastForm = ({ data, rawFeature, onClose, readOnly = true, loading }: MastF
   // Extract mast object for the form
   const mast = mastArray?.[0] || null;
 
+  // Extra document sections from related entities
+  const mastTyp = mast?.tkey_masttyp as Record<string, unknown> | undefined;
+  const mastTypDocuments = (mastTyp?.dokumenteArray as DokumentItem[]) ?? [];
+  const mastTypTitle = mastTyp?.masttyp
+    ? `Masttyp (${mastTyp.masttyp as string})`
+    : "Masttyp";
+
+  const extraDocumentSections = [
+    { title: mastTypTitle, documents: mastTypDocuments },
+  ];
+
   // Extract subtitle - use rawFeature (vector tile) to match list display
   const rawProps = rawFeature?.properties as
     | Record<string, unknown>
@@ -55,6 +66,8 @@ const MastForm = ({ data, rawFeature, onClose, readOnly = true, loading }: MastF
       title="Mast"
       subtitle={subtitle}
       documents={documents}
+      mainDocumentsTitle="Mast"
+      extraDocumentSections={extraDocumentSections}
       jwt={jwt}
       pendingFiles={pendingFiles}
       onFilesChange={setPendingFiles}
