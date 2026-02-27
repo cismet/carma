@@ -10,6 +10,7 @@ export {
   useMapHighlight,
   type MapHighlightContextType,
   type HighlightCriteria,
+  type HighlightFilterMode,
   type PropertyMatcher,
   type QueryId,
   type ToggledFeature,

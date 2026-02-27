@@ -52,6 +52,7 @@ export {
 export type {
   MapHighlightContextType,
   HighlightCriteria,
+  HighlightFilterMode,
   PropertyMatcher,
   QueryId,
   ToggledFeature,

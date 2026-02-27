@@ -19,7 +19,12 @@ import {
   useMapHighlight,
 } from "@carma-mapping/engines/maplibre";
 
-type SearchType = "arbeitsauftrag" | "leuchte" | "mast" | "schaltstelle" | "mauerlasche";
+type SearchType =
+  | "arbeitsauftrag"
+  | "leuchte"
+  | "mast"
+  | "schaltstelle"
+  | "mauerlasche";
 
 interface SearchModalProps {
   defaultOpen?: boolean;
@@ -108,7 +113,7 @@ const searchTypeLabels: Record<SearchType, string> = {
 // When true, GraphQL queries include all display fields (for future search results sidebar).
 // When false, queries fetch only id + geom_84 (minimal, faster).
 // Extended: ~527 KB / 341ms vs minimal: ~127 KB / 203ms (benchmarked).
-const FETCH_EXTENDED_SEARCH_RESULTS = false;
+const FETCH_EXTENDED_SEARCH_RESULTS = true;
 
 const LEUCHTEN_FIELDS = FETCH_EXTENDED_SEARCH_RESULTS
   ? `id
@@ -645,7 +650,7 @@ const SearchModal = ({
           console.log(
             `xxx ${logPrefix} Result count:`,
             results.length,
-            ...(showFinalQuery ? [results] : [])
+            results
           );
 
           if (results.length === 0) {
@@ -680,13 +685,13 @@ const SearchModal = ({
             maxLat: Math.max(...coords.map((c) => c[1])),
           };
           const t2 = performance.now();
-          console.log(
-            `[SEARCH] ${coords.length} coords: transform=${(t1 - t0).toFixed(
-              1
-            )}ms, bbox=${(t2 - t1).toFixed(1)}ms, total=${(t2 - t0).toFixed(
-              1
-            )}ms`
-          );
+          // console.log(
+          //   `[SEARCH] ${coords.length} coords: transform=${(t1 - t0).toFixed(
+          //     1
+          //   )}ms, bbox=${(t2 - t1).toFixed(1)}ms, total=${(t2 - t0).toFixed(
+          //     1
+          //   )}ms`
+          // );
           // Expand bbox by 10% on each side to ensure all features are visible
           const lngPadding = (rawBbox.maxLng - rawBbox.minLng) * 0.1 || 0.001;
           const latPadding = (rawBbox.maxLat - rawBbox.minLat) * 0.1 || 0.001;
@@ -716,7 +721,7 @@ const SearchModal = ({
           clearHighlights();
           setHighlightingActive(true);
           highlightByIds(highlightArray);
-          console.log(`${logPrefix} Highlighting:`, highlightArray);
+          // console.log(`${logPrefix} Highlighting:`, highlightArray);
           // console.log(`${logPrefix} Highlighted`, ids.length, "features");
           // console.log(`${logPrefix} Highlight Array`, highlightArray);
 
@@ -768,7 +773,9 @@ const SearchModal = ({
         featurePrefix: "arbeitsauftrag",
         logPrefix: "[ARBEITSAUFTRAG_SEARCH]",
         getGeometry: (item) => {
-          const protokolle = item.ar_protokolleArray as ProtokollItem[] | undefined;
+          const protokolle = item.ar_protokolleArray as
+            | ProtokollItem[]
+            | undefined;
           if (!protokolle || protokolle.length === 0) return undefined;
 
           for (const p of protokolle) {
@@ -799,7 +806,9 @@ const SearchModal = ({
           return undefined;
         },
         getAllGeometries: (item) => {
-          const protokolle = item.ar_protokolleArray as ProtokollItem[] | undefined;
+          const protokolle = item.ar_protokolleArray as
+            | ProtokollItem[]
+            | undefined;
           if (!protokolle) return [];
 
           const geometries: [number, number][] = [];
@@ -835,7 +844,9 @@ const SearchModal = ({
           return geometries;
         },
         getHighlightIds: (item) => {
-          const protokolle = item.ar_protokolleArray as ProtokollItem[] | undefined;
+          const protokolle = item.ar_protokolleArray as
+            | ProtokollItem[]
+            | undefined;
           if (!protokolle) return [];
 
           const ids: string[] = [];

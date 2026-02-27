@@ -6,7 +6,7 @@ import {
   useMapHighlight,
 } from "@carma-mapping/engines/maplibre";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
-import { faSpinner } from "@fortawesome/free-solid-svg-icons";
+import { faSpinner, faFilter, faThumbTack } from "@fortawesome/free-solid-svg-icons";
 
 // Convert ALL CAPS to Title Case (e.g., "GROSSE FLURSTR" -> "Grosse Flurstr")
 const toTitleCase = (str: string): string => {
@@ -168,7 +168,8 @@ const OnMapList = ({
 }: OnMapListProps) => {
   const { map } = useLibreContext();
   const { selectedFeatureId, selectFeature } = useMapSelection();
-  const { highlightingActive, highlightVersion } = useMapHighlight();
+  const { highlightingActive, highlightVersion, highlightMode, setHighlightMode } =
+    useMapHighlight();
 
   const showRaw = useMemo(() => {
     const hashQuery = window.location.hash.split("?")[1] || "";
@@ -185,6 +186,7 @@ const OnMapList = ({
       maxFeatures: 2000,
       layerFilterExpressions: ["Leuchten.*-base", "Leuchten.*-icon"],
       highlightedOnly: highlightingActive,
+      frozen: highlightingActive && highlightMode === "results",
       refreshTrigger: highlightVersion,
       showDebugBounds: showRaw,
     });
@@ -196,6 +198,45 @@ const OnMapList = ({
       return activeSourceLayers.has(sl);
     });
   }, [features, activeSourceLayers]);
+
+  // Snapshot search results so they survive map pan/zoom.
+  // Only capture on loading→done transition to avoid snapshotting stale data.
+  const [savedFeatures, setSavedFeatures] = useState<VisibleFeature[]>([]);
+  const [savedCountsByLayer, setSavedCountsByLayer] = useState<Record<string, number>>({});
+  const savedForVersionRef = useRef(-1);
+  const wasLoadingRef = useRef(true);
+
+  useEffect(() => {
+    const wasLoading = wasLoadingRef.current;
+    wasLoadingRef.current = isLoading;
+
+    // Only snapshot when isLoading transitions from true → false (fresh data just arrived)
+    if (
+      highlightingActive &&
+      wasLoading &&
+      !isLoading &&
+      filteredFeatures.length > 0 &&
+      savedForVersionRef.current !== highlightVersion
+    ) {
+      setSavedFeatures([...filteredFeatures]);
+      setSavedCountsByLayer({ ...countsByLayer });
+      savedForVersionRef.current = highlightVersion;
+    }
+  }, [highlightingActive, isLoading, filteredFeatures, highlightVersion, countsByLayer]);
+
+  // Clear snapshot when highlighting is deactivated
+  useEffect(() => {
+    if (!highlightingActive) {
+      setSavedFeatures([]);
+      setSavedCountsByLayer({});
+      savedForVersionRef.current = -1;
+    }
+  }, [highlightingActive]);
+
+  // Choose which features to display based on mode
+  const displayFeatures = highlightMode === "results" ? savedFeatures : filteredFeatures;
+  const displayCountsByLayer = highlightMode === "results" ? savedCountsByLayer : countsByLayer;
+  const displayTotalCount = highlightMode === "results" ? savedFeatures.length : totalCount;
 
   const [collapsedGroups, setCollapsedGroups] = useState<
     Record<string, boolean>
@@ -227,7 +268,7 @@ const OnMapList = ({
     // Clear the ref since a different feature was selected (from map)
     selectionFromListRef.current = null;
 
-    const selectedFeature = filteredFeatures.find(
+    const selectedFeature = displayFeatures.find(
       (f) =>
         f.source === selectedFeatureId.source &&
         f.sourceLayer === selectedFeatureId.sourceLayer &&
@@ -253,17 +294,17 @@ const OnMapList = ({
         });
       }, 100);
     }
-  }, [selectedFeatureId, filteredFeatures, collapsedGroups]);
+  }, [selectedFeatureId, displayFeatures, collapsedGroups]);
 
   // Group features by sourceLayer
   const groupedFeatures = useMemo(() => {
     const groups: Record<string, { items: VisibleFeature[]; total: number }> =
       {};
-    for (const [layerKey, count] of Object.entries(countsByLayer)) {
+    for (const [layerKey, count] of Object.entries(displayCountsByLayer)) {
       if (!activeSourceLayers.has(layerKey)) continue;
       groups[layerKey] = { items: [], total: count };
     }
-    filteredFeatures.forEach((feature) => {
+    displayFeatures.forEach((feature) => {
       const groupKey = feature.sourceLayer || feature.source || "Sonstige";
       if (!groups[groupKey]) {
         groups[groupKey] = { items: [], total: 0 };
@@ -293,7 +334,7 @@ const OnMapList = ({
       });
     }
     return groups;
-  }, [filteredFeatures, countsByLayer, activeSourceLayers]);
+  }, [displayFeatures, displayCountsByLayer, activeSourceLayers]);
 
   // Flat ordered list matching render order (for keyboard navigation)
   const flatFeatures = useMemo(() => {
@@ -386,13 +427,38 @@ const OnMapList = ({
       onKeyDown={handleKeyDown}
       className="w-[300px] h-full bg-white border-r border-gray-300 flex flex-col overflow-hidden z-[1000] shrink-0 outline-none"
     >
-      <div className="px-3 py-2 border-b border-gray-300 bg-gray-50 text-sm flex justify-end items-center" style={{ minHeight: 36 }}>
+      <div className="px-3 py-2 border-b border-gray-300 bg-gray-50 text-sm flex justify-between items-center" style={{ minHeight: 36 }}>
+        <div className="flex items-center gap-2">
+          {highlightingActive && (
+            <button
+              onClick={() =>
+                setHighlightMode(highlightMode === "filter" ? "results" : "filter")
+              }
+              className={`flex items-center gap-1 px-2 py-0.5 rounded text-xs font-medium transition-colors ${
+                highlightMode === "results"
+                  ? "bg-orange-100 text-orange-700 border border-orange-300"
+                  : "bg-gray-200 text-gray-600 border border-gray-300"
+              }`}
+              title={
+                highlightMode === "filter"
+                  ? "Suchergebnisse werden bei Kartennavigation aktualisiert"
+                  : "Suchergebnisse sind fixiert"
+              }
+            >
+              <FontAwesomeIcon
+                icon={highlightMode === "filter" ? faFilter : faThumbTack}
+                className="text-xs"
+              />
+              {highlightMode === "filter" ? "Live" : "Fixiert"}
+            </button>
+          )}
+        </div>
         {isLoading && (
           <FontAwesomeIcon icon={faSpinner} spin className="text-gray-400" />
         )}
       </div>
       <div className="flex-1 overflow-y-auto overflow-x-hidden">
-        {totalCount === 0 && !isLoading ? (
+        {displayTotalCount === 0 && !isLoading ? (
           <div className="p-4 text-gray-500 text-center text-sm">
             {map
               ? "Keine Objekte im aktuellen Kartenausschnitt"

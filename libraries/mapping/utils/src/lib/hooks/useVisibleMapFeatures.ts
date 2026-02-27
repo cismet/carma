@@ -17,6 +17,8 @@ export interface UseVisibleMapFeaturesOptions {
   filter?: (feature: MapGeoJSONFeature) => boolean;
   /** When true, only return features where getFeatureState().highlighted === true */
   highlightedOnly?: boolean;
+  /** When true, skip all feature updates — the sidebar keeps its current content */
+  frozen?: boolean;
   /** External trigger to force re-query (e.g. highlightVersion from context) */
   refreshTrigger?: number;
 }
@@ -95,6 +97,7 @@ export const useVisibleMapFeatures = ({
   layerFilterExpressions,
   filter,
   highlightedOnly = false,
+  frozen = false,
   refreshTrigger,
 }: UseVisibleMapFeaturesOptions): UseVisibleMapFeaturesResult => {
   const [features, setFeatures] = useState<VisibleFeature[]>([]);
@@ -110,6 +113,8 @@ export const useVisibleMapFeatures = ({
   filterRef.current = filter;
   const highlightedOnlyRef = useRef(highlightedOnly);
   highlightedOnlyRef.current = highlightedOnly;
+  const frozenRef = useRef(frozen);
+  frozenRef.current = frozen;
   // Cached resolved layer IDs from layerFilterExpressions
   const resolvedLayerIdsRef = useRef<string[] | undefined>(undefined);
   const layerFilterExpressionsRef = useRef(layerFilterExpressions);
@@ -166,6 +171,7 @@ export const useVisibleMapFeatures = ({
   }, [maplibreMap]);
 
   const updateFeatures = useCallback(() => {
+    if (frozenRef.current) return;
     if (!maplibreMap) return;
 
     if (debounceRef.current) {
@@ -446,7 +452,10 @@ export const useVisibleMapFeatures = ({
     if (!maplibreMap) return;
 
     // Mark data as stale immediately when the map starts moving
-    const onMoveStart = () => setIsLoading(true);
+    const onMoveStart = () => {
+      if (frozenRef.current) return;
+      setIsLoading(true);
+    };
     maplibreMap.on("movestart", onMoveStart);
 
     setIsLoading(true);

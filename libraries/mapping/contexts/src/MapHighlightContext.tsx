@@ -47,9 +47,13 @@ export interface HighlightCriteria {
   toggledFeatures: Map<string, ToggledFeature>;
 }
 
+export type HighlightFilterMode = "filter" | "results";
+
 export interface MapHighlightContextType {
   highlightingActive: boolean;
   setHighlightingActive: (active: boolean) => void;
+  highlightMode: HighlightFilterMode;
+  setHighlightMode: (mode: HighlightFilterMode) => void;
   criteria: HighlightCriteria;
   /** Add property regex matcher, e.g. highlightByProperty("strassenschluessel", /00026/i) */
   highlightByProperty: (
@@ -76,6 +80,8 @@ const EMPTY_CRITERIA: HighlightCriteria = {
 const defaultContext: MapHighlightContextType = {
   highlightingActive: false,
   setHighlightingActive: () => {},
+  highlightMode: "filter",
+  setHighlightMode: () => {},
   criteria: EMPTY_CRITERIA,
   highlightByProperty: () => {},
   highlightByIds: () => {},
@@ -97,6 +103,7 @@ export const MapHighlightProvider = ({
   debug = false,
 }: MapHighlightProviderProps) => {
   const [highlightingActive, setHighlightingActive] = useState(false);
+  const [highlightMode, setHighlightMode] = useState<HighlightFilterMode>("filter");
   const [highlightVersion, setHighlightVersion] = useState(0);
 
   // Use ref + state bump pattern: criteria is mutable (avoids re-creating objects),
@@ -179,6 +186,7 @@ export const MapHighlightProvider = ({
       queryIds: [],
       toggledFeatures: new Map(),
     };
+    setHighlightMode("filter");
     bump();
   }, [debug, bump]);
 
@@ -186,6 +194,8 @@ export const MapHighlightProvider = ({
     () => ({
       highlightingActive,
       setHighlightingActive,
+      highlightMode,
+      setHighlightMode,
       criteria: criteriaRef.current,
       highlightByProperty,
       highlightByIds,
@@ -195,6 +205,7 @@ export const MapHighlightProvider = ({
     }),
     [
       highlightingActive,
+      highlightMode,
       highlightByProperty,
       highlightByIds,
       toggleFeatureHighlight,
