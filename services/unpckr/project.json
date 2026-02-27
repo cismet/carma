@@ -1,0 +1,18 @@
+{
+  "name": "unpckr",
+  "$schema": "../../node_modules/nx/schemas/project-schema.json",
+  "sourceRoot": "services/unpckr",
+  "projectType": "application",
+  "tags": [],
+  "targets": {
+    "container": {
+      "executor": "@nx-tools/nx-container:build",
+      "options": {
+        "engine": "docker",
+        "platforms": ["linux/amd64"],
+        "push": true,
+        "tags": ["cismet/unpckr:latest"]
+      }
+    }
+  }
+}
