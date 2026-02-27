@@ -8,7 +8,7 @@ import {
 } from "../../";
 import { setFromLocalforage, saveToLocalforage } from "../utils/helper";
 
-enum MEASUREMENT_MODE {
+export enum MEASUREMENT_MODE {
   DEFAULT = "default",
   MEASUREMENT = "measurement",
 }
@@ -39,61 +39,59 @@ const defaultConfig: MeasurementConfig = {
   debugOutputMapStatusPosition: { x: 65, y: 15 },
 };
 
-export const MapMeasurementsContext = createContext<MapMeasurementsContextType>(
-  {
-    mode: MEASUREMENT_MODE.DEFAULT,
-    setMode: (mode: MEASUREMENT_MODE) => {},
-    shapes: [],
-    setShapes: (shapes: any[]) => {},
-    activeShape: null,
-    setActiveShape: (shape: ActiveShape) => {},
-    visibleShapes: [],
-    setVisibleShapes: (shapes: any[]) => {},
-    snappingLatlng: null,
-    setSnappingLatlng: (_latlng: any) => {},
-    showAll: false,
-    deleteAll: false,
-    drawingShape: false,
-    lastActiveShapeBeforeDrawing: null,
-    moveToShape: null,
-    updateShape: false,
-    mapMovingEnd: false,
-    updateTitleStatus: false,
-    setDrawingShape: (drawingShape: boolean) => {},
-    setShowAll: (showAll: boolean) => {},
-    setDeleteAll: (deleteAll: boolean) => {},
-    setMoveToShape: (moveToShape: any) => {},
-    setUpdateShape: (updateShape: boolean) => {},
-    setMapMovingEnd: (mapMovingEnd: boolean) => {},
-    setUpdateTitleStatus: (updateTitleStatus: boolean) => {},
-    setLastActiveShapeBeforeDrawing: (lastActiveShapeBeforeDrawing: any) => {},
-    addShape: (layer: any) => {},
-    deleteShapeById: (shapeId: string) => {},
-    deleteVisibleShapeById: (shapeId: string) => {},
-    updateShapeById: (
-      shapeId: string,
-      newCoordinates?: any,
-      newDistance?: number,
-      newSquare?: number | null
-    ) => {},
-    setLastVisibleShapeActive: () => {},
-    setDrawingWithLastActiveShape: () => {},
-    setActiveShapeIfDrawCancelled: () => {},
-    toggleMeasurementMode: () => {},
-    updateAreaOfDrawing: (newArea: number) => {},
-    updateTitle: (_shapeId: string | number, _customTitle: string) => {},
-    setStartDrawing: (status: boolean) => {},
-    startDrawing: false,
-    currentDrawHandler: null,
-    setCurrentDrawHandler: (handler: any) => {},
-    completeCurrentShape: () => {},
-    config: defaultConfig,
-    status: "INACTIVE" as MeasurementMapStatus,
-    setStatus: (status: MeasurementMapStatus) => {},
-  }
-);
+export const AnnotationContext = createContext<MapMeasurementsContextType>({
+  mode: MEASUREMENT_MODE.DEFAULT,
+  setMode: (mode: MEASUREMENT_MODE) => {},
+  shapes: [],
+  setShapes: (shapes: any[]) => {},
+  activeShape: null,
+  setActiveShape: (shape: ActiveShape) => {},
+  visibleShapes: [],
+  setVisibleShapes: (shapes: any[]) => {},
+  snappingLatlng: null,
+  setSnappingLatlng: (_latlng: any) => {},
+  showAll: false,
+  deleteAll: false,
+  drawingShape: false,
+  lastActiveShapeBeforeDrawing: null,
+  moveToShape: null,
+  updateShape: false,
+  mapMovingEnd: false,
+  updateTitleStatus: false,
+  setDrawingShape: (drawingShape: boolean) => {},
+  setShowAll: (showAll: boolean) => {},
+  setDeleteAll: (deleteAll: boolean) => {},
+  setMoveToShape: (moveToShape: any) => {},
+  setUpdateShape: (updateShape: boolean) => {},
+  setMapMovingEnd: (mapMovingEnd: boolean) => {},
+  setUpdateTitleStatus: (updateTitleStatus: boolean) => {},
+  setLastActiveShapeBeforeDrawing: (lastActiveShapeBeforeDrawing: any) => {},
+  addShape: (layer: any) => {},
+  deleteShapeById: (shapeId: string) => {},
+  deleteVisibleShapeById: (shapeId: string) => {},
+  updateShapeById: (
+    shapeId: string,
+    newCoordinates?: any,
+    newDistance?: number,
+    newSquare?: number | null
+  ) => {},
+  setLastVisibleShapeActive: () => {},
+  setDrawingWithLastActiveShape: () => {},
+  setActiveShapeIfDrawCancelled: () => {},
+  toggleMeasurementMode: () => {},
+  updateAreaOfDrawing: (newArea: number) => {},
+  updateTitle: (_shapeId: string | number, _customTitle: string) => {},
+  setStartDrawing: (status: boolean) => {},
+  startDrawing: false,
+  currentDrawHandler: null,
+  setCurrentDrawHandler: (handler: any) => {},
+  completeCurrentShape: () => {},
+  config: defaultConfig,
+  status: "INACTIVE" as MeasurementMapStatus,
+  setStatus: (status: MeasurementMapStatus) => {},
+});
 
-export const MapMeasurementsProvider = ({
+export const AnnotationProvider = ({
   children,
   externalMode,
   setModeExternal,
@@ -170,6 +168,16 @@ export const MapMeasurementsProvider = ({
   useEffect(() => {
     saveToLocalforage(mergedConfig.localStorageKey, shapes);
   }, [shapes]);
+
+  useEffect(() => {
+    if (
+      mode === MEASUREMENT_MODE.MEASUREMENT &&
+      shapes.length > 0 &&
+      visibleShapes.length === 0
+    ) {
+      setVisibleShapes(shapes);
+    }
+  }, [mode, shapes, visibleShapes.length]);
 
   // useEffect(() => {
   //   console.log("xxx visibleShapes", visibleShapes);
@@ -328,7 +336,7 @@ export const MapMeasurementsProvider = ({
   };
 
   return (
-    <MapMeasurementsContext.Provider
+    <AnnotationContext.Provider
       value={{
         mode,
         setMode,
@@ -377,15 +385,15 @@ export const MapMeasurementsProvider = ({
       }}
     >
       {children}
-    </MapMeasurementsContext.Provider>
+    </AnnotationContext.Provider>
   );
 };
 
-export function useMapMeasurementsContext() {
-  const ctx = useContext(MapMeasurementsContext);
+export function useAnnotationContext() {
+  const ctx = useContext(AnnotationContext);
   if (!ctx) {
     throw new Error(
-      "useMapMeasurementsContext must be used within an MapMeasurementsProvider"
+      "useAnnotationContext must be used within an AnnotationProvider"
     );
   }
   return ctx;

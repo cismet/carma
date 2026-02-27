@@ -8,7 +8,7 @@ import {
 import type {
   MeasurementSlotActions,
   PolygonPolylineMeasurementSlotsInput,
-} from "./getCarmaMeasurementInfoBoxSlots";
+} from "./getAnnotationInfoBoxSlots";
 
 type GetPlanarMeasurementSlotsInputParams = {
   polylineGroups: ReadonlyArray<PlanarPolygonGroup>;

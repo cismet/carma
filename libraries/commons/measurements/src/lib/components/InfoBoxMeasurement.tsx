@@ -1,15 +1,15 @@
 import { useState, useEffect, useContext } from "react";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faBan, faTrashCan } from "@fortawesome/free-solid-svg-icons";
-import MeasurementTitle from "../MeasurementTitle";
+import MeasurementTitle from "./MeasurementTitle";
 import Icon from "react-cismap/commons/Icon";
 import { UIContext } from "react-cismap/contexts/UIContextProvider";
-import "../../styles/infoBox.css";
+import "../styles/infoBox.css";
 import { Tooltip } from "antd";
 import { TopicMapContext } from "react-cismap/contexts/TopicMapContextProvider";
 import { ResponsiveInfoBox } from "@carma-appframeworks/portals";
-import { useMapMeasurementsContext } from "../MapMeasurementsProvider";
-import { InfoBoxMeasurementProps, MeasurementShape } from "../../..";
+import { useMapMeasurementsContext } from "./MapMeasurementsProvider";
+import { InfoBoxMeasurementProps, MeasurementShape } from "../..";
 
 export function InfoBoxMeasurement({
   pixelWidth = 350,

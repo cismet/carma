@@ -1,7 +1,7 @@
 import { Cartesian3, getDegreesFromCartesian } from "@carma/cesium";
 import type { PointMeasurementEntry } from "@carma-mapping/annotations/cesium";
 
-import type { MeasurementDisplayPoint } from "./getCarmaMeasurementInfoBoxSlots";
+import type { MeasurementDisplayPoint } from "./getAnnotationInfoBoxSlots";
 
 const REFERENCE_POINT_MATCH_EPSILON_METERS = 0.001;
 
@@ -11,10 +11,25 @@ export const resolveMeasurementDisplayPoint = ({
   measurement: PointMeasurementEntry | null;
 }): MeasurementDisplayPoint | null => {
   if (!measurement) return null;
+  const anchorHeight = measurement.verticalOffsetAnchorECEF
+    ? getDegreesFromCartesian(
+        new Cartesian3(
+          measurement.verticalOffsetAnchorECEF.x,
+          measurement.verticalOffsetAnchorECEF.y,
+          measurement.verticalOffsetAnchorECEF.z
+        )
+      ).altitude ?? 0
+    : undefined;
+  const verticalOffset =
+    anchorHeight !== undefined
+      ? measurement.geometryWGS84.height - anchorHeight
+      : undefined;
   return {
     latitude: measurement.geometryWGS84.latitude,
     longitude: measurement.geometryWGS84.longitude,
     height: measurement.geometryWGS84.height,
+    anchorHeight,
+    verticalOffset,
   };
 };
 

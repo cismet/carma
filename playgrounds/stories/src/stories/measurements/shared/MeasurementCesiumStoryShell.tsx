@@ -16,9 +16,9 @@ import type {
 } from "@carma/cesium";
 import { LabelOverlayProvider } from "@carma-providers/label-overlay";
 import {
-  MapMeasurementsProvider,
+  AnnotationProvider,
   type MEASUREMENT_MODE,
-} from "../../../../../libraries/commons/measurements/src";
+} from "../../../../../libraries/mapping/annotations/core/src";
 import { CesiumMeasurementsProvider } from "@carma-mapping/annotations/cesium";
 import {
   CesiumContext,
@@ -219,7 +219,7 @@ export const MeasurementCesiumStoryShell = ({
         }}
       />
       <CesiumContext.Provider value={contextValue}>
-        <MapMeasurementsProvider
+        <AnnotationProvider
           externalMode={MEASUREMENT_MODE_MEASUREMENT}
           setModeExternal={() => undefined}
           config={{
@@ -254,7 +254,7 @@ export const MeasurementCesiumStoryShell = ({
               </div>
             </CesiumMeasurementsProvider>
           </LabelOverlayProvider>
-        </MapMeasurementsProvider>
+        </AnnotationProvider>
       </CesiumContext.Provider>
     </div>
   );

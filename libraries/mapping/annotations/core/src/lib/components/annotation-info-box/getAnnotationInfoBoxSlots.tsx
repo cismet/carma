@@ -36,9 +36,9 @@ import MeasurementTitle from "../MeasurementTitle";
 import {
   formatBearingToGermanCardinal,
   formatCoordinateWithHemisphere,
-} from "./CarmaMeasurementInfoBox.formatters";
-import { CarmaMeasurementInfoBoxActionIcon } from "./CarmaMeasurementInfoBoxActionIcon";
-import { CarmaMeasurementInfoBoxNotImplemented } from "./CarmaMeasurementInfoBoxNotImplemented";
+} from "./AnnotationInfoBox.formatters";
+import { AnnotationInfoBoxActionIcon } from "./AnnotationInfoBoxActionIcon";
+import { AnnotationInfoBoxNotImplemented } from "./AnnotationInfoBoxNotImplemented";
 
 type SupportedMeasurementSlotKind =
   | typeof SPATIAL_MARKUP_KIND_POINT
@@ -55,6 +55,8 @@ export type MeasurementDisplayPoint = {
   latitude: number;
   longitude: number;
   height: number;
+  anchorHeight?: number;
+  verticalOffset?: number;
 };
 
 export type DistanceTableRow = {
@@ -74,6 +76,7 @@ export type MeasurementSlotActions = {
   toggleMeasurementLockById: (id: string) => void;
   flyToMeasurementById: (id: string) => void;
   setReferencePoint: (nextReference: Cartesian3 | null) => void;
+  confirmPointLabelInputById: (id: string) => void;
   updatePointLabelAppearanceById: (
     id: string,
     appearance: MeasurementEntry["labelAppearance"] | undefined
@@ -111,6 +114,7 @@ export type DistanceMeasurementSlotsInput = BaseMeasurementSlotsInput & {
 export type LabelMeasurementSlotsInput = BaseMeasurementSlotsInput & {
   kind: typeof SPATIAL_MARKUP_KIND_LABEL;
   isLivePreview: boolean;
+  autoFocusTitleTrigger?: number | string;
   pureLabelAppearance: {
     fontSizePx: number;
     backgroundColor: string;
@@ -194,6 +198,22 @@ const getDistanceTitleToken = (input: DistanceMeasurementSlotsInput): string =>
     ? input.currentOrderToken.trim()
     : toAlphabeticSequence((input.currentOrder ?? input.nextOrder) - 1);
 
+const formatDisplayHeight = (displayPoint: MeasurementDisplayPoint): string => {
+  const hasOffset =
+    Number.isFinite(displayPoint.anchorHeight) &&
+    Number.isFinite(displayPoint.verticalOffset) &&
+    Math.abs(displayPoint.verticalOffset ?? 0) > 1e-9;
+
+  if (!hasOffset) {
+    return `${formatNumber(displayPoint.height)} m`;
+  }
+
+  const sign = (displayPoint.verticalOffset ?? 0) >= 0 ? "+" : "-";
+  return `${formatNumber(
+    displayPoint.anchorHeight ?? 0
+  )} ${sign} ${formatNumber(Math.abs(displayPoint.verticalOffset ?? 0))}m`;
+};
+
 const renderMeasurementActions = (
   measurement: PointMeasurementEntry,
   isReference: boolean,
@@ -211,7 +231,7 @@ const renderMeasurementActions = (
         data-test-id="carma-flyto-measurement-btn"
       />
     </Tooltip>
-    <CarmaMeasurementInfoBoxActionIcon
+    <AnnotationInfoBoxActionIcon
       title={measurement.hidden ? "Einblenden" : "Ausblenden"}
       icon={measurement.hidden ? faEyeSlash : faEye}
       onClick={(event) => {
@@ -222,7 +242,7 @@ const renderMeasurementActions = (
       }}
       dataTestId="carma-toggle-measurement-visibility-btn"
     />
-    <CarmaMeasurementInfoBoxActionIcon
+    <AnnotationInfoBoxActionIcon
       title={measurement.locked ? "Entsperren" : "Sperren"}
       icon={measurement.locked ? faLock : faLockOpen}
       onClick={(event) => {
@@ -232,7 +252,7 @@ const renderMeasurementActions = (
       dataTestId="carma-toggle-measurement-lock-btn"
     />
     {!isReference && (
-      <CarmaMeasurementInfoBoxActionIcon
+      <AnnotationInfoBoxActionIcon
         title="Als Referenzhöhe setzen"
         icon={faArrowsDownToLine}
         onClick={(event) => {
@@ -242,7 +262,7 @@ const renderMeasurementActions = (
         dataTestId="carma-set-reference-btn"
       />
     )}
-    <CarmaMeasurementInfoBoxActionIcon
+    <AnnotationInfoBoxActionIcon
       title="Löschen"
       icon={faTrashCan}
       onClick={(event) => {
@@ -263,6 +283,8 @@ type EditableSubtitleParams = {
   isReference: boolean;
   previewOrder: number;
   actions: MeasurementSlotActions;
+  autoFocusTrigger?: number | string;
+  onTitleCommit?: (title: string) => void;
 };
 
 const renderEditableMeasurementSubtitle = ({
@@ -274,6 +296,8 @@ const renderEditableMeasurementSubtitle = ({
   isReference,
   previewOrder,
   actions,
+  autoFocusTrigger,
+  onTitleCommit,
 }: EditableSubtitleParams): ReactNode => (
   <div className="mt-1 mb-0 w-full px-2">
     <div className="flex justify-between items-start gap-2">
@@ -300,6 +324,8 @@ const renderEditableMeasurementSubtitle = ({
           editable={Boolean(measurement)}
           capitalize={false}
           multiline={true}
+          autoFocusTrigger={autoFocusTrigger}
+          onTitleCommit={onTitleCommit}
         />
       </span>
       {measurement
@@ -314,7 +340,7 @@ const renderEditableMeasurementSubtitle = ({
       <div className="w-full text-[10px] font-normal text-gray-500 -mt-1 min-h-[16px] flex items-center gap-2 whitespace-nowrap">
         {formatCoordinateWithHemisphere(displayPoint.latitude, true)}{" "}
         {formatCoordinateWithHemisphere(displayPoint.longitude, false)} • NHN{" "}
-        {formatNumber(displayPoint.height)} m
+        {formatDisplayHeight(displayPoint)}
       </div>
     ) : null}
   </div>
@@ -591,6 +617,12 @@ const getSlotsFromLabelMeasure = (
     isReference: input.isReference,
     previewOrder: 1,
     actions: input.actions,
+    autoFocusTrigger: input.autoFocusTitleTrigger,
+    onTitleCommit: (title) => {
+      if (!input.measurement) return;
+      if (!title.trim()) return;
+      input.actions.confirmPointLabelInputById(input.measurement.id);
+    },
   }),
   content: renderPureLabelContent(input),
   collapsible: Boolean(input.measurement || input.isLivePreview),
@@ -652,7 +684,7 @@ const getSlotsFromPlanarMeasure = (
             multiline={true}
           />
         </span>
-        <CarmaMeasurementInfoBoxActionIcon
+        <AnnotationInfoBoxActionIcon
           title="Löschen"
           icon={faTrashCan}
           onClick={(event) => {
@@ -675,7 +707,7 @@ const getSlotsFromUnsupportedMeasurement = (
   headingTitle: "Messung",
   subtitle: null,
   content: (
-    <CarmaMeasurementInfoBoxNotImplemented
+    <AnnotationInfoBoxNotImplemented
       kind={input.unsupportedKind ?? "unsupported"}
     />
   ),

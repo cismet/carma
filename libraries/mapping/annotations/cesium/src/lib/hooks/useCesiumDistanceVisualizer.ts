@@ -90,15 +90,6 @@ export type CesiumDistanceVisualizerOptions = {
   renderCesiumCoreVisuals?: boolean;
 };
 
-export type CesiumDistanceRelationsVisualizerOptions =
-  CesiumDistanceVisualizerOptions;
-
-export type CesiumDistanceRelationsVisualizerHookOptions =
-  CesiumDistanceRelationsVisualizerOptions & {
-    scene: Scene | null;
-    points: PointMeasurementEntry[];
-  };
-
 // EN component color: light mix of the standard East (red) and North (green) axis colors.
 const REFERENCE_COMPONENT_HORIZONTAL_COLOR = "rgba(188, 194, 102, 0.95)";
 // U component color: lighter blue for better readability and a softer look.
@@ -1738,17 +1729,6 @@ export const useCesiumDistanceVisualizer = (
       destroyLineVisualizerRef(previewHorizontalLineRef);
     };
   }, [removeLabelOverlayElement]);
-};
-
-export const useCesiumDistanceRelationsVisualizer = (
-  options: CesiumDistanceRelationsVisualizerHookOptions
-) => {
-  const { scene, points, ...distanceOptions } = options;
-  useCesiumDistanceVisualizer(scene, points, {
-    ...distanceOptions,
-    renderDomVisuals: true,
-    renderCesiumCoreVisuals: true,
-  });
 };
 
 export default useCesiumDistanceVisualizer;

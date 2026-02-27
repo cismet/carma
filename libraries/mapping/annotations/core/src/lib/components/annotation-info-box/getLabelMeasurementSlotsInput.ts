@@ -4,7 +4,7 @@ import { SPATIAL_MARKUP_KIND_LABEL } from "../../types/measurementKindRegistry";
 import type {
   LabelMeasurementSlotsInput,
   MeasurementSlotActions,
-} from "./getCarmaMeasurementInfoBoxSlots";
+} from "./getAnnotationInfoBoxSlots";
 import { resolveMeasurementDisplayPoint } from "./measurementDisplayPoint";
 
 const PURE_LABEL_MIN_FONT_SIZE_PX = 10;
@@ -26,6 +26,7 @@ const sanitizePureLabelFontSizePx = (value?: number): number => {
 type GetLabelMeasurementSlotsInputParams = {
   measurement: PointMeasurementEntry | null;
   labelMeasurements: ReadonlyArray<PointMeasurementEntry>;
+  labelInputPromptPointId: string | null;
   actions: MeasurementSlotActions;
 };
 
@@ -38,6 +39,7 @@ export type LabelMeasurementSlotsInputResult = {
 export const getLabelMeasurementSlotsInput = ({
   measurement,
   labelMeasurements,
+  labelInputPromptPointId,
   actions,
 }: GetLabelMeasurementSlotsInputParams): LabelMeasurementSlotsInputResult => {
   const isLabelMeasurement = Boolean(measurement?.auxiliaryLabelAnchor);
@@ -97,6 +99,10 @@ export const getLabelMeasurementSlotsInput = ({
       relativeElevation: null,
       isReference: false,
       isLivePreview: false,
+      autoFocusTitleTrigger:
+        displayMeasurement && displayMeasurement.id === labelInputPromptPointId
+          ? displayMeasurement.id
+          : undefined,
       pureLabelAppearance,
       pureLabelDefaultFontSizePx: PURE_LABEL_DEFAULT_FONT_SIZE_PX,
       pureLabelMinFontSizePx: PURE_LABEL_MIN_FONT_SIZE_PX,

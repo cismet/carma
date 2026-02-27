@@ -1,7 +1,7 @@
 import type { Meta, StoryObj } from "@storybook/react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
-import { MeasurementToolbar3D } from "../../../../../libraries/commons/measurements/src";
+import { MeasurementToolbar3D } from "../../../../../libraries/mapping/annotations/core/src";
 import {
   LINEAR_SEGMENT_LINE_MODE_COMPONENTS,
   LINEAR_SEGMENT_LINE_MODE_DIRECT,
@@ -25,7 +25,7 @@ import {
   SPATIAL_MARKUP_KIND_POINT,
   SPATIAL_MARKUP_KIND_POLYLINE,
   SPATIAL_MARKUP_KIND_VERTICAL,
-} from "../../../../../libraries/commons/measurements/src/lib/types/measurementKindRegistry";
+} from "../../../../../libraries/mapping/annotations/core/src/lib/types/measurementKindRegistry";
 
 type DemoMeasurementType =
   | typeof SPATIAL_MARKUP_KIND_POINT

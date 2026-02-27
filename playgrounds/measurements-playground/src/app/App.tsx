@@ -3,9 +3,9 @@ import { suppressReactCismapErrors } from "@carma-commons/utils";
 import {
   MeasurementControl,
   Measurements,
-  useMapMeasurementsContext,
+  useAnnotationContext,
   useMapLibreMap,
-} from "@carma-commons/measurements";
+} from "@carma-mapping/annotations/core";
 import { ZoomControl } from "@carma-mapping/components";
 import { Control, ControlLayout } from "@carma-mapping/map-controls-layout";
 import { EmptySearchComponent } from "@carma-mapping/fuzzy-search";
@@ -38,7 +38,7 @@ export function App({
   const { maplibreMap, setMaplibreMap } = useMapLibreMap();
   const [maplibreMaps, setMaplibreMaps] = useState<any[]>([]);
   const { mode: measurementMode, setMode: setMeasurementMode } =
-    useMapMeasurementsContext();
+    useAnnotationContext();
   const { zoomToFeature } = useContext(TopicMapDispatchContext) as any;
   const { snappingEnabled, setSnappingEnabled } = useContext(SnappingContext);
 

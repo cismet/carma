@@ -24,7 +24,9 @@ import {
   getPerspectiveStemAngleMagnitude,
   type PointLabelData,
   resolvePointLabelLayoutConfig,
+  type LineVisualizerData,
   useLabelOverlay,
+  useLineVisualizers,
   usePointLabels,
 } from "@carma-providers/label-overlay";
 import { createDisc } from "@carma-mapping/engines/cesium/primitives";
@@ -50,6 +52,9 @@ import { formatNumber } from "../utils/formatting";
 
 const LIVE_PREVIEW_HEIGHT_LABEL_ID = "measurement-live-preview-height";
 const LIVE_PREVIEW_CROSSHAIR_ID = "measurement-live-preview-crosshair";
+const LIVE_PREVIEW_VERTICAL_OFFSET_STEM_ID =
+  "measurement-live-preview-vertical-offset-stem";
+const LIVE_PREVIEW_POINT_MARKER_ID = "measurement-live-preview-point-marker";
 
 const CROSSHAIR_STROKE_COLOR = "rgba(255, 255, 255, 0.96)";
 const CROSSHAIR_CONTRAST_FILTER =
@@ -346,6 +351,7 @@ export type CesiumPointVisualizerOptions = {
   markerOnlyOverlayNodeInteractions?: boolean;
   livePreviewPointECEF?: Cartesian3 | null;
   livePreviewSurfaceNormalECEF?: Cartesian3 | null;
+  livePreviewVerticalOffsetAnchorECEF?: Cartesian3 | null;
   livePreviewDistanceLine?: {
     anchorPointECEF: Cartesian3;
     targetPointECEF: Cartesian3;
@@ -428,6 +434,7 @@ export const useCesiumPointVisualizer = (
     markerOnlyOverlayNodeInteractions = false,
     livePreviewPointECEF = null,
     livePreviewSurfaceNormalECEF = null,
+    livePreviewVerticalOffsetAnchorECEF = null,
     livePreviewDistanceLine = null,
     livePreviewReferenceElevation = 0,
     livePreviewHasReferenceElevation = false,
@@ -461,7 +468,12 @@ export const useCesiumPointVisualizer = (
     null
   );
   const livePreviewPointRef = useRef<Cartesian3 | null>(null);
+  const livePreviewElevatedPointRef = useRef<Cartesian3 | null>(null);
+  const livePreviewAuxAnchorRef = useRef<Cartesian3 | null>(null);
   const hasLivePreviewPoint = Boolean(livePreviewPointECEF);
+  const hasLivePreviewAuxAnchor = Boolean(livePreviewVerticalOffsetAnchorECEF);
+  const showLivePreviewCrosshair =
+    hasLivePreviewPoint && !hasLivePreviewAuxAnchor;
   const [cameraPitch, setCameraPitch] = useState<number>(-Math.PI / 4);
   const pointLabelsEnabled = showLabels && renderDomVisuals;
   const livePreviewDiscColor = useMemo(
@@ -626,9 +638,13 @@ export const useCesiumPointVisualizer = (
           if (!scene || scene.isDestroyed()) {
             return null;
           }
+          const elevatedPoint = livePreviewElevatedPointRef.current;
+          if (!elevatedPoint) {
+            return null;
+          }
           const canvasPosition = SceneTransforms.worldToWindowCoordinates(
             scene,
-            livePreviewPointECEF
+            elevatedPoint
           );
           if (!defined(canvasPosition)) {
             return null;
@@ -662,6 +678,112 @@ export const useCesiumPointVisualizer = (
     livePreviewHasReferenceElevation,
     livePreviewReferenceElevation,
   ]);
+
+  const livePreviewVerticalOffsetStemLines = useMemo<
+    LineVisualizerData[]
+  >(() => {
+    if (
+      !renderDomVisuals ||
+      !scene ||
+      scene.isDestroyed() ||
+      !hasLivePreviewPoint ||
+      !hasLivePreviewAuxAnchor
+    ) {
+      return [];
+    }
+
+    return [
+      {
+        id: LIVE_PREVIEW_VERTICAL_OFFSET_STEM_ID,
+        stroke: "rgba(255, 255, 255, 1)",
+        strokeWidth: 2,
+        strokeDasharray: "0 3",
+        strokeDashoffset: 0,
+        opacity: 0.9,
+        visible: true,
+        getCanvasLine: () => {
+          if (!scene || scene.isDestroyed()) {
+            return null;
+          }
+          const elevatedPoint = livePreviewElevatedPointRef.current;
+          const auxAnchorPoint = livePreviewAuxAnchorRef.current;
+          if (!elevatedPoint || !auxAnchorPoint) {
+            return null;
+          }
+          const start = SceneTransforms.worldToWindowCoordinates(
+            scene,
+            elevatedPoint
+          );
+          const end = SceneTransforms.worldToWindowCoordinates(
+            scene,
+            auxAnchorPoint
+          );
+          if (!defined(start) || !defined(end)) {
+            return null;
+          }
+          return {
+            start: { x: start.x, y: start.y },
+            end: { x: end.x, y: end.y },
+          };
+        },
+      } satisfies LineVisualizerData,
+    ];
+  }, [renderDomVisuals, scene, hasLivePreviewPoint, hasLivePreviewAuxAnchor]);
+
+  useLineVisualizers(
+    livePreviewVerticalOffsetStemLines,
+    renderDomVisuals && livePreviewVerticalOffsetStemLines.length > 0
+  );
+
+  const livePreviewPointMarkerLabelData = useMemo<PointLabelData[]>(() => {
+    if (
+      !renderDomVisuals ||
+      !scene ||
+      scene.isDestroyed() ||
+      !hasLivePreviewPoint
+    ) {
+      return [];
+    }
+
+    return [
+      {
+        id: LIVE_PREVIEW_POINT_MARKER_ID,
+        getCanvasPosition: () => {
+          if (!scene || scene.isDestroyed()) {
+            return null;
+          }
+          const elevatedPoint = livePreviewElevatedPointRef.current;
+          if (!elevatedPoint) {
+            return null;
+          }
+          const canvasPosition = SceneTransforms.worldToWindowCoordinates(
+            scene,
+            elevatedPoint
+          );
+          if (!defined(canvasPosition)) {
+            return null;
+          }
+          return {
+            x: canvasPosition.x,
+            y: canvasPosition.y,
+          };
+        },
+        content: "",
+        hideLabelAndStem: true,
+        hideMarker: false,
+      },
+    ];
+  }, [renderDomVisuals, scene, hasLivePreviewPoint]);
+
+  usePointLabels(
+    livePreviewPointMarkerLabelData,
+    renderDomVisuals && livePreviewPointMarkerLabelData.length > 0,
+    undefined,
+    undefined,
+    {
+      transitionDurationMs: 0,
+    }
+  );
 
   usePointLabels(
     livePreviewHeightLabelData,
@@ -786,8 +908,11 @@ export const useCesiumPointVisualizer = (
   }, [scene]);
 
   useEffect(() => {
-    livePreviewPointRef.current = livePreviewPointECEF;
-  }, [livePreviewPointECEF]);
+    livePreviewPointRef.current =
+      livePreviewVerticalOffsetAnchorECEF ?? livePreviewPointECEF;
+    livePreviewElevatedPointRef.current = livePreviewPointECEF;
+    livePreviewAuxAnchorRef.current = livePreviewVerticalOffsetAnchorECEF;
+  }, [livePreviewPointECEF, livePreviewVerticalOffsetAnchorECEF]);
 
   useEffect(() => {
     if (!renderDomVisuals || !scene || scene.isDestroyed()) {
@@ -800,7 +925,7 @@ export const useCesiumPointVisualizer = (
       zIndex: 22,
       getCanvasPosition: getLivePreviewCanvasPosition,
       content: livePreviewCrosshairContent,
-      visible: hasLivePreviewPoint,
+      visible: showLivePreviewCrosshair,
     });
 
     return () => {
@@ -809,7 +934,7 @@ export const useCesiumPointVisualizer = (
   }, [
     scene,
     renderDomVisuals,
-    hasLivePreviewPoint,
+    showLivePreviewCrosshair,
     addLabelOverlayElement,
     removeLabelOverlayElement,
     getLivePreviewCanvasPosition,
@@ -833,8 +958,11 @@ export const useCesiumPointVisualizer = (
       return;
     }
 
+    const livePreviewDiscCenterECEF =
+      livePreviewVerticalOffsetAnchorECEF ?? livePreviewPointECEF;
+
     let disc = livePreviewDiscRef.current;
-    if (!livePreviewPointECEF) {
+    if (!livePreviewDiscCenterECEF) {
       if (disc) {
         safeRemovePrimitive(scene, disc);
         livePreviewDiscRef.current = null;
@@ -861,20 +989,22 @@ export const useCesiumPointVisualizer = (
 
     const updateLivePreviewDisc = () => {
       const activeDisc = livePreviewDiscRef.current;
-      if (!activeDisc || !livePreviewPointECEF || scene.isDestroyed()) return;
+      if (!activeDisc || !livePreviewDiscCenterECEF || scene.isDestroyed()) {
+        return;
+      }
       const discNormal = resolveDiscNormal(
-        livePreviewPointECEF,
+        livePreviewDiscCenterECEF,
         livePreviewSurfaceNormalECEF
       );
       const discWorldRadius = getDiscWorldRadius(
         scene,
-        livePreviewPointECEF,
+        livePreviewDiscCenterECEF,
         discNormal,
         livePreviewDiscRadius,
         LIVE_PREVIEW_DISC_SCREEN_RADIUS_PX
       );
       activeDisc.modelMatrix = createOrientedDiscModelMatrix(
-        livePreviewPointECEF,
+        livePreviewDiscCenterECEF,
         discNormal,
         discWorldRadius
       );
@@ -884,7 +1014,7 @@ export const useCesiumPointVisualizer = (
 
     removeLivePreviewDiscPostRenderListenerRef.current =
       scene.postRender.addEventListener(() => {
-        if (!livePreviewPointECEF || scene.isDestroyed()) return;
+        if (!livePreviewDiscCenterECEF || scene.isDestroyed()) return;
         updateLivePreviewDisc();
       });
     scene.requestRender();
@@ -892,6 +1022,7 @@ export const useCesiumPointVisualizer = (
     renderCesiumCoreVisuals,
     scene,
     livePreviewPointECEF,
+    livePreviewVerticalOffsetAnchorECEF,
     livePreviewSurfaceNormalECEF,
     radius,
     livePreviewDiscColor,

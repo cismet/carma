@@ -16,7 +16,7 @@ import type {
   DistanceTableRow,
   DistanceMeasurementSlotsInput,
   MeasurementSlotActions,
-} from "./getCarmaMeasurementInfoBoxSlots";
+} from "./getAnnotationInfoBoxSlots";
 import {
   isReferenceMeasurement,
   resolveMeasurementDisplayPoint,

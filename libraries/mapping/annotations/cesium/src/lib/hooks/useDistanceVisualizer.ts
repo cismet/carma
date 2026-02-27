@@ -28,6 +28,4 @@ export const useDistanceVisualizer = ({
   });
 };
 
-export const useDistanceRelationsVisualizer = useDistanceVisualizer;
-
 export default useDistanceVisualizer;

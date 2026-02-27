@@ -4,15 +4,15 @@ import { useMapFrameworkSwitcherContext } from "@carma-mapping/components";
 import { useHashState } from "@carma-providers/hash-state";
 import {
   MEASUREMENT_MODE,
-  useMapMeasurementsContext,
-} from "@carma-commons/measurements";
+  useAnnotationContext,
+} from "@carma-mapping/annotations/core";
 
 import { URL_PARAM_KEYS } from "../config/app.config";
 import { useMapStyle } from "./useGeoportalMapStyle";
 import { MapStyleKeys } from "../constants/MapStyleKeys";
 
 export const useAppSearchParams = () => {
-  const mapMeasurements = useMapMeasurementsContext();
+  const mapMeasurements = useAnnotationContext();
   const { setActiveFrameworkCesium, setActiveFrameworkLeaflet } =
     useMapFrameworkSwitcherContext();
   const { setCurrentStyle } = useMapStyle();

@@ -814,21 +814,20 @@ type AreaVisualizerCommonOptions = {
   polygonAreaBadgeByGroupId: Readonly<Record<string, PolygonAreaBadge>>;
 };
 
-export type GroundPolygonAreaVisualizerOptions = AreaVisualizerCommonOptions & {
+export type GroundAreaVisualizerOptions = AreaVisualizerCommonOptions & {
   groundPolygonPreviewGroups: GroundPolygonPreviewGroup[];
 };
 
-export type VerticalPolygonAreaVisualizerOptions =
-  AreaVisualizerCommonOptions & {
-    verticalPolygonPreviewGroups: VerticalPolygonPreviewGroup[];
-  };
+export type VerticalAreaVisualizerOptions = AreaVisualizerCommonOptions & {
+  verticalPolygonPreviewGroups: VerticalPolygonPreviewGroup[];
+};
 
-export type PlanarPolygonAreaVisualizerOptions = AreaVisualizerCommonOptions & {
+export type PlanarAreaVisualizerOptions = AreaVisualizerCommonOptions & {
   planarPolygonPreviewGroups: PlanarPolygonPreviewGroup[];
 };
 
-export const useCesiumGroundPolygonAreaVisualizer = (
-  options: GroundPolygonAreaVisualizerOptions
+export const useCesiumGroundAreaVisualizer = (
+  options: GroundAreaVisualizerOptions
 ) => {
   const { groundPolygonPreviewGroups, ...commonOptions } = options;
   usePolygonAreaSurfaceVisualizer({
@@ -838,8 +837,8 @@ export const useCesiumGroundPolygonAreaVisualizer = (
   });
 };
 
-export const useCesiumVerticalPolygonAreaVisualizer = (
-  options: VerticalPolygonAreaVisualizerOptions
+export const useCesiumVerticalAreaVisualizer = (
+  options: VerticalAreaVisualizerOptions
 ) => {
   const { verticalPolygonPreviewGroups, ...commonOptions } = options;
   usePolygonAreaSurfaceVisualizer({
@@ -849,8 +848,8 @@ export const useCesiumVerticalPolygonAreaVisualizer = (
   });
 };
 
-export const useCesiumPlanarPolygonAreaVisualizer = (
-  options: PlanarPolygonAreaVisualizerOptions
+export const useCesiumPlanarAreaVisualizer = (
+  options: PlanarAreaVisualizerOptions
 ) => {
   const { planarPolygonPreviewGroups, ...commonOptions } = options;
   usePolygonAreaSurfaceVisualizer({
@@ -859,15 +858,3 @@ export const useCesiumPlanarPolygonAreaVisualizer = (
     overlayPrefix: "distance-planar-polygon-preview",
   });
 };
-
-export const useCesiumGroundAreaVisualizer = (
-  options: GroundPolygonAreaVisualizerOptions
-) => useCesiumGroundPolygonAreaVisualizer(options);
-
-export const useCesiumVerticalAreaVisualizer = (
-  options: VerticalPolygonAreaVisualizerOptions
-) => useCesiumVerticalPolygonAreaVisualizer(options);
-
-export const useCesiumPlanarAreaVisualizer = (
-  options: PlanarPolygonAreaVisualizerOptions
-) => useCesiumPlanarPolygonAreaVisualizer(options);

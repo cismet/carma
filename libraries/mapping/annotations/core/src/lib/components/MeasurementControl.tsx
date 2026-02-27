@@ -4,9 +4,9 @@ import {
   Control,
   ControlButtonStyler,
 } from "@carma-mapping/map-controls-layout";
-import { InfoBoxMeasurement } from "./InfoBoxMeasurement";
+import { InfoBoxMeasurement } from "./infobox/InfoBoxMeasurement";
 import { MeasurementControlProps, MEASUREMENT_MODE } from "../../index.d";
-import { useMapMeasurementsContext } from "./MapMeasurementsProvider";
+import { useAnnotationContext } from "./AnnotationProvider";
 import measureActive from "../assets/measure-active.png";
 import measureInactive from "../assets/measure.png";
 
@@ -38,7 +38,7 @@ export const MeasurementControl = forwardRef<
     },
     ref
   ) => {
-    const { mode, toggleMeasurementMode } = useMapMeasurementsContext();
+    const { mode, toggleMeasurementMode } = useAnnotationContext();
 
     // Use context values if props are not provided
     const isActive =

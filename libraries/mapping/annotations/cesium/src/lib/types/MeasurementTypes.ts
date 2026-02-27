@@ -11,7 +11,7 @@ import {
   type MeasurementPersistenceEnvelopeV2Base,
   type PointReferenceLineAnnotation,
   type SerializableCartesian3,
-} from "@carma-commons/measurements";
+} from "@carma-mapping/annotations/core";
 
 export {
   DEFAULT_LINEAR_SEGMENT_LINE_MODE,
@@ -45,7 +45,7 @@ export type {
   ReferenceLineLabelKind,
   SerializableCartesian3,
   SurfaceType,
-} from "@carma-commons/measurements";
+} from "@carma-mapping/annotations/core";
 
 export type GeomPoint = {
   longitude: number;

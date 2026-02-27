@@ -102,6 +102,14 @@ export interface MeasurementTitleProps {
   isCollapsed?: boolean;
   collapsedContent?: string;
   editable?: boolean;
+  placeholderText?: string;
+  clearPlaceholderOnFocus?: boolean;
+  showOrder?: boolean;
+  capitalize?: boolean;
+  multiline?: boolean;
+  autoFocusTrigger?: number | string;
+  onTitleCommit?: (title: string) => void;
+  leadingBadgeText?: string;
 }
 
 export interface MeasurementControlProps {

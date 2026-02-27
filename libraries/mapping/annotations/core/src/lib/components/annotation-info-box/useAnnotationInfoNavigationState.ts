@@ -4,7 +4,7 @@ type NavigationMeasurement = {
   id: string;
 };
 
-type UseCarmaMeasurementInfoNavigationStateParams = {
+type UseAnnotationInfoNavigationStateParams = {
   navigationMeasurements: ReadonlyArray<NavigationMeasurement>;
   currentMeasurementId: string | null;
   onSelectMeasurementById: (id: string | null) => void;
@@ -12,13 +12,13 @@ type UseCarmaMeasurementInfoNavigationStateParams = {
   onFlyToAllMeasurements: () => void;
 };
 
-export const useCarmaMeasurementInfoNavigationState = ({
+export const useAnnotationInfoNavigationState = ({
   navigationMeasurements,
   currentMeasurementId,
   onSelectMeasurementById,
   onFlyToMeasurementById,
   onFlyToAllMeasurements,
-}: UseCarmaMeasurementInfoNavigationStateParams) => {
+}: UseAnnotationInfoNavigationStateParams) => {
   const navigableMeasurements = useMemo(
     () => navigationMeasurements,
     [navigationMeasurements]

@@ -14,6 +14,7 @@ import {
   Cartesian3,
   SceneTransforms,
   defined,
+  getDegreesFromCartesian,
   type Scene,
 } from "@carma/cesium";
 
@@ -249,6 +250,19 @@ const formatAbsoluteElevationLabelText = (
 ): PointLabelTextRepresentation => ({
   layoutText: `${labelBase} ${formatMeters(pointHeight)}`,
 });
+
+const formatOffsetElevationLabelText = (
+  labelBase: string,
+  baseRelativeHeightMeters: number,
+  offsetMeters: number
+): PointLabelTextRepresentation => {
+  const offsetSign = offsetMeters >= 0 ? "+" : "-";
+  return {
+    layoutText: `${labelBase} ${formatNumber(
+      baseRelativeHeightMeters
+    )} ${offsetSign} ${formatNumber(Math.abs(offsetMeters))}m`.trim(),
+  };
+};
 
 const formatDistanceLabelText = (
   labelBase: string,
@@ -656,7 +670,7 @@ export const useCesiumPointLabels = (
         const pointLabelMetricMode =
           point.pointLabelMode ?? DEFAULT_POINT_LABEL_METRIC_MODE;
         const preferDefaultNaming = pointLabelMetricMode === "distance";
-        const labelTextRepresentation = formatPointLabelText(
+        let labelTextRepresentation = formatPointLabelText(
           effectivePointIndex,
           point.geometryWGS84.height,
           referenceElevation,
@@ -670,6 +684,43 @@ export const useCesiumPointLabels = (
           pointLabelOverride,
           preferDefaultNaming
         );
+
+        if (
+          pointLabelMetricMode === "elevation" &&
+          point.verticalOffsetAnchorECEF
+        ) {
+          const anchorECEF = new Cartesian3(
+            point.verticalOffsetAnchorECEF.x,
+            point.verticalOffsetAnchorECEF.y,
+            point.verticalOffsetAnchorECEF.z
+          );
+          const anchorWGS84 = getDegreesFromCartesian(anchorECEF);
+          const anchorHeightMeters = anchorWGS84.altitude ?? 0;
+          const anchorRelativeHeightMeters =
+            anchorHeightMeters - referenceElevation;
+          const verticalOffsetMeters =
+            point.geometryWGS84.height - anchorHeightMeters;
+
+          if (
+            Number.isFinite(anchorHeightMeters) &&
+            Number.isFinite(anchorRelativeHeightMeters) &&
+            Number.isFinite(verticalOffsetMeters) &&
+            Math.abs(verticalOffsetMeters) > ELEVATION_NEUTRAL_THRESHOLD_METERS
+          ) {
+            const labelBase = getPointLabelBase(
+              point.name,
+              effectivePointIndex,
+              Boolean(point.auxiliaryLabelAnchor),
+              pointLabelOverride,
+              preferDefaultNaming
+            );
+            labelTextRepresentation = formatOffsetElevationLabelText(
+              labelBase,
+              anchorRelativeHeightMeters,
+              verticalOffsetMeters
+            );
+          }
+        }
 
         let effectiveLabelTextRepresentation = labelTextRepresentation;
 

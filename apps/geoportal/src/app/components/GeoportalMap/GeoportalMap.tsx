@@ -50,9 +50,9 @@ import { ENDPOINT, isAreaType } from "@carma-commons/resources";
 import type { FeatureInfo } from "@carma/types";
 import {
   Measurements,
-  CarmaMeasurementInfoBox,
+  AnnotationInfoBox,
   InfoBoxMeasurement,
-} from "@carma-commons/measurements";
+} from "@carma-mapping/annotations/core";
 
 import {
   useOverlayHelper,
@@ -675,7 +675,7 @@ export const GeoportalMap = ({ height, width, allow3d }: MapProps) => {
     const isCesiumMeasurementMode = getIsCesium() && isModeMeasurement;
 
     if (isCesiumMeasurementMode) {
-      return <CarmaMeasurementInfoBox />;
+      return <AnnotationInfoBox />;
     }
 
     if (getIsLeaflet()) {

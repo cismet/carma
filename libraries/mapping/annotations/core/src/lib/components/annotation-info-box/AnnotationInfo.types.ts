@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
 
-export type CarmaMeasurementInfoBoxPayload = {
+export type AnnotationInfoBoxPayload = {
   pixelWidth: number;
   headingColor: string;
   headingTitle: string;

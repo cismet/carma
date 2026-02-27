@@ -1,16 +1,16 @@
 import { CarmaResponsiveInfoBox } from "@carma-commons/ui/components";
 
-import { useCarmaMeasurementInfoBoxPayload } from "./useCarmaMeasurementInfoBoxPayload";
+import { useAnnotationInfoBoxPayload } from "./useAnnotationInfoBoxPayload";
 import "../../styles/infoBox.css";
 
-type CarmaMeasurementInfoBoxProps = {
+type AnnotationInfoBoxProps = {
   pixelWidth?: number;
 };
 
-export function CarmaMeasurementInfoBox({
+export function AnnotationInfoBox({
   pixelWidth = 350,
-}: CarmaMeasurementInfoBoxProps) {
-  const payload = useCarmaMeasurementInfoBoxPayload({ pixelWidth });
+}: AnnotationInfoBoxProps) {
+  const payload = useAnnotationInfoBoxPayload({ pixelWidth });
   const {
     pixelWidth: boxWidth,
     headingColor,
@@ -22,7 +22,7 @@ export function CarmaMeasurementInfoBox({
   } = payload;
 
   return (
-    <div data-test-id="carma-measurement-infobox">
+    <div data-test-id="annotation-info-box">
       <CarmaResponsiveInfoBox
         width={boxWidth}
         onPanelClick={(event) => event.stopPropagation()}

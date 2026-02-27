@@ -53,6 +53,7 @@ type UseMeasurementLivePreviewStateParams = {
 type UseMeasurementLivePreviewStateResult = {
   livePreviewPointECEF: Cartesian3 | null;
   livePreviewSurfaceNormalECEF: Cartesian3 | null;
+  livePreviewVerticalOffsetAnchorECEF: Cartesian3 | null;
   handlePointQueryPointerMove: (
     positionECEF: Cartesian3 | null,
     screenPosition?: Cartesian2,
@@ -81,6 +82,10 @@ export const useMeasurementLivePreviewState = ({
     useState<Cartesian3 | null>(null);
   const [livePreviewSurfaceNormalECEF, setLivePreviewSurfaceNormalECEF] =
     useState<Cartesian3 | null>(null);
+  const [
+    livePreviewVerticalOffsetAnchorECEF,
+    setLivePreviewVerticalOffsetAnchorECEF,
+  ] = useState<Cartesian3 | null>(null);
 
   const previewIsPolylineCreateMode = activePreview.type === "polyline";
   const isVerticalPolygon = activePreview.type === "polygon-vertical";
@@ -107,6 +112,9 @@ export const useMeasurementLivePreviewState = ({
       surfaceNormalECEF?: Cartesian3 | null
     ) => {
       if (hasActivePreviewNode) {
+        const hasVerticalOffsetStem =
+          activePreview.type === "point" &&
+          Math.abs(activePreview.verticalOffsetMeters) > 1e-9;
         const previewPosition = positionECEF
           ? Math.abs(activePreview.verticalOffsetMeters) > 1e-9
             ? getPositionWithVerticalOffsetFromAnchor(
@@ -121,7 +129,9 @@ export const useMeasurementLivePreviewState = ({
           }
           if (
             prev &&
-            Cartesian3.distanceSquared(prev, previewPosition) <= 1e-6
+            prev.x === previewPosition.x &&
+            prev.y === previewPosition.y &&
+            prev.z === previewPosition.z
           ) {
             return prev;
           }
@@ -142,10 +152,25 @@ export const useMeasurementLivePreviewState = ({
 
           return normalized;
         });
+        setLivePreviewVerticalOffsetAnchorECEF((prev) => {
+          if (!hasVerticalOffsetStem || !positionECEF || !previewPosition) {
+            return prev ? null : prev;
+          }
+          if (
+            prev &&
+            prev.x === positionECEF.x &&
+            prev.y === positionECEF.y &&
+            prev.z === positionECEF.z
+          ) {
+            return prev;
+          }
+          return Cartesian3.clone(positionECEF);
+        });
         scene?.requestRender();
       } else {
         setLivePreviewPointECEF((prev) => (prev ? null : prev));
         setLivePreviewSurfaceNormalECEF((prev) => (prev ? null : prev));
+        setLivePreviewVerticalOffsetAnchorECEF((prev) => (prev ? null : prev));
       }
 
       if (!isVerticalPolygon) return;
@@ -213,11 +238,13 @@ export const useMeasurementLivePreviewState = ({
     if (isLivePointPreviewModeActive) return;
     setLivePreviewPointECEF((prev) => (prev ? null : prev));
     setLivePreviewSurfaceNormalECEF((prev) => (prev ? null : prev));
+    setLivePreviewVerticalOffsetAnchorECEF((prev) => (prev ? null : prev));
   }, [isLivePointPreviewModeActive]);
 
   return {
     livePreviewPointECEF,
     livePreviewSurfaceNormalECEF,
+    livePreviewVerticalOffsetAnchorECEF,
     handlePointQueryPointerMove,
     previewIsPolylineCreateMode,
     hasActivePreviewNode,

@@ -36,6 +36,15 @@ const pickPositionWithMeasurementFillBypass = (
   screenPosition: Cartesian2
 ): Cartesian3 | null => scene.pickPosition(screenPosition) ?? null;
 
+const pickGlobePosition = (
+  scene: Scene,
+  screenPosition: Cartesian2
+): Cartesian3 | null => {
+  const pickRay = scene.camera.getPickRay(screenPosition);
+  if (!pickRay) return null;
+  return scene.globe.pick(pickRay, scene) ?? null;
+};
+
 const getLocalUpVector = (positionECEF: Cartesian3): Cartesian3 => {
   const localEnuFrame = Transforms.eastNorthUpToFixedFrame(positionECEF);
   const upDirectionColumn = Matrix4.getColumn(
@@ -164,6 +173,7 @@ export const useCesiumPointQuery = (
     | undefined = undefined,
   useTemporaryForCreatedPoints: boolean = true,
   markCreatedPointsAsDistanceAdhoc: boolean = false,
+  preferGlobeAnchorForVerticalOffset: boolean = false,
   onPointerMove?: (
     positionECEF: Cartesian3 | null,
     screenPosition: Cartesian2,
@@ -293,11 +303,24 @@ export const useCesiumPointQuery = (
         scene,
         pendingPosition
       );
-      const sampledSurfaceNormal = pickedPosition
-        ? estimateSurfaceNormalAtPointer(scene, pendingPosition, pickedPosition)
+      const offsetMeters = Number.isFinite(verticalOffsetMeters)
+        ? verticalOffsetMeters
+        : 0;
+      const hasVerticalOffsetStem = Math.abs(offsetMeters) > 1e-9;
+      // Keep live preview responsive by using the same pick path as non-offset mode.
+      // Strict ground-hit validation still happens on point creation (click).
+      const previewAnchorPosition = pickedPosition;
+      const sampledSurfaceNormal = previewAnchorPosition
+        ? hasVerticalOffsetStem
+          ? getLocalUpVector(previewAnchorPosition)
+          : estimateSurfaceNormalAtPointer(
+              scene,
+              pendingPosition,
+              previewAnchorPosition
+            )
         : null;
       onPointerMoveRef.current?.(
-        pickedPosition ?? null,
+        previewAnchorPosition ?? null,
         pendingPosition,
         sampledSurfaceNormal
       );
@@ -330,20 +353,29 @@ export const useCesiumPointQuery = (
         return;
       }
 
-      const pickedPositionWGS84 = getDegreesFromCartesian(pickedPosition);
-      const height = pickedPositionWGS84.altitude;
       const offsetMeters = Number.isFinite(verticalOffsetMeters)
         ? verticalOffsetMeters
         : 0;
       const hasVerticalOffsetStem = Math.abs(offsetMeters) > 1e-9;
-      const upDirectionECEF = getLocalUpVector(pickedPosition);
+      const anchorPosition =
+        hasVerticalOffsetStem && preferGlobeAnchorForVerticalOffset
+          ? pickGlobePosition(scene, position)
+          : pickedPosition;
+      if (!anchorPosition) {
+        // Point-measure offset mode is valid only with a real globe/terrain hit.
+        scene.requestRender();
+        return;
+      }
+      const pickedPositionWGS84 = getDegreesFromCartesian(anchorPosition);
+      const height = pickedPositionWGS84.altitude;
+      const upDirectionECEF = getLocalUpVector(anchorPosition);
       const offsetVectorECEF = Cartesian3.multiplyByScalar(
         upDirectionECEF,
         offsetMeters,
         new Cartesian3()
       );
       const geometryECEF = Cartesian3.add(
-        pickedPosition,
+        anchorPosition,
         offsetVectorECEF,
         new Cartesian3()
       );
@@ -390,9 +422,9 @@ export const useCesiumPointQuery = (
           ...(hasVerticalOffsetStem
             ? {
                 verticalOffsetAnchorECEF: {
-                  x: pickedPosition.x,
-                  y: pickedPosition.y,
-                  z: pickedPosition.z,
+                  x: anchorPosition.x,
+                  y: anchorPosition.y,
+                  z: anchorPosition.z,
                 },
               }
             : {}),
@@ -490,6 +522,7 @@ export const useCesiumPointQuery = (
     labelAppearanceOnCreate,
     useTemporaryForCreatedPoints,
     markCreatedPointsAsDistanceAdhoc,
+    preferGlobeAnchorForVerticalOffset,
   ]);
 };
 

@@ -9,7 +9,7 @@ import type { MeasurementListType } from "../../context/MeasurementsContext";
 import type {
   MeasurementSlotActions,
   PointMeasurementSlotsInput,
-} from "./getCarmaMeasurementInfoBoxSlots";
+} from "./getAnnotationInfoBoxSlots";
 import {
   isReferenceMeasurement,
   resolveMeasurementDisplayPoint,

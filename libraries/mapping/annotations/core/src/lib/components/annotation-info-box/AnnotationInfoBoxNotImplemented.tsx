@@ -1,10 +1,10 @@
-type CarmaMeasurementInfoBoxNotImplementedProps = {
+type AnnotationInfoBoxNotImplementedProps = {
   kind: string;
 };
 
-export const CarmaMeasurementInfoBoxNotImplemented = ({
+export const AnnotationInfoBoxNotImplemented = ({
   kind,
-}: CarmaMeasurementInfoBoxNotImplementedProps) => (
+}: AnnotationInfoBoxNotImplementedProps) => (
   <div
     className="mt-2 w-[90%] p-2"
     data-test-id="carma-infobox-not-implemented"

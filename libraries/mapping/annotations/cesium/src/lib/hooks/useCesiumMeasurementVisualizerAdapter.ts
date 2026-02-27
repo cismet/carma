@@ -41,11 +41,11 @@ export type CesiumMeasurementVisualizerAdapterOptions = {
   labelLayoutConfig?: CesiumLabelLayoutConfigOverrides;
   effectiveDistanceToReferenceByPointId: Readonly<Record<string, number>>;
   pointMarkerBadgeByPointId: Readonly<Record<string, PointMarkerBadge>>;
-  isPointMeasureLabelModeActive: boolean;
-  pointMeasurementIds: ReadonlySet<string>;
+  labelInputPromptPointId: string | null;
   markerOnlyOverlayNodeInteractions: boolean;
   livePreviewPointECEF: Cartesian3 | null;
   livePreviewSurfaceNormalECEF: Cartesian3 | null;
+  livePreviewVerticalOffsetAnchorECEF: Cartesian3 | null;
   livePreviewDistanceLine: {
     anchorPointECEF: Cartesian3;
     targetPointECEF: Cartesian3;
@@ -118,11 +118,11 @@ export const useCesiumMeasurementVisualizerAdapter = ({
   labelLayoutConfig,
   effectiveDistanceToReferenceByPointId,
   pointMarkerBadgeByPointId,
-  isPointMeasureLabelModeActive,
-  pointMeasurementIds,
+  labelInputPromptPointId,
   markerOnlyOverlayNodeInteractions,
   livePreviewPointECEF,
   livePreviewSurfaceNormalECEF,
+  livePreviewVerticalOffsetAnchorECEF,
   livePreviewDistanceLine,
   showDistanceAndPolygonVisuals,
   distanceRelations,
@@ -193,13 +193,7 @@ export const useCesiumMeasurementVisualizerAdapter = ({
     labelLayoutConfig,
     distanceToReferenceByPointId: effectiveDistanceToReferenceByPointId,
     pointMarkerBadgeByPointId,
-    labelInputPromptPointId:
-      isPointMeasureLabelModeActive &&
-      !selectionModeActive &&
-      selectedMeasurementId &&
-      pointMeasurementIds.has(selectedMeasurementId)
-        ? selectedMeasurementId
-        : null,
+    labelInputPromptPointId,
     markerOnlyOverlayNodeInteractions,
     moveGizmoAxisDirection,
     moveGizmoPreferredAxisId,
@@ -208,6 +202,7 @@ export const useCesiumMeasurementVisualizerAdapter = ({
     moveGizmoLabelDistanceScale,
     livePreviewPointECEF,
     livePreviewSurfaceNormalECEF,
+    livePreviewVerticalOffsetAnchorECEF,
     livePreviewDistanceLine,
     livePreviewReferenceElevation: referenceElevation,
     livePreviewHasReferenceElevation: Boolean(referencePoint),

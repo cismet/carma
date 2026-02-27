@@ -53,7 +53,7 @@ import { useFeatureFlags } from "@carma-providers/feature-flag";
 import {
   MeasurementControl,
   MeasurementToolbar3D,
-} from "@carma-commons/measurements";
+} from "@carma-mapping/annotations/core";
 
 import { GeoportalMap } from "../GeoportalMap.tsx";
 import LibreGeoportalMap from "../LibreGeoportalMap.tsx";

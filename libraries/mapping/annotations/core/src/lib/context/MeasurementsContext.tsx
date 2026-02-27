@@ -70,6 +70,8 @@ export type MeasurementsContextType<
   setPointVerticalOffsetMeters: Dispatch<SetStateAction<number>>;
   pointLabelOnCreate: boolean;
   setPointLabelOnCreate: Dispatch<SetStateAction<boolean>>;
+  labelInputPromptPointId: string | null;
+  confirmPointLabelInputById: (id: string) => void;
   showLabels: boolean;
   setShowLabels: Dispatch<SetStateAction<boolean>>;
 };

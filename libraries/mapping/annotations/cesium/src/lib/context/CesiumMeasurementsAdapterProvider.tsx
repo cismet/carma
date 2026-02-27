@@ -44,11 +44,11 @@ import {
   useMeasurementCollectionSelectors,
   useMeasurementPointMarkerBadges,
   useSelectionToolState,
-  useMapMeasurementsContext,
+  useAnnotationContext,
   type MeasurementCreatePayload,
   type PlanarGroupBadgeKind,
   type MeasurementListType,
-} from "@carma-commons/measurements";
+} from "@carma-mapping/annotations/core";
 
 import { useCesiumContext } from "@carma-mapping/engines/cesium";
 import { flyToBoundingSphereExtent } from "@carma-mapping/engines/cesium/api";
@@ -300,6 +300,8 @@ export interface CesiumMeasurementsContextType {
   setPointLabelMetricModeById: (id: string, mode: PointLabelMetricMode) => void;
   pointLabelOnCreate: boolean;
   setPointLabelOnCreate: Dispatch<SetStateAction<boolean>>;
+  labelInputPromptPointId: string | null;
+  confirmPointLabelInputById: (id: string) => void;
   pointMarkerBadgeByPointId: Readonly<Record<string, PointMarkerBadge>>;
   pendingPolylinePromotionRingClosurePointId: string | null;
   confirmPolylineRingPromotion: (surfaceType: SurfaceType) => void;
@@ -906,7 +908,7 @@ export const CesiumMeasurementsProvider: React.FC<
 > = ({ children, options }) => {
   const { getScene } = useCesiumContext();
   const scene = getScene();
-  const mapMeasurements = useMapMeasurementsContext();
+  const mapMeasurements = useAnnotationContext();
   const requestUpdateCallback = useCesiumOverlaySync();
   const overlayContext = useLabelOverlay();
 
@@ -1004,6 +1006,9 @@ export const CesiumMeasurementsProvider: React.FC<
     initialTemporary ?? false
   );
   const [pointLabelOnCreate, setPointLabelOnCreate] = useState(false);
+  const [labelInputPromptPointId, setLabelInputPromptPointId] = useState<
+    string | null
+  >(null);
   const {
     hideMeasurementsOfType,
     setHideMeasurementsOfType,
@@ -1469,6 +1474,12 @@ export const CesiumMeasurementsProvider: React.FC<
   const activeLivePreviewDescriptor =
     useMemo<MeasurementLivePreviewDescriptor>(() => {
       if (measurementMode === CESIUM_MEASUREMENT_MODE.PointMeasure) {
+        if (pointLabelOnCreate && labelInputPromptPointId) {
+          return {
+            type: "none",
+            verticalOffsetMeters: 0,
+          };
+        }
         return {
           type: "point",
           verticalOffsetMeters: pointLabelOnCreate
@@ -1548,6 +1559,7 @@ export const CesiumMeasurementsProvider: React.FC<
     }, [
       activePlanarPolygonGroupId,
       measurementMode,
+      labelInputPromptPointId,
       planarMeasurementCreationMode,
       planarPolygonGroups,
       pointLabelOnCreate,
@@ -1559,6 +1571,7 @@ export const CesiumMeasurementsProvider: React.FC<
   const {
     livePreviewPointECEF,
     livePreviewSurfaceNormalECEF,
+    livePreviewVerticalOffsetAnchorECEF,
     handlePointQueryPointerMove,
     previewIsPolylineCreateMode,
     hasActivePreviewNode,
@@ -2962,10 +2975,20 @@ export const CesiumMeasurementsProvider: React.FC<
       setDoubleClickChainSourcePointId(null);
       setActivePlanarPolygonGroupId(null);
       setSelectedPlanarPolygonGroupId(null);
+      if (pointLabelOnCreate) {
+        setLabelInputPromptPointId(newPointId);
+      }
       selectMeasurementByIdImmediate(newPointId);
     },
-    [selectMeasurementByIdImmediate]
+    [pointLabelOnCreate, selectMeasurementByIdImmediate]
   );
+
+  const confirmPointLabelInputById = useCallback((id: string) => {
+    if (!id) return;
+    setLabelInputPromptPointId((previousPromptPointId) =>
+      previousPromptPointId === id ? null : previousPromptPointId
+    );
+  }, []);
 
   const handleDistancePointCreated = useCallback(
     (newPointId: string, newPointPositionECEF: Cartesian3) => {
@@ -5581,13 +5604,16 @@ export const CesiumMeasurementsProvider: React.FC<
   const isPointMeasureLabelModeActive =
     pointLabelOnCreate &&
     measurementMode === CESIUM_MEASUREMENT_MODE.PointMeasure;
+  const isPointMeasureLabelInputPending =
+    isPointMeasureLabelModeActive && labelInputPromptPointId !== null;
   const isPointMeasureCreateModeActive =
     !pointLabelOnCreate &&
     measurementMode === CESIUM_MEASUREMENT_MODE.PointMeasure;
   const pointQueryToolActive =
-    measurementMode === CESIUM_MEASUREMENT_MODE.PointQuery ||
-    measurementMode === CESIUM_MEASUREMENT_MODE.PolylineMeasure ||
-    measurementMode === CESIUM_MEASUREMENT_MODE.PointMeasure;
+    !isPointMeasureLabelInputPending &&
+    (measurementMode === CESIUM_MEASUREMENT_MODE.PointQuery ||
+      measurementMode === CESIUM_MEASUREMENT_MODE.PolylineMeasure ||
+      measurementMode === CESIUM_MEASUREMENT_MODE.PointMeasure);
   const activePointCreateConfig = useMemo(() => {
     if (measurementMode === CESIUM_MEASUREMENT_MODE.PointMeasure) {
       return {
@@ -5667,6 +5693,26 @@ export const CesiumMeasurementsProvider: React.FC<
     selectionModeActive,
   ]);
 
+  useEffect(() => {
+    if (measurementMode !== CESIUM_MEASUREMENT_MODE.PointMeasure) {
+      setLabelInputPromptPointId(null);
+      return;
+    }
+    if (!pointLabelOnCreate) {
+      setLabelInputPromptPointId(null);
+    }
+  }, [measurementMode, pointLabelOnCreate]);
+
+  useEffect(() => {
+    if (!labelInputPromptPointId) return;
+    const hasPromptMeasurement = measurements.some(
+      (measurement) => measurement.id === labelInputPromptPointId
+    );
+    if (!hasPromptMeasurement) {
+      setLabelInputPromptPointId(null);
+    }
+  }, [labelInputPromptPointId, measurements]);
+
   useCesiumPointQuery(
     scene,
     pointQueryToolActive &&
@@ -5689,6 +5735,7 @@ export const CesiumMeasurementsProvider: React.FC<
     activePointCreateConfig?.labelAppearanceOnCreate,
     activePointCreateConfig?.useTemporaryForCreatedPoints ?? true,
     activePointCreateConfig?.markCreatedPointsAsDistanceAdhoc ?? false,
+    measurementMode === CESIUM_MEASUREMENT_MODE.PointMeasure,
     handlePointQueryPointerMove
   );
 
@@ -6230,7 +6277,8 @@ export const CesiumMeasurementsProvider: React.FC<
     isLivePointPreviewModeActive,
   ]);
   const markerOnlyOverlayNodeInteractions =
-    isLivePointPreviewModeActive && !isPointMeasureLabelModeActive;
+    (isLivePointPreviewModeActive && !isPointMeasureLabelModeActive) ||
+    isPointMeasureLabelInputPending;
 
   useCesiumMeasurementVisualizerAdapter({
     scene,
@@ -6260,8 +6308,7 @@ export const CesiumMeasurementsProvider: React.FC<
     labelLayoutConfig: options?.labels,
     effectiveDistanceToReferenceByPointId,
     pointMarkerBadgeByPointId,
-    isPointMeasureLabelModeActive,
-    pointMeasurementIds,
+    labelInputPromptPointId,
     markerOnlyOverlayNodeInteractions,
     livePreviewPointECEF: isLivePointPreviewModeActive
       ? livePreviewPointECEF
@@ -6269,6 +6316,11 @@ export const CesiumMeasurementsProvider: React.FC<
     livePreviewSurfaceNormalECEF: isLivePointPreviewModeActive
       ? livePreviewSurfaceNormalECEF
       : null,
+    livePreviewVerticalOffsetAnchorECEF:
+      isLivePointPreviewModeActive &&
+      measurementMode === CESIUM_MEASUREMENT_MODE.PointMeasure
+        ? livePreviewVerticalOffsetAnchorECEF
+        : null,
     livePreviewDistanceLine,
     showDistanceAndPolygonVisuals,
     distanceRelations: effectiveDistanceRelationsForRendering,
@@ -8472,6 +8524,8 @@ export const CesiumMeasurementsProvider: React.FC<
       setPointVerticalOffsetMeters,
       pointLabelOnCreate,
       setPointLabelOnCreate,
+      labelInputPromptPointId,
+      confirmPointLabelInputById,
       showLabels,
       setShowLabels,
     }),
@@ -8503,6 +8557,8 @@ export const CesiumMeasurementsProvider: React.FC<
       setPointVerticalOffsetMeters,
       pointLabelOnCreate,
       setPointLabelOnCreate,
+      labelInputPromptPointId,
+      confirmPointLabelInputById,
       showLabels,
       setShowLabels,
     ]
@@ -8722,6 +8778,8 @@ export const CesiumMeasurementsProvider: React.FC<
       setPointLabelMetricModeById,
       pointLabelOnCreate,
       setPointLabelOnCreate,
+      labelInputPromptPointId,
+      confirmPointLabelInputById,
       pointMarkerBadgeByPointId,
       pendingPolylinePromotionRingClosurePointId,
       confirmPolylineRingPromotion,
@@ -8809,6 +8867,8 @@ export const CesiumMeasurementsProvider: React.FC<
       showSelectedReferenceLineComponents,
       setShowSelectedReferenceLineComponents,
       pointLabelOnCreate,
+      labelInputPromptPointId,
+      confirmPointLabelInputById,
       pointMarkerBadgeByPointId,
       pendingPolylinePromotionRingClosurePointId,
       confirmPolylineRingPromotion,

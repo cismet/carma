@@ -28,7 +28,4 @@ export const usePointMeasureVisualizer = ({
   });
 };
 
-// Temporary compatibility alias with previous typo in planning notes.
-export const usePointMeausureVisualizer = usePointMeasureVisualizer;
-
 export default usePointMeasureVisualizer;

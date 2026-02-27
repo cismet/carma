@@ -1,11 +1,11 @@
 import type { Meta, StoryObj } from "@storybook/react";
 import { useMemo, useState, type ReactNode } from "react";
 
-import type { MeasurementToolType } from "../../../../../libraries/commons/measurements/src/lib/tools/measurementToolTypes";
+import type { MeasurementToolType } from "../../../../../libraries/mapping/annotations/core/src/lib/tools/measurementToolTypes";
 import {
   defaultMeasurementToolDescriptors,
   resolveMeasurementToolText,
-} from "../../../../../libraries/commons/measurements/src/lib/tools/measurementToolManager";
+} from "../../../../../libraries/mapping/annotations/core/src/lib/tools/measurementToolManager";
 import {
   SELECT_TOOL_TYPE,
   SPATIAL_MARKUP_KIND_AREA,
@@ -15,12 +15,12 @@ import {
   SPATIAL_MARKUP_KIND_POINT,
   SPATIAL_MARKUP_KIND_POLYLINE,
   SPATIAL_MARKUP_KIND_VERTICAL,
-} from "../../../../../libraries/commons/measurements/src/lib/types/measurementKindRegistry";
+} from "../../../../../libraries/mapping/annotations/core/src/lib/types/measurementKindRegistry";
 import {
   LINEAR_SEGMENT_LINE_MODE_COMPONENTS,
   LINEAR_SEGMENT_LINE_MODE_DIRECT,
   type PolylineSegmentLineMode,
-} from "../../../../../libraries/commons/measurements/src/lib/types/measurementTypes";
+} from "../../../../../libraries/mapping/annotations/core/src/lib/types/measurementTypes";
 import {
   createToolManager,
   type ToolDescriptor,

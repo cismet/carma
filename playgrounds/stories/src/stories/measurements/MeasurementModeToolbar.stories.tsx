@@ -5,7 +5,7 @@ import {
   MeasurementModeToolbar,
   type MeasurementModeToolbarProps,
   type MeasurementToolType,
-} from "../../../../../libraries/commons/measurements/src/lib/components/MeasurementModeToolbar";
+} from "../../../../../libraries/mapping/annotations/core/src/lib/components/MeasurementModeToolbar";
 import {
   SELECT_TOOL_TYPE,
   SPATIAL_MARKUP_KIND_AREA,
@@ -15,11 +15,11 @@ import {
   SPATIAL_MARKUP_KIND_POINT,
   SPATIAL_MARKUP_KIND_POLYLINE,
   SPATIAL_MARKUP_KIND_VERTICAL,
-} from "../../../../../libraries/commons/measurements/src/lib/types/measurementKindRegistry";
+} from "../../../../../libraries/mapping/annotations/core/src/lib/types/measurementKindRegistry";
 import {
   LINEAR_SEGMENT_LINE_MODE_COMPONENTS,
   type PolylineSegmentLineMode,
-} from "../../../../../libraries/commons/measurements/src/lib/types/measurementTypes";
+} from "../../../../../libraries/mapping/annotations/core/src/lib/types/measurementTypes";
 import { MeasurementCesiumStoryShell } from "./shared/MeasurementCesiumStoryShell";
 
 type ToolbarStoryArgs = {

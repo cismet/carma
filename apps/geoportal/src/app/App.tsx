@@ -28,9 +28,9 @@ import {
 import { HashStateProvider } from "@carma-providers/hash-state";
 import { useCesiumDevConsoleTrigger } from "@carma-mapping/engines/cesium";
 import {
-  MapMeasurementsProvider,
+  AnnotationProvider,
   MEASUREMENT_MODE,
-} from "@carma-commons/measurements";
+} from "@carma-mapping/annotations/core";
 import { LabelOverlayProvider } from "@carma-providers/label-overlay";
 import { CesiumMeasurementsProvider } from "@carma-mapping/annotations/cesium";
 
@@ -119,13 +119,13 @@ function MeasurementsWrapper({
   );
 
   return (
-    <MapMeasurementsProvider
+    <AnnotationProvider
       externalMode={externalMode}
       setModeExternal={setModeExternal}
       config={config}
     >
       {children}
-    </MapMeasurementsProvider>
+    </AnnotationProvider>
   );
 }
 

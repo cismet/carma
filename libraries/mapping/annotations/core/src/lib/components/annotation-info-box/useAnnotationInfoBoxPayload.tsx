@@ -9,8 +9,8 @@ import {
 
 import { useMeasurements } from "../../context/MeasurementsContext";
 import { useMeasurementSelection } from "../../context/MeasurementSelectionContext";
-import { CarmaMeasurementInfoBoxNavigation } from "./CarmaMeasurementInfoBoxNavigation";
-import type { CarmaMeasurementInfoBoxPayload } from "./CarmaMeasurementInfo.types";
+import { AnnotationInfoBoxNavigation } from "./AnnotationInfoBoxNavigation";
+import type { AnnotationInfoBoxPayload } from "./AnnotationInfo.types";
 import { getDistanceMeasurementSlotsInput } from "./getDistanceMeasurementSlotsInput";
 import { getLabelMeasurementSlotsInput } from "./getLabelMeasurementSlotsInput";
 import { getPlanarMeasurementSlotsInput } from "./getPlanarMeasurementSlotsInput";
@@ -19,17 +19,17 @@ import {
   type MeasurementSlotActions,
   type MeasurementSlotKind,
   type MeasurementSlotsInput,
-} from "./getCarmaMeasurementInfoBoxSlots";
+} from "./getAnnotationInfoBoxSlots";
 import { getPointMeasurementSlotsInput } from "./getPointMeasurementSlotsInput";
-import { useCarmaMeasurementInfoNavigationState } from "./useCarmaMeasurementInfoNavigationState";
+import { useAnnotationInfoNavigationState } from "./useAnnotationInfoNavigationState";
 
-type UseCarmaMeasurementInfoBoxPayloadParams = {
+type UseAnnotationInfoBoxPayloadParams = {
   pixelWidth: number;
 };
 
-export const useCarmaMeasurementInfoBoxPayload = ({
+export const useAnnotationInfoBoxPayload = ({
   pixelWidth,
-}: UseCarmaMeasurementInfoBoxPayloadParams): CarmaMeasurementInfoBoxPayload => {
+}: UseAnnotationInfoBoxPayloadParams): AnnotationInfoBoxPayload => {
   const {
     measurementMode,
     measurements,
@@ -39,11 +39,13 @@ export const useCarmaMeasurementInfoBoxPayload = ({
     getMeasurementOrderByType,
     getNextMeasurementOrderByType,
     pointLabelOnCreate,
+    labelInputPromptPointId,
     updateMeasurementNameById,
     updateMeasurementById,
     deleteMeasurementById,
     toggleMeasurementLockById,
     updatePointLabelAppearanceById,
+    confirmPointLabelInputById,
     clearMeasurementsByIds,
   } = useMeasurements<MeasurementMode, MeasurementEntry>();
   const { selectedMeasurementId, selectMeasurementById } =
@@ -119,6 +121,7 @@ export const useCarmaMeasurementInfoBoxPayload = ({
       toggleMeasurementLockById,
       flyToMeasurementById,
       setReferencePoint,
+      confirmPointLabelInputById,
       updatePointLabelAppearanceById,
       updatePlanarPolygonNameById,
       deletePlanarPolygonGroupById: (groupId: string) => {
@@ -139,6 +142,7 @@ export const useCarmaMeasurementInfoBoxPayload = ({
       planarPolygonGroups,
       selectPlanarPolygonGroupById,
       setReferencePoint,
+      confirmPointLabelInputById,
       toggleMeasurementLockById,
       updatePlanarPolygonNameById,
       updateMeasurementById,
@@ -206,9 +210,15 @@ export const useCarmaMeasurementInfoBoxPayload = ({
         labelMeasurements: measurementsByType("pointLabel").filter(
           isPointMeasurementEntry
         ),
+        labelInputPromptPointId,
         actions: slotActions,
       }),
-    [displayMeasurement, measurementsByType, slotActions]
+    [
+      displayMeasurement,
+      labelInputPromptPointId,
+      measurementsByType,
+      slotActions,
+    ]
   );
 
   const planarSlotsInputResult = useMemo(
@@ -310,7 +320,7 @@ export const useCarmaMeasurementInfoBoxPayload = ({
     onFlyToAllMeasurements,
     onPreviousMeasurement,
     onNextMeasurement,
-  } = useCarmaMeasurementInfoNavigationState({
+  } = useAnnotationInfoNavigationState({
     navigationMeasurements,
     currentMeasurementId: currentNavigationId,
     onSelectMeasurementById: handleNavigationSelection,
@@ -341,7 +351,7 @@ export const useCarmaMeasurementInfoBoxPayload = ({
     headingTitle: slots.headingTitle,
     collapsible: slots.collapsible,
     footer: (
-      <CarmaMeasurementInfoBoxNavigation
+      <AnnotationInfoBoxNavigation
         totalEntries={totalEntries}
         currentIndex={currentIndex}
         instructionText={slots.instructionText}
