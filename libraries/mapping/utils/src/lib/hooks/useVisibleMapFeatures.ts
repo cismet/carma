@@ -114,6 +114,7 @@ export const useVisibleMapFeatures = ({
   const highlightedOnlyRef = useRef(highlightedOnly);
   highlightedOnlyRef.current = highlightedOnly;
   const frozenRef = useRef(frozen);
+  const prevFrozenRef = useRef(frozen);
   frozenRef.current = frozen;
   // Cached resolved layer IDs from layerFilterExpressions
   const resolvedLayerIdsRef = useRef<string[] | undefined>(undefined);
@@ -474,6 +475,16 @@ export const useVisibleMapFeatures = ({
       maplibreMap.off("idle", updateFeatures);
     };
   }, [maplibreMap, updateFeatures]);
+
+  // When switching from frozen → unfrozen, refresh immediately
+  useEffect(() => {
+    const wasFrozen = prevFrozenRef.current;
+    prevFrozenRef.current = frozen;
+    if (wasFrozen && !frozen && maplibreMap) {
+      setIsLoading(true);
+      updateFeatures();
+    }
+  }, [frozen, maplibreMap, updateFeatures]);
 
   return { features, totalCount, countsByLayer, isLoading, isOverviewMode };
 };
