@@ -140,15 +140,11 @@ function hyperbolic(): TreePrototype {
   const trunk = new THREE.CylinderGeometry(0.14, 0.2, 3.0, 6);
   trunk.translate(0, 1.5, 0);
 
-  const a = 2.2;
-  const normFactor = Math.cosh(a * 0.5);
-  const crown = makeCrown(
-    (t) => Math.cosh(a * (t - 0.5)) / normFactor,
-    2.2,
-    5.0,
-    20,
-    10,
-  );
+  // TODO: temporarily uses parabolic profile (sqrt(1-t)) instead of the
+  // original cosh curve because the hyperbolic shape was visually
+  // indistinguishable from parabolic. Replace with a distinct profile
+  // once a better shape is agreed on. Color is kept as-is (#8bbf3d).
+  const crown = makeCrown((t) => Math.sqrt(1 - t), 2.2, 5.0, 16, 8);
   crown.translate(0, 3.0, 0);
   crown.computeVertexNormals();
 
