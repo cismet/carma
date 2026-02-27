@@ -1,24 +1,15 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { useDispatch, useSelector } from "react-redux";
+import { useSelector } from "react-redux";
 import { useStore } from "react-redux";
-import WMSCapabilities from "wms-capabilities";
 import type { Item, Layer } from "@carma/types";
-import { getAllLayers, setAllLayers } from "./slices/mapLayers";
+import { getAllLayers } from "./slices/mapLayers";
 import { useAdditionalConfig } from "./hooks/useAdditionalConfig";
+import { useLoadCapabilities } from "./hooks/useLoadCapabilities";
 import { LayerIcon } from "@carma-mapping/components";
 import { updateUrl, extractCarmaConfig } from "@carma-commons/utils";
 import { parseToMapLayer } from "@carma-mapping/utils";
-import { serviceConfig, baseConfig as config } from "./helper/config";
-import { getLayerStructure, mergeStructures } from "./helper/layerHelper";
-
-const imgStyle: React.CSSProperties = {
-  maxWidth: 300,
-  maxHeight: 200,
-  objectFit: "contain",
-  borderRadius: 6,
-  boxShadow: "0 1px 4px rgba(0,0,0,0.10)",
-  background: "#fff",
-};
+import LegendDisplay from "./components/LegendDisplay";
+import ThumbnailDisplay from "./components/ThumbnailDisplay";
 
 const badgeStyle: React.CSSProperties = {
   display: "inline-block",
@@ -42,14 +33,9 @@ const urlStyle: React.CSSProperties = {
   borderRadius: 4,
 };
 
-// @ts-expect-error
-const parser = new WMSCapabilities();
-
 const ImageList = () => {
   const allLayers = useSelector(getAllLayers);
-  const dispatch = useDispatch();
   const store = useStore();
-  const fetchStarted = useRef(false);
   const additionalLayersRef = useRef<
     { serviceName: string; title: string; layers: any[] }[]
   >([]);
@@ -69,8 +55,6 @@ const ImageList = () => {
     { title: string; url: string }[]
   >([]);
   const [search, setSearch] = useState("");
-  console.log("xxx", allLayers);
-  const [loading, setLoading] = useState(allLayers.length === 0);
 
   const addError = useCallback(
     (
@@ -127,77 +111,41 @@ const ImageList = () => {
     setSidebarElements: noopSetSidebarElements,
   });
 
-  useEffect(() => {
-    if (loadingAdditionalConfig || fetchStarted.current) return;
-    fetchStarted.current = true;
+  useLoadCapabilities({
+    loadingAdditionalConfig,
+    activeLayers: [] as any,
+    store,
+  });
 
-    const loadCapabilities = async () => {
-      let newLayers: any[] = [];
+  const loading = allLayers.length === 0;
 
-      for (const key in serviceConfig) {
-        const service = serviceConfig[key];
-        if (service.url) {
-          try {
-            const response = await fetch(
-              `${service.url}?service=WMS&request=GetCapabilities&version=1.1.1`
-            );
-            const text = await response.text();
-            const result = parser.toJSON(text);
-            if (result && config) {
-              const layerStructure = getLayerStructure({
-                config,
-                wms: result,
-                serviceName: service.name,
-                skipTopicMaps: true,
-                store,
-              });
-              newLayers = mergeStructures(layerStructure, newLayers);
-            }
-          } catch (error) {
-            console.error(`[ImageList] Error loading ${service.name}:`, error);
+  // Merge additional layers (from useAdditionalConfig) into WMS layers for display
+  const displayLayers = useMemo(() => {
+    if (allLayers.length === 0) return allLayers;
+    const merged = JSON.parse(JSON.stringify(allLayers));
+    for (const entry of additionalLayersRef.current) {
+      const existing = merged.find((cat: any) => cat.id === entry.serviceName);
+      if (existing) {
+        for (const layer of entry.layers) {
+          if (!existing.layers.some((l: any) => l.id === layer.id)) {
+            existing.layers.push(layer);
           }
-        } else if (service.type !== "topicmaps") {
-          const layerStructure = getLayerStructure({
-            config,
-            serviceName: service.name,
-            skipTopicMaps: true,
-            store,
-          });
-          newLayers = mergeStructures(layerStructure, newLayers);
         }
+      } else {
+        merged.push({
+          id: entry.serviceName,
+          Title: entry.title,
+          layers: entry.layers,
+        });
       }
-
-      // Merge additional standalone layers into the WMS results
-      for (const entry of additionalLayersRef.current) {
-        const existing = newLayers.find(
-          (cat: any) => cat.id === entry.serviceName
-        );
-        if (existing) {
-          for (const layer of entry.layers) {
-            if (!existing.layers.some((l: any) => l.id === layer.id)) {
-              existing.layers.push(layer);
-            }
-          }
-        } else {
-          newLayers.push({
-            id: entry.serviceName,
-            Title: entry.title,
-            layers: entry.layers,
-          });
-        }
-      }
-
-      dispatch(setAllLayers(newLayers));
-      setLoading(false);
-    };
-
-    loadCapabilities();
-  }, [loadingAdditionalConfig, dispatch, store]);
+    }
+    return merged;
+  }, [allLayers]);
 
   useEffect(() => {
     const parseLayers = async () => {
       const map: Record<string, Layer> = {};
-      for (const category of allLayers) {
+      for (const category of displayLayers) {
         for (const layer of category.layers) {
           try {
             const parsed = await parseToMapLayer(layer, false, false);
@@ -220,7 +168,7 @@ const ImageList = () => {
       setParsedLayerMap(map);
     };
     parseLayers();
-  }, [allLayers]);
+  }, [displayLayers]);
 
   const getLayerUrls = useCallback((layer: Item): string[] => {
     const urls: string[] = [];
@@ -246,9 +194,9 @@ const ImageList = () => {
   }, []);
 
   const filteredLayers = useMemo(() => {
-    if (!search.trim()) return allLayers;
+    if (!search.trim()) return displayLayers;
     const term = search.toLowerCase();
-    return allLayers
+    return displayLayers
       .map((category) => ({
         ...category,
         layers: category.layers.filter((layer) =>
@@ -256,7 +204,7 @@ const ImageList = () => {
         ),
       }))
       .filter((category) => category.layers.length > 0);
-  }, [allLayers, search, getLayerUrls]);
+  }, [displayLayers, search, getLayerUrls]);
 
   const renderErrorBox = (
     label: string,
@@ -481,7 +429,8 @@ const ImageList = () => {
           }}
         />
 
-        {getNumberOfLayers(filteredLayers) !== getNumberOfLayers(allLayers) && (
+        {getNumberOfLayers(filteredLayers) !==
+          getNumberOfLayers(displayLayers) && (
           <div style={{ marginBottom: 20 }}>
             <span
               style={{
@@ -495,7 +444,7 @@ const ImageList = () => {
               }}
             >
               Showing {getNumberOfLayers(filteredLayers)} of{" "}
-              {getNumberOfLayers(allLayers)} layers
+              {getNumberOfLayers(displayLayers)} layers
             </span>
           </div>
         )}
@@ -654,16 +603,20 @@ const ImageList = () => {
                             >
                               Angepasst
                             </div>
-                            <img
-                              src={updateUrl(layer.thumbnail)}
-                              alt={`${layer.title} Vorschaubild (Angepasst)`}
-                              style={imgStyle}
+                            <ThumbnailDisplay
+                              url={layer.thumbnail}
+                              updateUrl
                               onError={() =>
                                 handleThumbnailError(
                                   layer.title,
                                   updateUrl(layer.thumbnail)
                                 )
                               }
+                              style={{
+                                maxHeight: "200px",
+                                maxWidth: "356px",
+                                aspectRatio: "1.7777/1",
+                              }}
                             />
                             <div style={urlStyle}>
                               {updateUrl(layer.thumbnail)}
@@ -679,16 +632,19 @@ const ImageList = () => {
                             >
                               Original
                             </div>
-                            <img
-                              src={layer.thumbnail}
-                              alt={`${layer.title} Vorschaubild (Original)`}
-                              style={imgStyle}
+                            <ThumbnailDisplay
+                              url={layer.thumbnail}
                               onError={() =>
                                 handleThumbnailError(
                                   layer.title,
-                                  layer.thumbnail!
+                                  layer.thumbnail
                                 )
                               }
+                              style={{
+                                maxHeight: "200px",
+                                maxWidth: "356px",
+                                aspectRatio: "1.7777/1",
+                              }}
                             />
                             <div style={urlStyle}>{layer.thumbnail}</div>
                           </div>
@@ -726,10 +682,9 @@ const ImageList = () => {
                                 >
                                   Angepasst
                                 </div>
-                                <img
-                                  src={updateUrl(legend.OnlineResource)}
-                                  alt={`${layer.title} legend (updateUrl)`}
-                                  style={imgStyle}
+                                <LegendDisplay
+                                  url={legend.OnlineResource}
+                                  updateUrl
                                   onError={() =>
                                     handleLegendError(
                                       layer.title,
@@ -751,10 +706,8 @@ const ImageList = () => {
                                 >
                                   Original
                                 </div>
-                                <img
-                                  src={legend.OnlineResource}
-                                  alt={`${layer.title} legend (raw)`}
-                                  style={imgStyle}
+                                <LegendDisplay
+                                  url={legend.OnlineResource}
                                   onError={() =>
                                     handleLegendError(
                                       layer.title,

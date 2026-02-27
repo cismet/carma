@@ -32,9 +32,9 @@ const parser = new WMSCapabilities();
 interface UseLoadCapabilitiesProps {
   loadingAdditionalConfig: boolean;
   activeLayers: ActiveLayers;
-  updateActiveLayer: (layer: Layer) => void;
-  setLayers: (layers: any[]) => void;
-  setFilteredCategories: React.Dispatch<
+  updateActiveLayer?: (layer: Layer) => void;
+  setLayers?: (layers: any[]) => void;
+  setFilteredCategories?: React.Dispatch<
     React.SetStateAction<
       {
         id: string;
@@ -46,7 +46,7 @@ interface UseLoadCapabilitiesProps {
       }[]
     >
   >;
-  setAllCategories: React.Dispatch<
+  setAllCategories?: React.Dispatch<
     React.SetStateAction<
       {
         id: string;
@@ -58,7 +58,7 @@ interface UseLoadCapabilitiesProps {
       }[]
     >
   >;
-  getDataFromJson: (data: any) => {
+  getDataFromJson?: (data: any) => {
     Title: string;
     layers: any[];
   }[];
@@ -147,7 +147,8 @@ export const useLoadCapabilities = ({
                             !isEqual(
                               normalizedActiveLayer,
                               normalizedUpdatedLayer
-                            )
+                            ) &&
+                            updateActiveLayer
                           ) {
                             updateActiveLayer(updatedLayer);
                           }
@@ -167,7 +168,9 @@ export const useLoadCapabilities = ({
                   dispatch(setLoadingCapabilities(false));
                   dispatch(removeloadingCapabilitiesIDs(services[key].name));
                 } else {
-                  getDataFromJson(result);
+                  if (getDataFromJson) {
+                    getDataFromJson(result);
+                  }
                   dispatch(setLoadingCapabilities(false));
                   dispatch(removeloadingCapabilitiesIDs(services[key].name));
                 }
@@ -191,7 +194,9 @@ export const useLoadCapabilities = ({
             newLayers = mergedLayer;
             const updatedLayers: Layer[] = newLayers;
 
-            setLayers(updatedLayers);
+            if (setLayers) {
+              setLayers(updatedLayers);
+            }
             dispatch(setAllLayers(updatedLayers));
           }
         }
@@ -207,32 +212,35 @@ export const useLoadCapabilities = ({
       for (let key in partianTwinConfig) {
         partialTwinsCategories.push(partianTwinConfig[key]);
       }
+      if (setFilteredCategories) {
+        setFilteredCategories((prev) => {
+          if (prev.find((item) => item.id === "partialTwins")) {
+            prev.splice(
+              prev.findIndex((item) => item.id === "partialTwins"),
+              1
+            );
+          }
+          return [
+            ...prev,
+            { id: "partialTwins", categories: partialTwinsCategories },
+          ];
+        });
+      }
 
-      setFilteredCategories((prev) => {
-        if (prev.find((item) => item.id === "partialTwins")) {
-          prev.splice(
-            prev.findIndex((item) => item.id === "partialTwins"),
-            1
-          );
-        }
-        return [
-          ...prev,
-          { id: "partialTwins", categories: partialTwinsCategories },
-        ];
-      });
-
-      setAllCategories((prev) => {
-        if (prev.find((item) => item.id === "partialTwins")) {
-          prev.splice(
-            prev.findIndex((item) => item.id === "partialTwins"),
-            1
-          );
-        }
-        return [
-          ...prev,
-          { id: "partialTwins", categories: partialTwinsCategories },
-        ];
-      });
+      if (setAllCategories) {
+        setAllCategories((prev) => {
+          if (prev.find((item) => item.id === "partialTwins")) {
+            prev.splice(
+              prev.findIndex((item) => item.id === "partialTwins"),
+              1
+            );
+          }
+          return [
+            ...prev,
+            { id: "partialTwins", categories: partialTwinsCategories },
+          ];
+        });
+      }
     };
 
     if (!loadingAdditionalConfig) {
