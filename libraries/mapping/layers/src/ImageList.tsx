@@ -11,15 +11,7 @@ import { parseToMapLayer } from "@carma-mapping/utils";
 import { serviceConfig, baseConfig as config } from "./helper/config";
 import { getLayerStructure, mergeStructures } from "./helper/layerHelper";
 import LegendDisplay from "./components/LegendDisplay";
-
-const imgStyle: React.CSSProperties = {
-  maxWidth: 300,
-  maxHeight: 200,
-  objectFit: "contain",
-  borderRadius: 6,
-  boxShadow: "0 1px 4px rgba(0,0,0,0.10)",
-  background: "#fff",
-};
+import ThumbnailDisplay from "./components/ThumbnailDisplay";
 
 const badgeStyle: React.CSSProperties = {
   display: "inline-block",
@@ -655,16 +647,20 @@ const ImageList = () => {
                             >
                               Angepasst
                             </div>
-                            <img
-                              src={updateUrl(layer.thumbnail)}
-                              alt={`${layer.title} Vorschaubild (Angepasst)`}
-                              style={imgStyle}
+                            <ThumbnailDisplay
+                              url={layer.thumbnail}
+                              updateUrl
                               onError={() =>
                                 handleThumbnailError(
                                   layer.title,
                                   updateUrl(layer.thumbnail)
                                 )
                               }
+                              style={{
+                                maxHeight: "200px",
+                                maxWidth: "356px",
+                                aspectRatio: "1.7777/1",
+                              }}
                             />
                             <div style={urlStyle}>
                               {updateUrl(layer.thumbnail)}
@@ -680,16 +676,19 @@ const ImageList = () => {
                             >
                               Original
                             </div>
-                            <img
-                              src={layer.thumbnail}
-                              alt={`${layer.title} Vorschaubild (Original)`}
-                              style={imgStyle}
+                            <ThumbnailDisplay
+                              url={layer.thumbnail}
                               onError={() =>
                                 handleThumbnailError(
                                   layer.title,
-                                  layer.thumbnail!
+                                  layer.thumbnail
                                 )
                               }
+                              style={{
+                                maxHeight: "200px",
+                                maxWidth: "356px",
+                                aspectRatio: "1.7777/1",
+                              }}
                             />
                             <div style={urlStyle}>{layer.thumbnail}</div>
                           </div>
