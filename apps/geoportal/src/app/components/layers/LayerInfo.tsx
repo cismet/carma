@@ -8,8 +8,7 @@ import { useContext, useEffect, useState } from "react";
 import "./text.css";
 import { TopicMapContext } from "react-cismap/contexts/TopicMapContextProvider";
 import LayerInfoWrapper from "./LayerInfoWrapper";
-import { parseDescription } from "@carma-mapping/layers";
-import { updateUrl } from "@carma-commons/utils";
+import { LegendDisplay, parseDescription } from "@carma-mapping/layers";
 import { useMapFrameworkSwitcherContext } from "@carma-mapping/components";
 
 interface LayerInfoProps {
@@ -133,10 +132,10 @@ const LayerInfo = ({ description, legend, zoomLevels }: LayerInfoProps) => {
               <h5 className="pl-1.5">Legende</h5>
               <div className="h-full sm:overflow-auto">
                 {legend?.map((legend, i) => (
-                  <img
+                  <LegendDisplay
                     key={`legend_${i}`}
-                    src={updateUrl(legend.OnlineResource)}
-                    alt="Legende"
+                    url={legend.OnlineResource}
+                    updateUrl
                     className="aspect-auto h-auto object-contain overflow-clip"
                   />
                 ))}

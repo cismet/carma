@@ -10,6 +10,7 @@ import { updateUrl, extractCarmaConfig } from "@carma-commons/utils";
 import { parseToMapLayer } from "@carma-mapping/utils";
 import { serviceConfig, baseConfig as config } from "./helper/config";
 import { getLayerStructure, mergeStructures } from "./helper/layerHelper";
+import LegendDisplay from "./components/LegendDisplay";
 
 const imgStyle: React.CSSProperties = {
   maxWidth: 300,
@@ -726,10 +727,9 @@ const ImageList = () => {
                                 >
                                   Angepasst
                                 </div>
-                                <img
-                                  src={updateUrl(legend.OnlineResource)}
-                                  alt={`${layer.title} legend (updateUrl)`}
-                                  style={imgStyle}
+                                <LegendDisplay
+                                  url={legend.OnlineResource}
+                                  updateUrl
                                   onError={() =>
                                     handleLegendError(
                                       layer.title,
@@ -751,10 +751,8 @@ const ImageList = () => {
                                 >
                                   Original
                                 </div>
-                                <img
-                                  src={legend.OnlineResource}
-                                  alt={`${layer.title} legend (raw)`}
-                                  style={imgStyle}
+                                <LegendDisplay
+                                  url={legend.OnlineResource}
                                   onError={() =>
                                     handleLegendError(
                                       layer.title,

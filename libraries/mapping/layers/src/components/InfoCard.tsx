@@ -20,7 +20,7 @@ import isEqual from "lodash/isEqual";
 
 import { serviceOptions } from "@carma-commons/resources";
 import { BackgroundLayer, Item, Layer } from "@carma/types";
-import { extractCarmaConfig, updateUrl } from "@carma-commons/utils";
+import { extractCarmaConfig } from "@carma-commons/utils";
 
 import { parseDescription } from "../helper/layerHelper";
 import { Fragment, useState } from "react";
@@ -33,6 +33,7 @@ import { LayerButton, LayerIcon } from "@carma-mapping/components";
 
 import { useAuth } from "@carma-providers/auth";
 import type { ActiveLayers } from "./NewLibModal";
+import LegendDisplay from "./LegendDisplay";
 
 interface InfoCardProps {
   isFavorite: boolean;
@@ -714,11 +715,10 @@ const InfoCard = ({
                 <h5 className="font-semibold text-lg">Legende</h5>
                 <div className="h-full overflow-auto">
                   {legends?.map((legend, i) => (
-                    <img
+                    <LegendDisplay
                       key={`legend_${i}`}
-                      src={updateUrl(legend.OnlineResource)}
-                      alt="Legende"
-                      className="h-fit"
+                      url={legend.OnlineResource}
+                      updateUrl
                     />
                   ))}
                 </div>
