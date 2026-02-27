@@ -98,7 +98,13 @@ function ThreeDTreeLayer() {
 
       const customLayer = buildCustomLayer();
       layerRef.current = customLayer;
-      map.addLayer(customLayer);
+
+      // Insert BEFORE the first fill-extrusion layer (buildings) so trees
+      // render first. Buildings then blend on top with alpha, naturally
+      // dimming trees behind them while trees in front stay fully visible.
+      const styleLayers = map.getStyle().layers ?? [];
+      const firstExtrusion = styleLayers.find((l) => l.type === "fill-extrusion");
+      map.addLayer(customLayer, firstExtrusion?.id);
     };
 
     const trySync = () => {
@@ -157,12 +163,6 @@ export function Trees() {
                 libreLayers={[
                   {
                     type: "vector",
-                    name: "Gebaeude",
-                    style:
-                      "https://tiles.cismet.de/alkis/gebaeude-only.style.json",
-                  },
-                  {
-                    type: "vector",
                     name: "Einzelbaum Stamm",
                     style:
                       "https://tiles.cismet.de/einzelbaum_stamm/style.json",
@@ -172,6 +172,12 @@ export function Trees() {
                     name: "Einzelbaum Umringe",
                     style:
                       "https://tiles.cismet.de/einzelbaum_umringe/style.json",
+                  },
+                  {
+                    type: "vector",
+                    name: "Gebaeude",
+                    style:
+                      "https://tiles.cismet.de/alkis/gebaeude-only.style.json",
                   },
                 ]}
                 modalMenu={<Menu />}
