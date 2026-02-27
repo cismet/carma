@@ -1,4 +1,4 @@
-import type { PlanarPolygonGroup } from "@carma-mapping/engines/cesium/measurements";
+import type { PlanarPolygonGroup } from "@carma-mapping/annotations/cesium";
 import {
   SPATIAL_MARKUP_KIND_AREA,
   SPATIAL_MARKUP_KIND_PLANAR,

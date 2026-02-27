@@ -1,4 +1,4 @@
-import type { PointMeasurementEntry } from "@carma-mapping/engines/cesium/measurements";
+import type { PointMeasurementEntry } from "@carma-mapping/annotations/cesium";
 import { SPATIAL_MARKUP_KIND_LABEL } from "../../types/measurementKindRegistry";
 
 import type {

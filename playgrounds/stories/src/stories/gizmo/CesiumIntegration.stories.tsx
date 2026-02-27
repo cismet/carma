@@ -1,16 +1,20 @@
 import type { Meta, StoryObj } from "@storybook/react";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   Cartesian3,
   Cartesian4,
   Color,
+  Matrix3,
   Matrix4,
   PointPrimitiveCollection,
+  Quaternion,
   SceneTransforms,
+  ScreenSpaceEventHandler,
+  ScreenSpaceEventType,
   Transforms,
   defined,
-  type PointPrimitive,
   type CesiumWidget,
+  type PointPrimitive,
   type Scene,
 } from "@carma/cesium";
 import {
@@ -21,10 +25,18 @@ import {
 import {
   useCesiumPointMoveGizmo,
   useCesiumPointMoveGizmoConnector,
+  type CesiumGizmoRotationDelta,
   type CesiumMoveGizmoAxisCandidate,
-} from "@carma-mapping/engines-interop/gizmo/cesium-integration";
-import { WUPPERTAL } from "@carma-commons/resources";
+} from "@carma-mapping/gizmo/cesium";
 import { setupCesium } from "../map-framework-switcher/helpers/cesium-setup";
+import {
+  buildCubeLocalCorners,
+  createCubePrimitiveVisuals,
+  getCubePickTargetFromPickedObject,
+  resolveCubeAnchorLocalForPickTarget,
+  type CubePickTarget,
+  type CubePrimitiveVisuals,
+} from "./cubePrimitives";
 
 import "cesium/Build/Cesium/Widgets/widgets.css";
 
@@ -49,20 +61,24 @@ type GizmoSandboxProps = {
   gridDeltaScale: number;
 };
 
-const DOT_START_HEIGHT_M = 240;
+type CubeState = {
+  centerWorld: Cartesian3;
+  orientation: Quaternion;
+  anchorLocal: Cartesian3;
+  selectedTarget: CubePickTarget | null;
+};
+
 const DEMO_POINT_LABEL_ID = "gizmo-demo-point-label";
+const CUBE_HALF_SIZE_M = 10;
+const ROTATION_DELTA_EPSILON = 1e-7;
+const RATHAUS_START = {
+  longitude: 7.19993,
+  latitude: 51.27225,
+  height: 170,
+} as const;
 
 const number = (value: number, digits = 2) =>
   Number.isFinite(value) ? value.toFixed(digits) : "—";
-
-const safeCall = (callback: (() => void) | null | undefined) => {
-  if (!callback) return;
-  try {
-    callback();
-  } catch {
-    // Cesium teardown can race with effect cleanup.
-  }
-};
 
 const hasMeaningfulMatrixHeadChange = (
   previous: number[],
@@ -169,6 +185,57 @@ const getInitialAxisDirectionForMode = (
   return up ? Cartesian3.clone(up) : null;
 };
 
+const getEnuOrientationAtWorldPosition = (
+  centerWorld: Cartesian3
+): Quaternion => {
+  const enuFrame = Transforms.eastNorthUpToFixedFrame(centerWorld);
+  const enuRotation = Matrix4.getMatrix3(enuFrame, new Matrix3());
+  return Quaternion.normalize(
+    Quaternion.fromRotationMatrix(enuRotation, new Quaternion()),
+    new Quaternion()
+  );
+};
+
+const createInitialCubeState = (centerWorld: Cartesian3): CubeState => ({
+  centerWorld: Cartesian3.clone(centerWorld),
+  orientation: getEnuOrientationAtWorldPosition(centerWorld),
+  anchorLocal: new Cartesian3(0, 0, 0),
+  selectedTarget: null,
+});
+
+const getCubeModelMatrix = (
+  centerWorld: Cartesian3,
+  orientation: Quaternion
+): Matrix4 => {
+  const rotationMatrix = Matrix3.fromQuaternion(orientation, new Matrix3());
+  return Matrix4.fromRotationTranslation(
+    rotationMatrix,
+    centerWorld,
+    new Matrix4()
+  );
+};
+
+const getCubeAnchorWorld = (
+  cubeState: Pick<CubeState, "centerWorld" | "orientation" | "anchorLocal">
+): Cartesian3 => {
+  const modelMatrix = getCubeModelMatrix(
+    cubeState.centerWorld,
+    cubeState.orientation
+  );
+  return Matrix4.multiplyByPoint(
+    modelMatrix,
+    cubeState.anchorLocal,
+    new Cartesian3()
+  );
+};
+
+const describeCubePickTarget = (target: CubePickTarget | null): string => {
+  if (!target) return "cube-centroid";
+  if (target.kind === "corner") return `corner-${target.cornerIndex}`;
+  if (target.kind === "edge") return `edge-${target.edgeId}`;
+  return `face-${target.faceId}`;
+};
+
 const GizmoSandboxContent = ({
   rootRef,
   pointLon,
@@ -190,15 +257,47 @@ const GizmoSandboxContent = ({
     null
   );
   const pointPrimitiveRef = useRef<PointPrimitive | null>(null);
+  const cubeVisualsRef = useRef<CubePrimitiveVisuals | null>(null);
   const [scene, setScene] = useState<Scene | null>(null);
 
-  const initialPoint = useMemo(
+  const initialCubeCenter = useMemo(
     () => Cartesian3.fromDegrees(pointLon, pointLat, pointHeight),
     [pointLon, pointLat, pointHeight]
   );
 
+  const localCorners = useMemo(
+    () => buildCubeLocalCorners(CUBE_HALF_SIZE_M),
+    []
+  );
+
+  const [cubeState, setCubeState] = useState<CubeState>(() =>
+    createInitialCubeState(initialCubeCenter)
+  );
+
   const [viewMatrixSnapshot, setViewMatrixSnapshot] = useState<number[]>(
     Array.from({ length: 16 }, () => 0)
+  );
+
+  const handleAnchorPositionChange = useCallback(
+    (_pointId: string, nextAnchorWorld: Cartesian3) => {
+      setCubeState((previous) => {
+        const previousAnchorWorld = getCubeAnchorWorld(previous);
+        const translationDelta = Cartesian3.subtract(
+          nextAnchorWorld,
+          previousAnchorWorld,
+          new Cartesian3()
+        );
+        return {
+          ...previous,
+          centerWorld: Cartesian3.add(
+            previous.centerWorld,
+            translationDelta,
+            new Cartesian3()
+          ),
+        };
+      });
+    },
+    []
   );
 
   const {
@@ -208,18 +307,31 @@ const GizmoSandboxContent = ({
     activeAxisDirection: activeAxis,
     gizmoBinding,
   } = useCesiumPointMoveGizmoConnector({
-    initialPoint,
-    movePointId: "demo-point",
+    initialPoint: initialCubeCenter,
+    movePointId: "cube-anchor",
+    onPointPositionChange: handleAnchorPositionChange,
   });
 
-  const storyStartPoint = useMemo(
+  useEffect(() => {
+    const nextState = createInitialCubeState(initialCubeCenter);
+    setCubeState(nextState);
+    setPointPosition(getCubeAnchorWorld(nextState));
+    scene?.requestRender();
+  }, [initialCubeCenter, scene, setPointPosition]);
+
+  const cubeModelMatrix = useMemo(
+    () => getCubeModelMatrix(cubeState.centerWorld, cubeState.orientation),
+    [cubeState.centerWorld, cubeState.orientation]
+  );
+
+  const cubeAnchorWorld = useMemo(
     () =>
-      Cartesian3.fromDegrees(
-        WUPPERTAL.position.longitude,
-        WUPPERTAL.position.latitude,
-        DOT_START_HEIGHT_M
+      Matrix4.multiplyByPoint(
+        cubeModelMatrix,
+        cubeState.anchorLocal,
+        new Cartesian3()
       ),
-    []
+    [cubeModelMatrix, cubeState.anchorLocal]
   );
 
   useEffect(() => {
@@ -249,13 +361,13 @@ const GizmoSandboxContent = ({
       widgetRef.current = widget;
       setScene(widget.scene);
 
-      setPointPosition(storyStartPoint);
+      setPointPosition(initialCubeCenter);
 
       const pointCollection = new PointPrimitiveCollection();
       widget.scene.primitives.add(pointCollection);
       pointPrimitiveCollectionRef.current = pointCollection;
       pointPrimitiveRef.current = pointCollection.add({
-        position: storyStartPoint,
+        position: initialCubeCenter,
         pixelSize: 14,
         color: Color.CYAN,
         outlineColor: Color.WHITE,
@@ -272,6 +384,10 @@ const GizmoSandboxContent = ({
       mounted = false;
       pointPrimitiveRef.current = null;
       pointPrimitiveCollectionRef.current = null;
+      if (cubeVisualsRef.current) {
+        cubeVisualsRef.current.destroy();
+        cubeVisualsRef.current = null;
+      }
       if (widgetRef.current) {
         try {
           if (!widgetRef.current.isDestroyed()) {
@@ -284,7 +400,100 @@ const GizmoSandboxContent = ({
       widgetRef.current = null;
       setScene(null);
     };
-  }, [initialPoint, setPointPosition, storyStartPoint]);
+  }, [initialCubeCenter, setPointPosition]);
+
+  useEffect(() => {
+    if (!scene || scene.isDestroyed()) {
+      if (cubeVisualsRef.current) {
+        cubeVisualsRef.current.destroy();
+        cubeVisualsRef.current = null;
+      }
+      return;
+    }
+
+    const visuals = createCubePrimitiveVisuals(scene, localCorners);
+    cubeVisualsRef.current = visuals;
+
+    visuals.setTransform(cubeModelMatrix);
+    visuals.setSelection(cubeState.selectedTarget);
+    scene.requestRender();
+
+    return () => {
+      visuals.destroy();
+      if (cubeVisualsRef.current === visuals) {
+        cubeVisualsRef.current = null;
+      }
+    };
+  }, [localCorners, scene]);
+
+  useEffect(() => {
+    if (!scene || scene.isDestroyed()) return;
+    const visuals = cubeVisualsRef.current;
+    if (!visuals) return;
+
+    visuals.setTransform(cubeModelMatrix);
+    scene.requestRender();
+  }, [cubeModelMatrix, scene]);
+
+  useEffect(() => {
+    if (!scene || scene.isDestroyed()) return;
+    const visuals = cubeVisualsRef.current;
+    if (!visuals) return;
+
+    visuals.setSelection(cubeState.selectedTarget);
+    scene.requestRender();
+  }, [cubeState.selectedTarget, scene]);
+
+  useEffect(() => {
+    if (!scene || scene.isDestroyed()) return;
+
+    const handler = new ScreenSpaceEventHandler(scene.canvas);
+    handler.setInputAction(
+      (movement: { position?: { x: number; y: number } }) => {
+        if (dragging || !movement.position) return;
+
+        const pickedObject = scene.pick(movement.position);
+        const target = getCubePickTargetFromPickedObject(pickedObject);
+        if (!target) return;
+
+        let nextAnchorWorld: Cartesian3 | null = null;
+
+        setCubeState((previous) => {
+          const nextAnchorLocal = resolveCubeAnchorLocalForPickTarget(
+            target,
+            localCorners
+          );
+          const cubeModelMatrixAtPick = getCubeModelMatrix(
+            previous.centerWorld,
+            previous.orientation
+          );
+
+          nextAnchorWorld = Matrix4.multiplyByPoint(
+            cubeModelMatrixAtPick,
+            nextAnchorLocal,
+            new Cartesian3()
+          );
+
+          return {
+            ...previous,
+            anchorLocal: nextAnchorLocal,
+            selectedTarget: target,
+          };
+        });
+
+        if (nextAnchorWorld) {
+          setPointPosition(nextAnchorWorld);
+        }
+
+        scene.requestRender();
+      },
+      ScreenSpaceEventType.LEFT_DOWN
+    );
+
+    return () => {
+      handler.destroy();
+    };
+  }, [dragging, localCorners, scene, setPointPosition]);
 
   useEffect(() => {
     if (!showGridMirror || !scene || scene.isDestroyed()) {
@@ -315,11 +524,64 @@ const GizmoSandboxContent = ({
 
   useEffect(() => {
     const point = pointPrimitiveRef.current;
-    if (point) {
-      point.position = pointPosition;
-      scene?.requestRender();
-    }
+    if (!point) return;
+
+    point.position = pointPosition;
+    scene?.requestRender();
   }, [pointPosition, scene]);
+
+  const handleRotationDelta = useCallback((delta: CesiumGizmoRotationDelta) => {
+    if (Math.abs(delta.deltaAngleRad) <= ROTATION_DELTA_EPSILON) {
+      return;
+    }
+
+    setCubeState((previous) => {
+      const normalizedAxis = Cartesian3.normalize(
+        delta.rotationNormal,
+        new Cartesian3()
+      );
+      const stepRotation = Quaternion.fromAxisAngle(
+        normalizedAxis,
+        delta.deltaAngleRad,
+        new Quaternion()
+      );
+
+      const centerOffset = Cartesian3.subtract(
+        previous.centerWorld,
+        delta.axisOrigin,
+        new Cartesian3()
+      );
+      const stepRotationMatrix = Matrix3.fromQuaternion(
+        stepRotation,
+        new Matrix3()
+      );
+      const rotatedOffset = Matrix3.multiplyByVector(
+        stepRotationMatrix,
+        centerOffset,
+        new Cartesian3()
+      );
+      const nextCenterWorld = Cartesian3.add(
+        delta.axisOrigin,
+        rotatedOffset,
+        new Cartesian3()
+      );
+
+      const nextOrientation = Quaternion.normalize(
+        Quaternion.multiply(
+          stepRotation,
+          previous.orientation,
+          new Quaternion()
+        ),
+        new Quaternion()
+      );
+
+      return {
+        ...previous,
+        centerWorld: nextCenterWorld,
+        orientation: nextOrientation,
+      };
+    });
+  }, []);
 
   const axisCandidates = useMemo(
     () => buildCandidates(axisMode, pointPosition, axisTitle),
@@ -330,8 +592,9 @@ const GizmoSandboxContent = ({
     axisMode === "geoportal-default" ? null : axisCandidates;
   const axisTitleForHook = axisMode === "geoportal-default" ? null : axisTitle;
   const initialAxisDirection = useMemo(
-    () => getInitialAxisDirectionForMode(axisMode, storyStartPoint, axisTitle),
-    [axisMode, axisTitle, storyStartPoint]
+    () =>
+      getInitialAxisDirectionForMode(axisMode, initialCubeCenter, axisTitle),
+    [axisMode, axisTitle, initialCubeCenter]
   );
   const axisDirectionForHook =
     axisMode === "geoportal-default" || activeAxis
@@ -343,8 +606,14 @@ const GizmoSandboxContent = ({
     axisTitle: axisTitleForHook,
     axisCandidates: axisCandidatesForHook,
     axisDirection: axisDirectionForHook,
+    onRotationDelta: handleRotationDelta,
     radius,
   });
+
+  const selectedTargetLabel = useMemo(
+    () => describeCubePickTarget(cubeState.selectedTarget),
+    [cubeState.selectedTarget]
+  );
 
   useEffect(() => {
     if (!scene || scene.isDestroyed() || !showPointLabelVis) {
@@ -357,7 +626,7 @@ const GizmoSandboxContent = ({
       zIndex: 20,
       content: (
         <PointLabel
-          content="Demo Point"
+          content={`Anchor (${selectedTargetLabel})`}
           lineColor="rgba(255,255,255,0.95)"
           textColor="white"
           textBackgroundColor="rgba(15,23,42,0.85)"
@@ -386,15 +655,17 @@ const GizmoSandboxContent = ({
     };
   }, [
     addLabelOverlayElement,
+    pointPosition,
     removeLabelOverlayElement,
     scene,
+    selectedTargetLabel,
     showPointLabelVis,
-    pointPosition,
   ]);
 
   const delta = useMemo(
-    () => Cartesian3.subtract(pointPosition, initialPoint, new Cartesian3()),
-    [pointPosition, initialPoint]
+    () =>
+      Cartesian3.subtract(pointPosition, initialCubeCenter, new Cartesian3()),
+    [pointPosition, initialCubeCenter]
   );
 
   const cssGridTransform = useMemo(() => {
@@ -474,12 +745,21 @@ const GizmoSandboxContent = ({
               <strong>Drag state:</strong> {dragging ? "dragging" : "idle"}
             </div>
             <div>
+              <strong>Anchor target:</strong> {selectedTargetLabel}
+            </div>
+            <div>
               <strong>ECEF Δx/Δy/Δz:</strong> {number(delta.x, 2)} /{" "}
               {number(delta.y, 2)} / {number(delta.z, 2)}
             </div>
             <div>
-              <strong>Point x/y/z:</strong> {number(pointPosition.x, 1)} /{" "}
+              <strong>Anchor x/y/z:</strong> {number(pointPosition.x, 1)} /{" "}
               {number(pointPosition.y, 1)} / {number(pointPosition.z, 1)}
+            </div>
+            <div>
+              <strong>Cube center x/y/z:</strong>{" "}
+              {number(cubeState.centerWorld.x, 1)} /{" "}
+              {number(cubeState.centerWorld.y, 1)} /{" "}
+              {number(cubeState.centerWorld.z, 1)}
             </div>
             <div>
               <strong>Camera h:</strong>{" "}
@@ -500,6 +780,10 @@ const GizmoSandboxContent = ({
                 .slice(0, 4)
                 .map((value) => number(value, 3))
                 .join(", ")}
+            </div>
+            <div>
+              <strong>Anchor err:</strong>{" "}
+              {number(Cartesian3.distance(pointPosition, cubeAnchorWorld), 4)}m
             </div>
           </div>
         </div>
@@ -548,12 +832,12 @@ export default meta;
 export const Cesium: StoryObj<GizmoSandboxProps> = {
   name: "Cesium Integration",
   args: {
-    pointLon: 7.1527,
-    pointLat: 51.2562,
-    pointHeight: 165,
+    pointLon: RATHAUS_START.longitude,
+    pointLat: RATHAUS_START.latitude,
+    pointHeight: RATHAUS_START.height,
     radius: 8,
     axisMode: "enu",
-    axisTitle: "Move point along selected axis",
+    axisTitle: "Move cube anchor along selected axis",
     showGridMirror: false,
     showPointLabelVis: true,
     gridTiltDeg: 62,

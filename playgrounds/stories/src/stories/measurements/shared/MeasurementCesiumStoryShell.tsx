@@ -19,7 +19,7 @@ import {
   MapMeasurementsProvider,
   type MEASUREMENT_MODE,
 } from "../../../../../libraries/commons/measurements/src";
-import { CesiumMeasurementsProvider } from "../../../../../libraries/mapping/engines/cesium/measurements/src";
+import { CesiumMeasurementsProvider } from "@carma-mapping/annotations/cesium";
 import {
   CesiumContext,
   type CesiumContextType,

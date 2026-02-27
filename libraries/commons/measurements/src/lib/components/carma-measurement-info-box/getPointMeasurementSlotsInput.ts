@@ -2,7 +2,7 @@ import type { Cartesian3 } from "@carma/cesium";
 import type {
   MeasurementMode,
   PointMeasurementEntry,
-} from "@carma-mapping/engines/cesium/measurements";
+} from "@carma-mapping/annotations/cesium";
 import { SPATIAL_MARKUP_KIND_POINT } from "../../types/measurementKindRegistry";
 
 import type { MeasurementListType } from "../../context/MeasurementsContext";

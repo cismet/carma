@@ -12,7 +12,7 @@ import {
   type GizmoVec3,
   type ProjectedMoveGizmoAxisCandidate,
   type ProjectedMoveGizmoView,
-} from "@carma-mapping/engines-interop/gizmo/core";
+} from "@carma-mapping/gizmo/core";
 
 type CoreCssStoryProps = {
   initialOffset: number;

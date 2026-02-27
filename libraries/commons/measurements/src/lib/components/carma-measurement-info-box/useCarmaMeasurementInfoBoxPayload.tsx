@@ -5,7 +5,7 @@ import {
   useCesiumMeasurements,
   type MeasurementEntry,
   type MeasurementMode,
-} from "@carma-mapping/engines/cesium/measurements";
+} from "@carma-mapping/annotations/cesium";
 
 import { useMeasurements } from "../../context/MeasurementsContext";
 import { useMeasurementSelection } from "../../context/MeasurementSelectionContext";

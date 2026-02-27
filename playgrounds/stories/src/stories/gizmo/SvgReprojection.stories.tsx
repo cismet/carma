@@ -6,7 +6,7 @@ import {
   transformPointWithMatrix,
   type GizmoVec3,
   type SvgProjectedPoint,
-} from "@carma-mapping/engines-interop/gizmo/core";
+} from "@carma-mapping/gizmo/core";
 
 type SvgReprojectionProps = {
   fovDeg: number;

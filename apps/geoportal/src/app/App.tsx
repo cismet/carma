@@ -32,7 +32,7 @@ import {
   MEASUREMENT_MODE,
 } from "@carma-commons/measurements";
 import { LabelOverlayProvider } from "@carma-providers/label-overlay";
-import { CesiumMeasurementsProvider } from "@carma-mapping/engines/cesium/measurements";
+import { CesiumMeasurementsProvider } from "@carma-mapping/annotations/cesium";
 
 // Local Modules
 import AppErrorFallback from "./components/AppErrorFallback";

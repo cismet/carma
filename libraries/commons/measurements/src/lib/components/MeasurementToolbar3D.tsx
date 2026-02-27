@@ -4,7 +4,7 @@ import {
   isPointMeasurementEntry,
   MeasurementMode,
   type MeasurementEntry,
-} from "@carma-mapping/engines/cesium/measurements";
+} from "@carma-mapping/annotations/cesium";
 import { MeasurementModeToolbar } from "./MeasurementModeToolbar";
 import { useMeasurementToolMode } from "./hooks/useMeasurementToolMode";
 import { useMeasurements } from "../context/MeasurementsContext";

@@ -7,7 +7,7 @@ import {
   LINEAR_SEGMENT_LINE_MODE_DIRECT,
   type PolylineSegmentLineMode,
   MeasurementMode,
-} from "../../../../../libraries/mapping/engines/cesium/measurements/src/lib/types/MeasurementTypes";
+} from "@carma-mapping/annotations/cesium";
 import type {
   MeasurementScriptRequestEventDetail,
   MeasurementScriptResponseEventDetail,
@@ -15,7 +15,7 @@ import type {
   MeasurementScriptRpcResponse,
   MeasurementScriptStateSnapshot,
   MeasurementScriptWindowApi,
-} from "../../../../../libraries/mapping/engines/cesium/measurements/src/lib/types/MeasurementScriptApi";
+} from "@carma-mapping/annotations/cesium";
 import { MeasurementCesiumStoryShell } from "./shared/MeasurementCesiumStoryShell";
 import {
   SPATIAL_MARKUP_KIND_AREA,

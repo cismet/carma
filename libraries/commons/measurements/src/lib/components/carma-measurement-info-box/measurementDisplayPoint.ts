@@ -1,5 +1,5 @@
 import { Cartesian3, getDegreesFromCartesian } from "@carma/cesium";
-import type { PointMeasurementEntry } from "@carma-mapping/engines/cesium/measurements";
+import type { PointMeasurementEntry } from "@carma-mapping/annotations/cesium";
 
 import type { MeasurementDisplayPoint } from "./getCarmaMeasurementInfoBoxSlots";
 

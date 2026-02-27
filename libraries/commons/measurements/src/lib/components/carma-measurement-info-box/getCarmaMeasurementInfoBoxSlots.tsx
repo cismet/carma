@@ -7,7 +7,7 @@ import {
   getCustomPointMeasurementName,
   type MeasurementEntry,
   type PointMeasurementEntry,
-} from "@carma-mapping/engines/cesium/measurements";
+} from "@carma-mapping/annotations/cesium";
 import { Tooltip } from "antd";
 import {
   faArrowsDownToLine,

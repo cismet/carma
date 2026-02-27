@@ -1,0 +1,19 @@
+{
+  "name": "annotations-core",
+  "$schema": "../../../../node_modules/nx/schemas/project-schema.json",
+  "sourceRoot": "libraries/mapping/annotations/core/src",
+  "projectType": "library",
+  "tags": ["type:library", "scope:mapping"],
+  "targets": {
+    "lint": {
+      "executor": "@nx/eslint:lint"
+    },
+    "build": {
+      "executor": "@nx/vite:build",
+      "outputs": ["{options.outputPath}"],
+      "options": {
+        "outputPath": "dist/libraries/mapping/annotations/core"
+      }
+    }
+  }
+}

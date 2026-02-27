@@ -3,13 +3,13 @@ import type {
   MeasurementMode,
   PointDistanceRelation,
   PointMeasurementEntry,
-} from "@carma-mapping/engines/cesium/measurements";
+} from "@carma-mapping/annotations/cesium";
 import { SPATIAL_MARKUP_KIND_DISTANCE } from "../../types/measurementKindRegistry";
 import {
   getCustomPointMeasurementName,
   getENU,
   getEuclideanDistance,
-} from "@carma-mapping/engines/cesium/measurements";
+} from "@carma-mapping/annotations/cesium";
 
 import type { MeasurementListType } from "../../context/MeasurementsContext";
 import type {

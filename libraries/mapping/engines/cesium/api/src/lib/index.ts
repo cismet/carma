@@ -7,6 +7,8 @@
 
 // Pure re-exports from Cesium
 export {
+  BoxGeometry,
+  BoxOutlineGeometry,
   Cartesian4,
   ClassificationType,
   ClippingPlaneCollection,
@@ -50,6 +52,7 @@ export {
   ShadowMode,
   Transforms,
   VerticalOrigin,
+  VertexFormat,
   // Viewer intentionally left out - use CesiumWidget instead
   WebMapServiceImageryProvider,
   WebMapTileServiceImageryProvider,
