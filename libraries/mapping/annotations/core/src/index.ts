@@ -15,6 +15,7 @@ export { useMapLibreMap } from "./lib/hooks/useMapLibreMap";
 export * from "./lib/distanceOverlayDom";
 export * from "./lib/distanceScreenSpace";
 export * from "./lib/useDistancePairLabelOverlays";
+export * from "./lib/preview/measurementPreviewVisuals";
 export {
   EDITABLE_LINE_MEASUREMENT_KINDS,
   getSplitMarkerRelationIdsByKind,

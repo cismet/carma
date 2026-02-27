@@ -1,13 +1,112 @@
 import { Cartesian3 } from "@carma/cesium";
 
-import {
-  type PlanarPolygonGroup,
-  type PointMeasurementEntry,
-} from "../types/MeasurementTypes";
-import { buildFacadeRectangleCornerFromDiagonal } from "../utils/cartesianGeometry";
+import { type PlanarPolygonGroup } from "../types/measurementTypes";
 
 export const POLYGON_PREVIEW_STROKE = "rgba(255, 255, 255, 0.65)";
 export const POLYGON_PREVIEW_STROKE_WIDTH_PX = 1;
+
+const FACADE_RECTANGLE_COMPONENT_EPSILON_METERS = 0.05;
+
+type PointWithGeometryECEF = {
+  geometryECEF: Cartesian3;
+};
+
+type PreviewPlane = {
+  anchorECEF: Cartesian3;
+  normalECEF: Cartesian3;
+};
+
+const createPlaneFromThreePoints = (
+  a: Cartesian3,
+  b: Cartesian3,
+  c: Cartesian3
+): PreviewPlane | null => {
+  const ab = Cartesian3.subtract(b, a, new Cartesian3());
+  const ac = Cartesian3.subtract(c, a, new Cartesian3());
+  const normal = Cartesian3.cross(ab, ac, new Cartesian3());
+  if (Cartesian3.magnitudeSquared(normal) <= 1e-8) return null;
+
+  return {
+    anchorECEF: Cartesian3.clone(a),
+    normalECEF: Cartesian3.normalize(normal, new Cartesian3()),
+  };
+};
+
+const projectPointOntoPlane = (
+  point: Cartesian3,
+  plane: PreviewPlane
+): Cartesian3 => {
+  const delta = Cartesian3.subtract(point, plane.anchorECEF, new Cartesian3());
+  const distanceAlongNormal = Cartesian3.dot(delta, plane.normalECEF);
+  return Cartesian3.subtract(
+    point,
+    Cartesian3.multiplyByScalar(
+      plane.normalECEF,
+      distanceAlongNormal,
+      new Cartesian3()
+    ),
+    new Cartesian3()
+  );
+};
+
+const buildFacadeRectangleCornerFromDiagonal = (
+  firstCorner: Cartesian3,
+  oppositeCorner: Cartesian3
+) => {
+  const up = Cartesian3.normalize(firstCorner, new Cartesian3());
+  const diagonal = Cartesian3.subtract(
+    oppositeCorner,
+    firstCorner,
+    new Cartesian3()
+  );
+  const verticalMeters = Cartesian3.dot(diagonal, up);
+  const verticalComponent = Cartesian3.multiplyByScalar(
+    up,
+    verticalMeters,
+    new Cartesian3()
+  );
+  const horizontalComponent = Cartesian3.subtract(
+    diagonal,
+    verticalComponent,
+    new Cartesian3()
+  );
+  const horizontalMeters = Cartesian3.magnitude(horizontalComponent);
+  const verticalAbsoluteMeters = Math.abs(verticalMeters);
+
+  if (
+    horizontalMeters < FACADE_RECTANGLE_COMPONENT_EPSILON_METERS ||
+    verticalAbsoluteMeters < FACADE_RECTANGLE_COMPONENT_EPSILON_METERS
+  ) {
+    return null;
+  }
+
+  const adjacentHorizontalCorner = Cartesian3.add(
+    firstCorner,
+    horizontalComponent,
+    new Cartesian3()
+  );
+  const adjacentVerticalCorner = Cartesian3.add(
+    firstCorner,
+    verticalComponent,
+    new Cartesian3()
+  );
+
+  const planeUpAnchor = Cartesian3.add(firstCorner, up, new Cartesian3());
+  const verticalPlane = createPlaneFromThreePoints(
+    firstCorner,
+    planeUpAnchor,
+    adjacentHorizontalCorner
+  );
+
+  return {
+    adjacentHorizontalCorner: verticalPlane
+      ? projectPointOntoPlane(adjacentHorizontalCorner, verticalPlane)
+      : adjacentHorizontalCorner,
+    adjacentVerticalCorner: verticalPlane
+      ? projectPointOntoPlane(adjacentVerticalCorner, verticalPlane)
+      : adjacentVerticalCorner,
+  };
+};
 
 export type PolygonPreviewGroup = {
   group: PlanarPolygonGroup;
@@ -54,6 +153,27 @@ export type PolygonPreviewGroupsBySurface = {
   planarPolygonPreviewGroups: PlanarPolygonPreviewGroup[];
 };
 
+export type PolygonPreviewBuildParams = {
+  planarPolygonGroups: PlanarPolygonGroup[];
+  pointsById: ReadonlyMap<string, PointWithGeometryECEF>;
+  facadeRectanglePreviewOppositeByGroupId?: Readonly<
+    Record<string, Cartesian3>
+  >;
+  activePlanarPolygonGroupId?: string | null;
+  livePreviewDistanceLine?: {
+    anchorPointECEF: Cartesian3;
+    targetPointECEF: Cartesian3;
+    showDirectLine: boolean;
+    showVerticalLine: boolean;
+    showHorizontalLine: boolean;
+  } | null;
+};
+
+const getPlanarGroupMeasurementKind = (
+  group: Pick<PlanarPolygonGroup, "measurementKind" | "closed">
+): "polyline" | "area" =>
+  group.measurementKind ?? (group.closed ? "area" : "polyline");
+
 const isGroundPolygonPreviewGroup = (
   previewGroup: PolygonPreviewGroup
 ): previewGroup is GroundPolygonPreviewGroup => {
@@ -77,23 +197,14 @@ export const buildPolygonPreviewGroups = ({
   facadeRectanglePreviewOppositeByGroupId,
   activePlanarPolygonGroupId,
   livePreviewDistanceLine,
-}: {
-  planarPolygonGroups: PlanarPolygonGroup[];
-  pointsById: ReadonlyMap<string, PointMeasurementEntry>;
-  facadeRectanglePreviewOppositeByGroupId?: Readonly<
-    Record<string, Cartesian3>
-  >;
-  activePlanarPolygonGroupId?: string | null;
-  livePreviewDistanceLine?: {
-    anchorPointECEF: Cartesian3;
-    targetPointECEF: Cartesian3;
-    showDirectLine: boolean;
-    showVerticalLine: boolean;
-    showHorizontalLine: boolean;
-  } | null;
-}): PolygonPreviewGroup[] =>
+}: PolygonPreviewBuildParams): PolygonPreviewGroup[] =>
   planarPolygonGroups
     .map((group) => {
+      const measurementKind = getPlanarGroupMeasurementKind(group);
+      if (measurementKind !== "area") {
+        return null;
+      }
+
       if (group.closed && group.vertexPointIds.length >= 3) {
         const vertexPoints = group.vertexPointIds
           .map((pointId) => pointsById.get(pointId)?.geometryECEF)
@@ -165,10 +276,7 @@ export const buildPolygonPreviewGroups = ({
 
         return {
           group,
-          vertexPoints: [
-            ...baseVertexPoints,
-            Cartesian3.clone(previewTargetPoint),
-          ],
+          vertexPoints: [...baseVertexPoints, Cartesian3.clone(previewTargetPoint)],
         };
       }
 
@@ -183,34 +291,28 @@ export const buildPolygonPreviewGroups = ({
       } => Boolean(previewGroup && previewGroup.vertexPoints.length >= 3)
     );
 
-export const buildPolygonPreviewGroupsBySurface = (params: {
-  planarPolygonGroups: PlanarPolygonGroup[];
-  pointsById: ReadonlyMap<string, PointMeasurementEntry>;
-  facadeRectanglePreviewOppositeByGroupId?: Readonly<
-    Record<string, Cartesian3>
-  >;
-  activePlanarPolygonGroupId?: string | null;
-  livePreviewDistanceLine?: {
-    anchorPointECEF: Cartesian3;
-    targetPointECEF: Cartesian3;
-    showDirectLine: boolean;
-    showVerticalLine: boolean;
-    showHorizontalLine: boolean;
-  } | null;
-}): PolygonPreviewGroupsBySurface => {
-  const polygonPreviewGroups = buildPolygonPreviewGroups(params);
-  return {
-    groundPolygonPreviewGroups: polygonPreviewGroups.filter(
-      isGroundPolygonPreviewGroup
-    ),
-    verticalPolygonPreviewGroups: polygonPreviewGroups.filter(
-      isVerticalPolygonPreviewGroup
-    ),
-    planarPolygonPreviewGroups: polygonPreviewGroups.filter(
-      isPlanarPolygonPreviewGroup
-    ),
-  };
-};
+export const buildGroundPolygonPreviewGroups = (
+  params: PolygonPreviewBuildParams
+): GroundPolygonPreviewGroup[] =>
+  buildPolygonPreviewGroups(params).filter(isGroundPolygonPreviewGroup);
+
+export const buildVerticalPolygonPreviewGroups = (
+  params: PolygonPreviewBuildParams
+): VerticalPolygonPreviewGroup[] =>
+  buildPolygonPreviewGroups(params).filter(isVerticalPolygonPreviewGroup);
+
+export const buildPlanarPolygonPreviewGroups = (
+  params: PolygonPreviewBuildParams
+): PlanarPolygonPreviewGroup[] =>
+  buildPolygonPreviewGroups(params).filter(isPlanarPolygonPreviewGroup);
+
+export const buildPolygonPreviewGroupsBySurface = (
+  params: PolygonPreviewBuildParams
+): PolygonPreviewGroupsBySurface => ({
+  groundPolygonPreviewGroups: buildGroundPolygonPreviewGroups(params),
+  verticalPolygonPreviewGroups: buildVerticalPolygonPreviewGroups(params),
+  planarPolygonPreviewGroups: buildPlanarPolygonPreviewGroups(params),
+});
 
 export const buildFacadePreviewEdgeSegments = (
   polygonPreviewGroups: PolygonPreviewGroup[]
@@ -269,7 +371,7 @@ export const buildPolylinePreviewMeasurements = ({
   facadeRectanglePreviewOppositeByGroupId,
 }: {
   planarPolygonGroups: PlanarPolygonGroup[];
-  pointsById: ReadonlyMap<string, PointMeasurementEntry>;
+  pointsById: ReadonlyMap<string, PointWithGeometryECEF>;
   facadeRectanglePreviewOppositeByGroupId?: Readonly<
     Record<string, Cartesian3>
   >;

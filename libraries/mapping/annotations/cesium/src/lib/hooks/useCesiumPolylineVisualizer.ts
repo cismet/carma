@@ -6,18 +6,17 @@ import {
   type LineVisualizer,
 } from "@carma-mapping/engines/cesium/legacy";
 import {
-  useLabelOverlay,
-  useLineVisualizers,
-} from "@carma-providers/label-overlay";
-
-import {
   buildPolylinePreviewCornerMarkers,
   buildPolylinePreviewEdgeSegments,
   POLYGON_PREVIEW_STROKE,
   POLYGON_PREVIEW_STROKE_WIDTH_PX,
   type FacadePreviewEdgeSegment,
   type PolylinePreviewMeasurement,
-} from "./measurementPreviewVisuals";
+} from "@carma-mapping/annotations/core";
+import {
+  useLabelOverlay,
+  useLineVisualizers,
+} from "@carma-providers/label-overlay";
 
 const FACADE_CORNER_OVERLAY_ID_PREFIX = "distance-facade-corner";
 const FACADE_CORNER_MARKER_SIZE_PX = 10;

@@ -10,7 +10,12 @@ import {
   type PointMeasurementEntry,
   type ReferenceLineLabelKind,
 } from "../types/MeasurementTypes";
-import { useMeasurementFamilyPartition } from "./measurementFamilyPartition";
+import { useAreaPreviewSharedModel } from "./useAreaPreviewSharedModel";
+import { useDistancePreviewModel } from "./useDistancePreviewModel";
+import { useGroundAreaPreviewModel } from "./useGroundAreaPreviewModel";
+import { usePlanarAreaPreviewModel } from "./usePlanarAreaPreviewModel";
+import { usePolylinePreviewModel } from "./usePolylinePreviewModel";
+import { useVerticalAreaPreviewModel } from "./useVerticalAreaPreviewModel";
 import { useDistanceVisualizer } from "./useDistanceVisualizer";
 import {
   useCesiumGroundAreaVisualizer,
@@ -73,6 +78,13 @@ export const useCesiumDistanceVisualizerAdapter = ({
     () => measurements.filter(isPointMeasurementEntry),
     [measurements]
   );
+  const pointsById = useMemo(() => {
+    const map = new Map<string, PointMeasurementEntry>();
+    points.forEach((point) => {
+      map.set(point.id, point);
+    });
+    return map;
+  }, [points]);
 
   const facadeRectanglePreviewOppositeByGroupId = useMemo(() => {
     if (!enabled || !livePreviewDistanceLine) {
@@ -106,16 +118,50 @@ export const useCesiumDistanceVisualizerAdapter = ({
     planarPolygonGroups,
   ]);
 
-  const { distanceModel, polylineModel, areaModel } =
-    useMeasurementFamilyPartition({
+  const { distanceRelationRenderContext } = useDistancePreviewModel({
+    planarPolygonGroups,
+    selectedPlanarPolygonGroupId,
+    activePlanarPolygonGroupId,
+    pointsById,
+  });
+
+  const { polylineMeasurements } = usePolylinePreviewModel({
+    planarPolygonGroups,
+    pointsById,
+    facadeRectanglePreviewOppositeByGroupId,
+  });
+
+  const { focusedPolygonGroupId, polygonAreaBadgeByGroupId } =
+    useAreaPreviewSharedModel({
       planarPolygonGroups,
-      points,
       pointMarkerBadgeByPointId,
       selectedPlanarPolygonGroupId,
       activePlanarPolygonGroupId,
-      facadeRectanglePreviewOppositeByGroupId,
-      livePreviewDistanceLine,
     });
+
+  const { groundPolygonPreviewGroups } = useGroundAreaPreviewModel({
+    planarPolygonGroups,
+    pointsById,
+    facadeRectanglePreviewOppositeByGroupId,
+    activePlanarPolygonGroupId,
+    livePreviewDistanceLine,
+  });
+
+  const { verticalPolygonPreviewGroups } = useVerticalAreaPreviewModel({
+    planarPolygonGroups,
+    pointsById,
+    facadeRectanglePreviewOppositeByGroupId,
+    activePlanarPolygonGroupId,
+    livePreviewDistanceLine,
+  });
+
+  const { planarPolygonPreviewGroups } = usePlanarAreaPreviewModel({
+    planarPolygonGroups,
+    pointsById,
+    facadeRectanglePreviewOppositeByGroupId,
+    activePlanarPolygonGroupId,
+    livePreviewDistanceLine,
+  });
 
   useDistanceVisualizer({
     scene,
@@ -127,45 +173,43 @@ export const useCesiumDistanceVisualizerAdapter = ({
     onDistanceRelationCornerClick,
     lineLabelMinDistancePx,
     cumulativeDistanceByRelationId,
-    pointMarkerBadgeByPointId: distanceModel.pointMarkerBadgeByPointId,
-    livePreviewDistanceLine: enabled
-      ? distanceModel.livePreviewDistanceLine
-      : null,
-    distanceRelationRenderContext: distanceModel.distanceRelationRenderContext,
+    pointMarkerBadgeByPointId,
+    livePreviewDistanceLine: enabled ? livePreviewDistanceLine : null,
+    distanceRelationRenderContext,
   });
 
   useCesiumPolylineVisualizer({
     scene,
-    polylineMeasurements: enabled ? polylineModel.polylineMeasurements : [],
+    polylineMeasurements: enabled ? polylineMeasurements : [],
   });
 
   useCesiumGroundAreaVisualizer({
     scene,
-    focusedPolygonGroupId: areaModel.focusedPolygonGroupId,
+    focusedPolygonGroupId,
     activePlanarPolygonGroupId,
-    polygonAreaBadgeByGroupId: areaModel.polygonAreaBadgeByGroupId,
+    polygonAreaBadgeByGroupId,
     groundPolygonPreviewGroups: enabled
-      ? areaModel.groundPolygonPreviewGroups
+      ? groundPolygonPreviewGroups
       : [],
   });
 
   useCesiumVerticalAreaVisualizer({
     scene,
-    focusedPolygonGroupId: areaModel.focusedPolygonGroupId,
+    focusedPolygonGroupId,
     activePlanarPolygonGroupId,
-    polygonAreaBadgeByGroupId: areaModel.polygonAreaBadgeByGroupId,
+    polygonAreaBadgeByGroupId,
     verticalPolygonPreviewGroups: enabled
-      ? areaModel.verticalPolygonPreviewGroups
+      ? verticalPolygonPreviewGroups
       : [],
   });
 
   useCesiumPlanarAreaVisualizer({
     scene,
-    focusedPolygonGroupId: areaModel.focusedPolygonGroupId,
+    focusedPolygonGroupId,
     activePlanarPolygonGroupId,
-    polygonAreaBadgeByGroupId: areaModel.polygonAreaBadgeByGroupId,
+    polygonAreaBadgeByGroupId,
     planarPolygonPreviewGroups: enabled
-      ? areaModel.planarPolygonPreviewGroups
+      ? planarPolygonPreviewGroups
       : [],
   });
 };

@@ -29,7 +29,11 @@ import {
 
 import {
   computePolygonCentroid2D,
+  type GroundPolygonPreviewGroup,
+  type PlanarPolygonPreviewGroup,
+  type PolygonPreviewGroup,
   type ScreenPoint2D,
+  type VerticalPolygonPreviewGroup,
 } from "@carma-mapping/annotations/core";
 import {
   LINEAR_SEGMENT_LINE_MODE_COMPONENTS,
@@ -37,12 +41,6 @@ import {
   type PlanarPolygonGroup,
 } from "../types/MeasurementTypes";
 import { formatAreaAdaptive } from "../utils/formatting";
-import {
-  type GroundPolygonPreviewGroup,
-  type PlanarPolygonPreviewGroup,
-  type PolygonPreviewGroup,
-  type VerticalPolygonPreviewGroup,
-} from "./measurementPreviewVisuals";
 
 type PolygonAreaBadge = {
   text: string;

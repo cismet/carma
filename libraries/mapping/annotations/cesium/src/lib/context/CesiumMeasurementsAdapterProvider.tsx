@@ -5713,6 +5713,32 @@ export const CesiumMeasurementsProvider: React.FC<
     }
   }, [labelInputPromptPointId, measurements]);
 
+  const handlePointQueryPointerMoveWithHoveredNodeAnchor = useCallback(
+    (
+      positionECEF: Cartesian3 | null,
+      screenPosition?: Cartesian2,
+      surfaceNormalECEF?: Cartesian3 | null
+    ) => {
+      const hoveredPointId = hoveredLivePreviewPointIdRef.current;
+      if (hoveredPointId) {
+        const hoveredPoint = getPointById(measurements, hoveredPointId);
+        if (hoveredPoint && isPointMeasurementEntry(hoveredPoint)) {
+          const localUp = getLocalUpDirectionAtAnchor(hoveredPoint.geometryECEF);
+          handlePointQueryPointerMove(
+            hoveredPoint.geometryECEF,
+            screenPosition,
+            localUp
+          );
+          return;
+        }
+        hoveredLivePreviewPointIdRef.current = null;
+      }
+
+      handlePointQueryPointerMove(positionECEF, screenPosition, surfaceNormalECEF);
+    },
+    [measurements, handlePointQueryPointerMove]
+  );
+
   useCesiumPointQuery(
     scene,
     pointQueryToolActive &&
@@ -5736,7 +5762,7 @@ export const CesiumMeasurementsProvider: React.FC<
     activePointCreateConfig?.useTemporaryForCreatedPoints ?? true,
     activePointCreateConfig?.markCreatedPointsAsDistanceAdhoc ?? false,
     measurementMode === CESIUM_MEASUREMENT_MODE.PointMeasure,
-    handlePointQueryPointerMove
+    handlePointQueryPointerMoveWithHoveredNodeAnchor
   );
 
   const handleDistanceRelationCornerClick = useCallback(
