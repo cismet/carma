@@ -103,17 +103,23 @@ const LeuchteForm = ({
     );
   }
 
-  // Build additional tabs - always show Mast tab
+  // Build additional tabs - always keep MastFormFields mounted to preserve
+  // scroll position. Show loading state via opacity instead of swapping components,
+  // so the content height never collapses and the browser doesn't reset scroll.
   const additionalTabs = [
     {
       key: "mast",
       label: "Mast",
-      children: isMastLoading ? (
-        <div className="flex items-center justify-center h-40 text-gray-400">
-          Lade Mast-Daten...
+      children: (
+        <div
+          className={
+            isMastLoading
+              ? "opacity-50 pointer-events-none transition-opacity"
+              : "transition-opacity"
+          }
+        >
+          <MastFormFields mast={mastData} readOnly={readOnly} />
         </div>
-      ) : (
-        <MastFormFields mast={mastData} readOnly={readOnly} />
       ),
     },
   ];
