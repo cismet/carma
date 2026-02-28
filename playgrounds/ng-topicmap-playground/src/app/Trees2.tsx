@@ -15,16 +15,17 @@ import TopicMapContextProvider from "react-cismap/contexts/TopicMapContextProvid
 import { defaultGazDataConfig } from "@carma-commons/resources";
 import Menu from "./Menu";
 import {
-  buildCustomLayer,
-  syncTreesFromSource,
-  STAMM_SOURCE,
-} from "./tree-layer/ThreeTreeLayer";
+  buildLoftLayer,
+  syncLoftTreesFromSource,
+  EINZELBAUMX_SOURCE,
+  EINZELBAUMX_LAYER,
+} from "./tree-layer/LoftTreeLayer";
 import "bootstrap/dist/css/bootstrap.min.css";
 import "react-bootstrap-typeahead/css/Typeahead.css";
 import "react-cismap/topicMaps.css";
 import "leaflet/dist/leaflet.css";
 
-const STORAGE_KEY = "trees-camera";
+const STORAGE_KEY = "trees2-camera";
 
 function CameraPersistence() {
   const { map } = useLibreContext();
@@ -74,14 +75,14 @@ function CameraPersistence() {
   return null;
 }
 
-function ThreeDTreeLayer() {
+function LoftTreeLayer() {
   const { map } = useLibreContext();
-  const layerRef = useRef<ReturnType<typeof buildCustomLayer> | null>(null);
+  const layerRef = useRef<ReturnType<typeof buildLoftLayer> | null>(null);
   const initialized = useRef(false);
 
   const doSync = useCallback(() => {
     if (map && layerRef.current) {
-      syncTreesFromSource(map, layerRef.current);
+      syncLoftTreesFromSource(map, layerRef.current);
     }
   }, [map]);
 
@@ -89,19 +90,34 @@ function ThreeDTreeLayer() {
     if (!map || initialized.current) return;
     initialized.current = true;
 
-    // The stamm source is added by CarmaMap's libreLayers (merged mode).
-    // We must wait until that source exists before adding the 3D layer,
-    // because setStyle() in merged mode would wipe anything added earlier.
-    const addLayerIfReady = () => {
-      if (layerRef.current) return; // already added
-      if (!map.getSource(STAMM_SOURCE)) return; // source not yet merged
+    const setup = () => {
+      if (layerRef.current) return;
 
-      const customLayer = buildCustomLayer();
+      // Add einzelbaumX vector source directly (no style.json for this source)
+      if (!map.getSource(EINZELBAUMX_SOURCE)) {
+        map.addSource(EINZELBAUMX_SOURCE, {
+          type: "vector",
+          tiles: ["https://tiles.cismet.de/einzelbaumX/{z}/{x}/{y}.pbf"],
+          minzoom: 9,
+          maxzoom: 14,
+        });
+
+        // Hidden circle layer to trigger tile loading
+        map.addLayer({
+          id: "einzelbaumX-loader",
+          type: "circle",
+          source: EINZELBAUMX_SOURCE,
+          "source-layer": EINZELBAUMX_LAYER,
+          minzoom: 15,
+          maxzoom: 24,
+          paint: { "circle-radius": 0, "circle-opacity": 0 },
+        });
+      }
+
+      const customLayer = buildLoftLayer();
       layerRef.current = customLayer;
 
-      // Insert BEFORE the first fill-extrusion layer (buildings) so trees
-      // render first. Buildings then blend on top with alpha, naturally
-      // dimming trees behind them while trees in front stay fully visible.
+      // Insert before the first fill-extrusion layer for correct depth
       const styleLayers = map.getStyle().layers ?? [];
       const firstExtrusion = styleLayers.find(
         (l) => l.type === "fill-extrusion"
@@ -110,22 +126,20 @@ function ThreeDTreeLayer() {
     };
 
     const trySync = () => {
-      addLayerIfReady();
-      if (layerRef.current && map.getSource(STAMM_SOURCE)) {
-        syncTreesFromSource(map, layerRef.current);
+      setup();
+      if (layerRef.current && map.getSource(EINZELBAUMX_SOURCE)) {
+        syncLoftTreesFromSource(map, layerRef.current);
       }
     };
 
-    // One-shot idle to catch the initial load, then moveend for panning
     map.once("idle", trySync);
     map.on("moveend", trySync);
 
-    // Catch newly loaded tiles for the stamm source
     const handleSourceData = (e: {
       sourceId: string;
       isSourceLoaded: boolean;
     }) => {
-      if (e.sourceId === STAMM_SOURCE && e.isSourceLoaded) {
+      if (e.sourceId === EINZELBAUMX_SOURCE && e.isSourceLoaded) {
         trySync();
       }
     };
@@ -135,8 +149,14 @@ function ThreeDTreeLayer() {
       map.off("moveend", trySync);
       map.off("sourcedata", handleSourceData);
 
-      if (map.getLayer("3d-trees")) {
-        map.removeLayer("3d-trees");
+      if (map.getLayer("3d-trees-loft")) {
+        map.removeLayer("3d-trees-loft");
+      }
+      if (map.getLayer("einzelbaumX-loader")) {
+        map.removeLayer("einzelbaumX-loader");
+      }
+      if (map.getSource(EINZELBAUMX_SOURCE)) {
+        map.removeSource(EINZELBAUMX_SOURCE);
       }
 
       layerRef.current = null;
@@ -147,7 +167,7 @@ function ThreeDTreeLayer() {
   return null;
 }
 
-export function Trees() {
+export function Trees2() {
   const { progress, showProgress, handleProgressUpdate } = useProgress();
 
   return (
@@ -157,7 +177,7 @@ export function Trees() {
           <SelectionProvider>
             <LibreContextProvider>
               <CameraPersistence />
-              <ThreeDTreeLayer />
+              <LoftTreeLayer />
               <ProgressIndicator progress={progress} show={showProgress} />
               <CarmaMap
                 onClick={() => {}}
@@ -166,11 +186,6 @@ export function Trees() {
                 overrideGlyphs="https://tiles.cismet.de/fonts/{fontstack}/{range}.pbf"
                 onProgressUpdate={handleProgressUpdate}
                 libreLayers={[
-                  {
-                    type: "vector",
-                    name: "Einzelbaum 3D",
-                    style: "https://tiles.cismet.de/einzelbaumX/style.json",
-                  },
                   {
                     type: "vector",
                     name: "Einzelbaum Umringe",

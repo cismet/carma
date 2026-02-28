@@ -41,10 +41,10 @@ export interface TreeLayerConfig {
 //  Tile source constants
 // ─────────────────────────────────────────────────────────────
 
-// Source names as defined in the cismet style.json files
-// (loaded unchanged by CarmaMap's libreLayers in merged mode)
-export const STAMM_SOURCE = "einzelbaum_stamm-source";
-export const STAMM_LAYER = "einzelbaum_stamm";
+// Source names as defined in the einzelbaumX style.json
+// (loaded by CarmaMap's libreLayers in merged mode)
+export const STAMM_SOURCE = "einzelbaum_3d-source";
+export const STAMM_LAYER = "einzelbaumX";
 
 // ─────────────────────────────────────────────────────────────
 //  Feature to tree data conversion
@@ -98,7 +98,14 @@ export function treesFromFeatures(features: GeoJSONFeature[]): TreeData[] {
     const hMax = parseFloat(props["height_max"] as string);
     const heightVar = hMax > 0 ? hMax / base.h : 1.0;
 
-    const rMax = parseFloat(props["radius_max"] as string);
+    const prefixDiameter =
+      new URLSearchParams(window.location.hash.split("?")[1] || "").get(
+        "prefix_diameter"
+      ) || "";
+    const radiusKey = prefixDiameter
+      ? `${prefixDiameter}_radius_max`
+      : "radius_max";
+    const rMax = parseFloat(props[radiusKey] as string);
     const diameterVar = rMax > 0 ? rMax / base.r : 1.0;
 
     const farbe = (props["farbe"] as string) || null;
@@ -237,10 +244,10 @@ export function buildCustomLayer(
         const count = trees.length;
 
         const crownMat = new THREE.MeshLambertMaterial({
-          color: TYPE_COLORS[typeName],
+          color: 0xffffff,
           flatShading: true,
           transparent: true,
-          opacity: 0.85,
+          opacity: 1,
         });
         const crownMesh = new THREE.InstancedMesh(proto.crown, crownMat, count);
 
