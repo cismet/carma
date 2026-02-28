@@ -22,8 +22,7 @@ import BelisPlayground from "./app/BelisPlayground";
 import AlkisPlayground from "./app/AlkisPlayground";
 import Stadtplan2 from "./app/Stadtplan2";
 import { Buildings } from "./app/Buildings";
-import { Trees } from "./app/Trees";
-import { Trees2 } from "./app/Trees2";
+import { TreesPlayground } from "./app/TreesPlayground";
 
 const root = ReactDOM.createRoot(
   document.getElementById("root") as HTMLElement
@@ -56,8 +55,11 @@ root.render(
                       <Route path="/alkis" element={<AlkisPlayground />} />
                       <Route path="/stadtplan2" element={<Stadtplan2 />} />
                       <Route path="/buildings" element={<Buildings />} />
-                      <Route path="/trees" element={<Trees />} />
-                      <Route path="/trees2" element={<Trees2 />} />
+                      <Route path="/trees" element={<TreesPlayground />} />
+                      <Route
+                        path="/trees2"
+                        element={<TreesPlayground defaultUseLoft />}
+                      />
                     </Routes>
                   </MapHighlightProvider>
                 </MapSelectionProvider>

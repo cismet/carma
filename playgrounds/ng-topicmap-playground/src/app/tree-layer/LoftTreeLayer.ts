@@ -72,9 +72,11 @@ export const EINZELBAUMX_LAYER = "einzelbaumX";
 // ─────────────────────────────────────────────────────────────
 
 export function loftTreesFromFeatures(
-  features: GeoJSONFeature[]
+  features: GeoJSONFeature[],
+  radiusMix = 0
 ): LoftTreeData[] {
   const result: LoftTreeData[] = [];
+  const t = Math.max(0, Math.min(1, radiusMix));
 
   for (const f of features) {
     const geom = f.geometry;
@@ -87,7 +89,9 @@ export function loftTreesFromFeatures(
       .trim();
     const type: TreeTypeName = TYPE_MAP[rawType] ?? "spherical";
     const height_max = parseFloat(props["height_max"] as string) || 12;
-    const radius_max = parseFloat(props["radius_max"] as string) || 3;
+    const rInner = parseFloat(props["radius_max"] as string) || 3;
+    const rOuter = parseFloat(props["out_radius_max"] as string) || rInner;
+    const radius_max = rInner + (rOuter - rInner) * t;
     const farbe =
       props["farbe"] && (props["farbe"] as string) !== "#000000"
         ? (props["farbe"] as string)
@@ -639,7 +643,8 @@ export function buildLoftLayer(config: LoftLayerConfig = {}): LoftCustomLayer {
 
 export function syncLoftTreesFromSource(
   map: MaplibreMap,
-  layer: LoftCustomLayer
+  layer: LoftCustomLayer,
+  radiusMix = 0
 ): void {
   const features = map.querySourceFeatures(EINZELBAUMX_SOURCE, {
     sourceLayer: EINZELBAUMX_LAYER,
@@ -657,7 +662,7 @@ export function syncLoftTreesFromSource(
     return true;
   });
 
-  const newData = loftTreesFromFeatures(unique);
+  const newData = loftTreesFromFeatures(unique, radiusMix);
 
   // Skip rebuild if feature count hasn't changed
   if (newData.length === layer._treeData.length && newData.length > 0) return;

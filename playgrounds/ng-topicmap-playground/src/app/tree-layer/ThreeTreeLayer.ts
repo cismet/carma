@@ -16,6 +16,7 @@ import {
   type TreeTypeName,
   type TreePrototype,
 } from "./TreeFactory";
+import { EINZELBAUMX_SOURCE, EINZELBAUMX_LAYER } from "./LoftTreeLayer";
 
 // ─────────────────────────────────────────────────────────────
 //  Types
@@ -38,15 +39,6 @@ export interface TreeLayerConfig {
 }
 
 // ─────────────────────────────────────────────────────────────
-//  Tile source constants
-// ─────────────────────────────────────────────────────────────
-
-// Source names as defined in the einzelbaumX style.json
-// (loaded by CarmaMap's libreLayers in merged mode)
-export const STAMM_SOURCE = "einzelbaum_3d-source";
-export const STAMM_LAYER = "einzelbaumX";
-
-// ─────────────────────────────────────────────────────────────
 //  Feature to tree data conversion
 // ─────────────────────────────────────────────────────────────
 
@@ -62,8 +54,12 @@ function polygonCentroid(coords: number[][][]): [number, number] | null {
   return [sumLng / ring.length, sumLat / ring.length];
 }
 
-export function treesFromFeatures(features: GeoJSONFeature[]): TreeData[] {
+export function treesFromFeatures(
+  features: GeoJSONFeature[],
+  radiusMix = 0
+): TreeData[] {
   const result: TreeData[] = [];
+  const t = Math.max(0, Math.min(1, radiusMix));
 
   for (const f of features) {
     const geom = f.geometry;
@@ -100,12 +96,6 @@ export function treesFromFeatures(features: GeoJSONFeature[]): TreeData[] {
 
     const rInner = parseFloat(props["radius_max"] as string) || 0;
     const rOuter = parseFloat(props["out_radius_max"] as string) || rInner;
-    const radiusMix = parseFloat(
-      new URLSearchParams(window.location.hash.split("?")[1] || "").get(
-        "radius_mix"
-      ) || "0"
-    );
-    const t = Math.max(0, Math.min(1, radiusMix));
     const rMax = rInner + (rOuter - rInner) * t;
     const diameterVar = rMax > 0 ? rMax / base.r : 1.0;
 
@@ -371,10 +361,11 @@ export function buildCustomLayer(
 
 export function syncTreesFromSource(
   map: MaplibreMap,
-  layer: TreeCustomLayer
+  layer: TreeCustomLayer,
+  radiusMix = 0
 ): void {
-  const features = map.querySourceFeatures(STAMM_SOURCE, {
-    sourceLayer: STAMM_LAYER,
+  const features = map.querySourceFeatures(EINZELBAUMX_SOURCE, {
+    sourceLayer: EINZELBAUMX_LAYER,
   });
 
   // Deduplicate (vector tiles return dupes at tile boundaries)
@@ -398,7 +389,7 @@ export function syncTreesFromSource(
     return true;
   });
 
-  const newData = treesFromFeatures(unique);
+  const newData = treesFromFeatures(unique, radiusMix);
 
   // Skip rebuild if feature count hasn't changed (avoids churn from sourcedata events)
   if (newData.length === layer._treeData.length && newData.length > 0) return;
