@@ -26,28 +26,28 @@ import { useLabelOverlay } from "@carma-providers/label-overlay";
 
 import { normalizeOptions } from "@carma-commons/utils";
 import {
-  MeasurementEditContext,
-  type MeasurementEditContextType,
-  MeasurementModeOptionsContext,
-  type MeasurementModeOptionsContextType,
-  MeasurementSelectionContext,
-  type MeasurementSelectionContextType,
-  MeasurementVisibilityContext,
-  type MeasurementVisibilityContextType,
-  MeasurementsContext,
-  type MeasurementsContextType,
-  useMeasurementEditState,
-  useMeasurementEntryMutations,
-  useMeasurementCoreState,
-  useMeasurementSelectionMutations,
-  useMeasurementVisibilityState,
-  useMeasurementCollectionSelectors,
-  useMeasurementPointMarkerBadges,
+  AnnotationEditContext,
+  type AnnotationEditContextType,
+  AnnotationModeOptionsContext,
+  type AnnotationModeOptionsContextType,
+  AnnotationSelectionContext,
+  type AnnotationSelectionContextType,
+  AnnotationVisibilityContext,
+  type AnnotationVisibilityContextType,
+  AnnotationMeasurementsContext,
+  type AnnotationMeasurementsContextType,
+  useAnnotationEditState,
+  useAnnotationEntryMutations,
+  useAnnotationCoreState,
+  useAnnotationSelectionMutations,
+  useAnnotationVisibilityState,
+  useAnnotationCollectionSelectors,
+  useAnnotationPointMarkerBadges,
   useSelectionToolState,
   useAnnotationContext,
-  type MeasurementCreatePayload,
+  type AnnotationCreatePayload,
   type PlanarGroupBadgeKind,
-  type MeasurementListType,
+  type AnnotationListType,
 } from "@carma-mapping/annotations/core";
 
 import { useCesiumContext } from "@carma-mapping/engines/cesium";
@@ -964,7 +964,7 @@ export const CesiumMeasurementsProvider: React.FC<
     toggleMeasurementLockById,
     showLabels,
     setShowLabels,
-  } = useMeasurementCoreState<MeasurementMode, MeasurementEntry>({
+  } = useAnnotationCoreState<MeasurementMode, MeasurementEntry>({
     initialMode: initialMeasurementMode ?? CESIUM_MEASUREMENT_MODE.PointMeasure,
   });
 
@@ -1014,7 +1014,7 @@ export const CesiumMeasurementsProvider: React.FC<
     setHideMeasurementsOfType,
     hideLabelsOfType,
     setHideLabelsOfType,
-  } = useMeasurementVisibilityState<MeasurementMode>();
+  } = useAnnotationVisibilityState<MeasurementMode>();
   const {
     selectionModeActive,
     setSelectionModeActive,
@@ -1110,7 +1110,7 @@ export const CesiumMeasurementsProvider: React.FC<
     lockedEditMeasurementId,
     setLockedEditMeasurementId,
     clearLockedEditMeasurementId,
-  } = useMeasurementEditState();
+  } = useAnnotationEditState();
 
   useEffect(() => {
     if (moveGizmoPointId) return;
@@ -1937,7 +1937,7 @@ export const CesiumMeasurementsProvider: React.FC<
     },
     []
   );
-  const pointMarkerBadgeByPointId = useMeasurementPointMarkerBadges({
+  const pointMarkerBadgeByPointId = useAnnotationPointMarkerBadges({
     pointMeasurements,
     planarPolygonGroups,
     distanceRelations,
@@ -2417,7 +2417,7 @@ export const CesiumMeasurementsProvider: React.FC<
   }, [measurements]);
 
   const { selectMeasurementIds, selectMeasurementById } =
-    useMeasurementSelectionMutations({
+    useAnnotationSelectionMutations({
       selectableMeasurementIds: pointMeasurementIds,
       selectedMeasurementIdRef,
       setSelectedMeasurementId,
@@ -4305,7 +4305,7 @@ export const CesiumMeasurementsProvider: React.FC<
   );
 
   const { updateLabelAppearanceById: updatePointLabelAppearanceById } =
-    useMeasurementEntryMutations<MeasurementEntry, MeasurementLabelAppearance>({
+    useAnnotationEntryMutations<MeasurementEntry, MeasurementLabelAppearance>({
       setMeasurements,
       isLabelAppearanceTarget: isPointMeasurementEntry,
       getLabelAppearance: (measurement) =>
@@ -5723,7 +5723,9 @@ export const CesiumMeasurementsProvider: React.FC<
       if (hoveredPointId) {
         const hoveredPoint = getPointById(measurements, hoveredPointId);
         if (hoveredPoint && isPointMeasurementEntry(hoveredPoint)) {
-          const localUp = getLocalUpDirectionAtAnchor(hoveredPoint.geometryECEF);
+          const localUp = getLocalUpDirectionAtAnchor(
+            hoveredPoint.geometryECEF
+          );
           handlePointQueryPointerMove(
             hoveredPoint.geometryECEF,
             screenPosition,
@@ -5734,7 +5736,11 @@ export const CesiumMeasurementsProvider: React.FC<
         hoveredLivePreviewPointIdRef.current = null;
       }
 
-      handlePointQueryPointerMove(positionECEF, screenPosition, surfaceNormalECEF);
+      handlePointQueryPointerMove(
+        positionECEF,
+        screenPosition,
+        surfaceNormalECEF
+      );
     },
     [measurements, handlePointQueryPointerMove]
   );
@@ -8357,7 +8363,7 @@ export const CesiumMeasurementsProvider: React.FC<
   }, [distanceRelations]);
 
   const measurementsByType = useCallback(
-    (type: MeasurementListType<MeasurementMode>): MeasurementEntry[] => {
+    (type: AnnotationListType<MeasurementMode>): MeasurementEntry[] => {
       if (type === "pointLabel") {
         return measurements.filter(
           (measurement) =>
@@ -8411,7 +8417,7 @@ export const CesiumMeasurementsProvider: React.FC<
   );
 
   const navigationMeasurementTypes = useMemo<
-    MeasurementListType<MeasurementMode>[]
+    AnnotationListType<MeasurementMode>[]
   >(() => ["pointMeasure", "distanceMeasure"], []);
 
   const {
@@ -8419,13 +8425,13 @@ export const CesiumMeasurementsProvider: React.FC<
     getMeasurementIndexByType,
     getMeasurementOrderByType,
     getNextMeasurementOrderByType,
-  } = useMeasurementCollectionSelectors<MeasurementMode, MeasurementEntry>({
+  } = useAnnotationCollectionSelectors<MeasurementMode, MeasurementEntry>({
     measurementsByType,
     navigationTypes: navigationMeasurementTypes,
   });
 
   const addMeasurement = useCallback(
-    (payload: MeasurementCreatePayload<MeasurementEntry>): string => {
+    (payload: AnnotationCreatePayload<MeasurementEntry>): string => {
       const generatedId =
         payload.id?.trim() ||
         `${payload.type}-${Date.now()}-${Math.random()
@@ -8520,7 +8526,7 @@ export const CesiumMeasurementsProvider: React.FC<
   }, [livePreviewPointECEF, measurementMode, pointLabelOnCreate]);
 
   const measurementsContextValue = useMemo<
-    MeasurementsContextType<MeasurementMode, MeasurementEntry>
+    AnnotationMeasurementsContextType<MeasurementMode, MeasurementEntry>
   >(
     () => ({
       measurementMode,
@@ -8590,7 +8596,7 @@ export const CesiumMeasurementsProvider: React.FC<
     ]
   );
 
-  const selectionContextValue = useMemo<MeasurementSelectionContextType>(
+  const selectionContextValue = useMemo<AnnotationSelectionContextType>(
     () => ({
       selectedMeasurementId,
       selectedMeasurementIds,
@@ -8652,7 +8658,7 @@ export const CesiumMeasurementsProvider: React.FC<
     [planarPolygonGroups]
   );
 
-  const modeOptionsContextValue = useMemo<MeasurementModeOptionsContextType>(
+  const modeOptionsContextValue = useMemo<AnnotationModeOptionsContextType>(
     () => ({
       planarPolygonGroups,
       polylineGroups,
@@ -8694,7 +8700,7 @@ export const CesiumMeasurementsProvider: React.FC<
   );
 
   const visibilityContextValue = useMemo<
-    MeasurementVisibilityContextType<MeasurementMode>
+    AnnotationVisibilityContextType<MeasurementMode>
   >(
     () => ({
       hideMeasurementsOfType,
@@ -8710,7 +8716,7 @@ export const CesiumMeasurementsProvider: React.FC<
     ]
   );
 
-  const editContextValue = useMemo<MeasurementEditContextType>(
+  const editContextValue = useMemo<AnnotationEditContextType>(
     () => ({
       lockedEditMeasurementId,
       clearLockedEditMeasurementId,
@@ -8903,19 +8909,19 @@ export const CesiumMeasurementsProvider: React.FC<
   );
 
   return (
-    <MeasurementsContext.Provider value={measurementsContextValue}>
-      <MeasurementSelectionContext.Provider value={selectionContextValue}>
-        <MeasurementModeOptionsContext.Provider value={modeOptionsContextValue}>
-          <MeasurementVisibilityContext.Provider value={visibilityContextValue}>
-            <MeasurementEditContext.Provider value={editContextValue}>
+    <AnnotationMeasurementsContext.Provider value={measurementsContextValue}>
+      <AnnotationSelectionContext.Provider value={selectionContextValue}>
+        <AnnotationModeOptionsContext.Provider value={modeOptionsContextValue}>
+          <AnnotationVisibilityContext.Provider value={visibilityContextValue}>
+            <AnnotationEditContext.Provider value={editContextValue}>
               <CesiumMeasurementsContext.Provider value={contextValue}>
                 {children}
               </CesiumMeasurementsContext.Provider>
-            </MeasurementEditContext.Provider>
-          </MeasurementVisibilityContext.Provider>
-        </MeasurementModeOptionsContext.Provider>
-      </MeasurementSelectionContext.Provider>
-    </MeasurementsContext.Provider>
+            </AnnotationEditContext.Provider>
+          </AnnotationVisibilityContext.Provider>
+        </AnnotationModeOptionsContext.Provider>
+      </AnnotationSelectionContext.Provider>
+    </AnnotationMeasurementsContext.Provider>
   );
 };
 

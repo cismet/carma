@@ -11,7 +11,7 @@ import {
   getEuclideanDistance,
 } from "@carma-mapping/annotations/cesium";
 
-import type { MeasurementListType } from "../../context/MeasurementsContext";
+import type { AnnotationListType } from "../../context/AnnotationMeasurementsContext";
 import type {
   DistanceTableRow,
   DistanceMeasurementSlotsInput,
@@ -35,11 +35,11 @@ type GetDistanceMeasurementSlotsInputParams = {
   distanceRelations: ReadonlyArray<PointDistanceRelation>;
   pointMarkerBadgeByPointId: Readonly<Record<string, { text?: string }>>;
   getMeasurementOrderByType: (
-    type: MeasurementListType<MeasurementMode>,
+    type: AnnotationListType<MeasurementMode>,
     id: string | null | undefined
   ) => number | null;
   getNextMeasurementOrderByType: (
-    type: MeasurementListType<MeasurementMode>
+    type: AnnotationListType<MeasurementMode>
   ) => number;
   actions: MeasurementSlotActions;
 };
@@ -73,7 +73,7 @@ const resolvePointLabel = ({
 }: {
   point: PointMeasurementEntry;
   getMeasurementOrderByType: (
-    type: MeasurementListType<MeasurementMode>,
+    type: AnnotationListType<MeasurementMode>,
     id: string | null | undefined
   ) => number | null;
 }): string => {

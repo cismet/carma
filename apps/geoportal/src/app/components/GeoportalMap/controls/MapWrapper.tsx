@@ -50,10 +50,8 @@ import {
   ControlLayoutCanvas,
 } from "@carma-mapping/map-controls-layout";
 import { useFeatureFlags } from "@carma-providers/feature-flag";
-import {
-  MeasurementControl,
-  MeasurementToolbar3D,
-} from "@carma-mapping/annotations/core";
+import { MeasurementToolbar3D } from "@carma-mapping/annotations/core";
+import { MeasurementControl } from "@carma-commons/measurements";
 
 import { GeoportalMap } from "../GeoportalMap.tsx";
 import LibreGeoportalMap from "../LibreGeoportalMap.tsx";

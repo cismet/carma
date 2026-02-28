@@ -7,8 +7,8 @@ import {
   type MeasurementMode,
 } from "@carma-mapping/annotations/cesium";
 
-import { useMeasurements } from "../../context/MeasurementsContext";
-import { useMeasurementSelection } from "../../context/MeasurementSelectionContext";
+import { useAnnotationMeasurements } from "../../context/AnnotationMeasurementsContext";
+import { useAnnotationSelection } from "../../context/AnnotationSelectionContext";
 import { AnnotationInfoBoxNavigation } from "./AnnotationInfoBoxNavigation";
 import type { AnnotationInfoBoxPayload } from "./AnnotationInfo.types";
 import { getDistanceMeasurementSlotsInput } from "./getDistanceMeasurementSlotsInput";
@@ -47,9 +47,9 @@ export const useAnnotationInfoBoxPayload = ({
     updatePointLabelAppearanceById,
     confirmPointLabelInputById,
     clearMeasurementsByIds,
-  } = useMeasurements<MeasurementMode, MeasurementEntry>();
+  } = useAnnotationMeasurements<MeasurementMode, MeasurementEntry>();
   const { selectedMeasurementId, selectMeasurementById } =
-    useMeasurementSelection();
+    useAnnotationSelection();
   const {
     activeMeasurementId,
     referencePoint,

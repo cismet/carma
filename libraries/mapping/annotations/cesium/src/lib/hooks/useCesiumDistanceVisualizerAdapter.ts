@@ -17,11 +17,9 @@ import { usePlanarAreaPreviewModel } from "./usePlanarAreaPreviewModel";
 import { usePolylinePreviewModel } from "./usePolylinePreviewModel";
 import { useVerticalAreaPreviewModel } from "./useVerticalAreaPreviewModel";
 import { useDistanceVisualizer } from "./useDistanceVisualizer";
-import {
-  useCesiumGroundAreaVisualizer,
-  useCesiumPlanarAreaVisualizer,
-  useCesiumVerticalAreaVisualizer,
-} from "./useCesiumAreaVisualizers";
+import { useCesiumGroundAreaVisualizer } from "./useCesiumGroundAreaVisualizer";
+import { useCesiumPlanarAreaVisualizer } from "./useCesiumPlanarAreaVisualizer";
+import { useCesiumVerticalAreaVisualizer } from "./useCesiumVerticalAreaVisualizer";
 import { useCesiumPolylineVisualizer } from "./useCesiumPolylineVisualizer";
 import { type PointMarkerBadge } from "./useCesiumPointLabels";
 
@@ -186,30 +184,21 @@ export const useCesiumDistanceVisualizerAdapter = ({
   useCesiumGroundAreaVisualizer({
     scene,
     focusedPolygonGroupId,
-    activePlanarPolygonGroupId,
     polygonAreaBadgeByGroupId,
-    groundPolygonPreviewGroups: enabled
-      ? groundPolygonPreviewGroups
-      : [],
+    groundPolygonPreviewGroups: enabled ? groundPolygonPreviewGroups : [],
   });
 
   useCesiumVerticalAreaVisualizer({
     scene,
     focusedPolygonGroupId,
-    activePlanarPolygonGroupId,
     polygonAreaBadgeByGroupId,
-    verticalPolygonPreviewGroups: enabled
-      ? verticalPolygonPreviewGroups
-      : [],
+    verticalPolygonPreviewGroups: enabled ? verticalPolygonPreviewGroups : [],
   });
 
   useCesiumPlanarAreaVisualizer({
     scene,
     focusedPolygonGroupId,
-    activePlanarPolygonGroupId,
     polygonAreaBadgeByGroupId,
-    planarPolygonPreviewGroups: enabled
-      ? planarPolygonPreviewGroups
-      : [],
+    planarPolygonPreviewGroups: enabled ? planarPolygonPreviewGroups : [],
   });
 };

@@ -5,7 +5,7 @@ import type {
 } from "@carma-mapping/annotations/cesium";
 import { SPATIAL_MARKUP_KIND_POINT } from "../../types/measurementKindRegistry";
 
-import type { MeasurementListType } from "../../context/MeasurementsContext";
+import type { AnnotationListType } from "../../context/AnnotationMeasurementsContext";
 import type {
   MeasurementSlotActions,
   PointMeasurementSlotsInput,
@@ -24,11 +24,11 @@ type GetPointMeasurementSlotsInputParams = {
   measurement: PointMeasurementEntry | null;
   referencePoint: Cartesian3 | null;
   getMeasurementOrderByType: (
-    type: MeasurementListType<MeasurementMode>,
+    type: AnnotationListType<MeasurementMode>,
     id: string | null | undefined
   ) => number | null;
   getNextMeasurementOrderByType: (
-    type: MeasurementListType<MeasurementMode>
+    type: AnnotationListType<MeasurementMode>
   ) => number;
   actions: MeasurementSlotActions;
 };

@@ -48,11 +48,11 @@ import { getCollabedHelpComponentConfig as getCollabedHelpElementsConfig } from 
 
 import { ENDPOINT, isAreaType } from "@carma-commons/resources";
 import type { FeatureInfo } from "@carma/types";
+import { AnnotationInfoBox } from "@carma-mapping/annotations/core";
 import {
   Measurements,
-  AnnotationInfoBox,
   InfoBoxMeasurement,
-} from "@carma-mapping/annotations/core";
+} from "@carma-commons/measurements";
 
 import {
   useOverlayHelper,

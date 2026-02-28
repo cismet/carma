@@ -1,11 +1,13 @@
 import TopicMapComponent from "react-cismap/topicmaps/TopicMapComponent";
 import { suppressReactCismapErrors } from "@carma-commons/utils";
 import {
+  useAnnotationContext,
+} from "@carma-mapping/annotations/core";
+import {
   MeasurementControl,
   Measurements,
-  useAnnotationContext,
   useMapLibreMap,
-} from "@carma-mapping/annotations/core";
+} from "@carma-commons/measurements";
 import { ZoomControl } from "@carma-mapping/components";
 import { Control, ControlLayout } from "@carma-mapping/map-controls-layout";
 import { EmptySearchComponent } from "@carma-mapping/fuzzy-search";

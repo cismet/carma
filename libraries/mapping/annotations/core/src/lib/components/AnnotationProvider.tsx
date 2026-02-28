@@ -1,17 +1,86 @@
 import { createContext, useContext, useEffect, useState } from "react";
-import {
-  ActiveShape,
-  MapMeasurementsContextType,
-  MeasurementConfig,
-  MeasurementMapStatus,
-  PartialMeasurementConfig,
-} from "../../";
 import { setFromLocalforage, saveToLocalforage } from "../utils/helper";
 
 export enum MEASUREMENT_MODE {
   DEFAULT = "default",
   MEASUREMENT = "measurement",
 }
+
+type ActiveShape = null | number | string | any;
+
+type AnnotationMapStatus =
+  | "INACTIVE"
+  | "WAITING"
+  | "DRAWING"
+  | "EDITING"
+  | "MOVING";
+
+type AnnotationConfig = {
+  editableTitle: boolean;
+  infoBoxHeaderColor: string;
+  localStorageKey: string;
+  snappingEnabled: boolean;
+  snappingOnUpdate: boolean;
+  snappingQueryRadius: number;
+  snappingMinZoom: number;
+  snappingRadiusVisible: boolean;
+  debugOutputMapStatus: boolean;
+  debugOutputMapStatusPosition: { x: number; y: number };
+};
+
+type AnnotationConfigPatch = Partial<AnnotationConfig>;
+
+export type AnnotationContextType = {
+  mode: MEASUREMENT_MODE;
+  setMode: (mode: MEASUREMENT_MODE) => void;
+  shapes: any[];
+  setShapes: (shapes: any[]) => void;
+  activeShape: ActiveShape;
+  setActiveShape: (shape: ActiveShape) => void;
+  visibleShapes: any[];
+  setVisibleShapes: (shapes: any[]) => void;
+  snappingLatlng?: any;
+  setSnappingLatlng?: (coords: any) => void;
+  showAll: boolean;
+  deleteAll: boolean;
+  drawingShape: boolean;
+  lastActiveShapeBeforeDrawing: null | any;
+  moveToShape: null | any;
+  updateShape: boolean;
+  mapMovingEnd: boolean;
+  updateTitleStatus: boolean;
+  setDrawingShape: (drawingShape: boolean) => void;
+  setShowAll: (showAll: boolean) => void;
+  setDeleteAll: (deleteAll: boolean) => void;
+  setMoveToShape: (moveToShape: any) => void;
+  setUpdateShape: (updateShape: boolean) => void;
+  setMapMovingEnd: (mapMovingEnd: boolean) => void;
+  setUpdateTitleStatus: (updateTitleStatus: boolean) => void;
+  setLastActiveShapeBeforeDrawing: (lastActiveShapeBeforeDrawing: any) => void;
+  addShape: (layer: any) => void;
+  deleteShapeById: (shapeId: string) => void;
+  deleteVisibleShapeById: (shapeId: string) => void;
+  updateShapeById: (
+    shapeId: string,
+    newCoordinates?: any,
+    newDistance?: number,
+    newSquare?: number | null
+  ) => void;
+  setLastVisibleShapeActive: () => void;
+  setDrawingWithLastActiveShape: () => void;
+  setActiveShapeIfDrawCancelled: () => void;
+  toggleMeasurementMode: () => void;
+  updateAreaOfDrawing: (newArea: number) => void;
+  updateTitle: (shapeId: string | number, customTitle: string) => void;
+  setStartDrawing: (status: boolean) => void;
+  startDrawing: boolean;
+  currentDrawHandler: any;
+  setCurrentDrawHandler: (handler: any) => void;
+  completeCurrentShape: () => void;
+  config: AnnotationConfig;
+  status: AnnotationMapStatus;
+  setStatus: (status: AnnotationMapStatus) => void;
+};
 
 // Detect mobile devices
 const isMobileDevice = () => {
@@ -26,7 +95,7 @@ const isMobileDevice = () => {
   return isMobileUA || isSmallScreen;
 };
 
-const defaultConfig: MeasurementConfig = {
+const defaultConfig: AnnotationConfig = {
   editableTitle: true,
   infoBoxHeaderColor: "#3b82f6",
   localStorageKey: "measurementShapes",
@@ -39,7 +108,7 @@ const defaultConfig: MeasurementConfig = {
   debugOutputMapStatusPosition: { x: 65, y: 15 },
 };
 
-export const AnnotationContext = createContext<MapMeasurementsContextType>({
+export const AnnotationContext = createContext<AnnotationContextType>({
   mode: MEASUREMENT_MODE.DEFAULT,
   setMode: (mode: MEASUREMENT_MODE) => {},
   shapes: [],
@@ -87,8 +156,8 @@ export const AnnotationContext = createContext<MapMeasurementsContextType>({
   setCurrentDrawHandler: (handler: any) => {},
   completeCurrentShape: () => {},
   config: defaultConfig,
-  status: "INACTIVE" as MeasurementMapStatus,
-  setStatus: (status: MeasurementMapStatus) => {},
+  status: "INACTIVE" as AnnotationMapStatus,
+  setStatus: (status: AnnotationMapStatus) => {},
 });
 
 export const AnnotationProvider = ({
@@ -100,7 +169,7 @@ export const AnnotationProvider = ({
   children: React.ReactNode;
   externalMode?: MEASUREMENT_MODE;
   setModeExternal?: (mode: MEASUREMENT_MODE) => void;
-  config?: PartialMeasurementConfig;
+  config?: AnnotationConfigPatch;
 }) => {
   // Internal mode state as fallback when external props not provided
   const [internalMode, setInternalMode] = useState<MEASUREMENT_MODE>(
@@ -113,7 +182,7 @@ export const AnnotationProvider = ({
 
   // Merge provided config with defaults
   // Force disable snapping on mobile devices regardless of config
-  const mergedConfig: MeasurementConfig = {
+  const mergedConfig: AnnotationConfig = {
     ...defaultConfig,
     ...config,
     snappingEnabled: isMobileDevice()
@@ -135,7 +204,7 @@ export const AnnotationProvider = ({
   const [updateTitleStatus, setUpdateTitleStatus] = useState(false);
   const [startDrawing, setStartDrawing] = useState(false);
   const [currentDrawHandler, setCurrentDrawHandler] = useState<any>(null);
-  const [status, setStatus] = useState<MeasurementMapStatus>("INACTIVE");
+  const [status, setStatus] = useState<AnnotationMapStatus>("INACTIVE");
 
   // Update status when mode changes
   useEffect(() => {

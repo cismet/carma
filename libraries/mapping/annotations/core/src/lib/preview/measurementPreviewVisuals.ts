@@ -276,7 +276,10 @@ export const buildPolygonPreviewGroups = ({
 
         return {
           group,
-          vertexPoints: [...baseVertexPoints, Cartesian3.clone(previewTargetPoint)],
+          vertexPoints: [
+            ...baseVertexPoints,
+            Cartesian3.clone(previewTargetPoint),
+          ],
         };
       }
 

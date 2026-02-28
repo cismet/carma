@@ -32,13 +32,13 @@ import {
 } from "../../types/measurementKindRegistry";
 
 import { toAlphabeticSequence } from "../../utils/measurementTokens";
-import MeasurementTitle from "../MeasurementTitle";
 import {
   formatBearingToGermanCardinal,
   formatCoordinateWithHemisphere,
 } from "./AnnotationInfoBox.formatters";
 import { AnnotationInfoBoxActionIcon } from "./AnnotationInfoBoxActionIcon";
 import { AnnotationInfoBoxNotImplemented } from "./AnnotationInfoBoxNotImplemented";
+import { AnnotationInfoTitleInput } from "./AnnotationInfoTitleInput";
 
 type SupportedMeasurementSlotKind =
   | typeof SPATIAL_MARKUP_KIND_POINT
@@ -281,7 +281,6 @@ type EditableSubtitleParams = {
   displayPoint: MeasurementDisplayPoint | null;
   subtitleMetaText?: string | null;
   isReference: boolean;
-  previewOrder: number;
   actions: MeasurementSlotActions;
   autoFocusTrigger?: number | string;
   onTitleCommit?: (title: string) => void;
@@ -294,7 +293,6 @@ const renderEditableMeasurementSubtitle = ({
   displayPoint,
   subtitleMetaText,
   isReference,
-  previewOrder,
   actions,
   autoFocusTrigger,
   onTitleCommit,
@@ -304,28 +302,27 @@ const renderEditableMeasurementSubtitle = ({
       <span
         className={`font-bold flex-1 min-w-0 ${isReference ? "italic" : ""}`}
       >
-        <MeasurementTitle
+        <AnnotationInfoTitleInput
           key={measurement?.id ?? `${measurementTypeTitle}-preview`}
-          order={previewOrder}
-          title={
+          value={
             measurement
               ? getCustomPointMeasurementName(measurement.name) || ""
               : ""
           }
-          shapeId={measurement?.id ?? `${measurementTypeTitle}-preview`}
-          setUpdateMeasurementStatus={() => {}}
-          updateTitleMeasurementById={(shapeId, title) =>
-            actions.updateMeasurementNameById(String(shapeId), title)
-          }
-          isCollapsed={false}
-          placeholderText={`${measurementTypeTitle} #${titleToken}`}
-          clearPlaceholderOnFocus
-          showOrder={false}
+          placeholder={`${measurementTypeTitle} #${titleToken}`}
           editable={Boolean(measurement)}
           capitalize={false}
           multiline={true}
           autoFocusTrigger={autoFocusTrigger}
-          onTitleCommit={onTitleCommit}
+          onChange={(nextTitle) => {
+            if (!measurement) return;
+            actions.updateMeasurementNameById(measurement.id, nextTitle);
+          }}
+          onCommit={(nextTitle) => {
+            if (!measurement) return;
+            actions.updateMeasurementNameById(measurement.id, nextTitle);
+            onTitleCommit?.(nextTitle);
+          }}
         />
       </span>
       {measurement
@@ -563,7 +560,6 @@ const getSlotsFromPointMeasure = (
     measurement: input.measurement,
     displayPoint: input.displayPoint,
     isReference: input.isReference,
-    previewOrder: input.currentOrder ?? input.nextOrder,
     actions: input.actions,
   }),
   content: renderRelativeElevationContent(input.relativeElevation),
@@ -588,7 +584,6 @@ const getSlotsFromDistanceMeasure = (
         ? `${formatNumber(input.subtitleDirectDistanceMeters)} m`
         : null,
     isReference: input.isReference,
-    previewOrder: input.currentOrder ?? input.nextOrder,
     actions: input.actions,
   }),
   content: renderDistanceTableContent(
@@ -615,7 +610,6 @@ const getSlotsFromLabelMeasure = (
     measurement: input.measurement,
     displayPoint: input.displayPoint,
     isReference: input.isReference,
-    previewOrder: 1,
     actions: input.actions,
     autoFocusTrigger: input.autoFocusTitleTrigger,
     onTitleCommit: (title) => {
@@ -664,24 +658,21 @@ const getSlotsFromPlanarMeasure = (
     <div className="mt-1 mb-0 w-full px-2">
       <div className="flex justify-between items-start gap-2">
         <span className="font-bold flex-1 min-w-0">
-          <MeasurementTitle
+          <AnnotationInfoTitleInput
             key={input.groupId}
-            order={input.order}
-            title={input.name ?? ""}
-            shapeId={input.groupId}
-            setUpdateMeasurementStatus={() => {}}
-            updateTitleMeasurementById={(shapeId, title) =>
-              input.actions.updatePlanarPolygonNameById(String(shapeId), title)
-            }
-            isCollapsed={false}
-            placeholderText={`${PLANAR_TYPE_TITLE_BY_KIND[input.kind]} #${
+            value={input.name ?? ""}
+            placeholder={`${PLANAR_TYPE_TITLE_BY_KIND[input.kind]} #${
               input.order
             }`}
-            clearPlaceholderOnFocus
-            showOrder={false}
             editable={true}
             capitalize={false}
             multiline={true}
+            onChange={(nextTitle) =>
+              input.actions.updatePlanarPolygonNameById(input.groupId, nextTitle)
+            }
+            onCommit={(nextTitle) =>
+              input.actions.updatePlanarPolygonNameById(input.groupId, nextTitle)
+            }
           />
         </span>
         <AnnotationInfoBoxActionIcon

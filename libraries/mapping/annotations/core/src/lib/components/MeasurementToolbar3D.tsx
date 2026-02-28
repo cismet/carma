@@ -7,9 +7,9 @@ import {
 } from "@carma-mapping/annotations/cesium";
 import { MeasurementModeToolbar } from "./MeasurementModeToolbar";
 import { useMeasurementToolMode } from "./hooks/useMeasurementToolMode";
-import { useMeasurements } from "../context/MeasurementsContext";
-import { useMeasurementSelection } from "../context/MeasurementSelectionContext";
-import { useMeasurementModeOptions } from "../context/MeasurementModeOptionsContext";
+import { useAnnotationMeasurements } from "../context/AnnotationMeasurementsContext";
+import { useAnnotationSelection } from "../context/AnnotationSelectionContext";
+import { useAnnotationModeOptions } from "../context/AnnotationModeOptionsContext";
 import type { MeasurementToolManager } from "../tools/measurementToolManager";
 
 const isKeyboardTargetEditable = (target: EventTarget | null): boolean => {
@@ -41,7 +41,7 @@ export function MeasurementToolbar3D({
     setPointVerticalOffsetMeters,
     pointLabelOnCreate,
     setPointLabelOnCreate,
-  } = useMeasurements<MeasurementMode, MeasurementEntry>();
+  } = useAnnotationMeasurements<MeasurementMode, MeasurementEntry>();
 
   const {
     selectedMeasurementIds,
@@ -51,7 +51,7 @@ export function MeasurementToolbar3D({
     setSelectModeAdditive,
     selectModeRectangle,
     setSelectModeRectangle,
-  } = useMeasurementSelection();
+  } = useAnnotationSelection();
 
   const {
     planarPolygonGroups,
@@ -67,7 +67,7 @@ export function MeasurementToolbar3D({
     setPlanarMeasurementCreationMode,
     setPolygonSurfaceTypePreset,
     polygonSurfaceTypePreset,
-  } = useMeasurementModeOptions();
+  } = useAnnotationModeOptions();
 
   const measurementById = useMemo(
     () => new Map(measurements.map((m) => [m.id, m])),
