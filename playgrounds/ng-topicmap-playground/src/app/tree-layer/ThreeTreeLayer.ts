@@ -98,14 +98,15 @@ export function treesFromFeatures(features: GeoJSONFeature[]): TreeData[] {
     const hMax = parseFloat(props["height_max"] as string);
     const heightVar = hMax > 0 ? hMax / base.h : 1.0;
 
-    const prefixDiameter =
+    const rInner = parseFloat(props["radius_max"] as string) || 0;
+    const rOuter = parseFloat(props["out_radius_max"] as string) || rInner;
+    const radiusMix = parseFloat(
       new URLSearchParams(window.location.hash.split("?")[1] || "").get(
-        "prefix_diameter"
-      ) || "";
-    const radiusKey = prefixDiameter
-      ? `${prefixDiameter}_radius_max`
-      : "radius_max";
-    const rMax = parseFloat(props[radiusKey] as string);
+        "radius_mix"
+      ) || "0"
+    );
+    const t = Math.max(0, Math.min(1, radiusMix));
+    const rMax = rInner + (rOuter - rInner) * t;
     const diameterVar = rMax > 0 ? rMax / base.r : 1.0;
 
     const farbe = (props["farbe"] as string) || null;
