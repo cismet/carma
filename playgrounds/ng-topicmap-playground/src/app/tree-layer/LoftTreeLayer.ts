@@ -62,7 +62,9 @@ export interface LoftLayerConfig {
 //  Tile source constants
 // ─────────────────────────────────────────────────────────────
 
-export const EINZELBAUMX_SOURCE = "einzelbaumX";
+// Source names as defined in the einzelbaumX style.json
+// (loaded by CarmaMap's libreLayers in merged mode)
+export const EINZELBAUMX_SOURCE = "einzelbaum_3d-source";
 export const EINZELBAUMX_LAYER = "einzelbaumX";
 
 // ─────────────────────────────────────────────────────────────

@@ -18,7 +18,6 @@ import {
   buildLoftLayer,
   syncLoftTreesFromSource,
   EINZELBAUMX_SOURCE,
-  EINZELBAUMX_LAYER,
 } from "./tree-layer/LoftTreeLayer";
 import "bootstrap/dist/css/bootstrap.min.css";
 import "react-bootstrap-typeahead/css/Typeahead.css";
@@ -90,29 +89,9 @@ function LoftTreeLayer() {
     if (!map || initialized.current) return;
     initialized.current = true;
 
-    const setup = () => {
+    const addLayerIfReady = () => {
       if (layerRef.current) return;
-
-      // Add einzelbaumX vector source directly (no style.json for this source)
-      if (!map.getSource(EINZELBAUMX_SOURCE)) {
-        map.addSource(EINZELBAUMX_SOURCE, {
-          type: "vector",
-          tiles: ["https://tiles.cismet.de/einzelbaumX/{z}/{x}/{y}.pbf"],
-          minzoom: 9,
-          maxzoom: 14,
-        });
-
-        // Hidden circle layer to trigger tile loading
-        map.addLayer({
-          id: "einzelbaumX-loader",
-          type: "circle",
-          source: EINZELBAUMX_SOURCE,
-          "source-layer": EINZELBAUMX_LAYER,
-          minzoom: 15,
-          maxzoom: 24,
-          paint: { "circle-radius": 0, "circle-opacity": 0 },
-        });
-      }
+      if (!map.getSource(EINZELBAUMX_SOURCE)) return;
 
       const customLayer = buildLoftLayer();
       layerRef.current = customLayer;
@@ -126,7 +105,7 @@ function LoftTreeLayer() {
     };
 
     const trySync = () => {
-      setup();
+      addLayerIfReady();
       if (layerRef.current && map.getSource(EINZELBAUMX_SOURCE)) {
         syncLoftTreesFromSource(map, layerRef.current);
       }
@@ -151,12 +130,6 @@ function LoftTreeLayer() {
 
       if (map.getLayer("3d-trees-loft")) {
         map.removeLayer("3d-trees-loft");
-      }
-      if (map.getLayer("einzelbaumX-loader")) {
-        map.removeLayer("einzelbaumX-loader");
-      }
-      if (map.getSource(EINZELBAUMX_SOURCE)) {
-        map.removeSource(EINZELBAUMX_SOURCE);
       }
 
       layerRef.current = null;
@@ -186,6 +159,11 @@ export function Trees2() {
                 overrideGlyphs="https://tiles.cismet.de/fonts/{fontstack}/{range}.pbf"
                 onProgressUpdate={handleProgressUpdate}
                 libreLayers={[
+                  {
+                    type: "vector",
+                    name: "Einzelbaum 3D",
+                    style: "https://tiles.cismet.de/einzelbaumX/style.json",
+                  },
                   {
                     type: "vector",
                     name: "Einzelbaum Umringe",
