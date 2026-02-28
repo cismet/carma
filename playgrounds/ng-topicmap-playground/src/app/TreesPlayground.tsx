@@ -13,6 +13,8 @@ import {
 } from "@carma-mapping/engines/maplibre";
 import TopicMapContextProvider from "react-cismap/contexts/TopicMapContextProvider";
 import { defaultGazDataConfig } from "@carma-commons/resources";
+import { faEye, faEyeSlash } from "@fortawesome/free-solid-svg-icons";
+import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import Menu from "./Menu";
 import {
   buildCustomLayer,
@@ -194,6 +196,110 @@ function TreeLayer({
 }
 
 // ─────────────────────────────────────────────────────────────
+//  Layer visibility sync (drives map layout property)
+// ─────────────────────────────────────────────────────────────
+
+type LayerGroupName = "Einzelbaum 3D" | "Einzelbaum Umringe" | "Gebaeude";
+type LayerVisibility = Record<LayerGroupName, boolean>;
+
+const LAYER_GROUPS: {
+  name: LayerGroupName;
+  label: string;
+  color: string;
+}[] = [
+  { name: "Einzelbaum 3D", label: "3D Bäume", color: "#5D4037" },
+  { name: "Einzelbaum Umringe", label: "Umringe", color: "#4CAF50" },
+  { name: "Gebaeude", label: "Gebäude", color: "#607D8B" },
+];
+
+const DEFAULT_VISIBILITY: LayerVisibility = {
+  "Einzelbaum 3D": true,
+  "Einzelbaum Umringe": true,
+  Gebaeude: true,
+};
+
+function MapLayerVisibility({
+  visibility,
+}: {
+  visibility: LayerVisibility;
+}) {
+  const { map } = useLibreContext();
+
+  useEffect(() => {
+    if (!map) return;
+
+    const sync = () => {
+      const style = map.getStyle();
+      if (!style?.layers) return;
+
+      for (const layer of style.layers) {
+        const layerId =
+          (layer as { metadata?: Record<string, unknown> }).metadata?.[
+            "layer-id"
+          ];
+        if (typeof layerId !== "string") continue;
+
+        const groupName = layerId as LayerGroupName;
+        if (groupName in visibility) {
+          const desired = visibility[groupName] ? "visible" : "none";
+          const current =
+            map.getLayoutProperty(layer.id, "visibility") ?? "visible";
+          if (current !== desired) {
+            map.setLayoutProperty(layer.id, "visibility", desired);
+          }
+        }
+      }
+    };
+
+    sync();
+  }, [map, visibility]);
+
+  return null;
+}
+
+// ─────────────────────────────────────────────────────────────
+//  Layer toggle bar UI
+// ─────────────────────────────────────────────────────────────
+
+const PILL_SHADOW =
+  "0 1px 2px rgba(60,64,67,0.3), 0 1px 3px 1px rgba(60,64,67,0.15)";
+
+function LayerToggleBar({
+  visibility,
+  onToggle,
+}: {
+  visibility: LayerVisibility;
+  onToggle: (name: LayerGroupName) => void;
+}) {
+  return (
+    <div className="absolute top-4 left-1/2 -translate-x-1/2 z-[9999] flex gap-2">
+      {LAYER_GROUPS.map(({ name, label, color }) => {
+        const visible = visibility[name];
+        return (
+          <button
+            key={name}
+            onClick={() => onToggle(name)}
+            className={`flex items-center gap-2 px-3 h-8 rounded-[10px] text-sm cursor-pointer
+              ${visible ? "bg-white" : "bg-neutral-200/70 opacity-70"}`}
+            style={{ boxShadow: PILL_SHADOW }}
+          >
+            <span
+              className="inline-block w-2.5 h-2.5 rounded-full shrink-0"
+              style={{ backgroundColor: color }}
+            />
+            <span>{label}</span>
+            <FontAwesomeIcon
+              icon={visible ? faEye : faEyeSlash}
+              className="text-xs text-gray-600"
+            />
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────
 //  Libre layers config
 // ─────────────────────────────────────────────────────────────
 
@@ -224,7 +330,13 @@ export function TreesPlayground({
 }: TreesPlaygroundProps) {
   const [useLoft, setUseLoft] = useState(defaultUseLoft);
   const [radiusMix, setRadiusMix] = useState(parseRadiusMixFromUrl);
+  const [layerVisibility, setLayerVisibility] =
+    useState<LayerVisibility>(DEFAULT_VISIBILITY);
   const { progress, showProgress, handleProgressUpdate } = useProgress();
+
+  const toggleLayer = (name: LayerGroupName) => {
+    setLayerVisibility((prev) => ({ ...prev, [name]: !prev[name] }));
+  };
 
   return (
     <TopicMapContextProvider infoBoxPixelWidth={350}>
@@ -233,7 +345,10 @@ export function TreesPlayground({
           <SelectionProvider>
             <LibreContextProvider>
               <CameraPersistence />
-              <TreeLayer useLoft={useLoft} radiusMix={radiusMix} />
+              {layerVisibility["Einzelbaum 3D"] && (
+                <TreeLayer useLoft={useLoft} radiusMix={radiusMix} />
+              )}
+              <MapLayerVisibility visibility={layerVisibility} />
               <ProgressIndicator progress={progress} show={showProgress} />
               <CarmaMap
                 onClick={() => {}}
@@ -243,6 +358,10 @@ export function TreesPlayground({
                 onProgressUpdate={handleProgressUpdate}
                 libreLayers={LIBRE_LAYERS}
                 modalMenu={<Menu />}
+              />
+              <LayerToggleBar
+                visibility={layerVisibility}
+                onToggle={toggleLayer}
               />
             </LibreContextProvider>
           </SelectionProvider>
