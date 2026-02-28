@@ -76,14 +76,12 @@ export function treesFromFeatures(features: GeoJSONFeature[]): TreeData[] {
     if (geom.type === "Point") {
       [lng, lat] = geom.coordinates as [number, number];
     } else if (geom.type === "Polygon") {
-      const c = polygonCentroid(
-        geom.coordinates as unknown as number[][][],
-      );
+      const c = polygonCentroid(geom.coordinates as unknown as number[][][]);
       if (!c) continue;
       [lng, lat] = c;
     } else if (geom.type === "MultiPolygon") {
       const c = polygonCentroid(
-        (geom.coordinates as unknown as number[][][][])[0],
+        (geom.coordinates as unknown as number[][][][])[0]
       );
       if (!c) continue;
       [lng, lat] = c;
@@ -141,7 +139,7 @@ interface TreeCustomLayer extends CustomLayerInterface {
 }
 
 export function buildCustomLayer(
-  config: TreeLayerConfig = {},
+  config: TreeLayerConfig = {}
 ): TreeCustomLayer {
   const heightScale = config.heightScale ?? 1.0;
   const diameterScale = config.diameterScale ?? 1.0;
@@ -168,7 +166,10 @@ export function buildCustomLayer(
     _heightScale: heightScale,
     _diameterScale: diameterScale,
 
-    onAdd(map: MaplibreMap, gl: WebGLRenderingContext | WebGL2RenderingContext) {
+    onAdd(
+      map: MaplibreMap,
+      gl: WebGLRenderingContext | WebGL2RenderingContext
+    ) {
       this.camera = new THREE.Camera();
       this.scene = new THREE.Scene();
       this.map = map;
@@ -196,7 +197,8 @@ export function buildCustomLayer(
     _buildInstances() {
       // Remove old instanced meshes
       const toRemove = this.scene.children.filter(
-        (c): c is THREE.InstancedMesh => (c as THREE.InstancedMesh).isInstancedMesh === true,
+        (c): c is THREE.InstancedMesh =>
+          (c as THREE.InstancedMesh).isInstancedMesh === true
       );
       for (const m of toRemove) {
         m.geometry.dispose();
@@ -237,22 +239,16 @@ export function buildCustomLayer(
         const crownMat = new THREE.MeshLambertMaterial({
           color: TYPE_COLORS[typeName],
           flatShading: true,
+          transparent: true,
+          opacity: 0.85,
         });
-        const crownMesh = new THREE.InstancedMesh(
-          proto.crown,
-          crownMat,
-          count,
-        );
+        const crownMesh = new THREE.InstancedMesh(proto.crown, crownMat, count);
 
         const trunkMat = new THREE.MeshLambertMaterial({
           color: "#5c3a1e",
           flatShading: true,
         });
-        const trunkMesh = new THREE.InstancedMesh(
-          proto.trunk,
-          trunkMat,
-          count,
-        );
+        const trunkMesh = new THREE.InstancedMesh(proto.trunk, trunkMat, count);
 
         const crownColors = new Float32Array(count * 3);
         const trunkColorData = new Float32Array(count * 3);
@@ -262,7 +258,7 @@ export function buildCustomLayer(
 
           const treeMerc = MercatorCoordinate.fromLngLat(
             [tree.lng, tree.lat],
-            0,
+            0
           );
           const dxMeters = (treeMerc.x - originMerc.x) / mScale;
           const dyMeters = (treeMerc.y - originMerc.y) / mScale;
@@ -289,18 +285,18 @@ export function buildCustomLayer(
           crownColors.set([cc.r, cc.g, cc.b], i * 3);
 
           const tc = new THREE.Color(
-            TRUNK_COLORS[Math.floor(Math.random() * TRUNK_COLORS.length)],
+            TRUNK_COLORS[Math.floor(Math.random() * TRUNK_COLORS.length)]
           );
           trunkColorData.set([tc.r, tc.g, tc.b], i * 3);
         }
 
         crownMesh.instanceColor = new THREE.InstancedBufferAttribute(
           crownColors,
-          3,
+          3
         );
         trunkMesh.instanceColor = new THREE.InstancedBufferAttribute(
           trunkColorData,
-          3,
+          3
         );
         crownMesh.instanceMatrix.needsUpdate = true;
         trunkMesh.instanceMatrix.needsUpdate = true;
@@ -312,7 +308,7 @@ export function buildCustomLayer(
 
     render(
       _gl: WebGLRenderingContext | WebGL2RenderingContext,
-      options: CustomRenderMethodInput,
+      options: CustomRenderMethodInput
     ) {
       if (!this._originMerc) return;
 
@@ -322,11 +318,11 @@ export function buildCustomLayer(
       // Rotation PI/2 around X: Three.js Y-up to Mercator Z-up
       const rotationX = new THREE.Matrix4().makeRotationAxis(
         new THREE.Vector3(1, 0, 0),
-        Math.PI / 2,
+        Math.PI / 2
       );
 
       const m = new THREE.Matrix4().fromArray(
-        options.defaultProjectionData.mainMatrix as unknown as number[],
+        options.defaultProjectionData.mainMatrix as unknown as number[]
       );
       const l = new THREE.Matrix4()
         .makeTranslation(originMerc.x, originMerc.y, originMerc.z)
@@ -367,7 +363,7 @@ export function buildCustomLayer(
 
 export function syncTreesFromSource(
   map: MaplibreMap,
-  layer: TreeCustomLayer,
+  layer: TreeCustomLayer
 ): void {
   const features = map.querySourceFeatures(STAMM_SOURCE, {
     sourceLayer: STAMM_LAYER,
