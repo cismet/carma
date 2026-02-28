@@ -3,7 +3,7 @@
   "$schema": "../../../../node_modules/nx/schemas/project-schema.json",
   "sourceRoot": "libraries/mapping/annotations/core/src",
   "projectType": "library",
-  "tags": ["type:library", "scope:mapping"],
+  "tags": ["type:library", "scope:mapping", "scope:annotations-core"],
   "targets": {
     "lint": {
       "executor": "@nx/eslint:lint"

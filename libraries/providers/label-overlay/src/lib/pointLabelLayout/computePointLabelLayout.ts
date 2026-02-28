@@ -149,6 +149,27 @@ const pickEvaluation = (
   );
 };
 
+const pickCompactBestEffortEvaluation = (
+  evaluations: CandidateEvaluation[]
+): CandidateEvaluation | undefined => {
+  if (evaluations.length === 0) return undefined;
+
+  const strictViewportSafe = evaluations
+    .filter(
+      (evaluation) =>
+        !evaluation.intersectsOtherAnchor && evaluation.viewportPenalty === 0
+    )
+    .sort(sortByScoreThenOrder)[0];
+  if (strictViewportSafe) return strictViewportSafe;
+
+  const noAnchorOverlap = evaluations
+    .filter((evaluation) => !evaluation.intersectsOtherAnchor)
+    .sort(sortByScoreThenOrder)[0];
+  if (noAnchorOverlap) return noAnchorOverlap;
+
+  return [...evaluations].sort(sortByScoreThenOrder)[0];
+};
+
 export const computePointLabelLayout = ({
   points,
   viewportWidth,
@@ -317,19 +338,26 @@ export const computePointLabelLayout = ({
           compactForcedEvaluations
         );
 
-        if (compactSelectedEvaluation) {
+        const compactBestEffortEvaluation =
+          compactSelectedEvaluation ??
+          pickCompactBestEffortEvaluation([
+            ...compactRegularEvaluations,
+            ...compactForcedEvaluations,
+          ]);
+
+        if (compactBestEffortEvaluation) {
           const collapsedToCompact = new Set(state.collapsedToCompact);
           collapsedToCompact.add(point.id);
           return {
             placements: {
               ...state.placements,
-              [point.id]: compactSelectedEvaluation.placement,
+              [point.id]: compactBestEffortEvaluation.placement,
             },
             hiddenByLayout: state.hiddenByLayout,
             collapsedToCompact,
             occupiedLabelRects: [
               ...state.occupiedLabelRects,
-              compactSelectedEvaluation.rect,
+              compactBestEffortEvaluation.rect,
             ],
           };
         }

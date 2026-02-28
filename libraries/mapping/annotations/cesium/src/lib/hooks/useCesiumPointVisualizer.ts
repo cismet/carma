@@ -37,17 +37,17 @@ import {
   update3dCrossVisibility,
 } from "../utils/cesium3DCross";
 import {
-  isPointMeasurementEntry,
-  MeasurementCollection,
+  isPointAnnotationEntry,
+  AnnotationCollection,
   type PlanarPolygonPlane,
-  type PointMeasurementEntry,
-} from "../types/MeasurementTypes";
+  type PointAnnotationEntry,
+} from "../types/AnnotationTypes";
 import {
   useCesiumPointLabels,
   type CesiumLabelLayoutConfigOverrides,
   type PointMarkerBadge,
 } from "./useCesiumPointLabels";
-import { useMeasurementMoveGizmoAdapter } from "./useMeasurementMoveGizmoAdapter";
+import { useAnnotationMoveGizmoAdapter } from "./useAnnotationMoveGizmoAdapter";
 import { formatNumber } from "../utils/formatting";
 
 const LIVE_PREVIEW_HEIGHT_LABEL_ID = "measurement-live-preview-height";
@@ -393,7 +393,7 @@ export type CesiumPointVisualizerOptions = {
 
 export const useCesiumPointVisualizer = (
   scene: Scene | null,
-  measurements: MeasurementCollection = [],
+  measurements: AnnotationCollection = [],
   {
     showMarkers = true,
     showCesiumMarkers = false,
@@ -527,10 +527,10 @@ export const useCesiumPointVisualizer = (
     };
   }, [scene, hasLivePreviewPoint, renderDomVisuals]);
 
-  const [points, currentIds]: [PointMeasurementEntry[], Set<string>] =
+  const [points, currentIds]: [PointAnnotationEntry[], Set<string>] =
     useMemo(() => {
       // memoize derived values of measurements
-      const derivedPoints = measurements.filter(isPointMeasurementEntry);
+      const derivedPoints = measurements.filter(isPointAnnotationEntry);
       const ids = new Set(derivedPoints.map((measurement) => measurement.id));
       return [derivedPoints, ids];
     }, [measurements]);
@@ -577,7 +577,7 @@ export const useCesiumPointVisualizer = (
     markerOnlyOverlayNodeInteractions
   );
 
-  useMeasurementMoveGizmoAdapter({
+  useAnnotationMoveGizmoAdapter({
     scene: renderCesiumCoreVisuals ? scene : null,
     points,
     moveGizmoPointId: renderCesiumCoreVisuals ? moveGizmoPointId : null,

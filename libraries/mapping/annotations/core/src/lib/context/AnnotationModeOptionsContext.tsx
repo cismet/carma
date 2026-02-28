@@ -6,9 +6,9 @@ import {
 } from "react";
 import type {
   PlanarPolygonGroup,
-  PolylineSegmentLineMode,
-  SurfaceType,
-} from "../types/measurementTypes";
+  LinearSegmentLineMode,
+  PlanarSurfaceType,
+} from "../types/annotationTypes";
 
 export type AnnotationModeOptionsContextType = {
   planarPolygonGroups: PlanarPolygonGroup[];
@@ -29,14 +29,14 @@ export type AnnotationModeOptionsContextType = {
   ) => void;
   polylineVerticalOffsetMeters: number;
   setPolylineVerticalOffsetMeters: Dispatch<SetStateAction<number>>;
-  polylineSegmentLineMode: PolylineSegmentLineMode;
-  setPolylineSegmentLineMode: Dispatch<SetStateAction<PolylineSegmentLineMode>>;
+  polylineSegmentLineMode: LinearSegmentLineMode;
+  setPolylineSegmentLineMode: Dispatch<SetStateAction<LinearSegmentLineMode>>;
   planarMeasurementCreationMode: "polyline" | "polygon";
   setPlanarMeasurementCreationMode: Dispatch<
     SetStateAction<"polyline" | "polygon">
   >;
-  polygonSurfaceTypePreset: SurfaceType;
-  setPolygonSurfaceTypePreset: Dispatch<SetStateAction<SurfaceType>>;
+  polygonSurfaceTypePreset: PlanarSurfaceType;
+  setPolygonSurfaceTypePreset: Dispatch<SetStateAction<PlanarSurfaceType>>;
 };
 
 export const AnnotationModeOptionsContext = createContext<

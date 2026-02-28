@@ -1,6 +1,6 @@
 import { Cartesian3 } from "@carma/cesium";
 
-import { type PlanarPolygonGroup } from "../../types/measurementTypes";
+import { type PlanarPolygonGroup } from "../../types/annotationTypes";
 import { type AreaLabelText } from "./areaLabelVisualizer.types";
 
 const AREA_DISPLAY_HECTARE_THRESHOLD_SQM = 4999;

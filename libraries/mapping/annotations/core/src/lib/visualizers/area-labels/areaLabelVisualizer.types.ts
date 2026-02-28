@@ -5,8 +5,8 @@ import {
   type PlanarPolygonPreviewGroup,
   type PolygonPreviewGroup,
   type VerticalPolygonPreviewGroup,
-} from "../../preview/measurementPreviewVisuals";
-import { type PlanarPolygonGroup } from "../../types/measurementTypes";
+} from "../../preview/annotationPreviewVisuals";
+import { type PlanarPolygonGroup } from "../../types/annotationTypes";
 
 export type PolygonAreaBadge = {
   text: string;

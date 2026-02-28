@@ -13,18 +13,18 @@ import {
 } from "@carma/cesium";
 
 import {
-  isPointMeasurementEntry,
-  MeasurementCollection,
-  MeasurementEntry,
-  type MeasurementLabelAppearance,
-  type MeasurementLabelAnchor,
-  MeasurementMode,
+  isPointAnnotationEntry,
+  MEASUREMENT_MODE_DISTANCE,
+  AnnotationCollection,
+  AnnotationEntry,
+  type AnnotationLabelAppearance,
+  type AnnotationLabelAnchor,
   type PointLabelMetricMode,
-} from "../types/MeasurementTypes";
+} from "../types/AnnotationTypes";
 import {
   updateCollection,
   makeTemporaryMeasurementsPermanent,
-} from "../utils/measurementCollection";
+} from "../utils/annotationCollection";
 
 const POINT_CLICK_DELAY_MS = 220;
 const POINTER_NORMAL_SAMPLE_OFFSET_PX = 2;
@@ -144,7 +144,7 @@ const estimateSurfaceNormalAtPointer = (
 export const useCesiumPointQuery = (
   scene: Scene | null,
   enabled: boolean = true,
-  setCollection: Dispatch<SetStateAction<MeasurementCollection>>,
+  setCollection: Dispatch<SetStateAction<AnnotationCollection>>,
   temporaryMode: boolean = true,
   onPointCreated?: (pointId: string, positionECEF: Cartesian3) => void,
   onLineFinish?: () => void,
@@ -158,18 +158,18 @@ export const useCesiumPointQuery = (
   hiddenOnCreate: boolean = false,
   auxiliaryOnCreate: boolean = false,
   labelAnchorOnCreate:
-    | MeasurementLabelAnchor
+    | AnnotationLabelAnchor
     | ((
         pointId: string,
-        prev?: MeasurementCollection
-      ) => MeasurementLabelAnchor | undefined)
+        prev?: AnnotationCollection
+      ) => AnnotationLabelAnchor | undefined)
     | undefined = undefined,
   labelAppearanceOnCreate:
-    | MeasurementLabelAppearance
+    | AnnotationLabelAppearance
     | ((
         pointId: string,
-        prev?: MeasurementCollection
-      ) => MeasurementLabelAppearance | undefined)
+        prev?: AnnotationCollection
+      ) => AnnotationLabelAppearance | undefined)
     | undefined = undefined,
   useTemporaryForCreatedPoints: boolean = true,
   markCreatedPointsAsDistanceAdhoc: boolean = false,
@@ -383,8 +383,8 @@ export const useCesiumPointQuery = (
       const measurementId = `point-${Date.now()}`;
 
       const measurementConstructor = (
-        prev?: MeasurementCollection
-      ): MeasurementEntry => {
+        prev?: AnnotationCollection
+      ): AnnotationEntry => {
         const useTemporaryForCreate =
           temporaryMode && useTemporaryForCreatedPoints;
         const resolvedLabelAnchor =
@@ -398,10 +398,10 @@ export const useCesiumPointQuery = (
         const insertionIndex = temporaryMode
           ? useTemporaryForCreate
             ? 0
-            : prev?.filter(isPointMeasurementEntry).length || 0
-          : prev?.filter(isPointMeasurementEntry).length || 0;
+            : prev?.filter(isPointAnnotationEntry).length || 0
+          : prev?.filter(isPointAnnotationEntry).length || 0;
         return {
-          type: MeasurementMode.PointQuery,
+          type: MEASUREMENT_MODE_DISTANCE,
           id: measurementId,
           index: insertionIndex,
           geometryECEF,

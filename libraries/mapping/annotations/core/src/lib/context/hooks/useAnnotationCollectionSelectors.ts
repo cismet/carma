@@ -4,13 +4,13 @@ import type {
   AnnotationListType,
   AnnotationMeasurementsContextType,
 } from "../AnnotationMeasurementsContext";
-import type { BaseMeasurementEntry } from "../../types/measurementTypes";
+import type { BaseAnnotationEntry } from "../../types/annotationTypes";
 
-type MeasurementWithId = BaseMeasurementEntry;
+type AnnotationWithId = BaseAnnotationEntry;
 
 type UseMeasurementCollectionSelectorsParams<
   TMode extends string,
-  TMeasurement extends MeasurementWithId
+  TMeasurement extends AnnotationWithId
 > = {
   measurementsByType: (
     type: AnnotationListType<TMode>
@@ -18,9 +18,9 @@ type UseMeasurementCollectionSelectorsParams<
   navigationTypes: ReadonlyArray<AnnotationListType<TMode>>;
 };
 
-type MeasurementCollectionSelectors<
+type AnnotationCollectionSelectors<
   TMode extends string,
-  TMeasurement extends MeasurementWithId
+  TMeasurement extends AnnotationWithId
 > = Pick<
   AnnotationMeasurementsContextType<TMode, TMeasurement>,
   | "getMeasurementsForNavigation"
@@ -31,14 +31,14 @@ type MeasurementCollectionSelectors<
 
 export const useAnnotationCollectionSelectors = <
   TMode extends string,
-  TMeasurement extends MeasurementWithId
+  TMeasurement extends AnnotationWithId
 >({
   measurementsByType,
   navigationTypes,
 }: UseMeasurementCollectionSelectorsParams<
   TMode,
   TMeasurement
->): MeasurementCollectionSelectors<TMode, TMeasurement> => {
+>): AnnotationCollectionSelectors<TMode, TMeasurement> => {
   const getMeasurementsForNavigation = useCallback(() => {
     const seenIds = new Set<string>();
     const result: TMeasurement[] = [];

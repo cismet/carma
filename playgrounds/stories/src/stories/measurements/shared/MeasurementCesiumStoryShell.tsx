@@ -18,13 +18,13 @@ import { LabelOverlayProvider } from "@carma-providers/label-overlay";
 import {
   AnnotationProvider,
   type MEASUREMENT_MODE,
-} from "../../../../../libraries/mapping/annotations/core/src";
-import { CesiumMeasurementsProvider } from "@carma-mapping/annotations/cesium";
+} from "@carma-mapping/annotations/core";
+import { CesiumAnnotationsProvider } from "@carma-mapping/annotations/cesium";
 import {
   CesiumContext,
   type CesiumContextType,
-} from "../../../../../libraries/mapping/engines/cesium/legacy/src/lib/CesiumContext";
-import type { SceneAnimationMap } from "../../../../../libraries/mapping/engines/cesium/legacy/src/lib/utils/sceneAnimationMap";
+  type SceneAnimationMap,
+} from "@carma-mapping/engines/cesium/legacy";
 import { setupCesium } from "../../map-framework-switcher/helpers/cesium-setup";
 
 import "cesium/Build/Cesium/Widgets/widgets.css";
@@ -206,9 +206,8 @@ export const MeasurementCesiumStoryShell = ({
         position: "relative",
         width: "100%",
         height,
-        borderRadius: 12,
         overflow: "hidden",
-        backgroundColor: "#0f172a",
+        backgroundColor: "transparent",
       }}
     >
       <div
@@ -230,10 +229,9 @@ export const MeasurementCesiumStoryShell = ({
           }}
         >
           <LabelOverlayProvider containerRef={rootRef}>
-            <CesiumMeasurementsProvider
+            <CesiumAnnotationsProvider
               options={{
                 persistenceEnabled: false,
-                scriptApi: { enabled: true },
               }}
             >
               <div
@@ -252,7 +250,7 @@ export const MeasurementCesiumStoryShell = ({
               >
                 <div style={{ pointerEvents: "auto" }}>{children}</div>
               </div>
-            </CesiumMeasurementsProvider>
+            </CesiumAnnotationsProvider>
           </LabelOverlayProvider>
         </AnnotationProvider>
       </CesiumContext.Provider>

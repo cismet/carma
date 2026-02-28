@@ -1,6 +1,6 @@
 import { useMemo } from "react";
 
-import { type PlanarPolygonGroup } from "../types/MeasurementTypes";
+import { type PlanarPolygonGroup } from "../types/AnnotationTypes";
 import { type PointMarkerBadge } from "./areaPreviewModel.types";
 
 export const useAreaPreviewSharedModel = ({

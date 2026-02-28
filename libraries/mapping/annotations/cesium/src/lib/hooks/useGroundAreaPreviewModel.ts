@@ -4,8 +4,8 @@ import { buildGroundPolygonPreviewGroups } from "@carma-mapping/annotations/core
 
 import {
   type PlanarPolygonGroup,
-  type PointMeasurementEntry,
-} from "../types/MeasurementTypes";
+  type PointAnnotationEntry,
+} from "../types/AnnotationTypes";
 import { type DistanceLivePreviewLine } from "./areaPreviewModel.types";
 
 export const useGroundAreaPreviewModel = ({
@@ -16,9 +16,9 @@ export const useGroundAreaPreviewModel = ({
   livePreviewDistanceLine,
 }: {
   planarPolygonGroups: PlanarPolygonGroup[];
-  pointsById: ReadonlyMap<string, PointMeasurementEntry>;
+  pointsById: ReadonlyMap<string, PointAnnotationEntry>;
   facadeRectanglePreviewOppositeByGroupId?: Readonly<
-    Record<string, PointMeasurementEntry["geometryECEF"]>
+    Record<string, PointAnnotationEntry["geometryECEF"]>
   >;
   activePlanarPolygonGroupId: string | null;
   livePreviewDistanceLine: DistanceLivePreviewLine | null;

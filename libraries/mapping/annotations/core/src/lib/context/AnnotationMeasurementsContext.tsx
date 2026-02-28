@@ -5,9 +5,9 @@ import {
   type SetStateAction,
 } from "react";
 import type {
-  BaseMeasurementEntry,
-  MeasurementLabelAppearance,
-} from "../types/measurementTypes";
+  BaseAnnotationEntry,
+  AnnotationLabelAppearance,
+} from "../types/annotationTypes";
 
 export type AnnotationListType<TMode extends string = string> =
   | TMode
@@ -16,7 +16,7 @@ export type AnnotationListType<TMode extends string = string> =
   | "pointLabel";
 
 export type AnnotationCreatePayload<
-  TMeasurement extends BaseMeasurementEntry = BaseMeasurementEntry
+  TMeasurement extends BaseAnnotationEntry = BaseAnnotationEntry
 > = Omit<TMeasurement, "id" | "timestamp"> & {
   id?: string;
   timestamp?: number;
@@ -24,7 +24,7 @@ export type AnnotationCreatePayload<
 
 export type AnnotationMeasurementsContextType<
   TMode extends string = string,
-  TMeasurement extends BaseMeasurementEntry = BaseMeasurementEntry
+  TMeasurement extends BaseAnnotationEntry = BaseAnnotationEntry
 > = {
   measurementMode: TMode;
   setMeasurementMode: Dispatch<SetStateAction<TMode>>;
@@ -49,7 +49,7 @@ export type AnnotationMeasurementsContextType<
   updateMeasurementNameById: (id: string, name: string) => void;
   updatePointLabelAppearanceById: (
     id: string,
-    appearance: MeasurementLabelAppearance | undefined
+    appearance: AnnotationLabelAppearance | undefined
   ) => void;
   toggleMeasurementLockById: (id: string) => void;
   clearMeasurementsByIds: (ids: string[]) => void;
@@ -83,7 +83,7 @@ export const AnnotationMeasurementsContext = createContext<
 // eslint-disable-next-line react-refresh/only-export-components
 export const useAnnotationMeasurements = <
   TMode extends string = string,
-  TMeasurement extends BaseMeasurementEntry = BaseMeasurementEntry
+  TMeasurement extends BaseAnnotationEntry = BaseAnnotationEntry
 >(): AnnotationMeasurementsContextType<TMode, TMeasurement> => {
   const context = useContext(AnnotationMeasurementsContext);
   if (!context) {

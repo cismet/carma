@@ -9,6 +9,7 @@ import type {
 
 const DEFAULT_STEM_ANGLE_RAD = Math.PI / 4;
 const ALL_ATTACHES: PointLabelAttach[] = ["left", "right", "center"];
+const DEFAULT_PLACEMENT_ORDER: PointLabelAttach[] = ["left", "right"];
 
 export const DEFAULT_DYNAMIC_LABEL_PLACEMENT_CONFIG: DynamicLabelPlacementConfig =
   {
@@ -23,7 +24,7 @@ export const DEFAULT_DYNAMIC_LABEL_PLACEMENT_CONFIG: DynamicLabelPlacementConfig
   };
 
 export const DEFAULT_POINT_LABEL_LAYOUT_CONFIG: PointLabelLayoutConfig = {
-  placementOrder: ["left", "right", "center"],
+  placementOrder: DEFAULT_PLACEMENT_ORDER,
   stemDistance: 20,
   dynamicLabelPlacement: true,
   dynamicLabelPlacementConfig: DEFAULT_DYNAMIC_LABEL_PLACEMENT_CONFIG,
@@ -47,19 +48,18 @@ const normalizeAngle = (angleRad: number): number => {
 const normalizePlacementOrder = (
   placementOrder?: PointLabelAttach[]
 ): PointLabelAttach[] => {
-  const deduped = (placementOrder ?? []).reduce<PointLabelAttach[]>(
+  const sourceOrder =
+    placementOrder && placementOrder.length > 0
+      ? placementOrder
+      : DEFAULT_PLACEMENT_ORDER;
+  const deduped = sourceOrder.reduce<PointLabelAttach[]>(
     (accumulator, attach) =>
       ALL_ATTACHES.includes(attach) && !accumulator.includes(attach)
         ? [...accumulator, attach]
         : accumulator,
     []
   );
-
-  return ALL_ATTACHES.reduce<PointLabelAttach[]>(
-    (accumulator, attach) =>
-      accumulator.includes(attach) ? accumulator : [...accumulator, attach],
-    deduped
-  );
+  return deduped.length > 0 ? deduped : DEFAULT_PLACEMENT_ORDER;
 };
 
 const resolveDynamicLabelPlacementConfig = (

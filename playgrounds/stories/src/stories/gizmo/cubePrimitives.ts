@@ -9,6 +9,7 @@ import {
   PerInstanceColorAppearance,
   PolylineCollection,
   Primitive,
+  defined,
   type Scene,
 } from "@carma/cesium";
 import { createPrimitiveGroup } from "@carma-mapping/engines/cesium/primitives";

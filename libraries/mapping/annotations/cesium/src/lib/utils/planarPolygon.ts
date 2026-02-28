@@ -10,8 +10,8 @@ import type {
   PlanarPolygonGroup,
   PlanarPolygonLocalFrame,
   PlanarPolygonPlane,
-  SurfaceType,
-} from "../types/MeasurementTypes";
+  PlanarSurfaceType,
+} from "../types/AnnotationTypes";
 
 const EPSILON = 1e-8;
 
@@ -268,7 +268,7 @@ export const computeVerticalityDeg = (plane: PlanarPolygonPlane): number => {
   return (Math.acos(dot) * 180) / Math.PI;
 };
 
-export const classifySurfaceType = (verticalityDeg: number): SurfaceType =>
+export const classifySurfaceType = (verticalityDeg: number): PlanarSurfaceType =>
   verticalityDeg > 85 ? "facade" : "roof";
 
 export const buildEdgeRelationIdsForPolygon = (

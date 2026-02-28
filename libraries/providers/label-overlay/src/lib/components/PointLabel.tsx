@@ -570,6 +570,8 @@ export const PointLabel = React.memo(
                   fontSize,
                   fontFamily,
                   fontWeight,
+                  fontVariantNumeric: "tabular-nums",
+                  fontFeatureSettings: '"tnum"',
                   backgroundColor: effectiveBackgroundColor,
                   color: effectiveTextColor,
                   position: "absolute",

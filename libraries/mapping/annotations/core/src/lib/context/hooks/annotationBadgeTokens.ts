@@ -1,4 +1,4 @@
-import { toAlphabeticSequence } from "../../utils/measurementTokens";
+import { toAlphabeticSequence } from "../../utils/annotationTokens";
 import {
   SPATIAL_MARKUP_KIND_AREA,
   SPATIAL_MARKUP_KIND_DISTANCE,
@@ -7,26 +7,26 @@ import {
   SPATIAL_MARKUP_KIND_POINT,
   SPATIAL_MARKUP_KIND_POLYLINE,
   SPATIAL_MARKUP_KIND_VERTICAL,
-  type MeasurementShortLabelKind,
-} from "../../types/measurementKindRegistry";
-export { toAlphabeticSequence } from "../../utils/measurementTokens";
-export type { MeasurementShortLabelKind } from "../../types/measurementKindRegistry";
+  type AnnotationShortLabelKind,
+} from "../../types/annotationTypes";
+export { toAlphabeticSequence } from "../../utils/annotationTokens";
+export type { AnnotationShortLabelKind } from "../../types/annotationTypes";
 
-export type MeasurementShortLabelCounterStyle = "numeric" | "alphabetic";
+export type AnnotationShortLabelCounterStyle = "numeric" | "alphabetic";
 
-export type MeasurementShortLabelStyleConfig = {
+export type AnnotationShortLabelStyleConfig = {
   prefix: string;
-  counterStyle: MeasurementShortLabelCounterStyle;
+  counterStyle: AnnotationShortLabelCounterStyle;
   backgroundColor: string;
   textColor: string;
 };
 
-export type MeasurementShortLabelConfigMap = Record<
-  MeasurementShortLabelKind,
-  MeasurementShortLabelStyleConfig
+export type AnnotationShortLabelConfigMap = Record<
+  AnnotationShortLabelKind,
+  AnnotationShortLabelStyleConfig
 >;
 
-export const DEFAULT_MEASUREMENT_SHORT_LABEL_CONFIG: MeasurementShortLabelConfigMap =
+export const DEFAULT_ANNOTATION_SHORT_LABEL_CONFIG: AnnotationShortLabelConfigMap =
   {
     [SPATIAL_MARKUP_KIND_POINT]: {
       prefix: "",
@@ -73,9 +73,9 @@ export const DEFAULT_MEASUREMENT_SHORT_LABEL_CONFIG: MeasurementShortLabelConfig
   };
 
 export const formatMeasurementShortLabelToken = (
-  kind: MeasurementShortLabelKind,
+  kind: AnnotationShortLabelKind,
   counter: number,
-  configMap: MeasurementShortLabelConfigMap = DEFAULT_MEASUREMENT_SHORT_LABEL_CONFIG
+  configMap: AnnotationShortLabelConfigMap = DEFAULT_ANNOTATION_SHORT_LABEL_CONFIG
 ): string => {
   const config = configMap[kind];
   const safeCounter =

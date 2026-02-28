@@ -1,34 +1,34 @@
 import { useMemo } from "react";
 import {
-  DEFAULT_MEASUREMENT_SHORT_LABEL_CONFIG,
+  DEFAULT_ANNOTATION_SHORT_LABEL_CONFIG,
   formatMeasurementShortLabelToken,
-  type MeasurementShortLabelConfigMap,
-  type MeasurementShortLabelKind,
+  type AnnotationShortLabelConfigMap,
+  type AnnotationShortLabelKind,
 } from "./annotationBadgeTokens";
 import {
   SPATIAL_MARKUP_KIND_DISTANCE,
   SPATIAL_MARKUP_KIND_LABEL,
   SPATIAL_MARKUP_KIND_POINT,
-} from "../../types/measurementKindRegistry";
+} from "../../types/annotationTypes";
 
-export type MeasurementPointMarkerBadge = {
+export type AnnotationPointMarkerBadge = {
   text: string;
   backgroundColor: string;
   textColor: string;
 };
 
-export type MeasurementPointMarkerBadgePointLike = {
+export type AnnotationPointMarkerBadgePointLike = {
   id: string;
   timestamp: number;
   index?: number | null;
 };
 
-export type MeasurementPointMarkerBadgePlanarGroupLike = {
+export type AnnotationPointMarkerBadgePlanarGroupLike = {
   id: string;
   vertexPointIds: string[];
 };
 
-export type MeasurementPointMarkerBadgeDistanceRelationLike = {
+export type AnnotationPointMarkerBadgeDistanceRelationLike = {
   id: string;
   pointAId: string;
   pointBId: string;
@@ -36,16 +36,16 @@ export type MeasurementPointMarkerBadgeDistanceRelationLike = {
 };
 
 export type PlanarGroupBadgeKind = Exclude<
-  MeasurementShortLabelKind,
+  AnnotationShortLabelKind,
   | typeof SPATIAL_MARKUP_KIND_POINT
   | typeof SPATIAL_MARKUP_KIND_DISTANCE
   | typeof SPATIAL_MARKUP_KIND_LABEL
 >;
 
 type UseMeasurementPointMarkerBadgesParams<
-  TPoint extends MeasurementPointMarkerBadgePointLike,
-  TPlanarGroup extends MeasurementPointMarkerBadgePlanarGroupLike,
-  TDistanceRelation extends MeasurementPointMarkerBadgeDistanceRelationLike
+  TPoint extends AnnotationPointMarkerBadgePointLike,
+  TPlanarGroup extends AnnotationPointMarkerBadgePlanarGroupLike,
+  TDistanceRelation extends AnnotationPointMarkerBadgeDistanceRelationLike
 > = {
   pointMeasurements: readonly TPoint[];
   planarPolygonGroups: readonly TPlanarGroup[];
@@ -53,13 +53,13 @@ type UseMeasurementPointMarkerBadgesParams<
   pointMeasureOrderById: Readonly<Record<string, number>>;
   resolvePlanarGroupBadgeKind: (group: TPlanarGroup) => PlanarGroupBadgeKind;
   isPointAutoCorner?: (point: TPoint) => boolean;
-  configMap?: MeasurementShortLabelConfigMap;
+  configMap?: AnnotationShortLabelConfigMap;
 };
 
 export const useAnnotationPointMarkerBadges = <
-  TPoint extends MeasurementPointMarkerBadgePointLike,
-  TPlanarGroup extends MeasurementPointMarkerBadgePlanarGroupLike,
-  TDistanceRelation extends MeasurementPointMarkerBadgeDistanceRelationLike
+  TPoint extends AnnotationPointMarkerBadgePointLike,
+  TPlanarGroup extends AnnotationPointMarkerBadgePlanarGroupLike,
+  TDistanceRelation extends AnnotationPointMarkerBadgeDistanceRelationLike
 >({
   pointMeasurements,
   planarPolygonGroups,
@@ -67,14 +67,14 @@ export const useAnnotationPointMarkerBadges = <
   pointMeasureOrderById,
   resolvePlanarGroupBadgeKind,
   isPointAutoCorner,
-  configMap = DEFAULT_MEASUREMENT_SHORT_LABEL_CONFIG,
+  configMap = DEFAULT_ANNOTATION_SHORT_LABEL_CONFIG,
 }: UseMeasurementPointMarkerBadgesParams<
   TPoint,
   TPlanarGroup,
   TDistanceRelation
->): Readonly<Record<string, MeasurementPointMarkerBadge>> =>
-  useMemo<Readonly<Record<string, MeasurementPointMarkerBadge>>>(() => {
-    const badgesByPointId: Record<string, MeasurementPointMarkerBadge> = {};
+>): Readonly<Record<string, AnnotationPointMarkerBadge>> =>
+  useMemo<Readonly<Record<string, AnnotationPointMarkerBadge>>>(() => {
+    const badgesByPointId: Record<string, AnnotationPointMarkerBadge> = {};
     const assignedPointIds = new Set<string>();
     const pointById = new Map(
       pointMeasurements.map(
@@ -84,7 +84,7 @@ export const useAnnotationPointMarkerBadges = <
 
     const assignBadge = (
       pointId: string,
-      badge: MeasurementPointMarkerBadge,
+      badge: AnnotationPointMarkerBadge,
       overwrite: boolean = false
     ) => {
       if (!pointId) return;
@@ -126,7 +126,7 @@ export const useAnnotationPointMarkerBadges = <
     sortedGroups.forEach((group) => {
       const badgeKind = resolvePlanarGroupBadgeKind(group);
       const badgeConfig = configMap[badgeKind];
-      const badge: MeasurementPointMarkerBadge = {
+      const badge: AnnotationPointMarkerBadge = {
         text: formatMeasurementShortLabelToken(
           badgeKind,
           badgeCounterByKind[badgeKind]++,
@@ -184,7 +184,7 @@ export const useAnnotationPointMarkerBadges = <
       }
 
       const distanceConfig = configMap[SPATIAL_MARKUP_KIND_DISTANCE];
-      const badge: MeasurementPointMarkerBadge = {
+      const badge: AnnotationPointMarkerBadge = {
         text: formatMeasurementShortLabelToken(
           SPATIAL_MARKUP_KIND_DISTANCE,
           distanceComponentIndex + 1,

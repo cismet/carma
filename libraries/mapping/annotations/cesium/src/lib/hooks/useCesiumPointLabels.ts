@@ -36,11 +36,11 @@ import {
   DEFAULT_POINT_LABEL_METRIC_MODE,
   type PlanarPolygonPlane,
   type PointLabelMetricMode,
-  type PointMeasurementEntry,
-} from "../types/MeasurementTypes";
+  type PointAnnotationEntry,
+} from "../types/AnnotationTypes";
 import { useCesiumSceneVisibilityIndex } from "./useCesiumSceneVisibilityIndex";
 import { usePointRectangleSelectionOverlay } from "./usePointRectangleSelectionOverlay";
-import { getCustomPointMeasurementName } from "../utils/measurementNaming";
+import { getCustomPointAnnotationName } from "../utils/annotationNaming";
 import { formatNumber } from "../utils/formatting";
 
 export type CesiumLabelLayoutConfig = PointLabelLayoutConfig;
@@ -144,7 +144,7 @@ const getPointLabelBase = (
   preferDefaultNaming: boolean = false
 ): string => {
   if (!preferDefaultNaming) {
-    const customPointName = getCustomPointMeasurementName(pointName);
+    const customPointName = getCustomPointAnnotationName(pointName);
     if (customPointName) return customPointName;
   }
   if (isAuxiliaryLabelAnchor) return "";
@@ -155,7 +155,7 @@ const getPointLabelBase = (
 };
 
 const getReferenceLabelBase = (
-  points: PointMeasurementEntry[],
+  points: PointAnnotationEntry[],
   distanceToReferenceByPointId?: Readonly<Record<string, number>>,
   referenceLabelPointId?: string | null,
   pointLabelIndexByPointId?: Readonly<Record<string, number>>,
@@ -475,7 +475,7 @@ const getPlaneIntersectionForClientPosition = (
 
 export const useCesiumPointLabels = (
   scene: Scene | null,
-  points: PointMeasurementEntry[],
+  points: PointAnnotationEntry[],
   showLabels: boolean,
   referenceElevation: number = 0,
   selectedPointId: string | null = null,
@@ -857,7 +857,7 @@ export const useCesiumPointLabels = (
         Boolean(suppressCompactLabelPointIds?.has(point.id)) ||
         isAreaNodeBadge ||
         isMoveGizmoPoint;
-      const customPointName = getCustomPointMeasurementName(point.name);
+      const customPointName = getCustomPointAnnotationName(point.name);
       const labelTextRepresentation =
         pointLabelTextById[point.id] ??
         (polylineOverrideText !== undefined

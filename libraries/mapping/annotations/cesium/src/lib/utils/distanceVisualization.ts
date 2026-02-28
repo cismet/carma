@@ -2,8 +2,8 @@ import { Cartesian3 } from "@carma/cesium";
 
 import type {
   PointDistanceRelation,
-  PointMeasurementEntry,
-} from "../types/MeasurementTypes";
+  PointAnnotationEntry,
+} from "../types/AnnotationTypes";
 
 export const REFERENCE_LINE_EPSILON_METERS = 0.001;
 
@@ -109,16 +109,16 @@ export const getArcPointsInSpannedPlane = (
 
 export type ResolvedDistanceRelation = {
   relation: PointDistanceRelation;
-  pointA: PointMeasurementEntry;
-  pointB: PointMeasurementEntry;
-  anchorPoint: PointMeasurementEntry;
-  targetPoint: PointMeasurementEntry;
+  pointA: PointAnnotationEntry;
+  pointB: PointAnnotationEntry;
+  anchorPoint: PointAnnotationEntry;
+  targetPoint: PointAnnotationEntry;
   auxiliaryPoint: Cartesian3;
 };
 
 export const resolveDistanceRelation = (
   relation: PointDistanceRelation,
-  pointsById: Map<string, PointMeasurementEntry>
+  pointsById: Map<string, PointAnnotationEntry>
 ): ResolvedDistanceRelation | null => {
   const pointA = pointsById.get(relation.pointAId);
   const pointB = pointsById.get(relation.pointBId);

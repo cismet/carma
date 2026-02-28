@@ -1,6 +1,6 @@
 import { type Scene } from "@carma/cesium";
 
-import { type MeasurementCollection } from "../types/MeasurementTypes";
+import { type AnnotationCollection } from "../types/AnnotationTypes";
 import { type CesiumPointVisualizerOptions } from "./useCesiumPointVisualizer";
 import { usePointMeasureVisualizer } from "./usePointMeasureVisualizer";
 
@@ -9,7 +9,7 @@ export type PointMeasureDomVisualizerHookOptions = Omit<
   "renderDomVisuals" | "renderCesiumCoreVisuals"
 > & {
   scene: Scene | null;
-  measurements?: MeasurementCollection;
+  measurements?: AnnotationCollection;
 };
 
 export const usePointMeasureDomVisualizer = ({

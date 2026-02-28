@@ -50,7 +50,7 @@ import {
   ControlLayoutCanvas,
 } from "@carma-mapping/map-controls-layout";
 import { useFeatureFlags } from "@carma-providers/feature-flag";
-import { MeasurementToolbar3D } from "@carma-mapping/annotations/core";
+import { AnnotationToolbar3D } from "@carma-mapping/annotations/provider";
 import { MeasurementControl } from "@carma-commons/measurements";
 
 import { GeoportalMap } from "../GeoportalMap.tsx";
@@ -477,7 +477,7 @@ const MapWrapper = ({
           )}
           {!isObliquePreviewVisible && isModeMeasurement && isCesium && (
             <Control position="bottomright" order={10}>
-              <MeasurementToolbar3D />
+              <AnnotationToolbar3D />
             </Control>
           )}
           <Control position="bottomleft" order={10}>

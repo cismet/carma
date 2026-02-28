@@ -41,9 +41,9 @@ import {
 import {
   type DirectLineLabelMode,
   type PointDistanceRelation,
-  type PointMeasurementEntry,
+  type PointAnnotationEntry,
   type ReferenceLineLabelKind,
-} from "../types/MeasurementTypes";
+} from "../types/AnnotationTypes";
 import {
   REFERENCE_LINE_EPSILON_METERS,
   getArcPointsInSpannedPlane,
@@ -51,8 +51,8 @@ import {
   type ResolvedDistanceRelation,
 } from "../utils/distanceVisualization";
 import { formatNumber } from "../utils/formatting";
-import { getCustomPointMeasurementName } from "../utils/measurementNaming";
-import { type DistanceRelationRenderContext } from "./measurementVisualizationContext";
+import { getCustomPointAnnotationName } from "../utils/annotationNaming";
+import { type DistanceRelationRenderContext } from "./annotationVisualizationContext";
 
 export type CesiumDistanceVisualizerOptions = {
   distanceRelations?: PointDistanceRelation[];
@@ -147,7 +147,7 @@ const destroyLineVisualizerRef = (lineRef: {
 
 export const useCesiumDistanceVisualizer = (
   scene: Scene | null,
-  points: PointMeasurementEntry[],
+  points: PointAnnotationEntry[],
   {
     distanceRelations = [],
     onDistanceLineLabelToggle,
@@ -179,7 +179,7 @@ export const useCesiumDistanceVisualizer = (
     useLabelOverlay();
 
   const pointsById = useMemo(() => {
-    const map = new Map<string, PointMeasurementEntry>();
+    const map = new Map<string, PointAnnotationEntry>();
     points.forEach((point) => {
       map.set(point.id, point);
     });
@@ -189,7 +189,7 @@ export const useCesiumDistanceVisualizer = (
     const labelById: Record<string, string> = {};
     points.forEach((point, index) => {
       labelById[point.id] =
-        getCustomPointMeasurementName(point.name) ??
+        getCustomPointAnnotationName(point.name) ??
         pointMarkerBadgeByPointId?.[point.id]?.text ??
         `${index + 1}`;
     });

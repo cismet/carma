@@ -1,6 +1,6 @@
 import { type Scene } from "@carma/cesium";
 
-import { type PointMeasurementEntry } from "../types/MeasurementTypes";
+import { type PointAnnotationEntry } from "../types/AnnotationTypes";
 import {
   useCesiumDistanceVisualizer,
   type CesiumDistanceVisualizerOptions,
@@ -11,7 +11,7 @@ export type CesiumDistanceCoreVisualizerHookOptions = Omit<
   "renderDomVisuals" | "renderCesiumCoreVisuals"
 > & {
   scene: Scene | null;
-  points: PointMeasurementEntry[];
+  points: PointAnnotationEntry[];
 };
 
 export const useCesiumDistanceCoreVisualizer = ({

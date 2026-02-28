@@ -2,10 +2,10 @@ import { type Cartesian3 } from "@carma/cesium";
 
 import {
   DEFAULT_POINT_LABEL_METRIC_MODE,
-  isPointMeasurementEntry,
-  type MeasurementCollection,
+  isPointAnnotationEntry,
+  type AnnotationCollection,
   type PointLabelMetricMode,
-} from "../types/MeasurementTypes";
+} from "../types/AnnotationTypes";
 
 const POINT_LABEL_METRIC_CLICK_ORDER: PointLabelMetricMode[] = [
   "elevation",
@@ -45,7 +45,7 @@ export const runPointLabelClickInteraction = ({
 
 type RunPointLabelDoubleClickInteractionParams = {
   pointId: string;
-  measurements: MeasurementCollection;
+  measurements: AnnotationCollection;
   setReferencePoint: (point: Cartesian3 | null) => void;
 };
 
@@ -56,9 +56,9 @@ export const runPointLabelDoubleClickInteraction = ({
 }: RunPointLabelDoubleClickInteractionParams) => {
   const pointMeasurement = measurements.find(
     (measurement) =>
-      isPointMeasurementEntry(measurement) && measurement.id === pointId
+      isPointAnnotationEntry(measurement) && measurement.id === pointId
   );
-  if (!pointMeasurement || !isPointMeasurementEntry(pointMeasurement)) {
+  if (!pointMeasurement || !isPointAnnotationEntry(pointMeasurement)) {
     return;
   }
 

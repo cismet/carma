@@ -10,13 +10,14 @@ const COMPACT_DIAMETER_EM = 1.9;
 const COMPACT_HORIZONTAL_PADDING_PX = 6;
 const COMPACT_WIDTH_SHRINK_PX = 2;
 const COMPACT_WIDTH_EXTRA_PADDING_PX = 6;
+const COMPACT_PILL_TEXT_LENGTH_THRESHOLD = 2;
 const EXTENDED_VERTICAL_PADDING_PX = 0;
 const EXTENDED_HORIZONTAL_PADDING_PX = 8;
 const COMPACT_EXTENDED_GAP_PX = 4;
 const EXTENDED_LEFT_EXTRA_PADDING_PX = 2;
 const EXTENDED_RIGHT_EXTRA_PADDING_PX = 2;
-const FAST_GROW_WIDTH_TRANSITION_MS = 200;
-const SLOW_SHRINK_WIDTH_TRANSITION_MS = 5000;
+const GROW_SHRINK_WIDTH_TRANSITION_MS = 200;
+const SHRINK_WIDTH_TRANSITION_DELAY_MS = 3000;
 
 const estimateCompactAnchorOffsetPx = (fontSize: string): number => {
   const parsed = Number.parseFloat(fontSize);
@@ -141,6 +142,10 @@ export const PillbuttonLabelMarker = ({
       : null;
   const compactRef = useRef<HTMLSpanElement | null>(null);
   const [compactWidthPx, setCompactWidthPx] = useState<number | null>(null);
+  const compactTextLength =
+    typeof markerContent === "string" ? markerContent.trim().length : 0;
+  const shouldForceCompactPill =
+    compactTextLength > COMPACT_PILL_TEXT_LENGTH_THRESHOLD;
 
   useLayoutEffect(() => {
     const el = compactRef.current;
@@ -148,19 +153,29 @@ export const PillbuttonLabelMarker = ({
       setCompactWidthPx(null);
       return;
     }
-    const scrollW = el.scrollWidth;
+    const scrollW = Math.ceil(el.scrollWidth);
     const circlePx = el.offsetHeight;
-    if (scrollW > circlePx) {
+    if (shouldForceCompactPill || scrollW > circlePx) {
       setCompactWidthPx(
-        scrollW +
-          COMPACT_HORIZONTAL_PADDING_PX * 2 +
-          COMPACT_WIDTH_EXTRA_PADDING_PX -
-          COMPACT_WIDTH_SHRINK_PX
+        Math.max(
+          scrollW +
+            COMPACT_HORIZONTAL_PADDING_PX * 2 +
+            COMPACT_WIDTH_EXTRA_PADDING_PX -
+            COMPACT_WIDTH_SHRINK_PX,
+          circlePx + 1
+        )
       );
     } else {
       setCompactWidthPx(null);
     }
-  }, [hasCompact, markerContent, fontSize, fontFamily, fontWeight]);
+  }, [
+    hasCompact,
+    markerContent,
+    fontSize,
+    fontFamily,
+    fontWeight,
+    shouldForceCompactPill,
+  ]);
 
   const extendedRef = useRef<HTMLSpanElement | null>(null);
   const previousExtendedWidthPxRef = useRef<number | null>(null);
@@ -168,12 +183,15 @@ export const PillbuttonLabelMarker = ({
     number | null
   >(null);
   const [extendedWidthTransitionMs, setExtendedWidthTransitionMs] = useState(0);
+  const [extendedWidthTransitionDelayMs, setExtendedWidthTransitionDelayMs] =
+    useState(0);
 
   useLayoutEffect(() => {
     if (resizeMode !== "fast-grow-slow-shrink" || !showExtended) {
       previousExtendedWidthPxRef.current = null;
       setAnimatedExtendedWidthPx(null);
       setExtendedWidthTransitionMs(0);
+      setExtendedWidthTransitionDelayMs(0);
       return;
     }
 
@@ -185,10 +203,15 @@ export const PillbuttonLabelMarker = ({
 
     if (previousWidthPx === null) {
       setExtendedWidthTransitionMs(0);
+      setExtendedWidthTransitionDelayMs(0);
     } else if (nextWidthPx > previousWidthPx) {
-      setExtendedWidthTransitionMs(FAST_GROW_WIDTH_TRANSITION_MS);
+      setExtendedWidthTransitionMs(GROW_SHRINK_WIDTH_TRANSITION_MS);
+      setExtendedWidthTransitionDelayMs(0);
     } else if (nextWidthPx < previousWidthPx) {
-      setExtendedWidthTransitionMs(SLOW_SHRINK_WIDTH_TRANSITION_MS);
+      setExtendedWidthTransitionMs(GROW_SHRINK_WIDTH_TRANSITION_MS);
+      setExtendedWidthTransitionDelayMs(SHRINK_WIDTH_TRANSITION_DELAY_MS);
+    } else {
+      setExtendedWidthTransitionDelayMs(0);
     }
 
     previousExtendedWidthPxRef.current = nextWidthPx;
@@ -243,6 +266,8 @@ export const PillbuttonLabelMarker = ({
         fontSize,
         fontFamily,
         fontWeight,
+        fontVariantNumeric: "tabular-nums",
+        fontFeatureSettings: '"tnum"',
         position: "absolute",
         left: `${labelOffsetX}px`,
         top: `${labelOffsetY}px`,
@@ -282,6 +307,7 @@ export const PillbuttonLabelMarker = ({
             alignItems: "center",
             justifyContent: "center",
             overflow: "hidden",
+            whiteSpace: "nowrap",
             backgroundColor: markerBackgroundColor ?? backgroundColor,
             color: markerTextColor ?? textColor,
             lineHeight: 1,
@@ -321,7 +347,7 @@ export const PillbuttonLabelMarker = ({
               resizeMode === "fast-grow-slow-shrink" ? "hidden" : undefined,
             transition:
               resizeMode === "fast-grow-slow-shrink"
-                ? `width ${extendedWidthTransitionMs}ms ease`
+                ? `width ${extendedWidthTransitionMs}ms ease ${extendedWidthTransitionDelayMs}ms`
                 : undefined,
           }}
         >

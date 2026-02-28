@@ -1,9 +1,9 @@
-export type SurfaceType = "roof" | "facade" | "terrain" | "footprint";
+import type { PlanarSurfaceType } from "./types/annotationTypes";
 
 export type PlanarPolygonGroupLike = {
   id: string;
   closed: boolean;
-  surfaceType?: SurfaceType;
+  surfaceType?: PlanarSurfaceType;
   edgeRelationIds: readonly string[];
 };
 
@@ -114,17 +114,10 @@ export const getRoofSharedEdgeRelationIds = (
   planarPolygonGroups: readonly PlanarPolygonGroupLike[]
 ): ReadonlySet<string> => {
   const relationUsageCount = new Map<string, number>();
-  const relationSurfaceTypes = new Map<
-    string,
-    Set<"roof" | "facade" | "terrain" | "footprint">
-  >();
+  const relationSurfaceTypes = new Map<string, Set<PlanarSurfaceType>>();
 
   planarPolygonGroups.forEach((group) => {
-    const surfaceType = (group.surfaceType ?? "roof") as
-      | "roof"
-      | "facade"
-      | "terrain"
-      | "footprint";
+    const surfaceType = (group.surfaceType ?? "roof") as PlanarSurfaceType;
     group.edgeRelationIds.forEach((edgeRelationId) => {
       if (!edgeRelationId) return;
       relationUsageCount.set(

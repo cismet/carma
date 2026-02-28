@@ -195,6 +195,54 @@ function getCarmaConfigs(baseConfig) {
       "libraries/commons/units/**/*.ts",
       "libraries/commons/utils/**/*.ts",
     ]),
+    {
+      ...baseConfig,
+      name: "Annotations Core Boundary",
+      files: [
+        "libraries/mapping/annotations/core/**/*.ts",
+        "libraries/mapping/annotations/core/**/*.tsx",
+      ],
+      rules: {
+        ...baseConfig.rules,
+        "no-restricted-imports": [
+          "error",
+          {
+            paths: [
+              {
+                name: "@carma-mapping/annotations/cesium",
+                message:
+                  "annotations-core must remain engine-agnostic. Move Cesium-coupled code into annotations/provider or annotations/cesium.",
+              },
+            ],
+            patterns: ["@carma-mapping/annotations/cesium/*"],
+          },
+        ],
+      },
+    },
+    {
+      ...baseConfig,
+      name: "Annotations Cesium Boundary",
+      files: [
+        "libraries/mapping/annotations/cesium/**/*.ts",
+        "libraries/mapping/annotations/cesium/**/*.tsx",
+      ],
+      rules: {
+        ...baseConfig.rules,
+        "no-restricted-imports": [
+          "error",
+          {
+            paths: [
+              {
+                name: "@carma-mapping/annotations/provider",
+                message:
+                  "annotations-cesium must depend on annotations-core, not provider UI.",
+              },
+            ],
+            patterns: ["@carma-mapping/annotations/provider/*"],
+          },
+        ],
+      },
+    },
     // Allow React imports in hooks directories (React-specific by nature)
     {
       ...baseConfig,

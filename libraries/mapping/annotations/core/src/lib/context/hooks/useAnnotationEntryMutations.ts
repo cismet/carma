@@ -1,20 +1,20 @@
 import { useCallback, type Dispatch, type SetStateAction } from "react";
 
-type MeasurementLabelAppearanceLike = {
+type AnnotationLabelAppearanceLike = {
   fontSizePx?: number;
   backgroundColor?: string;
   textColor?: string;
 };
 
-type BaseMeasurementEntry = {
+type BaseAnnotationEntry = {
   id: string;
   name?: string;
   locked?: boolean;
 };
 
 type UseMeasurementEntryMutationsParams<
-  TMeasurement extends BaseMeasurementEntry,
-  TAppearance extends MeasurementLabelAppearanceLike
+  TMeasurement extends BaseAnnotationEntry,
+  TAppearance extends AnnotationLabelAppearanceLike
 > = {
   setMeasurements: Dispatch<SetStateAction<TMeasurement[]>>;
   isLabelAppearanceTarget: (measurement: TMeasurement) => boolean;
@@ -29,8 +29,8 @@ type UseMeasurementEntryMutationsParams<
 };
 
 export const useAnnotationEntryMutations = <
-  TMeasurement extends BaseMeasurementEntry,
-  TAppearance extends MeasurementLabelAppearanceLike
+  TMeasurement extends BaseAnnotationEntry,
+  TAppearance extends AnnotationLabelAppearanceLike
 >({
   setMeasurements,
   isLabelAppearanceTarget,

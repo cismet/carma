@@ -1,5 +1,3 @@
-export { AnnotationInfoBox } from "./lib/components/annotation-info-box/AnnotationInfoBox";
-export { MeasurementToolbar3D } from "./lib/components/MeasurementToolbar3D";
 export {
   AnnotationProvider,
   AnnotationContext,
@@ -9,8 +7,9 @@ export {
 export * from "./lib/distanceOverlayDom";
 export * from "./lib/distanceScreenSpace";
 export * from "./lib/useDistancePairLabelOverlays";
-export * from "./lib/preview/measurementPreviewVisuals";
+export * from "./lib/preview/annotationPreviewVisuals";
 export * from "./lib/visualizers/area-labels";
+export * from "./lib/visualizers/distance/distanceRelationLabel.types";
 export {
   EDITABLE_LINE_MEASUREMENT_KINDS,
   getSplitMarkerRelationIdsByKind,
@@ -34,9 +33,8 @@ export * from "./lib/context/hooks/useAnnotationVisibilityState";
 export * from "./lib/context/hooks/useAnnotationEditState";
 export * from "./lib/context/hooks/useAnnotationCollectionSelectors";
 export * from "./lib/context/hooks/useAnnotationPointMarkerBadges";
-export * from "./lib/utils/measurementTokens";
-export * from "./lib/utils/measurementOrdering";
-export * from "./lib/types/measurementTypes";
-export * from "./lib/types/measurementKindRegistry";
-export * from "./lib/tools/measurementToolManager";
+export * from "./lib/utils/annotationTokens";
+export * from "./lib/utils/annotationOrdering";
+export * from "./lib/types/annotationTypes";
+export * from "./lib/tools/annotationToolManager";
 export * from "./lib/tools/useSelectionToolState";

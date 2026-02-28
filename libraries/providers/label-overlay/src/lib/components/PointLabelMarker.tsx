@@ -99,6 +99,8 @@ export const PointLabelMarker = ({
             color: markerTextColor,
             fontSize: markerSize <= 16 ? "10px" : "11px",
             fontWeight: 600,
+            fontVariantNumeric: "tabular-nums",
+            fontFeatureSettings: '"tnum"',
             boxShadow: "0 0 2px rgba(0,0,0,0.55)",
             pointerEvents: "none",
           }}

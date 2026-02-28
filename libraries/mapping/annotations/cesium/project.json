@@ -3,7 +3,12 @@
   "$schema": "../../../../node_modules/nx/schemas/project-schema.json",
   "sourceRoot": "libraries/mapping/annotations/cesium/src",
   "projectType": "library",
-  "tags": ["type:library", "scope:mapping", "scope:cesium"],
+  "tags": [
+    "type:library",
+    "scope:mapping",
+    "scope:cesium",
+    "scope:annotations-cesium"
+  ],
   "targets": {
     "lint": {
       "executor": "@nx/eslint:lint"

@@ -1,4 +1,4 @@
-import { type PointMeasurementEntry } from "../types/MeasurementTypes";
+import { type PointAnnotationEntry } from "../types/AnnotationTypes";
 
 export type PointMarkerBadge = {
   text: string;
@@ -7,8 +7,8 @@ export type PointMarkerBadge = {
 };
 
 export type DistanceLivePreviewLine = {
-  anchorPointECEF: PointMeasurementEntry["geometryECEF"];
-  targetPointECEF: PointMeasurementEntry["geometryECEF"];
+  anchorPointECEF: PointAnnotationEntry["geometryECEF"];
+  targetPointECEF: PointAnnotationEntry["geometryECEF"];
   showDirectLine: boolean;
   showVerticalLine: boolean;
   showHorizontalLine: boolean;

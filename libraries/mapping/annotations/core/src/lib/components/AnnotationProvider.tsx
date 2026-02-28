@@ -98,7 +98,7 @@ const isMobileDevice = () => {
 const defaultConfig: AnnotationConfig = {
   editableTitle: true,
   infoBoxHeaderColor: "#3b82f6",
-  localStorageKey: "measurementShapes",
+  localStorageKey: "annotationShapes",
   snappingEnabled: !isMobileDevice(), // Disable snapping on mobile
   snappingOnUpdate: false,
   snappingQueryRadius: 40,

@@ -3,13 +3,13 @@ import { useMemo } from "react";
 import { Cartesian3, type Scene } from "@carma/cesium";
 
 import {
-  isPointMeasurementEntry,
-  type MeasurementCollection,
+  isPointAnnotationEntry,
+  type AnnotationCollection,
   type PlanarPolygonGroup,
   type PointDistanceRelation,
-  type PointMeasurementEntry,
+  type PointAnnotationEntry,
   type ReferenceLineLabelKind,
-} from "../types/MeasurementTypes";
+} from "../types/AnnotationTypes";
 import { useAreaPreviewSharedModel } from "./useAreaPreviewSharedModel";
 import { useDistancePreviewModel } from "./useDistancePreviewModel";
 import { useGroundAreaPreviewModel } from "./useGroundAreaPreviewModel";
@@ -24,8 +24,8 @@ import { useCesiumPolylineVisualizer } from "./useCesiumPolylineVisualizer";
 import { type PointMarkerBadge } from "./useCesiumPointLabels";
 
 type DistanceLivePreviewLine = {
-  anchorPointECEF: PointMeasurementEntry["geometryECEF"];
-  targetPointECEF: PointMeasurementEntry["geometryECEF"];
+  anchorPointECEF: PointAnnotationEntry["geometryECEF"];
+  targetPointECEF: PointAnnotationEntry["geometryECEF"];
   showDirectLine: boolean;
   showVerticalLine: boolean;
   showHorizontalLine: boolean;
@@ -34,7 +34,7 @@ type DistanceLivePreviewLine = {
 export type CesiumDistanceVisualizerAdapterOptions = {
   scene: Scene | null;
   enabled: boolean;
-  measurements: MeasurementCollection;
+  measurements: AnnotationCollection;
   distanceRelations: PointDistanceRelation[];
   planarPolygonGroups: PlanarPolygonGroup[];
   selectedPlanarPolygonGroupId: string | null;
@@ -73,11 +73,11 @@ export const useCesiumDistanceVisualizerAdapter = ({
   lineLabelMinDistancePx,
 }: CesiumDistanceVisualizerAdapterOptions) => {
   const points = useMemo(
-    () => measurements.filter(isPointMeasurementEntry),
+    () => measurements.filter(isPointAnnotationEntry),
     [measurements]
   );
   const pointsById = useMemo(() => {
-    const map = new Map<string, PointMeasurementEntry>();
+    const map = new Map<string, PointAnnotationEntry>();
     points.forEach((point) => {
       map.set(point.id, point);
     });

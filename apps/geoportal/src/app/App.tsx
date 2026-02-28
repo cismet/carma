@@ -32,7 +32,7 @@ import {
   MEASUREMENT_MODE,
 } from "@carma-mapping/annotations/core";
 import { LabelOverlayProvider } from "@carma-providers/label-overlay";
-import { CesiumMeasurementsProvider } from "@carma-mapping/annotations/cesium";
+import { CesiumAnnotationsProvider } from "@carma-mapping/annotations/cesium";
 
 // Local Modules
 import AppErrorFallback from "./components/AppErrorFallback";
@@ -211,7 +211,7 @@ function App({ published }: { published?: boolean }) {
                   baseConfig={MEASUREMENTS_BASE_CONFIG}
                 >
                   <LabelOverlayProvider containerRef={labelOverlayContainerRef}>
-                    <CesiumMeasurementsProvider
+                    <CesiumAnnotationsProvider
                       options={cesiumMeasurementOptions}
                     >
                       <ErrorBoundary FallbackComponent={AppErrorFallback}>
@@ -265,7 +265,7 @@ function App({ published }: { published?: boolean }) {
                           </Modal>
                         </div>
                       </ErrorBoundary>
-                    </CesiumMeasurementsProvider>
+                    </CesiumAnnotationsProvider>
                   </LabelOverlayProvider>
                 </MeasurementsWrapper>
               </ObliqueProvider>

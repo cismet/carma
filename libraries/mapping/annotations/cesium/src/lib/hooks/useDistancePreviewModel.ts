@@ -2,9 +2,9 @@ import { useMemo } from "react";
 
 import {
   type PlanarPolygonGroup,
-  type PointMeasurementEntry,
-} from "../types/MeasurementTypes";
-import { buildDistanceRelationRenderContext } from "./measurementVisualizationContext";
+  type PointAnnotationEntry,
+} from "../types/AnnotationTypes";
+import { buildDistanceRelationRenderContext } from "./annotationVisualizationContext";
 
 export const useDistancePreviewModel = ({
   planarPolygonGroups,
@@ -15,7 +15,7 @@ export const useDistancePreviewModel = ({
   planarPolygonGroups: PlanarPolygonGroup[];
   selectedPlanarPolygonGroupId: string | null;
   activePlanarPolygonGroupId: string | null;
-  pointsById: ReadonlyMap<string, PointMeasurementEntry>;
+  pointsById: ReadonlyMap<string, PointAnnotationEntry>;
 }) => {
   const distanceRelationRenderContext = useMemo(
     () =>

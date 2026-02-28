@@ -1,10 +1,6 @@
 import { createElement, useCallback, useEffect, useMemo, useRef } from "react";
 
-import {
-  SceneTransforms,
-  type Cartesian2,
-  defined,
-} from "@carma/cesium";
+import { SceneTransforms, type Cartesian2, defined } from "@carma/cesium";
 import {
   computePointLabelLayout,
   POINT_LABEL_SELECTED_BACKGROUND_COLOR,
@@ -18,7 +14,7 @@ import {
   computePolygonCentroid2D,
   type ScreenPoint2D,
 } from "../../distanceScreenSpace";
-import { type PlanarPolygonGroup } from "../../types/measurementTypes";
+import { type PlanarPolygonGroup } from "../../types/annotationTypes";
 import { type PolygonAreaLabelOverlayBaseOptions } from "./areaLabelVisualizer.types";
 
 const POLYGON_PREVIEW_PADDING_PX = 6;
@@ -291,12 +287,7 @@ export const useAreaLabelVisualizerBase = ({
       collapsedToCompact: layoutResult.collapsedToCompact,
       hiddenByLayout: layoutResult.hiddenByLayout,
     };
-  }, [
-    focusedPolygonGroupId,
-    polygonAreaBadgeByGroupId,
-    relevantGroups,
-    scene,
-  ]);
+  }, [focusedPolygonGroupId, polygonAreaBadgeByGroupId, relevantGroups, scene]);
   const getSceneFrameNumber = useCallback(() => {
     const frameNumber = (
       scene as unknown as { frameState?: { frameNumber?: number } } | null
@@ -451,7 +442,8 @@ export const useAreaLabelVisualizerBase = ({
                 areaPillCompactEl.textContent = compactBadgeText;
                 areaPillCompactEl.style.backgroundColor = isSelectedGroup
                   ? POLYGON_AREA_PILL_SELECTED_BACKGROUND
-                  : compactBadge?.backgroundColor ?? POLYGON_AREA_PILL_BACKGROUND;
+                  : compactBadge?.backgroundColor ??
+                    POLYGON_AREA_PILL_BACKGROUND;
                 areaPillCompactEl.style.color = isSelectedGroup
                   ? POLYGON_AREA_PILL_TEXT_COLOR
                   : compactBadge?.textColor ?? POLYGON_AREA_PILL_TEXT_COLOR;
@@ -483,9 +475,7 @@ export const useAreaLabelVisualizerBase = ({
                 collapsedByLayout || compactBadgeText.length > 0
                   ? "0px"
                   : "8px";
-              areaPillEl.style.paddingRight = collapsedByLayout
-                ? "0px"
-                : "8px";
+              areaPillEl.style.paddingRight = collapsedByLayout ? "0px" : "8px";
               areaPillEl.style.gap = collapsedByLayout
                 ? "0px"
                 : compactBadgeText.length > 0

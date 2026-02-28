@@ -3,7 +3,7 @@ import type { LabelPlacement, Rect, ScreenPoint } from "./types";
 const LABEL_HEIGHT = 20;
 const LABEL_CHAR_WIDTH = 7.25;
 const LABEL_HORIZONTAL_PADDING = 12;
-const LABEL_MIN_WIDTH = 52;
+const LABEL_MIN_WIDTH = 24;
 const LABEL_MAX_WIDTH = 260;
 const ANCHOR_COLLISION_RADIUS = 8;
 

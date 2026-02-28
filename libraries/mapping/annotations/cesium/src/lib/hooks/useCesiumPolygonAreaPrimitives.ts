@@ -14,7 +14,7 @@ import {
   PrimitiveCollection,
 } from "@carma/cesium";
 
-import { type PlanarPolygonGroup } from "../types/MeasurementTypes";
+import { type PlanarPolygonGroup } from "../types/AnnotationTypes";
 import { createAnchoredCoplanarPolygonGeometry } from "../utils/createAnchoredCoplanarPolygonGeometry";
 import { type CesiumPolygonAreaPrimitivesOptions } from "./areaVisualizer.types";
 

@@ -1,8 +1,6 @@
 import TopicMapComponent from "react-cismap/topicmaps/TopicMapComponent";
 import { suppressReactCismapErrors } from "@carma-commons/utils";
-import {
-  useAnnotationContext,
-} from "@carma-mapping/annotations/core";
+import { useAnnotationContext } from "@carma-mapping/annotations/core";
 import {
   MeasurementControl,
   Measurements,

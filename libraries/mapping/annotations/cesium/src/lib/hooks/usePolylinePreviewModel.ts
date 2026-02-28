@@ -4,8 +4,8 @@ import { buildPolylinePreviewMeasurements } from "@carma-mapping/annotations/cor
 
 import {
   type PlanarPolygonGroup,
-  type PointMeasurementEntry,
-} from "../types/MeasurementTypes";
+  type PointAnnotationEntry,
+} from "../types/AnnotationTypes";
 
 export const usePolylinePreviewModel = ({
   planarPolygonGroups,
@@ -13,9 +13,9 @@ export const usePolylinePreviewModel = ({
   facadeRectanglePreviewOppositeByGroupId,
 }: {
   planarPolygonGroups: PlanarPolygonGroup[];
-  pointsById: ReadonlyMap<string, PointMeasurementEntry>;
+  pointsById: ReadonlyMap<string, PointAnnotationEntry>;
   facadeRectanglePreviewOppositeByGroupId?: Readonly<
-    Record<string, PointMeasurementEntry["geometryECEF"]>
+    Record<string, PointAnnotationEntry["geometryECEF"]>
   >;
 }) => {
   const polylineMeasurements = useMemo(

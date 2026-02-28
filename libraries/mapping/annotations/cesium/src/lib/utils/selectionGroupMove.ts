@@ -1,10 +1,10 @@
 import { Cartesian3, getDegreesFromCartesian } from "@carma/cesium";
 
 import {
-  isPointMeasurementEntry,
-  type MeasurementCollection,
-  type PointMeasurementEntry,
-} from "../types/MeasurementTypes";
+  isPointAnnotationEntry,
+  type AnnotationCollection,
+  type PointAnnotationEntry,
+} from "../types/AnnotationTypes";
 
 const MOVE_DELTA_EPSILON = 1e-12;
 
@@ -39,13 +39,13 @@ export const computeMoveDelta = (
 };
 
 export const applyDeltaToSelectedPoints = (
-  measurements: MeasurementCollection,
+  measurements: AnnotationCollection,
   selectedPointIdSet: Set<string>,
   delta: Cartesian3
-): MeasurementCollection =>
+): AnnotationCollection =>
   measurements.map((measurement) => {
     if (
-      !isPointMeasurementEntry(measurement) ||
+      !isPointAnnotationEntry(measurement) ||
       !selectedPointIdSet.has(measurement.id)
     ) {
       return measurement;
@@ -90,7 +90,7 @@ export const applyDeltaToSelectedPoints = (
   });
 
 export const hasReferencePointInSelection = (
-  measurements: MeasurementCollection,
+  measurements: AnnotationCollection,
   selectedPointIdSet: Set<string>,
   referencePoint: Cartesian3 | null,
   epsilonMeters: number
@@ -98,8 +98,8 @@ export const hasReferencePointInSelection = (
   if (!referencePoint) return false;
 
   return measurements.some(
-    (measurement): measurement is PointMeasurementEntry =>
-      isPointMeasurementEntry(measurement) &&
+    (measurement): measurement is PointAnnotationEntry =>
+      isPointAnnotationEntry(measurement) &&
       selectedPointIdSet.has(measurement.id) &&
       Cartesian3.distance(measurement.geometryECEF, referencePoint) <=
         epsilonMeters
