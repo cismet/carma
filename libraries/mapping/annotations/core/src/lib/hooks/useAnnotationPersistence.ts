@@ -1,6 +1,6 @@
 import { useEffect, useRef } from "react";
 
-import type { AnnotationCollection } from "../types/AnnotationTypes";
+import type { BaseAnnotationEntry } from "../types/annotationTypes";
 import {
   loadMeasurements,
   saveMeasurements,
@@ -13,9 +13,9 @@ interface AnnotationPersistenceOptions {
   restoreDelayMs?: number;
 }
 
-export const useAnnotationPersistence = (
-  measurements: AnnotationCollection,
-  setMeasurements: (value: AnnotationCollection) => void,
+export const useAnnotationPersistence = <TEntry extends BaseAnnotationEntry>(
+  measurements: TEntry[],
+  setMeasurements: (value: TEntry[]) => void,
   options: AnnotationPersistenceOptions = {}
 ) => {
   const {
@@ -32,7 +32,7 @@ export const useAnnotationPersistence = (
       return;
     }
 
-    const savedMeasurements = loadMeasurements(storageKey);
+    const savedMeasurements = loadMeasurements<TEntry>(storageKey);
     if (savedMeasurements && savedMeasurements.length > 0) {
       setTimeout(() => {
         setMeasurements(savedMeasurements);

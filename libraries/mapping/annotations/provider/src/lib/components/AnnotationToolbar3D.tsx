@@ -1,5 +1,6 @@
 import { useMemo, useCallback, useEffect } from "react";
 import { Modal } from "antd";
+import { isKeyboardTargetEditable } from "@carma-commons/utils";
 import {
   isPointAnnotationEntry,
   MEASUREMENT_MODE_DISTANCE,
@@ -10,6 +11,8 @@ import {
   type AnnotationMode,
 } from "@carma-mapping/annotations/cesium";
 import {
+  PLANAR_MEASUREMENT_CREATION_MODE_POLYGON,
+  PLANAR_MEASUREMENT_CREATION_MODE_POLYLINE,
   useAnnotationMeasurements,
   useAnnotationSelection,
   useAnnotationModeOptions,
@@ -17,15 +20,6 @@ import {
 } from "@carma-mapping/annotations/core";
 import { AnnotationModeToolbar } from "./AnnotationModeToolbar";
 import { useAnnotationToolMode } from "./hooks/useAnnotationToolMode";
-
-const isKeyboardTargetEditable = (target: EventTarget | null): boolean => {
-  if (!(target instanceof HTMLElement)) return false;
-  const tagName = target.tagName;
-  if (tagName === "INPUT" || tagName === "TEXTAREA" || tagName === "SELECT") {
-    return true;
-  }
-  return target.isContentEditable;
-};
 
 export function AnnotationToolbar3D({
   pixelWidth = 350,
@@ -241,7 +235,7 @@ export function AnnotationToolbar3D({
 
   const isAreaMode =
     measurementMode === MEASUREMENT_MODE_POLYLINE &&
-    planarMeasurementCreationMode === "polygon";
+    planarMeasurementCreationMode === PLANAR_MEASUREMENT_CREATION_MODE_POLYGON;
 
   const { activeToolType, handleToolTypeChange } = useAnnotationToolMode({
     isSelectionMode: selectionModeActive,
@@ -255,7 +249,8 @@ export function AnnotationToolbar3D({
         polygonSurfaceTypePreset === "terrain"),
     isPolylineMode:
       measurementMode === MEASUREMENT_MODE_POLYLINE &&
-      planarMeasurementCreationMode === "polyline",
+      planarMeasurementCreationMode ===
+        PLANAR_MEASUREMENT_CREATION_MODE_POLYLINE,
     onSelectMode: () => {
       setPointLabelOnCreate(false);
       setMeasurementMode(MEASUREMENT_MODE_NONE);
@@ -279,28 +274,36 @@ export function AnnotationToolbar3D({
     onAreaMode: () => {
       setPointLabelOnCreate(false);
       setMeasurementMode(MEASUREMENT_MODE_POLYLINE);
-      setPlanarMeasurementCreationMode("polygon");
+      setPlanarMeasurementCreationMode(
+        PLANAR_MEASUREMENT_CREATION_MODE_POLYGON
+      );
       setPolygonSurfaceTypePreset("footprint");
       setSelectionModeActive(false);
     },
     onVerticalMode: () => {
       setPointLabelOnCreate(false);
       setMeasurementMode(MEASUREMENT_MODE_POLYLINE);
-      setPlanarMeasurementCreationMode("polygon");
+      setPlanarMeasurementCreationMode(
+        PLANAR_MEASUREMENT_CREATION_MODE_POLYGON
+      );
       setPolygonSurfaceTypePreset("facade");
       setSelectionModeActive(false);
     },
     onPlanarMode: () => {
       setPointLabelOnCreate(false);
       setMeasurementMode(MEASUREMENT_MODE_POLYLINE);
-      setPlanarMeasurementCreationMode("polygon");
+      setPlanarMeasurementCreationMode(
+        PLANAR_MEASUREMENT_CREATION_MODE_POLYGON
+      );
       setPolygonSurfaceTypePreset("roof");
       setSelectionModeActive(false);
     },
     onPolylineMode: () => {
       setPointLabelOnCreate(false);
       setMeasurementMode(MEASUREMENT_MODE_POLYLINE);
-      setPlanarMeasurementCreationMode("polyline");
+      setPlanarMeasurementCreationMode(
+        PLANAR_MEASUREMENT_CREATION_MODE_POLYLINE
+      );
       setSelectionModeActive(false);
     },
   });

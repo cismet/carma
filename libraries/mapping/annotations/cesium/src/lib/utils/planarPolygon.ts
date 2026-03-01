@@ -66,7 +66,8 @@ const computeBearingDegFromPlaneNormal = (
 export const createPlaneFromThreePoints = (
   a: Cartesian3,
   b: Cartesian3,
-  c: Cartesian3
+  c: Cartesian3,
+  preferredFacingPositionECEF?: Cartesian3 | null
 ): PlanarPolygonPlane | null => {
   const ab = Cartesian3.subtract(b, a, new Cartesian3());
   const ac = Cartesian3.subtract(c, a, new Cartesian3());
@@ -74,9 +75,41 @@ export const createPlaneFromThreePoints = (
   if (Cartesian3.magnitudeSquared(normal) <= EPSILON) return null;
 
   const normalized = Cartesian3.normalize(normal, new Cartesian3());
-  return {
+  const plane: PlanarPolygonPlane = {
     anchorECEF: toSerializableCartesian3(a),
     normalECEF: toSerializableCartesian3(normalized),
+  };
+  return orientPlaneNormalTowardPosition(plane, preferredFacingPositionECEF);
+};
+
+export const orientPlaneNormalTowardPosition = (
+  plane: PlanarPolygonPlane,
+  referencePositionECEF?: Cartesian3 | null
+): PlanarPolygonPlane => {
+  if (!referencePositionECEF) return plane;
+
+  const anchor = fromSerializableCartesian3(plane.anchorECEF);
+  const normal = normalizeDirection(
+    fromSerializableCartesian3(plane.normalECEF)
+  );
+  if (!normal) return plane;
+
+  const toReference = Cartesian3.subtract(
+    referencePositionECEF,
+    anchor,
+    new Cartesian3()
+  );
+  if (Cartesian3.magnitudeSquared(toReference) <= EPSILON) return plane;
+  if (Cartesian3.dot(normal, toReference) >= 0) return plane;
+
+  const flippedNormal = Cartesian3.multiplyByScalar(
+    normal,
+    -1,
+    new Cartesian3()
+  );
+  return {
+    ...plane,
+    normalECEF: toSerializableCartesian3(flippedNormal),
   };
 };
 
@@ -268,8 +301,9 @@ export const computeVerticalityDeg = (plane: PlanarPolygonPlane): number => {
   return (Math.acos(dot) * 180) / Math.PI;
 };
 
-export const classifySurfaceType = (verticalityDeg: number): PlanarSurfaceType =>
-  verticalityDeg > 85 ? "facade" : "roof";
+export const classifySurfaceType = (
+  verticalityDeg: number
+): PlanarSurfaceType => (verticalityDeg > 85 ? "facade" : "roof");
 
 export const buildEdgeRelationIdsForPolygon = (
   vertexPointIds: string[],
@@ -295,7 +329,8 @@ export const buildEdgeRelationIdsForPolygon = (
 };
 
 const derivePlaneFromVertices = (
-  vertices: Cartesian3[]
+  vertices: Cartesian3[],
+  preferredFacingPositionECEF?: Cartesian3 | null
 ): PlanarPolygonPlane | null => {
   if (vertices.length < 3) return null;
 
@@ -306,7 +341,12 @@ const derivePlaneFromVertices = (
         const b = vertices[j];
         const c = vertices[k];
         if (!a || !b || !c) continue;
-        const plane = createPlaneFromThreePoints(a, b, c);
+        const plane = createPlaneFromThreePoints(
+          a,
+          b,
+          c,
+          preferredFacingPositionECEF
+        );
         if (plane) return plane;
       }
     }
@@ -413,8 +453,13 @@ const deriveVerticalPolygonLocalFrame = (
 
 export const computePolygonGroupDerivedData = (
   group: PlanarPolygonGroup,
-  pointById: Map<string, Cartesian3>
+  pointById: Map<string, Cartesian3>,
+  options?: {
+    preferredFacingPositionECEF?: Cartesian3 | null;
+  }
 ): PlanarPolygonGroup => {
+  const preferredFacingPositionECEF =
+    options?.preferredFacingPositionECEF ?? null;
   const computePerimeterMeters = () => {
     if (vertices.length < 2) return 0;
     let perimeterMeters = 0;
@@ -449,7 +494,9 @@ export const computePolygonGroupDerivedData = (
   }
 
   // Keep existing plane if present, otherwise derive one from non-collinear vertices.
-  const plane = group.plane ?? derivePlaneFromVertices(vertices);
+  const plane =
+    group.plane ??
+    derivePlaneFromVertices(vertices, preferredFacingPositionECEF);
   if (!plane) {
     return {
       ...group,

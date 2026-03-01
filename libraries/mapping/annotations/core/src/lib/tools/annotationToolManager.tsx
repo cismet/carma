@@ -18,13 +18,13 @@ import {
 import {
   type AnnotationToolType,
   SELECT_TOOL_TYPE,
-  SPATIAL_MARKUP_KIND_AREA,
-  SPATIAL_MARKUP_KIND_DISTANCE,
-  SPATIAL_MARKUP_KIND_LABEL,
-  SPATIAL_MARKUP_KIND_PLANAR,
-  SPATIAL_MARKUP_KIND_POINT,
-  SPATIAL_MARKUP_KIND_POLYLINE,
-  SPATIAL_MARKUP_KIND_VERTICAL,
+  ANNOTATION_TYPE_AREA_GROUND,
+  ANNOTATION_TYPE_DISTANCE,
+  ANNOTATION_TYPE_LABEL,
+  ANNOTATION_TYPE_AREA_PLANAR,
+  ANNOTATION_TYPE_POINT,
+  ANNOTATION_TYPE_POLYLINE,
+  ANNOTATION_TYPE_AREA_VERTICAL,
 } from "../types/annotationTypes";
 
 export type AnnotationToolManagerContext = {
@@ -72,7 +72,7 @@ export const resolveAnnotationToolText = (
 export const defaultAnnotationToolDescriptors: readonly AnnotationToolDescriptor[] =
   [
     {
-      id: SPATIAL_MARKUP_KIND_POINT,
+      id: ANNOTATION_TYPE_POINT,
       order: 10,
       icon: <FontAwesomeIcon icon={faLocationDot} />,
       i18n: {
@@ -81,7 +81,7 @@ export const defaultAnnotationToolDescriptors: readonly AnnotationToolDescriptor
       },
     },
     {
-      id: SPATIAL_MARKUP_KIND_DISTANCE,
+      id: ANNOTATION_TYPE_DISTANCE,
       order: 20,
       icon: <FontAwesomeIcon icon={faRuler} />,
       i18n: {
@@ -90,7 +90,7 @@ export const defaultAnnotationToolDescriptors: readonly AnnotationToolDescriptor
       },
     },
     {
-      id: SPATIAL_MARKUP_KIND_POLYLINE,
+      id: ANNOTATION_TYPE_POLYLINE,
       order: 30,
       icon: <VectorPolylineIcon fontSize="1.33em" />,
       i18n: {
@@ -99,7 +99,7 @@ export const defaultAnnotationToolDescriptors: readonly AnnotationToolDescriptor
       },
     },
     {
-      id: SPATIAL_MARKUP_KIND_AREA,
+      id: ANNOTATION_TYPE_AREA_GROUND,
       order: 40,
       icon: <VectorSquareIcon fontSize="1.33em" />,
       i18n: {
@@ -108,7 +108,7 @@ export const defaultAnnotationToolDescriptors: readonly AnnotationToolDescriptor
       },
     },
     {
-      id: SPATIAL_MARKUP_KIND_PLANAR,
+      id: ANNOTATION_TYPE_AREA_PLANAR,
       order: 50,
       icon: <VectorTrapezoidIcon fontSize="1.33em" />,
       i18n: {
@@ -117,7 +117,7 @@ export const defaultAnnotationToolDescriptors: readonly AnnotationToolDescriptor
       },
     },
     {
-      id: SPATIAL_MARKUP_KIND_VERTICAL,
+      id: ANNOTATION_TYPE_AREA_VERTICAL,
       order: 60,
       icon: <FontAwesomeIcon icon={faBuilding} />,
       i18n: {
@@ -126,7 +126,7 @@ export const defaultAnnotationToolDescriptors: readonly AnnotationToolDescriptor
       },
     },
     {
-      id: SPATIAL_MARKUP_KIND_LABEL,
+      id: ANNOTATION_TYPE_LABEL,
       order: 70,
       icon: <FontAwesomeIcon icon={faMessage} />,
       i18n: {

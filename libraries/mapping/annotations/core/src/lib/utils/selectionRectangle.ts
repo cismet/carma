@@ -1,5 +1,3 @@
-import { type PointLabelData } from "@carma-providers/label-overlay";
-
 export type DragPoint = {
   x: number;
   y: number;
@@ -37,7 +35,11 @@ export const isPointInsideSelectionRectangle = (
   point.y <= rectangle.bottom;
 
 export const selectPointLabelIdsInRectangle = (
-  points: PointLabelData[],
+  points: Array<{
+    id: string;
+    isHidden?: boolean;
+    getCanvasPosition?: () => DragPoint | null | undefined;
+  }>,
   rectangle: SelectionRectangle
 ): string[] =>
   points

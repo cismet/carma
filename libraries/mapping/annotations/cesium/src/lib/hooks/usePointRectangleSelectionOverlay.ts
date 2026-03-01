@@ -10,7 +10,7 @@ import {
   buildSelectionRectangle,
   getSelectionRectangleSize,
   selectPointLabelIdsInRectangle,
-} from "../utils/selectionRectangle";
+} from "@carma-mapping/annotations/core";
 
 type UsePointRectangleSelectionOverlayParams = {
   scene: Scene | null;

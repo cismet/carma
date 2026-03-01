@@ -1,16 +1,17 @@
 import { Cartesian3 } from "@carma/cesium";
+import {
+  MEASUREMENT_MODE_DISTANCE,
+  getENU,
+  getEuclideanDistance,
+} from "@carma-mapping/annotations/cesium";
 import type {
   AnnotationMode,
   PointDistanceRelation,
   PointAnnotationEntry,
 } from "@carma-mapping/annotations/cesium";
 import {
+  ANNOTATION_TYPE_DISTANCE,
   getCustomPointAnnotationName,
-  getENU,
-  getEuclideanDistance,
-} from "@carma-mapping/annotations/cesium";
-import {
-  SPATIAL_MARKUP_KIND_DISTANCE,
   type AnnotationListType,
 } from "@carma-mapping/annotations/core";
 
@@ -18,14 +19,12 @@ import type {
   DistanceTableRow,
   DistanceAnnotationSlotsInput,
   AnnotationSlotActions,
-} from "./getAnnotationInfoBoxSlots";
+} from "./annotationInfoBoxSlots.types";
 import {
   isReferenceMeasurement,
   resolveAnnotationDisplayPoint,
   resolveRelativeElevation,
 } from "./annotationDisplayPoint";
-
-const MODE_POINT_QUERY: AnnotationMode = "point_query";
 
 type GetDistanceMeasurementSlotsInputParams = {
   measurementMode: AnnotationMode;
@@ -173,7 +172,7 @@ export const getDistanceAnnotationSlotsInput = ({
     measurement,
     distanceRelations,
   });
-  const isDistanceLivePreview = measurementMode === MODE_POINT_QUERY;
+  const isDistanceLivePreview = measurementMode === MEASUREMENT_MODE_DISTANCE;
   const currentOrderToken = measurement
     ? pointMarkerBadgeByPointId[measurement.id]?.text ?? null
     : null;
@@ -192,7 +191,9 @@ export const getDistanceAnnotationSlotsInput = ({
         if (timeDelta !== 0) return timeDelta;
         return left.id.localeCompare(right.id);
       })
-      .map((pointMeasurement, index) => [pointMeasurement.id, index + 1] as const)
+      .map(
+        (pointMeasurement, index) => [pointMeasurement.id, index + 1] as const
+      )
   );
 
   const distanceTableRows = (() => {
@@ -290,7 +291,7 @@ export const getDistanceAnnotationSlotsInput = ({
 
   return {
     slotsInput: {
-      kind: SPATIAL_MARKUP_KIND_DISTANCE,
+      kind: ANNOTATION_TYPE_DISTANCE,
       measurement,
       displayPoint,
       relativeElevation: resolveRelativeElevation({

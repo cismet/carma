@@ -7,6 +7,7 @@ import {
 import type {
   PlanarPolygonGroup,
   LinearSegmentLineMode,
+  PlanarMeasurementCreationMode,
   PlanarSurfaceType,
 } from "../types/annotationTypes";
 
@@ -31,9 +32,9 @@ export type AnnotationModeOptionsContextType = {
   setPolylineVerticalOffsetMeters: Dispatch<SetStateAction<number>>;
   polylineSegmentLineMode: LinearSegmentLineMode;
   setPolylineSegmentLineMode: Dispatch<SetStateAction<LinearSegmentLineMode>>;
-  planarMeasurementCreationMode: "polyline" | "polygon";
+  planarMeasurementCreationMode: PlanarMeasurementCreationMode;
   setPlanarMeasurementCreationMode: Dispatch<
-    SetStateAction<"polyline" | "polygon">
+    SetStateAction<PlanarMeasurementCreationMode>
   >;
   polygonSurfaceTypePreset: PlanarSurfaceType;
   setPolygonSurfaceTypePreset: Dispatch<SetStateAction<PlanarSurfaceType>>;

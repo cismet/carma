@@ -61,6 +61,7 @@ export {
   capitalizeFirstLetter,
   trimLines,
 } from "./lib/strings";
+export { isKeyboardTargetEditable } from "./lib/dom";
 
 export {
   cn,

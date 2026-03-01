@@ -24,8 +24,18 @@ import {
 } from "@carma/cesium";
 import { useLabelOverlay } from "@carma-providers/label-overlay";
 
-import { normalizeOptions } from "@carma-commons/utils";
 import {
+  isKeyboardTargetEditable,
+  normalizeOptions,
+} from "@carma-commons/utils";
+import {
+  ANNOTATION_TYPE_AREA_GROUND,
+  ANNOTATION_TYPE_AREA_PLANAR,
+  ANNOTATION_TYPE_AREA_VERTICAL,
+  ANNOTATION_TYPE_POINT,
+  ANNOTATION_TYPE_POLYLINE,
+  PLANAR_MEASUREMENT_CREATION_MODE_POLYGON,
+  PLANAR_MEASUREMENT_CREATION_MODE_POLYLINE,
   AnnotationEditContext,
   type AnnotationEditContextType,
   AnnotationModeOptionsContext,
@@ -44,9 +54,13 @@ import {
   useAnnotationCollectionSelectors,
   useAnnotationPointMarkerBadges,
   useSelectionToolState,
+  useAnnotationPersistence,
   useAnnotationContext,
+  formatNumber,
+  getCustomPointAnnotationName,
   type AnnotationCreatePayload,
   type PlanarGroupBadgeKind,
+  type PlanarMeasurementCreationMode,
   type AnnotationListType,
 } from "@carma-mapping/annotations/core";
 
@@ -54,6 +68,13 @@ import { useCesiumContext } from "@carma-mapping/engines/cesium";
 import { flyToBoundingSphereExtent } from "@carma-mapping/engines/cesium/api";
 
 import {
+  ANNOTATION_LIVE_PREVIEW_TYPE_DISTANCE,
+  ANNOTATION_LIVE_PREVIEW_TYPE_NONE,
+  ANNOTATION_LIVE_PREVIEW_TYPE_POINT,
+  ANNOTATION_LIVE_PREVIEW_TYPE_POLYGON_GROUND,
+  ANNOTATION_LIVE_PREVIEW_TYPE_POLYGON_PLANAR,
+  ANNOTATION_LIVE_PREVIEW_TYPE_POLYGON_VERTICAL,
+  ANNOTATION_LIVE_PREVIEW_TYPE_POLYLINE,
   useCesiumPointQuery,
   useCesiumAnnotationVisualizerAdapter,
   useAnnotationLivePreviewState,
@@ -62,7 +83,6 @@ import {
   type AnnotationLivePreviewDescriptor,
   type PointMarkerBadge,
 } from "../hooks";
-import { useAnnotationPersistence } from "../hooks/useAnnotationPersistence";
 
 import {
   MEASUREMENT_MODE_DISTANCE,
@@ -76,7 +96,6 @@ import {
   DEFAULT_POLYLINE_POINT_LABEL_MODE,
   type DirectLineLabelMode,
   isPointAnnotationEntry,
-  isTraverseAnnotationEntry,
   type AnnotationGeometryEdge,
   type AnnotationGeometryPoint,
   type AnnotationEntry,
@@ -95,23 +114,21 @@ import {
   type ReferenceLineLabelKind,
   type AnnotationCollection,
   type PlanarSurfaceType,
-  type AnnotationMode as SharedAnnotationMode,
+  type AnnotationMode,
 } from "../types/AnnotationTypes";
-import { formatNumber } from "../utils/formatting";
 import { getEuclideanDistance } from "../utils/geo";
 import {
-  loadNormalizedMeasurements,
   loadDistanceRelations,
-  saveNormalizedMeasurements,
+  loadNormalizedMeasurements,
   loadPlanarPolygonGroups,
   saveDistanceRelations,
+  saveNormalizedMeasurements,
   savePlanarPolygonGroups,
-} from "../utils/annotationPersistence";
+} from "@carma-mapping/annotations/core";
 import {
   getNextPointLabelMetricMode,
   runPointLabelClickInteraction,
 } from "../utils/pointLabelInteractions";
-import { getCustomPointAnnotationName } from "../utils/annotationNaming";
 import {
   buildFacadeAutoCloseRectangle,
   getFacadeRectanglePreviewAreaSquareMeters,
@@ -132,6 +149,7 @@ import {
   createPlaneFromThreePoints,
   distancePointToPlane,
   fromSerializableCartesian3,
+  orientPlaneNormalTowardPosition,
   projectPointOntoPlane,
 } from "../utils/planarPolygon";
 import {
@@ -142,7 +160,6 @@ import {
   shouldMoveSelectionAsGroup,
 } from "../utils/selectionGroupMove";
 
-type AnnotationMode = SharedAnnotationMode;
 const MAP_MEASUREMENT_MODE = {
   MEASUREMENT: "measurement",
 } as const;
@@ -157,7 +174,10 @@ type MoveGizmoStartOptions = {
     color?: string;
     title?: string | null;
   }> | null;
-  verticalOffsetEditMode?: "point" | "polyline" | null;
+  verticalOffsetEditMode?:
+    | typeof ANNOTATION_TYPE_POINT
+    | typeof ANNOTATION_TYPE_POLYLINE
+    | null;
   verticalOffsetPlanarGroupId?: string | null;
 };
 
@@ -237,9 +257,9 @@ export interface CesiumAnnotationsContextType {
   setPolylineVerticalOffsetVisualOnly: Dispatch<SetStateAction<boolean>>;
   polylineSegmentLineMode: LinearSegmentLineMode;
   setPolylineSegmentLineMode: Dispatch<SetStateAction<LinearSegmentLineMode>>;
-  planarMeasurementCreationMode: "polyline" | "polygon";
+  planarMeasurementCreationMode: PlanarMeasurementCreationMode;
   setPlanarMeasurementCreationMode: Dispatch<
-    SetStateAction<"polyline" | "polygon">
+    SetStateAction<PlanarMeasurementCreationMode>
   >;
   polygonSurfaceTypePreset: PlanarSurfaceType;
   setPolygonSurfaceTypePreset: Dispatch<SetStateAction<PlanarSurfaceType>>;
@@ -660,7 +680,8 @@ const buildGeometryEdgeTable = (
 const getPlanarGroupMeasurementKind = (
   group: Pick<PlanarPolygonGroup, "measurementKind" | "closed">
 ): PlanarPolygonSourceKind =>
-  group.measurementKind ?? (group.closed ? "area" : "polyline");
+  group.measurementKind ??
+  (group.closed ? ANNOTATION_TYPE_AREA_GROUND : ANNOTATION_TYPE_POLYLINE);
 
 const buildDerivedPolylineCollection = (
   group: PlanarPolygonGroup,
@@ -669,7 +690,7 @@ const buildDerivedPolylineCollection = (
 ): PolylineCollection | null => {
   if (
     group.closed ||
-    getPlanarGroupMeasurementKind(group) !== "polyline" ||
+    getPlanarGroupMeasurementKind(group) !== ANNOTATION_TYPE_POLYLINE ||
     group.vertexPointIds.length < 2
   ) {
     return null;
@@ -745,23 +766,6 @@ const deleteFromHideMeasurementsOfType =
     return newSet;
   };
 
-const isKeyboardTargetEditable = (target: EventTarget | null): boolean => {
-  if (typeof HTMLElement === "undefined" || !(target instanceof HTMLElement)) {
-    return false;
-  }
-
-  const tagName = target.tagName.toLowerCase();
-  if (tagName === "input" || tagName === "textarea" || tagName === "select") {
-    return true;
-  }
-
-  if (target.isContentEditable) {
-    return true;
-  }
-
-  return Boolean(target.closest("[contenteditable='true']"));
-};
-
 const FLY_TO_MIN_RADIUS_METERS = 50;
 const FLY_TO_PADDING_FACTOR = 1.1;
 
@@ -771,9 +775,11 @@ const getMeasurementEntryFlyToPoints = (
   if (isPointAnnotationEntry(measurement)) {
     return [measurement.geometryECEF];
   }
-  if (isTraverseAnnotationEntry(measurement)) {
+
+  if (Array.isArray(measurement.geometryECEF)) {
     return measurement.geometryECEF;
   }
+
   return [];
 };
 
@@ -799,6 +805,22 @@ export const CesiumAnnotationsProvider: React.FC<
 > = ({ children, options }) => {
   const { getScene } = useCesiumContext();
   const scene = getScene();
+  const getPreferredPlaneFacingPosition = useCallback((): Cartesian3 | null => {
+    if (!scene || scene.isDestroyed()) return null;
+    return scene.camera.positionWC;
+  }, [scene]);
+  const orientPlaneTowardSceneCamera = useCallback(
+    (plane: PlanarPolygonPlane): PlanarPolygonPlane =>
+      orientPlaneNormalTowardPosition(plane, getPreferredPlaneFacingPosition()),
+    [getPreferredPlaneFacingPosition]
+  );
+  const computePolygonGroupDerivedDataWithCamera = useCallback(
+    (group: PlanarPolygonGroup, pointById: Map<string, Cartesian3>) =>
+      computePolygonGroupDerivedData(group, pointById, {
+        preferredFacingPositionECEF: getPreferredPlaneFacingPosition(),
+      }),
+    [getPreferredPlaneFacingPosition]
+  );
   const mapMeasurements = useAnnotationContext();
   const requestUpdateCallback = useCesiumOverlaySync();
   const overlayContext = useLabelOverlay();
@@ -870,7 +892,9 @@ export const CesiumAnnotationsProvider: React.FC<
   const [defaultPolylineSegmentLineMode, setDefaultPolylineSegmentLineMode] =
     useState<LinearSegmentLineMode>(DEFAULT_LINEAR_SEGMENT_LINE_MODE);
   const [planarMeasurementCreationMode, setPlanarMeasurementCreationMode] =
-    useState<"polyline" | "polygon">("polyline");
+    useState<PlanarMeasurementCreationMode>(
+      PLANAR_MEASUREMENT_CREATION_MODE_POLYLINE
+    );
   const [polygonSurfaceTypePreset, setPolygonSurfaceTypePreset] =
     useState<PlanarSurfaceType>("facade");
   const [distanceModeStickyToFirstPoint, setDistanceModeStickyToFirstPoint] =
@@ -981,7 +1005,9 @@ export const CesiumAnnotationsProvider: React.FC<
     string | null
   >(null);
   const [moveGizmoVerticalOffsetEditMode, setMoveGizmoVerticalOffsetEditMode] =
-    useState<"point" | "polyline" | null>(null);
+    useState<
+      typeof ANNOTATION_TYPE_POINT | typeof ANNOTATION_TYPE_POLYLINE | null
+    >(null);
   const [
     moveGizmoVerticalOffsetPlanarGroupId,
     setMoveGizmoVerticalOffsetPlanarGroupId,
@@ -1075,7 +1101,8 @@ export const CesiumAnnotationsProvider: React.FC<
       return;
     }
 
-    const savedNormalized = loadNormalizedMeasurements(persistenceKey);
+    const savedNormalized =
+      loadNormalizedMeasurements<AnnotationEntry>(persistenceKey);
     if (savedNormalized) {
       setTimeout(() => {
         setMeasurements(savedNormalized.tables.measurements);
@@ -1358,12 +1385,12 @@ export const CesiumAnnotationsProvider: React.FC<
       if (measurementMode === MEASUREMENT_MODE_POINT) {
         if (pointLabelOnCreate && labelInputPromptPointId) {
           return {
-            type: "none",
+            type: ANNOTATION_LIVE_PREVIEW_TYPE_NONE,
             verticalOffsetMeters: 0,
           };
         }
         return {
-          type: "point",
+          type: ANNOTATION_LIVE_PREVIEW_TYPE_POINT,
           verticalOffsetMeters: pointLabelOnCreate
             ? 0
             : pointVerticalOffsetMeters,
@@ -1372,21 +1399,24 @@ export const CesiumAnnotationsProvider: React.FC<
 
       if (measurementMode === MEASUREMENT_MODE_DISTANCE) {
         return {
-          type: "distance",
+          type: ANNOTATION_LIVE_PREVIEW_TYPE_DISTANCE,
           verticalOffsetMeters: 0,
         };
       }
 
       if (measurementMode !== MEASUREMENT_MODE_POLYLINE) {
         return {
-          type: "none",
+          type: ANNOTATION_LIVE_PREVIEW_TYPE_NONE,
           verticalOffsetMeters: 0,
         };
       }
 
-      if (planarMeasurementCreationMode === "polyline") {
+      if (
+        planarMeasurementCreationMode ===
+        PLANAR_MEASUREMENT_CREATION_MODE_POLYLINE
+      ) {
         return {
-          type: "polyline",
+          type: ANNOTATION_LIVE_PREVIEW_TYPE_POLYLINE,
           verticalOffsetMeters: polylineVerticalOffsetMeters,
         };
       }
@@ -1406,7 +1436,7 @@ export const CesiumAnnotationsProvider: React.FC<
             : null;
         if (firstVertexPointId && activeOpenPolygonGroup) {
           return {
-            type: "polygon-vertical",
+            type: ANNOTATION_LIVE_PREVIEW_TYPE_POLYGON_VERTICAL,
             verticalOffsetMeters: 0,
             verticalPolygonContext: {
               groupId: activeOpenPolygonGroup.id,
@@ -1415,27 +1445,27 @@ export const CesiumAnnotationsProvider: React.FC<
           };
         }
         return {
-          type: "polygon-vertical",
+          type: ANNOTATION_LIVE_PREVIEW_TYPE_POLYGON_VERTICAL,
           verticalOffsetMeters: 0,
         };
       }
 
       if (effectiveSurfaceType === "footprint") {
         return {
-          type: "polygon-ground",
+          type: ANNOTATION_LIVE_PREVIEW_TYPE_POLYGON_GROUND,
           verticalOffsetMeters: 0,
         };
       }
 
       if (effectiveSurfaceType === "roof") {
         return {
-          type: "polygon-planar",
+          type: ANNOTATION_LIVE_PREVIEW_TYPE_POLYGON_PLANAR,
           verticalOffsetMeters: 0,
         };
       }
 
       return {
-        type: "none",
+        type: ANNOTATION_LIVE_PREVIEW_TYPE_NONE,
         verticalOffsetMeters: 0,
       };
     }, [
@@ -1812,10 +1842,12 @@ export const CesiumAnnotationsProvider: React.FC<
     (group: PlanarPolygonGroup): PlanarGroupBadgeKind => {
       const surfaceType = group.surfaceType ?? "roof";
       const measurementKind = getPlanarGroupMeasurementKind(group);
-      if (measurementKind !== "area") return "polyline";
-      if (surfaceType === "facade") return "vertical";
-      if (surfaceType === "roof") return "planar";
-      return "area";
+      if (measurementKind !== ANNOTATION_TYPE_AREA_GROUND) {
+        return ANNOTATION_TYPE_POLYLINE;
+      }
+      if (surfaceType === "facade") return ANNOTATION_TYPE_AREA_VERTICAL;
+      if (surfaceType === "roof") return ANNOTATION_TYPE_AREA_PLANAR;
+      return ANNOTATION_TYPE_AREA_GROUND;
     },
     []
   );
@@ -2245,9 +2277,7 @@ export const CesiumAnnotationsProvider: React.FC<
     return planeByPointId;
   }, [pointDragPlaneByPointId, facadeVertexPointIdSet, roofVertexPointIdSet]);
 
-  const showPoints = !hideMeasurementsOfType.has(
-    MEASUREMENT_MODE_DISTANCE
-  );
+  const showPoints = !hideMeasurementsOfType.has(MEASUREMENT_MODE_DISTANCE);
   const showDistanceAndPolygonVisuals = true;
 
   const pointMeasurementIds = useMemo(() => {
@@ -2925,13 +2955,21 @@ export const CesiumAnnotationsProvider: React.FC<
         [newPointId]: newPointPositionECEF,
       });
       const seedMeasurementKindForCreation: PlanarPolygonSourceKind =
-        planarMeasurementCreationMode === "polygon" ? "area" : "polyline";
+        planarMeasurementCreationMode ===
+        PLANAR_MEASUREMENT_CREATION_MODE_POLYGON
+          ? ANNOTATION_TYPE_AREA_GROUND
+          : ANNOTATION_TYPE_POLYLINE;
       const seedSurfaceTypeForCreation: PlanarSurfaceType =
-        planarMeasurementCreationMode === "polygon"
+        planarMeasurementCreationMode ===
+        PLANAR_MEASUREMENT_CREATION_MODE_POLYGON
           ? polygonSurfaceTypePreset
           : "roof";
       const facadeAutoCloseFromNewPoint = (() => {
-        if (planarMeasurementCreationMode !== "polygon") return null;
+        if (
+          planarMeasurementCreationMode !==
+          PLANAR_MEASUREMENT_CREATION_MODE_POLYGON
+        )
+          return null;
 
         const candidateVertexPointIds = creatingNewGroup
           ? sourcePointId &&
@@ -2979,13 +3017,18 @@ export const CesiumAnnotationsProvider: React.FC<
               ? [sourcePointId, newPointId]
               : [newPointId];
           const seedSurfaceType: PlanarSurfaceType =
-            planarMeasurementCreationMode === "polygon"
+            planarMeasurementCreationMode ===
+            PLANAR_MEASUREMENT_CREATION_MODE_POLYGON
               ? polygonSurfaceTypePreset
               : "roof";
           const seedMeasurementKind: PlanarPolygonSourceKind =
-            planarMeasurementCreationMode === "polygon" ? "area" : "polyline";
+            planarMeasurementCreationMode ===
+            PLANAR_MEASUREMENT_CREATION_MODE_POLYGON
+              ? ANNOTATION_TYPE_AREA_GROUND
+              : ANNOTATION_TYPE_POLYLINE;
           const seedSegmentLineMode: LinearSegmentLineMode =
-            planarMeasurementCreationMode === "polygon" &&
+            planarMeasurementCreationMode ===
+              PLANAR_MEASUREMENT_CREATION_MODE_POLYGON &&
             (seedSurfaceType === "facade" ||
               seedSurfaceType === "footprint" ||
               seedSurfaceType === "roof")
@@ -2993,7 +3036,8 @@ export const CesiumAnnotationsProvider: React.FC<
               : defaultPolylineSegmentLineMode;
 
           if (
-            planarMeasurementCreationMode === "polygon" &&
+            planarMeasurementCreationMode ===
+              PLANAR_MEASUREMENT_CREATION_MODE_POLYGON &&
             seedSurfaceType === "facade" &&
             seedVertexPointIds.length === 2 &&
             facadeAutoCloseFromNewPoint
@@ -3013,7 +3057,7 @@ export const CesiumAnnotationsProvider: React.FC<
             );
             return [
               ...prev,
-              computePolygonGroupDerivedData(
+              computePolygonGroupDerivedDataWithCamera(
                 {
                   id: nextActiveGroupId,
                   measurementKind: seedMeasurementKindForCreation,
@@ -3070,10 +3114,12 @@ export const CesiumAnnotationsProvider: React.FC<
         let nextPlaneLocked = activeGroup.planeLocked;
         let nextPointPosition = newPointPositionECEF;
         const shouldKeepSurfaceSampledVertices =
-          planarMeasurementCreationMode === "polygon" &&
+          planarMeasurementCreationMode ===
+            PLANAR_MEASUREMENT_CREATION_MODE_POLYGON &&
           (activeGroup.surfaceType ?? "roof") === "footprint";
         const isRoofSurface =
-          planarMeasurementCreationMode === "polygon" &&
+          planarMeasurementCreationMode ===
+            PLANAR_MEASUREMENT_CREATION_MODE_POLYGON &&
           (activeGroup.surfaceType ?? "roof") === "roof";
 
         if (
@@ -3117,11 +3163,11 @@ export const CesiumAnnotationsProvider: React.FC<
               nextPointPosition
             );
             if (candidatePlane) {
-              nextPlane = candidatePlane;
+              nextPlane = orientPlaneTowardSceneCamera(candidatePlane);
               nextPlaneLocked = true;
               nextPointPosition = projectPointOntoPlane(
                 nextPointPosition,
-                candidatePlane
+                nextPlane
               );
               projectedPointPosition = nextPointPosition;
               pointById.set(newPointId, nextPointPosition);
@@ -3142,9 +3188,11 @@ export const CesiumAnnotationsProvider: React.FC<
               third
             );
             if (candidatePlane) {
+              const orientedCandidatePlane =
+                orientPlaneTowardSceneCamera(candidatePlane);
               const planeDistance = distancePointToPlane(
                 nextPointPosition,
-                candidatePlane
+                orientedCandidatePlane
               );
               const firstFourPoints = nextVertexPointIds
                 .slice(0, 4)
@@ -3152,7 +3200,7 @@ export const CesiumAnnotationsProvider: React.FC<
                 .filter((point): point is Cartesian3 => Boolean(point));
               const planarAngleSum = computePolylinePlanarAngleSumDeg(
                 firstFourPoints,
-                candidatePlane
+                orientedCandidatePlane
               );
 
               console.debug("[PlanarPolygon] Promotion check", {
@@ -3175,11 +3223,11 @@ export const CesiumAnnotationsProvider: React.FC<
                   planeDistance,
                   planarAngleSum,
                 });
-                nextPlane = candidatePlane;
+                nextPlane = orientedCandidatePlane;
                 nextPlaneLocked = true;
                 nextPointPosition = projectPointOntoPlane(
                   nextPointPosition,
-                  candidatePlane
+                  orientedCandidatePlane
                 );
                 projectedPointPosition = nextPointPosition;
                 pointById.set(newPointId, nextPointPosition);
@@ -3196,7 +3244,8 @@ export const CesiumAnnotationsProvider: React.FC<
         }
 
         if (
-          planarMeasurementCreationMode === "polygon" &&
+          planarMeasurementCreationMode ===
+            PLANAR_MEASUREMENT_CREATION_MODE_POLYGON &&
           (activeGroup.surfaceType ?? "roof") === "facade" &&
           nextVertexPointIds.length === 2 &&
           facadeAutoCloseFromNewPoint
@@ -3218,14 +3267,15 @@ export const CesiumAnnotationsProvider: React.FC<
           shouldCloseGroup,
           getDistanceRelationId
         );
-        const updatedGroup = computePolygonGroupDerivedData(
+        const updatedGroup = computePolygonGroupDerivedDataWithCamera(
           {
             ...activeGroup,
             measurementKind:
               activeGroup.measurementKind ??
-              (planarMeasurementCreationMode === "polygon"
-                ? "area"
-                : "polyline"),
+              (planarMeasurementCreationMode ===
+              PLANAR_MEASUREMENT_CREATION_MODE_POLYGON
+                ? ANNOTATION_TYPE_AREA_GROUND
+                : ANNOTATION_TYPE_POLYLINE),
             vertexPointIds: nextVertexPointIds,
             edgeRelationIds: nextEdgeRelationIds,
             closed: shouldCloseGroup,
@@ -3275,8 +3325,7 @@ export const CesiumAnnotationsProvider: React.FC<
             0
           );
           const autoCornerEntries: AnnotationEntry[] =
-            createdFacadeAutoCorners.map(
-            ({ id, position }, index) => {
+            createdFacadeAutoCorners.map(({ id, position }, index) => {
               const cornerWGS84 = getDegreesFromCartesian(position);
               return {
                 type: MEASUREMENT_MODE_DISTANCE,
@@ -3291,8 +3340,7 @@ export const CesiumAnnotationsProvider: React.FC<
                 },
                 timestamp: Date.now() + index,
               };
-            }
-          );
+            });
           return [...prev, ...autoCornerEntries];
         });
       }
@@ -3328,6 +3376,8 @@ export const CesiumAnnotationsProvider: React.FC<
       polylineVerticalOffsetMeters,
       planarMeasurementCreationMode,
       polygonSurfaceTypePreset,
+      orientPlaneTowardSceneCamera,
+      computePolygonGroupDerivedDataWithCamera,
     ]
   );
 
@@ -3337,8 +3387,7 @@ export const CesiumAnnotationsProvider: React.FC<
     >
   >(
     () => ({
-      [MEASUREMENT_MODE_POINT]: (id) =>
-        handlePointMeasurePointCreated(id),
+      [MEASUREMENT_MODE_POINT]: (id) => handlePointMeasurePointCreated(id),
       [MEASUREMENT_MODE_DISTANCE]: (id, positionECEF) =>
         handleDistancePointCreated(id, positionECEF),
       [MEASUREMENT_MODE_POLYLINE]: (id, positionECEF) =>
@@ -3379,7 +3428,7 @@ export const CesiumAnnotationsProvider: React.FC<
         }
 
         const pointById = getPointPositionMap(measurements);
-        const closedGroup = computePolygonGroupDerivedData(
+        const closedGroup = computePolygonGroupDerivedDataWithCamera(
           {
             ...activeGroup,
             closed: true,
@@ -3419,7 +3468,11 @@ export const CesiumAnnotationsProvider: React.FC<
         setIsMoveGizmoDragging(false);
       }
     },
-    [activePlanarPolygonGroupId, measurements]
+    [
+      activePlanarPolygonGroupId,
+      measurements,
+      computePolygonGroupDerivedDataWithCamera,
+    ]
   );
 
   const confirmPolylineRingPromotion = useCallback(
@@ -3472,7 +3525,7 @@ export const CesiumAnnotationsProvider: React.FC<
             getDistanceRelationId
           );
 
-          return computePolygonGroupDerivedData(
+          return computePolygonGroupDerivedDataWithCamera(
             {
               ...group,
               closed: false,
@@ -3497,7 +3550,11 @@ export const CesiumAnnotationsProvider: React.FC<
       setMoveGizmoAxisCandidates(null);
       setIsMoveGizmoDragging(false);
     },
-    [activePlanarPolygonGroupId, measurements]
+    [
+      activePlanarPolygonGroupId,
+      measurements,
+      computePolygonGroupDerivedDataWithCamera,
+    ]
   );
 
   const finishActivePlanarPolylineGroup = useCallback(() => {
@@ -3534,7 +3591,10 @@ export const CesiumAnnotationsProvider: React.FC<
       );
 
       if (canCloseRing && firstVertexId) {
-        if (planarMeasurementCreationMode === "polygon") {
+        if (
+          planarMeasurementCreationMode ===
+          PLANAR_MEASUREMENT_CREATION_MODE_POLYGON
+        ) {
           closeActivePlanarPolygonGroup();
         } else {
           finishActivePlanarPolylineGroup();
@@ -3572,13 +3632,21 @@ export const CesiumAnnotationsProvider: React.FC<
         : activeGroupSnapshot.id;
       const pointByIdSnapshot = getPointPositionMap(measurements);
       const seedMeasurementKindForCreation: PlanarPolygonSourceKind =
-        planarMeasurementCreationMode === "polygon" ? "area" : "polyline";
+        planarMeasurementCreationMode ===
+        PLANAR_MEASUREMENT_CREATION_MODE_POLYGON
+          ? ANNOTATION_TYPE_AREA_GROUND
+          : ANNOTATION_TYPE_POLYLINE;
       const seedSurfaceTypeForCreation: PlanarSurfaceType =
-        planarMeasurementCreationMode === "polygon"
+        planarMeasurementCreationMode ===
+        PLANAR_MEASUREMENT_CREATION_MODE_POLYGON
           ? polygonSurfaceTypePreset
           : "roof";
       const facadeAutoCloseFromExistingPoint = (() => {
-        if (planarMeasurementCreationMode !== "polygon") return null;
+        if (
+          planarMeasurementCreationMode !==
+          PLANAR_MEASUREMENT_CREATION_MODE_POLYGON
+        )
+          return null;
 
         const candidateVertexPointIds = creatingNewGroup
           ? sourcePointId &&
@@ -3622,13 +3690,18 @@ export const CesiumAnnotationsProvider: React.FC<
               ? [sourcePointId, existingPointId]
               : [existingPointId];
           const seedSurfaceType: PlanarSurfaceType =
-            planarMeasurementCreationMode === "polygon"
+            planarMeasurementCreationMode ===
+            PLANAR_MEASUREMENT_CREATION_MODE_POLYGON
               ? polygonSurfaceTypePreset
               : "roof";
           const seedMeasurementKind: PlanarPolygonSourceKind =
-            planarMeasurementCreationMode === "polygon" ? "area" : "polyline";
+            planarMeasurementCreationMode ===
+            PLANAR_MEASUREMENT_CREATION_MODE_POLYGON
+              ? ANNOTATION_TYPE_AREA_GROUND
+              : ANNOTATION_TYPE_POLYLINE;
           const seedSegmentLineMode: LinearSegmentLineMode =
-            planarMeasurementCreationMode === "polygon" &&
+            planarMeasurementCreationMode ===
+              PLANAR_MEASUREMENT_CREATION_MODE_POLYGON &&
             (seedSurfaceType === "facade" ||
               seedSurfaceType === "footprint" ||
               seedSurfaceType === "roof")
@@ -3636,7 +3709,8 @@ export const CesiumAnnotationsProvider: React.FC<
               : defaultPolylineSegmentLineMode;
 
           if (
-            planarMeasurementCreationMode === "polygon" &&
+            planarMeasurementCreationMode ===
+              PLANAR_MEASUREMENT_CREATION_MODE_POLYGON &&
             seedSurfaceType === "facade" &&
             seedVertexPointIds.length === 2 &&
             facadeAutoCloseFromExistingPoint
@@ -3656,7 +3730,7 @@ export const CesiumAnnotationsProvider: React.FC<
             );
             return [
               ...prev,
-              computePolygonGroupDerivedData(
+              computePolygonGroupDerivedDataWithCamera(
                 {
                   id: nextActiveGroupId,
                   measurementKind: seedMeasurementKindForCreation,
@@ -3722,10 +3796,12 @@ export const CesiumAnnotationsProvider: React.FC<
         let nextPlane = activeGroup.plane;
         let nextPlaneLocked = activeGroup.planeLocked;
         const shouldKeepSurfaceSampledVertices =
-          planarMeasurementCreationMode === "polygon" &&
+          planarMeasurementCreationMode ===
+            PLANAR_MEASUREMENT_CREATION_MODE_POLYGON &&
           (activeGroup.surfaceType ?? "roof") === "footprint";
         const isRoofSurface =
-          planarMeasurementCreationMode === "polygon" &&
+          planarMeasurementCreationMode ===
+            PLANAR_MEASUREMENT_CREATION_MODE_POLYGON &&
           (activeGroup.surfaceType ?? "roof") === "roof";
 
         if (
@@ -3743,7 +3819,7 @@ export const CesiumAnnotationsProvider: React.FC<
               existingPointPosition
             );
             if (candidatePlane) {
-              nextPlane = candidatePlane;
+              nextPlane = orientPlaneTowardSceneCamera(candidatePlane);
               nextPlaneLocked = true;
             }
           }
@@ -3763,9 +3839,11 @@ export const CesiumAnnotationsProvider: React.FC<
               third
             );
             if (candidatePlane) {
+              const orientedCandidatePlane =
+                orientPlaneTowardSceneCamera(candidatePlane);
               const planeDistance = distancePointToPlane(
                 existingPointPosition,
-                candidatePlane
+                orientedCandidatePlane
               );
               const firstFourPoints = nextVertexPointIds
                 .slice(0, 4)
@@ -3773,7 +3851,7 @@ export const CesiumAnnotationsProvider: React.FC<
                 .filter((point): point is Cartesian3 => Boolean(point));
               const planarAngleSum = computePolylinePlanarAngleSumDeg(
                 firstFourPoints,
-                candidatePlane
+                orientedCandidatePlane
               );
 
               console.debug(
@@ -3802,7 +3880,7 @@ export const CesiumAnnotationsProvider: React.FC<
                     planarAngleSum,
                   }
                 );
-                nextPlane = candidatePlane;
+                nextPlane = orientedCandidatePlane;
                 nextPlaneLocked = true;
               } else {
                 console.debug(
@@ -3820,7 +3898,8 @@ export const CesiumAnnotationsProvider: React.FC<
         }
 
         if (
-          planarMeasurementCreationMode === "polygon" &&
+          planarMeasurementCreationMode ===
+            PLANAR_MEASUREMENT_CREATION_MODE_POLYGON &&
           (activeGroup.surfaceType ?? "roof") === "facade" &&
           nextVertexPointIds.length === 2 &&
           facadeAutoCloseFromExistingPoint
@@ -3842,14 +3921,15 @@ export const CesiumAnnotationsProvider: React.FC<
           shouldCloseGroup,
           getDistanceRelationId
         );
-        const updatedGroup = computePolygonGroupDerivedData(
+        const updatedGroup = computePolygonGroupDerivedDataWithCamera(
           {
             ...activeGroup,
             measurementKind:
               activeGroup.measurementKind ??
-              (planarMeasurementCreationMode === "polygon"
-                ? "area"
-                : "polyline"),
+              (planarMeasurementCreationMode ===
+              PLANAR_MEASUREMENT_CREATION_MODE_POLYGON
+                ? ANNOTATION_TYPE_AREA_GROUND
+                : ANNOTATION_TYPE_POLYLINE),
             vertexPointIds: nextVertexPointIds,
             edgeRelationIds: nextEdgeRelationIds,
             closed: shouldCloseGroup,
@@ -3874,8 +3954,7 @@ export const CesiumAnnotationsProvider: React.FC<
             0
           );
           const autoCornerEntries: AnnotationEntry[] =
-            createdFacadeAutoCorners.map(
-            ({ id, position }, index) => {
+            createdFacadeAutoCorners.map(({ id, position }, index) => {
               const cornerWGS84 = getDegreesFromCartesian(position);
               return {
                 type: MEASUREMENT_MODE_DISTANCE,
@@ -3890,8 +3969,7 @@ export const CesiumAnnotationsProvider: React.FC<
                 },
                 timestamp: Date.now() + index,
               };
-            }
-          );
+            });
           return [...prev, ...autoCornerEntries];
         });
       }
@@ -3918,6 +3996,8 @@ export const CesiumAnnotationsProvider: React.FC<
       polylineVerticalOffsetMeters,
       planarMeasurementCreationMode,
       polygonSurfaceTypePreset,
+      orientPlaneTowardSceneCamera,
+      computePolygonGroupDerivedDataWithCamera,
     ]
   );
 
@@ -4532,7 +4612,7 @@ export const CesiumAnnotationsProvider: React.FC<
           getLocalUpDirectionAtAnchor(movedPointAnchor)
         );
 
-        if (moveGizmoVerticalOffsetEditMode === "polyline") {
+        if (moveGizmoVerticalOffsetEditMode === ANNOTATION_TYPE_POLYLINE) {
           const targetPlanarGroupId =
             moveGizmoVerticalOffsetPlanarGroupId ??
             planarPolygonGroups.find(
@@ -4769,7 +4849,9 @@ export const CesiumAnnotationsProvider: React.FC<
       startMoveGizmoForMeasurementId(pointId, {
         axisDirection: upDirection,
         axisTitle: "Vertikalversatz",
-        verticalOffsetEditMode: targetPolylineGroup ? "polyline" : "point",
+        verticalOffsetEditMode: targetPolylineGroup
+          ? ANNOTATION_TYPE_POLYLINE
+          : ANNOTATION_TYPE_POINT,
         verticalOffsetPlanarGroupId: targetPolylineGroup?.id ?? null,
       });
     },
@@ -4979,8 +5061,10 @@ export const CesiumAnnotationsProvider: React.FC<
                 vertices[2]
               );
               if (derivedPlane) {
+                const orientedDerivedPlane =
+                  orientPlaneTowardSceneCamera(derivedPlane);
                 planeNormal = normalizeDirection(
-                  fromSerializableCartesian3(derivedPlane.normalECEF)
+                  fromSerializableCartesian3(orientedDerivedPlane.normalECEF)
                 );
               }
             }
@@ -5158,8 +5242,10 @@ export const CesiumAnnotationsProvider: React.FC<
                 vertices[2]
               );
               if (derivedPlane) {
+                const orientedDerivedPlane =
+                  orientPlaneTowardSceneCamera(derivedPlane);
                 planeNormal = normalizeDirection(
-                  fromSerializableCartesian3(derivedPlane.normalECEF)
+                  fromSerializableCartesian3(orientedDerivedPlane.normalECEF)
                 );
               }
             }
@@ -5271,6 +5357,7 @@ export const CesiumAnnotationsProvider: React.FC<
       selectedPlanarPolygonGroupId,
       selectMeasurementById,
       startMoveGizmoForMeasurementId,
+      orientPlaneTowardSceneCamera,
     ]
   );
 
@@ -5421,7 +5508,10 @@ export const CesiumAnnotationsProvider: React.FC<
             activeOpenGroup.vertexPointIds.length >= 3
         );
         if (shouldHandleRingClosure && firstVertexId) {
-          if (planarMeasurementCreationMode === "polygon") {
+          if (
+            planarMeasurementCreationMode ===
+            PLANAR_MEASUREMENT_CREATION_MODE_POLYGON
+          ) {
             closeActivePlanarPolygonGroup();
           } else {
             finishActivePlanarPolylineGroup();
@@ -5486,13 +5576,11 @@ export const CesiumAnnotationsProvider: React.FC<
 
   // point query hooks
   const isPointMeasureLabelModeActive =
-    pointLabelOnCreate &&
-    measurementMode === MEASUREMENT_MODE_POINT;
+    pointLabelOnCreate && measurementMode === MEASUREMENT_MODE_POINT;
   const isPointMeasureLabelInputPending =
     isPointMeasureLabelModeActive && labelInputPromptPointId !== null;
   const isPointMeasureCreateModeActive =
-    !pointLabelOnCreate &&
-    measurementMode === MEASUREMENT_MODE_POINT;
+    !pointLabelOnCreate && measurementMode === MEASUREMENT_MODE_POINT;
   const pointQueryToolActive =
     !isPointMeasureLabelInputPending &&
     (measurementMode === MEASUREMENT_MODE_DISTANCE ||
@@ -5820,7 +5908,7 @@ export const CesiumAnnotationsProvider: React.FC<
             group.closed,
             getDistanceRelationId
           );
-          return computePolygonGroupDerivedData(
+          return computePolygonGroupDerivedDataWithCamera(
             {
               ...group,
               vertexPointIds: nextVertexPointIds,
@@ -5835,7 +5923,12 @@ export const CesiumAnnotationsProvider: React.FC<
       setDoubleClickChainSourcePointId(nextPointId);
       selectMeasurementById(nextPointId);
     },
-    [measurements, planarPolygonGroups, selectMeasurementById]
+    [
+      measurements,
+      planarPolygonGroups,
+      selectMeasurementById,
+      computePolygonGroupDerivedDataWithCamera,
+    ]
   );
 
   useEffect(() => {
@@ -6233,8 +6326,7 @@ export const CesiumAnnotationsProvider: React.FC<
       ? livePreviewSurfaceNormalECEF
       : null,
     livePreviewVerticalOffsetAnchorECEF:
-      isLivePointPreviewModeActive &&
-      measurementMode === MEASUREMENT_MODE_POINT
+      isLivePointPreviewModeActive && measurementMode === MEASUREMENT_MODE_POINT
         ? livePreviewVerticalOffsetAnchorECEF
         : null,
     livePreviewDistanceLine,
@@ -6437,7 +6529,7 @@ export const CesiumAnnotationsProvider: React.FC<
             getDistanceRelationId
           );
           return [
-            computePolygonGroupDerivedData(
+            computePolygonGroupDerivedDataWithCamera(
               {
                 ...group,
                 vertexPointIds: nextVertexPointIds,
@@ -6468,7 +6560,13 @@ export const CesiumAnnotationsProvider: React.FC<
           : prev;
       });
     },
-    [distanceRelations, measurements, moveGizmoPointId, planarPolygonGroups]
+    [
+      distanceRelations,
+      measurements,
+      moveGizmoPointId,
+      planarPolygonGroups,
+      computePolygonGroupDerivedDataWithCamera,
+    ]
   );
 
   const deleteSelectedPointMeasurements = useCallback(() => {
@@ -6664,9 +6762,7 @@ export const CesiumAnnotationsProvider: React.FC<
   useEffect(() => {
     if (mapMeasurements.mode === MAP_MEASUREMENT_MODE.MEASUREMENT) {
       setMeasurementMode((prev) =>
-        prev === MEASUREMENT_MODE_NONE
-          ? MEASUREMENT_MODE_POINT
-          : prev
+        prev === MEASUREMENT_MODE_NONE ? MEASUREMENT_MODE_POINT : prev
       );
     } else {
       setMeasurementMode(MEASUREMENT_MODE_NONE);
@@ -6886,7 +6982,7 @@ export const CesiumAnnotationsProvider: React.FC<
           getDistanceRelationId
         );
         return [
-          computePolygonGroupDerivedData(
+          computePolygonGroupDerivedDataWithCamera(
             {
               ...group,
               vertexPointIds: nextVertexPointIds,
@@ -6898,7 +6994,7 @@ export const CesiumAnnotationsProvider: React.FC<
         ];
       })
     );
-  }, [measurements]);
+  }, [measurements, computePolygonGroupDerivedDataWithCamera]);
 
   useEffect(() => {
     if (!referencePoint) return;
@@ -7140,8 +7236,7 @@ export const CesiumAnnotationsProvider: React.FC<
 
   const liveMeasurementCandidate = useMemo<AnnotationEntry | null>(() => {
     const isPointLivePreviewMode =
-      measurementMode === MEASUREMENT_MODE_POINT &&
-      !pointLabelOnCreate;
+      measurementMode === MEASUREMENT_MODE_POINT && !pointLabelOnCreate;
     const isDistanceLivePreviewMode =
       measurementMode === MEASUREMENT_MODE_DISTANCE;
 
@@ -7282,14 +7377,19 @@ export const CesiumAnnotationsProvider: React.FC<
   const polylineGroups = useMemo(
     () =>
       planarPolygonGroups.filter(
-        (group) => getPlanarGroupMeasurementKind(group) === "polyline"
+        (group) =>
+          getPlanarGroupMeasurementKind(group) === ANNOTATION_TYPE_POLYLINE
       ),
     [planarPolygonGroups]
   );
   const areaPolygonGroups = useMemo(
     () =>
       planarPolygonGroups.filter((group) => {
-        if (getPlanarGroupMeasurementKind(group) !== "area") return false;
+        if (
+          getPlanarGroupMeasurementKind(group) !== ANNOTATION_TYPE_AREA_GROUND
+        ) {
+          return false;
+        }
         const surfaceType = group.surfaceType ?? "roof";
         return surfaceType === "footprint" || surfaceType === "terrain";
       }),
@@ -7298,7 +7398,11 @@ export const CesiumAnnotationsProvider: React.FC<
   const planarSurfacePolygonGroups = useMemo(
     () =>
       planarPolygonGroups.filter((group) => {
-        if (getPlanarGroupMeasurementKind(group) !== "area") return false;
+        if (
+          getPlanarGroupMeasurementKind(group) !== ANNOTATION_TYPE_AREA_GROUND
+        ) {
+          return false;
+        }
         return (group.surfaceType ?? "roof") === "roof";
       }),
     [planarPolygonGroups]
@@ -7306,7 +7410,11 @@ export const CesiumAnnotationsProvider: React.FC<
   const verticalPolygonGroups = useMemo(
     () =>
       planarPolygonGroups.filter((group) => {
-        if (getPlanarGroupMeasurementKind(group) !== "area") return false;
+        if (
+          getPlanarGroupMeasurementKind(group) !== ANNOTATION_TYPE_AREA_GROUND
+        ) {
+          return false;
+        }
         return (group.surfaceType ?? "roof") === "facade";
       }),
     [planarPolygonGroups]

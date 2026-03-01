@@ -1,21 +1,25 @@
 import { Dispatch, SetStateAction } from "react";
-import {
-  AnnotationCollection,
-  AnnotationEntry,
-} from "../types/AnnotationTypes";
 
-type EntryOrConstructor =
-  | AnnotationEntry
-  | ((prev: AnnotationCollection) => AnnotationEntry);
+type TemporaryEntry = {
+  id: string;
+  type: string;
+  temporary?: boolean;
+};
 
-const isConstructor = (
-  entryOrConstructor?: EntryOrConstructor
-): entryOrConstructor is (prev: AnnotationCollection) => AnnotationEntry =>
+type EntryOrConstructor<TEntry extends TemporaryEntry> =
+  | TEntry
+  | ((prev: TEntry[]) => TEntry);
+
+const isConstructor = <TEntry extends TemporaryEntry>(
+  entryOrConstructor?: EntryOrConstructor<TEntry>
+): entryOrConstructor is (prev: TEntry[]) => TEntry =>
   typeof entryOrConstructor === "function";
 
 export const updateLastOfMeasurementType =
-  (entryOrConstructor?: EntryOrConstructor) =>
-  (prev: AnnotationCollection) => {
+  <TEntry extends TemporaryEntry>(
+    entryOrConstructor?: EntryOrConstructor<TEntry>
+  ) =>
+  (prev: TEntry[]) => {
     const measurement = isConstructor(entryOrConstructor)
       ? entryOrConstructor(prev)
       : entryOrConstructor;
@@ -42,26 +46,28 @@ export const updateLastOfMeasurementType =
     return [...prev, measurement];
   };
 
-export const clearTemporaryMeasurements = (
-  setCollection: Dispatch<SetStateAction<AnnotationCollection>>
+export const clearTemporaryMeasurements = <TEntry extends TemporaryEntry>(
+  setCollection: Dispatch<SetStateAction<TEntry[]>>
 ) => {
   setCollection((prev) => prev.filter((m) => !m.temporary));
 };
 
-export const makeTemporaryMeasurementsPermanent = (
-  setCollection: Dispatch<SetStateAction<AnnotationCollection>>
+export const makeTemporaryMeasurementsPermanent = <
+  TEntry extends TemporaryEntry
+>(
+  setCollection: Dispatch<SetStateAction<TEntry[]>>
 ) => {
   setCollection((prev) =>
     prev.map((m) => (m.temporary ? { ...m, temporary: false } : m))
   );
 };
 
-export const updateCollection = (
-  setCollection: Dispatch<SetStateAction<AnnotationCollection>>,
-  entryOrConstructor: EntryOrConstructor,
+export const updateCollection = <TEntry extends TemporaryEntry>(
+  setCollection: Dispatch<SetStateAction<TEntry[]>>,
+  entryOrConstructor: EntryOrConstructor<TEntry>,
   temporaryMode: boolean
 ) => {
-  setCollection((prevCollection: AnnotationCollection) => {
+  setCollection((prevCollection: TEntry[]) => {
     const measurement = isConstructor(entryOrConstructor)
       ? entryOrConstructor(prevCollection)
       : entryOrConstructor;

@@ -17,13 +17,13 @@ import {
   LINEAR_SEGMENT_LINE_MODE_COMPONENTS,
   LINEAR_SEGMENT_LINE_MODE_DIRECT,
   SELECT_TOOL_TYPE,
-  SPATIAL_MARKUP_KIND_AREA,
-  SPATIAL_MARKUP_KIND_DISTANCE,
-  SPATIAL_MARKUP_KIND_LABEL,
-  SPATIAL_MARKUP_KIND_PLANAR,
-  SPATIAL_MARKUP_KIND_POINT,
-  SPATIAL_MARKUP_KIND_POLYLINE,
-  SPATIAL_MARKUP_KIND_VERTICAL,
+  ANNOTATION_TYPE_AREA_GROUND,
+  ANNOTATION_TYPE_DISTANCE,
+  ANNOTATION_TYPE_LABEL,
+  ANNOTATION_TYPE_AREA_PLANAR,
+  ANNOTATION_TYPE_POINT,
+  ANNOTATION_TYPE_POLYLINE,
+  ANNOTATION_TYPE_AREA_VERTICAL,
   annotationToolManager as defaultAnnotationToolManager,
   resolveAnnotationToolText,
   type AnnotationToolManager,
@@ -100,52 +100,52 @@ const SECONDARY_TOOLBAR_HELP_STORAGE_KEY =
   "carma.measurements.secondary-toolbar-help-collapsed.v1";
 
 type AreaToolType =
-  | typeof SPATIAL_MARKUP_KIND_AREA
-  | typeof SPATIAL_MARKUP_KIND_VERTICAL
-  | typeof SPATIAL_MARKUP_KIND_PLANAR;
+  | typeof ANNOTATION_TYPE_AREA_GROUND
+  | typeof ANNOTATION_TYPE_AREA_VERTICAL
+  | typeof ANNOTATION_TYPE_AREA_PLANAR;
 
 const AREA_TOOL_TYPES: AreaToolType[] = [
-  SPATIAL_MARKUP_KIND_AREA,
-  SPATIAL_MARKUP_KIND_VERTICAL,
-  SPATIAL_MARKUP_KIND_PLANAR,
+  ANNOTATION_TYPE_AREA_GROUND,
+  ANNOTATION_TYPE_AREA_VERTICAL,
+  ANNOTATION_TYPE_AREA_PLANAR,
 ];
 
 const AREA_HELP_CONTENT: Record<AreaToolType, string[]> = {
-  [SPATIAL_MARKUP_KIND_AREA]: [
+  [ANNOTATION_TYPE_AREA_GROUND]: [
     "Grundriss: Jeder Klick setzt einen Bodenpunkt; die Vorschau folgt dem Cursor auf dem Gelände.",
     "Klick auf Startpunkt oder Doppelklick schließt die Fläche.",
   ],
-  [SPATIAL_MARKUP_KIND_VERTICAL]: [
+  [ANNOTATION_TYPE_AREA_VERTICAL]: [
     "Fassade: Der 1. Punkt startet die Fläche, der 2. Punkt erzeugt eine rechteckige Fassade mit Auto-Ecken.",
     "Klick auf Startpunkt oder Doppelklick schließt die Fläche.",
   ],
-  [SPATIAL_MARKUP_KIND_PLANAR]: [
+  [ANNOTATION_TYPE_AREA_PLANAR]: [
     "Dach: 1.+2. Punkt definieren eine horizontale Kante, der 3. Punkt spannt die Dach-Ebene auf; weitere Punkte werden auf diese Ebene projiziert.",
     "Klick auf Startpunkt oder Doppelklick schließt die Fläche.",
   ],
 };
 
 const AREA_LABEL: Record<AreaToolType, string> = {
-  [SPATIAL_MARKUP_KIND_AREA]: "Grundriss",
-  [SPATIAL_MARKUP_KIND_VERTICAL]: "Fassade",
-  [SPATIAL_MARKUP_KIND_PLANAR]: "Dach",
+  [ANNOTATION_TYPE_AREA_GROUND]: "Grundriss",
+  [ANNOTATION_TYPE_AREA_VERTICAL]: "Fassade",
+  [ANNOTATION_TYPE_AREA_PLANAR]: "Dach",
 };
 
 type SecondaryToolbarHelpKey =
   | "selection"
-  | typeof SPATIAL_MARKUP_KIND_POINT
-  | typeof SPATIAL_MARKUP_KIND_DISTANCE
-  | typeof SPATIAL_MARKUP_KIND_POLYLINE
+  | typeof ANNOTATION_TYPE_POINT
+  | typeof ANNOTATION_TYPE_DISTANCE
+  | typeof ANNOTATION_TYPE_POLYLINE
   | AreaToolType
-  | typeof SPATIAL_MARKUP_KIND_LABEL;
+  | typeof ANNOTATION_TYPE_LABEL;
 
 const SECONDARY_TOOLBAR_HELP_KEYS: SecondaryToolbarHelpKey[] = [
   "selection",
-  SPATIAL_MARKUP_KIND_POINT,
-  SPATIAL_MARKUP_KIND_DISTANCE,
-  SPATIAL_MARKUP_KIND_POLYLINE,
+  ANNOTATION_TYPE_POINT,
+  ANNOTATION_TYPE_DISTANCE,
+  ANNOTATION_TYPE_POLYLINE,
   ...AREA_TOOL_TYPES,
-  SPATIAL_MARKUP_KIND_LABEL,
+  ANNOTATION_TYPE_LABEL,
 ];
 
 const DEFAULT_SECONDARY_TOOLBAR_HELP_COLLAPSED: Record<
@@ -153,13 +153,13 @@ const DEFAULT_SECONDARY_TOOLBAR_HELP_COLLAPSED: Record<
   boolean
 > = {
   selection: false,
-  [SPATIAL_MARKUP_KIND_POINT]: false,
-  [SPATIAL_MARKUP_KIND_DISTANCE]: false,
-  [SPATIAL_MARKUP_KIND_POLYLINE]: false,
-  [SPATIAL_MARKUP_KIND_AREA]: false,
-  [SPATIAL_MARKUP_KIND_VERTICAL]: false,
-  [SPATIAL_MARKUP_KIND_PLANAR]: false,
-  [SPATIAL_MARKUP_KIND_LABEL]: false,
+  [ANNOTATION_TYPE_POINT]: false,
+  [ANNOTATION_TYPE_DISTANCE]: false,
+  [ANNOTATION_TYPE_POLYLINE]: false,
+  [ANNOTATION_TYPE_AREA_GROUND]: false,
+  [ANNOTATION_TYPE_AREA_VERTICAL]: false,
+  [ANNOTATION_TYPE_AREA_PLANAR]: false,
+  [ANNOTATION_TYPE_LABEL]: false,
 };
 
 const toolButtonStyle = (
@@ -382,6 +382,14 @@ const SecondaryToolbarSection = ({
 const isAreaToolType = (type: AnnotationToolType): type is AreaToolType =>
   AREA_TOOL_TYPES.includes(type as AreaToolType);
 
+const renderHelpContent = (lines: string[]) => (
+  <div style={pointManualStyle}>
+    {lines.map((line) => (
+      <span key={line}>{line}</span>
+    ))}
+  </div>
+);
+
 export function AnnotationModeToolbar({
   activeToolType,
   onToolTypeChange,
@@ -415,11 +423,11 @@ export function AnnotationModeToolbar({
 }: AnnotationModeToolbarProps) {
   const showSelectionOptions = activeToolType === SELECT_TOOL_TYPE;
   const isSelectionModeActive = activeToolType === SELECT_TOOL_TYPE;
-  const showPointOptions = activeToolType === SPATIAL_MARKUP_KIND_POINT;
-  const showDistanceOptions = activeToolType === SPATIAL_MARKUP_KIND_DISTANCE;
-  const showPolylineOptions = activeToolType === SPATIAL_MARKUP_KIND_POLYLINE;
+  const showPointOptions = activeToolType === ANNOTATION_TYPE_POINT;
+  const showDistanceOptions = activeToolType === ANNOTATION_TYPE_DISTANCE;
+  const showPolylineOptions = activeToolType === ANNOTATION_TYPE_POLYLINE;
   const showAreaOptions = isAreaToolType(activeToolType);
-  const showLabelOptions = activeToolType === SPATIAL_MARKUP_KIND_LABEL;
+  const showLabelOptions = activeToolType === ANNOTATION_TYPE_LABEL;
   const [pointOffsetForceCloseSignal, setPointOffsetForceCloseSignal] =
     useState(0);
   const lastPointVerticalOffsetRef = useRef(1);
@@ -495,14 +503,6 @@ export function AnnotationModeToolbar({
     }
   }, [secondaryToolbarHelpCollapsedByKey]);
 
-  const buildHelpContent = (lines: string[]) => (
-    <div style={pointManualStyle}>
-      {lines.map((line) => (
-        <span key={line}>{line}</span>
-      ))}
-    </div>
-  );
-
   const setDistanceLineMode = (mode: DistanceLineModePreset) => {
     const nextComponentsEnabled = mode !== LINEAR_SEGMENT_LINE_MODE_DIRECT;
     const nextDirectEnabled = mode !== LINEAR_SEGMENT_LINE_MODE_COMPONENTS;
@@ -574,7 +574,7 @@ export function AnnotationModeToolbar({
           const tooltip = resolveAnnotationToolText(tool.i18n.tooltipKey);
           return (
             <Fragment key={tool.id}>
-              {tool.id === SPATIAL_MARKUP_KIND_LABEL && (
+              {tool.id === ANNOTATION_TYPE_LABEL && (
                 <span
                   style={{
                     width: 1,
@@ -597,7 +597,7 @@ export function AnnotationModeToolbar({
                   {tool.icon}
                 </button>
               </Tooltip>
-              {tool.id === SPATIAL_MARKUP_KIND_LABEL && (
+              {tool.id === ANNOTATION_TYPE_LABEL && (
                 <span
                   style={{
                     width: 1,
@@ -624,9 +624,7 @@ export function AnnotationModeToolbar({
               }}
               onClick={() => onToolTypeChange(SELECT_TOOL_TYPE)}
               aria-pressed={isSelectionModeActive}
-              aria-label={resolveAnnotationToolText(
-                selectTool.i18n.tooltipKey
-              )}
+              aria-label={resolveAnnotationToolText(selectTool.i18n.tooltipKey)}
               data-test-id="measurement-tool-select-toggle"
             >
               {selectTool.icon}
@@ -642,7 +640,7 @@ export function AnnotationModeToolbar({
           onHelpCollapsedChange={(collapsed) =>
             setSecondaryToolbarHelpCollapsed("selection", collapsed)
           }
-          helpContent={buildHelpContent([
+          helpContent={renderHelpContent([
             "Messungen anklicken, um sie ohne Modus-Nebeneffekte zu selektieren.",
             "Optional: Rechteckmodus aktivieren und aufziehen, um Punkte live im Bildausschnitt zu selektieren.",
             'Shift oder "Additiv" erweitert die Auswahl.',
@@ -751,18 +749,18 @@ export function AnnotationModeToolbar({
           dataTestId="measurement-distance-options"
           helpDataTestId="measurement-distance-help"
           helpCollapsed={
-            secondaryToolbarHelpCollapsedByKey[SPATIAL_MARKUP_KIND_DISTANCE]
+            secondaryToolbarHelpCollapsedByKey[ANNOTATION_TYPE_DISTANCE]
           }
           onHelpCollapsedChange={(collapsed) =>
             setSecondaryToolbarHelpCollapsed(
-              SPATIAL_MARKUP_KIND_DISTANCE,
+              ANNOTATION_TYPE_DISTANCE,
               collapsed
             )
           }
           optionsStyle={{
             padding: "8px 6px",
           }}
-          helpContent={buildHelpContent([
+          helpContent={renderHelpContent([
             "Erster Klick setzt den Startpunkt, zweiter Klick setzt den Zielpunkt.",
             "Doppelklick auf einen Punkt setzt die Referenzhöhe.",
             'Mit "An Referenzpunkt starten" beginnen Folgemessungen am Referenzpunkt.',
@@ -869,15 +867,12 @@ export function AnnotationModeToolbar({
           dataTestId="measurement-point-options"
           helpDataTestId="measurement-point-help"
           helpCollapsed={
-            secondaryToolbarHelpCollapsedByKey[SPATIAL_MARKUP_KIND_POINT]
+            secondaryToolbarHelpCollapsedByKey[ANNOTATION_TYPE_POINT]
           }
           onHelpCollapsedChange={(collapsed) =>
-            setSecondaryToolbarHelpCollapsed(
-              SPATIAL_MARKUP_KIND_POINT,
-              collapsed
-            )
+            setSecondaryToolbarHelpCollapsed(ANNOTATION_TYPE_POINT, collapsed)
           }
-          helpContent={buildHelpContent([
+          helpContent={renderHelpContent([
             "Für Punktmessungen auf das Stadtmodell klicken. Die erste Messung definiert die Referenzhöhe.",
             "Klicken um Höhenmessung zu setzen.",
             "Doppelklick auf Punkt setzt Referenzhöhe.",
@@ -953,15 +948,12 @@ export function AnnotationModeToolbar({
           dataTestId="measurement-label-options"
           helpDataTestId="measurement-label-help"
           helpCollapsed={
-            secondaryToolbarHelpCollapsedByKey[SPATIAL_MARKUP_KIND_LABEL]
+            secondaryToolbarHelpCollapsedByKey[ANNOTATION_TYPE_LABEL]
           }
           onHelpCollapsedChange={(collapsed) =>
-            setSecondaryToolbarHelpCollapsed(
-              SPATIAL_MARKUP_KIND_LABEL,
-              collapsed
-            )
+            setSecondaryToolbarHelpCollapsed(ANNOTATION_TYPE_LABEL, collapsed)
           }
-          helpContent={buildHelpContent([
+          helpContent={renderHelpContent([
             "Im Anmerkungsmodus setzt ein Klick eine Beschriftung am Punkt.",
             "Die Beschriftung kann danach in der Infobox bearbeitet werden.",
             "Über den Auswahlmodus lassen sich Anmerkungen gemeinsam ein-/ausblenden, sperren und löschen.",
@@ -975,15 +967,15 @@ export function AnnotationModeToolbar({
           dataTestId="measurement-polyline-options"
           helpDataTestId="measurement-polyline-help"
           helpCollapsed={
-            secondaryToolbarHelpCollapsedByKey[SPATIAL_MARKUP_KIND_POLYLINE]
+            secondaryToolbarHelpCollapsedByKey[ANNOTATION_TYPE_POLYLINE]
           }
           onHelpCollapsedChange={(collapsed) =>
             setSecondaryToolbarHelpCollapsed(
-              SPATIAL_MARKUP_KIND_POLYLINE,
+              ANNOTATION_TYPE_POLYLINE,
               collapsed
             )
           }
-          helpContent={buildHelpContent([
+          helpContent={renderHelpContent([
             "Klicken setzt Stützpunkte des Polygonzugs.",
             "Doppelklick beendet den aktuellen Polygonzug.",
             "Vertikalversatz verschiebt die Darstellung entlang der lokalen Up-Achse.",
@@ -1076,7 +1068,7 @@ export function AnnotationModeToolbar({
               collapsed
             )
           }
-          helpContent={buildHelpContent(
+          helpContent={renderHelpContent(
             AREA_HELP_CONTENT[activeToolType as AreaToolType]
           )}
         >

@@ -1,4 +1,11 @@
-import type { PlanarSurfaceType } from "./types/annotationTypes";
+import {
+  ANNOTATION_TYPE_AREA_GROUND,
+  ANNOTATION_TYPE_AREA_PLANAR,
+  ANNOTATION_TYPE_AREA_VERTICAL,
+  ANNOTATION_TYPE_POLYLINE,
+  type AnnotationType,
+  type PlanarSurfaceType,
+} from "./types/annotationTypes";
 
 export type PlanarPolygonGroupLike = {
   id: string;
@@ -8,14 +15,16 @@ export type PlanarPolygonGroupLike = {
 };
 
 export const EDITABLE_LINE_MEASUREMENT_KINDS = [
-  "polyline",
-  "area",
-  "planar",
-  "vertical",
+  ANNOTATION_TYPE_POLYLINE,
+  ANNOTATION_TYPE_AREA_GROUND,
+  ANNOTATION_TYPE_AREA_PLANAR,
+  ANNOTATION_TYPE_AREA_VERTICAL,
 ] as const;
 
-export type EditableLineMeasurementKind =
-  (typeof EDITABLE_LINE_MEASUREMENT_KINDS)[number];
+export type EditableLineMeasurementKind = Extract<
+  (typeof EDITABLE_LINE_MEASUREMENT_KINDS)[number],
+  AnnotationType
+>;
 
 export type EditableLineRelationIdsByKind = Readonly<
   Record<EditableLineMeasurementKind, ReadonlySet<string>>
@@ -25,27 +34,27 @@ const createEditableLineRelationIdsByKind = (): Record<
   EditableLineMeasurementKind,
   Set<string>
 > => ({
-  polyline: new Set<string>(),
-  area: new Set<string>(),
-  planar: new Set<string>(),
-  vertical: new Set<string>(),
+  [ANNOTATION_TYPE_POLYLINE]: new Set<string>(),
+  [ANNOTATION_TYPE_AREA_GROUND]: new Set<string>(),
+  [ANNOTATION_TYPE_AREA_PLANAR]: new Set<string>(),
+  [ANNOTATION_TYPE_AREA_VERTICAL]: new Set<string>(),
 });
 
 const resolveEditableLineMeasurementKind = (
   group: Pick<PlanarPolygonGroupLike, "closed" | "surfaceType">
 ): EditableLineMeasurementKind => {
   if (!group.closed) {
-    return "polyline";
+    return ANNOTATION_TYPE_POLYLINE;
   }
 
   const surfaceType = group.surfaceType ?? "roof";
   if (surfaceType === "facade") {
-    return "vertical";
+    return ANNOTATION_TYPE_AREA_VERTICAL;
   }
   if (surfaceType === "roof") {
-    return "planar";
+    return ANNOTATION_TYPE_AREA_PLANAR;
   }
-  return "area";
+  return ANNOTATION_TYPE_AREA_GROUND;
 };
 
 export const getSplitMarkerRelationIdsByKind = (

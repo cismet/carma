@@ -24,7 +24,7 @@ import {
 import {
   updateCollection,
   makeTemporaryMeasurementsPermanent,
-} from "../utils/annotationCollection";
+} from "@carma-mapping/annotations/core";
 
 const POINT_CLICK_DELAY_MS = 220;
 const POINTER_NORMAL_SAMPLE_OFFSET_PX = 2;

@@ -1,13 +1,13 @@
 import { useEffect, useState } from "react";
 import {
   SELECT_TOOL_TYPE,
-  SPATIAL_MARKUP_KIND_AREA,
-  SPATIAL_MARKUP_KIND_DISTANCE,
-  SPATIAL_MARKUP_KIND_LABEL,
-  SPATIAL_MARKUP_KIND_PLANAR,
-  SPATIAL_MARKUP_KIND_POINT,
-  SPATIAL_MARKUP_KIND_POLYLINE,
-  SPATIAL_MARKUP_KIND_VERTICAL,
+  ANNOTATION_TYPE_AREA_GROUND,
+  ANNOTATION_TYPE_DISTANCE,
+  ANNOTATION_TYPE_LABEL,
+  ANNOTATION_TYPE_AREA_PLANAR,
+  ANNOTATION_TYPE_POINT,
+  ANNOTATION_TYPE_POLYLINE,
+  ANNOTATION_TYPE_AREA_VERTICAL,
   type AnnotationToolType,
 } from "@carma-mapping/annotations/core";
 
@@ -69,13 +69,13 @@ const resolveToolType = ({
   | "isPolylineMode"
 >): AnnotationToolType => {
   if (isSelectionMode) return SELECT_TOOL_TYPE;
-  if (isLabelMode) return SPATIAL_MARKUP_KIND_LABEL;
-  if (isDistanceMode) return SPATIAL_MARKUP_KIND_DISTANCE;
-  if (isAreaMode) return SPATIAL_MARKUP_KIND_AREA;
-  if (isVerticalMode) return SPATIAL_MARKUP_KIND_VERTICAL;
-  if (isPlanarMode) return SPATIAL_MARKUP_KIND_PLANAR;
-  if (isPolylineMode) return SPATIAL_MARKUP_KIND_POLYLINE;
-  return SPATIAL_MARKUP_KIND_POINT;
+  if (isLabelMode) return ANNOTATION_TYPE_LABEL;
+  if (isDistanceMode) return ANNOTATION_TYPE_DISTANCE;
+  if (isAreaMode) return ANNOTATION_TYPE_AREA_GROUND;
+  if (isVerticalMode) return ANNOTATION_TYPE_AREA_VERTICAL;
+  if (isPlanarMode) return ANNOTATION_TYPE_AREA_PLANAR;
+  if (isPolylineMode) return ANNOTATION_TYPE_POLYLINE;
+  return ANNOTATION_TYPE_POINT;
 };
 
 export const useAnnotationToolMode = ({
@@ -108,7 +108,7 @@ export const useAnnotationToolMode = ({
   const [lastNonSelectionToolType, setLastNonSelectionToolType] =
     useState<AnnotationToolType>(
       initialToolType === SELECT_TOOL_TYPE
-        ? SPATIAL_MARKUP_KIND_POINT
+        ? ANNOTATION_TYPE_POINT
         : initialToolType
     );
   const [activeToolType, setActiveToolType] =
@@ -119,19 +119,19 @@ export const useAnnotationToolMode = ({
     switch (toolType) {
       case SELECT_TOOL_TYPE:
         return onSelectMode();
-      case SPATIAL_MARKUP_KIND_LABEL:
+      case ANNOTATION_TYPE_LABEL:
         return onLabelMode();
-      case SPATIAL_MARKUP_KIND_POINT:
+      case ANNOTATION_TYPE_POINT:
         return onPointMode();
-      case SPATIAL_MARKUP_KIND_DISTANCE:
+      case ANNOTATION_TYPE_DISTANCE:
         return onDistanceMode();
-      case SPATIAL_MARKUP_KIND_POLYLINE:
+      case ANNOTATION_TYPE_POLYLINE:
         return onPolylineMode();
-      case SPATIAL_MARKUP_KIND_AREA:
+      case ANNOTATION_TYPE_AREA_GROUND:
         return onAreaMode();
-      case SPATIAL_MARKUP_KIND_VERTICAL:
+      case ANNOTATION_TYPE_AREA_VERTICAL:
         return onVerticalMode();
-      case SPATIAL_MARKUP_KIND_PLANAR:
+      case ANNOTATION_TYPE_AREA_PLANAR:
         return onPlanarMode();
     }
   };

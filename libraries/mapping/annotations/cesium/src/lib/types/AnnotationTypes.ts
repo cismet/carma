@@ -10,26 +10,17 @@ export const MEASUREMENT_MODE_NONE = "none";
 export const MEASUREMENT_MODE_POINT = "point_measure";
 export const MEASUREMENT_MODE_DISTANCE = "point_query";
 export const MEASUREMENT_MODE_POLYLINE = "polyline_measure";
-export const MEASUREMENT_MODE_TRAVERSE = "traverse";
-export const MEASUREMENT_MODE_ELEVATION = "elevation";
 
-export const LINEAR_SEGMENT_LINE_MODES = ["direct", "components"] as const;
-const [DIRECT_SEGMENT_LINE_MODE, COMPONENTS_SEGMENT_LINE_MODE] =
-  LINEAR_SEGMENT_LINE_MODES;
-export const LINEAR_SEGMENT_LINE_MODE_DIRECT = DIRECT_SEGMENT_LINE_MODE;
-export const LINEAR_SEGMENT_LINE_MODE_COMPONENTS = COMPONENTS_SEGMENT_LINE_MODE;
-export const DEFAULT_LINEAR_SEGMENT_LINE_MODE =
-  LINEAR_SEGMENT_LINE_MODE_COMPONENTS;
-export const DEFAULT_POINT_LABEL_METRIC_MODE = "elevation" as const;
-export const DEFAULT_POLYLINE_POINT_LABEL_MODE =
-  "cumulativeDistance" as const;
-export const PLANAR_POLYGON_SOURCE_KINDS = ["polyline", "area"] as const;
-export const PLANAR_SURFACE_TYPES = [
-  "roof",
-  "facade",
-  "terrain",
-  "footprint",
-] as const;
+export {
+  LINEAR_SEGMENT_LINE_MODES,
+  LINEAR_SEGMENT_LINE_MODE_DIRECT,
+  LINEAR_SEGMENT_LINE_MODE_COMPONENTS,
+  DEFAULT_LINEAR_SEGMENT_LINE_MODE,
+  DEFAULT_POINT_LABEL_METRIC_MODE,
+  DEFAULT_POLYLINE_POINT_LABEL_MODE,
+  PLANAR_POLYGON_SOURCE_KINDS,
+  PLANAR_SURFACE_TYPES,
+} from "@carma-mapping/annotations/core";
 
 export type {
   DirectLineLabelMode,
@@ -58,9 +49,7 @@ export type AnnotationMode =
   | typeof MEASUREMENT_MODE_NONE
   | typeof MEASUREMENT_MODE_POINT
   | typeof MEASUREMENT_MODE_DISTANCE
-  | typeof MEASUREMENT_MODE_POLYLINE
-  | typeof MEASUREMENT_MODE_TRAVERSE
-  | typeof MEASUREMENT_MODE_ELEVATION;
+  | typeof MEASUREMENT_MODE_POLYLINE;
 
 export type GeomPoint = {
   longitude: number;
@@ -95,25 +84,6 @@ export function isPointAnnotationEntry(
   entry: AnnotationEntry
 ): entry is PointAnnotationEntry {
   return entry && entry.type === MEASUREMENT_MODE_DISTANCE;
-}
-
-export type TraverseAnnotationEntry = AnnotationEntry & {
-  type: typeof MEASUREMENT_MODE_TRAVERSE;
-  geometryECEF: Cartesian3[];
-  geometryWGS84: GeomPolyline;
-  heightOffset?: number;
-  shouldRebuildEntry?: boolean;
-  derived?: {
-    segmentLengths: number[];
-    segmentLengthsCumulative: number[];
-    totalLength: number;
-  };
-};
-
-export function isTraverseAnnotationEntry(
-  entry: AnnotationEntry
-): entry is TraverseAnnotationEntry {
-  return entry && entry.type === MEASUREMENT_MODE_TRAVERSE;
 }
 
 export type AnnotationCollection = AnnotationEntry[];

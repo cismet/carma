@@ -6,9 +6,9 @@ import {
   type AnnotationShortLabelKind,
 } from "./annotationBadgeTokens";
 import {
-  SPATIAL_MARKUP_KIND_DISTANCE,
-  SPATIAL_MARKUP_KIND_LABEL,
-  SPATIAL_MARKUP_KIND_POINT,
+  ANNOTATION_TYPE_DISTANCE,
+  ANNOTATION_TYPE_LABEL,
+  ANNOTATION_TYPE_POINT,
 } from "../../types/annotationTypes";
 
 export type AnnotationPointMarkerBadge = {
@@ -37,9 +37,9 @@ export type AnnotationPointMarkerBadgeDistanceRelationLike = {
 
 export type PlanarGroupBadgeKind = Exclude<
   AnnotationShortLabelKind,
-  | typeof SPATIAL_MARKUP_KIND_POINT
-  | typeof SPATIAL_MARKUP_KIND_DISTANCE
-  | typeof SPATIAL_MARKUP_KIND_LABEL
+  | typeof ANNOTATION_TYPE_POINT
+  | typeof ANNOTATION_TYPE_DISTANCE
+  | typeof ANNOTATION_TYPE_LABEL
 >;
 
 type UseMeasurementPointMarkerBadgesParams<
@@ -183,10 +183,10 @@ export const useAnnotationPointMarkerBadges = <
         });
       }
 
-      const distanceConfig = configMap[SPATIAL_MARKUP_KIND_DISTANCE];
+      const distanceConfig = configMap[ANNOTATION_TYPE_DISTANCE];
       const badge: AnnotationPointMarkerBadge = {
         text: formatMeasurementShortLabelToken(
-          SPATIAL_MARKUP_KIND_DISTANCE,
+          ANNOTATION_TYPE_DISTANCE,
           distanceComponentIndex + 1,
           configMap
         ),
@@ -213,10 +213,10 @@ export const useAnnotationPointMarkerBadges = <
 
     standalonePoints.forEach((point, pointIndex) => {
       const pointOrder = pointMeasureOrderById[point.id];
-      const pointConfig = configMap[SPATIAL_MARKUP_KIND_POINT];
+      const pointConfig = configMap[ANNOTATION_TYPE_POINT];
       assignBadge(point.id, {
         text: formatMeasurementShortLabelToken(
-          SPATIAL_MARKUP_KIND_POINT,
+          ANNOTATION_TYPE_POINT,
           pointOrder ?? pointIndex + 1,
           configMap
         ),

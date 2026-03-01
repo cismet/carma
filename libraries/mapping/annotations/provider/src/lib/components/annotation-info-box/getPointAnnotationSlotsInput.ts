@@ -1,23 +1,22 @@
 import type { Cartesian3 } from "@carma/cesium";
-import type {
-  AnnotationMode,
-  PointAnnotationEntry,
+import {
+  MEASUREMENT_MODE_POINT,
+  type AnnotationMode,
+  type PointAnnotationEntry,
 } from "@carma-mapping/annotations/cesium";
 import {
-  SPATIAL_MARKUP_KIND_POINT,
+  ANNOTATION_TYPE_POINT,
   type AnnotationListType,
 } from "@carma-mapping/annotations/core";
 import type {
   AnnotationSlotActions,
   PointAnnotationSlotsInput,
-} from "./getAnnotationInfoBoxSlots";
+} from "./annotationInfoBoxSlots.types";
 import {
   isReferenceMeasurement,
   resolveAnnotationDisplayPoint,
   resolveRelativeElevation,
 } from "./annotationDisplayPoint";
-
-const MODE_POINT_MEASURE: AnnotationMode = "point_measure";
 
 type GetPointMeasurementSlotsInputParams = {
   measurementMode: AnnotationMode;
@@ -52,11 +51,11 @@ export const getPointAnnotationSlotsInput = ({
     measurement,
   });
   const isPointLivePreview =
-    measurementMode === MODE_POINT_MEASURE && !pointLabelOnCreate;
+    measurementMode === MEASUREMENT_MODE_POINT && !pointLabelOnCreate;
 
   return {
     slotsInput: {
-      kind: SPATIAL_MARKUP_KIND_POINT,
+      kind: ANNOTATION_TYPE_POINT,
       measurement,
       displayPoint,
       relativeElevation: resolveRelativeElevation({

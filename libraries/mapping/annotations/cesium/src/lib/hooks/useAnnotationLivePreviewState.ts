@@ -15,13 +15,21 @@ import {
 } from "../types/AnnotationTypes";
 
 export type AnnotationLivePreviewType =
-  | "none"
-  | "point"
-  | "distance"
-  | "polyline"
-  | "polygon-ground"
-  | "polygon-planar"
-  | "polygon-vertical";
+  | typeof ANNOTATION_LIVE_PREVIEW_TYPE_NONE
+  | typeof ANNOTATION_LIVE_PREVIEW_TYPE_POINT
+  | typeof ANNOTATION_LIVE_PREVIEW_TYPE_DISTANCE
+  | typeof ANNOTATION_LIVE_PREVIEW_TYPE_POLYLINE
+  | typeof ANNOTATION_LIVE_PREVIEW_TYPE_POLYGON_GROUND
+  | typeof ANNOTATION_LIVE_PREVIEW_TYPE_POLYGON_PLANAR
+  | typeof ANNOTATION_LIVE_PREVIEW_TYPE_POLYGON_VERTICAL;
+
+export const ANNOTATION_LIVE_PREVIEW_TYPE_NONE = "none";
+export const ANNOTATION_LIVE_PREVIEW_TYPE_POINT = "point";
+export const ANNOTATION_LIVE_PREVIEW_TYPE_DISTANCE = "distance";
+export const ANNOTATION_LIVE_PREVIEW_TYPE_POLYLINE = "polyline";
+export const ANNOTATION_LIVE_PREVIEW_TYPE_POLYGON_GROUND = "polygon-ground";
+export const ANNOTATION_LIVE_PREVIEW_TYPE_POLYGON_PLANAR = "polygon-planar";
+export const ANNOTATION_LIVE_PREVIEW_TYPE_POLYGON_VERTICAL = "polygon-vertical";
 
 export type AnnotationLivePreviewDescriptor = {
   type: AnnotationLivePreviewType;
@@ -87,23 +95,26 @@ export const useAnnotationLivePreviewState = ({
     setLivePreviewVerticalOffsetAnchorECEF,
   ] = useState<Cartesian3 | null>(null);
 
-  const previewIsPolylineCreateMode = activePreview.type === "polyline";
-  const isVerticalPolygon = activePreview.type === "polygon-vertical";
-  const hasActivePreviewNode = activePreview.type !== "none";
+  const previewIsPolylineCreateMode =
+    activePreview.type === ANNOTATION_LIVE_PREVIEW_TYPE_POLYLINE;
+  const isVerticalPolygon =
+    activePreview.type === ANNOTATION_LIVE_PREVIEW_TYPE_POLYGON_VERTICAL;
+  const hasActivePreviewNode =
+    activePreview.type !== ANNOTATION_LIVE_PREVIEW_TYPE_NONE;
   const activePreviewSupportsDistanceLine =
-    activePreview.type === "distance" ||
-    activePreview.type === "polyline" ||
-    activePreview.type === "polygon-ground" ||
-    activePreview.type === "polygon-planar" ||
-    activePreview.type === "polygon-vertical";
+    activePreview.type === ANNOTATION_LIVE_PREVIEW_TYPE_DISTANCE ||
+    activePreview.type === ANNOTATION_LIVE_PREVIEW_TYPE_POLYLINE ||
+    activePreview.type === ANNOTATION_LIVE_PREVIEW_TYPE_POLYGON_GROUND ||
+    activePreview.type === ANNOTATION_LIVE_PREVIEW_TYPE_POLYGON_PLANAR ||
+    activePreview.type === ANNOTATION_LIVE_PREVIEW_TYPE_POLYGON_VERTICAL;
   const activePreviewUsesPolylineDistanceRules =
-    activePreview.type === "polyline" ||
-    activePreview.type === "polygon-ground" ||
-    activePreview.type === "polygon-planar";
+    activePreview.type === ANNOTATION_LIVE_PREVIEW_TYPE_POLYLINE ||
+    activePreview.type === ANNOTATION_LIVE_PREVIEW_TYPE_POLYGON_GROUND ||
+    activePreview.type === ANNOTATION_LIVE_PREVIEW_TYPE_POLYGON_PLANAR;
   const activePreviewForceDirectDistanceLine =
-    activePreview.type === "polygon-ground" ||
-    activePreview.type === "polygon-planar" ||
-    activePreview.type === "polygon-vertical";
+    activePreview.type === ANNOTATION_LIVE_PREVIEW_TYPE_POLYGON_GROUND ||
+    activePreview.type === ANNOTATION_LIVE_PREVIEW_TYPE_POLYGON_PLANAR ||
+    activePreview.type === ANNOTATION_LIVE_PREVIEW_TYPE_POLYGON_VERTICAL;
 
   const handlePointQueryPointerMove = useCallback(
     (
@@ -113,7 +124,7 @@ export const useAnnotationLivePreviewState = ({
     ) => {
       if (hasActivePreviewNode) {
         const hasVerticalOffsetStem =
-          activePreview.type === "point" &&
+          activePreview.type === ANNOTATION_LIVE_PREVIEW_TYPE_POINT &&
           Math.abs(activePreview.verticalOffsetMeters) > 1e-9;
         const previewPosition = positionECEF
           ? Math.abs(activePreview.verticalOffsetMeters) > 1e-9

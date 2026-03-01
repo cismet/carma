@@ -4,7 +4,11 @@ import { AnnotationToolbar3D } from "@carma-mapping/annotations/provider";
 import { useCesiumAnnotations } from "@carma-mapping/annotations/cesium";
 import { MeasurementCesiumStoryShell } from "./shared/MeasurementCesiumStoryShell";
 
-const MeasurementToolkitStory = ({ pixelWidth = 700 }: { pixelWidth?: number }) => {
+const MeasurementToolkitStory = ({
+  pixelWidth = 700,
+}: {
+  pixelWidth?: number;
+}) => {
   const {
     measurementMode,
     selectionModeActive,

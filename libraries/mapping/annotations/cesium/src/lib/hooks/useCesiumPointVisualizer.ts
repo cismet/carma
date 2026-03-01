@@ -19,6 +19,7 @@ import {
   defined,
   type Scene,
 } from "@carma/cesium";
+import { formatNumber } from "@carma-mapping/annotations/core";
 import {
   createPlacement,
   getPerspectiveStemAngleMagnitude,
@@ -48,7 +49,6 @@ import {
   type PointMarkerBadge,
 } from "./useCesiumPointLabels";
 import { useAnnotationMoveGizmoAdapter } from "./useAnnotationMoveGizmoAdapter";
-import { formatNumber } from "../utils/formatting";
 
 const LIVE_PREVIEW_HEIGHT_LABEL_ID = "measurement-live-preview-height";
 const LIVE_PREVIEW_CROSSHAIR_ID = "measurement-live-preview-crosshair";

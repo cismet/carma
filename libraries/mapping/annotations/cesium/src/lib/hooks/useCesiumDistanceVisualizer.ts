@@ -19,6 +19,8 @@ import {
 } from "@carma/cesium";
 import {
   applyMidpointMarkerOverlayLayout,
+  formatNumber,
+  getCustomPointAnnotationName,
   hasVisibleDistanceRelationComponentLines,
   isDistanceRelationHorizontalLineVisible,
   isDistanceRelationVerticalLineVisible,
@@ -50,8 +52,6 @@ import {
   resolveDistanceRelation,
   type ResolvedDistanceRelation,
 } from "../utils/distanceVisualization";
-import { formatNumber } from "../utils/formatting";
-import { getCustomPointAnnotationName } from "../utils/annotationNaming";
 import { type DistanceRelationRenderContext } from "./annotationVisualizationContext";
 
 export type CesiumDistanceVisualizerOptions = {

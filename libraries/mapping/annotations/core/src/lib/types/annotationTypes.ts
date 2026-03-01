@@ -3,22 +3,7 @@ import type {
   DistanceRelationLabelVisibilityByKind,
 } from "../visualizers/distance/distanceRelationLabel.types";
 
-export const MEASUREMENT_MODE_NONE = "none";
-export const MEASUREMENT_MODE_POINT = "point_measure";
-export const MEASUREMENT_MODE_DISTANCE = "point_query";
-export const MEASUREMENT_MODE_POLYLINE = "polyline_measure";
-export const MEASUREMENT_MODE_TRAVERSE = "traverse";
-export const MEASUREMENT_MODE_ELEVATION = "elevation";
-
-export type AnnotationMode =
-  | typeof MEASUREMENT_MODE_NONE
-  | typeof MEASUREMENT_MODE_POINT
-  | typeof MEASUREMENT_MODE_DISTANCE
-  | typeof MEASUREMENT_MODE_POLYLINE
-  | typeof MEASUREMENT_MODE_TRAVERSE
-  | typeof MEASUREMENT_MODE_ELEVATION;
-
-export const SPATIAL_MARKUP_KINDS = [
+export const ANNOTATION_TYPES = [
   "point",
   "distance",
   "polyline",
@@ -28,8 +13,8 @@ export const SPATIAL_MARKUP_KINDS = [
   "label",
 ] as const;
 
-export type SpatialMarkupKind = (typeof SPATIAL_MARKUP_KINDS)[number];
-export type AnnotationShortLabelKind = SpatialMarkupKind;
+export type AnnotationType = (typeof ANNOTATION_TYPES)[number];
+export type AnnotationShortLabelKind = AnnotationType;
 
 const [
   POINT_KIND,
@@ -39,16 +24,16 @@ const [
   PLANAR_KIND,
   VERTICAL_KIND,
   LABEL_KIND,
-] = SPATIAL_MARKUP_KINDS;
+] = ANNOTATION_TYPES;
 
 export const SELECT_TOOL_TYPE = "select" as const;
-export const SPATIAL_MARKUP_KIND_POINT = POINT_KIND;
-export const SPATIAL_MARKUP_KIND_DISTANCE = DISTANCE_KIND;
-export const SPATIAL_MARKUP_KIND_POLYLINE = POLYLINE_KIND;
-export const SPATIAL_MARKUP_KIND_AREA = AREA_KIND;
-export const SPATIAL_MARKUP_KIND_PLANAR = PLANAR_KIND;
-export const SPATIAL_MARKUP_KIND_VERTICAL = VERTICAL_KIND;
-export const SPATIAL_MARKUP_KIND_LABEL = LABEL_KIND;
+export const ANNOTATION_TYPE_POINT = POINT_KIND;
+export const ANNOTATION_TYPE_DISTANCE = DISTANCE_KIND;
+export const ANNOTATION_TYPE_POLYLINE = POLYLINE_KIND;
+export const ANNOTATION_TYPE_AREA_GROUND = AREA_KIND;
+export const ANNOTATION_TYPE_AREA_PLANAR = PLANAR_KIND;
+export const ANNOTATION_TYPE_AREA_VERTICAL = VERTICAL_KIND;
+export const ANNOTATION_TYPE_LABEL = LABEL_KIND;
 
 export const POINT_MEASUREMENT_KINDS = [POINT_KIND] as const;
 export type PointMeasurementKind = (typeof POINT_MEASUREMENT_KINDS)[number];
@@ -82,29 +67,29 @@ export type MultinodeMeasurementKind =
 
 export const MEASUREMENT_TOOL_TYPES = [
   SELECT_TOOL_TYPE,
-  ...SPATIAL_MARKUP_KINDS,
+  ...ANNOTATION_TYPES,
 ] as const;
 export type AnnotationToolType = (typeof MEASUREMENT_TOOL_TYPES)[number];
 
-const POLYGON_KIND_SET = new Set<SpatialMarkupKind>(POLYGON_MEASUREMENT_KINDS);
-const LINEAR_KIND_SET = new Set<SpatialMarkupKind>(LINEAR_MEASUREMENT_KINDS);
-const POINT_KIND_SET = new Set<SpatialMarkupKind>(POINT_MEASUREMENT_KINDS);
-const ANNOTATION_KIND_SET = new Set<SpatialMarkupKind>(ANNOTATION_KINDS);
+const POLYGON_KIND_SET = new Set<AnnotationType>(POLYGON_MEASUREMENT_KINDS);
+const LINEAR_KIND_SET = new Set<AnnotationType>(LINEAR_MEASUREMENT_KINDS);
+const POINT_KIND_SET = new Set<AnnotationType>(POINT_MEASUREMENT_KINDS);
+const ANNOTATION_KIND_SET = new Set<AnnotationType>(ANNOTATION_KINDS);
 
 export const isPolygonMeasurementType = (
-  kind: SpatialMarkupKind
+  kind: AnnotationType
 ): kind is PolygonMeasurementKind => POLYGON_KIND_SET.has(kind);
 
 export const isLinearMeasurementType = (
-  kind: SpatialMarkupKind
+  kind: AnnotationType
 ): kind is LinearMeasurementKind => LINEAR_KIND_SET.has(kind);
 
 export const isPointMeasurementType = (
-  kind: SpatialMarkupKind
+  kind: AnnotationType
 ): kind is PointMeasurementKind => POINT_KIND_SET.has(kind);
 
 export const isAnnotationType = (
-  kind: SpatialMarkupKind
+  kind: AnnotationType
 ): kind is AnnotationKind => ANNOTATION_KIND_SET.has(kind);
 
 export const KNOWN_MEASUREMENT_TYPES = [...MEASUREMENT_FAMILY_KINDS] as const;
@@ -136,11 +121,17 @@ export const LINEAR_SEGMENT_LINE_MODE_COMPONENTS = COMPONENTS_SEGMENT_LINE_MODE;
 export const DEFAULT_LINEAR_SEGMENT_LINE_MODE =
   LINEAR_SEGMENT_LINE_MODE_COMPONENTS;
 export const PLANAR_POLYGON_SOURCE_KINDS = [
-  SPATIAL_MARKUP_KIND_POLYLINE,
-  SPATIAL_MARKUP_KIND_AREA,
+  ANNOTATION_TYPE_POLYLINE,
+  ANNOTATION_TYPE_AREA_GROUND,
 ] as const;
 export type PlanarPolygonSourceKind =
   (typeof PLANAR_POLYGON_SOURCE_KINDS)[number];
+
+export const PLANAR_MEASUREMENT_CREATION_MODE_POLYLINE = "polyline";
+export const PLANAR_MEASUREMENT_CREATION_MODE_POLYGON = "polygon";
+export type PlanarMeasurementCreationMode =
+  | typeof PLANAR_MEASUREMENT_CREATION_MODE_POLYLINE
+  | typeof PLANAR_MEASUREMENT_CREATION_MODE_POLYGON;
 
 export const PLANAR_SURFACE_TYPES = [
   "roof",

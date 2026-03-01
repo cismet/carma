@@ -1,6 +1,10 @@
 import { Cartesian3 } from "@carma/cesium";
 
-import { type PlanarPolygonGroup } from "../types/annotationTypes";
+import {
+  ANNOTATION_TYPE_AREA_GROUND,
+  ANNOTATION_TYPE_POLYLINE,
+  type PlanarPolygonGroup,
+} from "../types/annotationTypes";
 
 export const POLYGON_PREVIEW_STROKE = "rgba(255, 255, 255, 0.65)";
 export const POLYGON_PREVIEW_STROKE_WIDTH_PX = 1;
@@ -171,8 +175,9 @@ export type PolygonPreviewBuildParams = {
 
 const getPlanarGroupMeasurementKind = (
   group: Pick<PlanarPolygonGroup, "measurementKind" | "closed">
-): "polyline" | "area" =>
-  group.measurementKind ?? (group.closed ? "area" : "polyline");
+): typeof ANNOTATION_TYPE_POLYLINE | typeof ANNOTATION_TYPE_AREA_GROUND =>
+  group.measurementKind ??
+  (group.closed ? ANNOTATION_TYPE_AREA_GROUND : ANNOTATION_TYPE_POLYLINE);
 
 const isGroundPolygonPreviewGroup = (
   previewGroup: PolygonPreviewGroup
@@ -201,7 +206,7 @@ export const buildPolygonPreviewGroups = ({
   planarPolygonGroups
     .map((group) => {
       const measurementKind = getPlanarGroupMeasurementKind(group);
-      if (measurementKind !== "area") {
+      if (measurementKind !== ANNOTATION_TYPE_AREA_GROUND) {
         return null;
       }
 

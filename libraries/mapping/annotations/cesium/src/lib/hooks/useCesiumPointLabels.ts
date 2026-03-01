@@ -31,6 +31,10 @@ import {
   type PointLabelLayoutConfigOverrides,
   type PointLabelLayoutResult,
 } from "@carma-providers/label-overlay";
+import {
+  formatNumber,
+  getCustomPointAnnotationName,
+} from "@carma-mapping/annotations/core";
 
 import {
   DEFAULT_POINT_LABEL_METRIC_MODE,
@@ -40,8 +44,6 @@ import {
 } from "../types/AnnotationTypes";
 import { useCesiumSceneVisibilityIndex } from "./useCesiumSceneVisibilityIndex";
 import { usePointRectangleSelectionOverlay } from "./usePointRectangleSelectionOverlay";
-import { getCustomPointAnnotationName } from "../utils/annotationNaming";
-import { formatNumber } from "../utils/formatting";
 
 export type CesiumLabelLayoutConfig = PointLabelLayoutConfig;
 export type CesiumLabelLayoutConfigOverrides = PointLabelLayoutConfigOverrides;

@@ -1,12 +1,14 @@
 import type {
-  AnnotationPersistenceEnvelopeV2,
+  AnnotationPersistenceEnvelopeV2Base,
+  BaseAnnotationEntry,
   PointDistanceRelation,
   PlanarPolygonGroup,
-  AnnotationCollection,
-  AnnotationEntry,
-  TraverseAnnotationEntry,
-} from "../types/AnnotationTypes";
-import { MEASUREMENT_MODE_TRAVERSE } from "../types/AnnotationTypes";
+} from "../types/annotationTypes";
+
+type PersistedAnnotationEntry = BaseAnnotationEntry<string>;
+type AnnotationCollection<TEntry extends PersistedAnnotationEntry> = TEntry[];
+type AnnotationPersistenceEnvelopeV2<TEntry extends PersistedAnnotationEntry> =
+  AnnotationPersistenceEnvelopeV2Base<TEntry>;
 
 const DEFAULT_STORAGE_KEY = "cesium-measurements";
 const DISTANCE_RELATIONS_STORAGE_SUFFIX = ":distance-relations";
@@ -28,22 +30,9 @@ const normalizeDistanceRelation = (
       : getMeasurementEdgeId(relation.pointAId, relation.pointBId),
 });
 
-const rebuildTraverseEntry = (entry: AnnotationEntry): AnnotationEntry => {
-  if (entry.type !== MEASUREMENT_MODE_TRAVERSE) {
-    return entry;
-  }
-
-  const traverseEntry: TraverseAnnotationEntry = {
-    ...(entry as TraverseAnnotationEntry),
-    shouldRebuildEntry: true,
-  };
-
-  return traverseEntry;
-};
-
 export const saveMeasurements = (
   storageKey: string | undefined,
-  measurements: AnnotationCollection
+  measurements: AnnotationCollection<PersistedAnnotationEntry>
 ): void => {
   const key = storageKey ?? DEFAULT_STORAGE_KEY;
   try {
@@ -53,9 +42,9 @@ export const saveMeasurements = (
   }
 };
 
-export const loadMeasurements = (
+export const loadMeasurements = <TEntry extends PersistedAnnotationEntry>(
   storageKey: string | undefined
-): AnnotationCollection | null => {
+): AnnotationCollection<TEntry> | null => {
   const key = storageKey ?? DEFAULT_STORAGE_KEY;
   try {
     const saved = localStorage.getItem(key);
@@ -63,8 +52,7 @@ export const loadMeasurements = (
       return null;
     }
 
-    const measurements = JSON.parse(saved) as AnnotationCollection;
-    return measurements.map(rebuildTraverseEntry);
+    return JSON.parse(saved) as AnnotationCollection<TEntry>;
   } catch (error) {
     console.warn("Failed to load measurements from localStorage:", error);
   }
@@ -74,7 +62,7 @@ export const loadMeasurements = (
 
 export const saveNormalizedMeasurements = (
   storageKey: string | undefined,
-  state: AnnotationPersistenceEnvelopeV2
+  state: AnnotationPersistenceEnvelopeV2<PersistedAnnotationEntry>
 ): void => {
   const key = `${
     storageKey ?? DEFAULT_STORAGE_KEY
@@ -89,9 +77,11 @@ export const saveNormalizedMeasurements = (
   }
 };
 
-export const loadNormalizedMeasurements = (
+export const loadNormalizedMeasurements = <
+  TEntry extends PersistedAnnotationEntry
+>(
   storageKey: string | undefined
-): AnnotationPersistenceEnvelopeV2 | null => {
+): AnnotationPersistenceEnvelopeV2<TEntry> | null => {
   const key = `${
     storageKey ?? DEFAULT_STORAGE_KEY
   }${NORMALIZED_STORAGE_SUFFIX}`;
@@ -101,7 +91,7 @@ export const loadNormalizedMeasurements = (
       return null;
     }
 
-    const parsed = JSON.parse(saved) as AnnotationPersistenceEnvelopeV2;
+    const parsed = JSON.parse(saved) as AnnotationPersistenceEnvelopeV2<TEntry>;
     if (parsed?.version !== 2) return null;
     if (!parsed.geometry || !parsed.tables) return null;
     if (!Array.isArray(parsed.geometry.points)) return null;
@@ -115,7 +105,7 @@ export const loadNormalizedMeasurements = (
       ...parsed,
       tables: {
         ...parsed.tables,
-        measurements: parsed.tables.measurements.map(rebuildTraverseEntry),
+        measurements: parsed.tables.measurements as TEntry[],
         distanceRelations: parsed.tables.distanceRelations.map(
           normalizeDistanceRelation
         ),
