@@ -35,20 +35,28 @@ import "leaflet/dist/leaflet.css";
 //  Props
 // ─────────────────────────────────────────────────────────────
 
-export interface TreesPlaygroundProps {
-  defaultUseLoft?: boolean;
+// ─────────────────────────────────────────────────────────────
+//  LocalStorage helpers for tree options
+// ─────────────────────────────────────────────────────────────
+
+const TREES_LOFT_KEY = "trees-useLoft";
+const TREES_RADIUS_MIX_KEY = "trees-radiusMix";
+
+function loadUseLoft(): boolean {
+  try {
+    return localStorage.getItem(TREES_LOFT_KEY) === "true";
+  } catch {
+    return false;
+  }
 }
 
-// ─────────────────────────────────────────────────────────────
-//  URL parameter helpers
-// ─────────────────────────────────────────────────────────────
-
-function parseRadiusMixFromUrl(): number {
-  const params = new URLSearchParams(
-    window.location.hash.split("?")[1] || ""
-  );
-  const raw = parseFloat(params.get("radius_mix") || "0");
-  return Number.isFinite(raw) ? Math.max(0, Math.min(1, raw)) : 0;
+function loadRadiusMix(): number {
+  try {
+    const raw = parseFloat(localStorage.getItem(TREES_RADIUS_MIX_KEY) ?? "0");
+    return Number.isFinite(raw) ? Math.max(0, Math.min(1, raw)) : 0;
+  } catch {
+    return 0;
+  }
 }
 
 // ─────────────────────────────────────────────────────────────
@@ -320,7 +328,7 @@ function LayerToggleBar({
                     onChange={(e) =>
                       onRadiusMixChange(parseFloat(e.target.value))
                     }
-                    className={`w-16 h-1 accent-[#5D4037] ${!visible || useLoft ? "opacity-30" : ""}`}
+                    className={`w-16 h-1 accent-[#A1887F] ${!visible || useLoft ? "opacity-30" : ""}`}
                     title={`Radius-Mix: ${radiusMix.toFixed(2)}`}
                   />
                   <span className={`text-xs text-gray-500 ${!visible || useLoft ? "opacity-30" : ""}`}>Umkreis</span>
@@ -369,14 +377,22 @@ const LIBRE_LAYERS = [
 //  Main component
 // ─────────────────────────────────────────────────────────────
 
-export function TreesPlayground({
-  defaultUseLoft = false,
-}: TreesPlaygroundProps) {
-  const [useLoft, setUseLoft] = useState(defaultUseLoft);
-  const [radiusMix, setRadiusMix] = useState(parseRadiusMixFromUrl);
+export function TreesPlayground() {
+  const [useLoft, setUseLoft] = useState(loadUseLoft);
+  const [radiusMix, setRadiusMix] = useState(loadRadiusMix);
   const [layerVisibility, setLayerVisibility] =
     useState<LayerVisibility>(DEFAULT_VISIBILITY);
   const { progress, showProgress, handleProgressUpdate } = useProgress();
+
+  const handleLoftChange = (v: boolean) => {
+    setUseLoft(v);
+    localStorage.setItem(TREES_LOFT_KEY, String(v));
+  };
+
+  const handleRadiusMixChange = (v: number) => {
+    setRadiusMix(v);
+    localStorage.setItem(TREES_RADIUS_MIX_KEY, String(v));
+  };
 
   const toggleLayer = (name: LayerGroupName) => {
     setLayerVisibility((prev) => ({ ...prev, [name]: !prev[name] }));
@@ -407,9 +423,9 @@ export function TreesPlayground({
                 visibility={layerVisibility}
                 onToggle={toggleLayer}
                 useLoft={useLoft}
-                onLoftChange={setUseLoft}
+                onLoftChange={handleLoftChange}
                 radiusMix={radiusMix}
-                onRadiusMixChange={setRadiusMix}
+                onRadiusMixChange={handleRadiusMixChange}
               />
             </LibreContextProvider>
           </SelectionProvider>

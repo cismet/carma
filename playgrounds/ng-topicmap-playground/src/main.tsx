@@ -56,10 +56,6 @@ root.render(
                       <Route path="/stadtplan2" element={<Stadtplan2 />} />
                       <Route path="/buildings" element={<Buildings />} />
                       <Route path="/trees" element={<TreesPlayground />} />
-                      <Route
-                        path="/trees2"
-                        element={<TreesPlayground defaultUseLoft />}
-                      />
                     </Routes>
                   </MapHighlightProvider>
                 </MapSelectionProvider>
