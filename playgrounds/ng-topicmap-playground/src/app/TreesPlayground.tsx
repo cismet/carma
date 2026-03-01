@@ -15,6 +15,7 @@ import TopicMapContextProvider from "react-cismap/contexts/TopicMapContextProvid
 import { defaultGazDataConfig } from "@carma-commons/resources";
 import { faEye, faEyeSlash } from "@fortawesome/free-solid-svg-icons";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
+import { Switch } from "antd";
 import Menu from "./Menu";
 import {
   buildCustomLayer,
@@ -267,35 +268,74 @@ const PILL_SHADOW =
 function LayerToggleBar({
   visibility,
   onToggle,
+  useLoft,
+  onLoftChange,
+  radiusMix,
+  onRadiusMixChange,
 }: {
   visibility: LayerVisibility;
   onToggle: (name: LayerGroupName) => void;
+  useLoft: boolean;
+  onLoftChange: (v: boolean) => void;
+  radiusMix: number;
+  onRadiusMixChange: (v: number) => void;
 }) {
   return (
-    <div className="absolute top-4 left-1/2 -translate-x-1/2 z-[9999] flex gap-2">
+    <div className="absolute top-4 left-1/2 -translate-x-1/2 z-[9999] flex gap-2 items-start">
       {LAYER_GROUPS.map(({ name, label, color }) => {
         const visible = visibility[name];
+        const is3D = name === "Einzelbaum 3D";
         return (
           <div
             key={name}
-            className={`flex items-center gap-2 pl-3 pr-1 h-8 rounded-[10px] text-sm
+            className={`flex flex-col rounded-[10px] text-sm
               ${visible ? "bg-white" : "bg-neutral-200/70 opacity-70"}`}
             style={{ boxShadow: PILL_SHADOW }}
           >
-            <span
-              className="inline-block w-2.5 h-2.5 rounded-full shrink-0"
-              style={{ backgroundColor: color }}
-            />
-            <span>{label}</span>
-            <button
-              onClick={() => onToggle(name)}
-              className="px-2 h-full flex items-center cursor-pointer hover:text-gray-500 text-gray-600"
-            >
-              <FontAwesomeIcon
-                icon={visible ? faEye : faEyeSlash}
-                className="text-xs"
+            <div className="flex items-center gap-2 pl-3 pr-1 h-8">
+              <span
+                className="inline-block w-2.5 h-2.5 rounded-full shrink-0"
+                style={{ backgroundColor: color }}
               />
-            </button>
+              <span>{label}</span>
+              {is3D && (
+                <>
+                  <span className="border-l border-gray-300 h-4" />
+                  <Switch
+                    size="small"
+                    checked={useLoft}
+                    disabled={!visible}
+                    onChange={onLoftChange}
+                    checkedChildren="Umring"
+                    unCheckedChildren="Kreis"
+                  />
+                  <span className={`text-xs text-gray-500 ${!visible || useLoft ? "opacity-30" : ""}`}>Inkreis</span>
+                  <input
+                    type="range"
+                    min={0}
+                    max={1}
+                    step={0.05}
+                    value={radiusMix}
+                    disabled={!visible || useLoft}
+                    onChange={(e) =>
+                      onRadiusMixChange(parseFloat(e.target.value))
+                    }
+                    className={`w-16 h-1 accent-[#5D4037] ${!visible || useLoft ? "opacity-30" : ""}`}
+                    title={`Radius-Mix: ${radiusMix.toFixed(2)}`}
+                  />
+                  <span className={`text-xs text-gray-500 ${!visible || useLoft ? "opacity-30" : ""}`}>Umkreis</span>
+                </>
+              )}
+              <button
+                onClick={() => onToggle(name)}
+                className="px-2 h-full flex items-center cursor-pointer hover:text-gray-500 text-gray-600"
+              >
+                <FontAwesomeIcon
+                  icon={visible ? faEye : faEyeSlash}
+                  className="text-xs"
+                />
+              </button>
+            </div>
           </div>
         );
       })}
@@ -366,6 +406,10 @@ export function TreesPlayground({
               <LayerToggleBar
                 visibility={layerVisibility}
                 onToggle={toggleLayer}
+                useLoft={useLoft}
+                onLoftChange={setUseLoft}
+                radiusMix={radiusMix}
+                onRadiusMixChange={setRadiusMix}
               />
             </LibreContextProvider>
           </SelectionProvider>
