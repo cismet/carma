@@ -276,10 +276,9 @@ function LayerToggleBar({
       {LAYER_GROUPS.map(({ name, label, color }) => {
         const visible = visibility[name];
         return (
-          <button
+          <div
             key={name}
-            onClick={() => onToggle(name)}
-            className={`flex items-center gap-2 px-3 h-8 rounded-[10px] text-sm cursor-pointer
+            className={`flex items-center gap-2 pl-3 pr-1 h-8 rounded-[10px] text-sm
               ${visible ? "bg-white" : "bg-neutral-200/70 opacity-70"}`}
             style={{ boxShadow: PILL_SHADOW }}
           >
@@ -288,11 +287,16 @@ function LayerToggleBar({
               style={{ backgroundColor: color }}
             />
             <span>{label}</span>
-            <FontAwesomeIcon
-              icon={visible ? faEye : faEyeSlash}
-              className="text-xs text-gray-600"
-            />
-          </button>
+            <button
+              onClick={() => onToggle(name)}
+              className="px-2 h-full flex items-center cursor-pointer hover:text-gray-500 text-gray-600"
+            >
+              <FontAwesomeIcon
+                icon={visible ? faEye : faEyeSlash}
+                className="text-xs"
+              />
+            </button>
+          </div>
         );
       })}
     </div>
