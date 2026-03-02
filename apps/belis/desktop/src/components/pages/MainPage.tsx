@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import BelisMapLibWrapper from "../commons/BelisMapWrapper";
 import { useSelector, useDispatch } from "react-redux";
 import { CustomCard } from "../commons/CustomCard";
@@ -30,7 +30,7 @@ import {
 import { fetchAllKeyTables } from "../../helper/apiMethods";
 import localForage from "localforage";
 import SearchModal from "../ui/SearchModal";
-// import SearchModal from "../ui/SearchModal";
+import StreetSearch from "../ui/StreetSearch";
 
 const FILTER_STORAGE_KEY = "@belis-desktop.layerFilter";
 
@@ -71,14 +71,9 @@ const MainPage = () => {
   const { isDatasheetOpen } = useDatasheet();
   const [windowWidth, windowHeight] = useWindowSize();
 
-  // Search state
-  const [searchText, setSearchText] = useState("");
-
-  // Highlighting via context
+  // Highlighting via context (used by GraphQL Demo)
   const {
-    highlightingActive,
     setHighlightingActive,
-    highlightByProperty,
     highlightByIds,
     clearHighlights,
   } = useMapHighlight();
@@ -111,29 +106,6 @@ const MainPage = () => {
     if (!filterReady) return;
     localForage.setItem(FILTER_STORAGE_KEY, enabledFilters);
   }, [enabledFilters, filterReady]);
-
-  // Search handlers
-  const handleSearch = useCallback(() => {
-    if (!map || !searchText.trim()) return;
-    clearHighlights();
-    setHighlightingActive(true);
-    highlightByProperty(
-      "strassenschluessel",
-      new RegExp(searchText.trim(), "i")
-    );
-  }, [
-    map,
-    searchText,
-    setHighlightingActive,
-    highlightByProperty,
-    clearHighlights,
-  ]);
-
-  const handleClearSearch = useCallback(() => {
-    setHighlightingActive(false);
-    clearHighlights();
-    setSearchText("");
-  }, [setHighlightingActive, clearHighlights]);
 
   // Show GraphQL Demo button when URL hash contains "graphqlDemo"
   // Use "graphqlDemo=true" in the URL (bare keys get dropped by updateHashHistoryState)
@@ -171,29 +143,7 @@ const MainPage = () => {
             <div className="flex items-center gap-4">
               {/* Search */}
               <div className="flex items-center gap-2">
-                <input
-                  type="text"
-                  value={searchText}
-                  onChange={(e) => setSearchText(e.target.value)}
-                  onKeyDown={(e) => e.key === "Enter" && handleSearch()}
-                  placeholder="Strassenschluessel..."
-                  className="border border-gray-300 rounded px-2 py-1 text-sm w-48"
-                />
-                <button
-                  onClick={handleSearch}
-                  disabled={!searchText.trim()}
-                  className="bg-blue-600 text-white px-3 py-1 rounded text-sm hover:bg-blue-700 disabled:opacity-50"
-                >
-                  Suche
-                </button>
-                {highlightingActive && (
-                  <button
-                    onClick={handleClearSearch}
-                    className="bg-gray-500 text-white px-3 py-1 rounded text-sm hover:bg-gray-600"
-                  >
-                    {"\u2715"}
-                  </button>
-                )}
+                <StreetSearch />
                 <SearchModal showFinalQuery={showRaw} />
               </div>
 
