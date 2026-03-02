@@ -41,6 +41,7 @@ import "leaflet/dist/leaflet.css";
 
 const TREES_LOFT_KEY = "trees-useLoft";
 const TREES_RADIUS_MIX_KEY = "trees-radiusMix";
+const TREES_VISIBILITY_KEY = "trees-layerVisibility";
 
 function loadUseLoft(): boolean {
   try {
@@ -57,6 +58,16 @@ function loadRadiusMix(): number {
   } catch {
     return 0;
   }
+}
+
+function loadLayerVisibility(): LayerVisibility {
+  try {
+    const stored = localStorage.getItem(TREES_VISIBILITY_KEY);
+    if (stored) return JSON.parse(stored) as LayerVisibility;
+  } catch {
+    // ignore
+  }
+  return DEFAULT_VISIBILITY;
 }
 
 // ─────────────────────────────────────────────────────────────
@@ -381,7 +392,7 @@ export function TreesPlayground() {
   const [useLoft, setUseLoft] = useState(loadUseLoft);
   const [radiusMix, setRadiusMix] = useState(loadRadiusMix);
   const [layerVisibility, setLayerVisibility] =
-    useState<LayerVisibility>(DEFAULT_VISIBILITY);
+    useState<LayerVisibility>(loadLayerVisibility);
   const { progress, showProgress, handleProgressUpdate } = useProgress();
 
   const handleLoftChange = (v: boolean) => {
@@ -395,7 +406,11 @@ export function TreesPlayground() {
   };
 
   const toggleLayer = (name: LayerGroupName) => {
-    setLayerVisibility((prev) => ({ ...prev, [name]: !prev[name] }));
+    setLayerVisibility((prev) => {
+      const next = { ...prev, [name]: !prev[name] };
+      localStorage.setItem(TREES_VISIBILITY_KEY, JSON.stringify(next));
+      return next;
+    });
   };
 
   return (
