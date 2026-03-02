@@ -1,7 +1,7 @@
 import { useCallback, useMemo, useRef, useState } from "react";
 import { useSelector } from "react-redux";
 import { useStore } from "react-redux";
-import type { Item } from "@carma/types";
+import type { Item } from "@carma-mapping/layers";
 import { getAllLayers } from "../../slices/mapLayers";
 import { useAdditionalConfig } from "../../hooks/useAdditionalConfig";
 import { useLoadCapabilities } from "../../hooks/useLoadCapabilities";
@@ -160,8 +160,8 @@ const ServiceList = () => {
         </p>
         <ul style={{ margin: "0 0 8px", paddingLeft: 20 }}>
           <li>
-            Jeder Layer wird mit seinen strukturierten
-            Beschreibungsabschnitten dargestellt.
+            Jeder Layer wird mit seinen strukturierten Beschreibungsabschnitten
+            dargestellt.
           </li>
           <li>
             Tags, Keywords und Dienstinformationen sind bei jedem Layer
@@ -170,8 +170,7 @@ const ServiceList = () => {
         </ul>
         {!loading && (
           <p style={{ margin: 0, fontSize: 13, color: "#718096" }}>
-            {displayLayers.length} Kategorien, {totalLayerCount} Layer
-            geladen.
+            {displayLayers.length} Kategorien, {totalLayerCount} Layer geladen.
           </p>
         )}
       </ContentCard>
@@ -201,8 +200,7 @@ const ServiceList = () => {
             };
             const openDataUrl = carmaConf?.opendata as string | undefined;
             const vectorStyle = layer.vectorStyle || carmaConf?.vectorStyle;
-            const vectorLegend =
-              layer.vectorLegend || carmaConf?.vectorLegend;
+            const vectorLegend = layer.vectorLegend || carmaConf?.vectorLegend;
 
             return (
               <div
@@ -324,11 +322,13 @@ const ServiceList = () => {
                 {layer.tags && layer.tags.length > 0 && (
                   <div style={{ marginTop: 8 }}>
                     <div style={labelStyle}>Tags</div>
-                    <div
-                      style={{ display: "flex", flexWrap: "wrap", gap: 4 }}
-                    >
+                    <div style={{ display: "flex", flexWrap: "wrap", gap: 4 }}>
                       {layer.tags.map((tag, i) => (
-                        <Badge key={`tag_${i}`} size="small" style={{ padding: "1px 8px" }}>
+                        <Badge
+                          key={`tag_${i}`}
+                          size="small"
+                          style={{ padding: "1px 8px" }}
+                        >
                           {tag}
                         </Badge>
                       ))}
