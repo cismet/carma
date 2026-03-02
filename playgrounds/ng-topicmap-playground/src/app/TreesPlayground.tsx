@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import {
   SelectionProvider,
   ProgressIndicator,
@@ -122,6 +122,58 @@ function CameraPersistence() {
   }, [map]);
 
   return null;
+}
+
+// ─────────────────────────────────────────────────────────────
+//  FPS counter (counts MapLibre render events per second)
+// ─────────────────────────────────────────────────────────────
+
+function FpsCounter() {
+  const { map } = useLibreContext();
+  const [fps, setFps] = useState(0);
+  const [idle, setIdle] = useState(false);
+  const frames = useRef(0);
+  const idleCount = useRef(0);
+
+  const tick = useCallback(() => {
+    frames.current++;
+  }, []);
+
+  useEffect(() => {
+    if (!map) return;
+
+    map.on("render", tick);
+    const interval = setInterval(() => {
+      const count = frames.current;
+      frames.current = 0;
+      if (count > 0) {
+        setFps(count);
+        setIdle(false);
+        idleCount.current = 0;
+      } else {
+        idleCount.current++;
+        if (idleCount.current >= 2) setIdle(true);
+      }
+    }, 1000);
+
+    return () => {
+      map.off("render", tick);
+      clearInterval(interval);
+    };
+  }, [map, tick]);
+
+  return (
+    <div
+      className="absolute bottom-2 right-2 z-[9999] px-2 py-0.5 rounded text-xs font-mono transition-opacity duration-500"
+      style={{
+        background: "rgba(0,0,0,0.55)",
+        color: fps < 15 ? "#ff6b6b" : fps < 30 ? "#ffd93d" : "#6bff6b",
+        opacity: idle ? 0.3 : 1,
+      }}
+    >
+      {fps} fps
+    </div>
+  );
 }
 
 // ─────────────────────────────────────────────────────────────
@@ -420,6 +472,7 @@ export function TreesPlayground() {
           <SelectionProvider>
             <LibreContextProvider>
               <CameraPersistence />
+              <FpsCounter />
               {layerVisibility["Einzelbaum 3D"] && (
                 <TreeLayer useLoft={useLoft} radiusMix={radiusMix} />
               )}
