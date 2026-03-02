@@ -19,7 +19,7 @@ const FilterBadge = ({ filteredCount, totalCount }: FilterBadgeProps) => {
           color: "#3182ce",
         }}
       >
-        {filteredCount} von {totalCount} Layern angezeigt
+        {filteredCount} von {totalCount} Einträgen angezeigt
       </span>
     </div>
   );
