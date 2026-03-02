@@ -441,8 +441,7 @@ const ServiceList = () => {
             dargestellt.
           </li>
           <li>
-            Tags, Keywords und Dienstinformationen sind bei jedem Eintrag
-            einsehbar.
+            Tags und Layer Informationen sind bei jedem Eintrag einsehbar.
           </li>
         </ul>
         {!loading && (
