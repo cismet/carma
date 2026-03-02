@@ -62,6 +62,31 @@ const SectionHeading = ({ children }: { children: React.ReactNode }) => (
   </h2>
 );
 
+const badgeColors: Record<string, { bg: string; color: string }> = {
+  ...typeBadgeColors,
+  queryable: { bg: "#c6f6d5", color: "#276749" },
+  vector: { bg: "#e9d8fd", color: "#553c9a" },
+  raster: { bg: "#bee3f8", color: "#2a4365" },
+};
+
+const getLayerBadges = (layer: Item): string[] => {
+  const badges: string[] = [];
+  if (layer.type) badges.push(layer.type);
+  if (layer.queryable) badges.push("queryable");
+  if (layer.type === "layer") {
+    const carmaConf = extractCarmaConfig(layer.keywords);
+    const hasVector = !!(
+      layer.vectorStyle ||
+      carmaConf?.vectorStyle ||
+      layer.vectorLegend ||
+      carmaConf?.vectorLegend ||
+      (layer as any).layerType === "vector"
+    );
+    badges.push(hasVector ? "vector" : "raster");
+  }
+  return badges;
+};
+
 const ItemEntry = ({ layer, isLast }: { layer: Item; isLast: boolean }) => {
   const carmaConf = extractCarmaConfig(layer.keywords);
   const descriptions = parseDescription(layer.description);
@@ -72,8 +97,11 @@ const ItemEntry = ({ layer, isLast }: { layer: Item; isLast: boolean }) => {
   const openDataUrl = carmaConf?.opendata as string | undefined;
   const vectorStyle = layer.vectorStyle || carmaConf?.vectorStyle;
   const vectorLegend = layer.vectorLegend || carmaConf?.vectorLegend;
-  const isVector =
-    !!(vectorStyle || vectorLegend || (layer as any).layerType === "vector");
+  const isVector = !!(
+    vectorStyle ||
+    vectorLegend ||
+    (layer as any).layerType === "vector"
+  );
 
   return (
     <div
@@ -249,6 +277,7 @@ const ServiceList = () => {
     { serviceName: string; title: string; layers: any[] }[]
   >([]);
   const [search, setSearch] = useState("");
+  const [badgeFilter, setBadgeFilter] = useState<string | null>(null);
 
   const addItemToCategory = useCallback(
     (
@@ -389,18 +418,23 @@ const ServiceList = () => {
 
   const filterCategories = useCallback(
     (categories: { id: string; Title: string; layers: any[] }[]) => {
-      if (!search.trim()) return categories;
-      const term = search.toLowerCase();
+      const term = search.trim().toLowerCase();
+      const hasSearch = term.length > 0;
+      if (!hasSearch && !badgeFilter) return categories;
       return categories
         .map((category) => ({
           ...category,
-          layers: category.layers.filter((layer: Item) =>
-            getSearchableText(layer).includes(term)
-          ),
+          layers: category.layers.filter((layer: Item) => {
+            if (hasSearch && !getSearchableText(layer).includes(term))
+              return false;
+            if (badgeFilter && !getLayerBadges(layer).includes(badgeFilter))
+              return false;
+            return true;
+          }),
         }))
         .filter((category) => category.layers.length > 0);
     },
-    [search, getSearchableText]
+    [search, badgeFilter, getSearchableText]
   );
 
   const filteredLayers = useMemo(
@@ -470,6 +504,42 @@ const ServiceList = () => {
       </ContentCard>
 
       {loading && <LoadingSpinner />}
+
+      <div
+        style={{
+          display: "flex",
+          flexWrap: "wrap",
+          gap: 6,
+          marginBottom: 8,
+        }}
+      >
+        {Object.keys(badgeColors).map((key) => {
+          const active = badgeFilter === key;
+          const { bg, color } = badgeColors[key];
+          return (
+            <button
+              key={key}
+              onClick={() => setBadgeFilter(active ? null : key)}
+              style={{
+                display: "inline-flex",
+                alignItems: "center",
+                fontSize: 12,
+                fontWeight: 600,
+                padding: "4px 12px",
+                borderRadius: 10,
+                border: active ? `2px solid ${color}` : "2px solid transparent",
+                backgroundColor: bg,
+                color,
+                cursor: "pointer",
+                opacity: active ? 1 : 0.7,
+                transition: "opacity 0.15s, border-color 0.15s",
+              }}
+            >
+              {key}
+            </button>
+          );
+        })}
+      </div>
 
       <SearchInput
         value={search}
