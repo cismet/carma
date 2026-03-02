@@ -72,6 +72,8 @@ const ItemEntry = ({ layer, isLast }: { layer: Item; isLast: boolean }) => {
   const openDataUrl = carmaConf?.opendata as string | undefined;
   const vectorStyle = layer.vectorStyle || carmaConf?.vectorStyle;
   const vectorLegend = layer.vectorLegend || carmaConf?.vectorLegend;
+  const isVector =
+    !!(vectorStyle || vectorLegend || (layer as any).layerType === "vector");
 
   return (
     <div
@@ -105,6 +107,14 @@ const ItemEntry = ({ layer, isLast }: { layer: Item; isLast: boolean }) => {
         {layer.queryable && (
           <Badge bg="#c6f6d5" color="#276749">
             queryable
+          </Badge>
+        )}
+        {layer.type === "layer" && (
+          <Badge
+            bg={isVector ? "#e9d8fd" : "#bee3f8"}
+            color={isVector ? "#553c9a" : "#2a4365"}
+          >
+            {isVector ? "vector" : "raster"}
           </Badge>
         )}
       </div>
@@ -155,7 +165,11 @@ const ItemEntry = ({ layer, isLast }: { layer: Item; isLast: boolean }) => {
         {layer.service?.url && (
           <div>
             <div style={labelStyle}>Service-URL</div>
-            <div style={monoValueStyle}>{layer.service.url}</div>
+            <div style={monoValueStyle}>
+              {!isVector && layer.name
+                ? `${layer.service.url}?service=WMS&request=GetMap&layers=${layer.name}`
+                : layer.service.url}
+            </div>
           </div>
         )}
         {(layer.minZoom !== undefined || layer.maxZoom !== undefined) && (
