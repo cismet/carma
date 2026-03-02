@@ -168,7 +168,7 @@ const OnMapList = ({
 }: OnMapListProps) => {
   const { map } = useLibreContext();
   const { selectedFeatureId, selectFeature } = useMapSelection();
-  const { highlightingActive, highlightVersion, highlightMode, setHighlightMode } =
+  const { highlightingActive, highlightVersion, highlightMode, setHighlightMode, criteria } =
     useMapHighlight();
 
   const showRaw = useMemo(() => {
@@ -178,6 +178,13 @@ const OnMapList = ({
     return window.location.hostname === "localhost";
   }, []);
 
+  // --- Frozen / results mode --------------------------------------------------
+  // searchSnapshot: immutable capture of all search results (e.g. 1320 features)
+  // manuallyAdded: features added via option+click that were NOT in the search
+  // frozenFeatures: computed = searchSnapshot − toggled off + manuallyAdded still on
+  const [searchSnapshot, setSearchSnapshot] = useState<VisibleFeature[]>([]);
+  const [manuallyAdded, setManuallyAdded] = useState<VisibleFeature[]>([]);
+
   const { features, totalCount, countsByLayer, isLoading, isOverviewMode } =
     useVisibleMapFeatures({
       maplibreMap: map,
@@ -186,7 +193,7 @@ const OnMapList = ({
       maxFeatures: 2000,
       layerFilterExpressions: ["Leuchten.*-base", "Leuchten.*-icon"],
       highlightedOnly: highlightingActive,
-      frozen: highlightingActive && highlightMode === "results",
+      frozen: highlightingActive && highlightMode === "results" && searchSnapshot.length > 0,
       refreshTrigger: highlightVersion,
       showDebugBounds: showRaw,
     });
@@ -198,45 +205,136 @@ const OnMapList = ({
       return activeSourceLayers.has(sl);
     });
   }, [features, activeSourceLayers]);
-
-  // Snapshot search results so they survive map pan/zoom.
-  // Only capture on loading→done transition to avoid snapshotting stale data.
-  const [savedFeatures, setSavedFeatures] = useState<VisibleFeature[]>([]);
-  const [savedCountsByLayer, setSavedCountsByLayer] = useState<Record<string, number>>({});
-  const savedForVersionRef = useRef(-1);
+  const snapshotVersionRef = useRef(-1);
   const wasLoadingRef = useRef(true);
 
+  // Capture snapshot on loading→done transition in results mode (after search + fitBounds)
   useEffect(() => {
     const wasLoading = wasLoadingRef.current;
     wasLoadingRef.current = isLoading;
 
-    // Only snapshot when isLoading transitions from true → false (fresh data just arrived)
     if (
       highlightingActive &&
+      highlightMode === "results" &&
       wasLoading &&
       !isLoading &&
       filteredFeatures.length > 0 &&
-      savedForVersionRef.current !== highlightVersion
+      snapshotVersionRef.current !== highlightVersion
     ) {
-      setSavedFeatures([...filteredFeatures]);
-      setSavedCountsByLayer({ ...countsByLayer });
-      savedForVersionRef.current = highlightVersion;
-    }
-  }, [highlightingActive, isLoading, filteredFeatures, highlightVersion, countsByLayer]);
+      setSearchSnapshot([...filteredFeatures]);
 
-  // Clear snapshot when highlighting is deactivated
+      setManuallyAdded([]);
+      snapshotVersionRef.current = highlightVersion;
+    }
+  }, [highlightingActive, highlightMode, isLoading, filteredFeatures, highlightVersion, countsByLayer]);
+
+  // Also capture when manually switching filter → results (button click).
+  // Only capture when highlightVersion hasn't changed (data is fresh).
+  // When version changed (new search), the loading→done effect handles it.
+  const prevModeRef = useRef(highlightMode);
+  const prevVersionForModeRef = useRef(highlightVersion);
+  useEffect(() => {
+    const prevMode = prevModeRef.current;
+    const prevVersion = prevVersionForModeRef.current;
+    prevModeRef.current = highlightMode;
+    prevVersionForModeRef.current = highlightVersion;
+
+    if (
+      highlightMode === "results" &&
+      prevMode === "filter" &&
+      searchSnapshot.length === 0 &&
+      filteredFeatures.length > 0 &&
+      prevVersion === highlightVersion // data is fresh (manual button click, not a new search)
+    ) {
+      setSearchSnapshot([...filteredFeatures]);
+      setManuallyAdded([]);
+      snapshotVersionRef.current = highlightVersion;
+    }
+  }, [highlightMode, highlightVersion, searchSnapshot.length, filteredFeatures, countsByLayer]);
+
+  // Detect option+click toggles: add newly toggled-on features from the map
+  useEffect(() => {
+    if (highlightMode !== "results" || !map) return;
+
+    const snapshotKeys = new Set(
+      searchSnapshot.map((f) => `${f.source}::${f.sourceLayer}::${f.id}`)
+    );
+    const addedKeys = new Set(
+      manuallyAdded.map((f) => `${f.source}::${f.sourceLayer}::${f.id}`)
+    );
+
+    for (const [key, toggled] of criteria.toggledFeatures) {
+      if (snapshotKeys.has(key) || addedKeys.has(key)) continue;
+      // New feature toggled on — it's in the viewport (user just clicked it)
+      console.log("[FROZEN] toggle add: looking for feature", key, toggled);
+      try {
+        // Use queryRenderedFeatures — more reliable since the user just clicked it
+        const allRendered = map.queryRenderedFeatures();
+        const found = allRendered.find(
+          (f) =>
+            f.source === toggled.source &&
+            f.sourceLayer === toggled.sourceLayer &&
+            f.id != null &&
+            String(f.id) === String(toggled.id)
+        );
+        console.log("[FROZEN] toggle add: found=", found ? `${found.source}::${found.sourceLayer}::${found.id}` : "null");
+        if (found) {
+          setManuallyAdded((prev) => [
+            ...prev,
+            { ...found, original: found } as VisibleFeature,
+          ]);
+        }
+      } catch (e) {
+        console.warn("[FROZEN] toggle add: error querying map", e);
+      }
+    }
+  }, [highlightVersion, highlightMode, map, searchSnapshot, manuallyAdded, criteria]);
+
+  // Compute frozen display: snapshot − toggled off + manually added still on
+  const frozenFeatures = useMemo(() => {
+    const toggledKeys = criteria.toggledFeatures;
+    const fromSearch = searchSnapshot.filter((f) => {
+      const key = `${f.source}::${f.sourceLayer}::${f.id}`;
+      return !toggledKeys.has(key);
+    });
+    const fromManual = manuallyAdded.filter((f) => {
+      const key = `${f.source}::${f.sourceLayer}::${f.id}`;
+      return toggledKeys.has(key);
+    });
+    if (toggledKeys.size > 0) {
+      console.log("[FROZEN] recompute: toggledKeys=", toggledKeys.size,
+        "searchSnapshot=", searchSnapshot.length,
+        "fromSearch=", fromSearch.length,
+        "manuallyAdded=", manuallyAdded.length,
+        "fromManual=", fromManual.length);
+    }
+    return [...fromSearch, ...fromManual];
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchSnapshot, manuallyAdded, criteria.toggledFeatures, highlightVersion]);
+
+  const frozenCounts = useMemo(() => {
+    if (highlightMode !== "results") return countsByLayer;
+    const counts: Record<string, number> = {};
+    for (const f of frozenFeatures) {
+      const key = f.sourceLayer || f.source || "other";
+      counts[key] = (counts[key] || 0) + 1;
+    }
+    return counts;
+  }, [highlightMode, frozenFeatures, countsByLayer]);
+
+  // Clear everything when highlighting is deactivated
   useEffect(() => {
     if (!highlightingActive) {
-      setSavedFeatures([]);
-      setSavedCountsByLayer({});
-      savedForVersionRef.current = -1;
+      setSearchSnapshot([]);
+      setManuallyAdded([]);
+      snapshotVersionRef.current = -1;
     }
   }, [highlightingActive]);
 
-  // Choose which features to display based on mode
-  const displayFeatures = highlightMode === "results" ? savedFeatures : filteredFeatures;
-  const displayCountsByLayer = highlightMode === "results" ? savedCountsByLayer : countsByLayer;
-  const displayTotalCount = highlightMode === "results" ? savedFeatures.length : totalCount;
+  // Choose which features to display
+  const displayFeatures = highlightMode === "results" ? frozenFeatures : filteredFeatures;
+  const displayCountsByLayer = highlightMode === "results" ? frozenCounts : countsByLayer;
+  const displayTotalCount = highlightMode === "results" ? frozenFeatures.length : totalCount;
 
   const [collapsedGroups, setCollapsedGroups] = useState<
     Record<string, boolean>
@@ -431,9 +529,14 @@ const OnMapList = ({
         <div className="flex items-center gap-2">
           {highlightingActive && (
             <button
-              onClick={() =>
-                setHighlightMode(highlightMode === "filter" ? "results" : "filter")
-              }
+              onClick={() => {
+                if (highlightMode === "results") {
+                  // Switching to live: clear manual toggles so live mode
+                  // only reflects the original search criteria
+                  criteria.toggledFeatures.clear();
+                }
+                setHighlightMode(highlightMode === "filter" ? "results" : "filter");
+              }}
               className={`flex items-center gap-1 px-2 py-0.5 rounded text-xs font-medium transition-colors ${
                 highlightMode === "results"
                   ? "bg-orange-100 text-orange-700 border border-orange-300"

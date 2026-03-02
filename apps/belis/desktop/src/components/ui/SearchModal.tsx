@@ -565,7 +565,7 @@ const SearchModal = ({
 
   const jwt = useSelector(getJWT);
   const { map } = useLibreContext();
-  const { setHighlightingActive, highlightByIds, clearHighlights } =
+  const { setHighlightingActive, setHighlightMode, highlightByIds, clearHighlights } =
     useMapHighlight();
 
   // Store current search values
@@ -737,6 +737,10 @@ const SearchModal = ({
               clearHighlights();
               setHighlightingActive(true);
               highlightByIds(highlightArray);
+              // Switch to results mode after fitBounds completes —
+              // at this point all search results are in loaded tiles,
+              // so the snapshot captures the full set.
+              setHighlightMode("results");
             });
           }
 
