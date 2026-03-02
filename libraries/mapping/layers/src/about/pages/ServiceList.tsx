@@ -520,7 +520,7 @@ const ServiceList = ({ discoverProps }: { discoverProps?: DiscoverProps }) => {
         <p style={{ margin: "0 0 8px", fontWeight: 600, color: "#2d3748" }}>
           Diese Seite zeigt alle konfigurierten Inhalte des Geoportals mit ihren
           Metadaten (Titel, Beschreibungen, Tags, Dienst-Informationen) an:
-          Kartenebenen, Teilzwillinge, Sensoren und Objekte.
+          Kartenebenen, Teilzwillinge, Sensoren, Objekte und Entdecken-Inhalte.
         </p>
         <ul style={{ margin: "0 0 8px", paddingLeft: 20 }}>
           <li>
@@ -528,7 +528,12 @@ const ServiceList = ({ discoverProps }: { discoverProps?: DiscoverProps }) => {
             dargestellt.
           </li>
           <li>
-            Tags und Layer Informationen sind bei jedem Eintrag einsehbar.
+            Tags und Layer-Informationen sind bei jedem Eintrag einsehbar.
+          </li>
+          <li>
+            Mit den Typ-Filtern unterhalb können die Einträge nach Typ (z.B.
+            Layer, Link, Collection) oder Eigenschaft (z.B. queryable, vector)
+            gefiltert werden.
           </li>
         </ul>
         {!loading && (
@@ -547,38 +552,59 @@ const ServiceList = ({ discoverProps }: { discoverProps?: DiscoverProps }) => {
 
       <div
         style={{
-          display: "flex",
-          flexWrap: "wrap",
-          gap: 6,
-          marginBottom: 8,
+          marginBottom: 12,
+          padding: "10px 14px",
+          backgroundColor: "#fff",
+          borderRadius: 8,
+          border: "1px solid #e2e8f0",
         }}
       >
-        {Object.keys(badgeColors).map((key) => {
-          const active = badgeFilter === key;
-          const { bg, color } = badgeColors[key];
-          return (
-            <button
-              key={key}
-              onClick={() => setBadgeFilter(active ? null : key)}
-              style={{
-                display: "inline-flex",
-                alignItems: "center",
-                fontSize: 12,
-                fontWeight: 600,
-                padding: "4px 12px",
-                borderRadius: 10,
-                border: active ? `2px solid ${color}` : "2px solid transparent",
-                backgroundColor: bg,
-                color,
-                cursor: "pointer",
-                opacity: active ? 1 : 0.7,
-                transition: "opacity 0.15s, border-color 0.15s",
-              }}
-            >
-              {key}
-            </button>
-          );
-        })}
+        <div
+          style={{
+            fontSize: 13,
+            fontWeight: 600,
+            color: "#4a5568",
+            marginBottom: 8,
+          }}
+        >
+          Nach Typ filtern
+        </div>
+        <div
+          style={{
+            display: "flex",
+            flexWrap: "wrap",
+            gap: 6,
+          }}
+        >
+          {Object.keys(badgeColors).map((key) => {
+            const active = badgeFilter === key;
+            const { bg, color } = badgeColors[key];
+            return (
+              <button
+                key={key}
+                onClick={() => setBadgeFilter(active ? null : key)}
+                style={{
+                  display: "inline-flex",
+                  alignItems: "center",
+                  fontSize: 12,
+                  fontWeight: 600,
+                  padding: "4px 12px",
+                  borderRadius: 10,
+                  border: active
+                    ? `2px solid ${color}`
+                    : "2px solid transparent",
+                  backgroundColor: bg,
+                  color,
+                  cursor: "pointer",
+                  opacity: active ? 1 : 0.7,
+                  transition: "opacity 0.15s, border-color 0.15s",
+                }}
+              >
+                {key}
+              </button>
+            );
+          })}
+        </div>
       </div>
 
       <SearchInput
