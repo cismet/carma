@@ -1142,7 +1142,7 @@ export const fetchAllKeyTables = async (jwt: string) => {
     { key: "unterhaltLeuchte", fetch: fetchAllUnterhaltLeuchte },
     // { key: "straßenschlüssel", fetch: fetchAllStrassenschluessel },
     { key: "energielieferant", fetch: fetchAllEnergielieferant },
-    // { key: "bezirk", fetch: fetchAllBezirk },
+    { key: "bezirk", fetch: fetchAllBezirk },
     { key: "leitungstyp", fetch: fetchAllLeitungstyp },
     { key: "arbeitsprotokollstatus", fetch: fetchAllArbeitsprotokollstatus },
     { key: "materialLeitung", fetch: fetchAllMaterialLeitung },

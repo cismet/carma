@@ -40,11 +40,13 @@ const KeyTableDataGroups = ({
     >
       <List
         size="small"
-        dataSource={Object.keys(data).sort((a, b) =>
-          getTableDisplayName(a).localeCompare(getTableDisplayName(b), "de", {
-            sensitivity: "base",
-          })
-        )}
+        dataSource={Object.keys(data)
+          .filter((key) => key in keyTableDisplayConfig)
+          .sort((a, b) =>
+            getTableDisplayName(a).localeCompare(getTableDisplayName(b), "de", {
+              sensitivity: "base",
+            })
+          )}
         renderItem={(tableName: string) => {
           const items = data[tableName];
           const count = Array.isArray(items) ? items.length : 0;
