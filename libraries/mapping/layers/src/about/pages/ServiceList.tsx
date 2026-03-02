@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useSelector } from "react-redux";
 import { useStore } from "react-redux";
 import type { Item } from "@carma-mapping/layers";
@@ -8,6 +8,11 @@ import { useLoadCapabilities } from "../../hooks/useLoadCapabilities";
 import { extractCarmaConfig } from "@carma-commons/utils";
 import { parseDescription } from "../../helper/layerHelper";
 import { partianTwinConfig } from "../../helper/config";
+import {
+  discoverConfig,
+  fetchDiscoverItems,
+  type DiscoverProps,
+} from "../../helper/discover";
 import PageLayout from "../components/PageLayout";
 import PageHeader from "../components/PageHeader";
 import ContentCard from "../components/ContentCard";
@@ -264,7 +269,7 @@ const ItemEntry = ({ layer, isLast }: { layer: Item; isLast: boolean }) => {
   );
 };
 
-const ServiceList = () => {
+const ServiceList = ({ discoverProps }: { discoverProps?: DiscoverProps }) => {
   const allLayers = useSelector(getAllLayers);
   const store = useStore();
   const additionalLayersRef = useRef<
@@ -276,8 +281,36 @@ const ServiceList = () => {
   const [objectEntries, setObjectEntries] = useState<
     { serviceName: string; title: string; layers: any[] }[]
   >([]);
+  const [discoverLayers, setDiscoverLayers] = useState<
+    { id: string; Title: string; layers: any[] }[]
+  >([]);
   const [search, setSearch] = useState("");
   const [badgeFilter, setBadgeFilter] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!discoverProps) return;
+    fetchDiscoverItems(discoverProps).then((items) => {
+      const categories: { id: string; Title: string; layers: any[] }[] = [];
+      for (const key in discoverConfig) {
+        const config = discoverConfig[key as keyof typeof discoverConfig];
+        const filteredItems = items.filter(
+          (item) => JSON.parse(item.config).serviceName === config.id
+        );
+        const layers = filteredItems.map((item) => ({
+          ...JSON.parse(item.config),
+          id: item.id.toString(),
+        }));
+        if (layers.length > 0) {
+          categories.push({
+            id: config.id,
+            Title: config.Title,
+            layers,
+          });
+        }
+      }
+      setDiscoverLayers(categories);
+    });
+  }, []);
 
   const addItemToCategory = useCallback(
     (
@@ -453,6 +486,10 @@ const ServiceList = () => {
     () => filterCategories(objectLayers),
     [objectLayers, filterCategories]
   );
+  const filteredDiscover = useMemo(
+    () => filterCategories(discoverLayers),
+    [discoverLayers, filterCategories]
+  );
 
   const getNumberOfLayers = (layerCategories: any) => {
     let count = 0;
@@ -466,12 +503,14 @@ const ServiceList = () => {
     getNumberOfLayers(displayLayers) +
     getNumberOfLayers(topicMaps) +
     getNumberOfLayers(sensorLayers) +
-    getNumberOfLayers(objectLayers);
+    getNumberOfLayers(objectLayers) +
+    getNumberOfLayers(discoverLayers);
   const filteredCount =
     getNumberOfLayers(filteredLayers) +
     getNumberOfLayers(filteredTopicMaps) +
     getNumberOfLayers(filteredSensors) +
-    getNumberOfLayers(filteredObjects);
+    getNumberOfLayers(filteredObjects) +
+    getNumberOfLayers(filteredDiscover);
 
   return (
     <PageLayout>
@@ -497,7 +536,8 @@ const ServiceList = () => {
             {displayLayers.length +
               topicMaps.length +
               sensorLayers.length +
-              objectLayers.length}{" "}
+              objectLayers.length +
+              discoverLayers.length}{" "}
             Kategorien, {totalLayerCount} Einträge geladen.
           </p>
         )}
@@ -606,6 +646,25 @@ const ServiceList = () => {
 
       {filteredObjects.length > 0 && <SectionHeading>Objekte</SectionHeading>}
       {filteredObjects.map((category) => (
+        <CategoryCard
+          key={category.id}
+          title={category.Title}
+          layerCount={category.layers.length}
+        >
+          {category.layers.map((layer: Item, layerIndex: number) => (
+            <ItemEntry
+              key={layer.id}
+              layer={layer}
+              isLast={layerIndex === category.layers.length - 1}
+            />
+          ))}
+        </CategoryCard>
+      ))}
+
+      {filteredDiscover.length > 0 && (
+        <SectionHeading>Entdecken</SectionHeading>
+      )}
+      {filteredDiscover.map((category) => (
         <CategoryCard
           key={category.id}
           title={category.Title}

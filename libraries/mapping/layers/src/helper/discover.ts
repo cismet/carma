@@ -1,5 +1,41 @@
+import { md5ActionFetchDAQ, md5FetchJSON } from "@carma-commons/utils";
 import liegenschaftsThumb from "..//thumbnails/liegenschaft.png";
-import wohnlagenThumb from "../thumbnails/wohnlagen.png";
+
+export type DiscoverProps = {
+  appKey: string;
+  apiUrl: string;
+  daqKey: string;
+};
+
+type DiscoverResult = {
+  time: string | null;
+  data: {
+    config: string;
+    id: number;
+    name: string;
+    draft?: boolean;
+  }[];
+};
+
+export const fetchDiscoverItems = async (
+  discoverProps: DiscoverProps,
+  jwt?: string
+): Promise<DiscoverResult["data"]> => {
+  const { appKey, apiUrl, daqKey } = discoverProps;
+  try {
+    const result = await md5ActionFetchDAQ(appKey, apiUrl, jwt || "", daqKey);
+    return (result as DiscoverResult).data;
+  } catch (e: any) {
+    if (!jwt) {
+      const result = await md5FetchJSON<DiscoverResult["data"][number]>(
+        "gp_entdecken",
+        "https://wupp-topicmaps-data.cismet.de/data/gp_entdecken.json"
+      );
+      return result;
+    }
+    throw e;
+  }
+};
 
 export const discoverConfig = {
   POI: {
@@ -30,110 +66,7 @@ export const discoverConfig = {
   Immo: {
     Title: "Immobilien",
     id: "discoverImmo",
-    layers: [
-      {
-        description: `Inhalt: Vom Gutachterausschuss für Grundstückswerte in der Stadt Wuppertal am 16.04.2024 beschlossene vierstufige Klassifizierung der Wuppertaler Wohnlagen zum Stichtag 01.01.2024 mit dem wöchentlich aktualisierten Amtlichen Stadtplan (Stadtkarte 2.0) als Hintergrund. Verwendungszweck: Ermittlung von Wohnlagen gemäß Nr. 6.9 des qualifizierten Mietspiegels der Stadt Wuppertal für die Ermittlung ortsüblicher Vergleichsmieten.`,
-        type: "collection",
-        thumbnail: wohnlagenThumb,
-        title: "Wohnlagenkarte",
-        serviceName: "discoverImmo",
-        id: "discoverImmo_wohnlagen",
-        path: "Immobilien",
-        backgroundLayer: {
-          title: "Stadtplan",
-          id: "karte",
-          opacity: 1,
-          description: "",
-          inhalt:
-            '<span>Kartendienst (WMS) des Regionalverbandes Ruhr (RVR). Datengrundlage: Stadtkarte 2.0. Wöchentlich in einem automatischen Prozess aktualisierte Zusammenführung des Straßennetzes der OpenStreetMap mit Amtlichen Geobasisdaten des Landes NRW aus den Fachverfahren ALKIS (Gebäude, Flächennutzungen) und ATKIS (Gewässer). © RVR und Kooperationspartner (</span><a class="remove-margins" href="https://www.govdata.de/dl-de/by-2-0">\n                Datenlizenz Deutschland - Namensnennung - Version 2.0\n              </a><span>). Lizenzen der Ausgangsprodukte: </span><a href="https://www.govdata.de/dl-de/zero-2-0">\n                Datenlizenz Deutschland - Zero - Version 2.0\n              </a><span> (Amtliche Geobasisdaten) und </span><a href="https://opendatacommons.org/licenses/odbl/1-0/">    ODbL    </a><span> (OpenStreetMap contributors).</span>',
-          eignung:
-            "Der Stadtplan ist der am einfachsten und sichersten interpretierbare Kartenhintergrund, weil er an den von Stadtplänen geprägten Sehgewohnheiten von Kartennutzerinnen und -nutzern anschließt. Durch die schrittweise Reduzierung des Karteninhalts bei kleiner werdenden Maßstäben eignet sich der Stadtplan als Hintergrund für beliebige Maßstäbe. Aktualität: der Gebäudebestand ist durch die wöchentliche Ableitung aus dem Liegenschaftskataster sehr aktuell. Gebäude können sicher identifiziert werden, da bei Detailbetrachtungen alle Hausnummern dargestellt werden.",
-          visible: true,
-          layerType: "wmts",
-          props: {
-            name: "",
-            url: "https://geodaten.metropoleruhr.de/spw2?SERVICE=WMTS&REQUEST=GetTile&VERSION=1.0.0&LAYER=spw2_light&STYLE=default&FORMAT=image/png&TILEMATRIXSET=webmercator_hq&TILEMATRIX={z}&TILEROW={y}&TILECOL={x}",
-          },
-          layers: "amtlich@90",
-        },
-        layers: [
-          {
-            title: "Wohnlagen 2025",
-            id: "wuppImmo:wohnlagen2025",
-            layerType: "vector",
-            opacity: 1,
-            description:
-              "Inhalt: Vom Gutachterausschuss für Grundstückswerte in der Stadt Wuppertal am 20.03.2025 beschlossene vierstufige Klassifizierung der Wuppertaler Wohnlagen zum Stichtag 01.01.2025; die räumliche Auflösung orientiert sich an den Baublöcken aus der kleinräumigen Gliederung der Stadt Wuppertal, weicht im Detail aber an etlichen Stellen von dieser Gebietsgliederung ab; die in der jeweiligen Zone dargestellte Wohnlage beschreibt deren überwiegenden Charakter, die Lagequalität einzelner Grundstücke kann abweichen. Sichtbarkeit: öffentlich. Nutzung: frei innerhalb der Grenzen des Urheberrechtsgesetzes; der zugrunde liegende Datensatz ist unter einer Open-Data-Lizenz (dl-de/by-2-0) verfügbar",
-            conf: {
-              thumbnail:
-                "https://www.wuppertal.de/geoportal/geoportal_vorschau/immo_wohnlagen2025.png",
-              opendata:
-                "https://www.offenedaten-wuppertal.de/dataset/wohnlagen-wuppertal",
-              vectorStyle: "https://tiles.cismet.de/wohnlagen2025/style.json",
-              infoboxMapping: [
-                "function createInfoBoxInfo(p) { let color = '#006c72'; switch(p.wlcode) { case 1: color = '#FF0000'; break; case 2: color = '#FFC000'; break; case 3: color = '#92D050'; break; case 4: color = '#00C5FF'; break; } const info = { title: p.wohnlage, headerColor: color, header: 'Wohnlagen 2025', }; return info; }",
-              ],
-            },
-            queryable: true,
-            useInFeatureInfo: true,
-            visible: true,
-            props: {
-              style: "https://tiles.cismet.de/wohnlagen2025/style.json",
-              minZoom: 9,
-              maxZoom: 24,
-              legend: [
-                {
-                  Format: "image/png",
-                  OnlineResource:
-                    "https://www.wuppertal.de/geoportal/legenden/default_wohnlagenkarte_2025.png",
-                  size: [230, 334],
-                },
-              ],
-              metaData: [
-                {
-                  Format: "application/xml",
-                  OnlineResource:
-                    "https://apps.geoportal.nrw.de/soapServices/CSWStartup?Service=CSW&Request=GetRecordById&Version=2.0.2&outputSchema=https://www.isotc211.org/2005/gmd&elementSetName=full&id=91fe8f8d-fccb-437b-bd5f-4b114d4a84b5",
-                  type: "TC211",
-                },
-              ],
-            },
-            other: {
-              title: "Wohnlagen 2025",
-              description:
-                "Inhalt: Vom Gutachterausschuss für Grundstückswerte in der Stadt Wuppertal am 20.03.2025 beschlossene vierstufige Klassifizierung der Wuppertaler Wohnlagen zum Stichtag 01.01.2025; die räumliche Auflösung orientiert sich an den Baublöcken aus der kleinräumigen Gliederung der Stadt Wuppertal, weicht im Detail aber an etlichen Stellen von dieser Gebietsgliederung ab; die in der jeweiligen Zone dargestellte Wohnlage beschreibt deren überwiegenden Charakter, die Lagequalität einzelner Grundstücke kann abweichen. Sichtbarkeit: öffentlich. Nutzung: frei innerhalb der Grenzen des Urheberrechtsgesetzes; der zugrunde liegende Datensatz ist unter einer Open-Data-Lizenz (dl-de/by-2-0) verfügbar",
-              tags: ["Immobilien"],
-              keywords: [
-                "carmaConf://thumbnail:https://www.wuppertal.de/geoportal/geoportal_vorschau/immo_wohnlagen2025.png",
-                "carmaConf://opendata:https://www.offenedaten-wuppertal.de/dataset/wohnlagen-wuppertal",
-                "carmaConf://vectorStyle:https://tiles.cismet.de/wohnlagen2025/style.json",
-                "carmaconf://infoBoxMapping:function createInfoBoxInfo(p) { let color = '#006c72'; switch(p.wlcode) { case 1: color = '#FF0000'; break; case 2: color = '#FFC000'; break; case 3: color = '#92D050'; break; case 4: color = '#00C5FF'; break; } const info = { title: p.wohnlage, headerColor: color, header: 'Wohnlagen 2025', }; return info; }",
-                ":vec:",
-              ],
-              id: "wuppImmo:wohnlagen2025",
-              name: "wohnlagen2025",
-              type: "layer",
-              layerType: "wmts",
-              queryable: true,
-              maxZoom: 24,
-              minZoom: 10,
-              serviceName: "wuppImmo",
-              path: "Immobilien",
-              icon: "immo/Wohnlagen_2024",
-              service: {
-                url: "https://maps.wuppertal.de/immo",
-                name: "wuppImmo",
-              },
-              thumbnail:
-                "https://www.wuppertal.de/geoportal/geoportal_vorschau/immo_wohnlagen2025.png",
-            },
-          },
-        ],
-        settings: {
-          minZoomlevel: 15,
-        },
-      },
-    ],
+    layers: [],
   },
   Gebiet: {
     Title: "Gebiete",
