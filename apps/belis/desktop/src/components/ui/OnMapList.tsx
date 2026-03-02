@@ -208,6 +208,21 @@ const OnMapList = ({
   const snapshotVersionRef = useRef(-1);
   const wasLoadingRef = useRef(true);
 
+  // Clear stale snapshot when a new search happens.
+  // clearHighlights() replaces criteriaRef.current → criteria.queryIds gets a new reference.
+  // Toggles mutate in place → same reference. So this only fires on new searches.
+  const prevQueryIdsRef = useRef(criteria.queryIds);
+  useEffect(() => {
+    if (criteria.queryIds !== prevQueryIdsRef.current) {
+      prevQueryIdsRef.current = criteria.queryIds;
+      if (searchSnapshot.length > 0) {
+        setSearchSnapshot([]);
+        setManuallyAdded([]);
+        snapshotVersionRef.current = -1;
+      }
+    }
+  }, [criteria.queryIds, searchSnapshot.length]);
+
   // Capture snapshot on loading→done transition in results mode (after search + fitBounds)
   useEffect(() => {
     const wasLoading = wasLoadingRef.current;
