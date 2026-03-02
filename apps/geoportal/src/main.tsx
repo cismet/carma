@@ -11,7 +11,7 @@ import {
   suppressReactCismapErrors,
 } from "@carma-commons/utils";
 import { setupCesiumEnvironment } from "@carma-mapping/engines/cesium/core";
-import { ImageList } from "@carma-mapping/layers";
+import { ImageList, ServiceList } from "@carma-mapping/layers";
 
 import { CESIUM_CONFIG } from "./app/config/app.config";
 import App from "./app/App";
@@ -50,6 +50,14 @@ root.render(
             {
               path: "/about/images",
               element: <ImageList />,
+            },
+            {
+              path: "/about/images.md",
+              element: <ImageList markdown />,
+            },
+            {
+              path: "/about/services",
+              element: <ServiceList />,
             },
           ])}
         />
