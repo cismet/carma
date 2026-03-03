@@ -125,15 +125,40 @@ function CameraPersistence() {
 }
 
 // ─────────────────────────────────────────────────────────────
-//  FPS counter (counts MapLibre render events per second)
+//  Perf data shared between TreeLayer and PerfOverlay
 // ─────────────────────────────────────────────────────────────
 
-function FpsCounter() {
+interface TreePerfData {
+  mode: "kreis" | "umring";
+  treeCount: number;
+  triangles: number;
+  drawCalls: number;
+  syncMs: number;
+}
+
+const EMPTY_PERF: TreePerfData = {
+  mode: "kreis",
+  treeCount: 0,
+  triangles: 0,
+  drawCalls: 0,
+  syncMs: 0,
+};
+
+// ─────────────────────────────────────────────────────────────
+//  Performance overlay (FPS + tree layer stats)
+// ─────────────────────────────────────────────────────────────
+
+function formatCount(n: number): string {
+  if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`;
+  if (n >= 1_000) return `${(n / 1_000).toFixed(0)}K`;
+  return String(n);
+}
+
+function PerfOverlay({ perfRef }: { perfRef: React.RefObject<TreePerfData> }) {
   const { map } = useLibreContext();
   const [fps, setFps] = useState(0);
-  const [idle, setIdle] = useState(false);
+  const [perf, setPerf] = useState<TreePerfData>(EMPTY_PERF);
   const frames = useRef(0);
-  const idleCount = useRef(0);
 
   const tick = useCallback(() => {
     frames.current++;
@@ -148,11 +173,10 @@ function FpsCounter() {
       frames.current = 0;
       if (count > 0) {
         setFps(count);
-        setIdle(false);
-        idleCount.current = 0;
-      } else {
-        idleCount.current++;
-        if (idleCount.current >= 2) setIdle(true);
+      }
+      // Snapshot perf data from shared ref
+      if (perfRef.current) {
+        setPerf({ ...perfRef.current });
       }
     }, 1000);
 
@@ -160,18 +184,36 @@ function FpsCounter() {
       map.off("render", tick);
       clearInterval(interval);
     };
-  }, [map, tick]);
+  }, [map, tick, perfRef]);
+
+  const fpsColor = fps < 15 ? "#ff6b6b" : fps < 30 ? "#ffd93d" : "#6bff6b";
+  const modeLabel = perf.mode === "umring" ? "Umring" : "Kreis";
 
   return (
     <div
-      className="absolute bottom-2 right-2 z-[9999] px-2 py-0.5 rounded text-xs font-mono transition-opacity duration-500"
+      className="absolute bottom-2 right-2 z-[9999] px-2 py-1 rounded text-xs font-mono leading-snug"
       style={{
         background: "rgba(0,0,0,0.55)",
-        color: fps < 15 ? "#ff6b6b" : fps < 30 ? "#ffd93d" : "#6bff6b",
-        opacity: idle ? 0.3 : 1,
+        color: "#e0e0e0",
       }}
     >
-      {fps} fps
+      <div>
+        <span style={{ color: "#8ecaff" }}>{modeLabel}</span>
+        {perf.treeCount > 0 && (
+          <span> | {perf.treeCount.toLocaleString()} trees</span>
+        )}
+      </div>
+      <div>
+        <span style={{ color: fpsColor }}>{fps} fps</span>
+        {perf.syncMs > 0 && (
+          <span> | sync {Math.round(perf.syncMs)}ms</span>
+        )}
+      </div>
+      {perf.treeCount > 0 && (
+        <div>
+          {formatCount(perf.triangles)} △ | {perf.drawCalls} draws
+        </div>
+      )}
     </div>
   );
 }
@@ -183,9 +225,11 @@ function FpsCounter() {
 function TreeLayer({
   useLoft,
   radiusMix,
+  perfRef,
 }: {
   useLoft: boolean;
   radiusMix: number;
+  perfRef: React.MutableRefObject<TreePerfData>;
 }) {
   const { map } = useLibreContext();
   const layerRef = useRef<ReturnType<
@@ -229,6 +273,7 @@ function TreeLayer({
       addLayerIfReady();
       if (!layerRef.current || !map.getSource(EINZELBAUMX_SOURCE)) return;
 
+      const t0 = performance.now();
       if (useLoft) {
         syncLoftTreesFromSource(
           map,
@@ -241,6 +286,29 @@ function TreeLayer({
           layerRef.current as ReturnType<typeof buildCustomLayer>,
           radiusMix
         );
+      }
+      const syncMs = performance.now() - t0;
+
+      // Populate shared perf ref from layer stats
+      const layer = layerRef.current;
+      if (useLoft) {
+        const l = layer as ReturnType<typeof buildLoftLayer>;
+        perfRef.current = {
+          mode: "umring",
+          treeCount: l._lastTreeCount,
+          triangles: l._lastCrownTris + l._lastTrunkTris,
+          drawCalls: l._lastTreeCount > 0 ? 2 : 0,
+          syncMs,
+        };
+      } else {
+        const l = layer as ReturnType<typeof buildCustomLayer>;
+        perfRef.current = {
+          mode: "kreis",
+          treeCount: l._lastTreeCount,
+          triangles: l._lastTriangles,
+          drawCalls: l._lastDrawCalls,
+          syncMs,
+        };
       }
     };
 
@@ -268,8 +336,9 @@ function TreeLayer({
       map.off("moveend", trySync);
       map.off("sourcedata", handleSourceData);
       teardown();
+      perfRef.current = EMPTY_PERF;
     };
-  }, [map, useLoft, radiusMix]);
+  }, [map, useLoft, radiusMix, perfRef]);
 
   return null;
 }
@@ -499,6 +568,7 @@ export function TreesPlayground() {
   const [layerVisibility, setLayerVisibility] =
     useState<LayerVisibility>(loadLayerVisibility);
   const { progress, showProgress, handleProgressUpdate } = useProgress();
+  const perfRef = useRef<TreePerfData>(EMPTY_PERF);
 
   const handleLoftChange = (v: boolean) => {
     setUseLoft(v);
@@ -525,9 +595,9 @@ export function TreesPlayground() {
           <SelectionProvider>
             <LibreContextProvider>
               <CameraPersistence />
-              <FpsCounter />
+              <PerfOverlay perfRef={perfRef} />
               {layerVisibility["Einzelbaum 3D"] && (
-                <TreeLayer useLoft={useLoft} radiusMix={radiusMix} />
+                <TreeLayer useLoft={useLoft} radiusMix={radiusMix} perfRef={perfRef} />
               )}
               <MapLayerVisibility visibility={layerVisibility} />
               <ProgressIndicator progress={progress} show={showProgress} />

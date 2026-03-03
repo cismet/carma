@@ -133,6 +133,9 @@ interface TreeCustomLayer extends CustomLayerInterface {
   _treeData: TreeData[];
   _heightScale: number;
   _diameterScale: number;
+  _lastTreeCount: number;
+  _lastTriangles: number;
+  _lastDrawCalls: number;
   _buildInstances(): void;
 }
 
@@ -163,6 +166,9 @@ export function buildCustomLayer(
     _treeData: [],
     _heightScale: heightScale,
     _diameterScale: diameterScale,
+    _lastTreeCount: 0,
+    _lastTriangles: 0,
+    _lastDrawCalls: 0,
 
     onAdd(
       map: MaplibreMap,
@@ -302,6 +308,23 @@ export function buildCustomLayer(
         this.scene.add(crownMesh);
         this.scene.add(trunkMesh);
       }
+
+      // Collect perf stats from built InstancedMesh objects
+      this._lastTreeCount = this._treeData.length;
+      let triangles = 0;
+      let drawCalls = 0;
+      for (const child of this.scene.children) {
+        const im = child as THREE.InstancedMesh;
+        if (im.isInstancedMesh && im.count > 0) {
+          drawCalls++;
+          const idxCount = im.geometry.index
+            ? im.geometry.index.count
+            : im.geometry.attributes.position.count;
+          triangles += im.count * (idxCount / 3);
+        }
+      }
+      this._lastTriangles = triangles;
+      this._lastDrawCalls = drawCalls;
     },
 
     render(

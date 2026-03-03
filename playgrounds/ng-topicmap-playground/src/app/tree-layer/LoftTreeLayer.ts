@@ -472,6 +472,9 @@ interface LoftCustomLayer extends CustomLayerInterface {
   _numSlices: number;
   _mapCenter: [number, number];
   _useLoft: boolean;
+  _lastTreeCount: number;
+  _lastCrownTris: number;
+  _lastTrunkTris: number;
   _buildScene(): void;
 }
 
@@ -500,6 +503,9 @@ export function buildLoftLayer(config: LoftLayerConfig = {}): LoftCustomLayer {
     _numSlices: numSlices,
     _mapCenter: mapCenter,
     _useLoft: true,
+    _lastTreeCount: 0,
+    _lastCrownTris: 0,
+    _lastTrunkTris: 0,
 
     onAdd(
       map: MaplibreMap,
@@ -579,6 +585,10 @@ export function buildLoftLayer(config: LoftLayerConfig = {}): LoftCustomLayer {
         this._diameterScale,
         this._numSlices
       );
+
+      this._lastTreeCount = result.treeCount;
+      this._lastCrownTris = result.crownTris;
+      this._lastTrunkTris = result.trunkTris;
 
       if (result.treeCount > 0) {
         this.scene.add(new THREE.Mesh(result.crownGeo, this._crownMat));
