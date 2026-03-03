@@ -235,24 +235,22 @@ function TreeLayer({
   const layerRef = useRef<ReturnType<
     typeof buildCustomLayer | typeof buildLoftLayer
   > | null>(null);
-  const modeRef = useRef<boolean>(useLoft);
 
+  // Effect 1: Layer lifecycle — tear down only when mode changes or unmount
   useEffect(() => {
     if (!map) return;
-
-    const teardown = () => {
+    return () => {
       const layerId = layerRef.current?.id;
       if (layerId && map.getLayer(layerId)) {
         map.removeLayer(layerId);
       }
       layerRef.current = null;
     };
+  }, [map, useLoft]);
 
-    // Teardown if mode changed
-    if (modeRef.current !== useLoft && layerRef.current) {
-      teardown();
-    }
-    modeRef.current = useLoft;
+  // Effect 2: Data sync — re-runs on radius change without tearing down the layer
+  useEffect(() => {
+    if (!map) return;
 
     const addLayerIfReady = () => {
       if (layerRef.current) return;
@@ -335,7 +333,6 @@ function TreeLayer({
     return () => {
       map.off("moveend", trySync);
       map.off("sourcedata", handleSourceData);
-      teardown();
       perfRef.current = EMPTY_PERF;
     };
   }, [map, useLoft, radiusMix, perfRef]);

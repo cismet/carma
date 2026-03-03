@@ -475,6 +475,7 @@ interface LoftCustomLayer extends CustomLayerInterface {
   _lastTreeCount: number;
   _lastCrownTris: number;
   _lastTrunkTris: number;
+  _lastRadiusMix: number;
   _buildScene(): void;
 }
 
@@ -506,6 +507,7 @@ export function buildLoftLayer(config: LoftLayerConfig = {}): LoftCustomLayer {
     _lastTreeCount: 0,
     _lastCrownTris: 0,
     _lastTrunkTris: 0,
+    _lastRadiusMix: -1,
 
     onAdd(
       map: MaplibreMap,
@@ -674,10 +676,16 @@ export function syncLoftTreesFromSource(
 
   const newData = loftTreesFromFeatures(unique, radiusMix);
 
-  // Skip rebuild if feature count hasn't changed
-  if (newData.length === layer._treeData.length && newData.length > 0) return;
+  // Skip rebuild if neither feature count nor radius mix changed
+  if (
+    newData.length === layer._treeData.length &&
+    newData.length > 0 &&
+    radiusMix === layer._lastRadiusMix
+  )
+    return;
 
   layer._treeData = newData;
+  layer._lastRadiusMix = radiusMix;
   layer._buildScene();
   map.triggerRepaint();
 }

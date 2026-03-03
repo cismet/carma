@@ -136,6 +136,7 @@ interface TreeCustomLayer extends CustomLayerInterface {
   _lastTreeCount: number;
   _lastTriangles: number;
   _lastDrawCalls: number;
+  _lastRadiusMix: number;
   _buildInstances(): void;
 }
 
@@ -169,6 +170,7 @@ export function buildCustomLayer(
     _lastTreeCount: 0,
     _lastTriangles: 0,
     _lastDrawCalls: 0,
+    _lastRadiusMix: -1,
 
     onAdd(
       map: MaplibreMap,
@@ -414,10 +416,16 @@ export function syncTreesFromSource(
 
   const newData = treesFromFeatures(unique, radiusMix);
 
-  // Skip rebuild if feature count hasn't changed (avoids churn from sourcedata events)
-  if (newData.length === layer._treeData.length && newData.length > 0) return;
+  // Skip rebuild if neither feature count nor radius mix changed
+  if (
+    newData.length === layer._treeData.length &&
+    newData.length > 0 &&
+    radiusMix === layer._lastRadiusMix
+  )
+    return;
 
   layer._treeData = newData;
+  layer._lastRadiusMix = radiusMix;
   layer._buildInstances();
   map.triggerRepaint();
 }
