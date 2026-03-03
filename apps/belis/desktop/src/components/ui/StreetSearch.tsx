@@ -1,4 +1,4 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 import {
   useLibreContext,
   useMapHighlight,
@@ -40,6 +40,10 @@ const StreetSearch = () => {
     setSearchText("");
   }, [setHighlightingActive, clearHighlights]);
 
+  useEffect(() => {
+    console.log("xxx streets", streets);
+  }, [streets]);
+
   return (
     <div className="flex items-center gap-2">
       <LibFuzzySearch
@@ -47,8 +51,25 @@ const StreetSearch = () => {
         placeholder="Adresse..."
         priorityTypes={["adressen"]}
         showDropdownBelow={true}
-        onSelection={(hit) => {
-          console.log("xxx [StreetSearch] onSelection", hit);
+        onSelection={(selection) => {
+          console.log("xxx [StreetSearch] onSelection", selection);
+
+          const streetsClone = JSON.parse(JSON.stringify(streets));
+
+          if (selection?.string && streetsClone.length > 0) {
+            const streetName = selection.string.toUpperCase();
+            const match = streetsClone.find(
+              ([, name]: [number, string]) =>
+                streetName.startsWith(name.toUpperCase())
+            );
+            if (match) {
+              const code = String(match[0]).padStart(5, "0");
+              console.log("xxx matched street code:", code, "name:", match[1]);
+              clearHighlights();
+              setHighlightingActive(true);
+              highlightByProperty("strassenschluessel", new RegExp(`^${code}$`));
+            }
+          }
         }}
       />
       {/* <button
