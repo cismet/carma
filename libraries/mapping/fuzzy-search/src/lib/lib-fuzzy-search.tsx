@@ -36,6 +36,7 @@ import { stopwords as stopwordsDe } from "./config/stopwords.de-de";
 
 import "./fuzzy-search.css";
 import { useGazData } from "@carma-appframeworks/portals";
+import LandParcelChooser from "./components/LandParcelChooser";
 
 export interface FuseWithOption<T> extends Fuse<T> {
   options?: IFuseOptions<T>;
@@ -467,46 +468,7 @@ export function LibFuzzySearch({
         )
       )}
       {searchMode === "parcel" && landParcelSearch ? (
-        <div
-          style={{
-            display: "flex",
-            gap: 2,
-          }}
-        >
-          <Select
-            showSearch
-            placeholder="Gemarkung"
-            style={{ width: 160 }}
-            filterOption={(input, option) =>
-              (option?.label ?? "")
-                .toLowerCase()
-                .startsWith(input.toLowerCase())
-            }
-            options={[]}
-          />
-          <Select
-            showSearch
-            placeholder="Flur"
-            style={{ width: 80 }}
-            filterOption={(input, option) =>
-              (option?.label ?? "")
-                .toLowerCase()
-                .startsWith(input.toLowerCase())
-            }
-            options={[]}
-          />
-          <Select
-            showSearch
-            placeholder="Flurstück"
-            style={{ width: 120 }}
-            filterOption={(input, option) =>
-              (option?.label ?? "")
-                .toLowerCase()
-                .startsWith(input.toLowerCase())
-            }
-            options={[]}
-          />
-        </div>
+        <LandParcelChooser />
       ) : (
         <AutoComplete
           ref={autoCompleteRef}
