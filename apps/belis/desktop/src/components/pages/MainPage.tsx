@@ -27,6 +27,11 @@ import {
   setKeyTablesErrors,
   setKeyTablesLoading,
 } from "../../store/slices/keyTables";
+import {
+  getStreetsFetched,
+  setStreets,
+  setStreetsLoading,
+} from "../../store/slices/highlight";
 import { fetchAllKeyTables } from "../../helper/apiMethods";
 import localForage from "localforage";
 import SearchModal from "../ui/SearchModal";
@@ -40,6 +45,7 @@ const MainPage = () => {
   const jwt = useSelector(getJWT);
   const keyTablesLoading = useSelector(getKeyTablesLoading);
   const keyTablesFetched = useSelector(getKeyTablesFetched);
+  const streetsFetched = useSelector(getStreetsFetched);
 
   const { map } = useLibreContext();
 
@@ -68,15 +74,36 @@ const MainPage = () => {
     };
     fetchData();
   }, [jwt, keyTablesFetched, dispatch]);
+
+  // Fetch streets data on mount if not already fetched
+  useEffect(() => {
+    if (streetsFetched) return;
+
+    const fetchStreets = async () => {
+      dispatch(setStreetsLoading(true));
+      try {
+        const response = await fetch(
+          "https://wunda-geoportal.cismet.de/data/strassen.json"
+        );
+        const text = await response.text();
+        const jsonText = text.split("|")[0];
+        const data = JSON.parse(jsonText);
+
+        dispatch(setStreets(data));
+      } catch (error) {
+        console.error("Failed to fetch streets:", error);
+      } finally {
+        dispatch(setStreetsLoading(false));
+      }
+    };
+    fetchStreets();
+  }, [streetsFetched, dispatch]);
   const { isDatasheetOpen } = useDatasheet();
   const [windowWidth, windowHeight] = useWindowSize();
 
   // Highlighting via context (used by GraphQL Demo)
-  const {
-    setHighlightingActive,
-    highlightByIds,
-    clearHighlights,
-  } = useMapHighlight();
+  const { setHighlightingActive, highlightByIds, clearHighlights } =
+    useMapHighlight();
 
   // Layer filtering with localForage persistence
   const [initialFilterState, setInitialFilterState] = useState<

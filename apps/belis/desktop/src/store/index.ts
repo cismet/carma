@@ -6,6 +6,7 @@ import authSlice from "./slices/auth";
 import mapSettings from "./slices/mapSettings";
 import ui from "./slices/ui";
 import keyTables from "./slices/keyTables";
+import highlight from "./slices/highlight";
 
 import featureCollectionSlice from "./slices/featureCollection";
 
@@ -84,6 +85,7 @@ const store = configureStore({
     ),
     ui: ui.reducer,
     keyTables: keyTables.reducer,
+    highlight: highlight.reducer,
   },
   devTools: devToolsEnabled === true && inProduction === false,
   middleware,

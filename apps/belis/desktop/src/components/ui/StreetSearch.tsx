@@ -6,13 +6,12 @@ import {
 import { LibFuzzySearch } from "@carma-mapping/fuzzy-search";
 import { useSelector } from "react-redux";
 import { getKeyTablesData } from "../../store/slices/keyTables";
+import { getStreets, StreetWithCode } from "../../store/slices/highlight";
 
 const StreetSearch = () => {
   const [searchText, setSearchText] = useState("");
   const keyTablesData = useSelector(getKeyTablesData);
-  const streets = keyTablesData["straßenschlüssel"] as
-    | Array<{ id: number; pk: string; strasse: string }>
-    | undefined;
+  const streets = useSelector(getStreets);
   const { map } = useLibreContext();
   const {
     highlightingActive,
