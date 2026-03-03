@@ -6,6 +6,8 @@ import {
 import { LibFuzzySearch } from "@carma-mapping/fuzzy-search";
 import { useSelector } from "react-redux";
 import { getStreets } from "../../store/slices/highlight";
+import proj4 from "proj4";
+import { proj4crs3857def, proj4crs4326def } from "@carma-mapping/utils";
 
 const StreetSearch = () => {
   const [searchText, setSearchText] = useState("");
@@ -18,21 +20,21 @@ const StreetSearch = () => {
     clearHighlights,
   } = useMapHighlight();
 
-  const handleSearch = useCallback(() => {
-    if (!map || !searchText.trim()) return;
-    clearHighlights();
-    setHighlightingActive(true);
-    highlightByProperty(
-      "strassenschluessel",
-      new RegExp(searchText.trim(), "i")
-    );
-  }, [
-    map,
-    searchText,
-    setHighlightingActive,
-    highlightByProperty,
-    clearHighlights,
-  ]);
+  // const handleSearch = useCallback(() => {
+  //   if (!map || !searchText.trim()) return;
+  //   clearHighlights();
+  //   setHighlightingActive(true);
+  //   highlightByProperty(
+  //     "strassenschluessel",
+  //     new RegExp(searchText.trim(), "i")
+  //   );
+  // }, [
+  //   map,
+  //   searchText,
+  //   setHighlightingActive,
+  //   highlightByProperty,
+  //   clearHighlights,
+  // ]);
 
   const handleClear = useCallback(() => {
     setHighlightingActive(false);
@@ -40,9 +42,9 @@ const StreetSearch = () => {
     setSearchText("");
   }, [setHighlightingActive, clearHighlights]);
 
-  useEffect(() => {
-    console.log("xxx streets", streets);
-  }, [streets]);
+  // useEffect(() => {
+  //   console.log("xxx streets", streets);
+  // }, [streets]);
 
   return (
     <div className="flex items-center gap-2">
@@ -52,22 +54,30 @@ const StreetSearch = () => {
         priorityTypes={["adressen"]}
         showDropdownBelow={true}
         onSelection={(selection) => {
-          console.log("xxx [StreetSearch] onSelection", selection);
-
           const streetsClone = JSON.parse(JSON.stringify(streets));
+
+          if (selection?.x && selection?.y && selection?.more?.zl && map) {
+            const pos = proj4(proj4crs3857def, proj4crs4326def, [
+              selection.x,
+              selection.y,
+            ]);
+            map.jumpTo({ center: [pos[0], pos[1]] });
+            map.setZoom(selection.more.zl - 1);
+          }
 
           if (selection?.string && streetsClone.length > 0) {
             const streetName = selection.string.toUpperCase();
-            const match = streetsClone.find(
-              ([, name]: [number, string]) =>
-                streetName.startsWith(name.toUpperCase())
+            const match = streetsClone.find(([, name]: [number, string]) =>
+              streetName.startsWith(name.toUpperCase())
             );
             if (match) {
               const code = String(match[0]).padStart(5, "0");
-              console.log("xxx matched street code:", code, "name:", match[1]);
               clearHighlights();
               setHighlightingActive(true);
-              highlightByProperty("strassenschluessel", new RegExp(`^${code}$`));
+              highlightByProperty(
+                "strassenschluessel",
+                new RegExp(`^${code}$`)
+              );
             }
           }
         }}
