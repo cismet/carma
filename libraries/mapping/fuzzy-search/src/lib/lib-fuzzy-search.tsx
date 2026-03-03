@@ -56,6 +56,7 @@ export function LibFuzzySearch({
   typeInference,
   onCLose = () => {},
   icon = defaultIcon,
+  hideIcon = false,
   ifIconDisabled = true,
   config = {
     prepoHandling: false,
@@ -91,7 +92,7 @@ export function LibFuzzySearch({
   }
 
   const inputStyle = {
-    width: "calc(100% - 32px)",
+    width: hideIcon ? "100%" : "calc(100% - 32px)",
     borderTopLeftRadius: 0,
     // fontSize: "14px",
   };
@@ -358,31 +359,33 @@ export function LibFuzzySearch({
         width: pixelwidth,
         display: "flex",
       }}
-      className="fuzzy-search-container"
+      className={`fuzzy-search-container${hideIcon ? " fuzzy-search-container--no-icon" : ""}`}
     >
-      <Button
-        ref={btnClosRef}
-        icon={
-          cleanBtnDisable ? (
-            // <FontAwesomeIcon
-            //   icon={faLocationDot}
-            //   style={{
-            //     fontSize: "16px",
-            //   }}
-            // />
-            icon
-          ) : (
-            <FontAwesomeIcon style={{ fontSize: "16px" }} icon={faTimes} />
-          )
-        }
-        className={
-          cleanBtnDisable
-            ? "clear-fuzzy-button clear-fuzzy-button__active"
-            : "clear-fuzzy-button clear-fuzzy-button__active"
-        }
-        onClick={handleOnClickClear}
-        disabled={ifIconDisabled && cleanBtnDisable}
-      />
+      {!hideIcon && (
+        <Button
+          ref={btnClosRef}
+          icon={
+            cleanBtnDisable ? (
+              // <FontAwesomeIcon
+              //   icon={faLocationDot}
+              //   style={{
+              //     fontSize: "16px",
+              //   }}
+              // />
+              icon
+            ) : (
+              <FontAwesomeIcon style={{ fontSize: "16px" }} icon={faTimes} />
+            )
+          }
+          className={
+            cleanBtnDisable
+              ? "clear-fuzzy-button clear-fuzzy-button__active"
+              : "clear-fuzzy-button clear-fuzzy-button__active"
+          }
+          onClick={handleOnClickClear}
+          disabled={ifIconDisabled && cleanBtnDisable}
+        />
+      )}
       {showCategories ? (
         <AutoComplete
           ref={autoCompleteRef}

@@ -8,6 +8,7 @@ export type SearchGazetteerProps = {
   onCLose?: () => void;
   ifIconDisabled?: boolean;
   icon?: ReactNode;
+  hideIcon?: boolean;
   //referenceSystem: undefined;
   //referenceSystemDefinition: undefined;
   stopwords?: string[];
