@@ -244,7 +244,6 @@ function TreeLayer({
       }
     };
 
-    map.once("idle", trySync);
     map.on("moveend", trySync);
 
     const handleSourceData = (e: {
@@ -256,6 +255,14 @@ function TreeLayer({
       }
     };
     map.on("sourcedata", handleSourceData);
+
+    // Sync immediately if the map is already idle (e.g. after mode switch
+    // without camera movement), otherwise wait for idle.
+    if (map.isStyleLoaded()) {
+      trySync();
+    } else {
+      map.once("idle", trySync);
+    }
 
     return () => {
       map.off("moveend", trySync);
