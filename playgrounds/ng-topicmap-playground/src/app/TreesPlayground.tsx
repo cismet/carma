@@ -296,24 +296,51 @@ function MapLayerVisibility({
   visibility: LayerVisibility;
 }) {
   const { map } = useLibreContext();
+  // Remember which sub-layers were originally visible in the style JSON.
+  // When hiding a group, all sub-layers go to "none".
+  // When showing a group, only originally-visible sub-layers are restored.
+  const originalVisibility = useRef<Map<string, string>>(new Map());
 
   useEffect(() => {
     if (!map) return;
 
-    const sync = () => {
+    const capture = () => {
       const style = map.getStyle();
       if (!style?.layers) return;
+      // Record the original per-sub-layer visibility from the style JSON.
+      // Only capture layers with a "layer-id" metadata (user-provided layers).
+      const next = new Map<string, string>();
+      for (const layer of style.layers) {
+        const lid = (layer as { metadata?: Record<string, unknown> }).metadata?.[
+          "layer-id"
+        ];
+        if (typeof lid !== "string") continue;
+        const vis =
+          (layer as { layout?: { visibility?: string } }).layout?.visibility ??
+          "visible";
+        next.set(layer.id, vis);
+      }
+      if (next.size > 0) originalVisibility.current = next;
+    };
+
+    const sync = () => {
+      const style = map.getStyle();
+      if (!style?.layers || originalVisibility.current.size === 0) return;
 
       for (const layer of style.layers) {
-        const layerId =
-          (layer as { metadata?: Record<string, unknown> }).metadata?.[
-            "layer-id"
-          ];
-        if (typeof layerId !== "string") continue;
+        const lid = (layer as { metadata?: Record<string, unknown> }).metadata?.[
+          "layer-id"
+        ];
+        if (typeof lid !== "string") continue;
 
-        const groupName = layerId as LayerGroupName;
+        const groupName = lid as LayerGroupName;
         if (groupName in visibility) {
-          const desired = visibility[groupName] ? "visible" : "none";
+          const groupVisible = visibility[groupName];
+          // When hiding: all sub-layers become "none".
+          // When showing: only restore sub-layers that were originally visible.
+          const originalVis =
+            originalVisibility.current.get(layer.id) ?? "visible";
+          const desired = groupVisible ? originalVis : "none";
           const current =
             map.getLayoutProperty(layer.id, "visibility") ?? "visible";
           if (current !== desired) {
@@ -323,7 +350,26 @@ function MapLayerVisibility({
       }
     };
 
-    sync();
+    // Capture original visibilities when the merged style is applied
+    const onIdle = () => {
+      if (originalVisibility.current.size === 0) {
+        capture();
+      }
+      sync();
+    };
+    map.once("idle", onIdle);
+
+    // If style is already loaded, capture (only once) + sync immediately
+    if (map.isStyleLoaded()) {
+      if (originalVisibility.current.size === 0) {
+        capture();
+      }
+      sync();
+    }
+
+    return () => {
+      map.off("idle", onIdle);
+    };
   }, [map, visibility]);
 
   return null;
