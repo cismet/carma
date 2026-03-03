@@ -1,16 +1,14 @@
-import { useState, useCallback, useEffect } from "react";
+import { useState, useCallback } from "react";
 import {
   useLibreContext,
   useMapHighlight,
 } from "@carma-mapping/engines/maplibre";
 import { LibFuzzySearch } from "@carma-mapping/fuzzy-search";
 import { useSelector } from "react-redux";
-import { getKeyTablesData } from "../../store/slices/keyTables";
-import { getStreets, StreetWithCode } from "../../store/slices/highlight";
+import { getStreets } from "../../store/slices/highlight";
 
 const StreetSearch = () => {
   const [searchText, setSearchText] = useState("");
-  const keyTablesData = useSelector(getKeyTablesData);
   const streets = useSelector(getStreets);
   const { map } = useLibreContext();
   const {
@@ -42,10 +40,6 @@ const StreetSearch = () => {
     setSearchText("");
   }, [setHighlightingActive, clearHighlights]);
 
-  // useEffect(() => {
-  //   console.log("xxx keyTablesData", keyTablesData);
-  // }, [keyTablesData]);
-
   return (
     <div className="flex items-center gap-2">
       <LibFuzzySearch
@@ -55,21 +49,6 @@ const StreetSearch = () => {
         showDropdownBelow={true}
         onSelection={(hit) => {
           console.log("xxx [StreetSearch] onSelection", hit);
-
-          if (hit?.string && streets) {
-            console.log("xxx 1111111");
-            // const match = streets.filter(
-            //   (s) => s.strasse.toUpperCase() === hit.string.toUpperCase()
-            // );
-            // console.log(
-            //   "xxx streetName:",
-            //   match[0],
-            //   "match:",
-            //   match,
-            //   "pk:",
-            //   match[0]?.pk
-            // );
-          }
         }}
       />
       {/* <button
