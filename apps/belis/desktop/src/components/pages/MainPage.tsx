@@ -29,8 +29,10 @@ import {
 } from "../../store/slices/keyTables";
 import {
   getStreetsFetched,
+  getStreetsMd5,
   setStreets,
   setStreetsLoading,
+  setStreetsMd5,
 } from "../../store/slices/highlight";
 import { fetchAllKeyTables } from "../../helper/apiMethods";
 import localForage from "localforage";
@@ -46,6 +48,7 @@ const MainPage = () => {
   const keyTablesLoading = useSelector(getKeyTablesLoading);
   const keyTablesFetched = useSelector(getKeyTablesFetched);
   const streetsFetched = useSelector(getStreetsFetched);
+  const streetsMd5 = useSelector(getStreetsMd5);
 
   const { map } = useLibreContext();
 
@@ -82,6 +85,16 @@ const MainPage = () => {
     const fetchStreets = async () => {
       dispatch(setStreetsLoading(true));
       try {
+        const md5Response = await fetch(
+          "https://wunda-geoportal.cismet.de/data/strassen.json.md5"
+        );
+        const remoteMd5 = (await md5Response.text()).trim();
+
+        if (streetsMd5 === remoteMd5) {
+          dispatch(setStreetsLoading(false));
+          return;
+        }
+
         const response = await fetch(
           "https://wunda-geoportal.cismet.de/data/strassen.json"
         );
@@ -90,6 +103,7 @@ const MainPage = () => {
         const data = JSON.parse(jsonText);
 
         dispatch(setStreets(data));
+        dispatch(setStreetsMd5(remoteMd5));
       } catch (error) {
         console.error("Failed to fetch streets:", error);
       } finally {
@@ -97,7 +111,7 @@ const MainPage = () => {
       }
     };
     fetchStreets();
-  }, [streetsFetched, dispatch]);
+  }, [streetsFetched, streetsMd5, dispatch]);
   const { isDatasheetOpen } = useDatasheet();
   const [windowWidth, windowHeight] = useWindowSize();
 
