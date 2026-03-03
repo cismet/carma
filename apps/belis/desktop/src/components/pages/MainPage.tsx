@@ -103,16 +103,17 @@ const MainPage = () => {
   const gazData = useMemo(
     () =>
       streets
-        .filter((street: BelisStreet) => street.m?.s && street.x && street.y)
+        .filter((street: BelisStreet) => street.x && street.y)
         .map((street: BelisStreet, i: number) => ({
           sorter: i,
-          string: street.m.s,
+          string: street.s + (street.m.id ? "" : " (" + street.m.s + ")"),
           glyph: street.g || "road",
           x: street.x,
           y: street.y,
-          more: { id: street.s, bounds: street.m.bounds },
+          more: { id: street.m.id || street.s, bounds: street.m.bounds },
           type: "road",
           crs: "EPSG:3857",
+          xSearchData: street.s,
         })),
     [streets]
   );

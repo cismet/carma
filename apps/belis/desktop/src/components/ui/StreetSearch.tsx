@@ -31,7 +31,27 @@ const StreetSearch = ({ gazData }: { gazData?: GazDataItem[] }) => {
         priorityTypes={["adressen"]}
         showDropdownBelow={true}
         onSelection={(selection) => {
-          if (selection?.x && selection?.y && map) {
+          const bounds = selection?.more?.bounds as
+            | [number, number, number, number]
+            | undefined;
+
+          if (bounds && map) {
+            const min = proj4(proj4crs3857def, proj4crs4326def, [
+              bounds[0],
+              bounds[1],
+            ]);
+            const max = proj4(proj4crs3857def, proj4crs4326def, [
+              bounds[2],
+              bounds[3],
+            ]);
+            map.fitBounds(
+              [
+                [min[0], min[1]],
+                [max[0], max[1]],
+              ],
+              { padding: 50 }
+            );
+          } else if (selection?.x && selection?.y && map) {
             const pos = proj4(proj4crs3857def, proj4crs4326def, [
               selection.x,
               selection.y,
@@ -39,15 +59,11 @@ const StreetSearch = ({ gazData }: { gazData?: GazDataItem[] }) => {
             map.jumpTo({ center: [pos[0], pos[1]] });
             map.setZoom(14);
           }
-
-          if (selection?.more?.id) {
+          if (selection?.string) {
             const code = String(selection.more.id).padStart(5, "0");
             clearHighlights();
             setHighlightingActive(true);
-            highlightByProperty(
-              "strassenschluessel",
-              new RegExp(`^${code}$`)
-            );
+            highlightByProperty("strassenschluessel", new RegExp(`^${code}$`));
           }
         }}
       />
