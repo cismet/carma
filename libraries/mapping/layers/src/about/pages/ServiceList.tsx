@@ -1,4 +1,10 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import React, {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import { useSelector } from "react-redux";
 import { useStore } from "react-redux";
 import type { Item } from "@carma-mapping/layers";
@@ -28,6 +34,7 @@ interface VectorStyleMeta {
     | "wms-keywords"
     | "vector-style-keywords"
     | "style-layer-keywords"
+    | "both"
     | "none";
   wmsInfoboxMapping?: string[];
   vectorInfoboxMapping?: string[];
@@ -96,9 +103,17 @@ const badgeColors: Record<string, { bg: string; color: string }> = {
   queryable: { bg: "#c6f6d5", color: "#276749" },
   vector: { bg: "#e9d8fd", color: "#553c9a" },
   raster: { bg: "#bee3f8", color: "#2a4365" },
-  "mapping:wms": { bg: "#c6f6d5", color: "#276749" },
-  "mapping:style": { bg: "#e9d8fd", color: "#553c9a" },
-  "mapping:none": { bg: "#fed7d7", color: "#9b2c2c" },
+};
+
+const mappingBadges: Record<
+  string,
+  { bg: string; color: string; label: string }
+> = {
+  "mapping:wms": { bg: "#c6f6d5", color: "#276749", label: "WMS" },
+  "mapping:style": { bg: "#e9d8fd", color: "#553c9a", label: "Style" },
+  "mapping:both": { bg: "#fefcbf", color: "#975a16", label: "WMS + Style" },
+  "mapping:none": { bg: "#fed7d7", color: "#9b2c2c", label: "Kein Mapping" },
+  "mapping:foto": { bg: "#c6f6d5", color: "#276749", label: "Foto" },
 };
 
 const getLayerBadges = (layer: Item): string[] => {
@@ -119,21 +134,75 @@ const getLayerBadges = (layer: Item): string[] => {
   return badges;
 };
 
+interface ParsedMappingEntry {
+  key: string;
+  value: string;
+}
+
+const parseMappingEntries = (
+  mappings: string[]
+): ParsedMappingEntry[] | "function" => {
+  const joined = mappings.join("\n");
+  if (/function\s*\(/.test(joined) || /\(\s*\w+\s*\)\s*=>/.test(joined)) {
+    return "function";
+  }
+  return mappings.map((entry) => {
+    const colonIdx = entry.indexOf(":");
+    const key = colonIdx !== -1 ? entry.slice(0, colonIdx).trim() : entry;
+    const value = colonIdx !== -1 ? entry.slice(colonIdx + 1).trim() : "";
+    return { key, value };
+  });
+};
+
+const mappingHasKey = (
+  mappings: string[] | undefined,
+  key: string
+): boolean => {
+  if (!mappings || mappings.length === 0) return false;
+  const parsed = parseMappingEntries(mappings);
+  if (parsed === "function") {
+    const re = new RegExp(`\\b${key}\\b\\s*[:=]`);
+    return mappings.some((m) => re.test(m));
+  }
+  return parsed.some((entry) => entry.key === key);
+};
+
+const getEffectiveMapping = (
+  meta: VectorStyleMeta | undefined
+): string[] | undefined => {
+  if (!meta || meta.status !== "loaded") return undefined;
+  if (meta.wmsInfoboxMapping?.length) return meta.wmsInfoboxMapping;
+  if (meta.vectorInfoboxMapping?.length) return meta.vectorInfoboxMapping;
+  if (meta.layerInfoboxMapping?.length) return meta.layerInfoboxMapping;
+  return undefined;
+};
+
+const getEffectiveSource = (
+  meta: VectorStyleMeta | undefined
+): VectorStyleMeta["source"] | undefined => {
+  if (!meta || meta.status !== "loaded") return undefined;
+  const hasWms = !!meta.wmsInfoboxMapping?.length;
+  const hasStyle = !!(
+    meta.vectorInfoboxMapping?.length || meta.layerInfoboxMapping?.length
+  );
+  if (hasWms && hasStyle) return "both";
+  if (hasWms) return "wms-keywords";
+  if (meta.vectorInfoboxMapping?.length) return "vector-style-keywords";
+  if (meta.layerInfoboxMapping?.length) return "style-layer-keywords";
+  return "none";
+};
+
 const sourceColors: Record<
   string,
   { bg: string; color: string; label: string }
 > = {
-  "wms-keywords": { bg: "#c6f6d5", color: "#276749", label: "WMS Keywords" },
+  "wms-keywords": { bg: "#c6f6d5", color: "#276749", label: "WMS Mapping" },
   "vector-style-keywords": {
     bg: "#e9d8fd",
     color: "#553c9a",
-    label: "Vector Style Keywords",
+    label: "Vector Style Mapping",
   },
-  "style-layer-keywords": {
-    bg: "#bee3f8",
-    color: "#2a4365",
-    label: "Style Layer Keywords",
-  },
+  both: { bg: "#fefcbf", color: "#975a16", label: "WMS + Style Mapping" },
   none: { bg: "#fed7d7", color: "#9b2c2c", label: "No Mapping" },
 };
 
@@ -343,81 +412,96 @@ const ItemEntry = ({
               Fehler: {vectorMeta.error}
             </div>
           )}
-          {vectorMeta.status === "loaded" && (
-            <div>
-              {vectorMeta.source && (
-                <div style={{ display: "flex", gap: 6, marginBottom: 6 }}>
-                  <Badge
-                    bg={sourceColors[vectorMeta.source]?.bg ?? "#e8ecf1"}
-                    color={sourceColors[vectorMeta.source]?.color ?? "#4a5568"}
-                  >
-                    {sourceColors[vectorMeta.source]?.label ??
-                      vectorMeta.source}
-                  </Badge>
-                </div>
-              )}
+          {vectorMeta.status === "loaded" &&
+            (() => {
+              const effective = getEffectiveMapping(vectorMeta);
+              const isFunction = effective
+                ? parseMappingEntries(effective) === "function"
+                : false;
+              const hasFoto = effective
+                ? mappingHasKey(effective, "foto")
+                : false;
 
-              {vectorMeta.wmsInfoboxMapping &&
-                vectorMeta.wmsInfoboxMapping.length > 0 && (
-                  <div style={{ marginBottom: 4 }}>
-                    <div style={{ ...labelStyle, fontSize: 11 }}>
-                      WMS Keywords Mapping:
-                    </div>
-                    <div style={monoValueStyle}>
-                      {vectorMeta.wmsInfoboxMapping.map((m, i) => (
-                        <div key={i}>{m}</div>
-                      ))}
-                    </div>
-                  </div>
-                )}
-
-              {vectorMeta.vectorInfoboxMapping &&
-                vectorMeta.vectorInfoboxMapping.length > 0 && (
-                  <div style={{ marginBottom: 4 }}>
-                    <div style={{ ...labelStyle, fontSize: 11 }}>
-                      Vector Style Metadata Mapping:
-                    </div>
-                    <div style={monoValueStyle}>
-                      {vectorMeta.vectorInfoboxMapping.map((m, i) => (
-                        <div key={i}>{m}</div>
-                      ))}
-                    </div>
-                  </div>
-                )}
-
-              {vectorMeta.layerInfoboxMapping &&
-                vectorMeta.layerInfoboxMapping.length > 0 && (
-                  <div style={{ marginBottom: 4 }}>
-                    <div style={{ ...labelStyle, fontSize: 11 }}>
-                      Style Layer Metadata Mapping:
-                    </div>
-                    <div style={monoValueStyle}>
-                      {vectorMeta.layerInfoboxMapping.map((m, i) => (
-                        <div key={i}>{m}</div>
-                      ))}
-                    </div>
-                  </div>
-                )}
-
-              {vectorMeta.vectorStyleUrl && (
+              return (
                 <div>
-                  <div style={{ ...labelStyle, fontSize: 11 }}>
-                    Fetched from:
+                  <div
+                    style={{
+                      display: "flex",
+                      flexWrap: "wrap",
+                      gap: 6,
+                      marginBottom: 8,
+                    }}
+                  >
+                    {(() => {
+                      const src = getEffectiveSource(vectorMeta);
+                      return src ? (
+                        <Badge
+                          bg={sourceColors[src]?.bg ?? "#e8ecf1"}
+                          color={sourceColors[src]?.color ?? "#4a5568"}
+                        >
+                          {sourceColors[src]?.label ?? src}
+                        </Badge>
+                      ) : null;
+                    })()}
+                    {isFunction && (
+                      <Badge bg="#fefcbf" color="#975a16">
+                        function
+                      </Badge>
+                    )}
+                    {hasFoto && (
+                      <Badge
+                        bg={hasFoto ? "#c6f6d5" : "#fed7d7"}
+                        color={hasFoto ? "#276749" : "#9b2c2c"}
+                      >
+                        foto
+                      </Badge>
+                    )}
                   </div>
-                  <div style={monoValueStyle}>
-                    <a
-                      href={vectorMeta.vectorStyleUrl}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      style={{ color: "#3182ce", fontSize: 11 }}
-                    >
-                      {vectorMeta.vectorStyleUrl}
-                    </a>
-                  </div>
+
+                  {vectorMeta.wmsInfoboxMapping &&
+                    vectorMeta.wmsInfoboxMapping.length > 0 && (
+                      <div style={{ marginBottom: 4 }}>
+                        <div style={{ ...labelStyle, fontSize: 11 }}>
+                          WMS Keywords Mapping:
+                        </div>
+                        <div style={monoValueStyle}>
+                          {vectorMeta.wmsInfoboxMapping.map((m, i) => (
+                            <div key={i}>{m}</div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                  {vectorMeta.vectorInfoboxMapping &&
+                    vectorMeta.vectorInfoboxMapping.length > 0 && (
+                      <div style={{ marginBottom: 4 }}>
+                        <div style={{ ...labelStyle, fontSize: 11 }}>
+                          Vector Style Metadata Mapping:
+                        </div>
+                        <div style={monoValueStyle}>
+                          {vectorMeta.vectorInfoboxMapping.map((m, i) => (
+                            <div key={i}>{m}</div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                  {vectorMeta.layerInfoboxMapping &&
+                    vectorMeta.layerInfoboxMapping.length > 0 && (
+                      <div style={{ marginBottom: 4 }}>
+                        <div style={{ ...labelStyle, fontSize: 11 }}>
+                          Style Layer Metadata Mapping:
+                        </div>
+                        <div style={monoValueStyle}>
+                          {vectorMeta.layerInfoboxMapping.map((m, i) => (
+                            <div key={i}>{m}</div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
                 </div>
-              )}
-            </div>
-          )}
+              );
+            })()}
         </div>
       )}
     </div>
@@ -698,12 +782,17 @@ const ServiceList = ({ discoverProps }: { discoverProps?: DiscoverProps }) => {
           }
         }
 
+        const hasWms = !!wmsInfoboxMapping?.length;
+        const hasVector = !!vectorInfoboxMapping?.length;
+        const hasStyleLayer = !!layerInfoboxMapping?.length;
         let source: VectorStyleMeta["source"] = "none";
-        if (wmsInfoboxMapping?.length) {
+        if (hasWms && (hasVector || hasStyleLayer)) {
+          source = "both";
+        } else if (hasWms) {
           source = "wms-keywords";
-        } else if (vectorInfoboxMapping?.length) {
+        } else if (hasVector) {
           source = "vector-style-keywords";
-        } else if (layerInfoboxMapping?.length) {
+        } else if (hasStyleLayer) {
           source = "style-layer-keywords";
         }
 
@@ -763,17 +852,29 @@ const ServiceList = ({ discoverProps }: { discoverProps?: DiscoverProps }) => {
               if (badgeFilter.startsWith("mapping:")) {
                 const meta = vectorMetaMap[layer.id];
                 if (!meta || meta.status !== "loaded") return false;
+                const effectiveSource = getEffectiveSource(meta);
                 if (badgeFilter === "mapping:wms") {
-                  return meta.source === "wms-keywords";
+                  return effectiveSource === "wms-keywords";
                 }
                 if (badgeFilter === "mapping:style") {
                   return (
-                    meta.source === "vector-style-keywords" ||
-                    meta.source === "style-layer-keywords"
+                    effectiveSource === "vector-style-keywords" ||
+                    effectiveSource === "style-layer-keywords"
                   );
                 }
+                if (badgeFilter === "mapping:both") {
+                  return effectiveSource === "both";
+                }
                 if (badgeFilter === "mapping:none") {
-                  return meta.source === "none";
+                  return effectiveSource === "none";
+                }
+                if (badgeFilter === "mapping:foto") {
+                  const effective = getEffectiveMapping(meta);
+                  return mappingHasKey(effective, "foto");
+                }
+                if (badgeFilter === "mapping:no-foto") {
+                  const effective = getEffectiveMapping(meta);
+                  return !mappingHasKey(effective, "foto");
                 }
                 return false;
               }
@@ -874,53 +975,106 @@ const ServiceList = ({ discoverProps }: { discoverProps?: DiscoverProps }) => {
           backgroundColor: "#fff",
           borderRadius: 8,
           border: "1px solid #e2e8f0",
+          display: "flex",
+          flexDirection: "column",
+          gap: 10,
         }}
       >
-        <div
-          style={{
-            fontSize: 13,
-            fontWeight: 600,
-            color: "#4a5568",
-            marginBottom: 8,
-          }}
-        >
-          Nach Typ filtern
+        <div>
+          <div
+            style={{
+              fontSize: 13,
+              fontWeight: 600,
+              color: "#4a5568",
+              marginBottom: 6,
+            }}
+          >
+            Nach Typ filtern
+          </div>
+          <div
+            style={{
+              display: "flex",
+              flexWrap: "wrap",
+              gap: 6,
+            }}
+          >
+            {Object.keys(badgeColors).map((key) => {
+              const active = badgeFilter === key;
+              const { bg, color } = badgeColors[key];
+              return (
+                <button
+                  key={key}
+                  onClick={() => setBadgeFilter(active ? null : key)}
+                  style={{
+                    display: "inline-flex",
+                    alignItems: "center",
+                    fontSize: 12,
+                    fontWeight: 600,
+                    padding: "4px 12px",
+                    borderRadius: 10,
+                    border: active
+                      ? `2px solid ${color}`
+                      : "2px solid transparent",
+                    backgroundColor: bg,
+                    color,
+                    cursor: "pointer",
+                    opacity: active ? 1 : 0.7,
+                    transition: "opacity 0.15s, border-color 0.15s",
+                  }}
+                >
+                  {key}
+                </button>
+              );
+            })}
+          </div>
         </div>
-        <div
-          style={{
-            display: "flex",
-            flexWrap: "wrap",
-            gap: 6,
-          }}
-        >
-          {Object.keys(badgeColors).map((key) => {
-            const active = badgeFilter === key;
-            const { bg, color } = badgeColors[key];
-            return (
-              <button
-                key={key}
-                onClick={() => setBadgeFilter(active ? null : key)}
-                style={{
-                  display: "inline-flex",
-                  alignItems: "center",
-                  fontSize: 12,
-                  fontWeight: 600,
-                  padding: "4px 12px",
-                  borderRadius: 10,
-                  border: active
-                    ? `2px solid ${color}`
-                    : "2px solid transparent",
-                  backgroundColor: bg,
-                  color,
-                  cursor: "pointer",
-                  opacity: active ? 1 : 0.7,
-                  transition: "opacity 0.15s, border-color 0.15s",
-                }}
-              >
-                {key}
-              </button>
-            );
-          })}
+        <div>
+          <div
+            style={{
+              fontSize: 13,
+              fontWeight: 600,
+              color: "#4a5568",
+              marginBottom: 6,
+            }}
+          >
+            Nach Mapping filtern
+          </div>
+          <div
+            style={{
+              display: "flex",
+              flexWrap: "wrap",
+              gap: 6,
+            }}
+          >
+            {Object.keys(mappingBadges).map((key) => {
+              const active = badgeFilter === key;
+              const { bg, color, label } = mappingBadges[key];
+              return (
+                <button
+                  key={key}
+                  onClick={() => setBadgeFilter(active ? null : key)}
+                  style={{
+                    display: "inline-flex",
+                    alignItems: "center",
+                    fontSize: 12,
+                    fontWeight: 600,
+                    padding: "4px 12px",
+                    borderRadius: 10,
+                    border: active
+                      ? `2px solid ${color}`
+                      : "2px solid transparent",
+                    backgroundColor: bg,
+                    color,
+                    cursor: "pointer",
+                    opacity: active ? 1 : 0.7,
+                    transition: "opacity 0.15s, border-color 0.15s",
+                  }}
+                >
+                  {label}
+                </button>
+              );
+            })}
+          </div>
         </div>
       </div>
 
