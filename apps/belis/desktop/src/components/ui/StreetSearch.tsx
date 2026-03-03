@@ -1,4 +1,4 @@
-import { useCallback } from "react";
+import { useCallback, useState } from "react";
 import {
   useLibreContext,
   useMapHighlight,
@@ -9,6 +9,7 @@ import proj4 from "proj4";
 import { proj4crs3857def, proj4crs4326def } from "@carma-mapping/utils";
 
 const StreetSearch = ({ gazData }: { gazData?: GazDataItem[] }) => {
+  const [searchKey, setSearchKey] = useState(0);
   const { map } = useLibreContext();
   const {
     highlightingActive,
@@ -20,14 +21,17 @@ const StreetSearch = ({ gazData }: { gazData?: GazDataItem[] }) => {
   const handleClear = useCallback(() => {
     setHighlightingActive(false);
     clearHighlights();
+    setSearchKey((k) => k + 1);
   }, [setHighlightingActive, clearHighlights]);
 
   return (
     <div className="flex items-center gap-2">
       <LibFuzzySearch
+        key={searchKey}
+        hideIcon={true}
         gazData={gazData}
         pixelwidth="300px"
-        placeholder="Adresse..."
+        placeholder="Strassenname | Strassenschlüssel"
         priorityTypes={["adressen"]}
         showDropdownBelow={true}
         onSelection={(selection) => {
