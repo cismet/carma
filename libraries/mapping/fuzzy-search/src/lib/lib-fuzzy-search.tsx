@@ -507,12 +507,11 @@ export function LibFuzzySearch({
             options={[]}
           />
         </div>
-      ) : showCategories ? (
+      ) : (
         <AutoComplete
           ref={autoCompleteRef}
-          // open={true}
           dropdownAlign={dropdownAlign}
-          options={searchResult}
+          options={showCategories ? searchResult : options}
           style={inputStyle}
           onSearch={(value) => handleSearchAutoComplete(value)}
           onChange={(value) => {
@@ -527,32 +526,6 @@ export function LibFuzzySearch({
           }}
           placeholder={placeholder}
           value={value}
-          onSelect={(value, option) => handleOnSelect(option)}
-          defaultActiveFirstOption={true}
-          dropdownRender={(item) => {
-            return (
-              <div className="fuzzy-dropdownwrapper" ref={dropdownContainerRef}>
-                {item}
-              </div>
-            );
-          }}
-        />
-      ) : (
-        <AutoComplete
-          ref={autoCompleteRef}
-          options={options}
-          // options={searchResult}
-          style={inputStyle}
-          onSearch={(value) => handleSearchAutoComplete(value)}
-          onChange={(value) => {
-            if (autoCompleteRef?.current) {
-              autoCompleteRef.current.scrollTo(0);
-            }
-            setValue(value);
-          }}
-          placeholder={placeholder}
-          value={value}
-          dropdownAlign={dropdownAlign}
           onSelect={(value, option) => handleOnSelect(option)}
           defaultActiveFirstOption={true}
           dropdownRender={(item) => {
