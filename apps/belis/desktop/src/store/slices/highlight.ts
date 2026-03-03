@@ -1,10 +1,19 @@
 import { createSlice } from "@reduxjs/toolkit";
 import { RootState } from "..";
 
-export type StreetWithCode = [number, string];
+export interface BelisStreet {
+  s: string;
+  g: string;
+  x: number;
+  y: number;
+  m: {
+    s: string;
+    bounds: [number, number, number, number];
+  };
+}
 
 const initialState = {
-  streets: [] as StreetWithCode[],
+  streets: [] as BelisStreet[],
   streetsFetched: false,
   streetsLoading: false,
   streetsMd5: null as string | null,

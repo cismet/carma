@@ -28,11 +28,11 @@ import {
   setKeyTablesLoading,
 } from "../../store/slices/keyTables";
 import {
+  getStreets,
   getStreetsFetched,
-  getStreetsMd5,
   setStreets,
   setStreetsLoading,
-  setStreetsMd5,
+  BelisStreet,
 } from "../../store/slices/highlight";
 import { fetchAllKeyTables } from "../../helper/apiMethods";
 import localForage from "localforage";
@@ -47,8 +47,8 @@ const MainPage = () => {
   const jwt = useSelector(getJWT);
   const keyTablesLoading = useSelector(getKeyTablesLoading);
   const keyTablesFetched = useSelector(getKeyTablesFetched);
+  const streets = useSelector(getStreets);
   const streetsFetched = useSelector(getStreetsFetched);
-  const streetsMd5 = useSelector(getStreetsMd5);
 
   const { map } = useLibreContext();
 
@@ -85,25 +85,12 @@ const MainPage = () => {
     const fetchStreets = async () => {
       dispatch(setStreetsLoading(true));
       try {
-        const md5Response = await fetch(
-          "https://wunda-geoportal.cismet.de/data/strassen.json.md5"
-        );
-        const remoteMd5 = (await md5Response.text()).trim();
-
-        if (streetsMd5 === remoteMd5) {
-          dispatch(setStreetsLoading(false));
-          return;
-        }
-
         const response = await fetch(
-          "https://wunda-geoportal.cismet.de/data/strassen.json"
+          "https://wunda-geoportal.cismet.de/data/3857/belisStrassen.json"
         );
-        const text = await response.text();
-        const jsonText = text.split("|")[0];
-        const data = JSON.parse(jsonText);
+        const data = await response.json();
 
         dispatch(setStreets(data));
-        dispatch(setStreetsMd5(remoteMd5));
       } catch (error) {
         console.error("Failed to fetch streets:", error);
       } finally {
@@ -111,7 +98,25 @@ const MainPage = () => {
       }
     };
     fetchStreets();
-  }, [streetsFetched, streetsMd5, dispatch]);
+  }, [streetsFetched, dispatch]);
+
+  const gazData = useMemo(
+    () =>
+      streets
+        .filter((street: BelisStreet) => street.m?.s && street.x && street.y)
+        .map((street: BelisStreet, i: number) => ({
+          sorter: i,
+          string: street.m.s,
+          glyph: street.g || "road",
+          x: street.x,
+          y: street.y,
+          more: { id: street.s, bounds: street.m.bounds },
+          type: "road",
+          crs: "EPSG:3857",
+        })),
+    [streets]
+  );
+
   const { isDatasheetOpen } = useDatasheet();
   const [windowWidth, windowHeight] = useWindowSize();
 
@@ -184,7 +189,7 @@ const MainPage = () => {
             <div className="flex items-center gap-4">
               {/* Search */}
               <div className="flex items-center gap-2">
-                <StreetSearch />
+                <StreetSearch gazData={gazData} />
                 <SearchModal showFinalQuery={showRaw} />
               </div>
 
