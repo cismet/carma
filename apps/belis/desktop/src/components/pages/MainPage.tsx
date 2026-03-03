@@ -27,13 +27,17 @@ import {
   setKeyTablesErrors,
   setKeyTablesLoading,
 } from "../../store/slices/keyTables";
-import {
-  getStreets,
-  getStreetsFetched,
-  setStreets,
-  setStreetsLoading,
-  BelisStreet,
-} from "../../store/slices/highlight";
+interface BelisStreet {
+  s: string;
+  g: string;
+  x: number;
+  y: number;
+  m: {
+    s: string;
+    id?: string;
+    bounds: [number, number, number, number];
+  };
+}
 import { fetchAllKeyTables } from "../../helper/apiMethods";
 import localForage from "localforage";
 import SearchModal from "../ui/SearchModal";
@@ -47,8 +51,7 @@ const MainPage = () => {
   const jwt = useSelector(getJWT);
   const keyTablesLoading = useSelector(getKeyTablesLoading);
   const keyTablesFetched = useSelector(getKeyTablesFetched);
-  const streets = useSelector(getStreets);
-  const streetsFetched = useSelector(getStreetsFetched);
+  const [streets, setStreets] = useState<BelisStreet[]>([]);
 
   const { map } = useLibreContext();
 
@@ -78,27 +81,17 @@ const MainPage = () => {
     fetchData();
   }, [jwt, keyTablesFetched, dispatch]);
 
-  // Fetch streets data on mount if not already fetched
+  // Fetch streets data on mount
   useEffect(() => {
-    if (streetsFetched) return;
+    if (streets.length > 0) return;
 
-    const fetchStreets = async () => {
-      dispatch(setStreetsLoading(true));
-      try {
-        const response = await fetch(
-          "https://wunda-geoportal.cismet.de/data/3857/belisStrassen.json"
-        );
-        const data = await response.json();
-
-        dispatch(setStreets(data));
-      } catch (error) {
-        console.error("Failed to fetch streets:", error);
-      } finally {
-        dispatch(setStreetsLoading(false));
-      }
-    };
-    fetchStreets();
-  }, [streetsFetched, dispatch]);
+    dispatch(setKeyTablesLoading(true));
+    fetch("https://wunda-geoportal.cismet.de/data/3857/belisStrassen.json")
+      .then((res) => res.json())
+      .then((data) => setStreets(data))
+      .catch((error) => console.error("Failed to fetch streets:", error))
+      .finally(() => dispatch(setKeyTablesLoading(false)));
+  }, []);
 
   const gazData = useMemo(
     () =>
