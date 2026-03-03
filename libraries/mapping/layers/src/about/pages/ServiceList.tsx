@@ -22,6 +22,30 @@ import FilterBadge from "../components/FilterBadge";
 import CategoryCard from "../components/CategoryCard";
 import Badge from "../components/Badge";
 
+interface VectorStyleMeta {
+  status: "loading" | "loaded" | "error";
+  source?:
+    | "wms-keywords"
+    | "vector-style-keywords"
+    | "style-layer-keywords"
+    | "none";
+  wmsInfoboxMapping?: string[];
+  vectorInfoboxMapping?: string[];
+  layerInfoboxMapping?: string[];
+  vectorStyleUrl?: string;
+  error?: string;
+}
+
+const isJson = (str: unknown): boolean => {
+  if (typeof str !== "string") return false;
+  try {
+    JSON.parse(str);
+    return true;
+  } catch {
+    return false;
+  }
+};
+
 const typeBadgeColors: Record<string, { bg: string; color: string }> = {
   layer: { bg: "#ebf4ff", color: "#3182ce" },
   link: { bg: "#fefcbf", color: "#975a16" },
@@ -72,6 +96,9 @@ const badgeColors: Record<string, { bg: string; color: string }> = {
   queryable: { bg: "#c6f6d5", color: "#276749" },
   vector: { bg: "#e9d8fd", color: "#553c9a" },
   raster: { bg: "#bee3f8", color: "#2a4365" },
+  "mapping:wms": { bg: "#c6f6d5", color: "#276749" },
+  "mapping:style": { bg: "#e9d8fd", color: "#553c9a" },
+  "mapping:none": { bg: "#fed7d7", color: "#9b2c2c" },
 };
 
 const getLayerBadges = (layer: Item): string[] => {
@@ -92,7 +119,33 @@ const getLayerBadges = (layer: Item): string[] => {
   return badges;
 };
 
-const ItemEntry = ({ layer, isLast }: { layer: Item; isLast: boolean }) => {
+const sourceColors: Record<
+  string,
+  { bg: string; color: string; label: string }
+> = {
+  "wms-keywords": { bg: "#c6f6d5", color: "#276749", label: "WMS Keywords" },
+  "vector-style-keywords": {
+    bg: "#e9d8fd",
+    color: "#553c9a",
+    label: "Vector Style Keywords",
+  },
+  "style-layer-keywords": {
+    bg: "#bee3f8",
+    color: "#2a4365",
+    label: "Style Layer Keywords",
+  },
+  none: { bg: "#fed7d7", color: "#9b2c2c", label: "No Mapping" },
+};
+
+const ItemEntry = ({
+  layer,
+  isLast,
+  vectorMeta,
+}: {
+  layer: Item;
+  isLast: boolean;
+  vectorMeta?: VectorStyleMeta;
+}) => {
   const carmaConf = extractCarmaConfig(layer.keywords);
   const descriptions = parseDescription(layer.description);
   const typeColors = typeBadgeColors[layer.type] || {
@@ -265,6 +318,108 @@ const ItemEntry = ({ layer, isLast }: { layer: Item; isLast: boolean }) => {
           </div>
         </div>
       )}
+
+      {/* Infobox Mapping Analysis */}
+      {vectorMeta && (
+        <div
+          style={{
+            marginTop: 10,
+            padding: "10px 14px",
+            backgroundColor: "#f7fafc",
+            borderRadius: 6,
+            border: "1px solid #e2e8f0",
+          }}
+        >
+          <div style={{ ...labelStyle, fontSize: 13, marginBottom: 6 }}>
+            Infobox Mapping
+          </div>
+          {vectorMeta.status === "loading" && (
+            <div style={{ fontSize: 12, color: "#a0aec0" }}>
+              Lade Vector Style Metadaten...
+            </div>
+          )}
+          {vectorMeta.status === "error" && (
+            <div style={{ fontSize: 12, color: "#e53e3e" }}>
+              Fehler: {vectorMeta.error}
+            </div>
+          )}
+          {vectorMeta.status === "loaded" && (
+            <div>
+              {vectorMeta.source && (
+                <div style={{ display: "flex", gap: 6, marginBottom: 6 }}>
+                  <Badge
+                    bg={sourceColors[vectorMeta.source]?.bg ?? "#e8ecf1"}
+                    color={sourceColors[vectorMeta.source]?.color ?? "#4a5568"}
+                  >
+                    {sourceColors[vectorMeta.source]?.label ??
+                      vectorMeta.source}
+                  </Badge>
+                </div>
+              )}
+
+              {vectorMeta.wmsInfoboxMapping &&
+                vectorMeta.wmsInfoboxMapping.length > 0 && (
+                  <div style={{ marginBottom: 4 }}>
+                    <div style={{ ...labelStyle, fontSize: 11 }}>
+                      WMS Keywords Mapping:
+                    </div>
+                    <div style={monoValueStyle}>
+                      {vectorMeta.wmsInfoboxMapping.map((m, i) => (
+                        <div key={i}>{m}</div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+              {vectorMeta.vectorInfoboxMapping &&
+                vectorMeta.vectorInfoboxMapping.length > 0 && (
+                  <div style={{ marginBottom: 4 }}>
+                    <div style={{ ...labelStyle, fontSize: 11 }}>
+                      Vector Style Metadata Mapping:
+                    </div>
+                    <div style={monoValueStyle}>
+                      {vectorMeta.vectorInfoboxMapping.map((m, i) => (
+                        <div key={i}>{m}</div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+              {vectorMeta.layerInfoboxMapping &&
+                vectorMeta.layerInfoboxMapping.length > 0 && (
+                  <div style={{ marginBottom: 4 }}>
+                    <div style={{ ...labelStyle, fontSize: 11 }}>
+                      Style Layer Metadata Mapping:
+                    </div>
+                    <div style={monoValueStyle}>
+                      {vectorMeta.layerInfoboxMapping.map((m, i) => (
+                        <div key={i}>{m}</div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+              {vectorMeta.vectorStyleUrl && (
+                <div>
+                  <div style={{ ...labelStyle, fontSize: 11 }}>
+                    Fetched from:
+                  </div>
+                  <div style={monoValueStyle}>
+                    <a
+                      href={vectorMeta.vectorStyleUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      style={{ color: "#3182ce", fontSize: 11 }}
+                    >
+                      {vectorMeta.vectorStyleUrl}
+                    </a>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+      )}
     </div>
   );
 };
@@ -286,6 +441,9 @@ const ServiceList = ({ discoverProps }: { discoverProps?: DiscoverProps }) => {
   >([]);
   const [search, setSearch] = useState("");
   const [badgeFilter, setBadgeFilter] = useState<string | null>(null);
+  const [vectorMetaMap, setVectorMetaMap] = useState<
+    Record<string, VectorStyleMeta>
+  >({});
 
   useEffect(() => {
     if (!discoverProps) return;
@@ -425,6 +583,147 @@ const ServiceList = ({ discoverProps }: { discoverProps?: DiscoverProps }) => {
     return merged;
   }, [objectEntries]);
 
+  useEffect(() => {
+    const allItems: Item[] = [];
+    for (const cat of [
+      ...displayLayers,
+      ...topicMaps,
+      ...sensorLayers,
+      ...objectLayers,
+    ]) {
+      for (const layer of cat.layers) {
+        allItems.push(layer);
+      }
+    }
+
+    for (const layer of allItems) {
+      if (layer.type !== "layer" && layer.type !== "object") continue;
+
+      const carmaConf = extractCarmaConfig(layer.keywords);
+      const vectorStyleRef = layer.vectorStyle || carmaConf?.vectorStyle;
+
+      const wmsInfoboxMapping = Array.isArray(carmaConf?.infoboxMapping)
+        ? (carmaConf.infoboxMapping as string[])
+        : undefined;
+
+      // For non-vector layers that have WMS infobox mapping, store that directly
+      if (!vectorStyleRef) {
+        if (wmsInfoboxMapping?.length && !vectorMetaMap[layer.id]) {
+          setVectorMetaMap((prev) => ({
+            ...prev,
+            [layer.id]: {
+              status: "loaded",
+              source: "wms-keywords",
+              wmsInfoboxMapping,
+            },
+          }));
+        }
+        continue;
+      }
+
+      if (vectorMetaMap[layer.id]) continue;
+
+      setVectorMetaMap((prev) => ({
+        ...prev,
+        [layer.id]: { status: "loading" },
+      }));
+
+      const resolveVectorStyle = async () => {
+        let styleJson: any = null;
+        let resolvedUrl: string | undefined;
+
+        if (isJson(vectorStyleRef)) {
+          styleJson = JSON.parse(vectorStyleRef as string);
+        } else if (typeof vectorStyleRef === "string") {
+          resolvedUrl = vectorStyleRef;
+          try {
+            const response = await fetch(vectorStyleRef);
+            styleJson = await response.json();
+          } catch (err) {
+            setVectorMetaMap((prev) => ({
+              ...prev,
+              [layer.id]: {
+                status: "error",
+                wmsInfoboxMapping,
+                error: String(err),
+              },
+            }));
+            return;
+          }
+        }
+
+        if (!styleJson) {
+          setVectorMetaMap((prev) => ({
+            ...prev,
+            [layer.id]: {
+              status: "loaded",
+              source: wmsInfoboxMapping?.length ? "wms-keywords" : "none",
+              wmsInfoboxMapping,
+              vectorStyleUrl: resolvedUrl,
+            },
+          }));
+          return;
+        }
+
+        // Extract from top-level metadata.carmaConf.layerInfo.keywords
+        let vectorInfoboxMapping: string[] | undefined;
+        const layerInfoKeywords =
+          styleJson.metadata?.carmaConf?.layerInfo?.keywords;
+        if (Array.isArray(layerInfoKeywords)) {
+          const vectorConf = extractCarmaConfig(layerInfoKeywords);
+          if (Array.isArray(vectorConf?.infoboxMapping)) {
+            vectorInfoboxMapping = vectorConf!.infoboxMapping as string[];
+          }
+        }
+
+        // Extract from per-style-layer metadata.carmaConf
+        let layerInfoboxMapping: string[] | undefined;
+        if (Array.isArray(styleJson.layers)) {
+          for (const styleLayer of styleJson.layers) {
+            const slKeywords = styleLayer.metadata?.carmaConf?.keywords;
+            if (Array.isArray(slKeywords)) {
+              const slConf = extractCarmaConfig(slKeywords);
+              if (Array.isArray(slConf?.infoboxMapping)) {
+                layerInfoboxMapping = slConf!.infoboxMapping as string[];
+                break;
+              }
+            }
+            // Also check direct infoboxMapping on carmaConf
+            const directMapping =
+              styleLayer.metadata?.carmaConf?.infoboxMapping;
+            if (Array.isArray(directMapping) && directMapping.length > 0) {
+              layerInfoboxMapping = directMapping;
+              break;
+            }
+          }
+        }
+
+        let source: VectorStyleMeta["source"] = "none";
+        if (wmsInfoboxMapping?.length) {
+          source = "wms-keywords";
+        } else if (vectorInfoboxMapping?.length) {
+          source = "vector-style-keywords";
+        } else if (layerInfoboxMapping?.length) {
+          source = "style-layer-keywords";
+        }
+
+        setVectorMetaMap((prev) => ({
+          ...prev,
+          [layer.id]: {
+            status: "loaded",
+            source,
+            wmsInfoboxMapping,
+            vectorInfoboxMapping,
+            layerInfoboxMapping,
+            vectorStyleUrl: resolvedUrl,
+          },
+        }));
+      };
+
+      resolveVectorStyle();
+    }
+  }, [displayLayers, topicMaps, sensorLayers, objectLayers]);
+
   const loading = allLayers.length === 0;
 
   const getSearchableText = useCallback((layer: Item): string => {
@@ -460,14 +759,32 @@ const ServiceList = ({ discoverProps }: { discoverProps?: DiscoverProps }) => {
           layers: category.layers.filter((layer: Item) => {
             if (hasSearch && !getSearchableText(layer).includes(term))
               return false;
-            if (badgeFilter && !getLayerBadges(layer).includes(badgeFilter))
-              return false;
+            if (badgeFilter) {
+              if (badgeFilter.startsWith("mapping:")) {
+                const meta = vectorMetaMap[layer.id];
+                if (!meta || meta.status !== "loaded") return false;
+                if (badgeFilter === "mapping:wms") {
+                  return meta.source === "wms-keywords";
+                }
+                if (badgeFilter === "mapping:style") {
+                  return (
+                    meta.source === "vector-style-keywords" ||
+                    meta.source === "style-layer-keywords"
+                  );
+                }
+                if (badgeFilter === "mapping:none") {
+                  return meta.source === "none";
+                }
+                return false;
+              }
+              if (!getLayerBadges(layer).includes(badgeFilter)) return false;
+            }
             return true;
           }),
         }))
         .filter((category) => category.layers.length > 0);
     },
-    [search, badgeFilter, getSearchableText]
+    [search, badgeFilter, getSearchableText, vectorMetaMap]
   );
 
   const filteredLayers = useMemo(
@@ -629,6 +946,7 @@ const ServiceList = ({ discoverProps }: { discoverProps?: DiscoverProps }) => {
               key={layer.id}
               layer={layer}
               isLast={layerIndex === category.layers.length - 1}
+              vectorMeta={vectorMetaMap[layer.id]}
             />
           ))}
         </CategoryCard>
@@ -648,6 +966,7 @@ const ServiceList = ({ discoverProps }: { discoverProps?: DiscoverProps }) => {
               key={layer.id}
               layer={layer}
               isLast={layerIndex === category.layers.length - 1}
+              vectorMeta={vectorMetaMap[layer.id]}
             />
           ))}
         </CategoryCard>
@@ -665,6 +984,7 @@ const ServiceList = ({ discoverProps }: { discoverProps?: DiscoverProps }) => {
               key={layer.id}
               layer={layer}
               isLast={layerIndex === category.layers.length - 1}
+              vectorMeta={vectorMetaMap[layer.id]}
             />
           ))}
         </CategoryCard>
@@ -682,6 +1002,7 @@ const ServiceList = ({ discoverProps }: { discoverProps?: DiscoverProps }) => {
               key={layer.id}
               layer={layer}
               isLast={layerIndex === category.layers.length - 1}
+              vectorMeta={vectorMetaMap[layer.id]}
             />
           ))}
         </CategoryCard>
@@ -701,6 +1022,7 @@ const ServiceList = ({ discoverProps }: { discoverProps?: DiscoverProps }) => {
               key={layer.id}
               layer={layer}
               isLast={layerIndex === category.layers.length - 1}
+              vectorMeta={vectorMetaMap[layer.id]}
             />
           ))}
         </CategoryCard>
