@@ -20,6 +20,11 @@
   transition: border-color 0.15s ease-in-out, box-shadow 0.15s ease-in-out;
 }
 
+.fuzzy-search-container--no-icon .ant-select-selector {
+  border-top-left-radius: 0.25rem !important;
+  border-bottom-left-radius: 0.25rem !important;
+}
+
 .clear-fuzzy-button {
   background-color: #e0e0e0;
   border-color: rgba(255, 255, 255, 0);
