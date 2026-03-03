@@ -1,9 +1,16 @@
 import { useEffect, useState, useRef } from "react";
 import type { IFuseOptions } from "fuse.js";
 import Fuse from "fuse.js";
-import { AutoComplete, Button } from "antd";
+import { AutoComplete, Button, Dropdown, Select } from "antd";
+import type { MenuProps } from "antd";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
-import { faLocationDot, faTimes } from "@fortawesome/free-solid-svg-icons";
+import {
+  faLocationDot,
+  faTimes,
+  faChevronDown,
+  faChevronUp,
+  faDrawPolygon,
+} from "@fortawesome/free-solid-svg-icons";
 import type { BaseSelectRef } from "rc-select";
 
 import IconComp from "react-cismap/commons/Icon";
@@ -43,6 +50,16 @@ const defaultIcon = (
   />
 );
 
+type SearchMode = "gazetteer" | "parcel";
+
+const searchModeConfig: Record<
+  SearchMode,
+  { label: string; icon: typeof faLocationDot }
+> = {
+  gazetteer: { label: "Adressen und Orte", icon: faLocationDot },
+  parcel: { label: "Flurstück", icon: faDrawPolygon },
+};
+
 export function LibFuzzySearch({
   gazData,
   onSelection,
@@ -68,6 +85,7 @@ export function LibFuzzySearch({
   },
   selection,
   showDropdownBelow = false,
+  landParcelSearch = false,
 }: SearchGazetteerProps) {
   const [options, setOptions] = useState<Option[]>([]);
   const [showCategories, setShowCategories] = useState(standardSearch);
@@ -107,6 +125,31 @@ export function LibFuzzySearch({
   const [value, setValue] = useState("");
   const [cleanBtnDisable, setCleanBtnDisable] = useState(true);
   const [fireScrollEvent, setFireScrollEvent] = useState(null);
+  const [searchMode, setSearchMode] = useState<SearchMode>("gazetteer");
+  const [modeDropdownOpen, setModeDropdownOpen] = useState(false);
+
+  const searchModeMenuItems: MenuProps["items"] = [
+    {
+      key: "gazetteer",
+      label: searchModeConfig.gazetteer.label,
+      icon: (
+        <FontAwesomeIcon
+          icon={searchModeConfig.gazetteer.icon}
+          style={{ fontSize: "14px" }}
+        />
+      ),
+    },
+    {
+      key: "parcel",
+      label: searchModeConfig.parcel.label,
+      icon: (
+        <FontAwesomeIcon
+          icon={searchModeConfig.parcel.icon}
+          style={{ fontSize: "14px" }}
+        />
+      ),
+    },
+  ];
 
   const dropdownAlign = {
     points: ["bl", "tl"],
@@ -356,39 +399,115 @@ export function LibFuzzySearch({
       // ref={divWrapperRef}
       data-test-id="fuzzy-search"
       style={{
-        width: pixelwidth,
+        width:
+          searchMode === "parcel" && landParcelSearch ? "auto" : pixelwidth,
         display: "flex",
       }}
       className={`fuzzy-search-container${
         hideIcon ? " fuzzy-search-container--no-icon" : ""
       }`}
     >
-      {!hideIcon && (
-        <Button
-          ref={btnClosRef}
-          icon={
-            cleanBtnDisable ? (
-              // <FontAwesomeIcon
-              //   icon={faLocationDot}
-              //   style={{
-              //     fontSize: "16px",
-              //   }}
-              // />
-              icon
-            ) : (
-              <FontAwesomeIcon style={{ fontSize: "16px" }} icon={faTimes} />
-            )
-          }
-          className={
-            cleanBtnDisable
-              ? "clear-fuzzy-button clear-fuzzy-button__active"
-              : "clear-fuzzy-button clear-fuzzy-button__active"
-          }
-          onClick={handleOnClickClear}
-          disabled={ifIconDisabled && cleanBtnDisable}
-        />
+      {landParcelSearch ? (
+        <Dropdown
+          menu={{
+            items: searchModeMenuItems,
+            selectedKeys: [searchMode],
+            onClick: ({ key }) => setSearchMode(key as SearchMode),
+          }}
+          trigger={cleanBtnDisable ? ["click"] : []}
+          onOpenChange={(open) => setModeDropdownOpen(open)}
+        >
+          <Button
+            ref={btnClosRef}
+            icon={
+              cleanBtnDisable ? (
+                <span style={{ display: "flex", alignItems: "center", gap: 4 }}>
+                  <FontAwesomeIcon
+                    icon={searchModeConfig[searchMode].icon}
+                    style={{ fontSize: "16px" }}
+                  />
+                  <FontAwesomeIcon
+                    icon={modeDropdownOpen ? faChevronUp : faChevronDown}
+                    style={{ fontSize: "6px" }}
+                  />
+                </span>
+              ) : (
+                <FontAwesomeIcon style={{ fontSize: "16px" }} icon={faTimes} />
+              )
+            }
+            className="clear-fuzzy-button clear-fuzzy-button__active"
+            onClick={cleanBtnDisable ? undefined : handleOnClickClear}
+          />
+        </Dropdown>
+      ) : (
+        !hideIcon && (
+          <Button
+            ref={btnClosRef}
+            icon={
+              cleanBtnDisable ? (
+                // <FontAwesomeIcon
+                //   icon={faLocationDot}
+                //   style={{
+                //     fontSize: "16px",
+                //   }}
+                // />
+                icon
+              ) : (
+                <FontAwesomeIcon style={{ fontSize: "16px" }} icon={faTimes} />
+              )
+            }
+            className={
+              cleanBtnDisable
+                ? "clear-fuzzy-button clear-fuzzy-button__active"
+                : "clear-fuzzy-button clear-fuzzy-button__active"
+            }
+            onClick={handleOnClickClear}
+            disabled={ifIconDisabled && cleanBtnDisable}
+          />
+        )
       )}
-      {showCategories ? (
+      {searchMode === "parcel" && landParcelSearch ? (
+        <div
+          style={{
+            display: "flex",
+            gap: 2,
+          }}
+        >
+          <Select
+            showSearch
+            placeholder="Gemarkung"
+            style={{ width: 160 }}
+            filterOption={(input, option) =>
+              (option?.label ?? "")
+                .toLowerCase()
+                .startsWith(input.toLowerCase())
+            }
+            options={[]}
+          />
+          <Select
+            showSearch
+            placeholder="Flur"
+            style={{ width: 80 }}
+            filterOption={(input, option) =>
+              (option?.label ?? "")
+                .toLowerCase()
+                .startsWith(input.toLowerCase())
+            }
+            options={[]}
+          />
+          <Select
+            showSearch
+            placeholder="Flurstück"
+            style={{ width: 120 }}
+            filterOption={(input, option) =>
+              (option?.label ?? "")
+                .toLowerCase()
+                .startsWith(input.toLowerCase())
+            }
+            options={[]}
+          />
+        </div>
+      ) : showCategories ? (
         <AutoComplete
           ref={autoCompleteRef}
           // open={true}

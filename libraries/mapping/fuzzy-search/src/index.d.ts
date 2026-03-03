@@ -22,6 +22,7 @@ export type SearchGazetteerProps = {
   priorityTypes?: string[];
   selection?: SelectionItem;
   showDropdownBelow?: boolean;
+  landParcelSearch?: boolean;
 };
 
 export interface SearchResultItemWithScore {

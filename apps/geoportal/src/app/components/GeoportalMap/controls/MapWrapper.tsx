@@ -486,6 +486,7 @@ const MapWrapper = () => {
                     : windowSize.width - gap
                 }
                 selection={configSelection}
+                landParcelSearch={true}
               />
             </div>
           </Control>
