@@ -10,7 +10,9 @@ export type {
   GeoJsonData,
   VectorStyle,
   LibreLayer,
+  RasterPaintOverrides,
 } from "./components/LibreMap";
+export { RASTER_PAINT_PRESETS } from "./utils/rasterPaintPresets";
 export { LibreMapSelectionContent } from "./components/LibreMapSelectionContent";
 export { PreviewLibreMap } from "./components/PreviewLibreMap";
 export { DatasheetMiniMap } from "./components/DatasheetMiniMap";

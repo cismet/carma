@@ -368,7 +368,7 @@ function MapLayerVisibility({
 }: {
   visibility: LayerVisibility;
 }) {
-  const { map } = useLibreContext();
+  const { map, setMapStyle } = useLibreContext();
   // Remember which sub-layers were originally visible in the style JSON.
   // When hiding a group, all sub-layers go to "none".
   // When showing a group, only originally-visible sub-layers are restored.
@@ -429,6 +429,7 @@ function MapLayerVisibility({
         capture();
       }
       sync();
+      setMapStyle(map.getStyle());
     };
     map.once("idle", onIdle);
 
@@ -438,6 +439,7 @@ function MapLayerVisibility({
         capture();
       }
       sync();
+      setMapStyle(map.getStyle());
     }
 
     return () => {

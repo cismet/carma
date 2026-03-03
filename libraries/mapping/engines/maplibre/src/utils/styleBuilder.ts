@@ -746,6 +746,7 @@ export const vectorStylesToMapLibreStyle = async ({
           source: sourceId,
           paint: {
             "raster-opacity": layer.opacity ?? 1,
+            ...("rasterPaint" in layer ? layer.rasterPaint : undefined),
           },
           metadata: {
             "z-index": index,

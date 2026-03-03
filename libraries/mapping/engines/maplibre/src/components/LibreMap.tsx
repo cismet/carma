@@ -68,6 +68,18 @@ export interface VectorStyle {
   infoboxMapping?: string[];
 }
 
+/**
+ * Additional raster paint properties for image manipulation (night mode, etc.).
+ * These map directly to MapLibre raster paint properties.
+ */
+export interface RasterPaintOverrides {
+  "raster-brightness-min"?: number; // 0–1, default 0
+  "raster-brightness-max"?: number; // 0–1, default 1
+  "raster-saturation"?: number; // -1–1, default 0 (-1 = grayscale)
+  "raster-contrast"?: number; // -1–1, default 0
+  "raster-hue-rotate"?: number; // degrees, default 0
+}
+
 export type LibreLayer =
   | ({ type: "vector" } & VectorStyle)
   | { type: "geojson"; name: string; data: string; infoboxMapping?: string[] }
@@ -82,8 +94,15 @@ export type LibreLayer =
       format?: string;
       opacity?: number;
       transparent?: boolean;
+      rasterPaint?: RasterPaintOverrides;
     }
-  | { type: "cog"; name: string; url: string; opacity?: number };
+  | {
+      type: "cog";
+      name: string;
+      url: string;
+      opacity?: number;
+      rasterPaint?: RasterPaintOverrides;
+    };
 
 export interface LibreMapProps {
   backgroundLayers?: string | null;
@@ -134,6 +153,8 @@ export interface LibreMapProps {
   overrideSelectedFeature?: Record<string, unknown> | null;
   /** Show gazetteer selection info when clicking on empty map area (default: true) */
   gazetteerInfoOnClick?: boolean;
+  /** Raster paint overrides applied to all background raster layers (night mode, etc.) */
+  backgroundRasterPaint?: RasterPaintOverrides;
 }
 
 export const LibreMap = ({
@@ -155,6 +176,7 @@ export const LibreMap = ({
   exposeMapToWindow = false,
   overrideSelectedFeature,
   gazetteerInfoOnClick = true,
+  backgroundRasterPaint,
 }: LibreMapProps) => {
   const mapContainer = useRef<HTMLDivElement>(null);
   const map = useRef<maplibregl.Map | null>(null);
@@ -446,6 +468,33 @@ export const LibreMap = ({
     () => buildBackgroundStyle(),
     [backgroundLayers]
   );
+
+  // Imperatively apply/clear raster paint overrides on background layers
+  // so that toggling night mode doesn't rebuild the entire style (which
+  // would reset vector layer visibility, selection state, etc.).
+  // Also updates the context mapStyle so the preview map stays in sync.
+  useEffect(() => {
+    if (!map.current || !map.current.isStyleLoaded()) return;
+
+    const defaults: Required<RasterPaintOverrides> = {
+      "raster-brightness-min": 0,
+      "raster-brightness-max": 1,
+      "raster-saturation": 0,
+      "raster-contrast": 0,
+      "raster-hue-rotate": 0,
+    };
+    const paint = backgroundRasterPaint ?? defaults;
+
+    for (const layer of map.current.getStyle().layers ?? []) {
+      if (layer.type !== "raster") continue;
+      for (const [key, value] of Object.entries(paint)) {
+        map.current.setPaintProperty(layer.id, key, value);
+      }
+    }
+
+    // Push the updated style into context so PreviewLibreMap picks it up
+    setMapStyle(map.current.getStyle());
+  }, [backgroundRasterPaint, setMapStyle]);
 
   // Stable callbacks for useImperativeStyle
   const handleImperativeMappingUpdate = useCallback(
@@ -888,6 +937,7 @@ export const LibreMap = ({
                     type: "raster",
                     paint: {
                       "raster-opacity": layer.opacity ?? 1,
+                      ...layer.rasterPaint,
                     },
                   },
                   beforeId
