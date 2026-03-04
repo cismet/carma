@@ -156,17 +156,19 @@ export const generateGemarkungOptions = (
   });
   const results = fuse.search(trimmed);
 
-  const matches = results.map(({ item: { name } }, idx) => ({
+  const matches = results.map(({ item: { key, name } }, idx) => ({
     key: idx,
     label: (
       <div style={{ paddingLeft: "0.3rem" }}>
         <span style={{ marginRight: "0.4rem" }}>
           <i className="fas fa-map"></i>
         </span>
-        <span>{name}</span>
+        <span>
+          {key} ({name})
+        </span>
       </div>
     ),
-    value: `${name}${LAND_PARCEL_SEPARATOR}`,
+    value: `${key}${LAND_PARCEL_SEPARATOR}`,
     sData: null as any,
     isLandParcel: true,
     parcelStage: "gemarkung" as const,
@@ -222,11 +224,11 @@ export const generateLandParcelOptions = (
             <i className="fas fa-layer-group"></i>
           </span>
           <span>
-            {parseState.gemarkungName}-{flurLabel}
+            {parseState.gemarkungKey}-{flurLabel}
           </span>
         </div>
       ),
-      value: `${parseState.gemarkungName}${LAND_PARCEL_SEPARATOR}${flurLabel}${LAND_PARCEL_SEPARATOR}`,
+      value: `${parseState.gemarkungKey}${LAND_PARCEL_SEPARATOR}${flurLabel}${LAND_PARCEL_SEPARATOR}`,
       sData: null as any,
       isLandParcel: true,
       parcelStage: "flur" as const,
@@ -284,11 +286,11 @@ export const generateLandParcelOptions = (
                 ></i>
               </span>
               <span>
-                {parseState.gemarkungName}-{parseState.flurName}-{displayLabel}
+                {parseState.gemarkungKey}-{parseState.flurName}-{displayLabel}
               </span>
             </div>
           ),
-          value: `${parseState.gemarkungName}${LAND_PARCEL_SEPARATOR}${parseState.flurName}${LAND_PARCEL_SEPARATOR}${displayLabel}`,
+          value: `${parseState.gemarkungKey}${LAND_PARCEL_SEPARATOR}${parseState.flurName}${LAND_PARCEL_SEPARATOR}${displayLabel}`,
           sData: null as any,
           isLandParcel: true,
           parcelStage: "flurstueck" as const,
