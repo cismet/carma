@@ -178,6 +178,7 @@ export const generateGemarkungOptions = (
     {
       label: <span data-title="category-title">Gemarkung</span>,
       options: matches,
+      titleText: "Gemarkung",
     },
   ];
 };
@@ -226,7 +227,9 @@ export const generateLandParcelOptions = (
           <span style={{ marginRight: "0.4rem" }}>
             <i className="fas fa-layer-group"></i>
           </span>
-          <span>Flur {flurLabel}</span>
+          <span>
+            {parseState.gemarkungName}-{flurLabel}
+          </span>
         </div>
       ),
       value: `${parseState.gemarkungName}${LAND_PARCEL_SEPARATOR}${flurLabel}${LAND_PARCEL_SEPARATOR}`,
@@ -235,14 +238,12 @@ export const generateLandParcelOptions = (
       parcelStage: "flur" as const,
     }));
 
+    const title = `Flur (${parseState.gemarkungName})`;
     return [
       {
-        label: (
-          <span data-title="category-title">
-            Flur ({parseState.gemarkungName})
-          </span>
-        ),
+        label: <span data-title="category-title">{title}</span>,
         options: flurOptions,
+        titleText: title,
       },
     ];
   }
@@ -289,7 +290,9 @@ export const generateLandParcelOptions = (
                   }
                 ></i>
               </span>
-              <span>{displayLabel}</span>
+              <span>
+                {parseState.gemarkungName}-{parseState.flurName}-{displayLabel}
+              </span>
             </div>
           ),
           value: `${parseState.gemarkungName}${LAND_PARCEL_SEPARATOR}${parseState.flurName}${LAND_PARCEL_SEPARATOR}${displayLabel}`,
@@ -309,10 +312,12 @@ export const generateLandParcelOptions = (
       {
         label: (
           <span data-title="category-title">
-            Flurstück ({parseState.gemarkungName}, Flur {parseState.flurName})
+            Flurstück ({parseState.gemarkungName}, Flur{" "}
+            {parseState.flurName})
           </span>
         ),
         options: fstckOptions,
+        titleText: `Flurstück (${parseState.gemarkungName}, Flur ${parseState.flurName})`,
       },
     ];
   }

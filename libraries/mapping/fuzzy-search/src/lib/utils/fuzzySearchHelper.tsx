@@ -430,9 +430,8 @@ export const createOrUpdateVisibleCategory = (
     dropdownContainerRef.current.appendChild(categoryWrapper);
   } else {
     const stickyTitle = document.getElementById("advance-title-text");
-    const category = getCategoryNameInFirstSearchItem();
-    if (stickyTitle) {
-      stickyTitle.innerText = category ? category : firstCategoryText;
+    if (stickyTitle && firstCategoryText) {
+      stickyTitle.innerText = firstCategoryText;
     }
   }
 };

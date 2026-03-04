@@ -51,6 +51,7 @@ export interface Option {
 export interface GroupedOptions {
   label?: JSX.Element;
   options?: Option[];
+  titleText?: string;
 }
 
 export type SearchConfig = {

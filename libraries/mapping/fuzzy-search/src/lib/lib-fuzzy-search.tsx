@@ -340,11 +340,15 @@ export function LibFuzzySearch({
       );
 
       if (showCategories) {
-        const allTitles = document.querySelectorAll("[data-title]");
         let firstCategoryText = "";
-        if (allTitles.length > 0) {
-          const firstTitle = allTitles[0] as HTMLElement;
-          firstCategoryText = firstTitle.innerText;
+        if (searchResult.length > 0 && searchResult[0].titleText) {
+          firstCategoryText = searchResult[0].titleText;
+        } else {
+          const allTitles = document.querySelectorAll("[data-title]");
+          if (allTitles.length > 0) {
+            const firstTitle = allTitles[0] as HTMLElement;
+            firstCategoryText = firstTitle.innerText;
+          }
         }
 
         createOrUpdateVisibleCategory(firstCategoryText, dropdownContainerRef);
@@ -414,7 +418,7 @@ export function LibFuzzySearch({
         }
       }
     }
-  }, [dropdownContainerRef, options, fireScrollEvent, value]);
+  }, [dropdownContainerRef, options, searchResult, fireScrollEvent, value]);
 
   const handleOnClickClear = () => {
     {
@@ -534,7 +538,7 @@ export function LibFuzzySearch({
         <AutoComplete
           ref={autoCompleteRef}
           dropdownAlign={dropdownAlign}
-          options={showCategories ? searchResult : options}
+          options={showCategories ? searchResult.map(({ titleText, ...rest }) => rest) : options}
           style={{ width: "100%", borderTopLeftRadius: 0 }}
           onSearch={(value) => {
             if (searchMode === "parcel" && landParcelData) {
