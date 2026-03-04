@@ -519,16 +519,21 @@ const BelisMapLibWrapper = ({
     setMiniMap(m);
   }, []);
 
-  // Deterministic click selection: prefer leuchten, sort by leuchtennummer
+  // #554: Deterministic click selection: prefer standorte over leuchten
+  // (Previous logic preferred leuchten, sorted by leuchtennummer:)
+  // const leuchten = hits.filter((h) => h.sourceLayer === "leuchten");
+  // if (leuchten.length > 0) {
+  //   return leuchten.sort(
+  //     (a, b) =>
+  //       Number(a.properties?.leuchtennummer ?? 0) -
+  //       Number(b.properties?.leuchtennummer ?? 0)
+  //   )[0];
+  // }
   const handleSelectFromHits = useCallback(
     (hits: maplibregl.MapGeoJSONFeature[]) => {
-      const leuchten = hits.filter((h) => h.sourceLayer === "leuchten");
-      if (leuchten.length > 0) {
-        return leuchten.sort(
-          (a, b) =>
-            Number(a.properties?.leuchtennummer ?? 0) -
-            Number(b.properties?.leuchtennummer ?? 0)
-        )[0];
+      const standorte = hits.filter((h) => h.sourceLayer === "standorte");
+      if (standorte.length > 0) {
+        return standorte[0];
       }
       return hits[0];
     },
