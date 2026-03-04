@@ -60,13 +60,16 @@ const removeLeadingZeros = (numberStr: string, flur = false): string => {
   return !flur ? result : flurResult;
 };
 
-const findGemarkungByName = (
-  name: string,
+const findGemarkungByNameOrKey = (
+  input: string,
   data: LandParcelDataStructure
 ): { key: string; entry: GemarkungEntry } | null => {
-  const normalized = name.trim().toLowerCase();
+  const normalized = input.trim().toLowerCase();
   for (const key of Object.keys(data)) {
-    if (data[key].gemarkung.toLowerCase() === normalized) {
+    if (
+      data[key].gemarkung.toLowerCase() === normalized ||
+      key === normalized
+    ) {
       return { key, entry: data[key] };
     }
   }
@@ -97,7 +100,7 @@ export const parseLandParcelInput = (
   }
 
   const gemarkungInput = segments[0].trim();
-  const match = findGemarkungByName(gemarkungInput, data);
+  const match = findGemarkungByNameOrKey(gemarkungInput, data);
   if (!match) {
     return { stage: "none" };
   }
@@ -146,7 +149,7 @@ export const generateGemarkungOptions = (
     name: data[key].gemarkung,
   }));
   const fuse = new Fuse(items, {
-    keys: ["name"],
+    keys: ["name", "key"],
     threshold: 0.4,
     distance: 100,
     includeScore: true,
