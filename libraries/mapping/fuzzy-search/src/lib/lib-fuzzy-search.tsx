@@ -38,6 +38,7 @@ import {
   generateLandParcelOptions,
   generateGemarkungOptions,
   LandParcelDataStructure,
+  LAND_PARCEL_SEPARATOR,
 } from "./utils/landParcelSearchHelper";
 import defaultLandParcelData from "../../landparcels.json";
 
@@ -174,7 +175,7 @@ export function LibFuzzySearch({
   };
 
   const handleSearchAutoComplete = (value) => {
-    if (landParcelData && value.includes(",")) {
+    if (landParcelData && value.includes(LAND_PARCEL_SEPARATOR)) {
       const parseState = parseLandParcelInput(value, landParcelData);
       if (parseState.stage !== "none") {
         const parcelOptions = generateLandParcelOptions(
@@ -517,10 +518,10 @@ export function LibFuzzySearch({
       <div style={{ position: "relative", width: "calc(100% - 32px)" }}>
         {(() => {
           // Colored Overlay
-          const commaIdx = value.lastIndexOf(",");
-          if (landParcelData && commaIdx > 0 && cleanBtnDisable) {
-            const prefix = value.substring(0, commaIdx + 1) + " ";
-            const active = value.substring(commaIdx + 1).trimStart();
+          const sepIdx = value.lastIndexOf(LAND_PARCEL_SEPARATOR);
+          if (landParcelData && sepIdx > 0 && cleanBtnDisable) {
+            const prefix = value.substring(0, sepIdx + 1);
+            const active = value.substring(sepIdx + 1);
             return (
               <div aria-hidden="true" className="parcel-input-overlay">
                 <span style={{ color: "#aaa" }}>{prefix}</span>
@@ -537,7 +538,7 @@ export function LibFuzzySearch({
           style={{ width: "100%", borderTopLeftRadius: 0 }}
           onSearch={(value) => {
             if (searchMode === "parcel" && landParcelData) {
-              if (value.includes(",")) {
+              if (value.includes(LAND_PARCEL_SEPARATOR)) {
                 const parseState = parseLandParcelInput(value, landParcelData);
                 if (parseState.stage !== "none") {
                   const parcelOptions = generateLandParcelOptions(
@@ -575,7 +576,7 @@ export function LibFuzzySearch({
           }}
           placeholder={
             searchMode === "parcel" && landParcelSearch
-              ? "Gemarkung, Flur, Flurstück"
+              ? `Gemarkung${LAND_PARCEL_SEPARATOR}Flur${LAND_PARCEL_SEPARATOR}Flurstück`
               : placeholder
           }
           value={value}
@@ -586,7 +587,7 @@ export function LibFuzzySearch({
           onSelect={(value, option) => handleOnSelect(option)}
           defaultActiveFirstOption={true}
           className={
-            value.includes(",") && landParcelData && cleanBtnDisable
+            value.includes(LAND_PARCEL_SEPARATOR) && landParcelData && cleanBtnDisable
               ? "parcel-input-transparent"
               : ""
           }

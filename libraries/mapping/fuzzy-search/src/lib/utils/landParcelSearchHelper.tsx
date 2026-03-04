@@ -1,6 +1,8 @@
 import Fuse from "fuse.js";
 import { GroupedOptions } from "../..";
 
+export const LAND_PARCEL_SEPARATOR = "-";
+
 export type FlurstueckEntry = {
   label: string;
   lfk?: string;
@@ -89,7 +91,7 @@ export const parseLandParcelInput = (
   value: string,
   data: LandParcelDataStructure
 ): LandParcelParseState => {
-  const segments = value.split(",");
+  const segments = value.split(LAND_PARCEL_SEPARATOR);
   if (segments.length < 2) {
     return { stage: "none" };
   }
@@ -161,7 +163,7 @@ export const generateGemarkungOptions = (
         <span>{name}</span>
       </div>
     ),
-    value: `${name}, `,
+    value: `${name}${LAND_PARCEL_SEPARATOR}`,
     sData: null as any,
     isLandParcel: true,
     parcelStage: "gemarkung" as const,
@@ -224,7 +226,7 @@ export const generateLandParcelOptions = (
           <span>Flur {flurLabel}</span>
         </div>
       ),
-      value: `${parseState.gemarkungName}, ${flurLabel}, `,
+      value: `${parseState.gemarkungName}${LAND_PARCEL_SEPARATOR}${flurLabel}${LAND_PARCEL_SEPARATOR}`,
       sData: null as any,
       isLandParcel: true,
       parcelStage: "flur" as const,
@@ -287,7 +289,7 @@ export const generateLandParcelOptions = (
               <span>{displayLabel}</span>
             </div>
           ),
-          value: `${parseState.gemarkungName}, ${parseState.flurName}, ${displayLabel}`,
+          value: `${parseState.gemarkungName}${LAND_PARCEL_SEPARATOR}${parseState.flurName}${LAND_PARCEL_SEPARATOR}${displayLabel}`,
           sData: null as any,
           isLandParcel: true,
           parcelStage: "flurstueck" as const,
