@@ -28,7 +28,7 @@ const BelisDatasheetView = ({
 }: BelisDatasheetViewProps) => {
   const featureLoading = useSelector(getFeatureLoading);
 
-  if (!feature && !rawFeature) {
+  if (!feature && !rawFeature && !fetchedData) {
     return (
       <div
         style={{

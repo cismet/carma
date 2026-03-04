@@ -69,7 +69,7 @@ const BelisMapLibWrapper = ({
   const jwt = useSelector(getJWT);
   const { map } = useLibreContext();
   const { selectedFeature, rawFeature, selectedFeatureId, selectFeature } = useMapSelection();
-  const { closeDatasheet } = useDatasheet();
+  const { closeDatasheet, openDatasheet } = useDatasheet();
   const [fetchedFeatureData, setFetchedFeatureData] = useState<any>(null);
   // Preserve last valid featureType to prevent unmount when selectedFeature briefly becomes undefined
   const [lastFeatureType, setLastFeatureType] = useState<string | undefined>(undefined);
@@ -318,8 +318,16 @@ const BelisMapLibWrapper = ({
         );
 
         if (info) {
+          const genericLinks: { iconname: string; tooltip: string; action?: () => void }[] = [];
+          if ((info as Record<string, unknown>).datasheet && openDatasheet) {
+            genericLinks.push({
+              iconname: "info",
+              tooltip: "Datenblatt",
+              action: openDatasheet,
+            });
+          }
           setOverrideSelectedFeature({
-            properties: { ...info, sourceProps: fetchedFeatureData },
+            properties: { ...info, sourceProps: fetchedFeatureData, genericLinks },
             geometry: { type: "Point", coordinates: [0, 0] },
             carmaInfo: { sourceLayer },
           });
@@ -426,21 +434,18 @@ const BelisMapLibWrapper = ({
     );
   }, [selectedFeature, rawFeature]);
 
-  // In Suche mode, don't pass the raw feature to selectFeature so LibreMap
-  // won't attempt createFeature() on the synthetic search result. This keeps
-  // selectedFeature null and lets the fetch + override path handle the infobox.
+  // Always pass the raw feature so the mini-map can center on its geometry.
+  // LibreMap's createFeature() won't fire because the namespaced source
+  // (slugifyUrl::originalSource) doesn't match any mapping key (slugifyUrl only).
+  // The setSelectedFeature(null) in LibreMap's watcher ensures the override path works.
   const handleSidebarFeatureSelect = useCallback(
     (
       identifier: { source: string; sourceLayer?: string; id?: string | number },
       feature: SidebarFeature
     ) => {
-      if (sidebarMode === "suche") {
-        selectFeature(identifier);
-      } else {
-        selectFeature(identifier, feature as any);
-      }
+      selectFeature(identifier, feature as any);
     },
-    [sidebarMode, selectFeature]
+    [selectFeature]
   );
 
   return (
