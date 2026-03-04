@@ -6,7 +6,7 @@ run-name: >
 
 on:
   pull_request:
-    types: [opened, synchronize, reopened, edited, labeled]
+    types: [opened, synchronize, reopened, edited, labeled, unlabeled]
 
 concurrency:
   group: pr-deploy-${{ github.event.pull_request.number }}
