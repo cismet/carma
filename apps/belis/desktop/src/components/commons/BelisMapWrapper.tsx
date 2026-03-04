@@ -300,8 +300,9 @@ const BelisMapLibWrapper = ({
         featureId = selectedFeature.properties?.sourceProps?.id;
       } else if (selectedFeatureId) {
         // Fallback: LibreMap couldn't process the feature (e.g. search result not on map)
+        // Use database PK from raw feature properties (selectedFeatureId.id is the MVT tile ID)
         sourceLayer = selectedFeatureId.sourceLayer;
-        featureId = selectedFeatureId.id;
+        featureId = rawFeature?.properties?.id ?? selectedFeatureId.id;
       } else {
         setFetchedFeatureData(null);
         return;
@@ -535,6 +536,7 @@ const BelisMapLibWrapper = ({
       let candidates = hits;
       if (map) {
         const highlighted = hits.filter((h) => {
+          if (h.id == null) return false;
           try {
             const state = map.getFeatureState({
               source: h.source,

@@ -354,7 +354,7 @@ const BelisSidebar = ({
       for (const f of merged.items) {
         const sl = f.sourceLayer || "";
         if (sl === "standorte") {
-          const key = String(f.id ?? f.properties?.id ?? "?");
+          const key = String(f.properties?.id ?? f.id ?? "?");
           const cluster = clusters.get(key) ?? { standort: null, leuchten: [] };
           cluster.standort = f;
           clusters.set(key, cluster);
