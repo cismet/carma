@@ -1,7 +1,7 @@
 import { useEffect, useState, useRef } from "react";
 import type { IFuseOptions } from "fuse.js";
 import Fuse from "fuse.js";
-import { AutoComplete, Button, Dropdown } from "antd";
+import { AutoComplete, Button, Dropdown, message } from "antd";
 import type { MenuProps } from "antd";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import {
@@ -37,6 +37,8 @@ import {
   parseLandParcelInput,
   generateLandParcelOptions,
   generateGemarkungOptions,
+  tryDirectLandParcelMatch,
+  normalizeLandParcelInput,
   LandParcelDataStructure,
   LAND_PARCEL_SEPARATOR,
 } from "./utils/landParcelSearchHelper";
@@ -538,31 +540,73 @@ export function LibFuzzySearch({
         <AutoComplete
           ref={autoCompleteRef}
           dropdownAlign={dropdownAlign}
-          options={showCategories ? searchResult.map(({ titleText, ...rest }) => rest) : options}
+          options={
+            showCategories
+              ? searchResult.map(({ titleText, ...rest }) => rest)
+              : options
+          }
           style={{ width: "100%", borderTopLeftRadius: 0 }}
           onSearch={(value) => {
             if (searchMode === "parcel" && landParcelData) {
               if (value.includes(LAND_PARCEL_SEPARATOR)) {
-                const parseState = parseLandParcelInput(value, landParcelData);
-                if (parseState.stage !== "none") {
-                  const parcelOptions = generateLandParcelOptions(
-                    parseState,
-                    landParcelData
-                  );
-                  setSearchResult(parcelOptions);
-                  setOptions([]);
-                } else {
-                  setSearchResult([]);
-                  setOptions([]);
-                }
-              } else {
-                // No comma yet: show Gemarkung suggestions
-                const gemarkungOpts = generateGemarkungOptions(
+                const directMatch = tryDirectLandParcelMatch(
                   value,
                   landParcelData
                 );
-                setSearchResult(gemarkungOpts);
-                setOptions([]);
+                if (directMatch) {
+                  setSearchResult(directMatch);
+                  setOptions([]);
+                } else {
+                  const parseState = parseLandParcelInput(
+                    value,
+                    landParcelData
+                  );
+                  if (parseState.stage !== "none") {
+                    const parcelOptions = generateLandParcelOptions(
+                      parseState,
+                      landParcelData
+                    );
+                    const hasResults = parcelOptions.some(
+                      (g) => g.options.length > 0
+                    );
+                    if (
+                      !hasResults &&
+                      parseState.stage === "flur_matched" &&
+                      parseState.fstckFilter !== ""
+                    ) {
+                      message.warning("Kein Flurstück gefunden");
+                    }
+                    setSearchResult(parcelOptions);
+                    setOptions([]);
+                  } else {
+                    const segments = value.split(LAND_PARCEL_SEPARATOR);
+                    if (segments.length >= 3 && segments[2].trim() !== "") {
+                      message.warning("Kein Flurstück gefunden");
+                    }
+                    setSearchResult([]);
+                    setOptions([]);
+                  }
+                }
+              } else {
+                const compactMatch = tryDirectLandParcelMatch(
+                  value,
+                  landParcelData
+                );
+                if (compactMatch) {
+                  setSearchResult(compactMatch);
+                  setOptions([]);
+                } else if (normalizeLandParcelInput(value) !== null) {
+                  message.warning("Kein Flurstück gefunden");
+                  setSearchResult([]);
+                  setOptions([]);
+                } else {
+                  const gemarkungOpts = generateGemarkungOptions(
+                    value,
+                    landParcelData
+                  );
+                  setSearchResult(gemarkungOpts);
+                  setOptions([]);
+                }
               }
             } else {
               handleSearchAutoComplete(value);
@@ -591,7 +635,9 @@ export function LibFuzzySearch({
           onSelect={(value, option) => handleOnSelect(option)}
           defaultActiveFirstOption={true}
           className={
-            value.includes(LAND_PARCEL_SEPARATOR) && landParcelData && cleanBtnDisable
+            value.includes(LAND_PARCEL_SEPARATOR) &&
+            landParcelData &&
+            cleanBtnDisable
               ? "parcel-input-transparent"
               : ""
           }

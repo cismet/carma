@@ -137,6 +137,111 @@ export const parseLandParcelInput = (
   };
 };
 
+export const normalizeLandParcelInput = (input: string): string | null => {
+  const cleaned = input.trim().replace(/_/g, "0");
+
+  // Already in our separator format
+  if (cleaned.includes(LAND_PARCEL_SEPARATOR)) return cleaned;
+
+  const digitsOnly = cleaned.replace(/\D/g, "");
+
+  // 20-char ALKIS format with 05 prefix: 05(2) + gem(4) + flur(3) + zähler(5) + nenner(4) + padding(2)
+  if (digitsOnly.length >= 18 && digitsOnly.startsWith("05")) {
+    const gem = digitsOnly.substring(2, 6);
+    const flur = digitsOnly.substring(6, 9);
+    const zaehler = digitsOnly.substring(9, 14);
+    const nenner = digitsOnly.substring(14, 18);
+    return `${gem}${LAND_PARCEL_SEPARATOR}${removeLeadingZeros(flur, true)}${LAND_PARCEL_SEPARATOR}${removeLeadingZeros(`${zaehler}/${nenner}`)}`;
+  }
+
+  // 16-char compact format: gem(4) + flur(4) + zähler(4) + nenner(4)
+  if (digitsOnly.length === 16) {
+    const gem = digitsOnly.substring(0, 4);
+    const flur = digitsOnly.substring(4, 8);
+    const zaehler = digitsOnly.substring(8, 12);
+    const nenner = digitsOnly.substring(12, 16);
+    return `${gem}${LAND_PARCEL_SEPARATOR}${removeLeadingZeros(flur, true)}${LAND_PARCEL_SEPARATOR}${removeLeadingZeros(`${zaehler}/${nenner}`)}`;
+  }
+
+  return null;
+};
+
+export const tryDirectLandParcelMatch = (
+  value: string,
+  data: LandParcelDataStructure
+): GroupedOptions[] | null => {
+  const normalized = normalizeLandParcelInput(value);
+  if (!normalized) return null;
+
+  const segments = normalized.split(LAND_PARCEL_SEPARATOR);
+  if (segments.length < 3) return null;
+
+  const gemarkungInput = segments[0].trim();
+  const flurInput = segments[1].trim();
+  const fstckInput = segments.slice(2).join(LAND_PARCEL_SEPARATOR).trim();
+
+  if (!gemarkungInput || !flurInput || !fstckInput) return null;
+
+  const gemarkung = findGemarkungByNameOrKey(gemarkungInput, data);
+  if (!gemarkung) return null;
+
+  const flur = findFlurByInput(flurInput, gemarkung.entry.flure);
+  if (!flur) return null;
+
+  const normalizedInput = removeLeadingZeros(fstckInput);
+  const matchingEntries = Object.entries(flur.entry.flurstuecke).filter(
+    ([, fstck]) => removeLeadingZeros(fstck.label) === normalizedInput
+  );
+
+  if (matchingEntries.length === 0) return null;
+
+  const flurName = removeLeadingZeros(flur.entry.flur, true);
+
+  const options = matchingEntries.map(([, fstck], idx) => {
+    const displayLabel = removeLeadingZeros(fstck.label);
+    return {
+      key: idx,
+      label: (
+        <div style={{ paddingLeft: "0.3rem" }}>
+          <span style={{ marginRight: "0.4rem" }}>
+            <i
+              className={
+                fstck.art === "städtisch"
+                  ? "fas fa-university"
+                  : "fas fa-vector-square"
+              }
+            ></i>
+          </span>
+          <span>
+            {gemarkung.key}-{flurName}-{displayLabel}
+          </span>
+        </div>
+      ),
+      value: `${gemarkung.key}${LAND_PARCEL_SEPARATOR}${flurName}${LAND_PARCEL_SEPARATOR}${displayLabel}`,
+      sData: null as any,
+      isLandParcel: true,
+      parcelStage: "flurstueck" as const,
+      parcelData: {
+        gemarkung: gemarkung.entry.gemarkung,
+        flur: flurName,
+        ...fstck,
+      },
+    };
+  });
+
+  return [
+    {
+      label: (
+        <span data-title="category-title">
+          Flurstück ({gemarkung.entry.gemarkung}, Flur {flurName})
+        </span>
+      ),
+      options,
+      titleText: `Flurstück (${gemarkung.entry.gemarkung}, Flur ${flurName})`,
+    },
+  ];
+};
+
 export const generateGemarkungOptions = (
   filter: string,
   data: LandParcelDataStructure
