@@ -531,13 +531,35 @@ const BelisMapLibWrapper = ({
   // }
   const handleSelectFromHits = useCallback(
     (hits: maplibregl.MapGeoJSONFeature[]) => {
-      const standorte = hits.filter((h) => h.sourceLayer === "standorte");
+      // When highlighting is active, prefer highlighted features over non-highlighted ones
+      let candidates = hits;
+      if (map) {
+        const highlighted = hits.filter((h) => {
+          try {
+            const state = map.getFeatureState({
+              source: h.source,
+              sourceLayer: h.sourceLayer,
+              id: h.id,
+            });
+            return state?.highlighted === true;
+          } catch {
+            return false;
+          }
+        });
+        if (highlighted.length > 0) {
+          candidates = highlighted;
+        }
+      }
+
+      const standorte = candidates.filter(
+        (h) => h.sourceLayer === "standorte"
+      );
       if (standorte.length > 0) {
         return standorte[0];
       }
-      return hits[0];
+      return candidates[0];
     },
-    []
+    [map]
   );
 
   const handleReturnToMap = useCallback(() => {
