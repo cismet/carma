@@ -266,10 +266,19 @@ const BelisSidebar = ({
       }
 
       setTimeout(() => {
-        selectedItemRef.current?.scrollIntoView({
-          behavior: "smooth",
-          block: "start",
-        });
+        const el = selectedItemRef.current;
+        const container = listRef.current;
+        if (!el || !container) return;
+
+        // Only scroll if the item is not fully visible in the list
+        const elRect = el.getBoundingClientRect();
+        const containerRect = container.getBoundingClientRect();
+        const isVisible =
+          elRect.top >= containerRect.top && elRect.bottom <= containerRect.bottom;
+
+        if (!isVisible) {
+          el.scrollIntoView({ behavior: "smooth", block: "start" });
+        }
       }, 100);
     }
   }, [selectedFeatureId, selectedDatabaseId, filteredFeatures, collapsedGroups]);
