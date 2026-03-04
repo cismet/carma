@@ -328,7 +328,7 @@ const BelisMapLibWrapper = ({
           }
           setOverrideSelectedFeature({
             properties: { ...info, sourceProps: fetchedFeatureData, genericLinks },
-            geometry: { type: "Point", coordinates: [0, 0] },
+            geometry: rawFeature?.geometry ?? { type: "Point", coordinates: [0, 0] },
             carmaInfo: { sourceLayer },
           });
         } else {
@@ -338,7 +338,62 @@ const BelisMapLibWrapper = ({
         setOverrideSelectedFeature(null);
       }
     })();
-  }, [selectedFeature, fetchedFeatureData, selectedFeatureId, infoboxMappingCode]);
+  }, [selectedFeature, fetchedFeatureData, selectedFeatureId, infoboxMappingCode, rawFeature]);
+
+  // Visually select the MVT feature on the map when using the override path.
+  // The override path means LibreMap didn't handle the selection (no on-map click),
+  // so we need to set feature-state { selected: true } ourselves.
+  // Retry on sourcedata because the tile may not be loaded yet (e.g. after fly-to).
+  useEffect(() => {
+    if (!map || !overrideSelectedFeature || !selectedFeatureId) return;
+
+    const sourceLayer = selectedFeatureId.sourceLayer ?? "";
+    const dbId = selectedFeatureId.id;
+    if (dbId == null) return;
+
+    let prevMvtId: string | number | undefined;
+
+    const trySelect = () => {
+      try {
+        const features = map.querySourceFeatures(namespacedSource, { sourceLayer });
+        const match = features.find(
+          (f) => f.properties && String(f.properties.id) === String(dbId)
+        );
+        if (match?.id != null) {
+          if (prevMvtId != null && prevMvtId !== match.id) {
+            map.setFeatureState(
+              { source: namespacedSource, sourceLayer, id: prevMvtId },
+              { selected: false }
+            );
+          }
+          map.setFeatureState(
+            { source: namespacedSource, sourceLayer, id: match.id },
+            { selected: true }
+          );
+          prevMvtId = match.id;
+        }
+      } catch {
+        // source/layer may not exist yet
+      }
+    };
+
+    trySelect();
+    map.on("sourcedata", trySelect);
+
+    return () => {
+      map.off("sourcedata", trySelect);
+      if (prevMvtId != null) {
+        try {
+          map.setFeatureState(
+            { source: namespacedSource, sourceLayer, id: prevMvtId },
+            { selected: false }
+          );
+        } catch {
+          // ignore
+        }
+      }
+    };
+  }, [map, overrideSelectedFeature, selectedFeatureId, namespacedSource]);
 
   const libreLayers = useMemo(() => {
     const layers: LibreLayer[] = [];
