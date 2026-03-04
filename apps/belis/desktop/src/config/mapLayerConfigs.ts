@@ -154,7 +154,7 @@ export const additionalLayerConfigs: Record<string, LayerEntry> = {
 };
 
 /** Leuchten data layer, always visible */
-export const BELIS_STYLE_URL = "https://tiles.cismet.de/belis/styleX.json";
+export const BELIS_STYLE_URL = "https://tiles.cismet.de/belis/styleY.json";
 export const BELIS_ORIGINAL_SOURCE = "belis-source";
 
 export const leuchtenDataLayer: LibreLayer = {
@@ -166,6 +166,7 @@ export const leuchtenDataLayer: LibreLayer = {
 
 export const BELIS_SOURCE_LAYERS = [
   "leuchten",
+  "standorte",
   "mast",
   "mauerlaschen",
   "schaltstelle",
@@ -179,6 +180,12 @@ export const BELIS_FILTER_CATEGORIES: FilterCategory[] = [
     label: "Leuchten",
     sourceLayers: ["leuchten"],
     layerPatterns: ["leuchten"],
+  },
+  {
+    key: "standorte",
+    label: "Standorte",
+    sourceLayers: ["standorte"],
+    layerPatterns: ["standorte"],
   },
   {
     key: "masten",

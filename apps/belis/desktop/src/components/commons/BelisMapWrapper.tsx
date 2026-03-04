@@ -121,17 +121,27 @@ const BelisMapLibWrapper = ({
       candidateSourceLayer,
       selectedSourceLayer
     ) => {
+      const NEIGHBORHOOD_LAYERS = new Set(["leuchten", "standorte"]);
       if (
-        selectedSourceLayer !== "leuchten" ||
-        candidateSourceLayer !== "leuchten"
+        !NEIGHBORHOOD_LAYERS.has(selectedSourceLayer ?? "") ||
+        !NEIGHBORHOOD_LAYERS.has(candidateSourceLayer ?? "")
       )
         return false;
-      const selectedStandort = selectedProps.fk_standort;
-      const candidateStandort = candidateProps.fk_standort;
+
+      // Resolve the standort ID for selected and candidate
+      const selectedStandortId =
+        selectedSourceLayer === "standorte"
+          ? String(selectedProps.id ?? "")
+          : String(selectedProps.fk_standort ?? "");
+      const candidateStandortId =
+        candidateSourceLayer === "standorte"
+          ? String(candidateProps.id ?? "")
+          : String(candidateProps.fk_standort ?? "");
+
       return (
-        selectedStandort != null &&
-        candidateStandort != null &&
-        String(selectedStandort) === String(candidateStandort)
+        selectedStandortId !== "" &&
+        candidateStandortId !== "" &&
+        selectedStandortId === candidateStandortId
       );
     },
   });

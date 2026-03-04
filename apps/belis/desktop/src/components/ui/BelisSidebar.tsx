@@ -54,6 +54,14 @@ const defaultListItemExtractors: Record<
       subtitle: p.fk_leuchttyp?.fabrikat || "-ohne Fabrikat-",
     };
   },
+  standorte: (feature) => {
+    const p = feature.properties || {};
+    return {
+      main: `Standort ${p.lfd_nummer || "?"}`,
+      upperright: toTitleCase(p.strasse || p.strassenschluessel || ""),
+      subtitle: p.mastart || p.masttyp || "",
+    };
+  },
   tdta_standort_mast: (feature) => {
     const p = feature.properties || {};
     return {
@@ -231,8 +239,8 @@ const BelisSidebar = ({
     );
 
     if (selectedFeature) {
-      const groupKey =
-        selectedFeature.sourceLayer || selectedFeature.source || "Sonstige";
+      const sl = selectedFeature.sourceLayer || selectedFeature.source || "Sonstige";
+      const groupKey = MERGED_LAYERS.has(sl) ? MERGED_GROUP_KEY : sl;
 
       // Expand group if collapsed
       if (collapsedGroups[groupKey]) {
@@ -251,23 +259,91 @@ const BelisSidebar = ({
     }
   }, [selectedFeatureId, filteredFeatures, collapsedGroups]);
 
-  // Group features by sourceLayer
+  // Layers that are merged into a single "Standorte / Leuchten" group
+  const MERGED_LAYERS = new Set(["standorte", "leuchten"]);
+  const MERGED_GROUP_KEY = "Standorte / Leuchten";
+
+  // Group features by sourceLayer, merging standorte + leuchten into one group
   const groupedFeatures = useMemo(() => {
     const groups: Record<string, { items: SidebarFeature[]; total: number }> =
       {};
+
+    // Initialize groups from countsByLayer
     for (const [layerKey, count] of Object.entries(countsByLayer)) {
       if (!activeSourceLayers.has(layerKey)) continue;
-      groups[layerKey] = { items: [], total: count };
+      if (MERGED_LAYERS.has(layerKey)) {
+        if (!groups[MERGED_GROUP_KEY]) {
+          groups[MERGED_GROUP_KEY] = { items: [], total: 0 };
+        }
+        groups[MERGED_GROUP_KEY].total += count;
+      } else {
+        groups[layerKey] = { items: [], total: count };
+      }
     }
+
+    // Distribute features into groups
     filteredFeatures.forEach((feature) => {
-      const groupKey = feature.sourceLayer || feature.source || "Sonstige";
+      const sl = feature.sourceLayer || feature.source || "Sonstige";
+      const groupKey = MERGED_LAYERS.has(sl) ? MERGED_GROUP_KEY : sl;
       if (!groups[groupKey]) {
         groups[groupKey] = { items: [], total: 0 };
       }
       groups[groupKey].items.push(feature);
     });
-    // Sort items within each group by street name, then standort, then leuchtennummer
-    for (const group of Object.values(groups)) {
+
+    // Sort the merged group: group by fk_standort, standort feature first, then its leuchten by leuchtennummer
+    const merged = groups[MERGED_GROUP_KEY];
+    if (merged) {
+      // Build standort clusters: standort ID -> { standort?, leuchten[] }
+      const clusters = new Map<
+        string,
+        { standort: SidebarFeature | null; leuchten: SidebarFeature[] }
+      >();
+      for (const f of merged.items) {
+        const sl = f.sourceLayer || "";
+        if (sl === "standorte") {
+          const key = String(f.id ?? f.properties?.id ?? "?");
+          const cluster = clusters.get(key) ?? { standort: null, leuchten: [] };
+          cluster.standort = f;
+          clusters.set(key, cluster);
+        } else {
+          // leuchten: group by fk_standort
+          const key = String(f.properties?.fk_standort ?? "unknown");
+          const cluster = clusters.get(key) ?? { standort: null, leuchten: [] };
+          cluster.leuchten.push(f);
+          clusters.set(key, cluster);
+        }
+      }
+
+      // Sort clusters by street, then lfd_nummer
+      const sortedClusters = [...clusters.entries()].sort(([, a], [, b]) => {
+        const reprA = a.standort ?? a.leuchten[0];
+        const reprB = b.standort ?? b.leuchten[0];
+        const streetA = (reprA?.properties?.strasse || reprA?.properties?.strassenschluessel || "").toLowerCase();
+        const streetB = (reprB?.properties?.strasse || reprB?.properties?.strassenschluessel || "").toLowerCase();
+        if (streetA !== streetB) return streetA.localeCompare(streetB);
+        const nrA = Number(reprA?.properties?.lfd_nummer) || 0;
+        const nrB = Number(reprB?.properties?.lfd_nummer) || 0;
+        return nrA - nrB;
+      });
+
+      // Flatten: standort first, then leuchten sorted by leuchtennummer
+      const sorted: SidebarFeature[] = [];
+      for (const [, cluster] of sortedClusters) {
+        if (cluster.standort) sorted.push(cluster.standort);
+        cluster.leuchten.sort(
+          (a, b) =>
+            (Number(a.properties?.leuchtennummer) || 0) -
+            (Number(b.properties?.leuchtennummer) || 0)
+        );
+        sorted.push(...cluster.leuchten);
+      }
+      merged.items = sorted;
+    }
+
+    // Sort other groups by street, standort nr, leuchtennummer
+    for (const [key, group] of Object.entries(groups)) {
+      if (key === MERGED_GROUP_KEY) continue;
       group.items.sort((a, b) => {
         const aStreet = (
           a.properties?.strasse ||
@@ -419,7 +495,11 @@ const BelisSidebar = ({
                         key={`${feature.source}-${feature.sourceLayer}-${feature.id}-${index}`}
                         ref={selected ? selectedItemRef : null}
                         onClick={() => handleFeatureClick(feature)}
-                        className={`px-3 py-2 pl-4 cursor-pointer border-b border-gray-100 hover:bg-gray-50 ${
+                        className={`px-3 py-2 cursor-pointer border-b border-gray-100 hover:bg-gray-50 ${
+                          MERGED_LAYERS.has(feature.sourceLayer || "") && feature.sourceLayer !== "standorte"
+                            ? "pl-8"
+                            : "pl-4"
+                        } ${
                           selected
                             ? "bg-blue-50 border-l-2 border-l-blue-500"
                             : ""
