@@ -15,6 +15,7 @@ import type {
   Map as MaplibreMap,
   MapMouseEvent,
   MapGeoJSONFeature,
+  GeoJSONFeature,
 } from "maplibre-gl";
 import { useMapHighlight } from "../contexts/MapHighlightContext";
 import type { HighlightCriteria } from "../contexts/MapHighlightContext";
@@ -54,6 +55,8 @@ export interface UseMapHighlightingOptions {
   stateKey?: string;
   /** Called after a modifier+click toggle with the toggled feature. */
   onToggle?: (feature: MapGeoJSONFeature) => void;
+  /** Called after highlights are applied with the deduplicated set of matched features. */
+  onHighlightsApplied?: (features: GeoJSONFeature[]) => void;
 }
 
 /** Discover all vector sources and their source layers from the map style. */
@@ -142,6 +145,7 @@ export const useMapHighlighting = ({
   modifierClick = null,
   stateKey = "highlighted",
   onToggle,
+  onHighlightsApplied,
 }: UseMapHighlightingOptions): void => {
   const {
     highlightingActive,
@@ -155,6 +159,11 @@ export const useMapHighlighting = ({
   const prevVersionRef = useRef(-1);
   const debounceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
+  // Stable ref so applyHighlights doesn't need onHighlightsApplied as a dependency
+  const onHighlightsAppliedRef =
+    useRef<((features: GeoJSONFeature[]) => void) | undefined>(onHighlightsApplied);
+  onHighlightsAppliedRef.current = onHighlightsApplied;
+
   // Apply highlight feature state to all currently loaded features
   const applyHighlights = useCallback(
     (mapInst: MaplibreMap) => {
@@ -163,6 +172,8 @@ export const useMapHighlighting = ({
 
       const srcs = explicitSources ?? discoverSources(mapInst);
       const queryIdLookup = buildQueryIdLookup(criteria);
+      const matched: GeoJSONFeature[] = [];
+      const seen = new Set<string>();
 
       for (const { source, sourceLayers } of srcs) {
         for (const sourceLayer of sourceLayers) {
@@ -184,9 +195,21 @@ export const useMapHighlighting = ({
               { source, sourceLayer, id: f.id },
               { [stateKey]: shouldHighlight }
             );
+            if (shouldHighlight) {
+              const key = `${sourceLayer}::${String(props.id ?? f.id)}`;
+              if (!seen.has(key)) {
+                seen.add(key);
+                // Attach source/sourceLayer so consumers can identify the feature
+                (f as GeoJSONFeature & { source?: string; sourceLayer?: string }).source = source;
+                (f as GeoJSONFeature & { source?: string; sourceLayer?: string }).sourceLayer = sourceLayer;
+                matched.push(f);
+              }
+            }
           }
         }
       }
+
+      onHighlightsAppliedRef.current?.(matched);
     },
     [criteria, explicitSources, stateKey]
   );

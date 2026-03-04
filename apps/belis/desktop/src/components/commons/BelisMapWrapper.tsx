@@ -144,11 +144,26 @@ const BelisMapLibWrapper = ({
     []
   );
 
+  const handleHighlightsApplied = useCallback(
+    (matched: maplibregl.GeoJSONFeature[]) => {
+      // Only collect when there are no SearchModal results (i.e. street search)
+      if (searchResults != null) return;
+      if (matched.length > 0) {
+        const converted = matched.map(
+          (f) => Object.assign(f, { original: f }) as unknown as SidebarFeature
+        );
+        setAdjustedSearchResults(converted);
+      }
+    },
+    [searchResults]
+  );
+
   useMapHighlighting({
     map,
     sources: highlightSources,
     modifierClick: "alt",
     onToggle: handleHighlightToggle,
+    onHighlightsApplied: handleHighlightsApplied,
   });
 
   // Sidebar data: highlight state + visible features
