@@ -265,19 +265,38 @@ const BelisSidebar = ({
 
   // Group features by sourceLayer, merging standorte + leuchten into one group
   const groupedFeatures = useMemo(() => {
-    const groups: Record<string, { items: SidebarFeature[]; total: number }> =
+    const groups: Record<string, { items: SidebarFeature[]; total: number; label?: string; indentLeuchten?: boolean }> =
       {};
 
+    // Track which merged layers are active
+    const activeMergedLayers = new Set<string>();
+
     // Initialize groups from countsByLayer
+    // In overview mode, keep each layer separate (just showing counts)
     for (const [layerKey, count] of Object.entries(countsByLayer)) {
       if (!activeSourceLayers.has(layerKey)) continue;
-      if (MERGED_LAYERS.has(layerKey)) {
+      if (!isOverviewMode && MERGED_LAYERS.has(layerKey)) {
+        activeMergedLayers.add(layerKey);
         if (!groups[MERGED_GROUP_KEY]) {
           groups[MERGED_GROUP_KEY] = { items: [], total: 0 };
         }
         groups[MERGED_GROUP_KEY].total += count;
       } else {
         groups[layerKey] = { items: [], total: count };
+      }
+    }
+
+    // Set dynamic label based on which merged layers have data
+    if (groups[MERGED_GROUP_KEY]) {
+      const hasStandorte = activeMergedLayers.has("standorte");
+      const hasLeuchten = activeMergedLayers.has("leuchten");
+      if (hasStandorte && hasLeuchten) {
+        groups[MERGED_GROUP_KEY].label = "Standorte / Leuchten";
+        groups[MERGED_GROUP_KEY].indentLeuchten = true;
+      } else if (hasStandorte) {
+        groups[MERGED_GROUP_KEY].label = "Standorte";
+      } else {
+        groups[MERGED_GROUP_KEY].label = "Leuchten";
       }
     }
 
@@ -365,7 +384,7 @@ const BelisSidebar = ({
       });
     }
     return groups;
-  }, [filteredFeatures, countsByLayer, activeSourceLayers]);
+  }, [filteredFeatures, countsByLayer, activeSourceLayers, isOverviewMode]);
 
   // Flat ordered list matching render order (for keyboard navigation)
   const flatFeatures = useMemo(() => {
@@ -479,7 +498,7 @@ const BelisSidebar = ({
                   onClick={() => toggleGroup(groupKey)}
                   className="text-left px-3 py-2 bg-gray-50 cursor-pointer flex justify-between items-center border-b border-gray-200 hover:bg-gray-100"
                 >
-                  <b className="text-sm">{toTitleCase(groupKey)}</b>
+                  <b className="text-sm">{group.label ?? toTitleCase(groupKey)}</b>
                   <span className="bg-gray-500 text-white rounded-full px-2 py-0.5 text-xs font-bold">
                     {group.total}
                   </span>
@@ -496,7 +515,7 @@ const BelisSidebar = ({
                         ref={selected ? selectedItemRef : null}
                         onClick={() => handleFeatureClick(feature)}
                         className={`px-3 py-2 cursor-pointer border-b border-gray-100 hover:bg-gray-50 ${
-                          MERGED_LAYERS.has(feature.sourceLayer || "") && feature.sourceLayer !== "standorte"
+                          group.indentLeuchten && feature.sourceLayer === "leuchten"
                             ? "pl-8"
                             : "pl-4"
                         } ${

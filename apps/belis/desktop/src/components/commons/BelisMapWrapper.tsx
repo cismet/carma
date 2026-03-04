@@ -105,7 +105,7 @@ const BelisMapLibWrapper = ({
       visibleMapWidth: mapWidth,
       visibleMapHeight: mapSizes.height,
       maxFeatures: 2000,
-      layerFilterExpressions: ["Leuchten.*-base", "Leuchten.*-icon"],
+      layerFilterExpressions: ["Leuchten.*-base", "Leuchten.*-icon", "Standorte.*-base", "Standorte.*-icon", "standorte.*"],
       highlightedOnly: highlightingActive,
       refreshTrigger: highlightVersion,
       showDebugBounds: showRaw,

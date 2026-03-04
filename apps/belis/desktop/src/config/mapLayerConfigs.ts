@@ -167,7 +167,7 @@ export const leuchtenDataLayer: LibreLayer = {
 export const BELIS_SOURCE_LAYERS = [
   "leuchten",
   "standorte",
-  "mast",
+  // "mast", // replaced by standorte in styleY
   "mauerlaschen",
   "schaltstelle",
   "leitungen",
@@ -187,12 +187,12 @@ export const BELIS_FILTER_CATEGORIES: FilterCategory[] = [
     sourceLayers: ["standorte"],
     layerPatterns: ["standorte"],
   },
-  {
-    key: "masten",
-    label: "Masten",
-    sourceLayers: ["mast"],
-    layerPatterns: ["mast"],
-  },
+  // {
+  //   key: "masten",
+  //   label: "Masten",
+  //   sourceLayers: ["mast"],
+  //   layerPatterns: ["mast"],
+  // },
   {
     key: "mauerlaschen",
     label: "Mauerlaschen",

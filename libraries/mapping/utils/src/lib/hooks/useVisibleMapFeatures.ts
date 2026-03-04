@@ -342,7 +342,7 @@ export const useVisibleMapFeatures = ({
           renderedFeatures = [];
           const style = maplibreMap.getStyle();
           const sourceLayers = [
-            "leuchten", "mast", "schaltstelle",
+            "leuchten", "standorte", "mast", "schaltstelle",
             "mauerlaschen", "leitungen", "abzweigdosen",
           ];
           if (style?.sources) {
