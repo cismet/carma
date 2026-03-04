@@ -21,12 +21,12 @@ export interface UseVisibleMapFeaturesOptions {
   refreshTrigger?: number;
 }
 
-export interface VisibleFeature extends MapGeoJSONFeature {
+export interface MapGeoJSONFeatureWithOriginal extends MapGeoJSONFeature {
   original: MapGeoJSONFeature;
 }
 
 export interface UseVisibleMapFeaturesResult {
-  features: VisibleFeature[];
+  features: MapGeoJSONFeatureWithOriginal[];
   totalCount: number;
   countsByLayer: Record<string, number>;
   isLoading: boolean;
@@ -97,7 +97,7 @@ export const useVisibleMapFeatures = ({
   highlightedOnly = false,
   refreshTrigger,
 }: UseVisibleMapFeaturesOptions): UseVisibleMapFeaturesResult => {
-  const [features, setFeatures] = useState<VisibleFeature[]>([]);
+  const [features, setFeatures] = useState<MapGeoJSONFeatureWithOriginal[]>([]);
   const [totalCount, setTotalCount] = useState(0);
   const [countsByLayer, setCountsByLayer] = useState<Record<string, number>>(
     {}
@@ -376,7 +376,7 @@ export const useVisibleMapFeatures = ({
         }
 
         const seen = new Set<string>();
-        const uniqueFeatures: VisibleFeature[] = [];
+        const uniqueFeatures: MapGeoJSONFeatureWithOriginal[] = [];
         let count = 0;
         const layerCounts: Record<string, number> = {};
         const checkHighlight = highlightedOnlyRef.current && maplibreMap;
@@ -408,7 +408,7 @@ export const useVisibleMapFeatures = ({
             const layerKey = f.sourceLayer || f.source || "other";
             layerCounts[layerKey] = (layerCounts[layerKey] || 0) + 1;
             if (uniqueFeatures.length < maxFeatures) {
-              const featureWithOriginal = f as VisibleFeature;
+              const featureWithOriginal = f as MapGeoJSONFeatureWithOriginal;
               featureWithOriginal.original = f;
               uniqueFeatures.push(featureWithOriginal);
             }

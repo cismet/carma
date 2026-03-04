@@ -6,7 +6,7 @@ export { useVisibleMapFeatures } from "./lib/hooks/useVisibleMapFeatures";
 export type {
   UseVisibleMapFeaturesOptions,
   UseVisibleMapFeaturesResult,
-  VisibleFeature,
+  MapGeoJSONFeatureWithOriginal,
 } from "./lib/hooks/useVisibleMapFeatures";
 
 // Feature utils (sandboxed eval)

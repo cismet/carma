@@ -22,7 +22,8 @@ import {
 } from "../../config/mapLayerConfigs";
 import type { LibreLayer } from "@carma-mapping/engines/maplibre";
 import { AppDispatch } from "../../store";
-import OnMapList from "../ui/OnMapList";
+import BelisSidebar from "../ui/BelisSidebar";
+import { useVisibleMapFeatures } from "@carma-mapping/utils";
 import {
   useMapSelection,
   useLibreContext,
@@ -30,6 +31,7 @@ import {
   useDatasheet,
   useDatasheetMiniMap,
   useMapHighlighting,
+  useMapHighlight,
   useSelectionNeighborhood,
   slugifyUrl,
 } from "@carma-mapping/engines/maplibre";
@@ -57,7 +59,7 @@ const BelisMapLibWrapper = ({
   const dispatch: AppDispatch = useDispatch();
   const jwt = useSelector(getJWT);
   const { map } = useLibreContext();
-  const { selectedFeature, rawFeature } = useMapSelection();
+  const { selectedFeature, rawFeature, selectedFeatureId, selectFeature } = useMapSelection();
   const { closeDatasheet } = useDatasheet();
   const [fetchedFeatureData, setFetchedFeatureData] = useState<any>(null);
   // Preserve last valid featureType to prevent unmount when selectedFeature briefly becomes undefined
@@ -84,6 +86,30 @@ const BelisMapLibWrapper = ({
     sources: highlightSources,
     modifierClick: "alt",
   });
+
+  // Sidebar data: highlight state + visible features
+  const { highlightingActive, highlightVersion } = useMapHighlight();
+
+  const showRaw = useMemo(() => {
+    const hashQuery = window.location.hash.split("?")[1] || "";
+    const param = new URLSearchParams(hashQuery || window.location.search).get("showRaw");
+    if (param !== null) return param === "true";
+    return window.location.hostname === "localhost";
+  }, []);
+
+  const mapWidth = mapSizes.width - LIST_WIDTH;
+
+  const { features, totalCount, countsByLayer, isLoading, isOverviewMode } =
+    useVisibleMapFeatures({
+      maplibreMap: map,
+      visibleMapWidth: mapWidth,
+      visibleMapHeight: mapSizes.height,
+      maxFeatures: 2000,
+      layerFilterExpressions: ["Leuchten.*-base", "Leuchten.*-icon"],
+      highlightedOnly: highlightingActive,
+      refreshTrigger: highlightVersion,
+      showDebugBounds: showRaw,
+    });
 
   // Neighborhood: mark leuchten sharing the same Standort as the selected feature
   useSelectionNeighborhood({
@@ -259,24 +285,25 @@ const BelisMapLibWrapper = ({
     map?.resize();
   }, [map]);
 
-  const logErrors = useMemo(() => {
-    const hashQuery = window.location.hash.split("?")[1] || "";
-    const param = new URLSearchParams(hashQuery || window.location.search).get("showRaw");
-    if (param !== null) return param === "true";
-    return window.location.hostname === "localhost";
-  }, []);
-
-  const mapWidth = mapSizes.width - LIST_WIDTH;
-
   return (
     <div
       className="relative flex"
       style={{ width: mapSizes.width, height: mapSizes.height }}
     >
-      <OnMapList
-        visibleMapWidth={mapWidth}
-        visibleMapHeight={mapSizes.height}
+      <BelisSidebar
+        features={features}
+        countsByLayer={countsByLayer}
+        totalCount={totalCount}
+        isLoading={isLoading}
+        isOverviewMode={isOverviewMode}
         activeSourceLayers={activeSourceLayers}
+        selectedFeatureId={selectedFeatureId}
+        onFeatureSelect={selectFeature}
+        emptyMessage={
+          map
+            ? "Keine Objekte im aktuellen Kartenausschnitt"
+            : "Karte wird geladen..."
+        }
       />
       <div
         ref={mapContainerRef}
@@ -335,7 +362,7 @@ const BelisMapLibWrapper = ({
               layerMode="imperative"
               embedded
               debugLog
-              logErrors={logErrors}
+              logErrors={showRaw}
               exposeMapToWindow
               overrideGlyphs="https://tiles.cismet.de/fonts/{fontstack}/{range}.pbf"
               backgroundLayers=""

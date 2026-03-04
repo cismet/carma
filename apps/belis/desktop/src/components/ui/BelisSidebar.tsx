@@ -1,10 +1,6 @@
 import { useEffect, useState, useMemo, useRef, useCallback } from "react";
-import { useVisibleMapFeatures, VisibleFeature } from "@carma-mapping/utils";
-import {
-  useMapSelection,
-  useLibreContext,
-  useMapHighlight,
-} from "@carma-mapping/engines/maplibre";
+import type { MapGeoJSONFeatureWithOriginal as SidebarFeature } from "@carma-mapping/utils";
+export type { SidebarFeature };
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faSpinner } from "@fortawesome/free-solid-svg-icons";
 
@@ -32,7 +28,7 @@ interface ListItemData {
 // Layer-specific extractors for Belis data
 const defaultListItemExtractors: Record<
   string,
-  (feature: VisibleFeature) => ListItemData
+  (feature: SidebarFeature) => ListItemData
 > = {
   leuchten: (feature) => {
     const p = feature.properties || {};
@@ -136,7 +132,7 @@ const defaultListItemExtractors: Record<
 };
 
 // Generic fallback extractor
-const genericExtractor = (feature: VisibleFeature): ListItemData => {
+const genericExtractor = (feature: SidebarFeature): ListItemData => {
   const props = feature.properties || {};
   const main =
     props.name ||
@@ -155,40 +151,40 @@ const genericExtractor = (feature: VisibleFeature): ListItemData => {
   return { main, upperright, subtitle };
 };
 
-interface OnMapListProps {
-  visibleMapWidth: number;
-  visibleMapHeight: number;
+export interface BelisSidebarProps {
+  features: SidebarFeature[];
+  countsByLayer: Record<string, number>;
+  totalCount: number;
+  isLoading: boolean;
+  isOverviewMode: boolean;
   activeSourceLayers: Set<string>;
+  selectedFeatureId?: {
+    source: string;
+    sourceLayer?: string;
+    id?: string | number;
+  } | null;
+  onFeatureSelect: (
+    identifier: {
+      source: string;
+      sourceLayer?: string;
+      id?: string | number;
+    },
+    feature: SidebarFeature
+  ) => void;
+  emptyMessage?: string;
 }
 
-const OnMapList = ({
-  visibleMapWidth,
-  visibleMapHeight,
+const BelisSidebar = ({
+  features,
+  countsByLayer,
+  totalCount,
+  isLoading,
+  isOverviewMode,
   activeSourceLayers,
-}: OnMapListProps) => {
-  const { map } = useLibreContext();
-  const { selectedFeatureId, selectFeature } = useMapSelection();
-  const { highlightingActive, highlightVersion } = useMapHighlight();
-
-  const showRaw = useMemo(() => {
-    const hashQuery = window.location.hash.split("?")[1] || "";
-    const param = new URLSearchParams(hashQuery || window.location.search).get("showRaw");
-    if (param !== null) return param === "true";
-    return window.location.hostname === "localhost";
-  }, []);
-
-  const { features, totalCount, countsByLayer, isLoading, isOverviewMode } =
-    useVisibleMapFeatures({
-      maplibreMap: map,
-      visibleMapWidth,
-      visibleMapHeight,
-      maxFeatures: 2000,
-      layerFilterExpressions: ["Leuchten.*-base", "Leuchten.*-icon"],
-      highlightedOnly: highlightingActive,
-      refreshTrigger: highlightVersion,
-      showDebugBounds: showRaw,
-    });
-
+  selectedFeatureId,
+  onFeatureSelect,
+  emptyMessage = "Keine Objekte im aktuellen Kartenausschnitt",
+}: BelisSidebarProps) => {
   // Filter features by active source layers
   const filteredFeatures = useMemo(() => {
     return features.filter((f) => {
@@ -257,7 +253,7 @@ const OnMapList = ({
 
   // Group features by sourceLayer
   const groupedFeatures = useMemo(() => {
-    const groups: Record<string, { items: VisibleFeature[]; total: number }> =
+    const groups: Record<string, { items: SidebarFeature[]; total: number }> =
       {};
     for (const [layerKey, count] of Object.entries(countsByLayer)) {
       if (!activeSourceLayers.has(layerKey)) continue;
@@ -297,7 +293,7 @@ const OnMapList = ({
 
   // Flat ordered list matching render order (for keyboard navigation)
   const flatFeatures = useMemo(() => {
-    const flat: VisibleFeature[] = [];
+    const flat: SidebarFeature[] = [];
     for (const [groupKey, group] of Object.entries(groupedFeatures)) {
       if (!isOverviewMode && !collapsedGroups[groupKey]) {
         flat.push(...group.items);
@@ -305,6 +301,18 @@ const OnMapList = ({
     }
     return flat;
   }, [groupedFeatures, isOverviewMode, collapsedGroups]);
+
+  const isFeatureSelected = useCallback(
+    (feature: SidebarFeature): boolean => {
+      return (
+        !!selectedFeatureId &&
+        selectedFeatureId.source === feature.source &&
+        selectedFeatureId.sourceLayer === feature.sourceLayer &&
+        selectedFeatureId.id === feature.id
+      );
+    },
+    [selectedFeatureId]
+  );
 
   const listRef = useRef<HTMLDivElement>(null);
 
@@ -330,15 +338,15 @@ const OnMapList = ({
         sourceLayer: next.sourceLayer,
         id: next.id,
       };
-      selectFeature(
+      onFeatureSelect(
         { source: next.source, sourceLayer: next.sourceLayer, id: next.id },
         next
       );
     },
-    [flatFeatures, selectFeature, selectedFeatureId]
+    [flatFeatures, onFeatureSelect, isFeatureSelected]
   );
 
-  const getListItem = (feature: VisibleFeature): ListItemData => {
+  const getListItem = (feature: SidebarFeature): ListItemData => {
     const layerKey = feature.sourceLayer || feature.source || "";
     const extractor =
       defaultListItemExtractors[layerKey] ||
@@ -347,13 +355,13 @@ const OnMapList = ({
     return extractor(feature);
   };
 
-  const handleFeatureClick = (feature: VisibleFeature) => {
+  const handleFeatureClick = (feature: SidebarFeature) => {
     selectionFromListRef.current = {
       source: feature.source,
       sourceLayer: feature.sourceLayer,
       id: feature.id,
     };
-    selectFeature(
+    onFeatureSelect(
       {
         source: feature.source,
         sourceLayer: feature.sourceLayer,
@@ -368,15 +376,6 @@ const OnMapList = ({
       ...prev,
       [groupKey]: !prev[groupKey],
     }));
-  };
-
-  const isFeatureSelected = (feature: VisibleFeature): boolean => {
-    return (
-      !!selectedFeatureId &&
-      selectedFeatureId.source === feature.source &&
-      selectedFeatureId.sourceLayer === feature.sourceLayer &&
-      selectedFeatureId.id === feature.id
-    );
   };
 
   return (
@@ -394,9 +393,7 @@ const OnMapList = ({
       <div className="flex-1 overflow-y-auto overflow-x-hidden">
         {totalCount === 0 && !isLoading ? (
           <div className="p-4 text-gray-500 text-center text-sm">
-            {map
-              ? "Keine Objekte im aktuellen Kartenausschnitt"
-              : "Karte wird geladen..."}
+            {emptyMessage}
           </div>
         ) : (
           <div>
@@ -453,4 +450,4 @@ const OnMapList = ({
   );
 };
 
-export default OnMapList;
+export default BelisSidebar;

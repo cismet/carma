@@ -20,7 +20,7 @@ import {
 } from "@carma-mapping/engines/maplibre";
 import {
   useVisibleMapFeatures,
-  type VisibleFeature,
+  type MapGeoJSONFeatureWithOriginal,
 } from "@carma-mapping/utils";
 import type maplibregl from "maplibre-gl";
 import { slugifyUrl } from "@carma-mapping/engines/maplibre";
@@ -43,7 +43,7 @@ const toTitleCase = (str: string): string => {
     .join(" ");
 };
 
-const getFeatureLabel = (feature: VisibleFeature): string => {
+const getFeatureLabel = (feature: MapGeoJSONFeatureWithOriginal): string => {
   const p = feature.properties || {};
   const leuchttyp = p.leuchtentyp || p.leuchttyp || "";
   const nummer = p.leuchtennummer || p.lfd_nummer || "";
@@ -55,7 +55,7 @@ const getFeatureLabel = (feature: VisibleFeature): string => {
   return `ID: ${feature.id ?? "?"}`;
 };
 
-const getFeatureStreet = (feature: VisibleFeature): string => {
+const getFeatureStreet = (feature: MapGeoJSONFeatureWithOriginal): string => {
   const p = feature.properties || {};
   return toTitleCase(p.strasse || p.strassenschluessel || "");
 };
@@ -154,7 +154,7 @@ const TestSelectionList = ({
 
   // Group features by sourceLayer
   const groupedFeatures = useMemo(() => {
-    const groups: Record<string, VisibleFeature[]> = {};
+    const groups: Record<string, MapGeoJSONFeatureWithOriginal[]> = {};
     for (const f of filteredFeatures) {
       const key = f.sourceLayer || f.source || "other";
       if (!groups[key]) groups[key] = [];
@@ -165,14 +165,14 @@ const TestSelectionList = ({
 
   // Flat ordered list matching render order (for keyboard navigation)
   const flatFeatures = useMemo(() => {
-    const flat: VisibleFeature[] = [];
+    const flat: MapGeoJSONFeatureWithOriginal[] = [];
     for (const [, items] of Object.entries(groupedFeatures)) {
       if (!isOverviewMode) flat.push(...items);
     }
     return flat;
   }, [groupedFeatures, isOverviewMode]);
 
-  const isSelected = (feature: VisibleFeature): boolean => {
+  const isSelected = (feature: MapGeoJSONFeatureWithOriginal): boolean => {
     if (!selectedFeatureId) return false;
     return (
       selectedFeatureId.source === feature.source &&
@@ -181,7 +181,7 @@ const TestSelectionList = ({
     );
   };
 
-  const handleClick = (feature: VisibleFeature) => {
+  const handleClick = (feature: MapGeoJSONFeatureWithOriginal) => {
     selectFeature(
       {
         source: feature.source,
