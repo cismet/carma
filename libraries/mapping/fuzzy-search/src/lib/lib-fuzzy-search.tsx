@@ -1,7 +1,7 @@
 import { useEffect, useState, useRef } from "react";
 import type { IFuseOptions } from "fuse.js";
 import Fuse from "fuse.js";
-import { AutoComplete, Button, Dropdown, Select } from "antd";
+import { AutoComplete, Button, Dropdown } from "antd";
 import type { MenuProps } from "antd";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import {
@@ -13,12 +13,9 @@ import {
 } from "@fortawesome/free-solid-svg-icons";
 import type { BaseSelectRef } from "rc-select";
 
-import IconComp from "react-cismap/commons/Icon";
-
 import {
   generateOptions,
   limitSearchResult,
-  mapDataToSearchResult,
   prepareGazData,
   removeStopwords,
   getDefaultSearchConfig,
@@ -36,7 +33,13 @@ import { stopwords as stopwordsDe } from "./config/stopwords.de-de";
 
 import "./fuzzy-search.css";
 import { useGazData } from "@carma-appframeworks/portals";
-import LandParcelChooser from "./components/LandParcelChooser";
+import {
+  parseLandParcelInput,
+  generateLandParcelOptions,
+  generateGemarkungOptions,
+  LandParcelDataStructure,
+} from "./utils/landParcelSearchHelper";
+import defaultLandParcelData from "../../landparcels.json";
 
 export interface FuseWithOption<T> extends Fuse<T> {
   options?: IFuseOptions<T>;
@@ -87,7 +90,15 @@ export function LibFuzzySearch({
   selection,
   showDropdownBelow = false,
   landParcelSearch = false,
+  landParcelData: landParcelDataProp,
+  onLandParcelSelection,
 }: SearchGazetteerProps) {
+  const landParcelData: LandParcelDataStructure =
+    landParcelDataProp ??
+    (landParcelSearch
+      ? (defaultLandParcelData as LandParcelDataStructure)
+      : undefined);
+
   const [options, setOptions] = useState<Option[]>([]);
   const [showCategories, setShowCategories] = useState(standardSearch);
   const { prepoHandling, ifShowScore, limit, cut, distance, threshold } =
@@ -128,6 +139,7 @@ export function LibFuzzySearch({
   const [fireScrollEvent, setFireScrollEvent] = useState(null);
   const [searchMode, setSearchMode] = useState<SearchMode>("gazetteer");
   const [modeDropdownOpen, setModeDropdownOpen] = useState(false);
+  const [autoCompleteOpen, setAutoCompleteOpen] = useState(false);
 
   const searchModeMenuItems: MenuProps["items"] = [
     {
@@ -162,6 +174,19 @@ export function LibFuzzySearch({
   };
 
   const handleSearchAutoComplete = (value) => {
+    if (landParcelData && value.includes(",")) {
+      const parseState = parseLandParcelInput(value, landParcelData);
+      if (parseState.stage !== "none") {
+        const parcelOptions = generateLandParcelOptions(
+          parseState,
+          landParcelData
+        );
+        setSearchResult(parcelOptions);
+        setOptions([]);
+        return;
+      }
+    }
+
     if (allGazeteerData.length > 0 && fuseInstance) {
       const removeStopWords = removeStopwords(
         value.replace(".", ""), // / Remove dot to have stable score like
@@ -212,6 +237,24 @@ export function LibFuzzySearch({
   }, [options]);
 
   const handleOnSelect = (option, skipMapMovement = false) => {
+    if (option.isLandParcel) {
+      if (option.parcelStage === "gemarkung" || option.parcelStage === "flur") {
+        setValue(option.value);
+        handleSearchAutoComplete(option.value);
+        setTimeout(() => {
+          setAutoCompleteOpen(true);
+          autoCompleteRef.current?.focus();
+        }, 0);
+        return;
+      }
+      if (option.parcelStage === "flurstueck") {
+        setValue(option.value);
+        setCleanBtnDisable(false);
+        onLandParcelSelection?.(option.parcelData);
+        return;
+      }
+    }
+
     setCleanBtnDisable(false);
     console.info("[SEARCH] selected option", option);
     if (option.sData) {
@@ -400,8 +443,7 @@ export function LibFuzzySearch({
       // ref={divWrapperRef}
       data-test-id="fuzzy-search"
       style={{
-        width:
-          searchMode === "parcel" && landParcelSearch ? "auto" : pixelwidth,
+        width: pixelwidth,
         display: "flex",
       }}
       className={`fuzzy-search-container${
@@ -413,7 +455,12 @@ export function LibFuzzySearch({
           menu={{
             items: searchModeMenuItems,
             selectedKeys: [searchMode],
-            onClick: ({ key }) => setSearchMode(key as SearchMode),
+            onClick: ({ key }) => {
+              setSearchMode(key as SearchMode);
+              setValue("");
+              setSearchResult([]);
+              setOptions([]);
+            },
           }}
           trigger={cleanBtnDisable ? ["click"] : []}
           onOpenChange={(open) => setModeDropdownOpen(open)}
@@ -422,14 +469,14 @@ export function LibFuzzySearch({
             ref={btnClosRef}
             icon={
               cleanBtnDisable ? (
-                <span style={{ display: "flex", alignItems: "center", gap: 4 }}>
+                <span style={{ display: "flex", alignItems: "center", gap: 2 }}>
                   <FontAwesomeIcon
                     icon={searchModeConfig[searchMode].icon}
                     style={{ fontSize: "16px" }}
                   />
                   <FontAwesomeIcon
-                    icon={modeDropdownOpen ? faChevronUp : faChevronDown}
-                    style={{ fontSize: "6px" }}
+                    icon={modeDropdownOpen ? faChevronDown : faChevronUp}
+                    style={{ fontSize: "6px", marginTop: "-8px" }}
                   />
                 </span>
               ) : (
@@ -467,15 +514,55 @@ export function LibFuzzySearch({
           />
         )
       )}
-      {searchMode === "parcel" && landParcelSearch ? (
-        <LandParcelChooser />
-      ) : (
+      <div style={{ position: "relative", width: "calc(100% - 32px)" }}>
+        {(() => {
+          // Colored Overlay
+          const commaIdx = value.lastIndexOf(",");
+          if (landParcelData && commaIdx > 0 && cleanBtnDisable) {
+            const prefix = value.substring(0, commaIdx + 1) + " ";
+            const active = value.substring(commaIdx + 1).trimStart();
+            return (
+              <div aria-hidden="true" className="parcel-input-overlay">
+                <span style={{ color: "#aaa" }}>{prefix}</span>
+                <span style={{ color: "#495057" }}>{active}</span>
+              </div>
+            );
+          }
+          return null;
+        })()}
         <AutoComplete
           ref={autoCompleteRef}
           dropdownAlign={dropdownAlign}
           options={showCategories ? searchResult : options}
-          style={inputStyle}
-          onSearch={(value) => handleSearchAutoComplete(value)}
+          style={{ width: "100%", borderTopLeftRadius: 0 }}
+          onSearch={(value) => {
+            if (searchMode === "parcel" && landParcelData) {
+              if (value.includes(",")) {
+                const parseState = parseLandParcelInput(value, landParcelData);
+                if (parseState.stage !== "none") {
+                  const parcelOptions = generateLandParcelOptions(
+                    parseState,
+                    landParcelData
+                  );
+                  setSearchResult(parcelOptions);
+                  setOptions([]);
+                } else {
+                  setSearchResult([]);
+                  setOptions([]);
+                }
+              } else {
+                // No comma yet: show Gemarkung suggestions
+                const gemarkungOpts = generateGemarkungOptions(
+                  value,
+                  landParcelData
+                );
+                setSearchResult(gemarkungOpts);
+                setOptions([]);
+              }
+            } else {
+              handleSearchAutoComplete(value);
+            }
+          }}
           onChange={(value) => {
             if (autoCompleteRef?.current) {
               autoCompleteRef.current.scrollTo(0);
@@ -486,10 +573,23 @@ export function LibFuzzySearch({
               setSearchResult([]);
             }
           }}
-          placeholder={placeholder}
+          placeholder={
+            searchMode === "parcel" && landParcelSearch
+              ? "Gemarkung, Flur, Flurstück"
+              : placeholder
+          }
           value={value}
+          open={autoCompleteOpen}
+          onDropdownVisibleChange={(visible) => {
+            setAutoCompleteOpen(visible);
+          }}
           onSelect={(value, option) => handleOnSelect(option)}
           defaultActiveFirstOption={true}
+          className={
+            value.includes(",") && landParcelData && cleanBtnDisable
+              ? "parcel-input-transparent"
+              : ""
+          }
           dropdownRender={(item) => {
             return (
               <div className="fuzzy-dropdownwrapper" ref={dropdownContainerRef}>
@@ -498,7 +598,7 @@ export function LibFuzzySearch({
             );
           }}
         />
-      )}
+      </div>
     </div>
   );
 }

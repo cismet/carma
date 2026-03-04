@@ -440,7 +440,7 @@ export const createOrUpdateVisibleCategory = (
 export const getCategoryNameInFirstSearchItem = () => {
   const itemWithCategory = document.querySelectorAll("[data-category]");
   const firstTitle = itemWithCategory[0] as HTMLElement;
-  const category = firstTitle.dataset.category;
+  const category = firstTitle?.dataset?.category;
 
   return category;
 };

@@ -1,6 +1,7 @@
 import { SelectionItem } from "@carma-appframeworks/portals";
 import { GazDataItem } from "@carma-commons/utils";
 import { ReactNode } from "react";
+import { LandParcelDataStructure } from "./lib/utils/landParcelSearchHelper";
 
 export type SearchGazetteerProps = {
   gazData?: GazDataItem[];
@@ -23,6 +24,8 @@ export type SearchGazetteerProps = {
   selection?: SelectionItem;
   showDropdownBelow?: boolean;
   landParcelSearch?: boolean;
+  landParcelData?: LandParcelDataStructure;
+  onLandParcelSelection?: (parcel: Record<string, unknown>) => void;
 };
 
 export interface SearchResultItemWithScore {
@@ -41,6 +44,9 @@ export interface Option {
   value: string;
   sData: SearchResultItem;
   options?: Option[];
+  isLandParcel?: boolean;
+  parcelStage?: "gemarkung" | "flur" | "flurstueck";
+  parcelData?: Record<string, unknown>;
 }
 export interface GroupedOptions {
   label?: JSX.Element;
