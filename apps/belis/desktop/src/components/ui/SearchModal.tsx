@@ -24,6 +24,7 @@ import {
   BELIS_STYLE_URL,
   BELIS_ORIGINAL_SOURCE,
 } from "../../config/mapLayerConfigs";
+import { flattenGqlRecord } from "../../helper/flattenGqlRecord";
 
 type SearchType = "arbeitsauftrag" | "leuchte" | "mast" | "schaltstelle" | "mauerlasche";
 
@@ -555,26 +556,20 @@ const generateQueryString = (
   }
 };
 
-// Mapping from search type to source-layer + extractor key for sidebar features
-const SEARCH_TYPE_SIDEBAR_META: Record<
-  string,
-  { sourceLayer: string; extractorKey: string }
-> = {
-  leuchte: { sourceLayer: "leuchten", extractorKey: "_gql_leuchten" },
-  mast: { sourceLayer: "standorte", extractorKey: "_gql_standorte" },
-  schaltstelle: { sourceLayer: "schaltstelle", extractorKey: "_gql_schaltstelle" },
-  mauerlasche: { sourceLayer: "mauerlaschen", extractorKey: "_gql_mauerlaschen" },
+// Mapping from search type to source-layer for sidebar features
+const SEARCH_TYPE_SIDEBAR_META: Record<string, { sourceLayer: string }> = {
+  leuchte: { sourceLayer: "leuchten" },
+  mast: { sourceLayer: "standorte" },
+  schaltstelle: { sourceLayer: "schaltstelle" },
+  mauerlasche: { sourceLayer: "mauerlaschen" },
 };
 
 // Entity type mapping for arbeitsauftrag protokoll items
-const PROTOKOLL_ENTITY_META: Record<
-  string,
-  { sourceLayer: string; extractorKey: string }
-> = {
-  tdta_leuchten: { sourceLayer: "leuchten", extractorKey: "_gql_leuchten" },
-  tdta_standort_mast: { sourceLayer: "standorte", extractorKey: "_gql_standorte" },
-  schaltstelle: { sourceLayer: "schaltstelle", extractorKey: "_gql_schaltstelle" },
-  mauerlasche: { sourceLayer: "mauerlaschen", extractorKey: "_gql_mauerlaschen" },
+const PROTOKOLL_ENTITY_META: Record<string, { sourceLayer: string }> = {
+  tdta_leuchten: { sourceLayer: "leuchten" },
+  tdta_standort_mast: { sourceLayer: "standorte" },
+  schaltstelle: { sourceLayer: "schaltstelle" },
+  mauerlasche: { sourceLayer: "mauerlaschen" },
 };
 
 /** Convert flat GraphQL results into SidebarFeature[] */
@@ -622,10 +617,7 @@ const convertResultsToSidebarFeatures = (
             source: namespacedSource,
             sourceLayer: meta.sourceLayer,
             id: entity.id as number,
-            properties: {
-              ...entity,
-              _extractorKey: meta.extractorKey,
-            },
+            properties: flattenGqlRecord(entity as Record<string, any>, meta.sourceLayer),
             geometry: coords
               ? { type: "Point", coordinates: coords }
               : { type: "Point", coordinates: [0, 0] },
@@ -664,10 +656,7 @@ const convertResultsToSidebarFeatures = (
         source: namespacedSource,
         sourceLayer: meta.sourceLayer,
         id: item.id as number,
-        properties: {
-          ...item,
-          _extractorKey: meta.extractorKey,
-        },
+        properties: flattenGqlRecord(item as Record<string, any>, meta.sourceLayer),
         geometry: coords
           ? { type: "Point", coordinates: coords }
           : { type: "Point", coordinates: [0, 0] },

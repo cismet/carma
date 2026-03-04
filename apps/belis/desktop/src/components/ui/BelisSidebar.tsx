@@ -137,47 +137,6 @@ const defaultListItemExtractors: Record<
       subtitle: "Abzweigdose",
     };
   },
-  // GraphQL-specific extractors (field names differ from vector tile names)
-  _gql_leuchten: (feature) => {
-    const p = feature.properties || {};
-    const typ = p.tkey_leuchtentyp?.leuchtentyp || "L";
-    const nr = p.leuchtennummer || p.lfd_nummer || "0";
-    const standort = p.tdta_standort_mast?.lfd_nummer
-      ? `, ${p.tdta_standort_mast.lfd_nummer}`
-      : "";
-    return {
-      main: `${typ}-${nr}${standort}`,
-      upperright: toTitleCase(p.tkey_strassenschluessel?.strasse || ""),
-      subtitle: p.tkey_leuchtentyp?.fabrikat || "",
-    };
-  },
-  _gql_standorte: (feature) => {
-    const p = feature.properties || {};
-    return {
-      main: `Standort ${p.lfd_nummer || "?"}`,
-      upperright: toTitleCase(p.tkey_strassenschluessel?.strasse || ""),
-      subtitle: p.tkey_mastart?.mastart || "",
-    };
-  },
-  _gql_schaltstelle: (feature) => {
-    const p = feature.properties || {};
-    const title = p.schaltstellen_nummer
-      ? `S ${p.schaltstellen_nummer}`
-      : `S ${feature.id || p.id}`;
-    return {
-      main: title,
-      upperright: toTitleCase(p.tkey_strassenschluessel?.strasse || "") || "-",
-      subtitle: p.bauart?.bezeichnung || "Schaltstelle",
-    };
-  },
-  _gql_mauerlaschen: (feature) => {
-    const p = feature.properties || {};
-    return {
-      main: `M-${p.laufende_nummer || feature.id || p.id || "?"}`,
-      upperright: toTitleCase(p.tkey_strassenschluessel?.strasse || "") || "-",
-      subtitle: p.material_mauerlasche?.bezeichnung || "Mauerlasche",
-    };
-  },
 };
 
 // Generic fallback extractor
@@ -489,11 +448,6 @@ const BelisSidebar = ({
   );
 
   const getListItem = (feature: SidebarFeature): ListItemData => {
-    // Check for _extractorKey first (used by GraphQL search results)
-    const extractorKey = feature.properties?._extractorKey as string | undefined;
-    if (extractorKey && defaultListItemExtractors[extractorKey]) {
-      return defaultListItemExtractors[extractorKey](feature);
-    }
     const layerKey = feature.sourceLayer || feature.source || "";
     const extractor =
       defaultListItemExtractors[layerKey] ||
