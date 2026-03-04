@@ -631,6 +631,19 @@ export function LibFuzzySearch({
           open={autoCompleteOpen}
           onDropdownVisibleChange={(visible) => {
             setAutoCompleteOpen(visible);
+            if (
+              visible &&
+              value === "" &&
+              searchMode === "parcel" &&
+              landParcelData
+            ) {
+              const gemarkungOpts = generateGemarkungOptions(
+                "",
+                landParcelData
+              );
+              setSearchResult(gemarkungOpts);
+              setOptions([]);
+            }
           }}
           onSelect={(value, option) => handleOnSelect(option)}
           defaultActiveFirstOption={true}
