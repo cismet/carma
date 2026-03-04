@@ -109,6 +109,9 @@ const BelisMapLibWrapper = ({
     [namespacedSource]
   );
 
+  // Highlight context: need ensureToggledFeatures + criteria before handleHighlightToggle
+  const { highlightingActive, highlightVersion, ensureToggledFeatures, criteria } = useMapHighlight();
+
   // Adjusted highlights: starts from highlightResults, updated by Alt+click toggles
   const [adjustedHighlights, setAdjustedHighlights] = useState<SidebarFeature[] | null>(highlightResults);
   // Reset when new highlight results arrive
@@ -118,30 +121,90 @@ const BelisMapLibWrapper = ({
 
   const handleHighlightToggle = useCallback(
     (feature: maplibregl.MapGeoJSONFeature) => {
-      setAdjustedHighlights((prev) => {
-        const toSidebarFeature = (f: maplibregl.MapGeoJSONFeature): SidebarFeature =>
-          Object.assign(f, { original: f }) as unknown as SidebarFeature;
+      const toSidebarFeature = (f: Record<string, any>): SidebarFeature =>
+        Object.assign(f, { original: f }) as unknown as SidebarFeature;
 
-        if (!prev) {
-          // No search results yet: create a list with just the toggled feature
-          return [toSidebarFeature(feature)];
+      // Determine if this is a standort with sibling leuchten to expand
+      const isStandort = feature.sourceLayer === "standorte";
+      let siblingLeuchten: maplibregl.GeoJSONFeature[] = [];
+      if (isStandort && map) {
+        const standortId = String(feature.properties?.id ?? "");
+        if (standortId) {
+          siblingLeuchten = map
+            .querySourceFeatures(namespacedSource, { sourceLayer: "leuchten" })
+            .filter(
+              (f) =>
+                String(f.properties?.fk_standort ?? "") === standortId
+            );
         }
+      }
+
+      // Sync sibling leuchten in the highlight context BEFORE updating adjustedHighlights.
+      // toggleFeatureHighlight already toggled the standort itself (called by useMapHighlighting
+      // before onToggle fires), so criteria.toggledFeatures already reflects the standort's state.
+      // Read direction from the ref: if standort is now toggled ON, we add siblings; if OFF, remove.
+      if (isStandort && siblingLeuchten.length > 0) {
+        const standortKey = `${feature.source}::standorte::${feature.id}`;
+        const adding = criteria.toggledFeatures.has(standortKey);
+        ensureToggledFeatures(
+          siblingLeuchten.map((l) => ({
+            source: namespacedSource,
+            sourceLayer: "leuchten",
+            id: l.id!, // MVT tile ID, matching what matchesCriteria uses
+          })),
+          adding
+        );
+      }
+
+      // Update sidebar content
+      setAdjustedHighlights((prev) => {
+        if (!prev) {
+          const items = [toSidebarFeature(feature)];
+          for (const l of siblingLeuchten) items.push(toSidebarFeature(l));
+          return items;
+        }
+
         const dbId = String(feature.properties?.id ?? feature.id ?? "");
         const sl = feature.sourceLayer ?? "";
-        const idx = prev.findIndex(
+        const alreadyPresent = prev.some(
           (f) =>
             (f.sourceLayer ?? "") === sl &&
             String(f.properties?.id ?? f.id ?? "") === dbId
         );
-        if (idx >= 0) {
-          // Remove it
-          return prev.filter((_, i) => i !== idx);
+
+        if (alreadyPresent) {
+          // Remove standort + all sibling leuchten
+          const removeSet = new Set<string>();
+          removeSet.add(`${sl}::${dbId}`);
+          for (const l of siblingLeuchten) {
+            const lid = String(l.properties?.id ?? l.id ?? "");
+            removeSet.add(`${(l as any).sourceLayer ?? "leuchten"}::${lid}`);
+          }
+          return prev.filter((f) => {
+            const key = `${f.sourceLayer ?? ""}::${String(f.properties?.id ?? f.id ?? "")}`;
+            return !removeSet.has(key);
+          });
         }
-        // Add it
-        return [...prev, toSidebarFeature(feature)];
+
+        // Add standort + all sibling leuchten (skip duplicates)
+        const existing = new Set(
+          prev.map((f) => `${f.sourceLayer ?? ""}::${String(f.properties?.id ?? f.id ?? "")}`)
+        );
+        const toAdd: SidebarFeature[] = [];
+        if (!existing.has(`${sl}::${dbId}`)) {
+          toAdd.push(toSidebarFeature(feature));
+        }
+        for (const l of siblingLeuchten) {
+          const lid = String(l.properties?.id ?? l.id ?? "");
+          const key = `${(l as any).sourceLayer ?? "leuchten"}::${lid}`;
+          if (!existing.has(key)) {
+            toAdd.push(toSidebarFeature(l));
+          }
+        }
+        return [...prev, ...toAdd];
       });
     },
-    []
+    [map, namespacedSource, ensureToggledFeatures, criteria]
   );
 
   const handleHighlightsApplied = useCallback(
@@ -165,9 +228,6 @@ const BelisMapLibWrapper = ({
     onToggle: handleHighlightToggle,
     onHighlightsApplied: handleHighlightsApplied,
   });
-
-  // Sidebar data: highlight state + visible features
-  const { highlightingActive, highlightVersion } = useMapHighlight();
 
   const showRaw = useMemo(() => {
     const hashQuery = window.location.hash.split("?")[1] || "";
