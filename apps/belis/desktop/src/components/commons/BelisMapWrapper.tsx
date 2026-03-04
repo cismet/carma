@@ -23,7 +23,8 @@ import {
 import type { LibreLayer } from "@carma-mapping/engines/maplibre";
 import { AppDispatch } from "../../store";
 import BelisSidebar from "../ui/BelisSidebar";
-import { useVisibleMapFeatures } from "@carma-mapping/utils";
+import { useVisibleMapFeatures, functionToInfo } from "@carma-mapping/utils";
+import { extractCarmaConfig } from "@carma-commons/utils";
 import {
   useMapSelection,
   useLibreContext,
@@ -41,12 +42,76 @@ import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faMap } from "@fortawesome/free-solid-svg-icons";
 import { FeatureType, fetchFeatureById } from "../../helper/apiMethods";
 import { getJWT } from "../../store/slices/auth";
-import { getVCard } from "@carma-appframeworks/belis";
 
 const LIST_WIDTH = 300;
 
 /** Debug flag: translucent main map + red mini-map border, mini-map always visible */
 const MINI_MAP_DEBUGGING = false;
+
+/**
+ * Flatten a GraphQL by-id record to vector-tile-compatible flat properties.
+ * Field names must match the tiling pipeline SQL output so that
+ * createInfoBoxInfo.js (embedded in the style) can process them.
+ */
+const flattenGqlRecord = (
+  r: Record<string, any>,
+  sourceLayer: string
+): Record<string, unknown> => {
+  switch (sourceLayer) {
+    case "schaltstelle":
+      return {
+        id: r.id,
+        bezeichnung: r.bauart?.bezeichnung,
+        schaltstellen_nummer: r.schaltstellen_nummer,
+        strassenschluessel: r.tkey_strassenschluessel?.pk,
+        strasse: r.tkey_strassenschluessel?.strasse,
+      };
+    case "leuchten":
+      return {
+        id: r.id,
+        fabrikat: r.tkey_leuchtentyp?.fabrikat,
+        leuchtentyp: r.tkey_leuchtentyp?.leuchtentyp,
+        leuchtennummer: r.leuchtennummer,
+        lfd_nummer: r.lfd_nummer,
+        mastart: r.tdta_standort_mast?.tkey_mastart?.mastart,
+        masttyp: r.tdta_standort_mast?.tkey_masttyp?.masttyp,
+        strassenschluessel: r.tkey_strassenschluessel?.pk,
+        strasse: r.tkey_strassenschluessel?.strasse,
+        fk_standort: r.tdta_standort_mast?.id,
+      };
+    case "standorte":
+      return {
+        id: r.id,
+        mastart: r.tkey_mastart?.mastart,
+        masttyp: r.tkey_masttyp?.masttyp,
+        lfd_nummer: r.lfd_nummer,
+        strassenschluessel: r.tkey_strassenschluessel?.pk,
+        strasse: r.tkey_strassenschluessel?.strasse,
+      };
+    case "mauerlaschen":
+      return {
+        id: r.id,
+        bezeichnung: r.material_mauerlasche?.bezeichnung,
+        laufende_nummer: r.laufende_nummer,
+        strassenschluessel: r.tkey_strassenschluessel?.pk,
+        strasse: r.tkey_strassenschluessel?.strasse,
+      };
+    case "leitungen":
+      return {
+        id: r.id,
+        bezeichnung: r.leitungstyp?.bezeichnung,
+        leitungstyp: r.leitungstyp?.bezeichnung,
+        laenge: r.laenge,
+      };
+    case "abzweigdosen":
+      return {
+        id: r.id,
+        carmaInfo: { sourceLayer: "abzweigdosen" },
+      };
+    default:
+      return { id: r.id };
+  }
+};
 
 import type { SidebarFeature } from "../ui/BelisSidebar";
 
@@ -71,6 +136,25 @@ const BelisMapLibWrapper = ({
   const [fetchedFeatureData, setFetchedFeatureData] = useState<any>(null);
   // Preserve last valid featureType to prevent unmount when selectedFeature briefly becomes undefined
   const [lastFeatureType, setLastFeatureType] = useState<string | undefined>(undefined);
+
+  // Extract the infoboxMapping code from the style (browser-cached, no extra network cost)
+  const [infoboxMappingCode, setInfoboxMappingCode] = useState<string | null>(null);
+  useEffect(() => {
+    fetch(BELIS_STYLE_URL)
+      .then((r) => r.json())
+      .then((styleJson) => {
+        const keywords = styleJson.metadata?.carmaConf?.layerInfo?.keywords;
+        if (keywords && Array.isArray(keywords)) {
+          const config = extractCarmaConfig(keywords);
+          if (config?.infoboxMapping && Array.isArray(config.infoboxMapping)) {
+            // Join mapping lines; for function-style, there's typically one entry
+            const code = config.infoboxMapping.join("\n");
+            setInfoboxMappingCode(code);
+          }
+        }
+      })
+      .catch((err) => console.warn("[INFOBOX] Failed to extract mapping from style:", err));
+  }, []);
   const activeBackgroundLayer = useSelector(getActiveBackgroundLayer);
   const backgroundLayerOpacities = useSelector(getBackgroundLayerOpacities);
   const activeAdditionalLayers = useSelector(getActiveAdditionalLayers);
@@ -259,43 +343,49 @@ const BelisMapLibWrapper = ({
     fetchData();
   }, [selectedFeature, selectedFeatureId, jwt]);
 
-  // Map sourceLayer to getVCard featuretype
-  const SOURCE_LAYER_TO_VCARD_TYPE: Record<string, string> = {
-    leuchten: "tdta_leuchten",
-    standorte: "tdta_standort_mast",
-    schaltstelle: "schaltstelle",
-    mauerlaschen: "mauerlasche",
-    leitungen: "leitung",
-    abzweigdosen: "abzweigdose",
-  };
-
   // Build override feature for the infobox when LibreMap can't process the selection
-  // (e.g. search result not visible on map)
-  const overrideSelectedFeature = useMemo(() => {
-    if (selectedFeature || !fetchedFeatureData || !selectedFeatureId) return null;
+  // (e.g. search result not visible on map).
+  // Flatten the GraphQL by-id record to vector-tile-like props, then run the same
+  // createInfoBoxInfo.js (from the style) via sandboxed eval.
+  const [overrideSelectedFeature, setOverrideSelectedFeature] = useState<any>(null);
+  useEffect(() => {
+    if (selectedFeature || !fetchedFeatureData || !selectedFeatureId || !infoboxMappingCode) {
+      setOverrideSelectedFeature(null);
+      return;
+    }
 
     const sourceLayer = selectedFeatureId.sourceLayer ?? "";
-    const vcardType = SOURCE_LAYER_TO_VCARD_TYPE[sourceLayer];
-    if (!vcardType) return null;
 
-    try {
-      const vcard = getVCard({
-        featuretype: vcardType,
-        properties: fetchedFeatureData,
-      });
-      if (!vcard?.infobox) return null;
-      return {
-        properties: {
-          ...vcard.infobox,
-          sourceProps: fetchedFeatureData,
-        },
-        geometry: { type: "Point", coordinates: [0, 0] },
-        carmaInfo: { sourceLayer },
-      };
-    } catch {
-      return null;
-    }
-  }, [selectedFeature, fetchedFeatureData, selectedFeatureId]);
+    (async () => {
+      try {
+        // Unwrap GraphQL envelope: { schaltstelle: [{...}] } -> record
+        const firstArray = Object.values(fetchedFeatureData).find(Array.isArray) as unknown[] | undefined;
+        const record = (firstArray?.[0] ?? null) as Record<string, any> | null;
+        if (!record) { setOverrideSelectedFeature(null); return; }
+
+        // Flatten to vector-tile-like props so createInfoBoxInfo.js can process them
+        const flatProps = flattenGqlRecord(record, sourceLayer);
+
+        // Run the same mapping function that LibreMap uses for on-map clicks
+        const info = await functionToInfo(
+          { ...flatProps, carmaInfo: { sourceLayer } },
+          infoboxMappingCode
+        );
+
+        if (info) {
+          setOverrideSelectedFeature({
+            properties: { ...info, sourceProps: fetchedFeatureData },
+            geometry: { type: "Point", coordinates: [0, 0] },
+            carmaInfo: { sourceLayer },
+          });
+        } else {
+          setOverrideSelectedFeature(null);
+        }
+      } catch {
+        setOverrideSelectedFeature(null);
+      }
+    })();
+  }, [selectedFeature, fetchedFeatureData, selectedFeatureId, infoboxMappingCode]);
 
   const libreLayers = useMemo(() => {
     const layers: LibreLayer[] = [];
