@@ -109,10 +109,46 @@ const BelisMapLibWrapper = ({
     [namespacedSource]
   );
 
+  // Adjusted search results: starts from searchResults, updated by Alt+click toggles
+  const [adjustedSearchResults, setAdjustedSearchResults] = useState<SidebarFeature[] | null>(searchResults);
+  // Reset when a new search arrives
+  useEffect(() => {
+    setAdjustedSearchResults(searchResults);
+  }, [searchResults]);
+
+  const handleHighlightToggle = useCallback(
+    (feature: maplibregl.MapGeoJSONFeature) => {
+      setAdjustedSearchResults((prev) => {
+        const toSidebarFeature = (f: maplibregl.MapGeoJSONFeature): SidebarFeature =>
+          Object.assign(f, { original: f }) as unknown as SidebarFeature;
+
+        if (!prev) {
+          // No search results yet: create a list with just the toggled feature
+          return [toSidebarFeature(feature)];
+        }
+        const dbId = String(feature.properties?.id ?? feature.id ?? "");
+        const sl = feature.sourceLayer ?? "";
+        const idx = prev.findIndex(
+          (f) =>
+            (f.sourceLayer ?? "") === sl &&
+            String(f.properties?.id ?? f.id ?? "") === dbId
+        );
+        if (idx >= 0) {
+          // Remove it
+          return prev.filter((_, i) => i !== idx);
+        }
+        // Add it
+        return [...prev, toSidebarFeature(feature)];
+      });
+    },
+    []
+  );
+
   useMapHighlighting({
     map,
     sources: highlightSources,
     modifierClick: "alt",
+    onToggle: handleHighlightToggle,
   });
 
   // Sidebar data: highlight state + visible features
@@ -141,23 +177,23 @@ const BelisMapLibWrapper = ({
 
   // Sidebar mode: "karte" shows viewport features, "suche" shows search results
   const [sidebarMode, setSidebarMode] = useState<SidebarMode>("karte");
-  const hasSearchResults = searchResults != null && searchResults.length > 0;
+  const hasSearchResults = adjustedSearchResults != null && adjustedSearchResults.length > 0;
 
 
   // Compute effective sidebar data based on mode
   const effectiveSidebarData = useMemo(() => {
-    if (sidebarMode === "suche" && searchResults && searchResults.length > 0) {
+    if (sidebarMode === "suche" && adjustedSearchResults && adjustedSearchResults.length > 0) {
       // Derive countsByLayer from search results
       const counts: Record<string, number> = {};
-      for (const f of searchResults) {
+      for (const f of adjustedSearchResults) {
         const sl = f.sourceLayer || "";
         counts[sl] = (counts[sl] || 0) + 1;
       }
-      const total = searchResults.length;
+      const total = adjustedSearchResults.length;
       // Include all layers present in results
       const layers = new Set([...activeSourceLayers, ...Object.keys(counts)]);
       return {
-        features: searchResults,
+        features: adjustedSearchResults,
         countsByLayer: counts,
         totalCount: total,
         isLoading: false,
@@ -173,7 +209,7 @@ const BelisMapLibWrapper = ({
       isOverviewMode,
       activeSourceLayers,
     };
-  }, [sidebarMode, searchResults, features, countsByLayer, totalCount, isLoading, isOverviewMode, activeSourceLayers]);
+  }, [sidebarMode, adjustedSearchResults, features, countsByLayer, totalCount, isLoading, isOverviewMode, activeSourceLayers]);
 
   // Neighborhood: mark leuchten sharing the same Standort as the selected feature
   useSelectionNeighborhood({

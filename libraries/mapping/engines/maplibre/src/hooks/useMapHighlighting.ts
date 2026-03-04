@@ -11,7 +11,11 @@
  */
 
 import { useEffect, useRef, useCallback } from "react";
-import type { Map as MaplibreMap, MapMouseEvent } from "maplibre-gl";
+import type {
+  Map as MaplibreMap,
+  MapMouseEvent,
+  MapGeoJSONFeature,
+} from "maplibre-gl";
 import { useMapHighlight } from "../contexts/MapHighlightContext";
 import type { HighlightCriteria } from "../contexts/MapHighlightContext";
 
@@ -48,6 +52,8 @@ export interface UseMapHighlightingOptions {
   modifierClick?: "alt" | "ctrl" | "shift" | "meta" | null;
   /** Feature state key. Default: "highlighted" */
   stateKey?: string;
+  /** Called after a modifier+click toggle with the toggled feature. */
+  onToggle?: (feature: MapGeoJSONFeature) => void;
 }
 
 /** Discover all vector sources and their source layers from the map style. */
@@ -135,6 +141,7 @@ export const useMapHighlighting = ({
   sources: explicitSources,
   modifierClick = null,
   stateKey = "highlighted",
+  onToggle,
 }: UseMapHighlightingOptions): void => {
   const {
     highlightingActive,
@@ -292,6 +299,8 @@ export const useMapHighlighting = ({
         sourceLayer: feature.sourceLayer!,
         id: feature.id!,
       });
+
+      onToggle?.(feature);
     };
 
     map.on("click", handler);
@@ -304,5 +313,6 @@ export const useMapHighlighting = ({
     highlightingActive,
     setHighlightingActive,
     toggleFeatureHighlight,
+    onToggle,
   ]);
 };
