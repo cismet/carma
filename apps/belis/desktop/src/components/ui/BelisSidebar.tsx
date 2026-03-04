@@ -541,19 +541,18 @@ const BelisSidebar = ({
           >
             Karte{karteCount != null ? ` (${karteCount})` : ""}
           </button>
-          <button
-            onClick={() => onModeChange?.("highlights")}
-            disabled={!hasHighlights}
-            className={`px-2 py-0.5 text-xs rounded ${
-              sidebarMode === "highlights"
-                ? "bg-blue-600 text-white"
-                : hasHighlights
-                  ? "bg-gray-200 text-gray-600 hover:bg-gray-300"
-                  : "bg-gray-100 text-gray-300 cursor-not-allowed"
-            }`}
-          >
-            Highlights{highlightCount != null ? ` (${highlightCount})` : ""}
-          </button>
+          {hasHighlights && (
+            <button
+              onClick={() => onModeChange?.("highlights")}
+              className={`px-2 py-0.5 text-xs rounded ${
+                sidebarMode === "highlights"
+                  ? "bg-blue-600 text-white"
+                  : "bg-gray-200 text-gray-600 hover:bg-gray-300"
+              }`}
+            >
+              Highlights{highlightCount != null ? ` (${highlightCount})` : ""}
+            </button>
+          )}
         </div>
         {isLoading && (
           <FontAwesomeIcon icon={faSpinner} spin className="text-gray-400" />

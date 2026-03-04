@@ -201,7 +201,7 @@ const BelisMapLibWrapper = ({
     }
   }, [highlightingActive]);
 
-  const hasHighlights = adjustedHighlights != null && adjustedHighlights.length > 0;
+  const hasHighlights = highlightingActive || (adjustedHighlights != null && adjustedHighlights.length > 0);
 
 
   // Compute effective sidebar data based on mode
