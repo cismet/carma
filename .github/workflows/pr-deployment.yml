@@ -8,6 +8,10 @@ on:
   pull_request:
     types: [opened, synchronize, reopened, edited, labeled]
 
+concurrency:
+  group: pr-deploy-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
 jobs:
   preparation:
     name: 🔍 Parse & Prepare Deployment
