@@ -186,6 +186,8 @@ export interface BelisSidebarProps {
   sidebarMode?: "karte" | "suche";
   onModeChange?: (mode: "karte" | "suche") => void;
   hasSearchResults?: boolean;
+  karteCount?: number;
+  sucheCount?: number;
 }
 
 const BelisSidebar = ({
@@ -202,6 +204,8 @@ const BelisSidebar = ({
   sidebarMode = "karte",
   onModeChange,
   hasSearchResults = false,
+  karteCount,
+  sucheCount,
 }: BelisSidebarProps) => {
   // Filter features by active source layers
   const filteredFeatures = useMemo(() => {
@@ -509,7 +513,7 @@ const BelisSidebar = ({
                 : "bg-gray-200 text-gray-600 hover:bg-gray-300"
             }`}
           >
-            Karte
+            Karte{karteCount != null ? ` (${karteCount})` : ""}
           </button>
           <button
             onClick={() => onModeChange?.("suche")}
@@ -522,7 +526,7 @@ const BelisSidebar = ({
                   : "bg-gray-100 text-gray-300 cursor-not-allowed"
             }`}
           >
-            Suche
+            Suche{sucheCount != null ? ` (${sucheCount})` : ""}
           </button>
         </div>
         {isLoading && (

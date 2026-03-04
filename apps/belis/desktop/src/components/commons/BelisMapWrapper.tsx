@@ -586,6 +586,8 @@ const BelisMapLibWrapper = ({
         sidebarMode={sidebarMode}
         onModeChange={setSidebarMode}
         hasSearchResults={hasSearchResults}
+        karteCount={totalCount}
+        sucheCount={adjustedSearchResults?.length ?? undefined}
       />
       <div
         ref={mapContainerRef}
