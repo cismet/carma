@@ -222,13 +222,7 @@ export const tryDirectLandParcelMatch = (
       label: (
         <div style={{ paddingLeft: "0.3rem" }}>
           <span style={{ marginRight: "0.4rem" }}>
-            <i
-              className={
-                fstck.art === "städtisch"
-                  ? "fas fa-university"
-                  : "fas fa-vector-square"
-              }
-            ></i>
+            <i className="fas fa-draw-polygon"></i>
           </span>
           <span>
             {gemarkungDisplay}-{flurName}-{displayLabel}
@@ -265,30 +259,36 @@ export const generateGemarkungOptions = (
   data: LandParcelDataStructure
 ): GroupedOptions[] => {
   const trimmed = filter.trim();
-  if (trimmed === "") return [];
 
   const items = Object.keys(data).map((key) => ({
     key,
     name: data[key].gemarkung,
   }));
-  const fuse = new Fuse(items, {
-    keys: ["name", "key"],
-    threshold: 0.4,
-    distance: 100,
-    includeScore: true,
-  });
-  const results = fuse.search(trimmed);
 
-  const isKeySearch = /^\d+$/.test(trimmed);
+  let orderedItems: typeof items;
+  let isKeySearch = false;
 
-  const matches = results.map(({ item: { key, name } }, idx) => {
+  if (trimmed === "") {
+    orderedItems = items.sort((a, b) => a.key.localeCompare(b.key));
+  } else {
+    isKeySearch = /^\d+$/.test(trimmed);
+    const fuse = new Fuse(items, {
+      keys: ["name", "key"],
+      threshold: 0.4,
+      distance: 100,
+      includeScore: true,
+    });
+    orderedItems = fuse.search(trimmed).map((r) => r.item);
+  }
+
+  const matches = orderedItems.map(({ key, name }, idx) => {
     const displayId = isKeySearch ? key : name;
     return {
       key: idx,
       label: (
         <div style={{ paddingLeft: "0.3rem" }}>
           <span style={{ marginRight: "0.4rem" }}>
-            <i className="fas fa-map"></i>
+            <i className="fas fa-draw-polygon"></i>
           </span>
           <span>
             {key} ({name})
@@ -349,7 +349,7 @@ export const generateLandParcelOptions = (
       label: (
         <div style={{ paddingLeft: "0.3rem" }}>
           <span style={{ marginRight: "0.4rem" }}>
-            <i className="fas fa-layer-group"></i>
+            <i className="fas fa-draw-polygon"></i>
           </span>
           <span>
             {parseState.gemarkungDisplay}-{flurLabel}
@@ -405,13 +405,7 @@ export const generateLandParcelOptions = (
           label: (
             <div style={{ paddingLeft: "0.3rem" }}>
               <span style={{ marginRight: "0.4rem" }}>
-                <i
-                  className={
-                    fstck.art === "städtisch"
-                      ? "fas fa-university"
-                      : "fas fa-vector-square"
-                  }
-                ></i>
+                <i className="fas fa-draw-polygon"></i>
               </span>
               <span>
                 {parseState.gemarkungDisplay}-{parseState.flurName}-
