@@ -17,13 +17,20 @@ import RawDisplay from "./RawDisplay";
 import {
   useLibreContext,
   useMapHighlight,
+  slugifyUrl,
 } from "@carma-mapping/engines/maplibre";
+import type { SidebarFeature } from "./BelisSidebar";
+import {
+  BELIS_STYLE_URL,
+  BELIS_ORIGINAL_SOURCE,
+} from "../../config/mapLayerConfigs";
 
 type SearchType = "arbeitsauftrag" | "leuchte" | "mast" | "schaltstelle" | "mauerlasche";
 
 interface SearchModalProps {
   defaultOpen?: boolean;
   showFinalQuery?: boolean;
+  onSearchResults?: (features: SidebarFeature[] | null) => void;
 }
 
 interface LeuchteSearchValues {
@@ -100,7 +107,7 @@ type SearchValues =
 const searchTypeLabels: Record<SearchType, string> = {
   arbeitsauftrag: "Arbeitsaufträge",
   leuchte: "Leuchten",
-  mast: "Masten",
+  mast: "Standorte",
   schaltstelle: "Schaltstellen",
   mauerlasche: "Mauerlaschen",
 };
@@ -108,7 +115,7 @@ const searchTypeLabels: Record<SearchType, string> = {
 // When true, GraphQL queries include all display fields (for future search results sidebar).
 // When false, queries fetch only id + geom_84 (minimal, faster).
 // Extended: ~527 KB / 341ms vs minimal: ~127 KB / 203ms (benchmarked).
-const FETCH_EXTENDED_SEARCH_RESULTS = false;
+const FETCH_EXTENDED_SEARCH_RESULTS = true;
 
 const LEUCHTEN_FIELDS = FETCH_EXTENDED_SEARCH_RESULTS
   ? `id
@@ -548,9 +555,131 @@ const generateQueryString = (
   }
 };
 
+// Mapping from search type to source-layer + extractor key for sidebar features
+const SEARCH_TYPE_SIDEBAR_META: Record<
+  string,
+  { sourceLayer: string; extractorKey: string }
+> = {
+  leuchte: { sourceLayer: "leuchten", extractorKey: "_gql_leuchten" },
+  mast: { sourceLayer: "standorte", extractorKey: "_gql_standorte" },
+  schaltstelle: { sourceLayer: "schaltstelle", extractorKey: "_gql_schaltstelle" },
+  mauerlasche: { sourceLayer: "mauerlaschen", extractorKey: "_gql_mauerlaschen" },
+};
+
+// Entity type mapping for arbeitsauftrag protokoll items
+const PROTOKOLL_ENTITY_META: Record<
+  string,
+  { sourceLayer: string; extractorKey: string }
+> = {
+  tdta_leuchten: { sourceLayer: "leuchten", extractorKey: "_gql_leuchten" },
+  tdta_standort_mast: { sourceLayer: "standorte", extractorKey: "_gql_standorte" },
+  schaltstelle: { sourceLayer: "schaltstelle", extractorKey: "_gql_schaltstelle" },
+  mauerlasche: { sourceLayer: "mauerlaschen", extractorKey: "_gql_mauerlaschen" },
+};
+
+/** Convert flat GraphQL results into SidebarFeature[] */
+const convertResultsToSidebarFeatures = (
+  results: Record<string, unknown>[],
+  searchType: SearchType,
+  namespacedSource: string
+): SidebarFeature[] => {
+  if (searchType === "arbeitsauftrag") {
+    // For arbeitsauftrag, iterate protokolle and create one feature per referenced entity
+    const features: SidebarFeature[] = [];
+    for (const item of results) {
+      const protokolle = item.ar_protokolleArray as ProtokollItem[] | undefined;
+      if (!protokolle) continue;
+      for (const p of protokolle) {
+        const ap = p.arbeitsprotokoll;
+        if (!ap) continue;
+
+        // Check each entity type
+        for (const [entityKey, meta] of Object.entries(PROTOKOLL_ENTITY_META)) {
+          const entity = ap[entityKey as keyof typeof ap] as
+            | Record<string, unknown>
+            | undefined;
+          if (!entity || entity.id == null) continue;
+
+          // Get geometry
+          let coords: [number, number] | undefined;
+          if (entityKey === "tdta_leuchten") {
+            const mast = (entity as Record<string, unknown>)
+              .tdta_standort_mast as { geom_84?: { x?: number; y?: number } } | undefined;
+            if (mast?.geom_84?.x != null && mast?.geom_84?.y != null) {
+              coords = [mast.geom_84.x, mast.geom_84.y];
+            }
+          } else {
+            const geom = (entity as Record<string, unknown>).geom_84 as
+              | { x?: number; y?: number }
+              | undefined;
+            if (geom?.x != null && geom?.y != null) {
+              coords = [geom.x, geom.y];
+            }
+          }
+
+          features.push({
+            type: "Feature",
+            source: namespacedSource,
+            sourceLayer: meta.sourceLayer,
+            id: entity.id as number,
+            properties: {
+              ...entity,
+              _extractorKey: meta.extractorKey,
+            },
+            geometry: coords
+              ? { type: "Point", coordinates: coords }
+              : { type: "Point", coordinates: [0, 0] },
+            state: {},
+          } as unknown as SidebarFeature);
+        }
+      }
+    }
+    return features;
+  }
+
+  // Non-arbeitsauftrag: direct mapping
+  const meta = SEARCH_TYPE_SIDEBAR_META[searchType];
+  if (!meta) return [];
+
+  return results
+    .map((item) => {
+      // Get geometry
+      let coords: [number, number] | undefined;
+      if (searchType === "leuchte") {
+        const mast = item.tdta_standort_mast as
+          | { geom_84?: { x?: number; y?: number } }
+          | undefined;
+        if (mast?.geom_84?.x != null && mast?.geom_84?.y != null) {
+          coords = [mast.geom_84.x, mast.geom_84.y];
+        }
+      } else {
+        const geom = item.geom_84 as { x?: number; y?: number } | undefined;
+        if (geom?.x != null && geom?.y != null) {
+          coords = [geom.x, geom.y];
+        }
+      }
+
+      return {
+        type: "Feature",
+        source: namespacedSource,
+        sourceLayer: meta.sourceLayer,
+        id: item.id as number,
+        properties: {
+          ...item,
+          _extractorKey: meta.extractorKey,
+        },
+        geometry: coords
+          ? { type: "Point", coordinates: coords }
+          : { type: "Point", coordinates: [0, 0] },
+        state: {},
+      } as unknown as SidebarFeature;
+    });
+};
+
 const SearchModal = ({
   defaultOpen = false,
   showFinalQuery = false,
+  onSearchResults,
 }: SearchModalProps) => {
   const [isOpen, setIsOpen] = useState(defaultOpen);
   const [searchType, setSearchType] = useState<SearchType>("arbeitsauftrag");
@@ -562,6 +691,8 @@ const SearchModal = ({
   const { map } = useLibreContext();
   const { setHighlightingActive, highlightByIds, clearHighlights } =
     useMapHighlight();
+
+  const namespacedSource = `${slugifyUrl(BELIS_STYLE_URL)}::${BELIS_ORIGINAL_SOURCE}`;
 
   // Store current search values
   const searchValuesRef = useRef<SearchValues>({});
@@ -601,6 +732,7 @@ const SearchModal = ({
       query: string;
       dataKey: string;
       featurePrefix: string;
+      forSearchType: SearchType;
       getGeometry: (
         item: Record<string, unknown>
       ) => [number, number] | undefined;
@@ -614,6 +746,7 @@ const SearchModal = ({
         query,
         dataKey,
         featurePrefix,
+        forSearchType,
         getGeometry,
         getAllGeometries,
         getHighlightIds,
@@ -735,6 +868,16 @@ const SearchModal = ({
             });
           }
 
+          // Convert results to sidebar features and emit
+          if (onSearchResults) {
+            const sidebarFeatures = convertResultsToSidebarFeatures(
+              results as Record<string, unknown>[],
+              forSearchType,
+              namespacedSource
+            );
+            onSearchResults(sidebarFeatures);
+          }
+
           setIsSearching(false);
           setIsOpen(false);
         })
@@ -743,7 +886,7 @@ const SearchModal = ({
           setIsSearching(false);
         });
     },
-    [jwt, map, clearHighlights, setHighlightingActive, highlightByIds]
+    [jwt, map, clearHighlights, setHighlightingActive, highlightByIds, onSearchResults, namespacedSource]
   );
 
   // Execute search based on current search type and values
@@ -766,6 +909,7 @@ const SearchModal = ({
         query,
         dataKey: "arbeitsauftrag",
         featurePrefix: "arbeitsauftrag",
+        forSearchType: "arbeitsauftrag",
         logPrefix: "[ARBEITSAUFTRAG_SEARCH]",
         getGeometry: (item) => {
           const protokolle = item.ar_protokolleArray as ProtokollItem[] | undefined;
@@ -881,6 +1025,7 @@ const SearchModal = ({
         query,
         dataKey: "tdta_leuchten",
         featurePrefix: "leuchten",
+        forSearchType: "leuchte",
         logPrefix: "[LEUCHTE_SEARCH]",
         getGeometry: (item) => {
           const mast = item.tdta_standort_mast as
@@ -904,7 +1049,8 @@ const SearchModal = ({
       handleGraphQLSearch({
         query,
         dataKey: "tdta_standort_mast",
-        featurePrefix: "mast",
+        featurePrefix: "standorte",
+        forSearchType: "mast",
         logPrefix: "[MAST_SEARCH]",
         getGeometry: (item) => {
           const geom = item.geom_84 as { x?: number; y?: number } | undefined;
@@ -928,6 +1074,7 @@ const SearchModal = ({
         query,
         dataKey: "schaltstelle",
         featurePrefix: "schaltstelle",
+        forSearchType: "schaltstelle",
         logPrefix: "[SCHALTSTELLE_SEARCH]",
         getGeometry: (item) => {
           const geom = item.geom_84 as { x?: number; y?: number } | undefined;
@@ -951,6 +1098,7 @@ const SearchModal = ({
         query,
         dataKey: "mauerlasche",
         featurePrefix: "mauerlaschen",
+        forSearchType: "mauerlasche",
         logPrefix: "[MAUERLASCHE_SEARCH]",
         getGeometry: (item) => {
           const geom = item.geom_84 as { x?: number; y?: number } | undefined;

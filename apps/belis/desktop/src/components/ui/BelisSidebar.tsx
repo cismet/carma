@@ -137,6 +137,47 @@ const defaultListItemExtractors: Record<
       subtitle: "Abzweigdose",
     };
   },
+  // GraphQL-specific extractors (field names differ from vector tile names)
+  _gql_leuchten: (feature) => {
+    const p = feature.properties || {};
+    const typ = p.tkey_leuchtentyp?.leuchtentyp || "L";
+    const nr = p.leuchtennummer || p.lfd_nummer || "0";
+    const standort = p.tdta_standort_mast?.lfd_nummer
+      ? `, ${p.tdta_standort_mast.lfd_nummer}`
+      : "";
+    return {
+      main: `${typ}-${nr}${standort}`,
+      upperright: toTitleCase(p.tkey_strassenschluessel?.strasse || ""),
+      subtitle: p.tkey_leuchtentyp?.fabrikat || "",
+    };
+  },
+  _gql_standorte: (feature) => {
+    const p = feature.properties || {};
+    return {
+      main: `Standort ${p.lfd_nummer || "?"}`,
+      upperright: toTitleCase(p.tkey_strassenschluessel?.strasse || ""),
+      subtitle: p.tkey_mastart?.mastart || "",
+    };
+  },
+  _gql_schaltstelle: (feature) => {
+    const p = feature.properties || {};
+    const title = p.schaltstellen_nummer
+      ? `S ${p.schaltstellen_nummer}`
+      : `S ${feature.id || p.id}`;
+    return {
+      main: title,
+      upperright: toTitleCase(p.tkey_strassenschluessel?.strasse || "") || "-",
+      subtitle: p.bauart?.bezeichnung || "Schaltstelle",
+    };
+  },
+  _gql_mauerlaschen: (feature) => {
+    const p = feature.properties || {};
+    return {
+      main: `M-${p.laufende_nummer || feature.id || p.id || "?"}`,
+      upperright: toTitleCase(p.tkey_strassenschluessel?.strasse || "") || "-",
+      subtitle: p.material_mauerlasche?.bezeichnung || "Mauerlasche",
+    };
+  },
 };
 
 // Generic fallback extractor
@@ -180,6 +221,9 @@ export interface BelisSidebarProps {
     feature: SidebarFeature
   ) => void;
   emptyMessage?: string;
+  sidebarMode?: "karte" | "suche";
+  onModeChange?: (mode: "karte" | "suche") => void;
+  hasSearchResults?: boolean;
 }
 
 const BelisSidebar = ({
@@ -192,6 +236,9 @@ const BelisSidebar = ({
   selectedFeatureId,
   onFeatureSelect,
   emptyMessage = "Keine Objekte im aktuellen Kartenausschnitt",
+  sidebarMode = "karte",
+  onModeChange,
+  hasSearchResults = false,
 }: BelisSidebarProps) => {
   // Filter features by active source layers
   const filteredFeatures = useMemo(() => {
@@ -442,6 +489,11 @@ const BelisSidebar = ({
   );
 
   const getListItem = (feature: SidebarFeature): ListItemData => {
+    // Check for _extractorKey first (used by GraphQL search results)
+    const extractorKey = feature.properties?._extractorKey as string | undefined;
+    if (extractorKey && defaultListItemExtractors[extractorKey]) {
+      return defaultListItemExtractors[extractorKey](feature);
+    }
     const layerKey = feature.sourceLayer || feature.source || "";
     const extractor =
       defaultListItemExtractors[layerKey] ||
@@ -480,7 +532,32 @@ const BelisSidebar = ({
       onKeyDown={handleKeyDown}
       className="w-[300px] h-full bg-white border-r border-gray-300 flex flex-col overflow-hidden z-[1000] shrink-0 outline-none"
     >
-      <div className="px-3 py-2 border-b border-gray-300 bg-gray-50 text-sm flex justify-end items-center" style={{ minHeight: 36 }}>
+      <div className="px-3 py-2 border-b border-gray-300 bg-gray-50 text-sm flex justify-between items-center" style={{ minHeight: 36 }}>
+        <div className="flex gap-1">
+          <button
+            onClick={() => onModeChange?.("karte")}
+            className={`px-2 py-0.5 text-xs rounded ${
+              sidebarMode === "karte"
+                ? "bg-blue-600 text-white"
+                : "bg-gray-200 text-gray-600 hover:bg-gray-300"
+            }`}
+          >
+            Karte
+          </button>
+          <button
+            onClick={() => onModeChange?.("suche")}
+            disabled={!hasSearchResults}
+            className={`px-2 py-0.5 text-xs rounded ${
+              sidebarMode === "suche"
+                ? "bg-blue-600 text-white"
+                : hasSearchResults
+                  ? "bg-gray-200 text-gray-600 hover:bg-gray-300"
+                  : "bg-gray-100 text-gray-300 cursor-not-allowed"
+            }`}
+          >
+            Suche
+          </button>
+        </div>
         {isLoading && (
           <FontAwesomeIcon icon={faSpinner} spin className="text-gray-400" />
         )}

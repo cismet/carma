@@ -42,6 +42,7 @@ import { fetchAllKeyTables } from "../../helper/apiMethods";
 import localForage from "localforage";
 import SearchModal from "../ui/SearchModal";
 import StreetSearch from "../ui/StreetSearch";
+import type { SidebarFeature } from "../ui/BelisSidebar";
 
 const FILTER_STORAGE_KEY = "@belis-desktop.layerFilter";
 
@@ -52,6 +53,7 @@ const MainPage = () => {
   const keyTablesLoading = useSelector(getKeyTablesLoading);
   const keyTablesFetched = useSelector(getKeyTablesFetched);
   const [streets, setStreets] = useState<BelisStreet[]>([]);
+  const [searchResults, setSearchResults] = useState<SidebarFeature[] | null>(null);
 
   const { map } = useLibreContext();
 
@@ -184,7 +186,7 @@ const MainPage = () => {
               {/* Search */}
               <div className="flex items-center gap-2">
                 <StreetSearch gazData={gazData} />
-                <SearchModal showFinalQuery={showRaw} />
+                <SearchModal showFinalQuery={showRaw} onSearchResults={setSearchResults} />
               </div>
 
               {/* Filter switches */}
@@ -330,6 +332,7 @@ const MainPage = () => {
           <BelisMapLibWrapper
             mapSizes={mapStyle}
             activeSourceLayers={activeSourceLayers}
+            searchResults={searchResults}
           />
         </CustomCard>
       </div>

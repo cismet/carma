@@ -41,20 +41,27 @@ import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faMap } from "@fortawesome/free-solid-svg-icons";
 import { FeatureType, fetchFeatureById } from "../../helper/apiMethods";
 import { getJWT } from "../../store/slices/auth";
+import { getVCard } from "@carma-appframeworks/belis";
 
 const LIST_WIDTH = 300;
 
 /** Debug flag: translucent main map + red mini-map border, mini-map always visible */
 const MINI_MAP_DEBUGGING = false;
 
+import type { SidebarFeature } from "../ui/BelisSidebar";
+
+type SidebarMode = "karte" | "suche";
+
 interface BelisMapLibWrapperProps {
   mapSizes: { width: number; height: number };
   activeSourceLayers: Set<string>;
+  searchResults: SidebarFeature[] | null;
 }
 
 const BelisMapLibWrapper = ({
   mapSizes,
   activeSourceLayers,
+  searchResults,
 }: BelisMapLibWrapperProps) => {
   const dispatch: AppDispatch = useDispatch();
   const jwt = useSelector(getJWT);
@@ -111,6 +118,42 @@ const BelisMapLibWrapper = ({
       showDebugBounds: showRaw,
     });
 
+  // Sidebar mode: "karte" shows viewport features, "suche" shows search results
+  const [sidebarMode, setSidebarMode] = useState<SidebarMode>("karte");
+  const hasSearchResults = searchResults != null && searchResults.length > 0;
+
+
+  // Compute effective sidebar data based on mode
+  const effectiveSidebarData = useMemo(() => {
+    if (sidebarMode === "suche" && searchResults && searchResults.length > 0) {
+      // Derive countsByLayer from search results
+      const counts: Record<string, number> = {};
+      for (const f of searchResults) {
+        const sl = f.sourceLayer || "";
+        counts[sl] = (counts[sl] || 0) + 1;
+      }
+      const total = searchResults.length;
+      // Include all layers present in results
+      const layers = new Set([...activeSourceLayers, ...Object.keys(counts)]);
+      return {
+        features: searchResults,
+        countsByLayer: counts,
+        totalCount: total,
+        isLoading: false,
+        isOverviewMode: false,
+        activeSourceLayers: layers,
+      };
+    }
+    return {
+      features,
+      countsByLayer,
+      totalCount,
+      isLoading,
+      isOverviewMode,
+      activeSourceLayers,
+    };
+  }, [sidebarMode, searchResults, features, countsByLayer, totalCount, isLoading, isOverviewMode, activeSourceLayers]);
+
   // Neighborhood: mark leuchten sharing the same Standort as the selected feature
   useSelectionNeighborhood({
     map,
@@ -153,51 +196,56 @@ const BelisMapLibWrapper = ({
     }
   }, [selectedFeature, dispatch]);
 
-  const validFeatureTypes: FeatureType[] = [
-    "leuchten",
-    "mast",
-    "schaltstelle",
-    "mauerlaschen",
-    "leitungen",
-    "abzweigdosen",
-  ];
+  // Map source layer names to FeatureType for API fetches
+  const SOURCE_LAYER_TO_FEATURE_TYPE: Record<string, FeatureType> = {
+    leuchten: "leuchten",
+    standorte: "mast",
+    schaltstelle: "schaltstelle",
+    mauerlaschen: "mauerlaschen",
+    leitungen: "leitungen",
+    abzweigdosen: "abzweigdosen",
+  };
 
   useEffect(() => {
     const fetchData = async () => {
-      // Don't clear data when selectedFeature is undefined - keep form mounted with old data
-      if (!jwt || !selectedFeature) {
+      if (!jwt) return;
+
+      // Resolve sourceLayer + id from either the processed feature or the raw selection identifier
+      let sourceLayer: string | undefined;
+      let featureId: string | number | undefined;
+
+      if (selectedFeature) {
+        sourceLayer = selectedFeature.carmaInfo?.sourceLayer;
+        featureId = selectedFeature.properties?.sourceProps?.id;
+      } else if (selectedFeatureId) {
+        // Fallback: LibreMap couldn't process the feature (e.g. search result not on map)
+        sourceLayer = selectedFeatureId.sourceLayer;
+        featureId = selectedFeatureId.id;
+      } else {
         return;
       }
 
-      // Get sourceLayer from selectedFeature
-      const sourceLayer = selectedFeature?.carmaInfo?.sourceLayer;
-
-      // Preserve featureType for when selectedFeature briefly becomes undefined
       if (sourceLayer) {
         setLastFeatureType(sourceLayer);
       }
-      const featureId = selectedFeature?.properties?.sourceProps?.id;
 
       console.log("[SELECTION] vector feature:", {
         featureId,
         sourceLayer,
         rawFeature,
+        fallback: !selectedFeature,
       });
 
-      const isValidFeatureType =
-        typeof sourceLayer === "string" &&
-        validFeatureTypes.includes(sourceLayer as FeatureType);
-
-      if (isValidFeatureType && featureId) {
+      const apiFeatureType = SOURCE_LAYER_TO_FEATURE_TYPE[sourceLayer ?? ""];
+      if (apiFeatureType && featureId) {
         dispatch(setFeatureLoading(true));
         try {
           const fullData = await fetchFeatureById(
             jwt,
             featureId as number,
-            sourceLayer as FeatureType
+            apiFeatureType
           );
           console.log("xxx Fetched full data:", fullData);
-          // Pass full data - forms will extract what they need internally
           setFetchedFeatureData(fullData);
         } catch (error) {
           console.error("xxx Failed to fetch feature:", error);
@@ -209,7 +257,45 @@ const BelisMapLibWrapper = ({
     };
 
     fetchData();
-  }, [selectedFeature, jwt]);
+  }, [selectedFeature, selectedFeatureId, jwt]);
+
+  // Map sourceLayer to getVCard featuretype
+  const SOURCE_LAYER_TO_VCARD_TYPE: Record<string, string> = {
+    leuchten: "tdta_leuchten",
+    standorte: "tdta_standort_mast",
+    schaltstelle: "schaltstelle",
+    mauerlaschen: "mauerlasche",
+    leitungen: "leitung",
+    abzweigdosen: "abzweigdose",
+  };
+
+  // Build override feature for the infobox when LibreMap can't process the selection
+  // (e.g. search result not visible on map)
+  const overrideSelectedFeature = useMemo(() => {
+    if (selectedFeature || !fetchedFeatureData || !selectedFeatureId) return null;
+
+    const sourceLayer = selectedFeatureId.sourceLayer ?? "";
+    const vcardType = SOURCE_LAYER_TO_VCARD_TYPE[sourceLayer];
+    if (!vcardType) return null;
+
+    try {
+      const vcard = getVCard({
+        featuretype: vcardType,
+        properties: fetchedFeatureData,
+      });
+      if (!vcard?.infobox) return null;
+      return {
+        properties: {
+          ...vcard.infobox,
+          sourceProps: fetchedFeatureData,
+        },
+        geometry: { type: "Point", coordinates: [0, 0] },
+        carmaInfo: { sourceLayer },
+      };
+    } catch {
+      return null;
+    }
+  }, [selectedFeature, fetchedFeatureData, selectedFeatureId]);
 
   const libreLayers = useMemo(() => {
     const layers: LibreLayer[] = [];
@@ -301,12 +387,12 @@ const BelisMapLibWrapper = ({
       style={{ width: mapSizes.width, height: mapSizes.height }}
     >
       <BelisSidebar
-        features={features}
-        countsByLayer={countsByLayer}
-        totalCount={totalCount}
-        isLoading={isLoading}
-        isOverviewMode={isOverviewMode}
-        activeSourceLayers={activeSourceLayers}
+        features={effectiveSidebarData.features}
+        countsByLayer={effectiveSidebarData.countsByLayer}
+        totalCount={effectiveSidebarData.totalCount}
+        isLoading={effectiveSidebarData.isLoading}
+        isOverviewMode={effectiveSidebarData.isOverviewMode}
+        activeSourceLayers={effectiveSidebarData.activeSourceLayers}
         selectedFeatureId={selectedFeatureId}
         onFeatureSelect={selectFeature}
         emptyMessage={
@@ -314,6 +400,9 @@ const BelisMapLibWrapper = ({
             ? "Keine Objekte im aktuellen Kartenausschnitt"
             : "Karte wird geladen..."
         }
+        sidebarMode={sidebarMode}
+        onModeChange={setSidebarMode}
+        hasSearchResults={hasSearchResults}
       />
       <div
         ref={mapContainerRef}
@@ -380,6 +469,7 @@ const BelisMapLibWrapper = ({
               fullScreenControl={false}
               libreLayers={libreLayers}
               selectFromHits={handleSelectFromHits}
+              overrideSelectedFeature={overrideSelectedFeature}
             />
           }
           datasheetContent={
@@ -388,7 +478,7 @@ const BelisMapLibWrapper = ({
                 feature={selectedFeature}
                 rawFeature={rawFeature}
                 fetchedData={fetchedFeatureData}
-                featureType={selectedFeature?.carmaInfo?.sourceLayer || lastFeatureType}
+                featureType={selectedFeature?.carmaInfo?.sourceLayer || selectedFeatureId?.sourceLayer || lastFeatureType}
               />
             </div>
           }

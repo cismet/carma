@@ -129,6 +129,9 @@ export interface LibreMapProps {
   logErrors?: boolean;
   /** Expose the map instance as window.__carmaMap for console debugging */
   exposeMapToWindow?: boolean;
+  /** Override selected feature for the infobox when internal selection is null
+   * (e.g. programmatic selection of a feature not present on the map) */
+  overrideSelectedFeature?: Record<string, unknown> | null;
 }
 
 export const LibreMap = ({
@@ -148,6 +151,7 @@ export const LibreMap = ({
   debugLog = false,
   logErrors = false,
   exposeMapToWindow = false,
+  overrideSelectedFeature,
 }: LibreMapProps) => {
   const mapContainer = useRef<HTMLDivElement>(null);
   const map = useRef<maplibregl.Map | null>(null);
@@ -1237,7 +1241,16 @@ export const LibreMap = ({
                       },
                     },
                   }
-                : null
+                : overrideSelectedFeature
+                  ? {
+                      ...overrideSelectedFeature,
+                      properties: {
+                        info: {
+                          ...(overrideSelectedFeature.properties as Record<string, unknown>),
+                        },
+                      },
+                    }
+                  : null
             }
             libreMap={map.current}
             versionData={{
