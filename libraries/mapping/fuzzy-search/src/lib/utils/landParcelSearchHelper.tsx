@@ -183,12 +183,6 @@ export const generateGemarkungOptions = (
   ];
 };
 
-const getFlurstueckColor = (entry: FlurstueckEntry): string => {
-  if (entry.hist === false && entry.art === "städtisch") return "black";
-  if (entry.hist === false && entry.art === "Abteilung IX") return "purple";
-  return "lightgrey";
-};
-
 export const generateLandParcelOptions = (
   parseState: LandParcelParseState,
   data: LandParcelDataStructure
@@ -276,11 +270,10 @@ export const generateLandParcelOptions = (
 
     const fstckOptions = filteredFstck.map(
       ({ key, fstck, displayLabel }, idx) => {
-        const color = getFlurstueckColor(fstck);
         return {
           key: idx,
           label: (
-            <div style={{ paddingLeft: "0.3rem", color }}>
+            <div style={{ paddingLeft: "0.3rem" }}>
               <span style={{ marginRight: "0.4rem" }}>
                 <i
                   className={
@@ -312,8 +305,7 @@ export const generateLandParcelOptions = (
       {
         label: (
           <span data-title="category-title">
-            Flurstück ({parseState.gemarkungName}, Flur{" "}
-            {parseState.flurName})
+            Flurstück ({parseState.gemarkungName}, Flur {parseState.flurName})
           </span>
         ),
         options: fstckOptions,
