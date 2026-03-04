@@ -259,22 +259,24 @@ const BelisMapLibWrapper = ({
       });
 
       const apiFeatureType = SOURCE_LAYER_TO_FEATURE_TYPE[sourceLayer ?? ""];
-      if (apiFeatureType && featureId) {
-        dispatch(setFeatureLoading(true));
-        try {
-          const fullData = await fetchFeatureById(
-            jwt,
-            featureId as number,
-            apiFeatureType
-          );
-          console.log("xxx Fetched full data:", fullData);
-          setFetchedFeatureData(fullData);
-        } catch (error) {
-          console.error("xxx Failed to fetch feature:", error);
-          setFetchedFeatureData(null);
-        } finally {
-          dispatch(setFeatureLoading(false));
-        }
+      if (!apiFeatureType || !featureId) {
+        // Not a known BeLIS layer (e.g. ALKIS background); clear stale data
+        setFetchedFeatureData(null);
+        return;
+      }
+      dispatch(setFeatureLoading(true));
+      try {
+        const fullData = await fetchFeatureById(
+          jwt,
+          featureId as number,
+          apiFeatureType
+        );
+        setFetchedFeatureData(fullData);
+      } catch (error) {
+        console.error("[SELECTION] Failed to fetch feature:", error);
+        setFetchedFeatureData(null);
+      } finally {
+        dispatch(setFeatureLoading(false));
       }
     };
 
@@ -287,12 +289,17 @@ const BelisMapLibWrapper = ({
   // createInfoBoxInfo.js (from the style) via sandboxed eval.
   const [overrideSelectedFeature, setOverrideSelectedFeature] = useState<any>(null);
   useEffect(() => {
-    if (selectedFeature || !fetchedFeatureData || !selectedFeatureId || !infoboxMappingCode) {
+    const sourceLayer = selectedFeatureId?.sourceLayer ?? "";
+    if (
+      selectedFeature ||
+      !fetchedFeatureData ||
+      !selectedFeatureId ||
+      !infoboxMappingCode ||
+      !SOURCE_LAYER_TO_FEATURE_TYPE[sourceLayer]
+    ) {
       setOverrideSelectedFeature(null);
       return;
     }
-
-    const sourceLayer = selectedFeatureId.sourceLayer ?? "";
 
     (async () => {
       try {
@@ -419,6 +426,23 @@ const BelisMapLibWrapper = ({
     );
   }, [selectedFeature, rawFeature]);
 
+  // In Suche mode, don't pass the raw feature to selectFeature so LibreMap
+  // won't attempt createFeature() on the synthetic search result. This keeps
+  // selectedFeature null and lets the fetch + override path handle the infobox.
+  const handleSidebarFeatureSelect = useCallback(
+    (
+      identifier: { source: string; sourceLayer?: string; id?: string | number },
+      feature: SidebarFeature
+    ) => {
+      if (sidebarMode === "suche") {
+        selectFeature(identifier);
+      } else {
+        selectFeature(identifier, feature as any);
+      }
+    },
+    [sidebarMode, selectFeature]
+  );
+
   return (
     <div
       className="relative flex"
@@ -433,7 +457,7 @@ const BelisMapLibWrapper = ({
         activeSourceLayers={effectiveSidebarData.activeSourceLayers}
         selectedFeatureId={selectedFeatureId}
         selectedDatabaseId={selectedDatabaseId}
-        onFeatureSelect={selectFeature}
+        onFeatureSelect={handleSidebarFeatureSelect}
         emptyMessage={
           map
             ? "Keine Objekte im aktuellen Kartenausschnitt"

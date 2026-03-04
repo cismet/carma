@@ -1100,6 +1100,7 @@ export const LibreMap = ({
 
     // Apply visual selection for the externally selected feature
     clearVisualSelection(mapInstance);
+    setSelectedFeature(null);
     applyVisualSelection(mapInstance, ctxSelectedFeatureId);
 
     // If a raw feature was provided, run createFeature to get the processed result
