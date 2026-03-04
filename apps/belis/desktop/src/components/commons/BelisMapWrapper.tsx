@@ -177,6 +177,15 @@ const BelisMapLibWrapper = ({
 
   // Sidebar mode: "karte" shows viewport features, "suche" shows search results
   const [sidebarMode, setSidebarMode] = useState<SidebarMode>("karte");
+
+  // When highlighting is killed, reset to Karte mode and clear search collection
+  useEffect(() => {
+    if (!highlightingActive) {
+      setSidebarMode("karte");
+      setAdjustedSearchResults(null);
+    }
+  }, [highlightingActive]);
+
   const hasSearchResults = adjustedSearchResults != null && adjustedSearchResults.length > 0;
 
 
