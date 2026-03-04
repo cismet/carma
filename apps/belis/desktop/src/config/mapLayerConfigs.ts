@@ -187,18 +187,6 @@ export const BELIS_FILTER_CATEGORIES: FilterCategory[] = [
     sourceLayers: ["standorte"],
     layerPatterns: ["standorte"],
   },
-  // {
-  //   key: "masten",
-  //   label: "Masten",
-  //   sourceLayers: ["mast"],
-  //   layerPatterns: ["mast"],
-  // },
-  {
-    key: "mauerlaschen",
-    label: "Mauerlaschen",
-    sourceLayers: ["mauerlaschen"],
-    layerPatterns: ["mauerlaschen"],
-  },
   {
     key: "leitungen",
     label: "Leitungen",
@@ -216,5 +204,11 @@ export const BELIS_FILTER_CATEGORIES: FilterCategory[] = [
     label: "Abzweigdosen",
     sourceLayers: ["abzweigdosen"],
     layerPatterns: ["abzweigdose"],
+  },
+  {
+    key: "mauerlaschen",
+    label: "Mauerlaschen",
+    sourceLayers: ["mauerlaschen"],
+    layerPatterns: ["mauerlaschen"],
   },
 ];

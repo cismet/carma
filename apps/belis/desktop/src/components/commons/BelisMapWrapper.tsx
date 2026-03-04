@@ -52,18 +52,18 @@ const MINI_MAP_DEBUGGING = false;
 
 import type { SidebarFeature } from "../ui/BelisSidebar";
 
-type SidebarMode = "karte" | "suche";
+type SidebarMode = "karte" | "highlights";
 
 interface BelisMapLibWrapperProps {
   mapSizes: { width: number; height: number };
   activeSourceLayers: Set<string>;
-  searchResults: SidebarFeature[] | null;
+  highlightResults: SidebarFeature[] | null;
 }
 
 const BelisMapLibWrapper = ({
   mapSizes,
   activeSourceLayers,
-  searchResults,
+  highlightResults,
 }: BelisMapLibWrapperProps) => {
   const dispatch: AppDispatch = useDispatch();
   const jwt = useSelector(getJWT);
@@ -109,16 +109,16 @@ const BelisMapLibWrapper = ({
     [namespacedSource]
   );
 
-  // Adjusted search results: starts from searchResults, updated by Alt+click toggles
-  const [adjustedSearchResults, setAdjustedSearchResults] = useState<SidebarFeature[] | null>(searchResults);
-  // Reset when a new search arrives
+  // Adjusted highlights: starts from highlightResults, updated by Alt+click toggles
+  const [adjustedHighlights, setAdjustedHighlights] = useState<SidebarFeature[] | null>(highlightResults);
+  // Reset when new highlight results arrive
   useEffect(() => {
-    setAdjustedSearchResults(searchResults);
-  }, [searchResults]);
+    setAdjustedHighlights(highlightResults);
+  }, [highlightResults]);
 
   const handleHighlightToggle = useCallback(
     (feature: maplibregl.MapGeoJSONFeature) => {
-      setAdjustedSearchResults((prev) => {
+      setAdjustedHighlights((prev) => {
         const toSidebarFeature = (f: maplibregl.MapGeoJSONFeature): SidebarFeature =>
           Object.assign(f, { original: f }) as unknown as SidebarFeature;
 
@@ -147,15 +147,15 @@ const BelisMapLibWrapper = ({
   const handleHighlightsApplied = useCallback(
     (matched: maplibregl.GeoJSONFeature[]) => {
       // Only collect when there are no SearchModal results (i.e. street search)
-      if (searchResults != null) return;
+      if (highlightResults != null) return;
       if (matched.length > 0) {
         const converted = matched.map(
           (f) => Object.assign(f, { original: f }) as unknown as SidebarFeature
         );
-        setAdjustedSearchResults(converted);
+        setAdjustedHighlights(converted);
       }
     },
-    [searchResults]
+    [highlightResults]
   );
 
   useMapHighlighting({
@@ -190,34 +190,34 @@ const BelisMapLibWrapper = ({
       showDebugBounds: showRaw,
     });
 
-  // Sidebar mode: "karte" shows viewport features, "suche" shows search results
+  // Sidebar mode: "karte" shows viewport features, "highlights" shows highlighted features
   const [sidebarMode, setSidebarMode] = useState<SidebarMode>("karte");
 
-  // When highlighting is killed, reset to Karte mode and clear search collection
+  // When highlighting is killed, reset to Karte mode and clear highlight collection
   useEffect(() => {
     if (!highlightingActive) {
       setSidebarMode("karte");
-      setAdjustedSearchResults(null);
+      setAdjustedHighlights(null);
     }
   }, [highlightingActive]);
 
-  const hasSearchResults = adjustedSearchResults != null && adjustedSearchResults.length > 0;
+  const hasHighlights = adjustedHighlights != null && adjustedHighlights.length > 0;
 
 
   // Compute effective sidebar data based on mode
   const effectiveSidebarData = useMemo(() => {
-    if (sidebarMode === "suche" && adjustedSearchResults && adjustedSearchResults.length > 0) {
+    if (sidebarMode === "highlights" && adjustedHighlights && adjustedHighlights.length > 0) {
       // Derive countsByLayer from search results
       const counts: Record<string, number> = {};
-      for (const f of adjustedSearchResults) {
+      for (const f of adjustedHighlights) {
         const sl = f.sourceLayer || "";
         counts[sl] = (counts[sl] || 0) + 1;
       }
-      const total = adjustedSearchResults.length;
+      const total = adjustedHighlights.length;
       // Include all layers present in results
       const layers = new Set([...activeSourceLayers, ...Object.keys(counts)]);
       return {
-        features: adjustedSearchResults,
+        features: adjustedHighlights,
         countsByLayer: counts,
         totalCount: total,
         isLoading: false,
@@ -233,7 +233,7 @@ const BelisMapLibWrapper = ({
       isOverviewMode,
       activeSourceLayers,
     };
-  }, [sidebarMode, adjustedSearchResults, features, countsByLayer, totalCount, isLoading, isOverviewMode, activeSourceLayers]);
+  }, [sidebarMode, adjustedHighlights, features, countsByLayer, totalCount, isLoading, isOverviewMode, activeSourceLayers]);
 
   // Neighborhood: mark leuchten sharing the same Standort as the selected feature
   useSelectionNeighborhood({
@@ -540,7 +540,7 @@ const BelisMapLibWrapper = ({
   }, [map]);
 
   // Database primary key of the selected feature (from tile properties).
-  // MVT feature IDs differ from database PKs; Suche mode uses database PKs.
+  // MVT feature IDs differ from database PKs; Highlights mode uses database PKs.
   const selectedDatabaseId = useMemo(() => {
     return (
       selectedFeature?.properties?.sourceProps?.id ??
@@ -585,9 +585,9 @@ const BelisMapLibWrapper = ({
         }
         sidebarMode={sidebarMode}
         onModeChange={setSidebarMode}
-        hasSearchResults={hasSearchResults}
+        hasHighlights={hasHighlights}
         karteCount={totalCount}
-        sucheCount={adjustedSearchResults?.length ?? undefined}
+        highlightCount={adjustedHighlights?.length ?? undefined}
       />
       <div
         ref={mapContainerRef}

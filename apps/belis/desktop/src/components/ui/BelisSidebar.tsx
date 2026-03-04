@@ -183,11 +183,11 @@ export interface BelisSidebarProps {
     feature: SidebarFeature
   ) => void;
   emptyMessage?: string;
-  sidebarMode?: "karte" | "suche";
-  onModeChange?: (mode: "karte" | "suche") => void;
-  hasSearchResults?: boolean;
+  sidebarMode?: "karte" | "highlights";
+  onModeChange?: (mode: "karte" | "highlights") => void;
+  hasHighlights?: boolean;
   karteCount?: number;
-  sucheCount?: number;
+  highlightCount?: number;
 }
 
 const BelisSidebar = ({
@@ -203,9 +203,9 @@ const BelisSidebar = ({
   emptyMessage = "Keine Objekte im aktuellen Kartenausschnitt",
   sidebarMode = "karte",
   onModeChange,
-  hasSearchResults = false,
+  hasHighlights = false,
   karteCount,
-  sucheCount,
+  highlightCount,
 }: BelisSidebarProps) => {
   // Filter features by active source layers
   const filteredFeatures = useMemo(() => {
@@ -277,6 +277,15 @@ const BelisSidebar = ({
   // Layers that are merged into a single "Standorte / Leuchten" group
   const MERGED_LAYERS = new Set(["standorte", "leuchten"]);
   const MERGED_GROUP_KEY = "Standorte / Leuchten";
+
+  // Stable group display order (unlisted groups go last, alphabetically)
+  const GROUP_ORDER: Record<string, number> = {
+    [MERGED_GROUP_KEY]: 0,
+    leitungen: 1,
+    schaltstelle: 2,
+    abzweigdosen: 3,
+    mauerlaschen: 4,
+  };
 
   // Group features by sourceLayer, merging standorte + leuchten into one group
   const groupedFeatures = useMemo(() => {
@@ -401,16 +410,24 @@ const BelisSidebar = ({
     return groups;
   }, [filteredFeatures, countsByLayer, activeSourceLayers, isOverviewMode]);
 
+  // Stable-ordered group entries
+  const sortedGroupEntries = useMemo(() => {
+    const max = Object.keys(GROUP_ORDER).length;
+    return Object.entries(groupedFeatures).sort(
+      ([a], [b]) => (GROUP_ORDER[a] ?? max) - (GROUP_ORDER[b] ?? max)
+    );
+  }, [groupedFeatures]);
+
   // Flat ordered list matching render order (for keyboard navigation)
   const flatFeatures = useMemo(() => {
     const flat: SidebarFeature[] = [];
-    for (const [groupKey, group] of Object.entries(groupedFeatures)) {
+    for (const [groupKey, group] of sortedGroupEntries) {
       if (!isOverviewMode && !collapsedGroups[groupKey]) {
         flat.push(...group.items);
       }
     }
     return flat;
-  }, [groupedFeatures, isOverviewMode, collapsedGroups]);
+  }, [sortedGroupEntries, isOverviewMode, collapsedGroups]);
 
   const isFeatureSelected = useCallback(
     (feature: SidebarFeature): boolean => {
@@ -424,7 +441,7 @@ const BelisSidebar = ({
       // Match by MVT feature ID (works for Karte mode)
       if (selectedFeatureId.id != null && String(selectedFeatureId.id) === fid)
         return true;
-      // Fallback: match by database primary key (works for Suche mode)
+      // Fallback: match by database primary key (works for Highlights mode)
       if (selectedDatabaseId != null && String(selectedDatabaseId) === fid)
         return true;
       return false;
@@ -516,17 +533,17 @@ const BelisSidebar = ({
             Karte{karteCount != null ? ` (${karteCount})` : ""}
           </button>
           <button
-            onClick={() => onModeChange?.("suche")}
-            disabled={!hasSearchResults}
+            onClick={() => onModeChange?.("highlights")}
+            disabled={!hasHighlights}
             className={`px-2 py-0.5 text-xs rounded ${
-              sidebarMode === "suche"
+              sidebarMode === "highlights"
                 ? "bg-blue-600 text-white"
-                : hasSearchResults
+                : hasHighlights
                   ? "bg-gray-200 text-gray-600 hover:bg-gray-300"
                   : "bg-gray-100 text-gray-300 cursor-not-allowed"
             }`}
           >
-            Suche{sucheCount != null ? ` (${sucheCount})` : ""}
+            Highlights{highlightCount != null ? ` (${highlightCount})` : ""}
           </button>
         </div>
         {isLoading && (
@@ -540,7 +557,7 @@ const BelisSidebar = ({
           </div>
         ) : (
           <div>
-            {Object.entries(groupedFeatures).map(([groupKey, group]) => (
+            {sortedGroupEntries.map(([groupKey, group]) => (
               <div key={groupKey}>
                 <div
                   onClick={() => toggleGroup(groupKey)}
