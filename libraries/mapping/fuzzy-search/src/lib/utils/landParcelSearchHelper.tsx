@@ -5,7 +5,7 @@ export const LAND_PARCEL_SEPARATOR = "-";
 
 export type FlurstueckEntry = {
   label: string;
-  lfk?: string;
+  lfk?: string | number;
   alkis_id?: string;
   art?: string;
   hist?: boolean;
