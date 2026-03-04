@@ -243,6 +243,7 @@ const BelisMapLibWrapper = ({
         sourceLayer = selectedFeatureId.sourceLayer;
         featureId = selectedFeatureId.id;
       } else {
+        setFetchedFeatureData(null);
         return;
       }
 
@@ -408,6 +409,16 @@ const BelisMapLibWrapper = ({
     map?.resize();
   }, [map]);
 
+  // Database primary key of the selected feature (from tile properties).
+  // MVT feature IDs differ from database PKs; Suche mode uses database PKs.
+  const selectedDatabaseId = useMemo(() => {
+    return (
+      selectedFeature?.properties?.sourceProps?.id ??
+      rawFeature?.properties?.id ??
+      null
+    );
+  }, [selectedFeature, rawFeature]);
+
   return (
     <div
       className="relative flex"
@@ -421,6 +432,7 @@ const BelisMapLibWrapper = ({
         isOverviewMode={effectiveSidebarData.isOverviewMode}
         activeSourceLayers={effectiveSidebarData.activeSourceLayers}
         selectedFeatureId={selectedFeatureId}
+        selectedDatabaseId={selectedDatabaseId}
         onFeatureSelect={selectFeature}
         emptyMessage={
           map
@@ -497,6 +509,7 @@ const BelisMapLibWrapper = ({
               libreLayers={libreLayers}
               selectFromHits={handleSelectFromHits}
               overrideSelectedFeature={overrideSelectedFeature}
+              gazetteerInfoOnClick={false}
             />
           }
           datasheetContent={

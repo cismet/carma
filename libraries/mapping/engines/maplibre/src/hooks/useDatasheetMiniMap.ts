@@ -213,7 +213,7 @@ export function useDatasheetMiniMap(
     if (!miniMap) return;
     const apply = () => {
       // Clear previous
-      if (prevSelectionRef.current) {
+      if (prevSelectionRef.current?.id != null) {
         try {
           miniMap.setFeatureState(
             {
@@ -228,7 +228,7 @@ export function useDatasheetMiniMap(
         }
       }
       // Apply new
-      if (selectedFeatureId) {
+      if (selectedFeatureId?.id != null) {
         try {
           miniMap.setFeatureState(
             {

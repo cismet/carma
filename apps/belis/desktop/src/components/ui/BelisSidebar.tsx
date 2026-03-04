@@ -171,6 +171,9 @@ export interface BelisSidebarProps {
     sourceLayer?: string;
     id?: string | number;
   } | null;
+  /** Database primary key of the selected feature (from tile properties).
+   *  Used as fallback match when MVT feature IDs differ from database PKs. */
+  selectedDatabaseId?: string | number | null;
   onFeatureSelect: (
     identifier: {
       source: string;
@@ -193,6 +196,7 @@ const BelisSidebar = ({
   isOverviewMode,
   activeSourceLayers,
   selectedFeatureId,
+  selectedDatabaseId,
   onFeatureSelect,
   emptyMessage = "Keine Objekte im aktuellen Kartenausschnitt",
   sidebarMode = "karte",
@@ -241,7 +245,8 @@ const BelisSidebar = ({
       (f) =>
         f.source === selectedFeatureId.source &&
         f.sourceLayer === selectedFeatureId.sourceLayer &&
-        f.id === selectedFeatureId.id
+        (String(f.id) === String(selectedFeatureId.id) ||
+          (selectedDatabaseId != null && String(f.id) === String(selectedDatabaseId)))
     );
 
     if (selectedFeature) {
@@ -263,7 +268,7 @@ const BelisSidebar = ({
         });
       }, 100);
     }
-  }, [selectedFeatureId, filteredFeatures, collapsedGroups]);
+  }, [selectedFeatureId, selectedDatabaseId, filteredFeatures, collapsedGroups]);
 
   // Layers that are merged into a single "Standorte / Leuchten" group
   const MERGED_LAYERS = new Set(["standorte", "leuchten"]);
@@ -405,14 +410,22 @@ const BelisSidebar = ({
 
   const isFeatureSelected = useCallback(
     (feature: SidebarFeature): boolean => {
-      return (
-        !!selectedFeatureId &&
-        selectedFeatureId.source === feature.source &&
-        selectedFeatureId.sourceLayer === feature.sourceLayer &&
-        selectedFeatureId.id === feature.id
-      );
+      if (!selectedFeatureId || feature.id == null) return false;
+      if (
+        selectedFeatureId.source !== feature.source ||
+        selectedFeatureId.sourceLayer !== feature.sourceLayer
+      )
+        return false;
+      const fid = String(feature.id);
+      // Match by MVT feature ID (works for Karte mode)
+      if (selectedFeatureId.id != null && String(selectedFeatureId.id) === fid)
+        return true;
+      // Fallback: match by database primary key (works for Suche mode)
+      if (selectedDatabaseId != null && String(selectedDatabaseId) === fid)
+        return true;
+      return false;
     },
-    [selectedFeatureId]
+    [selectedFeatureId, selectedDatabaseId]
   );
 
   const listRef = useRef<HTMLDivElement>(null);

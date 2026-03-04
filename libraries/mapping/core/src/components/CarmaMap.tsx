@@ -271,6 +271,7 @@ const CarmaMapContent = (props: CarmaMapProps) => {
                 exposeMapToWindow={props.exposeMapToWindow}
                 selectFromHits={miniMap ? undefined : props.selectFromHits}
                 overrideSelectedFeature={miniMap ? undefined : props.overrideSelectedFeature}
+                gazetteerInfoOnClick={miniMap ? false : props.gazetteerInfoOnClick}
               />
             )}
             {modalMenu}
