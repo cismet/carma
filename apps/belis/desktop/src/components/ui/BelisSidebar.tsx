@@ -587,14 +587,14 @@ const BelisSidebar = ({
                         key={`${feature.source}-${feature.sourceLayer}-${feature.id}-${index}`}
                         ref={selected ? selectedItemRef : null}
                         onClick={() => handleFeatureClick(feature)}
-                        className={`px-3 py-2 cursor-pointer border-b border-gray-100 hover:bg-gray-50 ${
+                        className={`px-3 py-2 cursor-pointer border-b border-gray-100 ${
                           group.indentLeuchten && feature.sourceLayer === "leuchten"
                             ? "pl-8"
                             : "pl-4"
                         } ${
                           selected
-                            ? "bg-blue-50 border-l-2 border-l-blue-500"
-                            : ""
+                            ? "bg-blue-50 hover:bg-blue-50 border-l-2 border-l-blue-500"
+                            : "hover:bg-gray-50"
                         }`}
                       >
                         <div className="flex justify-between gap-2 overflow-hidden">
