@@ -29,12 +29,14 @@ export type LandParcelParseState =
       stage: "gemarkung_matched";
       gemarkungKey: string;
       gemarkungName: string;
+      gemarkungDisplay: string;
       flurFilter: string;
     }
   | {
       stage: "flur_matched";
       gemarkungKey: string;
       gemarkungName: string;
+      gemarkungDisplay: string;
       flurKey: string;
       flurName: string;
       fstckFilter: string;
@@ -105,11 +107,16 @@ export const parseLandParcelInput = (
     return { stage: "none" };
   }
 
+  const gemarkungDisplay = /^\d+$/.test(gemarkungInput)
+    ? match.key
+    : match.entry.gemarkung;
+
   if (segments.length === 2) {
     return {
       stage: "gemarkung_matched",
       gemarkungKey: match.key,
       gemarkungName: match.entry.gemarkung,
+      gemarkungDisplay,
       flurFilter: segments[1].trim(),
     };
   }
@@ -123,6 +130,7 @@ export const parseLandParcelInput = (
       stage: "gemarkung_matched",
       gemarkungKey: match.key,
       gemarkungName: match.entry.gemarkung,
+      gemarkungDisplay,
       flurFilter: flurInput,
     };
   }
@@ -131,6 +139,7 @@ export const parseLandParcelInput = (
     stage: "flur_matched",
     gemarkungKey: match.key,
     gemarkungName: match.entry.gemarkung,
+    gemarkungDisplay,
     flurKey: flurMatch.key,
     flurName: removeLeadingZeros(flurMatch.entry.flur, true),
     fstckFilter: segments[2].trim(),
@@ -151,7 +160,10 @@ export const normalizeLandParcelInput = (input: string): string | null => {
     const flur = digitsOnly.substring(6, 9);
     const zaehler = digitsOnly.substring(9, 14);
     const nenner = digitsOnly.substring(14, 18);
-    return `${gem}${LAND_PARCEL_SEPARATOR}${removeLeadingZeros(flur, true)}${LAND_PARCEL_SEPARATOR}${removeLeadingZeros(`${zaehler}/${nenner}`)}`;
+    return `${gem}${LAND_PARCEL_SEPARATOR}${removeLeadingZeros(
+      flur,
+      true
+    )}${LAND_PARCEL_SEPARATOR}${removeLeadingZeros(`${zaehler}/${nenner}`)}`;
   }
 
   // 16-char compact format: gem(4) + flur(4) + zähler(4) + nenner(4)
@@ -160,7 +172,10 @@ export const normalizeLandParcelInput = (input: string): string | null => {
     const flur = digitsOnly.substring(4, 8);
     const zaehler = digitsOnly.substring(8, 12);
     const nenner = digitsOnly.substring(12, 16);
-    return `${gem}${LAND_PARCEL_SEPARATOR}${removeLeadingZeros(flur, true)}${LAND_PARCEL_SEPARATOR}${removeLeadingZeros(`${zaehler}/${nenner}`)}`;
+    return `${gem}${LAND_PARCEL_SEPARATOR}${removeLeadingZeros(
+      flur,
+      true
+    )}${LAND_PARCEL_SEPARATOR}${removeLeadingZeros(`${zaehler}/${nenner}`)}`;
   }
 
   return null;
@@ -196,6 +211,9 @@ export const tryDirectLandParcelMatch = (
   if (matchingEntries.length === 0) return null;
 
   const flurName = removeLeadingZeros(flur.entry.flur, true);
+  const gemarkungDisplay = /^\d+$/.test(gemarkungInput)
+    ? gemarkung.key
+    : gemarkung.entry.gemarkung;
 
   const options = matchingEntries.map(([, fstck], idx) => {
     const displayLabel = removeLeadingZeros(fstck.label);
@@ -213,11 +231,11 @@ export const tryDirectLandParcelMatch = (
             ></i>
           </span>
           <span>
-            {gemarkung.key}-{flurName}-{displayLabel}
+            {gemarkungDisplay}-{flurName}-{displayLabel}
           </span>
         </div>
       ),
-      value: `${gemarkung.key}${LAND_PARCEL_SEPARATOR}${flurName}${LAND_PARCEL_SEPARATOR}${displayLabel}`,
+      value: `${gemarkungDisplay}${LAND_PARCEL_SEPARATOR}${flurName}${LAND_PARCEL_SEPARATOR}${displayLabel}`,
       sData: null as any,
       isLandParcel: true,
       parcelStage: "flurstueck" as const,
@@ -261,23 +279,28 @@ export const generateGemarkungOptions = (
   });
   const results = fuse.search(trimmed);
 
-  const matches = results.map(({ item: { key, name } }, idx) => ({
-    key: idx,
-    label: (
-      <div style={{ paddingLeft: "0.3rem" }}>
-        <span style={{ marginRight: "0.4rem" }}>
-          <i className="fas fa-map"></i>
-        </span>
-        <span>
-          {key} ({name})
-        </span>
-      </div>
-    ),
-    value: `${key}${LAND_PARCEL_SEPARATOR}`,
-    sData: null as any,
-    isLandParcel: true,
-    parcelStage: "gemarkung" as const,
-  }));
+  const isKeySearch = /^\d+$/.test(trimmed);
+
+  const matches = results.map(({ item: { key, name } }, idx) => {
+    const displayId = isKeySearch ? key : name;
+    return {
+      key: idx,
+      label: (
+        <div style={{ paddingLeft: "0.3rem" }}>
+          <span style={{ marginRight: "0.4rem" }}>
+            <i className="fas fa-map"></i>
+          </span>
+          <span>
+            {key} ({name})
+          </span>
+        </div>
+      ),
+      value: `${displayId}${LAND_PARCEL_SEPARATOR}`,
+      sData: null as any,
+      isLandParcel: true,
+      parcelStage: "gemarkung" as const,
+    };
+  });
 
   if (matches.length === 0) return [];
 
@@ -329,11 +352,11 @@ export const generateLandParcelOptions = (
             <i className="fas fa-layer-group"></i>
           </span>
           <span>
-            {parseState.gemarkungKey}-{flurLabel}
+            {parseState.gemarkungDisplay}-{flurLabel}
           </span>
         </div>
       ),
-      value: `${parseState.gemarkungKey}${LAND_PARCEL_SEPARATOR}${flurLabel}${LAND_PARCEL_SEPARATOR}`,
+      value: `${parseState.gemarkungDisplay}${LAND_PARCEL_SEPARATOR}${flurLabel}${LAND_PARCEL_SEPARATOR}`,
       sData: null as any,
       isLandParcel: true,
       parcelStage: "flur" as const,
@@ -391,11 +414,12 @@ export const generateLandParcelOptions = (
                 ></i>
               </span>
               <span>
-                {parseState.gemarkungKey}-{parseState.flurName}-{displayLabel}
+                {parseState.gemarkungDisplay}-{parseState.flurName}-
+                {displayLabel}
               </span>
             </div>
           ),
-          value: `${parseState.gemarkungKey}${LAND_PARCEL_SEPARATOR}${parseState.flurName}${LAND_PARCEL_SEPARATOR}${displayLabel}`,
+          value: `${parseState.gemarkungDisplay}${LAND_PARCEL_SEPARATOR}${parseState.flurName}${LAND_PARCEL_SEPARATOR}${displayLabel}`,
           sData: null as any,
           isLandParcel: true,
           parcelStage: "flurstueck" as const,
