@@ -241,15 +241,12 @@ export const tryDirectLandParcelMatch = (
     };
   });
 
+  const title = `Flurstücke in ${gemarkung.entry.gemarkung}, Flur ${flurName}`;
   return [
     {
-      label: (
-        <span data-title="category-title">
-          Flurstücke in {gemarkung.entry.gemarkung}, Flur {flurName}
-        </span>
-      ),
+      label: <span data-title="category-title">{title}</span>,
       options,
-      titleText: `Flurstücke in ${gemarkung.entry.gemarkung}, Flur ${flurName}`,
+      titleText: title,
     },
   ];
 };
@@ -304,11 +301,12 @@ export const generateGemarkungOptions = (
 
   if (matches.length === 0) return [];
 
+  const title = "Gemarkungen";
   return [
     {
-      label: <span data-title="category-title">Gemarkung</span>,
+      label: <span data-title="category-title">{title}</span>,
       options: matches,
-      titleText: "Gemarkungen",
+      titleText: title,
     },
   ];
 };
@@ -426,15 +424,12 @@ export const generateLandParcelOptions = (
       }
     );
 
+    const title = `Flurstücke in ${parseState.gemarkungName}, Flur ${parseState.flurName}`;
     return [
       {
-        label: (
-          <span data-title="category-title">
-            Flurstück ({parseState.gemarkungName}, Flur {parseState.flurName})
-          </span>
-        ),
+        label: <span data-title="category-title">{title}</span>,
         options: fstckOptions,
-        titleText: `Flurstücke in ${parseState.gemarkungName}, Flur ${parseState.flurName}`,
+        titleText: title,
       },
     ];
   }
