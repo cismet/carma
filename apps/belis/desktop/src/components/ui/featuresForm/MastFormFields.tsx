@@ -142,7 +142,7 @@ const MastFormFields = ({ mast, namePrefix, readOnly = true }: MastFormFieldsPro
         // Hausnummer
         haus_nr: mast.haus_nr,
         // Standortangabe
-        standortangabe: mast.standortangabe,
+        standortangabe: toTitleCase(mast.standortangabe as string || ""),
         // Stadtbezirk - use id for Select value
         fk_bezirk: bezirk?.id ?? null,
         // Mastart - use id for Select value
@@ -284,7 +284,7 @@ const MastFormFields = ({ mast, namePrefix, readOnly = true }: MastFormFieldsPro
         >
           {bezirkOptions.map((item) => (
             <Select.Option key={item.id} value={item.id}>
-              {item.bezirk}
+              {toTitleCase(item.bezirk || "")}
             </Select.Option>
           ))}
         </Select>
