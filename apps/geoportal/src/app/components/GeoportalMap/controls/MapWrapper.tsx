@@ -397,6 +397,8 @@ const MapWrapper = ({
             <MeasurementControl
               position="topleft"
               order={60}
+              isActive={isModeMeasurement}
+              onToggle={() => dispatch(toggleUIMode(UIMode.MEASUREMENT))}
               disabled={isLeaflet && showLibreMap}
               useDisabledStyle={isLeaflet && showLibreMap}
               tooltip={

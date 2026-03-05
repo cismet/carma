@@ -62,7 +62,6 @@ import {
   getGeoJsonGeometryCacheKey,
   getProviderScopedCache,
   getTerrainAwareBoundingSphereFromGeoJsonGeometry,
-  setScreenSpaceCameraControllerMinimumZoomDistance,
   selectScreenSpaceCameraControllerMinimumZoomDistance,
   selectShowPrimaryTileset,
   selectViewerModels,
@@ -177,7 +176,6 @@ export const GeoportalMap = ({ height, width, allow3d }: MapProps) => {
   const minimumCameraHeight = useSelector(
     selectScreenSpaceCameraControllerMinimumZoomDistance
   );
-  const baseMinimumZoomDistanceRef = useRef<number | null>(null);
   const layers = useSelector(getLayers);
   const [maplibreMaps, setMaplibreMaps] = useState<MaplibreMap[]>([]);
   const uiMode = useSelector(getUIMode);
@@ -198,35 +196,6 @@ export const GeoportalMap = ({ height, width, allow3d }: MapProps) => {
         : 0;
     return minHeight * 1.5;
   }, [minimumCameraHeight]);
-
-  useEffect(() => {
-    if (
-      baseMinimumZoomDistanceRef.current === null &&
-      Number.isFinite(minimumCameraHeight)
-    ) {
-      baseMinimumZoomDistanceRef.current = Math.max(0, minimumCameraHeight);
-    }
-
-    const defaultMinZoomDistance =
-      baseMinimumZoomDistanceRef.current !== null
-        ? baseMinimumZoomDistanceRef.current
-        : 1;
-    const measurementMinZoomDistance = 1;
-    const targetMinimumZoomDistance = isModeMeasurement
-      ? measurementMinZoomDistance
-      : defaultMinZoomDistance;
-
-    if (
-      Number.isFinite(minimumCameraHeight) &&
-      minimumCameraHeight !== targetMinimumZoomDistance
-    ) {
-      dispatch(
-        setScreenSpaceCameraControllerMinimumZoomDistance(
-          targetMinimumZoomDistance
-        )
-      );
-    }
-  }, [dispatch, isModeMeasurement, minimumCameraHeight]);
 
   const infoBoxOverlay = addCssToOverlayHelperItem(
     getCollabedHelpElementsConfig("INFOBOX", geoElements),
@@ -684,17 +653,16 @@ export const GeoportalMap = ({ height, width, allow3d }: MapProps) => {
           <FeatureInfoBox pos={pos} onZoomToFeature={handleZoomToFeature} />
         );
       }
-    } else if (getIsCesium()) {
-      if (selectedFeature) {
-        return (
-          <FeatureInfoBox
-            onZoomToFeature={handleZoomToFeature}
-            displayOrbit={true}
-            isOrbiting={isOrbiting}
-            onOrbitToggle={toggleOrbit}
-          />
-        );
-      }
+    } else if (getIsCesium() && selectedFeature) {
+      // TODO unify with point queries for position information?
+      return (
+        <FeatureInfoBox
+          onZoomToFeature={handleZoomToFeature}
+          displayOrbit={true}
+          isOrbiting={isOrbiting}
+          onOrbitToggle={toggleOrbit}
+        />
+      );
     }
 
     return <div></div>;
@@ -779,7 +747,7 @@ export const GeoportalMap = ({ height, width, allow3d }: MapProps) => {
       dispatch,
       zoom: getLeafletZoom(),
       selectedFeature,
-      leafletMap,
+      leafletMap: getLeafletMap(),
       maplibreMapsRef,
       store,
     }),
@@ -788,9 +756,8 @@ export const GeoportalMap = ({ height, width, allow3d }: MapProps) => {
       dispatch,
       getLeafletZoom,
       selectedFeature,
-      leafletMap,
+      getLeafletMap,
       maplibreMapsRef,
-      store,
     ]
   );
 

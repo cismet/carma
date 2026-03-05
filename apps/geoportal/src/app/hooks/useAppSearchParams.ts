@@ -1,18 +1,18 @@
 import { useEffect } from "react";
 
-import { useMapFrameworkSwitcherContext } from "@carma-mapping/components";
-import { useHashState } from "@carma-providers/hash-state";
 import {
   MEASUREMENT_MODE,
-  useAnnotationContext,
-} from "@carma-mapping/annotations/core";
+  useMapMeasurementsContext,
+} from "@carma-commons/measurements";
+import { useMapFrameworkSwitcherContext } from "@carma-mapping/components";
+import { useHashState } from "@carma-providers/hash-state";
 
 import { URL_PARAM_KEYS } from "../config/app.config";
 import { useMapStyle } from "./useGeoportalMapStyle";
 import { MapStyleKeys } from "../constants/MapStyleKeys";
 
 export const useAppSearchParams = () => {
-  const mapMeasurements = useAnnotationContext();
+  const mapMeasurements = useMapMeasurementsContext();
   const { setActiveFrameworkCesium, setActiveFrameworkLeaflet } =
     useMapFrameworkSwitcherContext();
   const { setCurrentStyle } = useMapStyle();

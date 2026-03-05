@@ -2,14 +2,14 @@ import { useEffect } from "react";
 
 import {
   MEASUREMENT_MODE,
-  useAnnotationContext,
-} from "@carma-mapping/annotations/core";
+  useMapMeasurementsContext,
+} from "@carma-commons/measurements";
 import { useHashState } from "@carma-providers/hash-state";
 
 import { URL_PARAM_KEYS } from "../config/app.config";
 
 export const useMeasurementHashSync = () => {
-  const mapMeasurements = useAnnotationContext();
+  const mapMeasurements = useMapMeasurementsContext();
   const { updateHash } = useHashState();
 
   useEffect(() => {

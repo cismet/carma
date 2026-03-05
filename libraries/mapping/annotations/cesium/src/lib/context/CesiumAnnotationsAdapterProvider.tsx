@@ -55,7 +55,6 @@ import {
   useAnnotationPointMarkerBadges,
   useSelectionToolState,
   useAnnotationPersistence,
-  useAnnotationContext,
   formatNumber,
   getCustomPointAnnotationName,
   type AnnotationCreatePayload,
@@ -159,10 +158,6 @@ import {
   hasReferencePointInSelection,
   shouldMoveSelectionAsGroup,
 } from "../utils/selectionGroupMove";
-
-const MAP_MEASUREMENT_MODE = {
-  MEASUREMENT: "measurement",
-} as const;
 
 type MoveGizmoStartOptions = {
   axisDirection?: Cartesian3 | null;
@@ -755,6 +750,7 @@ const buildDerivedPolylineCollection = (
 interface CesiumAnnotationsProviderProps {
   children: React.ReactNode;
   options?: AnnotationProviderOptions;
+  enabled?: boolean;
 }
 
 const deleteFromHideMeasurementsOfType =
@@ -802,7 +798,7 @@ const flyToMeasurementPointGroup = (
 
 export const CesiumAnnotationsProvider: React.FC<
   CesiumAnnotationsProviderProps
-> = ({ children, options }) => {
+> = ({ children, options, enabled = true }) => {
   const { getScene } = useCesiumContext();
   const scene = getScene();
   const getPreferredPlaneFacingPosition = useCallback((): Cartesian3 | null => {
@@ -821,7 +817,6 @@ export const CesiumAnnotationsProvider: React.FC<
       }),
     [getPreferredPlaneFacingPosition]
   );
-  const mapMeasurements = useAnnotationContext();
   const requestUpdateCallback = useCesiumOverlaySync();
   const overlayContext = useLabelOverlay();
 
@@ -853,6 +848,7 @@ export const CesiumAnnotationsProvider: React.FC<
     persistenceKey,
     persistenceEnabled,
   } = normalizedOptions;
+  const isInteractionActive = enabled;
 
   const {
     measurementMode,
@@ -6760,7 +6756,7 @@ export const CesiumAnnotationsProvider: React.FC<
   }, [options?.mode, setMeasurementMode]);
 
   useEffect(() => {
-    if (mapMeasurements.mode === MAP_MEASUREMENT_MODE.MEASUREMENT) {
+    if (isInteractionActive) {
       setMeasurementMode((prev) =>
         prev === MEASUREMENT_MODE_NONE ? MEASUREMENT_MODE_POINT : prev
       );
@@ -6777,7 +6773,7 @@ export const CesiumAnnotationsProvider: React.FC<
       setMoveGizmoAxisCandidates(null);
       setIsMoveGizmoDragging(false);
     }
-  }, [mapMeasurements.mode, setMeasurementMode]);
+  }, [isInteractionActive, setMeasurementMode]);
 
   useEffect(() => {
     const previousMode = previousMeasurementModeRef.current;

@@ -18,6 +18,10 @@ import {
 } from "@carma-collab/wuppertal/geoportal";
 import { TAILWIND_CLASSNAMES_FULLSCREEN_FIXED } from "@carma-commons/utils";
 import {
+  MapMeasurementsProvider,
+  MEASUREMENT_MODE,
+} from "@carma-commons/measurements";
+import {
   MapFrameworkSwitcherProvider,
   MobileWarningMessage,
 } from "@carma-mapping/components";
@@ -27,10 +31,6 @@ import {
 } from "@carma-providers/feature-flag";
 import { HashStateProvider } from "@carma-providers/hash-state";
 import { useCesiumDevConsoleTrigger } from "@carma-mapping/engines/cesium";
-import {
-  AnnotationProvider,
-  MEASUREMENT_MODE,
-} from "@carma-mapping/annotations/core";
 import { LabelOverlayProvider } from "@carma-providers/label-overlay";
 import { CesiumAnnotationsProvider } from "@carma-mapping/annotations/cesium";
 
@@ -49,22 +49,16 @@ import { useManageLayers } from "./hooks/useManageLayers";
 import { useSyncToken } from "./hooks/useSyncToken";
 import { useKeyboardShortcuts } from "./hooks/useKeyboardShortcuts";
 
-import { APP_KEY, layerMap } from "./config";
+import { layerMap } from "./config";
 import { geoportalMapStyleConfig } from "./config/mapStyleConfig";
+import { CESIUM_ANNOTATIONS_OPTIONS } from "./config/annotations.config";
+import { MEASUREMENTS_BASE_CONFIG } from "./config/measurements.config";
 
 import { CESIUM_CONFIG, CONFIG_BASE_URL } from "./config/app.config";
 import store from "./store";
 import { featureFlagConfig } from "./config/featureFlags";
 
 import { OBLIQUE_CONFIG, CAMERA_ID_TO_DIRECTION } from "./oblique/config";
-
-// Stable config objects
-const MEASUREMENTS_BASE_CONFIG = {
-  editableTitle: true,
-  snappingEnabled: false,
-  snappingOnUpdate: false,
-  localStorageKey: "@" + APP_KEY + ".app.measurements",
-};
 
 import { useAdhocFeatureRehydrate } from "./hooks/use-adhoc-feature-rehydrate";
 
@@ -119,13 +113,13 @@ function MeasurementsWrapper({
   );
 
   return (
-    <AnnotationProvider
+    <MapMeasurementsProvider
       externalMode={externalMode}
       setModeExternal={setModeExternal}
       config={config}
     >
       {children}
-    </AnnotationProvider>
+    </MapMeasurementsProvider>
   );
 }
 
@@ -169,20 +163,6 @@ function App({ published }: { published?: boolean }) {
     []
   );
 
-  const cesiumMeasurementOptions = useMemo(
-    () => ({
-      pointQueries: { enabled: true, radius: 1 },
-      moveGizmo: {
-        markerSizeScale: 0.5,
-        labelDistanceScale: 2,
-        snapPlaneDragToGround: true,
-        showRotationHandle: false,
-      },
-      persistenceKey: `${MEASUREMENTS_BASE_CONFIG.localStorageKey}.geoportal`,
-    }),
-    []
-  );
-
   if (isLoadingConfig === null) {
     // wait for the loading state to be determined to prevent re-rendering
     console.debug("[CONFIG] APP - Waiting for config loading state...");
@@ -212,7 +192,8 @@ function App({ published }: { published?: boolean }) {
                 >
                   <LabelOverlayProvider containerRef={labelOverlayContainerRef}>
                     <CesiumAnnotationsProvider
-                      options={cesiumMeasurementOptions}
+                      enabled={uiMode === UIMode.MEASUREMENT}
+                      options={CESIUM_ANNOTATIONS_OPTIONS}
                     >
                       <ErrorBoundary FallbackComponent={AppErrorFallback}>
                         <AdhocFeatureRehydration />

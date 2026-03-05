@@ -1,9 +1,3 @@
-export {
-  AnnotationProvider,
-  AnnotationContext,
-  useAnnotationContext,
-  MEASUREMENT_MODE,
-} from "./lib/components/AnnotationProvider";
 export * from "./lib/distanceOverlayDom";
 export * from "./lib/distanceScreenSpace";
 export * from "./lib/useDistancePairLabelOverlays";
