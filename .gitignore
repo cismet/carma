@@ -61,8 +61,6 @@ playwright-report/
 dispatch.*.event
 .github/workflows/test.yml
 nx-cloud.env
-storybook-static/
-
 .npmrc
 deployment-config copy.json
 
