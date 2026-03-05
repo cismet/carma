@@ -83,7 +83,9 @@ const SchaltstelleForm = ({
       form.setFieldsValue({
         // Strassenschluessel
         strassenschluessel_pk: ss.tkey_strassenschluessel?.pk,
-        strassenschluessel_strasse: toTitleCase(ss.tkey_strassenschluessel?.strasse || ""),
+        strassenschluessel_strasse: toTitleCase(
+          ss.tkey_strassenschluessel?.strasse || ""
+        ),
         // Hausnummer
         haus_nummer: ss.haus_nummer,
         // Standortbez.
@@ -226,7 +228,10 @@ const SchaltstelleForm = ({
           className="mb-4"
         >
           <Select
-            placeholder={getPlaceholder(readOnly, "Rundsteuerempfanger auswahlen")}
+            placeholder={getPlaceholder(
+              readOnly,
+              "Rundsteuerempfanger auswahlen"
+            )}
             className="w-full"
             size="large"
             showSearch

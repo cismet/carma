@@ -130,9 +130,7 @@ const AbzweigdoseForm = ({
   );
 
   // Debug content (only shown when ?showRaw=true)
-  const debugContent = (
-    <RawDisplay>{JSON.stringify(data, null, 2)}</RawDisplay>
-  );
+  const debugContent = <RawDisplay>{JSON.stringify(data, null, 2)}</RawDisplay>;
 
   return (
     <div className="bg-white rounded-xl border border-gray-100 w-full h-full flex flex-col">

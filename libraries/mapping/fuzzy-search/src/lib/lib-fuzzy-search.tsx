@@ -359,7 +359,9 @@ export function LibFuzzySearch({
         width: pixelwidth,
         display: "flex",
       }}
-      className={`fuzzy-search-container${hideIcon ? " fuzzy-search-container--no-icon" : ""}`}
+      className={`fuzzy-search-container${
+        hideIcon ? " fuzzy-search-container--no-icon" : ""
+      }`}
     >
       {!hideIcon && (
         <Button

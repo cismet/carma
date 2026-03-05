@@ -10,7 +10,13 @@ interface FormHeaderProps {
   loading?: boolean;
 }
 
-const FormHeader = ({ title, subtitle, onCancel, onSave, loading }: FormHeaderProps) => {
+const FormHeader = ({
+  title,
+  subtitle,
+  onCancel,
+  onSave,
+  loading,
+}: FormHeaderProps) => {
   return (
     <div className="flex items-start justify-between p-6 pb-4 gap-4 flex-wrap border-b border-gray-100">
       <div className="flex items-center gap-3 flex-shrink-0">

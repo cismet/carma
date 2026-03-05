@@ -15,7 +15,13 @@ interface StandortFormProps {
   loading?: boolean;
 }
 
-const StandortForm = ({ data, rawFeature, onClose, readOnly = true, loading }: StandortFormProps) => {
+const StandortForm = ({
+  data,
+  rawFeature,
+  onClose,
+  readOnly = true,
+  loading,
+}: StandortFormProps) => {
   const [pendingFiles, setPendingFiles] = useState<UploadFile[]>([]);
   const jwt = useSelector(getJWT);
 
@@ -50,8 +56,8 @@ const StandortForm = ({ data, rawFeature, onClose, readOnly = true, loading }: S
     | undefined;
   const subtitle =
     toTitleCase(strassenschluessel?.strasse || "") ||
-    toTitleCase(rawProps?.strasse as string || "") ||
-    toTitleCase(rawProps?.standortangabe as string || "") ||
+    toTitleCase((rawProps?.strasse as string) || "") ||
+    toTitleCase((rawProps?.standortangabe as string) || "") ||
     "-ohne Straße-";
 
   if (!data) {

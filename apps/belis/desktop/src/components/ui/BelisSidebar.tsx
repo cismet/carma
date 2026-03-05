@@ -236,11 +236,13 @@ const BelisSidebar = ({
         f.source === selectedFeatureId.source &&
         f.sourceLayer === selectedFeatureId.sourceLayer &&
         (String(f.id) === String(selectedFeatureId.id) ||
-          (selectedDatabaseId != null && String(f.id) === String(selectedDatabaseId)))
+          (selectedDatabaseId != null &&
+            String(f.id) === String(selectedDatabaseId)))
     );
 
     if (selectedFeature) {
-      const sl = selectedFeature.sourceLayer || selectedFeature.source || "Sonstige";
+      const sl =
+        selectedFeature.sourceLayer || selectedFeature.source || "Sonstige";
       const groupKey = MERGED_LAYERS.has(sl) ? MERGED_GROUP_KEY : sl;
 
       // Expand group if collapsed
@@ -260,14 +262,20 @@ const BelisSidebar = ({
         const elRect = el.getBoundingClientRect();
         const containerRect = container.getBoundingClientRect();
         const isVisible =
-          elRect.top >= containerRect.top && elRect.bottom <= containerRect.bottom;
+          elRect.top >= containerRect.top &&
+          elRect.bottom <= containerRect.bottom;
 
         if (!isVisible) {
           el.scrollIntoView({ behavior: "smooth", block: "start" });
         }
       }, 100);
     }
-  }, [selectedFeatureId, selectedDatabaseId, filteredFeatures, collapsedGroups]);
+  }, [
+    selectedFeatureId,
+    selectedDatabaseId,
+    filteredFeatures,
+    collapsedGroups,
+  ]);
 
   // Layers that are merged into a single "Standorte / Leuchten" group
   const MERGED_LAYERS = new Set(["standorte", "leuchten"]);
@@ -284,8 +292,15 @@ const BelisSidebar = ({
 
   // Group features by sourceLayer, merging standorte + leuchten into one group
   const groupedFeatures = useMemo(() => {
-    const groups: Record<string, { items: SidebarFeature[]; total: number; label?: string; indentLeuchten?: boolean }> =
-      {};
+    const groups: Record<
+      string,
+      {
+        items: SidebarFeature[];
+        total: number;
+        label?: string;
+        indentLeuchten?: boolean;
+      }
+    > = {};
 
     // Track which merged layers are active
     const activeMergedLayers = new Set<string>();
@@ -357,8 +372,16 @@ const BelisSidebar = ({
       const sortedClusters = [...clusters.entries()].sort(([, a], [, b]) => {
         const reprA = a.standort ?? a.leuchten[0];
         const reprB = b.standort ?? b.leuchten[0];
-        const streetA = (reprA?.properties?.strasse || reprA?.properties?.strassenschluessel || "").toLowerCase();
-        const streetB = (reprB?.properties?.strasse || reprB?.properties?.strassenschluessel || "").toLowerCase();
+        const streetA = (
+          reprA?.properties?.strasse ||
+          reprA?.properties?.strassenschluessel ||
+          ""
+        ).toLowerCase();
+        const streetB = (
+          reprB?.properties?.strasse ||
+          reprB?.properties?.strassenschluessel ||
+          ""
+        ).toLowerCase();
         if (streetA !== streetB) return streetA.localeCompare(streetB);
         const nrA = Number(reprA?.properties?.lfd_nummer) || 0;
         const nrB = Number(reprB?.properties?.lfd_nummer) || 0;
@@ -515,7 +538,10 @@ const BelisSidebar = ({
       onKeyDown={handleKeyDown}
       className="w-[300px] h-full bg-white border-r border-gray-300 flex flex-col overflow-hidden z-[1000] shrink-0 outline-none"
     >
-      <div className="px-3 py-2 border-b border-gray-300 bg-gray-50 text-sm flex justify-between items-center" style={{ minHeight: 36 }}>
+      <div
+        className="px-3 py-2 border-b border-gray-300 bg-gray-50 text-sm flex justify-between items-center"
+        style={{ minHeight: 36 }}
+      >
         <div className="flex gap-1">
           <button
             onClick={() => onModeChange?.("karte")}
@@ -557,7 +583,9 @@ const BelisSidebar = ({
                   onClick={() => toggleGroup(groupKey)}
                   className="text-left px-3 py-2 bg-gray-50 cursor-pointer flex justify-between items-center border-b border-gray-200 hover:bg-gray-100"
                 >
-                  <b className="text-sm">{group.label ?? toTitleCase(groupKey)}</b>
+                  <b className="text-sm">
+                    {group.label ?? toTitleCase(groupKey)}
+                  </b>
                   <span className="bg-gray-500 text-white rounded-full px-2 py-0.5 text-xs font-bold">
                     {group.total}
                   </span>
@@ -574,7 +602,8 @@ const BelisSidebar = ({
                         ref={selected ? selectedItemRef : null}
                         onClick={() => handleFeatureClick(feature)}
                         className={`px-3 py-2 cursor-pointer border-b border-gray-100 ${
-                          group.indentLeuchten && feature.sourceLayer === "leuchten"
+                          group.indentLeuchten &&
+                          feature.sourceLayer === "leuchten"
                             ? "pl-8"
                             : "pl-4"
                         } ${

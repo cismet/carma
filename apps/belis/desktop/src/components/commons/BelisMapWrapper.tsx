@@ -49,7 +49,6 @@ const LIST_WIDTH = 300;
 /** Debug flag: translucent main map + red mini-map border, mini-map always visible */
 const MINI_MAP_DEBUGGING = false;
 
-
 import type { SidebarFeature } from "../ui/BelisSidebar";
 
 type SidebarMode = "karte" | "highlights";
@@ -68,14 +67,19 @@ const BelisMapLibWrapper = ({
   const dispatch: AppDispatch = useDispatch();
   const jwt = useSelector(getJWT);
   const { map } = useLibreContext();
-  const { selectedFeature, rawFeature, selectedFeatureId, selectFeature } = useMapSelection();
+  const { selectedFeature, rawFeature, selectedFeatureId, selectFeature } =
+    useMapSelection();
   const { closeDatasheet, openDatasheet } = useDatasheet();
   const [fetchedFeatureData, setFetchedFeatureData] = useState<any>(null);
   // Preserve last valid featureType to prevent unmount when selectedFeature briefly becomes undefined
-  const [lastFeatureType, setLastFeatureType] = useState<string | undefined>(undefined);
+  const [lastFeatureType, setLastFeatureType] = useState<string | undefined>(
+    undefined
+  );
 
   // Extract the infoboxMapping code from the style (browser-cached, no extra network cost)
-  const [infoboxMappingCode, setInfoboxMappingCode] = useState<string | null>(null);
+  const [infoboxMappingCode, setInfoboxMappingCode] = useState<string | null>(
+    null
+  );
   useEffect(() => {
     fetch(BELIS_STYLE_URL)
       .then((r) => r.json())
@@ -90,7 +94,9 @@ const BelisMapLibWrapper = ({
           }
         }
       })
-      .catch((err) => console.warn("[INFOBOX] Failed to extract mapping from style:", err));
+      .catch((err) =>
+        console.warn("[INFOBOX] Failed to extract mapping from style:", err)
+      );
   }, []);
   const activeBackgroundLayer = useSelector(getActiveBackgroundLayer);
   const backgroundLayerOpacities = useSelector(getBackgroundLayerOpacities);
@@ -110,10 +116,17 @@ const BelisMapLibWrapper = ({
   );
 
   // Highlight context: need ensureToggledFeatures + criteria before handleHighlightToggle
-  const { highlightingActive, highlightVersion, ensureToggledFeatures, criteria } = useMapHighlight();
+  const {
+    highlightingActive,
+    highlightVersion,
+    ensureToggledFeatures,
+    criteria,
+  } = useMapHighlight();
 
   // Adjusted highlights: starts from highlightResults, updated by Alt+click toggles
-  const [adjustedHighlights, setAdjustedHighlights] = useState<SidebarFeature[] | null>(highlightResults);
+  const [adjustedHighlights, setAdjustedHighlights] = useState<
+    SidebarFeature[] | null
+  >(highlightResults);
   // Reset when new highlight results arrive
   useEffect(() => {
     setAdjustedHighlights(highlightResults);
@@ -133,8 +146,7 @@ const BelisMapLibWrapper = ({
           siblingLeuchten = map
             .querySourceFeatures(namespacedSource, { sourceLayer: "leuchten" })
             .filter(
-              (f) =>
-                String(f.properties?.fk_standort ?? "") === standortId
+              (f) => String(f.properties?.fk_standort ?? "") === standortId
             );
         }
       }
@@ -181,14 +193,21 @@ const BelisMapLibWrapper = ({
             removeSet.add(`${(l as any).sourceLayer ?? "leuchten"}::${lid}`);
           }
           return prev.filter((f) => {
-            const key = `${f.sourceLayer ?? ""}::${String(f.properties?.id ?? f.id ?? "")}`;
+            const key = `${f.sourceLayer ?? ""}::${String(
+              f.properties?.id ?? f.id ?? ""
+            )}`;
             return !removeSet.has(key);
           });
         }
 
         // Add standort + all sibling leuchten (skip duplicates)
         const existing = new Set(
-          prev.map((f) => `${f.sourceLayer ?? ""}::${String(f.properties?.id ?? f.id ?? "")}`)
+          prev.map(
+            (f) =>
+              `${f.sourceLayer ?? ""}::${String(
+                f.properties?.id ?? f.id ?? ""
+              )}`
+          )
         );
         const toAdd: SidebarFeature[] = [];
         if (!existing.has(`${sl}::${dbId}`)) {
@@ -231,7 +250,9 @@ const BelisMapLibWrapper = ({
 
   const showRaw = useMemo(() => {
     const hashQuery = window.location.hash.split("?")[1] || "";
-    const param = new URLSearchParams(hashQuery || window.location.search).get("showRaw");
+    const param = new URLSearchParams(hashQuery || window.location.search).get(
+      "showRaw"
+    );
     if (param !== null) return param === "true";
     return window.location.hostname === "localhost";
   }, []);
@@ -244,7 +265,13 @@ const BelisMapLibWrapper = ({
       visibleMapWidth: mapWidth,
       visibleMapHeight: mapSizes.height,
       maxFeatures: 2000,
-      layerFilterExpressions: ["Leuchten.*-base", "Leuchten.*-icon", "Standorte.*-base", "Standorte.*-icon", "standorte.*"],
+      layerFilterExpressions: [
+        "Leuchten.*-base",
+        "Leuchten.*-icon",
+        "Standorte.*-base",
+        "Standorte.*-icon",
+        "standorte.*",
+      ],
       highlightedOnly: highlightingActive,
       refreshTrigger: highlightVersion,
       showDebugBounds: showRaw,
@@ -261,12 +288,17 @@ const BelisMapLibWrapper = ({
     }
   }, [highlightingActive]);
 
-  const hasHighlights = highlightingActive || (adjustedHighlights != null && adjustedHighlights.length > 0);
-
+  const hasHighlights =
+    highlightingActive ||
+    (adjustedHighlights != null && adjustedHighlights.length > 0);
 
   // Compute effective sidebar data based on mode
   const effectiveSidebarData = useMemo(() => {
-    if (sidebarMode === "highlights" && adjustedHighlights && adjustedHighlights.length > 0) {
+    if (
+      sidebarMode === "highlights" &&
+      adjustedHighlights &&
+      adjustedHighlights.length > 0
+    ) {
       // Derive countsByLayer from search results
       const counts: Record<string, number> = {};
       for (const f of adjustedHighlights) {
@@ -293,7 +325,16 @@ const BelisMapLibWrapper = ({
       isOverviewMode,
       activeSourceLayers,
     };
-  }, [sidebarMode, adjustedHighlights, features, countsByLayer, totalCount, isLoading, isOverviewMode, activeSourceLayers]);
+  }, [
+    sidebarMode,
+    adjustedHighlights,
+    features,
+    countsByLayer,
+    totalCount,
+    isLoading,
+    isOverviewMode,
+    activeSourceLayers,
+  ]);
 
   // Neighborhood: mark leuchten sharing the same Standort as the selected feature
   useSelectionNeighborhood({
@@ -408,7 +449,8 @@ const BelisMapLibWrapper = ({
   // (e.g. search result not visible on map).
   // Flatten the GraphQL by-id record to vector-tile-like props, then run the same
   // createInfoBoxInfo.js (from the style) via sandboxed eval.
-  const [overrideSelectedFeature, setOverrideSelectedFeature] = useState<any>(null);
+  const [overrideSelectedFeature, setOverrideSelectedFeature] =
+    useState<any>(null);
   useEffect(() => {
     const sourceLayer = selectedFeatureId?.sourceLayer ?? "";
     if (
@@ -425,9 +467,14 @@ const BelisMapLibWrapper = ({
     (async () => {
       try {
         // Unwrap GraphQL envelope: { schaltstelle: [{...}] } -> record
-        const firstArray = Object.values(fetchedFeatureData).find(Array.isArray) as unknown[] | undefined;
+        const firstArray = Object.values(fetchedFeatureData).find(
+          Array.isArray
+        ) as unknown[] | undefined;
         const record = (firstArray?.[0] ?? null) as Record<string, any> | null;
-        if (!record) { setOverrideSelectedFeature(null); return; }
+        if (!record) {
+          setOverrideSelectedFeature(null);
+          return;
+        }
 
         // Flatten to vector-tile-like props so createInfoBoxInfo.js can process them
         const flatProps = flattenGqlRecord(record, sourceLayer);
@@ -439,7 +486,11 @@ const BelisMapLibWrapper = ({
         );
 
         if (info) {
-          const genericLinks: { iconname: string; tooltip: string; action?: () => void }[] = [];
+          const genericLinks: {
+            iconname: string;
+            tooltip: string;
+            action?: () => void;
+          }[] = [];
           if ((info as Record<string, unknown>).datasheet && openDatasheet) {
             genericLinks.push({
               iconname: "info",
@@ -448,8 +499,15 @@ const BelisMapLibWrapper = ({
             });
           }
           setOverrideSelectedFeature({
-            properties: { ...info, sourceProps: fetchedFeatureData, genericLinks },
-            geometry: rawFeature?.geometry ?? { type: "Point", coordinates: [0, 0] },
+            properties: {
+              ...info,
+              sourceProps: fetchedFeatureData,
+              genericLinks,
+            },
+            geometry: rawFeature?.geometry ?? {
+              type: "Point",
+              coordinates: [0, 0],
+            },
             carmaInfo: { sourceLayer },
           });
         } else {
@@ -459,7 +517,13 @@ const BelisMapLibWrapper = ({
         setOverrideSelectedFeature(null);
       }
     })();
-  }, [selectedFeature, fetchedFeatureData, selectedFeatureId, infoboxMappingCode, rawFeature]);
+  }, [
+    selectedFeature,
+    fetchedFeatureData,
+    selectedFeatureId,
+    infoboxMappingCode,
+    rawFeature,
+  ]);
 
   // Visually select the MVT feature on the map when using the override path.
   // The override path means LibreMap didn't handle the selection (no on-map click),
@@ -476,7 +540,9 @@ const BelisMapLibWrapper = ({
 
     const trySelect = () => {
       try {
-        const features = map.querySourceFeatures(namespacedSource, { sourceLayer });
+        const features = map.querySourceFeatures(namespacedSource, {
+          sourceLayer,
+        });
         const match = features.find(
           (f) => f.properties && String(f.properties.id) === String(dbId)
         );
@@ -613,9 +679,7 @@ const BelisMapLibWrapper = ({
         }
       }
 
-      const standorte = candidates.filter(
-        (h) => h.sourceLayer === "standorte"
-      );
+      const standorte = candidates.filter((h) => h.sourceLayer === "standorte");
       if (standorte.length > 0) {
         return standorte[0];
       }
@@ -644,7 +708,11 @@ const BelisMapLibWrapper = ({
   // The setSelectedFeature(null) in LibreMap's watcher ensures the override path works.
   const handleSidebarFeatureSelect = useCallback(
     (
-      identifier: { source: string; sourceLayer?: string; id?: string | number },
+      identifier: {
+        source: string;
+        sourceLayer?: string;
+        id?: string | number;
+      },
       feature: SidebarFeature
     ) => {
       selectFeature(identifier, feature as any);
@@ -753,7 +821,11 @@ const BelisMapLibWrapper = ({
                 feature={selectedFeature}
                 rawFeature={rawFeature}
                 fetchedData={fetchedFeatureData}
-                featureType={selectedFeature?.carmaInfo?.sourceLayer || selectedFeatureId?.sourceLayer || lastFeatureType}
+                featureType={
+                  selectedFeature?.carmaInfo?.sourceLayer ||
+                  selectedFeatureId?.sourceLayer ||
+                  lastFeatureType
+                }
               />
             </div>
           }

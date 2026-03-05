@@ -194,7 +194,11 @@ export const MapHighlightProvider = ({
         }
       }
       if (changed) {
-        if (debug) console.log("[MapHighlight] ensureToggledFeatures", { count: ids.length, toggled });
+        if (debug)
+          console.log("[MapHighlight] ensureToggledFeatures", {
+            count: ids.length,
+            toggled,
+          });
         bump();
       }
     },

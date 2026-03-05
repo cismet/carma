@@ -535,7 +535,7 @@ export const LibreMap = ({
           console.error(
             "[MAPLIBRE]",
             (e as unknown as { sourceId?: string }).sourceId ?? "",
-            (e as unknown as { error?: Error }).error ?? e,
+            (e as unknown as { error?: Error }).error ?? e
           );
         });
       }
@@ -1248,15 +1248,18 @@ export const LibreMap = ({
                     },
                   }
                 : overrideSelectedFeature
-                  ? {
-                      ...overrideSelectedFeature,
-                      properties: {
-                        info: {
-                          ...(overrideSelectedFeature.properties as Record<string, unknown>),
-                        },
+                ? {
+                    ...overrideSelectedFeature,
+                    properties: {
+                      info: {
+                        ...(overrideSelectedFeature.properties as Record<
+                          string,
+                          unknown
+                        >),
                       },
-                    }
-                  : null
+                    },
+                  }
+                : null
             }
             libreMap={map.current}
             versionData={{

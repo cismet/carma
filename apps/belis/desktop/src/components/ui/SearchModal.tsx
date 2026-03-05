@@ -26,7 +26,12 @@ import {
 } from "../../config/mapLayerConfigs";
 import { flattenGqlRecord } from "../../helper/flattenGqlRecord";
 
-type SearchType = "arbeitsauftrag" | "leuchte" | "mast" | "schaltstelle" | "mauerlasche";
+type SearchType =
+  | "arbeitsauftrag"
+  | "leuchte"
+  | "mast"
+  | "schaltstelle"
+  | "mauerlasche";
 
 interface SearchModalProps {
   defaultOpen?: boolean;
@@ -599,7 +604,9 @@ const convertResultsToSidebarFeatures = (
           let coords: [number, number] | undefined;
           if (entityKey === "tdta_leuchten") {
             const mast = (entity as Record<string, unknown>)
-              .tdta_standort_mast as { geom_84?: { x?: number; y?: number } } | undefined;
+              .tdta_standort_mast as
+              | { geom_84?: { x?: number; y?: number } }
+              | undefined;
             if (mast?.geom_84?.x != null && mast?.geom_84?.y != null) {
               coords = [mast.geom_84.x, mast.geom_84.y];
             }
@@ -617,7 +624,10 @@ const convertResultsToSidebarFeatures = (
             source: namespacedSource,
             sourceLayer: meta.sourceLayer,
             id: entity.id as number,
-            properties: flattenGqlRecord(entity as Record<string, any>, meta.sourceLayer),
+            properties: flattenGqlRecord(
+              entity as Record<string, any>,
+              meta.sourceLayer
+            ),
             geometry: coords
               ? { type: "Point", coordinates: coords }
               : { type: "Point", coordinates: [0, 0] },
@@ -633,36 +643,38 @@ const convertResultsToSidebarFeatures = (
   const meta = SEARCH_TYPE_SIDEBAR_META[searchType];
   if (!meta) return [];
 
-  return results
-    .map((item) => {
-      // Get geometry
-      let coords: [number, number] | undefined;
-      if (searchType === "leuchte") {
-        const mast = item.tdta_standort_mast as
-          | { geom_84?: { x?: number; y?: number } }
-          | undefined;
-        if (mast?.geom_84?.x != null && mast?.geom_84?.y != null) {
-          coords = [mast.geom_84.x, mast.geom_84.y];
-        }
-      } else {
-        const geom = item.geom_84 as { x?: number; y?: number } | undefined;
-        if (geom?.x != null && geom?.y != null) {
-          coords = [geom.x, geom.y];
-        }
+  return results.map((item) => {
+    // Get geometry
+    let coords: [number, number] | undefined;
+    if (searchType === "leuchte") {
+      const mast = item.tdta_standort_mast as
+        | { geom_84?: { x?: number; y?: number } }
+        | undefined;
+      if (mast?.geom_84?.x != null && mast?.geom_84?.y != null) {
+        coords = [mast.geom_84.x, mast.geom_84.y];
       }
+    } else {
+      const geom = item.geom_84 as { x?: number; y?: number } | undefined;
+      if (geom?.x != null && geom?.y != null) {
+        coords = [geom.x, geom.y];
+      }
+    }
 
-      return {
-        type: "Feature",
-        source: namespacedSource,
-        sourceLayer: meta.sourceLayer,
-        id: item.id as number,
-        properties: flattenGqlRecord(item as Record<string, any>, meta.sourceLayer),
-        geometry: coords
-          ? { type: "Point", coordinates: coords }
-          : { type: "Point", coordinates: [0, 0] },
-        state: {},
-      } as unknown as SidebarFeature;
-    });
+    return {
+      type: "Feature",
+      source: namespacedSource,
+      sourceLayer: meta.sourceLayer,
+      id: item.id as number,
+      properties: flattenGqlRecord(
+        item as Record<string, any>,
+        meta.sourceLayer
+      ),
+      geometry: coords
+        ? { type: "Point", coordinates: coords }
+        : { type: "Point", coordinates: [0, 0] },
+      state: {},
+    } as unknown as SidebarFeature;
+  });
 };
 
 const SearchModal = ({
@@ -681,7 +693,9 @@ const SearchModal = ({
   const { setHighlightingActive, highlightByIds, clearHighlights } =
     useMapHighlight();
 
-  const namespacedSource = `${slugifyUrl(BELIS_STYLE_URL)}::${BELIS_ORIGINAL_SOURCE}`;
+  const namespacedSource = `${slugifyUrl(
+    BELIS_STYLE_URL
+  )}::${BELIS_ORIGINAL_SOURCE}`;
 
   // Store current search values
   const searchValuesRef = useRef<SearchValues>({});
@@ -875,7 +889,15 @@ const SearchModal = ({
           setIsSearching(false);
         });
     },
-    [jwt, map, clearHighlights, setHighlightingActive, highlightByIds, onSearchResults, namespacedSource]
+    [
+      jwt,
+      map,
+      clearHighlights,
+      setHighlightingActive,
+      highlightByIds,
+      onSearchResults,
+      namespacedSource,
+    ]
   );
 
   // Execute search based on current search type and values
@@ -901,7 +923,9 @@ const SearchModal = ({
         forSearchType: "arbeitsauftrag",
         logPrefix: "[ARBEITSAUFTRAG_SEARCH]",
         getGeometry: (item) => {
-          const protokolle = item.ar_protokolleArray as ProtokollItem[] | undefined;
+          const protokolle = item.ar_protokolleArray as
+            | ProtokollItem[]
+            | undefined;
           if (!protokolle || protokolle.length === 0) return undefined;
 
           for (const p of protokolle) {
@@ -932,7 +956,9 @@ const SearchModal = ({
           return undefined;
         },
         getAllGeometries: (item) => {
-          const protokolle = item.ar_protokolleArray as ProtokollItem[] | undefined;
+          const protokolle = item.ar_protokolleArray as
+            | ProtokollItem[]
+            | undefined;
           if (!protokolle) return [];
 
           const geometries: [number, number][] = [];
@@ -968,7 +994,9 @@ const SearchModal = ({
           return geometries;
         },
         getHighlightIds: (item) => {
-          const protokolle = item.ar_protokolleArray as ProtokollItem[] | undefined;
+          const protokolle = item.ar_protokolleArray as
+            | ProtokollItem[]
+            | undefined;
           if (!protokolle) return [];
 
           const ids: string[] = [];

@@ -75,7 +75,11 @@ const FormLabel = ({ children }: { children: React.ReactNode }) => (
   <span className="text-sm font-medium text-gray-700">{children}</span>
 );
 
-const MastFormFields = ({ mast, namePrefix, readOnly = true }: MastFormFieldsProps) => {
+const MastFormFields = ({
+  mast,
+  namePrefix,
+  readOnly = true,
+}: MastFormFieldsProps) => {
   const [form] = Form.useForm();
   const keyTablesData = useSelector(getKeyTablesData);
 
@@ -134,7 +138,9 @@ const MastFormFields = ({ mast, namePrefix, readOnly = true }: MastFormFieldsPro
       form.setFieldsValue({
         // Strassenschluessel
         strassenschluessel_pk: strassenschluessel?.pk,
-        strassenschluessel_strasse: toTitleCase(strassenschluessel?.strasse || ""),
+        strassenschluessel_strasse: toTitleCase(
+          strassenschluessel?.strasse || ""
+        ),
         // Kennziffer - use id for Select value
         fk_kennziffer: kennziffer?.id ?? null,
         // Laufende Nr.
@@ -142,7 +148,7 @@ const MastFormFields = ({ mast, namePrefix, readOnly = true }: MastFormFieldsPro
         // Hausnummer
         haus_nr: mast.haus_nr,
         // Standortangabe
-        standortangabe: toTitleCase(mast.standortangabe as string || ""),
+        standortangabe: toTitleCase((mast.standortangabe as string) || ""),
         // Stadtbezirk - use id for Select value
         fk_bezirk: bezirk?.id ?? null,
         // Mastart - use id for Select value
@@ -188,9 +194,7 @@ const MastFormFields = ({ mast, namePrefix, readOnly = true }: MastFormFieldsPro
         // Monteur
         monteur: mast.monteur,
         // Mastschutz
-        mastschutz: mast.mastschutz
-          ? dayjs(mast.mastschutz as string)
-          : null,
+        mastschutz: mast.mastschutz ? dayjs(mast.mastschutz as string) : null,
         // Revision
         revision: mast.revision,
         // Anlagengruppe - use id for Select value
@@ -595,7 +599,12 @@ const MastFormFields = ({ mast, namePrefix, readOnly = true }: MastFormFieldsPro
         label={<FormLabel>Letzte Änderung</FormLabel>}
         className="mb-4"
       >
-        <DatePicker className="w-full" size="large" format="DD.MM.YYYY" placeholder={getPlaceholder(readOnly, "Datum auswählen")} />
+        <DatePicker
+          className="w-full"
+          size="large"
+          format="DD.MM.YYYY"
+          placeholder={getPlaceholder(readOnly, "Datum auswählen")}
+        />
       </Form.Item>
     </Form>
   );

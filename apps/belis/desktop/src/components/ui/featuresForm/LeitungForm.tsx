@@ -22,7 +22,13 @@ interface KeyTableItem {
   groesse?: string;
 }
 
-const LeitungForm = ({ data, rawFeature, onClose, readOnly = true, loading }: LeitungFormProps) => {
+const LeitungForm = ({
+  data,
+  rawFeature,
+  onClose,
+  readOnly = true,
+  loading,
+}: LeitungFormProps) => {
   const [form] = Form.useForm();
   const [pendingFiles, setPendingFiles] = useState<UploadFile[]>([]);
   const keyTablesData = useSelector(getKeyTablesData);

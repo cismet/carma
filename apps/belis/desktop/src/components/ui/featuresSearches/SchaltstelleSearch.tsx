@@ -103,7 +103,8 @@ const SchaltstelleSearch = ({ onValuesChange }: SchaltstelleSearchProps) => {
   });
 
   const rundsteuerempfaengerOptions = [
-    ...((keyTablesData["rundsteuerempfänger"] || []) as RundsteuerempfaengerItem[]),
+    ...((keyTablesData["rundsteuerempfänger"] ||
+      []) as RundsteuerempfaengerItem[]),
   ].sort((a, b) => {
     const aText = a.rs_typ || "";
     const bText = b.rs_typ || "";
@@ -152,7 +153,10 @@ const SchaltstelleSearch = ({ onValuesChange }: SchaltstelleSearchProps) => {
           </Form.Item>
         </Col>
         <Col span={12}>
-          <Form.Item label={<FormLabel>Rundsteuerempf.</FormLabel>} className="mb-3">
+          <Form.Item
+            label={<FormLabel>Rundsteuerempf.</FormLabel>}
+            className="mb-3"
+          >
             <Select
               placeholder="auswählen"
               className="w-full"

@@ -56,7 +56,7 @@ function CameraPersistence() {
           zoom: map.getZoom(),
           pitch: map.getPitch(),
           bearing: map.getBearing(),
-        }),
+        })
       );
     };
 

@@ -58,7 +58,7 @@ const MauerlascheForm = ({
     | undefined;
   const subtitle =
     toTitleCase(strassenschluessel?.strasse || "") ||
-    toTitleCase(rawProps?.strasse as string || "") ||
+    toTitleCase((rawProps?.strasse as string) || "") ||
     "-ohne Straße-";
 
   useEffect(() => {
@@ -79,7 +79,9 @@ const MauerlascheForm = ({
       form.setFieldsValue({
         // Strassenschluessel
         strassenschluessel_pk: ml.tkey_strassenschluessel?.pk,
-        strassenschluessel_strasse: toTitleCase(ml.tkey_strassenschluessel?.strasse || ""),
+        strassenschluessel_strasse: toTitleCase(
+          ml.tkey_strassenschluessel?.strasse || ""
+        ),
         // Laufende Nr.
         laufende_nummer: ml.laufende_nummer,
         // Montage (Erstellungsjahr) - can be a date string or year number

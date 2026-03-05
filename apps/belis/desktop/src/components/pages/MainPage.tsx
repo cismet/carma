@@ -53,7 +53,9 @@ const MainPage = () => {
   const keyTablesLoading = useSelector(getKeyTablesLoading);
   const keyTablesFetched = useSelector(getKeyTablesFetched);
   const [streets, setStreets] = useState<BelisStreet[]>([]);
-  const [highlightResults, setHighlightResults] = useState<SidebarFeature[] | null>(null);
+  const [highlightResults, setHighlightResults] = useState<
+    SidebarFeature[] | null
+  >(null);
 
   const { map } = useLibreContext();
 
@@ -186,7 +188,10 @@ const MainPage = () => {
               {/* Search */}
               <div className="flex items-center gap-2">
                 <StreetSearch gazData={gazData} />
-                <SearchModal showFinalQuery={showRaw} onSearchResults={setHighlightResults} />
+                <SearchModal
+                  showFinalQuery={showRaw}
+                  onSearchResults={setHighlightResults}
+                />
               </div>
 
               {/* Filter switches */}

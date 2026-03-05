@@ -95,7 +95,11 @@ const FormLabel = ({ children }: { children: React.ReactNode }) => (
   <span className="text-sm font-medium text-gray-700">{children}</span>
 );
 
-const LeuchteFormFields = ({ leuchte, namePrefix, readOnly = true }: LeuchteFormFieldsProps) => {
+const LeuchteFormFields = ({
+  leuchte,
+  namePrefix,
+  readOnly = true,
+}: LeuchteFormFieldsProps) => {
   const [form] = Form.useForm();
   const keyTablesData = useSelector(getKeyTablesData);
 
@@ -190,7 +194,9 @@ const LeuchteFormFields = ({ leuchte, namePrefix, readOnly = true }: LeuchteForm
       form.setFieldsValue({
         // Straßenschlüssel
         strassenschluessel_pk: strassenschluessel?.pk,
-        strassenschluessel_strasse: toTitleCase(strassenschluessel?.strasse || ""),
+        strassenschluessel_strasse: toTitleCase(
+          strassenschluessel?.strasse || ""
+        ),
         // Kennziffer - use id for Select value
         fk_kennziffer: kennziffer?.id ?? null,
         // Laufende Nr. / Leuchtennummer
@@ -399,7 +405,10 @@ const LeuchteFormFields = ({ leuchte, namePrefix, readOnly = true }: LeuchteForm
         className="mb-4"
       >
         <Select
-          placeholder={getPlaceholder(readOnly, "Rundsteuerempfänger auswählen")}
+          placeholder={getPlaceholder(
+            readOnly,
+            "Rundsteuerempfänger auswählen"
+          )}
           className="w-full"
           size="large"
           showSearch

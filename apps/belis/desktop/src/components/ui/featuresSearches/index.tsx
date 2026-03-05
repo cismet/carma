@@ -4,7 +4,13 @@ import SchaltstelleSearch from "./SchaltstelleSearch";
 import MauerlascheSearch from "./MauerlascheSearch";
 import ArbeitsauftragSearch from "./ArbeitsauftragSearch";
 
-export { LeuchteSearch, MastSearch, SchaltstelleSearch, MauerlascheSearch, ArbeitsauftragSearch };
+export {
+  LeuchteSearch,
+  MastSearch,
+  SchaltstelleSearch,
+  MauerlascheSearch,
+  ArbeitsauftragSearch,
+};
 
 export const featureSearchRegistry: Record<
   string,

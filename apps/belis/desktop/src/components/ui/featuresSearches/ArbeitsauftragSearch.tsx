@@ -70,7 +70,9 @@ const DateRangeField = ({
   </div>
 );
 
-const ArbeitsauftragSearch = ({ onValuesChange }: ArbeitsauftragSearchProps) => {
+const ArbeitsauftragSearch = ({
+  onValuesChange,
+}: ArbeitsauftragSearchProps) => {
   const [form] = Form.useForm();
   const keyTablesData = useSelector(getKeyTablesData);
 
@@ -95,18 +97,21 @@ const ArbeitsauftragSearch = ({ onValuesChange }: ArbeitsauftragSearchProps) => 
   };
 
   // Key table options with sorting
-  const teamOptions = [
-    ...((keyTablesData.teams || []) as TeamItem[]),
-  ].sort((a, b) => {
-    const aText = a.name || "";
-    const bText = b.name || "";
-    return aText.localeCompare(bText, "de", { sensitivity: "base" });
-  });
+  const teamOptions = [...((keyTablesData.teams || []) as TeamItem[])].sort(
+    (a, b) => {
+      const aText = a.name || "";
+      const bText = b.name || "";
+      return aText.localeCompare(bText, "de", { sensitivity: "base" });
+    }
+  );
 
   return (
     <Form form={form} layout="vertical" requiredMark={false} className="pr-2">
       <SectionHeader>Status</SectionHeader>
-      <Form.Item label={<FormLabel>Bearbeitungsstand</FormLabel>} className="mb-3">
+      <Form.Item
+        label={<FormLabel>Bearbeitungsstand</FormLabel>}
+        className="mb-3"
+      >
         <Select
           defaultValue="alle"
           className="w-full"

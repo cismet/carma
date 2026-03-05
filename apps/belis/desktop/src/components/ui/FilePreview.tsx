@@ -324,7 +324,9 @@ const FilePreview = ({
           const objectName = doc.dms_url?.url?.object_name || "";
           const fileType = getFileType(objectName);
           const description =
-            doc.dms_url?.description || doc.dms_url?.url?.object_name || "Datei";
+            doc.dms_url?.description ||
+            doc.dms_url?.url?.object_name ||
+            "Datei";
 
           const sectionLabel = (
             <span
@@ -345,16 +347,28 @@ const FilePreview = ({
 
           if (fileType === "image") {
             photourls.push(getSecureDocumentUrl(jwt, objectName));
-            captions.push(<div>{sectionLabel}{description}</div>);
+            captions.push(
+              <div>
+                {sectionLabel}
+                {description}
+              </div>
+            );
           } else if (fileType === "pdf") {
             const pdfUrl = getSecureDocumentUrl(jwt, objectName);
-            photourls.push(getSecureDocumentUrl(jwt, objectName + ".thumbnail.jpg"));
+            photourls.push(
+              getSecureDocumentUrl(jwt, objectName + ".thumbnail.jpg")
+            );
             captions.push(
               <div>
                 {sectionLabel}
                 {description}
                 <span style={{ marginLeft: 30 }}>
-                  <a href={pdfUrl} target="_pdf" rel="noopener noreferrer" style={{ color: "#1890ff" }}>
+                  <a
+                    href={pdfUrl}
+                    target="_pdf"
+                    rel="noopener noreferrer"
+                    style={{ color: "#1890ff" }}
+                  >
                     PDF extern öffnen
                   </a>
                 </span>
@@ -368,20 +382,30 @@ const FilePreview = ({
           const objectName = doc.dms_url?.url?.object_name || "";
           const fileType = getFileType(objectName);
           const description =
-            doc.dms_url?.description || doc.dms_url?.url?.object_name || "Datei";
+            doc.dms_url?.description ||
+            doc.dms_url?.url?.object_name ||
+            "Datei";
 
           if (fileType === "image") {
             photourls.push(getSecureDocumentUrl(jwt, objectName));
             captions.push(description);
           } else if (fileType === "pdf") {
-            const thumbnailUrl = getSecureDocumentUrl(jwt, objectName + ".thumbnail.jpg");
+            const thumbnailUrl = getSecureDocumentUrl(
+              jwt,
+              objectName + ".thumbnail.jpg"
+            );
             const pdfUrl = getSecureDocumentUrl(jwt, objectName);
             photourls.push(thumbnailUrl);
             captions.push(
               <div>
                 {description}
                 <span style={{ marginLeft: 30 }}>
-                  <a href={pdfUrl} target="_pdf" rel="noopener noreferrer" style={{ color: "#1890ff" }}>
+                  <a
+                    href={pdfUrl}
+                    target="_pdf"
+                    rel="noopener noreferrer"
+                    style={{ color: "#1890ff" }}
+                  >
                     PDF extern öffnen
                   </a>
                 </span>
@@ -404,7 +428,13 @@ const FilePreview = ({
         }
       }
     },
-    [allLightboxDocuments, lightboxDocuments, globalLightboxOffset, jwt, lightBoxDispatch]
+    [
+      allLightboxDocuments,
+      lightboxDocuments,
+      globalLightboxOffset,
+      jwt,
+      lightBoxDispatch,
+    ]
   );
 
   if (!documents || documents.length === 0) {

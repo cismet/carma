@@ -40,7 +40,12 @@ const FeaturesFormsWrapper = ({
   if (FormComponent) {
     return (
       <div className="h-full">
-        <FormComponent data={data} rawFeature={rawFeature} readOnly={readOnly} loading={loading} />
+        <FormComponent
+          data={data}
+          rawFeature={rawFeature}
+          readOnly={readOnly}
+          loading={loading}
+        />
       </div>
     );
   }

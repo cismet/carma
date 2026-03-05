@@ -160,8 +160,9 @@ export const useMapHighlighting = ({
   const debounceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Stable ref so applyHighlights doesn't need onHighlightsApplied as a dependency
-  const onHighlightsAppliedRef =
-    useRef<((features: GeoJSONFeature[]) => void) | undefined>(onHighlightsApplied);
+  const onHighlightsAppliedRef = useRef<
+    ((features: GeoJSONFeature[]) => void) | undefined
+  >(onHighlightsApplied);
   onHighlightsAppliedRef.current = onHighlightsApplied;
 
   // Apply highlight feature state to all currently loaded features
@@ -200,8 +201,18 @@ export const useMapHighlighting = ({
               if (!seen.has(key)) {
                 seen.add(key);
                 // Attach source/sourceLayer so consumers can identify the feature
-                (f as GeoJSONFeature & { source?: string; sourceLayer?: string }).source = source;
-                (f as GeoJSONFeature & { source?: string; sourceLayer?: string }).sourceLayer = sourceLayer;
+                (
+                  f as GeoJSONFeature & {
+                    source?: string;
+                    sourceLayer?: string;
+                  }
+                ).source = source;
+                (
+                  f as GeoJSONFeature & {
+                    source?: string;
+                    sourceLayer?: string;
+                  }
+                ).sourceLayer = sourceLayer;
                 matched.push(f);
               }
             }

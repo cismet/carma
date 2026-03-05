@@ -24,8 +24,12 @@ export const flattenGqlRecord = (
         leuchtentyp: r.tkey_leuchtentyp?.leuchtentyp,
         leuchtennummer: r.leuchtennummer,
         lfd_nummer: r.tdta_standort_mast?.lfd_nummer ?? r.lfd_nummer,
-        mastart: r.tdta_standort_mast?.tkey_mastart?.mastart ?? r.tkey_mastart?.mastart,
-        masttyp: r.tdta_standort_mast?.tkey_masttyp?.masttyp ?? r.tkey_masttyp?.masttyp,
+        mastart:
+          r.tdta_standort_mast?.tkey_mastart?.mastart ??
+          r.tkey_mastart?.mastart,
+        masttyp:
+          r.tdta_standort_mast?.tkey_masttyp?.masttyp ??
+          r.tkey_masttyp?.masttyp,
         strassenschluessel: r.tkey_strassenschluessel?.pk,
         strasse: r.tkey_strassenschluessel?.strasse,
         fk_standort: r.fk_standort ?? r.tdta_standort_mast?.id,

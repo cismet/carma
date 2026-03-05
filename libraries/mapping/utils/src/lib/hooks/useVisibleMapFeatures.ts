@@ -241,7 +241,9 @@ export const useVisibleMapFeatures = ({
 
         if (showDebugBounds) {
           // Create a key to track if bounds have changed (avoid infinite loop from setData triggering idle)
-          const boundsKey = `${visibleWest.toFixed(6)},${visibleEast.toFixed(6)},${visibleNorth.toFixed(6)},${visibleSouth.toFixed(6)}`;
+          const boundsKey = `${visibleWest.toFixed(6)},${visibleEast.toFixed(
+            6
+          )},${visibleNorth.toFixed(6)},${visibleSouth.toFixed(6)}`;
 
           if (lastDebugBoundsRef.current !== boundsKey) {
             lastDebugBoundsRef.current = boundsKey;
@@ -342,8 +344,13 @@ export const useVisibleMapFeatures = ({
           renderedFeatures = [];
           const style = maplibreMap.getStyle();
           const sourceLayers = [
-            "leuchten", "standorte", "mast", "schaltstelle",
-            "mauerlaschen", "leitungen", "abzweigdosen",
+            "leuchten",
+            "standorte",
+            "mast",
+            "schaltstelle",
+            "mauerlaschen",
+            "leitungen",
+            "abzweigdosen",
           ];
           if (style?.sources) {
             for (const srcId of Object.keys(style.sources)) {
@@ -365,7 +372,10 @@ export const useVisibleMapFeatures = ({
                   if (showDebugBounds) {
                     console.warn(
                       "[VISIBLE_FEATURES] querySourceFeatures failed for " +
-                        srcId + "/" + sl + ":",
+                        srcId +
+                        "/" +
+                        sl +
+                        ":",
                       (slErr as Error).message
                     );
                   }
