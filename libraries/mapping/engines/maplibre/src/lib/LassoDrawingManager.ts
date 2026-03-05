@@ -23,12 +23,16 @@ const FILL_LAYER_ID = "__carma-lasso-fill";
 /** Minimum screen-pixel distance between consecutive recorded points. */
 const MIN_PX_DISTANCE = 3;
 
+export type ModifierKey = "alt" | "ctrl" | "shift" | "meta";
+
 export interface LassoDrawingManagerOptions {
   map: MaplibreMap;
   onDrawComplete: (polygon: Polygon) => void;
   onDrawCancel: () => void;
   /** Minimum points required to form a polygon. Default: 3 */
   minPoints?: number;
+  /** When set, only start drawing if this modifier key is held. No cursor change. */
+  requireModifier?: ModifierKey | null;
 }
 
 export class LassoDrawingManager {
@@ -36,6 +40,7 @@ export class LassoDrawingManager {
   private onDrawComplete: (polygon: Polygon) => void;
   private onDrawCancel: () => void;
   private minPoints: number;
+  private requireModifier: ModifierKey | null;
 
   private active = false;
   private drawing = false;
@@ -53,13 +58,17 @@ export class LassoDrawingManager {
     this.onDrawComplete = options.onDrawComplete;
     this.onDrawCancel = options.onDrawCancel;
     this.minPoints = options.minPoints ?? 3;
+    this.requireModifier = options.requireModifier ?? null;
   }
 
   activate(): void {
     if (this.active) return;
     this.active = true;
     this.ensureSourceAndLayers();
-    this.map.getCanvas().style.cursor = "crosshair";
+    // Only change cursor for explicit lasso mode (no modifier required)
+    if (!this.requireModifier) {
+      this.map.getCanvas().style.cursor = "crosshair";
+    }
     this.map.on("mousedown", this.handleMouseDown);
   }
 
@@ -69,7 +78,9 @@ export class LassoDrawingManager {
       this.cancelDraw();
     }
     this.active = false;
-    this.map.getCanvas().style.cursor = "";
+    if (!this.requireModifier) {
+      this.map.getCanvas().style.cursor = "";
+    }
     this.map.off("mousedown", this.handleMouseDown);
     this.clearVisual();
   }
@@ -90,6 +101,17 @@ export class LassoDrawingManager {
   private onMouseDown(e: MapMouseEvent): void {
     // Only left button
     if (e.originalEvent.button !== 0) return;
+
+    // If a modifier key is required, check it before starting the draw
+    if (this.requireModifier) {
+      const orig = e.originalEvent;
+      const held =
+        (this.requireModifier === "alt" && orig.altKey) ||
+        (this.requireModifier === "ctrl" && orig.ctrlKey) ||
+        (this.requireModifier === "shift" && orig.shiftKey) ||
+        (this.requireModifier === "meta" && orig.metaKey);
+      if (!held) return;
+    }
 
     e.preventDefault();
     this.drawing = true;

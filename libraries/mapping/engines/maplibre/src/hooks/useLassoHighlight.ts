@@ -45,6 +45,7 @@ export const useLassoHighlight = ({
 }: UseLassoHighlightOptions): UseLassoHighlightResult => {
   const [isDrawing, setIsDrawing] = useState(false);
   const managerRef = useRef<LassoDrawingManager | null>(null);
+  const passiveManagerRef = useRef<LassoDrawingManager | null>(null);
   const { setHighlightingActive, toggleFeatureHighlight, criteria } = useMapHighlight();
 
   // Stable refs for the callback so we don't recreate the manager on every render
@@ -180,15 +181,43 @@ export const useLassoHighlight = ({
     };
   }, [map, handleDrawComplete, handleDrawCancel]);
 
-  // Activate/deactivate when active prop changes
+  // Create/destroy passive Alt+drag manager (always-on when map exists).
+  // Activate immediately unless explicit lasso mode is already on.
+  const activeRef = useRef(active);
+  activeRef.current = active;
+  useEffect(() => {
+    if (!map) return;
+
+    const passive = new LassoDrawingManager({
+      map,
+      onDrawComplete: handleDrawComplete,
+      onDrawCancel: handleDrawCancel,
+      requireModifier: "alt",
+    });
+    passiveManagerRef.current = passive;
+    if (!activeRef.current) {
+      passive.activate();
+    }
+
+    return () => {
+      passive.destroy();
+      passiveManagerRef.current = null;
+    };
+  }, [map, handleDrawComplete, handleDrawCancel]);
+
+  // Activate/deactivate when active prop changes.
+  // When explicit lasso is on, deactivate the passive manager (avoid conflict).
+  // When explicit lasso is off, activate the passive manager.
   useEffect(() => {
     const manager = managerRef.current;
-    if (!manager) return;
+    const passive = passiveManagerRef.current;
 
     if (active) {
-      manager.activate();
+      manager?.activate();
+      passive?.deactivate();
     } else {
-      manager.deactivate();
+      manager?.deactivate();
+      passive?.activate();
     }
   }, [active]);
 
@@ -206,13 +235,15 @@ export const useLassoHighlight = ({
     return () => document.removeEventListener("keydown", handleKeyDown);
   }, [active]);
 
-  // Track drawing state: poll from manager on mouse events
+  // Track drawing state: poll from both managers on mouse events
   useEffect(() => {
-    if (!map || !active) return;
+    if (!map) return;
 
     const canvas = map.getCanvas();
     const updateDrawing = () => {
-      const drawing = managerRef.current?.isDrawing() ?? false;
+      const drawing =
+        (managerRef.current?.isDrawing() ?? false) ||
+        (passiveManagerRef.current?.isDrawing() ?? false);
       setIsDrawing((prev) => (prev !== drawing ? drawing : prev));
     };
 
@@ -223,7 +254,7 @@ export const useLassoHighlight = ({
       canvas.removeEventListener("mousedown", updateDrawing);
       canvas.removeEventListener("mouseup", updateDrawing);
     };
-  }, [map, active]);
+  }, [map]);
 
   return { isDrawing };
 };
