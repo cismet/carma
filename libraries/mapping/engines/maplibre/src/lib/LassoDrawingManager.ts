@@ -64,6 +64,18 @@ export class LassoDrawingManager {
   activate(): void {
     if (this.active) return;
     this.active = true;
+
+    if (this.map.isStyleLoaded()) {
+      this.finishActivate();
+    } else {
+      // Style not ready yet (e.g. first load); defer source/layer setup
+      this.map.once("load", () => {
+        if (this.active) this.finishActivate();
+      });
+    }
+  }
+
+  private finishActivate(): void {
     this.ensureSourceAndLayers();
     // Only change cursor for explicit lasso mode (no modifier required)
     if (!this.requireModifier) {
