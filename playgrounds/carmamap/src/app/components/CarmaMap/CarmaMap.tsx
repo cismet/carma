@@ -331,10 +331,6 @@ export const CarmaMap = ({
             eignung: layer.eignung,
             layerType: LAYER_TYPES.WMTS,
             visible: true,
-            props: {
-              name: "",
-              url: layer.url,
-            },
             layers: layer.layers,
           })
         );

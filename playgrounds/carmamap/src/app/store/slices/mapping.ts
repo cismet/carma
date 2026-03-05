@@ -24,10 +24,6 @@ const initialState: Partial<MappingState> = {
     eignung: layerMap["stadtplan"].eignung,
     visible: true,
     layerType: "wmts",
-    props: {
-      name: "",
-      url: layerMap["stadtplan"].url,
-    },
     layers: layerMap["stadtplan"].layers,
   },
 
@@ -40,10 +36,6 @@ const initialState: Partial<MappingState> = {
     eignung: layerMap["stadtplan"].eignung,
     visible: true,
     layerType: "wmts",
-    props: {
-      name: "",
-      url: layerMap["stadtplan"].url,
-    },
     layers: layerMap["stadtplan"].layers,
   },
 
