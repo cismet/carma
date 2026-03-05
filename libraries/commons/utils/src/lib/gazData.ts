@@ -11,6 +11,7 @@ export type GazDataConfig = {
   crs: string;
   sources: GazDataSourceConfig[];
   prefix?: string;
+  landParcelUrl?: string;
 };
 
 type SourceWithPayload = GazDataSourceConfig & {

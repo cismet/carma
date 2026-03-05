@@ -1,12 +1,17 @@
 import Fuse from "fuse.js";
+import proj4 from "proj4";
 import { GroupedOptions } from "../..";
+import type { SearchResultItem } from "@carma/types";
 
 export const LAND_PARCEL_SEPARATOR = "-";
 
 export type FlurstueckEntry = {
-  label: string;
-  lfk?: string | number;
+  label?: string;
   alkis_id?: string;
+  x?: number;
+  y?: number;
+  bounds?: number[];
+  lfk?: string | number;
   art?: string;
   hist?: boolean;
 };
@@ -205,7 +210,7 @@ export const tryDirectLandParcelMatch = (
 
   const normalizedInput = removeLeadingZeros(fstckInput);
   const matchingEntries = Object.entries(flur.entry.flurstuecke).filter(
-    ([, fstck]) => removeLeadingZeros(fstck.label) === normalizedInput
+    ([key, fstck]) => removeLeadingZeros(fstck.label ?? key) === normalizedInput
   );
 
   if (matchingEntries.length === 0) return null;
@@ -215,8 +220,8 @@ export const tryDirectLandParcelMatch = (
     ? gemarkung.key
     : gemarkung.entry.gemarkung;
 
-  const options = matchingEntries.map(([, fstck], idx) => {
-    const displayLabel = removeLeadingZeros(fstck.label);
+  const options = matchingEntries.map(([key, fstck], idx) => {
+    const displayLabel = removeLeadingZeros(fstck.label ?? key);
     return {
       key: idx,
       label: (
@@ -377,7 +382,7 @@ export const generateLandParcelOptions = (
 
     const allFstck = Object.keys(flurEntry.flurstuecke).map((key) => {
       const fstck = flurEntry.flurstuecke[key];
-      const displayLabel = removeLeadingZeros(fstck.label);
+      const displayLabel = removeLeadingZeros(fstck.label ?? key);
       return { key, fstck, displayLabel };
     });
 
@@ -435,4 +440,25 @@ export const generateLandParcelOptions = (
   }
 
   return [];
+};
+
+export const parseLandparcelToSelectionItem = (option) => {
+  const parcel = option.parcelData;
+  if (!parcel?.x || !parcel?.y) {
+    return null;
+  }
+  const [x3857, y3857] = proj4("EPSG:4326", "EPSG:3857", [parcel.x, parcel.y]);
+  const selectionItem: SearchResultItem = {
+    x: x3857,
+    y: y3857,
+    crs: "3857",
+    string: option.value,
+    glyph: "draw-polygon",
+    type: "flurstuecke",
+    sorter: Date.now(),
+    xSearchData: option.value,
+    more: { zl: 18 },
+  };
+
+  return selectionItem;
 };

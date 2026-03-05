@@ -24,8 +24,6 @@ export type SearchGazetteerProps = {
   selection?: SelectionItem;
   showDropdownBelow?: boolean;
   landParcelSearch?: boolean;
-  landParcelData?: LandParcelDataStructure;
-  onLandParcelSelection?: (parcel: Record<string, unknown>) => void;
 };
 
 export interface SearchResultItemWithScore {

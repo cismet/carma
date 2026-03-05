@@ -10,6 +10,7 @@ import {
   faChevronDown,
   faChevronUp,
   faDrawPolygon,
+  faSpinner,
 } from "@fortawesome/free-solid-svg-icons";
 import type { BaseSelectRef } from "rc-select";
 
@@ -41,8 +42,8 @@ import {
   normalizeLandParcelInput,
   LandParcelDataStructure,
   LAND_PARCEL_SEPARATOR,
+  parseLandparcelToSelectionItem,
 } from "./utils/landParcelSearchHelper";
-import defaultLandParcelData from "../../landparcels.json";
 
 export interface FuseWithOption<T> extends Fuse<T> {
   options?: IFuseOptions<T>;
@@ -93,15 +94,7 @@ export function LibFuzzySearch({
   selection,
   showDropdownBelow = false,
   landParcelSearch = false,
-  landParcelData: landParcelDataProp,
-  onLandParcelSelection,
 }: SearchGazetteerProps) {
-  const landParcelData: LandParcelDataStructure =
-    landParcelDataProp ??
-    (landParcelSearch
-      ? (defaultLandParcelData as LandParcelDataStructure)
-      : undefined);
-
   const [options, setOptions] = useState<Option[]>([]);
   const [showCategories, setShowCategories] = useState(standardSearch);
   const { prepoHandling, ifShowScore, limit, cut, distance, threshold } =
@@ -110,7 +103,16 @@ export function LibFuzzySearch({
 
   const onSelectionForLeaflet = useCreateGazetteerSelectorForLeaflet({});
 
-  const { gazData: hookedGazData } = useGazData();
+  const {
+    gazData: hookedGazData,
+    landParcelData: hookedLandParcelData,
+    landParcelLoading,
+    loadLandParcelData,
+  } = useGazData();
+
+  const landParcelData = landParcelSearch
+    ? (hookedLandParcelData as LandParcelDataStructure | undefined)
+    : undefined;
 
   if (gazData) {
     _gazData = gazData;
@@ -143,6 +145,12 @@ export function LibFuzzySearch({
   const [searchMode, setSearchMode] = useState<SearchMode>("gazetteer");
   const [modeDropdownOpen, setModeDropdownOpen] = useState(false);
   const [autoCompleteOpen, setAutoCompleteOpen] = useState(false);
+
+  useEffect(() => {
+    if (landParcelSearch && searchMode === "parcel") {
+      loadLandParcelData();
+    }
+  }, [landParcelSearch, searchMode, loadLandParcelData]);
 
   const searchModeMenuItems: MenuProps["items"] = [
     {
@@ -253,7 +261,12 @@ export function LibFuzzySearch({
       if (option.parcelStage === "flurstueck") {
         setValue(option.value);
         setCleanBtnDisable(false);
-        onLandParcelSelection?.(option.parcelData);
+
+        const selectionItem = parseLandparcelToSelectionItem(option);
+
+        if (selectionItem) {
+          _onSelection(selectionItem, skipMapMovement);
+        }
         return;
       }
     }
@@ -475,7 +488,13 @@ export function LibFuzzySearch({
           <Button
             ref={btnClosRef}
             icon={
-              cleanBtnDisable ? (
+              landParcelLoading ? (
+                <FontAwesomeIcon
+                  icon={faSpinner}
+                  spin
+                  style={{ fontSize: "16px" }}
+                />
+              ) : cleanBtnDisable ? (
                 <span style={{ display: "flex", alignItems: "center", gap: 2 }}>
                   <FontAwesomeIcon
                     icon={searchModeConfig[searchMode].icon}
