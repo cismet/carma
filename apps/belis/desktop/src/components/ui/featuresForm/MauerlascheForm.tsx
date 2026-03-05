@@ -8,6 +8,7 @@ import { DokumentItem } from "../DocumentPreview";
 import FeatureFormLayout from "./FeatureFormLayout";
 import StrassenschluesselFields from "./StrassenschluesselFields";
 import { getFormClassName, getPlaceholder } from "./readOnlyFormUtils";
+import toTitleCase from "../../../helper/toTitleCase";
 import dayjs from "dayjs";
 
 interface MauerlascheFormProps {
@@ -56,8 +57,8 @@ const MauerlascheForm = ({
     | { strasse?: string }
     | undefined;
   const subtitle =
-    strassenschluessel?.strasse ||
-    (rawProps?.strasse as string) ||
+    toTitleCase(strassenschluessel?.strasse || "") ||
+    toTitleCase(rawProps?.strasse as string || "") ||
     "-ohne Straße-";
 
   useEffect(() => {
@@ -78,7 +79,7 @@ const MauerlascheForm = ({
       form.setFieldsValue({
         // Strassenschluessel
         strassenschluessel_pk: ml.tkey_strassenschluessel?.pk,
-        strassenschluessel_strasse: ml.tkey_strassenschluessel?.strasse,
+        strassenschluessel_strasse: toTitleCase(ml.tkey_strassenschluessel?.strasse || ""),
         // Laufende Nr.
         laufende_nummer: ml.laufende_nummer,
         // Montage (Erstellungsjahr) - can be a date string or year number

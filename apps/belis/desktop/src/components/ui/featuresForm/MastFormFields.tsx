@@ -13,6 +13,7 @@ import { useSelector } from "react-redux";
 import { getKeyTablesData } from "../../../store/slices/keyTables";
 import StrassenschluesselFields from "./StrassenschluesselFields";
 import { getFormClassName, getPlaceholder } from "./readOnlyFormUtils";
+import toTitleCase from "../../../helper/toTitleCase";
 import dayjs from "dayjs";
 
 interface MastFormFieldsProps {
@@ -133,7 +134,7 @@ const MastFormFields = ({ mast, namePrefix, readOnly = true }: MastFormFieldsPro
       form.setFieldsValue({
         // Strassenschluessel
         strassenschluessel_pk: strassenschluessel?.pk,
-        strassenschluessel_strasse: strassenschluessel?.strasse,
+        strassenschluessel_strasse: toTitleCase(strassenschluessel?.strasse || ""),
         // Kennziffer - use id for Select value
         fk_kennziffer: kennziffer?.id ?? null,
         // Laufende Nr.

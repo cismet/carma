@@ -5,6 +5,7 @@ import { getJWT } from "../../../store/slices/auth";
 import { DokumentItem } from "../DocumentPreview";
 import FeatureFormLayout from "./FeatureFormLayout";
 import MastFormFields from "./MastFormFields";
+import toTitleCase from "../../../helper/toTitleCase";
 
 interface StandortFormProps {
   data: Record<string, unknown> | null;
@@ -48,8 +49,8 @@ const StandortForm = ({ data, rawFeature, onClose, readOnly = true, loading }: S
     | { strasse?: string }
     | undefined;
   const subtitle =
-    strassenschluessel?.strasse ||
-    (rawProps?.strasse as string) ||
+    toTitleCase(strassenschluessel?.strasse || "") ||
+    toTitleCase(rawProps?.strasse as string || "") ||
     (rawProps?.standortangabe as string) ||
     "-ohne Straße-";
 

@@ -13,6 +13,7 @@ import { useSelector } from "react-redux";
 import { getKeyTablesData } from "../../../store/slices/keyTables";
 import StrassenschluesselFields from "./StrassenschluesselFields";
 import { getFormClassName, getPlaceholder } from "./readOnlyFormUtils";
+import toTitleCase from "../../../helper/toTitleCase";
 import dayjs from "dayjs";
 
 // Helper to sort options based on display text (same sorting as KeyTablesPage)
@@ -189,7 +190,7 @@ const LeuchteFormFields = ({ leuchte, namePrefix, readOnly = true }: LeuchteForm
       form.setFieldsValue({
         // Straßenschlüssel
         strassenschluessel_pk: strassenschluessel?.pk,
-        strassenschluessel_strasse: strassenschluessel?.strasse,
+        strassenschluessel_strasse: toTitleCase(strassenschluessel?.strasse || ""),
         // Kennziffer - use id for Select value
         fk_kennziffer: kennziffer?.id ?? null,
         // Laufende Nr. / Leuchtennummer
