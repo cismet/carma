@@ -15,6 +15,7 @@ import type {
   MapMouseEvent,
 } from "maplibre-gl";
 import type { Position, Polygon, Feature, LineString } from "geojson";
+import { unkinkPolygon, union, featureCollection } from "@turf/turf";
 
 const SOURCE_ID = "__carma-lasso-source";
 const LINE_LAYER_ID = "__carma-lasso-line";
@@ -171,15 +172,14 @@ export class LassoDrawingManager {
       return;
     }
 
-    // Close the ring: connect last point to first
-    const ring = [...this.coords, this.coords[0]];
-    const polygon: Polygon = {
-      type: "Polygon",
-      coordinates: [ring],
-    };
+    const hull = this.cleanPolygon(this.coords);
+    if (!hull) {
+      this.cancelDraw();
+      return;
+    }
 
     this.clearVisual();
-    this.onDrawComplete(polygon);
+    this.onDrawComplete(hull);
   }
 
   private cancelDraw(): void {
@@ -226,6 +226,33 @@ export class LassoDrawingManager {
     });
   }
 
+  /** Fix self-intersecting polygon by splitting into simple parts and merging. */
+  private cleanPolygon(coords: Position[]): Polygon | null {
+    if (coords.length < 3) return null;
+    const ring = [...coords, coords[0]];
+    const raw: Feature<Polygon> = {
+      type: "Feature",
+      properties: {},
+      geometry: { type: "Polygon", coordinates: [ring] },
+    };
+    try {
+      const parts = unkinkPolygon(raw);
+      if (parts.features.length === 0) return null;
+      if (parts.features.length === 1) return parts.features[0].geometry;
+      const merged = union(featureCollection(parts.features));
+      if (!merged || merged.geometry.type === "MultiPolygon") {
+        // MultiPolygon can happen with disjoint parts; use first polygon
+        return merged?.geometry.type === "MultiPolygon"
+          ? { type: "Polygon", coordinates: merged.geometry.coordinates[0] }
+          : null;
+      }
+      return merged.geometry;
+    } catch {
+      // Fallback: return raw polygon as-is
+      return { type: "Polygon", coordinates: [ring] };
+    }
+  }
+
   private updateVisual(): void {
     const source = this.map.getSource(SOURCE_ID) as GeoJSONSource | undefined;
     if (!source) return;
@@ -248,18 +275,14 @@ export class LassoDrawingManager {
     };
     features.push(line);
 
-    // If enough points, show the polygon fill (preview of the closed shape)
-    if (this.coords.length >= this.minPoints) {
-      const ring = [...this.coords, this.coords[0]];
-      const poly: Feature<Polygon> = {
+    // Show cleaned polygon fill preview
+    const hull = this.cleanPolygon(this.coords);
+    if (hull) {
+      features.push({
         type: "Feature",
         properties: {},
-        geometry: {
-          type: "Polygon",
-          coordinates: [ring],
-        },
-      };
-      features.push(poly);
+        geometry: hull,
+      });
     }
 
     source.setData({ type: "FeatureCollection", features });
