@@ -7,6 +7,7 @@ import mapSettings from "./slices/mapSettings";
 import ui from "./slices/ui";
 import keyTables from "./slices/keyTables";
 import featureCollectionSlice from "./slices/featureCollection";
+import featuresFormsSlice from "./slices/featuresForms";
 
 console.log("store initializing ....");
 
@@ -83,6 +84,7 @@ const store = configureStore({
     ),
     ui: ui.reducer,
     keyTables: keyTables.reducer,
+    featuresForms: featuresFormsSlice.reducer,
   },
   devTools: devToolsEnabled === true && inProduction === false,
   middleware,

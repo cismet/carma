@@ -14,6 +14,8 @@ interface LeitungFormProps {
   onClose?: () => void;
   readOnly?: boolean;
   loading?: boolean;
+  draftValues?: Record<string, unknown>;
+  onDraftChange?: (values: Record<string, unknown>) => void;
   onToggleReadOnly?: () => void;
   onCancel?: () => void;
   onSaveComplete?: () => void;
@@ -31,6 +33,8 @@ const LeitungForm = ({
   onClose,
   readOnly = true,
   loading,
+  draftValues,
+  onDraftChange,
   onToggleReadOnly,
   onCancel,
   onSaveComplete,
@@ -85,7 +89,12 @@ const LeitungForm = ({
           fk_querschnitt: leitungData.fk_querschnitt,
         });
       }
+
+      if (draftValues) {
+        form.setFieldsValue(draftValues);
+      }
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [data, form]);
 
   if (!data) {
@@ -120,6 +129,7 @@ const LeitungForm = ({
         layout="vertical"
         requiredMark={false}
         className={getFormClassName(readOnly, "pr-2")}
+        onValuesChange={(_, allValues) => onDraftChange?.(allValues)}
       >
         {/* Leitungstyp - Full Width */}
         <Form.Item

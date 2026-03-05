@@ -14,6 +14,8 @@ interface LeuchteFormProps {
   onClose?: () => void;
   readOnly?: boolean;
   loading?: boolean;
+  draftValues?: Record<string, unknown>;
+  onDraftChange?: (values: Record<string, unknown>) => void;
   onToggleReadOnly?: () => void;
   onCancel?: () => void;
   onSaveComplete?: () => void;
@@ -25,6 +27,8 @@ const LeuchteForm = ({
   onClose,
   readOnly = true,
   loading,
+  draftValues,
+  onDraftChange,
   onToggleReadOnly,
   onCancel,
   onSaveComplete,
@@ -39,6 +43,26 @@ const LeuchteForm = ({
   const setMastForm = useCallback((form: FormInstance) => {
     mastFormRef.current = form;
   }, []);
+
+  const handleLeuchteValuesChange = useCallback(
+    (_: Record<string, unknown>, allValues: Record<string, unknown>) => {
+      onDraftChange?.({
+        ...draftValues,
+        leuchte: allValues,
+      });
+    },
+    [onDraftChange, draftValues]
+  );
+
+  const handleMastValuesChange = useCallback(
+    (_: Record<string, unknown>, allValues: Record<string, unknown>) => {
+      onDraftChange?.({
+        ...draftValues,
+        mast: allValues,
+      });
+    },
+    [onDraftChange, draftValues]
+  );
 
   const handleSave = () => {
     const values: Record<string, unknown> = {};
@@ -145,7 +169,13 @@ const LeuchteForm = ({
               : "transition-opacity"
           }
         >
-          <MastFormFields mast={mastData} readOnly={readOnly} onFormInstance={setMastForm} />
+          <MastFormFields
+            mast={mastData}
+            readOnly={readOnly}
+            onFormInstance={setMastForm}
+            draftValues={draftValues?.mast as Record<string, unknown> | undefined}
+            onValuesChange={handleMastValuesChange}
+          />
         </div>
       ),
     },
@@ -169,7 +199,13 @@ const LeuchteForm = ({
       onCancel={onCancel}
       onSave={handleSave}
     >
-      <LeuchteFormFields leuchte={leuchte} readOnly={readOnly} onFormInstance={setLeuchteForm} />
+      <LeuchteFormFields
+        leuchte={leuchte}
+        readOnly={readOnly}
+        onFormInstance={setLeuchteForm}
+        draftValues={draftValues?.leuchte as Record<string, unknown> | undefined}
+        onValuesChange={handleLeuchteValuesChange}
+      />
     </FeatureFormLayout>
   );
 };
