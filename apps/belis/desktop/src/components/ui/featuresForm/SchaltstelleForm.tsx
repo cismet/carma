@@ -17,6 +17,9 @@ interface SchaltstelleFormProps {
   onClose?: () => void;
   readOnly?: boolean;
   loading?: boolean;
+  onToggleReadOnly?: () => void;
+  onCancel?: () => void;
+  onSaveComplete?: () => void;
 }
 
 interface BauartItem {
@@ -35,8 +38,16 @@ const SchaltstelleForm = ({
   onClose,
   readOnly = true,
   loading,
+  onToggleReadOnly,
+  onCancel,
+  onSaveComplete,
 }: SchaltstelleFormProps) => {
   const [form] = Form.useForm();
+
+  const handleSave = () => {
+    console.log("Schaltstelle form values:", form.getFieldsValue());
+    onSaveComplete?.();
+  };
   const [pendingFiles, setPendingFiles] = useState<UploadFile[]>([]);
   const keyTablesData = useSelector(getKeyTablesData);
   const jwt = useSelector(getJWT);
@@ -136,6 +147,10 @@ const SchaltstelleForm = ({
       onFilesChange={setPendingFiles}
       debugData={data}
       loading={loading}
+      readOnly={readOnly}
+      onToggleReadOnly={onToggleReadOnly}
+      onCancel={onCancel}
+      onSave={handleSave}
     >
       <Form
         form={form}

@@ -1,5 +1,5 @@
-import { useState, useEffect } from "react";
-import type { UploadFile } from "antd";
+import { useState, useEffect, useCallback, useRef } from "react";
+import type { UploadFile, FormInstance } from "antd";
 import { useSelector } from "react-redux";
 import { getJWT } from "../../../store/slices/auth";
 import { DokumentItem } from "../DocumentPreview";
@@ -14,6 +14,9 @@ interface LeuchteFormProps {
   onClose?: () => void;
   readOnly?: boolean;
   loading?: boolean;
+  onToggleReadOnly?: () => void;
+  onCancel?: () => void;
+  onSaveComplete?: () => void;
 }
 
 const LeuchteForm = ({
@@ -22,8 +25,32 @@ const LeuchteForm = ({
   onClose,
   readOnly = true,
   loading,
+  onToggleReadOnly,
+  onCancel,
+  onSaveComplete,
 }: LeuchteFormProps) => {
   const [pendingFiles, setPendingFiles] = useState<UploadFile[]>([]);
+  const leuchteFormRef = useRef<FormInstance | null>(null);
+  const mastFormRef = useRef<FormInstance | null>(null);
+
+  const setLeuchteForm = useCallback((form: FormInstance) => {
+    leuchteFormRef.current = form;
+  }, []);
+  const setMastForm = useCallback((form: FormInstance) => {
+    mastFormRef.current = form;
+  }, []);
+
+  const handleSave = () => {
+    const values: Record<string, unknown> = {};
+    if (leuchteFormRef.current) {
+      values.leuchte = leuchteFormRef.current.getFieldsValue();
+    }
+    if (mastFormRef.current) {
+      values.mast = mastFormRef.current.getFieldsValue();
+    }
+    console.log("Leuchte form values:", values);
+    onSaveComplete?.();
+  };
   const [mastData, setMastData] = useState<Record<string, unknown> | null>(
     null
   );
@@ -118,7 +145,7 @@ const LeuchteForm = ({
               : "transition-opacity"
           }
         >
-          <MastFormFields mast={mastData} readOnly={readOnly} />
+          <MastFormFields mast={mastData} readOnly={readOnly} onFormInstance={setMastForm} />
         </div>
       ),
     },
@@ -137,8 +164,12 @@ const LeuchteForm = ({
       debugData={data}
       additionalTabs={additionalTabs}
       loading={loading}
+      readOnly={readOnly}
+      onToggleReadOnly={onToggleReadOnly}
+      onCancel={onCancel}
+      onSave={handleSave}
     >
-      <LeuchteFormFields leuchte={leuchte} readOnly={readOnly} />
+      <LeuchteFormFields leuchte={leuchte} readOnly={readOnly} onFormInstance={setLeuchteForm} />
     </FeatureFormLayout>
   );
 };
