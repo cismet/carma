@@ -174,6 +174,7 @@ export interface BelisSidebarProps {
   hasHighlights?: boolean;
   karteCount?: number;
   highlightCount?: number;
+  onFeatureDismiss?: (feature: SidebarFeature) => void;
 }
 
 const BelisSidebar = ({
@@ -192,6 +193,7 @@ const BelisSidebar = ({
   hasHighlights = false,
   karteCount,
   highlightCount,
+  onFeatureDismiss,
 }: BelisSidebarProps) => {
   // Filter features by active source layers
   const filteredFeatures = useMemo(() => {
@@ -200,6 +202,21 @@ const BelisSidebar = ({
       return activeSourceLayers.has(sl);
     });
   }, [features, activeSourceLayers]);
+
+  // Track Alt key for dismiss button visibility
+  const [altHeld, setAltHeld] = useState(false);
+  useEffect(() => {
+    const down = (e: KeyboardEvent) => { if (e.key === "Alt") setAltHeld(true); };
+    const up = (e: KeyboardEvent) => { if (e.key === "Alt") setAltHeld(false); };
+    window.addEventListener("keydown", down);
+    window.addEventListener("keyup", up);
+    window.addEventListener("blur", () => setAltHeld(false));
+    return () => {
+      window.removeEventListener("keydown", down);
+      window.removeEventListener("keyup", up);
+      window.removeEventListener("blur", () => setAltHeld(false));
+    };
+  }, []);
 
   const [collapsedGroups, setCollapsedGroups] = useState<
     Record<string, boolean>
@@ -601,7 +618,7 @@ const BelisSidebar = ({
                         key={`${feature.source}-${feature.sourceLayer}-${feature.id}-${index}`}
                         ref={selected ? selectedItemRef : null}
                         onClick={() => handleFeatureClick(feature)}
-                        className={`px-3 py-2 cursor-pointer border-b border-gray-100 ${
+                        className={`group relative px-3 py-2 cursor-pointer border-b border-gray-100 ${
                           group.indentLeuchten &&
                           feature.sourceLayer === "leuchten"
                             ? "pl-8"
@@ -612,18 +629,32 @@ const BelisSidebar = ({
                             : "hover:bg-gray-50"
                         }`}
                       >
-                        <div className="flex justify-between gap-2 overflow-hidden">
-                          <span className="shrink-0 whitespace-nowrap text-sm">
-                            <b>{listItem.main}</b>
-                          </span>
-                          <span className="grow text-right whitespace-nowrap text-ellipsis overflow-hidden text-sm text-gray-700">
-                            {listItem.upperright}
-                          </span>
-                        </div>
-                        {listItem.subtitle && (
-                          <div className="text-left text-xs text-gray-500 whitespace-nowrap text-ellipsis overflow-hidden mt-0.5">
-                            {listItem.subtitle}
+                        <div className={`transition-opacity ${sidebarMode === "highlights" && altHeld && onFeatureDismiss ? "group-hover:opacity-30" : ""}`}>
+                          <div className="flex justify-between gap-2 overflow-hidden">
+                            <span className="shrink-0 whitespace-nowrap text-sm">
+                              <b>{listItem.main}</b>
+                            </span>
+                            <span className="grow text-right whitespace-nowrap text-ellipsis overflow-hidden text-sm text-gray-700">
+                              {listItem.upperright}
+                            </span>
                           </div>
+                          {listItem.subtitle && (
+                            <div className="text-left text-xs text-gray-500 whitespace-nowrap text-ellipsis overflow-hidden mt-0.5">
+                              {listItem.subtitle}
+                            </div>
+                          )}
+                        </div>
+                        {sidebarMode === "highlights" && altHeld && onFeatureDismiss && (
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              onFeatureDismiss(feature);
+                            }}
+                            className="absolute inset-0 flex items-center justify-center text-black opacity-0 group-hover:opacity-100 text-lg font-bold"
+                            title="Hervorhebung entfernen"
+                          >
+                            ✕
+                          </button>
                         )}
                       </div>
                     );

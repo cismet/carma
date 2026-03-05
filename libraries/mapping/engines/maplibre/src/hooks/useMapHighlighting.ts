@@ -171,6 +171,15 @@ export const useMapHighlighting = ({
       // Guard: style must be loaded before we can query sources/features
       if (!mapInst.isStyleLoaded()) return;
 
+      // Ensure global state is in sync: the style uses ["global-state",
+      // "highlightingEnabled"] to dim non-highlighted features. Setting it
+      // here (alongside feature-state) guarantees both arrive in the same
+      // MapLibre render frame, avoiding a flash of un-dimmed features.
+      const mGlobal = mapInst as MapWithGlobalState;
+      if (typeof mGlobal.setGlobalStateProperty === "function") {
+        mGlobal.setGlobalStateProperty("highlightingEnabled", true);
+      }
+
       const srcs = explicitSources ?? discoverSources(mapInst);
       const queryIdLookup = buildQueryIdLookup(criteria);
       const matched: GeoJSONFeature[] = [];

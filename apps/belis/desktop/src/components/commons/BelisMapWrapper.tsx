@@ -34,6 +34,7 @@ import {
   useMapHighlighting,
   useMapHighlight,
   useSelectionNeighborhood,
+  useLassoHighlight,
   slugifyUrl,
 } from "@carma-mapping/engines/maplibre";
 import type maplibregl from "maplibre-gl";
@@ -57,12 +58,16 @@ interface BelisMapLibWrapperProps {
   mapSizes: { width: number; height: number };
   activeSourceLayers: Set<string>;
   highlightResults: SidebarFeature[] | null;
+  lassoActive: boolean;
+  onLassoDeactivate?: () => void;
 }
 
 const BelisMapLibWrapper = ({
   mapSizes,
   activeSourceLayers,
   highlightResults,
+  lassoActive,
+  onLassoDeactivate,
 }: BelisMapLibWrapperProps) => {
   const dispatch: AppDispatch = useDispatch();
   const jwt = useSelector(getJWT);
@@ -226,6 +231,38 @@ const BelisMapLibWrapper = ({
     [map, namespacedSource, ensureToggledFeatures, criteria]
   );
 
+  // Sidebar dismiss: remove a single feature from highlights
+  const handleSidebarDismiss = useCallback(
+    (feature: SidebarFeature) => {
+      const sl = feature.sourceLayer ?? "";
+      const dbId = String(feature.properties?.id ?? feature.id ?? "");
+
+      // Remove from map highlight state
+      if (map) {
+        const sourceFeatures = map.querySourceFeatures(namespacedSource, { sourceLayer: sl });
+        const match = sourceFeatures.find(
+          (f) => String(f.properties?.id ?? "") === dbId
+        );
+        if (match?.id != null) {
+          ensureToggledFeatures(
+            [{ source: namespacedSource, sourceLayer: sl, id: match.id }],
+            false
+          );
+        }
+      }
+
+      // Remove from sidebar list
+      setAdjustedHighlights((prev) => {
+        if (!prev) return prev;
+        return prev.filter((f) => {
+          const key = `${f.sourceLayer ?? ""}::${String(f.properties?.id ?? f.id ?? "")}`;
+          return key !== `${sl}::${dbId}`;
+        });
+      });
+    },
+    [map, namespacedSource, ensureToggledFeatures]
+  );
+
   const handleHighlightsApplied = useCallback(
     (matched: maplibregl.GeoJSONFeature[]) => {
       // Only collect when there are no SearchModal results (i.e. street search)
@@ -246,6 +283,15 @@ const BelisMapLibWrapper = ({
     modifierClick: "alt",
     onToggle: handleHighlightToggle,
     onHighlightsApplied: handleHighlightsApplied,
+  });
+
+  // Lasso freehand selection
+  useLassoHighlight({
+    map,
+    active: lassoActive,
+    sources: highlightSources,
+    onDeactivate: onLassoDeactivate,
+    onToggle: handleHighlightToggle,
   });
 
   const showRaw = useMemo(() => {
@@ -745,6 +791,7 @@ const BelisMapLibWrapper = ({
         hasHighlights={hasHighlights}
         karteCount={totalCount}
         highlightCount={adjustedHighlights?.length ?? undefined}
+        onFeatureDismiss={handleSidebarDismiss}
       />
       <div
         ref={mapContainerRef}

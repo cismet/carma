@@ -290,8 +290,8 @@ const buildMastWhereClause = (values: MastSearchValues): string => {
     `_or: [{is_deleted: {_eq: false}}, {is_deleted: {_is_null: true}}]`
   );
 
-  // Only masts without leuchten
-  conditions.push(`_not: {leuchtenArray: {}}`);
+  // Only masts with leuchten (matching standorte tile source layer)
+  conditions.push(`leuchtenArray: {}`);
 
   // Date range conditions (combined into single objects)
   const inbetriebnahmeCondition = buildDateRangeCondition(
@@ -1005,7 +1005,7 @@ const SearchModal = ({
             if (!ap) continue;
 
             if (ap.tdta_standort_mast?.id != null) {
-              ids.push(`mast:${ap.tdta_standort_mast.id}`);
+              ids.push(`standorte:${ap.tdta_standort_mast.id}`);
             }
             if (ap.tdta_leuchten?.id != null) {
               ids.push(`leuchten:${ap.tdta_leuchten.id}`);

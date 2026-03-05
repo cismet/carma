@@ -43,6 +43,8 @@ import localForage from "localforage";
 import SearchModal from "../ui/SearchModal";
 import StreetSearch from "../ui/StreetSearch";
 import type { SidebarFeature } from "../ui/BelisSidebar";
+import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
+import { faDrawPolygon } from "@fortawesome/free-solid-svg-icons";
 
 const FILTER_STORAGE_KEY = "@belis-desktop.layerFilter";
 
@@ -56,6 +58,7 @@ const MainPage = () => {
   const [highlightResults, setHighlightResults] = useState<
     SidebarFeature[] | null
   >(null);
+  const [lassoActive, setLassoActive] = useState(false);
 
   const { map } = useLibreContext();
 
@@ -193,6 +196,19 @@ const MainPage = () => {
                   onSearchResults={setHighlightResults}
                 />
               </div>
+
+              {/* Lasso selection */}
+              <button
+                onClick={() => setLassoActive((prev) => !prev)}
+                title={lassoActive ? "Lasso-Auswahl beenden" : "Lasso-Auswahl starten"}
+                className={`flex items-center justify-center w-8 h-8 rounded border ${
+                  lassoActive
+                    ? "border-blue-500 bg-blue-50 text-blue-600"
+                    : "border-gray-300 bg-white text-gray-500 hover:bg-gray-50"
+                }`}
+              >
+                <FontAwesomeIcon icon={faDrawPolygon} />
+              </button>
 
               {/* Filter switches */}
               <div className="flex items-center gap-2 border-l border-gray-300 pl-4">
@@ -338,6 +354,8 @@ const MainPage = () => {
             mapSizes={mapStyle}
             activeSourceLayers={activeSourceLayers}
             highlightResults={highlightResults}
+            lassoActive={lassoActive}
+            onLassoDeactivate={() => setLassoActive(false)}
           />
         </CustomCard>
       </div>
