@@ -51,7 +51,7 @@ const StandortForm = ({ data, rawFeature, onClose, readOnly = true, loading }: S
   const subtitle =
     toTitleCase(strassenschluessel?.strasse || "") ||
     toTitleCase(rawProps?.strasse as string || "") ||
-    (rawProps?.standortangabe as string) ||
+    toTitleCase(rawProps?.standortangabe as string || "") ||
     "-ohne Straße-";
 
   if (!data) {
