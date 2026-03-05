@@ -8,6 +8,7 @@ import { DokumentItem } from "../DocumentPreview";
 import FeatureFormLayout from "./FeatureFormLayout";
 import StrassenschluesselFields from "./StrassenschluesselFields";
 import { getFormClassName, getPlaceholder } from "./readOnlyFormUtils";
+import toTitleCase from "../../../helper/toTitleCase";
 import dayjs from "dayjs";
 
 interface SchaltstelleFormProps {
@@ -82,7 +83,7 @@ const SchaltstelleForm = ({
       form.setFieldsValue({
         // Strassenschluessel
         strassenschluessel_pk: ss.tkey_strassenschluessel?.pk,
-        strassenschluessel_strasse: ss.tkey_strassenschluessel?.strasse,
+        strassenschluessel_strasse: toTitleCase(ss.tkey_strassenschluessel?.strasse || ""),
         // Hausnummer
         haus_nummer: ss.haus_nummer,
         // Standortbez.

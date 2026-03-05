@@ -3,21 +3,7 @@ import type { MapGeoJSONFeatureWithOriginal as SidebarFeature } from "@carma-map
 export type { SidebarFeature };
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faSpinner } from "@fortawesome/free-solid-svg-icons";
-
-// Convert ALL CAPS to Title Case (e.g., "GROSSE FLURSTR" -> "Grosse Flurstr")
-const toTitleCase = (str: string): string => {
-  if (!str) return "";
-  return str
-    .toLowerCase()
-    .split(" ")
-    .map((word) =>
-      word
-        .split("-")
-        .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
-        .join("-")
-    )
-    .join(" ");
-};
+import toTitleCase from "../../helper/toTitleCase";
 
 interface ListItemData {
   main: string;
