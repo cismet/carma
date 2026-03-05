@@ -629,7 +629,7 @@ const BelisSidebar = ({
                             : "hover:bg-gray-50"
                         }`}
                       >
-                        <div className={`transition-opacity ${altHeld && onFeatureDismiss ? "group-hover:opacity-30" : ""}`}>
+                        <div className={`transition-opacity ${sidebarMode === "highlights" && altHeld && onFeatureDismiss ? "group-hover:opacity-30" : ""}`}>
                           <div className="flex justify-between gap-2 overflow-hidden">
                             <span className="shrink-0 whitespace-nowrap text-sm">
                               <b>{listItem.main}</b>
@@ -644,7 +644,7 @@ const BelisSidebar = ({
                             </div>
                           )}
                         </div>
-                        {altHeld && onFeatureDismiss && (
+                        {sidebarMode === "highlights" && altHeld && onFeatureDismiss && (
                           <button
                             onClick={(e) => {
                               e.stopPropagation();
