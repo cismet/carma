@@ -145,26 +145,31 @@ export const useLassoHighlight = ({
 
       if (matched.length === 0) return;
 
-      // 5. Determine direction: if majority are already toggled, remove; otherwise add.
+      // 5. Split into add/remove groups for per-feature toggle semantics.
+      //    Uses ensureToggledFeatures (idempotent) to avoid double-toggle when
+      //    Standort expansion adds sibling Leuchten also caught by the lasso.
       const currentToggled = criteriaRef.current.toggledFeatures;
-      const alreadyCount = matched.filter((f) => {
+      const toId = (f: MapGeoJSONFeature) => ({
+        source: f.source,
+        sourceLayer: f.sourceLayer ?? "",
+        id: f.id!,
+      });
+      const toAdd = matched.filter((f) => {
+        const key = `${f.source}::${f.sourceLayer ?? ""}::${f.id}`;
+        return !currentToggled.has(key);
+      });
+      const toRemove = matched.filter((f) => {
         const key = `${f.source}::${f.sourceLayer ?? ""}::${f.id}`;
         return currentToggled.has(key);
-      }).length;
-      const adding = alreadyCount <= matched.length / 2;
+      });
 
-      // 6. Batch-add/remove via ensureToggledFeatures (idempotent, avoids
-      //    double-toggle when Standort expansion adds sibling Leuchten that
-      //    are also individually caught by the lasso).
       setActiveRef.current(true);
-      ensureRef.current(
-        matched.map((f) => ({
-          source: f.source,
-          sourceLayer: f.sourceLayer ?? "",
-          id: f.id!,
-        })),
-        adding,
-      );
+      if (toAdd.length > 0) {
+        ensureRef.current(toAdd.map(toId), true);
+      }
+      if (toRemove.length > 0) {
+        ensureRef.current(toRemove.map(toId), false);
+      }
       for (const feat of matched) {
         onToggleRef.current?.(feat);
       }
