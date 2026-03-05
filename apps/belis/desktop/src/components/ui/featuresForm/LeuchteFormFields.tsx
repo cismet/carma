@@ -42,6 +42,7 @@ interface LeuchteFormFieldsProps {
   leuchte: Record<string, unknown> | null;
   namePrefix?: string;
   readOnly?: boolean;
+  onFormInstance?: (form: import("antd").FormInstance) => void;
 }
 
 interface LeuchttypItem {
@@ -99,8 +100,12 @@ const LeuchteFormFields = ({
   leuchte,
   namePrefix,
   readOnly = true,
+  onFormInstance,
 }: LeuchteFormFieldsProps) => {
   const [form] = Form.useForm();
+  useEffect(() => {
+    onFormInstance?.(form);
+  }, [form, onFormInstance]);
   const keyTablesData = useSelector(getKeyTablesData);
 
   // Key table options (sorted to match KeyTablesPage display order)

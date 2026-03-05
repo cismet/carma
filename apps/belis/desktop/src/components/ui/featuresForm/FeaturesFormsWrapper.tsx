@@ -1,3 +1,4 @@
+import { useState, useCallback } from "react";
 import { featureFormRegistry } from "./index";
 
 interface FeaturesFormsWrapperProps {
@@ -31,9 +32,26 @@ const FeaturesFormsWrapper = ({
   featureType,
   data,
   rawFeature,
-  readOnly = true,
+  readOnly: readOnlyProp = true,
   loading,
 }: FeaturesFormsWrapperProps) => {
+  const [isEditing, setIsEditing] = useState(false);
+  const [resetKey, setResetKey] = useState(0);
+  const effectiveReadOnly = readOnlyProp && !isEditing;
+
+  const handleToggleReadOnly = useCallback(() => {
+    setIsEditing((prev) => !prev);
+  }, []);
+
+  const handleCancel = useCallback(() => {
+    setResetKey((prev) => prev + 1);
+    setIsEditing(false);
+  }, []);
+
+  const handleSaveComplete = useCallback(() => {
+    setIsEditing(false);
+  }, []);
+
   const formKey = featureType ? featureTypeToFormKey[featureType] : undefined;
   const FormComponent = formKey ? featureFormRegistry[formKey] : undefined;
 
@@ -41,10 +59,14 @@ const FeaturesFormsWrapper = ({
     return (
       <div className="h-full">
         <FormComponent
+          key={resetKey}
           data={data}
           rawFeature={rawFeature}
-          readOnly={readOnly}
+          readOnly={effectiveReadOnly}
           loading={loading}
+          onToggleReadOnly={handleToggleReadOnly}
+          onCancel={handleCancel}
+          onSaveComplete={handleSaveComplete}
         />
       </div>
     );

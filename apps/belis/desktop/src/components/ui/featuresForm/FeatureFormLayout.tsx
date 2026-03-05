@@ -34,6 +34,8 @@ interface FeatureFormLayoutProps {
   additionalTabs?: AdditionalTab[];
   uploadText?: string;
   loading?: boolean;
+  readOnly?: boolean;
+  onToggleReadOnly?: () => void;
 }
 
 const FeatureFormLayout = ({
@@ -49,6 +51,8 @@ const FeatureFormLayout = ({
   debugData,
   additionalTabs = [],
   loading,
+  readOnly,
+  onToggleReadOnly,
 }: FeatureFormLayoutProps) => {
   // Support both regular query params and hash-based routing (/#/?param=value)
   const showRaw = useMemo(() => {
@@ -262,6 +266,8 @@ const FeatureFormLayout = ({
           onCancel={onCancel}
           onSave={onSave}
           loading={loading}
+          readOnly={readOnly}
+          onToggleReadOnly={onToggleReadOnly}
         />
         <div className="flex flex-1 overflow-hidden">
           {/* Form column - 60% */}
@@ -292,6 +298,8 @@ const FeatureFormLayout = ({
         onCancel={onCancel}
         onSave={onSave}
         loading={loading}
+        readOnly={readOnly}
+        onToggleReadOnly={onToggleReadOnly}
       />
       <div className="px-6 pb-60 overflow-y-auto flex-1">
         <div className="[&_.ant-tabs-nav]:sticky [&_.ant-tabs-nav]:top-0 [&_.ant-tabs-nav]:bg-white [&_.ant-tabs-nav]:z-10">

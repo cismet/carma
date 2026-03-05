@@ -20,6 +20,7 @@ interface MastFormFieldsProps {
   mast: Record<string, unknown> | null;
   namePrefix?: string;
   readOnly?: boolean;
+  onFormInstance?: (form: import("antd").FormInstance) => void;
 }
 
 interface MasttypItem {
@@ -79,8 +80,12 @@ const MastFormFields = ({
   mast,
   namePrefix,
   readOnly = true,
+  onFormInstance,
 }: MastFormFieldsProps) => {
   const [form] = Form.useForm();
+  useEffect(() => {
+    onFormInstance?.(form);
+  }, [form, onFormInstance]);
   const keyTablesData = useSelector(getKeyTablesData);
 
   // Key table options - sorted alphabetically

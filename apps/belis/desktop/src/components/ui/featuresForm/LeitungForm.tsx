@@ -14,6 +14,9 @@ interface LeitungFormProps {
   onClose?: () => void;
   readOnly?: boolean;
   loading?: boolean;
+  onToggleReadOnly?: () => void;
+  onCancel?: () => void;
+  onSaveComplete?: () => void;
 }
 
 interface KeyTableItem {
@@ -28,8 +31,16 @@ const LeitungForm = ({
   onClose,
   readOnly = true,
   loading,
+  onToggleReadOnly,
+  onCancel,
+  onSaveComplete,
 }: LeitungFormProps) => {
   const [form] = Form.useForm();
+
+  const handleSave = () => {
+    console.log("Leitung form values:", form.getFieldsValue());
+    onSaveComplete?.();
+  };
   const [pendingFiles, setPendingFiles] = useState<UploadFile[]>([]);
   const keyTablesData = useSelector(getKeyTablesData);
   const jwt = useSelector(getJWT);
@@ -99,6 +110,10 @@ const LeitungForm = ({
       onFilesChange={setPendingFiles}
       debugData={data}
       loading={loading}
+      readOnly={readOnly}
+      onToggleReadOnly={onToggleReadOnly}
+      onCancel={onCancel}
+      onSave={handleSave}
     >
       <Form
         form={form}

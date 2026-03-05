@@ -1,5 +1,5 @@
-import { useState } from "react";
-import type { UploadFile } from "antd";
+import { useState, useCallback, useRef } from "react";
+import type { UploadFile, FormInstance } from "antd";
 import { useSelector } from "react-redux";
 import { getJWT } from "../../../store/slices/auth";
 import { DokumentItem } from "../DocumentPreview";
@@ -13,6 +13,9 @@ interface StandortFormProps {
   onClose?: () => void;
   readOnly?: boolean;
   loading?: boolean;
+  onToggleReadOnly?: () => void;
+  onCancel?: () => void;
+  onSaveComplete?: () => void;
 }
 
 const StandortForm = ({
@@ -21,8 +24,21 @@ const StandortForm = ({
   onClose,
   readOnly = true,
   loading,
+  onToggleReadOnly,
+  onCancel,
+  onSaveComplete,
 }: StandortFormProps) => {
   const [pendingFiles, setPendingFiles] = useState<UploadFile[]>([]);
+  const mastFormRef = useRef<FormInstance | null>(null);
+
+  const setMastForm = useCallback((form: FormInstance) => {
+    mastFormRef.current = form;
+  }, []);
+
+  const handleSave = () => {
+    console.log("Standort form values:", mastFormRef.current?.getFieldsValue());
+    onSaveComplete?.();
+  };
   const jwt = useSelector(getJWT);
 
   // Extract documents from tdta_standort_mast[0].dokumenteArray
@@ -81,8 +97,12 @@ const StandortForm = ({
       debugData={data}
       uploadText="Datei hochladen"
       loading={loading}
+      readOnly={readOnly}
+      onToggleReadOnly={onToggleReadOnly}
+      onCancel={onCancel}
+      onSave={handleSave}
     >
-      <MastFormFields mast={mast} readOnly={readOnly} />
+      <MastFormFields mast={mast} readOnly={readOnly} onFormInstance={setMastForm} />
     </FeatureFormLayout>
   );
 };

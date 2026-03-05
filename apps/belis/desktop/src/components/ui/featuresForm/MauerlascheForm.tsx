@@ -17,6 +17,9 @@ interface MauerlascheFormProps {
   onClose?: () => void;
   readOnly?: boolean;
   loading?: boolean;
+  onToggleReadOnly?: () => void;
+  onCancel?: () => void;
+  onSaveComplete?: () => void;
 }
 
 interface MaterialMauerlascheItem {
@@ -30,8 +33,16 @@ const MauerlascheForm = ({
   onClose,
   readOnly = true,
   loading,
+  onToggleReadOnly,
+  onCancel,
+  onSaveComplete,
 }: MauerlascheFormProps) => {
   const [form] = Form.useForm();
+
+  const handleSave = () => {
+    console.log("Mauerlasche form values:", form.getFieldsValue());
+    onSaveComplete?.();
+  };
   const [pendingFiles, setPendingFiles] = useState<UploadFile[]>([]);
   const keyTablesData = useSelector(getKeyTablesData);
   const jwt = useSelector(getJWT);
@@ -122,6 +133,10 @@ const MauerlascheForm = ({
       onFilesChange={setPendingFiles}
       debugData={data}
       loading={loading}
+      readOnly={readOnly}
+      onToggleReadOnly={onToggleReadOnly}
+      onCancel={onCancel}
+      onSave={handleSave}
     >
       <Form
         form={form}
