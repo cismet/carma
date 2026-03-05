@@ -245,11 +245,11 @@ export const tryDirectLandParcelMatch = (
     {
       label: (
         <span data-title="category-title">
-          Flurstück ({gemarkung.entry.gemarkung}, Flur {flurName})
+          Flurstücke in {gemarkung.entry.gemarkung}, Flur {flurName}
         </span>
       ),
       options,
-      titleText: `Flurstück (${gemarkung.entry.gemarkung}, Flur ${flurName})`,
+      titleText: `Flurstücke in ${gemarkung.entry.gemarkung}, Flur ${flurName}`,
     },
   ];
 };
@@ -308,7 +308,7 @@ export const generateGemarkungOptions = (
     {
       label: <span data-title="category-title">Gemarkung</span>,
       options: matches,
-      titleText: "Gemarkung",
+      titleText: "Gemarkungen",
     },
   ];
 };
@@ -362,7 +362,7 @@ export const generateLandParcelOptions = (
       parcelStage: "flur" as const,
     }));
 
-    const title = `Flur (${parseState.gemarkungName})`;
+    const title = `Fluren in ${parseState.gemarkungName}`;
     return [
       {
         label: <span data-title="category-title">{title}</span>,
@@ -434,7 +434,7 @@ export const generateLandParcelOptions = (
           </span>
         ),
         options: fstckOptions,
-        titleText: `Flurstück (${parseState.gemarkungName}, Flur ${parseState.flurName})`,
+        titleText: `Flurstücke in ${parseState.gemarkungName}, Flur ${parseState.flurName}`,
       },
     ];
   }

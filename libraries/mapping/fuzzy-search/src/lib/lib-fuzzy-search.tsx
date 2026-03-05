@@ -64,7 +64,7 @@ const searchModeConfig: Record<
   { label: string; icon: typeof faLocationDot }
 > = {
   gazetteer: { label: "Adressen und Orte", icon: faLocationDot },
-  parcel: { label: "Flurstück", icon: faDrawPolygon },
+  parcel: { label: "Flurstücke", icon: faDrawPolygon },
 };
 
 export function LibFuzzySearch({
