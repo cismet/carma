@@ -109,6 +109,7 @@ const StandortForm = ({
       uploadText="Datei hochladen"
       loading={loading}
       readOnly={readOnly}
+      hasDraft={!!draftValues}
       onToggleReadOnly={onToggleReadOnly}
       onCancel={onCancel}
       onSave={handleSave}
