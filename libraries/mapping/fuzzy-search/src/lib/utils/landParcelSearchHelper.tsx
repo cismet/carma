@@ -1,5 +1,7 @@
 import Fuse from "fuse.js";
 import proj4 from "proj4";
+import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
+import { faDrawPolygon } from "@fortawesome/free-solid-svg-icons";
 import { GroupedOptions } from "../..";
 import type { SearchResultItem } from "@carma/types";
 
@@ -27,6 +29,15 @@ export type GemarkungEntry = {
 };
 
 export type LandParcelDataStructure = Record<string, GemarkungEntry>;
+
+const LandParcelLabel = ({ text }: { text: string }) => (
+  <div style={{ paddingLeft: "0.3rem" }}>
+    <span style={{ marginRight: "0.4rem" }}>
+      <FontAwesomeIcon icon={faDrawPolygon} />
+    </span>
+    <span>{text}</span>
+  </div>
+);
 
 export type LandParcelParseState =
   | { stage: "none" }
@@ -225,14 +236,9 @@ export const tryDirectLandParcelMatch = (
     return {
       key: idx,
       label: (
-        <div style={{ paddingLeft: "0.3rem" }}>
-          <span style={{ marginRight: "0.4rem" }}>
-            <i className="fas fa-draw-polygon"></i>
-          </span>
-          <span>
-            {gemarkungDisplay}-{flurName}-{displayLabel}
-          </span>
-        </div>
+        <LandParcelLabel
+          text={`${gemarkungDisplay}-${flurName}-${displayLabel}`}
+        />
       ),
       value: `${gemarkungDisplay}${LAND_PARCEL_SEPARATOR}${flurName}${LAND_PARCEL_SEPARATOR}${displayLabel}`,
       sData: null as any,
@@ -287,16 +293,7 @@ export const generateGemarkungOptions = (
     const displayId = isKeySearch ? key : name;
     return {
       key: idx,
-      label: (
-        <div style={{ paddingLeft: "0.3rem" }}>
-          <span style={{ marginRight: "0.4rem" }}>
-            <i className="fas fa-draw-polygon"></i>
-          </span>
-          <span>
-            {key} ({name})
-          </span>
-        </div>
-      ),
+      label: <LandParcelLabel text={`${key} (${name})`} />,
       value: `${displayId}${LAND_PARCEL_SEPARATOR}`,
       sData: null as any,
       isLandParcel: true,
@@ -350,14 +347,9 @@ export const generateLandParcelOptions = (
     const flurOptions = filteredFlure.map(({ flurLabel }, idx) => ({
       key: idx,
       label: (
-        <div style={{ paddingLeft: "0.3rem" }}>
-          <span style={{ marginRight: "0.4rem" }}>
-            <i className="fas fa-draw-polygon"></i>
-          </span>
-          <span>
-            {parseState.gemarkungDisplay}-{flurLabel}
-          </span>
-        </div>
+        <LandParcelLabel
+          text={`${parseState.gemarkungDisplay}-${flurLabel}`}
+        />
       ),
       value: `${parseState.gemarkungDisplay}${LAND_PARCEL_SEPARATOR}${flurLabel}${LAND_PARCEL_SEPARATOR}`,
       sData: null as any,
@@ -406,15 +398,9 @@ export const generateLandParcelOptions = (
         return {
           key: idx,
           label: (
-            <div style={{ paddingLeft: "0.3rem" }}>
-              <span style={{ marginRight: "0.4rem" }}>
-                <i className="fas fa-draw-polygon"></i>
-              </span>
-              <span>
-                {parseState.gemarkungDisplay}-{parseState.flurName}-
-                {displayLabel}
-              </span>
-            </div>
+            <LandParcelLabel
+              text={`${parseState.gemarkungDisplay}-${parseState.flurName}-${displayLabel}`}
+            />
           ),
           value: `${parseState.gemarkungDisplay}${LAND_PARCEL_SEPARATOR}${parseState.flurName}${LAND_PARCEL_SEPARATOR}${displayLabel}`,
           sData: null as any,
