@@ -6,7 +6,7 @@ import { DokumentItem } from "../DocumentPreview";
 import FeatureFormLayout from "./FeatureFormLayout";
 import MastFormFields from "./MastFormFields";
 
-interface MastFormProps {
+interface StandortFormProps {
   data: Record<string, unknown> | null;
   rawFeature?: { properties?: Record<string, unknown> } | null;
   onClose?: () => void;
@@ -14,7 +14,7 @@ interface MastFormProps {
   loading?: boolean;
 }
 
-const MastForm = ({ data, rawFeature, onClose, readOnly = true, loading }: MastFormProps) => {
+const StandortForm = ({ data, rawFeature, onClose, readOnly = true, loading }: StandortFormProps) => {
   const [pendingFiles, setPendingFiles] = useState<UploadFile[]>([]);
   const jwt = useSelector(getJWT);
 
@@ -63,10 +63,10 @@ const MastForm = ({ data, rawFeature, onClose, readOnly = true, loading }: MastF
 
   return (
     <FeatureFormLayout
-      title="Mast"
+      title="Standort"
       subtitle={subtitle}
       documents={documents}
-      mainDocumentsTitle="Mast"
+      mainDocumentsTitle="Standort"
       extraDocumentSections={extraDocumentSections}
       jwt={jwt}
       pendingFiles={pendingFiles}
@@ -80,4 +80,4 @@ const MastForm = ({ data, rawFeature, onClose, readOnly = true, loading }: MastF
   );
 };
 
-export default MastForm;
+export default StandortForm;

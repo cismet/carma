@@ -61,6 +61,8 @@ export interface MapHighlightContextType {
   highlightByIds: (ids: string[], options?: { property?: string }) => void;
   /** Toggle a single feature (for click interactions) */
   toggleFeatureHighlight: (id: ToggledFeature) => void;
+  /** Idempotently ensure features are toggled on or off */
+  ensureToggledFeatures: (ids: ToggledFeature[], toggled: boolean) => void;
   /** Clear everything */
   clearHighlights: () => void;
   /** Version counter bumped on every mutation */
@@ -80,6 +82,7 @@ const defaultContext: MapHighlightContextType = {
   highlightByProperty: () => {},
   highlightByIds: () => {},
   toggleFeatureHighlight: () => {},
+  ensureToggledFeatures: () => {},
   clearHighlights: () => {},
   highlightVersion: 0,
 };
@@ -172,6 +175,32 @@ export const MapHighlightProvider = ({
     [debug, bump]
   );
 
+  const ensureToggledFeatures = useCallback(
+    (ids: ToggledFeature[], toggled: boolean) => {
+      const map = criteriaRef.current.toggledFeatures;
+      let changed = false;
+      for (const id of ids) {
+        const key = `${id.source}::${id.sourceLayer}::${id.id}`;
+        if (toggled) {
+          if (!map.has(key)) {
+            map.set(key, id);
+            changed = true;
+          }
+        } else {
+          if (map.has(key)) {
+            map.delete(key);
+            changed = true;
+          }
+        }
+      }
+      if (changed) {
+        if (debug) console.log("[MapHighlight] ensureToggledFeatures", { count: ids.length, toggled });
+        bump();
+      }
+    },
+    [debug, bump]
+  );
+
   const clearHighlights = useCallback(() => {
     if (debug) console.log("[MapHighlight] clearHighlights");
     criteriaRef.current = {
@@ -190,6 +219,7 @@ export const MapHighlightProvider = ({
       highlightByProperty,
       highlightByIds,
       toggleFeatureHighlight,
+      ensureToggledFeatures,
       clearHighlights,
       highlightVersion,
     }),
@@ -198,6 +228,7 @@ export const MapHighlightProvider = ({
       highlightByProperty,
       highlightByIds,
       toggleFeatureHighlight,
+      ensureToggledFeatures,
       clearHighlights,
       highlightVersion,
     ]

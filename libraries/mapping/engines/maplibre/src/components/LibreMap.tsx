@@ -129,6 +129,11 @@ export interface LibreMapProps {
   logErrors?: boolean;
   /** Expose the map instance as window.__carmaMap for console debugging */
   exposeMapToWindow?: boolean;
+  /** Override selected feature for the infobox when internal selection is null
+   * (e.g. programmatic selection of a feature not present on the map) */
+  overrideSelectedFeature?: Record<string, unknown> | null;
+  /** Show gazetteer selection info when clicking on empty map area (default: true) */
+  gazetteerInfoOnClick?: boolean;
 }
 
 export const LibreMap = ({
@@ -148,6 +153,8 @@ export const LibreMap = ({
   debugLog = false,
   logErrors = false,
   exposeMapToWindow = false,
+  overrideSelectedFeature,
+  gazetteerInfoOnClick = true,
 }: LibreMapProps) => {
   const mapContainer = useRef<HTMLDivElement>(null);
   const map = useRef<maplibregl.Map | null>(null);
@@ -168,6 +175,8 @@ export const LibreMap = ({
   selectFromHitsRef.current = selectFromHits;
   const useRoutingRef = useRef(useRouting);
   useRoutingRef.current = useRouting;
+  const gazetteerInfoOnClickRef = useRef(gazetteerInfoOnClick);
+  gazetteerInfoOnClickRef.current = gazetteerInfoOnClick;
   const isIdleRef = useRef(false);
   const vectorSourcesReadyRef = useRef(false);
   const [selectedFeature, setSelectedFeature] = useState(null);
@@ -670,7 +679,7 @@ export const LibreMap = ({
             onFeatureSelect?.(null, featureId);
           }
         } else {
-          if (selectionRef.current) {
+          if (gazetteerInfoOnClickRef.current && selectionRef.current) {
             const pos = proj4(proj4crs3857def, proj4crs4326def, [
               selectionRef.current.x,
               selectionRef.current.y,
@@ -1091,6 +1100,7 @@ export const LibreMap = ({
 
     // Apply visual selection for the externally selected feature
     clearVisualSelection(mapInstance);
+    setSelectedFeature(null);
     applyVisualSelection(mapInstance, ctxSelectedFeatureId);
 
     // If a raw feature was provided, run createFeature to get the processed result
@@ -1237,7 +1247,16 @@ export const LibreMap = ({
                       },
                     },
                   }
-                : null
+                : overrideSelectedFeature
+                  ? {
+                      ...overrideSelectedFeature,
+                      properties: {
+                        info: {
+                          ...(overrideSelectedFeature.properties as Record<string, unknown>),
+                        },
+                      },
+                    }
+                  : null
             }
             libreMap={map.current}
             versionData={{

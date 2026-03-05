@@ -154,7 +154,7 @@ export const additionalLayerConfigs: Record<string, LayerEntry> = {
 };
 
 /** Leuchten data layer, always visible */
-export const BELIS_STYLE_URL = "https://tiles.cismet.de/belis/styleX.json";
+export const BELIS_STYLE_URL = "https://tiles.cismet.de/belis/styleY.json";
 export const BELIS_ORIGINAL_SOURCE = "belis-source";
 
 export const leuchtenDataLayer: LibreLayer = {
@@ -166,7 +166,8 @@ export const leuchtenDataLayer: LibreLayer = {
 
 export const BELIS_SOURCE_LAYERS = [
   "leuchten",
-  "mast",
+  "standorte",
+  // "mast", // replaced by standorte in styleY
   "mauerlaschen",
   "schaltstelle",
   "leitungen",
@@ -181,16 +182,10 @@ export const BELIS_FILTER_CATEGORIES: FilterCategory[] = [
     layerPatterns: ["leuchten"],
   },
   {
-    key: "masten",
-    label: "Masten",
-    sourceLayers: ["mast"],
-    layerPatterns: ["mast"],
-  },
-  {
-    key: "mauerlaschen",
-    label: "Mauerlaschen",
-    sourceLayers: ["mauerlaschen"],
-    layerPatterns: ["mauerlaschen"],
+    key: "standorte",
+    label: "Standorte",
+    sourceLayers: ["standorte"],
+    layerPatterns: ["standorte"],
   },
   {
     key: "leitungen",
@@ -209,5 +204,11 @@ export const BELIS_FILTER_CATEGORIES: FilterCategory[] = [
     label: "Abzweigdosen",
     sourceLayers: ["abzweigdosen"],
     layerPatterns: ["abzweigdose"],
+  },
+  {
+    key: "mauerlaschen",
+    label: "Mauerlaschen",
+    sourceLayers: ["mauerlaschen"],
+    layerPatterns: ["mauerlaschen"],
   },
 ];
