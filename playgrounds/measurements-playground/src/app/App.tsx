@@ -1,9 +1,9 @@
 import TopicMapComponent from "react-cismap/topicmaps/TopicMapComponent";
 import { suppressReactCismapErrors } from "@carma-commons/utils";
-import { useAnnotationContext } from "@carma-mapping/annotations/core";
 import {
   MeasurementControl,
   Measurements,
+  useMapMeasurementsContext,
   useMapLibreMap,
 } from "@carma-commons/measurements";
 import { ZoomControl } from "@carma-mapping/components";
@@ -38,7 +38,7 @@ export function App({
   const { maplibreMap, setMaplibreMap } = useMapLibreMap();
   const [maplibreMaps, setMaplibreMaps] = useState<any[]>([]);
   const { mode: measurementMode, setMode: setMeasurementMode } =
-    useAnnotationContext();
+    useMapMeasurementsContext();
   const { zoomToFeature } = useContext(TopicMapDispatchContext) as any;
   const { snappingEnabled, setSnappingEnabled } = useContext(SnappingContext);
 

@@ -14,9 +14,9 @@ import "leaflet/dist/leaflet.css";
 import { PersistGate } from "redux-persist/integration/react";
 import { persistStore } from "redux-persist";
 import {
-  AnnotationProvider,
+  MapMeasurementsProvider,
   MEASUREMENT_MODE,
-} from "@carma-mapping/annotations/core";
+} from "@carma-commons/measurements";
 import {
   GazDataProvider,
   SelectionProvider,
@@ -32,7 +32,7 @@ export const SnappingContext = createContext<{
   setSnappingEnabled: () => {},
 });
 
-// Wrapper component to connect Redux to AnnotationProvider
+// Wrapper component to connect Redux to measurements provider
 const MeasurementsProviderWrapper = ({
   children,
 }: {
@@ -67,7 +67,7 @@ const MeasurementsProviderWrapper = ({
   };
 
   return (
-    <AnnotationProvider
+    <MapMeasurementsProvider
       externalMode={mode}
       setModeExternal={handleSetMode}
       // Skip config if you want to use default values
@@ -76,7 +76,7 @@ const MeasurementsProviderWrapper = ({
       <SnappingContext.Provider value={{ snappingEnabled, setSnappingEnabled }}>
         {children}
       </SnappingContext.Provider>
-    </AnnotationProvider>
+    </MapMeasurementsProvider>
   );
 };
 
