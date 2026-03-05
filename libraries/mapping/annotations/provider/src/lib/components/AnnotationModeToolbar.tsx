@@ -14,6 +14,11 @@ import {
 } from "@fortawesome/free-solid-svg-icons";
 import { Switch, Tooltip } from "antd";
 import {
+  LeftOutlined,
+  RightOutlined,
+  SettingOutlined,
+} from "@ant-design/icons";
+import {
   LINEAR_SEGMENT_LINE_MODE_COMPONENTS,
   LINEAR_SEGMENT_LINE_MODE_DIRECT,
   SELECT_TOOL_TYPE,
@@ -37,6 +42,7 @@ import {
   LockToggleButton,
   VisibilityToggleButton,
 } from "@carma-commons/ui/components";
+import "./styles/infoBox.css";
 export type { AnnotationToolType } from "@carma-mapping/annotations/core";
 
 type DistanceLineModePreset = LinearSegmentLineMode | "componentsWithDirect";
@@ -44,6 +50,8 @@ type DistanceLineModePreset = LinearSegmentLineMode | "componentsWithDirect";
 export interface AnnotationModeToolbarProps {
   activeToolType: AnnotationToolType;
   onToolTypeChange: (toolType: AnnotationToolType) => void;
+  showPrimaryToolbar?: boolean;
+  showSecondaryToolbar?: boolean;
   selectAdditiveMode?: boolean;
   onSelectAdditiveModeChange?: (enabled: boolean) => void;
   selectRectangleMode?: boolean;
@@ -78,6 +86,9 @@ export interface AnnotationModeToolbarProps {
   pixelWidth?: number;
   toolManager?: AnnotationToolManager;
   toolManagerContext?: AnnotationToolManagerContext;
+  secondaryToolbarContainerStyle?: CSSProperties;
+  secondaryToolbarCollapsedByDefault?: boolean;
+  secondaryToolbarDirection?: "down" | "right";
 }
 
 const TOOL_BUTTON_SIZE_PX = 32;
@@ -393,6 +404,8 @@ const renderHelpContent = (lines: string[]) => (
 export function AnnotationModeToolbar({
   activeToolType,
   onToolTypeChange,
+  showPrimaryToolbar = true,
+  showSecondaryToolbar = true,
   selectAdditiveMode = false,
   onSelectAdditiveModeChange,
   selectRectangleMode = false,
@@ -420,6 +433,9 @@ export function AnnotationModeToolbar({
   pixelWidth,
   toolManager = defaultToolManager,
   toolManagerContext,
+  secondaryToolbarContainerStyle,
+  secondaryToolbarCollapsedByDefault = false,
+  secondaryToolbarDirection = "down",
 }: AnnotationModeToolbarProps) {
   const showSelectionOptions = activeToolType === SELECT_TOOL_TYPE;
   const isSelectionModeActive = activeToolType === SELECT_TOOL_TYPE;
@@ -455,6 +471,28 @@ export function AnnotationModeToolbar({
   ] = useState<Record<SecondaryToolbarHelpKey, boolean>>(
     DEFAULT_SECONDARY_TOOLBAR_HELP_COLLAPSED
   );
+  const [secondaryToolbarCollapsed, setSecondaryToolbarCollapsed] = useState(
+    secondaryToolbarCollapsedByDefault
+  );
+  const hasSecondaryToolbar =
+    showSecondaryToolbar &&
+    (showSelectionOptions ||
+      showDistanceOptions ||
+      showPointOptions ||
+      showLabelOptions ||
+      showPolylineOptions ||
+      showAreaOptions);
+  const isSecondaryToolbarExpandRight = secondaryToolbarDirection === "right";
+  const secondaryToolbarWrapperStyle: CSSProperties =
+    secondaryToolbarContainerStyle ?? {
+      display: "flex",
+      flexDirection: isSecondaryToolbarExpandRight ? "row" : "column",
+      alignItems: isSecondaryToolbarExpandRight ? "flex-end" : undefined,
+      gap: 6,
+      width: isSecondaryToolbarExpandRight ? "auto" : "100%",
+      maxWidth: isSecondaryToolbarExpandRight ? "none" : "100%",
+      boxSizing: "border-box",
+    };
 
   const setSecondaryToolbarHelpCollapsed = (
     key: SecondaryToolbarHelpKey,
@@ -533,6 +571,10 @@ export function AnnotationModeToolbar({
     }
   }, [showPolylineOptions]);
 
+  useEffect(() => {
+    setSecondaryToolbarCollapsed(secondaryToolbarCollapsedByDefault);
+  }, [secondaryToolbarCollapsedByDefault]);
+
   const availableTools = toolManager.listTools(
     toolManagerContext ?? { modeActive: true }
   );
@@ -548,537 +590,681 @@ export function AnnotationModeToolbar({
         display: "flex",
         flexDirection: "column",
         gap: 6,
-        paddingBottom: 6,
+        paddingBottom: showPrimaryToolbar ? 6 : 0,
         width: pixelWidth ?? "100%",
         boxSizing: "border-box",
       }}
     >
-      <div
-        style={{
-          display: "flex",
-          justifyContent: "flex-start",
-          gap: 6,
-          alignItems: "center",
-          flexWrap: "wrap",
-          padding: "4px 6px",
-          borderRadius: TOOLBOX_SURFACE_RADIUS_PX,
-          backgroundColor: INFOBOX_SURFACE_BG,
-          backdropFilter: INFOBOX_SURFACE_BLUR,
-          WebkitBackdropFilter: INFOBOX_SURFACE_BLUR,
-          width: "100%",
-          maxWidth: "100%",
-          boxSizing: "border-box",
-        }}
-      >
-        {primaryTools.map((tool) => {
-          const tooltip = resolveAnnotationToolText(tool.i18n.tooltipKey);
-          return (
-            <Fragment key={tool.id}>
-              {tool.id === ANNOTATION_TYPE_LABEL && (
-                <span
-                  style={{
-                    width: 1,
-                    height: 22,
-                    backgroundColor: "rgba(0, 0, 0, 0.12)",
-                    margin: "0 2px",
-                  }}
-                  aria-hidden="true"
-                />
-              )}
-              <Tooltip title={tooltip} placement="top">
-                <button
-                  type="button"
-                  style={toolButtonStyle(activeToolType === tool.id, false)}
-                  onClick={() => onToolTypeChange(tool.id)}
-                  aria-pressed={activeToolType === tool.id}
-                  aria-label={tooltip}
-                  data-test-id={`measurement-tool-${tool.id}`}
-                >
-                  {tool.icon}
-                </button>
-              </Tooltip>
-              {tool.id === ANNOTATION_TYPE_LABEL && (
-                <span
-                  style={{
-                    width: 1,
-                    height: 22,
-                    backgroundColor: "rgba(0, 0, 0, 0.12)",
-                    margin: "0 2px",
-                  }}
-                  aria-hidden="true"
-                />
-              )}
-            </Fragment>
-          );
-        })}
-        {selectTool && (
-          <Tooltip
-            title={resolveAnnotationToolText(selectTool.i18n.tooltipKey)}
-            placement="top"
-          >
-            <button
-              type="button"
-              style={{
-                ...toolButtonStyle(isSelectionModeActive),
-                marginLeft: "auto",
-              }}
-              onClick={() => onToolTypeChange(SELECT_TOOL_TYPE)}
-              aria-pressed={isSelectionModeActive}
-              aria-label={resolveAnnotationToolText(selectTool.i18n.tooltipKey)}
-              data-test-id="measurement-tool-select-toggle"
-            >
-              {selectTool.icon}
-            </button>
-          </Tooltip>
-        )}
-      </div>
-      {showSelectionOptions && (
-        <SecondaryToolbarSection
-          dataTestId="measurement-selection-options"
-          helpDataTestId="measurement-selection-help"
-          helpCollapsed={secondaryToolbarHelpCollapsedByKey.selection}
-          onHelpCollapsedChange={(collapsed) =>
-            setSecondaryToolbarHelpCollapsed("selection", collapsed)
-          }
-          helpContent={renderHelpContent([
-            "Messungen anklicken, um sie ohne Modus-Nebeneffekte zu selektieren.",
-            "Optional: Rechteckmodus aktivieren und aufziehen, um Punkte live im Bildausschnitt zu selektieren.",
-            'Shift oder "Additiv" erweitert die Auswahl.',
-            "Ausgewählte Messungen können ein-/ausgeblendet, gesperrt und gelöscht werden.",
-          ])}
+      {showPrimaryToolbar && (
+        <div
+          style={{
+            display: "flex",
+            justifyContent: "flex-start",
+            gap: 6,
+            alignItems: "center",
+            flexWrap: "wrap",
+            padding: "4px 6px",
+            borderRadius: TOOLBOX_SURFACE_RADIUS_PX,
+            backgroundColor: INFOBOX_SURFACE_BG,
+            backdropFilter: INFOBOX_SURFACE_BLUR,
+            WebkitBackdropFilter: INFOBOX_SURFACE_BLUR,
+            width: "100%",
+            maxWidth: "100%",
+            boxSizing: "border-box",
+          }}
         >
-          <div style={{ display: "inline-flex", gap: 8, alignItems: "center" }}>
-            <span style={optionsLabelStyle}>Additiv</span>
-            <Switch
-              size="small"
-              checked={selectAdditiveMode}
-              onChange={(checked) => onSelectAdditiveModeChange?.(checked)}
-              aria-label="Additive Auswahl"
-              data-test-id="measurement-selection-additive-toggle"
-            />
-          </div>
-          <div style={{ display: "inline-flex", gap: 8, alignItems: "center" }}>
-            <Tooltip title="Rechteckauswahl">
-              <span
-                style={{
-                  display: "inline-flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  color: INACTIVE_ICON_COLOR,
-                  width: 14,
-                }}
-                aria-hidden="true"
-              >
-                <FontAwesomeIcon icon={faBorderNone} />
-              </span>
-            </Tooltip>
-            <Switch
-              size="small"
-              checked={selectRectangleMode}
-              onChange={(checked) => onSelectRectangleModeChange?.(checked)}
-              aria-label="Rechteckauswahl"
-              data-test-id="measurement-selection-rectangle-toggle"
-            />
-          </div>
-          <div style={{ display: "inline-flex", alignItems: "center", gap: 8 }}>
-            <span
-              style={optionsLabelStyle}
-              data-test-id="measurement-selection-counts"
-            >
-              {selectedMeasurementCount} Messungen · {selectedLabelCount} Labels
-            </span>
-            {hasSelection && (
-              <>
-                <Tooltip
-                  title={
-                    selectedVisibilityHidden
-                      ? "Auswahl einblenden"
-                      : "Auswahl ausblenden"
-                  }
-                >
-                  <VisibilityToggleButton
-                    isVisible={!selectedVisibilityHidden}
-                    onToggle={() => onToggleSelectedVisibility?.()}
-                    ariaLabel="Ausgewählte Messungen ein- oder ausblenden"
-                    dataTestId="measurement-selection-visibility-btn"
-                    iconSlotWidth={14}
+          {primaryTools.map((tool) => {
+            const tooltip = resolveAnnotationToolText(tool.i18n.tooltipKey);
+            return (
+              <Fragment key={tool.id}>
+                {tool.id === ANNOTATION_TYPE_LABEL && (
+                  <span
                     style={{
-                      ...toolButtonStyle(false),
-                      width: 28,
-                      height: 28,
+                      width: 1,
+                      height: 22,
+                      backgroundColor: "rgba(0, 0, 0, 0.12)",
+                      margin: "0 2px",
                     }}
+                    aria-hidden="true"
                   />
-                </Tooltip>
-                <Tooltip
-                  title={
-                    selectedLocked ? "Auswahl entsperren" : "Auswahl sperren"
-                  }
-                >
-                  <LockToggleButton
-                    isLocked={selectedLocked}
-                    onToggle={() => onToggleSelectedLock?.()}
-                    style={{ ...toolButtonStyle(false), width: 28, height: 28 }}
-                    ariaLabel="Ausgewählte Messungen sperren oder entsperren"
-                    dataTestId="measurement-selection-lock-btn"
-                    iconSlotWidth={14}
-                  />
-                </Tooltip>
-                <Tooltip title="Löschen">
+                )}
+                <Tooltip title={tooltip} placement="top">
                   <button
                     type="button"
-                    style={{
-                      ...toolButtonStyle(false, !hasDeletableSelection),
-                      width: 28,
-                      height: 28,
-                    }}
-                    onClick={() => onDeleteSelectedPoints?.()}
-                    disabled={!hasDeletableSelection}
-                    aria-label="Ausgewählte Messungen löschen"
-                    data-test-id="measurement-selection-delete-btn"
+                    style={toolButtonStyle(activeToolType === tool.id, false)}
+                    onClick={() => onToolTypeChange(tool.id)}
+                    aria-pressed={activeToolType === tool.id}
+                    aria-label={tooltip}
+                    data-test-id={`measurement-tool-${tool.id}`}
                   >
-                    <FontAwesomeIcon icon={faTrashCan} />
+                    {tool.icon}
                   </button>
                 </Tooltip>
-              </>
-            )}
-          </div>
-        </SecondaryToolbarSection>
-      )}
-      {showDistanceOptions && (
-        <SecondaryToolbarSection
-          dataTestId="measurement-distance-options"
-          helpDataTestId="measurement-distance-help"
-          helpCollapsed={
-            secondaryToolbarHelpCollapsedByKey[ANNOTATION_TYPE_DISTANCE]
-          }
-          onHelpCollapsedChange={(collapsed) =>
-            setSecondaryToolbarHelpCollapsed(
-              ANNOTATION_TYPE_DISTANCE,
-              collapsed
-            )
-          }
-          optionsStyle={{
-            padding: "8px 6px",
-          }}
-          helpContent={renderHelpContent([
-            "Erster Klick setzt den Startpunkt, zweiter Klick setzt den Zielpunkt.",
-            "Doppelklick auf einen Punkt setzt die Referenzhöhe.",
-            'Mit "An Referenzpunkt starten" beginnen Folgemessungen am Referenzpunkt.',
-            "Distanzmodus schaltet zwischen Direktlinie, Komponenten oder beidem um.",
-          ])}
-        >
-          <div
-            style={{
-              display: "inline-flex",
-              alignItems: "center",
-              gap: 6,
-              paddingLeft: 2,
-            }}
-          >
-            <div
-              role="radiogroup"
-              aria-label="Distanz-Linienmodus auswählen"
-              data-test-id="measurement-distance-mode-toggle"
-              style={{
-                display: "inline-flex",
-                alignItems: "center",
-                gap: 4,
-              }}
+                {tool.id === ANNOTATION_TYPE_LABEL && (
+                  <span
+                    style={{
+                      width: 1,
+                      height: 22,
+                      backgroundColor: "rgba(0, 0, 0, 0.12)",
+                      margin: "0 2px",
+                    }}
+                    aria-hidden="true"
+                  />
+                )}
+              </Fragment>
+            );
+          })}
+          {selectTool && (
+            <Tooltip
+              title={resolveAnnotationToolText(selectTool.i18n.tooltipKey)}
+              placement="top"
             >
-              {DISTANCE_LINE_MODE_OPTIONS.map(
-                ({ mode, label, tooltip, icon, dataTestId }) => {
-                  const isActive = distanceLineMode === mode;
-                  return (
-                    <Tooltip key={mode} title={tooltip}>
-                      <button
-                        type="button"
-                        role="radio"
-                        aria-checked={isActive}
-                        aria-label={`${label} ${
-                          isActive ? "aktiv" : "aktivieren"
-                        }`}
-                        onClick={() => setDistanceLineMode(mode)}
-                        data-test-id={dataTestId}
-                        style={distanceModeOptionButtonStyle(isActive)}
-                      >
-                        <span
-                          style={{
-                            display: "inline-flex",
-                            alignItems: "center",
-                            justifyContent: "center",
-                            width: 14,
-                            height: 14,
-                          }}
-                          aria-hidden="true"
-                        >
-                          {icon}
-                        </span>
-                      </button>
-                    </Tooltip>
-                  );
-                }
-              )}
-            </div>
-          </div>
-          <span
-            style={{
-              width: 1,
-              height: 22,
-              backgroundColor: "rgba(0, 0, 0, 0.12)",
-              margin: "0 2px",
-            }}
-            aria-hidden="true"
-          />
+              <button
+                type="button"
+                style={{
+                  ...toolButtonStyle(isSelectionModeActive),
+                  marginLeft: "auto",
+                }}
+                onClick={() => onToolTypeChange(SELECT_TOOL_TYPE)}
+                aria-pressed={isSelectionModeActive}
+                aria-label={resolveAnnotationToolText(
+                  selectTool.i18n.tooltipKey
+                )}
+                data-test-id="measurement-tool-select-toggle"
+              >
+                {selectTool.icon}
+              </button>
+            </Tooltip>
+          )}
+        </div>
+      )}
+      {hasSecondaryToolbar && (
+        <div style={secondaryToolbarWrapperStyle}>
           <div
             style={{
               display: "inline-flex",
-              alignItems: "center",
-              gap: 8,
+              justifyContent: "flex-start",
+              width: isSecondaryToolbarExpandRight ? "auto" : "100%",
+              flexShrink: 0,
             }}
           >
-            <Tooltip title="An Referenzpunkt starten">
-              <span
+            <Tooltip
+              title={
+                secondaryToolbarCollapsed
+                  ? "Werkzeugoptionen anzeigen"
+                  : "Werkzeugoptionen ausblenden"
+              }
+            >
+              <button
+                type="button"
                 style={{
+                  ...toolButtonStyle(false),
+                  width: isSecondaryToolbarExpandRight ? 36 : "auto",
+                  height: isSecondaryToolbarExpandRight ? 36 : undefined,
+                  minHeight: isSecondaryToolbarExpandRight ? undefined : 28,
+                  padding: isSecondaryToolbarExpandRight ? 0 : "0 10px",
+                  borderRadius: isSecondaryToolbarExpandRight ? "50%" : 999,
+                  backgroundColor: INFOBOX_SURFACE_BG,
+                  backdropFilter: INFOBOX_SURFACE_BLUR,
+                  WebkitBackdropFilter: INFOBOX_SURFACE_BLUR,
                   display: "inline-flex",
                   alignItems: "center",
                   justifyContent: "center",
-                  color: INACTIVE_ICON_COLOR,
-                  width: 14,
+                  gap: isSecondaryToolbarExpandRight ? 0 : 6,
                 }}
-                aria-hidden="true"
+                onClick={() =>
+                  setSecondaryToolbarCollapsed((previous) => !previous)
+                }
+                aria-expanded={!secondaryToolbarCollapsed}
+                aria-label={
+                  secondaryToolbarCollapsed
+                    ? "Werkzeugoptionen anzeigen"
+                    : "Werkzeugoptionen ausblenden"
+                }
+                data-test-id="measurement-secondary-toolbar-toggle"
               >
-                <FontAwesomeIcon icon={faArrowsToCircle} />
-              </span>
+                {isSecondaryToolbarExpandRight ? (
+                  <span
+                    style={{
+                      display: "inline-flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      gap: 3,
+                      fontSize: 13,
+                    }}
+                    aria-hidden="true"
+                  >
+                    <SettingOutlined />
+                    {secondaryToolbarCollapsed ? (
+                      <RightOutlined style={{ fontSize: 10 }} />
+                    ) : (
+                      <LeftOutlined style={{ fontSize: 10 }} />
+                    )}
+                  </span>
+                ) : secondaryToolbarCollapsed ? (
+                  "Optionen einblenden"
+                ) : (
+                  "Optionen ausblenden"
+                )}
+              </button>
             </Tooltip>
-            <Switch
-              size="small"
-              checked={distanceStickyToFirstPoint}
-              onChange={(checked) =>
-                onDistanceStickyToFirstPointChange?.(checked)
+          </div>
+          {!secondaryToolbarCollapsed && (
+            <div
+              style={
+                isSecondaryToolbarExpandRight
+                  ? {
+                      display: "flex",
+                      flexDirection: "column",
+                      gap: 6,
+                      width: "min(520px, calc(100vw - 64px))",
+                      maxWidth: "calc(100vw - 64px)",
+                    }
+                  : undefined
               }
-              data-test-id="measurement-distance-sticky-first-toggle"
-              aria-label="Distanzmessung am Referenzpunkt starten"
-            />
-          </div>
-        </SecondaryToolbarSection>
-      )}
-      {showPointOptions && (
-        <SecondaryToolbarSection
-          dataTestId="measurement-point-options"
-          helpDataTestId="measurement-point-help"
-          helpCollapsed={
-            secondaryToolbarHelpCollapsedByKey[ANNOTATION_TYPE_POINT]
-          }
-          onHelpCollapsedChange={(collapsed) =>
-            setSecondaryToolbarHelpCollapsed(ANNOTATION_TYPE_POINT, collapsed)
-          }
-          helpContent={renderHelpContent([
-            "Für Punktmessungen auf das Stadtmodell klicken. Die erste Messung definiert die Referenzhöhe.",
-            "Klicken um Höhenmessung zu setzen.",
-            "Doppelklick auf Punkt setzt Referenzhöhe.",
-            "Langer Klick startet Editiermodus.",
-            "Rückstelltaste löscht den letzten Punkt.",
-          ])}
-        >
-          <div style={{ display: "inline-flex", gap: 4, alignItems: "center" }}>
-            <span style={optionsLabelStyle}>Temporär/Solo</span>
-            <Switch
-              size="small"
-              checked={pointSoloMode}
-              onChange={(checked) => onPointSoloModeChange?.(checked)}
-              aria-label="Temporär/Solo"
-              data-test-id="measurement-point-solo-toggle"
-            />
-          </div>
-          <div
-            style={{
-              display: "inline-flex",
-              alignItems: "center",
-              gap: 6,
-              flexWrap: "wrap",
-            }}
-          >
-            <span style={optionsLabelStyle}>Vertikalversatz</span>
-            <Switch
-              size="small"
-              checked={pointVerticalOffsetEnabled}
-              onChange={(checked) => {
-                if (!checked) {
-                  if (Math.abs(pointVerticalOffsetMeters) > 1e-9) {
-                    lastPointVerticalOffsetRef.current =
-                      pointVerticalOffsetMeters;
+            >
+              {showSelectionOptions && (
+                <SecondaryToolbarSection
+                  dataTestId="measurement-selection-options"
+                  helpDataTestId="measurement-selection-help"
+                  helpCollapsed={secondaryToolbarHelpCollapsedByKey.selection}
+                  onHelpCollapsedChange={(collapsed) =>
+                    setSecondaryToolbarHelpCollapsed("selection", collapsed)
                   }
-                  onPointVerticalOffsetChange?.(0);
-                  setPointOffsetForceCloseSignal((prev) => prev + 1);
-                  return;
-                }
-                const restoredOffset =
-                  Math.abs(lastPointVerticalOffsetRef.current) > 1e-9
-                    ? lastPointVerticalOffsetRef.current
-                    : 1;
-                onPointVerticalOffsetChange?.(restoredOffset);
-              }}
-              data-test-id="measurement-point-vertical-offset-enabled-toggle"
-              aria-label="Vertikalversatz aktivieren"
-            />
-            {pointVerticalOffsetEnabled && (
-              <EditableMetricValue
-                value={pointVerticalOffsetMeters}
-                onValueChange={(nextValue) =>
-                  onPointVerticalOffsetChange?.(nextValue)
-                }
-                label="Vertikalversatz"
-                locale="de-DE"
-                decimalSeparator=","
-                min={-100}
-                max={100}
-                step={1}
-                precision={2}
-                inputWidth={88}
-                inputClassName="measurement-elevation-input"
-                dataTestIdPrefix="measurement-point-vertical-offset"
-                forceCloseSignal={pointOffsetForceCloseSignal}
-              />
-            )}
-          </div>
-        </SecondaryToolbarSection>
-      )}
-      {showLabelOptions && (
-        <SecondaryToolbarSection
-          dataTestId="measurement-label-options"
-          helpDataTestId="measurement-label-help"
-          helpCollapsed={
-            secondaryToolbarHelpCollapsedByKey[ANNOTATION_TYPE_LABEL]
-          }
-          onHelpCollapsedChange={(collapsed) =>
-            setSecondaryToolbarHelpCollapsed(ANNOTATION_TYPE_LABEL, collapsed)
-          }
-          helpContent={renderHelpContent([
-            "Im Anmerkungsmodus setzt ein Klick eine Beschriftung am Punkt.",
-            "Die Beschriftung kann danach in der Infobox bearbeitet werden.",
-            "Über den Auswahlmodus lassen sich Anmerkungen gemeinsam ein-/ausblenden, sperren und löschen.",
-          ])}
-        >
-          <span style={optionsLabelStyle}>Anmerkungsmodus aktiv</span>
-        </SecondaryToolbarSection>
-      )}
-      {showPolylineOptions && (
-        <SecondaryToolbarSection
-          dataTestId="measurement-polyline-options"
-          helpDataTestId="measurement-polyline-help"
-          helpCollapsed={
-            secondaryToolbarHelpCollapsedByKey[ANNOTATION_TYPE_POLYLINE]
-          }
-          onHelpCollapsedChange={(collapsed) =>
-            setSecondaryToolbarHelpCollapsed(
-              ANNOTATION_TYPE_POLYLINE,
-              collapsed
-            )
-          }
-          helpContent={renderHelpContent([
-            "Klicken setzt Stützpunkte des Polygonzugs.",
-            "Doppelklick beendet den aktuellen Polygonzug.",
-            "Vertikalversatz verschiebt die Darstellung entlang der lokalen Up-Achse.",
-            "Segmentdarstellung wechselt zwischen Direktlinie und Komponenten.",
-          ])}
-        >
-          <div
-            style={{
-              display: "inline-flex",
-              alignItems: "center",
-              gap: 6,
-              flexWrap: "wrap",
-            }}
-          >
-            <span style={optionsLabelStyle}>Vertikalversatz</span>
-            <Switch
-              size="small"
-              checked={polylineVerticalOffsetEnabled}
-              onChange={(checked) => {
-                if (!checked) {
-                  if (Math.abs(polylineVerticalOffsetMeters) > 1e-9) {
-                    lastPolylineVerticalOffsetRef.current =
-                      polylineVerticalOffsetMeters;
+                  helpContent={renderHelpContent([
+                    "Messungen anklicken, um sie ohne Modus-Nebeneffekte zu selektieren.",
+                    "Optional: Rechteckmodus aktivieren und aufziehen, um Punkte live im Bildausschnitt zu selektieren.",
+                    'Shift oder "Additiv" erweitert die Auswahl.',
+                    "Ausgewählte Messungen können ein-/ausgeblendet, gesperrt und gelöscht werden.",
+                  ])}
+                >
+                  <div
+                    style={{
+                      display: "inline-flex",
+                      gap: 8,
+                      alignItems: "center",
+                    }}
+                  >
+                    <span style={optionsLabelStyle}>Additiv</span>
+                    <Switch
+                      size="small"
+                      checked={selectAdditiveMode}
+                      onChange={(checked) =>
+                        onSelectAdditiveModeChange?.(checked)
+                      }
+                      aria-label="Additive Auswahl"
+                      data-test-id="measurement-selection-additive-toggle"
+                    />
+                  </div>
+                  <div
+                    style={{
+                      display: "inline-flex",
+                      gap: 8,
+                      alignItems: "center",
+                    }}
+                  >
+                    <Tooltip title="Rechteckauswahl">
+                      <span
+                        style={{
+                          display: "inline-flex",
+                          alignItems: "center",
+                          justifyContent: "center",
+                          color: INACTIVE_ICON_COLOR,
+                          width: 14,
+                        }}
+                        aria-hidden="true"
+                      >
+                        <FontAwesomeIcon icon={faBorderNone} />
+                      </span>
+                    </Tooltip>
+                    <Switch
+                      size="small"
+                      checked={selectRectangleMode}
+                      onChange={(checked) =>
+                        onSelectRectangleModeChange?.(checked)
+                      }
+                      aria-label="Rechteckauswahl"
+                      data-test-id="measurement-selection-rectangle-toggle"
+                    />
+                  </div>
+                  <div
+                    style={{
+                      display: "inline-flex",
+                      alignItems: "center",
+                      gap: 8,
+                    }}
+                  >
+                    <span
+                      style={optionsLabelStyle}
+                      data-test-id="measurement-selection-counts"
+                    >
+                      {selectedMeasurementCount} Messungen ·{" "}
+                      {selectedLabelCount} Labels
+                    </span>
+                    {hasSelection && (
+                      <>
+                        <Tooltip
+                          title={
+                            selectedVisibilityHidden
+                              ? "Auswahl einblenden"
+                              : "Auswahl ausblenden"
+                          }
+                        >
+                          <VisibilityToggleButton
+                            isVisible={!selectedVisibilityHidden}
+                            onToggle={() => onToggleSelectedVisibility?.()}
+                            ariaLabel="Ausgewählte Messungen ein- oder ausblenden"
+                            dataTestId="measurement-selection-visibility-btn"
+                            iconSlotWidth={14}
+                            style={{
+                              ...toolButtonStyle(false),
+                              width: 28,
+                              height: 28,
+                            }}
+                          />
+                        </Tooltip>
+                        <Tooltip
+                          title={
+                            selectedLocked
+                              ? "Auswahl entsperren"
+                              : "Auswahl sperren"
+                          }
+                        >
+                          <LockToggleButton
+                            isLocked={selectedLocked}
+                            onToggle={() => onToggleSelectedLock?.()}
+                            style={{
+                              ...toolButtonStyle(false),
+                              width: 28,
+                              height: 28,
+                            }}
+                            ariaLabel="Ausgewählte Messungen sperren oder entsperren"
+                            dataTestId="measurement-selection-lock-btn"
+                            iconSlotWidth={14}
+                          />
+                        </Tooltip>
+                        <Tooltip title="Löschen">
+                          <button
+                            type="button"
+                            style={{
+                              ...toolButtonStyle(false, !hasDeletableSelection),
+                              width: 28,
+                              height: 28,
+                            }}
+                            onClick={() => onDeleteSelectedPoints?.()}
+                            disabled={!hasDeletableSelection}
+                            aria-label="Ausgewählte Messungen löschen"
+                            data-test-id="measurement-selection-delete-btn"
+                          >
+                            <FontAwesomeIcon icon={faTrashCan} />
+                          </button>
+                        </Tooltip>
+                      </>
+                    )}
+                  </div>
+                </SecondaryToolbarSection>
+              )}
+              {showDistanceOptions && (
+                <SecondaryToolbarSection
+                  dataTestId="measurement-distance-options"
+                  helpDataTestId="measurement-distance-help"
+                  helpCollapsed={
+                    secondaryToolbarHelpCollapsedByKey[ANNOTATION_TYPE_DISTANCE]
                   }
-                  onPolylineVerticalOffsetChange?.(0);
-                  setPolylineOffsetForceCloseSignal((prev) => prev + 1);
-                  return;
-                }
-                const restoredOffset =
-                  Math.abs(lastPolylineVerticalOffsetRef.current) > 1e-9
-                    ? lastPolylineVerticalOffsetRef.current
-                    : 1;
-                onPolylineVerticalOffsetChange?.(restoredOffset);
-              }}
-              data-test-id="measurement-polyline-vertical-offset-enabled-toggle"
-              aria-label="Polyline-Vertikalversatz aktivieren"
-            />
-            {polylineVerticalOffsetEnabled && (
-              <EditableMetricValue
-                value={polylineVerticalOffsetMeters}
-                onValueChange={(nextValue) =>
-                  onPolylineVerticalOffsetChange?.(nextValue)
-                }
-                label="Polyline-Vertikalversatz"
-                locale="de-DE"
-                decimalSeparator=","
-                min={-100}
-                max={100}
-                step={1}
-                precision={2}
-                inputWidth={88}
-                inputClassName="measurement-elevation-input"
-                dataTestIdPrefix="measurement-polyline-vertical-offset"
-                forceCloseSignal={polylineOffsetForceCloseSignal}
-              />
-            )}
-          </div>
-          <div style={{ display: "inline-flex", gap: 6, alignItems: "center" }}>
-            <span style={optionsLabelStyle}>Segmentdarstellung</span>
-            <span style={optionsLabelStyle}>Direkt</span>
-            <Switch
-              size="small"
-              checked={
-                polylineSegmentLineMode === LINEAR_SEGMENT_LINE_MODE_COMPONENTS
-              }
-              onChange={(checked) =>
-                onPolylineSegmentLineModeChange?.(
-                  checked
-                    ? LINEAR_SEGMENT_LINE_MODE_COMPONENTS
-                    : LINEAR_SEGMENT_LINE_MODE_DIRECT
-                )
-              }
-              aria-label="Polyline-Segmentdarstellung umschalten"
-              data-test-id="measurement-polyline-line-mode-toggle"
-            />
-            <span style={optionsLabelStyle}>Komponenten</span>
-          </div>
-        </SecondaryToolbarSection>
-      )}
-      {showAreaOptions && (
-        <SecondaryToolbarSection
-          dataTestId={`measurement-${activeToolType}-options`}
-          helpDataTestId={`measurement-${activeToolType}-help`}
-          helpCollapsed={
-            secondaryToolbarHelpCollapsedByKey[activeToolType as AreaToolType]
-          }
-          onHelpCollapsedChange={(collapsed) =>
-            setSecondaryToolbarHelpCollapsed(
-              activeToolType as AreaToolType,
-              collapsed
-            )
-          }
-          helpContent={renderHelpContent(
-            AREA_HELP_CONTENT[activeToolType as AreaToolType]
+                  onHelpCollapsedChange={(collapsed) =>
+                    setSecondaryToolbarHelpCollapsed(
+                      ANNOTATION_TYPE_DISTANCE,
+                      collapsed
+                    )
+                  }
+                  optionsStyle={{
+                    padding: "8px 6px",
+                  }}
+                  helpContent={renderHelpContent([
+                    "Erster Klick setzt den Startpunkt, zweiter Klick setzt den Zielpunkt.",
+                    "Doppelklick auf einen Punkt setzt die Referenzhöhe.",
+                    'Mit "An Referenzpunkt starten" beginnen Folgemessungen am Referenzpunkt.',
+                    "Distanzmodus schaltet zwischen Direktlinie, Komponenten oder beidem um.",
+                  ])}
+                >
+                  <div
+                    style={{
+                      display: "inline-flex",
+                      alignItems: "center",
+                      gap: 6,
+                      paddingLeft: 2,
+                    }}
+                  >
+                    <div
+                      role="radiogroup"
+                      aria-label="Distanz-Linienmodus auswählen"
+                      data-test-id="measurement-distance-mode-toggle"
+                      style={{
+                        display: "inline-flex",
+                        alignItems: "center",
+                        gap: 4,
+                      }}
+                    >
+                      {DISTANCE_LINE_MODE_OPTIONS.map(
+                        ({ mode, label, tooltip, icon, dataTestId }) => {
+                          const isActive = distanceLineMode === mode;
+                          return (
+                            <Tooltip key={mode} title={tooltip}>
+                              <button
+                                type="button"
+                                role="radio"
+                                aria-checked={isActive}
+                                aria-label={`${label} ${
+                                  isActive ? "aktiv" : "aktivieren"
+                                }`}
+                                onClick={() => setDistanceLineMode(mode)}
+                                data-test-id={dataTestId}
+                                style={distanceModeOptionButtonStyle(isActive)}
+                              >
+                                <span
+                                  style={{
+                                    display: "inline-flex",
+                                    alignItems: "center",
+                                    justifyContent: "center",
+                                    width: 14,
+                                    height: 14,
+                                  }}
+                                  aria-hidden="true"
+                                >
+                                  {icon}
+                                </span>
+                              </button>
+                            </Tooltip>
+                          );
+                        }
+                      )}
+                    </div>
+                  </div>
+                  <span
+                    style={{
+                      width: 1,
+                      height: 22,
+                      backgroundColor: "rgba(0, 0, 0, 0.12)",
+                      margin: "0 2px",
+                    }}
+                    aria-hidden="true"
+                  />
+                  <div
+                    style={{
+                      display: "inline-flex",
+                      alignItems: "center",
+                      gap: 8,
+                    }}
+                  >
+                    <Tooltip title="An Referenzpunkt starten">
+                      <span
+                        style={{
+                          display: "inline-flex",
+                          alignItems: "center",
+                          justifyContent: "center",
+                          color: INACTIVE_ICON_COLOR,
+                          width: 14,
+                        }}
+                        aria-hidden="true"
+                      >
+                        <FontAwesomeIcon icon={faArrowsToCircle} />
+                      </span>
+                    </Tooltip>
+                    <Switch
+                      size="small"
+                      checked={distanceStickyToFirstPoint}
+                      onChange={(checked) =>
+                        onDistanceStickyToFirstPointChange?.(checked)
+                      }
+                      data-test-id="measurement-distance-sticky-first-toggle"
+                      aria-label="Distanzmessung am Referenzpunkt starten"
+                    />
+                  </div>
+                </SecondaryToolbarSection>
+              )}
+              {showPointOptions && (
+                <SecondaryToolbarSection
+                  dataTestId="measurement-point-options"
+                  helpDataTestId="measurement-point-help"
+                  helpCollapsed={
+                    secondaryToolbarHelpCollapsedByKey[ANNOTATION_TYPE_POINT]
+                  }
+                  onHelpCollapsedChange={(collapsed) =>
+                    setSecondaryToolbarHelpCollapsed(
+                      ANNOTATION_TYPE_POINT,
+                      collapsed
+                    )
+                  }
+                  helpContent={renderHelpContent([
+                    "Für Punktmessungen auf das Stadtmodell klicken. Die erste Messung definiert die Referenzhöhe.",
+                    "Klicken um Höhenmessung zu setzen.",
+                    "Doppelklick auf Punkt setzt Referenzhöhe.",
+                    "Langer Klick startet Editiermodus.",
+                    "Rückstelltaste löscht den letzten Punkt.",
+                  ])}
+                >
+                  <div
+                    style={{
+                      display: "inline-flex",
+                      gap: 4,
+                      alignItems: "center",
+                    }}
+                  >
+                    <span style={optionsLabelStyle}>Temporär/Solo</span>
+                    <Switch
+                      size="small"
+                      checked={pointSoloMode}
+                      onChange={(checked) => onPointSoloModeChange?.(checked)}
+                      aria-label="Temporär/Solo"
+                      data-test-id="measurement-point-solo-toggle"
+                    />
+                  </div>
+                  <div
+                    style={{
+                      display: "inline-flex",
+                      alignItems: "center",
+                      gap: 6,
+                      flexWrap: "wrap",
+                    }}
+                  >
+                    <span style={optionsLabelStyle}>Vertikalversatz</span>
+                    <Switch
+                      size="small"
+                      checked={pointVerticalOffsetEnabled}
+                      onChange={(checked) => {
+                        if (!checked) {
+                          if (Math.abs(pointVerticalOffsetMeters) > 1e-9) {
+                            lastPointVerticalOffsetRef.current =
+                              pointVerticalOffsetMeters;
+                          }
+                          onPointVerticalOffsetChange?.(0);
+                          setPointOffsetForceCloseSignal((prev) => prev + 1);
+                          return;
+                        }
+                        const restoredOffset =
+                          Math.abs(lastPointVerticalOffsetRef.current) > 1e-9
+                            ? lastPointVerticalOffsetRef.current
+                            : 1;
+                        onPointVerticalOffsetChange?.(restoredOffset);
+                      }}
+                      data-test-id="measurement-point-vertical-offset-enabled-toggle"
+                      aria-label="Vertikalversatz aktivieren"
+                    />
+                    {pointVerticalOffsetEnabled && (
+                      <EditableMetricValue
+                        value={pointVerticalOffsetMeters}
+                        onValueChange={(nextValue) =>
+                          onPointVerticalOffsetChange?.(nextValue)
+                        }
+                        label="Vertikalversatz"
+                        locale="de-DE"
+                        decimalSeparator=","
+                        min={-100}
+                        max={100}
+                        step={1}
+                        precision={2}
+                        inputWidth={88}
+                        inputClassName="measurement-elevation-input"
+                        dataTestIdPrefix="measurement-point-vertical-offset"
+                        forceCloseSignal={pointOffsetForceCloseSignal}
+                      />
+                    )}
+                  </div>
+                </SecondaryToolbarSection>
+              )}
+              {showLabelOptions && (
+                <SecondaryToolbarSection
+                  dataTestId="measurement-label-options"
+                  helpDataTestId="measurement-label-help"
+                  helpCollapsed={
+                    secondaryToolbarHelpCollapsedByKey[ANNOTATION_TYPE_LABEL]
+                  }
+                  onHelpCollapsedChange={(collapsed) =>
+                    setSecondaryToolbarHelpCollapsed(
+                      ANNOTATION_TYPE_LABEL,
+                      collapsed
+                    )
+                  }
+                  helpContent={renderHelpContent([
+                    "Im Anmerkungsmodus setzt ein Klick eine Beschriftung am Punkt.",
+                    "Die Beschriftung kann danach in der Infobox bearbeitet werden.",
+                    "Über den Auswahlmodus lassen sich Anmerkungen gemeinsam ein-/ausblenden, sperren und löschen.",
+                  ])}
+                >
+                  <span style={optionsLabelStyle}>Anmerkungsmodus aktiv</span>
+                </SecondaryToolbarSection>
+              )}
+              {showPolylineOptions && (
+                <SecondaryToolbarSection
+                  dataTestId="measurement-polyline-options"
+                  helpDataTestId="measurement-polyline-help"
+                  helpCollapsed={
+                    secondaryToolbarHelpCollapsedByKey[ANNOTATION_TYPE_POLYLINE]
+                  }
+                  onHelpCollapsedChange={(collapsed) =>
+                    setSecondaryToolbarHelpCollapsed(
+                      ANNOTATION_TYPE_POLYLINE,
+                      collapsed
+                    )
+                  }
+                  helpContent={renderHelpContent([
+                    "Klicken setzt Stützpunkte des Polygonzugs.",
+                    "Doppelklick beendet den aktuellen Polygonzug.",
+                    "Vertikalversatz verschiebt die Darstellung entlang der lokalen Up-Achse.",
+                    "Segmentdarstellung wechselt zwischen Direktlinie und Komponenten.",
+                  ])}
+                >
+                  <div
+                    style={{
+                      display: "inline-flex",
+                      alignItems: "center",
+                      gap: 6,
+                      flexWrap: "wrap",
+                    }}
+                  >
+                    <span style={optionsLabelStyle}>Vertikalversatz</span>
+                    <Switch
+                      size="small"
+                      checked={polylineVerticalOffsetEnabled}
+                      onChange={(checked) => {
+                        if (!checked) {
+                          if (Math.abs(polylineVerticalOffsetMeters) > 1e-9) {
+                            lastPolylineVerticalOffsetRef.current =
+                              polylineVerticalOffsetMeters;
+                          }
+                          onPolylineVerticalOffsetChange?.(0);
+                          setPolylineOffsetForceCloseSignal((prev) => prev + 1);
+                          return;
+                        }
+                        const restoredOffset =
+                          Math.abs(lastPolylineVerticalOffsetRef.current) > 1e-9
+                            ? lastPolylineVerticalOffsetRef.current
+                            : 1;
+                        onPolylineVerticalOffsetChange?.(restoredOffset);
+                      }}
+                      data-test-id="measurement-polyline-vertical-offset-enabled-toggle"
+                      aria-label="Polyline-Vertikalversatz aktivieren"
+                    />
+                    {polylineVerticalOffsetEnabled && (
+                      <EditableMetricValue
+                        value={polylineVerticalOffsetMeters}
+                        onValueChange={(nextValue) =>
+                          onPolylineVerticalOffsetChange?.(nextValue)
+                        }
+                        label="Polyline-Vertikalversatz"
+                        locale="de-DE"
+                        decimalSeparator=","
+                        min={-100}
+                        max={100}
+                        step={1}
+                        precision={2}
+                        inputWidth={88}
+                        inputClassName="measurement-elevation-input"
+                        dataTestIdPrefix="measurement-polyline-vertical-offset"
+                        forceCloseSignal={polylineOffsetForceCloseSignal}
+                      />
+                    )}
+                  </div>
+                  <div
+                    style={{
+                      display: "inline-flex",
+                      gap: 6,
+                      alignItems: "center",
+                    }}
+                  >
+                    <span style={optionsLabelStyle}>Segmentdarstellung</span>
+                    <span style={optionsLabelStyle}>Direkt</span>
+                    <Switch
+                      size="small"
+                      checked={
+                        polylineSegmentLineMode ===
+                        LINEAR_SEGMENT_LINE_MODE_COMPONENTS
+                      }
+                      onChange={(checked) =>
+                        onPolylineSegmentLineModeChange?.(
+                          checked
+                            ? LINEAR_SEGMENT_LINE_MODE_COMPONENTS
+                            : LINEAR_SEGMENT_LINE_MODE_DIRECT
+                        )
+                      }
+                      aria-label="Polyline-Segmentdarstellung umschalten"
+                      data-test-id="measurement-polyline-line-mode-toggle"
+                    />
+                    <span style={optionsLabelStyle}>Komponenten</span>
+                  </div>
+                </SecondaryToolbarSection>
+              )}
+              {showAreaOptions && (
+                <SecondaryToolbarSection
+                  dataTestId={`measurement-${activeToolType}-options`}
+                  helpDataTestId={`measurement-${activeToolType}-help`}
+                  helpCollapsed={
+                    secondaryToolbarHelpCollapsedByKey[
+                      activeToolType as AreaToolType
+                    ]
+                  }
+                  onHelpCollapsedChange={(collapsed) =>
+                    setSecondaryToolbarHelpCollapsed(
+                      activeToolType as AreaToolType,
+                      collapsed
+                    )
+                  }
+                  helpContent={renderHelpContent(
+                    AREA_HELP_CONTENT[activeToolType as AreaToolType]
+                  )}
+                >
+                  <span
+                    style={optionsLabelStyle}
+                    data-test-id="measurement-area-mode-label"
+                  >
+                    Aktiver Flächenmodus:{" "}
+                    {AREA_LABEL[activeToolType as AreaToolType]}
+                  </span>
+                </SecondaryToolbarSection>
+              )}
+            </div>
           )}
-        >
-          <span
-            style={optionsLabelStyle}
-            data-test-id="measurement-area-mode-label"
-          >
-            Aktiver Flächenmodus: {AREA_LABEL[activeToolType as AreaToolType]}
-          </span>
-        </SecondaryToolbarSection>
+        </div>
       )}
     </div>
   );

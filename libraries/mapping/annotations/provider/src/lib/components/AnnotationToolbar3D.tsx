@@ -1,4 +1,4 @@
-import { useMemo, useCallback, useEffect } from "react";
+import { CSSProperties, useMemo, useCallback, useEffect } from "react";
 import { Modal } from "antd";
 import { isKeyboardTargetEditable } from "@carma-commons/utils";
 import {
@@ -24,9 +24,21 @@ import { useAnnotationToolMode } from "./hooks/useAnnotationToolMode";
 export function AnnotationToolbar3D({
   pixelWidth = 350,
   toolManager,
+  showPrimaryToolbar = true,
+  showSecondaryToolbar = true,
+  enableMultiDeleteHotkey = true,
+  secondaryToolbarContainerStyle,
+  secondaryToolbarCollapsedByDefault = false,
+  secondaryToolbarDirection = "down",
 }: {
   pixelWidth?: number;
   toolManager?: AnnotationToolManager;
+  showPrimaryToolbar?: boolean;
+  showSecondaryToolbar?: boolean;
+  enableMultiDeleteHotkey?: boolean;
+  secondaryToolbarContainerStyle?: CSSProperties;
+  secondaryToolbarCollapsedByDefault?: boolean;
+  secondaryToolbarDirection?: "down" | "right";
 }) {
   const {
     measurementMode,
@@ -217,6 +229,7 @@ export function AnnotationToolbar3D({
   ]);
 
   useEffect(() => {
+    if (!enableMultiDeleteHotkey) return;
     const handleMultiDeleteKey = (event: KeyboardEvent) => {
       if (event.key !== "Delete" && event.key !== "Backspace") return;
       if (event.defaultPrevented) return;
@@ -231,7 +244,11 @@ export function AnnotationToolbar3D({
     return () => {
       window.removeEventListener("keydown", handleMultiDeleteKey, true);
     };
-  }, [deletableSelectedPointCount, requestDeleteSelectedPoints]);
+  }, [
+    deletableSelectedPointCount,
+    enableMultiDeleteHotkey,
+    requestDeleteSelectedPoints,
+  ]);
 
   const isAreaMode =
     measurementMode === MEASUREMENT_MODE_POLYLINE &&
@@ -323,6 +340,8 @@ export function AnnotationToolbar3D({
       <AnnotationModeToolbar
         activeToolType={activeToolType}
         onToolTypeChange={handleToolTypeChange}
+        showPrimaryToolbar={showPrimaryToolbar}
+        showSecondaryToolbar={showSecondaryToolbar}
         selectAdditiveMode={selectModeAdditive}
         onSelectAdditiveModeChange={setSelectModeAdditive}
         selectRectangleMode={selectModeRectangle}
@@ -349,6 +368,9 @@ export function AnnotationToolbar3D({
         onPointSoloModeChange={setTemporaryMode}
         pixelWidth={pixelWidth}
         toolManager={toolManager}
+        secondaryToolbarContainerStyle={secondaryToolbarContainerStyle}
+        secondaryToolbarCollapsedByDefault={secondaryToolbarCollapsedByDefault}
+        secondaryToolbarDirection={secondaryToolbarDirection}
       />
     </div>
   );
