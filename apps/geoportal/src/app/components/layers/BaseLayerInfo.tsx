@@ -53,6 +53,7 @@ const BaseLayerInfo = () => {
   };
 
   const getBackgroundDescription = () => {
+    const { isCesium } = useMapFrameworkSwitcherContext();
     if (backgroundLayer.id === "karte") {
       return isCesium
         ? "LoD2-Gebäudemodell"

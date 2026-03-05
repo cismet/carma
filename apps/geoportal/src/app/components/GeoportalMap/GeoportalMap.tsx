@@ -48,7 +48,6 @@ import { getCollabedHelpComponentConfig as getCollabedHelpElementsConfig } from 
 
 import { ENDPOINT, isAreaType } from "@carma-commons/resources";
 import type { FeatureInfo } from "@carma/types";
-import { AnnotationInfoBox } from "@carma-mapping/annotations/provider";
 import { Measurements, InfoBoxMeasurement } from "@carma-commons/measurements";
 
 import {
@@ -638,12 +637,6 @@ export const GeoportalMap = ({ height, width, allow3d }: MapProps) => {
   }, [getLeafletMap]);
 
   const renderInfoBox = useCallback(() => {
-    const isCesiumMeasurementMode = getIsCesium() && isModeMeasurement;
-
-    if (isCesiumMeasurementMode) {
-      return <AnnotationInfoBox />;
-    }
-
     if (getIsLeaflet()) {
       if (isModeMeasurement) {
         return <InfoBoxMeasurement key={uiMode} />;
@@ -981,11 +974,7 @@ export const GeoportalMap = ({ height, width, allow3d }: MapProps) => {
         >
           <CustomViewer
             containerRef={container3dMapRef}
-            cameraLimiterOptions={
-              isModeMeasurement
-                ? { ...CESIUM_CONFIG.camera, pitchLimiter: false }
-                : CESIUM_CONFIG.camera
-            }
+            cameraLimiterOptions={CESIUM_CONFIG.camera}
             initialCameraView={cesiumInitialCameraViewRef.current ?? undefined}
             onSceneChange={onSceneChange}
           />

@@ -1,5 +1,5 @@
 // Built-in Modules
-import { useMemo, useState } from "react";
+import { useMemo } from "react";
 import { useDispatch, useSelector } from "react-redux";
 
 // 3rd party Modules
@@ -18,10 +18,6 @@ import {
 } from "@carma-collab/wuppertal/geoportal";
 import { TAILWIND_CLASSNAMES_FULLSCREEN_FIXED } from "@carma-commons/utils";
 import {
-  MapMeasurementsProvider,
-  MEASUREMENT_MODE,
-} from "@carma-commons/measurements";
-import {
   MapFrameworkSwitcherProvider,
   MobileWarningMessage,
 } from "@carma-mapping/components";
@@ -31,8 +27,10 @@ import {
 } from "@carma-providers/feature-flag";
 import { HashStateProvider } from "@carma-providers/hash-state";
 import { useCesiumDevConsoleTrigger } from "@carma-mapping/engines/cesium";
-import { LabelOverlayProvider } from "@carma-providers/label-overlay";
-import { CesiumAnnotationsProvider } from "@carma-mapping/annotations/cesium";
+import {
+  MapMeasurementsProvider,
+  MEASUREMENT_MODE,
+} from "@carma-commons/measurements";
 
 // Local Modules
 import AppErrorFallback from "./components/AppErrorFallback";
@@ -49,16 +47,22 @@ import { useManageLayers } from "./hooks/useManageLayers";
 import { useSyncToken } from "./hooks/useSyncToken";
 import { useKeyboardShortcuts } from "./hooks/useKeyboardShortcuts";
 
-import { layerMap } from "./config";
+import { APP_KEY, layerMap } from "./config";
 import { geoportalMapStyleConfig } from "./config/mapStyleConfig";
-import { CESIUM_ANNOTATIONS_OPTIONS } from "./config/annotations.config";
-import { MEASUREMENTS_BASE_CONFIG } from "./config/measurements.config";
 
 import { CESIUM_CONFIG, CONFIG_BASE_URL } from "./config/app.config";
 import store from "./store";
 import { featureFlagConfig } from "./config/featureFlags";
 
 import { OBLIQUE_CONFIG, CAMERA_ID_TO_DIRECTION } from "./oblique/config";
+
+// Stable config objects
+const MEASUREMENTS_BASE_CONFIG = {
+  editableTitle: true,
+  snappingEnabled: false,
+  snappingOnUpdate: false,
+  localStorageKey: "@" + APP_KEY + ".app.measurements",
+};
 
 import { useAdhocFeatureRehydrate } from "./hooks/use-adhoc-feature-rehydrate";
 
@@ -144,14 +148,6 @@ function App({ published }: { published?: boolean }) {
     dispatch(setUIMode(newUIMode));
   };
 
-  const [labelOverlayContainer, setLabelOverlayContainer] =
-    useState<HTMLDivElement | null>(null);
-
-  const labelOverlayContainerRef = useMemo(
-    () => ({ current: labelOverlayContainer }),
-    [labelOverlayContainer]
-  );
-
   // Memoize config objects to prevent recreation on every render
   const featureFlagsMergedConfig = useMemo(
     () => ({ ...featureFlagConfig, ...customFeatureFlags }),
@@ -190,64 +186,48 @@ function App({ published }: { published?: boolean }) {
                   setModeExternal={handleSetMode}
                   baseConfig={MEASUREMENTS_BASE_CONFIG}
                 >
-                  <LabelOverlayProvider containerRef={labelOverlayContainerRef}>
-                    <CesiumAnnotationsProvider
-                      enabled={uiMode === UIMode.MEASUREMENT}
-                      options={CESIUM_ANNOTATIONS_OPTIONS}
-                    >
-                      <ErrorBoundary FallbackComponent={AppErrorFallback}>
-                        <AdhocFeatureRehydration />
-                        <div className={TAILWIND_CLASSNAMES_FULLSCREEN_FIXED}>
-                          {isLoadingConfig && (
-                            <div
-                              id="loading"
-                              className="absolute flex flex-col items-center text-white justify-center h-screen w-full bg-black/50 z-[9999999999999]"
-                            >
-                              <h2>Lade Konfiguration</h2>
-                              <FontAwesomeIcon
-                                size="2x"
-                                icon={faSpinner}
-                                spin
-                              />
-                            </div>
-                          )}
-                          {!published && <TopNavbar />}
-                          <MapWrapper
-                            overlayContainerRef={setLabelOverlayContainer}
-                          />
-                          <MobileWarningMessage
-                            headerText={mobileInfo.headerText}
-                            bodyText={mobileInfo.bodyText}
-                            confirmButtonText={mobileInfo.confirmButtonText}
-                          />
-
-                          <Modal
-                            open={showLoginModal}
-                            closable={false}
-                            footer={null}
-                            styles={{
-                              content: {
-                                padding: "0px",
-                                width:
-                                  window.innerWidth < 600 ? "100%" : "450px",
-                              },
-                            }}
-                          >
-                            <LoginForm
-                              onSuccess={() =>
-                                dispatch(setShowLoginModal(false))
-                              }
-                              closeLoginForm={() =>
-                                dispatch(setShowLoginModal(false))
-                              }
-                              showHelpText={false}
-                              style={{ padding: "20px" }}
-                            />
-                          </Modal>
+                  <ErrorBoundary FallbackComponent={AppErrorFallback}>
+                    <AdhocFeatureRehydration />
+                    <div className={TAILWIND_CLASSNAMES_FULLSCREEN_FIXED}>
+                      {isLoadingConfig && (
+                        <div
+                          id="loading"
+                          className="absolute flex flex-col items-center text-white justify-center h-screen w-full bg-black/50 z-[9999999999999]"
+                        >
+                          <h2>Lade Konfiguration</h2>
+                          <FontAwesomeIcon size="2x" icon={faSpinner} spin />
                         </div>
-                      </ErrorBoundary>
-                    </CesiumAnnotationsProvider>
-                  </LabelOverlayProvider>
+                      )}
+                      {!published && <TopNavbar />}
+                      <MapWrapper />
+                      <MobileWarningMessage
+                        headerText={mobileInfo.headerText}
+                        bodyText={mobileInfo.bodyText}
+                        confirmButtonText={mobileInfo.confirmButtonText}
+                      />
+
+                      <Modal
+                        open={showLoginModal}
+                        closable={false}
+                        footer={null}
+                        styles={{
+                          content: {
+                            padding: "0px",
+                            width: window.innerWidth < 600 ? "100%" : "450px",
+                          },
+                        }}
+                      >
+                        <LoginForm
+                          onSuccess={() => dispatch(setShowLoginModal(false))}
+                          closeLoginForm={() =>
+                            dispatch(setShowLoginModal(false))
+                          }
+                          showHelpText={false}
+                          style={{ padding: "20px" }}
+                        />
+                      </Modal>
+                    </div>
+                  </ErrorBoundary>
                 </MeasurementsWrapper>
               </ObliqueProvider>
             </CarmaMapProviderWrapper>

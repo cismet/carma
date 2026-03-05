@@ -50,7 +50,6 @@ import {
   ControlLayoutCanvas,
 } from "@carma-mapping/map-controls-layout";
 import { useFeatureFlags } from "@carma-providers/feature-flag";
-import { AnnotationToolbar3D } from "@carma-mapping/annotations/provider";
 import { MeasurementControl } from "@carma-commons/measurements";
 
 import { GeoportalMap } from "../GeoportalMap.tsx";
@@ -60,7 +59,6 @@ import LayerWrapper from "../../layers/LayerWrapper.tsx";
 
 import useLeafletZoomControls from "../../../hooks/leaflet/useLeafletZoomControls.ts";
 import { useAppSearchParams } from "../../../hooks/useAppSearchParams";
-import { useMeasurementHashSync } from "../../../hooks/useMeasurementHashSync";
 import { useDispatchSachdatenInfoText } from "../../../hooks/useDispatchSachdatenInfoText.ts";
 import { useFeatureInfoModeCursorStyle } from "../../../hooks/useFeatureInfoModeCursorStyle.ts";
 import { useMapStyleReduxSync } from "../../../hooks/useMapStyleReduxSync";
@@ -100,11 +98,7 @@ window.addEventListener("load", testGPU, false);
 
 // TODO: centralize the hash params update behavior
 
-const MapWrapper = ({
-  overlayContainerRef,
-}: {
-  overlayContainerRef?: React.Ref<HTMLDivElement>;
-}) => {
+const MapWrapper = () => {
   const dispatch = useDispatch();
   const flags = useFeatureFlags();
 
@@ -130,7 +124,6 @@ const MapWrapper = ({
     isCesium,
     isPreparingCesiumTransition,
     preparingCesiumMessage,
-    isTransitioning,
   } = useMapFrameworkSwitcherContext();
   const statusFooterText = isPreparingCesiumTransition
     ? preparingCesiumMessage ?? "3D Modelle werden geladen"
@@ -182,7 +175,6 @@ const MapWrapper = ({
   // custom hooks
 
   useAppSearchParams();
-  useMeasurementHashSync();
   useDispatchSachdatenInfoText();
   useMapStyleReduxSync();
 
@@ -397,12 +389,10 @@ const MapWrapper = ({
             <MeasurementControl
               position="topleft"
               order={60}
-              isActive={isModeMeasurement}
-              onToggle={() => dispatch(toggleUIMode(UIMode.MEASUREMENT))}
-              disabled={isLeaflet && showLibreMap}
+              disabled={!isLeaflet || (isLeaflet && showLibreMap)}
               useDisabledStyle={isLeaflet && showLibreMap}
               tooltip={
-                isLeaflet && showLibreMap
+                isCesium
                   ? "zum Messen zu 2D-Modus wechseln"
                   : isModeMeasurement
                   ? "Messungsmodus ausschalten"
@@ -477,11 +467,6 @@ const MapWrapper = ({
               <LayerWrapper />
             </Control>
           )}
-          {!isObliquePreviewVisible && isModeMeasurement && isCesium && (
-            <Control position="bottomright" order={10}>
-              <AnnotationToolbar3D />
-            </Control>
-          )}
           <Control position="bottomleft" order={10}>
             <div
               ref={tourRefLabels.gazetteer}
@@ -520,13 +505,6 @@ const MapWrapper = ({
           ) : (
             <>
               <GeoportalMap height={height} width={width} allow3d={allow3d} />
-              <div
-                ref={overlayContainerRef}
-                id="measurement-overlay-container"
-                className={`absolute inset-0 pointer-events-none z-[450] transition-opacity duration-300 ${
-                  isCesium ? "block" : "hidden"
-                } ${isTransitioning && isCesium ? "opacity-0" : "opacity-100"}`}
-              />
               {isCesium && <ObliqueControls hideControls={zenMode} />}
             </>
           )}
