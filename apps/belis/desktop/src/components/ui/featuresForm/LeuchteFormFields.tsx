@@ -43,6 +43,8 @@ interface LeuchteFormFieldsProps {
   namePrefix?: string;
   readOnly?: boolean;
   onFormInstance?: (form: import("antd").FormInstance) => void;
+  draftValues?: Record<string, unknown>;
+  onValuesChange?: (changedValues: Record<string, unknown>, allValues: Record<string, unknown>) => void;
 }
 
 interface LeuchttypItem {
@@ -101,6 +103,8 @@ const LeuchteFormFields = ({
   namePrefix,
   readOnly = true,
   onFormInstance,
+  draftValues,
+  onValuesChange,
 }: LeuchteFormFieldsProps) => {
   const [form] = Form.useForm();
   useEffect(() => {
@@ -196,7 +200,7 @@ const LeuchteFormFields = ({
         | NestedObject
         | undefined;
 
-      form.setFieldsValue({
+      const serverValues = {
         // Straßenschlüssel
         strassenschluessel_pk: strassenschluessel?.pk,
         strassenschluessel_strasse: toTitleCase(
@@ -259,8 +263,14 @@ const LeuchteFormFields = ({
           : null,
         // Bemerkung
         bemerkungen: leuchte.bemerkungen,
-      });
+      };
+      form.setFieldsValue(serverValues);
+
+      if (draftValues) {
+        form.setFieldsValue(draftValues);
+      }
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [leuchte, form]);
 
   return (
@@ -269,6 +279,7 @@ const LeuchteFormFields = ({
       layout="vertical"
       requiredMark={false}
       className={getFormClassName(readOnly, "pr-2")}
+      onValuesChange={onValuesChange}
     >
       {/* Straßenschlüssel - always disabled */}
       <StrassenschluesselFields namePrefix={namePrefix} />

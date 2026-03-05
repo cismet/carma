@@ -17,6 +17,8 @@ interface SchaltstelleFormProps {
   onClose?: () => void;
   readOnly?: boolean;
   loading?: boolean;
+  draftValues?: Record<string, unknown>;
+  onDraftChange?: (values: Record<string, unknown>) => void;
   onToggleReadOnly?: () => void;
   onCancel?: () => void;
   onSaveComplete?: () => void;
@@ -38,6 +40,8 @@ const SchaltstelleForm = ({
   onClose,
   readOnly = true,
   loading,
+  draftValues,
+  onDraftChange,
   onToggleReadOnly,
   onCancel,
   onSaveComplete,
@@ -122,7 +126,12 @@ const SchaltstelleForm = ({
         // Bemerkung
         bemerkung: ss.bemerkung,
       });
+
+      if (draftValues) {
+        form.setFieldsValue(draftValues);
+      }
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [data, form]);
 
   if (!data) {
@@ -157,6 +166,7 @@ const SchaltstelleForm = ({
         layout="vertical"
         requiredMark={false}
         className={getFormClassName(readOnly, "pr-2")}
+        onValuesChange={(_, allValues) => onDraftChange?.(allValues)}
       >
         {/* Strassenschluessel - always disabled */}
         <StrassenschluesselFields label="Strassenschlussel" />

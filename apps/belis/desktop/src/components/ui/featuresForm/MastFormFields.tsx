@@ -21,6 +21,8 @@ interface MastFormFieldsProps {
   namePrefix?: string;
   readOnly?: boolean;
   onFormInstance?: (form: import("antd").FormInstance) => void;
+  draftValues?: Record<string, unknown>;
+  onValuesChange?: (changedValues: Record<string, unknown>, allValues: Record<string, unknown>) => void;
 }
 
 interface MasttypItem {
@@ -81,6 +83,8 @@ const MastFormFields = ({
   namePrefix,
   readOnly = true,
   onFormInstance,
+  draftValues,
+  onValuesChange,
 }: MastFormFieldsProps) => {
   const [form] = Form.useForm();
   useEffect(() => {
@@ -140,7 +144,7 @@ const MastFormFields = ({
         | NestedObject
         | undefined;
 
-      form.setFieldsValue({
+      const serverValues = {
         // Strassenschluessel
         strassenschluessel_pk: strassenschluessel?.pk,
         strassenschluessel_strasse: toTitleCase(
@@ -212,8 +216,14 @@ const MastFormFields = ({
         letzte_aenderung: mast.letzte_aenderung
           ? dayjs(mast.letzte_aenderung as string)
           : null,
-      });
+      };
+      form.setFieldsValue(serverValues);
+
+      if (draftValues) {
+        form.setFieldsValue(draftValues);
+      }
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [mast, form]);
 
   return (
@@ -222,6 +232,7 @@ const MastFormFields = ({
       layout="vertical"
       requiredMark={false}
       className={getFormClassName(readOnly, "pr-2")}
+      onValuesChange={onValuesChange}
     >
       {/* Strassenschluessel - always disabled */}
       <StrassenschluesselFields namePrefix={namePrefix} />

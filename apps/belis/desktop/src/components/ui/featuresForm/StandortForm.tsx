@@ -13,6 +13,8 @@ interface StandortFormProps {
   onClose?: () => void;
   readOnly?: boolean;
   loading?: boolean;
+  draftValues?: Record<string, unknown>;
+  onDraftChange?: (values: Record<string, unknown>) => void;
   onToggleReadOnly?: () => void;
   onCancel?: () => void;
   onSaveComplete?: () => void;
@@ -24,6 +26,8 @@ const StandortForm = ({
   onClose,
   readOnly = true,
   loading,
+  draftValues,
+  onDraftChange,
   onToggleReadOnly,
   onCancel,
   onSaveComplete,
@@ -34,6 +38,13 @@ const StandortForm = ({
   const setMastForm = useCallback((form: FormInstance) => {
     mastFormRef.current = form;
   }, []);
+
+  const handleMastValuesChange = useCallback(
+    (_: Record<string, unknown>, allValues: Record<string, unknown>) => {
+      onDraftChange?.(allValues);
+    },
+    [onDraftChange]
+  );
 
   const handleSave = () => {
     console.log("Standort form values:", mastFormRef.current?.getFieldsValue());
@@ -102,7 +113,13 @@ const StandortForm = ({
       onCancel={onCancel}
       onSave={handleSave}
     >
-      <MastFormFields mast={mast} readOnly={readOnly} onFormInstance={setMastForm} />
+      <MastFormFields
+        mast={mast}
+        readOnly={readOnly}
+        onFormInstance={setMastForm}
+        draftValues={draftValues}
+        onValuesChange={handleMastValuesChange}
+      />
     </FeatureFormLayout>
   );
 };

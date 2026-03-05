@@ -1,5 +1,13 @@
 import { useState, useCallback } from "react";
+import { useSelector, useDispatch } from "react-redux";
 import { featureFormRegistry } from "./index";
+import { getSelectedFeature } from "../../../store/slices/featureCollection";
+import {
+  getDraft,
+  setDraft,
+  removeDraft,
+} from "../../../store/slices/featuresForms";
+import type { RootState } from "../../../store";
 
 interface FeaturesFormsWrapperProps {
   featureType?: string;
@@ -35,25 +43,45 @@ const FeaturesFormsWrapper = ({
   readOnly: readOnlyProp = true,
   loading,
 }: FeaturesFormsWrapperProps) => {
+  const dispatch = useDispatch();
+  const selectedFeature = useSelector(getSelectedFeature);
+  const featureId = selectedFeature?.id != null ? String(selectedFeature.id) : undefined;
+  const draft = useSelector((state: RootState) => getDraft(state, featureId));
+
   const [isEditing, setIsEditing] = useState(false);
   const [resetKey, setResetKey] = useState(0);
   const effectiveReadOnly = readOnlyProp && !isEditing;
+
+  const formKey = featureType ? featureTypeToFormKey[featureType] : undefined;
+  const FormComponent = formKey ? featureFormRegistry[formKey] : undefined;
 
   const handleToggleReadOnly = useCallback(() => {
     setIsEditing((prev) => !prev);
   }, []);
 
   const handleCancel = useCallback(() => {
+    if (featureId) {
+      dispatch(removeDraft(featureId));
+    }
     setResetKey((prev) => prev + 1);
     setIsEditing(false);
-  }, []);
+  }, [featureId, dispatch]);
 
   const handleSaveComplete = useCallback(() => {
+    if (featureId) {
+      dispatch(removeDraft(featureId));
+    }
     setIsEditing(false);
-  }, []);
+  }, [featureId, dispatch]);
 
-  const formKey = featureType ? featureTypeToFormKey[featureType] : undefined;
-  const FormComponent = formKey ? featureFormRegistry[formKey] : undefined;
+  const handleDraftChange = useCallback(
+    (values: Record<string, unknown>) => {
+      if (featureId && formKey) {
+        dispatch(setDraft({ featureId, featureType: formKey, values }));
+      }
+    },
+    [featureId, formKey, dispatch]
+  );
 
   if (FormComponent) {
     return (
@@ -64,6 +92,8 @@ const FeaturesFormsWrapper = ({
           rawFeature={rawFeature}
           readOnly={effectiveReadOnly}
           loading={loading}
+          draftValues={draft?.values}
+          onDraftChange={handleDraftChange}
           onToggleReadOnly={handleToggleReadOnly}
           onCancel={handleCancel}
           onSaveComplete={handleSaveComplete}
