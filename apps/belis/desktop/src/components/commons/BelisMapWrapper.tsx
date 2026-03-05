@@ -34,6 +34,7 @@ import {
   useMapHighlighting,
   useMapHighlight,
   useSelectionNeighborhood,
+  useLassoHighlight,
   slugifyUrl,
 } from "@carma-mapping/engines/maplibre";
 import type maplibregl from "maplibre-gl";
@@ -57,12 +58,16 @@ interface BelisMapLibWrapperProps {
   mapSizes: { width: number; height: number };
   activeSourceLayers: Set<string>;
   highlightResults: SidebarFeature[] | null;
+  lassoActive: boolean;
+  onLassoDeactivate?: () => void;
 }
 
 const BelisMapLibWrapper = ({
   mapSizes,
   activeSourceLayers,
   highlightResults,
+  lassoActive,
+  onLassoDeactivate,
 }: BelisMapLibWrapperProps) => {
   const dispatch: AppDispatch = useDispatch();
   const jwt = useSelector(getJWT);
@@ -246,6 +251,15 @@ const BelisMapLibWrapper = ({
     modifierClick: "alt",
     onToggle: handleHighlightToggle,
     onHighlightsApplied: handleHighlightsApplied,
+  });
+
+  // Lasso freehand selection
+  useLassoHighlight({
+    map,
+    active: lassoActive,
+    sources: highlightSources,
+    onDeactivate: onLassoDeactivate,
+    onToggle: handleHighlightToggle,
   });
 
   const showRaw = useMemo(() => {

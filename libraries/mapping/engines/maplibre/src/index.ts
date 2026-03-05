@@ -78,6 +78,11 @@ export type {
   NeighborPredicate,
   UseSelectionNeighborhoodOptions,
 } from "./hooks/useSelectionNeighborhood";
+export { useLassoHighlight } from "./hooks/useLassoHighlight";
+export type {
+  UseLassoHighlightOptions,
+  UseLassoHighlightResult,
+} from "./hooks/useLassoHighlight";
 
 // Style utilities
 export {
@@ -121,6 +126,10 @@ export { zoom512as256, zoom256as512 } from "./utils/zoomUtils";
 
 // Cluster utilities
 export { createPieChart } from "./utils/clusterUtils";
+
+// Lasso drawing
+export { LassoDrawingManager } from "./lib/LassoDrawingManager";
+export type { LassoDrawingManagerOptions } from "./lib/LassoDrawingManager";
 
 // Selection management
 export { SelectionManager } from "./lib/SelectionManager";
