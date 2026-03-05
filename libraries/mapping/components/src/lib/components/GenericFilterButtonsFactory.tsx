@@ -34,13 +34,13 @@ export interface GenericFilterButtonsProps {
 
 export type FilterState = Record<string, boolean>;
 
+// Module-level cache for original layer filters, keyed by layerPattern.
+// Survives closure recreation when the FilterComponent is unmounted and
+// remounted via useMemo in the parent.
+const originalFiltersCache = new Map<string, Record<string, any[] | null>>();
+
 export const createFilterButtons = (config: FilterConfig) => {
   const isOrMode = config.filterMode === "or";
-
-  // Store original layer filters in the closure so they persist across
-  // mount/unmount cycles of the inner component (the closure is preserved
-  // by the useMemo in the parent).
-  let capturedOriginalFilters: Record<string, any[] | null> | null = null;
 
   const GenericFilterButtons = ({
     maplibreMap,
@@ -71,10 +71,10 @@ export const createFilterButtons = (config: FilterConfig) => {
     const [selectedFilters, setSelectedFilters] =
       useState<FilterState>(initialState);
 
-    // Local state that syncs with the closure-scoped original filters
+    // Local state that syncs with the module-level original filters cache
     const [originalFilters, setOriginalFilters] = useState<
       Record<string, any[] | null>
-    >(capturedOriginalFilters ?? {});
+    >(originalFiltersCache.get(config.layerPattern) ?? {});
 
     // Function to build filter expression from selected filters
     const buildFilterExpression = (filters: FilterState): any[] | null => {
@@ -194,10 +194,10 @@ export const createFilterButtons = (config: FilterConfig) => {
     };
 
     // Capture original filters once when map becomes available.
-    // Uses the closure-scoped variable so they survive unmount/remount.
+    // Uses the module-level cache so they survive closure recreation.
     useEffect(() => {
       if (!maplibreMap) return;
-      if (capturedOriginalFilters) return; // Already captured
+      if (originalFiltersCache.has(config.layerPattern)) return; // Already captured
 
       const layers = maplibreMap.getStyle()?.layers || [];
       const targetLayers = layers.filter((layer: any) =>
@@ -209,7 +209,7 @@ export const createFilterButtons = (config: FilterConfig) => {
         captured[layer.id] = layer.filter || null;
       });
 
-      capturedOriginalFilters = captured;
+      originalFiltersCache.set(config.layerPattern, captured);
       setOriginalFilters(captured);
     }, [maplibreMap]);
 
@@ -220,7 +220,6 @@ export const createFilterButtons = (config: FilterConfig) => {
 
       try {
         const targetLayerIds = Object.keys(originalFilters);
-
         const filterExpression = buildFilterExpression(selectedFilters);
 
         targetLayerIds.forEach((layerId: string) => {

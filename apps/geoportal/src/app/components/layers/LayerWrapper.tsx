@@ -47,6 +47,7 @@ import SecondaryView from "./SecondaryView";
 
 import "./button.css";
 import { useMapFrameworkSwitcherContext } from "@carma-mapping/components";
+import InteractionView from "./InteractionView";
 
 const LayerWrapper = () => {
   const dispatch: AppDispatch = useDispatch();
@@ -199,7 +200,7 @@ const LayerWrapper = () => {
         </div>
       </DndContext>
 
-      <div className="pt-3 w-full flex items-center justify-center" id="interactionLevel" />
+      <InteractionView />
       {!isNoSelectionIndex && <SecondaryView />}
     </>
   );

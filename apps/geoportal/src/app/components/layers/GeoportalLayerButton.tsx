@@ -104,7 +104,6 @@ const GeoportalLayerButton = ({
     },
   });
   const [filterInfo, setFilterInfo] = useState<FilterInfo | undefined>();
-  const [filterState, setFilterState] = useState<FilterState | undefined>();
   const dispatch = useDispatch();
   const { routedMapRef } = useContext<typeof TopicMapContext>(TopicMapContext);
 
@@ -118,23 +117,10 @@ const GeoportalLayerButton = ({
   const showLeftScrollButton = useSelector(getShowLeftScrollButton);
   const clickFromInfoView = useSelector(getClickFromInfoView);
   const activeFilterLayerID = useSelector(getActiveFilterLayerID);
-  const maplibreMaps = useSelector(getMaplibreMaps);
-  const selectedFeature = useSelector(getSelectedFeature);
   const mode = useSelector(getUIMode);
-  const isModeFeatureInfo = mode === UIMode.FEATURE_INFO;
   const showSettings = index === selectedLayerIndex;
   const layers = useSelector(getLayers);
   const layersLength = layers.length;
-
-  const FilterComponent = useMemo(
-    () => (layer.filterConfig ? createFilterButtons(layer.filterConfig) : null),
-    [layer.filterConfig]
-  );
-
-  const isFilterActive = activeFilterLayerID === id;
-  const maplibreMap = maplibreMaps
-    ? maplibreMaps.find((entry) => entry.id === id)?.map ?? null
-    : null;
 
   const { attributes, listeners, setNodeRef, transform, transition } =
     useSortable({
@@ -345,29 +331,6 @@ const GeoportalLayerButton = ({
           </div>
         )}
       </LayerButton>
-      {isFilterActive &&
-        FilterComponent &&
-        (() => {
-          const portalTarget = document.getElementById("interactionLevel");
-          if (!portalTarget) return null;
-          return createPortal(
-            <FilterComponent
-              maplibreMap={maplibreMap}
-              selectedFeature={selectedFeature}
-              skipFeatureMatchCheck={isModeFeatureInfo}
-              setSelectedFeature={(feature) => {
-                dispatch(setSelectedFeatureAction(feature));
-              }}
-              onFilterChange={(info: FilterInfo, state: FilterState) => {
-                setFilterState(state);
-                setFilterInfo(info);
-                dispatch(triggerFeatureInfoUpdateAction());
-              }}
-              initialFilters={filterState}
-            />,
-            portalTarget
-          );
-        })()}
     </div>
   );
 };
