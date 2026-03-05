@@ -1,4 +1,9 @@
-import { EditOutlined, LockOutlined, UnlockOutlined } from "@ant-design/icons";
+import {
+  EditOutlined,
+  ExclamationCircleOutlined,
+  LockOutlined,
+  UnlockOutlined,
+} from "@ant-design/icons";
 import { Button, Spin, Tooltip } from "antd";
 
 interface FormHeaderProps {
@@ -8,6 +13,7 @@ interface FormHeaderProps {
   onSave?: () => void;
   loading?: boolean;
   readOnly?: boolean;
+  hasDraft?: boolean;
   onToggleReadOnly?: () => void;
 }
 
@@ -18,6 +24,7 @@ const FormHeader = ({
   onSave,
   loading,
   readOnly,
+  hasDraft,
   onToggleReadOnly,
 }: FormHeaderProps) => {
   return (
@@ -38,22 +45,28 @@ const FormHeader = ({
             <p className="text-sm text-gray-500">{subtitle}</p>
           </div>
         </div>
-        {onToggleReadOnly && (
-          <Tooltip title={readOnly ? "Bearbeiten" : "Sperren"}>
-            <Button
-              icon={readOnly ? <LockOutlined /> : <UnlockOutlined />}
-              onClick={onToggleReadOnly}
-              size="small"
-            />
-          </Tooltip>
-        )}
+        <div className="flex items-center gap-2">
+          {hasDraft && (
+            <span className="inline-flex items-center gap-1.5 px-3 py-0.5 rounded-full border border-gray-300 bg-[#f9fafb] text-gray-500 text-xs font-medium">
+              <ExclamationCircleOutlined className="text-[11px]" />
+              Entwurf
+            </span>
+          )}
+          {onToggleReadOnly && (
+            <Tooltip title={readOnly ? "Bearbeiten" : "Sperren"}>
+              <Button
+                icon={readOnly ? <LockOutlined /> : <UnlockOutlined />}
+                onClick={onToggleReadOnly}
+                size="small"
+              />
+            </Tooltip>
+          )}
+        </div>
       </div>
       {!readOnly && (
         <div className="flex gap-2 justify-end px-6 pb-4">
-          <Button size="small" onClick={onCancel}>
-            Abbrechen
-          </Button>
-          <Button type="primary" size="small" onClick={onSave}>
+          <Button onClick={onCancel}>Abbrechen</Button>
+          <Button type="primary" onClick={onSave}>
             Speichern
           </Button>
         </div>

@@ -77,20 +77,20 @@ export const {
 
 // Selectors
 export const getDraft = (state: RootState, featureId: string | undefined) =>
-  featureId ? state.featuresForms.drafts[featureId] : undefined;
+  featureId ? state.featuresForms?.drafts[featureId] : undefined;
 
 export const hasDraft = (state: RootState, featureId: string | undefined) =>
-  featureId ? featureId in state.featuresForms.drafts : false;
+  featureId ? featureId in (state.featuresForms?.drafts ?? {}) : false;
 
 export const getAllDraftIds = (state: RootState) =>
-  Object.keys(state.featuresForms.drafts);
+  Object.keys(state.featuresForms?.drafts ?? {});
 
 export const getFormLoading = (
   state: RootState,
   featureId: string | undefined
-) => (featureId ? state.featuresForms.loading[featureId] ?? false : false);
+) => (featureId ? state.featuresForms?.loading[featureId] ?? false : false);
 
 export const getFormError = (
   state: RootState,
   featureId: string | undefined
-) => (featureId ? state.featuresForms.errors[featureId] ?? null : null);
+) => (featureId ? state.featuresForms?.errors[featureId] ?? null : null);

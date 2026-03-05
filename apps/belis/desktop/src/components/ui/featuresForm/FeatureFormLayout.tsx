@@ -35,6 +35,7 @@ interface FeatureFormLayoutProps {
   uploadText?: string;
   loading?: boolean;
   readOnly?: boolean;
+  hasDraft?: boolean;
   onToggleReadOnly?: () => void;
 }
 
@@ -52,6 +53,7 @@ const FeatureFormLayout = ({
   additionalTabs = [],
   loading,
   readOnly,
+  hasDraft,
   onToggleReadOnly,
 }: FeatureFormLayoutProps) => {
   // Support both regular query params and hash-based routing (/#/?param=value)
@@ -267,6 +269,7 @@ const FeatureFormLayout = ({
           onSave={onSave}
           loading={loading}
           readOnly={readOnly}
+          hasDraft={hasDraft}
           onToggleReadOnly={onToggleReadOnly}
         />
         <div className="flex flex-1 overflow-hidden">
@@ -299,6 +302,7 @@ const FeatureFormLayout = ({
         onSave={onSave}
         loading={loading}
         readOnly={readOnly}
+        hasDraft={hasDraft}
         onToggleReadOnly={onToggleReadOnly}
       />
       <div className="px-6 pb-60 overflow-y-auto flex-1">

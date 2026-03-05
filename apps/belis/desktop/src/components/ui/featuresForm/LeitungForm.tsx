@@ -120,6 +120,7 @@ const LeitungForm = ({
       debugData={data}
       loading={loading}
       readOnly={readOnly}
+      hasDraft={!!draftValues}
       onToggleReadOnly={onToggleReadOnly}
       onCancel={onCancel}
       onSave={handleSave}
