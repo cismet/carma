@@ -46,13 +46,13 @@ export const useLassoHighlight = ({
   const [isDrawing, setIsDrawing] = useState(false);
   const managerRef = useRef<LassoDrawingManager | null>(null);
   const passiveManagerRef = useRef<LassoDrawingManager | null>(null);
-  const { setHighlightingActive, toggleFeatureHighlight, criteria } = useMapHighlight();
+  const { setHighlightingActive, ensureToggledFeatures, criteria } = useMapHighlight();
 
   // Stable refs for the callback so we don't recreate the manager on every render
   const sourcesRef = useRef(sources);
   sourcesRef.current = sources;
-  const toggleRef = useRef(toggleFeatureHighlight);
-  toggleRef.current = toggleFeatureHighlight;
+  const ensureRef = useRef(ensureToggledFeatures);
+  ensureRef.current = ensureToggledFeatures;
   const criteriaRef = useRef(criteria);
   criteriaRef.current = criteria;
   const setActiveRef = useRef(setHighlightingActive);
@@ -145,15 +145,27 @@ export const useLassoHighlight = ({
 
       if (matched.length === 0) return;
 
-      // 5. Enable highlighting and toggle each feature (same as Alt+click:
-      //    already-highlighted features get un-highlighted, others get added)
+      // 5. Determine direction: if majority are already toggled, remove; otherwise add.
+      const currentToggled = criteriaRef.current.toggledFeatures;
+      const alreadyCount = matched.filter((f) => {
+        const key = `${f.source}::${f.sourceLayer ?? ""}::${f.id}`;
+        return currentToggled.has(key);
+      }).length;
+      const adding = alreadyCount <= matched.length / 2;
+
+      // 6. Batch-add/remove via ensureToggledFeatures (idempotent, avoids
+      //    double-toggle when Standort expansion adds sibling Leuchten that
+      //    are also individually caught by the lasso).
       setActiveRef.current(true);
+      ensureRef.current(
+        matched.map((f) => ({
+          source: f.source,
+          sourceLayer: f.sourceLayer ?? "",
+          id: f.id!,
+        })),
+        adding,
+      );
       for (const feat of matched) {
-        toggleRef.current({
-          source: feat.source,
-          sourceLayer: feat.sourceLayer ?? "",
-          id: feat.id!,
-        });
         onToggleRef.current?.(feat);
       }
     },
