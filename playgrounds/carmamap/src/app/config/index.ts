@@ -1,7 +1,6 @@
 import type {
   DefaultLayerConfig,
   LayerConfig,
-  LayerMap,
   NamedStyles,
 } from "@carma-appframeworks/portals";
 
@@ -111,7 +110,16 @@ export const defaultLayerConfig: DefaultLayerConfig = {
   },
 };
 
-export const layerMap: LayerMap = {
+type CarmaMapLayerInfo = {
+  title: string;
+  layers: string;
+  description: string;
+  inhalt: string;
+  eignung: string;
+  url: string;
+};
+
+export const layerMap: Record<string, CarmaMapLayerInfo> = {
   luftbild: {
     title: "Luftbild",
     layers: "rvrGrundriss@100|trueOrtho2022@75|rvrSchriftNT@100",

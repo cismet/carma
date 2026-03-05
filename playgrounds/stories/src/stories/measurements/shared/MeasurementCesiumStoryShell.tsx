@@ -16,9 +16,9 @@ import type {
 } from "@carma/cesium";
 import { LabelOverlayProvider } from "@carma-providers/label-overlay";
 import {
-  AnnotationProvider,
-  type MEASUREMENT_MODE,
-} from "@carma-mapping/annotations/core";
+  MapMeasurementsProvider,
+  MEASUREMENT_MODE,
+} from "@carma-commons/measurements";
 import { CesiumAnnotationsProvider } from "@carma-mapping/annotations/cesium";
 import {
   CesiumContext,
@@ -37,7 +37,6 @@ if (
 }
 
 const STORY_HEIGHT_PX = 560;
-const MEASUREMENT_MODE_MEASUREMENT = "measurement" as MEASUREMENT_MODE;
 
 const requestRenderWithOptions = (
   scene: Scene | null,
@@ -218,8 +217,8 @@ export const MeasurementCesiumStoryShell = ({
         }}
       />
       <CesiumContext.Provider value={contextValue}>
-        <AnnotationProvider
-          externalMode={MEASUREMENT_MODE_MEASUREMENT}
+        <MapMeasurementsProvider
+          externalMode={MEASUREMENT_MODE.MEASUREMENT}
           setModeExternal={() => undefined}
           config={{
             editableTitle: true,
@@ -230,6 +229,7 @@ export const MeasurementCesiumStoryShell = ({
         >
           <LabelOverlayProvider containerRef={rootRef}>
             <CesiumAnnotationsProvider
+              enabled={true}
               options={{
                 persistenceEnabled: false,
               }}
@@ -252,7 +252,7 @@ export const MeasurementCesiumStoryShell = ({
               </div>
             </CesiumAnnotationsProvider>
           </LabelOverlayProvider>
-        </AnnotationProvider>
+        </MapMeasurementsProvider>
       </CesiumContext.Provider>
     </div>
   );
