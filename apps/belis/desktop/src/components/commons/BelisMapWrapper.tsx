@@ -231,6 +231,38 @@ const BelisMapLibWrapper = ({
     [map, namespacedSource, ensureToggledFeatures, criteria]
   );
 
+  // Sidebar dismiss: remove a single feature from highlights
+  const handleSidebarDismiss = useCallback(
+    (feature: SidebarFeature) => {
+      const sl = feature.sourceLayer ?? "";
+      const dbId = String(feature.properties?.id ?? feature.id ?? "");
+
+      // Remove from map highlight state
+      if (map) {
+        const sourceFeatures = map.querySourceFeatures(namespacedSource, { sourceLayer: sl });
+        const match = sourceFeatures.find(
+          (f) => String(f.properties?.id ?? "") === dbId
+        );
+        if (match?.id != null) {
+          ensureToggledFeatures(
+            [{ source: namespacedSource, sourceLayer: sl, id: match.id }],
+            false
+          );
+        }
+      }
+
+      // Remove from sidebar list
+      setAdjustedHighlights((prev) => {
+        if (!prev) return prev;
+        return prev.filter((f) => {
+          const key = `${f.sourceLayer ?? ""}::${String(f.properties?.id ?? f.id ?? "")}`;
+          return key !== `${sl}::${dbId}`;
+        });
+      });
+    },
+    [map, namespacedSource, ensureToggledFeatures]
+  );
+
   const handleHighlightsApplied = useCallback(
     (matched: maplibregl.GeoJSONFeature[]) => {
       // Only collect when there are no SearchModal results (i.e. street search)
@@ -759,6 +791,7 @@ const BelisMapLibWrapper = ({
         hasHighlights={hasHighlights}
         karteCount={totalCount}
         highlightCount={adjustedHighlights?.length ?? undefined}
+        onFeatureDismiss={handleSidebarDismiss}
       />
       <div
         ref={mapContainerRef}
