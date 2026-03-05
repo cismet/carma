@@ -221,8 +221,7 @@ export class LassoDrawingManager {
       source: SOURCE_ID,
       paint: {
         "line-color": "#3388ff",
-        "line-width": 2,
-        "line-dasharray": [4, 4],
+        "line-width": 1.5,
       },
     });
   }
