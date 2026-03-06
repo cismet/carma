@@ -145,6 +145,7 @@ export function LibFuzzySearch({
   const [searchMode, setSearchMode] = useState<SearchMode>("gazetteer");
   const [modeDropdownOpen, setModeDropdownOpen] = useState(false);
   const [autoCompleteOpen, setAutoCompleteOpen] = useState(false);
+  const lastEscRef = useRef(0);
 
   const triggerLandParcelPreload = () => {
     if (landParcelSearch && !hookedLandParcelData && !landParcelLoading) {
@@ -469,6 +470,18 @@ export function LibFuzzySearch({
       className={`fuzzy-search-container${
         hideIcon ? " fuzzy-search-container--no-icon" : ""
       }`}
+      onKeyDownCapture={(e) => {
+        if (e.key === "Escape" && searchMode !== "gazetteer") {
+          const now = Date.now();
+          if (now - lastEscRef.current < 500) {
+            setSearchMode("gazetteer");
+            setValue("");
+            setSearchResult([]);
+            setOptions([]);
+          }
+          lastEscRef.current = now;
+        }
+      }}
     >
       {landParcelSearch ? (
         <Dropdown
