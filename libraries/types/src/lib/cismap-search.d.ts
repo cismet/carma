@@ -10,7 +10,7 @@ interface PolygonGeometryData {
 }
 
 interface MoreData {
-  zl: number;
+  zl?: number;
   pid?: number;
   kid?: number;
   v?: string;

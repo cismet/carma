@@ -347,9 +347,7 @@ export const generateLandParcelOptions = (
     const flurOptions = filteredFlure.map(({ flurLabel }, idx) => ({
       key: idx,
       label: (
-        <LandParcelLabel
-          text={`${parseState.gemarkungDisplay}-${flurLabel}`}
-        />
+        <LandParcelLabel text={`${parseState.gemarkungDisplay}-${flurLabel}`} />
       ),
       value: `${parseState.gemarkungDisplay}${LAND_PARCEL_SEPARATOR}${flurLabel}${LAND_PARCEL_SEPARATOR}`,
       sData: null as any,
@@ -433,7 +431,19 @@ export const parseLandparcelToSelectionItem = (option) => {
   if (!parcel?.x || !parcel?.y) {
     return null;
   }
-  const [x3857, y3857] = proj4("EPSG:4326", "EPSG:3857", [parcel.x, parcel.y]);
+  const bounds = parcel.bounds;
+  const toMercator = (coords: number[]) =>
+    proj4("EPSG:4326", "EPSG:3857", coords);
+  const [x3857, y3857] = toMercator([parcel.x, parcel.y]);
+  const boundsCoords = bounds
+    ? (() => {
+        const bl = toMercator([bounds[0], bounds[1]]);
+        const br = toMercator([bounds[2], bounds[1]]);
+        const tr = toMercator([bounds[2], bounds[3]]);
+        const tl = toMercator([bounds[0], bounds[3]]);
+        return [[bl, br, tr, tl, bl]];
+      })()
+    : [];
   const selectionItem: SearchResultItem = {
     x: x3857,
     y: y3857,
@@ -443,7 +453,12 @@ export const parseLandparcelToSelectionItem = (option) => {
     type: "flurstuecke",
     sorter: Date.now(),
     xSearchData: option.value,
-    more: { zl: 18 },
+    more: {
+      g: {
+        type: "Polygon",
+        coordinates: boundsCoords,
+      },
+    },
   };
 
   return selectionItem;
