@@ -11,7 +11,7 @@ import {
   LibreContextProvider,
   useLibreContext,
 } from "@carma-mapping/engines/maplibre";
-import type { Carma3dConfig, ThreePerfData } from "@carma-mapping/engines/threejs";
+import type { ThreePerfData } from "@carma-mapping/engines/threejs";
 import TopicMapContextProvider from "react-cismap/contexts/TopicMapContextProvider";
 import { defaultGazDataConfig } from "@carma-commons/resources";
 import { faEye, faEyeSlash } from "@fortawesome/free-solid-svg-icons";
@@ -22,58 +22,6 @@ import "bootstrap/dist/css/bootstrap.min.css";
 import "react-bootstrap-typeahead/css/Typeahead.css";
 import "react-cismap/topicMaps.css";
 import "leaflet/dist/leaflet.css";
-
-// ─────────────────────────────────────────────────────────────
-//  Carma3dConfig for the Einzelbaum dataset
-// ─────────────────────────────────────────────────────────────
-
-const TREE_3D_CONFIG: Carma3dConfig = {
-  sourceId: "einzelbaum_3d-source",
-  sourceLayer: "einzelbaumX",
-  mapCenter: [7.130127, 51.227527],
-  defaultType: "SPHERICAL",
-  fields: {
-    typeField: "templ_typ",
-    heightField: "height_max",
-    radiusField: "radius_max",
-    outerRadiusField: "out_radius_max",
-    colorField: "farbe",
-    ringField: "ring",
-  },
-  trunkColors: ["#5c3a1e", "#4a2e15", "#6b4528"],
-  typeMap: {
-    CONICAL: {
-      profileName: "conical",
-      defaultColor: "#1f5f3a",
-      baseDims: { height: 7.5, radius: 2.0 },
-      trunkFrac: 0.27,
-    },
-    PARABOLIC: {
-      profileName: "parabolic",
-      defaultColor: "#5e7f3a",
-      baseDims: { height: 7.5, radius: 2.5 },
-      trunkFrac: 0.33,
-    },
-    SPHERICAL: {
-      profileName: "spherical",
-      defaultColor: "#4e8f3d",
-      baseDims: { height: 7.5, radius: 2.5 },
-      trunkFrac: 0.4,
-    },
-    GAUSSIAN: {
-      profileName: "gaussian",
-      defaultColor: "#6fae6a",
-      baseDims: { height: 8.0, radius: 2.8 },
-      trunkFrac: 0.31,
-    },
-    HYPERBOLIC: {
-      profileName: "hyperbolic",
-      defaultColor: "#8bbf3d",
-      baseDims: { height: 8.0, radius: 2.2 },
-      trunkFrac: 0.38,
-    },
-  },
-};
 
 // ─────────────────────────────────────────────────────────────
 //  LocalStorage helpers
@@ -449,8 +397,7 @@ const LIBRE_LAYERS = [
   {
     type: "vector" as const,
     name: "Einzelbaum 3D",
-    style: "https://tiles.cismet.de/einzelbaumX/style.json",
-    carma3d: TREE_3D_CONFIG,
+    style: "https://tiles.cismet.de/einzelbaumX/styleX.json",
   },
   {
     type: "vector" as const,

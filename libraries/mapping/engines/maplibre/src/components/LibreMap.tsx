@@ -213,6 +213,9 @@ export const LibreMap = ({
   const isIdleRef = useRef(false);
   const vectorSourcesReadyRef = useRef(false);
   const [selectedFeature, setSelectedFeature] = useState(null);
+  const [detectedCarma3dConfigs, setDetectedCarma3dConfigs] = useState<
+    import("@carma-mapping/engines/threejs").Carma3dConfig[]
+  >([]);
   const geoJsonMetadataRef = useRef<
     Array<{ sourceId: string; uniqueColors: string[] }>
   >([]);
@@ -899,6 +902,37 @@ export const LibreMap = ({
           // Update context with the full map style
           setMapStyle(style);
 
+          // Detect carma3d configs from style metadata and explicit layer props
+          {
+            const configs: import("@carma-mapping/engines/threejs").Carma3dConfig[] =
+              [];
+            const seen = new Set<string>();
+
+            for (const layer of style.layers ?? []) {
+              const meta = (layer as any).metadata?.carmaConf?.["3d"];
+              if (!meta) continue;
+              // Infer sourceId/sourceLayer from the layer itself if not in metadata
+              const sourceId =
+                meta.sourceId ?? (layer as any).source;
+              const sourceLayer =
+                meta.sourceLayer ?? (layer as any)["source-layer"];
+              if (sourceId && !seen.has(sourceId)) {
+                seen.add(sourceId);
+                configs.push({ ...meta, sourceId, sourceLayer });
+              }
+            }
+
+            for (const l of effectiveLayers ?? []) {
+              const propConfig = (l as any).carma3d;
+              if (propConfig?.sourceId && !seen.has(propConfig.sourceId)) {
+                seen.add(propConfig.sourceId);
+                configs.push(propConfig);
+              }
+            }
+
+            setDetectedCarma3dConfigs(configs);
+          }
+
           // Refresh hiding forwarding manager with new style (after style is fully loaded)
           // Use 'idle' event to ensure style is completely processed, not 'styledata' which fires early
           const startHidingManager = () => {
@@ -1336,21 +1370,16 @@ export const LibreMap = ({
         <div ref={mapContainer} className="map" />
       </div>
 
-      {/* Auto-detect carma3d configs from vector layers */}
+      {/* Auto-detect carma3d configs from style metadata + explicit layer props */}
       {threeRuntimeParams &&
-        (layers ?? [])
-          .filter(
-            (l): l is { type: "vector" } & VectorStyle =>
-              l.type === "vector" && !!(l as VectorStyle).carma3d,
-          )
-          .map((l) => (
-            <ThreeLayerManager
-              key={l.carma3d!.sourceId}
-              config={l.carma3d!}
-              runtimeParams={threeRuntimeParams}
-              perfRef={threePerfRef}
-            />
-          ))}
+        detectedCarma3dConfigs.map((config) => (
+          <ThreeLayerManager
+            key={config.sourceId}
+            config={config}
+            runtimeParams={threeRuntimeParams}
+            perfRef={threePerfRef}
+          />
+        ))}
     </>
   );
 };

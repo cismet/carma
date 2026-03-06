@@ -13,6 +13,24 @@ import type {
 } from "./types";
 import { mapFeatures, deduplicateFeatures } from "./featureMapper";
 
+// Wuppertal center as default Three.js origin
+const WUPPERTAL_CENTER: [number, number] = [7.150764, 51.256915];
+
+/** Resolve Three.js origin: config > env > Wuppertal default */
+function resolveOrigin(config: Carma3dConfig): [number, number] {
+  if (config.mapCenter) return config.mapCenter;
+  try {
+    const env = (import.meta as any).env?.VITE_THREEJS_ORIGIN;
+    if (typeof env === "string") {
+      const [lng, lat] = env.split(",").map(Number);
+      if (Number.isFinite(lng) && Number.isFinite(lat)) return [lng, lat];
+    }
+  } catch {
+    // env not available (e.g. SSR or test)
+  }
+  return WUPPERTAL_CENTER;
+}
+
 // ─────────────────────────────────────────────────────────────
 //  Factory function signature (LatheFactory / LoftFactory)
 // ─────────────────────────────────────────────────────────────
@@ -105,7 +123,7 @@ export function buildGenericLayer(
 
     rebuild() {
       const originMerc = MercatorCoordinate.fromLngLat(
-        this._config.mapCenter,
+        resolveOrigin(this._config),
         0,
       );
       const mScale = originMerc.meterInMercatorCoordinateUnits();

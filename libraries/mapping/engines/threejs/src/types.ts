@@ -24,7 +24,8 @@ export interface TypeMapEntry {
 export interface Carma3dConfig {
   sourceId: string;
   sourceLayer: string;
-  mapCenter: [number, number];
+  /** Origin for the Three.js coordinate system. Falls back to VITE_THREEJS_ORIGIN env var, then Wuppertal. */
+  mapCenter?: [number, number];
   defaultType: string;
   fields: FieldMapping;
   trunkColors: string[];
