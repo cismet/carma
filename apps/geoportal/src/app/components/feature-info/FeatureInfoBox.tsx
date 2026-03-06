@@ -44,6 +44,7 @@ import { parseColor } from "../../helper/color";
 import { useFeatureFlags } from "@carma-providers/feature-flag";
 import { addCustomFeatureFlags } from "../../store/slices/layers";
 import type { FeatureInfo } from "@carma/types";
+import { selectionPadding } from "../../constants/selection";
 
 interface InfoBoxProps {
   pos?: [number, number];
@@ -178,7 +179,7 @@ const FeatureInfoBox = ({
         utils.zoomToFeature({
           selectedFeature,
           leafletMap: routedMapRef?.leafletMap?.leafletElement,
-          padding: [60, 60],
+          padding: selectionPadding,
         });
         if (onZoomToFeature) {
           onZoomToFeature(selectedFeature as FeatureInfo);

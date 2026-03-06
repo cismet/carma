@@ -28,6 +28,7 @@ import {
   onSelectionChangedVector,
 } from "../topicmap.utils";
 import { utils } from "@carma-appframeworks/portals";
+import { selectionPadding } from "../../../constants/selection";
 
 const MAX_ZOOM = 26;
 
@@ -196,7 +197,7 @@ export const useCreateCismapLayers = (
             utils.zoomToFeature({
               selectedFeature: foundFeatures[lastObject.key],
               leafletMap,
-              padding: [60, 60],
+              padding: selectionPadding,
             });
           }
           dispatch(setSelectedFeature(foundFeatures[lastObject.key]));

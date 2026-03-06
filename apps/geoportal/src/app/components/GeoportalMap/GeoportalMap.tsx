@@ -120,6 +120,7 @@ import { CESIUM_CONFIG, LEAFLET_CONFIG } from "../../config/app.config";
 import "cesium/Build/Cesium/Widgets/widgets.css";
 import "../leaflet.css";
 import AdhocSelectionSync from "../feature-info/AdhocSelectionSync.tsx";
+import { selectionPadding } from "../../constants/selection.ts";
 
 interface MapProps {
   height: number;
@@ -503,6 +504,7 @@ export const GeoportalMap = ({ height, width, allow3d }: MapProps) => {
   const selectionTopicMapOptions = useMemo(
     () => ({
       onComplete,
+      padding: selectionPadding,
     }),
     [onComplete]
   );
