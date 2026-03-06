@@ -45,6 +45,7 @@ interface LeuchteFormFieldsProps {
   onFormInstance?: (form: import("antd").FormInstance) => void;
   draftValues?: Record<string, unknown>;
   onValuesChange?: (changedValues: Record<string, unknown>, allValues: Record<string, unknown>) => void;
+  onOriginalValues?: (values: Record<string, unknown>) => void;
 }
 
 interface LeuchttypItem {
@@ -105,6 +106,7 @@ const LeuchteFormFields = ({
   onFormInstance,
   draftValues,
   onValuesChange,
+  onOriginalValues,
 }: LeuchteFormFieldsProps) => {
   const [form] = Form.useForm();
   useEffect(() => {
@@ -265,6 +267,7 @@ const LeuchteFormFields = ({
         bemerkungen: leuchte.bemerkungen,
       };
       form.setFieldsValue(serverValues);
+      onOriginalValues?.(serverValues);
 
       if (draftValues) {
         form.setFieldsValue(draftValues);

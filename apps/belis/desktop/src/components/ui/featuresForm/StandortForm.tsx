@@ -14,7 +14,9 @@ interface StandortFormProps {
   readOnly?: boolean;
   loading?: boolean;
   draftValues?: Record<string, unknown>;
+  hasDraft?: boolean;
   onDraftChange?: (values: Record<string, unknown>) => void;
+  onOriginalValues?: (values: Record<string, unknown>) => void;
   onToggleReadOnly?: () => void;
   onCancel?: () => void;
   onSaveComplete?: () => void;
@@ -27,7 +29,9 @@ const StandortForm = ({
   readOnly = true,
   loading,
   draftValues,
+  hasDraft,
   onDraftChange,
+  onOriginalValues,
   onToggleReadOnly,
   onCancel,
   onSaveComplete,
@@ -109,7 +113,7 @@ const StandortForm = ({
       uploadText="Datei hochladen"
       loading={loading}
       readOnly={readOnly}
-      hasDraft={!!draftValues}
+      hasDraft={hasDraft}
       onToggleReadOnly={onToggleReadOnly}
       onCancel={onCancel}
       onSave={handleSave}
@@ -120,6 +124,7 @@ const StandortForm = ({
         onFormInstance={setMastForm}
         draftValues={draftValues}
         onValuesChange={handleMastValuesChange}
+        onOriginalValues={onOriginalValues}
       />
     </FeatureFormLayout>
   );

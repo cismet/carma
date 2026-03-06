@@ -18,7 +18,9 @@ interface SchaltstelleFormProps {
   readOnly?: boolean;
   loading?: boolean;
   draftValues?: Record<string, unknown>;
+  hasDraft?: boolean;
   onDraftChange?: (values: Record<string, unknown>) => void;
+  onOriginalValues?: (values: Record<string, unknown>) => void;
   onToggleReadOnly?: () => void;
   onCancel?: () => void;
   onSaveComplete?: () => void;
@@ -41,7 +43,9 @@ const SchaltstelleForm = ({
   readOnly = true,
   loading,
   draftValues,
+  hasDraft,
   onDraftChange,
+  onOriginalValues,
   onToggleReadOnly,
   onCancel,
   onSaveComplete,
@@ -95,7 +99,7 @@ const SchaltstelleForm = ({
         return;
       }
       const ss = schaltstelle[0];
-      form.setFieldsValue({
+      const serverValues = {
         // Strassenschluessel
         strassenschluessel_pk: ss.tkey_strassenschluessel?.pk,
         strassenschluessel_strasse: toTitleCase(
@@ -125,7 +129,9 @@ const SchaltstelleForm = ({
         pruefdatum: ss.pruefdatum ? dayjs(ss.pruefdatum as string) : null,
         // Bemerkung
         bemerkung: ss.bemerkung,
-      });
+      };
+      form.setFieldsValue(serverValues);
+      onOriginalValues?.(serverValues);
 
       if (draftValues) {
         form.setFieldsValue(draftValues);
@@ -157,7 +163,7 @@ const SchaltstelleForm = ({
       debugData={data}
       loading={loading}
       readOnly={readOnly}
-      hasDraft={!!draftValues}
+      hasDraft={hasDraft}
       onToggleReadOnly={onToggleReadOnly}
       onCancel={onCancel}
       onSave={handleSave}

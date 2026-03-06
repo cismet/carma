@@ -15,7 +15,9 @@ interface LeitungFormProps {
   readOnly?: boolean;
   loading?: boolean;
   draftValues?: Record<string, unknown>;
+  hasDraft?: boolean;
   onDraftChange?: (values: Record<string, unknown>) => void;
+  onOriginalValues?: (values: Record<string, unknown>) => void;
   onToggleReadOnly?: () => void;
   onCancel?: () => void;
   onSaveComplete?: () => void;
@@ -34,7 +36,9 @@ const LeitungForm = ({
   readOnly = true,
   loading,
   draftValues,
+  hasDraft,
   onDraftChange,
+  onOriginalValues,
   onToggleReadOnly,
   onCancel,
   onSaveComplete,
@@ -83,11 +87,13 @@ const LeitungForm = ({
         | Record<string, unknown>
         | undefined;
       if (leitungData) {
-        form.setFieldsValue({
+        const serverValues = {
           fk_leitungstyp: leitungData.fk_leitungstyp,
           fk_material: leitungData.fk_material,
           fk_querschnitt: leitungData.fk_querschnitt,
-        });
+        };
+        form.setFieldsValue(serverValues);
+        onOriginalValues?.(serverValues);
       }
 
       if (draftValues) {
@@ -120,7 +126,7 @@ const LeitungForm = ({
       debugData={data}
       loading={loading}
       readOnly={readOnly}
-      hasDraft={!!draftValues}
+      hasDraft={hasDraft}
       onToggleReadOnly={onToggleReadOnly}
       onCancel={onCancel}
       onSave={handleSave}

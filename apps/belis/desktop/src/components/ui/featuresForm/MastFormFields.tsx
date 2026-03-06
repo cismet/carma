@@ -23,6 +23,7 @@ interface MastFormFieldsProps {
   onFormInstance?: (form: import("antd").FormInstance) => void;
   draftValues?: Record<string, unknown>;
   onValuesChange?: (changedValues: Record<string, unknown>, allValues: Record<string, unknown>) => void;
+  onOriginalValues?: (values: Record<string, unknown>) => void;
 }
 
 interface MasttypItem {
@@ -85,6 +86,7 @@ const MastFormFields = ({
   onFormInstance,
   draftValues,
   onValuesChange,
+  onOriginalValues,
 }: MastFormFieldsProps) => {
   const [form] = Form.useForm();
   useEffect(() => {
@@ -218,6 +220,7 @@ const MastFormFields = ({
           : null,
       };
       form.setFieldsValue(serverValues);
+      onOriginalValues?.(serverValues);
 
       if (draftValues) {
         form.setFieldsValue(draftValues);

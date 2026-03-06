@@ -15,7 +15,9 @@ interface LeuchteFormProps {
   readOnly?: boolean;
   loading?: boolean;
   draftValues?: Record<string, unknown>;
+  hasDraft?: boolean;
   onDraftChange?: (values: Record<string, unknown>) => void;
+  onOriginalValues?: (values: Record<string, unknown>) => void;
   onToggleReadOnly?: () => void;
   onCancel?: () => void;
   onSaveComplete?: () => void;
@@ -28,7 +30,9 @@ const LeuchteForm = ({
   readOnly = true,
   loading,
   draftValues,
+  hasDraft,
   onDraftChange,
+  onOriginalValues,
   onToggleReadOnly,
   onCancel,
   onSaveComplete,
@@ -43,6 +47,24 @@ const LeuchteForm = ({
   const setMastForm = useCallback((form: FormInstance) => {
     mastFormRef.current = form;
   }, []);
+
+  const originalValuesRef = useRef<Record<string, unknown>>({});
+
+  const handleLeuchteOriginalValues = useCallback(
+    (values: Record<string, unknown>) => {
+      originalValuesRef.current = { ...originalValuesRef.current, leuchte: values };
+      onOriginalValues?.(originalValuesRef.current);
+    },
+    [onOriginalValues]
+  );
+
+  const handleMastOriginalValues = useCallback(
+    (values: Record<string, unknown>) => {
+      originalValuesRef.current = { ...originalValuesRef.current, mast: values };
+      onOriginalValues?.(originalValuesRef.current);
+    },
+    [onOriginalValues]
+  );
 
   const handleLeuchteValuesChange = useCallback(
     (_: Record<string, unknown>, allValues: Record<string, unknown>) => {
@@ -175,6 +197,7 @@ const LeuchteForm = ({
             onFormInstance={setMastForm}
             draftValues={draftValues?.mast as Record<string, unknown> | undefined}
             onValuesChange={handleMastValuesChange}
+            onOriginalValues={handleMastOriginalValues}
           />
         </div>
       ),
@@ -195,7 +218,7 @@ const LeuchteForm = ({
       additionalTabs={additionalTabs}
       loading={loading}
       readOnly={readOnly}
-      hasDraft={!!draftValues}
+      hasDraft={hasDraft}
       onToggleReadOnly={onToggleReadOnly}
       onCancel={onCancel}
       onSave={handleSave}
@@ -206,6 +229,7 @@ const LeuchteForm = ({
         onFormInstance={setLeuchteForm}
         draftValues={draftValues?.leuchte as Record<string, unknown> | undefined}
         onValuesChange={handleLeuchteValuesChange}
+        onOriginalValues={handleLeuchteOriginalValues}
       />
     </FeatureFormLayout>
   );

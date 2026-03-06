@@ -6,6 +6,8 @@ import {
   getDraft,
   setDraft,
   removeDraft,
+  setOriginalValues,
+  hasDraftChanges,
 } from "../../../store/slices/featuresForms";
 import type { RootState } from "../../../store";
 
@@ -47,6 +49,7 @@ const FeaturesFormsWrapper = ({
   const selectedFeature = useSelector(getSelectedFeature);
   const featureId = selectedFeature?.id != null ? String(selectedFeature.id) : undefined;
   const draft = useSelector((state: RootState) => getDraft(state, featureId));
+  const hasChanges = useSelector((state: RootState) => hasDraftChanges(state, featureId));
 
   const [isEditing, setIsEditing] = useState(false);
   const [resetKey, setResetKey] = useState(0);
@@ -83,6 +86,15 @@ const FeaturesFormsWrapper = ({
     [featureId, formKey, dispatch]
   );
 
+  const handleOriginalValues = useCallback(
+    (values: Record<string, unknown>) => {
+      if (featureId) {
+        dispatch(setOriginalValues({ featureId, values }));
+      }
+    },
+    [featureId, dispatch]
+  );
+
   if (FormComponent) {
     return (
       <div className="h-full">
@@ -93,7 +105,9 @@ const FeaturesFormsWrapper = ({
           readOnly={effectiveReadOnly}
           loading={loading}
           draftValues={draft?.values}
+          hasDraft={hasChanges}
           onDraftChange={handleDraftChange}
+          onOriginalValues={handleOriginalValues}
           onToggleReadOnly={handleToggleReadOnly}
           onCancel={handleCancel}
           onSaveComplete={handleSaveComplete}
