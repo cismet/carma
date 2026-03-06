@@ -13,7 +13,12 @@ export type {
 } from "./types";
 
 // Profile registry
-export { registerProfile, getProfile, hasProfile } from "./profileRegistry";
+export {
+  registerProfile,
+  getProfile,
+  hasProfile,
+  ensureProfiles,
+} from "./profileRegistry";
 
 // Feature mapping
 export { mapFeatures, deduplicateFeatures } from "./featureMapper";

@@ -116,7 +116,7 @@ export function buildLatheInstances(
     const crownMesh = new THREE.InstancedMesh(proto.crown, crownMat, count);
 
     const trunkMat = new THREE.MeshLambertMaterial({
-      color: "#5c3a1e",
+      color: "#ffffff",
       flatShading: true,
     });
     const trunkMesh = new THREE.InstancedMesh(proto.trunk, trunkMat, count);

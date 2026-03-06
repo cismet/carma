@@ -906,26 +906,38 @@ export const LibreMap = ({
           {
             const configs: import("@carma-mapping/engines/threejs").Carma3dConfig[] =
               [];
-            const seen = new Set<string>();
+            const sourceToIdx = new Map<string, number>();
 
             for (const layer of style.layers ?? []) {
               const meta = (layer as any).metadata?.carmaConf?.["3d"];
               if (!meta) continue;
-              // Infer sourceId/sourceLayer from the layer itself if not in metadata
               const sourceId =
                 meta.sourceId ?? (layer as any).source;
               const sourceLayer =
                 meta.sourceLayer ?? (layer as any)["source-layer"];
-              if (sourceId && !seen.has(sourceId)) {
-                seen.add(sourceId);
-                configs.push({ ...meta, sourceId, sourceLayer });
+              if (!sourceId) continue;
+
+              if (!sourceToIdx.has(sourceId)) {
+                sourceToIdx.set(sourceId, configs.length);
+                configs.push({
+                  ...meta,
+                  sourceId,
+                  sourceLayer,
+                  skipIn2DLayerIds: [],
+                });
+              }
+
+              // Collect layer IDs that should be hidden in 2D
+              if (meta.skipIn2D) {
+                const idx = sourceToIdx.get(sourceId)!;
+                configs[idx].skipIn2DLayerIds!.push((layer as any).id);
               }
             }
 
             for (const l of effectiveLayers ?? []) {
               const propConfig = (l as any).carma3d;
-              if (propConfig?.sourceId && !seen.has(propConfig.sourceId)) {
-                seen.add(propConfig.sourceId);
+              if (propConfig?.sourceId && !sourceToIdx.has(propConfig.sourceId)) {
+                sourceToIdx.set(propConfig.sourceId, configs.length);
                 configs.push(propConfig);
               }
             }

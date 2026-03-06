@@ -30,6 +30,10 @@ export interface Carma3dConfig {
   fields: FieldMapping;
   trunkColors: string[];
   typeMap: Record<string, TypeMapEntry>;
+  /** When true, the original 2D layer is hidden (opacity near-zero) while the 3D layer is active. */
+  skipIn2D?: boolean;
+  /** Layer IDs to hide when skipIn2D is active. Populated during config detection, not from metadata. */
+  skipIn2DLayerIds?: string[];
 }
 
 /** A single feature after field mapping and normalisation. */

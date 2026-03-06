@@ -12,6 +12,7 @@ import {
   syncGenericLayerFromSource,
   buildLatheInstances,
   buildLoftMeshes,
+  ensureProfiles,
 } from "@carma-mapping/engines/threejs";
 import type { Scene } from "three";
 import type { MercatorCoordinate } from "maplibre-gl";
@@ -19,6 +20,17 @@ import type { MercatorCoordinate } from "maplibre-gl";
 // ─────────────────────────────────────────────────────────────
 //  ThreeLayerManager: bridges carma3d configs to the threejs engine
 // ─────────────────────────────────────────────────────────────
+
+/** MapLibre paint properties that control opacity, keyed by layer type. */
+const OPACITY_PROPS: Record<string, string[]> = {
+  circle: ["circle-opacity", "circle-stroke-opacity"],
+  fill: ["fill-opacity"],
+  line: ["line-opacity"],
+  symbol: ["icon-opacity", "text-opacity"],
+  "fill-extrusion": ["fill-extrusion-opacity"],
+  raster: ["raster-opacity"],
+  heatmap: ["heatmap-opacity"],
+};
 
 export interface ThreeLayerManagerProps {
   config: Carma3dConfig;
@@ -41,6 +53,7 @@ export function ThreeLayerManager({
 }: ThreeLayerManagerProps) {
   const { map } = useLibreContext();
   const layerRef = useRef<GenericCustomLayer | null>(null);
+  const profilesEnsuredRef = useRef(false);
 
   const useLoft = (runtimeParams.useLoft ?? 0) > 0;
   const radiusMix = runtimeParams.radiusMix ?? 0;
@@ -57,7 +70,37 @@ export function ThreeLayerManager({
     };
   }, [map, useLoft]);
 
-  // Effect 2: Data sync (re-runs on radius change without tearing down)
+  // Effect 2: Hide 2D layers with skipIn2D (set opacity to near-zero, restore on cleanup)
+  useEffect(() => {
+    if (!map || !config.skipIn2DLayerIds?.length) return;
+
+    const saved = new Map<string, Array<[string, unknown]>>();
+
+    for (const layerId of config.skipIn2DLayerIds) {
+      const layer = map.getLayer(layerId);
+      if (!layer) continue;
+      const props = OPACITY_PROPS[layer.type];
+      if (!props) continue;
+
+      const originals: Array<[string, unknown]> = [];
+      for (const prop of props) {
+        originals.push([prop, map.getPaintProperty(layerId, prop)]);
+        map.setPaintProperty(layerId, prop, 0.00001);
+      }
+      saved.set(layerId, originals);
+    }
+
+    return () => {
+      for (const [layerId, originals] of saved) {
+        if (!map.getLayer(layerId)) continue;
+        for (const [prop, value] of originals) {
+          map.setPaintProperty(layerId, prop, (value as number) ?? 1);
+        }
+      }
+    };
+  }, [map, config.skipIn2DLayerIds]);
+
+  // Effect 3: Data sync (re-runs on radius change without tearing down)
   useEffect(() => {
     if (!map) return;
 
@@ -71,9 +114,15 @@ export function ThreeLayerManager({
         ): FactoryStats => buildLoftMeshes(features, scene, originMerc, mScale, cfg, 14)
       : buildLatheInstances;
 
-    const addLayerIfReady = () => {
+    const addLayerIfReady = async () => {
       if (layerRef.current) return;
       if (!map.getSource(config.sourceId)) return;
+
+      // Compile any inline JS profiles before the first synchronous rebuild
+      if (!profilesEnsuredRef.current) {
+        await ensureProfiles(config);
+        profilesEnsuredRef.current = true;
+      }
 
       const layerId = useLoft ? "3d-generic-loft" : "3d-generic";
       const customLayer = buildGenericLayer(config, rebuildFn, layerId);
@@ -87,8 +136,8 @@ export function ThreeLayerManager({
       map.addLayer(customLayer, firstExtrusion?.id);
     };
 
-    const trySync = () => {
-      addLayerIfReady();
+    const trySync = async () => {
+      await addLayerIfReady();
       if (!layerRef.current || !map.getSource(config.sourceId)) return;
 
       const result = syncGenericLayerFromSource(
