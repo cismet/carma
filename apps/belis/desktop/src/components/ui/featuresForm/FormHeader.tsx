@@ -1,8 +1,6 @@
 import {
   EditOutlined,
   ExclamationCircleOutlined,
-  LockOutlined,
-  UnlockOutlined,
 } from "@ant-design/icons";
 import { Button, Spin, Tooltip } from "antd";
 
@@ -29,48 +27,52 @@ const FormHeader = ({
 }: FormHeaderProps) => {
   return (
     <div className="flex flex-col border-b border-gray-100">
-      <div className="flex items-start justify-between p-6 pb-2 gap-4">
+      <div className="flex items-center justify-between p-6 gap-4">
         <div className="flex items-center gap-3 flex-shrink-0">
-          <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center flex-shrink-0">
-            {loading ? (
-              <Spin size="small" />
-            ) : (
-              <EditOutlined className="text-xl text-blue-600" />
-            )}
-          </div>
+          <Tooltip title={readOnly ? "Bearbeiten" : "Sperren"}>
+            <div
+              className={`w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0 ${
+                readOnly
+                  ? "bg-gray-100 cursor-pointer hover:bg-gray-200"
+                  : "bg-blue-100 cursor-pointer hover:bg-blue-200"
+              } transition-colors`}
+              onClick={onToggleReadOnly}
+            >
+              {loading ? (
+                <Spin size="small" />
+              ) : (
+                <EditOutlined
+                  className={`text-xl ${readOnly ? "text-gray-500" : "text-blue-600"}`}
+                />
+              )}
+            </div>
+          </Tooltip>
           <div>
-            <h2 className="text-lg font-semibold text-gray-900 whitespace-nowrap">
-              {title}
-            </h2>
+            <div className="flex items-center gap-2">
+              <h2 className="text-lg font-semibold text-gray-900 whitespace-nowrap">
+                {title}
+              </h2>
+              {hasDraft && (
+                <span className="inline-flex items-center gap-1.5 px-3 py-0.5 rounded-full border border-gray-300 bg-[#f9fafb] text-gray-500 text-xs font-medium">
+                  <ExclamationCircleOutlined className="text-[11px]" />
+                  Entwurf
+                </span>
+              )}
+            </div>
             <p className="text-sm text-gray-500">{subtitle}</p>
           </div>
         </div>
         <div className="flex items-center gap-2">
-          {hasDraft && (
-            <span className="inline-flex items-center gap-1.5 px-3 py-0.5 rounded-full border border-gray-300 bg-[#f9fafb] text-gray-500 text-xs font-medium">
-              <ExclamationCircleOutlined className="text-[11px]" />
-              Entwurf
-            </span>
-          )}
-          {onToggleReadOnly && (
-            <Tooltip title={readOnly ? "Bearbeiten" : "Sperren"}>
-              <Button
-                icon={readOnly ? <LockOutlined /> : <UnlockOutlined />}
-                onClick={onToggleReadOnly}
-                size="small"
-              />
-            </Tooltip>
+          {!readOnly && (
+            <>
+              <Button onClick={onCancel}>Abbrechen</Button>
+              <Button type="primary" onClick={onSave}>
+                Speichern
+              </Button>
+            </>
           )}
         </div>
       </div>
-      {!readOnly && (
-        <div className="flex gap-2 justify-end px-6 pb-4">
-          <Button onClick={onCancel}>Abbrechen</Button>
-          <Button type="primary" onClick={onSave}>
-            Speichern
-          </Button>
-        </div>
-      )}
     </div>
   );
 };
