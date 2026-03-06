@@ -127,6 +127,9 @@ export class LassoDrawingManager {
     e.preventDefault();
     // Lazy-init source/layers in case activate() deferred them
     this.ensureSourceAndLayers();
+    // Ensure lasso layers render on top of all other layers (imperative
+    // background/data layers may have been added after the lasso layers).
+    this.moveLayersToTop();
     this.drawing = true;
     this.coords = [[e.lngLat.lng, e.lngLat.lat]];
     this.lastScreenX = e.originalEvent.clientX;
@@ -292,6 +295,16 @@ export class LassoDrawingManager {
     const source = this.map.getSource(SOURCE_ID) as GeoJSONSource | undefined;
     if (source) {
       source.setData({ type: "FeatureCollection", features: [] });
+    }
+  }
+
+  /** Move lasso layers to the very top of the layer stack. */
+  private moveLayersToTop(): void {
+    try {
+      if (this.map.getLayer(FILL_LAYER_ID)) this.map.moveLayer(FILL_LAYER_ID);
+      if (this.map.getLayer(LINE_LAYER_ID)) this.map.moveLayer(LINE_LAYER_ID);
+    } catch {
+      // ignore if layers don't exist yet
     }
   }
 
