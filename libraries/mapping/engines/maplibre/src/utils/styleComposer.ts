@@ -38,6 +38,8 @@ interface ManagedSubStyle {
   spriteId: string | null;
   firstId: string;
   lastId: string;
+  /** Original paint opacity values per layer, keyed by "layerId::property". */
+  baseOpacities?: Map<string, number>;
 }
 
 /** Metadata returned for GeoJSON sub-styles (needed for pie-chart cluster rendering). */
@@ -248,6 +250,8 @@ export class StyleComposer {
     const opacity = opts.opacity ?? 1;
     const markerSymbolSize = opts.markerSymbolSize ?? 35;
 
+    const baseOpacities = new Map<string, number>();
+
     for (const styleLayer of remoteLayers) {
       // Skip background-type layers (the remote style's own background)
       if (styleLayer.type === "background") continue;
@@ -290,6 +294,11 @@ export class StyleComposer {
             : ([getPaintProperty(styleLayer)].filter(Boolean) as string[]);
         for (const prop of props) {
           const baseOpacity = paint[prop] ?? 1;
+          // Remember the style's original opacity so updateVectorOpacity
+          // can restore it correctly after a pale→unpale cycle.
+          if (typeof baseOpacity === "number") {
+            baseOpacities.set(`${layer.id}::${prop}`, baseOpacity);
+          }
           paint[prop] =
             typeof baseOpacity === "number"
               ? baseOpacity * opacity
@@ -331,6 +340,7 @@ export class StyleComposer {
       spriteId,
       firstId,
       lastId,
+      baseOpacities,
     });
     this.syncToMapInstance();
     if (this.debugLog)
@@ -673,6 +683,13 @@ export class StyleComposer {
     const id = slugifyUrl(styleUrl);
     const entry = this.managed.get(id);
     if (!entry) return;
+    const bases = entry.baseOpacities;
+
+    const applyProp = (namespacedId: string, prop: string) => {
+      const base = bases?.get(`${namespacedId}::${prop}`) ?? 1;
+      this.map.setPaintProperty(namespacedId, prop, base * opacity);
+    };
+
     for (const namespacedId of entry.layerIds) {
       const layer = this.map.getLayer(namespacedId);
       if (!layer) continue;
@@ -680,26 +697,22 @@ export class StyleComposer {
       if (namespacedId.toLowerCase().includes("selection")) continue;
       const type = layer.type;
       if (type === "symbol") {
-        this.map.setPaintProperty(namespacedId, "text-opacity", opacity);
-        this.map.setPaintProperty(namespacedId, "icon-opacity", opacity);
+        applyProp(namespacedId, "text-opacity");
+        applyProp(namespacedId, "icon-opacity");
       } else if (type === "fill") {
-        this.map.setPaintProperty(namespacedId, "fill-opacity", opacity);
+        applyProp(namespacedId, "fill-opacity");
       } else if (type === "line") {
-        this.map.setPaintProperty(namespacedId, "line-opacity", opacity);
+        applyProp(namespacedId, "line-opacity");
       } else if (type === "circle") {
-        this.map.setPaintProperty(namespacedId, "circle-opacity", opacity);
+        applyProp(namespacedId, "circle-opacity");
       } else if (type === "raster") {
-        this.map.setPaintProperty(namespacedId, "raster-opacity", opacity);
+        applyProp(namespacedId, "raster-opacity");
       } else if (type === "background") {
-        this.map.setPaintProperty(namespacedId, "background-opacity", opacity);
+        applyProp(namespacedId, "background-opacity");
       } else if (type === "fill-extrusion") {
-        this.map.setPaintProperty(
-          namespacedId,
-          "fill-extrusion-opacity",
-          opacity
-        );
+        applyProp(namespacedId, "fill-extrusion-opacity");
       } else if (type === "heatmap") {
-        this.map.setPaintProperty(namespacedId, "heatmap-opacity", opacity);
+        applyProp(namespacedId, "heatmap-opacity");
       }
     }
   }
