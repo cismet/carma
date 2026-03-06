@@ -1,9 +1,18 @@
-import { useState, useEffect, useContext, useMemo, useCallback } from "react";
-import { Spin } from "antd";
+import {
+  useState,
+  useEffect,
+  useContext,
+  useMemo,
+  useCallback,
+  useRef,
+} from "react";
+import { Input, Spin } from "antd";
 import {
   FilePdfOutlined,
   FileOutlined,
   FileImageOutlined,
+  PlusOutlined,
+  CloseCircleFilled,
 } from "@ant-design/icons";
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
 // @ts-ignore
@@ -29,6 +38,13 @@ interface LightBoxDispatch {
 
 type FilePreviewSize = "sm" | "md" | "xl" | "xxl";
 
+export interface PendingUpload {
+  id: string;
+  file: File;
+  fileName: string;
+  previewUrl: string;
+}
+
 const SIZE_MAP: Record<FilePreviewSize, { box: number; icon: number }> = {
   sm: { box: 48, icon: 24 },
   md: { box: 80, icon: 40 },
@@ -47,6 +63,11 @@ interface FilePreviewProps {
   // All lightbox-compatible docs across all sections — enables unified sliding.
   // Each entry carries its section title shown in the top-left of the lightbox.
   allLightboxDocuments?: Array<{ doc: DokumentItem; sectionTitle: string }>;
+  readOnly?: boolean;
+  pendingUploads?: PendingUpload[];
+  onAddFiles?: (files: File[]) => void;
+  onRemovePendingUpload?: (id: string) => void;
+  onPendingUploadNameChange?: (id: string, name: string) => void;
 }
 
 type FileType = "image" | "pdf" | "other";
@@ -256,6 +277,157 @@ const FileItem = ({
   );
 };
 
+interface PendingFileItemProps {
+  upload: PendingUpload;
+  size: FilePreviewSize;
+  onRemove: (id: string) => void;
+  onNameChange: (id: string, name: string) => void;
+}
+
+const PendingFileItem = ({
+  upload,
+  size,
+  onRemove,
+  onNameChange,
+}: PendingFileItemProps) => {
+  const { box: boxSize, icon: iconSize } = SIZE_MAP[size];
+  const fileType = getFileType(upload.file.name);
+  const isImage = fileType === "image";
+
+  return (
+    <div
+      style={{
+        display: "flex",
+        flexDirection: "column",
+        alignItems: "center",
+        gap: 4,
+        position: "relative",
+      }}
+    >
+      <div style={{ position: "relative" }}>
+        <CloseCircleFilled
+          onClick={() => onRemove(upload.id)}
+          style={{
+            position: "absolute",
+            top: -6,
+            right: -6,
+            zIndex: 10,
+            fontSize: 18,
+            color: "#ff4d4f",
+            cursor: "pointer",
+            background: "#fff",
+            borderRadius: "50%",
+          }}
+        />
+        {isImage ? (
+          <img
+            src={upload.previewUrl}
+            alt={upload.fileName}
+            style={{
+              width: boxSize,
+              height: boxSize,
+              objectFit: "cover",
+              borderRadius: 4,
+              border: "2px dashed #1890ff",
+            }}
+          />
+        ) : (
+          <div
+            style={{
+              width: boxSize,
+              height: boxSize,
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              backgroundColor: "#f5f5f5",
+              borderRadius: 4,
+              border: "2px dashed #1890ff",
+            }}
+          >
+            {getFileIcon(upload.file.name, iconSize)}
+          </div>
+        )}
+      </div>
+      <Input
+        size="small"
+        value={upload.fileName}
+        onChange={(e) => onNameChange(upload.id, e.target.value)}
+        placeholder="Dateiname"
+        style={{ width: boxSize, fontSize: 11 }}
+      />
+    </div>
+  );
+};
+
+interface UploadTileProps {
+  size: FilePreviewSize;
+  onAddFiles: (files: File[]) => void;
+}
+
+const UploadTile = ({ size, onAddFiles }: UploadTileProps) => {
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const { box: boxSize } = SIZE_MAP[size];
+
+  const handleClick = () => {
+    fileInputRef.current?.click();
+  };
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (files && files.length > 0) {
+      onAddFiles(Array.from(files));
+    }
+    // Reset so the same file can be selected again
+    e.target.value = "";
+  };
+
+  return (
+    <div
+      style={{
+        display: "flex",
+        flexDirection: "column",
+        alignItems: "center",
+        gap: 4,
+      }}
+    >
+      <div
+        onClick={handleClick}
+        style={{
+          width: boxSize,
+          height: boxSize,
+          display: "flex",
+          flexDirection: "column",
+          alignItems: "center",
+          justifyContent: "center",
+          borderRadius: 4,
+          border: "2px dashed #d9d9d9",
+          cursor: "pointer",
+          backgroundColor: "#fafafa",
+          transition: "border-color 0.2s",
+          gap: 4,
+        }}
+        onMouseEnter={(e) => {
+          e.currentTarget.style.borderColor = "#1890ff";
+        }}
+        onMouseLeave={(e) => {
+          e.currentTarget.style.borderColor = "#d9d9d9";
+        }}
+      >
+        <PlusOutlined style={{ fontSize: 20, color: "#8c8c8c" }} />
+        <span style={{ fontSize: 12, color: "#8c8c8c" }}>Upload</span>
+      </div>
+      <input
+        ref={fileInputRef}
+        type="file"
+        multiple
+        accept="image/*,.pdf"
+        onChange={handleFileChange}
+        style={{ display: "none" }}
+      />
+    </div>
+  );
+};
+
 const defaultTitleStyle: React.CSSProperties = {
   fontSize: 14,
   fontWeight: 400,
@@ -276,6 +448,11 @@ const FilePreview = ({
   showDescription = true,
   savedImageUrls = {},
   allLightboxDocuments,
+  readOnly = true,
+  pendingUploads = [],
+  onAddFiles,
+  onRemovePendingUpload,
+  onPendingUploadNameChange,
 }: FilePreviewProps) => {
   // Use cached URLs from parent - no local fetching needed
   const imageUrls = savedImageUrls;
@@ -437,7 +614,11 @@ const FilePreview = ({
     ]
   );
 
-  if (!documents || documents.length === 0) {
+  if (
+    (!documents || documents.length === 0) &&
+    pendingUploads.length === 0 &&
+    readOnly
+  ) {
     return (
       <div>
         <div style={{ ...defaultTitleStyle, ...titleStyle }}>{title}</div>
@@ -474,6 +655,7 @@ const FilePreview = ({
           display: "flex",
           flexWrap: "wrap",
           gap: 16,
+          alignItems: "flex-start",
         }}
       >
         {documents.map((doc, index) => {
@@ -498,6 +680,19 @@ const FilePreview = ({
             />
           );
         })}
+        {!readOnly &&
+          pendingUploads.map((upload) => (
+            <PendingFileItem
+              key={upload.id}
+              upload={upload}
+              size={size}
+              onRemove={onRemovePendingUpload || (() => {})}
+              onNameChange={onPendingUploadNameChange || (() => {})}
+            />
+          ))}
+        {!readOnly && onAddFiles && (
+          <UploadTile size={size} onAddFiles={onAddFiles} />
+        )}
       </div>
     </div>
   );
