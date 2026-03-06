@@ -18,7 +18,9 @@ interface MauerlascheFormProps {
   readOnly?: boolean;
   loading?: boolean;
   draftValues?: Record<string, unknown>;
+  hasDraft?: boolean;
   onDraftChange?: (values: Record<string, unknown>) => void;
+  onOriginalValues?: (values: Record<string, unknown>) => void;
   onToggleReadOnly?: () => void;
   onCancel?: () => void;
   onSaveComplete?: () => void;
@@ -36,7 +38,9 @@ const MauerlascheForm = ({
   readOnly = true,
   loading,
   draftValues,
+  hasDraft,
   onDraftChange,
+  onOriginalValues,
   onToggleReadOnly,
   onCancel,
   onSaveComplete,
@@ -91,7 +95,7 @@ const MauerlascheForm = ({
         return;
       }
       const ml = mauerlasche[0];
-      form.setFieldsValue({
+      const serverValues = {
         // Strassenschluessel
         strassenschluessel_pk: ml.tkey_strassenschluessel?.pk,
         strassenschluessel_strasse: toTitleCase(
@@ -111,7 +115,9 @@ const MauerlascheForm = ({
         pruefdatum: ml.pruefdatum ? dayjs(ml.pruefdatum as string) : null,
         // Bemerkung
         bemerkung: ml.bemerkung,
-      });
+      };
+      form.setFieldsValue(serverValues);
+      onOriginalValues?.(serverValues);
 
       if (draftValues) {
         form.setFieldsValue(draftValues);
@@ -143,7 +149,7 @@ const MauerlascheForm = ({
       debugData={data}
       loading={loading}
       readOnly={readOnly}
-      hasDraft={!!draftValues}
+      hasDraft={hasDraft}
       onToggleReadOnly={onToggleReadOnly}
       onCancel={onCancel}
       onSave={handleSave}

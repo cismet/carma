@@ -1,5 +1,6 @@
 import { createSlice, type PayloadAction } from "@reduxjs/toolkit";
 import type { RootState } from "../index";
+import { isFormDirty } from "../../components/ui/featuresForm/formDiffUtils";
 
 interface Draft {
   featureType: string;
@@ -9,12 +10,14 @@ interface Draft {
 
 interface FeaturesFormsState {
   drafts: Record<string, Draft>;
+  originalValues: Record<string, Record<string, unknown>>;
   loading: Record<string, boolean>;
   errors: Record<string, string | null>;
 }
 
 const initialState: FeaturesFormsState = {
   drafts: {},
+  originalValues: {},
   loading: {},
   errors: {},
 };
@@ -40,9 +43,11 @@ const featuresFormsSlice = createSlice({
     },
     removeDraft(state, action: PayloadAction<string>) {
       delete state.drafts[action.payload];
+      delete state.originalValues[action.payload];
     },
     clearAllDrafts(state) {
       state.drafts = {};
+      state.originalValues = {};
     },
     setFormLoading(
       state,
@@ -61,6 +66,16 @@ const featuresFormsSlice = createSlice({
     clearFormError(state, action: PayloadAction<string>) {
       delete state.errors[action.payload];
     },
+    setOriginalValues(
+      state,
+      action: PayloadAction<{
+        featureId: string;
+        values: Record<string, unknown>;
+      }>
+    ) {
+      const { featureId, values } = action.payload;
+      state.originalValues[featureId] = values;
+    },
   },
 });
 
@@ -73,6 +88,7 @@ export const {
   setFormLoading,
   setFormError,
   clearFormError,
+  setOriginalValues,
 } = featuresFormsSlice.actions;
 
 // Selectors
@@ -94,3 +110,34 @@ export const getFormError = (
   state: RootState,
   featureId: string | undefined
 ) => (featureId ? state.featuresForms?.errors[featureId] ?? null : null);
+
+// Check if a specific draft has actual changes compared to its original values
+export const hasDraftChanges = (
+  state: RootState,
+  featureId: string | undefined
+): boolean => {
+  if (!featureId) return false;
+  const draft = state.featuresForms?.drafts[featureId];
+  if (!draft) return false;
+  const original = state.featuresForms?.originalValues[featureId];
+  if (!original) return true;
+  return isFormDirty(original, draft.values);
+};
+
+// Check if any draft across all features has actual changes
+export const hasAnyDraftChanges = (state: RootState): boolean => {
+  const drafts = state.featuresForms?.drafts ?? {};
+  const originals = state.featuresForms?.originalValues ?? {};
+  return Object.entries(drafts).some(([id, draft]) =>
+    isFormDirty(originals[id], draft.values)
+  );
+};
+
+// Get all feature IDs that have actual changes (not just drafts)
+export const getChangedDraftIds = (state: RootState): string[] => {
+  const drafts = state.featuresForms?.drafts ?? {};
+  const originals = state.featuresForms?.originalValues ?? {};
+  return Object.entries(drafts)
+    .filter(([id, draft]) => isFormDirty(originals[id], draft.values))
+    .map(([id]) => id);
+};
