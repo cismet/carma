@@ -66,23 +66,21 @@ export class LassoDrawingManager {
     if (this.active) return;
     this.active = true;
 
-    if (this.map.isStyleLoaded()) {
-      this.finishActivate();
-    } else {
-      // Style not ready yet (e.g. first load); defer source/layer setup
-      this.map.once("load", () => {
-        if (this.active) this.finishActivate();
-      });
-    }
-  }
-
-  private finishActivate(): void {
-    this.ensureSourceAndLayers();
-    // Only change cursor for explicit lasso mode (no modifier required)
+    // Always register the mousedown handler immediately so drawing works
+    // even if the style/source is still loading (e.g. after clearVisual).
     if (!this.requireModifier) {
       this.map.getCanvas().style.cursor = "crosshair";
     }
     this.map.on("mousedown", this.handleMouseDown);
+
+    if (this.map.isStyleLoaded()) {
+      this.ensureSourceAndLayers();
+    } else {
+      // Style not ready yet (e.g. first load); defer source/layer setup
+      this.map.once("load", () => {
+        if (this.active) this.ensureSourceAndLayers();
+      });
+    }
   }
 
   deactivate(): void {
@@ -127,6 +125,8 @@ export class LassoDrawingManager {
     }
 
     e.preventDefault();
+    // Lazy-init source/layers in case activate() deferred them
+    this.ensureSourceAndLayers();
     this.drawing = true;
     this.coords = [[e.lngLat.lng, e.lngLat.lat]];
     this.lastScreenX = e.originalEvent.clientX;
