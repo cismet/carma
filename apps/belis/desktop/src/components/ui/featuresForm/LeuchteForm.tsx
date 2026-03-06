@@ -1,12 +1,31 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import type { UploadFile, FormInstance } from "antd";
+import { message } from "antd";
 import { useSelector } from "react-redux";
 import { getJWT } from "../../../store/slices/auth";
 import { DokumentItem } from "../DocumentPreview";
 import FeatureFormLayout from "./FeatureFormLayout";
 import LeuchteFormFields from "./LeuchteFormFields";
 import MastFormFields from "./MastFormFields";
-import { fetchFeatureById } from "../../../helper/apiMethods";
+import {
+  fetchFeatureById,
+  updateDataByClassName,
+} from "../../../helper/apiMethods";
+import dayjs from "dayjs";
+
+const transformDatesForBackend = (
+  values: Record<string, unknown>
+): Record<string, unknown> => {
+  const result: Record<string, unknown> = {};
+  for (const [key, value] of Object.entries(values)) {
+    if (dayjs.isDayjs(value)) {
+      result[key] = value.toISOString();
+    } else {
+      result[key] = value;
+    }
+  }
+  return result;
+};
 
 interface LeuchteFormProps {
   data: Record<string, unknown> | null;
@@ -38,6 +57,7 @@ const LeuchteForm = ({
   onSaveComplete,
 }: LeuchteFormProps) => {
   const [pendingFiles, setPendingFiles] = useState<UploadFile[]>([]);
+  const [saving, setSaving] = useState(false);
   const leuchteFormRef = useRef<FormInstance | null>(null);
   const mastFormRef = useRef<FormInstance | null>(null);
 
@@ -52,7 +72,10 @@ const LeuchteForm = ({
 
   const handleLeuchteOriginalValues = useCallback(
     (values: Record<string, unknown>) => {
-      originalValuesRef.current = { ...originalValuesRef.current, leuchte: values };
+      originalValuesRef.current = {
+        ...originalValuesRef.current,
+        leuchte: values,
+      };
       onOriginalValues?.(originalValuesRef.current);
     },
     [onOriginalValues]
@@ -60,7 +83,10 @@ const LeuchteForm = ({
 
   const handleMastOriginalValues = useCallback(
     (values: Record<string, unknown>) => {
-      originalValuesRef.current = { ...originalValuesRef.current, mast: values };
+      originalValuesRef.current = {
+        ...originalValuesRef.current,
+        mast: values,
+      };
       onOriginalValues?.(originalValuesRef.current);
     },
     [onOriginalValues]
@@ -86,16 +112,53 @@ const LeuchteForm = ({
     [onDraftChange, draftValues]
   );
 
-  const handleSave = () => {
-    const values: Record<string, unknown> = {};
-    if (leuchteFormRef.current) {
-      values.leuchte = leuchteFormRef.current.getFieldsValue();
+  const handleSave = async () => {
+    if (!jwt) {
+      message.error("Nicht authentifiziert");
+      return;
     }
-    if (mastFormRef.current) {
-      values.mast = mastFormRef.current.getFieldsValue();
+
+    const leuchteId = leuchtenArray?.[0]?.id as number | undefined;
+    if (!leuchteId) {
+      message.error("Keine Leuchten-ID gefunden");
+      return;
     }
-    console.log("Leuchte form values:", values);
-    onSaveComplete?.();
+
+    if (!leuchteFormRef.current) {
+      return;
+    }
+
+    setSaving(true);
+    try {
+      const formValues = leuchteFormRef.current.getFieldsValue();
+
+      // Remove display-only fields that the backend doesn't expect
+      const {
+        strassenschluessel_pk,
+        strassenschluessel_strasse,
+        sonderturnus,
+        ...rest
+      } = formValues;
+
+      const dataToSave = transformDatesForBackend({
+        id: leuchteId,
+        ...rest,
+        // Map form field "sonderturnus" back to server field "wartungszyklus"
+        ...(sonderturnus !== undefined ? { wartungszyklus: sonderturnus } : {}),
+      });
+
+      console.log("xxx saving leuchte:", JSON.stringify(dataToSave, null, 2));
+      await updateDataByClassName(jwt, "tdta_leuchten", dataToSave);
+      message.success("Leuchte gespeichert");
+      onSaveComplete?.();
+    } catch (error) {
+      console.error("Save error:", error);
+      message.error(
+        error instanceof Error ? error.message : "Fehler beim Speichern"
+      );
+    } finally {
+      setSaving(false);
+    }
   };
   const [mastData, setMastData] = useState<Record<string, unknown> | null>(
     null
@@ -195,7 +258,9 @@ const LeuchteForm = ({
             mast={mastData}
             readOnly={readOnly}
             onFormInstance={setMastForm}
-            draftValues={draftValues?.mast as Record<string, unknown> | undefined}
+            draftValues={
+              draftValues?.mast as Record<string, unknown> | undefined
+            }
             onValuesChange={handleMastValuesChange}
             onOriginalValues={handleMastOriginalValues}
           />
@@ -217,6 +282,7 @@ const LeuchteForm = ({
       debugData={data}
       additionalTabs={additionalTabs}
       loading={loading}
+      saving={saving}
       readOnly={readOnly}
       hasDraft={hasDraft}
       onToggleReadOnly={onToggleReadOnly}
@@ -227,7 +293,9 @@ const LeuchteForm = ({
         leuchte={leuchte}
         readOnly={readOnly}
         onFormInstance={setLeuchteForm}
-        draftValues={draftValues?.leuchte as Record<string, unknown> | undefined}
+        draftValues={
+          draftValues?.leuchte as Record<string, unknown> | undefined
+        }
         onValuesChange={handleLeuchteValuesChange}
         onOriginalValues={handleLeuchteOriginalValues}
       />

@@ -10,6 +10,7 @@ interface FormHeaderProps {
   onCancel?: () => void;
   onSave?: () => void;
   loading?: boolean;
+  saving?: boolean;
   readOnly?: boolean;
   hasDraft?: boolean;
   onToggleReadOnly?: () => void;
@@ -21,6 +22,7 @@ const FormHeader = ({
   onCancel,
   onSave,
   loading,
+  saving,
   readOnly,
   hasDraft,
   onToggleReadOnly,
@@ -65,8 +67,10 @@ const FormHeader = ({
         <div className="flex items-center gap-2">
           {!readOnly && (
             <>
-              <Button onClick={onCancel}>Abbrechen</Button>
-              <Button type="primary" onClick={onSave}>
+              <Button onClick={onCancel} disabled={saving}>
+                Abbrechen
+              </Button>
+              <Button type="primary" onClick={onSave} loading={saving}>
                 Speichern
               </Button>
             </>

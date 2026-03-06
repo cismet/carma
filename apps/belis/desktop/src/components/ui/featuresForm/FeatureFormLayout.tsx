@@ -30,6 +30,7 @@ interface FeatureFormLayoutProps {
   onFilesChange?: (files: UploadFile[]) => void;
   onCancel?: () => void;
   onSave?: () => void;
+  saving?: boolean;
   debugData?: unknown;
   additionalTabs?: AdditionalTab[];
   uploadText?: string;
@@ -49,6 +50,7 @@ const FeatureFormLayout = ({
   jwt,
   onCancel,
   onSave,
+  saving,
   debugData,
   additionalTabs = [],
   loading,
@@ -267,6 +269,7 @@ const FeatureFormLayout = ({
           subtitle={subtitle}
           onCancel={onCancel}
           onSave={onSave}
+          saving={saving}
           loading={loading}
           readOnly={readOnly}
           hasDraft={hasDraft}
