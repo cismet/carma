@@ -1,5 +1,6 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useMemo } from "react";
 import { useSelector, useDispatch } from "react-redux";
+import dayjs from "dayjs";
 import { featureFormRegistry } from "./index";
 import { getSelectedFeature } from "../../../store/slices/featureCollection";
 import {
@@ -10,6 +11,42 @@ import {
   hasDraftChanges,
 } from "../../../store/slices/featuresForms";
 import type { RootState } from "../../../store";
+
+const DAYJS_PREFIX = "__dayjs:";
+
+const serializeValues = (values: Record<string, unknown>): Record<string, unknown> => {
+  const result: Record<string, unknown> = {};
+  for (const [key, value] of Object.entries(values)) {
+    if (dayjs.isDayjs(value)) {
+      result[key] = DAYJS_PREFIX + value.toISOString();
+    } else if (value && typeof value === "object" && !Array.isArray(value)) {
+      result[key] = serializeValues(value as Record<string, unknown>);
+    } else {
+      result[key] = value;
+    }
+  }
+  return result;
+};
+
+const deserializeValues = (values: Record<string, unknown>): Record<string, unknown> => {
+  const result: Record<string, unknown> = {};
+  for (const [key, value] of Object.entries(values)) {
+    if (typeof value === "string" && value.startsWith(DAYJS_PREFIX)) {
+      result[key] = dayjs(value.slice(DAYJS_PREFIX.length));
+    } else if (value && typeof value === "object" && !Array.isArray(value)) {
+      const obj = value as Record<string, unknown>;
+      // Handle corrupted dayjs objects from old persist data (have $d property)
+      if ("$d" in obj) {
+        result[key] = dayjs(obj["$d"] as string);
+      } else {
+        result[key] = deserializeValues(obj);
+      }
+    } else {
+      result[key] = value;
+    }
+  }
+  return result;
+};
 
 interface FeaturesFormsWrapperProps {
   featureType?: string;
@@ -55,6 +92,11 @@ const FeaturesFormsWrapper = ({
   const [resetKey, setResetKey] = useState(0);
   const effectiveReadOnly = readOnlyProp && !isEditing;
 
+  const deserializedDraftValues = useMemo(
+    () => (draft?.values ? deserializeValues(draft.values) : undefined),
+    [draft?.values]
+  );
+
   const formKey = featureType ? featureTypeToFormKey[featureType] : undefined;
   const FormComponent = formKey ? featureFormRegistry[formKey] : undefined;
 
@@ -80,7 +122,7 @@ const FeaturesFormsWrapper = ({
   const handleDraftChange = useCallback(
     (values: Record<string, unknown>) => {
       if (featureId && formKey) {
-        dispatch(setDraft({ featureId, featureType: formKey, values }));
+        dispatch(setDraft({ featureId, featureType: formKey, values: serializeValues(values) }));
       }
     },
     [featureId, formKey, dispatch]
@@ -89,7 +131,7 @@ const FeaturesFormsWrapper = ({
   const handleOriginalValues = useCallback(
     (values: Record<string, unknown>) => {
       if (featureId) {
-        dispatch(setOriginalValues({ featureId, values }));
+        dispatch(setOriginalValues({ featureId, values: serializeValues(values) }));
       }
     },
     [featureId, dispatch]
@@ -104,7 +146,7 @@ const FeaturesFormsWrapper = ({
           rawFeature={rawFeature}
           readOnly={effectiveReadOnly}
           loading={loading}
-          draftValues={draft?.values}
+          draftValues={deserializedDraftValues}
           hasDraft={hasChanges}
           onDraftChange={handleDraftChange}
           onOriginalValues={handleOriginalValues}
