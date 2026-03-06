@@ -146,11 +146,11 @@ export function LibFuzzySearch({
   const [modeDropdownOpen, setModeDropdownOpen] = useState(false);
   const [autoCompleteOpen, setAutoCompleteOpen] = useState(false);
 
-  useEffect(() => {
-    if (landParcelSearch && searchMode === "parcel") {
+  const triggerLandParcelPreload = () => {
+    if (landParcelSearch && !hookedLandParcelData && !landParcelLoading) {
       loadLandParcelData();
     }
-  }, [landParcelSearch, searchMode, loadLandParcelData]);
+  };
 
   const searchModeMenuItems: MenuProps["items"] = [
     {
@@ -483,12 +483,15 @@ export function LibFuzzySearch({
             },
           }}
           trigger={cleanBtnDisable ? ["click"] : []}
-          onOpenChange={(open) => setModeDropdownOpen(open)}
+          onOpenChange={(open) => {
+            setModeDropdownOpen(open);
+            if (open) triggerLandParcelPreload();
+          }}
         >
           <Button
             ref={btnClosRef}
             icon={
-              landParcelLoading ? (
+              landParcelLoading && searchMode === "parcel" ? (
                 <FontAwesomeIcon
                   icon={faSpinner}
                   spin
