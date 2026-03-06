@@ -220,7 +220,7 @@ const MastFormFields = ({
           : null,
       };
       form.setFieldsValue(serverValues);
-      onOriginalValues?.(serverValues);
+      onOriginalValues?.(form.getFieldsValue());
 
       if (draftValues) {
         form.setFieldsValue(draftValues);
