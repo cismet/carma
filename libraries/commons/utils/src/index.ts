@@ -56,7 +56,12 @@ export {
   diffHashParams,
 } from "./lib/routing.ts";
 
-export { generateRandomString } from "./lib/strings";
+export {
+  generateRandomString,
+  capitalizeFirstLetter,
+  trimLines,
+} from "./lib/strings";
+export { isKeyboardTargetEditable } from "./lib/dom";
 
 export {
   cn,

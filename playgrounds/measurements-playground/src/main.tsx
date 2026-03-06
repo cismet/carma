@@ -32,7 +32,7 @@ export const SnappingContext = createContext<{
   setSnappingEnabled: () => {},
 });
 
-// Wrapper component to connect Redux to MapMeasurementsProvider
+// Wrapper component to connect Redux to measurements provider
 const MeasurementsProviderWrapper = ({
   children,
 }: {

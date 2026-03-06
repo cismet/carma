@@ -112,6 +112,64 @@ function noReactConfig(baseConfig, files) {
 }
 
 /**
+ * Config blocks for annotation package boundaries
+ * @param {Object} baseConfig - The base ESLint configuration
+ * @returns {Object[]} ESLint config objects
+ */
+function annotationBoundaryConfigs(baseConfig) {
+  return [
+    {
+      ...baseConfig,
+      name: "Annotations Core Boundary",
+      files: [
+        "libraries/mapping/annotations/core/**/*.ts",
+        "libraries/mapping/annotations/core/**/*.tsx",
+      ],
+      rules: {
+        ...baseConfig.rules,
+        "no-restricted-imports": [
+          "error",
+          {
+            paths: [
+              {
+                name: "@carma-mapping/annotations/cesium",
+                message:
+                  "annotations-core must remain engine-agnostic. Move Cesium-coupled code into annotations/provider or annotations/cesium.",
+              },
+            ],
+            patterns: ["@carma-mapping/annotations/cesium/*"],
+          },
+        ],
+      },
+    },
+    {
+      ...baseConfig,
+      name: "Annotations Cesium Boundary",
+      files: [
+        "libraries/mapping/annotations/cesium/**/*.ts",
+        "libraries/mapping/annotations/cesium/**/*.tsx",
+      ],
+      rules: {
+        ...baseConfig.rules,
+        "no-restricted-imports": [
+          "error",
+          {
+            paths: [
+              {
+                name: "@carma-mapping/annotations/provider",
+                message:
+                  "annotations-cesium must depend on annotations-core, not provider UI.",
+              },
+            ],
+            patterns: ["@carma-mapping/annotations/provider/*"],
+          },
+        ],
+      },
+    },
+  ];
+}
+
+/**
  * Generic allowlist config - only allows specified packages in specified paths
  * @param {Object} baseConfig - The base ESLint configuration
  * @param {Object} options - Configuration options
@@ -168,5 +226,6 @@ module.exports = {
   rules,
   noReduxConfig,
   noReactConfig,
+  annotationBoundaryConfigs,
   allowlistConfig,
 };

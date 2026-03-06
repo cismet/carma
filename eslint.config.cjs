@@ -7,7 +7,12 @@ const reactHooks = require("eslint-plugin-react-hooks");
 const reactRefresh = require("eslint-plugin-react-refresh");
 const globals = require("globals");
 const carmaPlugin = require("./scripts/eslint/carma.eslint.plugin");
-const { noReduxConfig, noReactConfig, allowlistConfig } = carmaPlugin;
+const {
+  noReduxConfig,
+  noReactConfig,
+  annotationBoundaryConfigs,
+  allowlistConfig,
+} = carmaPlugin;
 
 delete globals.browser["AudioWorkletGlobalScope "]; // some weird bug
 
@@ -195,6 +200,7 @@ function getCarmaConfigs(baseConfig) {
       "libraries/commons/units/**/*.ts",
       "libraries/commons/utils/**/*.ts",
     ]),
+    ...annotationBoundaryConfigs(baseConfig),
     // Allow React imports in hooks directories (React-specific by nature)
     {
       ...baseConfig,

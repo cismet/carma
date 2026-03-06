@@ -16,7 +16,6 @@ import { GeoJsonConfig } from "../../..";
 import { selectShowPrimaryTileset } from "../../slices/cesium";
 
 import { useSelectAndHighlightGeoJsonEntity } from "./hooks";
-import { SELECTABLE_TRANSPARENT_MATERIAL } from "../../utils/cesiumHelpers";
 
 interface ByGeoJsonClassifier {
   debug?: boolean;
@@ -25,6 +24,9 @@ interface ByGeoJsonClassifier {
 }
 
 const HIGHLIGHT_COLOR = Color.YELLOW.withAlpha(0.6);
+const SELECTABLE_TRANSPARENT_MATERIAL = new ColorMaterialProperty(
+  Color.BLACK.withAlpha(1 / 255)
+);
 
 const ByGeoJsonClassifier: FC<ByGeoJsonClassifier> = ({
   debug = false,

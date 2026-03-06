@@ -5,7 +5,7 @@ export * from "./index.d";
 
 export * from "./slices/cesium";
 
-export { type CesiumContextType } from "./CesiumContext";
+export { CesiumContext, type CesiumContextType } from "./CesiumContext";
 export { CesiumContextProvider } from "./CesiumContextProvider";
 export { CustomCesiumWidget } from "./CustomCesiumWidget";
 export {

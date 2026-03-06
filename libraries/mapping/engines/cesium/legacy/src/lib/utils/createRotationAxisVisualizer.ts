@@ -1,6 +1,8 @@
 import {
   Cartesian3,
+  Cartesian4,
   Color,
+  Matrix4,
   Material,
   PolylineCollection,
   isValidScene,
@@ -61,6 +63,67 @@ const DEFAULT_DASH_PIXEL_LENGTH = 5;
 const DEFAULT_GAP_PIXEL_LENGTH = 3;
 const DEFAULT_WIDTH = 1;
 const DEFAULT_COLOR = Color.WHITE;
+const AXIS_VISUALIZER_ID_KEY = "__carmaAxisVisualizerId";
+
+const createAxisModelMatrix = (
+  origin: Cartesian3,
+  upVector: Cartesian3
+): Matrix4 => {
+  const up = Cartesian3.normalize(upVector, new Cartesian3());
+  const reference =
+    Math.abs(Cartesian3.dot(up, Cartesian3.UNIT_Z)) > 0.9
+      ? Cartesian3.UNIT_X
+      : Cartesian3.UNIT_Z;
+  const xAxis = Cartesian3.normalize(
+    Cartesian3.cross(up, reference, new Cartesian3()),
+    new Cartesian3()
+  );
+  const yAxis = Cartesian3.normalize(
+    Cartesian3.cross(xAxis, up, new Cartesian3()),
+    new Cartesian3()
+  );
+
+  const matrix = Matrix4.clone(Matrix4.IDENTITY, new Matrix4());
+  Matrix4.setColumn(
+    matrix,
+    0,
+    new Cartesian4(xAxis.x, xAxis.y, xAxis.z, 0),
+    matrix
+  );
+  Matrix4.setColumn(
+    matrix,
+    1,
+    new Cartesian4(yAxis.x, yAxis.y, yAxis.z, 0),
+    matrix
+  );
+  Matrix4.setColumn(matrix, 2, new Cartesian4(up.x, up.y, up.z, 0), matrix);
+  Matrix4.setColumn(
+    matrix,
+    3,
+    new Cartesian4(origin.x, origin.y, origin.z, 1),
+    matrix
+  );
+  return matrix;
+};
+
+const removeStaleAxisPrimitivesById = (scene: Scene, visualizerId: string) => {
+  if (!isValidScene(scene)) return;
+  const primitives = scene.primitives;
+  for (let i = primitives.length - 1; i >= 0; i -= 1) {
+    const primitive = primitives.get(i) as
+      | (PolylineCollection & {
+          [AXIS_VISUALIZER_ID_KEY]?: string;
+        })
+      | null;
+    if (!primitive) continue;
+    if (primitive[AXIS_VISUALIZER_ID_KEY] !== visualizerId) continue;
+    try {
+      primitives.remove(primitive);
+    } catch {
+      // Ignore teardown races while aggressively deduplicating leaked primitives.
+    }
+  }
+};
 
 export const createRotationAxisVisualizer = (
   id: string,
@@ -148,6 +211,7 @@ export const createRotationAxisVisualizer = (
     if (polylineCollection) {
       scene.primitives.remove(polylineCollection);
     }
+    removeStaleAxisPrimitivesById(scene, id);
 
     const lineLength = getLineLength();
     const { dashMeters, gapMeters } = getDashParams();
@@ -156,6 +220,7 @@ export const createRotationAxisVisualizer = (
     const numSegments = Math.floor(totalLength / segmentLength);
 
     polylineCollection = new PolylineCollection();
+    polylineCollection.modelMatrix = createAxisModelMatrix(_origin, _upVector);
     lineMaterial = Material.fromType("Color", {
       color: baseColor.withAlpha(_opacity),
     });
@@ -164,19 +229,8 @@ export const createRotationAxisVisualizer = (
       const segmentStart = -lineLength + i * segmentLength;
       const segmentEnd = segmentStart + dashMeters;
 
-      const startScaled = Cartesian3.multiplyByScalar(
-        _upVector,
-        segmentStart,
-        new Cartesian3()
-      );
-      const endScaled = Cartesian3.multiplyByScalar(
-        _upVector,
-        segmentEnd,
-        new Cartesian3()
-      );
-
-      const startPoint = Cartesian3.add(_origin, startScaled, new Cartesian3());
-      const endPoint = Cartesian3.add(_origin, endScaled, new Cartesian3());
+      const startPoint = new Cartesian3(0, 0, segmentStart);
+      const endPoint = new Cartesian3(0, 0, segmentEnd);
 
       polylineCollection.add({
         positions: [startPoint, endPoint],
@@ -186,17 +240,29 @@ export const createRotationAxisVisualizer = (
       });
     }
 
+    (
+      polylineCollection as PolylineCollection & {
+        [AXIS_VISUALIZER_ID_KEY]?: string;
+      }
+    )[AXIS_VISUALIZER_ID_KEY] = id;
     scene.primitives.add(polylineCollection);
   };
 
   const updatePolyline = () => {
     if (!polylineCollection || !scene) return;
 
+    polylineCollection.modelMatrix = createAxisModelMatrix(_origin, _upVector);
+
     const lineLength = getLineLength();
     const { dashMeters, gapMeters } = getDashParams();
     const totalLength = lineLength * 2;
     const segmentLength = dashMeters + gapMeters;
     const numSegments = Math.floor(totalLength / segmentLength);
+
+    if (polylineCollection.length !== numSegments) {
+      createPolyline();
+      return;
+    }
 
     for (let i = 0; i < numSegments; i++) {
       const polyline = polylineCollection.get(i);
@@ -205,19 +271,8 @@ export const createRotationAxisVisualizer = (
       const segmentStart = -lineLength + i * segmentLength;
       const segmentEnd = segmentStart + dashMeters;
 
-      const startScaled = Cartesian3.multiplyByScalar(
-        _upVector,
-        segmentStart,
-        new Cartesian3()
-      );
-      const endScaled = Cartesian3.multiplyByScalar(
-        _upVector,
-        segmentEnd,
-        new Cartesian3()
-      );
-
-      const startPoint = Cartesian3.add(_origin, startScaled, new Cartesian3());
-      const endPoint = Cartesian3.add(_origin, endScaled, new Cartesian3());
+      const startPoint = new Cartesian3(0, 0, segmentStart);
+      const endPoint = new Cartesian3(0, 0, segmentEnd);
 
       polyline.positions = [startPoint, endPoint];
       polyline.show = _isVisible;

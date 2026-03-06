@@ -9,6 +9,7 @@ import { views } from "./config.views";
 
 import "cesium/Build/Cesium/Widgets/widgets.css";
 import "antd/dist/reset.css";
+import "./styles.css";
 import { ErrorBoundary } from "react-error-boundary";
 import ErrorFallback from "./components/ErrorFallback";
 import { setupCesiumEnvironment } from "@carma-mapping/engines/cesium";

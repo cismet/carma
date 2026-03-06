@@ -101,6 +101,11 @@ export {
   type GroundPolygonVisualizerOptions,
 } from "./createGroundPolygonVisualizer";
 export {
+  createLineVisualizer,
+  type LineVisualizer,
+  type LineVisualizerOptions,
+} from "./createLineVisualizer";
+export {
   createRotationAxisVisualizer,
   type RotationAxisVisualizer,
   type RotationAxisVisualizerOptions,

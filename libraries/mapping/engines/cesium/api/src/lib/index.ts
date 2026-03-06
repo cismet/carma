@@ -7,24 +7,33 @@
 
 // Pure re-exports from Cesium
 export {
+  BoxGeometry,
+  BoxOutlineGeometry,
+  Cartesian4,
   ClassificationType,
   ClippingPlaneCollection,
   ClippingPolygonCollection,
+  CoplanarPolygonGeometry,
   ColorGeometryInstanceAttribute,
   ColorMaterialProperty,
   ConstantProperty,
   defined,
-  Ellipsoid,
   // Entity intentionally left out - use PrimitiveCollections in Scene instead
   // EasingFunction // EquivalentEasing is @carma-commons/math
+  Ellipsoid,
   GeometryInstance,
   GroundPolylineGeometry,
   GroundPolylinePrimitive,
+  HorizontalOrigin,
+  LabelCollection,
+  LabelStyle,
   LightingModel,
   Math as CesiumMath,
   Material,
   Matrix3,
   Matrix4,
+  NearFarScalar,
+  PointPrimitiveCollection,
   PolygonGeometry,
   PolygonHierarchy,
   Polyline,
@@ -42,6 +51,8 @@ export {
   // Shaders, // moved to @carma-mapping/engines/cesium/shaders
   ShadowMode,
   Transforms,
+  VerticalOrigin,
+  VertexFormat,
   // Viewer intentionally left out - use CesiumWidget instead
   WebMapServiceImageryProvider,
   WebMapTileServiceImageryProvider,
