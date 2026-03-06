@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from "react";
-import type { UploadFile, FormInstance } from "antd";
+import type { FormInstance } from "antd";
 import { message } from "antd";
+import type { DraftFile } from "../../../store/slices/featuresForms";
 import { useSelector } from "react-redux";
 import { getJWT } from "../../../store/slices/auth";
 import { DokumentItem } from "../DocumentPreview";
@@ -34,8 +35,10 @@ interface LeuchteFormProps {
   readOnly?: boolean;
   loading?: boolean;
   draftValues?: Record<string, unknown>;
+  draftFiles?: DraftFile[];
   hasDraft?: boolean;
   onDraftChange?: (values: Record<string, unknown>) => void;
+  onDraftFilesChange?: (files: DraftFile[]) => void;
   onOriginalValues?: (values: Record<string, unknown>) => void;
   onToggleReadOnly?: () => void;
   onCancel?: () => void;
@@ -49,14 +52,15 @@ const LeuchteForm = ({
   readOnly = true,
   loading,
   draftValues,
+  draftFiles,
   hasDraft,
   onDraftChange,
+  onDraftFilesChange,
   onOriginalValues,
   onToggleReadOnly,
   onCancel,
   onSaveComplete,
 }: LeuchteFormProps) => {
-  const [pendingFiles, setPendingFiles] = useState<UploadFile[]>([]);
   const [saving, setSaving] = useState(false);
   const leuchteFormRef = useRef<FormInstance | null>(null);
   const mastFormRef = useRef<FormInstance | null>(null);
@@ -277,8 +281,8 @@ const LeuchteForm = ({
       mainDocumentsTitle="Leuchte"
       extraDocumentSections={extraDocumentSections}
       jwt={jwt}
-      pendingFiles={pendingFiles}
-      onFilesChange={setPendingFiles}
+      draftFiles={draftFiles}
+      onDraftFilesChange={onDraftFilesChange}
       debugData={data}
       additionalTabs={additionalTabs}
       loading={loading}

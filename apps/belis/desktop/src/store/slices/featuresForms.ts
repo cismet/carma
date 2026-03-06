@@ -2,9 +2,19 @@ import { createSlice, type PayloadAction } from "@reduxjs/toolkit";
 import type { RootState } from "../index";
 import { isFormDirty } from "../../components/ui/featuresForm/formDiffUtils";
 
+export interface DraftFile {
+  id: string;
+  fileName: string;
+  originalFileName: string;
+  base64Data: string;
+  mimeType: string;
+  size: number;
+}
+
 interface Draft {
   featureType: string;
   values: Record<string, unknown>;
+  files?: DraftFile[];
   updatedAt: number;
 }
 
@@ -38,6 +48,7 @@ const featuresFormsSlice = createSlice({
       state.drafts[featureId] = {
         featureType,
         values,
+        files: state.drafts[featureId]?.files ?? [],
         updatedAt: Date.now(),
       };
     },
@@ -76,6 +87,36 @@ const featuresFormsSlice = createSlice({
       const { featureId, values } = action.payload;
       state.originalValues[featureId] = values;
     },
+    setDraftFiles(
+      state,
+      action: PayloadAction<{
+        featureId: string;
+        featureType: string;
+        files: DraftFile[];
+      }>
+    ) {
+      const { featureId, featureType, files } = action.payload;
+      const existing = state.drafts[featureId];
+      if (existing) {
+        existing.files = files;
+        existing.updatedAt = Date.now();
+        // Clean up ghost draft when files emptied and no form values exist
+        if (
+          files.length === 0 &&
+          Object.keys(existing.values).length === 0
+        ) {
+          delete state.drafts[featureId];
+          delete state.originalValues[featureId];
+        }
+      } else if (files.length > 0) {
+        state.drafts[featureId] = {
+          featureType,
+          values: {},
+          files,
+          updatedAt: Date.now(),
+        };
+      }
+    },
   },
 });
 
@@ -89,6 +130,7 @@ export const {
   setFormError,
   clearFormError,
   setOriginalValues,
+  setDraftFiles,
 } = featuresFormsSlice.actions;
 
 // Selectors
@@ -111,6 +153,12 @@ export const getFormError = (
   featureId: string | undefined
 ) => (featureId ? state.featuresForms?.errors[featureId] ?? null : null);
 
+export const getDraftFiles = (
+  state: RootState,
+  featureId: string | undefined
+): DraftFile[] =>
+  featureId ? state.featuresForms?.drafts[featureId]?.files ?? [] : [];
+
 // Check if a specific draft has actual changes compared to its original values
 export const hasDraftChanges = (
   state: RootState,
@@ -119,6 +167,7 @@ export const hasDraftChanges = (
   if (!featureId) return false;
   const draft = state.featuresForms?.drafts[featureId];
   if (!draft) return false;
+  if (draft.files && draft.files.length > 0) return true;
   const original = state.featuresForms?.originalValues[featureId];
   if (!original) return true;
   return isFormDirty(original, draft.values);

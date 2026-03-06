@@ -40,9 +40,9 @@ type FilePreviewSize = "sm" | "md" | "xl" | "xxl";
 
 export interface PendingUpload {
   id: string;
-  file: File;
   fileName: string;
   previewUrl: string;
+  originalFileName: string;
 }
 
 const SIZE_MAP: Record<FilePreviewSize, { box: number; icon: number }> = {
@@ -280,6 +280,7 @@ const FileItem = ({
 interface PendingFileItemProps {
   upload: PendingUpload;
   size: FilePreviewSize;
+  readOnly?: boolean;
   onRemove: (id: string) => void;
   onNameChange: (id: string, name: string) => void;
 }
@@ -287,11 +288,12 @@ interface PendingFileItemProps {
 const PendingFileItem = ({
   upload,
   size,
+  readOnly,
   onRemove,
   onNameChange,
 }: PendingFileItemProps) => {
   const { box: boxSize, icon: iconSize } = SIZE_MAP[size];
-  const fileType = getFileType(upload.file.name);
+  const fileType = getFileType(upload.originalFileName);
   const isImage = fileType === "image";
 
   return (
@@ -305,20 +307,22 @@ const PendingFileItem = ({
       }}
     >
       <div style={{ position: "relative" }}>
-        <CloseCircleFilled
-          onClick={() => onRemove(upload.id)}
-          style={{
-            position: "absolute",
-            top: -6,
-            right: -6,
-            zIndex: 10,
-            fontSize: 18,
-            color: "#ff4d4f",
-            cursor: "pointer",
-            background: "#fff",
-            borderRadius: "50%",
-          }}
-        />
+        {!readOnly && (
+          <CloseCircleFilled
+            onClick={() => onRemove(upload.id)}
+            style={{
+              position: "absolute",
+              top: -6,
+              right: -6,
+              zIndex: 10,
+              fontSize: 18,
+              color: "#ff4d4f",
+              cursor: "pointer",
+              background: "#fff",
+              borderRadius: "50%",
+            }}
+          />
+        )}
         {isImage ? (
           <img
             src={upload.previewUrl}
@@ -344,17 +348,34 @@ const PendingFileItem = ({
               border: "2px dashed #1890ff",
             }}
           >
-            {getFileIcon(upload.file.name, iconSize)}
+            {getFileIcon(upload.originalFileName, iconSize)}
           </div>
         )}
       </div>
-      <Input
-        size="small"
-        value={upload.fileName}
-        onChange={(e) => onNameChange(upload.id, e.target.value)}
-        placeholder="Dateiname"
-        style={{ width: boxSize, fontSize: 11 }}
-      />
+      {readOnly ? (
+        <span
+          style={{
+            fontSize: 11,
+            color: "#595959",
+            maxWidth: boxSize,
+            overflow: "hidden",
+            textOverflow: "ellipsis",
+            whiteSpace: "nowrap",
+            textAlign: "center",
+          }}
+          title={upload.fileName}
+        >
+          {upload.fileName}
+        </span>
+      ) : (
+        <Input
+          size="small"
+          value={upload.fileName}
+          onChange={(e) => onNameChange(upload.id, e.target.value)}
+          placeholder="Dateiname"
+          style={{ width: boxSize, fontSize: 11 }}
+        />
+      )}
     </div>
   );
 };
@@ -680,16 +701,16 @@ const FilePreview = ({
             />
           );
         })}
-        {!readOnly &&
-          pendingUploads.map((upload) => (
-            <PendingFileItem
-              key={upload.id}
-              upload={upload}
-              size={size}
-              onRemove={onRemovePendingUpload || (() => {})}
-              onNameChange={onPendingUploadNameChange || (() => {})}
-            />
-          ))}
+        {pendingUploads.map((upload) => (
+          <PendingFileItem
+            key={upload.id}
+            upload={upload}
+            size={size}
+            readOnly={readOnly}
+            onRemove={onRemovePendingUpload || (() => {})}
+            onNameChange={onPendingUploadNameChange || (() => {})}
+          />
+        ))}
         {!readOnly && onAddFiles && (
           <UploadTile size={size} onAddFiles={onAddFiles} />
         )}
