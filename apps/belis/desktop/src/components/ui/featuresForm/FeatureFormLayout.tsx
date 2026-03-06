@@ -1,9 +1,13 @@
-import { useEffect, useState, ReactNode, useMemo } from "react";
+import { useCallback, useEffect, useState, ReactNode, useMemo } from "react";
 import { Tabs } from "antd";
 import type { UploadFile } from "antd";
 import FormHeader from "./FormHeader";
 import { DokumentItem } from "../DocumentPreview";
-import FilePreview, { SavedImageUrls, getFileType } from "../FilePreview";
+import FilePreview, {
+  SavedImageUrls,
+  getFileType,
+  PendingUpload,
+} from "../FilePreview";
 import { getDocumentBlobUrl } from "../../../helper/documentHelper";
 import RawDisplay from "../RawDisplay";
 
@@ -73,6 +77,64 @@ const FeatureFormLayout = ({
 
   // Cache image URLs at this level to persist across layout changes (resize)
   const [savedImageUrls, setSavedImageUrls] = useState<SavedImageUrls>({});
+
+  // Pending uploads (local files not yet sent to server)
+  const [pendingUploads, setPendingUploads] = useState<PendingUpload[]>([]);
+
+  // Stable key from documents to detect feature change
+  const documentsKey = useMemo(
+    () => documents.map((d) => d.dms_url?.id || "").join(","),
+    [documents]
+  );
+
+  // Reset pending uploads when switching to a different feature
+  useEffect(() => {
+    setPendingUploads((prev) => {
+      prev.forEach((u) => URL.revokeObjectURL(u.previewUrl));
+      return [];
+    });
+  }, [documentsKey]);
+
+  const handleAddFiles = useCallback((files: File[]) => {
+    const newUploads: PendingUpload[] = files.map((file) => {
+      const dotIndex = file.name.lastIndexOf(".");
+      const nameWithoutExt = dotIndex > 0 ? file.name.slice(0, dotIndex) : file.name;
+      return {
+        id: `${Date.now()}-${Math.random().toString(36).slice(2, 9)}`,
+        file,
+        fileName: nameWithoutExt,
+        previewUrl: URL.createObjectURL(file),
+      };
+    });
+    setPendingUploads((prev) => [...prev, ...newUploads]);
+  }, []);
+
+  const handleRemovePendingUpload = useCallback((id: string) => {
+    setPendingUploads((prev) => {
+      const upload = prev.find((u) => u.id === id);
+      if (upload) {
+        URL.revokeObjectURL(upload.previewUrl);
+      }
+      return prev.filter((u) => u.id !== id);
+    });
+  }, []);
+
+  const handlePendingUploadNameChange = useCallback(
+    (id: string, name: string) => {
+      setPendingUploads((prev) =>
+        prev.map((u) => (u.id === id ? { ...u, fileName: name } : u))
+      );
+    },
+    []
+  );
+
+  // Clean up object URLs on unmount
+  useEffect(() => {
+    return () => {
+      pendingUploads.forEach((u) => URL.revokeObjectURL(u.previewUrl));
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // Listen for window resize to toggle layout
   useEffect(() => {
@@ -189,9 +251,19 @@ const FeatureFormLayout = ({
     documents.length > 0 ||
     extraDocumentSections.some((s) => s.documents.length > 0);
 
+  const uploadProps = !readOnly
+    ? {
+        readOnly: false as const,
+        pendingUploads,
+        onAddFiles: handleAddFiles,
+        onRemovePendingUpload: handleRemovePendingUpload,
+        onPendingUploadNameChange: handlePendingUploadNameChange,
+      }
+    : { readOnly: true as const };
+
   const documentsContent = (
     <div className="flex flex-col gap-4">
-      {!hasAnyDocuments ? (
+      {!hasAnyDocuments && readOnly ? (
         <div>
           <div style={{ ...labelStyle }}>{mainDocumentsTitle}</div>
           <div style={{ color: "#8c8c8c", fontSize: 13, padding: "16px 0" }}>
@@ -200,18 +272,17 @@ const FeatureFormLayout = ({
         </div>
       ) : (
         <>
-          {documents.length > 0 && (
-            <FilePreview
-              documents={documents}
-              jwt={jwt}
-              titleStyle={labelStyle}
-              title={mainDocumentsTitle}
-              size="xl"
-              showDescription={false}
-              savedImageUrls={savedImageUrls}
-              allLightboxDocuments={allLightboxDocuments}
-            />
-          )}
+          <FilePreview
+            documents={documents}
+            jwt={jwt}
+            titleStyle={labelStyle}
+            title={mainDocumentsTitle}
+            size="xl"
+            showDescription={false}
+            savedImageUrls={savedImageUrls}
+            allLightboxDocuments={allLightboxDocuments}
+            {...uploadProps}
+          />
           {extraDocumentSections
             .filter((s) => s.documents.length > 0)
             .map((section) => (
