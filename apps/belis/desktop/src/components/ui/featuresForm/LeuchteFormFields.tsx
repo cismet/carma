@@ -227,7 +227,7 @@ const LeuchteFormFields = ({
         // Schaltstelle
         schaltstelle: leuchte.schaltstelle,
         // Rundsteuerempfänger - use id for Select value
-        fk_rundsteuerempfaenger: rundsteuerempfaenger?.id ?? null,
+        rundsteuerempfaenger: rundsteuerempfaenger?.id ?? null,
         // Einbaudatum
         einbaudatum: leuchte.einbaudatum
           ? dayjs(leuchte.einbaudatum as string)
@@ -241,7 +241,7 @@ const LeuchteFormFields = ({
         anzahl_2dk: leuchte.anzahl_2dk,
         anschlussleistung_2dk: leuchte.anschlussleistung_2dk,
         // Unterhalt Leuchte - use id for Select value
-        fk_unterhalt_leuchte: unterhLeuchte?.id ?? null,
+        fk_unterhaltspflicht_leuchte: unterhLeuchte?.id ?? null,
         // Leuchtmittelwechsel
         wechseldatum: leuchte.wechseldatum
           ? dayjs(leuchte.wechseldatum as string)
@@ -250,7 +250,7 @@ const LeuchteFormFields = ({
           ? dayjs(leuchte.naechster_wechsel as string)
           : null,
         // Leuchtmittel - use id for Select value
-        fk_leuchtmittel: leuchtmittelObj?.id ?? leuchte.leuchtmittel,
+        leuchtmittel: leuchtmittelObj?.id ?? leuchte.leuchtmittel,
         // Lebensdauer
         lebensdauer: leuchte.lebensdauer,
         // Sonderturnus
@@ -419,7 +419,7 @@ const LeuchteFormFields = ({
 
       {/* Rundsteuerempfänger */}
       <Form.Item
-        name={fieldName("fk_rundsteuerempfaenger")}
+        name={fieldName("rundsteuerempfaenger")}
         label={<FormLabel>Rundsteuerempf.</FormLabel>}
         className="mb-4"
       >
@@ -554,7 +554,7 @@ const LeuchteFormFields = ({
 
       {/* Unterhalt Leuchte */}
       <Form.Item
-        name={fieldName("fk_unterhalt_leuchte")}
+        name={fieldName("fk_unterhaltspflicht_leuchte")}
         label={<FormLabel>Unterhalt Leuchte</FormLabel>}
         className="mb-4"
       >
@@ -607,7 +607,7 @@ const LeuchteFormFields = ({
 
       {/* Leuchtmittel */}
       <Form.Item
-        name={fieldName("fk_leuchtmittel")}
+        name={fieldName("leuchtmittel")}
         label={<FormLabel>Leuchtmittel</FormLabel>}
         className="mb-4"
       >
