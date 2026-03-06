@@ -1,7 +1,7 @@
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
 import { Form, Row, Col, Select } from "antd";
-import type { UploadFile } from "antd";
 import { useSelector } from "react-redux";
+import type { DraftFile } from "../../../store/slices/featuresForms";
 import { getKeyTablesData } from "../../../store/slices/keyTables";
 import { getJWT } from "../../../store/slices/auth";
 import { DokumentItem } from "../DocumentPreview";
@@ -15,8 +15,10 @@ interface LeitungFormProps {
   readOnly?: boolean;
   loading?: boolean;
   draftValues?: Record<string, unknown>;
+  draftFiles?: DraftFile[];
   hasDraft?: boolean;
   onDraftChange?: (values: Record<string, unknown>) => void;
+  onDraftFilesChange?: (files: DraftFile[]) => void;
   onOriginalValues?: (values: Record<string, unknown>) => void;
   onToggleReadOnly?: () => void;
   onCancel?: () => void;
@@ -36,8 +38,10 @@ const LeitungForm = ({
   readOnly = true,
   loading,
   draftValues,
+  draftFiles,
   hasDraft,
   onDraftChange,
+  onDraftFilesChange,
   onOriginalValues,
   onToggleReadOnly,
   onCancel,
@@ -49,7 +53,6 @@ const LeitungForm = ({
     console.log("Leitung form values:", form.getFieldsValue());
     onSaveComplete?.();
   };
-  const [pendingFiles, setPendingFiles] = useState<UploadFile[]>([]);
   const keyTablesData = useSelector(getKeyTablesData);
   const jwt = useSelector(getJWT);
 
@@ -121,8 +124,8 @@ const LeitungForm = ({
       subtitle={subtitle}
       documents={documents}
       jwt={jwt}
-      pendingFiles={pendingFiles}
-      onFilesChange={setPendingFiles}
+      draftFiles={draftFiles}
+      onDraftFilesChange={onDraftFilesChange}
       debugData={data}
       loading={loading}
       readOnly={readOnly}

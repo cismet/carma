@@ -1,6 +1,5 @@
 import { useCallback, useEffect, useState, ReactNode, useMemo } from "react";
 import { Tabs } from "antd";
-import type { UploadFile } from "antd";
 import FormHeader from "./FormHeader";
 import { DokumentItem } from "../DocumentPreview";
 import FilePreview, {
@@ -10,6 +9,15 @@ import FilePreview, {
 } from "../FilePreview";
 import { getDocumentBlobUrl } from "../../../helper/documentHelper";
 import RawDisplay from "../RawDisplay";
+import type { DraftFile } from "../../../store/slices/featuresForms";
+
+const fileToBase64 = (file: File): Promise<string> =>
+  new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result as string);
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
 
 interface AdditionalTab {
   key: string;
@@ -30,14 +38,13 @@ interface FeatureFormLayoutProps {
   mainDocumentsTitle?: string;
   extraDocumentSections?: ExtraDocumentSection[];
   jwt?: string | null;
-  pendingFiles?: UploadFile[];
-  onFilesChange?: (files: UploadFile[]) => void;
+  draftFiles?: DraftFile[];
+  onDraftFilesChange?: (files: DraftFile[]) => void;
   onCancel?: () => void;
   onSave?: () => void;
   saving?: boolean;
   debugData?: unknown;
   additionalTabs?: AdditionalTab[];
-  uploadText?: string;
   loading?: boolean;
   readOnly?: boolean;
   hasDraft?: boolean;
@@ -52,6 +59,8 @@ const FeatureFormLayout = ({
   mainDocumentsTitle = "Dateien",
   extraDocumentSections = [],
   jwt,
+  draftFiles = [],
+  onDraftFilesChange,
   onCancel,
   onSave,
   saving,
@@ -78,63 +87,56 @@ const FeatureFormLayout = ({
   // Cache image URLs at this level to persist across layout changes (resize)
   const [savedImageUrls, setSavedImageUrls] = useState<SavedImageUrls>({});
 
-  // Pending uploads (local files not yet sent to server)
-  const [pendingUploads, setPendingUploads] = useState<PendingUpload[]>([]);
-
-  // Stable key from documents to detect feature change
-  const documentsKey = useMemo(
-    () => documents.map((d) => d.dms_url?.id || "").join(","),
-    [documents]
+  // Derive PendingUpload[] from persisted DraftFile[] (base64 data URLs need no cleanup)
+  const pendingUploads: PendingUpload[] = useMemo(
+    () =>
+      draftFiles.map((df) => ({
+        id: df.id,
+        fileName: df.fileName,
+        previewUrl: df.base64Data,
+        originalFileName: df.originalFileName,
+      })),
+    [draftFiles]
   );
 
-  // Reset pending uploads when switching to a different feature
-  useEffect(() => {
-    setPendingUploads((prev) => {
-      prev.forEach((u) => URL.revokeObjectURL(u.previewUrl));
-      return [];
-    });
-  }, [documentsKey]);
+  const handleAddFiles = useCallback(
+    async (files: File[]) => {
+      const newDraftFiles: DraftFile[] = await Promise.all(
+        files.map(async (file) => {
+          const dotIndex = file.name.lastIndexOf(".");
+          const nameWithoutExt =
+            dotIndex > 0 ? file.name.slice(0, dotIndex) : file.name;
+          const base64Data = await fileToBase64(file);
+          return {
+            id: `${Date.now()}-${Math.random().toString(36).slice(2, 9)}`,
+            fileName: nameWithoutExt,
+            originalFileName: file.name,
+            base64Data,
+            mimeType: file.type,
+            size: file.size,
+          };
+        })
+      );
+      onDraftFilesChange?.([...draftFiles, ...newDraftFiles]);
+    },
+    [draftFiles, onDraftFilesChange]
+  );
 
-  const handleAddFiles = useCallback((files: File[]) => {
-    const newUploads: PendingUpload[] = files.map((file) => {
-      const dotIndex = file.name.lastIndexOf(".");
-      const nameWithoutExt = dotIndex > 0 ? file.name.slice(0, dotIndex) : file.name;
-      return {
-        id: `${Date.now()}-${Math.random().toString(36).slice(2, 9)}`,
-        file,
-        fileName: nameWithoutExt,
-        previewUrl: URL.createObjectURL(file),
-      };
-    });
-    setPendingUploads((prev) => [...prev, ...newUploads]);
-  }, []);
-
-  const handleRemovePendingUpload = useCallback((id: string) => {
-    setPendingUploads((prev) => {
-      const upload = prev.find((u) => u.id === id);
-      if (upload) {
-        URL.revokeObjectURL(upload.previewUrl);
-      }
-      return prev.filter((u) => u.id !== id);
-    });
-  }, []);
+  const handleRemovePendingUpload = useCallback(
+    (id: string) => {
+      onDraftFilesChange?.(draftFiles.filter((f) => f.id !== id));
+    },
+    [draftFiles, onDraftFilesChange]
+  );
 
   const handlePendingUploadNameChange = useCallback(
     (id: string, name: string) => {
-      setPendingUploads((prev) =>
-        prev.map((u) => (u.id === id ? { ...u, fileName: name } : u))
+      onDraftFilesChange?.(
+        draftFiles.map((f) => (f.id === id ? { ...f, fileName: name } : f))
       );
     },
-    []
+    [draftFiles, onDraftFilesChange]
   );
-
-  // Clean up object URLs on unmount
-  useEffect(() => {
-    return () => {
-      pendingUploads.forEach((u) => URL.revokeObjectURL(u.previewUrl));
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
 
   // Listen for window resize to toggle layout
   useEffect(() => {
@@ -249,6 +251,7 @@ const FeatureFormLayout = ({
   // );
   const hasAnyDocuments =
     documents.length > 0 ||
+    pendingUploads.length > 0 ||
     extraDocumentSections.some((s) => s.documents.length > 0);
 
   const uploadProps = !readOnly
@@ -259,7 +262,10 @@ const FeatureFormLayout = ({
         onRemovePendingUpload: handleRemovePendingUpload,
         onPendingUploadNameChange: handlePendingUploadNameChange,
       }
-    : { readOnly: true as const };
+    : {
+        readOnly: true as const,
+        pendingUploads,
+      };
 
   const documentsContent = (
     <div className="flex flex-col gap-4">

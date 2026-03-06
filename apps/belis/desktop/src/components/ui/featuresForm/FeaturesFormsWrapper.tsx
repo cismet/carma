@@ -5,11 +5,14 @@ import { featureFormRegistry } from "./index";
 import { getSelectedFeature } from "../../../store/slices/featureCollection";
 import {
   getDraft,
+  getDraftFiles,
   setDraft,
+  setDraftFiles,
   removeDraft,
   setOriginalValues,
   hasDraftChanges,
 } from "../../../store/slices/featuresForms";
+import type { DraftFile } from "../../../store/slices/featuresForms";
 import type { RootState } from "../../../store";
 
 const DAYJS_PREFIX = "__dayjs:";
@@ -86,6 +89,7 @@ const FeaturesFormsWrapper = ({
   const selectedFeature = useSelector(getSelectedFeature);
   const featureId = selectedFeature?.id != null ? String(selectedFeature.id) : undefined;
   const draft = useSelector((state: RootState) => getDraft(state, featureId));
+  const draftFiles = useSelector((state: RootState) => getDraftFiles(state, featureId));
   const hasChanges = useSelector((state: RootState) => hasDraftChanges(state, featureId));
 
   const [isEditing, setIsEditing] = useState(false);
@@ -137,6 +141,15 @@ const FeaturesFormsWrapper = ({
     [featureId, dispatch]
   );
 
+  const handleDraftFilesChange = useCallback(
+    (files: DraftFile[]) => {
+      if (featureId && formKey) {
+        dispatch(setDraftFiles({ featureId, featureType: formKey, files }));
+      }
+    },
+    [featureId, formKey, dispatch]
+  );
+
   if (FormComponent) {
     return (
       <div className="h-full">
@@ -147,8 +160,10 @@ const FeaturesFormsWrapper = ({
           readOnly={effectiveReadOnly}
           loading={loading}
           draftValues={deserializedDraftValues}
+          draftFiles={draftFiles}
           hasDraft={hasChanges}
           onDraftChange={handleDraftChange}
+          onDraftFilesChange={handleDraftFilesChange}
           onOriginalValues={handleOriginalValues}
           onToggleReadOnly={handleToggleReadOnly}
           onCancel={handleCancel}

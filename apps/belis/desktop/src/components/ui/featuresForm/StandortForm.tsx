@@ -1,6 +1,7 @@
-import { useState, useCallback, useRef } from "react";
-import type { UploadFile, FormInstance } from "antd";
+import { useCallback, useRef } from "react";
+import type { FormInstance } from "antd";
 import { useSelector } from "react-redux";
+import type { DraftFile } from "../../../store/slices/featuresForms";
 import { getJWT } from "../../../store/slices/auth";
 import { DokumentItem } from "../DocumentPreview";
 import FeatureFormLayout from "./FeatureFormLayout";
@@ -14,8 +15,10 @@ interface StandortFormProps {
   readOnly?: boolean;
   loading?: boolean;
   draftValues?: Record<string, unknown>;
+  draftFiles?: DraftFile[];
   hasDraft?: boolean;
   onDraftChange?: (values: Record<string, unknown>) => void;
+  onDraftFilesChange?: (files: DraftFile[]) => void;
   onOriginalValues?: (values: Record<string, unknown>) => void;
   onToggleReadOnly?: () => void;
   onCancel?: () => void;
@@ -29,14 +32,15 @@ const StandortForm = ({
   readOnly = true,
   loading,
   draftValues,
+  draftFiles,
   hasDraft,
   onDraftChange,
+  onDraftFilesChange,
   onOriginalValues,
   onToggleReadOnly,
   onCancel,
   onSaveComplete,
 }: StandortFormProps) => {
-  const [pendingFiles, setPendingFiles] = useState<UploadFile[]>([]);
   const mastFormRef = useRef<FormInstance | null>(null);
 
   const setMastForm = useCallback((form: FormInstance) => {
@@ -107,10 +111,9 @@ const StandortForm = ({
       mainDocumentsTitle="Standort"
       extraDocumentSections={extraDocumentSections}
       jwt={jwt}
-      pendingFiles={pendingFiles}
-      onFilesChange={setPendingFiles}
+      draftFiles={draftFiles}
+      onDraftFilesChange={onDraftFilesChange}
       debugData={data}
-      uploadText="Datei hochladen"
       loading={loading}
       readOnly={readOnly}
       hasDraft={hasDraft}
