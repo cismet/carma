@@ -190,7 +190,10 @@ const MainPage = () => {
             <div className="flex items-center gap-4">
               {/* Search */}
               <div className="flex items-center gap-2">
-                <StreetSearch gazData={gazData} />
+                <StreetSearch
+                  gazData={gazData}
+                  onClearHighlightResults={() => setHighlightResults(null)}
+                />
                 <SearchModal
                   showFinalQuery={showRaw}
                   onSearchResults={setHighlightResults}

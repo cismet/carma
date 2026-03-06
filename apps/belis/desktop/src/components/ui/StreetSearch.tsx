@@ -8,7 +8,13 @@ import { GazDataItem } from "@carma-commons/utils";
 import proj4 from "proj4";
 import { proj4crs3857def, proj4crs4326def } from "@carma-mapping/utils";
 
-const StreetSearch = ({ gazData }: { gazData?: GazDataItem[] }) => {
+const StreetSearch = ({
+  gazData,
+  onClearHighlightResults,
+}: {
+  gazData?: GazDataItem[];
+  onClearHighlightResults?: () => void;
+}) => {
   const [searchKey, setSearchKey] = useState(0);
   const { map } = useLibreContext();
   const {
@@ -19,10 +25,11 @@ const StreetSearch = ({ gazData }: { gazData?: GazDataItem[] }) => {
   } = useMapHighlight();
 
   const handleClear = useCallback(() => {
+    onClearHighlightResults?.();
     setHighlightingActive(false);
     clearHighlights();
     setSearchKey((k) => k + 1);
-  }, [setHighlightingActive, clearHighlights]);
+  }, [setHighlightingActive, clearHighlights, onClearHighlightResults]);
 
   return (
     <div className="flex items-center gap-2">
@@ -65,6 +72,7 @@ const StreetSearch = ({ gazData }: { gazData?: GazDataItem[] }) => {
           }
           if (selection?.string) {
             const code = String(selection.more.id).padStart(5, "0");
+            onClearHighlightResults?.();
             clearHighlights();
             setHighlightingActive(true);
             highlightByProperty("strassenschluessel", new RegExp(`^${code}$`));
