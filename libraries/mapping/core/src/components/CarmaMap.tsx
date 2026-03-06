@@ -67,6 +67,12 @@ interface CarmaMapProps extends LibreMapProps {
   embedded?: boolean;
   /** Non-interactive map: disables all controls, compass, interaction */
   miniMap?: boolean;
+  /** Runtime parameters for 3D layers (e.g. radiusMix, useLoft) */
+  threeRuntimeParams?: Record<string, number>;
+  /** Ref for 3D layer performance data */
+  threePerfRef?: React.MutableRefObject<
+    import("@carma-mapping/engines/threejs").ThreePerfData
+  >;
 }
 
 const CarmaMapContent = (props: CarmaMapProps) => {
@@ -287,6 +293,8 @@ const CarmaMapContent = (props: CarmaMapProps) => {
                   miniMap ? false : props.gazetteerInfoOnClick
                 }
                 backgroundRasterPaint={effectiveRasterPaint}
+                threeRuntimeParams={props.threeRuntimeParams}
+                threePerfRef={props.threePerfRef}
               />
             )}
             {modalMenu}

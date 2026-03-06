@@ -54,6 +54,7 @@ import { SelectionItem, useSelection } from "@carma-appframeworks/portals";
 import { defaultLayerConf } from "@carma-appframeworks/portals";
 import { useMapHashRouting } from "@carma-appframeworks/portals";
 import { displayRouteOnMap } from "@carma-mapping/routing";
+import { ThreeLayerManager } from "./ThreeLayerManager";
 
 export interface GeoJsonData {
   sourceId: string;
@@ -66,6 +67,8 @@ export interface VectorStyle {
   layer?: string;
   opacity?: number;
   infoboxMapping?: string[];
+  /** Optional 3D layer config; when present, a Three.js layer is auto-created. */
+  carma3d?: import("@carma-mapping/engines/threejs").Carma3dConfig;
 }
 
 /**
@@ -155,6 +158,12 @@ export interface LibreMapProps {
   gazetteerInfoOnClick?: boolean;
   /** Raster paint overrides applied to all background raster layers (night mode, etc.) */
   backgroundRasterPaint?: RasterPaintOverrides;
+  /** Runtime parameters for 3D layers (e.g. radiusMix, useLoft) */
+  threeRuntimeParams?: Record<string, number>;
+  /** Ref for 3D layer performance data */
+  threePerfRef?: React.MutableRefObject<
+    import("@carma-mapping/engines/threejs").ThreePerfData
+  >;
 }
 
 export const LibreMap = ({
@@ -177,6 +186,8 @@ export const LibreMap = ({
   overrideSelectedFeature,
   gazetteerInfoOnClick = true,
   backgroundRasterPaint,
+  threeRuntimeParams,
+  threePerfRef,
 }: LibreMapProps) => {
   const mapContainer = useRef<HTMLDivElement>(null);
   const map = useRef<maplibregl.Map | null>(null);
@@ -1324,6 +1335,22 @@ export const LibreMap = ({
       <div className="map-wrap">
         <div ref={mapContainer} className="map" />
       </div>
+
+      {/* Auto-detect carma3d configs from vector layers */}
+      {threeRuntimeParams &&
+        (layers ?? [])
+          .filter(
+            (l): l is { type: "vector" } & VectorStyle =>
+              l.type === "vector" && !!(l as VectorStyle).carma3d,
+          )
+          .map((l) => (
+            <ThreeLayerManager
+              key={l.carma3d!.sourceId}
+              config={l.carma3d!}
+              runtimeParams={threeRuntimeParams}
+              perfRef={threePerfRef}
+            />
+          ))}
     </>
   );
 };

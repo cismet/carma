@@ -161,5 +161,9 @@ export {
   type CityMapConfig,
 } from "./constants/wuppertalDefaultStyle";
 
+// Three.js layer management
+export { ThreeLayerManager } from "./components/ThreeLayerManager";
+export type { ThreeLayerManagerProps } from "./components/ThreeLayerManager";
+
 // Styles (CSS should be imported by consumers)
 // import '@carma-mapping/engines/maplibre/styles/map.css';
