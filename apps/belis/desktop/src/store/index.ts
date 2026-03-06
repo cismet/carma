@@ -74,6 +74,12 @@ const featureCollectionConfig = {
   whitelist: ["inFocusMode"],
 };
 
+const featuresFormsConfig = {
+  key: "@belis-desktop.featuresForms",
+  storage: localForage,
+  whitelist: ["drafts", "originalValues"],
+};
+
 const store = configureStore({
   reducer: {
     auth: persistReducer(authConfig, authSlice.reducer),
@@ -84,7 +90,7 @@ const store = configureStore({
     ),
     ui: ui.reducer,
     keyTables: keyTables.reducer,
-    featuresForms: featuresFormsSlice.reducer,
+    featuresForms: persistReducer(featuresFormsConfig, featuresFormsSlice.reducer),
   },
   devTools: devToolsEnabled === true && inProduction === false,
   middleware,
