@@ -77,7 +77,7 @@ const featureCollectionConfig = {
 const featuresFormsConfig = {
   key: "@belis-desktop.featuresForms",
   storage: localForage,
-  whitelist: ["drafts", "originalValues"],
+  whitelist: ["drafts"],
 };
 
 const store = configureStore({

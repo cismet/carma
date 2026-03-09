@@ -86,6 +86,12 @@ const featuresFormsSlice = createSlice({
     ) {
       const { featureId, values } = action.payload;
       state.originalValues[featureId] = values;
+      // Clean up orphaned originalValues that have no corresponding draft
+      for (const id of Object.keys(state.originalValues)) {
+        if (id !== featureId && !state.drafts[id]) {
+          delete state.originalValues[id];
+        }
+      }
     },
     setDraftFiles(
       state,
