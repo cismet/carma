@@ -14,11 +14,7 @@ import {
   type PointLabelAttach,
   type PointLabelLayoutResult,
 } from "@carma-providers/label-overlay";
-
-type ScreenPoint2D = {
-  x: number;
-  y: number;
-};
+import type { CssPixelPosition } from "@carma/units/types";
 
 const DEFAULT_PAIR_LABEL_ATTACH: PointLabelAttach = "left";
 const DEFAULT_OVERLAY_ID_PREFIX = "distance-pair-label";
@@ -61,7 +57,7 @@ export type UseDistancePairLabelOverlaysOptions = {
   cameraPitch: number;
   viewportWidth: number;
   viewportHeight: number;
-  resolveAnchorCanvasPosition: (anchorPointId: string) => ScreenPoint2D | null;
+  resolveAnchorCanvasPosition: (anchorPointId: string) => CssPixelPosition | null;
   addLabelOverlayElement: (element: LabelOverlayElement) => void;
   removeLabelOverlayElement: (id: string) => void;
   overlayIdPrefix?: string;

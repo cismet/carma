@@ -1,10 +1,7 @@
 import { Cartesian3 } from "@carma/cesium";
 
-import {
-  ANNOTATION_TYPE_AREA_GROUND,
-  ANNOTATION_TYPE_POLYLINE,
-  type PlanarPolygonGroup,
-} from "../types/annotationTypes";
+import { ANNOTATION_TYPE_POLYLINE } from "../types/annotationTypes";
+import { type PlanarPolygonGroup } from "../types/planarTypes";
 
 export const POLYGON_PREVIEW_STROKE = "rgba(255, 255, 255, 0.65)";
 export const POLYGON_PREVIEW_STROKE_WIDTH_PX = 1;
@@ -173,12 +170,6 @@ export type PolygonPreviewBuildParams = {
   } | null;
 };
 
-const getPlanarGroupMeasurementKind = (
-  group: Pick<PlanarPolygonGroup, "measurementKind" | "closed">
-): typeof ANNOTATION_TYPE_POLYLINE | typeof ANNOTATION_TYPE_AREA_GROUND =>
-  group.measurementKind ??
-  (group.closed ? ANNOTATION_TYPE_AREA_GROUND : ANNOTATION_TYPE_POLYLINE);
-
 const isGroundPolygonPreviewGroup = (
   previewGroup: PolygonPreviewGroup
 ): previewGroup is GroundPolygonPreviewGroup => {
@@ -205,8 +196,8 @@ export const buildPolygonPreviewGroups = ({
 }: PolygonPreviewBuildParams): PolygonPreviewGroup[] =>
   planarPolygonGroups
     .map((group) => {
-      const measurementKind = getPlanarGroupMeasurementKind(group);
-      if (measurementKind !== ANNOTATION_TYPE_AREA_GROUND) {
+      const measurementKind = group.measurementKind;
+      if (measurementKind === ANNOTATION_TYPE_POLYLINE) {
         return null;
       }
 
@@ -259,7 +250,7 @@ export const buildPolygonPreviewGroups = ({
         group.id === activePlanarPolygonGroupId &&
         ((group.surfaceType ?? "roof") === "footprint" ||
           (group.surfaceType ?? "roof") === "roof") &&
-        livePreviewDistanceLine?.showDirectLine
+        group.vertexPointIds.length >= 2
       ) {
         const baseVertexPoints = group.vertexPointIds
           .map((pointId) => pointsById.get(pointId)?.geometryECEF)
@@ -268,24 +259,25 @@ export const buildPolygonPreviewGroups = ({
           return null;
         }
 
-        const previewTargetPoint = livePreviewDistanceLine.targetPointECEF;
+        const previewTargetPoint = livePreviewDistanceLine?.showDirectLine
+          ? livePreviewDistanceLine.targetPointECEF
+          : null;
         const lastBaseVertex = baseVertexPoints[baseVertexPoints.length - 1];
-        if (
-          !previewTargetPoint ||
-          (lastBaseVertex &&
-            Cartesian3.distanceSquared(lastBaseVertex, previewTargetPoint) <=
-              1e-6)
-        ) {
-          return null;
-        }
+        const previewIncludesHoveredPoint = Boolean(
+          previewTargetPoint &&
+            lastBaseVertex &&
+            Cartesian3.distanceSquared(lastBaseVertex, previewTargetPoint) > 1e-6
+        );
+        const vertexPoints = previewIncludesHoveredPoint
+          ? [...baseVertexPoints, Cartesian3.clone(previewTargetPoint)]
+          : baseVertexPoints;
 
-        return {
-          group,
-          vertexPoints: [
-            ...baseVertexPoints,
-            Cartesian3.clone(previewTargetPoint),
-          ],
-        };
+        return vertexPoints.length >= 3
+          ? {
+              group,
+              vertexPoints,
+            }
+          : null;
       }
 
       return null;

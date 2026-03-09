@@ -1,4 +1,4 @@
-import type { LabelPlacement, Rect, ScreenPoint } from "./types";
+import type { LabelPlacement, Rect, CssPixelPosition } from "./types";
 
 const LABEL_HEIGHT = 20;
 const LABEL_CHAR_WIDTH = 7.25;
@@ -16,14 +16,15 @@ const estimateLabelWidth = (text: string): number => {
 };
 
 export const connectorFromPlacement = (
-  anchor: ScreenPoint,
+  anchor: CssPixelPosition,
   placement: LabelPlacement
-): ScreenPoint => ({
-  x: anchor.x + Math.cos(placement.angleRad) * placement.distance,
-  y: anchor.y + Math.sin(placement.angleRad) * placement.distance,
-});
+): CssPixelPosition =>
+  ({
+    x: anchor.x + Math.cos(placement.angleRad) * placement.distance,
+    y: anchor.y + Math.sin(placement.angleRad) * placement.distance,
+  } as CssPixelPosition);
 
-export const createAnchorRect = (anchor: ScreenPoint): Rect => ({
+export const createAnchorRect = (anchor: CssPixelPosition): Rect => ({
   left: anchor.x - ANCHOR_COLLISION_RADIUS,
   top: anchor.y - ANCHOR_COLLISION_RADIUS,
   right: anchor.x + ANCHOR_COLLISION_RADIUS,
@@ -31,7 +32,7 @@ export const createAnchorRect = (anchor: ScreenPoint): Rect => ({
 });
 
 export const createLabelRectFromConnector = (
-  connector: ScreenPoint,
+  connector: CssPixelPosition,
   labelText: string,
   attach: LabelPlacement["attach"]
 ): Rect => {
@@ -71,7 +72,7 @@ export const createLabelRectFromConnector = (
 };
 
 export const createLabelRect = (
-  anchor: ScreenPoint,
+  anchor: CssPixelPosition,
   labelText: string,
   placement: LabelPlacement
 ): Rect =>
@@ -91,10 +92,11 @@ export const rectsIntersect = (
   leftRect.top < rightRect.bottom + padding &&
   leftRect.bottom > rightRect.top - padding;
 
-export const getRectCenter = (rect: Rect): ScreenPoint => ({
-  x: (rect.left + rect.right) / 2,
-  y: (rect.top + rect.bottom) / 2,
-});
+export const getRectCenter = (rect: Rect): CssPixelPosition =>
+  ({
+    x: (rect.left + rect.right) / 2,
+    y: (rect.top + rect.bottom) / 2,
+  } as CssPixelPosition);
 
 export const getViewportOverflowPenalty = (
   rect: Rect,

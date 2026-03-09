@@ -14,6 +14,7 @@ export function AnnotationInfoBox({
     pixelWidth: boxWidth,
     headingColor,
     headingTitle,
+    headingActions,
     collapsible,
     footer,
     subtitle,
@@ -34,6 +35,7 @@ export function AnnotationInfoBox({
             <span className="truncate" title={headingTitle}>
               {headingTitle}
             </span>
+            {headingActions ?? null}
           </div>
         }
         subtitle={subtitle}

@@ -1,18 +1,11 @@
-import { Cartesian3 } from "@carma/cesium";
+import { Cartesian3, CarmaTransforms } from "@carma/cesium";
 import {
-  MEASUREMENT_MODE_DISTANCE,
-  getENU,
-  getEuclideanDistance,
-} from "@carma-mapping/annotations/cesium";
-import type {
+  ANNOTATION_TYPE_DISTANCE,
   AnnotationMode,
   PointDistanceRelation,
   PointAnnotationEntry,
-} from "@carma-mapping/annotations/cesium";
-import {
-  ANNOTATION_TYPE_DISTANCE,
-  getCustomPointAnnotationName,
   type AnnotationListType,
+  getCustomPointAnnotationName,
 } from "@carma-mapping/annotations/core";
 
 import type {
@@ -21,25 +14,26 @@ import type {
   AnnotationSlotActions,
 } from "./annotationInfoBoxSlots.types";
 import {
-  isReferenceMeasurement,
-  resolveAnnotationDisplayPoint,
-  resolveRelativeElevation,
-} from "./annotationDisplayPoint";
+  findReferencePointMeasurement,
+  isPointReferenceMeasurement,
+  resolvePointAnnotationDisplayPoint,
+  resolvePointRelativeElevation,
+} from "./utils/pointAnnotationDisplay";
 
 type GetDistanceMeasurementSlotsInputParams = {
-  measurementMode: AnnotationMode;
+  annotationMode: AnnotationMode;
   measurement: PointAnnotationEntry | null;
   activeMeasurementId: string | null;
   pointMeasurements: ReadonlyArray<PointAnnotationEntry>;
-  referencePoint: Cartesian3 | null;
+  referencePoint: PointAnnotationEntry["geometryECEF"] | null;
   hasDistancePreviewAnchor: boolean;
   distanceRelations: ReadonlyArray<PointDistanceRelation>;
   pointMarkerBadgeByPointId: Readonly<Record<string, { text?: string }>>;
-  getMeasurementOrderByType: (
+  getAnnotationOrderByType: (
     type: AnnotationListType<AnnotationMode>,
     id: string | null | undefined
   ) => number | null;
-  getNextMeasurementOrderByType: (
+  getNextAnnotationOrderByType: (
     type: AnnotationListType<AnnotationMode>
   ) => number;
   actions: AnnotationSlotActions;
@@ -66,16 +60,14 @@ const isDistanceMeasurementEntry = ({
   );
 };
 
-const REFERENCE_POINT_MATCH_EPSILON_METERS = 0.001;
-
 const resolvePointLabel = ({
   point,
-  getMeasurementOrderByType,
+  getAnnotationOrderByType,
   fallbackPointOrderById,
   pointMarkerBadgeByPointId,
 }: {
   point: PointAnnotationEntry;
-  getMeasurementOrderByType: (
+  getAnnotationOrderByType: (
     type: AnnotationListType<AnnotationMode>,
     id: string | null | undefined
   ) => number | null;
@@ -86,7 +78,7 @@ const resolvePointLabel = ({
   if (customName) {
     return customName;
   }
-  const order = getMeasurementOrderByType("pointMeasure", point.id);
+  const order = getAnnotationOrderByType("pointMeasure", point.id);
   if (order !== null) {
     return `${order}`;
   }
@@ -120,40 +112,23 @@ const buildDistanceRow = ({
   toPoint: PointAnnotationEntry;
   isImplicitReferenceRow?: boolean;
 }): DistanceTableRow => {
-  const enu = getENU(fromPoint.geometryECEF, toPoint.geometryECEF);
+  const enu = CarmaTransforms.getEastNorthUpOffset(
+    fromPoint.geometryECEF,
+    toPoint.geometryECEF
+  );
   return {
     id,
     relationId,
     label,
     vertical: enu.up,
     horizontalDistance: Math.hypot(enu.east, enu.north),
-    distance: getEuclideanDistance(
-      fromPoint.geometryECEF,
-      toPoint.geometryECEF
-    ),
+    distance: Cartesian3.distance(fromPoint.geometryECEF, toPoint.geometryECEF),
     isImplicitReferenceRow,
   };
 };
 
-const resolveReferencePointMeasurement = ({
-  pointMeasurements,
-  referencePoint,
-}: {
-  pointMeasurements: ReadonlyArray<PointAnnotationEntry>;
-  referencePoint: Cartesian3 | null;
-}): PointAnnotationEntry | null => {
-  if (!referencePoint) return null;
-  return (
-    pointMeasurements.find(
-      (pointMeasurement) =>
-        Cartesian3.distance(pointMeasurement.geometryECEF, referencePoint) <=
-        REFERENCE_POINT_MATCH_EPSILON_METERS
-    ) ?? null
-  );
-};
-
 export const getDistanceAnnotationSlotsInput = ({
-  measurementMode,
+  annotationMode,
   measurement,
   activeMeasurementId,
   pointMeasurements,
@@ -161,18 +136,16 @@ export const getDistanceAnnotationSlotsInput = ({
   hasDistancePreviewAnchor,
   distanceRelations,
   pointMarkerBadgeByPointId,
-  getMeasurementOrderByType,
-  getNextMeasurementOrderByType,
+  getAnnotationOrderByType,
+  getNextAnnotationOrderByType,
   actions,
 }: GetDistanceMeasurementSlotsInputParams): DistanceMeasurementSlotsInputResult => {
-  const displayPoint = resolveAnnotationDisplayPoint({
-    measurement,
-  });
+  const displayPoint = resolvePointAnnotationDisplayPoint(measurement);
   const isDistanceMeasurement = isDistanceMeasurementEntry({
     measurement,
     distanceRelations,
   });
-  const isDistanceLivePreview = measurementMode === MEASUREMENT_MODE_DISTANCE;
+  const isDistanceLivePreview = annotationMode === ANNOTATION_TYPE_DISTANCE;
   const currentOrderToken = measurement
     ? pointMarkerBadgeByPointId[measurement.id]?.text ?? null
     : null;
@@ -244,7 +217,7 @@ export const getDistanceAnnotationSlotsInput = ({
           relationId: relation.id,
           label: resolvePointLabel({
             point: relatedPoint,
-            getMeasurementOrderByType,
+            getAnnotationOrderByType,
             fallbackPointOrderById,
             pointMarkerBadgeByPointId,
           }),
@@ -254,7 +227,7 @@ export const getDistanceAnnotationSlotsInput = ({
       })
       .filter((row): row is DistanceTableRow => row !== null);
 
-    const referencePointMeasurement = resolveReferencePointMeasurement({
+    const referencePointMeasurement = findReferencePointMeasurement({
       pointMeasurements,
       referencePoint,
     });
@@ -268,7 +241,7 @@ export const getDistanceAnnotationSlotsInput = ({
           id: `reference-${referencePointMeasurement.id}`,
           label: resolvePointLabel({
             point: referencePointMeasurement,
-            getMeasurementOrderByType,
+            getAnnotationOrderByType,
             fallbackPointOrderById,
             pointMarkerBadgeByPointId,
           }),
@@ -294,20 +267,17 @@ export const getDistanceAnnotationSlotsInput = ({
       kind: ANNOTATION_TYPE_DISTANCE,
       measurement,
       displayPoint,
-      relativeElevation: resolveRelativeElevation({
+      relativeElevation: resolvePointRelativeElevation(
         displayPoint,
-        referencePoint,
-      }),
-      isReference: isReferenceMeasurement({
-        measurement,
-        referencePoint,
-      }),
-      currentOrder: getMeasurementOrderByType(
+        referencePoint
+      ),
+      isReference: isPointReferenceMeasurement(measurement, referencePoint),
+      currentOrder: getAnnotationOrderByType(
         "distanceMeasure",
         measurement?.id
       ),
       currentOrderToken,
-      nextOrder: getNextMeasurementOrderByType("distanceMeasure"),
+      nextOrder: getNextAnnotationOrderByType("distanceMeasure"),
       isLivePreview: isDistanceLivePreview,
       hasPreviewAnchor: hasDistancePreviewAnchor,
       subtitleDirectDistanceMeters,

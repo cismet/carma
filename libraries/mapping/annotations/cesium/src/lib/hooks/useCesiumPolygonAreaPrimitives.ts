@@ -14,28 +14,39 @@ import {
   PrimitiveCollection,
 } from "@carma/cesium";
 
-import { type PlanarPolygonGroup } from "../types/AnnotationTypes";
+import {
+  ANNOTATION_TYPE_AREA_GROUND,
+  ANNOTATION_TYPE_AREA_PLANAR,
+  ANNOTATION_TYPE_AREA_VERTICAL,
+  type PlanarPolygonGroup,
+} from "../types/AnnotationTypes";
 import { createAnchoredCoplanarPolygonGeometry } from "../utils/createAnchoredCoplanarPolygonGeometry";
 import { type CesiumPolygonAreaPrimitivesOptions } from "./areaVisualizer.types";
 
 const POLYGON_FILL_ALPHA = 0.25;
 const POLYGON_FILL_SELECTED_ALPHA = 0.35;
+type PlanarAreaMeasurementType =
+  | typeof ANNOTATION_TYPE_AREA_GROUND
+  | typeof ANNOTATION_TYPE_AREA_PLANAR
+  | typeof ANNOTATION_TYPE_AREA_VERTICAL;
+
+const POLYGON_FILL_RGB_BY_MEASUREMENT_TYPE: Readonly<
+  Record<PlanarAreaMeasurementType, readonly [number, number, number]>
+> = {
+  [ANNOTATION_TYPE_AREA_VERTICAL]: [0.44, 0.66, 1.0],
+  [ANNOTATION_TYPE_AREA_GROUND]: [0.42, 0.74, 0.48],
+  [ANNOTATION_TYPE_AREA_PLANAR]: [0.94, 0.87, 0.57],
+};
 
 const getPolygonFillCesiumColor = (
-  surfaceType: PlanarPolygonGroup["surfaceType"],
+  group: Pick<PlanarPolygonGroup, "measurementKind">,
   isSelected: boolean
 ): Color => {
   const alpha = isSelected ? POLYGON_FILL_SELECTED_ALPHA : POLYGON_FILL_ALPHA;
-  if (surfaceType === "facade") return new Color(0.44, 0.66, 1.0, alpha);
-  if (surfaceType === "terrain") return new Color(0.42, 0.74, 0.48, alpha);
-  if (surfaceType === "footprint")
-    return new Color(
-      0.89,
-      0.91,
-      0.94,
-      isSelected ? POLYGON_FILL_SELECTED_ALPHA : POLYGON_FILL_ALPHA
-    );
-  return new Color(0.94, 0.87, 0.57, alpha);
+  const resolvedMeasurementType = group.measurementKind;
+  const [red, green, blue] =
+    POLYGON_FILL_RGB_BY_MEASUREMENT_TYPE[resolvedMeasurementType];
+  return new Color(red, green, blue, alpha);
 };
 
 export const useCesiumPolygonAreaPrimitives = ({
@@ -75,13 +86,8 @@ export const useCesiumPolygonAreaPrimitives = ({
         Cartesian3.clone(point)
       );
       const isSelected = group.id === focusedPolygonGroupId;
-      const fillColor = getPolygonFillCesiumColor(
-        group.surfaceType,
-        isSelected
-      );
-      const surfaceType = group.surfaceType ?? "roof";
-      const isGroundSurface =
-        surfaceType === "footprint" || surfaceType === "terrain";
+      const fillColor = getPolygonFillCesiumColor(group, isSelected);
+      const isGroundSurface = group.measurementKind === ANNOTATION_TYPE_AREA_GROUND;
 
       if (isGroundSurface) {
         const groundGeometry = new PolygonGeometry({

@@ -1,6 +1,5 @@
 import { createElement, useCallback, useEffect, useMemo, useRef } from "react";
 
-import { SceneTransforms, type Cartesian2, defined } from "@carma/cesium";
 import {
   computePointLabelLayout,
   POINT_LABEL_SELECTED_BACKGROUND_COLOR,
@@ -12,9 +11,9 @@ import {
 
 import {
   computePolygonCentroid2D,
-  type ScreenPoint2D,
 } from "../../distanceScreenSpace";
-import { type PlanarPolygonGroup } from "../../types/annotationTypes";
+import type { CssPixelPosition } from "@carma/units/types";
+import { type PlanarPolygonGroup } from "../../types/planarTypes";
 import { type PolygonAreaLabelOverlayBaseOptions } from "./areaLabelVisualizer.types";
 
 const POLYGON_PREVIEW_PADDING_PX = 6;
@@ -53,6 +52,11 @@ const POLYGON_AREA_LABEL_LAYOUT_CONFIG = resolvePointLabelLayoutConfig({
 
 const clampToRange = (value: number, min: number, max: number) =>
   Math.max(min, Math.min(max, value));
+
+const isFiniteScreenPoint = (
+  point: CssPixelPosition | null | undefined
+): point is CssPixelPosition =>
+  Boolean(point) && Number.isFinite(point.x) && Number.isFinite(point.y);
 
 const getPolygonStripeColor = (
   surfaceType: PlanarPolygonGroup["surfaceType"]
@@ -195,9 +199,12 @@ const createEmptyPolygonAreaLabelLayoutResult =
     hiddenByLayout: new Set<string>(),
   });
 
+const toMatrixCacheKey = (matrix: readonly number[]) =>
+  matrix.map((value) => value.toFixed(6)).join(",");
+
 export const useAreaLabelVisualizerBase = ({
   overlayPrefix,
-  scene,
+  viewProjector,
   polygonPreviewGroups,
   focusedPolygonGroupId,
   polygonAreaBadgeByGroupId,
@@ -207,10 +214,10 @@ export const useAreaLabelVisualizerBase = ({
     useLabelOverlay();
   const overlayIdsRef = useRef<string[]>([]);
   const areaLabelLayoutCacheRef = useRef<{
-    frameNumber: number | null;
+    cacheKey: string | null;
     result: PolygonAreaLabelLayoutResult;
   }>({
-    frameNumber: null,
+    cacheKey: null,
     result: createEmptyPolygonAreaLabelLayoutResult(),
   });
   const relevantGroups = useMemo(
@@ -223,29 +230,19 @@ export const useAreaLabelVisualizerBase = ({
     []
   );
   const computeAreaLabelLayoutResult = useCallback(() => {
-    if (!scene || scene.isDestroyed()) {
+    const viewportState = viewProjector.getViewState();
+    if (!viewportState) {
       return createEmptyPolygonAreaLabelLayoutResult();
     }
 
-    const viewportWidth = Math.max(
-      1,
-      scene.canvas.clientWidth || scene.canvas.width || 1
-    );
-    const viewportHeight = Math.max(
-      1,
-      scene.canvas.clientHeight || scene.canvas.height || 1
-    );
+    const viewportWidth = Math.max(1, viewportState.width);
+    const viewportHeight = Math.max(1, viewportState.height);
 
     const layoutPoints: LayoutPointInput[] = [];
     relevantGroups.forEach(({ group, vertexPoints }, index) => {
       const screenPoints = vertexPoints
-        .map((point) => SceneTransforms.worldToWindowCoordinates(scene, point))
-        .filter(
-          (point): point is Cartesian2 =>
-            defined(point) &&
-            Number.isFinite(point.x) &&
-            Number.isFinite(point.y)
-        );
+        .map((point) => viewProjector.projectWorldToScreen(point))
+        .filter(isFiniteScreenPoint);
       if (screenPoints.length < 3) return;
 
       const centroidAnchor = computePolygonCentroid2D(screenPoints);
@@ -279,7 +276,7 @@ export const useAreaLabelVisualizerBase = ({
       points: layoutPoints,
       viewportWidth,
       viewportHeight,
-      cameraPitch: scene.camera.pitch,
+      cameraPitch: viewportState.cameraPitch,
       config: POLYGON_AREA_LABEL_LAYOUT_CONFIG,
     });
 
@@ -287,27 +284,41 @@ export const useAreaLabelVisualizerBase = ({
       collapsedToCompact: layoutResult.collapsedToCompact,
       hiddenByLayout: layoutResult.hiddenByLayout,
     };
-  }, [focusedPolygonGroupId, polygonAreaBadgeByGroupId, relevantGroups, scene]);
-  const getSceneFrameNumber = useCallback(() => {
-    const frameNumber = (
-      scene as unknown as { frameState?: { frameNumber?: number } } | null
-    )?.frameState?.frameNumber;
-    return typeof frameNumber === "number" ? frameNumber : null;
-  }, [scene]);
+  }, [
+    focusedPolygonGroupId,
+    polygonAreaBadgeByGroupId,
+    viewProjector,
+    relevantGroups,
+  ]);
+
+  const getViewCacheKey = useCallback(() => {
+    const frameNumber = viewProjector.getViewState()?.frameNumber ?? null;
+    if (frameNumber !== null) {
+      return `frame:${frameNumber}`;
+    }
+
+    const viewProjectionMatrix = viewProjector.getViewProjectionMatrix();
+    if (!viewProjectionMatrix) {
+      return null;
+    }
+
+    return `matrix:${toMatrixCacheKey(viewProjectionMatrix)}`;
+  }, [viewProjector]);
+
   const getAreaLabelLayoutResult = useCallback(() => {
-    const frameNumber = getSceneFrameNumber();
+    const cacheKey = getViewCacheKey();
     const cached = areaLabelLayoutCacheRef.current;
-    if (frameNumber !== null && cached.frameNumber === frameNumber) {
+    if (cacheKey !== null && cached.cacheKey === cacheKey) {
       return cached.result;
     }
 
     const result = computeAreaLabelLayoutResult();
     areaLabelLayoutCacheRef.current = {
-      frameNumber,
+      cacheKey,
       result,
     };
     return result;
-  }, [computeAreaLabelLayoutResult, getSceneFrameNumber]);
+  }, [computeAreaLabelLayoutResult, getViewCacheKey]);
 
   useEffect(() => {
     overlayIdsRef.current.forEach((overlayId) => {
@@ -315,7 +326,7 @@ export const useAreaLabelVisualizerBase = ({
     });
     overlayIdsRef.current = [];
 
-    if (!scene || scene.isDestroyed()) {
+    if (!viewProjector.getViewState()) {
       return;
     }
 
@@ -329,18 +340,12 @@ export const useAreaLabelVisualizerBase = ({
         zIndex: 4,
         content: polygonPreviewContent(group),
         updatePosition: (elementDiv) => {
-          if (!scene || scene.isDestroyed()) return false;
+          const viewportState = viewProjector.getViewState();
+          if (!viewportState) return false;
 
           const screenPoints = vertexPoints
-            .map((point) =>
-              SceneTransforms.worldToWindowCoordinates(scene, point)
-            )
-            .filter(
-              (point): point is Cartesian2 =>
-                defined(point) &&
-                Number.isFinite(point.x) &&
-                Number.isFinite(point.y)
-            );
+            .map((point) => viewProjector.projectWorldToScreen(point))
+            .filter(isFiniteScreenPoint);
 
           if (screenPoints.length < 3) return false;
 
@@ -359,11 +364,11 @@ export const useAreaLabelVisualizerBase = ({
           );
           const canvasWidth = Math.max(
             1,
-            scene.canvas.clientWidth || scene.canvas.width || 1
+            viewportState.width
           );
           const canvasHeight = Math.max(
             1,
-            scene.canvas.clientHeight || scene.canvas.height || 1
+            viewportState.height
           );
 
           if (
@@ -375,10 +380,13 @@ export const useAreaLabelVisualizerBase = ({
             return false;
           }
 
-          const localPoints = screenPoints.map((point) => ({
-            x: point.x - minX + POLYGON_PREVIEW_PADDING_PX,
-            y: point.y - minY + POLYGON_PREVIEW_PADDING_PX,
-          }));
+          const localPoints = screenPoints.map(
+            (point) =>
+              ({
+                x: point.x - minX + POLYGON_PREVIEW_PADDING_PX,
+                y: point.y - minY + POLYGON_PREVIEW_PADDING_PX,
+              } as CssPixelPosition)
+          );
           const pointsAttr = localPoints
             .map((point) => `${point.x},${point.y}`)
             .join(" ");
@@ -460,10 +468,10 @@ export const useAreaLabelVisualizerBase = ({
             if (!centroidAnchor) {
               areaPillEl.style.display = "none";
             } else {
-              const clampedAnchor: ScreenPoint2D = {
+              const clampedAnchor = {
                 x: clampToRange(centroidAnchor.x, 0, width),
                 y: clampToRange(centroidAnchor.y, 0, height),
-              };
+              } as CssPixelPosition;
               areaPillEl.style.display = "inline-flex";
               areaPillEl.style.left = `${clampedAnchor.x}px`;
               areaPillEl.style.top = `${clampedAnchor.y}px`;
@@ -517,7 +525,7 @@ export const useAreaLabelVisualizerBase = ({
     relevantGroups,
     removeLabelOverlayElement,
     resolveAreaLabelText,
-    scene,
+    viewProjector,
     overlayPrefix,
   ]);
 };

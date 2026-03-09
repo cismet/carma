@@ -1,6 +1,5 @@
 import type { MouseEvent as ReactMouseEvent, ReactNode } from "react";
 
-import type { PointAnnotationEntry } from "@carma-mapping/annotations/cesium";
 import { Tooltip } from "antd";
 import {
   faArrowsDownToLine,
@@ -14,6 +13,7 @@ import Icon from "react-cismap/commons/Icon";
 import {
   formatNumber,
   getCustomPointAnnotationName,
+  type PointAnnotationEntry,
   toAlphabeticSequence,
 } from "@carma-mapping/annotations/core";
 import { formatCoordinateWithHemisphere } from "./AnnotationInfoBox.formatters";
@@ -91,7 +91,7 @@ const renderAnnotationActions = (
       icon={measurement.hidden ? faEyeSlash : faEye}
       onClick={(event) => {
         event.stopPropagation();
-        actions.updateMeasurementById(measurement.id, {
+        actions.updateAnnotationById(measurement.id, {
           hidden: !measurement.hidden,
         });
       }}
@@ -102,7 +102,7 @@ const renderAnnotationActions = (
       icon={measurement.locked ? faLock : faLockOpen}
       onClick={(event) => {
         event.stopPropagation();
-        actions.toggleMeasurementLockById(measurement.id);
+        actions.toggleAnnotationLockById(measurement.id);
       }}
       dataTestId="carma-toggle-measurement-lock-btn"
     />
@@ -122,7 +122,7 @@ const renderAnnotationActions = (
       icon={faTrashCan}
       onClick={(event) => {
         event.stopPropagation();
-        actions.deleteMeasurementById(measurement.id);
+        actions.deleteAnnotationById(measurement.id);
       }}
       dataTestId="carma-delete-measurement-btn"
     />
@@ -171,11 +171,11 @@ export const renderEditableAnnotationSubtitle = ({
           autoFocusTrigger={autoFocusTrigger}
           onChange={(nextTitle) => {
             if (!measurement) return;
-            actions.updateMeasurementNameById(measurement.id, nextTitle);
+            actions.updateAnnotationNameById(measurement.id, nextTitle);
           }}
           onCommit={(nextTitle) => {
             if (!measurement) return;
-            actions.updateMeasurementNameById(measurement.id, nextTitle);
+            actions.updateAnnotationNameById(measurement.id, nextTitle);
             onTitleCommit?.(nextTitle);
           }}
         />

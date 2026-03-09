@@ -1,9 +1,5 @@
 import { createElement, type ReactElement } from "react";
-
-type ScreenPoint2D = {
-  x: number;
-  y: number;
-};
+import type { CssPixelPosition } from "@carma/units/types";
 
 const RIGHT_ANGLE_PATH_SELECTOR = '[data-right-angle-corner-path="true"]';
 const RIGHT_ANGLE_DOT_SELECTOR = '[data-right-angle-corner-dot="true"]';
@@ -61,7 +57,7 @@ export const applyRightAngleCornerOverlayLayout = ({
 }: {
   elementDiv: HTMLElement;
   pathData: string;
-  dotScreen: ScreenPoint2D;
+  dotScreen: CssPixelPosition;
   minX: number;
   minY: number;
   width: number;
@@ -143,7 +139,7 @@ export const applyMidpointMarkerOverlayLayout = ({
   clickable,
 }: {
   elementDiv: HTMLElement;
-  center: ScreenPoint2D;
+  center: CssPixelPosition;
   angleDeg: number;
   hitTargetPx: number;
   clickable: boolean;

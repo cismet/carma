@@ -2,6 +2,7 @@ import { useGroundAreaLabelVisualizer } from "@carma-mapping/annotations/core";
 
 import { type GroundAreaVisualizerOptions } from "./areaVisualizer.types";
 import { useCesiumPolygonAreaPrimitives } from "./useCesiumPolygonAreaPrimitives";
+import { useCesiumAreaLabelViewProjector } from "./utils/useCesiumAreaLabelViewProjector";
 
 export const useCesiumGroundAreaVisualizer = (
   options: GroundAreaVisualizerOptions
@@ -12,9 +13,10 @@ export const useCesiumGroundAreaVisualizer = (
     polygonAreaBadgeByGroupId,
     groundPolygonPreviewGroups,
   } = options;
+  const viewProjector = useCesiumAreaLabelViewProjector(scene);
 
   useGroundAreaLabelVisualizer({
-    scene,
+    viewProjector,
     focusedPolygonGroupId,
     polygonAreaBadgeByGroupId,
     groundPolygonPreviewGroups,

@@ -24,7 +24,7 @@ export type UseAnnotationCoreStateParams<
   initialShowLabels?: boolean;
   isSelectableMeasurementId?: (
     measurementId: string,
-    measurements: ReadonlyArray<TMeasurement>
+    annotations: ReadonlyArray<TMeasurement>
   ) => boolean;
 };
 
@@ -32,10 +32,10 @@ export type AnnotationCoreState<
   TMode extends string,
   TMeasurement extends AnnotationCoreEntry
 > = {
-  measurementMode: TMode;
-  setMeasurementMode: Dispatch<SetStateAction<TMode>>;
-  measurements: TMeasurement[];
-  setMeasurements: Dispatch<SetStateAction<TMeasurement[]>>;
+  annotationMode: TMode;
+  setAnnotationMode: Dispatch<SetStateAction<TMode>>;
+  annotations: TMeasurement[];
+  setAnnotations: Dispatch<SetStateAction<TMeasurement[]>>;
   selectedMeasurementId: string | null;
   setSelectedMeasurementId: Dispatch<SetStateAction<string | null>>;
   selectedMeasurementIds: string[];
@@ -44,8 +44,8 @@ export type AnnotationCoreState<
   selectMeasurementById: (id: string | null) => void;
   selectMeasurementIds: (ids: string[], additive?: boolean) => void;
   clearSelection: () => void;
-  updateMeasurementNameById: (id: string, name: string) => void;
-  toggleMeasurementLockById: (id: string) => void;
+  updateAnnotationNameById: (id: string, name: string) => void;
+  toggleAnnotationLockById: (id: string) => void;
   showLabels: boolean;
   setShowLabels: Dispatch<SetStateAction<boolean>>;
 };
@@ -64,8 +64,8 @@ export const useAnnotationCoreState = <
   TMode,
   TMeasurement
 > => {
-  const [measurementMode, setMeasurementMode] = useState<TMode>(initialMode);
-  const [measurements, setMeasurements] =
+  const [annotationMode, setAnnotationMode] = useState<TMode>(initialMode);
+  const [annotations, setAnnotations] =
     useState<TMeasurement[]>(initialMeasurements);
   const [selectedMeasurementId, setSelectedMeasurementId] = useState<
     string | null
@@ -81,17 +81,17 @@ export const useAnnotationCoreState = <
   }, [selectedMeasurementId]);
 
   const measurementIdSet = useMemo(
-    () => new Set(measurements.map((measurement) => measurement.id)),
-    [measurements]
+    () => new Set(annotations.map((measurement) => measurement.id)),
+    [annotations]
   );
 
   const isSelectableId = useCallback(
     (id: string) => {
       if (!measurementIdSet.has(id)) return false;
       if (!isSelectableMeasurementId) return true;
-      return isSelectableMeasurementId(id, measurements);
+      return isSelectableMeasurementId(id, annotations);
     },
-    [isSelectableMeasurementId, measurementIdSet, measurements]
+    [isSelectableMeasurementId, measurementIdSet, annotations]
   );
 
   useEffect(() => {
@@ -149,9 +149,9 @@ export const useAnnotationCoreState = <
     setSelectedMeasurementIds((prev) => (prev.length === 0 ? prev : []));
   }, []);
 
-  const updateMeasurementNameById = useCallback((id: string, name: string) => {
+  const updateAnnotationNameById = useCallback((id: string, name: string) => {
     const trimmedName = name.trim();
-    setMeasurements((prev) => {
+    setAnnotations((prev) => {
       let hasChanged = false;
       const next = prev.map((measurement) => {
         if (measurement.id !== id) return measurement;
@@ -167,8 +167,8 @@ export const useAnnotationCoreState = <
     });
   }, []);
 
-  const toggleMeasurementLockById = useCallback((id: string) => {
-    setMeasurements((prev) => {
+  const toggleAnnotationLockById = useCallback((id: string) => {
+    setAnnotations((prev) => {
       let hasChanged = false;
       const next = prev.map((measurement) => {
         if (measurement.id !== id) return measurement;
@@ -183,10 +183,10 @@ export const useAnnotationCoreState = <
   }, []);
 
   return {
-    measurementMode,
-    setMeasurementMode,
-    measurements,
-    setMeasurements,
+    annotationMode,
+    setAnnotationMode,
+    annotations,
+    setAnnotations,
     selectedMeasurementId,
     setSelectedMeasurementId,
     selectedMeasurementIds,
@@ -195,8 +195,8 @@ export const useAnnotationCoreState = <
     selectMeasurementById,
     selectMeasurementIds,
     clearSelection,
-    updateMeasurementNameById,
-    toggleMeasurementLockById,
+    updateAnnotationNameById,
+    toggleAnnotationLockById,
     showLabels,
     setShowLabels,
   };

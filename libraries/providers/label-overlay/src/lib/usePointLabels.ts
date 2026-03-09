@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useRef } from "react";
+import type { CssPixelPosition } from "@carma/units/types";
 
 import { useLabelOverlay } from "./useLabelOverlay";
 import {
@@ -9,7 +10,7 @@ import {
 
 export interface PointLabelData {
   id: string;
-  getCanvasPosition?: () => { x: number; y: number } | null;
+  getCanvasPosition?: () => CssPixelPosition | null;
   fontSize?: string;
   fontFamily?: string;
   fontWeight?: string | number;

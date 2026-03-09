@@ -61,7 +61,7 @@ const requestRenderWithOptions = (
 
 const initializeWidget = (
   container: HTMLDivElement,
-  useBrowserRecommendedResolution = true
+  useBrowserRecommendedResolution = false
 ): CesiumWidget => {
   const widget = createMinimalCesiumWidget(container, {
     useBrowserRecommendedResolution,

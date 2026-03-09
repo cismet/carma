@@ -17,6 +17,7 @@ import {
   useLabelOverlay,
   useLineVisualizers,
 } from "@carma-providers/label-overlay";
+import type { CssPixelPosition } from "@carma/units/types";
 
 const FACADE_CORNER_OVERLAY_ID_PREFIX = "distance-facade-corner";
 const FACADE_CORNER_MARKER_SIZE_PX = 10;
@@ -72,8 +73,8 @@ export const useCesiumPolylineVisualizer = ({
           );
           if (!defined(start) || !defined(end)) return null;
           return {
-            start: { x: start.x, y: start.y },
-            end: { x: end.x, y: end.y },
+            start: { x: start.x, y: start.y } as CssPixelPosition,
+            end: { x: end.x, y: end.y } as CssPixelPosition,
           };
         },
         stroke: POLYGON_PREVIEW_STROKE,

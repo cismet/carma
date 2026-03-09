@@ -16,7 +16,7 @@ type UseMeasurementEntryMutationsParams<
   TMeasurement extends BaseAnnotationEntry,
   TAppearance extends AnnotationLabelAppearanceLike
 > = {
-  setMeasurements: Dispatch<SetStateAction<TMeasurement[]>>;
+  setAnnotations: Dispatch<SetStateAction<TMeasurement[]>>;
   isLabelAppearanceTarget: (measurement: TMeasurement) => boolean;
   getLabelAppearance: (measurement: TMeasurement) => TAppearance | undefined;
   applyLabelAppearance: (
@@ -32,17 +32,17 @@ export const useAnnotationEntryMutations = <
   TMeasurement extends BaseAnnotationEntry,
   TAppearance extends AnnotationLabelAppearanceLike
 >({
-  setMeasurements,
+  setAnnotations,
   isLabelAppearanceTarget,
   getLabelAppearance,
   applyLabelAppearance,
   normalizeLabelAppearance,
 }: UseMeasurementEntryMutationsParams<TMeasurement, TAppearance>) => {
-  const updateMeasurementNameById = useCallback(
+  const updateAnnotationNameById = useCallback(
     (id: string, name: string) => {
       const nextName = name.trim();
 
-      setMeasurements((prev) => {
+      setAnnotations((prev) => {
         const hasChanged = prev.some(
           (measurement) =>
             measurement.id === id && (measurement.name ?? "") !== nextName
@@ -59,14 +59,14 @@ export const useAnnotationEntryMutations = <
         );
       });
     },
-    [setMeasurements]
+    [setAnnotations]
   );
 
   const updateLabelAppearanceById = useCallback(
     (id: string, appearance: TAppearance | undefined) => {
       const normalizedAppearance = normalizeLabelAppearance(appearance);
 
-      setMeasurements((prev) => {
+      setAnnotations((prev) => {
         let hasChanged = false;
         const next = prev.map((measurement) => {
           if (!isLabelAppearanceTarget(measurement) || measurement.id !== id) {
@@ -95,13 +95,13 @@ export const useAnnotationEntryMutations = <
       getLabelAppearance,
       isLabelAppearanceTarget,
       normalizeLabelAppearance,
-      setMeasurements,
+      setAnnotations,
     ]
   );
 
-  const toggleMeasurementLockById = useCallback(
+  const toggleAnnotationLockById = useCallback(
     (id: string) => {
-      setMeasurements((prev) => {
+      setAnnotations((prev) => {
         let hasChanged = false;
         const next = prev.map((measurement) => {
           if (measurement.id !== id) return measurement;
@@ -114,12 +114,12 @@ export const useAnnotationEntryMutations = <
         return hasChanged ? next : prev;
       });
     },
-    [setMeasurements]
+    [setAnnotations]
   );
 
   return {
-    updateMeasurementNameById,
+    updateAnnotationNameById,
     updateLabelAppearanceById,
-    toggleMeasurementLockById,
+    toggleAnnotationLockById,
   };
 };

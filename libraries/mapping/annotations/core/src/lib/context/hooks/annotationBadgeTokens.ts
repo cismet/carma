@@ -1,4 +1,4 @@
-import { toAlphabeticSequence } from "../../utils/annotationTokens";
+import { toAlphabeticSequence } from "../../utils/alphabeticSequence";
 import {
   ANNOTATION_TYPE_AREA_GROUND,
   ANNOTATION_TYPE_DISTANCE,
@@ -9,7 +9,7 @@ import {
   ANNOTATION_TYPE_AREA_VERTICAL,
   type AnnotationShortLabelKind,
 } from "../../types/annotationTypes";
-export { toAlphabeticSequence } from "../../utils/annotationTokens";
+export { toAlphabeticSequence } from "../../utils/alphabeticSequence";
 export type { AnnotationShortLabelKind } from "../../types/annotationTypes";
 
 export type AnnotationShortLabelCounterStyle = "numeric" | "alphabetic";

@@ -1,6 +1,6 @@
 import type { PointLabelAttach } from "../components/PointLabel";
-
-export type ScreenPoint = { x: number; y: number };
+import type { CssPixelPosition } from "@carma/units/types";
+export type { CssPixelPosition } from "@carma/units/types";
 
 export type Rect = {
   left: number;
@@ -67,7 +67,7 @@ export type PointLabelLayoutConfigOverrides = Partial<
 
 export type LayoutPointInput = {
   id: string;
-  anchor: ScreenPoint;
+  anchor: CssPixelPosition;
   text: string;
   compactText?: string;
   index: number;

@@ -1,11 +1,13 @@
-import type { PointAnnotationEntry } from "@carma-mapping/annotations/cesium";
-import { ANNOTATION_TYPE_LABEL } from "@carma-mapping/annotations/core";
+import {
+  ANNOTATION_TYPE_LABEL,
+  type PointAnnotationEntry,
+} from "@carma-mapping/annotations/core";
 
 import type {
   LabelAnnotationSlotsInput,
   AnnotationSlotActions,
 } from "./annotationInfoBoxSlots.types";
-import { resolveAnnotationDisplayPoint } from "./annotationDisplayPoint";
+import { resolvePointAnnotationDisplayPoint } from "./utils/pointAnnotationDisplay";
 
 const PURE_LABEL_MIN_FONT_SIZE_PX = 10;
 const PURE_LABEL_MAX_FONT_SIZE_PX = 48;
@@ -93,9 +95,7 @@ export const getLabelAnnotationSlotsInput = ({
     slotsInput: {
       kind: ANNOTATION_TYPE_LABEL,
       measurement: displayMeasurement,
-      displayPoint: resolveAnnotationDisplayPoint({
-        measurement: displayMeasurement,
-      }),
+      displayPoint: resolvePointAnnotationDisplayPoint(displayMeasurement),
       relativeElevation: null,
       isReference: false,
       isLivePreview: false,

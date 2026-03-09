@@ -108,7 +108,7 @@ const INFOBOX_SURFACE_BG = "rgba(245, 245, 245, 0.8)";
 const INFOBOX_SURFACE_BLUR = "blur(2px)";
 const TOOLBOX_SURFACE_RADIUS_PX = 4;
 const SECONDARY_TOOLBAR_HELP_STORAGE_KEY =
-  "carma.measurements.secondary-toolbar-help-collapsed.v1";
+  "carma.annotations.secondary-toolbar-help-collapsed.v1";
 
 type AreaToolType =
   | typeof ANNOTATION_TYPE_AREA_GROUND

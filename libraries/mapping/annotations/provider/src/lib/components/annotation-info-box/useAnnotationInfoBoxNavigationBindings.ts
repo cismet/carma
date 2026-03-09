@@ -1,21 +1,21 @@
 import { useMemo } from "react";
 
-import type {
-  AnnotationEntry,
-  AnnotationMode,
-  PointAnnotationEntry,
-} from "@carma-mapping/annotations/cesium";
-import { useCesiumAnnotations } from "@carma-mapping/annotations/cesium";
 import {
   ANNOTATION_TYPE_AREA_GROUND,
   ANNOTATION_TYPE_AREA_PLANAR,
   ANNOTATION_TYPE_AREA_VERTICAL,
   ANNOTATION_TYPE_LABEL,
   ANNOTATION_TYPE_POLYLINE,
-  useAnnotationMeasurements,
+  useAnnotations,
   useAnnotationSelection,
 } from "@carma-mapping/annotations/core";
+import type {
+  AnnotationEntry,
+  AnnotationMode,
+  PointAnnotationEntry,
+} from "@carma-mapping/annotations/core";
 import type { AnnotationSlotKind } from "./getAnnotationInfoBoxSlots";
+import { useAnnotationsAdapter } from "../../context/AnnotationsAdapterProvider";
 
 type UseAnnotationInfoBoxNavigationBindingsParams = {
   annotationType: AnnotationSlotKind;
@@ -36,7 +36,7 @@ export const useAnnotationInfoBoxNavigationBindings = ({
   currentMeasurementId,
   labelMeasurements,
 }: UseAnnotationInfoBoxNavigationBindingsParams): AnnotationInfoBoxNavigationBindings => {
-  const { getMeasurementsForNavigation } = useAnnotationMeasurements<
+  const { getAnnotationsForNavigation } = useAnnotations<
     AnnotationMode,
     AnnotationEntry
   >();
@@ -48,7 +48,7 @@ export const useAnnotationInfoBoxNavigationBindings = ({
     selectPlanarPolygonGroupById,
     flyToMeasurementById,
     flyToAllMeasurements,
-  } = useCesiumAnnotations();
+  } = useAnnotationsAdapter();
 
   const navigationMeasurements = useMemo(() => {
     if (annotationType === ANNOTATION_TYPE_LABEL) {
@@ -62,10 +62,10 @@ export const useAnnotationInfoBoxNavigationBindings = ({
     ) {
       return planarPolygonGroups.map((group) => ({ id: group.id }));
     }
-    return getMeasurementsForNavigation().map((entry) => ({ id: entry.id }));
+    return getAnnotationsForNavigation().map((entry) => ({ id: entry.id }));
   }, [
     annotationType,
-    getMeasurementsForNavigation,
+    getAnnotationsForNavigation,
     labelMeasurements,
     planarPolygonGroups,
   ]);

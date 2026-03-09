@@ -1,23 +1,25 @@
 import { useMemo } from "react";
 
 import {
-  useCesiumAnnotations,
   type AnnotationEntry,
   type AnnotationMode,
-} from "@carma-mapping/annotations/cesium";
-import { useAnnotationMeasurements } from "@carma-mapping/annotations/core";
+  useAnnotations,
+} from "@carma-mapping/annotations/core";
 import type { AnnotationSlotActions } from "./getAnnotationInfoBoxSlots";
+import { useAnnotationsAdapter } from "../../context/AnnotationsAdapterProvider";
 
 export const useAnnotationInfoBoxSlotActions = (): AnnotationSlotActions => {
   const {
-    updateMeasurementNameById,
-    updateMeasurementById,
-    deleteMeasurementById,
-    toggleMeasurementLockById,
+    annotations,
+    setAnnotations,
+    updateAnnotationNameById,
+    updateAnnotationById,
+    deleteAnnotationById,
+    toggleAnnotationLockById,
     updatePointLabelAppearanceById,
     confirmPointLabelInputById,
-    clearMeasurementsByIds,
-  } = useAnnotationMeasurements<AnnotationMode, AnnotationEntry>();
+    clearAnnotationsByIds,
+  } = useAnnotations<AnnotationMode, AnnotationEntry>();
   const {
     flyToMeasurementById,
     setReferencePoint,
@@ -25,15 +27,52 @@ export const useAnnotationInfoBoxSlotActions = (): AnnotationSlotActions => {
     setPlanarPolygonGroups,
     updatePlanarPolygonNameById,
     selectPlanarPolygonGroupById,
-  } = useCesiumAnnotations();
+  } = useAnnotationsAdapter();
 
   return useMemo<AnnotationSlotActions>(
     () => ({
-      updateMeasurementNameById,
-      updateMeasurementById,
-      deleteMeasurementById,
-      toggleMeasurementLockById,
+      updateAnnotationNameById,
+      updateAnnotationById,
+      deleteAnnotationById,
+      toggleAnnotationLockById,
       flyToMeasurementById,
+      flyToPlanarPolygonGroupById: (groupId: string) => {
+        const group = planarPolygonGroups.find((entry) => entry.id === groupId);
+        const firstVertexId = group?.vertexPointIds[0];
+        if (!firstVertexId) return;
+        flyToMeasurementById(firstVertexId);
+      },
+      togglePlanarPolygonGroupVisibilityById: (groupId: string) => {
+        setPlanarPolygonGroups((prev) =>
+          prev.map((group) =>
+            group.id === groupId
+              ? {
+                  ...group,
+                  hidden: !group.hidden,
+                }
+              : group
+          )
+        );
+      },
+      togglePlanarPolygonGroupLockById: (groupId: string) => {
+        const group = planarPolygonGroups.find((entry) => entry.id === groupId);
+        if (!group || group.vertexPointIds.length === 0) return;
+        const vertexIdSet = new Set(group.vertexPointIds);
+        const shouldLock = group.vertexPointIds.some((vertexId) => {
+          const vertex = annotations.find((entry) => entry.id === vertexId);
+          return !vertex?.locked;
+        });
+        setAnnotations((prev) =>
+          prev.map((entry) =>
+            vertexIdSet.has(entry.id)
+              ? {
+                  ...entry,
+                  locked: shouldLock,
+                }
+              : entry
+          )
+        );
+      },
       setReferencePoint,
       confirmPointLabelInputById,
       updatePointLabelAppearanceById,
@@ -57,22 +96,24 @@ export const useAnnotationInfoBoxSlotActions = (): AnnotationSlotActions => {
           (vertexId): vertexId is string => Boolean(vertexId)
         );
         if (vertexIds.length === 0) return;
-        clearMeasurementsByIds(vertexIds);
+        clearAnnotationsByIds(vertexIds);
         selectPlanarPolygonGroupById(null);
       },
     }),
     [
-      clearMeasurementsByIds,
+      annotations,
+      clearAnnotationsByIds,
       confirmPointLabelInputById,
-      deleteMeasurementById,
+      deleteAnnotationById,
       flyToMeasurementById,
       planarPolygonGroups,
       selectPlanarPolygonGroupById,
+      setAnnotations,
       setPlanarPolygonGroups,
       setReferencePoint,
-      toggleMeasurementLockById,
-      updateMeasurementById,
-      updateMeasurementNameById,
+      toggleAnnotationLockById,
+      updateAnnotationById,
+      updateAnnotationNameById,
       updatePlanarPolygonNameById,
       updatePointLabelAppearanceById,
     ]

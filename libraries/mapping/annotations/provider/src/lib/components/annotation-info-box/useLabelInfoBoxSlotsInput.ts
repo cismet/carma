@@ -5,8 +5,8 @@ import {
   type AnnotationEntry,
   type AnnotationMode,
   type PointAnnotationEntry,
-} from "@carma-mapping/annotations/cesium";
-import { useAnnotationMeasurements } from "@carma-mapping/annotations/core";
+  useAnnotations,
+} from "@carma-mapping/annotations/core";
 import type { LabelAnnotationSlotsInput } from "./getAnnotationInfoBoxSlots";
 import { getLabelAnnotationSlotsInput } from "./getLabelAnnotationSlotsInput";
 import { useAnnotationInfoBoxDisplaySelection } from "./useAnnotationInfoBoxDisplaySelection";
@@ -20,13 +20,13 @@ export type LabelInfoBoxSlotsInputState = {
 
 export const useLabelInfoBoxSlotsInput = (): LabelInfoBoxSlotsInputState => {
   const { displayMeasurement } = useAnnotationInfoBoxDisplaySelection();
-  const { measurementsByType, labelInputPromptPointId } =
-    useAnnotationMeasurements<AnnotationMode, AnnotationEntry>();
+  const { annotationsByType, labelInputPromptPointId } =
+    useAnnotations<AnnotationMode, AnnotationEntry>();
   const actions = useAnnotationInfoBoxSlotActions();
 
   const labelMeasurements = useMemo(
-    () => measurementsByType("pointLabel").filter(isPointAnnotationEntry),
-    [measurementsByType]
+    () => annotationsByType("pointLabel").filter(isPointAnnotationEntry),
+    [annotationsByType]
   );
 
   const labelState = useMemo(

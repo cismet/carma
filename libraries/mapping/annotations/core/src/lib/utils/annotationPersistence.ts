@@ -1,19 +1,14 @@
-import type {
-  AnnotationPersistenceEnvelopeV2Base,
-  BaseAnnotationEntry,
-  PointDistanceRelation,
-  PlanarPolygonGroup,
-} from "../types/annotationTypes";
+import type { BaseAnnotationEntry } from "../types/annotationEntry";
+import type { AnnotationPersistenceEnvelopeV2Base } from "../types/annotationPersistenceTypes";
+import type { PointDistanceRelation } from "../types/distanceRelation";
 
 type PersistedAnnotationEntry = BaseAnnotationEntry<string>;
-type AnnotationCollection<TEntry extends PersistedAnnotationEntry> = TEntry[];
-type AnnotationPersistenceEnvelopeV2<TEntry extends PersistedAnnotationEntry> =
+type PersistedAnnotationEnvelopeV2<TEntry extends PersistedAnnotationEntry> =
   AnnotationPersistenceEnvelopeV2Base<TEntry>;
 
-const DEFAULT_STORAGE_KEY = "cesium-measurements";
-const DISTANCE_RELATIONS_STORAGE_SUFFIX = ":distance-relations";
-const PLANAR_POLYGONS_STORAGE_SUFFIX = ":planar-polygons";
-const NORMALIZED_STORAGE_SUFFIX = ":normalized-v2";
+const DEFAULT_STORAGE_KEY = "cesium-annotations";
+const LEGACY_DEFAULT_STORAGE_KEY = "cesium-measurements";
+const LEGACY_PERSISTENCE_STORAGE_SUFFIX = ":normalized-v2";
 
 const getMeasurementEdgeId = (pointAId: string, pointBId: string) => {
   const [left, right] = [pointAId, pointBId].sort((a, b) => a.localeCompare(b));
@@ -30,170 +25,70 @@ const normalizeDistanceRelation = (
       : getMeasurementEdgeId(relation.pointAId, relation.pointBId),
 });
 
-export const saveMeasurements = (
+const getStorageKey = (storageKey: string | undefined) =>
+  storageKey ?? DEFAULT_STORAGE_KEY;
+
+const getLegacyStorageKey = (storageKey: string | undefined) =>
+  storageKey ?? LEGACY_DEFAULT_STORAGE_KEY;
+
+const getLegacyPersistenceStorageKey = (storageKey: string | undefined) =>
+  `${getStorageKey(storageKey)}${LEGACY_PERSISTENCE_STORAGE_SUFFIX}`;
+
+export const saveAnnotationPersistenceState = (
   storageKey: string | undefined,
-  measurements: AnnotationCollection<PersistedAnnotationEntry>
+  state: PersistedAnnotationEnvelopeV2<PersistedAnnotationEntry>
 ): void => {
-  const key = storageKey ?? DEFAULT_STORAGE_KEY;
-  try {
-    localStorage.setItem(key, JSON.stringify(measurements));
-  } catch (error) {
-    console.warn("Failed to save measurements to localStorage:", error);
-  }
-};
-
-export const loadMeasurements = <TEntry extends PersistedAnnotationEntry>(
-  storageKey: string | undefined
-): AnnotationCollection<TEntry> | null => {
-  const key = storageKey ?? DEFAULT_STORAGE_KEY;
-  try {
-    const saved = localStorage.getItem(key);
-    if (!saved) {
-      return null;
-    }
-
-    return JSON.parse(saved) as AnnotationCollection<TEntry>;
-  } catch (error) {
-    console.warn("Failed to load measurements from localStorage:", error);
-  }
-
-  return null;
-};
-
-export const saveNormalizedMeasurements = (
-  storageKey: string | undefined,
-  state: AnnotationPersistenceEnvelopeV2<PersistedAnnotationEntry>
-): void => {
-  const key = `${
-    storageKey ?? DEFAULT_STORAGE_KEY
-  }${NORMALIZED_STORAGE_SUFFIX}`;
+  const key = getStorageKey(storageKey);
   try {
     localStorage.setItem(key, JSON.stringify(state));
   } catch (error) {
-    console.warn(
-      "Failed to save normalized measurements to localStorage:",
-      error
-    );
+    console.warn("Failed to save annotation state to localStorage:", error);
   }
 };
 
-export const loadNormalizedMeasurements = <
+export const loadAnnotationPersistenceState = <
   TEntry extends PersistedAnnotationEntry
 >(
   storageKey: string | undefined
-): AnnotationPersistenceEnvelopeV2<TEntry> | null => {
-  const key = `${
-    storageKey ?? DEFAULT_STORAGE_KEY
-  }${NORMALIZED_STORAGE_SUFFIX}`;
+): PersistedAnnotationEnvelopeV2<TEntry> | null => {
+  const key = getStorageKey(storageKey);
   try {
-    const saved = localStorage.getItem(key);
-    if (!saved) {
-      return null;
+    const candidateKeys = [
+      key,
+      getLegacyStorageKey(storageKey),
+      getLegacyPersistenceStorageKey(storageKey),
+    ].filter((candidate, index, all) => all.indexOf(candidate) === index);
+
+    for (const candidateKey of candidateKeys) {
+      const saved = localStorage.getItem(candidateKey);
+      if (!saved) continue;
+
+      const parsed = JSON.parse(saved) as PersistedAnnotationEnvelopeV2<TEntry>;
+      if (parsed?.version !== 2) continue;
+      if (!parsed.geometry || !parsed.tables) continue;
+      if (!Array.isArray(parsed.geometry.points)) continue;
+      if (!Array.isArray(parsed.geometry.edges)) continue;
+      const rawAnnotations =
+        parsed.tables.annotations ??
+        (parsed.tables as { measurements?: unknown }).measurements;
+      if (!Array.isArray(rawAnnotations)) continue;
+      if (!Array.isArray(parsed.tables.distanceRelations)) continue;
+      if (!Array.isArray(parsed.tables.planarPolygonGroups)) continue;
+      if (!Array.isArray(parsed.tables.planarPolygonGroupVertices)) continue;
+
+      return {
+        ...parsed,
+        tables: {
+          ...parsed.tables,
+          annotations: rawAnnotations as TEntry[],
+          distanceRelations: parsed.tables.distanceRelations.map(
+            normalizeDistanceRelation
+          ),
+        },
+      };
     }
-
-    const parsed = JSON.parse(saved) as AnnotationPersistenceEnvelopeV2<TEntry>;
-    if (parsed?.version !== 2) return null;
-    if (!parsed.geometry || !parsed.tables) return null;
-    if (!Array.isArray(parsed.geometry.points)) return null;
-    if (!Array.isArray(parsed.geometry.edges)) return null;
-    if (!Array.isArray(parsed.tables.measurements)) return null;
-    if (!Array.isArray(parsed.tables.distanceRelations)) return null;
-    if (!Array.isArray(parsed.tables.planarPolygonGroups)) return null;
-    if (!Array.isArray(parsed.tables.planarPolygonGroupVertices)) return null;
-
-    return {
-      ...parsed,
-      tables: {
-        ...parsed.tables,
-        measurements: parsed.tables.measurements as TEntry[],
-        distanceRelations: parsed.tables.distanceRelations.map(
-          normalizeDistanceRelation
-        ),
-      },
-    };
   } catch (error) {
-    console.warn(
-      "Failed to load normalized measurements from localStorage:",
-      error
-    );
-  }
-
-  return null;
-};
-
-export const saveDistanceRelations = (
-  storageKey: string | undefined,
-  relations: PointDistanceRelation[]
-): void => {
-  const key = `${
-    storageKey ?? DEFAULT_STORAGE_KEY
-  }${DISTANCE_RELATIONS_STORAGE_SUFFIX}`;
-  try {
-    localStorage.setItem(key, JSON.stringify(relations));
-  } catch (error) {
-    console.warn("Failed to save distance relations to localStorage:", error);
-  }
-};
-
-export const loadDistanceRelations = (
-  storageKey: string | undefined
-): PointDistanceRelation[] | null => {
-  const key = `${
-    storageKey ?? DEFAULT_STORAGE_KEY
-  }${DISTANCE_RELATIONS_STORAGE_SUFFIX}`;
-  try {
-    const saved = localStorage.getItem(key);
-    if (!saved) {
-      return null;
-    }
-
-    const relations = JSON.parse(saved) as PointDistanceRelation[];
-    if (!Array.isArray(relations)) return null;
-    return relations.map(normalizeDistanceRelation);
-  } catch (error) {
-    console.warn("Failed to load distance relations from localStorage:", error);
-  }
-
-  return null;
-};
-
-export const savePlanarPolygonGroups = (
-  storageKey: string | undefined,
-  groups: PlanarPolygonGroup[]
-): void => {
-  const key = `${
-    storageKey ?? DEFAULT_STORAGE_KEY
-  }${PLANAR_POLYGONS_STORAGE_SUFFIX}`;
-  try {
-    localStorage.setItem(key, JSON.stringify(groups));
-  } catch (error) {
-    console.warn(
-      "Failed to save planar polygon groups to localStorage:",
-      error
-    );
-  }
-};
-
-export const loadPlanarPolygonGroups = (
-  storageKey: string | undefined
-): PlanarPolygonGroup[] | null => {
-  const key = `${
-    storageKey ?? DEFAULT_STORAGE_KEY
-  }${PLANAR_POLYGONS_STORAGE_SUFFIX}`;
-  try {
-    const saved = localStorage.getItem(key);
-    if (!saved) {
-      return null;
-    }
-
-    const groups = JSON.parse(saved) as PlanarPolygonGroup[];
-    if (!Array.isArray(groups)) return null;
-    return groups;
-  } catch (error) {
-    console.warn(
-      "Failed to load planar polygon groups from localStorage:",
-      error
-    );
+    console.warn("Failed to load annotation state from localStorage:", error);
   }
 
   return null;

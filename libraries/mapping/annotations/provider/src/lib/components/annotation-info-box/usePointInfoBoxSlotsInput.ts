@@ -1,15 +1,15 @@
 import { useMemo } from "react";
 
+import { useAnnotations } from "@carma-mapping/annotations/core";
 import type {
   AnnotationEntry,
   AnnotationMode,
-} from "@carma-mapping/annotations/cesium";
-import { useCesiumAnnotations } from "@carma-mapping/annotations/cesium";
-import { useAnnotationMeasurements } from "@carma-mapping/annotations/core";
+} from "@carma-mapping/annotations/core";
 import type { PointAnnotationSlotsInput } from "./getAnnotationInfoBoxSlots";
 import { getPointAnnotationSlotsInput } from "./getPointAnnotationSlotsInput";
 import { useAnnotationInfoBoxDisplaySelection } from "./useAnnotationInfoBoxDisplaySelection";
 import { useAnnotationInfoBoxSlotActions } from "./useAnnotationInfoBoxSlotActions";
+import { useAnnotationsAdapter } from "../../context/AnnotationsAdapterProvider";
 
 export type PointInfoBoxSlotsInputState = {
   isPointKind: boolean;
@@ -19,34 +19,34 @@ export type PointInfoBoxSlotsInputState = {
 
 export const usePointInfoBoxSlotsInput = (): PointInfoBoxSlotsInputState => {
   const {
-    measurementMode,
+    annotationMode,
     pointLabelOnCreate,
     isPointModeLivePreviewActive,
     displayMeasurement,
     currentMeasurement,
   } = useAnnotationInfoBoxDisplaySelection();
-  const { referencePoint } = useCesiumAnnotations();
-  const { getMeasurementOrderByType, getNextMeasurementOrderByType } =
-    useAnnotationMeasurements<AnnotationMode, AnnotationEntry>();
+  const { referencePoint } = useAnnotationsAdapter();
+  const { getAnnotationOrderByType, getNextAnnotationOrderByType } =
+    useAnnotations<AnnotationMode, AnnotationEntry>();
   const actions = useAnnotationInfoBoxSlotActions();
 
   const slotsInput = useMemo(
     () =>
       getPointAnnotationSlotsInput({
-        measurementMode,
+        annotationMode,
         pointLabelOnCreate,
         measurement: displayMeasurement,
         referencePoint,
-        getMeasurementOrderByType,
-        getNextMeasurementOrderByType,
+        getAnnotationOrderByType,
+        getNextAnnotationOrderByType,
         actions,
       }).slotsInput,
     [
       actions,
       displayMeasurement,
-      getMeasurementOrderByType,
-      getNextMeasurementOrderByType,
-      measurementMode,
+      getAnnotationOrderByType,
+      getNextAnnotationOrderByType,
+      annotationMode,
       pointLabelOnCreate,
       referencePoint,
     ]

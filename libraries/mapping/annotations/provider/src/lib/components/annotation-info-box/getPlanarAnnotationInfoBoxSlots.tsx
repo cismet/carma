@@ -1,5 +1,13 @@
-import { Switch } from "antd";
-import { faTrashCan } from "@fortawesome/free-solid-svg-icons";
+import { type MouseEvent as ReactMouseEvent } from "react";
+import { Switch, Tooltip } from "antd";
+import {
+  faEye,
+  faEyeSlash,
+  faLock,
+  faLockOpen,
+  faTrashCan,
+} from "@fortawesome/free-solid-svg-icons";
+import Icon from "react-cismap/commons/Icon";
 import {
   ANNOTATION_TYPE_AREA_GROUND,
   ANNOTATION_TYPE_AREA_PLANAR,
@@ -123,15 +131,21 @@ const getPlanarMetricContent = (input: PolygonPolylineAnnotationSlotsInput) => {
       : "Fläche";
 
   return (
-    <div className="w-full px-2 pb-1 text-[#212529] text-[11px] leading-normal">
-      {input.kind === ANNOTATION_TYPE_AREA_GROUND ? (
-        <div>Typ: {input.surfaceTypeLabel}</div>
-      ) : null}
-      <div>
-        {areaLabel}:{" "}
-        {formatAreaAdaptive(Math.max(0, input.areaSquareMeters ?? 0))}
+    <div className="w-full px-2 pb-1 text-[#212529] text-base leading-normal">
+      <div className="flex flex-wrap items-baseline gap-x-4 gap-y-1">
+        <span>
+          {areaLabel}:{" "}
+          <span className="tabular-nums">
+            {formatAreaAdaptive(Math.max(0, input.areaSquareMeters ?? 0))}
+          </span>
+        </span>
+        <span>
+          Umfang:{" "}
+          <span className="tabular-nums">
+            {formatNumber(input.totalLengthMeters)} m
+          </span>
+        </span>
       </div>
-      <div>Umfang: {formatNumber(input.totalLengthMeters)} m</div>
       {(input.kind === ANNOTATION_TYPE_AREA_PLANAR ||
         input.kind === ANNOTATION_TYPE_AREA_VERTICAL) &&
       cardinalHeading ? (
@@ -146,47 +160,89 @@ const getPlanarMetricContent = (input: PolygonPolylineAnnotationSlotsInput) => {
   );
 };
 
+const stopHeadingActionPropagation = (
+  event:
+    | ReactMouseEvent<HTMLElement, MouseEvent>
+    | ReactMouseEvent<SVGSVGElement, MouseEvent>
+) => {
+  event.stopPropagation();
+};
+
+const renderPlanarHeadingActions = (input: PolygonPolylineAnnotationSlotsInput) => (
+  <div
+    className="flex items-center gap-2"
+    onMouseDown={stopInputEventPropagation}
+    onClick={stopInputEventPropagation}
+  >
+    <Tooltip title="Zur Messung fliegen">
+      <Icon
+        name="search-location"
+        onClick={(event: ReactMouseEvent<HTMLElement, MouseEvent>) => {
+          stopHeadingActionPropagation(event);
+          input.actions.flyToPlanarPolygonGroupById(input.groupId);
+        }}
+        className="cursor-pointer text-[15px] text-white/85 hover:text-white"
+        data-test-id="carma-flyto-planar-group-btn"
+      />
+    </Tooltip>
+    <AnnotationInfoBoxActionIcon
+      title={input.hidden ? "Einblenden" : "Ausblenden"}
+      icon={input.hidden ? faEyeSlash : faEye}
+      onClick={(event) => {
+        stopHeadingActionPropagation(event);
+        input.actions.togglePlanarPolygonGroupVisibilityById(input.groupId);
+      }}
+      className="cursor-pointer text-[14px] text-white/85 hover:text-white"
+      dataTestId="carma-toggle-planar-group-visibility-btn"
+    />
+    <AnnotationInfoBoxActionIcon
+      title={input.locked ? "Entsperren" : "Sperren"}
+      icon={input.locked ? faLock : faLockOpen}
+      onClick={(event) => {
+        stopHeadingActionPropagation(event);
+        input.actions.togglePlanarPolygonGroupLockById(input.groupId);
+      }}
+      className="cursor-pointer text-[14px] text-white/85 hover:text-white"
+      dataTestId="carma-toggle-planar-group-lock-btn"
+    />
+    <AnnotationInfoBoxActionIcon
+      title="Löschen"
+      icon={faTrashCan}
+      onClick={(event) => {
+        stopHeadingActionPropagation(event);
+        input.actions.deletePlanarPolygonGroupById(input.groupId);
+      }}
+      className="cursor-pointer text-[14px] text-white/85 hover:text-white"
+      dataTestId="carma-delete-planar-group-btn"
+    />
+  </div>
+);
+
 export const getPlanarAnnotationInfoBoxSlots = (
   input: PolygonPolylineAnnotationSlotsInput
 ): AnnotationSlots => ({
   headingTitle: PLANAR_TYPE_TITLE_BY_KIND[input.kind],
+  headingActions: renderPlanarHeadingActions(input),
   subtitle: (
     <div className="mt-1 mb-0 w-full px-2">
-      <div className="flex justify-between items-start gap-2">
-        <span className="font-bold flex-1 min-w-0">
-          <AnnotationInfoTitleInput
-            key={input.groupId}
-            value={input.name ?? ""}
-            placeholder={`${PLANAR_TYPE_TITLE_BY_KIND[input.kind]} #${
-              input.order
-            }`}
-            editable={true}
-            capitalize={false}
-            multiline={true}
-            onChange={(nextTitle) =>
-              input.actions.updatePlanarPolygonNameById(
-                input.groupId,
-                nextTitle
-              )
-            }
-            onCommit={(nextTitle) =>
-              input.actions.updatePlanarPolygonNameById(
-                input.groupId,
-                nextTitle
-              )
-            }
-          />
-        </span>
-        <AnnotationInfoBoxActionIcon
-          title="Löschen"
-          icon={faTrashCan}
-          onClick={(event) => {
-            event.stopPropagation();
-            input.actions.deletePlanarPolygonGroupById(input.groupId);
-          }}
-          dataTestId="carma-delete-planar-group-btn"
+      <span className="font-bold flex-1 min-w-0">
+        <AnnotationInfoTitleInput
+          key={input.groupId}
+          value={input.name ?? ""}
+          placeholder={`${PLANAR_TYPE_TITLE_BY_KIND[input.kind]} #${
+            input.order
+          }`}
+          editable={true}
+          capitalize={false}
+          multiline={true}
+          onChange={(nextTitle) =>
+            input.actions.updatePlanarPolygonNameById(input.groupId, nextTitle)
+          }
+          onCommit={(nextTitle) =>
+            input.actions.updatePlanarPolygonNameById(input.groupId, nextTitle)
+          }
         />
-      </div>
+      </span>
     </div>
   ),
   content: getPlanarMetricContent(input),

@@ -2,6 +2,7 @@ import { useVerticalAreaLabelVisualizer } from "@carma-mapping/annotations/core"
 
 import { type VerticalAreaVisualizerOptions } from "./areaVisualizer.types";
 import { useCesiumPolygonAreaPrimitives } from "./useCesiumPolygonAreaPrimitives";
+import { useCesiumAreaLabelViewProjector } from "./utils/useCesiumAreaLabelViewProjector";
 
 export const useCesiumVerticalAreaVisualizer = (
   options: VerticalAreaVisualizerOptions
@@ -12,9 +13,10 @@ export const useCesiumVerticalAreaVisualizer = (
     polygonAreaBadgeByGroupId,
     verticalPolygonPreviewGroups,
   } = options;
+  const viewProjector = useCesiumAreaLabelViewProjector(scene);
 
   useVerticalAreaLabelVisualizer({
-    scene,
+    viewProjector,
     focusedPolygonGroupId,
     polygonAreaBadgeByGroupId,
     verticalPolygonPreviewGroups,

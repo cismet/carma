@@ -14,11 +14,30 @@ import {
   type Cartesian2,
   type Scene,
 } from "@carma/cesium";
+import type { CssPixelPosition } from "@carma/units/types";
 
 import {
   isPointInViewport,
   isPointOccluded,
 } from "../utils/occlusionDetection";
+import {
+  DEFAULT_OCCLUSION_TOLERANCE_METERS,
+  DEFAULT_VIEWPORT_PADDING_HORIZONTAL,
+  DEFAULT_VIEWPORT_PADDING_VERTICAL,
+  areCameraSnapshotsEqual,
+  areVisibilityStatesEqual,
+  buildPointsByKeyFromRegistrations,
+  buildRealtimeOcclusionSignature,
+  buildRegistrationIdSignature,
+  getCameraSnapshot,
+  getPositionKey,
+  getUniquePointKeysForIds,
+  isSamePointPosition,
+  type CameraSnapshot,
+  type PointEntry,
+  type RegisteredPoint,
+  type VisibilityRegistry,
+} from "../utils/sceneVisibilityIndex";
 
 export type SceneVisibilityIndexedPoint = {
   id: string;
@@ -28,7 +47,7 @@ export type SceneVisibilityIndexedPoint = {
 export type SceneVisibilityState = {
   isHidden: boolean;
   isOccluded: boolean;
-  screenPosition: { x: number; y: number } | null;
+  screenPosition: CssPixelPosition | null;
 };
 
 export type SceneVisibilityIndexOptions = {
@@ -40,152 +59,18 @@ export type SceneVisibilityIndexOptions = {
   occlusionToleranceMeters?: number;
 };
 
-type PointEntry = {
-  key: string;
-  positionECEF: Cartesian3;
-};
-
-type RegisteredPoint = {
-  id: string;
-  key: string;
-  positionECEF: Cartesian3;
-};
-
-type VisibilityRegistry = {
-  registrationsById: Record<string, RegisteredPoint>;
-  pointsByKey: Record<string, PointEntry>;
-};
-
 type ProjectedPointState = {
   point: PointEntry | null;
   canvasPosition: Cartesian2 | null;
-  screenPosition: { x: number; y: number } | null;
+  screenPosition: CssPixelPosition | null;
   isInViewport: boolean;
   isHidden: boolean;
 };
-
-type CameraSnapshot = {
-  position: Cartesian3;
-  direction: Cartesian3;
-  up: Cartesian3;
-  right: Cartesian3;
-  frustumNear: number;
-  frustumFar: number;
-  frustumFovY: number;
-  frustumLeft: number;
-  frustumRight: number;
-  frustumTop: number;
-  frustumBottom: number;
-};
-
-const DEFAULT_VIEWPORT_PADDING_HORIZONTAL = 100;
-const DEFAULT_VIEWPORT_PADDING_VERTICAL = 50;
-const DEFAULT_OCCLUSION_TOLERANCE_METERS = 1.0;
-const CAMERA_POSITION_EPSILON_METERS = 1e-4;
-const CAMERA_DIRECTION_EPSILON = 1e-6;
-const CAMERA_FRUSTUM_EPSILON = 1e-6;
-const POSITION_KEY_PRECISION = 1000; // millimeter precision in ECEF meters
 
 const EMPTY_VISIBILITY_STATE: SceneVisibilityState = {
   isHidden: false,
   isOccluded: false,
   screenPosition: null,
-};
-
-const isSamePointPosition = (left: Cartesian3, right: Cartesian3) =>
-  left.x === right.x && left.y === right.y && left.z === right.z;
-
-const toRoundedInteger = (value: number) =>
-  Number.isFinite(value) ? Math.round(value * POSITION_KEY_PRECISION) : 0;
-
-const getPositionKey = (position: Cartesian3) =>
-  `${toRoundedInteger(position.x)}|${toRoundedInteger(
-    position.y
-  )}|${toRoundedInteger(position.z)}`;
-
-const areVisibilityStatesEqual = (
-  left: SceneVisibilityState | undefined,
-  right: SceneVisibilityState | undefined
-) => {
-  if (!left && !right) return true;
-  if (!left || !right) return false;
-  if (left.isHidden !== right.isHidden) return false;
-  if (left.isOccluded !== right.isOccluded) return false;
-  if (!left.screenPosition && !right.screenPosition) return true;
-  if (!left.screenPosition || !right.screenPosition) return false;
-  return (
-    left.screenPosition.x === right.screenPosition.x &&
-    left.screenPosition.y === right.screenPosition.y
-  );
-};
-
-const toFiniteNumber = (value: unknown): number =>
-  typeof value === "number" && Number.isFinite(value) ? value : 0;
-
-const getCameraSnapshot = (scene: Scene): CameraSnapshot => {
-  const frustum = scene.camera.frustum as unknown as {
-    near?: number;
-    far?: number;
-    fovy?: number;
-    left?: number;
-    right?: number;
-    top?: number;
-    bottom?: number;
-  };
-
-  return {
-    position: Cartesian3.clone(scene.camera.positionWC),
-    direction: Cartesian3.clone(scene.camera.directionWC),
-    up: Cartesian3.clone(scene.camera.upWC),
-    right: Cartesian3.clone(scene.camera.rightWC),
-    frustumNear: toFiniteNumber(frustum.near),
-    frustumFar: toFiniteNumber(frustum.far),
-    frustumFovY: toFiniteNumber(frustum.fovy),
-    frustumLeft: toFiniteNumber(frustum.left),
-    frustumRight: toFiniteNumber(frustum.right),
-    frustumTop: toFiniteNumber(frustum.top),
-    frustumBottom: toFiniteNumber(frustum.bottom),
-  };
-};
-
-const areCameraSnapshotsEqual = (
-  left: CameraSnapshot | null,
-  right: CameraSnapshot | null
-) => {
-  if (!left && !right) return true;
-  if (!left || !right) return false;
-
-  return (
-    Cartesian3.distance(left.position, right.position) <=
-      CAMERA_POSITION_EPSILON_METERS &&
-    Cartesian3.distance(left.direction, right.direction) <=
-      CAMERA_DIRECTION_EPSILON &&
-    Cartesian3.distance(left.up, right.up) <= CAMERA_DIRECTION_EPSILON &&
-    Cartesian3.distance(left.right, right.right) <= CAMERA_DIRECTION_EPSILON &&
-    Math.abs(left.frustumNear - right.frustumNear) <= CAMERA_FRUSTUM_EPSILON &&
-    Math.abs(left.frustumFar - right.frustumFar) <= CAMERA_FRUSTUM_EPSILON &&
-    Math.abs(left.frustumFovY - right.frustumFovY) <= CAMERA_FRUSTUM_EPSILON &&
-    Math.abs(left.frustumLeft - right.frustumLeft) <= CAMERA_FRUSTUM_EPSILON &&
-    Math.abs(left.frustumRight - right.frustumRight) <=
-      CAMERA_FRUSTUM_EPSILON &&
-    Math.abs(left.frustumTop - right.frustumTop) <= CAMERA_FRUSTUM_EPSILON &&
-    Math.abs(left.frustumBottom - right.frustumBottom) <= CAMERA_FRUSTUM_EPSILON
-  );
-};
-
-const buildPointsByKeyFromRegistrations = (
-  registrationsById: Record<string, RegisteredPoint>
-) => {
-  const pointsByKey: Record<string, PointEntry> = {};
-  Object.values(registrationsById).forEach((registration) => {
-    if (!pointsByKey[registration.key]) {
-      pointsByKey[registration.key] = {
-        key: registration.key,
-        positionECEF: Cartesian3.clone(registration.positionECEF),
-      };
-    }
-  });
-  return pointsByKey;
 };
 
 export const useCesiumSceneVisibilityIndex = (
@@ -242,7 +127,7 @@ export const useCesiumSceneVisibilityIndex = (
       const screenPosition = {
         x: canvasPosition.x,
         y: canvasPosition.y,
-      };
+      } as CssPixelPosition;
 
       const isInViewport = isPointInViewport(
         canvasPosition,
@@ -294,12 +179,9 @@ export const useCesiumSceneVisibilityIndex = (
       }
 
       const currentRegistry = registryRef.current;
-      const uniquePointKeys = Array.from(
-        new Set(
-          ids
-            .map((id) => currentRegistry.registrationsById[id]?.key)
-            .filter((key): key is string => Boolean(key))
-        )
+      const uniquePointKeys = getUniquePointKeysForIds(
+        ids,
+        currentRegistry.registrationsById
       );
       if (uniquePointKeys.length === 0) return;
 
@@ -521,24 +403,18 @@ export const useCesiumSceneVisibilityIndex = (
   }, [refreshAll, scene]);
 
   const registrationIdSignature = useMemo(
-    () => Object.keys(registry.registrationsById).sort().join("|"),
+    () => buildRegistrationIdSignature(registry.registrationsById),
     [registry.registrationsById]
   );
 
-  const realtimeOcclusionSignature = useMemo(() => {
-    if (realtimeOcclusionPointIds.length === 0) return "";
-    const uniqueSortedIds = Array.from(
-      new Set(realtimeOcclusionPointIds)
-    ).sort();
-    return uniqueSortedIds
-      .map((id) => {
-        const registration = registry.registrationsById[id];
-        if (!registration) return `${id}:missing`;
-        const position = registration.positionECEF;
-        return `${id}:${position.x}:${position.y}:${position.z}`;
-      })
-      .join("|");
-  }, [registry.registrationsById, realtimeOcclusionPointIds]);
+  const realtimeOcclusionSignature = useMemo(
+    () =>
+      buildRealtimeOcclusionSignature(
+        realtimeOcclusionPointIds,
+        registry.registrationsById
+      ),
+    [registry.registrationsById, realtimeOcclusionPointIds]
+  );
 
   useEffect(() => {
     if (!scene || scene.isDestroyed()) return;

@@ -1,7 +1,7 @@
 import {
+  CarmaTransforms,
   Cartesian2,
   Cartesian3,
-  Cartesian4,
   Matrix4,
   SceneTransforms,
   Transforms,
@@ -31,13 +31,16 @@ export const toGizmoVec3 = (vector: Cartesian3): GizmoVec3 => ({
   z: vector.z,
 });
 
+const ENU_FRAME_SCRATCH = new Matrix4();
+
 export const getUpVectorAtPosition = (origin: Cartesian3): Cartesian3 => {
-  const eastNorthUpMatrix = Transforms.eastNorthUpToFixedFrame(origin);
-  const upAxis4 = Matrix4.getColumn(eastNorthUpMatrix, 2, new Cartesian4());
-  return Cartesian3.normalize(
-    new Cartesian3(upAxis4.x, upAxis4.y, upAxis4.z),
-    new Cartesian3()
+  const eastNorthUpMatrix = Transforms.eastNorthUpToFixedFrame(
+    origin,
+    undefined,
+    ENU_FRAME_SCRATCH
   );
+  const upAxis = CarmaTransforms.matrix4ColumnToCartesian3(eastNorthUpMatrix, 2);
+  return Cartesian3.normalize(upAxis, upAxis);
 };
 
 export const createPlaneBasis = (normal: Cartesian3): PlaneBasis => {
@@ -114,26 +117,16 @@ export const getPlanePixelsPerWorldMax = (
   sampleCount: number
 ): number => {
   let pixelPerWorldMax = 0;
+  const xComponent = new Cartesian3();
+  const yComponent = new Cartesian3();
+  const sampleDirection = new Cartesian3();
+  const sampleWorld = new Cartesian3();
   for (let i = 0; i < sampleCount; i += 1) {
     const t = (i / sampleCount) * Math.PI * 2;
-    const sampleDirection = Cartesian3.add(
-      Cartesian3.multiplyByScalar(
-        planeBasis.xAxis,
-        Math.cos(t),
-        new Cartesian3()
-      ),
-      Cartesian3.multiplyByScalar(
-        planeBasis.yAxis,
-        Math.sin(t),
-        new Cartesian3()
-      ),
-      new Cartesian3()
-    );
-    const sampleWorld = Cartesian3.add(
-      origin,
-      sampleDirection,
-      new Cartesian3()
-    );
+    Cartesian3.multiplyByScalar(planeBasis.xAxis, Math.cos(t), xComponent);
+    Cartesian3.multiplyByScalar(planeBasis.yAxis, Math.sin(t), yComponent);
+    Cartesian3.add(xComponent, yComponent, sampleDirection);
+    Cartesian3.add(origin, sampleDirection, sampleWorld);
     const sampleCanvas = SceneTransforms.worldToWindowCoordinates(
       scene,
       sampleWorld
@@ -160,27 +153,18 @@ export const projectPlaneOutlinePoints = (
   maxAbsCoordinatePx = 8192
 ): ScreenPoint2[] => {
   const points: ScreenPoint2[] = [];
+  const xComponent = new Cartesian3();
+  const yComponent = new Cartesian3();
+  const offset = new Cartesian3();
+  const worldPoint = new Cartesian3();
   for (let i = 0; i < segments; i += 1) {
     const t = (i / segments) * Math.PI * 2;
     const offsetX = Math.cos(t) * worldRadius;
     const offsetY = Math.sin(t) * worldRadius;
-    const worldPoint = Cartesian3.add(
-      origin,
-      Cartesian3.add(
-        Cartesian3.multiplyByScalar(
-          planeBasis.xAxis,
-          offsetX,
-          new Cartesian3()
-        ),
-        Cartesian3.multiplyByScalar(
-          planeBasis.yAxis,
-          offsetY,
-          new Cartesian3()
-        ),
-        new Cartesian3()
-      ),
-      new Cartesian3()
-    );
+    Cartesian3.multiplyByScalar(planeBasis.xAxis, offsetX, xComponent);
+    Cartesian3.multiplyByScalar(planeBasis.yAxis, offsetY, yComponent);
+    Cartesian3.add(xComponent, yComponent, offset);
+    Cartesian3.add(origin, offset, worldPoint);
 
     const projected = SceneTransforms.worldToWindowCoordinates(
       scene,

@@ -15,8 +15,10 @@ import {
   SceneTransforms,
   defined,
   getDegreesFromCartesian,
+  getArcPointsInSpannedPlane,
   type Scene,
 } from "@carma/cesium";
+import { clamp } from "@carma-commons/math";
 import {
   applyMidpointMarkerOverlayLayout,
   formatNumber,
@@ -26,10 +28,14 @@ import {
   isDistanceRelationVerticalLineVisible,
   applyRightAngleCornerOverlayLayout,
   MidpointMarkerOverlay,
+  REFERENCE_LINE_EPSILON_METERS,
   RightAngleCornerOverlay,
-  type ScreenPoint2D,
+  resolveDistanceRelation,
+  type ResolvedDistanceRelation,
+  type DistanceRelationRenderContext,
   useDistancePairLabelOverlays,
 } from "@carma-mapping/annotations/core";
+import type { CssPixelPosition } from "@carma/units/types";
 import {
   createLineVisualizer,
   type LineVisualizer,
@@ -46,13 +52,6 @@ import {
   type PointAnnotationEntry,
   type ReferenceLineLabelKind,
 } from "../types/AnnotationTypes";
-import {
-  REFERENCE_LINE_EPSILON_METERS,
-  getArcPointsInSpannedPlane,
-  resolveDistanceRelation,
-  type ResolvedDistanceRelation,
-} from "../utils/distanceVisualization";
-import { type DistanceRelationRenderContext } from "./annotationVisualizationContext";
 
 export type CesiumDistanceVisualizerOptions = {
   distanceRelations?: PointDistanceRelation[];
@@ -112,9 +111,6 @@ const LABEL_REFERENCE_MAX_DISTANCE_PX = 48;
 const LABEL_INSIDE_BLEND_FACTOR = 0.35;
 const VERTICAL_COMPONENT_LABEL_OFFSET_PX = 8;
 const VERTICAL_LABEL_SIDE_SWITCH_THRESHOLD_PX = 4;
-
-const clampToRange = (value: number, min: number, max: number) =>
-  Math.max(min, Math.min(max, value));
 
 const resolveStableSideSign = (
   signedDistance: number,
@@ -277,7 +273,7 @@ export const useCesiumDistanceVisualizer = (
         )
         .map(({ relation, pointA, pointB }) => {
           const higherPoint =
-            pointA.geometryWGS84.height >= pointB.geometryWGS84.height
+            pointA.geometryWGS84.altitude >= pointB.geometryWGS84.altitude
               ? pointA
               : pointB;
           const lowerPoint = higherPoint.id === pointA.id ? pointB : pointA;
@@ -330,7 +326,7 @@ export const useCesiumDistanceVisualizer = (
         point.geometryECEF
       );
       if (!defined(anchor)) return null;
-      return { x: anchor.x, y: anchor.y };
+      return { x: anchor.x, y: anchor.y } as CssPixelPosition;
     },
     [pointsById, scene]
   );
@@ -376,22 +372,24 @@ export const useCesiumDistanceVisualizer = (
       }) => {
         const getWorldToScreen = (
           position: Cartesian3
-        ): ScreenPoint2D | null => {
+        ): CssPixelPosition | null => {
           if (!scene || scene.isDestroyed()) return null;
           const p = SceneTransforms.worldToWindowCoordinates(scene, position);
-          return defined(p) ? { x: p.x, y: p.y } : null;
+          return defined(p)
+            ? ({ x: p.x, y: p.y } as CssPixelPosition)
+            : null;
         };
         const highestPoint =
-          pointA.geometryWGS84.height >= pointB.geometryWGS84.height
+          pointA.geometryWGS84.altitude >= pointB.geometryWGS84.altitude
             ? pointA
             : pointB;
 
         type ScreenTriangleData = {
-          anchor: ScreenPoint2D;
-          target: ScreenPoint2D;
-          aux: ScreenPoint2D;
-          centroid: ScreenPoint2D;
-          highest: ScreenPoint2D;
+          anchor: CssPixelPosition;
+          target: CssPixelPosition;
+          aux: CssPixelPosition;
+          centroid: CssPixelPosition;
+          highest: CssPixelPosition;
         };
 
         let cachedTriangleFrameNumber: number | null = null;
@@ -418,7 +416,7 @@ export const useCesiumDistanceVisualizer = (
             centroid: {
               x: (anchor.x + target.x + aux.x) / 3,
               y: (anchor.y + target.y + aux.y) / 3,
-            },
+            } as CssPixelPosition,
           };
         };
 
@@ -439,18 +437,18 @@ export const useCesiumDistanceVisualizer = (
           return triangle;
         };
 
-        const getScreenAnchor = (): ScreenPoint2D | null =>
+        const getScreenAnchor = (): CssPixelPosition | null =>
           getScreenTriangle()?.anchor ?? null;
-        const getScreenTarget = (): ScreenPoint2D | null =>
+        const getScreenTarget = (): CssPixelPosition | null =>
           getScreenTriangle()?.target ?? null;
-        const getScreenAux = (): ScreenPoint2D | null =>
+        const getScreenAux = (): CssPixelPosition | null =>
           getScreenTriangle()?.aux ?? null;
 
         const buildStableOutsideReferencePoint = (
-          start: ScreenPoint2D,
-          end: ScreenPoint2D,
-          insidePoint: ScreenPoint2D
-        ): ScreenPoint2D | null => {
+          start: CssPixelPosition,
+          end: CssPixelPosition,
+          insidePoint: CssPixelPosition
+        ): CssPixelPosition | null => {
           const dx = end.x - start.x;
           const dy = end.y - start.y;
           const lineLength = Math.hypot(dx, dy);
@@ -462,7 +460,7 @@ export const useCesiumDistanceVisualizer = (
           const dot =
             (insidePoint.x - midX) * normalX + (insidePoint.y - midY) * normalY;
           const insideSign = dot >= 0 ? 1 : -1;
-          const refDistancePx = clampToRange(
+          const refDistancePx = clamp(
             lineLength * 0.2,
             LABEL_REFERENCE_MIN_DISTANCE_PX,
             LABEL_REFERENCE_MAX_DISTANCE_PX
@@ -470,15 +468,15 @@ export const useCesiumDistanceVisualizer = (
           return {
             x: midX + normalX * insideSign * refDistancePx,
             y: midY + normalY * insideSign * refDistancePx,
-          };
+          } as CssPixelPosition;
         };
 
         const getStableInsidePointForDirectAndHorizontal =
-          (): ScreenPoint2D | null => {
+          (): CssPixelPosition | null => {
             const triangle = getScreenTriangle();
             if (!triangle) return null;
-            const auxHeight = targetPoint.geometryWGS84.height;
-            const highestHeight = highestPoint.geometryWGS84.height;
+            const auxHeight = targetPoint.geometryWGS84.altitude;
+            const highestHeight = highestPoint.geometryWGS84.altitude;
             const elevationDriverPoint =
               auxHeight < highestHeight - REFERENCE_LINE_EPSILON_METERS
                 ? triangle.highest
@@ -492,11 +490,11 @@ export const useCesiumDistanceVisualizer = (
                 elevationDriverPoint.y +
                 (triangle.centroid.y - elevationDriverPoint.y) *
                   LABEL_INSIDE_BLEND_FACTOR,
-            };
+            } as CssPixelPosition;
           };
 
         const getDirectLabelOutsideReferencePoint =
-          (): ScreenPoint2D | null => {
+          (): CssPixelPosition | null => {
             const triangle = getScreenTriangle();
             const insidePoint = getStableInsidePointForDirectAndHorizontal();
             if (!triangle || !insidePoint) return null;
@@ -508,7 +506,7 @@ export const useCesiumDistanceVisualizer = (
           };
 
         const getHorizontalLabelOutsideReferencePoint =
-          (): ScreenPoint2D | null => {
+          (): CssPixelPosition | null => {
             const triangle = getScreenTriangle();
             const insidePoint = getStableInsidePointForDirectAndHorizontal();
             if (!triangle || !insidePoint) return null;
@@ -520,9 +518,9 @@ export const useCesiumDistanceVisualizer = (
           };
 
         const getVerticalLineScreenData = (): {
-          start: ScreenPoint2D;
-          end: ScreenPoint2D;
-          inside: ScreenPoint2D;
+          start: CssPixelPosition;
+          end: CssPixelPosition;
+          inside: CssPixelPosition;
           insideSign: -1 | 1;
           midX: number;
           midY: number;
@@ -538,8 +536,8 @@ export const useCesiumDistanceVisualizer = (
           const inside = triangle.target;
 
           const recompute = (
-            s: ScreenPoint2D,
-            e: ScreenPoint2D
+            s: CssPixelPosition,
+            e: CssPixelPosition
           ): {
             midX: number;
             midY: number;
@@ -601,10 +599,10 @@ export const useCesiumDistanceVisualizer = (
         };
 
         const getVerticalLabelOutsideReferencePoint =
-          (): ScreenPoint2D | null => {
+          (): CssPixelPosition | null => {
             const edge = getVerticalLineScreenData();
             if (!edge) return null;
-            const refDistancePx = clampToRange(
+            const refDistancePx = clamp(
               edge.lineLength * 0.2,
               LABEL_REFERENCE_MIN_DISTANCE_PX,
               LABEL_REFERENCE_MAX_DISTANCE_PX
@@ -615,7 +613,7 @@ export const useCesiumDistanceVisualizer = (
             const nextReferencePoint = {
               x: edge.midX + edge.normalX * edge.insideSign * refDistancePx,
               y: edge.midY + edge.normalY * edge.insideSign * refDistancePx,
-            };
+            } as CssPixelPosition;
             return nextReferencePoint;
           };
 
@@ -809,7 +807,7 @@ export const useCesiumDistanceVisualizer = (
             anchorPointECEF
           );
           if (!defined(anchor)) return null;
-          return { x: anchor.x, y: anchor.y };
+          return { x: anchor.x, y: anchor.y } as CssPixelPosition;
         };
 
         const getPreviewScreenTarget = () => {
@@ -819,7 +817,7 @@ export const useCesiumDistanceVisualizer = (
             targetPointECEF
           );
           if (!defined(target)) return null;
-          return { x: target.x, y: target.y };
+          return { x: target.x, y: target.y } as CssPixelPosition;
         };
 
         const getPreviewScreenAux = () => {
@@ -829,14 +827,14 @@ export const useCesiumDistanceVisualizer = (
             auxiliaryPointECEF
           );
           if (!defined(auxiliary)) return null;
-          return { x: auxiliary.x, y: auxiliary.y };
+          return { x: auxiliary.x, y: auxiliary.y } as CssPixelPosition;
         };
 
         type PreviewScreenTriangleData = {
-          anchor: ScreenPoint2D;
-          target: ScreenPoint2D;
-          aux: ScreenPoint2D;
-          centroid: ScreenPoint2D;
+          anchor: CssPixelPosition;
+          target: CssPixelPosition;
+          aux: CssPixelPosition;
+          centroid: CssPixelPosition;
         };
 
         let cachedPreviewTriangleFrameNumber: number | null = null;
@@ -870,7 +868,7 @@ export const useCesiumDistanceVisualizer = (
               centroid: {
                 x: (anchor.x + target.x + aux.x) / 3,
                 y: (anchor.y + target.y + aux.y) / 3,
-              },
+              } as CssPixelPosition,
             };
             if (frameNumber !== null) {
               cachedPreviewTriangleFrameNumber = frameNumber;
@@ -880,10 +878,10 @@ export const useCesiumDistanceVisualizer = (
           };
 
         const buildStableOutsideReferencePoint = (
-          start: ScreenPoint2D,
-          end: ScreenPoint2D,
-          insidePoint: ScreenPoint2D
-        ): ScreenPoint2D | null => {
+          start: CssPixelPosition,
+          end: CssPixelPosition,
+          insidePoint: CssPixelPosition
+        ): CssPixelPosition | null => {
           const dx = end.x - start.x;
           const dy = end.y - start.y;
           const lineLength = Math.hypot(dx, dy);
@@ -895,7 +893,7 @@ export const useCesiumDistanceVisualizer = (
           const dot =
             (insidePoint.x - midX) * normalX + (insidePoint.y - midY) * normalY;
           const insideSign = dot >= 0 ? 1 : -1;
-          const refDistancePx = clampToRange(
+          const refDistancePx = clamp(
             lineLength * 0.2,
             LABEL_REFERENCE_MIN_DISTANCE_PX,
             LABEL_REFERENCE_MAX_DISTANCE_PX
@@ -903,11 +901,11 @@ export const useCesiumDistanceVisualizer = (
           return {
             x: midX + normalX * insideSign * refDistancePx,
             y: midY + normalY * insideSign * refDistancePx,
-          };
+          } as CssPixelPosition;
         };
 
         const getStableInsidePointForDirectAndHorizontal =
-          (): ScreenPoint2D | null => {
+          (): CssPixelPosition | null => {
             const triangle = getPreviewScreenTriangle();
             if (!triangle) return null;
             return {
@@ -919,11 +917,11 @@ export const useCesiumDistanceVisualizer = (
                 triangle.aux.y +
                 (triangle.centroid.y - triangle.aux.y) *
                   LABEL_INSIDE_BLEND_FACTOR,
-            };
+            } as CssPixelPosition;
           };
 
         const getPreviewDirectLabelOutsideReferencePoint =
-          (): ScreenPoint2D | null => {
+          (): CssPixelPosition | null => {
             const triangle = getPreviewScreenTriangle();
             const insidePoint = getStableInsidePointForDirectAndHorizontal();
             if (!triangle || !insidePoint) return null;
@@ -935,7 +933,7 @@ export const useCesiumDistanceVisualizer = (
           };
 
         const getPreviewHorizontalLabelOutsideReferencePoint =
-          (): ScreenPoint2D | null => {
+          (): CssPixelPosition | null => {
             const triangle = getPreviewScreenTriangle();
             const insidePoint = getStableInsidePointForDirectAndHorizontal();
             if (!triangle || !insidePoint) return null;
@@ -947,9 +945,9 @@ export const useCesiumDistanceVisualizer = (
           };
 
         const getPreviewVerticalLineScreenData = (): {
-          start: ScreenPoint2D;
-          end: ScreenPoint2D;
-          inside: ScreenPoint2D;
+          start: CssPixelPosition;
+          end: CssPixelPosition;
+          inside: CssPixelPosition;
           insideSign: -1 | 1;
           midX: number;
           midY: number;
@@ -965,8 +963,8 @@ export const useCesiumDistanceVisualizer = (
           const inside = triangle.target;
 
           const recompute = (
-            s: ScreenPoint2D,
-            e: ScreenPoint2D
+            s: CssPixelPosition,
+            e: CssPixelPosition
           ): {
             midX: number;
             midY: number;
@@ -1025,10 +1023,10 @@ export const useCesiumDistanceVisualizer = (
         };
 
         const getPreviewVerticalLabelOutsideReferencePoint =
-          (): ScreenPoint2D | null => {
+          (): CssPixelPosition | null => {
             const edge = getPreviewVerticalLineScreenData();
             if (!edge) return null;
-            const refDistancePx = clampToRange(
+            const refDistancePx = clamp(
               edge.lineLength * 0.2,
               LABEL_REFERENCE_MIN_DISTANCE_PX,
               LABEL_REFERENCE_MAX_DISTANCE_PX
@@ -1037,7 +1035,7 @@ export const useCesiumDistanceVisualizer = (
             const nextReferencePoint = {
               x: edge.midX + edge.normalX * edge.insideSign * refDistancePx,
               y: edge.midY + edge.normalY * edge.insideSign * refDistancePx,
-            };
+            } as CssPixelPosition;
             return nextReferencePoint;
           };
 
@@ -1329,7 +1327,10 @@ export const useCesiumDistanceVisualizer = (
             applyRightAngleCornerOverlayLayout({
               elementDiv,
               pathData,
-              dotScreen: { x: dotScreen.x, y: dotScreen.y },
+              dotScreen: {
+                x: dotScreen.x,
+                y: dotScreen.y,
+              } as CssPixelPosition,
               minX,
               minY,
               width,
@@ -1433,7 +1434,7 @@ export const useCesiumDistanceVisualizer = (
               90;
             applyMidpointMarkerOverlayLayout({
               elementDiv,
-              center: { x: center.x, y: center.y },
+              center: { x: center.x, y: center.y } as CssPixelPosition,
               angleDeg,
               hitTargetPx: MIDPOINT_MARKER_HIT_TARGET_PX,
               clickable: Boolean(onDistanceRelationMidpointClick),

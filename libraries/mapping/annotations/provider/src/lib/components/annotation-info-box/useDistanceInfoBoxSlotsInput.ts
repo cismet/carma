@@ -1,11 +1,11 @@
 import { useMemo } from "react";
 
+import { useAnnotations } from "@carma-mapping/annotations/core";
 import type {
   AnnotationEntry,
   AnnotationMode,
-} from "@carma-mapping/annotations/cesium";
-import { useCesiumAnnotations } from "@carma-mapping/annotations/cesium";
-import { useAnnotationMeasurements } from "@carma-mapping/annotations/core";
+} from "@carma-mapping/annotations/core";
+import { useAnnotationsAdapter } from "../../context/AnnotationsAdapterProvider";
 import type { DistanceAnnotationSlotsInput } from "./getAnnotationInfoBoxSlots";
 import { getDistanceAnnotationSlotsInput } from "./getDistanceAnnotationSlotsInput";
 import { useAnnotationInfoBoxDisplaySelection } from "./useAnnotationInfoBoxDisplaySelection";
@@ -20,7 +20,7 @@ export type DistanceInfoBoxSlotsInputState = {
 export const useDistanceInfoBoxSlotsInput =
   (): DistanceInfoBoxSlotsInputState => {
     const {
-      measurementMode,
+      annotationMode,
       isDistanceModeLivePreviewActive,
       pointMeasurements,
       displayMeasurement,
@@ -32,9 +32,9 @@ export const useDistanceInfoBoxSlotsInput =
       hasDistancePreviewAnchor,
       distanceRelations,
       pointMarkerBadgeByPointId,
-    } = useCesiumAnnotations();
-    const { getMeasurementOrderByType, getNextMeasurementOrderByType } =
-      useAnnotationMeasurements<AnnotationMode, AnnotationEntry>();
+    } = useAnnotationsAdapter();
+    const { getAnnotationOrderByType, getNextAnnotationOrderByType } =
+      useAnnotations<AnnotationMode, AnnotationEntry>();
     const actions = useAnnotationInfoBoxSlotActions();
 
     const isDistanceMeasurement = useMemo(
@@ -51,7 +51,7 @@ export const useDistanceInfoBoxSlotsInput =
     const slotsInput = useMemo(
       () =>
         getDistanceAnnotationSlotsInput({
-          measurementMode,
+          annotationMode,
           measurement: displayMeasurement,
           activeMeasurementId,
           pointMeasurements,
@@ -59,8 +59,8 @@ export const useDistanceInfoBoxSlotsInput =
           hasDistancePreviewAnchor,
           distanceRelations,
           pointMarkerBadgeByPointId,
-          getMeasurementOrderByType,
-          getNextMeasurementOrderByType,
+          getAnnotationOrderByType,
+          getNextAnnotationOrderByType,
           actions,
         }).slotsInput,
       [
@@ -68,10 +68,10 @@ export const useDistanceInfoBoxSlotsInput =
         activeMeasurementId,
         displayMeasurement,
         distanceRelations,
-        getMeasurementOrderByType,
-        getNextMeasurementOrderByType,
+        getAnnotationOrderByType,
+        getNextAnnotationOrderByType,
         hasDistancePreviewAnchor,
-        measurementMode,
+        annotationMode,
         pointMarkerBadgeByPointId,
         pointMeasurements,
         referencePoint,

@@ -1,90 +1,93 @@
-import { Cartesian3 } from "@carma/cesium";
-
-import { type PlanarPolygonGroup } from "../../types/annotationTypes";
+import { type PlanarPolygonGroup } from "../../types/planarTypes";
+import type { Cartesian3Json } from "@carma/cesium";
+import { formatAreaAdaptive } from "../../utils/displayFormatting";
 import { type AreaLabelText } from "./areaLabelVisualizer.types";
 
-const AREA_DISPLAY_HECTARE_THRESHOLD_SQM = 4999;
-const DEFAULT_SIGNIFICANT_DIGITS = 3;
-
-const formatSignificant = (
-  value: number,
-  significantDigits = DEFAULT_SIGNIFICANT_DIGITS
+const computePolygonAreaFromVertices = (
+  vertices: ReadonlyArray<Cartesian3Json>
 ) => {
-  if (!Number.isFinite(value)) return "0";
-  const absolute = Math.abs(value);
-  if (absolute === 0) return "0";
-  const digitsBeforeDecimal = Math.floor(Math.log10(absolute)) + 1;
-  const fractionDigits = Math.max(0, significantDigits - digitsBeforeDecimal);
-  return value.toLocaleString("de-DE", {
-    minimumFractionDigits: 0,
-    maximumFractionDigits: fractionDigits,
-  });
-};
-
-const formatAreaAdaptive = (areaSquareMeters: number) => {
-  if (!Number.isFinite(areaSquareMeters) || areaSquareMeters <= 0) {
-    return "0 m²";
-  }
-  if (areaSquareMeters > AREA_DISPLAY_HECTARE_THRESHOLD_SQM) {
-    return `${formatSignificant(areaSquareMeters / 10000)} ha`;
-  }
-  return `${formatSignificant(areaSquareMeters)} m²`;
-};
-
-const getProjectedHorizontalAreaSquareMeters = (vertices: Cartesian3[]) => {
   if (vertices.length < 3) return 0;
   const basePoint = vertices[0];
   if (!basePoint) return 0;
 
+  const subtract = (
+    left: Cartesian3Json,
+    right: Cartesian3Json
+  ): Cartesian3Json => ({
+    x: left.x - right.x,
+    y: left.y - right.y,
+    z: left.z - right.z,
+  });
+  const cross = (
+    left: Cartesian3Json,
+    right: Cartesian3Json
+  ): Cartesian3Json => ({
+    x: left.y * right.z - left.z * right.y,
+    y: left.z * right.x - left.x * right.z,
+    z: left.x * right.y - left.y * right.x,
+  });
+  const magnitude = (vector: Cartesian3Json) =>
+    Math.hypot(vector.x, vector.y, vector.z);
+
   let area = 0;
   for (let index = 1; index < vertices.length - 1; index += 1) {
-    const p1 = Cartesian3.subtract(
-      vertices[index],
-      basePoint,
-      new Cartesian3()
-    );
-    const p2 = Cartesian3.subtract(
-      vertices[index + 1],
-      basePoint,
-      new Cartesian3()
-    );
-    const cross = Cartesian3.cross(p1, p2, new Cartesian3());
-    area += Cartesian3.magnitude(cross) * 0.5;
+    const currentPoint = vertices[index];
+    const nextPoint = vertices[index + 1];
+    if (!currentPoint || !nextPoint) continue;
+    const p1 = subtract(currentPoint, basePoint);
+    const p2 = subtract(nextPoint, basePoint);
+    area += magnitude(cross(p1, p2)) * 0.5;
   }
 
   return Math.max(0, area);
 };
 
-const buildAreaLabelTextWithProjectedHorizontal = (
+const resolveDisplayedAreaSquareMeters = (
   group: PlanarPolygonGroup,
-  vertices: Cartesian3[]
+  previewAreaSquareMeters: number
+) => {
+  if (!group.closed) {
+    return previewAreaSquareMeters;
+  }
+
+  const storedAreaSquareMeters = Math.max(0, group.areaSquareMeters ?? 0);
+  return storedAreaSquareMeters > 0
+    ? storedAreaSquareMeters
+    : previewAreaSquareMeters;
+};
+
+const buildAreaLabelText = (
+  group: PlanarPolygonGroup,
+  vertices: Cartesian3Json[]
 ): AreaLabelText => {
-  const planarArea = Math.max(0, group.areaSquareMeters ?? 0);
+  const previewAreaSquareMeters = computePolygonAreaFromVertices(vertices);
+  const planarArea = resolveDisplayedAreaSquareMeters(
+    group,
+    previewAreaSquareMeters
+  );
   const isFacadeSurface = (group.surfaceType ?? "roof") === "facade";
-  const projectedHorizontalArea =
-    getProjectedHorizontalAreaSquareMeters(vertices);
-  const showProjectedHorizontalArea =
+  const showPreviewAreaSecondary =
     !isFacadeSurface &&
     planarArea > 0 &&
-    projectedHorizontalArea < planarArea * 0.99;
+    previewAreaSquareMeters < planarArea * 0.99;
 
   return {
     primaryText: formatAreaAdaptive(planarArea),
-    secondaryText: showProjectedHorizontalArea
-      ? `(${formatAreaAdaptive(projectedHorizontalArea)})`
+    secondaryText: showPreviewAreaSecondary
+      ? `(${formatAreaAdaptive(previewAreaSquareMeters)})`
       : null,
   };
 };
 
 export const buildGroundAreaLabelText = (
   group: PlanarPolygonGroup,
-  vertices: Cartesian3[]
-): AreaLabelText => buildAreaLabelTextWithProjectedHorizontal(group, vertices);
+  vertices: Cartesian3Json[]
+): AreaLabelText => buildAreaLabelText(group, vertices);
 
 export const buildPlanarAreaLabelText = (
   group: PlanarPolygonGroup,
-  vertices: Cartesian3[]
-): AreaLabelText => buildAreaLabelTextWithProjectedHorizontal(group, vertices);
+  vertices: Cartesian3Json[]
+): AreaLabelText => buildAreaLabelText(group, vertices);
 
 export const buildVerticalAreaLabelText = (
   group: PlanarPolygonGroup

@@ -1,4 +1,7 @@
-import { type Cartesian3, type Scene } from "@carma/cesium";
+import type {
+  Cartesian3Json,
+  Matrix4ConstructorArgs,
+} from "@carma/cesium";
 
 import {
   type GroundPolygonPreviewGroup,
@@ -6,7 +9,8 @@ import {
   type PolygonPreviewGroup,
   type VerticalPolygonPreviewGroup,
 } from "../../preview/annotationPreviewVisuals";
-import { type PlanarPolygonGroup } from "../../types/annotationTypes";
+import { type PlanarPolygonGroup } from "../../types/planarTypes";
+import type { CssPixelPosition } from "@carma/units/types";
 
 export type PolygonAreaBadge = {
   text: string;
@@ -20,9 +24,22 @@ export type AreaLabelText = {
 };
 
 type AreaLabelVisualizerCommonOptions = {
-  scene: Scene | null;
+  viewProjector: AreaLabelViewProjector;
   focusedPolygonGroupId: string | null;
   polygonAreaBadgeByGroupId: Readonly<Record<string, PolygonAreaBadge>>;
+};
+
+export type AreaLabelViewState = {
+  width: number;
+  height: number;
+  cameraPitch: number;
+  frameNumber: number | null;
+};
+
+export type AreaLabelViewProjector = {
+  getViewState: () => AreaLabelViewState | null;
+  getViewProjectionMatrix: () => Readonly<Matrix4ConstructorArgs> | null;
+  projectWorldToScreen: (point: Cartesian3Json) => CssPixelPosition | null;
 };
 
 export type GroundAreaLabelVisualizerOptions =
@@ -46,6 +63,6 @@ export type PolygonAreaLabelOverlayBaseOptions =
     polygonPreviewGroups: PolygonPreviewGroup[];
     resolveAreaLabelText: (
       group: PlanarPolygonGroup,
-      vertices: Cartesian3[]
+      vertices: Cartesian3Json[]
     ) => AreaLabelText;
   };

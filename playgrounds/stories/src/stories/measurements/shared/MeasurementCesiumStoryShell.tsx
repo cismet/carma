@@ -19,7 +19,7 @@ import {
   MapMeasurementsProvider,
   MEASUREMENT_MODE,
 } from "@carma-commons/measurements";
-import { CesiumAnnotationsProvider } from "@carma-mapping/annotations/cesium";
+import { AnnotationsAdapterProvider } from "@carma-mapping/annotations/provider";
 import {
   CesiumContext,
   type CesiumContextType,
@@ -228,11 +228,9 @@ export const MeasurementCesiumStoryShell = ({
           }}
         >
           <LabelOverlayProvider containerRef={rootRef}>
-            <CesiumAnnotationsProvider
+            <AnnotationsAdapterProvider
               enabled={true}
-              options={{
-                persistenceEnabled: false,
-              }}
+              options={{}}
             >
               <div
                 style={{
@@ -250,7 +248,7 @@ export const MeasurementCesiumStoryShell = ({
               >
                 <div style={{ pointerEvents: "auto" }}>{children}</div>
               </div>
-            </CesiumAnnotationsProvider>
+            </AnnotationsAdapterProvider>
           </LabelOverlayProvider>
         </MapMeasurementsProvider>
       </CesiumContext.Provider>

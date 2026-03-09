@@ -1,11 +1,8 @@
 import type { ReactNode } from "react";
 
-import type { Cartesian3 } from "@carma/cesium";
-import type {
+import {
   AnnotationEntry,
   PointAnnotationEntry,
-} from "@carma-mapping/annotations/cesium";
-import {
   ANNOTATION_TYPE_AREA_GROUND,
   ANNOTATION_TYPE_AREA_PLANAR,
   ANNOTATION_TYPE_AREA_VERTICAL,
@@ -16,16 +13,10 @@ import {
   type AnnotationType,
   type LinearSegmentLineMode,
 } from "@carma-mapping/annotations/core";
+import type { AnnotationDisplayPoint } from "./utils/pointAnnotationDisplay";
 
 export type AnnotationSlotKind = AnnotationType | "unsupported";
-
-export type AnnotationDisplayPoint = {
-  latitude: number;
-  longitude: number;
-  height: number;
-  anchorHeight?: number;
-  verticalOffset?: number;
-};
+export type { AnnotationDisplayPoint };
 
 export type DistanceTableRow = {
   id: string;
@@ -38,12 +29,17 @@ export type DistanceTableRow = {
 };
 
 export type AnnotationSlotActions = {
-  updateMeasurementNameById: (id: string, name: string) => void;
-  updateMeasurementById: (id: string, patch: Partial<AnnotationEntry>) => void;
-  deleteMeasurementById: (id: string) => void;
-  toggleMeasurementLockById: (id: string) => void;
+  updateAnnotationNameById: (id: string, name: string) => void;
+  updateAnnotationById: (id: string, patch: Partial<AnnotationEntry>) => void;
+  deleteAnnotationById: (id: string) => void;
+  toggleAnnotationLockById: (id: string) => void;
   flyToMeasurementById: (id: string) => void;
-  setReferencePoint: (nextReference: Cartesian3 | null) => void;
+  flyToPlanarPolygonGroupById: (id: string) => void;
+  togglePlanarPolygonGroupVisibilityById: (id: string) => void;
+  togglePlanarPolygonGroupLockById: (id: string) => void;
+  setReferencePoint: (
+    nextReference: PointAnnotationEntry["geometryECEF"] | null
+  ) => void;
   confirmPointLabelInputById: (id: string) => void;
   updatePointLabelAppearanceById: (
     id: string,
@@ -125,7 +121,8 @@ export type PolygonPolylineAnnotationSlotsInput = {
   verticalityDeg?: number;
   segmentLineMode?: LinearSegmentLineMode | null;
   polylineSummary?: PolylineSummary | null;
-  surfaceTypeLabel: string;
+  hidden: boolean;
+  locked: boolean;
   actions: AnnotationSlotActions;
 };
 
@@ -143,6 +140,7 @@ export type AnnotationSlotsInput =
 
 export type AnnotationSlots = {
   headingTitle: string;
+  headingActions?: ReactNode;
   subtitle: ReactNode;
   content: ReactNode;
   collapsible: boolean;

@@ -1,10 +1,14 @@
 import { useRef } from "react";
 import { CesiumErrorHandling } from "@carma-mapping/engines/cesium";
 import { LabelOverlayProvider } from "@carma-providers/label-overlay";
-import { CesiumAnnotationsProvider } from "@carma-mapping/annotations/cesium";
 import {
+  type AnnotationEntry,
+} from "@carma-mapping/annotations/cesium";
+import {
+  AnnotationsAdapterProvider,
   AnnotationInfoBox,
   AnnotationToolbar3D,
+  useLocalAnnotationPersistence,
 } from "@carma-mapping/annotations/provider";
 import { Control, ControlLayout } from "@carma-mapping/map-controls-layout";
 import { CesiumWidgetContainer } from "../components/CesiumWidgetContainer";
@@ -13,16 +17,22 @@ const INFOBOX_WIDTH_PX = 430;
 
 const Measurements = () => {
   const rootRef = useRef<HTMLDivElement | null>(null);
+  const { initialPersistenceState, onPersistenceStateChange } =
+    useLocalAnnotationPersistence<AnnotationEntry>({
+      enabled: true,
+      storageKey: "cesium-reference-annotations",
+    });
 
   return (
     <>
       <CesiumErrorHandling />
       <CesiumWidgetContainer rootRef={rootRef}>
         <LabelOverlayProvider containerRef={rootRef}>
-          <CesiumAnnotationsProvider
+          <AnnotationsAdapterProvider
             enabled={true}
             options={{
-              persistenceEnabled: false,
+              initialPersistenceState,
+              onPersistenceStateChange,
             }}
           >
             <ControlLayout ifStorybook={false}>
@@ -55,7 +65,7 @@ const Measurements = () => {
               </Control>
               <AnnotationInfoBox pixelWidth={INFOBOX_WIDTH_PX} />
             </ControlLayout>
-          </CesiumAnnotationsProvider>
+          </AnnotationsAdapterProvider>
         </LabelOverlayProvider>
       </CesiumWidgetContainer>
     </>

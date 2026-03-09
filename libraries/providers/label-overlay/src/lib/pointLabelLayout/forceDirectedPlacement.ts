@@ -9,11 +9,11 @@ import type {
   DynamicLabelPlacementConfig,
   LabelPlacement,
   Rect,
-  ScreenPoint,
+  CssPixelPosition,
 } from "./types";
 
 type RelaxPlacementWithForcesInput = {
-  anchor: ScreenPoint;
+  anchor: CssPixelPosition;
   labelText: string;
   basePlacement: LabelPlacement;
   occupiedLabelRects: Rect[];
@@ -46,7 +46,7 @@ export const relaxPlacementWithForces = ({
   let connector = {
     x: anchor.x + direction.x * distance,
     y: anchor.y + direction.y * distance,
-  };
+  } as CssPixelPosition;
 
   for (let iteration = 0; iteration < config.iterations; iteration += 1) {
     const rect = createLabelRectFromConnector(
@@ -103,7 +103,7 @@ export const relaxPlacementWithForces = ({
       y:
         connector.y +
         clamp(forceY * config.step, -config.maxDelta, config.maxDelta),
-    };
+    } as CssPixelPosition;
 
     // Keep connector on the chosen placement ray.
     const projectedDistance = clamp(
@@ -117,7 +117,7 @@ export const relaxPlacementWithForces = ({
     connector = {
       x: anchor.x + direction.x * distance,
       y: anchor.y + direction.y * distance,
-    };
+    } as CssPixelPosition;
 
     // Bias toward visible viewport while staying on the same ray.
     const rectAfterProjection = createLabelRectFromConnector(
@@ -147,18 +147,18 @@ export const relaxPlacementWithForces = ({
     );
 
     const inwardRect = createLabelRectFromConnector(
-      {
+      ({
         x: anchor.x + direction.x * inwardDistance,
         y: anchor.y + direction.y * inwardDistance,
-      },
+      } as CssPixelPosition),
       labelText,
       basePlacement.attach
     );
     const outwardRect = createLabelRectFromConnector(
-      {
+      ({
         x: anchor.x + direction.x * outwardDistance,
         y: anchor.y + direction.y * outwardDistance,
-      },
+      } as CssPixelPosition),
       labelText,
       basePlacement.attach
     );
@@ -180,7 +180,7 @@ export const relaxPlacementWithForces = ({
       connector = {
         x: anchor.x + direction.x * distance,
         y: anchor.y + direction.y * distance,
-      };
+      } as CssPixelPosition;
     }
   }
 

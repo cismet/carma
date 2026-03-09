@@ -2,20 +2,18 @@ import { useMemo } from "react";
 
 import {
   isPointAnnotationEntry,
-  MEASUREMENT_MODE_DISTANCE,
-  MEASUREMENT_MODE_POINT,
-  useCesiumAnnotations,
+  ANNOTATION_TYPE_DISTANCE,
+  ANNOTATION_TYPE_POINT,
   type AnnotationEntry,
   type AnnotationMode,
   type PointAnnotationEntry,
-} from "@carma-mapping/annotations/cesium";
-import {
-  useAnnotationMeasurements,
+  useAnnotations,
   useAnnotationSelection,
 } from "@carma-mapping/annotations/core";
+import { useAnnotationsAdapter } from "../../context/AnnotationsAdapterProvider";
 
 export type AnnotationInfoBoxDisplaySelection = {
-  measurementMode: AnnotationMode;
+  annotationMode: AnnotationMode;
   pointLabelOnCreate: boolean;
   isPointModeLivePreviewActive: boolean;
   isDistanceModeLivePreviewActive: boolean;
@@ -27,18 +25,18 @@ export type AnnotationInfoBoxDisplaySelection = {
 export const useAnnotationInfoBoxDisplaySelection =
   (): AnnotationInfoBoxDisplaySelection => {
     const {
-      measurementMode,
-      measurements,
-      liveMeasurementCandidate,
+      annotationMode,
+      annotations,
+      liveAnnotationCandidate,
       pointLabelOnCreate,
-    } = useAnnotationMeasurements<AnnotationMode, AnnotationEntry>();
+    } = useAnnotations<AnnotationMode, AnnotationEntry>();
     const { selectedMeasurementId } = useAnnotationSelection();
-    const { activeMeasurementId } = useCesiumAnnotations();
+    const { activeMeasurementId } = useAnnotationsAdapter();
 
     const isPointModeLivePreviewActive =
-      measurementMode === MEASUREMENT_MODE_POINT && !pointLabelOnCreate;
+      annotationMode === ANNOTATION_TYPE_POINT && !pointLabelOnCreate;
     const isDistanceModeLivePreviewActive =
-      measurementMode === MEASUREMENT_MODE_DISTANCE;
+      annotationMode === ANNOTATION_TYPE_DISTANCE;
     const isLivePreviewMode =
       isPointModeLivePreviewActive || isDistanceModeLivePreviewActive;
 
@@ -47,8 +45,8 @@ export const useAnnotationInfoBoxDisplaySelection =
       : selectedMeasurementId ?? activeMeasurementId;
 
     const pointMeasurements = useMemo(
-      () => measurements.filter(isPointAnnotationEntry),
-      [measurements]
+      () => annotations.filter(isPointAnnotationEntry),
+      [annotations]
     );
 
     const currentMeasurement = useMemo(
@@ -61,11 +59,11 @@ export const useAnnotationInfoBoxDisplaySelection =
 
     const livePreviewMeasurement = useMemo(
       () =>
-        liveMeasurementCandidate &&
-        isPointAnnotationEntry(liveMeasurementCandidate)
-          ? liveMeasurementCandidate
+        liveAnnotationCandidate &&
+        isPointAnnotationEntry(liveAnnotationCandidate)
+          ? liveAnnotationCandidate
           : null,
-      [liveMeasurementCandidate]
+      [liveAnnotationCandidate]
     );
 
     const displayMeasurement = useMemo(
@@ -84,7 +82,7 @@ export const useAnnotationInfoBoxDisplaySelection =
     );
 
     return {
-      measurementMode,
+      annotationMode,
       pointLabelOnCreate,
       isPointModeLivePreviewActive,
       isDistanceModeLivePreviewActive,

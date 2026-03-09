@@ -1,15 +1,13 @@
-import type {
-  PlanarPolygonGroup,
-  PolylineCollection,
-} from "@carma-mapping/annotations/cesium";
 import {
   ANNOTATION_TYPE_AREA_GROUND,
   ANNOTATION_TYPE_AREA_PLANAR,
-  ANNOTATION_TYPE_AREA_VERTICAL,
   ANNOTATION_TYPE_POLYLINE,
+  type AnnotationEntry,
+  type PlanarPolygonGroup,
   LINEAR_SEGMENT_LINE_MODE_COMPONENTS,
   type LinearSegmentLineMode,
 } from "@carma-mapping/annotations/core";
+import type { DerivedPolylinePath } from "../../context/types/derivedPolylinePath";
 import type {
   AnnotationSlotActions,
   PolylineSummary,
@@ -21,7 +19,8 @@ type GetPlanarMeasurementSlotsInputParams = {
   areaPolygonGroups: ReadonlyArray<PlanarPolygonGroup>;
   planarSurfacePolygonGroups: ReadonlyArray<PlanarPolygonGroup>;
   verticalPolygonGroups: ReadonlyArray<PlanarPolygonGroup>;
-  polylines: ReadonlyArray<PolylineCollection>;
+  polylines: ReadonlyArray<DerivedPolylinePath>;
+  annotations: ReadonlyArray<AnnotationEntry>;
   fallbackPolylineSegmentLineMode: LinearSegmentLineMode;
   selectedPlanarPolygonGroupId: string | null;
   activePlanarPolygonGroupId: string | null;
@@ -35,31 +34,10 @@ export type PlanarMeasurementSlotsInputResult = {
 
 const getPlanarKind = (
   group: PlanarPolygonGroup
-): PolygonPolylineAnnotationSlotsInput["kind"] => {
-  if (
-    !group.closed ||
-    (group.measurementKind ?? ANNOTATION_TYPE_POLYLINE) ===
-      ANNOTATION_TYPE_POLYLINE
-  ) {
-    return ANNOTATION_TYPE_POLYLINE;
-  }
-  const surfaceType = group.surfaceType ?? "roof";
-  if (surfaceType === "facade") return ANNOTATION_TYPE_AREA_VERTICAL;
-  if (surfaceType === "roof") return ANNOTATION_TYPE_AREA_PLANAR;
-  return ANNOTATION_TYPE_AREA_GROUND;
-};
-
-const getSurfaceTypeLabel = (group: PlanarPolygonGroup): string => {
-  const kind = getPlanarKind(group);
-  if (kind === ANNOTATION_TYPE_POLYLINE) return "Polygonzug";
-  if (kind === ANNOTATION_TYPE_AREA_VERTICAL) return "Fassade";
-  if (kind === ANNOTATION_TYPE_AREA_PLANAR) return "Dach";
-  if ((group.surfaceType ?? "footprint") === "terrain") return "Gelände";
-  return "Grundriss";
-};
+): PolygonPolylineAnnotationSlotsInput["kind"] => group.measurementKind;
 
 const getPolylineSummary = (
-  polyline: PolylineCollection | null
+  polyline: DerivedPolylinePath | null
 ): PolylineSummary | null => {
   if (!polyline || polyline.segmentLengthsMeters.length === 0) {
     return null;
@@ -99,6 +77,7 @@ export const getPlanarAnnotationSlotsInput = ({
   planarSurfacePolygonGroups,
   verticalPolygonGroups,
   polylines,
+  annotations,
   fallbackPolylineSegmentLineMode,
   selectedPlanarPolygonGroupId,
   activePlanarPolygonGroupId,
@@ -148,6 +127,14 @@ export const getPlanarAnnotationSlotsInput = ({
         fallbackPolylineSegmentLineMode ??
         LINEAR_SEGMENT_LINE_MODE_COMPONENTS
       : null;
+  const annotationLockedById = new Map(
+    annotations.map((entry) => [entry.id, Boolean(entry.locked)] as const)
+  );
+  const isLocked =
+    planarGroup.vertexPointIds.length > 0 &&
+    planarGroup.vertexPointIds.every((vertexId) =>
+      Boolean(annotationLockedById.get(vertexId))
+    );
 
   return {
     planarGroup,
@@ -163,7 +150,8 @@ export const getPlanarAnnotationSlotsInput = ({
       verticalityDeg: planarGroup.verticalityDeg,
       segmentLineMode,
       polylineSummary: getPolylineSummary(polyline),
-      surfaceTypeLabel: getSurfaceTypeLabel(planarGroup),
+      hidden: Boolean(planarGroup.hidden),
+      locked: isLocked,
       actions,
     },
   };

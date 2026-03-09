@@ -5,14 +5,14 @@ import { useAreaLabelVisualizerBase } from "./useAreaLabelVisualizerBase";
 const VERTICAL_AREA_OVERLAY_PREFIX = "distance-vertical-polygon-preview";
 
 export const useVerticalAreaLabelVisualizer = ({
-  scene,
+  viewProjector,
   focusedPolygonGroupId,
   polygonAreaBadgeByGroupId,
   verticalPolygonPreviewGroups,
 }: VerticalAreaLabelVisualizerOptions) => {
   useAreaLabelVisualizerBase({
     overlayPrefix: VERTICAL_AREA_OVERLAY_PREFIX,
-    scene,
+    viewProjector,
     polygonPreviewGroups: verticalPolygonPreviewGroups,
     focusedPolygonGroupId,
     polygonAreaBadgeByGroupId,

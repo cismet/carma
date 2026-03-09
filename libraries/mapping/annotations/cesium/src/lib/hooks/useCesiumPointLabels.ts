@@ -31,6 +31,7 @@ import {
   type PointLabelLayoutConfigOverrides,
   type PointLabelLayoutResult,
 } from "@carma-providers/label-overlay";
+import type { CssPixelPosition } from "@carma/units/types";
 import {
   formatNumber,
   getCustomPointAnnotationName,
@@ -49,8 +50,6 @@ export type CesiumLabelLayoutConfig = PointLabelLayoutConfig;
 export type CesiumLabelLayoutConfigOverrides = PointLabelLayoutConfigOverrides;
 export const DEFAULT_CESIUM_LABEL_LAYOUT_CONFIG =
   DEFAULT_POINT_LABEL_LAYOUT_CONFIG;
-export type { PointLabelMetricMode };
-export { DEFAULT_POINT_LABEL_METRIC_MODE };
 export type PointMarkerBadge = {
   text: string;
   backgroundColor?: string;
@@ -674,7 +673,7 @@ export const useCesiumPointLabels = (
         const preferDefaultNaming = pointLabelMetricMode === "distance";
         let labelTextRepresentation = formatPointLabelText(
           effectivePointIndex,
-          point.geometryWGS84.height,
+          point.geometryWGS84.altitude,
           referenceElevation,
           point.name,
           Boolean(point.auxiliaryLabelAnchor),
@@ -701,7 +700,7 @@ export const useCesiumPointLabels = (
           const anchorRelativeHeightMeters =
             anchorHeightMeters - referenceElevation;
           const verticalOffsetMeters =
-            point.geometryWGS84.height - anchorHeightMeters;
+            point.geometryWGS84.altitude - anchorHeightMeters;
 
           if (
             Number.isFinite(anchorHeightMeters) &&
@@ -1029,7 +1028,7 @@ export const useCesiumPointLabels = (
             point.geometryECEF
           );
           return defined(canvasPosition)
-            ? { x: canvasPosition.x, y: canvasPosition.y }
+            ? ({ x: canvasPosition.x, y: canvasPosition.y } as CssPixelPosition)
             : null;
         },
         pitch: cameraPitch,
@@ -1220,8 +1219,8 @@ export const useCesiumPointLabels = (
               return null;
             }
             return {
-              start: { x: start.x, y: start.y },
-              end: { x: end.x, y: end.y },
+              start: { x: start.x, y: start.y } as CssPixelPosition,
+              end: { x: end.x, y: end.y } as CssPixelPosition,
             };
           },
         } as LineVisualizerData;

@@ -5,14 +5,14 @@ import { useAreaLabelVisualizerBase } from "./useAreaLabelVisualizerBase";
 const PLANAR_AREA_OVERLAY_PREFIX = "distance-planar-polygon-preview";
 
 export const usePlanarAreaLabelVisualizer = ({
-  scene,
+  viewProjector,
   focusedPolygonGroupId,
   polygonAreaBadgeByGroupId,
   planarPolygonPreviewGroups,
 }: PlanarAreaLabelVisualizerOptions) => {
   useAreaLabelVisualizerBase({
     overlayPrefix: PLANAR_AREA_OVERLAY_PREFIX,
-    scene,
+    viewProjector,
     polygonPreviewGroups: planarPolygonPreviewGroups,
     focusedPolygonGroupId,
     polygonAreaBadgeByGroupId,

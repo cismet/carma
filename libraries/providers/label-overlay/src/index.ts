@@ -31,7 +31,6 @@ export { usePointLabels, type PointLabelData } from "./lib/usePointLabels";
 export {
   useLineVisualizers,
   type LineVisualizerData,
-  type ScreenPoint,
 } from "./lib/useLineVisualizers";
 export * from "./lib/pointLabelLayout";
 

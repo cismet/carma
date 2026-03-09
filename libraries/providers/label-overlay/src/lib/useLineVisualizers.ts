@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useRef } from "react";
+import type { CssPixelPosition } from "@carma/units/types";
 
 import { useLabelOverlay } from "./useLabelOverlay";
 import {
@@ -6,19 +7,17 @@ import {
   type LineVisualizerProps,
 } from "./components/LineVisualizer";
 
-export type ScreenPoint = { x: number; y: number };
-
 export type LineVisualizerData = LineVisualizerProps & {
   id: string;
   getCanvasLine?: () => {
-    start: ScreenPoint;
-    end: ScreenPoint;
+    start: CssPixelPosition;
+    end: CssPixelPosition;
   } | null;
   labelMinLineLengthPx?: number;
   labelOffsetPx?: number;
   labelRotationMode?: "auto" | "clockwise";
-  getLabelOutsideReferencePoint?: () => ScreenPoint | null;
-  getLabelInsideReferencePoint?: () => ScreenPoint | null;
+  getLabelOutsideReferencePoint?: () => CssPixelPosition | null;
+  getLabelInsideReferencePoint?: () => CssPixelPosition | null;
   visible?: boolean;
   isHidden?: boolean;
   contentSignature?: string;
@@ -82,11 +81,6 @@ export const useLineVisualizers = (
     lineIndexById.forEach((line, lineId) => {
       const nextSignature = lineSignatureById.get(lineId) ?? "";
       nextSignatureById.set(lineId, nextSignature);
-      const previousSignature =
-        previousLineSignatureByIdRef.current.get(lineId) ?? null;
-      if (previousSignature === nextSignature) {
-        return;
-      }
       addLabelOverlayElement({
         id: `line-visualizer-${line.id}`,
         zIndex: LINE_OVERLAY_Z_INDEX,

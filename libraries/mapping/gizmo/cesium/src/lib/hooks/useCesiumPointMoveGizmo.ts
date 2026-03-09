@@ -8,8 +8,8 @@ import {
 } from "react";
 
 import {
+  CarmaTransforms,
   Cartesian3,
-  Cartesian4,
   Color,
   Matrix4,
   Primitive,
@@ -24,7 +24,7 @@ import {
   createRotationAxisVisualizer,
   type RotationAxisVisualizer,
 } from "@carma-mapping/engines/cesium/legacy";
-import { createDisc } from "@carma-mapping/engines/cesium/primitives";
+import { createRing } from "@carma-mapping/engines/cesium/primitives";
 import { AXIS_NUMERIC_EPSILON, toSvgPathD } from "@carma-mapping/gizmo/core";
 import {
   buildCirclePoints,
@@ -250,55 +250,27 @@ const safeRemovePrimitive = (
   }
 };
 
+const DEFAULT_AXIS_ENU_MATRIX_SCRATCH = new Matrix4();
+
 const createOrientedDiscModelMatrix = (
   origin: Cartesian3,
   planeNormal: Cartesian3,
-  radius: number
+  radius: number,
+  result?: Matrix4
 ): Matrix4 => {
   const safeRadius = Math.max(radius, AXIS_NUMERIC_EPSILON);
   const normalizedNormal = Cartesian3.normalize(planeNormal, new Cartesian3());
   const planeBasis = createPlaneBasis(normalizedNormal);
-  const matrix = Matrix4.clone(Matrix4.IDENTITY, new Matrix4());
-  Matrix4.setColumn(
-    matrix,
-    0,
-    new Cartesian4(
-      planeBasis.xAxis.x * safeRadius,
-      planeBasis.xAxis.y * safeRadius,
-      planeBasis.xAxis.z * safeRadius,
-      0
-    ),
-    matrix
-  );
-  Matrix4.setColumn(
-    matrix,
+  return CarmaTransforms.createBasisScaleTranslationMatrix(
+    origin,
+    planeBasis.xAxis,
+    planeBasis.yAxis,
+    normalizedNormal,
+    safeRadius,
+    safeRadius,
     1,
-    new Cartesian4(
-      planeBasis.yAxis.x * safeRadius,
-      planeBasis.yAxis.y * safeRadius,
-      planeBasis.yAxis.z * safeRadius,
-      0
-    ),
-    matrix
+    result
   );
-  Matrix4.setColumn(
-    matrix,
-    2,
-    new Cartesian4(
-      normalizedNormal.x,
-      normalizedNormal.y,
-      normalizedNormal.z,
-      0
-    ),
-    matrix
-  );
-  Matrix4.setColumn(
-    matrix,
-    3,
-    new Cartesian4(origin.x, origin.y, origin.z, 1),
-    matrix
-  );
-  return matrix;
 };
 
 const toCartesian3Json = (value: Cartesian3) => ({
@@ -328,23 +300,30 @@ const getDefaultAxisCandidatesAtPosition = (
   origin: Cartesian3,
   axisTitle?: string | null
 ): CesiumMoveGizmoAxisCandidate[] => {
-  const eastNorthUpMatrix = Transforms.eastNorthUpToFixedFrame(origin);
-  const eastAxis4 = Matrix4.getColumn(eastNorthUpMatrix, 0, new Cartesian4());
-  const northAxis4 = Matrix4.getColumn(eastNorthUpMatrix, 1, new Cartesian4());
-  const upAxis4 = Matrix4.getColumn(eastNorthUpMatrix, 2, new Cartesian4());
+  const eastNorthUpMatrix = Transforms.eastNorthUpToFixedFrame(
+    origin,
+    undefined,
+    DEFAULT_AXIS_ENU_MATRIX_SCRATCH
+  );
 
-  const eastDirection = Cartesian3.normalize(
-    new Cartesian3(eastAxis4.x, eastAxis4.y, eastAxis4.z),
-    new Cartesian3()
+  const eastDirectionRaw = CarmaTransforms.matrix4ColumnToCartesian3(
+    eastNorthUpMatrix,
+    0
   );
+  const northDirectionRaw = CarmaTransforms.matrix4ColumnToCartesian3(
+    eastNorthUpMatrix,
+    1
+  );
+  const upDirectionRaw = CarmaTransforms.matrix4ColumnToCartesian3(
+    eastNorthUpMatrix,
+    2
+  );
+  const eastDirection = Cartesian3.normalize(eastDirectionRaw, eastDirectionRaw);
   const northDirection = Cartesian3.normalize(
-    new Cartesian3(northAxis4.x, northAxis4.y, northAxis4.z),
-    new Cartesian3()
+    northDirectionRaw,
+    northDirectionRaw
   );
-  const upDirection = Cartesian3.normalize(
-    new Cartesian3(upAxis4.x, upAxis4.y, upAxis4.z),
-    new Cartesian3()
-  );
+  const upDirection = Cartesian3.normalize(upDirectionRaw, upDirectionRaw);
 
   const directionsByAxisId: Record<DefaultAxisId, Cartesian3> = {
     vertical: upDirection,
@@ -1334,10 +1313,11 @@ export const useCesiumPointMoveGizmo = (
         initialAxisDirection,
         radiusRef.current
       );
-      const disc = createDisc(`point-move-disc-${movePoint.id}`, {
+      const disc = createRing(`point-move-disc-${movePoint.id}`, {
         radius: 1,
+        innerRadius: 0.5,
         color: DISC_FILL_COLOR,
-        unitCircleSegments: 24,
+        segments: 24,
         modelMatrix: createOrientedDiscModelMatrix(
           movePoint.geometryECEF,
           initialAxisDirection,
@@ -1375,7 +1355,8 @@ export const useCesiumPointMoveGizmo = (
           discVisualizer.modelMatrix = createOrientedDiscModelMatrix(
             currentPoint.geometryECEF,
             axisDirection,
-            discWorldRadius
+            discWorldRadius,
+            discVisualizer.modelMatrix
           );
         }
       } catch {

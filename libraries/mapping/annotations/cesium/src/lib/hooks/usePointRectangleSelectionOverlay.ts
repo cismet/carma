@@ -1,15 +1,16 @@
 import { useEffect, useRef } from "react";
 
 import { type Scene } from "@carma/cesium";
+import type { CssPixelPosition, CssPixels } from "@carma/units/types";
 import {
   POINT_LABEL_SELECTED_BACKGROUND_COLOR,
   type PointLabelData,
 } from "@carma-providers/label-overlay";
 
 import {
-  buildSelectionRectangle,
-  getSelectionRectangleSize,
-  selectPointLabelIdsInRectangle,
+  buildScreenRectangle,
+  getScreenRectangleSize,
+  selectPointIdsInScreenRectangle,
 } from "@carma-mapping/annotations/core";
 
 type UsePointRectangleSelectionOverlayParams = {
@@ -79,8 +80,8 @@ export const usePointRectangleSelectionOverlay = ({
     document.body.appendChild(selectionOverlay);
 
     let activePointerId: number | null = null;
-    let dragStart: { x: number; y: number } | null = null;
-    let dragCurrent: { x: number; y: number } | null = null;
+    let dragStart: CssPixelPosition | null = null;
+    let dragCurrent: CssPixelPosition | null = null;
     let isDragging = false;
     let dragAdditive = false;
     let lastSelectionSignature: string | null = null;
@@ -93,8 +94,8 @@ export const usePointRectangleSelectionOverlay = ({
     const getOverlayLocalPoint = (event: PointerEvent) => {
       const overlayBounds = getOverlayBounds();
       return {
-        x: event.clientX - overlayBounds.left,
-        y: event.clientY - overlayBounds.top,
+        x: (event.clientX - overlayBounds.left) as CssPixels,
+        y: (event.clientY - overlayBounds.top) as CssPixels,
       };
     };
 
@@ -149,8 +150,8 @@ export const usePointRectangleSelectionOverlay = ({
 
     const updateOverlay = () => {
       if (!dragStart || !dragCurrent) return;
-      const rectangle = buildSelectionRectangle(dragStart, dragCurrent);
-      const size = getSelectionRectangleSize(rectangle);
+      const rectangle = buildScreenRectangle(dragStart, dragCurrent);
+      const size = getScreenRectangleSize(rectangle);
       const overlayBounds = getOverlayBounds();
 
       selectionOverlay.style.left = `${overlayBounds.left + rectangle.left}px`;
@@ -178,8 +179,8 @@ export const usePointRectangleSelectionOverlay = ({
 
     const emitLiveSelection = () => {
       if (!isDragging || !dragStart || !dragCurrent) return;
-      const rectangle = buildSelectionRectangle(dragStart, dragCurrent);
-      const selectedIds = selectPointLabelIdsInRectangle(
+      const rectangle = buildScreenRectangle(dragStart, dragCurrent);
+      const selectedIds = selectPointIdsInScreenRectangle(
         pointsRef.current,
         rectangle
       );
@@ -230,8 +231,8 @@ export const usePointRectangleSelectionOverlay = ({
       }
       dragCurrent = getOverlayLocalPoint(event);
 
-      const rectangle = buildSelectionRectangle(dragStart, dragCurrent);
-      const size = getSelectionRectangleSize(rectangle);
+      const rectangle = buildScreenRectangle(dragStart, dragCurrent);
+      const size = getScreenRectangleSize(rectangle);
       if (
         !isDragging &&
         (size.width >= MIN_RECTANGLE_SELECTION_SIZE_PX ||

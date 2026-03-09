@@ -17,6 +17,12 @@ export type CartographicJsonTyped = {
   height: Altitude.EllipsoidalWGS84Meters;
 };
 
+const ZERO_ELLIPSOIDAL_ALTITUDE = 0 as Altitude.EllipsoidalWGS84Meters;
+
+export const getEllipsoidalAltitudeOrZero = (
+  altitude: Altitude.EllipsoidalWGS84Meters | null | undefined
+): Altitude.EllipsoidalWGS84Meters => altitude ?? ZERO_ELLIPSOIDAL_ALTITUDE;
+
 /**
  * Convert Cesium Cartographic (radians) to degrees LatLngAlt
  */

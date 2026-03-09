@@ -5,14 +5,14 @@ import { useAreaLabelVisualizerBase } from "./useAreaLabelVisualizerBase";
 const GROUND_AREA_OVERLAY_PREFIX = "distance-ground-polygon-preview";
 
 export const useGroundAreaLabelVisualizer = ({
-  scene,
+  viewProjector,
   focusedPolygonGroupId,
   polygonAreaBadgeByGroupId,
   groundPolygonPreviewGroups,
 }: GroundAreaLabelVisualizerOptions) => {
   useAreaLabelVisualizerBase({
     overlayPrefix: GROUND_AREA_OVERLAY_PREFIX,
-    scene,
+    viewProjector,
     polygonPreviewGroups: groundPolygonPreviewGroups,
     focusedPolygonGroupId,
     polygonAreaBadgeByGroupId,
