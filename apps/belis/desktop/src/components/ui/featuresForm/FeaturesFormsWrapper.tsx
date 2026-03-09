@@ -10,8 +10,10 @@ import {
   setDraftFiles,
   removeDraft,
   setOriginalValues,
+  getOriginalValues,
   hasDraftChanges,
 } from "../../../store/slices/featuresForms";
+import { ChangedFieldsProvider } from "./DraftFieldHighlight";
 import type { DraftFile } from "../../../store/slices/featuresForms";
 import type { RootState } from "../../../store";
 
@@ -93,6 +95,7 @@ const FeaturesFormsWrapper = ({
   const draft = useSelector((state: RootState) => getDraft(state, featureId));
   const draftFiles = useSelector((state: RootState) => getDraftFiles(state, featureId));
   const hasChanges = useSelector((state: RootState) => hasDraftChanges(state, featureId));
+  const originalValues = useSelector((state: RootState) => getOriginalValues(state, featureId));
 
   const [isEditing, setIsEditing] = useState(false);
   const [resetKey, setResetKey] = useState(0);
@@ -154,24 +157,29 @@ const FeaturesFormsWrapper = ({
 
   if (FormComponent) {
     return (
-      <div className="h-full">
-        <FormComponent
-          key={resetKey}
-          data={data}
-          rawFeature={rawFeature}
-          readOnly={effectiveReadOnly}
-          loading={loading}
-          draftValues={deserializedDraftValues}
-          draftFiles={draftFiles}
-          hasDraft={hasChanges}
-          onDraftChange={handleDraftChange}
-          onDraftFilesChange={handleDraftFilesChange}
-          onOriginalValues={handleOriginalValues}
-          onToggleReadOnly={handleToggleReadOnly}
-          onCancel={handleCancel}
-          onSaveComplete={handleSaveComplete}
-        />
-      </div>
+      <ChangedFieldsProvider
+        originalValues={originalValues}
+        draftValues={draft?.values}
+      >
+        <div className="h-full">
+          <FormComponent
+            key={resetKey}
+            data={data}
+            rawFeature={rawFeature}
+            readOnly={effectiveReadOnly}
+            loading={loading}
+            draftValues={deserializedDraftValues}
+            draftFiles={draftFiles}
+            hasDraft={hasChanges}
+            onDraftChange={handleDraftChange}
+            onDraftFilesChange={handleDraftFilesChange}
+            onOriginalValues={handleOriginalValues}
+            onToggleReadOnly={handleToggleReadOnly}
+            onCancel={handleCancel}
+            onSaveComplete={handleSaveComplete}
+          />
+        </div>
+      </ChangedFieldsProvider>
     );
   }
 };

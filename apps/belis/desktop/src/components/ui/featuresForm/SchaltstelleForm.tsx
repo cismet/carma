@@ -8,6 +8,7 @@ import { DokumentItem } from "../DocumentPreview";
 import FeatureFormLayout from "./FeatureFormLayout";
 import StrassenschluesselFields from "./StrassenschluesselFields";
 import { getFormClassName, getPlaceholder } from "./readOnlyFormUtils";
+import { FormItem } from "./DraftFieldHighlight";
 import toTitleCase from "../../../helper/toTitleCase";
 import dayjs from "dayjs";
 
@@ -182,47 +183,47 @@ const SchaltstelleForm = ({
         <StrassenschluesselFields label="Strassenschlussel" />
 
         {/* Hausnummer */}
-        <Form.Item
+        <FormItem
           name="haus_nummer"
           label={<FormLabel>Hausnummer</FormLabel>}
           className="mb-4"
         >
           <Input size="large" />
-        </Form.Item>
+        </FormItem>
 
         {/* Standortbez. */}
-        <Form.Item
+        <FormItem
           name="zusaetzliche_standortbezeichnung"
           label={<FormLabel>Standortbez.</FormLabel>}
           className="mb-4"
         >
           <Input size="large" />
-        </Form.Item>
+        </FormItem>
 
         {/* Laufende Nr. and Schaltstellen Nr. */}
         <Row gutter={16}>
           <Col span={12}>
-            <Form.Item
+            <FormItem
               name="laufende_nummer"
               label={<FormLabel>Laufende Nr.</FormLabel>}
               className="mb-4"
             >
               <InputNumber className="w-full" size="large" />
-            </Form.Item>
+            </FormItem>
           </Col>
           <Col span={12}>
-            <Form.Item
+            <FormItem
               name="schaltstellen_nummer"
               label={<FormLabel>Schaltstellen Nr.</FormLabel>}
               className="mb-4"
             >
               <Input size="large" />
-            </Form.Item>
+            </FormItem>
           </Col>
         </Row>
 
         {/* Bauart */}
-        <Form.Item
+        <FormItem
           name="fk_bauart"
           label={<FormLabel>Bauart</FormLabel>}
           className="mb-4"
@@ -240,10 +241,10 @@ const SchaltstelleForm = ({
               </Select.Option>
             ))}
           </Select>
-        </Form.Item>
+        </FormItem>
 
         {/* Erstellungsjahr */}
-        <Form.Item
+        <FormItem
           name="erstellungsjahr"
           label={<FormLabel>Erstellungsjahr</FormLabel>}
           className="mb-4"
@@ -254,10 +255,10 @@ const SchaltstelleForm = ({
             format="DD.MM.YYYY"
             placeholder={getPlaceholder(readOnly, "Datum auswahlen")}
           />
-        </Form.Item>
+        </FormItem>
 
         {/* Rundsteuerempfaenger */}
-        <Form.Item
+        <FormItem
           name="fk_rundsteuerempfaenger"
           label={<FormLabel>Rundsteuerempf.</FormLabel>}
           className="mb-4"
@@ -278,12 +279,12 @@ const SchaltstelleForm = ({
               </Select.Option>
             ))}
           </Select>
-        </Form.Item>
+        </FormItem>
 
         {/* Einbaudatum and Pruefung */}
         <Row gutter={16}>
           <Col span={12}>
-            <Form.Item
+            <FormItem
               name="einbaudatum_rs"
               label={<FormLabel>Einbaudatum</FormLabel>}
               className="mb-4"
@@ -294,10 +295,10 @@ const SchaltstelleForm = ({
                 format="DD.MM.YYYY"
                 placeholder={getPlaceholder(readOnly, "Datum auswahlen")}
               />
-            </Form.Item>
+            </FormItem>
           </Col>
           <Col span={12}>
-            <Form.Item
+            <FormItem
               name="pruefdatum"
               label={<FormLabel>Prufung</FormLabel>}
               className="mb-4"
@@ -308,18 +309,18 @@ const SchaltstelleForm = ({
                 format="DD.MM.YYYY"
                 placeholder={getPlaceholder(readOnly, "Datum auswahlen")}
               />
-            </Form.Item>
+            </FormItem>
           </Col>
         </Row>
 
         {/* Bemerkung */}
-        <Form.Item
+        <FormItem
           name="bemerkung"
           label={<FormLabel>Bemerkung</FormLabel>}
           className="mb-4"
         >
           <Input.TextArea rows={4} size="large" />
-        </Form.Item>
+        </FormItem>
       </Form>
     </FeatureFormLayout>
   );

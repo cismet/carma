@@ -159,6 +159,12 @@ export const getFormError = (
   featureId: string | undefined
 ) => (featureId ? state.featuresForms?.errors[featureId] ?? null : null);
 
+export const getOriginalValues = (
+  state: RootState,
+  featureId: string | undefined
+): Record<string, unknown> | undefined =>
+  featureId ? state.featuresForms?.originalValues[featureId] : undefined;
+
 export const getDraftFiles = (
   state: RootState,
   featureId: string | undefined

@@ -13,6 +13,7 @@ import { useSelector } from "react-redux";
 import { getKeyTablesData } from "../../../store/slices/keyTables";
 import StrassenschluesselFields from "./StrassenschluesselFields";
 import { getFormClassName, getPlaceholder } from "./readOnlyFormUtils";
+import { FormItem } from "./DraftFieldHighlight";
 import toTitleCase from "../../../helper/toTitleCase";
 import dayjs from "dayjs";
 
@@ -288,7 +289,7 @@ const LeuchteFormFields = ({
       <StrassenschluesselFields namePrefix={namePrefix} />
 
       {/* Kennziffer */}
-      <Form.Item
+      <FormItem
         name={fieldName("fk_kennziffer")}
         label={<FormLabel>Kennziffer</FormLabel>}
         className="mb-4"
@@ -306,32 +307,32 @@ const LeuchteFormFields = ({
             </Select.Option>
           ))}
         </Select>
-      </Form.Item>
+      </FormItem>
 
       {/* Laufende Nr. and Leuchtennummer */}
       <Row gutter={16}>
         <Col span={12}>
-          <Form.Item
+          <FormItem
             name={fieldName("lfd_nummer")}
             label={<FormLabel>Laufende Nr.</FormLabel>}
             className="mb-4"
           >
             <InputNumber className="w-full" size="large" />
-          </Form.Item>
+          </FormItem>
         </Col>
         <Col span={12}>
-          <Form.Item
+          <FormItem
             name={fieldName("leuchtennummer")}
             label={<FormLabel>Leuchtennummer</FormLabel>}
             className="mb-4"
           >
             <InputNumber className="w-full" size="large" />
-          </Form.Item>
+          </FormItem>
         </Col>
       </Row>
 
       {/* Leuchtentyp */}
-      <Form.Item
+      <FormItem
         name={fieldName("fk_leuchttyp")}
         label={<FormLabel>Leuchtentyp</FormLabel>}
         className="mb-4"
@@ -349,12 +350,12 @@ const LeuchteFormFields = ({
             </Select.Option>
           ))}
         </Select>
-      </Form.Item>
+      </FormItem>
 
       {/* Inbetriebnahme and Zähler */}
       <Row gutter={16}>
         <Col span={12}>
-          <Form.Item
+          <FormItem
             name={fieldName("inbetriebnahme_leuchte")}
             label={<FormLabel>Inbetriebnahme</FormLabel>}
             className="mb-4"
@@ -365,30 +366,30 @@ const LeuchteFormFields = ({
               format="DD.MM.YYYY"
               placeholder={getPlaceholder(readOnly, "Datum auswählen")}
             />
-          </Form.Item>
+          </FormItem>
         </Col>
         <Col span={12}>
-          <Form.Item
+          <FormItem
             name={fieldName("zaehler")}
             valuePropName="checked"
             className="mb-4 mt-8"
           >
             <Checkbox>Zähler vorhanden</Checkbox>
-          </Form.Item>
+          </FormItem>
         </Col>
       </Row>
 
       {/* Montagefirma */}
-      <Form.Item
+      <FormItem
         name={fieldName("montagefirma_leuchte")}
         label={<FormLabel>Montagefirma</FormLabel>}
         className="mb-4"
       >
         <Input size="large" />
-      </Form.Item>
+      </FormItem>
 
       {/* Energielieferant */}
-      <Form.Item
+      <FormItem
         name={fieldName("fk_energielieferant")}
         label={<FormLabel>Energielieferant</FormLabel>}
         className="mb-4"
@@ -406,19 +407,19 @@ const LeuchteFormFields = ({
             </Select.Option>
           ))}
         </Select>
-      </Form.Item>
+      </FormItem>
 
       {/* Schaltstelle */}
-      <Form.Item
+      <FormItem
         name={fieldName("schaltstelle")}
         label={<FormLabel>Schaltstelle</FormLabel>}
         className="mb-4"
       >
         <Input size="large" />
-      </Form.Item>
+      </FormItem>
 
       {/* Rundsteuerempfänger */}
-      <Form.Item
+      <FormItem
         name={fieldName("rundsteuerempfaenger")}
         label={<FormLabel>Rundsteuerempf.</FormLabel>}
         className="mb-4"
@@ -439,10 +440,10 @@ const LeuchteFormFields = ({
             </Select.Option>
           ))}
         </Select>
-      </Form.Item>
+      </FormItem>
 
       {/* Einbaudatum */}
-      <Form.Item
+      <FormItem
         name={fieldName("einbaudatum")}
         label={<FormLabel>Einbaudatum</FormLabel>}
         className="mb-4"
@@ -453,12 +454,12 @@ const LeuchteFormFields = ({
           format="DD.MM.YYYY"
           placeholder={getPlaceholder(readOnly, "Datum auswählen")}
         />
-      </Form.Item>
+      </FormItem>
 
       {/* Doppelkommando 1 */}
       <Row gutter={16}>
         <Col span={16}>
-          <Form.Item
+          <FormItem
             name={fieldName("fk_dk1")}
             label={<FormLabel>Doppelkommando 1</FormLabel>}
             className="mb-4"
@@ -476,21 +477,21 @@ const LeuchteFormFields = ({
                 </Select.Option>
               ))}
             </Select>
-          </Form.Item>
+          </FormItem>
         </Col>
         <Col span={8}>
-          <Form.Item
+          <FormItem
             name={fieldName("anzahl_1dk")}
             label={<FormLabel>Anzahl</FormLabel>}
             className="mb-4"
           >
             <InputNumber className="w-full" size="large" />
-          </Form.Item>
+          </FormItem>
         </Col>
       </Row>
 
       {/* Anschlussleistung 1 */}
-      <Form.Item
+      <FormItem
         name={fieldName("anschlussleistung_1dk")}
         label={<FormLabel>Anschlussleistung</FormLabel>}
         className="mb-4"
@@ -501,12 +502,12 @@ const LeuchteFormFields = ({
           precision={2}
           decimalSeparator=","
         />
-      </Form.Item>
+      </FormItem>
 
       {/* Doppelkommando 2 */}
       <Row gutter={16}>
         <Col span={16}>
-          <Form.Item
+          <FormItem
             name={fieldName("fk_dk2")}
             label={<FormLabel>Doppelkommando 2</FormLabel>}
             className="mb-4"
@@ -525,21 +526,21 @@ const LeuchteFormFields = ({
                 </Select.Option>
               ))}
             </Select>
-          </Form.Item>
+          </FormItem>
         </Col>
         <Col span={8}>
-          <Form.Item
+          <FormItem
             name={fieldName("anzahl_2dk")}
             label={<FormLabel>Anzahl</FormLabel>}
             className="mb-4"
           >
             <InputNumber className="w-full" size="large" />
-          </Form.Item>
+          </FormItem>
         </Col>
       </Row>
 
       {/* Anschlussleistung 2 */}
-      <Form.Item
+      <FormItem
         name={fieldName("anschlussleistung_2dk")}
         label={<FormLabel>Anschlussleistung</FormLabel>}
         className="mb-4"
@@ -550,10 +551,10 @@ const LeuchteFormFields = ({
           precision={2}
           decimalSeparator=","
         />
-      </Form.Item>
+      </FormItem>
 
       {/* Unterhalt Leuchte */}
-      <Form.Item
+      <FormItem
         name={fieldName("fk_unterhaltspflicht_leuchte")}
         label={<FormLabel>Unterhalt Leuchte</FormLabel>}
         className="mb-4"
@@ -571,12 +572,12 @@ const LeuchteFormFields = ({
             </Select.Option>
           ))}
         </Select>
-      </Form.Item>
+      </FormItem>
 
       {/* Leuchtmittelwechsel / Nächster Wechsel */}
       <Row gutter={16}>
         <Col span={12}>
-          <Form.Item
+          <FormItem
             name={fieldName("wechseldatum")}
             label={<FormLabel>Leuchtmittelwechsel</FormLabel>}
             className="mb-4"
@@ -587,10 +588,10 @@ const LeuchteFormFields = ({
               format="DD.MM.YYYY"
               placeholder={getPlaceholder(readOnly, "Datum auswählen")}
             />
-          </Form.Item>
+          </FormItem>
         </Col>
         <Col span={12}>
-          <Form.Item
+          <FormItem
             name={fieldName("naechster_wechsel")}
             label={<FormLabel>Nächster Wechsel</FormLabel>}
             className="mb-4"
@@ -601,12 +602,12 @@ const LeuchteFormFields = ({
               format="DD.MM.YYYY"
               placeholder={getPlaceholder(readOnly, "Datum auswählen")}
             />
-          </Form.Item>
+          </FormItem>
         </Col>
       </Row>
 
       {/* Leuchtmittel */}
-      <Form.Item
+      <FormItem
         name={fieldName("leuchtmittel")}
         label={<FormLabel>Leuchtmittel</FormLabel>}
         className="mb-4"
@@ -624,10 +625,10 @@ const LeuchteFormFields = ({
             </Select.Option>
           ))}
         </Select>
-      </Form.Item>
+      </FormItem>
 
       {/* Lebensdauer */}
-      <Form.Item
+      <FormItem
         name={fieldName("lebensdauer")}
         label={<FormLabel>Lebensdauer</FormLabel>}
         className="mb-4"
@@ -638,10 +639,10 @@ const LeuchteFormFields = ({
           precision={2}
           decimalSeparator=","
         />
-      </Form.Item>
+      </FormItem>
 
       {/* Sonderturnus */}
-      <Form.Item
+      <FormItem
         name={fieldName("sonderturnus")}
         label={<FormLabel>Sonderturnus</FormLabel>}
         className="mb-4"
@@ -652,19 +653,19 @@ const LeuchteFormFields = ({
           format="DD.MM.YYYY"
           placeholder={getPlaceholder(readOnly, "Datum auswählen")}
         />
-      </Form.Item>
+      </FormItem>
 
       {/* Vorschaltgerät */}
-      <Form.Item
+      <FormItem
         name={fieldName("vorschaltgeraet")}
         label={<FormLabel>Vorschaltgerät</FormLabel>}
         className="mb-4"
       >
         <Input size="large" />
-      </Form.Item>
+      </FormItem>
 
       {/* Erneuerung VG */}
-      <Form.Item
+      <FormItem
         name={fieldName("wechselvorschaltgeraet")}
         label={<FormLabel>Erneuerung VG</FormLabel>}
         className="mb-4"
@@ -675,16 +676,16 @@ const LeuchteFormFields = ({
           format="DD.MM.YYYY"
           placeholder={getPlaceholder(readOnly, "Datum auswählen")}
         />
-      </Form.Item>
+      </FormItem>
 
       {/* Bemerkung */}
-      <Form.Item
+      <FormItem
         name={fieldName("bemerkungen")}
         label={<FormLabel>Bemerkung</FormLabel>}
         className="mb-4"
       >
         <Input.TextArea rows={4} size="large" />
-      </Form.Item>
+      </FormItem>
     </Form>
   );
 };
