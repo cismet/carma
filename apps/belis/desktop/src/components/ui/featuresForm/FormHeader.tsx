@@ -29,7 +29,7 @@ const FormHeader = ({
 }: FormHeaderProps) => {
   return (
     <div className="flex flex-col border-b border-gray-100">
-      <div className="flex items-center justify-between p-6 gap-4">
+      <div className="flex items-center justify-between flex-wrap p-6 gap-4">
         <div className="flex items-center gap-3 flex-shrink-0">
           <Tooltip title={readOnly ? "Bearbeiten" : "Sperren"}>
             <div
