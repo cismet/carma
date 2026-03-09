@@ -218,10 +218,10 @@ const createPolylabelCell = (
   y: number,
   h: number
 ): PolylabelCell => {
-  const d = computeSignedDistanceToPolygon2D(
-    polygonPoints,
-    { x, y } as CssPixelPosition
-  );
+  const d = computeSignedDistanceToPolygon2D(polygonPoints, {
+    x,
+    y,
+  } as CssPixelPosition);
   return {
     x,
     y,

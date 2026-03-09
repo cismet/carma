@@ -126,11 +126,6 @@ export const usePointLabels = (
     pointIndexById.forEach((point, pointId) => {
       const nextSignature = pointSignatureById.get(pointId) ?? "";
       nextSignatureById.set(pointId, nextSignature);
-      const previousSignature =
-        previousPointSignatureByIdRef.current.get(pointId) ?? null;
-      if (previousSignature === nextSignature) {
-        return;
-      }
       const labelId = `point-label-${point.id}`;
 
       // Use pitch from point data or fallback to getPitch callback

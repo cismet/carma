@@ -147,18 +147,18 @@ export const relaxPlacementWithForces = ({
     );
 
     const inwardRect = createLabelRectFromConnector(
-      ({
+      {
         x: anchor.x + direction.x * inwardDistance,
         y: anchor.y + direction.y * inwardDistance,
-      } as CssPixelPosition),
+      } as CssPixelPosition,
       labelText,
       basePlacement.attach
     );
     const outwardRect = createLabelRectFromConnector(
-      ({
+      {
         x: anchor.x + direction.x * outwardDistance,
         y: anchor.y + direction.y * outwardDistance,
-      } as CssPixelPosition),
+      } as CssPixelPosition,
       labelText,
       basePlacement.attach
     );

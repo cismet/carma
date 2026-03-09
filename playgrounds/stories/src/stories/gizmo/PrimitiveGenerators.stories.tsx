@@ -110,7 +110,6 @@ const withOpacity = (color: Color, opacity: number) =>
 const toNormalizedInnerRadius = (innerRadius: number, radius: number) =>
   clamp(innerRadius / toSafeRadius(radius), 0, 1 - 1e-3);
 
-
 const createBatchedPrimitive = (
   geometryInstances: GeometryInstance[],
   translucent: boolean
@@ -219,7 +218,12 @@ const clearPrimitivesSafe = (
 };
 
 const setInitialTopDownCamera = (widget: CesiumWidget) => {
-  const destination = withLocalOffset(DEMO_ANCHOR, 0, 0, INITIAL_CAMERA_DISTANCE);
+  const destination = withLocalOffset(
+    DEMO_ANCHOR,
+    0,
+    0,
+    INITIAL_CAMERA_DISTANCE
+  );
   widget.camera.setView({
     destination,
     orientation: {
@@ -348,10 +352,7 @@ const SinglePrimitiveCanvas = ({
   );
 };
 
-const DiscPreview = ({
-  radius,
-  segments,
-}: DiscStoryArgs) => {
+const DiscPreview = ({ radius, segments }: DiscStoryArgs) => {
   const safeRadius = toSafeRadius(radius, 2.5);
   const safeSegments = toSafeSegments(segments, 24);
   const color = DISC_BASE_COLOR;
@@ -373,17 +374,18 @@ const DiscPreview = ({
       title="createDisc"
       details={[
         { id: "radius", label: "radius", value: safeRadius, fractionDigits: 2 },
-        { id: "segments", label: "segments", value: safeSegments, fractionDigits: 0 },
+        {
+          id: "segments",
+          label: "segments",
+          value: safeSegments,
+          fractionDigits: 0,
+        },
       ]}
     />
   );
 };
 
-const RingPreview = ({
-  radius,
-  innerRadius,
-  segments,
-}: RingStoryArgs) => {
+const RingPreview = ({ radius, innerRadius, segments }: RingStoryArgs) => {
   const safeRadius = toSafeRadius(radius, 3);
   const maxInner = Math.max(0, safeRadius - 1e-3);
   const safeInnerRadius = clamp(
@@ -412,8 +414,18 @@ const RingPreview = ({
       title="createRing"
       details={[
         { id: "radius", label: "radius", value: safeRadius, fractionDigits: 2 },
-        { id: "inner", label: "inner", value: safeInnerRadius, fractionDigits: 2 },
-        { id: "segments", label: "segments", value: safeSegments, fractionDigits: 0 },
+        {
+          id: "inner",
+          label: "inner",
+          value: safeInnerRadius,
+          fractionDigits: 2,
+        },
+        {
+          id: "segments",
+          label: "segments",
+          value: safeSegments,
+          fractionDigits: 0,
+        },
       ]}
     />
   );
@@ -465,7 +477,12 @@ const RingSegmentPreview = ({
       title="createRingSegment"
       details={[
         { id: "radius", label: "radius", value: safeRadius, fractionDigits: 2 },
-        { id: "inner", label: "inner", value: safeInnerRadius, fractionDigits: 2 },
+        {
+          id: "inner",
+          label: "inner",
+          value: safeInnerRadius,
+          fractionDigits: 2,
+        },
         {
           id: "rotation",
           label: "rotation",
@@ -602,11 +619,17 @@ const StressPreview = ({
             return [createBatchedPrimitive(instances, discColor.alpha < 1)];
           })()
         : (() => {
-            const geometryCache = new Map<string, ReturnType<typeof createUnitRingSegmentGeometry>>();
-            const resolveGeometry = (normalizedInnerRadius: number, angleRad: number) => {
-              const key = `${normalizedInnerRadius.toFixed(6)}|${angleRad.toFixed(
+            const geometryCache = new Map<
+              string,
+              ReturnType<typeof createUnitRingSegmentGeometry>
+            >();
+            const resolveGeometry = (
+              normalizedInnerRadius: number,
+              angleRad: number
+            ) => {
+              const key = `${normalizedInnerRadius.toFixed(
                 6
-              )}|${safeSegments}`;
+              )}|${angleRad.toFixed(6)}|${safeSegments}`;
               const cached = geometryCache.get(key);
               if (cached) return cached;
               const geometry = createUnitRingSegmentGeometry({
@@ -637,7 +660,11 @@ const StressPreview = ({
                 0,
                 FULL_CIRCLE_DEG
               );
-              const innerRadius = lerp(safeInnerMin, safeInnerMax, frame.layerRatio);
+              const innerRadius = lerp(
+                safeInnerMin,
+                safeInnerMax,
+                frame.layerRatio
+              );
               const normalizedInnerRadius = toNormalizedInnerRadius(
                 innerRadius,
                 safeRadius
@@ -709,7 +736,12 @@ const StressPreview = ({
             label: "grid",
             value: `${safeEdgeLength}x${safeEdgeLength}x${safeDepth} (${total})`,
           },
-          { id: "radius", label: "radius", value: safeRadius, fractionDigits: 2 },
+          {
+            id: "radius",
+            label: "radius",
+            value: safeRadius,
+            fractionDigits: 2,
+          },
         ]}
       />
     </div>

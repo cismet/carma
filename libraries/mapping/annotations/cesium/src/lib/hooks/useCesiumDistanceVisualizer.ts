@@ -375,9 +375,7 @@ export const useCesiumDistanceVisualizer = (
         ): CssPixelPosition | null => {
           if (!scene || scene.isDestroyed()) return null;
           const p = SceneTransforms.worldToWindowCoordinates(scene, position);
-          return defined(p)
-            ? ({ x: p.x, y: p.y } as CssPixelPosition)
-            : null;
+          return defined(p) ? ({ x: p.x, y: p.y } as CssPixelPosition) : null;
         };
         const highestPoint =
           pointA.geometryWGS84.altitude >= pointB.geometryWGS84.altitude

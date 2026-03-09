@@ -87,7 +87,8 @@ export const useCesiumPolygonAreaPrimitives = ({
       );
       const isSelected = group.id === focusedPolygonGroupId;
       const fillColor = getPolygonFillCesiumColor(group, isSelected);
-      const isGroundSurface = group.measurementKind === ANNOTATION_TYPE_AREA_GROUND;
+      const isGroundSurface =
+        group.measurementKind === ANNOTATION_TYPE_AREA_GROUND;
 
       if (isGroundSurface) {
         const groundGeometry = new PolygonGeometry({

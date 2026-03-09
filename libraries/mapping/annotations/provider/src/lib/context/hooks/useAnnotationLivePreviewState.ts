@@ -12,9 +12,7 @@ import type {
   PlanarPolygonGroup,
 } from "@carma-mapping/annotations/core";
 
-import {
-  resolveLivePreviewCapabilities,
-} from "./live-preview/livePreviewCapabilities";
+import { resolveLivePreviewCapabilities } from "./live-preview/livePreviewCapabilities";
 import { usePointLivePreviewState } from "./live-preview/usePointLivePreviewState";
 import { useVerticalPolygonLivePreview } from "./live-preview/useVerticalPolygonLivePreview";
 import {

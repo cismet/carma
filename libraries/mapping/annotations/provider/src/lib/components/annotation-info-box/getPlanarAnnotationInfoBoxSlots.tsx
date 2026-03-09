@@ -168,7 +168,9 @@ const stopHeadingActionPropagation = (
   event.stopPropagation();
 };
 
-const renderPlanarHeadingActions = (input: PolygonPolylineAnnotationSlotsInput) => (
+const renderPlanarHeadingActions = (
+  input: PolygonPolylineAnnotationSlotsInput
+) => (
   <div
     className="flex items-center gap-2"
     onMouseDown={stopInputEventPropagation}

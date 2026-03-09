@@ -15,12 +15,15 @@ import {
   AnnotationVisibilityContext,
   type AnnotationVisibilityContextType,
 } from "./AnnotationVisibilityContext";
-import { AnnotationsContext, type AnnotationsContextType } from "./AnnotationsContext";
+import {
+  AnnotationsContext,
+  type AnnotationsContextType,
+} from "./AnnotationsContext";
 import type { BaseAnnotationEntry } from "../types/annotationEntry";
 
 type AnnotationContextsProviderProps<
   TMode extends string,
-  TAnnotation extends BaseAnnotationEntry,
+  TAnnotation extends BaseAnnotationEntry
 > = {
   annotationsValue: AnnotationsContextType<TMode, TAnnotation>;
   selectionValue: AnnotationSelectionContextType;
@@ -32,7 +35,7 @@ type AnnotationContextsProviderProps<
 
 export const AnnotationContextsProvider = <
   TMode extends string,
-  TAnnotation extends BaseAnnotationEntry,
+  TAnnotation extends BaseAnnotationEntry
 >({
   annotationsValue,
   selectionValue,

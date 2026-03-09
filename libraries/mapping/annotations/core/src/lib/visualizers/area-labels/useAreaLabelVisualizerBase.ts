@@ -9,9 +9,7 @@ import {
   type LayoutPointInput,
 } from "@carma-providers/label-overlay";
 
-import {
-  computePolygonCentroid2D,
-} from "../../distanceScreenSpace";
+import { computePolygonCentroid2D } from "../../distanceScreenSpace";
 import type { CssPixelPosition } from "@carma/units/types";
 import { type PlanarPolygonGroup } from "../../types/planarTypes";
 import { type PolygonAreaLabelOverlayBaseOptions } from "./areaLabelVisualizer.types";
@@ -362,14 +360,8 @@ export const useAreaLabelVisualizerBase = ({
             1,
             maxY - minY + POLYGON_PREVIEW_PADDING_PX * 2
           );
-          const canvasWidth = Math.max(
-            1,
-            viewportState.width
-          );
-          const canvasHeight = Math.max(
-            1,
-            viewportState.height
-          );
+          const canvasWidth = Math.max(1, viewportState.width);
+          const canvasHeight = Math.max(1, viewportState.height);
 
           if (
             !Number.isFinite(width) ||

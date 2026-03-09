@@ -20,8 +20,10 @@ export type LabelInfoBoxSlotsInputState = {
 
 export const useLabelInfoBoxSlotsInput = (): LabelInfoBoxSlotsInputState => {
   const { displayMeasurement } = useAnnotationInfoBoxDisplaySelection();
-  const { annotationsByType, labelInputPromptPointId } =
-    useAnnotations<AnnotationMode, AnnotationEntry>();
+  const { annotationsByType, labelInputPromptPointId } = useAnnotations<
+    AnnotationMode,
+    AnnotationEntry
+  >();
   const actions = useAnnotationInfoBoxSlotActions();
 
   const labelMeasurements = useMemo(

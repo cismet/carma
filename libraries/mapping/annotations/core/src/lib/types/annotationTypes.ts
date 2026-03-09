@@ -21,8 +21,5 @@ const ANNOTATION_TYPES = [
 export type AnnotationType = (typeof ANNOTATION_TYPES)[number];
 export type AnnotationShortLabelKind = AnnotationType;
 
-const ANNOTATION_TOOL_TYPES = [
-  SELECT_TOOL_TYPE,
-  ...ANNOTATION_TYPES,
-] as const;
+const ANNOTATION_TOOL_TYPES = [SELECT_TOOL_TYPE, ...ANNOTATION_TYPES] as const;
 export type AnnotationToolType = (typeof ANNOTATION_TOOL_TYPES)[number];

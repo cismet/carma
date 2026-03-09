@@ -293,7 +293,10 @@ export const getArcPointsInSpannedPlane = (
   if (verticalLength <= ARC_POINT_EPSILON_METERS) return null;
   if (horizontalLength <= ARC_POINT_EPSILON_METERS) return null;
 
-  const verticalDirection = Cartesian3.normalize(verticalVector, new Cartesian3());
+  const verticalDirection = Cartesian3.normalize(
+    verticalVector,
+    new Cartesian3()
+  );
   const horizontalDirectionRaw = Cartesian3.normalize(
     horizontalVector,
     new Cartesian3()

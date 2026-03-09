@@ -46,7 +46,8 @@ export const useLassoHighlight = ({
   const [isDrawing, setIsDrawing] = useState(false);
   const managerRef = useRef<LassoDrawingManager | null>(null);
   const passiveManagerRef = useRef<LassoDrawingManager | null>(null);
-  const { setHighlightingActive, ensureToggledFeatures, criteria } = useMapHighlight();
+  const { setHighlightingActive, ensureToggledFeatures, criteria } =
+    useMapHighlight();
 
   // Stable refs for the callback so we don't recreate the manager on every render
   const sourcesRef = useRef(sources);
@@ -109,7 +110,7 @@ export const useLassoHighlight = ({
           const match = configuredSources.some(
             (s) =>
               s.source === featureSource &&
-              s.sourceLayers.includes(featureSourceLayer),
+              s.sourceLayers.includes(featureSourceLayer)
           );
           if (!match) continue;
         }
@@ -118,10 +119,7 @@ export const useLassoHighlight = ({
         let inside = false;
         try {
           if (f.geometry.type === "Point") {
-            inside = booleanPointInPolygon(
-              f.geometry as Point,
-              turfLasso,
-            );
+            inside = booleanPointInPolygon(f.geometry as Point, turfLasso);
           } else {
             inside = booleanIntersects(f.geometry, turfLasso);
           }
@@ -134,7 +132,7 @@ export const useLassoHighlight = ({
 
         // Dedup by sourceLayer::databasePK (same pattern as useMapHighlighting)
         const dbId = String(
-          (f.properties as Record<string, unknown>)?.id ?? f.id,
+          (f.properties as Record<string, unknown>)?.id ?? f.id
         );
         const dedupKey = `${featureSourceLayer}::${dbId}`;
         if (seen.has(dedupKey)) continue;
@@ -174,7 +172,7 @@ export const useLassoHighlight = ({
         onToggleRef.current?.(feat);
       }
     },
-    [map],
+    [map]
   );
 
   const handleDrawCancel = useCallback(() => {

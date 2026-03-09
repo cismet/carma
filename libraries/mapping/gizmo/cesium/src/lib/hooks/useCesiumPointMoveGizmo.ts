@@ -318,7 +318,10 @@ const getDefaultAxisCandidatesAtPosition = (
     eastNorthUpMatrix,
     2
   );
-  const eastDirection = Cartesian3.normalize(eastDirectionRaw, eastDirectionRaw);
+  const eastDirection = Cartesian3.normalize(
+    eastDirectionRaw,
+    eastDirectionRaw
+  );
   const northDirection = Cartesian3.normalize(
     northDirectionRaw,
     northDirectionRaw

@@ -246,9 +246,7 @@ export interface AnnotationsAdapterContextType {
   polylineSegmentLineMode: LinearSegmentLineMode;
   setPolylineSegmentLineMode: Dispatch<SetStateAction<LinearSegmentLineMode>>;
   planarToolCreationMode: PlanarToolCreationMode;
-  setPlanarToolCreationMode: Dispatch<
-    SetStateAction<PlanarToolCreationMode>
-  >;
+  setPlanarToolCreationMode: Dispatch<SetStateAction<PlanarToolCreationMode>>;
   polygonSurfaceTypePreset: PolygonSurfacePreset;
   setPolygonSurfaceTypePreset: Dispatch<SetStateAction<PolygonSurfacePreset>>;
   distanceModeStickyToFirstPoint: boolean;
@@ -377,9 +375,7 @@ const resolvePlanarGroupSeedConfig = ({
   polygonSurfaceTypePreset: PolygonSurfacePreset;
   defaultPolylineSegmentLineMode: LinearSegmentLineMode;
 }): PlanarGroupSeedConfig => {
-  if (
-    planarToolCreationMode !== PLANAR_TOOL_CREATION_MODE_POLYGON
-  ) {
+  if (planarToolCreationMode !== PLANAR_TOOL_CREATION_MODE_POLYGON) {
     return {
       surfaceType: "roof",
       measurementKind: ANNOTATION_TYPE_POLYLINE,
@@ -395,8 +391,7 @@ const resolvePlanarGroupSeedConfig = ({
       ? ANNOTATION_TYPE_AREA_PLANAR
       : ANNOTATION_TYPE_AREA_GROUND;
   const segmentLineMode =
-    measurementKind === ANNOTATION_TYPE_AREA_GROUND &&
-    surfaceType === "terrain"
+    measurementKind === ANNOTATION_TYPE_AREA_GROUND && surfaceType === "terrain"
       ? defaultPolylineSegmentLineMode
       : LINEAR_SEGMENT_LINE_MODE_DIRECT;
 
@@ -797,9 +792,7 @@ export const AnnotationsAdapterProvider: React.FC<
   const [defaultPolylineSegmentLineMode, setDefaultPolylineSegmentLineMode] =
     useState<LinearSegmentLineMode>(DEFAULT_LINEAR_SEGMENT_LINE_MODE);
   const [planarToolCreationMode, setPlanarToolCreationMode] =
-    useState<PlanarToolCreationMode>(
-      PLANAR_TOOL_CREATION_MODE_POLYLINE
-    );
+    useState<PlanarToolCreationMode>(PLANAR_TOOL_CREATION_MODE_POLYLINE);
   const [polygonSurfaceTypePreset, setPolygonSurfaceTypePreset] =
     useState<PolygonSurfacePreset>("facade");
   const [distanceModeStickyToFirstPoint, setDistanceModeStickyToFirstPoint] =
@@ -998,7 +991,9 @@ export const AnnotationsAdapterProvider: React.FC<
             withDistanceRelationEdgeId
           )
         );
-        setPlanarPolygonGroups(initialPersistenceState.tables.planarPolygonGroups);
+        setPlanarPolygonGroups(
+          initialPersistenceState.tables.planarPolygonGroups
+        );
       }, PERSISTENCE_RESTORE_DELAY_MS);
     }
 
@@ -1232,10 +1227,7 @@ export const AnnotationsAdapterProvider: React.FC<
         };
       }
 
-      if (
-        planarToolCreationMode ===
-        PLANAR_TOOL_CREATION_MODE_POLYLINE
-      ) {
+      if (planarToolCreationMode === PLANAR_TOOL_CREATION_MODE_POLYLINE) {
         return {
           type: ANNOTATION_LIVE_PREVIEW_TYPE_POLYLINE,
           verticalOffsetMeters: polylineVerticalOffsetMeters,
@@ -1773,9 +1765,7 @@ export const AnnotationsAdapterProvider: React.FC<
   }, [annotations, planarPolygonGroups.length]);
 
   const showPointLabels =
-    showPoints &&
-    showLabels &&
-    !hideLabelsOfType.has(ANNOTATION_TYPE_DISTANCE);
+    showPoints && showLabels && !hideLabelsOfType.has(ANNOTATION_TYPE_DISTANCE);
   const pointIdsWithoutLabelAnchor = useMemo(
     () => collectPointIdsWithoutSelfLabelAnchor(pointMeasurements),
     [pointMeasurements]
@@ -2437,10 +2427,7 @@ export const AnnotationsAdapterProvider: React.FC<
         seedPlanarGroupConfig.measurementKind;
       const seedSurfaceTypeForCreation = seedPlanarGroupConfig.surfaceType;
       const facadeAutoCloseFromNewPoint = (() => {
-        if (
-          planarToolCreationMode !==
-          PLANAR_TOOL_CREATION_MODE_POLYGON
-        )
+        if (planarToolCreationMode !== PLANAR_TOOL_CREATION_MODE_POLYGON)
           return null;
 
         const candidateVertexPointIds = creatingNewGroup
@@ -2493,8 +2480,7 @@ export const AnnotationsAdapterProvider: React.FC<
           const seedSegmentLineMode = seedPlanarGroupConfig.segmentLineMode;
 
           if (
-            planarToolCreationMode ===
-              PLANAR_TOOL_CREATION_MODE_POLYGON &&
+            planarToolCreationMode === PLANAR_TOOL_CREATION_MODE_POLYGON &&
             seedSurfaceType === "facade" &&
             seedVertexPointIds.length === 2 &&
             facadeAutoCloseFromNewPoint
@@ -2566,12 +2552,10 @@ export const AnnotationsAdapterProvider: React.FC<
         let nextPlaneLocked = activeGroup.planeLocked;
         let nextPointPosition = newPointPositionECEF;
         const shouldKeepSurfaceSampledVertices =
-          planarToolCreationMode ===
-            PLANAR_TOOL_CREATION_MODE_POLYGON &&
+          planarToolCreationMode === PLANAR_TOOL_CREATION_MODE_POLYGON &&
           (activeGroup.surfaceType ?? "roof") === "footprint";
         const isRoofSurface =
-          planarToolCreationMode ===
-            PLANAR_TOOL_CREATION_MODE_POLYGON &&
+          planarToolCreationMode === PLANAR_TOOL_CREATION_MODE_POLYGON &&
           (activeGroup.surfaceType ?? "roof") === "roof";
 
         if (
@@ -2673,8 +2657,7 @@ export const AnnotationsAdapterProvider: React.FC<
         }
 
         if (
-          planarToolCreationMode ===
-            PLANAR_TOOL_CREATION_MODE_POLYGON &&
+          planarToolCreationMode === PLANAR_TOOL_CREATION_MODE_POLYGON &&
           (activeGroup.surfaceType ?? "roof") === "facade" &&
           nextVertexPointIds.length === 2 &&
           facadeAutoCloseFromNewPoint
@@ -3010,10 +2993,7 @@ export const AnnotationsAdapterProvider: React.FC<
       );
 
       if (canCloseRing && firstVertexId) {
-        if (
-          planarToolCreationMode ===
-          PLANAR_TOOL_CREATION_MODE_POLYGON
-        ) {
+        if (planarToolCreationMode === PLANAR_TOOL_CREATION_MODE_POLYGON) {
           closeActivePlanarPolygonGroup();
         } else {
           finishActivePlanarPolylineGroup();
@@ -3059,10 +3039,7 @@ export const AnnotationsAdapterProvider: React.FC<
         seedPlanarGroupConfig.measurementKind;
       const seedSurfaceTypeForCreation = seedPlanarGroupConfig.surfaceType;
       const facadeAutoCloseFromExistingPoint = (() => {
-        if (
-          planarToolCreationMode !==
-          PLANAR_TOOL_CREATION_MODE_POLYGON
-        )
+        if (planarToolCreationMode !== PLANAR_TOOL_CREATION_MODE_POLYGON)
           return null;
 
         const candidateVertexPointIds = creatingNewGroup
@@ -3111,8 +3088,7 @@ export const AnnotationsAdapterProvider: React.FC<
           const seedSegmentLineMode = seedPlanarGroupConfig.segmentLineMode;
 
           if (
-            planarToolCreationMode ===
-              PLANAR_TOOL_CREATION_MODE_POLYGON &&
+            planarToolCreationMode === PLANAR_TOOL_CREATION_MODE_POLYGON &&
             seedSurfaceType === "facade" &&
             seedVertexPointIds.length === 2 &&
             facadeAutoCloseFromExistingPoint
@@ -3193,12 +3169,10 @@ export const AnnotationsAdapterProvider: React.FC<
         let nextPlane = activeGroup.plane;
         let nextPlaneLocked = activeGroup.planeLocked;
         const shouldKeepSurfaceSampledVertices =
-          planarToolCreationMode ===
-            PLANAR_TOOL_CREATION_MODE_POLYGON &&
+          planarToolCreationMode === PLANAR_TOOL_CREATION_MODE_POLYGON &&
           (activeGroup.surfaceType ?? "roof") === "footprint";
         const isRoofSurface =
-          planarToolCreationMode ===
-            PLANAR_TOOL_CREATION_MODE_POLYGON &&
+          planarToolCreationMode === PLANAR_TOOL_CREATION_MODE_POLYGON &&
           (activeGroup.surfaceType ?? "roof") === "roof";
 
         if (
@@ -3263,8 +3237,7 @@ export const AnnotationsAdapterProvider: React.FC<
         }
 
         if (
-          planarToolCreationMode ===
-            PLANAR_TOOL_CREATION_MODE_POLYGON &&
+          planarToolCreationMode === PLANAR_TOOL_CREATION_MODE_POLYGON &&
           (activeGroup.surfaceType ?? "roof") === "facade" &&
           nextVertexPointIds.length === 2 &&
           facadeAutoCloseFromExistingPoint
@@ -3735,12 +3708,7 @@ export const AnnotationsAdapterProvider: React.FC<
       setDoubleClickChainSourcePointId(null);
       selectMeasurementById(id);
     },
-    [
-      annotations,
-      pointMeasurementIds,
-      selectMeasurementById,
-      setReferencePoint,
-    ]
+    [annotations, pointMeasurementIds, selectMeasurementById, setReferencePoint]
   );
 
   const {
@@ -3943,7 +3911,9 @@ export const AnnotationsAdapterProvider: React.FC<
                     geometryWGS84: {
                       longitude: nextWGS84.longitude,
                       latitude: nextWGS84.latitude,
-                      altitude: getEllipsoidalAltitudeOrZero(nextWGS84.altitude),
+                      altitude: getEllipsoidalAltitudeOrZero(
+                        nextWGS84.altitude
+                      ),
                     },
                   };
                 })
@@ -4166,10 +4136,9 @@ export const AnnotationsAdapterProvider: React.FC<
         const pointById = getPointPositionMap(annotations);
         const pointPosition = pointById.get(id);
         if (pointPosition) {
-          const persistedVerticalPolygonFrame =
-            resolveLocalFrameVectors(
-              targetVerticalPolygonGroup.planarPolygonLocalFrame
-            );
+          const persistedVerticalPolygonFrame = resolveLocalFrameVectors(
+            targetVerticalPolygonGroup.planarPolygonLocalFrame
+          );
           if (persistedVerticalPolygonFrame) {
             const enuMatrix = Transforms.eastNorthUpToFixedFrame(pointPosition);
             const enuEastAxis4 = Matrix4.getColumn(
@@ -4245,9 +4214,7 @@ export const AnnotationsAdapterProvider: React.FC<
 
           const planeNormalFromGroup = targetVerticalPolygonGroup.plane
             ? normalizeDirection(
-                cartesian3FromJson(
-                  targetVerticalPolygonGroup.plane.normalECEF
-                )
+                cartesian3FromJson(targetVerticalPolygonGroup.plane.normalECEF)
               )
             : null;
           let planeNormal = planeNormalFromGroup;
@@ -4426,9 +4393,7 @@ export const AnnotationsAdapterProvider: React.FC<
         if (pointPosition) {
           const planeNormalFromGroup = targetRoofPolygonGroup.plane
             ? normalizeDirection(
-                cartesian3FromJson(
-                  targetRoofPolygonGroup.plane.normalECEF
-                )
+                cartesian3FromJson(targetRoofPolygonGroup.plane.normalECEF)
               )
             : null;
           let planeNormal = planeNormalFromGroup;
@@ -4686,10 +4651,7 @@ export const AnnotationsAdapterProvider: React.FC<
             activeOpenGroup.vertexPointIds.length >= 3
         );
         if (shouldHandleRingClosure && firstVertexId) {
-          if (
-            planarToolCreationMode ===
-            PLANAR_TOOL_CREATION_MODE_POLYGON
-          ) {
+          if (planarToolCreationMode === PLANAR_TOOL_CREATION_MODE_POLYGON) {
             closeActivePlanarPolygonGroup();
           } else {
             finishActivePlanarPolylineGroup();
@@ -4897,9 +4859,7 @@ export const AnnotationsAdapterProvider: React.FC<
       );
       const targetGroupVerticalPolygonFrame =
         (targetGroup.surfaceType ?? "roof") === "facade"
-          ? resolveLocalFrameVectors(
-              targetGroup.planarPolygonLocalFrame
-            )
+          ? resolveLocalFrameVectors(targetGroup.planarPolygonLocalFrame)
           : null;
       if (targetGroupVerticalPolygonFrame) {
         const startLocal = getPositionInLocalFrame(

@@ -33,10 +33,3 @@ export {
   type LineVisualizerData,
 } from "./lib/useLineVisualizers";
 export * from "./lib/pointLabelLayout";
-
-// Formatters for label text
-export {
-  formatNumberToEnclosed,
-  formatDistance,
-  createPointLabelText,
-} from "./lib/utils/formatters";

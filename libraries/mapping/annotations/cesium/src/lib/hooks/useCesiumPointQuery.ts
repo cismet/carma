@@ -176,8 +176,7 @@ export const useCesiumPointQuery = (
   useEffect(() => {
     if (!scene || scene.isDestroyed()) return;
 
-    scene.canvas.style.cursor =
-      enabled && hideCursorWhileEnabled ? "none" : "";
+    scene.canvas.style.cursor = enabled && hideCursorWhileEnabled ? "none" : "";
     return () => {
       if (!scene.isDestroyed()) {
         scene.canvas.style.cursor = "";

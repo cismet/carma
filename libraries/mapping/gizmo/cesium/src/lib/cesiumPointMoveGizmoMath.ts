@@ -39,7 +39,10 @@ export const getUpVectorAtPosition = (origin: Cartesian3): Cartesian3 => {
     undefined,
     ENU_FRAME_SCRATCH
   );
-  const upAxis = CarmaTransforms.matrix4ColumnToCartesian3(eastNorthUpMatrix, 2);
+  const upAxis = CarmaTransforms.matrix4ColumnToCartesian3(
+    eastNorthUpMatrix,
+    2
+  );
   return Cartesian3.normalize(upAxis, upAxis);
 };
 

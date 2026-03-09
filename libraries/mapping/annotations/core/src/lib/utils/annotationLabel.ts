@@ -114,7 +114,7 @@ type PointMarkerBadgeLike = {
 
 type BuildStandaloneDistancePointSetsParams<
   TPointMeasurement extends PointMeasurementWithAltitudeLike,
-  TDistanceRelation extends DistanceRelationLike,
+  TDistanceRelation extends DistanceRelationLike
 > = {
   pointMeasurements: ReadonlyArray<TPointMeasurement>;
   distanceRelations: ReadonlyArray<TDistanceRelation>;
@@ -123,7 +123,7 @@ type BuildStandaloneDistancePointSetsParams<
 
 export const buildStandaloneDistancePointSets = <
   TPointMeasurement extends PointMeasurementWithAltitudeLike,
-  TDistanceRelation extends DistanceRelationLike,
+  TDistanceRelation extends DistanceRelationLike
 >({
   pointMeasurements,
   distanceRelations,
@@ -152,7 +152,9 @@ export const buildStandaloneDistancePointSets = <
   }
 
   const pointById = new Map(
-    pointMeasurements.map((measurement) => [measurement.id, measurement] as const)
+    pointMeasurements.map(
+      (measurement) => [measurement.id, measurement] as const
+    )
   );
   const neighborsByPointId = new Map<string, Set<string>>();
 
@@ -242,7 +244,7 @@ export const buildStandaloneDistancePointSets = <
 
 type BuildDesiredPointLabelAnchorByIdParams<
   TPointMeasurement extends PointLabelMeasurementLike,
-  TPolyline extends PolylineLabelLike,
+  TPolyline extends PolylineLabelLike
 > = {
   pointMeasurements: ReadonlyArray<TPointMeasurement>;
   polylines: ReadonlyArray<TPolyline>;
@@ -256,7 +258,7 @@ type BuildDesiredPointLabelAnchorByIdParams<
 
 export const buildDesiredPointLabelAnchorById = <
   TPointMeasurement extends PointLabelMeasurementLike,
-  TPolyline extends PolylineLabelLike,
+  TPolyline extends PolylineLabelLike
 >({
   pointMeasurements,
   polylines,
@@ -333,7 +335,7 @@ type MeasurementWithLabelAnchor = {
 
 type ApplyDesiredPointLabelAnchorsParams<
   TMeasurement extends MeasurementWithLabelAnchor,
-  TPointMeasurement extends TMeasurement,
+  TPointMeasurement extends TMeasurement
 > = {
   annotations: ReadonlyArray<TMeasurement>;
   desiredLabelAnchorByPointId: Readonly<
@@ -346,15 +348,15 @@ type ApplyDesiredPointLabelAnchorsParams<
 
 export const applyDesiredPointLabelAnchors = <
   TMeasurement extends MeasurementWithLabelAnchor,
-  TPointMeasurement extends TMeasurement,
+  TPointMeasurement extends TMeasurement
 >({
   annotations,
   desiredLabelAnchorByPointId,
   isPointMeasurement,
-}: ApplyDesiredPointLabelAnchorsParams<
-  TMeasurement,
-  TPointMeasurement
->): { nextMeasurements: TMeasurement[]; hasChanges: boolean } => {
+}: ApplyDesiredPointLabelAnchorsParams<TMeasurement, TPointMeasurement>): {
+  nextMeasurements: TMeasurement[];
+  hasChanges: boolean;
+} => {
   let hasChanges = false;
   const nextMeasurements = annotations.map((measurement) => {
     if (!isPointMeasurement(measurement)) {
@@ -384,7 +386,7 @@ type PointMeasurementWithLabelAnchor = {
 };
 
 export const collectCollapsedPillPointIds = <
-  TPointMeasurement extends PointMeasurementWithLabelAnchor,
+  TPointMeasurement extends PointMeasurementWithLabelAnchor
 >(
   pointMeasurements: ReadonlyArray<TPointMeasurement>
 ): Set<string> => {
@@ -400,7 +402,7 @@ export const collectCollapsedPillPointIds = <
 };
 
 export const collectPointIdsWithoutSelfLabelAnchor = <
-  TPointMeasurement extends PointMeasurementWithLabelAnchor,
+  TPointMeasurement extends PointMeasurementWithLabelAnchor
 >(
   pointMeasurements: ReadonlyArray<TPointMeasurement>
 ): Set<string> => {
@@ -415,7 +417,7 @@ export const collectPointIdsWithoutSelfLabelAnchor = <
 };
 
 export const collectLabelAnchorPointIdsWithForcedVisibility = <
-  TPointMeasurement extends PointMeasurementWithLabelAnchor,
+  TPointMeasurement extends PointMeasurementWithLabelAnchor
 >(
   pointMeasurements: ReadonlyArray<TPointMeasurement>,
   excludedAnchorPointIds: ReadonlySet<string>
@@ -437,7 +439,7 @@ type MeasurementWithLabelAppearance = {
 };
 
 export const applyLabelAppearance = <
-  TMeasurement extends MeasurementWithLabelAppearance,
+  TMeasurement extends MeasurementWithLabelAppearance
 >(
   measurement: TMeasurement,
   appearance: AnnotationLabelAppearance | undefined

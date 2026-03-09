@@ -98,10 +98,7 @@ const toSafeRotationRad = (rotationRad?: number) =>
 const isNearlyFullCircle = (angleSpanRad: number, epsilonRad: number) =>
   Math.abs(angleSpanRad - FULL_CIRCLE_RAD) <= epsilonRad;
 
-const toArcSubdivisionCount = (
-  segments: number,
-  angleRad: number
-) => {
+const toArcSubdivisionCount = (segments: number, angleRad: number) => {
   const safeSegments = Math.max(1, segments);
   if (angleRad <= SEGMENT_COUNT_EPSILON) {
     return 1;
@@ -162,7 +159,9 @@ const createFullCircleRingHierarchy = (
     normalizedInnerRadius
   ).reverse();
 
-  return new PolygonHierarchy(outerPositions, [new PolygonHierarchy(innerHolePositions)]);
+  return new PolygonHierarchy(outerPositions, [
+    new PolygonHierarchy(innerHolePositions),
+  ]);
 };
 
 const createRingSegmentBoundary = ({
@@ -178,7 +177,10 @@ const createRingSegmentBoundary = ({
     return [Cartesian3.ZERO, ...outerArc];
   }
 
-  const innerArc = createArcPositions(sampling, normalizedInnerRadius).reverse();
+  const innerArc = createArcPositions(
+    sampling,
+    normalizedInnerRadius
+  ).reverse();
 
   return [...outerArc, ...innerArc];
 };
@@ -275,7 +277,11 @@ const resolveRingSegmentOptions = (
     normalizedInnerRadius: toNormalizedInnerRadius(safeInnerRadius, safeRadius),
     arcSampling,
     color: options.color ?? DEFAULT_COLOR,
-    modelMatrix: Matrix4.multiply(baseModelMatrix, scaleAndRotation, new Matrix4()),
+    modelMatrix: Matrix4.multiply(
+      baseModelMatrix,
+      scaleAndRotation,
+      new Matrix4()
+    ),
   };
 };
 

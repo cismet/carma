@@ -228,10 +228,7 @@ export const MeasurementCesiumStoryShell = ({
           }}
         >
           <LabelOverlayProvider containerRef={rootRef}>
-            <AnnotationsAdapterProvider
-              enabled={true}
-              options={{}}
-            >
+            <AnnotationsAdapterProvider enabled={true} options={{}}>
               <div
                 style={{
                   position: "absolute",

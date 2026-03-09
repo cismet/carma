@@ -9,9 +9,7 @@ import {
   type Cartesian3Json,
   type Matrix4ConstructorArgs,
 } from "@carma/cesium";
-import {
-  type AreaLabelViewProjector,
-} from "@carma-mapping/annotations/core";
+import { type AreaLabelViewProjector } from "@carma-mapping/annotations/core";
 import type { CssPixelPosition } from "@carma/units/types";
 
 const WORLD_POINT_SCRATCH = new Cartesian3();
@@ -62,7 +60,10 @@ export const useCesiumAreaLabelViewProjector = (
         WORLD_POINT_SCRATCH
       );
 
-      const screen = SceneTransforms.worldToWindowCoordinates(scene, worldPoint);
+      const screen = SceneTransforms.worldToWindowCoordinates(
+        scene,
+        worldPoint
+      );
       if (!defined(screen)) return null;
       if (!Number.isFinite(screen.x) || !Number.isFinite(screen.y)) {
         return null;

@@ -1,7 +1,4 @@
-import type {
-  Cartesian3Json,
-  Matrix4ConstructorArgs,
-} from "@carma/cesium";
+import type { Cartesian3Json, Matrix4ConstructorArgs } from "@carma/cesium";
 
 import {
   type GroundPolygonPreviewGroup,

@@ -11,7 +11,10 @@ import {
   defined,
   type Scene,
 } from "@carma/cesium";
-import { createDisc, createRing } from "@carma-mapping/engines/cesium/primitives";
+import {
+  createDisc,
+  createRing,
+} from "@carma-mapping/engines/cesium/primitives";
 import {
   isPointAnnotationEntry,
   AnnotationCollection,
@@ -603,7 +606,6 @@ export const useCesiumPointVisualizer = (
     moveGizmoPointId,
     renderCesiumCoreVisuals,
   ]);
-
 };
 
 export default useCesiumPointVisualizer;

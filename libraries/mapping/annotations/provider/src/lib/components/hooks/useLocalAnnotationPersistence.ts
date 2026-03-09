@@ -12,7 +12,7 @@ type UseLocalAnnotationPersistenceOptions = {
 };
 
 export const useLocalAnnotationPersistence = <
-  TEntry extends BaseAnnotationEntry = BaseAnnotationEntry,
+  TEntry extends BaseAnnotationEntry = BaseAnnotationEntry
 >({
   enabled = true,
   storageKey,

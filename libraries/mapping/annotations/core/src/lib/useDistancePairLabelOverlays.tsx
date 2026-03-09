@@ -57,7 +57,9 @@ export type UseDistancePairLabelOverlaysOptions = {
   cameraPitch: number;
   viewportWidth: number;
   viewportHeight: number;
-  resolveAnchorCanvasPosition: (anchorPointId: string) => CssPixelPosition | null;
+  resolveAnchorCanvasPosition: (
+    anchorPointId: string
+  ) => CssPixelPosition | null;
   addLabelOverlayElement: (element: LabelOverlayElement) => void;
   removeLabelOverlayElement: (id: string) => void;
   overlayIdPrefix?: string;

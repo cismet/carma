@@ -266,7 +266,8 @@ export const buildPolygonPreviewGroups = ({
         const previewIncludesHoveredPoint = Boolean(
           previewTargetPoint &&
             lastBaseVertex &&
-            Cartesian3.distanceSquared(lastBaseVertex, previewTargetPoint) > 1e-6
+            Cartesian3.distanceSquared(lastBaseVertex, previewTargetPoint) >
+              1e-6
         );
         const vertexPoints = previewIncludesHoveredPoint
           ? [...baseVertexPoints, Cartesian3.clone(previewTargetPoint)]

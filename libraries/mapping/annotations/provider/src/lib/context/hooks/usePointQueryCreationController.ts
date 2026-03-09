@@ -67,77 +67,80 @@ export const usePointQueryCreationController = ({
   const {
     handlePointCreate: handlePointQueryCreate,
     handleLineFinish: handlePointQueryLineFinish,
-  } = useAnnotationPointCreation<AnnotationEntry, CesiumPointQueryCreatePayload>(
-    {
-      temporaryMode: activePointCreateConfig?.temporaryMode ?? false,
-      setCollection: setAnnotations as Dispatch<
-        SetStateAction<AnnotationEntry[]>
-      >,
-      useTemporaryForCreatedEntries:
-        activePointCreateConfig?.useTemporaryForCreatedPoints ?? true,
-      createEntry: ({
-        pointId,
-        payload,
-        previousCollection,
-        temporaryMode: createTemporaryMode,
-        useTemporaryForCreatedEntries,
-      }) => {
-        const geometryWGS84 = getDegreesFromCartesian(payload.geometryPositionECEF);
-        const resolvedLabelAnchor =
-          activePointCreateConfig?.labelAnchorOnCreate?.(pointId);
-        const resolvedLabelAppearance =
-          activePointCreateConfig?.labelAppearanceOnCreate;
-        const insertionIndex = createTemporaryMode
-          ? useTemporaryForCreatedEntries
-            ? 0
-            : previousCollection?.filter(isPointAnnotationEntry).length || 0
-          : previousCollection?.filter(isPointAnnotationEntry).length || 0;
+  } = useAnnotationPointCreation<
+    AnnotationEntry,
+    CesiumPointQueryCreatePayload
+  >({
+    temporaryMode: activePointCreateConfig?.temporaryMode ?? false,
+    setCollection: setAnnotations as Dispatch<
+      SetStateAction<AnnotationEntry[]>
+    >,
+    useTemporaryForCreatedEntries:
+      activePointCreateConfig?.useTemporaryForCreatedPoints ?? true,
+    createEntry: ({
+      pointId,
+      payload,
+      previousCollection,
+      temporaryMode: createTemporaryMode,
+      useTemporaryForCreatedEntries,
+    }) => {
+      const geometryWGS84 = getDegreesFromCartesian(
+        payload.geometryPositionECEF
+      );
+      const resolvedLabelAnchor =
+        activePointCreateConfig?.labelAnchorOnCreate?.(pointId);
+      const resolvedLabelAppearance =
+        activePointCreateConfig?.labelAppearanceOnCreate;
+      const insertionIndex = createTemporaryMode
+        ? useTemporaryForCreatedEntries
+          ? 0
+          : previousCollection?.filter(isPointAnnotationEntry).length || 0
+        : previousCollection?.filter(isPointAnnotationEntry).length || 0;
 
-        return {
-          type: ANNOTATION_TYPE_DISTANCE,
-          id: pointId,
-          index: insertionIndex,
-          geometryECEF: payload.geometryPositionECEF,
-          geometryWGS84: {
-            longitude: geometryWGS84.longitude,
-            latitude: geometryWGS84.latitude,
-            altitude: getEllipsoidalAltitudeOrZero(geometryWGS84.altitude),
-          },
-          timestamp: Date.now(),
-          ...(activePointCreateConfig?.nameOnCreate &&
-          activePointCreateConfig.nameOnCreate.trim().length > 0
-            ? { name: activePointCreateConfig.nameOnCreate.trim() }
-            : {}),
-          ...(activePointCreateConfig?.hiddenOnCreate ? { hidden: true } : {}),
-          ...(activePointCreateConfig?.auxiliaryOnCreate
-            ? { auxiliaryLabelAnchor: true }
-            : {}),
-          ...(activePointCreateConfig?.markCreatedPointsAsDistanceAdhoc
-            ? { distanceAdhocNode: true }
-            : {}),
-          ...(payload.hasVerticalOffsetStem
-            ? {
-                verticalOffsetAnchorECEF: {
-                  x: payload.anchorPositionECEF.x,
-                  y: payload.anchorPositionECEF.y,
-                  z: payload.anchorPositionECEF.z,
-                },
-              }
-            : {}),
-          ...(activePointCreateConfig?.labelOnCreate !== undefined
-            ? { pointLabelMode: activePointCreateConfig.labelOnCreate }
-            : {}),
-          ...(resolvedLabelAnchor ? { labelAnchor: resolvedLabelAnchor } : {}),
-          ...(resolvedLabelAppearance
-            ? { labelAppearance: resolvedLabelAppearance }
-            : {}),
-        };
-      },
-      onPointCreated: (pointId, payload) =>
-        handlePointQueryPointCreated(pointId, payload.geometryPositionECEF),
-      onLineFinish: handlePointQueryDoubleClick,
-    }
-  );
+      return {
+        type: ANNOTATION_TYPE_DISTANCE,
+        id: pointId,
+        index: insertionIndex,
+        geometryECEF: payload.geometryPositionECEF,
+        geometryWGS84: {
+          longitude: geometryWGS84.longitude,
+          latitude: geometryWGS84.latitude,
+          altitude: getEllipsoidalAltitudeOrZero(geometryWGS84.altitude),
+        },
+        timestamp: Date.now(),
+        ...(activePointCreateConfig?.nameOnCreate &&
+        activePointCreateConfig.nameOnCreate.trim().length > 0
+          ? { name: activePointCreateConfig.nameOnCreate.trim() }
+          : {}),
+        ...(activePointCreateConfig?.hiddenOnCreate ? { hidden: true } : {}),
+        ...(activePointCreateConfig?.auxiliaryOnCreate
+          ? { auxiliaryLabelAnchor: true }
+          : {}),
+        ...(activePointCreateConfig?.markCreatedPointsAsDistanceAdhoc
+          ? { distanceAdhocNode: true }
+          : {}),
+        ...(payload.hasVerticalOffsetStem
+          ? {
+              verticalOffsetAnchorECEF: {
+                x: payload.anchorPositionECEF.x,
+                y: payload.anchorPositionECEF.y,
+                z: payload.anchorPositionECEF.z,
+              },
+            }
+          : {}),
+        ...(activePointCreateConfig?.labelOnCreate !== undefined
+          ? { pointLabelMode: activePointCreateConfig.labelOnCreate }
+          : {}),
+        ...(resolvedLabelAnchor ? { labelAnchor: resolvedLabelAnchor } : {}),
+        ...(resolvedLabelAppearance
+          ? { labelAppearance: resolvedLabelAppearance }
+          : {}),
+      };
+    },
+    onPointCreated: (pointId, payload) =>
+      handlePointQueryPointCreated(pointId, payload.geometryPositionECEF),
+    onLineFinish: handlePointQueryDoubleClick,
+  });
 
   useCesiumPointQuery(scene, {
     enabled:
@@ -148,7 +151,8 @@ export const usePointQueryCreationController = ({
       !isMoveGizmoDragging &&
       Boolean(activePointCreateConfig),
     verticalOffsetMeters: activePointCreateConfig?.verticalOffsetMeters ?? 0,
-    preferGlobeAnchorForVerticalOffset: annotationMode === ANNOTATION_TYPE_POINT,
+    preferGlobeAnchorForVerticalOffset:
+      annotationMode === ANNOTATION_TYPE_POINT,
     onBeforePointCreate: handlePointQueryBeforePointCreate,
     onPointCreate: handlePointQueryCreate,
     onLineFinish: handlePointQueryLineFinish,

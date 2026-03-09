@@ -33,13 +33,9 @@ export type AnnotationModeOptionsContextType = {
   polylineSegmentLineMode: LinearSegmentLineMode;
   setPolylineSegmentLineMode: Dispatch<SetStateAction<LinearSegmentLineMode>>;
   planarToolCreationMode: PlanarToolCreationMode;
-  setPlanarToolCreationMode: Dispatch<
-    SetStateAction<PlanarToolCreationMode>
-  >;
+  setPlanarToolCreationMode: Dispatch<SetStateAction<PlanarToolCreationMode>>;
   polygonSurfaceTypePreset: PolygonSurfacePreset;
-  setPolygonSurfaceTypePreset: Dispatch<
-    SetStateAction<PolygonSurfacePreset>
-  >;
+  setPolygonSurfaceTypePreset: Dispatch<SetStateAction<PolygonSurfacePreset>>;
 };
 
 export const AnnotationModeOptionsContext = createContext<

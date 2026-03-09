@@ -1,9 +1,7 @@
 import { useRef } from "react";
 import { CesiumErrorHandling } from "@carma-mapping/engines/cesium";
 import { LabelOverlayProvider } from "@carma-providers/label-overlay";
-import {
-  type AnnotationEntry,
-} from "@carma-mapping/annotations/cesium";
+import { type AnnotationEntry } from "@carma-mapping/annotations/cesium";
 import {
   AnnotationsAdapterProvider,
   AnnotationInfoBox,

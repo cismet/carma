@@ -43,11 +43,7 @@ export const formatGeographic = (
   altitude !== undefined ? `𝘩 ${formatNumber(altitude)} m` : "",
 ];
 
-export const formatCartesian = (
-  x: number,
-  y: number,
-  z: number
-): string[] => [
+export const formatCartesian = (x: number, y: number, z: number): string[] => [
   `X ${formatNumber(x)} m`,
   `Y ${formatNumber(y)} m`,
   `Z ${formatNumber(z)} m`,

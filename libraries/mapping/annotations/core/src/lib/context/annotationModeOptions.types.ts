@@ -9,5 +9,4 @@ const PLANAR_TOOL_CREATION_MODES = [
 export type PlanarToolCreationMode =
   (typeof PLANAR_TOOL_CREATION_MODES)[number];
 
-export type PolygonSurfacePreset =
-  "roof" | "facade" | "terrain" | "footprint";
+export type PolygonSurfacePreset = "roof" | "facade" | "terrain" | "footprint";

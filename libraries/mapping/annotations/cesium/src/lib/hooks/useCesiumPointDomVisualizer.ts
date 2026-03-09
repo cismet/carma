@@ -383,9 +383,7 @@ export const useCesiumPointDomVisualizer = (
 
   usePointLabels(
     livePreviewHeightLabelData,
-    renderDomVisuals &&
-      hasLivePreviewPoint &&
-      !suppressLivePreviewLabelOverlay,
+    renderDomVisuals && hasLivePreviewPoint && !suppressLivePreviewLabelOverlay,
     undefined,
     undefined,
     {
@@ -484,7 +482,7 @@ export const useCesiumPointDomVisualizer = (
     );
   }, []);
 
-  const getLivePreviewCanvasPosition = useCallback(() => {
+  const getLivePreviewCanvasPosition = useCallback((): CssPixelPosition | null => {
     if (!scene || scene.isDestroyed()) {
       return null;
     }
@@ -502,7 +500,7 @@ export const useCesiumPointDomVisualizer = (
     return {
       x: canvasPosition.x,
       y: canvasPosition.y + CROSSHAIR_ANCHOR_OFFSET_Y_PX,
-    };
+    } as CssPixelPosition;
   }, [scene]);
 
   useEffect(() => {

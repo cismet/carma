@@ -35,8 +35,13 @@ export const StoryKeyValueList = ({ items }: StoryKeyValueListProps) => {
   const parsedRows = items.map((item) => {
     const normalizedValue = normalizeValue(item.value);
     const isNumeric = typeof normalizedValue === "number";
-    const safeFractionDigits = Math.max(0, Math.floor(item.fractionDigits ?? 0));
-    const numericText = isNumeric ? normalizedValue.toFixed(safeFractionDigits) : null;
+    const safeFractionDigits = Math.max(
+      0,
+      Math.floor(item.fractionDigits ?? 0)
+    );
+    const numericText = isNumeric
+      ? normalizedValue.toFixed(safeFractionDigits)
+      : null;
     const decimal = numericText ? splitDecimal(numericText) : null;
     return { item, normalizedValue, decimal, safeFractionDigits };
   });
@@ -63,76 +68,78 @@ export const StoryKeyValueList = ({ items }: StoryKeyValueListProps) => {
         lineHeight: 1.2,
       }}
     >
-      {parsedRows.map(({ item, normalizedValue, decimal, safeFractionDigits }) => (
-        <span
-          key={item.id}
-          style={{
-            display: "contents",
-          }}
-        >
+      {parsedRows.map(
+        ({ item, normalizedValue, decimal, safeFractionDigits }) => (
           <span
+            key={item.id}
             style={{
-              color: "rgba(226,232,240,0.78)",
-              minWidth: "6ch",
-              whiteSpace: "nowrap",
-              paddingRight: 10,
+              display: "contents",
             }}
           >
-            {item.label}
-          </span>
+            <span
+              style={{
+                color: "rgba(226,232,240,0.78)",
+                minWidth: "6ch",
+                whiteSpace: "nowrap",
+                paddingRight: 10,
+              }}
+            >
+              {item.label}
+            </span>
 
-          {decimal ? (
-            <>
+            {decimal ? (
+              <>
+                <span
+                  style={{
+                    color: "#e2e8f0",
+                    whiteSpace: "nowrap",
+                    textAlign: "right",
+                    fontVariantNumeric: "tabular-nums",
+                    fontFeatureSettings: '"tnum" 1, "lnum" 1',
+                  }}
+                >
+                  {decimal.intPart}
+                </span>
+                <span
+                  style={{
+                    color: "#e2e8f0",
+                    textAlign: "left",
+                    whiteSpace: "nowrap",
+                    fontVariantNumeric: "tabular-nums",
+                    fontFeatureSettings: '"tnum" 1, "lnum" 1',
+                  }}
+                >
+                  {safeFractionDigits > 0 ? (
+                    `.${decimal.fractionPart}`
+                  ) : hiddenFractionPlaceholder ? (
+                    <span style={{ visibility: "hidden" }}>
+                      {hiddenFractionPlaceholder}
+                    </span>
+                  ) : (
+                    ""
+                  )}
+                  {item.unit ?? ""}
+                </span>
+              </>
+            ) : (
               <span
                 style={{
                   color: "#e2e8f0",
                   whiteSpace: "nowrap",
                   textAlign: "right",
+                  gridColumn: "2 / span 2",
+                  justifySelf: "end",
                   fontVariantNumeric: "tabular-nums",
                   fontFeatureSettings: '"tnum" 1, "lnum" 1',
                 }}
               >
-                {decimal.intPart}
-              </span>
-              <span
-                style={{
-                  color: "#e2e8f0",
-                  textAlign: "left",
-                  whiteSpace: "nowrap",
-                  fontVariantNumeric: "tabular-nums",
-                  fontFeatureSettings: '"tnum" 1, "lnum" 1',
-                }}
-              >
-                {safeFractionDigits > 0 ? (
-                  `.${decimal.fractionPart}`
-                ) : hiddenFractionPlaceholder ? (
-                  <span style={{ visibility: "hidden" }}>
-                    {hiddenFractionPlaceholder}
-                  </span>
-                ) : (
-                  ""
-                )}
+                {normalizedValue}
                 {item.unit ?? ""}
               </span>
-            </>
-          ) : (
-            <span
-              style={{
-                color: "#e2e8f0",
-                whiteSpace: "nowrap",
-                textAlign: "right",
-                gridColumn: "2 / span 2",
-                justifySelf: "end",
-                fontVariantNumeric: "tabular-nums",
-                fontFeatureSettings: '"tnum" 1, "lnum" 1',
-              }}
-            >
-              {normalizedValue}
-              {item.unit ?? ""}
-            </span>
-          )}
-        </span>
-      ))}
+            )}
+          </span>
+        )
+      )}
     </div>
   );
 };

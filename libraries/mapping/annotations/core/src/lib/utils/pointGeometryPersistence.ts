@@ -6,7 +6,10 @@ import type {
   AnnotationLabelAppearance,
   PointLabelMetricMode,
 } from "../types/annotationLabel";
-import { normalizeLabelAnchor, normalizeLabelAppearance } from "./annotationLabel";
+import {
+  normalizeLabelAnchor,
+  normalizeLabelAppearance,
+} from "./annotationLabel";
 
 type PointGeometryLike = {
   id: string;

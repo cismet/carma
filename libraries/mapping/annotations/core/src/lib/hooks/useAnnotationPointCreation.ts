@@ -19,7 +19,7 @@ type AnnotationCollectionEntry = {
 
 type AnnotationPointCreateEntryArgs<
   TEntry extends AnnotationCollectionEntry,
-  TPayload,
+  TPayload
 > = {
   pointId: string;
   payload: TPayload;
@@ -30,7 +30,7 @@ type AnnotationPointCreateEntryArgs<
 
 type UseAnnotationPointCreationOptions<
   TEntry extends AnnotationCollectionEntry,
-  TPayload,
+  TPayload
 > = {
   temporaryMode: boolean;
   setCollection: Dispatch<SetStateAction<TEntry[]>>;
@@ -52,7 +52,7 @@ const createDefaultPointId = () => `point-${Date.now()}`;
 
 export const useAnnotationPointCreation = <
   TEntry extends AnnotationCollectionEntry,
-  TPayload,
+  TPayload
 >({
   temporaryMode,
   setCollection,
@@ -67,7 +67,9 @@ export const useAnnotationPointCreation = <
 >): UseAnnotationPointCreationResult<TPayload> => {
   const prevTemporaryModeRef = useRef(temporaryMode);
   const temporaryModeRef = useRef(temporaryMode);
-  const useTemporaryForCreatedEntriesRef = useRef(useTemporaryForCreatedEntries);
+  const useTemporaryForCreatedEntriesRef = useRef(
+    useTemporaryForCreatedEntries
+  );
   const createEntryRef = useRef(createEntry);
   const onPointCreatedRef = useRef(onPointCreated);
   const onLineFinishRef = useRef(onLineFinish);

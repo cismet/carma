@@ -13,7 +13,6 @@ export {
   getScreenRectangleSize,
   isPointInsideScreenRectangle,
   selectPointIdsInScreenRectangle,
-  
   type ScreenRectangle,
 } from "@carma-mapping/annotations/core";
 

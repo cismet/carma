@@ -48,7 +48,10 @@ export const usePointLivePreviewState = ({
   }, []);
 
   const updatePointPreviewFromPointerMove = useCallback(
-    (positionECEF: Cartesian3 | null, surfaceNormalECEF?: Cartesian3 | null) => {
+    (
+      positionECEF: Cartesian3 | null,
+      surfaceNormalECEF?: Cartesian3 | null
+    ) => {
       if (!hasActivePreviewNode) {
         clearPointPreview();
         return;

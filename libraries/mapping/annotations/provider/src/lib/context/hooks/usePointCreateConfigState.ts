@@ -204,11 +204,7 @@ export const usePointCreateConfigState = ({
     if (!hasPromptMeasurement) {
       setLabelInputPromptPointId(null);
     }
-  }, [
-    labelInputPromptPointId,
-    annotations,
-    setLabelInputPromptPointId,
-  ]);
+  }, [labelInputPromptPointId, annotations, setLabelInputPromptPointId]);
 
   return {
     isPointMeasureLabelModeActive,
