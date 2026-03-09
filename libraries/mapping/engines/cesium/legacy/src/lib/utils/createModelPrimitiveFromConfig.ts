@@ -1,4 +1,10 @@
-import { Cartesian3, HeadingPitchRoll, Model, Transforms } from "@carma/cesium";
+import {
+  Cartesian3,
+  Color,
+  HeadingPitchRoll,
+  Model,
+  Transforms,
+} from "@carma/cesium";
 
 import type { ModelConfig } from "@carma-commons/resources";
 import type { FeatureInfoProperties } from "@carma/types";
@@ -51,6 +57,13 @@ export const createModelPrimitiveFromConfig = async (
     modelMatrix,
     scale,
   });
+
+  if (typeof config.model.show === "boolean") {
+    model.show = config.model.show;
+  }
+  if (config.model.color instanceof Color) {
+    model.color = config.model.color;
+  }
 
   model.id = createModelPickId(config);
 

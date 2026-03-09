@@ -11,6 +11,7 @@ export {
   BoxOutlineGeometry,
   Cartesian4,
   ClassificationType,
+  ClippingPolygon,
   ClippingPlaneCollection,
   ClippingPolygonCollection,
   CoplanarPolygonGeometry,
