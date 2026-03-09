@@ -128,8 +128,10 @@ const FeaturesFormsWrapper = ({
 
   const handleSaveComplete = useCallback(() => {
     if (featureId) {
-      // Update baseline to the saved values so subsequent edits highlight correctly
-      if (draft?.values) {
+      // Update baseline to the saved values so subsequent edits highlight correctly.
+      // Skip when draft.values is empty (file-only saves) to avoid wiping the
+      // proper baseline with {} – that would break dirty-field detection.
+      if (draft?.values && Object.keys(draft.values).length > 0) {
         dispatch(setOriginalValues({ featureId, values: draft.values }));
       }
       dispatch(removeDraft(featureId));

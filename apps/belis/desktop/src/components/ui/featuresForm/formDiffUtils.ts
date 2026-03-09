@@ -80,7 +80,8 @@ export const getChangedPaths = (
   draft: Record<string, unknown> | undefined
 ): Set<string> => {
   const changed = new Set<string>();
-  if (!draft || !original) return changed;
+  // Empty draft means no field changes (e.g. file-only draft with values: {})
+  if (!draft || !original || Object.keys(draft).length === 0) return changed;
 
   const collect = (
     orig: Record<string, unknown>,
@@ -95,6 +96,12 @@ export const getChangedPaths = (
 
       if (isPlainObj(origVal) && isPlainObj(draftVal)) {
         collect(origVal, draftVal, path);
+      } else if (isPlainObj(draftVal) && !isPlainObj(origVal)) {
+        // Draft has nested object but original doesn't – recurse to get leaf paths
+        collect({}, draftVal, path);
+      } else if (isPlainObj(origVal) && !isPlainObj(draftVal)) {
+        // Original has nested object but draft doesn't – recurse to get leaf paths
+        collect(origVal, {}, path);
       } else if (!isFormValueEqual(origVal, draftVal)) {
         changed.add(path);
       }
