@@ -6,8 +6,10 @@ import { getSelectedFeature } from "../../../store/slices/featureCollection";
 import {
   getDraft,
   getDraftFiles,
+  getRemovedDocumentKeys,
   setDraft,
   setDraftFiles,
+  setRemovedDocumentKeys,
   removeDraft,
   setOriginalValues,
   getOriginalValues,
@@ -96,6 +98,9 @@ const FeaturesFormsWrapper = ({
   const draftFiles = useSelector((state: RootState) => getDraftFiles(state, featureId));
   const hasChanges = useSelector((state: RootState) => hasDraftChanges(state, featureId));
   const originalValues = useSelector((state: RootState) => getOriginalValues(state, featureId));
+  const removedDocKeys = useSelector((state: RootState) => getRemovedDocumentKeys(state, featureId));
+
+  const removedDocumentKeys = useMemo(() => new Set(removedDocKeys), [removedDocKeys]);
 
   const [isEditing, setIsEditing] = useState(false);
   const [resetKey, setResetKey] = useState(0);
@@ -123,10 +128,14 @@ const FeaturesFormsWrapper = ({
 
   const handleSaveComplete = useCallback(() => {
     if (featureId) {
+      // Update baseline to the saved values so subsequent edits highlight correctly
+      if (draft?.values) {
+        dispatch(setOriginalValues({ featureId, values: draft.values }));
+      }
       dispatch(removeDraft(featureId));
     }
     setIsEditing(false);
-  }, [featureId, dispatch]);
+  }, [featureId, dispatch, draft?.values]);
 
   const handleDraftChange = useCallback(
     (values: Record<string, unknown>) => {
@@ -155,6 +164,15 @@ const FeaturesFormsWrapper = ({
     [featureId, formKey, dispatch]
   );
 
+  const handleRemovedDocumentKeysChange = useCallback(
+    (keys: Set<string>) => {
+      if (featureId && formKey) {
+        dispatch(setRemovedDocumentKeys({ featureId, featureType: formKey, keys: [...keys] }));
+      }
+    },
+    [featureId, formKey, dispatch]
+  );
+
   if (FormComponent) {
     return (
       <ChangedFieldsProvider
@@ -177,6 +195,8 @@ const FeaturesFormsWrapper = ({
             onToggleReadOnly={handleToggleReadOnly}
             onCancel={handleCancel}
             onSaveComplete={handleSaveComplete}
+            removedDocumentKeys={removedDocumentKeys}
+            onRemovedDocumentKeysChange={handleRemovedDocumentKeysChange}
           />
         </div>
       </ChangedFieldsProvider>

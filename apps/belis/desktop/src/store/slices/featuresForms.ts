@@ -15,6 +15,7 @@ interface Draft {
   featureType: string;
   values: Record<string, unknown>;
   files?: DraftFile[];
+  removedDocumentKeys?: string[];
   updatedAt: number;
 }
 
@@ -49,6 +50,7 @@ const featuresFormsSlice = createSlice({
         featureType,
         values,
         files: state.drafts[featureId]?.files ?? [],
+        removedDocumentKeys: state.drafts[featureId]?.removedDocumentKeys,
         updatedAt: Date.now(),
       };
     },
@@ -111,13 +113,34 @@ const featuresFormsSlice = createSlice({
           Object.keys(existing.values).length === 0
         ) {
           delete state.drafts[featureId];
-          delete state.originalValues[featureId];
         }
       } else if (files.length > 0) {
         state.drafts[featureId] = {
           featureType,
           values: {},
           files,
+          updatedAt: Date.now(),
+        };
+      }
+    },
+    setRemovedDocumentKeys(
+      state,
+      action: PayloadAction<{
+        featureId: string;
+        featureType: string;
+        keys: string[];
+      }>
+    ) {
+      const { featureId, featureType, keys } = action.payload;
+      const existing = state.drafts[featureId];
+      if (existing) {
+        existing.removedDocumentKeys = keys;
+        existing.updatedAt = Date.now();
+      } else if (keys.length > 0) {
+        state.drafts[featureId] = {
+          featureType,
+          values: {},
+          removedDocumentKeys: keys,
           updatedAt: Date.now(),
         };
       }
@@ -136,6 +159,7 @@ export const {
   clearFormError,
   setOriginalValues,
   setDraftFiles,
+  setRemovedDocumentKeys,
 } = featuresFormsSlice.actions;
 
 // Selectors
@@ -170,6 +194,14 @@ export const getDraftFiles = (
 ): DraftFile[] =>
   featureId ? state.featuresForms?.drafts[featureId]?.files ?? [] : [];
 
+export const getRemovedDocumentKeys = (
+  state: RootState,
+  featureId: string | undefined
+): string[] =>
+  featureId
+    ? state.featuresForms?.drafts[featureId]?.removedDocumentKeys ?? []
+    : [];
+
 // Check if a specific draft has actual changes compared to its original values
 export const hasDraftChanges = (
   state: RootState,
@@ -179,6 +211,8 @@ export const hasDraftChanges = (
   const draft = state.featuresForms?.drafts[featureId];
   if (!draft) return false;
   if (draft.files && draft.files.length > 0) return true;
+  if (draft.removedDocumentKeys && draft.removedDocumentKeys.length > 0)
+    return true;
   const original = state.featuresForms?.originalValues[featureId];
   if (!original) return true;
   return isFormDirty(original, draft.values);

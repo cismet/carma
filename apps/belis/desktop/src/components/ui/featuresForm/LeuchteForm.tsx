@@ -46,6 +46,8 @@ interface LeuchteFormProps {
   onToggleReadOnly?: () => void;
   onCancel?: () => void;
   onSaveComplete?: () => void;
+  removedDocumentKeys?: Set<string>;
+  onRemovedDocumentKeysChange?: (keys: Set<string>) => void;
 }
 
 const LeuchteForm = ({
@@ -63,13 +65,13 @@ const LeuchteForm = ({
   onToggleReadOnly,
   onCancel,
   onSaveComplete,
+  removedDocumentKeys: removedDocumentKeysProp,
+  onRemovedDocumentKeysChange,
 }: LeuchteFormProps) => {
+  const removedDocumentKeys = removedDocumentKeysProp ?? new Set<string>();
   const [saving, setSaving] = useState(false);
   const [localDocuments, setLocalDocuments] = useState<DokumentItem[] | null>(
     null
-  );
-  const [removedDocumentKeys, setRemovedDocumentKeys] = useState<Set<string>>(
-    new Set()
   );
   const leuchteFormRef = useRef<FormInstance | null>(null);
   const mastFormRef = useRef<FormInstance | null>(null);
@@ -187,7 +189,7 @@ const LeuchteForm = ({
       // Update local documents so changes appear immediately
       if (hasDocumentChanges && finalDokumenteArray) {
         setLocalDocuments(finalDokumenteArray);
-        setRemovedDocumentKeys(new Set());
+        onRemovedDocumentKeysChange?.(new Set());
       }
 
       if (removedDocumentKeys.size > 0) {
@@ -215,21 +217,18 @@ const LeuchteForm = ({
   const jwt = useSelector(getJWT);
 
   const handleToggleRemoveDocument = useCallback((key: string) => {
-    setRemovedDocumentKeys((prev) => {
-      const next = new Set(prev);
-      if (next.has(key)) {
-        next.delete(key);
-      } else {
-        next.add(key);
-      }
-      return next;
-    });
-  }, []);
+    const next = new Set(removedDocumentKeys);
+    if (next.has(key)) {
+      next.delete(key);
+    } else {
+      next.add(key);
+    }
+    onRemovedDocumentKeysChange?.(next);
+  }, [removedDocumentKeys, onRemovedDocumentKeysChange]);
 
-  // Reset local documents override and removed keys when data changes
+  // Reset local documents override when data changes
   useEffect(() => {
     setLocalDocuments(null);
-    setRemovedDocumentKeys(new Set());
   }, [data]);
 
   // Extract documents from tdta_leuchten[0].dokumenteArray
