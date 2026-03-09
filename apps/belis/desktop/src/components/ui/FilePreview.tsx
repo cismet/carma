@@ -13,6 +13,7 @@ import {
   FileImageOutlined,
   PlusOutlined,
   CloseCircleFilled,
+  PlusCircleFilled,
 } from "@ant-design/icons";
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
 // @ts-ignore
@@ -52,6 +53,12 @@ const SIZE_MAP: Record<FilePreviewSize, { box: number; icon: number }> = {
   xxl: { box: 160, icon: 80 },
 };
 
+/** Unique key for a document — prefers object_name, falls back to description or id */
+export const getDocumentKey = (doc: DokumentItem): string =>
+  doc.dms_url?.url?.object_name ||
+  doc.dms_url?.description ||
+  String(doc.dms_url?.id ?? "");
+
 interface FilePreviewProps {
   documents: DokumentItem[];
   jwt?: string;
@@ -68,6 +75,10 @@ interface FilePreviewProps {
   onAddFiles?: (files: File[]) => void;
   onRemovePendingUpload?: (id: string) => void;
   onPendingUploadNameChange?: (id: string, name: string) => void;
+  /** Keys of documents marked for removal (soft-delete until save) */
+  removedDocumentKeys?: Set<string>;
+  /** Toggle a document's removed state */
+  onToggleRemoveDocument?: (key: string) => void;
 }
 
 type FileType = "image" | "pdf" | "other";
@@ -435,7 +446,7 @@ const UploadTile = ({ size, onAddFiles }: UploadTileProps) => {
         }}
       >
         <PlusOutlined style={{ fontSize: 20, color: "#8c8c8c" }} />
-        <span style={{ fontSize: 12, color: "#8c8c8c" }}>Upload</span>
+        <span style={{ fontSize: 12, color: "#8c8c8c" }}>Hochladen</span>
       </div>
       <input
         ref={fileInputRef}
@@ -474,6 +485,8 @@ const FilePreview = ({
   onAddFiles,
   onRemovePendingUpload,
   onPendingUploadNameChange,
+  removedDocumentKeys,
+  onToggleRemoveDocument,
 }: FilePreviewProps) => {
   // Use cached URLs from parent - no local fetching needed
   const imageUrls = savedImageUrls;
@@ -683,22 +696,77 @@ const FilePreview = ({
           const objectName = doc.dms_url?.url?.object_name || "";
           const fileType = getFileType(objectName);
           const lbIndex = objectNameToLightboxIndex[objectName];
+          const docKey = getDocumentKey(doc);
+          const isMarkedForRemoval =
+            removedDocumentKeys?.has(docKey) ?? false;
 
           return (
-            <FileItem
+            <div
               key={doc.dms_url?.url?.object_name || doc.dms_url?.id || index}
-              doc={doc}
-              jwt={jwt}
-              size={size}
-              showDescription={showDescription}
-              savedUrl={imageUrls[objectName]}
-              onImageClick={
-                (fileType === "image" || fileType === "pdf") &&
-                lbIndex !== undefined
-                  ? () => handleLightboxClick(lbIndex)
-                  : undefined
-              }
-            />
+              style={{
+                display: "flex",
+                flexDirection: "column",
+                alignItems: "center",
+                gap: 2,
+              }}
+            >
+              <div style={{ position: "relative" }}>
+                {!readOnly && onToggleRemoveDocument && (
+                  isMarkedForRemoval ? (
+                    <PlusCircleFilled
+                      onClick={() => onToggleRemoveDocument(docKey)}
+                      style={{
+                        position: "absolute",
+                        top: -6,
+                        right: -6,
+                        zIndex: 10,
+                        fontSize: 18,
+                        color: "#1890ff",
+                        cursor: "pointer",
+                        background: "#fff",
+                        borderRadius: "50%",
+                      }}
+                    />
+                  ) : (
+                    <CloseCircleFilled
+                      onClick={() => onToggleRemoveDocument(docKey)}
+                      style={{
+                        position: "absolute",
+                        top: -6,
+                        right: -6,
+                        zIndex: 10,
+                        fontSize: 18,
+                        color: "#ff4d4f",
+                        cursor: "pointer",
+                        background: "#fff",
+                        borderRadius: "50%",
+                      }}
+                    />
+                  )
+                )}
+                <div
+                  style={{
+                    opacity: isMarkedForRemoval ? 0.5 : 1,
+                    transition: "opacity 0.2s",
+                  }}
+                >
+                  <FileItem
+                    doc={doc}
+                    jwt={jwt}
+                    size={size}
+                    showDescription={showDescription}
+                    savedUrl={imageUrls[objectName]}
+                    onImageClick={
+                      !isMarkedForRemoval &&
+                      (fileType === "image" || fileType === "pdf") &&
+                      lbIndex !== undefined
+                        ? () => handleLightboxClick(lbIndex)
+                        : undefined
+                    }
+                  />
+                </div>
+              </div>
+            </div>
           );
         })}
         {pendingUploads.map((upload) => (

@@ -57,7 +57,7 @@ const FormHeader = ({
               {hasDraft && (
                 <span className="inline-flex items-center gap-1.5 px-3 py-0.5 rounded-full border border-gray-300 bg-[#f9fafb] text-gray-500 text-xs font-medium">
                   <ExclamationCircleOutlined className="text-[11px]" />
-                  Entwurf
+                  nicht gespeicherte Änderungen
                 </span>
               )}
             </div>
