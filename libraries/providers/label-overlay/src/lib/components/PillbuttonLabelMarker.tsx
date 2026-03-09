@@ -54,8 +54,8 @@ interface PillbuttonLabelMarkerProps {
   onDoubleClick: (event: React.MouseEvent<HTMLDivElement>) => void;
   onMouseDown: (event: React.MouseEvent<HTMLDivElement>) => void;
   onMouseUp: () => void;
-  onMouseEnter: () => void;
-  onMouseLeave: () => void;
+  onMouseEnter: (event: React.MouseEvent<HTMLDivElement>) => void;
+  onMouseLeave: (event: React.MouseEvent<HTMLDivElement>) => void;
 }
 
 export const PillbuttonLabelMarker = ({

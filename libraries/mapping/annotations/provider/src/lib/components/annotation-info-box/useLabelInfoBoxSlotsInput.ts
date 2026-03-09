@@ -1,10 +1,10 @@
 import { useMemo } from "react";
 
 import {
-  isPointAnnotationEntry,
+  isPointMeasurementEntry,
   type AnnotationEntry,
   type AnnotationMode,
-  type PointAnnotationEntry,
+  type PointMeasurementEntry,
   useAnnotations,
 } from "@carma-mapping/annotations/core";
 import type { LabelAnnotationSlotsInput } from "./getAnnotationInfoBoxSlots";
@@ -15,7 +15,8 @@ import { useAnnotationInfoBoxSlotActions } from "./useAnnotationInfoBoxSlotActio
 export type LabelInfoBoxSlotsInputState = {
   isLabelKind: boolean;
   slotsInput: LabelAnnotationSlotsInput;
-  labelMeasurements: ReadonlyArray<PointAnnotationEntry>;
+  labelMeasurements: ReadonlyArray<PointMeasurementEntry>;
+  currentMeasurementId: string | null;
 };
 
 export const useLabelInfoBoxSlotsInput = (): LabelInfoBoxSlotsInputState => {
@@ -26,25 +27,36 @@ export const useLabelInfoBoxSlotsInput = (): LabelInfoBoxSlotsInputState => {
   >();
   const actions = useAnnotationInfoBoxSlotActions();
 
+  const displayLabelMeasurement =
+    displayMeasurement && isPointMeasurementEntry(displayMeasurement)
+      ? displayMeasurement
+      : null;
+
   const labelMeasurements = useMemo(
-    () => annotationsByType("pointLabel").filter(isPointAnnotationEntry),
+    () => annotationsByType("pointLabel").filter(isPointMeasurementEntry),
     [annotationsByType]
   );
 
   const labelState = useMemo(
     () =>
       getLabelAnnotationSlotsInput({
-        measurement: displayMeasurement,
+        measurement: displayLabelMeasurement,
         labelMeasurements,
         labelInputPromptPointId,
         actions,
       }),
-    [actions, displayMeasurement, labelInputPromptPointId, labelMeasurements]
+    [
+      actions,
+      displayLabelMeasurement,
+      labelInputPromptPointId,
+      labelMeasurements,
+    ]
   );
 
   return {
-    isLabelKind: labelState.isLabelLivePreview || labelState.isLabelMeasurement,
+    isLabelKind: labelState.isLabelCandidate || labelState.isLabelMeasurement,
     slotsInput: labelState.slotsInput,
     labelMeasurements,
+    currentMeasurementId: displayLabelMeasurement?.id ?? null,
   };
 };

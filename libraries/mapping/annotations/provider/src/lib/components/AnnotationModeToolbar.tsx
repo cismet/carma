@@ -58,6 +58,8 @@ export interface AnnotationModeToolbarProps {
   onSelectRectangleModeChange?: (enabled: boolean) => void;
   selectedMeasurementCount?: number;
   selectedLabelCount?: number;
+  onClearAllMeasurements?: () => void;
+  hasAnyMeasurements?: boolean;
   onDeleteSelectedPoints?: () => void;
   onToggleSelectedVisibility?: () => void;
   onToggleSelectedLock?: () => void;
@@ -412,6 +414,8 @@ export function AnnotationModeToolbar({
   onSelectRectangleModeChange,
   selectedMeasurementCount = 0,
   selectedLabelCount = 0,
+  onClearAllMeasurements,
+  hasAnyMeasurements = false,
   onDeleteSelectedPoints,
   onToggleSelectedVisibility,
   onToggleSelectedLock,
@@ -901,6 +905,31 @@ export function AnnotationModeToolbar({
                         </Tooltip>
                       </>
                     )}
+                    <Tooltip title="Alle Messungen löschen">
+                      <button
+                        type="button"
+                        style={{
+                          ...toolButtonStyle(false, !hasAnyMeasurements),
+                          width: "auto",
+                          minWidth: 28,
+                          height: 28,
+                          padding: "0 8px",
+                          gap: 6,
+                          display: "inline-flex",
+                          alignItems: "center",
+                          justifyContent: "center",
+                        }}
+                        onClick={() => onClearAllMeasurements?.()}
+                        disabled={!hasAnyMeasurements}
+                        aria-label="Alle Messungen löschen"
+                        data-test-id="measurement-selection-clear-all-btn"
+                      >
+                        <FontAwesomeIcon icon={faTrashCan} />
+                        <span style={{ fontSize: 11, fontWeight: 600 }}>
+                          Alle
+                        </span>
+                      </button>
+                    </Tooltip>
                   </div>
                 </SecondaryToolbarSection>
               )}

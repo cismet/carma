@@ -5,13 +5,15 @@ import {
   Cartesian3,
   getDegreesFromCartesian,
   getEllipsoidalAltitudeOrZero,
+  getLocalUpDirectionAtPosition,
   type Scene,
 } from "@carma/cesium";
 import { useAnnotationPointCreation } from "@carma-mapping/annotations/core";
 import {
   ANNOTATION_TYPE_POINT,
   ANNOTATION_TYPE_DISTANCE,
-  isPointAnnotationEntry,
+  isDistancePointEntry,
+  isPointMeasurementEntry,
   type AnnotationCollection,
   type AnnotationEntry,
   type AnnotationMode,
@@ -22,6 +24,58 @@ import {
   type CesiumPointQueryCreatePayload,
 } from "@carma-mapping/annotations/cesium";
 import { type ActivePointCreateConfig } from "./usePointCreateConfigState";
+
+type PointCreatePayload = {
+  geometryPositionECEF: Cartesian3;
+  anchorPositionECEF: Cartesian3;
+  hasVerticalOffsetStem: boolean;
+};
+
+const buildPointCreatePayload = (
+  payload: CesiumPointQueryCreatePayload,
+  {
+    verticalOffsetMeters,
+    preferGlobeAnchorForVerticalOffset,
+  }: {
+    verticalOffsetMeters: number;
+    preferGlobeAnchorForVerticalOffset: boolean;
+  }
+): PointCreatePayload => {
+  const safeVerticalOffsetMeters = Number.isFinite(verticalOffsetMeters)
+    ? verticalOffsetMeters
+    : 0;
+  const hasVerticalOffsetStem = Math.abs(safeVerticalOffsetMeters) > 1e-9;
+  const anchorPosition =
+    hasVerticalOffsetStem && preferGlobeAnchorForVerticalOffset
+      ? payload.globePositionECEF ?? payload.pickedPositionECEF
+      : payload.pickedPositionECEF;
+
+  if (!hasVerticalOffsetStem) {
+    return {
+      geometryPositionECEF: Cartesian3.clone(
+        payload.pickedPositionECEF,
+        new Cartesian3()
+      ),
+      anchorPositionECEF: Cartesian3.clone(anchorPosition, new Cartesian3()),
+      hasVerticalOffsetStem: false,
+    };
+  }
+
+  const localUpDirectionECEF = getLocalUpDirectionAtPosition(anchorPosition);
+  return {
+    geometryPositionECEF: Cartesian3.add(
+      anchorPosition,
+      Cartesian3.multiplyByScalar(
+        localUpDirectionECEF,
+        safeVerticalOffsetMeters,
+        new Cartesian3()
+      ),
+      new Cartesian3()
+    ),
+    anchorPositionECEF: Cartesian3.clone(anchorPosition, new Cartesian3()),
+    hasVerticalOffsetStem: true,
+  };
+};
 
 type UsePointQueryCreationControllerParams = {
   scene: Scene | null;
@@ -42,7 +96,7 @@ type UsePointQueryCreationControllerParams = {
     positionECEF: Cartesian3 | null,
     screenPosition: Cartesian2
   ) => boolean;
-  handlePointQueryPointerMoveWithHoveredNodeAnchor: (
+  handleAnnotationCursorMove: (
     positionECEF: Cartesian3 | null,
     screenPosition: Cartesian2,
     surfaceNormalECEF?: Cartesian3 | null
@@ -62,15 +116,12 @@ export const usePointQueryCreationController = ({
   handlePointQueryPointCreated,
   handlePointQueryDoubleClick,
   handlePointQueryBeforePointCreate,
-  handlePointQueryPointerMoveWithHoveredNodeAnchor,
+  handleAnnotationCursorMove,
 }: UsePointQueryCreationControllerParams) => {
   const {
     handlePointCreate: handlePointQueryCreate,
     handleLineFinish: handlePointQueryLineFinish,
-  } = useAnnotationPointCreation<
-    AnnotationEntry,
-    CesiumPointQueryCreatePayload
-  >({
+  } = useAnnotationPointCreation<AnnotationEntry, PointCreatePayload>({
     temporaryMode: activePointCreateConfig?.temporaryMode ?? false,
     setCollection: setAnnotations as Dispatch<
       SetStateAction<AnnotationEntry[]>
@@ -84,6 +135,16 @@ export const usePointQueryCreationController = ({
       temporaryMode: createTemporaryMode,
       useTemporaryForCreatedEntries,
     }) => {
+      const createdPointType =
+        annotationMode === ANNOTATION_TYPE_POINT
+          ? ANNOTATION_TYPE_POINT
+          : ANNOTATION_TYPE_DISTANCE;
+      const createdPointIndexEntries =
+        previousCollection?.filter(
+          createdPointType === ANNOTATION_TYPE_POINT
+            ? isPointMeasurementEntry
+            : isDistancePointEntry
+        ) ?? [];
       const geometryWGS84 = getDegreesFromCartesian(
         payload.geometryPositionECEF
       );
@@ -94,11 +155,11 @@ export const usePointQueryCreationController = ({
       const insertionIndex = createTemporaryMode
         ? useTemporaryForCreatedEntries
           ? 0
-          : previousCollection?.filter(isPointAnnotationEntry).length || 0
-        : previousCollection?.filter(isPointAnnotationEntry).length || 0;
+          : createdPointIndexEntries.length
+        : createdPointIndexEntries.length;
 
       return {
-        type: ANNOTATION_TYPE_DISTANCE,
+        type: createdPointType,
         id: pointId,
         index: insertionIndex,
         geometryECEF: payload.geometryPositionECEF,
@@ -142,6 +203,9 @@ export const usePointQueryCreationController = ({
     onLineFinish: handlePointQueryDoubleClick,
   });
 
+  const pointVerticalOffsetMeters =
+    activePointCreateConfig?.verticalOffsetMeters ?? 0;
+
   useCesiumPointQuery(scene, {
     enabled:
       pointQueryToolActive &&
@@ -150,12 +214,16 @@ export const usePointQueryCreationController = ({
       !moveGizmoPointId &&
       !isMoveGizmoDragging &&
       Boolean(activePointCreateConfig),
-    verticalOffsetMeters: activePointCreateConfig?.verticalOffsetMeters ?? 0,
-    preferGlobeAnchorForVerticalOffset:
-      annotationMode === ANNOTATION_TYPE_POINT,
     onBeforePointCreate: handlePointQueryBeforePointCreate,
-    onPointCreate: handlePointQueryCreate,
+    onPointCreate: (payload) =>
+      handlePointQueryCreate(
+        buildPointCreatePayload(payload, {
+          verticalOffsetMeters: pointVerticalOffsetMeters,
+          preferGlobeAnchorForVerticalOffset:
+            annotationMode === ANNOTATION_TYPE_POINT,
+        })
+      ),
     onLineFinish: handlePointQueryLineFinish,
-    onPointerMove: handlePointQueryPointerMoveWithHoveredNodeAnchor,
+    onPointerMove: handleAnnotationCursorMove,
   });
 };

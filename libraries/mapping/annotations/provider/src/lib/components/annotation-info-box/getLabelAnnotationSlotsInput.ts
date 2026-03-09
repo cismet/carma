@@ -35,7 +35,7 @@ type GetLabelMeasurementSlotsInputParams = {
 export type LabelMeasurementSlotsInputResult = {
   slotsInput: LabelAnnotationSlotsInput;
   isLabelMeasurement: boolean;
-  isLabelLivePreview: boolean;
+  isLabelCandidate: boolean;
 };
 
 export const getLabelAnnotationSlotsInput = ({
@@ -98,7 +98,7 @@ export const getLabelAnnotationSlotsInput = ({
       displayPoint: resolvePointAnnotationDisplayPoint(displayMeasurement),
       relativeElevation: null,
       isReference: false,
-      isLivePreview: false,
+      isCandidate: false,
       autoFocusTitleTrigger:
         displayMeasurement && displayMeasurement.id === labelInputPromptPointId
           ? displayMeasurement.id
@@ -114,6 +114,6 @@ export const getLabelAnnotationSlotsInput = ({
       actions,
     },
     isLabelMeasurement,
-    isLabelLivePreview: false,
+    isLabelCandidate: false,
   };
 };

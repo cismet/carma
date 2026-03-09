@@ -1,7 +1,11 @@
 import { type PlanarPolygonGroup } from "../../types/planarTypes";
 import type { Cartesian3Json } from "@carma/cesium";
 import { formatAreaAdaptive } from "../../utils/displayFormatting";
-import { type AreaLabelText } from "./areaLabelVisualizer.types";
+
+export type AreaLabelText = {
+  primaryText: string;
+  secondaryText?: string | null;
+};
 
 const computePolygonAreaFromVertices = (
   vertices: ReadonlyArray<Cartesian3Json>

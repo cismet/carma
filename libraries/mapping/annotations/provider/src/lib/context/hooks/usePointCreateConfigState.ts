@@ -35,7 +35,7 @@ type BuildActivePointCreateConfigParams = {
   temporaryMode: boolean;
   pointVerticalOffsetMeters: number;
   lastCustomLabelOnCreate?: string;
-  previewIsPolylineCreateMode: boolean;
+  isPolylineCandidateMode: boolean;
   polylineVerticalOffsetMeters: number;
 };
 
@@ -46,7 +46,7 @@ const buildActivePointCreateConfig = ({
   temporaryMode,
   pointVerticalOffsetMeters,
   lastCustomLabelOnCreate,
-  previewIsPolylineCreateMode,
+  isPolylineCandidateMode,
   polylineVerticalOffsetMeters,
 }: BuildActivePointCreateConfigParams): ActivePointCreateConfig | null => {
   if (annotationMode === ANNOTATION_TYPE_POINT) {
@@ -97,7 +97,7 @@ const buildActivePointCreateConfig = ({
   if (annotationMode === ANNOTATION_TYPE_POLYLINE) {
     return {
       temporaryMode: false,
-      verticalOffsetMeters: previewIsPolylineCreateMode
+      verticalOffsetMeters: isPolylineCandidateMode
         ? polylineVerticalOffsetMeters
         : 0,
       nameOnCreate: undefined,
@@ -126,7 +126,7 @@ type UsePointCreateConfigStateParams = {
   temporaryMode: boolean;
   pointVerticalOffsetMeters: number;
   lastCustomLabelOnCreate?: string;
-  previewIsPolylineCreateMode: boolean;
+  isPolylineCandidateMode: boolean;
   polylineVerticalOffsetMeters: number;
 };
 
@@ -147,7 +147,7 @@ export const usePointCreateConfigState = ({
   temporaryMode,
   pointVerticalOffsetMeters,
   lastCustomLabelOnCreate,
-  previewIsPolylineCreateMode,
+  isPolylineCandidateMode,
   polylineVerticalOffsetMeters,
 }: UsePointCreateConfigStateParams): UsePointCreateConfigStateResult => {
   const isPointMeasureLabelModeActive =
@@ -171,7 +171,7 @@ export const usePointCreateConfigState = ({
         temporaryMode,
         pointVerticalOffsetMeters,
         lastCustomLabelOnCreate,
-        previewIsPolylineCreateMode,
+        isPolylineCandidateMode,
         polylineVerticalOffsetMeters,
       }),
     [
@@ -181,7 +181,7 @@ export const usePointCreateConfigState = ({
       temporaryMode,
       pointVerticalOffsetMeters,
       lastCustomLabelOnCreate,
-      previewIsPolylineCreateMode,
+      isPolylineCandidateMode,
       polylineVerticalOffsetMeters,
     ]
   );

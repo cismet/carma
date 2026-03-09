@@ -47,6 +47,7 @@ import {
   ANNOTATION_TYPE_POLYLINE,
   DEFAULT_LINEAR_SEGMENT_LINE_MODE,
   DEFAULT_POINT_LABEL_METRIC_MODE,
+  type AnnotationPointMarkerBadge,
   LINEAR_SEGMENT_LINE_MODE_COMPONENTS,
   LINEAR_SEGMENT_LINE_MODE_DIRECT,
   SELECT_TOOL_TYPE,
@@ -54,6 +55,7 @@ import {
   PLANAR_TOOL_CREATION_MODE_POLYGON,
   PLANAR_TOOL_CREATION_MODE_POLYLINE,
   isPointAnnotationEntry,
+  isPointMeasurementEntry,
   type AnnotationEditContextType,
   type AnnotationModeOptionsContextType,
   type AnnotationSelectionContextType,
@@ -67,27 +69,16 @@ import {
   useAnnotationSelectionMutations,
   useAnnotationVisibilityState,
   useAnnotationCollectionSelectors,
-  useAnnotationPointMarkerBadges,
-  useSelectionToolState,
   normalizeLabelAppearance,
   buildPointGeometryRows,
-  buildDesiredPointLabelAnchorById,
-  buildStandaloneDistancePointSets,
-  applyDesiredPointLabelAnchors,
-  collectCollapsedPillPointIds,
-  collectPointIdsWithoutSelfLabelAnchor,
-  collectLabelAnchorPointIdsWithForcedVisibility,
   applyLabelAppearance,
-  formatNumber,
   getCustomPointAnnotationName,
   type AnnotationGeometryEdge,
   type AnnotationGeometryPoint,
-  type AnnotationLabelAnchor,
   type AnnotationLabelAppearance,
   type AnnotationMode,
   type AnnotationPersistenceEnvelopeV2,
   type AnnotationCreatePayload,
-  type PlanarGroupBadgeKind,
   type PlanarToolCreationMode,
   type PlanarPolygonGroup,
   type PlanarPolygonGroupVertex,
@@ -101,30 +92,32 @@ import {
   type LinearSegmentLineMode,
   type AnnotationListType,
 } from "@carma-mapping/annotations/core";
+import type { PointLabelLayoutConfigOverrides } from "@carma-providers/label-overlay";
 
 import { useCesiumContext } from "@carma-mapping/engines/cesium";
 import { flyToBoundingSphereExtent } from "@carma-mapping/engines/cesium/api";
 
+import { useCesiumOverlaySync } from "@carma-mapping/annotations/cesium";
 import {
-  useCesiumOverlaySync,
-  type CesiumLabelLayoutConfigOverrides,
-  type PointMarkerBadge,
-} from "@carma-mapping/annotations/cesium";
-import {
-  ANNOTATION_LIVE_PREVIEW_TYPE_DISTANCE,
-  ANNOTATION_LIVE_PREVIEW_TYPE_NONE,
-  ANNOTATION_LIVE_PREVIEW_TYPE_POINT,
-  ANNOTATION_LIVE_PREVIEW_TYPE_POLYGON_GROUND,
-  ANNOTATION_LIVE_PREVIEW_TYPE_POLYGON_PLANAR,
-  ANNOTATION_LIVE_PREVIEW_TYPE_POLYGON_VERTICAL,
-  ANNOTATION_LIVE_PREVIEW_TYPE_POLYLINE,
-  type AnnotationLivePreviewDescriptor,
-  useAnnotationLivePreviewState,
-} from "./hooks/useAnnotationLivePreviewState";
+  ANNOTATION_CANDIDATE_KIND_DISTANCE,
+  ANNOTATION_CANDIDATE_KIND_NONE,
+  ANNOTATION_CANDIDATE_KIND_POINT,
+  ANNOTATION_CANDIDATE_KIND_POLYGON_GROUND,
+  ANNOTATION_CANDIDATE_KIND_POLYGON_PLANAR,
+  ANNOTATION_CANDIDATE_KIND_POLYGON_VERTICAL,
+  ANNOTATION_CANDIDATE_KIND_POLYLINE,
+  type AnnotationCandidateDescriptor,
+  useAnnotationCandidateState,
+} from "./hooks/useAnnotationCandidateState";
 import { useAnnotationVisualizerAdapter } from "./hooks/useAnnotationVisualizerAdapter";
+import { usePointEditingGizmo } from "./hooks/usePointEditingGizmo";
+import { useSelectionToolState } from "./hooks/selection/useSelectionToolState";
 import { usePointCreateConfigState } from "./hooks/usePointCreateConfigState";
+import { usePointAnnotationIndex } from "./hooks/usePointAnnotationIndex";
+import { usePointLabelDisplayState } from "./hooks/usePointLabelDisplayState";
 import { usePointQueryCreationController } from "./hooks/usePointQueryCreationController";
 import { useAnnotationPointEditingController } from "./hooks/useAnnotationPointEditingController";
+import { useMeasurementNodeInteractionController } from "./hooks/input/useMeasurementNodeInteractionController";
 import {
   getNextPointLabelMetricMode,
   runPointLabelClickInteraction,
@@ -263,7 +256,7 @@ export interface AnnotationsAdapterContextType {
   heightOffset: number;
   setHeightOffset: Dispatch<SetStateAction<number>>;
   referencePoint: Cartesian3 | null;
-  livePreviewPointECEF: Cartesian3 | null;
+  candidatePointECEF: Cartesian3 | null;
   hasDistancePreviewAnchor: boolean;
   setReferencePoint: Dispatch<SetStateAction<Cartesian3 | null>>;
   referenceElevation: number; // derived from referencePoint
@@ -289,7 +282,9 @@ export interface AnnotationsAdapterContextType {
   setPointLabelOnCreate: Dispatch<SetStateAction<boolean>>;
   labelInputPromptPointId: string | null;
   confirmPointLabelInputById: (id: string) => void;
-  pointMarkerBadgeByPointId: Readonly<Record<string, PointMarkerBadge>>;
+  pointMarkerBadgeByPointId: Readonly<
+    Record<string, AnnotationPointMarkerBadge>
+  >;
   pendingPolylinePromotionRingClosurePointId: string | null;
   confirmPolylineRingPromotion: (surfaceType: PolygonSurfacePreset) => void;
   cancelPolylineRingPromotion: () => void;
@@ -311,12 +306,10 @@ export type AnnotationsAdapterOptions = {
   mode?: AnnotationMode;
   initialPersistenceState?: AnnotationPersistenceEnvelopeV2 | null;
   onPersistenceStateChange?: (state: AnnotationPersistenceEnvelopeV2) => void;
-  labels?: CesiumLabelLayoutConfigOverrides;
+  labels?: PointLabelLayoutConfigOverrides;
   moveGizmo?: {
     markerSizeScale?: number;
     labelDistanceScale?: number;
-    snapPlaneDragToGround?: boolean;
-    showRotationHandle?: boolean;
   };
 };
 
@@ -336,8 +329,6 @@ const defaultMoveGizmoOptions: NonNullable<
 > = {
   markerSizeScale: 1,
   labelDistanceScale: 1,
-  snapPlaneDragToGround: false,
-  showRotationHandle: true,
 };
 const POINT_LABEL_LONG_PRESS_DURATION_MS = 300;
 const REFERENCE_POINT_SYNC_EPSILON_METERS = 0.001;
@@ -391,9 +382,9 @@ const resolvePlanarGroupSeedConfig = ({
       ? ANNOTATION_TYPE_AREA_PLANAR
       : ANNOTATION_TYPE_AREA_GROUND;
   const segmentLineMode =
-    measurementKind === ANNOTATION_TYPE_AREA_GROUND && surfaceType === "terrain"
-      ? defaultPolylineSegmentLineMode
-      : LINEAR_SEGMENT_LINE_MODE_DIRECT;
+    planarToolCreationMode === PLANAR_TOOL_CREATION_MODE_POLYGON
+      ? LINEAR_SEGMENT_LINE_MODE_DIRECT
+      : defaultPolylineSegmentLineMode;
 
   return {
     surfaceType,
@@ -773,7 +764,6 @@ export const AnnotationsAdapterProvider: React.FC<
   });
 
   const previousMeasurementModeRef = useRef<AnnotationMode>(annotationMode);
-  const hoveredLivePreviewPointIdRef = useRef<string | null>(null);
 
   const [pointRadius, setPointRadius] = useState(pointQueryOptions.radius ?? 1);
   const [pointVerticalOffsetMeters, setPointVerticalOffsetMeters] = useState(
@@ -1196,17 +1186,17 @@ export const AnnotationsAdapterProvider: React.FC<
     ]
   );
 
-  const activeLivePreviewDescriptor =
-    useMemo<AnnotationLivePreviewDescriptor>(() => {
+  const annotationCandidateDescriptor =
+    useMemo<AnnotationCandidateDescriptor>(() => {
       if (annotationMode === ANNOTATION_TYPE_POINT) {
         if (pointLabelOnCreate && labelInputPromptPointId) {
           return {
-            type: ANNOTATION_LIVE_PREVIEW_TYPE_NONE,
+            kind: ANNOTATION_CANDIDATE_KIND_NONE,
             verticalOffsetMeters: 0,
           };
         }
         return {
-          type: ANNOTATION_LIVE_PREVIEW_TYPE_POINT,
+          kind: ANNOTATION_CANDIDATE_KIND_POINT,
           verticalOffsetMeters: pointLabelOnCreate
             ? 0
             : pointVerticalOffsetMeters,
@@ -1215,21 +1205,21 @@ export const AnnotationsAdapterProvider: React.FC<
 
       if (annotationMode === ANNOTATION_TYPE_DISTANCE) {
         return {
-          type: ANNOTATION_LIVE_PREVIEW_TYPE_DISTANCE,
+          kind: ANNOTATION_CANDIDATE_KIND_DISTANCE,
           verticalOffsetMeters: 0,
         };
       }
 
       if (annotationMode !== ANNOTATION_TYPE_POLYLINE) {
         return {
-          type: ANNOTATION_LIVE_PREVIEW_TYPE_NONE,
+          kind: ANNOTATION_CANDIDATE_KIND_NONE,
           verticalOffsetMeters: 0,
         };
       }
 
       if (planarToolCreationMode === PLANAR_TOOL_CREATION_MODE_POLYLINE) {
         return {
-          type: ANNOTATION_LIVE_PREVIEW_TYPE_POLYLINE,
+          kind: ANNOTATION_CANDIDATE_KIND_POLYLINE,
           verticalOffsetMeters: polylineVerticalOffsetMeters,
         };
       }
@@ -1249,7 +1239,7 @@ export const AnnotationsAdapterProvider: React.FC<
             : null;
         if (firstVertexPointId && activeOpenPolygonGroup) {
           return {
-            type: ANNOTATION_LIVE_PREVIEW_TYPE_POLYGON_VERTICAL,
+            kind: ANNOTATION_CANDIDATE_KIND_POLYGON_VERTICAL,
             verticalOffsetMeters: 0,
             verticalPolygonContext: {
               groupId: activeOpenPolygonGroup.id,
@@ -1258,27 +1248,27 @@ export const AnnotationsAdapterProvider: React.FC<
           };
         }
         return {
-          type: ANNOTATION_LIVE_PREVIEW_TYPE_POLYGON_VERTICAL,
+          kind: ANNOTATION_CANDIDATE_KIND_POLYGON_VERTICAL,
           verticalOffsetMeters: 0,
         };
       }
 
       if (effectiveSurfaceType === "footprint") {
         return {
-          type: ANNOTATION_LIVE_PREVIEW_TYPE_POLYGON_GROUND,
+          kind: ANNOTATION_CANDIDATE_KIND_POLYGON_GROUND,
           verticalOffsetMeters: 0,
         };
       }
 
       if (effectiveSurfaceType === "roof") {
         return {
-          type: ANNOTATION_LIVE_PREVIEW_TYPE_POLYGON_PLANAR,
+          kind: ANNOTATION_CANDIDATE_KIND_POLYGON_PLANAR,
           verticalOffsetMeters: 0,
         };
       }
 
       return {
-        type: ANNOTATION_LIVE_PREVIEW_TYPE_NONE,
+        kind: ANNOTATION_CANDIDATE_KIND_NONE,
         verticalOffsetMeters: 0,
       };
     }, [
@@ -1294,19 +1284,23 @@ export const AnnotationsAdapterProvider: React.FC<
     ]);
 
   const {
-    livePreviewPointECEF,
-    livePreviewSurfaceNormalECEF,
-    livePreviewVerticalOffsetAnchorECEF,
-    handlePointQueryPointerMove,
-    previewIsPolylineCreateMode,
-    hasActivePreviewNode,
-    activePreviewSupportsDistanceLine,
-    activePreviewUsesPolylineDistanceRules,
-    activePreviewForceDirectDistanceLine,
-    isLivePointPreviewModeActive,
-  } = useAnnotationLivePreviewState({
+    activeCandidateNodeECEF,
+    cursorScreenPosition,
+    activeCandidateNodeSurfaceNormalECEF,
+    activeCandidateNodeVerticalOffsetAnchorECEF,
+    clearAnnotationCursor,
+    handleAnnotationCursorMove,
+    isPolylineCandidateMode,
+    hasCandidateNode,
+    candidateSupportsEdgeLine,
+    candidateUsesPolylineEdgeRules,
+    candidateForcesDirectEdgeLine,
+    annotationCursorEnabled,
+    syncAnnotationCursorToExistingPoint,
+    scheduleAnnotationCursorSnapRelease,
+  } = useAnnotationCandidateState({
     scene,
-    activePreview: activeLivePreviewDescriptor,
+    candidate: annotationCandidateDescriptor,
     pointQueryEnabled,
     moveGizmoPointId,
     isMoveGizmoDragging,
@@ -1315,43 +1309,6 @@ export const AnnotationsAdapterProvider: React.FC<
     getPositionWithVerticalOffsetFromAnchor,
     getFacadeRectanglePreviewAreaSquareMeters,
   });
-
-  const handlePointLabelHoverChange = useCallback(
-    (pointId: string, hovered: boolean) => {
-      if (!pointQueryEnabled || moveGizmoPointId || isMoveGizmoDragging) return;
-      if (!hasActivePreviewNode) return;
-
-      if (hovered) {
-        const hoveredPoint = getPointById(annotations, pointId);
-        if (!hoveredPoint || !isPointAnnotationEntry(hoveredPoint)) return;
-        hoveredLivePreviewPointIdRef.current = pointId;
-        const localUp = getLocalUpDirectionAtAnchor(hoveredPoint.geometryECEF);
-        handlePointQueryPointerMove(
-          hoveredPoint.geometryECEF,
-          undefined,
-          localUp
-        );
-        return;
-      }
-
-      if (hoveredLivePreviewPointIdRef.current !== pointId) return;
-      hoveredLivePreviewPointIdRef.current = null;
-      handlePointQueryPointerMove(null, undefined, null);
-    },
-    [
-      pointQueryEnabled,
-      moveGizmoPointId,
-      isMoveGizmoDragging,
-      hasActivePreviewNode,
-      annotations,
-      handlePointQueryPointerMove,
-    ]
-  );
-
-  useEffect(() => {
-    if (isLivePointPreviewModeActive) return;
-    hoveredLivePreviewPointIdRef.current = null;
-  }, [isLivePointPreviewModeActive]);
   const polylineSegmentLineMode = useMemo(() => {
     if (!activePlanarPolygonGroupId) {
       return defaultPolylineSegmentLineMode;
@@ -1532,49 +1489,6 @@ export const AnnotationsAdapterProvider: React.FC<
     return ids;
   }, [polylines, focusedPlanarPolygonGroupId]);
 
-  const pointMeasurements = useMemo(
-    () => annotations.filter(isPointAnnotationEntry),
-    [annotations]
-  );
-  const planarVertexPointIdSetForBadges = useMemo(() => {
-    const ids = new Set<string>();
-    planarPolygonGroups.forEach((group) => {
-      group.vertexPointIds.forEach((pointId) => {
-        if (pointId) {
-          ids.add(pointId);
-        }
-      });
-    });
-    return ids;
-  }, [planarPolygonGroups]);
-  const pointMeasureOrderById = useMemo(
-    () =>
-      pointMeasurements
-        .filter(
-          (measurement) =>
-            !measurement.auxiliaryLabelAnchor &&
-            !measurement.distanceAdhocNode &&
-            !planarVertexPointIdSetForBadges.has(measurement.id)
-        )
-        .reduce<Record<string, number>>((orderById, measurement, index) => {
-          orderById[measurement.id] = index + 1;
-          return orderById;
-        }, {}),
-    [planarVertexPointIdSetForBadges, pointMeasurements]
-  );
-  const resolvePlanarGroupBadgeKind = useCallback(
-    (group: PlanarPolygonGroup): PlanarGroupBadgeKind => group.measurementKind,
-    []
-  );
-  const pointMarkerBadgeByPointId = useAnnotationPointMarkerBadges({
-    pointMeasurements,
-    planarPolygonGroups,
-    distanceRelations,
-    pointMeasureOrderById,
-    resolvePlanarGroupBadgeKind,
-    isPointAutoCorner: (point) => Boolean(point.isFacadeAutoCorner),
-  }) as Readonly<Record<string, PointMarkerBadge>>;
-
   const unfocusedPolylineInteriorIds = useMemo(() => {
     const ids = new Set<string>();
     polylines.forEach((polyline) => {
@@ -1594,80 +1508,6 @@ export const AnnotationsAdapterProvider: React.FC<
     });
     return ids;
   }, [unfocusedPolylineMarkerOnlyPointIds, unfocusedPolylineInteriorIds]);
-
-  const {
-    standaloneDistanceHighestPointIds,
-    unfocusedStandaloneDistanceNonHighestPointIds,
-    focusedStandaloneDistanceNonHighestPointIds,
-  } = useMemo(() => {
-    const selectedPointIdSet = new Set<string>(selectedMeasurementIds);
-    if (selectedMeasurementId) {
-      selectedPointIdSet.add(selectedMeasurementId);
-    }
-
-    const {
-      highestPointIds,
-      unfocusedNonHighestPointIds,
-      focusedNonHighestPointIds,
-    } = buildStandaloneDistancePointSets({
-      pointMeasurements,
-      distanceRelations,
-      selectedPointIds: selectedPointIdSet,
-    });
-
-    return {
-      standaloneDistanceHighestPointIds: highestPointIds,
-      unfocusedStandaloneDistanceNonHighestPointIds:
-        unfocusedNonHighestPointIds,
-      focusedStandaloneDistanceNonHighestPointIds: focusedNonHighestPointIds,
-    };
-  }, [
-    distanceRelations,
-    pointMeasurements,
-    selectedMeasurementId,
-    selectedMeasurementIds,
-  ]);
-
-  const desiredLabelAnchorByPointId = useMemo<
-    Readonly<Record<string, AnnotationLabelAnchor | undefined>>
-  >(
-    () =>
-      buildDesiredPointLabelAnchorById({
-        pointMeasurements,
-        polylines,
-        focusedPlanarPolygonGroupId,
-        pointMarkerBadgeByPointId,
-        standaloneDistanceHighestPointIds,
-        unfocusedStandaloneDistanceNonHighestPointIds,
-        focusedStandaloneDistanceNonHighestPointIds,
-        formatDistanceLabel: formatNumber,
-      }),
-    [
-      pointMeasurements,
-      polylines,
-      focusedPlanarPolygonGroupId,
-      pointMarkerBadgeByPointId,
-      standaloneDistanceHighestPointIds,
-      unfocusedStandaloneDistanceNonHighestPointIds,
-      focusedStandaloneDistanceNonHighestPointIds,
-    ]
-  );
-
-  useEffect(() => {
-    setAnnotations((prev) => {
-      const { nextMeasurements, hasChanges } = applyDesiredPointLabelAnchors({
-        annotations: prev,
-        desiredLabelAnchorByPointId,
-        isPointMeasurement: isPointAnnotationEntry,
-      });
-      return hasChanges ? nextMeasurements : prev;
-    });
-  }, [desiredLabelAnchorByPointId]);
-
-  const collapsedPillPointIds = useMemo(
-    () => collectCollapsedPillPointIds(pointMeasurements),
-    [pointMeasurements]
-  );
 
   const selectedClosedAreaGroupIdSet = useMemo(() => {
     const ids = new Set<string>();
@@ -1729,14 +1569,45 @@ export const AnnotationsAdapterProvider: React.FC<
     return ids;
   }, [closedAreaVertexPointIdSet, selectedClosedAreaVertexPointIdSet]);
 
-  const labelAnchorPointIdsWithForcedVisibility = useMemo(
-    () =>
-      collectLabelAnchorPointIdsWithForcedVisibility(
-        pointMeasurements,
-        unselectedClosedAreaVertexPointIdSet
-      ),
-    [pointMeasurements, unselectedClosedAreaVertexPointIdSet]
+  const { points: pointEntries, pointIds: pointEntryIds } =
+    usePointAnnotationIndex(annotations);
+  const pointMeasureEntries = useMemo(
+    () => annotations.filter(isPointMeasurementEntry),
+    [annotations]
   );
+  const {
+    pointMarkerBadgeByPointId,
+    standaloneDistanceVisibilityState: {
+      unfocusedNonHighestPointIds:
+        unfocusedStandaloneDistanceNonHighestPointIds,
+      focusedNonHighestPointIds: focusedStandaloneDistanceNonHighestPointIds,
+    },
+    labelState: {
+      collapsedPillPointIds,
+      pointIdsWithoutLabelAnchor,
+      labelAnchorPointIdsWithForcedVisibility,
+    },
+  } = usePointLabelDisplayState({
+    pointEntries,
+    pointMeasureEntries,
+    setAnnotations,
+    planarPolygonGroups,
+    distanceRelations,
+    polylines,
+    focusedPlanarPolygonGroupId,
+    selectedMeasurementId,
+    selectedMeasurementIds,
+    unselectedClosedAreaVertexPointIdSet,
+  });
+  const lastCustomLabelOnCreate = useMemo(() => {
+    for (let index = pointMeasureEntries.length - 1; index >= 0; index -= 1) {
+      const measurement = pointMeasureEntries[index];
+      if (!measurement?.auxiliaryLabelAnchor) continue;
+      const customName = getCustomPointAnnotationName(measurement.name);
+      if (customName) return customName;
+    }
+    return undefined;
+  }, [pointMeasureEntries]);
 
   const openFacadeSingleVertexPointIdSet = useMemo(() => {
     const ids = new Set<string>();
@@ -1754,22 +1625,10 @@ export const AnnotationsAdapterProvider: React.FC<
 
   const showPoints = !hideMeasurementsOfType.has(ANNOTATION_TYPE_DISTANCE);
   const showDistanceAndPolygonVisuals = true;
-
-  const pointMeasurementIds = useMemo(() => {
-    const ids = new Set<string>();
-    annotations.forEach((measurement) => {
-      if (!isPointAnnotationEntry(measurement)) return;
-      ids.add(measurement.id);
-    });
-    return ids;
-  }, [annotations, planarPolygonGroups.length]);
+  const selectablePointIds = pointEntryIds;
 
   const showPointLabels =
     showPoints && showLabels && !hideLabelsOfType.has(ANNOTATION_TYPE_DISTANCE);
-  const pointIdsWithoutLabelAnchor = useMemo(
-    () => collectPointIdsWithoutSelfLabelAnchor(pointMeasurements),
-    [pointMeasurements]
-  );
 
   const lockedMeasurementIdSet = useMemo(() => {
     const ids = new Set<string>();
@@ -1781,20 +1640,9 @@ export const AnnotationsAdapterProvider: React.FC<
     return ids;
   }, [annotations]);
 
-  const lastCustomLabelOnCreate = useMemo(() => {
-    for (let index = annotations.length - 1; index >= 0; index -= 1) {
-      const measurement = annotations[index];
-      if (!measurement || !isPointAnnotationEntry(measurement)) continue;
-      if (!measurement.auxiliaryLabelAnchor) continue;
-      const customName = getCustomPointAnnotationName(measurement.name);
-      if (customName) return customName;
-    }
-    return undefined;
-  }, [annotations]);
-
   const { selectMeasurementIds, selectMeasurementById } =
     useAnnotationSelectionMutations({
-      selectableMeasurementIds: pointMeasurementIds,
+      selectableMeasurementIds: selectablePointIds,
       selectedMeasurementIdRef,
       setSelectedMeasurementId,
       setSelectedMeasurementIds,
@@ -1872,8 +1720,8 @@ export const AnnotationsAdapterProvider: React.FC<
       return null;
     }
     if (
-      !pointMeasurementIds.has(selectedMeasurementId) ||
-      !pointMeasurementIds.has(previousSelectedMeasurementId)
+      !selectablePointIds.has(selectedMeasurementId) ||
+      !selectablePointIds.has(previousSelectedMeasurementId)
     ) {
       return null;
     }
@@ -1882,7 +1730,7 @@ export const AnnotationsAdapterProvider: React.FC<
       previousPointId: previousSelectedMeasurementId,
     };
   }, [
-    pointMeasurementIds,
+    selectablePointIds,
     previousSelectedMeasurementId,
     selectedMeasurementId,
   ]);
@@ -1890,7 +1738,7 @@ export const AnnotationsAdapterProvider: React.FC<
   // Internal drawing-session signal for an active open polyline/polygon chain.
   const isActiveDrawMode = useMemo(() => {
     if (!doubleClickChainSourcePointId) return false;
-    if (!pointMeasurementIds.has(doubleClickChainSourcePointId)) return false;
+    if (!selectablePointIds.has(doubleClickChainSourcePointId)) return false;
     if (!activePlanarPolygonGroupId) return false;
     return planarPolygonGroups.some(
       (group) => group.id === activePlanarPolygonGroupId && !group.closed
@@ -1899,7 +1747,7 @@ export const AnnotationsAdapterProvider: React.FC<
     activePlanarPolygonGroupId,
     doubleClickChainSourcePointId,
     planarPolygonGroups,
-    pointMeasurementIds,
+    selectablePointIds,
   ]);
 
   const selectedDistanceRelation = useMemo(() => {
@@ -1950,7 +1798,7 @@ export const AnnotationsAdapterProvider: React.FC<
       }
       const hasChainSource = Boolean(
         doubleClickChainSourcePointId &&
-          pointMeasurementIds.has(doubleClickChainSourcePointId)
+          selectablePointIds.has(doubleClickChainSourcePointId)
       );
       if (!hasChainSource) return null;
       return doubleClickChainSourcePointId === targetPointId
@@ -1960,7 +1808,7 @@ export const AnnotationsAdapterProvider: React.FC<
     [
       distanceModeStickyToFirstPoint,
       doubleClickChainSourcePointId,
-      pointMeasurementIds,
+      selectablePointIds,
       referencePointMeasurementId,
     ]
   );
@@ -1979,10 +1827,10 @@ export const AnnotationsAdapterProvider: React.FC<
     []
   );
 
-  const activePreviewAnchorPointId = useMemo(() => {
-    if (!activePreviewSupportsDistanceLine) return null;
-    return resolveDistanceRelationSourcePointId("__live-preview-target__");
-  }, [activePreviewSupportsDistanceLine, resolveDistanceRelationSourcePointId]);
+  const candidateAnchorPointId = useMemo(() => {
+    if (!candidateSupportsEdgeLine) return null;
+    return resolveDistanceRelationSourcePointId("__candidate-target__");
+  }, [candidateSupportsEdgeLine, resolveDistanceRelationSourcePointId]);
 
   const hasDistancePreviewAnchor = useMemo(() => {
     if (annotationMode !== ANNOTATION_TYPE_DISTANCE) {
@@ -1995,73 +1843,73 @@ export const AnnotationsAdapterProvider: React.FC<
 
     return Boolean(
       doubleClickChainSourcePointId &&
-        pointMeasurementIds.has(doubleClickChainSourcePointId)
+        selectablePointIds.has(doubleClickChainSourcePointId)
     );
   }, [
     distanceModeStickyToFirstPoint,
     doubleClickChainSourcePointId,
     annotationMode,
-    pointMeasurementIds,
+    selectablePointIds,
     referencePointMeasurementId,
   ]);
 
   const activeMeasurementId = useMemo(() => {
-    if (moveGizmoPointId && pointMeasurementIds.has(moveGizmoPointId)) {
+    if (moveGizmoPointId && selectablePointIds.has(moveGizmoPointId)) {
       return moveGizmoPointId;
     }
 
-    if (activePreviewAnchorPointId) {
-      return activePreviewAnchorPointId;
+    if (candidateAnchorPointId) {
+      return candidateAnchorPointId;
     }
 
     if (
       doubleClickChainSourcePointId &&
-      pointMeasurementIds.has(doubleClickChainSourcePointId)
+      selectablePointIds.has(doubleClickChainSourcePointId)
     ) {
       return doubleClickChainSourcePointId;
     }
 
     if (
       selectedMeasurementId &&
-      pointMeasurementIds.has(selectedMeasurementId)
+      selectablePointIds.has(selectedMeasurementId)
     ) {
       return selectedMeasurementId;
     }
 
     return null;
   }, [
-    activePreviewAnchorPointId,
+    candidateAnchorPointId,
     doubleClickChainSourcePointId,
     moveGizmoPointId,
-    pointMeasurementIds,
+    selectablePointIds,
     selectedMeasurementId,
   ]);
 
-  const livePreviewDistanceLine = useMemo(() => {
-    if (!livePreviewPointECEF || !activePreviewAnchorPointId) {
+  const candidateEdgeLine = useMemo(() => {
+    if (!activeCandidateNodeECEF || !candidateAnchorPointId) {
       return null;
     }
 
-    const sourcePoint = getPointById(annotations, activePreviewAnchorPointId);
+    const sourcePoint = getPointById(annotations, candidateAnchorPointId);
     if (!sourcePoint || !isPointAnnotationEntry(sourcePoint)) {
       return null;
     }
 
-    const showDirectLine = activePreviewForceDirectDistanceLine
+    const showDirectLine = candidateForcesDirectEdgeLine
       ? true
-      : activePreviewUsesPolylineDistanceRules
+      : candidateUsesPolylineEdgeRules
       ? polylineSegmentLineMode === LINEAR_SEGMENT_LINE_MODE_DIRECT
       : distanceCreationLineVisibility.direct;
-    const showComponentLines = activePreviewForceDirectDistanceLine
+    const showComponentLines = candidateForcesDirectEdgeLine
       ? false
-      : activePreviewUsesPolylineDistanceRules
+      : candidateUsesPolylineEdgeRules
       ? polylineSegmentLineMode === LINEAR_SEGMENT_LINE_MODE_COMPONENTS
       : distanceCreationLineVisibility.vertical ||
         distanceCreationLineVisibility.horizontal;
-    const showVerticalLine = activePreviewUsesPolylineDistanceRules
+    const showVerticalLine = candidateUsesPolylineEdgeRules
       ? showComponentLines
       : distanceCreationLineVisibility.vertical;
-    const showHorizontalLine = activePreviewUsesPolylineDistanceRules
+    const showHorizontalLine = candidateUsesPolylineEdgeRules
       ? showComponentLines
       : distanceCreationLineVisibility.horizontal;
 
@@ -2071,26 +1919,25 @@ export const AnnotationsAdapterProvider: React.FC<
 
     return {
       anchorPointECEF: Cartesian3.clone(sourcePoint.geometryECEF),
-      targetPointECEF: Cartesian3.clone(livePreviewPointECEF),
+      targetPointECEF: Cartesian3.clone(activeCandidateNodeECEF),
       showDirectLine,
       showVerticalLine,
       showHorizontalLine,
-      previewTotalDistanceMeters: previewIsPolylineCreateMode
-        ? (focusedPolylineDistanceToStartByPointId[
-            activePreviewAnchorPointId
-          ] ?? 0) +
-          Cartesian3.distance(sourcePoint.geometryECEF, livePreviewPointECEF)
+      previewTotalDistanceMeters: isPolylineCandidateMode
+        ? (focusedPolylineDistanceToStartByPointId[candidateAnchorPointId] ??
+            0) +
+          Cartesian3.distance(sourcePoint.geometryECEF, activeCandidateNodeECEF)
         : undefined,
     };
   }, [
     distanceCreationLineVisibility.direct,
     distanceCreationLineVisibility.horizontal,
     distanceCreationLineVisibility.vertical,
-    livePreviewPointECEF,
-    activePreviewAnchorPointId,
-    activePreviewForceDirectDistanceLine,
-    activePreviewUsesPolylineDistanceRules,
-    previewIsPolylineCreateMode,
+    activeCandidateNodeECEF,
+    candidateAnchorPointId,
+    candidateForcesDirectEdgeLine,
+    candidateUsesPolylineEdgeRules,
+    isPolylineCandidateMode,
     focusedPolylineDistanceToStartByPointId,
     annotations,
     polylineSegmentLineMode,
@@ -2249,15 +2096,19 @@ export const AnnotationsAdapterProvider: React.FC<
 
       groups.forEach((group) => {
         if (group.vertexPointIds.length < 2) return;
+        const isPolylineGroup =
+          group.measurementKind === ANNOTATION_TYPE_POLYLINE;
         const segmentLineMode =
           group.segmentLineMode ??
-          (group.closed
-            ? LINEAR_SEGMENT_LINE_MODE_DIRECT
-            : defaultPolylineSegmentLineMode);
-        const showDirectLine =
-          segmentLineMode === LINEAR_SEGMENT_LINE_MODE_DIRECT;
-        const showComponentLines =
-          segmentLineMode === LINEAR_SEGMENT_LINE_MODE_COMPONENTS;
+          (isPolylineGroup
+            ? defaultPolylineSegmentLineMode
+            : LINEAR_SEGMENT_LINE_MODE_DIRECT);
+        const showDirectLine = isPolylineGroup
+          ? segmentLineMode === LINEAR_SEGMENT_LINE_MODE_DIRECT
+          : true;
+        const showComponentLines = isPolylineGroup
+          ? segmentLineMode === LINEAR_SEGMENT_LINE_MODE_COMPONENTS
+          : false;
         const orderedVertices = group.vertexPointIds;
         for (let index = 0; index < orderedVertices.length - 1; index += 1) {
           const pointAId = orderedVertices[index];
@@ -2725,8 +2576,8 @@ export const AnnotationsAdapterProvider: React.FC<
 
       if (createdFacadeAutoCorners && createdFacadeAutoCorners.length > 0) {
         setAnnotations((prev) => {
-          const pointMeasurements = prev.filter(isPointAnnotationEntry);
-          const maxPointIndex = pointMeasurements.reduce(
+          const pointEntries = prev.filter(isPointAnnotationEntry);
+          const maxPointIndex = pointEntries.reduce(
             (maxIndex, measurement) =>
               Math.max(maxIndex, measurement.index ?? 0),
             0
@@ -2820,6 +2671,7 @@ export const AnnotationsAdapterProvider: React.FC<
   const closeActivePlanarPolygonGroup = useCallback(
     (surfaceTypeOverride?: PolygonSurfacePreset) => {
       let closedGroupId: string | null = null;
+      clearAnnotationCursor();
 
       setPlanarPolygonGroups((prev) => {
         if (!activePlanarPolygonGroupId) return prev;
@@ -2873,6 +2725,7 @@ export const AnnotationsAdapterProvider: React.FC<
     [
       activePlanarPolygonGroupId,
       annotations,
+      clearAnnotationCursor,
       computePolygonGroupDerivedDataWithCamera,
     ]
   );
@@ -2904,6 +2757,7 @@ export const AnnotationsAdapterProvider: React.FC<
     (ringClosurePointId: string) => {
       if (!activePlanarPolygonGroupId) return;
       const finishedGroupId = activePlanarPolygonGroupId;
+      clearAnnotationCursor();
 
       setPlanarPolygonGroups((prev) => {
         const pointById = getPointPositionMap(annotations);
@@ -2955,6 +2809,7 @@ export const AnnotationsAdapterProvider: React.FC<
     [
       activePlanarPolygonGroupId,
       annotations,
+      clearAnnotationCursor,
       computePolygonGroupDerivedDataWithCamera,
     ]
   );
@@ -2962,6 +2817,7 @@ export const AnnotationsAdapterProvider: React.FC<
   const finishActivePlanarPolylineGroup = useCallback(() => {
     if (!activePlanarPolygonGroupId) return;
     const finishedGroupId = activePlanarPolygonGroupId;
+    clearAnnotationCursor();
     setActivePlanarPolygonGroupId(null);
     setDoubleClickChainSourcePointId(null);
     setSelectedPlanarPolygonGroupId(finishedGroupId);
@@ -2974,7 +2830,7 @@ export const AnnotationsAdapterProvider: React.FC<
     setMoveGizmoAxisTitle(null);
     setMoveGizmoAxisCandidates(null);
     setIsMoveGizmoDragging(false);
-  }, [activePlanarPolygonGroupId]);
+  }, [activePlanarPolygonGroupId, clearAnnotationCursor]);
 
   const handlePointQueryDoubleClick = useCallback(() => {
     if (
@@ -3280,8 +3136,8 @@ export const AnnotationsAdapterProvider: React.FC<
 
       if (createdFacadeAutoCorners && createdFacadeAutoCorners.length > 0) {
         setAnnotations((prev) => {
-          const pointMeasurements = prev.filter(isPointAnnotationEntry);
-          const maxPointIndex = pointMeasurements.reduce(
+          const pointEntries = prev.filter(isPointAnnotationEntry);
+          const maxPointIndex = pointEntries.reduce(
             (maxIndex, measurement) =>
               Math.max(maxIndex, measurement.index ?? 0),
             0
@@ -3604,13 +3460,13 @@ export const AnnotationsAdapterProvider: React.FC<
   const { updateLabelAppearanceById: updatePointLabelAppearanceById } =
     useAnnotationEntryMutations<AnnotationEntry, AnnotationLabelAppearance>({
       setAnnotations,
-      isLabelAppearanceTarget: isPointAnnotationEntry,
+      isLabelAppearanceTarget: isPointMeasurementEntry,
       getLabelAppearance: (measurement) =>
-        isPointAnnotationEntry(measurement)
+        isPointMeasurementEntry(measurement)
           ? measurement.labelAppearance
           : undefined,
       applyLabelAppearance: (measurement, appearance) => {
-        if (!isPointAnnotationEntry(measurement)) {
+        if (!isPointMeasurementEntry(measurement)) {
           return measurement;
         }
         return applyLabelAppearance(measurement, appearance);
@@ -3643,7 +3499,7 @@ export const AnnotationsAdapterProvider: React.FC<
       setAnnotations((prev) => {
         let hasChanged = false;
         const next = prev.map((measurement) => {
-          if (!isPointAnnotationEntry(measurement) || measurement.id !== id) {
+          if (!isPointMeasurementEntry(measurement) || measurement.id !== id) {
             return measurement;
           }
           const normalizedMode =
@@ -3666,7 +3522,7 @@ export const AnnotationsAdapterProvider: React.FC<
         let hasChanged = false;
 
         const next = prev.map((measurement) => {
-          if (!isPointAnnotationEntry(measurement) || measurement.id !== id) {
+          if (!isPointMeasurementEntry(measurement) || measurement.id !== id) {
             return measurement;
           }
 
@@ -3692,7 +3548,7 @@ export const AnnotationsAdapterProvider: React.FC<
 
   const handlePointLabelDoubleClick = useCallback(
     (id: string) => {
-      if (!pointMeasurementIds.has(id)) {
+      if (!selectablePointIds.has(id)) {
         return;
       }
 
@@ -3708,7 +3564,7 @@ export const AnnotationsAdapterProvider: React.FC<
       setDoubleClickChainSourcePointId(null);
       selectMeasurementById(id);
     },
-    [annotations, pointMeasurementIds, selectMeasurementById, setReferencePoint]
+    [annotations, selectablePointIds, selectMeasurementById, setReferencePoint]
   );
 
   const {
@@ -3743,7 +3599,7 @@ export const AnnotationsAdapterProvider: React.FC<
 
       const selectedPointIds = getSelectedPointIds(
         selectedMeasurementIds,
-        pointMeasurementIds
+        selectablePointIds
       ).filter((id) => !lockedMeasurementIdSet.has(id));
       const moveSelectionAsGroup = shouldMoveSelectionAsGroup(
         pointId,
@@ -4539,175 +4395,44 @@ export const AnnotationsAdapterProvider: React.FC<
     []
   );
 
-  const handlePointLabelClick = useCallback(
-    (id: string) => {
-      if (moveGizmoPointId) {
-        setMoveGizmoPointElevationFromMeasurementById(id);
-        return;
-      }
-
-      if (selectionModeActive) {
-        selectMeasurementIds([id], effectiveSelectModeAdditive);
-        return;
-      }
-
-      const clickedMeasurement = annotations.find(
-        (measurement) => measurement.id === id
-      );
-      const isAuxiliaryLabelAnchor = Boolean(
-        clickedMeasurement?.auxiliaryLabelAnchor
-      );
-
-      if (annotationMode === ANNOTATION_TYPE_POINT) {
-        selectMeasurementById(id);
-        return;
-      }
-
-      if (annotationMode === ANNOTATION_TYPE_DISTANCE) {
-        if (!pointMeasurementIds.has(id)) return;
-
-        if (isAuxiliaryLabelAnchor) {
-          selectMeasurementById(id);
-          return;
-        }
-
-        if (!isActiveDrawMode) {
-          const sourcePointId = resolveDistanceRelationSourcePointId(id);
-          if (sourcePointId) {
-            upsertDirectDistanceRelation(sourcePointId, id);
-            setDoubleClickChainSourcePointId(
-              distanceModeStickyToFirstPoint ? sourcePointId : null
-            );
-            selectMeasurementById(id);
-            return;
-          }
-          setDoubleClickChainSourcePointId(id);
-          selectMeasurementById(id);
-          return;
-        }
-
-        const activeOpenGroup =
-          activePlanarPolygonGroupId !== null
-            ? planarPolygonGroups.find(
-                (group) =>
-                  group.id === activePlanarPolygonGroupId && !group.closed
-              ) ?? null
-            : null;
-        const firstVertexId = activeOpenGroup?.vertexPointIds[0] ?? null;
-        const shouldCloseRingOnFirstVertexClick = Boolean(
-          firstVertexId &&
-            firstVertexId === id &&
-            activeOpenGroup &&
-            activeOpenGroup.vertexPointIds.length >= 3
-        );
-        if (shouldCloseRingOnFirstVertexClick) {
-          closeActivePlanarPolygonGroup();
-          return;
-        }
-
-        const sourcePointId = resolveDistanceRelationSourcePointId(id);
-        const didAutoCloseFacadeRectangle =
-          appendExistingPointToActivePlanarPolygonGroup(id, sourcePointId);
-        if (didAutoCloseFacadeRectangle) {
-          return;
-        }
-
-        if (sourcePointId) {
-          upsertDirectDistanceRelation(sourcePointId, id);
-        }
-
-        setDoubleClickChainSourcePointId(id);
-        selectMeasurementById(id);
-        return;
-      }
-
-      if (annotationMode === ANNOTATION_TYPE_POLYLINE) {
-        if (!pointMeasurementIds.has(id)) return;
-
-        if (isAuxiliaryLabelAnchor) {
-          selectMeasurementById(id);
-          return;
-        }
-
-        if (!isActiveDrawMode) {
-          appendExistingPointToActivePlanarPolygonGroup(id, null);
-          setDoubleClickChainSourcePointId(id);
-          selectMeasurementById(id);
-          return;
-        }
-
-        const activeOpenGroup =
-          activePlanarPolygonGroupId !== null
-            ? planarPolygonGroups.find(
-                (group) =>
-                  group.id === activePlanarPolygonGroupId && !group.closed
-              ) ?? null
-            : null;
-        const firstVertexId = activeOpenGroup?.vertexPointIds[0] ?? null;
-        const shouldHandleRingClosure = Boolean(
-          firstVertexId &&
-            firstVertexId === id &&
-            activeOpenGroup &&
-            activeOpenGroup.vertexPointIds.length >= 3
-        );
-        if (shouldHandleRingClosure && firstVertexId) {
-          if (planarToolCreationMode === PLANAR_TOOL_CREATION_MODE_POLYGON) {
-            closeActivePlanarPolygonGroup();
-          } else {
-            finishActivePlanarPolylineGroup();
-          }
-          return;
-        }
-
-        const sourcePointId = resolveDistanceRelationSourcePointId(id);
-        const didAutoCloseFacadeRectangle =
-          appendExistingPointToActivePlanarPolygonGroup(id, sourcePointId);
-        if (didAutoCloseFacadeRectangle) {
-          return;
-        }
-
-        if (sourcePointId) {
-          upsertDirectDistanceRelation(sourcePointId, id);
-        }
-
-        setDoubleClickChainSourcePointId(id);
-        selectMeasurementById(id);
-        return;
-      }
-
+  const {
+    interactivePointIds,
+    handlePointNodeClick: handlePointLabelClick,
+    handlePointNodeHoverChange: handlePointLabelHoverChange,
+  } = useMeasurementNodeInteractionController({
+    annotations,
+    annotationMode,
+    selectionModeActive,
+    effectiveSelectModeAdditive,
+    selectablePointIds,
+    moveGizmoPointId,
+    isMoveGizmoDragging,
+    pointQueryEnabled,
+    hasCandidateNode,
+    isActiveDrawMode,
+    distanceModeStickyToFirstPoint,
+    activePlanarPolygonGroupId,
+    planarPolygonGroups,
+    planarToolCreationMode,
+    selectMeasurementIds,
+    selectMeasurementById,
+    setMoveGizmoPointElevationFromMeasurementById,
+    syncAnnotationCursorToExistingPoint,
+    scheduleAnnotationCursorSnapRelease,
+    resolveDistanceRelationSourcePointId,
+    appendExistingPointToActivePlanarPolygonGroup,
+    upsertDirectDistanceRelation,
+    closeActivePlanarPolygonGroup,
+    finishActivePlanarPolylineGroup,
+    setDoubleClickChainSourcePointId,
+    handleDefaultPointNodeClick: (id) =>
       runPointLabelClickInteraction({
         pointId: id,
         selectedMeasurementId,
         selectMeasurementById,
         cyclePointLabelMetricModeByMeasurementId,
-      });
-    },
-    [
-      moveGizmoPointId,
-      selectMeasurementIds,
-      effectiveSelectModeAdditive,
-      annotations,
-      annotationMode,
-      selectionModeActive,
-      activePlanarPolygonGroupId,
-      isActiveDrawMode,
-      planarPolygonGroups,
-      pointMeasurementIds,
-      resolveDistanceRelationSourcePointId,
-      closeActivePlanarPolygonGroup,
-      finishActivePlanarPolylineGroup,
-      setMoveGizmoPointElevationFromMeasurementById,
-      selectedMeasurementId,
-      selectMeasurementIds,
-      effectiveSelectModeAdditive,
-      selectMeasurementById,
-      cyclePointLabelMetricModeByMeasurementId,
-      upsertDirectDistanceRelation,
-      appendExistingPointToActivePlanarPolygonGroup,
-      distanceModeStickyToFirstPoint,
-      planarToolCreationMode,
-    ]
-  );
+      }),
+  });
 
   useEffect(() => {
     if (annotationMode === ANNOTATION_TYPE_POLYLINE) return;
@@ -4730,41 +4455,9 @@ export const AnnotationsAdapterProvider: React.FC<
     temporaryMode,
     pointVerticalOffsetMeters,
     lastCustomLabelOnCreate,
-    previewIsPolylineCreateMode,
+    isPolylineCandidateMode,
     polylineVerticalOffsetMeters,
   });
-
-  const handlePointQueryPointerMoveWithHoveredNodeAnchor = useCallback(
-    (
-      positionECEF: Cartesian3 | null,
-      screenPosition?: Cartesian2,
-      surfaceNormalECEF?: Cartesian3 | null
-    ) => {
-      const hoveredPointId = hoveredLivePreviewPointIdRef.current;
-      if (hoveredPointId) {
-        const hoveredPoint = getPointById(annotations, hoveredPointId);
-        if (hoveredPoint && isPointAnnotationEntry(hoveredPoint)) {
-          const localUp = getLocalUpDirectionAtAnchor(
-            hoveredPoint.geometryECEF
-          );
-          handlePointQueryPointerMove(
-            hoveredPoint.geometryECEF,
-            screenPosition,
-            localUp
-          );
-          return;
-        }
-        hoveredLivePreviewPointIdRef.current = null;
-      }
-
-      handlePointQueryPointerMove(
-        positionECEF,
-        screenPosition,
-        surfaceNormalECEF
-      );
-    },
-    [annotations, handlePointQueryPointerMove]
-  );
 
   usePointQueryCreationController({
     scene,
@@ -4779,7 +4472,7 @@ export const AnnotationsAdapterProvider: React.FC<
     handlePointQueryPointCreated,
     handlePointQueryDoubleClick,
     handlePointQueryBeforePointCreate,
-    handlePointQueryPointerMoveWithHoveredNodeAnchor,
+    handleAnnotationCursorMove,
   });
 
   const handleDistanceRelationCornerClick = useCallback(
@@ -5250,86 +4943,111 @@ export const AnnotationsAdapterProvider: React.FC<
     closedFacadeRectangleVertexIdSet,
   ]);
   const effectiveFullyHiddenPointIds = useMemo(() => {
-    if (!isLivePointPreviewModeActive) {
+    if (!annotationCursorEnabled) {
       return fullyHiddenPointIds;
     }
 
     return new Set(hiddenMeasurementIdSet);
-  }, [
-    fullyHiddenPointIds,
-    hiddenMeasurementIdSet,
-    isLivePointPreviewModeActive,
-  ]);
+  }, [fullyHiddenPointIds, hiddenMeasurementIdSet, annotationCursorEnabled]);
   const markerOnlyOverlayNodeInteractions =
-    (isLivePointPreviewModeActive && !isPointMeasureLabelModeActive) ||
+    (annotationCursorEnabled && !isPointMeasureLabelModeActive) ||
     isPointMeasureLabelInputPending;
-  const suppressLivePreviewLabelOverlay = isPointMeasureLabelModeActive;
+  const suppressCandidateLabelOverlay = isPointMeasureLabelModeActive;
+  const useGroundSnappedPointEditDragZone =
+    !moveGizmoVerticalOffsetEditMode && !moveGizmoAxisCandidates;
 
-  useAnnotationVisualizerAdapter({
+  usePointEditingGizmo({
     scene,
     annotations: visibleMeasurementsForRendering,
-    showPoints,
-    showPointLabels,
     pointRadius,
-    referenceElevation: effectiveReferenceElevation,
-    selectedMeasurementId,
-    selectedMeasurementIds,
-    hiddenPointLabelIds,
-    fullyHiddenPointIds: effectiveFullyHiddenPointIds,
-    markerlessPointIds,
-    collapsedPillPointIds,
     moveGizmoPointId,
-    selectionModeActive,
-    selectModeRectangle,
-    effectiveSelectModeAdditive,
-    selectMeasurementIds,
-    handlePointLabelClick,
-    handlePointLabelDoubleClick,
-    handlePointLabelLongPress,
-    handlePointLabelHoverChange,
-    handlePointVerticalOffsetStemLongPress,
-    pointLongPressDurationMs: POINT_LABEL_LONG_PRESS_DURATION_MS,
-    occlusionChecksEnabled,
-    labelLayoutConfig: options?.labels,
-    effectiveDistanceToReferenceByPointId,
-    pointMarkerBadgeByPointId,
-    labelInputPromptPointId,
-    markerOnlyOverlayNodeInteractions,
-    suppressLivePreviewLabelOverlay,
-    livePreviewPointECEF: isLivePointPreviewModeActive
-      ? livePreviewPointECEF
-      : null,
-    livePreviewSurfaceNormalECEF: isLivePointPreviewModeActive
-      ? livePreviewSurfaceNormalECEF
-      : null,
-    livePreviewVerticalOffsetAnchorECEF:
-      isLivePointPreviewModeActive && annotationMode === ANNOTATION_TYPE_POINT
-        ? livePreviewVerticalOffsetAnchorECEF
-        : null,
-    livePreviewDistanceLine,
-    showDistanceAndPolygonVisuals,
-    distanceRelations: effectiveDistanceRelationsForRendering,
-    planarPolygonGroups: visiblePlanarPolygonGroupsForRendering,
-    selectedPlanarPolygonGroupId,
-    activePlanarPolygonGroupId,
-    cumulativeDistanceByRelationId,
-    handleDistanceRelationLineLabelToggle,
-    handleDistanceRelationLineClick,
-    handleDistanceRelationMidpointClick,
-    handleDistanceRelationCornerClick,
-    referencePoint,
     moveGizmoAxisDirection,
     moveGizmoPreferredAxisId,
-    moveGizmoMarkerSizeScale: moveGizmoOptions.markerSizeScale ?? 1,
-    moveGizmoLabelDistanceScale: moveGizmoOptions.labelDistanceScale ?? 1,
-    moveGizmoSnapPlaneDragToGround:
-      moveGizmoOptions.snapPlaneDragToGround ?? false,
-    moveGizmoShowRotationHandle: moveGizmoOptions.showRotationHandle ?? true,
-    isMoveGizmoDragging,
+    moveGizmoSnapPlaneDragToGround: useGroundSnappedPointEditDragZone,
+    moveGizmoAxisTitle,
+    moveGizmoAxisCandidates,
     handleMoveGizmoPointPositionChange,
     setIsMoveGizmoDragging,
     handleMoveGizmoAxisChange,
     handleMoveGizmoExit,
+  });
+
+  useAnnotationVisualizerAdapter({
+    scene,
+    measurements: {
+      annotations: visibleMeasurementsForRendering,
+      distanceRelations: effectiveDistanceRelationsForRendering,
+      planarPolygonGroups: visiblePlanarPolygonGroupsForRendering,
+      selectedPlanarPolygonGroupId,
+      activePlanarPolygonGroupId,
+      cumulativeDistanceByRelationId,
+    },
+    labels: {
+      showPointNodes: showPoints,
+      showPointLabels,
+      referenceElevation: effectiveReferenceElevation,
+      occlusionChecksEnabled,
+      labelLayoutConfig: options?.labels,
+      effectiveDistanceToReferenceByPointId,
+      pointMarkerBadgeByPointId,
+      hiddenPointLabelIds,
+      fullyHiddenPointIds: effectiveFullyHiddenPointIds,
+      markerlessPointIds,
+      collapsedPillPointIds,
+      labelInputPromptPointId,
+      markerOnlyOverlayNodeInteractions,
+      interactivePointIds,
+    },
+    selection: {
+      selectedMeasurementId,
+      selectedMeasurementIds,
+      selectionModeActive,
+      selectModeRectangle,
+      effectiveSelectModeAdditive,
+      selectMeasurementIds,
+    },
+    editing: {
+      editingPointId: moveGizmoPointId,
+      editingMarkerSizeScale: moveGizmoOptions.markerSizeScale ?? 1,
+      editingLabelDistanceScale: moveGizmoOptions.labelDistanceScale ?? 1,
+      isPointEditingDragging: isMoveGizmoDragging,
+    },
+    pointInteractions: {
+      handlePointLabelClick,
+      handlePointLabelDoubleClick,
+      handlePointLabelLongPress,
+      handlePointLabelHoverChange,
+      handlePointVerticalOffsetStemLongPress,
+      pointLongPressDurationMs: POINT_LABEL_LONG_PRESS_DURATION_MS,
+    },
+    edgeInteractions: {
+      handleDistanceRelationLineLabelToggle,
+      handleDistanceRelationLineClick,
+      handleDistanceRelationMidpointClick,
+      handleDistanceRelationCornerClick,
+    },
+    candidate: {
+      suppressCandidateLabelOverlay,
+      candidatePointECEF: annotationCursorEnabled
+        ? activeCandidateNodeECEF
+        : null,
+      candidateScreenPosition: annotationCursorEnabled
+        ? cursorScreenPosition
+        : null,
+      candidateSurfaceNormalECEF: annotationCursorEnabled
+        ? activeCandidateNodeSurfaceNormalECEF
+        : null,
+      candidateVerticalOffsetAnchorECEF:
+        annotationCursorEnabled && annotationMode === ANNOTATION_TYPE_POINT
+          ? activeCandidateNodeVerticalOffsetAnchorECEF
+          : null,
+      candidateEdgeLine,
+      referencePoint,
+    },
+    display: {
+      pointRadius,
+      showEdgeAndPolygonVisuals: showDistanceAndPolygonVisuals,
+    },
   });
 
   const clearAllMeasurements = useCallback(() => {
@@ -5548,7 +5266,7 @@ export const AnnotationsAdapterProvider: React.FC<
 
   const deleteSelectedPointAnnotations = useCallback(() => {
     const selectedIds = selectedMeasurementIds.filter(
-      (id) => pointMeasurementIds.has(id) && !lockedMeasurementIdSet.has(id)
+      (id) => selectablePointIds.has(id) && !lockedMeasurementIdSet.has(id)
     );
     if (selectedIds.length > 0) {
       clearAnnotationsByIds(selectedIds);
@@ -5556,7 +5274,7 @@ export const AnnotationsAdapterProvider: React.FC<
     }
     if (
       selectedMeasurementId &&
-      pointMeasurementIds.has(selectedMeasurementId) &&
+      selectablePointIds.has(selectedMeasurementId) &&
       !lockedMeasurementIdSet.has(selectedMeasurementId)
     ) {
       clearAnnotationsByIds([selectedMeasurementId]);
@@ -5564,7 +5282,7 @@ export const AnnotationsAdapterProvider: React.FC<
   }, [
     clearAnnotationsByIds,
     lockedMeasurementIdSet,
-    pointMeasurementIds,
+    selectablePointIds,
     selectedMeasurementId,
     selectedMeasurementIds,
   ]);
@@ -5606,14 +5324,14 @@ export const AnnotationsAdapterProvider: React.FC<
       if (event.metaKey || event.ctrlKey || event.altKey) return;
       if (isKeyboardTargetEditable(event.target)) return;
       const selectedIds = selectedMeasurementIds.filter(
-        (id) => pointMeasurementIds.has(id) && !lockedMeasurementIdSet.has(id)
+        (id) => selectablePointIds.has(id) && !lockedMeasurementIdSet.has(id)
       );
       if (selectedIds.length > 1) {
         return;
       }
       const hasDeletablePrimarySelection =
         Boolean(selectedMeasurementId) &&
-        pointMeasurementIds.has(selectedMeasurementId) &&
+        selectablePointIds.has(selectedMeasurementId) &&
         !lockedMeasurementIdSet.has(selectedMeasurementId);
       if (selectedIds.length === 0 && !hasDeletablePrimarySelection) {
         return;
@@ -5631,7 +5349,7 @@ export const AnnotationsAdapterProvider: React.FC<
   }, [
     deleteSelectedPointAnnotations,
     lockedMeasurementIdSet,
-    pointMeasurementIds,
+    selectablePointIds,
     selectedMeasurementId,
     selectedMeasurementIds,
   ]);
@@ -5683,9 +5401,8 @@ export const AnnotationsAdapterProvider: React.FC<
       if (event.key !== "Backspace") return;
       if (hasSelection) return;
 
-      const pointMeasurements = annotations.filter(isPointAnnotationEntry);
       const latestPointMeasurement =
-        pointMeasurements[pointMeasurements.length - 1];
+        pointMeasureEntries[pointMeasureEntries.length - 1];
       if (!latestPointMeasurement) {
         return;
       }
@@ -5694,7 +5411,7 @@ export const AnnotationsAdapterProvider: React.FC<
       event.stopPropagation();
       clearAnnotationsByIds([latestPointMeasurement.id]);
       selectMeasurementById(
-        pointMeasurements[pointMeasurements.length - 2]?.id ?? null
+        pointMeasureEntries[pointMeasureEntries.length - 2]?.id ?? null
       );
     };
 
@@ -5709,7 +5426,7 @@ export const AnnotationsAdapterProvider: React.FC<
   }, [
     clearAnnotationsByIds,
     annotationMode,
-    annotations,
+    pointMeasureEntries,
     selectedMeasurementId,
     selectedMeasurementIds.length,
     selectMeasurementById,
@@ -5907,21 +5624,21 @@ export const AnnotationsAdapterProvider: React.FC<
   }, [annotations, previousSelectedMeasurementId]);
 
   useEffect(() => {
-    const pointMeasurementIds = new Set(
-      annotations
-        .filter(isPointAnnotationEntry)
-        .map((measurement) => measurement.id)
+    const pointEntryIdsForRelations = new Set(
+      pointEntries.map((measurement) => measurement.id)
     );
     setDistanceRelations((prev) => {
       const next = prev
         .filter(
           (relation) =>
-            pointMeasurementIds.has(relation.pointAId) &&
-            pointMeasurementIds.has(relation.pointBId)
+            pointEntryIdsForRelations.has(relation.pointAId) &&
+            pointEntryIdsForRelations.has(relation.pointBId)
         )
         .map((relation) => {
           const fallbackAnchorPointId = relation.pointAId;
-          const anchorPointId = pointMeasurementIds.has(relation.anchorPointId)
+          const anchorPointId = pointEntryIdsForRelations.has(
+            relation.anchorPointId
+          )
             ? relation.anchorPointId
             : fallbackAnchorPointId;
           return {
@@ -5937,19 +5654,17 @@ export const AnnotationsAdapterProvider: React.FC<
       }
       return prev;
     });
-  }, [annotations]);
+  }, [pointEntries]);
 
   useEffect(() => {
-    const pointMeasurementIds = new Set(
-      annotations
-        .filter(isPointAnnotationEntry)
-        .map((measurement) => measurement.id)
+    const pointEntryIdsForPolygons = new Set(
+      pointEntries.map((measurement) => measurement.id)
     );
     const pointById = getPointPositionMap(annotations);
     setPlanarPolygonGroups((prev) =>
       prev.flatMap((group) => {
         const nextVertexPointIds = group.vertexPointIds.filter((vertexId) =>
-          pointMeasurementIds.has(vertexId)
+          pointEntryIdsForPolygons.has(vertexId)
         );
         if (nextVertexPointIds.length === 0) return [];
         const nextClosed = group.closed && nextVertexPointIds.length >= 3;
@@ -5971,18 +5686,17 @@ export const AnnotationsAdapterProvider: React.FC<
         ];
       })
     );
-  }, [annotations, computePolygonGroupDerivedDataWithCamera]);
+  }, [annotations, computePolygonGroupDerivedDataWithCamera, pointEntries]);
 
   useEffect(() => {
     if (!referencePoint) return;
 
-    const pointMeasurements = annotations.filter(isPointAnnotationEntry);
-    if (pointMeasurements.length === 0) {
+    if (pointEntries.length === 0) {
       setReferencePoint(null);
       return;
     }
 
-    const hasReferenceMeasurement = pointMeasurements.some(
+    const hasReferenceMeasurement = pointEntries.some(
       (measurement) =>
         Cartesian3.distance(measurement.geometryECEF, referencePoint) <=
         REFERENCE_POINT_SYNC_EPSILON_METERS
@@ -5994,9 +5708,9 @@ export const AnnotationsAdapterProvider: React.FC<
 
     // Reference point was deleted: fallback to the latest remaining point.
     const nextReferencePoint =
-      pointMeasurements[pointMeasurements.length - 1]?.geometryECEF ?? null;
+      pointEntries[pointEntries.length - 1]?.geometryECEF ?? null;
     setReferencePoint(nextReferencePoint);
-  }, [annotations, referencePoint, setReferencePoint]);
+  }, [pointEntries, referencePoint, setReferencePoint]);
 
   useEffect(() => {
     if (selectedMeasurementId || selectedPlanarPolygonGroupId) return;
@@ -6051,14 +5765,10 @@ export const AnnotationsAdapterProvider: React.FC<
   useEffect(() => {
     if (referencePoint !== null) return;
     // if more than one point measurement is present, set the reference point to the first one
-    if (
-      annotations.length > 0 &&
-      isPointAnnotationEntry(annotations[0]) &&
-      annotations.length > 1
-    ) {
-      setReferencePoint(annotations[0].geometryECEF);
+    if (pointEntries.length > 1) {
+      setReferencePoint(pointEntries[0]?.geometryECEF ?? null);
     }
-  }, [annotations, setReferencePoint, referencePoint]);
+  }, [pointEntries, setReferencePoint, referencePoint]);
 
   const planarVertexPointIdSet = useMemo(() => {
     const ids = new Set<string>();
@@ -6092,26 +5802,23 @@ export const AnnotationsAdapterProvider: React.FC<
   const annotationsByType = useCallback(
     (type: AnnotationListType<AnnotationMode>): AnnotationEntry[] => {
       if (type === "pointLabel") {
-        return annotations.filter(
+        return pointEntries.filter(
           (measurement) =>
-            isPointAnnotationEntry(measurement) &&
+            isPointMeasurementEntry(measurement) &&
             Boolean(measurement.auxiliaryLabelAnchor)
         );
       }
 
       if (type === "pointMeasure") {
-        return annotations.filter(
+        return pointMeasureEntries.filter(
           (measurement) =>
-            isPointAnnotationEntry(measurement) &&
-            !measurement.auxiliaryLabelAnchor &&
-            !measurement.distanceAdhocNode &&
-            !planarVertexPointIdSet.has(measurement.id)
+            isPointMeasurementEntry(measurement) &&
+            !measurement.auxiliaryLabelAnchor
         );
       }
 
       if (type === "distanceMeasure") {
-        return annotations.filter((measurement) => {
-          if (!isPointAnnotationEntry(measurement)) return false;
+        return pointEntries.filter((measurement) => {
           if (measurement.auxiliaryLabelAnchor) return false;
           if (planarVertexPointIdSet.has(measurement.id)) return false;
 
@@ -6139,6 +5846,8 @@ export const AnnotationsAdapterProvider: React.FC<
       distanceAnchorPointIdSet,
       distanceEndpointPointIdSet,
       annotations,
+      pointEntries,
+      pointMeasureEntries,
       planarVertexPointIdSet,
     ]
   );
@@ -6211,20 +5920,19 @@ export const AnnotationsAdapterProvider: React.FC<
     [clearAnnotationsByIds]
   );
 
-  const liveAnnotationCandidate = useMemo<AnnotationEntry | null>(() => {
-    const isPointLivePreviewMode =
+  const candidateAnnotation = useMemo<AnnotationEntry | null>(() => {
+    const isPointCandidateMode =
       annotationMode === ANNOTATION_TYPE_POINT && !pointLabelOnCreate;
-    const isDistanceLivePreviewMode =
-      annotationMode === ANNOTATION_TYPE_DISTANCE;
+    const isDistanceCandidateMode = annotationMode === ANNOTATION_TYPE_DISTANCE;
 
-    if (!isPointLivePreviewMode && !isDistanceLivePreviewMode) {
+    if (!isPointCandidateMode && !isDistanceCandidateMode) {
       return null;
     }
-    if (!livePreviewPointECEF) {
+    if (!activeCandidateNodeECEF) {
       return null;
     }
 
-    const previewPoint = getDegreesFromCartesian(livePreviewPointECEF);
+    const previewPoint = getDegreesFromCartesian(activeCandidateNodeECEF);
     if (
       !Number.isFinite(previewPoint.latitude) ||
       !Number.isFinite(previewPoint.longitude)
@@ -6232,24 +5940,24 @@ export const AnnotationsAdapterProvider: React.FC<
       return null;
     }
 
-    const previewMeasurementType = isDistanceLivePreviewMode
+    const previewMeasurementType = isDistanceCandidateMode
       ? ANNOTATION_TYPE_DISTANCE
       : ANNOTATION_TYPE_POINT;
 
     return {
-      id: "__live-preview-measurement__",
+      id: "__candidate-measurement__",
       type: previewMeasurementType,
       timestamp: -1,
-      isLivePreview: true,
-      distanceAdhocNode: isDistanceLivePreviewMode ? true : undefined,
-      geometryECEF: Cartesian3.clone(livePreviewPointECEF),
+      isCandidate: true,
+      distanceAdhocNode: isDistanceCandidateMode ? true : undefined,
+      geometryECEF: Cartesian3.clone(activeCandidateNodeECEF),
       geometryWGS84: {
         latitude: previewPoint.latitude,
         longitude: previewPoint.longitude,
         altitude: getEllipsoidalAltitudeOrZero(previewPoint.altitude),
       },
     };
-  }, [livePreviewPointECEF, annotationMode, pointLabelOnCreate]);
+  }, [activeCandidateNodeECEF, annotationMode, pointLabelOnCreate]);
 
   const annotationsContextValue = useMemo<
     AnnotationsContextType<AnnotationMode, AnnotationEntry>
@@ -6258,7 +5966,7 @@ export const AnnotationsAdapterProvider: React.FC<
       annotationMode,
       setAnnotationMode,
       annotations,
-      liveAnnotationCandidate,
+      annotationCandidate: candidateAnnotation,
       annotationsByType,
       getAnnotationsForNavigation,
       getAnnotationIndexByType,
@@ -6272,6 +5980,7 @@ export const AnnotationsAdapterProvider: React.FC<
       updateAnnotationNameById,
       updatePointLabelAppearanceById,
       toggleAnnotationLockById,
+      clearAllMeasurements,
       clearAnnotationsByIds,
       deleteSelectedPointAnnotations,
       setPointAnnotationElevationById,
@@ -6291,7 +6000,7 @@ export const AnnotationsAdapterProvider: React.FC<
       annotationMode,
       setAnnotationMode,
       annotations,
-      liveAnnotationCandidate,
+      candidateAnnotation,
       annotationsByType,
       getAnnotationsForNavigation,
       getAnnotationIndexByType,
@@ -6305,6 +6014,7 @@ export const AnnotationsAdapterProvider: React.FC<
       updateAnnotationNameById,
       updatePointLabelAppearanceById,
       toggleAnnotationLockById,
+      clearAllMeasurements,
       clearAnnotationsByIds,
       deleteSelectedPointAnnotations,
       setPointAnnotationElevationById,
@@ -6525,7 +6235,7 @@ export const AnnotationsAdapterProvider: React.FC<
       heightOffset,
       setHeightOffset,
       referencePoint,
-      livePreviewPointECEF,
+      candidatePointECEF: activeCandidateNodeECEF,
       hasDistancePreviewAnchor,
       setReferencePoint,
       referenceElevation,
@@ -6618,7 +6328,7 @@ export const AnnotationsAdapterProvider: React.FC<
       heightOffset,
       setHeightOffset,
       referencePoint,
-      livePreviewPointECEF,
+      activeCandidateNodeECEF,
       hasDistancePreviewAnchor,
       setReferencePoint,
       referenceElevation,

@@ -48,9 +48,13 @@ export interface PointLabelData {
   onDoubleClick?: () => void;
   onLongPress?: () => void;
   longPressDurationMs?: number;
-  onHoverChange?: (hovered: boolean) => void;
+  onHoverChange?: (
+    hovered: boolean,
+    anchorPosition?: CssPixelPosition | null
+  ) => void;
   markerOnlyPointerEvents?: boolean;
   attachOverlayClickHandlers?: boolean;
+  forceMarkerInteractionTarget?: boolean;
   onMarkerDragStart?: (clientX: number, clientY: number) => void;
   onMarkerDragMove?: (clientX: number, clientY: number) => void;
   onMarkerDragEnd?: () => void;
@@ -102,7 +106,7 @@ export const usePointLabels = (
             p.markerOnlyPointerEvents
           )}:${Boolean(p.attachOverlayClickHandlers)}:transition:${
             layoutOptions?.transitionDurationMs ?? ""
-          }`,
+          }:${Boolean(p.forceMarkerInteractionTarget)}`,
         ])
       ),
     [points, layoutOptions?.transitionDurationMs]
@@ -191,6 +195,7 @@ export const usePointLabels = (
           longPressDurationMs: point.longPressDurationMs,
           onHoverChange: point.onHoverChange,
           markerOnlyPointerEvents: point.markerOnlyPointerEvents,
+          forceMarkerInteractionTarget: point.forceMarkerInteractionTarget,
           onMarkerDragStart: point.onMarkerDragStart,
           onMarkerDragMove: point.onMarkerDragMove,
           onMarkerDragEnd: point.onMarkerDragEnd,
@@ -202,6 +207,7 @@ export const usePointLabels = (
         onDoubleClick: attachOverlayClickHandlers
           ? point.onDoubleClick
           : undefined,
+        cursor: point.forceMarkerInteractionTarget ? "none" : undefined,
       });
     });
 

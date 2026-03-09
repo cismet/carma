@@ -30,7 +30,7 @@ type GetPointMeasurementSlotsInputParams = {
 
 export type PointMeasurementSlotsInputResult = {
   slotsInput: PointAnnotationSlotsInput;
-  isPointLivePreview: boolean;
+  isPointCandidate: boolean;
 };
 
 export const getPointAnnotationSlotsInput = ({
@@ -43,7 +43,7 @@ export const getPointAnnotationSlotsInput = ({
   actions,
 }: GetPointMeasurementSlotsInputParams): PointMeasurementSlotsInputResult => {
   const displayPoint = resolvePointAnnotationDisplayPoint(measurement);
-  const isPointLivePreview =
+  const isPointCandidate =
     annotationMode === ANNOTATION_TYPE_POINT && !pointLabelOnCreate;
 
   return {
@@ -58,9 +58,9 @@ export const getPointAnnotationSlotsInput = ({
       isReference: isPointReferenceMeasurement(measurement, referencePoint),
       currentOrder: getAnnotationOrderByType("pointMeasure", measurement?.id),
       nextOrder: getNextAnnotationOrderByType("pointMeasure"),
-      isLivePreview: isPointLivePreview,
+      isCandidate: isPointCandidate,
       actions,
     },
-    isPointLivePreview,
+    isPointCandidate,
   };
 };

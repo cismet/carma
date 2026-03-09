@@ -14,9 +14,8 @@ const MOVE_DELTA_EPSILON = 1e-12;
 
 export const getSelectedPointIds = (
   selectedMeasurementIds: string[],
-  pointMeasurementIds: Set<string>
-): string[] =>
-  selectedMeasurementIds.filter((id) => pointMeasurementIds.has(id));
+  pointIds: ReadonlySet<string>
+): string[] => selectedMeasurementIds.filter((id) => pointIds.has(id));
 
 export const shouldMoveSelectionAsGroup = (
   pointId: string,

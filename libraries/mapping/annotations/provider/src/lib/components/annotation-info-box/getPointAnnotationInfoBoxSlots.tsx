@@ -14,7 +14,7 @@ export const getPointAnnotationInfoBoxSlots = (
   input: PointAnnotationSlotsInput
 ): AnnotationSlots => ({
   headingTitle:
-    input.measurement || !input.isLivePreview
+    input.measurement || !input.isCandidate
       ? POINT_TITLE
       : `${POINT_TITLE} (Neu)`,
   subtitle: renderEditableAnnotationSubtitle({
@@ -26,6 +26,6 @@ export const getPointAnnotationInfoBoxSlots = (
     actions: input.actions,
   }),
   content: renderRelativeElevationContent(input.relativeElevation),
-  collapsible: Boolean(input.measurement || input.isLivePreview),
-  instructionText: input.isLivePreview ? POINT_MODE_INSTRUCTION : null,
+  collapsible: Boolean(input.measurement || input.isCandidate),
+  instructionText: input.isCandidate ? POINT_MODE_INSTRUCTION : null,
 });

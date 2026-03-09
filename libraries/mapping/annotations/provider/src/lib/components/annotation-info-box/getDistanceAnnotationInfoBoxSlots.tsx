@@ -15,7 +15,7 @@ export const getDistanceAnnotationInfoBoxSlots = (
   input: DistanceAnnotationSlotsInput
 ): AnnotationSlots => ({
   headingTitle:
-    input.measurement || !input.isLivePreview
+    input.measurement || !input.isCandidate
       ? DISTANCE_TITLE
       : `${DISTANCE_TITLE} (Neu)`,
   subtitle: renderEditableAnnotationSubtitle({
@@ -32,11 +32,11 @@ export const getDistanceAnnotationInfoBoxSlots = (
   }),
   content: renderDistanceTableContent(
     input.distanceTableRows,
-    input.isLivePreview,
-    input.hasPreviewAnchor
+    input.isCandidate,
+    input.hasCandidateAnchor
   ),
-  collapsible: Boolean(input.measurement || input.isLivePreview),
-  instructionText: input.isLivePreview
-    ? getDistanceInstructionText(input.hasPreviewAnchor)
+  collapsible: Boolean(input.measurement || input.isCandidate),
+  instructionText: input.isCandidate
+    ? getDistanceInstructionText(input.hasCandidateAnchor)
     : null,
 });

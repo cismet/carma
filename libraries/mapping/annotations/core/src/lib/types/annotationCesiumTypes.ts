@@ -30,8 +30,8 @@ export type AnnotationEntry = BaseAnnotationEntry<AnnotationMode> & {
       >;
 };
 
-export type PointAnnotationEntry = AnnotationEntry & {
-  type: typeof ANNOTATION_TYPE_DISTANCE;
+export type AnnotationPointEntry = AnnotationEntry & {
+  type: typeof ANNOTATION_TYPE_POINT | typeof ANNOTATION_TYPE_DISTANCE;
   geometryECEF: Cartesian3;
   geometryWGS84: LatLngAlt.deg & {
     altitude: Altitude.EllipsoidalWGS84Meters;
@@ -44,9 +44,35 @@ export type PointAnnotationEntry = AnnotationEntry & {
   distanceRelationId?: string;
 };
 
+export type PointMeasurementEntry = AnnotationPointEntry & {
+  type: typeof ANNOTATION_TYPE_POINT;
+};
+
+export type DistancePointEntry = AnnotationPointEntry & {
+  type: typeof ANNOTATION_TYPE_DISTANCE;
+};
+
+export type PointAnnotationEntry = AnnotationPointEntry;
+
 export function isPointAnnotationEntry(
   entry: AnnotationEntry
-): entry is PointAnnotationEntry {
+): entry is AnnotationPointEntry {
+  return (
+    entry &&
+    (entry.type === ANNOTATION_TYPE_POINT ||
+      entry.type === ANNOTATION_TYPE_DISTANCE)
+  );
+}
+
+export function isPointMeasurementEntry(
+  entry: AnnotationEntry
+): entry is PointMeasurementEntry {
+  return entry && entry.type === ANNOTATION_TYPE_POINT;
+}
+
+export function isDistancePointEntry(
+  entry: AnnotationEntry
+): entry is DistancePointEntry {
   return entry && entry.type === ANNOTATION_TYPE_DISTANCE;
 }
 

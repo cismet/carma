@@ -24,7 +24,7 @@ type GetDistanceMeasurementSlotsInputParams = {
   annotationMode: AnnotationMode;
   measurement: PointAnnotationEntry | null;
   activeMeasurementId: string | null;
-  pointMeasurements: ReadonlyArray<PointAnnotationEntry>;
+  pointEntries: ReadonlyArray<PointAnnotationEntry>;
   referencePoint: PointAnnotationEntry["geometryECEF"] | null;
   hasDistancePreviewAnchor: boolean;
   distanceRelations: ReadonlyArray<PointDistanceRelation>;
@@ -42,7 +42,7 @@ type GetDistanceMeasurementSlotsInputParams = {
 export type DistanceMeasurementSlotsInputResult = {
   slotsInput: DistanceAnnotationSlotsInput;
   isDistanceMeasurement: boolean;
-  isDistanceLivePreview: boolean;
+  isDistanceCandidate: boolean;
 };
 
 const isDistanceMeasurementEntry = ({
@@ -131,7 +131,7 @@ export const getDistanceAnnotationSlotsInput = ({
   annotationMode,
   measurement,
   activeMeasurementId,
-  pointMeasurements,
+  pointEntries,
   referencePoint,
   hasDistancePreviewAnchor,
   distanceRelations,
@@ -145,18 +145,15 @@ export const getDistanceAnnotationSlotsInput = ({
     measurement,
     distanceRelations,
   });
-  const isDistanceLivePreview = annotationMode === ANNOTATION_TYPE_DISTANCE;
+  const isDistanceCandidate = annotationMode === ANNOTATION_TYPE_DISTANCE;
   const currentOrderToken = measurement
     ? pointMarkerBadgeByPointId[measurement.id]?.text ?? null
     : null;
-  const pointMeasurementById = new Map(
-    pointMeasurements.map((pointMeasurement) => [
-      pointMeasurement.id,
-      pointMeasurement,
-    ])
+  const pointEntryById = new Map(
+    pointEntries.map((pointEntry) => [pointEntry.id, pointEntry])
   );
   const fallbackPointOrderById = new Map(
-    [...pointMeasurements]
+    [...pointEntries]
       .sort((left, right) => {
         const indexDelta = (left.index ?? 0) - (right.index ?? 0);
         if (indexDelta !== 0) return indexDelta;
@@ -164,9 +161,7 @@ export const getDistanceAnnotationSlotsInput = ({
         if (timeDelta !== 0) return timeDelta;
         return left.id.localeCompare(right.id);
       })
-      .map(
-        (pointMeasurement, index) => [pointMeasurement.id, index + 1] as const
-      )
+      .map((pointEntry, index) => [pointEntry.id, index + 1] as const)
   );
 
   const distanceTableRows = (() => {
@@ -174,13 +169,13 @@ export const getDistanceAnnotationSlotsInput = ({
       return [] as DistanceTableRow[];
     }
 
-    if (isDistanceLivePreview) {
+    if (isDistanceCandidate) {
       if (!hasDistancePreviewAnchor) {
         return [] as DistanceTableRow[];
       }
       const activeAnchorPoint =
         activeMeasurementId !== null
-          ? pointMeasurementById.get(activeMeasurementId) ?? null
+          ? pointEntryById.get(activeMeasurementId) ?? null
           : null;
       if (!activeAnchorPoint || activeAnchorPoint.id === measurement.id) {
         return [] as DistanceTableRow[];
@@ -207,7 +202,7 @@ export const getDistanceAnnotationSlotsInput = ({
           relation.pointAId === measurement.id
             ? relation.pointBId
             : relation.pointAId;
-        const relatedPoint = pointMeasurementById.get(relatedPointId);
+        const relatedPoint = pointEntryById.get(relatedPointId);
         if (!relatedPoint) {
           return null;
         }
@@ -228,7 +223,7 @@ export const getDistanceAnnotationSlotsInput = ({
       .filter((row): row is DistanceTableRow => row !== null);
 
     const referencePointMeasurement = findReferencePointMeasurement({
-      pointMeasurements,
+      pointEntries,
       referencePoint,
     });
     if (
@@ -278,13 +273,13 @@ export const getDistanceAnnotationSlotsInput = ({
       ),
       currentOrderToken,
       nextOrder: getNextAnnotationOrderByType("distanceMeasure"),
-      isLivePreview: isDistanceLivePreview,
-      hasPreviewAnchor: hasDistancePreviewAnchor,
+      isCandidate: isDistanceCandidate,
+      hasCandidateAnchor: hasDistancePreviewAnchor,
       subtitleDirectDistanceMeters,
       distanceTableRows,
       actions,
     },
     isDistanceMeasurement,
-    isDistanceLivePreview,
+    isDistanceCandidate,
   };
 };

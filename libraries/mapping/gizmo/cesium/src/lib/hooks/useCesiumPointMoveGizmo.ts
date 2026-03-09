@@ -157,6 +157,7 @@ const DISC_OUTLINE_SEGMENTS = 72;
 const DISC_SVG_EXTENT = 320;
 const DISC_SVG_HALF_EXTENT = DISC_SVG_EXTENT / 2;
 const DISC_PROJECTION_SCALE_SAMPLE_COUNT = 16;
+const OPEN_GIZMO_SCENE_CLICK_GUARD_MS = 220;
 const AXIS_SCREEN_SAMPLE_TARGET_PX = 48;
 const AXIS_SCREEN_SAMPLE_MIN_WORLD = 0.25;
 const AXIS_SCREEN_SAMPLE_MAX_WORLD = 500;
@@ -376,6 +377,7 @@ export const useCesiumPointMoveGizmo = (
   const dragStateRef = useRef<AxisDragState | null>(null);
   const isDraggingRef = useRef(false);
   const suppressNextSceneClickRef = useRef(false);
+  const clearInitialSceneClickGuardTimeoutRef = useRef<number | null>(null);
   const movePointRef = useRef<CesiumGizmoPoint | null>(null);
   const rotationStateRef = useRef<RotationState | null>(null);
   const rotationFrameRef = useRef<RotationFrameState | null>(null);
@@ -483,6 +485,34 @@ export const useCesiumPointMoveGizmo = (
     movePointRef.current = movePoint;
     axisScreenDirectionRef.current = {};
     axisAnchorDistanceRef.current = {};
+  }, [movePoint]);
+
+  useEffect(() => {
+    if (clearInitialSceneClickGuardTimeoutRef.current !== null) {
+      window.clearTimeout(clearInitialSceneClickGuardTimeoutRef.current);
+      clearInitialSceneClickGuardTimeoutRef.current = null;
+    }
+
+    if (!movePoint) {
+      suppressNextSceneClickRef.current = false;
+      return;
+    }
+
+    // Opening the gizmo is usually triggered by a DOM long-press/click.
+    // Ignore the trailing scene click briefly so the newly opened gizmo
+    // does not immediately exit on the same interaction.
+    suppressNextSceneClickRef.current = true;
+    clearInitialSceneClickGuardTimeoutRef.current = window.setTimeout(() => {
+      suppressNextSceneClickRef.current = false;
+      clearInitialSceneClickGuardTimeoutRef.current = null;
+    }, OPEN_GIZMO_SCENE_CLICK_GUARD_MS);
+
+    return () => {
+      if (clearInitialSceneClickGuardTimeoutRef.current !== null) {
+        window.clearTimeout(clearInitialSceneClickGuardTimeoutRef.current);
+        clearInitialSceneClickGuardTimeoutRef.current = null;
+      }
+    };
   }, [movePoint]);
 
   useEffect(() => {
@@ -2297,6 +2327,10 @@ export const useCesiumPointMoveGizmo = (
 
   useEffect(
     () => () => {
+      if (clearInitialSceneClickGuardTimeoutRef.current !== null) {
+        window.clearTimeout(clearInitialSceneClickGuardTimeoutRef.current);
+        clearInitialSceneClickGuardTimeoutRef.current = null;
+      }
       stopDragging(false);
       removeLabelOverlayElement(OVERLAY_HANDLE_ID);
       if (axisVisualizerRef.current) {

@@ -47,7 +47,7 @@ type UseMeasurementPointMarkerBadgesParams<
   TPlanarGroup extends AnnotationPointMarkerBadgePlanarGroupLike,
   TDistanceRelation extends AnnotationPointMarkerBadgeDistanceRelationLike
 > = {
-  pointMeasurements: readonly TPoint[];
+  pointEntries: readonly TPoint[];
   planarPolygonGroups: readonly TPlanarGroup[];
   distanceRelations: readonly TDistanceRelation[];
   pointMeasureOrderById: Readonly<Record<string, number>>;
@@ -61,7 +61,7 @@ export const useAnnotationPointMarkerBadges = <
   TPlanarGroup extends AnnotationPointMarkerBadgePlanarGroupLike,
   TDistanceRelation extends AnnotationPointMarkerBadgeDistanceRelationLike
 >({
-  pointMeasurements,
+  pointEntries,
   planarPolygonGroups,
   distanceRelations,
   pointMeasureOrderById,
@@ -77,9 +77,7 @@ export const useAnnotationPointMarkerBadges = <
     const badgesByPointId: Record<string, AnnotationPointMarkerBadge> = {};
     const assignedPointIds = new Set<string>();
     const pointById = new Map(
-      pointMeasurements.map(
-        (measurement) => [measurement.id, measurement] as const
-      )
+      pointEntries.map((measurement) => [measurement.id, measurement] as const)
     );
 
     const assignBadge = (
@@ -197,9 +195,13 @@ export const useAnnotationPointMarkerBadges = <
       componentPointIds.forEach((pointId) => assignBadge(pointId, badge));
     });
 
-    const standalonePoints = [...pointMeasurements]
+    const standalonePointMeasureIdSet = new Set(
+      Object.keys(pointMeasureOrderById)
+    );
+    const standalonePoints = [...pointEntries]
       .filter((measurement) => {
         if (assignedPointIds.has(measurement.id)) return false;
+        if (!standalonePointMeasureIdSet.has(measurement.id)) return false;
         if (!isPointAutoCorner) return true;
         return !isPointAutoCorner(measurement);
       })
@@ -231,7 +233,7 @@ export const useAnnotationPointMarkerBadges = <
     distanceRelations,
     isPointAutoCorner,
     planarPolygonGroups,
+    pointEntries,
     pointMeasureOrderById,
-    pointMeasurements,
     resolvePlanarGroupBadgeKind,
   ]);

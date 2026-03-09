@@ -1,6 +1,9 @@
 import { useMemo } from "react";
 
-import { useAnnotations } from "@carma-mapping/annotations/core";
+import {
+  isPointMeasurementEntry,
+  useAnnotations,
+} from "@carma-mapping/annotations/core";
 import type {
   AnnotationEntry,
   AnnotationMode,
@@ -21,7 +24,7 @@ export const usePointInfoBoxSlotsInput = (): PointInfoBoxSlotsInputState => {
   const {
     annotationMode,
     pointLabelOnCreate,
-    isPointModeLivePreviewActive,
+    isPointCandidateModeActive,
     displayMeasurement,
     currentMeasurement,
   } = useAnnotationInfoBoxDisplaySelection();
@@ -30,12 +33,21 @@ export const usePointInfoBoxSlotsInput = (): PointInfoBoxSlotsInputState => {
     useAnnotations<AnnotationMode, AnnotationEntry>();
   const actions = useAnnotationInfoBoxSlotActions();
 
+  const displayPointMeasurement =
+    displayMeasurement && isPointMeasurementEntry(displayMeasurement)
+      ? displayMeasurement
+      : null;
+  const currentPointMeasurement =
+    currentMeasurement && isPointMeasurementEntry(currentMeasurement)
+      ? currentMeasurement
+      : null;
+
   const slotsInput = useMemo(
     () =>
       getPointAnnotationSlotsInput({
         annotationMode,
         pointLabelOnCreate,
-        measurement: displayMeasurement,
+        measurement: displayPointMeasurement,
         referencePoint,
         getAnnotationOrderByType,
         getNextAnnotationOrderByType,
@@ -43,7 +55,7 @@ export const usePointInfoBoxSlotsInput = (): PointInfoBoxSlotsInputState => {
       }).slotsInput,
     [
       actions,
-      displayMeasurement,
+      displayPointMeasurement,
       getAnnotationOrderByType,
       getNextAnnotationOrderByType,
       annotationMode,
@@ -53,12 +65,13 @@ export const usePointInfoBoxSlotsInput = (): PointInfoBoxSlotsInputState => {
   );
 
   const isPointKind =
-    isPointModeLivePreviewActive ||
-    (displayMeasurement !== null && !displayMeasurement.auxiliaryLabelAnchor);
+    isPointCandidateModeActive ||
+    (displayPointMeasurement !== null &&
+      !displayPointMeasurement.auxiliaryLabelAnchor);
 
   return {
     isPointKind,
     slotsInput,
-    currentMeasurementId: currentMeasurement?.id ?? null,
+    currentMeasurementId: currentPointMeasurement?.id ?? null,
   };
 };

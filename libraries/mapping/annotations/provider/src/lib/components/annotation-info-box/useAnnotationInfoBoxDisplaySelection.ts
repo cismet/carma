@@ -15,9 +15,9 @@ import { useAnnotationsAdapter } from "../../context/AnnotationsAdapterProvider"
 export type AnnotationInfoBoxDisplaySelection = {
   annotationMode: AnnotationMode;
   pointLabelOnCreate: boolean;
-  isPointModeLivePreviewActive: boolean;
-  isDistanceModeLivePreviewActive: boolean;
-  pointMeasurements: ReadonlyArray<PointAnnotationEntry>;
+  isPointCandidateModeActive: boolean;
+  isDistanceCandidateModeActive: boolean;
+  pointEntries: ReadonlyArray<PointAnnotationEntry>;
   currentMeasurement: PointAnnotationEntry | null;
   displayMeasurement: PointAnnotationEntry | null;
 };
@@ -27,66 +27,64 @@ export const useAnnotationInfoBoxDisplaySelection =
     const {
       annotationMode,
       annotations,
-      liveAnnotationCandidate,
+      annotationCandidate,
       pointLabelOnCreate,
     } = useAnnotations<AnnotationMode, AnnotationEntry>();
     const { selectedMeasurementId } = useAnnotationSelection();
     const { activeMeasurementId } = useAnnotationsAdapter();
 
-    const isPointModeLivePreviewActive =
+    const isPointCandidateModeActive =
       annotationMode === ANNOTATION_TYPE_POINT && !pointLabelOnCreate;
-    const isDistanceModeLivePreviewActive =
+    const isDistanceCandidateModeActive =
       annotationMode === ANNOTATION_TYPE_DISTANCE;
-    const isLivePreviewMode =
-      isPointModeLivePreviewActive || isDistanceModeLivePreviewActive;
+    const isCandidateMode =
+      isPointCandidateModeActive || isDistanceCandidateModeActive;
 
-    const effectiveMeasurementId = isLivePreviewMode
+    const effectiveMeasurementId = isCandidateMode
       ? activeMeasurementId ?? selectedMeasurementId
       : selectedMeasurementId ?? activeMeasurementId;
 
-    const pointMeasurements = useMemo(
+    const pointEntries = useMemo(
       () => annotations.filter(isPointAnnotationEntry),
       [annotations]
     );
-
     const currentMeasurement = useMemo(
       () =>
-        pointMeasurements.find(
+        pointEntries.find(
           (measurement) => measurement.id === effectiveMeasurementId
         ) ?? null,
-      [effectiveMeasurementId, pointMeasurements]
+      [effectiveMeasurementId, pointEntries]
     );
 
-    const livePreviewMeasurement = useMemo(
+    const candidateMeasurement = useMemo(
       () =>
-        liveAnnotationCandidate &&
-        isPointAnnotationEntry(liveAnnotationCandidate)
-          ? liveAnnotationCandidate
+        annotationCandidate && isPointAnnotationEntry(annotationCandidate)
+          ? annotationCandidate
           : null,
-      [liveAnnotationCandidate]
+      [annotationCandidate]
     );
 
     const displayMeasurement = useMemo(
       () =>
-        livePreviewMeasurement
-          ? livePreviewMeasurement
-          : isPointModeLivePreviewActive || isDistanceModeLivePreviewActive
+        candidateMeasurement
+          ? candidateMeasurement
+          : isPointCandidateModeActive || isDistanceCandidateModeActive
           ? null
           : currentMeasurement,
       [
         currentMeasurement,
-        isDistanceModeLivePreviewActive,
-        isPointModeLivePreviewActive,
-        livePreviewMeasurement,
+        isDistanceCandidateModeActive,
+        isPointCandidateModeActive,
+        candidateMeasurement,
       ]
     );
 
     return {
       annotationMode,
       pointLabelOnCreate,
-      isPointModeLivePreviewActive,
-      isDistanceModeLivePreviewActive,
-      pointMeasurements,
+      isPointCandidateModeActive,
+      isDistanceCandidateModeActive,
+      pointEntries,
       currentMeasurement,
       displayMeasurement,
     };

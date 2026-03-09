@@ -309,9 +309,10 @@ export const LabelOverlayProvider: React.FC<LabelOverlayProviderProps> = ({
               pointerEvents:
                 element.onClick || element.onDoubleClick ? "auto" : "none",
               cursor:
-                element.onClick || element.onDoubleClick
+                element.cursor ??
+                (element.onClick || element.onDoubleClick
                   ? "pointer"
-                  : "default",
+                  : "default"),
             }}
             onClick={element.onClick}
             onDoubleClick={element.onDoubleClick}

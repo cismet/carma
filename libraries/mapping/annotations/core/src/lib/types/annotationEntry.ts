@@ -8,7 +8,7 @@ export type BaseAnnotationEntry<TMode extends string = string> = {
   id: string;
   type: TMode;
   timestamp: number;
-  isLivePreview?: boolean;
+  isCandidate?: boolean;
   index?: number;
   name?: string;
   hidden?: boolean;

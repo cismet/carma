@@ -3,6 +3,7 @@ import { Modal } from "antd";
 import { isKeyboardTargetEditable } from "@carma-commons/utils";
 import {
   isPointAnnotationEntry,
+  isPointMeasurementEntry,
   ANNOTATION_TYPE_DISTANCE,
   SELECT_TOOL_TYPE,
   ANNOTATION_TYPE_POINT,
@@ -47,6 +48,7 @@ export function AnnotationToolbar3D({
     setAnnotationMode,
     annotations,
     setAnnotations,
+    clearAllMeasurements,
     clearAnnotationsByIds,
     deleteSelectedPointAnnotations,
     temporaryMode,
@@ -113,7 +115,7 @@ export function AnnotationToolbar3D({
       selectedPointIds.filter((id) => {
         const m = measurementById.get(id);
         return Boolean(
-          m && isPointAnnotationEntry(m) && !m.auxiliaryLabelAnchor
+          m && isPointMeasurementEntry(m) && !m.auxiliaryLabelAnchor
         );
       }).length,
     [measurementById, selectedPointIds]
@@ -124,7 +126,7 @@ export function AnnotationToolbar3D({
       selectedPointIds.filter((id) => {
         const m = measurementById.get(id);
         return Boolean(
-          m && isPointAnnotationEntry(m) && m.auxiliaryLabelAnchor
+          m && isPointMeasurementEntry(m) && m.auxiliaryLabelAnchor
         );
       }).length,
     [measurementById, selectedPointIds]
@@ -140,6 +142,8 @@ export function AnnotationToolbar3D({
 
   const deletableSelectedPointCount = deletableSelectedPointIds.length;
   const hasDeletableSelection = deletableSelectedPointCount > 0;
+  const hasAnyMeasurements =
+    annotations.length > 0 || planarPolygonGroups.length > 0;
 
   const toggleSelectedVisibility = useCallback(() => {
     if (selectedPointIds.length === 0) return;
@@ -229,6 +233,23 @@ export function AnnotationToolbar3D({
     deletableSelectedPointIds,
     planarPolygonGroups,
   ]);
+
+  const requestClearAllMeasurements = useCallback(() => {
+    if (!hasAnyMeasurements) return;
+
+    Modal.confirm({
+      centered: true,
+      title: "Alle Messungen löschen",
+      content:
+        "Alle vorhandenen Messungen wirklich löschen? Dieser Schritt kann nicht rueckgaengig gemacht werden.",
+      okText: "Alle löschen",
+      cancelText: "Abbrechen",
+      okButtonProps: { danger: true },
+      onOk: () => {
+        clearAllMeasurements();
+      },
+    });
+  }, [clearAllMeasurements, hasAnyMeasurements]);
 
   useEffect(() => {
     if (!enableMultiDeleteHotkey) return;
@@ -350,6 +371,8 @@ export function AnnotationToolbar3D({
         onSelectRectangleModeChange={setSelectModeRectangle}
         selectedMeasurementCount={selectedMeasurementCount}
         selectedLabelCount={selectedLabelCount}
+        onClearAllMeasurements={requestClearAllMeasurements}
+        hasAnyMeasurements={hasAnyMeasurements}
         onDeleteSelectedPoints={requestDeleteSelectedPoints}
         onToggleSelectedVisibility={toggleSelectedVisibility}
         onToggleSelectedLock={toggleSelectedLock}

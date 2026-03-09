@@ -74,7 +74,7 @@ export type PointAnnotationSlotsInput = BaseAnnotationSlotsInput & {
   kind: typeof ANNOTATION_TYPE_POINT;
   currentOrder: number | null;
   nextOrder: number;
-  isLivePreview: boolean;
+  isCandidate: boolean;
 };
 
 export type DistanceAnnotationSlotsInput = BaseAnnotationSlotsInput & {
@@ -82,15 +82,15 @@ export type DistanceAnnotationSlotsInput = BaseAnnotationSlotsInput & {
   currentOrder: number | null;
   currentOrderToken: string | null;
   nextOrder: number;
-  isLivePreview: boolean;
-  hasPreviewAnchor: boolean;
+  isCandidate: boolean;
+  hasCandidateAnchor: boolean;
   subtitleDirectDistanceMeters: number | null;
   distanceTableRows: DistanceTableRow[];
 };
 
 export type LabelAnnotationSlotsInput = BaseAnnotationSlotsInput & {
   kind: typeof ANNOTATION_TYPE_LABEL;
-  isLivePreview: boolean;
+  isCandidate: boolean;
   autoFocusTitleTrigger?: number | string;
   pureLabelAppearance: {
     fontSizePx: number;

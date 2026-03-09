@@ -63,7 +63,14 @@ export const useAnnotationInfoBoxPayload = ({
     onFlyToAllMeasurements,
   } = useAnnotationInfoBoxNavigationBindings({
     annotationType,
-    currentMeasurementId: distanceState.currentMeasurementId,
+    currentMeasurementId:
+      annotationType === ANNOTATION_TYPE_DISTANCE
+        ? distanceState.currentMeasurementId
+        : annotationType === ANNOTATION_TYPE_POINT
+        ? pointState.currentMeasurementId
+        : annotationType === ANNOTATION_TYPE_LABEL
+        ? labelState.currentMeasurementId
+        : distanceState.currentMeasurementId,
     labelMeasurements: labelState.labelMeasurements,
   });
 

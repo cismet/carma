@@ -27,7 +27,7 @@ export type AnnotationsContextType<
   annotationMode: TMode;
   setAnnotationMode: Dispatch<SetStateAction<TMode>>;
   annotations: TMeasurement[];
-  liveAnnotationCandidate: TMeasurement | null;
+  annotationCandidate: TMeasurement | null;
   annotationsByType: (type: AnnotationListType<TMode>) => TMeasurement[];
   getAnnotationsForNavigation: () => TMeasurement[];
   getAnnotationIndexByType: (
@@ -50,6 +50,7 @@ export type AnnotationsContextType<
     appearance: AnnotationLabelAppearance | undefined
   ) => void;
   toggleAnnotationLockById: (id: string) => void;
+  clearAllMeasurements: () => void;
   clearAnnotationsByIds: (ids: string[]) => void;
   deleteSelectedPointAnnotations: () => void;
   setPointAnnotationElevationById: (

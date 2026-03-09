@@ -38,8 +38,10 @@ const DISTANCE_FIRST_POINT_INSTRUCTION =
 const DISTANCE_SECOND_POINT_INSTRUCTION =
   "Klick auf das Modell, um den zweiten Punkt der Distanzmessung zu setzen.";
 
-export const getDistanceInstructionText = (hasPreviewAnchor: boolean): string =>
-  hasPreviewAnchor
+export const getDistanceInstructionText = (
+  hasCandidateAnchor: boolean
+): string =>
+  hasCandidateAnchor
     ? DISTANCE_SECOND_POINT_INSTRUCTION
     : DISTANCE_FIRST_POINT_INSTRUCTION;
 
@@ -214,10 +216,10 @@ export const renderRelativeElevationContent = (
 
 export const renderDistanceTableContent = (
   rows: DistanceTableRow[],
-  isLivePreview: boolean,
-  hasPreviewAnchor: boolean
+  isCandidate: boolean,
+  hasCandidateAnchor: boolean
 ): ReactNode => {
-  if (isLivePreview && !hasPreviewAnchor) {
+  if (isCandidate && !hasCandidateAnchor) {
     return null;
   }
 

@@ -161,7 +161,7 @@ export type PolygonPreviewBuildParams = {
     Record<string, Cartesian3>
   >;
   activePlanarPolygonGroupId?: string | null;
-  livePreviewDistanceLine?: {
+  candidateEdgeLine?: {
     anchorPointECEF: Cartesian3;
     targetPointECEF: Cartesian3;
     showDirectLine: boolean;
@@ -192,7 +192,7 @@ export const buildPolygonPreviewGroups = ({
   pointsById,
   facadeRectanglePreviewOppositeByGroupId,
   activePlanarPolygonGroupId,
-  livePreviewDistanceLine,
+  candidateEdgeLine,
 }: PolygonPreviewBuildParams): PolygonPreviewGroup[] =>
   planarPolygonGroups
     .map((group) => {
@@ -259,8 +259,8 @@ export const buildPolygonPreviewGroups = ({
           return null;
         }
 
-        const previewTargetPoint = livePreviewDistanceLine?.showDirectLine
-          ? livePreviewDistanceLine.targetPointECEF
+        const previewTargetPoint = candidateEdgeLine?.showDirectLine
+          ? candidateEdgeLine.targetPointECEF
           : null;
         const lastBaseVertex = baseVertexPoints[baseVertexPoints.length - 1];
         const previewIncludesHoveredPoint = Boolean(

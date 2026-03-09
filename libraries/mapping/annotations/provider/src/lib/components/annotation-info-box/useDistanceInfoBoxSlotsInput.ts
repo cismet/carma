@@ -21,8 +21,8 @@ export const useDistanceInfoBoxSlotsInput =
   (): DistanceInfoBoxSlotsInputState => {
     const {
       annotationMode,
-      isDistanceModeLivePreviewActive,
-      pointMeasurements,
+      isDistanceCandidateModeActive,
+      pointEntries,
       displayMeasurement,
       currentMeasurement,
     } = useAnnotationInfoBoxDisplaySelection();
@@ -54,7 +54,7 @@ export const useDistanceInfoBoxSlotsInput =
           annotationMode,
           measurement: displayMeasurement,
           activeMeasurementId,
-          pointMeasurements,
+          pointEntries,
           referencePoint,
           hasDistancePreviewAnchor,
           distanceRelations,
@@ -73,13 +73,13 @@ export const useDistanceInfoBoxSlotsInput =
         hasDistancePreviewAnchor,
         annotationMode,
         pointMarkerBadgeByPointId,
-        pointMeasurements,
+        pointEntries,
         referencePoint,
       ]
     );
 
     return {
-      isDistanceKind: isDistanceModeLivePreviewActive || isDistanceMeasurement,
+      isDistanceKind: isDistanceCandidateModeActive || isDistanceMeasurement,
       slotsInput,
       currentMeasurementId: currentMeasurement?.id ?? null,
     };
