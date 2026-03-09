@@ -37,6 +37,7 @@ type OtherLayerProps = Partial<LayerProps & Item> & {
   capabilitiesUrl?: string;
   header?: string;
   accentColor?: string;
+  headerColor?: string;
 };
 
 type BaseLayer = {

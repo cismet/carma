@@ -150,6 +150,7 @@ export const GeoportalMap = ({ height, width, allow3d }: MapProps) => {
   const container3dMapRef = useRef<HTMLDivElement>(null);
   // Store MapLibre maps outside Redux to avoid serialization issues
   const maplibreMapsRef = useRef<Map<string, MaplibreMap>>(new Map());
+  const selectionSemanticIdentifierRef = useRef<string | undefined>(undefined);
   // Cache fly-to spheres per terrain provider so elevations stay provider-specific.
   const flyToSphereCacheByProviderRef = useRef<
     WeakMap<CesiumTerrainProvider, Map<string, BoundingSphere>>
@@ -421,6 +422,8 @@ export const GeoportalMap = ({ height, width, allow3d }: MapProps) => {
   const onComplete = useCallback(
     (selection: SelectionItem) => {
       if (layers.filter((l) => l.layerType === "vector").length === 0) return;
+      selectionSemanticIdentifierRef.current =
+        selection.semanticIdentifier ?? undefined;
       // Note: This callback is only called from useSelectionTopicMap for Leaflet selections
       // No need to check getIsLeaflet() here - it's redundant and causes stale closure issues
       if (
@@ -745,6 +748,7 @@ export const GeoportalMap = ({ height, width, allow3d }: MapProps) => {
       leafletMap: getLeafletMap(),
       maplibreMapsRef,
       store,
+      selectionSemanticIdentifierRef,
     }),
     [
       uiMode,

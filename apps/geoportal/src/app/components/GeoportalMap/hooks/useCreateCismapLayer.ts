@@ -26,6 +26,7 @@ import {
   cancelOngoingRequests,
   implicitVectorSelection,
   onSelectionChangedVector,
+  resolveHit,
 } from "../topicmap.utils";
 import { utils } from "@carma-appframeworks/portals";
 import { selectionPadding } from "../../../constants/selection";
@@ -79,6 +80,7 @@ export const useCreateCismapLayers = (
     leafletMap,
     maplibreMapsRef,
     store,
+    selectionSemanticIdentifierRef,
   }: {
     mode: UIMode;
     dispatch: Dispatch;
@@ -87,11 +89,13 @@ export const useCreateCismapLayers = (
     leafletMap: LeafletMap;
     maplibreMapsRef?: React.MutableRefObject<Map<string, any>>;
     store: Store;
+    selectionSemanticIdentifierRef?: React.MutableRefObject<string | undefined>;
   }
 ) => {
   const [globalHits, setGlobalHits] = useState({});
   const [idleLayers, setIdleLayers] = useState({});
   const [foundFeatures, setFoundFeatures] = useState({});
+  const lastSemanticIdentifierRef = useRef<string | undefined>(undefined);
   const flags = useFeatureFlags();
 
   const showTileBoundaries = flags?.debugTileBoundaries;
@@ -190,7 +194,16 @@ export const useCreateCismapLayers = (
 
       if (lastObject) {
         resetSelection(globalHits);
-        const selectedVectorFeature = lastObject.value[0];
+        const layerForHits = layers.find((l) => l.id === lastObject.key);
+        const semanticInfo = layerForHits?.conf?.semanticInfo as
+          | Record<string, string[]>
+          | undefined;
+        const semanticId = lastSemanticIdentifierRef.current;
+        const selectedVectorFeature = resolveHit(
+          lastObject.value,
+          semanticInfo,
+          semanticId
+        );
         if (selectedVectorFeature.setSelection) {
           selectedVectorFeature.setSelection(true);
           if (selectedVectorFeature?.state?.selected) {
@@ -366,6 +379,12 @@ export const useCreateCismapLayers = (
               });
             },
             onSelectionChanged: (e) => {
+              const semanticIdentifier =
+                selectionSemanticIdentifierRef?.current;
+              if (selectionSemanticIdentifierRef) {
+                selectionSemanticIdentifierRef.current = undefined;
+              }
+              lastSemanticIdentifierRef.current = semanticIdentifier;
               if (modeRef.current === UIMode.DEFAULT) {
                 implicitVectorSelection(e, {
                   layer,
@@ -373,6 +392,7 @@ export const useCreateCismapLayers = (
                   selectionHandler,
                   featureHandler,
                   leafletMap,
+                  semanticIdentifier,
                 });
               } else if (modeRef.current === UIMode.FEATURE_INFO) {
                 onSelectionChangedVector(e, {

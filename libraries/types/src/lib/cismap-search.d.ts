@@ -29,4 +29,5 @@ export interface SearchResultItem {
   modifiedSearchData?: string;
   glyphPrefix?: string;
   overlay?: string;
+  semanticIdentifier?: string;
 }
