@@ -239,7 +239,9 @@ const BelisMapLibWrapper = ({
 
       // Remove from map highlight state
       if (map) {
-        const sourceFeatures = map.querySourceFeatures(namespacedSource, { sourceLayer: sl });
+        const sourceFeatures = map.querySourceFeatures(namespacedSource, {
+          sourceLayer: sl,
+        });
         const match = sourceFeatures.find(
           (f) => String(f.properties?.id ?? "") === dbId
         );
@@ -255,7 +257,9 @@ const BelisMapLibWrapper = ({
       setAdjustedHighlights((prev) => {
         if (!prev) return prev;
         return prev.filter((f) => {
-          const key = `${f.sourceLayer ?? ""}::${String(f.properties?.id ?? f.id ?? "")}`;
+          const key = `${f.sourceLayer ?? ""}::${String(
+            f.properties?.id ?? f.id ?? ""
+          )}`;
           return key !== `${sl}::${dbId}`;
         });
       });

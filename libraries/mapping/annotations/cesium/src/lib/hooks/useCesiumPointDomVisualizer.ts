@@ -482,26 +482,27 @@ export const useCesiumPointDomVisualizer = (
     );
   }, []);
 
-  const getLivePreviewCanvasPosition = useCallback((): CssPixelPosition | null => {
-    if (!scene || scene.isDestroyed()) {
-      return null;
-    }
-    const position = livePreviewPointRef.current;
-    if (!position) {
-      return null;
-    }
-    const canvasPosition = SceneTransforms.worldToWindowCoordinates(
-      scene,
-      position
-    );
-    if (!defined(canvasPosition)) {
-      return null;
-    }
-    return {
-      x: canvasPosition.x,
-      y: canvasPosition.y + CROSSHAIR_ANCHOR_OFFSET_Y_PX,
-    } as CssPixelPosition;
-  }, [scene]);
+  const getLivePreviewCanvasPosition =
+    useCallback((): CssPixelPosition | null => {
+      if (!scene || scene.isDestroyed()) {
+        return null;
+      }
+      const position = livePreviewPointRef.current;
+      if (!position) {
+        return null;
+      }
+      const canvasPosition = SceneTransforms.worldToWindowCoordinates(
+        scene,
+        position
+      );
+      if (!defined(canvasPosition)) {
+        return null;
+      }
+      return {
+        x: canvasPosition.x,
+        y: canvasPosition.y + CROSSHAIR_ANCHOR_OFFSET_Y_PX,
+      } as CssPixelPosition;
+    }, [scene]);
 
   useEffect(() => {
     if (!renderDomVisuals || !scene || scene.isDestroyed()) {
