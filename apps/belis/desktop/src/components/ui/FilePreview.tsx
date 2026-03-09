@@ -363,7 +363,7 @@ const PendingFileItem = ({
           </div>
         )}
       </div>
-      {readOnly ? (
+      {/* {readOnly ? (
         <span
           style={{
             fontSize: 11,
@@ -386,7 +386,7 @@ const PendingFileItem = ({
           placeholder="Dateiname"
           style={{ width: boxSize, fontSize: 11 }}
         />
-      )}
+      )} */}
     </div>
   );
 };
@@ -697,8 +697,7 @@ const FilePreview = ({
           const fileType = getFileType(objectName);
           const lbIndex = objectNameToLightboxIndex[objectName];
           const docKey = getDocumentKey(doc);
-          const isMarkedForRemoval =
-            removedDocumentKeys?.has(docKey) ?? false;
+          const isMarkedForRemoval = removedDocumentKeys?.has(docKey) ?? false;
 
           return (
             <div
@@ -711,8 +710,9 @@ const FilePreview = ({
               }}
             >
               <div style={{ position: "relative" }}>
-                {!readOnly && onToggleRemoveDocument && (
-                  isMarkedForRemoval ? (
+                {!readOnly &&
+                  onToggleRemoveDocument &&
+                  (isMarkedForRemoval ? (
                     <PlusCircleFilled
                       onClick={() => onToggleRemoveDocument(docKey)}
                       style={{
@@ -742,8 +742,7 @@ const FilePreview = ({
                         borderRadius: "50%",
                       }}
                     />
-                  )
-                )}
+                  ))}
                 <div
                   style={{
                     opacity: isMarkedForRemoval ? 0.5 : 1,

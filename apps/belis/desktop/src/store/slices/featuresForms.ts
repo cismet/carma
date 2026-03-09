@@ -54,7 +54,6 @@ const featuresFormsSlice = createSlice({
     },
     removeDraft(state, action: PayloadAction<string>) {
       delete state.drafts[action.payload];
-      delete state.originalValues[action.payload];
     },
     clearAllDrafts(state) {
       state.drafts = {};
