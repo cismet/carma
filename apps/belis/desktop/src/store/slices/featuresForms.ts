@@ -107,10 +107,12 @@ const featuresFormsSlice = createSlice({
       if (existing) {
         existing.files = files;
         existing.updatedAt = Date.now();
-        // Clean up ghost draft when files emptied and no form values exist
+        // Clean up ghost draft when files emptied, no form values, and no removed keys
         if (
           files.length === 0 &&
-          Object.keys(existing.values).length === 0
+          Object.keys(existing.values).length === 0 &&
+          (!existing.removedDocumentKeys ||
+            existing.removedDocumentKeys.length === 0)
         ) {
           delete state.drafts[featureId];
         }
@@ -136,6 +138,14 @@ const featuresFormsSlice = createSlice({
       if (existing) {
         existing.removedDocumentKeys = keys;
         existing.updatedAt = Date.now();
+        // Clean up ghost draft when no removed keys, no form values, and no files
+        if (
+          keys.length === 0 &&
+          Object.keys(existing.values).length === 0 &&
+          (!existing.files || existing.files.length === 0)
+        ) {
+          delete state.drafts[featureId];
+        }
       } else if (keys.length > 0) {
         state.drafts[featureId] = {
           featureType,
