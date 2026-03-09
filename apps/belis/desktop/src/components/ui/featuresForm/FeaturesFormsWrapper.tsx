@@ -21,7 +21,9 @@ const serializeValues = (values: Record<string, unknown>): Record<string, unknow
   const result: Record<string, unknown> = {};
   for (const [key, value] of Object.entries(values)) {
     if (dayjs.isDayjs(value)) {
-      result[key] = DAYJS_PREFIX + value.toISOString();
+      // Normalize to date-only (YYYY-MM-DD) so local-time vs UTC differences
+      // from DatePicker don't cause false-positive dirty detection.
+      result[key] = DAYJS_PREFIX + value.format("YYYY-MM-DD");
     } else if (value && typeof value === "object" && !Array.isArray(value)) {
       result[key] = serializeValues(value as Record<string, unknown>);
     } else {

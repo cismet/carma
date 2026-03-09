@@ -40,6 +40,8 @@ interface FeatureFormLayoutProps {
   jwt?: string | null;
   draftFiles?: DraftFile[];
   onDraftFilesChange?: (files: DraftFile[]) => void;
+  removedDocumentKeys?: Set<string>;
+  onToggleRemoveDocument?: (key: string) => void;
   onCancel?: () => void;
   onSave?: () => void;
   saving?: boolean;
@@ -61,6 +63,8 @@ const FeatureFormLayout = ({
   jwt,
   draftFiles = [],
   onDraftFilesChange,
+  removedDocumentKeys,
+  onToggleRemoveDocument,
   onCancel,
   onSave,
   saving,
@@ -287,6 +291,8 @@ const FeatureFormLayout = ({
             showDescription={false}
             savedImageUrls={savedImageUrls}
             allLightboxDocuments={allLightboxDocuments}
+            removedDocumentKeys={removedDocumentKeys}
+            onToggleRemoveDocument={onToggleRemoveDocument}
             {...uploadProps}
           />
           {extraDocumentSections
@@ -354,7 +360,9 @@ const FeatureFormLayout = ({
         />
         <div className="flex flex-1 overflow-hidden">
           {/* Form column - 60% */}
-          <div className="w-3/5 min-w-[400px] px-6 pb-4 overflow-y-auto border-r border-gray-100">
+          <div
+            className={`w-3/5 min-w-[400px] px-6 pb-4 overflow-y-auto border-r border-gray-100 transition-opacity ${saving ? "opacity-50 pointer-events-none" : ""}`}
+          >
             {showRaw || additionalTabs.length > 0 ? (
               <div className="[&_.ant-tabs-nav]:sticky [&_.ant-tabs-nav]:top-0 [&_.ant-tabs-nav]:bg-white [&_.ant-tabs-nav]:z-10">
                 <Tabs defaultActiveKey="general" items={leftColumnTabs} />
@@ -364,7 +372,9 @@ const FeatureFormLayout = ({
             )}
           </div>
           {/* Documents column - 40% */}
-          <div className="w-2/5 min-w-[480px] px-6 py-4 overflow-y-auto">
+          <div
+            className={`w-2/5 min-w-[480px] px-6 py-4 overflow-y-auto transition-opacity ${saving ? "opacity-50 pointer-events-none" : ""}`}
+          >
             {documentsContent}
           </div>
         </div>
@@ -385,7 +395,9 @@ const FeatureFormLayout = ({
         hasDraft={hasDraft}
         onToggleReadOnly={onToggleReadOnly}
       />
-      <div className="px-6 pb-60 overflow-y-auto flex-1">
+      <div
+        className={`px-6 pb-60 overflow-y-auto flex-1 transition-opacity ${saving ? "opacity-50 pointer-events-none" : ""}`}
+      >
         <div className="[&_.ant-tabs-nav]:sticky [&_.ant-tabs-nav]:top-0 [&_.ant-tabs-nav]:bg-white [&_.ant-tabs-nav]:z-10">
           <Tabs
             defaultActiveKey="general"

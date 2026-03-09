@@ -5,6 +5,7 @@ import type { DraftFile } from "../../../store/slices/featuresForms";
 import { useSelector } from "react-redux";
 import { getJWT } from "../../../store/slices/auth";
 import { DokumentItem } from "../DocumentPreview";
+import { getDocumentKey } from "../FilePreview";
 import FeatureFormLayout from "./FeatureFormLayout";
 import LeuchteFormFields from "./LeuchteFormFields";
 import MastFormFields from "./MastFormFields";
@@ -12,6 +13,7 @@ import {
   fetchFeatureById,
   updateDataByClassName,
 } from "../../../helper/apiMethods";
+import { uploadDraftFiles } from "../../../helper/uploadDraftFiles";
 import dayjs from "dayjs";
 
 const transformDatesForBackend = (
@@ -62,6 +64,12 @@ const LeuchteForm = ({
   onSaveComplete,
 }: LeuchteFormProps) => {
   const [saving, setSaving] = useState(false);
+  const [localDocuments, setLocalDocuments] = useState<DokumentItem[] | null>(
+    null
+  );
+  const [removedDocumentKeys, setRemovedDocumentKeys] = useState<Set<string>>(
+    new Set()
+  );
   const leuchteFormRef = useRef<FormInstance | null>(null);
   const mastFormRef = useRef<FormInstance | null>(null);
 
@@ -144,15 +152,43 @@ const LeuchteForm = ({
         ...rest
       } = formValues;
 
+      // Upload pending draft files first
+      let uploadedDocuments: DokumentItem[] = [];
+      if (draftFiles && draftFiles.length > 0) {
+        uploadedDocuments = await uploadDraftFiles(jwt, draftFiles);
+      }
+
+      // Build final dokumenteArray: existing minus removed, plus newly uploaded
+      const hasDocumentChanges =
+        uploadedDocuments.length > 0 || removedDocumentKeys.size > 0;
+      let finalDokumenteArray: DokumentItem[] | undefined;
+      if (hasDocumentChanges) {
+        const kept = documents.filter(
+          (doc) => !removedDocumentKeys.has(getDocumentKey(doc))
+        );
+        finalDokumenteArray = [...kept, ...uploadedDocuments];
+      }
+
       const dataToSave = transformDatesForBackend({
         id: leuchteId,
         ...rest,
         // Map form field "sonderturnus" back to server field "wartungszyklus"
         ...(sonderturnus !== undefined ? { wartungszyklus: sonderturnus } : {}),
+        // Include updated documents array when changed
+        ...(finalDokumenteArray !== undefined
+          ? { dokumenteArray: finalDokumenteArray }
+          : {}),
       });
 
       console.log("xxx saving leuchte:", JSON.stringify(dataToSave, null, 2));
       await updateDataByClassName(jwt, "tdta_leuchten", dataToSave);
+
+      // Update local documents so changes appear immediately
+      if (hasDocumentChanges && finalDokumenteArray) {
+        setLocalDocuments(finalDokumenteArray);
+        setRemovedDocumentKeys(new Set());
+      }
+
       message.success("Leuchte gespeichert");
       onSaveComplete?.();
     } catch (error) {
@@ -170,13 +206,32 @@ const LeuchteForm = ({
   const [isMastLoading, setIsMastLoading] = useState(false);
   const jwt = useSelector(getJWT);
 
+  const handleToggleRemoveDocument = useCallback((key: string) => {
+    setRemovedDocumentKeys((prev) => {
+      const next = new Set(prev);
+      if (next.has(key)) {
+        next.delete(key);
+      } else {
+        next.add(key);
+      }
+      return next;
+    });
+  }, []);
+
+  // Reset local documents override and removed keys when data changes
+  useEffect(() => {
+    setLocalDocuments(null);
+    setRemovedDocumentKeys(new Set());
+  }, [data]);
+
   // Extract documents from tdta_leuchten[0].dokumenteArray
   const leuchteData = data as Record<string, unknown>;
   const leuchtenArray = leuchteData?.tdta_leuchten as
     | Array<Record<string, unknown>>
     | undefined;
-  const documents: DokumentItem[] =
+  const serverDocuments: DokumentItem[] =
     (leuchtenArray?.[0]?.dokumenteArray as DokumentItem[]) || [];
+  const documents = localDocuments ?? serverDocuments;
 
   // Extract leuchte object for the form
   const leuchte = leuchtenArray?.[0] || null;
@@ -202,7 +257,7 @@ const LeuchteForm = ({
 
   const extraDocumentSections = [
     { title: leuchtenTypTitle, documents: leuchtenTypDocuments },
-    { title: "Mast", documents: standortMastDocuments },
+    // { title: "Mast", documents: standortMastDocuments },
   ];
 
   // Fetch mast data if mastId exists
@@ -246,32 +301,33 @@ const LeuchteForm = ({
   // Build additional tabs - always keep MastFormFields mounted to preserve
   // scroll position. Show loading state via opacity instead of swapping components,
   // so the content height never collapses and the browser doesn't reset scroll.
-  const additionalTabs = [
-    {
-      key: "mast",
-      label: "Mast",
-      children: (
-        <div
-          className={
-            isMastLoading
-              ? "opacity-50 pointer-events-none transition-opacity"
-              : "transition-opacity"
-          }
-        >
-          <MastFormFields
-            mast={mastData}
-            readOnly={readOnly}
-            onFormInstance={setMastForm}
-            draftValues={
-              draftValues?.mast as Record<string, unknown> | undefined
-            }
-            onValuesChange={handleMastValuesChange}
-            onOriginalValues={handleMastOriginalValues}
-          />
-        </div>
-      ),
-    },
-  ];
+  // const additionalTabs = [
+  //   {
+  //     key: "mast",
+  //     label: "Mast",
+  //     children: (
+  //       <div
+  //         className={
+  //           isMastLoading
+  //             ? "opacity-50 pointer-events-none transition-opacity"
+  //             : "transition-opacity"
+  //         }
+  //       >
+  //         <MastFormFields
+  //           mast={mastData}
+  //           readOnly={readOnly}
+  //           onFormInstance={setMastForm}
+  //           draftValues={
+  //             draftValues?.mast as Record<string, unknown> | undefined
+  //           }
+  //           onValuesChange={handleMastValuesChange}
+  //           onOriginalValues={handleMastOriginalValues}
+  //         />
+  //       </div>
+  //     ),
+  //   },
+  // ];
+  const additionalTabs: never[] = [];
 
   return (
     <FeatureFormLayout
@@ -283,12 +339,14 @@ const LeuchteForm = ({
       jwt={jwt}
       draftFiles={draftFiles}
       onDraftFilesChange={onDraftFilesChange}
+      removedDocumentKeys={removedDocumentKeys}
+      onToggleRemoveDocument={handleToggleRemoveDocument}
       debugData={data}
       additionalTabs={additionalTabs}
       loading={loading}
       saving={saving}
       readOnly={readOnly}
-      hasDraft={hasDraft}
+      hasDraft={hasDraft || removedDocumentKeys.size > 0}
       onToggleReadOnly={onToggleReadOnly}
       onCancel={onCancel}
       onSave={handleSave}
