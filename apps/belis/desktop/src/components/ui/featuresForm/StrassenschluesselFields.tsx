@@ -1,4 +1,5 @@
 import { Form, Row, Col, Input } from "antd";
+import { FormItem } from "./DraftFieldHighlight";
 
 interface StrassenschluesselFieldsProps {
   /** Optional prefix for field names (e.g., for nested forms) */
@@ -24,26 +25,28 @@ const StrassenschluesselFields = ({
   const fieldName = (name: string) => (namePrefix ? [namePrefix, name] : name);
 
   return (
-    <Row gutter={16} className="pointer-events-none">
-      <Col span={6}>
-        <Form.Item
-          name={fieldName("strassenschluessel_pk")}
-          label={<FormLabel>{label}</FormLabel>}
-          className="mb-4"
-        >
-          <Input size="large" />
-        </Form.Item>
-      </Col>
-      <Col span={18}>
-        <Form.Item
-          name={fieldName("strassenschluessel_strasse")}
-          label={<FormLabel>&nbsp;</FormLabel>}
-          className="mb-4"
-        >
-          <Input size="large" />
-        </Form.Item>
-      </Col>
-    </Row>
+    <div className="cursor-not-allowed">
+      <Row gutter={16} className="pointer-events-none">
+        <Col span={6}>
+          <FormItem
+            name={fieldName("strassenschluessel_pk")}
+            label={<FormLabel>{label}</FormLabel>}
+            className="mb-4"
+          >
+            <Input size="large" />
+          </FormItem>
+        </Col>
+        <Col span={18}>
+          <FormItem
+            name={fieldName("strassenschluessel_strasse")}
+            label={<FormLabel>&nbsp;</FormLabel>}
+            className="mb-4"
+          >
+            <Input size="large" />
+          </FormItem>
+        </Col>
+      </Row>
+    </div>
   );
 };
 

@@ -7,6 +7,7 @@ import { getJWT } from "../../../store/slices/auth";
 import { DokumentItem } from "../DocumentPreview";
 import FeatureFormLayout from "./FeatureFormLayout";
 import { getFormClassName, getPlaceholder } from "./readOnlyFormUtils";
+import { FormItem } from "./DraftFieldHighlight";
 
 interface LeitungFormProps {
   data: Record<string, unknown> | null;
@@ -142,7 +143,7 @@ const LeitungForm = ({
         onValuesChange={(_, allValues) => onDraftChange?.(allValues)}
       >
         {/* Leitungstyp - Full Width */}
-        <Form.Item
+        <FormItem
           name="fk_leitungstyp"
           label={<FormLabel>Leitungstyp</FormLabel>}
           className="mb-4"
@@ -160,12 +161,12 @@ const LeitungForm = ({
               </Select.Option>
             ))}
           </Select>
-        </Form.Item>
+        </FormItem>
 
         {/* Material and Querschnitt - Side by Side */}
         <Row gutter={16}>
           <Col span={12}>
-            <Form.Item
+            <FormItem
               name="fk_material"
               label={<FormLabel>Material</FormLabel>}
               className="mb-4"
@@ -183,10 +184,10 @@ const LeitungForm = ({
                   </Select.Option>
                 ))}
               </Select>
-            </Form.Item>
+            </FormItem>
           </Col>
           <Col span={12}>
-            <Form.Item
+            <FormItem
               name="fk_querschnitt"
               label={<FormLabel>Querschnitt</FormLabel>}
               className="mb-4"
@@ -204,7 +205,7 @@ const LeitungForm = ({
                   </Select.Option>
                 ))}
               </Select>
-            </Form.Item>
+            </FormItem>
           </Col>
         </Row>
       </Form>

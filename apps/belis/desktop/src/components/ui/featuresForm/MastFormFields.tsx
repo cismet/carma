@@ -13,6 +13,7 @@ import { useSelector } from "react-redux";
 import { getKeyTablesData } from "../../../store/slices/keyTables";
 import StrassenschluesselFields from "./StrassenschluesselFields";
 import { getFormClassName, getPlaceholder } from "./readOnlyFormUtils";
+import { FormItem } from "./DraftFieldHighlight";
 import toTitleCase from "../../../helper/toTitleCase";
 import dayjs from "dayjs";
 
@@ -241,7 +242,7 @@ const MastFormFields = ({
       <StrassenschluesselFields namePrefix={namePrefix} />
 
       {/* Kennziffer */}
-      <Form.Item
+      <FormItem
         name={fieldName("fk_kennziffer")}
         label={<FormLabel>Kennziffer</FormLabel>}
         className="mb-4"
@@ -259,41 +260,41 @@ const MastFormFields = ({
             </Select.Option>
           ))}
         </Select>
-      </Form.Item>
+      </FormItem>
 
       {/* Laufende Nr. and Hausnummer */}
       <Row gutter={16}>
         <Col span={12}>
-          <Form.Item
+          <FormItem
             name={fieldName("lfd_nummer")}
             label={<FormLabel>Laufende Nr.</FormLabel>}
             className="mb-4"
           >
             <InputNumber className="w-full" size="large" />
-          </Form.Item>
+          </FormItem>
         </Col>
         <Col span={12}>
-          <Form.Item
+          <FormItem
             name={fieldName("haus_nr")}
             label={<FormLabel>Hausnummer</FormLabel>}
             className="mb-4"
           >
             <Input size="large" />
-          </Form.Item>
+          </FormItem>
         </Col>
       </Row>
 
       {/* Standortangabe */}
-      <Form.Item
+      <FormItem
         name={fieldName("standortangabe")}
         label={<FormLabel>Standortangabe</FormLabel>}
         className="mb-4"
       >
         <Input size="large" />
-      </Form.Item>
+      </FormItem>
 
       {/* Stadtbezirk */}
-      <Form.Item
+      <FormItem
         name={fieldName("fk_bezirk")}
         label={<FormLabel>Stadtbezirk</FormLabel>}
         className="mb-4"
@@ -311,10 +312,10 @@ const MastFormFields = ({
             </Select.Option>
           ))}
         </Select>
-      </Form.Item>
+      </FormItem>
 
       {/* Mastart */}
-      <Form.Item
+      <FormItem
         name={fieldName("fk_mastart")}
         label={<FormLabel>Mastart</FormLabel>}
         className="mb-4"
@@ -332,10 +333,10 @@ const MastFormFields = ({
             </Select.Option>
           ))}
         </Select>
-      </Form.Item>
+      </FormItem>
 
       {/* Masttyp */}
-      <Form.Item
+      <FormItem
         name={fieldName("fk_masttyp")}
         label={<FormLabel>Masttyp</FormLabel>}
         className="mb-4"
@@ -353,10 +354,10 @@ const MastFormFields = ({
             </Select.Option>
           ))}
         </Select>
-      </Form.Item>
+      </FormItem>
 
       {/* Klassifizierung */}
-      <Form.Item
+      <FormItem
         name={fieldName("fk_klassifizierung")}
         label={<FormLabel>Klassifizierung</FormLabel>}
         className="mb-4"
@@ -374,10 +375,10 @@ const MastFormFields = ({
             </Select.Option>
           ))}
         </Select>
-      </Form.Item>
+      </FormItem>
 
       {/* Unterhalt */}
-      <Form.Item
+      <FormItem
         name={fieldName("fk_unterhalt_mast")}
         label={<FormLabel>Unterhalt</FormLabel>}
         className="mb-4"
@@ -395,12 +396,12 @@ const MastFormFields = ({
             </Select.Option>
           ))}
         </Select>
-      </Form.Item>
+      </FormItem>
 
       {/* Inbetriebnahme and V-Einheit */}
       <Row gutter={16}>
         <Col span={12}>
-          <Form.Item
+          <FormItem
             name={fieldName("inbetriebnahme_mast")}
             label={<FormLabel>Inbetriebnahme</FormLabel>}
             className="mb-4"
@@ -411,23 +412,23 @@ const MastFormFields = ({
               format="DD.MM.YYYY"
               placeholder={getPlaceholder(readOnly, "Datum auswählen")}
             />
-          </Form.Item>
+          </FormItem>
         </Col>
         <Col span={12}>
-          <Form.Item
+          <FormItem
             name={fieldName("verrechnungseinheit")}
             valuePropName="checked"
             className="mb-4 mt-8"
           >
             <Checkbox>V-Einheit</Checkbox>
-          </Form.Item>
+          </FormItem>
         </Col>
       </Row>
 
       {/* Mastanstrich and Anstrichfarbe */}
       <Row gutter={16}>
         <Col span={12}>
-          <Form.Item
+          <FormItem
             name={fieldName("mastanstrich")}
             label={<FormLabel>Mastanstrich</FormLabel>}
             className="mb-4"
@@ -438,41 +439,41 @@ const MastFormFields = ({
               format="DD.MM.YYYY"
               placeholder={getPlaceholder(readOnly, "Datum auswählen")}
             />
-          </Form.Item>
+          </FormItem>
         </Col>
         <Col span={12}>
-          <Form.Item
+          <FormItem
             name={fieldName("anstrichfarbe")}
             label={<FormLabel>Anstrichfarbe</FormLabel>}
             className="mb-4"
           >
             <Input size="large" />
-          </Form.Item>
+          </FormItem>
         </Col>
       </Row>
 
       {/* Montagefirma */}
-      <Form.Item
+      <FormItem
         name={fieldName("montagefirma")}
         label={<FormLabel>Montagefirma</FormLabel>}
         className="mb-4"
       >
         <Input size="large" />
-      </Form.Item>
+      </FormItem>
 
       {/* Gruendung */}
-      <Form.Item
+      <FormItem
         name={fieldName("gruendung")}
         label={<FormLabel>Gründung</FormLabel>}
         className="mb-4"
       >
         <Input size="large" />
-      </Form.Item>
+      </FormItem>
 
       {/* Standsicherheitspruefung and Naechstes Pruefdatum */}
       <Row gutter={16}>
         <Col span={12}>
-          <Form.Item
+          <FormItem
             name={fieldName("standsicherheitspruefung")}
             label={<FormLabel>Standsicherheitsprfg.</FormLabel>}
             className="mb-4"
@@ -483,10 +484,10 @@ const MastFormFields = ({
               format="DD.MM.YYYY"
               placeholder={getPlaceholder(readOnly, "Datum auswählen")}
             />
-          </Form.Item>
+          </FormItem>
         </Col>
         <Col span={12}>
-          <Form.Item
+          <FormItem
             name={fieldName("naechstes_pruefdatum")}
             label={<FormLabel>Nächstes Prüfdatum</FormLabel>}
             className="mb-4"
@@ -497,23 +498,23 @@ const MastFormFields = ({
               format="DD.MM.YYYY"
               placeholder={getPlaceholder(readOnly, "Datum auswählen")}
             />
-          </Form.Item>
+          </FormItem>
         </Col>
       </Row>
 
       {/* Verfahren */}
-      <Form.Item
+      <FormItem
         name={fieldName("verfahren")}
         label={<FormLabel>Verfahren</FormLabel>}
         className="mb-4"
       >
         <Input size="large" />
-      </Form.Item>
+      </FormItem>
 
       {/* Elektrische Pruefung and Erdung */}
       <Row gutter={16}>
         <Col span={12}>
-          <Form.Item
+          <FormItem
             name={fieldName("elek_pruefung")}
             label={<FormLabel>Elektrische Prüfung</FormLabel>}
             className="mb-4"
@@ -524,32 +525,32 @@ const MastFormFields = ({
               format="DD.MM.YYYY"
               placeholder={getPlaceholder(readOnly, "Datum auswählen")}
             />
-          </Form.Item>
+          </FormItem>
         </Col>
         <Col span={12}>
-          <Form.Item
+          <FormItem
             name={fieldName("erdung")}
             valuePropName="checked"
             className="mb-4 mt-8"
           >
             <Checkbox>Erdung i.O.</Checkbox>
-          </Form.Item>
+          </FormItem>
         </Col>
       </Row>
 
       {/* Monteur */}
-      <Form.Item
+      <FormItem
         name={fieldName("monteur")}
         label={<FormLabel>Monteur</FormLabel>}
         className="mb-4"
       >
         <Input size="large" />
-      </Form.Item>
+      </FormItem>
 
       {/* Mastschutz and Revision */}
       <Row gutter={16}>
         <Col span={12}>
-          <Form.Item
+          <FormItem
             name={fieldName("mastschutz")}
             label={<FormLabel>Mastschutz</FormLabel>}
             className="mb-4"
@@ -560,21 +561,21 @@ const MastFormFields = ({
               format="DD.MM.YYYY"
               placeholder={getPlaceholder(readOnly, "Datum auswählen")}
             />
-          </Form.Item>
+          </FormItem>
         </Col>
         <Col span={12}>
-          <Form.Item
+          <FormItem
             name={fieldName("revision")}
             label={<FormLabel>Revision</FormLabel>}
             className="mb-4"
           >
             <Input size="large" />
-          </Form.Item>
+          </FormItem>
         </Col>
       </Row>
 
       {/* Anlagengruppe */}
-      <Form.Item
+      <FormItem
         name={fieldName("fk_anlagengruppe")}
         label={<FormLabel>Anlagengruppe</FormLabel>}
         className="mb-4"
@@ -592,28 +593,28 @@ const MastFormFields = ({
             </Select.Option>
           ))}
         </Select>
-      </Form.Item>
+      </FormItem>
 
       {/* Anbauten */}
-      <Form.Item
+      <FormItem
         name={fieldName("anbauten")}
         label={<FormLabel>Anbauten</FormLabel>}
         className="mb-4"
       >
         <Input size="large" />
-      </Form.Item>
+      </FormItem>
 
       {/* Bemerkung */}
-      <Form.Item
+      <FormItem
         name={fieldName("bemerkungen")}
         label={<FormLabel>Bemerkung</FormLabel>}
         className="mb-4"
       >
         <Input.TextArea rows={4} size="large" />
-      </Form.Item>
+      </FormItem>
 
       {/* Letzte Aenderung (readonly) */}
-      <Form.Item
+      <FormItem
         name={fieldName("letzte_aenderung")}
         label={<FormLabel>Letzte Änderung</FormLabel>}
         className="mb-4"
@@ -624,7 +625,7 @@ const MastFormFields = ({
           format="DD.MM.YYYY"
           placeholder={getPlaceholder(readOnly, "Datum auswählen")}
         />
-      </Form.Item>
+      </FormItem>
     </Form>
   );
 };

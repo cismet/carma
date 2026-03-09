@@ -14,6 +14,7 @@ import {
   updateDataByClassName,
 } from "../../../helper/apiMethods";
 import { uploadDraftFiles } from "../../../helper/uploadDraftFiles";
+import { FieldPrefix } from "./DraftFieldHighlight";
 import dayjs from "dayjs";
 
 const transformDatesForBackend = (
@@ -189,6 +190,13 @@ const LeuchteForm = ({
         setRemovedDocumentKeys(new Set());
       }
 
+      if (removedDocumentKeys.size > 0) {
+        message.success(
+          removedDocumentKeys.size === 1
+            ? "1 Datei gelöscht"
+            : `${removedDocumentKeys.size} Dateien gelöscht`
+        );
+      }
       message.success("Leuchte gespeichert");
       onSaveComplete?.();
     } catch (error) {
@@ -351,16 +359,18 @@ const LeuchteForm = ({
       onCancel={onCancel}
       onSave={handleSave}
     >
-      <LeuchteFormFields
-        leuchte={leuchte}
-        readOnly={readOnly}
-        onFormInstance={setLeuchteForm}
-        draftValues={
-          draftValues?.leuchte as Record<string, unknown> | undefined
-        }
-        onValuesChange={handleLeuchteValuesChange}
-        onOriginalValues={handleLeuchteOriginalValues}
-      />
+      <FieldPrefix name="leuchte">
+        <LeuchteFormFields
+          leuchte={leuchte}
+          readOnly={readOnly}
+          onFormInstance={setLeuchteForm}
+          draftValues={
+            draftValues?.leuchte as Record<string, unknown> | undefined
+          }
+          onValuesChange={handleLeuchteValuesChange}
+          onOriginalValues={handleLeuchteOriginalValues}
+        />
+      </FieldPrefix>
     </FeatureFormLayout>
   );
 };

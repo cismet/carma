@@ -8,6 +8,7 @@ import { DokumentItem } from "../DocumentPreview";
 import FeatureFormLayout from "./FeatureFormLayout";
 import StrassenschluesselFields from "./StrassenschluesselFields";
 import { getFormClassName, getPlaceholder } from "./readOnlyFormUtils";
+import { FormItem } from "./DraftFieldHighlight";
 import toTitleCase from "../../../helper/toTitleCase";
 import dayjs from "dayjs";
 
@@ -168,16 +169,16 @@ const MauerlascheForm = ({
         <StrassenschluesselFields label="Strassenschlussel" />
 
         {/* Laufende Nr. */}
-        <Form.Item
+        <FormItem
           name="laufende_nummer"
           label={<FormLabel>Laufende Nr.</FormLabel>}
           className="mb-4"
         >
           <InputNumber className="w-full" size="large" />
-        </Form.Item>
+        </FormItem>
 
         {/* Montage (Erstellungsjahr) */}
-        <Form.Item
+        <FormItem
           name="erstellungsjahr"
           label={<FormLabel>Montage</FormLabel>}
           className="mb-4"
@@ -188,10 +189,10 @@ const MauerlascheForm = ({
             format="DD.MM.YYYY"
             placeholder={getPlaceholder(readOnly, "Datum auswahlen")}
           />
-        </Form.Item>
+        </FormItem>
 
         {/* Material */}
-        <Form.Item
+        <FormItem
           name="fk_material"
           label={<FormLabel>Material</FormLabel>}
           className="mb-4"
@@ -209,10 +210,10 @@ const MauerlascheForm = ({
               </Select.Option>
             ))}
           </Select>
-        </Form.Item>
+        </FormItem>
 
         {/* Pruefung */}
-        <Form.Item
+        <FormItem
           name="pruefdatum"
           label={<FormLabel>Prufung</FormLabel>}
           className="mb-4"
@@ -223,16 +224,16 @@ const MauerlascheForm = ({
             format="DD.MM.YYYY"
             placeholder={getPlaceholder(readOnly, "Datum auswahlen")}
           />
-        </Form.Item>
+        </FormItem>
 
         {/* Bemerkung */}
-        <Form.Item
+        <FormItem
           name="bemerkung"
           label={<FormLabel>Bemerkung</FormLabel>}
           className="mb-4"
         >
           <Input.TextArea rows={4} size="large" />
-        </Form.Item>
+        </FormItem>
       </Form>
     </FeatureFormLayout>
   );

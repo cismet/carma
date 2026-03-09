@@ -66,3 +66,41 @@ export const isFormDirty = (
   if (!originalValues) return !!draftValues;
   return !isFormValueEqual(originalValues, draftValues);
 };
+
+const isPlainObj = (v: unknown): v is Record<string, unknown> =>
+  v !== null && typeof v === "object" && !Array.isArray(v);
+
+/**
+ * Get a set of changed field paths between original and draft values.
+ * Recurses into nested objects (e.g. { leuchte: { field1: ... } })
+ * and returns leaf-level paths like "leuchte.field1".
+ */
+export const getChangedPaths = (
+  original: Record<string, unknown> | undefined,
+  draft: Record<string, unknown> | undefined
+): Set<string> => {
+  const changed = new Set<string>();
+  if (!draft || !original) return changed;
+
+  const collect = (
+    orig: Record<string, unknown>,
+    dft: Record<string, unknown>,
+    prefix: string
+  ) => {
+    const allKeys = new Set([...Object.keys(orig), ...Object.keys(dft)]);
+    for (const key of allKeys) {
+      const path = prefix ? `${prefix}.${key}` : key;
+      const origVal = orig[key];
+      const draftVal = dft[key];
+
+      if (isPlainObj(origVal) && isPlainObj(draftVal)) {
+        collect(origVal, draftVal, path);
+      } else if (!isFormValueEqual(origVal, draftVal)) {
+        changed.add(path);
+      }
+    }
+  };
+
+  collect(original, draft, "");
+  return changed;
+};
