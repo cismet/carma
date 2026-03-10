@@ -51,6 +51,7 @@ interface FeatureFormLayoutProps {
   readOnly?: boolean;
   hasDraft?: boolean;
   onToggleReadOnly?: () => void;
+  singleColumn?: boolean;
 }
 
 const FeatureFormLayout = ({
@@ -74,6 +75,7 @@ const FeatureFormLayout = ({
   readOnly,
   hasDraft,
   onToggleReadOnly,
+  singleColumn,
 }: FeatureFormLayoutProps) => {
   // Support both regular query params and hash-based routing (/#/?param=value)
   const showRaw = useMemo(() => {
@@ -321,7 +323,7 @@ const FeatureFormLayout = ({
   ) : null;
 
   // Wide screen: two-column layout (form left, documents right)
-  if (isWideScreen) {
+  if (isWideScreen && !singleColumn) {
     // Build tabs for the left column - Allgemein first, then additional tabs, then Rohdaten
     const leftColumnTabs = [
       {
@@ -384,7 +386,7 @@ const FeatureFormLayout = ({
 
   // Narrow screen: tabbed layout
   return (
-    <div className="bg-white rounded-xl border border-gray-100 max-w-4xl w-full h-full flex flex-col min-w-[350px]">
+    <div className={`bg-white rounded-xl border border-gray-100 w-full h-full flex flex-col min-w-[350px] ${singleColumn ? "" : "max-w-4xl"}`}>
       <FormHeader
         title={title}
         subtitle={subtitle}
@@ -399,37 +401,45 @@ const FeatureFormLayout = ({
       <div
         className={`px-6 pb-60 overflow-y-auto flex-1 transition-opacity ${saving ? "opacity-50 pointer-events-none" : ""}`}
       >
-        <div className="[&_.ant-tabs-nav]:sticky [&_.ant-tabs-nav]:top-0 [&_.ant-tabs-nav]:bg-white [&_.ant-tabs-nav]:z-10">
-          <Tabs
-            defaultActiveKey="general"
-            items={[
-              {
-                key: "general",
-                label: <span>Allgemein</span>,
-                children: children,
-              },
-              ...additionalTabs.map((tab) => ({
-                key: tab.key,
-                label: <span>{tab.label}</span>,
-                children: tab.children,
-              })),
-              {
-                key: "documents",
-                label: <span>Dokumente</span>,
-                children: documentsContent,
-              },
-              ...(showRaw
-                ? [
-                    {
-                      key: "debug",
-                      label: <span>Rohdaten</span>,
-                      children: debugContent,
-                    },
-                  ]
-                : []),
-            ]}
-          />
-        </div>
+        {singleColumn && !showRaw ? (
+          <div className="pt-4">{documentsContent}</div>
+        ) : (
+          <div className="[&_.ant-tabs-nav]:sticky [&_.ant-tabs-nav]:top-0 [&_.ant-tabs-nav]:bg-white [&_.ant-tabs-nav]:z-10">
+            <Tabs
+              defaultActiveKey={singleColumn ? "documents" : "general"}
+              items={[
+                ...(singleColumn
+                  ? []
+                  : [
+                      {
+                        key: "general",
+                        label: <span>Allgemein</span>,
+                        children: children,
+                      },
+                    ]),
+                ...additionalTabs.map((tab) => ({
+                  key: tab.key,
+                  label: <span>{tab.label}</span>,
+                  children: tab.children,
+                })),
+                {
+                  key: "documents",
+                  label: <span>Dokumente</span>,
+                  children: documentsContent,
+                },
+                ...(showRaw
+                  ? [
+                      {
+                        key: "debug",
+                        label: <span>Rohdaten</span>,
+                        children: debugContent,
+                      },
+                    ]
+                  : []),
+              ]}
+            />
+          </div>
+        )}
       </div>
     </div>
   );

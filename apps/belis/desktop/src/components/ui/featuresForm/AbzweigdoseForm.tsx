@@ -1,162 +1,176 @@
-import { Tabs } from "antd";
+import { useState, useEffect, useCallback } from "react";
+import { message } from "antd";
 import { useSelector } from "react-redux";
-import { useState, useEffect, useMemo } from "react";
+import type { DraftFile } from "../../../store/slices/featuresForms";
 import { getJWT } from "../../../store/slices/auth";
 import { DokumentItem } from "../DocumentPreview";
-import FilePreview, { SavedImageUrls, getFileType } from "../FilePreview";
-import FormHeader from "./FormHeader";
-import RawDisplay from "../RawDisplay";
-import { getDocumentBlobUrl } from "../../../helper/documentHelper";
+import { getDocumentKey } from "../FilePreview";
+import FeatureFormLayout from "./FeatureFormLayout";
+import { uploadDraftFiles } from "../../../helper/uploadDraftFiles";
+import { updateDataByClassName } from "../../../helper/apiMethods";
 
 interface AbzweigdoseFormProps {
   data: Record<string, unknown> | null;
   rawFeature?: { properties?: Record<string, unknown> } | null;
   onClose?: () => void;
+  readOnly?: boolean;
+  loading?: boolean;
+  draftFiles?: DraftFile[];
+  hasDraft?: boolean;
+  onDraftFilesChange?: (files: DraftFile[]) => void;
+  onToggleReadOnly?: () => void;
+  onCancel?: () => void;
+  onSaveComplete?: () => void;
+  removedDocumentKeys?: Set<string>;
+  onRemovedDocumentKeysChange?: (keys: Set<string>) => void;
 }
 
 const AbzweigdoseForm = ({
   data,
-  rawFeature,
   onClose,
+  readOnly = true,
+  loading,
+  draftFiles,
+  hasDraft,
+  onDraftFilesChange,
+  onToggleReadOnly,
+  onCancel,
+  onSaveComplete,
+  removedDocumentKeys: removedDocumentKeysProp,
+  onRemovedDocumentKeysChange,
 }: AbzweigdoseFormProps) => {
+  const removedDocumentKeys = removedDocumentKeysProp ?? new Set<string>();
+  const [saving, setSaving] = useState(false);
+  const [localDocuments, setLocalDocuments] = useState<DokumentItem[] | null>(
+    null
+  );
   const jwt = useSelector(getJWT);
 
-  // Support both regular query params and hash-based routing (/#/?param=value)
-  const showRaw = useMemo(() => {
-    const hashQuery = window.location.hash.split("?")[1] || "";
-    return (
-      new URLSearchParams(hashQuery || window.location.search).get(
-        "showRaw"
-      ) === "true"
-    );
-  }, []);
+  const handleToggleRemoveDocument = useCallback(
+    (key: string) => {
+      const next = new Set(removedDocumentKeys);
+      if (next.has(key)) {
+        next.delete(key);
+      } else {
+        next.add(key);
+      }
+      onRemovedDocumentKeysChange?.(next);
+    },
+    [removedDocumentKeys, onRemovedDocumentKeysChange]
+  );
+
+  // Reset local documents override when data changes
+  useEffect(() => {
+    setLocalDocuments(null);
+  }, [data]);
 
   // Extract documents from abzweigdose[0].dokumenteArray
   const abzweigdoseData = data as Record<string, unknown>;
   const abzweigdoseArray = abzweigdoseData?.abzweigdose as
     | Array<Record<string, unknown>>
     | undefined;
-  const documents: DokumentItem[] =
+  const serverDocuments: DokumentItem[] =
     (abzweigdoseArray?.[0]?.dokumenteArray as DokumentItem[]) || [];
+  const documents = localDocuments ?? serverDocuments;
 
-  // Cache image URLs at this level to persist across layout changes
-  const [savedImageUrls, setSavedImageUrls] = useState<SavedImageUrls>({});
-
-  // Memoize image documents
-  const imageDocuments = useMemo(
-    () =>
-      documents.filter((doc) => {
-        const objectName = doc.dms_url?.url?.object_name || "";
-        return getFileType(objectName) === "image";
-      }),
-    [documents]
-  );
-
-  // Create a stable key for dependency tracking
-  const imageDocumentsKey = useMemo(
-    () =>
-      imageDocuments
-        .map((doc) => doc.dms_url?.url?.object_name || "")
-        .join(","),
-    [imageDocuments]
-  );
-
-  // Fetch all image URLs and cache them
-  useEffect(() => {
-    if (!jwt || imageDocuments.length === 0) return;
-
-    const fetchAllImages = async () => {
-      const newUrls: SavedImageUrls = {};
-      let hasNewUrls = false;
-
-      for (const doc of imageDocuments) {
-        const objectName = doc.dms_url?.url?.object_name;
-        if (!objectName) continue;
-
-        if (savedImageUrls[objectName]) {
-          newUrls[objectName] = savedImageUrls[objectName];
-          continue;
-        }
-
-        try {
-          const url = await getDocumentBlobUrl(jwt, objectName);
-          newUrls[objectName] = url;
-          hasNewUrls = true;
-        } catch (err) {
-          console.error("Failed to load image:", err);
-        }
-      }
-
-      if (hasNewUrls) {
-        setSavedImageUrls((prev) => ({ ...prev, ...newUrls }));
-      }
-    };
-
-    fetchAllImages();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [jwt, imageDocumentsKey]);
+  const abzweigdoseId = abzweigdoseArray?.[0]?.id as number | undefined;
 
   // Extract subtitle
   const subtitle = "Nur Dokumente verfügbar";
 
+  const handleSave = async () => {
+    if (!jwt) {
+      message.error("Nicht authentifiziert");
+      return;
+    }
+
+    if (!abzweigdoseId) {
+      message.error("Keine Abzweigdose-ID gefunden");
+      return;
+    }
+
+    setSaving(true);
+    try {
+      // Upload pending draft files first
+      let uploadedDocuments: DokumentItem[] = [];
+      if (draftFiles && draftFiles.length > 0) {
+        uploadedDocuments = await uploadDraftFiles(jwt, draftFiles);
+      }
+
+      // Build final dokumenteArray: existing minus removed, plus newly uploaded
+      const hasDocumentChanges =
+        uploadedDocuments.length > 0 || removedDocumentKeys.size > 0;
+      let finalDokumenteArray: DokumentItem[] | undefined;
+      if (hasDocumentChanges) {
+        const kept = documents.filter(
+          (doc) => !removedDocumentKeys.has(getDocumentKey(doc))
+        );
+        finalDokumenteArray = [...kept, ...uploadedDocuments];
+      }
+
+      if (finalDokumenteArray !== undefined) {
+        const dataToSave = {
+          id: abzweigdoseId,
+          dokumenteArray: finalDokumenteArray,
+        };
+
+        await updateDataByClassName(jwt, "abzweigdose", dataToSave);
+
+        // Update local documents so changes appear immediately
+        setLocalDocuments(finalDokumenteArray);
+        onRemovedDocumentKeysChange?.(new Set());
+
+        if (removedDocumentKeys.size > 0) {
+          message.success(
+            removedDocumentKeys.size === 1
+              ? "1 Datei gelöscht"
+              : `${removedDocumentKeys.size} Dateien gelöscht`
+          );
+        }
+        message.success("Abzweigdose gespeichert");
+      }
+
+      onSaveComplete?.();
+    } catch (error) {
+      console.error("Save error:", error);
+      message.error(
+        error instanceof Error ? error.message : "Fehler beim Speichern"
+      );
+    } finally {
+      setSaving(false);
+    }
+  };
+
   if (!data) {
     return (
       <div className="flex items-center justify-center h-40 text-gray-400">
-        Keine Daten ausgewahlt
+        Keine Daten ausgewählt
       </div>
     );
   }
 
-  const labelStyle: React.CSSProperties = {
-    fontSize: 14,
-    fontWeight: 500,
-    color: "#374151",
-    marginBottom: 8,
-  };
-
-  // Documents content - constrained width to prevent oversized preview
-  const documentsContent = (
-    <div style={{ maxWidth: 700 }}>
-      <FilePreview
-        documents={documents}
-        jwt={jwt}
-        titleStyle={labelStyle}
-        title=""
-        size="xl"
-        showDescription={false}
-        savedImageUrls={savedImageUrls}
-      />
-    </div>
-  );
-
-  // Debug content (only shown when ?showRaw=true)
-  const debugContent = <RawDisplay>{JSON.stringify(data, null, 2)}</RawDisplay>;
-
   return (
-    <div className="bg-white rounded-xl border border-gray-100 w-full h-full flex flex-col">
-      <FormHeader title="Abzweigdose / Zugkasten" subtitle={subtitle} />
-      <div className="flex-1 overflow-y-auto px-6 py-4">
-        {showRaw ? (
-          <Tabs
-            defaultActiveKey="documents"
-            items={[
-              {
-                key: "documents",
-                label: <span>Dokumente</span>,
-                children: documentsContent,
-              },
-              {
-                key: "debug",
-                label: <span>Rohdaten</span>,
-                children: debugContent,
-              },
-            ]}
-          />
-        ) : (
-          documentsContent
-        )}
-      </div>
-    </div>
+    <FeatureFormLayout
+      title="Abzweigdose / Zugkasten"
+      subtitle={subtitle}
+      documents={documents}
+      jwt={jwt}
+      draftFiles={draftFiles}
+      onDraftFilesChange={onDraftFilesChange}
+      removedDocumentKeys={removedDocumentKeys}
+      onToggleRemoveDocument={handleToggleRemoveDocument}
+      debugData={data}
+      loading={loading}
+      saving={saving}
+      readOnly={readOnly}
+      hasDraft={hasDraft || removedDocumentKeys.size > 0}
+      onToggleReadOnly={onToggleReadOnly}
+      onCancel={onCancel}
+      onSave={handleSave}
+      singleColumn
+    >
+      {null}
+    </FeatureFormLayout>
   );
 };
 
