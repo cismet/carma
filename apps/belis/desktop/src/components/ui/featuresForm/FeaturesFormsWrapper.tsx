@@ -142,7 +142,7 @@ const FeaturesFormsWrapper = ({
   const handleDraftChange = useCallback(
     (values: Record<string, unknown>) => {
       if (featureId && formKey) {
-        dispatch(setDraft({ featureId, featureType: formKey, values: serializeValues(values) }));
+        dispatch(setDraft({ featureId, featureType: formKey, values: serializeValues(values), feature: selectedFeature }));
       }
     },
     [featureId, formKey, dispatch]
@@ -160,7 +160,7 @@ const FeaturesFormsWrapper = ({
   const handleDraftFilesChange = useCallback(
     (files: DraftFile[]) => {
       if (featureId && formKey) {
-        dispatch(setDraftFiles({ featureId, featureType: formKey, files }));
+        dispatch(setDraftFiles({ featureId, featureType: formKey, files, feature: selectedFeature }));
       }
     },
     [featureId, formKey, dispatch]
@@ -169,7 +169,7 @@ const FeaturesFormsWrapper = ({
   const handleRemovedDocumentKeysChange = useCallback(
     (keys: Set<string>) => {
       if (featureId && formKey) {
-        dispatch(setRemovedDocumentKeys({ featureId, featureType: formKey, keys: [...keys] }));
+        dispatch(setRemovedDocumentKeys({ featureId, featureType: formKey, keys: [...keys], feature: selectedFeature }));
       }
     },
     [featureId, formKey, dispatch]
