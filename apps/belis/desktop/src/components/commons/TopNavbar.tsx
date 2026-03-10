@@ -1,7 +1,8 @@
 import { Tooltip } from "antd";
 import { LogoutOutlined } from "@ant-design/icons";
 import { storeJWT, storeLogin } from "../../store/slices/auth";
-import { useDispatch } from "react-redux";
+import { getDraftFeaturesCount } from "../../store/slices/featuresForms";
+import { useDispatch, useSelector } from "react-redux";
 import { NavLink, useNavigate } from "react-router-dom";
 import SettingsUi from "../ui/SettingsUi";
 import SyncMenuModal from "../ui/SyncMenuModal";
@@ -9,6 +10,7 @@ import SyncMenuModal from "../ui/SyncMenuModal";
 const TopNavbar = () => {
   const dispatch = useDispatch();
   const navigate = useNavigate();
+  const draftsCount = useSelector(getDraftFeaturesCount);
 
   return (
     <div className="flex items-center mx-3 mb-4 mt-2">
@@ -35,6 +37,11 @@ const TopNavbar = () => {
         </NavLink>
       </div>
       <div className="ml-auto flex items-center gap-4">
+        {draftsCount > 0 && (
+          <span className="text-base text-gray-600">
+            nicht gespeicherte Änderungen ({draftsCount})
+          </span>
+        )}
         <SyncMenuModal />
         <Tooltip title="Ausloggen" placement="bottom">
           <LogoutOutlined
