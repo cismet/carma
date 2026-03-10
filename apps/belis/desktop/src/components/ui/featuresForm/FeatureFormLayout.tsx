@@ -5,6 +5,7 @@ import { DokumentItem } from "../DocumentPreview";
 import FilePreview, {
   SavedImageUrls,
   getFileType,
+  getDocumentKey,
   PendingUpload,
 } from "../FilePreview";
 import { getDocumentBlobUrl } from "../../../helper/documentHelper";
@@ -77,6 +78,18 @@ const FeatureFormLayout = ({
   onToggleReadOnly,
   singleColumn,
 }: FeatureFormLayoutProps) => {
+  // Deduplicate documents to prevent stale data from appearing as extra items
+  // when switching between features quickly.
+  const uniqueDocuments = useMemo(() => {
+    const seen = new Set<string>();
+    return documents.filter((doc) => {
+      const key = getDocumentKey(doc);
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
+  }, [documents]);
+
   // Support both regular query params and hash-based routing (/#/?param=value)
   const showRaw = useMemo(() => {
     const hashQuery = window.location.hash.split("?")[1] || "";
@@ -155,8 +168,8 @@ const FeatureFormLayout = ({
 
   // Combine main + extra documents for image pre-fetching
   const allDocumentsForImages = useMemo(
-    () => [...documents, ...extraDocumentSections.flatMap((s) => s.documents)],
-    [documents, extraDocumentSections]
+    () => [...uniqueDocuments, ...extraDocumentSections.flatMap((s) => s.documents)],
+    [uniqueDocuments, extraDocumentSections]
   );
 
   // Memoize image documents to avoid recreating the array on every render
@@ -177,7 +190,7 @@ const FeatureFormLayout = ({
       return ft === "image" || ft === "pdf";
     };
     return [
-      ...documents.filter(canShowInLightbox).map((doc) => ({
+      ...uniqueDocuments.filter(canShowInLightbox).map((doc) => ({
         doc,
         sectionTitle: mainDocumentsTitle,
       })),
@@ -188,7 +201,7 @@ const FeatureFormLayout = ({
         }))
       ),
     ];
-  }, [documents, extraDocumentSections, mainDocumentsTitle]);
+  }, [uniqueDocuments, extraDocumentSections, mainDocumentsTitle]);
 
   // Create a stable key for dependency tracking
   const imageDocumentsKey = useMemo(
@@ -256,7 +269,7 @@ const FeatureFormLayout = ({
   //   />
   // );
   const hasAnyDocuments =
-    documents.length > 0 ||
+    uniqueDocuments.length > 0 ||
     pendingUploads.length > 0 ||
     extraDocumentSections.some((s) => s.documents.length > 0);
 
@@ -285,7 +298,7 @@ const FeatureFormLayout = ({
       ) : (
         <>
           <FilePreview
-            documents={documents}
+            documents={uniqueDocuments}
             jwt={jwt}
             titleStyle={labelStyle}
             title={mainDocumentsTitle}
