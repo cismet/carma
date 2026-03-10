@@ -11,8 +11,8 @@ import {
 import type { AnnotationSlotKind } from "./getAnnotationInfoBoxSlots";
 import {
   useAnnotationCollection,
+  usePlanarAnnotationReadModel,
   useAnnotationSelectionState,
-  useAnnotationViewState,
 } from "../../context/AnnotationsProvider";
 
 export type AnnotationInfoBoxNavigationBindings = {
@@ -30,7 +30,7 @@ export const useAnnotationInfoBoxNavigationBindings = (
 ): AnnotationInfoBoxNavigationBindings => {
   const annotations = useAnnotationCollection();
   const selection = useAnnotationSelectionState();
-  const view = useAnnotationViewState();
+  const planarReadModel = usePlanarAnnotationReadModel();
 
   const navigationMeasurements = useMemo(() => {
     if (annotationType === ANNOTATION_TYPE_LABEL) {
@@ -42,12 +42,17 @@ export const useAnnotationInfoBoxNavigationBindings = (
       annotationType === ANNOTATION_TYPE_AREA_PLANAR ||
       annotationType === ANNOTATION_TYPE_AREA_VERTICAL
     ) {
-      return view.planarMeasurements.map((measurement) => ({
+      return planarReadModel.measurements.map((measurement) => ({
         id: measurement.id,
       }));
     }
     return annotations.getNavigationItems().map((entry) => ({ id: entry.id }));
-  }, [annotationType, annotations, labelMeasurements, view.planarMeasurements]);
+  }, [
+    annotationType,
+    annotations,
+    labelMeasurements,
+    planarReadModel.measurements,
+  ]);
 
   const isPlanarAnnotationType =
     annotationType === ANNOTATION_TYPE_POLYLINE ||
@@ -61,26 +66,27 @@ export const useAnnotationInfoBoxNavigationBindings = (
     }
 
     const activePlanarGroup =
-      view.activePlanarMeasurementId !== null
-        ? view.planarMeasurements.find(
-            (measurement) => measurement.id === view.activePlanarMeasurementId
+      planarReadModel.activeMeasurementId !== null
+        ? planarReadModel.measurements.find(
+            (measurement) =>
+              measurement.id === planarReadModel.activeMeasurementId
           ) ?? null
         : null;
     const requiredVertexCount =
       activePlanarGroup?.type === ANNOTATION_TYPE_POLYLINE ? 2 : 3;
     const canUseActivePlanarGroup =
       activePlanarGroup !== null &&
-      activePlanarGroup.vertexPointIds.length >= requiredVertexCount;
+      activePlanarGroup.nodeIds.length >= requiredVertexCount;
 
     return canUseActivePlanarGroup
       ? activePlanarGroup.id
-      : view.focusedPlanarMeasurementId;
+      : planarReadModel.focusedMeasurementId;
   }, [
     currentMeasurementId,
     isPlanarAnnotationType,
-    view.activePlanarMeasurementId,
-    view.focusedPlanarMeasurementId,
-    view.planarMeasurements,
+    planarReadModel.activeMeasurementId,
+    planarReadModel.focusedMeasurementId,
+    planarReadModel.measurements,
   ]);
 
   const handleNavigationSelection = (id: string | null) => {

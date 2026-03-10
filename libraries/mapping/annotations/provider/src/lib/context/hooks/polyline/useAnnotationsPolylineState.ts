@@ -36,7 +36,7 @@ export const useAnnotationsPolylineState = (
 
   const focusedPolylineStartPointId =
     focusedPolyline?.distanceMeasurementStartPointId ??
-    focusedPolyline?.vertexPointIds[0] ??
+    focusedPolyline?.nodeIds[0] ??
     null;
 
   const focusedPolylineDistanceToStartByPointId = useMemo(() => {
@@ -45,7 +45,7 @@ export const useAnnotationsPolylineState = (
     }
 
     const byId: Record<string, number> = {};
-    focusedPolyline.vertexPointIds.forEach((pointId, index) => {
+    focusedPolyline.nodeIds.forEach((pointId, index) => {
       byId[pointId] =
         focusedPolyline.segmentLengthsCumulativeMeters[index] ?? 0;
     });
@@ -71,11 +71,11 @@ export const useAnnotationsPolylineState = (
     }
 
     if (focusedPolyline) {
-      const focusedStartPointIndex = focusedPolyline.vertexPointIds.findIndex(
+      const focusedStartPointIndex = focusedPolyline.nodeIds.findIndex(
         (pointId) => pointId === focusedPolylineStartPointId
       );
       if (focusedStartPointIndex >= 0) {
-        return focusedPolyline.vertexHeightsMeters[focusedStartPointIndex] ?? 0;
+        return focusedPolyline.nodeHeightsMeters[focusedStartPointIndex] ?? 0;
       }
     }
 
@@ -121,8 +121,8 @@ export const useAnnotationsPolylineState = (
       if (polyline.id === focusedPlanarMeasurementId) {
         return;
       }
-      const first = polyline.vertexPointIds[0];
-      const last = polyline.vertexPointIds[polyline.vertexPointIds.length - 1];
+      const first = polyline.nodeIds[0];
+      const last = polyline.nodeIds[polyline.nodeIds.length - 1];
       if (first && first !== last) {
         ids.add(first);
       }
@@ -136,8 +136,8 @@ export const useAnnotationsPolylineState = (
       if (polyline.id === focusedPlanarMeasurementId) {
         return;
       }
-      polyline.vertexPointIds.forEach((pointId, index) => {
-        if (index === 0 || index === polyline.vertexPointIds.length - 1) {
+      polyline.nodeIds.forEach((pointId, index) => {
+        if (index === 0 || index === polyline.nodeIds.length - 1) {
           return;
         }
         ids.add(pointId);

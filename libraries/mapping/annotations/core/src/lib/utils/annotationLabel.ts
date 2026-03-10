@@ -116,7 +116,7 @@ type DistanceRelationLike = {
 
 type PolylineLabelLike = {
   id: string;
-  vertexPointIds: ReadonlyArray<string>;
+  nodeIds: ReadonlyArray<string>;
   totalLengthMeters: number;
 };
 
@@ -319,12 +319,11 @@ export const buildDesiredPointLabelAnchorById = <
 
   polylines.forEach((polyline) => {
     if (polyline.id === focusedPlanarMeasurementId) return;
-    polyline.vertexPointIds.forEach((pointId) => {
+    polyline.nodeIds.forEach((pointId) => {
       if (!pointId) return;
       byPointId[pointId] = undefined;
     });
-    const lastPointId =
-      polyline.vertexPointIds[polyline.vertexPointIds.length - 1] ?? null;
+    const lastPointId = polyline.nodeIds[polyline.nodeIds.length - 1] ?? null;
     if (!lastPointId) return;
     byPointId[lastPointId] = {
       anchorPointId: lastPointId,

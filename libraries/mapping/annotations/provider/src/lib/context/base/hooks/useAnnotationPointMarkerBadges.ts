@@ -34,7 +34,7 @@ export type AnnotationPointMarkerBadgePointLike = {
 export type AnnotationPointMarkerBadgePlanarGroupLike = {
   id: string;
   type: PlanarGroupBadgeKind;
-  vertexPointIds: string[];
+  nodeIds: string[];
 };
 
 export type AnnotationPointMarkerBadgeDistanceRelationLike = {
@@ -84,7 +84,7 @@ export const useAnnotationPointMarkerBadges = <
     const getGroupSortTuple = (group: TPlanarGroup) => {
       let minIndex = Number.POSITIVE_INFINITY;
       let minTimestamp = Number.POSITIVE_INFINITY;
-      group.vertexPointIds.forEach((pointId) => {
+      group.nodeIds.forEach((pointId) => {
         const point = pointById.get(pointId);
         if (!point) return;
         minIndex = Math.min(minIndex, point.index ?? Number.POSITIVE_INFINITY);
@@ -123,7 +123,7 @@ export const useAnnotationPointMarkerBadges = <
         backgroundColor: badgeConfig.backgroundColor,
         textColor: badgeConfig.textColor,
       };
-      group.vertexPointIds.forEach((pointId) => {
+      group.nodeIds.forEach((pointId) => {
         assignBadge(pointId, badge, true);
       });
     });

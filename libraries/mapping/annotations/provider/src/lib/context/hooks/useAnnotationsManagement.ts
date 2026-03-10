@@ -12,7 +12,6 @@ import {
   Cartesian2,
   Cartesian3,
   Cartesian4,
-  BoundingSphere,
   type Scene,
   Matrix4,
   ScreenSpaceEventHandler,
@@ -32,6 +31,7 @@ import {
 } from "@carma/cesium";
 import { useLabelOverlay } from "@carma-providers/label-overlay";
 
+import { useStoreSelector } from "@carma-commons/react-store";
 import { normalizeOptions } from "@carma-commons/utils";
 import {
   ANNOTATION_TYPE_AREA_GROUND,
@@ -41,7 +41,7 @@ import {
   ANNOTATION_TYPE_LABEL,
   ANNOTATION_TYPE_POINT,
   ANNOTATION_TYPE_POLYLINE,
-  DEFAULT_LINEAR_SEGMENT_LINE_MODE,
+  SELECT_TOOL_TYPE,
   DEFAULT_POINT_LABEL_METRIC_MODE,
   LINEAR_SEGMENT_LINE_MODE_COMPONENTS,
   LINEAR_SEGMENT_LINE_MODE_DIRECT,
@@ -67,6 +67,7 @@ import {
   getPointById,
   getPointPositionMap,
   hasAnyVisibleDistanceRelationLine,
+  isAreaToolType,
   isSameDistanceRelationPair,
   buildEdgeRelationIdsForPolygon,
   buildVerticalAutoCloseRectangle,
@@ -96,21 +97,18 @@ import {
   type LinearSegmentLineMode,
 } from "@carma-mapping/annotations/core";
 import type { PointLabelLayoutConfigOverrides } from "@carma-providers/label-overlay";
-
-import { flyToBoundingSphereExtent } from "@carma-mapping/engines/cesium/api";
-
-import { useCesiumOverlaySync } from "@carma-mapping/annotations/cesium";
 import {
-  PLANAR_TOOL_CREATION_MODE_POLYGON,
-  PLANAR_TOOL_CREATION_MODE_POLYLINE,
+  flyToMeasurementPoints,
+  useCesiumOverlaySync,
+} from "@carma-mapping/annotations/cesium";
+import {
   type AnnotationCreatePayload,
   type AnnotationPointMarkerBadge,
-  type PlanarToolCreationMode,
   useAnnotationSelection,
   useAnnotationEntryMutations,
   useLockedMeasurementIdSet,
-  useAnnotationVisibilityState,
 } from "../base";
+import type { AnnotationsStore } from "../store";
 import {
   ANNOTATION_CANDIDATE_KIND_DISTANCE,
   ANNOTATION_CANDIDATE_KIND_NONE,
@@ -125,6 +123,7 @@ import {
 import { useAnnotationsCollectionState } from "./useAnnotationsCollectionState";
 import { useAnnotationsRenderState } from "./useAnnotationsRenderState";
 import { useAnnotationCreateDefaults } from "./useAnnotationCreateDefaults";
+import { useAnnotationEditState } from "./useAnnotationEditState";
 import { useMeasurementOwnershipIndex } from "./useMeasurementOwnershipIndex";
 import { useAnnotationsPolylineState } from "./polyline/useAnnotationsPolylineState";
 import { useClosedAreaSelectionState } from "./selection/useClosedAreaSelectionState";
@@ -137,26 +136,20 @@ import { useStandaloneDistancePointState } from "./point/label/useStandaloneDist
 import { useSyncPointLabelAnchors } from "./point/label/useSyncPointLabelAnchors";
 import { usePointEditingState } from "./point/editing/usePointEditingState";
 import { useAnnotationModeLifecycle } from "../mode-lifecycle/useAnnotationModeLifecycle";
-import { useAnnotationDraftLifecycleState } from "../mode-lifecycle/useAnnotationDraftLifecycleState";
 import { useAnnotationToolSessions } from "../mode-lifecycle/useAnnotationToolSessions";
-import {
-  buildAnnotationToolState,
-  isAreaToolType,
-  isPlanarMeasurementToolType,
-  resolveActiveAnnotationToolType,
-} from "../mode-lifecycle/annotationToolState";
+import { useMeasurementDraftRollbackState } from "../mode-lifecycle/useMeasurementDraftRollbackState";
 import { usePointMeasureModeSession } from "../mode-lifecycle/modes/usePointMeasureModeSession";
 import { useLabelPlacementModeSession } from "../mode-lifecycle/modes/useLabelPlacementModeSession";
 
 const VERTICAL_POLYGON_AXIS_ALIGNMENT_DOT_EPSILON = 0.999;
 const VERTICAL_POLYGON_EN_MATCH_EPSILON_METERS = 0.05;
 export type AnnotationsOptions = {
-  temporary?: boolean;
   pointQueries?: {
     enabled?: boolean;
     radius?: number;
     verticalOffsetMeters?: number;
     heightOffset?: number;
+    temporaryMode?: boolean;
   };
   cartographicCRS?: "string";
   initialToolType?: AnnotationToolType;
@@ -170,7 +163,6 @@ export type AnnotationsOptions = {
 };
 
 const defaultOptions: AnnotationsOptions = {
-  temporary: false,
   initialToolType: ANNOTATION_TYPE_POINT,
 };
 
@@ -179,6 +171,7 @@ const defaultPointQueryOptions: AnnotationsOptions["pointQueries"] = {
   radius: 1,
   verticalOffsetMeters: 0,
   heightOffset: 1.5,
+  temporaryMode: false,
 };
 const defaultMoveGizmoOptions: NonNullable<AnnotationsOptions["moveGizmo"]> = {
   markerSizeScale: 1,
@@ -198,27 +191,16 @@ const DEFAULT_DISTANCE_RELATION_LABEL_VISIBILITY: Record<
 };
 const DEFAULT_DIRECT_LINE_LABEL_MODE: DirectLineLabelMode = "segment";
 
-const FLY_TO_MIN_RADIUS_METERS = 50;
-const FLY_TO_PADDING_FACTOR = 1.1;
-
-const flyToMeasurementPointGroup = (
-  scene: Scene | null | undefined,
-  points: Cartesian3[]
-) => {
-  if (!scene || scene.isDestroyed() || points.length === 0) {
-    return;
-  }
-
-  const sphere = BoundingSphere.fromPoints(points);
-  sphere.radius = Math.max(sphere.radius, FLY_TO_MIN_RADIUS_METERS);
-
-  flyToBoundingSphereExtent(scene.camera, sphere, {
-    minRange: FLY_TO_MIN_RADIUS_METERS,
-    paddingFactor: FLY_TO_PADDING_FACTOR,
-  });
-};
+const resolveSetStateAction = <TValue>(
+  action: SetStateAction<TValue>,
+  previousValue: TValue
+): TValue =>
+  typeof action === "function"
+    ? (action as (previousValue: TValue) => TValue)(previousValue)
+    : action;
 
 export const useAnnotationsManagement = (
+  annotationsStore: AnnotationsStore,
   scene: Scene,
   enabled: boolean = true,
   options?: AnnotationsOptions
@@ -263,204 +245,518 @@ export const useAnnotationsManagement = (
   );
 
   const normalizedOptions = normalizeOptions(options, defaultOptions);
-  const {
-    initialToolType,
-    temporary: initialTemporary,
-    initialPersistenceState,
-    onPersistenceStateChange,
-  } = normalizedOptions;
+  const { initialPersistenceState, onPersistenceStateChange } =
+    normalizedOptions;
   const isInteractionActive = enabled;
-  const initialToolState = buildAnnotationToolState(
-    initialToolType ?? ANNOTATION_TYPE_POINT
+
+  const updateAnnotationEntryNameById = useCallback(
+    (id: string, name: string) => {
+      const trimmedName = name.trim();
+      setAnnotations((previousAnnotations) => {
+        let hasChanges = false;
+        const nextAnnotations = previousAnnotations.map((annotation) => {
+          if (annotation.id !== id) {
+            return annotation;
+          }
+
+          const currentName = annotation.name ?? "";
+          if (currentName === trimmedName) {
+            return annotation;
+          }
+
+          hasChanges = true;
+          return {
+            ...annotation,
+            name: trimmedName,
+          };
+        });
+        return hasChanges ? nextAnnotations : previousAnnotations;
+      });
+    },
+    []
   );
 
-  const [annotationMode, setAnnotationModeState] = useState<AnnotationMode>(
-    initialToolState.annotationMode
-  );
-  const [annotations, setAnnotations] = useState<AnnotationCollection>([]);
-  const [showLabels, setShowLabels] = useState(true);
-
-  const updateAnnotationNameById = useCallback((id: string, name: string) => {
-    const trimmedName = name.trim();
-    setAnnotations((previousAnnotations) => {
-      let hasChanges = false;
-      const nextAnnotations = previousAnnotations.map((annotation) => {
-        if (annotation.id !== id) {
-          return annotation;
-        }
-
-        const currentName = annotation.name ?? "";
-        if (currentName === trimmedName) {
-          return annotation;
-        }
-
-        hasChanges = true;
-        return {
-          ...annotation,
-          name: trimmedName,
-        };
-      });
-      return hasChanges ? nextAnnotations : previousAnnotations;
-    });
-  }, []);
-
-  const toggleAnnotationLockById = useCallback((id: string) => {
-    setAnnotations((previousAnnotations) => {
-      let hasChanges = false;
-      const nextAnnotations = previousAnnotations.map((annotation) => {
-        if (annotation.id !== id) {
-          return annotation;
-        }
-
-        hasChanges = true;
-        return {
-          ...annotation,
-          locked: !annotation.locked,
-        };
-      });
-      return hasChanges ? nextAnnotations : previousAnnotations;
-    });
-  }, []);
-
-  const toggleAnnotationsLockByIds = useCallback((ids: string[]) => {
-    if (ids.length === 0) {
-      return;
-    }
-
-    const idSet = new Set(ids);
-    setAnnotations((previousAnnotations) => {
-      let hasChanges = false;
-      const shouldLock = previousAnnotations.some(
-        (annotation) => idSet.has(annotation.id) && !annotation.locked
-      );
-
-      const nextAnnotations = previousAnnotations.map((annotation) => {
-        if (!idSet.has(annotation.id)) {
-          return annotation;
-        }
-
-        if (annotation.locked === shouldLock) {
-          return annotation;
-        }
-
-        hasChanges = true;
-        return {
-          ...annotation,
-          locked: shouldLock,
-        };
-      });
-
-      return hasChanges ? nextAnnotations : previousAnnotations;
-    });
-  }, []);
-
-  const toggleAnnotationsVisibilityByIds = useCallback((ids: string[]) => {
-    if (ids.length === 0) {
-      return;
-    }
-
-    const idSet = new Set(ids);
-    setAnnotations((previousAnnotations) => {
-      let hasChanges = false;
-      const shouldHide = previousAnnotations.some(
-        (annotation) => idSet.has(annotation.id) && !annotation.hidden
-      );
-
-      const nextAnnotations = previousAnnotations.map((annotation) => {
-        if (!idSet.has(annotation.id)) {
-          return annotation;
-        }
-
-        if (Boolean(annotation.hidden) === shouldHide) {
-          return annotation;
-        }
-
-        hasChanges = true;
-        return {
-          ...annotation,
-          hidden: shouldHide,
-        };
-      });
-
-      return hasChanges ? nextAnnotations : previousAnnotations;
-    });
-  }, []);
-
-  const [pointRadius, setPointRadius] = useState(pointQueryOptions.radius ?? 1);
-  const [pointVerticalOffsetMeters, setPointVerticalOffsetMeters] = useState(
-    pointQueryOptions.verticalOffsetMeters ?? 0
-  );
-  const [
-    defaultPolylineVerticalOffsetMeters,
-    setDefaultPolylineVerticalOffsetMeters,
-  ] = useState(pointQueryOptions.verticalOffsetMeters ?? 0);
   const polylineVerticalOffsetVisualOnly = true;
   const setPolylineVerticalOffsetVisualOnly = useCallback<
     Dispatch<SetStateAction<boolean>>
   >(() => {
     // Polyline offset is intentionally always interpreted as visual-only.
   }, []);
-  const [defaultPolylineSegmentLineMode, setDefaultPolylineSegmentLineMode] =
-    useState<LinearSegmentLineMode>(DEFAULT_LINEAR_SEGMENT_LINE_MODE);
-  const [planarToolCreationMode, setPlanarToolCreationMode] =
-    useState<PlanarToolCreationMode>(initialToolState.planarToolCreationMode);
-  const [polygonSurfaceTypePreset, setPolygonSurfaceTypePreset] =
-    useState<PlanarPolygonAreaType>(initialToolState.polygonSurfaceTypePreset);
-  const [distanceModeStickyToFirstPoint, setDistanceModeStickyToFirstPoint] =
-    useState(false);
-  const [distanceCreationLineVisibility, setDistanceCreationLineVisibility] =
-    useState({
-      direct: true,
-      vertical: true,
-      horizontal: true,
-    });
-  const [heightOffset, setHeightOffset] = useState(
-    pointQueryOptions.heightOffset ?? 1.5
+  const annotations = useStoreSelector(
+    annotationsStore,
+    (state) => state.annotationEntries
   );
-  const [temporaryMode, setTemporaryMode] = useState<boolean>(
-    initialTemporary ?? false
+  const distanceRelations = useStoreSelector(
+    annotationsStore,
+    (state) => state.distanceRelations
   );
-  const [pointLabelOnCreate, setPointLabelOnCreate] = useState(
-    initialToolState.pointLabelOnCreate
+  const planarMeasurements = useStoreSelector(
+    annotationsStore,
+    (state) => state.planarMeasurements
   );
-  const {
-    hideMeasurementsOfType,
-    setHideMeasurementsOfType,
-    hideLabelsOfType,
-    setHideLabelsOfType,
-  } = useAnnotationVisibilityState<AnnotationMode>();
-  const isSceneReady = Boolean(scene && !scene.isDestroyed());
+  const setAnnotations = useCallback<
+    Dispatch<SetStateAction<AnnotationCollection>>
+  >(
+    (nextValueOrUpdater) => {
+      annotationsStore.setState((previousStoreState) => {
+        const nextAnnotations = resolveSetStateAction(
+          nextValueOrUpdater,
+          previousStoreState.annotationEntries
+        );
 
-  const [referencePoint, setReferencePoint] = useState<Cartesian3 | null>(null);
-  const [occlusionChecksEnabled, setOcclusionChecksEnabled] =
-    useState<boolean>(true);
-  const [distanceRelations, setDistanceRelations] = useState<
-    PointDistanceRelation[]
-  >([]);
-  const [planarPolygonGroups, setPlanarPolygonGroups] = useState<
-    PlanarMeasurementGroup[]
-  >([]);
+        return Object.is(nextAnnotations, previousStoreState.annotationEntries)
+          ? previousStoreState
+          : {
+              ...previousStoreState,
+              annotationEntries: nextAnnotations,
+            };
+      });
+    },
+    [annotationsStore]
+  );
+  const setDistanceRelations = useCallback<
+    Dispatch<SetStateAction<PointDistanceRelation[]>>
+  >(
+    (nextValueOrUpdater) => {
+      annotationsStore.setState((previousStoreState) => {
+        const nextDistanceRelations = resolveSetStateAction(
+          nextValueOrUpdater,
+          previousStoreState.distanceRelations
+        );
+
+        return Object.is(
+          nextDistanceRelations,
+          previousStoreState.distanceRelations
+        )
+          ? previousStoreState
+          : {
+              ...previousStoreState,
+              distanceRelations: nextDistanceRelations,
+            };
+      });
+    },
+    [annotationsStore]
+  );
+  const setPlanarMeasurements = useCallback<
+    Dispatch<SetStateAction<PlanarMeasurementGroup[]>>
+  >(
+    (nextValueOrUpdater) => {
+      annotationsStore.setState((previousStoreState) => {
+        const nextPlanarMeasurements = resolveSetStateAction(
+          nextValueOrUpdater,
+          previousStoreState.planarMeasurements
+        );
+
+        return Object.is(
+          nextPlanarMeasurements,
+          previousStoreState.planarMeasurements
+        )
+          ? previousStoreState
+          : {
+              ...previousStoreState,
+              planarMeasurements: nextPlanarMeasurements,
+            };
+      });
+    },
+    [annotationsStore]
+  );
+  const planarPolygonGroups = planarMeasurements;
+  const referencePoint = useStoreSelector(
+    annotationsStore,
+    (state) => state.referencePoint
+  );
+  const setReferencePoint = useCallback<
+    Dispatch<SetStateAction<Cartesian3 | null>>
+  >(
+    (nextValueOrUpdater) => {
+      annotationsStore.setState((previousStoreState) => {
+        const nextReferencePoint = resolveSetStateAction(
+          nextValueOrUpdater,
+          previousStoreState.referencePoint
+        );
+
+        return Object.is(nextReferencePoint, previousStoreState.referencePoint)
+          ? previousStoreState
+          : {
+              ...previousStoreState,
+              referencePoint: nextReferencePoint,
+            };
+      });
+    },
+    [annotationsStore]
+  );
+  const annotationToolType = useStoreSelector(
+    annotationsStore,
+    (state) => state.annotationToolType
+  );
+  const settingsState = useStoreSelector(
+    annotationsStore,
+    (state) => state.settingsState
+  );
+  const pointQuerySettings = settingsState.pointQuery;
+  const pointSettings = settingsState.point;
+  const distanceSettings = settingsState.distance;
+  const polylineSettings = settingsState.polyline;
+  const setSettingsState = useCallback<
+    Dispatch<SetStateAction<typeof settingsState>>
+  >(
+    (nextValueOrUpdater) => {
+      annotationsStore.setState((previousStoreState) => {
+        const nextSettingsState = resolveSetStateAction(
+          nextValueOrUpdater,
+          previousStoreState.settingsState
+        );
+
+        return Object.is(nextSettingsState, previousStoreState.settingsState)
+          ? previousStoreState
+          : {
+              ...previousStoreState,
+              settingsState: nextSettingsState,
+            };
+      });
+    },
+    [annotationsStore]
+  );
+  const setPointSettings = useCallback<
+    Dispatch<SetStateAction<typeof pointSettings>>
+  >(
+    (nextValueOrUpdater) => {
+      setSettingsState((previousState) => {
+        const nextPointSettings = resolveSetStateAction(
+          nextValueOrUpdater,
+          previousState.point
+        );
+
+        return Object.is(nextPointSettings, previousState.point)
+          ? previousState
+          : {
+              ...previousState,
+              point: nextPointSettings,
+            };
+      });
+    },
+    [setSettingsState]
+  );
+  const setDistanceSettings = useCallback<
+    Dispatch<SetStateAction<typeof distanceSettings>>
+  >(
+    (nextValueOrUpdater) => {
+      setSettingsState((previousState) => {
+        const nextDistanceSettings = resolveSetStateAction(
+          nextValueOrUpdater,
+          previousState.distance
+        );
+
+        return Object.is(nextDistanceSettings, previousState.distance)
+          ? previousState
+          : {
+              ...previousState,
+              distance: nextDistanceSettings,
+            };
+      });
+    },
+    [setSettingsState]
+  );
+  const setPolylineSettings = useCallback<
+    Dispatch<SetStateAction<typeof polylineSettings>>
+  >(
+    (nextValueOrUpdater) => {
+      setSettingsState((previousState) => {
+        const nextPolylineSettings = resolveSetStateAction(
+          nextValueOrUpdater,
+          previousState.polyline
+        );
+
+        return Object.is(nextPolylineSettings, previousState.polyline)
+          ? previousState
+          : {
+              ...previousState,
+              polyline: nextPolylineSettings,
+            };
+      });
+    },
+    [setSettingsState]
+  );
+  const showLabels = useStoreSelector(
+    annotationsStore,
+    (state) => state.showLabels
+  );
+  const occlusionChecksEnabled = useStoreSelector(
+    annotationsStore,
+    (state) => state.occlusionChecksEnabled
+  );
+  const [hideMeasurementsOfType, setHideMeasurementsOfType] = useState<
+    Set<AnnotationMode>
+  >(new Set());
+  const [hideLabelsOfType, setHideLabelsOfType] = useState<Set<AnnotationMode>>(
+    new Set()
+  );
+  const isSceneReady = Boolean(scene && !scene.isDestroyed());
   const [polylines, setPolylines] = useState<DerivedPolylinePath[]>([]);
+  const pointRadius = pointQuerySettings.radius;
+  const pointVerticalOffsetMeters = pointSettings.verticalOffsetMeters;
+  const pointTemporaryMode = pointSettings.temporaryMode;
+  const defaultPolylineVerticalOffsetMeters =
+    polylineSettings.defaultVerticalOffsetMeters;
+  const defaultPolylineSegmentLineMode =
+    polylineSettings.defaultSegmentLineMode;
+  const distanceModeStickyToFirstPoint = distanceSettings.stickyToFirstPoint;
+  const distanceCreationLineVisibility =
+    distanceSettings.creationLineVisibility;
+  const heightOffset = pointQuerySettings.heightOffset;
+  const setPointVerticalOffsetMeters = useCallback<
+    Dispatch<SetStateAction<number>>
+  >(
+    (nextValueOrUpdater) => {
+      setPointSettings((previousState) => {
+        const nextVerticalOffsetMeters =
+          typeof nextValueOrUpdater === "function"
+            ? nextValueOrUpdater(previousState.verticalOffsetMeters)
+            : nextValueOrUpdater;
+
+        return nextVerticalOffsetMeters === previousState.verticalOffsetMeters
+          ? previousState
+          : {
+              ...previousState,
+              verticalOffsetMeters: nextVerticalOffsetMeters,
+            };
+      });
+    },
+    [setPointSettings]
+  );
+  const setPointTemporaryMode = useCallback<Dispatch<SetStateAction<boolean>>>(
+    (nextValueOrUpdater) => {
+      setPointSettings((previousState) => {
+        const nextTemporaryMode =
+          typeof nextValueOrUpdater === "function"
+            ? nextValueOrUpdater(previousState.temporaryMode)
+            : nextValueOrUpdater;
+
+        return nextTemporaryMode === previousState.temporaryMode
+          ? previousState
+          : {
+              ...previousState,
+              temporaryMode: nextTemporaryMode,
+            };
+      });
+    },
+    [setPointSettings]
+  );
+  const setDefaultPolylineVerticalOffsetMeters = useCallback<
+    Dispatch<SetStateAction<number>>
+  >(
+    (nextValueOrUpdater) => {
+      setPolylineSettings((previousState) => {
+        const nextDefaultVerticalOffsetMeters =
+          typeof nextValueOrUpdater === "function"
+            ? nextValueOrUpdater(previousState.defaultVerticalOffsetMeters)
+            : nextValueOrUpdater;
+
+        return nextDefaultVerticalOffsetMeters ===
+          previousState.defaultVerticalOffsetMeters
+          ? previousState
+          : {
+              ...previousState,
+              defaultVerticalOffsetMeters: nextDefaultVerticalOffsetMeters,
+            };
+      });
+    },
+    [setPolylineSettings]
+  );
+  const setDefaultPolylineSegmentLineMode = useCallback<
+    Dispatch<SetStateAction<LinearSegmentLineMode>>
+  >(
+    (nextValueOrUpdater) => {
+      setPolylineSettings((previousState) => {
+        const nextDefaultSegmentLineMode =
+          typeof nextValueOrUpdater === "function"
+            ? nextValueOrUpdater(previousState.defaultSegmentLineMode)
+            : nextValueOrUpdater;
+
+        return nextDefaultSegmentLineMode ===
+          previousState.defaultSegmentLineMode
+          ? previousState
+          : {
+              ...previousState,
+              defaultSegmentLineMode: nextDefaultSegmentLineMode,
+            };
+      });
+    },
+    [setPolylineSettings]
+  );
+  const setDistanceModeStickyToFirstPoint = useCallback<
+    Dispatch<SetStateAction<boolean>>
+  >(
+    (nextValueOrUpdater) => {
+      setDistanceSettings((previousState) => {
+        const nextStickyToFirstPoint =
+          typeof nextValueOrUpdater === "function"
+            ? nextValueOrUpdater(previousState.stickyToFirstPoint)
+            : nextValueOrUpdater;
+
+        return nextStickyToFirstPoint === previousState.stickyToFirstPoint
+          ? previousState
+          : {
+              ...previousState,
+              stickyToFirstPoint: nextStickyToFirstPoint,
+            };
+      });
+    },
+    [setDistanceSettings]
+  );
+  const setDistanceCreationLineVisibility = useCallback<
+    Dispatch<
+      SetStateAction<{
+        direct: boolean;
+        vertical: boolean;
+        horizontal: boolean;
+      }>
+    >
+  >(
+    (nextValueOrUpdater) => {
+      setDistanceSettings((previousState) => {
+        const nextCreationLineVisibility =
+          typeof nextValueOrUpdater === "function"
+            ? nextValueOrUpdater(previousState.creationLineVisibility)
+            : nextValueOrUpdater;
+
+        return Object.is(
+          nextCreationLineVisibility,
+          previousState.creationLineVisibility
+        )
+          ? previousState
+          : {
+              ...previousState,
+              creationLineVisibility: nextCreationLineVisibility,
+            };
+      });
+    },
+    [setDistanceSettings]
+  );
   const {
-    draftSession,
-    activePlanarMeasurementId,
-    setActivePlanarMeasurementId,
-    clearActivePlanarMeasurement,
+    createdPointIds,
+    createdRelationIds,
     clearMeasurementDraftSession,
     trackMeasurementDraftPointIds,
     trackMeasurementDraftRelationId,
     pruneMeasurementDraftSession,
-    pendingLabelPlacementAnnotationId: labelInputPromptPointId,
-    setPendingLabelPlacementAnnotationId: setLabelInputPromptPointId,
-    clearPendingLabelPlacementAnnotation,
-    openChainPointId: doubleClickChainSourcePointId,
-    setOpenChainPointId: setDoubleClickChainSourcePointId,
-    pendingPolylineRingPromotionPointId:
-      pendingPolylinePromotionRingClosurePointId,
-    setPendingPolylineRingPromotionPointId:
-      setPendingPolylinePromotionRingClosurePointId,
-    clearPendingPolylineRingPromotion,
-  } = useAnnotationDraftLifecycleState();
+  } = useMeasurementDraftRollbackState(annotationsStore);
+  const activePlanarMeasurementId = useStoreSelector(
+    annotationsStore,
+    (state) => state.activePlanarMeasurementId
+  );
+  const pendingPolylinePromotionRingClosurePointId = useStoreSelector(
+    annotationsStore,
+    (state) => state.pendingPolylineRingPromotionPointId
+  );
+  const labelInputPromptPointId = useStoreSelector(
+    annotationsStore,
+    (state) => state.pendingLabelPlacementAnnotationId
+  );
+  const doubleClickChainSourcePointId = useStoreSelector(
+    annotationsStore,
+    (state) => state.openChainPointId
+  );
+  const setActivePlanarMeasurementId = useCallback<
+    Dispatch<SetStateAction<string | null>>
+  >(
+    (nextValueOrUpdater) => {
+      annotationsStore.setState((previousState) => {
+        const nextActivePlanarMeasurementId = resolveSetStateAction(
+          nextValueOrUpdater,
+          previousState.activePlanarMeasurementId
+        );
+
+        return nextActivePlanarMeasurementId ===
+          previousState.activePlanarMeasurementId
+          ? previousState
+          : {
+              ...previousState,
+              activePlanarMeasurementId: nextActivePlanarMeasurementId,
+            };
+      });
+    },
+    [annotationsStore]
+  );
+  const clearActivePlanarMeasurement = useCallback(() => {
+    setActivePlanarMeasurementId((previousId) =>
+      previousId === null ? previousId : null
+    );
+  }, [setActivePlanarMeasurementId]);
+  const setPendingPolylinePromotionRingClosurePointId = useCallback<
+    Dispatch<SetStateAction<string | null>>
+  >(
+    (nextValueOrUpdater) => {
+      annotationsStore.setState((previousState) => {
+        const nextPendingPolylineRingPromotionPointId = resolveSetStateAction(
+          nextValueOrUpdater,
+          previousState.pendingPolylineRingPromotionPointId
+        );
+
+        return nextPendingPolylineRingPromotionPointId ===
+          previousState.pendingPolylineRingPromotionPointId
+          ? previousState
+          : {
+              ...previousState,
+              pendingPolylineRingPromotionPointId:
+                nextPendingPolylineRingPromotionPointId,
+            };
+      });
+    },
+    [annotationsStore]
+  );
+  const clearPendingPolylineRingPromotion = useCallback(() => {
+    setPendingPolylinePromotionRingClosurePointId((previousId) =>
+      previousId === null ? previousId : null
+    );
+  }, [setPendingPolylinePromotionRingClosurePointId]);
+  const setLabelInputPromptPointId = useCallback<
+    Dispatch<SetStateAction<string | null>>
+  >(
+    (nextValueOrUpdater) => {
+      annotationsStore.setState((previousState) => {
+        const nextPendingLabelPlacementAnnotationId = resolveSetStateAction(
+          nextValueOrUpdater,
+          previousState.pendingLabelPlacementAnnotationId
+        );
+
+        return nextPendingLabelPlacementAnnotationId ===
+          previousState.pendingLabelPlacementAnnotationId
+          ? previousState
+          : {
+              ...previousState,
+              pendingLabelPlacementAnnotationId:
+                nextPendingLabelPlacementAnnotationId,
+            };
+      });
+    },
+    [annotationsStore]
+  );
+  const clearPendingLabelPlacementAnnotation = useCallback(() => {
+    setLabelInputPromptPointId((previousId) =>
+      previousId === null ? previousId : null
+    );
+  }, [setLabelInputPromptPointId]);
+  const setDoubleClickChainSourcePointId = useCallback<
+    Dispatch<SetStateAction<string | null>>
+  >(
+    (nextValueOrUpdater) => {
+      annotationsStore.setState((previousState) => {
+        const nextOpenChainPointId = resolveSetStateAction(
+          nextValueOrUpdater,
+          previousState.openChainPointId
+        );
+
+        return nextOpenChainPointId === previousState.openChainPointId
+          ? previousState
+          : {
+              ...previousState,
+              openChainPointId: nextOpenChainPointId,
+            };
+      });
+    },
+    [annotationsStore]
+  );
   const { pointEntries, pointMeasureEntries, selectablePointIds } =
     usePointMeasurementCollections(annotations);
   const {
@@ -482,11 +778,7 @@ export const useAnnotationsManagement = (
     clearPointSelection,
     clearAnnotationSelection: clearPointAnnotationSelection,
     pruneSelectionByRemovedIds,
-  } = useAnnotationSelection(
-    scene,
-    selectablePointIds,
-    initialToolState.selectionModeActive
-  );
+  } = useAnnotationSelection(annotationsStore, scene, selectablePointIds);
   const selectAnnotationIds = selectAnnotationIdsBase;
   const selectAnnotationById = selectAnnotationByIdBase;
   const selectAnnotationByIdImmediate = selectAnnotationByIdImmediateBase;
@@ -512,19 +804,24 @@ export const useAnnotationsManagement = (
   }, [getOwnerGroupIdsForPointId, selectedAnnotationId, selectedAnnotationIds]);
 
   const {
-    moveGizmoPointId,
     moveGizmoAxisDirection,
     moveGizmoAxisTitle,
     moveGizmoAxisCandidates,
     moveGizmoPreferredAxisId,
     moveGizmoVerticalOffsetEditMode,
-    moveGizmoVerticalOffsetPlanarGroupId,
+    moveGizmoVerticalOffsetPlanarMeasurementId,
+    activeEditTarget,
+    setActiveEditTarget,
+    clearActiveEditTarget,
+    moveGizmoPointId,
     isMoveGizmoDragging,
     setIsMoveGizmoDragging,
     startMoveGizmoForMeasurementId,
     clearMoveGizmo,
     handleMoveGizmoAxisChange,
     handleMoveGizmoExit,
+  } = useAnnotationEditState(annotationsStore, annotations);
+  const {
     updatePointMeasurementPositionById,
     setPointAnnotationElevationById,
     setPointAnnotationCoordinatesById,
@@ -537,8 +834,13 @@ export const useAnnotationsManagement = (
     selectedAnnotationIds,
     {
       setAnnotations,
-      setPlanarPolygonGroups,
+      setPlanarMeasurements,
       setReferencePoint,
+      moveGizmoPointId,
+      moveGizmoAxisDirection,
+      moveGizmoAxisCandidates,
+      moveGizmoVerticalOffsetEditMode,
+      moveGizmoVerticalOffsetPlanarMeasurementId,
     }
   );
 
@@ -583,7 +885,7 @@ export const useAnnotationsManagement = (
               withDistanceRelationEdgeId
             )
           );
-          setPlanarPolygonGroups(
+          setPlanarMeasurements(
             initialPersistenceState.tables.planarPolygonGroups
           );
         }, PERSISTENCE_RESTORE_DELAY_MS);
@@ -596,7 +898,7 @@ export const useAnnotationsManagement = (
 
   useEffect(
     function effectBackfillMissingSegmentLineModes() {
-      setPlanarPolygonGroups((prev) => {
+      setPlanarMeasurements((prev) => {
         let hasChanges = false;
         const nextGroups = prev.map((group) => {
           if (group.segmentLineMode) {
@@ -699,7 +1001,7 @@ export const useAnnotationsManagement = (
     referencePoint,
     referenceElevation,
   });
-  const { unselectedClosedAreaVertexPointIdSet } = useClosedAreaSelectionState(
+  const { unselectedClosedAreaNodeIdSet } = useClosedAreaSelectionState(
     planarPolygonGroups,
     focusedPlanarMeasurementId,
     activePlanarMeasurementId
@@ -749,7 +1051,7 @@ export const useAnnotationsManagement = (
         return;
       }
 
-      setPlanarPolygonGroups((prev) =>
+      setPlanarMeasurements((prev) =>
         prev.map((group) =>
           group.id === focusedPlanarMeasurementId
             ? {
@@ -760,7 +1062,7 @@ export const useAnnotationsManagement = (
         )
       );
 
-      const focusedVertexIdSet = new Set(focusedGroup.vertexPointIds);
+      const focusedVertexIdSet = new Set(focusedGroup.nodeIds);
       if (focusedVertexIdSet.size === 0) {
         return;
       }
@@ -806,21 +1108,8 @@ export const useAnnotationsManagement = (
     ]
   );
   const activeToolType = useMemo(
-    () =>
-      resolveActiveAnnotationToolType(
-        annotationMode,
-        selectionModeActive,
-        pointLabelOnCreate,
-        planarToolCreationMode,
-        polygonSurfaceTypePreset
-      ),
-    [
-      annotationMode,
-      planarToolCreationMode,
-      pointLabelOnCreate,
-      polygonSurfaceTypePreset,
-      selectionModeActive,
-    ]
+    () => (selectionModeActive ? SELECT_TOOL_TYPE : annotationToolType),
+    [annotationToolType, selectionModeActive]
   );
 
   const annotationCandidateDescriptor =
@@ -878,17 +1167,17 @@ export const useAnnotationsManagement = (
       const effectiveType = activeOpenPolygonGroup?.type ?? activeToolType;
 
       if (effectiveType === ANNOTATION_TYPE_AREA_VERTICAL) {
-        const firstVertexPointId =
-          activeOpenPolygonGroup?.vertexPointIds.length === 1
-            ? activeOpenPolygonGroup.vertexPointIds[0]
+        const firstNodeId =
+          activeOpenPolygonGroup?.nodeIds.length === 1
+            ? activeOpenPolygonGroup.nodeIds[0]
             : null;
-        if (firstVertexPointId && activeOpenPolygonGroup) {
+        if (firstNodeId && activeOpenPolygonGroup) {
           return {
             kind: ANNOTATION_CANDIDATE_KIND_POLYGON_VERTICAL,
             verticalOffsetMeters: 0,
             verticalPolygonContext: {
               groupId: activeOpenPolygonGroup.id,
-              firstVertexPointId,
+              firstNodeId,
             },
           };
         }
@@ -939,6 +1228,7 @@ export const useAnnotationsManagement = (
     candidateForcesDirectEdgeLine,
     annotationCursorEnabled,
     syncAnnotationCursorToExistingPoint,
+    releaseAnnotationCursorSnap,
     scheduleAnnotationCursorSnapRelease,
   } = useAnnotationCandidateState(
     scene,
@@ -948,7 +1238,7 @@ export const useAnnotationsManagement = (
       pointQueryEnabled,
       moveGizmoPointId,
       isMoveGizmoDragging,
-      setPlanarPolygonGroups,
+      setPlanarMeasurements,
       getPositionWithVerticalOffsetFromAnchor,
     }
   );
@@ -984,7 +1274,7 @@ export const useAnnotationsManagement = (
         return;
       }
 
-      setPlanarPolygonGroups((prev) =>
+      setPlanarMeasurements((prev) =>
         prev.map((group) =>
           group.id === activePlanarMeasurementId
             ? {
@@ -1025,10 +1315,7 @@ export const useAnnotationsManagement = (
     collapsedPillPointIds,
     pointIdsWithoutLabelAnchor,
     labelAnchorPointIdsWithForcedVisibility,
-  } = usePointLabelVisibilityState(
-    pointEntries,
-    unselectedClosedAreaVertexPointIdSet
-  );
+  } = usePointLabelVisibilityState(pointEntries, unselectedClosedAreaNodeIdSet);
   const { lastCustomPointAnnotationName } =
     useAnnotationCreateDefaults(annotations);
   const { showPoints, showPointLabels } = usePointVisibilityState(
@@ -1045,7 +1332,7 @@ export const useAnnotationsManagement = (
     clearMeasurementDraftSession();
   }, [clearActivePlanarMeasurement, clearMeasurementDraftSession]);
 
-  const focusPlanarMeasurementById = useCallback(
+  const selectRepresentativeNodeForMeasurementId = useCallback(
     (id: string | null) => {
       if (id === null) {
         clearAnnotationSelection();
@@ -1070,7 +1357,7 @@ export const useAnnotationsManagement = (
     ]
   );
 
-  const focusMeasurementById = useCallback(
+  const focusAnnotationById = useCallback(
     (id: string | null) => {
       if (id === null) {
         clearAnnotationSelection();
@@ -1081,7 +1368,7 @@ export const useAnnotationsManagement = (
         (group) => group.id === id
       );
       if (isPlanarMeasurementId) {
-        focusPlanarMeasurementById(id);
+        selectRepresentativeNodeForMeasurementId(id);
         return;
       }
 
@@ -1089,7 +1376,7 @@ export const useAnnotationsManagement = (
     },
     [
       clearAnnotationSelection,
-      focusPlanarMeasurementById,
+      selectRepresentativeNodeForMeasurementId,
       planarPolygonGroups,
       selectAnnotationById,
     ]
@@ -1119,11 +1406,11 @@ export const useAnnotationsManagement = (
 
   const discardActiveMeasurementDraft = useCallback(
     (activeGroupId: string | null) => {
-      const createdPointIdSet = new Set(draftSession.createdPointIds);
-      const createdRelationIdSet = new Set(draftSession.createdRelationIds);
+      const createdPointIdSet = new Set(createdPointIds);
+      const createdRelationIdSet = new Set(createdRelationIds);
 
       if (activeGroupId) {
-        setPlanarPolygonGroups((previousGroups) =>
+        setPlanarMeasurements((previousGroups) =>
           previousGroups.filter((group) => group.id !== activeGroupId)
         );
       }
@@ -1167,8 +1454,8 @@ export const useAnnotationsManagement = (
       clearAnnotationCursor,
       clearAnnotationSelection,
       clearMoveGizmo,
-      draftSession.createdPointIds,
-      draftSession.createdRelationIds,
+      createdPointIds,
+      createdRelationIds,
       moveGizmoPointId,
       pruneSelectionByRemovedIds,
     ]
@@ -1404,7 +1691,7 @@ export const useAnnotationsManagement = (
         const picked = scene.pick(screenPosition);
         const pickedPolygonGroupId = picked?.id?.polygonGroupId;
         if (pickedPolygonGroupId) {
-          focusPlanarMeasurementById(pickedPolygonGroupId);
+          selectRepresentativeNodeForMeasurementId(pickedPolygonGroupId);
           return false;
         }
       }
@@ -1414,8 +1701,11 @@ export const useAnnotationsManagement = (
       }
 
       if (focusedSelectedPlanarMeasurementId) {
-        focusPlanarMeasurementById(null);
-        if (isPlanarMeasurementToolType(activeToolType)) {
+        selectRepresentativeNodeForMeasurementId(null);
+        if (
+          activeToolType === ANNOTATION_TYPE_POLYLINE ||
+          isAreaToolType(activeToolType)
+        ) {
           return true;
         }
         return false;
@@ -1425,9 +1715,8 @@ export const useAnnotationsManagement = (
     },
     [
       activeToolType,
-      focusPlanarMeasurementById,
+      selectRepresentativeNodeForMeasurementId,
       focusedSelectedPlanarMeasurementId,
-      isPlanarMeasurementToolType,
       scene,
       isActiveDrawMode,
     ]
@@ -1453,7 +1742,7 @@ export const useAnnotationsManagement = (
         if (typeof pickedPolygonGroupId !== "string") return;
         if (!pickedPolygonGroupId.trim()) return;
 
-        focusPlanarMeasurementById(pickedPolygonGroupId);
+        selectRepresentativeNodeForMeasurementId(pickedPolygonGroupId);
       }, ScreenSpaceEventType.LEFT_CLICK);
 
       return () => {
@@ -1463,7 +1752,7 @@ export const useAnnotationsManagement = (
     [
       scene,
       selectionModeActive,
-      focusPlanarMeasurementById,
+      selectRepresentativeNodeForMeasurementId,
       selectAnnotationById,
     ]
   );
@@ -1551,7 +1840,7 @@ export const useAnnotationsManagement = (
       >();
 
       groups.forEach((group) => {
-        if (group.vertexPointIds.length < 2) return;
+        if (group.nodeIds.length < 2) return;
         const isPolylineGroup = group.type === ANNOTATION_TYPE_POLYLINE;
         const segmentLineMode =
           group.segmentLineMode ??
@@ -1564,7 +1853,7 @@ export const useAnnotationsManagement = (
         const showComponentLines = isPolylineGroup
           ? segmentLineMode === LINEAR_SEGMENT_LINE_MODE_COMPONENTS
           : false;
-        const orderedVertices = group.vertexPointIds;
+        const orderedVertices = group.nodeIds;
         for (let index = 0; index < orderedVertices.length - 1; index += 1) {
           const pointAId = orderedVertices[index];
           const pointBId = orderedVertices[index + 1];
@@ -1670,7 +1959,7 @@ export const useAnnotationsManagement = (
     [activeToolType, selectAnnotationByIdImmediate]
   );
 
-  const confirmPointLabelInputById = useCallback((id: string) => {
+  const confirmLabelPlacementById = useCallback((id: string) => {
     if (!id) return;
     setLabelInputPromptPointId((previousPromptPointId) =>
       previousPromptPointId === id ? null : previousPromptPointId
@@ -1687,14 +1976,11 @@ export const useAnnotationsManagement = (
         ? distanceRelations.some((relation) => relation.id === directRelationId)
         : false;
 
-      trackMeasurementDraftPointIds(ANNOTATION_TYPE_DISTANCE, [newPointId]);
+      trackMeasurementDraftPointIds([newPointId]);
       if (sourcePointId) {
         upsertDirectDistanceRelation(sourcePointId, newPointId);
         if (!relationAlreadyExists) {
-          trackMeasurementDraftRelationId(
-            ANNOTATION_TYPE_DISTANCE,
-            directRelationId
-          );
+          trackMeasurementDraftRelationId(directRelationId);
         }
       }
 
@@ -1755,7 +2041,7 @@ export const useAnnotationsManagement = (
       });
       const isAreaCreation = isAreaToolType(activeToolType);
       const seedTypeForCreation: PlanarMeasurementGroup["type"] = isAreaCreation
-        ? activeToolType
+        ? (activeToolType as PlanarPolygonAreaType)
         : ANNOTATION_TYPE_POLYLINE;
       const seedSegmentLineMode = isAreaCreation
         ? LINEAR_SEGMENT_LINE_MODE_DIRECT
@@ -1763,25 +2049,25 @@ export const useAnnotationsManagement = (
       const verticalAutoCloseFromNewPoint = (() => {
         if (!isAreaCreation) return null;
 
-        const candidateVertexPointIds = creatingNewGroup
+        const candidateNodeIds = creatingNewGroup
           ? sourcePointId &&
             sourcePointId !== newPointId &&
             pointByIdSnapshot.has(sourcePointId)
             ? [sourcePointId, newPointId]
             : [newPointId]
-          : [...(activeGroupSnapshot?.vertexPointIds ?? []), newPointId];
+          : [...(activeGroupSnapshot?.nodeIds ?? []), newPointId];
 
         const candidateType = creatingNewGroup
           ? seedTypeForCreation
           : activeGroupSnapshot?.type ?? ANNOTATION_TYPE_AREA_PLANAR;
 
         if (candidateType !== ANNOTATION_TYPE_AREA_VERTICAL) return null;
-        if (candidateVertexPointIds.length !== 2) return null;
+        if (candidateNodeIds.length !== 2) return null;
 
         return buildVerticalAutoCloseRectangle(
           pointByIdSnapshot,
-          candidateVertexPointIds[0] ?? null,
-          candidateVertexPointIds[1] ?? null
+          candidateNodeIds[0] ?? null,
+          candidateNodeIds[1] ?? null
         );
       })();
       const createdVerticalAutoCorners =
@@ -1790,7 +2076,7 @@ export const useAnnotationsManagement = (
         verticalAutoCloseFromNewPoint
       );
 
-      trackMeasurementDraftPointIds(seedTypeForCreation, [
+      trackMeasurementDraftPointIds([
         newPointId,
         ...(createdVerticalAutoCorners?.map(({ id }) => id) ?? []),
       ]);
@@ -1803,14 +2089,11 @@ export const useAnnotationsManagement = (
           : false;
         upsertDirectDistanceRelation(sourcePointId, newPointId);
         if (!relationAlreadyExists) {
-          trackMeasurementDraftRelationId(
-            seedTypeForCreation,
-            directRelationId
-          );
+          trackMeasurementDraftRelationId(directRelationId);
         }
       }
 
-      setPlanarPolygonGroups((prev) => {
+      setPlanarMeasurements((prev) => {
         const activeGroup =
           (activePlanarMeasurementId
             ? prev.find((group) => group.id === activePlanarMeasurementId)
@@ -1821,7 +2104,7 @@ export const useAnnotationsManagement = (
         });
 
         if (!activeGroup || activeGroup.closed) {
-          const seedVertexPointIds =
+          const seedNodeIds =
             sourcePointId &&
             sourcePointId !== newPointId &&
             pointById.has(sourcePointId)
@@ -1832,7 +2115,7 @@ export const useAnnotationsManagement = (
           if (
             isAreaCreation &&
             seedType === ANNOTATION_TYPE_AREA_VERTICAL &&
-            seedVertexPointIds.length === 2 &&
+            seedNodeIds.length === 2 &&
             verticalAutoCloseFromNewPoint
           ) {
             verticalAutoCloseFromNewPoint.autoCorners.forEach(
@@ -1840,11 +2123,11 @@ export const useAnnotationsManagement = (
                 pointById.set(id, position);
               }
             );
-            const closedVertexPointIds = [
-              ...verticalAutoCloseFromNewPoint.closedVertexPointIds,
+            const closedNodeIds = [
+              ...verticalAutoCloseFromNewPoint.closedNodeIds,
             ];
             const closedEdgeRelationIds = buildEdgeRelationIdsForPolygon(
-              closedVertexPointIds,
+              closedNodeIds,
               true,
               getDistanceRelationId
             );
@@ -1856,10 +2139,10 @@ export const useAnnotationsManagement = (
                   type: seedTypeForCreation,
                   segmentLineMode: seedSegmentLineMode,
                   verticalOffsetMeters: polylineVerticalOffsetMeters,
-                  vertexPointIds: closedVertexPointIds,
+                  nodeIds: closedNodeIds,
                   edgeRelationIds: closedEdgeRelationIds,
                   distanceMeasurementStartPointId:
-                    closedVertexPointIds[0] ?? undefined,
+                    closedNodeIds[0] ?? undefined,
                   closed: true,
                   planeLocked: true,
                   areaSquareMeters: 0,
@@ -1871,7 +2154,7 @@ export const useAnnotationsManagement = (
           }
 
           const seedEdgeRelationIds = buildEdgeRelationIdsForPolygon(
-            seedVertexPointIds,
+            seedNodeIds,
             false,
             getDistanceRelationId
           );
@@ -1882,10 +2165,9 @@ export const useAnnotationsManagement = (
               type: seedType,
               segmentLineMode: seedSegmentLineMode,
               verticalOffsetMeters: polylineVerticalOffsetMeters,
-              vertexPointIds: seedVertexPointIds,
+              nodeIds: seedNodeIds,
               edgeRelationIds: seedEdgeRelationIds,
-              distanceMeasurementStartPointId:
-                seedVertexPointIds[0] ?? undefined,
+              distanceMeasurementStartPointId: seedNodeIds[0] ?? undefined,
               closed: false,
               planeLocked: false,
               areaSquareMeters: 0,
@@ -1894,7 +2176,7 @@ export const useAnnotationsManagement = (
           ];
         }
 
-        let nextVertexPointIds = [...activeGroup.vertexPointIds, newPointId];
+        let nextNodeIds = [...activeGroup.nodeIds, newPointId];
         let shouldCloseGroup = activeGroup.closed;
         let nextPlane = activeGroup.plane;
         let nextPlaneLocked = activeGroup.planeLocked;
@@ -1907,16 +2189,16 @@ export const useAnnotationsManagement = (
         if (
           isPlanarSurface &&
           !nextPlaneLocked &&
-          activeGroup.vertexPointIds.length === 1
+          activeGroup.nodeIds.length === 1
         ) {
-          const firstVertexPointId = activeGroup.vertexPointIds[0] ?? null;
-          const firstVertexPointPosition = firstVertexPointId
-            ? pointById.get(firstVertexPointId) ?? null
+          const firstNodeId = activeGroup.nodeIds[0] ?? null;
+          const firstNodePosition = firstNodeId
+            ? pointById.get(firstNodeId) ?? null
             : null;
-          if (firstVertexPointPosition) {
+          if (firstNodePosition) {
             nextPointPosition = projectPointToHorizontalPlaneAtAnchor(
               nextPointPosition,
-              firstVertexPointPosition
+              firstNodePosition
             );
             projectedPointPosition = nextPointPosition;
             pointById.set(newPointId, nextPointPosition);
@@ -1934,10 +2216,10 @@ export const useAnnotationsManagement = (
           !shouldKeepSurfaceSampledVertices &&
           isPlanarSurface &&
           !nextPlaneLocked &&
-          nextVertexPointIds.length >= 3
+          nextNodeIds.length >= 3
         ) {
-          const first = pointById.get(nextVertexPointIds[0] ?? "");
-          const second = pointById.get(nextVertexPointIds[1] ?? "");
+          const first = pointById.get(nextNodeIds[0] ?? "");
+          const second = pointById.get(nextNodeIds[1] ?? "");
           if (first && second) {
             const candidatePlane = createPlaneFromThreePoints(
               first,
@@ -1958,11 +2240,11 @@ export const useAnnotationsManagement = (
         } else if (
           !shouldKeepSurfaceSampledVertices &&
           !isPlanarSurface &&
-          nextVertexPointIds.length >= 4
+          nextNodeIds.length >= 4
         ) {
-          const first = pointById.get(nextVertexPointIds[0] ?? "");
-          const second = pointById.get(nextVertexPointIds[1] ?? "");
-          const third = pointById.get(nextVertexPointIds[2] ?? "");
+          const first = pointById.get(nextNodeIds[0] ?? "");
+          const second = pointById.get(nextNodeIds[1] ?? "");
+          const third = pointById.get(nextNodeIds[2] ?? "");
           if (first && second && third) {
             const candidatePlane = createPlaneFromThreePoints(
               first,
@@ -1976,7 +2258,7 @@ export const useAnnotationsManagement = (
                 nextPointPosition,
                 orientedCandidatePlane
               );
-              const firstFourPoints = nextVertexPointIds
+              const firstFourPoints = nextNodeIds
                 .slice(0, 4)
                 .map((pointId) => pointById.get(pointId))
                 .filter((point): point is Cartesian3 => Boolean(point));
@@ -2005,7 +2287,7 @@ export const useAnnotationsManagement = (
         if (
           isAreaCreation &&
           activeGroup.type === ANNOTATION_TYPE_AREA_VERTICAL &&
-          nextVertexPointIds.length === 2 &&
+          nextNodeIds.length === 2 &&
           verticalAutoCloseFromNewPoint
         ) {
           verticalAutoCloseFromNewPoint.autoCorners.forEach(
@@ -2013,15 +2295,13 @@ export const useAnnotationsManagement = (
               pointById.set(id, position);
             }
           );
-          nextVertexPointIds = [
-            ...verticalAutoCloseFromNewPoint.closedVertexPointIds,
-          ];
+          nextNodeIds = [...verticalAutoCloseFromNewPoint.closedNodeIds];
           shouldCloseGroup = true;
           nextPlaneLocked = true;
         }
 
         const nextEdgeRelationIds = buildEdgeRelationIdsForPolygon(
-          nextVertexPointIds,
+          nextNodeIds,
           shouldCloseGroup,
           getDistanceRelationId
         );
@@ -2029,7 +2309,7 @@ export const useAnnotationsManagement = (
           {
             ...activeGroup,
             type: activeGroup.type,
-            vertexPointIds: nextVertexPointIds,
+            nodeIds: nextNodeIds,
             edgeRelationIds: nextEdgeRelationIds,
             closed: shouldCloseGroup,
             planeLocked: shouldKeepSurfaceSampledVertices
@@ -2099,13 +2379,11 @@ export const useAnnotationsManagement = (
 
       if (autoClosedAsVerticalRectangle) {
         clearActivePlanarDrawingState();
-        focusPlanarMeasurementById(nextActiveGroupId);
+        selectRepresentativeNodeForMeasurementId(nextActiveGroupId);
         clearMoveGizmo();
       } else {
         setDoubleClickChainSourcePointId(newPointId);
-        if (sourcePointId) {
-          focusPlanarMeasurementById(nextActiveGroupId);
-        } else {
+        if (!sourcePointId) {
           selectAnnotationById(newPointId);
         }
       }
@@ -2119,7 +2397,7 @@ export const useAnnotationsManagement = (
       upsertDirectDistanceRelation,
       setAnnotations,
       defaultPolylineSegmentLineMode,
-      focusPlanarMeasurementById,
+      selectRepresentativeNodeForMeasurementId,
       distanceRelations,
       polylineVerticalOffsetMeters,
       activeToolType,
@@ -2171,7 +2449,7 @@ export const useAnnotationsManagement = (
       let closedGroupId: string | null = null;
       clearAnnotationCursor();
 
-      setPlanarPolygonGroups((prev) => {
+      setPlanarMeasurements((prev) => {
         if (!activePlanarMeasurementId) return prev;
         const activeGroup = prev.find(
           (group) => group.id === activePlanarMeasurementId
@@ -2179,7 +2457,7 @@ export const useAnnotationsManagement = (
         if (
           !activeGroup ||
           activeGroup.closed ||
-          activeGroup.vertexPointIds.length < 3
+          activeGroup.nodeIds.length < 3
         ) {
           return prev;
         }
@@ -2192,7 +2470,7 @@ export const useAnnotationsManagement = (
             type:
               typeOverride ?? activeGroup.type ?? ANNOTATION_TYPE_AREA_PLANAR,
             edgeRelationIds: buildEdgeRelationIdsForPolygon(
-              activeGroup.vertexPointIds,
+              activeGroup.nodeIds,
               true,
               getDistanceRelationId
             ),
@@ -2206,7 +2484,7 @@ export const useAnnotationsManagement = (
       });
 
       if (closedGroupId) {
-        focusPlanarMeasurementById(closedGroupId);
+        selectRepresentativeNodeForMeasurementId(closedGroupId);
       } else {
         clearActivePlanarDrawingState();
       }
@@ -2217,7 +2495,7 @@ export const useAnnotationsManagement = (
       clearActivePlanarDrawingState,
       clearAnnotationCursor,
       computePolygonGroupDerivedDataWithCamera,
-      focusPlanarMeasurementById,
+      selectRepresentativeNodeForMeasurementId,
     ]
   );
 
@@ -2250,24 +2528,23 @@ export const useAnnotationsManagement = (
       const finishedGroupId = activePlanarMeasurementId;
       clearAnnotationCursor();
 
-      setPlanarPolygonGroups((prev) => {
+      setPlanarMeasurements((prev) => {
         const pointById = getPointPositionMap(annotations);
         return prev.map((group) => {
           if (group.id !== activePlanarMeasurementId || group.closed) {
             return group;
           }
-          if (group.vertexPointIds.length < 3) {
+          if (group.nodeIds.length < 3) {
             return group;
           }
 
-          const lastPointId =
-            group.vertexPointIds[group.vertexPointIds.length - 1] ?? null;
-          const nextVertexPointIds =
+          const lastPointId = group.nodeIds[group.nodeIds.length - 1] ?? null;
+          const nextNodeIds =
             lastPointId === ringClosurePointId
-              ? [...group.vertexPointIds]
-              : [...group.vertexPointIds, ringClosurePointId];
+              ? [...group.nodeIds]
+              : [...group.nodeIds, ringClosurePointId];
           const nextEdgeRelationIds = buildEdgeRelationIdsForPolygon(
-            nextVertexPointIds,
+            nextNodeIds,
             false,
             getDistanceRelationId
           );
@@ -2277,21 +2554,21 @@ export const useAnnotationsManagement = (
               ...group,
               closed: false,
               edgeRelationIds: nextEdgeRelationIds,
-              vertexPointIds: nextVertexPointIds,
+              nodeIds: nextNodeIds,
             },
             pointById
           );
         });
       });
 
-      focusPlanarMeasurementById(finishedGroupId);
+      selectRepresentativeNodeForMeasurementId(finishedGroupId);
     },
     [
       activePlanarMeasurementId,
       annotations,
       clearAnnotationCursor,
       computePolygonGroupDerivedDataWithCamera,
-      focusPlanarMeasurementById,
+      selectRepresentativeNodeForMeasurementId,
     ]
   );
 
@@ -2299,44 +2576,32 @@ export const useAnnotationsManagement = (
     if (!activePlanarMeasurementId) return;
     const finishedGroupId = activePlanarMeasurementId;
     clearAnnotationCursor();
-    focusPlanarMeasurementById(finishedGroupId);
+    selectRepresentativeNodeForMeasurementId(finishedGroupId);
   }, [
     activePlanarMeasurementId,
     clearAnnotationCursor,
-    focusPlanarMeasurementById,
+    selectRepresentativeNodeForMeasurementId,
   ]);
 
   const requestEnterToolType = useCallback(
     (toolType: AnnotationToolType) => {
-      const nextToolState = buildAnnotationToolState(toolType);
+      const nextSelectionModeActive = toolType === SELECT_TOOL_TYPE;
 
       setSelectionModeActive((previousValue) =>
-        previousValue === nextToolState.selectionModeActive
+        previousValue === nextSelectionModeActive
           ? previousValue
-          : nextToolState.selectionModeActive
+          : nextSelectionModeActive
       );
-      setPointLabelOnCreate((previousValue) =>
-        previousValue === nextToolState.pointLabelOnCreate
-          ? previousValue
-          : nextToolState.pointLabelOnCreate
-      );
-      setPlanarToolCreationMode((previousValue) =>
-        previousValue === nextToolState.planarToolCreationMode
-          ? previousValue
-          : nextToolState.planarToolCreationMode
-      );
-      setPolygonSurfaceTypePreset((previousValue) =>
-        previousValue === nextToolState.polygonSurfaceTypePreset
-          ? previousValue
-          : nextToolState.polygonSurfaceTypePreset
-      );
-      setAnnotationModeState((previousValue) =>
-        previousValue === nextToolState.annotationMode
-          ? previousValue
-          : nextToolState.annotationMode
+      annotationsStore.setState((previousStoreState) =>
+        previousStoreState.annotationToolType === toolType
+          ? previousStoreState
+          : {
+              ...previousStoreState,
+              annotationToolType: toolType,
+            }
       );
     },
-    [setSelectionModeActive]
+    [annotationsStore, setSelectionModeActive]
   );
 
   const clearSharedModeExitState = useCallback(() => {
@@ -2357,21 +2622,20 @@ export const useAnnotationsManagement = (
 
   const handlePointQueryDoubleClick = useCallback(() => {
     if (
-      isPlanarMeasurementToolType(activeToolType) &&
+      (activeToolType === ANNOTATION_TYPE_POLYLINE ||
+        isAreaToolType(activeToolType)) &&
       activePlanarMeasurementId
     ) {
       const activeOpenGroup =
         planarPolygonGroups.find(
           (group) => group.id === activePlanarMeasurementId && !group.closed
         ) ?? null;
-      const firstVertexId = activeOpenGroup?.vertexPointIds[0] ?? null;
+      const firstNodeId = activeOpenGroup?.nodeIds[0] ?? null;
       const canCloseRing = Boolean(
-        firstVertexId &&
-          activeOpenGroup &&
-          activeOpenGroup.vertexPointIds.length >= 3
+        firstNodeId && activeOpenGroup && activeOpenGroup.nodeIds.length >= 3
       );
 
-      if (canCloseRing && firstVertexId) {
+      if (canCloseRing && firstNodeId) {
         if (activeToolType !== ANNOTATION_TYPE_POLYLINE) {
           closeActivePlanarPolygonGroup();
         } else {
@@ -2389,7 +2653,6 @@ export const useAnnotationsManagement = (
     planarPolygonGroups,
     closeActivePlanarPolygonGroup,
     finishActivePlanarPolylineGroup,
-    isPlanarMeasurementToolType,
   ]);
 
   const appendExistingPointToActivePlanarPolygonGroup = useCallback(
@@ -2411,7 +2674,7 @@ export const useAnnotationsManagement = (
       const pointByIdSnapshot = getPointPositionMap(annotations);
       const isAreaCreation = isAreaToolType(activeToolType);
       const seedTypeForCreation: PlanarMeasurementGroup["type"] = isAreaCreation
-        ? activeToolType
+        ? (activeToolType as PlanarPolygonAreaType)
         : ANNOTATION_TYPE_POLYLINE;
       const seedSegmentLineMode = isAreaCreation
         ? LINEAR_SEGMENT_LINE_MODE_DIRECT
@@ -2419,25 +2682,25 @@ export const useAnnotationsManagement = (
       const verticalAutoCloseFromExistingPoint = (() => {
         if (!isAreaCreation) return null;
 
-        const candidateVertexPointIds = creatingNewGroup
+        const candidateNodeIds = creatingNewGroup
           ? sourcePointId &&
             sourcePointId !== existingPointId &&
             pointByIdSnapshot.has(sourcePointId)
             ? [sourcePointId, existingPointId]
             : [existingPointId]
-          : [...(activeGroupSnapshot?.vertexPointIds ?? []), existingPointId];
+          : [...(activeGroupSnapshot?.nodeIds ?? []), existingPointId];
 
         const candidateType = creatingNewGroup
           ? seedTypeForCreation
           : activeGroupSnapshot?.type ?? ANNOTATION_TYPE_AREA_PLANAR;
 
         if (candidateType !== ANNOTATION_TYPE_AREA_VERTICAL) return null;
-        if (candidateVertexPointIds.length !== 2) return null;
+        if (candidateNodeIds.length !== 2) return null;
 
         return buildVerticalAutoCloseRectangle(
           pointByIdSnapshot,
-          candidateVertexPointIds[0] ?? null,
-          candidateVertexPointIds[1] ?? null
+          candidateNodeIds[0] ?? null,
+          candidateNodeIds[1] ?? null
         );
       })();
       const createdVerticalAutoCorners =
@@ -2446,7 +2709,7 @@ export const useAnnotationsManagement = (
         verticalAutoCloseFromExistingPoint
       );
 
-      setPlanarPolygonGroups((prev) => {
+      setPlanarMeasurements((prev) => {
         const activeGroup =
           (activePlanarMeasurementId
             ? prev.find((group) => group.id === activePlanarMeasurementId)
@@ -2454,7 +2717,7 @@ export const useAnnotationsManagement = (
         const pointById = getPointPositionMap(annotations);
 
         if (!activeGroup || activeGroup.closed) {
-          const seedVertexPointIds =
+          const seedNodeIds =
             sourcePointId &&
             sourcePointId !== existingPointId &&
             pointById.has(sourcePointId)
@@ -2465,7 +2728,7 @@ export const useAnnotationsManagement = (
           if (
             isAreaCreation &&
             seedType === ANNOTATION_TYPE_AREA_VERTICAL &&
-            seedVertexPointIds.length === 2 &&
+            seedNodeIds.length === 2 &&
             verticalAutoCloseFromExistingPoint
           ) {
             verticalAutoCloseFromExistingPoint.autoCorners.forEach(
@@ -2473,11 +2736,11 @@ export const useAnnotationsManagement = (
                 pointById.set(id, position);
               }
             );
-            const closedVertexPointIds = [
-              ...verticalAutoCloseFromExistingPoint.closedVertexPointIds,
+            const closedNodeIds = [
+              ...verticalAutoCloseFromExistingPoint.closedNodeIds,
             ];
             const closedEdgeRelationIds = buildEdgeRelationIdsForPolygon(
-              closedVertexPointIds,
+              closedNodeIds,
               true,
               getDistanceRelationId
             );
@@ -2489,10 +2752,10 @@ export const useAnnotationsManagement = (
                   type: seedTypeForCreation,
                   segmentLineMode: seedSegmentLineMode,
                   verticalOffsetMeters: polylineVerticalOffsetMeters,
-                  vertexPointIds: closedVertexPointIds,
+                  nodeIds: closedNodeIds,
                   edgeRelationIds: closedEdgeRelationIds,
                   distanceMeasurementStartPointId:
-                    closedVertexPointIds[0] ?? undefined,
+                    closedNodeIds[0] ?? undefined,
                   closed: true,
                   planeLocked: true,
                   areaSquareMeters: 0,
@@ -2504,7 +2767,7 @@ export const useAnnotationsManagement = (
           }
 
           const seedEdgeRelationIds = buildEdgeRelationIdsForPolygon(
-            seedVertexPointIds,
+            seedNodeIds,
             false,
             getDistanceRelationId
           );
@@ -2515,10 +2778,9 @@ export const useAnnotationsManagement = (
               type: seedType,
               segmentLineMode: seedSegmentLineMode,
               verticalOffsetMeters: polylineVerticalOffsetMeters,
-              vertexPointIds: seedVertexPointIds,
+              nodeIds: seedNodeIds,
               edgeRelationIds: seedEdgeRelationIds,
-              distanceMeasurementStartPointId:
-                seedVertexPointIds[0] ?? undefined,
+              distanceMeasurementStartPointId: seedNodeIds[0] ?? undefined,
               closed: false,
               planeLocked: false,
               areaSquareMeters: 0,
@@ -2527,17 +2789,13 @@ export const useAnnotationsManagement = (
           ];
         }
 
-        const lastVertexId =
-          activeGroup.vertexPointIds[activeGroup.vertexPointIds.length - 1] ??
-          null;
-        if (lastVertexId === existingPointId) {
+        const lastNodeId =
+          activeGroup.nodeIds[activeGroup.nodeIds.length - 1] ?? null;
+        if (lastNodeId === existingPointId) {
           return prev;
         }
 
-        let nextVertexPointIds = [
-          ...activeGroup.vertexPointIds,
-          existingPointId,
-        ];
+        let nextNodeIds = [...activeGroup.nodeIds, existingPointId];
         let shouldCloseGroup = activeGroup.closed;
         let nextPlane = activeGroup.plane;
         let nextPlaneLocked = activeGroup.planeLocked;
@@ -2550,10 +2808,10 @@ export const useAnnotationsManagement = (
           !shouldKeepSurfaceSampledVertices &&
           isPlanarSurface &&
           !nextPlaneLocked &&
-          nextVertexPointIds.length >= 3
+          nextNodeIds.length >= 3
         ) {
-          const first = pointById.get(nextVertexPointIds[0] ?? "");
-          const second = pointById.get(nextVertexPointIds[1] ?? "");
+          const first = pointById.get(nextNodeIds[0] ?? "");
+          const second = pointById.get(nextNodeIds[1] ?? "");
           if (first && second) {
             const candidatePlane = createPlaneFromThreePoints(
               first,
@@ -2569,11 +2827,11 @@ export const useAnnotationsManagement = (
           !shouldKeepSurfaceSampledVertices &&
           !isPlanarSurface &&
           !nextPlaneLocked &&
-          nextVertexPointIds.length >= 4
+          nextNodeIds.length >= 4
         ) {
-          const first = pointById.get(nextVertexPointIds[0] ?? "");
-          const second = pointById.get(nextVertexPointIds[1] ?? "");
-          const third = pointById.get(nextVertexPointIds[2] ?? "");
+          const first = pointById.get(nextNodeIds[0] ?? "");
+          const second = pointById.get(nextNodeIds[1] ?? "");
+          const third = pointById.get(nextNodeIds[2] ?? "");
           if (first && second && third) {
             const candidatePlane = createPlaneFromThreePoints(
               first,
@@ -2587,7 +2845,7 @@ export const useAnnotationsManagement = (
                 existingPointPosition,
                 orientedCandidatePlane
               );
-              const firstFourPoints = nextVertexPointIds
+              const firstFourPoints = nextNodeIds
                 .slice(0, 4)
                 .map((pointId) => pointById.get(pointId))
                 .filter((point): point is Cartesian3 => Boolean(point));
@@ -2610,7 +2868,7 @@ export const useAnnotationsManagement = (
         if (
           isAreaCreation &&
           activeGroup.type === ANNOTATION_TYPE_AREA_VERTICAL &&
-          nextVertexPointIds.length === 2 &&
+          nextNodeIds.length === 2 &&
           verticalAutoCloseFromExistingPoint
         ) {
           verticalAutoCloseFromExistingPoint.autoCorners.forEach(
@@ -2618,15 +2876,13 @@ export const useAnnotationsManagement = (
               pointById.set(id, position);
             }
           );
-          nextVertexPointIds = [
-            ...verticalAutoCloseFromExistingPoint.closedVertexPointIds,
-          ];
+          nextNodeIds = [...verticalAutoCloseFromExistingPoint.closedNodeIds];
           shouldCloseGroup = true;
           nextPlaneLocked = true;
         }
 
         const nextEdgeRelationIds = buildEdgeRelationIdsForPolygon(
-          nextVertexPointIds,
+          nextNodeIds,
           shouldCloseGroup,
           getDistanceRelationId
         );
@@ -2634,7 +2890,7 @@ export const useAnnotationsManagement = (
           {
             ...activeGroup,
             type: activeGroup.type,
-            vertexPointIds: nextVertexPointIds,
+            nodeIds: nextNodeIds,
             edgeRelationIds: nextEdgeRelationIds,
             closed: shouldCloseGroup,
             planeLocked: shouldKeepSurfaceSampledVertices
@@ -2679,20 +2935,20 @@ export const useAnnotationsManagement = (
 
       if (autoClosedAsVerticalRectangle) {
         clearActivePlanarDrawingState();
-        focusPlanarMeasurementById(nextActiveGroupId);
+        selectRepresentativeNodeForMeasurementId(nextActiveGroupId);
         clearMoveGizmo();
         return true;
       }
 
       setActivePlanarMeasurementId(nextActiveGroupId);
-      return false;
+      return true;
     },
     [
       activePlanarMeasurementId,
       annotations,
       clearActivePlanarDrawingState,
       clearMoveGizmo,
-      focusPlanarMeasurementById,
+      selectRepresentativeNodeForMeasurementId,
       planarPolygonGroups,
       defaultPolylineSegmentLineMode,
       polylineVerticalOffsetMeters,
@@ -2868,7 +3124,7 @@ export const useAnnotationsManagement = (
           ownerGroupIds.includes(activePlanarMeasurementId)
             ? activePlanarMeasurementId
             : ownerGroupIds[0]) ?? null;
-        focusPlanarMeasurementById(preferredOwnerGroupId);
+        selectRepresentativeNodeForMeasurementId(preferredOwnerGroupId);
         return;
       }
 
@@ -2913,7 +3169,7 @@ export const useAnnotationsManagement = (
     },
     [
       activePlanarMeasurementId,
-      focusPlanarMeasurementById,
+      selectRepresentativeNodeForMeasurementId,
       focusedPlanarMeasurementId,
       getOwnerGroupIdsForEdgeRelationId,
       planarPolygonGroups,
@@ -2940,13 +3196,13 @@ export const useAnnotationsManagement = (
           ownerGroupIds.includes(activePlanarMeasurementId)
             ? activePlanarMeasurementId
             : ownerGroupIds[0]) ?? null;
-        focusPlanarMeasurementById(preferredOwnerGroupId);
+        selectRepresentativeNodeForMeasurementId(preferredOwnerGroupId);
         return;
       }
     },
     [
       activePlanarMeasurementId,
-      focusPlanarMeasurementById,
+      selectRepresentativeNodeForMeasurementId,
       focusedPlanarMeasurementId,
       getOwnerGroupIdsForEdgeRelationId,
     ]
@@ -2972,7 +3228,7 @@ export const useAnnotationsManagement = (
   const updatePlanarPolygonNameById = useCallback(
     (id: string, name: string) => {
       const nextName = name.trim();
-      setPlanarPolygonGroups((prev) => {
+      setPlanarMeasurements((prev) => {
         let hasChanged = false;
         const next = prev.map((group) => {
           if (group.id !== id) return group;
@@ -2991,7 +3247,7 @@ export const useAnnotationsManagement = (
 
   const updatePlanarPolygonSegmentLineModeById = useCallback(
     (id: string, nextMode: LinearSegmentLineMode) => {
-      setPlanarPolygonGroups((previousGroups) => {
+      setPlanarMeasurements((previousGroups) => {
         let hasChanged = false;
         const nextGroups = previousGroups.map((group) => {
           if (group.id !== id || group.segmentLineMode === nextMode) {
@@ -3011,7 +3267,7 @@ export const useAnnotationsManagement = (
     []
   );
 
-  const updateMeasurementNameById = useCallback(
+  const updateAnnotationNameById = useCallback(
     (id: string, name: string) => {
       const isPlanarMeasurementId = planarPolygonGroups.some(
         (group) => group.id === id
@@ -3021,12 +3277,16 @@ export const useAnnotationsManagement = (
         return;
       }
 
-      updateAnnotationNameById(id, name);
+      updateAnnotationEntryNameById(id, name);
     },
-    [planarPolygonGroups, updateAnnotationNameById, updatePlanarPolygonNameById]
+    [
+      planarPolygonGroups,
+      updateAnnotationEntryNameById,
+      updatePlanarPolygonNameById,
+    ]
   );
 
-  const updateMeasurementVisualizerOptionsById = useCallback(
+  const updateAnnotationVisualizerOptionsById = useCallback(
     (
       id: string,
       patch: {
@@ -3041,7 +3301,7 @@ export const useAnnotationsManagement = (
   );
 
   const togglePlanarPolygonGroupVisibilityById = useCallback((id: string) => {
-    setPlanarPolygonGroups((previousGroups) => {
+    setPlanarMeasurements((previousGroups) => {
       let hasChanged = false;
       const nextGroups = previousGroups.map((group) => {
         if (group.id !== id) {
@@ -3059,7 +3319,7 @@ export const useAnnotationsManagement = (
     });
   }, []);
 
-  const toggleMeasurementsVisibilityByIds = useCallback(
+  const toggleAnnotationsVisibilityByIds = useCallback(
     (ids: string[]) => {
       if (ids.length === 0) {
         return;
@@ -3116,7 +3376,7 @@ export const useAnnotationsManagement = (
       }
 
       if (hasPlanarTargets) {
-        setPlanarPolygonGroups((previousGroups) => {
+        setPlanarMeasurements((previousGroups) => {
           let hasChanges = false;
           const nextGroups = previousGroups.map((group) => {
             if (!targetedPlanarIdSet.has(group.id)) {
@@ -3144,13 +3404,13 @@ export const useAnnotationsManagement = (
   const togglePlanarPolygonGroupLockById = useCallback(
     (id: string) => {
       const targetGroup = planarPolygonGroups.find((group) => group.id === id);
-      if (!targetGroup || targetGroup.vertexPointIds.length === 0) {
+      if (!targetGroup || targetGroup.nodeIds.length === 0) {
         return;
       }
 
-      const vertexIdSet = new Set(targetGroup.vertexPointIds);
-      const shouldLock = targetGroup.vertexPointIds.some((vertexId) => {
-        const vertex = annotations.find((entry) => entry.id === vertexId);
+      const nodeIdSet = new Set(targetGroup.nodeIds);
+      const shouldLock = targetGroup.nodeIds.some((nodeId) => {
+        const vertex = annotations.find((entry) => entry.id === nodeId);
         return !vertex?.locked;
       });
 
@@ -3158,7 +3418,7 @@ export const useAnnotationsManagement = (
         let hasChanged = false;
         const nextAnnotations = previousAnnotations.map((annotation) => {
           if (
-            !vertexIdSet.has(annotation.id) ||
+            !nodeIdSet.has(annotation.id) ||
             annotation.locked === shouldLock
           ) {
             return annotation;
@@ -3177,7 +3437,7 @@ export const useAnnotationsManagement = (
     [annotations, planarPolygonGroups, setAnnotations]
   );
 
-  const toggleMeasurementsLockByIds = useCallback(
+  const toggleAnnotationsLockByIds = useCallback(
     (ids: string[]) => {
       if (ids.length === 0) {
         return;
@@ -3188,7 +3448,7 @@ export const useAnnotationsManagement = (
         requestedIdSet.has(group.id)
       );
       const targetedVertexIdSet = new Set(
-        targetedPlanarGroups.flatMap((group) => group.vertexPointIds)
+        targetedPlanarGroups.flatMap((group) => group.nodeIds)
       );
       const targetedAnnotationIdSet = new Set(
         annotations
@@ -3341,16 +3601,16 @@ export const useAnnotationsManagement = (
           : null;
       if (!targetGroup) return;
 
-      const vertexIds = targetGroup.vertexPointIds;
-      if (vertexIds.length < 2) return;
+      const nodeIds = targetGroup.nodeIds;
+      if (nodeIds.length < 2) return;
 
       let edgeStartId: string | null = null;
       let edgeEndId: string | null = null;
       let insertIndex = -1;
 
-      for (let index = 0; index < vertexIds.length - 1; index += 1) {
-        const startId = vertexIds[index];
-        const endId = vertexIds[index + 1];
+      for (let index = 0; index < nodeIds.length - 1; index += 1) {
+        const startId = nodeIds[index];
+        const endId = nodeIds[index + 1];
         if (!startId || !endId) continue;
         const edgeId = getDistanceRelationId(startId, endId);
         if (edgeId === relationId) {
@@ -3362,15 +3622,15 @@ export const useAnnotationsManagement = (
       }
 
       if (!edgeStartId || !edgeEndId) {
-        if (targetGroup.closed && vertexIds.length >= 3) {
-          const startId = vertexIds[vertexIds.length - 1];
-          const endId = vertexIds[0];
+        if (targetGroup.closed && nodeIds.length >= 3) {
+          const startId = nodeIds[nodeIds.length - 1];
+          const endId = nodeIds[0];
           if (startId && endId) {
             const edgeId = getDistanceRelationId(startId, endId);
             if (edgeId === relationId) {
               edgeStartId = startId;
               edgeEndId = endId;
-              insertIndex = vertexIds.length;
+              insertIndex = nodeIds.length;
             }
           }
         }
@@ -3463,23 +3723,23 @@ export const useAnnotationsManagement = (
       const updatedPointById = getPointPositionMap(annotations, {
         [nextPointId]: midpointPosition,
       });
-      setPlanarPolygonGroups((prev) =>
+      setPlanarMeasurements((prev) =>
         prev.map((group) => {
           if (group.id !== targetGroup.id) return group;
-          const nextVertexPointIds = [
-            ...group.vertexPointIds.slice(0, insertIndex),
+          const nextNodeIds = [
+            ...group.nodeIds.slice(0, insertIndex),
             nextPointId,
-            ...group.vertexPointIds.slice(insertIndex),
+            ...group.nodeIds.slice(insertIndex),
           ];
           const nextEdgeRelationIds = buildEdgeRelationIdsForPolygon(
-            nextVertexPointIds,
+            nextNodeIds,
             group.closed,
             getDistanceRelationId
           );
           return computePolygonGroupDerivedDataWithCamera(
             {
               ...group,
-              vertexPointIds: nextVertexPointIds,
+              nodeIds: nextNodeIds,
               edgeRelationIds: nextEdgeRelationIds,
             },
             updatedPointById
@@ -3523,7 +3783,7 @@ export const useAnnotationsManagement = (
       selectedAnnotationId,
       selectedAnnotationIds,
       pointIdsWithoutLabelAnchor,
-      unselectedClosedAreaVertexPointIdSet,
+      unselectedClosedAreaNodeIdSet,
       unfocusedStandaloneDistanceNonHighestPointIds,
       focusedStandaloneDistanceNonHighestPointIds,
       labelAnchorPointIdsWithForcedVisibility,
@@ -3534,10 +3794,10 @@ export const useAnnotationsManagement = (
     }
   );
 
-  const clearAllMeasurements = useCallback(() => {
+  const clearAllAnnotations = useCallback(() => {
     setAnnotations([]);
     setDistanceRelations([]);
-    setPlanarPolygonGroups([]);
+    setPlanarMeasurements([]);
     clearAnnotationSelection();
     clearActivePlanarDrawingState();
     clearMoveGizmo();
@@ -3552,14 +3812,14 @@ export const useAnnotationsManagement = (
     hideMeasurementsOfType.size,
   ]);
 
-  const clearMeasurementsByType = useCallback(
+  const clearAnnotationsByType = useCallback(
     (type: AnnotationMode) => {
       setAnnotations((prev) =>
         prev.filter((measurement) => measurement.type !== type)
       );
       if (type === ANNOTATION_TYPE_DISTANCE) {
         setDistanceRelations([]);
-        setPlanarPolygonGroups([]);
+        setPlanarMeasurements([]);
         clearActivePlanarDrawingState();
       }
       clearPointSelection();
@@ -3586,36 +3846,36 @@ export const useAnnotationsManagement = (
       );
 
       const requestedIdSet = new Set(ids);
-      const protectedPolygonVertexPointIdSet = new Set<string>();
+      const protectedPolygonNodeIdSet = new Set<string>();
       planarPolygonGroups.forEach((group) => {
-        if (!group.closed || group.vertexPointIds.length > 3) {
+        if (!group.closed || group.nodeIds.length > 3) {
           return;
         }
-        const vertexPointIds = group.vertexPointIds.filter(
-          (vertexId): vertexId is string => Boolean(vertexId)
+        const nodeIds = group.nodeIds.filter((nodeId): nodeId is string =>
+          Boolean(nodeId)
         );
-        if (vertexPointIds.length === 0) {
+        if (nodeIds.length === 0) {
           return;
         }
-        const includesAnyVertex = vertexPointIds.some((vertexId) =>
-          requestedIdSet.has(vertexId)
+        const includesAnyNode = nodeIds.some((nodeId) =>
+          requestedIdSet.has(nodeId)
         );
-        if (!includesAnyVertex) {
+        if (!includesAnyNode) {
           return;
         }
-        const includesAllVertices = vertexPointIds.every((vertexId) =>
-          requestedIdSet.has(vertexId)
+        const includesAllNodes = nodeIds.every((nodeId) =>
+          requestedIdSet.has(nodeId)
         );
-        if (includesAllVertices) {
+        if (includesAllNodes) {
           return;
         }
-        vertexPointIds.forEach((vertexId) => {
-          protectedPolygonVertexPointIdSet.add(vertexId);
+        nodeIds.forEach((nodeId) => {
+          protectedPolygonNodeIdSet.add(nodeId);
         });
       });
 
       const idsToDelete = new Set(
-        ids.filter((id) => !protectedPolygonVertexPointIdSet.has(id))
+        ids.filter((id) => !protectedPolygonNodeIdSet.has(id))
       );
       if (idsToDelete.size === 0) {
         return;
@@ -3688,16 +3948,16 @@ export const useAnnotationsManagement = (
 
       const remainingPointById = getPointPositionMap(annotations);
       idsToDelete.forEach((id) => remainingPointById.delete(id));
-      setPlanarPolygonGroups((prev) =>
+      setPlanarMeasurements((prev) =>
         prev.flatMap((group) => {
-          const nextVertexPointIds = group.vertexPointIds.filter(
-            (vertexId) => !idsToDelete.has(vertexId)
+          const nextNodeIds = group.nodeIds.filter(
+            (nodeId) => !idsToDelete.has(nodeId)
           );
-          if (nextVertexPointIds.length < 3) {
+          if (nextNodeIds.length < 3) {
             return [];
           }
           const nextEdgeRelationIds = buildEdgeRelationIdsForPolygon(
-            nextVertexPointIds,
+            nextNodeIds,
             group.closed,
             getDistanceRelationId
           );
@@ -3705,7 +3965,7 @@ export const useAnnotationsManagement = (
             computePolygonGroupDerivedDataWithCamera(
               {
                 ...group,
-                vertexPointIds: nextVertexPointIds,
+                nodeIds: nextNodeIds,
                 edgeRelationIds: nextEdgeRelationIds,
               },
               remainingPointById
@@ -3719,7 +3979,7 @@ export const useAnnotationsManagement = (
           (group) => group.id === prev
         );
         if (!activeGroup) return null;
-        return activeGroup.vertexPointIds.some((id) => idsToDelete.has(id))
+        return activeGroup.nodeIds.some((id) => idsToDelete.has(id))
           ? null
           : prev;
       });
@@ -3745,19 +4005,19 @@ export const useAnnotationsManagement = (
         return;
       }
 
-      const vertexIds = group.vertexPointIds.filter(
-        (vertexId): vertexId is string => Boolean(vertexId)
+      const nodeIds = group.nodeIds.filter((nodeId): nodeId is string =>
+        Boolean(nodeId)
       );
-      if (vertexIds.length === 0) {
+      if (nodeIds.length === 0) {
         return;
       }
 
-      clearAnnotationsByIds(vertexIds);
+      clearAnnotationsByIds(nodeIds);
     },
     [clearAnnotationsByIds, planarPolygonGroups]
   );
 
-  const deleteMeasurementsByIds = useCallback(
+  const deleteAnnotationsByIds = useCallback(
     (ids: string[]) => {
       if (ids.length === 0) {
         return;
@@ -3774,8 +4034,8 @@ export const useAnnotationsManagement = (
       );
 
       targetedPlanarGroups.forEach((group) => {
-        group.vertexPointIds.forEach((vertexId) => {
-          expandedAnnotationIdSet.add(vertexId);
+        group.nodeIds.forEach((nodeId) => {
+          expandedAnnotationIdSet.add(nodeId);
         });
       });
 
@@ -3784,7 +4044,7 @@ export const useAnnotationsManagement = (
     [clearAnnotationsByIds, planarPolygonGroups]
   );
 
-  const deleteSelectedPointAnnotations = useCallback(() => {
+  const deleteSelectedAnnotations = useCallback(() => {
     const selectedIds = selectedAnnotationIds.filter(
       (id) => selectablePointIds.has(id) && !lockedMeasurementIdSet.has(id)
     );
@@ -3807,25 +4067,25 @@ export const useAnnotationsManagement = (
     selectedAnnotationIds,
   ]);
 
-  const flyToMeasurementById = useCallback(
+  const flyToAnnotationById = useCallback(
     (id: string) => {
       if (!id) return;
       const pointById = getPointPositionMap(annotations);
       const planarMeasurement =
         planarPolygonGroups.find((entry) => entry.id === id) ?? null;
       if (planarMeasurement) {
-        const flyToPoints = planarMeasurement.vertexPointIds
+        const flyToPoints = planarMeasurement.nodeIds
           .map((pointId) => pointById.get(pointId) ?? null)
           .filter((point): point is Cartesian3 => Boolean(point));
         if (flyToPoints.length > 0) {
-          flyToMeasurementPointGroup(scene, flyToPoints);
+          flyToMeasurementPoints(scene, flyToPoints);
         }
         return;
       }
 
       const measurement = annotations.find((entry) => entry.id === id);
       if (!measurement) return;
-      flyToMeasurementPointGroup(
+      flyToMeasurementPoints(
         scene,
         getMeasurementEntryFlyToPoints(measurement)
       );
@@ -3833,10 +4093,10 @@ export const useAnnotationsManagement = (
     [annotations, planarPolygonGroups, scene]
   );
 
-  const flyToAllMeasurements = useCallback(() => {
+  const flyToAllAnnotations = useCallback(() => {
     if (annotations.length === 0) return;
     const points = annotations.flatMap(getMeasurementEntryFlyToPoints);
-    flyToMeasurementPointGroup(scene, points);
+    flyToMeasurementPoints(scene, points);
   }, [annotations, scene]);
 
   useEffect(
@@ -3881,26 +4141,26 @@ export const useAnnotationsManagement = (
         pointEntries.map((measurement) => measurement.id)
       );
       const pointById = getPointPositionMap(annotations);
-      setPlanarPolygonGroups((prev) => {
+      setPlanarMeasurements((prev) => {
         let hasChanges = false;
         const nextGroups = prev.flatMap((group) => {
-          const nextVertexPointIds = group.vertexPointIds.filter((vertexId) =>
-            pointEntryIdsForPolygons.has(vertexId)
+          const nextNodeIds = group.nodeIds.filter((nodeId) =>
+            pointEntryIdsForPolygons.has(nodeId)
           );
-          if (nextVertexPointIds.length === 0) {
+          if (nextNodeIds.length === 0) {
             hasChanges = true;
             return [];
           }
-          const nextClosed = group.closed && nextVertexPointIds.length >= 3;
+          const nextClosed = group.closed && nextNodeIds.length >= 3;
           const nextEdgeRelationIds = buildEdgeRelationIdsForPolygon(
-            nextVertexPointIds,
+            nextNodeIds,
             nextClosed,
             getDistanceRelationId
           );
           const nextGroup = computePolygonGroupDerivedDataWithCamera(
             {
               ...group,
-              vertexPointIds: nextVertexPointIds,
+              nodeIds: nextNodeIds,
               edgeRelationIds: nextEdgeRelationIds,
               closed: nextClosed,
             },
@@ -3959,7 +4219,7 @@ export const useAnnotationsManagement = (
     [pointEntries, setReferencePoint, referencePoint]
   );
 
-  const setReferenceMeasurementById = useCallback(
+  const setReferencePointId = useCallback(
     (id: string | null) => {
       if (id === null) {
         setReferencePoint(null);
@@ -4035,29 +4295,13 @@ export const useAnnotationsManagement = (
     [setAnnotations]
   );
 
-  const deleteAnnotationById = useCallback(
-    (id: string) => {
-      if (!id) return;
-      deleteMeasurementsByIds([id]);
-    },
-    [deleteMeasurementsByIds]
-  );
-
-  const deleteAnnotationsByIds = useCallback(
-    (ids: string[]) => {
-      if (ids.length === 0) return;
-      deleteMeasurementsByIds(ids);
-    },
-    [deleteMeasurementsByIds]
-  );
-
   const requestFinishLabelPlacementDraft = useCallback(() => {
     if (!labelInputPromptPointId) {
       return;
     }
 
-    confirmPointLabelInputById(labelInputPromptPointId);
-  }, [confirmPointLabelInputById, labelInputPromptPointId]);
+    confirmLabelPlacementById(labelInputPromptPointId);
+  }, [confirmLabelPlacementById, labelInputPromptPointId]);
 
   const requestCancelLabelPlacementDraft = useCallback(() => {
     if (!labelInputPromptPointId) {
@@ -4092,7 +4336,7 @@ export const useAnnotationsManagement = (
       selectablePointIds,
       selectedAnnotationId,
       distanceRelations,
-      planarMeasurements: planarPolygonGroups,
+      nodeChainMeasurements: planarPolygonGroups,
     },
     {
       requestEnterToolType,
@@ -4156,7 +4400,6 @@ export const useAnnotationsManagement = (
     scene,
     annotations,
     annotationCandidate: candidateAnnotation,
-    annotationMode,
     annotationsByType,
     getAnnotationsForNavigation,
     getAnnotationIndexByType,
@@ -4165,13 +4408,9 @@ export const useAnnotationsManagement = (
     addAnnotation,
     updateAnnotationById,
     updateAnnotationNameById,
-    updateMeasurementNameById,
     updatePointLabelAppearanceById,
-    deleteAnnotationById,
     deleteAnnotationsByIds,
-    deleteMeasurementsByIds,
-    toggleAnnotationLockById,
-    toggleMeasurementsLockByIds,
+    toggleAnnotationsLockByIds,
     selectionModeActive,
     setSelectionModeActive,
     selectModeAdditive,
@@ -4181,6 +4420,7 @@ export const useAnnotationsManagement = (
     selectablePointIds,
     moveGizmoPointId,
     isMoveGizmoDragging,
+    activeEditTarget,
     pointQueryEnabled,
     hasCandidateNode,
     isActiveDrawMode,
@@ -4192,15 +4432,14 @@ export const useAnnotationsManagement = (
     planarSurfacePolygonGroups,
     verticalPolygonGroups,
     polylines,
-    planarToolCreationMode,
-    polygonSurfaceTypePreset,
     selectAnnotationIds,
     selectAnnotationById,
-    focusPlanarMeasurementById,
-    focusMeasurementById,
+    selectRepresentativeNodeForMeasurementId,
+    focusAnnotationById,
     startMoveGizmoForMeasurementId,
     setMoveGizmoPointElevationFromMeasurementById,
     syncAnnotationCursorToExistingPoint,
+    releaseAnnotationCursorSnap,
     scheduleAnnotationCursorSnapRelease,
     resolveDistanceRelationSourcePointId,
     appendExistingPointToActivePlanarPolygonGroup,
@@ -4211,11 +4450,10 @@ export const useAnnotationsManagement = (
     setDoubleClickChainSourcePointId,
     selectedAnnotationId,
     cyclePointLabelMetricModeByMeasurementId,
-    pointLabelOnCreate,
     labelInputPromptPointId,
     setLabelInputPromptPointId,
-    temporaryMode,
-    setTemporaryMode,
+    pointTemporaryMode,
+    setPointTemporaryMode,
     pointVerticalOffsetMeters,
     setPointVerticalOffsetMeters,
     lastCustomPointAnnotationName,
@@ -4228,9 +4466,7 @@ export const useAnnotationsManagement = (
     setDistanceCreationLineVisibilityByKind,
     setDistanceModeStickyToFirstPoint,
     setAnnotations,
-    toggleAnnotationsLockByIds,
     toggleAnnotationsVisibilityByIds,
-    toggleMeasurementsVisibilityByIds,
     handlePointQueryPointCreated,
     handlePointQueryDoubleClick,
     handlePointQueryBeforePointCreate,
@@ -4242,6 +4478,8 @@ export const useAnnotationsManagement = (
     moveGizmoVerticalOffsetEditMode,
     moveGizmoAxisCandidates,
     moveGizmoAxisTitle,
+    setActiveEditTarget,
+    clearActiveEditTarget,
     handleMoveGizmoPointPositionChange,
     setIsMoveGizmoDragging,
     handleMoveGizmoAxisChange,
@@ -4279,14 +4517,14 @@ export const useAnnotationsManagement = (
     annotationSelection,
     rectangleSelection,
     lockedMeasurementIdSet,
-    deleteSelectedPointAnnotations,
-    clearAllMeasurements,
-    clearMeasurementsByType,
+    deleteSelectedAnnotations,
+    clearAllAnnotations,
+    clearAnnotationsByType,
     clearAnnotationsByIds,
     clearAnnotationSelection,
     clearActivePlanarDrawingState,
     clearMoveGizmo,
-    setReferenceMeasurementById,
+    setReferencePointId,
     pointMeasureEntries,
     activeToolType,
     requestModeChange,
@@ -4296,15 +4534,15 @@ export const useAnnotationsManagement = (
     doubleClickChainSourcePointId,
     hasDistancePreviewAnchor,
     distanceRelations,
-    confirmPointLabelInputById,
-    flyToMeasurementById,
-    flyToAllMeasurements,
+    confirmLabelPlacementById,
+    flyToAnnotationById,
+    flyToAllAnnotations,
     updatePlanarPolygonNameById,
-    updateMeasurementVisualizerOptionsById,
+    updateAnnotationVisualizerOptionsById,
     setPendingPolylinePromotionRingClosurePointId,
     focusedPlanarMeasurementId,
     activeMeasurementId,
-    setPlanarPolygonGroups,
+    setPlanarMeasurements,
     updatePlanarPolygonSegmentLineModeById,
     togglePlanarPolygonGroupVisibilityById,
     togglePlanarPolygonGroupLockById,

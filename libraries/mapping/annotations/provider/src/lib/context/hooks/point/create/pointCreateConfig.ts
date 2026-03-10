@@ -1,11 +1,9 @@
 import {
-  ANNOTATION_TYPE_AREA_GROUND,
-  ANNOTATION_TYPE_AREA_PLANAR,
-  ANNOTATION_TYPE_AREA_VERTICAL,
   ANNOTATION_TYPE_LABEL,
   ANNOTATION_TYPE_DISTANCE,
   ANNOTATION_TYPE_POINT,
   ANNOTATION_TYPE_POLYLINE,
+  isAreaToolType,
   type AnnotationLabelAnchor,
   type AnnotationLabelAppearance,
   SELECT_TOOL_TYPE,
@@ -100,9 +98,7 @@ export const buildActivePointCreateConfig = ({
 
   if (
     activeToolType === ANNOTATION_TYPE_POLYLINE ||
-    activeToolType === ANNOTATION_TYPE_AREA_GROUND ||
-    activeToolType === ANNOTATION_TYPE_AREA_VERTICAL ||
-    activeToolType === ANNOTATION_TYPE_AREA_PLANAR
+    isAreaToolType(activeToolType)
   ) {
     return {
       temporaryMode: false,

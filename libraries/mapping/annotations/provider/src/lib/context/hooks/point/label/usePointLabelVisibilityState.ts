@@ -9,7 +9,7 @@ import {
 
 export const usePointLabelVisibilityState = (
   pointEntries: readonly PointAnnotationEntry[],
-  unselectedClosedAreaVertexPointIdSet: ReadonlySet<string>
+  unselectedClosedAreaNodeIdSet: ReadonlySet<string>
 ) => {
   const collapsedPillPointIds = useMemo(
     () => collectCollapsedPillPointIds(pointEntries),
@@ -23,9 +23,9 @@ export const usePointLabelVisibilityState = (
     () =>
       collectLabelAnchorPointIdsWithForcedVisibility(
         pointEntries,
-        unselectedClosedAreaVertexPointIdSet
+        unselectedClosedAreaNodeIdSet
       ),
-    [pointEntries, unselectedClosedAreaVertexPointIdSet]
+    [pointEntries, unselectedClosedAreaNodeIdSet]
   );
 
   return {

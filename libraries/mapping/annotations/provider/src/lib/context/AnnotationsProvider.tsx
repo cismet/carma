@@ -1,6 +1,25 @@
 /* @refresh reset */
-import React, { createContext, useContext, useMemo } from "react";
-import { type Scene } from "@carma/cesium";
+import React, {
+  createContext,
+  useContext,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+} from "react";
+import { Cartesian3, type Scene } from "@carma/cesium";
+import { useStoreSelector } from "@carma-commons/react-store";
+import {
+  ANNOTATION_TYPE_DISTANCE,
+  buildDerivedPolylinePaths,
+  groupPlanarMeasurementGroupsByType,
+  type AnnotationEntry,
+  type DerivedPolylinePath,
+  isPointAnnotationEntry,
+  type PlanarMeasurementGroup,
+  type PlanarPolygonGroup,
+  type PlanarPolylineGroup,
+  type PointDistanceRelation,
+} from "@carma-mapping/annotations/core";
 
 import {
   type AnnotationsOptions,
@@ -17,8 +36,13 @@ import type {
   AnnotationSelectionContextType,
   AnnotationSettingsContextType,
   AnnotationToolsContextType,
-  AnnotationViewContextType,
 } from "./annotationsContext.types";
+import {
+  createAnnotationsStore,
+  createInitialAnnotationsStoreState,
+  type AnnotationsStore,
+  type AnnotationsStoreSnapshot,
+} from "./store";
 
 export type {
   AnnotationsContextType,
@@ -27,7 +51,6 @@ export type {
   AnnotationSelectionContextType,
   AnnotationSettingsContextType,
   AnnotationToolsContextType,
-  AnnotationViewContextType,
   AnnotationsOptions,
 };
 
@@ -38,34 +61,19 @@ interface AnnotationsProviderProps {
   cesiumScene: Scene;
 }
 
-const AnnotationToolsContext = createContext<
-  AnnotationToolsContextType | undefined
->(undefined);
-const AnnotationSelectionContext = createContext<
-  AnnotationSelectionContextType | undefined
->(undefined);
-const AnnotationCollectionContext = createContext<
-  AnnotationCollectionContextType | undefined
->(undefined);
-const AnnotationEditingContext = createContext<
-  AnnotationEditingContextType | undefined
->(undefined);
-const AnnotationSettingsContext = createContext<
-  AnnotationSettingsContextType | undefined
->(undefined);
-const AnnotationViewContext = createContext<
-  AnnotationViewContextType | undefined
->(undefined);
+const AnnotationsStoreContext = createContext<AnnotationsStore | undefined>(
+  undefined
+);
 
-const useRequiredAnnotationsContext = <T,>(
-  contextValue: T | undefined,
+const useRequiredAnnotationsStore = (
+  store: AnnotationsStore | undefined,
   hookName: string
-): T => {
-  if (contextValue === undefined) {
+): AnnotationsStore => {
+  if (store === undefined) {
     throw new Error(`${hookName} must be used within a AnnotationsProvider`);
   }
 
-  return contextValue;
+  return store;
 };
 
 export const AnnotationsProvider: React.FC<AnnotationsProviderProps> = ({
@@ -74,7 +82,27 @@ export const AnnotationsProvider: React.FC<AnnotationsProviderProps> = ({
   enabled = true,
   cesiumScene,
 }) => {
+  const annotationsStoreRef = useRef<AnnotationsStore | null>(null);
+
+  if (annotationsStoreRef.current === null) {
+    annotationsStoreRef.current = createAnnotationsStore(
+      createInitialAnnotationsStoreState({
+        initialToolType: options?.initialToolType ?? "point",
+        initialPointRadius: options?.pointQueries?.radius ?? 1,
+        initialPointVerticalOffsetMeters:
+          options?.pointQueries?.verticalOffsetMeters ?? 0,
+        initialPointTemporaryMode:
+          options?.pointQueries?.temporaryMode ?? false,
+        initialPolylineVerticalOffsetMeters:
+          options?.pointQueries?.verticalOffsetMeters ?? 0,
+        initialHeightOffset: options?.pointQueries?.heightOffset ?? 1.5,
+      })
+    );
+  }
+
+  const annotationsStore = annotationsStoreRef.current;
   const annotationsManagement = useAnnotationsManagement(
+    annotationsStore,
     cesiumScene,
     enabled,
     options
@@ -95,8 +123,6 @@ export const AnnotationsProvider: React.FC<AnnotationsProviderProps> = ({
   const toolsContextValue = useMemo<AnnotationToolsContextType>(
     () => ({
       activeToolType: annotationsManagement.activeToolType,
-      pendingLabelPlacementAnnotationId:
-        annotationsManagement.labelInputPromptPointId,
       requestModeChange: annotationsManagement.requestModeChange,
       requestStartMeasurement: annotationsManagement.requestStartMeasurement,
       requestCloseActiveMeasurement:
@@ -104,7 +130,6 @@ export const AnnotationsProvider: React.FC<AnnotationsProviderProps> = ({
     }),
     [
       annotationsManagement.activeToolType,
-      annotationsManagement.labelInputPromptPointId,
       annotationsManagement.requestCloseActiveMeasurement,
       annotationsManagement.requestModeChange,
       annotationsManagement.requestStartMeasurement,
@@ -113,7 +138,6 @@ export const AnnotationsProvider: React.FC<AnnotationsProviderProps> = ({
 
   const selectionContextValue = useMemo<AnnotationSelectionContextType>(
     () => ({
-      primaryId: annotationsManagement.selectedAnnotationId,
       activeAnnotationId: annotationsManagement.activeMeasurementId,
       ids: annotationsManagement.selectedAnnotationIds,
       mode: {
@@ -133,7 +157,6 @@ export const AnnotationsProvider: React.FC<AnnotationsProviderProps> = ({
       annotationsManagement.selectAnnotationIds,
       annotationsManagement.selectModeAdditive,
       annotationsManagement.selectModeRectangle,
-      annotationsManagement.selectedAnnotationId,
       annotationsManagement.selectedAnnotationIds,
       annotationsManagement.selectionModeActive,
       annotationsManagement.setSelectModeAdditive,
@@ -152,48 +175,47 @@ export const AnnotationsProvider: React.FC<AnnotationsProviderProps> = ({
       getNextOrderByType: annotationsManagement.getNextAnnotationOrderByType,
       add: annotationsManagement.addAnnotation,
       updateById: annotationsManagement.updateAnnotationById,
-      updateNameById: annotationsManagement.updateMeasurementNameById,
+      updateNameById: annotationsManagement.updateAnnotationNameById,
       updateVisualizerOptionsById:
-        annotationsManagement.updateMeasurementVisualizerOptionsById,
+        annotationsManagement.updateAnnotationVisualizerOptionsById,
       updatePointLabelAppearanceById:
         annotationsManagement.updatePointLabelAppearanceById,
-      removeByIds: annotationsManagement.deleteMeasurementsByIds,
-      removeSelection: annotationsManagement.deleteSelectedPointAnnotations,
-      removeAll: annotationsManagement.clearAllMeasurements,
-      removeByType: annotationsManagement.clearMeasurementsByType,
-      toggleLockByIds: annotationsManagement.toggleMeasurementsLockByIds,
+      removeByIds: annotationsManagement.deleteAnnotationsByIds,
+      removeSelection: annotationsManagement.deleteSelectedAnnotations,
+      removeAll: annotationsManagement.clearAllAnnotations,
+      removeByType: annotationsManagement.clearAnnotationsByType,
+      toggleLockByIds: annotationsManagement.toggleAnnotationsLockByIds,
       toggleVisibilityByIds:
-        annotationsManagement.toggleMeasurementsVisibilityByIds,
-      setReferenceMeasurementById:
-        annotationsManagement.setReferenceMeasurementById,
+        annotationsManagement.toggleAnnotationsVisibilityByIds,
+      setReferencePointId: annotationsManagement.setReferencePointId,
       confirmLabelPlacementById:
-        annotationsManagement.confirmPointLabelInputById,
-      flyToById: annotationsManagement.flyToMeasurementById,
-      focusById: annotationsManagement.focusMeasurementById,
-      flyToAll: annotationsManagement.flyToAllMeasurements,
+        annotationsManagement.confirmLabelPlacementById,
+      flyToById: annotationsManagement.flyToAnnotationById,
+      focusById: annotationsManagement.focusAnnotationById,
+      flyToAll: annotationsManagement.flyToAllAnnotations,
     }),
     [
       annotationsManagement.addAnnotation,
       annotationsManagement.annotations,
       annotationsManagement.annotationsByType,
-      annotationsManagement.clearAllMeasurements,
-      annotationsManagement.clearMeasurementsByType,
-      annotationsManagement.confirmPointLabelInputById,
-      annotationsManagement.deleteMeasurementsByIds,
-      annotationsManagement.deleteSelectedPointAnnotations,
-      annotationsManagement.focusMeasurementById,
-      annotationsManagement.flyToAllMeasurements,
-      annotationsManagement.flyToMeasurementById,
+      annotationsManagement.clearAllAnnotations,
+      annotationsManagement.clearAnnotationsByType,
+      annotationsManagement.confirmLabelPlacementById,
+      annotationsManagement.deleteAnnotationsByIds,
+      annotationsManagement.deleteSelectedAnnotations,
+      annotationsManagement.focusAnnotationById,
+      annotationsManagement.flyToAllAnnotations,
+      annotationsManagement.flyToAnnotationById,
       annotationsManagement.getAnnotationIndexByType,
       annotationsManagement.getAnnotationOrderByType,
       annotationsManagement.getAnnotationsForNavigation,
       annotationsManagement.getNextAnnotationOrderByType,
-      annotationsManagement.setReferenceMeasurementById,
-      annotationsManagement.toggleMeasurementsLockByIds,
-      annotationsManagement.toggleMeasurementsVisibilityByIds,
+      annotationsManagement.setReferencePointId,
+      annotationsManagement.toggleAnnotationsLockByIds,
+      annotationsManagement.toggleAnnotationsVisibilityByIds,
       annotationsManagement.updateAnnotationById,
-      annotationsManagement.updateMeasurementNameById,
-      annotationsManagement.updateMeasurementVisualizerOptionsById,
+      annotationsManagement.updateAnnotationNameById,
+      annotationsManagement.updateAnnotationVisualizerOptionsById,
       annotationsManagement.updatePointLabelAppearanceById,
     ]
   );
@@ -215,12 +237,12 @@ export const AnnotationsProvider: React.FC<AnnotationsProviderProps> = ({
 
   const settingsContextValue = useMemo<AnnotationSettingsContextType>(
     () => ({
-      temporaryMode: annotationsManagement.temporaryMode,
-      setTemporaryMode: annotationsManagement.setTemporaryMode,
       point: {
         verticalOffsetMeters: annotationsManagement.pointVerticalOffsetMeters,
         setVerticalOffsetMeters:
           annotationsManagement.setPointVerticalOffsetMeters,
+        temporaryMode: annotationsManagement.pointTemporaryMode,
+        setTemporaryMode: annotationsManagement.setPointTemporaryMode,
       },
       distance: {
         stickyToFirstPoint:
@@ -245,103 +267,315 @@ export const AnnotationsProvider: React.FC<AnnotationsProviderProps> = ({
       annotationsManagement.distanceCreationLineVisibility,
       annotationsManagement.distanceModeStickyToFirstPoint,
       annotationsManagement.pointVerticalOffsetMeters,
+      annotationsManagement.pointTemporaryMode,
       annotationsManagement.polylineSegmentLineMode,
       annotationsManagement.polylineVerticalOffsetMeters,
       annotationsManagement.setDistanceCreationLineVisibilityByKind,
       annotationsManagement.setDistanceModeStickyToFirstPoint,
       annotationsManagement.setPointVerticalOffsetMeters,
+      annotationsManagement.setPointTemporaryMode,
       annotationsManagement.setPolylineSegmentLineMode,
       annotationsManagement.setPolylineVerticalOffsetMeters,
-      annotationsManagement.setTemporaryMode,
-      annotationsManagement.temporaryMode,
     ]
   );
 
-  const viewContextValue = useMemo<AnnotationViewContextType>(
+  const annotationsStoreSnapshot = useMemo<AnnotationsStoreSnapshot>(
     () => ({
-      candidateAnnotation: annotationsManagement.annotationCandidate,
-      referencePoint: annotationsManagement.referencePoint,
-      hasDistancePreviewAnchor: annotationsManagement.hasDistancePreviewAnchor,
-      distanceRelations: annotationsManagement.distanceRelations,
-      focusedPlanarMeasurementId:
-        annotationsManagement.focusedPlanarMeasurementId,
-      activePlanarMeasurementId:
-        annotationsManagement.activePlanarMeasurementId,
-      planarMeasurements: annotationsManagement.planarPolygonGroups,
-      polylineMeasurements: annotationsManagement.polylineGroups,
-      groundPolygons: annotationsManagement.areaPolygonGroups,
-      planarPolygons: annotationsManagement.planarSurfacePolygonGroups,
-      verticalPolygons: annotationsManagement.verticalPolygonGroups,
-      polylinePaths: annotationsManagement.polylines,
-      pointMarkerBadgeByPointId:
-        annotationsManagement.pointMarkerBadgeByPointId,
+      tools: toolsContextValue,
+      selection: selectionContextValue,
+      annotations: collectionContextValue,
+      edit: editingContextValue,
+      settings: settingsContextValue,
     }),
     [
-      annotationsManagement.annotationCandidate,
-      annotationsManagement.activePlanarMeasurementId,
-      annotationsManagement.areaPolygonGroups,
-      annotationsManagement.distanceRelations,
-      annotationsManagement.focusedPlanarMeasurementId,
-      annotationsManagement.hasDistancePreviewAnchor,
-      annotationsManagement.planarPolygonGroups,
-      annotationsManagement.planarSurfacePolygonGroups,
-      annotationsManagement.pointMarkerBadgeByPointId,
-      annotationsManagement.polylines,
-      annotationsManagement.polylineGroups,
-      annotationsManagement.referencePoint,
-      annotationsManagement.verticalPolygonGroups,
+      collectionContextValue,
+      editingContextValue,
+      selectionContextValue,
+      settingsContextValue,
+      toolsContextValue,
     ]
   );
 
+  useLayoutEffect(() => {
+    annotationsStore.setState((currentState) =>
+      Object.is(currentState.tools, annotationsStoreSnapshot.tools) &&
+      Object.is(currentState.selection, annotationsStoreSnapshot.selection) &&
+      Object.is(
+        currentState.annotations,
+        annotationsStoreSnapshot.annotations
+      ) &&
+      Object.is(currentState.edit, annotationsStoreSnapshot.edit) &&
+      Object.is(currentState.settings, annotationsStoreSnapshot.settings)
+        ? currentState
+        : {
+            ...currentState,
+            ...annotationsStoreSnapshot,
+          }
+    );
+  }, [annotationsStore, annotationsStoreSnapshot]);
+
+  useLayoutEffect(() => {
+    annotationsStore.setState((currentState) =>
+      Object.is(
+        currentState.candidateAnnotation,
+        annotationsManagement.annotationCandidate
+      )
+        ? currentState
+        : {
+            ...currentState,
+            candidateAnnotation: annotationsManagement.annotationCandidate,
+          }
+    );
+  }, [annotationsManagement.annotationCandidate, annotationsStore]);
+
   return (
-    <AnnotationToolsContext.Provider value={toolsContextValue}>
-      <AnnotationSelectionContext.Provider value={selectionContextValue}>
-        <AnnotationCollectionContext.Provider value={collectionContextValue}>
-          <AnnotationEditingContext.Provider value={editingContextValue}>
-            <AnnotationSettingsContext.Provider value={settingsContextValue}>
-              <AnnotationViewContext.Provider value={viewContextValue}>
-                {children}
-              </AnnotationViewContext.Provider>
-            </AnnotationSettingsContext.Provider>
-          </AnnotationEditingContext.Provider>
-        </AnnotationCollectionContext.Provider>
-      </AnnotationSelectionContext.Provider>
-    </AnnotationToolsContext.Provider>
+    <AnnotationsStoreContext.Provider value={annotationsStore}>
+      {children}
+    </AnnotationsStoreContext.Provider>
   );
 };
 
-export const useAnnotationTools = (): AnnotationToolsContextType =>
-  useRequiredAnnotationsContext(
-    useContext(AnnotationToolsContext),
-    "useAnnotationTools"
+const useAnnotationsStore = (hookName: string): AnnotationsStore =>
+  useRequiredAnnotationsStore(useContext(AnnotationsStoreContext), hookName);
+
+const REFERENCE_POINT_SYNC_EPSILON_METERS = 0.001;
+
+export const useAnnotationTools = (): AnnotationToolsContextType => {
+  const annotationsStore = useAnnotationsStore("useAnnotationTools");
+
+  return useStoreSelector(annotationsStore, (state) => state.tools);
+};
+
+export const useAnnotationSelectionState =
+  (): AnnotationSelectionContextType => {
+    const annotationsStore = useAnnotationsStore("useAnnotationSelectionState");
+
+    return useStoreSelector(annotationsStore, (state) => state.selection);
+  };
+
+export const useAnnotationCollection = (): AnnotationCollectionContextType => {
+  const annotationsStore = useAnnotationsStore("useAnnotationCollection");
+
+  return useStoreSelector(annotationsStore, (state) => state.annotations);
+};
+
+export const useAnnotationEditingState = (): AnnotationEditingContextType => {
+  const annotationsStore = useAnnotationsStore("useAnnotationEditingState");
+
+  return useStoreSelector(annotationsStore, (state) => state.edit);
+};
+
+export const useAnnotationSettings = (): AnnotationSettingsContextType => {
+  const annotationsStore = useAnnotationsStore("useAnnotationSettings");
+
+  return useStoreSelector(annotationsStore, (state) => state.settings);
+};
+
+export const useCandidateAnnotation = (): AnnotationEntry | null => {
+  const annotationsStore = useAnnotationsStore("useCandidateAnnotation");
+
+  return useStoreSelector(
+    annotationsStore,
+    (state) => state.candidateAnnotation
+  );
+};
+
+export const usePendingLabelPlacementTargetId = (): string | null => {
+  const annotationsStore = useAnnotationsStore(
+    "usePendingLabelPlacementTargetId"
   );
 
-export const useAnnotationSelectionState = (): AnnotationSelectionContextType =>
-  useRequiredAnnotationsContext(
-    useContext(AnnotationSelectionContext),
-    "useAnnotationSelectionState"
+  return useStoreSelector(
+    annotationsStore,
+    (state) => state.pendingLabelPlacementAnnotationId
+  );
+};
+
+export const useReferencePoint = (): Cartesian3 | null => {
+  const annotationsStore = useAnnotationsStore("useReferencePoint");
+
+  return useStoreSelector(annotationsStore, (state) => state.referencePoint);
+};
+
+export type AnnotationDistanceReadModel = {
+  referencePoint: Cartesian3 | null;
+  hasPreviewAnchor: boolean;
+  distanceRelations: PointDistanceRelation[];
+};
+
+export const useDistanceAnnotationReadModel =
+  (): AnnotationDistanceReadModel => {
+    const annotationsStore = useAnnotationsStore(
+      "useDistanceAnnotationReadModel"
+    );
+    const referencePoint = useStoreSelector(
+      annotationsStore,
+      (state) => state.referencePoint
+    );
+    const distanceRelations = useStoreSelector(
+      annotationsStore,
+      (state) => state.distanceRelations
+    );
+    const annotationEntries = useStoreSelector(
+      annotationsStore,
+      (state) => state.annotationEntries
+    );
+    const activeToolType = useStoreSelector(
+      annotationsStore,
+      (state) => state.tools.activeToolType
+    );
+    const openChainPointId = useStoreSelector(
+      annotationsStore,
+      (state) => state.openChainPointId
+    );
+    const distanceModeStickyToFirstPoint = useStoreSelector(
+      annotationsStore,
+      (state) => state.settingsState.distance.stickyToFirstPoint
+    );
+
+    const pointEntries = useMemo(
+      () => annotationEntries.filter(isPointAnnotationEntry),
+      [annotationEntries]
+    );
+    const referencePointMeasurementId = useMemo(() => {
+      if (!referencePoint) {
+        return null;
+      }
+
+      const referenceMeasurement =
+        pointEntries.find(
+          (pointEntry) =>
+            Cartesian3.distance(pointEntry.geometryECEF, referencePoint) <=
+            REFERENCE_POINT_SYNC_EPSILON_METERS
+        ) ?? null;
+
+      return referenceMeasurement?.id ?? null;
+    }, [pointEntries, referencePoint]);
+    const pointIdSet = useMemo(
+      () => new Set(pointEntries.map((pointEntry) => pointEntry.id)),
+      [pointEntries]
+    );
+    const hasPreviewAnchor = useMemo(() => {
+      if (activeToolType !== ANNOTATION_TYPE_DISTANCE) {
+        return false;
+      }
+
+      if (distanceModeStickyToFirstPoint && referencePointMeasurementId) {
+        return true;
+      }
+
+      return Boolean(openChainPointId && pointIdSet.has(openChainPointId));
+    }, [
+      activeToolType,
+      distanceModeStickyToFirstPoint,
+      openChainPointId,
+      pointIdSet,
+      referencePointMeasurementId,
+    ]);
+
+    return useMemo(
+      () => ({
+        referencePoint,
+        hasPreviewAnchor,
+        distanceRelations,
+      }),
+      [distanceRelations, hasPreviewAnchor, referencePoint]
+    );
+  };
+
+export const usePlanarMeasurements = (): PlanarMeasurementGroup[] => {
+  const annotationsStore = useAnnotationsStore("usePlanarMeasurements");
+
+  return useStoreSelector(
+    annotationsStore,
+    (state) => state.planarMeasurements
+  );
+};
+
+export type AnnotationPlanarReadModel = {
+  measurements: PlanarMeasurementGroup[];
+  polylineMeasurements: PlanarPolylineGroup[];
+  groundPolygons: PlanarPolygonGroup[];
+  planarPolygons: PlanarPolygonGroup[];
+  verticalPolygons: PlanarPolygonGroup[];
+  polylinePaths: DerivedPolylinePath[];
+  focusedMeasurementId: string | null;
+  activeMeasurementId: string | null;
+};
+
+export const usePlanarAnnotationReadModel = (): AnnotationPlanarReadModel => {
+  const annotationsStore = useAnnotationsStore("usePlanarAnnotationReadModel");
+  const planarMeasurements = useStoreSelector(
+    annotationsStore,
+    (state) => state.planarMeasurements
+  );
+  const activeMeasurementId = useStoreSelector(
+    annotationsStore,
+    (state) => state.activePlanarMeasurementId
+  );
+  const annotationEntries = useStoreSelector(
+    annotationsStore,
+    (state) => state.annotationEntries
+  );
+  const selectedAnnotationIds = useStoreSelector(
+    annotationsStore,
+    (state) => state.selection.ids
+  );
+  const defaultPolylineVerticalOffsetMeters = useStoreSelector(
+    annotationsStore,
+    (state) => state.settingsState.polyline.defaultVerticalOffsetMeters
   );
 
-export const useAnnotationCollection = (): AnnotationCollectionContextType =>
-  useRequiredAnnotationsContext(
-    useContext(AnnotationCollectionContext),
-    "useAnnotationCollection"
+  const groupedPlanarMeasurements = useMemo(
+    () => groupPlanarMeasurementGroupsByType(planarMeasurements),
+    [planarMeasurements]
   );
+  const polylinePaths = useMemo(
+    () =>
+      buildDerivedPolylinePaths({
+        annotations: annotationEntries,
+        planarPolygonGroups: planarMeasurements,
+        defaultVerticalOffsetMeters: defaultPolylineVerticalOffsetMeters,
+        useOffsetAnchors: true,
+      }),
+    [annotationEntries, defaultPolylineVerticalOffsetMeters, planarMeasurements]
+  );
+  const focusedMeasurementId = useMemo(() => {
+    for (let index = selectedAnnotationIds.length - 1; index >= 0; index -= 1) {
+      const selectedAnnotationId = selectedAnnotationIds[index];
+      if (!selectedAnnotationId) {
+        continue;
+      }
 
-export const useAnnotationEditingState = (): AnnotationEditingContextType =>
-  useRequiredAnnotationsContext(
-    useContext(AnnotationEditingContext),
-    "useAnnotationEditingState"
-  );
+      const focusedMeasurement =
+        planarMeasurements.find((measurement) =>
+          measurement.nodeIds.includes(selectedAnnotationId)
+        ) ?? null;
+      if (focusedMeasurement) {
+        return focusedMeasurement.id;
+      }
+    }
 
-export const useAnnotationSettings = (): AnnotationSettingsContextType =>
-  useRequiredAnnotationsContext(
-    useContext(AnnotationSettingsContext),
-    "useAnnotationSettings"
-  );
+    return activeMeasurementId;
+  }, [activeMeasurementId, planarMeasurements, selectedAnnotationIds]);
 
-export const useAnnotationViewState = (): AnnotationViewContextType =>
-  useRequiredAnnotationsContext(
-    useContext(AnnotationViewContext),
-    "useAnnotationViewState"
+  return useMemo(
+    () => ({
+      measurements: planarMeasurements,
+      polylineMeasurements: groupedPlanarMeasurements.polylineGroups,
+      groundPolygons: groupedPlanarMeasurements.areaPolygonGroups,
+      planarPolygons: groupedPlanarMeasurements.planarSurfacePolygonGroups,
+      verticalPolygons: groupedPlanarMeasurements.verticalPolygonGroups,
+      polylinePaths,
+      focusedMeasurementId,
+      activeMeasurementId,
+    }),
+    [
+      activeMeasurementId,
+      focusedMeasurementId,
+      groupedPlanarMeasurements,
+      planarMeasurements,
+      polylinePaths,
+    ]
   );
+};

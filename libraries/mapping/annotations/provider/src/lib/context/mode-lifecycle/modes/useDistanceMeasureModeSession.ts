@@ -13,7 +13,7 @@ export const useDistanceMeasureModeSession = (
   selectablePointIds: ReadonlySet<string>,
   selectedAnnotationId: string | null,
   distanceRelations: readonly PointDistanceRelation[],
-  planarMeasurements: readonly PlanarMeasurementGroup[],
+  nodeChainMeasurements: readonly PlanarMeasurementGroup[],
   requestStartDistanceMode: () => void,
   finishDistanceMeasurementSession: (selectedPointId: string | null) => void,
   discardDistanceMeasurementDraft: () => void
@@ -39,8 +39,8 @@ export const useDistanceMeasureModeSession = (
           relation.pointAId === activeDistanceSourcePointId ||
           relation.pointBId === activeDistanceSourcePointId
       ) ||
-      planarMeasurements.some((measurement) =>
-        measurement.vertexPointIds.includes(activeDistanceSourcePointId)
+      nodeChainMeasurements.some((measurement) =>
+        measurement.nodeIds.includes(activeDistanceSourcePointId)
       );
 
     if (canPersistDistanceDraft) {
@@ -54,7 +54,7 @@ export const useDistanceMeasureModeSession = (
     discardDistanceMeasurementDraft,
     distanceRelations,
     finishDistanceMeasurementSession,
-    planarMeasurements,
+    nodeChainMeasurements,
     selectedAnnotationId,
   ]);
 

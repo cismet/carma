@@ -112,7 +112,7 @@ const renderAnnotationActions = (
         icon={faArrowsDownToLine}
         onClick={(event) => {
           event.stopPropagation();
-          actions.setReferenceMeasurementById(measurement.id);
+          actions.setReferencePointId(measurement.id);
         }}
         dataTestId="carma-set-reference-btn"
       />

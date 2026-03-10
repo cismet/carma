@@ -25,20 +25,20 @@ export const buildPolylinePreviewMeasurements = ({
     .map((group) => {
       if (group.closed) return null;
       if (group.type !== ANNOTATION_TYPE_AREA_VERTICAL) return null;
-      if (group.vertexPointIds.length !== 1) return null;
+      if (group.nodeIds.length !== 1) return null;
 
-      const firstVertexId = group.vertexPointIds[0] ?? null;
-      const firstVertex = firstVertexId
-        ? pointsById.get(firstVertexId)?.geometryECEF
+      const firstNodeId = group.nodeIds[0] ?? null;
+      const firstNodePosition = firstNodeId
+        ? pointsById.get(firstNodeId)?.geometryECEF
         : null;
       const previewOppositeCorner =
         verticalRectanglePreviewOppositeByGroupId?.[group.id];
-      if (!firstVertex || !previewOppositeCorner) {
+      if (!firstNodePosition || !previewOppositeCorner) {
         return null;
       }
 
       const verticalCorners = buildVerticalRectangleCornerFromDiagonal(
-        firstVertex,
+        firstNodePosition,
         previewOppositeCorner
       );
       if (!verticalCorners) {
@@ -48,7 +48,7 @@ export const buildPolylinePreviewMeasurements = ({
       return {
         id: group.id,
         vertexPoints: [
-          firstVertex,
+          firstNodePosition,
           verticalCorners.adjacentHorizontalCorner,
           previewOppositeCorner,
           verticalCorners.adjacentVerticalCorner,

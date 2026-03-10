@@ -48,7 +48,7 @@ export type VerticalAutoCorner = {
 
 export type VerticalAutoCloseRectangle = {
   autoCorners: VerticalAutoCorner[];
-  closedVertexPointIds: string[];
+  closedNodeIds: string[];
 };
 
 export const buildVerticalRectangleCornerFromDiagonal = (
@@ -179,7 +179,7 @@ export const buildVerticalAutoCloseRectangle = (
         position: verticalCorners.adjacentVerticalCorner,
       },
     ],
-    closedVertexPointIds: [
+    closedNodeIds: [
       firstPointId,
       cornerHorizontalId,
       secondPointId,

@@ -21,5 +21,14 @@ const ANNOTATION_TYPES = [
 export type AnnotationType = (typeof ANNOTATION_TYPES)[number];
 export type AnnotationShortLabelKind = AnnotationType;
 
-const ANNOTATION_TOOL_TYPES = [SELECT_TOOL_TYPE, ...ANNOTATION_TYPES] as const;
-export type AnnotationToolType = (typeof ANNOTATION_TOOL_TYPES)[number];
+export type AnnotationToolType = typeof SELECT_TOOL_TYPE | AnnotationType;
+
+export const isAreaToolType = (
+  toolType: AnnotationToolType
+): toolType is
+  | typeof ANNOTATION_TYPE_AREA_GROUND
+  | typeof ANNOTATION_TYPE_AREA_VERTICAL
+  | typeof ANNOTATION_TYPE_AREA_PLANAR =>
+  toolType === ANNOTATION_TYPE_AREA_GROUND ||
+  toolType === ANNOTATION_TYPE_AREA_VERTICAL ||
+  toolType === ANNOTATION_TYPE_AREA_PLANAR;

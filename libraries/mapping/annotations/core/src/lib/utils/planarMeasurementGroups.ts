@@ -62,8 +62,8 @@ export const getConnectedOpenPolylineGroupIds = (
   }
 
   const groupById = new Map(openGroups.map((group) => [group.id, group]));
-  const vertexIdsByGroupId = new Map(
-    openGroups.map((group) => [group.id, new Set(group.vertexPointIds)])
+  const nodeIdsByGroupId = new Map(
+    openGroups.map((group) => [group.id, new Set(group.nodeIds)])
   );
 
   const connectedIds = new Set<string>();
@@ -75,8 +75,8 @@ export const getConnectedOpenPolylineGroupIds = (
       continue;
     }
 
-    const currentVertices = vertexIdsByGroupId.get(groupId);
-    if (!currentVertices) {
+    const currentNodes = nodeIdsByGroupId.get(groupId);
+    if (!currentNodes) {
       continue;
     }
 
@@ -87,15 +87,15 @@ export const getConnectedOpenPolylineGroupIds = (
         return;
       }
 
-      const candidateVertices = vertexIdsByGroupId.get(candidateId);
-      if (!candidateVertices) {
+      const candidateNodes = nodeIdsByGroupId.get(candidateId);
+      if (!candidateNodes) {
         return;
       }
 
-      const sharesVertex = Array.from(currentVertices).some((vertexId) =>
-        candidateVertices.has(vertexId)
+      const sharesNode = Array.from(currentNodes).some((nodeId) =>
+        candidateNodes.has(nodeId)
       );
-      if (sharesVertex) {
+      if (sharesNode) {
         queue.push(candidateGroup.id);
       }
     });

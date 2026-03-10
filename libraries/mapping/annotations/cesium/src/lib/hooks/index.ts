@@ -1,6 +1,7 @@
 export * from "./geometry/useCesiumCoplanarPolygonPrimitives";
 export * from "./geometry/useCesiumEdgeVisualizer";
 export * from "./geometry/useCesiumGroundPolygonPrimitives";
+export * from "./scene/flyToMeasurementPoints";
 export * from "./scene/useCesiumOverlaySync";
 export * from "./scene/useCesiumPointQuery";
 export * from "./scene/useCesiumSceneVisibilityIndex";

@@ -12,24 +12,24 @@ type BaseAnnotationEntry = {
   locked?: boolean;
 };
 
-type UseMeasurementEntryMutationsParams<
-  TMeasurement extends BaseAnnotationEntry,
+type UseAnnotationEntryMutationsParams<
+  TAnnotationEntry extends BaseAnnotationEntry,
   TAppearance extends AnnotationLabelAppearanceLike
 > = {
-  setAnnotations: Dispatch<SetStateAction<TMeasurement[]>>;
-  isLabelAppearanceTarget: (measurement: TMeasurement) => boolean;
-  getLabelAppearance: (measurement: TMeasurement) => TAppearance | undefined;
+  setAnnotations: Dispatch<SetStateAction<TAnnotationEntry[]>>;
+  isLabelAppearanceTarget: (annotation: TAnnotationEntry) => boolean;
+  getLabelAppearance: (annotation: TAnnotationEntry) => TAppearance | undefined;
   applyLabelAppearance: (
-    measurement: TMeasurement,
+    annotation: TAnnotationEntry,
     appearance: TAppearance | undefined
-  ) => TMeasurement;
+  ) => TAnnotationEntry;
   normalizeLabelAppearance: (
     appearance?: TAppearance
   ) => TAppearance | undefined;
 };
 
 export const useAnnotationEntryMutations = <
-  TMeasurement extends BaseAnnotationEntry,
+  TAnnotationEntry extends BaseAnnotationEntry,
   TAppearance extends AnnotationLabelAppearanceLike
 >({
   setAnnotations,
@@ -37,31 +37,7 @@ export const useAnnotationEntryMutations = <
   getLabelAppearance,
   applyLabelAppearance,
   normalizeLabelAppearance,
-}: UseMeasurementEntryMutationsParams<TMeasurement, TAppearance>) => {
-  const updateAnnotationNameById = useCallback(
-    (id: string, name: string) => {
-      const nextName = name.trim();
-
-      setAnnotations((prev) => {
-        const hasChanged = prev.some(
-          (measurement) =>
-            measurement.id === id && (measurement.name ?? "") !== nextName
-        );
-
-        if (!hasChanged) {
-          return prev;
-        }
-
-        return prev.map((measurement) =>
-          measurement.id === id
-            ? { ...measurement, name: nextName }
-            : measurement
-        );
-      });
-    },
-    [setAnnotations]
-  );
-
+}: UseAnnotationEntryMutationsParams<TAnnotationEntry, TAppearance>) => {
   const updateLabelAppearanceById = useCallback(
     (id: string, appearance: TAppearance | undefined) => {
       const normalizedAppearance = normalizeLabelAppearance(appearance);
@@ -99,27 +75,7 @@ export const useAnnotationEntryMutations = <
     ]
   );
 
-  const toggleAnnotationLockById = useCallback(
-    (id: string) => {
-      setAnnotations((prev) => {
-        let hasChanged = false;
-        const next = prev.map((measurement) => {
-          if (measurement.id !== id) return measurement;
-          hasChanged = true;
-          return {
-            ...measurement,
-            locked: !measurement.locked,
-          };
-        });
-        return hasChanged ? next : prev;
-      });
-    },
-    [setAnnotations]
-  );
-
   return {
-    updateAnnotationNameById,
     updateLabelAppearanceById,
-    toggleAnnotationLockById,
   };
 };

@@ -11,7 +11,7 @@ import { useAnnotationInfoBoxDisplaySelection } from "./useAnnotationInfoBoxDisp
 import { useAnnotationInfoBoxSlotActions } from "./useAnnotationInfoBoxSlotActions";
 import {
   useAnnotationCollection,
-  useAnnotationTools,
+  usePendingLabelPlacementTargetId,
 } from "../../context/AnnotationsProvider";
 
 export type LabelInfoBoxSlotsInputState = {
@@ -24,7 +24,7 @@ export type LabelInfoBoxSlotsInputState = {
 export const useLabelInfoBoxSlotsInput = (): LabelInfoBoxSlotsInputState => {
   const { displayMeasurement } = useAnnotationInfoBoxDisplaySelection();
   const annotations = useAnnotationCollection();
-  const tools = useAnnotationTools();
+  const pendingLabelPlacementTargetId = usePendingLabelPlacementTargetId();
   const actions = useAnnotationInfoBoxSlotActions();
 
   const displayLabelMeasurement =
@@ -46,14 +46,14 @@ export const useLabelInfoBoxSlotsInput = (): LabelInfoBoxSlotsInputState => {
       getLabelAnnotationSlotsInput({
         measurement: displayLabelMeasurement,
         labelMeasurements,
-        labelInputPromptPointId: tools.pendingLabelPlacementAnnotationId,
+        labelInputPromptPointId: pendingLabelPlacementTargetId,
         actions,
       }),
     [
       actions,
       displayLabelMeasurement,
       labelMeasurements,
-      tools.pendingLabelPlacementAnnotationId,
+      pendingLabelPlacementTargetId,
     ]
   );
 

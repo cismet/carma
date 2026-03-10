@@ -1,11 +1,19 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useState,
+  type Dispatch,
+  type SetStateAction,
+} from "react";
 
 import { type Scene } from "@carma/cesium";
+import { useStoreSelector } from "@carma-commons/react-store";
 
 import { getUniqueIds } from "./hooks/selectionSet";
 import type { RectangleSelectionState } from "../hooks/selection/useRectangleSelectionOverlay";
 import type { AnnotationSelectionState } from "../hooks/selection/annotationSelection.types";
-import { useSelectionToolState } from "../hooks/selection/useSelectionToolState";
+import type { AnnotationSelectionStoreState, AnnotationsStore } from "../store";
 
 const areIdListsEqual = (
   left: readonly string[],
@@ -18,35 +26,165 @@ const areIdListsEqual = (
   return left.every((id, index) => id === right[index]);
 };
 
+const resolveSetStateAction = <TValue>(
+  action: SetStateAction<TValue>,
+  previousValue: TValue
+): TValue =>
+  typeof action === "function"
+    ? (action as (previousValue: TValue) => TValue)(previousValue)
+    : action;
+
+const getPrimarySelectedAnnotationId = (
+  selectedAnnotationIds: readonly string[]
+): string | null =>
+  selectedAnnotationIds[selectedAnnotationIds.length - 1] ?? null;
+
 export const useAnnotationSelection = (
+  annotationsStore: AnnotationsStore,
   scene: Scene | null,
-  selectableAnnotationIds: ReadonlySet<string>,
-  initialSelectionModeActive: boolean = false
+  selectableAnnotationIds: ReadonlySet<string>
 ) => {
-  const [selectedAnnotationId, setSelectedAnnotationId] = useState<
-    string | null
-  >(null);
-  const [selectedAnnotationIds, setSelectedAnnotationIds] = useState<string[]>(
-    []
-  );
-  const selectedAnnotationIdRef = useRef<string | null>(null);
-  const [previousSelectedAnnotationId, setPreviousSelectedAnnotationId] =
-    useState<string | null>(null);
   const {
+    selectedAnnotationIds,
+    previousSelectedAnnotationId,
     selectionModeActive,
-    setSelectionModeActive,
     selectModeAdditive,
-    setSelectModeAdditive,
     selectModeRectangle,
-    setSelectModeRectangle,
-    effectiveSelectModeAdditive,
-  } = useSelectionToolState(initialSelectionModeActive);
+  } = useStoreSelector(annotationsStore, (state) => state.selectionState);
+  const selectedAnnotationId = getPrimarySelectedAnnotationId(
+    selectedAnnotationIds
+  );
+  const [selectModeShiftHeld, setSelectModeShiftHeld] = useState(false);
+
+  const setSelectionState = useCallback(
+    (
+      updater:
+        | AnnotationSelectionStoreState
+        | ((
+            previousState: AnnotationSelectionStoreState
+          ) => AnnotationSelectionStoreState)
+    ) => {
+      annotationsStore.setState((previousStoreState) => {
+        const nextSelectionState =
+          typeof updater === "function"
+            ? updater(previousStoreState.selectionState)
+            : updater;
+
+        return Object.is(nextSelectionState, previousStoreState.selectionState)
+          ? previousStoreState
+          : {
+              ...previousStoreState,
+              selectionState: nextSelectionState,
+            };
+      });
+    },
+    [annotationsStore]
+  );
+
+  const setSelectionModeActive = useCallback<Dispatch<SetStateAction<boolean>>>(
+    (nextValueOrUpdater) => {
+      setSelectionState((previousState) => {
+        const nextSelectionModeActive = resolveSetStateAction(
+          nextValueOrUpdater,
+          previousState.selectionModeActive
+        );
+
+        return nextSelectionModeActive === previousState.selectionModeActive
+          ? previousState
+          : {
+              ...previousState,
+              selectionModeActive: nextSelectionModeActive,
+            };
+      });
+    },
+    [setSelectionState]
+  );
+
+  const setSelectModeAdditive = useCallback<Dispatch<SetStateAction<boolean>>>(
+    (nextValueOrUpdater) => {
+      setSelectionState((previousState) => {
+        const nextSelectModeAdditive = resolveSetStateAction(
+          nextValueOrUpdater,
+          previousState.selectModeAdditive
+        );
+
+        return nextSelectModeAdditive === previousState.selectModeAdditive
+          ? previousState
+          : {
+              ...previousState,
+              selectModeAdditive: nextSelectModeAdditive,
+            };
+      });
+    },
+    [setSelectionState]
+  );
+
+  const setSelectModeRectangle = useCallback<Dispatch<SetStateAction<boolean>>>(
+    (nextValueOrUpdater) => {
+      setSelectionState((previousState) => {
+        const nextSelectModeRectangle = resolveSetStateAction(
+          nextValueOrUpdater,
+          previousState.selectModeRectangle
+        );
+
+        return nextSelectModeRectangle === previousState.selectModeRectangle
+          ? previousState
+          : {
+              ...previousState,
+              selectModeRectangle: nextSelectModeRectangle,
+            };
+      });
+    },
+    [setSelectionState]
+  );
 
   useEffect(
-    function effectSyncSelectedAnnotationIdRef() {
-      selectedAnnotationIdRef.current = selectedAnnotationId;
+    function effectTrackSelectionShiftKeyState() {
+      if (!selectionModeActive) {
+        setSelectModeShiftHeld(false);
+        return;
+      }
+
+      const handleShiftKeyDown = (event: KeyboardEvent) => {
+        if (event.key !== "Shift") {
+          return;
+        }
+
+        setSelectModeShiftHeld((previousValue) =>
+          previousValue ? previousValue : true
+        );
+      };
+
+      const handleShiftKeyUp = (event: KeyboardEvent) => {
+        if (event.key !== "Shift") {
+          return;
+        }
+
+        setSelectModeShiftHeld((previousValue) =>
+          previousValue ? false : previousValue
+        );
+      };
+
+      const handleWindowBlur = () => {
+        setSelectModeShiftHeld(false);
+      };
+
+      window.addEventListener("keydown", handleShiftKeyDown, true);
+      window.addEventListener("keyup", handleShiftKeyUp, true);
+      window.addEventListener("blur", handleWindowBlur, true);
+
+      return () => {
+        window.removeEventListener("keydown", handleShiftKeyDown, true);
+        window.removeEventListener("keyup", handleShiftKeyUp, true);
+        window.removeEventListener("blur", handleWindowBlur, true);
+      };
     },
-    [selectedAnnotationId]
+    [selectionModeActive]
+  );
+
+  const effectiveSelectModeAdditive = useMemo(
+    () => selectModeAdditive || (selectionModeActive && selectModeShiftHeld),
+    [selectModeAdditive, selectionModeActive, selectModeShiftHeld]
   );
 
   useEffect(
@@ -116,70 +254,67 @@ export const useAnnotationSelection = (
 
   useEffect(
     function effectPruneSelectedAnnotationIds() {
-      setSelectedAnnotationIds((previousIds) => {
-        if (previousIds.length === 0) {
-          return previousIds;
+      setSelectionState((previousState) => {
+        if (previousState.selectedAnnotationIds.length === 0) {
+          return previousState;
         }
 
-        const nextIds = previousIds.filter((id) =>
-          selectableAnnotationIds.has(id)
+        const nextSelectedAnnotationIds =
+          previousState.selectedAnnotationIds.filter((id) =>
+            selectableAnnotationIds.has(id)
+          );
+        const previousSelectedAnnotationId = getPrimarySelectedAnnotationId(
+          previousState.selectedAnnotationIds
         );
-        if (areIdListsEqual(previousIds, nextIds)) {
-          return previousIds;
+        const nextSelectedAnnotationId = getPrimarySelectedAnnotationId(
+          nextSelectedAnnotationIds
+        );
+        const nextPreviousSelectedAnnotationId =
+          previousState.previousSelectedAnnotationId &&
+          !selectableAnnotationIds.has(
+            previousState.previousSelectedAnnotationId
+          )
+            ? null
+            : previousState.previousSelectedAnnotationId;
+
+        if (
+          areIdListsEqual(
+            previousState.selectedAnnotationIds,
+            nextSelectedAnnotationIds
+          ) &&
+          previousSelectedAnnotationId === nextSelectedAnnotationId &&
+          previousState.previousSelectedAnnotationId ===
+            nextPreviousSelectedAnnotationId
+        ) {
+          return previousState;
         }
 
-        const nextPrimaryId = nextIds[nextIds.length - 1] ?? null;
-        selectedAnnotationIdRef.current = nextPrimaryId;
-        setSelectedAnnotationId((previousSelectedId) =>
-          previousSelectedId === nextPrimaryId
-            ? previousSelectedId
-            : nextPrimaryId
-        );
-        return nextIds;
+        return {
+          ...previousState,
+          selectedAnnotationIds: nextSelectedAnnotationIds,
+          previousSelectedAnnotationId: nextPreviousSelectedAnnotationId,
+        };
       });
     },
-    [selectableAnnotationIds]
-  );
-
-  useEffect(
-    function effectClearMissingSelectedAnnotationId() {
-      if (!selectedAnnotationId) {
-        return;
-      }
-
-      if (!selectableAnnotationIds.has(selectedAnnotationId)) {
-        selectedAnnotationIdRef.current = null;
-        setSelectedAnnotationId(null);
-      }
-    },
-    [selectableAnnotationIds, selectedAnnotationId]
-  );
-
-  useEffect(
-    function effectClearMissingPreviousSelectedAnnotationId() {
-      if (!previousSelectedAnnotationId) {
-        return;
-      }
-
-      if (!selectableAnnotationIds.has(previousSelectedAnnotationId)) {
-        setPreviousSelectedAnnotationId(null);
-      }
-    },
-    [previousSelectedAnnotationId, selectableAnnotationIds]
+    [selectableAnnotationIds, setSelectionState]
   );
 
   const clearPointSelection = useCallback(() => {
-    selectedAnnotationIdRef.current = null;
-    setSelectedAnnotationId((previousSelectedId) =>
-      previousSelectedId === null ? previousSelectedId : null
-    );
-    setSelectedAnnotationIds((previousIds) =>
-      previousIds.length === 0 ? previousIds : []
-    );
-    setPreviousSelectedAnnotationId((previousSelectedId) =>
-      previousSelectedId === null ? previousSelectedId : null
-    );
-  }, []);
+    setSelectionState((previousState) => {
+      if (
+        previousState.selectedAnnotationIds.length === 0 &&
+        previousState.previousSelectedAnnotationId === null
+      ) {
+        return previousState;
+      }
+
+      return {
+        ...previousState,
+        selectedAnnotationIds: [],
+        previousSelectedAnnotationId: null,
+      };
+    });
+  }, [setSelectionState]);
 
   const clearAnnotationSelection = useCallback(() => {
     clearPointSelection();
@@ -191,35 +326,47 @@ export const useAnnotationSelection = (
         return;
       }
 
-      setSelectedAnnotationIds((previousIds) => {
-        if (previousIds.length === 0) {
-          return previousIds;
+      setSelectionState((previousState) => {
+        if (previousState.selectedAnnotationIds.length === 0) {
+          return previousState;
         }
 
-        const nextIds = previousIds.filter(
-          (id) => !removedIds.has(id) && selectableAnnotationIds.has(id)
+        const nextSelectedAnnotationIds =
+          previousState.selectedAnnotationIds.filter(
+            (id) => !removedIds.has(id) && selectableAnnotationIds.has(id)
+          );
+        const previousSelectedAnnotationId = getPrimarySelectedAnnotationId(
+          previousState.selectedAnnotationIds
         );
-        if (areIdListsEqual(previousIds, nextIds)) {
-          return previousIds;
+        const nextSelectedAnnotationId = getPrimarySelectedAnnotationId(
+          nextSelectedAnnotationIds
+        );
+        const nextPreviousSelectedAnnotationId =
+          previousState.previousSelectedAnnotationId &&
+          removedIds.has(previousState.previousSelectedAnnotationId)
+            ? null
+            : previousState.previousSelectedAnnotationId;
+
+        if (
+          areIdListsEqual(
+            previousState.selectedAnnotationIds,
+            nextSelectedAnnotationIds
+          ) &&
+          previousSelectedAnnotationId === nextSelectedAnnotationId &&
+          previousState.previousSelectedAnnotationId ===
+            nextPreviousSelectedAnnotationId
+        ) {
+          return previousState;
         }
 
-        const nextPrimaryId = nextIds[nextIds.length - 1] ?? null;
-        selectedAnnotationIdRef.current = nextPrimaryId;
-        setSelectedAnnotationId((previousSelectedId) =>
-          previousSelectedId === nextPrimaryId
-            ? previousSelectedId
-            : nextPrimaryId
-        );
-        return nextIds;
+        return {
+          ...previousState,
+          selectedAnnotationIds: nextSelectedAnnotationIds,
+          previousSelectedAnnotationId: nextPreviousSelectedAnnotationId,
+        };
       });
-
-      setPreviousSelectedAnnotationId((previousSelectedId) =>
-        previousSelectedId && removedIds.has(previousSelectedId)
-          ? null
-          : previousSelectedId
-      );
     },
-    [selectableAnnotationIds]
+    [selectableAnnotationIds, setSelectionState]
   );
 
   const selectAnnotationIds = useCallback(
@@ -228,36 +375,46 @@ export const useAnnotationSelection = (
         ids.filter((id) => selectableAnnotationIds.has(id))
       );
 
-      setSelectedAnnotationIds((previousIds) => {
-        const nextIds = additive
-          ? getUniqueIds([...previousIds, ...uniqueIncomingIds])
-          : uniqueIncomingIds;
-        const nextPrimaryId = nextIds[nextIds.length - 1] ?? null;
-        const previousPrimaryId = selectedAnnotationIdRef.current;
-
-        selectedAnnotationIdRef.current = nextPrimaryId;
-        setSelectedAnnotationId((previousSelectedId) =>
-          previousSelectedId === nextPrimaryId
-            ? previousSelectedId
-            : nextPrimaryId
+      setSelectionState((previousState) => {
+        const previousSelectedAnnotationId = getPrimarySelectedAnnotationId(
+          previousState.selectedAnnotationIds
         );
+        const nextSelectedAnnotationIds = additive
+          ? getUniqueIds([
+              ...previousState.selectedAnnotationIds,
+              ...uniqueIncomingIds,
+            ])
+          : uniqueIncomingIds;
+        const nextSelectedAnnotationId = getPrimarySelectedAnnotationId(
+          nextSelectedAnnotationIds
+        );
+        const nextPreviousSelectedAnnotationId =
+          previousSelectedAnnotationId &&
+          nextSelectedAnnotationId &&
+          previousSelectedAnnotationId !== nextSelectedAnnotationId
+            ? previousSelectedAnnotationId
+            : previousState.previousSelectedAnnotationId;
 
         if (
-          previousPrimaryId &&
-          nextPrimaryId &&
-          previousPrimaryId !== nextPrimaryId
+          areIdListsEqual(
+            previousState.selectedAnnotationIds,
+            nextSelectedAnnotationIds
+          ) &&
+          previousSelectedAnnotationId === nextSelectedAnnotationId &&
+          previousState.previousSelectedAnnotationId ===
+            nextPreviousSelectedAnnotationId
         ) {
-          setPreviousSelectedAnnotationId((currentPreviousId) =>
-            currentPreviousId === previousPrimaryId
-              ? currentPreviousId
-              : previousPrimaryId
-          );
+          return previousState;
         }
 
-        return areIdListsEqual(previousIds, nextIds) ? previousIds : nextIds;
+        return {
+          ...previousState,
+          selectedAnnotationIds: nextSelectedAnnotationIds,
+          previousSelectedAnnotationId: nextPreviousSelectedAnnotationId,
+        };
       });
     },
-    [selectableAnnotationIds]
+    [selectableAnnotationIds, setSelectionState]
   );
 
   const selectAnnotationById = useCallback(
@@ -266,63 +423,92 @@ export const useAnnotationSelection = (
         return;
       }
 
-      const previousPrimaryId = selectedAnnotationIdRef.current;
-      selectedAnnotationIdRef.current = id;
+      setSelectionState((previousState) => {
+        const previousSelectedAnnotationId = getPrimarySelectedAnnotationId(
+          previousState.selectedAnnotationIds
+        );
+        const nextSelectedAnnotationIds =
+          id === null
+            ? []
+            : previousState.selectedAnnotationIds.length === 1 &&
+              previousState.selectedAnnotationIds[0] === id
+            ? previousState.selectedAnnotationIds
+            : [id];
+        const nextPreviousSelectedAnnotationId =
+          previousSelectedAnnotationId &&
+          id &&
+          previousSelectedAnnotationId !== id
+            ? previousSelectedAnnotationId
+            : previousState.previousSelectedAnnotationId;
 
-      setSelectedAnnotationId((previousSelectedId) =>
-        previousSelectedId === id ? previousSelectedId : id
-      );
-      setSelectedAnnotationIds((previousIds) => {
-        if (id === null) {
-          return previousIds.length === 0 ? previousIds : [];
+        if (
+          previousSelectedAnnotationId === id &&
+          areIdListsEqual(
+            previousState.selectedAnnotationIds,
+            nextSelectedAnnotationIds
+          ) &&
+          previousState.previousSelectedAnnotationId ===
+            nextPreviousSelectedAnnotationId
+        ) {
+          return previousState;
         }
 
-        return previousIds.length === 1 && previousIds[0] === id
-          ? previousIds
-          : [id];
+        return {
+          ...previousState,
+          selectedAnnotationIds: nextSelectedAnnotationIds,
+          previousSelectedAnnotationId: nextPreviousSelectedAnnotationId,
+        };
       });
-
-      if (previousPrimaryId && id && previousPrimaryId !== id) {
-        setPreviousSelectedAnnotationId((currentPreviousId) =>
-          currentPreviousId === previousPrimaryId
-            ? currentPreviousId
-            : previousPrimaryId
-        );
-      }
     },
-    [selectableAnnotationIds]
+    [selectableAnnotationIds, setSelectionState]
   );
 
-  const selectAnnotationByIdImmediate = useCallback((id: string | null) => {
-    const previousPrimaryId = selectedAnnotationIdRef.current;
-    selectedAnnotationIdRef.current = id;
+  const selectAnnotationByIdImmediate = useCallback(
+    (id: string | null) => {
+      setSelectionState((previousState) => {
+        const previousSelectedAnnotationId = getPrimarySelectedAnnotationId(
+          previousState.selectedAnnotationIds
+        );
+        const nextSelectedAnnotationIds =
+          id === null
+            ? []
+            : previousState.selectedAnnotationIds.length === 1 &&
+              previousState.selectedAnnotationIds[0] === id
+            ? previousState.selectedAnnotationIds
+            : [id];
+        const nextPreviousSelectedAnnotationId =
+          previousSelectedAnnotationId &&
+          id &&
+          previousSelectedAnnotationId !== id
+            ? previousSelectedAnnotationId
+            : previousState.previousSelectedAnnotationId;
 
-    setSelectedAnnotationId((previousSelectedId) =>
-      previousSelectedId === id ? previousSelectedId : id
-    );
-    setSelectedAnnotationIds((previousIds) => {
-      if (id === null) {
-        return previousIds.length === 0 ? previousIds : [];
-      }
+        if (
+          previousSelectedAnnotationId === id &&
+          areIdListsEqual(
+            previousState.selectedAnnotationIds,
+            nextSelectedAnnotationIds
+          ) &&
+          previousState.previousSelectedAnnotationId ===
+            nextPreviousSelectedAnnotationId
+        ) {
+          return previousState;
+        }
 
-      return previousIds.length === 1 && previousIds[0] === id
-        ? previousIds
-        : [id];
-    });
-
-    if (previousPrimaryId && id && previousPrimaryId !== id) {
-      setPreviousSelectedAnnotationId((currentPreviousId) =>
-        currentPreviousId === previousPrimaryId
-          ? currentPreviousId
-          : previousPrimaryId
-      );
-    }
-  }, []);
+        return {
+          ...previousState,
+          selectedAnnotationIds: nextSelectedAnnotationIds,
+          previousSelectedAnnotationId: nextPreviousSelectedAnnotationId,
+        };
+      });
+    },
+    [setSelectionState]
+  );
 
   const annotationSelection = useMemo<AnnotationSelectionState>(
     () => ({
-      selectedAnnotationId: selectedAnnotationId,
-      selectedAnnotationIds: selectedAnnotationIds,
+      selectedAnnotationId,
+      selectedAnnotationIds,
     }),
     [selectedAnnotationId, selectedAnnotationIds]
   );
@@ -367,38 +553,9 @@ export const useAnnotationSelection = (
     selectedAnnotationId,
   ]);
 
-  const contextValue = useMemo(
-    () => ({
-      selectedAnnotationId,
-      selectedAnnotationIds,
-      selectAnnotationIds,
-      selectionModeActive,
-      setSelectionModeActive,
-      selectModeAdditive,
-      setSelectModeAdditive,
-      selectModeRectangle,
-      setSelectModeRectangle,
-      selectAnnotationById,
-    }),
-    [
-      selectAnnotationById,
-      selectAnnotationIds,
-      selectModeAdditive,
-      selectModeRectangle,
-      selectedAnnotationId,
-      selectedAnnotationIds,
-      selectionModeActive,
-      setSelectModeAdditive,
-      setSelectModeRectangle,
-      setSelectionModeActive,
-    ]
-  );
-
   return {
-    contextValue,
     selectedAnnotationId,
     selectedAnnotationIds,
-    selectedAnnotationIdRef,
     previousSelectedAnnotationId,
     selectionModeActive,
     setSelectionModeActive,

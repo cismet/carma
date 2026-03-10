@@ -36,7 +36,7 @@ type UseAnnotationCandidateStateParams = {
   pointQueryEnabled: boolean;
   moveGizmoPointId: string | null;
   isMoveGizmoDragging: boolean;
-  setPlanarPolygonGroups: Dispatch<SetStateAction<PlanarMeasurementGroup[]>>;
+  setPlanarMeasurements: Dispatch<SetStateAction<PlanarMeasurementGroup[]>>;
   getPositionWithVerticalOffsetFromAnchor: (
     positionECEF: Cartesian3,
     verticalOffsetMeters: number
@@ -58,6 +58,7 @@ type UseAnnotationCandidateStateResult = {
     pointId: string,
     anchorPosition?: { x: number; y: number } | null
   ) => boolean;
+  releaseAnnotationCursorSnap: () => void;
   scheduleAnnotationCursorSnapRelease: (pointId: string) => void;
   isPolylineCandidateMode: boolean;
   hasCandidateNode: boolean;
@@ -77,7 +78,7 @@ export const useAnnotationCandidateState = (
     pointQueryEnabled,
     moveGizmoPointId,
     isMoveGizmoDragging,
-    setPlanarPolygonGroups,
+    setPlanarMeasurements,
     getPositionWithVerticalOffsetFromAnchor,
   }: UseAnnotationCandidateStateParams
 ): UseAnnotationCandidateStateResult => {
@@ -99,7 +100,7 @@ export const useAnnotationCandidateState = (
     scene,
     annotations,
     candidate,
-    setPlanarPolygonGroups
+    setPlanarMeasurements
   );
 
   const {
@@ -110,6 +111,7 @@ export const useAnnotationCandidateState = (
       activeCandidateNodeVerticalOffsetAnchorECEF,
     clearMeasurementCursor,
     handleAnnotationCursorMove,
+    releaseAnnotationCursorSnap,
     scheduleAnnotationCursorSnapRelease,
     syncAnnotationCursorToExistingPoint,
   } = useAnnotationCursorState(scene, annotations, candidate, {
@@ -126,6 +128,7 @@ export const useAnnotationCandidateState = (
     activeCandidateNodeVerticalOffsetAnchorECEF,
     clearAnnotationCursor: clearMeasurementCursor,
     handleAnnotationCursorMove,
+    releaseAnnotationCursorSnap,
     syncAnnotationCursorToExistingPoint,
     scheduleAnnotationCursorSnapRelease,
     isPolylineCandidateMode,

@@ -13,7 +13,7 @@ export const useAnnotationInfoBoxSlotActions = (): AnnotationSlotActions => {
       toggleLockByIds: annotations.toggleLockByIds,
       toggleVisibilityByIds: annotations.toggleVisibilityByIds,
       flyToById: annotations.flyToById,
-      setReferenceMeasurementById: annotations.setReferenceMeasurementById,
+      setReferencePointId: annotations.setReferencePointId,
       confirmLabelPlacementById: annotations.confirmLabelPlacementById,
       updatePointLabelAppearanceById:
         annotations.updatePointLabelAppearanceById,

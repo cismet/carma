@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect } from "react";
 
 import {
   Cartesian3,
@@ -24,6 +24,10 @@ import {
   type PlanarPolygonPlane,
 } from "@carma-mapping/annotations/core";
 import { usePointEditingGizmo } from "./usePointEditingGizmo";
+import type {
+  AnnotationEditTarget,
+  AnnotationEditUpdateTarget,
+} from "./editing/annotationEdit.types";
 import type { AnnotationsManagementState } from "./useAnnotationsManagement";
 
 const VERTICAL_POLYGON_AXIS_ID_ENU_UP = "enu-up";
@@ -38,16 +42,6 @@ export type AnnotationsEditingState = {
   requestStartEdit: (target: AnnotationEditTarget) => void;
   requestStopEdit: () => void;
   requestUpdateEditTarget: (target: AnnotationEditUpdateTarget) => boolean;
-};
-
-export type AnnotationEditTarget =
-  | { kind: "point"; pointId: string }
-  | { kind: "point-label"; pointId: string }
-  | { kind: "point-vertical-offset-stem"; pointId: string };
-
-export type AnnotationEditUpdateTarget = {
-  kind: "point-elevation-reference";
-  pointId: string;
 };
 
 export const useAnnotationsEditing = (
@@ -73,9 +67,10 @@ export const useAnnotationsEditing = (
     handleMoveGizmoExit,
     selectAnnotationById,
     startMoveGizmoForMeasurementId,
+    activeEditTarget,
+    setActiveEditTarget,
+    clearActiveEditTarget,
   } = managedAnnotations;
-  const [activeEditTarget, setActiveEditTarget] =
-    useState<AnnotationEditTarget | null>(null);
 
   const useGroundSnappedPointEditDragZone =
     !moveGizmoVerticalOffsetEditMode && !moveGizmoAxisCandidates;
@@ -139,7 +134,7 @@ export const useAnnotationsEditing = (
       const upDirection = getLocalUpDirectionAtAnchor(anchorECEF);
       const targetPolylineGroup =
         planarPolygonGroups.find(
-          (group) => !group.closed && group.vertexPointIds.includes(pointId)
+          (group) => !group.closed && group.nodeIds.includes(pointId)
         ) ?? null;
 
       selectAnnotationById(pointId);
@@ -149,7 +144,7 @@ export const useAnnotationsEditing = (
         verticalOffsetEditMode: targetPolylineGroup
           ? ANNOTATION_TYPE_POLYLINE
           : ANNOTATION_TYPE_POINT,
-        verticalOffsetPlanarGroupId: targetPolylineGroup?.id ?? null,
+        verticalOffsetPlanarMeasurementId: targetPolylineGroup?.id ?? null,
       });
     },
     [
@@ -168,14 +163,14 @@ export const useAnnotationsEditing = (
               (group) =>
                 group.id === focusedPlanarMeasurementId &&
                 group.type === ANNOTATION_TYPE_AREA_VERTICAL &&
-                group.vertexPointIds.includes(pointId)
+                group.nodeIds.includes(pointId)
             )
           : null) ??
         planarPolygonGroups.find(
           (group) =>
             group.closed &&
             group.type === ANNOTATION_TYPE_AREA_VERTICAL &&
-            group.vertexPointIds.includes(pointId)
+            group.nodeIds.includes(pointId)
         ) ??
         null;
 
@@ -244,16 +239,12 @@ export const useAnnotationsEditing = (
             return;
           }
 
-          const pointIndex =
-            targetVerticalPolygonGroup.vertexPointIds.findIndex(
-              (vertexId) => vertexId === pointId
-            );
+          const pointIndex = targetVerticalPolygonGroup.nodeIds.findIndex(
+            (nodeId) => nodeId === pointId
+          );
           const oppositePointId =
-            pointIndex >= 0 &&
-            targetVerticalPolygonGroup.vertexPointIds.length === 4
-              ? targetVerticalPolygonGroup.vertexPointIds[
-                  (pointIndex + 2) % 4
-                ] ?? null
+            pointIndex >= 0 && targetVerticalPolygonGroup.nodeIds.length === 4
+              ? targetVerticalPolygonGroup.nodeIds[(pointIndex + 2) % 4] ?? null
               : null;
           const oppositePointPosition = oppositePointId
             ? pointById.get(oppositePointId) ?? null
@@ -266,8 +257,8 @@ export const useAnnotationsEditing = (
             : null;
           let planeNormal = planeNormalFromGroup;
           if (!planeNormal) {
-            const vertices = targetVerticalPolygonGroup.vertexPointIds
-              .map((vertexId) => pointById.get(vertexId))
+            const vertices = targetVerticalPolygonGroup.nodeIds
+              .map((nodeId) => pointById.get(nodeId))
               .filter((vertex): vertex is Cartesian3 => Boolean(vertex));
             if (vertices.length >= 3) {
               const derivedPlane = createPlaneFromThreePoints(
@@ -423,14 +414,14 @@ export const useAnnotationsEditing = (
                 group.id === focusedPlanarMeasurementId &&
                 group.type === ANNOTATION_TYPE_AREA_PLANAR &&
                 group.planeLocked &&
-                group.vertexPointIds.includes(pointId)
+                group.nodeIds.includes(pointId)
             )
           : null) ??
         planarPolygonGroups.find(
           (group) =>
             group.type === ANNOTATION_TYPE_AREA_PLANAR &&
             group.planeLocked &&
-            group.vertexPointIds.includes(pointId)
+            group.nodeIds.includes(pointId)
         ) ??
         null;
 
@@ -445,8 +436,8 @@ export const useAnnotationsEditing = (
             : null;
           let planeNormal = planeNormalFromGroup;
           if (!planeNormal) {
-            const vertices = targetPlanarPolygonGroup.vertexPointIds
-              .map((vertexId) => pointById.get(vertexId))
+            const vertices = targetPlanarPolygonGroup.nodeIds
+              .map((nodeId) => pointById.get(nodeId))
               .filter((vertex): vertex is Cartesian3 => Boolean(vertex));
             if (vertices.length >= 3) {
               const derivedPlane = createPlaneFromThreePoints(
@@ -613,11 +604,9 @@ export const useAnnotationsEditing = (
   );
 
   const requestStopEdit = useCallback(() => {
-    setActiveEditTarget((previousTarget) =>
-      previousTarget === null ? previousTarget : null
-    );
+    clearActiveEditTarget();
     handleMoveGizmoExit();
-  }, [handleMoveGizmoExit]);
+  }, [clearActiveEditTarget, handleMoveGizmoExit]);
 
   return {
     activeEditTarget,

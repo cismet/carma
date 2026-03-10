@@ -43,7 +43,7 @@ const hasDisplayableActiveMetrics = (
 ): boolean => {
   if (!group) return false;
   const requiredVertexCount = group.type === ANNOTATION_TYPE_POLYLINE ? 2 : 3;
-  return group.vertexPointIds.length >= requiredVertexCount;
+  return group.nodeIds.length >= requiredVertexCount;
 };
 
 const getPolylineSummary = (
@@ -55,7 +55,7 @@ const getPolylineSummary = (
 
   const segmentCount = polyline.segmentLengthsMeters.length;
   const meanSegmentLengthMeters = polyline.totalLengthMeters / segmentCount;
-  const heights = polyline.vertexHeightsMeters;
+  const heights = polyline.nodeHeightsMeters;
 
   let ascentMeters = 0;
   let descentMeters = 0;
@@ -150,9 +150,9 @@ export const getPlanarAnnotationSlotsInput = ({
     annotations.map((entry) => [entry.id, Boolean(entry.locked)] as const)
   );
   const isLocked =
-    planarGroup.vertexPointIds.length > 0 &&
-    planarGroup.vertexPointIds.every((vertexId) =>
-      Boolean(annotationLockedById.get(vertexId))
+    planarGroup.nodeIds.length > 0 &&
+    planarGroup.nodeIds.every((nodeId) =>
+      Boolean(annotationLockedById.get(nodeId))
     );
 
   return {

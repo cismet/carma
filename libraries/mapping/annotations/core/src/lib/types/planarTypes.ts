@@ -38,7 +38,7 @@ type PlanarMeasurementGroupBase = {
   hidden?: boolean;
   segmentLineMode?: LinearSegmentLineMode;
   verticalOffsetMeters?: number;
-  vertexPointIds: string[];
+  nodeIds: string[];
   edgeRelationIds: string[];
   distanceMeasurementStartPointId?: string;
   closed: boolean;

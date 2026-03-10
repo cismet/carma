@@ -14,9 +14,25 @@ import {
 } from "./pointQuerySampling";
 
 const POINT_CLICK_DELAY_MS = 220;
+const DOUBLE_CLICK_POSITION_THRESHOLD_PX = 12;
 const CLEARED_POINTER_POSITION = new Cartesian2(Number.NaN, Number.NaN);
 const INTERACTIVE_POINT_LABEL_SELECTOR =
   '[data-point-label-interactive="true"]';
+const LABEL_OVERLAY_CONTAINER_SELECTOR = "#label-overlay-container";
+
+const isSameDoubleClickArea = (
+  previousPosition: Cartesian2 | null,
+  nextPosition: Cartesian2
+) => {
+  if (!previousPosition) {
+    return false;
+  }
+
+  return (
+    Cartesian2.distance(previousPosition, nextPosition) <=
+    DOUBLE_CLICK_POSITION_THRESHOLD_PX
+  );
+};
 
 export type CesiumPointQueryCreatePayload = {
   screenPosition: Cartesian2;
@@ -98,6 +114,8 @@ export const useCesiumPointQuery = (
 
     const handler = new ScreenSpaceEventHandler(scene.canvas);
     let clickTimeoutId: number | undefined;
+    let previousClickPosition: Cartesian2 | null = null;
+    let latestClickPosition: Cartesian2 | null = null;
 
     const clearCandidatePointerState = () => {
       pendingPointerMovePositionRef.current = null;
@@ -113,11 +131,24 @@ export const useCesiumPointQuery = (
       scene.requestRender();
     };
 
+    const queuePointerMove = (screenPosition: Cartesian2) => {
+      pendingPointerMovePositionRef.current = Cartesian2.clone(
+        screenPosition,
+        new Cartesian2()
+      );
+
+      if (pointerMoveFrameRef.current === null) {
+        pointerMoveFrameRef.current =
+          window.requestAnimationFrame(flushPointerMove);
+      }
+    };
+
     const handleCanvasPointerLeave = (event: MouseEvent) => {
       const relatedTarget = event.relatedTarget;
       if (
         relatedTarget instanceof Element &&
-        relatedTarget.closest(INTERACTIVE_POINT_LABEL_SELECTOR)
+        (relatedTarget.closest(INTERACTIVE_POINT_LABEL_SELECTOR) ||
+          relatedTarget.closest(LABEL_OVERLAY_CONTAINER_SELECTOR))
       ) {
         return;
       }
@@ -138,9 +169,30 @@ export const useCesiumPointQuery = (
       }
     };
 
+    const handleWindowPointerMove = (event: PointerEvent) => {
+      const canvasRect = scene.canvas.getBoundingClientRect();
+      const insideCanvasBounds =
+        event.clientX >= canvasRect.left &&
+        event.clientX <= canvasRect.right &&
+        event.clientY >= canvasRect.top &&
+        event.clientY <= canvasRect.bottom;
+
+      if (!insideCanvasBounds) {
+        return;
+      }
+
+      queuePointerMove(
+        new Cartesian2(
+          event.clientX - canvasRect.left,
+          event.clientY - canvasRect.top
+        )
+      );
+    };
+
     scene.canvas.addEventListener("mouseleave", handleCanvasPointerLeave);
     scene.canvas.addEventListener("blur", handleCanvasBlur);
     window.addEventListener("blur", handleWindowBlur);
+    window.addEventListener("pointermove", handleWindowPointerMove, true);
     document.addEventListener(
       "visibilitychange",
       handleDocumentVisibilityChange
@@ -219,6 +271,10 @@ export const useCesiumPointQuery = (
     };
 
     handler.setInputAction((event: { position: Cartesian2 }) => {
+      previousClickPosition = latestClickPosition
+        ? Cartesian2.clone(latestClickPosition, new Cartesian2())
+        : null;
+      latestClickPosition = Cartesian2.clone(event.position, new Cartesian2());
       if (clickTimeoutId !== undefined) {
         window.clearTimeout(clickTimeoutId);
       }
@@ -228,7 +284,11 @@ export const useCesiumPointQuery = (
       }, pointClickDelayMs);
     }, ScreenSpaceEventType.LEFT_CLICK);
 
-    handler.setInputAction(() => {
+    handler.setInputAction((event: { position: Cartesian2 }) => {
+      if (!isSameDoubleClickArea(previousClickPosition, event.position)) {
+        return;
+      }
+
       if (clickTimeoutId !== undefined) {
         window.clearTimeout(clickTimeoutId);
         clickTimeoutId = undefined;
@@ -237,15 +297,7 @@ export const useCesiumPointQuery = (
     }, ScreenSpaceEventType.LEFT_DOUBLE_CLICK);
 
     handler.setInputAction((event: { endPosition: Cartesian2 }) => {
-      pendingPointerMovePositionRef.current = Cartesian2.clone(
-        event.endPosition,
-        new Cartesian2()
-      );
-
-      if (pointerMoveFrameRef.current === null) {
-        pointerMoveFrameRef.current =
-          window.requestAnimationFrame(flushPointerMove);
-      }
+      queuePointerMove(event.endPosition);
     }, ScreenSpaceEventType.MOUSE_MOVE);
 
     return () => {
@@ -256,6 +308,7 @@ export const useCesiumPointQuery = (
       scene.canvas.removeEventListener("mouseleave", handleCanvasPointerLeave);
       scene.canvas.removeEventListener("blur", handleCanvasBlur);
       window.removeEventListener("blur", handleWindowBlur);
+      window.removeEventListener("pointermove", handleWindowPointerMove, true);
       document.removeEventListener(
         "visibilitychange",
         handleDocumentVisibilityChange

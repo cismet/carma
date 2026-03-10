@@ -16,7 +16,7 @@ export const useVerticalPolygonCandidate = (
   scene: Scene | null,
   annotations: AnnotationCollection,
   candidate: AnnotationCandidateDescriptor,
-  setPlanarPolygonGroups: Dispatch<SetStateAction<PlanarMeasurementGroup[]>>
+  setPlanarMeasurements: Dispatch<SetStateAction<PlanarMeasurementGroup[]>>
 ) => {
   const isVerticalPolygonCandidate =
     candidate.kind === ANNOTATION_CANDIDATE_KIND_POLYGON_VERTICAL;
@@ -30,7 +30,7 @@ export const useVerticalPolygonCandidate = (
 
       const firstPoint = annotations.find(
         (measurement) =>
-          measurement.id === verticalPolygonContext.firstVertexPointId &&
+          measurement.id === verticalPolygonContext.firstNodeId &&
           isPointAnnotationEntry(measurement)
       );
       if (!firstPoint || !isPointAnnotationEntry(firstPoint)) return;
@@ -42,7 +42,7 @@ export const useVerticalPolygonCandidate = (
           )
         : 0;
 
-      setPlanarPolygonGroups((prev) =>
+      setPlanarMeasurements((prev) =>
         prev.map((group) => {
           if (group.id !== verticalPolygonContext.groupId || group.closed) {
             return group;
@@ -50,7 +50,7 @@ export const useVerticalPolygonCandidate = (
           if (group.type !== ANNOTATION_TYPE_AREA_VERTICAL) {
             return group;
           }
-          if (group.vertexPointIds.length !== 1) {
+          if (group.nodeIds.length !== 1) {
             return group;
           }
           if (
@@ -74,7 +74,7 @@ export const useVerticalPolygonCandidate = (
       getVerticalRectanglePreviewAreaSquareMeters,
       isVerticalPolygonCandidate,
       scene,
-      setPlanarPolygonGroups,
+      setPlanarMeasurements,
     ]
   );
 };

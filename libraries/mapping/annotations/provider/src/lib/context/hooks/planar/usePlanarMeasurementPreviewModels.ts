@@ -60,10 +60,10 @@ const toPolygonAreaBadgeByGroupId = (
   const byGroupId: Record<string, PolygonAreaBadge> = {};
 
   planarPolygonGroups.forEach((group) => {
-    const firstVertexPointId = group.vertexPointIds[0] ?? null;
-    if (!firstVertexPointId) return;
+    const firstNodeId = group.nodeIds[0] ?? null;
+    if (!firstNodeId) return;
 
-    const badge = pointMarkerBadgeByPointId[firstVertexPointId];
+    const badge = pointMarkerBadgeByPointId[firstNodeId];
     const badgeText = badge?.text?.trim();
     if (!badgeText) return;
 
@@ -150,7 +150,7 @@ export const usePlanarMeasurementPreviewModels = (
     if (activeGroup.type !== ANNOTATION_TYPE_AREA_VERTICAL) {
       return undefined;
     }
-    if (activeGroup.vertexPointIds.length !== 1) {
+    if (activeGroup.nodeIds.length !== 1) {
       return undefined;
     }
 
@@ -289,19 +289,19 @@ export const usePlanarMeasurementPreviewModels = (
     if (activeGroup.type === ANNOTATION_TYPE_POLYLINE) {
       return [];
     }
-    if (activeGroup.vertexPointIds.length < 2) {
+    if (activeGroup.nodeIds.length < 2) {
       return [];
     }
 
-    const firstVertexId = activeGroup.vertexPointIds[0] ?? null;
-    const firstVertex = firstVertexId
-      ? pointsById.get(firstVertexId)?.geometryECEF
+    const firstNodeId = activeGroup.nodeIds[0] ?? null;
+    const firstNodePosition = firstNodeId
+      ? pointsById.get(firstNodeId)?.geometryECEF
       : null;
     const previewTarget = candidateConnectionPreview.targetPointECEF;
-    if (!firstVertex || !previewTarget) {
+    if (!firstNodePosition || !previewTarget) {
       return [];
     }
-    if (Cartesian3.distanceSquared(firstVertex, previewTarget) <= 1e-6) {
+    if (Cartesian3.distanceSquared(firstNodePosition, previewTarget) <= 1e-6) {
       return [];
     }
 
@@ -309,7 +309,7 @@ export const usePlanarMeasurementPreviewModels = (
       {
         id: `${activeGroup.id}:preview-closure`,
         start: Cartesian3.clone(previewTarget),
-        end: Cartesian3.clone(firstVertex),
+        end: Cartesian3.clone(firstNodePosition),
         stroke: POLYGON_PREVIEW_STROKE,
         strokeWidth: POLYGON_PREVIEW_STROKE_WIDTH_PX,
         dashed: false,

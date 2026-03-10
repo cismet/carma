@@ -37,7 +37,7 @@ export const buildPolygonGroupVertexTable = (
   groups: readonly PlanarMeasurementGroup[]
 ): PlanarPolygonGroupVertex[] =>
   groups.flatMap((group) =>
-    group.vertexPointIds.map((pointId, order) => ({
+    group.nodeIds.map((pointId, order) => ({
       id: `${group.id}:${order}`,
       groupId: group.id,
       pointId,
@@ -66,12 +66,12 @@ export const buildGeometryEdgeTable = (
   });
 
   groups.forEach((group) => {
-    const vertexIds = group.vertexPointIds;
-    if (vertexIds.length < 2) return;
+    const nodeIds = group.nodeIds;
+    if (nodeIds.length < 2) return;
 
-    for (let index = 0; index < vertexIds.length - 1; index += 1) {
-      const pointAId = vertexIds[index];
-      const pointBId = vertexIds[index + 1];
+    for (let index = 0; index < nodeIds.length - 1; index += 1) {
+      const pointAId = nodeIds[index];
+      const pointBId = nodeIds[index + 1];
       if (!pointAId || !pointBId) continue;
       const edgeId = getMeasurementEdgeId(pointAId, pointBId);
       if (!byEdgeId.has(edgeId)) {
@@ -79,9 +79,9 @@ export const buildGeometryEdgeTable = (
       }
     }
 
-    if (group.closed && vertexIds.length >= 3) {
-      const pointAId = vertexIds[vertexIds.length - 1];
-      const pointBId = vertexIds[0];
+    if (group.closed && nodeIds.length >= 3) {
+      const pointAId = nodeIds[nodeIds.length - 1];
+      const pointBId = nodeIds[0];
       if (!pointAId || !pointBId) return;
       const edgeId = getMeasurementEdgeId(pointAId, pointBId);
       if (!byEdgeId.has(edgeId)) {

@@ -8,10 +8,10 @@ import {
   type PointAnnotationEntry,
 } from "@carma-mapping/annotations/core";
 import {
+  useCandidateAnnotation,
   useAnnotationCollection,
   useAnnotationSelectionState,
   useAnnotationTools,
-  useAnnotationViewState,
 } from "../../context/AnnotationsProvider";
 
 export type AnnotationInfoBoxDisplaySelection = {
@@ -28,17 +28,19 @@ export const useAnnotationInfoBoxDisplaySelection =
     const tools = useAnnotationTools();
     const annotations = useAnnotationCollection();
     const selection = useAnnotationSelectionState();
-    const view = useAnnotationViewState();
+    const candidateAnnotation = useCandidateAnnotation();
 
     const isPointCandidateModeActive =
       tools.activeToolType === ANNOTATION_TYPE_POINT;
     const isDistanceCandidateModeActive =
       tools.activeToolType === ANNOTATION_TYPE_DISTANCE;
+    const primarySelectedAnnotationId =
+      selection.ids[selection.ids.length - 1] ?? null;
     const effectiveMeasurementId = isPointCandidateModeActive
-      ? selection.primaryId ?? selection.activeAnnotationId
+      ? primarySelectedAnnotationId ?? selection.activeAnnotationId
       : isDistanceCandidateModeActive
-      ? selection.activeAnnotationId ?? selection.primaryId
-      : selection.primaryId ?? selection.activeAnnotationId;
+      ? selection.activeAnnotationId ?? primarySelectedAnnotationId
+      : primarySelectedAnnotationId ?? selection.activeAnnotationId;
 
     const pointEntries = useMemo(
       () => annotations.items.filter(isPointAnnotationEntry),
@@ -54,11 +56,10 @@ export const useAnnotationInfoBoxDisplaySelection =
 
     const candidateMeasurement = useMemo(
       () =>
-        view.candidateAnnotation &&
-        isPointAnnotationEntry(view.candidateAnnotation)
-          ? view.candidateAnnotation
+        candidateAnnotation && isPointAnnotationEntry(candidateAnnotation)
+          ? candidateAnnotation
           : null,
-      [view.candidateAnnotation]
+      [candidateAnnotation]
     );
 
     const displayMeasurement = useMemo(

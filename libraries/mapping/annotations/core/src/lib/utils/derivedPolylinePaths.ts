@@ -50,7 +50,7 @@ export const buildDerivedPolylinePath = (
   pointById: ReadonlyMap<string, Cartesian3>,
   verticalOffsetMeters: number = 0
 ): DerivedPolylinePath | null => {
-  if (group.closed || group.vertexPointIds.length < 2) {
+  if (group.closed || group.nodeIds.length < 2) {
     return null;
   }
 
@@ -61,7 +61,7 @@ export const buildDerivedPolylinePath = (
 
   const segmentLengthsMeters: number[] = [];
   const segmentLengthsCumulativeMeters: number[] = [0];
-  const vertexHeightsMeters = group.vertexPointIds.map((pointId) => {
+  const nodeHeightsMeters = group.nodeIds.map((pointId) => {
     const point = pointById.get(pointId);
     if (!point) {
       return 0;
@@ -73,9 +73,9 @@ export const buildDerivedPolylinePath = (
   let totalLengthMeters = 0;
   const edgeRelationIds: string[] = [];
 
-  for (let index = 0; index < group.vertexPointIds.length - 1; index += 1) {
-    const startId = group.vertexPointIds[index];
-    const endId = group.vertexPointIds[index + 1];
+  for (let index = 0; index < group.nodeIds.length - 1; index += 1) {
+    const startId = group.nodeIds[index];
+    const endId = group.nodeIds[index + 1];
     if (!startId || !endId) {
       continue;
     }
@@ -102,17 +102,17 @@ export const buildDerivedPolylinePath = (
 
   const hasStartPoint =
     !!group.distanceMeasurementStartPointId &&
-    group.vertexPointIds.includes(group.distanceMeasurementStartPointId);
+    group.nodeIds.includes(group.distanceMeasurementStartPointId);
 
   return {
     id: group.id,
     name: group.name,
-    vertexPointIds: [...group.vertexPointIds],
+    nodeIds: [...group.nodeIds],
     edgeRelationIds,
     distanceMeasurementStartPointId: hasStartPoint
       ? group.distanceMeasurementStartPointId ?? null
-      : group.vertexPointIds[0] ?? null,
-    vertexHeightsMeters,
+      : group.nodeIds[0] ?? null,
+    nodeHeightsMeters,
     segmentLengthsMeters,
     segmentLengthsCumulativeMeters,
     totalLengthMeters,

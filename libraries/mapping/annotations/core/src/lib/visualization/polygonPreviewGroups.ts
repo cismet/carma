@@ -33,8 +33,8 @@ export const buildPolygonPreviewGroups = ({
         return null;
       }
 
-      if (group.closed && group.vertexPointIds.length >= 3) {
-        const vertexPoints = group.vertexPointIds
+      if (group.closed && group.nodeIds.length >= 3) {
+        const vertexPoints = group.nodeIds
           .map((pointId) => pointsById.get(pointId)?.geometryECEF)
           .filter((point): point is Cartesian3 => Boolean(point));
         return {
@@ -46,20 +46,20 @@ export const buildPolygonPreviewGroups = ({
       if (
         !group.closed &&
         group.type === ANNOTATION_TYPE_AREA_VERTICAL &&
-        group.vertexPointIds.length === 1
+        group.nodeIds.length === 1
       ) {
-        const firstVertexId = group.vertexPointIds[0] ?? null;
-        const firstVertex = firstVertexId
-          ? pointsById.get(firstVertexId)?.geometryECEF
+        const firstNodeId = group.nodeIds[0] ?? null;
+        const firstNodePosition = firstNodeId
+          ? pointsById.get(firstNodeId)?.geometryECEF
           : null;
         const previewOppositeCorner =
           verticalRectanglePreviewOppositeByGroupId?.[group.id];
-        if (!firstVertex || !previewOppositeCorner) {
+        if (!firstNodePosition || !previewOppositeCorner) {
           return null;
         }
 
         const verticalCorners = buildVerticalRectangleCornerFromDiagonal(
-          firstVertex,
+          firstNodePosition,
           previewOppositeCorner
         );
         if (!verticalCorners) {
@@ -69,7 +69,7 @@ export const buildPolygonPreviewGroups = ({
         return {
           group,
           vertexPoints: [
-            firstVertex,
+            firstNodePosition,
             verticalCorners.adjacentHorizontalCorner,
             previewOppositeCorner,
             verticalCorners.adjacentVerticalCorner,
@@ -82,9 +82,9 @@ export const buildPolygonPreviewGroups = ({
         group.id === activePlanarMeasurementId &&
         (group.type === ANNOTATION_TYPE_AREA_GROUND ||
           group.type === ANNOTATION_TYPE_AREA_PLANAR) &&
-        group.vertexPointIds.length >= 2
+        group.nodeIds.length >= 2
       ) {
-        const baseVertexPoints = group.vertexPointIds
+        const baseVertexPoints = group.nodeIds
           .map((pointId) => pointsById.get(pointId)?.geometryECEF)
           .filter((point): point is Cartesian3 => Boolean(point));
         if (baseVertexPoints.length < 2) {

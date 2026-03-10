@@ -63,9 +63,9 @@ export const buildEdgeRelationRenderContext = ({
   planarPolygonGroups.forEach((group) => {
     if (!group.closed) return;
     if (group.type !== ANNOTATION_TYPE_AREA_VERTICAL) return;
-    if (group.vertexPointIds.length !== 4) return;
+    if (group.nodeIds.length !== 4) return;
 
-    const [point0Id, point1Id, point2Id, point3Id] = group.vertexPointIds;
+    const [point0Id, point1Id, point2Id, point3Id] = group.nodeIds;
     if (!point0Id || !point1Id || !point2Id || !point3Id) return;
 
     const point0 = pointsById.get(point0Id)?.geometryECEF;

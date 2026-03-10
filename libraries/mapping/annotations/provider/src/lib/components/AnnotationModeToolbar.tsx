@@ -29,6 +29,7 @@ import {
   ANNOTATION_TYPE_POINT,
   ANNOTATION_TYPE_POLYLINE,
   ANNOTATION_TYPE_AREA_VERTICAL,
+  isAreaToolType,
   annotationToolManager as defaultAnnotationToolManager,
   resolveAnnotationToolText,
   type AnnotationToolManager,
@@ -391,9 +392,6 @@ const SecondaryToolbarSection = ({
     </div>
   );
 };
-
-const isAreaToolType = (type: AnnotationToolType): type is AreaToolType =>
-  AREA_TOOL_TYPES.includes(type as AreaToolType);
 
 const renderHelpContent = (lines: string[]) => (
   <div style={pointManualStyle}>

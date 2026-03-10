@@ -1,26 +1,17 @@
-import type { Cartesian3 } from "@carma/cesium";
 import type {
   AnnotationCollection,
   AnnotationEntry,
   AnnotationLabelAppearance,
   AnnotationMode,
   AnnotationToolType,
-  DerivedPolylinePath,
   LinearSegmentLineMode,
-  PlanarMeasurementGroup,
-  PlanarPolygonGroup,
-  PlanarPolylineGroup,
-  PointDistanceRelation,
 } from "@carma-mapping/annotations/core";
 
-import type {
-  AnnotationCreatePayload,
-  AnnotationPointMarkerBadge,
-} from "./base";
+import type { AnnotationCreatePayload } from "./base";
 import type {
   AnnotationEditTarget,
   AnnotationEditUpdateTarget,
-} from "./hooks/useAnnotationsEditing";
+} from "./hooks/editing/annotationEdit.types";
 
 export type AnnotationVisualizerOptionsPatch = {
   segmentLineMode?: LinearSegmentLineMode;
@@ -29,13 +20,11 @@ export type AnnotationVisualizerOptionsPatch = {
 export type AnnotationsContextType = {
   tools: {
     activeToolType: AnnotationToolType;
-    pendingLabelPlacementAnnotationId: string | null;
     requestModeChange: (toolType: AnnotationToolType) => void;
     requestStartMeasurement: (toolType?: AnnotationToolType) => void;
     requestCloseActiveMeasurement: () => void;
   };
   selection: {
-    primaryId: string | null;
     activeAnnotationId: string | null;
     ids: string[];
     mode: {
@@ -79,7 +68,7 @@ export type AnnotationsContextType = {
     removeByType: (type: AnnotationMode) => void;
     toggleLockByIds: (ids: string[]) => void;
     toggleVisibilityByIds: (ids: string[]) => void;
-    setReferenceMeasurementById: (id: string | null) => void;
+    setReferencePointId: (id: string | null) => void;
     confirmLabelPlacementById: (id: string) => void;
     flyToById: (id: string) => void;
     focusById: (id: string | null) => void;
@@ -92,11 +81,11 @@ export type AnnotationsContextType = {
     requestUpdateTarget: (target: AnnotationEditUpdateTarget) => boolean;
   };
   settings: {
-    temporaryMode: boolean;
-    setTemporaryMode: (temporary: boolean) => void;
     point: {
       verticalOffsetMeters: number;
       setVerticalOffsetMeters: (offsetMeters: number) => void;
+      temporaryMode: boolean;
+      setTemporaryMode: (temporary: boolean) => void;
     };
     distance: {
       stickyToFirstPoint: boolean;
@@ -118,23 +107,6 @@ export type AnnotationsContextType = {
       setSegmentLineMode: (mode: LinearSegmentLineMode) => void;
     };
   };
-  view: {
-    candidateAnnotation: AnnotationEntry | null;
-    referencePoint: Cartesian3 | null;
-    hasDistancePreviewAnchor: boolean;
-    distanceRelations: PointDistanceRelation[];
-    focusedPlanarMeasurementId: string | null;
-    activePlanarMeasurementId: string | null;
-    planarMeasurements: PlanarMeasurementGroup[];
-    polylineMeasurements: PlanarPolylineGroup[];
-    groundPolygons: PlanarPolygonGroup[];
-    planarPolygons: PlanarPolygonGroup[];
-    verticalPolygons: PlanarPolygonGroup[];
-    polylinePaths: DerivedPolylinePath[];
-    pointMarkerBadgeByPointId: Readonly<
-      Record<string, AnnotationPointMarkerBadge>
-    >;
-  };
 };
 
 export type AnnotationToolsContextType = AnnotationsContextType["tools"];
@@ -144,4 +116,3 @@ export type AnnotationCollectionContextType =
   AnnotationsContextType["annotations"];
 export type AnnotationEditingContextType = AnnotationsContextType["edit"];
 export type AnnotationSettingsContextType = AnnotationsContextType["settings"];
-export type AnnotationViewContextType = AnnotationsContextType["view"];

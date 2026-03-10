@@ -8,10 +8,10 @@ import {
 } from "@carma-mapping/annotations/core";
 import {
   useAnnotationCollection,
+  usePlanarMeasurements,
   useAnnotationSelectionState,
   useAnnotationSettings,
   useAnnotationTools,
-  useAnnotationViewState,
 } from "../context/AnnotationsProvider";
 
 import { AnnotationModeToolbar } from "./AnnotationModeToolbar";
@@ -40,7 +40,7 @@ export function AnnotationToolbar3D({
   const selection = useAnnotationSelectionState();
   const annotations = useAnnotationCollection();
   const settings = useAnnotationSettings();
-  const view = useAnnotationViewState();
+  const planarMeasurements = usePlanarMeasurements();
 
   const measurementById = useMemo(
     () =>
@@ -103,7 +103,7 @@ export function AnnotationToolbar3D({
   const deletableSelectedPointCount = deletableSelectedPointIds.length;
   const hasDeletableSelection = deletableSelectedPointCount > 0;
   const hasAnyMeasurements =
-    annotations.items.length > 0 || view.planarMeasurements.length > 0;
+    annotations.items.length > 0 || planarMeasurements.length > 0;
 
   const toggleSelectedVisibility = useCallback(() => {
     if (selectedPointIds.length === 0) return;
@@ -117,26 +117,26 @@ export function AnnotationToolbar3D({
 
   const requestDeleteSelectedPoints = useCallback(() => {
     const selectedPointIdSet = new Set(deletableSelectedPointIds);
-    const protectedPolygonCandidate = view.planarMeasurements.find((group) => {
-      if (!group.closed || group.vertexPointIds.length > 3) {
+    const protectedPolygonCandidate = planarMeasurements.find((group) => {
+      if (!group.closed || group.nodeIds.length > 3) {
         return false;
       }
-      const vertexIds = group.vertexPointIds.filter(
-        (vertexId): vertexId is string => Boolean(vertexId)
+      const nodeIds = group.nodeIds.filter((nodeId): nodeId is string =>
+        Boolean(nodeId)
       );
-      if (vertexIds.length === 0) {
+      if (nodeIds.length === 0) {
         return false;
       }
-      const includesAnyVertex = vertexIds.some((vertexId) =>
-        selectedPointIdSet.has(vertexId)
+      const includesAnyNode = nodeIds.some((nodeId) =>
+        selectedPointIdSet.has(nodeId)
       );
-      if (!includesAnyVertex) {
+      if (!includesAnyNode) {
         return false;
       }
-      const includesAllVertices = vertexIds.every((vertexId) =>
-        selectedPointIdSet.has(vertexId)
+      const includesAllNodes = nodeIds.every((nodeId) =>
+        selectedPointIdSet.has(nodeId)
       );
-      return !includesAllVertices;
+      return !includesAllNodes;
     });
 
     if (protectedPolygonCandidate) {
@@ -149,7 +149,7 @@ export function AnnotationToolbar3D({
         cancelText: "Abbrechen",
         okButtonProps: { danger: true },
         onOk: () => {
-          annotations.removeByIds(protectedPolygonCandidate.vertexPointIds);
+          annotations.removeByIds(protectedPolygonCandidate.nodeIds);
         },
       });
       return;
@@ -174,7 +174,7 @@ export function AnnotationToolbar3D({
     annotations,
     deletableSelectedPointCount,
     deletableSelectedPointIds,
-    view.planarMeasurements,
+    planarMeasurements,
   ]);
 
   const requestClearAllMeasurements = useCallback(() => {
@@ -264,8 +264,8 @@ export function AnnotationToolbar3D({
         }
         polylineSegmentLineMode={settings.polyline.segmentLineMode}
         onPolylineSegmentLineModeChange={settings.polyline.setSegmentLineMode}
-        pointSoloMode={settings.temporaryMode}
-        onPointSoloModeChange={settings.setTemporaryMode}
+        pointSoloMode={settings.point.temporaryMode}
+        onPointSoloModeChange={settings.point.setTemporaryMode}
         pixelWidth={pixelWidth}
         toolManager={toolManager}
         secondaryToolbarContainerStyle={secondaryToolbarContainerStyle}

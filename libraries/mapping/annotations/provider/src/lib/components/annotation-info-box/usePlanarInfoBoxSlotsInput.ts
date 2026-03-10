@@ -5,8 +5,8 @@ import { getPlanarAnnotationSlotsInput } from "./getPlanarAnnotationSlotsInput";
 import { useAnnotationInfoBoxSlotActions } from "./useAnnotationInfoBoxSlotActions";
 import {
   useAnnotationCollection,
+  usePlanarAnnotationReadModel,
   useAnnotationSettings,
-  useAnnotationViewState,
 } from "../../context/AnnotationsProvider";
 
 export type PlanarInfoBoxSlotsInputState = {
@@ -16,34 +16,34 @@ export type PlanarInfoBoxSlotsInputState = {
 export const usePlanarInfoBoxSlotsInput = (): PlanarInfoBoxSlotsInputState => {
   const annotations = useAnnotationCollection();
   const settings = useAnnotationSettings();
-  const view = useAnnotationViewState();
+  const planarReadModel = usePlanarAnnotationReadModel();
   const actions = useAnnotationInfoBoxSlotActions();
 
   const slotsInput = useMemo(
     () =>
       getPlanarAnnotationSlotsInput({
-        polylineMeasurements: view.polylineMeasurements,
-        groundPolygons: view.groundPolygons,
-        planarPolygons: view.planarPolygons,
-        verticalPolygons: view.verticalPolygons,
-        polylinePaths: view.polylinePaths,
+        polylineMeasurements: planarReadModel.polylineMeasurements,
+        groundPolygons: planarReadModel.groundPolygons,
+        planarPolygons: planarReadModel.planarPolygons,
+        verticalPolygons: planarReadModel.verticalPolygons,
+        polylinePaths: planarReadModel.polylinePaths,
         annotations: annotations.items,
         fallbackPolylineSegmentLineMode: settings.polyline.segmentLineMode,
-        focusedPlanarMeasurementId: view.focusedPlanarMeasurementId,
-        activePlanarMeasurementId: view.activePlanarMeasurementId,
+        focusedPlanarMeasurementId: planarReadModel.focusedMeasurementId,
+        activePlanarMeasurementId: planarReadModel.activeMeasurementId,
         actions,
       }).slotsInput,
     [
       actions,
       annotations.items,
-      view.activePlanarMeasurementId,
-      view.focusedPlanarMeasurementId,
+      planarReadModel.activeMeasurementId,
+      planarReadModel.focusedMeasurementId,
       settings.polyline.segmentLineMode,
-      view.groundPolygons,
-      view.planarPolygons,
-      view.polylineMeasurements,
-      view.polylinePaths,
-      view.verticalPolygons,
+      planarReadModel.groundPolygons,
+      planarReadModel.planarPolygons,
+      planarReadModel.polylineMeasurements,
+      planarReadModel.polylinePaths,
+      planarReadModel.verticalPolygons,
     ]
   );
 

@@ -35,7 +35,7 @@ export type AnnotationSlotActions = {
   toggleLockByIds: (ids: string[]) => void;
   toggleVisibilityByIds: (ids: string[]) => void;
   flyToById: (id: string) => void;
-  setReferenceMeasurementById: (id: string | null) => void;
+  setReferencePointId: (id: string | null) => void;
   confirmLabelPlacementById: (id: string) => void;
   updatePointLabelAppearanceById: (
     id: string,

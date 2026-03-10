@@ -33,6 +33,7 @@ export const useAnnotationsUserInteraction = (
     selectAnnotationIds,
     selectAnnotationById,
     syncAnnotationCursorToExistingPoint,
+    releaseAnnotationCursorSnap,
     scheduleAnnotationCursorSnapRelease,
     resolveDistanceRelationSourcePointId,
     appendExistingPointToActivePlanarPolygonGroup,
@@ -45,7 +46,7 @@ export const useAnnotationsUserInteraction = (
     cyclePointLabelMetricModeByMeasurementId,
     labelInputPromptPointId,
     setLabelInputPromptPointId,
-    temporaryMode,
+    pointTemporaryMode,
     pointVerticalOffsetMeters,
     lastCustomPointAnnotationName,
     isPolylineCandidateMode,
@@ -75,7 +76,7 @@ export const useAnnotationsUserInteraction = (
     () =>
       buildActivePointCreateConfig({
         activeToolType,
-        temporaryMode,
+        temporaryMode: pointTemporaryMode,
         pointVerticalOffsetMeters,
         lastCustomPointAnnotationName,
         isPolylineCandidateMode,
@@ -87,7 +88,7 @@ export const useAnnotationsUserInteraction = (
       lastCustomPointAnnotationName,
       pointVerticalOffsetMeters,
       polylineVerticalOffsetMeters,
-      temporaryMode,
+      pointTemporaryMode,
     ]
   );
 
@@ -135,6 +136,7 @@ export const useAnnotationsUserInteraction = (
       selectAnnotationIds,
       selectAnnotationById,
       syncAnnotationCursorToExistingPoint,
+      releaseAnnotationCursorSnap,
       scheduleAnnotationCursorSnapRelease,
       resolveDistanceRelationSourcePointId,
       appendExistingPointToActivePlanarPolygonGroup,

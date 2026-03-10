@@ -19,7 +19,7 @@ import type {
   AnnotationModeSessionMap,
 } from "./annotationModeSession.types";
 import { useDistanceMeasureModeSession } from "./modes/useDistanceMeasureModeSession";
-import { usePlanarMeasureModeSession } from "./modes/usePlanarMeasureModeSession";
+import { useNodeChainMeasureModeSession } from "./modes/useNodeChainMeasureModeSession";
 
 type AnnotationToolSessionState = {
   activePlanarMeasurementId: string | null;
@@ -27,7 +27,7 @@ type AnnotationToolSessionState = {
   selectablePointIds: ReadonlySet<string>;
   selectedAnnotationId: string | null;
   distanceRelations: readonly PointDistanceRelation[];
-  planarMeasurements: readonly PlanarMeasurementGroup[];
+  nodeChainMeasurements: readonly PlanarMeasurementGroup[];
 };
 
 type AnnotationToolSessionActions = {
@@ -61,7 +61,7 @@ export const useAnnotationToolSessions = (
     selectablePointIds,
     selectedAnnotationId,
     distanceRelations,
-    planarMeasurements,
+    nodeChainMeasurements,
   }: AnnotationToolSessionState,
   {
     requestEnterToolType,
@@ -76,7 +76,7 @@ export const useAnnotationToolSessions = (
     selectablePointIds,
     selectedAnnotationId,
     distanceRelations,
-    planarMeasurements,
+    nodeChainMeasurements,
     () => {
       requestEnterToolType(ANNOTATION_TYPE_DISTANCE);
     },
@@ -85,40 +85,40 @@ export const useAnnotationToolSessions = (
       discardActiveMeasurementDraft(null);
     }
   );
-  const polylineToolSession = usePlanarMeasureModeSession(
+  const polylineToolSession = useNodeChainMeasureModeSession(
     ANNOTATION_TYPE_POLYLINE,
     activePlanarMeasurementId,
-    planarMeasurements,
+    nodeChainMeasurements,
     () => {
       requestEnterToolType(ANNOTATION_TYPE_POLYLINE);
     },
     finishActivePlanarPolylineGroup,
     discardActiveMeasurementDraft
   );
-  const groundAreaToolSession = usePlanarMeasureModeSession(
+  const groundAreaToolSession = useNodeChainMeasureModeSession(
     ANNOTATION_TYPE_AREA_GROUND,
     activePlanarMeasurementId,
-    planarMeasurements,
+    nodeChainMeasurements,
     () => {
       requestEnterToolType(ANNOTATION_TYPE_AREA_GROUND);
     },
     closeActivePlanarPolygonGroup,
     discardActiveMeasurementDraft
   );
-  const verticalAreaToolSession = usePlanarMeasureModeSession(
+  const verticalAreaToolSession = useNodeChainMeasureModeSession(
     ANNOTATION_TYPE_AREA_VERTICAL,
     activePlanarMeasurementId,
-    planarMeasurements,
+    nodeChainMeasurements,
     () => {
       requestEnterToolType(ANNOTATION_TYPE_AREA_VERTICAL);
     },
     closeActivePlanarPolygonGroup,
     discardActiveMeasurementDraft
   );
-  const planarAreaToolSession = usePlanarMeasureModeSession(
+  const planarAreaToolSession = useNodeChainMeasureModeSession(
     ANNOTATION_TYPE_AREA_PLANAR,
     activePlanarMeasurementId,
-    planarMeasurements,
+    nodeChainMeasurements,
     () => {
       requestEnterToolType(ANNOTATION_TYPE_AREA_PLANAR);
     },

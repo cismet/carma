@@ -6,13 +6,12 @@ import {
   ANNOTATION_TYPE_POLYLINE,
   SELECT_TOOL_TYPE,
   hasAnyVisibleDistanceRelationLine,
+  isAreaToolType,
   isPointAnnotationEntry,
 } from "@carma-mapping/annotations/core";
 
 import type { AnnotationsManagementState } from "./useAnnotationsManagement";
 import type { AnnotationsUserInteractionState } from "./useAnnotationsUserInteraction";
-import { isPlanarMeasurementToolType } from "../mode-lifecycle/annotationToolState";
-
 export const useAnnotationsLifecycle = (
   managedAnnotations: AnnotationsManagementState,
   annotationUserInteraction: AnnotationsUserInteractionState
@@ -23,12 +22,12 @@ export const useAnnotationsLifecycle = (
     selectablePointIds,
     lockedMeasurementIdSet,
     selectedAnnotationId,
-    deleteSelectedPointAnnotations,
+    deleteSelectedAnnotations,
     clearAnnotationsByIds,
     pointMeasureEntries,
     selectAnnotationById,
     setAnnotations,
-    temporaryMode,
+    pointTemporaryMode,
     options,
     activeToolType,
     requestStartMeasurement,
@@ -42,7 +41,7 @@ export const useAnnotationsLifecycle = (
     planarPolygonGroups,
     setPendingPolylinePromotionRingClosurePointId,
     activePlanarMeasurementId,
-    setPlanarPolygonGroups,
+    setPlanarMeasurements,
   } = managedAnnotations;
   const { isPointMeasureCreateModeActive } = annotationUserInteraction;
 
@@ -77,7 +76,7 @@ export const useAnnotationsLifecycle = (
 
         event.preventDefault();
         event.stopPropagation();
-        deleteSelectedPointAnnotations();
+        deleteSelectedAnnotations();
       };
 
       window.addEventListener("keydown", handleDeleteKey, true);
@@ -86,7 +85,7 @@ export const useAnnotationsLifecycle = (
       };
     },
     [
-      deleteSelectedPointAnnotations,
+      deleteSelectedAnnotations,
       lockedMeasurementIdSet,
       selectablePointIds,
       selectedAnnotationId,
@@ -110,7 +109,7 @@ export const useAnnotationsLifecycle = (
         if (
           event.key === "Enter" &&
           isPointMeasureCreateModeActive &&
-          temporaryMode
+          pointTemporaryMode
         ) {
           const latestTemporaryPointMeasurement = [...annotations]
             .reverse()
@@ -174,7 +173,7 @@ export const useAnnotationsLifecycle = (
       selectAnnotationById,
       setAnnotations,
       isPointMeasureCreateModeActive,
-      temporaryMode,
+      pointTemporaryMode,
       annotations,
     ]
   );
@@ -190,13 +189,18 @@ export const useAnnotationsLifecycle = (
 
   useEffect(
     function effectCleanUpInvalidOpenVerticalGroups() {
-      if (isPlanarMeasurementToolType(activeToolType)) return;
+      if (
+        activeToolType === ANNOTATION_TYPE_POLYLINE ||
+        isAreaToolType(activeToolType)
+      ) {
+        return;
+      }
 
       const invalidOpenVerticalGroups = planarPolygonGroups.filter((group) => {
         return (
           !group.closed &&
           group.type === ANNOTATION_TYPE_AREA_VERTICAL &&
-          group.vertexPointIds.length === 1
+          group.nodeIds.length === 1
         );
       });
       if (invalidOpenVerticalGroups.length === 0) return;
@@ -206,7 +210,7 @@ export const useAnnotationsLifecycle = (
       );
       const removablePointIdSet = new Set<string>();
       invalidOpenVerticalGroups.forEach((group) => {
-        const onlyPointId = group.vertexPointIds[0];
+        const onlyPointId = group.nodeIds[0];
         if (onlyPointId) {
           removablePointIdSet.add(onlyPointId);
         }
@@ -217,7 +221,7 @@ export const useAnnotationsLifecycle = (
       );
       const protectedPointIdSet = new Set<string>();
       remainingGroups.forEach((group) => {
-        group.vertexPointIds.forEach((pointId) => {
+        group.nodeIds.forEach((pointId) => {
           if (pointId) {
             protectedPointIdSet.add(pointId);
           }
@@ -229,7 +233,7 @@ export const useAnnotationsLifecycle = (
         protectedPointIdSet.add(relation.anchorPointId);
       });
 
-      setPlanarPolygonGroups(remainingGroups);
+      setPlanarMeasurements(remainingGroups);
 
       if (removablePointIdSet.size === 0) return;
       setAnnotations((prev) =>
@@ -248,7 +252,7 @@ export const useAnnotationsLifecycle = (
       activeToolType,
       planarPolygonGroups,
       distanceRelations,
-      setPlanarPolygonGroups,
+      setPlanarMeasurements,
       setAnnotations,
     ]
   );

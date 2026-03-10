@@ -13,7 +13,7 @@ type UseAnnotationsRenderStateOptions = {
   selectedAnnotationId: string | null;
   selectedAnnotationIds: string[];
   pointIdsWithoutLabelAnchor: ReadonlySet<string>;
-  unselectedClosedAreaVertexPointIdSet: ReadonlySet<string>;
+  unselectedClosedAreaNodeIdSet: ReadonlySet<string>;
   unfocusedStandaloneDistanceNonHighestPointIds: ReadonlySet<string>;
   focusedStandaloneDistanceNonHighestPointIds: ReadonlySet<string>;
   labelAnchorPointIdsWithForcedVisibility: ReadonlySet<string>;
@@ -33,7 +33,7 @@ export const useAnnotationsRenderState = (
     selectedAnnotationId,
     selectedAnnotationIds,
     pointIdsWithoutLabelAnchor,
-    unselectedClosedAreaVertexPointIdSet,
+    unselectedClosedAreaNodeIdSet,
     unfocusedStandaloneDistanceNonHighestPointIds,
     focusedStandaloneDistanceNonHighestPointIds,
     labelAnchorPointIdsWithForcedVisibility,
@@ -65,13 +65,13 @@ export const useAnnotationsRenderState = (
     [annotations]
   );
 
-  const openVerticalSingleVertexPointIdSet = useMemo(() => {
+  const openVerticalSingleNodeIdSet = useMemo(() => {
     const ids = new Set<string>();
     planarPolygonGroups.forEach((group) => {
       if (group.closed) return;
       if (group.type !== ANNOTATION_TYPE_AREA_VERTICAL) return;
-      if (group.vertexPointIds.length !== 1) return;
-      const onlyPointId = group.vertexPointIds[0];
+      if (group.nodeIds.length !== 1) return;
+      const onlyPointId = group.nodeIds[0];
       if (onlyPointId) {
         ids.add(onlyPointId);
       }
@@ -84,8 +84,8 @@ export const useAnnotationsRenderState = (
     planarPolygonGroups.forEach((group) => {
       if (!group.closed) return;
       if (group.type !== ANNOTATION_TYPE_AREA_VERTICAL) return;
-      if (group.vertexPointIds.length !== 4) return;
-      group.vertexPointIds.forEach((pointId) => {
+      if (group.nodeIds.length !== 4) return;
+      group.nodeIds.forEach((pointId) => {
         if (pointId) {
           ids.add(pointId);
         }
@@ -222,8 +222,7 @@ export const useAnnotationsRenderState = (
       planarPolygonGroups
         .filter(
           (group) =>
-            group.closed ||
-            (group.planeLocked && group.vertexPointIds.length >= 4)
+            group.closed || (group.planeLocked && group.nodeIds.length >= 4)
         )
         .map((group) => group.id)
     );
@@ -233,7 +232,7 @@ export const useAnnotationsRenderState = (
       if (!displayReadyPolygonGroupIds.has(group.id)) {
         return;
       }
-      group.vertexPointIds.forEach((id) => polygonVertexIds.add(id));
+      group.nodeIds.forEach((id) => polygonVertexIds.add(id));
     });
 
     const nonPolygonRelationPointIds = new Set<string>();
@@ -320,11 +319,11 @@ export const useAnnotationsRenderState = (
       ...polygonOnlyPointIdSet,
       ...hiddenMeasurementIdSet,
       ...pointIdsWithoutLabelAnchor,
-      ...unselectedClosedAreaVertexPointIdSet,
+      ...unselectedClosedAreaNodeIdSet,
       ...unfocusedStandaloneDistanceNonHighestPointIds,
       ...focusedStandaloneDistanceNonHighestPointIds,
     ]);
-    openVerticalSingleVertexPointIdSet.forEach((pointId) => {
+    openVerticalSingleNodeIdSet.forEach((pointId) => {
       ids.add(pointId);
     });
     labelAnchorPointIdsWithForcedVisibility.forEach((pointId) => {
@@ -336,10 +335,10 @@ export const useAnnotationsRenderState = (
     polygonOnlyPointIdSet,
     hiddenMeasurementIdSet,
     pointIdsWithoutLabelAnchor,
-    unselectedClosedAreaVertexPointIdSet,
+    unselectedClosedAreaNodeIdSet,
     unfocusedStandaloneDistanceNonHighestPointIds,
     focusedStandaloneDistanceNonHighestPointIds,
-    openVerticalSingleVertexPointIdSet,
+    openVerticalSingleNodeIdSet,
     labelAnchorPointIdsWithForcedVisibility,
   ]);
 

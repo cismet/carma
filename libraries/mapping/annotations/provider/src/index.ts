@@ -8,14 +8,12 @@ export {
   useAnnotationSelectionState,
   useAnnotationSettings,
   useAnnotationTools,
-  useAnnotationViewState,
   type AnnotationsContextType,
   type AnnotationCollectionContextType,
   type AnnotationEditingContextType,
   type AnnotationSelectionContextType,
   type AnnotationSettingsContextType,
   type AnnotationToolsContextType,
-  type AnnotationViewContextType,
   type AnnotationsOptions,
 } from "./lib/context/AnnotationsProvider";
 export type {

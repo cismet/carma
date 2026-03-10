@@ -292,21 +292,21 @@ export const classifyPlanarPolygonType = (
     : ANNOTATION_TYPE_AREA_PLANAR;
 
 export const buildEdgeRelationIdsForPolygon = (
-  vertexPointIds: string[],
+  nodeIds: string[],
   closed: boolean,
   getDistanceRelationId: (left: string, right: string) => string
 ): string[] => {
-  if (vertexPointIds.length < 2) return [];
+  if (nodeIds.length < 2) return [];
   const edgeIds: string[] = [];
-  for (let index = 0; index < vertexPointIds.length - 1; index += 1) {
-    const start = vertexPointIds[index];
-    const end = vertexPointIds[index + 1];
+  for (let index = 0; index < nodeIds.length - 1; index += 1) {
+    const start = nodeIds[index];
+    const end = nodeIds[index + 1];
     if (!start || !end) continue;
     edgeIds.push(getDistanceRelationId(start, end));
   }
-  if (closed && vertexPointIds.length >= 3) {
-    const first = vertexPointIds[0];
-    const last = vertexPointIds[vertexPointIds.length - 1];
+  if (closed && nodeIds.length >= 3) {
+    const first = nodeIds[0];
+    const last = nodeIds[nodeIds.length - 1];
     if (first && last) {
       edgeIds.push(getDistanceRelationId(last, first));
     }
@@ -465,7 +465,7 @@ export const computePolygonGroupDerivedData = (
     return perimeterMeters;
   };
 
-  const vertices = group.vertexPointIds
+  const vertices = group.nodeIds
     .map((id) => pointById.get(id))
     .filter((value): value is Cartesian3 => Boolean(value));
   const perimeterMeters = computePerimeterMeters();

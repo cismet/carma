@@ -31,13 +31,13 @@ export const useClosedAreaSelectionState = (
     planarPolygonGroups,
   ]);
 
-  const closedAreaVertexPointIdSet = useMemo(() => {
+  const closedAreaNodeIdSet = useMemo(() => {
     const ids = new Set<string>();
     planarPolygonGroups.forEach((group) => {
       if (!group.closed) {
         return;
       }
-      group.vertexPointIds.forEach((pointId) => {
+      group.nodeIds.forEach((pointId) => {
         if (pointId) {
           ids.add(pointId);
         }
@@ -46,7 +46,7 @@ export const useClosedAreaSelectionState = (
     return ids;
   }, [planarPolygonGroups]);
 
-  const selectedClosedAreaVertexPointIdSet = useMemo(() => {
+  const selectedClosedAreaNodeIdSet = useMemo(() => {
     const ids = new Set<string>();
     if (selectedClosedAreaGroupIdSet.size === 0) {
       return ids;
@@ -56,7 +56,7 @@ export const useClosedAreaSelectionState = (
       if (!group.closed || !selectedClosedAreaGroupIdSet.has(group.id)) {
         return;
       }
-      group.vertexPointIds.forEach((pointId) => {
+      group.nodeIds.forEach((pointId) => {
         if (pointId) {
           ids.add(pointId);
         }
@@ -65,17 +65,17 @@ export const useClosedAreaSelectionState = (
     return ids;
   }, [planarPolygonGroups, selectedClosedAreaGroupIdSet]);
 
-  const unselectedClosedAreaVertexPointIdSet = useMemo(() => {
+  const unselectedClosedAreaNodeIdSet = useMemo(() => {
     const ids = new Set<string>();
-    closedAreaVertexPointIdSet.forEach((pointId) => {
-      if (!selectedClosedAreaVertexPointIdSet.has(pointId)) {
+    closedAreaNodeIdSet.forEach((pointId) => {
+      if (!selectedClosedAreaNodeIdSet.has(pointId)) {
         ids.add(pointId);
       }
     });
     return ids;
-  }, [closedAreaVertexPointIdSet, selectedClosedAreaVertexPointIdSet]);
+  }, [closedAreaNodeIdSet, selectedClosedAreaNodeIdSet]);
 
   return {
-    unselectedClosedAreaVertexPointIdSet,
+    unselectedClosedAreaNodeIdSet,
   };
 };

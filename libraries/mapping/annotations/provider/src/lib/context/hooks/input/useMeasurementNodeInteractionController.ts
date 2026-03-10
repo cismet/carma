@@ -1,18 +1,15 @@
 import { useCallback, useMemo } from "react";
 
 import {
-  ANNOTATION_TYPE_AREA_GROUND,
-  ANNOTATION_TYPE_AREA_PLANAR,
-  ANNOTATION_TYPE_AREA_VERTICAL,
   ANNOTATION_TYPE_DISTANCE,
   ANNOTATION_TYPE_LABEL,
   ANNOTATION_TYPE_POINT,
   ANNOTATION_TYPE_POLYLINE,
+  isAreaToolType,
   type AnnotationCollection,
   type AnnotationToolType,
   type PlanarMeasurementGroup,
 } from "@carma-mapping/annotations/core";
-import { isAreaToolType } from "../../mode-lifecycle/annotationToolState";
 
 const EMPTY_INTERACTIVE_POINT_ID_SET = new Set<string>();
 
@@ -31,6 +28,7 @@ type UseMeasurementNodeInteractionControllerParams = {
     pointId: string,
     anchorPosition?: { x: number; y: number } | null
   ) => boolean;
+  releaseAnnotationCursorSnap: () => void;
   scheduleAnnotationCursorSnapRelease: (pointId: string) => void;
   resolveDistanceRelationSourcePointId: (
     targetPointId: string
@@ -75,6 +73,7 @@ export const useMeasurementNodeInteractionController = (
     selectAnnotationIds,
     selectAnnotationById,
     syncAnnotationCursorToExistingPoint,
+    releaseAnnotationCursorSnap,
     scheduleAnnotationCursorSnapRelease,
     resolveDistanceRelationSourcePointId,
     appendExistingPointToActivePlanarPolygonGroup,
@@ -130,7 +129,7 @@ export const useMeasurementNodeInteractionController = (
       const isAuxiliaryLabelAnchor = Boolean(
         clickedMeasurement?.auxiliaryLabelAnchor
       );
-      const isPolylineAuthoringTool =
+      const isNodeChainAuthoringTool =
         activeToolType === ANNOTATION_TYPE_POLYLINE ||
         isAreaToolType(activeToolType);
 
@@ -144,7 +143,7 @@ export const useMeasurementNodeInteractionController = (
 
       if (
         (activeToolType === ANNOTATION_TYPE_DISTANCE ||
-          isPolylineAuthoringTool) &&
+          isNodeChainAuthoringTool) &&
         !selectablePointIds.has(pointId)
       ) {
         return;
@@ -157,7 +156,7 @@ export const useMeasurementNodeInteractionController = (
 
       if (
         activeToolType === ANNOTATION_TYPE_DISTANCE ||
-        isPolylineAuthoringTool
+        isNodeChainAuthoringTool
       ) {
         syncAnnotationCursorToExistingPoint(pointId);
       }
@@ -168,23 +167,28 @@ export const useMeasurementNodeInteractionController = (
           upsertDirectDistanceRelation(sourcePointId, pointId);
           if (distanceModeStickyToFirstPoint) {
             setDoubleClickChainSourcePointId(sourcePointId);
-            selectAnnotationById(pointId);
           } else {
-            finishDistanceMeasurementSession(pointId);
+            finishDistanceMeasurementSession(null);
           }
+          releaseAnnotationCursorSnap();
           return;
         }
 
         setDoubleClickChainSourcePointId(pointId);
-        selectAnnotationById(pointId);
+        releaseAnnotationCursorSnap();
         return;
       }
 
-      if (isPolylineAuthoringTool) {
+      if (isNodeChainAuthoringTool) {
         if (!isActiveDrawMode) {
-          appendExistingPointToActivePlanarPolygonGroup(pointId, null);
+          const didStartNodeChain = Boolean(
+            appendExistingPointToActivePlanarPolygonGroup(pointId, null)
+          );
+          if (!didStartNodeChain) {
+            return;
+          }
           setDoubleClickChainSourcePointId(pointId);
-          selectAnnotationById(pointId);
+          releaseAnnotationCursorSnap();
           return;
         }
 
@@ -192,12 +196,12 @@ export const useMeasurementNodeInteractionController = (
           planarPolygonGroups,
           activePlanarMeasurementId
         );
-        const firstVertexId = activeOpenGroup?.vertexPointIds[0] ?? null;
+        const firstNodeId = activeOpenGroup?.nodeIds[0] ?? null;
         const shouldHandleRingClosure = Boolean(
-          firstVertexId &&
-            firstVertexId === pointId &&
+          firstNodeId &&
+            firstNodeId === pointId &&
             activeOpenGroup &&
-            activeOpenGroup.vertexPointIds.length >= 3
+            activeOpenGroup.nodeIds.length >= 3
         );
         if (shouldHandleRingClosure) {
           if (activeToolType !== ANNOTATION_TYPE_POLYLINE) {
@@ -213,6 +217,8 @@ export const useMeasurementNodeInteractionController = (
           appendExistingPointToActivePlanarPolygonGroup(pointId, sourcePointId)
         );
         if (didAppendExistingPoint) {
+          setDoubleClickChainSourcePointId(pointId);
+          releaseAnnotationCursorSnap();
           return;
         }
 
@@ -221,7 +227,7 @@ export const useMeasurementNodeInteractionController = (
         }
 
         setDoubleClickChainSourcePointId(pointId);
-        selectAnnotationById(pointId);
+        releaseAnnotationCursorSnap();
         return;
       }
 
@@ -236,6 +242,7 @@ export const useMeasurementNodeInteractionController = (
       selectablePointIds,
       selectAnnotationById,
       syncAnnotationCursorToExistingPoint,
+      releaseAnnotationCursorSnap,
       resolveDistanceRelationSourcePointId,
       upsertDirectDistanceRelation,
       setDoubleClickChainSourcePointId,

@@ -1,10 +1,16 @@
 import { useMemo } from "react";
 
 import {
+  isPointMeasurementEntry,
+  type PointMeasurementEntry,
+} from "@carma-mapping/annotations/core";
+import {
   useAnnotationCollection,
+  useDistanceAnnotationReadModel,
+  usePlanarMeasurements,
   useAnnotationSelectionState,
-  useAnnotationViewState,
 } from "../../context/AnnotationsProvider";
+import { usePointMarkerBadgeState } from "../../context/hooks/point/label/usePointMarkerBadgeState";
 import type { DistanceAnnotationSlotsInput } from "./getAnnotationInfoBoxSlots";
 import { getDistanceAnnotationSlotsInput } from "./getDistanceAnnotationSlotsInput";
 import { useAnnotationInfoBoxDisplaySelection } from "./useAnnotationInfoBoxDisplaySelection";
@@ -26,19 +32,34 @@ export const useDistanceInfoBoxSlotsInput =
       currentMeasurement,
     } = useAnnotationInfoBoxDisplaySelection();
     const selection = useAnnotationSelectionState();
-    const view = useAnnotationViewState();
+    const distanceReadModel = useDistanceAnnotationReadModel();
+    const planarMeasurements = usePlanarMeasurements();
     const annotations = useAnnotationCollection();
     const actions = useAnnotationInfoBoxSlotActions();
+    const pointMeasureEntries = useMemo(
+      () =>
+        annotations.items.filter(
+          (annotation): annotation is PointMeasurementEntry =>
+            isPointMeasurementEntry(annotation)
+        ),
+      [annotations.items]
+    );
+    const { pointMarkerBadgeByPointId } = usePointMarkerBadgeState(
+      pointEntries,
+      pointMeasureEntries,
+      planarMeasurements,
+      distanceReadModel.distanceRelations
+    );
 
     const isDistanceMeasurement = useMemo(
       () =>
         displayMeasurement !== null &&
-        view.distanceRelations.some(
+        distanceReadModel.distanceRelations.some(
           (relation) =>
             relation.pointAId === displayMeasurement.id ||
             relation.pointBId === displayMeasurement.id
         ),
-      [displayMeasurement, view.distanceRelations]
+      [displayMeasurement, distanceReadModel.distanceRelations]
     );
 
     const slotsInput = useMemo(
@@ -48,10 +69,10 @@ export const useDistanceInfoBoxSlotsInput =
           measurement: displayMeasurement,
           activeMeasurementId: selection.activeAnnotationId,
           pointEntries,
-          referencePoint: view.referencePoint,
-          hasDistancePreviewAnchor: view.hasDistancePreviewAnchor,
-          distanceRelations: view.distanceRelations,
-          pointMarkerBadgeByPointId: view.pointMarkerBadgeByPointId,
+          referencePoint: distanceReadModel.referencePoint,
+          hasDistancePreviewAnchor: distanceReadModel.hasPreviewAnchor,
+          distanceRelations: distanceReadModel.distanceRelations,
+          pointMarkerBadgeByPointId,
           getAnnotationOrderByType: annotations.getOrderByType,
           getNextAnnotationOrderByType: annotations.getNextOrderByType,
           actions,
@@ -60,10 +81,12 @@ export const useDistanceInfoBoxSlotsInput =
         actions,
         activeToolType,
         annotations,
+        distanceReadModel,
         displayMeasurement,
+        pointMarkerBadgeByPointId,
+        pointMeasureEntries,
         pointEntries,
         selection.activeAnnotationId,
-        view,
       ]
     );
 

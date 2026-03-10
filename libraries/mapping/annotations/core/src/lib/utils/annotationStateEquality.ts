@@ -100,7 +100,7 @@ export const arePlanarPolygonGroupsEquivalent = (
       right.verticalOffsetMeters,
       epsilon
     ) &&
-    areStringArraysEqual(left.vertexPointIds, right.vertexPointIds) &&
+    areStringArraysEqual(left.nodeIds, right.nodeIds) &&
     areStringArraysEqual(left.edgeRelationIds, right.edgeRelationIds) &&
     left.distanceMeasurementStartPointId ===
       right.distanceMeasurementStartPointId &&

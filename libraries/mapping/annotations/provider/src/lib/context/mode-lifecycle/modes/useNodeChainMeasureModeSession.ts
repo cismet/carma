@@ -7,49 +7,47 @@ import {
 
 import type { AnnotationModeSession } from "../annotationModeSession.types";
 
-export const usePlanarMeasureModeSession = (
+export const useNodeChainMeasureModeSession = (
   toolType: PlanarMeasurementGroup["type"],
   activePlanarMeasurementId: string | null,
-  planarMeasurements: readonly PlanarMeasurementGroup[],
-  requestStartPlanarToolMode: () => void,
-  requestFinishPlanarMeasurement: () => void,
-  discardPlanarMeasurementDraft: (measurementId: string) => void
+  nodeChainMeasurements: readonly PlanarMeasurementGroup[],
+  requestStartNodeChainToolMode: () => void,
+  requestFinishNodeChainMeasurement: () => void,
+  discardNodeChainMeasurementDraft: (measurementId: string) => void
 ): AnnotationModeSession => {
   const activeOpenPlanarMeasurement = useMemo(
     () =>
       activePlanarMeasurementId !== null
-        ? planarMeasurements.find(
+        ? nodeChainMeasurements.find(
             (measurement) =>
               measurement.id === activePlanarMeasurementId &&
               !measurement.closed
           ) ?? null
         : null,
-    [activePlanarMeasurementId, planarMeasurements]
+    [activePlanarMeasurementId, nodeChainMeasurements]
   );
   const hasActiveDraft = Boolean(activeOpenPlanarMeasurement);
 
   const requestStart = useCallback(() => {
-    requestStartPlanarToolMode();
-  }, [requestStartPlanarToolMode]);
+    requestStartNodeChainToolMode();
+  }, [requestStartNodeChainToolMode]);
 
   const requestClose = useCallback(() => {
     if (!activeOpenPlanarMeasurement) {
       return;
     }
 
-    const minimumVertexCount = toolType === ANNOTATION_TYPE_POLYLINE ? 2 : 3;
-    if (
-      activeOpenPlanarMeasurement.vertexPointIds.length >= minimumVertexCount
-    ) {
-      requestFinishPlanarMeasurement();
+    const minimumNodeCount = toolType === ANNOTATION_TYPE_POLYLINE ? 2 : 3;
+    if (activeOpenPlanarMeasurement.nodeIds.length >= minimumNodeCount) {
+      requestFinishNodeChainMeasurement();
       return;
     }
 
-    discardPlanarMeasurementDraft(activeOpenPlanarMeasurement.id);
+    discardNodeChainMeasurementDraft(activeOpenPlanarMeasurement.id);
   }, [
     activeOpenPlanarMeasurement,
-    discardPlanarMeasurementDraft,
-    requestFinishPlanarMeasurement,
+    discardNodeChainMeasurementDraft,
+    requestFinishNodeChainMeasurement,
     toolType,
   ]);
 
@@ -58,8 +56,8 @@ export const usePlanarMeasureModeSession = (
       return;
     }
 
-    discardPlanarMeasurementDraft(activeOpenPlanarMeasurement.id);
-  }, [activeOpenPlanarMeasurement, discardPlanarMeasurementDraft]);
+    discardNodeChainMeasurementDraft(activeOpenPlanarMeasurement.id);
+  }, [activeOpenPlanarMeasurement, discardNodeChainMeasurementDraft]);
 
   return useMemo(
     () => ({

@@ -7,7 +7,7 @@ import { useAnnotationInfoBoxDisplaySelection } from "./useAnnotationInfoBoxDisp
 import { useAnnotationInfoBoxSlotActions } from "./useAnnotationInfoBoxSlotActions";
 import {
   useAnnotationCollection,
-  useAnnotationViewState,
+  useReferencePoint,
 } from "../../context/AnnotationsProvider";
 
 export type PointInfoBoxSlotsInputState = {
@@ -23,7 +23,7 @@ export const usePointInfoBoxSlotsInput = (): PointInfoBoxSlotsInputState => {
     displayMeasurement,
     currentMeasurement,
   } = useAnnotationInfoBoxDisplaySelection();
-  const view = useAnnotationViewState();
+  const referencePoint = useReferencePoint();
   const annotations = useAnnotationCollection();
   const actions = useAnnotationInfoBoxSlotActions();
 
@@ -41,7 +41,7 @@ export const usePointInfoBoxSlotsInput = (): PointInfoBoxSlotsInputState => {
       getPointAnnotationSlotsInput({
         activeToolType,
         measurement: displayPointMeasurement,
-        referencePoint: view.referencePoint,
+        referencePoint,
         getAnnotationOrderByType: annotations.getOrderByType,
         getNextAnnotationOrderByType: annotations.getNextOrderByType,
         actions,
@@ -51,7 +51,7 @@ export const usePointInfoBoxSlotsInput = (): PointInfoBoxSlotsInputState => {
       activeToolType,
       annotations,
       displayPointMeasurement,
-      view.referencePoint,
+      referencePoint,
     ]
   );
 

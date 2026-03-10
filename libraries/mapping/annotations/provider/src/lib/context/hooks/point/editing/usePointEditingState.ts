@@ -27,7 +27,10 @@ import {
   type PlanarMeasurementGroup,
 } from "@carma-mapping/annotations/core";
 import { useAnnotationPointEditingController } from "../../useAnnotationPointEditingController";
-import { useMoveGizmoState } from "./useMoveGizmoState";
+import type {
+  MoveGizmoAxisCandidate,
+  MoveGizmoVerticalOffsetEditMode,
+} from "../../editing/annotationEdit.types";
 
 const REFERENCE_POINT_SYNC_EPSILON_METERS = 0.001;
 const VERTICAL_POLYGON_AXIS_ALIGNMENT_DOT_EPSILON = 0.999;
@@ -37,8 +40,13 @@ const VERTICAL_POLYGON_AXIS_ID_ENU_NORTH = "enu-north";
 
 type PointEditingStateOptions = {
   setAnnotations: Dispatch<SetStateAction<AnnotationCollection>>;
-  setPlanarPolygonGroups: Dispatch<SetStateAction<PlanarMeasurementGroup[]>>;
+  setPlanarMeasurements: Dispatch<SetStateAction<PlanarMeasurementGroup[]>>;
   setReferencePoint: Dispatch<SetStateAction<Cartesian3 | null>>;
+  moveGizmoPointId: string | null;
+  moveGizmoAxisDirection: Cartesian3 | null;
+  moveGizmoAxisCandidates: MoveGizmoAxisCandidate[] | null;
+  moveGizmoVerticalOffsetEditMode: MoveGizmoVerticalOffsetEditMode;
+  moveGizmoVerticalOffsetPlanarMeasurementId: string | null;
 };
 
 export const usePointEditingState = (
@@ -48,8 +56,13 @@ export const usePointEditingState = (
   selectedAnnotationIds: readonly string[],
   {
     setAnnotations,
-    setPlanarPolygonGroups,
+    setPlanarMeasurements,
     setReferencePoint,
+    moveGizmoPointId,
+    moveGizmoAxisDirection,
+    moveGizmoAxisCandidates,
+    moveGizmoVerticalOffsetEditMode,
+    moveGizmoVerticalOffsetPlanarMeasurementId,
   }: PointEditingStateOptions
 ) => {
   const selectablePointIds = useMemo(
@@ -70,15 +83,6 @@ export const usePointEditingState = (
     });
     return ids;
   }, [annotations]);
-
-  const moveGizmoState = useMoveGizmoState(annotations);
-  const {
-    moveGizmoPointId,
-    moveGizmoAxisDirection,
-    moveGizmoAxisCandidates,
-    moveGizmoVerticalOffsetEditMode,
-    moveGizmoVerticalOffsetPlanarGroupId,
-  } = moveGizmoState;
 
   const {
     updatePointMeasurementPositionById,
@@ -132,7 +136,7 @@ export const usePointEditingState = (
           (group) =>
             group.closed &&
             group.type === ANNOTATION_TYPE_AREA_VERTICAL &&
-            group.vertexPointIds.includes(pointId)
+            group.nodeIds.includes(pointId)
         ) ?? null;
       const moveNorthAxisCandidate =
         moveGizmoAxisCandidates?.find(
@@ -179,41 +183,39 @@ export const usePointEditingState = (
         normalizedEastAxisDirection
       ) {
         const pointById = getPointPositionMap(annotations);
-        targetVerticalPolygonGroup.vertexPointIds.forEach(
-          (candidatePointId) => {
-            if (!candidatePointId || candidatePointId === pointId) {
-              return;
-            }
-            if (lockedMeasurementIdSet.has(candidatePointId)) {
-              return;
-            }
-
-            const candidatePosition = pointById.get(candidatePointId);
-            if (!candidatePosition) {
-              return;
-            }
-
-            const candidateDelta = Cartesian3.subtract(
-              candidatePosition,
-              movedPointMeasurement.geometryECEF,
-              new Cartesian3()
-            );
-            const deltaE = Cartesian3.dot(
-              candidateDelta,
-              normalizedEastAxisDirection
-            );
-            const deltaN = Cartesian3.dot(
-              candidateDelta,
-              normalizedNorthAxisDirection
-            );
-            if (
-              Math.abs(deltaE) <= VERTICAL_POLYGON_EN_MATCH_EPSILON_METERS &&
-              Math.abs(deltaN) <= VERTICAL_POLYGON_EN_MATCH_EPSILON_METERS
-            ) {
-              verticalPolygonCoupledPointIdSet.add(candidatePointId);
-            }
+        targetVerticalPolygonGroup.nodeIds.forEach((candidatePointId) => {
+          if (!candidatePointId || candidatePointId === pointId) {
+            return;
           }
-        );
+          if (lockedMeasurementIdSet.has(candidatePointId)) {
+            return;
+          }
+
+          const candidatePosition = pointById.get(candidatePointId);
+          if (!candidatePosition) {
+            return;
+          }
+
+          const candidateDelta = Cartesian3.subtract(
+            candidatePosition,
+            movedPointMeasurement.geometryECEF,
+            new Cartesian3()
+          );
+          const deltaE = Cartesian3.dot(
+            candidateDelta,
+            normalizedEastAxisDirection
+          );
+          const deltaN = Cartesian3.dot(
+            candidateDelta,
+            normalizedNorthAxisDirection
+          );
+          if (
+            Math.abs(deltaE) <= VERTICAL_POLYGON_EN_MATCH_EPSILON_METERS &&
+            Math.abs(deltaN) <= VERTICAL_POLYGON_EN_MATCH_EPSILON_METERS
+          ) {
+            verticalPolygonCoupledPointIdSet.add(candidatePointId);
+          }
+        });
       }
 
       if (movedPointAnchor && moveGizmoVerticalOffsetEditMode) {
@@ -229,9 +231,9 @@ export const usePointEditingState = (
 
         if (moveGizmoVerticalOffsetEditMode === ANNOTATION_TYPE_POLYLINE) {
           const targetPlanarGroupId =
-            moveGizmoVerticalOffsetPlanarGroupId ??
+            moveGizmoVerticalOffsetPlanarMeasurementId ??
             planarPolygonGroups.find(
-              (group) => !group.closed && group.vertexPointIds.includes(pointId)
+              (group) => !group.closed && group.nodeIds.includes(pointId)
             )?.id ??
             null;
 
@@ -240,8 +242,8 @@ export const usePointEditingState = (
               (group) => group.id === targetPlanarGroupId
             );
             if (targetGroup) {
-              const targetVertexIdSet = new Set(targetGroup.vertexPointIds);
-              setPlanarPolygonGroups((previousGroups) =>
+              const targetVertexIdSet = new Set(targetGroup.nodeIds);
+              setPlanarMeasurements((previousGroups) =>
                 previousGroups.map((group) =>
                   group.id === targetPlanarGroupId
                     ? {
@@ -387,41 +389,19 @@ export const usePointEditingState = (
       moveGizmoAxisDirection,
       moveGizmoPointId,
       moveGizmoVerticalOffsetEditMode,
-      moveGizmoVerticalOffsetPlanarGroupId,
+      moveGizmoVerticalOffsetPlanarMeasurementId,
       planarPolygonGroups,
       referencePoint,
       selectablePointIds,
       selectedAnnotationIds,
       setAnnotations,
-      setPlanarPolygonGroups,
+      setPlanarMeasurements,
       setReferencePoint,
       updatePointMeasurementPositionById,
     ]
   );
 
-  const contextValue = useMemo(
-    () => ({
-      moveGizmoPointId: moveGizmoState.moveGizmoPointId,
-      isMoveGizmoDragging: moveGizmoState.isMoveGizmoDragging,
-      startMoveGizmoForMeasurementId:
-        moveGizmoState.startMoveGizmoForMeasurementId,
-      stopMoveGizmo: moveGizmoState.clearMoveGizmo,
-      setPointAnnotationElevationById,
-      setPointAnnotationCoordinatesById,
-    }),
-    [
-      moveGizmoState.clearMoveGizmo,
-      moveGizmoState.isMoveGizmoDragging,
-      moveGizmoState.moveGizmoPointId,
-      moveGizmoState.startMoveGizmoForMeasurementId,
-      setPointAnnotationCoordinatesById,
-      setPointAnnotationElevationById,
-    ]
-  );
-
   return {
-    contextValue,
-    ...moveGizmoState,
     updatePointMeasurementPositionById,
     setPointAnnotationElevationById,
     setPointAnnotationCoordinatesById,

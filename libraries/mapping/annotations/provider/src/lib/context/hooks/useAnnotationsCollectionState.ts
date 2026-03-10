@@ -34,10 +34,10 @@ export const useAnnotationsCollectionState = (
     planarPolygonGroups,
   }: UseAnnotationsCollectionStateOptions
 ) => {
-  const planarVertexPointIdSet = useMemo(() => {
+  const planarNodeIdSet = useMemo(() => {
     const ids = new Set<string>();
     planarPolygonGroups.forEach((group) => {
-      group.vertexPointIds.forEach((pointId) => {
+      group.nodeIds.forEach((pointId) => {
         if (pointId) {
           ids.add(pointId);
         }
@@ -62,7 +62,7 @@ export const useAnnotationsCollectionState = (
           if (measurement.auxiliaryLabelAnchor) {
             return false;
           }
-          if (planarVertexPointIdSet.has(measurement.id)) {
+          if (planarNodeIdSet.has(measurement.id)) {
             return false;
           }
           return true;
@@ -71,7 +71,7 @@ export const useAnnotationsCollectionState = (
 
       return annotations.filter((measurement) => measurement.type === type);
     },
-    [annotations, planarVertexPointIdSet, pointEntries, pointMeasureEntries]
+    [annotations, planarNodeIdSet, pointEntries, pointMeasureEntries]
   );
 
   const {
@@ -94,33 +94,7 @@ export const useAnnotationsCollectionState = (
     [planarPolygonGroups]
   );
 
-  const contextValue = useMemo(
-    () => ({
-      annotationsByType,
-      getAnnotationsForNavigation,
-      getAnnotationIndexByType,
-      getAnnotationOrderByType,
-      getNextAnnotationOrderByType,
-      polylineGroups,
-      areaPolygonGroups,
-      planarSurfacePolygonGroups,
-      verticalPolygonGroups,
-    }),
-    [
-      annotationsByType,
-      areaPolygonGroups,
-      getAnnotationIndexByType,
-      getAnnotationOrderByType,
-      getAnnotationsForNavigation,
-      getNextAnnotationOrderByType,
-      planarSurfacePolygonGroups,
-      polylineGroups,
-      verticalPolygonGroups,
-    ]
-  );
-
   return {
-    contextValue,
     annotationsByType,
     getAnnotationsForNavigation,
     getAnnotationIndexByType,

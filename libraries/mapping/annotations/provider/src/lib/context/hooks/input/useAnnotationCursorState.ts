@@ -198,6 +198,55 @@ export const useAnnotationCursorState = (
     candidateNodePositionChangeRef.current = onCandidateNodePositionChange;
   }, [onCandidateNodePositionChange]);
 
+  useEffect(
+    function effectTrackRawPointerScreenPosition() {
+      if (!enabled || !hasCandidateNode) {
+        return;
+      }
+
+      const handlePointerMove = (event: PointerEvent) => {
+        const nextRawCursorScreenPosition = toScreenPosition({
+          x: event.clientX,
+          y: event.clientY,
+        });
+
+        rawPointerSampleRef.current = {
+          ...rawPointerSampleRef.current,
+          screenPosition: nextRawCursorScreenPosition
+            ? new Cartesian2(
+                nextRawCursorScreenPosition.x,
+                nextRawCursorScreenPosition.y
+              )
+            : null,
+        };
+
+        setCursorState((previousState) =>
+          isSameScreenPosition(
+            previousState.rawCursorScreenPosition,
+            nextRawCursorScreenPosition
+          ) &&
+          isSameScreenPosition(
+            previousState.cursorScreenPosition,
+            nextRawCursorScreenPosition
+          )
+            ? previousState
+            : {
+                ...previousState,
+                rawCursorScreenPosition: nextRawCursorScreenPosition,
+                cursorScreenPosition: nextRawCursorScreenPosition,
+              }
+        );
+      };
+
+      window.addEventListener("pointermove", handlePointerMove, true);
+
+      return () => {
+        window.removeEventListener("pointermove", handlePointerMove, true);
+      };
+    },
+    [enabled, hasCandidateNode]
+  );
+
   const clearSnappedPointReleaseTimeout = useCallback(() => {
     if (snappedPointReleaseTimeoutRef.current === null) return;
     window.clearTimeout(snappedPointReleaseTimeoutRef.current);
@@ -237,10 +286,12 @@ export const useAnnotationCursorState = (
         snappedCursorScreenPosition === undefined
           ? null
           : snappedCursorScreenPosition;
+      // Keep the crosshair overlay anchored to the actual pointer sample.
+      // Snapping should only affect the candidate world position/rendered
+      // preview, not visually drag the mouse cursor to the snapped node.
       const nextCursorScreenPosition =
-        source === "snapped-node"
-          ? nextSnappedCursorScreenPosition
-          : nextRawCursorScreenPosition;
+        nextRawCursorScreenPosition ??
+        (source === "snapped-node" ? nextSnappedCursorScreenPosition : null);
       const nextSnappedPointId =
         source === "snapped-node" ? snappedPointId ?? null : null;
 
@@ -467,6 +518,14 @@ export const useAnnotationCursorState = (
     ]
   );
 
+  const releaseMeasurementCursorSnap = useCallback(() => {
+    if (!snappedPointIdRef.current) {
+      return;
+    }
+    clearSnappedMeasurementCursor();
+    applyLastRawPointerSample();
+  }, [applyLastRawPointerSample, clearSnappedMeasurementCursor]);
+
   useEffect(() => {
     if (enabled && hasCandidateNode) return;
     clearMeasurementCursor();
@@ -481,8 +540,10 @@ export const useAnnotationCursorState = (
 
   return {
     ...cursorState,
+    cursorScreenPosition: cursorState.rawCursorScreenPosition,
     clearMeasurementCursor,
     handleAnnotationCursorMove: handleRawMeasurementPointerMove,
+    releaseAnnotationCursorSnap: releaseMeasurementCursorSnap,
     scheduleAnnotationCursorSnapRelease: scheduleMeasurementCursorSnapRelease,
     syncAnnotationCursorToExistingPoint: syncMeasurementCursorToExistingPoint,
   } as const;

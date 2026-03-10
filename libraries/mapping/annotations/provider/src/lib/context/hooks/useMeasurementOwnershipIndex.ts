@@ -35,7 +35,7 @@ export const useMeasurementOwnershipIndex = (
     const nextRepresentativePointIdByGroupId = new Map<string, string>();
 
     planarMeasurementGroups.forEach((group) => {
-      group.vertexPointIds.forEach((pointId) => {
+      group.nodeIds.forEach((pointId) => {
         if (!pointId) {
           return;
         }

@@ -20,6 +20,6 @@ export type AnnotationCandidateDescriptor = {
   verticalOffsetMeters: number;
   verticalPolygonContext?: {
     groupId: string;
-    firstVertexPointId: string;
+    firstNodeId: string;
   };
 };
