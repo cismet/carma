@@ -161,7 +161,7 @@ const StandortForm = ({
       const {
         strassenschluessel_pk,
         strassenschluessel_strasse,
-        letzte_aenderung,
+        fk_bezirk,
         ...rest
       } = formValues;
 
