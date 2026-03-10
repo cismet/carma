@@ -1,4 +1,5 @@
 import type { PointLabelAttach } from "../components/PointLabel";
+import { clamp } from "@carma-commons/math";
 
 import type {
   DynamicLabelPlacementConfig,
@@ -34,9 +35,6 @@ export const DEFAULT_POINT_LABEL_LAYOUT_CONFIG: PointLabelLayoutConfig = {
   pitchResponseClampRad: Math.PI / 4,
   transitionDurationMs: 300,
 };
-
-const clamp = (value: number, min: number, max: number): number =>
-  Math.max(min, Math.min(max, value));
 
 const normalizeAngle = (angleRad: number): number => {
   let normalized = angleRad;

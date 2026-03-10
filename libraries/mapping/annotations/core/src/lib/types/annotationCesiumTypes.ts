@@ -9,7 +9,6 @@ import {
 } from "./annotationTypes";
 import type { BaseAnnotationEntry } from "./annotationEntry";
 import type { AnnotationPersistenceEnvelopeV2Base } from "./annotationPersistenceTypes";
-import type { PointReferenceLineAnnotation } from "./distanceRelation";
 
 export type AnnotationMode =
   | typeof SELECT_TOOL_TYPE
@@ -37,11 +36,7 @@ export type AnnotationPointEntry = AnnotationEntry & {
     altitude: Altitude.EllipsoidalWGS84Meters;
   };
   radius?: number;
-  isFacadeAutoCorner?: boolean;
-  referenceLineAnnotation?: PointReferenceLineAnnotation;
   verticalOffsetAnchorECEF?: Cartesian3Json;
-  distanceAdhocNode?: boolean;
-  distanceRelationId?: string;
 };
 
 export type PointMeasurementEntry = AnnotationPointEntry & {

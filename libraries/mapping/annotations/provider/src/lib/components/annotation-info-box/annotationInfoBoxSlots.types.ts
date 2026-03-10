@@ -13,6 +13,7 @@ import {
   type AnnotationType,
   type LinearSegmentLineMode,
 } from "@carma-mapping/annotations/core";
+import type { AnnotationVisualizerOptionsPatch } from "../../context/annotationsContext.types";
 import type { AnnotationDisplayPoint } from "./utils/pointAnnotationDisplay";
 
 export type AnnotationSlotKind = AnnotationType | "unsupported";
@@ -29,28 +30,21 @@ export type DistanceTableRow = {
 };
 
 export type AnnotationSlotActions = {
-  updateAnnotationNameById: (id: string, name: string) => void;
-  updateAnnotationById: (id: string, patch: Partial<AnnotationEntry>) => void;
-  deleteAnnotationById: (id: string) => void;
-  toggleAnnotationLockById: (id: string) => void;
-  flyToMeasurementById: (id: string) => void;
-  flyToPlanarPolygonGroupById: (id: string) => void;
-  togglePlanarPolygonGroupVisibilityById: (id: string) => void;
-  togglePlanarPolygonGroupLockById: (id: string) => void;
-  setReferencePoint: (
-    nextReference: PointAnnotationEntry["geometryECEF"] | null
-  ) => void;
-  confirmPointLabelInputById: (id: string) => void;
+  updateNameById: (id: string, name: string) => void;
+  removeByIds: (ids: string[]) => void;
+  toggleLockByIds: (ids: string[]) => void;
+  toggleVisibilityByIds: (ids: string[]) => void;
+  flyToById: (id: string) => void;
+  setReferenceMeasurementById: (id: string | null) => void;
+  confirmLabelPlacementById: (id: string) => void;
   updatePointLabelAppearanceById: (
     id: string,
     appearance: AnnotationEntry["labelAppearance"] | undefined
   ) => void;
-  updatePlanarPolygonNameById: (id: string, name: string) => void;
-  updatePlanarPolygonSegmentLineModeById: (
+  updateVisualizerOptionsById: (
     id: string,
-    nextMode: LinearSegmentLineMode
+    patch: AnnotationVisualizerOptionsPatch
   ) => void;
-  deletePlanarPolygonGroupById: (id: string) => void;
 };
 
 export type PolylineSummary = {
@@ -112,7 +106,7 @@ export type PolygonPolylineAnnotationSlotsInput = {
     | typeof ANNOTATION_TYPE_AREA_GROUND
     | typeof ANNOTATION_TYPE_AREA_PLANAR
     | typeof ANNOTATION_TYPE_AREA_VERTICAL;
-  groupId: string;
+  measurementId: string;
   name?: string;
   order: number;
   totalLengthMeters: number;

@@ -168,7 +168,7 @@ export const getLabelAnnotationInfoBoxSlots = (
     onTitleCommit: (title) => {
       if (!input.measurement) return;
       if (!title.trim()) return;
-      input.actions.confirmPointLabelInputById(input.measurement.id);
+      input.actions.confirmLabelPlacementById(input.measurement.id);
     },
   }),
   content: renderPureLabelContent(input),

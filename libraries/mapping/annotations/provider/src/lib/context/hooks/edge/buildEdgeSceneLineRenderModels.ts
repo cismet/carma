@@ -1,5 +1,6 @@
 import { Cartesian3, getDegreesFromCartesian } from "@carma/cesium";
 import {
+  type CandidateConnectionPreview,
   LINE_TYPE_CARTESIAN,
   REFERENCE_LINE_EPSILON_METERS,
   isDistanceRelationHorizontalLineVisible,
@@ -10,11 +11,7 @@ import {
   type PointDistanceRelation,
 } from "@carma-mapping/annotations/core";
 
-import type {
-  EdgeCandidateLine,
-  EdgeSceneLineRenderModel,
-  TransientEdgeSegment,
-} from "../annotationVisualization.types";
+import type { EdgeSceneLineRenderModel } from "../annotationVisualization.types";
 
 const DEFAULT_LINE_TYPE: LineType = LINE_TYPE_CARTESIAN;
 
@@ -51,8 +48,7 @@ export type EdgeSceneLineStyleOverrides = {
 type BuildEdgeSceneLineRenderModelsParams = {
   pointsById: ReadonlyMap<string, PointAnnotationEntry>;
   distanceRelations: readonly PointDistanceRelation[];
-  candidateEdgeLine?: EdgeCandidateLine;
-  transientEdges?: readonly TransientEdgeSegment[];
+  previewEdges?: readonly EdgeSceneLineRenderModel[];
   styles?: EdgeSceneLineStyleOverrides;
 };
 
@@ -86,8 +82,7 @@ const applyStyle = (
 export const buildEdgeSceneLineRenderModels = ({
   pointsById,
   distanceRelations,
-  candidateEdgeLine = null,
-  transientEdges = [],
+  previewEdges = [],
   styles,
 }: BuildEdgeSceneLineRenderModelsParams): EdgeSceneLineRenderModel[] => {
   const relationPointsById = new Map(pointsById);
@@ -169,71 +164,7 @@ export const buildEdgeSceneLineRenderModels = ({
       }
     });
 
-  if (
-    candidateEdgeLine &&
-    Cartesian3.distance(
-      candidateEdgeLine.anchorPointECEF,
-      candidateEdgeLine.targetPointECEF
-    ) > REFERENCE_LINE_EPSILON_METERS
-  ) {
-    const auxiliaryPointECEF = buildAuxiliaryPoint(
-      candidateEdgeLine.anchorPointECEF,
-      candidateEdgeLine.targetPointECEF
-    );
-
-    if (candidateEdgeLine.showDirectLine) {
-      sceneLines.push(
-        applyStyle(
-          {
-            id: "reference-preview-direct",
-            start: candidateEdgeLine.anchorPointECEF,
-            end: candidateEdgeLine.targetPointECEF,
-          },
-          resolvedStyles.direct
-        )
-      );
-    }
-
-    if (
-      candidateEdgeLine.showVerticalLine &&
-      Cartesian3.distance(
-        candidateEdgeLine.anchorPointECEF,
-        auxiliaryPointECEF
-      ) > REFERENCE_LINE_EPSILON_METERS
-    ) {
-      sceneLines.push(
-        applyStyle(
-          {
-            id: "reference-preview-vertical",
-            start: candidateEdgeLine.anchorPointECEF,
-            end: auxiliaryPointECEF,
-          },
-          resolvedStyles.vertical
-        )
-      );
-    }
-
-    if (
-      candidateEdgeLine.showHorizontalLine &&
-      Cartesian3.distance(
-        auxiliaryPointECEF,
-        candidateEdgeLine.targetPointECEF
-      ) > REFERENCE_LINE_EPSILON_METERS
-    ) {
-      sceneLines.push(
-        applyStyle(
-          {
-            id: "reference-preview-horizontal",
-            start: auxiliaryPointECEF,
-            end: candidateEdgeLine.targetPointECEF,
-          },
-          resolvedStyles.horizontal
-        )
-      );
-    }
-  }
-
-  transientEdges.forEach((edge) => {
+  previewEdges.forEach((edge) => {
     sceneLines.push({
       ...edge,
       lineType: edge.lineType ?? DEFAULT_LINE_TYPE,
@@ -241,4 +172,99 @@ export const buildEdgeSceneLineRenderModels = ({
   });
 
   return sceneLines;
+};
+
+export const buildCandidatePreviewEdgeRenderModels = ({
+  candidateConnection,
+  styles,
+}: {
+  candidateConnection: CandidateConnectionPreview | null;
+  styles?: EdgeSceneLineStyleOverrides;
+}): EdgeSceneLineRenderModel[] => {
+  if (!candidateConnection) {
+    return [];
+  }
+
+  const resolvedStyles = {
+    direct: {
+      ...DEFAULT_EDGE_SCENE_LINE_STYLES.direct,
+      ...(styles?.direct ?? {}),
+    },
+    vertical: {
+      ...DEFAULT_EDGE_SCENE_LINE_STYLES.vertical,
+      ...(styles?.vertical ?? {}),
+    },
+    horizontal: {
+      ...DEFAULT_EDGE_SCENE_LINE_STYLES.horizontal,
+      ...(styles?.horizontal ?? {}),
+    },
+  };
+
+  if (
+    Cartesian3.distance(
+      candidateConnection.anchorPointECEF,
+      candidateConnection.targetPointECEF
+    ) <= REFERENCE_LINE_EPSILON_METERS
+  ) {
+    return [];
+  }
+
+  const auxiliaryPointECEF = buildAuxiliaryPoint(
+    candidateConnection.anchorPointECEF,
+    candidateConnection.targetPointECEF
+  );
+  const previewLines: EdgeSceneLineRenderModel[] = [];
+
+  if (candidateConnection.showDirectLine) {
+    previewLines.push(
+      applyStyle(
+        {
+          id: "reference-preview-direct",
+          start: candidateConnection.anchorPointECEF,
+          end: candidateConnection.targetPointECEF,
+        },
+        resolvedStyles.direct
+      )
+    );
+  }
+
+  if (
+    candidateConnection.showVerticalLine &&
+    Cartesian3.distance(
+      candidateConnection.anchorPointECEF,
+      auxiliaryPointECEF
+    ) > REFERENCE_LINE_EPSILON_METERS
+  ) {
+    previewLines.push(
+      applyStyle(
+        {
+          id: "reference-preview-vertical",
+          start: candidateConnection.anchorPointECEF,
+          end: auxiliaryPointECEF,
+        },
+        resolvedStyles.vertical
+      )
+    );
+  }
+
+  if (
+    candidateConnection.showHorizontalLine &&
+    Cartesian3.distance(
+      auxiliaryPointECEF,
+      candidateConnection.targetPointECEF
+    ) > REFERENCE_LINE_EPSILON_METERS
+  ) {
+    previewLines.push(
+      applyStyle(
+        {
+          id: "reference-preview-horizontal",
+          start: auxiliaryPointECEF,
+          end: candidateConnection.targetPointECEF,
+        },
+        resolvedStyles.horizontal
+      )
+    );
+  }
+
+  return previewLines;
 };

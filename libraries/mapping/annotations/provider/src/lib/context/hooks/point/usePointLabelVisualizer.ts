@@ -32,16 +32,16 @@ import {
 import type { CssPixelPosition } from "@carma/units/types";
 import {
   DEFAULT_POINT_LABEL_METRIC_MODE,
-  type AnnotationPointMarkerBadge,
   formatNumber,
   getCustomPointAnnotationName,
   type PlanarPolygonPlane,
   type PointAnnotationEntry,
   type PointLabelMetricMode,
 } from "@carma-mapping/annotations/core";
+import type { AnnotationPointMarkerBadge } from "../../base";
+import type { AnnotationSelectionState } from "../selection/annotationSelection.types";
 
 import { useCesiumSceneVisibilityIndex } from "@carma-mapping/annotations/cesium";
-import { usePointRectangleSelectionOverlay } from "./usePointRectangleSelectionOverlay";
 
 const ELEVATION_NEUTRAL_THRESHOLD_METERS = 0.03;
 const REFERENCE_POINT_DISTANCE_EPSILON_METERS = 0.001;
@@ -476,15 +476,6 @@ export type PointLabelDisplayState = {
   interactivePointIds?: ReadonlySet<string>;
 };
 
-export type PointLabelSelectionState = {
-  selectedPointId?: string | null;
-  selectedPointIds?: readonly string[];
-  selectionModeEnabled?: boolean;
-  selectionRectangleModeEnabled?: boolean;
-  selectionAdditiveMode?: boolean;
-  onPointRectangleSelect?: (pointIds: string[], additive: boolean) => void;
-};
-
 export type PointLabelEditingState = {
   editingPointId?: string | null;
   editingPointIsDragging?: boolean;
@@ -513,22 +504,17 @@ export type PointLabelInteractionState = {
 };
 
 export type PointLabelVisualizerOptions = {
-  scene: Scene | null;
-  points: PointAnnotationEntry[];
   display: PointLabelDisplayState;
-  selection?: PointLabelSelectionState;
+  selection?: AnnotationSelectionState;
   editing?: PointLabelEditingState;
   interactions?: PointLabelInteractionState;
 };
 
-export const usePointLabelVisualizer = ({
-  scene,
-  points,
-  display,
-  selection,
-  editing,
-  interactions,
-}: PointLabelVisualizerOptions) => {
+export const usePointLabelVisualizer = (
+  scene: Scene | null,
+  points: PointAnnotationEntry[],
+  { display, selection, editing, interactions }: PointLabelVisualizerOptions
+) => {
   const {
     enabled,
     showLabels = true,
@@ -549,14 +535,8 @@ export const usePointLabelVisualizer = ({
     markerOnlyOverlayNodeInteractions = false,
     interactivePointIds,
   } = display;
-  const {
-    selectedPointId = null,
-    selectedPointIds = [],
-    selectionModeEnabled = false,
-    selectionRectangleModeEnabled = false,
-    selectionAdditiveMode = false,
-    onPointRectangleSelect,
-  } = selection ?? {};
+  const { selectedAnnotationId = null, selectedAnnotationIds = [] } =
+    selection ?? {};
   const {
     editingPointId = null,
     editingPointIsDragging = false,
@@ -577,13 +557,13 @@ export const usePointLabelVisualizer = ({
   } = interactions ?? {};
   const [cameraPitch, setCameraPitch] = useState<number>(-Math.PI / 4);
   const registeredPointIdSetRef = useRef<Set<string>>(new Set());
-  const selectedPointIdSet = useMemo(() => {
-    const ids = new Set(selectedPointIds);
-    if (selectedPointId) {
-      ids.add(selectedPointId);
+  const selectedAnnotationIdSet = useMemo(() => {
+    const ids = new Set(selectedAnnotationIds);
+    if (selectedAnnotationId) {
+      ids.add(selectedAnnotationId);
     }
     return ids;
-  }, [selectedPointId, selectedPointIds]);
+  }, [selectedAnnotationId, selectedAnnotationIds]);
 
   const layoutConfig = useMemo(
     () => resolvePointLabelLayoutConfig(labelLayoutConfig),
@@ -636,13 +616,15 @@ export const usePointLabelVisualizer = ({
 
   const realtimeOcclusionEditingPointIds = useMemo(() => {
     if (!occlusionChecksEnabled || !editingPointIsDragging) return [];
-    if (!selectedPointId || selectedPointId !== editingPointId) return [];
-    return [selectedPointId];
+    if (!selectedAnnotationId || selectedAnnotationId !== editingPointId) {
+      return [];
+    }
+    return [selectedAnnotationId];
   }, [
     editingPointIsDragging,
     editingPointId,
     occlusionChecksEnabled,
-    selectedPointId,
+    selectedAnnotationId,
   ]);
 
   const { registerPoints, unregisterPointIds, visibilityStateById } =
@@ -1151,7 +1133,7 @@ export const usePointLabelVisualizer = ({
         stemReferenceMarkerSize: isEditingPoint
           ? NORMAL_MARKER_SIZE_PX
           : undefined,
-        selected: selectedPointIdSet.has(point.id),
+        selected: selectedAnnotationIdSet.has(point.id),
         visible: true,
         isOccluded: visibilityStateById[point.id]?.isOccluded ?? false,
         isHidden:
@@ -1201,7 +1183,7 @@ export const usePointLabelVisualizer = ({
   }, [
     points,
     pointLabelTextById,
-    selectedPointIdSet,
+    selectedAnnotationIdSet,
     editingPointId,
     editingPointIsDragging,
     visibilityStateById,
@@ -1233,20 +1215,6 @@ export const usePointLabelVisualizer = ({
     enabled,
     showLabels,
   ]);
-
-  usePointRectangleSelectionOverlay({
-    scene,
-    enabled:
-      enabled &&
-      selectionModeEnabled &&
-      selectionRectangleModeEnabled &&
-      Boolean(onPointRectangleSelect),
-    additiveMode: selectionAdditiveMode,
-    points: pointLabelData,
-    onSelect: (pointIds, additive) => {
-      onPointRectangleSelect?.(pointIds, additive);
-    },
-  });
 
   const verticalOffsetStemLines = useMemo<LineVisualizerData[]>(() => {
     if (!scene || scene.isDestroyed()) return [];
@@ -1302,6 +1270,8 @@ export const usePointLabelVisualizer = ({
   usePointLabels(pointLabelData, enabled, undefined, undefined, {
     transitionDurationMs: layoutConfig.transitionDurationMs,
   });
+
+  return pointLabelData;
 };
 
 export default usePointLabelVisualizer;

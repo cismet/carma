@@ -3,11 +3,13 @@ import {
   ANNOTATION_TYPE_AREA_PLANAR,
   ANNOTATION_TYPE_POLYLINE,
   type AnnotationEntry,
+  type DerivedPolylinePath,
+  type PlanarMeasurementGroup,
+  type PlanarPolylineGroup,
   type PlanarPolygonGroup,
   LINEAR_SEGMENT_LINE_MODE_COMPONENTS,
   type LinearSegmentLineMode,
 } from "@carma-mapping/annotations/core";
-import type { DerivedPolylinePath } from "../../context/types/derivedPolylinePath";
 import type {
   AnnotationSlotActions,
   PolylineSummary,
@@ -15,26 +17,34 @@ import type {
 } from "./annotationInfoBoxSlots.types";
 
 type GetPlanarMeasurementSlotsInputParams = {
-  polylineGroups: ReadonlyArray<PlanarPolygonGroup>;
-  areaPolygonGroups: ReadonlyArray<PlanarPolygonGroup>;
-  planarSurfacePolygonGroups: ReadonlyArray<PlanarPolygonGroup>;
-  verticalPolygonGroups: ReadonlyArray<PlanarPolygonGroup>;
-  polylines: ReadonlyArray<DerivedPolylinePath>;
+  polylineMeasurements: ReadonlyArray<PlanarPolylineGroup>;
+  groundPolygons: ReadonlyArray<PlanarPolygonGroup>;
+  planarPolygons: ReadonlyArray<PlanarPolygonGroup>;
+  verticalPolygons: ReadonlyArray<PlanarPolygonGroup>;
+  polylinePaths: ReadonlyArray<DerivedPolylinePath>;
   annotations: ReadonlyArray<AnnotationEntry>;
   fallbackPolylineSegmentLineMode: LinearSegmentLineMode;
-  selectedPlanarPolygonGroupId: string | null;
-  activePlanarPolygonGroupId: string | null;
+  focusedPlanarMeasurementId: string | null;
+  activePlanarMeasurementId: string | null;
   actions: AnnotationSlotActions;
 };
 
 export type PlanarMeasurementSlotsInputResult = {
   slotsInput: PolygonPolylineAnnotationSlotsInput | null;
-  planarGroup: PlanarPolygonGroup | null;
+  planarGroup: PlanarMeasurementGroup | null;
 };
 
 const getPlanarKind = (
-  group: PlanarPolygonGroup
-): PolygonPolylineAnnotationSlotsInput["kind"] => group.measurementKind;
+  group: PlanarMeasurementGroup
+): PolygonPolylineAnnotationSlotsInput["kind"] => group.type;
+
+const hasDisplayableActiveMetrics = (
+  group: PlanarMeasurementGroup | null
+): boolean => {
+  if (!group) return false;
+  const requiredVertexCount = group.type === ANNOTATION_TYPE_POLYLINE ? 2 : 3;
+  return group.vertexPointIds.length >= requiredVertexCount;
+};
 
 const getPolylineSummary = (
   polyline: DerivedPolylinePath | null
@@ -72,29 +82,38 @@ const getPolylineSummary = (
 };
 
 export const getPlanarAnnotationSlotsInput = ({
-  polylineGroups,
-  areaPolygonGroups,
-  planarSurfacePolygonGroups,
-  verticalPolygonGroups,
-  polylines,
+  polylineMeasurements,
+  groundPolygons,
+  planarPolygons,
+  verticalPolygons,
+  polylinePaths,
   annotations,
   fallbackPolylineSegmentLineMode,
-  selectedPlanarPolygonGroupId,
-  activePlanarPolygonGroupId,
+  focusedPlanarMeasurementId,
+  activePlanarMeasurementId,
   actions,
 }: GetPlanarMeasurementSlotsInputParams): PlanarMeasurementSlotsInputResult => {
   const planarPolygonGroups = [
-    ...polylineGroups,
-    ...areaPolygonGroups,
-    ...planarSurfacePolygonGroups,
-    ...verticalPolygonGroups,
+    ...polylineMeasurements,
+    ...groundPolygons,
+    ...planarPolygons,
+    ...verticalPolygons,
   ];
-  const focusedGroupId =
-    activePlanarPolygonGroupId ?? selectedPlanarPolygonGroupId;
-  const planarGroup =
-    (focusedGroupId
-      ? planarPolygonGroups.find((group) => group.id === focusedGroupId)
+  const activePlanarGroup =
+    (activePlanarMeasurementId
+      ? planarPolygonGroups.find(
+          (group) => group.id === activePlanarMeasurementId
+        )
       : null) ?? null;
+  const selectedPlanarGroup =
+    (focusedPlanarMeasurementId
+      ? planarPolygonGroups.find(
+          (group) => group.id === focusedPlanarMeasurementId
+        )
+      : null) ?? null;
+  const planarGroup = hasDisplayableActiveMetrics(activePlanarGroup)
+    ? activePlanarGroup
+    : selectedPlanarGroup;
 
   if (!planarGroup) {
     return {
@@ -105,12 +124,12 @@ export const getPlanarAnnotationSlotsInput = ({
 
   const sameKindGroups =
     getPlanarKind(planarGroup) === ANNOTATION_TYPE_POLYLINE
-      ? polylineGroups
+      ? polylineMeasurements
       : getPlanarKind(planarGroup) === ANNOTATION_TYPE_AREA_GROUND
-      ? areaPolygonGroups
+      ? groundPolygons
       : getPlanarKind(planarGroup) === ANNOTATION_TYPE_AREA_PLANAR
-      ? planarSurfacePolygonGroups
-      : verticalPolygonGroups;
+      ? planarPolygons
+      : verticalPolygons;
   const order =
     Math.max(
       0,
@@ -119,7 +138,7 @@ export const getPlanarAnnotationSlotsInput = ({
   const planarKind = getPlanarKind(planarGroup);
   const polyline =
     planarKind === ANNOTATION_TYPE_POLYLINE
-      ? polylines.find((entry) => entry.id === planarGroup.id) ?? null
+      ? polylinePaths.find((entry) => entry.id === planarGroup.id) ?? null
       : null;
   const segmentLineMode =
     planarKind === ANNOTATION_TYPE_POLYLINE
@@ -140,7 +159,7 @@ export const getPlanarAnnotationSlotsInput = ({
     planarGroup,
     slotsInput: {
       kind: planarKind,
-      groupId: planarGroup.id,
+      measurementId: planarGroup.id,
       name: planarGroup.name,
       order,
       totalLengthMeters:

@@ -1,18 +1,14 @@
 import { useMemo } from "react";
 
-import {
-  isPointMeasurementEntry,
-  useAnnotations,
-} from "@carma-mapping/annotations/core";
-import type {
-  AnnotationEntry,
-  AnnotationMode,
-} from "@carma-mapping/annotations/core";
+import { isPointMeasurementEntry } from "@carma-mapping/annotations/core";
 import type { PointAnnotationSlotsInput } from "./getAnnotationInfoBoxSlots";
 import { getPointAnnotationSlotsInput } from "./getPointAnnotationSlotsInput";
 import { useAnnotationInfoBoxDisplaySelection } from "./useAnnotationInfoBoxDisplaySelection";
 import { useAnnotationInfoBoxSlotActions } from "./useAnnotationInfoBoxSlotActions";
-import { useAnnotationsAdapter } from "../../context/AnnotationsAdapterProvider";
+import {
+  useAnnotationCollection,
+  useAnnotationViewState,
+} from "../../context/AnnotationsProvider";
 
 export type PointInfoBoxSlotsInputState = {
   isPointKind: boolean;
@@ -22,15 +18,13 @@ export type PointInfoBoxSlotsInputState = {
 
 export const usePointInfoBoxSlotsInput = (): PointInfoBoxSlotsInputState => {
   const {
-    annotationMode,
-    pointLabelOnCreate,
+    activeToolType,
     isPointCandidateModeActive,
     displayMeasurement,
     currentMeasurement,
   } = useAnnotationInfoBoxDisplaySelection();
-  const { referencePoint } = useAnnotationsAdapter();
-  const { getAnnotationOrderByType, getNextAnnotationOrderByType } =
-    useAnnotations<AnnotationMode, AnnotationEntry>();
+  const view = useAnnotationViewState();
+  const annotations = useAnnotationCollection();
   const actions = useAnnotationInfoBoxSlotActions();
 
   const displayPointMeasurement =
@@ -45,22 +39,19 @@ export const usePointInfoBoxSlotsInput = (): PointInfoBoxSlotsInputState => {
   const slotsInput = useMemo(
     () =>
       getPointAnnotationSlotsInput({
-        annotationMode,
-        pointLabelOnCreate,
+        activeToolType,
         measurement: displayPointMeasurement,
-        referencePoint,
-        getAnnotationOrderByType,
-        getNextAnnotationOrderByType,
+        referencePoint: view.referencePoint,
+        getAnnotationOrderByType: annotations.getOrderByType,
+        getNextAnnotationOrderByType: annotations.getNextOrderByType,
         actions,
       }).slotsInput,
     [
       actions,
+      activeToolType,
+      annotations,
       displayPointMeasurement,
-      getAnnotationOrderByType,
-      getNextAnnotationOrderByType,
-      annotationMode,
-      pointLabelOnCreate,
-      referencePoint,
+      view.referencePoint,
     ]
   );
 

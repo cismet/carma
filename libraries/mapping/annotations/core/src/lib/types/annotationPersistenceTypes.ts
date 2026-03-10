@@ -6,7 +6,7 @@ import type {
   PointLabelMetricMode,
 } from "./annotationLabel";
 import type { PointDistanceRelation } from "./distanceRelation";
-import type { PlanarPolygonGroup } from "./planarTypes";
+import type { PlanarMeasurementGroup } from "./planarTypes";
 
 export type AnnotationGeometryPoint = {
   id: string;
@@ -45,7 +45,7 @@ export type AnnotationPersistenceEnvelopeV2Base<TMeasurementEntry> = {
   tables: {
     annotations: TMeasurementEntry[];
     distanceRelations: PointDistanceRelation[];
-    planarPolygonGroups: PlanarPolygonGroup[];
+    planarPolygonGroups: PlanarMeasurementGroup[];
     planarPolygonGroupVertices: PlanarPolygonGroupVertex[];
   };
 };

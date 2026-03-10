@@ -10,8 +10,6 @@ import {
 } from "@carma-mapping/annotations/core";
 
 type UseAnnotationPointEditingControllerParams = {
-  annotations: AnnotationCollection;
-  referencePoint: Cartesian3 | null;
   moveGizmoPointId: string | null;
   setAnnotations: Dispatch<SetStateAction<AnnotationCollection>>;
   setReferencePoint: Dispatch<SetStateAction<Cartesian3 | null>>;
@@ -22,14 +20,16 @@ export type UpdatePointMeasurementPositionOptions = {
   treatNextPositionAsOffsetAnchor?: boolean;
 };
 
-export const useAnnotationPointEditingController = ({
-  annotations,
-  referencePoint,
-  moveGizmoPointId,
-  setAnnotations,
-  setReferencePoint,
-  referencePointSyncEpsilonMeters,
-}: UseAnnotationPointEditingControllerParams) => {
+export const useAnnotationPointEditingController = (
+  annotations: AnnotationCollection,
+  referencePoint: Cartesian3 | null,
+  {
+    moveGizmoPointId,
+    setAnnotations,
+    setReferencePoint,
+    referencePointSyncEpsilonMeters,
+  }: UseAnnotationPointEditingControllerParams
+) => {
   const updatePointMeasurementPositionById = useCallback(
     (
       id: string,

@@ -1,11 +1,10 @@
 import { useMemo } from "react";
 
-import { useAnnotations } from "@carma-mapping/annotations/core";
-import type {
-  AnnotationEntry,
-  AnnotationMode,
-} from "@carma-mapping/annotations/core";
-import { useAnnotationsAdapter } from "../../context/AnnotationsAdapterProvider";
+import {
+  useAnnotationCollection,
+  useAnnotationSelectionState,
+  useAnnotationViewState,
+} from "../../context/AnnotationsProvider";
 import type { DistanceAnnotationSlotsInput } from "./getAnnotationInfoBoxSlots";
 import { getDistanceAnnotationSlotsInput } from "./getDistanceAnnotationSlotsInput";
 import { useAnnotationInfoBoxDisplaySelection } from "./useAnnotationInfoBoxDisplaySelection";
@@ -20,61 +19,51 @@ export type DistanceInfoBoxSlotsInputState = {
 export const useDistanceInfoBoxSlotsInput =
   (): DistanceInfoBoxSlotsInputState => {
     const {
-      annotationMode,
+      activeToolType,
       isDistanceCandidateModeActive,
       pointEntries,
       displayMeasurement,
       currentMeasurement,
     } = useAnnotationInfoBoxDisplaySelection();
-    const {
-      activeMeasurementId,
-      referencePoint,
-      hasDistancePreviewAnchor,
-      distanceRelations,
-      pointMarkerBadgeByPointId,
-    } = useAnnotationsAdapter();
-    const { getAnnotationOrderByType, getNextAnnotationOrderByType } =
-      useAnnotations<AnnotationMode, AnnotationEntry>();
+    const selection = useAnnotationSelectionState();
+    const view = useAnnotationViewState();
+    const annotations = useAnnotationCollection();
     const actions = useAnnotationInfoBoxSlotActions();
 
     const isDistanceMeasurement = useMemo(
       () =>
         displayMeasurement !== null &&
-        distanceRelations.some(
+        view.distanceRelations.some(
           (relation) =>
             relation.pointAId === displayMeasurement.id ||
             relation.pointBId === displayMeasurement.id
         ),
-      [displayMeasurement, distanceRelations]
+      [displayMeasurement, view.distanceRelations]
     );
 
     const slotsInput = useMemo(
       () =>
         getDistanceAnnotationSlotsInput({
-          annotationMode,
+          activeToolType,
           measurement: displayMeasurement,
-          activeMeasurementId,
+          activeMeasurementId: selection.activeAnnotationId,
           pointEntries,
-          referencePoint,
-          hasDistancePreviewAnchor,
-          distanceRelations,
-          pointMarkerBadgeByPointId,
-          getAnnotationOrderByType,
-          getNextAnnotationOrderByType,
+          referencePoint: view.referencePoint,
+          hasDistancePreviewAnchor: view.hasDistancePreviewAnchor,
+          distanceRelations: view.distanceRelations,
+          pointMarkerBadgeByPointId: view.pointMarkerBadgeByPointId,
+          getAnnotationOrderByType: annotations.getOrderByType,
+          getNextAnnotationOrderByType: annotations.getNextOrderByType,
           actions,
         }).slotsInput,
       [
         actions,
-        activeMeasurementId,
+        activeToolType,
+        annotations,
         displayMeasurement,
-        distanceRelations,
-        getAnnotationOrderByType,
-        getNextAnnotationOrderByType,
-        hasDistancePreviewAnchor,
-        annotationMode,
-        pointMarkerBadgeByPointId,
         pointEntries,
-        referencePoint,
+        selection.activeAnnotationId,
+        view,
       ]
     );
 

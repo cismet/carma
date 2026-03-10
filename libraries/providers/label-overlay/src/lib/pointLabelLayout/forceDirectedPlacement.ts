@@ -1,3 +1,4 @@
+import { clamp } from "@carma-commons/math";
 import {
   createLabelRectFromConnector,
   getRectCenter,
@@ -22,9 +23,6 @@ type RelaxPlacementWithForcesInput = {
   viewportHeight: number;
   config: DynamicLabelPlacementConfig;
 };
-
-const clamp = (value: number, min: number, max: number): number =>
-  Math.max(min, Math.min(max, value));
 
 export const relaxPlacementWithForces = ({
   anchor,

@@ -6,22 +6,14 @@ import {
   ANNOTATION_TYPE_AREA_VERTICAL,
   ANNOTATION_TYPE_LABEL,
   ANNOTATION_TYPE_POLYLINE,
-  useAnnotations,
-  useAnnotationSelection,
-} from "@carma-mapping/annotations/core";
-import type {
-  AnnotationEntry,
-  AnnotationMode,
-  PointAnnotationEntry,
+  type PointAnnotationEntry,
 } from "@carma-mapping/annotations/core";
 import type { AnnotationSlotKind } from "./getAnnotationInfoBoxSlots";
-import { useAnnotationsAdapter } from "../../context/AnnotationsAdapterProvider";
-
-type UseAnnotationInfoBoxNavigationBindingsParams = {
-  annotationType: AnnotationSlotKind;
-  currentMeasurementId: string | null;
-  labelMeasurements: ReadonlyArray<PointAnnotationEntry>;
-};
+import {
+  useAnnotationCollection,
+  useAnnotationSelectionState,
+  useAnnotationViewState,
+} from "../../context/AnnotationsProvider";
 
 export type AnnotationInfoBoxNavigationBindings = {
   navigationMeasurements: ReadonlyArray<{ id: string }>;
@@ -31,24 +23,14 @@ export type AnnotationInfoBoxNavigationBindings = {
   onFlyToAllMeasurements: () => void;
 };
 
-export const useAnnotationInfoBoxNavigationBindings = ({
-  annotationType,
-  currentMeasurementId,
-  labelMeasurements,
-}: UseAnnotationInfoBoxNavigationBindingsParams): AnnotationInfoBoxNavigationBindings => {
-  const { getAnnotationsForNavigation } = useAnnotations<
-    AnnotationMode,
-    AnnotationEntry
-  >();
-  const { selectMeasurementById } = useAnnotationSelection();
-  const {
-    planarPolygonGroups,
-    activePlanarPolygonGroupId,
-    selectedPlanarPolygonGroupId,
-    selectPlanarPolygonGroupById,
-    flyToMeasurementById,
-    flyToAllMeasurements,
-  } = useAnnotationsAdapter();
+export const useAnnotationInfoBoxNavigationBindings = (
+  annotationType: AnnotationSlotKind,
+  currentMeasurementId: string | null,
+  labelMeasurements: ReadonlyArray<PointAnnotationEntry>
+): AnnotationInfoBoxNavigationBindings => {
+  const annotations = useAnnotationCollection();
+  const selection = useAnnotationSelectionState();
+  const view = useAnnotationViewState();
 
   const navigationMeasurements = useMemo(() => {
     if (annotationType === ANNOTATION_TYPE_LABEL) {
@@ -60,52 +42,57 @@ export const useAnnotationInfoBoxNavigationBindings = ({
       annotationType === ANNOTATION_TYPE_AREA_PLANAR ||
       annotationType === ANNOTATION_TYPE_AREA_VERTICAL
     ) {
-      return planarPolygonGroups.map((group) => ({ id: group.id }));
+      return view.planarMeasurements.map((measurement) => ({
+        id: measurement.id,
+      }));
     }
-    return getAnnotationsForNavigation().map((entry) => ({ id: entry.id }));
-  }, [
-    annotationType,
-    getAnnotationsForNavigation,
-    labelMeasurements,
-    planarPolygonGroups,
-  ]);
+    return annotations.getNavigationItems().map((entry) => ({ id: entry.id }));
+  }, [annotationType, annotations, labelMeasurements, view.planarMeasurements]);
 
-  const currentNavigationId =
+  const isPlanarAnnotationType =
     annotationType === ANNOTATION_TYPE_POLYLINE ||
     annotationType === ANNOTATION_TYPE_AREA_GROUND ||
     annotationType === ANNOTATION_TYPE_AREA_PLANAR ||
-    annotationType === ANNOTATION_TYPE_AREA_VERTICAL
-      ? activePlanarPolygonGroupId ?? selectedPlanarPolygonGroupId
-      : currentMeasurementId;
+    annotationType === ANNOTATION_TYPE_AREA_VERTICAL;
+
+  const currentNavigationId = useMemo(() => {
+    if (!isPlanarAnnotationType) {
+      return currentMeasurementId;
+    }
+
+    const activePlanarGroup =
+      view.activePlanarMeasurementId !== null
+        ? view.planarMeasurements.find(
+            (measurement) => measurement.id === view.activePlanarMeasurementId
+          ) ?? null
+        : null;
+    const requiredVertexCount =
+      activePlanarGroup?.type === ANNOTATION_TYPE_POLYLINE ? 2 : 3;
+    const canUseActivePlanarGroup =
+      activePlanarGroup !== null &&
+      activePlanarGroup.vertexPointIds.length >= requiredVertexCount;
+
+    return canUseActivePlanarGroup
+      ? activePlanarGroup.id
+      : view.focusedPlanarMeasurementId;
+  }, [
+    currentMeasurementId,
+    isPlanarAnnotationType,
+    view.activePlanarMeasurementId,
+    view.focusedPlanarMeasurementId,
+    view.planarMeasurements,
+  ]);
 
   const handleNavigationSelection = (id: string | null) => {
-    if (
-      annotationType === ANNOTATION_TYPE_POLYLINE ||
-      annotationType === ANNOTATION_TYPE_AREA_GROUND ||
-      annotationType === ANNOTATION_TYPE_AREA_PLANAR ||
-      annotationType === ANNOTATION_TYPE_AREA_VERTICAL
-    ) {
-      selectPlanarPolygonGroupById(id);
+    if (isPlanarAnnotationType) {
+      annotations.focusById(id);
       return;
     }
-    selectMeasurementById(id);
+    selection.set(id ? [id] : []);
   };
 
   const handleNavigationFlyTo = (id: string) => {
-    if (
-      annotationType === ANNOTATION_TYPE_POLYLINE ||
-      annotationType === ANNOTATION_TYPE_AREA_GROUND ||
-      annotationType === ANNOTATION_TYPE_AREA_PLANAR ||
-      annotationType === ANNOTATION_TYPE_AREA_VERTICAL
-    ) {
-      const group = planarPolygonGroups.find((entry) => entry.id === id);
-      const firstVertexId = group?.vertexPointIds[0] ?? null;
-      if (firstVertexId) {
-        flyToMeasurementById(firstVertexId);
-      }
-      return;
-    }
-    flyToMeasurementById(id);
+    annotations.flyToById(id);
   };
 
   return {
@@ -113,6 +100,6 @@ export const useAnnotationInfoBoxNavigationBindings = ({
     currentNavigationId,
     handleNavigationSelection,
     handleNavigationFlyTo,
-    onFlyToAllMeasurements: flyToAllMeasurements,
+    onFlyToAllMeasurements: annotations.flyToAll,
   };
 };

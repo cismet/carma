@@ -4,17 +4,18 @@ import {
   isPointAnnotationEntry,
   ANNOTATION_TYPE_DISTANCE,
   ANNOTATION_TYPE_POINT,
-  type AnnotationEntry,
-  type AnnotationMode,
+  type AnnotationToolType,
   type PointAnnotationEntry,
-  useAnnotations,
-  useAnnotationSelection,
 } from "@carma-mapping/annotations/core";
-import { useAnnotationsAdapter } from "../../context/AnnotationsAdapterProvider";
+import {
+  useAnnotationCollection,
+  useAnnotationSelectionState,
+  useAnnotationTools,
+  useAnnotationViewState,
+} from "../../context/AnnotationsProvider";
 
 export type AnnotationInfoBoxDisplaySelection = {
-  annotationMode: AnnotationMode;
-  pointLabelOnCreate: boolean;
+  activeToolType: AnnotationToolType;
   isPointCandidateModeActive: boolean;
   isDistanceCandidateModeActive: boolean;
   pointEntries: ReadonlyArray<PointAnnotationEntry>;
@@ -24,29 +25,24 @@ export type AnnotationInfoBoxDisplaySelection = {
 
 export const useAnnotationInfoBoxDisplaySelection =
   (): AnnotationInfoBoxDisplaySelection => {
-    const {
-      annotationMode,
-      annotations,
-      annotationCandidate,
-      pointLabelOnCreate,
-    } = useAnnotations<AnnotationMode, AnnotationEntry>();
-    const { selectedMeasurementId } = useAnnotationSelection();
-    const { activeMeasurementId } = useAnnotationsAdapter();
+    const tools = useAnnotationTools();
+    const annotations = useAnnotationCollection();
+    const selection = useAnnotationSelectionState();
+    const view = useAnnotationViewState();
 
     const isPointCandidateModeActive =
-      annotationMode === ANNOTATION_TYPE_POINT && !pointLabelOnCreate;
+      tools.activeToolType === ANNOTATION_TYPE_POINT;
     const isDistanceCandidateModeActive =
-      annotationMode === ANNOTATION_TYPE_DISTANCE;
-    const isCandidateMode =
-      isPointCandidateModeActive || isDistanceCandidateModeActive;
-
-    const effectiveMeasurementId = isCandidateMode
-      ? activeMeasurementId ?? selectedMeasurementId
-      : selectedMeasurementId ?? activeMeasurementId;
+      tools.activeToolType === ANNOTATION_TYPE_DISTANCE;
+    const effectiveMeasurementId = isPointCandidateModeActive
+      ? selection.primaryId ?? selection.activeAnnotationId
+      : isDistanceCandidateModeActive
+      ? selection.activeAnnotationId ?? selection.primaryId
+      : selection.primaryId ?? selection.activeAnnotationId;
 
     const pointEntries = useMemo(
-      () => annotations.filter(isPointAnnotationEntry),
-      [annotations]
+      () => annotations.items.filter(isPointAnnotationEntry),
+      [annotations.items]
     );
     const currentMeasurement = useMemo(
       () =>
@@ -58,18 +54,19 @@ export const useAnnotationInfoBoxDisplaySelection =
 
     const candidateMeasurement = useMemo(
       () =>
-        annotationCandidate && isPointAnnotationEntry(annotationCandidate)
-          ? annotationCandidate
+        view.candidateAnnotation &&
+        isPointAnnotationEntry(view.candidateAnnotation)
+          ? view.candidateAnnotation
           : null,
-      [annotationCandidate]
+      [view.candidateAnnotation]
     );
 
     const displayMeasurement = useMemo(
       () =>
-        candidateMeasurement
+        isPointCandidateModeActive
+          ? currentMeasurement
+          : isDistanceCandidateModeActive
           ? candidateMeasurement
-          : isPointCandidateModeActive || isDistanceCandidateModeActive
-          ? null
           : currentMeasurement,
       [
         currentMeasurement,
@@ -80,8 +77,7 @@ export const useAnnotationInfoBoxDisplaySelection =
     );
 
     return {
-      annotationMode,
-      pointLabelOnCreate,
+      activeToolType: tools.activeToolType,
       isPointCandidateModeActive,
       isDistanceCandidateModeActive,
       pointEntries,

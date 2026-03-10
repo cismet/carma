@@ -4,22 +4,15 @@ import { isKeyboardTargetEditable } from "@carma-commons/utils";
 import {
   isPointAnnotationEntry,
   isPointMeasurementEntry,
-  ANNOTATION_TYPE_DISTANCE,
-  SELECT_TOOL_TYPE,
-  ANNOTATION_TYPE_POINT,
-  ANNOTATION_TYPE_POLYLINE,
-  ANNOTATION_TYPE_AREA_GROUND,
-  ANNOTATION_TYPE_AREA_PLANAR,
-  ANNOTATION_TYPE_AREA_VERTICAL,
-  PLANAR_TOOL_CREATION_MODE_POLYGON,
-  PLANAR_TOOL_CREATION_MODE_POLYLINE,
-  useAnnotations,
-  useAnnotationSelection,
-  useAnnotationModeOptions,
-  type AnnotationEntry,
-  type AnnotationMode,
   type AnnotationToolManager,
 } from "@carma-mapping/annotations/core";
+import {
+  useAnnotationCollection,
+  useAnnotationSelectionState,
+  useAnnotationSettings,
+  useAnnotationTools,
+  useAnnotationViewState,
+} from "../context/AnnotationsProvider";
 
 import { AnnotationModeToolbar } from "./AnnotationModeToolbar";
 import { useAnnotationToolMode } from "./hooks/useAnnotationToolMode";
@@ -43,71 +36,38 @@ export function AnnotationToolbar3D({
   secondaryToolbarCollapsedByDefault?: boolean;
   secondaryToolbarDirection?: "down" | "right";
 }) {
-  const {
-    annotationMode,
-    setAnnotationMode,
-    annotations,
-    setAnnotations,
-    clearAllMeasurements,
-    clearAnnotationsByIds,
-    deleteSelectedPointAnnotations,
-    temporaryMode,
-    setTemporaryMode,
-    pointVerticalOffsetMeters,
-    setPointVerticalOffsetMeters,
-    pointLabelOnCreate,
-    setPointLabelOnCreate,
-  } = useAnnotations<AnnotationMode, AnnotationEntry>();
-
-  const {
-    selectedMeasurementIds,
-    selectionModeActive,
-    setSelectionModeActive,
-    selectModeAdditive,
-    setSelectModeAdditive,
-    selectModeRectangle,
-    setSelectModeRectangle,
-  } = useAnnotationSelection();
-
-  const {
-    planarPolygonGroups,
-    distanceModeStickyToFirstPoint,
-    setDistanceModeStickyToFirstPoint,
-    distanceCreationLineVisibility,
-    setDistanceCreationLineVisibilityByKind,
-    polylineVerticalOffsetMeters,
-    setPolylineVerticalOffsetMeters,
-    polylineSegmentLineMode,
-    setPolylineSegmentLineMode,
-    planarToolCreationMode,
-    setPlanarToolCreationMode,
-    setPolygonSurfaceTypePreset,
-    polygonSurfaceTypePreset,
-  } = useAnnotationModeOptions();
+  const tools = useAnnotationTools();
+  const selection = useAnnotationSelectionState();
+  const annotations = useAnnotationCollection();
+  const settings = useAnnotationSettings();
+  const view = useAnnotationViewState();
 
   const measurementById = useMemo(
-    () => new Map(annotations.map((m) => [m.id, m])),
-    [annotations]
+    () =>
+      new Map(
+        annotations.items.map((measurement) => [measurement.id, measurement])
+      ),
+    [annotations.items]
   );
 
   const deletableSelectedPointIds = useMemo(
     () =>
-      selectedMeasurementIds.filter((id) => {
+      selection.ids.filter((id) => {
         const m = measurementById.get(id);
         return Boolean(m && isPointAnnotationEntry(m) && !m.locked);
       }),
-    [measurementById, selectedMeasurementIds]
+    [measurementById, selection.ids]
   );
 
   const selectedPointIds = useMemo(
     () =>
-      selectedMeasurementIds
+      selection.ids
         .map((id) => {
           const m = measurementById.get(id);
           return m && isPointAnnotationEntry(m) ? id : null;
         })
         .filter((id): id is string => typeof id === "string"),
-    [measurementById, selectedMeasurementIds]
+    [measurementById, selection.ids]
   );
 
   const selectedMeasurementCount = useMemo(
@@ -143,37 +103,21 @@ export function AnnotationToolbar3D({
   const deletableSelectedPointCount = deletableSelectedPointIds.length;
   const hasDeletableSelection = deletableSelectedPointCount > 0;
   const hasAnyMeasurements =
-    annotations.length > 0 || planarPolygonGroups.length > 0;
+    annotations.items.length > 0 || view.planarMeasurements.length > 0;
 
   const toggleSelectedVisibility = useCallback(() => {
     if (selectedPointIds.length === 0) return;
-    const selectedIdSet = new Set(selectedPointIds);
-    const shouldHide = !selectedPointIds.every((id) =>
-      Boolean(measurementById.get(id)?.hidden)
-    );
-    setAnnotations((prev) =>
-      prev.map((m) =>
-        selectedIdSet.has(m.id) ? { ...m, hidden: shouldHide } : m
-      )
-    );
-  }, [measurementById, selectedPointIds, setAnnotations]);
+    annotations.toggleVisibilityByIds(selectedPointIds);
+  }, [annotations, selectedPointIds]);
 
   const toggleSelectedLock = useCallback(() => {
     if (selectedPointIds.length === 0) return;
-    const selectedIdSet = new Set(selectedPointIds);
-    const shouldLock = !selectedPointIds.every((id) =>
-      Boolean(measurementById.get(id)?.locked)
-    );
-    setAnnotations((prev) =>
-      prev.map((m) =>
-        selectedIdSet.has(m.id) ? { ...m, locked: shouldLock } : m
-      )
-    );
-  }, [measurementById, selectedPointIds, setAnnotations]);
+    annotations.toggleLockByIds(selectedPointIds);
+  }, [annotations, selectedPointIds]);
 
   const requestDeleteSelectedPoints = useCallback(() => {
     const selectedPointIdSet = new Set(deletableSelectedPointIds);
-    const protectedPolygonCandidate = planarPolygonGroups.find((group) => {
+    const protectedPolygonCandidate = view.planarMeasurements.find((group) => {
       if (!group.closed || group.vertexPointIds.length > 3) {
         return false;
       }
@@ -205,7 +149,7 @@ export function AnnotationToolbar3D({
         cancelText: "Abbrechen",
         okButtonProps: { danger: true },
         onOk: () => {
-          clearAnnotationsByIds(protectedPolygonCandidate.vertexPointIds);
+          annotations.removeByIds(protectedPolygonCandidate.vertexPointIds);
         },
       });
       return;
@@ -220,18 +164,17 @@ export function AnnotationToolbar3D({
         cancelText: "Abbrechen",
         okButtonProps: { danger: true },
         onOk: () => {
-          deleteSelectedPointAnnotations();
+          annotations.removeSelection();
         },
       });
       return;
     }
-    deleteSelectedPointAnnotations();
+    annotations.removeSelection();
   }, [
-    clearAnnotationsByIds,
-    deleteSelectedPointAnnotations,
+    annotations,
     deletableSelectedPointCount,
     deletableSelectedPointIds,
-    planarPolygonGroups,
+    view.planarMeasurements,
   ]);
 
   const requestClearAllMeasurements = useCallback(() => {
@@ -246,10 +189,10 @@ export function AnnotationToolbar3D({
       cancelText: "Abbrechen",
       okButtonProps: { danger: true },
       onOk: () => {
-        clearAllMeasurements();
+        annotations.removeAll();
       },
     });
-  }, [clearAllMeasurements, hasAnyMeasurements]);
+  }, [annotations, hasAnyMeasurements]);
 
   useEffect(() => {
     if (!enableMultiDeleteHotkey) return;
@@ -273,86 +216,14 @@ export function AnnotationToolbar3D({
     requestDeleteSelectedPoints,
   ]);
 
-  const isAreaMode =
-    annotationMode === ANNOTATION_TYPE_POLYLINE &&
-    planarToolCreationMode === PLANAR_TOOL_CREATION_MODE_POLYGON;
-  const polygonSurfaceMeasurementType =
-    polygonSurfaceTypePreset === "facade"
-      ? ANNOTATION_TYPE_AREA_VERTICAL
-      : polygonSurfaceTypePreset === "roof"
-      ? ANNOTATION_TYPE_AREA_PLANAR
-      : ANNOTATION_TYPE_AREA_GROUND;
-
-  const { activeToolType, handleToolTypeChange } = useAnnotationToolMode({
-    isSelectionMode: selectionModeActive,
-    isLabelMode: pointLabelOnCreate,
-    isDistanceMode: annotationMode === ANNOTATION_TYPE_DISTANCE,
-    isAreaMode:
-      isAreaMode &&
-      polygonSurfaceMeasurementType === ANNOTATION_TYPE_AREA_GROUND,
-    isVerticalMode:
-      isAreaMode &&
-      polygonSurfaceMeasurementType === ANNOTATION_TYPE_AREA_VERTICAL,
-    isPlanarMode:
-      isAreaMode &&
-      polygonSurfaceMeasurementType === ANNOTATION_TYPE_AREA_PLANAR,
-    isPolylineMode:
-      annotationMode === ANNOTATION_TYPE_POLYLINE &&
-      planarToolCreationMode === PLANAR_TOOL_CREATION_MODE_POLYLINE,
-    onSelectMode: () => {
-      setPointLabelOnCreate(false);
-      setAnnotationMode(SELECT_TOOL_TYPE);
-      setSelectionModeActive(true);
-    },
-    onLabelMode: () => {
-      setPointLabelOnCreate(true);
-      setAnnotationMode(ANNOTATION_TYPE_POINT);
-      setSelectionModeActive(false);
-    },
-    onPointMode: () => {
-      setPointLabelOnCreate(false);
-      setAnnotationMode(ANNOTATION_TYPE_POINT);
-      setSelectionModeActive(false);
-    },
-    onDistanceMode: () => {
-      setPointLabelOnCreate(false);
-      setAnnotationMode(ANNOTATION_TYPE_DISTANCE);
-      setSelectionModeActive(false);
-    },
-    onAreaMode: () => {
-      setPointLabelOnCreate(false);
-      setAnnotationMode(ANNOTATION_TYPE_POLYLINE);
-      setPlanarToolCreationMode(PLANAR_TOOL_CREATION_MODE_POLYGON);
-      setPolygonSurfaceTypePreset("footprint");
-      setSelectionModeActive(false);
-    },
-    onVerticalMode: () => {
-      setPointLabelOnCreate(false);
-      setAnnotationMode(ANNOTATION_TYPE_POLYLINE);
-      setPlanarToolCreationMode(PLANAR_TOOL_CREATION_MODE_POLYGON);
-      setPolygonSurfaceTypePreset("facade");
-      setSelectionModeActive(false);
-    },
-    onPlanarMode: () => {
-      setPointLabelOnCreate(false);
-      setAnnotationMode(ANNOTATION_TYPE_POLYLINE);
-      setPlanarToolCreationMode(PLANAR_TOOL_CREATION_MODE_POLYGON);
-      setPolygonSurfaceTypePreset("roof");
-      setSelectionModeActive(false);
-    },
-    onPolylineMode: () => {
-      setPointLabelOnCreate(false);
-      setAnnotationMode(ANNOTATION_TYPE_POLYLINE);
-      setPlanarToolCreationMode(PLANAR_TOOL_CREATION_MODE_POLYLINE);
-      setSelectionModeActive(false);
-    },
-  });
+  const { activeToolType: toolbarToolType, handleToolTypeChange } =
+    useAnnotationToolMode(tools.activeToolType, tools.requestModeChange);
 
   const handleDistanceLineVisibilityChange = useCallback(
     (kind: "direct" | "vertical" | "horizontal", visible: boolean) => {
-      setDistanceCreationLineVisibilityByKind(kind, visible);
+      settings.distance.setCreationLineVisibilityByKind(kind, visible);
     },
-    [setDistanceCreationLineVisibilityByKind]
+    [settings.distance]
   );
 
   return (
@@ -361,14 +232,14 @@ export function AnnotationToolbar3D({
       style={{ backgroundColor: "transparent", pointerEvents: "auto" }}
     >
       <AnnotationModeToolbar
-        activeToolType={activeToolType}
+        activeToolType={toolbarToolType}
         onToolTypeChange={handleToolTypeChange}
         showPrimaryToolbar={showPrimaryToolbar}
         showSecondaryToolbar={showSecondaryToolbar}
-        selectAdditiveMode={selectModeAdditive}
-        onSelectAdditiveModeChange={setSelectModeAdditive}
-        selectRectangleMode={selectModeRectangle}
-        onSelectRectangleModeChange={setSelectModeRectangle}
+        selectAdditiveMode={selection.mode.additive}
+        onSelectAdditiveModeChange={selection.setAdditiveMode}
+        selectRectangleMode={selection.mode.rectangle}
+        onSelectRectangleModeChange={selection.setRectangleMode}
         selectedMeasurementCount={selectedMeasurementCount}
         selectedLabelCount={selectedLabelCount}
         onClearAllMeasurements={requestClearAllMeasurements}
@@ -379,18 +250,22 @@ export function AnnotationToolbar3D({
         selectedVisibilityHidden={selectedVisibilityHidden}
         selectedLocked={selectedLocked}
         hasDeletableSelection={hasDeletableSelection}
-        distanceLineVisibility={distanceCreationLineVisibility}
+        distanceLineVisibility={settings.distance.creationLineVisibility}
         onDistanceLineVisibilityChange={handleDistanceLineVisibilityChange}
-        distanceStickyToFirstPoint={distanceModeStickyToFirstPoint}
-        onDistanceStickyToFirstPointChange={setDistanceModeStickyToFirstPoint}
-        pointVerticalOffsetMeters={pointVerticalOffsetMeters}
-        onPointVerticalOffsetChange={setPointVerticalOffsetMeters}
-        polylineVerticalOffsetMeters={polylineVerticalOffsetMeters}
-        onPolylineVerticalOffsetChange={setPolylineVerticalOffsetMeters}
-        polylineSegmentLineMode={polylineSegmentLineMode}
-        onPolylineSegmentLineModeChange={setPolylineSegmentLineMode}
-        pointSoloMode={temporaryMode}
-        onPointSoloModeChange={setTemporaryMode}
+        distanceStickyToFirstPoint={settings.distance.stickyToFirstPoint}
+        onDistanceStickyToFirstPointChange={
+          settings.distance.setStickyToFirstPoint
+        }
+        pointVerticalOffsetMeters={settings.point.verticalOffsetMeters}
+        onPointVerticalOffsetChange={settings.point.setVerticalOffsetMeters}
+        polylineVerticalOffsetMeters={settings.polyline.verticalOffsetMeters}
+        onPolylineVerticalOffsetChange={
+          settings.polyline.setVerticalOffsetMeters
+        }
+        polylineSegmentLineMode={settings.polyline.segmentLineMode}
+        onPolylineSegmentLineModeChange={settings.polyline.setSegmentLineMode}
+        pointSoloMode={settings.temporaryMode}
+        onPointSoloModeChange={settings.setTemporaryMode}
         pixelWidth={pixelWidth}
         toolManager={toolManager}
         secondaryToolbarContainerStyle={secondaryToolbarContainerStyle}

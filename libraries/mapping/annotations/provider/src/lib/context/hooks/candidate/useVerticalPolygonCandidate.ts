@@ -2,33 +2,26 @@ import { useCallback, type Dispatch, type SetStateAction } from "react";
 import { Cartesian3, type Scene } from "@carma/cesium";
 import {
   ANNOTATION_TYPE_AREA_VERTICAL,
+  getVerticalRectanglePreviewAreaSquareMeters,
   isPointAnnotationEntry,
   type AnnotationCollection,
-  type PlanarPolygonGroup,
+  type PlanarMeasurementGroup,
 } from "@carma-mapping/annotations/core";
-import type { AnnotationCandidateDescriptor } from "../annotationCandidate.types";
+import {
+  ANNOTATION_CANDIDATE_KIND_POLYGON_VERTICAL,
+  type AnnotationCandidateDescriptor,
+} from "../annotationCandidate.types";
 
-type UseVerticalPolygonCandidateParams = {
-  scene: Scene | null;
-  isVerticalPolygonCandidate: boolean;
-  candidate: AnnotationCandidateDescriptor;
-  annotations: AnnotationCollection;
-  setPlanarPolygonGroups: Dispatch<SetStateAction<PlanarPolygonGroup[]>>;
-  getFacadeRectanglePreviewAreaSquareMeters: (
-    firstVertexECEF: Cartesian3,
-    oppositeVertexECEF: Cartesian3
-  ) => number;
-};
+export const useVerticalPolygonCandidate = (
+  scene: Scene | null,
+  annotations: AnnotationCollection,
+  candidate: AnnotationCandidateDescriptor,
+  setPlanarPolygonGroups: Dispatch<SetStateAction<PlanarMeasurementGroup[]>>
+) => {
+  const isVerticalPolygonCandidate =
+    candidate.kind === ANNOTATION_CANDIDATE_KIND_POLYGON_VERTICAL;
 
-export const useVerticalPolygonCandidate = ({
-  scene,
-  isVerticalPolygonCandidate,
-  candidate,
-  annotations,
-  setPlanarPolygonGroups,
-  getFacadeRectanglePreviewAreaSquareMeters,
-}: UseVerticalPolygonCandidateParams) =>
-  useCallback(
+  return useCallback(
     (positionECEF: Cartesian3 | null) => {
       if (!isVerticalPolygonCandidate) return;
 
@@ -43,7 +36,7 @@ export const useVerticalPolygonCandidate = ({
       if (!firstPoint || !isPointAnnotationEntry(firstPoint)) return;
 
       const previewAreaSquareMeters = positionECEF
-        ? getFacadeRectanglePreviewAreaSquareMeters(
+        ? getVerticalRectanglePreviewAreaSquareMeters(
             firstPoint.geometryECEF,
             positionECEF
           )
@@ -54,7 +47,7 @@ export const useVerticalPolygonCandidate = ({
           if (group.id !== verticalPolygonContext.groupId || group.closed) {
             return group;
           }
-          if (group.measurementKind !== ANNOTATION_TYPE_AREA_VERTICAL) {
+          if (group.type !== ANNOTATION_TYPE_AREA_VERTICAL) {
             return group;
           }
           if (group.vertexPointIds.length !== 1) {
@@ -78,9 +71,10 @@ export const useVerticalPolygonCandidate = ({
     [
       candidate.verticalPolygonContext,
       annotations,
-      getFacadeRectanglePreviewAreaSquareMeters,
+      getVerticalRectanglePreviewAreaSquareMeters,
       isVerticalPolygonCandidate,
       scene,
       setPlanarPolygonGroups,
     ]
   );
+};

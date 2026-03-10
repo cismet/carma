@@ -8,15 +8,17 @@ import {
 } from "./annotationTypes";
 import type { LinearSegmentLineMode } from "./linearSegment";
 
-export const PLANAR_POLYGON_SOURCE_KINDS = [
-  ANNOTATION_TYPE_POLYLINE,
-  ANNOTATION_TYPE_AREA_GROUND,
-  ANNOTATION_TYPE_AREA_PLANAR,
-  ANNOTATION_TYPE_AREA_VERTICAL,
-] as const;
+export type PlanarPolygonType =
+  | typeof ANNOTATION_TYPE_AREA_PLANAR
+  | typeof ANNOTATION_TYPE_AREA_VERTICAL;
 
-export type PlanarPolygonSourceKind =
-  (typeof PLANAR_POLYGON_SOURCE_KINDS)[number];
+export type GroundPolygonType = typeof ANNOTATION_TYPE_AREA_GROUND;
+
+export type PlanarPolygonAreaType = GroundPolygonType | PlanarPolygonType;
+
+export type PlanarMeasurementType =
+  | typeof ANNOTATION_TYPE_POLYLINE
+  | PlanarPolygonAreaType;
 
 export type PlanarPolygonPlane = {
   anchorECEF: Cartesian3Json;
@@ -30,11 +32,10 @@ export type PlanarPolygonLocalFrame = {
   upECEF: Cartesian3Json;
 };
 
-export type PlanarPolygonGroup = {
+type PlanarMeasurementGroupBase = {
   id: string;
   name?: string;
   hidden?: boolean;
-  measurementKind: PlanarPolygonSourceKind;
   segmentLineMode?: LinearSegmentLineMode;
   verticalOffsetMeters?: number;
   vertexPointIds: string[];
@@ -48,5 +49,14 @@ export type PlanarPolygonGroup = {
   areaSquareMeters?: number;
   verticalityDeg?: number;
   bearingDeg?: number;
-  surfaceType?: "roof" | "facade" | "terrain" | "footprint";
 };
+
+export type PlanarPolylineGroup = PlanarMeasurementGroupBase & {
+  type: typeof ANNOTATION_TYPE_POLYLINE;
+};
+
+export type PlanarPolygonGroup = PlanarMeasurementGroupBase & {
+  type: PlanarPolygonAreaType;
+};
+
+export type PlanarMeasurementGroup = PlanarPolylineGroup | PlanarPolygonGroup;

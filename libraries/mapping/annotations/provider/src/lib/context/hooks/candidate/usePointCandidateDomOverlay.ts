@@ -18,7 +18,6 @@ import {
   usePointLabels,
 } from "@carma-providers/label-overlay";
 import type { CssPixelPosition } from "@carma/units/types";
-import type { EdgeCandidateLine } from "../annotationVisualization.types";
 
 const CANDIDATE_HEIGHT_LABEL_ID = "measurement-candidate-height";
 const CANDIDATE_VERTICAL_OFFSET_STEM_ID =
@@ -62,29 +61,30 @@ const formatCandidateElevationText = (
 
 export type PointCandidateDomOverlayOptions = {
   labelLayoutConfig?: PointLabelLayoutConfigOverrides;
-  candidate?: {
-    pointECEF?: Cartesian3 | null;
-    verticalOffsetAnchorECEF?: Cartesian3 | null;
-    distanceLine?: EdgeCandidateLine;
-    referenceElevation?: number;
-    hasReferenceElevation?: boolean;
-    suppressLabelOverlay?: boolean;
-  } | null;
   renderDomVisuals?: boolean;
 };
 
-export const usePointCandidateDomOverlay = ({
-  scene,
-  labelLayoutConfig,
-  candidate = null,
-  renderDomVisuals = true,
-}: PointCandidateDomOverlayOptions & {
-  scene: Scene | null;
-}) => {
+export type PointCandidateDomOverlayCandidate = {
+  pointECEF?: Cartesian3 | null;
+  verticalOffsetAnchorECEF?: Cartesian3 | null;
+  previewDistanceMeters?: number;
+  referenceElevation?: number;
+  hasReferenceElevation?: boolean;
+  suppressLabelOverlay?: boolean;
+} | null;
+
+export const usePointCandidateDomOverlay = (
+  scene: Scene | null,
+  candidate: PointCandidateDomOverlayCandidate = null,
+  {
+    labelLayoutConfig,
+    renderDomVisuals = true,
+  }: PointCandidateDomOverlayOptions = {}
+) => {
   const candidatePointECEF = candidate?.pointECEF ?? null;
   const candidateVerticalOffsetAnchorECEF =
     candidate?.verticalOffsetAnchorECEF ?? null;
-  const candidateEdgeLine = candidate?.distanceLine ?? null;
+  const previewDistanceMeters = candidate?.previewDistanceMeters;
   const candidateReferenceElevation = candidate?.referenceElevation ?? 0;
   const candidateHasReferenceElevation =
     candidate?.hasReferenceElevation ?? false;
@@ -166,10 +166,9 @@ export const usePointCandidateDomOverlay = ({
     }
 
     const pointHeightMeters = cartographic.height ?? 0;
-    const showsDistancePreview =
-      candidateEdgeLine?.previewTotalDistanceMeters !== undefined;
+    const showsDistancePreview = previewDistanceMeters !== undefined;
     const text = showsDistancePreview
-      ? formatMeters(candidateEdgeLine.previewTotalDistanceMeters)
+      ? formatMeters(previewDistanceMeters)
       : formatCandidateElevationText(
           pointHeightMeters,
           candidateReferenceElevation,
@@ -220,7 +219,7 @@ export const usePointCandidateDomOverlay = ({
     suppressCandidateLabelOverlay,
     scene,
     candidatePointECEF,
-    candidateEdgeLine,
+    previewDistanceMeters,
     candidateHasReferenceElevation,
     candidateReferenceElevation,
   ]);

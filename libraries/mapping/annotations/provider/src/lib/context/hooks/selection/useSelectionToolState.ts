@@ -17,8 +17,12 @@ export type SelectionToolState = {
   effectiveSelectModeAdditive: boolean;
 };
 
-export const useSelectionToolState = (): SelectionToolState => {
-  const [selectionModeActive, setSelectionModeActive] = useState(false);
+export const useSelectionToolState = (
+  initialSelectionModeActive: boolean = false
+): SelectionToolState => {
+  const [selectionModeActive, setSelectionModeActive] = useState(
+    initialSelectionModeActive
+  );
   const [selectModeAdditive, setSelectModeAdditive] = useState(false);
   const [selectModeRectangle, setSelectModeRectangle] = useState(false);
   const [selectModeShiftHeld, setSelectModeShiftHeld] = useState(false);

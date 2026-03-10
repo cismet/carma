@@ -1,7 +1,7 @@
 import {
   ANNOTATION_TYPE_POINT,
   type AnnotationMode,
-  type AnnotationListType,
+  type AnnotationToolType,
   type PointAnnotationEntry,
 } from "@carma-mapping/annotations/core";
 import type {
@@ -14,17 +14,14 @@ import {
   resolvePointRelativeElevation,
 } from "./utils/pointAnnotationDisplay";
 type GetPointMeasurementSlotsInputParams = {
-  annotationMode: AnnotationMode;
-  pointLabelOnCreate: boolean;
+  activeToolType: AnnotationToolType;
   measurement: PointAnnotationEntry | null;
   referencePoint: PointAnnotationEntry["geometryECEF"] | null;
   getAnnotationOrderByType: (
-    type: AnnotationListType<AnnotationMode>,
+    type: AnnotationMode,
     id: string | null | undefined
   ) => number | null;
-  getNextAnnotationOrderByType: (
-    type: AnnotationListType<AnnotationMode>
-  ) => number;
+  getNextAnnotationOrderByType: (type: AnnotationMode) => number;
   actions: AnnotationSlotActions;
 };
 
@@ -34,8 +31,7 @@ export type PointMeasurementSlotsInputResult = {
 };
 
 export const getPointAnnotationSlotsInput = ({
-  annotationMode,
-  pointLabelOnCreate,
+  activeToolType,
   measurement,
   referencePoint,
   getAnnotationOrderByType,
@@ -43,8 +39,7 @@ export const getPointAnnotationSlotsInput = ({
   actions,
 }: GetPointMeasurementSlotsInputParams): PointMeasurementSlotsInputResult => {
   const displayPoint = resolvePointAnnotationDisplayPoint(measurement);
-  const isPointCandidate =
-    annotationMode === ANNOTATION_TYPE_POINT && !pointLabelOnCreate;
+  const isPointCandidate = activeToolType === ANNOTATION_TYPE_POINT;
 
   return {
     slotsInput: {
@@ -56,8 +51,11 @@ export const getPointAnnotationSlotsInput = ({
         referencePoint
       ),
       isReference: isPointReferenceMeasurement(measurement, referencePoint),
-      currentOrder: getAnnotationOrderByType("pointMeasure", measurement?.id),
-      nextOrder: getNextAnnotationOrderByType("pointMeasure"),
+      currentOrder: getAnnotationOrderByType(
+        ANNOTATION_TYPE_POINT,
+        measurement?.id
+      ),
+      nextOrder: getNextAnnotationOrderByType(ANNOTATION_TYPE_POINT),
       isCandidate: isPointCandidate,
       actions,
     },

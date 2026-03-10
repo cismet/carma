@@ -8,22 +8,23 @@ import {
   getLocalUpDirectionAtPosition,
   type Scene,
 } from "@carma/cesium";
-import { useAnnotationPointCreation } from "@carma-mapping/annotations/core";
 import {
-  ANNOTATION_TYPE_POINT,
   ANNOTATION_TYPE_DISTANCE,
+  ANNOTATION_TYPE_LABEL,
+  ANNOTATION_TYPE_POINT,
   isDistancePointEntry,
   isPointMeasurementEntry,
   type AnnotationCollection,
   type AnnotationEntry,
-  type AnnotationMode,
+  type AnnotationToolType,
 } from "@carma-mapping/annotations/core";
+import { useAnnotationPointCreation } from "../base";
 
 import {
   useCesiumPointQuery,
   type CesiumPointQueryCreatePayload,
 } from "@carma-mapping/annotations/cesium";
-import { type ActivePointCreateConfig } from "./usePointCreateConfigState";
+import { type ActivePointCreateConfig } from "./point/create/pointCreateConfig";
 
 type PointCreatePayload = {
   geometryPositionECEF: Cartesian3;
@@ -78,14 +79,11 @@ const buildPointCreatePayload = (
 };
 
 type UsePointQueryCreationControllerParams = {
-  scene: Scene | null;
-  annotationMode: AnnotationMode;
   pointQueryToolActive: boolean;
   pointQueryEnabled: boolean;
   selectionModeActive: boolean;
   moveGizmoPointId: string | null;
   isMoveGizmoDragging: boolean;
-  activePointCreateConfig: ActivePointCreateConfig | null;
   setAnnotations: Dispatch<SetStateAction<AnnotationCollection>>;
   handlePointQueryPointCreated: (
     pointId: string,
@@ -103,21 +101,23 @@ type UsePointQueryCreationControllerParams = {
   ) => void;
 };
 
-export const usePointQueryCreationController = ({
-  scene,
-  annotationMode,
-  pointQueryToolActive,
-  pointQueryEnabled,
-  selectionModeActive,
-  moveGizmoPointId,
-  isMoveGizmoDragging,
-  activePointCreateConfig,
-  setAnnotations,
-  handlePointQueryPointCreated,
-  handlePointQueryDoubleClick,
-  handlePointQueryBeforePointCreate,
-  handleAnnotationCursorMove,
-}: UsePointQueryCreationControllerParams) => {
+export const usePointQueryCreationController = (
+  scene: Scene | null,
+  activeToolType: AnnotationToolType,
+  activePointCreateConfig: ActivePointCreateConfig | null,
+  {
+    pointQueryToolActive,
+    pointQueryEnabled,
+    selectionModeActive,
+    moveGizmoPointId,
+    isMoveGizmoDragging,
+    setAnnotations,
+    handlePointQueryPointCreated,
+    handlePointQueryDoubleClick,
+    handlePointQueryBeforePointCreate,
+    handleAnnotationCursorMove,
+  }: UsePointQueryCreationControllerParams
+) => {
   const {
     handlePointCreate: handlePointQueryCreate,
     handleLineFinish: handlePointQueryLineFinish,
@@ -136,7 +136,8 @@ export const usePointQueryCreationController = ({
       useTemporaryForCreatedEntries,
     }) => {
       const createdPointType =
-        annotationMode === ANNOTATION_TYPE_POINT
+        activeToolType === ANNOTATION_TYPE_POINT ||
+        activeToolType === ANNOTATION_TYPE_LABEL
           ? ANNOTATION_TYPE_POINT
           : ANNOTATION_TYPE_DISTANCE;
       const createdPointIndexEntries =
@@ -176,9 +177,6 @@ export const usePointQueryCreationController = ({
         ...(activePointCreateConfig?.hiddenOnCreate ? { hidden: true } : {}),
         ...(activePointCreateConfig?.auxiliaryOnCreate
           ? { auxiliaryLabelAnchor: true }
-          : {}),
-        ...(activePointCreateConfig?.markCreatedPointsAsDistanceAdhoc
-          ? { distanceAdhocNode: true }
           : {}),
         ...(payload.hasVerticalOffsetStem
           ? {
@@ -220,7 +218,7 @@ export const usePointQueryCreationController = ({
         buildPointCreatePayload(payload, {
           verticalOffsetMeters: pointVerticalOffsetMeters,
           preferGlobeAnchorForVerticalOffset:
-            annotationMode === ANNOTATION_TYPE_POINT,
+            activeToolType === ANNOTATION_TYPE_POINT,
         })
       ),
     onLineFinish: handlePointQueryLineFinish,

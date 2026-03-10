@@ -2,45 +2,41 @@ import { Cartesian3 } from "@carma/cesium";
 import {
   ANNOTATION_TYPE_AREA_VERTICAL,
   type DistanceRelationRenderContext,
-  getRoofSharedEdgeRelationIds,
+  getDistanceRelationId,
+  getPlanarSharedEdgeRelationIds,
   getSplitMarkerRelationIds,
   getSplitMarkerRelationIdsByKind,
   getSplitMarkerRelationIdsByKindForGroups,
   getSplitMarkerRelationIdsForGroups,
-  type PlanarPolygonGroup,
+  type PlanarMeasurementGroup,
   type PointAnnotationEntry,
 } from "@carma-mapping/annotations/core";
 
-const FACADE_OPPOSING_EDGE_LABEL_EPSILON_METERS = 0.01;
-
-const getDistanceRelationId = (pointAId: string, pointBId: string) => {
-  const [left, right] = [pointAId, pointBId].sort((a, b) => a.localeCompare(b));
-  return `distance-relation:${left}:${right}`;
-};
+const VERTICAL_OPPOSING_EDGE_LABEL_EPSILON_METERS = 0.01;
 
 export const buildEdgeRelationRenderContext = ({
   planarPolygonGroups,
-  selectedPlanarPolygonGroupId,
-  activePlanarPolygonGroupId,
+  focusedPlanarMeasurementId,
+  activePlanarMeasurementId,
   pointsById,
 }: {
-  planarPolygonGroups: readonly PlanarPolygonGroup[];
-  selectedPlanarPolygonGroupId?: string | null;
-  activePlanarPolygonGroupId?: string | null;
+  planarPolygonGroups: readonly PlanarMeasurementGroup[];
+  focusedPlanarMeasurementId?: string | null;
+  activePlanarMeasurementId?: string | null;
   pointsById: ReadonlyMap<string, PointAnnotationEntry>;
 }): DistanceRelationRenderContext => {
   const editableLineRelationIdsByKind =
     getSplitMarkerRelationIdsByKind(planarPolygonGroups);
   const polygonEdgeRelationIds = getSplitMarkerRelationIds(planarPolygonGroups);
   const planarPolygonSharedEdgeRelationIds =
-    getRoofSharedEdgeRelationIds(planarPolygonGroups);
+    getPlanarSharedEdgeRelationIds(planarPolygonGroups);
 
   const activeOrSelectedGroupIds = new Set<string>();
-  if (selectedPlanarPolygonGroupId) {
-    activeOrSelectedGroupIds.add(selectedPlanarPolygonGroupId);
+  if (focusedPlanarMeasurementId) {
+    activeOrSelectedGroupIds.add(focusedPlanarMeasurementId);
   }
-  if (activePlanarPolygonGroupId) {
-    activeOrSelectedGroupIds.add(activePlanarPolygonGroupId);
+  if (activePlanarMeasurementId) {
+    activeOrSelectedGroupIds.add(activePlanarMeasurementId);
   }
 
   const midpointTickRelationIds = getSplitMarkerRelationIdsForGroups(
@@ -54,7 +50,7 @@ export const buildEdgeRelationRenderContext = ({
     );
 
   const focusedGroupId =
-    selectedPlanarPolygonGroupId ?? activePlanarPolygonGroupId ?? null;
+    focusedPlanarMeasurementId ?? activePlanarMeasurementId ?? null;
   const focusedGroup = focusedGroupId
     ? planarPolygonGroups.find((group) => group.id === focusedGroupId) ?? null
     : null;
@@ -63,10 +59,10 @@ export const buildEdgeRelationRenderContext = ({
   const selectedOrActiveOpenPolylineRelationIds =
     selectedOrActiveEditableLineRelationIdsByKind.polyline;
 
-  const duplicateFacadeOpposingRelationIds = new Set<string>();
+  const duplicateVerticalOpposingRelationIds = new Set<string>();
   planarPolygonGroups.forEach((group) => {
     if (!group.closed) return;
-    if (group.measurementKind !== ANNOTATION_TYPE_AREA_VERTICAL) return;
+    if (group.type !== ANNOTATION_TYPE_AREA_VERTICAL) return;
     if (group.vertexPointIds.length !== 4) return;
 
     const [point0Id, point1Id, point2Id, point3Id] = group.vertexPointIds;
@@ -81,9 +77,10 @@ export const buildEdgeRelationRenderContext = ({
     const length01 = Cartesian3.distance(point0, point1);
     const length23 = Cartesian3.distance(point2, point3);
     if (
-      Math.abs(length01 - length23) <= FACADE_OPPOSING_EDGE_LABEL_EPSILON_METERS
+      Math.abs(length01 - length23) <=
+      VERTICAL_OPPOSING_EDGE_LABEL_EPSILON_METERS
     ) {
-      duplicateFacadeOpposingRelationIds.add(
+      duplicateVerticalOpposingRelationIds.add(
         getDistanceRelationId(point2Id, point3Id)
       );
     }
@@ -91,9 +88,10 @@ export const buildEdgeRelationRenderContext = ({
     const length12 = Cartesian3.distance(point1, point2);
     const length30 = Cartesian3.distance(point3, point0);
     if (
-      Math.abs(length12 - length30) <= FACADE_OPPOSING_EDGE_LABEL_EPSILON_METERS
+      Math.abs(length12 - length30) <=
+      VERTICAL_OPPOSING_EDGE_LABEL_EPSILON_METERS
     ) {
-      duplicateFacadeOpposingRelationIds.add(
+      duplicateVerticalOpposingRelationIds.add(
         getDistanceRelationId(point3Id, point0Id)
       );
     }
@@ -107,6 +105,6 @@ export const buildEdgeRelationRenderContext = ({
     midpointTickRelationIds,
     focusedRelationIds,
     selectedOrActiveOpenPolylineRelationIds,
-    duplicateFacadeOpposingRelationIds,
+    duplicateVerticalOpposingRelationIds,
   };
 };

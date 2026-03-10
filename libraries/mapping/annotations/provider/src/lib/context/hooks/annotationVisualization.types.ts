@@ -1,6 +1,5 @@
 import type {
   LineType,
-  GroundPolygonPreviewGroup,
   PointAnnotationEntry,
   PolygonPreviewGroup,
 } from "@carma-mapping/annotations/core";
@@ -16,27 +15,8 @@ export type EdgeSceneLineRenderModel = {
   lineType?: LineType;
 };
 
-export type EdgeCandidateLine = {
-  anchorPointECEF: PointAnnotationEntry["geometryECEF"];
-  targetPointECEF: PointAnnotationEntry["geometryECEF"];
-  showDirectLine: boolean;
-  showVerticalLine: boolean;
-  showHorizontalLine: boolean;
-  previewTotalDistanceMeters?: number;
-} | null;
-
-export type GroundPolygonPrimitiveRenderModel = {
-  id: string;
-  vertexPoints: ReadonlyArray<
-    GroundPolygonPreviewGroup["vertexPoints"][number]
-  >;
-  fillColor: Color;
-};
-
-export type CoplanarPolygonPrimitiveRenderModel = {
+export type PolygonPrimitiveRenderModel = {
   id: string;
   vertexPoints: ReadonlyArray<PolygonPreviewGroup["vertexPoints"][number]>;
   fillColor: Color;
 };
-
-export type TransientEdgeSegment = EdgeSceneLineRenderModel;

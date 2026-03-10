@@ -12,8 +12,7 @@ import {
   PolygonHierarchy,
   type Scene,
 } from "@carma/cesium";
-import { type GroundPolygonPreviewGroup } from "@carma-mapping/annotations/core";
-import { useCesiumContext } from "@carma-mapping/engines/cesium";
+import { type PolygonPreviewGroup } from "@carma-mapping/annotations/core";
 
 const removeGroundPrimitives = (
   scene: Scene,
@@ -24,20 +23,16 @@ const removeGroundPrimitives = (
   });
 };
 
-export type CesiumGroundPolygonPrimitive = {
+export type CesiumPolygonPrimitive = {
   id: string;
-  vertexPoints: ReadonlyArray<
-    GroundPolygonPreviewGroup["vertexPoints"][number]
-  >;
+  vertexPoints: ReadonlyArray<PolygonPreviewGroup["vertexPoints"][number]>;
   fillColor: Color;
 };
 
 export const useCesiumGroundPolygonPrimitives = (
-  polygonPrimitives: readonly CesiumGroundPolygonPrimitive[],
-  sceneOverride?: Scene | null
+  scene: Scene | null,
+  polygonPrimitives: readonly CesiumPolygonPrimitive[]
 ) => {
-  const { getScene } = useCesiumContext();
-  const scene = sceneOverride ?? getScene();
   const groundPrimitivesRef = useRef<GroundPrimitive[]>([]);
 
   useEffect(() => {
@@ -92,5 +87,5 @@ export const useCesiumGroundPolygonPrimitives = (
       groundPrimitivesRef.current = [];
       scene.requestRender();
     };
-  }, [getScene, polygonPrimitives, scene]);
+  }, [polygonPrimitives, scene]);
 };

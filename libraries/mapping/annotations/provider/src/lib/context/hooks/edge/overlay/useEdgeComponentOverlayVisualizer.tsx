@@ -13,18 +13,19 @@ import {
   Cartesian3,
   SceneTransforms,
   defined,
-  getDegreesFromCartesian,
   getArcPointsInSpannedPlane,
   type Scene,
 } from "@carma/cesium";
-import { clamp } from "@carma-commons/math";
 import {
-  type DirectLineLabelMode,
+  buildDistanceTriangleInsidePoint2D,
+  buildOutsideReferencePoint2D,
+  buildDistanceRelationEdgeLabelOverlays,
+  buildVerticalDistanceLineScreenData,
+  buildVerticalLabelReferencePoint2D,
+  type DistanceScreenTriangle,
   type PointAnnotationEntry,
   type PointDistanceRelation,
   type ReferenceLineLabelKind,
-  type AnnotationPointMarkerBadge,
-  formatNumber,
   getCustomPointAnnotationName,
   hasVisibleDistanceRelationComponentLines,
   isDistanceRelationHorizontalLineVisible,
@@ -34,6 +35,7 @@ import {
   type ResolvedDistanceRelation,
   type DistanceRelationRenderContext,
 } from "@carma-mapping/annotations/core";
+import type { AnnotationPointMarkerBadge } from "../../../base";
 import type { CssPixelPosition } from "@carma/units/types";
 import {
   useLabelOverlay,
@@ -48,10 +50,7 @@ import {
   RightAngleCornerOverlay,
 } from "./edgeOverlayDom";
 import { useDistancePairLabelOverlays } from "./useDistancePairLabelOverlays";
-import type {
-  EdgeCandidateLine,
-  TransientEdgeSegment,
-} from "../../annotationVisualization.types";
+import type { EdgeSceneLineRenderModel } from "../../annotationVisualization.types";
 
 export type EdgeComponentOverlayVisualizerOptions = {
   distanceRelations?: PointDistanceRelation[];
@@ -70,8 +69,7 @@ export type EdgeComponentOverlayVisualizerOptions = {
   pointMarkerBadgeByPointId?: Readonly<
     Record<string, AnnotationPointMarkerBadge>
   >;
-  transientEdges?: readonly TransientEdgeSegment[];
-  candidateEdgeLine?: EdgeCandidateLine;
+  previewEdges?: readonly EdgeSceneLineRenderModel[];
   distanceRelationRenderContext: DistanceRelationRenderContext;
   enabled?: boolean;
 };
@@ -96,20 +94,7 @@ const MIDPOINT_MARKER_TICK_WIDTH_PX = 1.25;
 const LABEL_REFERENCE_MIN_DISTANCE_PX = 24;
 const LABEL_REFERENCE_MAX_DISTANCE_PX = 48;
 const LABEL_INSIDE_BLEND_FACTOR = 0.35;
-const VERTICAL_COMPONENT_LABEL_OFFSET_PX = 8;
 const VERTICAL_LABEL_SIDE_SWITCH_THRESHOLD_PX = 4;
-
-const resolveStableSideSign = (
-  signedDistance: number,
-  previousSign: -1 | 1 | undefined,
-  flipThresholdPx = VERTICAL_LABEL_SIDE_SWITCH_THRESHOLD_PX
-): -1 | 1 => {
-  if (!Number.isFinite(signedDistance)) return previousSign ?? 1;
-  const nextSign: -1 | 1 = signedDistance >= 0 ? 1 : -1;
-  if (!previousSign || previousSign === nextSign) return nextSign;
-  if (Math.abs(signedDistance) < flipThresholdPx) return previousSign;
-  return nextSign;
-};
 
 export const useEdgeComponentOverlayVisualizer = (
   scene: Scene | null,
@@ -123,8 +108,7 @@ export const useEdgeComponentOverlayVisualizer = (
     onDistanceRelationCornerClick,
     cumulativeDistanceByRelationId,
     pointMarkerBadgeByPointId,
-    transientEdges = [],
-    candidateEdgeLine = null,
+    previewEdges = [],
     distanceRelationRenderContext,
     enabled = true,
   }: EdgeComponentOverlayVisualizerOptions
@@ -132,7 +116,6 @@ export const useEdgeComponentOverlayVisualizer = (
   const cornerOverlayIdsRef = useRef<string[]>([]);
   const midpointOverlayIdsRef = useRef<string[]>([]);
   const verticalLabelSideByRelationIdRef = useRef<Record<string, -1 | 1>>({});
-  const previewVerticalLabelSideRef = useRef<-1 | 1>(1);
   const [cameraPitch, setCameraPitch] = useState(-Math.PI / 4);
 
   const { addLabelOverlayElement, removeLabelOverlayElement } =
@@ -172,11 +155,6 @@ export const useEdgeComponentOverlayVisualizer = (
     distanceRelationRenderContext.midpointTickRelationIds;
 
   useEffect(() => {
-    if (candidateEdgeLine) return;
-    previewVerticalLabelSideRef.current = 1;
-  }, [candidateEdgeLine]);
-
-  useEffect(() => {
     if (!scene || scene.isDestroyed()) return;
     const camera = scene.camera;
 
@@ -201,8 +179,8 @@ export const useEdgeComponentOverlayVisualizer = (
     distanceRelationRenderContext.focusedRelationIds;
   const selectedOrActiveOpenPolylineEdgeRelationIdSet =
     distanceRelationRenderContext.selectedOrActiveOpenPolylineRelationIds;
-  const duplicateFacadeOpposingEdgeRelationIdSet =
-    distanceRelationRenderContext.duplicateFacadeOpposingRelationIds;
+  const duplicateVerticalOpposingEdgeRelationIdSet =
+    distanceRelationRenderContext.duplicateVerticalOpposingRelationIds;
 
   const resolvedRelations = useMemo(
     () =>
@@ -254,7 +232,7 @@ export const useEdgeComponentOverlayVisualizer = (
             relationId: relation.id,
             anchorPointId: higherPoint.id,
             text: `${higherLabel} ↔ ${lowerLabel}`,
-            hasCompanionPointLabel: !higherPoint.distanceAdhocNode,
+            hasCompanionPointLabel: true,
           };
         })
         .filter(
@@ -304,8 +282,7 @@ export const useEdgeComponentOverlayVisualizer = (
     scene?.canvas.clientHeight || scene?.canvas.height || 1
   );
 
-  useDistancePairLabelOverlays({
-    entries: enabled ? distancePairLabelEntries : [],
+  useDistancePairLabelOverlays(enabled ? distancePairLabelEntries : [], {
     obstacles: enabled ? distancePairLabelObstacles : [],
     cameraPitch,
     viewportWidth,
@@ -346,16 +323,8 @@ export const useEdgeComponentOverlayVisualizer = (
             ? pointA
             : pointB;
 
-        type ScreenTriangleData = {
-          anchor: CssPixelPosition;
-          target: CssPixelPosition;
-          aux: CssPixelPosition;
-          centroid: CssPixelPosition;
-          highest: CssPixelPosition;
-        };
-
         let cachedTriangleFrameNumber: number | null = null;
-        let cachedTriangle: ScreenTriangleData | null = null;
+        let cachedTriangle: DistanceScreenTriangle | null = null;
 
         const getSceneFrameNumber = (): number | null => {
           const frameNumber = (
@@ -364,7 +333,7 @@ export const useEdgeComponentOverlayVisualizer = (
           return typeof frameNumber === "number" ? frameNumber : null;
         };
 
-        const computeScreenTriangle = (): ScreenTriangleData | null => {
+        const computeScreenTriangle = (): DistanceScreenTriangle | null => {
           const anchor = getWorldToScreen(anchorPoint.geometryECEF);
           const target = getWorldToScreen(targetPoint.geometryECEF);
           const aux = getWorldToScreen(auxiliaryPoint);
@@ -382,7 +351,7 @@ export const useEdgeComponentOverlayVisualizer = (
           };
         };
 
-        const getScreenTriangle = (): ScreenTriangleData | null => {
+        const getScreenTriangle = (): DistanceScreenTriangle | null => {
           const frameNumber = getSceneFrameNumber();
           if (
             frameNumber !== null &&
@@ -406,53 +375,17 @@ export const useEdgeComponentOverlayVisualizer = (
         const getScreenAux = (): CssPixelPosition | null =>
           getScreenTriangle()?.aux ?? null;
 
-        const buildStableOutsideReferencePoint = (
-          start: CssPixelPosition,
-          end: CssPixelPosition,
-          insidePoint: CssPixelPosition
-        ): CssPixelPosition | null => {
-          const dx = end.x - start.x;
-          const dy = end.y - start.y;
-          const lineLength = Math.hypot(dx, dy);
-          if (lineLength <= 1e-3) return null;
-          const midX = (start.x + end.x) * 0.5;
-          const midY = (start.y + end.y) * 0.5;
-          const normalX = -dy / lineLength;
-          const normalY = dx / lineLength;
-          const dot =
-            (insidePoint.x - midX) * normalX + (insidePoint.y - midY) * normalY;
-          const insideSign = dot >= 0 ? 1 : -1;
-          const refDistancePx = clamp(
-            lineLength * 0.2,
-            LABEL_REFERENCE_MIN_DISTANCE_PX,
-            LABEL_REFERENCE_MAX_DISTANCE_PX
-          );
-          return {
-            x: midX + normalX * insideSign * refDistancePx,
-            y: midY + normalY * insideSign * refDistancePx,
-          } as CssPixelPosition;
-        };
-
         const getStableInsidePointForDirectAndHorizontal =
           (): CssPixelPosition | null => {
             const triangle = getScreenTriangle();
             if (!triangle) return null;
-            const auxHeight = targetPoint.geometryWGS84.altitude;
-            const highestHeight = highestPoint.geometryWGS84.altitude;
-            const elevationDriverPoint =
-              auxHeight < highestHeight - REFERENCE_LINE_EPSILON_METERS
-                ? triangle.highest
-                : triangle.aux;
-            return {
-              x:
-                elevationDriverPoint.x +
-                (triangle.centroid.x - elevationDriverPoint.x) *
-                  LABEL_INSIDE_BLEND_FACTOR,
-              y:
-                elevationDriverPoint.y +
-                (triangle.centroid.y - elevationDriverPoint.y) *
-                  LABEL_INSIDE_BLEND_FACTOR,
-            } as CssPixelPosition;
+            return buildDistanceTriangleInsidePoint2D({
+              triangle,
+              auxiliaryAltitudeMeters: targetPoint.geometryWGS84.altitude,
+              highestAltitudeMeters: highestPoint.geometryWGS84.altitude,
+              insideBlendFactor: LABEL_INSIDE_BLEND_FACTOR,
+              elevationEpsilonMeters: REFERENCE_LINE_EPSILON_METERS,
+            });
           };
 
         const getDirectLabelOutsideReferencePoint =
@@ -460,10 +393,12 @@ export const useEdgeComponentOverlayVisualizer = (
             const triangle = getScreenTriangle();
             const insidePoint = getStableInsidePointForDirectAndHorizontal();
             if (!triangle || !insidePoint) return null;
-            return buildStableOutsideReferencePoint(
+            return buildOutsideReferencePoint2D(
               triangle.anchor,
               triangle.target,
-              insidePoint
+              insidePoint,
+              LABEL_REFERENCE_MIN_DISTANCE_PX,
+              LABEL_REFERENCE_MAX_DISTANCE_PX
             );
           };
 
@@ -472,17 +407,18 @@ export const useEdgeComponentOverlayVisualizer = (
             const triangle = getScreenTriangle();
             const insidePoint = getStableInsidePointForDirectAndHorizontal();
             if (!triangle || !insidePoint) return null;
-            return buildStableOutsideReferencePoint(
+            return buildOutsideReferencePoint2D(
               triangle.aux,
               triangle.target,
-              insidePoint
+              insidePoint,
+              LABEL_REFERENCE_MIN_DISTANCE_PX,
+              LABEL_REFERENCE_MAX_DISTANCE_PX
             );
           };
 
         const getVerticalLineScreenData = (): {
           start: CssPixelPosition;
           end: CssPixelPosition;
-          inside: CssPixelPosition;
           insideSign: -1 | 1;
           midX: number;
           midY: number;
@@ -492,91 +428,27 @@ export const useEdgeComponentOverlayVisualizer = (
         } | null => {
           const triangle = getScreenTriangle();
           if (!triangle) return null;
-
-          let start = triangle.anchor;
-          let end = triangle.aux;
-          const inside = triangle.target;
-
-          const recompute = (
-            s: CssPixelPosition,
-            e: CssPixelPosition
-          ): {
-            midX: number;
-            midY: number;
-            normalX: number;
-            normalY: number;
-            lineLength: number;
-            insideDot: number;
-          } | null => {
-            const dx = e.x - s.x;
-            const dy = e.y - s.y;
-            const lineLength = Math.hypot(dx, dy);
-            if (lineLength <= 1e-3) return null;
-            const midX = (s.x + e.x) * 0.5;
-            const midY = (s.y + e.y) * 0.5;
-            const normalX = -dy / lineLength;
-            const normalY = dx / lineLength;
-            const insideDot =
-              (inside.x - midX) * normalX + (inside.y - midY) * normalY;
-            return {
-              midX,
-              midY,
-              normalX,
-              normalY,
-              lineLength,
-              insideDot,
-            };
-          };
-
-          let edgeData = recompute(start, end);
+          const edgeData = buildVerticalDistanceLineScreenData({
+            triangle,
+            previousInsideSign:
+              verticalLabelSideByRelationIdRef.current[relation.id],
+            flipThresholdPx: VERTICAL_LABEL_SIDE_SWITCH_THRESHOLD_PX,
+          });
           if (!edgeData) return null;
-
-          const stableInsideSign = resolveStableSideSign(
-            edgeData.insideDot,
-            verticalLabelSideByRelationIdRef.current[relation.id]
-          );
           verticalLabelSideByRelationIdRef.current[relation.id] =
-            stableInsideSign;
-
-          // Canonical direction for vertical line labels:
-          // keep triangle interior on the clockwise/right side of the directed edge.
-          if (stableInsideSign < 0) {
-            start = triangle.aux;
-            end = triangle.anchor;
-            edgeData = recompute(start, end);
-            if (!edgeData) return null;
-          }
-
-          return {
-            start,
-            end,
-            inside,
-            insideSign: stableInsideSign,
-            midX: edgeData.midX,
-            midY: edgeData.midY,
-            normalX: edgeData.normalX,
-            normalY: edgeData.normalY,
-            lineLength: edgeData.lineLength,
-          };
+            edgeData.insideSign;
+          return edgeData;
         };
 
         const getVerticalLabelOutsideReferencePoint =
           (): CssPixelPosition | null => {
             const edge = getVerticalLineScreenData();
             if (!edge) return null;
-            const refDistancePx = clamp(
-              edge.lineLength * 0.2,
+            return buildVerticalLabelReferencePoint2D(
+              edge,
               LABEL_REFERENCE_MIN_DISTANCE_PX,
               LABEL_REFERENCE_MAX_DISTANCE_PX
             );
-
-            // Use an inside-side reference point; overlay logic places the label on
-            // the opposite side, i.e. outside the triangle.
-            const nextReferencePoint = {
-              x: edge.midX + edge.normalX * edge.insideSign * refDistancePx,
-              y: edge.midY + edge.normalY * edge.insideSign * refDistancePx,
-            } as CssPixelPosition;
-            return nextReferencePoint;
           };
 
         const verticalDistanceMeters = Cartesian3.distance(
@@ -591,49 +463,29 @@ export const useEdgeComponentOverlayVisualizer = (
         const isSelectedOrActiveEdgeRelation =
           edgeRelationOwnerGroupIdSet.has(relation.id) ||
           selectedOrActiveOpenPolylineEdgeRelationIdSet.has(relation.id);
-        const forceComponentLabelsForSelectedOrActivePolylineEdges =
-          isPolygonEdgeRelation && isSelectedOrActiveEdgeRelation;
-        const showVerticalLabel =
-          (forceComponentLabelsForSelectedOrActivePolylineEdges ||
-            (relation.labelVisibilityByKind?.vertical ?? true)) &&
-          verticalDistanceMeters > REFERENCE_LINE_EPSILON_METERS;
-        const showHorizontalLabel =
-          (forceComponentLabelsForSelectedOrActivePolylineEdges ||
-            (relation.labelVisibilityByKind?.horizontal ?? true)) &&
-          horizontalDistanceMeters > REFERENCE_LINE_EPSILON_METERS;
+        const segmentDistanceMeters = Cartesian3.distance(
+          pointA.geometryECEF,
+          pointB.geometryECEF
+        );
+        const edgeLabelOverlays = buildDistanceRelationEdgeLabelOverlays({
+          relation,
+          segmentDistanceMeters,
+          cumulativeDistanceMeters:
+            cumulativeDistanceByRelationId?.[relation.id] ??
+            segmentDistanceMeters,
+          verticalDistanceMeters,
+          horizontalDistanceMeters,
+          lineLabelMinDistancePx,
+          isPolygonEdgeRelation,
+          isSelectedOrActiveEdgeRelation,
+          isSharedPlanarPolygonEdge: planarPolygonSharedEdgeRelationIdSet.has(
+            relation.id
+          ),
+          isDuplicateVerticalOpposingEdgeRelation:
+            duplicateVerticalOpposingEdgeRelationIdSet.has(relation.id),
+        });
 
         if (relation.showDirectLine) {
-          const forceSegmentLabelsForVisiblePolylineEdges =
-            isPolygonEdgeRelation && isSelectedOrActiveEdgeRelation;
-          const directLabelMode: DirectLineLabelMode =
-            forceSegmentLabelsForVisiblePolylineEdges
-              ? "segment"
-              : relation.directLabelMode ?? "segment";
-          const directLabelVisibilityEnabled =
-            forceSegmentLabelsForVisiblePolylineEdges
-              ? true
-              : relation.labelVisibilityByKind?.direct ?? true;
-          const shouldShowPolygonEdgeLengthLabel =
-            !isPolygonEdgeRelation ||
-            forceSegmentLabelsForVisiblePolylineEdges ||
-            edgeRelationOwnerGroupIdSet.has(relation.id);
-          const segmentDistanceMeters = Cartesian3.distance(
-            pointA.geometryECEF,
-            pointB.geometryECEF
-          );
-          const cumulativeDistanceMeters =
-            cumulativeDistanceByRelationId?.[relation.id] ??
-            segmentDistanceMeters;
-          const directLabelDistanceMeters =
-            directLabelMode === "cumulative"
-              ? cumulativeDistanceMeters
-              : segmentDistanceMeters;
-          const showDirectLabel =
-            directLabelVisibilityEnabled &&
-            directLabelMode !== "none" &&
-            !planarPolygonSharedEdgeRelationIdSet.has(relation.id) &&
-            shouldShowPolygonEdgeLengthLabel &&
-            !duplicateFacadeOpposingEdgeRelationIdSet.has(relation.id);
           const onDirectLineClick = onDistanceLineClick
             ? () => onDistanceLineClick(relation.id, "direct")
             : undefined;
@@ -653,17 +505,7 @@ export const useEdgeComponentOverlayVisualizer = (
             strokeWidth: 1.5,
             strokeDasharray: "6 8",
             hitTargetStrokeWidth: 10,
-            labelText: showDirectLabel
-              ? `${formatNumber(directLabelDistanceMeters)} m`
-              : undefined,
-            labelColor: "#000000",
-            labelStroke: "rgba(255, 255, 255, 0.95)",
-            labelFontSize: 12,
-            labelFontFamily: "Arial, sans-serif",
-            labelFontWeight: "400",
-            labelMinLineLengthPx: forceSegmentLabelsForVisiblePolylineEdges
-              ? 0
-              : lineLabelMinDistancePx,
+            ...edgeLabelOverlays.direct,
             onLineClick: onDirectLineClick,
             onLabelClick: onDirectLabelClick,
           });
@@ -686,21 +528,7 @@ export const useEdgeComponentOverlayVisualizer = (
             strokeWidth: REFERENCE_COMPONENT_LINE_STROKE_WIDTH_PX,
             strokeDasharray: "6 8",
             hitTargetStrokeWidth: 10,
-            labelText: showVerticalLabel
-              ? `${formatNumber(verticalDistanceMeters)} m`
-              : undefined,
-            labelColor: "#000000",
-            labelStroke: "rgba(255, 255, 255, 0.95)",
-            labelFontSize: 12,
-            labelFontFamily: "Arial, sans-serif",
-            labelFontWeight: "400",
-            labelRotationMode: "clockwise",
-            labelOffsetPx: VERTICAL_COMPONENT_LABEL_OFFSET_PX,
-            labelDominantBaseline: "alphabetic",
-            labelMinLineLengthPx:
-              forceComponentLabelsForSelectedOrActivePolylineEdges
-                ? 0
-                : lineLabelMinDistancePx,
+            ...edgeLabelOverlays.vertical,
             onLineClick: onVerticalLineClick,
           });
         }
@@ -723,385 +551,16 @@ export const useEdgeComponentOverlayVisualizer = (
             strokeWidth: REFERENCE_COMPONENT_LINE_STROKE_WIDTH_PX,
             strokeDasharray: "6 8",
             hitTargetStrokeWidth: 10,
-            labelText: showHorizontalLabel
-              ? `${formatNumber(horizontalDistanceMeters)} m`
-              : undefined,
-            labelColor: "#000000",
-            labelStroke: "rgba(255, 255, 255, 0.95)",
-            labelFontSize: 12,
-            labelFontFamily: "Arial, sans-serif",
-            labelFontWeight: "400",
-            labelMinLineLengthPx:
-              forceComponentLabelsForSelectedOrActivePolylineEdges
-                ? 0
-                : lineLabelMinDistancePx,
+            ...edgeLabelOverlays.horizontal,
             onLineClick: onHorizontalLineClick,
           });
         }
       }
     );
 
-    if (scene && !scene.isDestroyed() && candidateEdgeLine) {
-      const {
-        anchorPointECEF,
-        targetPointECEF,
-        showDirectLine,
-        showVerticalLine,
-        showHorizontalLine,
-      } = candidateEdgeLine;
-
-      if (
-        Cartesian3.distance(anchorPointECEF, targetPointECEF) >
-        REFERENCE_LINE_EPSILON_METERS
-      ) {
-        const anchorWGS84 = getDegreesFromCartesian(anchorPointECEF);
-        const targetWGS84 = getDegreesFromCartesian(targetPointECEF);
-        const auxiliaryPointECEF = Cartesian3.fromDegrees(
-          anchorWGS84.longitude,
-          anchorWGS84.latitude,
-          targetWGS84.altitude ?? 0
-        );
-
-        const getPreviewScreenAnchor = () => {
-          if (!scene || scene.isDestroyed()) return null;
-          const anchor = SceneTransforms.worldToWindowCoordinates(
-            scene,
-            anchorPointECEF
-          );
-          if (!defined(anchor)) return null;
-          return { x: anchor.x, y: anchor.y } as CssPixelPosition;
-        };
-
-        const getPreviewScreenTarget = () => {
-          if (!scene || scene.isDestroyed()) return null;
-          const target = SceneTransforms.worldToWindowCoordinates(
-            scene,
-            targetPointECEF
-          );
-          if (!defined(target)) return null;
-          return { x: target.x, y: target.y } as CssPixelPosition;
-        };
-
-        const getPreviewScreenAux = () => {
-          if (!scene || scene.isDestroyed()) return null;
-          const auxiliary = SceneTransforms.worldToWindowCoordinates(
-            scene,
-            auxiliaryPointECEF
-          );
-          if (!defined(auxiliary)) return null;
-          return { x: auxiliary.x, y: auxiliary.y } as CssPixelPosition;
-        };
-
-        type PreviewScreenTriangleData = {
-          anchor: CssPixelPosition;
-          target: CssPixelPosition;
-          aux: CssPixelPosition;
-          centroid: CssPixelPosition;
-        };
-
-        let cachedPreviewTriangleFrameNumber: number | null = null;
-        let cachedPreviewTriangle: PreviewScreenTriangleData | null = null;
-
-        const getSceneFrameNumber = (): number | null => {
-          const frameNumber = (
-            scene as unknown as { frameState?: { frameNumber?: number } }
-          ).frameState?.frameNumber;
-          return typeof frameNumber === "number" ? frameNumber : null;
-        };
-
-        const getPreviewScreenTriangle =
-          (): PreviewScreenTriangleData | null => {
-            const frameNumber = getSceneFrameNumber();
-            if (
-              frameNumber !== null &&
-              frameNumber === cachedPreviewTriangleFrameNumber
-            ) {
-              return cachedPreviewTriangle;
-            }
-
-            const anchor = getPreviewScreenAnchor();
-            const target = getPreviewScreenTarget();
-            const aux = getPreviewScreenAux();
-            if (!anchor || !target || !aux) return null;
-            const triangle = {
-              anchor,
-              target,
-              aux,
-              centroid: {
-                x: (anchor.x + target.x + aux.x) / 3,
-                y: (anchor.y + target.y + aux.y) / 3,
-              } as CssPixelPosition,
-            };
-            if (frameNumber !== null) {
-              cachedPreviewTriangleFrameNumber = frameNumber;
-              cachedPreviewTriangle = triangle;
-            }
-            return triangle;
-          };
-
-        const buildStableOutsideReferencePoint = (
-          start: CssPixelPosition,
-          end: CssPixelPosition,
-          insidePoint: CssPixelPosition
-        ): CssPixelPosition | null => {
-          const dx = end.x - start.x;
-          const dy = end.y - start.y;
-          const lineLength = Math.hypot(dx, dy);
-          if (lineLength <= 1e-3) return null;
-          const midX = (start.x + end.x) * 0.5;
-          const midY = (start.y + end.y) * 0.5;
-          const normalX = -dy / lineLength;
-          const normalY = dx / lineLength;
-          const dot =
-            (insidePoint.x - midX) * normalX + (insidePoint.y - midY) * normalY;
-          const insideSign = dot >= 0 ? 1 : -1;
-          const refDistancePx = clamp(
-            lineLength * 0.2,
-            LABEL_REFERENCE_MIN_DISTANCE_PX,
-            LABEL_REFERENCE_MAX_DISTANCE_PX
-          );
-          return {
-            x: midX + normalX * insideSign * refDistancePx,
-            y: midY + normalY * insideSign * refDistancePx,
-          } as CssPixelPosition;
-        };
-
-        const getStableInsidePointForDirectAndHorizontal =
-          (): CssPixelPosition | null => {
-            const triangle = getPreviewScreenTriangle();
-            if (!triangle) return null;
-            return {
-              x:
-                triangle.aux.x +
-                (triangle.centroid.x - triangle.aux.x) *
-                  LABEL_INSIDE_BLEND_FACTOR,
-              y:
-                triangle.aux.y +
-                (triangle.centroid.y - triangle.aux.y) *
-                  LABEL_INSIDE_BLEND_FACTOR,
-            } as CssPixelPosition;
-          };
-
-        const getPreviewDirectLabelOutsideReferencePoint =
-          (): CssPixelPosition | null => {
-            const triangle = getPreviewScreenTriangle();
-            const insidePoint = getStableInsidePointForDirectAndHorizontal();
-            if (!triangle || !insidePoint) return null;
-            return buildStableOutsideReferencePoint(
-              triangle.anchor,
-              triangle.target,
-              insidePoint
-            );
-          };
-
-        const getPreviewHorizontalLabelOutsideReferencePoint =
-          (): CssPixelPosition | null => {
-            const triangle = getPreviewScreenTriangle();
-            const insidePoint = getStableInsidePointForDirectAndHorizontal();
-            if (!triangle || !insidePoint) return null;
-            return buildStableOutsideReferencePoint(
-              triangle.aux,
-              triangle.target,
-              insidePoint
-            );
-          };
-
-        const getPreviewVerticalLineScreenData = (): {
-          start: CssPixelPosition;
-          end: CssPixelPosition;
-          inside: CssPixelPosition;
-          insideSign: -1 | 1;
-          midX: number;
-          midY: number;
-          normalX: number;
-          normalY: number;
-          lineLength: number;
-        } | null => {
-          const triangle = getPreviewScreenTriangle();
-          if (!triangle) return null;
-
-          let start = triangle.anchor;
-          let end = triangle.aux;
-          const inside = triangle.target;
-
-          const recompute = (
-            s: CssPixelPosition,
-            e: CssPixelPosition
-          ): {
-            midX: number;
-            midY: number;
-            normalX: number;
-            normalY: number;
-            lineLength: number;
-            insideDot: number;
-          } | null => {
-            const dx = e.x - s.x;
-            const dy = e.y - s.y;
-            const lineLength = Math.hypot(dx, dy);
-            if (lineLength <= 1e-3) return null;
-            const midX = (s.x + e.x) * 0.5;
-            const midY = (s.y + e.y) * 0.5;
-            const normalX = -dy / lineLength;
-            const normalY = dx / lineLength;
-            const insideDot =
-              (inside.x - midX) * normalX + (inside.y - midY) * normalY;
-            return {
-              midX,
-              midY,
-              normalX,
-              normalY,
-              lineLength,
-              insideDot,
-            };
-          };
-
-          let edgeData = recompute(start, end);
-          if (!edgeData) return null;
-
-          const stableInsideSign = resolveStableSideSign(
-            edgeData.insideDot,
-            previewVerticalLabelSideRef.current
-          );
-          previewVerticalLabelSideRef.current = stableInsideSign;
-
-          if (stableInsideSign < 0) {
-            start = triangle.aux;
-            end = triangle.anchor;
-            edgeData = recompute(start, end);
-            if (!edgeData) return null;
-          }
-
-          return {
-            start,
-            end,
-            inside,
-            insideSign: stableInsideSign,
-            midX: edgeData.midX,
-            midY: edgeData.midY,
-            normalX: edgeData.normalX,
-            normalY: edgeData.normalY,
-            lineLength: edgeData.lineLength,
-          };
-        };
-
-        const getPreviewVerticalLabelOutsideReferencePoint =
-          (): CssPixelPosition | null => {
-            const edge = getPreviewVerticalLineScreenData();
-            if (!edge) return null;
-            const refDistancePx = clamp(
-              edge.lineLength * 0.2,
-              LABEL_REFERENCE_MIN_DISTANCE_PX,
-              LABEL_REFERENCE_MAX_DISTANCE_PX
-            );
-
-            const nextReferencePoint = {
-              x: edge.midX + edge.normalX * edge.insideSign * refDistancePx,
-              y: edge.midY + edge.normalY * edge.insideSign * refDistancePx,
-            } as CssPixelPosition;
-            return nextReferencePoint;
-          };
-
-        const directDistanceMeters = Cartesian3.distance(
-          anchorPointECEF,
-          targetPointECEF
-        );
-        if (showDirectLine) {
-          lines.push({
-            id: "reference-preview-direct",
-            getCanvasLine: () => {
-              const start = getPreviewScreenAnchor();
-              const end = getPreviewScreenTarget();
-              if (!start || !end) return null;
-              return { start, end };
-            },
-            getLabelOutsideReferencePoint:
-              getPreviewDirectLabelOutsideReferencePoint,
-            stroke: "rgba(255, 255, 255, 0.9)",
-            strokeWidth: 1.5,
-            strokeDasharray: "6 8",
-            hitTargetStrokeWidth: 10,
-            labelText: `${formatNumber(directDistanceMeters)} m`,
-            labelColor: "#000000",
-            labelStroke: "rgba(255, 255, 255, 0.95)",
-            labelFontSize: 12,
-            labelFontFamily: "Arial, sans-serif",
-            labelFontWeight: "400",
-            labelMinLineLengthPx: lineLabelMinDistancePx,
-          });
-        }
-
-        const verticalDistanceMeters = Cartesian3.distance(
-          anchorPointECEF,
-          auxiliaryPointECEF
-        );
-        const horizontalDistanceMeters = Cartesian3.distance(
-          auxiliaryPointECEF,
-          targetPointECEF
-        );
-
-        if (
-          showVerticalLine &&
-          verticalDistanceMeters > REFERENCE_LINE_EPSILON_METERS
-        ) {
-          lines.push({
-            id: "reference-preview-vertical",
-            getCanvasLine: () => {
-              const edge = getPreviewVerticalLineScreenData();
-              if (!edge) return null;
-              return { start: edge.start, end: edge.end };
-            },
-            getLabelOutsideReferencePoint:
-              getPreviewVerticalLabelOutsideReferencePoint,
-            stroke: REFERENCE_COMPONENT_VERTICAL_COLOR,
-            strokeWidth: REFERENCE_COMPONENT_LINE_STROKE_WIDTH_PX,
-            strokeDasharray: "6 8",
-            hitTargetStrokeWidth: 10,
-            labelText: `${formatNumber(verticalDistanceMeters)} m`,
-            labelColor: "#000000",
-            labelStroke: "rgba(255, 255, 255, 0.95)",
-            labelFontSize: 12,
-            labelFontFamily: "Arial, sans-serif",
-            labelFontWeight: "400",
-            labelRotationMode: "clockwise",
-            labelOffsetPx: VERTICAL_COMPONENT_LABEL_OFFSET_PX,
-            labelDominantBaseline: "alphabetic",
-            labelMinLineLengthPx: lineLabelMinDistancePx,
-          });
-        }
-
-        if (
-          showHorizontalLine &&
-          horizontalDistanceMeters > REFERENCE_LINE_EPSILON_METERS
-        ) {
-          lines.push({
-            id: "reference-preview-horizontal",
-            getCanvasLine: () => {
-              const start = getPreviewScreenAux();
-              const end = getPreviewScreenTarget();
-              if (!start || !end) return null;
-              return { start, end };
-            },
-            getLabelOutsideReferencePoint:
-              getPreviewHorizontalLabelOutsideReferencePoint,
-            stroke: REFERENCE_COMPONENT_HORIZONTAL_COLOR,
-            strokeWidth: REFERENCE_COMPONENT_LINE_STROKE_WIDTH_PX,
-            strokeDasharray: "6 8",
-            hitTargetStrokeWidth: 10,
-            labelText: `${formatNumber(horizontalDistanceMeters)} m`,
-            labelColor: "#000000",
-            labelStroke: "rgba(255, 255, 255, 0.95)",
-            labelFontSize: 12,
-            labelFontFamily: "Arial, sans-serif",
-            labelFontWeight: "400",
-            labelMinLineLengthPx: lineLabelMinDistancePx,
-          });
-        }
-      }
-    }
-
-    transientEdges.forEach((edge) => {
+    previewEdges.forEach((edge) => {
       lines.push({
-        id: `transient-edge-${edge.id}`,
+        id: `preview-edge-${edge.id}`,
         getCanvasLine: () => {
           if (!scene || scene.isDestroyed()) return null;
           const start = SceneTransforms.worldToWindowCoordinates(
@@ -1129,9 +588,8 @@ export const useEdgeComponentOverlayVisualizer = (
     onDistanceLineClick,
     cumulativeDistanceByRelationId,
     planarPolygonSharedEdgeRelationIdSet,
-    duplicateFacadeOpposingEdgeRelationIdSet,
-    candidateEdgeLine,
-    transientEdges,
+    duplicateVerticalOpposingEdgeRelationIdSet,
+    previewEdges,
     resolvedRelations,
     scene,
     edgeRelationOwnerGroupIdSet,

@@ -1,6 +1,11 @@
 import type {
   AnnotationLabelAnchor,
   AnnotationLabelAppearance,
+  PointLabelMetricMode,
+} from "../types/annotationLabel";
+import {
+  DEFAULT_POINT_LABEL_METRIC_MODE,
+  POINT_LABEL_METRIC_MODES,
 } from "../types/annotationLabel";
 
 const normalizeCompactLabelContent = (
@@ -67,6 +72,14 @@ export const normalizeLabelAppearance = (
   };
 };
 
+export const getNextPointLabelMetricMode = (
+  currentMode: PointLabelMetricMode = DEFAULT_POINT_LABEL_METRIC_MODE
+): PointLabelMetricMode => {
+  const currentIndex = POINT_LABEL_METRIC_MODES.indexOf(currentMode);
+  const nextIndex = (currentIndex + 1) % POINT_LABEL_METRIC_MODES.length;
+  return POINT_LABEL_METRIC_MODES[nextIndex];
+};
+
 const areLabelAnchorsEqual = (
   left?: AnnotationLabelAnchor,
   right?: AnnotationLabelAnchor
@@ -86,7 +99,6 @@ const areLabelAnchorsEqual = (
 type PointLabelMeasurementLike = {
   id: string;
   labelAnchor?: AnnotationLabelAnchor;
-  distanceAdhocNode?: boolean;
 };
 
 type PointMeasurementWithAltitudeLike = {
@@ -248,7 +260,7 @@ type BuildDesiredPointLabelAnchorByIdParams<
 > = {
   pointMeasurements: ReadonlyArray<TPointMeasurement>;
   polylines: ReadonlyArray<TPolyline>;
-  focusedPlanarPolygonGroupId: string | null;
+  focusedPlanarMeasurementId: string | null;
   pointMarkerBadgeByPointId: Readonly<Record<string, PointMarkerBadgeLike>>;
   standaloneDistanceHighestPointIds: ReadonlySet<string>;
   unfocusedStandaloneDistanceNonHighestPointIds: ReadonlySet<string>;
@@ -262,7 +274,7 @@ export const buildDesiredPointLabelAnchorById = <
 >({
   pointMeasurements,
   polylines,
-  focusedPlanarPolygonGroupId,
+  focusedPlanarMeasurementId,
   pointMarkerBadgeByPointId,
   standaloneDistanceHighestPointIds,
   unfocusedStandaloneDistanceNonHighestPointIds,
@@ -274,10 +286,6 @@ export const buildDesiredPointLabelAnchorById = <
 >): Readonly<Record<string, AnnotationLabelAnchor | undefined>> => {
   const byPointId: Record<string, AnnotationLabelAnchor | undefined> = {};
   pointMeasurements.forEach((measurement) => {
-    if (measurement.distanceAdhocNode) {
-      byPointId[measurement.id] = undefined;
-      return;
-    }
     byPointId[measurement.id] = {
       anchorPointId: measurement.id,
       collapseToCompact: false,
@@ -310,7 +318,7 @@ export const buildDesiredPointLabelAnchorById = <
   });
 
   polylines.forEach((polyline) => {
-    if (polyline.id === focusedPlanarPolygonGroupId) return;
+    if (polyline.id === focusedPlanarMeasurementId) return;
     polyline.vertexPointIds.forEach((pointId) => {
       if (!pointId) return;
       byPointId[pointId] = undefined;

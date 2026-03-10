@@ -9,7 +9,7 @@ type AnnotationInfoBoxProps = {
 export function AnnotationInfoBox({
   pixelWidth = 350,
 }: AnnotationInfoBoxProps) {
-  const payload = useAnnotationInfoBoxPayload({ pixelWidth });
+  const payload = useAnnotationInfoBoxPayload(pixelWidth);
   const {
     pixelWidth: boxWidth,
     headingColor,

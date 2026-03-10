@@ -1,14 +1,10 @@
-import {
-  AXIS_NUMERIC_EPSILON,
-  getClosestAxisParamToRay,
-  gizmoNormalize,
-  type GizmoRay3,
-  type GizmoVec3,
-} from "./gizmoMath";
+import { getClosestLineParamToRay } from "@carma-commons/math";
+import { Ray, Vector3 } from "three";
+import { AXIS_NUMERIC_EPSILON } from "./constants";
 
 export type GizmoAxisDragConnectorState = {
-  axisOrigin: GizmoVec3;
-  axisDirection: GizmoVec3;
+  axisOrigin: Vector3;
+  axisDirection: Vector3;
   axisParam: number;
   isDragging: boolean;
 };
@@ -16,13 +12,13 @@ export type GizmoAxisDragConnectorState = {
 export type GizmoAxisDragUpdate = {
   axisParam: number;
   deltaFromDragStart: number;
-  point: GizmoVec3;
+  point: Vector3;
   isDragging: boolean;
 };
 
 export type GizmoAxisDragConnectorOptions = {
-  axisOrigin: GizmoVec3;
-  axisDirection: GizmoVec3;
+  axisOrigin: Vector3;
+  axisDirection: Vector3;
   initialAxisParam?: number;
   epsilon?: number;
   onAxisParamChange?: (update: GizmoAxisDragUpdate) => void;
@@ -30,28 +26,16 @@ export type GizmoAxisDragConnectorOptions = {
 };
 
 export type GizmoAxisDragConnector = {
-  setAxis: (axisOrigin: GizmoVec3, axisDirection: GizmoVec3) => void;
+  setAxis: (axisOrigin: Vector3, axisDirection: Vector3) => void;
   setAxisParam: (axisParam: number) => void;
   getAxisParam: () => number;
-  getPoint: () => GizmoVec3;
+  getPoint: () => Vector3;
   getState: () => GizmoAxisDragConnectorState;
-  projectRayToAxis: (ray: GizmoRay3) => number | null;
-  beginDragFromRay: (ray: GizmoRay3) => boolean;
-  updateDragFromRay: (ray: GizmoRay3) => number | null;
+  projectRayToAxis: (ray: Ray) => number | null;
+  beginDragFromRay: (ray: Ray) => boolean;
+  updateDragFromRay: (ray: Ray) => number | null;
   endDrag: () => void;
 };
-
-const cloneVec3 = (v: GizmoVec3): GizmoVec3 => ({ x: v.x, y: v.y, z: v.z });
-
-const addScaled = (
-  origin: GizmoVec3,
-  direction: GizmoVec3,
-  scalar: number
-) => ({
-  x: origin.x + direction.x * scalar,
-  y: origin.y + direction.y * scalar,
-  z: origin.z + direction.z * scalar,
-});
 
 export const createAxisDragConnector = (
   options: GizmoAxisDragConnectorOptions
@@ -59,10 +43,11 @@ export const createAxisDragConnector = (
   const epsilon = options.epsilon ?? AXIS_NUMERIC_EPSILON;
 
   const state: GizmoAxisDragConnectorState = {
-    axisOrigin: cloneVec3(options.axisOrigin),
+    axisOrigin: options.axisOrigin.clone(),
     axisDirection:
-      gizmoNormalize(options.axisDirection, epsilon) ??
-      cloneVec3(options.axisDirection),
+      options.axisDirection.lengthSq() > epsilon
+        ? options.axisDirection.clone().normalize()
+        : options.axisDirection.clone(),
     axisParam: options.initialAxisParam ?? 0,
     isDragging: false,
   };
@@ -74,7 +59,9 @@ export const createAxisDragConnector = (
     options.onAxisParamChange?.({
       axisParam: state.axisParam,
       deltaFromDragStart,
-      point: addScaled(state.axisOrigin, state.axisDirection, state.axisParam),
+      point: state.axisOrigin
+        .clone()
+        .add(state.axisDirection.clone().multiplyScalar(state.axisParam)),
       isDragging: state.isDragging,
     });
   };
@@ -85,30 +72,29 @@ export const createAxisDragConnector = (
     options.onDragStateChange?.(isDragging);
   };
 
-  const projectRayToAxis = (ray: GizmoRay3): number | null => {
-    const normalizedRayDirection = gizmoNormalize(ray.direction, epsilon);
-    const normalizedAxisDirection = gizmoNormalize(
-      state.axisDirection,
-      epsilon
-    );
-    if (!normalizedRayDirection || !normalizedAxisDirection) return null;
+  const projectRayToAxis = (ray: Ray): number | null => {
+    if (
+      ray.direction.lengthSq() <= epsilon ||
+      state.axisDirection.lengthSq() <= epsilon
+    ) {
+      return null;
+    }
 
-    return getClosestAxisParamToRay(
-      {
-        origin: ray.origin,
-        direction: normalizedRayDirection,
-      },
+    return getClosestLineParamToRay(
+      new Ray(ray.origin.clone(), ray.direction.clone().normalize()),
       state.axisOrigin,
-      normalizedAxisDirection,
+      state.axisDirection.clone().normalize(),
       epsilon
     );
   };
 
   return {
     setAxis: (axisOrigin, axisDirection) => {
-      state.axisOrigin = cloneVec3(axisOrigin);
+      state.axisOrigin = axisOrigin.clone();
       state.axisDirection =
-        gizmoNormalize(axisDirection, epsilon) ?? cloneVec3(axisDirection);
+        axisDirection.lengthSq() > epsilon
+          ? axisDirection.clone().normalize()
+          : axisDirection.clone();
     },
 
     setAxisParam: (axisParam) => {
@@ -119,11 +105,13 @@ export const createAxisDragConnector = (
     getAxisParam: () => state.axisParam,
 
     getPoint: () =>
-      addScaled(state.axisOrigin, state.axisDirection, state.axisParam),
+      state.axisOrigin
+        .clone()
+        .add(state.axisDirection.clone().multiplyScalar(state.axisParam)),
 
     getState: () => ({
-      axisOrigin: cloneVec3(state.axisOrigin),
-      axisDirection: cloneVec3(state.axisDirection),
+      axisOrigin: state.axisOrigin.clone(),
+      axisDirection: state.axisDirection.clone(),
       axisParam: state.axisParam,
       isDragging: state.isDragging,
     }),

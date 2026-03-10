@@ -13,6 +13,27 @@ import { createPortal } from "react-dom";
 import { LabelOverlayContext } from "./LabelOverlayContext";
 import type { LabelOverlayElement, LabelOverlayContextType } from "./types";
 
+const hasSameOverlayPortalContent = (
+  left: LabelOverlayElement,
+  right: LabelOverlayElement
+) => {
+  if (left.contentKey !== undefined || right.contentKey !== undefined) {
+    return left.contentKey === right.contentKey;
+  }
+
+  return left.content === right.content;
+};
+
+const shouldReuseOverlayPortal = (
+  existing: LabelOverlayElement,
+  next: LabelOverlayElement
+) =>
+  hasSameOverlayPortalContent(existing, next) &&
+  existing.zIndex === next.zIndex &&
+  existing.onClick === next.onClick &&
+  existing.onDoubleClick === next.onDoubleClick &&
+  existing.cursor === next.cursor;
+
 interface LabelOverlayProviderProps {
   children: ReactNode;
   containerRef?: RefObject<HTMLElement | null>;
@@ -82,21 +103,10 @@ export const LabelOverlayProvider: React.FC<LabelOverlayProviderProps> = ({
 
   const addLabelOverlayElement = useCallback(
     (element: LabelOverlayElement) => {
-      // Check if element really needs an update
       const existing = overlayElementsRef.current.get(element.id);
-      if (existing) {
-        // Trigger provider re-render only when portal structure/props change.
-        if (
-          existing.content === element.content &&
-          existing.zIndex === element.zIndex &&
-          existing.onClick === element.onClick &&
-          existing.onDoubleClick === element.onDoubleClick
-        ) {
-          // Update mutable runtime fields (position callbacks/visibility) without
-          // forcing portal re-creation.
-          overlayElementsRef.current.set(element.id, element);
-          return;
-        }
+      if (existing && shouldReuseOverlayPortal(existing, element)) {
+        overlayElementsRef.current.set(element.id, element);
+        return;
       }
 
       overlayElementsRef.current.set(element.id, element);
@@ -118,11 +128,8 @@ export const LabelOverlayProvider: React.FC<LabelOverlayProviderProps> = ({
     (id: string, updates: Partial<LabelOverlayElement>) => {
       const existing = overlayElementsRef.current.get(id);
       if (existing) {
-        // Only trigger re-render if content property changes
-        const shouldRender =
-          updates.content !== undefined && updates.content !== existing.content;
-
         const updated = { ...existing, ...updates };
+        const shouldRender = !shouldReuseOverlayPortal(existing, updated);
         overlayElementsRef.current.set(id, updated);
 
         if (shouldRender) {

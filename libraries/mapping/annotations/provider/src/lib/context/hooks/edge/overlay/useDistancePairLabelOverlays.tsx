@@ -52,7 +52,6 @@ export type DistancePairLabelObstacleEntry = {
 };
 
 export type UseDistancePairLabelOverlaysOptions = {
-  entries: DistancePairLabelEntry[];
   obstacles: DistancePairLabelObstacleEntry[];
   cameraPitch: number;
   viewportWidth: number;
@@ -66,18 +65,20 @@ export type UseDistancePairLabelOverlaysOptions = {
   zIndex?: number;
 };
 
-export const useDistancePairLabelOverlays = ({
-  entries,
-  obstacles,
-  cameraPitch,
-  viewportWidth,
-  viewportHeight,
-  resolveAnchorCanvasPosition,
-  addLabelOverlayElement,
-  removeLabelOverlayElement,
-  overlayIdPrefix = DEFAULT_OVERLAY_ID_PREFIX,
-  zIndex = 18,
-}: UseDistancePairLabelOverlaysOptions) => {
+export const useDistancePairLabelOverlays = (
+  entries: DistancePairLabelEntry[],
+  {
+    obstacles,
+    cameraPitch,
+    viewportWidth,
+    viewportHeight,
+    resolveAnchorCanvasPosition,
+    addLabelOverlayElement,
+    removeLabelOverlayElement,
+    overlayIdPrefix = DEFAULT_OVERLAY_ID_PREFIX,
+    zIndex = 18,
+  }: UseDistancePairLabelOverlaysOptions
+) => {
   const overlayIdsRef = useRef<string[]>([]);
   const pointLabelLayoutConfig = useMemo(
     () => resolvePointLabelLayoutConfig(),

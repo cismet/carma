@@ -38,18 +38,15 @@ export type PointCandidateGuide = {
 };
 
 export type PointCandidateRingIndicatorOptions = {
-  scene: Scene | null;
   radius: number;
-  candidate?: PointCandidateGuide | null;
   enabled?: boolean;
 };
 
-export const usePointCandidateRingIndicator = ({
-  scene,
-  radius,
-  candidate = null,
-  enabled = true,
-}: PointCandidateRingIndicatorOptions) => {
+export const usePointCandidateRingIndicator = (
+  scene: Scene | null,
+  candidate: PointCandidateGuide | null = null,
+  { radius, enabled = true }: PointCandidateRingIndicatorOptions
+) => {
   const candidatePointECEF = candidate?.pointECEF ?? null;
   const candidateSurfaceNormalECEF = candidate?.surfaceNormalECEF ?? null;
   const candidateVerticalOffsetAnchorECEF =

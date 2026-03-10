@@ -1,10 +1,8 @@
 import { useCallback, useEffect, useRef } from "react";
 
-import { useCesiumContext } from "@carma-mapping/engines/cesium";
+import { type Scene } from "@carma/cesium";
 
-export const useCesiumOverlaySync = () => {
-  const { getScene } = useCesiumContext();
-  const scene = getScene();
+export const useCesiumOverlaySync = (scene: Scene | null) => {
   const overlayUpdateRef = useRef<(() => void) | null>(null);
 
   useEffect(() => {

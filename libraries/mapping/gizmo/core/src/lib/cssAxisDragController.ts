@@ -2,29 +2,29 @@ import {
   createAxisDragConnector,
   type GizmoAxisDragConnector,
 } from "./axisDragConnector";
-import { gizmoNormalize, type GizmoRay3, type GizmoVec3 } from "./gizmoMath";
+import { Ray, Vector3 } from "three";
 
 export type GizmoCssAxisSnapshot = {
   axisParam: number;
   isDragging: boolean;
-  point: GizmoVec3;
+  point: Vector3;
   gridTransform: string;
-  lastRayDirection: GizmoVec3 | null;
+  lastRayDirection: Vector3 | null;
 };
 
 export type GizmoCssAxisControllerOptions = {
-  axisOrigin: GizmoVec3;
-  axisDirection: GizmoVec3;
+  axisOrigin: Vector3;
+  axisDirection: Vector3;
   initialAxisParam?: number;
   pointerDepth?: number;
-  rayOrigin?: GizmoVec3;
+  rayOrigin?: Vector3;
   gridScale?: number;
   gridTiltDeg?: number;
   onChange?: (snapshot: GizmoCssAxisSnapshot) => void;
 };
 
 export type GizmoCssAxisController = {
-  setAxis: (axisOrigin: GizmoVec3, axisDirection: GizmoVec3) => void;
+  setAxis: (axisOrigin: Vector3, axisDirection: Vector3) => void;
   setAxisParam: (axisParam: number) => void;
   setPointerDepth: (pointerDepth: number) => void;
   setGridStyle: (gridScale: number, gridTiltDeg: number) => void;
@@ -42,10 +42,8 @@ export type GizmoCssAxisController = {
   getSnapshot: () => GizmoCssAxisSnapshot;
 };
 
-const cloneVec3 = (v: GizmoVec3): GizmoVec3 => ({ x: v.x, y: v.y, z: v.z });
-
 const buildGridTransform = (
-  point: GizmoVec3,
+  point: Vector3,
   gridScale: number,
   gridTiltDeg: number
 ) => {
@@ -61,24 +59,20 @@ const toPointerRay = (
   clientY: number,
   viewportRect: DOMRect | ClientRect,
   pointerDepth: number,
-  rayOrigin: GizmoVec3
-): { ray: GizmoRay3; direction: GizmoVec3 } => {
+  rayOrigin: Vector3
+): { ray: Ray; direction: Vector3 } => {
   const ndcX = ((clientX - viewportRect.left) / viewportRect.width) * 2 - 1;
   const ndcY = ((clientY - viewportRect.top) / viewportRect.height) * 2 - 1;
 
-  const rawDirection: GizmoVec3 = {
-    x: ndcX,
-    y: -ndcY,
-    z: -Math.max(0.25, pointerDepth),
-  };
-
-  const direction = gizmoNormalize(rawDirection) ?? { x: 0, y: 0, z: -1 };
+  const direction = new Vector3(ndcX, -ndcY, -Math.max(0.25, pointerDepth));
+  if (direction.lengthSq() > 1e-6) {
+    direction.normalize();
+  } else {
+    direction.set(0, 0, -1);
+  }
 
   return {
-    ray: {
-      origin: rayOrigin,
-      direction,
-    },
+    ray: new Ray(rayOrigin.clone(), direction.clone()),
     direction,
   };
 };
@@ -87,9 +81,7 @@ export const createCssAxisDragController = (
   options: GizmoCssAxisControllerOptions
 ): GizmoCssAxisController => {
   let pointerDepth = options.pointerDepth ?? 1.6;
-  let rayOrigin: GizmoVec3 = options.rayOrigin
-    ? cloneVec3(options.rayOrigin)
-    : { x: 0, y: 0, z: 3 };
+  let rayOrigin = options.rayOrigin?.clone() ?? new Vector3(0, 0, 3);
   let gridScale = options.gridScale ?? 80;
   let gridTiltDeg = options.gridTiltDeg ?? 58;
 
@@ -99,7 +91,7 @@ export const createCssAxisDragController = (
     initialAxisParam: options.initialAxisParam,
   });
 
-  let lastRayDirection: GizmoVec3 | null = null;
+  let lastRayDirection: Vector3 | null = null;
 
   const getSnapshot = (): GizmoCssAxisSnapshot => {
     const state = connector.getState();

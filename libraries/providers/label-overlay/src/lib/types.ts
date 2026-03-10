@@ -7,6 +7,7 @@ export interface LabelOverlayElement {
   getCanvasPosition?: () => CssPixelPosition | null;
   updatePosition?: (elementDiv: HTMLElement) => boolean;
   content: ReactNode;
+  contentKey?: string;
   zIndex?: number;
   visible?: boolean;
   isHidden?: boolean;

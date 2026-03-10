@@ -13,10 +13,7 @@ import {
 export const getPointAnnotationInfoBoxSlots = (
   input: PointAnnotationSlotsInput
 ): AnnotationSlots => ({
-  headingTitle:
-    input.measurement || !input.isCandidate
-      ? POINT_TITLE
-      : `${POINT_TITLE} (Neu)`,
+  headingTitle: POINT_TITLE,
   subtitle: renderEditableAnnotationSubtitle({
     annotationTypeTitle: POINT_TITLE,
     titleToken: getPointTitleToken(input),

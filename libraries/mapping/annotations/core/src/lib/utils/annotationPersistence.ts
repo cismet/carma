@@ -1,6 +1,6 @@
 import type { BaseAnnotationEntry } from "../types/annotationEntry";
 import type { AnnotationPersistenceEnvelopeV2Base } from "../types/annotationPersistenceTypes";
-import type { PointDistanceRelation } from "../types/distanceRelation";
+import { withDistanceRelationEdgeId } from "./measurementRelations";
 
 type PersistedAnnotationEntry = BaseAnnotationEntry<string>;
 type PersistedAnnotationEnvelopeV2<TEntry extends PersistedAnnotationEntry> =
@@ -9,21 +9,6 @@ type PersistedAnnotationEnvelopeV2<TEntry extends PersistedAnnotationEntry> =
 const DEFAULT_STORAGE_KEY = "cesium-annotations";
 const LEGACY_DEFAULT_STORAGE_KEY = "cesium-measurements";
 const LEGACY_PERSISTENCE_STORAGE_SUFFIX = ":normalized-v2";
-
-const getMeasurementEdgeId = (pointAId: string, pointBId: string) => {
-  const [left, right] = [pointAId, pointBId].sort((a, b) => a.localeCompare(b));
-  return `edge:${left}:${right}`;
-};
-
-const normalizeDistanceRelation = (
-  relation: PointDistanceRelation
-): PointDistanceRelation => ({
-  ...relation,
-  edgeId:
-    relation.edgeId && relation.edgeId.length > 0
-      ? relation.edgeId
-      : getMeasurementEdgeId(relation.pointAId, relation.pointBId),
-});
 
 const getStorageKey = (storageKey: string | undefined) =>
   storageKey ?? DEFAULT_STORAGE_KEY;
@@ -82,7 +67,7 @@ export const loadAnnotationPersistenceState = <
           ...parsed.tables,
           annotations: rawAnnotations as TEntry[],
           distanceRelations: parsed.tables.distanceRelations.map(
-            normalizeDistanceRelation
+            withDistanceRelationEdgeId
           ),
         },
       };

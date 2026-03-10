@@ -21,13 +21,9 @@ import { useLabelInfoBoxSlotsInput } from "./useLabelInfoBoxSlotsInput";
 import { usePlanarInfoBoxSlotsInput } from "./usePlanarInfoBoxSlotsInput";
 import { usePointInfoBoxSlotsInput } from "./usePointInfoBoxSlotsInput";
 
-type UseAnnotationInfoBoxPayloadParams = {
-  pixelWidth: number;
-};
-
-export const useAnnotationInfoBoxPayload = ({
-  pixelWidth,
-}: UseAnnotationInfoBoxPayloadParams): AnnotationInfoBoxPayload => {
+export const useAnnotationInfoBoxPayload = (
+  pixelWidth: number
+): AnnotationInfoBoxPayload => {
   const distanceState = useDistanceInfoBoxSlotsInput();
   const pointState = usePointInfoBoxSlotsInput();
   const labelState = useLabelInfoBoxSlotsInput();
@@ -61,31 +57,32 @@ export const useAnnotationInfoBoxPayload = ({
     handleNavigationSelection,
     handleNavigationFlyTo,
     onFlyToAllMeasurements,
-  } = useAnnotationInfoBoxNavigationBindings({
+  } = useAnnotationInfoBoxNavigationBindings(
     annotationType,
-    currentMeasurementId:
-      annotationType === ANNOTATION_TYPE_DISTANCE
-        ? distanceState.currentMeasurementId
-        : annotationType === ANNOTATION_TYPE_POINT
-        ? pointState.currentMeasurementId
-        : annotationType === ANNOTATION_TYPE_LABEL
-        ? labelState.currentMeasurementId
-        : distanceState.currentMeasurementId,
-    labelMeasurements: labelState.labelMeasurements,
-  });
+    annotationType === ANNOTATION_TYPE_DISTANCE
+      ? distanceState.currentMeasurementId
+      : annotationType === ANNOTATION_TYPE_POINT
+      ? pointState.currentMeasurementId
+      : annotationType === ANNOTATION_TYPE_LABEL
+      ? labelState.currentMeasurementId
+      : distanceState.currentMeasurementId,
+    labelState.labelMeasurements
+  );
 
   const {
     currentIndex,
     totalEntries,
     onPreviousMeasurement,
     onNextMeasurement,
-  } = useAnnotationInfoNavigationState({
+  } = useAnnotationInfoNavigationState(
     navigationMeasurements,
-    currentMeasurementId: currentNavigationId,
-    onSelectMeasurementById: handleNavigationSelection,
-    onFlyToMeasurementById: handleNavigationFlyTo,
-    onFlyToAllMeasurements,
-  });
+    currentNavigationId,
+    {
+      onSelectMeasurementById: handleNavigationSelection,
+      onFlyToMeasurementById: handleNavigationFlyTo,
+      onFlyToAllMeasurements,
+    }
+  );
 
   const slots = getAnnotationInfoBoxSlots(slotsInput);
 

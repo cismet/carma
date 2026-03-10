@@ -65,12 +65,11 @@ const getPlanarMetricContent = (input: PolygonPolylineAnnotationSlotsInput) => {
             size="small"
             checked={isComponentsMode}
             onChange={(checked) =>
-              input.actions.updatePlanarPolygonSegmentLineModeById(
-                input.groupId,
-                checked
+              input.actions.updateVisualizerOptionsById(input.measurementId, {
+                segmentLineMode: checked
                   ? LINEAR_SEGMENT_LINE_MODE_COMPONENTS
-                  : LINEAR_SEGMENT_LINE_MODE_DIRECT
-              )
+                  : LINEAR_SEGMENT_LINE_MODE_DIRECT,
+              })
             }
             aria-label="Polygonzug-Segmentdarstellung umschalten"
             data-test-id="infobox-polyline-line-mode-toggle"
@@ -181,7 +180,7 @@ const renderPlanarHeadingActions = (
         name="search-location"
         onClick={(event: ReactMouseEvent<HTMLElement, MouseEvent>) => {
           stopHeadingActionPropagation(event);
-          input.actions.flyToPlanarPolygonGroupById(input.groupId);
+          input.actions.flyToById(input.measurementId);
         }}
         className="cursor-pointer text-[15px] text-white/85 hover:text-white"
         data-test-id="carma-flyto-planar-group-btn"
@@ -192,7 +191,7 @@ const renderPlanarHeadingActions = (
       icon={input.hidden ? faEyeSlash : faEye}
       onClick={(event) => {
         stopHeadingActionPropagation(event);
-        input.actions.togglePlanarPolygonGroupVisibilityById(input.groupId);
+        input.actions.toggleVisibilityByIds([input.measurementId]);
       }}
       className="cursor-pointer text-[14px] text-white/85 hover:text-white"
       dataTestId="carma-toggle-planar-group-visibility-btn"
@@ -202,7 +201,7 @@ const renderPlanarHeadingActions = (
       icon={input.locked ? faLock : faLockOpen}
       onClick={(event) => {
         stopHeadingActionPropagation(event);
-        input.actions.togglePlanarPolygonGroupLockById(input.groupId);
+        input.actions.toggleLockByIds([input.measurementId]);
       }}
       className="cursor-pointer text-[14px] text-white/85 hover:text-white"
       dataTestId="carma-toggle-planar-group-lock-btn"
@@ -212,7 +211,7 @@ const renderPlanarHeadingActions = (
       icon={faTrashCan}
       onClick={(event) => {
         stopHeadingActionPropagation(event);
-        input.actions.deletePlanarPolygonGroupById(input.groupId);
+        input.actions.removeByIds([input.measurementId]);
       }}
       className="cursor-pointer text-[14px] text-white/85 hover:text-white"
       dataTestId="carma-delete-planar-group-btn"
@@ -229,7 +228,7 @@ export const getPlanarAnnotationInfoBoxSlots = (
     <div className="mt-1 mb-0 w-full px-2">
       <span className="font-bold flex-1 min-w-0">
         <AnnotationInfoTitleInput
-          key={input.groupId}
+          key={input.measurementId}
           value={input.name ?? ""}
           placeholder={`${PLANAR_TYPE_TITLE_BY_KIND[input.kind]} #${
             input.order
@@ -238,10 +237,10 @@ export const getPlanarAnnotationInfoBoxSlots = (
           capitalize={false}
           multiline={true}
           onChange={(nextTitle) =>
-            input.actions.updatePlanarPolygonNameById(input.groupId, nextTitle)
+            input.actions.updateNameById(input.measurementId, nextTitle)
           }
           onCommit={(nextTitle) =>
-            input.actions.updatePlanarPolygonNameById(input.groupId, nextTitle)
+            input.actions.updateNameById(input.measurementId, nextTitle)
           }
         />
       </span>

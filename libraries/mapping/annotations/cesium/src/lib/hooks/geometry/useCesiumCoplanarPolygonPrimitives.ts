@@ -3,7 +3,6 @@ import { useEffect, useRef } from "react";
 import {
   Cartesian3,
   CoplanarPolygonGeometry,
-  Color,
   ColorGeometryInstanceAttribute,
   GeometryInstance,
   Matrix4,
@@ -13,8 +12,7 @@ import {
   offsetCartesian3Positions,
   type Scene,
 } from "@carma/cesium";
-import { type PolygonPreviewGroup } from "@carma-mapping/annotations/core";
-import { useCesiumContext } from "@carma-mapping/engines/cesium";
+import type { CesiumPolygonPrimitive } from "./useCesiumGroundPolygonPrimitives";
 
 const removePrimitiveCollection = (
   scene: Scene,
@@ -24,18 +22,10 @@ const removePrimitiveCollection = (
   scene.primitives.remove(primitiveCollection);
 };
 
-export type CesiumCoplanarPolygonPrimitive = {
-  id: string;
-  vertexPoints: ReadonlyArray<PolygonPreviewGroup["vertexPoints"][number]>;
-  fillColor: Color;
-};
-
 export const useCesiumCoplanarPolygonPrimitives = (
-  polygonPrimitives: readonly CesiumCoplanarPolygonPrimitive[],
-  sceneOverride?: Scene | null
+  scene: Scene | null,
+  polygonPrimitives: readonly CesiumPolygonPrimitive[]
 ) => {
-  const { getScene } = useCesiumContext();
-  const scene = sceneOverride ?? getScene();
   const primitiveCollectionRef = useRef<PrimitiveCollection | null>(null);
 
   useEffect(() => {
@@ -105,5 +95,5 @@ export const useCesiumCoplanarPolygonPrimitives = (
       primitiveCollectionRef.current = null;
       scene.requestRender();
     };
-  }, [getScene, polygonPrimitives, scene]);
+  }, [polygonPrimitives, scene]);
 };

@@ -20,7 +20,10 @@ function Control({ position, children, order }: ControlProps) {
     return () => {
       removeControl({ position, component: children, order });
     };
-  }, [children]);
+    // Control registration must stay mount-scoped; re-registering on every
+    // render (new ReactNode identity) causes control layout update loops.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   return <></>;
 }

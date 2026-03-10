@@ -1,11 +1,8 @@
 import type { Cartesian3Json, Matrix4ConstructorArgs } from "@carma/cesium";
 import {
   type AreaLabelText,
-  type GroundPolygonPreviewGroup,
   type PlanarPolygonGroup,
-  type PlanarPolygonPreviewGroup,
   type PolygonPreviewGroup,
-  type VerticalPolygonPreviewGroup,
 } from "@carma-mapping/annotations/core";
 
 import type { CssPixelPosition } from "@carma/units/types";
@@ -17,7 +14,6 @@ export type PolygonAreaBadge = {
 };
 
 type AreaLabelVisualizerCommonOptions = {
-  viewProjector: AreaLabelViewProjector;
   focusedPolygonGroupId: string | null;
   polygonAreaBadgeByGroupId: Readonly<Record<string, PolygonAreaBadge>>;
 };
@@ -36,24 +32,17 @@ export type AreaLabelViewProjector = {
 };
 
 export type GroundAreaLabelVisualizerOptions =
-  AreaLabelVisualizerCommonOptions & {
-    groundPolygonPreviewGroups: GroundPolygonPreviewGroup[];
-  };
+  AreaLabelVisualizerCommonOptions & {};
 
 export type VerticalAreaLabelVisualizerOptions =
-  AreaLabelVisualizerCommonOptions & {
-    verticalPolygonPreviewGroups: VerticalPolygonPreviewGroup[];
-  };
+  AreaLabelVisualizerCommonOptions & {};
 
 export type PlanarAreaLabelVisualizerOptions =
-  AreaLabelVisualizerCommonOptions & {
-    planarPolygonPreviewGroups: PlanarPolygonPreviewGroup[];
-  };
+  AreaLabelVisualizerCommonOptions & {};
 
 export type PolygonAreaLabelOverlayBaseOptions =
   AreaLabelVisualizerCommonOptions & {
     overlayPrefix: string;
-    polygonPreviewGroups: PolygonPreviewGroup[];
     resolveAreaLabelText: (
       group: PlanarPolygonGroup,
       vertices: Cartesian3Json[]

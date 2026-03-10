@@ -10,11 +10,17 @@ import {
 } from "@carma/cesium";
 
 import {
-  isPointAnnotationEntry,
+  getPointById,
   type AnnotationCollection,
 } from "@carma-mapping/annotations/core";
-import { hasPointCandidateOffsetStem } from "../candidate/candidateCapabilities";
-import { type AnnotationCandidateKind } from "../annotationCandidate.types";
+import {
+  hasPointCandidateOffsetStem,
+  resolveCandidateCapabilities,
+} from "../candidate/candidateCapabilities";
+import {
+  type AnnotationCandidateDescriptor,
+  type AnnotationCandidateKind,
+} from "../annotationCandidate.types";
 
 type AnnotationCursorSource = "none" | "raw" | "snapped-node";
 
@@ -38,12 +44,7 @@ type RawMeasurementPointerSample = {
 };
 
 type UseAnnotationCursorStateParams = {
-  scene: Scene | null;
-  annotations: AnnotationCollection;
   enabled: boolean;
-  candidateKind: AnnotationCandidateKind;
-  verticalOffsetMeters: number;
-  hasCandidateNode: boolean;
   snappedPointReleaseDelayMs: number;
   getPositionWithVerticalOffsetFromAnchor: (
     positionECEF: Cartesian3,
@@ -51,9 +52,6 @@ type UseAnnotationCursorStateParams = {
   ) => Cartesian3;
   onCandidateNodePositionChange?: (positionECEF: Cartesian3 | null) => void;
 };
-
-const getPointById = (annotations: AnnotationCollection, pointId: string) =>
-  annotations.find((annotation) => annotation.id === pointId) ?? null;
 
 const cloneCartesian3OrNull = (value: Cartesian3 | null) =>
   value ? Cartesian3.clone(value) : null;
@@ -159,17 +157,20 @@ const resolveCandidateWorldState = ({
   };
 };
 
-export const useAnnotationCursorState = ({
-  scene,
-  annotations,
-  enabled,
-  candidateKind,
-  verticalOffsetMeters,
-  hasCandidateNode,
-  snappedPointReleaseDelayMs,
-  getPositionWithVerticalOffsetFromAnchor,
-  onCandidateNodePositionChange,
-}: UseAnnotationCursorStateParams) => {
+export const useAnnotationCursorState = (
+  scene: Scene | null,
+  annotations: AnnotationCollection,
+  candidate: AnnotationCandidateDescriptor,
+  {
+    enabled,
+    snappedPointReleaseDelayMs,
+    getPositionWithVerticalOffsetFromAnchor,
+    onCandidateNodePositionChange,
+  }: UseAnnotationCursorStateParams
+) => {
+  const { hasCandidateNode } = resolveCandidateCapabilities(candidate.kind);
+  const candidateKind = candidate.kind;
+  const verticalOffsetMeters = candidate.verticalOffsetMeters;
   const [cursorState, setCursorState] = useState<AnnotationCursorState>({
     source: "none",
     cursorScreenPosition: null,
@@ -185,11 +186,17 @@ export const useAnnotationCursorState = ({
   const snappedPointScreenPositionRef =
     useRef<AnnotationCursorScreenPosition | null>(null);
   const snappedPointReleaseTimeoutRef = useRef<number | null>(null);
+  const candidateNodePositionChangeRef = useRef(onCandidateNodePositionChange);
+  const clearMeasurementCursorRef = useRef<(() => void) | null>(null);
   const rawPointerSampleRef = useRef<RawMeasurementPointerSample>({
     positionECEF: null,
     screenPosition: null,
     surfaceNormalECEF: null,
   });
+
+  useEffect(() => {
+    candidateNodePositionChangeRef.current = onCandidateNodePositionChange;
+  }, [onCandidateNodePositionChange]);
 
   const clearSnappedPointReleaseTimeout = useCallback(() => {
     if (snappedPointReleaseTimeoutRef.current === null) return;
@@ -237,6 +244,7 @@ export const useAnnotationCursorState = ({
       const nextSnappedPointId =
         source === "snapped-node" ? snappedPointId ?? null : null;
 
+      let hasStateChanged = false;
       setCursorState((previousState) => {
         if (
           previousState.source === source &&
@@ -268,6 +276,7 @@ export const useAnnotationCursorState = ({
         ) {
           return previousState;
         }
+        hasStateChanged = true;
 
         return {
           source,
@@ -281,13 +290,15 @@ export const useAnnotationCursorState = ({
         };
       });
 
-      onCandidateNodePositionChange?.(candidateNodePositionECEF);
+      if (!hasStateChanged) {
+        return;
+      }
+      candidateNodePositionChangeRef.current?.(candidateNodePositionECEF);
       scene?.requestRender();
     },
     [
       candidateKind,
       getPositionWithVerticalOffsetFromAnchor,
-      onCandidateNodePositionChange,
       scene,
       verticalOffsetMeters,
     ]
@@ -310,6 +321,10 @@ export const useAnnotationCursorState = ({
       snappedPointId: null,
     });
   }, [clearSnappedPointReleaseTimeout, setCursorStateInternal]);
+
+  useEffect(() => {
+    clearMeasurementCursorRef.current = clearMeasurementCursor;
+  }, [clearMeasurementCursor]);
 
   const clearSnappedMeasurementCursor = useCallback(() => {
     clearSnappedPointReleaseTimeout();
@@ -336,7 +351,7 @@ export const useAnnotationCursorState = ({
     ) => {
       clearSnappedPointReleaseTimeout();
       const hoveredPoint = getPointById(annotations, pointId);
-      if (!hoveredPoint || !isPointAnnotationEntry(hoveredPoint)) {
+      if (!hoveredPoint) {
         return false;
       }
 
@@ -402,7 +417,7 @@ export const useAnnotationCursorState = ({
       }
 
       const snappedPoint = getPointById(annotations, snappedPointId);
-      if (!snappedPoint || !isPointAnnotationEntry(snappedPoint)) {
+      if (!snappedPoint) {
         clearSnappedMeasurementCursor();
         applyLastRawPointerSample();
         return;
@@ -459,9 +474,9 @@ export const useAnnotationCursorState = ({
 
   useEffect(
     () => () => {
-      clearMeasurementCursor();
+      clearMeasurementCursorRef.current?.();
     },
-    [clearMeasurementCursor]
+    []
   );
 
   return {

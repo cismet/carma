@@ -4,7 +4,7 @@ import { Cartesian2, Cartesian3, type Scene } from "@carma/cesium";
 
 import type {
   AnnotationCollection,
-  PlanarPolygonGroup,
+  PlanarMeasurementGroup,
 } from "@carma-mapping/annotations/core";
 
 import { useAnnotationCursorState } from "./input/useAnnotationCursorState";
@@ -33,21 +33,14 @@ export {
 } from "./annotationCandidate.types";
 
 type UseAnnotationCandidateStateParams = {
-  scene: Scene | null;
-  candidate: AnnotationCandidateDescriptor;
   pointQueryEnabled: boolean;
   moveGizmoPointId: string | null;
   isMoveGizmoDragging: boolean;
-  annotations: AnnotationCollection;
-  setPlanarPolygonGroups: Dispatch<SetStateAction<PlanarPolygonGroup[]>>;
+  setPlanarPolygonGroups: Dispatch<SetStateAction<PlanarMeasurementGroup[]>>;
   getPositionWithVerticalOffsetFromAnchor: (
     positionECEF: Cartesian3,
     verticalOffsetMeters: number
   ) => Cartesian3;
-  getFacadeRectanglePreviewAreaSquareMeters: (
-    firstVertexECEF: Cartesian3,
-    oppositeVertexECEF: Cartesian3
-  ) => number;
 };
 
 type UseAnnotationCandidateStateResult = {
@@ -76,17 +69,18 @@ type UseAnnotationCandidateStateResult = {
 
 const SNAPPED_NODE_CURSOR_RELEASE_DELAY_MS = 80;
 
-export const useAnnotationCandidateState = ({
-  scene,
-  candidate,
-  pointQueryEnabled,
-  moveGizmoPointId,
-  isMoveGizmoDragging,
-  annotations,
-  setPlanarPolygonGroups,
-  getPositionWithVerticalOffsetFromAnchor,
-  getFacadeRectanglePreviewAreaSquareMeters,
-}: UseAnnotationCandidateStateParams): UseAnnotationCandidateStateResult => {
+export const useAnnotationCandidateState = (
+  scene: Scene | null,
+  annotations: AnnotationCollection,
+  candidate: AnnotationCandidateDescriptor,
+  {
+    pointQueryEnabled,
+    moveGizmoPointId,
+    isMoveGizmoDragging,
+    setPlanarPolygonGroups,
+    getPositionWithVerticalOffsetFromAnchor,
+  }: UseAnnotationCandidateStateParams
+): UseAnnotationCandidateStateResult => {
   const capabilities = resolveCandidateCapabilities(candidate.kind);
   const {
     isPolylineCandidateMode,
@@ -94,7 +88,6 @@ export const useAnnotationCandidateState = ({
     candidateSupportsEdgeLine,
     candidateUsesPolylineEdgeRules,
     candidateForcesDirectEdgeLine,
-    isVerticalPolygonCandidate,
   } = capabilities;
   const annotationCursorEnabled =
     hasCandidateNode &&
@@ -102,14 +95,12 @@ export const useAnnotationCandidateState = ({
     !moveGizmoPointId &&
     !isMoveGizmoDragging;
 
-  const updateVerticalPolygonCandidate = useVerticalPolygonCandidate({
+  const updateVerticalPolygonCandidate = useVerticalPolygonCandidate(
     scene,
-    isVerticalPolygonCandidate,
-    candidate,
     annotations,
-    setPlanarPolygonGroups,
-    getFacadeRectanglePreviewAreaSquareMeters,
-  });
+    candidate,
+    setPlanarPolygonGroups
+  );
 
   const {
     candidateNodePositionECEF: activeCandidateNodeECEF,
@@ -121,13 +112,8 @@ export const useAnnotationCandidateState = ({
     handleAnnotationCursorMove,
     scheduleAnnotationCursorSnapRelease,
     syncAnnotationCursorToExistingPoint,
-  } = useAnnotationCursorState({
-    scene,
-    annotations,
+  } = useAnnotationCursorState(scene, annotations, candidate, {
     enabled: annotationCursorEnabled,
-    candidateKind: candidate.kind,
-    verticalOffsetMeters: candidate.verticalOffsetMeters,
-    hasCandidateNode,
     snappedPointReleaseDelayMs: SNAPPED_NODE_CURSOR_RELEASE_DELAY_MS,
     getPositionWithVerticalOffsetFromAnchor,
     onCandidateNodePositionChange: updateVerticalPolygonCandidate,

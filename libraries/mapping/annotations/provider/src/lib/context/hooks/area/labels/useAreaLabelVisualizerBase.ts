@@ -9,12 +9,18 @@ import {
   type LayoutPointInput,
 } from "@carma-providers/label-overlay";
 import {
+  ANNOTATION_TYPE_AREA_GROUND,
+  ANNOTATION_TYPE_AREA_PLANAR,
+  ANNOTATION_TYPE_AREA_VERTICAL,
   computePolygonCentroid2D,
   type PlanarPolygonGroup,
 } from "@carma-mapping/annotations/core";
 
 import type { CssPixelPosition } from "@carma/units/types";
-import { type PolygonAreaLabelOverlayBaseOptions } from "./areaLabelVisualizer.types";
+import {
+  type AreaLabelViewProjector,
+  type PolygonAreaLabelOverlayBaseOptions,
+} from "./areaLabelVisualizer.types";
 
 const POLYGON_PREVIEW_PADDING_PX = 6;
 const POLYGON_STRIPE_SIZE_PX = 6;
@@ -58,19 +64,18 @@ const isFiniteScreenPoint = (
 ): point is CssPixelPosition =>
   Boolean(point) && Number.isFinite(point.x) && Number.isFinite(point.y);
 
-const getPolygonStripeColor = (
-  surfaceType: PlanarPolygonGroup["surfaceType"]
-): string => {
-  if (surfaceType === "facade") return "rgba(111, 168, 255, 0.35)";
-  if (surfaceType === "terrain") return "rgba(107, 188, 123, 0.35)";
-  if (surfaceType === "footprint") return "rgba(226, 232, 240, 0.35)";
-  return "rgba(239, 223, 145, 0.35)"; // roof
+const getPolygonStripeColor = (type: PlanarPolygonGroup["type"]): string => {
+  if (type === ANNOTATION_TYPE_AREA_VERTICAL)
+    return "rgba(111, 168, 255, 0.35)";
+  if (type === ANNOTATION_TYPE_AREA_GROUND) return "rgba(107, 188, 123, 0.35)";
+  if (type === ANNOTATION_TYPE_AREA_PLANAR) return "rgba(239, 223, 145, 0.35)";
+  return "rgba(239, 223, 145, 0.35)";
 };
 
 const buildPolygonPreviewContent = (group: PlanarPolygonGroup) => {
   const patternId = `stripe-${group.id}`;
-  const stripeColor = getPolygonStripeColor(group.surfaceType);
-  const isFootprintSurface = (group.surfaceType ?? "roof") === "footprint";
+  const stripeColor = getPolygonStripeColor(group.type);
+  const isGroundSurface = group.type === ANNOTATION_TYPE_AREA_GROUND;
 
   return createElement(
     "div",
@@ -127,7 +132,7 @@ const buildPolygonPreviewContent = (group: PlanarPolygonGroup) => {
       }),
       createElement("polygon", {
         "data-polygon-preview-stripe": "true",
-        fill: isFootprintSurface ? "none" : `url(#${patternId})`,
+        fill: isGroundSurface ? "none" : `url(#${patternId})`,
         stroke: "none",
         style: {
           pointerEvents: "none",
@@ -202,14 +207,19 @@ const createEmptyPolygonAreaLabelLayoutResult =
 const toMatrixCacheKey = (matrix: readonly number[]) =>
   matrix.map((value) => value.toFixed(6)).join(",");
 
-export const useAreaLabelVisualizerBase = ({
-  overlayPrefix,
-  viewProjector,
-  polygonPreviewGroups,
-  focusedPolygonGroupId,
-  polygonAreaBadgeByGroupId,
-  resolveAreaLabelText,
-}: PolygonAreaLabelOverlayBaseOptions) => {
+export const useAreaLabelVisualizerBase = (
+  viewProjector: AreaLabelViewProjector,
+  polygonPreviewGroups: readonly {
+    group: PlanarPolygonGroup;
+    vertexPoints: import("@carma/cesium").Cartesian3Json[];
+  }[],
+  {
+    overlayPrefix,
+    focusedPolygonGroupId,
+    polygonAreaBadgeByGroupId,
+    resolveAreaLabelText,
+  }: PolygonAreaLabelOverlayBaseOptions
+) => {
   const { addLabelOverlayElement, removeLabelOverlayElement } =
     useLabelOverlay();
   const overlayIdsRef = useRef<string[]>([]);

@@ -1,4 +1,4 @@
-export * from "./lib/gizmoMath";
+export * from "./lib/constants";
 export * from "./lib/axisDragConnector";
 export * from "./lib/cssAxisDragController";
 export * from "./lib/cssAxisGizmoView";

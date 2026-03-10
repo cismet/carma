@@ -7,36 +7,34 @@ import {
 } from "@carma-mapping/annotations/core";
 import { useLabelOverlay } from "@carma-providers/label-overlay";
 
-const FACADE_CORNER_OVERLAY_ID_PREFIX = "distance-facade-corner";
-const FACADE_CORNER_MARKER_SIZE_PX = 10;
-const FACADE_CORNER_MARKER_STROKE_WIDTH_PX = 1;
+const VERTICAL_CORNER_OVERLAY_ID_PREFIX = "distance-vertical-corner";
+const VERTICAL_CORNER_MARKER_SIZE_PX = 10;
+const VERTICAL_CORNER_MARKER_STROKE_WIDTH_PX = 1;
 
-export type PolylineOverlayVisualizerOptions = {
-  scene: Scene | null;
-  polylineMeasurements: PolylinePreviewMeasurement[];
-};
+export type PolylineOverlayVisualizerOptions = Record<string, never>;
 
-export const usePolylineOverlayVisualizer = ({
-  scene,
-  polylineMeasurements,
-}: PolylineOverlayVisualizerOptions) => {
-  const facadeCornerOverlayIdsRef = useRef<string[]>([]);
+export const usePolylineOverlayVisualizer = (
+  scene: Scene | null,
+  polylineMeasurements: PolylinePreviewMeasurement[],
+  _options: PolylineOverlayVisualizerOptions = {}
+) => {
+  const verticalCornerOverlayIdsRef = useRef<string[]>([]);
   const { addLabelOverlayElement, removeLabelOverlayElement } =
     useLabelOverlay();
 
-  const facadeCornerMarkers = useMemo(
+  const verticalCornerMarkers = useMemo(
     () => buildPolylinePreviewCornerMarkers(polylineMeasurements),
     [polylineMeasurements]
   );
 
-  const facadeCornerMarkerContent = useMemo(
+  const verticalCornerMarkerContent = useMemo(
     () =>
       createElement("div", {
         style: {
-          width: `${FACADE_CORNER_MARKER_SIZE_PX}px`,
-          height: `${FACADE_CORNER_MARKER_SIZE_PX}px`,
+          width: `${VERTICAL_CORNER_MARKER_SIZE_PX}px`,
+          height: `${VERTICAL_CORNER_MARKER_SIZE_PX}px`,
           borderRadius: "50%",
-          border: `${FACADE_CORNER_MARKER_STROKE_WIDTH_PX}px solid rgba(255, 255, 255, 0.95)`,
+          border: `${VERTICAL_CORNER_MARKER_STROKE_WIDTH_PX}px solid rgba(255, 255, 255, 0.95)`,
           background: "transparent",
           boxSizing: "border-box",
           pointerEvents: "none",
@@ -46,22 +44,22 @@ export const usePolylineOverlayVisualizer = ({
   );
 
   useEffect(() => {
-    facadeCornerOverlayIdsRef.current.forEach((overlayId) => {
+    verticalCornerOverlayIdsRef.current.forEach((overlayId) => {
       removeLabelOverlayElement(overlayId);
     });
-    facadeCornerOverlayIdsRef.current = [];
+    verticalCornerOverlayIdsRef.current = [];
 
     if (!scene || scene.isDestroyed()) {
       return;
     }
 
     const nextOverlayIds: string[] = [];
-    facadeCornerMarkers.forEach((marker) => {
-      const overlayId = `${FACADE_CORNER_OVERLAY_ID_PREFIX}-${marker.id}`;
+    verticalCornerMarkers.forEach((marker) => {
+      const overlayId = `${VERTICAL_CORNER_OVERLAY_ID_PREFIX}-${marker.id}`;
       addLabelOverlayElement({
         id: overlayId,
         zIndex: 9,
-        content: facadeCornerMarkerContent,
+        content: verticalCornerMarkerContent,
         updatePosition: (elementDiv) => {
           if (!scene || scene.isDestroyed()) return false;
           const screenPosition = SceneTransforms.worldToWindowCoordinates(
@@ -80,28 +78,28 @@ export const usePolylineOverlayVisualizer = ({
       nextOverlayIds.push(overlayId);
     });
 
-    facadeCornerOverlayIdsRef.current = nextOverlayIds;
+    verticalCornerOverlayIdsRef.current = nextOverlayIds;
 
     return () => {
       nextOverlayIds.forEach((overlayId) => {
         removeLabelOverlayElement(overlayId);
       });
-      facadeCornerOverlayIdsRef.current = [];
+      verticalCornerOverlayIdsRef.current = [];
     };
   }, [
     addLabelOverlayElement,
-    facadeCornerMarkerContent,
-    facadeCornerMarkers,
+    verticalCornerMarkerContent,
+    verticalCornerMarkers,
     removeLabelOverlayElement,
     scene,
   ]);
 
   useEffect(() => {
     return () => {
-      facadeCornerOverlayIdsRef.current.forEach((overlayId) => {
+      verticalCornerOverlayIdsRef.current.forEach((overlayId) => {
         removeLabelOverlayElement(overlayId);
       });
-      facadeCornerOverlayIdsRef.current = [];
+      verticalCornerOverlayIdsRef.current = [];
     };
   }, [removeLabelOverlayElement]);
 };

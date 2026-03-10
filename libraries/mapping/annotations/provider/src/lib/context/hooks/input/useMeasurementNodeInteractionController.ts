@@ -1,36 +1,32 @@
 import { useCallback, useMemo } from "react";
 
 import {
+  ANNOTATION_TYPE_AREA_GROUND,
+  ANNOTATION_TYPE_AREA_PLANAR,
+  ANNOTATION_TYPE_AREA_VERTICAL,
   ANNOTATION_TYPE_DISTANCE,
+  ANNOTATION_TYPE_LABEL,
   ANNOTATION_TYPE_POINT,
   ANNOTATION_TYPE_POLYLINE,
-  PLANAR_TOOL_CREATION_MODE_POLYGON,
   type AnnotationCollection,
-  type AnnotationMode,
-  type PlanarPolygonGroup,
-  type PlanarToolCreationMode,
+  type AnnotationToolType,
+  type PlanarMeasurementGroup,
 } from "@carma-mapping/annotations/core";
+import { isAreaToolType } from "../../mode-lifecycle/annotationToolState";
 
 const EMPTY_INTERACTIVE_POINT_ID_SET = new Set<string>();
 
 type UseMeasurementNodeInteractionControllerParams = {
-  annotations: AnnotationCollection;
-  annotationMode: AnnotationMode;
+  activeToolType: AnnotationToolType;
+  allowInteractiveNodeCursorSnap: boolean;
   selectionModeActive: boolean;
   effectiveSelectModeAdditive: boolean;
   selectablePointIds: ReadonlySet<string>;
-  moveGizmoPointId: string | null;
-  isMoveGizmoDragging: boolean;
-  pointQueryEnabled: boolean;
-  hasCandidateNode: boolean;
   isActiveDrawMode: boolean;
   distanceModeStickyToFirstPoint: boolean;
-  activePlanarPolygonGroupId: string | null;
-  planarPolygonGroups: readonly PlanarPolygonGroup[];
-  planarToolCreationMode: PlanarToolCreationMode;
-  selectMeasurementIds: (ids: string[], additive?: boolean) => void;
-  selectMeasurementById: (id: string) => void;
-  setMoveGizmoPointElevationFromMeasurementById: (id: string) => void;
+  activePlanarMeasurementId: string | null;
+  selectAnnotationIds: (ids: string[], additive?: boolean) => void;
+  selectAnnotationById: (id: string) => void;
   syncAnnotationCursorToExistingPoint: (
     pointId: string,
     anchorPosition?: { x: number; y: number } | null
@@ -49,54 +45,47 @@ type UseMeasurementNodeInteractionControllerParams = {
   ) => void;
   closeActivePlanarPolygonGroup: () => void;
   finishActivePlanarPolylineGroup: () => void;
+  finishDistanceMeasurementSession: (selectedPointId: string | null) => void;
   setDoubleClickChainSourcePointId: (pointId: string | null) => void;
   handleDefaultPointNodeClick: (pointId: string) => void;
 };
 
 const getActiveOpenPlanarGroup = (
-  planarPolygonGroups: readonly PlanarPolygonGroup[],
-  activePlanarPolygonGroupId: string | null
+  planarPolygonGroups: readonly PlanarMeasurementGroup[],
+  activePlanarMeasurementId: string | null
 ) =>
-  activePlanarPolygonGroupId !== null
+  activePlanarMeasurementId !== null
     ? planarPolygonGroups.find(
-        (group) => group.id === activePlanarPolygonGroupId && !group.closed
+        (group) => group.id === activePlanarMeasurementId && !group.closed
       ) ?? null
     : null;
 
-export const useMeasurementNodeInteractionController = ({
-  annotations,
-  annotationMode,
-  selectionModeActive,
-  effectiveSelectModeAdditive,
-  selectablePointIds,
-  moveGizmoPointId,
-  isMoveGizmoDragging,
-  pointQueryEnabled,
-  hasCandidateNode,
-  isActiveDrawMode,
-  distanceModeStickyToFirstPoint,
-  activePlanarPolygonGroupId,
-  planarPolygonGroups,
-  planarToolCreationMode,
-  selectMeasurementIds,
-  selectMeasurementById,
-  setMoveGizmoPointElevationFromMeasurementById,
-  syncAnnotationCursorToExistingPoint,
-  scheduleAnnotationCursorSnapRelease,
-  resolveDistanceRelationSourcePointId,
-  appendExistingPointToActivePlanarPolygonGroup,
-  upsertDirectDistanceRelation,
-  closeActivePlanarPolygonGroup,
-  finishActivePlanarPolylineGroup,
-  setDoubleClickChainSourcePointId,
-  handleDefaultPointNodeClick,
-}: UseMeasurementNodeInteractionControllerParams) => {
-  const allowInteractiveNodeCursorSnap =
-    pointQueryEnabled &&
-    hasCandidateNode &&
-    !moveGizmoPointId &&
-    !isMoveGizmoDragging;
-
+export const useMeasurementNodeInteractionController = (
+  annotations: AnnotationCollection,
+  planarPolygonGroups: readonly PlanarMeasurementGroup[],
+  {
+    activeToolType,
+    allowInteractiveNodeCursorSnap,
+    selectionModeActive,
+    effectiveSelectModeAdditive,
+    selectablePointIds,
+    isActiveDrawMode,
+    distanceModeStickyToFirstPoint,
+    activePlanarMeasurementId,
+    selectAnnotationIds,
+    selectAnnotationById,
+    syncAnnotationCursorToExistingPoint,
+    scheduleAnnotationCursorSnapRelease,
+    resolveDistanceRelationSourcePointId,
+    appendExistingPointToActivePlanarPolygonGroup,
+    upsertDirectDistanceRelation,
+    closeActivePlanarPolygonGroup,
+    finishActivePlanarPolylineGroup,
+    finishDistanceMeasurementSession,
+    setDoubleClickChainSourcePointId,
+    handleDefaultPointNodeClick,
+  }: UseMeasurementNodeInteractionControllerParams
+) => {
   const interactivePointIds = useMemo(
     () =>
       allowInteractiveNodeCursorSnap
@@ -130,13 +119,8 @@ export const useMeasurementNodeInteractionController = ({
 
   const handlePointNodeClick = useCallback(
     (pointId: string) => {
-      if (moveGizmoPointId) {
-        setMoveGizmoPointElevationFromMeasurementById(pointId);
-        return;
-      }
-
       if (selectionModeActive) {
-        selectMeasurementIds([pointId], effectiveSelectModeAdditive);
+        selectAnnotationIds([pointId], effectiveSelectModeAdditive);
         return;
       }
 
@@ -146,59 +130,67 @@ export const useMeasurementNodeInteractionController = ({
       const isAuxiliaryLabelAnchor = Boolean(
         clickedMeasurement?.auxiliaryLabelAnchor
       );
+      const isPolylineAuthoringTool =
+        activeToolType === ANNOTATION_TYPE_POLYLINE ||
+        isAreaToolType(activeToolType);
 
-      if (annotationMode === ANNOTATION_TYPE_POINT) {
-        selectMeasurementById(pointId);
+      if (
+        activeToolType === ANNOTATION_TYPE_POINT ||
+        activeToolType === ANNOTATION_TYPE_LABEL
+      ) {
+        selectAnnotationById(pointId);
         return;
       }
 
       if (
-        (annotationMode === ANNOTATION_TYPE_DISTANCE ||
-          annotationMode === ANNOTATION_TYPE_POLYLINE) &&
+        (activeToolType === ANNOTATION_TYPE_DISTANCE ||
+          isPolylineAuthoringTool) &&
         !selectablePointIds.has(pointId)
       ) {
         return;
       }
 
       if (isAuxiliaryLabelAnchor) {
-        selectMeasurementById(pointId);
+        selectAnnotationById(pointId);
         return;
       }
 
       if (
-        annotationMode === ANNOTATION_TYPE_DISTANCE ||
-        annotationMode === ANNOTATION_TYPE_POLYLINE
+        activeToolType === ANNOTATION_TYPE_DISTANCE ||
+        isPolylineAuthoringTool
       ) {
         syncAnnotationCursorToExistingPoint(pointId);
       }
 
-      if (annotationMode === ANNOTATION_TYPE_DISTANCE) {
+      if (activeToolType === ANNOTATION_TYPE_DISTANCE) {
         const sourcePointId = resolveDistanceRelationSourcePointId(pointId);
         if (sourcePointId) {
           upsertDirectDistanceRelation(sourcePointId, pointId);
-          setDoubleClickChainSourcePointId(
-            distanceModeStickyToFirstPoint ? sourcePointId : null
-          );
-          selectMeasurementById(pointId);
+          if (distanceModeStickyToFirstPoint) {
+            setDoubleClickChainSourcePointId(sourcePointId);
+            selectAnnotationById(pointId);
+          } else {
+            finishDistanceMeasurementSession(pointId);
+          }
           return;
         }
 
         setDoubleClickChainSourcePointId(pointId);
-        selectMeasurementById(pointId);
+        selectAnnotationById(pointId);
         return;
       }
 
-      if (annotationMode === ANNOTATION_TYPE_POLYLINE) {
+      if (isPolylineAuthoringTool) {
         if (!isActiveDrawMode) {
           appendExistingPointToActivePlanarPolygonGroup(pointId, null);
           setDoubleClickChainSourcePointId(pointId);
-          selectMeasurementById(pointId);
+          selectAnnotationById(pointId);
           return;
         }
 
         const activeOpenGroup = getActiveOpenPlanarGroup(
           planarPolygonGroups,
-          activePlanarPolygonGroupId
+          activePlanarMeasurementId
         );
         const firstVertexId = activeOpenGroup?.vertexPointIds[0] ?? null;
         const shouldHandleRingClosure = Boolean(
@@ -208,7 +200,7 @@ export const useMeasurementNodeInteractionController = ({
             activeOpenGroup.vertexPointIds.length >= 3
         );
         if (shouldHandleRingClosure) {
-          if (planarToolCreationMode === PLANAR_TOOL_CREATION_MODE_POLYGON) {
+          if (activeToolType !== ANNOTATION_TYPE_POLYLINE) {
             closeActivePlanarPolygonGroup();
           } else {
             finishActivePlanarPolylineGroup();
@@ -229,22 +221,20 @@ export const useMeasurementNodeInteractionController = ({
         }
 
         setDoubleClickChainSourcePointId(pointId);
-        selectMeasurementById(pointId);
+        selectAnnotationById(pointId);
         return;
       }
 
       handleDefaultPointNodeClick(pointId);
     },
     [
-      moveGizmoPointId,
-      setMoveGizmoPointElevationFromMeasurementById,
       selectionModeActive,
-      selectMeasurementIds,
+      selectAnnotationIds,
       effectiveSelectModeAdditive,
+      activeToolType,
       annotations,
-      annotationMode,
       selectablePointIds,
-      selectMeasurementById,
+      selectAnnotationById,
       syncAnnotationCursorToExistingPoint,
       resolveDistanceRelationSourcePointId,
       upsertDirectDistanceRelation,
@@ -253,10 +243,10 @@ export const useMeasurementNodeInteractionController = ({
       isActiveDrawMode,
       appendExistingPointToActivePlanarPolygonGroup,
       planarPolygonGroups,
-      activePlanarPolygonGroupId,
-      planarToolCreationMode,
+      activePlanarMeasurementId,
       closeActivePlanarPolygonGroup,
       finishActivePlanarPolylineGroup,
+      finishDistanceMeasurementSession,
       handleDefaultPointNodeClick,
     ]
   );

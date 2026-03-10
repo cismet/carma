@@ -1,16 +1,18 @@
 import { useMemo } from "react";
 
 import {
+  ANNOTATION_TYPE_POINT,
   isPointMeasurementEntry,
-  type AnnotationEntry,
-  type AnnotationMode,
   type PointMeasurementEntry,
-  useAnnotations,
 } from "@carma-mapping/annotations/core";
 import type { LabelAnnotationSlotsInput } from "./getAnnotationInfoBoxSlots";
 import { getLabelAnnotationSlotsInput } from "./getLabelAnnotationSlotsInput";
 import { useAnnotationInfoBoxDisplaySelection } from "./useAnnotationInfoBoxDisplaySelection";
 import { useAnnotationInfoBoxSlotActions } from "./useAnnotationInfoBoxSlotActions";
+import {
+  useAnnotationCollection,
+  useAnnotationTools,
+} from "../../context/AnnotationsProvider";
 
 export type LabelInfoBoxSlotsInputState = {
   isLabelKind: boolean;
@@ -21,10 +23,8 @@ export type LabelInfoBoxSlotsInputState = {
 
 export const useLabelInfoBoxSlotsInput = (): LabelInfoBoxSlotsInputState => {
   const { displayMeasurement } = useAnnotationInfoBoxDisplaySelection();
-  const { annotationsByType, labelInputPromptPointId } = useAnnotations<
-    AnnotationMode,
-    AnnotationEntry
-  >();
+  const annotations = useAnnotationCollection();
+  const tools = useAnnotationTools();
   const actions = useAnnotationInfoBoxSlotActions();
 
   const displayLabelMeasurement =
@@ -33,8 +33,12 @@ export const useLabelInfoBoxSlotsInput = (): LabelInfoBoxSlotsInputState => {
       : null;
 
   const labelMeasurements = useMemo(
-    () => annotationsByType("pointLabel").filter(isPointMeasurementEntry),
-    [annotationsByType]
+    () =>
+      annotations
+        .byType(ANNOTATION_TYPE_POINT)
+        .filter(isPointMeasurementEntry)
+        .filter((measurement) => Boolean(measurement.auxiliaryLabelAnchor)),
+    [annotations]
   );
 
   const labelState = useMemo(
@@ -42,14 +46,14 @@ export const useLabelInfoBoxSlotsInput = (): LabelInfoBoxSlotsInputState => {
       getLabelAnnotationSlotsInput({
         measurement: displayLabelMeasurement,
         labelMeasurements,
-        labelInputPromptPointId,
+        labelInputPromptPointId: tools.pendingLabelPlacementAnnotationId,
         actions,
       }),
     [
       actions,
       displayLabelMeasurement,
-      labelInputPromptPointId,
       labelMeasurements,
+      tools.pendingLabelPlacementAnnotationId,
     ]
   );
 

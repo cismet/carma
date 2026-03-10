@@ -17,13 +17,12 @@ const CURSOR_CENTER_PX = CURSOR_HALF_EXTENT_PX;
 
 type MeasurementCursorOverlayOptions = {
   enabled?: boolean;
-  cursorScreenPosition?: { x: number; y: number } | null;
 };
 
-export const useMeasurementCursorOverlay = ({
-  enabled = true,
-  cursorScreenPosition = null,
-}: MeasurementCursorOverlayOptions) => {
+export const useMeasurementCursorOverlay = (
+  cursorScreenPosition: { x: number; y: number } | null = null,
+  { enabled = true }: MeasurementCursorOverlayOptions = {}
+) => {
   const { addLabelOverlayElement, removeLabelOverlayElement } =
     useLabelOverlay();
 

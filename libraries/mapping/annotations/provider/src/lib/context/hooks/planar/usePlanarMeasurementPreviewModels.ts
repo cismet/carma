@@ -6,23 +6,23 @@ import {
   ANNOTATION_TYPE_AREA_PLANAR,
   ANNOTATION_TYPE_POLYLINE,
   ANNOTATION_TYPE_AREA_VERTICAL,
+  type CandidateConnectionPreview,
   POLYGON_PREVIEW_STROKE,
   POLYGON_PREVIEW_STROKE_WIDTH_PX,
-  type AnnotationPointMarkerBadge,
   buildGroundPolygonPreviewGroups,
   buildPlanarPolygonPreviewGroups,
   buildPolylinePreviewEdgeSegments,
   buildPolylinePreviewMeasurements,
   buildVerticalPolygonPreviewGroups,
+  type PlanarMeasurementGroup,
   type PlanarPolygonGroup,
   type PointAnnotationEntry,
 } from "@carma-mapping/annotations/core";
+import type { AnnotationPointMarkerBadge } from "../../base";
 
 import type {
-  CoplanarPolygonPrimitiveRenderModel,
-  EdgeCandidateLine,
-  GroundPolygonPrimitiveRenderModel,
-  TransientEdgeSegment,
+  EdgeSceneLineRenderModel,
+  PolygonPrimitiveRenderModel,
 } from "../annotationVisualization.types";
 import type { PolygonAreaBadge } from "../area/labels";
 
@@ -36,14 +36,13 @@ const POLYGON_FILL_RGB_BY_MEASUREMENT_TYPE = {
 } as const;
 
 const getPolygonFillColor = (
-  measurementKind:
+  type:
     | typeof ANNOTATION_TYPE_AREA_VERTICAL
     | typeof ANNOTATION_TYPE_AREA_GROUND
     | typeof ANNOTATION_TYPE_AREA_PLANAR,
   isSelected: boolean
 ) => {
-  const [red, green, blue] =
-    POLYGON_FILL_RGB_BY_MEASUREMENT_TYPE[measurementKind];
+  const [red, green, blue] = POLYGON_FILL_RGB_BY_MEASUREMENT_TYPE[type];
   return new Color(
     red,
     green,
@@ -53,7 +52,7 @@ const getPolygonFillColor = (
 };
 
 const toPolygonAreaBadgeByGroupId = (
-  planarPolygonGroups: readonly PlanarPolygonGroup[],
+  planarPolygonGroups: readonly PlanarMeasurementGroup[],
   pointMarkerBadgeByPointId: Readonly<
     Record<string, AnnotationPointMarkerBadge>
   >
@@ -82,12 +81,12 @@ const toGroundPolygonPrimitives = (
   enabled: boolean,
   focusedPolygonGroupId: string | null,
   polygonPreviewGroups: ReturnType<typeof buildGroundPolygonPreviewGroups>
-): readonly GroundPolygonPrimitiveRenderModel[] =>
+): readonly PolygonPrimitiveRenderModel[] =>
   (enabled ? polygonPreviewGroups : []).map(({ group, vertexPoints }) => ({
     id: group.id,
     vertexPoints,
     fillColor: getPolygonFillColor(
-      group.measurementKind as typeof ANNOTATION_TYPE_AREA_GROUND,
+      group.type as typeof ANNOTATION_TYPE_AREA_GROUND,
       group.id === focusedPolygonGroupId
     ),
   }));
@@ -98,59 +97,57 @@ const toCoplanarPolygonPrimitives = (
   polygonPreviewGroups:
     | ReturnType<typeof buildVerticalPolygonPreviewGroups>
     | ReturnType<typeof buildPlanarPolygonPreviewGroups>,
-  measurementKind:
+  type:
     | typeof ANNOTATION_TYPE_AREA_VERTICAL
     | typeof ANNOTATION_TYPE_AREA_PLANAR
-): readonly CoplanarPolygonPrimitiveRenderModel[] =>
+): readonly PolygonPrimitiveRenderModel[] =>
   (enabled ? polygonPreviewGroups : []).map(({ group, vertexPoints }) => ({
     id: group.id,
     vertexPoints,
-    fillColor: getPolygonFillColor(
-      measurementKind,
-      group.id === focusedPolygonGroupId
-    ),
+    fillColor: getPolygonFillColor(type, group.id === focusedPolygonGroupId),
   }));
 
 export type PlanarMeasurementPreviewModelsOptions = {
   enabled: boolean;
-  planarPolygonGroups: readonly PlanarPolygonGroup[];
   pointsById: ReadonlyMap<string, PointAnnotationEntry>;
-  selectedPlanarPolygonGroupId: string | null;
-  activePlanarPolygonGroupId: string | null;
+  focusedPlanarMeasurementId: string | null;
+  activePlanarMeasurementId: string | null;
   pointMarkerBadgeByPointId: Readonly<
     Record<string, AnnotationPointMarkerBadge>
   >;
-  candidateEdgeLine: EdgeCandidateLine;
+  candidateConnectionPreview: CandidateConnectionPreview | null;
 };
 
-export const usePlanarMeasurementPreviewModels = ({
-  enabled,
-  planarPolygonGroups,
-  pointsById,
-  selectedPlanarPolygonGroupId,
-  activePlanarPolygonGroupId,
-  pointMarkerBadgeByPointId,
-  candidateEdgeLine,
-}: PlanarMeasurementPreviewModelsOptions) => {
-  const facadeRectanglePreviewOppositeByGroupId = useMemo(() => {
-    if (!enabled || !candidateEdgeLine) {
+export const usePlanarMeasurementPreviewModels = (
+  planarPolygonGroups: readonly PlanarMeasurementGroup[],
+  {
+    enabled,
+    pointsById,
+    focusedPlanarMeasurementId,
+    activePlanarMeasurementId,
+    pointMarkerBadgeByPointId,
+    candidateConnectionPreview,
+  }: PlanarMeasurementPreviewModelsOptions
+) => {
+  const verticalRectanglePreviewOppositeByGroupId = useMemo(() => {
+    if (!enabled || !candidateConnectionPreview) {
       return undefined;
     }
 
-    const target = candidateEdgeLine.targetPointECEF;
+    const target = candidateConnectionPreview.targetPointECEF;
     if (!target) {
       return undefined;
     }
 
-    const activeGroup = activePlanarPolygonGroupId
+    const activeGroup = activePlanarMeasurementId
       ? planarPolygonGroups.find(
-          (group) => group.id === activePlanarPolygonGroupId
+          (group) => group.id === activePlanarMeasurementId
         )
       : null;
     if (!activeGroup || activeGroup.closed) {
       return undefined;
     }
-    if (activeGroup.measurementKind !== ANNOTATION_TYPE_AREA_VERTICAL) {
+    if (activeGroup.type !== ANNOTATION_TYPE_AREA_VERTICAL) {
       return undefined;
     }
     if (activeGroup.vertexPointIds.length !== 1) {
@@ -161,9 +158,9 @@ export const usePlanarMeasurementPreviewModels = ({
       [activeGroup.id]: Cartesian3.clone(target),
     };
   }, [
-    activePlanarPolygonGroupId,
+    activePlanarMeasurementId,
     enabled,
-    candidateEdgeLine,
+    candidateConnectionPreview,
     planarPolygonGroups,
   ]);
 
@@ -172,9 +169,9 @@ export const usePlanarMeasurementPreviewModels = ({
       buildPolylinePreviewMeasurements({
         planarPolygonGroups: [...planarPolygonGroups],
         pointsById,
-        facadeRectanglePreviewOppositeByGroupId,
+        verticalRectanglePreviewOppositeByGroupId,
       }),
-    [facadeRectanglePreviewOppositeByGroupId, planarPolygonGroups, pointsById]
+    [verticalRectanglePreviewOppositeByGroupId, planarPolygonGroups, pointsById]
   );
 
   const polygonAreaBadgeByGroupId = useMemo(
@@ -187,21 +184,21 @@ export const usePlanarMeasurementPreviewModels = ({
   );
 
   const focusedPolygonGroupId =
-    selectedPlanarPolygonGroupId ?? activePlanarPolygonGroupId;
+    focusedPlanarMeasurementId ?? activePlanarMeasurementId;
 
   const groundPolygonPreviewGroups = useMemo(
     () =>
       buildGroundPolygonPreviewGroups({
         planarPolygonGroups: [...planarPolygonGroups],
         pointsById,
-        facadeRectanglePreviewOppositeByGroupId,
-        activePlanarPolygonGroupId,
-        candidateEdgeLine: candidateEdgeLine,
+        verticalRectanglePreviewOppositeByGroupId,
+        activePlanarMeasurementId,
+        candidateConnection: candidateConnectionPreview,
       }),
     [
-      activePlanarPolygonGroupId,
-      facadeRectanglePreviewOppositeByGroupId,
-      candidateEdgeLine,
+      activePlanarMeasurementId,
+      verticalRectanglePreviewOppositeByGroupId,
+      candidateConnectionPreview,
       planarPolygonGroups,
       pointsById,
     ]
@@ -212,14 +209,14 @@ export const usePlanarMeasurementPreviewModels = ({
       buildVerticalPolygonPreviewGroups({
         planarPolygonGroups: [...planarPolygonGroups],
         pointsById,
-        facadeRectanglePreviewOppositeByGroupId,
-        activePlanarPolygonGroupId,
-        candidateEdgeLine: candidateEdgeLine,
+        verticalRectanglePreviewOppositeByGroupId,
+        activePlanarMeasurementId,
+        candidateConnection: candidateConnectionPreview,
       }),
     [
-      activePlanarPolygonGroupId,
-      facadeRectanglePreviewOppositeByGroupId,
-      candidateEdgeLine,
+      activePlanarMeasurementId,
+      verticalRectanglePreviewOppositeByGroupId,
+      candidateConnectionPreview,
       planarPolygonGroups,
       pointsById,
     ]
@@ -230,14 +227,14 @@ export const usePlanarMeasurementPreviewModels = ({
       buildPlanarPolygonPreviewGroups({
         planarPolygonGroups: [...planarPolygonGroups],
         pointsById,
-        facadeRectanglePreviewOppositeByGroupId,
-        activePlanarPolygonGroupId,
-        candidateEdgeLine: candidateEdgeLine,
+        verticalRectanglePreviewOppositeByGroupId,
+        activePlanarMeasurementId,
+        candidateConnection: candidateConnectionPreview,
       }),
     [
-      activePlanarPolygonGroupId,
-      facadeRectanglePreviewOppositeByGroupId,
-      candidateEdgeLine,
+      activePlanarMeasurementId,
+      verticalRectanglePreviewOppositeByGroupId,
+      candidateConnectionPreview,
       planarPolygonGroups,
       pointsById,
     ]
@@ -276,20 +273,20 @@ export const usePlanarMeasurementPreviewModels = ({
   );
 
   const polygonClosurePreviewEdges = useMemo<
-    readonly TransientEdgeSegment[]
+    readonly EdgeSceneLineRenderModel[]
   >(() => {
-    if (!enabled || !candidateEdgeLine || !activePlanarPolygonGroupId) {
+    if (!enabled || !candidateConnectionPreview || !activePlanarMeasurementId) {
       return [];
     }
 
     const activeGroup =
       planarPolygonGroups.find(
-        (group) => group.id === activePlanarPolygonGroupId
+        (group) => group.id === activePlanarMeasurementId
       ) ?? null;
     if (!activeGroup || activeGroup.closed) {
       return [];
     }
-    if (activeGroup.measurementKind === ANNOTATION_TYPE_POLYLINE) {
+    if (activeGroup.type === ANNOTATION_TYPE_POLYLINE) {
       return [];
     }
     if (activeGroup.vertexPointIds.length < 2) {
@@ -300,7 +297,7 @@ export const usePlanarMeasurementPreviewModels = ({
     const firstVertex = firstVertexId
       ? pointsById.get(firstVertexId)?.geometryECEF
       : null;
-    const previewTarget = candidateEdgeLine.targetPointECEF;
+    const previewTarget = candidateConnectionPreview.targetPointECEF;
     if (!firstVertex || !previewTarget) {
       return [];
     }
@@ -319,14 +316,14 @@ export const usePlanarMeasurementPreviewModels = ({
       },
     ];
   }, [
-    activePlanarPolygonGroupId,
+    activePlanarMeasurementId,
     enabled,
-    candidateEdgeLine,
+    candidateConnectionPreview,
     planarPolygonGroups,
     pointsById,
   ]);
 
-  const facadePreviewEdges = useMemo<readonly TransientEdgeSegment[]>(
+  const verticalPreviewEdges = useMemo<readonly EdgeSceneLineRenderModel[]>(
     () =>
       buildPolylinePreviewEdgeSegments(polylineMeasurements).map((segment) => ({
         id: segment.id,
@@ -342,7 +339,7 @@ export const usePlanarMeasurementPreviewModels = ({
   return {
     focusedPolygonGroupId,
     polylineMeasurements,
-    facadePreviewEdges,
+    verticalPreviewEdges,
     polygonAreaBadgeByGroupId,
     groundPolygonPreviewGroups,
     verticalPolygonPreviewGroups,
