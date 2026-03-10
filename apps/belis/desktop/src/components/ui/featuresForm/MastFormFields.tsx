@@ -23,7 +23,10 @@ interface MastFormFieldsProps {
   readOnly?: boolean;
   onFormInstance?: (form: import("antd").FormInstance) => void;
   draftValues?: Record<string, unknown>;
-  onValuesChange?: (changedValues: Record<string, unknown>, allValues: Record<string, unknown>) => void;
+  onValuesChange?: (
+    changedValues: Record<string, unknown>,
+    allValues: Record<string, unknown>
+  ) => void;
   onOriginalValues?: (values: Record<string, unknown>) => void;
 }
 
@@ -113,9 +116,7 @@ const MastFormFields = ({
   );
   const unterhaltMastOptions = [
     ...((keyTablesData.unterhaltMast || []) as UnterhaltMastItem[]),
-  ].sort((a, b) =>
-    (a.unterhalt_mast || "").localeCompare(b.unterhalt_mast || "")
-  );
+  ].sort((a, b) => Number(a.pk ?? 0) - Number(b.pk ?? 0));
   const kennzifferOptions = (keyTablesData.kennziffer ||
     []) as KennzifferItem[];
   const anlagengruppeOptions = (keyTablesData.anlagengruppe ||
@@ -170,7 +171,7 @@ const MastFormFields = ({
         // Klassifizierung - use id for Select value
         fk_klassifizierung: klassifizierung?.id ?? null,
         // Unterhalt - use id for Select value
-        fk_unterhalt_mast: unterhMast?.id ?? null,
+        fk_unterhaltspflicht_mast: unterhMast?.id ?? null,
         // Inbetriebnahme
         inbetriebnahme_mast: mast.inbetriebnahme_mast
           ? dayjs(mast.inbetriebnahme_mast as string)
@@ -208,9 +209,9 @@ const MastFormFields = ({
         // Mastschutz
         mastschutz: mast.mastschutz ? dayjs(mast.mastschutz as string) : null,
         // Revision
-        revision: mast.revision,
+        revision: mast.revision ? dayjs(mast.revision as string) : null,
         // Anlagengruppe - use id for Select value
-        fk_anlagengruppe: anlagengruppeObj?.id ?? mast.anlagengruppe,
+        anlagengruppe: anlagengruppeObj?.id ?? mast.anlagengruppe,
         // Anbauten
         anbauten: mast.anbauten,
         // Bemerkungen
@@ -293,26 +294,30 @@ const MastFormFields = ({
         <Input size="large" />
       </FormItem>
 
-      {/* Stadtbezirk */}
-      <FormItem
-        name={fieldName("fk_bezirk")}
-        label={<FormLabel>Stadtbezirk</FormLabel>}
-        className="mb-4"
-      >
-        <Select
-          placeholder={getPlaceholder(readOnly, "Stadtbezirk auswählen")}
-          className="w-full"
-          size="large"
-          showSearch
-          optionFilterProp="children"
-        >
-          {bezirkOptions.map((item) => (
-            <Select.Option key={item.id} value={item.id}>
-              {toTitleCase(item.bezirk || "")}
-            </Select.Option>
-          ))}
-        </Select>
-      </FormItem>
+      {/* Stadtbezirk - always non-editable (reference data) */}
+      <div className="cursor-not-allowed">
+        <div className="pointer-events-none">
+          <FormItem
+            name={fieldName("fk_bezirk")}
+            label={<FormLabel>Stadtbezirk</FormLabel>}
+            className="mb-4"
+          >
+            <Select
+              placeholder={getPlaceholder(readOnly, "Stadtbezirk auswählen")}
+              className="w-full"
+              size="large"
+              showSearch
+              optionFilterProp="children"
+            >
+              {bezirkOptions.map((item) => (
+                <Select.Option key={item.id} value={item.id}>
+                  {toTitleCase(item.bezirk || "")}
+                </Select.Option>
+              ))}
+            </Select>
+          </FormItem>
+        </div>
+      </div>
 
       {/* Mastart */}
       <FormItem
@@ -379,7 +384,7 @@ const MastFormFields = ({
 
       {/* Unterhalt */}
       <FormItem
-        name={fieldName("fk_unterhalt_mast")}
+        name={fieldName("fk_unterhaltspflicht_mast")}
         label={<FormLabel>Unterhalt</FormLabel>}
         className="mb-4"
       >
@@ -392,7 +397,7 @@ const MastFormFields = ({
         >
           {unterhaltMastOptions.map((item) => (
             <Select.Option key={item.id} value={item.id}>
-              {item.unterhalt_mast}
+              {item.pk} - {item.unterhalt_mast}
             </Select.Option>
           ))}
         </Select>
@@ -569,14 +574,19 @@ const MastFormFields = ({
             label={<FormLabel>Revision</FormLabel>}
             className="mb-4"
           >
-            <Input size="large" />
+            <DatePicker
+              className="w-full"
+              size="large"
+              format="DD.MM.YYYY"
+              placeholder={getPlaceholder(readOnly, "Datum auswählen")}
+            />
           </FormItem>
         </Col>
       </Row>
 
       {/* Anlagengruppe */}
       <FormItem
-        name={fieldName("fk_anlagengruppe")}
+        name={fieldName("anlagengruppe")}
         label={<FormLabel>Anlagengruppe</FormLabel>}
         className="mb-4"
       >
