@@ -1,13 +1,16 @@
-import { useEffect } from "react";
-import { Form, Row, Col, Select } from "antd";
+import { useState, useEffect, useCallback } from "react";
+import { Form, Row, Col, Select, message } from "antd";
 import { useSelector } from "react-redux";
 import type { DraftFile } from "../../../store/slices/featuresForms";
 import { getKeyTablesData } from "../../../store/slices/keyTables";
 import { getJWT } from "../../../store/slices/auth";
 import { DokumentItem } from "../DocumentPreview";
+import { getDocumentKey } from "../FilePreview";
 import FeatureFormLayout from "./FeatureFormLayout";
 import { getFormClassName, getPlaceholder } from "./readOnlyFormUtils";
 import { FormItem } from "./DraftFieldHighlight";
+import { updateDataByClassName } from "../../../helper/apiMethods";
+import { uploadDraftFiles } from "../../../helper/uploadDraftFiles";
 
 interface LeitungFormProps {
   data: Record<string, unknown> | null;
@@ -24,6 +27,8 @@ interface LeitungFormProps {
   onToggleReadOnly?: () => void;
   onCancel?: () => void;
   onSaveComplete?: () => void;
+  removedDocumentKeys?: Set<string>;
+  onRemovedDocumentKeysChange?: (keys: Set<string>) => void;
 }
 
 interface KeyTableItem {
@@ -31,6 +36,10 @@ interface KeyTableItem {
   bezeichnung?: string;
   groesse?: string;
 }
+
+const FormLabel = ({ children }: { children: React.ReactNode }) => (
+  <span className="text-sm font-medium text-gray-700">{children}</span>
+);
 
 const LeitungForm = ({
   data,
@@ -47,13 +56,15 @@ const LeitungForm = ({
   onToggleReadOnly,
   onCancel,
   onSaveComplete,
+  removedDocumentKeys: removedDocumentKeysProp,
+  onRemovedDocumentKeysChange,
 }: LeitungFormProps) => {
+  const removedDocumentKeys = removedDocumentKeysProp ?? new Set<string>();
   const [form] = Form.useForm();
-
-  const handleSave = () => {
-    console.log("Leitung form values:", form.getFieldsValue());
-    onSaveComplete?.();
-  };
+  const [saving, setSaving] = useState(false);
+  const [localDocuments, setLocalDocuments] = useState<DokumentItem[] | null>(
+    null
+  );
   const keyTablesData = useSelector(getKeyTablesData);
   const jwt = useSelector(getJWT);
 
@@ -67,13 +78,36 @@ const LeitungForm = ({
     ...((keyTablesData.querschnitt || []) as KeyTableItem[]),
   ].sort((a, b) => Number(a.groesse || 0) - Number(b.groesse || 0));
 
+  const handleToggleRemoveDocument = useCallback(
+    (key: string) => {
+      const next = new Set(removedDocumentKeys);
+      if (next.has(key)) {
+        next.delete(key);
+      } else {
+        next.add(key);
+      }
+      onRemovedDocumentKeysChange?.(next);
+    },
+    [removedDocumentKeys, onRemovedDocumentKeysChange]
+  );
+
+  // Reset local documents override when data changes
+  useEffect(() => {
+    setLocalDocuments(null);
+  }, [data]);
+
   // Extract documents from leitung[0].dokumenteArray
   const leitungData = data as Record<string, unknown>;
   const leitungArray = leitungData?.leitung as
     | Array<Record<string, unknown>>
     | undefined;
-  const documents: DokumentItem[] =
+  const serverDocuments: DokumentItem[] =
     (leitungArray?.[0]?.dokumenteArray as DokumentItem[]) || [];
+  const documents = localDocuments ?? serverDocuments;
+
+  // Extract leitung object and ID
+  const lt = leitungArray?.[0] || null;
+  const leitungId = lt?.id as number | undefined;
 
   // Extract subtitle - use rawFeature (vector tile) to match list display
   const rawProps = rawFeature?.properties;
@@ -107,6 +141,78 @@ const LeitungForm = ({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [data, form]);
 
+  const handleSave = async () => {
+    if (!jwt) {
+      message.error("Nicht authentifiziert");
+      return;
+    }
+
+    if (!leitungId) {
+      message.error("Keine Leitungs-ID gefunden");
+      return;
+    }
+
+    setSaving(true);
+    try {
+      const formValues = form.getFieldsValue();
+
+      // Upload pending draft files first
+      let uploadedDocuments: DokumentItem[] = [];
+      if (draftFiles && draftFiles.length > 0) {
+        uploadedDocuments = await uploadDraftFiles(jwt, draftFiles);
+      }
+
+      // Build final dokumenteArray: existing minus removed, plus newly uploaded
+      const hasDocumentChanges =
+        uploadedDocuments.length > 0 || removedDocumentKeys.size > 0;
+      let finalDokumenteArray: DokumentItem[] | undefined;
+      if (hasDocumentChanges) {
+        const kept = documents.filter(
+          (doc) => !removedDocumentKeys.has(getDocumentKey(doc))
+        );
+        finalDokumenteArray = [...kept, ...uploadedDocuments];
+      }
+
+      const dataToSave = {
+        id: leitungId,
+        ...formValues,
+        // Include updated documents array when changed
+        ...(finalDokumenteArray !== undefined
+          ? { dokumenteArray: finalDokumenteArray }
+          : {}),
+      };
+
+      console.log(
+        "xxx saving leitung:",
+        JSON.stringify(dataToSave, null, 2)
+      );
+      await updateDataByClassName(jwt, "leitung", dataToSave);
+
+      // Update local documents so changes appear immediately
+      if (hasDocumentChanges && finalDokumenteArray) {
+        setLocalDocuments(finalDokumenteArray);
+        onRemovedDocumentKeysChange?.(new Set());
+      }
+
+      if (removedDocumentKeys.size > 0) {
+        message.success(
+          removedDocumentKeys.size === 1
+            ? "1 Datei gelöscht"
+            : `${removedDocumentKeys.size} Dateien gelöscht`
+        );
+      }
+      message.success("Leitung gespeichert");
+      onSaveComplete?.();
+    } catch (error) {
+      console.error("Save error:", error);
+      message.error(
+        error instanceof Error ? error.message : "Fehler beim Speichern"
+      );
+    } finally {
+      setSaving(false);
+    }
+  };
+
   if (!data) {
     return (
       <div className="flex items-center justify-center h-40 text-gray-400">
@@ -114,10 +220,6 @@ const LeitungForm = ({
       </div>
     );
   }
-
-  const FormLabel = ({ children }: { children: React.ReactNode }) => (
-    <span className="text-sm font-medium text-gray-700">{children}</span>
-  );
 
   return (
     <FeatureFormLayout
@@ -127,10 +229,13 @@ const LeitungForm = ({
       jwt={jwt}
       draftFiles={draftFiles}
       onDraftFilesChange={onDraftFilesChange}
+      removedDocumentKeys={removedDocumentKeys}
+      onToggleRemoveDocument={handleToggleRemoveDocument}
       debugData={data}
       loading={loading}
+      saving={saving}
       readOnly={readOnly}
-      hasDraft={hasDraft}
+      hasDraft={hasDraft || removedDocumentKeys.size > 0}
       onToggleReadOnly={onToggleReadOnly}
       onCancel={onCancel}
       onSave={handleSave}
