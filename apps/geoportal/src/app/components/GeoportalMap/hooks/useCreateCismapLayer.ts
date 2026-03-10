@@ -95,7 +95,10 @@ export const useCreateCismapLayers = (
   const [globalHits, setGlobalHits] = useState({});
   const [idleLayers, setIdleLayers] = useState({});
   const [foundFeatures, setFoundFeatures] = useState({});
-  const lastSemanticIdentifierRef = useRef<string | undefined>(undefined);
+  const [semanticIdForHits, setSemanticIdForHits] = useState<
+    string | undefined
+  >(undefined);
+  const lastClickLatlngRef = useRef<string | null>(null);
   const flags = useFeatureFlags();
 
   const showTileBoundaries = flags?.debugTileBoundaries;
@@ -187,10 +190,34 @@ export const useCreateCismapLayers = (
     modeRef.current = mode;
   }, [mode]);
 
+  const getSemanticMatch = (hits: Object, semanticId: string | undefined) => {
+    if (!semanticId) return undefined;
+    const keys = Object.keys(hits);
+    for (let i = keys.length - 1; i >= 0; i--) {
+      const value = hits[keys[i]];
+      if (!value || !value[0]?.selectionLayerExists) continue;
+      const layerForHits = layers.find((l) => l.id === keys[i]);
+      const semanticInfo = layerForHits?.conf?.semanticInfo as
+        | Record<string, string[]>
+        | undefined;
+      if (!semanticInfo) continue;
+      const preferredLayerIds = semanticInfo[semanticId];
+      if (preferredLayerIds) {
+        const match = value.find((h) =>
+          preferredLayerIds.includes(h.layer?.id)
+        );
+        if (match) return { key: keys[i], value };
+      }
+    }
+    return undefined;
+  };
+
   useEffect(() => {
     updateGlobalHits();
     if (modeRef.current === UIMode.DEFAULT) {
-      const lastObject = getLastDefinedObject(globalHits);
+      const lastObject =
+        getSemanticMatch(globalHits, semanticIdForHits) ||
+        getLastDefinedObject(globalHits);
 
       if (lastObject) {
         resetSelection(globalHits);
@@ -198,11 +225,10 @@ export const useCreateCismapLayers = (
         const semanticInfo = layerForHits?.conf?.semanticInfo as
           | Record<string, string[]>
           | undefined;
-        const semanticId = lastSemanticIdentifierRef.current;
         const selectedVectorFeature = resolveHit(
           lastObject.value,
           semanticInfo,
-          semanticId
+          semanticIdForHits
         );
         if (selectedVectorFeature.setSelection) {
           selectedVectorFeature.setSelection(true);
@@ -219,7 +245,7 @@ export const useCreateCismapLayers = (
         dispatch(setSelectedFeature(null));
       }
     }
-  }, [globalHits, foundFeatures]);
+  }, [globalHits, foundFeatures, semanticIdForHits]);
 
   useEffect(() => {
     updateGlobalHits();
@@ -379,12 +405,22 @@ export const useCreateCismapLayers = (
               });
             },
             onSelectionChanged: (e) => {
+              const clickKey = e.latlng
+                ? `${e.latlng.lat},${e.latlng.lng}`
+                : null;
+              const isNewClick = clickKey !== lastClickLatlngRef.current;
+              lastClickLatlngRef.current = clickKey;
+
               const semanticIdentifier =
                 selectionSemanticIdentifierRef?.current;
               if (selectionSemanticIdentifierRef) {
                 selectionSemanticIdentifierRef.current = undefined;
               }
-              lastSemanticIdentifierRef.current = semanticIdentifier;
+
+              if (isNewClick) {
+                // First layer of a new click: set semantic ID (or clear if undefined)
+                setSemanticIdForHits(semanticIdentifier);
+              }
               if (modeRef.current === UIMode.DEFAULT) {
                 implicitVectorSelection(e, {
                   layer,
