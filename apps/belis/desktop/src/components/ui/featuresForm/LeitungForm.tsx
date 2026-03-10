@@ -154,7 +154,13 @@ const LeitungForm = ({
 
     setSaving(true);
     try {
-      const formValues = form.getFieldsValue();
+      const rawValues = form.getFieldsValue();
+      // Ensure cleared fields are sent as null instead of being omitted
+      const formValues = {
+        fk_leitungstyp: rawValues.fk_leitungstyp ?? null,
+        fk_material: rawValues.fk_material ?? null,
+        fk_querschnitt: rawValues.fk_querschnitt ?? null,
+      };
 
       // Upload pending draft files first
       let uploadedDocuments: DokumentItem[] = [];
@@ -258,6 +264,7 @@ const LeitungForm = ({
             className="w-full"
             size="large"
             showSearch
+            allowClear
             optionFilterProp="children"
           >
             {leitungstypOptions.map((item) => (
@@ -281,6 +288,7 @@ const LeitungForm = ({
                 className="w-full"
                 size="large"
                 showSearch
+                allowClear
                 optionFilterProp="children"
               >
                 {materialOptions.map((item) => (
@@ -302,6 +310,7 @@ const LeitungForm = ({
                 className="w-full"
                 size="large"
                 showSearch
+                allowClear
                 optionFilterProp="children"
               >
                 {querschnittOptions.map((item) => (
