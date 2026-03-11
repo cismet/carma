@@ -7,11 +7,11 @@ import type {
   LinearSegmentLineMode,
 } from "@carma-mapping/annotations/core";
 
-import type { AnnotationCreatePayload } from "./base";
+import type { AnnotationCreatePayload } from "./annotation-entries/annotationCreatePayload";
 import type {
   AnnotationEditTarget,
   AnnotationEditUpdateTarget,
-} from "./hooks/editing/annotationEdit.types";
+} from "./interaction/editing/annotationEdit.types";
 
 export type AnnotationVisualizerOptionsPatch = {
   segmentLineMode?: LinearSegmentLineMode;

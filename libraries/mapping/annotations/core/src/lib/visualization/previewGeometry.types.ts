@@ -1,9 +1,6 @@
 import { Cartesian3 } from "@carma/cesium";
 
-import type {
-  PlanarMeasurementGroup,
-  PlanarPolygonGroup,
-} from "../types/planarTypes";
+import type { NodeChainAnnotation } from "../types/annotationTypes";
 
 export const POLYGON_PREVIEW_STROKE = "rgba(255, 255, 255, 0.65)";
 export const POLYGON_PREVIEW_STROKE_WIDTH_PX = 1;
@@ -21,7 +18,7 @@ export type CandidateConnectionPreview = {
 };
 
 export type PolygonPreviewGroup = {
-  group: PlanarPolygonGroup;
+  group: NodeChainAnnotation;
   vertexPoints: Cartesian3[];
 };
 
@@ -48,11 +45,11 @@ export type PolygonPreviewGroupsBySurface = {
 };
 
 export type PolygonPreviewBuildParams = {
-  planarPolygonGroups: PlanarMeasurementGroup[];
+  nodeChainAnnotations: NodeChainAnnotation[];
   pointsById: ReadonlyMap<string, PointWithGeometryECEF>;
   verticalRectanglePreviewOppositeByGroupId?: Readonly<
     Record<string, Cartesian3>
   >;
-  activePlanarMeasurementId?: string | null;
+  activeNodeChainAnnotationId?: string | null;
   candidateConnection?: CandidateConnectionPreview | null;
 };

@@ -7,10 +7,10 @@ import {
 import {
   useAnnotationCollection,
   useDistanceAnnotationReadModel,
-  usePlanarMeasurements,
+  useNodeChainAnnotations,
   useAnnotationSelectionState,
 } from "../../context/AnnotationsProvider";
-import { usePointMarkerBadgeState } from "../../context/hooks/point/label/usePointMarkerBadgeState";
+import { usePointMarkerBadgeState } from "../../context/render/point/label/usePointMarkerBadgeState";
 import type { DistanceAnnotationSlotsInput } from "./getAnnotationInfoBoxSlots";
 import { getDistanceAnnotationSlotsInput } from "./getDistanceAnnotationSlotsInput";
 import { useAnnotationInfoBoxDisplaySelection } from "./useAnnotationInfoBoxDisplaySelection";
@@ -33,7 +33,7 @@ export const useDistanceInfoBoxSlotsInput =
     } = useAnnotationInfoBoxDisplaySelection();
     const selection = useAnnotationSelectionState();
     const distanceReadModel = useDistanceAnnotationReadModel();
-    const planarMeasurements = usePlanarMeasurements();
+    const nodeChainAnnotations = useNodeChainAnnotations();
     const annotations = useAnnotationCollection();
     const actions = useAnnotationInfoBoxSlotActions();
     const pointMeasureEntries = useMemo(
@@ -47,7 +47,7 @@ export const useDistanceInfoBoxSlotsInput =
     const { pointMarkerBadgeByPointId } = usePointMarkerBadgeState(
       pointEntries,
       pointMeasureEntries,
-      planarMeasurements,
+      nodeChainAnnotations,
       distanceReadModel.distanceRelations
     );
 

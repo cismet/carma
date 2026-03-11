@@ -5,11 +5,11 @@ import {
   ANNOTATION_TYPE_POLYLINE,
   type AnnotationType,
 } from "./types/annotationTypes";
-import type { PlanarMeasurementType } from "./types/planarTypes";
+import type { NodeChainAnnotationType } from "./types/annotationTypes";
 
-export type PlanarPolygonGroupLike = {
+export type PolygonAnnotationLike = {
   id: string;
-  type: PlanarMeasurementType;
+  type: NodeChainAnnotationType;
   edgeRelationIds: readonly string[];
 };
 
@@ -40,14 +40,14 @@ const createEditableLineRelationIdsByKind = (): Record<
 });
 
 const resolveEditableLineMeasurementKind = (
-  group: Pick<PlanarPolygonGroupLike, "type">
+  group: Pick<PolygonAnnotationLike, "type">
 ): EditableLineMeasurementKind => group.type;
 
 export const getSplitMarkerRelationIdsByKind = (
-  planarPolygonGroups: readonly PlanarPolygonGroupLike[]
+  nodeChainAnnotations: readonly PolygonAnnotationLike[]
 ): EditableLineRelationIdsByKind => {
   const byKind = createEditableLineRelationIdsByKind();
-  planarPolygonGroups.forEach((group) => {
+  nodeChainAnnotations.forEach((group) => {
     const type = resolveEditableLineMeasurementKind(group);
     group.edgeRelationIds.forEach((edgeRelationId) => {
       if (!edgeRelationId) return;
@@ -58,9 +58,9 @@ export const getSplitMarkerRelationIdsByKind = (
 };
 
 export const getSplitMarkerRelationIds = (
-  planarPolygonGroups: readonly PlanarPolygonGroupLike[]
+  nodeChainAnnotations: readonly PolygonAnnotationLike[]
 ): ReadonlySet<string> => {
-  const byKind = getSplitMarkerRelationIdsByKind(planarPolygonGroups);
+  const byKind = getSplitMarkerRelationIdsByKind(nodeChainAnnotations);
   const allRelationIds = new Set<string>();
   EDITABLE_LINE_MEASUREMENT_KINDS.forEach((type) => {
     byKind[type].forEach((relationId) => {
@@ -71,12 +71,12 @@ export const getSplitMarkerRelationIds = (
 };
 
 export const getSplitMarkerRelationIdsForGroups = (
-  planarPolygonGroups: readonly PlanarPolygonGroupLike[],
+  nodeChainAnnotations: readonly PolygonAnnotationLike[],
   groupIds: ReadonlySet<string>
 ): ReadonlySet<string> => {
   if (groupIds.size === 0) return new Set<string>();
   const relationIds = new Set<string>();
-  planarPolygonGroups.forEach((group) => {
+  nodeChainAnnotations.forEach((group) => {
     if (!groupIds.has(group.id)) return;
     group.edgeRelationIds.forEach((relationId) => {
       if (!relationId) return;
@@ -87,14 +87,14 @@ export const getSplitMarkerRelationIdsForGroups = (
 };
 
 export const getSplitMarkerRelationIdsByKindForGroups = (
-  planarPolygonGroups: readonly PlanarPolygonGroupLike[],
+  nodeChainAnnotations: readonly PolygonAnnotationLike[],
   groupIds: ReadonlySet<string>
 ): EditableLineRelationIdsByKind => {
   if (groupIds.size === 0) {
     return createEditableLineRelationIdsByKind();
   }
   const byKind = createEditableLineRelationIdsByKind();
-  planarPolygonGroups.forEach((group) => {
+  nodeChainAnnotations.forEach((group) => {
     if (!groupIds.has(group.id)) return;
     const type = resolveEditableLineMeasurementKind(group);
     group.edgeRelationIds.forEach((relationId) => {
@@ -106,12 +106,12 @@ export const getSplitMarkerRelationIdsByKindForGroups = (
 };
 
 export const getPlanarSharedEdgeRelationIds = (
-  planarPolygonGroups: readonly PlanarPolygonGroupLike[]
+  nodeChainAnnotations: readonly PolygonAnnotationLike[]
 ): ReadonlySet<string> => {
   const relationUsageCount = new Map<string, number>();
   const relationMeasurementKinds = new Map<string, Set<AnnotationType>>();
 
-  planarPolygonGroups.forEach((group) => {
+  nodeChainAnnotations.forEach((group) => {
     const type = resolveEditableLineMeasurementKind(group);
     group.edgeRelationIds.forEach((edgeRelationId) => {
       if (!edgeRelationId) return;

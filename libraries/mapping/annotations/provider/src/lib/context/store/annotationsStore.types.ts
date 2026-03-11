@@ -5,17 +5,18 @@ import type {
   AnnotationCollection,
   AnnotationEntry,
   AnnotationToolType,
+  DirectLineLabelMode,
   LinearSegmentLineMode,
-  PlanarMeasurementGroup,
+  NodeChainAnnotation,
   PointDistanceRelation,
+  ReferenceLineLabelKind,
 } from "@carma-mapping/annotations/core";
 
 import type { AnnotationsContextType } from "../annotationsContext.types";
 import type {
   AnnotationEditTarget,
-  MoveGizmoAxisCandidate,
-  MoveGizmoVerticalOffsetEditMode,
-} from "../hooks/editing/annotationEdit.types";
+  MoveGizmoSession,
+} from "../interaction/editing/annotationEdit.types";
 
 export type AnnotationsStoreSnapshot = {
   tools: AnnotationsContextType["tools"];
@@ -49,6 +50,8 @@ export type AnnotationSettingsStoreState = {
       vertical: boolean;
       horizontal: boolean;
     };
+    defaultLabelVisibilityByKind: Record<ReferenceLineLabelKind, boolean>;
+    defaultDirectLineLabelMode: DirectLineLabelMode;
   };
   polyline: {
     defaultVerticalOffsetMeters: number;
@@ -58,14 +61,7 @@ export type AnnotationSettingsStoreState = {
 
 export type AnnotationEditStoreState = {
   activeTarget: AnnotationEditTarget | null;
-  moveGizmoPointId: string | null;
-  moveGizmoAxisDirection: Cartesian3 | null;
-  moveGizmoAxisTitle: string | null;
-  moveGizmoAxisCandidates: MoveGizmoAxisCandidate[] | null;
-  moveGizmoPreferredAxisId: string | null;
-  moveGizmoVerticalOffsetEditMode: MoveGizmoVerticalOffsetEditMode;
-  moveGizmoVerticalOffsetPlanarMeasurementId: string | null;
-  isMoveGizmoDragging: boolean;
+  moveGizmo: MoveGizmoSession;
 };
 
 export type AnnotationsStoreState = AnnotationsStoreSnapshot & {
@@ -73,7 +69,7 @@ export type AnnotationsStoreState = AnnotationsStoreSnapshot & {
   selectionState: AnnotationSelectionStoreState;
   createdPointIds: readonly string[];
   createdRelationIds: readonly string[];
-  activePlanarMeasurementId: string | null;
+  activeNodeChainAnnotationId: string | null;
   pendingLabelPlacementAnnotationId: string | null;
   openChainPointId: string | null;
   pendingPolylineRingPromotionPointId: string | null;
@@ -85,7 +81,7 @@ export type AnnotationsStoreState = AnnotationsStoreSnapshot & {
   candidateAnnotation: AnnotationEntry | null;
   referencePoint: Cartesian3 | null;
   distanceRelations: PointDistanceRelation[];
-  planarMeasurements: PlanarMeasurementGroup[];
+  nodeChainAnnotations: NodeChainAnnotation[];
 };
 
 export type AnnotationsStore = Store<AnnotationsStoreState>;

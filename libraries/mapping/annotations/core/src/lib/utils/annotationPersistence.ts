@@ -58,7 +58,7 @@ export const loadAnnotationPersistenceState = <
         (parsed.tables as { measurements?: unknown }).measurements;
       if (!Array.isArray(rawAnnotations)) continue;
       if (!Array.isArray(parsed.tables.distanceRelations)) continue;
-      if (!Array.isArray(parsed.tables.planarPolygonGroups)) continue;
+      if (!Array.isArray(parsed.tables.nodeChainAnnotations)) continue;
       if (!Array.isArray(parsed.tables.planarPolygonGroupVertices)) continue;
 
       return {

@@ -1,7 +1,7 @@
 import { Cartesian3 } from "@carma/cesium";
 
 import { ANNOTATION_TYPE_AREA_VERTICAL } from "../types/annotationTypes";
-import type { PlanarMeasurementGroup } from "../types/planarTypes";
+import type { NodeChainAnnotation } from "../types/annotationTypes";
 import { buildVerticalRectangleCornerFromDiagonal } from "./verticalRectangleGeometry";
 import type {
   VerticalPreviewCornerMarker,
@@ -11,17 +11,17 @@ import type {
 } from "./previewGeometry.types";
 
 export const buildPolylinePreviewMeasurements = ({
-  planarPolygonGroups,
+  nodeChainAnnotations,
   pointsById,
   verticalRectanglePreviewOppositeByGroupId,
 }: {
-  planarPolygonGroups: PlanarMeasurementGroup[];
+  nodeChainAnnotations: NodeChainAnnotation[];
   pointsById: ReadonlyMap<string, PointWithGeometryECEF>;
   verticalRectanglePreviewOppositeByGroupId?: Readonly<
     Record<string, Cartesian3>
   >;
 }): PolylinePreviewMeasurement[] =>
-  planarPolygonGroups
+  nodeChainAnnotations
     .map((group) => {
       if (group.closed) return null;
       if (group.type !== ANNOTATION_TYPE_AREA_VERTICAL) return null;

@@ -260,7 +260,7 @@ type BuildDesiredPointLabelAnchorByIdParams<
 > = {
   pointMeasurements: ReadonlyArray<TPointMeasurement>;
   polylines: ReadonlyArray<TPolyline>;
-  focusedPlanarMeasurementId: string | null;
+  focusedNodeChainAnnotationId: string | null;
   pointMarkerBadgeByPointId: Readonly<Record<string, PointMarkerBadgeLike>>;
   standaloneDistanceHighestPointIds: ReadonlySet<string>;
   unfocusedStandaloneDistanceNonHighestPointIds: ReadonlySet<string>;
@@ -274,7 +274,7 @@ export const buildDesiredPointLabelAnchorById = <
 >({
   pointMeasurements,
   polylines,
-  focusedPlanarMeasurementId,
+  focusedNodeChainAnnotationId,
   pointMarkerBadgeByPointId,
   standaloneDistanceHighestPointIds,
   unfocusedStandaloneDistanceNonHighestPointIds,
@@ -318,7 +318,7 @@ export const buildDesiredPointLabelAnchorById = <
   });
 
   polylines.forEach((polyline) => {
-    if (polyline.id === focusedPlanarMeasurementId) return;
+    if (polyline.id === focusedNodeChainAnnotationId) return;
     polyline.nodeIds.forEach((pointId) => {
       if (!pointId) return;
       byPointId[pointId] = undefined;

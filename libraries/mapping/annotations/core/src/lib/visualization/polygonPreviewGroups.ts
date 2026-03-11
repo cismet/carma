@@ -6,10 +6,7 @@ import {
   ANNOTATION_TYPE_AREA_VERTICAL,
   ANNOTATION_TYPE_POLYLINE,
 } from "../types/annotationTypes";
-import type {
-  PlanarMeasurementGroup,
-  PlanarPolygonGroup,
-} from "../types/planarTypes";
+import type { NodeChainAnnotation } from "../types/annotationTypes";
 import { buildVerticalRectangleCornerFromDiagonal } from "./verticalRectangleGeometry";
 import type {
   VerticalPreviewCornerMarker,
@@ -20,13 +17,13 @@ import type {
 } from "./previewGeometry.types";
 
 export const buildPolygonPreviewGroups = ({
-  planarPolygonGroups,
+  nodeChainAnnotations,
   pointsById,
   verticalRectanglePreviewOppositeByGroupId,
-  activePlanarMeasurementId,
+  activeNodeChainAnnotationId,
   candidateConnection,
 }: PolygonPreviewBuildParams): PolygonPreviewGroup[] =>
-  planarPolygonGroups
+  nodeChainAnnotations
     .map((group) => {
       const type = group.type;
       if (type === ANNOTATION_TYPE_POLYLINE) {
@@ -79,7 +76,7 @@ export const buildPolygonPreviewGroups = ({
 
       if (
         !group.closed &&
-        group.id === activePlanarMeasurementId &&
+        group.id === activeNodeChainAnnotationId &&
         (group.type === ANNOTATION_TYPE_AREA_GROUND ||
           group.type === ANNOTATION_TYPE_AREA_PLANAR) &&
         group.nodeIds.length >= 2
@@ -119,7 +116,7 @@ export const buildPolygonPreviewGroups = ({
       (
         previewGroup
       ): previewGroup is {
-        group: PlanarPolygonGroup;
+        group: NodeChainAnnotation;
         vertexPoints: Cartesian3[];
       } => Boolean(previewGroup && previewGroup.vertexPoints.length >= 3)
     );

@@ -8,7 +8,7 @@ export {
   getSplitMarkerRelationIdsForGroups,
   getSplitMarkerRelationIdsByKindForGroups,
   getPlanarSharedEdgeRelationIds,
-  type PlanarPolygonGroupLike,
+  type PolygonAnnotationLike,
   type EditableLineMeasurementKind,
   type EditableLineRelationIdsByKind,
 } from "./lib/editableLinePolicies";
@@ -30,14 +30,17 @@ export * from "./lib/utils/temporaryCollection";
 export * from "./lib/utils/annotationPersistence";
 export * from "./lib/utils/screenRectangle";
 export * from "./lib/utils/screenViewport";
+export * from "./lib/utils/candidateCapabilities";
+export * from "./lib/utils/candidateRingNormalSmoothing";
 export * from "./lib/types/annotationEntry";
 export * from "./lib/types/annotationLabel";
 export * from "./lib/types/annotationPersistenceTypes";
 export * from "./lib/types/distanceRelation";
 export * from "./lib/types/lineType";
 export * from "./lib/types/linearSegment";
-export * from "./lib/types/planarTypes";
 export * from "./lib/types/annotationTypes";
+export * from "./lib/types/annotationTypes";
+export * from "./lib/types/annotationCandidate";
 export * from "./lib/types/annotationCesiumTypes";
 export * from "./lib/types/derivedPolylinePath";
 export * from "./lib/types/distanceRelationRenderContext";

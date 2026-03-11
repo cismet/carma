@@ -7,7 +7,9 @@ import type {
   AnnotationEntry,
   AnnotationMode,
   AnnotationToolType,
+  DirectLineLabelMode,
   LinearSegmentLineMode,
+  ReferenceLineLabelKind,
 } from "@carma-mapping/annotations/core";
 import type {
   AnnotationEditStoreState,
@@ -22,6 +24,14 @@ type CreateInitialAnnotationsStoreStateOptions = {
   initialPointRadius?: number;
   initialPointVerticalOffsetMeters?: number;
   initialPointTemporaryMode?: boolean;
+  initialDistanceStickyToFirstPoint?: boolean;
+  initialDistanceCreationLineVisibility?: Partial<
+    Record<ReferenceLineLabelKind, boolean>
+  >;
+  initialDistanceLabelVisibilityByKind?: Partial<
+    Record<ReferenceLineLabelKind, boolean>
+  >;
+  initialDistanceDirectLineLabelMode?: DirectLineLabelMode;
   initialPolylineVerticalOffsetMeters?: number;
   initialPolylineSegmentLineMode?: LinearSegmentLineMode;
   initialHeightOffset?: number;
@@ -32,10 +42,29 @@ const noopString = () => "";
 const noopNumber = () => 0;
 const noopNull = () => null;
 
+const DEFAULT_DISTANCE_TOOL_SETTINGS = {
+  stickyToFirstPoint: false,
+  creationLineVisibility: {
+    direct: true,
+    vertical: true,
+    horizontal: true,
+  },
+  defaultLabelVisibilityByKind: {
+    direct: true,
+    vertical: true,
+    horizontal: true,
+  } satisfies Record<ReferenceLineLabelKind, boolean>,
+  defaultDirectLineLabelMode: "segment" as DirectLineLabelMode,
+};
+
 const createInitialSettingsState = ({
   initialPointRadius = 1,
   initialPointVerticalOffsetMeters = 0,
   initialPointTemporaryMode = false,
+  initialDistanceStickyToFirstPoint = DEFAULT_DISTANCE_TOOL_SETTINGS.stickyToFirstPoint,
+  initialDistanceCreationLineVisibility,
+  initialDistanceLabelVisibilityByKind,
+  initialDistanceDirectLineLabelMode = DEFAULT_DISTANCE_TOOL_SETTINGS.defaultDirectLineLabelMode,
   initialPolylineVerticalOffsetMeters = 0,
   initialPolylineSegmentLineMode = DEFAULT_LINEAR_SEGMENT_LINE_MODE,
   initialHeightOffset = 1.5,
@@ -49,12 +78,16 @@ const createInitialSettingsState = ({
     temporaryMode: initialPointTemporaryMode,
   },
   distance: {
-    stickyToFirstPoint: false,
+    stickyToFirstPoint: initialDistanceStickyToFirstPoint,
     creationLineVisibility: {
-      direct: true,
-      vertical: true,
-      horizontal: true,
+      ...DEFAULT_DISTANCE_TOOL_SETTINGS.creationLineVisibility,
+      ...(initialDistanceCreationLineVisibility ?? {}),
     },
+    defaultLabelVisibilityByKind: {
+      ...DEFAULT_DISTANCE_TOOL_SETTINGS.defaultLabelVisibilityByKind,
+      ...(initialDistanceLabelVisibilityByKind ?? {}),
+    },
+    defaultDirectLineLabelMode: initialDistanceDirectLineLabelMode,
   },
   polyline: {
     defaultVerticalOffsetMeters: initialPolylineVerticalOffsetMeters,
@@ -142,14 +175,16 @@ const createInitialAnnotationsSnapshot = (
 
 const createInitialEditState = (): AnnotationEditStoreState => ({
   activeTarget: null,
-  moveGizmoPointId: null,
-  moveGizmoAxisDirection: null,
-  moveGizmoAxisTitle: null,
-  moveGizmoAxisCandidates: null,
-  moveGizmoPreferredAxisId: null,
-  moveGizmoVerticalOffsetEditMode: null,
-  moveGizmoVerticalOffsetPlanarMeasurementId: null,
-  isMoveGizmoDragging: false,
+  moveGizmo: {
+    pointId: null,
+    axisDirection: null,
+    axisTitle: null,
+    axisCandidates: null,
+    preferredAxisId: null,
+    verticalOffsetEditMode: null,
+    verticalOffsetNodeChainAnnotationId: null,
+    isDragging: false,
+  },
 });
 
 export const createInitialAnnotationsStoreState = ({
@@ -157,6 +192,10 @@ export const createInitialAnnotationsStoreState = ({
   initialPointRadius = 1,
   initialPointVerticalOffsetMeters = 0,
   initialPointTemporaryMode = false,
+  initialDistanceStickyToFirstPoint,
+  initialDistanceCreationLineVisibility,
+  initialDistanceLabelVisibilityByKind,
+  initialDistanceDirectLineLabelMode,
   initialPolylineVerticalOffsetMeters = 0,
   initialPolylineSegmentLineMode = DEFAULT_LINEAR_SEGMENT_LINE_MODE,
   initialHeightOffset = 1.5,
@@ -165,6 +204,10 @@ export const createInitialAnnotationsStoreState = ({
     initialPointRadius,
     initialPointVerticalOffsetMeters,
     initialPointTemporaryMode,
+    initialDistanceStickyToFirstPoint,
+    initialDistanceCreationLineVisibility,
+    initialDistanceLabelVisibilityByKind,
+    initialDistanceDirectLineLabelMode,
     initialPolylineVerticalOffsetMeters,
     initialPolylineSegmentLineMode,
     initialHeightOffset,
@@ -194,7 +237,7 @@ export const createInitialAnnotationsStoreState = ({
     },
     createdPointIds: [],
     createdRelationIds: [],
-    activePlanarMeasurementId: null,
+    activeNodeChainAnnotationId: null,
     pendingLabelPlacementAnnotationId: null,
     openChainPointId: null,
     pendingPolylineRingPromotionPointId: null,
@@ -206,7 +249,7 @@ export const createInitialAnnotationsStoreState = ({
     candidateAnnotation: null,
     referencePoint: null,
     distanceRelations: [],
-    planarMeasurements: [],
+    nodeChainAnnotations: [],
   };
 };
 

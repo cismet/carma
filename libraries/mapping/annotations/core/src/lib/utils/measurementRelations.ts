@@ -1,9 +1,9 @@
 import type {
   AnnotationGeometryEdge,
-  PlanarPolygonGroupVertex,
+  PolygonAnnotationVertex,
 } from "../types/annotationPersistenceTypes";
 import type { PointDistanceRelation } from "../types/distanceRelation";
-import type { PlanarMeasurementGroup } from "../types/planarTypes";
+import type { NodeChainAnnotation } from "../types/annotationTypes";
 
 export const getMeasurementEdgeId = (pointAId: string, pointBId: string) => {
   const [left, right] = [pointAId, pointBId].sort((a, b) => a.localeCompare(b));
@@ -34,8 +34,8 @@ export const isSameDistanceRelationPair = (
   (relation.pointAId === pointBId && relation.pointBId === pointAId);
 
 export const buildPolygonGroupVertexTable = (
-  groups: readonly PlanarMeasurementGroup[]
-): PlanarPolygonGroupVertex[] =>
+  groups: readonly NodeChainAnnotation[]
+): PolygonAnnotationVertex[] =>
   groups.flatMap((group) =>
     group.nodeIds.map((pointId, order) => ({
       id: `${group.id}:${order}`,
@@ -47,7 +47,7 @@ export const buildPolygonGroupVertexTable = (
 
 export const buildGeometryEdgeTable = (
   relations: readonly PointDistanceRelation[],
-  groups: readonly PlanarMeasurementGroup[]
+  groups: readonly NodeChainAnnotation[]
 ): AnnotationGeometryEdge[] => {
   const byEdgeId = new Map<string, AnnotationGeometryEdge>();
 

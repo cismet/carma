@@ -6,6 +6,7 @@ import {
   type AnnotationEntry,
   type PointAnnotationEntry,
 } from "../types/annotationCesiumTypes";
+import type { NodeChainAnnotation } from "../types/annotationTypes";
 import { getCustomPointAnnotationName } from "./annotationNaming";
 
 export const getPointById = (
@@ -50,6 +51,32 @@ export const getMeasurementEntryFlyToPoints = (
   }
 
   return [];
+};
+
+export const getAnnotationFlyToPointsById = (
+  id: string,
+  annotations: AnnotationCollection,
+  nodeChainAnnotations: readonly NodeChainAnnotation[]
+): Cartesian3[] => {
+  if (!id) {
+    return [];
+  }
+
+  const pointById = getPointPositionMap(annotations);
+  const multiNodeAnnotation =
+    nodeChainAnnotations.find((entry) => entry.id === id) ?? null;
+  if (multiNodeAnnotation) {
+    return multiNodeAnnotation.nodeIds
+      .map((pointId) => pointById.get(pointId) ?? null)
+      .filter((point): point is Cartesian3 => Boolean(point));
+  }
+
+  const annotation = annotations.find((entry) => entry.id === id);
+  if (!annotation) {
+    return [];
+  }
+
+  return getMeasurementEntryFlyToPoints(annotation);
 };
 
 export const getLastCustomPointAnnotationName = (

@@ -9,7 +9,7 @@ import {
 } from "@carma-mapping/annotations/core";
 import { getDistanceAnnotationInfoBoxSlots } from "./getDistanceAnnotationInfoBoxSlots";
 import { getLabelAnnotationInfoBoxSlots } from "./getLabelAnnotationInfoBoxSlots";
-import { getPlanarAnnotationInfoBoxSlots } from "./getPlanarAnnotationInfoBoxSlots";
+import { getNodeChainAnnotationInfoBoxSlots } from "./getNodeChainAnnotationInfoBoxSlots";
 import { getPointAnnotationInfoBoxSlots } from "./getPointAnnotationInfoBoxSlots";
 import { getUnsupportedAnnotationInfoBoxSlots } from "./getUnsupportedAnnotationInfoBoxSlots";
 import type {
@@ -46,7 +46,7 @@ export const getAnnotationInfoBoxSlots = (
     case ANNOTATION_TYPE_AREA_GROUND:
     case ANNOTATION_TYPE_AREA_PLANAR:
     case ANNOTATION_TYPE_AREA_VERTICAL:
-      return getPlanarAnnotationInfoBoxSlots(input);
+      return getNodeChainAnnotationInfoBoxSlots(input);
     default:
       return getUnsupportedAnnotationInfoBoxSlots(input);
   }

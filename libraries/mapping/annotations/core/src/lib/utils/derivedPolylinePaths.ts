@@ -11,10 +11,7 @@ import {
   type AnnotationCollection,
 } from "../types/annotationCesiumTypes";
 import type { DerivedPolylinePath } from "../types/derivedPolylinePath";
-import type {
-  PlanarMeasurementGroup,
-  PlanarPolylineGroup,
-} from "../types/planarTypes";
+import type { NodeChainAnnotation } from "../types/annotationTypes";
 
 const getPolylineComputationPointPositionMap = (
   annotations: AnnotationCollection,
@@ -46,7 +43,7 @@ const getPolylineComputationPointPositionMap = (
 };
 
 export const buildDerivedPolylinePath = (
-  group: PlanarPolylineGroup,
+  group: NodeChainAnnotation,
   pointById: ReadonlyMap<string, Cartesian3>,
   verticalOffsetMeters: number = 0
 ): DerivedPolylinePath | null => {
@@ -121,12 +118,12 @@ export const buildDerivedPolylinePath = (
 
 export const buildDerivedPolylinePaths = ({
   annotations,
-  planarPolygonGroups,
+  nodeChainAnnotations,
   defaultVerticalOffsetMeters,
   useOffsetAnchors,
 }: {
   annotations: AnnotationCollection;
-  planarPolygonGroups: readonly PlanarMeasurementGroup[];
+  nodeChainAnnotations: readonly NodeChainAnnotation[];
   defaultVerticalOffsetMeters: number;
   useOffsetAnchors: boolean;
 }): DerivedPolylinePath[] => {
@@ -135,9 +132,9 @@ export const buildDerivedPolylinePaths = ({
     useOffsetAnchors
   );
 
-  return planarPolygonGroups
+  return nodeChainAnnotations
     .filter(
-      (group): group is PlanarPolylineGroup =>
+      (group): group is NodeChainAnnotation =>
         group.type === ANNOTATION_TYPE_POLYLINE
     )
     .map((group) =>

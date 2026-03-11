@@ -8,7 +8,7 @@ import {
 } from "@carma-mapping/annotations/core";
 import {
   useAnnotationCollection,
-  usePlanarMeasurements,
+  useNodeChainAnnotations,
   useAnnotationSelectionState,
   useAnnotationSettings,
   useAnnotationTools,
@@ -40,7 +40,7 @@ export function AnnotationToolbar3D({
   const selection = useAnnotationSelectionState();
   const annotations = useAnnotationCollection();
   const settings = useAnnotationSettings();
-  const planarMeasurements = usePlanarMeasurements();
+  const nodeChainAnnotations = useNodeChainAnnotations();
 
   const measurementById = useMemo(
     () =>
@@ -103,7 +103,7 @@ export function AnnotationToolbar3D({
   const deletableSelectedPointCount = deletableSelectedPointIds.length;
   const hasDeletableSelection = deletableSelectedPointCount > 0;
   const hasAnyMeasurements =
-    annotations.items.length > 0 || planarMeasurements.length > 0;
+    annotations.items.length > 0 || nodeChainAnnotations.length > 0;
 
   const toggleSelectedVisibility = useCallback(() => {
     if (selectedPointIds.length === 0) return;
@@ -117,7 +117,7 @@ export function AnnotationToolbar3D({
 
   const requestDeleteSelectedPoints = useCallback(() => {
     const selectedPointIdSet = new Set(deletableSelectedPointIds);
-    const protectedPolygonCandidate = planarMeasurements.find((group) => {
+    const protectedPolygonCandidate = nodeChainAnnotations.find((group) => {
       if (!group.closed || group.nodeIds.length > 3) {
         return false;
       }
@@ -174,7 +174,7 @@ export function AnnotationToolbar3D({
     annotations,
     deletableSelectedPointCount,
     deletableSelectedPointIds,
-    planarMeasurements,
+    nodeChainAnnotations,
   ]);
 
   const requestClearAllMeasurements = useCallback(() => {

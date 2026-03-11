@@ -1,3 +1,7 @@
+import type { Cartesian3Json } from "@carma/cesium";
+
+import type { LinearSegmentLineMode } from "./linearSegment";
+
 // Tool and annotation identifiers
 export const SELECT_TOOL_TYPE = "select" as const;
 export const ANNOTATION_TYPE_POINT = "point" as const;
@@ -32,3 +36,51 @@ export const isAreaToolType = (
   toolType === ANNOTATION_TYPE_AREA_GROUND ||
   toolType === ANNOTATION_TYPE_AREA_VERTICAL ||
   toolType === ANNOTATION_TYPE_AREA_PLANAR;
+
+export type PlanarPolygonType =
+  | typeof ANNOTATION_TYPE_AREA_PLANAR
+  | typeof ANNOTATION_TYPE_AREA_VERTICAL;
+
+export type GroundPolygonType = typeof ANNOTATION_TYPE_AREA_GROUND;
+
+export type PolygonType = GroundPolygonType | PlanarPolygonType;
+export type PolygonAreaType = PolygonType;
+
+export type NodeChainAnnotationType =
+  | typeof ANNOTATION_TYPE_POLYLINE
+  | PolygonType;
+
+export type PlanarPolygonPlane = {
+  anchorECEF: Cartesian3Json;
+  normalECEF: Cartesian3Json;
+};
+
+export type PlanarPolygonLocalFrame = {
+  originECEF: Cartesian3Json;
+  eastECEF: Cartesian3Json;
+  northECEF: Cartesian3Json;
+  upECEF: Cartesian3Json;
+};
+
+type NodeChainAnnotationBase = {
+  id: string;
+  name?: string;
+  hidden?: boolean;
+  segmentLineMode?: LinearSegmentLineMode;
+  verticalOffsetMeters?: number;
+  nodeIds: string[];
+  edgeRelationIds: string[];
+  distanceMeasurementStartPointId?: string;
+  closed: boolean;
+  planeLocked: boolean;
+  plane?: PlanarPolygonPlane;
+  planarPolygonLocalFrame?: PlanarPolygonLocalFrame;
+  perimeterMeters?: number;
+  areaSquareMeters?: number;
+  verticalityDeg?: number;
+  bearingDeg?: number;
+};
+
+export type NodeChainAnnotation = NodeChainAnnotationBase & {
+  type: NodeChainAnnotationType;
+};

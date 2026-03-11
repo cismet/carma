@@ -14,10 +14,10 @@ import {
   ANNOTATION_TYPE_AREA_VERTICAL,
 } from "../types/annotationTypes";
 import type {
-  PlanarMeasurementGroup,
+  NodeChainAnnotation,
   PlanarPolygonLocalFrame,
   PlanarPolygonPlane,
-} from "../types/planarTypes";
+} from "../types/annotationTypes";
 
 const EPSILON = 1e-8;
 
@@ -438,12 +438,12 @@ const deriveVerticalPolygonLocalFrame = (
 };
 
 export const computePolygonGroupDerivedData = (
-  group: PlanarMeasurementGroup,
+  group: NodeChainAnnotation,
   pointById: Map<string, Cartesian3>,
   options?: {
     preferredFacingPositionECEF?: Cartesian3 | null;
   }
-): PlanarMeasurementGroup => {
+): NodeChainAnnotation => {
   const preferredFacingPositionECEF =
     options?.preferredFacingPositionECEF ?? null;
   const computePerimeterMeters = () => {

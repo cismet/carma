@@ -18,7 +18,7 @@ import { useAnnotationInfoBoxNavigationBindings } from "./useAnnotationInfoBoxNa
 import { useAnnotationInfoNavigationState } from "./useAnnotationInfoNavigationState";
 import { useDistanceInfoBoxSlotsInput } from "./useDistanceInfoBoxSlotsInput";
 import { useLabelInfoBoxSlotsInput } from "./useLabelInfoBoxSlotsInput";
-import { usePlanarInfoBoxSlotsInput } from "./usePlanarInfoBoxSlotsInput";
+import { useNodeChainInfoBoxSlotsInput } from "./useNodeChainInfoBoxSlotsInput";
 import { usePointInfoBoxSlotsInput } from "./usePointInfoBoxSlotsInput";
 
 export const useAnnotationInfoBoxPayload = (
@@ -27,7 +27,7 @@ export const useAnnotationInfoBoxPayload = (
   const distanceState = useDistanceInfoBoxSlotsInput();
   const pointState = usePointInfoBoxSlotsInput();
   const labelState = useLabelInfoBoxSlotsInput();
-  const planarState = usePlanarInfoBoxSlotsInput();
+  const nodeChainState = useNodeChainInfoBoxSlotsInput();
 
   const annotationType: AnnotationSlotKind = distanceState.isDistanceKind
     ? ANNOTATION_TYPE_DISTANCE
@@ -35,7 +35,7 @@ export const useAnnotationInfoBoxPayload = (
     ? ANNOTATION_TYPE_POINT
     : labelState.isLabelKind
     ? ANNOTATION_TYPE_LABEL
-    : planarState.slotsInput?.kind ?? "unsupported";
+    : nodeChainState.slotsInput?.kind ?? "unsupported";
 
   const slotsInput: AnnotationSlotsInput =
     annotationType === ANNOTATION_TYPE_DISTANCE
@@ -48,7 +48,7 @@ export const useAnnotationInfoBoxPayload = (
         annotationType === ANNOTATION_TYPE_AREA_GROUND ||
         annotationType === ANNOTATION_TYPE_AREA_PLANAR ||
         annotationType === ANNOTATION_TYPE_AREA_VERTICAL
-      ? planarState.slotsInput ?? { kind: "unsupported" }
+      ? nodeChainState.slotsInput ?? { kind: "unsupported" }
       : { kind: "unsupported" };
 
   const {

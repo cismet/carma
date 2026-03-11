@@ -11,7 +11,7 @@ import {
 import type { AnnotationSlotKind } from "./getAnnotationInfoBoxSlots";
 import {
   useAnnotationCollection,
-  usePlanarAnnotationReadModel,
+  useNodeChainAnnotationReadModel,
   useAnnotationSelectionState,
 } from "../../context/AnnotationsProvider";
 
@@ -30,7 +30,7 @@ export const useAnnotationInfoBoxNavigationBindings = (
 ): AnnotationInfoBoxNavigationBindings => {
   const annotations = useAnnotationCollection();
   const selection = useAnnotationSelectionState();
-  const planarReadModel = usePlanarAnnotationReadModel();
+  const nodeChainReadModel = useNodeChainAnnotationReadModel();
 
   const navigationMeasurements = useMemo(() => {
     if (annotationType === ANNOTATION_TYPE_LABEL) {
@@ -42,7 +42,7 @@ export const useAnnotationInfoBoxNavigationBindings = (
       annotationType === ANNOTATION_TYPE_AREA_PLANAR ||
       annotationType === ANNOTATION_TYPE_AREA_VERTICAL
     ) {
-      return planarReadModel.measurements.map((measurement) => ({
+      return nodeChainReadModel.measurements.map((measurement) => ({
         id: measurement.id,
       }));
     }
@@ -51,46 +51,46 @@ export const useAnnotationInfoBoxNavigationBindings = (
     annotationType,
     annotations,
     labelMeasurements,
-    planarReadModel.measurements,
+    nodeChainReadModel.measurements,
   ]);
 
-  const isPlanarAnnotationType =
+  const isNodeChainAnnotationType =
     annotationType === ANNOTATION_TYPE_POLYLINE ||
     annotationType === ANNOTATION_TYPE_AREA_GROUND ||
     annotationType === ANNOTATION_TYPE_AREA_PLANAR ||
     annotationType === ANNOTATION_TYPE_AREA_VERTICAL;
 
   const currentNavigationId = useMemo(() => {
-    if (!isPlanarAnnotationType) {
+    if (!isNodeChainAnnotationType) {
       return currentMeasurementId;
     }
 
-    const activePlanarGroup =
-      planarReadModel.activeMeasurementId !== null
-        ? planarReadModel.measurements.find(
+    const activeNodeChainAnnotation =
+      nodeChainReadModel.activeMeasurementId !== null
+        ? nodeChainReadModel.measurements.find(
             (measurement) =>
-              measurement.id === planarReadModel.activeMeasurementId
+              measurement.id === nodeChainReadModel.activeMeasurementId
           ) ?? null
         : null;
     const requiredVertexCount =
-      activePlanarGroup?.type === ANNOTATION_TYPE_POLYLINE ? 2 : 3;
-    const canUseActivePlanarGroup =
-      activePlanarGroup !== null &&
-      activePlanarGroup.nodeIds.length >= requiredVertexCount;
+      activeNodeChainAnnotation?.type === ANNOTATION_TYPE_POLYLINE ? 2 : 3;
+    const canUseActiveNodeChainAnnotation =
+      activeNodeChainAnnotation !== null &&
+      activeNodeChainAnnotation.nodeIds.length >= requiredVertexCount;
 
-    return canUseActivePlanarGroup
-      ? activePlanarGroup.id
-      : planarReadModel.focusedMeasurementId;
+    return canUseActiveNodeChainAnnotation
+      ? activeNodeChainAnnotation.id
+      : nodeChainReadModel.focusedMeasurementId;
   }, [
     currentMeasurementId,
-    isPlanarAnnotationType,
-    planarReadModel.activeMeasurementId,
-    planarReadModel.focusedMeasurementId,
-    planarReadModel.measurements,
+    isNodeChainAnnotationType,
+    nodeChainReadModel.activeMeasurementId,
+    nodeChainReadModel.focusedMeasurementId,
+    nodeChainReadModel.measurements,
   ]);
 
   const handleNavigationSelection = (id: string | null) => {
-    if (isPlanarAnnotationType) {
+    if (isNodeChainAnnotationType) {
       annotations.focusById(id);
       return;
     }

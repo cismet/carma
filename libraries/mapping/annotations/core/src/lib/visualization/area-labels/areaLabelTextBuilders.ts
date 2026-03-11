@@ -1,4 +1,4 @@
-import { type PlanarPolygonGroup } from "../../types/planarTypes";
+import { type NodeChainAnnotation } from "../../types/annotationTypes";
 import type { Cartesian3Json } from "@carma/cesium";
 import { ANNOTATION_TYPE_AREA_VERTICAL } from "../../types/annotationTypes";
 import { formatAreaAdaptive } from "../../utils/displayFormatting";
@@ -48,7 +48,7 @@ const computePolygonAreaFromVertices = (
 };
 
 const resolveDisplayedAreaSquareMeters = (
-  group: PlanarPolygonGroup,
+  group: NodeChainAnnotation,
   previewAreaSquareMeters: number
 ) => {
   if (!group.closed) {
@@ -62,7 +62,7 @@ const resolveDisplayedAreaSquareMeters = (
 };
 
 const buildAreaLabelText = (
-  group: PlanarPolygonGroup,
+  group: NodeChainAnnotation,
   vertices: Cartesian3Json[]
 ): AreaLabelText => {
   const previewAreaSquareMeters = computePolygonAreaFromVertices(vertices);
@@ -85,17 +85,17 @@ const buildAreaLabelText = (
 };
 
 export const buildGroundAreaLabelText = (
-  group: PlanarPolygonGroup,
+  group: NodeChainAnnotation,
   vertices: Cartesian3Json[]
 ): AreaLabelText => buildAreaLabelText(group, vertices);
 
 export const buildPlanarAreaLabelText = (
-  group: PlanarPolygonGroup,
+  group: NodeChainAnnotation,
   vertices: Cartesian3Json[]
 ): AreaLabelText => buildAreaLabelText(group, vertices);
 
 export const buildVerticalAreaLabelText = (
-  group: PlanarPolygonGroup
+  group: NodeChainAnnotation
 ): AreaLabelText => ({
   primaryText: formatAreaAdaptive(Math.max(0, group.areaSquareMeters ?? 0)),
   secondaryText: null,

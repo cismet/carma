@@ -1,59 +1,12 @@
-import {
-  ANNOTATION_TYPE_AREA_GROUND,
-  ANNOTATION_TYPE_AREA_PLANAR,
-  ANNOTATION_TYPE_AREA_VERTICAL,
-  ANNOTATION_TYPE_POLYLINE,
-} from "../types/annotationTypes";
-import type {
-  PlanarMeasurementGroup,
-  PlanarPolylineGroup,
-  PlanarPolygonGroup,
-} from "../types/planarTypes";
-
-export type PlanarMeasurementGroupsByType = {
-  polylineGroups: PlanarPolylineGroup[];
-  areaPolygonGroups: PlanarPolygonGroup[];
-  planarSurfacePolygonGroups: PlanarPolygonGroup[];
-  verticalPolygonGroups: PlanarPolygonGroup[];
-};
-
-export const groupPlanarMeasurementGroupsByType = (
-  groups: readonly PlanarMeasurementGroup[]
-): PlanarMeasurementGroupsByType => {
-  const grouped: PlanarMeasurementGroupsByType = {
-    polylineGroups: [],
-    areaPolygonGroups: [],
-    planarSurfacePolygonGroups: [],
-    verticalPolygonGroups: [],
-  };
-
-  groups.forEach((group) => {
-    if (group.type === ANNOTATION_TYPE_POLYLINE) {
-      grouped.polylineGroups.push(group);
-      return;
-    }
-    if (group.type === ANNOTATION_TYPE_AREA_GROUND) {
-      grouped.areaPolygonGroups.push(group);
-      return;
-    }
-    if (group.type === ANNOTATION_TYPE_AREA_PLANAR) {
-      grouped.planarSurfacePolygonGroups.push(group);
-      return;
-    }
-    if (group.type === ANNOTATION_TYPE_AREA_VERTICAL) {
-      grouped.verticalPolygonGroups.push(group);
-    }
-  });
-
-  return grouped;
-};
+import { ANNOTATION_TYPE_POLYLINE } from "../types/annotationTypes";
+import type { NodeChainAnnotation } from "../types/annotationTypes";
 
 export const getConnectedOpenPolylineGroupIds = (
-  groups: readonly PlanarMeasurementGroup[],
+  groups: readonly NodeChainAnnotation[],
   startGroupId: string
 ) => {
   const openGroups = groups.filter(
-    (group): group is PlanarPolylineGroup =>
+    (group): group is NodeChainAnnotation =>
       !group.closed && group.type === ANNOTATION_TYPE_POLYLINE
   );
   const startGroup = openGroups.find((group) => group.id === startGroupId);

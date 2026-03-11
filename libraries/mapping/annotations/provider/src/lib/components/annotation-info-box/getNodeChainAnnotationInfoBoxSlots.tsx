@@ -1,0 +1,254 @@
+import { type MouseEvent as ReactMouseEvent } from "react";
+import { Switch, Tooltip } from "antd";
+import {
+  faEye,
+  faEyeSlash,
+  faLock,
+  faLockOpen,
+  faTrashCan,
+} from "@fortawesome/free-solid-svg-icons";
+import Icon from "react-cismap/commons/Icon";
+import {
+  ANNOTATION_TYPE_AREA_GROUND,
+  ANNOTATION_TYPE_AREA_PLANAR,
+  ANNOTATION_TYPE_AREA_VERTICAL,
+  ANNOTATION_TYPE_POLYLINE,
+  LINEAR_SEGMENT_LINE_MODE_COMPONENTS,
+  LINEAR_SEGMENT_LINE_MODE_DIRECT,
+  formatAreaAdaptive,
+  formatNumber,
+} from "@carma-mapping/annotations/core";
+import { formatBearingToGermanSectorLabel } from "./AnnotationInfoBox.formatters";
+import { AnnotationInfoBoxActionIcon } from "./AnnotationInfoBoxActionIcon";
+import { AnnotationInfoTitleInput } from "./AnnotationInfoTitleInput";
+import { stopInputEventPropagation } from "./annotationInfoBoxSlots.shared";
+import type {
+  AnnotationSlots,
+  PolygonPolylineAnnotationSlotsInput,
+} from "./annotationInfoBoxSlots.types";
+
+const NODE_CHAIN_TYPE_TITLE_BY_KIND: Record<
+  PolygonPolylineAnnotationSlotsInput["kind"],
+  string
+> = {
+  [ANNOTATION_TYPE_POLYLINE]: "Polygonzug",
+  [ANNOTATION_TYPE_AREA_GROUND]: "Grundriss",
+  [ANNOTATION_TYPE_AREA_PLANAR]: "Dach",
+  [ANNOTATION_TYPE_AREA_VERTICAL]: "Fassade",
+};
+
+const getNodeChainMetricContent = (
+  input: PolygonPolylineAnnotationSlotsInput
+) => {
+  const cardinalHeading = formatBearingToGermanSectorLabel(input.bearingDeg, {
+    useFullLabel: true,
+    includeDegree: true,
+    fractionDigits: 2,
+    mainCardinalRangeDeg: 60,
+    flipBy180Deg: true,
+  });
+  if (input.kind === ANNOTATION_TYPE_POLYLINE) {
+    const isComponentsMode =
+      (input.segmentLineMode ?? LINEAR_SEGMENT_LINE_MODE_COMPONENTS) ===
+      LINEAR_SEGMENT_LINE_MODE_COMPONENTS;
+    return (
+      <div className="w-full px-2 pb-1 text-[#212529] text-[11px] leading-normal">
+        <div className="mb-1">
+          Gesamtlänge: {formatNumber(input.totalLengthMeters)} m
+        </div>
+        <div
+          className="mb-1 flex items-center gap-2"
+          onClick={stopInputEventPropagation}
+          onMouseDown={stopInputEventPropagation}
+        >
+          <span className="text-gray-500">Segmentdarstellung:</span>
+          <span className="text-[10px] text-gray-500">Direkt</span>
+          <Switch
+            size="small"
+            checked={isComponentsMode}
+            onChange={(checked) =>
+              input.actions.updateVisualizerOptionsById(input.measurementId, {
+                segmentLineMode: checked
+                  ? LINEAR_SEGMENT_LINE_MODE_COMPONENTS
+                  : LINEAR_SEGMENT_LINE_MODE_DIRECT,
+              })
+            }
+            aria-label="Polygonzug-Segmentdarstellung umschalten"
+            data-test-id="infobox-polyline-line-mode-toggle"
+          />
+          <span className="text-[10px] text-gray-500">Komponenten</span>
+        </div>
+        {input.polylineSummary ? (
+          <>
+            <div className="mb-1 flex flex-wrap items-baseline gap-x-2 gap-y-1 text-[10px]">
+              <span className="text-gray-500">Aufstieg:</span>
+              <span className="tabular-nums">
+                {formatNumber(input.polylineSummary.ascentMeters)} m
+              </span>
+              <span className="text-gray-500">Abstieg:</span>
+              <span className="tabular-nums">
+                {formatNumber(input.polylineSummary.descentMeters)} m
+              </span>
+              <span className="text-gray-500">Summe:</span>
+              <span className="tabular-nums">
+                {formatNumber(
+                  input.polylineSummary.totalAbsoluteElevationChangeMeters
+                )}{" "}
+                m
+              </span>
+            </div>
+            <div className="mb-1">
+              <span className="text-gray-500 mr-1">Δ Start/Ende:</span>
+              <span className="tabular-nums">
+                {formatNumber(
+                  input.polylineSummary.startEndElevationDeltaMeters
+                )}{" "}
+                m
+              </span>
+            </div>
+            <div className="mb-1">
+              <span className="text-gray-500 mr-1">Ø Segmentlänge:</span>
+              <span className="tabular-nums">
+                {formatNumber(input.polylineSummary.meanSegmentLengthMeters)} m
+              </span>
+            </div>
+            <div>
+              <span className="text-gray-500 mr-1">Segmente:</span>
+              <span className="tabular-nums">
+                {input.polylineSummary.segmentCount}
+              </span>
+            </div>
+          </>
+        ) : null}
+      </div>
+    );
+  }
+
+  const areaLabel =
+    input.kind === ANNOTATION_TYPE_AREA_PLANAR
+      ? "Dachfläche"
+      : input.kind === ANNOTATION_TYPE_AREA_VERTICAL
+      ? "Fassadenfläche"
+      : "Fläche";
+
+  return (
+    <div className="w-full px-2 pb-1 text-[#212529] text-base leading-normal">
+      <div className="flex flex-wrap items-baseline gap-x-4 gap-y-1">
+        <span>
+          {areaLabel}:{" "}
+          <span className="tabular-nums">
+            {formatAreaAdaptive(Math.max(0, input.areaSquareMeters ?? 0))}
+          </span>
+        </span>
+        <span>
+          Umfang:{" "}
+          <span className="tabular-nums">
+            {formatNumber(input.totalLengthMeters)} m
+          </span>
+        </span>
+      </div>
+      {(input.kind === ANNOTATION_TYPE_AREA_PLANAR ||
+        input.kind === ANNOTATION_TYPE_AREA_VERTICAL) &&
+      cardinalHeading ? (
+        <div>Himmelsrichtung: {cardinalHeading}</div>
+      ) : null}
+      {(input.kind === ANNOTATION_TYPE_AREA_PLANAR ||
+        input.kind === ANNOTATION_TYPE_AREA_VERTICAL) &&
+      Number.isFinite(input.verticalityDeg) ? (
+        <div>Vertikalität: {formatNumber(input.verticalityDeg ?? 0)}°</div>
+      ) : null}
+    </div>
+  );
+};
+
+const stopHeadingActionPropagation = (
+  event:
+    | ReactMouseEvent<HTMLElement, MouseEvent>
+    | ReactMouseEvent<SVGSVGElement, MouseEvent>
+) => {
+  event.stopPropagation();
+};
+
+const renderNodeChainHeadingActions = (
+  input: PolygonPolylineAnnotationSlotsInput
+) => (
+  <div
+    className="flex items-center gap-2"
+    onMouseDown={stopInputEventPropagation}
+    onClick={stopInputEventPropagation}
+  >
+    <Tooltip title="Zur Messung fliegen">
+      <Icon
+        name="search-location"
+        onClick={(event: ReactMouseEvent<HTMLElement, MouseEvent>) => {
+          stopHeadingActionPropagation(event);
+          input.actions.flyToById(input.measurementId);
+        }}
+        className="cursor-pointer text-[15px] text-white/85 hover:text-white"
+        data-test-id="carma-flyto-node-chain-annotation-btn"
+      />
+    </Tooltip>
+    <AnnotationInfoBoxActionIcon
+      title={input.hidden ? "Einblenden" : "Ausblenden"}
+      icon={input.hidden ? faEyeSlash : faEye}
+      onClick={(event) => {
+        stopHeadingActionPropagation(event);
+        input.actions.toggleVisibilityByIds([input.measurementId]);
+      }}
+      className="cursor-pointer text-[14px] text-white/85 hover:text-white"
+      dataTestId="carma-toggle-node-chain-annotation-visibility-btn"
+    />
+    <AnnotationInfoBoxActionIcon
+      title={input.locked ? "Entsperren" : "Sperren"}
+      icon={input.locked ? faLock : faLockOpen}
+      onClick={(event) => {
+        stopHeadingActionPropagation(event);
+        input.actions.toggleLockByIds([input.measurementId]);
+      }}
+      className="cursor-pointer text-[14px] text-white/85 hover:text-white"
+      dataTestId="carma-toggle-node-chain-annotation-lock-btn"
+    />
+    <AnnotationInfoBoxActionIcon
+      title="Löschen"
+      icon={faTrashCan}
+      onClick={(event) => {
+        stopHeadingActionPropagation(event);
+        input.actions.removeByIds([input.measurementId]);
+      }}
+      className="cursor-pointer text-[14px] text-white/85 hover:text-white"
+      dataTestId="carma-delete-node-chain-annotation-btn"
+    />
+  </div>
+);
+
+export const getNodeChainAnnotationInfoBoxSlots = (
+  input: PolygonPolylineAnnotationSlotsInput
+): AnnotationSlots => ({
+  headingTitle: NODE_CHAIN_TYPE_TITLE_BY_KIND[input.kind],
+  headingActions: renderNodeChainHeadingActions(input),
+  subtitle: (
+    <div className="mt-1 mb-0 w-full px-2">
+      <span className="font-bold flex-1 min-w-0">
+        <AnnotationInfoTitleInput
+          key={input.measurementId}
+          value={input.name ?? ""}
+          placeholder={`${NODE_CHAIN_TYPE_TITLE_BY_KIND[input.kind]} #${
+            input.order
+          }`}
+          editable={true}
+          capitalize={false}
+          multiline={true}
+          onChange={(nextTitle) =>
+            input.actions.updateNameById(input.measurementId, nextTitle)
+          }
+          onCommit={(nextTitle) =>
+            input.actions.updateNameById(input.measurementId, nextTitle)
+          }
+        />
+      </span>
+    </div>
+  ),
+  content: getNodeChainMetricContent(input),
+  collapsible: input.kind === ANNOTATION_TYPE_POLYLINE,
+  instructionText: null,
+});

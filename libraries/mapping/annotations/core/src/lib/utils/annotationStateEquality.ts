@@ -1,9 +1,9 @@
 import type { PointDistanceRelation } from "../types/distanceRelation";
 import type {
-  PlanarMeasurementGroup,
+  NodeChainAnnotation,
   PlanarPolygonLocalFrame,
   PlanarPolygonPlane,
-} from "../types/planarTypes";
+} from "../types/annotationTypes";
 import type { ReferenceLineLabelKind } from "../visualization/distance/distanceRelationLabel.types";
 
 const DEFAULT_NUMERIC_EPSILON = 1e-9;
@@ -84,9 +84,9 @@ const arePlanarPolygonLocalFramesEqual = (
   );
 };
 
-export const arePlanarPolygonGroupsEquivalent = (
-  left: PlanarMeasurementGroup,
-  right: PlanarMeasurementGroup,
+export const arePolygonAnnotationsEquivalent = (
+  left: NodeChainAnnotation,
+  right: NodeChainAnnotation,
   epsilon: number = DEFAULT_NUMERIC_EPSILON
 ) =>
   left === right ||
