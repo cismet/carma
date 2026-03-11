@@ -12,7 +12,7 @@ import {
   appendLayer,
   deleteSavedLayerConfig,
   removeLayer,
-  setActiveFilterLayerID,
+  setActiveInteractionLayerID,
   setBackgroundLayer,
   setLayers,
   setSelectedLuftbildLayer,
@@ -496,7 +496,7 @@ export const createResourceLayerUpdater = ({
     });
 
     if (parsedLayer.conf?.autoOpenInteractionView === true) {
-      dispatch(setActiveFilterLayerID(id));
+      dispatch(setActiveInteractionLayerID(id));
     }
   };
 };

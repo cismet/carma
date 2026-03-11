@@ -22,7 +22,7 @@ const initialState: MappingState = {
   layers: [],
   savedLayerConfigs: [],
   selectedLayerIndex: SELECTED_LAYER_INDEX.NO_SELECTION,
-  activeFilterLayerID: null,
+  activeInteractionLayerID: null,
   paleOpacityValue: defaultOpacity,
   libreMapRef: null,
   maplibreMaps: [],
@@ -112,8 +112,8 @@ const slice = createSlice({
       state.maplibreMaps = state.maplibreMaps.filter(
         (entry) => entry.id !== action.payload
       );
-      if (state.activeFilterLayerID === action.payload) {
-        state.activeFilterLayerID = null;
+      if (state.activeInteractionLayerID === action.payload) {
+        state.activeInteractionLayerID = null;
       }
     },
     removeLastLayer(state) {
@@ -231,8 +231,8 @@ const slice = createSlice({
       }
     },
 
-    setActiveFilterLayerID(state, action) {
-      state.activeFilterLayerID = action.payload;
+    setActiveInteractionLayerID(state, action) {
+      state.activeInteractionLayerID = action.payload;
     },
     setSelectedMapLayer(state, action: PayloadAction<BackgroundLayer>) {
       state.selectedMapLayer = action.payload;
@@ -317,7 +317,7 @@ export const {
   setSelectedLayerIndexNoSelection,
   setNextSelectedLayerIndex,
   setPreviousSelectedLayerIndex,
-  setActiveFilterLayerID,
+  setActiveInteractionLayerID,
   setSelectedMapLayer,
   setBackgroundLayer,
   setSelectedLuftbildLayer,
@@ -377,8 +377,8 @@ export const getShowMeasurementButton = (state: RootState) =>
   state.mapping.showMeasurementButton;
 export const getShowRightScrollButton = (state: RootState) =>
   state.mapping.showRightScrollButton;
-export const getActiveFilterLayerID = (state: RootState) =>
-  state.mapping.activeFilterLayerID;
+export const getActiveInteractionLayerID = (state: RootState) =>
+  state.mapping.activeInteractionLayerID;
 export const getStartDrawing = (state: RootState) => state.mapping.startDrawing;
 export const getLibreMapRef = (state: RootState) => state.mapping.libreMapRef;
 export const getMaplibreMaps = (state: RootState) => state.mapping.maplibreMaps;

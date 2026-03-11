@@ -44,13 +44,13 @@ import {
   getClickFromInfoView,
   getLayers,
   getSelectedLayerIndex,
-  getActiveFilterLayerID,
+  getActiveInteractionLayerID,
   getShowLeftScrollButton,
   removeLayer,
   setClickFromInfoView,
   setSelectedLayerIndex,
   setSelectedLayerIndexNoSelection,
-  setActiveFilterLayerID,
+  setActiveInteractionLayerID,
   setShowLeftScrollButton,
   setShowRightScrollButton,
   toggleUseInFeatureInfo,
@@ -116,7 +116,7 @@ const GeoportalLayerButton = ({
   const showLayerHideButtons = useSelector(getUIShowLayerHideButtons);
   const showLeftScrollButton = useSelector(getShowLeftScrollButton);
   const clickFromInfoView = useSelector(getClickFromInfoView);
-  const activeFilterLayerID = useSelector(getActiveFilterLayerID);
+  const activeInteractionLayerID = useSelector(getActiveInteractionLayerID);
   const mode = useSelector(getUIMode);
   const showSettings = index === selectedLayerIndex;
   const layers = useSelector(getLayers);
@@ -245,8 +245,8 @@ const GeoportalLayerButton = ({
                   e.preventDefault();
                   e.stopPropagation();
                   dispatch(
-                    setActiveFilterLayerID(
-                      activeFilterLayerID === id ? null : id
+                    setActiveInteractionLayerID(
+                      activeInteractionLayerID === id ? null : id
                     )
                   );
                 }}
@@ -264,7 +264,7 @@ const GeoportalLayerButton = ({
                     icon={faFilter}
                     className={cn(
                       "text-sm",
-                      activeFilterLayerID === id
+                      activeInteractionLayerID === id
                         ? "text-[#1677ff]"
                         : "text-gray-600 hover:text-gray-500"
                     )}

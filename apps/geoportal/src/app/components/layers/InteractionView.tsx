@@ -2,7 +2,7 @@ import { forwardRef, useMemo, useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
 
 import {
-  getActiveFilterLayerID,
+  getActiveInteractionLayerID,
   getLayers,
   getMaplibreMaps,
 } from "../../store/slices/mapping";
@@ -26,16 +26,16 @@ const InteractionView = () => {
   const [filterInfo, setFilterInfo] = useState<FilterInfo | undefined>();
   const [filterState, setFilterState] = useState<FilterState | undefined>();
   const dispatch = useDispatch();
-  const activeFilterLayerID = useSelector(getActiveFilterLayerID);
+  const activeInteractionLayerID = useSelector(getActiveInteractionLayerID);
   const layers = useSelector(getLayers);
   const maplibreMaps = useSelector(getMaplibreMaps);
   const selectedFeature = useSelector(getSelectedFeature);
   const mode = useSelector(getUIMode);
   const isModeFeatureInfo = mode === UIMode.FEATURE_INFO;
-  const layer = layers.find((l) => l.id === activeFilterLayerID);
+  const layer = layers.find((l) => l.id === activeInteractionLayerID);
   const maplibreMap = maplibreMaps
-    ? maplibreMaps.find((entry) => entry.id === activeFilterLayerID)?.map ??
-      null
+    ? maplibreMaps.find((entry) => entry.id === activeInteractionLayerID)
+        ?.map ?? null
     : null;
 
   const FilterComponent = useMemo(

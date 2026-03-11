@@ -116,7 +116,7 @@ export interface MappingState extends LayerState {
   paleOpacityValue: number;
   showLeftScrollButton: boolean;
   showRightScrollButton: boolean;
-  activeFilterLayerID: string | null;
+  activeInteractionLayerID: string | null;
   showFullscreenButton: boolean;
   showLocatorButton: boolean;
   showMeasurementButton: boolean;
