@@ -755,6 +755,7 @@ export const NewLibModal = ({
         ...layer,
         serviceName: "featured",
         path: "Empfohlen",
+        originalPath: layer.path,
       }));
       setAllLayers((prev) => {
         return [

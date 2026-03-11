@@ -49,7 +49,9 @@ export const LayerIcon = ({
     layer.other?.icon ||
     layer.conf?.icon ||
     (layer.other?.path && layer.other?.name
-      ? mapIconPath(layer.other.path) + "/" + layer.other.name
+      ? mapIconPath(layer.other?.originalPath ?? layer.other.path) +
+        "/" +
+        layer.other.name
       : undefined);
 
   const isIconUrl = isUrl(layer.other?.icon);
