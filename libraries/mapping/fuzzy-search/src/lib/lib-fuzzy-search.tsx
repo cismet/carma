@@ -153,28 +153,22 @@ export function LibFuzzySearch({
     }
   };
 
-  const searchModeMenuItems: MenuProps["items"] = [
-    {
-      key: "gazetteer",
-      label: searchModeConfig.gazetteer.label,
-      icon: (
-        <FontAwesomeIcon
-          icon={searchModeConfig.gazetteer.icon}
-          style={{ fontSize: "14px" }}
-        />
-      ),
-    },
-    {
-      key: "parcel",
-      label: searchModeConfig.parcel.label,
-      icon: (
-        <FontAwesomeIcon
-          icon={searchModeConfig.parcel.icon}
-          style={{ fontSize: "14px" }}
-        />
-      ),
-    },
-  ];
+  const availableModes = (Object.keys(searchModeConfig) as SearchMode[]).filter(
+    (mode) => (mode === "parcel" ? landParcelSearch : true)
+  );
+
+  const searchModeMenuItems: MenuProps["items"] = availableModes.map((key) => ({
+    key,
+    label: searchModeConfig[key].label,
+    icon: (
+      <FontAwesomeIcon
+        icon={searchModeConfig[key].icon}
+        style={{ fontSize: "14px" }}
+      />
+    ),
+  }));
+
+  const hasMultipleModes = availableModes.length > 1;
 
   const dropdownAlign = {
     points: ["bl", "tl"],
@@ -471,10 +465,13 @@ export function LibFuzzySearch({
         hideIcon ? " fuzzy-search-container--no-icon" : ""
       }`}
       onKeyDownCapture={(e) => {
-        if (e.key === "Escape" && searchMode !== "gazetteer") {
+        if (e.key === "Escape") {
           const now = Date.now();
           if (now - lastEscRef.current < 500) {
-            setSearchMode("gazetteer");
+            const currentIndex = availableModes.indexOf(searchMode);
+            const nextMode =
+              availableModes[(currentIndex + 1) % availableModes.length];
+            setSearchMode(nextMode);
             setValue("");
             setSearchResult([]);
             setOptions([]);
@@ -483,7 +480,7 @@ export function LibFuzzySearch({
         }
       }}
     >
-      {landParcelSearch ? (
+      {hasMultipleModes ? (
         <Dropdown
           menu={{
             items: searchModeMenuItems,
