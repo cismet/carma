@@ -4,7 +4,5 @@ export const updateUrl = (url: string) => {
   if (!url) {
     return url;
   }
-  return url
-    .replace("https://geo.wuppertal.de/geoportal/", newBaseUrl)
-    .replace("https://www.wuppertal.de/geoportal/", newBaseUrl);
+  return url.replace("https://www.wuppertal.de/geoportal/", newBaseUrl);
 };
