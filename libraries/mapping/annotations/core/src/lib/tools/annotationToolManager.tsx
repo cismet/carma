@@ -51,10 +51,10 @@ export const DEFAULT_ANNOTATION_TOOL_MESSAGES: Readonly<
   "measurement.tool.polyline.tooltip": "Polygonzug messen",
   "measurement.tool.areaFootprint.label": "Grundriss",
   "measurement.tool.areaFootprint.tooltip": "Grundriss",
-  "measurement.tool.areaRoof.label": "Dach",
-  "measurement.tool.areaRoof.tooltip": "Dachfläche",
-  "measurement.tool.areaFacade.label": "Fassade",
-  "measurement.tool.areaFacade.tooltip": "Fassadenfläche",
+  "measurement.tool.areaPlanar.label": "Planar",
+  "measurement.tool.areaPlanar.tooltip": "Planare Fläche",
+  "measurement.tool.areaVertical.label": "Vertikal",
+  "measurement.tool.areaVertical.tooltip": "Vertikale Fläche",
   "measurement.tool.label.label": "Anmerkung",
   "measurement.tool.label.tooltip": "Anmerkung",
   "measurement.tool.select.label": "Auswahl",
@@ -111,8 +111,8 @@ export const defaultAnnotationToolDescriptors: readonly AnnotationToolDescriptor
       order: 50,
       icon: <VectorTrapezoidIcon fontSize="1.33em" />,
       i18n: {
-        labelKey: "measurement.tool.areaRoof.label",
-        tooltipKey: "measurement.tool.areaRoof.tooltip",
+        labelKey: "measurement.tool.areaPlanar.label",
+        tooltipKey: "measurement.tool.areaPlanar.tooltip",
       },
     },
     {
@@ -120,8 +120,8 @@ export const defaultAnnotationToolDescriptors: readonly AnnotationToolDescriptor
       order: 60,
       icon: <FontAwesomeIcon icon={faBuilding} />,
       i18n: {
-        labelKey: "measurement.tool.areaFacade.label",
-        tooltipKey: "measurement.tool.areaFacade.tooltip",
+        labelKey: "measurement.tool.areaVertical.label",
+        tooltipKey: "measurement.tool.areaVertical.tooltip",
       },
     },
     {

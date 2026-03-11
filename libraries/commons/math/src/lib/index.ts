@@ -4,4 +4,5 @@ export * from "./easingFunctions";
 export * from "./scaling";
 export * from "./interpolation";
 export * from "./geometry2d";
+export * from "./vec3";
 export * from "./trig";

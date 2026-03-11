@@ -54,7 +54,7 @@ const normalizeColorToHex = (
 const renderPureLabelContent = (
   input: LabelAnnotationSlotsInput
 ): ReactNode => {
-  if (input.isLivePreview) {
+  if (input.isCandidate) {
     return (
       <div className="text-[12px] mb-0">
         <div className="mt-1 text-sm pl-2 pr-1 text-gray-500">
@@ -154,7 +154,7 @@ export const getLabelAnnotationInfoBoxSlots = (
   input: LabelAnnotationSlotsInput
 ): AnnotationSlots => ({
   headingTitle:
-    input.measurement || !input.isLivePreview
+    input.measurement || !input.isCandidate
       ? LABEL_TITLE
       : `${LABEL_TITLE} (Neu)`,
   subtitle: renderEditableAnnotationSubtitle({
@@ -168,7 +168,7 @@ export const getLabelAnnotationInfoBoxSlots = (
     onTitleCommit: (title) => {
       if (!input.measurement) return;
       if (!title.trim()) return;
-      input.actions.confirmPointLabelInputById(input.measurement.id);
+      input.actions.confirmLabelPlacementById(input.measurement.id);
     },
   }),
   content: renderPureLabelContent(input),

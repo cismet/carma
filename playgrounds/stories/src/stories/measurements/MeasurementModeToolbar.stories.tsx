@@ -2,7 +2,8 @@ import type { Meta, StoryObj } from "@storybook/react";
 
 import {
   AnnotationToolbar3D,
-  useAnnotationsAdapter,
+  useAnnotationSelectionState,
+  useAnnotationTools,
 } from "@carma-mapping/annotations/provider";
 import { MeasurementCesiumStoryShell } from "./shared/MeasurementCesiumStoryShell";
 
@@ -11,13 +12,8 @@ const MeasurementToolkitStory = ({
 }: {
   pixelWidth?: number;
 }) => {
-  const {
-    annotationMode,
-    selectionModeActive,
-    pointLabelOnCreate,
-    planarMeasurementCreationMode,
-    polygonSurfaceTypePreset,
-  } = useAnnotationsAdapter();
+  const tools = useAnnotationTools();
+  const selection = useAnnotationSelectionState();
 
   return (
     <div
@@ -39,11 +35,8 @@ const MeasurementToolkitStory = ({
           color: "#1f2937",
         }}
       >
-        mode: <code>{annotationMode}</code> | selection:{" "}
-        <code>{selectionModeActive ? "on" : "off"}</code> | label-on-create:{" "}
-        <code>{pointLabelOnCreate ? "on" : "off"}</code> | planar-creation:{" "}
-        <code>{planarMeasurementCreationMode}</code> | surface:{" "}
-        <code>{polygonSurfaceTypePreset}</code>
+        tool: <code>{tools.activeToolType}</code> | selection:{" "}
+        <code>{selection.mode.active ? "on" : "off"}</code>
       </div>
     </div>
   );

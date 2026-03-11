@@ -48,9 +48,13 @@ export interface PointLabelData {
   onDoubleClick?: () => void;
   onLongPress?: () => void;
   longPressDurationMs?: number;
-  onHoverChange?: (hovered: boolean) => void;
+  onHoverChange?: (
+    hovered: boolean,
+    anchorPosition?: CssPixelPosition | null
+  ) => void;
   markerOnlyPointerEvents?: boolean;
   attachOverlayClickHandlers?: boolean;
+  forceMarkerInteractionTarget?: boolean;
   onMarkerDragStart?: (clientX: number, clientY: number) => void;
   onMarkerDragMove?: (clientX: number, clientY: number) => void;
   onMarkerDragEnd?: () => void;
@@ -60,6 +64,59 @@ export type PointLabelLayoutOptions = {
   transitionDurationMs?: number;
 };
 
+const overlayReferenceIdByValue = new WeakMap<object, number>();
+let nextOverlayReferenceId = 1;
+
+const getOverlayReferenceSignature = (value: unknown): string => {
+  if (value === null || value === undefined) {
+    return "";
+  }
+
+  if (typeof value === "object" || typeof value === "function") {
+    const ref = value as object;
+    const existingId = overlayReferenceIdByValue.get(ref);
+    if (existingId) {
+      return `ref:${existingId}`;
+    }
+
+    const nextId = nextOverlayReferenceId++;
+    overlayReferenceIdByValue.set(ref, nextId);
+    return `ref:${nextId}`;
+  }
+
+  return String(value);
+};
+
+const getPointStyleSignature = (
+  styleProps: PointLabelStyleProps | undefined
+): string =>
+  [
+    styleProps?.fontSize ?? "",
+    styleProps?.fontFamily ?? "",
+    styleProps?.fontWeight ?? "",
+    styleProps?.textColor ?? "",
+    styleProps?.textBackgroundColor ?? "",
+    styleProps?.selectedBackgroundColor ?? "",
+    styleProps?.hoverBackgroundColor ?? "",
+    styleProps?.lineWidth ?? "",
+    styleProps?.lineColor ?? "",
+    styleProps?.markerSize ?? "",
+    styleProps?.markerStrokeWidth ?? "",
+    styleProps?.stemReferenceMarkerSize ?? "",
+    styleProps?.stemStartDistance ?? "",
+    getOverlayReferenceSignature(styleProps?.markerContent),
+    styleProps?.markerBackgroundColor ?? "",
+    styleProps?.markerTextColor ?? "",
+    getOverlayReferenceSignature(styleProps?.compactContent),
+    String(styleProps?.compactBorderless ?? false),
+    styleProps?.labelStyle ?? "",
+    String(styleProps?.collapse ?? false),
+    String(styleProps?.forceCollapse ?? false),
+    String(styleProps?.fullBorder ?? false),
+    styleProps?.resizeMode ?? "none",
+    styleProps?.labelDistance ?? "",
+  ].join(":");
+
 export const usePointLabels = (
   points: PointLabelData[],
   showLabels: boolean = true,
@@ -67,26 +124,35 @@ export const usePointLabels = (
   styleProps?: PointLabelStyleProps,
   layoutOptions?: PointLabelLayoutOptions
 ) => {
-  const { addLabelOverlayElement, removeLabelOverlayElement } =
-    useLabelOverlay();
+  const {
+    addLabelOverlayElement,
+    removeLabelOverlayElement,
+    updateLabelOverlayElement,
+  } = useLabelOverlay();
   const previousPointSignatureByIdRef = useRef<Map<string, string>>(new Map());
+  const pointStyleSignature = useMemo(
+    () => getPointStyleSignature(styleProps),
+    [styleProps]
+  );
 
   const pointSignatureById = useMemo(
     () =>
       new Map(
         points.map((p) => [
           p.id,
-          `${p.id}:${String(p.content)}:${p.selected}:${p.visible}:${
-            p.isOccluded
-          }:${p.isHidden}:${p.contentSignature ?? ""}:${p.pitch}:${Boolean(
-            p.onClick
-          )}:${p.labelAngleRad}:${p.labelDistance}:${p.labelAttach}:${
+          `${p.id}:${
+            p.contentSignature ?? getOverlayReferenceSignature(p.content)
+          }:${p.selected}:${p.visible}:${p.isOccluded}:${p.isHidden}:${
+            p.pitch
+          }:${p.labelAngleRad}:${p.labelDistance}:${p.labelAttach}:${
             p.hideLabelAndStem
           }:${p.hideMarker}:${p.markerSize}:${p.markerStrokeWidth}:${
             p.stemReferenceMarkerSize
-          }:${p.stemStartDistance}:${String(p.markerContent)}:${
-            p.markerBackgroundColor
-          }:${p.markerTextColor}:${String(p.compactContent)}:${Boolean(
+          }:${p.stemStartDistance}:${getOverlayReferenceSignature(
+            p.markerContent
+          )}:${p.markerBackgroundColor}:${
+            p.markerTextColor
+          }:${getOverlayReferenceSignature(p.compactContent)}:${Boolean(
             p.compactBorderless
           )}:${p.labelStyle}:${p.collapse}:${p.forceCollapse}:${p.fullBorder}:${
             p.resizeMode ?? "none"
@@ -94,18 +160,28 @@ export const usePointLabels = (
             p.textColor ?? ""
           }:${p.textBackgroundColor ?? ""}:${p.selectedBackgroundColor ?? ""}:${
             p.hoverBackgroundColor ?? ""
-          }:${Boolean(p.onHoverChange)}:${Boolean(p.onDoubleClick)}:${Boolean(
+          }:${p.longPressDurationMs ?? ""}:${getOverlayReferenceSignature(
+            p.onClick
+          )}:${getOverlayReferenceSignature(
+            p.onDoubleClick
+          )}:${getOverlayReferenceSignature(
             p.onLongPress
-          )}:${p.longPressDurationMs}:${Boolean(p.onMarkerDragStart)}:${Boolean(
+          )}:${getOverlayReferenceSignature(
+            p.onHoverChange
+          )}:${getOverlayReferenceSignature(
+            p.onMarkerDragStart
+          )}:${getOverlayReferenceSignature(
             p.onMarkerDragMove
-          )}:${Boolean(p.onMarkerDragEnd)}:${Boolean(
+          )}:${getOverlayReferenceSignature(p.onMarkerDragEnd)}:${Boolean(
             p.markerOnlyPointerEvents
-          )}:${Boolean(p.attachOverlayClickHandlers)}:transition:${
+          )}:${Boolean(p.attachOverlayClickHandlers)}:${Boolean(
+            p.forceMarkerInteractionTarget
+          )}:transition:${
             layoutOptions?.transitionDurationMs ?? ""
-          }`,
+          }:style:${pointStyleSignature}`,
         ])
       ),
-    [points, layoutOptions?.transitionDurationMs]
+    [points, layoutOptions?.transitionDurationMs, pointStyleSignature]
   );
 
   const pointIndexById = useMemo(
@@ -127,6 +203,8 @@ export const usePointLabels = (
       const nextSignature = pointSignatureById.get(pointId) ?? "";
       nextSignatureById.set(pointId, nextSignature);
       const labelId = `point-label-${point.id}`;
+      const previousSignature =
+        previousPointSignatureByIdRef.current.get(pointId) ?? null;
 
       // Use pitch from point data or fallback to getPitch callback
       const pitch = point.pitch ?? (getPitch ? getPitch() : -Math.PI / 4);
@@ -155,9 +233,29 @@ export const usePointLabels = (
           ? { hoverBackgroundColor: point.hoverBackgroundColor }
           : {}),
       };
+      const overlayClickHandler = attachOverlayClickHandlers
+        ? point.onClick
+        : undefined;
+      const overlayDoubleClickHandler = attachOverlayClickHandlers
+        ? point.onDoubleClick
+        : undefined;
+
+      if (previousSignature === nextSignature) {
+        updateLabelOverlayElement(labelId, {
+          getCanvasPosition: point.getCanvasPosition,
+          visible: point.visible !== false,
+          isHidden: point.isHidden,
+          onClick: overlayClickHandler,
+          onDoubleClick: overlayDoubleClickHandler,
+          cursor: point.forceMarkerInteractionTarget ? "none" : undefined,
+        });
+        return;
+      }
+
       addLabelOverlayElement({
         id: labelId,
         zIndex: 20,
+        contentKey: nextSignature,
         getCanvasPosition: point.getCanvasPosition,
         content: React.createElement(PointLabel, {
           pointId: point.id,
@@ -191,6 +289,7 @@ export const usePointLabels = (
           longPressDurationMs: point.longPressDurationMs,
           onHoverChange: point.onHoverChange,
           markerOnlyPointerEvents: point.markerOnlyPointerEvents,
+          forceMarkerInteractionTarget: point.forceMarkerInteractionTarget,
           onMarkerDragStart: point.onMarkerDragStart,
           onMarkerDragMove: point.onMarkerDragMove,
           onMarkerDragEnd: point.onMarkerDragEnd,
@@ -198,10 +297,9 @@ export const usePointLabels = (
         }),
         visible: point.visible !== false,
         isHidden: point.isHidden,
-        onClick: attachOverlayClickHandlers ? point.onClick : undefined,
-        onDoubleClick: attachOverlayClickHandlers
-          ? point.onDoubleClick
-          : undefined,
+        onClick: overlayClickHandler,
+        onDoubleClick: overlayDoubleClickHandler,
+        cursor: point.forceMarkerInteractionTarget ? "none" : undefined,
       });
     });
 
@@ -216,6 +314,7 @@ export const usePointLabels = (
     pointSignatureById,
     addLabelOverlayElement,
     removeLabelOverlayElement,
+    updateLabelOverlayElement,
     getPitch,
     styleProps,
     layoutOptions?.transitionDurationMs,

@@ -1,15 +1,14 @@
 import { useMemo } from "react";
 
-import { useAnnotations } from "@carma-mapping/annotations/core";
-import type {
-  AnnotationEntry,
-  AnnotationMode,
-} from "@carma-mapping/annotations/core";
+import { isPointMeasurementEntry } from "@carma-mapping/annotations/core";
 import type { PointAnnotationSlotsInput } from "./getAnnotationInfoBoxSlots";
 import { getPointAnnotationSlotsInput } from "./getPointAnnotationSlotsInput";
 import { useAnnotationInfoBoxDisplaySelection } from "./useAnnotationInfoBoxDisplaySelection";
 import { useAnnotationInfoBoxSlotActions } from "./useAnnotationInfoBoxSlotActions";
-import { useAnnotationsAdapter } from "../../context/AnnotationsAdapterProvider";
+import {
+  useAnnotationCollection,
+  useReferencePoint,
+} from "../../context/AnnotationsProvider";
 
 export type PointInfoBoxSlotsInputState = {
   isPointKind: boolean;
@@ -19,46 +18,51 @@ export type PointInfoBoxSlotsInputState = {
 
 export const usePointInfoBoxSlotsInput = (): PointInfoBoxSlotsInputState => {
   const {
-    annotationMode,
-    pointLabelOnCreate,
-    isPointModeLivePreviewActive,
+    activeToolType,
+    isPointCandidateModeActive,
     displayMeasurement,
     currentMeasurement,
   } = useAnnotationInfoBoxDisplaySelection();
-  const { referencePoint } = useAnnotationsAdapter();
-  const { getAnnotationOrderByType, getNextAnnotationOrderByType } =
-    useAnnotations<AnnotationMode, AnnotationEntry>();
+  const referencePoint = useReferencePoint();
+  const annotations = useAnnotationCollection();
   const actions = useAnnotationInfoBoxSlotActions();
+
+  const displayPointMeasurement =
+    displayMeasurement && isPointMeasurementEntry(displayMeasurement)
+      ? displayMeasurement
+      : null;
+  const currentPointMeasurement =
+    currentMeasurement && isPointMeasurementEntry(currentMeasurement)
+      ? currentMeasurement
+      : null;
 
   const slotsInput = useMemo(
     () =>
       getPointAnnotationSlotsInput({
-        annotationMode,
-        pointLabelOnCreate,
-        measurement: displayMeasurement,
+        activeToolType,
+        measurement: displayPointMeasurement,
         referencePoint,
-        getAnnotationOrderByType,
-        getNextAnnotationOrderByType,
+        getAnnotationOrderByType: annotations.getOrderByType,
+        getNextAnnotationOrderByType: annotations.getNextOrderByType,
         actions,
       }).slotsInput,
     [
       actions,
-      displayMeasurement,
-      getAnnotationOrderByType,
-      getNextAnnotationOrderByType,
-      annotationMode,
-      pointLabelOnCreate,
+      activeToolType,
+      annotations,
+      displayPointMeasurement,
       referencePoint,
     ]
   );
 
   const isPointKind =
-    isPointModeLivePreviewActive ||
-    (displayMeasurement !== null && !displayMeasurement.auxiliaryLabelAnchor);
+    isPointCandidateModeActive ||
+    (displayPointMeasurement !== null &&
+      !displayPointMeasurement.auxiliaryLabelAnchor);
 
   return {
     isPointKind,
     slotsInput,
-    currentMeasurementId: currentMeasurement?.id ?? null,
+    currentMeasurementId: currentPointMeasurement?.id ?? null,
   };
 };

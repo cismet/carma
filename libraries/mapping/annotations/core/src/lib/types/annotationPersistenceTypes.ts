@@ -6,7 +6,7 @@ import type {
   PointLabelMetricMode,
 } from "./annotationLabel";
 import type { PointDistanceRelation } from "./distanceRelation";
-import type { PlanarPolygonGroup } from "./planarTypes";
+import type { NodeChainAnnotation } from "./annotationTypes";
 
 export type AnnotationGeometryPoint = {
   id: string;
@@ -29,7 +29,7 @@ export type AnnotationGeometryEdge = {
   pointBId: string;
 };
 
-export type PlanarPolygonGroupVertex = {
+export type PolygonAnnotationVertex = {
   id: string;
   groupId: string;
   pointId: string;
@@ -45,7 +45,7 @@ export type AnnotationPersistenceEnvelopeV2Base<TMeasurementEntry> = {
   tables: {
     annotations: TMeasurementEntry[];
     distanceRelations: PointDistanceRelation[];
-    planarPolygonGroups: PlanarPolygonGroup[];
-    planarPolygonGroupVertices: PlanarPolygonGroupVertex[];
+    nodeChainAnnotations: NodeChainAnnotation[];
+    planarPolygonGroupVertices: PolygonAnnotationVertex[];
   };
 };

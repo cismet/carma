@@ -8,5 +8,5 @@ export type DistanceRelationRenderContext = {
   midpointTickRelationIds: ReadonlySet<string>;
   focusedRelationIds: ReadonlySet<string>;
   selectedOrActiveOpenPolylineRelationIds: ReadonlySet<string>;
-  duplicateFacadeOpposingRelationIds: ReadonlySet<string>;
+  duplicateVerticalOpposingRelationIds: ReadonlySet<string>;
 };

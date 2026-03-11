@@ -4,21 +4,21 @@ type NavigationMeasurement = {
   id: string;
 };
 
-type UseAnnotationInfoNavigationStateParams = {
-  navigationMeasurements: ReadonlyArray<NavigationMeasurement>;
-  currentMeasurementId: string | null;
+type UseAnnotationInfoNavigationStateOptions = {
   onSelectMeasurementById: (id: string | null) => void;
   onFlyToMeasurementById: (id: string) => void;
   onFlyToAllMeasurements: () => void;
 };
 
-export const useAnnotationInfoNavigationState = ({
-  navigationMeasurements,
-  currentMeasurementId,
-  onSelectMeasurementById,
-  onFlyToMeasurementById,
-  onFlyToAllMeasurements,
-}: UseAnnotationInfoNavigationStateParams) => {
+export const useAnnotationInfoNavigationState = (
+  navigationMeasurements: ReadonlyArray<NavigationMeasurement>,
+  currentMeasurementId: string | null,
+  {
+    onSelectMeasurementById,
+    onFlyToMeasurementById,
+    onFlyToAllMeasurements,
+  }: UseAnnotationInfoNavigationStateOptions
+) => {
   const navigableMeasurements = useMemo(
     () => navigationMeasurements,
     [navigationMeasurements]

@@ -1,3 +1,4 @@
+import { clamp } from "@carma-commons/math";
 import type { CssPixelPosition } from "@carma/units/types";
 
 export type PointDistanceRelationLike = {
@@ -5,9 +6,6 @@ export type PointDistanceRelationLike = {
   showHorizontalLine?: boolean;
   showComponentLines?: boolean;
 };
-
-const clamp = (value: number, min: number, max: number) =>
-  Math.max(min, Math.min(max, value));
 
 export const isDistanceRelationVerticalLineVisible = (
   relation: PointDistanceRelationLike
@@ -25,6 +23,181 @@ export const hasVisibleDistanceRelationComponentLines = (
 
 export const normalizeLabelAngleDeg = (angleDeg: number) =>
   angleDeg > 90 || angleDeg < -90 ? angleDeg + 180 : angleDeg;
+
+export type DistanceScreenTriangle = {
+  anchor: CssPixelPosition;
+  target: CssPixelPosition;
+  aux: CssPixelPosition;
+  centroid: CssPixelPosition;
+  highest: CssPixelPosition;
+};
+
+export type VerticalDistanceLineScreenData = {
+  start: CssPixelPosition;
+  end: CssPixelPosition;
+  insideSign: -1 | 1;
+  midX: number;
+  midY: number;
+  normalX: number;
+  normalY: number;
+  lineLength: number;
+};
+
+const resolveStableSideSign = (
+  signedDistance: number,
+  previousSign: -1 | 1 | undefined,
+  flipThresholdPx = 4
+): -1 | 1 => {
+  if (!Number.isFinite(signedDistance)) return previousSign ?? 1;
+  const nextSign: -1 | 1 = signedDistance >= 0 ? 1 : -1;
+  if (!previousSign || previousSign === nextSign) return nextSign;
+  if (Math.abs(signedDistance) < flipThresholdPx) return previousSign;
+  return nextSign;
+};
+
+export const buildOutsideReferencePoint2D = (
+  start: CssPixelPosition,
+  end: CssPixelPosition,
+  insidePoint: CssPixelPosition,
+  minDistancePx = 24,
+  maxDistancePx = 48
+): CssPixelPosition | null => {
+  const dx = end.x - start.x;
+  const dy = end.y - start.y;
+  const lineLength = Math.hypot(dx, dy);
+  if (lineLength <= 1e-3) return null;
+  const midX = (start.x + end.x) * 0.5;
+  const midY = (start.y + end.y) * 0.5;
+  const normalX = -dy / lineLength;
+  const normalY = dx / lineLength;
+  const dot =
+    (insidePoint.x - midX) * normalX + (insidePoint.y - midY) * normalY;
+  const insideSign = dot >= 0 ? 1 : -1;
+  const referenceDistancePx = clamp(
+    lineLength * 0.2,
+    minDistancePx,
+    maxDistancePx
+  );
+  return {
+    x: midX + normalX * insideSign * referenceDistancePx,
+    y: midY + normalY * insideSign * referenceDistancePx,
+  } as CssPixelPosition;
+};
+
+export const buildDistanceTriangleInsidePoint2D = ({
+  triangle,
+  auxiliaryAltitudeMeters,
+  highestAltitudeMeters,
+  insideBlendFactor = 0.35,
+  elevationEpsilonMeters = 0.001,
+}: {
+  triangle: DistanceScreenTriangle;
+  auxiliaryAltitudeMeters: number;
+  highestAltitudeMeters: number;
+  insideBlendFactor?: number;
+  elevationEpsilonMeters?: number;
+}): CssPixelPosition => {
+  const elevationDriverPoint =
+    auxiliaryAltitudeMeters < highestAltitudeMeters - elevationEpsilonMeters
+      ? triangle.highest
+      : triangle.aux;
+  return {
+    x:
+      elevationDriverPoint.x +
+      (triangle.centroid.x - elevationDriverPoint.x) * insideBlendFactor,
+    y:
+      elevationDriverPoint.y +
+      (triangle.centroid.y - elevationDriverPoint.y) * insideBlendFactor,
+  } as CssPixelPosition;
+};
+
+export const buildVerticalDistanceLineScreenData = ({
+  triangle,
+  previousInsideSign,
+  flipThresholdPx = 4,
+}: {
+  triangle: DistanceScreenTriangle;
+  previousInsideSign?: -1 | 1;
+  flipThresholdPx?: number;
+}): VerticalDistanceLineScreenData | null => {
+  let start = triangle.anchor;
+  let end = triangle.aux;
+  const inside = triangle.target;
+
+  const computeEdgeMetrics = (
+    nextStart: CssPixelPosition,
+    nextEnd: CssPixelPosition
+  ): {
+    midX: number;
+    midY: number;
+    normalX: number;
+    normalY: number;
+    lineLength: number;
+    insideDot: number;
+  } | null => {
+    const dx = nextEnd.x - nextStart.x;
+    const dy = nextEnd.y - nextStart.y;
+    const lineLength = Math.hypot(dx, dy);
+    if (lineLength <= 1e-3) return null;
+    const midX = (nextStart.x + nextEnd.x) * 0.5;
+    const midY = (nextStart.y + nextEnd.y) * 0.5;
+    const normalX = -dy / lineLength;
+    const normalY = dx / lineLength;
+    const insideDot = (inside.x - midX) * normalX + (inside.y - midY) * normalY;
+    return {
+      midX,
+      midY,
+      normalX,
+      normalY,
+      lineLength,
+      insideDot,
+    };
+  };
+
+  let edge = computeEdgeMetrics(start, end);
+  if (!edge) return null;
+
+  const insideSign = resolveStableSideSign(
+    edge.insideDot,
+    previousInsideSign,
+    flipThresholdPx
+  );
+
+  if (insideSign < 0) {
+    start = triangle.aux;
+    end = triangle.anchor;
+    edge = computeEdgeMetrics(start, end);
+    if (!edge) return null;
+  }
+
+  return {
+    start,
+    end,
+    insideSign,
+    midX: edge.midX,
+    midY: edge.midY,
+    normalX: edge.normalX,
+    normalY: edge.normalY,
+    lineLength: edge.lineLength,
+  };
+};
+
+export const buildVerticalLabelReferencePoint2D = (
+  edge: VerticalDistanceLineScreenData,
+  minDistancePx = 24,
+  maxDistancePx = 48
+): CssPixelPosition => {
+  const referenceDistancePx = clamp(
+    edge.lineLength * 0.2,
+    minDistancePx,
+    maxDistancePx
+  );
+
+  return {
+    x: edge.midX + edge.normalX * edge.insideSign * referenceDistancePx,
+    y: edge.midY + edge.normalY * edge.insideSign * referenceDistancePx,
+  } as CssPixelPosition;
+};
 
 const isPointOnSegment2D = (
   point: CssPixelPosition,

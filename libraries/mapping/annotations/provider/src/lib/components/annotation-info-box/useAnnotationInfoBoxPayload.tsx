@@ -18,20 +18,16 @@ import { useAnnotationInfoBoxNavigationBindings } from "./useAnnotationInfoBoxNa
 import { useAnnotationInfoNavigationState } from "./useAnnotationInfoNavigationState";
 import { useDistanceInfoBoxSlotsInput } from "./useDistanceInfoBoxSlotsInput";
 import { useLabelInfoBoxSlotsInput } from "./useLabelInfoBoxSlotsInput";
-import { usePlanarInfoBoxSlotsInput } from "./usePlanarInfoBoxSlotsInput";
+import { useNodeChainInfoBoxSlotsInput } from "./useNodeChainInfoBoxSlotsInput";
 import { usePointInfoBoxSlotsInput } from "./usePointInfoBoxSlotsInput";
 
-type UseAnnotationInfoBoxPayloadParams = {
-  pixelWidth: number;
-};
-
-export const useAnnotationInfoBoxPayload = ({
-  pixelWidth,
-}: UseAnnotationInfoBoxPayloadParams): AnnotationInfoBoxPayload => {
+export const useAnnotationInfoBoxPayload = (
+  pixelWidth: number
+): AnnotationInfoBoxPayload => {
   const distanceState = useDistanceInfoBoxSlotsInput();
   const pointState = usePointInfoBoxSlotsInput();
   const labelState = useLabelInfoBoxSlotsInput();
-  const planarState = usePlanarInfoBoxSlotsInput();
+  const nodeChainState = useNodeChainInfoBoxSlotsInput();
 
   const annotationType: AnnotationSlotKind = distanceState.isDistanceKind
     ? ANNOTATION_TYPE_DISTANCE
@@ -39,7 +35,7 @@ export const useAnnotationInfoBoxPayload = ({
     ? ANNOTATION_TYPE_POINT
     : labelState.isLabelKind
     ? ANNOTATION_TYPE_LABEL
-    : planarState.slotsInput?.kind ?? "unsupported";
+    : nodeChainState.slotsInput?.kind ?? "unsupported";
 
   const slotsInput: AnnotationSlotsInput =
     annotationType === ANNOTATION_TYPE_DISTANCE
@@ -52,7 +48,7 @@ export const useAnnotationInfoBoxPayload = ({
         annotationType === ANNOTATION_TYPE_AREA_GROUND ||
         annotationType === ANNOTATION_TYPE_AREA_PLANAR ||
         annotationType === ANNOTATION_TYPE_AREA_VERTICAL
-      ? planarState.slotsInput ?? { kind: "unsupported" }
+      ? nodeChainState.slotsInput ?? { kind: "unsupported" }
       : { kind: "unsupported" };
 
   const {
@@ -61,24 +57,32 @@ export const useAnnotationInfoBoxPayload = ({
     handleNavigationSelection,
     handleNavigationFlyTo,
     onFlyToAllMeasurements,
-  } = useAnnotationInfoBoxNavigationBindings({
+  } = useAnnotationInfoBoxNavigationBindings(
     annotationType,
-    currentMeasurementId: distanceState.currentMeasurementId,
-    labelMeasurements: labelState.labelMeasurements,
-  });
+    annotationType === ANNOTATION_TYPE_DISTANCE
+      ? distanceState.currentMeasurementId
+      : annotationType === ANNOTATION_TYPE_POINT
+      ? pointState.currentMeasurementId
+      : annotationType === ANNOTATION_TYPE_LABEL
+      ? labelState.currentMeasurementId
+      : distanceState.currentMeasurementId,
+    labelState.labelMeasurements
+  );
 
   const {
     currentIndex,
     totalEntries,
     onPreviousMeasurement,
     onNextMeasurement,
-  } = useAnnotationInfoNavigationState({
+  } = useAnnotationInfoNavigationState(
     navigationMeasurements,
-    currentMeasurementId: currentNavigationId,
-    onSelectMeasurementById: handleNavigationSelection,
-    onFlyToMeasurementById: handleNavigationFlyTo,
-    onFlyToAllMeasurements,
-  });
+    currentNavigationId,
+    {
+      onSelectMeasurementById: handleNavigationSelection,
+      onFlyToMeasurementById: handleNavigationFlyTo,
+      onFlyToAllMeasurements,
+    }
+  );
 
   const slots = getAnnotationInfoBoxSlots(slotsInput);
 

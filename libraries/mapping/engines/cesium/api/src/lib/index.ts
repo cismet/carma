@@ -72,6 +72,7 @@ export * from "./Color";
 export * from "./CustomShader";
 export * from "./EllipsoidTerrainProvider";
 export * from "./Globe";
+export * from "./GuidePrimitives";
 export * from "./GroundPrimitive";
 export * from "./HeadingPitchRange";
 export * from "./HeadingPitchRoll";

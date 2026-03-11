@@ -61,12 +61,12 @@ export const isPointReferenceMeasurement = (
 };
 
 export const findReferencePointMeasurement = ({
-  pointMeasurements,
+  pointEntries,
   referencePoint,
 }: {
-  pointMeasurements: ReadonlyArray<PointAnnotationEntry>;
+  pointEntries: ReadonlyArray<PointAnnotationEntry>;
   referencePoint: PointAnnotationEntry["geometryECEF"] | null;
 }): PointAnnotationEntry | null =>
-  pointMeasurements.find((pointMeasurement) =>
-    isPointReferenceMeasurement(pointMeasurement, referencePoint)
+  pointEntries.find((pointEntry) =>
+    isPointReferenceMeasurement(pointEntry, referencePoint)
   ) ?? null;

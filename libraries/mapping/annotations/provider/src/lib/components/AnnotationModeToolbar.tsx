@@ -29,6 +29,7 @@ import {
   ANNOTATION_TYPE_POINT,
   ANNOTATION_TYPE_POLYLINE,
   ANNOTATION_TYPE_AREA_VERTICAL,
+  isAreaToolType,
   annotationToolManager as defaultAnnotationToolManager,
   resolveAnnotationToolText,
   type AnnotationToolManager,
@@ -58,6 +59,8 @@ export interface AnnotationModeToolbarProps {
   onSelectRectangleModeChange?: (enabled: boolean) => void;
   selectedMeasurementCount?: number;
   selectedLabelCount?: number;
+  onClearAllMeasurements?: () => void;
+  hasAnyMeasurements?: boolean;
   onDeleteSelectedPoints?: () => void;
   onToggleSelectedVisibility?: () => void;
   onToggleSelectedLock?: () => void;
@@ -390,9 +393,6 @@ const SecondaryToolbarSection = ({
   );
 };
 
-const isAreaToolType = (type: AnnotationToolType): type is AreaToolType =>
-  AREA_TOOL_TYPES.includes(type as AreaToolType);
-
 const renderHelpContent = (lines: string[]) => (
   <div style={pointManualStyle}>
     {lines.map((line) => (
@@ -412,6 +412,8 @@ export function AnnotationModeToolbar({
   onSelectRectangleModeChange,
   selectedMeasurementCount = 0,
   selectedLabelCount = 0,
+  onClearAllMeasurements,
+  hasAnyMeasurements = false,
   onDeleteSelectedPoints,
   onToggleSelectedVisibility,
   onToggleSelectedLock,
@@ -901,6 +903,31 @@ export function AnnotationModeToolbar({
                         </Tooltip>
                       </>
                     )}
+                    <Tooltip title="Alle Messungen löschen">
+                      <button
+                        type="button"
+                        style={{
+                          ...toolButtonStyle(false, !hasAnyMeasurements),
+                          width: "auto",
+                          minWidth: 28,
+                          height: 28,
+                          padding: "0 8px",
+                          gap: 6,
+                          display: "inline-flex",
+                          alignItems: "center",
+                          justifyContent: "center",
+                        }}
+                        onClick={() => onClearAllMeasurements?.()}
+                        disabled={!hasAnyMeasurements}
+                        aria-label="Alle Messungen löschen"
+                        data-test-id="measurement-selection-clear-all-btn"
+                      >
+                        <FontAwesomeIcon icon={faTrashCan} />
+                        <span style={{ fontSize: 11, fontWeight: 600 }}>
+                          Alle
+                        </span>
+                      </button>
+                    </Tooltip>
                   </div>
                 </SecondaryToolbarSection>
               )}

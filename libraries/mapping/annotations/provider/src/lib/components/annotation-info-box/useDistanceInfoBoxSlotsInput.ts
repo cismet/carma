@@ -1,11 +1,16 @@
 import { useMemo } from "react";
 
-import { useAnnotations } from "@carma-mapping/annotations/core";
-import type {
-  AnnotationEntry,
-  AnnotationMode,
+import {
+  isPointMeasurementEntry,
+  type PointMeasurementEntry,
 } from "@carma-mapping/annotations/core";
-import { useAnnotationsAdapter } from "../../context/AnnotationsAdapterProvider";
+import {
+  useAnnotationCollection,
+  useDistanceAnnotationReadModel,
+  useNodeChainAnnotations,
+  useAnnotationSelectionState,
+} from "../../context/AnnotationsProvider";
+import { usePointMarkerBadgeState } from "../../context/render/point/label/usePointMarkerBadgeState";
 import type { DistanceAnnotationSlotsInput } from "./getAnnotationInfoBoxSlots";
 import { getDistanceAnnotationSlotsInput } from "./getDistanceAnnotationSlotsInput";
 import { useAnnotationInfoBoxDisplaySelection } from "./useAnnotationInfoBoxDisplaySelection";
@@ -20,66 +25,73 @@ export type DistanceInfoBoxSlotsInputState = {
 export const useDistanceInfoBoxSlotsInput =
   (): DistanceInfoBoxSlotsInputState => {
     const {
-      annotationMode,
-      isDistanceModeLivePreviewActive,
-      pointMeasurements,
+      activeToolType,
+      isDistanceCandidateModeActive,
+      pointEntries,
       displayMeasurement,
       currentMeasurement,
     } = useAnnotationInfoBoxDisplaySelection();
-    const {
-      activeMeasurementId,
-      referencePoint,
-      hasDistancePreviewAnchor,
-      distanceRelations,
-      pointMarkerBadgeByPointId,
-    } = useAnnotationsAdapter();
-    const { getAnnotationOrderByType, getNextAnnotationOrderByType } =
-      useAnnotations<AnnotationMode, AnnotationEntry>();
+    const selection = useAnnotationSelectionState();
+    const distanceReadModel = useDistanceAnnotationReadModel();
+    const nodeChainAnnotations = useNodeChainAnnotations();
+    const annotations = useAnnotationCollection();
     const actions = useAnnotationInfoBoxSlotActions();
+    const pointMeasureEntries = useMemo(
+      () =>
+        annotations.items.filter(
+          (annotation): annotation is PointMeasurementEntry =>
+            isPointMeasurementEntry(annotation)
+        ),
+      [annotations.items]
+    );
+    const { pointMarkerBadgeByPointId } = usePointMarkerBadgeState(
+      pointEntries,
+      pointMeasureEntries,
+      nodeChainAnnotations,
+      distanceReadModel.distanceRelations
+    );
 
     const isDistanceMeasurement = useMemo(
       () =>
         displayMeasurement !== null &&
-        distanceRelations.some(
+        distanceReadModel.distanceRelations.some(
           (relation) =>
             relation.pointAId === displayMeasurement.id ||
             relation.pointBId === displayMeasurement.id
         ),
-      [displayMeasurement, distanceRelations]
+      [displayMeasurement, distanceReadModel.distanceRelations]
     );
 
     const slotsInput = useMemo(
       () =>
         getDistanceAnnotationSlotsInput({
-          annotationMode,
+          activeToolType,
           measurement: displayMeasurement,
-          activeMeasurementId,
-          pointMeasurements,
-          referencePoint,
-          hasDistancePreviewAnchor,
-          distanceRelations,
+          activeMeasurementId: selection.activeAnnotationId,
+          pointEntries,
+          referencePoint: distanceReadModel.referencePoint,
+          hasDistancePreviewAnchor: distanceReadModel.hasPreviewAnchor,
+          distanceRelations: distanceReadModel.distanceRelations,
           pointMarkerBadgeByPointId,
-          getAnnotationOrderByType,
-          getNextAnnotationOrderByType,
+          getAnnotationOrderByType: annotations.getOrderByType,
+          getNextAnnotationOrderByType: annotations.getNextOrderByType,
           actions,
         }).slotsInput,
       [
         actions,
-        activeMeasurementId,
+        activeToolType,
+        annotations,
+        distanceReadModel,
         displayMeasurement,
-        distanceRelations,
-        getAnnotationOrderByType,
-        getNextAnnotationOrderByType,
-        hasDistancePreviewAnchor,
-        annotationMode,
         pointMarkerBadgeByPointId,
-        pointMeasurements,
-        referencePoint,
+        pointMeasureEntries,
+        pointEntries,
+        selection.activeAnnotationId,
       ]
     );
 
     return {
-      isDistanceKind: isDistanceModeLivePreviewActive || isDistanceMeasurement,
+      isDistanceKind: isDistanceCandidateModeActive || isDistanceMeasurement,
       slotsInput,
       currentMeasurementId: currentMeasurement?.id ?? null,
     };

@@ -7,17 +7,17 @@ import {
   createCssAxisGizmoView,
   type GizmoCssAxisView,
 } from "./cssAxisGizmoView";
-import type { GizmoVec3 } from "./gizmoMath";
+import { Vector3 } from "three";
 
 type AxisId = "x" | "y" | "z";
 
-const AXIS_DIRECTIONS: Record<AxisId, GizmoVec3> = {
-  x: { x: 1, y: 0, z: 0 },
-  y: { x: 0, y: 1, z: 0 },
-  z: { x: 0, y: 0, z: 1 },
+const AXIS_DIRECTIONS: Record<AxisId, Vector3> = {
+  x: new Vector3(1, 0, 0),
+  y: new Vector3(0, 1, 0),
+  z: new Vector3(0, 0, 1),
 };
 
-const AXIS_ORIGIN: GizmoVec3 = { x: 0, y: 0, z: 0 };
+const AXIS_ORIGIN = new Vector3(0, 0, 0);
 
 const toNumber = (value: string | null, fallback: number): number => {
   if (!value) return fallback;
@@ -218,32 +218,27 @@ export class CssAxisGizmoElement extends HTMLElement {
   }
 
   private refreshReadout() {
-    if (!this.lastSnapshot) return;
-    const snapshot = this.lastSnapshot;
-    const ray = snapshot.lastRayDirection;
+    if (!this.readoutEl || !this.controller) return;
 
-    this.readoutEl.innerHTML = [
-      `<div><strong>Axis</strong>: ${this.activeAxis.toUpperCase()}</div>`,
-      `<div><strong>Dragging</strong>: ${
+    const snapshot = this.lastSnapshot ?? this.controller.getSnapshot();
+    this.readoutEl.innerHTML = `
+      <div><strong>Axis</strong>: ${this.activeAxis.toUpperCase()}</div>
+      <div><strong>Offset</strong>: ${fmt(snapshot.axisParam)}</div>
+      <div><strong>Dragging</strong>: ${
         snapshot.isDragging ? "yes" : "no"
-      }</div>`,
-      `<div><strong>t</strong>: ${fmt(snapshot.axisParam, 4)}</div>`,
-      `<div><strong>Point</strong>: ${fmt(snapshot.point.x, 3)}, ${fmt(
-        snapshot.point.y,
-        3
-      )}, ${fmt(snapshot.point.z, 3)}</div>`,
-      `<div><strong>Ray</strong>: ${
-        ray ? `${fmt(ray.x, 3)}, ${fmt(ray.y, 3)}, ${fmt(ray.z, 3)}` : "—"
-      }</div>`,
-    ].join("");
+      }</div>
+      <div><strong>Point</strong>: (${fmt(snapshot.point.x)}, ${fmt(
+      snapshot.point.y
+    )}, ${fmt(snapshot.point.z)})</div>
+      <div><strong>Ray</strong>: ${
+        snapshot.lastRayDirection
+          ? `(${fmt(snapshot.lastRayDirection.x)}, ${fmt(
+              snapshot.lastRayDirection.y
+            )}, ${fmt(snapshot.lastRayDirection.z)})`
+          : "-"
+      }</div>
+    `;
   }
 }
 
-export const registerCssAxisGizmoElement = (
-  tagName = "carma-css-axis-gizmo"
-) => {
-  if (customElements.get(tagName)) return;
-  customElements.define(tagName, CssAxisGizmoElement);
-};
-
-export default registerCssAxisGizmoElement;
+customElements.define("carma-css-axis-gizmo", CssAxisGizmoElement);

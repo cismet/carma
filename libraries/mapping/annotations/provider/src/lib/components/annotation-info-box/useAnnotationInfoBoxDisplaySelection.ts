@@ -4,89 +4,84 @@ import {
   isPointAnnotationEntry,
   ANNOTATION_TYPE_DISTANCE,
   ANNOTATION_TYPE_POINT,
-  type AnnotationEntry,
-  type AnnotationMode,
+  type AnnotationToolType,
   type PointAnnotationEntry,
-  useAnnotations,
-  useAnnotationSelection,
 } from "@carma-mapping/annotations/core";
-import { useAnnotationsAdapter } from "../../context/AnnotationsAdapterProvider";
+import {
+  useCandidateAnnotation,
+  useAnnotationCollection,
+  useAnnotationSelectionState,
+  useAnnotationTools,
+} from "../../context/AnnotationsProvider";
 
 export type AnnotationInfoBoxDisplaySelection = {
-  annotationMode: AnnotationMode;
-  pointLabelOnCreate: boolean;
-  isPointModeLivePreviewActive: boolean;
-  isDistanceModeLivePreviewActive: boolean;
-  pointMeasurements: ReadonlyArray<PointAnnotationEntry>;
+  activeToolType: AnnotationToolType;
+  isPointCandidateModeActive: boolean;
+  isDistanceCandidateModeActive: boolean;
+  pointEntries: ReadonlyArray<PointAnnotationEntry>;
   currentMeasurement: PointAnnotationEntry | null;
   displayMeasurement: PointAnnotationEntry | null;
 };
 
 export const useAnnotationInfoBoxDisplaySelection =
   (): AnnotationInfoBoxDisplaySelection => {
-    const {
-      annotationMode,
-      annotations,
-      liveAnnotationCandidate,
-      pointLabelOnCreate,
-    } = useAnnotations<AnnotationMode, AnnotationEntry>();
-    const { selectedMeasurementId } = useAnnotationSelection();
-    const { activeMeasurementId } = useAnnotationsAdapter();
+    const tools = useAnnotationTools();
+    const annotations = useAnnotationCollection();
+    const selection = useAnnotationSelectionState();
+    const candidateAnnotation = useCandidateAnnotation();
 
-    const isPointModeLivePreviewActive =
-      annotationMode === ANNOTATION_TYPE_POINT && !pointLabelOnCreate;
-    const isDistanceModeLivePreviewActive =
-      annotationMode === ANNOTATION_TYPE_DISTANCE;
-    const isLivePreviewMode =
-      isPointModeLivePreviewActive || isDistanceModeLivePreviewActive;
+    const isPointCandidateModeActive =
+      tools.activeToolType === ANNOTATION_TYPE_POINT;
+    const isDistanceCandidateModeActive =
+      tools.activeToolType === ANNOTATION_TYPE_DISTANCE;
+    const primarySelectedAnnotationId =
+      selection.ids[selection.ids.length - 1] ?? null;
+    const effectiveMeasurementId = isPointCandidateModeActive
+      ? primarySelectedAnnotationId ?? selection.activeAnnotationId
+      : isDistanceCandidateModeActive
+      ? selection.activeAnnotationId ?? primarySelectedAnnotationId
+      : primarySelectedAnnotationId ?? selection.activeAnnotationId;
 
-    const effectiveMeasurementId = isLivePreviewMode
-      ? activeMeasurementId ?? selectedMeasurementId
-      : selectedMeasurementId ?? activeMeasurementId;
-
-    const pointMeasurements = useMemo(
-      () => annotations.filter(isPointAnnotationEntry),
-      [annotations]
+    const pointEntries = useMemo(
+      () => annotations.items.filter(isPointAnnotationEntry),
+      [annotations.items]
     );
-
     const currentMeasurement = useMemo(
       () =>
-        pointMeasurements.find(
+        pointEntries.find(
           (measurement) => measurement.id === effectiveMeasurementId
         ) ?? null,
-      [effectiveMeasurementId, pointMeasurements]
+      [effectiveMeasurementId, pointEntries]
     );
 
-    const livePreviewMeasurement = useMemo(
+    const candidateMeasurement = useMemo(
       () =>
-        liveAnnotationCandidate &&
-        isPointAnnotationEntry(liveAnnotationCandidate)
-          ? liveAnnotationCandidate
+        candidateAnnotation && isPointAnnotationEntry(candidateAnnotation)
+          ? candidateAnnotation
           : null,
-      [liveAnnotationCandidate]
+      [candidateAnnotation]
     );
 
     const displayMeasurement = useMemo(
       () =>
-        livePreviewMeasurement
-          ? livePreviewMeasurement
-          : isPointModeLivePreviewActive || isDistanceModeLivePreviewActive
-          ? null
+        isPointCandidateModeActive
+          ? currentMeasurement
+          : isDistanceCandidateModeActive
+          ? candidateMeasurement
           : currentMeasurement,
       [
         currentMeasurement,
-        isDistanceModeLivePreviewActive,
-        isPointModeLivePreviewActive,
-        livePreviewMeasurement,
+        isDistanceCandidateModeActive,
+        isPointCandidateModeActive,
+        candidateMeasurement,
       ]
     );
 
     return {
-      annotationMode,
-      pointLabelOnCreate,
-      isPointModeLivePreviewActive,
-      isDistanceModeLivePreviewActive,
-      pointMeasurements,
+      activeToolType: tools.activeToolType,
+      isPointCandidateModeActive,
+      isDistanceCandidateModeActive,
+      pointEntries,
       currentMeasurement,
       displayMeasurement,
     };

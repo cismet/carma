@@ -2,14 +2,22 @@ export { AnnotationToolbar3D } from "./lib/components/AnnotationToolbar3D";
 export { AnnotationModeToolbar } from "./lib/components/AnnotationModeToolbar";
 export { AnnotationInfoBox } from "./lib/components/annotation-info-box/AnnotationInfoBox";
 export {
-  AnnotationsAdapterProvider,
-  useAnnotationsAdapter,
-  type AnnotationsAdapterContextType,
-  type AnnotationsAdapterOptions,
-} from "./lib/context/AnnotationsAdapterProvider";
+  AnnotationsProvider,
+  useAnnotationCollection,
+  useAnnotationEditingState,
+  useAnnotationSelectionState,
+  useAnnotationSettings,
+  useAnnotationTools,
+  type AnnotationsContextType,
+  type AnnotationCollectionContextType,
+  type AnnotationEditingContextType,
+  type AnnotationSelectionContextType,
+  type AnnotationSettingsContextType,
+  type AnnotationToolsContextType,
+  type AnnotationsOptions,
+} from "./lib/context/AnnotationsProvider";
 export type {
   AnnotationToolType,
   AnnotationModeToolbarProps,
 } from "./lib/components/AnnotationModeToolbar";
-export { useAnnotationToolMode } from "./lib/components/hooks/useAnnotationToolMode";
 export { useLocalAnnotationPersistence } from "./lib/components/hooks/useLocalAnnotationPersistence";

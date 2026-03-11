@@ -8,12 +8,9 @@ import {
   defined,
   type Scene,
 } from "@carma/cesium";
-import { clamp } from "@carma-commons/math";
-import {
-  AXIS_NUMERIC_EPSILON,
-  getClosestAxisParamToRay,
-  type GizmoVec3,
-} from "@carma-mapping/gizmo/core";
+import { clamp, getClosestLineParamToRay } from "@carma-commons/math";
+import { AXIS_NUMERIC_EPSILON } from "@carma-mapping/gizmo/core";
+import { Ray, Vector3 } from "three";
 
 export type PlaneBasis = {
   xAxis: Cartesian3;
@@ -25,11 +22,8 @@ export type ScreenPoint2 = {
   y: number;
 };
 
-export const toGizmoVec3 = (vector: Cartesian3): GizmoVec3 => ({
-  x: vector.x,
-  y: vector.y,
-  z: vector.z,
-});
+const toThreeVector3 = (vector: Cartesian3): Vector3 =>
+  new Vector3(vector.x, vector.y, vector.z);
 
 const ENU_FRAME_SCRATCH = new Matrix4();
 
@@ -206,13 +200,11 @@ export const getAxisParamFromClientPosition = (
   );
   const ray = scene.camera.getPickRay(windowPosition);
   if (!ray) return null;
-  return getClosestAxisParamToRay(
-    {
-      origin: toGizmoVec3(ray.origin),
-      direction: toGizmoVec3(ray.direction),
-    },
-    toGizmoVec3(axisOrigin),
-    toGizmoVec3(axisDirection)
+
+  return getClosestLineParamToRay(
+    new Ray(toThreeVector3(ray.origin), toThreeVector3(ray.direction)),
+    toThreeVector3(axisOrigin),
+    toThreeVector3(axisDirection)
   );
 };
 

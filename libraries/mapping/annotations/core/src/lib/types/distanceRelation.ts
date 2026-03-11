@@ -1,7 +1,7 @@
 import type {
   DirectLineLabelMode,
   DistanceRelationLabelVisibilityByKind,
-} from "../visualizers/distance/distanceRelationLabel.types";
+} from "../visualization/distance/distanceRelationLabel.types";
 
 export type PointDistanceRelation = {
   id: string;
@@ -16,9 +16,4 @@ export type PointDistanceRelation = {
   showComponentLines?: boolean;
   labelVisibilityByKind?: DistanceRelationLabelVisibilityByKind;
   directLabelMode?: DirectLineLabelMode;
-};
-
-export type PointReferenceLineAnnotation = {
-  showDirectLine?: boolean;
-  showComponentLines?: boolean;
 };

@@ -95,19 +95,30 @@ const NavigationControlView: FC = () => {
             <Tooltip title="Maßstab vergrößern (Zoom in)" placement="right">
               <ControlButtonStyler
                 onClick={handleZoomIn}
-                className="!border-b-0 !rounded-b-none font-bold !z-[9999999]"
+                style={{
+                  borderBottomWidth: 0,
+                  borderBottomLeftRadius: 0,
+                  borderBottomRightRadius: 0,
+                  fontWeight: 700,
+                  zIndex: 9999999,
+                }}
                 dataTestId="zoom-in-control"
               >
-                <FontAwesomeIcon icon={faPlus} className="text-base" />
+                <FontAwesomeIcon icon={faPlus} style={{ fontSize: "1rem" }} />
               </ControlButtonStyler>
             </Tooltip>
             <Tooltip title="Maßstab verkleinern (Zoom out)" placement="right">
               <ControlButtonStyler
                 onClick={handleZoomOut}
-                className="!rounded-t-none !border-t-[1px]"
+                style={{
+                  borderTopLeftRadius: 0,
+                  borderTopRightRadius: 0,
+                  borderTopWidth: 1,
+                  borderTopStyle: "solid",
+                }}
                 dataTestId="zoom-out-control"
               >
-                <FontAwesomeIcon icon={faMinus} className="text-base" />
+                <FontAwesomeIcon icon={faMinus} style={{ fontSize: "1rem" }} />
               </ControlButtonStyler>
             </Tooltip>
           </Control>

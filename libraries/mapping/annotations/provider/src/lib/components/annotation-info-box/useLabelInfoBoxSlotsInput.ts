@@ -1,50 +1,66 @@
 import { useMemo } from "react";
 
 import {
-  isPointAnnotationEntry,
-  type AnnotationEntry,
-  type AnnotationMode,
-  type PointAnnotationEntry,
-  useAnnotations,
+  ANNOTATION_TYPE_POINT,
+  isPointMeasurementEntry,
+  type PointMeasurementEntry,
 } from "@carma-mapping/annotations/core";
 import type { LabelAnnotationSlotsInput } from "./getAnnotationInfoBoxSlots";
 import { getLabelAnnotationSlotsInput } from "./getLabelAnnotationSlotsInput";
 import { useAnnotationInfoBoxDisplaySelection } from "./useAnnotationInfoBoxDisplaySelection";
 import { useAnnotationInfoBoxSlotActions } from "./useAnnotationInfoBoxSlotActions";
+import {
+  useAnnotationCollection,
+  usePendingLabelPlacementTargetId,
+} from "../../context/AnnotationsProvider";
 
 export type LabelInfoBoxSlotsInputState = {
   isLabelKind: boolean;
   slotsInput: LabelAnnotationSlotsInput;
-  labelMeasurements: ReadonlyArray<PointAnnotationEntry>;
+  labelMeasurements: ReadonlyArray<PointMeasurementEntry>;
+  currentMeasurementId: string | null;
 };
 
 export const useLabelInfoBoxSlotsInput = (): LabelInfoBoxSlotsInputState => {
   const { displayMeasurement } = useAnnotationInfoBoxDisplaySelection();
-  const { annotationsByType, labelInputPromptPointId } = useAnnotations<
-    AnnotationMode,
-    AnnotationEntry
-  >();
+  const annotations = useAnnotationCollection();
+  const pendingLabelPlacementTargetId = usePendingLabelPlacementTargetId();
   const actions = useAnnotationInfoBoxSlotActions();
 
+  const displayLabelMeasurement =
+    displayMeasurement && isPointMeasurementEntry(displayMeasurement)
+      ? displayMeasurement
+      : null;
+
   const labelMeasurements = useMemo(
-    () => annotationsByType("pointLabel").filter(isPointAnnotationEntry),
-    [annotationsByType]
+    () =>
+      annotations
+        .byType(ANNOTATION_TYPE_POINT)
+        .filter(isPointMeasurementEntry)
+        .filter((measurement) => Boolean(measurement.auxiliaryLabelAnchor)),
+    [annotations]
   );
 
   const labelState = useMemo(
     () =>
       getLabelAnnotationSlotsInput({
-        measurement: displayMeasurement,
+        measurement: displayLabelMeasurement,
         labelMeasurements,
-        labelInputPromptPointId,
+        labelInputPromptPointId: pendingLabelPlacementTargetId,
         actions,
       }),
-    [actions, displayMeasurement, labelInputPromptPointId, labelMeasurements]
+    [
+      actions,
+      displayLabelMeasurement,
+      labelMeasurements,
+      pendingLabelPlacementTargetId,
+    ]
   );
 
   return {
-    isLabelKind: labelState.isLabelLivePreview || labelState.isLabelMeasurement,
+    isLabelKind: labelState.isLabelCandidate || labelState.isLabelMeasurement,
     slotsInput: labelState.slotsInput,
     labelMeasurements,
+    currentMeasurementId: displayLabelMeasurement?.id ?? null,
   };
 };

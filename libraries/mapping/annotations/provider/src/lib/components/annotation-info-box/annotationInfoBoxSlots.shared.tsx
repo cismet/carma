@@ -32,14 +32,16 @@ export const DISTANCE_TITLE = "Distanzmessung";
 export const LABEL_TITLE = "Beschriftung";
 
 export const POINT_MODE_INSTRUCTION =
-  "Klick auf das Modell, um den Punkt zu setzen.";
+  "Auf das Modell klicken, um eine Punktmessung zu setzen.";
 const DISTANCE_FIRST_POINT_INSTRUCTION =
   "Klick auf das Modell, um den ersten Punkt der Distanzmessung zu setzen.";
 const DISTANCE_SECOND_POINT_INSTRUCTION =
   "Klick auf das Modell, um den zweiten Punkt der Distanzmessung zu setzen.";
 
-export const getDistanceInstructionText = (hasPreviewAnchor: boolean): string =>
-  hasPreviewAnchor
+export const getDistanceInstructionText = (
+  hasCandidateAnchor: boolean
+): string =>
+  hasCandidateAnchor
     ? DISTANCE_SECOND_POINT_INSTRUCTION
     : DISTANCE_FIRST_POINT_INSTRUCTION;
 
@@ -80,7 +82,7 @@ const renderAnnotationActions = (
         name="search-location"
         onClick={(event: ReactMouseEvent<HTMLElement, MouseEvent>) => {
           event.stopPropagation();
-          actions.flyToMeasurementById(measurement.id);
+          actions.flyToById(measurement.id);
         }}
         className="cursor-pointer text-[16px] text-[#808080] hover:text-[#a0a0a0]"
         data-test-id="carma-flyto-measurement-btn"
@@ -91,9 +93,7 @@ const renderAnnotationActions = (
       icon={measurement.hidden ? faEyeSlash : faEye}
       onClick={(event) => {
         event.stopPropagation();
-        actions.updateAnnotationById(measurement.id, {
-          hidden: !measurement.hidden,
-        });
+        actions.toggleVisibilityByIds([measurement.id]);
       }}
       dataTestId="carma-toggle-measurement-visibility-btn"
     />
@@ -102,7 +102,7 @@ const renderAnnotationActions = (
       icon={measurement.locked ? faLock : faLockOpen}
       onClick={(event) => {
         event.stopPropagation();
-        actions.toggleAnnotationLockById(measurement.id);
+        actions.toggleLockByIds([measurement.id]);
       }}
       dataTestId="carma-toggle-measurement-lock-btn"
     />
@@ -112,7 +112,7 @@ const renderAnnotationActions = (
         icon={faArrowsDownToLine}
         onClick={(event) => {
           event.stopPropagation();
-          actions.setReferencePoint(measurement.geometryECEF);
+          actions.setReferencePointId(measurement.id);
         }}
         dataTestId="carma-set-reference-btn"
       />
@@ -122,7 +122,7 @@ const renderAnnotationActions = (
       icon={faTrashCan}
       onClick={(event) => {
         event.stopPropagation();
-        actions.deleteAnnotationById(measurement.id);
+        actions.removeByIds([measurement.id]);
       }}
       dataTestId="carma-delete-measurement-btn"
     />
@@ -171,11 +171,11 @@ export const renderEditableAnnotationSubtitle = ({
           autoFocusTrigger={autoFocusTrigger}
           onChange={(nextTitle) => {
             if (!measurement) return;
-            actions.updateAnnotationNameById(measurement.id, nextTitle);
+            actions.updateNameById(measurement.id, nextTitle);
           }}
           onCommit={(nextTitle) => {
             if (!measurement) return;
-            actions.updateAnnotationNameById(measurement.id, nextTitle);
+            actions.updateNameById(measurement.id, nextTitle);
             onTitleCommit?.(nextTitle);
           }}
         />
@@ -214,10 +214,10 @@ export const renderRelativeElevationContent = (
 
 export const renderDistanceTableContent = (
   rows: DistanceTableRow[],
-  isLivePreview: boolean,
-  hasPreviewAnchor: boolean
+  isCandidate: boolean,
+  hasCandidateAnchor: boolean
 ): ReactNode => {
-  if (isLivePreview && !hasPreviewAnchor) {
+  if (isCandidate && !hasCandidateAnchor) {
     return null;
   }
 

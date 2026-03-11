@@ -56,3 +56,14 @@ export const cartesian3ToJson = (cartesian3: Cartesian3): Cartesian3Json => {
 export const cartesian3FromJson = ({ x, y, z }: Cartesian3Json): Cartesian3 => {
   return new Cartesian3(x, y, z);
 };
+
+/**
+ * Apply a constant offset to a list of Cartesian3 positions.
+ */
+export const offsetCartesian3Positions = (
+  positions: readonly Cartesian3[],
+  offset: Cartesian3
+): Cartesian3[] =>
+  positions.map((position) =>
+    Cartesian3.add(position, offset, new Cartesian3())
+  );
