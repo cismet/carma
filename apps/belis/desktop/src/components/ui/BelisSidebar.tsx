@@ -169,11 +169,13 @@ export interface BelisSidebarProps {
     feature: SidebarFeature
   ) => void;
   emptyMessage?: string;
-  sidebarMode?: "karte" | "highlights";
-  onModeChange?: (mode: "karte" | "highlights") => void;
+  sidebarMode?: "karte" | "highlights" | "drafts";
+  onModeChange?: (mode: "karte" | "highlights" | "drafts") => void;
   hasHighlights?: boolean;
+  hasDrafts?: boolean;
   karteCount?: number;
   highlightCount?: number;
+  draftsCount?: number;
   onFeatureDismiss?: (feature: SidebarFeature) => void;
 }
 
@@ -191,8 +193,10 @@ const BelisSidebar = ({
   sidebarMode = "karte",
   onModeChange,
   hasHighlights = false,
+  hasDrafts = false,
   karteCount,
   highlightCount,
+  draftsCount,
   onFeatureDismiss,
 }: BelisSidebarProps) => {
   // Filter features by active source layers
@@ -584,6 +588,18 @@ const BelisSidebar = ({
               }`}
             >
               Highlights{highlightCount != null ? ` (${highlightCount})` : ""}
+            </button>
+          )}
+          {hasDrafts && (
+            <button
+              onClick={() => onModeChange?.("drafts")}
+              className={`px-2 py-0.5 text-xs rounded ${
+                sidebarMode === "drafts"
+                  ? "bg-blue-600 text-white"
+                  : "bg-gray-200 text-gray-600 hover:bg-gray-300"
+              }`}
+            >
+              Entwürfe{draftsCount != null ? ` (${draftsCount})` : ""}
             </button>
           )}
         </div>

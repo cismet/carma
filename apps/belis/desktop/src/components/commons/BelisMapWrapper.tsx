@@ -52,7 +52,12 @@ const MINI_MAP_DEBUGGING = false;
 
 import type { SidebarFeature } from "../ui/BelisSidebar";
 
-type SidebarMode = "karte" | "highlights";
+import {
+  getAllDraftFeatures,
+  getDraftFeaturesCount,
+} from "../../store/slices/featuresForms";
+
+type SidebarMode = "karte" | "highlights" | "drafts";
 
 interface BelisMapLibWrapperProps {
   mapSizes: { width: number; height: number };
@@ -307,6 +312,28 @@ const BelisMapLibWrapper = ({
     return window.location.hostname === "localhost";
   }, []);
 
+  // Draft features for "Entwürfe" sidebar tab
+  const allDraftFeatures = useSelector(getAllDraftFeatures);
+  const draftFeaturesCount = useSelector(getDraftFeaturesCount);
+
+  const draftSidebarFeatures = useMemo(() => {
+    return allDraftFeatures.map((f: any) => {
+      const sourceLayer = f.carmaInfo?.sourceLayer ?? "";
+      const props = f.properties?.sourceProps ?? f.properties ?? {};
+      return {
+        type: "Feature" as const,
+        geometry: f.geometry ?? { type: "Point", coordinates: [0, 0] },
+        properties: props,
+        source: namespacedSource,
+        sourceLayer,
+        id: props.id,
+        layer: f.layer ?? { id: sourceLayer, source: namespacedSource, type: "circle" as const },
+        state: {},
+        original: f,
+      } as unknown as SidebarFeature;
+    });
+  }, [allDraftFeatures, namespacedSource]);
+
   const mapWidth = mapSizes.width - LIST_WIDTH;
 
   const { features, totalCount, countsByLayer, isLoading, isOverviewMode } =
@@ -367,6 +394,22 @@ const BelisMapLibWrapper = ({
         activeSourceLayers: layers,
       };
     }
+    if (sidebarMode === "drafts" && draftSidebarFeatures.length > 0) {
+      const counts: Record<string, number> = {};
+      for (const f of draftSidebarFeatures) {
+        const sl = f.sourceLayer || "";
+        counts[sl] = (counts[sl] || 0) + 1;
+      }
+      const layers = new Set([...activeSourceLayers, ...Object.keys(counts)]);
+      return {
+        features: draftSidebarFeatures,
+        countsByLayer: counts,
+        totalCount: draftSidebarFeatures.length,
+        isLoading: false,
+        isOverviewMode: false,
+        activeSourceLayers: layers,
+      };
+    }
     return {
       features,
       countsByLayer,
@@ -378,6 +421,7 @@ const BelisMapLibWrapper = ({
   }, [
     sidebarMode,
     adjustedHighlights,
+    draftSidebarFeatures,
     features,
     countsByLayer,
     totalCount,
@@ -765,9 +809,16 @@ const BelisMapLibWrapper = ({
       },
       feature: SidebarFeature
     ) => {
+      // For draft features: the original stored feature has carmaInfo + proper properties
+      // that LibreMap would normally produce. Dispatch directly since the synthetic feature
+      // won't be found on the map by LibreMap.
+      const original = (feature as any).original;
+      if (sidebarMode === "drafts" && original?.carmaInfo) {
+        dispatch(setSelectedFeature({ ...original, selected: true }));
+      }
       selectFeature(identifier, feature as any);
     },
-    [selectFeature]
+    [selectFeature, sidebarMode, dispatch]
   );
 
   return (
@@ -793,8 +844,10 @@ const BelisMapLibWrapper = ({
         sidebarMode={sidebarMode}
         onModeChange={setSidebarMode}
         hasHighlights={hasHighlights}
+        hasDrafts={draftFeaturesCount > 0}
         karteCount={totalCount}
         highlightCount={adjustedHighlights?.length ?? undefined}
+        draftsCount={draftFeaturesCount}
         onFeatureDismiss={handleSidebarDismiss}
       />
       <div
