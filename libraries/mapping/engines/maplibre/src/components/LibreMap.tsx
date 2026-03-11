@@ -1215,9 +1215,16 @@ export const LibreMap = ({
     // If a raw feature was provided, run createFeature to get the processed result
     if (ctxRawFeature) {
       const layerId = ctxRawFeature.layer?.metadata?.["layer-id"];
+      // Try layer-id metadata first, then full source, then source prefix
+      // (namespaced sources use "prefix::originalSource" but mapping keys use just "prefix")
+      const source = ctxSelectedFeatureId.source;
+      const sourcePrefix = source?.includes("::")
+        ? source.split("::")[0]
+        : undefined;
       const layerMapping =
         mappingRef.current[layerId] ||
-        mappingRef.current[ctxSelectedFeatureId.source];
+        mappingRef.current[source] ||
+        (sourcePrefix ? mappingRef.current[sourcePrefix] : undefined);
 
       if (layerMapping) {
         void createFeature(

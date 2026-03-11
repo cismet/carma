@@ -797,9 +797,9 @@ const BelisMapLibWrapper = ({
   }, [selectedFeature, rawFeature]);
 
   // Always pass the raw feature so the mini-map can center on its geometry.
-  // LibreMap's createFeature() won't fire because the namespaced source
-  // (slugifyUrl::originalSource) doesn't match any mapping key (slugifyUrl only).
-  // The setSelectedFeature(null) in LibreMap's watcher ensures the override path works.
+  // LibreMap's external selection watcher will attempt createFeature() via
+  // layer-id metadata or source prefix fallback. If it fails, the override
+  // path (overrideSelectedFeature) handles the info box display.
   const handleSidebarFeatureSelect = useCallback(
     (
       identifier: {
@@ -809,12 +809,28 @@ const BelisMapLibWrapper = ({
       },
       feature: SidebarFeature
     ) => {
-      // For draft features: the original stored feature has carmaInfo + proper properties
-      // that LibreMap would normally produce. Dispatch directly since the synthetic feature
-      // won't be found on the map by LibreMap.
       const original = (feature as any).original;
       if (sidebarMode === "drafts" && original?.carmaInfo) {
+        // For draft features: the original stored feature has carmaInfo + proper properties
+        // that LibreMap would normally produce. Dispatch directly since the synthetic feature
+        // won't be found on the map by LibreMap.
         dispatch(setSelectedFeature({ ...original, selected: true }));
+      } else {
+        // Dispatch raw sidebar feature to Redux immediately so FeaturesFormsWrapper
+        // has a valid featureId. If LibreMap's createFeature succeeds later, the
+        // sync effect will overwrite with the processed version.
+        dispatch(
+          setSelectedFeature({
+            properties: feature.properties,
+            geometry: feature.geometry,
+            id: feature.id,
+            carmaInfo: {
+              sourceLayer: feature.sourceLayer,
+              source: feature.source,
+            },
+            selected: true,
+          })
+        );
       }
       selectFeature(identifier, feature as any);
     },
