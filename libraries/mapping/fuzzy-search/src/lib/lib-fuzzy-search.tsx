@@ -472,6 +472,9 @@ export function LibFuzzySearch({
             const nextMode =
               availableModes[(currentIndex + 1) % availableModes.length];
             setSearchMode(nextMode);
+            if (nextMode === "parcel") {
+              triggerLandParcelPreload();
+            }
             setValue("");
             setSearchResult([]);
             setOptions([]);
