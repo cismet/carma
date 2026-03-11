@@ -198,13 +198,13 @@ export const useCreateCismapLayers = (
       if (!value || !value[0]?.selectionLayerExists) continue;
       const layerForHits = layers.find((l) => l.id === keys[i]);
       const semanticInfo = layerForHits?.conf?.semanticInfo as
-        | Record<string, string[]>
+        | Record<string, { layers: string[] }>
         | undefined;
       if (!semanticInfo) continue;
-      const preferredLayerIds = semanticInfo[semanticId];
-      if (preferredLayerIds) {
+      const semanticEntry = semanticInfo[semanticId];
+      if (semanticEntry) {
         const match = value.find((h) =>
-          preferredLayerIds.includes(h.layer?.id)
+          semanticEntry?.layers?.includes(h.layer?.id)
         );
         if (match) return { key: keys[i], value };
       }
@@ -223,7 +223,7 @@ export const useCreateCismapLayers = (
         resetSelection(globalHits);
         const layerForHits = layers.find((l) => l.id === lastObject.key);
         const semanticInfo = layerForHits?.conf?.semanticInfo as
-          | Record<string, string[]>
+          | Record<string, { layers: string[] }>
           | undefined;
         const selectedVectorFeature = resolveHit(
           lastObject.value,

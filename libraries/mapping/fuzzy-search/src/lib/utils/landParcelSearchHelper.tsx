@@ -453,7 +453,7 @@ export const parseLandparcelToSelectionItem = (option) => {
     type: "flurstuecke",
     sorter: Date.now(),
     xSearchData: option.value,
-    semanticIdentifier: "landparcel",
+    semanticIdentifier: "inspire:CadastralParcel",
     more: {
       g: {
         type: "Polygon",

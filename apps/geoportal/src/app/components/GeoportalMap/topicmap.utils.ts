@@ -520,13 +520,15 @@ const createVectorFeature = async (
 
 export const resolveHit = (
   hits: any[],
-  semanticInfo: Record<string, string[]> | undefined,
+  semanticInfo: Record<string, { layers: string[] }> | undefined,
   semanticIdentifier: string | undefined
 ) => {
   if (semanticIdentifier && semanticInfo) {
-    const preferredLayerIds = semanticInfo[semanticIdentifier];
-    if (preferredLayerIds) {
-      const match = hits.find((h) => preferredLayerIds.includes(h.layer?.id));
+    const semanticEntry = semanticInfo[semanticIdentifier];
+    if (semanticEntry) {
+      const match = hits.find((h) =>
+        semanticEntry.layers?.includes(h.layer?.id)
+      );
       if (match) return match;
     }
   }
@@ -560,7 +562,7 @@ export const implicitVectorSelection = async (
   }
 
   const semanticInfo = layer.conf?.semanticInfo as
-    | Record<string, string[]>
+    | Record<string, { layers: string[] }>
     | undefined;
 
   if (e.hits && !layer.queryable) {
