@@ -48,12 +48,30 @@ const featuresFormsSlice = createSlice({
       }>
     ) {
       const { featureId, featureType, values, feature } = action.payload;
+      const existing = state.drafts[featureId];
+      const hasFiles = existing?.files && existing.files.length > 0;
+      const hasRemovedKeys =
+        existing?.removedDocumentKeys &&
+        existing.removedDocumentKeys.length > 0;
+      const original = state.originalValues[featureId];
+
+      // Clean up draft when values reverted to original and no files/removed keys
+      if (
+        original &&
+        !hasFiles &&
+        !hasRemovedKeys &&
+        !isFormDirty(original, values)
+      ) {
+        delete state.drafts[featureId];
+        return;
+      }
+
       state.drafts[featureId] = {
         featureType,
         values,
-        files: state.drafts[featureId]?.files ?? [],
-        removedDocumentKeys: state.drafts[featureId]?.removedDocumentKeys,
-        feature: feature ?? state.drafts[featureId]?.feature,
+        files: existing?.files ?? [],
+        removedDocumentKeys: existing?.removedDocumentKeys,
+        feature: feature ?? existing?.feature,
         updatedAt: Date.now(),
       };
     },
