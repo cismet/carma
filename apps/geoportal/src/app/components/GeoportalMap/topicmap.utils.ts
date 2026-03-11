@@ -518,20 +518,59 @@ const createVectorFeature = async (
   return feature;
 };
 
+export const resolveHit = (
+  hits: any[],
+  semanticInfo: Record<string, { layers: string[] }> | undefined,
+  semanticIdentifier: string | undefined
+) => {
+  if (semanticIdentifier && semanticInfo) {
+    const semanticEntry = semanticInfo[semanticIdentifier];
+    if (semanticEntry) {
+      const match = hits.find((h) =>
+        semanticEntry.layers?.includes(h.layer?.id)
+      );
+      if (match) return match;
+    }
+  }
+  return hits[0];
+};
+
 export const implicitVectorSelection = async (
   e: {
     hits: any[];
     hit: any;
     latlng: LatLng;
   },
-  { layer, dispatch, selectionHandler, featureHandler, leafletMap }
+  {
+    layer,
+    dispatch,
+    selectionHandler,
+    featureHandler,
+    leafletMap,
+    semanticIdentifier,
+  }: {
+    layer: Layer;
+    dispatch: Dispatch;
+    selectionHandler: (e: any, layer: Layer) => void;
+    featureHandler: (feature: any, layer: Layer) => void;
+    leafletMap: LeafletMap;
+    semanticIdentifier?: string;
+  }
 ) => {
   selectionHandler(e, layer);
   if (!e.hits) {
   }
 
+  const semanticInfo = layer.conf?.semanticInfo as
+    | Record<string, { layers: string[] }>
+    | undefined;
+
   if (e.hits && !layer.queryable) {
-    const selectedVectorFeature = e.hits[0];
+    const selectedVectorFeature = resolveHit(
+      e.hits,
+      semanticInfo,
+      semanticIdentifier
+    );
 
     if (selectedVectorFeature.setSelection) {
       selectedVectorFeature.setSelection(false);
@@ -570,7 +609,11 @@ export const implicitVectorSelection = async (
   }
 
   if (e.hits && layer.queryable) {
-    const selectedVectorFeature = e.hits[0];
+    const selectedVectorFeature = resolveHit(
+      e.hits,
+      semanticInfo,
+      semanticIdentifier
+    );
 
     if (selectedVectorFeature.setSelection) {
       selectedVectorFeature.setSelection(false);

@@ -28,6 +28,7 @@ export {
   type GazDataItem,
   type GazDataConfig,
   type GazDataSourceConfig,
+  builtInGazetteerHitTrigger,
 } from "./lib/gazData";
 
 export { extractInformation } from "./lib/layer-parser";

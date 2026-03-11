@@ -430,9 +430,8 @@ export const createOrUpdateVisibleCategory = (
     dropdownContainerRef.current.appendChild(categoryWrapper);
   } else {
     const stickyTitle = document.getElementById("advance-title-text");
-    const category = getCategoryNameInFirstSearchItem();
-    if (stickyTitle) {
-      stickyTitle.innerText = category ? category : firstCategoryText;
+    if (stickyTitle && firstCategoryText) {
+      stickyTitle.innerText = firstCategoryText;
     }
   }
 };
@@ -440,7 +439,7 @@ export const createOrUpdateVisibleCategory = (
 export const getCategoryNameInFirstSearchItem = () => {
   const itemWithCategory = document.querySelectorAll("[data-category]");
   const firstTitle = itemWithCategory[0] as HTMLElement;
-  const category = firstTitle.dataset.category;
+  const category = firstTitle?.dataset?.category;
 
   return category;
 };

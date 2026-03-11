@@ -210,7 +210,8 @@ export const getVectorMapping = async (
           const extractedFromStyle = extractCarmaConfig(styleKeywords);
           if (
             extractedFromStyle?.infoboxMapping &&
-            typeof extractedFromStyle.infoboxMapping !== "boolean" &&
+            (Array.isArray(extractedFromStyle.infoboxMapping) ||
+              typeof extractedFromStyle.infoboxMapping === "string") &&
             extractedFromStyle.infoboxMapping.length > 0
           ) {
             infoboxMapping = extractedFromStyle.infoboxMapping;
@@ -228,7 +229,8 @@ export const getVectorMapping = async (
               const extractedFromLayer = extractCarmaConfig(layerKeywords);
               if (
                 extractedFromLayer?.infoboxMapping &&
-                typeof extractedFromLayer.infoboxMapping !== "boolean" &&
+                (Array.isArray(extractedFromLayer.infoboxMapping) ||
+                  typeof extractedFromLayer.infoboxMapping === "string") &&
                 extractedFromLayer.infoboxMapping.length > 0
               ) {
                 infoboxMapping = extractedFromLayer.infoboxMapping;
@@ -270,7 +272,11 @@ export const getVectorMapping = async (
             const extractedCarmaConf = extractCarmaConfig(
               targetLayer.KeywordList
             );
-            infoboxMapping = extractedCarmaConf?.infoboxMapping || [];
+            const rawMapping = extractedCarmaConf?.infoboxMapping;
+            infoboxMapping =
+              Array.isArray(rawMapping) || typeof rawMapping === "string"
+                ? rawMapping
+                : [];
           }
         }
       }
