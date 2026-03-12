@@ -20,6 +20,7 @@ import { ENDPOINT } from "../../constants/belis";
 import { getFromUTM32ToWGS84 } from "@carma/geo/proj";
 import { BELIS_FILTER_CATEGORIES } from "../../config/mapLayerConfigs";
 import { message, Spin, Switch } from "antd";
+import DraftsBadge from "../ui/DraftsBadge";
 import {
   getKeyTablesLoading,
   getKeyTablesFetched,
@@ -216,6 +217,9 @@ const MainPage = () => {
               >
                 <FontAwesomeIcon icon={faDrawPolygon} />
               </button>
+
+              {/* Drafts badge */}
+              <DraftsBadge />
 
               {/* Filter switches */}
               <div className="flex items-center gap-2 border-l border-gray-300 pl-4">

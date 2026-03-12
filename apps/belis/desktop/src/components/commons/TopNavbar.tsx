@@ -37,11 +37,11 @@ const TopNavbar = () => {
         </NavLink>
       </div>
       <div className="ml-auto flex items-center gap-4">
-        {draftsCount > 0 && (
+        {/* {draftsCount > 0 && (
           <span className="text-base text-gray-600">
             nicht gespeicherte Änderungen ({draftsCount})
           </span>
-        )}
+        )} */}
         <SyncMenuModal />
         <Tooltip title="Ausloggen" placement="bottom">
           <LogoutOutlined
