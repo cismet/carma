@@ -413,9 +413,7 @@ const BelisMapLibWrapper = ({
       // Prefer sourceLayer derived from the draft's featureType (always correct)
       // over carmaInfo.sourceLayer from the stored feature (may be stale/missing).
       const sourceLayer =
-        formKeyToSourceLayer[featureType] ??
-        f?.carmaInfo?.sourceLayer ??
-        "";
+        formKeyToSourceLayer[featureType] ?? f?.carmaInfo?.sourceLayer ?? "";
       const props = f?.properties?.sourceProps ?? f?.properties ?? {};
       return {
         type: "Feature" as const,
@@ -424,7 +422,11 @@ const BelisMapLibWrapper = ({
         source: namespacedSource,
         sourceLayer,
         id: props.id,
-        layer: f?.layer ?? { id: sourceLayer, source: namespacedSource, type: "circle" as const },
+        layer: f?.layer ?? {
+          id: sourceLayer,
+          source: namespacedSource,
+          type: "circle" as const,
+        },
         state: {},
         original: f,
       } as unknown as SidebarFeature;
@@ -636,6 +638,48 @@ const BelisMapLibWrapper = ({
 
     fetchData();
   }, [selectedFeature, selectedFeatureId, jwt]);
+
+  // Check if selected feature is inside visible map boundary.
+  // When not visible, auto-open the datasheet to show NoFeatureSelected.
+  const [featureOnMap, setFeatureOnMap] = useState(true);
+
+  useEffect(() => {
+    if (sidebarMode !== "karte" || !selectedFeatureId || !map) {
+      setFeatureOnMap(true);
+      return;
+    }
+
+    const geometry = rawFeature?.geometry;
+    if (!geometry) {
+      setFeatureOnMap(true);
+      return;
+    }
+
+    const bounds = map.getBounds();
+    let inside: boolean;
+
+    if (geometry.type === "Point") {
+      const [lng, lat] = geometry.coordinates;
+      inside = bounds.contains([lng, lat]);
+    } else {
+      const coords =
+        geometry.type === "LineString"
+          ? geometry.coordinates
+          : geometry.type === "Polygon"
+            ? geometry.coordinates[0]
+            : [];
+      inside = coords.some(([lng, lat]: number[]) =>
+        bounds.contains([lng, lat])
+      );
+    }
+
+    console.log("yyy inside:", inside, "geometry:", geometry.type);
+    setFeatureOnMap(inside);
+
+    if (!inside) {
+      openDatasheet();
+    }
+  }, [map, selectedFeatureId, rawFeature, sidebarMode, openDatasheet]);
 
   // Build override feature for the infobox when LibreMap can't process the selection
   // (e.g. search result not visible on map).
@@ -992,7 +1036,9 @@ const BelisMapLibWrapper = ({
         highlightCount={adjustedHighlights?.length ?? undefined}
         draftsCount={draftFeaturesCount}
         onFeatureDismiss={handleSidebarDismiss}
-        listItemExtractors={sidebarMode === "drafts" ? draftListItemExtractors : undefined}
+        listItemExtractors={
+          sidebarMode === "drafts" ? draftListItemExtractors : undefined
+        }
       />
       <div
         ref={mapContainerRef}
@@ -1074,6 +1120,7 @@ const BelisMapLibWrapper = ({
                   selectedFeatureId?.sourceLayer ||
                   lastFeatureType
                 }
+                featureOnMap={featureOnMap}
               />
             </div>
           }
