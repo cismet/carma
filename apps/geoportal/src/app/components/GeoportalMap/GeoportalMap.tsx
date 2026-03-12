@@ -428,7 +428,8 @@ export const GeoportalMap = ({ height, width, allow3d }: MapProps) => {
       // No need to check getIsLeaflet() here - it's redundant and causes stale closure issues
       if (
         (uiMode === UIMode.DEFAULT || uiMode === UIMode.FEATURE_INFO) &&
-        !isAreaType(selection.type as ENDPOINT)
+        !isAreaType(selection.type as ENDPOINT) &&
+        !getIsCesium()
       ) {
         const selectedPos = getFromWebMercatorToWGS84([
           selection.x,
@@ -455,6 +456,8 @@ export const GeoportalMap = ({ height, width, allow3d }: MapProps) => {
         setTimeout(() => {
           const updatedPos = { lat: selectedPos[1], lng: selectedPos[0] };
           const latlngPoint = L.latLng(updatedPos);
+
+          console.log("xxx", selection);
 
           console.debug(
             "[GAZETTEER-SELECTION] Firing virtual click",
