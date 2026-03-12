@@ -927,14 +927,28 @@ const BelisMapLibWrapper = ({
         }
 
         // Feature not in viewport — dispatch stored feature to Redux
-        // (with database PK as id for stable draft lookup),
-        // then select without raw so the override path handles display.
+        // (with database PK as id for stable draft lookup).
+        // Pass a synthetic rawFeature from the stored draft properties so that:
+        //  1. rawFeature in the context is not null → form subtitles work
+        //  2. FeaturesFormsWrapper.draftFeature doesn't fall back to selectedFeature
+        //     (which has API/GraphQL structure, not flat MVT properties)
+        //  3. Mini-map can center on the geometry
         if (original) {
           dispatch(
             setSelectedFeature({ ...original, id: dbPK, selected: true })
           );
         }
-        selectFeature(identifier);
+        const syntheticRaw = {
+          type: "Feature" as const,
+          properties: feature.properties || {},
+          geometry: feature.geometry,
+          sourceLayer: sl,
+          source: identifier.source,
+          id: feature.id,
+          layer: feature.layer,
+          state: {},
+        };
+        selectFeature(identifier, syntheticRaw as any);
         return;
       }
 
