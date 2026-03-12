@@ -4,7 +4,6 @@ export type AnnotationInfoBoxPayload = {
   pixelWidth: number;
   headingColor: string;
   headingTitle: string;
-  headingActions?: ReactNode;
   collapsible: boolean;
   footer: ReactNode;
   subtitle: ReactNode;

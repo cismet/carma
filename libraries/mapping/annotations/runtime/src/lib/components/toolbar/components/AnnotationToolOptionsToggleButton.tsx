@@ -1,20 +1,18 @@
-import { DownOutlined, SettingOutlined } from "@ant-design/icons";
-import { Tooltip } from "antd";
-import {
-  ACTIVE_ACCENT_COLOR,
-  INACTIVE_ICON_COLOR,
-  LAYER_BUTTON_SHADOW,
-  TOOL_BUTTON_SIZE_PX,
-} from "../shared";
+import { SettingOutlined } from "@ant-design/icons";
+import { Switch, Tooltip } from "antd";
+import { annotationTooltipProps } from "../../shared/annotationTooltip";
+import { ACTIVE_ACCENT_COLOR, INACTIVE_ICON_COLOR } from "../shared";
 
 type AnnotationToolOptionsToggleButtonProps = {
   collapsed: boolean;
   onClick: () => void;
+  disabled?: boolean;
 };
 
 export function AnnotationToolOptionsToggleButton({
   collapsed,
   onClick,
+  disabled = false,
 }: AnnotationToolOptionsToggleButtonProps) {
   const title = collapsed
     ? "Werkzeugoptionen anzeigen"
@@ -22,43 +20,39 @@ export function AnnotationToolOptionsToggleButton({
   const expanded = !collapsed;
 
   return (
-    <Tooltip title={title}>
-      <button
-        type="button"
+    <Tooltip {...annotationTooltipProps} title={title}>
+      <span
         style={{
           display: "inline-flex",
           alignItems: "center",
           justifyContent: "center",
           gap: 6,
-          height: TOOL_BUTTON_SIZE_PX,
-          minWidth: 44,
-          padding: "0 10px",
-          borderRadius: 8,
-          border: expanded
-            ? `1px solid rgba(22, 119, 255, 0.5)`
-            : "1px solid #d1d5db",
-          backgroundColor: expanded ? "#ffffff" : "#f9fafb",
+          width: "auto",
+          height: 20,
+          padding: 0,
           color: expanded ? ACTIVE_ACCENT_COLOR : INACTIVE_ICON_COLOR,
-          boxShadow: expanded ? LAYER_BUTTON_SHADOW : "none",
-          cursor: "pointer",
           transition: "all 0.15s ease",
           flexShrink: 0,
+          opacity: disabled ? 0.45 : 1,
         }}
-        onClick={onClick}
-        aria-expanded={expanded}
-        aria-haspopup="dialog"
-        aria-label={title}
         data-test-id="measurement-secondary-toolbar-toggle"
       >
-        <SettingOutlined />
-        <DownOutlined
+        <SettingOutlined
           style={{
-            fontSize: 10,
-            transition: "transform 0.15s ease",
-            transform: expanded ? "rotate(180deg)" : "rotate(0deg)",
+            fontSize: 14,
+            color: expanded ? ACTIVE_ACCENT_COLOR : INACTIVE_ICON_COLOR,
           }}
         />
-      </button>
+        <Switch
+          size="small"
+          checked={expanded}
+          checkedChildren={null}
+          unCheckedChildren={null}
+          disabled={disabled}
+          onChange={() => onClick()}
+          aria-label={title}
+        />
+      </span>
     </Tooltip>
   );
 }

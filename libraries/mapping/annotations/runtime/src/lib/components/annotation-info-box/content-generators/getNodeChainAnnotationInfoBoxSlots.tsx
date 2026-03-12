@@ -27,7 +27,13 @@ import {
   AnnotationInfoBoxActionIcon,
   AnnotationInfoTitleInput,
 } from "../components";
-import { stopInputEventPropagation } from "./shared";
+import { annotationTooltipProps } from "../../shared/annotationTooltip";
+import {
+  getInfoBoxNodeChainDefaultName,
+  INFO_BOX_ACTION_ICON_CLASSNAME,
+  INFO_BOX_BODY_TEXT_CLASSNAME,
+  stopInputEventPropagation,
+} from "./shared";
 import type {
   AnnotationInfoBoxEntryPayload,
   AnnotationSlots,
@@ -112,7 +118,7 @@ const getNodeChainMetricContent = (input: AnnotationInfoBoxEntryPayload) => {
       (segmentLineMode ?? LINEAR_SEGMENT_LINE_MODE_COMPONENTS) ===
       LINEAR_SEGMENT_LINE_MODE_COMPONENTS;
     return (
-      <div className="w-full px-2 pb-1 text-[#212529] text-[11px] leading-normal">
+      <div className={`w-full px-2 pb-1 ${INFO_BOX_BODY_TEXT_CLASSNAME}`}>
         <div className="mb-1">
           Gesamtlänge: {formatNumber(totalLengthMeters)} m
         </div>
@@ -122,7 +128,7 @@ const getNodeChainMetricContent = (input: AnnotationInfoBoxEntryPayload) => {
           onMouseDown={stopInputEventPropagation}
         >
           <span className="text-gray-500">Segmentdarstellung:</span>
-          <span className="text-[10px] text-gray-500">Direkt</span>
+          <span className="text-gray-500">Direkt</span>
           <Switch
             size="small"
             checked={isComponentsMode}
@@ -136,11 +142,11 @@ const getNodeChainMetricContent = (input: AnnotationInfoBoxEntryPayload) => {
             aria-label="Polygonzug-Segmentdarstellung umschalten"
             data-test-id="infobox-polyline-line-mode-toggle"
           />
-          <span className="text-[10px] text-gray-500">Komponenten</span>
+          <span className="text-gray-500">Komponenten</span>
         </div>
         {polylineSummary ? (
           <>
-            <div className="mb-1 flex flex-wrap items-baseline gap-x-2 gap-y-1 text-[10px]">
+            <div className="mb-1 flex flex-wrap items-baseline gap-x-2 gap-y-1">
               <span className="text-gray-500">Aufstieg:</span>
               <span className="tabular-nums">
                 {formatNumber(polylineSummary.ascentMeters)} m
@@ -189,7 +195,7 @@ const getNodeChainMetricContent = (input: AnnotationInfoBoxEntryPayload) => {
       : "Fläche";
 
   return (
-    <div className="w-full px-2 pb-1 text-[#212529] text-base leading-normal">
+    <div className={`w-full px-2 pb-1 ${INFO_BOX_BODY_TEXT_CLASSNAME}`}>
       <div className="flex flex-wrap items-baseline gap-x-4 gap-y-1">
         <span>
           {areaLabel}:{" "}
@@ -209,8 +215,7 @@ const getNodeChainMetricContent = (input: AnnotationInfoBoxEntryPayload) => {
       cardinalHeading ? (
         <div>Himmelsrichtung: {cardinalHeading}</div>
       ) : null}
-      {(annotation.type === ANNOTATION_TYPE_AREA_PLANAR ||
-        annotation.type === ANNOTATION_TYPE_AREA_VERTICAL) &&
+      {annotation.type === ANNOTATION_TYPE_AREA_PLANAR &&
       Number.isFinite(annotation.verticalityDeg) ? (
         <div>Vertikalität: {formatNumber(annotation.verticalityDeg ?? 0)}°</div>
       ) : null}
@@ -234,7 +239,7 @@ const renderNodeChainHeadingActions = (
     onMouseDown={stopInputEventPropagation}
     onClick={stopInputEventPropagation}
   >
-    <Tooltip title="Zur Messung fliegen">
+    <Tooltip {...annotationTooltipProps} title="Zur Messung fliegen">
       <Icon
         name="search-location"
         onClick={(event: ReactMouseEvent<HTMLElement, MouseEvent>) => {
@@ -242,7 +247,7 @@ const renderNodeChainHeadingActions = (
           if (!input.nodeChainAnnotation) return;
           input.actions.flyToById(input.nodeChainAnnotation.id);
         }}
-        className="cursor-pointer text-[15px] text-white/85 hover:text-white"
+        className={INFO_BOX_ACTION_ICON_CLASSNAME}
         data-test-id="carma-flyto-node-chain-annotation-btn"
       />
     </Tooltip>
@@ -254,7 +259,6 @@ const renderNodeChainHeadingActions = (
         if (!input.nodeChainAnnotation) return;
         input.actions.exportGeoJsonById(input.nodeChainAnnotation.id);
       }}
-      className="cursor-pointer text-[14px] text-white/85 hover:text-white"
       dataTestId="carma-export-node-chain-annotation-geojson-btn"
     />
     <AnnotationInfoBoxActionIcon
@@ -265,7 +269,6 @@ const renderNodeChainHeadingActions = (
         if (!input.nodeChainAnnotation) return;
         input.actions.toggleVisibilityByIds([input.nodeChainAnnotation.id]);
       }}
-      className="cursor-pointer text-[14px] text-white/85 hover:text-white"
       dataTestId="carma-toggle-node-chain-annotation-visibility-btn"
     />
     <AnnotationInfoBoxActionIcon
@@ -302,7 +305,6 @@ const renderNodeChainHeadingActions = (
         if (!input.nodeChainAnnotation) return;
         input.actions.toggleLockByIds([input.nodeChainAnnotation.id]);
       }}
-      className="cursor-pointer text-[14px] text-white/85 hover:text-white"
       dataTestId="carma-toggle-node-chain-annotation-lock-btn"
     />
     <AnnotationInfoBoxActionIcon
@@ -313,7 +315,6 @@ const renderNodeChainHeadingActions = (
         if (!input.nodeChainAnnotation) return;
         input.actions.removeByIds([input.nodeChainAnnotation.id]);
       }}
-      className="cursor-pointer text-[14px] text-white/85 hover:text-white"
       dataTestId="carma-delete-node-chain-annotation-btn"
     />
   </div>
@@ -340,51 +341,61 @@ export const getNodeChainAnnotationInfoBoxSlots = (
         )
       ) + 1
     : sameKindGroups.length + 1;
+  const annotationTypeTitle =
+    input.kind === ANNOTATION_TYPE_POLYLINE ||
+    input.kind === ANNOTATION_TYPE_AREA_GROUND ||
+    input.kind === ANNOTATION_TYPE_AREA_PLANAR ||
+    input.kind === ANNOTATION_TYPE_AREA_VERTICAL
+      ? NODE_CHAIN_TYPE_TITLE_BY_KIND[input.kind]
+      : "Messung";
+  const nodeChainKind =
+    input.nodeChainAnnotation?.type ?? ANNOTATION_TYPE_POLYLINE;
+  const nodeChainShortLabelToken = input.nodeChainAnnotation
+    ? input.nodeChainAnnotation.nodeIds
+        .map((pointId) =>
+          input.pointMarkerBadgeByPointId[pointId]?.text?.trim()
+        )
+        .find((token) => Boolean(token)) ?? null
+    : null;
 
   return {
-    headingTitle:
-      input.kind === ANNOTATION_TYPE_POLYLINE ||
-      input.kind === ANNOTATION_TYPE_AREA_GROUND ||
-      input.kind === ANNOTATION_TYPE_AREA_PLANAR ||
-      input.kind === ANNOTATION_TYPE_AREA_VERTICAL
-        ? NODE_CHAIN_TYPE_TITLE_BY_KIND[input.kind]
-        : "Messung",
-    headingActions: input.nodeChainAnnotation
-      ? renderNodeChainHeadingActions(input)
-      : undefined,
+    headingTitle: annotationTypeTitle,
     subtitle: (
       <div className="mt-1 mb-0 w-full px-2">
-        <span className="font-bold flex-1 min-w-0">
-          <AnnotationInfoTitleInput
-            key={input.annotationId ?? `${input.kind}-preview`}
-            value={input.nodeChainAnnotation?.name ?? ""}
-            placeholder={`${
-              input.kind === ANNOTATION_TYPE_POLYLINE ||
-              input.kind === ANNOTATION_TYPE_AREA_GROUND ||
-              input.kind === ANNOTATION_TYPE_AREA_PLANAR ||
-              input.kind === ANNOTATION_TYPE_AREA_VERTICAL
-                ? NODE_CHAIN_TYPE_TITLE_BY_KIND[input.kind]
-                : "Messung"
-            } #${order}`}
-            editable={Boolean(input.nodeChainAnnotation)}
-            capitalize={false}
-            multiline={true}
-            onChange={(nextTitle) => {
-              if (!input.nodeChainAnnotation) return;
-              input.actions.updateNameById(
-                input.nodeChainAnnotation.id,
-                nextTitle
-              );
-            }}
-            onCommit={(nextTitle) => {
-              if (!input.nodeChainAnnotation) return;
-              input.actions.updateNameById(
-                input.nodeChainAnnotation.id,
-                nextTitle
-              );
-            }}
-          />
-        </span>
+        <div className="flex justify-between items-start gap-2">
+          <span className="font-bold flex-1 min-w-0">
+            <AnnotationInfoTitleInput
+              key={input.annotationId ?? `${input.kind}-preview`}
+              value={input.nodeChainAnnotation?.name ?? ""}
+              placeholder={getInfoBoxNodeChainDefaultName({
+                annotationTypeTitle,
+                kind: nodeChainKind,
+                counter: order,
+                shortLabelToken: nodeChainShortLabelToken,
+              })}
+              editable={Boolean(input.nodeChainAnnotation)}
+              capitalize={false}
+              multiline={true}
+              onChange={(nextTitle) => {
+                if (!input.nodeChainAnnotation) return;
+                input.actions.updateNameById(
+                  input.nodeChainAnnotation.id,
+                  nextTitle
+                );
+              }}
+              onCommit={(nextTitle) => {
+                if (!input.nodeChainAnnotation) return;
+                input.actions.updateNameById(
+                  input.nodeChainAnnotation.id,
+                  nextTitle
+                );
+              }}
+            />
+          </span>
+          {input.nodeChainAnnotation
+            ? renderNodeChainHeadingActions(input)
+            : null}
+        </div>
       </div>
     ),
     content: getNodeChainMetricContent(input),

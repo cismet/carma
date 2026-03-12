@@ -48,6 +48,11 @@ type UseNodeChainPointCreationParams = {
   annotationsStore: AnnotationsStore;
   activeToolType: AnnotationToolType;
   defaultPolylineSegmentLineMode: LinearSegmentLineMode;
+  defaultDistanceLineVisibility: {
+    direct: boolean;
+    vertical: boolean;
+    horizontal: boolean;
+  };
   polylineVerticalOffsetMeters: number;
   setNodeChainAnnotations: Dispatch<SetStateAction<NodeChainAnnotation[]>>;
   setAnnotations: Dispatch<SetStateAction<AnnotationCollection>>;
@@ -242,6 +247,7 @@ export const useNodeChainPointCreation = ({
   annotationsStore,
   activeToolType,
   defaultPolylineSegmentLineMode,
+  defaultDistanceLineVisibility,
   polylineVerticalOffsetMeters,
   setNodeChainAnnotations,
   setAnnotations,
@@ -293,6 +299,9 @@ export const useNodeChainPointCreation = ({
       const seedSegmentLineMode = isAreaCreation
         ? LINEAR_SEGMENT_LINE_MODE_DIRECT
         : defaultPolylineSegmentLineMode;
+      const seedDistanceLineVisibility = isDistanceCreation
+        ? defaultDistanceLineVisibility
+        : undefined;
       const verticalAutoCloseFromNewPoint = (() => {
         if (!isAreaCreation) return null;
 
@@ -375,6 +384,7 @@ export const useNodeChainPointCreation = ({
                   id: nextActiveGroupId,
                   type: seedTypeForCreation,
                   segmentLineMode: seedSegmentLineMode,
+                  distanceLineVisibility: seedDistanceLineVisibility,
                   verticalOffsetMeters: polylineVerticalOffsetMeters,
                   nodeIds: closedNodeIds,
                   edgeRelationIds: closedEdgeRelationIds,
@@ -401,6 +411,7 @@ export const useNodeChainPointCreation = ({
               id: nextActiveGroupId,
               type: seedType,
               segmentLineMode: seedSegmentLineMode,
+              distanceLineVisibility: seedDistanceLineVisibility,
               verticalOffsetMeters: polylineVerticalOffsetMeters,
               nodeIds: seedNodeIds,
               edgeRelationIds: seedEdgeRelationIds,
@@ -684,6 +695,9 @@ export const useNodeChainPointCreation = ({
       const seedSegmentLineMode = isAreaCreation
         ? LINEAR_SEGMENT_LINE_MODE_DIRECT
         : defaultPolylineSegmentLineMode;
+      const seedDistanceLineVisibility = isDistanceCreation
+        ? defaultDistanceLineVisibility
+        : undefined;
       const verticalAutoCloseFromExistingPoint = (() => {
         if (!isAreaCreation) return null;
 
@@ -758,6 +772,7 @@ export const useNodeChainPointCreation = ({
                   id: nextActiveGroupId,
                   type: seedTypeForCreation,
                   segmentLineMode: seedSegmentLineMode,
+                  distanceLineVisibility: seedDistanceLineVisibility,
                   verticalOffsetMeters: polylineVerticalOffsetMeters,
                   nodeIds: closedNodeIds,
                   edgeRelationIds: closedEdgeRelationIds,
@@ -784,6 +799,7 @@ export const useNodeChainPointCreation = ({
               id: nextActiveGroupId,
               type: seedType,
               segmentLineMode: seedSegmentLineMode,
+              distanceLineVisibility: seedDistanceLineVisibility,
               verticalOffsetMeters: polylineVerticalOffsetMeters,
               nodeIds: seedNodeIds,
               edgeRelationIds: seedEdgeRelationIds,

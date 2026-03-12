@@ -11,20 +11,14 @@ import {
   optionsLabelStyle,
   toolButtonStyle,
 } from "../../shared";
+import { annotationTooltipProps } from "../../../shared/annotationTooltip";
 import { ToolOptionsSection } from "./ToolOptionsSection";
-import { renderHelpContent } from "./shared";
 
 type SelectionToolOptionsProps = {
   selection?: AnnotationToolbarSelectionProps;
-  helpCollapsed: boolean;
-  onHelpCollapsedChange: (collapsed: boolean) => void;
 };
 
-export function SelectionToolOptions({
-  selection,
-  helpCollapsed,
-  onHelpCollapsedChange,
-}: SelectionToolOptionsProps) {
+export function SelectionToolOptions({ selection }: SelectionToolOptionsProps) {
   const {
     additiveMode = false,
     onAdditiveModeChange,
@@ -44,18 +38,7 @@ export function SelectionToolOptions({
   const hasSelection = selectedMeasurementCount + selectedLabelCount > 0;
 
   return (
-    <ToolOptionsSection
-      dataTestId="measurement-selection-options"
-      helpDataTestId="measurement-selection-help"
-      helpCollapsed={helpCollapsed}
-      onHelpCollapsedChange={onHelpCollapsedChange}
-      helpContent={renderHelpContent([
-        "Messungen anklicken, um sie ohne Modus-Nebeneffekte zu selektieren.",
-        "Optional: Rechteckmodus aktivieren und aufziehen, um Punkte live im Bildausschnitt zu selektieren.",
-        'Shift oder "Additiv" erweitert die Auswahl.',
-        "Ausgewählte Messungen können ein-/ausgeblendet, gesperrt und gelöscht werden.",
-      ])}
-    >
+    <ToolOptionsSection dataTestId="measurement-selection-options">
       <div
         style={{
           display: "inline-flex",
@@ -79,7 +62,7 @@ export function SelectionToolOptions({
           alignItems: "center",
         }}
       >
-        <Tooltip title="Rechteckauswahl">
+        <Tooltip {...annotationTooltipProps} title="Rechteckauswahl">
           <span
             style={{
               display: "inline-flex",
@@ -117,6 +100,7 @@ export function SelectionToolOptions({
         {hasSelection && (
           <>
             <Tooltip
+              {...annotationTooltipProps}
               title={
                 selectedVisibilityHidden
                   ? "Auswahl einblenden"
@@ -137,6 +121,7 @@ export function SelectionToolOptions({
               />
             </Tooltip>
             <Tooltip
+              {...annotationTooltipProps}
               title={selectedLocked ? "Auswahl entsperren" : "Auswahl sperren"}
             >
               <LockToggleButton
@@ -152,7 +137,7 @@ export function SelectionToolOptions({
                 iconSlotWidth={14}
               />
             </Tooltip>
-            <Tooltip title="Löschen">
+            <Tooltip {...annotationTooltipProps} title="Löschen">
               <button
                 type="button"
                 style={{
@@ -170,7 +155,7 @@ export function SelectionToolOptions({
             </Tooltip>
           </>
         )}
-        <Tooltip title="Alle Messungen löschen">
+        <Tooltip {...annotationTooltipProps} title="Alle Messungen löschen">
           <button
             type="button"
             style={{

@@ -12,16 +12,21 @@ import {
 } from "@fortawesome/free-solid-svg-icons";
 import Icon from "react-cismap/commons/Icon";
 import {
+  ANNOTATION_TYPE_DISTANCE,
+  ANNOTATION_TYPE_LABEL,
+  ANNOTATION_TYPE_POINT,
+  formatMeasurementShortLabelToken,
   formatNumber,
   getCustomPointAnnotationName,
   type PointAnnotationEntry,
-  toAlphabeticSequence,
+  type AnnotationShortLabelKind,
 } from "@carma-mapping/annotations/core";
 import { formatCoordinateWithHemisphere } from "../AnnotationInfoBox.formatters";
 import {
   AnnotationInfoBoxActionIcon,
   AnnotationInfoTitleInput,
 } from "../components";
+import { annotationTooltipProps } from "../../shared/annotationTooltip";
 import type {
   AnnotationDisplayPoint,
   AnnotationInfoBoxEntryPayload,
@@ -32,6 +37,12 @@ import type {
 export const POINT_TITLE = "Punktmessung";
 export const DISTANCE_TITLE = "Distanzmessung";
 export const LABEL_TITLE = "Beschriftung";
+export const INFO_BOX_BODY_TEXT_CLASSNAME =
+  "text-[12px] leading-normal text-[#212529]";
+export const INFO_BOX_MUTED_BODY_TEXT_CLASSNAME =
+  "text-[12px] leading-normal text-gray-500";
+export const INFO_BOX_ACTION_ICON_CLASSNAME =
+  "cursor-pointer text-base text-[#808080] hover:text-[#a0a0a0]";
 
 export const POINT_MODE_INSTRUCTION =
   "Auf das Modell klicken, um eine Punktmessung zu setzen.";
@@ -47,15 +58,43 @@ export const getDistanceInstructionText = (
     ? DISTANCE_SECOND_POINT_INSTRUCTION
     : DISTANCE_FIRST_POINT_INSTRUCTION;
 
-export const getPointTitleToken = ({
+export const buildInfoBoxDefaultMeasurementName = ({
+  annotationTypeTitle,
+  shortLabelToken,
+}: {
+  annotationTypeTitle: string;
+  shortLabelToken: string | null;
+}): string => {
+  const normalizedToken = shortLabelToken?.trim();
+  return normalizedToken
+    ? `${annotationTypeTitle} ${normalizedToken}`
+    : annotationTypeTitle;
+};
+
+export const getDefaultShortLabelToken = (
+  kind:
+    | typeof ANNOTATION_TYPE_POINT
+    | typeof ANNOTATION_TYPE_DISTANCE
+    | typeof ANNOTATION_TYPE_LABEL,
+  counter: number
+): string => formatMeasurementShortLabelToken(kind, counter);
+
+export const getInfoBoxPointDefaultName = ({
   currentOrder,
   nextOrder,
 }: {
   currentOrder: number | null;
   nextOrder: number;
-}): string => `${currentOrder ?? nextOrder}`;
+}): string =>
+  buildInfoBoxDefaultMeasurementName({
+    annotationTypeTitle: POINT_TITLE,
+    shortLabelToken: getDefaultShortLabelToken(
+      ANNOTATION_TYPE_POINT,
+      currentOrder ?? nextOrder
+    ),
+  });
 
-export const getDistanceTitleToken = ({
+export const getInfoBoxDistanceDefaultName = ({
   currentOrderToken,
   currentOrder,
   nextOrder,
@@ -64,9 +103,39 @@ export const getDistanceTitleToken = ({
   currentOrder: number | null;
   nextOrder: number;
 }): string =>
-  currentOrderToken && currentOrderToken.trim().length > 0
-    ? currentOrderToken.trim()
-    : toAlphabeticSequence((currentOrder ?? nextOrder) - 1);
+  buildInfoBoxDefaultMeasurementName({
+    annotationTypeTitle: DISTANCE_TITLE,
+    shortLabelToken:
+      currentOrderToken?.trim() ||
+      getDefaultShortLabelToken(
+        ANNOTATION_TYPE_DISTANCE,
+        currentOrder ?? nextOrder
+      ),
+  });
+
+export const getInfoBoxLabelDefaultName = (order: number): string =>
+  buildInfoBoxDefaultMeasurementName({
+    annotationTypeTitle: LABEL_TITLE,
+    shortLabelToken: getDefaultShortLabelToken(ANNOTATION_TYPE_LABEL, order),
+  });
+
+export const getInfoBoxNodeChainDefaultName = ({
+  annotationTypeTitle,
+  kind,
+  counter,
+  shortLabelToken,
+}: {
+  annotationTypeTitle: string;
+  kind: AnnotationShortLabelKind;
+  counter: number;
+  shortLabelToken?: string | null;
+}): string =>
+  buildInfoBoxDefaultMeasurementName({
+    annotationTypeTitle,
+    shortLabelToken:
+      shortLabelToken?.trim() ||
+      formatMeasurementShortLabelToken(kind, counter),
+  });
 
 const formatDisplayHeight = (displayPoint: AnnotationDisplayPoint): string => {
   const hasOffset =
@@ -90,14 +159,14 @@ const renderAnnotationActions = (
   actions: AnnotationSlotActions
 ): ReactNode => (
   <div className="flex justify-end items-center shrink-0 mt-0 gap-2">
-    <Tooltip title="Zur Messung fliegen">
+    <Tooltip {...annotationTooltipProps} title="Zur Messung fliegen">
       <Icon
         name="search-location"
         onClick={(event: ReactMouseEvent<HTMLElement, MouseEvent>) => {
           event.stopPropagation();
           actions.flyToById(measurement.id);
         }}
-        className="cursor-pointer text-[16px] text-[#808080] hover:text-[#a0a0a0]"
+        className={INFO_BOX_ACTION_ICON_CLASSNAME}
         data-test-id="carma-flyto-measurement-btn"
       />
     </Tooltip>
@@ -152,8 +221,7 @@ const renderAnnotationActions = (
 );
 
 type EditableSubtitleParams = {
-  annotationTypeTitle: string;
-  titleToken: string;
+  defaultDisplayName: string;
   measurement: PointAnnotationEntry | null;
   displayPoint: AnnotationDisplayPoint | null;
   subtitleMetaText?: string | null;
@@ -164,8 +232,7 @@ type EditableSubtitleParams = {
 };
 
 export const renderEditableAnnotationSubtitle = ({
-  annotationTypeTitle,
-  titleToken,
+  defaultDisplayName,
   measurement,
   displayPoint,
   subtitleMetaText,
@@ -180,13 +247,13 @@ export const renderEditableAnnotationSubtitle = ({
         className={`font-bold flex-1 min-w-0 ${isReference ? "italic" : ""}`}
       >
         <AnnotationInfoTitleInput
-          key={measurement?.id ?? `${annotationTypeTitle}-preview`}
+          key={measurement?.id ?? `${defaultDisplayName}-preview`}
           value={
             measurement
               ? getCustomPointAnnotationName(measurement.name) || ""
               : ""
           }
-          placeholder={`${annotationTypeTitle} #${titleToken}`}
+          placeholder={defaultDisplayName}
           editable={Boolean(measurement)}
           capitalize={false}
           multiline={true}
@@ -223,7 +290,7 @@ export const renderEditableAnnotationSubtitle = ({
 export const renderRelativeElevationContent = (
   relativeElevation: number | null
 ): ReactNode => (
-  <div className="w-full px-2 pb-1 text-[#212529] text-[11px] leading-normal">
+  <div className={`w-full px-2 pb-1 ${INFO_BOX_BODY_TEXT_CLASSNAME}`}>
     {relativeElevation !== null ? (
       <div>
         {formatNumber(relativeElevation)} m relative Höhe über Bezugspunkt
@@ -249,7 +316,7 @@ export const renderDistanceTableContent = (
 
   return (
     <div className="w-full px-2 pb-1">
-      <table className="w-full text-[10px] leading-tight">
+      <table className={`w-full ${INFO_BOX_BODY_TEXT_CLASSNAME}`}>
         <thead>
           <tr className="text-left text-gray-500">
             <th className="font-normal pr-2">Punkt</th>

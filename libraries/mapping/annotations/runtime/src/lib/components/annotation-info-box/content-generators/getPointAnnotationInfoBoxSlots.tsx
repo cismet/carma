@@ -7,9 +7,9 @@ import type {
   AnnotationInfoBoxEntryPayload,
 } from "../annotationInfoBoxSlots.types";
 import {
+  getInfoBoxPointDefaultName,
   POINT_MODE_INSTRUCTION,
   POINT_TITLE,
-  getPointTitleToken,
   renderEditableAnnotationSubtitle,
   renderRelativeElevationContent,
 } from "./shared";
@@ -45,8 +45,10 @@ export const getPointAnnotationInfoBoxSlots = (
   return {
     headingTitle: POINT_TITLE,
     subtitle: renderEditableAnnotationSubtitle({
-      annotationTypeTitle: POINT_TITLE,
-      titleToken: getPointTitleToken({ currentOrder, nextOrder }),
+      defaultDisplayName: getInfoBoxPointDefaultName({
+        currentOrder,
+        nextOrder,
+      }),
       measurement,
       displayPoint,
       isReference,

@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { Switch } from "antd";
+import { Switch, Tooltip } from "antd";
 import {
   LINEAR_SEGMENT_LINE_MODE_COMPONENTS,
   LINEAR_SEGMENT_LINE_MODE_DIRECT,
@@ -7,20 +7,18 @@ import {
 import { EditableMetricValue } from "@carma-commons/ui/components";
 import type { AnnotationToolbarPolylineProps } from "../../AnnotationModeToolbar.types";
 import { optionsLabelStyle } from "../../shared";
+import { annotationTooltipProps } from "../../../shared/annotationTooltip";
 import { ToolOptionsSection } from "./ToolOptionsSection";
-import { renderHelpContent } from "./shared";
+import {
+  SEGMENT_LINE_MODE_OPTIONS,
+  segmentLineModeOptionButtonStyle,
+} from "./segmentLineModeOptions";
 
 type PolylineToolOptionsProps = {
   polyline?: AnnotationToolbarPolylineProps;
-  helpCollapsed: boolean;
-  onHelpCollapsedChange: (collapsed: boolean) => void;
 };
 
-export function PolylineToolOptions({
-  polyline,
-  helpCollapsed,
-  onHelpCollapsedChange,
-}: PolylineToolOptionsProps) {
+export function PolylineToolOptions({ polyline }: PolylineToolOptionsProps) {
   const {
     verticalOffsetMeters = 0,
     onVerticalOffsetChange,
@@ -37,18 +35,7 @@ export function PolylineToolOptions({
   }, [verticalOffsetEnabled, verticalOffsetMeters]);
 
   return (
-    <ToolOptionsSection
-      dataTestId="measurement-polyline-options"
-      helpDataTestId="measurement-polyline-help"
-      helpCollapsed={helpCollapsed}
-      onHelpCollapsedChange={onHelpCollapsedChange}
-      helpContent={renderHelpContent([
-        "Klicken setzt Stützpunkte des Polygonzugs.",
-        "Doppelklick beendet den aktuellen Polygonzug.",
-        "Vertikalversatz verschiebt die Darstellung entlang der lokalen Up-Achse.",
-        "Segmentdarstellung wechselt zwischen Direktlinie und Komponenten.",
-      ])}
-    >
+    <ToolOptionsSection dataTestId="measurement-polyline-options">
       <div
         style={{
           display: "inline-flex",
@@ -98,29 +85,54 @@ export function PolylineToolOptions({
           />
         )}
       </div>
+      <span
+        style={{
+          width: 1,
+          height: 22,
+          backgroundColor: "rgba(0, 0, 0, 0.12)",
+          margin: "0 2px",
+        }}
+        aria-hidden="true"
+      />
       <div
+        role="radiogroup"
+        aria-label="Polyline-Segmentdarstellung auswählen"
+        data-test-id="measurement-polyline-line-mode-toggle"
         style={{
           display: "inline-flex",
-          gap: 6,
           alignItems: "center",
+          gap: 4,
         }}
       >
-        <span style={optionsLabelStyle}>Segmentdarstellung</span>
-        <span style={optionsLabelStyle}>Direkt</span>
-        <Switch
-          size="small"
-          checked={segmentLineMode === LINEAR_SEGMENT_LINE_MODE_COMPONENTS}
-          onChange={(checked) =>
-            onSegmentLineModeChange?.(
-              checked
-                ? LINEAR_SEGMENT_LINE_MODE_COMPONENTS
-                : LINEAR_SEGMENT_LINE_MODE_DIRECT
-            )
-          }
-          aria-label="Polyline-Segmentdarstellung umschalten"
-          data-test-id="measurement-polyline-line-mode-toggle"
-        />
-        <span style={optionsLabelStyle}>Komponenten</span>
+        {SEGMENT_LINE_MODE_OPTIONS.map(({ mode, label, tooltip, icon }) => {
+          const isActive = segmentLineMode === mode;
+          return (
+            <Tooltip {...annotationTooltipProps} key={mode} title={tooltip}>
+              <button
+                type="button"
+                role="radio"
+                aria-checked={isActive}
+                aria-label={`${label} ${isActive ? "aktiv" : "aktivieren"}`}
+                onClick={() => onSegmentLineModeChange?.(mode)}
+                data-test-id={`measurement-polyline-line-mode-${mode}`}
+                style={segmentLineModeOptionButtonStyle(isActive)}
+              >
+                <span
+                  style={{
+                    display: "inline-flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    width: 14,
+                    height: 14,
+                  }}
+                  aria-hidden="true"
+                >
+                  {icon}
+                </span>
+              </button>
+            </Tooltip>
+          );
+        })}
       </div>
     </ToolOptionsSection>
   );

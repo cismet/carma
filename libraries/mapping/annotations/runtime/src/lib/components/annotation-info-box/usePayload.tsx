@@ -229,7 +229,6 @@ export const usePayload = (pixelWidth: number): AnnotationInfoBoxPayload => {
     pixelWidth,
     headingColor: "rgba(59, 130, 246, 0.7)",
     headingTitle: slots.headingTitle,
-    headingActions: slots.headingActions,
     collapsible: slots.collapsible,
     footer: (
       <AnnotationInfoBoxNavigation

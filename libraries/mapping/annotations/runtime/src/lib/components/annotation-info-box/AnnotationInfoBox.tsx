@@ -14,7 +14,6 @@ export function AnnotationInfoBox({
     pixelWidth: boxWidth,
     headingColor,
     headingTitle,
-    headingActions,
     collapsible,
     footer,
     subtitle,
@@ -31,11 +30,10 @@ export function AnnotationInfoBox({
         headingColor={headingColor}
         footer={footer}
         heading={
-          <div className="w-full px-2 flex items-center justify-between">
+          <div className="w-full px-2 flex items-center">
             <span className="truncate" title={headingTitle}>
               {headingTitle}
             </span>
-            {headingActions ?? null}
           </div>
         }
         subtitle={subtitle}

@@ -256,33 +256,31 @@ export const buildStandaloneDistancePointSets = <
 
 type BuildDesiredPointLabelAnchorByIdParams<
   TPointMeasurement extends PointLabelMeasurementLike,
-  TPolyline extends PolylineLabelLike
+  TNodeChain extends { id: string; nodeIds: ReadonlyArray<string> }
 > = {
   pointMeasurements: ReadonlyArray<TPointMeasurement>;
-  polylines: ReadonlyArray<TPolyline>;
+  nodeChains: ReadonlyArray<TNodeChain>;
   focusedNodeChainAnnotationId: string | null;
   pointMarkerBadgeByPointId: Readonly<Record<string, PointMarkerBadgeLike>>;
   standaloneDistanceHighestPointIds: ReadonlySet<string>;
   unfocusedStandaloneDistanceNonHighestPointIds: ReadonlySet<string>;
   focusedStandaloneDistanceNonHighestPointIds: ReadonlySet<string>;
-  formatDistanceLabel: (distanceMeters: number) => string;
 };
 
 export const buildDesiredPointLabelAnchorById = <
   TPointMeasurement extends PointLabelMeasurementLike,
-  TPolyline extends PolylineLabelLike
+  TNodeChain extends { id: string; nodeIds: ReadonlyArray<string> }
 >({
   pointMeasurements,
-  polylines,
+  nodeChains,
   focusedNodeChainAnnotationId,
   pointMarkerBadgeByPointId,
   standaloneDistanceHighestPointIds,
   unfocusedStandaloneDistanceNonHighestPointIds,
   focusedStandaloneDistanceNonHighestPointIds,
-  formatDistanceLabel,
 }: BuildDesiredPointLabelAnchorByIdParams<
   TPointMeasurement,
-  TPolyline
+  TNodeChain
 >): Readonly<Record<string, AnnotationLabelAnchor | undefined>> => {
   const byPointId: Record<string, AnnotationLabelAnchor | undefined> = {};
   pointMeasurements.forEach((measurement) => {
@@ -317,19 +315,15 @@ export const buildDesiredPointLabelAnchorById = <
     };
   });
 
-  polylines.forEach((polyline) => {
-    if (polyline.id === focusedNodeChainAnnotationId) return;
-    polyline.nodeIds.forEach((pointId) => {
+  nodeChains.forEach((nodeChain) => {
+    if (nodeChain.id === focusedNodeChainAnnotationId) {
+      return;
+    }
+
+    nodeChain.nodeIds.forEach((pointId) => {
       if (!pointId) return;
       byPointId[pointId] = undefined;
     });
-    const lastPointId = polyline.nodeIds[polyline.nodeIds.length - 1] ?? null;
-    if (!lastPointId) return;
-    byPointId[lastPointId] = {
-      anchorPointId: lastPointId,
-      compactContent: `${formatDistanceLabel(polyline.totalLengthMeters)}m`,
-      collapseToCompact: true,
-    };
   });
 
   return byPointId;

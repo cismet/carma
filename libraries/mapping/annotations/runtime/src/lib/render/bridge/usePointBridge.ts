@@ -6,7 +6,6 @@ import {
   AnnotationCollection,
   AnnotationLabelAnchor,
   AnnotationMode,
-  DerivedPolylinePath,
   NodeChainAnnotation,
   PointAnnotationEntry,
   PointDistanceRelation,
@@ -18,7 +17,6 @@ import {
   collectCollapsedPillPointIds,
   collectLabelAnchorPointIdsWithForcedVisibility,
   collectPointIdsWithoutSelfLabelAnchor,
-  formatNumber,
   isPointAnnotationEntry,
 } from "@carma-mapping/annotations/core";
 
@@ -94,7 +92,7 @@ type StandaloneDistancePointState = ReturnType<
 
 const derivePointLabelAnchors = (
   pointEntries: readonly PointAnnotationEntry[],
-  polylines: readonly DerivedPolylinePath[],
+  nodeChainAnnotations: readonly NodeChainAnnotation[],
   focusedNodeChainAnnotationId: string | null,
   pointMarkerBadgeByPointId: Readonly<
     Record<string, AnnotationPointMarkerBadge>
@@ -103,7 +101,7 @@ const derivePointLabelAnchors = (
 ) =>
   buildDesiredPointLabelAnchorById({
     pointMeasurements: pointEntries,
-    polylines,
+    nodeChains: nodeChainAnnotations,
     focusedNodeChainAnnotationId,
     pointMarkerBadgeByPointId,
     standaloneDistanceHighestPointIds:
@@ -112,7 +110,6 @@ const derivePointLabelAnchors = (
       standaloneDistancePointState.unfocusedStandaloneDistanceNonHighestPointIds,
     focusedStandaloneDistanceNonHighestPointIds:
       standaloneDistancePointState.focusedStandaloneDistanceNonHighestPointIds,
-    formatDistanceLabel: formatNumber,
   });
 
 const applyPointLabelAnchors = (
@@ -139,7 +136,6 @@ type UsePointBridgeParams = {
   distanceRelations: PointDistanceRelation[];
   selectedAnnotationId: string | null;
   selectedAnnotationIds: string[];
-  polylines: DerivedPolylinePath[];
   focusedNodeChainAnnotationId: string | null;
   unselectedClosedAreaNodeIdSet: ReadonlySet<string>;
   showLabels: boolean;
@@ -156,7 +152,6 @@ export const usePointBridge = ({
   distanceRelations,
   selectedAnnotationId,
   selectedAnnotationIds,
-  polylines,
   focusedNodeChainAnnotationId,
   unselectedClosedAreaNodeIdSet,
   showLabels,
@@ -223,16 +218,16 @@ export const usePointBridge = ({
     () =>
       derivePointLabelAnchors(
         pointEntries,
-        polylines,
+        nodeChainAnnotations,
         focusedNodeChainAnnotationId,
         pointMarkerBadgeByPointId,
         standaloneDistancePointState
       ),
     [
       focusedNodeChainAnnotationId,
+      nodeChainAnnotations,
       pointEntries,
       pointMarkerBadgeByPointId,
-      polylines,
       standaloneDistancePointState,
     ]
   );

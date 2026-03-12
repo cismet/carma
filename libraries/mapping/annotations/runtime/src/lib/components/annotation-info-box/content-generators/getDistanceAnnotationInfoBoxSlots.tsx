@@ -16,7 +16,7 @@ import type {
 import {
   DISTANCE_TITLE,
   getDistanceInstructionText,
-  getDistanceTitleToken,
+  getInfoBoxDistanceDefaultName,
   renderDistanceTableContent,
   renderEditableAnnotationSubtitle,
 } from "./shared";
@@ -244,8 +244,7 @@ export const getDistanceAnnotationInfoBoxSlots = (
   return {
     headingTitle: DISTANCE_TITLE,
     subtitle: renderEditableAnnotationSubtitle({
-      annotationTypeTitle: DISTANCE_TITLE,
-      titleToken: getDistanceTitleToken({
+      defaultDisplayName: getInfoBoxDistanceDefaultName({
         currentOrderToken,
         currentOrder,
         nextOrder,

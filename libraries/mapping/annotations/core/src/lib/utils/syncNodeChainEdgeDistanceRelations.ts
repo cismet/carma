@@ -39,6 +39,8 @@ export const syncNodeChainEdgeDistanceRelations = ({
       pointAId: string;
       pointBId: string;
       showDirectLine: boolean;
+      showVerticalLine: boolean;
+      showHorizontalLine: boolean;
       showComponentLines: boolean;
     }
   >();
@@ -53,15 +55,23 @@ export const syncNodeChainEdgeDistanceRelations = ({
         ? defaultPolylineSegmentLineMode
         : LINEAR_SEGMENT_LINE_MODE_DIRECT);
     const showDirectLine = isDistanceGroup
-      ? true
+      ? group.distanceLineVisibility?.direct ?? true
       : isPolylineGroup
       ? segmentLineMode === LINEAR_SEGMENT_LINE_MODE_DIRECT
       : true;
-    const showComponentLines = isDistanceGroup
-      ? false
+    const showVerticalLine = isDistanceGroup
+      ? group.distanceLineVisibility?.vertical ?? false
       : isPolylineGroup
       ? segmentLineMode === LINEAR_SEGMENT_LINE_MODE_COMPONENTS
       : false;
+    const showHorizontalLine = isDistanceGroup
+      ? group.distanceLineVisibility?.horizontal ?? false
+      : isPolylineGroup
+      ? segmentLineMode === LINEAR_SEGMENT_LINE_MODE_COMPONENTS
+      : false;
+    const showComponentLines = isDistanceGroup
+      ? showVerticalLine || showHorizontalLine
+      : showVerticalLine || showHorizontalLine;
     const orderedVertices = group.nodeIds;
     for (let index = 0; index < orderedVertices.length - 1; index += 1) {
       const pointAId = orderedVertices[index];
@@ -73,6 +83,8 @@ export const syncNodeChainEdgeDistanceRelations = ({
         pointAId,
         pointBId,
         showDirectLine,
+        showVerticalLine,
+        showHorizontalLine,
         showComponentLines,
       });
     }
@@ -86,6 +98,8 @@ export const syncNodeChainEdgeDistanceRelations = ({
           pointAId: last,
           pointBId: first,
           showDirectLine,
+          showVerticalLine,
+          showHorizontalLine,
           showComponentLines,
         });
       }
@@ -113,8 +127,8 @@ export const syncNodeChainEdgeDistanceRelations = ({
       anchorPointId: desired.pointAId,
       polygonGroupId: desired.groupId,
       showDirectLine: desired.showDirectLine,
-      showVerticalLine: desired.showComponentLines,
-      showHorizontalLine: desired.showComponentLines,
+      showVerticalLine: desired.showVerticalLine,
+      showHorizontalLine: desired.showHorizontalLine,
       showComponentLines: desired.showComponentLines,
       labelVisibilityByKind: {
         ...defaultDistanceRelationLabelVisibility,
@@ -134,8 +148,8 @@ export const syncNodeChainEdgeDistanceRelations = ({
       anchorPointId: desired.pointAId,
       polygonGroupId: desired.groupId,
       showDirectLine: desired.showDirectLine,
-      showVerticalLine: desired.showComponentLines,
-      showHorizontalLine: desired.showComponentLines,
+      showVerticalLine: desired.showVerticalLine,
+      showHorizontalLine: desired.showHorizontalLine,
       showComponentLines: desired.showComponentLines,
       labelVisibilityByKind: {
         ...defaultDistanceRelationLabelVisibility,

@@ -20,6 +20,29 @@ const areStringArraysEqual = (
   return true;
 };
 
+const areDistanceLineVisibilityEqual = (
+  left:
+    | {
+        direct: boolean;
+        vertical: boolean;
+        horizontal: boolean;
+      }
+    | undefined,
+  right:
+    | {
+        direct: boolean;
+        vertical: boolean;
+        horizontal: boolean;
+      }
+    | undefined
+) =>
+  left === right ||
+  (!!left &&
+    !!right &&
+    left.direct === right.direct &&
+    left.vertical === right.vertical &&
+    left.horizontal === right.horizontal);
+
 const areOptionalNumbersEqual = (
   left: number | undefined,
   right: number | undefined,
@@ -95,6 +118,10 @@ export const arePolygonAnnotationsEquivalent = (
     left.hidden === right.hidden &&
     left.type === right.type &&
     left.segmentLineMode === right.segmentLineMode &&
+    areDistanceLineVisibilityEqual(
+      left.distanceLineVisibility,
+      right.distanceLineVisibility
+    ) &&
     areOptionalNumbersEqual(
       left.verticalOffsetMeters,
       right.verticalOffsetMeters,

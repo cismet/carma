@@ -604,6 +604,7 @@ export const AnnotationsProvider: React.FC<AnnotationsProviderProps> = ({
       annotationsStore,
       activeToolType,
       defaultPolylineSegmentLineMode,
+      defaultDistanceLineVisibility: distanceCreationLineVisibility,
       polylineVerticalOffsetMeters,
       setNodeChainAnnotations,
       setAnnotations,

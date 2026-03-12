@@ -55,7 +55,7 @@ const EDITING_POINT_MARKER_INNER_SCALE_IDLE = 0;
 const EDITING_POINT_MARKER_INNER_SCALE_DRAGGING = 0.68;
 const EDITING_POINT_MARKER_INNER_COLOR = "rgba(255, 255, 255, 0.96)";
 const LABEL_BADGE_GAP_PX = 4;
-const AREA_NODE_BADGE_REGEX = /^[ADF]\d+$/i;
+const NODE_CHAIN_BADGE_REGEX = /^[LADF]\d+$/i;
 const LABEL_INPUT_PLACEHOLDER_TEXT = "Label";
 
 // Viewport padding constants for smooth label transitions
@@ -102,7 +102,8 @@ const getPointLabelBase = (
   pointIndex: number,
   isAuxiliaryLabelAnchor: boolean = false,
   pointLabelOverride?: string,
-  preferDefaultNaming: boolean = false
+  preferDefaultNaming: boolean = false,
+  suppressGeneratedIndex: boolean = false
 ): string => {
   const customPointName = preferDefaultNaming
     ? undefined
@@ -112,6 +113,7 @@ const getPointLabelBase = (
     return pointLabelOverride;
   }
   if (isAuxiliaryLabelAnchor) return "";
+  if (suppressGeneratedIndex) return "";
   return `${pointIndex + 1}`;
 };
 
@@ -256,14 +258,16 @@ const formatPointLabelText = (
   pointDistanceToReference?: number,
   referenceLabelBase?: string,
   pointLabelOverride?: string,
-  preferDefaultNaming: boolean = false
+  preferDefaultNaming: boolean = false,
+  suppressGeneratedIndex: boolean = false
 ): PointLabelTextRepresentation => {
   const labelBase = getPointLabelBase(
     pointName,
     pointIndex,
     isAuxiliaryLabelAnchor,
     pointLabelOverride,
-    preferDefaultNaming
+    preferDefaultNaming,
+    suppressGeneratedIndex
   );
 
   if (pointLabelMetricMode === "distance") {
@@ -677,9 +681,9 @@ export const usePointLabelVisualizer = (
           pointLabelIndexByPointId?.[point.id] ?? index;
         const pointMarkerBadgeText =
           pointMarkerBadgeByPointId?.[point.id]?.text?.trim() ?? "";
-        const isAreaNodeBadge =
-          AREA_NODE_BADGE_REGEX.test(pointMarkerBadgeText);
-        const pointLabelOverride = isAreaNodeBadge
+        const isNodeChainBadge =
+          NODE_CHAIN_BADGE_REGEX.test(pointMarkerBadgeText);
+        const pointLabelOverride = isNodeChainBadge
           ? undefined
           : pointMarkerBadgeByPointId?.[point.id]?.text;
         const pointLabelMetricMode =
@@ -697,7 +701,8 @@ export const usePointLabelVisualizer = (
             ? defaultNamedReferenceLabelBase
             : referenceLabelBase,
           pointLabelOverride,
-          preferDefaultNaming
+          preferDefaultNaming,
+          isNodeChainBadge
         );
 
         if (
@@ -727,7 +732,8 @@ export const usePointLabelVisualizer = (
               effectivePointIndex,
               Boolean(point.auxiliaryLabelAnchor),
               pointLabelOverride,
-              preferDefaultNaming
+              preferDefaultNaming,
+              isNodeChainBadge
             );
             labelTextRepresentation = formatOffsetElevationLabelText(
               labelBase,
@@ -805,6 +811,10 @@ export const usePointLabelVisualizer = (
         const isLabelInputPromptPoint = labelInputPromptPointId === point.id;
         const effectivePointIndex =
           pointLabelIndexByPointId?.[point.id] ?? index;
+        const pointMarkerBadgeText =
+          pointMarkerBadgeByPointId?.[point.id]?.text?.trim() ?? "";
+        const isNodeChainBadge =
+          NODE_CHAIN_BADGE_REGEX.test(pointMarkerBadgeText);
         const compactText = getPointLabelBase(
           point.name,
           effectivePointIndex,
@@ -812,10 +822,12 @@ export const usePointLabelVisualizer = (
           (() => {
             const badgeText = pointMarkerBadgeByPointId?.[point.id]?.text;
             const normalizedBadgeText = badgeText?.trim() ?? "";
-            return AREA_NODE_BADGE_REGEX.test(normalizedBadgeText)
+            return NODE_CHAIN_BADGE_REGEX.test(normalizedBadgeText)
               ? undefined
               : badgeText;
-          })()
+          })(),
+          false,
+          isNodeChainBadge
         );
 
         return {
@@ -860,11 +872,12 @@ export const usePointLabelVisualizer = (
       const effectivePointIndex = pointLabelIndexByPointId?.[point.id] ?? index;
       const pointMarkerBadge = pointMarkerBadgeByPointId?.[point.id];
       const pointMarkerBadgeText = pointMarkerBadge?.text?.trim() ?? "";
-      const isAreaNodeBadge = AREA_NODE_BADGE_REGEX.test(pointMarkerBadgeText);
+      const isNodeChainBadge =
+        NODE_CHAIN_BADGE_REGEX.test(pointMarkerBadgeText);
       const isEditingPoint = point.id === editingPointId;
       const suppressCompactLabel =
         Boolean(suppressCompactLabelPointIds?.has(point.id)) ||
-        isAreaNodeBadge ||
+        isNodeChainBadge ||
         isEditingPoint;
       const customPointName = getCustomPointAnnotationName(point.name);
       const labelTextRepresentation =
@@ -876,14 +889,18 @@ export const usePointLabelVisualizer = (
                 point.name,
                 effectivePointIndex,
                 Boolean(point.auxiliaryLabelAnchor),
-                suppressCompactLabel ? undefined : pointMarkerBadge?.text
+                suppressCompactLabel ? undefined : pointMarkerBadge?.text,
+                false,
+                isNodeChainBadge
               ),
             });
       const compactLabelText = getPointLabelBase(
         point.name,
         effectivePointIndex,
         Boolean(point.auxiliaryLabelAnchor),
-        suppressCompactLabel ? undefined : pointMarkerBadge?.text
+        suppressCompactLabel ? undefined : pointMarkerBadge?.text,
+        false,
+        isNodeChainBadge
       );
       const usesPillMarkerVariant =
         !isEditingPoint && Boolean(pillMarkerPointIds?.has(point.id));
@@ -924,12 +941,13 @@ export const usePointLabelVisualizer = (
         pointMarkerBadge?.text && /^\d+$/.test(pointMarkerBadge.text.trim())
       );
       const useMarkerLabel = true;
-      const useBorderlessExtendedLabel = isAreaNodeBadge || isEditingPoint;
+      const useBorderlessExtendedLabel = isNodeChainBadge || isEditingPoint;
       const isPreviewLabelPoint = Boolean(point.temporary);
-      const compactLayoutBadgeText =
-        pointMarkerBadge?.text?.trim().length && pointMarkerBadge.text
-          ? pointMarkerBadge.text
-          : `${effectivePointIndex + 1}`;
+      const compactLayoutBadgeText = isNodeChainBadge
+        ? undefined
+        : pointMarkerBadge?.text?.trim().length && pointMarkerBadge.text
+        ? pointMarkerBadge.text
+        : `${effectivePointIndex + 1}`;
       const compactContent =
         suppressCompactLabel || isAnnotationMarker
           ? undefined
@@ -943,7 +961,9 @@ export const usePointLabelVisualizer = (
             : undefined
           : isDistanceMetricPoint
           ? compactLayoutBadgeText
-          : compactLabelText || customPointName || pointMarkerBadge?.text;
+          : compactLabelText ||
+            customPointName ||
+            (isNodeChainBadge ? undefined : pointMarkerBadge?.text);
       const fallbackCompactContent = suppressCompactLabel
         ? undefined
         : compactContent ??
@@ -954,7 +974,7 @@ export const usePointLabelVisualizer = (
           : undefined;
       const compactAreaBadgeWithoutOutline = Boolean(
         compactContentText &&
-          AREA_NODE_BADGE_REGEX.test(compactContentText.trim())
+          NODE_CHAIN_BADGE_REGEX.test(compactContentText.trim())
       );
       const extendedLabelContent =
         useMarkerLabel && compactContentText

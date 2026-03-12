@@ -68,6 +68,11 @@ type NodeChainAnnotationBase = {
   name?: string;
   hidden?: boolean;
   segmentLineMode?: LinearSegmentLineMode;
+  distanceLineVisibility?: {
+    direct: boolean;
+    vertical: boolean;
+    horizontal: boolean;
+  };
   verticalOffsetMeters?: number;
   nodeIds: string[];
   edgeRelationIds: string[];

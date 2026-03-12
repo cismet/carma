@@ -136,7 +136,12 @@ export const useRenderBridgeState = ({
     candidateSession.annotationsStore,
     (state) => state.annotationToolType
   );
-  const showAllPointOverlays = activeToolType === SELECT_TOOL_TYPE;
+  const labelInputPromptPointId = useStoreSelector(
+    candidateSession.annotationsStore,
+    (state) => state.pendingLabelPlacementAnnotationId
+  );
+  const showAllPointOverlays =
+    activeToolType === SELECT_TOOL_TYPE || labelInputPromptPointId !== null;
   const { points: pointEntries } = usePointIndex(annotations);
   const pointMeasurementEntries = annotations.filter(isPointMeasurementEntry);
   const visiblePointEntries = useMemo(
@@ -176,7 +181,6 @@ export const useRenderBridgeState = ({
     distanceRelations,
     selectedAnnotationId,
     selectedAnnotationIds,
-    polylines: polylineBridge.polylines,
     focusedNodeChainAnnotationId,
     unselectedClosedAreaNodeIdSet:
       closedAreaBridge.unselectedClosedAreaNodeIdSet,

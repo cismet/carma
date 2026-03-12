@@ -2,6 +2,7 @@ import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { Tooltip } from "antd";
 import type { IconDefinition } from "@fortawesome/fontawesome-svg-core";
 import type { MouseEvent as ReactMouseEvent } from "react";
+import { annotationTooltipProps } from "../../shared/annotationTooltip";
 
 const DEFAULT_ICON_CLASSNAME =
   "cursor-pointer text-base text-[#808080] hover:text-[#a0a0a0]";
@@ -24,7 +25,7 @@ export const AnnotationInfoBoxActionIcon = ({
   ariaLabel,
 }: AnnotationInfoBoxActionIconProps) => {
   return (
-    <Tooltip title={title}>
+    <Tooltip {...annotationTooltipProps} title={title}>
       <FontAwesomeIcon
         onClick={onClick}
         className={className ?? DEFAULT_ICON_CLASSNAME}

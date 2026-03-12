@@ -7,6 +7,9 @@ import type {
   AnnotationInfoBoxEntryPayload,
 } from "../annotationInfoBoxSlots.types";
 import {
+  INFO_BOX_BODY_TEXT_CLASSNAME,
+  getInfoBoxLabelDefaultName,
+  INFO_BOX_MUTED_BODY_TEXT_CLASSNAME,
   LABEL_TITLE,
   renderEditableAnnotationSubtitle,
   stopInputEventPropagation,
@@ -72,8 +75,8 @@ const renderPureLabelContent = (
 ): ReactNode => {
   if (!input.pointAnnotation) {
     return (
-      <div className="text-[12px] mb-0">
-        <div className="mt-1 text-sm pl-2 pr-1 text-gray-500">
+      <div className={`mb-0 ${INFO_BOX_BODY_TEXT_CLASSNAME}`}>
+        <div className={`mt-1 pl-2 pr-1 ${INFO_BOX_MUTED_BODY_TEXT_CLASSNAME}`}>
           {LABEL_MODE_INSTRUCTION}
         </div>
       </div>
@@ -93,8 +96,8 @@ const renderPureLabelContent = (
   };
 
   return (
-    <div className="text-[12px] mb-0">
-      <div className="mt-1 text-sm pl-2 pr-1">
+    <div className={`mb-0 ${INFO_BOX_BODY_TEXT_CLASSNAME}`}>
+      <div className="mt-1 pl-2 pr-1">
         <div
           className="mb-2 flex items-center gap-2"
           onClick={stopInputEventPropagation}
@@ -214,8 +217,7 @@ export const getLabelAnnotationInfoBoxSlots = (
   return {
     headingTitle: LABEL_TITLE,
     subtitle: renderEditableAnnotationSubtitle({
-      annotationTypeTitle: LABEL_TITLE,
-      titleToken: `${order}`,
+      defaultDisplayName: getInfoBoxLabelDefaultName(order),
       measurement,
       displayPoint: resolvePointAnnotationDisplayPoint(measurement),
       isReference: false,

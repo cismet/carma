@@ -1,4 +1,11 @@
-import { useEffect, useMemo, useState, type CSSProperties } from "react";
+import {
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+  type CSSProperties,
+} from "react";
 import "../annotation-info-box/infoBox.css";
 import {
   SELECT_TOOL_TYPE,
@@ -11,16 +18,17 @@ import {
   ANNOTATION_TYPE_POLYLINE,
   isAreaToolType,
 } from "@carma-mapping/annotations/core";
+import { ANNOTATION_TOOLBAR_HELP_TEXT } from "../../config/annotationToolbarHelpText";
 import type { AnnotationModeToolbarProps } from "./AnnotationModeToolbar.types";
+import { AnnotationToolbarHelpOverlay } from "./components/AnnotationToolbarHelpOverlay";
 import { AnnotationToolOptionsBox } from "./components/AnnotationToolOptionsBox";
 import { AnnotationToolOptionsToggleButton } from "./components/AnnotationToolOptionsToggleButton";
 import { AnnotationToolStrip } from "./components/AnnotationToolStrip";
-import { AreaToolOptions } from "./components/tool-options/AreaToolOptions";
 import { DistanceToolOptions } from "./components/tool-options/DistanceToolOptions";
-import { LabelToolOptions } from "./components/tool-options/LabelToolOptions";
 import { PointToolOptions } from "./components/tool-options/PointToolOptions";
 import { PolylineToolOptions } from "./components/tool-options/PolylineToolOptions";
 import { SelectionToolOptions } from "./components/tool-options/SelectionToolOptions";
+import { renderHelpContent } from "./components/tool-options/shared";
 export type { AnnotationToolType } from "@carma-mapping/annotations/core";
 export type {
   AnnotationModeToolbarProps,
@@ -63,6 +71,26 @@ const TOOLBAR_OPTION_GROUP_KEYS = Object.keys(
   DEFAULT_SECONDARY_TOOLBAR_HELP_COLLAPSED
 ) as ToolbarOptionGroupKey[];
 
+const resolveToolbarOptionGroupKey = (
+  activeToolType: AnnotationModeToolbarProps["activeToolType"]
+): ToolbarOptionGroupKey | null => {
+  if (activeToolType === SELECT_TOOL_TYPE) {
+    return "selection";
+  }
+
+  if (
+    activeToolType === ANNOTATION_TYPE_POINT ||
+    activeToolType === ANNOTATION_TYPE_DISTANCE ||
+    activeToolType === ANNOTATION_TYPE_POLYLINE ||
+    activeToolType === ANNOTATION_TYPE_LABEL ||
+    isAreaToolType(activeToolType)
+  ) {
+    return activeToolType;
+  }
+
+  return null;
+};
+
 export function AnnotationModeToolbar({
   activeToolType,
   onToolTypeChange,
@@ -88,6 +116,11 @@ export function AnnotationModeToolbar({
   const [collapsed, setCollapsed] = useState(
     secondaryToolbarCollapsedByDefault
   );
+  const [activeToolAnchorX, setActiveToolAnchorX] = useState<number | null>(
+    null
+  );
+  const panelContentRef = useRef<HTMLDivElement | null>(null);
+  const [panelWidth, setPanelWidth] = useState(0);
 
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -131,6 +164,28 @@ export function AnnotationModeToolbar({
     setCollapsed(secondaryToolbarCollapsedByDefault);
   }, [secondaryToolbarCollapsedByDefault]);
 
+  useLayoutEffect(() => {
+    const panelElement = panelContentRef.current;
+    if (!panelElement || typeof ResizeObserver === "undefined") {
+      return;
+    }
+
+    const updateWidth = () => {
+      setPanelWidth(panelElement.getBoundingClientRect().width);
+    };
+
+    updateWidth();
+
+    const resizeObserver = new ResizeObserver(updateWidth);
+    resizeObserver.observe(panelElement);
+    window.addEventListener("resize", updateWidth);
+
+    return () => {
+      resizeObserver.disconnect();
+      window.removeEventListener("resize", updateWidth);
+    };
+  }, [activeToolType, collapsed, showSecondaryToolbar]);
+
   const panelStyle = useMemo<CSSProperties>(
     () =>
       secondaryToolbarContainerStyle ?? {
@@ -158,88 +213,108 @@ export function AnnotationModeToolbar({
 
   const activeToolOptions =
     activeToolType === SELECT_TOOL_TYPE ? (
-      <SelectionToolOptions
-        selection={selection}
-        helpCollapsed={helpCollapsedByKey.selection}
-        onHelpCollapsedChange={(nextCollapsed) =>
-          setHelpCollapsed("selection", nextCollapsed)
-        }
-      />
+      <SelectionToolOptions selection={selection} />
     ) : activeToolType === ANNOTATION_TYPE_DISTANCE ? (
-      <DistanceToolOptions
-        distance={distance}
-        helpCollapsed={helpCollapsedByKey[ANNOTATION_TYPE_DISTANCE]}
-        onHelpCollapsedChange={(nextCollapsed) =>
-          setHelpCollapsed(ANNOTATION_TYPE_DISTANCE, nextCollapsed)
-        }
-      />
+      <DistanceToolOptions distance={distance} />
     ) : activeToolType === ANNOTATION_TYPE_POINT ? (
-      <PointToolOptions
-        point={point}
-        helpCollapsed={helpCollapsedByKey[ANNOTATION_TYPE_POINT]}
-        onHelpCollapsedChange={(nextCollapsed) =>
-          setHelpCollapsed(ANNOTATION_TYPE_POINT, nextCollapsed)
-        }
-      />
-    ) : activeToolType === ANNOTATION_TYPE_LABEL ? (
-      <LabelToolOptions
-        helpCollapsed={helpCollapsedByKey[ANNOTATION_TYPE_LABEL]}
-        onHelpCollapsedChange={(nextCollapsed) =>
-          setHelpCollapsed(ANNOTATION_TYPE_LABEL, nextCollapsed)
-        }
-      />
+      <PointToolOptions point={point} />
     ) : activeToolType === ANNOTATION_TYPE_POLYLINE ? (
-      <PolylineToolOptions
-        polyline={polyline}
-        helpCollapsed={helpCollapsedByKey[ANNOTATION_TYPE_POLYLINE]}
-        onHelpCollapsedChange={(nextCollapsed) =>
-          setHelpCollapsed(ANNOTATION_TYPE_POLYLINE, nextCollapsed)
-        }
-      />
-    ) : isAreaToolType(activeToolType) ? (
-      <AreaToolOptions
-        activeToolType={activeToolType}
-        helpCollapsed={helpCollapsedByKey[activeToolType]}
-        onHelpCollapsedChange={(nextCollapsed) =>
-          setHelpCollapsed(activeToolType, nextCollapsed)
-        }
-      />
+      <PolylineToolOptions polyline={polyline} />
     ) : null;
+  const activeHelpKey = resolveToolbarOptionGroupKey(activeToolType);
+  const activeHelpLines = ANNOTATION_TOOLBAR_HELP_TEXT[activeToolType] ?? null;
+  const activeHelpContent = activeHelpLines
+    ? renderHelpContent(activeHelpLines)
+    : null;
 
-  const optionsToggleButton =
-    showSecondaryToolbar && activeToolOptions ? (
-      <AnnotationToolOptionsToggleButton
-        collapsed={collapsed}
-        onClick={() => setCollapsed((previous) => !previous)}
-      />
-    ) : null;
+  const optionsToggleButton = showSecondaryToolbar ? (
+    <AnnotationToolOptionsToggleButton
+      collapsed={collapsed}
+      onClick={() => setCollapsed((previous) => !previous)}
+      disabled={!activeToolOptions}
+    />
+  ) : null;
 
   return (
-    <div
-      style={{
-        display: "flex",
-        flexDirection: "column",
-        gap: 6,
-        paddingBottom: showPrimaryToolbar ? 6 : 0,
-        width: pixelWidth ?? "100%",
-        boxSizing: "border-box",
-      }}
-    >
-      {showPrimaryToolbar ? (
-        <AnnotationToolStrip
-          activeToolType={activeToolType}
-          onToolTypeChange={onToolTypeChange}
-          toolCatalog={toolCatalog}
-          optionsToggleSlot={optionsToggleButton}
+    <>
+      <div
+        style={{
+          display: "flex",
+          flexDirection: "column",
+          gap: 6,
+          paddingBottom: showPrimaryToolbar ? 6 : 0,
+          width: "fit-content",
+          maxWidth: pixelWidth ?? "100%",
+          boxSizing: "border-box",
+          position: "relative",
+        }}
+      >
+        {showPrimaryToolbar ? (
+          <AnnotationToolStrip
+            activeToolType={activeToolType}
+            onToolTypeChange={onToolTypeChange}
+            toolCatalog={toolCatalog}
+            optionsToggleSlot={optionsToggleButton}
+            onActiveToolAnchorChange={setActiveToolAnchorX}
+          />
+        ) : null}
+        {!showPrimaryToolbar && optionsToggleButton
+          ? optionsToggleButton
+          : null}
+        {showSecondaryToolbar && activeToolOptions && !collapsed ? (
+          <div
+            style={
+              showPrimaryToolbar
+                ? {
+                    position: "relative",
+                    left:
+                      activeToolAnchorX !== null
+                        ? activeToolAnchorX - panelWidth / 2
+                        : 0,
+                    width: "max-content",
+                    maxWidth: "calc(100vw - 24px)",
+                  }
+                : undefined
+            }
+          >
+            <div
+              ref={panelContentRef}
+              style={
+                showPrimaryToolbar
+                  ? {
+                      width: "max-content",
+                      maxWidth: "calc(100vw - 24px)",
+                    }
+                  : undefined
+              }
+            >
+              <AnnotationToolOptionsBox
+                panelStyle={
+                  showPrimaryToolbar
+                    ? {
+                        ...panelStyle,
+                        alignSelf: "flex-start",
+                        width: "max-content",
+                      }
+                    : panelStyle
+                }
+              >
+                {activeToolOptions}
+              </AnnotationToolOptionsBox>
+            </div>
+          </div>
+        ) : null}
+      </div>
+      {showSecondaryToolbar && activeHelpKey && activeHelpContent ? (
+        <AnnotationToolbarHelpOverlay
+          content={activeHelpContent}
+          collapsed={helpCollapsedByKey[activeHelpKey]}
+          onCollapsedChange={(nextCollapsed) =>
+            setHelpCollapsed(activeHelpKey, nextCollapsed)
+          }
         />
       ) : null}
-      {!showPrimaryToolbar && optionsToggleButton ? optionsToggleButton : null}
-      {showSecondaryToolbar && activeToolOptions && !collapsed ? (
-        <AnnotationToolOptionsBox panelStyle={panelStyle}>
-          {activeToolOptions}
-        </AnnotationToolOptionsBox>
-      ) : null}
-    </div>
+    </>
   );
 }
 

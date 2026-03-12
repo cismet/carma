@@ -4,19 +4,12 @@ import { EditableMetricValue } from "@carma-commons/ui/components";
 import type { AnnotationToolbarPointProps } from "../../AnnotationModeToolbar.types";
 import { optionsLabelStyle } from "../../shared";
 import { ToolOptionsSection } from "./ToolOptionsSection";
-import { renderHelpContent } from "./shared";
 
 type PointToolOptionsProps = {
   point?: AnnotationToolbarPointProps;
-  helpCollapsed: boolean;
-  onHelpCollapsedChange: (collapsed: boolean) => void;
 };
 
-export function PointToolOptions({
-  point,
-  helpCollapsed,
-  onHelpCollapsedChange,
-}: PointToolOptionsProps) {
+export function PointToolOptions({ point }: PointToolOptionsProps) {
   const {
     verticalOffsetMeters = 0,
     onVerticalOffsetChange,
@@ -33,19 +26,7 @@ export function PointToolOptions({
   }, [verticalOffsetEnabled, verticalOffsetMeters]);
 
   return (
-    <ToolOptionsSection
-      dataTestId="measurement-point-options"
-      helpDataTestId="measurement-point-help"
-      helpCollapsed={helpCollapsed}
-      onHelpCollapsedChange={onHelpCollapsedChange}
-      helpContent={renderHelpContent([
-        "Für Punktmessungen auf das Stadtmodell klicken. Die erste Messung definiert die Referenzhöhe.",
-        "Klicken um Höhenmessung zu setzen.",
-        "Doppelklick auf Punkt setzt Referenzhöhe.",
-        "Langer Klick startet Editiermodus.",
-        "Rückstelltaste löscht den letzten Punkt.",
-      ])}
-    >
+    <ToolOptionsSection dataTestId="measurement-point-options">
       <div
         style={{
           display: "inline-flex",

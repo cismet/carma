@@ -85,7 +85,6 @@ export type AnnotationInfoBoxEntryPayload = {
 
 export type AnnotationSlots = {
   headingTitle: string;
-  headingActions?: ReactNode;
   subtitle: ReactNode;
   content: ReactNode;
   collapsible: boolean;

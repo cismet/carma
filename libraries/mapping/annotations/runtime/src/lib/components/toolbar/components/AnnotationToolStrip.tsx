@@ -1,10 +1,17 @@
-import { Fragment, type ReactNode } from "react";
+import {
+  Fragment,
+  useLayoutEffect,
+  useRef,
+  type ReactNode,
+  type RefCallback,
+} from "react";
 import { Tooltip } from "antd";
 import {
   SELECT_TOOL_TYPE,
   ANNOTATION_TYPE_LABEL,
 } from "@carma-mapping/annotations/core";
 import { resolveAnnotationToolText } from "../../../config/annotationToolText";
+import { annotationTooltipProps } from "../../shared/annotationTooltip";
 import { annotationToolManager as defaultAnnotationToolManager } from "../annotationToolManager";
 import type { AnnotationModeToolbarProps } from "../AnnotationModeToolbar.types";
 import { primaryToolbarSurfaceStyle, toolButtonStyle } from "../shared";
@@ -14,6 +21,7 @@ type AnnotationToolStripProps = Pick<
   "activeToolType" | "onToolTypeChange" | "toolCatalog"
 > & {
   optionsToggleSlot?: ReactNode;
+  onActiveToolAnchorChange?: (offset: number | null) => void;
 };
 
 const Divider = () => (
@@ -33,7 +41,10 @@ export function AnnotationToolStrip({
   onToolTypeChange,
   toolCatalog,
   optionsToggleSlot,
+  onActiveToolAnchorChange,
 }: AnnotationToolStripProps) {
+  const stripRef = useRef<HTMLDivElement | null>(null);
+  const activeButtonRef = useRef<HTMLButtonElement | null>(null);
   const {
     manager: toolManager = defaultAnnotationToolManager,
     managerContext: toolManagerContext,
@@ -47,16 +58,59 @@ export function AnnotationToolStrip({
   const selectTool =
     availableTools.find(({ id }) => id === SELECT_TOOL_TYPE) ?? null;
   const isSelectionModeActive = activeToolType === SELECT_TOOL_TYPE;
+  const activeToolButtonRef: RefCallback<HTMLButtonElement> = (node) => {
+    activeButtonRef.current = node;
+  };
+
+  useLayoutEffect(() => {
+    const stripElement = stripRef.current;
+    const buttonElement = activeButtonRef.current;
+
+    if (!stripElement || !buttonElement) {
+      onActiveToolAnchorChange?.(null);
+      return;
+    }
+
+    const updateAnchor = () => {
+      const stripRect = stripElement.getBoundingClientRect();
+      const buttonRect = buttonElement.getBoundingClientRect();
+      onActiveToolAnchorChange?.(
+        buttonRect.left - stripRect.left + buttonRect.width / 2
+      );
+    };
+
+    updateAnchor();
+
+    if (typeof ResizeObserver === "undefined") {
+      return undefined;
+    }
+
+    const resizeObserver = new ResizeObserver(updateAnchor);
+    resizeObserver.observe(stripElement);
+    resizeObserver.observe(buttonElement);
+    window.addEventListener("resize", updateAnchor);
+
+    return () => {
+      resizeObserver.disconnect();
+      window.removeEventListener("resize", updateAnchor);
+    };
+  }, [
+    activeToolType,
+    availableTools,
+    onActiveToolAnchorChange,
+    optionsToggleSlot,
+  ]);
 
   return (
-    <div style={primaryToolbarSurfaceStyle}>
+    <div ref={stripRef} style={primaryToolbarSurfaceStyle}>
       {selectTool && (
         <>
           <Tooltip
+            {...annotationTooltipProps}
             title={resolveAnnotationToolText(selectTool.i18n.tooltipKey)}
-            placement="top"
           >
             <button
+              ref={isSelectionModeActive ? activeToolButtonRef : undefined}
               type="button"
               style={toolButtonStyle(isSelectionModeActive, false)}
               onClick={() => onToolTypeChange(SELECT_TOOL_TYPE)}
@@ -75,8 +129,11 @@ export function AnnotationToolStrip({
         return (
           <Fragment key={tool.id}>
             {tool.id === ANNOTATION_TYPE_LABEL && <Divider />}
-            <Tooltip title={tooltip} placement="top">
+            <Tooltip {...annotationTooltipProps} title={tooltip}>
               <button
+                ref={
+                  activeToolType === tool.id ? activeToolButtonRef : undefined
+                }
                 type="button"
                 style={toolButtonStyle(activeToolType === tool.id, false)}
                 onClick={() => onToolTypeChange(tool.id)}
