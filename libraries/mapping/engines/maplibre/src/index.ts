@@ -10,7 +10,9 @@ export type {
   GeoJsonData,
   VectorStyle,
   LibreLayer,
+  RasterPaintOverrides,
 } from "./components/LibreMap";
+export { RASTER_PAINT_PRESETS } from "./utils/rasterPaintPresets";
 export { LibreMapSelectionContent } from "./components/LibreMapSelectionContent";
 export { PreviewLibreMap } from "./components/PreviewLibreMap";
 export { DatasheetMiniMap } from "./components/DatasheetMiniMap";
@@ -158,6 +160,10 @@ export {
   WUPPERTAL_PREVIEW_STYLE,
   type CityMapConfig,
 } from "./constants/wuppertalDefaultStyle";
+
+// Three.js layer management
+export { ThreeLayerManager } from "./components/ThreeLayerManager";
+export type { ThreeLayerManagerProps } from "./components/ThreeLayerManager";
 
 // Styles (CSS should be imported by consumers)
 // import '@carma-mapping/engines/maplibre/styles/map.css';
