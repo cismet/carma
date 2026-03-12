@@ -110,8 +110,8 @@ type SearchValues =
   | MauerlascheSearchValues
   | ArbeitsauftragSearchValues;
 
-const searchTypeLabels: Record<SearchType, string> = {
-  arbeitsauftrag: "Arbeitsaufträge",
+const searchTypeLabels: Partial<Record<SearchType, string>> = {
+  // arbeitsauftrag: "Arbeitsaufträge", // temporarily hidden
   leuchte: "Leuchten",
   mast: "Standorte",
   schaltstelle: "Schaltstellen",
@@ -683,7 +683,7 @@ const SearchModal = ({
   onSearchResults,
 }: SearchModalProps) => {
   const [isOpen, setIsOpen] = useState(defaultOpen);
-  const [searchType, setSearchType] = useState<SearchType>("arbeitsauftrag");
+  const [searchType, setSearchType] = useState<SearchType>("leuchte");
   const [isSearching, setIsSearching] = useState(false);
   const [queryPreview, setQueryPreview] = useState<string>("");
   const [noResults, setNoResults] = useState(false);
