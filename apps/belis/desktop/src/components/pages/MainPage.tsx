@@ -219,7 +219,7 @@ const MainPage = () => {
               </button>
 
               {/* Drafts badge */}
-              <DraftsBadge />
+              {/* <DraftsBadge /> */}
 
               {/* Filter switches */}
               <div className="flex items-center gap-2 border-l border-gray-300 pl-4">
