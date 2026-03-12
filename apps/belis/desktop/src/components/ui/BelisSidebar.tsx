@@ -5,7 +5,7 @@ import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faSpinner } from "@fortawesome/free-solid-svg-icons";
 import toTitleCase from "../../helper/toTitleCase";
 
-interface ListItemData {
+export interface ListItemData {
   main: string;
   upperright: string;
   subtitle: string;
@@ -177,6 +177,9 @@ export interface BelisSidebarProps {
   highlightCount?: number;
   draftsCount?: number;
   onFeatureDismiss?: (feature: SidebarFeature) => void;
+  /** Optional custom extractors that take priority over the built-in ones.
+   *  Used by the drafts tab to display features with database PKs instead of MVT tile IDs. */
+  listItemExtractors?: Record<string, (feature: SidebarFeature) => ListItemData>;
 }
 
 const BelisSidebar = ({
@@ -198,6 +201,7 @@ const BelisSidebar = ({
   highlightCount,
   draftsCount,
   onFeatureDismiss,
+  listItemExtractors,
 }: BelisSidebarProps) => {
   // Filter features by active source layers
   const filteredFeatures = useMemo(() => {
@@ -527,6 +531,8 @@ const BelisSidebar = ({
   const getListItem = (feature: SidebarFeature): ListItemData => {
     const layerKey = feature.sourceLayer || feature.source || "";
     const extractor =
+      listItemExtractors?.[layerKey] ||
+      listItemExtractors?.[layerKey.toLowerCase()] ||
       defaultListItemExtractors[layerKey] ||
       defaultListItemExtractors[layerKey.toLowerCase()] ||
       genericExtractor;
