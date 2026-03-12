@@ -457,8 +457,6 @@ export const GeoportalMap = ({ height, width, allow3d }: MapProps) => {
           const updatedPos = { lat: selectedPos[1], lng: selectedPos[0] };
           const latlngPoint = L.latLng(updatedPos);
 
-          console.log("xxx", selection);
-
           console.debug(
             "[GAZETTEER-SELECTION] Firing virtual click",
             updatedPos
