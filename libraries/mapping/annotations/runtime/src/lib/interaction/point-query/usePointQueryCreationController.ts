@@ -1,4 +1,4 @@
-import { type Dispatch, type SetStateAction } from "react";
+import { useCallback, type Dispatch, type SetStateAction } from "react";
 
 import {
   Cartesian2,
@@ -6,6 +6,7 @@ import {
   getDegreesFromCartesian,
   getEllipsoidalAltitudeOrZero,
   getLocalUpDirectionAtPosition,
+  isValidScene,
   type Scene,
 } from "@carma/cesium";
 import {
@@ -23,6 +24,7 @@ import {
   useCesiumPointQuery,
   type CesiumPointQueryCreatePayload,
 } from "@carma-mapping/annotations/cesium";
+import { pickPolygonGroupId } from "../../selection/useSelection";
 
 type PointCreatePayload = {
   geometryPositionECEF: Cartesian3;
@@ -82,16 +84,16 @@ type UsePointQueryCreationControllerParams = {
   selectionModeActive: boolean;
   moveGizmoPointId: string | null;
   isMoveGizmoDragging: boolean;
+  isActiveDrawMode: boolean;
+  hasFocusedSelection: boolean;
   setAnnotations: Dispatch<SetStateAction<AnnotationCollection>>;
   handlePointQueryPointCreated: (
     pointId: string,
     positionECEF: Cartesian3
   ) => void;
   handlePointQueryDoubleClick: () => void;
-  handlePointQueryBeforePointCreate: (
-    positionECEF: Cartesian3 | null,
-    screenPosition: Cartesian2
-  ) => boolean;
+  clearFocusedSelection: () => void;
+  selectByPolygonGroupId: (groupId: string) => void;
   handleAnnotationCursorMove: (
     positionECEF: Cartesian3 | null,
     screenPosition: Cartesian2,
@@ -108,10 +110,13 @@ export const usePointQueryCreationController = (
     selectionModeActive,
     moveGizmoPointId,
     isMoveGizmoDragging,
+    isActiveDrawMode,
+    hasFocusedSelection,
     setAnnotations,
     handlePointQueryPointCreated,
     handlePointQueryDoubleClick,
-    handlePointQueryBeforePointCreate,
+    clearFocusedSelection,
+    selectByPolygonGroupId,
     handleAnnotationCursorMove,
   }: UsePointQueryCreationControllerParams
 ) => {
@@ -205,6 +210,35 @@ export const usePointQueryCreationController = (
   const pointVerticalOffsetMeters =
     pointCreateConfig?.verticalOffsetMeters ?? 0;
 
+  const handleBeforePointCreate = useCallback(
+    (_positionECEF: Cartesian3 | null, screenPosition: Cartesian2) => {
+      if (isValidScene(scene)) {
+        const pickedGroupId = pickPolygonGroupId(scene, screenPosition);
+        if (pickedGroupId) {
+          selectByPolygonGroupId(pickedGroupId);
+          return false;
+        }
+      }
+
+      if (isActiveDrawMode) {
+        return true;
+      }
+
+      if (hasFocusedSelection) {
+        clearFocusedSelection();
+      }
+
+      return true;
+    },
+    [
+      clearFocusedSelection,
+      hasFocusedSelection,
+      isActiveDrawMode,
+      scene,
+      selectByPolygonGroupId,
+    ]
+  );
+
   useCesiumPointQuery(scene, {
     enabled:
       pointQueryToolActive &&
@@ -213,7 +247,7 @@ export const usePointQueryCreationController = (
       !moveGizmoPointId &&
       !isMoveGizmoDragging &&
       Boolean(pointCreateConfig),
-    onBeforePointCreate: handlePointQueryBeforePointCreate,
+    onBeforePointCreate: handleBeforePointCreate,
     onPointCreate: (payload) =>
       pointCreateConfig
         ? handlePointQueryCreate(

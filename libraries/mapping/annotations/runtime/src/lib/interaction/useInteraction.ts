@@ -23,5 +23,4 @@ export { useCursorCandidateState } from "./candidate/useCursorCandidateState";
 export { useToolCandidatePreview } from "./candidate/useToolCandidatePreview";
 export { useInteractionLifecycle } from "./lifecycle/modes/useInteractionLifecycle";
 export { useUserInteraction } from "./lifecycle/modes/useUserInteraction";
-export { usePointQuerySelectionGuard } from "./point-query/usePointQuerySelectionGuard";
 export { useReferencePointMeasurementId } from "../annotation-entries/hooks/useReferencePointMeasurementId";

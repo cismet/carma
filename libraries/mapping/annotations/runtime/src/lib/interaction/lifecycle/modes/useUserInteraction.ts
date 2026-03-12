@@ -62,10 +62,9 @@ type UserInteractionInput = {
     annotationEntry?: AnnotationEntry
   ) => void;
   handlePointQueryDoubleClick: () => void;
-  handlePointQueryBeforePointCreate: (
-    positionECEF: Cartesian3 | null,
-    screenPosition: Cartesian2
-  ) => boolean;
+  hasFocusedSelection: boolean;
+  clearFocusedSelection: () => void;
+  selectByPolygonGroupId: (groupId: string) => void;
   handleAnnotationCursorMove: (
     positionECEF: Cartesian3 | null,
     screenPosition: Cartesian2,
@@ -112,7 +111,9 @@ export const useUserInteraction = (
     setAnnotations,
     handlePointQueryPointCreated,
     handlePointQueryDoubleClick,
-    handlePointQueryBeforePointCreate,
+    hasFocusedSelection,
+    clearFocusedSelection,
+    selectByPolygonGroupId,
     handleAnnotationCursorMove,
   } = managedAnnotations;
   const { requestUpdateEditTarget } = annotationEditing;
@@ -241,10 +242,13 @@ export const useUserInteraction = (
     selectionModeActive,
     moveGizmoPointId,
     isMoveGizmoDragging,
+    isActiveDrawMode,
+    hasFocusedSelection,
     setAnnotations,
     handlePointQueryPointCreated,
     handlePointQueryDoubleClick,
-    handlePointQueryBeforePointCreate,
+    clearFocusedSelection,
+    selectByPolygonGroupId,
     handleAnnotationCursorMove,
   });
 

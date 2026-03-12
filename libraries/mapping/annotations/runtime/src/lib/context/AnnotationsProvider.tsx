@@ -76,7 +76,6 @@ import {
   useNodeChainFinishing,
   useNodeChainPointCreation,
   usePointCreatedHandlers,
-  usePointQuerySelectionGuard,
   usePolylineSettings,
   useReferencePointMeasurementId,
 } from "../interaction/useInteraction";
@@ -89,6 +88,7 @@ import {
   useFocusActions,
   useSelectionController,
   useFocusedNodeChainAnnotationId,
+  usePolygonFillSelectionHandler,
 } from "../selection/useSelection";
 import { useTopologyIndex } from "../annotation-entries/hooks/useTopologyIndex";
 import { useNodeChainPlaneDerivation } from "../annotation-entries/hooks/useNodeChainPlaneDerivation";
@@ -515,14 +515,11 @@ export const AnnotationsProvider: React.FC<AnnotationsProviderProps> = ({
     discardActiveMeasurementDraft,
   });
 
-  const { handlePointQueryBeforePointCreate } = usePointQuerySelectionGuard({
+  usePolygonFillSelectionHandler({
     scene,
-    activeToolType,
-    isActiveDrawMode,
-    focusedSelectedNodeChainAnnotationId: focusedNodeChainAnnotationId,
     selectionModeActive,
-    selectAnnotationById,
-    selectRepresentativeNodeForMeasurementId,
+    clearSelection: () => selectAnnotationById(null),
+    selectByPolygonGroupId: selectRepresentativeNodeForMeasurementId,
   });
 
   const { handlePointAnnotationCreated, handleLabelAnnotationCreated } =
@@ -726,7 +723,10 @@ export const AnnotationsProvider: React.FC<AnnotationsProviderProps> = ({
       setAnnotations: annotationEntryState.setAnnotations,
       handlePointQueryPointCreated: handlePointQueryPointCreated,
       handlePointQueryDoubleClick: handlePointQueryDoubleClick,
-      handlePointQueryBeforePointCreate: handlePointQueryBeforePointCreate,
+      hasFocusedSelection: focusedNodeChainAnnotationId !== null,
+      clearFocusedSelection: () =>
+        selectRepresentativeNodeForMeasurementId(null),
+      selectByPolygonGroupId: selectRepresentativeNodeForMeasurementId,
       handleAnnotationCursorMove: handleAnnotationCursorMove,
     },
     annotationEditing
