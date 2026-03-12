@@ -69,6 +69,7 @@ type VisualizationPointLabelParams = {
   pointMarkerBadgeByPointId: Readonly<
     Record<string, AnnotationPointMarkerBadge>
   >;
+  polylinePointLabelTextByPointId: Readonly<Record<string, string>>;
   hiddenPointLabelIds: ReadonlySet<string>;
   effectiveFullyHiddenPointIds: ReadonlySet<string>;
   markerlessPointIds: ReadonlySet<string>;
@@ -141,6 +142,7 @@ export const useVisualization = (
   const {
     effectiveDistanceToReferenceByPointId,
     pointMarkerBadgeByPointId,
+    polylinePointLabelTextByPointId,
     hiddenPointLabelIds,
     effectiveFullyHiddenPointIds,
     markerlessPointIds,
@@ -286,6 +288,7 @@ export const useVisualization = (
         occlusionChecksEnabled,
         labelLayoutConfig: options?.labels,
         distanceToReferenceByPointId: effectiveDistanceToReferenceByPointId,
+        polylinePointLabelTextByPointId,
         hiddenPointLabelIds,
         fullyHiddenPointIds: effectiveFullyHiddenPointIds,
         markerlessPointIds,

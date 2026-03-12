@@ -12,6 +12,7 @@ import {
   PointDistanceRelation,
   PointMeasurementEntry,
   applyDesiredPointLabelAnchors,
+  buildPolylinePointLabelTextByPointId,
   buildOrderByIdFromEntryOrder,
   buildDesiredPointLabelAnchorById,
   buildStandaloneDistancePointSets,
@@ -260,6 +261,16 @@ export const usePointBridge = ({
       standaloneDistancePointState,
     ]
   );
+  const polylinePointLabelTextByPointId = useMemo(
+    () =>
+      buildPolylinePointLabelTextByPointId({
+        polylines,
+        focusedPolylineId: selectedNodeChainAnnotationId,
+        pointMarkerBadgeByPointId,
+        formatDistanceLabel: formatNumber,
+      }),
+    [pointMarkerBadgeByPointId, polylines, selectedNodeChainAnnotationId]
+  );
   useEffect(() => {
     setAnnotations((previousAnnotations) =>
       applyPointLabelAnchors(previousAnnotations, desiredPointLabelAnchorById)
@@ -293,6 +304,7 @@ export const usePointBridge = ({
 
   return {
     pointMarkerBadgeByPointId,
+    polylinePointLabelTextByPointId,
     standaloneDistancePointState,
     collapsedPillPointIds,
     pointIdsWithoutLabelAnchor,
