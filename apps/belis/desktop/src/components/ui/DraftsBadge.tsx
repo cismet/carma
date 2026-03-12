@@ -12,9 +12,17 @@ const DraftsBadge = () => {
     <Tooltip title={`Nicht gespeicherte Änderungen (${draftsCount})`}>
       <Badge
         count={draftsCount}
-        size="default"
-        offset={[-3, -3]}
-        style={{ backgroundColor: "#faad14" }}
+        size="small"
+        offset={[-2, -2]}
+        style={{
+          backgroundColor: "#faad14",
+          minWidth: 18,
+          height: 18,
+          borderRadius: 9,
+          lineHeight: "18px",
+          padding: "0 4px",
+          fontSize: 10,
+        }}
       >
         <span className="flex items-center justify-center w-8 h-8 rounded border border-gray-300 bg-white">
           <EditOutlined style={{ color: "#6b7280", fontSize: 14 }} />
