@@ -240,6 +240,8 @@ export const useRenderBridgeState = ({
     effectiveDistanceToReferenceByPointId:
       polylineBridge.effectiveDistanceToReferenceByPointId,
     pointMarkerBadgeByPointId: pointBridge.pointMarkerBadgeByPointId,
+    polylinePointLabelTextByPointId:
+      pointBridge.polylinePointLabelTextByPointId,
     collapsedPillPointIds: pointBridge.collapsedPillPointIds,
     visiblePointEntries,
     showPoints: pointBridge.showPoints,
@@ -368,6 +370,8 @@ export const useRenderEffects = (
         effectiveDistanceToReferenceByPointId:
           renderState.effectiveDistanceToReferenceByPointId,
         pointMarkerBadgeByPointId: renderState.pointMarkerBadgeByPointId,
+        polylinePointLabelTextByPointId:
+          renderState.polylinePointLabelTextByPointId,
         hiddenPointLabelIds: renderState.hiddenPointLabelIds,
         effectiveFullyHiddenPointIds: renderState.effectiveFullyHiddenPointIds,
         markerlessPointIds: renderState.markerlessPointIds,

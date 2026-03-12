@@ -118,6 +118,7 @@ type PolylineLabelLike = {
   id: string;
   nodeIds: ReadonlyArray<string>;
   totalLengthMeters: number;
+  segmentLengthsCumulativeMeters: ReadonlyArray<number>;
 };
 
 type PointMarkerBadgeLike = {
@@ -268,6 +269,86 @@ type BuildDesiredPointLabelAnchorByIdParams<
   unfocusedStandaloneDistanceNonHighestPointIds: ReadonlySet<string>;
   focusedStandaloneDistanceNonHighestPointIds: ReadonlySet<string>;
   formatDistanceLabel: (distanceMeters: number) => string;
+};
+
+type BuildPolylinePointLabelTextByPointIdParams<
+  TPolyline extends PolylineLabelLike
+> = {
+  polylines: ReadonlyArray<TPolyline>;
+  focusedPolylineId: string | null;
+  pointMarkerBadgeByPointId: Readonly<Record<string, PointMarkerBadgeLike>>;
+  formatDistanceLabel: (distanceMeters: number) => string;
+};
+
+const buildPolylinePointLabelText = (
+  badgeToken: string | undefined,
+  distanceMeters?: number,
+  formatDistanceLabel?: (distanceMeters: number) => string
+): string | undefined => {
+  const normalizedBadgeToken = normalizeCompactLabelContent(badgeToken);
+  const normalizedDistanceText =
+    distanceMeters !== undefined && formatDistanceLabel
+      ? `${formatDistanceLabel(distanceMeters)}m`
+      : undefined;
+
+  if (normalizedBadgeToken && normalizedDistanceText) {
+    return `${normalizedBadgeToken} ${normalizedDistanceText}`;
+  }
+  return normalizedBadgeToken ?? normalizedDistanceText;
+};
+
+export const buildPolylinePointLabelTextByPointId = <
+  TPolyline extends PolylineLabelLike
+>({
+  polylines,
+  focusedPolylineId,
+  pointMarkerBadgeByPointId,
+  formatDistanceLabel,
+}: BuildPolylinePointLabelTextByPointIdParams<TPolyline>): Readonly<
+  Record<string, string>
+> => {
+  const byPointId: Record<string, string> = {};
+
+  polylines.forEach((polyline) => {
+    if (polyline.id === focusedPolylineId) {
+      polyline.nodeIds.forEach((pointId, index) => {
+        if (!pointId) return;
+        const labelText = buildPolylinePointLabelText(
+          pointMarkerBadgeByPointId[pointId]?.text,
+          polyline.segmentLengthsCumulativeMeters[index] ?? 0,
+          formatDistanceLabel
+        );
+        if (!labelText) return;
+        byPointId[pointId] = labelText;
+      });
+      return;
+    }
+
+    const firstPointId = polyline.nodeIds[0] ?? null;
+    const lastPointId = polyline.nodeIds[polyline.nodeIds.length - 1] ?? null;
+
+    if (firstPointId) {
+      const firstLabelText = buildPolylinePointLabelText(
+        pointMarkerBadgeByPointId[firstPointId]?.text
+      );
+      if (firstLabelText) {
+        byPointId[firstPointId] = firstLabelText;
+      }
+    }
+
+    if (lastPointId) {
+      const lastLabelText = buildPolylinePointLabelText(
+        pointMarkerBadgeByPointId[lastPointId]?.text,
+        polyline.totalLengthMeters,
+        formatDistanceLabel
+      );
+      if (lastLabelText) {
+        byPointId[lastPointId] = lastLabelText;
+      }
+    }
+  });
+
+  return byPointId;
 };
 
 export const buildDesiredPointLabelAnchorById = <
