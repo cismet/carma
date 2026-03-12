@@ -181,6 +181,7 @@ export const useRenderBridgeState = ({
     distanceRelations,
     selectedAnnotationId,
     selectedAnnotationIds,
+    polylines: polylineBridge.polylines,
     focusedNodeChainAnnotationId,
     unselectedClosedAreaNodeIdSet:
       closedAreaBridge.unselectedClosedAreaNodeIdSet,
