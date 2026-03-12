@@ -9,6 +9,7 @@ import {
   type Scene,
 } from "@carma/cesium";
 import {
+  ANNOTATION_TYPE_DISTANCE,
   ANNOTATION_TYPE_POLYLINE,
   isAreaToolType,
   type AnnotationToolType,
@@ -53,6 +54,7 @@ export const usePointQuerySelectionGuard = ({
       if (focusedSelectedNodeChainAnnotationId) {
         selectRepresentativeNodeForMeasurementId(null);
         if (
+          activeToolType === ANNOTATION_TYPE_DISTANCE ||
           activeToolType === ANNOTATION_TYPE_POLYLINE ||
           isAreaToolType(activeToolType)
         ) {
