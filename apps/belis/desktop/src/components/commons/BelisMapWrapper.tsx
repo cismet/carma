@@ -644,7 +644,7 @@ const BelisMapLibWrapper = ({
   const [featureOnMap, setFeatureOnMap] = useState(true);
 
   useEffect(() => {
-    if (sidebarMode !== "karte" || !selectedFeatureId || !map) {
+    if ((sidebarMode !== "karte" && sidebarMode !== "highlights") || !selectedFeatureId || !map) {
       setFeatureOnMap(true);
       return;
     }
