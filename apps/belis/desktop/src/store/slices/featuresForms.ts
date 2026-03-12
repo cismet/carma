@@ -264,12 +264,14 @@ export const hasAnyDraftChanges = (state: RootState): boolean => {
   );
 };
 
-// Get all draft features (the stored feature copies)
+// Get all draft features with their featureType (form key).
+// The featureType is always reliably set when the draft is created;
+// the stored feature's carmaInfo.sourceLayer may be stale or missing.
 export const getAllDraftFeatures = (state: RootState) => {
   const drafts = state.featuresForms?.drafts ?? {};
   return Object.entries(drafts)
     .filter(([, draft]) => draft.feature != null)
-    .map(([, draft]) => draft.feature);
+    .map(([, draft]) => ({ featureType: draft.featureType, feature: draft.feature }));
 };
 
 // Get count of drafts that have a stored feature

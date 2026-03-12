@@ -78,6 +78,10 @@ const BelisMapLibWrapper = ({
   const dispatch: AppDispatch = useDispatch();
   const jwt = useSelector(getJWT);
   const reduxSelectedFeature = useSelector(getReduxSelectedFeature);
+  // Ref for geometry fallback in override effect — avoids adding
+  // reduxSelectedFeature to deps (which would cause spurious re-fires).
+  const reduxGeometryRef = useRef<any>(null);
+  reduxGeometryRef.current = reduxSelectedFeature?.geometry ?? null;
   const { map } = useLibreContext();
   const { selectedFeature, rawFeature, selectedFeatureId, selectFeature } =
     useMapSelection();
@@ -314,23 +318,43 @@ const BelisMapLibWrapper = ({
   const allDraftFeatures = useSelector(getAllDraftFeatures);
   const draftFeaturesCount = useSelector(getDraftFeaturesCount);
 
+  // Map form keys (from draft.featureType) to MVT source layer names.
+  // The draft's featureType is always reliably set; the stored feature's
+  // carmaInfo.sourceLayer may be stale or missing.
+  const formKeyToSourceLayer: Record<string, string> = useMemo(
+    () => ({
+      leuchte: "leuchten",
+      standort: "standorte",
+      leitung: "leitungen",
+      schaltstelle: "schaltstelle",
+      mauerlasche: "mauerlaschen",
+      abzweigdose: "abzweigdosen",
+    }),
+    []
+  );
+
   const draftSidebarFeatures = useMemo(() => {
-    return allDraftFeatures.map((f: any) => {
-      const sourceLayer = f.carmaInfo?.sourceLayer ?? "";
-      const props = f.properties?.sourceProps ?? f.properties ?? {};
+    return allDraftFeatures.map(({ featureType, feature: f }: any) => {
+      // Prefer sourceLayer derived from the draft's featureType (always correct)
+      // over carmaInfo.sourceLayer from the stored feature (may be stale/missing).
+      const sourceLayer =
+        formKeyToSourceLayer[featureType] ??
+        f?.carmaInfo?.sourceLayer ??
+        "";
+      const props = f?.properties?.sourceProps ?? f?.properties ?? {};
       return {
         type: "Feature" as const,
-        geometry: f.geometry ?? { type: "Point", coordinates: [0, 0] },
+        geometry: f?.geometry ?? { type: "Point", coordinates: [0, 0] },
         properties: props,
         source: namespacedSource,
         sourceLayer,
         id: props.id,
-        layer: f.layer ?? { id: sourceLayer, source: namespacedSource, type: "circle" as const },
+        layer: f?.layer ?? { id: sourceLayer, source: namespacedSource, type: "circle" as const },
         state: {},
         original: f,
       } as unknown as SidebarFeature;
     });
-  }, [allDraftFeatures, namespacedSource]);
+  }, [allDraftFeatures, namespacedSource, formKeyToSourceLayer]);
 
   const mapWidth = mapSizes.width - LIST_WIDTH;
 
@@ -463,15 +487,12 @@ const BelisMapLibWrapper = ({
     },
   });
 
-  // Sync selection to Redux store when map selection changes.
-  // Skip in drafts mode — handleSidebarFeatureSelect already dispatches the
-  // correct feature (with MVT tile ID). Letting createFeature's result through
-  // would overwrite it with a database-PK-based ID, breaking draft lookups.
+  // Sync selection to Redux store when map selection changes
   useEffect(() => {
-    if (selectedFeature && sidebarMode !== "drafts") {
+    if (selectedFeature) {
       dispatch(setSelectedFeature({ ...selectedFeature, selected: true }));
     }
-  }, [selectedFeature, sidebarMode, dispatch]);
+  }, [selectedFeature, dispatch]);
 
   // Map source layer names to FeatureType for API fetches
   const SOURCE_LAYER_TO_FEATURE_TYPE: Record<string, FeatureType> = {
@@ -600,7 +621,7 @@ const BelisMapLibWrapper = ({
               genericLinks,
             },
             geometry: rawFeature?.geometry ??
-              reduxSelectedFeature?.geometry ?? {
+              reduxGeometryRef.current ?? {
                 type: "Point",
                 coordinates: [0, 0],
               },
@@ -619,19 +640,14 @@ const BelisMapLibWrapper = ({
     selectedFeatureId,
     infoboxMappingCode,
     rawFeature,
-    reduxSelectedFeature,
   ]);
 
-  // Visually select the MVT feature on the map by querying tiles for the
-  // database PK and applying feature-state with the actual MVT tile ID.
-  // Fires for the override path (search results not on map) AND for drafts mode
-  // (where LibreMap's createFeature may set context selectedFeature, disabling
-  // the override path, but we still need tile-reload-safe selection).
-  // Retries on sourcedata because the tile may not be loaded yet (e.g. after fly-to).
-  const needsManualSelection =
-    !!overrideSelectedFeature || sidebarMode === "drafts";
+  // Visually select the MVT feature on the map when using the override path.
+  // The override path means LibreMap didn't handle the selection (no on-map click),
+  // so we need to set feature-state { selected: true } ourselves.
+  // Retry on sourcedata because the tile may not be loaded yet (e.g. after fly-to).
   useEffect(() => {
-    if (!map || !needsManualSelection || !selectedFeatureId) return;
+    if (!map || !overrideSelectedFeature || !selectedFeatureId) return;
 
     const sourceLayer = selectedFeatureId.sourceLayer ?? "";
     const dbId = selectedFeatureId.id;
@@ -681,7 +697,7 @@ const BelisMapLibWrapper = ({
         }
       }
     };
-  }, [map, needsManualSelection, selectedFeatureId, namespacedSource]);
+  }, [map, overrideSelectedFeature, selectedFeatureId, namespacedSource]);
 
   const libreLayers = useMemo(() => {
     const layers: LibreLayer[] = [];
@@ -803,25 +819,6 @@ const BelisMapLibWrapper = ({
     );
   }, [selectedFeature, rawFeature]);
 
-  // For drafts mode, context rawFeature is null (we skip passing it to selectFeature
-  // to prevent createFeature from overwriting Redux). Build a fallback from the Redux
-  // selectedFeature so form subtitles can derive their data (e.g. strasse, fabrikat).
-  const effectiveRawFeature = useMemo(() => {
-    if (rawFeature) return rawFeature;
-    if (sidebarMode === "drafts" && reduxSelectedFeature) {
-      const sourceProps =
-        reduxSelectedFeature.properties?.sourceProps ??
-        reduxSelectedFeature.properties ??
-        {};
-      return {
-        properties: sourceProps,
-        geometry: reduxSelectedFeature.geometry,
-        sourceLayer: reduxSelectedFeature.carmaInfo?.sourceLayer,
-      };
-    }
-    return null;
-  }, [rawFeature, sidebarMode, reduxSelectedFeature]);
-
   // Always pass the raw feature so the mini-map can center on its geometry.
   // LibreMap's external selection watcher will attempt createFeature() via
   // layer-id metadata or source prefix fallback. If it fails, the override
@@ -835,35 +832,46 @@ const BelisMapLibWrapper = ({
       },
       feature: SidebarFeature
     ) => {
-      const original = (feature as any).original;
-      if (sidebarMode === "drafts" && original?.carmaInfo) {
-        // For draft features: dispatch the stored feature directly (has correct MVT tile ID
-        // matching the draft key). The sync effect is guarded to skip in drafts mode,
-        // so createFeature's result won't overwrite this.
-        // Pass original as raw feature so context rawFeature has geometry
-        // (needed by minimap centering, zoom-to-feature, etc.).
-        dispatch(setSelectedFeature({ ...original, selected: true }));
-        selectFeature(identifier, original as any);
-      } else {
-        // Dispatch raw sidebar feature to Redux immediately so FeaturesFormsWrapper
-        // has a valid featureId. If LibreMap's createFeature succeeds later, the
-        // sync effect will overwrite with the processed version.
-        dispatch(
-          setSelectedFeature({
-            properties: feature.properties,
-            geometry: feature.geometry,
-            id: feature.id,
-            carmaInfo: {
-              sourceLayer: feature.sourceLayer,
-              source: feature.source,
-            },
-            selected: true,
-          })
-        );
-        selectFeature(identifier, feature as any);
+      if (sidebarMode === "drafts") {
+        const original = (feature as any).original;
+        const sl = identifier.sourceLayer ?? "";
+        const dbPK = String(feature.properties?.id ?? identifier.id);
+
+        // Try to find the real MVT feature in loaded tiles.
+        // This gives us: correct tile ID for visual selection,
+        // flat properties for identical titles/subtitles, and geometry.
+        if (map) {
+          const sourceFeatures = map.querySourceFeatures(namespacedSource, {
+            sourceLayer: sl,
+          });
+          const match = sourceFeatures.find(
+            (f) => f.properties && String(f.properties.id) === dbPK
+          );
+          if (match) {
+            selectFeature(
+              { source: identifier.source, sourceLayer: sl, id: match.id },
+              match as any
+            );
+            return;
+          }
+        }
+
+        // Feature not in viewport — dispatch stored feature to Redux
+        // (with database PK as id for stable draft lookup),
+        // then select without raw so the override path handles display.
+        if (original) {
+          dispatch(
+            setSelectedFeature({ ...original, id: dbPK, selected: true })
+          );
+        }
+        selectFeature(identifier);
+        return;
       }
+
+      // Normal flow for karte/highlights
+      selectFeature(identifier, feature as any);
     },
-    [selectFeature, sidebarMode, dispatch]
+    [selectFeature, sidebarMode, dispatch, map, namespacedSource]
   );
 
   return (
@@ -968,7 +976,7 @@ const BelisMapLibWrapper = ({
             <div style={{ height: "100%", overflow: "hidden" }}>
               <BelisDatasheetView
                 feature={selectedFeature}
-                rawFeature={effectiveRawFeature}
+                rawFeature={rawFeature}
                 fetchedData={fetchedFeatureData}
                 featureType={
                   selectedFeature?.carmaInfo?.sourceLayer ||
