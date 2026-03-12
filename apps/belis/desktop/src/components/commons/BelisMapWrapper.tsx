@@ -58,6 +58,7 @@ import {
   getAllDraftFeatures,
   getDraftFeaturesCount,
 } from "../../store/slices/featuresForms";
+import { prepareDraftFeatures } from "../../helper/prepareDraftFeatures";
 
 type SidebarMode = "karte" | "highlights" | "drafts";
 
@@ -404,7 +405,7 @@ const BelisMapLibWrapper = ({
   );
 
   const draftSidebarFeatures = useMemo(() => {
-    return allDraftFeatures.map(({ featureType, feature: f }: any) => {
+    const raw = allDraftFeatures.map(({ featureType, feature: f }: any) => {
       // Prefer sourceLayer derived from the draft's featureType (always correct)
       // over carmaInfo.sourceLayer from the stored feature (may be stale/missing).
       const sourceLayer =
@@ -424,6 +425,7 @@ const BelisMapLibWrapper = ({
         original: f,
       } as unknown as SidebarFeature;
     });
+    return prepareDraftFeatures(raw);
   }, [allDraftFeatures, namespacedSource, formKeyToSourceLayer]);
 
   const mapWidth = mapSizes.width - LIST_WIDTH;
