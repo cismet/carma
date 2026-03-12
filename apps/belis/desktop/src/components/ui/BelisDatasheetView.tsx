@@ -10,6 +10,7 @@ import { getVCard } from "@carma-appframeworks/belis";
 import { FeaturesFormsWrapper } from "./featuresForm";
 import { useSelector } from "react-redux";
 import { getFeatureLoading } from "../../store/slices/featureCollection";
+import NoFeatureSelected from "./NoFeatureSelected";
 
 interface BelisDatasheetViewProps {
   feature: any | null;
@@ -17,6 +18,7 @@ interface BelisDatasheetViewProps {
   fetchedData?: any | null;
   featureType?: string;
   readOnly?: boolean;
+  featureOnMap?: boolean;
 }
 
 const BelisDatasheetView = ({
@@ -25,24 +27,12 @@ const BelisDatasheetView = ({
   fetchedData,
   featureType,
   readOnly = true,
+  featureOnMap = false,
 }: BelisDatasheetViewProps) => {
   const featureLoading = useSelector(getFeatureLoading);
 
-  if (!feature && !rawFeature && !fetchedData) {
-    return (
-      <div
-        style={{
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          height: "100%",
-          color: "#999",
-          fontSize: 14,
-        }}
-      >
-        Kein Objekt ausgewahlt
-      </div>
-    );
+  if (!featureOnMap) {
+    return <NoFeatureSelected />;
   }
 
   // Try to get vcard info from the processed feature
