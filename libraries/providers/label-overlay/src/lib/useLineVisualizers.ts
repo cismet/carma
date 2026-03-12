@@ -15,6 +15,7 @@ export type LineVisualizerData = LineVisualizerProps & {
   } | null;
   labelMinLineLengthPx?: number;
   labelOffsetPx?: number;
+  labelFlippedBaselineOffsetPx?: number;
   labelRotationMode?: "auto" | "clockwise";
   getLabelOutsideReferencePoint?: () => CssPixelPosition | null;
   getLabelInsideReferencePoint?: () => CssPixelPosition | null;
@@ -53,6 +54,90 @@ const getOverlayReferenceSignature = (value: unknown): string => {
   }
 
   return String(value);
+};
+
+const resolveLineLabelPlacement = ({
+  line,
+  canvasLine,
+  previousShouldFlip,
+}: {
+  line: LineVisualizerData;
+  canvasLine: {
+    start: CssPixelPosition;
+    end: CssPixelPosition;
+  };
+  previousShouldFlip: boolean;
+}) => {
+  const dx = canvasLine.end.x - canvasLine.start.x;
+  const dy = canvasLine.end.y - canvasLine.start.y;
+  const lineLength = Math.hypot(dx, dy);
+  if (lineLength <= MIN_LINE_LENGTH_PX) {
+    return null;
+  }
+
+  const midX = (canvasLine.start.x + canvasLine.end.x) * 0.5;
+  const midY = (canvasLine.start.y + canvasLine.end.y) * 0.5;
+  let normalX = -dy / lineLength;
+  let normalY = dx / lineLength;
+  const outsideRef = line.getLabelOutsideReferencePoint?.();
+  const insideRef = line.getLabelInsideReferencePoint?.();
+  let shouldFlip = previousShouldFlip;
+
+  if (outsideRef) {
+    const refDx = outsideRef.x - midX;
+    const refDy = outsideRef.y - midY;
+    const dotWithNormal = refDx * normalX + refDy * normalY;
+    if (dotWithNormal > LABEL_SIDE_HYSTERESIS_PX) {
+      shouldFlip = true;
+    } else if (dotWithNormal < -LABEL_SIDE_HYSTERESIS_PX) {
+      shouldFlip = false;
+    }
+  } else if (insideRef) {
+    const refDx = insideRef.x - midX;
+    const refDy = insideRef.y - midY;
+    const dotWithNormal = refDx * normalX + refDy * normalY;
+    if (dotWithNormal < -LABEL_SIDE_HYSTERESIS_PX) {
+      shouldFlip = true;
+    } else if (dotWithNormal > LABEL_SIDE_HYSTERESIS_PX) {
+      shouldFlip = false;
+    }
+  }
+
+  if (shouldFlip) {
+    normalX = -normalX;
+    normalY = -normalY;
+  }
+
+  const rawAngleDeg = (Math.atan2(dy, dx) * 180) / Math.PI;
+  const angleDeg =
+    line.labelRotationMode === "clockwise"
+      ? (rawAngleDeg + 360) % 360
+      : (() => {
+          const crossProduct =
+            (dx / lineLength) * normalY - (dy / lineLength) * normalX;
+          const sideAdjustedAngle =
+            crossProduct >= 0 ? rawAngleDeg : rawAngleDeg + 180;
+          const normalizedAngle = ((sideAdjustedAngle % 360) + 360) % 360;
+          return normalizedAngle > 90 && normalizedAngle < 270
+            ? (normalizedAngle + 180) % 360
+            : normalizedAngle;
+        })();
+
+  const labelOffsetPx = line.labelOffsetPx ?? LABEL_OFFSET_PX;
+  const flippedBaselineOffsetPx = shouldFlip
+    ? line.labelFlippedBaselineOffsetPx ?? 0
+    : 0;
+  const angleRad = (angleDeg * Math.PI) / 180;
+  const baselineOffsetX = -Math.sin(angleRad) * flippedBaselineOffsetPx;
+  const baselineOffsetY = Math.cos(angleRad) * flippedBaselineOffsetPx;
+
+  return {
+    lineLength,
+    shouldFlip,
+    angleDeg,
+    textX: midX + normalX * labelOffsetPx + baselineOffsetX,
+    textY: midY + normalY * labelOffsetPx + baselineOffsetY,
+  };
 };
 
 const buildLineOverlayUpdatePosition =
@@ -94,59 +179,13 @@ const buildLineOverlayUpdatePosition =
       '[data-line-visualizer-text="true"]'
     ) as SVGTextElement | null;
     if (textEl && line.labelText) {
-      const dx = canvasLine.end.x - canvasLine.start.x;
-      const dy = canvasLine.end.y - canvasLine.start.y;
-      const lineLength = Math.hypot(dx, dy);
-      if (lineLength > MIN_LINE_LENGTH_PX) {
-        const midX = (canvasLine.start.x + canvasLine.end.x) * 0.5;
-        const midY = (canvasLine.start.y + canvasLine.end.y) * 0.5;
-        let normalX = -dy / lineLength;
-        let normalY = dx / lineLength;
-        const outsideRef = line.getLabelOutsideReferencePoint?.();
-        const insideRef = line.getLabelInsideReferencePoint?.();
-        const previousShouldFlip = textEl.dataset.normalFlip === "1";
-        let shouldFlip = previousShouldFlip;
-        if (outsideRef) {
-          const refDx = outsideRef.x - midX;
-          const refDy = outsideRef.y - midY;
-          const dotWithNormal = refDx * normalX + refDy * normalY;
-          if (dotWithNormal > LABEL_SIDE_HYSTERESIS_PX) {
-            shouldFlip = true;
-          } else if (dotWithNormal < -LABEL_SIDE_HYSTERESIS_PX) {
-            shouldFlip = false;
-          }
-        } else if (insideRef) {
-          const refDx = insideRef.x - midX;
-          const refDy = insideRef.y - midY;
-          const dotWithNormal = refDx * normalX + refDy * normalY;
-          if (dotWithNormal < -LABEL_SIDE_HYSTERESIS_PX) {
-            shouldFlip = true;
-          } else if (dotWithNormal > LABEL_SIDE_HYSTERESIS_PX) {
-            shouldFlip = false;
-          }
-        }
-        if (shouldFlip) {
-          normalX = -normalX;
-          normalY = -normalY;
-        }
-        textEl.dataset.normalFlip = shouldFlip ? "1" : "0";
-        const rawAngleDeg = (Math.atan2(dy, dx) * 180) / Math.PI;
-        const labelOffsetPx = line.labelOffsetPx ?? LABEL_OFFSET_PX;
-        const textX = midX + normalX * labelOffsetPx;
-        const textY = midY + normalY * labelOffsetPx;
-        const angleDeg =
-          line.labelRotationMode === "clockwise"
-            ? (rawAngleDeg + 360) % 360
-            : (() => {
-                const crossProduct =
-                  (dx / lineLength) * normalY - (dy / lineLength) * normalX;
-                const sideAdjustedAngle =
-                  crossProduct >= 0 ? rawAngleDeg : rawAngleDeg + 180;
-                const normalizedAngle = ((sideAdjustedAngle % 360) + 360) % 360;
-                return normalizedAngle > 90 && normalizedAngle < 270
-                  ? (normalizedAngle + 180) % 360
-                  : normalizedAngle;
-              })();
+      const placement = resolveLineLabelPlacement({
+        line,
+        canvasLine,
+        previousShouldFlip: textEl.dataset.normalFlip === "1",
+      });
+      if (placement) {
+        textEl.dataset.normalFlip = placement.shouldFlip ? "1" : "0";
 
         const previousTextX = Number.parseFloat(
           textEl.dataset.stableTextX ?? ""
@@ -158,23 +197,27 @@ const buildLineOverlayUpdatePosition =
           Number.isFinite(previousTextX) && Number.isFinite(previousTextY);
         const stableTextPosition =
           hasPreviousTextPosition &&
-          Math.hypot(textX - previousTextX, textY - previousTextY) <=
-            LABEL_POSITION_STABILITY_EPSILON_PX
+          Math.hypot(
+            placement.textX - previousTextX,
+            placement.textY - previousTextY
+          ) <= LABEL_POSITION_STABILITY_EPSILON_PX
             ? { x: previousTextX, y: previousTextY }
-            : { x: textX, y: textY };
+            : { x: placement.textX, y: placement.textY };
 
         const previousAngleDeg = Number.parseFloat(
           textEl.dataset.stableAngleDeg ?? ""
         );
         const hasPreviousAngle = Number.isFinite(previousAngleDeg);
         const normalizedAngleDelta = hasPreviousAngle
-          ? Math.abs(((angleDeg - previousAngleDeg + 540) % 360) - 180)
+          ? Math.abs(
+              ((placement.angleDeg - previousAngleDeg + 540) % 360) - 180
+            )
           : Number.POSITIVE_INFINITY;
         const stableAngleDeg =
           hasPreviousAngle &&
           normalizedAngleDelta <= LABEL_ANGLE_STABILITY_EPSILON_DEG
             ? previousAngleDeg
-            : angleDeg;
+            : placement.angleDeg;
 
         textEl.dataset.stableTextX = `${stableTextPosition.x}`;
         textEl.dataset.stableTextY = `${stableTextPosition.y}`;
@@ -194,10 +237,10 @@ const buildLineOverlayUpdatePosition =
           ? minLabelLineLengthPx - LABEL_VISIBILITY_HYSTERESIS_PX
           : minLabelLineLengthPx + LABEL_VISIBILITY_HYSTERESIS_PX;
         const fitThreshold = previousVisible
-          ? lineLength + LABEL_VISIBILITY_HYSTERESIS_PX
-          : lineLength - LABEL_VISIBILITY_HYSTERESIS_PX;
+          ? placement.lineLength + LABEL_VISIBILITY_HYSTERESIS_PX
+          : placement.lineLength - LABEL_VISIBILITY_HYSTERESIS_PX;
         const shouldShowLabel =
-          lineLength >= lengthThreshold &&
+          placement.lineLength >= lengthThreshold &&
           textLengthPx + LABEL_MIN_PADDING_PX <= fitThreshold;
         textEl.dataset.labelVisible = shouldShowLabel ? "1" : "0";
         textEl.style.display = shouldShowLabel ? "block" : "none";
@@ -237,9 +280,11 @@ export const useLineVisualizers = (
             line.labelFontSize
           }:${line.labelFontFamily}:${line.labelFontWeight}:${
             line.labelMinLineLengthPx
-          }:${line.labelOffsetPx}:${line.labelRotationMode ?? "auto"}:${
-            line.labelDominantBaseline ?? "middle"
-          }:${line.longPressDurationMs ?? ""}:${getOverlayReferenceSignature(
+          }:${line.labelOffsetPx}:${line.labelFlippedBaselineOffsetPx ?? ""}:${
+            line.labelRotationMode ?? "auto"
+          }:${line.labelDominantBaseline ?? "middle"}:${
+            line.longPressDurationMs ?? ""
+          }:${getOverlayReferenceSignature(
             line.onLineClick
           )}:${getOverlayReferenceSignature(
             line.onLineLongPress

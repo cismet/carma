@@ -6,6 +6,7 @@ import {
   AnnotationCollection,
   AnnotationLabelAnchor,
   AnnotationMode,
+  DerivedPolylinePath,
   NodeChainAnnotation,
   PointAnnotationEntry,
   PointDistanceRelation,
@@ -17,6 +18,7 @@ import {
   collectCollapsedPillPointIds,
   collectLabelAnchorPointIdsWithForcedVisibility,
   collectPointIdsWithoutSelfLabelAnchor,
+  formatNumber,
   isPointAnnotationEntry,
 } from "@carma-mapping/annotations/core";
 
@@ -93,6 +95,7 @@ type StandaloneDistancePointState = ReturnType<
 const derivePointLabelAnchors = (
   pointEntries: readonly PointAnnotationEntry[],
   nodeChainAnnotations: readonly NodeChainAnnotation[],
+  polylines: readonly DerivedPolylinePath[],
   focusedNodeChainAnnotationId: string | null,
   pointMarkerBadgeByPointId: Readonly<
     Record<string, AnnotationPointMarkerBadge>
@@ -102,6 +105,7 @@ const derivePointLabelAnchors = (
   buildDesiredPointLabelAnchorById({
     pointMeasurements: pointEntries,
     nodeChains: nodeChainAnnotations,
+    polylines,
     focusedNodeChainAnnotationId,
     pointMarkerBadgeByPointId,
     standaloneDistanceHighestPointIds:
@@ -110,6 +114,7 @@ const derivePointLabelAnchors = (
       standaloneDistancePointState.unfocusedStandaloneDistanceNonHighestPointIds,
     focusedStandaloneDistanceNonHighestPointIds:
       standaloneDistancePointState.focusedStandaloneDistanceNonHighestPointIds,
+    formatDistanceLabel: formatNumber,
   });
 
 const applyPointLabelAnchors = (
@@ -136,6 +141,7 @@ type UsePointBridgeParams = {
   distanceRelations: PointDistanceRelation[];
   selectedAnnotationId: string | null;
   selectedAnnotationIds: string[];
+  polylines: DerivedPolylinePath[];
   focusedNodeChainAnnotationId: string | null;
   unselectedClosedAreaNodeIdSet: ReadonlySet<string>;
   showLabels: boolean;
@@ -152,6 +158,7 @@ export const usePointBridge = ({
   distanceRelations,
   selectedAnnotationId,
   selectedAnnotationIds,
+  polylines,
   focusedNodeChainAnnotationId,
   unselectedClosedAreaNodeIdSet,
   showLabels,
@@ -213,21 +220,43 @@ export const usePointBridge = ({
       selectedAnnotationIds,
     ]
   );
+  const selectedNodeChainAnnotationId = useMemo(() => {
+    const selectedPointIds = [
+      selectedAnnotationId,
+      ...selectedAnnotationIds,
+    ].filter((value): value is string => Boolean(value));
+
+    for (const selectedPointId of selectedPointIds) {
+      const selectedNodeChain =
+        nodeChainAnnotations.find(
+          (group) =>
+            group.type !== ANNOTATION_TYPE_DISTANCE &&
+            group.nodeIds.includes(selectedPointId)
+        ) ?? null;
+      if (selectedNodeChain) {
+        return selectedNodeChain.id;
+      }
+    }
+
+    return null;
+  }, [nodeChainAnnotations, selectedAnnotationId, selectedAnnotationIds]);
 
   const desiredPointLabelAnchorById = useMemo(
     () =>
       derivePointLabelAnchors(
         pointEntries,
         nodeChainAnnotations,
-        focusedNodeChainAnnotationId,
+        polylines,
+        selectedNodeChainAnnotationId,
         pointMarkerBadgeByPointId,
         standaloneDistancePointState
       ),
     [
-      focusedNodeChainAnnotationId,
       nodeChainAnnotations,
       pointEntries,
       pointMarkerBadgeByPointId,
+      polylines,
+      selectedNodeChainAnnotationId,
       standaloneDistancePointState,
     ]
   );

@@ -26,6 +26,7 @@ export type DistanceRelationEdgeLabelOverlay = {
   labelMinLineLengthPx: number;
   labelRotationMode?: "clockwise";
   labelOffsetPx?: number;
+  labelFlippedBaselineOffsetPx?: number;
   labelDominantBaseline?: "alphabetic";
 };
 
@@ -56,6 +57,7 @@ const VERTICAL_EDGE_LABEL_OVERLAY = {
   ...BASE_EDGE_LABEL_OVERLAY,
   labelRotationMode: "clockwise",
   labelOffsetPx: 8,
+  labelFlippedBaselineOffsetPx: 6,
   labelDominantBaseline: "alphabetic",
 } satisfies Omit<
   DistanceRelationEdgeLabelOverlay,
@@ -133,14 +135,8 @@ export const resolveDistanceRelationLabelDisplay = ({
     showDirectLabel,
     showVerticalLabel,
     showHorizontalLabel,
-    directLabelMinLineLengthPx:
-      forceComponentLabelsForSelectedOrActivePolylineEdges
-        ? 0
-        : lineLabelMinDistancePx,
-    componentLabelMinLineLengthPx:
-      forceComponentLabelsForSelectedOrActivePolylineEdges
-        ? 0
-        : lineLabelMinDistancePx,
+    directLabelMinLineLengthPx: lineLabelMinDistancePx,
+    componentLabelMinLineLengthPx: lineLabelMinDistancePx,
   };
 };
 
