@@ -255,7 +255,10 @@ export const builtInGazetteerHitTrigger = ({
       }
 
       leafletElement.fitBounds(
-        convertBBox2Bounds(bb, proj4(referenceSystemDefinition || proj4crs25832def)),
+        convertBBox2Bounds(
+          bb,
+          proj4(referenceSystemDefinition || proj4crs25832def)
+        ),
         padding ? { padding } : undefined
       );
     }
