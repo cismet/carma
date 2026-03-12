@@ -93,7 +93,28 @@ const FeaturesFormsWrapper = ({
 }: FeaturesFormsWrapperProps) => {
   const dispatch = useDispatch();
   const selectedFeature = useSelector(getSelectedFeature);
-  const featureId = selectedFeature?.id != null ? String(selectedFeature.id) : undefined;
+  // Build a composite draft key: "sourceLayer:databasePK".
+  // Database PKs alone are not unique across source layers (e.g. Leuchte PK=1
+  // vs Standort PK=1 are different features). Including the sourceLayer prevents
+  // draft key collisions between feature types.
+  const rawPK = rawFeature?.properties?.id;
+  const dbPK = rawPK != null ? String(rawPK) :
+    (selectedFeature?.id != null ? String(selectedFeature.id) : undefined);
+  const sourceLayer = featureType ?? "";
+  const featureId = dbPK != null ? `${sourceLayer}:${dbPK}` : undefined;
+
+  // Build a lightweight feature object for the draft from rawFeature props.
+  // rawFeature is ALWAYS the correct feature for this form instance (it comes
+  // from the map selection context, not Redux which may hold a different feature).
+  // This is used for sidebar display (titles/subtitles) and draft re-selection.
+  const draftFeature = useMemo(() => {
+    if (!rawFeature) return selectedFeature ?? undefined;
+    return {
+      properties: { sourceProps: rawFeature.properties ?? {} },
+      geometry: rawFeature.geometry,
+      carmaInfo: { sourceLayer: featureType },
+    };
+  }, [rawFeature, featureType, selectedFeature]);
   const draft = useSelector((state: RootState) => getDraft(state, featureId));
   const draftFiles = useSelector((state: RootState) => getDraftFiles(state, featureId));
   const hasChanges = useSelector((state: RootState) => hasDraftChanges(state, featureId));
@@ -142,10 +163,10 @@ const FeaturesFormsWrapper = ({
   const handleDraftChange = useCallback(
     (values: Record<string, unknown>) => {
       if (featureId && formKey) {
-        dispatch(setDraft({ featureId, featureType: formKey, values: serializeValues(values), feature: selectedFeature }));
+        dispatch(setDraft({ featureId, featureType: formKey, values: serializeValues(values), feature: draftFeature }));
       }
     },
-    [featureId, formKey, dispatch]
+    [featureId, formKey, dispatch, draftFeature]
   );
 
   const handleOriginalValues = useCallback(
@@ -160,19 +181,19 @@ const FeaturesFormsWrapper = ({
   const handleDraftFilesChange = useCallback(
     (files: DraftFile[]) => {
       if (featureId && formKey) {
-        dispatch(setDraftFiles({ featureId, featureType: formKey, files, feature: selectedFeature }));
+        dispatch(setDraftFiles({ featureId, featureType: formKey, files, feature: draftFeature }));
       }
     },
-    [featureId, formKey, dispatch]
+    [featureId, formKey, dispatch, draftFeature]
   );
 
   const handleRemovedDocumentKeysChange = useCallback(
     (keys: Set<string>) => {
       if (featureId && formKey) {
-        dispatch(setRemovedDocumentKeys({ featureId, featureType: formKey, keys: [...keys], feature: selectedFeature }));
+        dispatch(setRemovedDocumentKeys({ featureId, featureType: formKey, keys: [...keys], feature: draftFeature }));
       }
     },
-    [featureId, formKey, dispatch]
+    [featureId, formKey, dispatch, draftFeature]
   );
 
   if (FormComponent) {
