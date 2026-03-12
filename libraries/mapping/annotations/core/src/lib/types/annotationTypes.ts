@@ -47,6 +47,7 @@ export type PolygonType = GroundPolygonType | PlanarPolygonType;
 export type PolygonAreaType = PolygonType;
 
 export type NodeChainAnnotationType =
+  | typeof ANNOTATION_TYPE_DISTANCE
   | typeof ANNOTATION_TYPE_POLYLINE
   | PolygonType;
 

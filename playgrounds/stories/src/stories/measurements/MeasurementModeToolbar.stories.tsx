@@ -4,7 +4,7 @@ import {
   AnnotationToolbar3D,
   useAnnotationSelectionState,
   useAnnotationTools,
-} from "@carma-mapping/annotations/provider";
+} from "@carma-mapping/annotations/runtime";
 import { MeasurementCesiumStoryShell } from "./shared/MeasurementCesiumStoryShell";
 
 const MeasurementToolkitStory = ({

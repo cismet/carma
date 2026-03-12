@@ -19,7 +19,7 @@ import {
   MapMeasurementsProvider,
   MEASUREMENT_MODE,
 } from "@carma-commons/measurements";
-import { AnnotationsProvider } from "@carma-mapping/annotations/provider";
+import { AnnotationsProvider } from "@carma-mapping/annotations/runtime";
 import {
   CesiumContext,
   type CesiumContextType,

@@ -41,7 +41,12 @@ const createEditableLineRelationIdsByKind = (): Record<
 
 const resolveEditableLineMeasurementKind = (
   group: Pick<PolygonAnnotationLike, "type">
-): EditableLineMeasurementKind => group.type;
+): EditableLineMeasurementKind | null =>
+  EDITABLE_LINE_MEASUREMENT_KINDS.includes(
+    group.type as EditableLineMeasurementKind
+  )
+    ? (group.type as EditableLineMeasurementKind)
+    : null;
 
 export const getSplitMarkerRelationIdsByKind = (
   nodeChainAnnotations: readonly PolygonAnnotationLike[]
@@ -49,6 +54,7 @@ export const getSplitMarkerRelationIdsByKind = (
   const byKind = createEditableLineRelationIdsByKind();
   nodeChainAnnotations.forEach((group) => {
     const type = resolveEditableLineMeasurementKind(group);
+    if (!type) return;
     group.edgeRelationIds.forEach((edgeRelationId) => {
       if (!edgeRelationId) return;
       byKind[type].add(edgeRelationId);
@@ -97,6 +103,7 @@ export const getSplitMarkerRelationIdsByKindForGroups = (
   nodeChainAnnotations.forEach((group) => {
     if (!groupIds.has(group.id)) return;
     const type = resolveEditableLineMeasurementKind(group);
+    if (!type) return;
     group.edgeRelationIds.forEach((relationId) => {
       if (!relationId) return;
       byKind[type].add(relationId);
@@ -113,6 +120,7 @@ export const getPlanarSharedEdgeRelationIds = (
 
   nodeChainAnnotations.forEach((group) => {
     const type = resolveEditableLineMeasurementKind(group);
+    if (!type) return;
     group.edgeRelationIds.forEach((edgeRelationId) => {
       if (!edgeRelationId) return;
       relationUsageCount.set(

@@ -271,6 +271,11 @@ export const useCesiumPointQuery = (
     };
 
     handler.setInputAction((event: { position: Cartesian2 }) => {
+      if (!callbacksRef.current.onLineFinish) {
+        createPointAt(event.position);
+        return;
+      }
+
       previousClickPosition = latestClickPosition
         ? Cartesian2.clone(latestClickPosition, new Cartesian2())
         : null;
@@ -285,6 +290,10 @@ export const useCesiumPointQuery = (
     }, ScreenSpaceEventType.LEFT_CLICK);
 
     handler.setInputAction((event: { position: Cartesian2 }) => {
+      if (!callbacksRef.current.onLineFinish) {
+        return;
+      }
+
       if (!isSameDoubleClickArea(previousClickPosition, event.position)) {
         return;
       }
