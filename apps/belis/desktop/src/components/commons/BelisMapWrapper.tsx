@@ -51,7 +51,8 @@ const LIST_WIDTH = 300;
 /** Debug flag: translucent main map + red mini-map border, mini-map always visible */
 const MINI_MAP_DEBUGGING = false;
 
-import type { SidebarFeature } from "../ui/BelisSidebar";
+import type { SidebarFeature, ListItemData } from "../ui/BelisSidebar";
+import toTitleCase from "../../helper/toTitleCase";
 
 import {
   getAllDraftFeatures,
@@ -329,6 +330,75 @@ const BelisMapLibWrapper = ({
       schaltstelle: "schaltstelle",
       mauerlasche: "mauerlaschen",
       abzweigdose: "abzweigdosen",
+    }),
+    []
+  );
+
+  // Draft-specific sidebar extractors.  These mirror the MVT extractors in
+  // BelisSidebar but use p.id (database PK from rawFeature.properties) instead
+  // of feature.id (MVT tile-internal ID assigned by MapLibre).
+  // They also cover "abzweigdosen" which has no built-in MVT extractor.
+  const draftListItemExtractors: Record<
+    string,
+    (feature: SidebarFeature) => ListItemData
+  > = useMemo(
+    () => ({
+      leuchten: (feature) => {
+        const p = feature.properties || {};
+        const typ = p.leuchtentyp || p.leuchttyp || "L";
+        const nr = p.leuchtennummer || "0";
+        const standort = p.lfd_nummer ? `, ${p.lfd_nummer}` : "";
+        return {
+          main: `${typ}-${nr}${standort}`,
+          upperright: toTitleCase(p.strasse || p.strassenschluessel || ""),
+          subtitle: p.fabrikat || p.leuchttyp_fabrikat || "",
+        };
+      },
+      standorte: (feature) => {
+        const p = feature.properties || {};
+        return {
+          main: `Standort ${p.lfd_nummer || "?"}`,
+          upperright: toTitleCase(p.strasse || p.strassenschluessel || ""),
+          subtitle: p.mastart || p.masttyp || "",
+        };
+      },
+      leitungen: (feature) => {
+        const p = feature.properties || {};
+        const laenge = p.laenge || p.length || "";
+        const laengeStr = laenge ? `${laenge}m` : "";
+        return {
+          main: `L-${p.id || "?"}`,
+          upperright: laengeStr,
+          subtitle: p.bezeichnung || p.leitungstyp || "",
+        };
+      },
+      schaltstelle: (feature) => {
+        const p = feature.properties || {};
+        const title = p.schaltstellen_nummer
+          ? `S ${p.schaltstellen_nummer}`
+          : `S ${p.id || "?"}`;
+        return {
+          main: title,
+          upperright: toTitleCase(p.strasse || "") || "-",
+          subtitle: p.bezeichnung || p.bauart || "Schaltstelle",
+        };
+      },
+      mauerlaschen: (feature) => {
+        const p = feature.properties || {};
+        return {
+          main: `M-${p.laufende_nummer || p.id || "?"}`,
+          upperright: toTitleCase(p.strasse || "") || "-",
+          subtitle: p.bezeichnung || p.material || "Mauerlasche",
+        };
+      },
+      abzweigdosen: (feature) => {
+        const p = feature.properties || {};
+        return {
+          main: `AZD-${p.id || "?"}`,
+          upperright: "",
+          subtitle: "Abzweigdose",
+        };
+      },
     }),
     []
   );
@@ -902,6 +972,7 @@ const BelisMapLibWrapper = ({
         highlightCount={adjustedHighlights?.length ?? undefined}
         draftsCount={draftFeaturesCount}
         onFeatureDismiss={handleSidebarDismiss}
+        listItemExtractors={sidebarMode === "drafts" ? draftListItemExtractors : undefined}
       />
       <div
         ref={mapContainerRef}
