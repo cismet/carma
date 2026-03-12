@@ -1,10 +1,11 @@
-import { forwardRef, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
 
 import {
   getActiveInteractionLayerID,
   getLayers,
   getMaplibreMaps,
+  setLayerFilterInfo,
 } from "../../store/slices/mapping";
 import {
   createFilterButtons,
@@ -14,7 +15,6 @@ import {
 import {
   getSelectedFeature,
   setSelectedFeature as setSelectedFeatureAction,
-  updateInfoElementsAfterRemovingFeature,
 } from "../../store/slices/features";
 import {
   getUIMode,
@@ -23,7 +23,6 @@ import {
 } from "../../store/slices/ui";
 
 const InteractionView = () => {
-  const [filterInfo, setFilterInfo] = useState<FilterInfo | undefined>();
   const [filterState, setFilterState] = useState<FilterState | undefined>();
   const dispatch = useDispatch();
   const activeInteractionLayerID = useSelector(getActiveInteractionLayerID);
@@ -59,7 +58,12 @@ const InteractionView = () => {
         }}
         onFilterChange={(info: FilterInfo, state: FilterState) => {
           setFilterState(state);
-          setFilterInfo(info);
+          dispatch(
+            setLayerFilterInfo({
+              id: layer.id,
+              filterInfo: info,
+            })
+          );
           dispatch(triggerFeatureInfoUpdateAction());
         }}
         initialFilters={filterState}

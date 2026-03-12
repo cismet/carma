@@ -1,14 +1,6 @@
 /* eslint-disable jsx-a11y/no-static-element-interactions */
 /* eslint-disable jsx-a11y/click-events-have-key-events */
-import {
-  useCallback,
-  useContext,
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-} from "react";
-import { createPortal } from "react-dom";
+import { useCallback, useContext, useEffect, useRef } from "react";
 import { useInView } from "react-intersection-observer";
 import { useDispatch, useSelector } from "react-redux";
 
@@ -28,11 +20,6 @@ import { TopicMapContext } from "react-cismap/contexts/TopicMapContextProvider";
 
 import type { Layer } from "@carma/types";
 import { cn, getHashParams } from "@carma-commons/utils";
-import {
-  createFilterButtons,
-  type FilterInfo,
-  type FilterState,
-} from "@carma-mapping/components";
 
 import {
   getSelectedFeature,
@@ -103,7 +90,6 @@ const GeoportalLayerButton = ({
       }
     },
   });
-  const [filterInfo, setFilterInfo] = useState<FilterInfo | undefined>();
   const dispatch = useDispatch();
   const { routedMapRef } = useContext<typeof TopicMapContext>(TopicMapContext);
 
@@ -253,8 +239,8 @@ const GeoportalLayerButton = ({
               >
                 <Badge
                   count={
-                    filterInfo && !filterInfo.isShowingAll
-                      ? filterInfo.activeCount
+                    layer.filterInfo && !layer.filterInfo.isShowingAll
+                      ? layer.filterInfo.activeCount
                       : 0
                   }
                   size="small"

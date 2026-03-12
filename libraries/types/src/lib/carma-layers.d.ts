@@ -1,5 +1,11 @@
 import { CarmaConfig } from "./carma-config";
 
+export type LayerFilterInfo = {
+  activeCount: number;
+  totalCount: number;
+  isShowingAll: boolean;
+};
+
 export type BackgroundLayer = Layer & {
   layers: string;
   inhalt?: string;
@@ -73,6 +79,7 @@ type BaseLayer = {
   icon?: string;
   other?: OtherLayerProps;
   filterConfig?: FilterConfig;
+  filterInfo?: LayerFilterInfo;
   layerInfo?: {
     accentColor?: string;
     title?: string;

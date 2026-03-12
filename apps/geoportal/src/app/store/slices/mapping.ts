@@ -1,7 +1,12 @@
 import { createSelector, createSlice } from "@reduxjs/toolkit";
 import type { PayloadAction } from "@reduxjs/toolkit";
 
-import type { BackgroundLayer, Layer, SavedLayerConfig } from "@carma/types";
+import type {
+  BackgroundLayer,
+  Layer,
+  LayerFilterInfo,
+  SavedLayerConfig,
+} from "@carma/types";
 import {
   SELECTED_LAYER_INDEX,
   SelectionItem,
@@ -205,6 +210,17 @@ const slice = createSlice({
       state.layers = newLayers;
     },
 
+    setLayerFilterInfo(
+      state,
+      action: PayloadAction<{ id: string; filterInfo: LayerFilterInfo }>
+    ) {
+      const { id, filterInfo } = action.payload;
+      const layer = state.layers.find((l) => l.id === id);
+      if (layer) {
+        layer.filterInfo = filterInfo;
+      }
+    },
+
     setSelectedLayerIndex(state, action) {
       state.selectedLayerIndex = action.payload;
     },
@@ -333,6 +349,7 @@ export const {
   setStartDrawing,
 
   toggleUseInFeatureInfo,
+  setLayerFilterInfo,
   setLibreMapRef,
   setMaplibreMaps,
   setConfigSelection,
