@@ -21,6 +21,7 @@ import { getFromUTM32ToWGS84 } from "@carma/geo/proj";
 import { BELIS_FILTER_CATEGORIES } from "../../config/mapLayerConfigs";
 import { message, Spin, Switch } from "antd";
 import DraftsBadge from "../ui/DraftsBadge";
+import SendOrDiscardAllDraftsButton from "../ui/SendOrDiscardAllDraftsButton";
 import {
   getKeyTablesLoading,
   getKeyTablesFetched,
@@ -189,6 +190,9 @@ const MainPage = () => {
           style={{ marginBottom: "8px" }}
           extra={
             <div className="flex items-center gap-4">
+              {/* Cancel all drafts */}
+              <SendOrDiscardAllDraftsButton />
+
               {/* Search */}
               <div className="flex items-center gap-2">
                 <StreetSearch
