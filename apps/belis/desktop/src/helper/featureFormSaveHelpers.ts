@@ -324,7 +324,7 @@ interface HandleSaveAllDeps {
   drafts: Record<string, Draft>;
   draftCount: number;
   setSaving: (saving: boolean) => void;
-  dispatch: (action: unknown) => void;
+  dispatch: (action: any) => void;
   removeDraft: (featureId: string) => unknown;
   incrementFeatureDataVersion: () => unknown;
 }
