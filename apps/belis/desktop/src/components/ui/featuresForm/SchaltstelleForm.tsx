@@ -145,6 +145,13 @@ const SchaltstelleForm = ({
     (rawProps?.bezeichnung as string) ||
     "-ohne Bezeichnung-";
 
+  // Compute sidebar main title to display in form header
+  const sidebarMain = rawProps?.schaltstellen_nummer
+    ? `S ${rawProps.schaltstellen_nummer}`
+    : rawProps?.id
+      ? `S ${rawProps.id}`
+      : "";
+
   useEffect(() => {
     // Reset form when data changes to clear old values
     form.resetFields();
@@ -287,7 +294,7 @@ const SchaltstelleForm = ({
 
   return (
     <FeatureFormLayout
-      title="Schaltstelle"
+      title={sidebarMain ? `Schaltstelle ${sidebarMain}` : "Schaltstelle"}
       subtitle={subtitle}
       documents={documents}
       jwt={jwt}

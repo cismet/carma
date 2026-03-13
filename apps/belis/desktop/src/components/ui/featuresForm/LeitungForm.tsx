@@ -116,6 +116,9 @@ const LeitungForm = ({
     (rawProps?.bezeichnung as string) ||
     "-ohne Bezeichnung-";
 
+  // Compute sidebar main title to display in form header
+  const sidebarMain = rawProps?.id ? `L-${rawProps.id}` : "";
+
   useEffect(() => {
     // Reset form when data changes to clear old values
     form.resetFields();
@@ -229,7 +232,7 @@ const LeitungForm = ({
 
   return (
     <FeatureFormLayout
-      title="Leitung"
+      title={sidebarMain ? `Leitung ${sidebarMain}` : "Leitung"}
       subtitle={subtitle}
       documents={documents}
       jwt={jwt}

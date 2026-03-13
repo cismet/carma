@@ -132,6 +132,11 @@ const MauerlascheForm = ({
     toTitleCase((rawProps?.strasse as string) || "") ||
     "-ohne Straße-";
 
+  // Compute sidebar main title to display in form header
+  const sidebarMain = rawProps?.laufende_nummer || rawProps?.id
+    ? `M-${rawProps?.laufende_nummer || rawProps?.id}`
+    : "";
+
   useEffect(() => {
     // Reset form when data changes to clear old values
     form.resetFields();
@@ -264,7 +269,7 @@ const MauerlascheForm = ({
 
   return (
     <FeatureFormLayout
-      title="Mauerlasche"
+      title={sidebarMain ? `Mauerlasche ${sidebarMain}` : "Mauerlasche"}
       subtitle={subtitle}
       documents={documents}
       jwt={jwt}

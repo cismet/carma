@@ -297,6 +297,11 @@ const LeuchteForm = ({
     (rawProps?.leuchttyp_fabrikat as string) ||
     "-ohne Fabrikat-";
 
+  // Compute sidebar main title to display in form header
+  const sidebarMain = rawProps
+    ? `${rawProps.leuchtentyp || rawProps.leuchttyp || "L"}-${rawProps.leuchtennummer || "0"}${rawProps.lfd_nummer ? `, ${rawProps.lfd_nummer}` : ""}`
+    : "";
+
   if (!data) {
     return (
       <div className="flex items-center justify-center h-40 text-gray-400">
@@ -338,7 +343,7 @@ const LeuchteForm = ({
 
   return (
     <FeatureFormLayout
-      title="Leuchte"
+      title={sidebarMain ? `Leuchte ${sidebarMain}` : "Leuchte"}
       subtitle={subtitle}
       documents={documents}
       mainDocumentsTitle="Leuchte"

@@ -138,6 +138,11 @@ const StandortForm = ({
     toTitleCase((rawProps?.standortangabe as string) || "") ||
     "-ohne Straße-";
 
+  // Compute sidebar main title to display in form header
+  const sidebarMain = rawProps?.lfd_nummer
+    ? `${rawProps.lfd_nummer}`
+    : "Standort";
+
   const handleSave = async () => {
     if (!jwt) {
       message.error("Nicht authentifiziert");
@@ -191,10 +196,7 @@ const StandortForm = ({
           : {}),
       });
 
-      console.log(
-        "xxx saving standort:",
-        JSON.stringify(dataToSave, null, 2)
-      );
+      console.log("xxx saving standort:", JSON.stringify(dataToSave, null, 2));
       await updateDataByClassName(jwt, "tdta_standort_mast", dataToSave);
 
       // Update local documents so changes appear immediately
@@ -232,7 +234,7 @@ const StandortForm = ({
 
   return (
     <FeatureFormLayout
-      title="Standort"
+      title={sidebarMain ? `Standort ${sidebarMain}` : "Standort"}
       subtitle={subtitle}
       documents={documents}
       mainDocumentsTitle="Standort"

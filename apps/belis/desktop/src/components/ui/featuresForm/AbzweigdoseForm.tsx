@@ -27,6 +27,7 @@ interface AbzweigdoseFormProps {
 
 const AbzweigdoseForm = ({
   data,
+  rawFeature,
   onClose,
   readOnly = true,
   loading,
@@ -77,6 +78,10 @@ const AbzweigdoseForm = ({
 
   // Extract subtitle
   const subtitle = "Nur Dokumente verfügbar";
+
+  // Compute sidebar main title to display in form header
+  const rawProps = rawFeature?.properties;
+  const sidebarMain = rawProps?.id ? `ID-${rawProps.id}` : "";
 
   const handleSave = async () => {
     if (!jwt) {
@@ -151,7 +156,11 @@ const AbzweigdoseForm = ({
 
   return (
     <FeatureFormLayout
-      title="Abzweigdose / Zugkasten"
+      title={
+        sidebarMain
+          ? `Abzweigdose / Zugkasten ${sidebarMain}`
+          : "Abzweigdose / Zugkasten"
+      }
       subtitle={subtitle}
       documents={documents}
       jwt={jwt}
