@@ -190,8 +190,8 @@ const MainPage = () => {
           style={{ marginBottom: "8px" }}
           extra={
             <div className="flex items-center gap-4">
-              {/* Cancel all drafts */}
-              <SendOrDiscardAllDraftsButton />
+              {/* Cancel all drafts - temporarily hidden */}
+              {/* <SendOrDiscardAllDraftsButton /> */}
 
               {/* Search */}
               <div className="flex items-center gap-2">
