@@ -34,6 +34,7 @@ export interface ExtraDocumentSection {
 interface FeatureFormLayoutProps {
   title: string;
   subtitle: string;
+  cancelLabel?: string;
   children: ReactNode;
   documents?: DokumentItem[];
   mainDocumentsTitle?: string;
@@ -58,6 +59,7 @@ interface FeatureFormLayoutProps {
 const FeatureFormLayout = ({
   title,
   subtitle,
+  cancelLabel,
   children,
   documents = [],
   mainDocumentsTitle = "Dateien",
@@ -365,6 +367,7 @@ const FeatureFormLayout = ({
         <FormHeader
           title={title}
           subtitle={subtitle}
+          cancelLabel={cancelLabel}
           onCancel={onCancel}
           onSave={onSave}
           saving={saving}

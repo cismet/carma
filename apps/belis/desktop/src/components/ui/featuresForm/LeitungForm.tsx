@@ -233,6 +233,7 @@ const LeitungForm = ({
   return (
     <FeatureFormLayout
       title={sidebarMain ? `Leitung ${sidebarMain}` : "Leitung"}
+      cancelLabel={sidebarMain || ""}
       subtitle={subtitle}
       documents={documents}
       jwt={jwt}

@@ -1,12 +1,12 @@
-import {
-  EditOutlined,
-  ExclamationCircleOutlined,
-} from "@ant-design/icons";
-import { Button, Spin, Tooltip } from "antd";
+import { EditOutlined, ExclamationCircleOutlined } from "@ant-design/icons";
+import { Badge, Button, Spin, Tooltip } from "antd";
+import { useSelector } from "react-redux";
+import { getDraftFeaturesCount } from "../../../store/slices/featuresForms";
 
 interface FormHeaderProps {
   title: string;
   subtitle: string;
+  cancelLabel?: string;
   onCancel?: () => void;
   onSave?: () => void;
   loading?: boolean;
@@ -19,6 +19,7 @@ interface FormHeaderProps {
 const FormHeader = ({
   title,
   subtitle,
+  cancelLabel = "",
   onCancel,
   onSave,
   loading,
@@ -27,6 +28,8 @@ const FormHeader = ({
   hasDraft,
   onToggleReadOnly,
 }: FormHeaderProps) => {
+  const draftsCount = useSelector(getDraftFeaturesCount);
+
   return (
     <div className="flex flex-col border-b border-gray-100">
       <div className="flex items-center justify-between flex-wrap p-6 gap-4">
@@ -44,7 +47,9 @@ const FormHeader = ({
                 <Spin size="small" />
               ) : (
                 <EditOutlined
-                  className={`text-xl ${readOnly ? "text-gray-500" : "text-blue-600"}`}
+                  className={`text-xl ${
+                    readOnly ? "text-gray-500" : "text-blue-600"
+                  }`}
                 />
               )}
             </div>
@@ -68,11 +73,26 @@ const FormHeader = ({
           {!readOnly && (
             <>
               <Button onClick={onCancel} disabled={saving}>
-                Abbrechen
+                Abbrechen {cancelLabel}
               </Button>
-              <Button type="primary" onClick={onSave} loading={saving}>
-                Speichern
-              </Button>
+              <Badge
+                count={draftsCount}
+                size="small"
+                offset={[0, 0]}
+                style={{
+                  backgroundColor: "#faad14",
+                  minWidth: 18,
+                  height: 18,
+                  borderRadius: 9,
+                  lineHeight: "18px",
+                  padding: "0 4px",
+                  fontSize: 11,
+                }}
+              >
+                <Button type="primary" onClick={onSave} loading={saving}>
+                  Speichern
+                </Button>
+              </Badge>
             </>
           )}
         </div>

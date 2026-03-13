@@ -270,6 +270,7 @@ const MauerlascheForm = ({
   return (
     <FeatureFormLayout
       title={sidebarMain ? `Mauerlasche ${sidebarMain}` : "Mauerlasche"}
+      cancelLabel={sidebarMain || ""}
       subtitle={subtitle}
       documents={documents}
       jwt={jwt}
