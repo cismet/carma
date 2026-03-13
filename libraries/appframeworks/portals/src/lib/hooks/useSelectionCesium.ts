@@ -283,8 +283,8 @@ export const useSelectionCesium = (
         flyToCameraHeight: selectionFlyToCameraHeightRef.current,
       };
 
-      if (polygon) {
-        // Area selection - clean up marker first
+      if (polygon && selection.isAreaSelection) {
+        // Pure area selection - highlight bounds, no marker
         if (!skipMarkerUpdate && selectedMarkerData) {
           removeCesiumMarker(scene, selectedMarkerData);
           scene.requestRender();
@@ -301,7 +301,7 @@ export const useSelectionCesium = (
         // Clear flag after adding selection
         shouldAddSelectionInCesiumRef.current = false;
       } else {
-        // Point selection - clean up area primitives first
+        // Point selection (with or without polygon) - add marker, no polygon highlight
         if (!skipMarkerUpdate) {
           removeGroundPrimitiveById(scene, SELECTED_POLYGON_ID);
           removeGroundPrimitiveById(scene, INVERTED_SELECTED_POLYGON_ID);
