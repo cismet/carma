@@ -2,7 +2,7 @@ import { useState, useCallback, useMemo, useEffect } from "react";
 import { useSelector, useDispatch } from "react-redux";
 import dayjs from "dayjs";
 import { featureFormRegistry } from "./index";
-import { getSelectedFeature } from "../../../store/slices/featureCollection";
+import { getSelectedFeature, getFeatureDataVersion } from "../../../store/slices/featureCollection";
 import {
   getDraft,
   getDraftFiles,
@@ -135,9 +135,16 @@ const FeaturesFormsWrapper = ({
 
   const removedDocumentKeys = useMemo(() => new Set(removedDocKeys), [removedDocKeys]);
 
+  const featureDataVersion = useSelector(getFeatureDataVersion);
   const [isEditing, setIsEditing] = useState(false);
   const [resetKey, setResetKey] = useState(0);
   const effectiveReadOnly = readOnlyProp && !isEditing;
+
+  // Exit edit mode when feature data is refetched externally (e.g. Save All)
+  useEffect(() => {
+    setIsEditing(false);
+    setResetKey((prev) => prev + 1);
+  }, [featureDataVersion]);
 
   const deserializedDraftValues = useMemo(
     () => (draft?.values ? deserializeValues(draft.values) : undefined),

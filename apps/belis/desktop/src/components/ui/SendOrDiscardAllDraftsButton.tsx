@@ -10,6 +10,7 @@ import {
   removeDraft,
 } from "../../store/slices/featuresForms";
 import { getJWT } from "../../store/slices/auth";
+import { incrementFeatureDataVersion } from "../../store/slices/featureCollection";
 import { saveAllFeatureDrafts } from "../../helper/featureFormSaveHelpers";
 
 const SendOrDiscardAllDraftsButton = () => {
@@ -42,6 +43,11 @@ const SendOrDiscardAllDraftsButton = () => {
           // Remove successful drafts from Redux
           for (const featureId of result.succeeded) {
             dispatch(removeDraft(featureId));
+          }
+
+          // Trigger refetch of currently displayed feature data
+          if (result.succeeded.length > 0) {
+            dispatch(incrementFeatureDataVersion());
           }
 
           // Show per-failure error messages
