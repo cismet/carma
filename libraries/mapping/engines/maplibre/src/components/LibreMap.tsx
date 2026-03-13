@@ -619,6 +619,12 @@ export const LibreMap = ({
               setSelectedFeature(null);
               mapSelectionCtxRef.current.clearSelection();
 
+              // Unhighlight all 3D layers, then highlight the hit one
+              threeLayers.forEach((l) => l.unhighlight());
+              if (result.resolvedSourceIndex != null) {
+                threeLayer.highlight(result.resolvedSourceIndex);
+              }
+
               if (result.sourceFeature) {
                 const sf = result.sourceFeature;
                 const featureId = {
@@ -640,6 +646,10 @@ export const LibreMap = ({
           }
         }
         // ── end 3D raycast ────────────────────────────────────
+
+        // No 3D hit: clear any 3D highlights
+        const threeLayers2d = get3dLayers(mapInstance);
+        threeLayers2d.forEach((l) => l.unhighlight());
 
         const point = mapInstance.project([e.lngLat.lng, e.lngLat.lat]);
         const hits = mapInstance.queryRenderedFeatures(point);

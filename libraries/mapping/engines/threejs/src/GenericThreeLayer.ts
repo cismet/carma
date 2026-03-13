@@ -47,6 +47,16 @@ export type RebuildFn = (
 //  Generic custom layer (extends CustomLayerInterface)
 // ─────────────────────────────────────────────────────────────
 
+/** Highlight color: bright cyan, stands out against green crowns and brown trunks */
+const HIGHLIGHT_COLOR = new THREE.Color(0x00e5ff);
+
+/** Saved state for restoring instance colors after unhighlight */
+interface HighlightState {
+  meshes: THREE.InstancedMesh[];
+  instanceId: number;
+  savedColors: THREE.Color[];
+}
+
 /** Result of a debug raycast against the 3D scene. */
 export interface RaycastDebugResult {
   /** NDC coordinates used */
@@ -62,6 +72,8 @@ export interface RaycastDebugResult {
   }>;
   /** Resolved source feature (if the hit could be mapped back) */
   sourceFeature?: SourceFeatureData;
+  /** Resolved source index into _sourceFeatures (for highlight) */
+  resolvedSourceIndex?: number;
 }
 
 export interface GenericCustomLayer extends CustomLayerInterface {
@@ -81,9 +93,15 @@ export interface GenericCustomLayer extends CustomLayerInterface {
   _hasRendered: boolean;
   /** Raw source features (from querySourceFeatures, deduplicated). Parallel to _features via _sourceIndex. */
   _sourceFeatures: SourceFeatureData[];
+  /** Current highlight state (for restoring colors on unhighlight) */
+  _highlightState: HighlightState | null;
   rebuild(): void;
   /** Debug raycast: test a screen point against the 3D scene. */
   raycast(screenX: number, screenY: number): RaycastDebugResult | null;
+  /** Highlight all instanced mesh parts (crown + trunk) for a given sourceIndex */
+  highlight(sourceIndex: number): void;
+  /** Restore previously highlighted instances to their original colors */
+  unhighlight(): void;
 }
 
 /** Minimal snapshot of a source feature for selection forwarding. */
@@ -127,6 +145,7 @@ export function buildGenericLayer(
     _rebuildFn: rebuildFn,
     _hasRendered: false,
     _sourceFeatures: [],
+    _highlightState: null,
 
     onAdd(
       map: MaplibreMap,
@@ -306,6 +325,7 @@ export function buildGenericLayer(
         }
 
         if (srcIdx != null) {
+          result.resolvedSourceIndex = srcIdx;
           const srcFeature = this._sourceFeatures[srcIdx];
           if (srcFeature) {
             result.sourceFeature = srcFeature;
@@ -323,6 +343,54 @@ export function buildGenericLayer(
       }
 
       return result;
+    },
+
+    highlight(sourceIndex: number) {
+      this.unhighlight();
+
+      const meshes: THREE.InstancedMesh[] = [];
+      const savedColors: THREE.Color[] = [];
+      let foundInstanceId = -1;
+
+      for (const child of this.scene.children) {
+        const im = child as THREE.InstancedMesh;
+        if (!im.isInstancedMesh) continue;
+        const indices = im.userData.sourceIndices as number[] | undefined;
+        if (!indices) continue;
+
+        const instId = indices.indexOf(sourceIndex);
+        if (instId === -1) continue;
+
+        foundInstanceId = instId;
+
+        // Save original color and apply highlight
+        const original = new THREE.Color();
+        im.getColorAt(instId, original);
+        savedColors.push(original.clone());
+
+        im.setColorAt(instId, HIGHLIGHT_COLOR);
+        im.instanceColor!.needsUpdate = true;
+        meshes.push(im);
+      }
+
+      if (meshes.length > 0) {
+        this._highlightState = { meshes, instanceId: foundInstanceId, savedColors };
+        console.log("[3D-SELECT] highlighted sourceIndex", sourceIndex, "instanceId", foundInstanceId, "across", meshes.length, "meshes");
+        this.map.triggerRepaint();
+      }
+    },
+
+    unhighlight() {
+      if (!this._highlightState) return;
+
+      const { meshes, instanceId, savedColors } = this._highlightState;
+      for (let i = 0; i < meshes.length; i++) {
+        meshes[i].setColorAt(instanceId, savedColors[i]);
+        meshes[i].instanceColor!.needsUpdate = true;
+      }
+      console.log("[3D-SELECT] unhighlighted instanceId", instanceId, "across", meshes.length, "meshes");
+      this._highlightState = null;
+      this.map.triggerRepaint();
     },
 
     onRemove() {
