@@ -50,11 +50,18 @@ export type RebuildFn = (
 /** Highlight color: bright cyan, stands out against green crowns and brown trunks */
 const HIGHLIGHT_COLOR = new THREE.Color(0x00e5ff);
 
-/** Saved state for restoring instance colors after unhighlight */
+/** Saved state for restoring colors after unhighlight */
 interface HighlightState {
-  meshes: THREE.InstancedMesh[];
+  // Lathe (InstancedMesh) restore data
+  instancedMeshes: THREE.InstancedMesh[];
   instanceId: number;
-  savedColors: THREE.Color[];
+  instanceSavedColors: THREE.Color[];
+  // Loft (merged Mesh) restore data
+  vertexEntries: Array<{
+    mesh: THREE.Mesh;
+    vertexIndices: number[];
+    savedColors: Float32Array; // flat r,g,b per vertex
+  }>;
 }
 
 /** Result of a debug raycast against the 3D scene. */
@@ -348,34 +355,95 @@ export function buildGenericLayer(
     highlight(sourceIndex: number) {
       this.unhighlight();
 
-      const meshes: THREE.InstancedMesh[] = [];
-      const savedColors: THREE.Color[] = [];
+      const instancedMeshes: THREE.InstancedMesh[] = [];
+      const instanceSavedColors: THREE.Color[] = [];
       let foundInstanceId = -1;
 
+      const vertexEntries: HighlightState["vertexEntries"] = [];
+
       for (const child of this.scene.children) {
+        // --- Lathe path: InstancedMesh with sourceIndices ---
         const im = child as THREE.InstancedMesh;
-        if (!im.isInstancedMesh) continue;
-        const indices = im.userData.sourceIndices as number[] | undefined;
-        if (!indices) continue;
+        if (im.isInstancedMesh) {
+          const indices = im.userData.sourceIndices as number[] | undefined;
+          if (!indices) continue;
 
-        const instId = indices.indexOf(sourceIndex);
-        if (instId === -1) continue;
+          const instId = indices.indexOf(sourceIndex);
+          if (instId === -1) continue;
 
-        foundInstanceId = instId;
+          foundInstanceId = instId;
 
-        // Save original color and apply highlight
-        const original = new THREE.Color();
-        im.getColorAt(instId, original);
-        savedColors.push(original.clone());
+          const original = new THREE.Color();
+          im.getColorAt(instId, original);
+          instanceSavedColors.push(original.clone());
 
-        im.setColorAt(instId, HIGHLIGHT_COLOR);
-        im.instanceColor!.needsUpdate = true;
-        meshes.push(im);
+          im.setColorAt(instId, HIGHLIGHT_COLOR);
+          im.instanceColor!.needsUpdate = true;
+          instancedMeshes.push(im);
+          continue;
+        }
+
+        // --- Loft path: regular Mesh with faceRanges ---
+        const mesh = child as THREE.Mesh;
+        if (!mesh.isMesh) continue;
+        const ranges = mesh.userData.faceRanges as
+          | Array<{ faceStart: number; faceEnd: number; sourceIndex: number }>
+          | undefined;
+        if (!ranges) continue;
+
+        const geom = mesh.geometry;
+        const colorAttr = geom.getAttribute("color") as THREE.BufferAttribute | undefined;
+        const indexAttr = geom.getIndex();
+        if (!colorAttr || !indexAttr) continue;
+
+        // Collect unique vertex indices for all matching face ranges
+        const vertexSet = new Set<number>();
+        for (const range of ranges) {
+          if (range.sourceIndex !== sourceIndex) continue;
+          const idxArray = indexAttr.array;
+          for (let i = range.faceStart * 3; i < range.faceEnd * 3; i++) {
+            vertexSet.add(idxArray[i]);
+          }
+        }
+        if (vertexSet.size === 0) continue;
+
+        const vertexIndices = Array.from(vertexSet);
+        const savedColors = new Float32Array(vertexIndices.length * 3);
+        const colorArray = colorAttr.array as Float32Array;
+
+        // Save originals and write highlight color
+        const hr = HIGHLIGHT_COLOR.r;
+        const hg = HIGHLIGHT_COLOR.g;
+        const hb = HIGHLIGHT_COLOR.b;
+        for (let i = 0; i < vertexIndices.length; i++) {
+          const vi = vertexIndices[i];
+          const off = vi * 3;
+          savedColors[i * 3] = colorArray[off];
+          savedColors[i * 3 + 1] = colorArray[off + 1];
+          savedColors[i * 3 + 2] = colorArray[off + 2];
+          colorArray[off] = hr;
+          colorArray[off + 1] = hg;
+          colorArray[off + 2] = hb;
+        }
+        colorAttr.needsUpdate = true;
+
+        vertexEntries.push({ mesh, vertexIndices, savedColors });
+        console.log("[3D-SELECT] Loft highlight: mesh", mesh.name || "(unnamed)", "vertices:", vertexIndices.length);
       }
 
-      if (meshes.length > 0) {
-        this._highlightState = { meshes, instanceId: foundInstanceId, savedColors };
-        console.log("[3D-SELECT] highlighted sourceIndex", sourceIndex, "instanceId", foundInstanceId, "across", meshes.length, "meshes");
+      if (instancedMeshes.length > 0 || vertexEntries.length > 0) {
+        this._highlightState = {
+          instancedMeshes,
+          instanceId: foundInstanceId,
+          instanceSavedColors,
+          vertexEntries,
+        };
+        if (instancedMeshes.length > 0) {
+          console.log("[3D-SELECT] Lathe highlighted sourceIndex", sourceIndex, "instanceId", foundInstanceId, "across", instancedMeshes.length, "meshes");
+        }
+        if (vertexEntries.length > 0) {
+          console.log("[3D-SELECT] Loft highlighted sourceIndex", sourceIndex, "across", vertexEntries.length, "meshes");
+        }
         this.map.triggerRepaint();
       }
     },
@@ -383,12 +451,35 @@ export function buildGenericLayer(
     unhighlight() {
       if (!this._highlightState) return;
 
-      const { meshes, instanceId, savedColors } = this._highlightState;
-      for (let i = 0; i < meshes.length; i++) {
-        meshes[i].setColorAt(instanceId, savedColors[i]);
-        meshes[i].instanceColor!.needsUpdate = true;
+      const { instancedMeshes, instanceId, instanceSavedColors, vertexEntries } =
+        this._highlightState;
+
+      // Restore Lathe (InstancedMesh) colors
+      for (let i = 0; i < instancedMeshes.length; i++) {
+        instancedMeshes[i].setColorAt(instanceId, instanceSavedColors[i]);
+        instancedMeshes[i].instanceColor!.needsUpdate = true;
       }
-      console.log("[3D-SELECT] unhighlighted instanceId", instanceId, "across", meshes.length, "meshes");
+      if (instancedMeshes.length > 0) {
+        console.log("[3D-SELECT] unhighlighted Lathe instanceId", instanceId, "across", instancedMeshes.length, "meshes");
+      }
+
+      // Restore Loft (merged Mesh) vertex colors
+      for (const entry of vertexEntries) {
+        const colorArray = (
+          entry.mesh.geometry.getAttribute("color") as THREE.BufferAttribute
+        ).array as Float32Array;
+        for (let i = 0; i < entry.vertexIndices.length; i++) {
+          const off = entry.vertexIndices[i] * 3;
+          colorArray[off] = entry.savedColors[i * 3];
+          colorArray[off + 1] = entry.savedColors[i * 3 + 1];
+          colorArray[off + 2] = entry.savedColors[i * 3 + 2];
+        }
+        (entry.mesh.geometry.getAttribute("color") as THREE.BufferAttribute).needsUpdate = true;
+      }
+      if (vertexEntries.length > 0) {
+        console.log("[3D-SELECT] unhighlighted Loft across", vertexEntries.length, "meshes");
+      }
+
       this._highlightState = null;
       this.map.triggerRepaint();
     },
