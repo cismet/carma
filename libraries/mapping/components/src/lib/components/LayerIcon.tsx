@@ -6,8 +6,7 @@ import { faLayerGroup, faMap } from "@fortawesome/free-solid-svg-icons";
 import { iconColorMap, iconMap } from "./iconMapping";
 
 const ICON_PREFIX =
-  import.meta.env.VITE_WUPP_ASSET_BASEURL +
-  "/geoportal/geoportal_icon_legends/";
+  "https://geo.wuppertal.de/geoportal/geoportal_icon_legends/";
 
 interface LayerIconProps {
   layer: Layer;
@@ -50,7 +49,9 @@ export const LayerIcon = ({
     layer.other?.icon ||
     layer.conf?.icon ||
     (layer.other?.path && layer.other?.name
-      ? mapIconPath(layer.other.path) + "/" + layer.other.name
+      ? mapIconPath(layer.other?.originalPath ?? layer.other.path) +
+        "/" +
+        layer.other.name
       : undefined);
 
   const isIconUrl = isUrl(layer.other?.icon);

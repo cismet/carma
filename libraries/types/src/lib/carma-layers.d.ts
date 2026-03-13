@@ -172,6 +172,7 @@ export type Item = {
   id: string;
   serviceName: string;
   path?: string;
+  originalPath?: string;
   isDraft?: boolean;
   vectorStyle?: string;
   vectorLegend?: string;
