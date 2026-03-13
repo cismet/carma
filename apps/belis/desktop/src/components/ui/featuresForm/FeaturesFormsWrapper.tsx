@@ -15,6 +15,7 @@ import {
   setOriginalValues,
   getOriginalValues,
   hasDraftChanges,
+  getGlobalEditMode,
 } from "../../../store/slices/featuresForms";
 import type { DokumentItem } from "../DocumentPreview";
 import { ChangedFieldsProvider } from "./DraftFieldHighlight";
@@ -136,9 +137,10 @@ const FeaturesFormsWrapper = ({
   const removedDocumentKeys = useMemo(() => new Set(removedDocKeys), [removedDocKeys]);
 
   const featureDataVersion = useSelector(getFeatureDataVersion);
+  const globalEditMode = useSelector(getGlobalEditMode);
   const [isEditing, setIsEditing] = useState(false);
   const [resetKey, setResetKey] = useState(0);
-  const effectiveReadOnly = readOnlyProp && !isEditing;
+  const effectiveReadOnly = readOnlyProp && !isEditing && !globalEditMode;
 
   // Exit edit mode when feature data is refetched externally (e.g. Save All)
   useEffect(() => {

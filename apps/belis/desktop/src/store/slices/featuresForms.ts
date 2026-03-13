@@ -28,6 +28,7 @@ interface FeaturesFormsState {
   originalValues: Record<string, Record<string, unknown>>;
   loading: Record<string, boolean>;
   errors: Record<string, string | null>;
+  globalEditMode: boolean;
 }
 
 const initialState: FeaturesFormsState = {
@@ -35,6 +36,7 @@ const initialState: FeaturesFormsState = {
   originalValues: {},
   loading: {},
   errors: {},
+  globalEditMode: false,
 };
 
 const featuresFormsSlice = createSlice({
@@ -167,6 +169,12 @@ const featuresFormsSlice = createSlice({
         existing.featureDbId = featureDbId;
       }
     },
+    setGlobalEditMode(state, action: PayloadAction<boolean>) {
+      state.globalEditMode = action.payload;
+    },
+    toggleGlobalEditMode(state) {
+      state.globalEditMode = !state.globalEditMode;
+    },
     setRemovedDocumentKeys(
       state,
       action: PayloadAction<{
@@ -216,6 +224,8 @@ export const {
   setDraftFiles,
   setDraftDocumentsInfo,
   setRemovedDocumentKeys,
+  setGlobalEditMode,
+  toggleGlobalEditMode,
 } = featuresFormsSlice.actions;
 
 // Selectors
@@ -305,6 +315,9 @@ export const getAllDraftFeatures = (state: RootState) => {
 };
 
 // Get count of drafts that have a stored feature
+export const getGlobalEditMode = (state: RootState): boolean =>
+  state.featuresForms?.globalEditMode ?? false;
+
 export const getDraftFeaturesCount = (state: RootState) =>
   Object.values(state.featuresForms?.drafts ?? {}).filter((d) => d.feature != null).length;
 
