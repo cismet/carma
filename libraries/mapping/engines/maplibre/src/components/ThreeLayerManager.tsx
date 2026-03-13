@@ -165,6 +165,12 @@ export function ThreeLayerManager({
     };
     map.on("sourcedata", handleSourceData);
 
+    // Force rebuild when terrain is toggled so elevation is applied/removed
+    const handleTerrain = () => {
+      trySync();
+    };
+    map.on("terrain", handleTerrain);
+
     // Sync immediately if the map is already idle
     if (map.isStyleLoaded()) {
       trySync();
@@ -175,6 +181,7 @@ export function ThreeLayerManager({
     return () => {
       map.off("moveend", trySync);
       map.off("sourcedata", handleSourceData);
+      map.off("terrain", handleTerrain);
       if (perfRef) {
         perfRef.current = EMPTY_PERF;
       }

@@ -10,6 +10,7 @@ export interface FieldMapping {
   outerRadiusField?: string;
   colorField?: string;
   ringField?: string;
+  elevationField?: string;
 }
 
 /** Describes one visual type (e.g. "CONICAL" tree crown shape). */
@@ -41,6 +42,7 @@ export interface MappedFeature {
   type: string;
   lng: number;
   lat: number;
+  elevation: number;
   heightVar: number;
   diameterVar: number;
   rotation: number;

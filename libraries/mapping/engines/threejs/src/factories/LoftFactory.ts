@@ -112,8 +112,9 @@ function buildMergedGeometry(
     const crownH = totalH - trunkH;
 
     // Position in scene-local meters
-    const mrc = MercatorCoordinate.fromLngLat([tree.lng, tree.lat], 0);
+    const mrc = MercatorCoordinate.fromLngLat([tree.lng, tree.lat], tree.elevation);
     const bx = (mrc.x - originMerc.x) / mScale;
+    const by = (mrc.z - originMerc.z) / mScale;
     const bz = (mrc.y - originMerc.y) / mScale;
 
     // Ring coordinates to local meter offsets
@@ -135,7 +136,7 @@ function buildMergedGeometry(
     for (let s = 0; s < numSlices; s++) {
       const t = s / (numSlices - 1);
       const sc = profileFn(t);
-      const y = trunkH + t * crownH;
+      const y = by + trunkH + t * crownH;
 
       for (let r = 0; r < nR; r++) {
         const dx = rl[r * 2] * sc;
@@ -162,7 +163,7 @@ function buildMergedGeometry(
     const tipI = cv + numSlices * nR;
     let v3 = tipI * 3;
     cP[v3] = bx;
-    cP[v3 + 1] = trunkH + crownH;
+    cP[v3 + 1] = by + trunkH + crownH;
     cP[v3 + 2] = bz;
     cN[v3] = 0;
     cN[v3 + 1] = 1;
@@ -175,7 +176,7 @@ function buildMergedGeometry(
     const btmI = tipI + 1;
     v3 = btmI * 3;
     cP[v3] = bx;
-    cP[v3 + 1] = trunkH;
+    cP[v3 + 1] = by + trunkH;
     cP[v3 + 2] = bz;
     cN[v3] = 0;
     cN[v3 + 1] = -1;
@@ -226,7 +227,7 @@ function buildMergedGeometry(
     tc.offsetHSL(0, 0, Math.random() * 0.04 - 0.02);
 
     for (let half = 0; half < 2; half++) {
-      const y = half === 0 ? 0 : trunkH;
+      const y = half === 0 ? by : by + trunkH;
       const rad = half === 0 ? tR * 1.2 : tR;
       for (let seg = 0; seg < TSEG; seg++) {
         const ang = (seg / TSEG) * Math.PI * 2;
@@ -250,7 +251,7 @@ function buildMergedGeometry(
     const tci = bci + 1;
     v3 = bci * 3;
     tP[v3] = bx;
-    tP[v3 + 1] = 0;
+    tP[v3 + 1] = by;
     tP[v3 + 2] = bz;
     tN[v3] = 0;
     tN[v3 + 1] = -1;
@@ -260,7 +261,7 @@ function buildMergedGeometry(
     tC[v3 + 2] = tc.b;
     v3 = tci * 3;
     tP[v3] = bx;
-    tP[v3 + 1] = trunkH;
+    tP[v3 + 1] = by + trunkH;
     tP[v3 + 2] = bz;
     tN[v3] = 0;
     tN[v3 + 1] = 1;

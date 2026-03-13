@@ -129,16 +129,17 @@ export function buildLatheInstances(
 
       const treeMerc = MercatorCoordinate.fromLngLat(
         [feat.lng, feat.lat],
-        0,
+        feat.elevation,
       );
       const dxMeters = (treeMerc.x - originMerc.x) / mScale;
       const dyMeters = (treeMerc.y - originMerc.y) / mScale;
+      const dzMeters = (treeMerc.z - originMerc.z) / mScale;
 
       const sx = feat.diameterVar;
       const sy = feat.heightVar;
       const sz = feat.diameterVar;
 
-      dummy.position.set(dxMeters, 0, dyMeters);
+      dummy.position.set(dxMeters, dzMeters, dyMeters);
       dummy.scale.set(sx, sy, sz);
       dummy.rotation.set(0, feat.rotation, 0);
       dummy.updateMatrix();

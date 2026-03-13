@@ -8,3 +8,8 @@
 	url = https://github.com/cismet-collab/carma-pecher-collab.git
 	branch = main
 	ignore = all
+[submodule "libraries/collaboration/carma-cage/cage-submodule"]
+	path = libraries/collaboration/carma-cage/cage-submodule
+	url = git@github.com:cismet/cage.git
+	branch = dev
+	ignore = all

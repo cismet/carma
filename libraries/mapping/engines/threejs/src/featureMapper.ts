@@ -91,10 +91,15 @@ export function mapFeatures(
       }
     }
 
+    const elevation = fields.elevationField
+      ? parseFloat(props[fields.elevationField] as string) || 0
+      : 0;
+
     result.push({
       type,
       lng,
       lat,
+      elevation,
       heightVar,
       diameterVar,
       rotation: Math.random() * Math.PI * 2,

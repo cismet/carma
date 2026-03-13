@@ -58,6 +58,7 @@ export interface GenericCustomLayer extends CustomLayerInterface {
   _stats: FactoryStats;
   _lastFeatureCount: number;
   _lastRadiusMix: number;
+  _lastTerrain: boolean;
   _config: Carma3dConfig;
   _rebuildFn: RebuildFn;
   rebuild(): void;
@@ -90,6 +91,7 @@ export function buildGenericLayer(
     _stats: { treeCount: 0, triangles: 0, drawCalls: 0 },
     _lastFeatureCount: 0,
     _lastRadiusMix: -1,
+    _lastTerrain: false,
     _config: config,
     _rebuildFn: rebuildFn,
 
@@ -213,17 +215,27 @@ export function syncGenericLayerFromSource(
   const unique = deduplicateFeatures(features as never[]);
   const mapped = mapFeatures(unique, config, radiusMix);
 
-  // Skip rebuild if neither feature count nor radius mix changed
+  // Only apply elevation when terrain is active
+  const hasTerrain = map.getTerrain() != null;
+  if (!hasTerrain) {
+    for (const f of mapped) {
+      f.elevation = 0;
+    }
+  }
+
+  // Skip rebuild if nothing changed
   if (
     mapped.length === layer._features.length &&
     mapped.length > 0 &&
-    radiusMix === layer._lastRadiusMix
+    radiusMix === layer._lastRadiusMix &&
+    hasTerrain === layer._lastTerrain
   ) {
     return null;
   }
 
   layer._features = mapped;
   layer._lastRadiusMix = radiusMix;
+  layer._lastTerrain = hasTerrain;
 
   const t0 = performance.now();
   layer.rebuild();
