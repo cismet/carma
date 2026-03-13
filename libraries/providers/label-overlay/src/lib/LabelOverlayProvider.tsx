@@ -165,6 +165,12 @@ export const LabelOverlayProvider: React.FC<LabelOverlayProviderProps> = ({
       const lineLabelTextEl = elementDiv.querySelector(
         '[data-line-visualizer-text="true"]'
       ) as SVGTextElement | null;
+      const anchoredLabelTextEl = elementDiv.querySelector(
+        '[data-anchored-label-text="true"]'
+      ) as HTMLSpanElement | null;
+      const anchoredLabelRootEl = elementDiv.querySelector(
+        '[data-anchored-label-root="true"]'
+      ) as HTMLDivElement | null;
       const snapshot = [
         elementDiv.style.display,
         elementDiv.style.left,
@@ -174,6 +180,8 @@ export const LabelOverlayProvider: React.FC<LabelOverlayProviderProps> = ({
         lineLabelTextEl?.getAttribute("y") ?? "",
         lineLabelTextEl?.getAttribute("transform") ?? "",
         lineLabelTextEl?.style.display ?? "",
+        anchoredLabelRootEl?.style.transform ?? "",
+        anchoredLabelTextEl?.style.visibility ?? "",
       ].join("|");
 
       const previousSnapshot = overlayDebugSnapshotByIdRef.current.get(id);

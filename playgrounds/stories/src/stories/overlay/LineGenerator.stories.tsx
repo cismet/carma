@@ -7,10 +7,12 @@ import type {
 import type { Meta, StoryObj } from "@storybook/react";
 import type { CssPixelPosition } from "@carma/units/types";
 import {
-  LabelOverlayProvider,
   createScreenPointSvgLineVisualizers,
-  useLineVisualizers,
   type SvgLineCapStyle,
+} from "@carma-commons/svg";
+import {
+  LabelOverlayProvider,
+  useLineVisualizers,
 } from "@carma-providers/label-overlay";
 
 type LineGeneratorStoryArgs = {
@@ -1243,7 +1245,7 @@ const RepresentativeCasesStory = ({
 };
 
 const meta: Meta<LineGeneratorStoryArgs> = {
-  title: "Overlay/Line Generator",
+  title: "SVG/Line Generator",
   component: LiveLineGeneratorStory,
   parameters: {
     layout: "fullscreen",
