@@ -5,6 +5,7 @@ import {
   setSelectedFeature,
   setFeatureLoading,
   getSelectedFeature as getReduxSelectedFeature,
+  getFeatureDataVersion,
 } from "../../store/slices/featureCollection";
 import {
   getActiveBackgroundLayer,
@@ -79,6 +80,7 @@ const BelisMapLibWrapper = ({
 }: BelisMapLibWrapperProps) => {
   const dispatch: AppDispatch = useDispatch();
   const jwt = useSelector(getJWT);
+  const featureDataVersion = useSelector(getFeatureDataVersion);
   const reduxSelectedFeature = useSelector(getReduxSelectedFeature);
   // Ref for geometry fallback in override effect — avoids adding
   // reduxSelectedFeature to deps (which would cause spurious re-fires).
@@ -637,7 +639,7 @@ const BelisMapLibWrapper = ({
     };
 
     fetchData();
-  }, [selectedFeature, selectedFeatureId, jwt]);
+  }, [selectedFeature, selectedFeatureId, jwt, featureDataVersion]);
 
   // Check if selected feature is inside visible map boundary.
   // When not visible, auto-open the datasheet to show NoFeatureSelected.
