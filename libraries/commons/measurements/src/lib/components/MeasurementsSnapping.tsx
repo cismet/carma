@@ -497,8 +497,21 @@ export function MeasurementsSnapping({
         }
       };
 
+      // Clear stale snapping state when zooming below threshold
+      const zoomendHandler = () => {
+        const currentZoom = leafletMap.getZoom();
+        if (currentZoom < config.snappingMinZoom) {
+          clearBlackPoint();
+          if (setSnappingLatlng) {
+            setSnappingLatlng(null);
+          }
+          lastSnappedCoordRef.current = null;
+        }
+      };
+
       leafletMap.on("mousemove", mousemoveHandler);
       leafletMap.on("mouseout", mouseoutHandler);
+      leafletMap.on("zoomend", zoomendHandler);
 
       // Phase 4: Show snap indicator during vertex drag
       const vertexDragHandler = (e: any) => {
@@ -793,6 +806,10 @@ export function MeasurementsSnapping({
       const mouseupHandler = (event: MouseEvent) => {
         // Only adjust if snapping is enabled
         if (snappingEnabledRef.current) {
+          const currentZoom = leafletMap.getZoom();
+          if (currentZoom < config.snappingMinZoom) {
+            return;
+          }
           const snapPoint = closestPointRef.current;
           adjustClickPosition(
             event,
@@ -815,6 +832,7 @@ export function MeasurementsSnapping({
       return () => {
         leafletMap.off("mousemove", mousemoveHandler);
         leafletMap.off("mouseout", mouseoutHandler);
+        leafletMap.off("zoomend", zoomendHandler);
         leafletMap.off("editable:vertex:drag", vertexDragHandler);
         leafletMap.off("editable:vertex:dragend", vertexDragEndHandler);
         mapContainer.removeEventListener("mouseup", mouseupHandler, true);
