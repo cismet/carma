@@ -27,6 +27,10 @@ export {
   LineVisualizer,
   type LineVisualizerProps,
 } from "./lib/components/LineVisualizer";
+export {
+  AnchoredLabelVisualizer,
+  type AnchoredLabelVisualizerProps,
+} from "./lib/components/AnchoredLabelVisualizer";
 export { usePointLabels, type PointLabelData } from "./lib/usePointLabels";
 export {
   useLineVisualizers,
@@ -44,4 +48,14 @@ export {
   type CreateSvgLineVisualizerOptions,
   type CreateScreenPointSvgLineVisualizerOptions,
 } from "./lib/utils/lineVisualizerGenerator";
+export {
+  computePolygonScreenWindingOrder,
+  computePolygonSegmentLabelPlacements,
+  type PolygonSegmentLabelSide,
+  type PolygonSegmentLabelRotationMode,
+  type PolygonSegmentLabelWindingOrder,
+  type PolygonSegmentLabelWindingPolicy,
+  type PolygonSegmentLabelPlacement,
+  type ComputePolygonSegmentLabelPlacementsOptions,
+} from "./lib/utils/polygonSegmentLabeler";
 export * from "./lib/pointLabelLayout";

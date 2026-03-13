@@ -8,29 +8,9 @@ export interface LineVisualizerProps {
   strokeDashoffset?: number;
   opacity?: number;
   hitTargetStrokeWidth?: number;
-  labelText?: string;
-  labelColor?: string;
-  labelStroke?: string;
-  labelFontSize?: number;
-  labelFontFamily?: string;
-  labelFontWeight?: string | number;
-  labelPill?: boolean;
-  labelPillBackgroundColor?: string;
-  labelPillBorderColor?: string;
-  labelPillBorderWidth?: number;
-  labelDominantBaseline?:
-    | "middle"
-    | "central"
-    | "text-before-edge"
-    | "text-after-edge"
-    | "alphabetic"
-    | "hanging"
-    | "ideographic"
-    | "auto";
   onLineClick?: () => void;
   onLineLongPress?: () => void;
   longPressDurationMs?: number;
-  onLabelClick?: () => void;
 }
 
 export const LineVisualizer = React.memo(
@@ -42,21 +22,9 @@ export const LineVisualizer = React.memo(
     strokeDashoffset = 0,
     opacity = 1,
     hitTargetStrokeWidth,
-    labelText,
-    labelColor = "#000000",
-    labelStroke = "rgba(255, 255, 255, 0.95)",
-    labelFontSize = 12,
-    labelFontFamily = "Arial, sans-serif",
-    labelFontWeight = "400",
-    labelPill = false,
-    labelPillBackgroundColor = "rgba(200, 200, 200, 0.72)",
-    labelPillBorderColor = "rgba(255, 255, 255, 0.95)",
-    labelPillBorderWidth = 1,
-    labelDominantBaseline = "middle",
     onLineClick,
     onLineLongPress,
     longPressDurationMs = 300,
-    onLabelClick,
   }: LineVisualizerProps) => {
     const longPressTimerRef = useRef<ReturnType<typeof setTimeout> | null>(
       null
@@ -91,9 +59,6 @@ export const LineVisualizer = React.memo(
     const isInteractive =
       typeof onLineClick === "function" ||
       typeof onLineLongPress === "function";
-    const isLabelInteractive =
-      typeof onLabelClick === "function" || isInteractive;
-    const showPill = Boolean(labelPill && labelText);
 
     return (
       <svg
@@ -151,47 +116,6 @@ export const LineVisualizer = React.memo(
           onPointerLeave={clearLongPressTimer}
           onPointerCancel={clearLongPressTimer}
         />
-        <text
-          data-line-visualizer-text-pill="true"
-          x="0"
-          y="0"
-          width="0"
-          height="0"
-          rx="0"
-          ry="0"
-          fill={labelPillBackgroundColor}
-          stroke={labelPillBorderColor}
-          strokeWidth={labelPillBorderWidth}
-          style={{
-            userSelect: "none",
-            pointerEvents: showPill && isLabelInteractive ? "auto" : "none",
-            cursor: showPill && isLabelInteractive ? "pointer" : "default",
-            display: "none",
-          }}
-          onClick={showPill ? onLabelClick ?? handleLineClick : undefined}
-        />
-        <text
-          data-line-visualizer-text="true"
-          x="0"
-          y="0"
-          textAnchor="middle"
-          dominantBaseline={labelDominantBaseline}
-          fill={labelColor}
-          stroke={labelStroke}
-          strokeWidth={3}
-          paintOrder="stroke"
-          fontSize={labelFontSize}
-          fontFamily={labelFontFamily}
-          fontWeight={labelFontWeight}
-          style={{
-            userSelect: "none",
-            pointerEvents: isLabelInteractive ? "auto" : "none",
-            cursor: isLabelInteractive ? "pointer" : "default",
-          }}
-          onClick={onLabelClick ?? handleLineClick}
-        >
-          {labelText ?? ""}
-        </text>
       </svg>
     );
   }
