@@ -1,7 +1,15 @@
+import { useState } from "react";
 import { EditOutlined, ExclamationCircleOutlined } from "@ant-design/icons";
 import { Badge, Button, Spin, Tooltip } from "antd";
-import { useSelector } from "react-redux";
-import { getDraftFeaturesCount } from "../../../store/slices/featuresForms";
+import { useSelector, useDispatch } from "react-redux";
+import {
+  getDraftFeaturesCount,
+  getAllDrafts,
+  removeDraft,
+} from "../../../store/slices/featuresForms";
+import { getJWT } from "../../../store/slices/auth";
+import { incrementFeatureDataVersion } from "../../../store/slices/featureCollection";
+import { handleSaveAllDrafts } from "../../../helper/featureFormSaveHelpers";
 
 interface FormHeaderProps {
   title: string;
@@ -28,7 +36,23 @@ const FormHeader = ({
   hasDraft,
   onToggleReadOnly,
 }: FormHeaderProps) => {
+  const dispatch = useDispatch();
   const draftsCount = useSelector(getDraftFeaturesCount);
+  const drafts = useSelector(getAllDrafts);
+  const jwt = useSelector(getJWT);
+  const [savingAll, setSavingAll] = useState(false);
+
+  const handleSaveAll = () => {
+    handleSaveAllDrafts({
+      jwt,
+      drafts,
+      draftCount: draftsCount,
+      setSaving: setSavingAll,
+      dispatch,
+      removeDraft,
+      incrementFeatureDataVersion,
+    });
+  };
 
   return (
     <div className="flex flex-col border-b border-gray-100">
@@ -89,7 +113,11 @@ const FormHeader = ({
                   fontSize: 11,
                 }}
               >
-                <Button type="primary" onClick={onSave} loading={saving}>
+                <Button
+                  type="primary"
+                  onClick={draftsCount > 1 ? handleSaveAll : onSave}
+                  loading={draftsCount > 1 ? savingAll : saving}
+                >
                   Speichern
                 </Button>
               </Badge>
