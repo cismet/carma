@@ -191,7 +191,7 @@ const MainPage = () => {
           extra={
             <div className="flex items-center gap-4">
               {/* Cancel all drafts */}
-              {/* <SendOrDiscardAllDraftsButton /> */}
+              <SendOrDiscardAllDraftsButton />
 
               {/* Search */}
               <div className="flex items-center gap-2">

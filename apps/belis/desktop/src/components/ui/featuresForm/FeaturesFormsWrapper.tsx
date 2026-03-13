@@ -1,4 +1,4 @@
-import { useState, useCallback, useMemo } from "react";
+import { useState, useCallback, useMemo, useEffect } from "react";
 import { useSelector, useDispatch } from "react-redux";
 import dayjs from "dayjs";
 import { featureFormRegistry } from "./index";
@@ -9,12 +9,14 @@ import {
   getRemovedDocumentKeys,
   setDraft,
   setDraftFiles,
+  setDraftDocumentsInfo,
   setRemovedDocumentKeys,
   removeDraft,
   setOriginalValues,
   getOriginalValues,
   hasDraftChanges,
 } from "../../../store/slices/featuresForms";
+import type { DokumentItem } from "../DocumentPreview";
 import { ChangedFieldsProvider } from "./DraftFieldHighlight";
 import type { DraftFile } from "../../../store/slices/featuresForms";
 import type { RootState } from "../../../store";
@@ -64,6 +66,16 @@ interface FeaturesFormsWrapperProps {
   readOnly?: boolean;
   loading?: boolean;
 }
+
+// Map form key to the GraphQL response key used to extract dokumenteArray
+const formKeyToGraphqlKey: Record<string, string> = {
+  leuchte: "tdta_leuchten",
+  standort: "tdta_standort_mast",
+  leitung: "leitung",
+  schaltstelle: "schaltstelle",
+  mauerlasche: "mauerlasche",
+  abzweigdose: "abzweigdose",
+};
 
 // Map sourceLayer values to registry keys
 const featureTypeToFormKey: Record<string, string> = {
@@ -134,6 +146,23 @@ const FeaturesFormsWrapper = ({
 
   const formKey = featureType ? featureTypeToFormKey[featureType] : undefined;
   const FormComponent = formKey ? featureFormRegistry[formKey] : undefined;
+
+  // Keep draft's existingDocuments and featureDbId in sync with server data.
+  // Only updates when a draft already exists (avoids creating ghost drafts).
+  useEffect(() => {
+    if (!featureId || !formKey || !draft || !data) return;
+    const graphqlKey = formKeyToGraphqlKey[formKey];
+    if (!graphqlKey) return;
+    const dataObj = data as Record<string, unknown>;
+    const arr = dataObj[graphqlKey] as Array<Record<string, unknown>> | undefined;
+    const firstItem = arr?.[0];
+    if (!firstItem) return;
+    const docs = (firstItem.dokumenteArray as DokumentItem[]) ?? [];
+    const dbId = firstItem.id as number | undefined;
+    if (dbId != null) {
+      dispatch(setDraftDocumentsInfo({ featureId, existingDocuments: docs, featureDbId: dbId }));
+    }
+  }, [featureId, formKey, data, draft, dispatch]);
 
   const handleToggleReadOnly = useCallback(() => {
     setIsEditing((prev) => !prev);
