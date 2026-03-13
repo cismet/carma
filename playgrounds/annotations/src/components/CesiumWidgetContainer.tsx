@@ -180,6 +180,7 @@ const initializeWidget = (
   useBrowserRecommendedResolution = false
 ): CesiumWidget => {
   const widget = createMinimalCesiumWidget(container, {
+    requestRenderMode: true,
     useBrowserRecommendedResolution,
   });
   const position = Cartesian3.fromDegrees(

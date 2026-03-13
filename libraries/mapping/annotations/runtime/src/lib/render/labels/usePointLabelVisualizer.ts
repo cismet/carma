@@ -19,11 +19,11 @@ import {
 } from "@carma/cesium";
 
 import {
+  createSvgLineVisualizers,
   computePointLabelLayout,
   resolvePointLabelLayoutConfig,
   useLineVisualizers,
   usePointLabels,
-  type LineVisualizerData,
   type LayoutPointInput,
   type PointLabelData,
   type PointLabelLayoutConfigOverrides,
@@ -41,7 +41,10 @@ import {
 import type { AnnotationPointMarkerBadge } from "../useRender";
 import type { AnnotationSelectionState } from "../../selection/types/annotationSelection.types";
 
-import { useCesiumSceneVisibilityIndex } from "@carma-mapping/annotations/cesium";
+import {
+  projectCartesian3JsonToScreen,
+  useCesiumSceneVisibilityIndex,
+} from "@carma-mapping/annotations/cesium";
 
 const ELEVATION_NEUTRAL_THRESHOLD_METERS = 0.03;
 const REFERENCE_POINT_DISTANCE_EPSILON_METERS = 0.001;
@@ -1198,48 +1201,39 @@ export const usePointLabelVisualizer = (
     showLabels,
   ]);
 
-  const verticalOffsetStemLines = useMemo<LineVisualizerData[]>(() => {
+  const verticalOffsetStemLines = useMemo(() => {
     if (!scene || scene.isDestroyed()) return [];
-    return points
-      .map((point) => {
-        const anchor = point.verticalOffsetAnchorECEF;
-        if (!anchor) return null;
-        const anchorECEF = new Cartesian3(anchor.x, anchor.y, anchor.z);
-        return {
-          id: `point-vertical-offset-stem-${point.id}`,
-          stroke: "rgba(255, 255, 255, 1)",
-          strokeWidth: 2,
-          strokeDasharray: "0 3",
-          strokeDashoffset: 0,
-          opacity: 0.9,
-          visible: true,
-          onLineLongPress: onPointVerticalOffsetStemLongPress
-            ? () => onPointVerticalOffsetStemLongPress(point.id)
-            : undefined,
-          longPressDurationMs: pointLongPressDurationMs,
-          getCanvasLine: () => {
-            if (!scene || scene.isDestroyed()) {
-              return null;
-            }
-            const start = SceneTransforms.worldToWindowCoordinates(
-              scene,
-              point.geometryECEF
-            );
-            const end = SceneTransforms.worldToWindowCoordinates(
-              scene,
-              anchorECEF
-            );
-            if (!defined(start) || !defined(end)) {
-              return null;
-            }
-            return {
-              start: { x: start.x, y: start.y } as CssPixelPosition,
-              end: { x: end.x, y: end.y } as CssPixelPosition,
-            };
-          },
-        } as LineVisualizerData;
-      })
-      .filter((line): line is LineVisualizerData => Boolean(line));
+    return points.flatMap((point) => {
+      const anchor = point.verticalOffsetAnchorECEF;
+      if (!anchor) return [];
+      return createSvgLineVisualizers({
+        id: `point-vertical-offset-stem-${point.id}`,
+        stroke: "rgba(255, 255, 255, 1)",
+        strokeWidth: 2,
+        dashed: true,
+        dashLengthRatio: 0.25,
+        opacity: 0.9,
+        visible: true,
+        onLineLongPress: onPointVerticalOffsetStemLongPress
+          ? () => onPointVerticalOffsetStemLongPress(point.id)
+          : undefined,
+        longPressDurationMs: pointLongPressDurationMs,
+        getSvgLine: () => {
+          const start = projectCartesian3JsonToScreen(
+            scene,
+            point.geometryECEF
+          );
+          const end = projectCartesian3JsonToScreen(scene, anchor);
+          if (!start || !end) {
+            return null;
+          }
+          return {
+            start: { x: start.x, y: start.y } as CssPixelPosition,
+            end: { x: end.x, y: end.y } as CssPixelPosition,
+          };
+        },
+      });
+    });
   }, [
     onPointVerticalOffsetStemLongPress,
     pointLongPressDurationMs,
