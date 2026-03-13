@@ -19,9 +19,14 @@ import { getJWT } from "../../store/slices/auth";
 import { ENDPOINT } from "../../constants/belis";
 import { getFromUTM32ToWGS84 } from "@carma/geo/proj";
 import { BELIS_FILTER_CATEGORIES } from "../../config/mapLayerConfigs";
-import { message, Spin, Switch } from "antd";
+import { Button, message, Spin, Switch, Tooltip } from "antd";
+import { EditOutlined, LockOutlined } from "@ant-design/icons";
 import DraftsBadge from "../ui/DraftsBadge";
 import SendOrDiscardAllDraftsButton from "../ui/SendOrDiscardAllDraftsButton";
+import {
+  getGlobalEditMode,
+  toggleGlobalEditMode,
+} from "../../store/slices/featuresForms";
 import {
   getKeyTablesLoading,
   getKeyTablesFetched,
@@ -61,6 +66,7 @@ const MainPage = () => {
     SidebarFeature[] | null
   >(null);
   const [lassoActive, setLassoActive] = useState(false);
+  const globalEditMode = useSelector(getGlobalEditMode);
 
   const { map } = useLibreContext();
 
@@ -186,7 +192,19 @@ const MainPage = () => {
     <Spin spinning={keyTablesLoading}>
       <div className="mx-3 mt-1">
         <CustomCard
-          title={isDatasheetOpen ? "Datenblatt" : "Karte"}
+          title={
+            <div className="flex items-center gap-2">
+              <span>{isDatasheetOpen ? "Datenblatt" : "Karte"}</span>
+              <Tooltip title={globalEditMode ? "Bearbeitung sperren" : "Alle bearbeiten"}>
+                <Button
+                  icon={globalEditMode ? <LockOutlined /> : <EditOutlined />}
+                  type={globalEditMode ? "primary" : "default"}
+                  size="small"
+                  onClick={() => dispatch(toggleGlobalEditMode())}
+                />
+              </Tooltip>
+            </div>
+          }
           style={{ marginBottom: "8px" }}
           extra={
             <div className="flex items-center gap-4">
