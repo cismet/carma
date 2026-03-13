@@ -295,6 +295,7 @@ const SchaltstelleForm = ({
   return (
     <FeatureFormLayout
       title={sidebarMain ? `Schaltstelle ${sidebarMain}` : "Schaltstelle"}
+      cancelLabel={sidebarMain || ""}
       subtitle={subtitle}
       documents={documents}
       jwt={jwt}

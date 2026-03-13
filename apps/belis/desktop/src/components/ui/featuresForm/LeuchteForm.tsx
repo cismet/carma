@@ -344,6 +344,7 @@ const LeuchteForm = ({
   return (
     <FeatureFormLayout
       title={sidebarMain ? `Leuchte ${sidebarMain}` : "Leuchte"}
+      cancelLabel={sidebarMain || ""}
       subtitle={subtitle}
       documents={documents}
       mainDocumentsTitle="Leuchte"
