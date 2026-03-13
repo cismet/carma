@@ -32,4 +32,16 @@ export {
   useLineVisualizers,
   type LineVisualizerData,
 } from "./lib/useLineVisualizers";
+export {
+  createSvgLineVisualizers,
+  createScreenPointSvgLineVisualizers,
+  createSvgLineVisualizer,
+  createScreenPointSvgLineVisualizer,
+  getScreenPointDistance,
+  type SvgLineCapStyle,
+  type CreateSvgLineVisualizersOptions,
+  type CreateScreenPointSvgLineVisualizersOptions,
+  type CreateSvgLineVisualizerOptions,
+  type CreateScreenPointSvgLineVisualizerOptions,
+} from "./lib/utils/lineVisualizerGenerator";
 export * from "./lib/pointLabelLayout";

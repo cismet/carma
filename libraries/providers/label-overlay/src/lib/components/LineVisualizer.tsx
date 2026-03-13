@@ -3,6 +3,7 @@ import React, { useCallback, useRef } from "react";
 export interface LineVisualizerProps {
   stroke?: string;
   strokeWidth?: number;
+  strokeLinecap?: "butt" | "round" | "square";
   strokeDasharray?: string;
   strokeDashoffset?: number;
   opacity?: number;
@@ -36,6 +37,7 @@ export const LineVisualizer = React.memo(
   ({
     stroke = "rgba(255, 255, 255, 0.9)",
     strokeWidth = 1.5,
+    strokeLinecap = "round",
     strokeDasharray = "6 4",
     strokeDashoffset = 0,
     opacity = 1,
@@ -114,7 +116,7 @@ export const LineVisualizer = React.memo(
           strokeWidth={
             hitTargetStrokeWidth ?? Math.max(Number(strokeWidth) + 8, 10)
           }
-          strokeLinecap="round"
+          strokeLinecap={strokeLinecap}
           vectorEffect="non-scaling-stroke"
           style={{
             pointerEvents: isInteractive ? "stroke" : "none",
@@ -134,9 +136,9 @@ export const LineVisualizer = React.memo(
           y2="0"
           stroke={stroke}
           strokeWidth={strokeWidth}
+          strokeLinecap={strokeLinecap}
           strokeDasharray={strokeDasharray}
           strokeDashoffset={strokeDashoffset}
-          strokeLinecap="round"
           opacity={opacity}
           vectorEffect="non-scaling-stroke"
           style={{

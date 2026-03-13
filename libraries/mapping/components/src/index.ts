@@ -17,6 +17,15 @@ export {
 export { MobileWarningMessage } from "./lib/components/MobileWarningMessage";
 export { LayerButton } from "./lib/components/LayerButton";
 export { LayerIcon } from "./lib/components/LayerIcon";
+export { ToolButton } from "./lib/components/ToolButton";
+export {
+  AnnotationsToolbar,
+  AnnotationsToolbarButton,
+  AnnotationsToolbarIcon,
+  AnnotationsToolbarItem,
+  AnnotationsToolbarSeparator,
+} from "./lib/components/AnnotationsToolbar";
+export { AnnotationsStatusBar } from "./lib/components/AnnotationsStatusBar";
 export { ResponsiveStatusFooter } from "./lib/components/ResponsiveStatusFooter";
 export { LibrePitchingCompass } from "./lib/components/PitchingControl/LibrePitchingCompass";
 

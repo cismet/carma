@@ -8,11 +8,11 @@ import {
 } from "@carma/cesium";
 import { formatNumber } from "@carma-mapping/annotations/core";
 import {
+  createSvgLineVisualizers,
   createPlacement,
   getPerspectiveStemAngleMagnitude,
   type PointLabelData,
   resolvePointLabelLayoutConfig,
-  type LineVisualizerData,
   type PointLabelLayoutConfigOverrides,
   useLineVisualizers,
   usePointLabels,
@@ -224,7 +224,7 @@ export const usePointCandidateDomOverlay = (
     candidateReferenceElevation,
   ]);
 
-  const candidateVerticalOffsetStemLines = useMemo<LineVisualizerData[]>(() => {
+  const candidateVerticalOffsetStemLines = useMemo(() => {
     if (
       !renderDomVisuals ||
       !scene ||
@@ -236,15 +236,15 @@ export const usePointCandidateDomOverlay = (
     }
 
     return [
-      {
+      ...createSvgLineVisualizers({
         id: CANDIDATE_VERTICAL_OFFSET_STEM_ID,
         stroke: "rgba(255, 255, 255, 1)",
         strokeWidth: 2,
-        strokeDasharray: "0 3",
-        strokeDashoffset: 0,
+        dashed: true,
+        dashLengthRatio: 0.25,
         opacity: 0.9,
         visible: true,
-        getCanvasLine: () => {
+        getSvgLine: () => {
           if (!scene || scene.isDestroyed()) {
             return null;
           }
@@ -269,7 +269,7 @@ export const usePointCandidateDomOverlay = (
             end: { x: end.x, y: end.y } as CssPixelPosition,
           };
         },
-      } satisfies LineVisualizerData,
+      }),
     ];
   }, [renderDomVisuals, scene, hasCandidatePoint, hasCandidateAuxAnchor]);
 
