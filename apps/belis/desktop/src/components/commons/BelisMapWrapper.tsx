@@ -672,8 +672,6 @@ const BelisMapLibWrapper = ({
         bounds.contains([lng, lat])
       );
     }
-
-    console.log("yyy inside:", inside, "geometry:", geometry.type);
     setFeatureOnMap(inside);
 
     if (!inside) {

@@ -1,6 +1,7 @@
 import { createSlice, type PayloadAction } from "@reduxjs/toolkit";
 import type { RootState } from "../index";
 import { isFormDirty } from "../../components/ui/featuresForm/formDiffUtils";
+import type { DokumentItem } from "../../components/ui/DocumentPreview";
 
 export interface DraftFile {
   id: string;
@@ -11,11 +12,13 @@ export interface DraftFile {
   size: number;
 }
 
-interface Draft {
+export interface Draft {
   featureType: string;
   values: Record<string, unknown>;
   files?: DraftFile[];
   removedDocumentKeys?: string[];
+  existingDocuments?: DokumentItem[];
+  featureDbId?: number;
   feature?: any;
   updatedAt: number;
 }
@@ -149,6 +152,21 @@ const featuresFormsSlice = createSlice({
         };
       }
     },
+    setDraftDocumentsInfo(
+      state,
+      action: PayloadAction<{
+        featureId: string;
+        existingDocuments: DokumentItem[];
+        featureDbId: number;
+      }>
+    ) {
+      const { featureId, existingDocuments, featureDbId } = action.payload;
+      const existing = state.drafts[featureId];
+      if (existing) {
+        existing.existingDocuments = existingDocuments;
+        existing.featureDbId = featureDbId;
+      }
+    },
     setRemovedDocumentKeys(
       state,
       action: PayloadAction<{
@@ -196,6 +214,7 @@ export const {
   clearFormError,
   setOriginalValues,
   setDraftFiles,
+  setDraftDocumentsInfo,
   setRemovedDocumentKeys,
 } = featuresFormsSlice.actions;
 
@@ -238,6 +257,17 @@ export const getRemovedDocumentKeys = (
   featureId
     ? state.featuresForms?.drafts[featureId]?.removedDocumentKeys ?? []
     : [];
+
+export const getDraftExistingDocuments = (
+  state: RootState,
+  featureId: string | undefined
+): DokumentItem[] =>
+  featureId
+    ? state.featuresForms?.drafts[featureId]?.existingDocuments ?? []
+    : [];
+
+export const getAllDrafts = (state: RootState): Record<string, Draft> =>
+  state.featuresForms?.drafts ?? {};
 
 // Check if a specific draft has actual changes compared to its original values
 export const hasDraftChanges = (

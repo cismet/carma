@@ -191,7 +191,7 @@ const MainPage = () => {
           extra={
             <div className="flex items-center gap-4">
               {/* Cancel all drafts */}
-              {/* <SendOrDiscardAllDraftsButton /> */}
+              <SendOrDiscardAllDraftsButton />
 
               {/* Search */}
               <div className="flex items-center gap-2">
@@ -208,7 +208,11 @@ const MainPage = () => {
               {/* Lasso selection */}
               <button
                 onClick={() => setLassoActive((prev) => !prev)}
-                title={lassoActive ? "Lasso-Auswahl beenden" : "Lasso-Auswahl starten"}
+                title={
+                  lassoActive
+                    ? "Lasso-Auswahl beenden"
+                    : "Lasso-Auswahl starten"
+                }
                 className={`flex items-center justify-center w-8 h-8 rounded border ${
                   lassoActive
                     ? "border-blue-500 bg-blue-50 text-blue-600"
