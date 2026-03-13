@@ -442,8 +442,6 @@ L.Control.MeasurePolygon = L.Control.extend({
               Math.pow(clickPoint.y - markerPoint.y, 2)
           );
 
-          console.log("xxx", clickPoint, markerPoint, pixelDistance);
-
           // Only process first vertex clicks (for closing polygon)
           if (e.target.customHandle !== 0) {
             return; // Not the first vertex, let Leaflet.Draw handle it normally
