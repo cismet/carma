@@ -2,7 +2,10 @@ import { useState, useCallback, useMemo, useEffect } from "react";
 import { useSelector, useDispatch } from "react-redux";
 import dayjs from "dayjs";
 import { featureFormRegistry } from "./index";
-import { getSelectedFeature, getFeatureDataVersion } from "../../../store/slices/featureCollection";
+import {
+  getSelectedFeature,
+  getFeatureDataVersion,
+} from "../../../store/slices/featureCollection";
 import {
   getDraft,
   getDraftFiles,
@@ -24,7 +27,9 @@ import type { RootState } from "../../../store";
 
 const DAYJS_PREFIX = "__dayjs:";
 
-const serializeValues = (values: Record<string, unknown>): Record<string, unknown> => {
+const serializeValues = (
+  values: Record<string, unknown>
+): Record<string, unknown> => {
   const result: Record<string, unknown> = {};
   for (const [key, value] of Object.entries(values)) {
     if (dayjs.isDayjs(value)) {
@@ -40,7 +45,9 @@ const serializeValues = (values: Record<string, unknown>): Record<string, unknow
   return result;
 };
 
-const deserializeValues = (values: Record<string, unknown>): Record<string, unknown> => {
+const deserializeValues = (
+  values: Record<string, unknown>
+): Record<string, unknown> => {
   const result: Record<string, unknown> = {};
   for (const [key, value] of Object.entries(values)) {
     if (typeof value === "string" && value.startsWith(DAYJS_PREFIX)) {
@@ -111,8 +118,12 @@ const FeaturesFormsWrapper = ({
   // vs Standort PK=1 are different features). Including the sourceLayer prevents
   // draft key collisions between feature types.
   const rawPK = rawFeature?.properties?.id;
-  const dbPK = rawPK != null ? String(rawPK) :
-    (selectedFeature?.id != null ? String(selectedFeature.id) : undefined);
+  const dbPK =
+    rawPK != null
+      ? String(rawPK)
+      : selectedFeature?.id != null
+      ? String(selectedFeature.id)
+      : undefined;
   const sourceLayer = featureType ?? "";
   const featureId = dbPK != null ? `${sourceLayer}:${dbPK}` : undefined;
 
@@ -129,12 +140,23 @@ const FeaturesFormsWrapper = ({
     };
   }, [rawFeature, featureType, selectedFeature]);
   const draft = useSelector((state: RootState) => getDraft(state, featureId));
-  const draftFiles = useSelector((state: RootState) => getDraftFiles(state, featureId));
-  const hasChanges = useSelector((state: RootState) => hasDraftChanges(state, featureId));
-  const originalValues = useSelector((state: RootState) => getOriginalValues(state, featureId));
-  const removedDocKeys = useSelector((state: RootState) => getRemovedDocumentKeys(state, featureId));
+  const draftFiles = useSelector((state: RootState) =>
+    getDraftFiles(state, featureId)
+  );
+  const hasChanges = useSelector((state: RootState) =>
+    hasDraftChanges(state, featureId)
+  );
+  const originalValues = useSelector((state: RootState) =>
+    getOriginalValues(state, featureId)
+  );
+  const removedDocKeys = useSelector((state: RootState) =>
+    getRemovedDocumentKeys(state, featureId)
+  );
 
-  const removedDocumentKeys = useMemo(() => new Set(removedDocKeys), [removedDocKeys]);
+  const removedDocumentKeys = useMemo(
+    () => new Set(removedDocKeys),
+    [removedDocKeys]
+  );
 
   const featureDataVersion = useSelector(getFeatureDataVersion);
   const globalEditMode = useSelector(getGlobalEditMode);
@@ -163,13 +185,21 @@ const FeaturesFormsWrapper = ({
     const graphqlKey = formKeyToGraphqlKey[formKey];
     if (!graphqlKey) return;
     const dataObj = data as Record<string, unknown>;
-    const arr = dataObj[graphqlKey] as Array<Record<string, unknown>> | undefined;
+    const arr = dataObj[graphqlKey] as
+      | Array<Record<string, unknown>>
+      | undefined;
     const firstItem = arr?.[0];
     if (!firstItem) return;
     const docs = (firstItem.dokumenteArray as DokumentItem[]) ?? [];
     const dbId = firstItem.id as number | undefined;
     if (dbId != null) {
-      dispatch(setDraftDocumentsInfo({ featureId, existingDocuments: docs, featureDbId: dbId }));
+      dispatch(
+        setDraftDocumentsInfo({
+          featureId,
+          existingDocuments: docs,
+          featureDbId: dbId,
+        })
+      );
     }
   }, [featureId, formKey, data, draft, dispatch]);
 
@@ -201,7 +231,14 @@ const FeaturesFormsWrapper = ({
   const handleDraftChange = useCallback(
     (values: Record<string, unknown>) => {
       if (featureId && formKey) {
-        dispatch(setDraft({ featureId, featureType: formKey, values: serializeValues(values), feature: draftFeature }));
+        dispatch(
+          setDraft({
+            featureId,
+            featureType: formKey,
+            values: serializeValues(values),
+            feature: draftFeature,
+          })
+        );
       }
     },
     [featureId, formKey, dispatch, draftFeature]
@@ -210,7 +247,9 @@ const FeaturesFormsWrapper = ({
   const handleOriginalValues = useCallback(
     (values: Record<string, unknown>) => {
       if (featureId) {
-        dispatch(setOriginalValues({ featureId, values: serializeValues(values) }));
+        dispatch(
+          setOriginalValues({ featureId, values: serializeValues(values) })
+        );
       }
     },
     [featureId, dispatch]
@@ -219,7 +258,14 @@ const FeaturesFormsWrapper = ({
   const handleDraftFilesChange = useCallback(
     (files: DraftFile[]) => {
       if (featureId && formKey) {
-        dispatch(setDraftFiles({ featureId, featureType: formKey, files, feature: draftFeature }));
+        dispatch(
+          setDraftFiles({
+            featureId,
+            featureType: formKey,
+            files,
+            feature: draftFeature,
+          })
+        );
       }
     },
     [featureId, formKey, dispatch, draftFeature]
@@ -228,7 +274,14 @@ const FeaturesFormsWrapper = ({
   const handleRemovedDocumentKeysChange = useCallback(
     (keys: Set<string>) => {
       if (featureId && formKey) {
-        dispatch(setRemovedDocumentKeys({ featureId, featureType: formKey, keys: [...keys], feature: draftFeature }));
+        dispatch(
+          setRemovedDocumentKeys({
+            featureId,
+            featureType: formKey,
+            keys: [...keys],
+            feature: draftFeature,
+          })
+        );
       }
     },
     [featureId, formKey, dispatch, draftFeature]

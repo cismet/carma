@@ -595,12 +595,17 @@ const BelisMapLibWrapper = ({
       if (selectedFeature) {
         sourceLayer = selectedFeature.carmaInfo?.sourceLayer;
         featureId = selectedFeature.properties?.sourceProps?.id;
-      } else if (selectedFeatureId) {
-        // Fallback: LibreMap couldn't process the feature (e.g. search result not on map)
-        // Use database PK from raw feature properties (selectedFeatureId.id is the MVT tile ID)
+      }
+
+      // Fallback to selectedFeatureId when selectedFeature is absent or
+      // lacks carmaInfo (e.g. synthetic draft features processed by createFeature
+      // that don't produce a valid sourceLayer).
+      if (!sourceLayer && selectedFeatureId) {
         sourceLayer = selectedFeatureId.sourceLayer;
         featureId = rawFeature?.properties?.id ?? selectedFeatureId.id;
-      } else {
+      }
+
+      if (!sourceLayer && !selectedFeature && !selectedFeatureId) {
         setFetchedFeatureData(null);
         return;
       }
@@ -615,6 +620,8 @@ const BelisMapLibWrapper = ({
         rawFeature,
         fallback: !selectedFeature,
       });
+      // TEMP DEBUG: trace re-fetch on tab switch
+      console.log("yyy [BelisMapWrapper] FETCH TRIGGERED - about to fetch feature", featureId, "sourceLayer:", sourceLayer);
 
       const apiFeatureType = SOURCE_LAYER_TO_FEATURE_TYPE[sourceLayer ?? ""];
       if (!apiFeatureType || !featureId) {
