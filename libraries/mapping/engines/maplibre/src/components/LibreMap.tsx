@@ -54,7 +54,7 @@ import { SelectionItem, useSelection } from "@carma-appframeworks/portals";
 import { defaultLayerConf } from "@carma-appframeworks/portals";
 import { useMapHashRouting } from "@carma-appframeworks/portals";
 import { displayRouteOnMap } from "@carma-mapping/routing";
-import { ThreeLayerManager } from "./ThreeLayerManager";
+import { ThreeLayerManager, get3dLayers } from "./ThreeLayerManager";
 
 export interface GeoJsonData {
   sourceId: string;
@@ -604,6 +604,43 @@ export const LibreMap = ({
       }
 
       mapInstance.on("click", async (e) => {
+        // ── 3D raycast: check 3D layers before 2D ─────────────
+        const threeLayers = get3dLayers(mapInstance);
+        if (threeLayers.length > 0) {
+          console.log("[3D-SELECT] click at", e.lngLat, "3D layers:", threeLayers.length);
+          for (const threeLayer of threeLayers) {
+            const point2d = mapInstance.project(e.lngLat);
+            const result = threeLayer.raycast(point2d.x, point2d.y);
+            console.log("[3D-SELECT] layer", threeLayer.id, "result:", result);
+
+            if (result && result.intersectionCount > 0) {
+              // 3D hit detected: takes priority over 2D
+              clearVisualSelection(mapInstance);
+              setSelectedFeature(null);
+              mapSelectionCtxRef.current.clearSelection();
+
+              if (result.sourceFeature) {
+                const sf = result.sourceFeature;
+                const featureId = {
+                  source: sf.source,
+                  sourceLayer: sf.sourceLayer,
+                  id: sf.id,
+                };
+                console.log("[3D-SELECT] forwarding to 2D selection:", featureId);
+                console.log("[3D-SELECT] feature properties:", sf.properties);
+
+                if (sf.id != null) {
+                  applyVisualSelection(mapInstance, featureId);
+                }
+              } else {
+                console.log("[3D-SELECT] 3D hit but source feature not resolved");
+              }
+              return; // skip 2D selection
+            }
+          }
+        }
+        // ── end 3D raycast ────────────────────────────────────
+
         const point = mapInstance.project([e.lngLat.lng, e.lngLat.lat]);
         const hits = mapInstance.queryRenderedFeatures(point);
         const filteredHits = hits.filter((hit) => {

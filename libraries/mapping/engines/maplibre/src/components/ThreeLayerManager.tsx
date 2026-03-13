@@ -15,7 +15,7 @@ import {
   ensureProfiles,
 } from "@carma-mapping/engines/threejs";
 import type { Scene } from "three";
-import type { MercatorCoordinate } from "maplibre-gl";
+import type { MercatorCoordinate, Map as MaplibreMap } from "maplibre-gl";
 
 // ─────────────────────────────────────────────────────────────
 //  ThreeLayerManager: bridges carma3d configs to the threejs engine
@@ -36,6 +36,38 @@ export interface ThreeLayerManagerProps {
   config: Carma3dConfig;
   runtimeParams: Record<string, number>;
   perfRef?: React.MutableRefObject<ThreePerfData>;
+}
+
+// ─────────────────────────────────────────────────────────────
+//  Registry: expose 3D layers on the map instance for click handling
+// ─────────────────────────────────────────────────────────────
+
+const LAYER_REGISTRY_KEY = "__carma3dLayers";
+
+function register3dLayer(map: MaplibreMap, layer: GenericCustomLayer): void {
+  const registry =
+    ((map as any)[LAYER_REGISTRY_KEY] as GenericCustomLayer[] | undefined) ?? [];
+  if (!registry.includes(layer)) {
+    registry.push(layer);
+  }
+  (map as any)[LAYER_REGISTRY_KEY] = registry;
+  console.log("[3D-SELECT] registered layer:", layer.id, "total:", registry.length);
+}
+
+function unregister3dLayer(map: MaplibreMap, layer: GenericCustomLayer): void {
+  const registry =
+    ((map as any)[LAYER_REGISTRY_KEY] as GenericCustomLayer[] | undefined) ?? [];
+  const idx = registry.indexOf(layer);
+  if (idx >= 0) {
+    registry.splice(idx, 1);
+    console.log("[3D-SELECT] unregistered layer:", layer.id, "remaining:", registry.length);
+  }
+  (map as any)[LAYER_REGISTRY_KEY] = registry;
+}
+
+/** Get all registered 3D layers from a map instance. */
+export function get3dLayers(map: MaplibreMap): GenericCustomLayer[] {
+  return ((map as any)[LAYER_REGISTRY_KEY] as GenericCustomLayer[] | undefined) ?? [];
 }
 
 const EMPTY_PERF: ThreePerfData = {
@@ -62,9 +94,12 @@ export function ThreeLayerManager({
   useEffect(() => {
     if (!map) return;
     return () => {
-      const layerId = layerRef.current?.id;
-      if (layerId && map.getLayer(layerId)) {
-        map.removeLayer(layerId);
+      if (layerRef.current) {
+        unregister3dLayer(map, layerRef.current);
+        const layerId = layerRef.current.id;
+        if (map.getLayer(layerId)) {
+          map.removeLayer(layerId);
+        }
       }
       layerRef.current = null;
     };
@@ -135,6 +170,7 @@ export function ThreeLayerManager({
         (l) => l.type === "fill-extrusion"
       );
       map.addLayer(customLayer, firstExtrusion?.id);
+      register3dLayer(map, customLayer);
     };
 
     const trySync = async () => {
