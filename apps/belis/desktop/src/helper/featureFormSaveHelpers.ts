@@ -1,4 +1,5 @@
 import dayjs from "dayjs";
+import { Modal, message } from "antd";
 import type { DokumentItem } from "../components/ui/DocumentPreview";
 import { getDocumentKey } from "../components/ui/FilePreview";
 import type { Draft, DraftFile } from "../store/slices/featuresForms";
@@ -312,4 +313,75 @@ export const saveAllFeatureDrafts = async (
   }
 
   return { succeeded, failed };
+};
+
+// ---------------------------------------------------------------------------
+// Confirm & save all drafts (UI handler)
+// ---------------------------------------------------------------------------
+
+interface HandleSaveAllDeps {
+  jwt: string | undefined;
+  drafts: Record<string, Draft>;
+  draftCount: number;
+  setSaving: (saving: boolean) => void;
+  dispatch: (action: unknown) => void;
+  removeDraft: (featureId: string) => unknown;
+  incrementFeatureDataVersion: () => unknown;
+}
+
+export const handleSaveAllDrafts = (deps: HandleSaveAllDeps) => {
+  const {
+    jwt,
+    drafts,
+    draftCount,
+    setSaving,
+    dispatch,
+    removeDraft,
+    incrementFeatureDataVersion,
+  } = deps;
+
+  Modal.confirm({
+    title: "Alle Entwürfe speichern?",
+    content: `${draftCount} Entwurf${draftCount > 1 ? "e" : ""} werden gespeichert.`,
+    okText: "Alle speichern",
+    cancelText: "Abbrechen",
+    onOk: async () => {
+      if (!jwt) {
+        message.error("Nicht authentifiziert");
+        return;
+      }
+
+      setSaving(true);
+      try {
+        const result = await saveAllFeatureDrafts(jwt, drafts);
+
+        for (const featureId of result.succeeded) {
+          dispatch(removeDraft(featureId));
+        }
+
+        if (result.succeeded.length > 0) {
+          dispatch(incrementFeatureDataVersion());
+        }
+
+        for (const fail of result.failed) {
+          message.error(`${fail.featureType}: ${fail.error}`);
+        }
+
+        const total = result.succeeded.length + result.failed.length;
+        if (result.failed.length === 0) {
+          message.success(
+            `Alle ${result.succeeded.length} Entwürfe gespeichert`
+          );
+        } else if (result.succeeded.length === 0) {
+          message.error("Alle Entwürfe fehlgeschlagen");
+        } else {
+          message.warning(
+            `${result.succeeded.length} von ${total} gespeichert, ${result.failed.length} fehlgeschlagen`
+          );
+        }
+      } finally {
+        setSaving(false);
+      }
+    },
+  });
 };
