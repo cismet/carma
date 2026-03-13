@@ -37,7 +37,8 @@ export function mapFeatures(
   const t = Math.max(0, Math.min(1, radiusMix));
   const { fields, typeMap, defaultType } = config;
 
-  for (const f of features) {
+  for (let srcIdx = 0; srcIdx < features.length; srcIdx++) {
+    const f = features[srcIdx];
     const geom = f.geometry;
     if (!geom) continue;
     const props = f.properties ?? {};
@@ -109,6 +110,7 @@ export function mapFeatures(
       ring,
       heightMax: hMax > 0 ? hMax : typeEntry.baseDims.height,
       radiusMax: rMax > 0 ? rMax : typeEntry.baseDims.radius,
+      _sourceIndex: srcIdx,
     });
   }
 

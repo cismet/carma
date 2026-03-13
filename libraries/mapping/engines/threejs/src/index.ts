@@ -28,7 +28,12 @@ export {
   buildGenericLayer,
   syncGenericLayerFromSource,
 } from "./GenericThreeLayer";
-export type { RebuildFn, GenericCustomLayer } from "./GenericThreeLayer";
+export type {
+  RebuildFn,
+  GenericCustomLayer,
+  RaycastDebugResult,
+  SourceFeatureData,
+} from "./GenericThreeLayer";
 
 // Factories
 export { buildLatheInstances } from "./factories/LatheFactory";

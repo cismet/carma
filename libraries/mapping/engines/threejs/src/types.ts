@@ -50,6 +50,8 @@ export interface MappedFeature {
   ring: number[][] | null;
   heightMax: number;
   radiusMax: number;
+  /** Index into the source feature array (set by mapFeatures). */
+  _sourceIndex: number;
 }
 
 /** Profile function: maps t in [0,1] to a radial scale factor. */

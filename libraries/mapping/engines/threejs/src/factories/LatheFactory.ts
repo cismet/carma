@@ -173,6 +173,11 @@ export function buildLatheInstances(
     crownMesh.instanceMatrix.needsUpdate = true;
     trunkMesh.instanceMatrix.needsUpdate = true;
 
+    // Store source indices for selection: instanceId -> _sourceIndex
+    const sourceIndices = feats.map((f) => f._sourceIndex);
+    crownMesh.userData.sourceIndices = sourceIndices;
+    trunkMesh.userData.sourceIndices = sourceIndices;
+
     scene.add(crownMesh);
     scene.add(trunkMesh);
   }

@@ -32,12 +32,21 @@ function makeCircleRing(
   return ring;
 }
 
+/** Maps a contiguous range of triangle indices to a source feature. */
+export interface FaceRange {
+  faceStart: number;
+  faceEnd: number;
+  sourceIndex: number;
+}
+
 interface BuildResult {
   crownGeo: THREE.BufferGeometry;
   trunkGeo: THREE.BufferGeometry;
   treeCount: number;
   crownTris: number;
   trunkTris: number;
+  crownFaceRanges: FaceRange[];
+  trunkFaceRanges: FaceRange[];
 }
 
 function buildMergedGeometry(
@@ -78,6 +87,8 @@ function buildMergedGeometry(
       treeCount: 0,
       crownTris: 0,
       trunkTris: 0,
+      crownFaceRanges: [],
+      trunkFaceRanges: [],
     };
   }
 
@@ -98,6 +109,9 @@ function buildMergedGeometry(
   let ti = 0;
 
   const trunkBaseCol = new THREE.Color(config.trunkColors[0]);
+
+  const crownFaceRanges: FaceRange[] = [];
+  const trunkFaceRanges: FaceRange[] = [];
 
   // Pass 2: build geometry
   for (const tree of validTrees) {
@@ -134,6 +148,7 @@ function buildMergedGeometry(
     cc.offsetHSL(0, 0, Math.random() * 0.06 - 0.03);
 
     const cvBase = cv;
+    const crownFaceStart = ci / 3;
 
     // Crown slices
     for (let s = 0; s < numSlices; s++) {
@@ -221,10 +236,12 @@ function buildMergedGeometry(
     }
 
     cv += numSlices * nR + 2;
+    crownFaceRanges.push({ faceStart: crownFaceStart, faceEnd: ci / 3, sourceIndex: tree._sourceIndex });
 
     // Trunk cylinder
     const tR = Math.max(0.08, 0.05 * tree.radiusMax);
     const tvBase = tv;
+    const trunkFaceStart = ti / 3;
 
     const tc = trunkBaseCol.clone();
     tc.offsetHSL(0, 0, Math.random() * 0.04 - 0.02);
@@ -297,6 +314,7 @@ function buildMergedGeometry(
     }
 
     tv += TSEG * 2 + 2;
+    trunkFaceRanges.push({ faceStart: trunkFaceStart, faceEnd: ti / 3, sourceIndex: tree._sourceIndex });
   }
 
   // Build BufferGeometry objects
@@ -336,6 +354,8 @@ function buildMergedGeometry(
     treeCount: validTrees.length,
     crownTris: ci / 3,
     trunkTris: ti / 3,
+    crownFaceRanges,
+    trunkFaceRanges,
   };
 }
 
@@ -399,8 +419,13 @@ export function buildLoftMeshes(
       flatShading: true,
     });
 
-    scene.add(new THREE.Mesh(result.crownGeo, crownMat));
-    scene.add(new THREE.Mesh(result.trunkGeo, trunkMat));
+    const crownMesh = new THREE.Mesh(result.crownGeo, crownMat);
+    crownMesh.userData.faceRanges = result.crownFaceRanges;
+    scene.add(crownMesh);
+
+    const trunkMesh = new THREE.Mesh(result.trunkGeo, trunkMat);
+    trunkMesh.userData.faceRanges = result.trunkFaceRanges;
+    scene.add(trunkMesh);
   }
 
   return {

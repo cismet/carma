@@ -47,6 +47,23 @@ export type RebuildFn = (
 //  Generic custom layer (extends CustomLayerInterface)
 // ─────────────────────────────────────────────────────────────
 
+/** Result of a debug raycast against the 3D scene. */
+export interface RaycastDebugResult {
+  /** NDC coordinates used */
+  ndc: { x: number; y: number };
+  /** Total intersections found */
+  intersectionCount: number;
+  /** Details of each intersection */
+  intersections: Array<{
+    distance: number;
+    objectType: string;
+    instanceId?: number;
+    faceIndex?: number | null;
+  }>;
+  /** Resolved source feature (if the hit could be mapped back) */
+  sourceFeature?: SourceFeatureData;
+}
+
 export interface GenericCustomLayer extends CustomLayerInterface {
   camera: THREE.Camera;
   scene: THREE.Scene;
@@ -61,7 +78,21 @@ export interface GenericCustomLayer extends CustomLayerInterface {
   _lastTerrain: boolean;
   _config: Carma3dConfig;
   _rebuildFn: RebuildFn;
+  _hasRendered: boolean;
+  /** Raw source features (from querySourceFeatures, deduplicated). Parallel to _features via _sourceIndex. */
+  _sourceFeatures: SourceFeatureData[];
   rebuild(): void;
+  /** Debug raycast: test a screen point against the 3D scene. */
+  raycast(screenX: number, screenY: number): RaycastDebugResult | null;
+}
+
+/** Minimal snapshot of a source feature for selection forwarding. */
+export interface SourceFeatureData {
+  id: string | number | undefined;
+  properties: Record<string, unknown>;
+  source: string;
+  sourceLayer: string;
+  geometry: GeoJSON.Geometry | null;
 }
 
 /**
@@ -94,6 +125,8 @@ export function buildGenericLayer(
     _lastTerrain: false,
     _config: config,
     _rebuildFn: rebuildFn,
+    _hasRendered: false,
+    _sourceFeatures: [],
 
     onAdd(
       map: MaplibreMap,
@@ -166,9 +199,130 @@ export function buildGenericLayer(
         .multiply(rotationX);
 
       this.camera.projectionMatrix = m.multiply(l);
+      this.camera.projectionMatrixInverse
+        .copy(this.camera.projectionMatrix)
+        .invert();
+      this._hasRendered = true;
 
       this.renderer.resetState();
       this.renderer.render(this.scene, this.camera);
+    },
+
+    raycast(screenX: number, screenY: number): RaycastDebugResult | null {
+      if (!this._hasRendered || !this.map) {
+        console.log("[3D-SELECT] raycast skipped: not yet rendered");
+        return null;
+      }
+
+      const canvas = this.map.getCanvas();
+      // MapLibre pixel coords use CSS pixels; canvas size is device pixels
+      const rect = canvas.getBoundingClientRect();
+      const ndcX = (screenX / rect.width) * 2 - 1;
+      const ndcY = -(screenY / rect.height) * 2 + 1;
+
+      console.log("[3D-SELECT] raycast input:", {
+        screenX,
+        screenY,
+        canvasW: rect.width,
+        canvasH: rect.height,
+        ndcX: ndcX.toFixed(4),
+        ndcY: ndcY.toFixed(4),
+      });
+
+      // Manually build ray from inverse MVP (base Camera doesn't support setFromCamera)
+      const near = new THREE.Vector3(ndcX, ndcY, -1).unproject(this.camera);
+      const far = new THREE.Vector3(ndcX, ndcY, 1).unproject(this.camera);
+      const direction = far.sub(near).normalize();
+
+      console.log("[3D-SELECT] ray:", {
+        origin: `(${near.x.toFixed(2)}, ${near.y.toFixed(2)}, ${near.z.toFixed(2)})`,
+        direction: `(${direction.x.toFixed(4)}, ${direction.y.toFixed(4)}, ${direction.z.toFixed(4)})`,
+      });
+
+      const raycaster = new THREE.Raycaster();
+      raycaster.set(near, direction);
+
+      // Log scene contents for debugging
+      const meshChildren = this.scene.children.filter(
+        (c) => (c as THREE.Mesh).isMesh || (c as THREE.InstancedMesh).isInstancedMesh,
+      );
+      console.log("[3D-SELECT] scene meshes:", meshChildren.length, "total children:", this.scene.children.length);
+
+      const intersections = raycaster.intersectObjects(this.scene.children, true);
+
+      const result: RaycastDebugResult = {
+        ndc: { x: ndcX, y: ndcY },
+        intersectionCount: intersections.length,
+        intersections: intersections.slice(0, 5).map((isect) => ({
+          distance: isect.distance,
+          objectType: (isect.object as THREE.InstancedMesh).isInstancedMesh
+            ? "InstancedMesh"
+            : (isect.object as THREE.Mesh).isMesh
+              ? "Mesh"
+              : isect.object.type,
+          instanceId: isect.instanceId,
+          faceIndex: isect.faceIndex,
+        })),
+      };
+
+      if (intersections.length > 0) {
+        const firstHit = intersections[0];
+        console.log(
+          "[3D-SELECT] HIT!",
+          result.intersectionCount,
+          "intersections. Closest:",
+          result.intersections[0],
+        );
+
+        // Resolve source feature: InstancedMesh (Lathe) or Mesh (Loft)
+        const hitObj = firstHit.object;
+        const ud = hitObj.userData ?? {};
+        let srcIdx: number | undefined;
+
+        if (ud.sourceIndices && firstHit.instanceId != null) {
+          // Lathe: instanceId -> sourceIndices[instanceId]
+          srcIdx = (ud.sourceIndices as number[])[firstHit.instanceId];
+          console.log("[3D-SELECT] Lathe lookup: instanceId", firstHit.instanceId, "-> srcIdx", srcIdx);
+        } else if (ud.faceRanges && firstHit.faceIndex != null) {
+          // Loft: binary search faceRanges for faceIndex
+          const ranges = ud.faceRanges as Array<{ faceStart: number; faceEnd: number; sourceIndex: number }>;
+          const fi = firstHit.faceIndex;
+          let lo = 0;
+          let hi = ranges.length - 1;
+          while (lo <= hi) {
+            const mid = (lo + hi) >>> 1;
+            if (fi < ranges[mid].faceStart) {
+              hi = mid - 1;
+            } else if (fi >= ranges[mid].faceEnd) {
+              lo = mid + 1;
+            } else {
+              srcIdx = ranges[mid].sourceIndex;
+              break;
+            }
+          }
+          console.log("[3D-SELECT] Loft lookup: faceIndex", fi, "-> srcIdx", srcIdx);
+        } else {
+          console.log("[3D-SELECT] no sourceIndices or faceRanges on hit object");
+        }
+
+        if (srcIdx != null) {
+          const srcFeature = this._sourceFeatures[srcIdx];
+          if (srcFeature) {
+            result.sourceFeature = srcFeature;
+            console.log(
+              "[3D-SELECT] resolved source feature:",
+              { id: srcFeature.id, source: srcFeature.source, sourceLayer: srcFeature.sourceLayer },
+            );
+            console.log("[3D-SELECT] feature properties:", srcFeature.properties);
+          } else {
+            console.log("[3D-SELECT] srcIdx", srcIdx, "but no source feature at that index (_sourceFeatures.length:", this._sourceFeatures.length, ")");
+          }
+        }
+      } else {
+        console.log("[3D-SELECT] no intersections");
+      }
+
+      return result;
     },
 
     onRemove() {
@@ -236,6 +390,21 @@ export function syncGenericLayerFromSource(
   layer._features = mapped;
   layer._lastRadiusMix = radiusMix;
   layer._lastTerrain = hasTerrain;
+
+  // Snapshot source features for selection forwarding (MapLibre may recycle objects)
+  layer._sourceFeatures = (unique as Array<{
+    id?: string | number;
+    properties?: Record<string, unknown> | null;
+    source?: string;
+    sourceLayer?: string;
+    geometry?: GeoJSON.Geometry | null;
+  }>).map((f) => ({
+    id: f.id,
+    properties: { ...(f.properties ?? {}) },
+    source: f.source ?? config.sourceId,
+    sourceLayer: f.sourceLayer ?? config.sourceLayer,
+    geometry: f.geometry ?? null,
+  }));
 
   const t0 = performance.now();
   layer.rebuild();
