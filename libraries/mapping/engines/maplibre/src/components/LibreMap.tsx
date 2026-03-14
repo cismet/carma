@@ -613,7 +613,7 @@ export const LibreMap = ({
             const result = threeLayer.raycast(point2d.x, point2d.y);
             console.log("[3D-SELECT] layer", threeLayer.id, "result:", result);
 
-            if (result && result.intersectionCount > 0) {
+            if (result && result.resolvedSourceIndex != null) {
               // 3D hit detected: takes priority over 2D
               clearVisualSelection(mapInstance);
               setSelectedFeature(null);

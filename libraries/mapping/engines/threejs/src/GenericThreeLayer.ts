@@ -1,9 +1,4 @@
 import * as THREE from "three";
-import {
-  computeBoundsTree,
-  disposeBoundsTree,
-  acceleratedRaycast,
-} from "three-mesh-bvh";
 import type {
   Map as MaplibreMap,
   CustomLayerInterface,
@@ -18,10 +13,29 @@ import type {
 } from "./types";
 import { mapFeatures, deduplicateFeatures } from "./featureMapper";
 
-// Patch THREE prototypes for BVH-accelerated raycasting
-THREE.BufferGeometry.prototype.computeBoundsTree = computeBoundsTree;
-THREE.BufferGeometry.prototype.disposeBoundsTree = disposeBoundsTree;
-THREE.Mesh.prototype.raycast = acceleratedRaycast;
+// ─────────────────────────────────────────────────────────────
+//  2D spatial grid for fast tree selection (replaces BVH)
+// ─────────────────────────────────────────────────────────────
+
+/** Grid cell size in scene-local meters */
+const GRID_CELL_SIZE = 20;
+
+/** Entry in the spatial grid representing a single tree */
+interface GridEntry {
+  sourceIndex: number;
+  /** Scene-local X position */
+  x: number;
+  /** Scene-local Z position */
+  z: number;
+  /** Scene-local Y base (bottom of trunk) */
+  yBase: number;
+  /** Total tree height */
+  height: number;
+  /** Crown radius in meters */
+  radius: number;
+}
+
+type SpatialGrid = Map<string, GridEntry[]>;
 
 // Wuppertal center as default Three.js origin
 const WUPPERTAL_CENTER: [number, number] = [7.150764, 51.256915];
@@ -77,15 +91,10 @@ interface HighlightState {
 export interface RaycastDebugResult {
   /** NDC coordinates used */
   ndc: { x: number; y: number };
-  /** Total intersections found */
-  intersectionCount: number;
-  /** Details of each intersection */
-  intersections: Array<{
-    distance: number;
-    objectType: string;
-    instanceId?: number;
-    faceIndex?: number | null;
-  }>;
+  /** Number of grid candidates checked */
+  candidates: number;
+  /** Distance from ray to the hit tree's axis (meters) */
+  hitDistance?: number;
   /** Resolved source feature (if the hit could be mapped back) */
   sourceFeature?: SourceFeatureData;
   /** Resolved source index into _sourceFeatures (for highlight) */
@@ -111,6 +120,8 @@ export interface GenericCustomLayer extends CustomLayerInterface {
   _sourceFeatures: SourceFeatureData[];
   /** Current highlight state (for restoring colors on unhighlight) */
   _highlightState: HighlightState | null;
+  /** 2D spatial grid for fast tree selection by ray-axis distance */
+  _spatialGrid: SpatialGrid;
   rebuild(): void;
   /** Debug raycast: test a screen point against the 3D scene. */
   raycast(screenX: number, screenY: number): RaycastDebugResult | null;
@@ -162,6 +173,7 @@ export function buildGenericLayer(
     _hasRendered: false,
     _sourceFeatures: [],
     _highlightState: null,
+    _spatialGrid: new Map(),
 
     onAdd(
       map: MaplibreMap,
@@ -208,6 +220,45 @@ export function buildGenericLayer(
         this._config
       );
       this._lastFeatureCount = this._features.length;
+
+      // Build 2D spatial grid for fast raycast selection
+      const t0Grid = performance.now();
+      const grid: SpatialGrid = new Map();
+      for (const f of this._features) {
+        const mrc = MercatorCoordinate.fromLngLat(
+          [f.lng, f.lat],
+          f.elevation,
+        );
+        const x = (mrc.x - originMerc.x) / mScale;
+        const z = (mrc.y - originMerc.y) / mScale;
+        const yBase = (mrc.z - originMerc.z) / mScale;
+
+        const entry: GridEntry = {
+          sourceIndex: f._sourceIndex,
+          x,
+          z,
+          yBase,
+          height: f.heightMax,
+          radius: f.radiusMax,
+        };
+
+        const cellX = Math.floor(x / GRID_CELL_SIZE);
+        const cellZ = Math.floor(z / GRID_CELL_SIZE);
+        const key = `${cellX},${cellZ}`;
+        const bucket = grid.get(key);
+        if (bucket) {
+          bucket.push(entry);
+        } else {
+          grid.set(key, [entry]);
+        }
+      }
+      this._spatialGrid = grid;
+      const gridBuildMs = performance.now() - t0Grid;
+      console.log("[3D-PERF] gridBuild", JSON.stringify({
+        gridBuildMs: +gridBuildMs.toFixed(2),
+        entries: this._features.length,
+        cells: grid.size,
+      }));
     },
 
     render(
@@ -250,120 +301,106 @@ export function buildGenericLayer(
       }
 
       const canvas = this.map.getCanvas();
-      // MapLibre pixel coords use CSS pixels; canvas size is device pixels
       const rect = canvas.getBoundingClientRect();
       const ndcX = (screenX / rect.width) * 2 - 1;
       const ndcY = -(screenY / rect.height) * 2 + 1;
 
-      console.log("[3D-SELECT] raycast input:", {
-        screenX,
-        screenY,
-        canvasW: rect.width,
-        canvasH: rect.height,
-        ndcX: ndcX.toFixed(4),
-        ndcY: ndcY.toFixed(4),
-      });
-
-      // Manually build ray from inverse MVP (base Camera doesn't support setFromCamera)
+      // Build ray from inverse MVP (base Camera doesn't support setFromCamera)
       const near = new THREE.Vector3(ndcX, ndcY, -1).unproject(this.camera);
       const far = new THREE.Vector3(ndcX, ndcY, 1).unproject(this.camera);
-      const direction = far.sub(near).normalize();
-
-      console.log("[3D-SELECT] ray:", {
-        origin: `(${near.x.toFixed(2)}, ${near.y.toFixed(2)}, ${near.z.toFixed(2)})`,
-        direction: `(${direction.x.toFixed(4)}, ${direction.y.toFixed(4)}, ${direction.z.toFixed(4)})`,
-      });
-
-      const raycaster = new THREE.Raycaster();
-      raycaster.firstHitOnly = true;
-      raycaster.set(near, direction);
-
-      // Log scene contents for debugging
-      const meshChildren = this.scene.children.filter(
-        (c) => (c as THREE.Mesh).isMesh || (c as THREE.InstancedMesh).isInstancedMesh,
-      );
-      console.log("[3D-SELECT] scene meshes:", meshChildren.length, "total children:", this.scene.children.length);
+      const dir = far.sub(near).normalize();
 
       const t0Ray = performance.now();
-      const intersections = raycaster.intersectObjects(this.scene.children, true);
+
+      // 1. Intersect ray with horizontal plane at y=10 to get approximate XZ hit
+      const planeY = 10;
+      let candidates = 0;
+      let bestSourceIndex: number | undefined;
+      let bestDist = Infinity;
+
+      // Ray-plane intersection: near.y + t * dir.y = planeY
+      if (Math.abs(dir.y) > 1e-6) {
+        const tPlane = (planeY - near.y) / dir.y;
+        if (tPlane > 0) {
+          const hitX = near.x + tPlane * dir.x;
+          const hitZ = near.z + tPlane * dir.z;
+
+          // 2. Look up grid cells in 3x3 neighborhood
+          const cellX = Math.floor(hitX / GRID_CELL_SIZE);
+          const cellZ = Math.floor(hitZ / GRID_CELL_SIZE);
+
+          for (let dx = -1; dx <= 1; dx++) {
+            for (let dz = -1; dz <= 1; dz++) {
+              const key = `${cellX + dx},${cellZ + dz}`;
+              const bucket = this._spatialGrid.get(key);
+              if (!bucket) continue;
+
+              for (const entry of bucket) {
+                candidates++;
+
+                // 3. Compute closest distance from ray line to tree's vertical axis
+                // Project onto XZ plane: 2D distance from ray to tree center
+                // Ray in XZ: P_xz = (near.x + t*dir.x, near.z + t*dir.z)
+                // Tree center in XZ: (entry.x, entry.z)
+                // Closest approach parameter t_xz:
+                //   t_xz = ((entry.x - near.x)*dir.x + (entry.z - near.z)*dir.z) / (dir.x^2 + dir.z^2)
+                const dxr = entry.x - near.x;
+                const dzr = entry.z - near.z;
+                const denom = dir.x * dir.x + dir.z * dir.z;
+                if (denom < 1e-10) continue; // ray is vertical, skip
+
+                const tClosest = (dxr * dir.x + dzr * dir.z) / denom;
+                if (tClosest < 0) continue; // behind camera
+
+                // 2D distance at closest approach
+                const closestX = near.x + tClosest * dir.x;
+                const closestZ = near.z + tClosest * dir.z;
+                const dist2D = Math.sqrt(
+                  (closestX - entry.x) ** 2 + (closestZ - entry.z) ** 2,
+                );
+
+                if (dist2D > entry.radius) continue; // miss
+
+                // Check that ray's closest-approach height is within tree bounds
+                const closestY = near.y + tClosest * dir.y;
+                if (closestY < entry.yBase || closestY > entry.yBase + entry.height) continue;
+
+                // Pick closest to camera (smallest t)
+                if (tClosest < bestDist) {
+                  bestDist = tClosest;
+                  bestSourceIndex = entry.sourceIndex;
+                }
+              }
+            }
+          }
+        }
+      }
+
       const raycastMs = performance.now() - t0Ray;
 
       const result: RaycastDebugResult = {
         ndc: { x: ndcX, y: ndcY },
-        intersectionCount: intersections.length,
-        intersections: intersections.slice(0, 5).map((isect) => ({
-          distance: isect.distance,
-          objectType: (isect.object as THREE.InstancedMesh).isInstancedMesh
-            ? "InstancedMesh"
-            : (isect.object as THREE.Mesh).isMesh
-              ? "Mesh"
-              : isect.object.type,
-          instanceId: isect.instanceId,
-          faceIndex: isect.faceIndex,
-        })),
+        candidates,
       };
 
-      if (intersections.length > 0) {
-        const firstHit = intersections[0];
-        console.log(
-          "[3D-SELECT] HIT!",
-          result.intersectionCount,
-          "intersections. Closest:",
-          result.intersections[0],
-        );
-
-        // Resolve source feature: InstancedMesh (Lathe) or Mesh (Loft)
-        const hitObj = firstHit.object;
-        const ud = hitObj.userData ?? {};
-        let srcIdx: number | undefined;
-
-        if (ud.sourceIndices && firstHit.instanceId != null) {
-          // Lathe: instanceId -> sourceIndices[instanceId]
-          srcIdx = (ud.sourceIndices as number[])[firstHit.instanceId];
-          console.log("[3D-SELECT] Lathe lookup: instanceId", firstHit.instanceId, "-> srcIdx", srcIdx);
-        } else if (ud.faceRanges && firstHit.faceIndex != null) {
-          // Loft: binary search faceRanges for faceIndex
-          const ranges = ud.faceRanges as Array<{ faceStart: number; faceEnd: number; sourceIndex: number }>;
-          const fi = firstHit.faceIndex;
-          let lo = 0;
-          let hi = ranges.length - 1;
-          while (lo <= hi) {
-            const mid = (lo + hi) >>> 1;
-            if (fi < ranges[mid].faceStart) {
-              hi = mid - 1;
-            } else if (fi >= ranges[mid].faceEnd) {
-              lo = mid + 1;
-            } else {
-              srcIdx = ranges[mid].sourceIndex;
-              break;
-            }
-          }
-          console.log("[3D-SELECT] Loft lookup: faceIndex", fi, "-> srcIdx", srcIdx);
-        } else {
-          console.log("[3D-SELECT] no sourceIndices or faceRanges on hit object");
-        }
-
-        if (srcIdx != null) {
-          result.resolvedSourceIndex = srcIdx;
-          const srcFeature = this._sourceFeatures[srcIdx];
-          if (srcFeature) {
-            result.sourceFeature = srcFeature;
-            console.log(
-              "[3D-SELECT] resolved source feature:",
-              { id: srcFeature.id, source: srcFeature.source, sourceLayer: srcFeature.sourceLayer },
-            );
-            console.log("[3D-SELECT] feature properties:", srcFeature.properties);
-          } else {
-            console.log("[3D-SELECT] srcIdx", srcIdx, "but no source feature at that index (_sourceFeatures.length:", this._sourceFeatures.length, ")");
-          }
+      if (bestSourceIndex != null) {
+        result.resolvedSourceIndex = bestSourceIndex;
+        result.hitDistance = bestDist;
+        const srcFeature = this._sourceFeatures[bestSourceIndex];
+        if (srcFeature) {
+          result.sourceFeature = srcFeature;
+          console.log(
+            "[3D-SELECT] HIT sourceIndex", bestSourceIndex,
+            { id: srcFeature.id, source: srcFeature.source, sourceLayer: srcFeature.sourceLayer },
+          );
         }
       } else {
-        console.log("[3D-SELECT] no intersections");
+        console.log("[3D-SELECT] no hit, checked", candidates, "candidates");
       }
 
       console.log("[3D-PERF] raycast", JSON.stringify({
         raycastMs: +raycastMs.toFixed(2),
-        intersections: intersections.length,
+        candidates,
         resolvedSourceIndex: result.resolvedSourceIndex,
       }));
 

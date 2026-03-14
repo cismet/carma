@@ -347,7 +347,6 @@ function buildMergedGeometry(
     new THREE.BufferAttribute(cC.subarray(0, cv * 3), 3)
   );
   crownGeo.setIndex(new THREE.BufferAttribute(cI.subarray(0, ci), 1));
-  crownGeo.computeBoundsTree({ indirect: true });
 
   const trunkGeo = new THREE.BufferGeometry();
   trunkGeo.setAttribute(
@@ -363,7 +362,6 @@ function buildMergedGeometry(
     new THREE.BufferAttribute(tC.subarray(0, tv * 3), 3)
   );
   trunkGeo.setIndex(new THREE.BufferAttribute(tI.subarray(0, ti), 1));
-  trunkGeo.computeBoundsTree({ indirect: true });
 
   return {
     crownGeo,
