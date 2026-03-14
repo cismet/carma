@@ -166,7 +166,7 @@ function PerfOverlay({ perfRef }: { perfRef: React.RefObject<ThreePerfData> }) {
 
   return (
     <div
-      className="absolute bottom-2 right-2 z-[9999] px-2 py-1 rounded text-xs font-mono leading-snug"
+      className="absolute bottom-2 left-1/2 -translate-x-1/2 z-[9999] px-2 py-1 rounded text-xs font-mono leading-snug"
       style={{
         background: "rgba(0,0,0,0.55)",
         color: "#e0e0e0",
