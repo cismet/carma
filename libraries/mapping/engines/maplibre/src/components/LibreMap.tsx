@@ -29,6 +29,7 @@ import { HidingForwardingManager } from "../lib/HidingForwardingManager";
 import {
   applySelectionForwarding,
   getCarmaConf,
+  getCarmaConfFromStyle,
   resolvePropertyTarget,
 } from "../lib/SelectionManager";
 import type { FeatureIdentifier } from "../lib/selectionTypes";
@@ -637,6 +638,96 @@ export const LibreMap = ({
 
                 if (sf.id != null) {
                   applyVisualSelection(mapInstance, featureId);
+                }
+
+                // Build synthetic MapGeoJSONFeature for createFeature
+                const carmaConf3d = getCarmaConfFromStyle(
+                  mapInstance,
+                  sf.sourceLayer,
+                );
+                const syntheticFeature = {
+                  type: "Feature" as const,
+                  geometry: sf.geometry ?? {
+                    type: "Point" as const,
+                    coordinates: [0, 0],
+                  },
+                  properties: { ...sf.properties },
+                  id: sf.id,
+                  source: sf.source,
+                  sourceLayer: sf.sourceLayer,
+                  layer: {
+                    id: threeLayer.id,
+                    metadata: carmaConf3d ? { carmaConf: carmaConf3d } : {},
+                  },
+                  state: {},
+                } as maplibregl.MapGeoJSONFeature;
+
+                // Find layerMapping using the same keys as the 2D handler
+                const layerId3d = (carmaConf3d as Record<string, unknown>)?.[
+                  "layer-id"
+                ] as string | undefined;
+
+                // Fallback: scan style layers with matching source for a layer-id
+                let fallbackLayerId: string | undefined;
+                if (!layerId3d) {
+                  const style = mapInstance.getStyle();
+                  if (style?.layers) {
+                    for (const sl of style.layers) {
+                      if (
+                        "source" in sl &&
+                        sl.source === sf.source
+                      ) {
+                        const slMeta = sl.metadata as
+                          | Record<string, unknown>
+                          | undefined;
+                        const lid = slMeta?.["layer-id"] as
+                          | string
+                          | undefined;
+                        if (lid && mappingRef.current[lid]) {
+                          fallbackLayerId = lid;
+                          break;
+                        }
+                      }
+                    }
+                  }
+                }
+
+                console.log("[3D-SELECT] mapping lookup:", {
+                  layerId3d,
+                  fallbackLayerId,
+                  source: sf.source,
+                  sourceLayer: sf.sourceLayer,
+                  available: Object.keys(mappingRef.current),
+                });
+                const layerMapping3d =
+                  mappingRef.current[layerId3d ?? ""] ||
+                  mappingRef.current[fallbackLayerId ?? ""] ||
+                  mappingRef.current[sf.source] ||
+                  mappingRef.current[sf.sourceLayer ?? ""];
+
+                if (layerMapping3d) {
+                  const feature = await createFeature(
+                    syntheticFeature,
+                    layerMapping3d,
+                    mapInstance,
+                    useRouting,
+                    openDatasheetRef.current,
+                  );
+                  if (feature) {
+                    setSelectedFeature(feature);
+                    mapSelectionCtxRef.current.setSelectedFeature(feature);
+                    mapSelectionCtxRef.current.selectFeature(
+                      featureId,
+                      syntheticFeature,
+                    );
+                    lastHandledVersionRef.current =
+                      mapSelectionCtxRef.current.selectionVersion + 1;
+                    onFeatureSelect?.(feature, featureId);
+                  }
+                } else {
+                  console.log(
+                    "[3D-SELECT] no layerMapping found, infobox skipped",
+                  );
                 }
               } else {
                 console.log("[3D-SELECT] 3D hit but source feature not resolved");
