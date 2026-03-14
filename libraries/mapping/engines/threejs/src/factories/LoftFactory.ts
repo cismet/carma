@@ -39,6 +39,13 @@ export interface FaceRange {
   sourceIndex: number;
 }
 
+/** Maps a contiguous range of vertices to a source feature (for fast highlight). */
+export interface VertexRange {
+  vertexStart: number;
+  vertexEnd: number;
+  sourceIndex: number;
+}
+
 interface BuildResult {
   crownGeo: THREE.BufferGeometry;
   trunkGeo: THREE.BufferGeometry;
@@ -47,6 +54,8 @@ interface BuildResult {
   trunkTris: number;
   crownFaceRanges: FaceRange[];
   trunkFaceRanges: FaceRange[];
+  crownVertexRanges: VertexRange[];
+  trunkVertexRanges: VertexRange[];
 }
 
 function buildMergedGeometry(
@@ -89,6 +98,8 @@ function buildMergedGeometry(
       trunkTris: 0,
       crownFaceRanges: [],
       trunkFaceRanges: [],
+      crownVertexRanges: [],
+      trunkVertexRanges: [],
     };
   }
 
@@ -112,6 +123,8 @@ function buildMergedGeometry(
 
   const crownFaceRanges: FaceRange[] = [];
   const trunkFaceRanges: FaceRange[] = [];
+  const crownVertexRanges: VertexRange[] = [];
+  const trunkVertexRanges: VertexRange[] = [];
 
   // Pass 2: build geometry
   for (const tree of validTrees) {
@@ -235,6 +248,7 @@ function buildMergedGeometry(
       cI[ci++] = btmI;
     }
 
+    crownVertexRanges.push({ vertexStart: cvBase, vertexEnd: cv + numSlices * nR + 2, sourceIndex: tree._sourceIndex });
     cv += numSlices * nR + 2;
     crownFaceRanges.push({ faceStart: crownFaceStart, faceEnd: ci / 3, sourceIndex: tree._sourceIndex });
 
@@ -313,6 +327,7 @@ function buildMergedGeometry(
       tI[ti++] = tci;
     }
 
+    trunkVertexRanges.push({ vertexStart: tvBase, vertexEnd: tv + TSEG * 2 + 2, sourceIndex: tree._sourceIndex });
     tv += TSEG * 2 + 2;
     trunkFaceRanges.push({ faceStart: trunkFaceStart, faceEnd: ti / 3, sourceIndex: tree._sourceIndex });
   }
@@ -332,6 +347,7 @@ function buildMergedGeometry(
     new THREE.BufferAttribute(cC.subarray(0, cv * 3), 3)
   );
   crownGeo.setIndex(new THREE.BufferAttribute(cI.subarray(0, ci), 1));
+  crownGeo.computeBoundsTree();
 
   const trunkGeo = new THREE.BufferGeometry();
   trunkGeo.setAttribute(
@@ -347,6 +363,7 @@ function buildMergedGeometry(
     new THREE.BufferAttribute(tC.subarray(0, tv * 3), 3)
   );
   trunkGeo.setIndex(new THREE.BufferAttribute(tI.subarray(0, ti), 1));
+  trunkGeo.computeBoundsTree();
 
   return {
     crownGeo,
@@ -356,7 +373,23 @@ function buildMergedGeometry(
     trunkTris: ti / 3,
     crownFaceRanges,
     trunkFaceRanges,
+    crownVertexRanges,
+    trunkVertexRanges,
   };
+}
+
+/** Build a Map<sourceIndex, VertexRange[]> for O(1) lookup during highlight. */
+function buildSourceIndexMap(ranges: VertexRange[]): Map<number, VertexRange[]> {
+  const map = new Map<number, VertexRange[]>();
+  for (const r of ranges) {
+    const existing = map.get(r.sourceIndex);
+    if (existing) {
+      existing.push(r);
+    } else {
+      map.set(r.sourceIndex, [r]);
+    }
+  }
+  return map;
 }
 
 /**
@@ -421,10 +454,16 @@ export function buildLoftMeshes(
 
     const crownMesh = new THREE.Mesh(result.crownGeo, crownMat);
     crownMesh.userData.faceRanges = result.crownFaceRanges;
+    crownMesh.userData.vertexRanges = result.crownVertexRanges;
+    crownMesh.userData.originalColors = (result.crownGeo.getAttribute("color") as THREE.BufferAttribute).array.slice();
+    crownMesh.userData.sourceIndexMap = buildSourceIndexMap(result.crownVertexRanges);
     scene.add(crownMesh);
 
     const trunkMesh = new THREE.Mesh(result.trunkGeo, trunkMat);
     trunkMesh.userData.faceRanges = result.trunkFaceRanges;
+    trunkMesh.userData.vertexRanges = result.trunkVertexRanges;
+    trunkMesh.userData.originalColors = (result.trunkGeo.getAttribute("color") as THREE.BufferAttribute).array.slice();
+    trunkMesh.userData.sourceIndexMap = buildSourceIndexMap(result.trunkVertexRanges);
     scene.add(trunkMesh);
   }
 

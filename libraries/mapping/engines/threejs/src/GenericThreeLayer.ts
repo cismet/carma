@@ -1,4 +1,9 @@
 import * as THREE from "three";
+import {
+  computeBoundsTree,
+  disposeBoundsTree,
+  acceleratedRaycast,
+} from "three-mesh-bvh";
 import type {
   Map as MaplibreMap,
   CustomLayerInterface,
@@ -12,6 +17,11 @@ import type {
   ThreePerfData,
 } from "./types";
 import { mapFeatures, deduplicateFeatures } from "./featureMapper";
+
+// Patch THREE prototypes for BVH-accelerated raycasting
+THREE.BufferGeometry.prototype.computeBoundsTree = computeBoundsTree;
+THREE.BufferGeometry.prototype.disposeBoundsTree = disposeBoundsTree;
+THREE.Mesh.prototype.raycast = acceleratedRaycast;
 
 // Wuppertal center as default Three.js origin
 const WUPPERTAL_CENTER: [number, number] = [7.150764, 51.256915];
@@ -56,11 +66,10 @@ interface HighlightState {
   instancedMeshes: THREE.InstancedMesh[];
   instanceId: number;
   instanceSavedColors: THREE.Color[];
-  // Loft (merged Mesh) restore data
+  // Loft (merged Mesh) restore data: vertex ranges per mesh (colors restored from stashed buffer)
   vertexEntries: Array<{
     mesh: THREE.Mesh;
-    vertexIndices: number[];
-    savedColors: Float32Array; // flat r,g,b per vertex
+    ranges: Array<{ vertexStart: number; vertexEnd: number }>;
   }>;
 }
 
@@ -266,6 +275,7 @@ export function buildGenericLayer(
       });
 
       const raycaster = new THREE.Raycaster();
+      raycaster.firstHitOnly = true;
       raycaster.set(near, direction);
 
       // Log scene contents for debugging
@@ -392,52 +402,37 @@ export function buildGenericLayer(
           continue;
         }
 
-        // --- Loft path: regular Mesh with faceRanges ---
+        // --- Loft path: regular Mesh with sourceIndexMap (fast vertex-range highlight) ---
         const mesh = child as THREE.Mesh;
         if (!mesh.isMesh) continue;
-        const ranges = mesh.userData.faceRanges as
-          | Array<{ faceStart: number; faceEnd: number; sourceIndex: number }>
-          | undefined;
-        if (!ranges) continue;
+        const srcMap = mesh.userData.sourceIndexMap as Map<number, Array<{ vertexStart: number; vertexEnd: number }>> | undefined;
+        if (!srcMap) continue;
 
-        const geom = mesh.geometry;
-        const colorAttr = geom.getAttribute("color") as THREE.BufferAttribute | undefined;
-        const indexAttr = geom.getIndex();
-        if (!colorAttr || !indexAttr) continue;
+        const vRanges = srcMap.get(sourceIndex);
+        if (!vRanges || vRanges.length === 0) continue;
 
-        // Collect unique vertex indices for all matching face ranges
-        const vertexSet = new Set<number>();
-        for (const range of ranges) {
-          if (range.sourceIndex !== sourceIndex) continue;
-          const idxArray = indexAttr.array;
-          for (let i = range.faceStart * 3; i < range.faceEnd * 3; i++) {
-            vertexSet.add(idxArray[i]);
-          }
-        }
-        if (vertexSet.size === 0) continue;
-
-        const vertexIndices = Array.from(vertexSet);
-        const savedColors = new Float32Array(vertexIndices.length * 3);
+        const colorAttr = mesh.geometry.getAttribute("color") as THREE.BufferAttribute | undefined;
+        if (!colorAttr) continue;
         const colorArray = colorAttr.array as Float32Array;
 
-        // Save originals and write highlight color
         const hr = HIGHLIGHT_COLOR.r;
         const hg = HIGHLIGHT_COLOR.g;
         const hb = HIGHLIGHT_COLOR.b;
-        for (let i = 0; i < vertexIndices.length; i++) {
-          const vi = vertexIndices[i];
-          const off = vi * 3;
-          savedColors[i * 3] = colorArray[off];
-          savedColors[i * 3 + 1] = colorArray[off + 1];
-          savedColors[i * 3 + 2] = colorArray[off + 2];
-          colorArray[off] = hr;
-          colorArray[off + 1] = hg;
-          colorArray[off + 2] = hb;
+        let totalVerts = 0;
+        for (const range of vRanges) {
+          const start = range.vertexStart * 3;
+          const end = range.vertexEnd * 3;
+          for (let off = start; off < end; off += 3) {
+            colorArray[off] = hr;
+            colorArray[off + 1] = hg;
+            colorArray[off + 2] = hb;
+          }
+          totalVerts += range.vertexEnd - range.vertexStart;
         }
         colorAttr.needsUpdate = true;
 
-        vertexEntries.push({ mesh, vertexIndices, savedColors });
-        console.log("[3D-SELECT] Loft highlight: mesh", mesh.name || "(unnamed)", "vertices:", vertexIndices.length);
+        vertexEntries.push({ mesh, ranges: vRanges });
+        console.log("[3D-SELECT] Loft highlight: mesh", mesh.name || "(unnamed)", "vertices:", totalVerts);
       }
 
       if (instancedMeshes.length > 0 || vertexEntries.length > 0) {
@@ -479,18 +474,18 @@ export function buildGenericLayer(
         console.log("[3D-SELECT] unhighlighted Lathe instanceId", instanceId, "across", instancedMeshes.length, "meshes");
       }
 
-      // Restore Loft (merged Mesh) vertex colors
+      // Restore Loft (merged Mesh) vertex colors: only the highlighted ranges
       for (const entry of vertexEntries) {
-        const colorArray = (
-          entry.mesh.geometry.getAttribute("color") as THREE.BufferAttribute
-        ).array as Float32Array;
-        for (let i = 0; i < entry.vertexIndices.length; i++) {
-          const off = entry.vertexIndices[i] * 3;
-          colorArray[off] = entry.savedColors[i * 3];
-          colorArray[off + 1] = entry.savedColors[i * 3 + 1];
-          colorArray[off + 2] = entry.savedColors[i * 3 + 2];
+        const origColors = entry.mesh.userData.originalColors as Float32Array | undefined;
+        if (!origColors) continue;
+        const colorAttr = entry.mesh.geometry.getAttribute("color") as THREE.BufferAttribute;
+        const colorArray = colorAttr.array as Float32Array;
+        for (const range of entry.ranges) {
+          const start = range.vertexStart * 3;
+          const end = range.vertexEnd * 3;
+          colorArray.set(origColors.subarray(start, end), start);
         }
-        (entry.mesh.geometry.getAttribute("color") as THREE.BufferAttribute).needsUpdate = true;
+        colorAttr.needsUpdate = true;
       }
       if (vertexEntries.length > 0) {
         console.log("[3D-SELECT] unhighlighted Loft across", vertexEntries.length, "meshes");
