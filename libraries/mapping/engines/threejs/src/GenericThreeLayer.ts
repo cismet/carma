@@ -274,7 +274,9 @@ export function buildGenericLayer(
       );
       console.log("[3D-SELECT] scene meshes:", meshChildren.length, "total children:", this.scene.children.length);
 
+      const t0Ray = performance.now();
       const intersections = raycaster.intersectObjects(this.scene.children, true);
+      const raycastMs = performance.now() - t0Ray;
 
       const result: RaycastDebugResult = {
         ndc: { x: ndcX, y: ndcY },
@@ -349,10 +351,17 @@ export function buildGenericLayer(
         console.log("[3D-SELECT] no intersections");
       }
 
+      console.log("[3D-PERF] raycast", JSON.stringify({
+        raycastMs: +raycastMs.toFixed(2),
+        intersections: intersections.length,
+        resolvedSourceIndex: result.resolvedSourceIndex,
+      }));
+
       return result;
     },
 
     highlight(sourceIndex: number) {
+      const t0Hl = performance.now();
       this.unhighlight();
 
       const instancedMeshes: THREE.InstancedMesh[] = [];
@@ -444,12 +453,19 @@ export function buildGenericLayer(
         if (vertexEntries.length > 0) {
           console.log("[3D-SELECT] Loft highlighted sourceIndex", sourceIndex, "across", vertexEntries.length, "meshes");
         }
+        console.log("[3D-PERF] highlight", JSON.stringify({
+          highlightMs: +(performance.now() - t0Hl).toFixed(2),
+          sourceIndex,
+          lathe: instancedMeshes.length,
+          loft: vertexEntries.length,
+        }));
         this.map.triggerRepaint();
       }
     },
 
     unhighlight() {
       if (!this._highlightState) return;
+      const t0Un = performance.now();
 
       const { instancedMeshes, instanceId, instanceSavedColors, vertexEntries } =
         this._highlightState;
@@ -480,6 +496,11 @@ export function buildGenericLayer(
         console.log("[3D-SELECT] unhighlighted Loft across", vertexEntries.length, "meshes");
       }
 
+      console.log("[3D-PERF] unhighlight", JSON.stringify({
+        unhighlightMs: +(performance.now() - t0Un).toFixed(2),
+        lathe: instancedMeshes.length,
+        loft: vertexEntries.length,
+      }));
       this._highlightState = null;
       this.map.triggerRepaint();
     },
@@ -521,12 +542,19 @@ export function syncGenericLayerFromSource(
   radiusMix = 0
 ): ThreePerfData | null {
   const config = layer._config;
+  const t0Query = performance.now();
   const features = map.querySourceFeatures(config.sourceId, {
     sourceLayer: config.sourceLayer,
   });
+  const queryMs = performance.now() - t0Query;
 
+  const t0Dedup = performance.now();
   const unique = deduplicateFeatures(features as never[]);
+  const dedupMs = performance.now() - t0Dedup;
+
+  const t0Map = performance.now();
   const mapped = mapFeatures(unique, config, radiusMix);
+  const mapMs = performance.now() - t0Map;
 
   // Only apply elevation when terrain is active
   const hasTerrain = map.getTerrain() != null;
@@ -567,15 +595,29 @@ export function syncGenericLayerFromSource(
 
   const t0 = performance.now();
   layer.rebuild();
-  const syncMs = performance.now() - t0;
+  const rebuildMs = performance.now() - t0;
 
   map.triggerRepaint();
+
+  console.log("[3D-PERF] sync", JSON.stringify({
+    rawFeatures: features.length,
+    uniqueFeatures: unique.length,
+    mappedFeatures: mapped.length,
+    treeCount: layer._stats.treeCount,
+    triangles: layer._stats.triangles,
+    drawCalls: layer._stats.drawCalls,
+    queryMs: +queryMs.toFixed(2),
+    dedupMs: +dedupMs.toFixed(2),
+    mapMs: +mapMs.toFixed(2),
+    rebuildMs: +rebuildMs.toFixed(2),
+    totalMs: +(queryMs + dedupMs + mapMs + rebuildMs).toFixed(2),
+  }));
 
   return {
     mode: "generic",
     treeCount: layer._stats.treeCount,
     triangles: layer._stats.triangles,
     drawCalls: layer._stats.drawCalls,
-    syncMs,
+    syncMs: rebuildMs,
   };
 }
