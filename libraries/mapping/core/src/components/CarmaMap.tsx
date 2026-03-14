@@ -107,15 +107,34 @@ const CarmaMapContent = (props: CarmaMapProps) => {
   const { selectedBackground, backgroundConfigurations, namedMapStyle } =
     useContext<typeof TopicMapStylingContext>(TopicMapStylingContext);
   const [libreMap, setLibreMap] = useState<maplibregl.Map | null>(null);
-  const [showTerrain, setShowTerrain] = useState(false);
+  const [showTerrain, setShowTerrain] = useState(() => {
+    try { return localStorage.getItem("carma-map-terrain") === "true"; } catch { return false; }
+  });
 
   // Stable callback to avoid re-creating LibreMap on every render
   const handleLibreMapReady = useCallback(
     (map: maplibregl.Map) => {
       setLibreMap(map);
       props.setLibreMap?.(map);
+
+      // Restore terrain if it was persisted as enabled
+      if (showTerrain && !map.terrain) {
+        const source = WUPPERTAL_CONFIG.terrain
+          ? slugifyUrl(WUPPERTAL_CONFIG.terrain.url)
+          : "terrainSource";
+        const apply = () => {
+          if (map.getSource(source)) {
+            map.setTerrain({ source, exaggeration: 1 });
+          }
+        };
+        if (map.isStyleLoaded()) {
+          apply();
+        } else {
+          map.once("styledata", apply);
+        }
+      }
     },
-    [props.setLibreMap]
+    [props.setLibreMap, showTerrain]
   );
 
   // Compute background layers - either from props or from context.
@@ -171,6 +190,7 @@ const CarmaMapContent = (props: CarmaMapProps) => {
                       if (libreMap?.terrain) {
                         libreMap.setTerrain(null);
                         setShowTerrain(false);
+                        localStorage.setItem("carma-map-terrain", "false");
                       } else if (libreMap) {
                         libreMap.setTerrain({
                           source: WUPPERTAL_CONFIG.terrain
@@ -179,6 +199,7 @@ const CarmaMapContent = (props: CarmaMapProps) => {
                           exaggeration: 1,
                         });
                         setShowTerrain(true);
+                        localStorage.setItem("carma-map-terrain", "true");
                       }
                     }}
                     className="font-semibold"

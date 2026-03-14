@@ -30,6 +30,7 @@ import "leaflet/dist/leaflet.css";
 const TREES_LOFT_KEY = "generic-trees-useLoft";
 const TREES_RADIUS_MIX_KEY = "generic-trees-radiusMix";
 const TREES_VISIBILITY_KEY = "generic-trees-layerVisibility";
+const TREES_CROSSHAIR_KEY = "generic-trees-crosshair";
 
 function loadUseLoft(): boolean {
   try {
@@ -462,7 +463,9 @@ export function GenericTreesPlayground() {
   const [radiusMix, setRadiusMix] = useState(loadRadiusMix);
   const [layerVisibility, setLayerVisibility] =
     useState<LayerVisibility>(loadLayerVisibility);
-  const [crosshair, setCrosshair] = useState(false);
+  const [crosshair, setCrosshair] = useState(() => {
+    try { return localStorage.getItem(TREES_CROSSHAIR_KEY) === "true"; } catch { return false; }
+  });
   const { progress, showProgress, handleProgressUpdate } = useProgress();
   const perfRef = useRef<ThreePerfData>(EMPTY_PERF);
 
@@ -524,7 +527,11 @@ export function GenericTreesPlayground() {
                 radiusMix={radiusMix}
                 onRadiusMixChange={handleRadiusMixChange}
                 crosshair={crosshair}
-                onCrosshairToggle={() => setCrosshair((v) => !v)}
+                onCrosshairToggle={() => setCrosshair((v) => {
+                  const next = !v;
+                  localStorage.setItem(TREES_CROSSHAIR_KEY, String(next));
+                  return next;
+                })}
               />
             </LibreContextProvider>
           </SelectionProvider>
