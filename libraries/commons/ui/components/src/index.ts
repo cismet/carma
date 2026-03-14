@@ -34,6 +34,10 @@ export {
   VectorTrapezoidIcon,
   type VectorTrapezoidIconProps,
 } from "./lib/components/VectorTrapezoidIcon";
+export {
+  ResponsiveStatusBar,
+  type ResponsiveStatusBarProps,
+} from "./lib/components/ResponsiveStatusBar";
 export { MODES } from "./lib/components/responsiveInfoBoxModes";
 export {
   createToolManager,

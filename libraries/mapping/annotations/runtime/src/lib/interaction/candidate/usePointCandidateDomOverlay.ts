@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useMemo, useRef } from "react";
 
 import {
   Cartesian3,
@@ -17,6 +17,7 @@ import {
   useLineVisualizers,
   usePointLabels,
 } from "@carma-providers/label-overlay";
+import { useCesiumSceneStateOptional } from "@carma-mapping/engines/cesium/react/scene-state";
 import type { CssPixelPosition } from "@carma/units/types";
 
 const CANDIDATE_HEIGHT_LABEL_ID = "measurement-candidate-height";
@@ -95,7 +96,8 @@ export const usePointCandidateDomOverlay = (
 
   const hasCandidatePoint = Boolean(candidatePointECEF);
   const hasCandidateAuxAnchor = Boolean(candidateVerticalOffsetAnchorECEF);
-  const [cameraPitch, setCameraPitch] = useState<number>(-Math.PI / 4);
+  const sceneState = useCesiumSceneStateOptional();
+  const cameraPitch = sceneState?.camera.pitchRad ?? scene?.camera.pitch ?? -Math.PI / 4;
 
   candidateElevatedPointRef.current = candidatePointECEF;
   candidateAuxAnchorRef.current = candidateVerticalOffsetAnchorECEF;
@@ -117,36 +119,6 @@ export const usePointCandidateDomOverlay = (
       ),
     [cameraPitch, candidateLabelLayoutConfig]
   );
-
-  useEffect(() => {
-    if (
-      !renderDomVisuals ||
-      !scene ||
-      scene.isDestroyed() ||
-      !hasCandidatePoint
-    ) {
-      return;
-    }
-
-    const camera = scene.camera;
-    const updatePitch = () => {
-      const currentPitch = camera.pitch;
-      setCameraPitch((previousPitch) =>
-        Math.abs(currentPitch - previousPitch) > 0.001
-          ? currentPitch
-          : previousPitch
-      );
-    };
-
-    updatePitch();
-    const removeChangedListener = camera.changed.addEventListener(updatePitch);
-    const removeMoveEndListener = camera.moveEnd.addEventListener(updatePitch);
-
-    return () => {
-      removeChangedListener?.();
-      removeMoveEndListener?.();
-    };
-  }, [scene, hasCandidatePoint, renderDomVisuals]);
 
   const candidateHeightLabelData = useMemo<PointLabelData[]>(() => {
     if (

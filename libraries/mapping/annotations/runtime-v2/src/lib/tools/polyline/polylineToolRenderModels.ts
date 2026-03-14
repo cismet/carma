@@ -27,6 +27,7 @@ type BuildPolylineToolRenderModelsArgs = {
   previewCoordinates: readonly RuntimeCoordinate[];
   selectedMeasurementId: string | null;
   onMeasurementSelect?: (measurementId: string) => void;
+  onNodeLongPress?: (nodeId: string, measurementId: string) => void;
 };
 
 export const buildPolylineToolRenderModels = ({
@@ -39,6 +40,7 @@ export const buildPolylineToolRenderModels = ({
   previewCoordinates,
   selectedMeasurementId,
   onMeasurementSelect,
+  onNodeLongPress,
 }: BuildPolylineToolRenderModelsArgs): {
   points: readonly RuntimePointMarkerRenderModel[];
   edges: readonly RuntimeEdgeRenderModel[];
@@ -120,6 +122,8 @@ export const buildPolylineToolRenderModels = ({
         return [
           {
             id: `${measurement.id}-label-${index}`,
+            measurementId: measurement.id,
+            nodeId,
             coordinate,
             content: badgeText,
             markerContent: badgeText,
@@ -128,6 +132,9 @@ export const buildPolylineToolRenderModels = ({
             selected: measurement.id === selectedMeasurementId,
             onClick: onMeasurementSelect
               ? () => onMeasurementSelect(measurement.id)
+              : undefined,
+            onLongPress: onNodeLongPress
+              ? () => onNodeLongPress(nodeId, measurement.id)
               : undefined,
           },
         ];

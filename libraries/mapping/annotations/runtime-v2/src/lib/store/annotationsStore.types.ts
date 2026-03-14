@@ -25,6 +25,7 @@ export type RuntimeAnnotationEntry = {
   toolType: RuntimeMeasurementType;
   nodeIds: readonly string[];
   edgeIds: readonly string[];
+  temporary?: boolean;
 };
 
 export type RuntimeMeasurement = RuntimeAnnotationEntry;
@@ -46,6 +47,10 @@ export type AnnotationDraftStoreState = {
   distancePreviewCoordinates: readonly RuntimeCoordinate[];
 };
 
+export type AnnotationSettingsStoreState = {
+  pointTemporaryMode: boolean;
+};
+
 export type AnnotationsStoreState = {
   annotationToolType: RuntimeToolId;
   selectionState: AnnotationSelectionStoreState;
@@ -53,5 +58,6 @@ export type AnnotationsStoreState = {
   nodes: readonly RuntimeNode[];
   edges: readonly RuntimeEdge[];
   infoBoxState: AnnotationInfoBoxStoreState;
+  settingsState: AnnotationSettingsStoreState;
   draftState: AnnotationDraftStoreState;
 };

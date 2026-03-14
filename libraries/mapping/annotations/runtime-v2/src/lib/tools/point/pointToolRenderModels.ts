@@ -24,6 +24,7 @@ type BuildPointToolRenderModelsArgs = {
   measurements: readonly RuntimeMeasurement[];
   selectedMeasurementId: string | null;
   onMeasurementSelect: (measurementId: string) => void;
+  onNodeLongPress?: (nodeId: string, measurementId: string) => void;
 };
 
 export const buildPointToolRenderModels = ({
@@ -35,6 +36,7 @@ export const buildPointToolRenderModels = ({
   measurements,
   selectedMeasurementId,
   onMeasurementSelect,
+  onNodeLongPress,
 }: BuildPointToolRenderModelsArgs): {
   points: readonly RuntimePointMarkerRenderModel[];
   pointLabels: readonly RuntimePointLabelRenderModel[];
@@ -72,18 +74,25 @@ export const buildPointToolRenderModels = ({
       if (!coordinate) {
         return [];
       }
+      const pointNodeId = measurement.nodeIds[0] ?? null;
 
       const badgeText = getMeasurementLabel(pointIndex + 1);
 
       return [
         {
           id: `${measurement.id}-label`,
+          measurementId: measurement.id,
+          nodeId: pointNodeId ?? undefined,
           coordinate,
           content: badgeText,
           markerBackgroundColor: badgeStyle.backgroundColor,
           markerTextColor: badgeStyle.textColor,
           selected: measurement.id === selectedMeasurementId,
           onClick: () => onMeasurementSelect(measurement.id),
+          onLongPress:
+            onNodeLongPress && pointNodeId
+              ? () => onNodeLongPress(pointNodeId, measurement.id)
+              : undefined,
         },
       ];
     }),

@@ -1,3 +1,3 @@
-import type { CesiumSceneLike } from "@carma-mapping/annotations/cesium";
+import type { Scene } from "@carma/cesium";
 
-export type RuntimeScene = CesiumSceneLike;
+export type RuntimeScene = Scene;

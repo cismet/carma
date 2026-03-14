@@ -23,8 +23,6 @@ export {
   AnnotationsToolbarItem,
   AnnotationsToolbarSeparator,
 } from "./lib/components/AnnotationsToolbar";
-export { AnnotationsStatusBar } from "./lib/components/AnnotationsStatusBar";
-export { ResponsiveStatusFooter } from "./lib/components/ResponsiveStatusFooter";
 export { LibrePitchingCompass } from "./lib/components/PitchingControl/LibrePitchingCompass";
 
 export {

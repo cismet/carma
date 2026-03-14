@@ -19,6 +19,8 @@ export type RuntimeEdgeRenderModel = {
 
 export type RuntimePointLabelRenderModel = {
   id: string;
+  measurementId?: string;
+  nodeId?: string;
   coordinate: RuntimeCoordinate;
   content: string;
   markerContent?: string;
@@ -27,4 +29,6 @@ export type RuntimePointLabelRenderModel = {
   selected?: boolean;
   hideLabelAndStem?: boolean;
   onClick?: () => void;
+  onLongPress?: () => void;
+  longPressDurationMs?: number;
 };

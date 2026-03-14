@@ -4,7 +4,6 @@ import {
   useEffect,
   useMemo,
   useRef,
-  useState,
   type CSSProperties,
   type ReactNode,
 } from "react";
@@ -43,8 +42,9 @@ import type { AnnotationSelectionState } from "../../selection/types/annotationS
 
 import {
   projectCartesian3JsonToScreen,
-  useCesiumSceneVisibilityIndex,
-} from "@carma-mapping/annotations/cesium";
+} from "@carma-mapping/engines/cesium/api";
+import { useCesiumSceneVisibilityIndex } from "@carma-mapping/engines/cesium/react/visibility";
+import { useCesiumSceneStateOptional } from "@carma-mapping/engines/cesium/react/scene-state";
 
 const ELEVATION_NEUTRAL_THRESHOLD_METERS = 0.03;
 const REFERENCE_POINT_DISTANCE_EPSILON_METERS = 0.001;
@@ -534,7 +534,8 @@ export const usePointLabelVisualizer = (
     onPointVerticalOffsetStemLongPress,
     pointLongPressDurationMs = 300,
   } = interactions ?? {};
-  const [cameraPitch, setCameraPitch] = useState<number>(-Math.PI / 4);
+  const sceneState = useCesiumSceneStateOptional();
+  const cameraPitch = sceneState?.camera.pitchRad ?? scene?.camera.pitch ?? -Math.PI / 4;
   const registeredPointIdSetRef = useRef<Set<string>>(new Set());
   const selectedAnnotationIdSet = useMemo(() => {
     const ids = new Set(selectedAnnotationIds);
@@ -566,32 +567,6 @@ export const usePointLabelVisualizer = (
       resolvedEditingPointMarkerSizeScale,
     [resolvedEditingPointMarkerSizeScale]
   );
-
-  // Keep camera pitch in sync while the camera moves.
-  useEffect(() => {
-    if (!scene || scene.isDestroyed() || !enabled) return;
-    const camera = scene.camera;
-
-    const updatePitch = () => {
-      const currentPitch = camera.pitch;
-      setCameraPitch((prev) =>
-        Math.abs(currentPitch - prev) > 0.001 ? currentPitch : prev
-      );
-    };
-
-    updatePitch();
-    const removeChangedListener = camera.changed.addEventListener(updatePitch);
-    const removeMoveEndListener = camera.moveEnd.addEventListener(updatePitch);
-
-    return () => {
-      if (removeChangedListener) {
-        removeChangedListener();
-      }
-      if (removeMoveEndListener) {
-        removeMoveEndListener();
-      }
-    };
-  }, [enabled, scene]);
 
   const realtimeOcclusionEditingPointIds = useMemo(() => {
     if (!occlusionChecksEnabled || !editingPointIsDragging) return [];

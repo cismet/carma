@@ -2,7 +2,7 @@ import type { Meta, StoryObj } from "@storybook/react";
 import { DebuggingStory } from "./storyScenarios";
 
 const meta: Meta = {
-  title: "MapFrameworkSwitcher/Debugging",
+  title: "Mapping/MapFrameworkSwitcher",
   parameters: {
     layout: "fullscreen",
   },

@@ -37,7 +37,7 @@ const shouldReuseOverlayPortal = (
 interface LabelOverlayProviderProps {
   children: ReactNode;
   containerRef?: RefObject<HTMLElement | null>;
-  requestUpdateCallback?: (updateFn: () => void) => void;
+  requestUpdateCallback?: (updateFn: () => void) => void | (() => void);
 }
 
 export const LabelOverlayProvider: React.FC<LabelOverlayProviderProps> = ({
@@ -266,8 +266,13 @@ export const LabelOverlayProvider: React.FC<LabelOverlayProviderProps> = ({
   // Register update loop
   useEffect(() => {
     if (requestUpdateCallback) {
-      requestUpdateCallback(updatePositionsInternal);
+      const cleanup = requestUpdateCallback(updatePositionsInternal);
       externalUpdateDriverDetectedRef.current = true;
+      return () => {
+        if (typeof cleanup === "function") {
+          cleanup();
+        }
+      };
     } else {
       let animationFrameId: number;
       const animationLoop = () => {

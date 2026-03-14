@@ -1,7 +1,7 @@
 import { useEffect } from "react";
 
 import { useLabelOverlay } from "@carma-providers/label-overlay";
-import { useCesiumOverlaySync } from "@carma-mapping/annotations/cesium";
+import { useCesiumOverlaySync } from "@carma-mapping/engines/cesium/react/interactions";
 import type { Scene } from "@carma/cesium";
 
 export const useOverlayPositionSync = (scene: Scene) => {

@@ -2,8 +2,10 @@ import * as ReactDOM from "react-dom/client";
 
 import { ConfigProvider, theme } from "antd";
 import { Leva } from "leva";
+import { MemoryRouter } from "react-router-dom";
 
 import { setupCesiumEnvironment } from "@carma-mapping/engines/cesium";
+import { HashStateProvider } from "@carma-providers/hash-state";
 
 import { App } from "./App";
 import { APP_BASE_PATH, CESIUM_PATHNAME } from "./config";
@@ -20,15 +22,27 @@ const root = ReactDOM.createRoot(
 );
 
 root.render(
-  <ConfigProvider
-    theme={{
-      algorithm: theme.compactAlgorithm,
-      components: { Collapse: { contentPadding: 0 } },
-    }}
-  >
-    <>
-      <Leva neverHide oneLineLabels={false} collapsed={false} />
-      <App />
-    </>
-  </ConfigProvider>
+  <MemoryRouter>
+    <HashStateProvider>
+      <ConfigProvider
+        theme={{
+          algorithm: theme.compactAlgorithm,
+          components: { Collapse: { contentPadding: 0 } },
+        }}
+      >
+        <>
+          <div className="annotations-playground-leva">
+            <Leva
+              fill
+              neverHide
+              oneLineLabels={false}
+              collapsed={false}
+              titleBar={{ drag: true, filter: true }}
+            />
+          </div>
+          <App />
+        </>
+      </ConfigProvider>
+    </HashStateProvider>
+  </MemoryRouter>
 );

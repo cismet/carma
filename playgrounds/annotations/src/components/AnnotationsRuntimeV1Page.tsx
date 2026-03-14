@@ -9,12 +9,23 @@ import {
   AnnotationToolbar3D,
   useLocalAnnotationPersistence,
 } from "@carma-mapping/annotations/runtime";
+import {
+  CesiumSceneStateProvider,
+  type CesiumSceneLike,
+} from "@carma-mapping/engines/cesium/react/scene-state";
 import { Control, ControlLayout } from "@carma-mapping/map-controls-layout";
 import { LabelOverlayProvider } from "@carma-providers/label-overlay";
 
 import { INFOBOX_WIDTH_PX, readInitialToolType } from "../playgroundConfig";
 import { CesiumWidgetContainer } from "./CesiumWidgetContainer";
 import { PersistActiveToolMode } from "./PersistActiveToolMode";
+
+const TERRAIN_SCENE_STATE_OPTIONS = {
+  orbitPointMode: "screen-center",
+  screenCenterSamplingStrategy: "terrain-only",
+  throwOnMissingScreenCenterIntersection: true,
+  fallbackHeightM: 200,
+} as const;
 
 export const AnnotationsRuntimeV1Page = () => {
   const rootRef = useRef<HTMLDivElement | null>(null);
@@ -28,38 +39,43 @@ export const AnnotationsRuntimeV1Page = () => {
 
   return (
     <CesiumWidgetContainer rootRef={rootRef} onSceneChange={setScene}>
-      <LabelOverlayProvider containerRef={rootRef}>
-        {scene ? (
-          <AnnotationsProvider
-            enabled={true}
-            cesiumScene={scene}
-            options={{
-              initialToolType,
-              initialPersistenceState,
-              onPersistenceStateChange,
-            }}
-          >
-            <PersistActiveToolMode />
-            <ControlLayout ifStorybook={false}>
-              <Control position="topcenter" order={20}>
-                <div
-                  style={{
-                    width: "max-content",
-                    maxWidth: "calc(100vw - 24px)",
-                    pointerEvents: "auto",
-                  }}
-                >
-                  <AnnotationToolbar3D
-                    secondaryToolbarCollapsedByDefault={true}
-                    enableMultiDeleteHotkey={false}
-                  />
-                </div>
-              </Control>
-              <AnnotationInfoBox pixelWidth={INFOBOX_WIDTH_PX} />
-            </ControlLayout>
-          </AnnotationsProvider>
-        ) : null}
-      </LabelOverlayProvider>
+      <CesiumSceneStateProvider
+        scene={scene as unknown as CesiumSceneLike | null}
+        options={TERRAIN_SCENE_STATE_OPTIONS}
+      >
+        <LabelOverlayProvider containerRef={rootRef}>
+          {scene ? (
+            <AnnotationsProvider
+              enabled={true}
+              cesiumScene={scene}
+              options={{
+                initialToolType,
+                initialPersistenceState,
+                onPersistenceStateChange,
+              }}
+            >
+              <PersistActiveToolMode />
+              <ControlLayout ifStorybook={false}>
+                <Control position="topcenter" order={20}>
+                  <div
+                    style={{
+                      width: "max-content",
+                      maxWidth: "calc(100vw - 24px)",
+                      pointerEvents: "auto",
+                    }}
+                  >
+                    <AnnotationToolbar3D
+                      secondaryToolbarCollapsedByDefault={true}
+                      enableMultiDeleteHotkey={false}
+                    />
+                  </div>
+                </Control>
+                <AnnotationInfoBox pixelWidth={INFOBOX_WIDTH_PX} />
+              </ControlLayout>
+            </AnnotationsProvider>
+          ) : null}
+        </LabelOverlayProvider>
+      </CesiumSceneStateProvider>
     </CesiumWidgetContainer>
   );
 };

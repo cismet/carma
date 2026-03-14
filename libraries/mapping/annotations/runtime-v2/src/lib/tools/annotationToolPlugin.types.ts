@@ -75,6 +75,7 @@ export type AnnotationToolRenderLayerContext = {
   annotationEntries: readonly RuntimeAnnotationEntry[];
   selectedAnnotationId: string | null;
   setSelectedAnnotationId: (annotationId: string | null) => void;
+  onNodeLongPress?: (nodeId: string, measurementId: string) => void;
 };
 
 export type AnnotationToolPlugin = {

@@ -138,6 +138,7 @@ export const distanceToolPlugin = createMeasurementToolPlugin({
       annotationEntries,
       selectedAnnotationId,
       setSelectedAnnotationId,
+      onNodeLongPress,
     }) => {
       const { points, edges, pointLabels } = buildDistanceToolRenderModels({
         toolType,
@@ -150,6 +151,7 @@ export const distanceToolPlugin = createMeasurementToolPlugin({
         previewCoordinates: state.draftState.distancePreviewCoordinates,
         selectedMeasurementId: selectedAnnotationId,
         onMeasurementSelect: setSelectedAnnotationId,
+        onNodeLongPress,
       });
 
       return {

@@ -51,6 +51,7 @@ export interface CesiumSetupOptions {
   terrainProviderUrl?: string;
   surfaceProviderUrl?: string;
   tilesetUrl?: string;
+  showRenderLoopErrors?: boolean;
 }
 
 export interface CesiumSetupResult {
@@ -133,12 +134,19 @@ export const initializeCesium = (
   container: HTMLDivElement,
   options: CesiumSetupOptions = {}
 ): CesiumWidget => {
-  const { useBrowserRecommendedResolution = true } = options;
+  const {
+    useBrowserRecommendedResolution = true,
+    showRenderLoopErrors = false,
+  } = options;
 
   // Create Cesium widget with options
   const widget = createMinimalCesiumWidget(container, {
+    requestRenderMode: true,
     useBrowserRecommendedResolution,
+    showRenderLoopErrors,
   });
+  widget.scene.requestRenderMode = true;
+  widget.scene.rethrowRenderErrors = false;
 
   // Position camera over Wuppertal
   const position = Cartesian3.fromDegrees(

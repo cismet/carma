@@ -1,13 +1,36 @@
 import { useCallback } from "react";
 
-import { type Scene } from "@carma/cesium";
+import {
+  BoundingSphere,
+  flyToBoundingSphereExtent,
+  type Cartesian3,
+  type Scene,
+} from "@carma/cesium";
 import {
   getAnnotationFlyToPointsById,
   getMeasurementEntryFlyToPoints,
   type AnnotationCollection,
   type NodeChainAnnotation,
 } from "@carma-mapping/annotations/core";
-import { flyToMeasurementPoints } from "@carma-mapping/annotations/cesium";
+
+const FLY_TO_MIN_RADIUS_METERS = 50;
+const FLY_TO_PADDING_FACTOR = 1.1;
+
+const flyToPoints = (
+  scene: Scene | null | undefined,
+  points: readonly Cartesian3[]
+) => {
+  if (!scene || scene.isDestroyed() || points.length === 0) {
+    return;
+  }
+
+  const sphere = BoundingSphere.fromPoints([...points]);
+  sphere.radius = Math.max(sphere.radius, FLY_TO_MIN_RADIUS_METERS);
+  flyToBoundingSphereExtent(scene.camera, sphere, {
+    minRange: FLY_TO_MIN_RADIUS_METERS,
+    paddingFactor: FLY_TO_PADDING_FACTOR,
+  });
+};
 
 type UseAnnotationFlyToActionsParams = {
   scene: Scene;
@@ -23,13 +46,13 @@ export const useFlyToActions = ({
   const flyToAnnotationById = useCallback(
     (id: string) => {
       if (!id) return;
-      const flyToPoints = getAnnotationFlyToPointsById(
+      const annotationFlyToPoints = getAnnotationFlyToPointsById(
         id,
         annotations,
         nodeChainAnnotations
       );
-      if (flyToPoints.length === 0) return;
-      flyToMeasurementPoints(scene, flyToPoints);
+      if (annotationFlyToPoints.length === 0) return;
+      flyToPoints(scene, annotationFlyToPoints);
     },
     [annotations, nodeChainAnnotations, scene]
   );
@@ -37,7 +60,7 @@ export const useFlyToActions = ({
   const flyToAllAnnotations = useCallback(() => {
     if (annotations.length === 0) return;
     const points = annotations.flatMap(getMeasurementEntryFlyToPoints);
-    flyToMeasurementPoints(scene, points);
+    flyToPoints(scene, points);
   }, [annotations, scene]);
 
   return {

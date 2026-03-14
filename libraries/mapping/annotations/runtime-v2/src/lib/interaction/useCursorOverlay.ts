@@ -3,7 +3,7 @@ import { createElement, useEffect, useMemo } from "react";
 import { useLabelOverlay } from "@carma-providers/label-overlay";
 import type { CssPixelPosition } from "@carma/units/types";
 
-const ANNOTATION_CURSOR_OVERLAY_ID = "annotation-candidate-crosshair";
+const ANNOTATION_CURSOR_OVERLAY_ID = "annotation-preview-crosshair";
 const CURSOR_STROKE_COLOR = "rgba(255, 255, 255, 0.96)";
 const CURSOR_CONTRAST_FILTER =
   "drop-shadow(0 0 1px rgba(0, 0, 0, 1)) drop-shadow(0 0 2px rgba(0, 0, 0, 0.95))";

@@ -124,6 +124,7 @@ export const polylineToolPlugin = createMeasurementToolPlugin({
       annotationEntries,
       selectedAnnotationId,
       setSelectedAnnotationId,
+      onNodeLongPress,
     }) => {
       const { points, edges, pointLabels } = buildPolylineToolRenderModels({
         toolType,
@@ -136,6 +137,7 @@ export const polylineToolPlugin = createMeasurementToolPlugin({
         previewCoordinates: state.draftState.polylinePreviewCoordinates,
         selectedMeasurementId: selectedAnnotationId,
         onMeasurementSelect: setSelectedAnnotationId,
+        onNodeLongPress,
       });
 
       return {

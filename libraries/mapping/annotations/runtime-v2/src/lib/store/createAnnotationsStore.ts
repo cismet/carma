@@ -16,6 +16,7 @@ import type { RuntimeToolId } from "../types/runtimeTool.types";
 export type CreateInitialAnnotationsStoreStateOptions = {
   initialToolType?: RuntimeToolId;
   initialSelectionModeActive?: boolean;
+  initialPointTemporaryMode?: boolean;
 };
 
 export type AppendAnnotationEntitiesPayload = {
@@ -38,6 +39,16 @@ export type RemoveAnnotationByIdPayload = {
   nextSelectedAnnotationId?: string | null;
 };
 
+export type UpdateNodeCoordinateByIdPayload = {
+  nodeId: string;
+  coordinate: RuntimeCoordinate;
+};
+
+export type SetAnnotationTemporaryByIdPayload = {
+  annotationId: string;
+  temporary: boolean;
+};
+
 const UNSET_TOOL_TYPE = "__unset__" as RuntimeToolId;
 
 export const createInitialAnnotationsStoreState = (
@@ -46,6 +57,7 @@ export const createInitialAnnotationsStoreState = (
   const {
     initialToolType = UNSET_TOOL_TYPE,
     initialSelectionModeActive = false,
+    initialPointTemporaryMode = false,
   } = options;
 
   return {
@@ -62,6 +74,9 @@ export const createInitialAnnotationsStoreState = (
     edges: [],
     infoBoxState: {
       activeAnnotationId: null,
+    },
+    settingsState: {
+      pointTemporaryMode: initialPointTemporaryMode,
     },
     draftState: {
       polylinePreviewCoordinates: [],
@@ -81,6 +96,9 @@ const annotationsSlice = createSlice({
     },
     setSelectionModeActive: (state, action: PayloadAction<boolean>) => {
       state.selectionState.selectionModeActive = action.payload;
+    },
+    setPointTemporaryMode: (state, action: PayloadAction<boolean>) => {
+      state.settingsState.pointTemporaryMode = action.payload;
     },
     setSelectedAnnotationId: (state, action: PayloadAction<string | null>) => {
       const nextSelectedAnnotationId = action.payload;
@@ -176,6 +194,76 @@ const annotationsSlice = createSlice({
       state.infoBoxState.activeAnnotationId =
         nextSelectedAnnotationIds[nextSelectedAnnotationIds.length - 1] ?? null;
     },
+    updateNodeCoordinateById: (
+      state,
+      action: PayloadAction<UpdateNodeCoordinateByIdPayload>
+    ) => {
+      const { nodeId, coordinate } = action.payload;
+      const targetNode = state.nodes.find((node) => node.id === nodeId);
+      if (!targetNode) {
+        return;
+      }
+      targetNode.coordinate = coordinate;
+    },
+    setAnnotationTemporaryById: (
+      state,
+      action: PayloadAction<SetAnnotationTemporaryByIdPayload>
+    ) => {
+      const { annotationId, temporary } = action.payload;
+      const targetEntry = state.annotationEntries.find(
+        (entry) => entry.id === annotationId
+      );
+      if (!targetEntry) {
+        return;
+      }
+      targetEntry.temporary = temporary;
+    },
+    finalizeTemporaryAnnotationsByToolType: (
+      state,
+      action: PayloadAction<RuntimeAnnotationEntry["toolType"]>
+    ) => {
+      const toolType = action.payload;
+      state.annotationEntries.forEach((entry) => {
+        if (entry.toolType === toolType && entry.temporary) {
+          entry.temporary = false;
+        }
+      });
+    },
+    clearTemporaryAnnotationsByToolType: (
+      state,
+      action: PayloadAction<RuntimeAnnotationEntry["toolType"]>
+    ) => {
+      const toolType = action.payload;
+      const temporaryEntryIdSet = new Set(
+        state.annotationEntries
+          .filter((entry) => entry.toolType === toolType && entry.temporary)
+          .map((entry) => entry.id)
+      );
+      if (temporaryEntryIdSet.size === 0) {
+        return;
+      }
+
+      state.annotationEntries = state.annotationEntries.filter(
+        (entry) => !temporaryEntryIdSet.has(entry.id)
+      );
+
+      const usedNodeIds = new Set(
+        state.annotationEntries.flatMap((entry) => entry.nodeIds)
+      );
+      const usedEdgeIds = new Set(
+        state.annotationEntries.flatMap((entry) => entry.edgeIds)
+      );
+      state.nodes = state.nodes.filter((node) => usedNodeIds.has(node.id));
+      state.edges = state.edges.filter((edge) => usedEdgeIds.has(edge.id));
+
+      const nextSelectedAnnotationIds =
+        state.selectionState.selectedAnnotationIds.filter(
+          (annotationId) => !temporaryEntryIdSet.has(annotationId)
+        );
+      state.selectionState.selectedAnnotationIds = nextSelectedAnnotationIds;
+      state.infoBoxState.activeAnnotationId =
+        nextSelectedAnnotationIds[nextSelectedAnnotationIds.length - 1] ?? null;
+    },
     setPolylinePreviewCoordinates: (
       state,
       action: PayloadAction<SetPolylinePreviewCoordinatesPayload>
@@ -203,9 +291,14 @@ const annotationsSlice = createSlice({
 
 export const {
   appendAnnotationEntities,
+  clearTemporaryAnnotationsByToolType,
   clearDistancePreviewCoordinates,
   clearPolylinePreviewCoordinates,
+  finalizeTemporaryAnnotationsByToolType,
   removeAnnotationById,
+  setAnnotationTemporaryById,
+  setPointTemporaryMode,
+  updateNodeCoordinateById,
   replaceState,
   setDistancePreviewCoordinates,
   setAnnotationToolType,

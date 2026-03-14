@@ -72,6 +72,10 @@ export const PointLabelMarker = ({
         left: "0px",
         top: "0px",
         transform: "translate(-50%, -50%)",
+        display: "inline-flex",
+        alignItems: "center",
+        justifyContent: "center",
+        lineHeight: 0,
         pointerEvents,
         cursor,
       }}
@@ -92,8 +96,13 @@ export const PointLabelMarker = ({
             width: `${markerSize}px`,
             height: `${markerSize}px`,
             padding: 0,
+            margin: 0,
+            lineHeight: 1,
+            display: "inline-flex",
+            alignItems: "center",
+            justifyContent: "center",
             borderWidth: markerStrokeWidth,
-            borderStyle: isOccluded ? "dashed" : "solid",
+            borderStyle: isOccluded ? "dotted" : "solid",
             borderColor: "#fff",
             backgroundColor: markerBackgroundColor,
             color: markerTextColor,
@@ -113,7 +122,7 @@ export const PointLabelMarker = ({
             width: `${markerSize}px`,
             height: `${markerSize}px`,
             border: `${markerStrokeWidth}px ${
-              isOccluded ? "dashed" : "solid"
+              isOccluded ? "dotted" : "solid"
             } #fff`,
             borderRadius: "50%",
             boxSizing: "border-box",

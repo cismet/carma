@@ -92,24 +92,19 @@ const resolveLineLabelPlacement = ({
   const outsideRef = line.getLabelOutsideReferencePoint?.();
   const insideRef = line.getLabelInsideReferencePoint?.();
   let shouldFlip = previousShouldFlip;
+  const sideReferencePoint = outsideRef ?? insideRef;
 
-  if (outsideRef) {
-    const refDx = outsideRef.x - midX;
-    const refDy = outsideRef.y - midY;
+  if (sideReferencePoint) {
+    const refDx = sideReferencePoint.x - midX;
+    const refDy = sideReferencePoint.y - midY;
     const dotWithNormal = refDx * normalX + refDy * normalY;
+
+    // Orient label normal toward the selected side reference point.
+    // Positive dot means the current normal already points to the target side.
     if (dotWithNormal > LABEL_SIDE_HYSTERESIS_PX) {
-      shouldFlip = true;
+      shouldFlip = false;
     } else if (dotWithNormal < -LABEL_SIDE_HYSTERESIS_PX) {
-      shouldFlip = false;
-    }
-  } else if (insideRef) {
-    const refDx = insideRef.x - midX;
-    const refDy = insideRef.y - midY;
-    const dotWithNormal = refDx * normalX + refDy * normalY;
-    if (dotWithNormal < -LABEL_SIDE_HYSTERESIS_PX) {
       shouldFlip = true;
-    } else if (dotWithNormal > LABEL_SIDE_HYSTERESIS_PX) {
-      shouldFlip = false;
     }
   }
 

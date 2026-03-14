@@ -37,7 +37,19 @@ export const useGeoportalFrameworkSwitcher = (
         { lat: center.lat, lng: center.lng, zoom },
         {
           label: "[GEOPORTAL] Post-transition hash update",
-          clearKeys: ["h", "heading", "pitch", "fov", "is3d"],
+          clearKeys: [
+            "h",
+            "altitude",
+            "range",
+            "heading",
+            "bearing",
+            "pitch",
+            "roll",
+            "fov",
+            "is3d",
+            "camera3d",
+            "c3",
+          ],
         }
       );
     };

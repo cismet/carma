@@ -2,9 +2,11 @@ import { useState, useEffect } from "react";
 import { Card, Slider } from "antd";
 import type { CesiumWidget } from "@carma/cesium";
 import { PixelResolutionVis } from "./PixelResolutionVis";
+import type { CSSProperties } from "react";
 
 interface FovControlProps {
   cesiumWidget: CesiumWidget | null;
+  style?: CSSProperties;
 }
 
 // Calculate pixel resolution at center and edge
@@ -283,7 +285,7 @@ const FovConeVisualization = ({
   );
 };
 
-export const FovControl = ({ cesiumWidget }: FovControlProps) => {
+export const FovControl = ({ cesiumWidget, style }: FovControlProps) => {
   const [fovDegrees, setFovDegrees] = useState<number>(60);
   const [viewportSize, setViewportSize] = useState<{
     width: number;
@@ -383,6 +385,7 @@ export const FovControl = ({ cesiumWidget }: FovControlProps) => {
         top: "16px",
         right: "16px",
         zIndex: 1000,
+        ...style,
       }}
     >
       <Card size="small" style={{ width: "auto" }}>

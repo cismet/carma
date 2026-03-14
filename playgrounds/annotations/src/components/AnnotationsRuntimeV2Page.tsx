@@ -3,6 +3,7 @@ import { useRef, useState } from "react";
 import { Tooltip } from "antd";
 import { type Scene } from "@carma/cesium";
 import { CarmaResponsiveInfoBox } from "@carma-commons/ui/components";
+import { ResponsiveStatusBar } from "@carma-commons/ui/components";
 import { SELECT_TOOL_TYPE } from "@carma-mapping/annotations/core";
 
 import {
@@ -11,7 +12,11 @@ import {
   useAnnotationsRuntime,
 } from "@carma-mapping/annotations/runtime-v2";
 import {
-  AnnotationsStatusBar,
+  CesiumSceneStateProvider,
+  type CesiumSceneLike,
+  useCesiumSceneStateOptional,
+} from "@carma-mapping/engines/cesium/react/scene-state";
+import {
   AnnotationsToolbar,
   AnnotationsToolbarButton,
   AnnotationsToolbarIcon,
@@ -19,12 +24,35 @@ import {
   AnnotationsToolbarSeparator,
 } from "@carma-mapping/components";
 import { Control, ControlLayout } from "@carma-mapping/map-controls-layout";
+import { useCesiumCameraHashPlugin } from "@carma-providers/hash-state";
 import { LabelOverlayProvider } from "@carma-providers/label-overlay";
 
 import { CesiumWidgetContainer } from "./CesiumWidgetContainer";
 
+const TERRAIN_SCENE_STATE_OPTIONS = {
+  orbitPointMode: "screen-center",
+  screenCenterSamplingStrategy: "terrain-only",
+  throwOnMissingScreenCenterIntersection: true,
+  fallbackHeightM: 200,
+} as const;
+
 const formatCoordinate = (value: number, digits: number) =>
   Number.isFinite(value) ? value.toFixed(digits) : "0";
+
+const RuntimeCameraHashSync = ({ enabled }: { enabled: boolean }) => {
+  const sceneState = useCesiumSceneStateOptional();
+  useCesiumCameraHashPlugin({
+    sceneState,
+    enabled,
+    encodeScheme: "maplibre-camera-centric",
+    anchorMode: "camera-position",
+    fallbackHeightM: 200,
+    replace: true,
+    includeIsCesiumFlag: false,
+    label: "annotations-playground:camera3d",
+  });
+  return null;
+};
 
 const RuntimeToolbar = () => {
   const { registry, activeToolType, requestModeChange } =
@@ -76,8 +104,17 @@ const RuntimeStatusBar = () => {
   const secondaryHint = `${annotationEntries.length} Annotation(en) gespeichert`;
 
   return (
-    <Control position="bottomleft" order={10}>
-      <AnnotationsStatusBar
+    <div
+      style={{
+        position: "absolute",
+        left: 0,
+        right: 0,
+        bottom: 0,
+        zIndex: 1800,
+        pointerEvents: "none",
+      }}
+    >
+      <ResponsiveStatusBar
         label="annotations runtime"
         values={[
           activePlugin?.descriptor.label ?? "Werkzeug",
@@ -85,7 +122,7 @@ const RuntimeStatusBar = () => {
           secondaryHint,
         ]}
       />
-    </Control>
+    </div>
   );
 };
 
@@ -165,15 +202,21 @@ export const AnnotationsRuntimeV2Page = () => {
 
   return (
     <CesiumWidgetContainer rootRef={rootRef} onSceneChange={setScene}>
-      <LabelOverlayProvider containerRef={rootRef}>
-        <AnnotationsProvider scene={scene} initialActiveToolType="polyline">
-          <ControlLayout ifStorybook={false}>
-            <RuntimeToolbar />
-            <RuntimeStatusBar />
-            <RuntimeSelectionInfoBox />
-          </ControlLayout>
-        </AnnotationsProvider>
-      </LabelOverlayProvider>
+      <CesiumSceneStateProvider
+        scene={scene as unknown as CesiumSceneLike | null}
+        options={TERRAIN_SCENE_STATE_OPTIONS}
+      >
+        <RuntimeCameraHashSync enabled={Boolean(scene)} />
+        <LabelOverlayProvider containerRef={rootRef}>
+          <AnnotationsProvider scene={scene} initialActiveToolType="polyline">
+            <ControlLayout ifStorybook={false}>
+              <RuntimeToolbar />
+              <RuntimeStatusBar />
+              <RuntimeSelectionInfoBox />
+            </ControlLayout>
+          </AnnotationsProvider>
+        </LabelOverlayProvider>
+      </CesiumSceneStateProvider>
     </CesiumWidgetContainer>
   );
 };

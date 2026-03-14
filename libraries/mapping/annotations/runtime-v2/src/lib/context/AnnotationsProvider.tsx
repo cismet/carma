@@ -17,8 +17,10 @@ import {
   useToolSessions,
 } from "../interaction/lifecycle";
 import { useCursorOverlay } from "../interaction/useCursorOverlay";
+import { usePointEditingGizmo } from "../interaction/usePointEditingGizmo";
+import { usePointPreviewRingIndicator } from "../interaction/usePointPreviewRingIndicator";
 import { useSceneCoordinateHandler } from "../interaction/useSceneCoordinateHandler";
-import { AtomicMeasurementVisualizer } from "../render/AtomicMeasurementVisualizer";
+import { MeasurementPrimitivesVisualizer } from "../render/MeasurementPrimitivesVisualizer";
 import { RuntimePointLabelVisualizer } from "../render/RuntimePointLabelVisualizer";
 import { useOverlayPositionSync } from "../render/useOverlayPositionSync";
 import {
@@ -32,8 +34,10 @@ import {
   appendAnnotationEntities,
   createAnnotationsStore,
   createInitialAnnotationsStoreState,
+  finalizeTemporaryAnnotationsByToolType,
   removeAnnotationById,
   setAnnotationToolType,
+  setPointTemporaryMode as setPointTemporaryModeInStoreAction,
   setSelectionModeActive,
   setSelectedAnnotationId,
   useAnnotationsSelector,
@@ -68,6 +72,7 @@ type AnnotationsRuntimeServices = {
   requestModeChange: (toolType: RuntimeToolId) => void;
   requestStartMeasurement: (toolType?: RuntimeToolId) => void;
   requestFinishMeasurement: () => boolean;
+  setPointTemporaryMode: (temporaryMode: boolean) => void;
   setSelectedAnnotationId: (annotationId: string | null) => void;
   setRenderLayer: (layerId: string, layer: RuntimeRenderLayer) => void;
   clearRenderLayer: (layerId: string) => void;
@@ -80,6 +85,7 @@ type AnnotationsProviderProps = {
   scene: RuntimeScene | null;
   children?: ReactNode;
   initialActiveToolType?: RuntimeToolId;
+  initialPointTemporaryMode?: boolean;
   plugins?: readonly AnnotationToolPlugin[];
 };
 
@@ -137,8 +143,11 @@ const NOOP_RUNTIME_LIFECYCLE_HOST_API: RuntimeLifecycleHostApi = {
 };
 
 const POINT_QUERY_PREVIEW_LAYER_ID = "runtime-point-query-preview";
+const POINT_TOOL_ID = "point";
 const DISTANCE_TOOL_ID = "distance";
 const POLYLINE_TOOL_ID = "polyline";
+const POINT_QUERY_DISC_RADIUS_METERS = 1;
+const NODE_LABEL_LONG_PRESS_DURATION_MS = 320;
 
 const isEditableKeyboardTarget = (target: EventTarget | null): boolean => {
   if (!(target instanceof HTMLElement)) {
@@ -295,6 +304,7 @@ const RuntimeInteractionHost = ({
   clearRenderLayer,
   setCursorScreenPosition,
   bindApi,
+  activeMoveGizmoNodeId,
 }: {
   scene: RuntimeScene | null;
   registry: AnnotationToolRegistry;
@@ -310,6 +320,7 @@ const RuntimeInteractionHost = ({
     cursorScreenPosition: RuntimeCursorScreenPosition
   ) => void;
   bindApi: (api: RuntimeLifecycleHostApi) => void;
+  activeMoveGizmoNodeId: string | null;
 }) => {
   const activeToolType = useAnnotationsSelector(
     (state) => state.annotationToolType
@@ -317,8 +328,11 @@ const RuntimeInteractionHost = ({
   const state = useAnnotationsSelector(
     (annotationsState) => annotationsState as AnnotationsStoreState
   );
+  const nodes = useAnnotationsSelector((annotationsState) => annotationsState.nodes);
   const [hoverCoordinate, setHoverCoordinate] =
     useState<RuntimeCoordinate | null>(null);
+  const [hoverScreenPosition, setHoverScreenPosition] =
+    useState<RuntimeCursorScreenPosition>(null);
 
   const sessionContext = useMemo(
     () => ({
@@ -345,6 +359,20 @@ const RuntimeInteractionHost = ({
     );
   }, [activePlugin?.kind, annotationsStore]);
 
+  const previousPointTemporaryModeRef = useRef(
+    state.settingsState.pointTemporaryMode
+  );
+  useEffect(() => {
+    const previousPointTemporaryMode = previousPointTemporaryModeRef.current;
+    const currentPointTemporaryMode = state.settingsState.pointTemporaryMode;
+    if (previousPointTemporaryMode && !currentPointTemporaryMode) {
+      annotationsStore.dispatch(
+        finalizeTemporaryAnnotationsByToolType(POINT_TOOL_ID)
+      );
+    }
+    previousPointTemporaryModeRef.current = currentPointTemporaryMode;
+  }, [annotationsStore, state.settingsState.pointTemporaryMode]);
+
   const {
     requestModeChange,
     requestStartMeasurement,
@@ -353,8 +381,14 @@ const RuntimeInteractionHost = ({
     setCursorScreenPosition(null);
   });
 
-  const { handlePointQueryPointCreated, activeToolSession } =
+  const {
+    handlePointQueryPointCreated,
+    resolvePointQueryCoordinate,
+    activeToolSession,
+  } =
     usePointQueryToolRouting({
+      scene,
+      nodes,
       activeToolType,
       toolSessions,
       getToolPlugin: (toolType) => registry.getPlugin(toolType) ?? null,
@@ -379,7 +413,8 @@ const RuntimeInteractionHost = ({
   ]);
 
   const pointQueryEnabled = Boolean(
-    activeToolSession?.onNodeCreated || activePlugin?.pointQuery?.onPointCreated
+    (activeToolSession?.onNodeCreated || activePlugin?.pointQuery?.onPointCreated) &&
+      !activeMoveGizmoNodeId
   );
 
   useSceneCoordinateHandler({
@@ -392,10 +427,15 @@ const RuntimeInteractionHost = ({
         }
       : undefined,
     onScreenPositionChange: (screenPosition) => {
+      setHoverScreenPosition(screenPosition);
       setCursorScreenPosition(pointQueryEnabled ? screenPosition : null);
     },
-    onHoverCoordinateChange: (coordinate) => {
-      setHoverCoordinate(pointQueryEnabled ? coordinate : null);
+    onHoverCoordinateChange: (coordinate, screenPosition) => {
+      setHoverCoordinate(
+        pointQueryEnabled && coordinate
+          ? resolvePointQueryCoordinate(coordinate, screenPosition)
+          : null
+      );
     },
   });
 
@@ -406,7 +446,20 @@ const RuntimeInteractionHost = ({
 
     setCursorScreenPosition(null);
     setHoverCoordinate(null);
+    setHoverScreenPosition(null);
   }, [pointQueryEnabled, setCursorScreenPosition]);
+
+  usePointPreviewRingIndicator(
+    scene,
+    {
+      coordinate: hoverCoordinate,
+      screenPosition: hoverScreenPosition,
+    },
+    {
+      radius: POINT_QUERY_DISC_RADIUS_METERS,
+      enabled: pointQueryEnabled && Boolean(hoverCoordinate),
+    }
+  );
 
   useEffect(() => {
     const previewLayer = buildPointQueryPreviewRenderLayer({
@@ -512,12 +565,16 @@ const RuntimeInteractionHost = ({
 const RuntimeVisualizationHost = ({
   scene,
   registry,
+  annotationsStore,
   setSelectedAnnotationId,
+  onActiveMoveGizmoNodeIdChange,
   bindApi,
 }: {
   scene: RuntimeScene | null;
   registry: AnnotationToolRegistry;
+  annotationsStore: AnnotationsStore;
   setSelectedAnnotationId: (annotationId: string | null) => void;
+  onActiveMoveGizmoNodeIdChange: (nodeId: string | null) => void;
   bindApi: (api: RuntimeRenderHostApi) => void;
 }) => {
   useOverlayPositionSync(scene);
@@ -534,9 +591,6 @@ const RuntimeVisualizationHost = ({
   const annotationEntries = useAnnotationsSelector(
     (annotationsState) => annotationsState.annotationEntries
   );
-  const activeToolType = useAnnotationsSelector(
-    (annotationsState) => annotationsState.annotationToolType
-  );
   const selectedAnnotationId = useAnnotationsSelector(
     selectSelectedAnnotationId
   );
@@ -544,9 +598,13 @@ const RuntimeVisualizationHost = ({
     renderLayers: {},
     cursorScreenPosition: null,
   });
-  const activePlugin = registry.getPlugin(activeToolType) ?? null;
-  const pointQueryActive =
-    activePlugin?.capabilities?.includes("pointQuery") ?? false;
+  const { handleNodeLongPress } = usePointEditingGizmo({
+    scene,
+    nodes,
+    annotationsStore,
+    setSelectedAnnotationId,
+    onActiveMoveGizmoNodeIdChange,
+  });
 
   const setRenderLayer = useCallback(
     (layerId: string, layer: RuntimeRenderLayer) => {
@@ -628,6 +686,7 @@ const RuntimeVisualizationHost = ({
             annotationEntries,
             selectedAnnotationId,
             setSelectedAnnotationId,
+            onNodeLongPress: handleNodeLongPress,
           }) ?? null
       )
       .filter((layer): layer is RuntimeRenderLayer => Boolean(layer));
@@ -647,8 +706,28 @@ const RuntimeVisualizationHost = ({
     renderState.renderLayers,
     selectedAnnotationId,
     setSelectedAnnotationId,
+    handleNodeLongPress,
     state,
   ]);
+
+  const normalizedPointLabels = useMemo(
+    () =>
+      aggregatedRenderLayer.pointLabels.map((pointLabel) => ({
+        ...pointLabel,
+        onLongPress:
+          pointLabel.onLongPress ??
+          (pointLabel.nodeId && pointLabel.measurementId
+            ? () =>
+                handleNodeLongPress(
+                  pointLabel.nodeId,
+                  pointLabel.measurementId
+                )
+            : undefined),
+        longPressDurationMs:
+          pointLabel.longPressDurationMs ?? NODE_LABEL_LONG_PRESS_DURATION_MS,
+      })),
+    [aggregatedRenderLayer.pointLabels, handleNodeLongPress]
+  );
 
   useCursorOverlay(renderState.cursorScreenPosition, {
     enabled: renderState.cursorScreenPosition !== null,
@@ -656,15 +735,15 @@ const RuntimeVisualizationHost = ({
 
   return (
     <>
-      <AtomicMeasurementVisualizer
+      <MeasurementPrimitivesVisualizer
         scene={scene}
         points={aggregatedRenderLayer.points ?? []}
         edges={aggregatedRenderLayer.edges ?? []}
       />
       <RuntimePointLabelVisualizer
         scene={scene}
-        labels={aggregatedRenderLayer.pointLabels ?? []}
-        pointQueryActive={pointQueryActive}
+        labels={normalizedPointLabels}
+        blockLabelInteractions={renderState.cursorScreenPosition !== null}
       />
     </>
   );
@@ -674,6 +753,7 @@ export const AnnotationsProvider = ({
   scene,
   children,
   initialActiveToolType,
+  initialPointTemporaryMode = false,
   plugins = defaultAnnotationToolPlugins,
 }: AnnotationsProviderProps) => {
   const registry = useMemo(
@@ -700,11 +780,15 @@ export const AnnotationsProvider = ({
   const measurementSequenceRef = useRef(0);
   const nodeSequenceRef = useRef(0);
   const edgeSequenceRef = useRef(0);
+  const [activeMoveGizmoNodeId, setActiveMoveGizmoNodeId] = useState<string | null>(
+    null
+  );
 
   if (annotationsStoreRef.current === null) {
     annotationsStoreRef.current = createAnnotationsStore(
       createInitialAnnotationsStoreState({
         initialToolType: resolvedInitialToolType,
+        initialPointTemporaryMode,
         initialSelectionModeActive:
           registry.getPlugin(resolvedInitialToolType)?.kind === "interaction",
       })
@@ -735,6 +819,13 @@ export const AnnotationsProvider = ({
   const setSelectedAnnotationIdInStore = useCallback(
     (annotationId: string | null) => {
       annotationsStore.dispatch(setSelectedAnnotationId(annotationId));
+    },
+    [annotationsStore]
+  );
+
+  const setPointTemporaryModeInStore = useCallback(
+    (temporaryMode: boolean) => {
+      annotationsStore.dispatch(setPointTemporaryModeInStoreAction(temporaryMode));
     },
     [annotationsStore]
   );
@@ -787,6 +878,7 @@ export const AnnotationsProvider = ({
         lifecycleHostApiRef.current.requestStartMeasurement(toolType),
       requestFinishMeasurement: () =>
         lifecycleHostApiRef.current.requestFinishMeasurement(),
+      setPointTemporaryMode: setPointTemporaryModeInStore,
       setSelectedAnnotationId: setSelectedAnnotationIdInStore,
       setRenderLayer: (layerId, layer) =>
         renderHostApiRef.current.setRenderLayer(layerId, layer),
@@ -801,6 +893,7 @@ export const AnnotationsProvider = ({
       registry,
       scene,
       setActiveToolType,
+      setPointTemporaryModeInStore,
       setSelectedAnnotationIdInStore,
     ]
   );
@@ -829,12 +922,15 @@ export const AnnotationsProvider = ({
               cursorScreenPosition
             )
           }
+          activeMoveGizmoNodeId={activeMoveGizmoNodeId}
           bindApi={bindLifecycleHostApi}
         />
         <RuntimeVisualizationHost
           scene={scene}
           registry={registry}
+          annotationsStore={annotationsStore}
           setSelectedAnnotationId={setSelectedAnnotationIdInStore}
+          onActiveMoveGizmoNodeIdChange={setActiveMoveGizmoNodeId}
           bindApi={bindRenderHostApi}
         />
         {children}
@@ -852,6 +948,7 @@ export const useAnnotationsRuntime = () => {
     requestModeChange,
     requestStartMeasurement,
     requestFinishMeasurement,
+    setPointTemporaryMode,
     setSelectedAnnotationId,
     setRenderLayer,
     clearRenderLayer,
@@ -868,6 +965,9 @@ export const useAnnotationsRuntime = () => {
   const selectedAnnotationId = useAnnotationsSelector(
     selectSelectedAnnotationId
   );
+  const pointTemporaryMode = useAnnotationsSelector(
+    (state) => state.settingsState.pointTemporaryMode
+  );
 
   return {
     scene,
@@ -877,6 +977,8 @@ export const useAnnotationsRuntime = () => {
     requestModeChange,
     requestStartMeasurement,
     requestFinishMeasurement,
+    pointTemporaryMode,
+    setPointTemporaryMode,
     nodes,
     edges,
     annotationEntries,

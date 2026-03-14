@@ -6,7 +6,7 @@ import {
   type NodeChainAnnotation,
   type PointDistanceRelation,
 } from "@carma-mapping/annotations/core";
-import { useCesiumEdgeVisualizer } from "@carma-mapping/annotations/cesium";
+import { useCesiumEdgeVisualizer } from "@carma-mapping/engines/cesium/react/primitives";
 
 import {
   useGroundAreaLabelVisualizer,
