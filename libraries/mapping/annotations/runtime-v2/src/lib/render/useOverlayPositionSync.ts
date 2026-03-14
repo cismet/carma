@@ -1,6 +1,6 @@
 import { useEffect } from "react";
 
-import { useCesiumOverlaySync } from "@carma-mapping/annotations/cesium";
+import { useCesiumOverlaySync } from "@carma-mapping/engines/cesium/react/interactions";
 import { useLabelOverlay } from "@carma-providers/label-overlay";
 import type { RuntimeScene } from "../types/runtimeScene.types";
 

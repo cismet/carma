@@ -5,7 +5,7 @@ import {
   type Dispatch,
   type SetStateAction,
 } from "react";
-import { Cartesian3, type Scene } from "@carma/cesium";
+import { Cartesian3, type Cartesian3 as CesiumCartesian3, type Scene } from "@carma/cesium";
 import { useStoreSelector } from "@carma-commons/react-store";
 import type {
   AnnotationCollection,
@@ -38,11 +38,9 @@ type UseAnnotationEntriesParams = {
   scene: Scene;
   annotations: AnnotationCollection;
   nodeChainAnnotations: NodeChainAnnotation[];
-  referencePoint: import("@carma/cesium").Cartesian3 | null;
+  referencePoint: CesiumCartesian3 | null;
   setAnnotations: Dispatch<SetStateAction<AnnotationCollection>>;
-  setReferencePoint: Dispatch<
-    SetStateAction<import("@carma/cesium").Cartesian3 | null>
-  >;
+  setReferencePoint: Dispatch<SetStateAction<CesiumCartesian3 | null>>;
   referencePointSyncEpsilonMeters: number;
   updateAnnotationNameById: (id: string, name: string) => void;
   updateAnnotationVisualizerOptionsById: (

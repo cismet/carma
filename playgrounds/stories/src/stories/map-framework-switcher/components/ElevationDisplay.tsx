@@ -1,12 +1,16 @@
 import { Card, Radio } from "antd";
-import { useEffect, useState, useMemo, useRef } from "react";
+import { useEffect, useState, useMemo, useRef, type CSSProperties } from "react";
 import { getPixelResolutionFromZoomAtLatitudeRad } from "@carma/geo/utils";
 import { radToDegNumeric, degToRadNumeric } from "@carma/units/helpers";
 import { Cartographic } from "@carma/cesium";
 import { guardSampleTerrainMostDetailedAsync } from "@carma-mapping/engines/cesium";
 import { useMapFrameworkSwitcherContext } from "@carma-mapping/components";
 
-export const ElevationDisplay = () => {
+interface ElevationDisplayProps {
+  style?: CSSProperties;
+}
+
+export const ElevationDisplay = ({ style }: ElevationDisplayProps) => {
   const { activeFramework, isCesium, refs } = useMapFrameworkSwitcherContext();
 
   // Get refs from context
@@ -206,6 +210,7 @@ export const ElevationDisplay = () => {
         bottom: 16,
         right: 16,
         zIndex: 1000,
+        ...style,
       }}
     >
       <Card

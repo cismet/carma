@@ -69,12 +69,18 @@ import {
   useCesiumInitialCameraFromSearchParams,
 } from "@carma-mapping/engines/cesium";
 import {
+  CesiumSceneStateProvider,
+  type CesiumSceneLike,
+  useCesiumSceneStateOptional,
+} from "@carma-mapping/engines/cesium/react/scene-state";
+import {
   useMapFrameworkSwitcherContext,
   useRegisterMapFramework,
 } from "@carma-mapping/components";
 import { EmptySearchComponent } from "@carma-mapping/fuzzy-search";
 import { useAuth } from "@carma-providers/auth";
 import { useFeatureFlags } from "@carma-providers/feature-flag";
+import { useCesiumCameraHashPlugin } from "@carma-providers/hash-state";
 
 import FeatureInfoBox from "../feature-info/FeatureInfoBox.tsx";
 import PrintPreview from "../map-print/PrintPreview.tsx";
@@ -134,6 +140,24 @@ interface MapProps {
 }
 
 const CLICK_DELAY_MS = 200;
+
+const GeoportalCesiumCameraHashSync = ({
+  enabled,
+}: {
+  enabled: boolean;
+}) => {
+  const sceneState = useCesiumSceneStateOptional();
+  useCesiumCameraHashPlugin({
+    sceneState,
+    enabled,
+    encodeScheme: "carma-object-centric",
+    anchorMode: "screen-center",
+    fallbackHeightM: 200,
+    replace: true,
+    label: "[GEOPORTAL] Cesium camera hash",
+  });
+  return null;
+};
 
 export const GeoportalMap = ({ height, width, allow3d }: MapProps) => {
   const dispatch = useDispatch();
@@ -353,8 +377,7 @@ export const GeoportalMap = ({ height, width, allow3d }: MapProps) => {
     [getLeafletMap, getLeafletZoom]
   );
 
-  const { handleTopicMapLocationChange, handleCesiumSceneChange } =
-    useMapHashRouting(routingOptions);
+  const { handleTopicMapLocationChange } = useMapHashRouting(routingOptions);
 
   // Map framework switcher (2D ↔ 3D transitions)
   // Register maps with context for framework switching
@@ -734,19 +757,6 @@ export const GeoportalMap = ({ height, width, allow3d }: MapProps) => {
     []
   );
 
-  const onSceneChange = useCallback(
-    (e: { hashParams: Record<string, string> }) => {
-      if (getIsLeaflet()) {
-        console.debug(
-          "[CESIUM|DEBUG|CESIUM_WARN] Cesium scene change triggered while in Leaflet mode"
-        );
-        return;
-      }
-      handleCesiumSceneChange(e);
-    },
-    [getIsLeaflet, handleCesiumSceneChange]
-  );
-
   const createLayerOptions = useMemo(
     () => ({
       mode: uiMode,
@@ -988,12 +998,18 @@ export const GeoportalMap = ({ height, width, allow3d }: MapProps) => {
           className={"map-container-3d"}
           style={containerStyle}
         >
-          <CustomViewer
-            containerRef={container3dMapRef}
-            cameraLimiterOptions={CESIUM_CONFIG.camera}
-            initialCameraView={cesiumInitialCameraViewRef.current ?? undefined}
-            onSceneChange={onSceneChange}
-          />
+          <CesiumSceneStateProvider
+            scene={cesiumScene as unknown as CesiumSceneLike | null}
+          >
+            <GeoportalCesiumCameraHashSync
+              enabled={isCesium && !getIsTransitioning()}
+            />
+            <CustomViewer
+              containerRef={container3dMapRef}
+              cameraLimiterOptions={CESIUM_CONFIG.camera}
+              initialCameraView={cesiumInitialCameraViewRef.current ?? undefined}
+            />
+          </CesiumSceneStateProvider>
         </div>
       )}
     </>

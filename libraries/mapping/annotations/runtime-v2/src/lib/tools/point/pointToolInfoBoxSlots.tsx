@@ -22,11 +22,11 @@ export const createPointToolInfoBoxSlots = ({
     }
 
     const pointMeasurements = annotationEntries.filter(
-      (candidateMeasurement) => candidateMeasurement.toolType === toolType
+      (measurementEntry) => measurementEntry.toolType === toolType
     );
     const pointOrder =
       pointMeasurements.findIndex(
-        (candidateMeasurement) => candidateMeasurement.id === annotation.id
+        (measurementEntry) => measurementEntry.id === annotation.id
       ) + 1;
     const coordinate =
       resolveMeasurementCoordinates(

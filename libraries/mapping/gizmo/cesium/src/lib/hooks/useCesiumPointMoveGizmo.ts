@@ -17,6 +17,7 @@ import {
   ScreenSpaceEventHandler,
   ScreenSpaceEventType,
   Transforms,
+  createRing,
   defined,
   type Scene,
 } from "@carma/cesium";
@@ -24,7 +25,6 @@ import {
   createRotationAxisVisualizer,
   type RotationAxisVisualizer,
 } from "@carma-mapping/engines/cesium/legacy";
-import { createRing } from "@carma-mapping/engines/cesium/primitives";
 import { AXIS_NUMERIC_EPSILON, toSvgPathD } from "@carma-mapping/gizmo/core";
 import {
   buildCirclePoints,

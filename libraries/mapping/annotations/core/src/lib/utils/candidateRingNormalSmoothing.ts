@@ -7,6 +7,8 @@ export type CandidateRingSample = {
   timestampMs: number;
 };
 
+export type PreviewRingSample = CandidateRingSample;
+
 const SAMPLE_NORMAL_SCRATCH = new Cartesian3();
 const REFERENCE_NORMAL_SCRATCH = new Cartesian3();
 
@@ -54,6 +56,8 @@ export const pushCandidateRingSample = ({
     samples.splice(0, overflowCount);
   }
 };
+
+export const pushPreviewRingSample = pushCandidateRingSample;
 
 export const getAveragedCandidateRingNormal = ({
   samples,
@@ -111,3 +115,5 @@ export const getAveragedCandidateRingNormal = ({
 
   return result;
 };
+
+export const getAveragedPreviewRingNormal = getAveragedCandidateRingNormal;

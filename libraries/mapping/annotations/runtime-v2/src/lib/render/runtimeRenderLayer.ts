@@ -80,13 +80,16 @@ const arePointLabelsEqual = (
     return (
       otherLabel !== undefined &&
       label.id === otherLabel.id &&
+      label.measurementId === otherLabel.measurementId &&
+      label.nodeId === otherLabel.nodeId &&
       areCoordinatesEqual(label.coordinate, otherLabel.coordinate) &&
       label.content === otherLabel.content &&
       label.markerContent === otherLabel.markerContent &&
       label.markerBackgroundColor === otherLabel.markerBackgroundColor &&
       label.markerTextColor === otherLabel.markerTextColor &&
       label.selected === otherLabel.selected &&
-      label.hideLabelAndStem === otherLabel.hideLabelAndStem
+      label.hideLabelAndStem === otherLabel.hideLabelAndStem &&
+      label.longPressDurationMs === otherLabel.longPressDurationMs
     );
   });
 

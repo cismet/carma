@@ -1,5 +1,5 @@
 import type { Scene } from "@carma/cesium";
-import { useCesiumCoplanarPolygonPrimitives } from "@carma-mapping/annotations/cesium";
+import { useCesiumCoplanarPolygonPrimitives } from "@carma-mapping/engines/cesium/react/primitives";
 
 import type { PolygonPrimitiveRenderModel } from "../scene/visualization.types";
 

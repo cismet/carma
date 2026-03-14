@@ -5,7 +5,6 @@ import {
   useEffect,
   useMemo,
   useRef,
-  useState,
 } from "react";
 
 import {
@@ -43,6 +42,7 @@ import {
   useLineVisualizers,
   type LineVisualizerData,
 } from "@carma-providers/label-overlay";
+import { useCesiumSceneStateOptional } from "@carma-mapping/engines/cesium/react/scene-state";
 
 import {
   applyMidpointMarkerOverlayLayout,
@@ -117,7 +117,8 @@ export const useEdgeComponentOverlayVisualizer = (
   const cornerOverlayIdsRef = useRef<string[]>([]);
   const midpointOverlayIdsRef = useRef<string[]>([]);
   const verticalLabelSideByRelationIdRef = useRef<Record<string, -1 | 1>>({});
-  const [cameraPitch, setCameraPitch] = useState(-Math.PI / 4);
+  const sceneState = useCesiumSceneStateOptional();
+  const cameraPitch = sceneState?.camera.pitchRad ?? scene?.camera.pitch ?? -Math.PI / 4;
 
   const { addLabelOverlayElement, removeLabelOverlayElement } =
     useLabelOverlay();
@@ -154,27 +155,6 @@ export const useEdgeComponentOverlayVisualizer = (
     distanceRelationRenderContext.planarPolygonSharedEdgeRelationIds;
   const midpointTickRelationIdSet =
     distanceRelationRenderContext.midpointTickRelationIds;
-
-  useEffect(() => {
-    if (!scene || scene.isDestroyed()) return;
-    const camera = scene.camera;
-
-    const updatePitch = () => {
-      const nextPitch = camera.pitch;
-      setCameraPitch((prev) =>
-        Math.abs(nextPitch - prev) > 0.001 ? nextPitch : prev
-      );
-    };
-
-    updatePitch();
-    const removeChangedListener = camera.changed.addEventListener(updatePitch);
-    const removeMoveEndListener = camera.moveEnd.addEventListener(updatePitch);
-
-    return () => {
-      removeChangedListener?.();
-      removeMoveEndListener?.();
-    };
-  }, [scene]);
 
   const edgeRelationOwnerGroupIdSet =
     distanceRelationRenderContext.focusedRelationIds;

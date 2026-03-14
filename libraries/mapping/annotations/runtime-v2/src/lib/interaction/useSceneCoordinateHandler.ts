@@ -1,4 +1,4 @@
-import { useCesiumCoordinateHandler } from "@carma-mapping/annotations/cesium";
+import { useCesiumCoordinateHandler } from "@carma-mapping/engines/cesium/react/interactions";
 
 import type { RuntimeCoordinate } from "../store";
 import type { RuntimeScene } from "../types/runtimeScene.types";
@@ -6,9 +6,18 @@ import type { RuntimeScene } from "../types/runtimeScene.types";
 type UseSceneCoordinateHandlerArgs = {
   scene: RuntimeScene | null;
   enabled: boolean;
-  onCoordinate?: (coordinate: RuntimeCoordinate) => void;
-  onDoubleCoordinate?: (coordinate: RuntimeCoordinate) => void;
-  onHoverCoordinateChange?: (coordinate: RuntimeCoordinate | null) => void;
+  onCoordinate?: (
+    coordinate: RuntimeCoordinate,
+    screenPosition?: { x: number; y: number }
+  ) => void;
+  onDoubleCoordinate?: (
+    coordinate: RuntimeCoordinate,
+    screenPosition?: { x: number; y: number }
+  ) => void;
+  onHoverCoordinateChange?: (
+    coordinate: RuntimeCoordinate | null,
+    screenPosition?: { x: number; y: number }
+  ) => void;
   onScreenPositionChange?: (
     screenPosition: { x: number; y: number } | null
   ) => void;

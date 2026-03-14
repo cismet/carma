@@ -1,89 +1,51 @@
-import { Ray, Vector3 } from "three";
+/* eslint-disable carma/allowlist-math-library-(dependency-free) */
+// Intentionally depends on three.js:
+// Vector3 is a CARMA-native 3D math type across mapping/runtime code.
+import { Vector3 } from "three";
 
-export type PlaneBasis3 = {
-  xAxis: Vector3;
-  yAxis: Vector3;
+export { Vector3 };
+export type Vec3 = Vector3;
+export type Vec3Json = {
+  x: number;
+  y: number;
+  z: number;
 };
+export type Vector3Arr = [number, number, number];
+export type Matrix3RowMajor = [
+  [number, number, number],
+  [number, number, number],
+  [number, number, number],
+];
 
-export const VEC3_NUMERIC_EPSILON = 1e-6;
+export const isFiniteNumber = (value: unknown): value is number =>
+  typeof value === "number" && Number.isFinite(value);
 
-export const getClosestLineParamToRay = (
-  ray: Ray,
-  lineOrigin: Vector3,
-  lineDirection: Vector3,
-  epsilon: number = VEC3_NUMERIC_EPSILON
-): number => {
-  const rayDirection = ray.direction.clone();
-  const normalizedLineDirection = lineDirection.clone();
+export const coerceVec3 = (value: unknown): Vec3 | null => {
+  if (value instanceof Vector3) {
+    return value.clone();
+  }
 
+  if (!value || typeof value !== "object") {
+    return null;
+  }
+
+  const candidate = value as { x?: unknown; y?: unknown; z?: unknown };
   if (
-    rayDirection.lengthSq() <= epsilon ||
-    normalizedLineDirection.lengthSq() <= epsilon
+    !isFiniteNumber(candidate.x) ||
+    !isFiniteNumber(candidate.y) ||
+    !isFiniteNumber(candidate.z)
   ) {
-    return 0;
+    return null;
   }
 
-  rayDirection.normalize();
-  normalizedLineDirection.normalize();
-
-  const originDelta = ray.origin.clone().sub(lineOrigin);
-
-  const a = rayDirection.dot(rayDirection);
-  const b = rayDirection.dot(normalizedLineDirection);
-  const c = normalizedLineDirection.dot(normalizedLineDirection);
-  const d = rayDirection.dot(originDelta);
-  const e = normalizedLineDirection.dot(originDelta);
-  const denominator = a * c - b * b;
-
-  if (Math.abs(denominator) < epsilon) {
-    return e;
-  }
-
-  return (a * e - b * d) / denominator;
+  return new Vector3(candidate.x, candidate.y, candidate.z);
 };
 
-export const intersectRayWithPlane = (
-  ray: Ray,
-  planeOrigin: Vector3,
-  planeNormal: Vector3,
-  epsilon: number = VEC3_NUMERIC_EPSILON
-): Vector3 | null => {
-  const denominator = ray.direction.dot(planeNormal);
-  if (Math.abs(denominator) <= epsilon) return null;
+export const vec3ToJson = (vec3: Vec3): Vec3Json => ({
+  x: vec3.x,
+  y: vec3.y,
+  z: vec3.z,
+});
 
-  const originToPlane = planeOrigin.clone().sub(ray.origin);
-  const t = originToPlane.dot(planeNormal) / denominator;
-  if (!Number.isFinite(t)) return null;
-
-  return ray.origin.clone().add(ray.direction.clone().multiplyScalar(t));
-};
-
-export const createPlaneBasisFromNormal = (
-  normal: Vector3,
-  epsilon: number = VEC3_NUMERIC_EPSILON
-): PlaneBasis3 => {
-  const up =
-    normal.lengthSq() > epsilon
-      ? normal.clone().normalize()
-      : new Vector3(0, 0, 1);
-  const reference =
-    Math.abs(up.dot(new Vector3(0, 0, 1))) > 0.9
-      ? new Vector3(1, 0, 0)
-      : new Vector3(0, 0, 1);
-
-  const xAxis = up.clone().cross(reference);
-  if (xAxis.lengthSq() > epsilon) {
-    xAxis.normalize();
-  } else {
-    xAxis.set(1, 0, 0);
-  }
-
-  const yAxis = xAxis.clone().cross(up);
-  if (yAxis.lengthSq() > epsilon) {
-    yAxis.normalize();
-  } else {
-    yAxis.set(0, 1, 0);
-  }
-
-  return { xAxis, yAxis };
-};
+export const vec3FromJson = (json: Vec3Json): Vec3 =>
+  new Vector3(json.x, json.y, json.z);

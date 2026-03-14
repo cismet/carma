@@ -1,6 +1,7 @@
 export type RuntimeEdgeVisualStyle = {
   stroke: string;
   strokeWidth: number;
+  dashed?: boolean;
 };
 
 export type RuntimePointMarkerVisualStyle = {

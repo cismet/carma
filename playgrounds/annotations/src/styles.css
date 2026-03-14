@@ -5,3 +5,12 @@
 .cesium-widget-credits {
   display: none !important;
 }
+
+.annotations-playground-leva {
+  position: fixed;
+  top: 10px;
+  left: 10px;
+  width: 280px;
+  z-index: 5000;
+  pointer-events: auto;
+}

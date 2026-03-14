@@ -21,6 +21,11 @@ import {
 } from "./pointToolActions";
 import { resolvePointToolKeyAction } from "./pointToolBindings";
 import { createPointToolSettings } from "./pointToolSettings";
+import {
+  clearTemporaryAnnotationsByToolType,
+  finalizeTemporaryAnnotationsByToolType,
+  setAnnotationTemporaryById,
+} from "../../store";
 
 const toolType = ANNOTATION_TYPE_POINT;
 const badgeStyle = DEFAULT_ANNOTATION_SHORT_LABEL_CONFIG[toolType];
@@ -48,22 +53,49 @@ export const pointToolPlugin = createMeasurementToolPlugin({
   ],
   capabilities: POINT_MEASUREMENT_PLUGIN_CAPABILITIES,
   session: {
-    createSession: ({ setActiveToolType }) => ({
+    createSession: ({ setActiveToolType, getState, dispatch }) => ({
       toolType,
       requestStart: () => {
         setActiveToolType(toolType);
       },
-      requestFinish: () => false,
-      discardDraft: () => undefined,
+      requestFinish: () => {
+        const hasTemporaryPointMeasurements = Boolean(
+          getState().annotationEntries.some(
+            (entry) => entry.toolType === toolType && entry.temporary
+          )
+        );
+        if (!hasTemporaryPointMeasurements) {
+          return false;
+        }
+
+        dispatch(finalizeTemporaryAnnotationsByToolType(toolType));
+        return true;
+      },
+      discardDraft: () => {
+        dispatch(clearTemporaryAnnotationsByToolType(toolType));
+      },
     }),
   },
   pointQuery: {
     onPointCreated: ({ coordinate, sessionContext }) => {
-      addPointMeasurement({
+      const temporaryMode = sessionContext.getState().settingsState.pointTemporaryMode;
+      if (temporaryMode) {
+        sessionContext.dispatch(clearTemporaryAnnotationsByToolType(toolType));
+      }
+
+      const createdMeasurement = addPointMeasurement({
         toolType,
         coordinate,
         addAnnotation: sessionContext.addAnnotation,
       });
+      if (temporaryMode) {
+        sessionContext.dispatch(
+          setAnnotationTemporaryById({
+            annotationId: createdMeasurement.id,
+            temporary: true,
+          })
+        );
+      }
     },
   },
   keyboard: {
@@ -106,6 +138,7 @@ export const pointToolPlugin = createMeasurementToolPlugin({
       annotationEntries,
       selectedAnnotationId,
       setSelectedAnnotationId,
+      onNodeLongPress,
     }) => {
       const { points, pointLabels } = buildPointToolRenderModels({
         toolType,
@@ -117,6 +150,7 @@ export const pointToolPlugin = createMeasurementToolPlugin({
         measurements: annotationEntries,
         selectedMeasurementId: selectedAnnotationId,
         onMeasurementSelect: setSelectedAnnotationId,
+        onNodeLongPress,
       });
 
       return {

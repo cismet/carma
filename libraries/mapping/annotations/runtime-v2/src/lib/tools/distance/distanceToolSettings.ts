@@ -27,10 +27,12 @@ export const createDistanceToolSettings = (badgeStyle: {
     edge: {
       stroke: defaults.colors.accent,
       strokeWidth: defaults.sizes.edgeStrokeWidth,
+      dashed: true,
     },
     selectedEdge: {
       stroke: defaults.colors.neutral,
       strokeWidth: defaults.sizes.selectedEdgeStrokeWidth,
+      dashed: true,
     },
     previewEdge: {
       stroke: defaults.colors.preview,

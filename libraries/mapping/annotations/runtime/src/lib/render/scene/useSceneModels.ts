@@ -7,7 +7,7 @@ import {
   type PointAnnotationEntry,
   type PointDistanceRelation,
 } from "@carma-mapping/annotations/core";
-import { useCesiumViewProjector } from "@carma-mapping/annotations/cesium";
+import { useCesiumViewProjector } from "@carma-mapping/engines/cesium/react/interactions";
 import type { Scene } from "@carma/cesium";
 
 import { buildEdgeSceneLineRenderModels } from "../edge/buildEdgeSceneLineRenderModels";

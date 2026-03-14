@@ -23,7 +23,7 @@ import { useSessionPointCreation } from "../create/useSessionCreation";
 import {
   useCesiumPointQuery,
   type CesiumPointQueryCreatePayload,
-} from "@carma-mapping/annotations/cesium";
+} from "@carma-mapping/engines/cesium/react/interactions";
 import { pickPolygonGroupId } from "../../selection/useSelection";
 
 type PointCreatePayload = {

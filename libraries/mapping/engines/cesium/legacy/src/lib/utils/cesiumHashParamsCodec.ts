@@ -1,8 +1,10 @@
 import {
+  Cartesian3,
   Camera,
   Cartographic,
   Math as CesiumMath,
   PerspectiveFrustum,
+  Transforms,
 } from "cesium";
 import { VIEWERSTATE_KEYS } from "../constants";
 
@@ -74,11 +76,25 @@ export const cesiumCameraParamKeys = Object.values(cameraCodec).map(
   (codec) => codec.key
 );
 
-export const cesiumClearParamKeys = cesiumCameraParamKeys
-  .filter(
-    (k) => !["lng", "lat"].includes(k) // keep lng and lat  as they are used for 2D mode too an will be overwritten
+const objectCentricCameraHashKeys = ["camera3d", "c3"] as const;
+const DEFAULT_C3_SOURCE_CODE = "c";
+
+export const cesiumClearParamKeys = Array.from(
+  new Set(
+    cesiumCameraParamKeys
+      .filter(
+        (k) => !["lng", "lat"].includes(k) // keep lng and lat as they are used for 2D mode too and will be overwritten
+      )
+      .concat(
+        "altitude",
+        "range",
+        "bearing",
+        "roll",
+        VIEWERSTATE_KEYS.is3d,
+        ...objectCentricCameraHashKeys
+      ) // remove Cesium-only state keys
   )
-  .concat(VIEWERSTATE_KEYS.is3d); // remove Cesium Only state keys
+);
 
 function isNumber(value: unknown): value is number {
   return (
@@ -88,6 +104,124 @@ function isNumber(value: unknown): value is number {
     isFinite(Number(value))
   );
 }
+
+const decodeNumberField = (value: string | undefined): number | undefined => {
+  if (!value) {
+    return undefined;
+  }
+
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : undefined;
+};
+
+const normalizeCesiumPitchRad = (pitchRad: number | undefined): number | undefined => {
+  if (!isNumber(pitchRad)) {
+    return undefined;
+  }
+
+  let normalized = pitchRad;
+  if (normalized > CesiumMath.PI) normalized -= CesiumMath.TWO_PI;
+  if (normalized < -CesiumMath.PI) normalized += CesiumMath.TWO_PI;
+  return CesiumMath.clamp(
+    normalized,
+    -CesiumMath.PI_OVER_TWO,
+    CesiumMath.PI_OVER_TWO
+  );
+};
+
+const projectCameraPositionFromAnchorRange = ({
+  anchor,
+  headingRad,
+  pitchRad,
+  rangeM,
+}: {
+  anchor: Cartographic;
+  headingRad: number;
+  pitchRad: number;
+  rangeM: number;
+}): Cartographic | null => {
+  const anchorEcef = Cartographic.toCartesian(anchor);
+  if (!anchorEcef) {
+    return null;
+  }
+
+  const transform = Transforms.eastNorthUpToFixedFrame(anchorEcef);
+  const cosPitch = Math.cos(pitchRad);
+  const east = Math.sin(headingRad) * cosPitch * rangeM;
+  const north = Math.cos(headingRad) * cosPitch * rangeM;
+  const up = Math.sin(pitchRad) * rangeM;
+
+  const eastAxis = new Cartesian3(transform[0], transform[1], transform[2]);
+  const northAxis = new Cartesian3(transform[4], transform[5], transform[6]);
+  const upAxis = new Cartesian3(transform[8], transform[9], transform[10]);
+
+  const worldOffset = Cartesian3.add(
+    Cartesian3.multiplyByScalar(eastAxis, east, new Cartesian3()),
+    Cartesian3.add(
+      Cartesian3.multiplyByScalar(northAxis, north, new Cartesian3()),
+      Cartesian3.multiplyByScalar(upAxis, up, new Cartesian3()),
+      new Cartesian3()
+    ),
+    new Cartesian3()
+  );
+  const cameraEcef = Cartesian3.subtract(anchorEcef, worldOffset, new Cartesian3());
+  return Cartographic.fromCartesian(cameraEcef);
+};
+
+const decodeObjectCentricCameraFromHash = (
+  hashParams: Record<string, string>
+): CameraState | null => {
+  const encoded = hashParams.c3 ?? hashParams.camera3d;
+  if (!encoded) {
+    return null;
+  }
+
+  const fields = encoded.split(",");
+  const lngDeg = decodeNumberField(fields[0]);
+  const latDeg = decodeNumberField(fields[1]);
+  const altitudeM = decodeNumberField(fields[2]);
+  if (!isNumber(lngDeg) || !isNumber(latDeg) || !isNumber(altitudeM)) {
+    return null;
+  }
+
+  const headingDeg = decodeNumberField(fields[3]);
+  const pitchDeg = decodeNumberField(fields[4]);
+  const fovDeg = decodeNumberField(fields[6]);
+  const maybeRangeM = decodeNumberField(fields[7]);
+  const sourceCode = isNumber(maybeRangeM)
+    ? fields[8] ?? DEFAULT_C3_SOURCE_CODE
+    : fields[7] ?? DEFAULT_C3_SOURCE_CODE;
+
+  const headingRad = isNumber(headingDeg)
+    ? CesiumMath.toRadians(headingDeg)
+    : undefined;
+  const pitchRad = normalizeCesiumPitchRad(
+    isNumber(pitchDeg) ? CesiumMath.toRadians(pitchDeg) : undefined
+  );
+  const fovRad = isNumber(fovDeg) ? CesiumMath.toRadians(fovDeg) : undefined;
+
+  const anchorCartographic = Cartographic.fromDegrees(lngDeg, latDeg, altitudeM);
+  const reconstructedPosition =
+    sourceCode !== "c" &&
+    isNumber(maybeRangeM) &&
+    maybeRangeM > 0 &&
+    isNumber(headingRad) &&
+    isNumber(pitchRad)
+      ? projectCameraPositionFromAnchorRange({
+          anchor: anchorCartographic,
+          headingRad,
+          pitchRad,
+          rangeM: maybeRangeM,
+        }) ?? anchorCartographic
+      : anchorCartographic;
+
+  return {
+    position: reconstructedPosition,
+    heading: headingRad,
+    pitch: pitchRad,
+    fov: fovRad,
+  };
+};
 
 export const encodeCesiumCamera = (camera: Camera): StringifiedCameraState => {
   const { positionCartographic, pitch, heading, frustum } = camera;
@@ -129,23 +263,13 @@ export const decodeCesiumCamera = (
   const { longitude, latitude, height, heading, pitch, fov } = decoded;
 
   if (!isNumber(longitude) || !isNumber(latitude) || !isNumber(height)) {
-    return null;
+    return decodeObjectCentricCameraFromHash(hashParams);
   }
 
   const position = Cartographic.fromRadians(longitude, latitude, height);
-
-  // Normalize pitch to Cesium's expected range
-  // Input URLs may encode pitch in [0, 360). Example: 299.98° should map to -60.02°
-  let normalizedPitch: number | undefined = undefined;
-  if (isNumber(pitch)) {
-    let p = pitch as number;
-    // wrap to [-PI, PI]
-    if (p > CesiumMath.PI) p -= CesiumMath.TWO_PI;
-    if (p < -CesiumMath.PI) p += CesiumMath.TWO_PI;
-    // clamp to [-PI/2, PI/2]
-    p = CesiumMath.clamp(p, -CesiumMath.PI_OVER_TWO, CesiumMath.PI_OVER_TWO);
-    normalizedPitch = p;
-  }
+  const normalizedPitch = normalizeCesiumPitchRad(
+    isNumber(pitch) ? (pitch as number) : undefined
+  );
 
   const cameraState = {
     position,
