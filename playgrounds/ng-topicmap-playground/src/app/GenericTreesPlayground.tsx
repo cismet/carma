@@ -14,7 +14,7 @@ import {
 import type { ThreePerfData } from "@carma-mapping/engines/threejs";
 import TopicMapContextProvider from "react-cismap/contexts/TopicMapContextProvider";
 import { defaultGazDataConfig } from "@carma-commons/resources";
-import { faEye, faEyeSlash } from "@fortawesome/free-solid-svg-icons";
+import { faCrosshairs, faEye, faEyeSlash } from "@fortawesome/free-solid-svg-icons";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { Switch } from "antd";
 import Menu from "./Menu";
@@ -300,6 +300,8 @@ function LayerToggleBar({
   onLoftChange,
   radiusMix,
   onRadiusMixChange,
+  crosshair,
+  onCrosshairToggle,
 }: {
   visibility: LayerVisibility;
   onToggle: (name: LayerGroupName) => void;
@@ -307,6 +309,8 @@ function LayerToggleBar({
   onLoftChange: (v: boolean) => void;
   radiusMix: number;
   onRadiusMixChange: (v: number) => void;
+  crosshair: boolean;
+  onCrosshairToggle: () => void;
 }) {
   return (
     <div className="absolute top-4 left-1/2 -translate-x-1/2 z-[9999] flex gap-2 items-start">
@@ -320,7 +324,7 @@ function LayerToggleBar({
               ${visible ? "bg-white" : "bg-neutral-200/70 opacity-70"}`}
             style={{ boxShadow: PILL_SHADOW }}
           >
-            <div className="flex items-center gap-2 pl-3 pr-1 h-8">
+            <div className="flex items-center gap-2 pl-3 pr-1 h-8 whitespace-nowrap">
               <span
                 className="inline-block w-2.5 h-2.5 rounded-full shrink-0"
                 style={{ backgroundColor: color }}
@@ -381,7 +385,49 @@ function LayerToggleBar({
           </div>
         );
       })}
+
+      {/* Crosshair debug pill */}
+      <div
+        className={`flex flex-col rounded-[10px] text-sm
+          ${crosshair ? "bg-white" : "bg-neutral-200/70 opacity-70"}`}
+        style={{ boxShadow: PILL_SHADOW }}
+      >
+        <div className="flex items-center gap-2 pl-3 pr-1 h-8">
+          <FontAwesomeIcon
+            icon={faCrosshairs}
+            className="text-xs"
+            style={{ color: "#e53935" }}
+          />
+          <span>Crosshair</span>
+          <button
+            onClick={onCrosshairToggle}
+            className="px-2 h-full flex items-center cursor-pointer hover:text-gray-500 text-gray-600"
+          >
+            <FontAwesomeIcon
+              icon={crosshair ? faEye : faEyeSlash}
+              className="text-xs"
+            />
+          </button>
+        </div>
+      </div>
     </div>
+  );
+}
+
+function CrosshairOverlay() {
+  return (
+    <>
+      {/* vertical line */}
+      <div
+        className="fixed left-1/2 top-0 w-px h-screen z-[999999]"
+        style={{ background: "rgba(255,0,0,0.6)", pointerEvents: "none" }}
+      />
+      {/* horizontal line */}
+      <div
+        className="fixed top-1/2 left-0 h-px w-screen z-[999999]"
+        style={{ background: "rgba(255,0,0,0.6)", pointerEvents: "none" }}
+      />
+    </>
   );
 }
 
@@ -416,6 +462,7 @@ export function GenericTreesPlayground() {
   const [radiusMix, setRadiusMix] = useState(loadRadiusMix);
   const [layerVisibility, setLayerVisibility] =
     useState<LayerVisibility>(loadLayerVisibility);
+  const [crosshair, setCrosshair] = useState(false);
   const { progress, showProgress, handleProgressUpdate } = useProgress();
   const perfRef = useRef<ThreePerfData>(EMPTY_PERF);
 
@@ -468,6 +515,7 @@ export function GenericTreesPlayground() {
                 }
                 threePerfRef={perfRef}
               />
+              {crosshair && <CrosshairOverlay />}
               <LayerToggleBar
                 visibility={layerVisibility}
                 onToggle={toggleLayer}
@@ -475,6 +523,8 @@ export function GenericTreesPlayground() {
                 onLoftChange={handleLoftChange}
                 radiusMix={radiusMix}
                 onRadiusMixChange={handleRadiusMixChange}
+                crosshair={crosshair}
+                onCrosshairToggle={() => setCrosshair((v) => !v)}
               />
             </LibreContextProvider>
           </SelectionProvider>
