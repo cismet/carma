@@ -312,26 +312,53 @@ export function buildGenericLayer(
 
       const t0Ray = performance.now();
 
-      // 1. Intersect ray with horizontal plane at y=10 to get approximate XZ hit
-      const planeY = 10;
+      // 1. Find grid cells the ray passes through by computing the Y range
+      //    where trees exist, then checking all cells in the XZ bounding box
+      //    of the ray segment within that Y range.
+      //    (A single-plane intersection fails when elevation varies, e.g. terrain)
       let candidates = 0;
       let bestSourceIndex: number | undefined;
       let bestDist = Infinity;
 
-      // Ray-plane intersection: near.y + t * dir.y = planeY
-      if (Math.abs(dir.y) > 1e-6) {
-        const tPlane = (planeY - near.y) / dir.y;
-        if (tPlane > 0) {
-          const hitX = near.x + tPlane * dir.x;
-          const hitZ = near.z + tPlane * dir.z;
+      if (this._spatialGrid.size > 0 && Math.abs(dir.y) > 1e-6) {
+        // Find Y extent of all trees in the grid
+        let minY = Infinity;
+        let maxY = -Infinity;
+        for (const bucket of this._spatialGrid.values()) {
+          for (const entry of bucket) {
+            if (entry.yBase < minY) minY = entry.yBase;
+            const top = entry.yBase + entry.height;
+            if (top > maxY) maxY = top;
+          }
+        }
 
-          // 2. Look up grid cells in 3x3 neighborhood
-          const cellX = Math.floor(hitX / GRID_CELL_SIZE);
-          const cellZ = Math.floor(hitZ / GRID_CELL_SIZE);
+        // Compute t values where ray enters/exits the Y range [minY, maxY]
+        let t1 = (minY - near.y) / dir.y;
+        let t2 = (maxY - near.y) / dir.y;
+        if (t1 > t2) { const tmp = t1; t1 = t2; t2 = tmp; }
+        t1 = Math.max(t1, 0); // clamp to forward ray
 
-          for (let dx = -1; dx <= 1; dx++) {
-            for (let dz = -1; dz <= 1; dz++) {
-              const key = `${cellX + dx},${cellZ + dz}`;
+        if (t2 > 0) {
+          // XZ bounding box of ray segment between t1 and t2
+          const x1 = near.x + t1 * dir.x;
+          const z1 = near.z + t1 * dir.z;
+          const x2 = near.x + t2 * dir.x;
+          const z2 = near.z + t2 * dir.z;
+
+          const minCellX = Math.floor(Math.min(x1, x2) / GRID_CELL_SIZE) - 1;
+          const maxCellX = Math.floor(Math.max(x1, x2) / GRID_CELL_SIZE) + 1;
+          const minCellZ = Math.floor(Math.min(z1, z2) / GRID_CELL_SIZE) - 1;
+          const maxCellZ = Math.floor(Math.max(z1, z2) / GRID_CELL_SIZE) + 1;
+
+          console.log("[3D-SELECT] ray near:", near, "dir:", dir,
+            "yRange:", [minY, maxY], "tRange:", [t1, t2],
+            "cellRange:", { x: [minCellX, maxCellX], z: [minCellZ, maxCellZ] },
+            "cells:", (maxCellX - minCellX + 1) * (maxCellZ - minCellZ + 1));
+
+          // 2. Check all grid cells in the bounding box
+          for (let cx = minCellX; cx <= maxCellX; cx++) {
+            for (let cz = minCellZ; cz <= maxCellZ; cz++) {
+              const key = `${cx},${cz}`;
               const bucket = this._spatialGrid.get(key);
               if (!bucket) continue;
 
@@ -339,11 +366,6 @@ export function buildGenericLayer(
                 candidates++;
 
                 // 3. Compute closest distance from ray line to tree's vertical axis
-                // Project onto XZ plane: 2D distance from ray to tree center
-                // Ray in XZ: P_xz = (near.x + t*dir.x, near.z + t*dir.z)
-                // Tree center in XZ: (entry.x, entry.z)
-                // Closest approach parameter t_xz:
-                //   t_xz = ((entry.x - near.x)*dir.x + (entry.z - near.z)*dir.z) / (dir.x^2 + dir.z^2)
                 const dxr = entry.x - near.x;
                 const dzr = entry.z - near.z;
                 const denom = dir.x * dir.x + dir.z * dir.z;

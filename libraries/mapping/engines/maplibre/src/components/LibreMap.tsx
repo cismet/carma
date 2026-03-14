@@ -610,8 +610,9 @@ export const LibreMap = ({
         if (threeLayers.length > 0) {
           console.log("[3D-SELECT] click at", e.lngLat, "3D layers:", threeLayers.length);
           for (const threeLayer of threeLayers) {
-            const point2d = mapInstance.project(e.lngLat);
-            const result = threeLayer.raycast(point2d.x, point2d.y);
+            // Use e.point (raw screen pixels) instead of project(lngLat)
+            // because project() shifts coordinates when terrain is enabled.
+            const result = threeLayer.raycast(e.point.x, e.point.y);
             console.log("[3D-SELECT] layer", threeLayer.id, "result:", result);
 
             if (result && result.resolvedSourceIndex != null) {
