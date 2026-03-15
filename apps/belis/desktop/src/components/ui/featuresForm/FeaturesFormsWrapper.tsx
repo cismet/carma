@@ -127,18 +127,24 @@ const FeaturesFormsWrapper = ({
   const sourceLayer = featureType ?? "";
   const featureId = dbPK != null ? `${sourceLayer}:${dbPK}` : undefined;
 
-  // Build a lightweight feature object for the draft from rawFeature props.
-  // rawFeature is ALWAYS the correct feature for this form instance (it comes
-  // from the map selection context, not Redux which may hold a different feature).
-  // This is used for sidebar display (titles/subtitles) and draft re-selection.
+  // Store a serializable snapshot of the raw feature for the draft.
+  // MapLibre's MapGeoJSONFeature contains non-serializable objects (layer, state)
+  // that don't survive redux-persist round-trips. We keep only the fields the
+  // sidebar extractors and draft display actually need.
   const draftFeature = useMemo(() => {
-    if (!rawFeature) return selectedFeature ?? undefined;
+    const f = rawFeature ?? selectedFeature;
+    if (!f) return undefined;
     return {
-      properties: { sourceProps: rawFeature.properties ?? {} },
-      geometry: rawFeature.geometry,
-      carmaInfo: { sourceLayer: featureType },
+      type: f.type ?? "Feature",
+      id: f.id,
+      properties: f.properties ?? {},
+      geometry: f.geometry,
+      sourceLayer: f.sourceLayer ?? sourceLayer,
+      source: f.source ?? "",
+      layer: { id: f.sourceLayer ?? sourceLayer, source: f.source ?? "", type: "circle" as const },
+      state: {},
     };
-  }, [rawFeature, featureType, selectedFeature]);
+  }, [rawFeature, selectedFeature, sourceLayer]);
   const draft = useSelector((state: RootState) => getDraft(state, featureId));
   const draftFiles = useSelector((state: RootState) =>
     getDraftFiles(state, featureId)

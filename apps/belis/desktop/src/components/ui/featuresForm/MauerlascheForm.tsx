@@ -31,7 +31,7 @@ const transformDatesForBackend = (
 
 interface MauerlascheFormProps {
   data: Record<string, unknown> | null;
-  rawFeature?: { properties?: Record<string, unknown> } | null;
+  rawFeature?: { id?: string | number; properties?: Record<string, unknown> } | null;
   onClose?: () => void;
   readOnly?: boolean;
   loading?: boolean;
@@ -133,8 +133,8 @@ const MauerlascheForm = ({
     "-ohne Straße-";
 
   // Compute sidebar main title to display in form header
-  const sidebarMain = rawProps?.laufende_nummer || rawProps?.id
-    ? `M-${rawProps?.laufende_nummer || rawProps?.id}`
+  const sidebarMain = rawProps?.laufende_nummer || rawFeature?.id || rawProps?.id
+    ? `M-${rawProps?.laufende_nummer || rawFeature?.id || rawProps?.id}`
     : "";
 
   useEffect(() => {
