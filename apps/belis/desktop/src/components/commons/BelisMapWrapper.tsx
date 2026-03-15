@@ -897,6 +897,30 @@ const BelisMapLibWrapper = ({
     [selectFeature, sidebarMode, dispatch, map, namespacedSource]
   );
 
+  // After a draft is cancelled/removed, select the next remaining draft.
+  const handleSelectNextDraft = useCallback(
+    (removedFeatureId: string) => {
+      if (sidebarMode !== "drafts") return;
+      // allDraftFeatures still contains the removed draft at this point
+      // because the selector reads from the store snapshot before the next render.
+      // Filter it out to get the remaining drafts.
+      const remaining = allDraftFeatures.filter(({ feature }) => {
+        if (!feature) return false;
+        const sl = feature.sourceLayer ?? "";
+        const pk = String(feature.properties?.id ?? "");
+        return `${sl}:${pk}` !== removedFeatureId;
+      });
+      if (remaining.length === 0) return;
+      const next = remaining[0];
+      const f = next.feature;
+      handleSidebarFeatureSelect(
+        { source: f.source ?? "", sourceLayer: f.sourceLayer ?? "", id: f.id },
+        f
+      );
+    },
+    [sidebarMode, allDraftFeatures, handleSidebarFeatureSelect]
+  );
+
   return (
     <div
       className="relative flex"
@@ -1007,6 +1031,7 @@ const BelisMapLibWrapper = ({
                   lastFeatureType
                 }
                 featureOnMap={featureOnMap}
+                onSelectNextDraft={handleSelectNextDraft}
               />
             </div>
           }

@@ -19,6 +19,7 @@ interface BelisDatasheetViewProps {
   featureType?: string;
   readOnly?: boolean;
   featureOnMap?: boolean;
+  onSelectNextDraft?: (removedFeatureId: string) => void;
 }
 
 const BelisDatasheetView = ({
@@ -28,6 +29,7 @@ const BelisDatasheetView = ({
   featureType,
   readOnly = true,
   featureOnMap = false,
+  onSelectNextDraft,
 }: BelisDatasheetViewProps) => {
   const featureLoading = useSelector(getFeatureLoading);
 
@@ -59,6 +61,7 @@ const BelisDatasheetView = ({
             rawFeature={rawFeature}
             readOnly={readOnly}
             loading={featureLoading}
+            onSelectNextDraft={onSelectNextDraft}
           />
         )}
       </div>
