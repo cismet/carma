@@ -52,8 +52,7 @@ const LIST_WIDTH = 300;
 /** Debug flag: translucent main map + red mini-map border, mini-map always visible */
 const MINI_MAP_DEBUGGING = false;
 
-import type { SidebarFeature, ListItemData } from "../ui/BelisSidebar";
-import toTitleCase from "../../helper/toTitleCase";
+import type { SidebarFeature } from "../ui/BelisSidebar";
 
 import {
   getAllDraftFeatures,
@@ -326,115 +325,15 @@ const BelisMapLibWrapper = ({
   const allDraftFeatures = useSelector(getAllDraftFeatures);
   const draftFeaturesCount = useSelector(getDraftFeaturesCount);
 
-  // Map form keys (from draft.featureType) to MVT source layer names.
-  // The draft's featureType is always reliably set; the stored feature's
-  // carmaInfo.sourceLayer may be stale or missing.
-  const formKeyToSourceLayer: Record<string, string> = useMemo(
-    () => ({
-      leuchte: "leuchten",
-      standort: "standorte",
-      leitung: "leitungen",
-      schaltstelle: "schaltstelle",
-      mauerlasche: "mauerlaschen",
-      abzweigdose: "abzweigdosen",
-    }),
-    []
-  );
-
-  // Draft-specific sidebar extractors.  These mirror the MVT extractors in
-  // BelisSidebar but use p.id (database PK from rawFeature.properties) instead
-  // of feature.id (MVT tile-internal ID assigned by MapLibre).
-  // They also cover "abzweigdosen" which has no built-in MVT extractor.
-  const draftListItemExtractors: Record<
-    string,
-    (feature: SidebarFeature) => ListItemData
-  > = useMemo(
-    () => ({
-      leuchten: (feature) => {
-        const p = feature.properties || {};
-        const typ = p.leuchtentyp || p.leuchttyp || "L";
-        const nr = p.leuchtennummer || "0";
-        const standort = p.lfd_nummer ? `, ${p.lfd_nummer}` : "";
-        return {
-          main: `${typ}-${nr}${standort}`,
-          upperright: toTitleCase(p.strasse || p.strassenschluessel || ""),
-          subtitle: p.fabrikat || p.leuchttyp_fabrikat || "",
-        };
-      },
-      standorte: (feature) => {
-        const p = feature.properties || {};
-        return {
-          main: `Standort ${p.lfd_nummer || "?"}`,
-          upperright: toTitleCase(p.strasse || p.strassenschluessel || ""),
-          subtitle: p.mastart || p.masttyp || "",
-        };
-      },
-      leitungen: (feature) => {
-        const p = feature.properties || {};
-        const laenge = p.laenge || p.length || "";
-        const laengeStr = laenge ? `${laenge}m` : "";
-        return {
-          main: `L-${p.id || "?"}`,
-          upperright: laengeStr,
-          subtitle: p.bezeichnung || p.leitungstyp || "",
-        };
-      },
-      schaltstelle: (feature) => {
-        const p = feature.properties || {};
-        const title = p.schaltstellen_nummer
-          ? `S ${p.schaltstellen_nummer}`
-          : `S ${p.id || "?"}`;
-        return {
-          main: title,
-          upperright: toTitleCase(p.strasse || "") || "-",
-          subtitle: p.bezeichnung || p.bauart || "Schaltstelle",
-        };
-      },
-      mauerlaschen: (feature) => {
-        const p = feature.properties || {};
-        return {
-          main: `M-${p.laufende_nummer || p.id || "?"}`,
-          upperright: toTitleCase(p.strasse || "") || "-",
-          subtitle: p.bezeichnung || p.material || "Mauerlasche",
-        };
-      },
-      abzweigdosen: (feature) => {
-        const p = feature.properties || {};
-        return {
-          main: `AZD-${p.id || "?"}`,
-          upperright: "",
-          subtitle: "Abzweigdose",
-        };
-      },
-    }),
-    []
-  );
-
+  // Draft features are stored as raw MapGeoJSON features (same structure as
+  // sidebar features from the map). No reconstruction needed — just extract
+  // and pass through prepareDraftFeatures for fk_standort normalization.
   const draftSidebarFeatures = useMemo(() => {
-    const raw = allDraftFeatures.map(({ featureType, feature: f }: any) => {
-      // Prefer sourceLayer derived from the draft's featureType (always correct)
-      // over carmaInfo.sourceLayer from the stored feature (may be stale/missing).
-      const sourceLayer =
-        formKeyToSourceLayer[featureType] ?? f?.carmaInfo?.sourceLayer ?? "";
-      const props = f?.properties?.sourceProps ?? f?.properties ?? {};
-      return {
-        type: "Feature" as const,
-        geometry: f?.geometry ?? { type: "Point", coordinates: [0, 0] },
-        properties: props,
-        source: namespacedSource,
-        sourceLayer,
-        id: props.id,
-        layer: f?.layer ?? {
-          id: sourceLayer,
-          source: namespacedSource,
-          type: "circle" as const,
-        },
-        state: {},
-        original: f,
-      } as unknown as SidebarFeature;
-    });
+    const raw = allDraftFeatures
+      .filter(({ feature }) => feature != null)
+      .map(({ feature }) => feature as SidebarFeature);
     return prepareDraftFeatures(raw);
-  }, [allDraftFeatures, namespacedSource, formKeyToSourceLayer]);
+  }, [allDraftFeatures]);
 
   const mapWidth = mapSizes.width - LIST_WIDTH;
 
@@ -960,7 +859,6 @@ const BelisMapLibWrapper = ({
       feature: SidebarFeature
     ) => {
       if (sidebarMode === "drafts") {
-        const original = (feature as any).original;
         const sl = identifier.sourceLayer ?? "";
         const dbPK = String(feature.properties?.id ?? identifier.id);
 
@@ -983,29 +881,13 @@ const BelisMapLibWrapper = ({
           }
         }
 
-        // Feature not in viewport — dispatch stored feature to Redux
-        // (with database PK as id for stable draft lookup).
-        // Pass a synthetic rawFeature from the stored draft properties so that:
-        //  1. rawFeature in the context is not null → form subtitles work
-        //  2. FeaturesFormsWrapper.draftFeature doesn't fall back to selectedFeature
-        //     (which has API/GraphQL structure, not flat MVT properties)
-        //  3. Mini-map can center on the geometry
-        if (original) {
-          dispatch(
-            setSelectedFeature({ ...original, id: dbPK, selected: true })
-          );
-        }
-        const syntheticRaw = {
-          type: "Feature" as const,
-          properties: feature.properties || {},
-          geometry: feature.geometry,
-          sourceLayer: sl,
-          source: identifier.source,
-          id: feature.id,
-          layer: feature.layer,
-          state: {},
-        };
-        selectFeature(identifier, syntheticRaw as any);
+        // Feature not in viewport — dispatch stored raw feature to Redux
+        // and pass it as rawFeature for the selection context.
+        // The draft feature already has the correct MapGeoJSON structure.
+        dispatch(
+          setSelectedFeature({ ...feature, id: dbPK, selected: true })
+        );
+        selectFeature(identifier, feature as any);
         return;
       }
 
@@ -1043,9 +925,6 @@ const BelisMapLibWrapper = ({
         highlightCount={adjustedHighlights?.length ?? undefined}
         draftsCount={draftFeaturesCount}
         onFeatureDismiss={handleSidebarDismiss}
-        listItemExtractors={
-          sidebarMode === "drafts" ? draftListItemExtractors : undefined
-        }
       />
       <div
         ref={mapContainerRef}

@@ -40,7 +40,7 @@ const transformDatesForBackend = (
 
 interface SchaltstelleFormProps {
   data: Record<string, unknown> | null;
-  rawFeature?: { properties?: Record<string, unknown> } | null;
+  rawFeature?: { id?: string | number; properties?: Record<string, unknown> } | null;
   onClose?: () => void;
   readOnly?: boolean;
   loading?: boolean;
@@ -148,8 +148,8 @@ const SchaltstelleForm = ({
   // Compute sidebar main title to display in form header
   const sidebarMain = rawProps?.schaltstellen_nummer
     ? `S ${rawProps.schaltstellen_nummer}`
-    : rawProps?.id
-      ? `S ${rawProps.id}`
+    : rawFeature?.id || rawProps?.id
+      ? `S ${rawFeature?.id || rawProps?.id}`
       : "";
 
   useEffect(() => {
