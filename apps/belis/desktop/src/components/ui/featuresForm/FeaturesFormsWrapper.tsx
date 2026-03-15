@@ -73,6 +73,7 @@ interface FeaturesFormsWrapperProps {
   rawFeature?: any;
   readOnly?: boolean;
   loading?: boolean;
+  onSelectNextDraft?: (removedFeatureId: string) => void;
 }
 
 // Map form key to the GraphQL response key used to extract dokumenteArray
@@ -110,6 +111,7 @@ const FeaturesFormsWrapper = ({
   rawFeature,
   readOnly: readOnlyProp = true,
   loading,
+  onSelectNextDraft,
 }: FeaturesFormsWrapperProps) => {
   const dispatch = useDispatch();
   const selectedFeature = useSelector(getSelectedFeature);
@@ -216,10 +218,11 @@ const FeaturesFormsWrapper = ({
   const handleCancel = useCallback(() => {
     if (featureId) {
       dispatch(removeDraft(featureId));
+      onSelectNextDraft?.(featureId);
     }
     setResetKey((prev) => prev + 1);
     setIsEditing(false);
-  }, [featureId, dispatch]);
+  }, [featureId, dispatch, onSelectNextDraft]);
 
   const handleSaveComplete = useCallback(() => {
     if (featureId) {
