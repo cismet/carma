@@ -387,9 +387,12 @@ export function buildGenericLayer(
                 const closestY = near.y + tClosest * dir.y;
                 if (closestY < entry.yBase || closestY > entry.yBase + entry.height) continue;
 
-                // Pick closest to camera (smallest t)
-                if (tClosest < bestDist) {
-                  bestDist = tClosest;
+                // Pick the tree whose center is closest to the ray (smallest
+                // dist2D).  In a dense forest the "nearest to camera" heuristic
+                // (smallest tClosest) would let a closer but off-center tree
+                // steal the hit from the tree the user is actually aiming at.
+                if (dist2D < bestDist) {
+                  bestDist = dist2D;
                   bestSourceIndex = entry.sourceIndex;
                 }
               }
