@@ -39,8 +39,12 @@ const transformDatesForBackend = (
   const result: Record<string, unknown> = {};
   for (const [key, value] of Object.entries(values)) {
     if (dayjs.isDayjs(value)) {
-      result[key] = value.toISOString();
+      console.log("xxx [DATE] dayjs field:", key, "→", value.format("YYYY-MM-DDTHH:mm:ss"));
+      result[key] = value.format("YYYY-MM-DDTHH:mm:ss");
     } else {
+      if (typeof value === "string" && /^\d{4}-\d{2}-\d{2}/.test(value)) {
+        console.log("xxx [DATE] string date field (NOT dayjs):", key, "→", value);
+      }
       result[key] = value;
     }
   }
@@ -267,6 +271,12 @@ export const saveFeatureDraft = async (
     };
 
     // 5. Send to API
+    console.log("xxx [SAVE DEBUG]", {
+      featureType,
+      featureDbId,
+      className: config.className,
+      payload: JSON.parse(JSON.stringify(dataToSave)),
+    });
     await updateDataByClassName(jwt, config.className, dataToSave);
 
     return { ...base, success: true };
