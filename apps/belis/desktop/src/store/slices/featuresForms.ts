@@ -20,6 +20,7 @@ export interface Draft {
   existingDocuments?: DokumentItem[];
   featureDbId?: number;
   feature?: any;
+  fetchedData?: Record<string, unknown>;
   updatedAt: number;
 }
 
@@ -50,9 +51,11 @@ const featuresFormsSlice = createSlice({
         featureType: string;
         values: Record<string, unknown>;
         feature?: any;
+        fetchedData?: Record<string, unknown>;
       }>
     ) {
-      const { featureId, featureType, values, feature } = action.payload;
+      const { featureId, featureType, values, feature, fetchedData } =
+        action.payload;
       const existing = state.drafts[featureId];
       const hasFiles = existing?.files && existing.files.length > 0;
       const hasRemovedKeys =
@@ -77,6 +80,7 @@ const featuresFormsSlice = createSlice({
         files: existing?.files ?? [],
         removedDocumentKeys: existing?.removedDocumentKeys,
         feature: feature ?? existing?.feature,
+        fetchedData: fetchedData ?? existing?.fetchedData,
         updatedAt: Date.now(),
       };
     },
@@ -127,13 +131,16 @@ const featuresFormsSlice = createSlice({
         featureType: string;
         files: DraftFile[];
         feature?: any;
+        fetchedData?: Record<string, unknown>;
       }>
     ) {
-      const { featureId, featureType, files, feature } = action.payload;
+      const { featureId, featureType, files, feature, fetchedData } =
+        action.payload;
       const existing = state.drafts[featureId];
       if (existing) {
         existing.files = files;
         existing.feature = feature ?? existing.feature;
+        existing.fetchedData = fetchedData ?? existing.fetchedData;
         existing.updatedAt = Date.now();
         // Clean up ghost draft when files emptied, no form values, and no removed keys
         if (
@@ -150,6 +157,7 @@ const featuresFormsSlice = createSlice({
           values: {},
           files,
           feature,
+          fetchedData,
           updatedAt: Date.now(),
         };
       }
@@ -182,13 +190,16 @@ const featuresFormsSlice = createSlice({
         featureType: string;
         keys: string[];
         feature?: any;
+        fetchedData?: Record<string, unknown>;
       }>
     ) {
-      const { featureId, featureType, keys, feature } = action.payload;
+      const { featureId, featureType, keys, feature, fetchedData } =
+        action.payload;
       const existing = state.drafts[featureId];
       if (existing) {
         existing.removedDocumentKeys = keys;
         existing.feature = feature ?? existing.feature;
+        existing.fetchedData = fetchedData ?? existing.fetchedData;
         existing.updatedAt = Date.now();
         // Clean up ghost draft when no removed keys, no form values, and no files
         if (
@@ -204,6 +215,7 @@ const featuresFormsSlice = createSlice({
           values: {},
           removedDocumentKeys: keys,
           feature,
+          fetchedData,
           updatedAt: Date.now(),
         };
       }
@@ -320,6 +332,13 @@ export const getGlobalEditMode = (state: RootState): boolean =>
 
 export const getDraftFeaturesCount = (state: RootState) =>
   Object.values(state.featuresForms?.drafts ?? {}).filter((d) => d.feature != null).length;
+
+// Get cached fetched data from a draft (avoids re-fetching on draft re-selection)
+export const getDraftFetchedData = (
+  state: RootState,
+  featureId: string | undefined
+): Record<string, unknown> | undefined =>
+  featureId ? state.featuresForms?.drafts[featureId]?.fetchedData : undefined;
 
 // Get all feature IDs that have actual changes (not just drafts)
 export const getChangedDraftIds = (state: RootState): string[] => {
