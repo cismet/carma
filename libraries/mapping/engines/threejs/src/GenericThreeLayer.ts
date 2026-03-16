@@ -102,11 +102,14 @@ const _invMatrix = new THREE.Matrix4();
 const _instanceMatrix = new THREE.Matrix4();
 const _localOrigin = new THREE.Vector3();
 const _localDir = new THREE.Vector3();
+const _hitPoint = new THREE.Vector3();
 
 /**
  * Test ray against Lathe InstancedMesh candidates.
  * Transforms the ray into each candidate instance's local space
  * and tests the shared base geometry (~100-200 triangles).
+ * Hit points are transformed back to world space for correct
+ * depth comparison across instances.
  * Returns { sourceIndex, t } of the closest hit, or null.
  */
 function raycastLatheCandidates(
@@ -115,7 +118,7 @@ function raycastLatheCandidates(
   meshes: THREE.InstancedMesh[],
   candidateSourceIndices: Set<number>,
 ): { sourceIndex: number; t: number } | null {
-  let bestT = Infinity;
+  let bestDistSq = Infinity;
   let bestSourceIndex: number | undefined;
 
   for (const im of meshes) {
@@ -137,7 +140,6 @@ function raycastLatheCandidates(
       im.getMatrixAt(instId, _instanceMatrix);
       _invMatrix.copy(_instanceMatrix).invert();
       _localOrigin.copy(origin).applyMatrix4(_invMatrix);
-      // Direction: transform as vector (no translation)
       _localDir.copy(dir).transformDirection(_invMatrix);
 
       for (let f = 0; f < faceCount; f++) {
@@ -148,16 +150,25 @@ function raycastLatheCandidates(
         _v1.set(pos[i1], pos[i1 + 1], pos[i1 + 2]);
         _v2.set(pos[i2], pos[i2 + 1], pos[i2 + 2]);
 
-        const t = rayTriangle(_localOrigin, _localDir, _v0, _v1, _v2);
-        if (t > 0 && t < bestT) {
-          bestT = t;
-          bestSourceIndex = indices[instId];
+        const tLocal = rayTriangle(_localOrigin, _localDir, _v0, _v1, _v2);
+        if (tLocal > 0) {
+          // Compute hit in local space, transform back to world space,
+          // measure squared distance from ray origin for correct depth ordering
+          _hitPoint.copy(_localOrigin).addScaledVector(_localDir, tLocal);
+          _hitPoint.applyMatrix4(_instanceMatrix);
+          const distSq = _hitPoint.distanceToSquared(origin);
+          if (distSq < bestDistSq) {
+            bestDistSq = distSq;
+            bestSourceIndex = indices[instId];
+          }
         }
       }
     }
   }
 
-  return bestSourceIndex != null ? { sourceIndex: bestSourceIndex, t: bestT } : null;
+  return bestSourceIndex != null
+    ? { sourceIndex: bestSourceIndex, t: Math.sqrt(bestDistSq) }
+    : null;
 }
 
 /**
