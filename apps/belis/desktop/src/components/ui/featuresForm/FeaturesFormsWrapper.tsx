@@ -246,11 +246,12 @@ const FeaturesFormsWrapper = ({
             featureType: formKey,
             values: serializeValues(values),
             feature: draftFeature,
+            fetchedData: data,
           })
         );
       }
     },
-    [featureId, formKey, dispatch, draftFeature]
+    [featureId, formKey, dispatch, draftFeature, data]
   );
 
   const handleOriginalValues = useCallback(
@@ -273,11 +274,12 @@ const FeaturesFormsWrapper = ({
             featureType: formKey,
             files,
             feature: draftFeature,
+            fetchedData: data,
           })
         );
       }
     },
-    [featureId, formKey, dispatch, draftFeature]
+    [featureId, formKey, dispatch, draftFeature, data]
   );
 
   const handleRemovedDocumentKeysChange = useCallback(
@@ -289,11 +291,12 @@ const FeaturesFormsWrapper = ({
             featureType: formKey,
             keys: [...keys],
             feature: draftFeature,
+            fetchedData: data,
           })
         );
       }
     },
-    [featureId, formKey, dispatch, draftFeature]
+    [featureId, formKey, dispatch, draftFeature, data]
   );
 
   if (FormComponent) {

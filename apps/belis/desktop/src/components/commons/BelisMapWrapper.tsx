@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState, useCallback } from "react";
 import { CarmaMap, DatasheetLayout } from "@carma-mapping/core";
-import { useDispatch, useSelector } from "react-redux";
+import { useDispatch, useSelector, useStore } from "react-redux";
 import {
   setSelectedFeature,
   setFeatureLoading,
@@ -23,7 +23,7 @@ import {
   BELIS_SOURCE_LAYERS,
 } from "../../config/mapLayerConfigs";
 import type { LibreLayer } from "@carma-mapping/engines/maplibre";
-import { AppDispatch } from "../../store";
+import { AppDispatch, type RootState } from "../../store";
 import BelisSidebar from "../ui/BelisSidebar";
 import { useVisibleMapFeatures, functionToInfo } from "@carma-mapping/utils";
 import { extractCarmaConfig } from "@carma-commons/utils";
@@ -78,6 +78,7 @@ const BelisMapLibWrapper = ({
   onLassoDeactivate,
 }: BelisMapLibWrapperProps) => {
   const dispatch: AppDispatch = useDispatch();
+  const store = useStore<RootState>();
   const jwt = useSelector(getJWT);
   const featureDataVersion = useSelector(getFeatureDataVersion);
   const reduxSelectedFeature = useSelector(getReduxSelectedFeature);
@@ -528,7 +529,17 @@ const BelisMapLibWrapper = ({
         setFetchedFeatureData(null);
         return;
       }
-      console.log("xxx", featureId);
+
+      // Check if the draft already has cached fetched data (avoids redundant API call)
+      const draftKey = `${sourceLayer}:${featureId}`;
+      const cachedData =
+        store.getState().featuresForms?.drafts[draftKey]?.fetchedData;
+      if (cachedData) {
+        console.log("[SELECTION] using cached draft data for", draftKey);
+        setFetchedFeatureData(cachedData);
+        return;
+      }
+
       dispatch(setFeatureLoading(true));
       try {
         const fullData = await fetchFeatureById(
