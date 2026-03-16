@@ -268,7 +268,7 @@ export const useCreateCismapLayers = (
         }
       }
     }
-  }, [selectedFeature]);
+  }, [selectedFeature, globalHits]);
 
   useEffect(() => {
     if (
