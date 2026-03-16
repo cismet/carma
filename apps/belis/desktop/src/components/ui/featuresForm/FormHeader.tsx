@@ -58,26 +58,23 @@ const FormHeader = ({
     <div className="flex flex-col border-b border-gray-100">
       <div className="flex items-center justify-between flex-wrap p-6 gap-4">
         <div className="flex items-center gap-3 flex-shrink-0">
-          <Tooltip title={readOnly ? "Bearbeiten" : "Sperren"}>
-            <div
-              className={`w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0 ${
-                readOnly
-                  ? "bg-gray-100 cursor-pointer hover:bg-gray-200"
-                  : "bg-blue-100 cursor-pointer hover:bg-blue-200"
-              } transition-colors`}
-              onClick={onToggleReadOnly}
-            >
-              {loading ? (
-                <Spin size="small" />
-              ) : (
-                <EditOutlined
-                  className={`text-xl ${
-                    readOnly ? "text-gray-500" : "text-blue-600"
-                  }`}
-                />
-              )}
-            </div>
-          </Tooltip>
+          <div
+            className={`w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0 ${
+              readOnly
+                ? "bg-gray-100"
+                : "bg-blue-100"
+            } transition-colors`}
+          >
+            {loading ? (
+              <Spin size="small" />
+            ) : (
+              <EditOutlined
+                className={`text-xl ${
+                  readOnly ? "text-gray-500" : "text-blue-600"
+                }`}
+              />
+            )}
+          </div>
           <div>
             <div className="flex items-center gap-2">
               <h2 className="text-lg font-semibold text-gray-900 whitespace-nowrap">
