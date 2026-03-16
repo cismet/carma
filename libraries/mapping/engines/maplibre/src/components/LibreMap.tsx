@@ -617,6 +617,17 @@ export const LibreMap = ({
             console.log("[3D-SELECT] layer", threeLayer.id, "result:", result);
 
             if (result && result.resolvedSourceIndex != null) {
+              // If a fill-extrusion (building) is rendered at the click point,
+              // it takes visual priority over any 3D tree behind it.
+              const fillExtrusionHits = mapInstance
+                .queryRenderedFeatures(e.point)
+                .filter((f) => f.layer.type === "fill-extrusion");
+
+              if (fillExtrusionHits.length > 0) {
+                console.log("[3D-SELECT] fill-extrusion at click point, deferring to 2D");
+                break; // skip 3D selection, fall through to 2D handler
+              }
+
               // 3D hit detected: takes priority over 2D
               clearVisualSelection(mapInstance);
               setSelectedFeature(null);
