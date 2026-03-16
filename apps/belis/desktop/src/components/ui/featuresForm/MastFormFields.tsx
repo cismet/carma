@@ -252,6 +252,7 @@ const MastFormFields = ({
           placeholder={getPlaceholder(readOnly, "Kennziffer auswählen")}
           className="w-full"
           size="large"
+          allowClear
           showSearch
           optionFilterProp="children"
         >
@@ -329,6 +330,7 @@ const MastFormFields = ({
           placeholder={getPlaceholder(readOnly, "Mastart auswählen")}
           className="w-full"
           size="large"
+          allowClear
           showSearch
           optionFilterProp="children"
         >
@@ -350,6 +352,7 @@ const MastFormFields = ({
           placeholder={getPlaceholder(readOnly, "Masttyp auswählen")}
           className="w-full"
           size="large"
+          allowClear
           showSearch
           optionFilterProp="children"
         >
@@ -371,6 +374,7 @@ const MastFormFields = ({
           placeholder={getPlaceholder(readOnly, "Klassifizierung auswählen")}
           className="w-full"
           size="large"
+          allowClear
           showSearch
           optionFilterProp="children"
         >
@@ -392,6 +396,7 @@ const MastFormFields = ({
           placeholder={getPlaceholder(readOnly, "Unterhalt auswählen")}
           className="w-full"
           size="large"
+          allowClear
           showSearch
           optionFilterProp="children"
         >
@@ -594,6 +599,7 @@ const MastFormFields = ({
           placeholder={getPlaceholder(readOnly, "Anlagengruppe auswählen")}
           className="w-full"
           size="large"
+          allowClear
           showSearch
           optionFilterProp="children"
         >

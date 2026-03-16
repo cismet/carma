@@ -330,6 +330,7 @@ const MauerlascheForm = ({
             placeholder={getPlaceholder(readOnly, "Material auswählen")}
             className="w-full"
             size="large"
+            allowClear
             showSearch
             optionFilterProp="children"
           >

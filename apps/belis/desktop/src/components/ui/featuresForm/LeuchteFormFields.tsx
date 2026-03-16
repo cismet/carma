@@ -298,6 +298,7 @@ const LeuchteFormFields = ({
           placeholder={getPlaceholder(readOnly, "Kennziffer auswählen")}
           className="w-full"
           size="large"
+          allowClear
           showSearch
           optionFilterProp="children"
         >
@@ -341,6 +342,7 @@ const LeuchteFormFields = ({
           placeholder={getPlaceholder(readOnly, "Leuchtentyp auswählen")}
           className="w-full"
           size="large"
+          allowClear
           showSearch
           optionFilterProp="children"
         >
@@ -398,6 +400,7 @@ const LeuchteFormFields = ({
           placeholder={getPlaceholder(readOnly, "Energielieferant auswählen")}
           className="w-full"
           size="large"
+          allowClear
           showSearch
           optionFilterProp="children"
         >
@@ -431,6 +434,7 @@ const LeuchteFormFields = ({
           )}
           className="w-full"
           size="large"
+          allowClear
           showSearch
           optionFilterProp="children"
         >
@@ -468,6 +472,7 @@ const LeuchteFormFields = ({
               placeholder={getPlaceholder(readOnly, "Auswählen")}
               className="w-full"
               size="large"
+              allowClear
               showSearch
               optionFilterProp="children"
             >
@@ -563,6 +568,7 @@ const LeuchteFormFields = ({
           placeholder={getPlaceholder(readOnly, "Auswählen")}
           className="w-full"
           size="large"
+          allowClear
           showSearch
           optionFilterProp="children"
         >
@@ -616,6 +622,7 @@ const LeuchteFormFields = ({
           placeholder={getPlaceholder(readOnly, "Leuchtmittel auswählen")}
           className="w-full"
           size="large"
+          allowClear
           showSearch
           optionFilterProp="children"
         >

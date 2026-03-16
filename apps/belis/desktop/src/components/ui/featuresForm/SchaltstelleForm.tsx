@@ -372,6 +372,7 @@ const SchaltstelleForm = ({
             placeholder={getPlaceholder(readOnly, "Bauart auswählen")}
             className="w-full"
             size="large"
+            allowClear
             showSearch
             optionFilterProp="children"
           >
@@ -410,6 +411,7 @@ const SchaltstelleForm = ({
             )}
             className="w-full"
             size="large"
+            allowClear
             showSearch
             optionFilterProp="children"
           >

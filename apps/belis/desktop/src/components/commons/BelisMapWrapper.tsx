@@ -514,11 +514,11 @@ const BelisMapLibWrapper = ({
         setLastFeatureType(sourceLayer);
       }
 
-      console.log("xxx [SELECTION] fetching feature by id:", {
-        featureId,
-        sourceLayer,
-        fallback: !selectedFeature,
-      });
+      // console.log("xxx [SELECTION] fetching feature by id:", {
+      //   featureId,
+      //   sourceLayer,
+      //   fallback: !selectedFeature,
+      // });
 
       const apiFeatureType = SOURCE_LAYER_TO_FEATURE_TYPE[sourceLayer ?? ""];
       if (!apiFeatureType || !featureId) {
