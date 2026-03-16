@@ -167,6 +167,7 @@ export interface LibreMapProps {
   >;
 }
 
+
 export const LibreMap = ({
   backgroundLayers,
   layers,
@@ -743,14 +744,105 @@ export const LibreMap = ({
         const threeLayers2d = get3dLayers(mapInstance);
         threeLayers2d.forEach((l) => l.unhighlight());
 
-        const point = mapInstance.project([e.lngLat.lng, e.lngLat.lat]);
-        const hits = mapInstance.queryRenderedFeatures(point);
+        // With terrain, queryRenderedFeatures fails for fill-extrusion because
+        // multiple internal paths read terrain state. To replicate "disable
+        // terrain, click same spot", we:
+        // 1. Get terrain-aware lnglat from click BEFORE suppression
+        // 2. Suppress all terrain state (elevation, refs, coordinate conversion)
+        // 3. Re-project the lnglat to screen with the new flat matrices
+        // 4. Query at the corrected screen point
+        const transform = (mapInstance as any).transform;
+        const mapTerrain = (mapInstance as any).terrain;
+        const hasTerrain = !!mapTerrain;
+
+        type TerrainRef = { terrain: unknown };
+        let savedElevation: number | undefined;
+        let savedScreenPointToMerc: ((...args: unknown[]) => unknown) | undefined;
+        const savedTileManagers: TerrainRef[] = [];
+        let queryPoint = e.point;
+
+        if (hasTerrain) {
+          // Step 1: Get the geographic position of the click BEFORE suppression
+          // (terrain-aware unproject uses the depth framebuffer)
+          const clickLngLat = mapInstance.unproject(e.point);
+
+          // Step 2: Zero camera elevation and recompute all transform matrices
+          savedElevation = transform._helper._elevation;
+          transform._helper._elevation = 0;
+          transform._calcMatrices();
+
+          // Null map.terrain to prevent getElevation callback in style query
+          (mapInstance as any).terrain = null;
+
+          // Null TileManager.terrain refs
+          const style = (mapInstance as any).style;
+          if (style?.tileManagers) {
+            for (const id in style.tileManagers) {
+              const tm = style.tileManagers[id];
+              if (tm.terrain) {
+                savedTileManagers.push(tm);
+                tm.terrain = null;
+              }
+            }
+          }
+
+          // Patch coordinate conversion to skip terrain depth framebuffer
+          savedScreenPointToMerc = transform.screenPointToMercatorCoordinate;
+          transform.screenPointToMercatorCoordinate = function (
+            p: unknown,
+            _terrain?: unknown,
+          ) {
+            return this.screenPointToMercatorCoordinateAtZ(p);
+          };
+
+          // Step 3: Re-project the lnglat to screen with the flat matrices
+          const projected = mapInstance.project(clickLngLat);
+          queryPoint = new maplibregl.Point(projected.x, projected.y);
+        }
+
+        const hits = mapInstance.queryRenderedFeatures(queryPoint);
+
+        if (hasTerrain) {
+          transform.screenPointToMercatorCoordinate = savedScreenPointToMerc;
+          (mapInstance as any).terrain = mapTerrain;
+          for (const tm of savedTileManagers) {
+            tm.terrain = mapTerrain;
+          }
+          transform._helper._elevation = savedElevation;
+          transform._calcMatrices();
+        }
+
         const filteredHits = hits.filter((hit) => {
           return (
             !hit.layer.id.includes("selection") &&
             !hit.layer.id.includes("cluster")
           );
         });
+
+        console.log(
+          "[TERRAIN CLICK]",
+          JSON.stringify({
+            screenPoint: { x: e.point.x, y: e.point.y },
+            queryPoint: { x: queryPoint.x, y: queryPoint.y },
+            hasTerrain,
+            savedElevation,
+            camera: {
+              zoom: mapInstance.getZoom(),
+              pitch: mapInstance.getPitch(),
+              bearing: mapInstance.getBearing(),
+              center: mapInstance.getCenter(),
+            },
+            rawHits: hits.length,
+            rawHitLayers: hits.map((h) => h.layer.id),
+            filteredHits: filteredHits.length,
+            filteredHitLayers: filteredHits.map((h) => ({
+              layer: h.layer.id,
+              type: h.layer.type,
+              source: h.source,
+              id: h.id,
+            })),
+          }),
+        );
 
         // Clear previous visual selection
         clearVisualSelection(mapInstance);

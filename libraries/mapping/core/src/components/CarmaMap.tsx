@@ -112,7 +112,17 @@ const CarmaMapContent = (props: CarmaMapProps) => {
   const [showTerrain, setShowTerrain] = useState(() => {
     try { return localStorage.getItem("carma-map-terrain") === "true"; } catch { return false; }
   });
-  const [crosshairPos, setCrosshairPos] = useState<{
+  // Crosshair debug: store geographic position so the crosshair tracks
+  // correctly when terrain is toggled or camera moves
+  const [crosshairLngLat, setCrosshairLngLat] = useState<{
+    lng: number;
+    lat: number;
+  } | null>(null);
+  const [crosshairScreen, setCrosshairScreen] = useState<{
+    x: number;
+    y: number;
+  } | null>(null);
+  const [correctedScreen, setCorrectedScreen] = useState<{
     x: number;
     y: number;
   } | null>(null);
@@ -120,16 +130,42 @@ const CarmaMapContent = (props: CarmaMapProps) => {
   useEffect(() => {
     if (!libreMap || !clickCrosshairDebugMode) return;
     const handler = (e: maplibregl.MapMouseEvent) => {
-      setCrosshairPos({
-        x: e.originalEvent.clientX,
-        y: e.originalEvent.clientY,
-      });
+      setCrosshairLngLat({ lng: e.lngLat.lng, lat: e.lngLat.lat });
     };
     libreMap.on("click", handler);
     return () => {
       libreMap.off("click", handler);
     };
   }, [libreMap, clickCrosshairDebugMode]);
+
+  // RAF loop: continuously project stored lnglat to screen coords
+  // so crosshair tracks correctly during terrain toggle / camera move
+  useEffect(() => {
+    if (!libreMap || !crosshairLngLat || !clickCrosshairDebugMode) return;
+    let rafId: number;
+    const update = () => {
+      const pt = libreMap.project([crosshairLngLat.lng, crosshairLngLat.lat]);
+      const rect = libreMap.getCanvas().getBoundingClientRect();
+      setCrosshairScreen({ x: pt.x + rect.left, y: pt.y + rect.top });
+
+      // Corrected point: re-project at z=0 (flat earth) for terrain offset visualization
+      if (libreMap.getTerrain()) {
+        const transform = (libreMap as any).transform;
+        const merc = maplibregl.MercatorCoordinate.fromLngLat([
+          crosshairLngLat.lng,
+          crosshairLngLat.lat,
+        ]);
+        const flatPt = transform.coordinatePoint(merc);
+        setCorrectedScreen({ x: flatPt.x + rect.left, y: flatPt.y + rect.top });
+      } else {
+        setCorrectedScreen(null);
+      }
+
+      rafId = requestAnimationFrame(update);
+    };
+    update();
+    return () => cancelAnimationFrame(rafId);
+  }, [libreMap, crosshairLngLat, clickCrosshairDebugMode]);
 
   // Stable callback to avoid re-creating LibreMap on every render
   const handleLibreMapReady = useCallback(
@@ -341,38 +377,64 @@ const CarmaMapContent = (props: CarmaMapProps) => {
             {modalMenu}
           </ControlLayout>
 
-          {clickCrosshairDebugMode && (() => {
-            const cx = crosshairPos ? `${crosshairPos.x}px` : "50%";
-            const cy = crosshairPos ? `${crosshairPos.y}px` : "50%";
-            return (
-              <>
-                <div
-                  style={{
-                    position: "fixed",
-                    left: cx,
-                    top: 0,
-                    width: 1,
-                    height: "100vh",
-                    background: "rgba(255,0,0,0.6)",
-                    pointerEvents: "none",
-                    zIndex: 999999,
-                  }}
-                />
-                <div
-                  style={{
-                    position: "fixed",
-                    left: 0,
-                    top: cy,
-                    height: 1,
-                    width: "100vw",
-                    background: "rgba(255,0,0,0.6)",
-                    pointerEvents: "none",
-                    zIndex: 999999,
-                  }}
-                />
-              </>
-            );
-          })()}
+          {clickCrosshairDebugMode && crosshairScreen && (
+            <>
+              {/* Red crosshair: actual click position (terrain-aware) */}
+              <div
+                style={{
+                  position: "fixed",
+                  left: `${crosshairScreen.x}px`,
+                  top: 0,
+                  width: 1,
+                  height: "100vh",
+                  background: "rgba(255,0,0,0.6)",
+                  pointerEvents: "none",
+                  zIndex: 999999,
+                }}
+              />
+              <div
+                style={{
+                  position: "fixed",
+                  left: 0,
+                  top: `${crosshairScreen.y}px`,
+                  height: 1,
+                  width: "100vw",
+                  background: "rgba(255,0,0,0.6)",
+                  pointerEvents: "none",
+                  zIndex: 999999,
+                }}
+              />
+              {/* Green crosshair: corrected point (flat-earth projection, what queryRenderedFeatures sees) */}
+              {correctedScreen && (
+                <>
+                  <div
+                    style={{
+                      position: "fixed",
+                      left: `${correctedScreen.x}px`,
+                      top: 0,
+                      width: 1,
+                      height: "100vh",
+                      background: "rgba(0,255,0,0.6)",
+                      pointerEvents: "none",
+                      zIndex: 999999,
+                    }}
+                  />
+                  <div
+                    style={{
+                      position: "fixed",
+                      left: 0,
+                      top: `${correctedScreen.y}px`,
+                      height: 1,
+                      width: "100vw",
+                      background: "rgba(0,255,0,0.6)",
+                      pointerEvents: "none",
+                      zIndex: 999999,
+                    }}
+                  />
+                </>
+              )}
+            </>
+          )}
         </div>
       </MapFrameworkSwitcherProvider>
     </HashStateProvider>
