@@ -39,11 +39,11 @@ const transformDatesForBackend = (
   const result: Record<string, unknown> = {};
   for (const [key, value] of Object.entries(values)) {
     if (dayjs.isDayjs(value)) {
-      console.log("xxx [DATE] dayjs field:", key, "→", value.format("YYYY-MM-DDTHH:mm:ss"));
+      // console.log("xxx [DATE] dayjs field:", key, "→", value.format("YYYY-MM-DDTHH:mm:ss"));
       result[key] = value.format("YYYY-MM-DDTHH:mm:ss");
     } else {
       if (typeof value === "string" && /^\d{4}-\d{2}-\d{2}/.test(value)) {
-        console.log("xxx [DATE] string date field (NOT dayjs):", key, "→", value);
+        // console.log("xxx [DATE] string date field (NOT dayjs):", key, "→", value);
       }
       result[key] = value;
     }
@@ -178,6 +178,13 @@ export const prepareSaveValues = (
   // 6. Merge renamed values
   const merged = { ...deserialized, ...renamed };
 
+  // 6b. Convert undefined values to null (e.g. cleared Select fields)
+  for (const key of Object.keys(merged)) {
+    if (merged[key] === undefined) {
+      merged[key] = null;
+    }
+  }
+
   // 7. Transform dates if needed
   if (config.transformDates) {
     return transformDatesForBackend(merged);
@@ -271,12 +278,12 @@ export const saveFeatureDraft = async (
     };
 
     // 5. Send to API
-    console.log("xxx [SAVE DEBUG]", {
-      featureType,
-      featureDbId,
-      className: config.className,
-      payload: JSON.parse(JSON.stringify(dataToSave)),
-    });
+    // console.log("xxx [SAVE DEBUG]", {
+    //   featureType,
+    //   featureDbId,
+    //   className: config.className,
+    //   payload: JSON.parse(JSON.stringify(dataToSave)),
+    // });
     await updateDataByClassName(jwt, config.className, dataToSave);
 
     return { ...base, success: true };
