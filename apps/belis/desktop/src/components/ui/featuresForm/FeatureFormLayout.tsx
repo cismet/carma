@@ -406,6 +406,7 @@ const FeatureFormLayout = ({
       <FormHeader
         title={title}
         subtitle={subtitle}
+        cancelLabel={cancelLabel}
         onCancel={onCancel}
         onSave={onSave}
         saving={saving}
