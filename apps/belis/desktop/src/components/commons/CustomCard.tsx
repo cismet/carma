@@ -32,11 +32,12 @@ export const CustomCard = ({
           flexDirection: "column" as const,
         }),
       }}
-      title={<span className="text-lg">{title}</span>}
+      title={title ? <span className="text-lg">{title}</span> : undefined}
       extra={extra}
       size="small"
       hoverable={false}
       {...props}
+      className={`${!title ? "[&_.ant-card-extra]:ml-0 [&_.ant-card-extra]:w-full" : ""} ${props.className || ""}`}
     >
       {children}
     </Card>

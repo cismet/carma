@@ -193,21 +193,35 @@ const MainPage = () => {
       <div className="mx-3 mt-1">
         <CustomCard
           title={
-            <div className="flex items-center gap-2">
-              <span>{isDatasheetOpen ? "Datenblatt" : "Karte"}</span>
-              <Tooltip title={globalEditMode ? "Bearbeitung sperren" : "Alle bearbeiten"}>
-                <Button
-                  icon={globalEditMode ? <LockOutlined /> : <EditOutlined />}
-                  type={globalEditMode ? "primary" : "default"}
-                  size="small"
-                  onClick={() => dispatch(toggleGlobalEditMode())}
-                />
-              </Tooltip>
-            </div>
+            windowWidth > 1364 ? (
+              <div className="flex items-center gap-2">
+                <span>{isDatasheetOpen ? "Datenblatt" : "Karte"}</span>
+                <Tooltip title={globalEditMode ? "Bearbeitung sperren" : "Alle bearbeiten"}>
+                  <Button
+                    icon={globalEditMode ? <LockOutlined /> : <EditOutlined />}
+                    type={globalEditMode ? "primary" : "default"}
+                    size="small"
+                    onClick={() => dispatch(toggleGlobalEditMode())}
+                  />
+                </Tooltip>
+              </div>
+            ) : undefined
           }
           style={{ marginBottom: "8px" }}
           extra={
             <div className="flex items-center gap-4">
+              {/* Edit mode toggle (visible when title is hidden) */}
+              {windowWidth <= 1364 && (
+                <Tooltip title={globalEditMode ? "Bearbeitung sperren" : "Alle bearbeiten"}>
+                  <Button
+                    icon={globalEditMode ? <LockOutlined /> : <EditOutlined />}
+                    type={globalEditMode ? "primary" : "default"}
+                    size="small"
+                    onClick={() => dispatch(toggleGlobalEditMode())}
+                  />
+                </Tooltip>
+              )}
+
               {/* Cancel all drafts - temporarily hidden */}
               {/* <SendOrDiscardAllDraftsButton /> */}
 
