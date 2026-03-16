@@ -7,5 +7,7 @@ export * from "./geometry2d";
 export * from "./geometry3d";
 export * from "./orientation3d";
 export * from "./matrix4";
+export * from "./quaternion";
+export * from "./vec2";
 export * from "./vec3";
 export * from "./trig";

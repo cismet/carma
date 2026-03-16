@@ -21,6 +21,7 @@ export interface CarmaResponsiveInfoBoxProps {
   header?: React.ReactNode;
   heading?: React.ReactNode;
   headingColor?: string;
+  bodyStyle?: CSSProperties;
   subtitle?: React.ReactNode;
   content?: React.ReactNode;
   footer?: React.ReactNode;
@@ -44,6 +45,7 @@ export const CarmaResponsiveInfoBox = ({
   header,
   heading,
   headingColor,
+  bodyStyle,
   subtitle,
   content,
   footer,
@@ -136,6 +138,7 @@ export const CarmaResponsiveInfoBox = ({
       <CarmaCard
         header={heading}
         headerColor={headingColor}
+        bodyStyle={bodyStyle}
         subtitle={subtitle}
         content={content}
         footer={footer}

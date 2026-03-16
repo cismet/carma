@@ -167,8 +167,8 @@ const readMapLibreZoomFromSceneState = ({
   camera?: CesiumCameraLike | null;
   anchor: CesiumCameraHashAnchor;
 }): number | undefined => {
-  const fovRad = sceneState?.camera.fovRad ?? camera?.frustum?.fov;
-  if (!isFiniteNumber(fovRad)) {
+  const fovVertical = sceneState?.camera.fovVertical ?? camera?.frustum?.fov;
+  if (!isFiniteNumber(fovVertical)) {
     return undefined;
   }
 
@@ -183,7 +183,7 @@ const readMapLibreZoomFromSceneState = ({
     return undefined;
   }
 
-  const halfFovTan = Math.tan(fovRad * 0.5);
+  const halfFovTan = Math.tan(fovVertical * 0.5);
   if (!isFiniteNumber(halfFovTan) || Math.abs(halfFovTan) < MIN_TAN_HALF_FOV) {
     return undefined;
   }
@@ -582,8 +582,8 @@ export const readCesiumCameraHashSnapshotFromSceneState = ({
   const rollDeg = isFiniteNumber(sceneState.camera.rollRad)
     ? normalizeSignedDeg(toDeg(sceneState.camera.rollRad))
     : undefined;
-  const fovDeg = isFiniteNumber(sceneState.camera.fovRad)
-    ? toDeg(sceneState.camera.fovRad)
+  const fovDeg = isFiniteNumber(sceneState.camera.fovVertical)
+    ? toDeg(sceneState.camera.fovVertical)
     : undefined;
   const rangeM =
     anchorMode === "screen-center"
@@ -834,8 +834,8 @@ export const readCesiumCarmaCameraCentricHashParams = ({
       : undefined);
 
   const fovDeg =
-    (isFiniteNumber(sceneState?.camera.fovRad)
-      ? toDeg(sceneState!.camera.fovRad!)
+    (isFiniteNumber(sceneState?.camera.fovVertical)
+      ? toDeg(sceneState!.camera.fovVertical!)
       : undefined) ??
     (isFiniteNumber(camera?.frustum?.fov) ? toDeg(camera!.frustum!.fov!) : undefined) ??
     snapshot.orientation.fovDeg;

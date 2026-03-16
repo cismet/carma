@@ -1,0 +1,356 @@
+import { useMemo, type CSSProperties, type ReactNode } from "react";
+import {
+  ObjectCentricViewStateInfoBox,
+  type ObjectCentricViewStateInfoRow,
+} from "@carma-mapping/components";
+import {
+  projectViewSyncTargetToMapLibre,
+  readViewSyncHorizontalFov,
+  readViewSyncVerticalFov,
+  useViewSyncState,
+  type ViewSyncTargetState,
+} from "@carma-mapping/engines-interop";
+import { formatLengthMeters, radToDegNumeric } from "@carma/units/helpers";
+
+const FIGURE_SPACE = "\u2007";
+const NARROW_NO_BREAK_SPACE = "\u202f";
+const RANGE_CUE_COLOR = "#64748b";
+const ALTITUDE_CUE_COLOR = "#94a3b8";
+const HEADING_CUE_COLOR = "#22d3ee";
+const PITCH_CUE_COLOR = "#f59e0b";
+
+const getMetaProjectionViewport = () => ({
+  widthPx:
+    typeof window === "undefined" ? 1280 : Math.max(1, window.innerWidth),
+  heightPx:
+    typeof window === "undefined" ? 720 : Math.max(1, window.innerHeight),
+});
+
+const formatAlignedNumber = (
+  value: number,
+  fractionDigits: number,
+  unit?: string
+) => {
+  const signPrefix = value < 0 ? "-" : FIGURE_SPACE;
+  const suffix = unit ? `${NARROW_NO_BREAK_SPACE}${unit}` : "";
+  return `${signPrefix}${Math.abs(value).toFixed(fractionDigits)}${suffix}`;
+};
+
+const formatCompactNumber = (
+  value: number,
+  fractionDigits: number,
+  unit?: string
+) => {
+  const suffix = unit ? `${NARROW_NO_BREAK_SPACE}${unit}` : "";
+  return `${Math.abs(value).toFixed(fractionDigits)}${suffix}`;
+};
+
+const formatOrUnresolved = (
+  value: number | null | undefined,
+  formatter: (resolvedValue: number) => string
+) => (typeof value === "number" && Number.isFinite(value) ? formatter(value) : "unresolved");
+
+const formatCameraType = (cameraType: string | null | undefined) => {
+  if (!cameraType) {
+    return "unresolved";
+  }
+  if (cameraType === "PerspectiveCamera") {
+    return "Perspective";
+  }
+  if (cameraType === "OrthographicCamera") {
+    return "Orthographic";
+  }
+  return cameraType;
+};
+
+export const formatTargetSummary = (
+  target: ViewSyncTargetState | null | undefined
+): string => {
+  if (!target) {
+    return "target unresolved";
+  }
+
+  return [
+    `${radToDegNumeric(target.anchor.longitude).toFixed(5)}`,
+    `${radToDegNumeric(target.anchor.latitude).toFixed(5)}`,
+    `${target.anchor.altitude.toFixed(1)}m`,
+    `h ${radToDegNumeric(target.headingPitchRange.heading).toFixed(1)}°`,
+    `p ${radToDegNumeric(target.headingPitchRange.pitch).toFixed(1)}°`,
+    `r ${target.headingPitchRange.range.toFixed(1)}m`,
+  ].join(" • ");
+};
+
+const formatViewSyncTargetTableRows = (
+  target: ViewSyncTargetState | null | undefined
+): ObjectCentricViewStateInfoRow[] => {
+  if (!target) {
+    return [
+      { kind: "section", key: "geographic", label: "Geographic" },
+      { label: "longitude", value: "unresolved" },
+      { label: "latitude", value: "unresolved" },
+      {
+        cueLabel: "e",
+        cueColor: ALTITUDE_CUE_COLOR,
+        label: "altitude",
+        value: "unresolved",
+        tooltip: "Orthographic height above the reference plane.",
+      },
+      { kind: "section", key: "hpr", label: "HPR" },
+      {
+        cueLabel: "h",
+        cueColor: HEADING_CUE_COLOR,
+        label: "heading",
+        value: "unresolved",
+      },
+      {
+        cueLabel: "p",
+        cueColor: PITCH_CUE_COLOR,
+        label: "pitch",
+        value: "unresolved",
+      },
+      {
+        cueLabel: "r",
+        cueColor: RANGE_CUE_COLOR,
+        label: "range",
+        value: "unresolved",
+      },
+      { label: "zoom equiv.", value: "unresolved" },
+      { kind: "section", key: "camera", label: "Camera" },
+      { label: "type", value: "unresolved" },
+      { label: "fov v / h", value: "unresolved" },
+      { label: "aspect ratio", value: "unresolved" },
+      { label: "near", value: "unresolved" },
+      { label: "far", value: "unresolved" },
+    ];
+  }
+
+  const fovVertical = readViewSyncVerticalFov(target);
+  const fovHorizontal = readViewSyncHorizontalFov(target);
+  const projection = projectViewSyncTargetToMapLibre({
+    target,
+    viewport: getMetaProjectionViewport(),
+  });
+
+  return [
+    {
+      kind: "section",
+      key: "geographic",
+      label: "Geographic",
+    },
+    {
+      label: "longitude",
+      value: `${formatAlignedNumber(
+        radToDegNumeric(target.anchor.longitude),
+        5
+      )}°`,
+    },
+    {
+      label: "latitude",
+      value: `${formatAlignedNumber(
+        radToDegNumeric(target.anchor.latitude),
+        5
+      )}°`,
+    },
+    {
+      cueLabel: "e",
+      cueColor: ALTITUDE_CUE_COLOR,
+      label: "altitude",
+      value: formatAlignedNumber(target.anchor.altitude, 1, "m"),
+      tooltip: "Orthographic height above the reference plane.",
+    },
+    {
+      kind: "section",
+      key: "hpr",
+      label: "HPR",
+    },
+    {
+      cueLabel: "h",
+      cueColor: HEADING_CUE_COLOR,
+      label: "heading",
+      value: `${formatAlignedNumber(
+        radToDegNumeric(target.headingPitchRange.heading),
+        1
+      )}°`,
+    },
+    {
+      cueLabel: "p",
+      cueColor: PITCH_CUE_COLOR,
+      label: "pitch",
+      value: `${formatAlignedNumber(
+        radToDegNumeric(target.headingPitchRange.pitch),
+        1
+      )}°`,
+    },
+    {
+      cueLabel: "r",
+      cueColor: RANGE_CUE_COLOR,
+      label: "range",
+      value: formatAlignedNumber(target.headingPitchRange.range, 1, "m"),
+    },
+    {
+      label: "zoom equiv.",
+      value: projection
+        ? formatCompactNumber(projection.zoom, 2)
+        : "unresolved",
+    },
+    {
+      kind: "section",
+      key: "camera",
+      label: "Camera",
+    },
+    {
+      label: "type",
+      value: formatCameraType(target.type),
+    },
+    {
+      label: "fov v / h",
+      value: `${formatOrUnresolved(fovVertical, (resolvedFovVertical) =>
+        `${formatCompactNumber(radToDegNumeric(resolvedFovVertical), 1)}°`
+      )} / ${formatOrUnresolved(fovHorizontal, (resolvedFovHorizontal) =>
+        `${formatCompactNumber(radToDegNumeric(resolvedFovHorizontal), 1)}°`
+      )}`,
+    },
+    {
+      label: "aspect ratio",
+      value: formatOrUnresolved(target.aspect, (resolvedAspect) =>
+        formatCompactNumber(resolvedAspect, 3)
+      ),
+    },
+    {
+      label: "near",
+      value: formatOrUnresolved(target.near, (resolvedNear) =>
+        formatLengthMeters(resolvedNear, {
+          maximumFractionDigitsMeters: 2,
+          maximumFractionDigitsKilometers: 2,
+        })
+      ),
+    },
+    {
+      label: "far",
+      value: formatOrUnresolved(target.far, (resolvedFar) =>
+        formatLengthMeters(resolvedFar, {
+          maximumFractionDigitsMeters: 2,
+          maximumFractionDigitsKilometers: 2,
+        })
+      ),
+    },
+  ];
+};
+
+const FRAMEWORK_STATUS_PREFIX_RE =
+  /^(?:(?:cesium|maplibre|leaflet)\s*->\s*(?:cesium|maplibre|leaflet)|(cesium|maplibre|leaflet))\s*•\s*/i;
+
+const stripFrameworkStatusPrefix = (text: string): string =>
+  text.replace(FRAMEWORK_STATUS_PREFIX_RE, "");
+
+const formatViewSyncJson = (target: ViewSyncTargetState | null | undefined) =>
+  JSON.stringify(target ?? null, null, 2);
+
+export const buildPanelStatusText = (
+  text: string,
+  hashText?: string | null
+): ReactNode => (
+  <span
+    style={{
+      display: "flex",
+      flexDirection: "column",
+      width: "100%",
+      textAlign: "center",
+      lineHeight: 1.15,
+      paddingBlock: 3,
+    }}
+  >
+    <span>{stripFrameworkStatusPrefix(text)}</span>
+    {hashText ? (
+      <span
+        style={{
+          opacity: 0.8,
+          fontSize: 11,
+        }}
+      >
+        {hashText}
+      </span>
+    ) : null}
+  </span>
+);
+
+export const ViewSyncMetaOverlay = ({
+  fallbackTarget,
+  style,
+}: {
+  fallbackTarget: ViewSyncTargetState;
+  style?: CSSProperties;
+}) => {
+  const viewSyncState = useViewSyncState();
+  const target = viewSyncState.target?.target ?? null;
+  const visualizerTarget = target ?? fallbackTarget;
+  const rows = useMemo(() => formatViewSyncTargetTableRows(target), [target]);
+  const formattedViewJson = useMemo(
+    () => formatViewSyncJson(visualizerTarget),
+    [visualizerTarget]
+  );
+  const specification =
+    visualizerTarget.cameraModel ?? {
+      pose: {
+        anchor: visualizerTarget.anchor,
+        heading: visualizerTarget.headingPitchRange.heading,
+        pitch: visualizerTarget.headingPitchRange.pitch,
+        range: visualizerTarget.headingPitchRange.range,
+        roll: visualizerTarget.roll,
+      },
+      intrinsics: {
+        fov: readViewSyncVerticalFov(visualizerTarget) ?? undefined,
+        fovHorizontal: readViewSyncHorizontalFov(visualizerTarget) ?? undefined,
+        aspect: visualizerTarget.aspect,
+        near: visualizerTarget.near,
+        far: visualizerTarget.far,
+        type: visualizerTarget.type,
+        view: visualizerTarget.view,
+      },
+    };
+
+  return (
+    <ObjectCentricViewStateInfoBox
+      rows={rows}
+      specification={specification}
+      visualizerDisplayOptions={{
+        interactive: true,
+      }}
+      visualizerHeadingLabel="h"
+      visualizerPitchLabel="p"
+      width={560}
+      detailsTitle="View JSON"
+      detailsContent={
+        <pre
+          style={{
+            margin: 0,
+            padding: "8px 10px",
+            overflowX: "auto",
+            fontSize: 11,
+            lineHeight: 1.45,
+            color: "#0f172a",
+            background: "rgba(248, 250, 252, 0.92)",
+            borderRadius: 6,
+            whiteSpace: "pre-wrap",
+            wordBreak: "break-word",
+            fontVariantNumeric: "tabular-nums",
+          }}
+        >
+          {formattedViewJson}
+        </pre>
+      }
+      collapsible={true}
+      heading={
+        <span
+          style={{
+            fontWeight: 700,
+            color: "#f8fafc",
+          }}
+        >
+          Shared Object-Centric Scene State
+        </span>
+      }
+      style={style}
+    />
+  );
+};

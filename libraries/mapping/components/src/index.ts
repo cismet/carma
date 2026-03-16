@@ -26,6 +26,7 @@ export {
   AnnotationsToolbarSeparator,
 } from "./lib/components/AnnotationsToolbar";
 export { LibrePitchingCompass } from "./lib/components/PitchingControl/LibrePitchingCompass";
+export { CompassNeedleSVG } from "./lib/components/PitchingControl/CompassNeedleSVG";
 
 export {
   MapFrameworkSwitcher,
@@ -48,3 +49,12 @@ export {
 } from "./lib/components/LibreMapLocateControl";
 
 export { ZoomControl } from "./lib/components/ZoomControl";
+export {
+  ViewStateVisualizer,
+  type ViewStateVisualizerProps,
+} from "./lib/components/ViewStateVisualizer";
+export {
+  ObjectCentricViewStateInfoBox,
+  type ObjectCentricViewStateInfoBoxProps,
+  type ObjectCentricViewStateInfoRow,
+} from "./lib/components/ObjectCentricViewStateInfoBox";

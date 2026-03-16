@@ -15,3 +15,5 @@ export {
   createZoomDistanceConverter,
   type ZoomDistanceConverter,
 } from "./lib/leaflet-cesium/zoom-distance-converter";
+
+export * from "./lib/view-sync";

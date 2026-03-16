@@ -60,7 +60,7 @@ describe("cesiumCameraHashCodec", () => {
         headingRad: 0.35,
         pitchRad: -1.05,
         rollRad: 0.02,
-        fovRad: 0.8,
+        fovVertical: 0.8,
       },
       orbitPoint: {
         worldPosition: { x: 4, y: 5, z: 6 },
@@ -110,7 +110,7 @@ describe("cesiumCameraHashCodec", () => {
         headingRad: 0.2,
         pitchRad: -Math.PI / 3,
         rollRad: 0,
-        fovRad: Math.PI / 3,
+        fovVertical: Math.PI / 3,
       },
       orbitPoint: {
         worldPosition: { x: 0, y: 0, z: 0 },
@@ -164,7 +164,7 @@ describe("cesiumCameraHashCodec", () => {
         headingRad: 0.2,
         pitchRad: -Math.PI / 3,
         rollRad: 0,
-        fovRad: Math.PI / 3,
+        fovVertical: Math.PI / 3,
       },
       orbitPoint: {
         worldPosition: { x: 0, y: 0, z: 0 },

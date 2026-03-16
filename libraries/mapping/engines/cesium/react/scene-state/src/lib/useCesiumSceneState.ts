@@ -27,3 +27,10 @@ export const useCesiumSceneStateOptional = (): CesiumSceneStateSnapshot | null =
   const getSnapshot = store?.getSnapshot ?? nullSnapshot;
   return useSyncExternalStore(subscribe, getSnapshot, getSnapshot);
 };
+
+export const useCesiumSceneStateErrorOptional = (): Error | null => {
+  const store = useContext(CesiumSceneStateStoreContext);
+  const subscribe = store?.subscribe ?? nullSubscribe;
+  const getSnapshot = store?.getError ?? nullSnapshot;
+  return useSyncExternalStore(subscribe, getSnapshot, getSnapshot);
+};
