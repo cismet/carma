@@ -116,6 +116,7 @@ export interface MappingState extends LayerState {
   paleOpacityValue: number;
   showLeftScrollButton: boolean;
   showRightScrollButton: boolean;
+  activeInteractionLayerID: string | null;
   showFullscreenButton: boolean;
   showLocatorButton: boolean;
   showMeasurementButton: boolean;
@@ -124,6 +125,7 @@ export interface MappingState extends LayerState {
   startDrawing: boolean;
   clickFromInfoView: boolean;
   libreMapRef: any;
+  maplibreMaps?: any;
   configSelection?: SelectionItem;
   layersIdle: boolean;
 }

@@ -131,9 +131,19 @@ const SecondaryView = forwardRef<Ref, SecondaryViewProps>(({}, _ref) => {
       const openBaseLayerViewButtons = document.querySelectorAll(
         '[id^="openBaseLayerView"]'
       );
+      const filterLayerButtons = document.querySelectorAll(
+        '[id^="filterLayerButton-"]'
+      );
 
       openBaseLayerViewButtons.forEach((layerButton) => {
         if (layerButton.contains(event.target as Node)) {
+          returnFunction = true;
+          return;
+        }
+      });
+
+      filterLayerButtons.forEach((filterButton) => {
+        if (filterButton.contains(event.target as Node)) {
           returnFunction = true;
           return;
         }
@@ -199,7 +209,7 @@ const SecondaryView = forwardRef<Ref, SecondaryViewProps>(({}, _ref) => {
       onClick={() => {
         dispatch(setSelectedLayerIndexNoSelection());
       }}
-      className="pt-4 w-full"
+      className="pt-3 w-full"
     >
       <div className="flex items-center justify-center w-full">
         <div

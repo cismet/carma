@@ -12,6 +12,7 @@ import {
   appendLayer,
   deleteSavedLayerConfig,
   removeLayer,
+  setActiveInteractionLayerID,
   setBackgroundLayer,
   setLayers,
   setSelectedLuftbildLayer,
@@ -493,5 +494,9 @@ export const createResourceLayerUpdater = ({
       messageApi,
       maxLayers,
     });
+
+    if (parsedLayer.conf?.autoOpenInteractionView === true) {
+      dispatch(setActiveInteractionLayerID(id));
+    }
   };
 };

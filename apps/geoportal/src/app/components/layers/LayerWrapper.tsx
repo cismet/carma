@@ -47,6 +47,7 @@ import SecondaryView from "./SecondaryView";
 
 import "./button.css";
 import { useMapFrameworkSwitcherContext } from "@carma-mapping/components";
+import InteractionView from "./InteractionView";
 
 const LayerWrapper = () => {
   const dispatch: AppDispatch = useDispatch();
@@ -62,6 +63,7 @@ const LayerWrapper = () => {
   const showRightScrollButton = useSelector(getShowRightScrollButton);
 
   const { isLeaflet } = useMapFrameworkSwitcherContext();
+
   const { isOver, setNodeRef } = useDroppable({
     id: "droppable",
   });
@@ -159,7 +161,6 @@ const LayerWrapper = () => {
             )}
             <div className="w-full flex justify-center items-center h-full gap-2">
               <GeoportalLayerButton
-                icon="background"
                 layer={backgroundLayer}
                 index={-1}
                 id={backgroundLayer.id}
@@ -187,15 +188,6 @@ const LayerWrapper = () => {
                         id={layer.id}
                         key={layer.id}
                         index={i}
-                        icon={
-                          layer.title.includes("Orthofoto")
-                            ? "ortho"
-                            : layer.title === "Bäume"
-                            ? "bäume"
-                            : layer.title.includes("gärten")
-                            ? "gärten"
-                            : undefined
-                        }
                         layer={layer}
                         hide={layer.type !== "object" && !isLeaflet}
                       />
@@ -208,6 +200,7 @@ const LayerWrapper = () => {
         </div>
       </DndContext>
 
+      <InteractionView />
       {!isNoSelectionIndex && <SecondaryView />}
     </>
   );

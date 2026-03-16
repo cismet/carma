@@ -23,6 +23,7 @@ export interface UIState {
   showResourceModal: boolean;
   zenMode: boolean;
   showLoginModal: boolean;
+  triggerFeatureInfoUpdate: number;
 }
 
 const initialState: UIState = {
@@ -37,6 +38,7 @@ const initialState: UIState = {
   showResourceModal: false,
   zenMode: false,
   showLoginModal: false,
+  triggerFeatureInfoUpdate: 0,
 };
 
 const slice = createSlice({
@@ -85,6 +87,9 @@ const slice = createSlice({
     setShowLoginModal(state, action: PayloadAction<boolean>) {
       state.showLoginModal = action.payload;
     },
+    triggerFeatureInfoUpdateAction(state) {
+      state.triggerFeatureInfoUpdate = state.triggerFeatureInfoUpdate + 1;
+    },
   },
 });
 
@@ -101,6 +106,7 @@ export const {
   setShowResourceModal,
   setZenMode,
   setShowLoginModal,
+  triggerFeatureInfoUpdateAction,
 } = slice.actions;
 
 export const getUIMode = (state: RootState) => state.ui.mode;
@@ -118,5 +124,7 @@ export const getUIShowResourceModal = (state: RootState) =>
   state.ui.showResourceModal;
 export const getZenMode = (state: RootState) => state.ui.zenMode;
 export const getShowLoginModal = (state: RootState) => state.ui.showLoginModal;
+export const getTriggerFeatureInfoUpdate = (state: RootState) =>
+  state.ui.triggerFeatureInfoUpdate;
 
 export default slice.reducer;

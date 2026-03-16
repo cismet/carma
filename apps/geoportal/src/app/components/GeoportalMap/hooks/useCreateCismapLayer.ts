@@ -81,6 +81,7 @@ export const useCreateCismapLayers = (
     maplibreMapsRef,
     store,
     selectionSemanticIdentifierRef,
+    setMaplibreMaps,
   }: {
     mode: UIMode;
     dispatch: Dispatch;
@@ -90,6 +91,7 @@ export const useCreateCismapLayers = (
     maplibreMapsRef?: React.MutableRefObject<Map<string, any>>;
     store: Store;
     selectionSemanticIdentifierRef?: React.MutableRefObject<string | undefined>;
+    setMaplibreMaps?: (entry: { id: string; map: any }) => void;
   }
 ) => {
   const [globalHits, setGlobalHits] = useState({});
@@ -330,6 +332,10 @@ export const useCreateCismapLayers = (
               // Store map reference outside of Redux to avoid serialization issues
               if (maplibreMapsRef) {
                 maplibreMapsRef.current.set(layer.id, map);
+              }
+
+              if (setMaplibreMaps) {
+                setMaplibreMaps({ id: layer.id, map });
               }
 
               const triggerSelectionById = getTriggerSelectionById(

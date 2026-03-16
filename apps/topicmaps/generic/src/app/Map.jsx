@@ -34,9 +34,9 @@ import {
 } from "@carma-appframeworks/portals";
 import { EmptySearchComponent } from "@carma-mapping/fuzzy-search";
 import FuzzySearchWrapper from "./components/FuzzySearchWrapper";
-import { createFilterButtons } from "./components/GenericFilterButtonsFactory";
 import { Control, ControlLayout } from "@carma-mapping/map-controls-layout";
 import {
+  createFilterButtons,
   FullscreenControl,
   RoutedMapLocateControl,
   ZoomControl,

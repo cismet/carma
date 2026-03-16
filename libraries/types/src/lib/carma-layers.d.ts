@@ -1,5 +1,11 @@
 import { CarmaConfig } from "./carma-config";
 
+export type LayerFilterInfo = {
+  activeCount: number;
+  totalCount: number;
+  isShowingAll: boolean;
+};
+
 export type BackgroundLayer = Layer & {
   layers: string;
   inhalt?: string;
@@ -10,6 +16,27 @@ export type LayerConfig = {
   name: string;
   url?: string;
   type?: "topicmaps";
+};
+
+export type FilterConfig = {
+  /** The "show all" button label (not shown if filterMode is "or") */
+  allLabel?: string;
+  /** Layer name pattern to match (case-insensitive includes) */
+  layerPattern: string;
+  /** Filter mode: "and" (all conditions must match) or "or" (any condition matches). Default: "and" */
+  filterMode?: "and" | "or";
+  /** Available filter options */
+  filters: FilterOption[];
+  /** Style customizations */
+  styles?: {
+    buttonBorderRadius?: string;
+    /** Border color when selected. Set to "none" to disable border entirely. */
+    selectedBorderColor?: string;
+    iconSize?: string;
+    fontSize?: string;
+    gap?: string;
+    maxWidth?: string;
+  };
 };
 
 export type LayerProps = {
@@ -51,6 +78,8 @@ type BaseLayer = {
   conf?: CarmaConfig;
   icon?: string;
   other?: OtherLayerProps;
+  filterConfig?: FilterConfig;
+  filterInfo?: LayerFilterInfo;
   layerInfo?: {
     accentColor?: string;
     title?: string;
@@ -65,8 +94,9 @@ type BaseLayer = {
 };
 
 export type Layer =
-  | (BaseLayer & {
+  | ((BaseLayer & {
       type?: "layer";
+    }) & {
       layerType: "wmts" | "wmts-nt";
       props?: LayerProps;
     })
