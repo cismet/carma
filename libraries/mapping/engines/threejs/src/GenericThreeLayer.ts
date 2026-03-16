@@ -230,8 +230,8 @@ export type RebuildFn = (
 //  Generic custom layer (extends CustomLayerInterface)
 // ─────────────────────────────────────────────────────────────
 
-/** Highlight color: bright cyan, stands out against green crowns and brown trunks */
-const HIGHLIGHT_COLOR = new THREE.Color(0x00e5ff);
+/** Highlight color: CARMA selection blue */
+const HIGHLIGHT_COLOR = new THREE.Color(0x3a7ceb);
 
 /** Saved state for restoring colors after unhighlight */
 interface HighlightState {
