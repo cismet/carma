@@ -235,7 +235,9 @@ const StandortForm = ({
   return (
     <FeatureFormLayout
       title={sidebarMain ? `Standort ${sidebarMain}` : "Standort"}
-      cancelLabel={`Standort ${sidebarMain}` || ""}
+      cancelLabel={
+        rawProps?.lfd_nummer ? `Standort ${sidebarMain}` : "Standort"
+      }
       subtitle={subtitle}
       documents={documents}
       mainDocumentsTitle="Standort"

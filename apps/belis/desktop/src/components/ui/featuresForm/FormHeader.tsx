@@ -97,7 +97,9 @@ const FormHeader = ({
           {!readOnly && (
             <>
               <Button onClick={onCancel} disabled={saving}>
-                Abbrechen {cancelLabel}
+                {cancelLabel
+                  ? `${cancelLabel}: zurücksetzen`
+                  : "zurücksetzen"}
               </Button>
               <Badge
                 count={draftsCount}
