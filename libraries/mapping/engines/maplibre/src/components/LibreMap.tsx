@@ -168,6 +168,72 @@ export interface LibreMapProps {
 }
 
 
+/**
+ * Query rendered features with a terrain workaround.
+ * When terrain is active, MapLibre's queryRenderedFeatures fails for fill-extrusion
+ * layers because internal matrices are terrain-biased. This helper temporarily
+ * suppresses terrain state, re-projects the click point, queries, then restores.
+ */
+function queryFeaturesWithTerrainFix(
+  map: maplibregl.Map,
+  clickPoint: maplibregl.Point,
+): maplibregl.MapGeoJSONFeature[] {
+  const mapTerrain = (map as any).terrain;
+  if (!mapTerrain) {
+    return map.queryRenderedFeatures(clickPoint);
+  }
+
+  const transform = (map as any).transform;
+  type TerrainRef = { terrain: unknown };
+
+  // Step 1: Get terrain-aware lnglat BEFORE suppression
+  const clickLngLat = map.unproject(clickPoint);
+
+  // Step 2: Suppress terrain state
+  const savedElevation: number = transform._helper._elevation;
+  const savedScreenPointToMerc = transform.screenPointToMercatorCoordinate;
+  const savedTileManagers: TerrainRef[] = [];
+
+  try {
+    transform._helper._elevation = 0;
+    transform._calcMatrices();
+
+    (map as any).terrain = null;
+
+    const style = (map as any).style;
+    if (style?.tileManagers) {
+      for (const id in style.tileManagers) {
+        const tm = style.tileManagers[id];
+        if (tm.terrain) {
+          savedTileManagers.push(tm);
+          tm.terrain = null;
+        }
+      }
+    }
+
+    transform.screenPointToMercatorCoordinate = function (
+      p: unknown,
+      _terrain?: unknown,
+    ) {
+      return this.screenPointToMercatorCoordinateAtZ(p);
+    };
+
+    // Step 3: Re-project and query
+    const projected = map.project(clickLngLat);
+    const queryPoint = new maplibregl.Point(projected.x, projected.y);
+    return map.queryRenderedFeatures(queryPoint);
+  } finally {
+    // Restore all terrain state
+    transform.screenPointToMercatorCoordinate = savedScreenPointToMerc;
+    (map as any).terrain = mapTerrain;
+    for (const tm of savedTileManagers) {
+      tm.terrain = mapTerrain;
+    }
+    transform._helper._elevation = savedElevation;
+    transform._calcMatrices();
+  }
+}
+
 export const LibreMap = ({
   backgroundLayers,
   layers,
@@ -618,15 +684,111 @@ export const LibreMap = ({
 
             if (result && result.resolvedSourceIndex != null) {
               // If a fill-extrusion (building) is rendered at the click point,
-              // it takes visual priority over any 3D tree behind it.
-              const fillExtrusionHits = mapInstance
-                .queryRenderedFeatures(e.point)
+              // it takes visual priority, UNLESS the tree crown extends above
+              // the building (tree is visually in front from the camera's perspective).
+              const terrainActive = !!(mapInstance as any).terrain;
+              const fillExtrusionHits = queryFeaturesWithTerrainFix(mapInstance, e.point)
                 .filter((f) => f.layer.type === "fill-extrusion");
 
+              const treeHitDist = result.hitDistance ?? Infinity;
+              let closestWallDist = Infinity;
+              const diagBuildings: Array<Record<string, unknown>> = [];
+
               if (fillExtrusionHits.length > 0) {
-                console.log("[3D-SELECT] fill-extrusion at click point, deferring to 2D");
-                break; // skip 3D selection, fall through to 2D handler
+
+                for (const f of fillExtrusionHits) {
+                  // Get building height: try paint property, then expressions, then feature props
+                  let bHeight = 0;
+                  const paintH = mapInstance.getPaintProperty(
+                    f.layer.id,
+                    "fill-extrusion-height",
+                  );
+                  if (typeof paintH === "number") {
+                    bHeight = paintH;
+                  } else if (Array.isArray(paintH) && paintH[0] === "get") {
+                    // Expression like ["get", "render_height"]
+                    const val = f.properties?.[paintH[1] as string];
+                    const num = typeof val === "number" ? val : parseFloat(String(val ?? ""));
+                    if (num > 0) bHeight = num;
+                  } else if (paintH && typeof paintH === "object" && (paintH as Record<string, unknown>).property) {
+                    // Legacy identity function { type: "identity", property: "render_height" }
+                    const propName = (paintH as Record<string, unknown>).property as string;
+                    const val = f.properties?.[propName];
+                    const num = typeof val === "number" ? val : parseFloat(String(val ?? ""));
+                    if (num > 0) bHeight = num;
+                  }
+                  if (bHeight <= 0) {
+                    // Fallback: try common property names
+                    const props = f.properties;
+                    for (const key of ["building_height", "height", "render_height", "measuredHeight", "hoehe", "HOEHE"]) {
+                      const val = props?.[key];
+                      const num = typeof val === "number" ? val : parseFloat(String(val ?? ""));
+                      if (num > 0) { bHeight = num; break; }
+                    }
+                  }
+
+                  // Get polygon ring from geometry
+                  const geo = f.geometry;
+                  let rings: number[][][] = [];
+                  if (geo.type === "Polygon") {
+                    rings = [geo.coordinates[0]];
+                  } else if (geo.type === "MultiPolygon") {
+                    rings = geo.coordinates.map((poly) => poly[0]);
+                  }
+
+                  // Ground elevation for terrain-aware ray test
+                  let groundElev = 0;
+                  if (terrainActive) {
+                    const gv = f.properties?.["ground_height"];
+                    const gn = typeof gv === "number" ? gv : parseFloat(String(gv ?? ""));
+                    if (gn > 0) groundElev = gn;
+                  }
+
+                  let wallDist: number | null = null;
+                  if (bHeight > 0) {
+                    for (const ring of rings) {
+                      const d = threeLayer.buildingDistance(ring, bHeight, groundElev);
+                      if (d != null && d < closestWallDist) {
+                        closestWallDist = d;
+                        wallDist = d;
+                      }
+                    }
+                  }
+
+                  diagBuildings.push({
+                    layerId: f.layer.id,
+                    featureId: f.id,
+                    paintH: paintH,
+                    bHeight,
+                    geoType: geo.type,
+                    ringCount: rings.length,
+                    ringVertices: rings.map((r) => r.length),
+                    wallDist,
+                    props: f.properties,
+                  });
+                }
+
+                // Building wall/roof is closer to camera than the tree: building wins
+                if (closestWallDist < treeHitDist) {
+                  console.log("[3D-SELECT]", JSON.stringify({
+                    treeHitDist: +treeHitDist.toFixed(2),
+                    fillExtrusionCount: fillExtrusionHits.length,
+                    terrainActive,
+                    buildings: diagBuildings,
+                    result: "building wins, deferring to 2D",
+                  }));
+                  break; // skip 3D selection, fall through to 2D handler
+                }
               }
+
+              console.log("[3D-SELECT]", JSON.stringify({
+                treeHitDist: +treeHitDist.toFixed(2),
+                fillExtrusionCount: fillExtrusionHits.length,
+                terrainActive,
+                closestBuildingDist: closestWallDist < Infinity ? +closestWallDist.toFixed(2) : null,
+                buildings: diagBuildings,
+                result: "tree wins",
+              }));
 
               // 3D hit detected: takes priority over 2D
               clearVisualSelection(mapInstance);
@@ -755,73 +917,13 @@ export const LibreMap = ({
         const threeLayers2d = get3dLayers(mapInstance);
         threeLayers2d.forEach((l) => l.unhighlight());
 
-        // With terrain, queryRenderedFeatures fails for fill-extrusion because
-        // multiple internal paths read terrain state. To replicate "disable
-        // terrain, click same spot", we:
-        // 1. Get terrain-aware lnglat from click BEFORE suppression
-        // 2. Suppress all terrain state (elevation, refs, coordinate conversion)
-        // 3. Re-project the lnglat to screen with the new flat matrices
-        // 4. Query at the corrected screen point
-        const transform = (mapInstance as any).transform;
-        const mapTerrain = (mapInstance as any).terrain;
-        const hasTerrain = !!mapTerrain;
-
-        type TerrainRef = { terrain: unknown };
-        let savedElevation: number | undefined;
-        let savedScreenPointToMerc: ((...args: unknown[]) => unknown) | undefined;
-        const savedTileManagers: TerrainRef[] = [];
-        let queryPoint = e.point;
-
-        if (hasTerrain) {
-          // Step 1: Get the geographic position of the click BEFORE suppression
-          // (terrain-aware unproject uses the depth framebuffer)
-          const clickLngLat = mapInstance.unproject(e.point);
-
-          // Step 2: Zero camera elevation and recompute all transform matrices
-          savedElevation = transform._helper._elevation;
-          transform._helper._elevation = 0;
-          transform._calcMatrices();
-
-          // Null map.terrain to prevent getElevation callback in style query
-          (mapInstance as any).terrain = null;
-
-          // Null TileManager.terrain refs
-          const style = (mapInstance as any).style;
-          if (style?.tileManagers) {
-            for (const id in style.tileManagers) {
-              const tm = style.tileManagers[id];
-              if (tm.terrain) {
-                savedTileManagers.push(tm);
-                tm.terrain = null;
-              }
-            }
-          }
-
-          // Patch coordinate conversion to skip terrain depth framebuffer
-          savedScreenPointToMerc = transform.screenPointToMercatorCoordinate;
-          transform.screenPointToMercatorCoordinate = function (
-            p: unknown,
-            _terrain?: unknown,
-          ) {
-            return this.screenPointToMercatorCoordinateAtZ(p);
-          };
-
-          // Step 3: Re-project the lnglat to screen with the flat matrices
-          const projected = mapInstance.project(clickLngLat);
-          queryPoint = new maplibregl.Point(projected.x, projected.y);
-        }
-
-        const hits = mapInstance.queryRenderedFeatures(queryPoint);
-
-        if (hasTerrain) {
-          transform.screenPointToMercatorCoordinate = savedScreenPointToMerc;
-          (mapInstance as any).terrain = mapTerrain;
-          for (const tm of savedTileManagers) {
-            tm.terrain = mapTerrain;
-          }
-          transform._helper._elevation = savedElevation;
-          transform._calcMatrices();
-        }
+        // Query with terrain fix (suppresses terrain state so fill-extrusion features
+        // are returned correctly, then restores)
+        const hasTerrain = !!(mapInstance as any).terrain;
+        const hits = queryFeaturesWithTerrainFix(mapInstance, e.point);
+        const queryPoint = hasTerrain
+          ? new maplibregl.Point(e.point.x, e.point.y)
+          : e.point;
 
         const filteredHits = hits.filter((hit) => {
           return (
@@ -836,7 +938,6 @@ export const LibreMap = ({
             screenPoint: { x: e.point.x, y: e.point.y },
             queryPoint: { x: queryPoint.x, y: queryPoint.y },
             hasTerrain,
-            savedElevation,
             camera: {
               zoom: mapInstance.getZoom(),
               pitch: mapInstance.getPitch(),

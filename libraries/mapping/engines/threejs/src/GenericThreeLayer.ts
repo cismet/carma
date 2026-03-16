@@ -37,27 +37,6 @@ interface GridEntry {
 
 type SpatialGrid = Map<string, GridEntry[]>;
 
-/** Binary search for the sourceIndex that owns a given faceIndex in sorted faceRanges. */
-function binarySearchFaceRange(
-  ranges: Array<{ faceStart: number; faceEnd: number; sourceIndex: number }>,
-  faceIndex: number,
-): number | undefined {
-  let lo = 0;
-  let hi = ranges.length - 1;
-  while (lo <= hi) {
-    const mid = (lo + hi) >>> 1;
-    const r = ranges[mid];
-    if (faceIndex < r.faceStart) {
-      hi = mid - 1;
-    } else if (faceIndex >= r.faceEnd) {
-      lo = mid + 1;
-    } else {
-      return r.sourceIndex;
-    }
-  }
-  return undefined;
-}
-
 // Reusable vectors for ray-triangle intersection (avoid allocations)
 const _edge1 = new THREE.Vector3();
 const _edge2 = new THREE.Vector3();
@@ -302,9 +281,21 @@ export interface GenericCustomLayer extends CustomLayerInterface {
   _highlightState: HighlightState | null;
   /** 2D spatial grid for fast tree selection by ray-axis distance */
   _spatialGrid: SpatialGrid;
+  /** Ray origin from the last raycast call (scene space) */
+  _lastRayOrigin: THREE.Vector3 | null;
+  /** Ray direction from the last raycast call (scene space) */
+  _lastRayDir: THREE.Vector3 | null;
   rebuild(): void;
   /** Debug raycast: test a screen point against the 3D scene. */
   raycast(screenX: number, screenY: number): RaycastDebugResult | null;
+  /**
+   * Test the last raycast ray against a fill-extrusion building envelope (walls + roof).
+   * Returns the ray distance to the closest hit, or null if no hit.
+   * @param ring - polygon ring as [[lng, lat], ...] (outer ring, closed or unclosed)
+   * @param height - fill-extrusion height in meters
+   * @param baseElevation - ground elevation in meters (terrain height under the building)
+   */
+  buildingDistance(ring: number[][], height: number, baseElevation?: number): number | null;
   /** Highlight all instanced mesh parts (crown + trunk) for a given sourceIndex */
   highlight(sourceIndex: number): void;
   /** Restore previously highlighted instances to their original colors */
@@ -354,6 +345,8 @@ export function buildGenericLayer(
     _sourceFeatures: [],
     _highlightState: null,
     _spatialGrid: new Map(),
+    _lastRayOrigin: null,
+    _lastRayDir: null,
 
     onAdd(
       map: MaplibreMap,
@@ -490,6 +483,10 @@ export function buildGenericLayer(
       const far = new THREE.Vector3(ndcX, ndcY, 1).unproject(this.camera);
       const dir = far.sub(near).normalize();
 
+      // Store ray for buildingDistance() calls after raycast
+      this._lastRayOrigin = near.clone();
+      this._lastRayDir = dir.clone();
+
       const t0Ray = performance.now();
 
       // Two-phase raycast (same approach for Lathe and Loft):
@@ -607,6 +604,89 @@ export function buildGenericLayer(
       }));
 
       return result;
+    },
+
+    buildingDistance(ring: number[][], height: number, baseElevation = 0): number | null {
+      if (!this._lastRayOrigin || !this._lastRayDir || !this._originMerc) {
+        return null;
+      }
+      const origin = this._lastRayOrigin;
+      const dir = this._lastRayDir;
+      const originMerc = this._originMerc;
+      const mScale = this._mScale;
+
+      let bestT = Infinity;
+
+      // Pre-compute scene-space roof vertices for the roof fan test
+      const roofVerts: Array<{ x: number; y: number; z: number }> = [];
+
+      // Extrude each edge of the polygon into a wall quad (2 triangles)
+      const len = ring.length;
+      for (let i = 0; i < len; i++) {
+        const j = (i + 1) % len;
+        const [lng0, lat0] = ring[i];
+        const [lng1, lat1] = ring[j];
+
+        // Convert both endpoints to scene space at ground and at roof
+        const m0 = MercatorCoordinate.fromLngLat([lng0, lat0], baseElevation);
+        const m1 = MercatorCoordinate.fromLngLat([lng1, lat1], baseElevation);
+        const mH0 = MercatorCoordinate.fromLngLat([lng0, lat0], baseElevation + height);
+        const mH1 = MercatorCoordinate.fromLngLat([lng1, lat1], baseElevation + height);
+
+        // Scene-space corners of the wall quad
+        const ax = (m0.x - originMerc.x) / mScale;
+        const ay = (m0.z - originMerc.z) / mScale;
+        const az = (m0.y - originMerc.y) / mScale;
+
+        const bx = (m1.x - originMerc.x) / mScale;
+        const by = (m1.z - originMerc.z) / mScale;
+        const bz = (m1.y - originMerc.y) / mScale;
+
+        const cx = (mH1.x - originMerc.x) / mScale;
+        const cy = (mH1.z - originMerc.z) / mScale;
+        const cz = (mH1.y - originMerc.y) / mScale;
+
+        const dx = (mH0.x - originMerc.x) / mScale;
+        const dy = (mH0.z - originMerc.z) / mScale;
+        const dz = (mH0.y - originMerc.y) / mScale;
+
+        // Collect roof vertex for first endpoint (at height)
+        if (i === 0) {
+          roofVerts.push({ x: dx, y: dy, z: dz });
+        }
+        roofVerts.push({ x: cx, y: cy, z: cz });
+
+        // Triangle 1: A-B-C
+        _v0.set(ax, ay, az);
+        _v1.set(bx, by, bz);
+        _v2.set(cx, cy, cz);
+        let t = rayTriangle(origin, dir, _v0, _v1, _v2);
+        if (t > 0 && t < bestT) bestT = t;
+
+        // Triangle 2: A-C-D
+        _v1.set(cx, cy, cz);
+        _v2.set(dx, dy, dz);
+        t = rayTriangle(origin, dir, _v0, _v1, _v2);
+        if (t > 0 && t < bestT) bestT = t;
+      }
+
+      // Roof: triangle fan from vertex 0
+      // For convex buildings this is correct; for concave ones, false positives
+      // (ray hits inside concavity) are acceptable (building wins, conservative choice).
+      if (roofVerts.length >= 3) {
+        const r0 = roofVerts[0];
+        _v0.set(r0.x, r0.y, r0.z);
+        for (let i = 1; i < roofVerts.length - 1; i++) {
+          const ri = roofVerts[i];
+          const rj = roofVerts[i + 1];
+          _v1.set(ri.x, ri.y, ri.z);
+          _v2.set(rj.x, rj.y, rj.z);
+          const t = rayTriangle(origin, dir, _v0, _v1, _v2);
+          if (t > 0 && t < bestT) bestT = t;
+        }
+      }
+
+      return bestT < Infinity ? bestT : null;
     },
 
     highlight(sourceIndex: number) {

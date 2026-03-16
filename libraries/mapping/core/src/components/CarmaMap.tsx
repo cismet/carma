@@ -122,11 +122,6 @@ const CarmaMapContent = (props: CarmaMapProps) => {
     x: number;
     y: number;
   } | null>(null);
-  const [correctedScreen, setCorrectedScreen] = useState<{
-    x: number;
-    y: number;
-  } | null>(null);
-
   useEffect(() => {
     if (!libreMap || !clickCrosshairDebugMode) return;
     const handler = (e: maplibregl.MapMouseEvent) => {
@@ -147,20 +142,6 @@ const CarmaMapContent = (props: CarmaMapProps) => {
       const pt = libreMap.project([crosshairLngLat.lng, crosshairLngLat.lat]);
       const rect = libreMap.getCanvas().getBoundingClientRect();
       setCrosshairScreen({ x: pt.x + rect.left, y: pt.y + rect.top });
-
-      // Corrected point: re-project at z=0 (flat earth) for terrain offset visualization
-      if (libreMap.getTerrain()) {
-        const transform = (libreMap as any).transform;
-        const merc = maplibregl.MercatorCoordinate.fromLngLat([
-          crosshairLngLat.lng,
-          crosshairLngLat.lat,
-        ]);
-        const flatPt = transform.coordinatePoint(merc);
-        setCorrectedScreen({ x: flatPt.x + rect.left, y: flatPt.y + rect.top });
-      } else {
-        setCorrectedScreen(null);
-      }
-
       rafId = requestAnimationFrame(update);
     };
     update();
@@ -404,35 +385,6 @@ const CarmaMapContent = (props: CarmaMapProps) => {
                   zIndex: 999999,
                 }}
               />
-              {/* Green crosshair: corrected point (flat-earth projection, what queryRenderedFeatures sees) */}
-              {correctedScreen && (
-                <>
-                  <div
-                    style={{
-                      position: "fixed",
-                      left: `${correctedScreen.x}px`,
-                      top: 0,
-                      width: 1,
-                      height: "100vh",
-                      background: "rgba(0,255,0,0.6)",
-                      pointerEvents: "none",
-                      zIndex: 999999,
-                    }}
-                  />
-                  <div
-                    style={{
-                      position: "fixed",
-                      left: 0,
-                      top: `${correctedScreen.y}px`,
-                      height: 1,
-                      width: "100vw",
-                      background: "rgba(0,255,0,0.6)",
-                      pointerEvents: "none",
-                      zIndex: 999999,
-                    }}
-                  />
-                </>
-              )}
             </>
           )}
         </div>
