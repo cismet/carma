@@ -23,7 +23,7 @@ const transformDatesForBackend = (
   const result: Record<string, unknown> = {};
   for (const [key, value] of Object.entries(values)) {
     if (dayjs.isDayjs(value)) {
-      result[key] = value.toISOString();
+      result[key] = value.format("YYYY-MM-DDTHH:mm:ss");
     } else {
       result[key] = value;
     }

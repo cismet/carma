@@ -514,14 +514,11 @@ const BelisMapLibWrapper = ({
         setLastFeatureType(sourceLayer);
       }
 
-      console.log("[SELECTION] vector feature:", {
+      console.log("xxx [SELECTION] fetching feature by id:", {
         featureId,
         sourceLayer,
-        rawFeature,
         fallback: !selectedFeature,
       });
-      // TEMP DEBUG: trace re-fetch on tab switch
-      console.log("yyy [BelisMapWrapper] FETCH TRIGGERED - about to fetch feature", featureId, "sourceLayer:", sourceLayer);
 
       const apiFeatureType = SOURCE_LAYER_TO_FEATURE_TYPE[sourceLayer ?? ""];
       if (!apiFeatureType || !featureId) {
