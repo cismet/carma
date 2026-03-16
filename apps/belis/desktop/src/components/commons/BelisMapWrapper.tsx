@@ -528,6 +528,7 @@ const BelisMapLibWrapper = ({
         setFetchedFeatureData(null);
         return;
       }
+      console.log("xxx", featureId);
       dispatch(setFeatureLoading(true));
       try {
         const fullData = await fetchFeatureById(

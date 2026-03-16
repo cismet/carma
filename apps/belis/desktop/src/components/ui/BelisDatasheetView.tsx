@@ -33,7 +33,7 @@ const BelisDatasheetView = ({
 }: BelisDatasheetViewProps) => {
   const featureLoading = useSelector(getFeatureLoading);
 
-  if (!featureOnMap) {
+  if (!featureOnMap || (!feature && !rawFeature && !fetchedData)) {
     return <NoFeatureSelected />;
   }
 
