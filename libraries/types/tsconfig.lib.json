@@ -6,7 +6,10 @@
     "stripInternal": true,
     "composite": true,
     "rootDir": "./src",
-    "outDir": "./dist/src"
+    "outDir": "./dist/src",
+    "paths": {
+      "@carma-commons/camera/model": ["../commons/camera/model/src/index.d.ts"]
+    }
   },
   "include": ["src/**/*.d.ts"],
   "exclude": []

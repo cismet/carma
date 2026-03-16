@@ -1,3 +1,7 @@
+import type {
+  CameraType,
+  CameraView,
+} from "@carma-commons/camera/model";
 import type { Altitude, LatLngAlt } from "@carma/geo/types";
 import type { DirectionUpFrame } from "@carma/math";
 import type { Degrees, Radians } from "@carma/units/types";
@@ -17,8 +21,21 @@ export type CapturedCameraState = CameraStateRecord & {
   pitch?: Radians;
   roll?: Radians;
   cartographic?: LatLngAlt.rad | null;
+  matrixWorld?: Matrix4;
+  matrixWorldInverse?: Matrix4;
   viewMatrix?: Matrix4;
   inverseViewMatrix?: Matrix4;
+  projectionMatrix?: Matrix4;
+  projectionMatrixInverse?: Matrix4;
+  type?: CameraType;
+  aspect?: number;
+  near?: number;
+  far?: number;
+  zoom?: number;
+  focus?: number;
+  filmGauge?: number;
+  filmOffset?: number;
+  view?: CameraView;
 };
 
 export type CaptureCurrentCameraStateOptions = {

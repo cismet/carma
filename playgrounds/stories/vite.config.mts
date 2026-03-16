@@ -10,6 +10,9 @@ const CESIUM_PATHNAME = "__cesium__";
 export default defineConfig({
   root: __dirname,
   cacheDir: "../../node_modules/.vite/playgrounds/stories",
+  // Work around Storybook + Vite preview stalls around `/sb-preview/runtime.js`.
+  // See storybookjs/storybook#25256 for background.
+  assetsInclude: ["/sb-preview/runtime.js"],
   server: {
     proxy: {
       "/__wupp_terrain__": {

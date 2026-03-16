@@ -1,18 +1,21 @@
-// Intentionally tied to three.js Matrix4:
-// CARMA uses Matrix4 as a native cross-library 3D matrix type.
+import type {
+  CameraType,
+  CameraView,
+  ObjectCentricCameraModel,
+} from "@carma-commons/camera/model";
+import type {
+  Mat4 as MathMat4,
+  Quat as MathQuat,
+  Vec2 as MathVec2,
+  Vec3 as MathVec3,
+} from "@carma/math";
 import type { LatLngAlt } from "@carma/geo/types";
-import type { Matrix4 } from "three";
+import type { CssPixels } from "@carma/units/types";
 
-export type Vec3 = {
-  x: number;
-  y: number;
-  z: number;
-};
-export type Mat4 = Matrix4;
-export type Vec2 = {
-  x: number;
-  y: number;
-};
+export type Vec2 = MathVec2;
+export type Vec3 = MathVec3;
+export type Mat4 = MathMat4;
+export type Quat = MathQuat;
 export type RayLike = {
   origin?: Vec3;
   direction?: Vec3;
@@ -20,6 +23,36 @@ export type RayLike = {
 export type Matrix4Like = Mat4 | ArrayLike<number> | Record<number, number>;
 export type FrustumLike = {
   fov?: number;
+  fovVertical?: number;
+  fovHorizontal?: number;
+  aspect?: number;
+  aspectRatio?: number;
+  zoom?: number;
+  near?: number;
+  nearPlane?: number;
+  far?: number;
+  farPlane?: number;
+  focus?: number;
+  filmGauge?: number;
+  filmOffset?: number;
+  left?: number;
+  right?: number;
+  top?: number;
+  bottom?: number;
+  type?: CameraType;
+  projectionMode?: "perspective" | "orthographic";
+  projectionMatrix?: Matrix4Like;
+  projectionMatrixInverse?: Matrix4Like;
+  view?: CameraView;
+  viewOffset?: {
+    enabled?: boolean;
+    fullWidthPx: number;
+    fullHeightPx: number;
+    offsetXPx: number;
+    offsetYPx: number;
+    widthPx: number;
+    heightPx: number;
+  };
 };
 
 export type OrbitPointMode = "screen-center" | "camera-position";
@@ -36,12 +69,44 @@ export type OrbitPointSource =
   | "fallback";
 
 export type SceneCameraSnapshot = {
+  cameraModel?: ObjectCentricCameraModel;
   worldPosition: Vec3;
+  worldDirection?: Vec3;
+  worldUp?: Vec3;
+  worldRight?: Vec3;
+  worldQuaternion?: Quat;
   cartographic: LatLngAlt.rad | null;
   headingRad?: number;
   pitchRad?: number;
   rollRad?: number;
-  fovRad?: number;
+  matrixWorld?: Mat4;
+  matrixWorldInverse?: Mat4;
+  basisMatrixWorld?: Mat4;
+  projectionMatrix?: Mat4;
+  projectionMatrixInverse?: Mat4;
+  fovVertical?: number;
+  fovHorizontal?: number;
+  aspect?: number;
+  aspectRatio?: number;
+  zoom?: number;
+  near?: number;
+  nearPlane?: number;
+  far?: number;
+  farPlane?: number;
+  focus?: number;
+  filmGauge?: number;
+  filmOffset?: number;
+  focalLength?: number;
+  left?: number;
+  right?: number;
+  top?: number;
+  bottom?: number;
+  imageWidthPx?: CssPixels;
+  imageHeightPx?: CssPixels;
+  principalPointPx?: MathVec2;
+  sensorSize?: MathVec2;
+  type?: CameraType;
+  view?: CameraView;
   viewMatrix?: Mat4;
   inverseViewMatrix?: Mat4;
 };
@@ -74,6 +139,9 @@ export type EventLike = {
 export type CameraLike = {
   positionWC?: Vec3;
   position?: Vec3;
+  directionWC?: Vec3;
+  upWC?: Vec3;
+  rightWC?: Vec3;
   positionCartographic?: LatLngAlt.rad;
   heading?: number;
   pitch?: number;

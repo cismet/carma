@@ -36,6 +36,7 @@ const isPerceptuallyDark = ([r, g, b]: [number, number, number]): boolean => {
 export interface CarmaCardProps {
   header?: React.ReactNode;
   headerColor?: string;
+  bodyStyle?: React.CSSProperties;
   /** Always-visible line below header (not collapsed). */
   subtitle?: React.ReactNode;
   /** Collapsible body content. */
@@ -63,6 +64,7 @@ export interface CarmaCardProps {
 const CarmaCard = ({
   header,
   headerColor,
+  bodyStyle,
   subtitle,
   content,
   footer,
@@ -97,6 +99,7 @@ const CarmaCard = ({
   dragHandleTitle = "Drag panel",
   dragGripPlacement = "auto",
 }: CarmaCardProps) => {
+  const rootRef = React.useRef<HTMLDivElement | null>(null);
   const headerContainerRef = React.useRef<HTMLDivElement | null>(null);
   const headerRowRef = React.useRef<HTMLDivElement | null>(null);
   const headerContentRef = React.useRef<HTMLDivElement | null>(null);
@@ -110,6 +113,8 @@ const CarmaCard = ({
   const [collapsibleContentHeight, setCollapsibleContentHeight] =
     React.useState<number>(0);
   const [showCenteredGrip, setShowCenteredGrip] = React.useState<boolean>(false);
+  const [referenceExpandedWidthPx, setReferenceExpandedWidthPx] =
+    React.useState<number | null>(null);
   const hasNode = (node: React.ReactNode): boolean =>
     node !== undefined && node !== null && node !== false;
   const hasCollapsibleBodyContent = hasNode(content);
@@ -144,6 +149,46 @@ const CarmaCard = ({
       : null),
   };
   const useLegacyHeaderRowLayout = !draggable && !shouldRenderCollapseInHeader;
+
+  React.useLayoutEffect(() => {
+    if (typeof window === "undefined") {
+      return;
+    }
+
+    const rootElement = rootRef.current;
+    const headerElement = headerContainerRef.current;
+    if (!rootElement && !headerElement) {
+      return;
+    }
+
+    const captureReferenceGeometry = () => {
+      if (rootElement && rootElement.offsetWidth > 0) {
+        setReferenceExpandedWidthPx((previous) =>
+          previous === rootElement.offsetWidth ? previous : rootElement.offsetWidth
+        );
+      }
+    };
+
+    captureReferenceGeometry();
+
+    if (typeof ResizeObserver === "undefined") {
+      return;
+    }
+
+    const resizeObserver = new ResizeObserver(() => {
+      captureReferenceGeometry();
+    });
+    if (rootElement) {
+      resizeObserver.observe(rootElement);
+    }
+    if (headerElement) {
+      resizeObserver.observe(headerElement);
+    }
+
+    return () => {
+      resizeObserver.disconnect();
+    };
+  }, [collapsed, content, footer, header, shouldRenderBody, subtitle]);
 
   React.useLayoutEffect(() => {
     if (typeof window === "undefined") {
@@ -288,24 +333,17 @@ const CarmaCard = ({
 
   const dragGripSharedStyle: React.CSSProperties = {
     color: headerTextColor ?? computedHeaderColor ?? "inherit",
-    filter: isHeaderBackgroundDark
-      ? "drop-shadow(0 1px 0 rgba(0, 0, 0, 0.45)) drop-shadow(0 -1px 0 rgba(255, 255, 255, 0.22))"
-      : "drop-shadow(0 1px 0 rgba(255, 255, 255, 0.55)) drop-shadow(0 -1px 0 rgba(0, 0, 0, 0.22))",
   };
   const dragGripShellStyle: React.CSSProperties = {
     display: "inline-flex",
     alignItems: "center",
     justifyContent: "center",
-    minWidth: 18,
+    minWidth: 16,
     height: 16,
     borderRadius: 999,
-    padding: "0 2px",
-    background: isHeaderBackgroundDark
-      ? "linear-gradient(180deg, rgba(255,255,255,0.18) 0%, rgba(255,255,255,0.06) 48%, rgba(0,0,0,0.22) 100%)"
-      : "linear-gradient(180deg, rgba(255,255,255,0.7) 0%, rgba(255,255,255,0.45) 48%, rgba(0,0,0,0.1) 100%)",
-    boxShadow: isHeaderBackgroundDark
-      ? "inset 0 1px 0 rgba(255,255,255,0.35), inset 0 -1px 0 rgba(0,0,0,0.45), 0 1px 1px rgba(0,0,0,0.28)"
-      : "inset 0 1px 0 rgba(255,255,255,0.92), inset 0 -1px 0 rgba(0,0,0,0.25), 0 1px 1px rgba(0,0,0,0.15)",
+    padding: 0,
+    background: "transparent",
+    boxShadow: "none",
   };
 
   const inlineDragGrip =
@@ -326,10 +364,7 @@ const CarmaCard = ({
         <FontAwesomeIcon
           icon={faGripVertical}
           style={{
-            opacity: 0.98,
-            textShadow: isHeaderBackgroundDark
-              ? "0 1px 0 rgba(0,0,0,0.55), 0 -1px 0 rgba(255,255,255,0.18)"
-              : "0 1px 0 rgba(255,255,255,0.65), 0 -1px 0 rgba(0,0,0,0.3)",
+            opacity: 0.9,
           }}
         />
       </span>
@@ -357,10 +392,7 @@ const CarmaCard = ({
         <FontAwesomeIcon
           icon={faGripVertical}
           style={{
-            opacity: 0.98,
-            textShadow: isHeaderBackgroundDark
-              ? "0 1px 0 rgba(0,0,0,0.55), 0 -1px 0 rgba(255,255,255,0.18)"
-              : "0 1px 0 rgba(255,255,255,0.65), 0 -1px 0 rgba(0,0,0,0.3)",
+            opacity: 0.9,
           }}
         />
       </span>
@@ -369,6 +401,7 @@ const CarmaCard = ({
 
   return (
     <div
+      ref={rootRef}
       onClick={onClick}
       onKeyDown={
         onClick
@@ -382,7 +415,14 @@ const CarmaCard = ({
       }
       role={onClick ? "button" : undefined}
       tabIndex={onClick ? 0 : undefined}
-      style={style}
+      style={{
+        ...(collapsible && collapsed && referenceExpandedWidthPx
+          ? {
+              minWidth: `${referenceExpandedWidthPx}px`,
+            }
+          : null),
+        ...style,
+      }}
     >
       {header && (
         <div
@@ -452,6 +492,7 @@ const CarmaCard = ({
             WebkitBackdropFilter: "blur(2px)",
             borderRadius: header ? "0 0 4px 4px" : "4px",
             overflow: "hidden",
+            ...bodyStyle,
           }}
         >
           <div

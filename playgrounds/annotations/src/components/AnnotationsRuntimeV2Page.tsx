@@ -28,6 +28,7 @@ import { useCesiumCameraHashPlugin } from "@carma-providers/hash-state";
 import { LabelOverlayProvider } from "@carma-providers/label-overlay";
 
 import { CesiumWidgetContainer } from "./CesiumWidgetContainer";
+import { SceneStateErrorModal } from "./SceneStateErrorModal";
 
 const TERRAIN_SCENE_STATE_OPTIONS = {
   orbitPointMode: "screen-center",
@@ -206,6 +207,9 @@ export const AnnotationsRuntimeV2Page = () => {
         scene={scene as unknown as CesiumSceneLike | null}
         options={TERRAIN_SCENE_STATE_OPTIONS}
       >
+        <SceneStateErrorModal
+          fallbackHeightM={TERRAIN_SCENE_STATE_OPTIONS.fallbackHeightM}
+        />
         <RuntimeCameraHashSync enabled={Boolean(scene)} />
         <LabelOverlayProvider containerRef={rootRef}>
           <AnnotationsProvider scene={scene} initialActiveToolType="polyline">

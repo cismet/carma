@@ -1,5 +1,6 @@
 import { Cartesian3 } from "../../cesium";
 import type { LatLngAlt } from "@carma/geo/types";
+import { Vector2, type Vec2 } from "@carma/math";
 import type {
   CameraLike,
   OrbitPointSamplingStrategy,
@@ -27,10 +28,44 @@ const readScreenCenterWindowPosition = (scene: SceneLike) => {
     return null;
   }
 
-  return {
-    x: canvas.clientWidth * 0.5,
-    y: canvas.clientHeight * 0.5,
-  };
+  return new Vector2(canvas.clientWidth * 0.5, canvas.clientHeight * 0.5);
+};
+
+const buildTerrainSamplePositions = (
+  scene: SceneLike
+): Vec2[] => {
+  const center = readScreenCenterWindowPosition(scene);
+  const canvas = scene.canvas;
+  if (!center || !canvas) {
+    return [];
+  }
+
+  const width = canvas.clientWidth;
+  const height = canvas.clientHeight;
+  const offsetStepPx = Math.max(
+    12,
+    Math.round(Math.min(width, height) * 0.035)
+  );
+
+  // Prefer center first, then nearby samples with a slight downward bias.
+  return [
+    center,
+    new Vector2(center.x, center.y + offsetStepPx),
+    new Vector2(center.x - offsetStepPx, center.y),
+    new Vector2(center.x + offsetStepPx, center.y),
+    new Vector2(center.x, center.y - offsetStepPx),
+    new Vector2(center.x - offsetStepPx, center.y + offsetStepPx),
+    new Vector2(center.x + offsetStepPx, center.y + offsetStepPx),
+    new Vector2(center.x - offsetStepPx * 2, center.y + offsetStepPx),
+    new Vector2(center.x + offsetStepPx * 2, center.y + offsetStepPx),
+    new Vector2(center.x, center.y + offsetStepPx * 2),
+  ].filter(
+    (position) =>
+      position.x >= 0 &&
+      position.y >= 0 &&
+      position.x <= width &&
+      position.y <= height
+  );
 };
 
 const sampleScreenCenterFromDepthBuffer = (
@@ -61,7 +96,7 @@ const sampleScreenCenterFromDepthBuffer = (
 
   return {
     worldPosition,
-    rawCartesian: pickedCartesian,
+    rawCartesian: worldPosition,
     source: "screen-center-depth",
   };
 };
@@ -70,31 +105,39 @@ const sampleScreenCenterFromTerrain = (
   scene: SceneLike,
   camera: CameraLike
 ): SceneStateScreenCenterSample | null => {
-  const centerScreenPosition = readScreenCenterWindowPosition(scene);
-  if (!centerScreenPosition || typeof camera.getPickRay !== "function") {
+  if (typeof camera.getPickRay !== "function") {
     return null;
   }
 
-  const ray = camera.getPickRay(centerScreenPosition);
-  if (!ray || typeof scene.globe?.pick !== "function") {
+  const samplePositions = buildTerrainSamplePositions(scene);
+  if (typeof scene.globe?.pick !== "function") {
     return null;
   }
 
-  const pickedCartesian = scene.globe.pick(ray, scene);
-  if (!pickedCartesian) {
-    return null;
+  for (const screenPosition of samplePositions) {
+    const ray = camera.getPickRay(screenPosition);
+    if (!ray) {
+      continue;
+    }
+
+    const pickedCartesian = scene.globe.pick(ray, scene);
+    if (!pickedCartesian) {
+      continue;
+    }
+
+    const worldPosition = toSceneStateVec3(pickedCartesian);
+    if (!worldPosition) {
+      continue;
+    }
+
+    return {
+      worldPosition,
+      rawCartesian: worldPosition,
+      source: "screen-center-globe",
+    };
   }
 
-  const worldPosition = toSceneStateVec3(pickedCartesian);
-  if (!worldPosition) {
-    return null;
-  }
-
-  return {
-    worldPosition,
-    rawCartesian: pickedCartesian,
-    source: "screen-center-globe",
-  };
+  return null;
 };
 
 const sampleScreenCenterOrbitPoint = (
@@ -136,11 +179,14 @@ const readCartographicFromWorld = (
     toSceneStateCartographicRad(ellipsoid.cartesianToCartographic(rawCartesian)) ??
     toSceneStateCartographicRad(
       ellipsoid.cartesianToCartographic(
-        new Cartesian3(
-          fallbackWorldPosition.x,
-          fallbackWorldPosition.y,
-          fallbackWorldPosition.z
-        )
+        toSceneStateVec3(
+          Cartesian3.fromElements(
+            fallbackWorldPosition.x,
+            fallbackWorldPosition.y,
+            fallbackWorldPosition.z,
+            new Cartesian3()
+          )
+        ) ?? fallbackWorldPosition
       )
     ) ??
     null

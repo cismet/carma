@@ -8,10 +8,17 @@ import type {
 
 export type CesiumSceneStateStore = {
   getSnapshot: () => SceneStateSnapshot | null;
+  getError: () => Error | null;
   subscribe: (listener: () => void) => () => void;
   refresh: () => SceneStateSnapshot | null;
   destroy: () => void;
 };
+
+const normalizeError = (error: unknown): Error =>
+  error instanceof Error ? error : new Error(String(error));
+
+const isMissingScreenCenterIntersectionError = (error: unknown): boolean =>
+  normalizeError(error).message.includes("Missing screen-center intersection");
 
 const isFiniteNumber = (value: unknown): value is number =>
   typeof value === "number" && Number.isFinite(value);
@@ -47,7 +54,31 @@ export const createCesiumSceneStateStore = (
 
   let isDestroyed = false;
   let snapshot: SceneStateSnapshot | null = null;
+  let lastError: Error | null = null;
   let lastResolvedFrameNumber: number | null = null;
+
+  const computeSnapshotForFrame = (
+    resolvedFrameNumber: number
+  ): SceneStateSnapshot | null =>
+    computeCesiumSceneStateSnapshot(scene, options, {
+      frameNumber: resolvedFrameNumber,
+      timestampMs: nowMs(),
+    });
+
+  const computeFallbackSnapshotForFrame = (
+    resolvedFrameNumber: number
+  ): SceneStateSnapshot | null =>
+    computeCesiumSceneStateSnapshot(
+      scene,
+      {
+        ...options,
+        throwOnMissingScreenCenterIntersection: false,
+      },
+      {
+        frameNumber: resolvedFrameNumber,
+        timestampMs: nowMs(),
+      }
+    );
 
   // Compute at most once for the current frame number.
   const computeSnapshot = (force: boolean): SceneStateSnapshot | null => {
@@ -71,10 +102,24 @@ export const createCesiumSceneStateStore = (
       (lastResolvedFrameNumber === null ? 0 : lastResolvedFrameNumber + 1);
     lastResolvedFrameNumber = resolvedFrameNumber;
 
-    snapshot = computeCesiumSceneStateSnapshot(scene, options, {
-      frameNumber: resolvedFrameNumber,
-      timestampMs: nowMs(),
-    });
+    try {
+      snapshot = computeSnapshotForFrame(resolvedFrameNumber);
+      lastError = null;
+    } catch (error) {
+      lastError = normalizeError(error);
+
+      if (
+        options.throwOnMissingScreenCenterIntersection &&
+        isMissingScreenCenterIntersectionError(error)
+      ) {
+        try {
+          snapshot = computeFallbackSnapshotForFrame(resolvedFrameNumber);
+        } catch (fallbackError) {
+          lastError = normalizeError(fallbackError);
+        }
+      }
+    }
+
     return snapshot;
   };
 
@@ -100,6 +145,7 @@ export const createCesiumSceneStateStore = (
 
   return {
     getSnapshot: () => computeSnapshot(false),
+    getError: () => lastError,
     subscribe: (listener: () => void) => {
       listeners.add(listener);
       return () => {

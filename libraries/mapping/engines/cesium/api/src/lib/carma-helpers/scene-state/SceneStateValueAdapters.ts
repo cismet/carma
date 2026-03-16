@@ -1,6 +1,11 @@
-import { coerceMat4, coerceVec3, isFiniteNumber } from "@carma/math";
+import {
+  coerceMat4,
+  coerceQuat,
+  coerceVec3,
+  isFiniteNumber,
+} from "@carma/math";
 import type { LatLngAlt } from "@carma/geo/types";
-import type { Mat4, Vec3 } from "@carma/types";
+import type { Mat4, Quat, Vec3 } from "@carma/types";
 
 export const toSceneStateVec3 = (value: unknown): Vec3 | null =>
   coerceVec3(value);
@@ -35,6 +40,8 @@ export const toSceneStateCartographicRad = (
 };
 
 export const toSceneStateMat4 = (value: unknown): Mat4 | null => {
-  // Reuse CARMA-native Matrix4 JSON rehydration helpers from commons math.
   return coerceMat4(value);
 };
+
+export const toSceneStateQuat = (value: unknown): Quat | null =>
+  coerceQuat(value);

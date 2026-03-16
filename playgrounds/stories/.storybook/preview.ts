@@ -9,7 +9,7 @@ const preview: Preview = {
       storySort: {
         order: [
           "Mapping",
-          ["Gizmo", "Cesium", "MapFrameworkSwitcher", "Annotations"],
+          ["Gizmo", "Cesium", "MapFrameworkSwitcher", "ViewSync", "Annotations"],
           "Providers",
           ["LabelOverlay"],
           "Common",

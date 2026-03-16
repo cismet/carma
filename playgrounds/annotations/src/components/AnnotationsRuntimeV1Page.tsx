@@ -19,6 +19,7 @@ import { LabelOverlayProvider } from "@carma-providers/label-overlay";
 import { INFOBOX_WIDTH_PX, readInitialToolType } from "../playgroundConfig";
 import { CesiumWidgetContainer } from "./CesiumWidgetContainer";
 import { PersistActiveToolMode } from "./PersistActiveToolMode";
+import { SceneStateErrorModal } from "./SceneStateErrorModal";
 
 const TERRAIN_SCENE_STATE_OPTIONS = {
   orbitPointMode: "screen-center",
@@ -43,6 +44,9 @@ export const AnnotationsRuntimeV1Page = () => {
         scene={scene as unknown as CesiumSceneLike | null}
         options={TERRAIN_SCENE_STATE_OPTIONS}
       >
+        <SceneStateErrorModal
+          fallbackHeightM={TERRAIN_SCENE_STATE_OPTIONS.fallbackHeightM}
+        />
         <LabelOverlayProvider containerRef={rootRef}>
           {scene ? (
             <AnnotationsProvider
