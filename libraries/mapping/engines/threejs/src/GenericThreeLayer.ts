@@ -37,6 +37,175 @@ interface GridEntry {
 
 type SpatialGrid = Map<string, GridEntry[]>;
 
+/** Binary search for the sourceIndex that owns a given faceIndex in sorted faceRanges. */
+function binarySearchFaceRange(
+  ranges: Array<{ faceStart: number; faceEnd: number; sourceIndex: number }>,
+  faceIndex: number,
+): number | undefined {
+  let lo = 0;
+  let hi = ranges.length - 1;
+  while (lo <= hi) {
+    const mid = (lo + hi) >>> 1;
+    const r = ranges[mid];
+    if (faceIndex < r.faceStart) {
+      hi = mid - 1;
+    } else if (faceIndex >= r.faceEnd) {
+      lo = mid + 1;
+    } else {
+      return r.sourceIndex;
+    }
+  }
+  return undefined;
+}
+
+// Reusable vectors for ray-triangle intersection (avoid allocations)
+const _edge1 = new THREE.Vector3();
+const _edge2 = new THREE.Vector3();
+const _h = new THREE.Vector3();
+const _s = new THREE.Vector3();
+const _q = new THREE.Vector3();
+const _v0 = new THREE.Vector3();
+const _v1 = new THREE.Vector3();
+const _v2 = new THREE.Vector3();
+
+const RAY_TRI_EPS = 1e-6;
+
+/**
+ * Moeller-Trumbore ray-triangle intersection.
+ * Returns the ray parameter t if hit, or -1 if miss.
+ */
+function rayTriangle(
+  origin: THREE.Vector3,
+  dir: THREE.Vector3,
+  a: THREE.Vector3,
+  b: THREE.Vector3,
+  c: THREE.Vector3,
+): number {
+  _edge1.subVectors(b, a);
+  _edge2.subVectors(c, a);
+  _h.crossVectors(dir, _edge2);
+  const det = _edge1.dot(_h);
+  if (det > -RAY_TRI_EPS && det < RAY_TRI_EPS) return -1;
+  const invDet = 1 / det;
+  _s.subVectors(origin, a);
+  const u = invDet * _s.dot(_h);
+  if (u < 0 || u > 1) return -1;
+  _q.crossVectors(_s, _edge1);
+  const v = invDet * dir.dot(_q);
+  if (v < 0 || u + v > 1) return -1;
+  const t = invDet * _edge2.dot(_q);
+  return t > RAY_TRI_EPS ? t : -1;
+}
+
+// Reusable objects for Lathe raycast (avoid per-call allocations)
+const _invMatrix = new THREE.Matrix4();
+const _instanceMatrix = new THREE.Matrix4();
+const _localOrigin = new THREE.Vector3();
+const _localDir = new THREE.Vector3();
+
+/**
+ * Test ray against Lathe InstancedMesh candidates.
+ * Transforms the ray into each candidate instance's local space
+ * and tests the shared base geometry (~100-200 triangles).
+ * Returns { sourceIndex, t } of the closest hit, or null.
+ */
+function raycastLatheCandidates(
+  origin: THREE.Vector3,
+  dir: THREE.Vector3,
+  meshes: THREE.InstancedMesh[],
+  candidateSourceIndices: Set<number>,
+): { sourceIndex: number; t: number } | null {
+  let bestT = Infinity;
+  let bestSourceIndex: number | undefined;
+
+  for (const im of meshes) {
+    const indices = im.userData.sourceIndices as number[] | undefined;
+    if (!indices) continue;
+
+    const geo = im.geometry;
+    const posAttr = geo.getAttribute("position") as THREE.BufferAttribute;
+    const pos = posAttr.array as Float32Array;
+    const idx = geo.index?.array;
+    if (!idx) continue;
+
+    const faceCount = idx.length / 3;
+
+    for (let instId = 0; instId < indices.length; instId++) {
+      if (!candidateSourceIndices.has(indices[instId])) continue;
+
+      // Get instance matrix and invert to transform ray into local space
+      im.getMatrixAt(instId, _instanceMatrix);
+      _invMatrix.copy(_instanceMatrix).invert();
+      _localOrigin.copy(origin).applyMatrix4(_invMatrix);
+      // Direction: transform as vector (no translation)
+      _localDir.copy(dir).transformDirection(_invMatrix);
+
+      for (let f = 0; f < faceCount; f++) {
+        const i0 = idx[f * 3] * 3;
+        const i1 = idx[f * 3 + 1] * 3;
+        const i2 = idx[f * 3 + 2] * 3;
+        _v0.set(pos[i0], pos[i0 + 1], pos[i0 + 2]);
+        _v1.set(pos[i1], pos[i1 + 1], pos[i1 + 2]);
+        _v2.set(pos[i2], pos[i2 + 1], pos[i2 + 2]);
+
+        const t = rayTriangle(_localOrigin, _localDir, _v0, _v1, _v2);
+        if (t > 0 && t < bestT) {
+          bestT = t;
+          bestSourceIndex = indices[instId];
+        }
+      }
+    }
+  }
+
+  return bestSourceIndex != null ? { sourceIndex: bestSourceIndex, t: bestT } : null;
+}
+
+/**
+ * Test ray against specific face ranges of a merged Loft mesh.
+ * Returns { sourceIndex, t } of the closest hit, or null.
+ */
+function raycastLoftCandidates(
+  origin: THREE.Vector3,
+  dir: THREE.Vector3,
+  mesh: THREE.Mesh,
+  candidateSourceIndices: Set<number>,
+): { sourceIndex: number; t: number } | null {
+  const faceRanges = mesh.userData.faceRanges as
+    | Array<{ faceStart: number; faceEnd: number; sourceIndex: number }>
+    | undefined;
+  if (!faceRanges) return null;
+
+  const geo = mesh.geometry;
+  const posAttr = geo.getAttribute("position") as THREE.BufferAttribute;
+  const pos = posAttr.array as Float32Array;
+  const idx = geo.index?.array;
+  if (!idx) return null;
+
+  let bestT = Infinity;
+  let bestSourceIndex: number | undefined;
+
+  for (const range of faceRanges) {
+    if (!candidateSourceIndices.has(range.sourceIndex)) continue;
+
+    for (let f = range.faceStart; f < range.faceEnd; f++) {
+      const i0 = idx[f * 3] * 3;
+      const i1 = idx[f * 3 + 1] * 3;
+      const i2 = idx[f * 3 + 2] * 3;
+      _v0.set(pos[i0], pos[i0 + 1], pos[i0 + 2]);
+      _v1.set(pos[i1], pos[i1 + 1], pos[i1 + 2]);
+      _v2.set(pos[i2], pos[i2 + 1], pos[i2 + 2]);
+
+      const t = rayTriangle(origin, dir, _v0, _v1, _v2);
+      if (t > 0 && t < bestT) {
+        bestT = t;
+        bestSourceIndex = range.sourceIndex;
+      }
+    }
+  }
+
+  return bestSourceIndex != null ? { sourceIndex: bestSourceIndex, t: bestT } : null;
+}
+
 // Wuppertal center as default Three.js origin
 const WUPPERTAL_CENTER: [number, number] = [7.150764, 51.256915];
 
@@ -312,13 +481,13 @@ export function buildGenericLayer(
 
       const t0Ray = performance.now();
 
-      // 1. Find grid cells the ray passes through by computing the Y range
-      //    where trees exist, then checking all cells in the XZ bounding box
-      //    of the ray segment within that Y range.
-      //    (A single-plane intersection fails when elevation varies, e.g. terrain)
+      // Two-phase raycast (same approach for Lathe and Loft):
+      // 1. Spatial grid cylinder pre-filter -> ~30-40 candidate sourceIndices
+      // 2. Precise Moeller-Trumbore ray-triangle on candidate geometry only
+
       let candidates = 0;
       let bestSourceIndex: number | undefined;
-      let bestDist = Infinity;
+      let bestT = Infinity;
 
       if (this._spatialGrid.size > 0 && Math.abs(dir.y) > 1e-6) {
         // Find Y extent of all trees in the grid
@@ -332,14 +501,13 @@ export function buildGenericLayer(
           }
         }
 
-        // Compute t values where ray enters/exits the Y range [minY, maxY]
+        // Compute t values where ray enters/exits the Y range
         let t1 = (minY - near.y) / dir.y;
         let t2 = (maxY - near.y) / dir.y;
         if (t1 > t2) { const tmp = t1; t1 = t2; t2 = tmp; }
-        t1 = Math.max(t1, 0); // clamp to forward ray
+        t1 = Math.max(t1, 0);
 
         if (t2 > 0) {
-          // XZ bounding box of ray segment between t1 and t2
           const x1 = near.x + t1 * dir.x;
           const z1 = near.z + t1 * dir.z;
           const x2 = near.x + t2 * dir.x;
@@ -350,12 +518,8 @@ export function buildGenericLayer(
           const minCellZ = Math.floor(Math.min(z1, z2) / GRID_CELL_SIZE) - 1;
           const maxCellZ = Math.floor(Math.max(z1, z2) / GRID_CELL_SIZE) + 1;
 
-          console.log("[3D-SELECT] ray near:", near, "dir:", dir,
-            "yRange:", [minY, maxY], "tRange:", [t1, t2],
-            "cellRange:", { x: [minCellX, maxCellX], z: [minCellZ, maxCellZ] },
-            "cells:", (maxCellX - minCellX + 1) * (maxCellZ - minCellZ + 1));
-
-          // 2. Check all grid cells in the bounding box
+          // Collect candidate sourceIndices from the grid (cylinder pre-filter)
+          const candidateSet = new Set<number>();
           for (let cx = minCellX; cx <= maxCellX; cx++) {
             for (let cz = minCellZ; cz <= maxCellZ; cz++) {
               const key = `${cx},${cz}`;
@@ -363,38 +527,40 @@ export function buildGenericLayer(
               if (!bucket) continue;
 
               for (const entry of bucket) {
-                candidates++;
+                const ox = near.x - entry.x;
+                const oz = near.z - entry.z;
+                const a = dir.x * dir.x + dir.z * dir.z;
+                if (a < 1e-10) continue;
+                const bv = 2 * (ox * dir.x + oz * dir.z);
+                const cv = ox * ox + oz * oz - entry.radius * entry.radius;
+                const disc = bv * bv - 4 * a * cv;
+                if (disc < 0) continue;
+                candidateSet.add(entry.sourceIndex);
+              }
+            }
+          }
+          candidates = candidateSet.size;
 
-                // 3. Compute closest distance from ray line to tree's vertical axis
-                const dxr = entry.x - near.x;
-                const dzr = entry.z - near.z;
-                const denom = dir.x * dir.x + dir.z * dir.z;
-                if (denom < 1e-10) continue; // ray is vertical, skip
+          // Precise ray-triangle on candidate geometry
+          for (const child of this.scene.children) {
+            // Loft: merged Mesh with faceRanges
+            const mesh = child as THREE.Mesh;
+            if (mesh.isMesh && mesh.userData.faceRanges) {
+              const loftHit = raycastLoftCandidates(near, dir, mesh, candidateSet);
+              if (loftHit && loftHit.t < bestT) {
+                bestT = loftHit.t;
+                bestSourceIndex = loftHit.sourceIndex;
+              }
+              continue;
+            }
 
-                const tClosest = (dxr * dir.x + dzr * dir.z) / denom;
-                if (tClosest < 0) continue; // behind camera
-
-                // 2D distance at closest approach
-                const closestX = near.x + tClosest * dir.x;
-                const closestZ = near.z + tClosest * dir.z;
-                const dist2D = Math.sqrt(
-                  (closestX - entry.x) ** 2 + (closestZ - entry.z) ** 2,
-                );
-
-                if (dist2D > entry.radius) continue; // miss
-
-                // Check that ray's closest-approach height is within tree bounds
-                const closestY = near.y + tClosest * dir.y;
-                if (closestY < entry.yBase || closestY > entry.yBase + entry.height) continue;
-
-                // Pick the tree whose center is closest to the ray (smallest
-                // dist2D).  In a dense forest the "nearest to camera" heuristic
-                // (smallest tClosest) would let a closer but off-center tree
-                // steal the hit from the tree the user is actually aiming at.
-                if (dist2D < bestDist) {
-                  bestDist = dist2D;
-                  bestSourceIndex = entry.sourceIndex;
-                }
+            // Lathe: InstancedMesh with sourceIndices
+            const im = child as THREE.InstancedMesh;
+            if (im.isInstancedMesh) {
+              const latheHit = raycastLatheCandidates(near, dir, [im], candidateSet);
+              if (latheHit && latheHit.t < bestT) {
+                bestT = latheHit.t;
+                bestSourceIndex = latheHit.sourceIndex;
               }
             }
           }
@@ -410,7 +576,7 @@ export function buildGenericLayer(
 
       if (bestSourceIndex != null) {
         result.resolvedSourceIndex = bestSourceIndex;
-        result.hitDistance = bestDist;
+        result.hitDistance = bestT;
         const srcFeature = this._sourceFeatures[bestSourceIndex];
         if (srcFeature) {
           result.sourceFeature = srcFeature;
