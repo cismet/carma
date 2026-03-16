@@ -114,8 +114,8 @@ const FormHeader = ({
               >
                 <Button
                   type="primary"
-                  onClick={draftsCount > 1 ? handleSaveAll : onSave}
-                  loading={draftsCount > 1 ? savingAll : saving}
+                  onClick={draftsCount >= 1 ? handleSaveAll : undefined}
+                  loading={draftsCount >= 1 ? savingAll : false}
                 >
                   Speichern
                 </Button>
