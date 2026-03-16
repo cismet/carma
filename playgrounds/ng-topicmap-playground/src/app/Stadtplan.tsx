@@ -26,7 +26,6 @@ export function Stadtplan() {
             <LibreContextProvider>
               <ProgressIndicator progress={progress} show={showProgress} />
               <CarmaMap
-                onClick={() => {}}
                 mapEngine="maplibre"
                 exposeMapToWindow
                 overrideGlyphs="https://tiles.cismet.de/fonts/{fontstack}/{range}.pbf"

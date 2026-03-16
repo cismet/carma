@@ -3,7 +3,7 @@ import {
   ControlButtonStyler,
   ControlLayout,
 } from "@carma-mapping/map-controls-layout";
-import { useCallback, useContext, useState } from "react";
+import { useCallback, useContext, useEffect, useState } from "react";
 import TopicMapComponent from "react-cismap/topicmaps/TopicMapComponent";
 import {
   FullscreenControl,
@@ -48,7 +48,8 @@ export type { VectorStyle, LibreLayer };
 
 interface CarmaMapProps extends LibreMapProps {
   mapEngine?: "leaflet" | "maplibre" | "cesium";
-  onClick?: () => void;
+  /** Show a crosshair overlay that jumps to the last click position (debug aid for 3D selection) */
+  clickCrosshairDebugMode?: boolean;
   modalMenu?: React.ReactNode;
   gazetteerSearchControl?: boolean;
   gazetteerSearchComponent?: React.ReactNode;
@@ -79,6 +80,7 @@ const CarmaMapContent = (props: CarmaMapProps) => {
   const {
     mapEngine = "leaflet",
     miniMap = false,
+    clickCrosshairDebugMode = false,
     locatorControl: locatorControlProp = true,
     fullScreenControl: fullScreenControlProp = true,
     zoomControls: zoomControlsProp = true,
@@ -110,6 +112,24 @@ const CarmaMapContent = (props: CarmaMapProps) => {
   const [showTerrain, setShowTerrain] = useState(() => {
     try { return localStorage.getItem("carma-map-terrain") === "true"; } catch { return false; }
   });
+  const [crosshairPos, setCrosshairPos] = useState<{
+    x: number;
+    y: number;
+  } | null>(null);
+
+  useEffect(() => {
+    if (!libreMap || !clickCrosshairDebugMode) return;
+    const handler = (e: maplibregl.MapMouseEvent) => {
+      setCrosshairPos({
+        x: e.originalEvent.clientX,
+        y: e.originalEvent.clientY,
+      });
+    };
+    libreMap.on("click", handler);
+    return () => {
+      libreMap.off("click", handler);
+    };
+  }, [libreMap, clickCrosshairDebugMode]);
 
   // Stable callback to avoid re-creating LibreMap on every render
   const handleLibreMapReady = useCallback(
@@ -320,6 +340,39 @@ const CarmaMapContent = (props: CarmaMapProps) => {
             )}
             {modalMenu}
           </ControlLayout>
+
+          {clickCrosshairDebugMode && (() => {
+            const cx = crosshairPos ? `${crosshairPos.x}px` : "50%";
+            const cy = crosshairPos ? `${crosshairPos.y}px` : "50%";
+            return (
+              <>
+                <div
+                  style={{
+                    position: "fixed",
+                    left: cx,
+                    top: 0,
+                    width: 1,
+                    height: "100vh",
+                    background: "rgba(255,0,0,0.6)",
+                    pointerEvents: "none",
+                    zIndex: 999999,
+                  }}
+                />
+                <div
+                  style={{
+                    position: "fixed",
+                    left: 0,
+                    top: cy,
+                    height: 1,
+                    width: "100vw",
+                    background: "rgba(255,0,0,0.6)",
+                    pointerEvents: "none",
+                    zIndex: 999999,
+                  }}
+                />
+              </>
+            );
+          })()}
         </div>
       </MapFrameworkSwitcherProvider>
     </HashStateProvider>

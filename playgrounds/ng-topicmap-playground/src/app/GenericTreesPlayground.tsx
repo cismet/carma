@@ -415,23 +415,6 @@ function LayerToggleBar({
   );
 }
 
-function CrosshairOverlay() {
-  return (
-    <>
-      {/* vertical line */}
-      <div
-        className="fixed left-1/2 top-0 w-px h-screen z-[999999]"
-        style={{ background: "rgba(255,0,0,0.6)", pointerEvents: "none" }}
-      />
-      {/* horizontal line */}
-      <div
-        className="fixed top-1/2 left-0 h-px w-screen z-[999999]"
-        style={{ background: "rgba(255,0,0,0.6)", pointerEvents: "none" }}
-      />
-    </>
-  );
-}
-
 // ─────────────────────────────────────────────────────────────
 //  Libre layers (carma3d config attached to the tree layer)
 // ─────────────────────────────────────────────────────────────
@@ -504,7 +487,7 @@ export function GenericTreesPlayground() {
               <MapLayerVisibility visibility={layerVisibility} />
               <ProgressIndicator progress={progress} show={showProgress} />
               <CarmaMap
-                onClick={() => {}}
+                clickCrosshairDebugMode={crosshair}
                 mapEngine="maplibre"
                 exposeMapToWindow
                 overrideGlyphs="https://tiles.cismet.de/fonts/{fontstack}/{range}.pbf"
@@ -518,7 +501,6 @@ export function GenericTreesPlayground() {
                 }
                 threePerfRef={perfRef}
               />
-              {crosshair && <CrosshairOverlay />}
               <LayerToggleBar
                 visibility={layerVisibility}
                 onToggle={toggleLayer}

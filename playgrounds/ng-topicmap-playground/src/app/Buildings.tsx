@@ -81,7 +81,6 @@ export function Buildings() {
               <CameraPersistence />
               <ProgressIndicator progress={progress} show={showProgress} />
               <CarmaMap
-                onClick={() => {}}
                 mapEngine="maplibre"
                 exposeMapToWindow
                 overrideGlyphs="https://tiles.cismet.de/fonts/{fontstack}/{range}.pbf"
