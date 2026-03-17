@@ -93,11 +93,17 @@ const FormHeader = ({
         <div className="flex items-center gap-2">
           {!readOnly && (
             <>
-              <Button onClick={onCancel} disabled={saving}>
-                {cancelLabel
-                  ? `${cancelLabel}: zurücksetzen`
-                  : "zurücksetzen"}
-              </Button>
+              <span style={!hasDraft ? { cursor: "not-allowed" } : undefined}>
+                <Button
+                  onClick={hasDraft ? onCancel : undefined}
+                  disabled={saving}
+                  style={!hasDraft ? { pointerEvents: "none" } : undefined}
+                >
+                  {cancelLabel
+                    ? `${cancelLabel}: zurücksetzen`
+                    : "zurücksetzen"}
+                </Button>
+              </span>
               <Badge
                 count={draftsCount}
                 size="small"
@@ -112,13 +118,22 @@ const FormHeader = ({
                   fontSize: 11,
                 }}
               >
-                <Button
-                  type="primary"
-                  onClick={draftsCount >= 1 ? handleSaveAll : undefined}
-                  loading={draftsCount >= 1 ? savingAll : false}
+                <span
+                  style={
+                    draftsCount === 0 ? { cursor: "not-allowed" } : undefined
+                  }
                 >
-                  Speichern
-                </Button>
+                  <Button
+                    type="primary"
+                    onClick={draftsCount >= 1 ? handleSaveAll : undefined}
+                    loading={draftsCount >= 1 ? savingAll : false}
+                    style={
+                      draftsCount === 0 ? { pointerEvents: "none" } : undefined
+                    }
+                  >
+                    Speichern
+                  </Button>
+                </span>
               </Badge>
             </>
           )}
