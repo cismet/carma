@@ -102,11 +102,13 @@ export function ThreeLayerManager({
     if (!map) return;
     return () => {
       if (layerRef.current) {
+        layerRef.current.unhighlight();
         unregister3dLayer(map, layerRef.current);
         const layerId = layerRef.current.id;
         if (map.getLayer(layerId)) {
           map.removeLayer(layerId);
         }
+        map.triggerRepaint();
       }
       layerRef.current = null;
       addingRef.current = false;
