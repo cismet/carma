@@ -1,7 +1,7 @@
 import { useEffect, type MutableRefObject } from "react";
 import { getHashParams } from "@carma-commons/utils";
-import { computeHashDiff } from "./utils";
-import type { HashChangeEvent } from "./HashStateProvider";
+import { computeHashDiff } from "../utils";
+import type { HashChangeEvent } from "../HashStateProvider";
 
 /**
  * Listens to browser back/forward navigation (popstate) and calls the callback.

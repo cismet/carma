@@ -18,21 +18,27 @@ export {
 export {
   decodeSceneStateHashSnapshot,
   encodeSceneStateHashSnapshot,
+  sceneStateHashCodec,
+} from "./lib/scene-state-hash/sceneStateHashCodec";
+
+export { type SceneStateHashSnapshot } from "./lib/scene-state-hash/sceneStateHashTypes";
+
+export {
+  fromMapLibrePitchDeg,
   readMapLibrePlusElevationHashValuesFromSceneState,
   readObjectCentricRangeFromMapLibreZoom,
   readSceneStateFromMapLibrePlusElevationHashValues,
-  sceneStateHashCodec,
-  type SceneStateHashSnapshot,
-} from "./lib/sceneStateHashCodec";
+  toMapLibrePitchDeg,
+  type SceneStateHashMapLibreAdapterOptions,
+} from "./lib/scene-state-hash/sceneStateHashMapLibreAdapter";
 
-export { readSceneStateHashSnapshotFromSceneState } from "./lib/sceneStateHashSceneAdapter";
+export { readSceneStateHashSnapshotFromSceneState } from "./lib/scene-state-hash/sceneStateHashSceneAdapter";
 
 export {
   DEFAULT_SCENE_STATE_HASH_CLEAR_KEYS,
   useSceneStateHashSync,
-  type SceneStateCameraLike,
   type SceneStateLike,
   type UseSceneStateHashSyncOptions,
-} from "./lib/useSceneStateHashSync";
+} from "./lib/hooks/useSceneStateHashSync";
 
-export { useInitialSceneStateHashSnapshot } from "./lib/useInitialSceneStateHashSnapshot";
+export { useInitialSceneStateHashSnapshot } from "./lib/hooks/useInitialSceneStateHashSnapshot";

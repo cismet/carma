@@ -1,17 +1,10 @@
-import type { OrbitPointSource, SceneStateSnapshot } from "@carma/types";
-import {
-  negativePiToPi,
-  radToDegNumeric,
-  zeroToTwoPi,
-} from "@carma/units/helpers";
+import { isFiniteNumber } from "@carma/math";
+import type { SceneStateSnapshot } from "@carma/types";
 import type { Radians } from "@carma/units/types";
+import { negativePiToPi, radToDegNumeric, zeroToTwoPi } from "./sceneStateHashHelpers";
 import type {
-  SceneStateAnchorSource,
   SceneStateHashSnapshot,
-} from "./sceneStateHashCodec";
-
-const isFiniteNumber = (value: unknown): value is number =>
-  typeof value === "number" && Number.isFinite(value);
+} from "./sceneStateHashTypes";
 
 const normalizeBearing = (rad: number): number =>
   zeroToTwoPi(rad as Radians) as number;
@@ -60,18 +53,6 @@ const readFallbackAnchorDistanceM = (
 
 export type SceneStateAnchorMode = "camera-position" | "screen-center";
 
-const toAnchorSourceFromOrbitPointSource = (
-  source: OrbitPointSource
-): SceneStateAnchorSource => {
-  if (source === "screen-center-depth" || source === "screen-center-globe") {
-    return "screen-center";
-  }
-  if (source === "fallback") {
-    return "fallback";
-  }
-  return "camera-position";
-};
-
 export const readSceneStateHashSnapshotFromSceneState = ({
   sceneState,
   anchorMode = "screen-center",
@@ -100,12 +81,6 @@ export const readSceneStateHashSnapshotFromSceneState = ({
   const heightM = Number.isFinite(anchorCartographic.altitude)
     ? anchorCartographic.altitude
     : fallbackHeightM;
-  const source: SceneStateAnchorSource =
-    anchorMode === "screen-center"
-      ? orbitPoint
-        ? toAnchorSourceFromOrbitPointSource(orbitPoint.source)
-        : "fallback"
-      : "camera-position";
 
   const { bearingRad, pitchRad, rollRad, fovVertical } = sceneState.camera;
 
@@ -128,7 +103,6 @@ export const readSceneStateHashSnapshotFromSceneState = ({
       lngDeg: radToDegNumeric(anchorCartographic.longitude)!,
       latDeg: radToDegNumeric(anchorCartographic.latitude)!,
       heightM,
-      source,
     },
     orientation,
   };

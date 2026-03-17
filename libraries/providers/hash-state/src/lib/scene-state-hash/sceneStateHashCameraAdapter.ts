@@ -1,30 +1,28 @@
 import { mercatorZoomFromDistanceAtLatitudeDeg } from "@carma/geo/utils";
-import {
-  negativePiToPi,
-  radToDegNumeric,
-  zeroToTwoPi,
-} from "@carma/units/helpers";
-import {
-  DEFAULT_MAPLIBRE_FOV_DEG,
-  DEFAULT_MAPLIBRE_PITCH_MAX_DEG,
-  DEFAULT_MAPLIBRE_PITCH_MIN_DEG,
-} from "../../../../mapping/engines/maplibre/src/constants/cameraDefaults";
 import type { SceneStateSnapshot } from "@carma/types";
 import type { Meters, Radians } from "@carma/units/types";
 import {
   DEFAULT_SCENE_STATE_ALTITUDE_HASH_KEY,
-  readMapLibrePlusElevationHashValuesFromSceneState,
-  sceneStateHashInternals,
+  DEFAULT_MAPLIBRE_FOV_DEG,
+  DEFAULT_MAPLIBRE_PITCH_MAX_DEG,
+  DEFAULT_MAPLIBRE_PITCH_MIN_DEG,
+  type MapLibreCompatHashParams,
   type SceneStateHashSnapshot,
-} from "./sceneStateHashCodec";
+} from "./sceneStateHashTypes";
+import { readMapLibrePlusElevationHashValuesFromSceneState } from "./sceneStateHashMapLibreAdapter";
 import type { CameraLike, SceneLike } from "./sceneStateHashCameraTypes";
+import {
+  isFiniteNumber,
+  isZeroish,
+  negativePiToPi,
+  radToDegNumeric,
+  zeroToTwoPi,
+} from "./sceneStateHashHelpers";
+import { toMapLibrePitchDeg } from "./sceneStateHashMapLibreAdapter";
 import {
   readSceneStateHashSnapshotFromSceneState,
   type SceneStateAnchorMode,
 } from "./sceneStateHashSceneAdapter";
-
-const { isFiniteNumber, isZeroish, toMapLibrePitchDeg } =
-  sceneStateHashInternals;
 
 const normalizeBearing = (rad: number): number =>
   zeroToTwoPi(rad as Radians) as number;
@@ -35,8 +33,6 @@ const normalizeSigned = (rad: number): number => {
   const normalized = negativePiToPi(rad as Radians) as number;
   return normalized === -Math.PI ? Math.PI : normalized;
 };
-
-const toDeg = (radians: number): number => radToDegNumeric(radians)!;
 
 const readAspectRatio = (
   scene: SceneLike | null | undefined
@@ -180,16 +176,15 @@ const readMapLibreZoomFromSceneState = ({
 
 const readCameraPositionAnchor = (
   camera: CameraLike,
-  fallbackHeightM: number,
-  source: SceneStateHashSnapshot["anchor"]["source"]
+  fallbackHeightM: number
 ): SceneStateHashSnapshot["anchor"] | null => {
   const position = camera.positionCartographic;
   if (!position) {
     return null;
   }
 
-  const lngDeg = toDeg(position.longitude);
-  const latDeg = toDeg(position.latitude);
+  const lngDeg = radToDegNumeric(position.longitude)!;
+  const latDeg = radToDegNumeric(position.latitude)!;
   if (!Number.isFinite(lngDeg) || !Number.isFinite(latDeg)) {
     return null;
   }
@@ -202,7 +197,6 @@ const readCameraPositionAnchor = (
     lngDeg,
     latDeg,
     heightM: safeHeight,
-    source,
   };
 };
 
@@ -243,8 +237,8 @@ const sampleScreenCenterAnchor = (
     return null;
   }
 
-  const lngDeg = toDeg(pickedCartographic.longitude);
-  const latDeg = toDeg(pickedCartographic.latitude);
+  const lngDeg = radToDegNumeric(pickedCartographic.longitude)!;
+  const latDeg = radToDegNumeric(pickedCartographic.latitude)!;
   if (!Number.isFinite(lngDeg) || !Number.isFinite(latDeg)) {
     return null;
   }
@@ -257,7 +251,6 @@ const sampleScreenCenterAnchor = (
     lngDeg,
     latDeg,
     heightM: safeHeight,
-    source: "screen-center",
   };
 };
 
@@ -275,8 +268,8 @@ export const readSceneStateHashSnapshotFromCamera = ({
   const anchor =
     anchorMode === "screen-center" && scene
       ? sampleScreenCenterAnchor(scene, camera, fallbackHeightM) ??
-        readCameraPositionAnchor(camera, fallbackHeightM, "fallback")
-      : readCameraPositionAnchor(camera, fallbackHeightM, "camera-position");
+        readCameraPositionAnchor(camera, fallbackHeightM)
+      : readCameraPositionAnchor(camera, fallbackHeightM);
 
   if (!anchor) {
     return null;
@@ -340,7 +333,7 @@ export function readMapLibreCompatHashParamsFromSceneState({
     snapshot.orientation.fovVerticalRad ??
     cameraVerticalFovRad;
   const effectiveFovDeg = isFiniteNumber(effectiveFovRad)
-    ? toDeg(effectiveFovRad)
+    ? radToDegNumeric(effectiveFovRad)!
     : undefined;
 
   const snapshotForMapLibreProjection =
@@ -364,9 +357,11 @@ export function readMapLibreCompatHashParamsFromSceneState({
           snapshot: snapshotForMapLibreProjection,
           viewportWidthPx: sceneWidth,
           viewportHeightPx: sceneHeight,
-          defaultFovDeg,
-          minPitchDeg,
-          maxPitchDeg,
+          options: {
+            defaultFovDeg,
+            minPitchDeg,
+            maxPitchDeg,
+          },
         })
       : null;
 
@@ -400,17 +395,20 @@ export function readMapLibreCompatHashParamsFromSceneState({
   }
 
   const bearingDeg = isFiniteNumber(snapshot.orientation.bearingRad)
-    ? toDeg(snapshot.orientation.bearingRad)
+    ? radToDegNumeric(snapshot.orientation.bearingRad)!
     : undefined;
   if (!isZeroish(bearingDeg)) {
     params.bearing = bearingDeg!;
   }
 
   const pitchDeg = isFiniteNumber(snapshot.orientation.pitchRad)
-    ? toDeg(snapshot.orientation.pitchRad)
+    ? radToDegNumeric(snapshot.orientation.pitchRad)!
     : undefined;
   if (!isZeroish(pitchDeg)) {
-    params.pitch = toMapLibrePitchDeg(pitchDeg!, minPitchDeg, maxPitchDeg);
+    params.pitch = toMapLibrePitchDeg(pitchDeg!, {
+      minPitchDeg,
+      maxPitchDeg,
+    });
   }
 
   if (

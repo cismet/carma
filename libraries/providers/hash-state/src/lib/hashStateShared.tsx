@@ -11,7 +11,7 @@ import {
   updateHashHistoryState,
 } from "@carma-commons/utils";
 
-import { usePopStateListener } from "./usePopStateListener";
+import { usePopStateListener } from "./hooks/usePopStateListener";
 import { getAliasReverseLookup, applyHashCodecs } from "./utils";
 import {
   defaultHashCodecs,

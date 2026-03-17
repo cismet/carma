@@ -4,9 +4,11 @@ import { degToRadNumeric, radToDegNumeric } from "@carma/units/helpers";
 import {
   decodeSceneStateHashSnapshot,
   encodeSceneStateHashSnapshot,
+} from "./sceneStateHashCodec";
+import {
   readMapLibrePlusElevationHashValuesFromSceneState,
   readSceneStateFromMapLibrePlusElevationHashValues,
-} from "./sceneStateHashCodec";
+} from "./sceneStateHashMapLibreAdapter";
 import {
   readMapLibreCompatHashParamsFromSceneState,
   readSceneStateHashSnapshotFromCamera,
@@ -28,7 +30,6 @@ describe("sceneStateHash codec + adapters", () => {
         lngDeg: 7.1543214,
         latDeg: 51.2567891,
         heightM: 432.12,
-        source: "screen-center",
       },
       orientation: {
         bearingRad,
@@ -45,7 +46,6 @@ describe("sceneStateHash codec + adapters", () => {
       lngDeg: 7.1543214,
       latDeg: 51.2567891,
       heightM: 432.12,
-      source: "screen-center",
     });
     expect(decoded!.orientation.bearingRad).toBeCloseTo(bearingRad, 7);
     expect(decoded!.orientation.pitchRad).toBeCloseTo(pitchRad, 7);
@@ -102,7 +102,6 @@ describe("sceneStateHash codec + adapters", () => {
     });
 
     expect(snapshot).not.toBeNull();
-    expect(snapshot?.anchor.source).toBe("screen-center");
     expect(snapshot?.anchor.heightM).toBe(180);
     expect(snapshot?.anchor.lngDeg ?? 0).toBeCloseTo(expectedLngDeg, 7);
     expect(snapshot?.anchor.latDeg ?? 0).toBeCloseTo(expectedLatDeg, 7);
@@ -225,7 +224,6 @@ describe("sceneStateHash codec + adapters", () => {
           lngDeg: 7.2,
           latDeg: 51.27,
           heightM: 155.6,
-          source: "screen-center",
         },
         orientation: {
           bearingRad: 0,
@@ -325,7 +323,6 @@ describe("sceneStateHash codec + adapters", () => {
           lngDeg: 7.2,
           latDeg: 51.27,
           heightM: 155.6,
-          source: "screen-center",
         },
         orientation: {
           bearingRad: toRad(12),
@@ -336,7 +333,9 @@ describe("sceneStateHash codec + adapters", () => {
       },
       viewportWidthPx: 1400,
       viewportHeightPx: 900,
-      defaultFovDeg: 45,
+      options: {
+        defaultFovDeg: 45,
+      },
     });
 
     expect(params.lng).toBeCloseTo(7.2, 7);

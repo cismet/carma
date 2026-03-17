@@ -234,11 +234,9 @@ export const AnnotationsRuntimeV2Page = ({
         <CesiumSceneStateHashSync
           scene={scene as unknown as CesiumSceneLike | null}
           enabled={Boolean(scene)}
-          encodeScheme="carma-maplibre-plus-elevation"
           anchorMode="screen-center"
           fallbackHeightM={TERRAIN_SCENE_STATE_OPTIONS.fallbackHeightM}
           replace={true}
-          includeIs3dFlag={false}
           label="annotations-playground:camera3d"
         />
         <LabelOverlayProvider containerRef={rootRef}>
