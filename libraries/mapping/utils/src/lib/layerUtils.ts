@@ -183,7 +183,7 @@ export const parseToMapLayer = async (
           minzoom: 9,
           maxzoom: 24,
         });
-        if (vectorStyle.metadata && vectorStyle.metadata.carmaConf.layerInfo) {
+        if (vectorStyle.metadata) {
           metaData = vectorStyle.metadata;
           if (metaData?.carmaConf?.filterConfig) {
             filterConfig = metaData?.carmaConf?.filterConfig;
@@ -199,7 +199,7 @@ export const parseToMapLayer = async (
               minzoom: 9,
               maxzoom: 24,
             });
-            if (result.metadata && result.metadata.carmaConf.layerInfo) {
+            if (result.metadata) {
               metaData = result.metadata;
               if (metaData?.carmaConf?.filterConfig) {
                 filterConfig = metaData?.carmaConf?.filterConfig;
