@@ -133,6 +133,12 @@ const GeoportalLayerButton = ({
   const map = routedMapRef?.leafletMap?.leafletElement as L.Map;
 
   useEffect(() => {
+    if (hide && activeInteractionLayerID === id) {
+      dispatch(setActiveInteractionLayerID(null));
+    }
+  }, [hide, activeInteractionLayerID, id, dispatch]);
+
+  useEffect(() => {
     if (!inView && selectedLayerIndex === index) {
       document.getElementById(`layer-${id}`).scrollIntoView();
     }
@@ -223,7 +229,7 @@ const GeoportalLayerButton = ({
         {!background && (
           <>
             <span className="text-base ml-1">{title}</span>
-            {layer.filterConfig && (
+            {(layer.filterConfig || id.toLowerCase().includes("poi")) && (
               <button
                 id={`filterLayerButton-${id}`}
                 className={cn("px-1.5 flex items-center justify-center")}
