@@ -2,9 +2,14 @@ import {
   getPixelResolutionFromZoomAtLatitudeRad,
   getZoomFromPixelResolutionAtLatitudeRad,
 } from "@carma/geo/utils";
+import { isFiniteNumber, PI_OVER_TWO } from "@carma/math";
 import type { SceneStateSnapshot } from "@carma/types";
-import { degToRadNumeric, radToDegNumeric } from "@carma/units/helpers";
-import type { Meters, Radians } from "@carma/units/types";
+import {
+  degToRadNumeric,
+  radToDegNumeric,
+  zeroToThreeSixty,
+} from "@carma/units/helpers";
+import type { Degrees, Meters, Radians } from "@carma/units/types";
 import type {
   ViewSyncLeafletProjection,
   ViewSyncMapLibreProjection,
@@ -16,25 +21,19 @@ const MAPLIBRE_TILE_SIZE_PX = 512;
 const LEAFLET_TILE_SIZE_PX = 256;
 const MIN_RANGE_M = 0.01;
 const MIN_TAN_HALF_FOV = 1e-6;
-const HALF_PI = Math.PI * 0.5;
 
-const isFiniteNumber = (value: unknown): value is number =>
-  typeof value === "number" && Number.isFinite(value);
-
-const normalizeBearingDeg = (bearingDeg: number): number => {
-  const normalized = bearingDeg % 360;
-  return normalized < 0 ? normalized + 360 : normalized;
-};
+const normalizeBearingDeg = (bearingDeg: number): number =>
+  zeroToThreeSixty(bearingDeg as Degrees) as number;
 
 // Cesium HeadingPitchRange pitch is measured from the local EN plane:
 // -PI/2 = nadir, 0 = horizon. The shared view-sync pitch uses the MapLibre-style
 // orbit convention: 0 = nadir, +PI/2 = horizon.
 export const toViewSyncPitchFromCesiumPitch = (cesiumPitch: number): Radians =>
-  (cesiumPitch + HALF_PI) as Radians;
+  (cesiumPitch + PI_OVER_TWO) as Radians;
 
 export const toCesiumPitchFromViewSyncPitch = (
   viewSyncPitch: number
-): Radians => (viewSyncPitch - HALF_PI) as Radians;
+): Radians => (viewSyncPitch - PI_OVER_TWO) as Radians;
 
 export const getHorizontalFovFromVertical = ({
   fovVertical,

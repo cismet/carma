@@ -1,7 +1,7 @@
 import { renderHook } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import { readSceneDescriptorFromMapLibrePlusElevationHashValues } from "./sceneStateHashCodec";
+import { readSceneStateFromMapLibrePlusElevationHashValues } from "./sceneStateHashCodec";
 
 const mockGetHash = vi.fn<[], Record<string, string>>();
 const mockGetHashValues = vi.fn<[], Record<string, unknown>>();
@@ -76,7 +76,7 @@ describe("useInitialSceneStateHashSnapshot", () => {
   ])(
     "uses the configured default zoom for missing-zoom %s",
     (_label, hashValues) => {
-      const expected = readSceneDescriptorFromMapLibrePlusElevationHashValues({
+      const expected = readSceneStateFromMapLibrePlusElevationHashValues({
         values: {
           ...hashValues,
           zoom: DEFAULT_ZOOM,

@@ -20,8 +20,9 @@ import {
   createMinimalCesiumWidget,
   sampleTerrainMostDetailedGuardedAsync,
 } from "@carma-mapping/engines/cesium/api";
+import { isFiniteNumber } from "@carma/math";
 import { degToRadNumeric } from "@carma/units/helpers";
-import type { SceneDescriptorHashSnapshot } from "@carma-providers/hash-state";
+import type { SceneStateHashSnapshot } from "@carma-providers/hash-state";
 import {
   WUPPERTAL,
   WUPP_MESH_2024,
@@ -49,9 +50,6 @@ const DEFAULT_INITIAL_CAMERA_STATE: DefaultCameraState = {
   pitch: degToRadNumeric(-45),
   roll: 0,
 };
-
-const isFiniteNumber = (value: unknown): value is number =>
-  typeof value === "number" && Number.isFinite(value);
 
 const sampleTerrainHeightAtPosition = async (
   terrainProvider: CesiumTerrainProvider,
@@ -158,7 +156,7 @@ const applyInitialCameraState = async ({
 }: {
   widget: CesiumWidget;
   terrainProvider: CesiumTerrainProvider;
-  initialCameraState: SceneDescriptorHashSnapshot | null;
+  initialCameraState: SceneStateHashSnapshot | null;
 }) => {
   if (initialCameraState) {
     const orientation = buildObjectCentricCameraOrientation(initialCameraState);
@@ -256,7 +254,7 @@ const loadTileset = async (
 type CesiumWidgetContainerProps = {
   rootRef: MutableRefObject<HTMLDivElement | null>;
   onSceneChange?: (scene: Scene | null) => void;
-  initialCameraState?: SceneDescriptorHashSnapshot | null;
+  initialCameraState?: SceneStateHashSnapshot | null;
   startPoseResolved?: boolean;
   children: ReactNode;
 };

@@ -2,7 +2,7 @@
 // Intentionally depends on three.js:
 // Quaternion is a CARMA-native 3D rotation type across camera/view code.
 import { Quaternion } from "three";
-import { isFiniteNumber } from "./vec3";
+import { isFiniteNumber } from "./numeric/isFiniteNumber";
 
 export { Quaternion };
 export type Quat = Quaternion;

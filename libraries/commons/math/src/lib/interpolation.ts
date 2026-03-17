@@ -13,20 +13,3 @@
 export function lerp(start: number, end: number, t: number): number {
   return start + (end - start) * t;
 }
-
-/**
- * Clamp a value between min and max
- *
- * @param value - Value to clamp
- * @param min - Minimum value
- * @param max - Maximum value
- * @returns Clamped value
- *
- * @example
- * clamp(150, 0, 100) // 100
- * clamp(-10, 0, 100) // 0
- * clamp(50, 0, 100) // 50
- */
-export function clamp(value: number, min: number, max: number): number {
-  return Math.min(Math.max(value, min), max);
-}

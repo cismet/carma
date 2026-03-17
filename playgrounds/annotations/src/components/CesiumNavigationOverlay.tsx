@@ -1,13 +1,15 @@
 import { useCallback, useEffect, useRef } from "react";
 
+import { PI_OVER_TWO } from "@carma/math";
+import { degToRadNumeric, radToDegNumeric } from "@carma/units/helpers";
 import type { Radians } from "@carma/units/types";
 import { Cartesian3, Cartographic, type Scene } from "@carma/cesium";
 import { SceneNavigationControls } from "@carma-mapping/components";
 import { animateOrbitHeadingPitchRange } from "@carma-mapping/engines/cesium/api";
 import { useCesiumSceneStateOptional } from "@carma-mapping/engines/cesium/react/scene-state";
 import {
-  readSceneDescriptorHashSnapshotFromSceneState,
-  type SceneDescriptorHashSnapshot,
+  readSceneStateHashSnapshotFromSceneState,
+  type SceneStateHashSnapshot,
 } from "@carma-providers/hash-state";
 
 import {
@@ -16,9 +18,9 @@ import {
   DEFAULT_HASH_RANGE_M,
 } from "./objectCentricCesiumCamera";
 
-const MIN_COMPASS_PITCH_DEG = 0;
-const MAX_COMPASS_PITCH_DEG = 85;
-const COMPASS_DRAG_FACTOR_DEG_PER_PX = 0.3;
+const MIN_COMPASS_PITCH_RAD = 0;
+const MAX_COMPASS_PITCH_RAD = degToRadNumeric(85)!;
+const COMPASS_DRAG_FACTOR_RAD_PER_PX = degToRadNumeric(0.3)!;
 const COMPASS_DRAG_THRESHOLD_PX = 3;
 const COMPASS_CLICK_DELAY_MS = 180;
 const COMPASS_ALIGN_NORTH_DURATION_MS = 700;
@@ -27,46 +29,35 @@ const COMPASS_ALIGN_NORTH_NADIR_DURATION_MS = 900;
 const ZOOM_ANIMATION_DURATION_MS = 280;
 const HOME_ANIMATION_DURATION_MS = 900;
 
-const clampCompassPitchDeg = (pitchDeg: number) =>
-  Math.max(MIN_COMPASS_PITCH_DEG, Math.min(MAX_COMPASS_PITCH_DEG, pitchDeg));
+const clampCompassPitchRad = (pitchRad: number) =>
+  Math.max(MIN_COMPASS_PITCH_RAD, Math.min(MAX_COMPASS_PITCH_RAD, pitchRad));
 
 const readSceneSnapshot = (
   sceneState: ReturnType<typeof useCesiumSceneStateOptional>
-): SceneDescriptorHashSnapshot | null => {
+): SceneStateHashSnapshot | null => {
   const pose = sceneState?.camera.cameraModel?.pose;
   const fovVertical = sceneState?.camera.fovVertical;
 
   if (pose?.anchor) {
     return {
       anchor: {
-        lngDeg: (pose.anchor.longitude * 180) / Math.PI,
-        latDeg: (pose.anchor.latitude * 180) / Math.PI,
+        lngDeg: radToDegNumeric(pose.anchor.longitude)!,
+        latDeg: radToDegNumeric(pose.anchor.latitude)!,
         heightM: pose.anchor.altitude,
         source: "screen-center",
       },
       orientation: {
-        bearingDeg:
-          typeof pose.bearing === "number"
-            ? (pose.bearing * 180) / Math.PI
-            : undefined,
-        pitchDeg:
-          typeof pose.pitch === "number"
-            ? (pose.pitch * 180) / Math.PI
-            : undefined,
-        rollDeg:
-          typeof pose.roll === "number"
-            ? (pose.roll * 180) / Math.PI
-            : undefined,
-        fovDeg:
-          typeof fovVertical === "number"
-            ? (fovVertical * 180) / Math.PI
-            : undefined,
+        bearingRad: typeof pose.bearing === "number" ? pose.bearing : undefined,
+        pitchRad: typeof pose.pitch === "number" ? pose.pitch : undefined,
+        rollRad: typeof pose.roll === "number" ? pose.roll : undefined,
+        fovVerticalRad:
+          typeof fovVertical === "number" ? fovVertical : undefined,
         rangeM: pose.range,
       },
     };
   }
 
-  return readSceneDescriptorHashSnapshotFromSceneState({
+  return readSceneStateHashSnapshotFromSceneState({
     sceneState,
     anchorMode: "screen-center",
     fallbackHeightM: 200,
@@ -80,7 +71,7 @@ const animateSceneToSnapshot = ({
   onDone,
 }: {
   scene: Scene;
-  snapshot: SceneDescriptorHashSnapshot;
+  snapshot: SceneStateHashSnapshot;
   durationMs: number;
   onDone?: () => void;
 }) => {
@@ -99,10 +90,8 @@ const animateSceneToSnapshot = ({
     scene,
     center,
     {
-      heading: (((snapshot.orientation.bearingDeg ?? 0) * Math.PI) /
-        180) as Radians,
-      pitch: (((snapshot.orientation.pitchDeg ?? 0) * Math.PI) / 180 -
-        Math.PI * 0.5) as Radians,
+      heading: (snapshot.orientation.bearingRad ?? 0) as Radians,
+      pitch: ((snapshot.orientation.pitchRad ?? 0) - PI_OVER_TWO) as Radians,
       range: snapshot.orientation.rangeM ?? DEFAULT_HASH_RANGE_M,
     },
     {
@@ -120,7 +109,7 @@ const flySceneToSnapshot = ({
   onDone,
 }: {
   scene: Scene;
-  snapshot: SceneDescriptorHashSnapshot;
+  snapshot: SceneStateHashSnapshot;
   durationMs: number;
   onDone?: () => void;
 }) => {
@@ -171,18 +160,18 @@ export const CesiumNavigationOverlay = ({
   initialHomeSnapshot = null,
 }: {
   scene: Scene | null;
-  initialHomeSnapshot?: SceneDescriptorHashSnapshot | null;
+  initialHomeSnapshot?: SceneStateHashSnapshot | null;
 }) => {
   const sceneState = useCesiumSceneStateOptional();
   const snapshot = readSceneSnapshot(sceneState);
-  const homeSnapshotRef = useRef<SceneDescriptorHashSnapshot | null>(
+  const homeSnapshotRef = useRef<SceneStateHashSnapshot | null>(
     initialHomeSnapshot
   );
   const initialDragStateRef = useRef<{
     mouseX: number;
     mouseY: number;
-    bearingDeg: number;
-    pitchDeg: number;
+    bearingRad: number;
+    pitchRad: number;
     rangeM: number;
   } | null>(null);
   const didCompassDragRef = useRef(false);
@@ -201,11 +190,7 @@ export const CesiumNavigationOverlay = ({
   }, [initialHomeSnapshot, snapshot]);
 
   const applySnapshotUpdate = useCallback(
-    (
-      update: (
-        current: SceneDescriptorHashSnapshot
-      ) => SceneDescriptorHashSnapshot
-    ) => {
+    (update: (current: SceneStateHashSnapshot) => SceneStateHashSnapshot) => {
       if (!scene || !snapshot) {
         return;
       }
@@ -250,20 +235,20 @@ export const CesiumNavigationOverlay = ({
         didCompassDragRef.current = true;
       }
 
-      const nextBearingDeg =
-        dragState.bearingDeg +
-        (event.clientX - dragState.mouseX) * COMPASS_DRAG_FACTOR_DEG_PER_PX;
-      const nextPitchDeg = clampCompassPitchDeg(
-        dragState.pitchDeg -
-          (event.clientY - dragState.mouseY) * COMPASS_DRAG_FACTOR_DEG_PER_PX
+      const nextBearingRad =
+        dragState.bearingRad +
+        (event.clientX - dragState.mouseX) * COMPASS_DRAG_FACTOR_RAD_PER_PX;
+      const nextPitchRad = clampCompassPitchRad(
+        dragState.pitchRad -
+          (event.clientY - dragState.mouseY) * COMPASS_DRAG_FACTOR_RAD_PER_PX
       );
 
       applySnapshotUpdate((current) => ({
         ...current,
         orientation: {
           ...current.orientation,
-          bearingDeg: nextBearingDeg,
-          pitchDeg: nextPitchDeg,
+          bearingRad: nextBearingRad,
+          pitchRad: nextPitchRad,
           rangeM: dragState.rangeM,
         },
       }));
@@ -306,8 +291,8 @@ export const CesiumNavigationOverlay = ({
       initialDragStateRef.current = {
         mouseX: event.clientX,
         mouseY: event.clientY,
-        bearingDeg: snapshot.orientation.bearingDeg ?? 0,
-        pitchDeg: clampCompassPitchDeg(snapshot.orientation.pitchDeg ?? 0),
+        bearingRad: snapshot.orientation.bearingRad ?? 0,
+        pitchRad: clampCompassPitchRad(snapshot.orientation.pitchRad ?? 0),
         rangeM: snapshot.orientation.rangeM ?? DEFAULT_HASH_RANGE_M,
       };
     },
@@ -315,7 +300,7 @@ export const CesiumNavigationOverlay = ({
   );
 
   const animateToSnapshot = useCallback(
-    (nextSnapshot: SceneDescriptorHashSnapshot, durationMs: number) => {
+    (nextSnapshot: SceneStateHashSnapshot, durationMs: number) => {
       if (!scene) {
         return false;
       }
@@ -382,7 +367,7 @@ export const CesiumNavigationOverlay = ({
           ...snapshot,
           orientation: {
             ...snapshot.orientation,
-            bearingDeg: 0,
+            bearingRad: 0,
           },
         };
 
@@ -416,8 +401,8 @@ export const CesiumNavigationOverlay = ({
         ...snapshot,
         orientation: {
           ...snapshot.orientation,
-          bearingDeg: 0,
-          pitchDeg: 0,
+          bearingRad: 0,
+          pitchRad: 0,
         },
       };
 
@@ -465,8 +450,10 @@ export const CesiumNavigationOverlay = ({
 
   const disabled = !scene || !snapshot;
   const homeDisabled = !scene || !homeSnapshotRef.current;
-  const headingDeg = snapshot?.orientation.bearingDeg ?? 0;
-  const pitchDeg = clampCompassPitchDeg(snapshot?.orientation.pitchDeg ?? 0);
+  const headingDeg = radToDegNumeric(snapshot?.orientation.bearingRad ?? 0)!;
+  const pitchDeg = radToDegNumeric(
+    clampCompassPitchRad(snapshot?.orientation.pitchRad ?? 0)
+  )!;
 
   return (
     <SceneNavigationControls

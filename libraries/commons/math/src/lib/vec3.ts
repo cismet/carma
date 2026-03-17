@@ -17,8 +17,7 @@ export type Matrix3RowMajor = [
   [number, number, number]
 ];
 
-export const isFiniteNumber = (value: unknown): value is number =>
-  typeof value === "number" && Number.isFinite(value);
+import { isFiniteNumber } from "./numeric/isFiniteNumber";
 
 export const coerceVec3 = (value: unknown): Vec3 | null => {
   if (value instanceof Vector3) {

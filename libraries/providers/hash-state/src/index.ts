@@ -16,19 +16,19 @@ export {
 } from "./lib/hashCodecs";
 
 export {
-  decodeSceneDescriptorHashSnapshot,
-  encodeSceneDescriptorHashSnapshot,
-  readMapLibrePlusElevationHashValuesFromSceneDescriptor,
+  decodeSceneStateHashSnapshot,
+  encodeSceneStateHashSnapshot,
+  readMapLibrePlusElevationHashValuesFromSceneState,
   readObjectCentricRangeFromMapLibreZoom,
-  readSceneDescriptorFromMapLibrePlusElevationHashValues,
-  sceneDescriptorHashCodec,
-  type SceneDescriptorHashSnapshot,
+  readSceneStateFromMapLibrePlusElevationHashValues,
+  sceneStateHashCodec,
+  type SceneStateHashSnapshot,
 } from "./lib/sceneStateHashCodec";
 
-export { readSceneDescriptorHashSnapshotFromSceneState } from "./lib/sceneStateHashSceneAdapter";
+export { readSceneStateHashSnapshotFromSceneState } from "./lib/sceneStateHashSceneAdapter";
 
 export {
-  DEFAULT_SCENE_DESCRIPTOR_HASH_CLEAR_KEYS,
+  DEFAULT_SCENE_STATE_HASH_CLEAR_KEYS,
   useSceneStateHashSync,
   type SceneStateCameraLike,
   type SceneStateLike,

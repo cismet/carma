@@ -2,32 +2,33 @@ import { useCallback, useEffect, useMemo, useRef } from "react";
 import type { SceneStateSnapshot } from "@carma/types";
 import { useHashState } from "./HashStateProvider";
 import {
-  DEFAULT_SCENE_DESCRIPTOR_ALTITUDE_HASH_KEY,
-  DEFAULT_SCENE_DESCRIPTOR_HASH_ALIAS,
-  DEFAULT_SCENE_DESCRIPTOR_HASH_KEY,
-  sceneDescriptorHashCodec,
-  type SceneDescriptorHashEncodeScheme,
+  DEFAULT_SCENE_STATE_ALTITUDE_HASH_KEY,
+  DEFAULT_SCENE_STATE_HASH_KEY,
+  sceneStateHashCodec,
+  type SceneStateHashEncodeScheme,
 } from "./sceneStateHashCodec";
 import {
-  readMapLibreCompatHashParamsFromSceneAdapter,
-  readSceneDescriptorHashSnapshotFromSceneAdapter,
-  readSceneDescriptorHashSnapshotFromSceneState,
-  type SceneStateCameraLike,
-  type SceneStateLike,
+  readMapLibreCompatHashParamsFromSceneState,
+  readSceneStateHashSnapshotFromCamera,
 } from "./sceneStateHashCameraAdapter";
-import type { SceneDescriptorAnchorMode } from "./sceneStateHashSceneAdapter";
+import { readSceneStateHashSnapshotFromSceneState } from "./sceneStateHashSceneAdapter";
+import type {
+  SceneStateCameraLike,
+  SceneStateLike,
+} from "./sceneStateHashCameraTypes";
+import type { SceneStateAnchorMode } from "./sceneStateHashSceneAdapter";
 
 export type {
   SceneStateCameraLike,
   SceneStateLike,
-} from "./sceneStateHashCameraAdapter";
+} from "./sceneStateHashCameraTypes";
 
-type SceneDescriptorSyncEventLike = {
+type SceneStateSyncEventLike = {
   addEventListener: (listener: () => void) => void;
   removeEventListener: (listener: () => void) => void;
 };
 
-export const DEFAULT_SCENE_DESCRIPTOR_HASH_CLEAR_KEYS = [
+export const DEFAULT_SCENE_STATE_HASH_CLEAR_KEYS = [
   "lat",
   "lng",
   "zoom",
@@ -38,7 +39,6 @@ export const DEFAULT_SCENE_DESCRIPTOR_HASH_CLEAR_KEYS = [
   "is2d",
   "is3d",
   "camera3d",
-  "c3",
 ] as const;
 
 export type UseSceneStateHashSyncOptions = {
@@ -48,14 +48,14 @@ export type UseSceneStateHashSyncOptions = {
   enabled?: boolean;
   hashKey?: string;
   hashAlias?: string;
-  encodeScheme?: SceneDescriptorHashEncodeScheme;
+  encodeScheme?: SceneStateHashEncodeScheme;
   includeIs3dFlag?: boolean;
   is3dFlagKey?: string;
   is3dFlagValue?: number | string;
   clearKeys?: string[];
   replace?: boolean;
   label?: string;
-  anchorMode?: SceneDescriptorAnchorMode;
+  anchorMode?: SceneStateAnchorMode;
   fallbackHeightM?: number;
   minUpdateIntervalMs?: number;
   altitudeKey?: string;
@@ -68,11 +68,11 @@ export type UseSceneStateHashSyncOptions = {
 
 const nowMs = (): number => Date.now();
 
-const resolveSceneDescriptorSyncEvent = (
+const resolveSceneStateSyncEvent = (
   scene: SceneStateLike | null | undefined,
   camera: SceneStateCameraLike
-): SceneDescriptorSyncEventLike | null => {
-  const cameraMoveEnd = (camera as { moveEnd?: SceneDescriptorSyncEventLike })
+): SceneStateSyncEventLike | null => {
+  const cameraMoveEnd = (camera as { moveEnd?: SceneStateSyncEventLike })
     .moveEnd;
   if (
     cameraMoveEnd &&
@@ -82,7 +82,7 @@ const resolveSceneDescriptorSyncEvent = (
     return cameraMoveEnd;
   }
 
-  const cameraChanged = (camera as { changed?: SceneDescriptorSyncEventLike })
+  const cameraChanged = (camera as { changed?: SceneStateSyncEventLike })
     .changed;
   if (
     cameraChanged &&
@@ -93,7 +93,7 @@ const resolveSceneDescriptorSyncEvent = (
   }
 
   const scenePostRender = scene
-    ? (scene as { postRender?: SceneDescriptorSyncEventLike }).postRender
+    ? (scene as { postRender?: SceneStateSyncEventLike }).postRender
     : undefined;
   if (
     scenePostRender &&
@@ -115,7 +115,7 @@ const readSchemeClearKeys = ({
   hashAlias,
   altitudeKey,
 }: {
-  encodeScheme: SceneDescriptorHashEncodeScheme;
+  encodeScheme: SceneStateHashEncodeScheme;
   hashKey: string;
   hashAlias: string;
   altitudeKey: string;
@@ -140,8 +140,8 @@ export const useSceneStateHashSync = ({
   scene,
   camera,
   enabled = true,
-  hashKey = DEFAULT_SCENE_DESCRIPTOR_HASH_KEY,
-  hashAlias = DEFAULT_SCENE_DESCRIPTOR_HASH_ALIAS,
+  hashKey = DEFAULT_SCENE_STATE_HASH_KEY,
+  hashAlias = DEFAULT_SCENE_STATE_HASH_KEY,
   encodeScheme = "carma-maplibre-plus-elevation",
   includeIs3dFlag = true,
   is3dFlagKey = "is3d",
@@ -152,7 +152,7 @@ export const useSceneStateHashSync = ({
   anchorMode = "screen-center",
   fallbackHeightM = 200,
   minUpdateIntervalMs = 100,
-  altitudeKey = DEFAULT_SCENE_DESCRIPTOR_ALTITUDE_HASH_KEY,
+  altitudeKey = DEFAULT_SCENE_STATE_ALTITUDE_HASH_KEY,
   rangeKey = "range",
   includeAltitude = false,
   defaultFovDeg,
@@ -174,25 +174,24 @@ export const useSceneStateHashSync = ({
           hashAlias,
           altitudeKey,
         }),
-        ...(clearKeys ?? DEFAULT_SCENE_DESCRIPTOR_HASH_CLEAR_KEYS),
+        ...(clearKeys ?? DEFAULT_SCENE_STATE_HASH_CLEAR_KEYS),
       ]),
     [altitudeKey, clearKeys, encodeScheme, hashAlias, hashKey]
   );
 
   const writeCameraHash = useCallback(
     (replaceHash: boolean) => {
-      const snapshotFromSceneState =
-        readSceneDescriptorHashSnapshotFromSceneState({
-          sceneState,
-          anchorMode,
-          fallbackHeightM,
-        });
+      const snapshotFromSceneState = readSceneStateHashSnapshotFromSceneState({
+        sceneState,
+        anchorMode,
+        fallbackHeightM,
+      });
 
       const resolvedCamera = camera ?? scene?.camera;
       const snapshot =
         snapshotFromSceneState ??
         (resolvedCamera
-          ? readSceneDescriptorHashSnapshotFromSceneAdapter({
+          ? readSceneStateHashSnapshotFromCamera({
               camera: resolvedCamera,
               scene,
               anchorMode,
@@ -203,7 +202,7 @@ export const useSceneStateHashSync = ({
         return;
       }
 
-      const encoded = sceneDescriptorHashCodec.encode(snapshot);
+      const encoded = sceneStateHashCodec.encode(snapshot);
       if (!encoded) {
         return;
       }
@@ -215,7 +214,7 @@ export const useSceneStateHashSync = ({
       const params: Record<string, unknown> = {};
       Object.assign(
         params,
-        readMapLibreCompatHashParamsFromSceneAdapter({
+        readMapLibreCompatHashParamsFromSceneState({
           snapshot,
           sceneState,
           scene,
@@ -281,7 +280,7 @@ export const useSceneStateHashSync = ({
 
     writeCameraHash(true);
 
-    const event = resolveSceneDescriptorSyncEvent(scene, resolvedCamera);
+    const event = resolveSceneStateSyncEvent(scene, resolvedCamera);
     if (!event) {
       return;
     }

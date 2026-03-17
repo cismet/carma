@@ -14,7 +14,7 @@
 
 import { useCallback, useEffect, useRef } from "react";
 import {
-  DEFAULT_SCENE_DESCRIPTOR_HASH_CLEAR_KEYS,
+  DEFAULT_SCENE_STATE_HASH_CLEAR_KEYS,
   useHashState,
   type HashChangeEvent,
 } from "@carma-providers/hash-state";
@@ -51,7 +51,7 @@ export interface UseMapHashRoutingOptions {
 export function useMapHashRouting({
   getLeafletMap,
   getLeafletZoom,
-  cesiumClearKeys = [...DEFAULT_SCENE_DESCRIPTOR_HASH_CLEAR_KEYS],
+  cesiumClearKeys = [...DEFAULT_SCENE_STATE_HASH_CLEAR_KEYS],
   labels,
   pixelTolerance,
 }: UseMapHashRoutingOptions) {

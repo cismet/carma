@@ -1,8 +1,9 @@
-import { Math as CesiumMath } from "cesium";
+import { PI_OVER_TWO } from "@carma/math";
+import { degToRadNumeric } from "@carma/units/helpers";
 
 // MapLibre pitch is in degrees (0-85 typically)
-const MAX_PITCH_DEGREES = 85;
-const PITCH_HORIZON_OFFSET = Math.PI / 2 - 0.2; // avoid showing completely flat from the side
+const MAX_PITCH_RAD = degToRadNumeric(85)!;
+const PITCH_HORIZON_OFFSET = PI_OVER_TWO - 0.2; // avoid showing completely flat from the side
 
 export const CompassNeedleSVG = ({
   pitch = 0,
@@ -15,10 +16,10 @@ export const CompassNeedleSVG = ({
   northColor?: string;
   neutralColor?: string;
 } = {}) => {
-  const normalizedHeading = -heading * (Math.PI / 180);
-  const pitchRadians = pitch * (Math.PI / 180);
+  const normalizedHeading = -degToRadNumeric(heading)!;
+  const pitchRadians = degToRadNumeric(pitch)!;
   const normalizedPitch = Math.min(
-    pitchRadians * (Math.PI / 2 / ((MAX_PITCH_DEGREES * Math.PI) / 180)),
+    pitchRadians * (PI_OVER_TWO / MAX_PITCH_RAD),
     PITCH_HORIZON_OFFSET
   );
   const transform = `scale(${Math.pow(
