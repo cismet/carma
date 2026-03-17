@@ -295,7 +295,8 @@ const LABEL_FONT_SIZE_PX = 12;
 const LABEL_LINE_HEIGHT = 1.2;
 const LABEL_VERTICAL_PADDING_PX = 3;
 const LABEL_CAP_RADIUS_PX =
-  (LABEL_FONT_SIZE_PX * LABEL_LINE_HEIGHT + LABEL_VERTICAL_PADDING_PX * 2) * 0.5;
+  (LABEL_FONT_SIZE_PX * LABEL_LINE_HEIGHT + LABEL_VERTICAL_PADDING_PX * 2) *
+  0.5;
 
 const resolvePillCapCenterPoint = (
   attach: "left" | "right" | "center",
@@ -581,7 +582,12 @@ const DomLabelLayoutEngineStory = ({
         y: point.y + Math.sin(angle) * baseRadius * ring * 0.82,
         z: point.z + Math.sin(angle * 2) * baseRadius * 0.24,
       };
-      const projected = projectPointWithView(world, viewMatrix, viewportSize, fovDeg);
+      const projected = projectPointWithView(
+        world,
+        viewMatrix,
+        viewportSize,
+        fovDeg
+      );
       if (!projected) {
         continue;
       }
@@ -643,7 +649,13 @@ const DomLabelLayoutEngineStory = ({
         cameraPitch: toRad(orbitPitchDeg),
         config: layoutConfig,
       }),
-    [anchorPoints, layoutConfig, orbitPitchDeg, viewportSize.height, viewportSize.width]
+    [
+      anchorPoints,
+      layoutConfig,
+      orbitPitchDeg,
+      viewportSize.height,
+      viewportSize.width,
+    ]
   );
 
   const statusValues = useMemo(
@@ -653,7 +665,9 @@ const DomLabelLayoutEngineStory = ({
       `${Object.keys(layout.placements).length} placed`,
       `${layout.hiddenByLayout.size} hidden`,
       `${layout.collapsedToCompact.size} compact`,
-      `axis ${activeAxis.toUpperCase()} • gizmo ${dragging ? "dragging" : "idle"}`,
+      `axis ${activeAxis.toUpperCase()} • gizmo ${
+        dragging ? "dragging" : "idle"
+      }`,
       `orbit ${orbitYawDeg.toFixed(1)}deg / ${orbitPitchDeg.toFixed(1)}deg`,
     ],
     [
@@ -760,7 +774,10 @@ const DomLabelLayoutEngineStory = ({
             );
 
             return (
-              <div key={pointData.id} style={{ position: "absolute", inset: 0 }}>
+              <div
+                key={pointData.id}
+                style={{ position: "absolute", inset: 0 }}
+              >
                 {renderDomLine(
                   `stem-${pointData.id}`,
                   pointData.anchor,

@@ -76,7 +76,10 @@ export const usePointQueryToolRouting = ({
   const activePlugin = getToolPlugin(activeToolType);
 
   const resolvePointQueryCoordinate = useCallback(
-    (coordinate: RuntimeCoordinate, screenPosition?: { x: number; y: number }) =>
+    (
+      coordinate: RuntimeCoordinate,
+      screenPosition?: { x: number; y: number }
+    ) =>
       resolveSnappedNodeCoordinate({
         scene,
         nodes,
@@ -87,7 +90,10 @@ export const usePointQueryToolRouting = ({
   );
 
   const handlePointQueryPointCreated = useCallback(
-    (coordinate: RuntimeCoordinate, screenPosition?: { x: number; y: number }) => {
+    (
+      coordinate: RuntimeCoordinate,
+      screenPosition?: { x: number; y: number }
+    ) => {
       const resolvedCoordinate = resolvePointQueryCoordinate(
         coordinate,
         screenPosition

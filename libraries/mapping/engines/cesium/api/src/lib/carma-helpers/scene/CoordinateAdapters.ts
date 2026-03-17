@@ -115,9 +115,8 @@ export const resolveGeographicCoordinateFromScreenPosition = (
 
   if (!defined(pickedPosition)) {
     const ray = scene.camera.getPickRay(screenPosition);
-    pickedPosition = ray && defined(scene.globe)
-      ? scene.globe.pick(ray, scene) ?? null
-      : null;
+    pickedPosition =
+      ray && defined(scene.globe) ? scene.globe.pick(ray, scene) ?? null : null;
   }
 
   if (!defined(pickedPosition)) {

@@ -99,7 +99,9 @@ export const PlaygroundStatusBar = ({
           color: "#6b7280",
         }}
       >
-        <span style={{ fontWeight: 700, letterSpacing: "0.04em" }}>runtime</span>
+        <span style={{ fontWeight: 700, letterSpacing: "0.04em" }}>
+          runtime
+        </span>
         <button
           type="button"
           style={toggleButtonStyle(runtimeVersion === "v1")}

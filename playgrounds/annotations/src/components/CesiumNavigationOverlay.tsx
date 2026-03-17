@@ -58,7 +58,9 @@ const readSceneSnapshot = (
             ? (pose.roll * 180) / Math.PI
             : undefined,
         fovDeg:
-          typeof fovVertical === "number" ? (fovVertical * 180) / Math.PI : undefined,
+          typeof fovVertical === "number"
+            ? (fovVertical * 180) / Math.PI
+            : undefined,
         rangeM: pose.range,
       },
     };
@@ -97,11 +99,10 @@ const animateSceneToSnapshot = ({
     scene,
     center,
     {
-      heading:
-        (((snapshot.orientation.bearingDeg ?? 0) * Math.PI) / 180) as Radians,
-      pitch:
-        ((((snapshot.orientation.pitchDeg ?? 0) * Math.PI) / 180) -
-          Math.PI * 0.5) as Radians,
+      heading: (((snapshot.orientation.bearingDeg ?? 0) * Math.PI) /
+        180) as Radians,
+      pitch: (((snapshot.orientation.pitchDeg ?? 0) * Math.PI) / 180 -
+        Math.PI * 0.5) as Radians,
       range: snapshot.orientation.rangeM ?? DEFAULT_HASH_RANGE_M,
     },
     {
@@ -242,7 +243,8 @@ export const CesiumNavigationOverlay = ({
       }
 
       if (
-        Math.abs(event.clientX - dragState.mouseX) > COMPASS_DRAG_THRESHOLD_PX ||
+        Math.abs(event.clientX - dragState.mouseX) >
+          COMPASS_DRAG_THRESHOLD_PX ||
         Math.abs(event.clientY - dragState.mouseY) > COMPASS_DRAG_THRESHOLD_PX
       ) {
         didCompassDragRef.current = true;
@@ -419,7 +421,9 @@ export const CesiumNavigationOverlay = ({
         },
       };
 
-      if (!animateToSnapshot(nextSnapshot, COMPASS_ALIGN_NORTH_NADIR_DURATION_MS)) {
+      if (
+        !animateToSnapshot(nextSnapshot, COMPASS_ALIGN_NORTH_NADIR_DURATION_MS)
+      ) {
         applySnapshotUpdate(() => nextSnapshot);
       }
     },
@@ -446,7 +450,10 @@ export const CesiumNavigationOverlay = ({
         },
       });
 
-      if (!cancelAnimationRef.current && !animateToSnapshot(homeSnapshot, HOME_ANIMATION_DURATION_MS)) {
+      if (
+        !cancelAnimationRef.current &&
+        !animateToSnapshot(homeSnapshot, HOME_ANIMATION_DURATION_MS)
+      ) {
         applyObjectCentricCameraSnapshotToScene({
           scene: scene as Scene,
           snapshot: homeSnapshot,
@@ -494,7 +501,8 @@ export const CesiumNavigationOverlay = ({
       compass={{
         bearingDeg: headingDeg,
         pitchDeg,
-        tooltip: "Einfachklick: Norden ausrichten. Doppelklick: Norden + Nadir.",
+        tooltip:
+          "Einfachklick: Norden ausrichten. Doppelklick: Norden + Nadir.",
         title: "Kompass",
         dataTestId: "annotations-compass-control",
         cursor: "grab",

@@ -14,8 +14,9 @@ const DEFAULT_EXTERNAL_SOURCE_ENGINE = "system";
 
 const nowMs = (): number => Date.now();
 
-const canRegistrationControl = (registration: ViewSyncRegistration | undefined): boolean =>
-  registration?.canControl !== false;
+const canRegistrationControl = (
+  registration: ViewSyncRegistration | undefined
+): boolean => registration?.canControl !== false;
 
 const findNextControllerId = (
   registrations: Record<string, ViewSyncRegistration>
@@ -90,7 +91,10 @@ export const createViewSyncStore = (
 
   const unregisterView = (id: string) => {
     store.setState((previousState) => {
-      if (!(id in previousState.registrations) && !(id in previousState.latestById)) {
+      if (
+        !(id in previousState.registrations) &&
+        !(id in previousState.latestById)
+      ) {
         return previousState;
       }
 
@@ -104,7 +108,9 @@ export const createViewSyncStore = (
 
       let nextTarget = previousState.target;
       if (nextTarget?.sourceId === id) {
-        nextTarget = nextControllerId ? nextLatestById[nextControllerId] ?? null : null;
+        nextTarget = nextControllerId
+          ? nextLatestById[nextControllerId] ?? null
+          : null;
       }
 
       return {
@@ -176,8 +182,11 @@ export const createViewSyncStore = (
 
       const shouldClaimControl =
         options.claimControl === true ||
-        (previousState.controllerId === null && canRegistrationControl(registration));
-      const nextControllerId = shouldClaimControl ? id : previousState.controllerId;
+        (previousState.controllerId === null &&
+          canRegistrationControl(registration));
+      const nextControllerId = shouldClaimControl
+        ? id
+        : previousState.controllerId;
 
       return {
         ...previousState,

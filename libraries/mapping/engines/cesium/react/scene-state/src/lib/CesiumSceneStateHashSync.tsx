@@ -23,7 +23,10 @@ export const CesiumSceneStateHashSync = ({
 
   useSceneDescriptorHashSync({
     sceneState,
-    scene: scene as unknown as SceneDescriptorHashSyncSceneLike | null | undefined,
+    scene: scene as unknown as
+      | SceneDescriptorHashSyncSceneLike
+      | null
+      | undefined,
     enabled,
     ...options,
   });

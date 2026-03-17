@@ -5,7 +5,11 @@ import {
   type Dispatch,
   type SetStateAction,
 } from "react";
-import { Cartesian3, type Cartesian3 as CesiumCartesian3, type Scene } from "@carma/cesium";
+import {
+  Cartesian3,
+  type Cartesian3 as CesiumCartesian3,
+  type Scene,
+} from "@carma/cesium";
 import { useStoreSelector } from "@carma-commons/react-store";
 import type {
   AnnotationCollection,

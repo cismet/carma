@@ -1,4 +1,11 @@
-import { useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
+import {
+  useCallback,
+  useContext,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import { useSelector } from "react-redux";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import {
@@ -114,7 +121,9 @@ const parseHashNumber = (value: unknown): number | undefined => {
 };
 
 const readInitialCameraViewFromHashSnapshot = (
-  snapshot: ReturnType<typeof useInitialSceneDescriptorHashSnapshot>["initialCameraState"]
+  snapshot: ReturnType<
+    typeof useInitialSceneDescriptorHashSnapshot
+  >["initialCameraState"]
 ): InitialCameraView | undefined => {
   if (!snapshot) {
     return undefined;
@@ -196,7 +205,8 @@ function App({ sync = false }: { sync?: boolean }) {
   );
 
   const ctx = useCesiumContext();
-  const { getScene, getTerrainProvider, getSurfaceProvider, isViewerReady } = ctx;
+  const { getScene, getTerrainProvider, getSurfaceProvider, isViewerReady } =
+    ctx;
   const cesiumScene = getScene();
   const homeControl = useHomeControl();
   const {
@@ -217,10 +227,13 @@ function App({ sync = false }: { sync?: boolean }) {
     useState<HTMLDivElement | null>(null);
   const homePosition = useSelector(selectViewerHome);
 
-  const handleCesiumContainerRef = useCallback((node: HTMLDivElement | null) => {
-    container3dMapRef.current = node;
-    setCesiumContainerElement(node);
-  }, []);
+  const handleCesiumContainerRef = useCallback(
+    (node: HTMLDivElement | null) => {
+      container3dMapRef.current = node;
+      setCesiumContainerElement(node);
+    },
+    []
+  );
 
   // Register map frameworks with switcher
   const leafletMap = routedMap?.leafletMap?.leafletElement ?? null;
@@ -269,8 +282,7 @@ function App({ sync = false }: { sync?: boolean }) {
     return center;
   }, [homePosition]);
 
-  const { isCesium, isLeaflet, getIsCesium } =
-    useMapFrameworkSwitcherContext();
+  const { isCesium, isLeaflet, getIsCesium } = useMapFrameworkSwitcherContext();
 
   const models = useSelector(selectViewerModels);
 

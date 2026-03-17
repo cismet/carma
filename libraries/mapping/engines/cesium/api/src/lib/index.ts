@@ -63,27 +63,27 @@ export type {
   FlyToBoundingSphereExtentOptions,
   FlyToPointsOptions,
 } from "./carma-helpers/camera";
-export {
-  flyToBoundingSphereExtent,
-  flyToPoints,
-} from "./carma-helpers/camera";
+export { flyToBoundingSphereExtent, flyToPoints } from "./carma-helpers/camera";
 
 export {
   cartesian3Distance,
   offsetCartesian3Positions,
 } from "./carma-helpers/cartesian3";
-export {
-  cartesian3FromJson,
-  cartesian3ToJson,
+export { cartesian3FromJson, cartesian3ToJson } from "./serialization/base";
+export type {
+  Cartesian3ConstructorArgs,
+  Cartesian3Json,
 } from "./serialization/base";
-export type { Cartesian3ConstructorArgs, Cartesian3Json } from "./serialization/base";
 
 export {
   getDegreesFromCartographic,
   getEllipsoidalAltitudeOrZero,
 } from "./carma-helpers/cartographic";
 export { cartographicToJson } from "./serialization/base";
-export type { CartographicJson, CartographicJsonTyped } from "./serialization/base";
+export type {
+  CartographicJson,
+  CartographicJsonTyped,
+} from "./serialization/base";
 
 export { guardTileset } from "./carma-helpers/tileset/TilesetGuard";
 export type { Cesium3DTilesetConstructorOptions } from "./serialization/base";
@@ -98,7 +98,10 @@ export {
 export type { ColorConstructorArgs, ColorJson } from "./serialization/base";
 
 export { newHeadingPitchRange } from "./carma-helpers/heading-pitch-range/HeadingPitchRangeFactory";
-export type { HeadingPitchRangeJson, HeadingPitchRangeJsonRaw } from "./serialization/base";
+export type {
+  HeadingPitchRangeJson,
+  HeadingPitchRangeJsonRaw,
+} from "./serialization/base";
 
 export type {
   HeadingPitchJson,
@@ -113,7 +116,11 @@ export {
   rectangleToBBox,
   rectangleToJson,
 } from "./serialization/base";
-export type { RectangleConstructorArgs, RectangleJson, RectangleJsonRaw } from "./serialization/base";
+export type {
+  RectangleConstructorArgs,
+  RectangleJson,
+  RectangleJsonRaw,
+} from "./serialization/base";
 
 export {
   getCartographicAndHeadingPitchRangeFromPoints,

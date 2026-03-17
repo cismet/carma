@@ -64,7 +64,9 @@ export const buildObjectCentricCameraOrientation = (
     destination,
     new Cartesian3()
   );
-  if (Cartesian3.magnitudeSquared(directionToAnchor) <= CAMERA_DIRECTION_EPSILON) {
+  if (
+    Cartesian3.magnitudeSquared(directionToAnchor) <= CAMERA_DIRECTION_EPSILON
+  ) {
     return null;
   }
 

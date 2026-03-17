@@ -34,7 +34,8 @@ const getOverlayReferenceSignature = (value: unknown): string => {
   return String(value);
 };
 
-const getLineOverlayId = (lineId: string): string => `line-visualizer-${lineId}`;
+const getLineOverlayId = (lineId: string): string =>
+  `line-visualizer-${lineId}`;
 
 const setSvgAnimatedLength = ({
   lineEl,
@@ -104,55 +105,54 @@ const buildLineDashCacheSignature = (line: LineVisualizerData): string =>
     `${line.dynamicDashPattern?.collapseCapThresholdEffectiveGapRatio ?? ""}`,
   ].join(":");
 
-const buildLineOverlayUpdatePosition =
-  (
-    line: LineVisualizerData,
-    dasharrayCache: SvgLineDasharrayCache | undefined
-  ) => {
-    const svgLineScratch = createSvgLineScratch();
-    return (elementDiv: HTMLElement) => {
-      const svgLine = resolveSvgLine({
-        getSvgLine: line.getSvgLine,
-        scratch: svgLineScratch,
-      });
-      if (!svgLine) return false;
+const buildLineOverlayUpdatePosition = (
+  line: LineVisualizerData,
+  dasharrayCache: SvgLineDasharrayCache | undefined
+) => {
+  const svgLineScratch = createSvgLineScratch();
+  return (elementDiv: HTMLElement) => {
+    const svgLine = resolveSvgLine({
+      getSvgLine: line.getSvgLine,
+      scratch: svgLineScratch,
+    });
+    if (!svgLine) return false;
 
-      const lineEl = elementDiv.querySelector(
-        '[data-line-visualizer-segment="true"]'
-      ) as SVGLineElement | null;
-      if (!lineEl) return false;
+    const lineEl = elementDiv.querySelector(
+      '[data-line-visualizer-segment="true"]'
+    ) as SVGLineElement | null;
+    if (!lineEl) return false;
 
-      elementDiv.style.position = "absolute";
-      elementDiv.style.left = "0";
-      elementDiv.style.top = "0";
-      elementDiv.style.width = "100%";
-      elementDiv.style.height = "100%";
-      elementDiv.style.transform = "none";
-      elementDiv.style.pointerEvents = "none";
-      elementDiv.style.zIndex = `${LINE_OVERLAY_Z_INDEX}`;
+    elementDiv.style.position = "absolute";
+    elementDiv.style.left = "0";
+    elementDiv.style.top = "0";
+    elementDiv.style.width = "100%";
+    elementDiv.style.height = "100%";
+    elementDiv.style.transform = "none";
+    elementDiv.style.pointerEvents = "none";
+    elementDiv.style.zIndex = `${LINE_OVERLAY_Z_INDEX}`;
 
-      setSvgLineAttributes(lineEl, svgLine);
-      const dynamicDasharray = resolveSvgLineDasharray({
-        line,
-        svgLine,
-        dasharrayCache,
-      });
-      lineEl.setAttribute(
-        "stroke-dasharray",
-        dynamicDasharray ?? line.strokeDasharray ?? "none"
-      );
-      lineEl.setAttribute("stroke-dashoffset", `${line.strokeDashoffset ?? 0}`);
+    setSvgLineAttributes(lineEl, svgLine);
+    const dynamicDasharray = resolveSvgLineDasharray({
+      line,
+      svgLine,
+      dasharrayCache,
+    });
+    lineEl.setAttribute(
+      "stroke-dasharray",
+      dynamicDasharray ?? line.strokeDasharray ?? "none"
+    );
+    lineEl.setAttribute("stroke-dashoffset", `${line.strokeDashoffset ?? 0}`);
 
-      const lineHitTargetEl = elementDiv.querySelector(
-        '[data-line-visualizer-hit-target="true"]'
-      ) as SVGLineElement | null;
-      if (lineHitTargetEl) {
-        setSvgLineAttributes(lineHitTargetEl, svgLine);
-      }
+    const lineHitTargetEl = elementDiv.querySelector(
+      '[data-line-visualizer-hit-target="true"]'
+    ) as SVGLineElement | null;
+    if (lineHitTargetEl) {
+      setSvgLineAttributes(lineHitTargetEl, svgLine);
+    }
 
-      return true;
-    };
+    return true;
   };
+};
 
 export const useLineSegmentVisualizers = (
   lines: LineVisualizerData[],
@@ -167,18 +167,13 @@ export const useLineSegmentVisualizers = (
   const previousDashCacheSignatureByIdRef = useRef<Map<string, string>>(
     new Map()
   );
-  const dasharrayCacheByLineIdRef = useRef<
-    Map<string, SvgLineDasharrayCache>
-  >(new Map());
+  const dasharrayCacheByLineIdRef = useRef<Map<string, SvgLineDasharrayCache>>(
+    new Map()
+  );
 
   const lineGeometrySignatureById = useMemo(
     () =>
-      new Map(
-        lines.map((line) => [
-          line.id,
-          buildLineGeometrySignature(line),
-        ])
-      ),
+      new Map(lines.map((line) => [line.id, buildLineGeometrySignature(line)])),
     [lines]
   );
 

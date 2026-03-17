@@ -29,9 +29,7 @@ import {
   WUPP_TERRAIN_PROVIDER_DSM_MESH_2024_1M,
 } from "@carma-commons/resources";
 
-import {
-  buildObjectCentricCameraOrientation,
-} from "./objectCentricCesiumCamera";
+import { buildObjectCentricCameraOrientation } from "./objectCentricCesiumCamera";
 
 type DefaultCameraState = {
   longitude: number;

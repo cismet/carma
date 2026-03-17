@@ -25,9 +25,7 @@ export {
   type SceneDescriptorHashSnapshot,
 } from "./lib/sceneDescriptorHashCodec";
 
-export {
-  readSceneDescriptorHashSnapshotFromSceneState,
-} from "./lib/sceneDescriptorHashSceneStateAdapter";
+export { readSceneDescriptorHashSnapshotFromSceneState } from "./lib/sceneDescriptorHashSceneStateAdapter";
 
 export {
   DEFAULT_SCENE_DESCRIPTOR_HASH_CLEAR_KEYS,

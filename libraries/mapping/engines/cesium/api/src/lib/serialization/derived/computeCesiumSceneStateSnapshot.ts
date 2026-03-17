@@ -70,11 +70,7 @@ const readSceneColorSnapshot = (
   const blue = candidate.blue ?? candidate.b;
   const alpha = candidate.alpha ?? candidate.a;
 
-  if (
-    !isFiniteNumber(red) ||
-    !isFiniteNumber(green) ||
-    !isFiniteNumber(blue)
-  ) {
+  if (!isFiniteNumber(red) || !isFiniteNumber(green) || !isFiniteNumber(blue)) {
     return undefined;
   }
 
@@ -92,8 +88,7 @@ const readSceneLightingSnapshot = ({
 }: {
   scene: SceneLike;
   referencePointWorld: Vec3;
-}
-): SceneLightingSnapshot | undefined => {
+}): SceneLightingSnapshot | undefined => {
   const light = scene.light as
     | {
         color?: unknown;
@@ -125,7 +120,10 @@ const readSceneLightingSnapshot = ({
     referencePointWorld.z,
     new Cartesian3()
   );
-  const sunOffsetEnu = getEastNorthUpOffset(sunPositionFixed, referencePointEcef);
+  const sunOffsetEnu = getEastNorthUpOffset(
+    sunPositionFixed,
+    referencePointEcef
+  );
   const sunPositionWorld = new Vector3(
     sunOffsetEnu.east * SCENE_LIGHT_DISTANCE_SCALE,
     sunOffsetEnu.up * SCENE_LIGHT_DISTANCE_SCALE,
@@ -158,11 +156,11 @@ const readAspectRatio = (
     camera.frustum.aspect > 0
       ? camera.frustum.aspect
       : camera?.frustum &&
-          typeof camera.frustum === "object" &&
-          isFiniteNumber(camera.frustum.aspectRatio) &&
-          camera.frustum.aspectRatio > 0
-        ? camera.frustum.aspectRatio
-        : undefined;
+        typeof camera.frustum === "object" &&
+        isFiniteNumber(camera.frustum.aspectRatio) &&
+        camera.frustum.aspectRatio > 0
+      ? camera.frustum.aspectRatio
+      : undefined;
   if (isFiniteNumber(frustumAspectRatio) && frustumAspectRatio > 0) {
     return frustumAspectRatio;
   }
@@ -237,7 +235,9 @@ const getHorizontalFov = ({
 };
 
 const readProjectionMatrix = (frustum: FrustumLike | undefined): Mat4 | null =>
-  toSceneStateMat4((frustum as { projectionMatrix?: unknown } | undefined)?.projectionMatrix);
+  toSceneStateMat4(
+    (frustum as { projectionMatrix?: unknown } | undefined)?.projectionMatrix
+  );
 
 const readProjectionMatrixInverse = (
   frustum: FrustumLike | undefined,
@@ -316,23 +316,22 @@ const readProjectionSnapshot = (
     frustum && isFiniteNumber(frustum.near)
       ? frustum.near
       : frustum && isFiniteNumber(frustum.nearPlane)
-        ? frustum.nearPlane
-        : undefined;
+      ? frustum.nearPlane
+      : undefined;
   const far =
     frustum && isFiniteNumber(frustum.far)
       ? frustum.far
       : frustum && isFiniteNumber(frustum.farPlane)
-        ? frustum.farPlane
-        : undefined;
+      ? frustum.farPlane
+      : undefined;
   const type = readProjectionMode({ camera, frustum, capturedFov });
-  const fovVertical =
-    isFiniteNumber(capturedFov)
-      ? (capturedFov as Radians)
-      : frustum && isFiniteNumber(frustum.fovVertical)
-        ? (frustum.fovVertical as Radians)
-        : frustum && isFiniteNumber(frustum.fov)
-          ? (frustum.fov as Radians)
-          : undefined;
+  const fovVertical = isFiniteNumber(capturedFov)
+    ? (capturedFov as Radians)
+    : frustum && isFiniteNumber(frustum.fovVertical)
+    ? (frustum.fovVertical as Radians)
+    : frustum && isFiniteNumber(frustum.fov)
+    ? (frustum.fov as Radians)
+    : undefined;
   const fovHorizontal = getHorizontalFov({ fovVertical, aspect });
   const projectionMatrix = readProjectionMatrix(frustum);
   const projectionMatrixInverse = readProjectionMatrixInverse(
@@ -360,7 +359,9 @@ const readProjectionSnapshot = (
       : undefined;
   const image = readImageResolution(scene).image;
   const principalPointPx =
-    viewOffset && isFiniteNumber(viewOffset.offsetXPx) && isFiniteNumber(viewOffset.offsetYPx)
+    viewOffset &&
+    isFiniteNumber(viewOffset.offsetXPx) &&
+    isFiniteNumber(viewOffset.offsetYPx)
       ? new Vector2(
           viewOffset.offsetXPx + viewOffset.widthPx * 0.5,
           viewOffset.offsetYPx + viewOffset.heightPx * 0.5
@@ -378,8 +379,12 @@ const readProjectionSnapshot = (
     ...(isFiniteNumber(near)
       ? { near: near as Meters, nearPlane: near as Meters }
       : {}),
-    ...(isFiniteNumber(far) ? { far: far as Meters, farPlane: far as Meters } : {}),
-    ...(frustum && isFiniteNumber(frustum.focus) ? { focus: frustum.focus } : {}),
+    ...(isFiniteNumber(far)
+      ? { far: far as Meters, farPlane: far as Meters }
+      : {}),
+    ...(frustum && isFiniteNumber(frustum.focus)
+      ? { focus: frustum.focus }
+      : {}),
     ...(frustum && isFiniteNumber(frustum.filmGauge)
       ? { filmGauge: frustum.filmGauge }
       : {}),
@@ -387,9 +392,13 @@ const readProjectionSnapshot = (
       ? { filmOffset: frustum.filmOffset }
       : {}),
     ...(frustum && isFiniteNumber(frustum.left) ? { left: frustum.left } : {}),
-    ...(frustum && isFiniteNumber(frustum.right) ? { right: frustum.right } : {}),
+    ...(frustum && isFiniteNumber(frustum.right)
+      ? { right: frustum.right }
+      : {}),
     ...(frustum && isFiniteNumber(frustum.top) ? { top: frustum.top } : {}),
-    ...(frustum && isFiniteNumber(frustum.bottom) ? { bottom: frustum.bottom } : {}),
+    ...(frustum && isFiniteNumber(frustum.bottom)
+      ? { bottom: frustum.bottom }
+      : {}),
     ...(image?.width ? { imageWidthPx: image.width } : {}),
     ...(image?.height ? { imageHeightPx: image.height } : {}),
     ...(principalPointPx ? { principalPointPx } : {}),
@@ -397,7 +406,9 @@ const readProjectionSnapshot = (
   };
 };
 
-const buildBasisMatrixFromWorldMatrix = (matrixWorld: Mat4 | null): Mat4 | null => {
+const buildBasisMatrixFromWorldMatrix = (
+  matrixWorld: Mat4 | null
+): Mat4 | null => {
   if (!matrixWorld) {
     return null;
   }
@@ -449,7 +460,9 @@ const buildBasisMatrixFromVectors = ({
   return new Matrix4().makeBasis(right, orthonormalUp, backward);
 };
 
-const readDirectionFromBasisMatrix = (basisMatrixWorld: Mat4 | null): Vec3 | null => {
+const readDirectionFromBasisMatrix = (
+  basisMatrixWorld: Mat4 | null
+): Vec3 | null => {
   if (!basisMatrixWorld) {
     return null;
   }
@@ -465,7 +478,9 @@ const readUpFromBasisMatrix = (basisMatrixWorld: Mat4 | null): Vec3 | null => {
   return new Vector3(0, 1, 0).transformDirection(basisMatrixWorld);
 };
 
-const readRightFromBasisMatrix = (basisMatrixWorld: Mat4 | null): Vec3 | null => {
+const readRightFromBasisMatrix = (
+  basisMatrixWorld: Mat4 | null
+): Vec3 | null => {
   if (!basisMatrixWorld) {
     return null;
   }
@@ -513,7 +528,8 @@ const buildExteriorSnapshot = ({
     toSceneStateVec3(capturedState.direction) ??
     readDirectionFromBasisMatrix(basisMatrixWorld);
   const worldUp =
-    toSceneStateVec3(capturedState.up) ?? readUpFromBasisMatrix(basisMatrixWorld);
+    toSceneStateVec3(capturedState.up) ??
+    readUpFromBasisMatrix(basisMatrixWorld);
   const worldRight =
     toSceneStateVec3(capturedState.right) ??
     readRightFromBasisMatrix(basisMatrixWorld);
@@ -574,7 +590,9 @@ const buildSceneCameraSnapshotFromCapturedState = (
     ...(isFiniteNumber(capturedState.pitch)
       ? { pitchRad: capturedState.pitch }
       : {}),
-    ...(isFiniteNumber(capturedState.roll) ? { rollRad: capturedState.roll } : {}),
+    ...(isFiniteNumber(capturedState.roll)
+      ? { rollRad: capturedState.roll }
+      : {}),
     ...projection,
   };
 };
@@ -702,7 +720,8 @@ const buildCameraModel = ({
   // -PI/2 = nadir, 0 = horizon. The shared camera model stores object-centric
   // pitch in the MapLibre-style orbit convention:
   // 0 = nadir, +PI/2 = horizon.
-  const objectCentricPitch = (cesiumObjectCentricPitch + Math.PI * 0.5) as Radians;
+  const objectCentricPitch = (cesiumObjectCentricPitch +
+    Math.PI * 0.5) as Radians;
 
   const intrinsics: CameraIntrinsics = {
     ...(cameraSnapshot.type ? { type: cameraSnapshot.type } : {}),
@@ -721,7 +740,9 @@ const buildCameraModel = ({
     ...(isFiniteNumber(cameraSnapshot.aspect)
       ? { aspect: cameraSnapshot.aspect }
       : {}),
-    ...(isFiniteNumber(cameraSnapshot.zoom) ? { zoom: cameraSnapshot.zoom } : {}),
+    ...(isFiniteNumber(cameraSnapshot.zoom)
+      ? { zoom: cameraSnapshot.zoom }
+      : {}),
     ...(isFiniteNumber(cameraSnapshot.near)
       ? { near: cameraSnapshot.near as Meters }
       : {}),
@@ -740,7 +761,9 @@ const buildCameraModel = ({
     ...(isFiniteNumber(cameraSnapshot.focalLength)
       ? { focalLength: cameraSnapshot.focalLength }
       : {}),
-    ...(isFiniteNumber(cameraSnapshot.left) ? { left: cameraSnapshot.left } : {}),
+    ...(isFiniteNumber(cameraSnapshot.left)
+      ? { left: cameraSnapshot.left }
+      : {}),
     ...(isFiniteNumber(cameraSnapshot.right)
       ? { right: cameraSnapshot.right }
       : {}),
@@ -862,7 +885,8 @@ export const computeCesiumSceneStateSnapshot = (
   });
   const lighting = readSceneLightingSnapshot({
     scene,
-    referencePointWorld: orbitPoint?.worldPosition ?? cameraSnapshot.worldPosition,
+    referencePointWorld:
+      orbitPoint?.worldPosition ?? cameraSnapshot.worldPosition,
   });
 
   return {

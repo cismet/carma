@@ -116,18 +116,16 @@ export type ObjectCentricBearingPitchRange = {
 export type ObjectCentricCameraPose = CameraPose & {
   anchor: ObjectCentricCameraAnchor;
 } & ObjectCentricBearingPitchRange & {
-  // Roll plus bearing/pitch/range remain useful as object-centric convenience
-  // parameters for orbit-style UIs and cross-engine projections, but they are
-  // derived / informational rather than the most stable orientation carrier.
-  // At exact nadir the viewing azimuth becomes underdefined, so consumers that
-  // need a stable camera attitude should prefer the basis/quaternion/matrices
-  // inherited from CameraPose above.
-  roll?: Radians;
-};
+    // Roll plus bearing/pitch/range remain useful as object-centric convenience
+    // parameters for orbit-style UIs and cross-engine projections, but they are
+    // derived / informational rather than the most stable orientation carrier.
+    // At exact nadir the viewing azimuth becomes underdefined, so consumers that
+    // need a stable camera attitude should prefer the basis/quaternion/matrices
+    // inherited from CameraPose above.
+    roll?: Radians;
+  };
 
-export type CameraModel<
-  TPose extends CameraPose = ObjectCentricCameraPose,
-> = {
+export type CameraModel<TPose extends CameraPose = ObjectCentricCameraPose> = {
   pose: TPose;
   intrinsics?: CameraIntrinsics;
 };

@@ -212,8 +212,10 @@ const GeneratedStemPreview = ({
 
   const strokeWidth = Math.max(line.strokeWidth ?? lineWidth, 1);
   const sidePadding = Math.max(strokeWidth * 1.5, 3);
-  const minX = Math.min(anchors.startDistancePx, anchors.endDistancePx) - sidePadding;
-  const maxX = Math.max(anchors.startDistancePx, anchors.endDistancePx) + sidePadding;
+  const minX =
+    Math.min(anchors.startDistancePx, anchors.endDistancePx) - sidePadding;
+  const maxX =
+    Math.max(anchors.startDistancePx, anchors.endDistancePx) + sidePadding;
   const width = Math.max(0.001, maxX - minX);
   const height = Math.max(16, strokeWidth * 4);
   const centerY = height * 0.5;
@@ -274,7 +276,9 @@ const RepresentativeCasesStory = (args: LabelMarkersStoryArgs) => {
         <div style={headingStyle}>Representative Cases</div>
 
         <section style={sectionStyle}>
-          <div style={sectionTitleStyle}>varying: marker content, size, occlusion</div>
+          <div style={sectionTitleStyle}>
+            varying: marker content, size, occlusion
+          </div>
           <div style={rowListStyle}>
             <InlineRow label="outline (size 8)">
               <div style={anchorStyle}>
@@ -284,7 +288,9 @@ const RepresentativeCasesStory = (args: LabelMarkersStoryArgs) => {
                   markerSize={8}
                   markerStrokeWidth={args.markerStrokeWidth ?? 1}
                   isOccluded={false}
-                  markerBackgroundColor={args.markerBackgroundColor ?? "rgba(200, 200, 200, 0.92)"}
+                  markerBackgroundColor={
+                    args.markerBackgroundColor ?? "rgba(200, 200, 200, 0.92)"
+                  }
                   markerTextColor={args.markerTextColor ?? "#111111"}
                   pointerEvents="auto"
                   cursor="pointer"
@@ -305,7 +311,9 @@ const RepresentativeCasesStory = (args: LabelMarkersStoryArgs) => {
                   markerSize={16}
                   markerStrokeWidth={args.markerStrokeWidth ?? 1}
                   isOccluded={false}
-                  markerBackgroundColor={args.markerBackgroundColor ?? "rgba(200, 200, 200, 0.92)"}
+                  markerBackgroundColor={
+                    args.markerBackgroundColor ?? "rgba(200, 200, 200, 0.92)"
+                  }
                   markerTextColor={args.markerTextColor ?? "#111111"}
                   pointerEvents="auto"
                   cursor="pointer"
@@ -327,7 +335,9 @@ const RepresentativeCasesStory = (args: LabelMarkersStoryArgs) => {
                   markerStrokeWidth={args.markerStrokeWidth ?? 1}
                   markerContent={args.compactContent ?? "7"}
                   isOccluded={false}
-                  markerBackgroundColor={args.markerBackgroundColor ?? "rgba(200, 200, 200, 0.92)"}
+                  markerBackgroundColor={
+                    args.markerBackgroundColor ?? "rgba(200, 200, 200, 0.92)"
+                  }
                   markerTextColor={args.markerTextColor ?? "#111111"}
                   pointerEvents="auto"
                   cursor="pointer"
@@ -349,7 +359,9 @@ const RepresentativeCasesStory = (args: LabelMarkersStoryArgs) => {
                   markerStrokeWidth={args.markerStrokeWidth ?? 1}
                   markerContent="12"
                   isOccluded={false}
-                  markerBackgroundColor={args.markerBackgroundColor ?? "rgba(200, 200, 200, 0.92)"}
+                  markerBackgroundColor={
+                    args.markerBackgroundColor ?? "rgba(200, 200, 200, 0.92)"
+                  }
                   markerTextColor={args.markerTextColor ?? "#111111"}
                   pointerEvents="auto"
                   cursor="pointer"
@@ -371,7 +383,9 @@ const RepresentativeCasesStory = (args: LabelMarkersStoryArgs) => {
                   markerStrokeWidth={args.markerStrokeWidth ?? 1}
                   markerContent={args.compactContent ?? "7"}
                   isOccluded
-                  markerBackgroundColor={args.markerBackgroundColor ?? "rgba(200, 200, 200, 0.92)"}
+                  markerBackgroundColor={
+                    args.markerBackgroundColor ?? "rgba(200, 200, 200, 0.92)"
+                  }
                   markerTextColor={args.markerTextColor ?? "#111111"}
                   pointerEvents="auto"
                   cursor="pointer"
@@ -388,7 +402,9 @@ const RepresentativeCasesStory = (args: LabelMarkersStoryArgs) => {
         </section>
 
         <section style={sectionStyle}>
-          <div style={sectionTitleStyle}>varying: stem angle, distances, occlusion</div>
+          <div style={sectionTitleStyle}>
+            varying: stem angle, distances, occlusion
+          </div>
           <div style={rowListStyle}>
             <InlineRow label="-90°, start 5, end 36">
               <div style={anchorStyle}>
@@ -396,7 +412,9 @@ const RepresentativeCasesStory = (args: LabelMarkersStoryArgs) => {
                 <GeneratedStemPreview
                   angleRad={-Math.PI * 0.5}
                   anchors={{ startDistancePx: 5, endDistancePx: 36 }}
-                  lineColor={sharedStyleProps.lineColor ?? "rgba(30, 64, 175, 0.95)"}
+                  lineColor={
+                    sharedStyleProps.lineColor ?? "rgba(30, 64, 175, 0.95)"
+                  }
                   lineWidth={sharedStyleProps.lineWidth ?? 1}
                   isOccluded={false}
                 />
@@ -408,7 +426,9 @@ const RepresentativeCasesStory = (args: LabelMarkersStoryArgs) => {
                 <GeneratedStemPreview
                   angleRad={-Math.PI * 0.25}
                   anchors={{ startDistancePx: 5, endDistancePx: 44 }}
-                  lineColor={sharedStyleProps.lineColor ?? "rgba(30, 64, 175, 0.95)"}
+                  lineColor={
+                    sharedStyleProps.lineColor ?? "rgba(30, 64, 175, 0.95)"
+                  }
                   lineWidth={sharedStyleProps.lineWidth ?? 1}
                   isOccluded={false}
                 />
@@ -420,7 +440,9 @@ const RepresentativeCasesStory = (args: LabelMarkersStoryArgs) => {
                 <GeneratedStemPreview
                   angleRad={0}
                   anchors={{ startDistancePx: 8, endDistancePx: 52 }}
-                  lineColor={sharedStyleProps.lineColor ?? "rgba(30, 64, 175, 0.95)"}
+                  lineColor={
+                    sharedStyleProps.lineColor ?? "rgba(30, 64, 175, 0.95)"
+                  }
                   lineWidth={sharedStyleProps.lineWidth ?? 1}
                   isOccluded={false}
                 />
@@ -432,7 +454,9 @@ const RepresentativeCasesStory = (args: LabelMarkersStoryArgs) => {
                 <GeneratedStemPreview
                   angleRad={Math.PI * 0.25}
                   anchors={{ startDistancePx: 5, endDistancePx: 60 }}
-                  lineColor={sharedStyleProps.lineColor ?? "rgba(30, 64, 175, 0.95)"}
+                  lineColor={
+                    sharedStyleProps.lineColor ?? "rgba(30, 64, 175, 0.95)"
+                  }
                   lineWidth={sharedStyleProps.lineWidth ?? 1}
                   isOccluded={false}
                 />
@@ -444,7 +468,9 @@ const RepresentativeCasesStory = (args: LabelMarkersStoryArgs) => {
                 <GeneratedStemPreview
                   angleRad={Math.PI * 0.5}
                   anchors={{ startDistancePx: 5, endDistancePx: 36 }}
-                  lineColor={sharedStyleProps.lineColor ?? "rgba(30, 64, 175, 0.95)"}
+                  lineColor={
+                    sharedStyleProps.lineColor ?? "rgba(30, 64, 175, 0.95)"
+                  }
                   lineWidth={sharedStyleProps.lineWidth ?? 1}
                   isOccluded
                 />
@@ -454,48 +480,52 @@ const RepresentativeCasesStory = (args: LabelMarkersStoryArgs) => {
         </section>
 
         <section style={sectionStyle}>
-          <div style={sectionTitleStyle}>varying: attach, collapse, content length</div>
+          <div style={sectionTitleStyle}>
+            varying: attach, collapse, content length
+          </div>
           <div style={rowListStyle}>
-            {([
-              {
-                id: "label-left",
-                label: "attach left",
-                attach: "left" as PointLabelAttach,
-                content: "14,92 m",
-                collapse: false,
-                fullBorder: false,
-                compactBorderless: false,
-              },
-              {
-                id: "label-center",
-                label: "attach center",
-                attach: "center" as PointLabelAttach,
-                content: "392.5px screen distance",
-                collapse: false,
-                fullBorder: false,
-                compactBorderless: false,
-              },
-              {
-                id: "label-right-selected",
-                label: "attach right (selected)",
-                attach: "right" as PointLabelAttach,
-                content: "selected",
-                collapse: false,
-                fullBorder: true,
-                compactBorderless: false,
-                backgroundColor: "rgba(251, 191, 36, 0.95)",
-              },
-              {
-                id: "label-collapsed",
-                label: "collapsed compact",
-                attach: "left" as PointLabelAttach,
-                content: "14,92 m",
-                collapse: true,
-                fullBorder: false,
-                compactBorderless: false,
-                markerContent: args.compactContent ?? "7",
-              },
-            ] as const).map((entry) => (
+            {(
+              [
+                {
+                  id: "label-left",
+                  label: "attach left",
+                  attach: "left" as PointLabelAttach,
+                  content: "14,92 m",
+                  collapse: false,
+                  fullBorder: false,
+                  compactBorderless: false,
+                },
+                {
+                  id: "label-center",
+                  label: "attach center",
+                  attach: "center" as PointLabelAttach,
+                  content: "392.5px screen distance",
+                  collapse: false,
+                  fullBorder: false,
+                  compactBorderless: false,
+                },
+                {
+                  id: "label-right-selected",
+                  label: "attach right (selected)",
+                  attach: "right" as PointLabelAttach,
+                  content: "selected",
+                  collapse: false,
+                  fullBorder: true,
+                  compactBorderless: false,
+                  backgroundColor: "rgba(251, 191, 36, 0.95)",
+                },
+                {
+                  id: "label-collapsed",
+                  label: "collapsed compact",
+                  attach: "left" as PointLabelAttach,
+                  content: "14,92 m",
+                  collapse: true,
+                  fullBorder: false,
+                  compactBorderless: false,
+                  markerContent: args.compactContent ?? "7",
+                },
+              ] as const
+            ).map((entry) => (
               <InlineRow key={entry.id} label={entry.label}>
                 <div style={anchorStyle}>
                   <AnchorHairlineDebug visible={showDebugAnchors} />
@@ -521,7 +551,9 @@ const RepresentativeCasesStory = (args: LabelMarkersStoryArgs) => {
                     cursor="pointer"
                     collapse={entry.collapse}
                     markerContent={entry.markerContent}
-                    markerBackgroundColor={sharedStyleProps.markerBackgroundColor}
+                    markerBackgroundColor={
+                      sharedStyleProps.markerBackgroundColor
+                    }
                     markerTextColor={sharedStyleProps.markerTextColor}
                     compactBorderless={entry.compactBorderless}
                     fullBorder={entry.fullBorder}
@@ -544,44 +576,46 @@ const RepresentativeCasesStory = (args: LabelMarkersStoryArgs) => {
         <section style={sectionStyle}>
           <div style={sectionTitleStyle}>varying: combined defaults</div>
           <div style={rowListStyle}>
-            {([
-              {
-                id: "combined-default",
-                label: "default",
-                selected: false,
-                isOccluded: false,
-                collapse: true,
-                forceCollapse: false,
-                pitch: -Math.PI / 4,
-                labelAttach: "left" as PointLabelAttach,
-                hideMarker: false,
-                hideLabelAndStem: false,
-              },
-              {
-                id: "combined-selected",
-                label: "selected",
-                selected: true,
-                isOccluded: false,
-                collapse: true,
-                forceCollapse: false,
-                pitch: -Math.PI / 4,
-                labelAttach: "left" as PointLabelAttach,
-                hideMarker: false,
-                hideLabelAndStem: false,
-              },
-              {
-                id: "combined-occluded",
-                label: "occluded",
-                selected: false,
-                isOccluded: true,
-                collapse: true,
-                forceCollapse: false,
-                pitch: -Math.PI / 4,
-                labelAttach: "left" as PointLabelAttach,
-                hideMarker: false,
-                hideLabelAndStem: false,
-              },
-            ] as const).map((entry) => (
+            {(
+              [
+                {
+                  id: "combined-default",
+                  label: "default",
+                  selected: false,
+                  isOccluded: false,
+                  collapse: true,
+                  forceCollapse: false,
+                  pitch: -Math.PI / 4,
+                  labelAttach: "left" as PointLabelAttach,
+                  hideMarker: false,
+                  hideLabelAndStem: false,
+                },
+                {
+                  id: "combined-selected",
+                  label: "selected",
+                  selected: true,
+                  isOccluded: false,
+                  collapse: true,
+                  forceCollapse: false,
+                  pitch: -Math.PI / 4,
+                  labelAttach: "left" as PointLabelAttach,
+                  hideMarker: false,
+                  hideLabelAndStem: false,
+                },
+                {
+                  id: "combined-occluded",
+                  label: "occluded",
+                  selected: false,
+                  isOccluded: true,
+                  collapse: true,
+                  forceCollapse: false,
+                  pitch: -Math.PI / 4,
+                  labelAttach: "left" as PointLabelAttach,
+                  hideMarker: false,
+                  hideLabelAndStem: false,
+                },
+              ] as const
+            ).map((entry) => (
               <InlineRow key={entry.id} label={entry.label}>
                 <div style={{ ...anchorStyle, top: "54%" }}>
                   <AnchorHairlineDebug visible={showDebugAnchors} />

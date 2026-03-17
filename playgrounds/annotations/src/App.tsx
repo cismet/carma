@@ -9,11 +9,13 @@ import {
 import type { PlaygroundRuntime } from "./playground.types";
 
 export const App = () => {
-  const [runtimeVersion, setRuntimeVersion] = useState<PlaygroundRuntime>(
-    () => readInitialRuntimeVersion()
+  const [runtimeVersion, setRuntimeVersion] = useState<PlaygroundRuntime>(() =>
+    readInitialRuntimeVersion()
   );
 
-  const handleRuntimeVersionChange = (nextRuntimeVersion: PlaygroundRuntime) => {
+  const handleRuntimeVersionChange = (
+    nextRuntimeVersion: PlaygroundRuntime
+  ) => {
     setRuntimeVersion(nextRuntimeVersion);
     persistRuntimeVersion(nextRuntimeVersion);
   };

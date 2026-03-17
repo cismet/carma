@@ -14,7 +14,7 @@ export type Vector3Arr = [number, number, number];
 export type Matrix3RowMajor = [
   [number, number, number],
   [number, number, number],
-  [number, number, number],
+  [number, number, number]
 ];
 
 export const isFiniteNumber = (value: unknown): value is number =>

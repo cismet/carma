@@ -41,13 +41,13 @@ type VariantProps = {
 };
 
 const VariantLabel = ({ title }: { title: string }) => (
-    <div
-      style={{
-        marginBottom: 8,
-        fontSize: 13,
-        fontWeight: 600,
-        lineHeight: 1.2,
-        color: "#334155",
+  <div
+    style={{
+      marginBottom: 8,
+      fontSize: 13,
+      fontWeight: 600,
+      lineHeight: 1.2,
+      color: "#334155",
     }}
   >
     {title}
@@ -70,7 +70,13 @@ const CardVariant = ({
   return (
     <div style={surfaceStyle}>
       <VariantLabel title={title} />
-      <div style={panelWidth ? { width: panelWidth, maxWidth: "100%" } : { display: "inline-block", maxWidth: "100%" }}>
+      <div
+        style={
+          panelWidth
+            ? { width: panelWidth, maxWidth: "100%" }
+            : { display: "inline-block", maxWidth: "100%" }
+        }
+      >
         <CarmaCard
           draggable={draggable}
           dragGripPlacement={dragGripPlacement}
@@ -118,22 +124,30 @@ const InfoBoxVariant = ({
 }: VariantProps) => (
   <div style={surfaceStyle}>
     <VariantLabel title={title} />
-    <div style={panelWidth ? { width: panelWidth, maxWidth: "100%" } : { display: "inline-block", maxWidth: "100%" }}>
+    <div
+      style={
+        panelWidth
+          ? { width: panelWidth, maxWidth: "100%" }
+          : { display: "inline-block", maxWidth: "100%" }
+      }
+    >
       <CarmaResponsiveInfoBox
         useControlLayout={false}
         draggable={draggable}
         dragGripPlacement={dragGripPlacement}
         defaultCollapsed={defaultCollapsed}
         collapsible
-        heading={<span style={{ color: "#ffffff", fontWeight: 600 }}>{headerText}</span>}
+        heading={
+          <span style={{ color: "#ffffff", fontWeight: 600 }}>
+            {headerText}
+          </span>
+        }
         headingColor="rgba(15, 23, 42, 0.9)"
         subtitle={
           subtitle ? <div style={bodyTextStyle}>{subtitle}</div> : undefined
         }
         content={<div style={bodyTextStyle}>{content}</div>}
-        footer={
-          footer ? <div style={bodyTextStyle}>{footer}</div> : undefined
-        }
+        footer={footer ? <div style={bodyTextStyle}>{footer}</div> : undefined}
       />
     </div>
   </div>
@@ -152,7 +166,14 @@ const Showcase = () => {
       }}
     >
       <div style={{ minHeight: "100vh" }}>
-        <div style={{ position: "sticky", top: 0, zIndex: 1200, pointerEvents: "none" }}>
+        <div
+          style={{
+            position: "sticky",
+            top: 0,
+            zIndex: 1200,
+            pointerEvents: "none",
+          }}
+        >
           <ResponsiveStatusBar text="CarmaCard + CarmaResponsiveInfoBox variants" />
         </div>
         <div style={{ padding: 16 }}>

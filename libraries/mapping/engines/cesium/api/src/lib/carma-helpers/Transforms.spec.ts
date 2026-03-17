@@ -34,9 +34,9 @@ describe("Transforms CartographicHeadingPitchRange round-trip", () => {
     expect(
       Cartesian3.distance(decoded!.referencePointECEF, referencePoint)
     ).toBeLessThan(0.001);
-    expect(Cartesian3.distance(decoded!.cameraPositionECEF, cameraPosition)).toBeLessThan(
-      0.05
-    );
+    expect(
+      Cartesian3.distance(decoded!.cameraPositionECEF, cameraPosition)
+    ).toBeLessThan(0.05);
   });
 
   it("round-trips camera/reference points (long-range)", () => {
@@ -55,8 +55,8 @@ describe("Transforms CartographicHeadingPitchRange round-trip", () => {
     expect(
       Cartesian3.distance(decoded!.referencePointECEF, referencePoint)
     ).toBeLessThan(0.001);
-    expect(Cartesian3.distance(decoded!.cameraPositionECEF, cameraPosition)).toBeLessThan(
-      0.2
-    );
+    expect(
+      Cartesian3.distance(decoded!.cameraPositionECEF, cameraPosition)
+    ).toBeLessThan(0.2);
   });
 });

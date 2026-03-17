@@ -7,10 +7,7 @@ import {
   Transforms,
 } from "../cesium";
 
-import {
-  cartesian3FromJson,
-  type Cartesian3Json,
-} from "../serialization/base";
+import { cartesian3FromJson, type Cartesian3Json } from "../serialization/base";
 
 const PLANAR_TRANSFORM_ELEMENTS = new Array<number>(16);
 const BASIS_SCALE_TRANSLATION_ELEMENTS = new Array<number>(16);
@@ -458,8 +455,10 @@ const toHeadingPitchRangeOffsetInEnu = (
   headingPitchRange: HeadingPitchRange
 ): Cartesian3 => {
   const cosPitch = Math.cos(headingPitchRange.pitch);
-  const east = Math.sin(headingPitchRange.heading) * cosPitch * headingPitchRange.range;
-  const north = Math.cos(headingPitchRange.heading) * cosPitch * headingPitchRange.range;
+  const east =
+    Math.sin(headingPitchRange.heading) * cosPitch * headingPitchRange.range;
+  const north =
+    Math.cos(headingPitchRange.heading) * cosPitch * headingPitchRange.range;
   const up = Math.sin(headingPitchRange.pitch) * headingPitchRange.range;
   return new Cartesian3(east, north, up);
 };

@@ -1,15 +1,15 @@
-import type { CssPixelPosition } from '@carma/units/types';
+import type { CssPixelPosition } from "@carma/units/types";
 
 const MIN_SEGMENT_LENGTH_PX = 0.0001;
 const MIN_SIGNED_AREA_TWICE = 0.000001;
 
-export type PolygonSegmentLabelSide = 'inside' | 'outside';
-export type PolygonSegmentLabelRotationMode = 'readable' | 'clockwise';
-export type PolygonSegmentLabelWindingOrder = 'ccw' | 'cw';
+export type PolygonSegmentLabelSide = "inside" | "outside";
+export type PolygonSegmentLabelRotationMode = "readable" | "clockwise";
+export type PolygonSegmentLabelWindingOrder = "ccw" | "cw";
 export type PolygonSegmentLabelWindingPolicy =
-  | 'respect-input'
-  | 'enforce-ccw'
-  | 'enforce-cw';
+  | "respect-input"
+  | "enforce-ccw"
+  | "enforce-cw";
 
 export type PolygonSegmentLabelPlacement = {
   segmentIndex: number;
@@ -35,8 +35,8 @@ export type ComputePolygonSegmentLabelPlacementsOptions = {
 };
 
 const toCssPixelPosition = (x: number, y: number): CssPixelPosition => ({
-  x: x as CssPixelPosition['x'],
-  y: y as CssPixelPosition['y'],
+  x: x as CssPixelPosition["x"],
+  y: y as CssPixelPosition["y"],
 });
 
 const normalizeAngleDeg = (angleDeg: number): number => {
@@ -89,7 +89,7 @@ export const computePolygonScreenWindingOrder = (
   if (Math.abs(signedAreaTwice) <= MIN_SIGNED_AREA_TWICE) {
     return null;
   }
-  return signedAreaTwice >= 0 ? 'ccw' : 'cw';
+  return signedAreaTwice >= 0 ? "ccw" : "cw";
 };
 
 const resolveWindingOrder = ({
@@ -99,13 +99,13 @@ const resolveWindingOrder = ({
   inputWindingOrder: PolygonSegmentLabelWindingOrder | null;
   windingPolicy: PolygonSegmentLabelWindingPolicy;
 }): PolygonSegmentLabelWindingOrder => {
-  if (windingPolicy === 'enforce-cw') {
-    return 'cw';
+  if (windingPolicy === "enforce-cw") {
+    return "cw";
   }
-  if (windingPolicy === 'enforce-ccw') {
-    return 'ccw';
+  if (windingPolicy === "enforce-ccw") {
+    return "ccw";
   }
-  return inputWindingOrder ?? 'ccw';
+  return inputWindingOrder ?? "ccw";
 };
 
 const resolveReadableRotationDeg = ({
@@ -139,10 +139,10 @@ const resolveReadableRotationDeg = ({
 export const computePolygonSegmentLabelPlacements = ({
   polygon,
   closed = true,
-  side = 'outside',
+  side = "outside",
   offsetPx = 10,
-  rotationMode = 'readable',
-  windingPolicy = 'enforce-ccw',
+  rotationMode = "readable",
+  windingPolicy = "enforce-ccw",
   includeDegenerateSegments = false,
 }: ComputePolygonSegmentLabelPlacementsOptions): PolygonSegmentLabelPlacement[] => {
   const vertices = normalizePolygonVertices(polygon);
@@ -160,7 +160,7 @@ export const computePolygonSegmentLabelPlacements = ({
     inputWindingOrder,
     windingPolicy,
   });
-  const insideNormalSign = resolvedWindingOrder === 'ccw' ? 1 : -1;
+  const insideNormalSign = resolvedWindingOrder === "ccw" ? 1 : -1;
   const placements: PolygonSegmentLabelPlacement[] = [];
 
   for (let segmentIndex = 0; segmentIndex < segmentCount; segmentIndex += 1) {
@@ -183,8 +183,8 @@ export const computePolygonSegmentLabelPlacements = ({
     const insideNormalY = leftNormalY * insideNormalSign;
     const outsideNormalX = -insideNormalX;
     const outsideNormalY = -insideNormalY;
-    const selectedNormalX = side === 'inside' ? insideNormalX : outsideNormalX;
-    const selectedNormalY = side === 'inside' ? insideNormalY : outsideNormalY;
+    const selectedNormalX = side === "inside" ? insideNormalX : outsideNormalX;
+    const selectedNormalY = side === "inside" ? insideNormalY : outsideNormalY;
     const anchor = toCssPixelPosition(
       midX + selectedNormalX * offsetPx,
       midY + selectedNormalY * offsetPx
@@ -199,7 +199,7 @@ export const computePolygonSegmentLabelPlacements = ({
     );
     const rawAngleDeg = (Math.atan2(dy, dx) * 180) / Math.PI;
     const rotationDeg =
-      rotationMode === 'clockwise'
+      rotationMode === "clockwise"
         ? normalizeAngleDeg(rawAngleDeg)
         : resolveReadableRotationDeg({
             dx,

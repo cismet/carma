@@ -5,7 +5,10 @@ import type {
   CustomRenderMethodInput,
 } from "maplibre-gl";
 import { MercatorCoordinate } from "maplibre-gl";
-import type { SceneColorSnapshot, SceneDirectionalLightSnapshot } from "@carma/types";
+import type {
+  SceneColorSnapshot,
+  SceneDirectionalLightSnapshot,
+} from "@carma/types";
 import type {
   Carma3dConfig,
   MappedFeature,
@@ -24,7 +27,7 @@ const DEFAULT_MAIN_LIGHT_DISTANCE = DEFAULT_MAIN_LIGHT_POSITION.length();
 const applySceneColorSnapshot = (
   color: SceneColorSnapshot | undefined,
   target: THREE.Color,
-  fallbackHex: number,
+  fallbackHex: number
 ) => {
   if (!color) {
     target.setHex(fallbackHex);
@@ -36,7 +39,7 @@ const applySceneColorSnapshot = (
 
 const applyMainDirectionalLight = (
   light: THREE.DirectionalLight,
-  snapshot: SceneDirectionalLightSnapshot | undefined,
+  snapshot: SceneDirectionalLightSnapshot | undefined
 ) => {
   const explicitPosition = snapshot?.positionWorld;
   const directionWorld = snapshot?.directionWorld;
@@ -50,7 +53,7 @@ const applyMainDirectionalLight = (
     light.position.set(
       explicitPosition.x,
       explicitPosition.y,
-      explicitPosition.z,
+      explicitPosition.z
     );
   } else if (
     directionWorld &&
@@ -61,12 +64,12 @@ const applyMainDirectionalLight = (
     const emittedDirection = new THREE.Vector3(
       directionWorld.x,
       directionWorld.y,
-      directionWorld.z,
+      directionWorld.z
     );
     if (emittedDirection.lengthSq() > 1e-6) {
       emittedDirection.normalize();
       light.position.copy(
-        emittedDirection.multiplyScalar(-DEFAULT_MAIN_LIGHT_DISTANCE),
+        emittedDirection.multiplyScalar(-DEFAULT_MAIN_LIGHT_DISTANCE)
       );
     } else {
       light.position.copy(DEFAULT_MAIN_LIGHT_POSITION);
@@ -75,9 +78,14 @@ const applyMainDirectionalLight = (
     light.position.copy(DEFAULT_MAIN_LIGHT_POSITION);
   }
 
-  applySceneColorSnapshot(snapshot?.color, light.color, DEFAULT_MAIN_LIGHT_COLOR);
+  applySceneColorSnapshot(
+    snapshot?.color,
+    light.color,
+    DEFAULT_MAIN_LIGHT_COLOR
+  );
   light.intensity =
-    typeof snapshot?.intensity === "number" && Number.isFinite(snapshot.intensity)
+    typeof snapshot?.intensity === "number" &&
+    Number.isFinite(snapshot.intensity)
       ? snapshot.intensity
       : DEFAULT_MAIN_LIGHT_INTENSITY;
   light.target.position.set(0, 0, 0);
@@ -179,12 +187,12 @@ export function buildGenericLayer(
 
       const sun = new THREE.DirectionalLight(
         DEFAULT_MAIN_LIGHT_COLOR,
-        DEFAULT_MAIN_LIGHT_INTENSITY,
+        DEFAULT_MAIN_LIGHT_INTENSITY
       );
       this._mainDirectionalLight = sun;
       applyMainDirectionalLight(
         sun,
-        this._config.scene?.lighting?.mainDirectionalLight,
+        this._config.scene?.lighting?.mainDirectionalLight
       );
       this.scene.add(sun);
       this.scene.add(sun.target);
@@ -228,7 +236,7 @@ export function buildGenericLayer(
 
       applyMainDirectionalLight(
         this._mainDirectionalLight,
-        this._config.scene?.lighting?.mainDirectionalLight,
+        this._config.scene?.lighting?.mainDirectionalLight
       );
 
       const originMerc = this._originMerc;

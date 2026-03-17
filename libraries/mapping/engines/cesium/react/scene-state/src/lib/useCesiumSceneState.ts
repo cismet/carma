@@ -18,15 +18,20 @@ export const useCesiumSceneStateStore = (): CesiumSceneStateStore => {
 
 export const useCesiumSceneState = (): CesiumSceneStateSnapshot | null => {
   const store = useCesiumSceneStateStore();
-  return useSyncExternalStore(store.subscribe, store.getSnapshot, store.getSnapshot);
+  return useSyncExternalStore(
+    store.subscribe,
+    store.getSnapshot,
+    store.getSnapshot
+  );
 };
 
-export const useCesiumSceneStateOptional = (): CesiumSceneStateSnapshot | null => {
-  const store = useContext(CesiumSceneStateStoreContext);
-  const subscribe = store?.subscribe ?? nullSubscribe;
-  const getSnapshot = store?.getSnapshot ?? nullSnapshot;
-  return useSyncExternalStore(subscribe, getSnapshot, getSnapshot);
-};
+export const useCesiumSceneStateOptional =
+  (): CesiumSceneStateSnapshot | null => {
+    const store = useContext(CesiumSceneStateStoreContext);
+    const subscribe = store?.subscribe ?? nullSubscribe;
+    const getSnapshot = store?.getSnapshot ?? nullSnapshot;
+    return useSyncExternalStore(subscribe, getSnapshot, getSnapshot);
+  };
 
 export const useCesiumSceneStateErrorOptional = (): Error | null => {
   const store = useContext(CesiumSceneStateStoreContext);

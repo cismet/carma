@@ -2,9 +2,15 @@ export type {
   Cartesian3ConstructorArgs,
   Cartesian3Json,
 } from "./Cartesian3Serialization";
-export { cartesian3FromJson, cartesian3ToJson } from "./Cartesian3Serialization";
+export {
+  cartesian3FromJson,
+  cartesian3ToJson,
+} from "./Cartesian3Serialization";
 
-export type { CartographicJson, CartographicJsonTyped } from "./CartographicSerialization";
+export type {
+  CartographicJson,
+  CartographicJsonTyped,
+} from "./CartographicSerialization";
 export { cartographicToJson } from "./CartographicSerialization";
 
 export type { ColorConstructorArgs, ColorJson } from "./ColorSerialization";

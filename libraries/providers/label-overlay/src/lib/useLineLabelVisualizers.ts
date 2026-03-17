@@ -145,89 +145,88 @@ const resolveLineLabelPlacement = ({
   };
 };
 
-const buildLineLabelOverlayUpdatePosition =
-  (line: LineVisualizerData) => {
-    const svgLineScratch = createSvgLineScratch();
-    return (elementDiv: HTMLElement) => {
-      const svgLine = resolveSvgLine({
-        getSvgLine: line.getSvgLine,
-        scratch: svgLineScratch,
-      });
-      if (!svgLine || !line.labelText) return false;
+const buildLineLabelOverlayUpdatePosition = (line: LineVisualizerData) => {
+  const svgLineScratch = createSvgLineScratch();
+  return (elementDiv: HTMLElement) => {
+    const svgLine = resolveSvgLine({
+      getSvgLine: line.getSvgLine,
+      scratch: svgLineScratch,
+    });
+    if (!svgLine || !line.labelText) return false;
 
-      const labelRootEl = elementDiv.querySelector(
-        '[data-anchored-label-root="true"]'
-      ) as HTMLDivElement | null;
-      const labelTextEl = elementDiv.querySelector(
-        '[data-anchored-label-text="true"]'
-      ) as HTMLSpanElement | null;
-      if (!labelRootEl || !labelTextEl) return false;
+    const labelRootEl = elementDiv.querySelector(
+      '[data-anchored-label-root="true"]'
+    ) as HTMLDivElement | null;
+    const labelTextEl = elementDiv.querySelector(
+      '[data-anchored-label-text="true"]'
+    ) as HTMLSpanElement | null;
+    if (!labelRootEl || !labelTextEl) return false;
 
-      const placement = resolveLineLabelPlacement({
-        line,
-        svgLine,
-        previousShouldFlip: elementDiv.dataset.normalFlip === "1",
-      });
-      if (!placement) {
-        return false;
-      }
-      elementDiv.dataset.normalFlip = placement.shouldFlip ? "1" : "0";
+    const placement = resolveLineLabelPlacement({
+      line,
+      svgLine,
+      previousShouldFlip: elementDiv.dataset.normalFlip === "1",
+    });
+    if (!placement) {
+      return false;
+    }
+    elementDiv.dataset.normalFlip = placement.shouldFlip ? "1" : "0";
 
-      const previousTextX = Number.parseFloat(
-        elementDiv.dataset.stableTextX ?? ""
-      );
-      const previousTextY = Number.parseFloat(
-        elementDiv.dataset.stableTextY ?? ""
-      );
-      const hasPreviousTextPosition =
-        Number.isFinite(previousTextX) && Number.isFinite(previousTextY);
-      const stableTextPosition =
-        hasPreviousTextPosition &&
-        Math.hypot(
-          placement.textX - previousTextX,
-          placement.textY - previousTextY
-        ) <= LABEL_POSITION_STABILITY_EPSILON_PX
-          ? { x: previousTextX, y: previousTextY }
-          : { x: placement.textX, y: placement.textY };
+    const previousTextX = Number.parseFloat(
+      elementDiv.dataset.stableTextX ?? ""
+    );
+    const previousTextY = Number.parseFloat(
+      elementDiv.dataset.stableTextY ?? ""
+    );
+    const hasPreviousTextPosition =
+      Number.isFinite(previousTextX) && Number.isFinite(previousTextY);
+    const stableTextPosition =
+      hasPreviousTextPosition &&
+      Math.hypot(
+        placement.textX - previousTextX,
+        placement.textY - previousTextY
+      ) <= LABEL_POSITION_STABILITY_EPSILON_PX
+        ? { x: previousTextX, y: previousTextY }
+        : { x: placement.textX, y: placement.textY };
 
-      const previousAngleDeg = Number.parseFloat(
-        elementDiv.dataset.stableAngleDeg ?? ""
-      );
-      const hasPreviousAngle = Number.isFinite(previousAngleDeg);
-      const normalizedAngleDelta = hasPreviousAngle
-        ? Math.abs(((placement.angleDeg - previousAngleDeg + 540) % 360) - 180)
-        : Number.POSITIVE_INFINITY;
-      const stableAngleDeg =
-        hasPreviousAngle &&
-        normalizedAngleDelta <= LABEL_ANGLE_STABILITY_EPSILON_DEG
-          ? previousAngleDeg
-          : placement.angleDeg;
+    const previousAngleDeg = Number.parseFloat(
+      elementDiv.dataset.stableAngleDeg ?? ""
+    );
+    const hasPreviousAngle = Number.isFinite(previousAngleDeg);
+    const normalizedAngleDelta = hasPreviousAngle
+      ? Math.abs(((placement.angleDeg - previousAngleDeg + 540) % 360) - 180)
+      : Number.POSITIVE_INFINITY;
+    const stableAngleDeg =
+      hasPreviousAngle &&
+      normalizedAngleDelta <= LABEL_ANGLE_STABILITY_EPSILON_DEG
+        ? previousAngleDeg
+        : placement.angleDeg;
 
-      elementDiv.dataset.stableTextX = `${stableTextPosition.x}`;
-      elementDiv.dataset.stableTextY = `${stableTextPosition.y}`;
-      elementDiv.dataset.stableAngleDeg = `${stableAngleDeg}`;
+    elementDiv.dataset.stableTextX = `${stableTextPosition.x}`;
+    elementDiv.dataset.stableTextY = `${stableTextPosition.y}`;
+    elementDiv.dataset.stableAngleDeg = `${stableAngleDeg}`;
 
-      labelRootEl.style.transform = `translate(${stableTextPosition.x}px, ${stableTextPosition.y}px) translate(-50%, -50%) rotate(${stableAngleDeg}deg)`;
+    labelRootEl.style.transform = `translate(${stableTextPosition.x}px, ${stableTextPosition.y}px) translate(-50%, -50%) rotate(${stableAngleDeg}deg)`;
 
-      const textWidthPx = labelTextEl.getBoundingClientRect().width;
-      const minLabelLineLengthPx =
-        line.labelMinLineLengthPx ?? DEFAULT_MIN_LABEL_LINE_LENGTH_PX;
-      const previousVisible = elementDiv.dataset.labelVisible === "1";
-      const lengthThreshold = previousVisible
-        ? minLabelLineLengthPx - LABEL_VISIBILITY_HYSTERESIS_PX
-        : minLabelLineLengthPx + LABEL_VISIBILITY_HYSTERESIS_PX;
-      const fitThreshold = previousVisible
-        ? placement.lineLength + LABEL_VISIBILITY_HYSTERESIS_PX
-        : placement.lineLength - LABEL_VISIBILITY_HYSTERESIS_PX;
-      const shouldShowLabel =
-        placement.lineLength >= lengthThreshold &&
-        textWidthPx + LABEL_MIN_PADDING_PX <= fitThreshold;
+    const textWidthPx = labelTextEl.getBoundingClientRect().width;
+    const minLabelLineLengthPx =
+      line.labelMinLineLengthPx ?? DEFAULT_MIN_LABEL_LINE_LENGTH_PX;
+    const previousVisible = elementDiv.dataset.labelVisible === "1";
+    const lengthThreshold = previousVisible
+      ? minLabelLineLengthPx - LABEL_VISIBILITY_HYSTERESIS_PX
+      : minLabelLineLengthPx + LABEL_VISIBILITY_HYSTERESIS_PX;
+    const fitThreshold = previousVisible
+      ? placement.lineLength + LABEL_VISIBILITY_HYSTERESIS_PX
+      : placement.lineLength - LABEL_VISIBILITY_HYSTERESIS_PX;
+    const shouldShowLabel =
+      placement.lineLength >= lengthThreshold &&
+      textWidthPx + LABEL_MIN_PADDING_PX <= fitThreshold;
 
-      elementDiv.dataset.labelVisible = shouldShowLabel ? "1" : "0";
-      labelTextEl.style.visibility = shouldShowLabel ? "visible" : "hidden";
-      return true;
-    };
+    elementDiv.dataset.labelVisible = shouldShowLabel ? "1" : "0";
+    labelTextEl.style.visibility = shouldShowLabel ? "visible" : "hidden";
+    return true;
   };
+};
 
 export const useLineLabelVisualizers = (
   lines: LineVisualizerData[],
@@ -244,12 +243,7 @@ export const useLineLabelVisualizers = (
 
   const lineLabelSignatureById = useMemo(
     () =>
-      new Map(
-        lines.map((line) => [
-          line.id,
-          buildLineLabelSignature(line),
-        ])
-      ),
+      new Map(lines.map((line) => [line.id, buildLineLabelSignature(line)])),
     [lines]
   );
 

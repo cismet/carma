@@ -44,7 +44,8 @@ export const RuntimePointLabelVisualizer = ({
 }: RuntimePointLabelVisualizerProps) => {
   const registeredPointIdSetRef = useRef<Set<string>>(new Set());
   const sceneState = useCesiumSceneStateOptional();
-  const cameraPitch = sceneState?.camera.pitchRad ?? scene?.camera.pitch ?? -Math.PI / 4;
+  const cameraPitch =
+    sceneState?.camera.pitchRad ?? scene?.camera.pitch ?? -Math.PI / 4;
   const layoutConfig = useMemo(
     () => resolvePointLabelLayoutConfig(undefined),
     []

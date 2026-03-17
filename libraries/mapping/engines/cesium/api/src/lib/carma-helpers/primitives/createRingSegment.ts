@@ -292,7 +292,12 @@ const createRingSegmentModelMatrix = (
   radius = 1,
   rotationRad = 0
 ): Matrix4 =>
-  createPlanarScaleRotationTranslationMatrix(origin, radius, rotationRad, MIN_RADIUS);
+  createPlanarScaleRotationTranslationMatrix(
+    origin,
+    radius,
+    rotationRad,
+    MIN_RADIUS
+  );
 
 export const createRingSegment = (
   id: string,

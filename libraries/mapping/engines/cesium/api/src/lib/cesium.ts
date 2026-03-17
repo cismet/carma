@@ -81,7 +81,4 @@ export {
   WebMapTileServiceImageryProvider,
 } from "cesium";
 
-export type {
-  HeadingPitchRollValues,
-  TerrainProvider,
-} from "cesium";
+export type { HeadingPitchRollValues, TerrainProvider } from "cesium";

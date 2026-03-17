@@ -15,7 +15,7 @@ const normalizeBearingDeg = (bearingDeg: number): number => {
 };
 
 const normalizeSignedDeg = (angleDeg: number): number => {
-  const normalized = ((angleDeg + 180) % 360 + 360) % 360 - 180;
+  const normalized = ((((angleDeg + 180) % 360) + 360) % 360) - 180;
   return normalized === -180 ? 180 : normalized;
 };
 

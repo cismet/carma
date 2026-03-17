@@ -96,7 +96,10 @@ describe("sceneDescriptorHash codec + adapters", () => {
       -1.05 * RAD_TO_DEG,
       7
     );
-    expect(snapshot?.orientation.rollDeg ?? 0).toBeCloseTo(0.02 * RAD_TO_DEG, 7);
+    expect(snapshot?.orientation.rollDeg ?? 0).toBeCloseTo(
+      0.02 * RAD_TO_DEG,
+      7
+    );
     expect(snapshot?.orientation.fovDeg ?? 0).toBeCloseTo(0.8 * RAD_TO_DEG, 7);
   });
 
@@ -353,30 +356,33 @@ describe("sceneDescriptorHash codec + adapters", () => {
   });
 
   it("treats omitted map pitch as equivalent to explicit pitch=0 on restore", () => {
-    const withoutPitch = readSceneDescriptorFromMapLibrePlusElevationHashValues({
-      values: {
-        lng: 7.1159858,
-        lat: 51.2478262,
-        zoom: 19.084,
-        altitude: 153.75,
-      },
-      viewportWidthPx: 1400,
-      viewportHeightPx: 900,
-      defaultFovDeg: 45,
-    });
+    const withoutPitch = readSceneDescriptorFromMapLibrePlusElevationHashValues(
+      {
+        values: {
+          lng: 7.1159858,
+          lat: 51.2478262,
+          zoom: 19.084,
+          altitude: 153.75,
+        },
+        viewportWidthPx: 1400,
+        viewportHeightPx: 900,
+        defaultFovDeg: 45,
+      }
+    );
 
-    const withZeroPitch = readSceneDescriptorFromMapLibrePlusElevationHashValues({
-      values: {
-        lng: 7.1159858,
-        lat: 51.2478262,
-        zoom: 19.084,
-        altitude: 153.75,
-        pitch: 0,
-      },
-      viewportWidthPx: 1400,
-      viewportHeightPx: 900,
-      defaultFovDeg: 45,
-    });
+    const withZeroPitch =
+      readSceneDescriptorFromMapLibrePlusElevationHashValues({
+        values: {
+          lng: 7.1159858,
+          lat: 51.2478262,
+          zoom: 19.084,
+          altitude: 153.75,
+          pitch: 0,
+        },
+        viewportWidthPx: 1400,
+        viewportHeightPx: 900,
+        defaultFovDeg: 45,
+      });
 
     expect(withoutPitch).toEqual(withZeroPitch);
     expect(withoutPitch?.orientation.pitchDeg).toBe(-90);

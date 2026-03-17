@@ -137,7 +137,9 @@ const isCesiumRequestErrorLike = (value: unknown): boolean => {
   return name === "RequestErrorEvent";
 };
 
-const configureCesiumStoryErrorHandling = (widget: CesiumWidget): (() => void) => {
+const configureCesiumStoryErrorHandling = (
+  widget: CesiumWidget
+): (() => void) => {
   const widgetWithRenderLoopErrors = widget as unknown as {
     showRenderLoopErrors?: boolean;
   };
@@ -213,10 +215,10 @@ const buildLabelData = ({
     const selected = landmark.id === "rathaus-elberfeld";
     const collapse = landmark.id !== "rathaus-elberfeld";
     const isOccluded = shouldTestOcclusion
-      ? (visibilityStateById[landmark.id]?.isOccluded ?? false)
+      ? visibilityStateById[landmark.id]?.isOccluded ?? false
       : false;
     const isHidden = shouldTestOcclusion
-      ? (visibilityStateById[landmark.id]?.isHidden ?? false)
+      ? visibilityStateById[landmark.id]?.isHidden ?? false
       : false;
 
     return {
@@ -448,7 +450,10 @@ const CesiumLandmarksStory = ({
     window.addEventListener("unhandledrejection", handleUnhandledRejection);
     return () => {
       window.removeEventListener("error", handleWindowError);
-      window.removeEventListener("unhandledrejection", handleUnhandledRejection);
+      window.removeEventListener(
+        "unhandledrejection",
+        handleUnhandledRejection
+      );
     };
   }, []);
 
@@ -494,7 +499,10 @@ const CesiumLandmarksStory = ({
     };
 
     initialize().catch((error) => {
-      console.error("[STORY][LABEL-OVERLAY] Cesium landmarks init failed", error);
+      console.error(
+        "[STORY][LABEL-OVERLAY] Cesium landmarks init failed",
+        error
+      );
     });
 
     return () => {

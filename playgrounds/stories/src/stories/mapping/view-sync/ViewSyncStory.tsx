@@ -62,10 +62,7 @@ import {
   readMapLibrePlusElevationHashValuesFromSceneDescriptor,
   readSceneDescriptorHashSnapshotFromSceneState,
 } from "@carma-providers/hash-state";
-import {
-  degToRadNumeric,
-  radToDegNumeric,
-} from "@carma/units/helpers";
+import { degToRadNumeric, radToDegNumeric } from "@carma/units/helpers";
 import {
   initializeCesium,
   initializeTerrainProviders,
@@ -410,13 +407,17 @@ const getCurrentVerticalFov = (
   targetState: ViewSyncPublishedState | null
 ): number => {
   const target = targetState?.target;
-  return target ? readViewSyncVerticalFov(target) ?? DEFAULT_FOV_RAD : DEFAULT_FOV_RAD;
+  return target
+    ? readViewSyncVerticalFov(target) ?? DEFAULT_FOV_RAD
+    : DEFAULT_FOV_RAD;
 };
 
 const getCurrentBearingDeg = (
   targetState: ViewSyncPublishedState | null
 ): number =>
-  targetState ? radToDegNumeric(targetState.target.bearingPitchRange.bearing) : 0;
+  targetState
+    ? radToDegNumeric(targetState.target.bearingPitchRange.bearing)
+    : 0;
 
 const toCesiumHeadingPitchJsonFromViewSyncTarget = (
   target: ViewSyncTargetState | null | undefined
@@ -443,11 +444,16 @@ const COMPASS_DRAG_THRESHOLD_PX = 3;
 
 const VIEW_SYNC_DIRECTION_EPSILON = 1e-9;
 
-const toCartesian3IfFinite = (value: {
-  x: number;
-  y: number;
-  z: number;
-} | null | undefined): Cartesian3 | null => {
+const toCartesian3IfFinite = (
+  value:
+    | {
+        x: number;
+        y: number;
+        z: number;
+      }
+    | null
+    | undefined
+): Cartesian3 | null => {
   if (
     !value ||
     !Number.isFinite(value.x) ||
@@ -530,8 +536,16 @@ const buildStableCesiumOrientationFromTarget = (
 
   const forwardHorizontal = Cartesian3.normalize(
     Cartesian3.add(
-      Cartesian3.multiplyByScalar(eastAxis, Math.sin(bearing), new Cartesian3()),
-      Cartesian3.multiplyByScalar(northAxis, Math.cos(bearing), new Cartesian3()),
+      Cartesian3.multiplyByScalar(
+        eastAxis,
+        Math.sin(bearing),
+        new Cartesian3()
+      ),
+      Cartesian3.multiplyByScalar(
+        northAxis,
+        Math.cos(bearing),
+        new Cartesian3()
+      ),
       new Cartesian3()
     ),
     new Cartesian3()
@@ -620,10 +634,7 @@ const applyViewSyncTargetToCesiumWidget = ({
   });
   releaseCameraFromOrbitMode(camera);
 
-  if (
-    target.fovVertical &&
-    camera.frustum instanceof PerspectiveFrustum
-  ) {
+  if (target.fovVertical && camera.frustum instanceof PerspectiveFrustum) {
     camera.frustum.fov = target.fovVertical;
   }
 
@@ -654,7 +665,9 @@ const stripCameraModelFromInteractiveTarget = (
   return targetWithoutCameraModel;
 };
 
-const encodeQueryHash = (params: Record<string, number | undefined>): string => {
+const encodeQueryHash = (
+  params: Record<string, number | undefined>
+): string => {
   const query = new URLSearchParams();
   for (const [key, value] of Object.entries(params)) {
     if (typeof value === "number" && Number.isFinite(value)) {
@@ -662,10 +675,10 @@ const encodeQueryHash = (params: Record<string, number | undefined>): string => 
         key === "bearing"
           ? "b"
           : key === "pitch"
-            ? "p"
-            : key === "altitude"
-              ? "h"
-              : key,
+          ? "p"
+          : key === "altitude"
+          ? "h"
+          : key,
         String(value)
       );
     }
@@ -706,9 +719,7 @@ const buildCarmaStandardMapHashFromMapLibre = (
     pitch: view.pitchDeg,
   });
 
-const buildCarmaStandardMapHashFromLeaflet = (
-  view: LeafletViewState
-): string =>
+const buildCarmaStandardMapHashFromLeaflet = (view: LeafletViewState): string =>
   encodeQueryHash({
     lng: view.lngDeg,
     lat: view.latDeg,
@@ -813,10 +824,7 @@ const useContainerResize = (
   }, [containerRef]);
 };
 
-const useDeferredBootReady = (
-  enabled: boolean,
-  delayMs: number = 0
-) => {
+const useDeferredBootReady = (enabled: boolean, delayMs: number = 0) => {
   const [isReady, setIsReady] = useState(!enabled || delayMs <= 0);
 
   useEffect(() => {
@@ -869,9 +877,7 @@ const useDeferredBootReady = (
   return isReady;
 };
 
-const usePanelTargetState = (
-  slotId: string
-): ViewSyncPublishedState | null => {
+const usePanelTargetState = (slotId: string): ViewSyncPublishedState | null => {
   const viewSyncState = useViewSyncState();
   return (
     viewSyncState.latestById[slotId] ??
@@ -920,7 +926,9 @@ const PanelNavigationControls = ({
       }
 
       viewSyncStore.setController(slotId);
-      const nextTarget = stripCameraModelFromInteractiveTarget(update(baseTarget));
+      const nextTarget = stripCameraModelFromInteractiveTarget(
+        update(baseTarget)
+      );
       const runtimeHandle = getRuntimeHandle();
 
       if (runtimeHandle?.framework === "maplibre") {
@@ -1009,8 +1017,8 @@ const PanelNavigationControls = ({
       viewSyncStore.setTargetState(
         stripCameraModelFromInteractiveTarget(update(baseTarget)),
         {
-        sourceId: slotId,
-        sourceEngine: VIEW_SYNC_CONTROL_SOURCE_ENGINE,
+          sourceId: slotId,
+          sourceEngine: VIEW_SYNC_CONTROL_SOURCE_ENGINE,
         }
       );
     },
@@ -1018,17 +1026,15 @@ const PanelNavigationControls = ({
   );
 
   const animateRuntimeToTarget = useCallback(
-    (
-      nextTarget: ViewSyncTargetState,
-      durationMs: number
-    ): boolean => {
+    (nextTarget: ViewSyncTargetState, durationMs: number): boolean => {
       const runtimeHandle = getRuntimeHandle();
       if (!runtimeHandle) {
         return false;
       }
 
       viewSyncStore.setController(slotId);
-      const interactiveTarget = stripCameraModelFromInteractiveTarget(nextTarget);
+      const interactiveTarget =
+        stripCameraModelFromInteractiveTarget(nextTarget);
 
       if (runtimeHandle.framework === "maplibre") {
         const projection = projectViewSyncTargetToMapLibre({
@@ -1115,7 +1121,10 @@ const PanelNavigationControls = ({
             ...publishedState.target,
             bearingPitchRange: {
               ...publishedState.target.bearingPitchRange,
-              range: Math.max(5, publishedState.target.bearingPitchRange.range * 0.5),
+              range: Math.max(
+                5,
+                publishedState.target.bearingPitchRange.range * 0.5
+              ),
             },
           })
         : null;
@@ -1174,7 +1183,8 @@ const PanelNavigationControls = ({
       }
 
       if (
-        Math.abs(event.clientX - dragState.mouseX) > COMPASS_DRAG_THRESHOLD_PX ||
+        Math.abs(event.clientX - dragState.mouseX) >
+          COMPASS_DRAG_THRESHOLD_PX ||
         Math.abs(event.clientY - dragState.mouseY) > COMPASS_DRAG_THRESHOLD_PX
       ) {
         didCompassDragRef.current = true;
@@ -1309,7 +1319,10 @@ const PanelNavigationControls = ({
 
       if (
         !nextTarget ||
-        !animateRuntimeToTarget(nextTarget, COMPASS_ALIGN_NORTH_NADIR_DURATION_MS)
+        !animateRuntimeToTarget(
+          nextTarget,
+          COMPASS_ALIGN_NORTH_NADIR_DURATION_MS
+        )
       ) {
         applyCompassTargetUpdate((target) => ({
           ...target,
@@ -1369,10 +1382,10 @@ const PanelNavigationControls = ({
               cursor: disabled
                 ? "default"
                 : canPitchDrag
-                  ? "grab"
-                  : canNorthInteract
-                    ? "pointer"
-                    : "default",
+                ? "grab"
+                : canNorthInteract
+                ? "pointer"
+                : "default",
               onMouseDown: canPitchDrag ? handleCompassMouseDown : undefined,
               onClick: canNorthInteract ? handleCompassClick : undefined,
               onDoubleClick: canNorthInteract
@@ -1558,7 +1571,9 @@ const CesiumViewSyncBridge = ({
         ? `cesium • ${formatTargetSummary(nextTarget)}`
         : "cesium • waiting for terrain target"
     );
-    setHashText(buildCarmaStandardMapHashFromCesium(sceneState, widget.scene.canvas));
+    setHashText(
+      buildCarmaStandardMapHashFromCesium(sceneState, widget.scene.canvas)
+    );
 
     if (!isController || !nextTarget || !sceneState) {
       return;
@@ -1572,9 +1587,8 @@ const CesiumViewSyncBridge = ({
   }, [isController, publishViewState, sceneState, setHashText, setStatusText]);
 
   useEffect(() => {
-    const acceptsUniversalControlTarget = isUniversalCompassControlTarget(
-      providerTarget
-    );
+    const acceptsUniversalControlTarget =
+      isUniversalCompassControlTarget(providerTarget);
 
     if (
       !providerTarget ||
@@ -1621,9 +1635,9 @@ const CesiumSlot = ({
   const containerRef = useRef<HTMLDivElement | null>(null);
   const [widget, setWidget] = useState<CesiumWidget | null>(null);
   const initialTargetRef = useRef(initialTarget ?? null);
-  const terrainProvidersRef = useRef<
-    Awaited<ReturnType<typeof initializeTerrainProviders>> | null
-  >(null);
+  const terrainProvidersRef = useRef<Awaited<
+    ReturnType<typeof initializeTerrainProviders>
+  > | null>(null);
   const onReadyChangeRef = useRef(onReadyChange);
   const isBootReady = useDeferredBootReady(true, bootDelayMs);
 
@@ -1829,9 +1843,8 @@ const MapLibreViewSyncBridge = ({
   }, [claimControl, map, publishViewState, setHashText, setStatusText]);
 
   useEffect(() => {
-    const acceptsUniversalControlTarget = isUniversalCompassControlTarget(
-      providerTarget
-    );
+    const acceptsUniversalControlTarget =
+      isUniversalCompassControlTarget(providerTarget);
 
     if (
       !providerTarget ||
@@ -2052,9 +2065,8 @@ const LeafletViewSyncBridge = ({
   }, [claimControl, map, publishViewState, setHashText, setStatusText]);
 
   useEffect(() => {
-    const acceptsUniversalControlTarget = isUniversalCompassControlTarget(
-      providerTarget
-    );
+    const acceptsUniversalControlTarget =
+      isUniversalCompassControlTarget(providerTarget);
 
     if (
       !providerTarget ||
@@ -2079,9 +2091,13 @@ const LeafletViewSyncBridge = ({
 
     isApplyingExternalRef.current = true;
     try {
-      map.setView([projection.center.lat, projection.center.lng], projection.zoom, {
-        animate: false,
-      });
+      map.setView(
+        [projection.center.lat, projection.center.lng],
+        projection.zoom,
+        {
+          animate: false,
+        }
+      );
     } catch {
       isApplyingExternalRef.current = false;
       return;
@@ -2209,7 +2225,10 @@ const SlotMountRenderer = ({
   initialTarget: ViewSyncTargetState | null;
   setStatusText: (value: string) => void;
   setHashText: (value: string | null) => void;
-  onRuntimeHandleChange: (mountId: string, handle: SlotRuntimeHandle | null) => void;
+  onRuntimeHandleChange: (
+    mountId: string,
+    handle: SlotRuntimeHandle | null
+  ) => void;
   bootDelayMs?: number;
 }) => {
   const containerStyle: CSSProperties =
@@ -2220,12 +2239,12 @@ const SlotMountRenderer = ({
           pointerEvents: "none",
         }
       : mount.layer === "underlay"
-        ? {
-            zIndex: 1,
-          }
-        : {
-            zIndex: 3,
-          };
+      ? {
+          zIndex: 1,
+        }
+      : {
+          zIndex: 3,
+        };
 
   if (!initialTarget) {
     return null;
@@ -2293,7 +2312,9 @@ const SlotsLayout = ({
   const viewSyncStore = useViewSyncStore();
   const controllerId = viewSyncState.controllerId;
   const registrationCount = Object.keys(viewSyncState.registrations).length;
-  const [transitioningSlotIds, setTransitioningSlotIds] = useState<string[]>([]);
+  const [transitioningSlotIds, setTransitioningSlotIds] = useState<string[]>(
+    []
+  );
   const isAnyFrameworkTransitioning = transitioningSlotIds.length > 0;
 
   useEffect(() => {
@@ -2310,7 +2331,8 @@ const SlotsLayout = ({
       ...previousSlots,
       {
         id: `slot-${nextIndex}`,
-        framework: FRAMEWORK_OPTIONS[(nextIndex - 1) % FRAMEWORK_OPTIONS.length],
+        framework:
+          FRAMEWORK_OPTIONS[(nextIndex - 1) % FRAMEWORK_OPTIONS.length],
       },
     ]);
   }, []);
@@ -2371,9 +2393,9 @@ const SlotsLayout = ({
           />
         ))}
 
-      <div style={addButtonStyle}>
-        <Button
-          type="primary"
+        <div style={addButtonStyle}>
+          <Button
+            type="primary"
             icon={<PlusOutlined />}
             onClick={addSlot}
             style={{
@@ -2439,15 +2461,18 @@ const SlotPanelController = ({
   ]);
   const [transitionRequest, setTransitionRequest] =
     useState<SlotTransitionRequest | null>(null);
-  const runtimeHandlesRef = useRef<Record<string, SlotRuntimeHandle | null>>({});
+  const runtimeHandlesRef = useRef<Record<string, SlotRuntimeHandle | null>>(
+    {}
+  );
   const transitionRunRef = useRef<string | null>(null);
   const nextMountIndexRef = useRef(2);
   const lastCesiumHeadingPitchRef = useRef<HeadingPitchJson | null>(null);
   const [initialBootDelayConsumed, setInitialBootDelayConsumed] = useState(
     initialBootDelayMs <= 0
   );
-  const activeRuntimeFramework = mounts.find((mount) => mount.registerWithViewSync)
-    ?.framework ?? slot.framework;
+  const activeRuntimeFramework =
+    mounts.find((mount) => mount.registerWithViewSync)?.framework ??
+    slot.framework;
   const isFrameworkTransitioning = transitionRequest !== null;
 
   useEffect(() => {
@@ -2468,7 +2493,9 @@ const SlotPanelController = ({
     }
 
     setMounts((previousMounts) => {
-      const activeMount = previousMounts.find((mount) => mount.registerWithViewSync);
+      const activeMount = previousMounts.find(
+        (mount) => mount.registerWithViewSync
+      );
       if (
         previousMounts.length === 1 &&
         activeMount &&
@@ -2583,12 +2610,17 @@ const SlotPanelController = ({
   );
 
   useEffect(() => {
-    if (!transitionRequest || transitionRunRef.current === transitionRequest.targetMountId) {
+    if (
+      !transitionRequest ||
+      transitionRunRef.current === transitionRequest.targetMountId
+    ) {
       return;
     }
 
-    const sourceHandle = runtimeHandlesRef.current[transitionRequest.sourceMountId];
-    const targetHandle = runtimeHandlesRef.current[transitionRequest.targetMountId];
+    const sourceHandle =
+      runtimeHandlesRef.current[transitionRequest.sourceMountId];
+    const targetHandle =
+      runtimeHandlesRef.current[transitionRequest.targetMountId];
     if (!sourceHandle || !targetHandle) {
       return;
     }
@@ -2759,11 +2791,7 @@ const SlotPanelController = ({
   );
 };
 
-const ViewSyncStoryArgsSync = ({
-  target,
-}: {
-  target: ViewSyncTargetState;
-}) => {
+const ViewSyncStoryArgsSync = ({ target }: { target: ViewSyncTargetState }) => {
   const viewSyncStore = useViewSyncStore();
   const animationFrameRef = useRef<number | null>(null);
 

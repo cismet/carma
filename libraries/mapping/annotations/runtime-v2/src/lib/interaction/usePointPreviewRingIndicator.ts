@@ -56,8 +56,9 @@ export const usePointPreviewRingIndicator = (
   const previewPointRef = useRef<Cartesian3 | null>(null);
   const previewSurfaceNormalRef = useRef<Cartesian3 | null>(null);
   const previewRingSamplesRef = useRef<PreviewRingSample[]>([]);
-  const previewRingLastQueuedInputRef =
-    useRef<PreviewRingQueuedInput | null>(null);
+  const previewRingLastQueuedInputRef = useRef<PreviewRingQueuedInput | null>(
+    null
+  );
   const previewRingColor = useMemo(
     () => Color.WHITE.withAlpha(pointPreviewRingVisualDefaults.alpha),
     []
@@ -120,12 +121,15 @@ export const usePointPreviewRingIndicator = (
 
       let ring = previewRingRef.current;
       if (!ring) {
-        const nextRing = createRing(pointPreviewRingVisualDefaults.primitiveId, {
-          radius: 1,
-          innerRadius: 0.5,
-          color: previewRingColor,
-          segments: 20,
-        });
+        const nextRing = createRing(
+          pointPreviewRingVisualDefaults.primitiveId,
+          {
+            radius: 1,
+            innerRadius: 0.5,
+            color: previewRingColor,
+            segments: 20,
+          }
+        );
         scene.primitives.add(nextRing);
         previewRingRef.current = nextRing;
         ring = nextRing;

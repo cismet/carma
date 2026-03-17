@@ -146,9 +146,10 @@ export const HashStateProviderBase: React.FC<HashStateProviderBaseProps> = ({
       const resolvedClearKeys = clearKeys.map(
         (key) => keyAliases?.[key] ?? key
       );
-      const clearAndUndefinedKeys = [...resolvedClearKeys, ...undefinedKeys].filter(
-        (key) => !writtenKeys.has(key)
-      );
+      const clearAndUndefinedKeys = [
+        ...resolvedClearKeys,
+        ...undefinedKeys,
+      ].filter((key) => !writtenKeys.has(key));
 
       updateHashHistoryState(newParams, routedPath, {
         removeKeys: clearAndUndefinedKeys,

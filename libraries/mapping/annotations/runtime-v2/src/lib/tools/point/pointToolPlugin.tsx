@@ -78,7 +78,8 @@ export const pointToolPlugin = createMeasurementToolPlugin({
   },
   pointQuery: {
     onPointCreated: ({ coordinate, sessionContext }) => {
-      const temporaryMode = sessionContext.getState().settingsState.pointTemporaryMode;
+      const temporaryMode =
+        sessionContext.getState().settingsState.pointTemporaryMode;
       if (temporaryMode) {
         sessionContext.dispatch(clearTemporaryAnnotationsByToolType(toolType));
       }

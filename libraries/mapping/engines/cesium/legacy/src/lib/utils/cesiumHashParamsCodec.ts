@@ -114,7 +114,9 @@ const decodeNumberField = (value: string | undefined): number | undefined => {
   return Number.isFinite(parsed) ? parsed : undefined;
 };
 
-const normalizeCesiumPitchRad = (pitchRad: number | undefined): number | undefined => {
+const normalizeCesiumPitchRad = (
+  pitchRad: number | undefined
+): number | undefined => {
   if (!isNumber(pitchRad)) {
     return undefined;
   }
@@ -164,7 +166,11 @@ const projectCameraPositionFromAnchorRange = ({
     ),
     new Cartesian3()
   );
-  const cameraEcef = Cartesian3.subtract(anchorEcef, worldOffset, new Cartesian3());
+  const cameraEcef = Cartesian3.subtract(
+    anchorEcef,
+    worldOffset,
+    new Cartesian3()
+  );
   return Cartographic.fromCartesian(cameraEcef);
 };
 
@@ -200,7 +206,11 @@ const decodeObjectCentricCameraFromHash = (
   );
   const fovRad = isNumber(fovDeg) ? CesiumMath.toRadians(fovDeg) : undefined;
 
-  const anchorCartographic = Cartographic.fromDegrees(lngDeg, latDeg, altitudeM);
+  const anchorCartographic = Cartographic.fromDegrees(
+    lngDeg,
+    latDeg,
+    altitudeM
+  );
   const reconstructedPosition =
     sourceCode !== "c" &&
     isNumber(maybeRangeM) &&

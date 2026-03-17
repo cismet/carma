@@ -1,8 +1,4 @@
-import {
-  Cartesian2,
-  Cartesian3,
-  type Scene,
-} from "../../cesium";
+import { Cartesian2, Cartesian3, type Scene } from "../../cesium";
 import {
   GUIDE_NORMAL_EPSILON_SQUARED,
   getLocalUpDirectionAtPosition,

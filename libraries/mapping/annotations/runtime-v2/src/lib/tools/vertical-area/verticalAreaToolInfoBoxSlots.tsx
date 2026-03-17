@@ -14,7 +14,10 @@ export const createVerticalAreaToolInfoBoxSlots = ({
   headingTitle: string;
   formatMeasurementLabelToken: (counter: number) => string;
 }) => {
-  return ({ annotation, annotationEntries }: RuntimeAnnotationInfoBoxContext) => {
+  return ({
+    annotation,
+    annotationEntries,
+  }: RuntimeAnnotationInfoBoxContext) => {
     if (annotation.toolType !== toolType) {
       return null;
     }

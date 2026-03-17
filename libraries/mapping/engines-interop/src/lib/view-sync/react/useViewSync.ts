@@ -1,9 +1,5 @@
 import { useStoreSelector } from "@carma-commons/react-store";
-import {
-  useCallback,
-  useContext,
-  useEffect,
-} from "react";
+import { useCallback, useContext, useEffect } from "react";
 import type {
   ViewSyncPublishOptions,
   ViewSyncRegistration,
