@@ -85,8 +85,9 @@ import { EmptySearchComponent } from "@carma-mapping/fuzzy-search";
 import { useAuth } from "@carma-providers/auth";
 import { useFeatureFlags } from "@carma-providers/feature-flag";
 import {
-  useInitialSceneDescriptorHashSnapshot,
-  useSceneDescriptorHashSync,
+  type SceneStateLike,
+  useInitialSceneStateHashSnapshot,
+  useSceneStateHashSync,
 } from "@carma-providers/hash-state";
 import { degToRadNumeric } from "@carma/units/helpers";
 
@@ -160,7 +161,7 @@ const isFiniteNumber = (value: unknown): value is number =>
 
 const readInitialCameraViewFromHashSnapshot = (
   snapshot: ReturnType<
-    typeof useInitialSceneDescriptorHashSnapshot
+    typeof useInitialSceneStateHashSnapshot
   >["initialCameraState"]
 ): InitialCameraView | undefined => {
   if (!snapshot) {
@@ -209,10 +210,10 @@ const GeoportalCesiumCameraHashSync = ({
   scene,
 }: {
   enabled: boolean;
-  scene: CesiumSceneLike | null;
+  scene: SceneStateLike | null;
 }) => {
   const sceneState = useCesiumSceneStateOptional();
-  useSceneDescriptorHashSync({
+  useSceneStateHashSync({
     sceneState,
     scene,
     enabled,
@@ -357,7 +358,7 @@ export const GeoportalMap = ({ height, width, allow3d }: MapProps) => {
   const flags = useFeatureFlags();
   const { isDebugMode } = flags;
   const { initialCameraState, isResolved: isInitialCameraResolved } =
-    useInitialSceneDescriptorHashSnapshot({
+    useInitialSceneStateHashSnapshot({
       defaultFovDeg: DEFAULT_CAMERA_FOV_DEG,
       defaultZoom: DEFAULT_HASH_ZOOM,
     });
@@ -1079,7 +1080,7 @@ export const GeoportalMap = ({ height, width, allow3d }: MapProps) => {
           >
             <GeoportalCesiumCameraHashSync
               enabled={isCesium && !getIsTransitioning()}
-              scene={cesiumScene as unknown as CesiumSceneLike | null}
+              scene={cesiumScene as unknown as SceneStateLike | null}
             />
             <CustomViewer
               containerRef={container3dMapRef}

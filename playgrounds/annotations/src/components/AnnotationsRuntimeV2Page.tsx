@@ -22,7 +22,7 @@ import {
   AnnotationsToolbarItem,
   AnnotationsToolbarSeparator,
 } from "@carma-mapping/components";
-import { useInitialSceneDescriptorHashSnapshot } from "@carma-providers/hash-state";
+import { useInitialSceneStateHashSnapshot } from "@carma-providers/hash-state";
 import { LabelOverlayProvider } from "@carma-providers/label-overlay";
 
 import type { PlaygroundRuntimePageProps } from "../playground.types";
@@ -207,8 +207,7 @@ export const AnnotationsRuntimeV2Page = ({
 }: PlaygroundRuntimePageProps) => {
   const rootRef = useRef<HTMLDivElement | null>(null);
   const [scene, setScene] = useState<Scene | null>(null);
-  const { initialCameraState, isResolved } =
-    useInitialSceneDescriptorHashSnapshot();
+  const { initialCameraState, isResolved } = useInitialSceneStateHashSnapshot();
   const homeSnapshot = useMemo(
     () =>
       readAnnotationsDemoHomeSnapshot({

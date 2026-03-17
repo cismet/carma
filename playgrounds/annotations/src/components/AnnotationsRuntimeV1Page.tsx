@@ -14,7 +14,7 @@ import {
   CesiumSceneStateProvider,
   type CesiumSceneLike,
 } from "@carma-mapping/engines/cesium/react/scene-state";
-import { useInitialSceneDescriptorHashSnapshot } from "@carma-providers/hash-state";
+import { useInitialSceneStateHashSnapshot } from "@carma-providers/hash-state";
 import { LabelOverlayProvider } from "@carma-providers/label-overlay";
 
 import { INFOBOX_WIDTH_PX, readInitialToolType } from "../playgroundConfig";
@@ -93,8 +93,7 @@ export const AnnotationsRuntimeV1Page = ({
 }: PlaygroundRuntimePageProps) => {
   const rootRef = useRef<HTMLDivElement | null>(null);
   const [scene, setScene] = useState<Scene | null>(null);
-  const { initialCameraState, isResolved } =
-    useInitialSceneDescriptorHashSnapshot();
+  const { initialCameraState, isResolved } = useInitialSceneStateHashSnapshot();
   const homeSnapshot = useMemo(
     () =>
       readAnnotationsDemoHomeSnapshot({

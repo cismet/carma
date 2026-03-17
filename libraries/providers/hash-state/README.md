@@ -25,11 +25,11 @@ Typical usage (direct 3D scene sampling):
 ```tsx
 import {
   HashStateProvider,
-  useSceneDescriptorHashSync,
+  useSceneStateHashSync,
 } from "@carma-providers/hash-state";
 
 function SceneHashSync({ scene }: { scene: unknown }) {
-  useSceneDescriptorHashSync({
+  useSceneStateHashSync({
     scene: scene as any,
     encodeScheme: "carma-maplibre-plus-elevation",
     anchorMode: "screen-center", // samples center once per camera move event
@@ -45,13 +45,13 @@ Typical usage (with a scene-state provider):
 ```tsx
 import {
   HashStateProvider,
-  useSceneDescriptorHashSync,
+  useSceneStateHashSync,
 } from "@carma-providers/hash-state";
 import { useCesiumSceneStateOptional } from "@carma-mapping/engines/cesium/react/scene-state";
 
 function SceneHashSyncFromSceneState() {
   const sceneState = useCesiumSceneStateOptional();
-  useSceneDescriptorHashSync({
+  useSceneStateHashSync({
     sceneState,
     encodeScheme: "carma-maplibre-plus-elevation",
     anchorMode: "screen-center",

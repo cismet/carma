@@ -22,15 +22,12 @@ import {
   useHomeControl,
   useZoomControls as useZoomControlsCesium,
 } from "@carma-mapping/engines/cesium";
-import { useHashState } from "@carma-providers/hash-state";
 
 import "cesium/Build/Cesium/Widgets/widgets.css";
 
 const TERRAIN_HQ500_CM = "https://cesium-wupp-terrain.cismet.de/HQ500cm/";
 
 export const HQ500 = () => {
-  const { updateHash } = useHashState();
-
   const rerenderCountRef = useRef(0);
   const lastRenderTimeStampRef = useRef(Date.now());
   const lastRenderIntervalRef = useRef(0);
@@ -119,6 +116,13 @@ export const HQ500 = () => {
             height: "100vh",
           }}
         >
+          {/*
+            Legacy hash sync intentionally removed.
+            If 3D URL sync is needed again here, replace this with the current
+            scene-state based approach (`CesiumSceneStateProvider` +
+            `CesiumSceneStateHashSync` / `useSceneStateHashSync`) instead
+            of `onSceneChange` + legacy camera hash encoding.
+          */}
           <CustomViewer
             containerRef={container3dMapRef}
             cameraLimiterOptions={{
@@ -128,16 +132,6 @@ export const HQ500 = () => {
               showGroundAtmosphere: false,
               showSkirts: true,
               baseColor: Color.RED,
-            }}
-            onSceneChange={(e) => {
-              console.debug(
-                "[GEOPORTALMAP|HASH|SCENE|CESIUM]cesium scene changed",
-                e
-              );
-              updateHash(e.hashParams, {
-                clearKeys: ["zoom"],
-                label: "app/hq500:3D",
-              });
             }}
           ></CustomViewer>
         </div>

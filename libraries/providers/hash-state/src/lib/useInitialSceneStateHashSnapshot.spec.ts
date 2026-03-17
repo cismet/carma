@@ -1,7 +1,7 @@
 import { renderHook } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import { readSceneDescriptorFromMapLibrePlusElevationHashValues } from "./sceneDescriptorHashCodec";
+import { readSceneDescriptorFromMapLibrePlusElevationHashValues } from "./sceneStateHashCodec";
 
 const mockGetHash = vi.fn<[], Record<string, string>>();
 const mockGetHashValues = vi.fn<[], Record<string, unknown>>();
@@ -13,7 +13,7 @@ vi.mock("./HashStateProvider", () => ({
   }),
 }));
 
-import { useInitialSceneDescriptorHashSnapshot } from "./useInitialSceneDescriptorHashSnapshot";
+import { useInitialSceneStateHashSnapshot } from "./useInitialSceneStateHashSnapshot";
 
 const DEFAULT_ZOOM = 17;
 const DEFAULT_FOV_DEG = 45;
@@ -49,10 +49,10 @@ const renderInitialSnapshot = (
   mockGetHash.mockReturnValue({});
   mockGetHashValues.mockReturnValue(hashValues);
 
-  return renderHook(() => useInitialSceneDescriptorHashSnapshot(options));
+  return renderHook(() => useInitialSceneStateHashSnapshot(options));
 };
 
-describe("useInitialSceneDescriptorHashSnapshot", () => {
+describe("useInitialSceneStateHashSnapshot", () => {
   beforeEach(() => {
     mockGetHash.mockReset();
     mockGetHashValues.mockReset();

@@ -2,7 +2,7 @@ import type { OrbitPointSource, SceneStateSnapshot } from "@carma/types";
 import type {
   SceneDescriptorAnchorSource,
   SceneDescriptorHashSnapshot,
-} from "./sceneDescriptorHashCodec";
+} from "./sceneStateHashCodec";
 
 const RAD_TO_DEG = 180 / Math.PI;
 

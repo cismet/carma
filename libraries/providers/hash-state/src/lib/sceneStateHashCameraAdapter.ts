@@ -1,8 +1,4 @@
-import {
-  getPixelResolutionFromZoomAtLatitudeRad,
-  getZoomFromPixelResolutionAtLatitudeRad,
-  mercatorZoomFromDistanceAtLatitudeDeg,
-} from "@carma/geo/utils";
+import { mercatorZoomFromDistanceAtLatitudeDeg } from "@carma/geo/utils";
 import type { SceneStateSnapshot } from "@carma/types";
 import type { Meters, Radians } from "@carma/units/types";
 import {
@@ -13,11 +9,11 @@ import {
   readMapLibrePlusElevationHashValuesFromSceneDescriptor,
   sceneDescriptorHashInternals,
   type SceneDescriptorHashSnapshot,
-} from "./sceneDescriptorHashCodec";
+} from "./sceneStateHashCodec";
 import {
   readSceneDescriptorHashSnapshotFromSceneState,
   type SceneDescriptorAnchorMode,
-} from "./sceneDescriptorHashSceneStateAdapter";
+} from "./sceneStateHashSceneAdapter";
 
 const {
   RAD_TO_DEG,
@@ -36,14 +32,14 @@ const normalizeSignedDeg = (angleDeg: number): number => {
 
 const toDeg = (radians: number): number => radians * RAD_TO_DEG;
 
-export type CesiumCartographicLike = {
+export type CartographicLike = {
   longitude: number;
   latitude: number;
   height: number;
 };
 
-export type CesiumCameraLike = {
-  positionCartographic?: CesiumCartographicLike;
+export type CameraLike = {
+  positionCartographic?: CartographicLike;
   heading?: number;
   pitch?: number;
   roll?: number;
@@ -51,23 +47,23 @@ export type CesiumCameraLike = {
   getPickRay?: (windowPosition: { x: number; y: number }) => unknown;
 };
 
-export type CesiumSceneLike = {
-  camera?: CesiumCameraLike;
+export type SceneLike = {
+  camera?: CameraLike;
   canvas?: { clientWidth: number; clientHeight: number };
   pickPositionSupported?: boolean;
   pickPosition?: (windowPosition: { x: number; y: number }) => unknown;
   globe?: {
-    pick?: (ray: unknown, scene: CesiumSceneLike) => unknown;
+    pick?: (ray: unknown, scene: SceneLike) => unknown;
     ellipsoid?: {
       cartesianToCartographic?: (
         cartesian: unknown
-      ) => CesiumCartographicLike | undefined | null;
+      ) => CartographicLike | undefined | null;
     };
   };
 };
 
 const readAspectRatio = (
-  scene: CesiumSceneLike | null | undefined
+  scene: SceneLike | null | undefined
 ): number | undefined => {
   const width = scene?.canvas?.clientWidth;
   const height = scene?.canvas?.clientHeight;
@@ -79,12 +75,12 @@ const readAspectRatio = (
   return isFiniteNumber(aspect) && aspect > 0 ? aspect : undefined;
 };
 
-const readCesiumVerticalFovRad = ({
+const readVerticalFovRad = ({
   camera,
   scene,
 }: {
-  camera?: CesiumCameraLike | null;
-  scene?: CesiumSceneLike | null;
+  camera?: CameraLike | null;
+  scene?: SceneLike | null;
 }): number | undefined => {
   const frustum = camera?.frustum;
   if (isFiniteNumber(frustum?.fovy) && frustum.fovy > 0) {
@@ -104,7 +100,7 @@ const readCesiumVerticalFovRad = ({
 };
 
 const readFallbackAnchorDistanceFromCameraM = (
-  camera: CesiumCameraLike | null | undefined,
+  camera: CameraLike | null | undefined,
   anchorHeightM: number
 ): number | undefined => {
   const cameraHeightM = camera?.positionCartographic?.height;
@@ -164,8 +160,8 @@ const readMapLibreZoomFromSceneState = ({
   anchor,
 }: {
   sceneState: SceneStateSnapshot | null | undefined;
-  scene?: CesiumSceneLike | null;
-  camera?: CesiumCameraLike | null;
+  scene?: SceneLike | null;
+  camera?: CameraLike | null;
   anchor: SceneDescriptorHashSnapshot["anchor"];
 }): number | undefined => {
   const canvasWidth = scene?.canvas?.clientWidth;
@@ -186,7 +182,7 @@ const readMapLibreZoomFromSceneState = ({
 
   const fovVertical =
     sceneState?.camera.fovVertical ??
-    readCesiumVerticalFovRad({
+    readVerticalFovRad({
       camera,
       scene,
     });
@@ -207,7 +203,7 @@ const readMapLibreZoomFromSceneState = ({
 };
 
 const readCameraPositionAnchor = (
-  camera: CesiumCameraLike,
+  camera: CameraLike,
   fallbackHeightM: number,
   source: SceneDescriptorHashSnapshot["anchor"]["source"]
 ): SceneDescriptorHashSnapshot["anchor"] | null => {
@@ -235,8 +231,8 @@ const readCameraPositionAnchor = (
 };
 
 const sampleScreenCenterAnchor = (
-  scene: CesiumSceneLike,
-  camera: CesiumCameraLike,
+  scene: SceneLike,
+  camera: CameraLike,
   fallbackHeightM: number
 ): SceneDescriptorHashSnapshot["anchor"] | null => {
   const canvas = scene.canvas;
@@ -289,14 +285,14 @@ const sampleScreenCenterAnchor = (
   };
 };
 
-export const readSceneDescriptorHashSnapshotFromCesiumCamera = ({
+export const readSceneDescriptorHashSnapshotFromCamera = ({
   camera,
   scene,
   anchorMode = "screen-center",
   fallbackHeightM = 200,
 }: {
-  camera: CesiumCameraLike;
-  scene?: CesiumSceneLike | null;
+  camera: CameraLike;
+  scene?: SceneLike | null;
   anchorMode?: SceneDescriptorAnchorMode;
   fallbackHeightM?: number;
 }): SceneDescriptorHashSnapshot | null => {
@@ -319,7 +315,7 @@ export const readSceneDescriptorHashSnapshotFromCesiumCamera = ({
   const rollDeg = isFiniteNumber(camera.roll)
     ? normalizeSignedDeg(toDeg(camera.roll))
     : undefined;
-  const fovVerticalRad = readCesiumVerticalFovRad({
+  const fovVerticalRad = readVerticalFovRad({
     camera,
     scene,
   });
@@ -344,7 +340,7 @@ export const readSceneDescriptorHashSnapshotFromCesiumCamera = ({
 };
 
 export const readSceneDescriptorHashSnapshotFromSceneAdapter =
-  readSceneDescriptorHashSnapshotFromCesiumCamera;
+  readSceneDescriptorHashSnapshotFromCamera;
 
 export function readMapLibreCompatHashParamsFromSceneDescriptor({
   snapshot,
@@ -359,8 +355,8 @@ export function readMapLibreCompatHashParamsFromSceneDescriptor({
 }: {
   snapshot: SceneDescriptorHashSnapshot;
   sceneState?: SceneStateSnapshot | null;
-  scene?: CesiumSceneLike | null;
-  camera?: CesiumCameraLike | null;
+  scene?: SceneLike | null;
+  camera?: CameraLike | null;
   includeAltitude?: boolean;
   altitudeKey?: string;
   defaultFovDeg?: number;
@@ -374,7 +370,7 @@ export function readMapLibreCompatHashParamsFromSceneDescriptor({
     anchor: snapshot.anchor,
   });
 
-  const cameraVerticalFovRad = readCesiumVerticalFovRad({
+  const cameraVerticalFovRad = readVerticalFovRad({
     camera,
     scene,
   });
@@ -471,7 +467,7 @@ export function readMapLibreCompatHashParamsFromSceneDescriptor({
 export const readMapLibreCompatHashParamsFromSceneAdapter =
   readMapLibreCompatHashParamsFromSceneDescriptor;
 
-export type SceneDescriptorHashSyncCameraLike = CesiumCameraLike;
-export type SceneDescriptorHashSyncSceneLike = CesiumSceneLike;
+export type SceneStateCameraLike = CameraLike;
+export type SceneStateLike = SceneLike;
 
 export { readSceneDescriptorHashSnapshotFromSceneState };

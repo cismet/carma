@@ -39,7 +39,6 @@ export {
   type UseCesiumModelManagerOptions,
 } from "./hooks/useCesiumModelManager";
 export { useHomeControl } from "./hooks/useHomeControl";
-export { useCesiumInitialCameraFromSearchParams } from "./hooks/useCesiumInitialCameraFromSearchParams";
 export { useFovWheelZoom } from "./hooks/useFovWheelZoom";
 export { useGeometryInstanceOpacityAnimation } from "./hooks/useGeometryInstanceOpacityAnimation";
 export { useSceneStyles } from "./hooks/useSceneStyles";
