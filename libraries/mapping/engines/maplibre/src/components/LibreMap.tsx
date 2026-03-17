@@ -167,7 +167,6 @@ export interface LibreMapProps {
   >;
 }
 
-
 /**
  * Query rendered features with a terrain workaround.
  * When terrain is active, MapLibre's queryRenderedFeatures fails for fill-extrusion
@@ -176,7 +175,7 @@ export interface LibreMapProps {
  */
 function queryFeaturesWithTerrainFix(
   map: maplibregl.Map,
-  clickPoint: maplibregl.Point,
+  clickPoint: maplibregl.Point
 ): maplibregl.MapGeoJSONFeature[] {
   const mapTerrain = (map as any).terrain;
   if (!mapTerrain) {
@@ -213,7 +212,7 @@ function queryFeaturesWithTerrainFix(
 
     transform.screenPointToMercatorCoordinate = function (
       p: unknown,
-      _terrain?: unknown,
+      _terrain?: unknown
     ) {
       return this.screenPointToMercatorCoordinateAtZ(p);
     };
@@ -646,6 +645,7 @@ export const LibreMap = ({
         center: [lng, lat],
         zoom: zoom,
         maxZoom: 21.9999,
+        maxPitch: 65,
         attributionControl: false,
         interactive,
         canvasContextAttributes: preserveDrawingBuffer
@@ -675,7 +675,12 @@ export const LibreMap = ({
         // ── 3D raycast: check 3D layers before 2D ─────────────
         const threeLayers = get3dLayers(mapInstance);
         if (threeLayers.length > 0) {
-          console.log("[3D-SELECT] click at", e.lngLat, "3D layers:", threeLayers.length);
+          console.log(
+            "[3D-SELECT] click at",
+            e.lngLat,
+            "3D layers:",
+            threeLayers.length
+          );
           for (const threeLayer of threeLayers) {
             // Use e.point (raw screen pixels) instead of project(lngLat)
             // because project() shifts coordinates when terrain is enabled.
@@ -687,43 +692,68 @@ export const LibreMap = ({
               // it takes visual priority, UNLESS the tree crown extends above
               // the building (tree is visually in front from the camera's perspective).
               const terrainActive = !!(mapInstance as any).terrain;
-              const fillExtrusionHits = queryFeaturesWithTerrainFix(mapInstance, e.point)
-                .filter((f) => f.layer.type === "fill-extrusion");
+              const fillExtrusionHits = queryFeaturesWithTerrainFix(
+                mapInstance,
+                e.point
+              ).filter((f) => f.layer.type === "fill-extrusion");
 
               const treeHitDist = result.hitDistance ?? Infinity;
               let closestWallDist = Infinity;
               const diagBuildings: Array<Record<string, unknown>> = [];
 
               if (fillExtrusionHits.length > 0) {
-
                 for (const f of fillExtrusionHits) {
                   // Get building height: try paint property, then expressions, then feature props
                   let bHeight = 0;
                   const paintH = mapInstance.getPaintProperty(
                     f.layer.id,
-                    "fill-extrusion-height",
+                    "fill-extrusion-height"
                   );
                   if (typeof paintH === "number") {
                     bHeight = paintH;
                   } else if (Array.isArray(paintH) && paintH[0] === "get") {
                     // Expression like ["get", "render_height"]
                     const val = f.properties?.[paintH[1] as string];
-                    const num = typeof val === "number" ? val : parseFloat(String(val ?? ""));
+                    const num =
+                      typeof val === "number"
+                        ? val
+                        : parseFloat(String(val ?? ""));
                     if (num > 0) bHeight = num;
-                  } else if (paintH && typeof paintH === "object" && (paintH as Record<string, unknown>).property) {
+                  } else if (
+                    paintH &&
+                    typeof paintH === "object" &&
+                    (paintH as Record<string, unknown>).property
+                  ) {
                     // Legacy identity function { type: "identity", property: "render_height" }
-                    const propName = (paintH as Record<string, unknown>).property as string;
+                    const propName = (paintH as Record<string, unknown>)
+                      .property as string;
                     const val = f.properties?.[propName];
-                    const num = typeof val === "number" ? val : parseFloat(String(val ?? ""));
+                    const num =
+                      typeof val === "number"
+                        ? val
+                        : parseFloat(String(val ?? ""));
                     if (num > 0) bHeight = num;
                   }
                   if (bHeight <= 0) {
                     // Fallback: try common property names
                     const props = f.properties;
-                    for (const key of ["building_height", "height", "render_height", "measuredHeight", "hoehe", "HOEHE"]) {
+                    for (const key of [
+                      "building_height",
+                      "height",
+                      "render_height",
+                      "measuredHeight",
+                      "hoehe",
+                      "HOEHE",
+                    ]) {
                       const val = props?.[key];
-                      const num = typeof val === "number" ? val : parseFloat(String(val ?? ""));
-                      if (num > 0) { bHeight = num; break; }
+                      const num =
+                        typeof val === "number"
+                          ? val
+                          : parseFloat(String(val ?? ""));
+                      if (num > 0) {
+                        bHeight = num;
+                        break;
+                      }
                     }
                   }
 
@@ -740,14 +770,21 @@ export const LibreMap = ({
                   let groundElev = 0;
                   if (terrainActive) {
                     const gv = f.properties?.["ground_height"];
-                    const gn = typeof gv === "number" ? gv : parseFloat(String(gv ?? ""));
+                    const gn =
+                      typeof gv === "number"
+                        ? gv
+                        : parseFloat(String(gv ?? ""));
                     if (gn > 0) groundElev = gn;
                   }
 
                   let wallDist: number | null = null;
                   if (bHeight > 0) {
                     for (const ring of rings) {
-                      const d = threeLayer.buildingDistance(ring, bHeight, groundElev);
+                      const d = threeLayer.buildingDistance(
+                        ring,
+                        bHeight,
+                        groundElev
+                      );
                       if (d != null && d < closestWallDist) {
                         closestWallDist = d;
                         wallDist = d;
@@ -770,25 +807,34 @@ export const LibreMap = ({
 
                 // Building wall/roof is closer to camera than the tree: building wins
                 if (closestWallDist < treeHitDist) {
-                  console.log("[3D-SELECT]", JSON.stringify({
-                    treeHitDist: +treeHitDist.toFixed(2),
-                    fillExtrusionCount: fillExtrusionHits.length,
-                    terrainActive,
-                    buildings: diagBuildings,
-                    result: "building wins, deferring to 2D",
-                  }));
+                  console.log(
+                    "[3D-SELECT]",
+                    JSON.stringify({
+                      treeHitDist: +treeHitDist.toFixed(2),
+                      fillExtrusionCount: fillExtrusionHits.length,
+                      terrainActive,
+                      buildings: diagBuildings,
+                      result: "building wins, deferring to 2D",
+                    })
+                  );
                   break; // skip 3D selection, fall through to 2D handler
                 }
               }
 
-              console.log("[3D-SELECT]", JSON.stringify({
-                treeHitDist: +treeHitDist.toFixed(2),
-                fillExtrusionCount: fillExtrusionHits.length,
-                terrainActive,
-                closestBuildingDist: closestWallDist < Infinity ? +closestWallDist.toFixed(2) : null,
-                buildings: diagBuildings,
-                result: "tree wins",
-              }));
+              console.log(
+                "[3D-SELECT]",
+                JSON.stringify({
+                  treeHitDist: +treeHitDist.toFixed(2),
+                  fillExtrusionCount: fillExtrusionHits.length,
+                  terrainActive,
+                  closestBuildingDist:
+                    closestWallDist < Infinity
+                      ? +closestWallDist.toFixed(2)
+                      : null,
+                  buildings: diagBuildings,
+                  result: "tree wins",
+                })
+              );
 
               // 3D hit detected: takes priority over 2D
               clearVisualSelection(mapInstance);
@@ -808,7 +854,10 @@ export const LibreMap = ({
                   sourceLayer: sf.sourceLayer,
                   id: sf.id,
                 };
-                console.log("[3D-SELECT] forwarding to 2D selection:", featureId);
+                console.log(
+                  "[3D-SELECT] forwarding to 2D selection:",
+                  featureId
+                );
                 console.log("[3D-SELECT] feature properties:", sf.properties);
 
                 if (sf.id != null) {
@@ -818,7 +867,7 @@ export const LibreMap = ({
                 // Build synthetic MapGeoJSONFeature for createFeature
                 const carmaConf3d = getCarmaConfFromStyle(
                   mapInstance,
-                  sf.sourceLayer,
+                  sf.sourceLayer
                 );
                 const syntheticFeature = {
                   type: "Feature" as const,
@@ -848,16 +897,11 @@ export const LibreMap = ({
                   const style = mapInstance.getStyle();
                   if (style?.layers) {
                     for (const sl of style.layers) {
-                      if (
-                        "source" in sl &&
-                        sl.source === sf.source
-                      ) {
+                      if ("source" in sl && sl.source === sf.source) {
                         const slMeta = sl.metadata as
                           | Record<string, unknown>
                           | undefined;
-                        const lid = slMeta?.["layer-id"] as
-                          | string
-                          | undefined;
+                        const lid = slMeta?.["layer-id"] as string | undefined;
                         if (lid && mappingRef.current[lid]) {
                           fallbackLayerId = lid;
                           break;
@@ -886,14 +930,14 @@ export const LibreMap = ({
                     layerMapping3d,
                     mapInstance,
                     useRouting,
-                    openDatasheetRef.current,
+                    openDatasheetRef.current
                   );
                   if (feature) {
                     setSelectedFeature(feature);
                     mapSelectionCtxRef.current.setSelectedFeature(feature);
                     mapSelectionCtxRef.current.selectFeature(
                       featureId,
-                      syntheticFeature,
+                      syntheticFeature
                     );
                     lastHandledVersionRef.current =
                       mapSelectionCtxRef.current.selectionVersion + 1;
@@ -901,11 +945,13 @@ export const LibreMap = ({
                   }
                 } else {
                   console.log(
-                    "[3D-SELECT] no layerMapping found, infobox skipped",
+                    "[3D-SELECT] no layerMapping found, infobox skipped"
                   );
                 }
               } else {
-                console.log("[3D-SELECT] 3D hit but source feature not resolved");
+                console.log(
+                  "[3D-SELECT] 3D hit but source feature not resolved"
+                );
               }
               return; // skip 2D selection
             }
@@ -953,7 +999,7 @@ export const LibreMap = ({
               source: h.source,
               id: h.id,
             })),
-          }),
+          })
         );
 
         // Clear previous visual selection
