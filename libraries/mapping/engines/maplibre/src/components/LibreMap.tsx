@@ -636,7 +636,7 @@ export const LibreMap = ({
 
       const zoom =
         hashParams["zoom"] !== undefined
-          ? parseFloat(hashParams["zoom"]) - 1
+          ? zoom256as512(parseFloat(hashParams["zoom"])) // -1: hash stores 256px tile zoom, MapLibre uses 512px
           : defaultZoom;
 
       const mapInstance = new maplibregl.Map({
