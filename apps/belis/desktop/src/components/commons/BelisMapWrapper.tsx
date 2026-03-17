@@ -60,7 +60,7 @@ import {
 } from "../../store/slices/featuresForms";
 import { prepareDraftFeatures } from "../../helper/prepareDraftFeatures";
 
-type SidebarMode = "karte" | "highlights" | "drafts";
+type SidebarMode = "fachobjekte" | "highlights" | "drafts";
 
 interface BelisMapLibWrapperProps {
   mapSizes: { width: number; height: number };
@@ -357,12 +357,12 @@ const BelisMapLibWrapper = ({
     });
 
   // Sidebar mode: "karte" shows viewport features, "highlights" shows highlighted features
-  const [sidebarMode, setSidebarMode] = useState<SidebarMode>("karte");
+  const [sidebarMode, setSidebarMode] = useState<SidebarMode>("fachobjekte");
 
   // When highlighting is killed, reset to Karte mode and clear highlight collection
   useEffect(() => {
     if (!highlightingActive) {
-      setSidebarMode("karte");
+      setSidebarMode("fachobjekte");
       setAdjustedHighlights(null);
     }
   }, [highlightingActive]);
@@ -561,7 +561,7 @@ const BelisMapLibWrapper = ({
   const [featureOnMap, setFeatureOnMap] = useState(true);
 
   useEffect(() => {
-    if ((sidebarMode !== "karte" && sidebarMode !== "highlights") || !selectedFeatureId || !map) {
+    if ((sidebarMode !== "fachobjekte" && sidebarMode !== "highlights") || !selectedFeatureId || !map) {
       setFeatureOnMap(true);
       return;
     }
@@ -900,7 +900,7 @@ const BelisMapLibWrapper = ({
         return;
       }
 
-      // Normal flow for karte/highlights
+      // Normal flow for fachobjekte/highlights
       selectFeature(identifier, feature as any);
     },
     [selectFeature, sidebarMode, dispatch, map, namespacedSource]
@@ -954,7 +954,7 @@ const BelisMapLibWrapper = ({
         onModeChange={setSidebarMode}
         hasHighlights={hasHighlights}
         hasDrafts={draftFeaturesCount > 0}
-        karteCount={totalCount}
+        fachobjekteCount={totalCount}
         highlightCount={adjustedHighlights?.length ?? undefined}
         draftsCount={draftFeaturesCount}
         onFeatureDismiss={handleSidebarDismiss}

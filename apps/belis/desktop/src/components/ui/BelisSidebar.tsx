@@ -169,11 +169,11 @@ export interface BelisSidebarProps {
     feature: SidebarFeature
   ) => void;
   emptyMessage?: string;
-  sidebarMode?: "karte" | "highlights" | "drafts";
-  onModeChange?: (mode: "karte" | "highlights" | "drafts") => void;
+  sidebarMode?: "fachobjekte" | "highlights" | "drafts";
+  onModeChange?: (mode: "fachobjekte" | "highlights" | "drafts") => void;
   hasHighlights?: boolean;
   hasDrafts?: boolean;
-  karteCount?: number;
+  fachobjekteCount?: number;
   highlightCount?: number;
   draftsCount?: number;
   onFeatureDismiss?: (feature: SidebarFeature) => void;
@@ -193,11 +193,11 @@ const BelisSidebar = ({
   selectedDatabaseId,
   onFeatureSelect,
   emptyMessage = "Keine Objekte im aktuellen Kartenausschnitt",
-  sidebarMode = "karte",
+  sidebarMode = "fachobjekte",
   onModeChange,
   hasHighlights = false,
   hasDrafts = false,
-  karteCount,
+  fachobjekteCount,
   highlightCount,
   draftsCount,
   onFeatureDismiss,
@@ -571,14 +571,14 @@ const BelisSidebar = ({
       >
         <div className="flex gap-1">
           <button
-            onClick={() => onModeChange?.("karte")}
+            onClick={() => onModeChange?.("fachobjekte")}
             className={`px-2 py-0.5 text-xs rounded ${
-              sidebarMode === "karte"
+              sidebarMode === "fachobjekte"
                 ? "bg-blue-600 text-white"
                 : "bg-gray-200 text-gray-600 hover:bg-gray-300"
             }`}
           >
-            Karte{karteCount != null ? ` (${karteCount})` : ""}
+            Fachobjekte{fachobjekteCount != null ? ` (${fachobjekteCount})` : ""}
           </button>
           {hasHighlights && (
             <button
