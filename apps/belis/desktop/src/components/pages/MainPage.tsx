@@ -3,7 +3,6 @@ import BelisMapLibWrapper from "../commons/BelisMapWrapper";
 import { useSelector, useDispatch } from "react-redux";
 import { CustomCard } from "../commons/CustomCard";
 import { useWindowSize } from "@react-hook/window-size";
-import { BelisSwitch } from "@carma-appframeworks/belis";
 import { AppDispatch } from "../../store";
 import {
   useDatasheet,
@@ -11,10 +10,6 @@ import {
   useMapHighlight,
   useLayerFilter,
 } from "@carma-mapping/engines/maplibre";
-import {
-  isInPaleMode,
-  setPaleModeActive,
-} from "../../store/slices/mapSettings";
 import { getJWT } from "../../store/slices/auth";
 import { ENDPOINT } from "../../constants/belis";
 import { getFromUTM32ToWGS84 } from "@carma/geo/proj";
@@ -57,7 +52,6 @@ const FILTER_STORAGE_KEY = "@belis-desktop.layerFilter";
 
 const MainPage = () => {
   const dispatch: AppDispatch = useDispatch();
-  const inPaleMode = useSelector(isInPaleMode);
   const jwt = useSelector(getJWT);
   const keyTablesLoading = useSelector(getKeyTablesLoading);
   const keyTablesFetched = useSelector(getKeyTablesFetched);
@@ -268,18 +262,6 @@ const MainPage = () => {
                     onChange={(on) => setFilterEnabled(cat.key, on)}
                   />
                 ))}
-              </div>
-
-              {/* Blass switch */}
-              <div className="flex items-center gap-4 border-l border-gray-300 pl-4">
-                <BelisSwitch
-                  id="pale-toggle"
-                  preLabel="Blass"
-                  switched={inPaleMode}
-                  stateChanged={(switched) =>
-                    dispatch(setPaleModeActive(switched))
-                  }
-                />
               </div>
 
               {/* GraphQL Demo (only visible with ?graphqlDemo in hash) */}

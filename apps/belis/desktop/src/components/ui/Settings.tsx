@@ -1,5 +1,5 @@
 import { useDispatch, useSelector } from "react-redux";
-import { Checkbox, Radio, Slider } from "antd";
+import { Checkbox, Radio, Slider, Switch } from "antd";
 import {
   getActiveBackgroundLayer,
   getBackgroundLayerOpacities,
@@ -9,7 +9,10 @@ import {
   setBackgroundLayerOpacities,
   setActiveAdditionalLayers,
   setAdditionalLayerOpacities,
+  isInPaleMode,
+  setPaleModeActive,
 } from "../../store/slices/mapSettings";
+
 import {
   backgroundLayerConfigs,
   additionalLayerConfigs,
@@ -96,11 +99,21 @@ const Settings = () => {
   const activeBackgroundLayer = useSelector(getActiveBackgroundLayer);
   const activeAdditionalLayers = useSelector(getActiveAdditionalLayers);
   const additionalLayerOpacities = useSelector(getAdditionalLayerOpacities);
+  const inPaleMode = useSelector(isInPaleMode);
 
   return (
     <div className="flex flex-col gap-10 h-full">
       <div className="flex flex-col gap-2 flex-1">
         <h2 className="text-2xl font-medium">Karte</h2>
+
+        <div className="flex items-center justify-between">
+          <span className="text-[18px]">Blass</span>
+          <Switch
+            checked={inPaleMode}
+            onChange={(checked) => dispatch(setPaleModeActive(checked))}
+            style={{ transform: "scale(1.2)", transformOrigin: "right center" }}
+          />
+        </div>
 
         <div className="flex flex-col gap-2">
           <h4 className="text-lg font-medium">Optionale Layer</h4>
