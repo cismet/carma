@@ -359,7 +359,7 @@ export const handleSaveAllDrafts = (deps: HandleSaveAllDeps) => {
 
   Modal.confirm({
     title: "Alle Entwürfe speichern?",
-    content: `${draftCount} Entwurf${draftCount > 1 ? "e" : ""} werden gespeichert.`,
+    content: draftCount === 1 ? "Entwurf wird gespeichert." : "Entwürfe werden gespeichert.",
     okText: "Alle speichern",
     cancelText: "Abbrechen",
     onOk: async () => {
@@ -387,7 +387,9 @@ export const handleSaveAllDrafts = (deps: HandleSaveAllDeps) => {
         const total = result.succeeded.length + result.failed.length;
         if (result.failed.length === 0) {
           message.success(
-            `Alle ${result.succeeded.length} Entwürfe gespeichert`
+            result.succeeded.length === 1
+              ? "Entwurf gespeichert."
+              : `Alle (${result.succeeded.length}) Entwürfe gespeichert.`
           );
         } else if (result.succeeded.length === 0) {
           message.error("Alle Entwürfe fehlgeschlagen");
