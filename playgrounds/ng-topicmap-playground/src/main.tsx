@@ -25,6 +25,10 @@ import { Buildings } from "./app/Buildings";
 import { TreesPlayground } from "./app/TreesPlayground";
 import { GenericTreesPlayground } from "./app/GenericTreesPlayground";
 import { CustomProfilePlayground } from "./app/CustomProfilePlayground";
+import {
+  backgroundModes,
+  backgroundConfigurations,
+} from "./app/backgroundConfig";
 
 const root = ReactDOM.createRoot(
   document.getElementById("root") as HTMLElement
@@ -36,7 +40,11 @@ root.render(
   <StrictMode>
     <SandboxedEvalProvider>
       <HashRouter>
-        <TopicMapContextProvider infoBoxPixelWidth={350}>
+        <TopicMapContextProvider
+          infoBoxPixelWidth={350}
+          backgroundModes={backgroundModes}
+          backgroundConfigurations={backgroundConfigurations}
+        >
           <GazDataProvider config={defaultGazDataConfig}>
             <SelectionProvider>
               <LibreContextProvider>

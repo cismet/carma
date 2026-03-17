@@ -13,6 +13,10 @@ import {
 } from "@carma-mapping/engines/maplibre";
 import type { ThreePerfData } from "@carma-mapping/engines/threejs";
 import TopicMapContextProvider from "react-cismap/contexts/TopicMapContextProvider";
+import {
+  backgroundModes,
+  backgroundConfigurations,
+} from "./backgroundConfig";
 import { defaultGazDataConfig } from "@carma-commons/resources";
 import {
   faCrosshairs,
@@ -496,7 +500,11 @@ export function GenericTreesPlayground() {
   };
 
   return (
-    <TopicMapContextProvider infoBoxPixelWidth={350}>
+    <TopicMapContextProvider
+      infoBoxPixelWidth={350}
+      backgroundModes={backgroundModes}
+      backgroundConfigurations={backgroundConfigurations}
+    >
       <SandboxedEvalProvider>
         <GazDataProvider config={defaultGazDataConfig}>
           <SelectionProvider>

@@ -112,6 +112,7 @@ export function buildLatheInstances(
       flatShading: true,
       transparent: true,
       opacity: 1,
+      depthWrite: true,
     });
     const crownMesh = new THREE.InstancedMesh(proto.crown, crownMat, count);
 

@@ -463,8 +463,19 @@ export function buildGenericLayer(
         .invert();
       this._hasRendered = true;
 
+      const gl = _gl;
+
+      // Save MapLibre's depth range before Three.js resets GL state.
+      // Three.js resetState() disables depth test; its render() re-enables it
+      // but may use a default depth range that differs from MapLibre's 3D range.
+      const savedDepthRange = gl.getParameter(gl.DEPTH_RANGE) as Float32Array;
+
       this.renderer.resetState();
       this.renderer.render(this.scene, this.camera);
+
+      // Restore MapLibre's depth range so subsequent symbol layers
+      // test against the same depth space the trees wrote to.
+      gl.depthRange(savedDepthRange[0], savedDepthRange[1]);
     },
 
     raycast(screenX: number, screenY: number): RaycastDebugResult | null {

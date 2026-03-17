@@ -173,13 +173,10 @@ export function ThreeLayerManager({
       const customLayer = buildGenericLayer(effectiveConfig, rebuildFn, layerId);
       layerRef.current = customLayer;
 
-      // Insert before the first fill-extrusion layer for correct depth
-      const styleLayers = map.getStyle().layers ?? [];
-      const firstExtrusion = styleLayers.find(
-        (l) => l.type === "fill-extrusion"
-      );
+      // Insert after fill-extrusion/symbol layers so trees render on top
+      // of labels that should be occluded (depth test handles correct ordering)
       try {
-        map.addLayer(customLayer, firstExtrusion?.id);
+        map.addLayer(customLayer);
         register3dLayer(map, customLayer);
       } catch (err) {
         console.warn("[3D-SELECT] addLayer failed:", err);
@@ -224,6 +221,16 @@ export function ThreeLayerManager({
     };
     map.on("terrain", handleTerrain);
 
+    // Re-add layer after background style change (style swap removes custom layers)
+    const handleStyleData = () => {
+      if (layerRef.current && !map.getLayer(layerRef.current.id)) {
+        layerRef.current = null;
+        addingRef.current = false;
+        trySync();
+      }
+    };
+    map.on("styledata", handleStyleData);
+
     // Sync immediately if the map is already idle
     if (map.isStyleLoaded()) {
       trySync();
@@ -235,6 +242,7 @@ export function ThreeLayerManager({
       map.off("moveend", trySync);
       map.off("sourcedata", handleSourceData);
       map.off("terrain", handleTerrain);
+      map.off("styledata", handleStyleData);
       if (perfRef) {
         perfRef.current = EMPTY_PERF;
       }

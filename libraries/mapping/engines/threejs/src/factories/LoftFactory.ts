@@ -444,6 +444,7 @@ export function buildLoftMeshes(
       side: THREE.DoubleSide,
       transparent: true,
       opacity: 1,
+      depthWrite: true,
     });
     const trunkMat = new THREE.MeshLambertMaterial({
       vertexColors: true,
