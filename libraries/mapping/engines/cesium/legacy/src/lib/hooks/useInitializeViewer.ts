@@ -61,6 +61,7 @@ const DEFAULT_HPR = new HeadingPitchRange(
   CesiumMath.toRadians(-45),
   1500
 );
+const DEFAULT_INITIAL_CAMERA_FOV_RAD = CesiumMath.PI_OVER_THREE;
 
 export const useInitializeViewer = (
   containerRef?: React.RefObject<HTMLDivElement>,
@@ -428,20 +429,13 @@ export const useInitializeViewer = (
     if (initialCameraView) {
       const { position, heading, pitch, fov } = initialCameraView;
       if (position) {
-        const restoredHeight = CesiumMath.clamp(
-          position?.height || 1000,
-          0,
-          50000
-        );
+        const restoredHeight = Math.max(position?.height || 1000, 0);
         position.height = restoredHeight;
         const destination = Cartographic.toCartesian(position);
         const isValidDestination = hasHome
           ? validateWorldCoordinate(destination, home, maxZoom, 0)
           : true;
         withCamera((camera) => {
-          if (camera.frustum instanceof PerspectiveFrustum) {
-            camera.frustum.fov = fov ?? Math.PI / 4;
-          }
           if (isValidDestination) {
             // clear any non-identity transform to avoid offsets
             camera.lookAtTransform(Matrix4.IDENTITY);
@@ -452,6 +446,9 @@ export const useInitializeViewer = (
                 pitch: pitch ?? -CesiumMath.PI_OVER_TWO,
               },
             });
+            if (camera.frustum instanceof PerspectiveFrustum) {
+              camera.frustum.fov = fov ?? DEFAULT_INITIAL_CAMERA_FOV_RAD;
+            }
             usedInitial = true;
             withViewer((viewer) => viewer.scene.requestRender());
           } else {

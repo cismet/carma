@@ -27,6 +27,10 @@ export {
 } from "./lib/components/AnnotationsToolbar";
 export { LibrePitchingCompass } from "./lib/components/PitchingControl/LibrePitchingCompass";
 export { CompassNeedleSVG } from "./lib/components/PitchingControl/CompassNeedleSVG";
+export {
+  SceneNavigationControls,
+  type SceneNavigationControlsProps,
+} from "./lib/components/SceneNavigationControls";
 
 export {
   MapFrameworkSwitcher,

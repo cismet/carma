@@ -1,9 +1,8 @@
-import { useRef, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 
 import { Tooltip } from "antd";
 import { type Scene } from "@carma/cesium";
 import { CarmaResponsiveInfoBox } from "@carma-commons/ui/components";
-import { ResponsiveStatusBar } from "@carma-commons/ui/components";
 import { SELECT_TOOL_TYPE } from "@carma-mapping/annotations/core";
 
 import {
@@ -12,9 +11,9 @@ import {
   useAnnotationsRuntime,
 } from "@carma-mapping/annotations/runtime-v2";
 import {
+  CesiumSceneStateHashSync,
   CesiumSceneStateProvider,
   type CesiumSceneLike,
-  useCesiumSceneStateOptional,
 } from "@carma-mapping/engines/cesium/react/scene-state";
 import {
   AnnotationsToolbar,
@@ -23,12 +22,15 @@ import {
   AnnotationsToolbarItem,
   AnnotationsToolbarSeparator,
 } from "@carma-mapping/components";
-import { Control, ControlLayout } from "@carma-mapping/map-controls-layout";
-import { useCesiumCameraHashPlugin } from "@carma-providers/hash-state";
+import { useInitialSceneDescriptorHashSnapshot } from "@carma-providers/hash-state";
 import { LabelOverlayProvider } from "@carma-providers/label-overlay";
 
+import type { PlaygroundRuntimePageProps } from "../playground.types";
+import { CesiumNavigationOverlay } from "./CesiumNavigationOverlay";
 import { CesiumWidgetContainer } from "./CesiumWidgetContainer";
+import { PlaygroundStatusBar } from "./PlaygroundStatusBar";
 import { SceneStateErrorModal } from "./SceneStateErrorModal";
+import { readAnnotationsDemoHomeSnapshot } from "./annotationsDemoHomePose";
 
 const TERRAIN_SCENE_STATE_OPTIONS = {
   orbitPointMode: "screen-center",
@@ -40,64 +42,65 @@ const TERRAIN_SCENE_STATE_OPTIONS = {
 const formatCoordinate = (value: number, digits: number) =>
   Number.isFinite(value) ? value.toFixed(digits) : "0";
 
-const RuntimeCameraHashSync = ({ enabled }: { enabled: boolean }) => {
-  const sceneState = useCesiumSceneStateOptional();
-  useCesiumCameraHashPlugin({
-    sceneState,
-    enabled,
-    encodeScheme: "maplibre-camera-centric",
-    anchorMode: "camera-position",
-    fallbackHeightM: 200,
-    replace: true,
-    includeIsCesiumFlag: false,
-    label: "annotations-playground:camera3d",
-  });
-  return null;
-};
-
 const RuntimeToolbar = () => {
   const { registry, activeToolType, requestModeChange } =
     useAnnotationsRuntime();
 
   return (
-    <Control position="topcenter" order={20}>
-      <div className="w-full h-9 z-[999] pointer-events-auto">
-        <div className="relative w-[calc(100%-40px)] mx-auto h-full">
-          <div className="w-full flex justify-center items-center h-full gap-2">
-            <AnnotationsToolbar>
-              {registry.orderedDescriptors.map((descriptor) => {
-                const isActive = descriptor.id === activeToolType;
-                const showSeparator = descriptor.id === SELECT_TOOL_TYPE;
+    <div
+      style={{
+        position: "absolute",
+        top: 12,
+        left: 72,
+        right: 12,
+        zIndex: 1600,
+        display: "flex",
+        justifyContent: "center",
+        pointerEvents: "none",
+      }}
+    >
+      <div
+        style={{
+          width: "max-content",
+          maxWidth: "calc(100vw - 120px)",
+          pointerEvents: "auto",
+        }}
+      >
+        <AnnotationsToolbar>
+          {registry.orderedDescriptors.map((descriptor) => {
+            const isActive = descriptor.id === activeToolType;
+            const showSeparator = descriptor.id === SELECT_TOOL_TYPE;
 
-                return (
-                  <AnnotationsToolbarItem key={descriptor.id}>
-                    <Tooltip title={descriptor.tooltip} placement="bottom">
-                      <span className="inline-block">
-                        <AnnotationsToolbarButton
-                          active={isActive}
-                          onClick={() => requestModeChange(descriptor.id)}
-                          aria-pressed={isActive}
-                          aria-label={descriptor.tooltip}
-                        >
-                          <AnnotationsToolbarIcon>
-                            {descriptor.icon}
-                          </AnnotationsToolbarIcon>
-                        </AnnotationsToolbarButton>
-                      </span>
-                    </Tooltip>
-                    {showSeparator ? <AnnotationsToolbarSeparator /> : null}
-                  </AnnotationsToolbarItem>
-                );
-              })}
-            </AnnotationsToolbar>
-          </div>
-        </div>
+            return (
+              <AnnotationsToolbarItem key={descriptor.id}>
+                <Tooltip title={descriptor.tooltip} placement="bottom">
+                  <span className="inline-block">
+                    <AnnotationsToolbarButton
+                      active={isActive}
+                      onClick={() => requestModeChange(descriptor.id)}
+                      aria-pressed={isActive}
+                      aria-label={descriptor.tooltip}
+                    >
+                      <AnnotationsToolbarIcon>
+                        {descriptor.icon}
+                      </AnnotationsToolbarIcon>
+                    </AnnotationsToolbarButton>
+                  </span>
+                </Tooltip>
+                {showSeparator ? <AnnotationsToolbarSeparator /> : null}
+              </AnnotationsToolbarItem>
+            );
+          })}
+        </AnnotationsToolbar>
       </div>
-    </Control>
+    </div>
   );
 };
 
-const RuntimeStatusBar = () => {
+const RuntimeStatusBar = ({
+  runtimeVersion,
+  onRuntimeVersionChange,
+}: PlaygroundRuntimePageProps) => {
   const { registry, activeToolType, annotationEntries } =
     useAnnotationsRuntime();
   const activePlugin = registry.getPlugin(activeToolType);
@@ -105,25 +108,16 @@ const RuntimeStatusBar = () => {
   const secondaryHint = `${annotationEntries.length} Annotation(en) gespeichert`;
 
   return (
-    <div
-      style={{
-        position: "absolute",
-        left: 0,
-        right: 0,
-        bottom: 0,
-        zIndex: 1800,
-        pointerEvents: "none",
-      }}
-    >
-      <ResponsiveStatusBar
-        label="annotations runtime"
-        values={[
-          activePlugin?.descriptor.label ?? "Werkzeug",
-          primaryHint,
-          secondaryHint,
-        ]}
-      />
-    </div>
+    <PlaygroundStatusBar
+      runtimeVersion={runtimeVersion}
+      onRuntimeVersionChange={onRuntimeVersionChange}
+      label="annotations runtime"
+      values={[
+        activePlugin?.descriptor.label ?? "Werkzeug",
+        primaryHint,
+        secondaryHint,
+      ]}
+    />
   );
 };
 
@@ -157,11 +151,21 @@ const RuntimeSelectionInfoBox = () => {
     );
 
   return (
-    <div data-test-id="annotation-info-box">
+    <div
+      data-test-id="annotation-info-box"
+      style={{
+        position: "absolute",
+        top: 56,
+        right: 12,
+        zIndex: 1600,
+        pointerEvents: "auto",
+      }}
+    >
       <CarmaResponsiveInfoBox
         width={350}
         onPanelClick={(event) => event.stopPropagation()}
         collapsible={true}
+        useControlLayout={false}
         header={undefined}
         headingColor="#4b7ed1"
         heading={
@@ -197,12 +201,30 @@ const RuntimeSelectionInfoBox = () => {
   );
 };
 
-export const AnnotationsRuntimeV2Page = () => {
+export const AnnotationsRuntimeV2Page = ({
+  runtimeVersion,
+  onRuntimeVersionChange,
+}: PlaygroundRuntimePageProps) => {
   const rootRef = useRef<HTMLDivElement | null>(null);
   const [scene, setScene] = useState<Scene | null>(null);
+  const { initialCameraState, isResolved } =
+    useInitialSceneDescriptorHashSnapshot();
+  const homeSnapshot = useMemo(
+    () =>
+      readAnnotationsDemoHomeSnapshot({
+        viewportWidthPx: scene?.canvas?.clientWidth,
+        viewportHeightPx: scene?.canvas?.clientHeight,
+      }),
+    [scene]
+  );
 
   return (
-    <CesiumWidgetContainer rootRef={rootRef} onSceneChange={setScene}>
+    <CesiumWidgetContainer
+      rootRef={rootRef}
+      onSceneChange={setScene}
+      initialCameraState={initialCameraState}
+      startPoseResolved={isResolved}
+    >
       <CesiumSceneStateProvider
         scene={scene as unknown as CesiumSceneLike | null}
         options={TERRAIN_SCENE_STATE_OPTIONS}
@@ -210,14 +232,28 @@ export const AnnotationsRuntimeV2Page = () => {
         <SceneStateErrorModal
           fallbackHeightM={TERRAIN_SCENE_STATE_OPTIONS.fallbackHeightM}
         />
-        <RuntimeCameraHashSync enabled={Boolean(scene)} />
+        <CesiumSceneStateHashSync
+          scene={scene as unknown as CesiumSceneLike | null}
+          enabled={Boolean(scene)}
+          encodeScheme="carma-maplibre-plus-elevation"
+          anchorMode="screen-center"
+          fallbackHeightM={TERRAIN_SCENE_STATE_OPTIONS.fallbackHeightM}
+          replace={true}
+          includeIs3dFlag={false}
+          label="annotations-playground:camera3d"
+        />
         <LabelOverlayProvider containerRef={rootRef}>
           <AnnotationsProvider scene={scene} initialActiveToolType="polyline">
-            <ControlLayout ifStorybook={false}>
-              <RuntimeToolbar />
-              <RuntimeStatusBar />
-              <RuntimeSelectionInfoBox />
-            </ControlLayout>
+            <CesiumNavigationOverlay
+              scene={scene}
+              initialHomeSnapshot={homeSnapshot}
+            />
+            <RuntimeToolbar />
+            <RuntimeStatusBar
+              runtimeVersion={runtimeVersion}
+              onRuntimeVersionChange={onRuntimeVersionChange}
+            />
+            <RuntimeSelectionInfoBox />
           </AnnotationsProvider>
         </LabelOverlayProvider>
       </CesiumSceneStateProvider>

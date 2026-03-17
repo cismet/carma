@@ -14,11 +14,10 @@
 
 import { useCallback, useEffect, useRef } from "react";
 import {
+  DEFAULT_SCENE_DESCRIPTOR_HASH_CLEAR_KEYS,
   useHashState,
   type HashChangeEvent,
 } from "@carma-providers/hash-state";
-
-import { cesiumClearParamKeys } from "@carma-mapping/engines/cesium";
 import { useMapFrameworkSwitcherContext } from "@carma-mapping/components";
 import { isMapCenterZoomEquivalent } from "@carma/geo/utils";
 import { Degrees } from "@carma/units/types";
@@ -52,7 +51,7 @@ export interface UseMapHashRoutingOptions {
 export function useMapHashRouting({
   getLeafletMap,
   getLeafletZoom,
-  cesiumClearKeys = cesiumClearParamKeys,
+  cesiumClearKeys = [...DEFAULT_SCENE_DESCRIPTOR_HASH_CLEAR_KEYS],
   labels,
   pixelTolerance,
 }: UseMapHashRoutingOptions) {
@@ -186,7 +185,7 @@ export function useMapHashRouting({
     // Only update hash when transitioning TO Leaflet AND not currently transitioning
     if (!wasLeafletLike && isLeafletLike && !getIsTransitioning()) {
       // Replace current entry to clear 3D-specific state
-      updateHash(undefined, {
+      updateHash({ is2d: 1 }, {
         clearKeys: cesiumClearKeys,
         label: labels?.clearCesium ?? "Map:2D:clearCesium",
         replace: true,
@@ -201,7 +200,7 @@ export function useMapHashRouting({
         const center = map.getCenter();
         const zoom = getLeafletZoom();
         updateHash(
-          { lat: center.lat, lng: center.lng, zoom },
+          { lat: center.lat, lng: center.lng, zoom, is2d: 1 },
           { label: labels?.writeLeafletLike ?? "Map:2D:writeLocation" }
         );
       }
@@ -231,13 +230,6 @@ export function useMapHashRouting({
 
     // Debounce hash update by 200ms to ensure map has settled
     frameworkSwitchTimerRef.current = setTimeout(() => {
-      console.debug(
-        "[Routing][hash] Framework switch complete, triggering hash update",
-        {
-          activeFramework,
-        }
-      );
-
       if (getIsLeaflet()) {
         const map = getLeafletMap?.();
         if (
@@ -284,54 +276,27 @@ export function useMapHashRouting({
       const fallbackZoom = getLeafletZoom?.();
       const zoom = zoomFromHash ?? fallbackZoom;
 
-      console.warn("[Routing][hash] POPSTATE ZOOM DEBUG:", {
-        zoomFromHash,
-        fallbackZoom,
-        finalZoom: zoom,
-        hashValues: e.values,
-        source: e.source,
-      });
-
       if (lat == null || lng == null || zoom == null) return;
       const map = getLeafletMap?.();
       if (!map) return;
       navMoveInProgressRef.current = true;
       popstateTargetRef.current = { lat, lng, zoom };
-      console.debug("[Routing][hash] popstate begin -> restore leaflet view", {
-        lat,
-        lng,
-        zoom,
-      });
       const scheduleClear = (evt: string) => {
         if (typeof map.once === "function") {
           map.once(evt, () => {
             setTimeout(() => {
               navMoveInProgressRef.current = false;
-              console.debug(
-                "[Routing][hash] popstate end -> resume leaflet writes",
-                { via: evt }
-              );
             }, 0);
           });
         }
       };
       scheduleClear("moveend");
       scheduleClear("zoomend");
-      console.warn("[Routing][hash] CALLING map.setView", {
-        lat,
-        lng,
-        zoom,
-        stack: new Error().stack,
-      });
       if (typeof map.setView === "function") {
         map.setView({ lat, lng }, zoom);
       } else if (typeof map.panTo === "function") {
         map.panTo({ lat, lng });
         if (typeof map.setZoom === "function") {
-          console.warn("[Routing][hash] CALLING map.setZoom", {
-            zoom,
-            stack: new Error().stack,
-          });
           map.setZoom(zoom);
         }
       }

@@ -15,7 +15,7 @@ type UseGeoportalFrameworkSwitcherOptions = {
 /**
  * Registers geoportal-specific callbacks for framework transitions
  * - Updates hash with Leaflet coordinates after Cesium→Leaflet transition
- * - Clears Cesium-specific hash parameters (h, heading, pitch, fov, is3d)
+ * - Clears Cesium-specific hash parameters (h, heading, pitch, fov)
  */
 export const useGeoportalFrameworkSwitcher = (
   options?: UseGeoportalFrameworkSwitcherOptions
@@ -38,6 +38,7 @@ export const useGeoportalFrameworkSwitcher = (
         {
           label: "[GEOPORTAL] Post-transition hash update",
           clearKeys: [
+            "is3d",
             "h",
             "altitude",
             "range",
@@ -46,7 +47,6 @@ export const useGeoportalFrameworkSwitcher = (
             "pitch",
             "roll",
             "fov",
-            "is3d",
             "camera3d",
             "c3",
           ],

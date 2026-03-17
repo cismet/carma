@@ -9,6 +9,7 @@ import {
   pointToolPlugin,
   polylineToolPlugin,
   selectToolPlugin,
+  verticalAreaToolPlugin,
   useAnnotationsRuntime,
   type AnnotationToolPlugin,
 } from "@carma-mapping/annotations/runtime-v2";
@@ -22,12 +23,14 @@ type MeasurementToolkitStoryProps = {
   enablePoint: boolean;
   enableDistance: boolean;
   enablePolyline: boolean;
+  enableVerticalArea: boolean;
 };
 
 const buildEnabledPlugins = ({
   enablePoint,
   enableDistance,
   enablePolyline,
+  enableVerticalArea,
 }: MeasurementToolkitStoryProps): readonly AnnotationToolPlugin[] => {
   const plugins: AnnotationToolPlugin[] = [selectToolPlugin];
 
@@ -39,6 +42,9 @@ const buildEnabledPlugins = ({
   }
   if (enablePolyline) {
     plugins.push(polylineToolPlugin);
+  }
+  if (enableVerticalArea) {
+    plugins.push(verticalAreaToolPlugin);
   }
 
   return plugins;
@@ -218,6 +224,7 @@ const MeasurementToolkitStory = (args: MeasurementToolkitStoryProps) => {
     args.enableDistance,
     args.enablePoint,
     args.enablePolyline,
+    args.enableVerticalArea,
   ]);
 
   return <MeasurementRuntimeOverlay plugins={plugins} />;
@@ -233,11 +240,13 @@ const meta = {
     enablePoint: true,
     enableDistance: true,
     enablePolyline: true,
+    enableVerticalArea: true,
   },
   argTypes: {
     enablePoint: { control: { type: "boolean" } },
     enableDistance: { control: { type: "boolean" } },
     enablePolyline: { control: { type: "boolean" } },
+    enableVerticalArea: { control: { type: "boolean" } },
   },
 } satisfies Meta<typeof MeasurementToolkitStory>;
 

@@ -1,31 +1,52 @@
 import {
   createViewStateVisualizerPrimitive,
+  type ViewStateVisualizerCueKey,
   type ViewStateVisualizerDisplayOptions,
   type ViewStateVisualizerLabelAnchors,
   type ViewStateVisualizerPrimitive,
   type ViewStateVisualizerSpecification,
 } from "@carma-mapping/engines/three/primitives";
 import {
-  useEffect,
+  useLayoutEffect,
+  useMemo,
   useRef,
-  useState,
   type CSSProperties,
   type ReactNode,
 } from "react";
 
-const RANGE_LABEL_COLOR = "#64748b";
-const ALTITUDE_LABEL_COLOR = "#94a3b8";
-const HEADING_LABEL_COLOR = "#22d3ee";
-const PITCH_LABEL_COLOR = "#f59e0b";
+const DEFAULT_CUE_OPTIONS: Record<ViewStateVisualizerCueKey, {
+  label: ReactNode;
+  color: string;
+}> = {
+  bearing: { label: "b", color: "#22d3ee" },
+  pitch: { label: "p", color: "#f59e0b" },
+  range: { label: "r", color: "#64748b" },
+  altitude: { label: "ℎ", color: "#94a3b8" },
+  east: { label: "E", color: "#dc2626" },
+  north: { label: "N", color: "#16a34a" },
+  up: { label: "U", color: "#2563eb" },
+  imageX: { label: "x", color: "#dc2626" },
+  imageY: { label: "y", color: "#2563eb" },
+};
+
+export type ViewStateVisualizerCueOption = {
+  label?: ReactNode;
+  color?: string;
+};
+
+export type ViewStateVisualizerCueOptions = Partial<
+  Record<ViewStateVisualizerCueKey, ViewStateVisualizerCueOption>
+>;
 
 export type ViewStateVisualizerProps = {
   specification: ViewStateVisualizerSpecification;
   displayOptions?: ViewStateVisualizerDisplayOptions;
-  /** Called when the user drags the camera cube to change heading/pitch (radians). */
-  onPoseChange?: (heading: number, pitch: number) => void;
+  /** Called when the user drags the camera cube to change bearing/pitch (radians). */
+  onPoseChange?: (bearing: number, pitch: number) => void;
   width?: number;
   height?: number;
-  headingLabel?: ReactNode;
+  cueOptions?: ViewStateVisualizerCueOptions;
+  bearingLabel?: ReactNode;
   pitchLabel?: ReactNode;
   rangeLabel?: ReactNode;
   altitudeLabel?: ReactNode;
@@ -43,10 +64,11 @@ export const ViewStateVisualizer = ({
   onPoseChange,
   width = 176,
   height = 176,
-  headingLabel = "h",
+  cueOptions,
+  bearingLabel = "b",
   pitchLabel = "p",
   rangeLabel = "r",
-  altitudeLabel = "e",
+  altitudeLabel = "ℎ",
   eastLabel = "E",
   northLabel = "N",
   upLabel = "U",
@@ -60,10 +82,13 @@ export const ViewStateVisualizer = ({
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const primitiveRef = useRef<ViewStateVisualizerPrimitive | null>(null);
   const onPoseChangeRef = useRef(onPoseChange);
+  const resolvedDisplayOptionsRef = useRef<ViewStateVisualizerDisplayOptions | undefined>(
+    displayOptions
+  );
   onPoseChangeRef.current = onPoseChange;
 
-  const [labelAnchors, setLabelAnchors] = useState<ViewStateVisualizerLabelAnchors>({
-    heading: { leftPx: squareSize * 0.5, topPx: squareSize * 0.3 },
+  const defaultLabelAnchors = useMemo<ViewStateVisualizerLabelAnchors>(() => ({
+    bearing: { leftPx: squareSize * 0.5, topPx: squareSize * 0.3 },
     pitch: { leftPx: squareSize * 0.62, topPx: squareSize * 0.54 },
     range: { leftPx: squareSize * 0.36, topPx: squareSize * 0.42 },
     altitude: { leftPx: squareSize * 0.5, topPx: squareSize * 0.76 },
@@ -72,23 +97,129 @@ export const ViewStateVisualizer = ({
     up: { leftPx: squareSize * 0.5, topPx: squareSize * 0.24 },
     imageX: { leftPx: squareSize * 0.72, topPx: squareSize * 0.46 },
     imageY: { leftPx: squareSize * 0.6, topPx: squareSize * 0.3 },
-  });
+  }), [squareSize]);
+  const labelAnchorsRef = useRef<ViewStateVisualizerLabelAnchors>(defaultLabelAnchors);
+  const labelElementRefs = useRef<
+    Partial<Record<ViewStateVisualizerCueKey, HTMLSpanElement | null>>
+  >({});
 
   const showAxisLabels = displayOptions?.showAxisLabels ?? true;
   const showAngleLabels = displayOptions?.showAngleLabels ?? true;
   const showImagePlaneLabels = displayOptions?.showImagePlaneLabels ?? true;
   const labelFontSizePx = displayOptions?.labelFontSizePx ?? 11;
+  const resolvedCueOptions = useMemo(
+    () => ({
+      bearing: {
+        label: cueOptions?.bearing?.label ?? bearingLabel,
+        color: cueOptions?.bearing?.color ?? DEFAULT_CUE_OPTIONS.bearing.color,
+      },
+      pitch: {
+        label: cueOptions?.pitch?.label ?? pitchLabel,
+        color: cueOptions?.pitch?.color ?? DEFAULT_CUE_OPTIONS.pitch.color,
+      },
+      range: {
+        label: cueOptions?.range?.label ?? rangeLabel,
+        color: cueOptions?.range?.color ?? DEFAULT_CUE_OPTIONS.range.color,
+      },
+      altitude: {
+        label: cueOptions?.altitude?.label ?? altitudeLabel,
+        color: cueOptions?.altitude?.color ?? DEFAULT_CUE_OPTIONS.altitude.color,
+      },
+      east: {
+        label: cueOptions?.east?.label ?? eastLabel,
+        color: cueOptions?.east?.color ?? DEFAULT_CUE_OPTIONS.east.color,
+      },
+      north: {
+        label: cueOptions?.north?.label ?? northLabel,
+        color: cueOptions?.north?.color ?? DEFAULT_CUE_OPTIONS.north.color,
+      },
+      up: {
+        label: cueOptions?.up?.label ?? upLabel,
+        color: cueOptions?.up?.color ?? DEFAULT_CUE_OPTIONS.up.color,
+      },
+      imageX: {
+        label: cueOptions?.imageX?.label ?? imageXLabel,
+        color: cueOptions?.imageX?.color ?? DEFAULT_CUE_OPTIONS.imageX.color,
+      },
+      imageY: {
+        label: cueOptions?.imageY?.label ?? imageYLabel,
+        color: cueOptions?.imageY?.color ?? DEFAULT_CUE_OPTIONS.imageY.color,
+      },
+    }),
+    [
+      altitudeLabel,
+      bearingLabel,
+      cueOptions,
+      eastLabel,
+      imageXLabel,
+      imageYLabel,
+      northLabel,
+      pitchLabel,
+      rangeLabel,
+      upLabel,
+    ]
+  ) satisfies Record<ViewStateVisualizerCueKey, { label: ReactNode; color: string }>;
+  const resolvedDisplayOptions = useMemo(
+    () => ({
+      ...displayOptions,
+      cueColors: {
+        ...displayOptions?.cueColors,
+        bearing: resolvedCueOptions.bearing.color,
+        pitch: resolvedCueOptions.pitch.color,
+        range: resolvedCueOptions.range.color,
+        altitude: resolvedCueOptions.altitude.color,
+        east: resolvedCueOptions.east.color,
+        north: resolvedCueOptions.north.color,
+        up: resolvedCueOptions.up.color,
+        imageX: resolvedCueOptions.imageX.color,
+        imageY: resolvedCueOptions.imageY.color,
+      },
+    }),
+    [displayOptions, resolvedCueOptions]
+  ) satisfies ViewStateVisualizerDisplayOptions;
 
-  useEffect(() => {
+  resolvedDisplayOptionsRef.current = resolvedDisplayOptions;
+
+  const applyLabelAnchors = (anchors: ViewStateVisualizerLabelAnchors) => {
+    labelAnchorsRef.current = anchors;
+
+    const setPosition = (
+      key: ViewStateVisualizerCueKey,
+      leftPx: number,
+      topPx: number
+    ) => {
+      const element = labelElementRefs.current[key];
+      if (!element) {
+        return;
+      }
+
+      element.style.left = `${(squareOffsetLeft + leftPx).toFixed(1)}px`;
+      element.style.top = `${(squareOffsetTop + topPx).toFixed(1)}px`;
+    };
+
+    setPosition("bearing", anchors.bearing.leftPx, anchors.bearing.topPx);
+    setPosition("pitch", anchors.pitch.leftPx, anchors.pitch.topPx);
+    setPosition("range", anchors.range.leftPx, anchors.range.topPx);
+    setPosition("altitude", anchors.altitude.leftPx, anchors.altitude.topPx);
+    setPosition("east", anchors.east.leftPx, anchors.east.topPx);
+    setPosition("north", anchors.north.leftPx, anchors.north.topPx);
+    setPosition("up", anchors.up.leftPx, anchors.up.topPx);
+    setPosition("imageX", anchors.imageX.leftPx, anchors.imageX.topPx);
+    setPosition("imageY", anchors.imageY.leftPx, anchors.imageY.topPx);
+  };
+
+  useLayoutEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
 
     primitiveRef.current = createViewStateVisualizerPrimitive(canvas, {
       size: { widthPx: squareSize, heightPx: squareSize },
-      display: displayOptions,
-      onInteraction: setLabelAnchors,
-      onPoseChange: (heading, pitch) => onPoseChangeRef.current?.(heading, pitch),
+      display: resolvedDisplayOptionsRef.current,
+      onInteraction: applyLabelAnchors,
+      onPoseChange: (bearing, pitch) => onPoseChangeRef.current?.(bearing, pitch),
     });
+
+    applyLabelAnchors(labelAnchorsRef.current);
 
     return () => {
       primitiveRef.current?.dispose();
@@ -96,21 +227,37 @@ export const ViewStateVisualizer = ({
     };
   }, [squareSize]);
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     const primitive = primitiveRef.current;
     if (!primitive) return;
 
     primitive.resize({ widthPx: squareSize, heightPx: squareSize });
-    setLabelAnchors(primitive.update(specification));
+    applyLabelAnchors(primitive.update(specification));
   }, [specification, squareSize]);
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     const primitive = primitiveRef.current;
-    if (!primitive || !displayOptions) return;
+    if (!primitive || !resolvedDisplayOptions) return;
 
-    const anchors = primitive.setDisplay(displayOptions);
-    if (anchors) setLabelAnchors(anchors);
-  }, [displayOptions]);
+    const anchors = primitive.setDisplay(resolvedDisplayOptions);
+    if (anchors) {
+      applyLabelAnchors(anchors);
+    }
+  }, [resolvedDisplayOptions]);
+
+  useLayoutEffect(() => {
+    applyLabelAnchors(labelAnchorsRef.current);
+  }, [squareOffsetLeft, squareOffsetTop, squareSize]);
+
+  const bindLabelRef = (key: ViewStateVisualizerCueKey) =>
+    (element: HTMLSpanElement | null) => {
+      labelElementRefs.current[key] = element;
+      if (element) {
+        const anchors = labelAnchorsRef.current[key];
+        element.style.left = `${(squareOffsetLeft + anchors.leftPx).toFixed(1)}px`;
+        element.style.top = `${(squareOffsetTop + anchors.topPx).toFixed(1)}px`;
+      }
+    };
 
   return (
     <div
@@ -150,120 +297,129 @@ export const ViewStateVisualizer = ({
         {showAngleLabels && (
           <>
             <span
+              ref={bindLabelRef("bearing")}
               style={{
                 position: "absolute",
-                left: `${(squareOffsetLeft + labelAnchors.heading.leftPx).toFixed(1)}px`,
-                top: `${(squareOffsetTop + labelAnchors.heading.topPx).toFixed(1)}px`,
+                left: `${(squareOffsetLeft + defaultLabelAnchors.bearing.leftPx).toFixed(1)}px`,
+                top: `${(squareOffsetTop + defaultLabelAnchors.bearing.topPx).toFixed(1)}px`,
                 fontWeight: 700,
-                color: HEADING_LABEL_COLOR,
+                color: resolvedCueOptions.bearing.color,
                 transform: "translate(-50%, -50%)",
               }}
             >
-              {headingLabel}
+              {resolvedCueOptions.bearing.label}
             </span>
             <span
+              ref={bindLabelRef("pitch")}
               style={{
                 position: "absolute",
-                left: `${(squareOffsetLeft + labelAnchors.pitch.leftPx).toFixed(1)}px`,
-                top: `${(squareOffsetTop + labelAnchors.pitch.topPx).toFixed(1)}px`,
+                left: `${(squareOffsetLeft + defaultLabelAnchors.pitch.leftPx).toFixed(1)}px`,
+                top: `${(squareOffsetTop + defaultLabelAnchors.pitch.topPx).toFixed(1)}px`,
                 fontWeight: 700,
-                color: PITCH_LABEL_COLOR,
+                color: resolvedCueOptions.pitch.color,
                 transform: "translate(-50%, -50%)",
               }}
             >
-              {pitchLabel}
+              {resolvedCueOptions.pitch.label}
             </span>
             <span
+              ref={bindLabelRef("range")}
               style={{
                 position: "absolute",
-                left: `${(squareOffsetLeft + labelAnchors.range.leftPx).toFixed(1)}px`,
-                top: `${(squareOffsetTop + labelAnchors.range.topPx).toFixed(1)}px`,
+                left: `${(squareOffsetLeft + defaultLabelAnchors.range.leftPx).toFixed(1)}px`,
+                top: `${(squareOffsetTop + defaultLabelAnchors.range.topPx).toFixed(1)}px`,
                 fontWeight: 700,
-                color: RANGE_LABEL_COLOR,
+                color: resolvedCueOptions.range.color,
                 transform: "translate(-50%, -50%)",
               }}
             >
-              {rangeLabel}
+              {resolvedCueOptions.range.label}
             </span>
             <span
+              ref={bindLabelRef("altitude")}
               style={{
                 position: "absolute",
-                left: `${(squareOffsetLeft + labelAnchors.altitude.leftPx).toFixed(1)}px`,
-                top: `${(squareOffsetTop + labelAnchors.altitude.topPx).toFixed(1)}px`,
+                left: `${(squareOffsetLeft + defaultLabelAnchors.altitude.leftPx).toFixed(1)}px`,
+                top: `${(squareOffsetTop + defaultLabelAnchors.altitude.topPx).toFixed(1)}px`,
                 fontWeight: 700,
-                color: ALTITUDE_LABEL_COLOR,
+                color: resolvedCueOptions.altitude.color,
                 transform: "translate(-50%, -50%)",
               }}
             >
-              {altitudeLabel}
+              {resolvedCueOptions.altitude.label}
             </span>
           </>
         )}
         {showAxisLabels && (
           <>
             <span
+              ref={bindLabelRef("east")}
               style={{
                 position: "absolute",
-                left: `${(squareOffsetLeft + labelAnchors.east.leftPx).toFixed(1)}px`,
-                top: `${(squareOffsetTop + labelAnchors.east.topPx).toFixed(1)}px`,
+                left: `${(squareOffsetLeft + defaultLabelAnchors.east.leftPx).toFixed(1)}px`,
+                top: `${(squareOffsetTop + defaultLabelAnchors.east.topPx).toFixed(1)}px`,
                 fontWeight: 700,
-                color: "#dc2626",
+                color: resolvedCueOptions.east.color,
                 transform: "translate(0, -50%)",
               }}
             >
-              {eastLabel}
+              {resolvedCueOptions.east.label}
             </span>
             <span
+              ref={bindLabelRef("north")}
               style={{
                 position: "absolute",
-                left: `${(squareOffsetLeft + labelAnchors.north.leftPx).toFixed(1)}px`,
-                top: `${(squareOffsetTop + labelAnchors.north.topPx).toFixed(1)}px`,
+                left: `${(squareOffsetLeft + defaultLabelAnchors.north.leftPx).toFixed(1)}px`,
+                top: `${(squareOffsetTop + defaultLabelAnchors.north.topPx).toFixed(1)}px`,
                 fontWeight: 700,
-                color: "#16a34a",
+                color: resolvedCueOptions.north.color,
                 transform: "translate(-50%, -50%)",
               }}
             >
-              {northLabel}
+              {resolvedCueOptions.north.label}
             </span>
             <span
+              ref={bindLabelRef("up")}
               style={{
                 position: "absolute",
-                left: `${(squareOffsetLeft + labelAnchors.up.leftPx).toFixed(1)}px`,
-                top: `${(squareOffsetTop + labelAnchors.up.topPx).toFixed(1)}px`,
+                left: `${(squareOffsetLeft + defaultLabelAnchors.up.leftPx).toFixed(1)}px`,
+                top: `${(squareOffsetTop + defaultLabelAnchors.up.topPx).toFixed(1)}px`,
                 fontWeight: 700,
-                color: "#2563eb",
+                color: resolvedCueOptions.up.color,
                 transform: "translate(-50%, -100%)",
               }}
             >
-              {upLabel}
+              {resolvedCueOptions.up.label}
             </span>
           </>
         )}
         {showImagePlaneLabels && (
           <>
             <span
+              ref={bindLabelRef("imageX")}
               style={{
                 position: "absolute",
-                left: `${(squareOffsetLeft + labelAnchors.imageX.leftPx).toFixed(1)}px`,
-                top: `${(squareOffsetTop + labelAnchors.imageX.topPx).toFixed(1)}px`,
+                left: `${(squareOffsetLeft + defaultLabelAnchors.imageX.leftPx).toFixed(1)}px`,
+                top: `${(squareOffsetTop + defaultLabelAnchors.imageX.topPx).toFixed(1)}px`,
                 fontWeight: 700,
-                color: "#7c3aed",
+                color: resolvedCueOptions.imageX.color,
                 transform: "translate(-50%, -50%)",
               }}
             >
-              {imageXLabel}
+              {resolvedCueOptions.imageX.label}
             </span>
             <span
+              ref={bindLabelRef("imageY")}
               style={{
                 position: "absolute",
-                left: `${(squareOffsetLeft + labelAnchors.imageY.leftPx).toFixed(1)}px`,
-                top: `${(squareOffsetTop + labelAnchors.imageY.topPx).toFixed(1)}px`,
+                left: `${(squareOffsetLeft + defaultLabelAnchors.imageY.leftPx).toFixed(1)}px`,
+                top: `${(squareOffsetTop + defaultLabelAnchors.imageY.topPx).toFixed(1)}px`,
                 fontWeight: 700,
-                color: "#15803d",
+                color: resolvedCueOptions.imageY.color,
                 transform: "translate(-50%, -50%)",
               }}
             >
-              {imageYLabel}
+              {resolvedCueOptions.imageY.label}
             </span>
           </>
         )}

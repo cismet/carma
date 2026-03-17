@@ -16,22 +16,17 @@ export const useAppSearchParams = () => {
     const hashParams = getHashParams();
     console.debug("useAppSearchParams - hashParams:", hashParams);
 
-    // Handle 3D mode parameter
-    if (hashParams[URL_PARAM_KEYS.is3d] !== undefined) {
-      const is3d = hashParams[URL_PARAM_KEYS.is3d];
-      console.log("[useAppSearchParams] is3d parameter present:", is3d);
-      if (is3d === "1") {
-        console.log("[useAppSearchParams] Setting framework to cesium (3D)");
-        setActiveFrameworkCesium();
-      } else {
-        console.log(
-          "[useAppSearchParams] is3d present but not '1', defaulting to leaflet (LeafletLike)"
-        );
-        setActiveFrameworkLeaflet();
-      }
+    const has3dHeightHint =
+      hashParams.h !== undefined || hashParams.altitude !== undefined;
+
+    if (has3dHeightHint) {
+      console.log(
+        "[useAppSearchParams] Height hash detected; setting framework to cesium (3D)"
+      );
+      setActiveFrameworkCesium();
     } else {
       console.log(
-        "[useAppSearchParams] is3d parameter NOT present, setting framework to leaflet (LeafletLike)"
+        "[useAppSearchParams] No 3D height hint present, setting framework to leaflet (LeafletLike)"
       );
       setActiveFrameworkLeaflet();
     }

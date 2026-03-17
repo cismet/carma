@@ -37,6 +37,7 @@ export {
 
 export {
   applyRollToHeadingForCameraNearNadir,
+  animateOrbitHeadingPitchRange,
   cameraPositionCartographicDegrees,
   cameraPositionCartographicRadians,
   cameraToHeadingPitchJson,
@@ -56,6 +57,7 @@ export type {
   CameraStateHeadingPitchRoll,
   CameraStateRecord,
   DirectionUp,
+  OrbitHeadingPitchRangeAnimationOptions,
 } from "./carma-helpers/camera";
 export type {
   FlyToBoundingSphereExtentOptions,
@@ -112,6 +114,17 @@ export {
   rectangleToJson,
 } from "./serialization/base";
 export type { RectangleConstructorArgs, RectangleJson, RectangleJsonRaw } from "./serialization/base";
+
+export {
+  getCartographicAndHeadingPitchRangeFromPoints,
+  getCartographicAndHeadingPitchRangeFromPoints as getCartographicAndHeadingPitchRangeFromWorldPoints,
+  getPointsFromCartographicAndHeadingPitchRange,
+  getPointsFromCartographicAndHeadingPitchRange as getWorldPointsFromCartographicAndHeadingPitchRange,
+} from "./carma-helpers/Transforms";
+export type {
+  CartographicHeadingPitchRange,
+  CartographicHeadingPitchRangePoints,
+} from "./carma-helpers/Transforms";
 
 export {
   ensureSceneReady,

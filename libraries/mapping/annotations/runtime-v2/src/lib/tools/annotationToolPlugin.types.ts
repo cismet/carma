@@ -12,6 +12,7 @@ import type { RuntimeRenderLayer } from "../render/runtimeRenderLayer";
 import type {
   AnnotationsStore,
   AnnotationsStoreState,
+  RuntimeAddAnnotationOptions,
   RuntimeAnnotationEntry,
   RuntimeCoordinate,
   RuntimeEdge,
@@ -46,7 +47,8 @@ export type AnnotationToolSessionContext = {
   setActiveToolType: (toolType: RuntimeToolId) => void;
   addAnnotation: (
     toolType: RuntimeMeasurement["toolType"],
-    coordinates: readonly RuntimeCoordinate[]
+    coordinates: readonly RuntimeCoordinate[],
+    options?: RuntimeAddAnnotationOptions
   ) => RuntimeMeasurement;
 };
 

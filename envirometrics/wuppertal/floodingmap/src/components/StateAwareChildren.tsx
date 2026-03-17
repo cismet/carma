@@ -20,10 +20,11 @@ import {
   useCesiumContext,
 } from "@carma-mapping/engines/cesium";
 import { useMapFrameworkSwitcherContext } from "@carma-mapping/components";
+import { useHashState } from "@carma-providers/hash-state";
 
 import { useHGKCesiumTerrain } from "../hooks/useHGKCesiumTerrain";
 import { onCesiumClick } from "../utils/cesiumHandlers";
-import { getWebMercatorInWGS84 } from "../utils/geo";
+import { getWebMercatorInWGS84, getWGS84InWebMercator } from "../utils/geo";
 import { updateMarkerPosition } from "../utils/marker";
 
 import config from "../config";
@@ -35,11 +36,14 @@ import {
 import NotesDisplay from "./NotesDisplay";
 
 export const StateAwareChildren = () => {
+  const floorToMeterGrid = (value: number): number => Math.floor(value);
+
   // ENVIROMETRICMAP
   const { controlState } = useContext<typeof EnviroMetricMapContext>(
     EnviroMetricMapContext
   );
   const { isLeaflet } = useMapFrameworkSwitcherContext();
+  const { updateHash } = useHashState();
 
   const { executeFeatureInfoRequest, setBackgroundIndex } = useContext<
     typeof EnviroMetricMapDispatchContext
@@ -58,9 +62,73 @@ export const StateAwareChildren = () => {
   const markerEntityRef = useRef<Entity | null>(null);
   const highlightEntityRef = useRef<Entity | null>(null);
   const prevPositionRef = useRef<[number, number] | null>(null);
+  const initialRestoredQueryPositionRef = useRef<[number, number] | null>(
+    controlState.currentFeatureInfoPosition ?? null
+  );
+  const didAutoFetchRestoredQueryRef = useRef(false);
   const selectedBackground2dRef = useRef<number>(
     controlState.selectedBackground
   );
+
+  useEffect(() => {
+    if (
+      !controlState.featureInfoModeActivated ||
+      !controlState.currentFeatureInfoPosition
+    ) {
+      updateHash(undefined, {
+        label: "app/hgk:query",
+        clearKeys: ["qx", "qy"],
+        replace: true,
+      });
+      return;
+    }
+
+    const [x, y] = controlState.currentFeatureInfoPosition;
+    updateHash(
+      { qx: floorToMeterGrid(x), qy: floorToMeterGrid(y) },
+      {
+        label: "app/hgk:query",
+        clearKeys: ["qx", "qy"],
+        replace: true,
+      }
+    );
+  }, [
+    controlState.currentFeatureInfoPosition,
+    controlState.featureInfoModeActivated,
+    updateHash,
+  ]);
+
+  useEffect(() => {
+    const initialRestoredPosition = initialRestoredQueryPositionRef.current;
+    if (!initialRestoredPosition || didAutoFetchRestoredQueryRef.current) {
+      return;
+    }
+
+    const restoredPosition = controlState.currentFeatureInfoPosition;
+    if (
+      !restoredPosition ||
+      !isNumberArrayEqual(restoredPosition, initialRestoredPosition)
+    ) {
+      return;
+    }
+
+    if (controlState.currentFeatureInfoValue !== undefined) {
+      didAutoFetchRestoredQueryRef.current = true;
+      return;
+    }
+
+    didAutoFetchRestoredQueryRef.current = true;
+
+    const { lat, lon } = getWebMercatorInWGS84(restoredPosition);
+    executeFeatureInfoRequest({
+      lat,
+      lng: lon,
+    });
+  }, [
+    controlState.currentFeatureInfoPosition,
+    controlState.currentFeatureInfoValue,
+    executeFeatureInfoRequest,
+  ]);
 
   useEffect(() => {
     // update 3d marker position from 2d while in 2d
@@ -122,7 +190,12 @@ export const StateAwareChildren = () => {
   }, [isLeaflet]); // intentionally only trigger on mode change
 
   useEffect(() => {
-    if (viewerRef.current && controlState.featureInfoModeActivated) {
+    if (
+      !isLeaflet &&
+      isViewerReady &&
+      viewerRef.current &&
+      controlState.featureInfoModeActivated
+    ) {
       const viewer = viewerRef.current;
 
       const handler = new ScreenSpaceEventHandler(viewer.scene.canvas);
@@ -163,7 +236,13 @@ export const StateAwareChildren = () => {
         viewer.scene.requestRender();
       };
     }
-  }, [viewerRef, getTerrainProvider, controlState.featureInfoModeActivated]);
+  }, [
+    viewerRef,
+    getTerrainProvider,
+    controlState.featureInfoModeActivated,
+    isLeaflet,
+    isViewerReady,
+  ]);
 
   // Add effect to cleanup marker when feature info mode is disabled
   useEffect(() => {
@@ -199,6 +278,23 @@ export const StateAwareChildren = () => {
       */
       prevPositionRef.current = cesiumPickedPosition;
 
+      const projectedQueryPosition = getWGS84InWebMercator({
+        lat: cesiumPickedPosition[0],
+        lon: cesiumPickedPosition[1],
+      });
+
+      updateHash(
+        {
+          qx: floorToMeterGrid(projectedQueryPosition.x),
+          qy: floorToMeterGrid(projectedQueryPosition.y),
+        },
+        {
+          label: "app/hgk:query",
+          clearKeys: ["qx", "qy"],
+          replace: true,
+        }
+      );
+
       executeFeatureInfoRequest({
         lat: cesiumPickedPosition[0],
         lng: cesiumPickedPosition[1],
@@ -208,6 +304,7 @@ export const StateAwareChildren = () => {
     cesiumPickedPosition,
     controlState.featureInfoModeActivated,
     executeFeatureInfoRequest,
+    updateHash,
   ]);
 
   useHGKCesiumTerrain(

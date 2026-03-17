@@ -15,12 +15,19 @@ Smooth 2D ↔ 3D transitions between different mapping engines:
 ### View Sync
 
 Generic multi-engine view coordination with a canonical object-centric target state:
-- internal target format: `lat/lon/alt + heading/pitch/range`
+- internal target format: `lat/lon/alt + bearing/pitch/range`
+- internal pose convention:
+  - right-handed local tangent ENU frame embedded into a Three-compatible scene basis
+  - `+X = east`
+  - `+Y = up`
+  - `-Z = north`
+  - `bearing`: positive around `+Y` from north toward east
+  - `pitch`: `0 = nadir`, `+PI/2 = horizon`
 - multiple map instances can register with one coordinator store
 - one active controller publishes the consolidated target state
 - pure helpers project the canonical target to:
   - MapLibre-like `lat/lng/zoom/bearing/pitch`
-  - Leaflet-like `lat/lng/zoom` with optional heading
+  - Leaflet-like `lat/lng/zoom` with optional bearing
 
 The implementation is split into:
 - `view-sync/core`: pure store + target/projection helpers

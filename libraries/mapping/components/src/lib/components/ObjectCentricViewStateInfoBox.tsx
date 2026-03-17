@@ -7,6 +7,7 @@ import { Button, Popover, Tooltip } from "antd";
 import {
   ViewStateVisualizer,
   type ViewStateVisualizerProps,
+  type ViewStateVisualizerCueOptions,
 } from "./ViewStateVisualizer";
 import {
   useEffect,
@@ -44,7 +45,8 @@ export type ObjectCentricViewStateInfoBoxProps = {
   rows: readonly ObjectCentricViewStateInfoRow[];
   specification: ViewStateVisualizerProps["specification"];
   visualizerDisplayOptions?: ViewStateVisualizerProps["displayOptions"];
-  visualizerHeadingLabel?: ViewStateVisualizerProps["headingLabel"];
+  visualizerCueOptions?: ViewStateVisualizerCueOptions;
+  visualizerBearingLabel?: ViewStateVisualizerProps["bearingLabel"];
   visualizerPitchLabel?: ViewStateVisualizerProps["pitchLabel"];
   visualizerWidth?: number;
   visualizerHeight?: number;
@@ -68,7 +70,8 @@ export const ObjectCentricViewStateInfoBox = ({
   rows,
   specification,
   visualizerDisplayOptions,
-  visualizerHeadingLabel = "h",
+  visualizerCueOptions,
+  visualizerBearingLabel = "b",
   visualizerPitchLabel = "p",
   visualizerWidth = 176,
   visualizerHeight = 176,
@@ -307,9 +310,10 @@ export const ObjectCentricViewStateInfoBox = ({
               <ViewStateVisualizer
                 specification={specification}
                 displayOptions={visualizerDisplayOptions}
+                cueOptions={visualizerCueOptions}
                 width={resolvedVisualizerSize}
                 height={resolvedVisualizerSize}
-                headingLabel={visualizerHeadingLabel}
+                bearingLabel={visualizerBearingLabel}
                 pitchLabel={visualizerPitchLabel}
               />
             </div>

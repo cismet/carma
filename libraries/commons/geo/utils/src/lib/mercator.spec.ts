@@ -1,17 +1,21 @@
-import type { Radians } from "@carma/units/types";
-import {
-  DEFAULT_LEAFLET_TILESIZE,
-  WEB_MERCATOR_MAX_LATITUDE_RAD,
-} from "@carma-commons/constants";
+import { describe, expect, test } from "vitest";
+import type { Degrees, Meters, Radians } from "@carma/units/types";
 import { PI } from "@carma/units/helpers";
 
+import {
+  distanceFromMercatorZoomAtLatitudeDeg,
+  mercatorZoomFromDistanceAtLatitudeDeg,
+} from "./geo";
 import {
   getMercatorScaleFactorAtLatitudeRad,
   getZoomFromPixelResolutionAtLatitudeRad,
   getPixelResolutionFromZoomAtLatitudeRad,
-} from "../mercator";
-
-import { EARTH_CIRCUMFERENCE } from "./constants";
+} from "./mercator";
+import { EARTH_CIRCUMFERENCE } from "./constants/earth";
+import {
+  DEFAULT_LEAFLET_TILESIZE,
+  WEB_MERCATOR_MAX_LATITUDE_RAD,
+} from "./constants/web-map";
 
 describe("commons/utils mercator", () => {
   test("getMercatorScaleFactorAtLatitudeRad", () => {
@@ -163,5 +167,29 @@ describe("commons/utils mercator", () => {
       latitude
     );
     expect(roundTripResolution).toBeCloseTo(meterResolution);
+  });
+
+  test("round trip between mercator zoom and distance at latitude", () => {
+    const zoom = 12.5;
+    const latitudeDeg = 51.27 as Degrees;
+    const distance = distanceFromMercatorZoomAtLatitudeDeg(zoom, latitudeDeg, {
+      fovVerticalRad: ((60 * Math.PI) / 180) as Radians,
+      viewportWidthPx: 1400,
+      viewportHeightPx: 900,
+    });
+
+    expect(distance).not.toBeNull();
+
+    const roundTripZoom = mercatorZoomFromDistanceAtLatitudeDeg(
+      distance as Meters,
+      latitudeDeg,
+      {
+        fovVerticalRad: ((60 * Math.PI) / 180) as Radians,
+        viewportWidthPx: 1400,
+        viewportHeightPx: 900,
+      }
+    );
+
+    expect(roundTripZoom).toBeCloseTo(zoom, 6);
   });
 });

@@ -34,6 +34,10 @@ export type SetDistancePreviewCoordinatesPayload = {
   coordinates: readonly RuntimeCoordinate[];
 };
 
+export type SetVerticalAreaPreviewCoordinatesPayload = {
+  coordinates: readonly RuntimeCoordinate[];
+};
+
 export type RemoveAnnotationByIdPayload = {
   annotationId: string;
   nextSelectedAnnotationId?: string | null;
@@ -81,6 +85,7 @@ export const createInitialAnnotationsStoreState = (
     draftState: {
       polylinePreviewCoordinates: [],
       distancePreviewCoordinates: [],
+      verticalAreaPreviewCoordinates: [],
     },
   };
 };
@@ -286,6 +291,17 @@ const annotationsSlice = createSlice({
     clearDistancePreviewCoordinates: (state) => {
       state.draftState.distancePreviewCoordinates = [];
     },
+    setVerticalAreaPreviewCoordinates: (
+      state,
+      action: PayloadAction<SetVerticalAreaPreviewCoordinatesPayload>
+    ) => {
+      state.draftState.verticalAreaPreviewCoordinates = [
+        ...action.payload.coordinates,
+      ];
+    },
+    clearVerticalAreaPreviewCoordinates: (state) => {
+      state.draftState.verticalAreaPreviewCoordinates = [];
+    },
   },
 });
 
@@ -293,6 +309,7 @@ export const {
   appendAnnotationEntities,
   clearTemporaryAnnotationsByToolType,
   clearDistancePreviewCoordinates,
+  clearVerticalAreaPreviewCoordinates,
   clearPolylinePreviewCoordinates,
   finalizeTemporaryAnnotationsByToolType,
   removeAnnotationById,
@@ -304,6 +321,7 @@ export const {
   setAnnotationToolType,
   setSelectionModeActive,
   setPolylinePreviewCoordinates,
+  setVerticalAreaPreviewCoordinates,
   setSelectedAnnotationId,
 } = annotationsSlice.actions;
 

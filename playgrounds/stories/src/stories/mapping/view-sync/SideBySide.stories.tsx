@@ -16,8 +16,8 @@ const meta: Meta<ViewSyncStoryProps> = {
     longitudeDeg: 7.17618,
     latitudeDeg: 51.25609,
     altitudeM: 222.4,
-    headingDeg: 214,
-    pitchDeg: -48,
+    bearingDeg: 214,
+    pitchDeg: 42,
     rangeM: 620,
     fovVerticalDeg: 60,
     nearPlaneM: 1,
@@ -36,8 +36,8 @@ const meta: Meta<ViewSyncStoryProps> = {
       name: "altitude m",
       control: { type: "number" },
     },
-    headingDeg: {
-      name: "heading deg",
+    bearingDeg: {
+      name: "bearing deg",
       control: { type: "number" },
     },
     pitchDeg: {

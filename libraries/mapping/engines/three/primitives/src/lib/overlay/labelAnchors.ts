@@ -28,6 +28,8 @@ export const projectOrthogonalLineLabelAnchor = ({
   camera,
   offsetPx,
   biasToward,
+  fallbackBiasToward,
+  biasDotEpsilonPx = 0.5,
 }: {
   lineStart: THREE.Vector3;
   lineEnd: THREE.Vector3;
@@ -35,6 +37,8 @@ export const projectOrthogonalLineLabelAnchor = ({
   camera: THREE.Camera;
   offsetPx: number;
   biasToward?: THREE.Vector3;
+  fallbackBiasToward?: THREE.Vector3;
+  biasDotEpsilonPx?: number;
 }): ViewStateVisualizerLabelAnchor => {
   const projectedStart = projectPointToCanvas(lineStart, size, camera);
   const projectedEnd = projectPointToCanvas(lineEnd, size, camera);
@@ -55,15 +59,32 @@ export const projectOrthogonalLineLabelAnchor = ({
   }
 
   const normal = new THREE.Vector2(-tangent.y, tangent.x).normalize();
-  if (biasToward) {
-    const projectedBias = projectPointToCanvas(biasToward, size, camera);
+  const applyBias = (biasPoint: THREE.Vector3): number => {
+    const projectedBias = projectPointToCanvas(biasPoint, size, camera);
     const biasVector = new THREE.Vector2(
       projectedBias.leftPx - midpoint.x,
       projectedBias.topPx - midpoint.y
     );
-    if (normal.dot(biasVector) < 0) {
-      normal.multiplyScalar(-1);
+
+    if (biasVector.lengthSq() < 1e-6) {
+      return 0;
     }
+
+    return normal.dot(biasVector);
+  };
+
+  const primaryBiasDot = biasToward ? applyBias(biasToward) : 0;
+  const fallbackBiasDot =
+    Math.abs(primaryBiasDot) <= biasDotEpsilonPx && fallbackBiasToward
+      ? applyBias(fallbackBiasToward)
+      : 0;
+  const resolvedBiasDot =
+    Math.abs(fallbackBiasDot) > biasDotEpsilonPx
+      ? fallbackBiasDot
+      : primaryBiasDot;
+
+  if (resolvedBiasDot < 0) {
+      normal.multiplyScalar(-1);
   }
 
   return {

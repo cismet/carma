@@ -2,66 +2,58 @@
 
 Hash state provider for URL-based application state management.
 
-## Cesium Camera Plugin
+## Scene descriptor hash helpers
 
-The package now includes an object-centric Cesium camera hash codec + sync hook:
+The package includes pure scene-descriptor hash helpers for the shared CARMA URL contract plus engine adapters that can sample scene state into that shared format.
 
-- `camera3d` hash key (default alias: `c3`)
-- value decodes to:
-  - `anchor: { lngDeg, latDeg, heightM, source }`
-  - `orientation: { headingDeg, pitchDeg, rollDeg, fovDeg, rangeM }`
 - supported URL encoding schemes:
-  - `carma-object-centric` (compact `c3` only)
-  - `carma-camera-centric` (`lat/lng/h/heading/pitch/fov`)
-  - `maplibre-object-centric` (`lat/lng/zoom/bearing/pitch`, no custom keys)
-  - `maplibre-camera-centric` (`lat/lng/zoom/bearing/pitch` from camera position, no custom keys)
+  - `carma-maplibre-plus-elevation` (`lat/lng/zoom/bearing/pitch/h`, MapLibre-style pitch with added elevation) ← CARMA standard map URL query scheme for cross-engine sharing
+- legacy compact `camera3d` / `c3` hashes are only decoded in the dedicated initial-camera adapter path
 
-Typical usage (direct scene/camera sampling):
+Default shared CARMA map URL aliases are:
+
+- `lat`
+- `lng`
+- `zoom`
+- optional `b` (`bearing`)
+- optional `p` (`pitch`)
+- optional `h` (`altitude`)
+- optional `fov`
+
+Typical usage (direct 3D scene sampling):
 
 ```tsx
 import {
   HashStateProvider,
-  createCesiumCameraHashConfig,
-  useCesiumCameraHashPlugin,
+  useSceneDescriptorHashSync,
 } from "@carma-providers/hash-state";
 
-function CesiumHashSync({ scene }: { scene: unknown }) {
-  useCesiumCameraHashPlugin({
+function SceneHashSync({ scene }: { scene: unknown }) {
+  useSceneDescriptorHashSync({
     scene: scene as any,
-    encodeScheme: "carma-object-centric",
+    encodeScheme: "carma-maplibre-plus-elevation",
     anchorMode: "screen-center", // samples center once per camera move event
     fallbackHeightM: 200,
     replace: true,
   });
   return null;
 }
-
-const cameraHash = createCesiumCameraHashConfig();
-// Example composition:
-// <HashStateProvider
-//   keyAliases={{ ...defaultHashKeyAliases, ...cameraHash.keyAliases }}
-//   keyOrder={[...cameraHash.keyOrder, ...defaultHashKeyOrder]}
-//   hashCodecs={{ ...defaultHashCodecs, ...cameraHash.hashCodecs }}
-// >
-//   ...
-// </HashStateProvider>
 ```
 
-Typical usage (with `CesiumSceneStateProvider`):
+Typical usage (with a scene-state provider):
 
 ```tsx
 import {
   HashStateProvider,
-  createCesiumCameraHashConfig,
-  useCesiumCameraHashPlugin,
+  useSceneDescriptorHashSync,
 } from "@carma-providers/hash-state";
 import { useCesiumSceneStateOptional } from "@carma-mapping/engines/cesium/react/scene-state";
 
-function CesiumHashSyncFromSceneState() {
+function SceneHashSyncFromSceneState() {
   const sceneState = useCesiumSceneStateOptional();
-  useCesiumCameraHashPlugin({
+  useSceneDescriptorHashSync({
     sceneState,
-    encodeScheme: "carma-object-centric",
+    encodeScheme: "carma-maplibre-plus-elevation",
     anchorMode: "screen-center",
     fallbackHeightM: 200,
     replace: true,
@@ -75,8 +67,8 @@ Notes:
 - No dedicated terrain provider is required for basic operation.
 - Center sampling tries `scene.pickPosition` first, then `globe.pick`.
 - If no center hit is available, it falls back to camera position with `fallbackHeightM`.
-- When `sceneState` is provided, hash updates use the already computed scene-state snapshot
-  instead of querying Cesium internals again.
+- When `sceneState` is provided, hash updates use the already computed shared scene-state adapter
+  instead of querying the underlying engine internals again.
 
 ## Running unit tests
 

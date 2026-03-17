@@ -10,17 +10,15 @@ import type {
 
 type CameraStateVisualizerStoryProps = {
   altitudeM: number;
-  headingDeg: number;
+  bearingDeg: number;
   pitchDeg: number;
-  showMaxPitchDeg: boolean;
-  maxPitchDeg: number;
+  showMinPitchDeg: boolean;
+  minPitchDeg: number;
   rollDeg: number;
   rangeM: number;
   imagePlaneDistanceUnit: number;
   fovVerticalDeg: number;
-  aspect: number;
-  nearM: number;
-  farM: number;
+  fovHorizontalDeg: number;
   sizePx: number;
   // Display options
   displayFovDeg: number;
@@ -49,21 +47,21 @@ type CameraStateVisualizerStoryProps = {
 
 const createSpecification = (
   args: CameraStateVisualizerStoryProps,
-  headingRad: number,
+  bearingRad: number,
   pitchRad: number
 ): ViewStateVisualizerSpecification => ({
   pose: {
     anchor: {
       altitude: args.altitudeM,
     },
-    heading: headingRad,
+    bearing: bearingRad,
     pitch: pitchRad,
     roll: degToRadNumeric(args.rollDeg),
     range: args.rangeM,
   },
-  limits: args.showMaxPitchDeg
+  limits: args.showMinPitchDeg
     ? {
-        maxPitch: degToRadNumeric(args.maxPitchDeg),
+        minPitch: degToRadNumeric(args.minPitchDeg),
       }
     : undefined,
   display: {
@@ -72,9 +70,7 @@ const createSpecification = (
   intrinsics: {
     type: "PerspectiveCamera",
     fov: degToRadNumeric(args.fovVerticalDeg),
-    aspect: args.aspect,
-    near: args.nearM,
-    far: args.farM,
+    fovHorizontal: degToRadNumeric(args.fovHorizontalDeg),
   },
 });
 
@@ -108,17 +104,17 @@ const createDisplayOptions = (
 const CameraStateVisualizerStory = (
   args: CameraStateVisualizerStoryProps
 ) => {
-  const [headingRad, setHeadingRad] = useState(degToRadNumeric(args.headingDeg));
+  const [bearingRad, setBearingRad] = useState(degToRadNumeric(args.bearingDeg));
   const [pitchRad, setPitchRad] = useState(degToRadNumeric(args.pitchDeg));
 
   useEffect(() => {
-    setHeadingRad(degToRadNumeric(args.headingDeg));
+    setBearingRad(degToRadNumeric(args.bearingDeg));
     setPitchRad(degToRadNumeric(args.pitchDeg));
-  }, [args.headingDeg, args.pitchDeg]);
+  }, [args.bearingDeg, args.pitchDeg]);
 
   const specification = useMemo(
-    () => createSpecification(args, headingRad, pitchRad),
-    [args, headingRad, pitchRad]
+    () => createSpecification(args, bearingRad, pitchRad),
+    [args, bearingRad, pitchRad]
   );
   const displayOptions = useMemo(
     () => createDisplayOptions(args),
@@ -126,13 +122,13 @@ const CameraStateVisualizerStory = (
   );
   const summary = [
     `${args.altitudeM.toFixed(1)} m`,
-    `h ${radToDegNumeric(headingRad).toFixed(1)}°`,
+    `b ${radToDegNumeric(bearingRad).toFixed(1)}°`,
     `p ${radToDegNumeric(pitchRad).toFixed(1)}°`,
-    args.showMaxPitchDeg ? `p max ${args.maxPitchDeg.toFixed(1)}°` : null,
+    args.showMinPitchDeg ? `p min ${args.minPitchDeg.toFixed(1)}°` : null,
     `r ${args.rangeM.toFixed(1)} m`,
     `plane ${args.imagePlaneDistanceUnit.toFixed(2)}u`,
-    `fov ${args.fovVerticalDeg.toFixed(1)}°`,
-    `a ${args.aspect.toFixed(2)}`,
+    `fov v ${args.fovVerticalDeg.toFixed(1)}°`,
+    `fov h ${args.fovHorizontalDeg.toFixed(1)}°`,
   ]
     .filter((value): value is string => value !== null)
     .join(" • ");
@@ -178,13 +174,13 @@ const CameraStateVisualizerStory = (
           <ViewStateVisualizer
             specification={specification}
             displayOptions={displayOptions}
-            onPoseChange={(heading, pitch) => {
-              setHeadingRad(heading);
+            onPoseChange={(bearing, pitch) => {
+              setBearingRad(bearing);
               setPitchRad(pitch);
             }}
             width={args.sizePx}
             height={args.sizePx}
-            headingLabel="h"
+            bearingLabel="b"
             pitchLabel="p"
             style={{
               outline: "1px solid rgba(15, 23, 42, 0.16)",
@@ -207,17 +203,15 @@ const meta: Meta<CameraStateVisualizerStoryProps> = {
   },
   args: {
     altitudeM: 222.4,
-    headingDeg: 214,
-    pitchDeg: -48,
-    showMaxPitchDeg: false,
-    maxPitchDeg: 0,
+    bearingDeg: 214,
+    pitchDeg: 42,
+    showMinPitchDeg: false,
+    minPitchDeg: 0,
     rollDeg: 0,
     rangeM: 620,
-    imagePlaneDistanceUnit: 0.42,
     fovVerticalDeg: 60,
-    aspect: 1.6,
-    nearM: 1,
-    farM: 500000,
+    fovHorizontalDeg: 85.461115,
+    imagePlaneDistanceUnit: 0.42,
     sizePx: 420,
     // Display defaults
     displayFovDeg: 38,
@@ -249,24 +243,24 @@ const meta: Meta<CameraStateVisualizerStoryProps> = {
       control: { type: "range", min: 0, max: 2000, step: 1 },
       table: { category: "Pose" },
     },
-    headingDeg: {
-      name: "heading deg",
+    bearingDeg: {
+      name: "bearing deg",
       control: { type: "range", min: 0, max: 360, step: 1 },
       table: { category: "Pose" },
     },
     pitchDeg: {
       name: "pitch deg",
-      control: { type: "range", min: -90, max: 0, step: 1 },
+      control: { type: "range", min: 0, max: 90, step: 1 },
       table: { category: "Pose" },
     },
-    showMaxPitchDeg: {
-      name: "show max pitch",
+    showMinPitchDeg: {
+      name: "show min pitch",
       control: { type: "boolean" },
       table: { category: "Pose" },
     },
-    maxPitchDeg: {
-      name: "max pitch deg",
-      control: { type: "range", min: -90, max: 0, step: 1 },
+    minPitchDeg: {
+      name: "min pitch deg",
+      control: { type: "range", min: 0, max: 90, step: 1 },
       table: { category: "Pose" },
     },
     rollDeg: {
@@ -279,30 +273,20 @@ const meta: Meta<CameraStateVisualizerStoryProps> = {
       control: { type: "range", min: 1, max: 2000, step: 1 },
       table: { category: "Pose" },
     },
-    imagePlaneDistanceUnit: {
-      name: "image plane dist u",
-      control: { type: "range", min: 0.08, max: 1.5, step: 0.01 },
-      table: { category: "Display" },
-    },
     fovVerticalDeg: {
       name: "fov v deg",
       control: { type: "range", min: 5, max: 120, step: 1 },
       table: { category: "Intrinsics" },
     },
-    aspect: {
-      name: "aspect",
-      control: { type: "range", min: 0.5, max: 3, step: 0.01 },
+    fovHorizontalDeg: {
+      name: "fov h deg",
+      control: { type: "range", min: 5, max: 150, step: 1 },
       table: { category: "Intrinsics" },
     },
-    nearM: {
-      name: "near m",
-      control: { type: "range", min: 0.01, max: 100, step: 0.01 },
-      table: { category: "Intrinsics" },
-    },
-    farM: {
-      name: "far m",
-      control: { type: "range", min: 100, max: 1000000, step: 100 },
-      table: { category: "Intrinsics" },
+    imagePlaneDistanceUnit: {
+      name: "image plane dist u",
+      control: { type: "range", min: 0.08, max: 1.5, step: 0.01 },
+      table: { category: "Display" },
     },
     sizePx: {
       name: "size px",

@@ -1,4 +1,10 @@
-import { Cartesian3 } from "@carma/cesium";
+import {
+  Cartesian3,
+  Cartesian4,
+  Ellipsoid,
+  Matrix4,
+  Transforms,
+} from "@carma/cesium";
 
 const VERTICAL_RECTANGLE_COMPONENT_EPSILON_METERS = 0.05;
 const PLANE_NORMAL_EPSILON = 1e-8;
@@ -6,6 +12,19 @@ const PLANE_NORMAL_EPSILON = 1e-8;
 type PreviewPlane = {
   anchorECEF: Cartesian3;
   normalECEF: Cartesian3;
+};
+
+const getEllipsoidalUpAtPoint = (anchorECEF: Cartesian3): Cartesian3 => {
+  const eastNorthUpFrame = Transforms.eastNorthUpToFixedFrame(
+    anchorECEF,
+    Ellipsoid.WGS84
+  );
+  const upColumn = Matrix4.getColumn(eastNorthUpFrame, 2, new Cartesian4());
+
+  return Cartesian3.normalize(
+    new Cartesian3(upColumn.x, upColumn.y, upColumn.z),
+    new Cartesian3()
+  );
 };
 
 const createPlaneFromThreePoints = (
@@ -55,7 +74,7 @@ export const buildVerticalRectangleCornerFromDiagonal = (
   firstCorner: Cartesian3,
   oppositeCorner: Cartesian3
 ) => {
-  const up = Cartesian3.normalize(firstCorner, new Cartesian3());
+  const up = getEllipsoidalUpAtPoint(firstCorner);
   const diagonal = Cartesian3.subtract(
     oppositeCorner,
     firstCorner,

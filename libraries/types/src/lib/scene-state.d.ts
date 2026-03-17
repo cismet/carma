@@ -68,15 +68,41 @@ export type OrbitPointSource =
   | "camera-position"
   | "fallback";
 
+export type SceneColorSnapshot = {
+  red: number;
+  green: number;
+  blue: number;
+  alpha?: number;
+};
+
+export type SceneDirectionalLightSnapshot = {
+  source?: string;
+  directionWorld?: Vec3;
+  positionWorld?: Vec3;
+  color?: SceneColorSnapshot;
+  intensity?: number;
+};
+
+export type SceneLightingSnapshot = {
+  mainDirectionalLight?: SceneDirectionalLightSnapshot;
+};
+
 export type SceneCameraSnapshot = {
   cameraModel?: ObjectCentricCameraModel;
   worldPosition: Vec3;
+  // These world-space basis vectors / quaternion are the most stable camera
+  // attitude snapshot. They can be compared or reused without degrading the
+  // orientation into Euler angles, which become ambiguous near nadir.
   worldDirection?: Vec3;
   worldUp?: Vec3;
   worldRight?: Vec3;
   worldQuaternion?: Quat;
   cartographic: LatLngAlt.rad | null;
-  headingRad?: number;
+  // bearing/pitch/roll are exposed as convenience / interop values only.
+  // Consumers should not treat them as the canonical orientation source when a
+  // basis/quaternion/cameraModel is present, because near nadir the azimuth can
+  // legitimately become unstable or underdefined.
+  bearingRad?: number;
   pitchRad?: number;
   rollRad?: number;
   matrixWorld?: Mat4;
@@ -122,6 +148,7 @@ export type SceneStateSnapshot = {
   timestampMs: number;
   camera: SceneCameraSnapshot;
   orbitPoint: OrbitPointSnapshot | null;
+  lighting?: SceneLightingSnapshot;
 };
 
 export type SceneStateOptions = {
@@ -152,8 +179,22 @@ export type CameraLike = {
   getPickRay?: (windowPosition: Vec2) => RayLike | null | undefined;
 };
 
+export type LightLike = {
+  direction?: Vec3;
+  color?:
+    | SceneColorSnapshot
+    | {
+        r?: number;
+        g?: number;
+        b?: number;
+        a?: number;
+      };
+  intensity?: number;
+};
+
 export type SceneLike = {
   camera?: CameraLike;
+  light?: LightLike;
   canvas?: {
     clientWidth: number;
     clientHeight: number;
