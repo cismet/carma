@@ -89,6 +89,7 @@ import {
   useInitialSceneStateHashSnapshot,
   useSceneStateHashSync,
 } from "@carma-providers/hash-state";
+import { isFiniteNumber } from "@carma/math";
 import { degToRadNumeric } from "@carma/units/helpers";
 
 import FeatureInfoBox from "../feature-info/FeatureInfoBox.tsx";
@@ -155,9 +156,6 @@ interface MapProps {
 const CLICK_DELAY_MS = 200;
 const DEFAULT_HASH_RANGE_M = 750;
 const DEFAULT_HASH_ZOOM = 17;
-
-const isFiniteNumber = (value: unknown): value is number =>
-  typeof value === "number" && Number.isFinite(value);
 
 const readInitialCameraViewFromHashSnapshot = (
   snapshot: ReturnType<

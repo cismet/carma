@@ -1,4 +1,15 @@
-import { clamp } from "@carma/math";
+import {
+  clamp,
+  isFiniteNumber,
+  MINUS_PI_OVER_TWO,
+  PI,
+  PI_OVER_SIX,
+  PI_OVER_TWO,
+  PI_OVER_THREE,
+  TWO_PI,
+} from "@carma/math";
+import { degToRadNumeric, zeroToTwoPi } from "@carma/units/helpers";
+import type { Radians } from "@carma/units/types";
 import * as THREE from "three";
 import { Line2 } from "three/examples/jsm/lines/Line2.js";
 import { LineGeometry } from "three/examples/jsm/lines/LineGeometry.js";
@@ -27,7 +38,7 @@ const DEFAULT_SIZE: ViewStateVisualizerSize = {
 const HEMISPHERE_RADIUS = 1;
 const CAMERA_BOX_SIZE = HEMISPHERE_RADIUS / 6;
 const VISUALIZER_FRAME_PADDING = CAMERA_BOX_SIZE * 1.5;
-const DEFAULT_VIEW_ROTATION_AROUND_UP = Math.PI / 6;
+const DEFAULT_VIEW_ROTATION_AROUND_UP = PI_OVER_SIX;
 const DEFAULT_VIEW_ORBIT_PHI = Math.acos(1.22 / Math.hypot(4.1, 1.22));
 const DEFAULT_VIEW_FOV_DEG = 38;
 
@@ -46,7 +57,7 @@ const resolveDefaultFrameHalfExtent = () =>
   HEMISPHERE_RADIUS + VISUALIZER_FRAME_PADDING;
 
 const resolveOrbitRadiusForFrameHalfExtent = (fovDeg: number) =>
-  resolveDefaultFrameHalfExtent() / Math.tan((fovDeg * Math.PI) / 360);
+  resolveDefaultFrameHalfExtent() / Math.tan(degToRadNumeric(fovDeg)! * 0.5);
 
 const DEFAULT_CAMERA: ViewStateVisualizerCamera = {
   fovDeg: DEFAULT_VIEW_FOV_DEG,
@@ -99,14 +110,8 @@ const DEFAULT_CUE_COLORS: Record<ViewStateVisualizerCueKey, string> = {
 const DEFAULT_IMPORTANT_LINE_WIDTH_PX = 2;
 const DEFAULT_HAIRLINE_WIDTH_PX = 0.5;
 
-const isFiniteNumber = (value: unknown): value is number =>
-  typeof value === "number" && Number.isFinite(value);
-
-const normalizeBearing = (bearingRadians: number): number => {
-  const fullTurn = Math.PI * 2;
-  const normalized = bearingRadians % fullTurn;
-  return normalized >= 0 ? normalized : normalized + fullTurn;
-};
+const normalizeBearing = (bearingRadians: number): number =>
+  zeroToTwoPi(bearingRadians as Radians) as number;
 
 const pointOnBearingCircle = ({
   bearing,
@@ -232,11 +237,11 @@ const viewingBearingPitchToCameraSpherePosition = (
   pitch: number,
   radius: number = HEMISPHERE_RADIUS
 ): THREE.Vector3 => {
-  const normalizedPitch = clamp(pitch, 0, Math.PI / 2);
+  const normalizedPitch = clamp(pitch, 0, PI_OVER_TWO);
   // Object-centric pose bearing is the viewing azimuth (anchor -> view direction).
   // The camera sits on the opposite side of the anchor, therefore camera azimuth
   // on the hemisphere is bearing + PI.
-  const cameraSphereAzimuth = normalizeBearing(viewingBearing + Math.PI);
+  const cameraSphereAzimuth = normalizeBearing(viewingBearing + PI);
   return pointOnBearingCircle({
     bearing: cameraSphereAzimuth,
     radius: Math.sin(normalizedPitch) * radius,
@@ -249,13 +254,13 @@ const cameraSpherePositionToViewingBearingPitch = (
 ): { bearing: number; pitch: number; elevation: number } => {
   const normalized = position.clone().normalize();
   const elevation = Math.asin(clamp(normalized.y, -1, 1));
-  const pitch = Math.PI * 0.5 - elevation;
+  const pitch = PI_OVER_TWO - elevation;
   // Inverse of viewingBearingPitchToCameraSpherePosition: convert camera
   // sphere azimuth back to viewing bearing.
   // viewing bearing by subtracting PI.
   const cameraSphereAzimuth = Math.atan2(normalized.x, -normalized.z);
   return {
-    bearing: normalizeBearing(cameraSphereAzimuth - Math.PI),
+    bearing: normalizeBearing(cameraSphereAzimuth - PI),
     pitch,
     elevation,
   };
@@ -289,7 +294,7 @@ const buildCirclePoints = ({
 }): THREE.Vector3[] =>
   Array.from({ length: sampleCount + (closeLoop ? 1 : 0) }, (_, index) => {
     const sampleIndex = closeLoop && index === sampleCount ? 0 : index;
-    const angle = (sampleIndex / sampleCount) * Math.PI * 2;
+    const angle = (sampleIndex / sampleCount) * TWO_PI;
     if (axis === "xz") {
       return new THREE.Vector3(
         Math.sin(angle) * radius + offset.x,
@@ -323,7 +328,7 @@ const buildUpperSemicirclePoints = ({
   sampleCount?: number;
 }): THREE.Vector3[] =>
   Array.from({ length: sampleCount + 1 }, (_, index) => {
-    const angle = (index / sampleCount) * Math.PI;
+    const angle = (index / sampleCount) * PI;
     if (axis === "xy") {
       return new THREE.Vector3(
         Math.cos(angle) * radius,
@@ -648,7 +653,7 @@ const buildImagePlaneGeometry = (
         )
       : isFiniteNumber(fovVertical)
       ? clamp(
-          Math.tan((fovVertical ?? Math.PI / 3) * 0.5) * imagePlaneDistance,
+          Math.tan((fovVertical ?? PI_OVER_THREE) * 0.5) * imagePlaneDistance,
           0.08,
           MAX_IMAGE_PLANE_HALF_EXTENT
         )
@@ -663,7 +668,7 @@ const buildImagePlaneGeometry = (
         )
       : isFiniteNumber(fovHorizontal)
       ? clamp(
-          Math.tan((fovHorizontal ?? Math.PI / 2) * 0.5) * imagePlaneDistance,
+          Math.tan((fovHorizontal ?? PI_OVER_TWO) * 0.5) * imagePlaneDistance,
           0.12,
           MAX_IMAGE_PLANE_HALF_EXTENT
         )
@@ -862,11 +867,11 @@ export const createViewStateVisualizerPrimitive = (
   // Keep sphere visually constant: distance adjusts with FOV so projected size stays the same.
   const initialFovDeg = initialDisplay.fovDeg ?? cameraConfig.fovDeg;
   const baseTangentProduct = usesCustomCameraPosition
-    ? initialOrbitRadius * Math.tan((initialFovDeg * Math.PI) / 360)
+    ? initialOrbitRadius * Math.tan(degToRadNumeric(initialFovDeg)! * 0.5)
     : resolveDefaultFrameHalfExtent();
   let currentFovDeg = initialFovDeg;
   const getOrbitRadius = () =>
-    baseTangentProduct / Math.tan((currentFovDeg * Math.PI) / 360);
+    baseTangentProduct / Math.tan(degToRadNumeric(currentFovDeg)! * 0.5);
 
   const perspectiveCamera = buildVisualizerCamera(size, {
     ...cameraConfig,
@@ -964,7 +969,7 @@ export const createViewStateVisualizerPrimitive = (
   scene.add(sun);
 
   const hemisphere = new THREE.Mesh(
-    new THREE.SphereGeometry(1, 40, 24, 0, Math.PI * 2, 0, Math.PI / 2),
+    new THREE.SphereGeometry(1, 40, 24, 0, TWO_PI, 0, PI_OVER_TWO),
     new THREE.MeshPhysicalMaterial({
       color: 0xf1f5f9,
       transparent: true,
@@ -992,7 +997,7 @@ export const createViewStateVisualizerPrimitive = (
       side: THREE.DoubleSide,
     })
   );
-  planeDisc.rotation.x = -Math.PI / 2;
+  planeDisc.rotation.x = MINUS_PI_OVER_TWO;
   scene.add(planeDisc);
 
   const planeDiscOutline = new THREE.LineLoop(
@@ -1442,6 +1447,7 @@ export const createViewStateVisualizerPrimitive = (
     const { bearing: viewingBearing, elevation } =
       cameraSpherePositionToViewingBearingPitch(displayCameraPosition);
     const visualBearing = normalizeBearing(viewingBearing);
+    const cameraSideBearing = normalizeBearing(viewingBearing + PI);
     const { groundDistance, overflow } = readGroundDistance(
       cameraModel.pose.anchor.altitude ?? 0,
       cameraModel.pose.range ?? 0
@@ -1461,7 +1467,7 @@ export const createViewStateVisualizerPrimitive = (
       offset: new THREE.Vector3(0, planeDiscY, 0),
     });
     const minPitch = isFiniteNumber(cameraModel.limits?.minPitch)
-      ? clamp(cameraModel.limits?.minPitch ?? 0, 0, Math.PI / 2)
+      ? clamp(cameraModel.limits?.minPitch ?? 0, 0, PI_OVER_TWO)
       : null;
     const minPitchRingPoints =
       minPitch === null
@@ -1546,7 +1552,7 @@ export const createViewStateVisualizerPrimitive = (
       y: 0,
     });
     const pitchIndicatorArcPoints = buildPitchArcPoints({
-      bearing: viewingBearing,
+      bearing: cameraSideBearing,
       elevation,
       radius: ANGLE_INDICATOR_RADIUS,
     });
@@ -1557,7 +1563,7 @@ export const createViewStateVisualizerPrimitive = (
       y: 0,
     });
     const elevationArcPoints = buildPitchArcPoints({
-      bearing: viewingBearing,
+      bearing: cameraSideBearing,
       elevation,
       radius: OUTER_ARC_RADIUS,
     });
@@ -1565,7 +1571,7 @@ export const createViewStateVisualizerPrimitive = (
     setWideLineGeometry(pitchArc, pitchIndicatorArcPoints);
     setWideLineGeometry(bearingIndicatorArc, bearingIndicatorArcPoints);
     const pitchArcStartPoint = pointOnBearingCircle({
-      bearing: viewingBearing,
+      bearing: cameraSideBearing,
       radius: OUTER_ARC_RADIUS,
     });
     // EN radial part for bearing/range cue.
@@ -1805,7 +1811,7 @@ export const createViewStateVisualizerPrimitive = (
       const minPitch = lastSpecification.limits?.minPitch ?? 0;
       options.onPoseChange?.(
         next.bearing,
-        clamp(next.pitch, minPitch, Math.PI / 2)
+        clamp(next.pitch, minPitch, PI_OVER_TWO)
       );
     } else if (dragMode === "orbit") {
       // Incremental pointer-delta orbit avoids unstable fast spins when the
@@ -1813,14 +1819,10 @@ export const createViewStateVisualizerPrimitive = (
       const rect = canvas.getBoundingClientRect();
       const deltaX = (e.clientX - dragLastClientX) / Math.max(rect.width, 1);
       const deltaY = (e.clientY - dragLastClientY) / Math.max(rect.height, 1);
-      const orbitSensitivity = Math.PI * 1.2;
+      const orbitSensitivity = PI * 1.2;
 
       orbitTheta -= deltaX * orbitSensitivity;
-      orbitPhi = clamp(
-        orbitPhi - deltaY * orbitSensitivity,
-        0.15,
-        Math.PI * 0.48
-      );
+      orbitPhi = clamp(orbitPhi - deltaY * orbitSensitivity, 0.15, PI * 0.48);
       dragLastClientX = e.clientX;
       dragLastClientY = e.clientY;
 

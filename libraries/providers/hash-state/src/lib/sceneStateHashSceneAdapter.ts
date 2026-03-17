@@ -1,25 +1,25 @@
 import type { OrbitPointSource, SceneStateSnapshot } from "@carma/types";
+import {
+  negativePiToPi,
+  radToDegNumeric,
+  zeroToTwoPi,
+} from "@carma/units/helpers";
+import type { Radians } from "@carma/units/types";
 import type {
-  SceneDescriptorAnchorSource,
-  SceneDescriptorHashSnapshot,
+  SceneStateAnchorSource,
+  SceneStateHashSnapshot,
 } from "./sceneStateHashCodec";
-
-const RAD_TO_DEG = 180 / Math.PI;
 
 const isFiniteNumber = (value: unknown): value is number =>
   typeof value === "number" && Number.isFinite(value);
 
-const normalizeBearingDeg = (bearingDeg: number): number => {
-  const normalized = bearingDeg % 360;
-  return normalized < 0 ? normalized + 360 : normalized;
-};
+const normalizeBearing = (rad: number): number =>
+  zeroToTwoPi(rad as Radians) as number;
 
-const normalizeSignedDeg = (angleDeg: number): number => {
-  const normalized = ((((angleDeg + 180) % 360) + 360) % 360) - 180;
-  return normalized === -180 ? 180 : normalized;
+const normalizeSigned = (rad: number): number => {
+  const normalized = negativePiToPi(rad as Radians) as number;
+  return normalized === -Math.PI ? Math.PI : normalized;
 };
-
-const toDeg = (radians: number): number => radians * RAD_TO_DEG;
 
 const readSceneStateOrbitDistanceM = (
   sceneState: SceneStateSnapshot
@@ -58,11 +58,11 @@ const readFallbackAnchorDistanceM = (
   return Math.max(distance, 0.01);
 };
 
-export type SceneDescriptorAnchorMode = "camera-position" | "screen-center";
+export type SceneStateAnchorMode = "camera-position" | "screen-center";
 
 const toAnchorSourceFromOrbitPointSource = (
   source: OrbitPointSource
-): SceneDescriptorAnchorSource => {
+): SceneStateAnchorSource => {
   if (source === "screen-center-depth" || source === "screen-center-globe") {
     return "screen-center";
   }
@@ -72,15 +72,15 @@ const toAnchorSourceFromOrbitPointSource = (
   return "camera-position";
 };
 
-export const readSceneDescriptorHashSnapshotFromSceneState = ({
+export const readSceneStateHashSnapshotFromSceneState = ({
   sceneState,
   anchorMode = "screen-center",
   fallbackHeightM = 200,
 }: {
   sceneState: SceneStateSnapshot | null | undefined;
-  anchorMode?: SceneDescriptorAnchorMode;
+  anchorMode?: SceneStateAnchorMode;
   fallbackHeightM?: number;
-}): SceneDescriptorHashSnapshot | null => {
+}): SceneStateHashSnapshot | null => {
   if (!sceneState) {
     return null;
   }
@@ -100,44 +100,36 @@ export const readSceneDescriptorHashSnapshotFromSceneState = ({
   const heightM = Number.isFinite(anchorCartographic.altitude)
     ? anchorCartographic.altitude
     : fallbackHeightM;
-  const source: SceneDescriptorAnchorSource =
+  const source: SceneStateAnchorSource =
     anchorMode === "screen-center"
       ? orbitPoint
         ? toAnchorSourceFromOrbitPointSource(orbitPoint.source)
         : "fallback"
       : "camera-position";
 
-  const bearingDeg = isFiniteNumber(sceneState.camera.bearingRad)
-    ? normalizeBearingDeg(toDeg(sceneState.camera.bearingRad))
-    : undefined;
-  const pitchDeg = isFiniteNumber(sceneState.camera.pitchRad)
-    ? normalizeSignedDeg(toDeg(sceneState.camera.pitchRad))
-    : undefined;
-  const rollDeg = isFiniteNumber(sceneState.camera.rollRad)
-    ? normalizeSignedDeg(toDeg(sceneState.camera.rollRad))
-    : undefined;
-  const fovDeg = isFiniteNumber(sceneState.camera.fovVertical)
-    ? toDeg(sceneState.camera.fovVertical)
-    : undefined;
-  const rangeM =
-    anchorMode === "screen-center"
-      ? readSceneStateOrbitDistanceM(sceneState) ??
-        readFallbackAnchorDistanceM(sceneState, heightM)
-      : undefined;
+  const { bearingRad, pitchRad, rollRad, fovVertical } = sceneState.camera;
+
+  const orientation: SceneStateHashSnapshot["orientation"] = {};
+  if (isFiniteNumber(bearingRad))
+    orientation.bearingRad = normalizeBearing(bearingRad);
+  if (isFiniteNumber(pitchRad))
+    orientation.pitchRad = normalizeSigned(pitchRad);
+  if (isFiniteNumber(rollRad)) orientation.rollRad = normalizeSigned(rollRad);
+  if (isFiniteNumber(fovVertical)) orientation.fovVerticalRad = fovVertical;
+  if (anchorMode === "screen-center") {
+    const rangeM =
+      readSceneStateOrbitDistanceM(sceneState) ??
+      readFallbackAnchorDistanceM(sceneState, heightM);
+    if (isFiniteNumber(rangeM)) orientation.rangeM = rangeM;
+  }
 
   return {
     anchor: {
-      lngDeg: toDeg(anchorCartographic.longitude),
-      latDeg: toDeg(anchorCartographic.latitude),
+      lngDeg: radToDegNumeric(anchorCartographic.longitude)!,
+      latDeg: radToDegNumeric(anchorCartographic.latitude)!,
       heightM,
       source,
     },
-    orientation: {
-      ...(isFiniteNumber(bearingDeg) ? { bearingDeg } : {}),
-      ...(isFiniteNumber(pitchDeg) ? { pitchDeg } : {}),
-      ...(isFiniteNumber(rollDeg) ? { rollDeg } : {}),
-      ...(isFiniteNumber(fovDeg) ? { fovDeg } : {}),
-      ...(isFiniteNumber(rangeM) ? { rangeM } : {}),
-    },
+    orientation,
   };
 };

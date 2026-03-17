@@ -3,7 +3,7 @@
 // Matrix4 is a CARMA-native 3D math type and must stay interoperable with
 // engine/runtime code without custom matrix wrappers.
 import { Matrix4 } from "three";
-import { isFiniteNumber } from "./vec3";
+import { isFiniteNumber } from "./numeric/isFiniteNumber";
 
 export { Matrix4 };
 export type Mat4 = Matrix4;

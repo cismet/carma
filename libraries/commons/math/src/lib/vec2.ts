@@ -2,7 +2,7 @@
 // Intentionally depends on three.js:
 // Vector2 is a CARMA-native 2D math type across camera/view code.
 import { Vector2 } from "three";
-import { isFiniteNumber } from "./vec3";
+import { isFiniteNumber } from "./numeric/isFiniteNumber";
 
 export { Vector2 };
 export type Vec2 = Vector2;

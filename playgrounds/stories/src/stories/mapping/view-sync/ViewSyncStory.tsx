@@ -59,8 +59,8 @@ import {
   type CesiumWidget,
 } from "@carma/cesium";
 import {
-  readMapLibrePlusElevationHashValuesFromSceneDescriptor,
-  readSceneDescriptorHashSnapshotFromSceneState,
+  readMapLibrePlusElevationHashValuesFromSceneState,
+  readSceneStateHashSnapshotFromSceneState,
 } from "@carma-providers/hash-state";
 import { degToRadNumeric, radToDegNumeric } from "@carma/units/helpers";
 import {
@@ -690,7 +690,7 @@ const buildCarmaStandardMapHashFromCesium = (
   sceneState: ReturnType<typeof useCesiumSceneStateOptional>,
   canvas: HTMLCanvasElement
 ): string | null => {
-  const snapshot = readSceneDescriptorHashSnapshotFromSceneState({
+  const snapshot = readSceneStateHashSnapshotFromSceneState({
     sceneState,
     anchorMode: "screen-center",
     fallbackHeightM: DEFAULT_ANCHOR_ALTITUDE_M,
@@ -699,7 +699,7 @@ const buildCarmaStandardMapHashFromCesium = (
     return null;
   }
 
-  const params = readMapLibrePlusElevationHashValuesFromSceneDescriptor({
+  const params = readMapLibrePlusElevationHashValuesFromSceneState({
     snapshot,
     viewportWidthPx: Math.max(1, canvas.clientWidth),
     viewportHeightPx: Math.max(1, canvas.clientHeight),

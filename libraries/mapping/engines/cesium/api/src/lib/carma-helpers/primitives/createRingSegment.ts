@@ -1,3 +1,4 @@
+import { clamp, TWO_PI } from "@carma/math";
 import {
   Cartesian3,
   Color,
@@ -49,13 +50,9 @@ const DEFAULT_SEGMENTS = 24;
 const DEFAULT_COLOR = Color.WHITE.withAlpha(0.65);
 const MIN_RADIUS = 1e-6;
 const MIN_INNER_RADIUS_GAP = 1e-3;
-const FULL_CIRCLE_RAD = Math.PI * 2;
 const FULL_CIRCLE_ARC_EPSILON_RAD = 1e-8;
 const SEGMENT_COUNT_EPSILON = 1e-9;
 const VERTEX_FORMAT = PerInstanceColorAppearance.VERTEX_FORMAT;
-
-const clamp = (value: number, min: number, max: number) =>
-  Math.min(Math.max(value, min), max);
 
 const toSafeRadius = (radius: number) =>
   Math.max(Number.isFinite(radius) ? radius : 0, MIN_RADIUS);
@@ -78,8 +75,8 @@ const toSafeAngleRad = (angleRad?: number) => {
   const resolvedAngleRad =
     typeof angleRad === "number" && Number.isFinite(angleRad)
       ? angleRad
-      : FULL_CIRCLE_RAD;
-  return clamp(resolvedAngleRad, 0, FULL_CIRCLE_RAD);
+      : TWO_PI;
+  return clamp(resolvedAngleRad, 0, TWO_PI);
 };
 
 const toSafeSegments = (segments?: number) =>
@@ -98,7 +95,7 @@ const toSafeRotationRad = (rotationRad?: number) =>
     : 0;
 
 const isNearlyFullCircle = (angleSpanRad: number, epsilonRad: number) =>
-  Math.abs(angleSpanRad - FULL_CIRCLE_RAD) <= epsilonRad;
+  Math.abs(angleSpanRad - TWO_PI) <= epsilonRad;
 
 const toArcSubdivisionCount = (segments: number, angleRad: number) => {
   const safeSegments = Math.max(1, segments);
@@ -109,7 +106,7 @@ const toArcSubdivisionCount = (segments: number, angleRad: number) => {
     return safeSegments;
   }
 
-  const rawSubdivisionCount = (angleRad / FULL_CIRCLE_RAD) * safeSegments;
+  const rawSubdivisionCount = (angleRad / TWO_PI) * safeSegments;
   const nearestInteger = Math.round(rawSubdivisionCount);
   if (Math.abs(rawSubdivisionCount - nearestInteger) <= SEGMENT_COUNT_EPSILON) {
     return Math.max(1, nearestInteger);
@@ -123,7 +120,7 @@ const resolveArcSampling = (
   angleRad: number
 ): ArcSampling => {
   const safeSegments = Math.max(1, segments);
-  const clampedAngle = clamp(angleRad, 0, FULL_CIRCLE_RAD);
+  const clampedAngle = clamp(angleRad, 0, TWO_PI);
   const subdivisions = toArcSubdivisionCount(safeSegments, clampedAngle);
   const isFullCircle = subdivisions >= safeSegments;
 
@@ -131,7 +128,7 @@ const resolveArcSampling = (
     segments: safeSegments,
     pointCount: isFullCircle ? subdivisions : subdivisions + 1,
     isFullCircle,
-    stepRad: FULL_CIRCLE_RAD / safeSegments,
+    stepRad: TWO_PI / safeSegments,
   };
 };
 
@@ -195,7 +192,7 @@ const createGeometryFromBoundary = (positions: Cartesian3[]) =>
 
 export const createUnitRingSegmentGeometry = ({
   innerRadiusRatio = 0,
-  angleRad = FULL_CIRCLE_RAD,
+  angleRad = TWO_PI,
   segments = DEFAULT_SEGMENTS,
 }: UnitRingSegmentGeometryOptions): CoplanarPolygonGeometry => {
   const safeSegments = toSafeSegments(segments);
@@ -321,7 +318,7 @@ export const createRingSegment = (
 export const createRing = (id: string, options: RingOptions): Primitive =>
   createRingSegment(id, {
     ...options,
-    angleRad: FULL_CIRCLE_RAD,
+    angleRad: TWO_PI,
     rotationRad: 0,
   });
 

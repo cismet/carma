@@ -1,6 +1,6 @@
 import {
-  readSceneDescriptorFromMapLibrePlusElevationHashValues,
-  type SceneDescriptorHashSnapshot,
+  readSceneStateFromMapLibrePlusElevationHashValues,
+  type SceneStateHashSnapshot,
 } from "@carma-providers/hash-state";
 
 const FALLBACK_VIEWPORT_WIDTH_PX = 1920;
@@ -21,8 +21,8 @@ export const readAnnotationsDemoHomeSnapshot = ({
 }: {
   viewportWidthPx?: number;
   viewportHeightPx?: number;
-} = {}): SceneDescriptorHashSnapshot | null =>
-  readSceneDescriptorFromMapLibrePlusElevationHashValues({
+} = {}): SceneStateHashSnapshot | null =>
+  readSceneStateFromMapLibrePlusElevationHashValues({
     values: ANNOTATIONS_DEMO_HOME_POSE_VALUES,
     viewportWidthPx:
       typeof viewportWidthPx === "number" && Number.isFinite(viewportWidthPx)

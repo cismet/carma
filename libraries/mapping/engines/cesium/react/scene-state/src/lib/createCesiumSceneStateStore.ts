@@ -1,3 +1,4 @@
+import { isFiniteNumber } from "@carma/math";
 import { computeCesiumSceneStateSnapshot } from "@carma-mapping/engines/cesium/api";
 import type {
   EventLike,
@@ -19,9 +20,6 @@ const normalizeError = (error: unknown): Error =>
 
 const isMissingScreenCenterIntersectionError = (error: unknown): boolean =>
   normalizeError(error).message.includes("Missing screen-center intersection");
-
-const isFiniteNumber = (value: unknown): value is number =>
-  typeof value === "number" && Number.isFinite(value);
 
 const isEventLike = (value: unknown): value is EventLike => {
   if (!value || typeof value !== "object") {

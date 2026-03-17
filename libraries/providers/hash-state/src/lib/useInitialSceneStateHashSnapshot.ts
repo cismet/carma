@@ -1,23 +1,23 @@
 import { useMemo } from "react";
 
-import type { SceneDescriptorHashSnapshot } from "./sceneStateHashCodec";
+import type { SceneStateHashSnapshot } from "./sceneStateHashCodec";
 import {
-  decodeSceneDescriptorHashSnapshot,
-  readSceneDescriptorFromMapLibrePlusElevationHashValues,
+  decodeSceneStateHashSnapshot,
+  readSceneStateFromMapLibrePlusElevationHashValues,
 } from "./sceneStateHashCodec";
 import { useHashState } from "./HashStateProvider";
 
 const isFiniteNumber = (value: unknown): value is number =>
   typeof value === "number" && Number.isFinite(value);
 
-const isSceneDescriptorHashSnapshot = (
+const isSceneStateHashSnapshot = (
   value: unknown
-): value is SceneDescriptorHashSnapshot => {
+): value is SceneStateHashSnapshot => {
   if (!value || typeof value !== "object") {
     return false;
   }
 
-  const candidate = value as Partial<SceneDescriptorHashSnapshot>;
+  const candidate = value as Partial<SceneStateHashSnapshot>;
   const anchor = candidate.anchor;
   if (!anchor) {
     return false;
@@ -35,16 +35,15 @@ const readInitialCameraSnapshotFromHashValues = (
   hashValues: Record<string, unknown>,
   defaultFovDeg?: number,
   defaultZoom?: number
-): SceneDescriptorHashSnapshot | null => {
+): SceneStateHashSnapshot | null => {
   const encodedSnapshot = hashValues.camera3d;
-  if (isSceneDescriptorHashSnapshot(encodedSnapshot)) {
+  if (isSceneStateHashSnapshot(encodedSnapshot)) {
     return encodedSnapshot;
   }
 
-  const rawEncodedSnapshot = rawHash.camera3d ?? rawHash.c3;
+  const rawEncodedSnapshot = rawHash.camera3d;
   if (typeof rawEncodedSnapshot === "string") {
-    const decodedSnapshot =
-      decodeSceneDescriptorHashSnapshot(rawEncodedSnapshot);
+    const decodedSnapshot = decodeSceneStateHashSnapshot(rawEncodedSnapshot);
     if (decodedSnapshot) {
       return decodedSnapshot;
     }
@@ -66,7 +65,7 @@ const readInitialCameraSnapshotFromHashValues = (
   const zoom = hashValues.zoom;
   const fovDeg = hashValues.fov;
 
-  return readSceneDescriptorFromMapLibrePlusElevationHashValues({
+  return readSceneStateFromMapLibrePlusElevationHashValues({
     values: {
       lng: lngDeg,
       lat: latDeg,
@@ -93,7 +92,7 @@ export const useInitialSceneStateHashSnapshot = ({
   defaultFovDeg?: number;
   defaultZoom?: number;
 } = {}): {
-  initialCameraState: SceneDescriptorHashSnapshot | null;
+  initialCameraState: SceneStateHashSnapshot | null;
   isResolved: boolean;
 } => {
   const { getHash, getHashValues } = useHashState();

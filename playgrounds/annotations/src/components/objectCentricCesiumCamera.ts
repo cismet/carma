@@ -7,22 +7,19 @@ import {
   PerspectiveFrustum,
   type Scene,
 } from "@carma/cesium";
+import { isFiniteNumber } from "@carma/math";
 import { getPointsFromCartographicAndHeadingPitchRange } from "@carma-mapping/engines/cesium/api";
-import { degToRadNumeric } from "@carma/units/helpers";
-import type { SceneDescriptorHashSnapshot } from "@carma-providers/hash-state";
+import type { SceneStateHashSnapshot } from "@carma-providers/hash-state";
 
 export const DEFAULT_HASH_RANGE_M = 750;
 
 const CAMERA_DIRECTION_EPSILON = 1e-9;
 
-const isFiniteNumber = (value: unknown): value is number =>
-  typeof value === "number" && Number.isFinite(value);
-
 const readEllipsoidalUpAtAnchor = (anchorECEF: Cartesian3): Cartesian3 =>
   Cartesian3.normalize(anchorECEF, new Cartesian3());
 
 export const buildObjectCentricCameraOrientation = (
-  cameraState: SceneDescriptorHashSnapshot
+  cameraState: SceneStateHashSnapshot
 ): {
   destination: Cartesian3;
   direction: Cartesian3;
@@ -43,8 +40,8 @@ export const buildObjectCentricCameraOrientation = (
     return null;
   }
 
-  const bearingRad = degToRadNumeric(cameraState.orientation.bearingDeg ?? 0);
-  const pitchRad = degToRadNumeric(cameraState.orientation.pitchDeg ?? 0);
+  const bearingRad = cameraState.orientation.bearingRad ?? 0;
+  const pitchRad = cameraState.orientation.pitchRad ?? 0;
   const range = Math.max(
     0.01,
     cameraState.orientation.rangeM ?? DEFAULT_HASH_RANGE_M
@@ -92,8 +89,8 @@ export const buildObjectCentricCameraOrientation = (
     destination,
     direction,
     up,
-    ...(isFiniteNumber(cameraState.orientation.fovDeg)
-      ? { fovRad: degToRadNumeric(cameraState.orientation.fovDeg) }
+    ...(isFiniteNumber(cameraState.orientation.fovVerticalRad)
+      ? { fovRad: cameraState.orientation.fovVerticalRad }
       : {}),
   };
 };
@@ -103,7 +100,7 @@ export const applyObjectCentricCameraSnapshotToScene = ({
   snapshot,
 }: {
   scene: Scene;
-  snapshot: SceneDescriptorHashSnapshot;
+  snapshot: SceneStateHashSnapshot;
 }): boolean => {
   const orientation = buildObjectCentricCameraOrientation(snapshot);
   if (!orientation) {
