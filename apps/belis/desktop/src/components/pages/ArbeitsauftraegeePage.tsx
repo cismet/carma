@@ -19,7 +19,7 @@ const ArbeitsauftraegeePage = () => {
 
   // Register as a map route — show the shell, clear on unmount
   useEffect(() => {
-    setConfig({ isMapRoute: true });
+    setConfig({ isMapRoute: true, showSearch: false });
     return () => setConfig({ isMapRoute: false });
   }, [setConfig]);
 
@@ -29,7 +29,7 @@ const ArbeitsauftraegeePage = () => {
       title: "Arbeitsaufträge",
       activeSourceLayers: ALL_SOURCE_LAYERS,
       filterPanel: (
-        <div className="border-l border-gray-300 pl-4">
+        <div>
           <Select
             value={selected}
             onChange={setSelected}

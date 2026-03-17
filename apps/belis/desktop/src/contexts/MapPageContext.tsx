@@ -11,6 +11,7 @@ export interface MapPageConfig {
   filterPanel: ReactNode;
   activeSourceLayers: Set<string>;
   isMapRoute: boolean;
+  showSearch: boolean;
 }
 
 const DEFAULT_CONFIG: MapPageConfig = {
@@ -18,6 +19,7 @@ const DEFAULT_CONFIG: MapPageConfig = {
   filterPanel: null,
   activeSourceLayers: new Set(),
   isMapRoute: false,
+  showSearch: true,
 };
 
 interface MapPageContextValue {

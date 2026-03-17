@@ -95,7 +95,7 @@ const MainPage = () => {
 
   // Register as a map route — show the shell, clear on unmount
   useEffect(() => {
-    setConfig({ isMapRoute: true });
+    setConfig({ isMapRoute: true, showSearch: true });
     return () => setConfig({ isMapRoute: false });
   }, [setConfig]);
 

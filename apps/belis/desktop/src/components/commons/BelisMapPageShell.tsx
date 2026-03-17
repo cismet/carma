@@ -37,7 +37,7 @@ const BelisMapPageShell = () => {
   const globalEditMode = useSelector(getGlobalEditMode);
 
   const { config } = useMapPage();
-  const { title, filterPanel, activeSourceLayers } = config;
+  const { title, filterPanel, activeSourceLayers, showSearch } = config;
 
   const [streets, setStreets] = useState<BelisStreet[]>([]);
   const [highlightResults, setHighlightResults] = useState<
@@ -123,32 +123,36 @@ const BelisMapPageShell = () => {
             <div className="flex items-center gap-4">
               {windowWidth <= 1364 && editModeButton}
 
-              <div className="flex items-center gap-2">
-                <StreetSearch
-                  gazData={gazData}
-                  onClearHighlightResults={() => setHighlightResults(null)}
-                />
-                <SearchModal
-                  showFinalQuery={showRaw}
-                  onSearchResults={setHighlightResults}
-                />
-              </div>
+              {showSearch && (
+                <div className="flex items-center gap-2">
+                  <StreetSearch
+                    gazData={gazData}
+                    onClearHighlightResults={() => setHighlightResults(null)}
+                  />
+                  <SearchModal
+                    showFinalQuery={showRaw}
+                    onSearchResults={setHighlightResults}
+                  />
+                </div>
+              )}
 
-              <button
-                onClick={() => setLassoActive((prev) => !prev)}
-                title={
-                  lassoActive
-                    ? "Lasso-Auswahl beenden"
-                    : "Lasso-Auswahl starten"
-                }
-                className={`flex items-center justify-center w-8 h-8 rounded border ${
-                  lassoActive
-                    ? "border-blue-500 bg-blue-50 text-blue-600"
-                    : "border-gray-300 bg-white text-gray-500 hover:bg-gray-50"
-                }`}
-              >
-                <FontAwesomeIcon icon={faDrawPolygon} />
-              </button>
+              {showSearch && (
+                <button
+                  onClick={() => setLassoActive((prev) => !prev)}
+                  title={
+                    lassoActive
+                      ? "Lasso-Auswahl beenden"
+                      : "Lasso-Auswahl starten"
+                  }
+                  className={`flex items-center justify-center w-8 h-8 rounded border ${
+                    lassoActive
+                      ? "border-blue-500 bg-blue-50 text-blue-600"
+                      : "border-gray-300 bg-white text-gray-500 hover:bg-gray-50"
+                  }`}
+                >
+                  <FontAwesomeIcon icon={faDrawPolygon} />
+                </button>
+              )}
 
               {filterPanel}
             </div>
