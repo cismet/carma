@@ -1,11 +1,5 @@
 /* @refresh reset */
-import {
-  createElement,
-  useCallback,
-  useEffect,
-  useMemo,
-  useRef,
-} from "react";
+import { createElement, useCallback, useEffect, useMemo, useRef } from "react";
 
 import {
   BoundingSphere,
@@ -118,7 +112,8 @@ export const useEdgeComponentOverlayVisualizer = (
   const midpointOverlayIdsRef = useRef<string[]>([]);
   const verticalLabelSideByRelationIdRef = useRef<Record<string, -1 | 1>>({});
   const sceneState = useCesiumSceneStateOptional();
-  const cameraPitch = sceneState?.camera.pitchRad ?? scene?.camera.pitch ?? -Math.PI / 4;
+  const cameraPitch =
+    sceneState?.camera.pitchRad ?? scene?.camera.pitch ?? -Math.PI / 4;
 
   const { addLabelOverlayElement, removeLabelOverlayElement } =
     useLabelOverlay();

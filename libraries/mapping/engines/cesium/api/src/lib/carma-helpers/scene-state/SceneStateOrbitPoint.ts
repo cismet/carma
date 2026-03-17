@@ -31,9 +31,7 @@ const readScreenCenterWindowPosition = (scene: SceneLike) => {
   return new Vector2(canvas.clientWidth * 0.5, canvas.clientHeight * 0.5);
 };
 
-const buildTerrainSamplePositions = (
-  scene: SceneLike
-): Vec2[] => {
+const buildTerrainSamplePositions = (scene: SceneLike): Vec2[] => {
   const center = readScreenCenterWindowPosition(scene);
   const canvas = scene.canvas;
   if (!center || !canvas) {
@@ -176,7 +174,9 @@ const readCartographicFromWorld = (
     return null;
   }
   return (
-    toSceneStateCartographicRad(ellipsoid.cartesianToCartographic(rawCartesian)) ??
+    toSceneStateCartographicRad(
+      ellipsoid.cartesianToCartographic(rawCartesian)
+    ) ??
     toSceneStateCartographicRad(
       ellipsoid.cartesianToCartographic(
         toSceneStateVec3(
@@ -213,8 +213,7 @@ const buildFallbackOrbitPoint = (
       ? {
           longitude: cameraCartographic.longitude,
           latitude: cameraCartographic.latitude,
-          altitude:
-            fallbackHeightM as NonNullable<LatLngAlt.rad["altitude"]>,
+          altitude: fallbackHeightM as NonNullable<LatLngAlt.rad["altitude"]>,
         }
       : cameraCartographic;
 

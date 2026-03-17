@@ -97,7 +97,8 @@ export const usePointCandidateDomOverlay = (
   const hasCandidatePoint = Boolean(candidatePointECEF);
   const hasCandidateAuxAnchor = Boolean(candidateVerticalOffsetAnchorECEF);
   const sceneState = useCesiumSceneStateOptional();
-  const cameraPitch = sceneState?.camera.pitchRad ?? scene?.camera.pitch ?? -Math.PI / 4;
+  const cameraPitch =
+    sceneState?.camera.pitchRad ?? scene?.camera.pitch ?? -Math.PI / 4;
 
   candidateElevatedPointRef.current = candidatePointECEF;
   candidateAuxAnchorRef.current = candidateVerticalOffsetAnchorECEF;

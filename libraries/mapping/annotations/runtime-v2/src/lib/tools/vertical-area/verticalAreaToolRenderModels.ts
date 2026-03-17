@@ -173,32 +173,36 @@ export const buildVerticalAreaToolRenderModels = ({
     }
   );
 
-  const committedAreaLabels = verticalAreaMeasurements.flatMap((measurement) => {
-    const coordinates = resolveMeasurementCoordinates(
-      measurement,
-      nodeCoordinatesById
-    );
-    const coordinate = getVerticalAreaLabelCoordinate(coordinates);
+  const committedAreaLabels = verticalAreaMeasurements.flatMap(
+    (measurement) => {
+      const coordinates = resolveMeasurementCoordinates(
+        measurement,
+        nodeCoordinatesById
+      );
+      const coordinate = getVerticalAreaLabelCoordinate(coordinates);
 
-    if (!coordinate) {
-      return [];
+      if (!coordinate) {
+        return [];
+      }
+
+      return [
+        {
+          id: `${measurement.id}-area-label`,
+          measurementId: measurement.id,
+          coordinate,
+          content: formatAreaAdaptive(
+            Math.max(0, measurement.areaSquareMeters ?? 0)
+          ),
+          markerContent: undefined,
+          selected: measurement.id === selectedMeasurementId,
+          hideLabelAndStem: false,
+          onClick: onMeasurementSelect
+            ? () => onMeasurementSelect(measurement.id)
+            : undefined,
+        },
+      ];
     }
-
-    return [
-      {
-        id: `${measurement.id}-area-label`,
-        measurementId: measurement.id,
-        coordinate,
-        content: formatAreaAdaptive(Math.max(0, measurement.areaSquareMeters ?? 0)),
-        markerContent: undefined,
-        selected: measurement.id === selectedMeasurementId,
-        hideLabelAndStem: false,
-        onClick: onMeasurementSelect
-          ? () => onMeasurementSelect(measurement.id)
-          : undefined,
-      },
-    ];
-  });
+  );
 
   return {
     points: [...committedPoints, ...previewPoints],

@@ -1,13 +1,5 @@
-import {
-  useEffect,
-  useRef,
-  useState,
-  type ReactNode,
-} from "react";
-import type {
-  Scene,
-  CesiumWidget,
-} from "@carma/cesium";
+import { useEffect, useRef, useState, type ReactNode } from "react";
+import type { Scene, CesiumWidget } from "@carma/cesium";
 import { LabelOverlayProvider } from "@carma-providers/label-overlay";
 import { CesiumSceneStateProvider } from "@carma-mapping/engines/cesium/react/scene-state";
 import { setupCesium } from "../../../map-framework-switcher/helpers/cesium-setup";

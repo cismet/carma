@@ -45,7 +45,7 @@ const FrameworkStateStatusBar = () => {
       : "unknown";
   const transitionText = isTransitioning
     ? isPreparingCesiumTransition
-      ? (preparingCesiumMessage ?? "preparing cesium")
+      ? preparingCesiumMessage ?? "preparing cesium"
       : "running"
     : "idle";
   const statusText = `${activeFrameworkText} • transition ${transitionText}`;
@@ -144,8 +144,7 @@ const DebugScene = () => {
     cesiumContainerRef,
     cesiumWidgetRef,
     mapsInitialized,
-  } =
-    useRegisteredLeafletCesium();
+  } = useRegisteredLeafletCesium();
 
   return (
     <MapContainers

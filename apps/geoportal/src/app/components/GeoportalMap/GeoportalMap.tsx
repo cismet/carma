@@ -159,7 +159,9 @@ const isFiniteNumber = (value: unknown): value is number =>
   typeof value === "number" && Number.isFinite(value);
 
 const readInitialCameraViewFromHashSnapshot = (
-  snapshot: ReturnType<typeof useInitialSceneDescriptorHashSnapshot>["initialCameraState"]
+  snapshot: ReturnType<
+    typeof useInitialSceneDescriptorHashSnapshot
+  >["initialCameraState"]
 ): InitialCameraView | undefined => {
   if (!snapshot) {
     return undefined;
@@ -1082,7 +1084,9 @@ export const GeoportalMap = ({ height, width, allow3d }: MapProps) => {
             <CustomViewer
               containerRef={container3dMapRef}
               cameraLimiterOptions={CESIUM_CONFIG.camera}
-              initialCameraView={cesiumInitialCameraViewRef.current ?? undefined}
+              initialCameraView={
+                cesiumInitialCameraViewRef.current ?? undefined
+              }
             />
           </CesiumSceneStateProvider>
         </div>

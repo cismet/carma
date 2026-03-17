@@ -101,10 +101,10 @@ const createDisplayOptions = (
   altitudeLineWidth: args.altitudeLineWidth,
 });
 
-const CameraStateVisualizerStory = (
-  args: CameraStateVisualizerStoryProps
-) => {
-  const [bearingRad, setBearingRad] = useState(degToRadNumeric(args.bearingDeg));
+const CameraStateVisualizerStory = (args: CameraStateVisualizerStoryProps) => {
+  const [bearingRad, setBearingRad] = useState(
+    degToRadNumeric(args.bearingDeg)
+  );
   const [pitchRad, setPitchRad] = useState(degToRadNumeric(args.pitchDeg));
 
   useEffect(() => {
@@ -116,10 +116,7 @@ const CameraStateVisualizerStory = (
     () => createSpecification(args, bearingRad, pitchRad),
     [args, bearingRad, pitchRad]
   );
-  const displayOptions = useMemo(
-    () => createDisplayOptions(args),
-    [args]
-  );
+  const displayOptions = useMemo(() => createDisplayOptions(args), [args]);
   const summary = [
     `${args.altitudeM.toFixed(1)} m`,
     `b ${radToDegNumeric(bearingRad).toFixed(1)}°`,
@@ -408,7 +405,8 @@ const meta: Meta<CameraStateVisualizerStoryProps> = {
 
 export default meta;
 
-export const CameraStateVisualizer: StoryObj<CameraStateVisualizerStoryProps> = {
-  name: "Camera State Visualizer",
-  render: (args) => <CameraStateVisualizerStory {...args} />,
-};
+export const CameraStateVisualizer: StoryObj<CameraStateVisualizerStoryProps> =
+  {
+    name: "Camera State Visualizer",
+    render: (args) => <CameraStateVisualizerStory {...args} />,
+  };

@@ -185,11 +185,14 @@ export function useMapHashRouting({
     // Only update hash when transitioning TO Leaflet AND not currently transitioning
     if (!wasLeafletLike && isLeafletLike && !getIsTransitioning()) {
       // Replace current entry to clear 3D-specific state
-      updateHash({ is2d: 1 }, {
-        clearKeys: cesiumClearKeys,
-        label: labels?.clearCesium ?? "Map:2D:clearCesium",
-        replace: true,
-      });
+      updateHash(
+        { is2d: 1 },
+        {
+          clearKeys: cesiumClearKeys,
+          label: labels?.clearCesium ?? "Map:2D:clearCesium",
+          replace: true,
+        }
+      );
       // Then push current 2D location
       const map = getLeafletMap?.();
       if (

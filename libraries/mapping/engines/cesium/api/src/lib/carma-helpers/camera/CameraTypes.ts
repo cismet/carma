@@ -1,7 +1,4 @@
-import type {
-  CameraType,
-  CameraView,
-} from "@carma-commons/camera/model";
+import type { CameraType, CameraView } from "@carma-commons/camera/model";
 import type { Altitude, LatLngAlt } from "@carma/geo/types";
 import type { DirectionUpFrame } from "@carma/math";
 import type { Degrees, Radians } from "@carma/units/types";

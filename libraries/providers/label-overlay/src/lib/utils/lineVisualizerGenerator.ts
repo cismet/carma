@@ -13,4 +13,4 @@ export {
   type CreateScreenPointSvgLineVisualizersOptions,
   type CreateSvgLineVisualizerOptions,
   type CreateScreenPointSvgLineVisualizerOptions,
-} from '@carma-commons/svg';
+} from "@carma-commons/svg";

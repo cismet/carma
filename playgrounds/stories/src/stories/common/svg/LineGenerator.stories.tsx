@@ -1237,9 +1237,7 @@ const RepresentativeCasesStory = ({
               >
                 {formatRepresentativeSectionLabel(section.label)}
               </div>
-              <div
-                style={{ display: "flex", flexDirection: "column", gap: 3 }}
-              >
+              <div style={{ display: "flex", flexDirection: "column", gap: 3 }}>
                 {section.rows.map((row) => (
                   <div
                     key={row.id}

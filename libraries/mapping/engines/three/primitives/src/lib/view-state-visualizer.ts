@@ -39,7 +39,8 @@ const orbitAnglesToVector3 = ({
   radius: number;
   theta: number;
   phi: number;
-}): THREE.Vector3 => new THREE.Vector3().setFromSphericalCoords(radius, phi, theta);
+}): THREE.Vector3 =>
+  new THREE.Vector3().setFromSphericalCoords(radius, phi, theta);
 
 const resolveDefaultFrameHalfExtent = () =>
   HEMISPHERE_RADIUS + VISUALIZER_FRAME_PADDING;
@@ -116,11 +117,7 @@ const pointOnBearingCircle = ({
   radius: number;
   y?: number;
 }): THREE.Vector3 =>
-  new THREE.Vector3(
-    Math.sin(bearing) * radius,
-    y,
-    -Math.cos(bearing) * radius
-  );
+  new THREE.Vector3(Math.sin(bearing) * radius, y, -Math.cos(bearing) * radius);
 
 const readImagePlaneDistance = (
   cameraModel: ViewStateVisualizerSpecification
@@ -168,7 +165,9 @@ const buildAltitudeStemGeometry = ({
   if (!overflow || !showScaleBreak) {
     return {
       stemSegments: [[new THREE.Vector3(0, planeDiscY, 0), ORIGIN.clone()]],
-      overflowScaleBreakMarkers: null as [THREE.Vector3[], THREE.Vector3[]] | null,
+      overflowScaleBreakMarkers: null as
+        | [THREE.Vector3[], THREE.Vector3[]]
+        | null,
     };
   }
 
@@ -192,10 +191,7 @@ const buildAltitudeStemGeometry = ({
 
   return {
     stemSegments: [
-      [
-        new THREE.Vector3(0, planeDiscY, 0),
-        new THREE.Vector3(0, gapUpperY, 0),
-      ],
+      [new THREE.Vector3(0, planeDiscY, 0), new THREE.Vector3(0, gapUpperY, 0)],
       [new THREE.Vector3(0, gapLowerY, 0), ORIGIN.clone()],
     ],
     overflowScaleBreakMarkers: [
@@ -379,7 +375,11 @@ const buildPitchArcPoints = ({
   Array.from({ length: sampleCount + 1 }, (_, index) => {
     const t = index / sampleCount;
     const angle = elevation * t;
-    const point = new THREE.Vector3(0, Math.sin(angle) * radius, -Math.cos(angle) * radius);
+    const point = new THREE.Vector3(
+      0,
+      Math.sin(angle) * radius,
+      -Math.cos(angle) * radius
+    );
     point.applyAxisAngle(WORLD_UP, -bearing);
     return point;
   });
@@ -388,12 +388,7 @@ const buildVisualizerCamera = (
   size: ViewStateVisualizerSize,
   config: ViewStateVisualizerCamera
 ) => {
-  const camera = new THREE.PerspectiveCamera(
-    config.fovDeg,
-    1,
-    0.1,
-    100
-  );
+  const camera = new THREE.PerspectiveCamera(config.fovDeg, 1, 0.1, 100);
   camera.position.set(config.position.x, config.position.y, config.position.z);
   camera.up.copy(WORLD_UP);
   camera.lookAt(0, 0, 0);
@@ -401,7 +396,6 @@ const buildVisualizerCamera = (
   camera.updateMatrixWorld();
   return camera;
 };
-
 
 type CanvasPoint = {
   x: number;
@@ -551,12 +545,24 @@ const setQuadMeshGeometry = (
     return;
   }
   const positions = new Float32Array([
-    corners[0].x, corners[0].y, corners[0].z,
-    corners[1].x, corners[1].y, corners[1].z,
-    corners[2].x, corners[2].y, corners[2].z,
-    corners[0].x, corners[0].y, corners[0].z,
-    corners[2].x, corners[2].y, corners[2].z,
-    corners[3].x, corners[3].y, corners[3].z,
+    corners[0].x,
+    corners[0].y,
+    corners[0].z,
+    corners[1].x,
+    corners[1].y,
+    corners[1].z,
+    corners[2].x,
+    corners[2].y,
+    corners[2].z,
+    corners[0].x,
+    corners[0].y,
+    corners[0].z,
+    corners[2].x,
+    corners[2].y,
+    corners[2].z,
+    corners[3].x,
+    corners[3].y,
+    corners[3].z,
   ]);
   geometry.setAttribute("position", new THREE.BufferAttribute(positions, 3));
   geometry.computeVertexNormals();
@@ -599,7 +605,8 @@ const resolveCameraBasis = (cameraModel: ViewStateVisualizerSpecification) => {
 const buildImagePlaneGeometry = (
   cameraModel: ViewStateVisualizerSpecification
 ) => {
-  const { cameraPosition, forward, right, up } = resolveCameraBasis(cameraModel);
+  const { cameraPosition, forward, right, up } =
+    resolveCameraBasis(cameraModel);
   const fovVertical = readVerticalFov(cameraModel);
   const fovHorizontal = readHorizontalFov(cameraModel);
   const imagePlaneDistance = readImagePlaneDistance(cameraModel);
@@ -640,12 +647,12 @@ const buildImagePlaneGeometry = (
           MAX_IMAGE_PLANE_HALF_EXTENT
         )
       : isFiniteNumber(fovVertical)
-        ? clamp(
-            Math.tan((fovVertical ?? Math.PI / 3) * 0.5) * imagePlaneDistance,
-            0.08,
-            MAX_IMAGE_PLANE_HALF_EXTENT
-          )
-        : 0.18;
+      ? clamp(
+          Math.tan((fovVertical ?? Math.PI / 3) * 0.5) * imagePlaneDistance,
+          0.08,
+          MAX_IMAGE_PLANE_HALF_EXTENT
+        )
+      : 0.18;
 
   const croppedHalfWidth =
     isFiniteNumber(projectionScaleX) && projectionScaleX > 0
@@ -655,37 +662,38 @@ const buildImagePlaneGeometry = (
           MAX_IMAGE_PLANE_HALF_EXTENT
         )
       : isFiniteNumber(fovHorizontal)
-        ? clamp(
-            Math.tan((fovHorizontal ?? Math.PI / 2) * 0.5) * imagePlaneDistance,
-            0.12,
-            MAX_IMAGE_PLANE_HALF_EXTENT
-          )
-        : 0.24;
+      ? clamp(
+          Math.tan((fovHorizontal ?? Math.PI / 2) * 0.5) * imagePlaneDistance,
+          0.12,
+          MAX_IMAGE_PLANE_HALF_EXTENT
+        )
+      : 0.24;
 
   const horizontalViewScale =
     hasHorizontalViewOffset && view.width > 0 ? view.width / view.fullWidth : 1;
   const verticalViewScale =
-    hasVerticalViewOffset && view.height > 0 ? view.height / view.fullHeight : 1;
+    hasVerticalViewOffset && view.height > 0
+      ? view.height / view.fullHeight
+      : 1;
   const fullHalfWidth =
-    horizontalViewScale > 0 ? croppedHalfWidth / horizontalViewScale : croppedHalfWidth;
+    horizontalViewScale > 0
+      ? croppedHalfWidth / horizontalViewScale
+      : croppedHalfWidth;
   const fullHalfHeight =
-    verticalViewScale > 0 ? croppedHalfHeight / verticalViewScale : croppedHalfHeight;
+    verticalViewScale > 0
+      ? croppedHalfHeight / verticalViewScale
+      : croppedHalfHeight;
 
-  const offsetX =
-    hasHorizontalViewOffset
-      ? (((view.offsetX + view.width * 0.5) / view.fullWidth) -
-          0.5) *
-        fullHalfWidth *
-        2
-      : 0;
-  const offsetY =
-    hasVerticalViewOffset
-      ? (0.5 -
-          (view.offsetY + view.height * 0.5) /
-            view.fullHeight) *
-        fullHalfHeight *
-        2
-      : 0;
+  const offsetX = hasHorizontalViewOffset
+    ? ((view.offsetX + view.width * 0.5) / view.fullWidth - 0.5) *
+      fullHalfWidth *
+      2
+    : 0;
+  const offsetY = hasVerticalViewOffset
+    ? (0.5 - (view.offsetY + view.height * 0.5) / view.fullHeight) *
+      fullHalfHeight *
+      2
+    : 0;
 
   const croppedImagePlaneCenter = imagePlaneCenter
     .clone()
@@ -742,7 +750,12 @@ const buildImagePlaneGeometry = (
     croppedImagePlaneCenter,
     hasViewOffset: hasHorizontalViewOffset || hasVerticalViewOffset,
     imagePlaneCorners: [topRight, topLeft, bottomLeft, bottomRight],
-    fullImagePlaneCorners: [fullTopRight, fullTopLeft, fullBottomLeft, fullBottomRight],
+    fullImagePlaneCorners: [
+      fullTopRight,
+      fullTopLeft,
+      fullBottomLeft,
+      fullBottomRight,
+    ],
     frustumEdges,
     basisRightEnd: imagePlaneCenter
       .clone()
@@ -751,12 +764,20 @@ const buildImagePlaneGeometry = (
       .clone()
       .add(up.clone().multiplyScalar(CAMERA_BASIS_LINE_LENGTH)),
     imagePlaneOriginX: [
-      imagePlaneCenter.clone().add(right.clone().multiplyScalar(-IMAGE_PLANE_ORIGIN_SIZE)),
-      imagePlaneCenter.clone().add(right.clone().multiplyScalar(IMAGE_PLANE_ORIGIN_SIZE)),
+      imagePlaneCenter
+        .clone()
+        .add(right.clone().multiplyScalar(-IMAGE_PLANE_ORIGIN_SIZE)),
+      imagePlaneCenter
+        .clone()
+        .add(right.clone().multiplyScalar(IMAGE_PLANE_ORIGIN_SIZE)),
     ],
     imagePlaneOriginY: [
-      imagePlaneCenter.clone().add(up.clone().multiplyScalar(-IMAGE_PLANE_ORIGIN_SIZE)),
-      imagePlaneCenter.clone().add(up.clone().multiplyScalar(IMAGE_PLANE_ORIGIN_SIZE)),
+      imagePlaneCenter
+        .clone()
+        .add(up.clone().multiplyScalar(-IMAGE_PLANE_ORIGIN_SIZE)),
+      imagePlaneCenter
+        .clone()
+        .add(up.clone().multiplyScalar(IMAGE_PLANE_ORIGIN_SIZE)),
     ],
   };
 };
@@ -830,9 +851,11 @@ export const createViewStateVisualizerPrimitive = (
     options.camera?.position?.x !== undefined ||
     options.camera?.position?.y !== undefined ||
     options.camera?.position?.z !== undefined;
-  let orbitPhi = initialDisplay.orbitPhi ??
+  let orbitPhi =
+    initialDisplay.orbitPhi ??
     Math.acos(clamp(cameraConfig.position.y / initialOrbitRadius, -1, 1));
-  let orbitTheta = initialDisplay.orbitTheta ??
+  let orbitTheta =
+    initialDisplay.orbitTheta ??
     Math.atan2(cameraConfig.position.x, cameraConfig.position.z);
 
   // --- Cameras ---
@@ -843,7 +866,7 @@ export const createViewStateVisualizerPrimitive = (
     : resolveDefaultFrameHalfExtent();
   let currentFovDeg = initialFovDeg;
   const getOrbitRadius = () =>
-    baseTangentProduct / Math.tan(currentFovDeg * Math.PI / 360);
+    baseTangentProduct / Math.tan((currentFovDeg * Math.PI) / 360);
 
   const perspectiveCamera = buildVisualizerCamera(size, {
     ...cameraConfig,
@@ -852,9 +875,12 @@ export const createViewStateVisualizerPrimitive = (
 
   const orthoHalf = baseTangentProduct;
   const orthographicCamera = new THREE.OrthographicCamera(
-    -orthoHalf, orthoHalf,
-    orthoHalf, -orthoHalf,
-    0.1, 100
+    -orthoHalf,
+    orthoHalf,
+    orthoHalf,
+    -orthoHalf,
+    0.1,
+    100
   );
   orthographicCamera.position.copy(perspectiveCamera.position);
   orthographicCamera.up.copy(WORLD_UP);
@@ -909,7 +935,10 @@ export const createViewStateVisualizerPrimitive = (
   let dragStartBearing = 0;
   let dragStartPitch = 0;
 
-  const pointerToArcball = (clientX: number, clientY: number): THREE.Vector3 => {
+  const pointerToArcball = (
+    clientX: number,
+    clientY: number
+  ): THREE.Vector3 => {
     const rect = canvas.getBoundingClientRect();
     const nx = ((clientX - rect.left) / rect.width) * 2 - 1;
     // Use the conventional arcball y-up mapping so the resulting versor
@@ -1260,9 +1289,7 @@ export const createViewStateVisualizerPrimitive = (
     northSouthGreatCircle,
     eastWestGreatCircle,
   ];
-  const graticuleLines: THREE.Line[] = [
-    ...graticuleCardinalLines,
-  ];
+  const graticuleLines: THREE.Line[] = [...graticuleCardinalLines];
 
   // --- Display option application ---
   const applyDisplayOptions = (display: ViewStateVisualizerDisplayOptions) => {
@@ -1326,7 +1353,9 @@ export const createViewStateVisualizerPrimitive = (
       ...(display.cueColors ?? {}),
     };
 
-    graticuleCardinalLines.forEach((line) => setLineWidth(line, hairlineWidthPx));
+    graticuleCardinalLines.forEach((line) =>
+      setLineWidth(line, hairlineWidthPx)
+    );
     setLineWidth(minPitchRing, importantLineWidthPx);
 
     setLineWidth(eastAxis, axisLineWidthPx);
@@ -1380,7 +1409,8 @@ export const createViewStateVisualizerPrimitive = (
     if (display.orbitPhi !== undefined) orbitPhi = display.orbitPhi;
 
     // Projection
-    if (display.orthographic !== undefined) useOrthographic = display.orthographic;
+    if (display.orthographic !== undefined)
+      useOrthographic = display.orthographic;
     if (display.fovDeg !== undefined) {
       currentFovDeg = display.fovDeg;
       perspectiveCamera.fov = display.fovDeg;
@@ -1407,11 +1437,10 @@ export const createViewStateVisualizerPrimitive = (
     lastSpecification = cameraModel;
     const activeCamera = getActiveCamera();
 
-    const displayCameraPosition = computeUnitHemisphereCameraPosition(cameraModel);
-    const {
-      bearing: viewingBearing,
-      elevation,
-    } = cameraSpherePositionToViewingBearingPitch(displayCameraPosition);
+    const displayCameraPosition =
+      computeUnitHemisphereCameraPosition(cameraModel);
+    const { bearing: viewingBearing, elevation } =
+      cameraSpherePositionToViewingBearingPitch(displayCameraPosition);
     const visualBearing = normalizeBearing(viewingBearing);
     const { groundDistance, overflow } = readGroundDistance(
       cameraModel.pose.anchor.altitude ?? 0,
@@ -1471,7 +1500,10 @@ export const createViewStateVisualizerPrimitive = (
       eastWestGreatCircle,
       buildUpperSemicirclePoints({ radius: 1, axis: "xy" })
     );
-    setWideLineGeometry(cameraLink, [ORIGIN.clone(), visual.cameraPosition.clone()]);
+    setWideLineGeometry(cameraLink, [
+      ORIGIN.clone(),
+      visual.cameraPosition.clone(),
+    ]);
     const [lowerSegment, upperSegment] = altitudeStemGeometry.stemSegments;
     setWideLineGeometry(
       altitudeLineLower,
@@ -1496,8 +1528,14 @@ export const createViewStateVisualizerPrimitive = (
       altitudeScaleBreakUpper.visible = showAltitude && showAltitudeScaleBreak;
       altitudeScaleBreakLower.visible = showAltitude && showAltitudeScaleBreak;
     } else {
-      setWideLineGeometry(altitudeScaleBreakUpper, [ORIGIN.clone(), ORIGIN.clone()]);
-      setWideLineGeometry(altitudeScaleBreakLower, [ORIGIN.clone(), ORIGIN.clone()]);
+      setWideLineGeometry(altitudeScaleBreakUpper, [
+        ORIGIN.clone(),
+        ORIGIN.clone(),
+      ]);
+      setWideLineGeometry(altitudeScaleBreakLower, [
+        ORIGIN.clone(),
+        ORIGIN.clone(),
+      ]);
       altitudeScaleBreakUpper.visible = false;
       altitudeScaleBreakLower.visible = false;
     }
@@ -1535,14 +1573,8 @@ export const createViewStateVisualizerPrimitive = (
       bearing: visualBearing,
       radius: OUTER_ARC_RADIUS,
     });
-    setWideLineGeometry(bearingRadial, [
-      bearingEquatorPoint,
-      ORIGIN.clone(),
-    ]);
-    setWideLineGeometry(pitchOriginLine, [
-      ORIGIN.clone(),
-      pitchArcStartPoint,
-    ]);
+    setWideLineGeometry(bearingRadial, [bearingEquatorPoint, ORIGIN.clone()]);
+    setWideLineGeometry(pitchOriginLine, [ORIGIN.clone(), pitchArcStartPoint]);
     // Elevation arc: meridian arc from equator point up to camera position
     setWideLineGeometry(elevationArc, elevationArcPoints);
     setLineGeometry(eastAxis, [
@@ -1575,7 +1607,12 @@ export const createViewStateVisualizerPrimitive = (
 
     frustumEdgeLines.forEach((line, index) => {
       const edge = visual.frustumEdges[index];
-      setLineGeometry(line, edge ? edge : [visual.cameraPosition.clone(), visual.cameraPosition.clone()]);
+      setLineGeometry(
+        line,
+        edge
+          ? edge
+          : [visual.cameraPosition.clone(), visual.cameraPosition.clone()]
+      );
       line.visible = showFrustum && Boolean(edge);
     });
 
@@ -1596,7 +1633,8 @@ export const createViewStateVisualizerPrimitive = (
 
     renderer.render(scene, activeCamera);
 
-    const commonPlanarLabelOffset = WORLD_UP.clone().multiplyScalar(LABEL_UP_OFFSET);
+    const commonPlanarLabelOffset =
+      WORLD_UP.clone().multiplyScalar(LABEL_UP_OFFSET);
     const altitudeLabelWorldPoint = new THREE.Vector3(0, planeDiscY * 0.5, 0);
     const altitudeAnchor = projectPointToCanvas(
       altitudeLabelWorldPoint,
@@ -1664,14 +1702,18 @@ export const createViewStateVisualizerPrimitive = (
       imageX: projectPointToCanvas(
         visual.basisRightEnd
           .clone()
-          .add(visual.right.clone().multiplyScalar(CAMERA_BASIS_LINE_LENGTH * 0.14)),
+          .add(
+            visual.right.clone().multiplyScalar(CAMERA_BASIS_LINE_LENGTH * 0.14)
+          ),
         size,
         activeCamera
       ),
       imageY: projectPointToCanvas(
         visual.basisUpEnd
           .clone()
-          .add(visual.up.clone().multiplyScalar(CAMERA_BASIS_LINE_LENGTH * 0.14)),
+          .add(
+            visual.up.clone().multiplyScalar(CAMERA_BASIS_LINE_LENGTH * 0.14)
+          ),
         size,
         activeCamera
       ),
@@ -1705,11 +1747,18 @@ export const createViewStateVisualizerPrimitive = (
       camera: getActiveCamera(),
       canvas,
     });
-    if (cubeIsInFrontOfSphere && pointerInsideCubeSilhouette && options.onPoseChange) {
+    if (
+      cubeIsInFrontOfSphere &&
+      pointerInsideCubeSilhouette &&
+      options.onPoseChange
+    ) {
       dragMode = "pose";
       dragStartVector = pointerToArcball(e.clientX, e.clientY);
-      const displayCameraPosition = computeUnitHemisphereCameraPosition(lastSpecification);
-      const displayPose = cameraSpherePositionToViewingBearingPitch(displayCameraPosition);
+      const displayCameraPosition =
+        computeUnitHemisphereCameraPosition(lastSpecification);
+      const displayPose = cameraSpherePositionToViewingBearingPitch(
+        displayCameraPosition
+      );
       dragStartBearing = displayPose.bearing;
       dragStartPitch = displayPose.pitch;
       canvas.setPointerCapture(e.pointerId);
@@ -1754,7 +1803,10 @@ export const createViewStateVisualizerPrimitive = (
       const next = cameraSpherePositionToViewingBearingPitch(rotated);
 
       const minPitch = lastSpecification.limits?.minPitch ?? 0;
-      options.onPoseChange?.(next.bearing, clamp(next.pitch, minPitch, Math.PI / 2));
+      options.onPoseChange?.(
+        next.bearing,
+        clamp(next.pitch, minPitch, Math.PI / 2)
+      );
     } else if (dragMode === "orbit") {
       // Incremental pointer-delta orbit avoids unstable fast spins when the
       // arcball pointer crosses the flattened outer ring.

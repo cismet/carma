@@ -50,7 +50,12 @@ export const verticalAreaToolPlugin = createMeasurementToolPlugin({
   ],
   capabilities: [...NODE_CHAIN_MEASUREMENT_PLUGIN_CAPABILITIES, "infoBox"],
   session: {
-    createSession: ({ dispatch, getState, setActiveToolType, addAnnotation }) => ({
+    createSession: ({
+      dispatch,
+      getState,
+      setActiveToolType,
+      addAnnotation,
+    }) => ({
       toolType,
       requestStart: () => {
         setActiveToolType(toolType);
@@ -122,7 +127,8 @@ export const verticalAreaToolPlugin = createMeasurementToolPlugin({
         sessionContext.dispatch(
           setVerticalAreaPreviewCoordinates({
             coordinates: undoVerticalAreaPreviewPoint(
-              sessionContext.getState().draftState.verticalAreaPreviewCoordinates
+              sessionContext.getState().draftState
+                .verticalAreaPreviewCoordinates
             ),
           })
         );

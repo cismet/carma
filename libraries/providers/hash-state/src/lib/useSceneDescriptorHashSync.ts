@@ -72,7 +72,8 @@ const resolveSceneDescriptorSyncEvent = (
   scene: SceneDescriptorHashSyncSceneLike | null | undefined,
   camera: SceneDescriptorHashSyncCameraLike
 ): SceneDescriptorSyncEventLike | null => {
-  const cameraMoveEnd = (camera as { moveEnd?: SceneDescriptorSyncEventLike }).moveEnd;
+  const cameraMoveEnd = (camera as { moveEnd?: SceneDescriptorSyncEventLike })
+    .moveEnd;
   if (
     cameraMoveEnd &&
     typeof cameraMoveEnd.addEventListener === "function" &&
@@ -81,7 +82,8 @@ const resolveSceneDescriptorSyncEvent = (
     return cameraMoveEnd;
   }
 
-  const cameraChanged = (camera as { changed?: SceneDescriptorSyncEventLike }).changed;
+  const cameraChanged = (camera as { changed?: SceneDescriptorSyncEventLike })
+    .changed;
   if (
     cameraChanged &&
     typeof cameraChanged.addEventListener === "function" &&
@@ -179,13 +181,12 @@ export const useSceneDescriptorHashSync = ({
 
   const writeCameraHash = useCallback(
     (replaceHash: boolean) => {
-      const snapshotFromSceneState = readSceneDescriptorHashSnapshotFromSceneState(
-        {
+      const snapshotFromSceneState =
+        readSceneDescriptorHashSnapshotFromSceneState({
           sceneState,
           anchorMode,
           fallbackHeightM,
-        }
-      );
+        });
 
       const resolvedCamera = camera ?? scene?.camera;
       const snapshot =

@@ -84,7 +84,7 @@ export const projectOrthogonalLineLabelAnchor = ({
       : primaryBiasDot;
 
   if (resolvedBiasDot < 0) {
-      normal.multiplyScalar(-1);
+    normal.multiplyScalar(-1);
   }
 
   return {

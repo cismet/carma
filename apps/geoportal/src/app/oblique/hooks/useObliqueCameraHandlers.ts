@@ -1,10 +1,6 @@
 import { type MutableRefObject, useCallback, useEffect, useState } from "react";
 
-import {
-  Cartesian3,
-  Cartesian2,
-  CesiumMath,
-} from "@carma/cesium";
+import { Cartesian3, Cartesian2, CesiumMath } from "@carma/cesium";
 import type { Radians } from "@carma/units/types";
 import { animateOrbitHeadingPitchRange } from "@carma-mapping/engines/cesium/api";
 
@@ -97,7 +93,10 @@ export const useObliqueCameraHandlers = (
           onComplete: () => {
             animationInProgressRef.current = false;
             const cardinals = getCardinalHeadings(headingOffset);
-            const closest = findClosestCardinalIndex(normalizedTarget, cardinals);
+            const closest = findClosestCardinalIndex(
+              normalizedTarget,
+              cardinals
+            );
             setActiveDirection(closest);
           },
           onCancel: () => {

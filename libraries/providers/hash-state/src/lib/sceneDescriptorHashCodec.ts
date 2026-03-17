@@ -55,7 +55,9 @@ export type SceneDescriptorHashSnapshot = {
 };
 
 export type SceneDescriptorHashCodec = {
-  decode: (value: string | undefined) => SceneDescriptorHashSnapshot | undefined;
+  decode: (
+    value: string | undefined
+  ) => SceneDescriptorHashSnapshot | undefined;
   encode: (value: unknown) => string | undefined;
 };
 
@@ -66,8 +68,7 @@ export type SceneDescriptorHashConfig = {
   hashCodecs: Record<string, SceneDescriptorHashCodec>;
 };
 
-export type SceneDescriptorHashEncodeScheme =
-  | "carma-maplibre-plus-elevation";
+export type SceneDescriptorHashEncodeScheme = "carma-maplibre-plus-elevation";
 
 export type MapLibreCompatHashParams = {
   lng: number;
@@ -178,7 +179,8 @@ export const readMapLibrePlusElevationHashValuesFromSceneDescriptor = ({
   }
 
   const fovDeg =
-    isFiniteNumber(snapshot.orientation.fovDeg) && snapshot.orientation.fovDeg > 0
+    isFiniteNumber(snapshot.orientation.fovDeg) &&
+    snapshot.orientation.fovDeg > 0
       ? snapshot.orientation.fovDeg
       : defaultFovDeg;
 
@@ -197,7 +199,11 @@ export const readMapLibrePlusElevationHashValuesFromSceneDescriptor = ({
   }
 
   const mapLibrePitchDeg = isFiniteNumber(snapshot.orientation.pitchDeg)
-    ? toMapLibrePitchDeg(snapshot.orientation.pitchDeg, minPitchDeg, maxPitchDeg)
+    ? toMapLibrePitchDeg(
+        snapshot.orientation.pitchDeg,
+        minPitchDeg,
+        maxPitchDeg
+      )
     : undefined;
 
   const params: MapLibrePlusElevationHashValues = {
@@ -260,7 +266,9 @@ export const readSceneDescriptorFromMapLibrePlusElevationHashValues = ({
     viewportHeightPx,
   });
   const pitchDeg = fromMapLibrePitchDeg(
-    isFiniteNumber(values.pitch) ? values.pitch : DEFAULT_MAPLIBRE_PITCH_MIN_DEG,
+    isFiniteNumber(values.pitch)
+      ? values.pitch
+      : DEFAULT_MAPLIBRE_PITCH_MIN_DEG,
     minPitchDeg,
     maxPitchDeg
   );
@@ -339,7 +347,10 @@ const getSourceFromCode = (
   if (!sourceCode) {
     return "camera-position";
   }
-  return SOURCE_FROM_CODE[sourceCode as keyof typeof SOURCE_FROM_CODE] ?? "camera-position";
+  return (
+    SOURCE_FROM_CODE[sourceCode as keyof typeof SOURCE_FROM_CODE] ??
+    "camera-position"
+  );
 };
 
 const looksLikeSnapshot = (
@@ -349,7 +360,9 @@ const looksLikeSnapshot = (
     return false;
   }
   const candidate = value as Partial<SceneDescriptorHashSnapshot>;
-  const anchor = candidate.anchor as Partial<SceneDescriptorHashAnchor> | undefined;
+  const anchor = candidate.anchor as
+    | Partial<SceneDescriptorHashAnchor>
+    | undefined;
   return (
     !!anchor &&
     isFiniteNumber(anchor.lngDeg) &&
@@ -398,7 +411,11 @@ export const decodeSceneDescriptorHashSnapshot = (
   const lngDeg = decodeField(fields[0]);
   const latDeg = decodeField(fields[1]);
   const heightM = decodeField(fields[2]);
-  if (!isFiniteNumber(lngDeg) || !isFiniteNumber(latDeg) || !isFiniteNumber(heightM)) {
+  if (
+    !isFiniteNumber(lngDeg) ||
+    !isFiniteNumber(latDeg) ||
+    !isFiniteNumber(heightM)
+  ) {
     return undefined;
   }
 

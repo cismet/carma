@@ -76,7 +76,10 @@ export const animateOrbitHeadingPitchRange = (
   const startHeading = camera.heading as Radians;
   const startPitch = camera.pitch as Radians;
   const startRange = Cartesian3.distance(center, camera.position);
-  const headingDelta = shortestAngleDelta(startHeading, target.heading) as Radians;
+  const headingDelta = shortestAngleDelta(
+    startHeading,
+    target.heading
+  ) as Radians;
   const pitchDelta = (target.pitch - startPitch) as Radians;
   const rangeDelta = target.range - startRange;
 

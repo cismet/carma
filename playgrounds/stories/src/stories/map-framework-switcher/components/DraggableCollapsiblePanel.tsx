@@ -1,4 +1,10 @@
-import { useEffect, useRef, useState, type CSSProperties, type ReactNode } from "react";
+import {
+  useEffect,
+  useRef,
+  useState,
+  type CSSProperties,
+  type ReactNode,
+} from "react";
 
 type DraggableCollapsiblePanelProps = {
   title: string;
@@ -124,4 +130,3 @@ export const DraggableCollapsiblePanel = ({
     </section>
   );
 };
-

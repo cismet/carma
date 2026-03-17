@@ -43,7 +43,8 @@ const readInitialCameraSnapshotFromHashValues = (
 
   const rawEncodedSnapshot = rawHash.camera3d ?? rawHash.c3;
   if (typeof rawEncodedSnapshot === "string") {
-    const decodedSnapshot = decodeSceneDescriptorHashSnapshot(rawEncodedSnapshot);
+    const decodedSnapshot =
+      decodeSceneDescriptorHashSnapshot(rawEncodedSnapshot);
     if (decodedSnapshot) {
       return decodedSnapshot;
     }
@@ -72,18 +73,16 @@ const readInitialCameraSnapshotFromHashValues = (
       zoom: isFiniteNumber(zoom)
         ? zoom
         : isFiniteNumber(defaultZoom)
-          ? defaultZoom
-          : undefined,
+        ? defaultZoom
+        : undefined,
       altitude: heightM,
       bearing: isFiniteNumber(bearingDeg) ? bearingDeg : undefined,
       pitch: isFiniteNumber(pitchDeg) ? pitchDeg : undefined,
       fov: isFiniteNumber(fovDeg) ? fovDeg : undefined,
     },
     ...(isFiniteNumber(defaultFovDeg) ? { defaultFovDeg } : {}),
-    viewportWidthPx:
-      typeof window === "undefined" ? 1920 : window.innerWidth,
-    viewportHeightPx:
-      typeof window === "undefined" ? 1080 : window.innerHeight,
+    viewportWidthPx: typeof window === "undefined" ? 1920 : window.innerWidth,
+    viewportHeightPx: typeof window === "undefined" ? 1080 : window.innerHeight,
   });
 };
 

@@ -68,7 +68,9 @@ export default meta;
 export const SideBySide: StoryObj<ViewSyncStoryProps> = {
   name: "Side By Side",
   render: (args) => (
-    <Suspense fallback={<div style={{ padding: 24 }}>Loading ViewSync story...</div>}>
+    <Suspense
+      fallback={<div style={{ padding: 24 }}>Loading ViewSync story...</div>}
+    >
       <LazyViewSyncStory {...args} />
     </Suspense>
   ),

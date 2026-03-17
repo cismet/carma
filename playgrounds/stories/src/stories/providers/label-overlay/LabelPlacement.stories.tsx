@@ -518,18 +518,12 @@ const SingleLineLabelDebugOverlay = ({
       `length ${formatStatusNumber(lineLengthPx, 1)}px`,
       `lineAngle ${formatStatusNumber(lineAngleDeg, 1)}°`,
       `labelAngle ${
-        labelPlacement ? `${formatStatusNumber(labelPlacement.angleDeg, 1)}°` : "n/a"
+        labelPlacement
+          ? `${formatStatusNumber(labelPlacement.angleDeg, 1)}°`
+          : "n/a"
       }`,
     ],
-    [
-      end.x,
-      end.y,
-      labelPlacement,
-      lineAngleDeg,
-      lineLengthPx,
-      start.x,
-      start.y,
-    ]
+    [end.x, end.y, labelPlacement, lineAngleDeg, lineLengthPx, start.x, start.y]
   );
 
   const lines = useMemo(
@@ -550,7 +544,8 @@ const SingleLineLabelDebugOverlay = ({
         collapseCapThresholdEffectiveGapRatio:
           args.collapseCapThresholdEffectiveGapRatio,
         showDistanceLabel: args.showDistanceLabel,
-        labelText: args.labelText.trim().length > 0 ? args.labelText : undefined,
+        labelText:
+          args.labelText.trim().length > 0 ? args.labelText : undefined,
         labelColor: args.labelColor,
         labelStroke: args.labelStroke,
         labelFontSize: args.labelFontSize,
@@ -641,8 +636,9 @@ const PolygonSegmentLabelDebugOverlay = ({
   const [start, setStart] = useState<CssPixelPosition>(defaults.start);
   const [end, setEnd] = useState<CssPixelPosition>(defaults.end);
   const [apex, setApex] = useState<CssPixelPosition>(defaults.apex);
-  const [sidePreference, setSidePreference] =
-    useState<PolygonSegmentLabelSide>(requestedSidePreference);
+  const [sidePreference, setSidePreference] = useState<PolygonSegmentLabelSide>(
+    requestedSidePreference
+  );
 
   useEffect(() => {
     setStart(defaults.start);
@@ -667,24 +663,21 @@ const PolygonSegmentLabelDebugOverlay = ({
     [apex, end, sidePreference, start]
   );
 
-  const labelPlacement = useMemo(
-    () => {
-      if (!primarySegmentLabelPlacement) {
-        return null;
-      }
+  const labelPlacement = useMemo(() => {
+    if (!primarySegmentLabelPlacement) {
+      return null;
+    }
 
-      return resolveLineLabelPlacementWithReference({
-        start,
-        end,
-        targetReferencePoint:
-          sidePreference === "outside"
-            ? primarySegmentLabelPlacement.outsideReferencePoint
-            : primarySegmentLabelPlacement.insideReferencePoint,
-        offsetPx: 14,
-      });
-    },
-    [end, primarySegmentLabelPlacement, sidePreference, start]
-  );
+    return resolveLineLabelPlacementWithReference({
+      start,
+      end,
+      targetReferencePoint:
+        sidePreference === "outside"
+          ? primarySegmentLabelPlacement.outsideReferencePoint
+          : primarySegmentLabelPlacement.insideReferencePoint,
+      offsetPx: 14,
+    });
+  }, [end, primarySegmentLabelPlacement, sidePreference, start]);
 
   const lines = useMemo(
     () => [
@@ -706,8 +699,7 @@ const PolygonSegmentLabelDebugOverlay = ({
         labelOffsetPx: 14,
         getLabelOutsideReferencePoint:
           sidePreference === "outside"
-            ? () =>
-                primarySegmentLabelPlacement?.outsideReferencePoint ?? null
+            ? () => primarySegmentLabelPlacement?.outsideReferencePoint ?? null
             : undefined,
         getLabelInsideReferencePoint:
           sidePreference === "inside"

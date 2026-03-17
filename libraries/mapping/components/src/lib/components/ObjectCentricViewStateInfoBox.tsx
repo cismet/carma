@@ -171,7 +171,7 @@ export const ObjectCentricViewStateInfoBox = ({
                 }}
               >
                 <tbody>
-                  {rows.map((row) => (
+                  {rows.map((row) =>
                     row.kind === "section" ? (
                       <tr key={row.key ?? String(row.label)}>
                         <td
@@ -293,7 +293,7 @@ export const ObjectCentricViewStateInfoBox = ({
                         </td>
                       </tr>
                     )
-                  ))}
+                  )}
                 </tbody>
               </table>
             </div>

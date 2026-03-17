@@ -48,7 +48,10 @@ const formatCompactNumber = (
 const formatOrUnresolved = (
   value: number | null | undefined,
   formatter: (resolvedValue: number) => string
-) => (typeof value === "number" && Number.isFinite(value) ? formatter(value) : "unresolved");
+) =>
+  typeof value === "number" && Number.isFinite(value)
+    ? formatter(value)
+    : "unresolved";
 
 const formatCameraType = (cameraType: string | null | undefined) => {
   if (!cameraType) {
@@ -206,10 +209,14 @@ const formatViewSyncTargetTableRows = (
     },
     {
       label: "fov v / h",
-      value: `${formatOrUnresolved(fovVertical, (resolvedFovVertical) =>
-        `${formatCompactNumber(radToDegNumeric(resolvedFovVertical), 1)}°`
-      )} / ${formatOrUnresolved(fovHorizontal, (resolvedFovHorizontal) =>
-        `${formatCompactNumber(radToDegNumeric(resolvedFovHorizontal), 1)}°`
+      value: `${formatOrUnresolved(
+        fovVertical,
+        (resolvedFovVertical) =>
+          `${formatCompactNumber(radToDegNumeric(resolvedFovVertical), 1)}°`
+      )} / ${formatOrUnresolved(
+        fovHorizontal,
+        (resolvedFovHorizontal) =>
+          `${formatCompactNumber(radToDegNumeric(resolvedFovHorizontal), 1)}°`
       )}`,
     },
     {
@@ -297,23 +304,22 @@ export const ViewSyncMetaOverlay = ({
     }),
     []
   );
-  const specification =
-    visualizerTarget.cameraModel ?? {
-      pose: {
-        anchor: visualizerTarget.anchor,
-        bearing: visualizerTarget.bearingPitchRange.bearing,
-        pitch: visualizerTarget.bearingPitchRange.pitch,
-        range: visualizerTarget.bearingPitchRange.range,
-        roll: visualizerTarget.roll,
-      },
-      intrinsics: {
-        fov: readViewSyncVerticalFov(visualizerTarget) ?? undefined,
-        fovHorizontal: readViewSyncHorizontalFov(visualizerTarget) ?? undefined,
-        aspect: visualizerTarget.aspect,
-        type: visualizerTarget.type,
-        view: visualizerTarget.view,
-      },
-    };
+  const specification = visualizerTarget.cameraModel ?? {
+    pose: {
+      anchor: visualizerTarget.anchor,
+      bearing: visualizerTarget.bearingPitchRange.bearing,
+      pitch: visualizerTarget.bearingPitchRange.pitch,
+      range: visualizerTarget.bearingPitchRange.range,
+      roll: visualizerTarget.roll,
+    },
+    intrinsics: {
+      fov: readViewSyncVerticalFov(visualizerTarget) ?? undefined,
+      fovHorizontal: readViewSyncHorizontalFov(visualizerTarget) ?? undefined,
+      aspect: visualizerTarget.aspect,
+      type: visualizerTarget.type,
+      view: visualizerTarget.view,
+    },
+  };
 
   return (
     <ObjectCentricViewStateInfoBox

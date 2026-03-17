@@ -221,10 +221,16 @@ const createAttachedLine = (
             isDestroyed?: () => boolean;
           }
         | undefined;
-      if (typeof primitives?.isDestroyed === "function" && primitives.isDestroyed()) {
+      if (
+        typeof primitives?.isDestroyed === "function" &&
+        primitives.isDestroyed()
+      ) {
         return;
       }
-      if (typeof collection.isDestroyed === "function" && collection.isDestroyed()) {
+      if (
+        typeof collection.isDestroyed === "function" &&
+        collection.isDestroyed()
+      ) {
         return;
       }
 

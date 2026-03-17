@@ -98,7 +98,8 @@ export function distanceFromMercatorZoomAtLatitudeDeg(
     return null;
   }
 
-  return ((metersPerCssPixel * centerRadiusPx) / Math.abs(tanHalfFov)) as Meters;
+  return ((metersPerCssPixel * centerRadiusPx) /
+    Math.abs(tanHalfFov)) as Meters;
 }
 
 export function mercatorZoomFromDistanceAtLatitudeDeg(

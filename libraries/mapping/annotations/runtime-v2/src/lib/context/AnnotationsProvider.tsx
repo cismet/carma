@@ -480,7 +480,9 @@ const RuntimeInteractionHost = ({
     annotationsStore.getState,
     annotationsStore.getState
   );
-  const nodes = useAnnotationsSelector((annotationsState) => annotationsState.nodes);
+  const nodes = useAnnotationsSelector(
+    (annotationsState) => annotationsState.nodes
+  );
   const [hoverCoordinate, setHoverCoordinate] =
     useState<RuntimeCoordinate | null>(null);
   const [hoverScreenPosition, setHoverScreenPosition] =
@@ -537,15 +539,14 @@ const RuntimeInteractionHost = ({
     handlePointQueryPointCreated,
     resolvePointQueryCoordinate,
     activeToolSession,
-  } =
-    usePointQueryToolRouting({
-      scene,
-      nodes,
-      activeToolType,
-      toolSessions,
-      getToolPlugin: (toolType) => registry.getPlugin(toolType) ?? null,
-      sessionContext,
-    });
+  } = usePointQueryToolRouting({
+    scene,
+    nodes,
+    activeToolType,
+    toolSessions,
+    getToolPlugin: (toolType) => registry.getPlugin(toolType) ?? null,
+    sessionContext,
+  });
 
   useEffect(() => {
     bindApi({
@@ -565,7 +566,8 @@ const RuntimeInteractionHost = ({
   ]);
 
   const pointQueryEnabled = Boolean(
-    (activeToolSession?.onNodeCreated || activePlugin?.pointQuery?.onPointCreated) &&
+    (activeToolSession?.onNodeCreated ||
+      activePlugin?.pointQuery?.onPointCreated) &&
       !activeMoveGizmoNodeId
   );
 
@@ -872,10 +874,7 @@ const RuntimeVisualizationHost = ({
           pointLabel.onLongPress ??
           (pointLabel.nodeId && pointLabel.measurementId
             ? () =>
-                handleNodeLongPress(
-                  pointLabel.nodeId,
-                  pointLabel.measurementId
-                )
+                handleNodeLongPress(pointLabel.nodeId, pointLabel.measurementId)
             : undefined),
         longPressDurationMs:
           pointLabel.longPressDurationMs ?? NODE_LABEL_LONG_PRESS_DURATION_MS,
@@ -934,9 +933,9 @@ export const AnnotationsProvider = ({
   const measurementSequenceRef = useRef(0);
   const nodeSequenceRef = useRef(0);
   const edgeSequenceRef = useRef(0);
-  const [activeMoveGizmoNodeId, setActiveMoveGizmoNodeId] = useState<string | null>(
-    null
-  );
+  const [activeMoveGizmoNodeId, setActiveMoveGizmoNodeId] = useState<
+    string | null
+  >(null);
 
   if (annotationsStoreRef.current === null) {
     annotationsStoreRef.current = createAnnotationsStore(
@@ -979,7 +978,9 @@ export const AnnotationsProvider = ({
 
   const setPointTemporaryModeInStore = useCallback(
     (temporaryMode: boolean) => {
-      annotationsStore.dispatch(setPointTemporaryModeInStoreAction(temporaryMode));
+      annotationsStore.dispatch(
+        setPointTemporaryModeInStoreAction(temporaryMode)
+      );
     },
     [annotationsStore]
   );

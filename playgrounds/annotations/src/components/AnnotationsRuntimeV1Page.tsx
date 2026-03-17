@@ -83,11 +83,7 @@ const RuntimeStatusBar = ({
     runtimeVersion={runtimeVersion}
     onRuntimeVersionChange={onRuntimeVersionChange}
     label="annotations runtime"
-    values={[
-      "runtime-v1",
-      "legacy prototype",
-      "annotations stored locally",
-    ]}
+    values={["runtime-v1", "legacy prototype", "annotations stored locally"]}
   />
 );
 

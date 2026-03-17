@@ -36,18 +36,16 @@ export const isValidCartesian3 = (
   cartesian: unknown
 ): cartesian is Cartesian3 => cartesian instanceof Cartesian3;
 
-export const isValidTileset = (
-  tileset: unknown
-): tileset is Cesium3DTileset =>
+export const isValidTileset = (tileset: unknown): tileset is Cesium3DTileset =>
   tileset instanceof Cesium3DTileset && tileset.isDestroyed() === false;
 
 export const isValidCesiumTerrainProvider = (
   provider: unknown
-): provider is CesiumTerrainProvider => provider instanceof CesiumTerrainProvider;
+): provider is CesiumTerrainProvider =>
+  provider instanceof CesiumTerrainProvider;
 
-export const isValidCustomShader = (
-  shader: unknown
-): shader is CustomShader => shader instanceof CustomShader;
+export const isValidCustomShader = (shader: unknown): shader is CustomShader =>
+  shader instanceof CustomShader;
 
 export const isValidEllipsoidTerrainProvider = (
   provider: unknown
@@ -102,8 +100,7 @@ export const isValidScreenSpaceCameraController = (
 export const isValidScreenSpaceEventHandler = (
   handler: unknown
 ): handler is ScreenSpaceEventHandler =>
-  handler instanceof ScreenSpaceEventHandler &&
-  handler.isDestroyed() === false;
+  handler instanceof ScreenSpaceEventHandler && handler.isDestroyed() === false;
 
 export const isValidCamera = (camera: unknown): camera is Camera =>
   camera instanceof Camera;

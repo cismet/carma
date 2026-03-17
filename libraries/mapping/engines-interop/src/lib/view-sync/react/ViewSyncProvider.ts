@@ -1,8 +1,4 @@
-import {
-  createElement,
-  useRef,
-  type ReactNode,
-} from "react";
+import { createElement, useRef, type ReactNode } from "react";
 import { createViewSyncStore } from "../core/createViewSyncStore";
 import type { ViewSyncState, ViewSyncStore } from "../core/types";
 import { ViewSyncStoreContext } from "./ViewSyncStoreContext";

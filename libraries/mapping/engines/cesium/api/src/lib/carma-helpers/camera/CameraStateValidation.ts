@@ -1,9 +1,5 @@
 import type { Altitude } from "@carma/geo/types";
-import {
-  MINUS_PI_OVER_TWO,
-  radToDeg,
-  ZERO_PI,
-} from "@carma/units/helpers";
+import { MINUS_PI_OVER_TWO, radToDeg, ZERO_PI } from "@carma/units/helpers";
 import type { Degrees } from "@carma/units/types";
 import type { CameraStateHeadingPitchRoll } from "./CameraTypes";
 

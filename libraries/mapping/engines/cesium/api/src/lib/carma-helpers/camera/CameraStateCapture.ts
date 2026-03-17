@@ -74,7 +74,7 @@ export const captureCurrentCameraState = (
     state.matrixWorldInverse = Matrix4.clone(camera.viewMatrix, new Matrix4());
 
     const frustum = camera.frustum as
-        | {
+      | {
           projectionMatrix?: Matrix4;
           aspect?: number;
           aspectRatio?: number;
@@ -115,14 +115,16 @@ export const captureCurrentCameraState = (
       camera.frustum instanceof PerspectiveFrustum
         ? "PerspectiveCamera"
         : Number.isFinite(frustum?.width) ||
-            (!Number.isFinite(frustum?.fov) &&
-              Number.isFinite((frustum as { left?: number } | undefined)?.left) &&
-              Number.isFinite((frustum as { right?: number } | undefined)?.right))
-          ? "OrthographicCamera"
-          : undefined;
+          (!Number.isFinite(frustum?.fov) &&
+            Number.isFinite((frustum as { left?: number } | undefined)?.left) &&
+            Number.isFinite((frustum as { right?: number } | undefined)?.right))
+        ? "OrthographicCamera"
+        : undefined;
     state.aspect =
       (Number.isFinite(frustum?.aspect) ? frustum?.aspect : undefined) ??
-      (Number.isFinite(frustum?.aspectRatio) ? frustum?.aspectRatio : undefined);
+      (Number.isFinite(frustum?.aspectRatio)
+        ? frustum?.aspectRatio
+        : undefined);
     state.near =
       (Number.isFinite(frustum?.near) ? frustum?.near : undefined) ??
       (Number.isFinite(frustum?.nearPlane) ? frustum?.nearPlane : undefined);

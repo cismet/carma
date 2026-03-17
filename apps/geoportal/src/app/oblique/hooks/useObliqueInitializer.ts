@@ -119,10 +119,15 @@ export function useObliqueInitializer(debug = false) {
         }
       } else {
         debug && console.debug("leaving Oblique Mode", originalFovRef.current);
-        leaveObliqueMode(scene, originalFovRef, () => {
-          disableCameraForceOblique();
-          requestRender();
-        }, restoreFovOnLeave);
+        leaveObliqueMode(
+          scene,
+          originalFovRef,
+          () => {
+            disableCameraForceOblique();
+            requestRender();
+          },
+          restoreFovOnLeave
+        );
       }
     }
 

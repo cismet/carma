@@ -40,9 +40,7 @@ import {
 import type { AnnotationPointMarkerBadge } from "../useRender";
 import type { AnnotationSelectionState } from "../../selection/types/annotationSelection.types";
 
-import {
-  projectCartesian3JsonToScreen,
-} from "@carma-mapping/engines/cesium/api";
+import { projectCartesian3JsonToScreen } from "@carma-mapping/engines/cesium/api";
 import { useCesiumSceneVisibilityIndex } from "@carma-mapping/engines/cesium/react/visibility";
 import { useCesiumSceneStateOptional } from "@carma-mapping/engines/cesium/react/scene-state";
 
@@ -535,7 +533,8 @@ export const usePointLabelVisualizer = (
     pointLongPressDurationMs = 300,
   } = interactions ?? {};
   const sceneState = useCesiumSceneStateOptional();
-  const cameraPitch = sceneState?.camera.pitchRad ?? scene?.camera.pitch ?? -Math.PI / 4;
+  const cameraPitch =
+    sceneState?.camera.pitchRad ?? scene?.camera.pitch ?? -Math.PI / 4;
   const registeredPointIdSetRef = useRef<Set<string>>(new Set());
   const selectedAnnotationIdSet = useMemo(() => {
     const ids = new Set(selectedAnnotationIds);

@@ -19,13 +19,18 @@ import {
   type SceneDescriptorAnchorMode,
 } from "./sceneDescriptorHashSceneStateAdapter";
 
-const { RAD_TO_DEG, isFiniteNumber, isZeroish, normalizeBearingDeg, toMapLibrePitchDeg } =
-  sceneDescriptorHashInternals;
+const {
+  RAD_TO_DEG,
+  isFiniteNumber,
+  isZeroish,
+  normalizeBearingDeg,
+  toMapLibrePitchDeg,
+} = sceneDescriptorHashInternals;
 
 const MIN_LINE_OF_SIGHT_DISTANCE_M = 0.01;
 
 const normalizeSignedDeg = (angleDeg: number): number => {
-  const normalized = ((angleDeg + 180) % 360 + 360) % 360 - 180;
+  const normalized = ((((angleDeg + 180) % 360) + 360) % 360) - 180;
   return normalized === -180 ? 180 : normalized;
 };
 
@@ -171,7 +176,9 @@ const readMapLibreZoomFromSceneState = ({
 
   const lineOfSightDistanceM =
     (sceneState ? readSceneStateOrbitDistanceM(sceneState) : undefined) ??
-    (sceneState ? readFallbackAnchorDistanceM(sceneState, anchor.heightM) : undefined) ??
+    (sceneState
+      ? readFallbackAnchorDistanceM(sceneState, anchor.heightM)
+      : undefined) ??
     readFallbackAnchorDistanceFromCameraM(camera, anchor.heightM);
   if (!isFiniteNumber(lineOfSightDistanceM) || lineOfSightDistanceM <= 0) {
     return undefined;
@@ -316,7 +323,9 @@ export const readSceneDescriptorHashSnapshotFromCesiumCamera = ({
     camera,
     scene,
   });
-  const fovDeg = isFiniteNumber(fovVerticalRad) ? toDeg(fovVerticalRad) : undefined;
+  const fovDeg = isFiniteNumber(fovVerticalRad)
+    ? toDeg(fovVerticalRad)
+    : undefined;
   const rangeM =
     anchorMode === "screen-center"
       ? readFallbackAnchorDistanceFromCameraM(camera, anchor.heightM)
@@ -372,10 +381,10 @@ export function readMapLibreCompatHashParamsFromSceneDescriptor({
   const effectiveFovDeg = isFiniteNumber(sceneState?.camera.fovVertical)
     ? toDeg(sceneState.camera.fovVertical)
     : isFiniteNumber(snapshot.orientation.fovDeg)
-      ? snapshot.orientation.fovDeg
-      : isFiniteNumber(cameraVerticalFovRad)
-        ? toDeg(cameraVerticalFovRad)
-        : undefined;
+    ? snapshot.orientation.fovDeg
+    : isFiniteNumber(cameraVerticalFovRad)
+    ? toDeg(cameraVerticalFovRad)
+    : undefined;
 
   const snapshotForMapLibreProjection =
     isFiniteNumber(effectiveFovDeg) &&

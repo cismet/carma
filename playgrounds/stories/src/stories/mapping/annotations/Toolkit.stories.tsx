@@ -13,9 +13,7 @@ import {
   useAnnotationsRuntime,
   type AnnotationToolPlugin,
 } from "@carma-mapping/annotations/runtime-v2";
-import {
-  ResponsiveStatusBar,
-} from "@carma-commons/ui/components";
+import { ResponsiveStatusBar } from "@carma-commons/ui/components";
 import { Control, ControlLayout } from "@carma-mapping/map-controls-layout";
 import { AnnotationCesiumStoryShell } from "./shared/AnnotationCesiumStoryShell";
 
@@ -220,12 +218,15 @@ const MeasurementRuntimeOverlay = ({
 };
 
 const MeasurementToolkitStory = (args: MeasurementToolkitStoryProps) => {
-  const plugins = useMemo(() => buildEnabledPlugins(args), [
-    args.enableDistance,
-    args.enablePoint,
-    args.enablePolyline,
-    args.enableVerticalArea,
-  ]);
+  const plugins = useMemo(
+    () => buildEnabledPlugins(args),
+    [
+      args.enableDistance,
+      args.enablePoint,
+      args.enablePolyline,
+      args.enableVerticalArea,
+    ]
+  );
 
   return <MeasurementRuntimeOverlay plugins={plugins} />;
 };

@@ -29,9 +29,8 @@ const normalizeBearingDeg = (bearingDeg: number): number => {
 // Cesium HeadingPitchRange pitch is measured from the local EN plane:
 // -PI/2 = nadir, 0 = horizon. The shared view-sync pitch uses the MapLibre-style
 // orbit convention: 0 = nadir, +PI/2 = horizon.
-export const toViewSyncPitchFromCesiumPitch = (
-  cesiumPitch: number
-): Radians => (cesiumPitch + HALF_PI) as Radians;
+export const toViewSyncPitchFromCesiumPitch = (cesiumPitch: number): Radians =>
+  (cesiumPitch + HALF_PI) as Radians;
 
 export const toCesiumPitchFromViewSyncPitch = (
   viewSyncPitch: number
@@ -103,7 +102,9 @@ export const readViewSyncHorizontalFov = (
   return null;
 };
 
-const readLineOfSightDistance = (sceneState: SceneStateSnapshot): number | null => {
+const readLineOfSightDistance = (
+  sceneState: SceneStateSnapshot
+): number | null => {
   const orbitPoint = sceneState.orbitPoint?.worldPosition;
   const camera = sceneState.camera.worldPosition;
   if (!orbitPoint) {
@@ -194,13 +195,13 @@ export const readViewSyncTargetFromSceneState = (
   const pitch = hasObjectCentricPose
     ? objectCentricPose.pitch
     : isFiniteNumber(sceneState?.camera.pitchRad)
-      ? toViewSyncPitchFromCesiumPitch(sceneState.camera.pitchRad)
-      : sceneState?.camera.pitchRad;
+    ? toViewSyncPitchFromCesiumPitch(sceneState.camera.pitchRad)
+    : sceneState?.camera.pitchRad;
   const rangeM = hasObjectCentricPose
     ? objectCentricPose.range
     : sceneState
-      ? readLineOfSightDistance(sceneState)
-      : null;
+    ? readLineOfSightDistance(sceneState)
+    : null;
 
   if (
     !anchor ||
@@ -232,7 +233,7 @@ export const readViewSyncTargetFromSceneState = (
     ...(isFiniteNumber(objectCentricPose?.roll)
       ? { roll: objectCentricPose.roll as Radians }
       : isFiniteNumber(sceneState.camera.rollRad)
-        ? { roll: sceneState.camera.rollRad as Radians }
+      ? { roll: sceneState.camera.rollRad as Radians }
       : {}),
     ...(isFiniteNumber(sceneState.camera.fovVertical)
       ? { fovVertical: sceneState.camera.fovVertical as Radians }
@@ -243,17 +244,17 @@ export const readViewSyncTargetFromSceneState = (
     ...(isFiniteNumber(sceneState.camera.aspect)
       ? { aspect: sceneState.camera.aspect }
       : isFiniteNumber(sceneState.camera.aspectRatio)
-        ? { aspect: sceneState.camera.aspectRatio }
+      ? { aspect: sceneState.camera.aspectRatio }
       : {}),
     ...(isFiniteNumber(sceneState.camera.near)
       ? { near: sceneState.camera.near as Meters }
       : isFiniteNumber(sceneState.camera.nearPlane)
-        ? { near: sceneState.camera.nearPlane as Meters }
+      ? { near: sceneState.camera.nearPlane as Meters }
       : {}),
     ...(isFiniteNumber(sceneState.camera.far)
       ? { far: sceneState.camera.far as Meters }
       : isFiniteNumber(sceneState.camera.farPlane)
-        ? { far: sceneState.camera.farPlane as Meters }
+      ? { far: sceneState.camera.farPlane as Meters }
       : {}),
     ...(sceneState.camera.type ? { type: sceneState.camera.type } : {}),
     ...(sceneState.camera.view ? { view: sceneState.camera.view } : {}),
@@ -306,7 +307,10 @@ export const projectViewSyncTargetToMapLibre = ({
     bearing: normalizeBearingDeg(
       radToDegNumeric(target.bearingPitchRange.bearing)
     ),
-    pitch: Math.min(radToDegNumeric(target.bearingPitchRange.pitch), maxPitchDeg),
+    pitch: Math.min(
+      radToDegNumeric(target.bearingPitchRange.pitch),
+      maxPitchDeg
+    ),
   };
 };
 

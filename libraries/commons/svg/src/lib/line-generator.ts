@@ -1,11 +1,11 @@
-import type { CssPixelPosition } from '@carma/units/types';
+import type { CssPixelPosition } from "@carma/units/types";
 
 export type SvgLine = {
   start: CssPixelPosition;
   end: CssPixelPosition;
 };
 
-export type SvgLineCapStyle = 'round' | 'square';
+export type SvgLineCapStyle = "round" | "square";
 
 export type SvgLineDynamicDashPattern = {
   dashLengthToStrokeWidthRatio: number;
@@ -15,21 +15,21 @@ export type SvgLineDynamicDashPattern = {
 };
 
 export type SvgLineLabelDominantBaseline =
-  | 'middle'
-  | 'central'
-  | 'text-before-edge'
-  | 'text-after-edge'
-  | 'alphabetic'
-  | 'hanging'
-  | 'ideographic'
-  | 'auto';
+  | "middle"
+  | "central"
+  | "text-before-edge"
+  | "text-after-edge"
+  | "alphabetic"
+  | "hanging"
+  | "ideographic"
+  | "auto";
 
 export type SvgLineVisualizerData = {
   id: string;
   getSvgLine?: () => SvgLine | null;
   stroke?: string;
   strokeWidth?: number;
-  strokeLinecap?: 'butt' | 'round' | 'square';
+  strokeLinecap?: "butt" | "round" | "square";
   strokeDasharray?: string;
   strokeDashoffset?: number;
   opacity?: number;
@@ -51,7 +51,7 @@ export type SvgLineVisualizerData = {
   labelMinLineLengthPx?: number;
   labelOffsetPx?: number;
   labelFlippedBaselineOffsetPx?: number;
-  labelRotationMode?: 'auto' | 'clockwise';
+  labelRotationMode?: "auto" | "clockwise";
   labelDominantBaseline?: SvgLineLabelDominantBaseline;
   getLabelOutsideReferencePoint?: () => CssPixelPosition | null;
   getLabelInsideReferencePoint?: () => CssPixelPosition | null;
@@ -67,12 +67,12 @@ const DEFAULT_COLLAPSE_CAP_THRESHOLD_EFFECTIVE_GAP_RATIO = -0.1;
 
 type BaseLineVisualizerOptions = Omit<
   SvgLineVisualizerData,
-  | 'id'
-  | 'getSvgLine'
-  | 'strokeLinecap'
-  | 'strokeDasharray'
-  | 'strokeDashoffset'
-  | 'dynamicDashPattern'
+  | "id"
+  | "getSvgLine"
+  | "strokeLinecap"
+  | "strokeDasharray"
+  | "strokeDashoffset"
+  | "dynamicDashPattern"
 > & {
   id: string;
   dashed?: boolean;
@@ -143,7 +143,7 @@ const resolveDynamicDashPattern = ({
 
 const resolveStrokeLinecap = (
   capStyle: SvgLineCapStyle | undefined
-): SvgLineVisualizerData['strokeLinecap'] => capStyle ?? 'round';
+): SvgLineVisualizerData["strokeLinecap"] => capStyle ?? "round";
 
 export const getScreenPointDistance = (
   start: CssPixelPosition,
@@ -169,7 +169,7 @@ export const createSvgLineVisualizer = ({
     id,
     ...line,
     getSvgLine,
-    strokeDasharray: dashed ? '1 1' : 'none',
+    strokeDasharray: dashed ? "1 1" : "none",
     strokeDashoffset: 0,
     strokeLinecap: resolveStrokeLinecap(capStyle),
     dynamicDashPattern: resolveDynamicDashPattern({

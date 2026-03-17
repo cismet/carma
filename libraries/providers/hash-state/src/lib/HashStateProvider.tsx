@@ -1,10 +1,6 @@
-import React, {
-  startTransition,
-} from "react";
+import React, { startTransition } from "react";
 import { useLocation } from "react-router-dom";
-import {
-  computeHashDiff,
-} from "./utils";
+import { computeHashDiff } from "./utils";
 import {
   HashStateProviderBase,
   useHashState,

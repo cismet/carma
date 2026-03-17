@@ -12,7 +12,10 @@ const parseCssRgb = (colorValue: string): [number, number, number] | null => {
     .split(",")
     .slice(0, 3)
     .map((channel) => Number.parseFloat(channel.trim()));
-  if (channels.length !== 3 || channels.some((channel) => Number.isNaN(channel))) {
+  if (
+    channels.length !== 3 ||
+    channels.some((channel) => Number.isNaN(channel))
+  ) {
     return null;
   }
   return [channels[0], channels[1], channels[2]];
@@ -105,14 +108,15 @@ const CarmaCard = ({
   const headerContentRef = React.useRef<HTMLDivElement | null>(null);
   const collapsibleContentRef = React.useRef<HTMLDivElement | null>(null);
   const headerCollapseToggleRef = React.useRef<HTMLDivElement | null>(null);
-  const [computedHeaderColor, setComputedHeaderColor] = React.useState<string | null>(
-    null
-  );
+  const [computedHeaderColor, setComputedHeaderColor] = React.useState<
+    string | null
+  >(null);
   const [isHeaderBackgroundDark, setIsHeaderBackgroundDark] =
     React.useState<boolean>(true);
   const [collapsibleContentHeight, setCollapsibleContentHeight] =
     React.useState<number>(0);
-  const [showCenteredGrip, setShowCenteredGrip] = React.useState<boolean>(false);
+  const [showCenteredGrip, setShowCenteredGrip] =
+    React.useState<boolean>(false);
   const [referenceExpandedWidthPx, setReferenceExpandedWidthPx] =
     React.useState<number | null>(null);
   const hasNode = (node: React.ReactNode): boolean =>
@@ -125,18 +129,24 @@ const CarmaCard = ({
       ? (header.props as { style?: React.CSSProperties }).style?.color
       : undefined;
   const shouldRenderCollapseInHeader =
-    collapsible && Boolean(collapsed) && hasNode(header) && !hasStaticBodyContent;
-  const isHeaderOnlyCollapsed = collapsible && Boolean(collapsed) && !hasStaticBodyContent;
+    collapsible &&
+    Boolean(collapsed) &&
+    hasNode(header) &&
+    !hasStaticBodyContent;
+  const isHeaderOnlyCollapsed =
+    collapsible && Boolean(collapsed) && !hasStaticBodyContent;
   const shouldRenderBody =
-    hasStaticBodyContent || (hasCollapsibleBodyContent && !isHeaderOnlyCollapsed);
-  const hasBodySideCollapseToggle = collapsible && !shouldRenderCollapseInHeader;
+    hasStaticBodyContent ||
+    (hasCollapsibleBodyContent && !isHeaderOnlyCollapsed);
+  const hasBodySideCollapseToggle =
+    collapsible && !shouldRenderCollapseInHeader;
   const bodyContentAreaBorderRadius = hasBodySideCollapseToggle
     ? header
       ? "0 0 0 4px"
       : "4px 0 0 4px"
     : header
-      ? "0 0 4px 4px"
-      : "4px";
+    ? "0 0 4px 4px"
+    : "4px";
   const collapseAreaWidth = collapseButtonAreaStyle.width;
   const headerToggleSlotStyle: React.CSSProperties = {
     marginLeft: 6,
@@ -164,7 +174,9 @@ const CarmaCard = ({
     const captureReferenceGeometry = () => {
       if (rootElement && rootElement.offsetWidth > 0) {
         setReferenceExpandedWidthPx((previous) =>
-          previous === rootElement.offsetWidth ? previous : rootElement.offsetWidth
+          previous === rootElement.offsetWidth
+            ? previous
+            : rootElement.offsetWidth
         );
       }
     };
@@ -231,7 +243,8 @@ const CarmaCard = ({
       const gripLeft = centerX - gripHalfWidthPx - gripClearancePx;
       const gripRight = centerX + gripHalfWidthPx + gripClearancePx;
 
-      const overlapsTitle = gripRight > titleRect.left && gripLeft < titleRect.right;
+      const overlapsTitle =
+        gripRight > titleRect.left && gripLeft < titleRect.right;
       const overlapsToggle = toggleRect
         ? gripRight > toggleRect.left - 4 && gripLeft < toggleRect.right + 4
         : false;
@@ -348,55 +361,55 @@ const CarmaCard = ({
 
   const inlineDragGrip =
     draggable && (dragGripPlacement !== "auto" || !showCenteredGrip) ? (
-    <span
-      aria-hidden
-      style={{
-        display: "inline-flex",
-        alignItems: "center",
-        justifyContent: "center",
-        marginRight: 8,
-        marginLeft: 2,
-        flexShrink: 0,
-        ...dragGripSharedStyle,
-      }}
-    >
-      <span style={dragGripShellStyle}>
-        <FontAwesomeIcon
-          icon={faGripVertical}
-          style={{
-            opacity: 0.9,
-          }}
-        />
+      <span
+        aria-hidden
+        style={{
+          display: "inline-flex",
+          alignItems: "center",
+          justifyContent: "center",
+          marginRight: 8,
+          marginLeft: 2,
+          flexShrink: 0,
+          ...dragGripSharedStyle,
+        }}
+      >
+        <span style={dragGripShellStyle}>
+          <FontAwesomeIcon
+            icon={faGripVertical}
+            style={{
+              opacity: 0.9,
+            }}
+          />
+        </span>
       </span>
-    </span>
     ) : null;
 
   const centeredDragGrip =
     draggable && dragGripPlacement === "auto" && showCenteredGrip ? (
-    <span
-      aria-hidden
-      style={{
-        position: "absolute",
-        left: "50%",
-        top: "50%",
-        transform: "translate(-50%, -50%)",
-        display: "inline-flex",
-        alignItems: "center",
-        justifyContent: "center",
-        pointerEvents: "none",
-        zIndex: 2,
-        ...dragGripSharedStyle,
-      }}
-    >
-      <span style={dragGripShellStyle}>
-        <FontAwesomeIcon
-          icon={faGripVertical}
-          style={{
-            opacity: 0.9,
-          }}
-        />
+      <span
+        aria-hidden
+        style={{
+          position: "absolute",
+          left: "50%",
+          top: "50%",
+          transform: "translate(-50%, -50%)",
+          display: "inline-flex",
+          alignItems: "center",
+          justifyContent: "center",
+          pointerEvents: "none",
+          zIndex: 2,
+          ...dragGripSharedStyle,
+        }}
+      >
+        <span style={dragGripShellStyle}>
+          <FontAwesomeIcon
+            icon={faGripVertical}
+            style={{
+              opacity: 0.9,
+            }}
+          />
+        </span>
       </span>
-    </span>
     ) : null;
 
   return (
@@ -468,11 +481,20 @@ const CarmaCard = ({
               {centeredDragGrip}
               {inlineDragGrip}
               <div
-                style={{ minWidth: 0, flex: 1, display: "flex", alignItems: "center" }}
+                style={{
+                  minWidth: 0,
+                  flex: 1,
+                  display: "flex",
+                  alignItems: "center",
+                }}
               >
                 <div
                   ref={headerContentRef}
-                  style={{ minWidth: 0, maxWidth: "100%", display: "inline-flex" }}
+                  style={{
+                    minWidth: 0,
+                    maxWidth: "100%",
+                    display: "inline-flex",
+                  }}
                 >
                   {header}
                 </div>
@@ -502,10 +524,13 @@ const CarmaCard = ({
               borderRadius: bodyContentAreaBorderRadius,
             }}
           >
-            {hasNode(subtitle) ? <div style={{ paddingBottom: 2 }}>{subtitle}</div> : null}
+            {hasNode(subtitle) ? (
+              <div style={{ paddingBottom: 2 }}>{subtitle}</div>
+            ) : null}
             <div
               style={{
-                maxHeight: collapsed && collapsible ? 0 : collapsibleContentHeight,
+                maxHeight:
+                  collapsed && collapsible ? 0 : collapsibleContentHeight,
                 opacity: collapsed && collapsible ? 0 : 1,
                 overflow: "hidden",
                 transition:
@@ -521,7 +546,9 @@ const CarmaCard = ({
             </div>
             {footer ? <div style={{ paddingTop: 2 }}>{footer}</div> : null}
           </div>
-          {collapsible && !shouldRenderCollapseInHeader ? renderCollapseToggle(false) : null}
+          {collapsible && !shouldRenderCollapseInHeader
+            ? renderCollapseToggle(false)
+            : null}
           {collapsible && shouldRenderCollapseInHeader ? (
             <div
               aria-hidden
