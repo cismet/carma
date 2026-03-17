@@ -86,6 +86,7 @@ export function ThreeLayerManager({
   const { map } = useLibreContext();
   const layerRef = useRef<GenericCustomLayer | null>(null);
   const profilesEnsuredRef = useRef(false);
+  const addingRef = useRef(false);
 
   const useLoft = (runtimeParams.useLoft ?? 0) > 0;
   const radiusMix = runtimeParams.radiusMix ?? 0;
@@ -102,6 +103,7 @@ export function ThreeLayerManager({
         }
       }
       layerRef.current = null;
+      addingRef.current = false;
     };
   }, [map, useLoft]);
 
@@ -151,8 +153,9 @@ export function ThreeLayerManager({
       : buildLatheInstances;
 
     const addLayerIfReady = async () => {
-      if (layerRef.current) return;
+      if (layerRef.current || addingRef.current) return;
       if (!map.getSource(config.sourceId)) return;
+      addingRef.current = true;
 
       // Compile any inline JS profiles before the first synchronous rebuild
       if (!profilesEnsuredRef.current) {
@@ -169,8 +172,15 @@ export function ThreeLayerManager({
       const firstExtrusion = styleLayers.find(
         (l) => l.type === "fill-extrusion"
       );
-      map.addLayer(customLayer, firstExtrusion?.id);
-      register3dLayer(map, customLayer);
+      try {
+        map.addLayer(customLayer, firstExtrusion?.id);
+        register3dLayer(map, customLayer);
+      } catch (err) {
+        console.warn("[3D-SELECT] addLayer failed:", err);
+        layerRef.current = null;
+      } finally {
+        addingRef.current = false;
+      }
     };
 
     const trySync = async () => {
