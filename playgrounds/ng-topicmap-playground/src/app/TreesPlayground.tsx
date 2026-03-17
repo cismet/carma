@@ -205,9 +205,7 @@ function PerfOverlay({ perfRef }: { perfRef: React.RefObject<TreePerfData> }) {
       </div>
       <div>
         <span style={{ color: fpsColor }}>{fps} fps</span>
-        {perf.syncMs > 0 && (
-          <span> | sync {Math.round(perf.syncMs)}ms</span>
-        )}
+        {perf.syncMs > 0 && <span> | sync {Math.round(perf.syncMs)}ms</span>}
       </div>
       {perf.treeCount > 0 && (
         <div>
@@ -363,11 +361,7 @@ const DEFAULT_VISIBILITY: LayerVisibility = {
   Gebaeude: true,
 };
 
-function MapLayerVisibility({
-  visibility,
-}: {
-  visibility: LayerVisibility;
-}) {
+function MapLayerVisibility({ visibility }: { visibility: LayerVisibility }) {
   const { map, setMapStyle } = useLibreContext();
   // Remember which sub-layers were originally visible in the style JSON.
   // When hiding a group, all sub-layers go to "none".
@@ -384,9 +378,8 @@ function MapLayerVisibility({
       // Only capture layers with a "layer-id" metadata (user-provided layers).
       const next = new Map<string, string>();
       for (const layer of style.layers) {
-        const lid = (layer as { metadata?: Record<string, unknown> }).metadata?.[
-          "layer-id"
-        ];
+        const lid = (layer as { metadata?: Record<string, unknown> })
+          .metadata?.["layer-id"];
         if (typeof lid !== "string") continue;
         const vis =
           (layer as { layout?: { visibility?: string } }).layout?.visibility ??
@@ -401,9 +394,8 @@ function MapLayerVisibility({
       if (!style?.layers || originalVisibility.current.size === 0) return;
 
       for (const layer of style.layers) {
-        const lid = (layer as { metadata?: Record<string, unknown> }).metadata?.[
-          "layer-id"
-        ];
+        const lid = (layer as { metadata?: Record<string, unknown> })
+          .metadata?.["layer-id"];
         if (typeof lid !== "string") continue;
 
         const groupName = lid as LayerGroupName;
@@ -501,7 +493,13 @@ function LayerToggleBar({
                     checkedChildren="Umring"
                     unCheckedChildren="Kreis"
                   />
-                  <span className={`text-xs text-gray-500 ${!visible || useLoft ? "opacity-30" : ""}`}>Inkreis</span>
+                  <span
+                    className={`text-xs text-gray-500 ${
+                      !visible || useLoft ? "opacity-30" : ""
+                    }`}
+                  >
+                    Inkreis
+                  </span>
                   <input
                     type="range"
                     min={0}
@@ -512,10 +510,18 @@ function LayerToggleBar({
                     onChange={(e) =>
                       onRadiusMixChange(parseFloat(e.target.value))
                     }
-                    className={`w-16 h-1 accent-[#A1887F] ${!visible || useLoft ? "opacity-30" : ""}`}
+                    className={`w-16 h-1 accent-[#A1887F] ${
+                      !visible || useLoft ? "opacity-30" : ""
+                    }`}
                     title={`Radius-Mix: ${radiusMix.toFixed(2)}`}
                   />
-                  <span className={`text-xs text-gray-500 ${!visible || useLoft ? "opacity-30" : ""}`}>Umkreis</span>
+                  <span
+                    className={`text-xs text-gray-500 ${
+                      !visible || useLoft ? "opacity-30" : ""
+                    }`}
+                  >
+                    Umkreis
+                  </span>
                 </>
               )}
               <button
@@ -596,7 +602,11 @@ export function TreesPlayground() {
               <CameraPersistence />
               <PerfOverlay perfRef={perfRef} />
               {layerVisibility["Einzelbaum 3D"] && (
-                <TreeLayer useLoft={useLoft} radiusMix={radiusMix} perfRef={perfRef} />
+                <TreeLayer
+                  useLoft={useLoft}
+                  radiusMix={radiusMix}
+                  perfRef={perfRef}
+                />
               )}
               <MapLayerVisibility visibility={layerVisibility} />
               <ProgressIndicator progress={progress} show={showProgress} />

@@ -53,7 +53,7 @@ function makeCrown(
   R: number,
   H: number,
   segments: number,
-  latheSegs = 8,
+  latheSegs = 8
 ): THREE.LatheGeometry {
   const pts: THREE.Vector2[] = [];
   for (let i = 0; i <= segments; i++) {
@@ -104,7 +104,7 @@ function spherical(): TreePrototype {
     2.5,
     4.5,
     20,
-    10,
+    10
   );
   crown.translate(0, 3.0, 0);
   crown.computeVertexNormals();
@@ -128,7 +128,7 @@ function gaussian(): TreePrototype {
     2.8,
     5.5,
     20,
-    10,
+    10
   );
   crown.translate(0, 2.5, 0);
   crown.computeVertexNormals();
@@ -177,5 +177,5 @@ export const BASE_DIMS: Record<TreeTypeName, { h: number; r: number }> =
       proto.trunk.dispose();
       proto.crown.dispose();
       return [t, { h: proto.baseHeight, r: proto.baseRadius }];
-    }),
+    })
   ) as Record<TreeTypeName, { h: number; r: number }>;

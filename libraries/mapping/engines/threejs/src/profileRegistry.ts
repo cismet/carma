@@ -57,7 +57,9 @@ export async function ensureProfiles(config: Carma3dConfig): Promise<void> {
       continue;
     }
 
-    const evalCode = `const fn = ${code}; Array.from({length:${LUT_SIZE}}, (_,i) => fn(i/${LUT_SIZE - 1}))`;
+    const evalCode = `const fn = ${code}; Array.from({length:${LUT_SIZE}}, (_,i) => fn(i/${
+      LUT_SIZE - 1
+    }))`;
     const samples = (await sandboxedEvalExternal(evalCode)) as number[];
 
     const lut = new Float32Array(samples);

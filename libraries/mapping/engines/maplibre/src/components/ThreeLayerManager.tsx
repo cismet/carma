@@ -110,8 +110,9 @@ export function ThreeLayerManager({
           scene: Scene,
           originMerc: MercatorCoordinate,
           mScale: number,
-          cfg: Carma3dConfig,
-        ): FactoryStats => buildLoftMeshes(features, scene, originMerc, mScale, cfg, 14)
+          cfg: Carma3dConfig
+        ): FactoryStats =>
+          buildLoftMeshes(features, scene, originMerc, mScale, cfg, 14)
       : buildLatheInstances;
 
     const addLayerIfReady = async () => {
@@ -131,7 +132,7 @@ export function ThreeLayerManager({
       // Insert before the first fill-extrusion layer for correct depth
       const styleLayers = map.getStyle().layers ?? [];
       const firstExtrusion = styleLayers.find(
-        (l) => l.type === "fill-extrusion",
+        (l) => l.type === "fill-extrusion"
       );
       map.addLayer(customLayer, firstExtrusion?.id);
     };
@@ -143,7 +144,7 @@ export function ThreeLayerManager({
       const result = syncGenericLayerFromSource(
         map,
         layerRef.current,
-        radiusMix,
+        radiusMix
       );
       if (result && perfRef) {
         perfRef.current = {

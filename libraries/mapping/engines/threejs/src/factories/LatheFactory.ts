@@ -19,7 +19,7 @@ function makeCrown(
   R: number,
   H: number,
   segments = 16,
-  latheSegs = 8,
+  latheSegs = 8
 ): THREE.LatheGeometry {
   const pts: THREE.Vector2[] = [];
   for (let i = 0; i <= segments; i++) {
@@ -61,12 +61,12 @@ export function buildLatheInstances(
   scene: THREE.Scene,
   originMerc: MercatorCoordinate,
   mScale: number,
-  config: Carma3dConfig,
+  config: Carma3dConfig
 ): FactoryStats {
   // Remove old InstancedMesh objects
   const toRemove = scene.children.filter(
     (c): c is THREE.InstancedMesh =>
-      (c as THREE.InstancedMesh).isInstancedMesh === true,
+      (c as THREE.InstancedMesh).isInstancedMesh === true
   );
   for (const m of toRemove) {
     m.geometry.dispose();
@@ -129,7 +129,7 @@ export function buildLatheInstances(
 
       const treeMerc = MercatorCoordinate.fromLngLat(
         [feat.lng, feat.lat],
-        feat.elevation,
+        feat.elevation
       );
       const dxMeters = (treeMerc.x - originMerc.x) / mScale;
       const dyMeters = (treeMerc.y - originMerc.y) / mScale;
@@ -156,7 +156,7 @@ export function buildLatheInstances(
       const tc = new THREE.Color(
         config.trunkColors[
           Math.floor(Math.random() * config.trunkColors.length)
-        ],
+        ]
       );
       tc.offsetHSL(0, 0, Math.random() * 0.04 - 0.02);
       trunkColorData.set([tc.r, tc.g, tc.b], i * 3);
@@ -164,11 +164,11 @@ export function buildLatheInstances(
 
     crownMesh.instanceColor = new THREE.InstancedBufferAttribute(
       crownColors,
-      3,
+      3
     );
     trunkMesh.instanceColor = new THREE.InstancedBufferAttribute(
       trunkColorData,
-      3,
+      3
     );
     crownMesh.instanceMatrix.needsUpdate = true;
     trunkMesh.instanceMatrix.needsUpdate = true;

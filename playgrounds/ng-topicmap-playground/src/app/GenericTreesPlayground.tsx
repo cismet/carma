@@ -41,9 +41,7 @@ function loadUseLoft(): boolean {
 
 function loadRadiusMix(): number {
   try {
-    const raw = parseFloat(
-      localStorage.getItem(TREES_RADIUS_MIX_KEY) ?? "0",
-    );
+    const raw = parseFloat(localStorage.getItem(TREES_RADIUS_MIX_KEY) ?? "0");
     return Number.isFinite(raw) ? Math.max(0, Math.min(1, raw)) : 0;
   } catch {
     return 0;
@@ -101,7 +99,7 @@ function CameraPersistence() {
           zoom: map.getZoom(),
           pitch: map.getPitch(),
           bearing: map.getBearing(),
-        }),
+        })
       );
     };
 
@@ -182,9 +180,7 @@ function PerfOverlay({ perfRef }: { perfRef: React.RefObject<ThreePerfData> }) {
       </div>
       <div>
         <span style={{ color: fpsColor }}>{fps} fps</span>
-        {perf.syncMs > 0 && (
-          <span> | sync {Math.round(perf.syncMs)}ms</span>
-        )}
+        {perf.syncMs > 0 && <span> | sync {Math.round(perf.syncMs)}ms</span>}
       </div>
       {perf.treeCount > 0 && (
         <div>
@@ -218,11 +214,7 @@ const DEFAULT_VISIBILITY: LayerVisibility = {
   Gebaeude: true,
 };
 
-function MapLayerVisibility({
-  visibility,
-}: {
-  visibility: LayerVisibility;
-}) {
+function MapLayerVisibility({ visibility }: { visibility: LayerVisibility }) {
   const { map, setMapStyle } = useLibreContext();
   const originalVisibility = useRef<Map<string, string>>(new Map());
 
@@ -234,9 +226,8 @@ function MapLayerVisibility({
       if (!style?.layers) return;
       const next = new Map<string, string>();
       for (const layer of style.layers) {
-        const lid = (layer as { metadata?: Record<string, unknown> }).metadata?.[
-          "layer-id"
-        ];
+        const lid = (layer as { metadata?: Record<string, unknown> })
+          .metadata?.["layer-id"];
         if (typeof lid !== "string") continue;
         const vis =
           (layer as { layout?: { visibility?: string } }).layout?.visibility ??
@@ -251,9 +242,8 @@ function MapLayerVisibility({
       if (!style?.layers || originalVisibility.current.size === 0) return;
 
       for (const layer of style.layers) {
-        const lid = (layer as { metadata?: Record<string, unknown> }).metadata?.[
-          "layer-id"
-        ];
+        const lid = (layer as { metadata?: Record<string, unknown> })
+          .metadata?.["layer-id"];
         if (typeof lid !== "string") continue;
 
         const groupName = lid as LayerGroupName;
@@ -348,7 +338,9 @@ function LayerToggleBar({
                     unCheckedChildren="Kreis"
                   />
                   <span
-                    className={`text-xs text-gray-500 ${!visible || useLoft ? "opacity-30" : ""}`}
+                    className={`text-xs text-gray-500 ${
+                      !visible || useLoft ? "opacity-30" : ""
+                    }`}
                   >
                     Inkreis
                   </span>
@@ -362,11 +354,15 @@ function LayerToggleBar({
                     onChange={(e) =>
                       onRadiusMixChange(parseFloat(e.target.value))
                     }
-                    className={`w-16 h-1 accent-[#A1887F] ${!visible || useLoft ? "opacity-30" : ""}`}
+                    className={`w-16 h-1 accent-[#A1887F] ${
+                      !visible || useLoft ? "opacity-30" : ""
+                    }`}
                     title={`Radius-Mix: ${radiusMix.toFixed(2)}`}
                   />
                   <span
-                    className={`text-xs text-gray-500 ${!visible || useLoft ? "opacity-30" : ""}`}
+                    className={`text-xs text-gray-500 ${
+                      !visible || useLoft ? "opacity-30" : ""
+                    }`}
                   >
                     Umkreis
                   </span>

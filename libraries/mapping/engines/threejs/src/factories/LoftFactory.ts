@@ -18,7 +18,7 @@ function degToMLng(lat: number): number {
 function makeCircleRing(
   lng: number,
   lat: number,
-  radiusMeters: number,
+  radiusMeters: number
 ): number[][] {
   const mlng = degToMLng(lat);
   const ring: number[][] = [];
@@ -45,7 +45,7 @@ function buildMergedGeometry(
   originMerc: MercatorCoordinate,
   mScale: number,
   config: Carma3dConfig,
-  numSlices: number,
+  numSlices: number
 ): BuildResult {
   // Pass 1: count totals
   let totalCV = 0;
@@ -112,7 +112,10 @@ function buildMergedGeometry(
     const crownH = totalH - trunkH;
 
     // Position in scene-local meters
-    const mrc = MercatorCoordinate.fromLngLat([tree.lng, tree.lat], tree.elevation);
+    const mrc = MercatorCoordinate.fromLngLat(
+      [tree.lng, tree.lat],
+      tree.elevation
+    );
     const bx = (mrc.x - originMerc.x) / mScale;
     const by = (mrc.z - originMerc.z) / mScale;
     const bz = (mrc.y - originMerc.y) / mScale;
@@ -300,30 +303,30 @@ function buildMergedGeometry(
   const crownGeo = new THREE.BufferGeometry();
   crownGeo.setAttribute(
     "position",
-    new THREE.BufferAttribute(cP.subarray(0, cv * 3), 3),
+    new THREE.BufferAttribute(cP.subarray(0, cv * 3), 3)
   );
   crownGeo.setAttribute(
     "normal",
-    new THREE.BufferAttribute(cN.subarray(0, cv * 3), 3),
+    new THREE.BufferAttribute(cN.subarray(0, cv * 3), 3)
   );
   crownGeo.setAttribute(
     "color",
-    new THREE.BufferAttribute(cC.subarray(0, cv * 3), 3),
+    new THREE.BufferAttribute(cC.subarray(0, cv * 3), 3)
   );
   crownGeo.setIndex(new THREE.BufferAttribute(cI.subarray(0, ci), 1));
 
   const trunkGeo = new THREE.BufferGeometry();
   trunkGeo.setAttribute(
     "position",
-    new THREE.BufferAttribute(tP.subarray(0, tv * 3), 3),
+    new THREE.BufferAttribute(tP.subarray(0, tv * 3), 3)
   );
   trunkGeo.setAttribute(
     "normal",
-    new THREE.BufferAttribute(tN.subarray(0, tv * 3), 3),
+    new THREE.BufferAttribute(tN.subarray(0, tv * 3), 3)
   );
   trunkGeo.setAttribute(
     "color",
-    new THREE.BufferAttribute(tC.subarray(0, tv * 3), 3),
+    new THREE.BufferAttribute(tC.subarray(0, tv * 3), 3)
   );
   trunkGeo.setIndex(new THREE.BufferAttribute(tI.subarray(0, ti), 1));
 
@@ -348,11 +351,11 @@ export function buildLoftMeshes(
   originMerc: MercatorCoordinate,
   mScale: number,
   config: Carma3dConfig,
-  numSlices = 14,
+  numSlices = 14
 ): FactoryStats {
   // Remove old meshes (keep lights)
   const toRemove = scene.children.filter(
-    (c): c is THREE.Mesh => (c as THREE.Mesh).isMesh === true,
+    (c): c is THREE.Mesh => (c as THREE.Mesh).isMesh === true
   );
   for (const m of toRemove) {
     m.geometry.dispose();
@@ -372,7 +375,7 @@ export function buildLoftMeshes(
   const withRings = features.map((f) =>
     f.ring && f.ring.length >= 3
       ? f
-      : { ...f, ring: makeCircleRing(f.lng, f.lat, f.radiusMax) },
+      : { ...f, ring: makeCircleRing(f.lng, f.lat, f.radiusMax) }
   );
 
   const result = buildMergedGeometry(
@@ -380,7 +383,7 @@ export function buildLoftMeshes(
     originMerc,
     mScale,
     config,
-    numSlices,
+    numSlices
   );
 
   if (result.treeCount > 0) {

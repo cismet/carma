@@ -40,7 +40,7 @@ export type RebuildFn = (
   scene: THREE.Scene,
   originMerc: MercatorCoordinate,
   mScale: number,
-  config: Carma3dConfig,
+  config: Carma3dConfig
 ) => FactoryStats;
 
 // ─────────────────────────────────────────────────────────────
@@ -74,7 +74,7 @@ export interface GenericCustomLayer extends CustomLayerInterface {
 export function buildGenericLayer(
   config: Carma3dConfig,
   rebuildFn: RebuildFn,
-  layerId = "3d-generic",
+  layerId = "3d-generic"
 ): GenericCustomLayer {
   const layer: GenericCustomLayer = {
     id: layerId,
@@ -97,7 +97,7 @@ export function buildGenericLayer(
 
     onAdd(
       map: MaplibreMap,
-      gl: WebGLRenderingContext | WebGL2RenderingContext,
+      gl: WebGLRenderingContext | WebGL2RenderingContext
     ) {
       this.camera = new THREE.Camera();
       this.scene = new THREE.Scene();
@@ -126,7 +126,7 @@ export function buildGenericLayer(
     rebuild() {
       const originMerc = MercatorCoordinate.fromLngLat(
         resolveOrigin(this._config),
-        0,
+        0
       );
       const mScale = originMerc.meterInMercatorCoordinateUnits();
       this._originMerc = originMerc;
@@ -137,14 +137,14 @@ export function buildGenericLayer(
         this.scene,
         originMerc,
         mScale,
-        this._config,
+        this._config
       );
       this._lastFeatureCount = this._features.length;
     },
 
     render(
       _gl: WebGLRenderingContext | WebGL2RenderingContext,
-      options: CustomRenderMethodInput,
+      options: CustomRenderMethodInput
     ) {
       if (!this._originMerc) return;
 
@@ -154,11 +154,11 @@ export function buildGenericLayer(
       // Rotation PI/2 around X: THREE.js Y-up to Mercator Z-up
       const rotationX = new THREE.Matrix4().makeRotationAxis(
         new THREE.Vector3(1, 0, 0),
-        Math.PI / 2,
+        Math.PI / 2
       );
 
       const m = new THREE.Matrix4().fromArray(
-        options.defaultProjectionData.mainMatrix as unknown as number[],
+        options.defaultProjectionData.mainMatrix as unknown as number[]
       );
       const l = new THREE.Matrix4()
         .makeTranslation(originMerc.x, originMerc.y, originMerc.z)
@@ -205,7 +205,7 @@ export function buildGenericLayer(
 export function syncGenericLayerFromSource(
   map: MaplibreMap,
   layer: GenericCustomLayer,
-  radiusMix = 0,
+  radiusMix = 0
 ): ThreePerfData | null {
   const config = layer._config;
   const features = map.querySourceFeatures(config.sourceId, {

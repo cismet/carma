@@ -911,8 +911,7 @@ export const LibreMap = ({
             for (const layer of style.layers ?? []) {
               const meta = (layer as any).metadata?.carmaConf?.["3d"];
               if (!meta) continue;
-              const sourceId =
-                meta.sourceId ?? (layer as any).source;
+              const sourceId = meta.sourceId ?? (layer as any).source;
               const sourceLayer =
                 meta.sourceLayer ?? (layer as any)["source-layer"];
               if (!sourceId) continue;
@@ -936,7 +935,10 @@ export const LibreMap = ({
 
             for (const l of effectiveLayers ?? []) {
               const propConfig = (l as any).carma3d;
-              if (propConfig?.sourceId && !sourceToIdx.has(propConfig.sourceId)) {
+              if (
+                propConfig?.sourceId &&
+                !sourceToIdx.has(propConfig.sourceId)
+              ) {
                 sourceToIdx.set(propConfig.sourceId, configs.length);
                 configs.push(propConfig);
               }

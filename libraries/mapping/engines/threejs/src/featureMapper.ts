@@ -31,7 +31,7 @@ function polygonCentroid(coords: number[][][]): [number, number] | null {
 export function mapFeatures(
   features: SourceFeature[],
   config: Carma3dConfig,
-  radiusMix = 0,
+  radiusMix = 0
 ): MappedFeature[] {
   const result: MappedFeature[] = [];
   const t = Math.max(0, Math.min(1, radiusMix));
@@ -59,7 +59,9 @@ export function mapFeatures(
       continue;
     }
 
-    const rawType = String(props[fields.typeField] ?? "").toUpperCase().trim();
+    const rawType = String(props[fields.typeField] ?? "")
+      .toUpperCase()
+      .trim();
     const typeEntry = typeMap[rawType] ?? typeMap[defaultType];
     if (!typeEntry) continue;
     const type = rawType in typeMap ? rawType : defaultType;
@@ -117,7 +119,7 @@ export function mapFeatures(
  * Remove duplicate features at tile boundaries using coordinate keys.
  */
 export function deduplicateFeatures(
-  features: SourceFeature[],
+  features: SourceFeature[]
 ): SourceFeature[] {
   const seen = new Set<string>();
   return features.filter((f) => {

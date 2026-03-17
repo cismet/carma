@@ -1,4 +1,7 @@
-import { SelectionProvider, GazDataProvider } from "@carma-appframeworks/portals";
+import {
+  SelectionProvider,
+  GazDataProvider,
+} from "@carma-appframeworks/portals";
 import { SandboxedEvalProvider } from "@carma-commons/sandbox-eval";
 import { CarmaMap } from "@carma-mapping/core";
 import { LibreContextProvider } from "@carma-mapping/engines/maplibre";
