@@ -14,7 +14,11 @@ import {
 import type { ThreePerfData } from "@carma-mapping/engines/threejs";
 import TopicMapContextProvider from "react-cismap/contexts/TopicMapContextProvider";
 import { defaultGazDataConfig } from "@carma-commons/resources";
-import { faCrosshairs, faEye, faEyeSlash } from "@fortawesome/free-solid-svg-icons";
+import {
+  faCrosshairs,
+  faEye,
+  faEyeSlash,
+} from "@fortawesome/free-solid-svg-icons";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { Switch } from "antd";
 import Menu from "./Menu";
@@ -176,7 +180,17 @@ function PerfOverlay({ perfRef }: { perfRef: React.RefObject<ThreePerfData> }) {
       <div>
         <span style={{ color: "#8ecaff" }}>{modeLabel}</span>
         {perf.treeCount > 0 && (
-          <span> | {perf.treeCount.toLocaleString()} trees</span>
+          <span>
+            {" "}
+            | {perf.treeCount.toLocaleString()} trees
+            {perf.sourceCount != null &&
+              perf.sourceCount !== perf.treeCount && (
+                <span style={{ color: "#999" }}>
+                  {" "}
+                  / {perf.sourceCount.toLocaleString()} src
+                </span>
+              )}
+          </span>
         )}
       </div>
       <div>
@@ -447,7 +461,11 @@ export function GenericTreesPlayground() {
   const [layerVisibility, setLayerVisibility] =
     useState<LayerVisibility>(loadLayerVisibility);
   const [crosshair, setCrosshair] = useState(() => {
-    try { return localStorage.getItem(TREES_CROSSHAIR_KEY) === "true"; } catch { return false; }
+    try {
+      return localStorage.getItem(TREES_CROSSHAIR_KEY) === "true";
+    } catch {
+      return false;
+    }
   });
   const { progress, showProgress, handleProgressUpdate } = useProgress();
   const perfRef = useRef<ThreePerfData>(EMPTY_PERF);
@@ -473,6 +491,7 @@ export function GenericTreesPlayground() {
   // Runtime params drive 3D layer behaviour via CarmaMap -> LibreMap -> ThreeLayerManager
   const threeRuntimeParams = {
     radiusMix,
+    //viewportPadding: 0.3000,
     useLoft: useLoft ? 1 : 0,
   };
 
@@ -509,11 +528,13 @@ export function GenericTreesPlayground() {
                 radiusMix={radiusMix}
                 onRadiusMixChange={handleRadiusMixChange}
                 crosshair={crosshair}
-                onCrosshairToggle={() => setCrosshair((v) => {
-                  const next = !v;
-                  localStorage.setItem(TREES_CROSSHAIR_KEY, String(next));
-                  return next;
-                })}
+                onCrosshairToggle={() =>
+                  setCrosshair((v) => {
+                    const next = !v;
+                    localStorage.setItem(TREES_CROSSHAIR_KEY, String(next));
+                    return next;
+                  })
+                }
               />
             </LibreContextProvider>
           </SelectionProvider>

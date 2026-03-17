@@ -90,6 +90,12 @@ export function ThreeLayerManager({
 
   const useLoft = (runtimeParams.useLoft ?? 0) > 0;
   const radiusMix = runtimeParams.radiusMix ?? 0;
+  const viewportPadding = runtimeParams.viewportPadding;
+
+  // Merge runtime viewportPadding override into config
+  const effectiveConfig = viewportPadding != null
+    ? { ...config, viewportPadding }
+    : config;
 
   // Effect 1: Layer lifecycle (tear down on mode change or unmount)
   useEffect(() => {
@@ -159,12 +165,12 @@ export function ThreeLayerManager({
 
       // Compile any inline JS profiles before the first synchronous rebuild
       if (!profilesEnsuredRef.current) {
-        await ensureProfiles(config);
+        await ensureProfiles(effectiveConfig);
         profilesEnsuredRef.current = true;
       }
 
       const layerId = useLoft ? "3d-generic-loft" : "3d-generic";
-      const customLayer = buildGenericLayer(config, rebuildFn, layerId);
+      const customLayer = buildGenericLayer(effectiveConfig, rebuildFn, layerId);
       layerRef.current = customLayer;
 
       // Insert before the first fill-extrusion layer for correct depth
@@ -233,7 +239,7 @@ export function ThreeLayerManager({
         perfRef.current = EMPTY_PERF;
       }
     };
-  }, [map, useLoft, radiusMix, config, perfRef]);
+  }, [map, useLoft, radiusMix, config, effectiveConfig, perfRef]);
 
   return null;
 }

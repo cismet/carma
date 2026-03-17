@@ -878,17 +878,36 @@ export function syncGenericLayerFromSource(
     }
   }
 
+  // Optionally filter to viewport bounds to avoid building geometry
+  // for thousands of off-screen features from pre-fetched tiles
+  let visible: MappedFeature[];
+  if (config.viewportPadding != null) {
+    const bounds = map.getBounds();
+    const lngPad = (bounds.getEast() - bounds.getWest()) * config.viewportPadding;
+    const latPad = (bounds.getNorth() - bounds.getSouth()) * config.viewportPadding;
+    const west = bounds.getWest() - lngPad;
+    const east = bounds.getEast() + lngPad;
+    const south = bounds.getSouth() - latPad;
+    const north = bounds.getNorth() + latPad;
+
+    visible = mapped.filter(
+      (f) => f.lng >= west && f.lng <= east && f.lat >= south && f.lat <= north,
+    );
+  } else {
+    visible = mapped;
+  }
+
   // Skip rebuild if nothing changed
   if (
-    mapped.length === layer._features.length &&
-    mapped.length > 0 &&
+    visible.length === layer._features.length &&
+    visible.length > 0 &&
     radiusMix === layer._lastRadiusMix &&
     hasTerrain === layer._lastTerrain
   ) {
     return null;
   }
 
-  layer._features = mapped;
+  layer._features = visible;
   layer._lastRadiusMix = radiusMix;
   layer._lastTerrain = hasTerrain;
 
@@ -917,6 +936,7 @@ export function syncGenericLayerFromSource(
     rawFeatures: features.length,
     uniqueFeatures: unique.length,
     mappedFeatures: mapped.length,
+    visibleFeatures: visible.length,
     treeCount: layer._stats.treeCount,
     triangles: layer._stats.triangles,
     drawCalls: layer._stats.drawCalls,
@@ -930,6 +950,7 @@ export function syncGenericLayerFromSource(
   return {
     mode: "generic",
     treeCount: layer._stats.treeCount,
+    sourceCount: mapped.length,
     triangles: layer._stats.triangles,
     drawCalls: layer._stats.drawCalls,
     syncMs: rebuildMs,

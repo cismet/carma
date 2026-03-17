@@ -31,6 +31,10 @@ export interface Carma3dConfig {
   fields: FieldMapping;
   trunkColors: string[];
   typeMap: Record<string, TypeMapEntry>;
+  /** Viewport padding for culling off-screen features (fraction of viewport extent, e.g. 0.2 = 20%).
+   *  When set, only features within the padded viewport are built as 3D geometry.
+   *  Omit or set to undefined to disable viewport culling (all source features are rendered). */
+  viewportPadding?: number;
   /** When true, the original 2D layer is hidden (opacity near-zero) while the 3D layer is active. */
   skipIn2D?: boolean;
   /** Layer IDs to hide when skipIn2D is active. Populated during config detection, not from metadata. */
@@ -68,6 +72,8 @@ export interface FactoryStats {
 export interface ThreePerfData {
   mode: string;
   treeCount: number;
+  /** Total features from source tiles (before viewport filter) */
+  sourceCount?: number;
   triangles: number;
   drawCalls: number;
   syncMs: number;
