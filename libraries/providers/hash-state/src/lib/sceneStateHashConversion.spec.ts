@@ -5,16 +5,16 @@ import {
   encodeSceneDescriptorHashSnapshot,
   readMapLibrePlusElevationHashValuesFromSceneDescriptor,
   readSceneDescriptorFromMapLibrePlusElevationHashValues,
-} from "./sceneDescriptorHashCodec";
+} from "./sceneStateHashCodec";
 import {
   readMapLibreCompatHashParamsFromSceneDescriptor,
-  readSceneDescriptorHashSnapshotFromCesiumCamera,
+  readSceneDescriptorHashSnapshotFromCamera,
   readSceneDescriptorHashSnapshotFromSceneState,
-} from "./sceneDescriptorHashCesiumAdapter";
+} from "./sceneStateHashCameraAdapter";
 
 const RAD_TO_DEG = 180 / Math.PI;
 
-describe("sceneDescriptorHash codec + adapters", () => {
+describe("sceneStateHash codec + adapters", () => {
   it("encodes and decodes camera hash snapshots", () => {
     const encoded = encodeSceneDescriptorHashSnapshot({
       anchor: {
@@ -264,7 +264,7 @@ describe("sceneDescriptorHash codec + adapters", () => {
   });
 
   it("reads Cesium frustum.fov as vertical FOV on wide viewports", () => {
-    const snapshot = readSceneDescriptorHashSnapshotFromCesiumCamera({
+    const snapshot = readSceneDescriptorHashSnapshotFromCamera({
       camera: {
         positionCartographic: {
           longitude: 0,

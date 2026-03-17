@@ -1,10 +1,10 @@
 import { useMemo } from "react";
 
-import type { SceneDescriptorHashSnapshot } from "./sceneDescriptorHashCodec";
+import type { SceneDescriptorHashSnapshot } from "./sceneStateHashCodec";
 import {
   decodeSceneDescriptorHashSnapshot,
   readSceneDescriptorFromMapLibrePlusElevationHashValues,
-} from "./sceneDescriptorHashCodec";
+} from "./sceneStateHashCodec";
 import { useHashState } from "./HashStateProvider";
 
 const isFiniteNumber = (value: unknown): value is number =>
@@ -86,7 +86,7 @@ const readInitialCameraSnapshotFromHashValues = (
   });
 };
 
-export const useInitialSceneDescriptorHashSnapshot = ({
+export const useInitialSceneStateHashSnapshot = ({
   defaultFovDeg,
   defaultZoom,
 }: {

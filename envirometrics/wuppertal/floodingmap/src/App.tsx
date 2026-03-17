@@ -32,7 +32,7 @@ import {
 } from "@carma-appframeworks/portals";
 import {
   useHashState,
-  useInitialSceneDescriptorHashSnapshot,
+  useInitialSceneStateHashSnapshot,
 } from "@carma-providers/hash-state";
 import { ENDPOINT, isAreaTypeWithGEP } from "@carma-commons/resources";
 import { getApplicationVersion } from "@carma-commons/utils";
@@ -122,7 +122,7 @@ const parseHashNumber = (value: unknown): number | undefined => {
 
 const readInitialCameraViewFromHashSnapshot = (
   snapshot: ReturnType<
-    typeof useInitialSceneDescriptorHashSnapshot
+    typeof useInitialSceneStateHashSnapshot
   >["initialCameraState"]
 ): InitialCameraView | undefined => {
   if (!snapshot) {
@@ -181,7 +181,7 @@ function App({ sync = false }: { sync?: boolean }) {
   const [hochwasserschutz, setHochwasserschutz] = useState(true);
   const { getHashValues } = useHashState();
   const { initialCameraState, isResolved: isInitialCameraResolved } =
-    useInitialSceneDescriptorHashSnapshot({
+    useInitialSceneStateHashSnapshot({
       defaultFovDeg: DEFAULT_HASH_FOV_DEG,
     });
   const initialHashValues = getHashValues();

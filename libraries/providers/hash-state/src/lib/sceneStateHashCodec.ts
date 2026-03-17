@@ -456,23 +456,6 @@ export const sceneDescriptorHashCodec: SceneDescriptorHashCodec = {
   },
 };
 
-export const createSceneDescriptorHashConfig = ({
-  hashKey = DEFAULT_SCENE_DESCRIPTOR_HASH_KEY,
-  hashAlias = DEFAULT_SCENE_DESCRIPTOR_HASH_ALIAS,
-}: {
-  hashKey?: string;
-  hashAlias?: string;
-} = {}): SceneDescriptorHashConfig => ({
-  hashKey,
-  keyAliases: {
-    [hashKey]: hashAlias,
-  },
-  keyOrder: [hashAlias],
-  hashCodecs: {
-    [hashKey]: sceneDescriptorHashCodec,
-  },
-});
-
 export const sceneDescriptorHashInternals = {
   normalizeBearingDeg,
   toMapLibrePitchDeg,

@@ -13,11 +13,13 @@ import useCameraPitchSoftLimiter from "./hooks/useCameraPitchSoftLimiter";
 import useDisableSSCC from "./hooks/useDisableSSCC";
 import { useCesiumGlobe } from "./hooks/useCesiumGlobe";
 import { useInitializeViewer } from "./hooks/useInitializeViewer";
-import { useOnSceneChange } from "./hooks/useOnSceneChange";
+import {
+  useOnSceneChange,
+  type StringifiedCameraState,
+} from "./hooks/useOnSceneChange";
 import useTransitionTimeout from "./hooks/useTransitionTimeout";
 import { useTilesets } from "./hooks/useTilesets";
 import { useSceneStyles } from "./hooks/useSceneStyles";
-import { StringifiedCameraState } from "./utils/cesiumHashParamsCodec";
 import { DEFAULT_VIEWER_CONSTRUCTOR_OPTIONS } from "./viewerDefaults";
 
 export type GlobeOptions = {

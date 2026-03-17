@@ -23,16 +23,16 @@ export {
   readSceneDescriptorFromMapLibrePlusElevationHashValues,
   sceneDescriptorHashCodec,
   type SceneDescriptorHashSnapshot,
-} from "./lib/sceneDescriptorHashCodec";
+} from "./lib/sceneStateHashCodec";
 
-export { readSceneDescriptorHashSnapshotFromSceneState } from "./lib/sceneDescriptorHashSceneStateAdapter";
+export { readSceneDescriptorHashSnapshotFromSceneState } from "./lib/sceneStateHashSceneAdapter";
 
 export {
   DEFAULT_SCENE_DESCRIPTOR_HASH_CLEAR_KEYS,
-  useSceneDescriptorHashSync,
-  type SceneDescriptorHashSyncCameraLike,
-  type SceneDescriptorHashSyncSceneLike,
-  type UseSceneDescriptorHashSyncOptions,
-} from "./lib/useSceneDescriptorHashSync";
+  useSceneStateHashSync,
+  type SceneStateCameraLike,
+  type SceneStateLike,
+  type UseSceneStateHashSyncOptions,
+} from "./lib/useSceneStateHashSync";
 
-export { useInitialSceneDescriptorHashSnapshot } from "./lib/useInitialSceneDescriptorHashSnapshot";
+export { useInitialSceneStateHashSnapshot } from "./lib/useInitialSceneStateHashSnapshot";

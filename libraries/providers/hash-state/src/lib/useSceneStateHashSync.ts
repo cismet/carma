@@ -7,20 +7,20 @@ import {
   DEFAULT_SCENE_DESCRIPTOR_HASH_KEY,
   sceneDescriptorHashCodec,
   type SceneDescriptorHashEncodeScheme,
-} from "./sceneDescriptorHashCodec";
+} from "./sceneStateHashCodec";
 import {
   readMapLibreCompatHashParamsFromSceneAdapter,
   readSceneDescriptorHashSnapshotFromSceneAdapter,
   readSceneDescriptorHashSnapshotFromSceneState,
-  type SceneDescriptorHashSyncCameraLike,
-  type SceneDescriptorHashSyncSceneLike,
-} from "./sceneDescriptorHashCesiumAdapter";
-import type { SceneDescriptorAnchorMode } from "./sceneDescriptorHashSceneStateAdapter";
+  type SceneStateCameraLike,
+  type SceneStateLike,
+} from "./sceneStateHashCameraAdapter";
+import type { SceneDescriptorAnchorMode } from "./sceneStateHashSceneAdapter";
 
 export type {
-  SceneDescriptorHashSyncCameraLike,
-  SceneDescriptorHashSyncSceneLike,
-} from "./sceneDescriptorHashCesiumAdapter";
+  SceneStateCameraLike,
+  SceneStateLike,
+} from "./sceneStateHashCameraAdapter";
 
 type SceneDescriptorSyncEventLike = {
   addEventListener: (listener: () => void) => void;
@@ -41,10 +41,10 @@ export const DEFAULT_SCENE_DESCRIPTOR_HASH_CLEAR_KEYS = [
   "c3",
 ] as const;
 
-export type UseSceneDescriptorHashSyncOptions = {
+export type UseSceneStateHashSyncOptions = {
   sceneState?: SceneStateSnapshot | null;
-  scene?: SceneDescriptorHashSyncSceneLike | null;
-  camera?: SceneDescriptorHashSyncCameraLike | null;
+  scene?: SceneStateLike | null;
+  camera?: SceneStateCameraLike | null;
   enabled?: boolean;
   hashKey?: string;
   hashAlias?: string;
@@ -69,8 +69,8 @@ export type UseSceneDescriptorHashSyncOptions = {
 const nowMs = (): number => Date.now();
 
 const resolveSceneDescriptorSyncEvent = (
-  scene: SceneDescriptorHashSyncSceneLike | null | undefined,
-  camera: SceneDescriptorHashSyncCameraLike
+  scene: SceneStateLike | null | undefined,
+  camera: SceneStateCameraLike
 ): SceneDescriptorSyncEventLike | null => {
   const cameraMoveEnd = (camera as { moveEnd?: SceneDescriptorSyncEventLike })
     .moveEnd;
@@ -135,7 +135,7 @@ const readSchemeClearKeys = ({
   ]);
 };
 
-export const useSceneDescriptorHashSync = ({
+export const useSceneStateHashSync = ({
   sceneState,
   scene,
   camera,
@@ -148,7 +148,7 @@ export const useSceneDescriptorHashSync = ({
   is3dFlagValue = 1,
   clearKeys,
   replace = true,
-  label = "SceneDescriptor:camera",
+  label = "SceneState:camera",
   anchorMode = "screen-center",
   fallbackHeightM = 200,
   minUpdateIntervalMs = 100,
@@ -158,7 +158,7 @@ export const useSceneDescriptorHashSync = ({
   defaultFovDeg,
   mapLibreMinPitchDeg = 0,
   mapLibreMaxPitchDeg = 85,
-}: UseSceneDescriptorHashSyncOptions): void => {
+}: UseSceneStateHashSyncOptions): void => {
   void rangeKey;
   void includeAltitude;
 
@@ -240,9 +240,7 @@ export const useSceneDescriptorHashSync = ({
     [
       anchorMode,
       camera,
-      encodeScheme,
       fallbackHeightM,
-      hashKey,
       includeIs3dFlag,
       is3dFlagKey,
       is3dFlagValue,

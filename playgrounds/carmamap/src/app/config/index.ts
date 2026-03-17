@@ -122,6 +122,7 @@ type CarmaMapLayerInfo = {
 export const layerMap: Record<string, CarmaMapLayerInfo> = {
   luftbild: {
     title: "Luftbild",
+    url: "https://maps.wuppertal.de/karten",
     layers: "rvrGrundriss@100|trueOrtho2022@75|rvrSchriftNT@100",
     description: ``,
     inhalt: `<span>(1) Kartendienst (WMS) der Stadt Wuppertal. Datengrundlage:
@@ -137,6 +138,7 @@ export const layerMap: Record<string, CarmaMapLayerInfo> = {
   },
   stadtplan: {
     title: "Stadtplan",
+    url: "https://geodaten.metropoleruhr.de/spw2/service",
     layers: "amtlich@90",
     description: ``,
     inhalt: `<span>Kartendienst (WMS) des Regionalverbandes Ruhr (RVR). Datengrundlage: Stadtkarte 2.0. Wöchentlich in einem automatischen Prozess aktualisierte Zusammenführung des Straßennetzes der OpenStreetMap mit Amtlichen Geobasisdaten des Landes NRW aus den Fachverfahren ALKIS (Gebäude, Flächennutzungen) und ATKIS (Gewässer). © RVR und Kooperationspartner (</span><a class="remove-margins" href="https://www.govdata.de/dl-de/by-2-0">
@@ -148,6 +150,7 @@ export const layerMap: Record<string, CarmaMapLayerInfo> = {
   },
   gelaende: {
     title: "Gelände",
+    url: "https://basemap.de/web-vektor/",
     layers: "basemap_relief@40",
     description: ``,
     inhalt: `<span>Mapbox-konformer Vector-Tiles-Kartendienst</span>
@@ -160,6 +163,7 @@ export const layerMap: Record<string, CarmaMapLayerInfo> = {
   },
   amtlich: {
     title: "Amtliche Geobasisdaten",
+    url: "https://maps.wuppertal.de/karten",
     layers: "amtlichBasiskarte@90",
     description: ``,
     inhalt: `<span>Kartendienst (WMS) der Stadt Wuppertal. Datengrundlagen: (1) Stadtgrundkarte / Liegenschaftskarte (bei großmaßstäbigen Darstellungen), (2) Amtliche Basiskarte ABK, jeweils farbige Ausprägung. Die Karten werden täglich (Stadtgrundkarte) bzw. wöchentlich (ABK) in einem automatisierten Prozess aus dem Fachverfahren ALKIS des Liegenschaftskatasters abgeleitet. © Stadt Wuppertal (</span>
