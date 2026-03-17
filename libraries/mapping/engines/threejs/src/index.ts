@@ -26,6 +26,7 @@ export { mapFeatures, deduplicateFeatures } from "./featureMapper";
 // Generic layer builder + sync
 export {
   buildGenericLayer,
+  buildOverlayLayer,
   syncGenericLayerFromSource,
 } from "./GenericThreeLayer";
 export type {

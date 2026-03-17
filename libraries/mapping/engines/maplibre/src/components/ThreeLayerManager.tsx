@@ -9,6 +9,7 @@ import type {
 } from "@carma-mapping/engines/threejs";
 import {
   buildGenericLayer,
+  buildOverlayLayer,
   syncGenericLayerFromSource,
   buildLatheInstances,
   buildLoftMeshes,
@@ -85,6 +86,7 @@ export function ThreeLayerManager({
 }: ThreeLayerManagerProps) {
   const { map } = useLibreContext();
   const layerRef = useRef<GenericCustomLayer | null>(null);
+  const overlayIdRef = useRef<string | null>(null);
   const profilesEnsuredRef = useRef(false);
   const addingRef = useRef(false);
 
@@ -101,6 +103,10 @@ export function ThreeLayerManager({
   useEffect(() => {
     if (!map) return;
     return () => {
+      if (overlayIdRef.current && map.getLayer(overlayIdRef.current)) {
+        map.removeLayer(overlayIdRef.current);
+      }
+      overlayIdRef.current = null;
       if (layerRef.current) {
         layerRef.current.unhighlight();
         unregister3dLayer(map, layerRef.current);
@@ -175,11 +181,22 @@ export function ThreeLayerManager({
       const customLayer = buildGenericLayer(effectiveConfig, rebuildFn, layerId);
       layerRef.current = customLayer;
 
-      // Insert after fill-extrusion/symbol layers so trees render on top
-      // of labels that should be occluded (depth test handles correct ordering)
+      // Insert before fill-extrusion so trees render first and show through
+      // semi-transparent buildings. Label occlusion relies on depthWrite + depth range restore.
+      const styleLayers = map.getStyle().layers ?? [];
+      const firstExtrusion = styleLayers.find(
+        (l) => l.type === "fill-extrusion"
+      );
       try {
-        map.addLayer(customLayer);
+        map.addLayer(customLayer, firstExtrusion?.id);
         register3dLayer(map, customLayer);
+
+        // Add overlay layer at the end (after symbols) to paint trees
+        // over labels that should be occluded by 3D geometry.
+        const oId = layerId + "-overlay";
+        const overlay = buildOverlayLayer(customLayer, oId);
+        map.addLayer(overlay);
+        overlayIdRef.current = oId;
       } catch (err) {
         console.warn("[3D-SELECT] addLayer failed:", err);
         layerRef.current = null;
@@ -226,6 +243,7 @@ export function ThreeLayerManager({
     // Re-add layer after background style change (style swap removes custom layers)
     const handleStyleData = () => {
       if (layerRef.current && !map.getLayer(layerRef.current.id)) {
+        overlayIdRef.current = null;
         layerRef.current = null;
         addingRef.current = false;
         trySync();

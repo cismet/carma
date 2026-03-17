@@ -851,6 +851,62 @@ export function buildGenericLayer(
   return layer;
 }
 
+/**
+ * Build a lightweight overlay custom layer that re-renders the same 3D scene.
+ * Insert this AFTER symbol layers so it paints trees over any labels
+ * that should be occluded. The main layer renders before fill-extrusion
+ * (for building transparency), this overlay handles label occlusion.
+ */
+export function buildOverlayLayer(
+  mainLayer: GenericCustomLayer,
+  overlayId = "3d-generic-overlay"
+): maplibregl.CustomLayerInterface {
+  return {
+    id: overlayId,
+    type: "custom" as const,
+    renderingMode: "3d" as const,
+
+    onAdd() {
+      // No-op: shares main layer's renderer/scene/camera
+    },
+
+    render(
+      _gl: WebGLRenderingContext | WebGL2RenderingContext,
+      options: CustomRenderMethodInput
+    ) {
+      if (!mainLayer._originMerc || !mainLayer.renderer) return;
+
+      const originMerc = mainLayer._originMerc;
+      const mScale = mainLayer._mScale;
+
+      const rotationX = new THREE.Matrix4().makeRotationAxis(
+        new THREE.Vector3(1, 0, 0),
+        Math.PI / 2
+      );
+
+      const m = new THREE.Matrix4().fromArray(
+        options.defaultProjectionData.mainMatrix as unknown as number[]
+      );
+      const l = new THREE.Matrix4()
+        .makeTranslation(originMerc.x, originMerc.y, originMerc.z)
+        .scale(new THREE.Vector3(mScale, -mScale, mScale))
+        .multiply(rotationX);
+
+      mainLayer.camera.projectionMatrix = m.multiply(l);
+      mainLayer.camera.projectionMatrixInverse
+        .copy(mainLayer.camera.projectionMatrix)
+        .invert();
+
+      mainLayer.renderer.resetState();
+      mainLayer.renderer.render(mainLayer.scene, mainLayer.camera);
+    },
+
+    onRemove() {
+      // No-op: main layer owns the resources
+    },
+  };
+}
+
 // ─────────────────────────────────────────────────────────────
 //  Source sync helper
 // ─────────────────────────────────────────────────────────────
