@@ -2,6 +2,8 @@
 //  Configuration types for generic 3D vector layers
 // ─────────────────────────────────────────────────────────────
 
+import type { SceneLightingSnapshot } from "@carma/types";
+
 /** Maps GeoJSON feature property names to semantic roles. */
 export interface FieldMapping {
   typeField: string;
@@ -27,6 +29,10 @@ export interface Carma3dConfig {
   sourceLayer: string;
   /** Origin for the Three.js coordinate system. Falls back to VITE_THREEJS_ORIGIN env var, then Wuppertal. */
   mapCenter?: [number, number];
+  /** Scene-level lighting description kept separate from the camera model. */
+  scene?: {
+    lighting?: SceneLightingSnapshot;
+  };
   defaultType: string;
   fields: FieldMapping;
   trunkColors: string[];

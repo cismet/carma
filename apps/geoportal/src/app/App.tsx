@@ -82,6 +82,28 @@ import "react-cismap/topicMaps.css";
 import "./index.css";
 // import { setDrawingShape } from "./store/slices/measurements";
 
+const readInitialFrameworkFromHash = (): "leaflet" | "cesium" => {
+  if (typeof window === "undefined") {
+    return "leaflet";
+  }
+
+  const hash = window.location.hash ?? "";
+  const queryIndex = hash.indexOf("?");
+  const query = queryIndex >= 0 ? hash.slice(queryIndex + 1) : "";
+  const params = new URLSearchParams(query);
+
+  const is3dValue = params.get("is3d");
+  const hasExplicit3dFlag =
+    is3dValue === "1" || is3dValue === "true" || is3dValue === "yes";
+  const has3dPosition =
+    params.has("h") ||
+    params.has("altitude") ||
+    params.has("camera3d") ||
+    params.has("c3");
+
+  return hasExplicit3dFlag || has3dPosition ? "cesium" : "leaflet";
+};
+
 function CesiumDevConsoleIntegration() {
   const flags = useFeatureFlags();
   // Explicitly pass through flag; hook no longer performs URL inference
@@ -158,6 +180,7 @@ function App({ published }: { published?: boolean }) {
     () => ({ background: backgroundSettings }),
     []
   );
+  const initialFramework = readInitialFrameworkFromHash();
 
   if (isLoadingConfig === null) {
     // wait for the loading state to be determined to prevent re-rendering
@@ -170,7 +193,7 @@ function App({ published }: { published?: boolean }) {
       <FeatureFlagProvider config={featureFlagsMergedConfig}>
         <MatomoTracker>
           <CesiumDevConsoleIntegration />
-          <MapFrameworkSwitcherProvider initialFramework="leaflet">
+          <MapFrameworkSwitcherProvider initialFramework={initialFramework}>
             <CarmaMapProviderWrapper
               cesiumOptions={CESIUM_CONFIG}
               overlayOptions={overlayOptions}

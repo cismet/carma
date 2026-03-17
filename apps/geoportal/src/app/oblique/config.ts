@@ -12,11 +12,13 @@ import { degToRad } from "@carma-commons/units/helpers";
 import { OBLIQUE_PREVIEW_QUALITY } from "./constants";
 import { ObliqueDataProviderConfig } from "./types";
 import { CardinalDirectionEnum } from "./utils/orientationUtils";
+import { DEFAULT_CAMERA_FOV_DEG } from "../config/app.config";
 export const OBLIQUE_CONFIG: ObliqueDataProviderConfig = {
   fixedPitch: degToRad(-45 as Degrees), // Pitch in radians
   fixedHeight: 900, // Height in meters
   minFov: degToRad(10 as Degrees), // Minimum field of view in radians
   maxFov: degToRad(120 as Degrees), // Maximum field of view in radians
+  restoreFovOnLeave: degToRad(DEFAULT_CAMERA_FOV_DEG as Degrees),
   headingOffset: degToRad(-34.3 as Degrees), // Heading offset in radians
   previewQualityLevel: OBLIQUE_PREVIEW_QUALITY.LEVEL_3,
   downloadQualityLevel: OBLIQUE_PREVIEW_QUALITY.LEVEL_1,

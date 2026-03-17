@@ -22,8 +22,8 @@ describe("calculateAnimationDuration", () => {
       const zoomDiff = 0;
       const duration = calculateAnimationDuration(camera, zoomDiff);
 
-      // π/4 ≈ 0.785 rad * 2000 ms/rad ≈ 1570 ms
-      expect(duration).toBeCloseTo(1570, 0);
+      // Current implementation eases normalized deviation with QUADRATIC_OUT.
+      expect(duration).toBeCloseTo(1312.5, 5);
     });
 
     it("should calculate duration for 90° deviation (π/2 rad)", () => {
@@ -31,8 +31,8 @@ describe("calculateAnimationDuration", () => {
       const zoomDiff = 0;
       const duration = calculateAnimationDuration(camera, zoomDiff);
 
-      // π/2 ≈ 1.57 rad * 2000 ms/rad ≈ 3140 ms (capped at 3000)
-      expect(duration).toBe(3000);
+      // QUADRATIC_OUT(0.5) * 3000 = 2250 ms
+      expect(duration).toBe(2250);
     });
 
     it("should calculate duration for 30° deviation (π/6 rad)", () => {
@@ -40,8 +40,7 @@ describe("calculateAnimationDuration", () => {
       const zoomDiff = 0;
       const duration = calculateAnimationDuration(camera, zoomDiff);
 
-      // π/6 ≈ 0.524 rad * 2000 ms/rad ≈ 1047 ms
-      expect(duration).toBeCloseTo(1047, 0);
+      expect(duration).toBeCloseTo(916.6666666666666, 5);
     });
 
     it("should calculate duration for nadir (0° deviation)", () => {
@@ -69,8 +68,7 @@ describe("calculateAnimationDuration", () => {
       const zoomDiff = 2;
       const duration = calculateAnimationDuration(camera, zoomDiff);
 
-      // 2 * 1000 ms = 2000 ms
-      expect(duration).toBe(2000);
+      expect(duration).toBeCloseTo(1584.9625007211562, 5);
     });
 
     it("should handle negative zoom diff (zooming out)", () => {
@@ -78,8 +76,7 @@ describe("calculateAnimationDuration", () => {
       const zoomDiff = -1.5;
       const duration = calculateAnimationDuration(camera, zoomDiff);
 
-      // abs(-1.5) * 1000 ms = 1500 ms
-      expect(duration).toBe(1500);
+      expect(duration).toBeCloseTo(1321.9280948873625, 5);
     });
   });
 
@@ -89,8 +86,7 @@ describe("calculateAnimationDuration", () => {
       const zoomDiff = 0.5; // 500ms
       const duration = calculateAnimationDuration(camera, zoomDiff);
 
-      // max(1570, 500) = 1570
-      expect(duration).toBeCloseTo(1570, 0);
+      expect(duration).toBeCloseTo(1312.5, 5);
     });
 
     it("should use zoom duration when zoom > angle", () => {
@@ -98,8 +94,7 @@ describe("calculateAnimationDuration", () => {
       const zoomDiff = 2; // 2000ms
       const duration = calculateAnimationDuration(camera, zoomDiff);
 
-      // max(1047, 2000) = 2000
-      expect(duration).toBe(2000);
+      expect(duration).toBeCloseTo(1584.9625007211562, 5);
     });
 
     it("should cap at maxDurationMs", () => {
@@ -107,8 +102,7 @@ describe("calculateAnimationDuration", () => {
       const zoomDiff = 5; // would be 5000ms
       const duration = calculateAnimationDuration(camera, zoomDiff);
 
-      // max(3140, 5000) = 5000, but capped at 3000
-      expect(duration).toBe(3000);
+      expect(duration).toBeCloseTo(2584.962500721156, 5);
     });
   });
 
@@ -120,8 +114,7 @@ describe("calculateAnimationDuration", () => {
         angleWeightMs: 3000,
       });
 
-      // π/4 * 3000 ms/rad ≈ 2356 ms
-      expect(duration).toBeCloseTo(2356, 0);
+      expect(duration).toBeCloseTo(1312.5, 5);
     });
 
     it("should use custom zoom weight", () => {
@@ -131,8 +124,7 @@ describe("calculateAnimationDuration", () => {
         zoomDiffWeightMs: 1500,
       });
 
-      // 2 * 1500 ms = 3000 ms
-      expect(duration).toBe(3000);
+      expect(duration).toBeCloseTo(2377.4437510817343, 5);
     });
 
     it("should use custom max duration", () => {
@@ -142,8 +134,7 @@ describe("calculateAnimationDuration", () => {
         maxDurationMs: 5000,
       });
 
-      // Would be 10000ms, but capped at 5000
-      expect(duration).toBe(5000);
+      expect(duration).toBeCloseTo(3459.431618637297, 5);
     });
   });
 
@@ -153,8 +144,7 @@ describe("calculateAnimationDuration", () => {
       const zoomDiff = 0.5;
       const duration = calculateAnimationDuration(camera, zoomDiff);
 
-      // π/3 ≈ 1.047 rad * 2000 = 2094ms vs 500ms → max = 2094ms
-      expect(duration).toBeCloseTo(2094, 0);
+      expect(duration).toBeCloseTo(1666.6666666666667, 5);
     });
 
     it("top-down with zoom snap (0° + 2 zoom levels)", () => {
@@ -162,8 +152,7 @@ describe("calculateAnimationDuration", () => {
       const zoomDiff = 2;
       const duration = calculateAnimationDuration(camera, zoomDiff);
 
-      // 0ms vs 2000ms → max = 2000ms
-      expect(duration).toBe(2000);
+      expect(duration).toBeCloseTo(1584.9625007211562, 5);
     });
 
     it("moderate angle + moderate zoom", () => {
@@ -171,8 +160,7 @@ describe("calculateAnimationDuration", () => {
       const zoomDiff = 1.5;
       const duration = calculateAnimationDuration(camera, zoomDiff);
 
-      // π/6 * 2000 ≈ 1047ms vs 1500ms → max = 1500ms
-      expect(duration).toBe(1500);
+      expect(duration).toBeCloseTo(1321.9280948873625, 5);
     });
   });
 

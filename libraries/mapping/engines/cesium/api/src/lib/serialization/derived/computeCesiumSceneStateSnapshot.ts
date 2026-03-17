@@ -16,12 +16,21 @@ import type {
   CameraLike,
   FrustumLike,
   SceneCameraSnapshot,
+  SceneColorSnapshot,
+  SceneLightingSnapshot,
   SceneLike,
   SceneStateOptions,
   SceneStateSnapshot,
 } from "@carma/types";
 import type { CssPixels, Meters, Radians } from "@carma/units/types";
-import { Cartesian3, PerspectiveFrustum } from "../../cesium";
+import {
+  Cartesian3,
+  JulianDate,
+  Matrix3,
+  PerspectiveFrustum,
+  Simon1994PlanetaryPositions,
+  Transforms,
+} from "../../cesium";
 import {
   captureCurrentCameraState,
   isValidCamera,
@@ -37,6 +46,106 @@ import {
 
 const DEFAULT_FALLBACK_HEIGHT_M = 200;
 const MIN_BASIS_VECTOR_LENGTH = 1e-6;
+const SCENE_LIGHT_DISTANCE_SCALE = 1e-6;
+
+const readSceneColorSnapshot = (
+  color: unknown
+): SceneColorSnapshot | undefined => {
+  if (!color || typeof color !== "object") {
+    return undefined;
+  }
+
+  const candidate = color as {
+    red?: unknown;
+    green?: unknown;
+    blue?: unknown;
+    alpha?: unknown;
+    r?: unknown;
+    g?: unknown;
+    b?: unknown;
+    a?: unknown;
+  };
+  const red = candidate.red ?? candidate.r;
+  const green = candidate.green ?? candidate.g;
+  const blue = candidate.blue ?? candidate.b;
+  const alpha = candidate.alpha ?? candidate.a;
+
+  if (
+    !isFiniteNumber(red) ||
+    !isFiniteNumber(green) ||
+    !isFiniteNumber(blue)
+  ) {
+    return undefined;
+  }
+
+  return {
+    red,
+    green,
+    blue,
+    ...(isFiniteNumber(alpha) ? { alpha } : {}),
+  };
+};
+
+const readSceneLightingSnapshot = ({
+  scene,
+  referencePointWorld,
+}: {
+  scene: SceneLike;
+  referencePointWorld: Vec3;
+}
+): SceneLightingSnapshot | undefined => {
+  const light = scene.light as
+    | {
+        color?: unknown;
+        intensity?: unknown;
+        constructor?: { name?: unknown };
+      }
+    | undefined;
+  const frameTime = (scene as { frameState?: { time?: unknown } }).frameState
+    ?.time as JulianDate | undefined;
+  const resolvedTime = frameTime ?? JulianDate.now();
+  const icrfToFixed = Transforms.computeIcrfToFixedMatrix(resolvedTime);
+  if (!icrfToFixed) {
+    return undefined;
+  }
+
+  const sunPositionInertial =
+    Simon1994PlanetaryPositions.computeSunPositionInEarthInertialFrame(
+      resolvedTime,
+      new Cartesian3()
+    );
+  const sunPositionFixed = Matrix3.multiplyByVector(
+    icrfToFixed,
+    sunPositionInertial,
+    new Cartesian3()
+  );
+  const referencePointEcef = Cartesian3.fromElements(
+    referencePointWorld.x,
+    referencePointWorld.y,
+    referencePointWorld.z,
+    new Cartesian3()
+  );
+  const sunOffsetEnu = getEastNorthUpOffset(sunPositionFixed, referencePointEcef);
+  const sunPositionWorld = new Vector3(
+    sunOffsetEnu.east * SCENE_LIGHT_DISTANCE_SCALE,
+    sunOffsetEnu.up * SCENE_LIGHT_DISTANCE_SCALE,
+    -sunOffsetEnu.north * SCENE_LIGHT_DISTANCE_SCALE
+  ) satisfies Vec3;
+  const color = readSceneColorSnapshot(light?.color);
+  const intensity = isFiniteNumber(light?.intensity)
+    ? light.intensity
+    : undefined;
+  const source = "Sun";
+
+  return {
+    mainDirectionalLight: {
+      ...(source ? { source } : {}),
+      positionWorld: sunPositionWorld,
+      ...(color ? { color } : {}),
+      ...(isFiniteNumber(intensity) ? { intensity } : {}),
+    },
+  };
+};
 
 const readAspectRatio = (
   scene: SceneLike,
@@ -460,7 +569,7 @@ const buildSceneCameraSnapshotFromCapturedState = (
     ...exterior,
     cartographic: toSceneStateCartographicRad(capturedState.cartographic),
     ...(isFiniteNumber(capturedState.heading)
-      ? { headingRad: capturedState.heading }
+      ? { bearingRad: capturedState.heading }
       : {}),
     ...(isFiniteNumber(capturedState.pitch)
       ? { pitchRad: capturedState.pitch }
@@ -515,7 +624,7 @@ const readFallbackCameraSnapshot = (
     ...(worldRight ? { worldRight } : {}),
     ...(worldQuaternion ? { worldQuaternion } : {}),
     cartographic,
-    ...(isFiniteNumber(camera.heading) ? { headingRad: camera.heading } : {}),
+    ...(isFiniteNumber(camera.heading) ? { bearingRad: camera.heading } : {}),
     ...(isFiniteNumber(camera.pitch) ? { pitchRad: camera.pitch } : {}),
     ...(isFiniteNumber(camera.roll) ? { rollRad: camera.roll } : {}),
     ...(matrixWorld ? { matrixWorld, inverseViewMatrix: matrixWorld } : {}),
@@ -554,6 +663,17 @@ const buildCameraModel = ({
     orbitPoint.worldPosition.z,
     new Cartesian3()
   );
+  // Reconstruct the shared object-centric orbit state directly from world
+  // coordinates: anchor WC + camera WC -> anchor-centered ENU offset. This
+  // intentionally avoids relying on Cesium's camera heading/pitch getters or
+  // any transient HeadingPitchRange state on the camera object, because those
+  // angle views are tied to Cesium-specific ENU origins and become ambiguous
+  // near nadir.
+  // The shared object-centric ENU frame is centered at the orbit/reference
+  // point itself, i.e. at the ECEF position corresponding to
+  // (longitude, latitude, h). Here h is the geodetic / ellipsoidal height of
+  // the anchor, not an extra offset above some separate EN plane on the
+  // ellipsoid surface.
   const offsetAtAnchorEnu = getEastNorthUpOffset(
     cameraPosition,
     anchorPosition
@@ -570,14 +690,19 @@ const buildCameraModel = ({
   // Cesium HeadingPitchRange heading describes the viewing azimuth, not the
   // raw anchor->camera offset. lookAt() negates the offset internally, so the
   // heading must be derived from the target-facing direction here as well.
-  const objectCentricHeading = Math.atan2(
+  const objectCentricBearing = Math.atan2(
     -offsetAtAnchorEnu.east,
     -offsetAtAnchorEnu.north
   );
-  const objectCentricPitch = -Math.atan2(
+  const cesiumObjectCentricPitch = -Math.atan2(
     offsetAtAnchorEnu.up,
     horizontalDistance
   );
+  // Cesium HeadingPitchRange pitch is measured from the local EN plane:
+  // -PI/2 = nadir, 0 = horizon. The shared camera model stores object-centric
+  // pitch in the MapLibre-style orbit convention:
+  // 0 = nadir, +PI/2 = horizon.
+  const objectCentricPitch = (cesiumObjectCentricPitch + Math.PI * 0.5) as Radians;
 
   const intrinsics: CameraIntrinsics = {
     ...(cameraSnapshot.type ? { type: cameraSnapshot.type } : {}),
@@ -642,10 +767,12 @@ const buildCameraModel = ({
       anchor: {
         longitude: orbitPoint.cartographic.longitude,
         latitude: orbitPoint.cartographic.latitude,
+        // Cesium cartographic height is geodetic / ellipsoidal height h.
+        // The shared anchor altitude intentionally preserves that meaning.
         altitude: orbitPoint.cartographic.altitude,
       },
-      heading: objectCentricHeading as Radians,
-      pitch: objectCentricPitch as Radians,
+      bearing: objectCentricBearing as Radians,
+      pitch: objectCentricPitch,
       range: rangeMeters as Meters,
       ...(isFiniteNumber(cameraSnapshot.rollRad)
         ? { roll: cameraSnapshot.rollRad as Radians }
@@ -733,6 +860,10 @@ export const computeCesiumSceneStateSnapshot = (
     cameraSnapshot,
     orbitPoint,
   });
+  const lighting = readSceneLightingSnapshot({
+    scene,
+    referencePointWorld: orbitPoint?.worldPosition ?? cameraSnapshot.worldPosition,
+  });
 
   return {
     frameNumber: metadata.frameNumber,
@@ -742,5 +873,6 @@ export const computeCesiumSceneStateSnapshot = (
       ...(cameraModel ? { cameraModel } : {}),
     },
     orbitPoint,
+    ...(lighting ? { lighting } : {}),
   };
 };

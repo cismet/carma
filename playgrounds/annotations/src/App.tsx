@@ -2,7 +2,6 @@ import { useState } from "react";
 
 import { AnnotationsRuntimeV1Page } from "./components/AnnotationsRuntimeV1Page";
 import { AnnotationsRuntimeV2Page } from "./components/AnnotationsRuntimeV2Page";
-import { PlaygroundControls } from "./components/PlaygroundControls";
 import {
   persistRuntimeVersion,
   readInitialRuntimeVersion,
@@ -19,17 +18,15 @@ export const App = () => {
     persistRuntimeVersion(nextRuntimeVersion);
   };
 
-  return (
-    <>
-      <PlaygroundControls
-        runtimeVersion={runtimeVersion}
-        onRuntimeVersionChange={handleRuntimeVersionChange}
-      />
-      {runtimeVersion === "v2" ? (
-        <AnnotationsRuntimeV2Page />
-      ) : (
-        <AnnotationsRuntimeV1Page />
-      )}
-    </>
+  return runtimeVersion === "v2" ? (
+    <AnnotationsRuntimeV2Page
+      runtimeVersion={runtimeVersion}
+      onRuntimeVersionChange={handleRuntimeVersionChange}
+    />
+  ) : (
+    <AnnotationsRuntimeV1Page
+      runtimeVersion={runtimeVersion}
+      onRuntimeVersionChange={handleRuntimeVersionChange}
+    />
   );
 };

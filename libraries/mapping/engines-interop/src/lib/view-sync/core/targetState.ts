@@ -16,14 +16,26 @@ const MAPLIBRE_TILE_SIZE_PX = 512;
 const LEAFLET_TILE_SIZE_PX = 256;
 const MIN_RANGE_M = 0.01;
 const MIN_TAN_HALF_FOV = 1e-6;
+const HALF_PI = Math.PI * 0.5;
 
 const isFiniteNumber = (value: unknown): value is number =>
   typeof value === "number" && Number.isFinite(value);
 
-const normalizeHeadingDeg = (headingDeg: number): number => {
-  const normalized = headingDeg % 360;
+const normalizeBearingDeg = (bearingDeg: number): number => {
+  const normalized = bearingDeg % 360;
   return normalized < 0 ? normalized + 360 : normalized;
 };
+
+// Cesium HeadingPitchRange pitch is measured from the local EN plane:
+// -PI/2 = nadir, 0 = horizon. The shared view-sync pitch uses the MapLibre-style
+// orbit convention: 0 = nadir, +PI/2 = horizon.
+export const toViewSyncPitchFromCesiumPitch = (
+  cesiumPitch: number
+): Radians => (cesiumPitch + HALF_PI) as Radians;
+
+export const toCesiumPitchFromViewSyncPitch = (
+  viewSyncPitch: number
+): Radians => (viewSyncPitch - HALF_PI) as Radians;
 
 export const getHorizontalFovFromVertical = ({
   fovVertical,
@@ -160,24 +172,30 @@ export const readViewSyncTargetFromSceneState = (
   sceneState: SceneStateSnapshot | null | undefined
 ): ViewSyncTargetState | null => {
   const objectCentricPose = sceneState?.camera.cameraModel?.pose;
+  // Prefer the shared object-centric camera model when present. It carries the
+  // richer camera pose payload (basis / quaternion / matrices) alongside the
+  // orbit-style convenience fields. Raw bearing/pitch/roll remain a fallback
+  // only; near nadir those Euler-style angles can lose a stable azimuth.
   const hasObjectCentricPose =
     !!objectCentricPose &&
     !!objectCentricPose.anchor &&
     isFiniteNumber(objectCentricPose.anchor.longitude) &&
     isFiniteNumber(objectCentricPose.anchor.latitude) &&
     isFiniteNumber(objectCentricPose.anchor.altitude) &&
-    isFiniteNumber(objectCentricPose.heading) &&
+    isFiniteNumber(objectCentricPose.bearing) &&
     isFiniteNumber(objectCentricPose.pitch) &&
     isFiniteNumber(objectCentricPose.range);
   const anchor = hasObjectCentricPose
     ? objectCentricPose.anchor
     : sceneState?.orbitPoint?.cartographic;
-  const heading = hasObjectCentricPose
-    ? objectCentricPose.heading
-    : sceneState?.camera.headingRad;
+  const bearing = hasObjectCentricPose
+    ? objectCentricPose.bearing
+    : sceneState?.camera.bearingRad;
   const pitch = hasObjectCentricPose
     ? objectCentricPose.pitch
-    : sceneState?.camera.pitchRad;
+    : isFiniteNumber(sceneState?.camera.pitchRad)
+      ? toViewSyncPitchFromCesiumPitch(sceneState.camera.pitchRad)
+      : sceneState?.camera.pitchRad;
   const rangeM = hasObjectCentricPose
     ? objectCentricPose.range
     : sceneState
@@ -189,7 +207,7 @@ export const readViewSyncTargetFromSceneState = (
     !isFiniteNumber(anchor.longitude) ||
     !isFiniteNumber(anchor.latitude) ||
     !isFiniteNumber(anchor.altitude) ||
-    !isFiniteNumber(heading) ||
+    !isFiniteNumber(bearing) ||
     !isFiniteNumber(pitch) ||
     !isFiniteNumber(rangeM)
   ) {
@@ -202,8 +220,12 @@ export const readViewSyncTargetFromSceneState = (
       latitude: anchor.latitude,
       altitude: anchor.altitude,
     },
-    headingPitchRange: {
-      heading: heading as Radians,
+    bearingPitchRange: {
+      // Keep publishing bearing/pitch/range because downstream engines and UI
+      // controls project from this compact orbit view. Treat it as a derived
+      // interop surface, not as a stronger orientation source than the stored
+      // cameraModel pose when full-basis comparison is needed.
+      bearing: bearing as Radians,
       pitch: pitch as Radians,
       range: rangeM as Meters,
     },
@@ -260,7 +282,7 @@ export const projectViewSyncTargetToMapLibre = ({
   }
 
   const metersPerCssPixel = readMetersPerCssPixel({
-    rangeM: target.headingPitchRange.range,
+    rangeM: target.bearingPitchRange.range,
     fovRad: resolvedFovVertical,
     viewport,
   });
@@ -281,13 +303,10 @@ export const projectViewSyncTargetToMapLibre = ({
     lng: radToDegNumeric(target.anchor.longitude),
     lat: radToDegNumeric(target.anchor.latitude),
     zoom,
-    bearing: normalizeHeadingDeg(
-      radToDegNumeric(target.headingPitchRange.heading)
+    bearing: normalizeBearingDeg(
+      radToDegNumeric(target.bearingPitchRange.bearing)
     ),
-    pitch: Math.min(
-      90 + radToDegNumeric(target.headingPitchRange.pitch),
-      maxPitchDeg
-    ),
+    pitch: Math.min(radToDegNumeric(target.bearingPitchRange.pitch), maxPitchDeg),
   };
 };
 
@@ -296,13 +315,13 @@ export const projectViewSyncTargetToLeaflet = ({
   viewport,
   fovVertical,
   tileSizePx = LEAFLET_TILE_SIZE_PX,
-  includeHeading = false,
+  includeBearing = false,
 }: {
   target: ViewSyncTargetState;
   viewport: ViewSyncViewport;
   fovVertical?: number;
   tileSizePx?: number;
-  includeHeading?: boolean;
+  includeBearing?: boolean;
 }): ViewSyncLeafletProjection | null => {
   const resolvedFovVertical = fovVertical ?? readViewSyncVerticalFov(target);
   if (!isFiniteNumber(resolvedFovVertical)) {
@@ -310,7 +329,7 @@ export const projectViewSyncTargetToLeaflet = ({
   }
 
   const metersPerCssPixel = readMetersPerCssPixel({
-    rangeM: target.headingPitchRange.range,
+    rangeM: target.bearingPitchRange.range,
     fovRad: resolvedFovVertical,
     viewport,
   });
@@ -333,10 +352,10 @@ export const projectViewSyncTargetToLeaflet = ({
       lng: radToDegNumeric(target.anchor.longitude),
     },
     zoom,
-    ...(includeHeading
+    ...(includeBearing
       ? {
-          headingDeg: normalizeHeadingDeg(
-            radToDegNumeric(target.headingPitchRange.heading)
+          bearingDeg: normalizeBearingDeg(
+            radToDegNumeric(target.bearingPitchRange.bearing)
           ),
         }
       : {}),
@@ -391,9 +410,9 @@ export const projectMapLibreViewToViewSyncTarget = ({
       latitude: latitudeRad,
       altitude: anchorAltitudeM as ViewSyncTargetState["anchor"]["altitude"],
     },
-    headingPitchRange: {
-      heading: degToRadNumeric(bearingDeg) as Radians,
-      pitch: degToRadNumeric(pitchDeg - 90) as Radians,
+    bearingPitchRange: {
+      bearing: degToRadNumeric(bearingDeg) as Radians,
+      pitch: degToRadNumeric(pitchDeg) as Radians,
       range: rangeM as Meters,
     },
     ...(viewport.widthPx > 0 && viewport.heightPx > 0
@@ -421,7 +440,7 @@ export const projectLeafletViewToViewSyncTarget = ({
   anchorAltitudeM,
   viewport,
   fovVertical,
-  headingDeg = 0,
+  bearingDeg = 0,
   tileSizePx = LEAFLET_TILE_SIZE_PX,
 }: {
   lngDeg: number;
@@ -430,7 +449,7 @@ export const projectLeafletViewToViewSyncTarget = ({
   anchorAltitudeM: number;
   viewport: ViewSyncViewport;
   fovVertical: number;
-  headingDeg?: number;
+  bearingDeg?: number;
   tileSizePx?: number;
 }): ViewSyncTargetState | null => {
   const latitudeRad = degToRadNumeric(latDeg) as Radians;
@@ -460,9 +479,9 @@ export const projectLeafletViewToViewSyncTarget = ({
       latitude: latitudeRad,
       altitude: anchorAltitudeM as ViewSyncTargetState["anchor"]["altitude"],
     },
-    headingPitchRange: {
-      heading: degToRadNumeric(headingDeg) as Radians,
-      pitch: (-Math.PI * 0.5) as Radians,
+    bearingPitchRange: {
+      bearing: degToRadNumeric(bearingDeg) as Radians,
+      pitch: 0 as Radians,
       range: rangeM as Meters,
     },
     ...(viewport.widthPx > 0 && viewport.heightPx > 0

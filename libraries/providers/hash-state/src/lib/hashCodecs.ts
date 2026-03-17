@@ -1,32 +1,24 @@
 import { HashCodec, HashCodecs } from "./HashStateProvider";
-import {
-  cesiumCameraHashCodec,
-  DEFAULT_CESIUM_CAMERA_HASH_ALIAS,
-  DEFAULT_CESIUM_CAMERA_HASH_KEY,
-} from "./cesiumCameraHashCodec";
 
 export const defaultHashKeyAliases = {
   mapStyle: "m",
   isOblique: "oblq",
-  isCesium: "is3d",
-  [DEFAULT_CESIUM_CAMERA_HASH_KEY]: DEFAULT_CESIUM_CAMERA_HASH_ALIAS,
+  bearing: "b",
+  pitch: "p",
+  altitude: "h",
 };
 
 export const defaultHashKeyOrder: string[] = [
-  DEFAULT_CESIUM_CAMERA_HASH_ALIAS,
   "lat",
   "lng",
   "zoom",
-  "bearing",
-  "pitch",
-  "altitude",
-  "range",
+  "b",
+  "p",
   "h",
-  "heading",
-  "roll",
   "fov",
   "m",
-  "isOblique",
+  "oblq",
+  "is3d",
 ];
 
 // TODO move to a shared location
@@ -77,14 +69,12 @@ const getNumberCodec = (fixed?: number, trailingZeros = false): HashCodec => ({
 });
 
 export const defaultHashCodecs: HashCodecs = Object.freeze({
-  [DEFAULT_CESIUM_CAMERA_HASH_KEY]: cesiumCameraHashCodec as HashCodec,
   mapStyle: getStringLookupCodec(mapStyleShortNames),
   lat: getNumberCodec(7),
   lng: getNumberCodec(7),
-  zoom: getNumberCodec(2),
+  zoom: getNumberCodec(3),
   altitude: getNumberCodec(2),
-  range: getNumberCodec(2),
-  heading: getNumberCodec(2),
   bearing: getNumberCodec(2), // bearing is used by maplibre
   pitch: getNumberCodec(2),
+  fov: getNumberCodec(2),
 });

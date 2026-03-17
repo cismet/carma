@@ -2,72 +2,77 @@ import { useCallback, useEffect, useMemo, useRef } from "react";
 import type { SceneStateSnapshot } from "@carma/types";
 import { useHashState } from "./HashStateProvider";
 import {
-  DEFAULT_CESIUM_CAMERA_HASH_ALIAS,
-  DEFAULT_CESIUM_CAMERA_ALTITUDE_HASH_KEY,
-  DEFAULT_CESIUM_CAMERA_HASH_KEY,
-  cesiumCameraHashCodec,
-  readCesiumCarmaCameraCentricHashParams,
-  readCesiumCameraHashSnapshot,
-  readCesiumCameraHashSnapshotFromSceneState,
-  readCesiumMapLibreCameraCentricHashParams,
-  readCesiumMapLibreCompatHashParams,
-  type CesiumCameraAnchorMode,
-  type CesiumCameraHashEncodeScheme,
-  type CesiumCameraLike,
-  type CesiumSceneLike,
-} from "./cesiumCameraHashCodec";
+  DEFAULT_SCENE_DESCRIPTOR_ALTITUDE_HASH_KEY,
+  DEFAULT_SCENE_DESCRIPTOR_HASH_ALIAS,
+  DEFAULT_SCENE_DESCRIPTOR_HASH_KEY,
+  sceneDescriptorHashCodec,
+  type SceneDescriptorHashEncodeScheme,
+} from "./sceneDescriptorHashCodec";
+import {
+  readMapLibreCompatHashParamsFromSceneAdapter,
+  readSceneDescriptorHashSnapshotFromSceneAdapter,
+  readSceneDescriptorHashSnapshotFromSceneState,
+  type SceneDescriptorHashSyncCameraLike,
+  type SceneDescriptorHashSyncSceneLike,
+} from "./sceneDescriptorHashCesiumAdapter";
+import type { SceneDescriptorAnchorMode } from "./sceneDescriptorHashSceneStateAdapter";
 
-type CesiumEventLike = {
+export type {
+  SceneDescriptorHashSyncCameraLike,
+  SceneDescriptorHashSyncSceneLike,
+} from "./sceneDescriptorHashCesiumAdapter";
+
+type SceneDescriptorSyncEventLike = {
   addEventListener: (listener: () => void) => void;
   removeEventListener: (listener: () => void) => void;
 };
 
-export const DEFAULT_CESIUM_CAMERA_CLEAR_KEYS = [
+export const DEFAULT_SCENE_DESCRIPTOR_HASH_CLEAR_KEYS = [
   "lat",
   "lng",
   "zoom",
   "altitude",
-  "range",
   "bearing",
   "pitch",
-  "h",
-  "heading",
-  "roll",
   "fov",
+  "is2d",
+  "is3d",
   "camera3d",
   "c3",
 ] as const;
 
-export type UseCesiumCameraHashPluginOptions = {
+export type UseSceneDescriptorHashSyncOptions = {
   sceneState?: SceneStateSnapshot | null;
-  scene?: CesiumSceneLike | null;
-  camera?: CesiumCameraLike | null;
+  scene?: SceneDescriptorHashSyncSceneLike | null;
+  camera?: SceneDescriptorHashSyncCameraLike | null;
   enabled?: boolean;
   hashKey?: string;
   hashAlias?: string;
-  encodeScheme?: CesiumCameraHashEncodeScheme;
-  includeIsCesiumFlag?: boolean;
-  isCesiumFlagKey?: string;
-  isCesiumFlagValue?: number | string;
+  encodeScheme?: SceneDescriptorHashEncodeScheme;
+  includeIs3dFlag?: boolean;
+  is3dFlagKey?: string;
+  is3dFlagValue?: number | string;
   clearKeys?: string[];
   replace?: boolean;
   label?: string;
-  anchorMode?: CesiumCameraAnchorMode;
+  anchorMode?: SceneDescriptorAnchorMode;
   fallbackHeightM?: number;
   minUpdateIntervalMs?: number;
   altitudeKey?: string;
   rangeKey?: string;
+  includeAltitude?: boolean;
+  defaultFovDeg?: number;
   mapLibreMinPitchDeg?: number;
   mapLibreMaxPitchDeg?: number;
 };
 
 const nowMs = (): number => Date.now();
 
-const resolveCesiumCameraEvent = (
-  scene: CesiumSceneLike | null | undefined,
-  camera: CesiumCameraLike
-): CesiumEventLike | null => {
-  const cameraMoveEnd = (camera as { moveEnd?: CesiumEventLike }).moveEnd;
+const resolveSceneDescriptorSyncEvent = (
+  scene: SceneDescriptorHashSyncSceneLike | null | undefined,
+  camera: SceneDescriptorHashSyncCameraLike
+): SceneDescriptorSyncEventLike | null => {
+  const cameraMoveEnd = (camera as { moveEnd?: SceneDescriptorSyncEventLike }).moveEnd;
   if (
     cameraMoveEnd &&
     typeof cameraMoveEnd.addEventListener === "function" &&
@@ -76,7 +81,7 @@ const resolveCesiumCameraEvent = (
     return cameraMoveEnd;
   }
 
-  const cameraChanged = (camera as { changed?: CesiumEventLike }).changed;
+  const cameraChanged = (camera as { changed?: SceneDescriptorSyncEventLike }).changed;
   if (
     cameraChanged &&
     typeof cameraChanged.addEventListener === "function" &&
@@ -86,7 +91,7 @@ const resolveCesiumCameraEvent = (
   }
 
   const scenePostRender = scene
-    ? (scene as { postRender?: CesiumEventLike }).postRender
+    ? (scene as { postRender?: SceneDescriptorSyncEventLike }).postRender
     : undefined;
   if (
     scenePostRender &&
@@ -107,90 +112,54 @@ const readSchemeClearKeys = ({
   hashKey,
   hashAlias,
   altitudeKey,
-  rangeKey,
 }: {
-  encodeScheme: CesiumCameraHashEncodeScheme;
+  encodeScheme: SceneDescriptorHashEncodeScheme;
   hashKey: string;
   hashAlias: string;
   altitudeKey: string;
-  rangeKey: string;
 }): string[] => {
-  if (encodeScheme === "carma-camera-centric") {
-    return toUniqueKeys([
-      hashKey,
-      hashAlias,
-      altitudeKey,
-      rangeKey,
-      "zoom",
-      "bearing",
-    ]);
-  }
-
-  if (encodeScheme === "maplibre-object-centric") {
-    return toUniqueKeys([
-      hashKey,
-      hashAlias,
-      altitudeKey,
-      rangeKey,
-      "h",
-      "heading",
-      "roll",
-      "fov",
-    ]);
-  }
-
-  if (encodeScheme === "maplibre-camera-centric") {
-    return toUniqueKeys([
-      hashKey,
-      hashAlias,
-      altitudeKey,
-      rangeKey,
-      "h",
-      "heading",
-      "roll",
-      "fov",
-    ]);
-  }
-
   return toUniqueKeys([
     hashKey,
     hashAlias,
+    altitudeKey,
     "lat",
     "lng",
     "zoom",
-    altitudeKey,
-    rangeKey,
     "bearing",
     "pitch",
-    "h",
-    "heading",
-    "roll",
     "fov",
+    "is2d",
+    "is3d",
   ]);
 };
 
-export const useCesiumCameraHashPlugin = ({
+export const useSceneDescriptorHashSync = ({
   sceneState,
   scene,
   camera,
   enabled = true,
-  hashKey = DEFAULT_CESIUM_CAMERA_HASH_KEY,
-  hashAlias = DEFAULT_CESIUM_CAMERA_HASH_ALIAS,
-  encodeScheme = "carma-object-centric",
-  includeIsCesiumFlag = true,
-  isCesiumFlagKey = "isCesium",
-  isCesiumFlagValue = 1,
+  hashKey = DEFAULT_SCENE_DESCRIPTOR_HASH_KEY,
+  hashAlias = DEFAULT_SCENE_DESCRIPTOR_HASH_ALIAS,
+  encodeScheme = "carma-maplibre-plus-elevation",
+  includeIs3dFlag = true,
+  is3dFlagKey = "is3d",
+  is3dFlagValue = 1,
   clearKeys,
   replace = true,
-  label = "Cesium:camera",
+  label = "SceneDescriptor:camera",
   anchorMode = "screen-center",
   fallbackHeightM = 200,
   minUpdateIntervalMs = 100,
-  altitudeKey = DEFAULT_CESIUM_CAMERA_ALTITUDE_HASH_KEY,
+  altitudeKey = DEFAULT_SCENE_DESCRIPTOR_ALTITUDE_HASH_KEY,
   rangeKey = "range",
+  includeAltitude = false,
+  defaultFovDeg,
   mapLibreMinPitchDeg = 0,
   mapLibreMaxPitchDeg = 85,
-}: UseCesiumCameraHashPluginOptions): void => {
+}: UseSceneDescriptorHashSyncOptions): void => {
+  void rangeKey;
+  void includeAltitude;
+
   const { updateHash } = useHashState();
   const lastEncodedRef = useRef<string | undefined>(undefined);
   const lastUpdateTsRef = useRef<number>(0);
@@ -202,16 +171,15 @@ export const useCesiumCameraHashPlugin = ({
           hashKey,
           hashAlias,
           altitudeKey,
-          rangeKey,
         }),
-        ...(clearKeys ?? DEFAULT_CESIUM_CAMERA_CLEAR_KEYS),
+        ...(clearKeys ?? DEFAULT_SCENE_DESCRIPTOR_HASH_CLEAR_KEYS),
       ]),
-    [altitudeKey, clearKeys, encodeScheme, hashAlias, hashKey, rangeKey]
+    [altitudeKey, clearKeys, encodeScheme, hashAlias, hashKey]
   );
 
   const writeCameraHash = useCallback(
     (replaceHash: boolean) => {
-      const snapshotFromSceneState = readCesiumCameraHashSnapshotFromSceneState(
+      const snapshotFromSceneState = readSceneDescriptorHashSnapshotFromSceneState(
         {
           sceneState,
           anchorMode,
@@ -223,7 +191,7 @@ export const useCesiumCameraHashPlugin = ({
       const snapshot =
         snapshotFromSceneState ??
         (resolvedCamera
-          ? readCesiumCameraHashSnapshot({
+          ? readSceneDescriptorHashSnapshotFromSceneAdapter({
               camera: resolvedCamera,
               scene,
               anchorMode,
@@ -234,7 +202,7 @@ export const useCesiumCameraHashPlugin = ({
         return;
       }
 
-      const encoded = cesiumCameraHashCodec.encode(snapshot);
+      const encoded = sceneDescriptorHashCodec.encode(snapshot);
       if (!encoded) {
         return;
       }
@@ -244,48 +212,22 @@ export const useCesiumCameraHashPlugin = ({
       lastEncodedRef.current = encoded;
 
       const params: Record<string, unknown> = {};
-      if (encodeScheme === "carma-camera-centric") {
-        Object.assign(
-          params,
-          readCesiumCarmaCameraCentricHashParams({
-            snapshot,
-            sceneState,
-            camera: resolvedCamera,
-            fallbackHeightM,
-          })
-        );
-      } else if (encodeScheme === "maplibre-object-centric") {
-        Object.assign(
-          params,
-          readCesiumMapLibreCompatHashParams({
-            snapshot,
-            sceneState,
-            scene,
-            camera: resolvedCamera,
-            includeAltitude: false,
-            minPitchDeg: mapLibreMinPitchDeg,
-            maxPitchDeg: mapLibreMaxPitchDeg,
-          })
-        );
-      } else if (encodeScheme === "maplibre-camera-centric") {
-        Object.assign(
-          params,
-          readCesiumMapLibreCameraCentricHashParams({
-            snapshot,
-            sceneState,
-            scene,
-            camera: resolvedCamera,
-            includeAltitude: false,
-            fallbackHeightM,
-            minPitchDeg: mapLibreMinPitchDeg,
-            maxPitchDeg: mapLibreMaxPitchDeg,
-          })
-        );
-      } else {
-        params[hashKey] = snapshot;
-      }
-      if (includeIsCesiumFlag) {
-        params[isCesiumFlagKey] = isCesiumFlagValue;
+      Object.assign(
+        params,
+        readMapLibreCompatHashParamsFromSceneAdapter({
+          snapshot,
+          sceneState,
+          scene,
+          camera: resolvedCamera,
+          includeAltitude: true,
+          altitudeKey,
+          defaultFovDeg,
+          minPitchDeg: mapLibreMinPitchDeg,
+          maxPitchDeg: mapLibreMaxPitchDeg,
+        })
+      );
+      if (includeIs3dFlag) {
+        params[is3dFlagKey] = is3dFlagValue;
       }
 
       updateHash(params, {
@@ -300,10 +242,11 @@ export const useCesiumCameraHashPlugin = ({
       encodeScheme,
       fallbackHeightM,
       hashKey,
-      includeIsCesiumFlag,
-      isCesiumFlagKey,
-      isCesiumFlagValue,
+      includeIs3dFlag,
+      is3dFlagKey,
+      is3dFlagValue,
       label,
+      defaultFovDeg,
       mapLibreMinPitchDeg,
       mapLibreMaxPitchDeg,
       resolvedClearKeys,
@@ -339,7 +282,7 @@ export const useCesiumCameraHashPlugin = ({
 
     writeCameraHash(true);
 
-    const event = resolveCesiumCameraEvent(scene, resolvedCamera);
+    const event = resolveSceneDescriptorSyncEvent(scene, resolvedCamera);
     if (!event) {
       return;
     }

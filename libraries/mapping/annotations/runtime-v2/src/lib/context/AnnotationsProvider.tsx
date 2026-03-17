@@ -6,10 +6,20 @@ import {
   useMemo,
   useRef,
   useState,
+  useSyncExternalStore,
   type ReactNode,
 } from "react";
 
 import { Provider as ReduxProvider } from "react-redux";
+import {
+  Cartesian3,
+  getDegreesFromCartesian,
+  getEllipsoidalAltitudeOrZero,
+} from "@carma/cesium";
+import {
+  ANNOTATION_TYPE_AREA_VERTICAL,
+  buildVerticalRectangleCornerFromDiagonal,
+} from "@carma-mapping/annotations/core";
 
 import {
   useModeLifecycle,
@@ -43,6 +53,7 @@ import {
   useAnnotationsSelector,
   type AnnotationsStore,
   type AnnotationsStoreState,
+  type RuntimeAddAnnotationOptions,
   type RuntimeAnnotationEntry,
   type RuntimeCoordinate,
   type RuntimeEdge,
@@ -66,7 +77,8 @@ type AnnotationsRuntimeServices = {
   annotationsStore: AnnotationsStore;
   addAnnotation: (
     toolType: RuntimeMeasurement["toolType"],
-    coordinates: readonly RuntimeCoordinate[]
+    coordinates: readonly RuntimeCoordinate[],
+    options?: RuntimeAddAnnotationOptions
   ) => RuntimeMeasurement;
   setActiveToolType: (toolType: RuntimeToolId) => void;
   requestModeChange: (toolType: RuntimeToolId) => void;
@@ -146,8 +158,28 @@ const POINT_QUERY_PREVIEW_LAYER_ID = "runtime-point-query-preview";
 const POINT_TOOL_ID = "point";
 const DISTANCE_TOOL_ID = "distance";
 const POLYLINE_TOOL_ID = "polyline";
+const VERTICAL_AREA_TOOL_ID = ANNOTATION_TYPE_AREA_VERTICAL;
 const POINT_QUERY_DISC_RADIUS_METERS = 1;
 const NODE_LABEL_LONG_PRESS_DURATION_MS = 320;
+
+const cartesianFromRuntimeCoordinate = ({
+  longitude,
+  latitude,
+  altitude,
+}: RuntimeCoordinate): Cartesian3 =>
+  Cartesian3.fromDegrees(longitude, latitude, altitude);
+
+const runtimeCoordinateFromCartesian = (
+  coordinateECEF: Cartesian3
+): RuntimeCoordinate => {
+  const coordinateWgs84 = getDegreesFromCartesian(coordinateECEF);
+
+  return {
+    longitude: coordinateWgs84.longitude,
+    latitude: coordinateWgs84.latitude,
+    altitude: getEllipsoidalAltitudeOrZero(coordinateWgs84.altitude),
+  };
+};
 
 const isEditableKeyboardTarget = (target: EventTarget | null): boolean => {
   if (!(target instanceof HTMLElement)) {
@@ -165,12 +197,14 @@ const isEditableKeyboardTarget = (target: EventTarget | null): boolean => {
 const buildMeasurementEntities = ({
   toolType,
   coordinates,
+  options,
   measurementSequenceRef,
   nodeSequenceRef,
   edgeSequenceRef,
 }: {
   toolType: RuntimeMeasurement["toolType"];
   coordinates: readonly RuntimeCoordinate[];
+  options?: RuntimeAddAnnotationOptions;
   measurementSequenceRef: React.MutableRefObject<number>;
   nodeSequenceRef: React.MutableRefObject<number>;
   edgeSequenceRef: React.MutableRefObject<number>;
@@ -200,9 +234,23 @@ const buildMeasurementEntities = ({
       endNodeId: endNode.id,
     };
   });
+  if (options?.closed && nodes.length >= 3) {
+    const firstNode = nodes[0];
+    const lastNode = nodes[nodes.length - 1];
+
+    if (firstNode && lastNode) {
+      edgeSequenceRef.current += 1;
+      edges.push({
+        id: `edge-${edgeSequenceRef.current}`,
+        startNodeId: lastNode.id,
+        endNodeId: firstNode.id,
+      });
+    }
+  }
   const annotationEntry: RuntimeAnnotationEntry = {
     id: annotationEntryId,
     toolType,
+    ...options,
     nodeIds: nodes.map((node) => node.id),
     edgeIds: edges.map((edge) => edge.id),
   };
@@ -246,7 +294,108 @@ const buildPointQueryPreviewRenderLayer = ({
       ? state.draftState.distancePreviewCoordinates
       : activeToolType === POLYLINE_TOOL_ID
       ? state.draftState.polylinePreviewCoordinates
+      : activeToolType === VERTICAL_AREA_TOOL_ID
+      ? state.draftState.verticalAreaPreviewCoordinates
       : [];
+
+  if (activeToolType === VERTICAL_AREA_TOOL_ID) {
+    const firstCorner = activeDraftCoordinates[0] ?? null;
+
+    if (!firstCorner) {
+      return {
+        points,
+        edges: [],
+        pointLabels: [],
+      };
+    }
+
+    const firstCornerECEF = cartesianFromRuntimeCoordinate(firstCorner);
+    const oppositeCornerECEF = cartesianFromRuntimeCoordinate(hoverCoordinate);
+    const verticalCorners = buildVerticalRectangleCornerFromDiagonal(
+      firstCornerECEF,
+      oppositeCornerECEF
+    );
+
+    if (!verticalCorners) {
+      return {
+        points: [
+          {
+            id: `${POINT_QUERY_PREVIEW_LAYER_ID}-point-first`,
+            coordinate: firstCorner,
+            pixelSize: defaults.sizes.previewPointPixelSize,
+            fill: defaults.colors.preview,
+            outline: defaults.colors.surface,
+            outlineWidth: defaults.sizes.pointOutlineWidth,
+          },
+          ...points,
+        ],
+        edges: [
+          {
+            id: `${POINT_QUERY_PREVIEW_LAYER_ID}-edge`,
+            coordinates: [firstCorner, hoverCoordinate],
+            stroke: defaults.colors.preview,
+            strokeWidth: defaults.sizes.edgeStrokeWidth,
+            dashed: true,
+          },
+        ],
+        pointLabels: [],
+      };
+    }
+
+    const adjacentHorizontalCorner = runtimeCoordinateFromCartesian(
+      verticalCorners.adjacentHorizontalCorner
+    );
+    const adjacentVerticalCorner = runtimeCoordinateFromCartesian(
+      verticalCorners.adjacentVerticalCorner
+    );
+
+    return {
+      points: [
+        {
+          id: `${POINT_QUERY_PREVIEW_LAYER_ID}-point-first`,
+          coordinate: firstCorner,
+          pixelSize: defaults.sizes.previewPointPixelSize,
+          fill: defaults.colors.preview,
+          outline: defaults.colors.surface,
+          outlineWidth: defaults.sizes.pointOutlineWidth,
+        },
+        {
+          id: `${POINT_QUERY_PREVIEW_LAYER_ID}-point-horizontal`,
+          coordinate: adjacentHorizontalCorner,
+          pixelSize: defaults.sizes.previewPointPixelSize,
+          fill: defaults.colors.preview,
+          outline: defaults.colors.surface,
+          outlineWidth: defaults.sizes.pointOutlineWidth,
+        },
+        ...points,
+        {
+          id: `${POINT_QUERY_PREVIEW_LAYER_ID}-point-vertical`,
+          coordinate: adjacentVerticalCorner,
+          pixelSize: defaults.sizes.previewPointPixelSize,
+          fill: defaults.colors.preview,
+          outline: defaults.colors.surface,
+          outlineWidth: defaults.sizes.pointOutlineWidth,
+        },
+      ],
+      edges: [
+        {
+          id: `${POINT_QUERY_PREVIEW_LAYER_ID}-edge-vertical-area`,
+          coordinates: [
+            firstCorner,
+            adjacentHorizontalCorner,
+            hoverCoordinate,
+            adjacentVerticalCorner,
+            firstCorner,
+          ],
+          stroke: defaults.colors.preview,
+          strokeWidth: defaults.sizes.edgeStrokeWidth,
+          dashed: true,
+        },
+      ],
+      pointLabels: [],
+    };
+  }
+
   const activeDraftTailCoordinate =
     activeDraftCoordinates[activeDraftCoordinates.length - 1] ?? null;
   const edges = activeDraftTailCoordinate
@@ -312,7 +461,8 @@ const RuntimeInteractionHost = ({
   setActiveToolTypeInStore: (toolType: RuntimeToolId) => void;
   addAnnotation: (
     toolType: RuntimeMeasurement["toolType"],
-    coordinates: readonly RuntimeCoordinate[]
+    coordinates: readonly RuntimeCoordinate[],
+    options?: RuntimeAddAnnotationOptions
   ) => RuntimeMeasurement;
   setRenderLayer: (layerId: string, layer: RuntimeRenderLayer) => void;
   clearRenderLayer: (layerId: string) => void;
@@ -325,8 +475,10 @@ const RuntimeInteractionHost = ({
   const activeToolType = useAnnotationsSelector(
     (state) => state.annotationToolType
   );
-  const state = useAnnotationsSelector(
-    (annotationsState) => annotationsState as AnnotationsStoreState
+  const state = useSyncExternalStore(
+    annotationsStore.subscribe,
+    annotationsStore.getState,
+    annotationsStore.getState
   );
   const nodes = useAnnotationsSelector((annotationsState) => annotationsState.nodes);
   const [hoverCoordinate, setHoverCoordinate] =
@@ -579,8 +731,10 @@ const RuntimeVisualizationHost = ({
 }) => {
   useOverlayPositionSync(scene);
 
-  const state = useAnnotationsSelector(
-    (annotationsState) => annotationsState as AnnotationsStoreState
+  const state = useSyncExternalStore(
+    annotationsStore.subscribe,
+    annotationsStore.getState,
+    annotationsStore.getState
   );
   const nodes = useAnnotationsSelector(
     (annotationsState) => annotationsState.nodes
@@ -841,11 +995,13 @@ export const AnnotationsProvider = ({
   const addAnnotation = useCallback(
     (
       toolType: RuntimeMeasurement["toolType"],
-      coordinates: readonly RuntimeCoordinate[]
+      coordinates: readonly RuntimeCoordinate[],
+      options?: RuntimeAddAnnotationOptions
     ) => {
       const { annotationEntry, nodes, edges } = buildMeasurementEntities({
         toolType,
         coordinates,
+        options,
         measurementSequenceRef,
         nodeSequenceRef,
         edgeSequenceRef,

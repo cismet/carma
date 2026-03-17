@@ -5,6 +5,7 @@ import type {
   CustomRenderMethodInput,
 } from "maplibre-gl";
 import { MercatorCoordinate } from "maplibre-gl";
+import type { SceneColorSnapshot, SceneDirectionalLightSnapshot } from "@carma/types";
 import type {
   Carma3dConfig,
   MappedFeature,
@@ -15,6 +16,73 @@ import { mapFeatures, deduplicateFeatures } from "./featureMapper";
 
 // Wuppertal center as default Three.js origin
 const WUPPERTAL_CENTER: [number, number] = [7.150764, 51.256915];
+const DEFAULT_MAIN_LIGHT_COLOR = 0xfff8e8;
+const DEFAULT_MAIN_LIGHT_INTENSITY = 1.1;
+const DEFAULT_MAIN_LIGHT_POSITION = new THREE.Vector3(100, 300, 150);
+const DEFAULT_MAIN_LIGHT_DISTANCE = DEFAULT_MAIN_LIGHT_POSITION.length();
+
+const applySceneColorSnapshot = (
+  color: SceneColorSnapshot | undefined,
+  target: THREE.Color,
+  fallbackHex: number,
+) => {
+  if (!color) {
+    target.setHex(fallbackHex);
+    return;
+  }
+
+  target.setRGB(color.red, color.green, color.blue);
+};
+
+const applyMainDirectionalLight = (
+  light: THREE.DirectionalLight,
+  snapshot: SceneDirectionalLightSnapshot | undefined,
+) => {
+  const explicitPosition = snapshot?.positionWorld;
+  const directionWorld = snapshot?.directionWorld;
+
+  if (
+    explicitPosition &&
+    Number.isFinite(explicitPosition.x) &&
+    Number.isFinite(explicitPosition.y) &&
+    Number.isFinite(explicitPosition.z)
+  ) {
+    light.position.set(
+      explicitPosition.x,
+      explicitPosition.y,
+      explicitPosition.z,
+    );
+  } else if (
+    directionWorld &&
+    Number.isFinite(directionWorld.x) &&
+    Number.isFinite(directionWorld.y) &&
+    Number.isFinite(directionWorld.z)
+  ) {
+    const emittedDirection = new THREE.Vector3(
+      directionWorld.x,
+      directionWorld.y,
+      directionWorld.z,
+    );
+    if (emittedDirection.lengthSq() > 1e-6) {
+      emittedDirection.normalize();
+      light.position.copy(
+        emittedDirection.multiplyScalar(-DEFAULT_MAIN_LIGHT_DISTANCE),
+      );
+    } else {
+      light.position.copy(DEFAULT_MAIN_LIGHT_POSITION);
+    }
+  } else {
+    light.position.copy(DEFAULT_MAIN_LIGHT_POSITION);
+  }
+
+  applySceneColorSnapshot(snapshot?.color, light.color, DEFAULT_MAIN_LIGHT_COLOR);
+  light.intensity =
+    typeof snapshot?.intensity === "number" && Number.isFinite(snapshot.intensity)
+      ? snapshot.intensity
+      : DEFAULT_MAIN_LIGHT_INTENSITY;
+  light.target.position.set(0, 0, 0);
+  light.target.updateMatrixWorld();
+};
 
 /** Resolve Three.js origin: config > env > Wuppertal default */
 function resolveOrigin(config: Carma3dConfig): [number, number] {
@@ -52,6 +120,7 @@ export interface GenericCustomLayer extends CustomLayerInterface {
   scene: THREE.Scene;
   renderer: THREE.WebGLRenderer;
   map: MaplibreMap;
+  _mainDirectionalLight: THREE.DirectionalLight;
   _originMerc: MercatorCoordinate | null;
   _mScale: number;
   _features: MappedFeature[];
@@ -85,6 +154,7 @@ export function buildGenericLayer(
     scene: null!,
     renderer: null!,
     map: null!,
+    _mainDirectionalLight: null!,
     _originMerc: null,
     _mScale: 0,
     _features: [],
@@ -107,9 +177,17 @@ export function buildGenericLayer(
       const ambient = new THREE.AmbientLight(0xffffff, 0.55);
       this.scene.add(ambient);
 
-      const sun = new THREE.DirectionalLight(0xfff8e8, 1.1);
-      sun.position.set(100, 300, 150);
+      const sun = new THREE.DirectionalLight(
+        DEFAULT_MAIN_LIGHT_COLOR,
+        DEFAULT_MAIN_LIGHT_INTENSITY,
+      );
+      this._mainDirectionalLight = sun;
+      applyMainDirectionalLight(
+        sun,
+        this._config.scene?.lighting?.mainDirectionalLight,
+      );
       this.scene.add(sun);
+      this.scene.add(sun.target);
 
       const fill = new THREE.DirectionalLight(0xc8d8ff, 0.35);
       fill.position.set(-80, 100, -60);
@@ -147,6 +225,11 @@ export function buildGenericLayer(
       options: CustomRenderMethodInput
     ) {
       if (!this._originMerc) return;
+
+      applyMainDirectionalLight(
+        this._mainDirectionalLight,
+        this._config.scene?.lighting?.mainDirectionalLight,
+      );
 
       const originMerc = this._originMerc;
       const mScale = this._mScale;

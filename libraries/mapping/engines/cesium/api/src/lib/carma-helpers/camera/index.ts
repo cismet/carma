@@ -19,6 +19,8 @@ export {
   setViewFromCameraState,
 } from "./CameraStateRestore";
 export { flyToTarget } from "./CameraFlight";
+export { animateOrbitHeadingPitchRange } from "./CameraFlight";
+export type { OrbitHeadingPitchRangeAnimationOptions } from "./CameraFlight";
 export { captureCurrentCameraState } from "./CameraStateCapture";
 export { validateCameraStateHeadingPitchRoll } from "./CameraStateValidation";
 export {

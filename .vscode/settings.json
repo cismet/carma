@@ -24,5 +24,43 @@
     "alkis",
     "flur",
     "landparcel"
-  ]
+  ],
+  "chat.tools.terminal.autoApprove": {
+    "/^node \\.dev-local/scripts/dev-build\\.mjs tsc -p playgrounds/annotations/tsconfig\\.json --noEmit && node \\.dev-local/scripts/dev-build\\.mjs tsc -p libraries/providers/hash-state/tsconfig\\.lib\\.json --noEmit && node \\.dev-local/scripts/dev-build\\.mjs tsc -p libraries/mapping/engines/cesium/react/scene-state/tsconfig\\.lib\\.json --noEmit$/": {
+      "approve": true,
+      "matchCommandLine": true
+    },
+    "/^node \\.dev-local/scripts/dev-build\\.mjs tsc -p playgrounds/annotations/tsconfig\\.json --noEmit && node \\.dev-local/scripts/dev-build\\.mjs tsc -p libraries/mapping/annotations/runtime-v2/tsconfig\\.lib\\.json --noEmit && node \\.dev-local/scripts/dev-build\\.mjs tsc -p libraries/mapping/utils/tsconfig\\.lib\\.json --noEmit$/": {
+      "approve": true,
+      "matchCommandLine": true
+    },
+    "/^node \\.dev-local/scripts/dev-build\\.mjs tsc -p libraries/mapping/engines/cesium/api/tsconfig\\.lib\\.json --noEmit && node \\.dev-local/scripts/dev-build\\.mjs tsc -p playgrounds/annotations/tsconfig\\.json --noEmit$/": {
+      "approve": true,
+      "matchCommandLine": true
+    },
+    "/^node \\.dev-local/scripts/dev-build\\.mjs tsc -p libraries/mapping/engines/cesium/api/tsconfig\\.lib\\.json --noEmit && node \\.dev-local/scripts/dev-build\\.mjs tsc -p playgrounds/annotations/tsconfig\\.json --noEmit && node \\.dev-local/scripts/dev-build\\.mjs tsc -p apps/geoportal/tsconfig\\.app\\.json --noEmit$/": {
+      "approve": true,
+      "matchCommandLine": true
+    },
+    "/^node \\.dev-local/scripts/dev-build\\.mjs tsc -p libraries/mapping/engines/cesium/api/tsconfig\\.lib\\.json --noEmit && node \\.dev-local/scripts/dev-build\\.mjs tsc -p playgrounds/annotations/tsconfig\\.json --noEmit && node \\.dev-local/scripts/dev-build\\.mjs tsc -p apps/geoportal/tsconfig\\.app\\.json --noEmit && echo VALIDATION_OK$/": {
+      "approve": true,
+      "matchCommandLine": true
+    },
+    "/^cd /Users/friedrich/cisgit/carma; node \\.dev-local/scripts/dev-build\\.mjs tsc -p libraries/providers/hash-state/tsconfig\\.lib\\.json --noEmit; and node \\.dev-local/scripts/dev-build\\.mjs tsc -p playgrounds/annotations/tsconfig\\.json --noEmit$/": {
+      "approve": true,
+      "matchCommandLine": true
+    },
+    "/^cd /Users/friedrich/cisgit/carma; node \\.dev-local/scripts/dev-build\\.mjs tsc -p playgrounds/annotations/tsconfig\\.json --noEmit$/": {
+      "approve": true,
+      "matchCommandLine": true
+    },
+    "/^cd /Users/friedrich/cisgit/carma; pnpm nx test geo-utils --output-style=stream$/": {
+      "approve": true,
+      "matchCommandLine": true
+    },
+    "/^cd /Users/friedrich/cisgit/carma; pnpm nx run-many -t test -p hash-state,engines-interop,geo-utils,cesium-api,annotations --output-style=stream$/": {
+      "approve": true,
+      "matchCommandLine": true
+    }
+  }
 }

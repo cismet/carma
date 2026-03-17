@@ -20,15 +20,20 @@ export type ViewSyncEngine = BuiltInViewSyncEngine | (string & {});
 
 export type ViewSyncAnchor = ObjectCentricCameraAnchor;
 
-export type ViewSyncHeadingPitchRange = {
-  heading: Radians;
+// Canonical shared orbit pose:
+// - local basis follows the shared camera-model convention:
+//   +X east, +Y up, -Z north
+// - bearing starts at north and rotates positively toward east around +Y
+// - pitch is 0=nadir and +PI/2=horizon
+export type ViewSyncBearingPitchRange = {
+  bearing: Radians;
   pitch: Radians;
   range: Meters;
 };
 
 export type ViewSyncTargetState = {
   anchor: ViewSyncAnchor;
-  headingPitchRange: ViewSyncHeadingPitchRange;
+  bearingPitchRange: ViewSyncBearingPitchRange;
   roll?: Radians;
   fovVertical?: Radians;
   fovHorizontal?: Radians;
@@ -110,5 +115,5 @@ export type ViewSyncLeafletProjection = {
     lng: number;
   };
   zoom: number;
-  headingDeg?: number;
+  bearingDeg?: number;
 };

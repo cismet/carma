@@ -113,8 +113,12 @@ export const updateHashHistoryState = (
     keyOrder
   );
   sortedAllPairs.forEach(([key, value]) => {
-    if (typeof value === "string") {
-      combinedSearchParams.append(key, value); // append preserves insertion order
+    if (
+      typeof value === "string" ||
+      typeof value === "number" ||
+      typeof value === "boolean"
+    ) {
+      combinedSearchParams.append(key, String(value)); // append preserves insertion order
     }
   });
 
@@ -140,11 +144,11 @@ export const updateHashHistoryState = (
   const newUrl = `${currentUrl.origin}${currentUrl.pathname}${fullHashState}`;
 
   if (replace) {
-    // not navigable just updates the current hash
+    // replaces current location without adding a new browser history entry
     window.location.replace(newUrl);
     debug &&
       console.debug(
-        `[Routing][window.location] (${label}): Hash Replace`,
+        `[Routing][window.location.replace] (${label}): Hash Replace`,
         `#${toPath}`
       );
   } else {

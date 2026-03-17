@@ -16,7 +16,7 @@ const FIGURE_SPACE = "\u2007";
 const NARROW_NO_BREAK_SPACE = "\u202f";
 const RANGE_CUE_COLOR = "#64748b";
 const ALTITUDE_CUE_COLOR = "#94a3b8";
-const HEADING_CUE_COLOR = "#22d3ee";
+const BEARING_CUE_COLOR = "#22d3ee";
 const PITCH_CUE_COLOR = "#f59e0b";
 
 const getMetaProjectionViewport = () => ({
@@ -74,9 +74,9 @@ export const formatTargetSummary = (
     `${radToDegNumeric(target.anchor.longitude).toFixed(5)}`,
     `${radToDegNumeric(target.anchor.latitude).toFixed(5)}`,
     `${target.anchor.altitude.toFixed(1)}m`,
-    `h ${radToDegNumeric(target.headingPitchRange.heading).toFixed(1)}°`,
-    `p ${radToDegNumeric(target.headingPitchRange.pitch).toFixed(1)}°`,
-    `r ${target.headingPitchRange.range.toFixed(1)}m`,
+    `b ${radToDegNumeric(target.bearingPitchRange.bearing).toFixed(1)}°`,
+    `p ${radToDegNumeric(target.bearingPitchRange.pitch).toFixed(1)}°`,
+    `r ${target.bearingPitchRange.range.toFixed(1)}m`,
   ].join(" • ");
 };
 
@@ -89,17 +89,18 @@ const formatViewSyncTargetTableRows = (
       { label: "longitude", value: "unresolved" },
       { label: "latitude", value: "unresolved" },
       {
-        cueLabel: "e",
+        cueLabel: "ℎ",
         cueColor: ALTITUDE_CUE_COLOR,
-        label: "altitude",
+        label: "ellipsoidal height",
         value: "unresolved",
-        tooltip: "Orthographic height above the reference plane.",
+        tooltip:
+          "Geodetic / ellipsoidal height h above the reference ellipsoid at the ENU anchor.",
       },
-      { kind: "section", key: "hpr", label: "HPR" },
+      { kind: "section", key: "pose", label: "Pose" },
       {
-        cueLabel: "h",
-        cueColor: HEADING_CUE_COLOR,
-        label: "heading",
+        cueLabel: "b",
+        cueColor: BEARING_CUE_COLOR,
+        label: "bearing",
         value: "unresolved",
       },
       {
@@ -152,23 +153,24 @@ const formatViewSyncTargetTableRows = (
       )}°`,
     },
     {
-      cueLabel: "e",
+      cueLabel: "ℎ",
       cueColor: ALTITUDE_CUE_COLOR,
-      label: "altitude",
+      label: "ellipsoidal height",
       value: formatAlignedNumber(target.anchor.altitude, 1, "m"),
-      tooltip: "Orthographic height above the reference plane.",
+      tooltip:
+        "Geodetic / ellipsoidal height h above the reference ellipsoid at the ENU anchor.",
     },
     {
       kind: "section",
-      key: "hpr",
-      label: "HPR",
+      key: "pose",
+      label: "Pose",
     },
     {
-      cueLabel: "h",
-      cueColor: HEADING_CUE_COLOR,
-      label: "heading",
+      cueLabel: "b",
+      cueColor: BEARING_CUE_COLOR,
+      label: "bearing",
       value: `${formatAlignedNumber(
-        radToDegNumeric(target.headingPitchRange.heading),
+        radToDegNumeric(target.bearingPitchRange.bearing),
         1
       )}°`,
     },
@@ -177,7 +179,7 @@ const formatViewSyncTargetTableRows = (
       cueColor: PITCH_CUE_COLOR,
       label: "pitch",
       value: `${formatAlignedNumber(
-        radToDegNumeric(target.headingPitchRange.pitch),
+        radToDegNumeric(target.bearingPitchRange.pitch),
         1
       )}°`,
     },
@@ -185,7 +187,7 @@ const formatViewSyncTargetTableRows = (
       cueLabel: "r",
       cueColor: RANGE_CUE_COLOR,
       label: "range",
-      value: formatAlignedNumber(target.headingPitchRange.range, 1, "m"),
+      value: formatAlignedNumber(target.bearingPitchRange.range, 1, "m"),
     },
     {
       label: "zoom equiv.",
@@ -289,21 +291,25 @@ export const ViewSyncMetaOverlay = ({
     () => formatViewSyncJson(visualizerTarget),
     [visualizerTarget]
   );
+  const visualizerDisplayOptions = useMemo(
+    () => ({
+      interactive: true,
+    }),
+    []
+  );
   const specification =
     visualizerTarget.cameraModel ?? {
       pose: {
         anchor: visualizerTarget.anchor,
-        heading: visualizerTarget.headingPitchRange.heading,
-        pitch: visualizerTarget.headingPitchRange.pitch,
-        range: visualizerTarget.headingPitchRange.range,
+        bearing: visualizerTarget.bearingPitchRange.bearing,
+        pitch: visualizerTarget.bearingPitchRange.pitch,
+        range: visualizerTarget.bearingPitchRange.range,
         roll: visualizerTarget.roll,
       },
       intrinsics: {
         fov: readViewSyncVerticalFov(visualizerTarget) ?? undefined,
         fovHorizontal: readViewSyncHorizontalFov(visualizerTarget) ?? undefined,
         aspect: visualizerTarget.aspect,
-        near: visualizerTarget.near,
-        far: visualizerTarget.far,
         type: visualizerTarget.type,
         view: visualizerTarget.view,
       },
@@ -313,10 +319,8 @@ export const ViewSyncMetaOverlay = ({
     <ObjectCentricViewStateInfoBox
       rows={rows}
       specification={specification}
-      visualizerDisplayOptions={{
-        interactive: true,
-      }}
-      visualizerHeadingLabel="h"
+      visualizerDisplayOptions={visualizerDisplayOptions}
+      visualizerBearingLabel="b"
       visualizerPitchLabel="p"
       width={560}
       detailsTitle="View JSON"

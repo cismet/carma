@@ -10,6 +10,7 @@ import {
 } from "./overlay/labelAnchors";
 import type {
   ViewStateVisualizerCamera,
+  ViewStateVisualizerCueKey,
   ViewStateVisualizerDisplayOptions,
   ViewStateVisualizerLabelAnchors,
   ViewStateVisualizerOptions,
@@ -30,7 +31,7 @@ const DEFAULT_VIEW_ROTATION_AROUND_UP = Math.PI / 6;
 const DEFAULT_VIEW_ORBIT_PHI = Math.acos(1.22 / Math.hypot(4.1, 1.22));
 const DEFAULT_VIEW_FOV_DEG = 38;
 
-const orbitAnglesToPosition = ({
+const orbitAnglesToVector3 = ({
   radius,
   theta,
   phi,
@@ -38,11 +39,7 @@ const orbitAnglesToPosition = ({
   radius: number;
   theta: number;
   phi: number;
-}) => ({
-  x: radius * Math.sin(phi) * Math.sin(theta),
-  y: radius * Math.cos(phi),
-  z: radius * Math.sin(phi) * Math.cos(theta),
-});
+}): THREE.Vector3 => new THREE.Vector3().setFromSphericalCoords(radius, phi, theta);
 
 const resolveDefaultFrameHalfExtent = () =>
   HEMISPHERE_RADIUS + VISUALIZER_FRAME_PADDING;
@@ -52,11 +49,18 @@ const resolveOrbitRadiusForFrameHalfExtent = (fovDeg: number) =>
 
 const DEFAULT_CAMERA: ViewStateVisualizerCamera = {
   fovDeg: DEFAULT_VIEW_FOV_DEG,
-  position: orbitAnglesToPosition({
-    radius: resolveOrbitRadiusForFrameHalfExtent(DEFAULT_VIEW_FOV_DEG),
-    theta: DEFAULT_VIEW_ROTATION_AROUND_UP,
-    phi: DEFAULT_VIEW_ORBIT_PHI,
-  }),
+  position: (() => {
+    const position = orbitAnglesToVector3({
+      radius: resolveOrbitRadiusForFrameHalfExtent(DEFAULT_VIEW_FOV_DEG),
+      theta: DEFAULT_VIEW_ROTATION_AROUND_UP,
+      phi: DEFAULT_VIEW_ORBIT_PHI,
+    });
+    return {
+      x: position.x,
+      y: position.y,
+      z: position.z,
+    };
+  })(),
 };
 
 const WORLD_UP = new THREE.Vector3(0, 1, 0);
@@ -70,7 +74,9 @@ const CAMERA_BASIS_LINE_LENGTH = HEMISPHERE_RADIUS * 0.24;
 const IMAGE_PLANE_DISTANCE = HEMISPHERE_RADIUS * 0.42;
 const IMAGE_PLANE_ORIGIN_SIZE = HEMISPHERE_RADIUS * 0.05;
 const MAX_IMAGE_PLANE_HALF_EXTENT = HEMISPHERE_RADIUS * 0.44;
-const ALTITUDE_OVERFLOW_DOTTED_FRACTION = HEMISPHERE_RADIUS * 0.16;
+const ALTITUDE_OVERFLOW_GAP_HALF_HEIGHT = HEMISPHERE_RADIUS * 0.16;
+const ALTITUDE_SCALE_BREAK_HALF_HEIGHT = HEMISPHERE_RADIUS * 0.032;
+const ALTITUDE_SCALE_BREAK_HALF_WIDTH = HEMISPHERE_RADIUS * 0.024;
 const OUTER_ARC_RADIUS = HEMISPHERE_RADIUS;
 const GRATICULE_CARDINAL_OPACITY = 0.42;
 const LABEL_UP_OFFSET = HEMISPHERE_RADIUS * 0.01;
@@ -78,29 +84,42 @@ const CAMERA_GREY = 0x94a3b8;
 const CAMERA_GREY_DARK = 0x64748b;
 const CAMERA_GREY_EMISSIVE = 0x334155;
 const ALTITUDE_GREY = 0x94a3b8;
+const DEFAULT_CUE_COLORS: Record<ViewStateVisualizerCueKey, string> = {
+  bearing: "#22d3ee",
+  pitch: "#f59e0b",
+  range: "#64748b",
+  altitude: "#94a3b8",
+  east: "#dc2626",
+  north: "#16a34a",
+  up: "#2563eb",
+  imageX: "#dc2626",
+  imageY: "#2563eb",
+};
+const DEFAULT_IMPORTANT_LINE_WIDTH_PX = 2;
+const DEFAULT_HAIRLINE_WIDTH_PX = 0.5;
 
 const isFiniteNumber = (value: unknown): value is number =>
   typeof value === "number" && Number.isFinite(value);
 
-const normalizeHeading = (headingRadians: number): number => {
+const normalizeBearing = (bearingRadians: number): number => {
   const fullTurn = Math.PI * 2;
-  const normalized = headingRadians % fullTurn;
+  const normalized = bearingRadians % fullTurn;
   return normalized >= 0 ? normalized : normalized + fullTurn;
 };
 
-const pointOnHeadingCircle = ({
-  heading,
+const pointOnBearingCircle = ({
+  bearing,
   radius,
   y = 0,
 }: {
-  heading: number;
+  bearing: number;
   radius: number;
   y?: number;
 }): THREE.Vector3 =>
   new THREE.Vector3(
-    Math.sin(heading) * radius,
+    Math.sin(bearing) * radius,
     y,
-    -Math.cos(heading) * radius
+    -Math.cos(bearing) * radius
   );
 
 const readImagePlaneDistance = (
@@ -149,13 +168,27 @@ const buildAltitudeStemGeometry = ({
   if (!overflow || !showScaleBreak) {
     return {
       stemSegments: [[new THREE.Vector3(0, planeDiscY, 0), ORIGIN.clone()]],
-      overflowMiddleSegment: null as THREE.Vector3[] | null,
+      overflowScaleBreakMarkers: null as [THREE.Vector3[], THREE.Vector3[]] | null,
     };
   }
 
   const midpointY = planeDiscY * 0.5;
-  const gapUpperY = midpointY + ALTITUDE_OVERFLOW_DOTTED_FRACTION;
-  const gapLowerY = midpointY - ALTITUDE_OVERFLOW_DOTTED_FRACTION;
+  const gapUpperY = midpointY + ALTITUDE_OVERFLOW_GAP_HALF_HEIGHT;
+  const gapLowerY = midpointY - ALTITUDE_OVERFLOW_GAP_HALF_HEIGHT;
+  const buildScaleBreakMarker = (centerY: number): THREE.Vector3[] => [
+    new THREE.Vector3(0, centerY + ALTITUDE_SCALE_BREAK_HALF_HEIGHT * 1.5, 0),
+    new THREE.Vector3(
+      ALTITUDE_SCALE_BREAK_HALF_WIDTH,
+      centerY + ALTITUDE_SCALE_BREAK_HALF_HEIGHT * 0.5,
+      0
+    ),
+    new THREE.Vector3(
+      -ALTITUDE_SCALE_BREAK_HALF_WIDTH,
+      centerY - ALTITUDE_SCALE_BREAK_HALF_HEIGHT * 0.5,
+      0
+    ),
+    new THREE.Vector3(0, centerY - ALTITUDE_SCALE_BREAK_HALF_HEIGHT * 1.5, 0),
+  ];
 
   return {
     stemSegments: [
@@ -165,9 +198,9 @@ const buildAltitudeStemGeometry = ({
       ],
       [new THREE.Vector3(0, gapLowerY, 0), ORIGIN.clone()],
     ],
-    overflowMiddleSegment: [
-      new THREE.Vector3(0, gapUpperY, 0),
-      new THREE.Vector3(0, gapLowerY, 0),
+    overflowScaleBreakMarkers: [
+      buildScaleBreakMarker(gapUpperY),
+      buildScaleBreakMarker(gapLowerY),
     ],
   };
 };
@@ -177,15 +210,9 @@ const readHorizontalFov = (
 ): number | null => {
   const intrinsics = cameraModel.intrinsics;
   const fovHorizontal = intrinsics?.fovHorizontal;
-  const fovVertical = intrinsics?.fov;
-  const aspect = intrinsics?.aspect;
 
   if (isFiniteNumber(fovHorizontal)) {
     return fovHorizontal;
-  }
-
-  if (isFiniteNumber(fovVertical) && isFiniteNumber(aspect)) {
-    return Math.atan(Math.tan(fovVertical * 0.5) * aspect) * 2;
   }
 
   return null;
@@ -196,41 +223,44 @@ const readVerticalFov = (
 ): number | null => {
   const intrinsics = cameraModel.intrinsics;
   const fovVertical = intrinsics?.fov;
-  const fovHorizontal = intrinsics?.fovHorizontal;
-  const aspect = intrinsics?.aspect;
 
   if (isFiniteNumber(fovVertical)) {
     return fovVertical;
   }
 
-  if (isFiniteNumber(fovHorizontal) && isFiniteNumber(aspect)) {
-    return Math.atan(Math.tan(fovHorizontal * 0.5) / aspect) * 2;
-  }
-
   return null;
 };
 
-const headingPitchToCameraPosition = (
-  heading: number,
+const viewingBearingPitchToCameraSpherePosition = (
+  viewingBearing: number,
   pitch: number,
   radius: number = HEMISPHERE_RADIUS
 ): THREE.Vector3 => {
-  const elevation = clamp(-pitch, 0, Math.PI / 2);
-  return pointOnHeadingCircle({
-    heading: normalizeHeading(heading),
-    radius: Math.cos(elevation) * radius,
-    y: Math.sin(elevation) * radius,
+  const normalizedPitch = clamp(pitch, 0, Math.PI / 2);
+  // Object-centric pose bearing is the viewing azimuth (anchor -> view direction).
+  // The camera sits on the opposite side of the anchor, therefore camera azimuth
+  // on the hemisphere is bearing + PI.
+  const cameraSphereAzimuth = normalizeBearing(viewingBearing + Math.PI);
+  return pointOnBearingCircle({
+    bearing: cameraSphereAzimuth,
+    radius: Math.sin(normalizedPitch) * radius,
+    y: Math.cos(normalizedPitch) * radius,
   });
 };
 
-const cameraPositionToHeadingPitch = (
+const cameraSpherePositionToViewingBearingPitch = (
   position: THREE.Vector3
-): { heading: number; pitch: number; elevation: number } => {
+): { bearing: number; pitch: number; elevation: number } => {
   const normalized = position.clone().normalize();
   const elevation = Math.asin(clamp(normalized.y, -1, 1));
+  const pitch = Math.PI * 0.5 - elevation;
+  // Inverse of viewingBearingPitchToCameraSpherePosition: convert camera
+  // sphere azimuth back to viewing bearing.
+  // viewing bearing by subtracting PI.
+  const cameraSphereAzimuth = Math.atan2(normalized.x, -normalized.z);
   return {
-    heading: normalizeHeading(Math.atan2(normalized.x, -normalized.z)),
-    pitch: -elevation,
+    bearing: normalizeBearing(cameraSphereAzimuth - Math.PI),
+    pitch,
     elevation,
   };
 };
@@ -239,10 +269,10 @@ const computeUnitHemisphereCameraPosition = (
   cameraModel: ViewStateVisualizerSpecification
 ): THREE.Vector3 => {
   // This visualizer is explicitly object-centric: the unit-sphere camera position
-  // must come from heading/pitch, not from an engine-specific world direction.
+  // must come from bearing/pitch, not from an engine-specific world direction.
   // Otherwise the visual can disagree with the canonical pose readout.
-  return headingPitchToCameraPosition(
-    cameraModel.pose.heading,
+  return viewingBearingPitchToCameraSpherePosition(
+    cameraModel.pose.bearing,
     cameraModel.pose.pitch,
     HEMISPHERE_RADIUS
   );
@@ -328,20 +358,20 @@ const buildHorizontalArcPoints = ({
   Array.from({ length: sampleCount + 1 }, (_, index) => {
     const t = index / sampleCount;
     const angle = startAngle + (endAngle - startAngle) * t;
-    return pointOnHeadingCircle({
-      heading: angle,
+    return pointOnBearingCircle({
+      bearing: angle,
       radius,
       y,
     });
   });
 
 const buildPitchArcPoints = ({
-  heading,
+  bearing,
   elevation,
   radius,
   sampleCount = 28,
 }: {
-  heading: number;
+  bearing: number;
   elevation: number;
   radius: number;
   sampleCount?: number;
@@ -350,25 +380,8 @@ const buildPitchArcPoints = ({
     const t = index / sampleCount;
     const angle = elevation * t;
     const point = new THREE.Vector3(0, Math.sin(angle) * radius, -Math.cos(angle) * radius);
-    point.applyAxisAngle(WORLD_UP, -heading);
+    point.applyAxisAngle(WORLD_UP, -bearing);
     return point;
-  });
-
-const buildMeridianPoints = ({
-  heading,
-  sampleCount = 48,
-}: {
-  heading: number;
-  sampleCount?: number;
-}) =>
-  Array.from({ length: sampleCount + 1 }, (_, index) => {
-    const t = index / sampleCount;
-    const elevation = t * (Math.PI / 2);
-    return new THREE.Vector3(
-      Math.sin(heading) * Math.cos(elevation) * HEMISPHERE_RADIUS,
-      Math.sin(elevation) * HEMISPHERE_RADIUS,
-      -Math.cos(heading) * Math.cos(elevation) * HEMISPHERE_RADIUS
-    );
   });
 
 const buildVisualizerCamera = (
@@ -525,6 +538,31 @@ const setLineGeometry = (
   }
 };
 
+const setQuadMeshGeometry = (
+  mesh: THREE.Mesh,
+  corners: readonly THREE.Vector3[]
+) => {
+  const geometry = mesh.geometry as THREE.BufferGeometry;
+  if (corners.length < 4) {
+    geometry.setAttribute(
+      "position",
+      new THREE.BufferAttribute(new Float32Array(18), 3)
+    );
+    return;
+  }
+  const positions = new Float32Array([
+    corners[0].x, corners[0].y, corners[0].z,
+    corners[1].x, corners[1].y, corners[1].z,
+    corners[2].x, corners[2].y, corners[2].z,
+    corners[0].x, corners[0].y, corners[0].z,
+    corners[2].x, corners[2].y, corners[2].z,
+    corners[3].x, corners[3].y, corners[3].z,
+  ]);
+  geometry.setAttribute("position", new THREE.BufferAttribute(positions, 3));
+  geometry.computeVertexNormals();
+  geometry.computeBoundingSphere();
+};
+
 const setWideLineGeometry = (line: Line2, points: THREE.Vector3[]) => {
   const positions = points.flatMap((point) => [point.x, point.y, point.z]);
   (line.geometry as LineGeometry).setPositions(positions);
@@ -567,7 +605,6 @@ const buildImagePlaneGeometry = (
   const imagePlaneDistance = readImagePlaneDistance(cameraModel);
   const type = cameraModel.intrinsics?.type ?? "PerspectiveCamera";
   const view = cameraModel.intrinsics?.view;
-  const aspect = cameraModel.intrinsics?.aspect;
   const projectionMatrix = cameraModel.intrinsics?.projectionMatrix;
   const hasHorizontalViewOffset =
     !!view &&
@@ -623,11 +660,7 @@ const buildImagePlaneGeometry = (
             0.12,
             MAX_IMAGE_PLANE_HALF_EXTENT
           )
-        : clamp(
-            croppedHalfHeight * (isFiniteNumber(aspect) ? aspect : 1.4),
-            0.12,
-            MAX_IMAGE_PLANE_HALF_EXTENT
-          );
+        : 0.24;
 
   const horizontalViewScale =
     hasHorizontalViewOffset && view.width > 0 ? view.width / view.fullWidth : 1;
@@ -735,8 +768,19 @@ const setLineWidth = (
   (line.material as THREE.LineBasicMaterial).linewidth = width;
 };
 
+const setLineColor = (
+  line: THREE.Line | THREE.LineLoop | THREE.LineSegments,
+  color: string | number
+) => {
+  (line.material as THREE.LineBasicMaterial).color.set(color);
+};
+
 const setWideLineWidth = (line: Line2, width: number) => {
   (line.material as LineMaterial).linewidth = width;
+};
+
+const setWideLineColor = (line: Line2, color: string | number) => {
+  (line.material as LineMaterial).color.set(color);
 };
 
 const setWideLineResolution = (line: Line2, size: ViewStateVisualizerSize) => {
@@ -777,11 +821,11 @@ export const createViewStateVisualizerPrimitive = (
   const scene = new THREE.Scene();
 
   // --- Orbit state ---
-  const initialOrbitRadius = Math.sqrt(
-    cameraConfig.position.x ** 2 +
-    cameraConfig.position.y ** 2 +
-    cameraConfig.position.z ** 2
-  );
+  const initialOrbitRadius = new THREE.Vector3(
+    cameraConfig.position.x,
+    cameraConfig.position.y,
+    cameraConfig.position.z
+  ).length();
   const usesCustomCameraPosition =
     options.camera?.position?.x !== undefined ||
     options.camera?.position?.y !== undefined ||
@@ -822,15 +866,34 @@ export const createViewStateVisualizerPrimitive = (
   const getActiveCamera = (): THREE.Camera =>
     useOrthographic ? orthographicCamera : perspectiveCamera;
 
+  const orbitPositionScratch = new THREE.Vector3();
+
+  const writeOrbitPosition = ({
+    target,
+    radius,
+    theta,
+    phi,
+  }: {
+    target: THREE.Vector3;
+    radius: number;
+    theta: number;
+    phi: number;
+  }) => {
+    target.setFromSphericalCoords(radius, phi, theta);
+  };
+
   const syncCamerasToOrbit = () => {
     const r = getOrbitRadius();
-    const x = r * Math.sin(orbitPhi) * Math.sin(orbitTheta);
-    const y = r * Math.cos(orbitPhi);
-    const z = r * Math.sin(orbitPhi) * Math.cos(orbitTheta);
-    perspectiveCamera.position.set(x, y, z);
+    writeOrbitPosition({
+      target: orbitPositionScratch,
+      radius: r,
+      theta: orbitTheta,
+      phi: orbitPhi,
+    });
+    perspectiveCamera.position.copy(orbitPositionScratch);
     perspectiveCamera.lookAt(0, 0, 0);
     perspectiveCamera.updateMatrixWorld();
-    orthographicCamera.position.set(x, y, z);
+    orthographicCamera.position.copy(orbitPositionScratch);
     orthographicCamera.lookAt(0, 0, 0);
     orthographicCamera.updateMatrixWorld();
   };
@@ -842,16 +905,16 @@ export const createViewStateVisualizerPrimitive = (
   let dragStartVector = new THREE.Vector3();
   let dragLastClientX = 0;
   let dragLastClientY = 0;
-  // For pose: the heading/pitch at drag start
-  let dragStartHeading = 0;
+  // For pose: the bearing/pitch at drag start
+  let dragStartBearing = 0;
   let dragStartPitch = 0;
 
   const pointerToArcball = (clientX: number, clientY: number): THREE.Vector3 => {
     const rect = canvas.getBoundingClientRect();
     const nx = ((clientX - rect.left) / rect.width) * 2 - 1;
-    // Use screen-space y-down here so vertical drag follows the pointer 1:1
-    // in the visualizer's pose-drag interaction.
-    const ny = ((clientY - rect.top) / rect.height) * 2 - 1;
+    // Use the conventional arcball y-up mapping so the resulting versor
+    // rotation does not invert vertical pointer input.
+    const ny = 1 - ((clientY - rect.top) / rect.height) * 2;
     const lenSq = nx * nx + ny * ny;
     if (lenSq <= 1) {
       return new THREE.Vector3(nx, ny, Math.sqrt(1 - lenSq));
@@ -873,15 +936,17 @@ export const createViewStateVisualizerPrimitive = (
 
   const hemisphere = new THREE.Mesh(
     new THREE.SphereGeometry(1, 40, 24, 0, Math.PI * 2, 0, Math.PI / 2),
-    new THREE.MeshStandardMaterial({
-      color: 0x60a5fa,
+    new THREE.MeshPhysicalMaterial({
+      color: 0xf1f5f9,
       transparent: true,
-      opacity: 0.09,
+      opacity: 0.13,
       depthWrite: false,
-      roughness: 0.8,
-      metalness: 0.02,
-      emissive: 0x1e3a8a,
-      emissiveIntensity: 0.03,
+      roughness: 0.12,
+      metalness: 0.01,
+      clearcoat: 1,
+      clearcoatRoughness: 0.06,
+      emissive: 0xe0f2fe,
+      emissiveIntensity: 0.025,
       side: THREE.DoubleSide,
     })
   );
@@ -976,19 +1041,27 @@ export const createViewStateVisualizerPrimitive = (
   setWideLineResolution(altitudeLineUpper, size);
   scene.add(altitudeLineUpper);
 
-  const altitudeOverflowMiddle = new Line2(
+  const altitudeScaleBreakUpper = new Line2(
     new LineGeometry(),
     new LineMaterial({
       color: ALTITUDE_GREY,
       transparent: true,
       opacity: 0.98,
-      dashed: true,
-      dashSize: HEMISPHERE_RADIUS * 0.014,
-      gapSize: HEMISPHERE_RADIUS * 0.018,
     })
   );
-  setWideLineResolution(altitudeOverflowMiddle, size);
-  scene.add(altitudeOverflowMiddle);
+  setWideLineResolution(altitudeScaleBreakUpper, size);
+  scene.add(altitudeScaleBreakUpper);
+
+  const altitudeScaleBreakLower = new Line2(
+    new LineGeometry(),
+    new LineMaterial({
+      color: ALTITUDE_GREY,
+      transparent: true,
+      opacity: 0.98,
+    })
+  );
+  setWideLineResolution(altitudeScaleBreakLower, size);
+  scene.add(altitudeScaleBreakLower);
 
   const bearingArc = new Line2(
     new LineGeometry(),
@@ -1012,7 +1085,7 @@ export const createViewStateVisualizerPrimitive = (
   setWideLineResolution(pitchArc, size);
   scene.add(pitchArc);
 
-  const headingIndicatorArc = new Line2(
+  const bearingIndicatorArc = new Line2(
     new LineGeometry(),
     new LineMaterial({
       color: 0x22d3ee,
@@ -1020,10 +1093,10 @@ export const createViewStateVisualizerPrimitive = (
       opacity: 0.88,
     })
   );
-  setWideLineResolution(headingIndicatorArc, size);
-  scene.add(headingIndicatorArc);
+  setWideLineResolution(bearingIndicatorArc, size);
+  scene.add(bearingIndicatorArc);
 
-  const headingRadial = new Line2(
+  const bearingRadial = new Line2(
     new LineGeometry(),
     new LineMaterial({
       color: 0x22d3ee,
@@ -1031,8 +1104,8 @@ export const createViewStateVisualizerPrimitive = (
       opacity: 0.88,
     })
   );
-  setWideLineResolution(headingRadial, size);
-  scene.add(headingRadial);
+  setWideLineResolution(bearingRadial, size);
+  scene.add(bearingRadial);
 
   const pitchOriginLine = new Line2(
     new LineGeometry(),
@@ -1101,7 +1174,7 @@ export const createViewStateVisualizerPrimitive = (
     new THREE.LineBasicMaterial({
       color: 0x7c3aed,
       transparent: true,
-      opacity: 0.82,
+      opacity: 0.95,
     })
   );
   scene.add(cameraRight);
@@ -1111,37 +1184,33 @@ export const createViewStateVisualizerPrimitive = (
     new THREE.LineBasicMaterial({
       color: 0x15803d,
       transparent: true,
-      opacity: 0.82,
+      opacity: 0.95,
     })
   );
   scene.add(cameraUp);
 
-  const imagePlaneOutline = new THREE.LineLoop(
+  const imagePlaneSurface = new THREE.Mesh(
     new THREE.BufferGeometry(),
-    new THREE.LineBasicMaterial({
-      color: 0x0f172a,
+    new THREE.MeshStandardMaterial({
+      color: CAMERA_GREY,
       transparent: true,
-      opacity: 0.82,
+      opacity: 0.33,
+      depthWrite: false,
+      roughness: 0.82,
+      metalness: 0.03,
+      emissive: CAMERA_GREY_EMISSIVE,
+      emissiveIntensity: 0.04,
+      side: THREE.DoubleSide,
     })
   );
-  scene.add(imagePlaneOutline);
-
-  const fullImagePlaneOutline = new THREE.LineLoop(
-    new THREE.BufferGeometry(),
-    new THREE.LineBasicMaterial({
-      color: 0x0f172a,
-      transparent: true,
-      opacity: 0.3,
-    })
-  );
-  scene.add(fullImagePlaneOutline);
+  scene.add(imagePlaneSurface);
 
   const imagePlaneOriginX = new THREE.Line(
     new THREE.BufferGeometry(),
     new THREE.LineBasicMaterial({
       color: 0x0f172a,
       transparent: true,
-      opacity: 0.58,
+      opacity: 0.95,
     })
   );
   scene.add(imagePlaneOriginX);
@@ -1151,7 +1220,7 @@ export const createViewStateVisualizerPrimitive = (
     new THREE.LineBasicMaterial({
       color: 0x0f172a,
       transparent: true,
-      opacity: 0.58,
+      opacity: 0.95,
     })
   );
   scene.add(imagePlaneOriginY);
@@ -1202,7 +1271,6 @@ export const createViewStateVisualizerPrimitive = (
     const showAxes = display.showAxes ?? true;
     const showAngleArcs = display.showAngleArcs ?? true;
     const showImagePlane = display.showImagePlane ?? true;
-    const showFrustum = display.showFrustum ?? true;
     const showAltitude = display.showAltitudeStem ?? true;
     const showLink = display.showCameraLink ?? true;
 
@@ -1218,8 +1286,8 @@ export const createViewStateVisualizerPrimitive = (
 
     bearingArc.visible = showAngleArcs;
     pitchArc.visible = showAngleArcs;
-    headingIndicatorArc.visible = showAngleArcs;
-    headingRadial.visible = showAngleArcs;
+    bearingIndicatorArc.visible = showAngleArcs;
+    bearingRadial.visible = showAngleArcs;
     pitchOriginLine.visible = showAngleArcs;
     elevationArc.visible = showAngleArcs;
     // minPitchRing visibility also depends on data; handled in update
@@ -1227,8 +1295,7 @@ export const createViewStateVisualizerPrimitive = (
     cameraForward.visible = showImagePlane;
     cameraRight.visible = showImagePlane;
     cameraUp.visible = showImagePlane;
-    imagePlaneOutline.visible = showImagePlane;
-    fullImagePlaneOutline.visible = showImagePlane;
+    imagePlaneSurface.visible = showImagePlane;
     imagePlaneOriginX.visible = showImagePlane;
     imagePlaneOriginY.visible = showImagePlane;
 
@@ -1240,47 +1307,73 @@ export const createViewStateVisualizerPrimitive = (
     planeDiscOutline.visible = showAltitude;
     altitudeLineLower.visible = showAltitude;
     altitudeLineUpper.visible = showAltitude;
-    // altitudeOverflowMiddle visibility depends on data; handled in update
+    // altitude scale-break marker visibility depends on data; handled in update
 
-    // Line widths: graticuleLineWidth is the base, others are multipliers on it
-    const base = display.graticuleLineWidth ?? 1;
-    const axisW = base * (display.axisLineWidth ?? 2);
-    const arcW = base * (display.arcLineWidth ?? 2);
-    const imagePlaneW = base * (display.imagePlaneLineWidth ?? 2);
-    const frustumW = (base * (display.frustumLineWidth ?? 2)) * (2 / 3);
-    const angleCueW = Math.max(0.75, arcW * 0.75);
-    const altitudeW = angleCueW;
+    const importantLineWidthPx = Math.max(
+      0.5,
+      display.lineWidthPx ?? DEFAULT_IMPORTANT_LINE_WIDTH_PX
+    );
+    const axisLineWidthPx = Math.max(
+      0.5,
+      display.axisLineWidthPx ?? importantLineWidthPx * (2 / 3)
+    );
+    const hairlineWidthPx = Math.max(
+      0.5,
+      display.hairlineWidthPx ?? DEFAULT_HAIRLINE_WIDTH_PX
+    );
+    const cueColors = {
+      ...DEFAULT_CUE_COLORS,
+      ...(display.cueColors ?? {}),
+    };
 
-    const cardinalGraticuleWidth = base / 16;
-    graticuleCardinalLines.forEach((line) => setLineWidth(line, cardinalGraticuleWidth));
-    setLineWidth(minPitchRing, arcW);
+    graticuleCardinalLines.forEach((line) => setLineWidth(line, hairlineWidthPx));
+    setLineWidth(minPitchRing, importantLineWidthPx);
 
-    setLineWidth(eastAxis, axisW);
-    setLineWidth(northAxis, axisW);
-    setLineWidth(upAxis, axisW);
+    setLineWidth(eastAxis, axisLineWidthPx);
+    setLineWidth(northAxis, axisLineWidthPx);
+    setLineWidth(upAxis, axisLineWidthPx);
 
-    setWideLineWidth(bearingArc, angleCueW);
-    setWideLineWidth(pitchArc, angleCueW);
-    setWideLineWidth(headingIndicatorArc, angleCueW);
-    setWideLineWidth(headingRadial, angleCueW);
-    setWideLineWidth(pitchOriginLine, angleCueW);
-    setWideLineWidth(elevationArc, angleCueW);
-    setWideLineWidth(cameraLink, angleCueW);
+    setWideLineWidth(bearingArc, importantLineWidthPx);
+    setWideLineWidth(pitchArc, importantLineWidthPx);
+    setWideLineWidth(bearingIndicatorArc, importantLineWidthPx);
+    setWideLineWidth(bearingRadial, importantLineWidthPx);
+    setWideLineWidth(pitchOriginLine, importantLineWidthPx);
+    setWideLineWidth(elevationArc, importantLineWidthPx);
+    setWideLineWidth(cameraLink, importantLineWidthPx);
+    setWideLineWidth(altitudeLineLower, importantLineWidthPx);
+    setWideLineWidth(altitudeLineUpper, importantLineWidthPx);
+    setWideLineWidth(altitudeScaleBreakUpper, importantLineWidthPx);
+    setWideLineWidth(altitudeScaleBreakLower, importantLineWidthPx);
 
-    setLineWidth(imagePlaneOutline, imagePlaneW);
-    setLineWidth(fullImagePlaneOutline, imagePlaneW);
-    setLineWidth(imagePlaneOriginX, imagePlaneW);
-    setLineWidth(imagePlaneOriginY, imagePlaneW);
-    setLineWidth(cameraForward, imagePlaneW);
-    setLineWidth(cameraRight, imagePlaneW);
-    setLineWidth(cameraUp, imagePlaneW);
+    setLineWidth(imagePlaneOriginX, axisLineWidthPx);
+    setLineWidth(imagePlaneOriginY, axisLineWidthPx);
+    setLineWidth(cameraForward, hairlineWidthPx);
+    setLineWidth(cameraRight, axisLineWidthPx);
+    setLineWidth(cameraUp, axisLineWidthPx);
+    setLineWidth(planeDiscOutline, hairlineWidthPx);
 
-    frustumEdgeLines.forEach((line) => setLineWidth(line, frustumW));
+    frustumEdgeLines.forEach((line) => setLineWidth(line, hairlineWidthPx));
 
-    setWideLineWidth(altitudeLineLower, altitudeW);
-    setWideLineWidth(altitudeLineUpper, altitudeW);
-    setWideLineWidth(altitudeOverflowMiddle, altitudeW);
-    setLineWidth(planeDiscOutline, altitudeW);
+    setWideLineColor(bearingArc, cueColors.bearing);
+    setWideLineColor(bearingIndicatorArc, cueColors.bearing);
+    setWideLineColor(bearingRadial, cueColors.bearing);
+    setWideLineColor(pitchArc, cueColors.pitch);
+    setWideLineColor(elevationArc, cueColors.pitch);
+    setWideLineColor(cameraLink, cueColors.range);
+    setWideLineColor(pitchOriginLine, cueColors.range);
+    setWideLineColor(altitudeLineLower, cueColors.altitude);
+    setWideLineColor(altitudeLineUpper, cueColors.altitude);
+    setWideLineColor(altitudeScaleBreakUpper, cueColors.altitude);
+    setWideLineColor(altitudeScaleBreakLower, cueColors.altitude);
+
+    setLineColor(planeDiscOutline, cueColors.altitude);
+    setLineColor(eastAxis, cueColors.east);
+    setLineColor(northAxis, cueColors.north);
+    setLineColor(upAxis, cueColors.up);
+    setLineColor(imagePlaneOriginX, cueColors.imageX);
+    setLineColor(imagePlaneOriginY, cueColors.imageY);
+    setLineColor(cameraRight, cueColors.imageX);
+    setLineColor(cameraUp, cueColors.imageY);
 
     // Orbit
     if (display.orbitTheta !== undefined) orbitTheta = display.orbitTheta;
@@ -1316,11 +1409,10 @@ export const createViewStateVisualizerPrimitive = (
 
     const displayCameraPosition = computeUnitHemisphereCameraPosition(cameraModel);
     const {
-      heading,
-      pitch,
+      bearing: viewingBearing,
       elevation,
-    } = cameraPositionToHeadingPitch(displayCameraPosition);
-    const visualHeading = normalizeHeading(heading + Math.PI);
+    } = cameraSpherePositionToViewingBearingPitch(displayCameraPosition);
+    const visualBearing = normalizeBearing(viewingBearing);
     const { groundDistance, overflow } = readGroundDistance(
       cameraModel.pose.anchor.altitude ?? 0,
       cameraModel.pose.range ?? 0
@@ -1339,18 +1431,18 @@ export const createViewStateVisualizerPrimitive = (
       axis: "xz",
       offset: new THREE.Vector3(0, planeDiscY, 0),
     });
-    const maxPitchElevation = isFiniteNumber(cameraModel.limits?.maxPitch)
-      ? clamp(-(cameraModel.limits?.maxPitch ?? 0), 0, Math.PI / 2)
+    const minPitch = isFiniteNumber(cameraModel.limits?.minPitch)
+      ? clamp(cameraModel.limits?.minPitch ?? 0, 0, Math.PI / 2)
       : null;
-    const maxPitchRingPoints =
-      maxPitchElevation === null
+    const minPitchRingPoints =
+      minPitch === null
         ? null
         : buildCirclePoints({
-            radius: Math.cos(maxPitchElevation) * HEMISPHERE_RADIUS,
+            radius: Math.sin(minPitch) * HEMISPHERE_RADIUS,
             axis: "xz",
             offset: new THREE.Vector3(
               0,
-              Math.sin(maxPitchElevation) * HEMISPHERE_RADIUS,
+              Math.cos(minPitch) * HEMISPHERE_RADIUS,
               0
             ),
             closeLoop: true,
@@ -1364,8 +1456,8 @@ export const createViewStateVisualizerPrimitive = (
     });
 
     setLineGeometry(planeDiscOutline, planeDiscPoints);
-    if (maxPitchRingPoints) {
-      setLineGeometry(minPitchRing, maxPitchRingPoints);
+    if (minPitchRingPoints) {
+      setLineGeometry(minPitchRing, minPitchRingPoints);
       minPitchRing.visible = showAngleArcs;
     } else {
       setLineGeometry(minPitchRing, [ORIGIN.clone(), ORIGIN.clone()]);
@@ -1392,52 +1484,59 @@ export const createViewStateVisualizerPrimitive = (
       setWideLineGeometry(altitudeLineUpper, [ORIGIN.clone(), ORIGIN.clone()]);
       altitudeLineUpper.visible = false;
     }
-    if (altitudeStemGeometry.overflowMiddleSegment) {
+    if (altitudeStemGeometry.overflowScaleBreakMarkers) {
       setWideLineGeometry(
-        altitudeOverflowMiddle,
-        altitudeStemGeometry.overflowMiddleSegment
+        altitudeScaleBreakUpper,
+        altitudeStemGeometry.overflowScaleBreakMarkers[0]
       );
-      altitudeOverflowMiddle.visible = showAltitude && showAltitudeScaleBreak;
+      setWideLineGeometry(
+        altitudeScaleBreakLower,
+        altitudeStemGeometry.overflowScaleBreakMarkers[1]
+      );
+      altitudeScaleBreakUpper.visible = showAltitude && showAltitudeScaleBreak;
+      altitudeScaleBreakLower.visible = showAltitude && showAltitudeScaleBreak;
     } else {
-      setWideLineGeometry(altitudeOverflowMiddle, [ORIGIN.clone(), ORIGIN.clone()]);
-      altitudeOverflowMiddle.visible = false;
+      setWideLineGeometry(altitudeScaleBreakUpper, [ORIGIN.clone(), ORIGIN.clone()]);
+      setWideLineGeometry(altitudeScaleBreakLower, [ORIGIN.clone(), ORIGIN.clone()]);
+      altitudeScaleBreakUpper.visible = false;
+      altitudeScaleBreakLower.visible = false;
     }
-    const headingArcPoints = buildHorizontalArcPoints({
+    const bearingArcPoints = buildHorizontalArcPoints({
       radius: OUTER_ARC_RADIUS,
       startAngle: 0,
-      endAngle: visualHeading,
+      endAngle: visualBearing,
       y: 0,
     });
     const pitchIndicatorArcPoints = buildPitchArcPoints({
-      heading,
+      bearing: viewingBearing,
       elevation,
       radius: ANGLE_INDICATOR_RADIUS,
     });
-    const headingIndicatorArcPoints = buildHorizontalArcPoints({
+    const bearingIndicatorArcPoints = buildHorizontalArcPoints({
       radius: ANGLE_INDICATOR_RADIUS,
       startAngle: 0,
-      endAngle: visualHeading,
+      endAngle: visualBearing,
       y: 0,
     });
     const elevationArcPoints = buildPitchArcPoints({
-      heading,
+      bearing: viewingBearing,
       elevation,
       radius: OUTER_ARC_RADIUS,
     });
-    setWideLineGeometry(bearingArc, headingArcPoints);
+    setWideLineGeometry(bearingArc, bearingArcPoints);
     setWideLineGeometry(pitchArc, pitchIndicatorArcPoints);
-    setWideLineGeometry(headingIndicatorArc, headingIndicatorArcPoints);
-    const pitchArcStartPoint = pointOnHeadingCircle({
-      heading,
+    setWideLineGeometry(bearingIndicatorArc, bearingIndicatorArcPoints);
+    const pitchArcStartPoint = pointOnBearingCircle({
+      bearing: viewingBearing,
       radius: OUTER_ARC_RADIUS,
     });
-    // EN radial part for heading/range cue.
-    const headingEquatorPoint = pointOnHeadingCircle({
-      heading: visualHeading,
+    // EN radial part for bearing/range cue.
+    const bearingEquatorPoint = pointOnBearingCircle({
+      bearing: visualBearing,
       radius: OUTER_ARC_RADIUS,
     });
-    setWideLineGeometry(headingRadial, [
-      headingEquatorPoint,
+    setWideLineGeometry(bearingRadial, [
+      bearingEquatorPoint,
       ORIGIN.clone(),
     ]);
     setWideLineGeometry(pitchOriginLine, [
@@ -1470,14 +1569,7 @@ export const createViewStateVisualizerPrimitive = (
       visual.imagePlaneCenter.clone(),
       visual.basisUpEnd.clone(),
     ]);
-    setLineGeometry(imagePlaneOutline, [
-      ...visual.imagePlaneCorners,
-    ]);
-    setLineGeometry(fullImagePlaneOutline, [
-      ...visual.fullImagePlaneCorners,
-    ]);
-    fullImagePlaneOutline.visible =
-      (currentDisplay.showImagePlane ?? true) && visual.hasViewOffset;
+    setQuadMeshGeometry(imagePlaneSurface, visual.imagePlaneCorners);
     setLineGeometry(imagePlaneOriginX, visual.imagePlaneOriginX);
     setLineGeometry(imagePlaneOriginY, visual.imagePlaneOriginY);
 
@@ -1511,18 +1603,18 @@ export const createViewStateVisualizerPrimitive = (
       size,
       activeCamera
     );
-    const headingArcMidpoint =
-      headingArcPoints[Math.floor(headingArcPoints.length * 0.5)] ??
+    const bearingArcMidpoint =
+      bearingArcPoints[Math.floor(bearingArcPoints.length * 0.5)] ??
       ORIGIN.clone();
     const pitchArcMidpoint =
       elevationArcPoints[Math.floor(elevationArcPoints.length * 0.5)] ??
       ORIGIN.clone();
-    const headingAnchor = projectOrthogonalPolylineLabelAnchor({
-      points: headingArcPoints,
+    const bearingAnchor = projectOrthogonalPolylineLabelAnchor({
+      points: bearingArcPoints,
       size,
       camera: activeCamera,
       offsetPx: labelFontSizePx,
-      biasToward: headingArcMidpoint.clone().multiplyScalar(1.08),
+      biasToward: bearingArcMidpoint.clone().multiplyScalar(1.08),
     });
     const pitchAnchor = projectOrthogonalPolylineLabelAnchor({
       points: elevationArcPoints,
@@ -1531,17 +1623,21 @@ export const createViewStateVisualizerPrimitive = (
       offsetPx: labelFontSizePx,
       biasToward: pitchArcMidpoint.clone().multiplyScalar(1.08),
     });
+    const rangeLabelFallbackBiasPoint = pitchArcStartPoint
+      .clone()
+      .add(WORLD_UP.clone().multiplyScalar(HEMISPHERE_RADIUS * 0.35));
     const rangeAnchor = projectOrthogonalLineLabelAnchor({
       lineStart: ORIGIN,
       lineEnd: pitchArcStartPoint,
       size,
       camera: activeCamera,
       offsetPx: labelFontSizePx,
-      biasToward: visual.cameraPosition,
+      biasToward: pitchArcMidpoint,
+      fallbackBiasToward: rangeLabelFallbackBiasPoint,
     });
 
     return {
-      heading: headingAnchor,
+      bearing: bearingAnchor,
       pitch: pitchAnchor,
       range: rangeAnchor,
       altitude: {
@@ -1613,8 +1709,8 @@ export const createViewStateVisualizerPrimitive = (
       dragMode = "pose";
       dragStartVector = pointerToArcball(e.clientX, e.clientY);
       const displayCameraPosition = computeUnitHemisphereCameraPosition(lastSpecification);
-      const displayPose = cameraPositionToHeadingPitch(displayCameraPosition);
-      dragStartHeading = displayPose.heading;
+      const displayPose = cameraSpherePositionToViewingBearingPitch(displayCameraPosition);
+      dragStartBearing = displayPose.bearing;
       dragStartPitch = displayPose.pitch;
       canvas.setPointerCapture(e.pointerId);
       canvas.style.cursor = "grabbing";
@@ -1649,16 +1745,16 @@ export const createViewStateVisualizerPrimitive = (
         .normalize();
 
       // Rotate camera direction vector on the hemisphere
-      const startCamVec = headingPitchToCameraPosition(
-        dragStartHeading,
+      const startCamVec = viewingBearingPitchToCameraSpherePosition(
+        dragStartBearing,
         dragStartPitch,
         1
       );
       const rotated = startCamVec.clone().applyQuaternion(worldRotation);
-      const next = cameraPositionToHeadingPitch(rotated);
+      const next = cameraSpherePositionToViewingBearingPitch(rotated);
 
-      const maxPitch = lastSpecification.limits?.maxPitch ?? 0;
-      options.onPoseChange?.(next.heading, clamp(next.pitch, -Math.PI / 2, maxPitch));
+      const minPitch = lastSpecification.limits?.minPitch ?? 0;
+      options.onPoseChange?.(next.bearing, clamp(next.pitch, minPitch, Math.PI / 2));
     } else if (dragMode === "orbit") {
       // Incremental pointer-delta orbit avoids unstable fast spins when the
       // arcball pointer crosses the flattened outer ring.
@@ -1669,7 +1765,7 @@ export const createViewStateVisualizerPrimitive = (
 
       orbitTheta -= deltaX * orbitSensitivity;
       orbitPhi = clamp(
-        orbitPhi + deltaY * orbitSensitivity,
+        orbitPhi - deltaY * orbitSensitivity,
         0.15,
         Math.PI * 0.48
       );
@@ -1704,14 +1800,15 @@ export const createViewStateVisualizerPrimitive = (
     perspectiveCamera.updateMatrixWorld();
     setWideLineResolution(bearingArc, size);
     setWideLineResolution(pitchArc, size);
-    setWideLineResolution(headingIndicatorArc, size);
-    setWideLineResolution(headingRadial, size);
+    setWideLineResolution(bearingIndicatorArc, size);
+    setWideLineResolution(bearingRadial, size);
     setWideLineResolution(pitchOriginLine, size);
     setWideLineResolution(elevationArc, size);
     setWideLineResolution(cameraLink, size);
     setWideLineResolution(altitudeLineLower, size);
     setWideLineResolution(altitudeLineUpper, size);
-    setWideLineResolution(altitudeOverflowMiddle, size);
+    setWideLineResolution(altitudeScaleBreakUpper, size);
+    setWideLineResolution(altitudeScaleBreakLower, size);
     const aspect = size.widthPx / size.heightPx;
     orthographicCamera.left = -baseTangentProduct * aspect;
     orthographicCamera.right = baseTangentProduct * aspect;
@@ -1762,16 +1859,18 @@ export const createViewStateVisualizerPrimitive = (
     (altitudeLineLower.material as LineMaterial).dispose();
     (altitudeLineUpper.geometry as LineGeometry).dispose();
     (altitudeLineUpper.material as LineMaterial).dispose();
-    (altitudeOverflowMiddle.geometry as LineGeometry).dispose();
-    (altitudeOverflowMiddle.material as LineMaterial).dispose();
+    (altitudeScaleBreakUpper.geometry as LineGeometry).dispose();
+    (altitudeScaleBreakUpper.material as LineMaterial).dispose();
+    (altitudeScaleBreakLower.geometry as LineGeometry).dispose();
+    (altitudeScaleBreakLower.material as LineMaterial).dispose();
     (bearingArc.geometry as LineGeometry).dispose();
     (bearingArc.material as LineMaterial).dispose();
     (pitchArc.geometry as LineGeometry).dispose();
     (pitchArc.material as LineMaterial).dispose();
-    (headingIndicatorArc.geometry as LineGeometry).dispose();
-    (headingIndicatorArc.material as LineMaterial).dispose();
-    (headingRadial.geometry as LineGeometry).dispose();
-    (headingRadial.material as LineMaterial).dispose();
+    (bearingIndicatorArc.geometry as LineGeometry).dispose();
+    (bearingIndicatorArc.material as LineMaterial).dispose();
+    (bearingRadial.geometry as LineGeometry).dispose();
+    (bearingRadial.material as LineMaterial).dispose();
     (pitchOriginLine.geometry as LineGeometry).dispose();
     (pitchOriginLine.material as LineMaterial).dispose();
     (elevationArc.geometry as LineGeometry).dispose();
@@ -1788,10 +1887,8 @@ export const createViewStateVisualizerPrimitive = (
     (cameraRight.material as THREE.Material).dispose();
     cameraUp.geometry.dispose();
     (cameraUp.material as THREE.Material).dispose();
-    imagePlaneOutline.geometry.dispose();
-    (imagePlaneOutline.material as THREE.Material).dispose();
-    fullImagePlaneOutline.geometry.dispose();
-    (fullImagePlaneOutline.material as THREE.Material).dispose();
+    imagePlaneSurface.geometry.dispose();
+    (imagePlaneSurface.material as THREE.Material).dispose();
     imagePlaneOriginX.geometry.dispose();
     (imagePlaneOriginX.material as THREE.Material).dispose();
     imagePlaneOriginY.geometry.dispose();

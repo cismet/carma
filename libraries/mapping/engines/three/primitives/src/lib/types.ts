@@ -20,7 +20,7 @@ export type ViewStateVisualizerPose = Pick<
   anchor: {
     altitude: Meters;
   };
-  heading: Radians;
+  bearing: Radians;
   pitch: Radians;
   range: Meters;
   roll?: Radians;
@@ -35,8 +35,6 @@ export type ViewStateVisualizerIntrinsics = Pick<
   | "fov"
   | "fovHorizontal"
   | "aspect"
-  | "near"
-  | "far"
   | "zoom"
   | "focus"
   | "filmGauge"
@@ -56,12 +54,23 @@ export type ViewStateVisualizerSpecification = {
   pose: ViewStateVisualizerPose;
   intrinsics?: ViewStateVisualizerIntrinsics;
   limits?: {
-    maxPitch?: Radians;
+    minPitch?: Radians;
   };
   display?: {
     imagePlaneDistance?: number;
   };
 };
+
+export type ViewStateVisualizerCueKey =
+  | "bearing"
+  | "pitch"
+  | "range"
+  | "altitude"
+  | "east"
+  | "north"
+  | "up"
+  | "imageX"
+  | "imageY";
 
 export type ViewStateVisualizerDisplayOptions = {
   /** Horizontal orbit angle in radians */
@@ -81,7 +90,7 @@ export type ViewStateVisualizerDisplayOptions = {
   showSurface?: boolean;
   /** Show E/N/U world axes */
   showAxes?: boolean;
-  /** Show heading/pitch angle arcs and min-pitch ring */
+  /** Show bearing/pitch angle arcs and min-pitch ring */
   showAngleArcs?: boolean;
   /** Show camera image plane, origin marker, and basis vectors */
   showImagePlane?: boolean;
@@ -96,27 +105,22 @@ export type ViewStateVisualizerDisplayOptions = {
 
   /** Show E/N/U axis text labels */
   showAxisLabels?: boolean;
-  /** Show heading/pitch angle text labels */
+  /** Show bearing/pitch angle text labels */
   showAngleLabels?: boolean;
   /** Show image plane x/y text labels */
   showImagePlaneLabels?: boolean;
   /** Overlay label font size in real output CSS pixels */
   labelFontSizePx?: number;
 
-  /** Base line width in px for graticule (all other widths are multipliers on this) */
-  graticuleLineWidth?: number;
-  /** Axis line width as multiplier of graticuleLineWidth (default 2) */
-  axisLineWidth?: number;
-  /** Arc line width as multiplier of graticuleLineWidth (default 2) */
-  arcLineWidth?: number;
-  /** Image plane line width as multiplier of graticuleLineWidth (default 2) */
-  imagePlaneLineWidth?: number;
-  /** Frustum line width as multiplier of graticuleLineWidth (default 2) */
-  frustumLineWidth?: number;
-  /** Camera link line width as multiplier of graticuleLineWidth (default 2) */
-  cameraLinkLineWidth?: number;
-  /** Altitude line width as multiplier of graticuleLineWidth (default 2) */
-  altitudeLineWidth?: number;
+  /** Shared rendered width in CSS px for important lines (bearing/pitch/range/altitude cues). */
+  lineWidthPx?: number;
+  /** Rendered width in CSS px for ENU axis lines. Defaults to 66% of lineWidthPx. */
+  axisLineWidthPx?: number;
+  /** Target rendered width in CSS px for all remaining hairline geometry. */
+  hairlineWidthPx?: number;
+
+  /** Cue colors for labels and corresponding scene lines where applicable. */
+  cueColors?: Partial<Record<ViewStateVisualizerCueKey, string>>;
 };
 
 export type ViewStateVisualizerLabelAnchor = {
@@ -125,7 +129,7 @@ export type ViewStateVisualizerLabelAnchor = {
 };
 
 export type ViewStateVisualizerLabelAnchors = {
-  heading: ViewStateVisualizerLabelAnchor;
+  bearing: ViewStateVisualizerLabelAnchor;
   pitch: ViewStateVisualizerLabelAnchor;
   range: ViewStateVisualizerLabelAnchor;
   altitude: ViewStateVisualizerLabelAnchor;
@@ -155,8 +159,8 @@ export type ViewStateVisualizerOptions = {
   camera?: Partial<ViewStateVisualizerCamera>;
   display?: ViewStateVisualizerDisplayOptions;
   onInteraction?: (labelAnchors: ViewStateVisualizerLabelAnchors) => void;
-  /** Called when the user drags the camera cube to change heading/pitch (radians). */
-  onPoseChange?: (heading: number, pitch: number) => void;
+  /** Called when the user drags the camera cube to change bearing/pitch (radians). */
+  onPoseChange?: (bearing: number, pitch: number) => void;
 };
 
 export type ViewStateVisualizerPrimitive = {

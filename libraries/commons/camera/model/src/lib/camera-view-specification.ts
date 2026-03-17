@@ -9,8 +9,36 @@ import type {
 
 // Mirrors the camera data that engines like Three.js carry internally:
 // matrixWorld/matrixWorldInverse/projectionMatrix plus optional object-centric
-// convenience fields for heading/pitch/range anchored views.
+// convenience fields for anchored orbit views.
 export type CameraType = "PerspectiveCamera" | "OrthographicCamera";
+
+// Canonical CARMA object-centric convention:
+// - right-handed local tangent ENU frame embedded into a Three-compatible scene basis
+// - +X = east
+// - +Y = up
+// - -Z = north
+// - +Z = south
+// - bearing rotates positively around +Y from north (-Z) toward east (+X)
+// - pitch is orbit pitch from nadir to horizon:
+//   0 = nadir / straight down onto the anchor
+//   +PI/2 = horizon / local EN plane
+// - roll rotates around the camera forward axis using Three.js camera semantics
+// - matrix/quaternion/basis fields follow Three.js world-space conventions directly
+export const OBJECT_CENTRIC_CAMERA_SPACE = {
+  handedness: "right-handed",
+  tangentFrame: "enu",
+  axes: {
+    east: "+X",
+    up: "+Y",
+    north: "-Z",
+    south: "+Z",
+  },
+  orbit: {
+    bearing: "positive around +Y from north (-Z) toward east (+X)",
+    pitch: "0=nadir, +PI/2=horizon",
+    roll: "positive around local camera forward axis",
+  },
+} as const;
 
 export type CameraBasis = {
   direction: Vec3;
@@ -64,6 +92,10 @@ export type CameraIntrinsics = {
 };
 
 export type CameraPose = {
+  // These world-space transform/orientation fields are the authoritative camera
+  // orientation representation when available. They preserve the full
+  // orthonormal basis / quaternion without introducing Euler-angle ambiguity
+  // near singular regions such as nadir / gimbal-lock-like alignments.
   matrixWorld?: Mat4;
   matrixWorldInverse?: Mat4;
   basisMatrix?: Mat4;
@@ -75,11 +107,21 @@ export type CameraPose = {
   basis?: CameraBasis;
 };
 
-export type ObjectCentricCameraPose = CameraPose & {
-  anchor: ObjectCentricCameraAnchor;
-  heading: Radians;
+export type ObjectCentricBearingPitchRange = {
+  bearing: Radians;
   pitch: Radians;
   range: Meters;
+};
+
+export type ObjectCentricCameraPose = CameraPose & {
+  anchor: ObjectCentricCameraAnchor;
+} & ObjectCentricBearingPitchRange & {
+  // Roll plus bearing/pitch/range remain useful as object-centric convenience
+  // parameters for orbit-style UIs and cross-engine projections, but they are
+  // derived / informational rather than the most stable orientation carrier.
+  // At exact nadir the viewing azimuth becomes underdefined, so consumers that
+  // need a stable camera attitude should prefer the basis/quaternion/matrices
+  // inherited from CameraPose above.
   roll?: Radians;
 };
 

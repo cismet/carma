@@ -18,7 +18,11 @@ import {
   CesiumContextProvider,
   setupCesiumEnvironment,
 } from "@carma-mapping/engines/cesium";
-import { MapFrameworkSwitcherProvider } from "@carma-mapping/components";
+import {
+  CARMA_MAP_FRAMEWORKS,
+  MapFrameworkSwitcherProvider,
+  type CarmaMapFramework,
+} from "@carma-mapping/components";
 
 import App from "./App";
 import store from "./store";
@@ -32,6 +36,44 @@ setupCesiumEnvironment(CESIUM_CONFIG);
 const persistor = persistStore(store);
 
 const enableSync = true;
+
+const isTruthyHashFlag = (value: string | null): boolean => {
+  if (!value) {
+    return false;
+  }
+
+  const normalized = value.trim().toLowerCase();
+  return normalized !== "0" && normalized !== "false";
+};
+
+const readHashQueryParams = (): URLSearchParams => {
+  const hash = window.location.hash ?? "";
+  const queryIndex = hash.indexOf("?");
+
+  if (queryIndex < 0) {
+    return new URLSearchParams();
+  }
+
+  return new URLSearchParams(hash.slice(queryIndex + 1));
+};
+
+const readInitialFrameworkFromHash = (): CarmaMapFramework => {
+  const params = readHashQueryParams();
+
+  // Explicit 2D reload must win over stale/leftover 3D flags.
+  if (isTruthyHashFlag(params.get("is2d"))) {
+    return CARMA_MAP_FRAMEWORKS.LEAFLET;
+  }
+
+  if (isTruthyHashFlag(params.get("is3d"))) {
+    return CARMA_MAP_FRAMEWORKS.CESIUM;
+  }
+
+  // Preserve existing app default when no explicit mode hint is present.
+  return CARMA_MAP_FRAMEWORKS.CESIUM;
+};
+
+const initialFramework = readInitialFrameworkFromHash();
 
 const syncedApp = (
   <CrossTabCommunicationContextProvider role="sync" token={SYNC_TOKEN}>
@@ -50,7 +92,7 @@ const appWithContext = (
           // baseLayerConf={wuppertalConfig.overridingBaseLayerConf}
           infoBoxPixelWidth={370}
         >
-          <MapFrameworkSwitcherProvider initialFramework="cesium">
+          <MapFrameworkSwitcherProvider initialFramework={initialFramework}>
             <CesiumContextProvider
               providerConfig={CESIUM_CONFIG.providerConfig}
               tilesetConfigs={CESIUM_CONFIG.tilesetConfigs}

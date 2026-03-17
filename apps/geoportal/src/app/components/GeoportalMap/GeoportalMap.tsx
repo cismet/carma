@@ -13,7 +13,10 @@ import { useDispatch, useSelector } from "react-redux";
 
 import {
   BoundingSphere,
+  Cartographic,
+  Ellipsoid,
   flyToBoundingSphereExtent,
+  HeadingPitchRange,
   type CesiumTerrainProvider,
 } from "@carma/cesium";
 import type { Map as MaplibreMap } from "maplibre-gl";
@@ -61,13 +64,14 @@ import {
   getGeoJsonGeometryCacheKey,
   getProviderScopedCache,
   getTerrainAwareBoundingSphereFromGeoJsonGeometry,
+  type InitialCameraView,
   selectScreenSpaceCameraControllerMinimumZoomDistance,
   selectShowPrimaryTileset,
   selectViewerModels,
   setCurrentSceneStyle,
   useCesiumContext,
-  useCesiumInitialCameraFromSearchParams,
 } from "@carma-mapping/engines/cesium";
+import { getPointsFromCartographicAndHeadingPitchRange } from "@carma-mapping/engines/cesium/api";
 import {
   CesiumSceneStateProvider,
   type CesiumSceneLike,
@@ -80,7 +84,11 @@ import {
 import { EmptySearchComponent } from "@carma-mapping/fuzzy-search";
 import { useAuth } from "@carma-providers/auth";
 import { useFeatureFlags } from "@carma-providers/feature-flag";
-import { useCesiumCameraHashPlugin } from "@carma-providers/hash-state";
+import {
+  useInitialSceneDescriptorHashSnapshot,
+  useSceneDescriptorHashSync,
+} from "@carma-providers/hash-state";
+import { degToRadNumeric } from "@carma/units/helpers";
 
 import FeatureInfoBox from "../feature-info/FeatureInfoBox.tsx";
 import PrintPreview from "../map-print/PrintPreview.tsx";
@@ -126,7 +134,11 @@ import {
 import LoginForm from "../LoginForm.tsx";
 import { useModelSelectionDispatcher } from "../../hooks/useModelSelectionDispatcher.ts";
 
-import { CESIUM_CONFIG, LEAFLET_CONFIG } from "../../config/app.config";
+import {
+  CESIUM_CONFIG,
+  DEFAULT_CAMERA_FOV_DEG,
+  LEAFLET_CONFIG,
+} from "../../config/app.config";
 
 import "cesium/Build/Cesium/Widgets/widgets.css";
 import "../leaflet.css";
@@ -140,20 +152,74 @@ interface MapProps {
 }
 
 const CLICK_DELAY_MS = 200;
+const DEFAULT_HASH_RANGE_M = 750;
+const DEFAULT_HASH_ZOOM = 17;
+
+const isFiniteNumber = (value: unknown): value is number =>
+  typeof value === "number" && Number.isFinite(value);
+
+const readInitialCameraViewFromHashSnapshot = (
+  snapshot: ReturnType<typeof useInitialSceneDescriptorHashSnapshot>["initialCameraState"]
+): InitialCameraView | undefined => {
+  if (!snapshot) {
+    return undefined;
+  }
+
+  const anchorCartographic = Cartographic.fromDegrees(
+    snapshot.anchor.lngDeg,
+    snapshot.anchor.latDeg,
+    snapshot.anchor.heightM
+  );
+
+  const headingPitchRange = new HeadingPitchRange(
+    degToRadNumeric(snapshot.orientation.bearingDeg ?? 0),
+    degToRadNumeric(snapshot.orientation.pitchDeg ?? 0),
+    Math.max(0.01, snapshot.orientation.rangeM ?? DEFAULT_HASH_RANGE_M)
+  );
+
+  const points = getPointsFromCartographicAndHeadingPitchRange({
+    cartographic: anchorCartographic,
+    headingPitchRange,
+  });
+  if (!points) {
+    return undefined;
+  }
+
+  const position = Ellipsoid.WGS84.cartesianToCartographic(
+    points.cameraPositionECEF
+  );
+  if (!position) {
+    return undefined;
+  }
+
+  return {
+    position,
+    heading: headingPitchRange.heading,
+    pitch: headingPitchRange.pitch,
+    ...(isFiniteNumber(snapshot.orientation.fovDeg)
+      ? { fov: degToRadNumeric(snapshot.orientation.fovDeg) }
+      : {}),
+  };
+};
 
 const GeoportalCesiumCameraHashSync = ({
   enabled,
+  scene,
 }: {
   enabled: boolean;
+  scene: CesiumSceneLike | null;
 }) => {
   const sceneState = useCesiumSceneStateOptional();
-  useCesiumCameraHashPlugin({
+  useSceneDescriptorHashSync({
     sceneState,
+    scene,
     enabled,
-    encodeScheme: "carma-object-centric",
+    encodeScheme: "carma-maplibre-plus-elevation",
     anchorMode: "screen-center",
+    defaultFovDeg: DEFAULT_CAMERA_FOV_DEG,
     fallbackHeightM: 200,
     replace: true,
+    includeIs3dFlag: false,
     label: "[GEOPORTAL] Cesium camera hash",
   });
   return null;
@@ -288,7 +354,15 @@ export const GeoportalMap = ({ height, width, allow3d }: MapProps) => {
   // custom hooks
   const flags = useFeatureFlags();
   const { isDebugMode } = flags;
-  const cesiumInitialCameraView = useCesiumInitialCameraFromSearchParams();
+  const { initialCameraState, isResolved: isInitialCameraResolved } =
+    useInitialSceneDescriptorHashSnapshot({
+      defaultFovDeg: DEFAULT_CAMERA_FOV_DEG,
+      defaultZoom: DEFAULT_HASH_ZOOM,
+    });
+  const cesiumInitialCameraView = useMemo(
+    () => readInitialCameraViewFromHashSnapshot(initialCameraState),
+    [initialCameraState]
+  );
 
   // One-time gate: Cesium can only initialize once we have determined initial position
   // Once true, stays true forever (stored in ref to prevent re-renders)
@@ -297,7 +371,7 @@ export const GeoportalMap = ({ height, width, allow3d }: MapProps) => {
     useRef<typeof cesiumInitialCameraView>(undefined);
 
   // Lock the gate once we have a valid initial position (from URL or will use config default)
-  if (cesiumInitialCameraView !== null && !cesiumCanInitializeRef.current) {
+  if (isInitialCameraResolved && !cesiumCanInitializeRef.current) {
     console.debug(
       "[CESIUM|INIT|GATE] Initial camera position determined, unlocking Cesium initialization"
     );
@@ -1003,6 +1077,7 @@ export const GeoportalMap = ({ height, width, allow3d }: MapProps) => {
           >
             <GeoportalCesiumCameraHashSync
               enabled={isCesium && !getIsTransitioning()}
+              scene={cesiumScene as unknown as CesiumSceneLike | null}
             />
             <CustomViewer
               containerRef={container3dMapRef}

@@ -7,3 +7,4 @@ export * from "./distance/distanceToolPlugin";
 export * from "./point/pointToolPlugin";
 export * from "./polyline/polylineToolPlugin";
 export * from "./select/selectToolPlugin";
+export * from "./vertical-area/verticalAreaToolPlugin";

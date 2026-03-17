@@ -11,12 +11,17 @@ import {
   Cartesian3,
   Cesium3DTileset,
   CesiumTerrainProvider,
-  createMinimalCesiumWidget,
+  Matrix4,
+  PerspectiveFrustum,
   type CesiumWidget,
   type Scene,
 } from "@carma/cesium";
-import { sampleTerrainMostDetailedGuardedAsync } from "@carma-mapping/engines/cesium/api";
+import {
+  createMinimalCesiumWidget,
+  sampleTerrainMostDetailedGuardedAsync,
+} from "@carma-mapping/engines/cesium/api";
 import { degToRadNumeric } from "@carma/units/helpers";
+import type { SceneDescriptorHashSnapshot } from "@carma-providers/hash-state";
 import {
   WUPPERTAL,
   WUPP_MESH_2024,
@@ -24,7 +29,11 @@ import {
   WUPP_TERRAIN_PROVIDER_DSM_MESH_2024_1M,
 } from "@carma-commons/resources";
 
-type PersistedCameraState = {
+import {
+  buildObjectCentricCameraOrientation,
+} from "./objectCentricCesiumCamera";
+
+type DefaultCameraState = {
   longitude: number;
   latitude: number;
   heightAboveTerrain: number;
@@ -33,10 +42,8 @@ type PersistedCameraState = {
   roll: number;
 };
 
-const CAMERA_STATE_STORAGE_KEY = "annotations-playground-camera-state";
-const CAMERA_SAVE_DELAY_MS = 750;
 const DEFAULT_CAMERA_HEIGHT_ABOVE_TERRAIN_M = 500;
-const DEFAULT_INITIAL_CAMERA_STATE: PersistedCameraState = {
+const DEFAULT_INITIAL_CAMERA_STATE: DefaultCameraState = {
   longitude: degToRadNumeric(WUPPERTAL.position.longitude),
   latitude: degToRadNumeric(WUPPERTAL.position.latitude - 0.003),
   heightAboveTerrain: DEFAULT_CAMERA_HEIGHT_ABOVE_TERRAIN_M,
@@ -47,75 +54,6 @@ const DEFAULT_INITIAL_CAMERA_STATE: PersistedCameraState = {
 
 const isFiniteNumber = (value: unknown): value is number =>
   typeof value === "number" && Number.isFinite(value);
-
-const parsePersistedCameraState = (
-  rawValue: string | null
-): PersistedCameraState | null => {
-  if (!rawValue) return null;
-
-  try {
-    const parsed = JSON.parse(rawValue) as Partial<PersistedCameraState>;
-    const parsedHeightAboveTerrain = isFiniteNumber(parsed.heightAboveTerrain)
-      ? parsed.heightAboveTerrain
-      : // Backward-compatible local storage migration: old snapshots stored
-        // absolute camera height in `height`.
-        isFiniteNumber((parsed as { height?: unknown }).height)
-        ? ((parsed as { height: number }).height as number)
-        : null;
-    if (
-      !isFiniteNumber(parsed.longitude) ||
-      !isFiniteNumber(parsed.latitude) ||
-      !isFiniteNumber(parsedHeightAboveTerrain) ||
-      !isFiniteNumber(parsed.heading) ||
-      !isFiniteNumber(parsed.pitch) ||
-      !isFiniteNumber(parsed.roll)
-    ) {
-      return null;
-    }
-
-    return {
-      longitude: parsed.longitude,
-      latitude: parsed.latitude,
-      heightAboveTerrain: Math.max(0, parsedHeightAboveTerrain),
-      heading: parsed.heading,
-      pitch: parsed.pitch,
-      roll: parsed.roll,
-    };
-  } catch {
-    return null;
-  }
-};
-
-const loadPersistedCameraState = (): PersistedCameraState | null =>
-  parsePersistedCameraState(localStorage.getItem(CAMERA_STATE_STORAGE_KEY));
-
-const savePersistedCameraState = (state: PersistedCameraState) => {
-  try {
-    localStorage.setItem(CAMERA_STATE_STORAGE_KEY, JSON.stringify(state));
-  } catch (error) {
-    console.warn(
-      "[annotations-playground] Failed to persist camera state",
-      error
-    );
-  }
-};
-
-const extractCameraState = (widget: CesiumWidget): PersistedCameraState => {
-  const camera = widget.camera;
-  const position = camera.positionCartographic;
-  const terrainHeight = widget.scene.globe.getHeight(position);
-  const heightAboveTerrain = isFiniteNumber(terrainHeight)
-    ? position.height - terrainHeight
-    : position.height;
-  return {
-    longitude: position.longitude,
-    latitude: position.latitude,
-    heightAboveTerrain: Math.max(0, heightAboveTerrain),
-    heading: camera.heading,
-    pitch: camera.pitch,
-    roll: camera.roll,
-  };
-};
 
 const sampleTerrainHeightAtPosition = async (
   terrainProvider: CesiumTerrainProvider,
@@ -142,7 +80,7 @@ const sampleTerrainHeightAtPosition = async (
 const applyCameraState = async (
   widget: CesiumWidget,
   terrainProvider: CesiumTerrainProvider,
-  state: PersistedCameraState
+  state: DefaultCameraState
 ) => {
   const sampledTerrainHeight = await sampleTerrainHeightAtPosition(
     terrainProvider,
@@ -164,40 +102,18 @@ const applyCameraState = async (
   widget.scene.requestRender();
 };
 
-const setupCameraPersistence = (widget: CesiumWidget): (() => void) => {
-  let saveTimeout: number | null = null;
-
-  const onCameraChanged = () => {
-    if (saveTimeout !== null) {
-      window.clearTimeout(saveTimeout);
-    }
-
-    saveTimeout = window.setTimeout(() => {
-      if (widget.isDestroyed()) return;
-      savePersistedCameraState(extractCameraState(widget));
-      saveTimeout = null;
-    }, CAMERA_SAVE_DELAY_MS);
-  };
-
-  const removeListener =
-    widget.camera.changed.addEventListener(onCameraChanged);
-
-  return () => {
-    removeListener?.();
-    if (saveTimeout !== null) {
-      window.clearTimeout(saveTimeout);
-    }
-  };
-};
-
 const initializeWidget = (
   container: HTMLDivElement,
   useBrowserRecommendedResolution = false
 ): CesiumWidget => {
-  return createMinimalCesiumWidget(container, {
+  const widget = createMinimalCesiumWidget(container, {
     requestRenderMode: true,
     useBrowserRecommendedResolution,
   });
+
+  widget.scene.requestRenderMode = true;
+
+  return widget;
 };
 
 const initializeTerrainProviders = async () => {
@@ -237,8 +153,41 @@ const initializeTerrainProviders = async () => {
   return providers;
 };
 
-const readInitialCameraState = (): PersistedCameraState =>
-  loadPersistedCameraState() ?? DEFAULT_INITIAL_CAMERA_STATE;
+const applyInitialCameraState = async ({
+  widget,
+  terrainProvider,
+  initialCameraState,
+}: {
+  widget: CesiumWidget;
+  terrainProvider: CesiumTerrainProvider;
+  initialCameraState: SceneDescriptorHashSnapshot | null;
+}) => {
+  if (initialCameraState) {
+    const orientation = buildObjectCentricCameraOrientation(initialCameraState);
+    if (orientation) {
+      widget.camera.lookAtTransform(Matrix4.IDENTITY);
+      widget.camera.setView({
+        destination: orientation.destination,
+        orientation: {
+          direction: orientation.direction,
+          up: orientation.up,
+        },
+      });
+
+      if (
+        isFiniteNumber(orientation.fovRad) &&
+        widget.camera.frustum instanceof PerspectiveFrustum
+      ) {
+        widget.camera.frustum.fov = orientation.fovRad;
+      }
+
+      widget.scene.requestRender();
+      return;
+    }
+  }
+
+  await applyCameraState(widget, terrainProvider, DEFAULT_INITIAL_CAMERA_STATE);
+};
 
 const sampleScreenCenterTerrainIntersection = (scene: Scene) => {
   const { camera, canvas, globe } = scene;
@@ -309,12 +258,16 @@ const loadTileset = async (
 type CesiumWidgetContainerProps = {
   rootRef: MutableRefObject<HTMLDivElement | null>;
   onSceneChange?: (scene: Scene | null) => void;
+  initialCameraState?: SceneDescriptorHashSnapshot | null;
+  startPoseResolved?: boolean;
   children: ReactNode;
 };
 
 export function CesiumWidgetContainer({
   rootRef,
   onSceneChange,
+  initialCameraState = null,
+  startPoseResolved = true,
   children,
 }: CesiumWidgetContainerProps) {
   const cesiumContainerRef = useRef<HTMLDivElement>(null);
@@ -325,9 +278,8 @@ export function CesiumWidgetContainer({
   const [isWidgetReady, setIsWidgetReady] = useState(false);
 
   useEffect(() => {
-    if (!cesiumContainerRef.current) return;
+    if (!startPoseResolved || !cesiumContainerRef.current) return;
     let disposed = false;
-    let teardownCameraPersistence: (() => void) | null = null;
 
     const initialize = async () => {
       const widget = initializeWidget(cesiumContainerRef.current);
@@ -354,13 +306,15 @@ export function CesiumWidgetContainer({
 
       widget.scene.terrainProvider = providers.terrain;
 
-      const initialCameraState = readInitialCameraState();
-      await applyCameraState(widget, providers.terrain, initialCameraState);
+      await applyInitialCameraState({
+        widget,
+        terrainProvider: providers.terrain,
+        initialCameraState,
+      });
       await assertScreenCenterTerrainIntersection(widget.scene);
 
       if (disposed || widget.isDestroyed()) return;
 
-      teardownCameraPersistence = setupCameraPersistence(widget);
       onSceneChange?.(widget.scene);
       setIsWidgetReady(true);
 
@@ -379,7 +333,6 @@ export function CesiumWidgetContainer({
         error
       );
       onSceneChange?.(null);
-      teardownCameraPersistence?.();
       setIsWidgetReady(false);
       terrainProviderRef.current = null;
       surfaceProviderRef.current = null;
@@ -394,7 +347,6 @@ export function CesiumWidgetContainer({
     return () => {
       disposed = true;
       onSceneChange?.(null);
-      teardownCameraPersistence?.();
       setIsWidgetReady(false);
       terrainProviderRef.current = null;
       surfaceProviderRef.current = null;
@@ -405,7 +357,7 @@ export function CesiumWidgetContainer({
         widget.destroy();
       }
     };
-  }, [onSceneChange]);
+  }, [initialCameraState, onSceneChange, startPoseResolved]);
 
   useEffect(() => {
     if (!isWidgetReady) {

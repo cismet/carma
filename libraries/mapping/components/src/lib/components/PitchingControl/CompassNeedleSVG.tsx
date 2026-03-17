@@ -1,4 +1,3 @@
-import { useEffect, useState } from "react";
 import { Math as CesiumMath } from "cesium";
 
 // MapLibre pitch is in degrees (0-85 typically)
@@ -16,28 +15,16 @@ export const CompassNeedleSVG = ({
   northColor?: string;
   neutralColor?: string;
 } = {}) => {
-  const [transform, setTransform] = useState("");
-
-  useEffect(() => {
-    if (pitch !== undefined && heading !== undefined) {
-      const normalizedHeading = -heading * (Math.PI / 180); // Convert degrees to radians
-
-      // Convert MapLibre pitch (degrees, 0-85) to radians and normalize for our visualization
-      const pitchRadians = pitch * (Math.PI / 180); // Convert degrees to radians
-      const normalizedPitch = Math.min(
-        pitchRadians * (Math.PI / 2 / ((MAX_PITCH_DEGREES * Math.PI) / 180)), // Scale to appropriate range
-        PITCH_HORIZON_OFFSET
-      );
-
-      // scale the needle for lower pitches for improved visibility
-      // linear scaling makes the tilting effect look less consistent
-      const transform = `scale(${Math.pow(
-        1 + normalizedPitch * 0.1,
-        3
-      )}) rotateX(${normalizedPitch}rad) rotateZ(${normalizedHeading}rad)`;
-      setTransform(transform);
-    }
-  }, [pitch, heading]);
+  const normalizedHeading = -heading * (Math.PI / 180);
+  const pitchRadians = pitch * (Math.PI / 180);
+  const normalizedPitch = Math.min(
+    pitchRadians * (Math.PI / 2 / ((MAX_PITCH_DEGREES * Math.PI) / 180)),
+    PITCH_HORIZON_OFFSET
+  );
+  const transform = `scale(${Math.pow(
+    1 + normalizedPitch * 0.1,
+    3
+  )}) rotateX(${normalizedPitch}rad) rotateZ(${normalizedHeading}rad)`;
 
   // style adjusted from maplibre-gl-ctrl-compass
   // https://github.com/maplibre/maplibre-gl-js/blob/a99fe93fe8ac1505b1b450cd3c1d9b2b8394bd8c/src/css/svg/maplibregl-ctrl-compass.svg#L3

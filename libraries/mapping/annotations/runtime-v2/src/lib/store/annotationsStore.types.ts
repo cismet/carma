@@ -26,7 +26,16 @@ export type RuntimeAnnotationEntry = {
   nodeIds: readonly string[];
   edgeIds: readonly string[];
   temporary?: boolean;
+  closed?: boolean;
+  areaSquareMeters?: number;
+  verticalityDeg?: number;
+  bearingDeg?: number;
 };
+
+export type RuntimeAddAnnotationOptions = Pick<
+  RuntimeAnnotationEntry,
+  "closed" | "areaSquareMeters" | "verticalityDeg" | "bearingDeg"
+>;
 
 export type RuntimeMeasurement = RuntimeAnnotationEntry;
 
@@ -45,6 +54,7 @@ export type AnnotationInfoBoxStoreState = {
 export type AnnotationDraftStoreState = {
   polylinePreviewCoordinates: readonly RuntimeCoordinate[];
   distancePreviewCoordinates: readonly RuntimeCoordinate[];
+  verticalAreaPreviewCoordinates: readonly RuntimeCoordinate[];
 };
 
 export type AnnotationSettingsStoreState = {

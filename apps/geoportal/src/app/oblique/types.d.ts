@@ -90,6 +90,7 @@ export interface ObliqueDataProviderConfig {
   fixedHeight?: number;
   minFov?: Radians;
   maxFov?: Radians;
+  restoreFovOnLeave?: Radians;
   headingOffset?: number;
   animations?: ObliqueAnimationsConfig;
   footprintsStyle?: ObliqueFootprintsStyle;

@@ -6,6 +6,8 @@ export {
   projectMapLibreViewToViewSyncTarget,
   projectViewSyncTargetToLeaflet,
   projectViewSyncTargetToMapLibre,
+  toCesiumPitchFromViewSyncPitch,
+  toViewSyncPitchFromCesiumPitch,
   readViewSyncHorizontalFov,
   readViewSyncTargetFromSceneState,
   readViewSyncVerticalFov,
@@ -13,8 +15,8 @@ export {
 export type {
   BuiltInViewSyncEngine,
   ViewSyncAnchor,
+  ViewSyncBearingPitchRange,
   ViewSyncEngine,
-  ViewSyncHeadingPitchRange,
   ViewSyncLeafletProjection,
   ViewSyncMapLibreProjection,
   ViewSyncPublishedState,

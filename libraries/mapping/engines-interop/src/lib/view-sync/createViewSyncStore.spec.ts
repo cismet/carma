@@ -27,9 +27,9 @@ describe("createViewSyncStore", () => {
         latitude: 0.2,
         altitude: 250,
       },
-      headingPitchRange: {
-        heading: 1.2,
-        pitch: -0.8,
+      bearingPitchRange: {
+        bearing: 1.2,
+        pitch: 0.8,
         range: 800,
       },
       fovVertical: 1,
@@ -46,9 +46,9 @@ describe("createViewSyncStore", () => {
 
     const passiveTarget = {
       ...firstTarget,
-      headingPitchRange: {
-        ...firstTarget.headingPitchRange,
-        heading: 2.5,
+      bearingPitchRange: {
+        ...firstTarget.bearingPitchRange,
+        bearing: 2.5,
       },
     } as const;
 
@@ -77,7 +77,7 @@ describe("view-sync target helpers", () => {
           latitude: 0.92,
           altitude: 1200,
         },
-        headingRad: 1.4,
+        bearingRad: 1.4,
         pitchRad: -0.6,
         rollRad: 0.1,
         fovVertical: 1.0,
@@ -97,7 +97,7 @@ describe("view-sync target helpers", () => {
 
     expect(target).not.toBeNull();
     expect(target?.anchor.altitude).toBe(400);
-    expect(target?.headingPitchRange.range).toBe(800);
+    expect(target?.bearingPitchRange.range).toBe(800);
 
     const viewport = {
       widthPx: 1200,
@@ -111,7 +111,7 @@ describe("view-sync target helpers", () => {
     const leafletProjection = projectViewSyncTargetToLeaflet({
       target: target!,
       viewport,
-      includeHeading: true,
+      includeBearing: true,
     });
 
     expect(mapLibreProjection?.lng).toBeCloseTo(6.3025, 4);
@@ -122,7 +122,7 @@ describe("view-sync target helpers", () => {
     expect(leafletProjection?.center.lng).toBeCloseTo(6.3025, 4);
     expect(leafletProjection?.center.lat).toBeCloseTo(52.1392, 4);
     expect(leafletProjection?.zoom).toBeGreaterThan(17);
-    expect(leafletProjection?.headingDeg).toBeCloseTo(80.2141, 4);
+    expect(leafletProjection?.bearingDeg).toBeCloseTo(80.2141, 4);
   });
 
   it("prefers object-centric cameraModel pose over raw camera heading/pitch", () => {
@@ -131,7 +131,7 @@ describe("view-sync target helpers", () => {
       timestampMs: 1001,
       camera: {
         worldPosition: { x: 100, y: 200, z: 1200 },
-        headingRad: 0.3,
+        bearingRad: 0.3,
         pitchRad: -0.2,
         cameraModel: {
           pose: {
@@ -140,8 +140,8 @@ describe("view-sync target helpers", () => {
               latitude: 0.91,
               altitude: 400,
             },
-            heading: 1.4,
-            pitch: -0.6,
+            bearing: 1.4,
+            pitch: 0.9707963267948966,
             range: 900,
           },
         },
@@ -160,8 +160,8 @@ describe("view-sync target helpers", () => {
     const target = readViewSyncTargetFromSceneState(sceneState);
 
     expect(target).not.toBeNull();
-    expect(target?.headingPitchRange.heading).toBeCloseTo(1.4, 8);
-    expect(target?.headingPitchRange.pitch).toBeCloseTo(-0.6, 8);
-    expect(target?.headingPitchRange.range).toBeCloseTo(900, 8);
+    expect(target?.bearingPitchRange.bearing).toBeCloseTo(1.4, 8);
+    expect(target?.bearingPitchRange.pitch).toBeCloseTo(0.9707963268, 8);
+    expect(target?.bearingPitchRange.range).toBeCloseTo(900, 8);
   });
 });
