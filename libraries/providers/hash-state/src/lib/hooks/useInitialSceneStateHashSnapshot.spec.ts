@@ -1,12 +1,12 @@
 import { renderHook } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import { readSceneStateFromMapLibrePlusElevationHashValues } from "./sceneStateHashCodec";
+import { readSceneStateFromMapLibrePlusElevationHashValues } from "../scene-state-hash/sceneStateHashMapLibreAdapter";
 
 const mockGetHash = vi.fn<[], Record<string, string>>();
 const mockGetHashValues = vi.fn<[], Record<string, unknown>>();
 
-vi.mock("./HashStateProvider", () => ({
+vi.mock("../HashStateProvider", () => ({
   useHashState: () => ({
     getHash: mockGetHash,
     getHashValues: mockGetHashValues,
@@ -83,7 +83,7 @@ describe("useInitialSceneStateHashSnapshot", () => {
         },
         viewportWidthPx: VIEWPORT_WIDTH_PX,
         viewportHeightPx: VIEWPORT_HEIGHT_PX,
-        defaultFovDeg: DEFAULT_FOV_DEG,
+        options: { defaultFovDeg: DEFAULT_FOV_DEG },
       });
 
       const { result } = renderInitialSnapshot(hashValues);

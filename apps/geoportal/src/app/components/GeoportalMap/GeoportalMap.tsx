@@ -166,6 +166,23 @@ const readInitialCameraViewFromHashSnapshot = (
     return undefined;
   }
 
+  const orientation = snapshot.orientation as typeof snapshot.orientation & {
+    bearingDeg?: number;
+    pitchDeg?: number;
+    fovDeg?: number;
+  };
+  const headingRad = isFiniteNumber(orientation.bearingRad)
+    ? orientation.bearingRad
+    : degToRadNumeric(orientation.bearingDeg ?? 0);
+  const pitchRad = isFiniteNumber(orientation.pitchRad)
+    ? orientation.pitchRad
+    : degToRadNumeric(orientation.pitchDeg ?? 0);
+  const fovVerticalRad = isFiniteNumber(orientation.fovVerticalRad)
+    ? orientation.fovVerticalRad
+    : isFiniteNumber(orientation.fovDeg)
+    ? degToRadNumeric(orientation.fovDeg)
+    : undefined;
+
   const anchorCartographic = Cartographic.fromDegrees(
     snapshot.anchor.lngDeg,
     snapshot.anchor.latDeg,
@@ -173,8 +190,8 @@ const readInitialCameraViewFromHashSnapshot = (
   );
 
   const headingPitchRange = new HeadingPitchRange(
-    degToRadNumeric(snapshot.orientation.bearingDeg ?? 0),
-    degToRadNumeric(snapshot.orientation.pitchDeg ?? 0),
+    headingRad,
+    pitchRad,
     Math.max(0.01, snapshot.orientation.rangeM ?? DEFAULT_HASH_RANGE_M)
   );
 
@@ -197,8 +214,8 @@ const readInitialCameraViewFromHashSnapshot = (
     position,
     heading: headingPitchRange.heading,
     pitch: headingPitchRange.pitch,
-    ...(isFiniteNumber(snapshot.orientation.fovDeg)
-      ? { fov: degToRadNumeric(snapshot.orientation.fovDeg) }
+    ...(isFiniteNumber(fovVerticalRad)
+      ? { fov: fovVerticalRad }
       : {}),
   };
 };
@@ -215,12 +232,10 @@ const GeoportalCesiumCameraHashSync = ({
     sceneState,
     scene,
     enabled,
-    encodeScheme: "carma-maplibre-plus-elevation",
     anchorMode: "screen-center",
     defaultFovDeg: DEFAULT_CAMERA_FOV_DEG,
     fallbackHeightM: 200,
     replace: true,
-    includeIs3dFlag: false,
     label: "[GEOPORTAL] Cesium camera hash",
   });
   return null;
