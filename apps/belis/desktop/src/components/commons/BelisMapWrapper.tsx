@@ -66,6 +66,7 @@ import {
 } from "../../store/slices/arbeitsauftraege";
 import { getSelectedTeamName } from "../../store/selectors";
 import { buildApGeoJson } from "../../helper/buildApGeoJson";
+import { debugLayers } from "../../config/debugLayers";
 import type { ArbeitsauftragTileFeature } from "../../store/slices/arbeitsauftraege";
 
 const LIST_WIDTH = 300;
@@ -1022,14 +1023,16 @@ const BelisMapLibWrapper = ({
     if (sidebarVariant !== "arbeitsauftraege" || !map) return;
 
     const handleClick = (e: maplibregl.MapMouseEvent) => {
+      // Don't clear selection when AP tab is active
+      if (activeAATab === "ap") return;
+
       const hits = map.queryRenderedFeatures(e.point);
       const hasRelevant = hits.some(
         (h) =>
           h.sourceLayer === "arbeitsauftraege" ||
           h.layer?.id === "arbeitsauftraege_fill" ||
           h.layer?.id === "arbeitsauftraege_outline" ||
-          h.layer?.id === "ap-features-points" ||
-          h.layer?.id === "ap-features-lines"
+          h.source === AP_SOURCE
       );
       if (!hasRelevant) {
         dispatch(clearSelection());
@@ -1040,20 +1043,31 @@ const BelisMapLibWrapper = ({
     return () => {
       map.off("click", handleClick);
     };
-  }, [sidebarVariant, map, dispatch]);
+  }, [sidebarVariant, activeAATab, map, dispatch]);
 
   // --- Arbeitsauftraege: show AP Fachobjekte on map when AP tab is active ---
+  // Map debug layer source-layer names to featureType property values in AP GeoJSON
+  const AP_SOURCE = "ap-features-source";
+  const AP_LAYER_PREFIX = "ap-";
+  const SOURCE_LAYER_TO_FEATURE_TYPE_AP: Record<string, string> = {
+    leuchten: "tdta_leuchten",
+    mast: "tdta_standort_mast",
+    leitungen: "leitung",
+    schaltstelle: "schaltstelle",
+    mauerlaschen: "mauerlasche",
+    abzweigdosen: "abzweigdose",
+  };
+
   useEffect(() => {
     if (!map) return;
 
-    const AP_SOURCE = "ap-features-source";
-    const AP_POINTS_LAYER = "ap-features-points";
-    const AP_LINES_LAYER = "ap-features-lines";
+    const addedLayerIds: string[] = [];
 
     const removeLayers = () => {
       try {
-        if (map.getLayer(AP_LINES_LAYER)) map.removeLayer(AP_LINES_LAYER);
-        if (map.getLayer(AP_POINTS_LAYER)) map.removeLayer(AP_POINTS_LAYER);
+        for (const id of addedLayerIds) {
+          if (map.getLayer(id)) map.removeLayer(id);
+        }
         if (map.getSource(AP_SOURCE)) map.removeSource(AP_SOURCE);
       } catch {
         // layers/source may not exist
@@ -1082,62 +1096,29 @@ const BelisMapLibWrapper = ({
       map.addSource(AP_SOURCE, { type: "geojson", data: geojson });
     }
 
-    // Add circle layer for points (if not already present)
-    if (!map.getLayer(AP_POINTS_LAYER)) {
-      map.addLayer({
-        id: AP_POINTS_LAYER,
-        type: "circle",
-        source: AP_SOURCE,
-        filter: ["!=", ["geometry-type"], "LineString"],
-        paint: {
-          "circle-radius": 7,
-          "circle-stroke-width": 2,
-          "circle-stroke-color": "#ffffff",
-          "circle-color": [
-            "match",
-            ["get", "status"],
-            "offen",
-            "#F59E0B",
-            "in_bearbeitung",
-            "#3B82F6",
-            "erledigt",
-            "#10B981",
-            "fehlmeldung",
-            "#EF4444",
-            "#9CA3AF",
-          ],
-        },
-      });
-    }
+    // Add layers derived from debugLayers, rewritten for the AP GeoJSON source
+    for (const layer of debugLayers) {
+      const sourceLayer = "source-layer" in layer ? (layer as Record<string, unknown>)["source-layer"] as string : undefined;
+      const featureType = sourceLayer
+        ? SOURCE_LAYER_TO_FEATURE_TYPE_AP[sourceLayer]
+        : undefined;
+      if (!featureType) continue;
 
-    // Add line layer for leitungen (if not already present)
-    if (!map.getLayer(AP_LINES_LAYER)) {
-      map.addLayer({
-        id: AP_LINES_LAYER,
-        type: "line",
+      const apLayerId = `${AP_LAYER_PREFIX}${layer.id}`;
+      if (map.getLayer(apLayerId)) continue;
+
+      // Clone the layer spec, replacing source and adding featureType filter
+      const apLayer = {
+        ...layer,
+        id: apLayerId,
         source: AP_SOURCE,
-        filter: [
-          "any",
-          ["==", ["geometry-type"], "LineString"],
-          ["==", ["geometry-type"], "MultiLineString"],
-        ],
-        paint: {
-          "line-width": 3,
-          "line-color": [
-            "match",
-            ["get", "status"],
-            "offen",
-            "#F59E0B",
-            "in_bearbeitung",
-            "#3B82F6",
-            "erledigt",
-            "#10B981",
-            "fehlmeldung",
-            "#EF4444",
-            "#9CA3AF",
-          ],
-        },
-      });
+        filter: ["==", ["get", "featureType"], featureType],
+      };
+      // Remove source-layer (not applicable for GeoJSON)
+      delete (apLayer as Record<string, unknown>)["source-layer"];
+
+      map.addLayer(apLayer as maplibregl.LayerSpecification);
+      addedLayerIds.push(apLayerId);
     }
 
     return removeLayers;
