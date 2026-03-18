@@ -262,11 +262,13 @@ export function ThreeLayerManager({
       console.log("[3D-BUILDINGS] raw:", raw.length, "zoom:", map.getZoom().toFixed(1),
         "source:", config.sourceId, "sourceLayer:", config.sourceLayer);
 
-      // Group tile fragments by feature ID
+      // Group tile fragments by feature ID, keeping raw feature refs for _sourceFeatures
       interface BldgGroup {
         fragments: number[][][];
         height: number;
         isPublic: boolean;
+        /** First raw feature for this group (used for _sourceFeatures snapshot) */
+        rawFeature: (typeof raw)[0];
       }
       const groups = new Map<string | number, BldgGroup>();
 
@@ -293,16 +295,41 @@ export function ThreeLayerManager({
           if (g) {
             g.fragments.push(ring);
           } else {
-            groups.set(fid, { fragments: [ring], height, isPublic: f.properties?.[publicField] === "1" });
+            groups.set(fid, { fragments: [ring], height, isPublic: f.properties?.[publicField] === "1", rawFeature: f });
           }
         }
       }
 
+      // Build _sourceFeatures snapshot (parallel array, one entry per building group)
+      // and assign sourceIndex to each building feature
+      const sourceFeatures: Array<{
+        id: string | number | undefined;
+        properties: Record<string, unknown>;
+        source: string;
+        sourceLayer: string;
+        geometry: GeoJSON.Geometry | null;
+      }> = [];
+      const groupEntries = Array.from(groups.entries());
+      for (const [, g] of groupEntries) {
+        const rf = g.rawFeature;
+        sourceFeatures.push({
+          id: rf.id,
+          properties: { ...(rf.properties ?? {}) },
+          source: (rf as any).source ?? config.sourceId,
+          sourceLayer: (rf as any).sourceLayer ?? config.sourceLayer,
+          geometry: rf.geometry ?? null,
+        });
+      }
+
       // Build features: union multi-fragment buildings, pass single-fragment ones through
       const buildings: BuildingFeature[] = [];
+      // MappedFeature entries for the spatial grid
+      const mappedFeatures: MappedFeature[] = [];
       let mergedOk = 0;
       let mergeFailed = 0;
-      for (const [, g] of groups) {
+      for (let gi = 0; gi < groupEntries.length; gi++) {
+        const [, g] = groupEntries[gi];
+        const sourceIndex = gi;
         let ringsToExtrude: number[][][];
 
         if (g.fragments.length === 1) {
@@ -330,7 +357,31 @@ export function ThreeLayerManager({
           const elevation = hasTerrain
             ? (map.queryTerrainElevation({ lng: cLng, lat: cLat }) ?? 0)
             : 0;
-          buildings.push({ ring, height: g.height, elevation, isPublic: g.isPublic });
+          buildings.push({ ring, height: g.height, elevation, isPublic: g.isPublic, sourceIndex });
+
+          // Approximate footprint radius: max distance from centroid to any vertex
+          let maxR = 0;
+          for (const pt of ring) {
+            const dLng = (pt[0] - cLng) * 111320 * Math.cos(cLat * Math.PI / 180);
+            const dLat = (pt[1] - cLat) * 110540;
+            const r = Math.sqrt(dLng * dLng + dLat * dLat);
+            if (r > maxR) maxR = r;
+          }
+
+          mappedFeatures.push({
+            type: "building",
+            lng: cLng,
+            lat: cLat,
+            elevation,
+            heightVar: 0,
+            diameterVar: 0,
+            rotation: 0,
+            color: null,
+            ring: null,
+            heightMax: g.height,
+            radiusMax: Math.max(maxR, 5), // at least 5m for spatial grid
+            _sourceIndex: sourceIndex,
+          });
         }
       }
 
@@ -340,9 +391,40 @@ export function ThreeLayerManager({
         if (map.getZoom() >= 14) return;
       }
 
+      // Store selection data on the layer
+      layer._sourceFeatures = sourceFeatures;
+      layer._features = mappedFeatures;
+
       buildExtrusionMeshes(buildings, layer.scene, layer._originMerc, layer._mScale);
+
+      // Build the spatial grid for raycast pre-filtering (reuse rebuild() logic)
+      // We call rebuild() which rebuilds the grid from _features, but for extrusion
+      // the geometry was already built above, so we just need the grid part.
+      // However, rebuild() also calls the rebuildFn which is a no-op for extrusion.
+      // Instead, build the grid inline to avoid double geometry creation.
+      const originMerc = layer._originMerc;
+      const mScale = layer._mScale;
+      const grid = new Map<string, Array<{ sourceIndex: number; x: number; z: number; yBase: number; height: number; radius: number }>>();
+      for (const f of mappedFeatures) {
+        const mrc = MercatorCoordinate.fromLngLat([f.lng, f.lat], f.elevation);
+        const x = (mrc.x - originMerc.x) / mScale;
+        const z = (mrc.y - originMerc.y) / mScale;
+        const yBase = (mrc.z - originMerc.z) / mScale;
+        const GRID_CELL_SIZE = 20;
+        const cellX = Math.floor(x / GRID_CELL_SIZE);
+        const cellZ = Math.floor(z / GRID_CELL_SIZE);
+        const key = `${cellX},${cellZ}`;
+        const entry = { sourceIndex: f._sourceIndex, x, z, yBase, height: f.heightMax, radius: f.radiusMax };
+        const bucket = grid.get(key);
+        if (bucket) bucket.push(entry);
+        else grid.set(key, [entry]);
+      }
+      layer._spatialGrid = grid;
+
       console.log("[3D-BUILDINGS]", buildings.length, "buildings,",
-        mergedOk, "merged,", mergeFailed, "merge-failed (fallback to fragments)");
+        mergedOk, "merged,", mergeFailed, "merge-failed,",
+        sourceFeatures.length, "sourceFeatures,",
+        grid.size, "grid cells");
     };
 
     /** Sync trees: queries source features and rebuilds tree geometry. */

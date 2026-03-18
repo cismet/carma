@@ -681,160 +681,29 @@ export const LibreMap = ({
             "3D layers:",
             threeLayers.length
           );
+
+          // Raycast ALL layers and pick the closest hit by distance
+          let bestHitLayer: (typeof threeLayers)[0] | null = null;
+          let bestResult: ReturnType<(typeof threeLayers)[0]["raycast"]> = null;
+          let bestDist = Infinity;
+
           for (const threeLayer of threeLayers) {
-            // Use e.point (raw screen pixels) instead of project(lngLat)
-            // because project() shifts coordinates when terrain is enabled.
             const result = threeLayer.raycast(e.point.x, e.point.y);
             console.log("[3D-SELECT] layer", threeLayer.id, "result:", result);
-
             if (result && result.resolvedSourceIndex != null) {
-              // If a fill-extrusion (building) is rendered at the click point,
-              // it takes visual priority, UNLESS the tree crown extends above
-              // the building (tree is visually in front from the camera's perspective).
-              const terrainActive = !!(mapInstance as any).terrain;
-              const fillExtrusionHits = queryFeaturesWithTerrainFix(
-                mapInstance,
-                e.point
-              ).filter((f) => f.layer.type === "fill-extrusion");
-
-              const treeHitDist = result.hitDistance ?? Infinity;
-              let closestWallDist = Infinity;
-              const diagBuildings: Array<Record<string, unknown>> = [];
-
-              if (fillExtrusionHits.length > 0) {
-                for (const f of fillExtrusionHits) {
-                  // Get building height: try paint property, then expressions, then feature props
-                  let bHeight = 0;
-                  const paintH = mapInstance.getPaintProperty(
-                    f.layer.id,
-                    "fill-extrusion-height"
-                  );
-                  if (typeof paintH === "number") {
-                    bHeight = paintH;
-                  } else if (Array.isArray(paintH) && paintH[0] === "get") {
-                    // Expression like ["get", "render_height"]
-                    const val = f.properties?.[paintH[1] as string];
-                    const num =
-                      typeof val === "number"
-                        ? val
-                        : parseFloat(String(val ?? ""));
-                    if (num > 0) bHeight = num;
-                  } else if (
-                    paintH &&
-                    typeof paintH === "object" &&
-                    (paintH as Record<string, unknown>).property
-                  ) {
-                    // Legacy identity function { type: "identity", property: "render_height" }
-                    const propName = (paintH as Record<string, unknown>)
-                      .property as string;
-                    const val = f.properties?.[propName];
-                    const num =
-                      typeof val === "number"
-                        ? val
-                        : parseFloat(String(val ?? ""));
-                    if (num > 0) bHeight = num;
-                  }
-                  if (bHeight <= 0) {
-                    // Fallback: try common property names
-                    const props = f.properties;
-                    for (const key of [
-                      "building_height",
-                      "height",
-                      "render_height",
-                      "measuredHeight",
-                      "hoehe",
-                      "HOEHE",
-                    ]) {
-                      const val = props?.[key];
-                      const num =
-                        typeof val === "number"
-                          ? val
-                          : parseFloat(String(val ?? ""));
-                      if (num > 0) {
-                        bHeight = num;
-                        break;
-                      }
-                    }
-                  }
-
-                  // Get polygon ring from geometry
-                  const geo = f.geometry;
-                  let rings: number[][][] = [];
-                  if (geo.type === "Polygon") {
-                    rings = [geo.coordinates[0]];
-                  } else if (geo.type === "MultiPolygon") {
-                    rings = geo.coordinates.map((poly) => poly[0]);
-                  }
-
-                  // Ground elevation for terrain-aware ray test
-                  let groundElev = 0;
-                  if (terrainActive) {
-                    const gv = f.properties?.["ground_height"];
-                    const gn =
-                      typeof gv === "number"
-                        ? gv
-                        : parseFloat(String(gv ?? ""));
-                    if (gn > 0) groundElev = gn;
-                  }
-
-                  let wallDist: number | null = null;
-                  if (bHeight > 0) {
-                    for (const ring of rings) {
-                      const d = threeLayer.buildingDistance(
-                        ring,
-                        bHeight,
-                        groundElev
-                      );
-                      if (d != null && d < closestWallDist) {
-                        closestWallDist = d;
-                        wallDist = d;
-                      }
-                    }
-                  }
-
-                  diagBuildings.push({
-                    layerId: f.layer.id,
-                    featureId: f.id,
-                    paintH: paintH,
-                    bHeight,
-                    geoType: geo.type,
-                    ringCount: rings.length,
-                    ringVertices: rings.map((r) => r.length),
-                    wallDist,
-                    props: f.properties,
-                  });
-                }
-
-                // Building wall/roof is closer to camera than the tree: building wins
-                if (closestWallDist < treeHitDist) {
-                  console.log(
-                    "[3D-SELECT]",
-                    JSON.stringify({
-                      treeHitDist: +treeHitDist.toFixed(2),
-                      fillExtrusionCount: fillExtrusionHits.length,
-                      terrainActive,
-                      buildings: diagBuildings,
-                      result: "building wins, deferring to 2D",
-                    })
-                  );
-                  break; // skip 3D selection, fall through to 2D handler
-                }
+              const dist = result.hitDistance ?? Infinity;
+              if (dist < bestDist) {
+                bestDist = dist;
+                bestHitLayer = threeLayer;
+                bestResult = result;
               }
+            }
+          }
 
-              console.log(
-                "[3D-SELECT]",
-                JSON.stringify({
-                  treeHitDist: +treeHitDist.toFixed(2),
-                  fillExtrusionCount: fillExtrusionHits.length,
-                  terrainActive,
-                  closestBuildingDist:
-                    closestWallDist < Infinity
-                      ? +closestWallDist.toFixed(2)
-                      : null,
-                  buildings: diagBuildings,
-                  result: "tree wins",
-                })
-              );
+          if (bestHitLayer && bestResult && bestResult.resolvedSourceIndex != null) {
+              const threeLayer = bestHitLayer;
+              const result = bestResult;
+              console.log("[3D-SELECT] closest hit: layer", threeLayer.id, "dist:", bestDist.toFixed(2));
 
               // 3D hit detected: takes priority over 2D
               clearVisualSelection(mapInstance);
@@ -843,9 +712,7 @@ export const LibreMap = ({
 
               // Unhighlight all 3D layers, then highlight the hit one
               threeLayers.forEach((l) => l.unhighlight());
-              if (result.resolvedSourceIndex != null) {
-                threeLayer.highlight(result.resolvedSourceIndex);
-              }
+              threeLayer.highlight(result.resolvedSourceIndex);
 
               if (result.sourceFeature) {
                 const sf = result.sourceFeature;
@@ -954,7 +821,6 @@ export const LibreMap = ({
                 );
               }
               return; // skip 2D selection
-            }
           }
         }
         // ── end 3D raycast ────────────────────────────────────

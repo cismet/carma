@@ -19,6 +19,34 @@ export interface BuildingFeature {
   elevation: number;
   /** Whether this is a public building */
   isPublic: boolean;
+  /** Index into the layer's _sourceFeatures array (for selection) */
+  sourceIndex: number;
+}
+
+interface FaceRange {
+  faceStart: number;
+  faceEnd: number;
+  sourceIndex: number;
+}
+
+interface VertexRange {
+  vertexStart: number;
+  vertexEnd: number;
+  sourceIndex: number;
+}
+
+/** Group vertex ranges by sourceIndex for O(1) highlight lookup. */
+function buildSourceIndexMap(ranges: VertexRange[]): Map<number, VertexRange[]> {
+  const map = new Map<number, VertexRange[]>();
+  for (const r of ranges) {
+    const existing = map.get(r.sourceIndex);
+    if (existing) {
+      existing.push(r);
+    } else {
+      map.set(r.sourceIndex, [r]);
+    }
+  }
+  return map;
 }
 
 const COLOR_DEFAULT = new THREE.Color("#888888");
@@ -104,6 +132,12 @@ export function buildExtrusionMeshes(
   let rv = 0; // roof vertex cursor
   let ri = 0; // roof index cursor
 
+  // Selection metadata: face and vertex ranges per building
+  const wallFaceRanges: FaceRange[] = [];
+  const wallVertexRanges: VertexRange[] = [];
+  const roofFaceRanges: FaceRange[] = [];
+  const roofVertexRanges: VertexRange[] = [];
+
   // Pass 2: build geometry
   for (const { f, ring } of validFeatures) {
     const n = ring.length;
@@ -116,6 +150,13 @@ export function buildExtrusionMeshes(
     const wcr = cr * 0.85;
     const wcg = cg * 0.85;
     const wcb = cb * 0.85;
+
+    // Track range starts for this building (face index = index cursor / 3)
+    const wallVertStart = wv;
+    const wallFaceStart = wi / 3;
+
+    const roofVertStart = rv;
+    const roofFaceStart = ri / 3;
 
     // Pre-compute scene-space positions for each vertex at ground and roof height
     const roofBaseIdx = rv;
@@ -210,6 +251,15 @@ export function buildExtrusionMeshes(
     for (const idx of roofIndices) {
       rI[ri++] = roofBaseIdx + idx;
     }
+
+    // Record face/vertex ranges for this building (selection metadata)
+    const wallFaceEnd = wi / 3;
+    wallFaceRanges.push({ faceStart: wallFaceStart, faceEnd: wallFaceEnd, sourceIndex: f.sourceIndex });
+    wallVertexRanges.push({ vertexStart: wallVertStart, vertexEnd: wv, sourceIndex: f.sourceIndex });
+
+    const roofFaceEnd = ri / 3;
+    roofFaceRanges.push({ faceStart: roofFaceStart, faceEnd: roofFaceEnd, sourceIndex: f.sourceIndex });
+    roofVertexRanges.push({ vertexStart: roofVertStart, vertexEnd: rv, sourceIndex: f.sourceIndex });
   }
 
   // Build BufferGeometry objects
@@ -245,11 +295,19 @@ export function buildExtrusionMeshes(
 
   const wallMesh = new THREE.Mesh(wallGeo, wallMat);
   wallMesh.userData.isBuilding = true;
+  wallMesh.userData.faceRanges = wallFaceRanges;
+  wallMesh.userData.vertexRanges = wallVertexRanges;
+  wallMesh.userData.originalColors = wC.subarray(0, wv * 3).slice();
+  wallMesh.userData.sourceIndexMap = buildSourceIndexMap(wallVertexRanges);
   wallMesh.frustumCulled = false;
   scene.add(wallMesh);
 
   const roofMesh = new THREE.Mesh(roofGeo, roofMat);
   roofMesh.userData.isBuilding = true;
+  roofMesh.userData.faceRanges = roofFaceRanges;
+  roofMesh.userData.vertexRanges = roofVertexRanges;
+  roofMesh.userData.originalColors = rC.subarray(0, rv * 3).slice();
+  roofMesh.userData.sourceIndexMap = buildSourceIndexMap(roofVertexRanges);
   roofMesh.frustumCulled = false;
   scene.add(roofMesh);
 
