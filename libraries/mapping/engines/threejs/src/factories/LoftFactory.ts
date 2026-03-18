@@ -404,9 +404,11 @@ export function buildLoftMeshes(
   config: Carma3dConfig,
   numSlices = 14
 ): FactoryStats {
-  // Remove old meshes (keep lights)
+  // Remove old tree meshes (keep lights and building meshes)
   const toRemove = scene.children.filter(
-    (c): c is THREE.Mesh => (c as THREE.Mesh).isMesh === true
+    (c): c is THREE.Mesh =>
+      (c as THREE.Mesh).isMesh === true &&
+      !(c as THREE.Mesh).userData.isBuilding,
   );
   for (const m of toRemove) {
     m.geometry.dispose();

@@ -39,3 +39,5 @@ export type {
 // Factories
 export { buildLatheInstances } from "./factories/LatheFactory";
 export { buildLoftMeshes } from "./factories/LoftFactory";
+export { buildExtrusionMeshes } from "./factories/ExtrusionFactory";
+export type { BuildingFeature } from "./factories/ExtrusionFactory";

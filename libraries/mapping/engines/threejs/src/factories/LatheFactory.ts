@@ -63,10 +63,11 @@ export function buildLatheInstances(
   mScale: number,
   config: Carma3dConfig
 ): FactoryStats {
-  // Remove old InstancedMesh objects
+  // Remove old InstancedMesh objects (keep building meshes)
   const toRemove = scene.children.filter(
     (c): c is THREE.InstancedMesh =>
-      (c as THREE.InstancedMesh).isInstancedMesh === true
+      (c as THREE.InstancedMesh).isInstancedMesh === true &&
+      !(c as THREE.InstancedMesh).userData.isBuilding,
   );
   for (const m of toRemove) {
     m.geometry.dispose();

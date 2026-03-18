@@ -13,10 +13,14 @@ import {
   syncGenericLayerFromSource,
   buildLatheInstances,
   buildLoftMeshes,
+  buildExtrusionMeshes,
   ensureProfiles,
 } from "@carma-mapping/engines/threejs";
+import type { BuildingFeature } from "@carma-mapping/engines/threejs";
 import type { Scene } from "three";
 import type { MercatorCoordinate, Map as MaplibreMap } from "maplibre-gl";
+import { polygon as turfPolygon } from "@turf/helpers";
+import turfUnion from "@turf/union";
 
 // ─────────────────────────────────────────────────────────────
 //  ThreeLayerManager: bridges carma3d configs to the threejs engine
@@ -151,6 +155,47 @@ export function ThreeLayerManager({
     };
   }, [map, config.skipIn2DLayerIds]);
 
+  // Effect 2b: Hide fill-extrusion layers (replaced by Three.js building extrusions)
+  useEffect(() => {
+    if (!map) return;
+
+    const hideExtrusions = () => {
+      const styleLayers = map.getStyle().layers ?? [];
+      for (const sl of styleLayers) {
+        if (sl.type === "fill-extrusion") {
+          const cur = map.getPaintProperty(sl.id, "fill-extrusion-opacity");
+          if (typeof cur === "number" && cur > 0.001) {
+            (map as any).__savedExtrusionOpacity ??= new Map();
+            (map as any).__savedExtrusionOpacity.set(sl.id, cur);
+          }
+          map.setPaintProperty(sl.id, "fill-extrusion-opacity", 0.00001);
+        }
+      }
+    };
+
+    // Hide after style is loaded
+    if (map.isStyleLoaded()) {
+      hideExtrusions();
+    } else {
+      map.once("idle", hideExtrusions);
+    }
+    // Also re-hide after style changes (background swap re-adds layers)
+    map.on("styledata", hideExtrusions);
+
+    return () => {
+      map.off("styledata", hideExtrusions);
+      const saved = (map as any).__savedExtrusionOpacity as Map<string, number> | undefined;
+      if (saved) {
+        for (const [layerId, opacity] of saved) {
+          if (map.getLayer(layerId)) {
+            map.setPaintProperty(layerId, "fill-extrusion-opacity", opacity);
+          }
+        }
+        saved.clear();
+      }
+    };
+  }, [map]);
+
   // Effect 3: Data sync (re-runs on radius change without tearing down)
   useEffect(() => {
     if (!map) return;
@@ -205,6 +250,121 @@ export function ThreeLayerManager({
       }
     };
 
+    /** Union tile-clipped polygon fragments using turf. */
+    const unionRings = (rings: number[][][]): number[][] | null => {
+      try {
+        // Ensure each ring is closed (turf requires it)
+        const features = rings.map((r) => {
+          const first = r[0];
+          const last = r[r.length - 1];
+          const closed = (first[0] !== last[0] || first[1] !== last[1])
+            ? [...r, first] : r;
+          return turfPolygon([closed]);
+        });
+
+        // turf v7 union takes a FeatureCollection
+        const fc = { type: "FeatureCollection" as const, features };
+        const merged = turfUnion(fc);
+        if (!merged || merged.geometry.type !== "Polygon") {
+          console.warn("[3D-MERGE] turf union produced", merged?.geometry.type);
+          return null;
+        }
+
+        // Extract outer ring, strip closing vertex for our factory
+        const outerRing = merged.geometry.coordinates[0] as number[][];
+        return outerRing.slice(0, -1);
+      } catch (err) {
+        console.warn("[3D-MERGE] turf union failed:", err);
+        return null;
+      }
+    };
+
+    const syncBuildings = () => {
+      const layer = layerRef.current;
+      if (!layer?._originMerc || !map.getSource("alkis_data")) return;
+
+      const hasTerrain = map.getTerrain() != null;
+      const raw = map.querySourceFeatures("alkis_data", {
+        sourceLayer: "building",
+      });
+
+      // Group tile fragments by feature ID
+      interface BldgGroup {
+        fragments: number[][][];
+        height: number;
+        isPublic: boolean;
+      }
+      const groups = new Map<string | number, BldgGroup>();
+
+      for (const f of raw) {
+        const height = (f.properties?.building_height as number) ?? 0;
+        if (height <= 0) continue;
+
+        const geom = f.geometry;
+        const polyRings: number[][][] = [];
+        if (geom?.type === "Polygon") {
+          polyRings.push(geom.coordinates[0] as number[][]);
+        } else if (geom?.type === "MultiPolygon") {
+          for (const poly of geom.coordinates) {
+            polyRings.push(poly[0] as number[][]);
+          }
+        } else {
+          continue;
+        }
+
+        for (const ring of polyRings) {
+          if (!ring || ring.length < 3) continue;
+          const fid = f.id ?? `${f.properties?.gml_id ?? ""}`;
+          const g = groups.get(fid);
+          if (g) {
+            g.fragments.push(ring);
+          } else {
+            groups.set(fid, { fragments: [ring], height, isPublic: f.properties?.oeffentl === "1" });
+          }
+        }
+      }
+
+      // Build features: union multi-fragment buildings, pass single-fragment ones through
+      const buildings: BuildingFeature[] = [];
+      let mergedOk = 0;
+      let mergeFailed = 0;
+      for (const [, g] of groups) {
+        let ringsToExtrude: number[][][];
+
+        if (g.fragments.length === 1) {
+          ringsToExtrude = [g.fragments[0]];
+        } else {
+          const merged = unionRings(g.fragments);
+          if (merged) {
+            ringsToExtrude = [merged];
+            mergedOk++;
+          } else {
+            // Fallback: render fragments separately (minor overlap seam)
+            ringsToExtrude = g.fragments;
+            mergeFailed++;
+            console.warn("[3D-BUILDINGS] merge failed, fragments:",
+              JSON.stringify(g.fragments));
+          }
+        }
+
+        for (const ring of ringsToExtrude) {
+          let cLng = 0;
+          let cLat = 0;
+          for (const pt of ring) { cLng += pt[0]; cLat += pt[1]; }
+          cLng /= ring.length;
+          cLat /= ring.length;
+          const elevation = hasTerrain
+            ? (map.queryTerrainElevation({ lng: cLng, lat: cLat }) ?? 0)
+            : 0;
+          buildings.push({ ring, height: g.height, elevation, isPublic: g.isPublic });
+        }
+      }
+
+      buildExtrusionMeshes(buildings, layer.scene, layer._originMerc, layer._mScale);
+      console.log("[3D-BUILDINGS]", buildings.length, "buildings,",
+        mergedOk, "merged,", mergeFailed, "merge-failed (fallback to fragments)");
+    };
+
     const trySync = async () => {
       await addLayerIfReady();
       if (!layerRef.current || !map.getSource(config.sourceId)) return;
@@ -220,6 +380,9 @@ export function ThreeLayerManager({
           mode: useLoft ? "umring" : "kreis",
         };
       }
+
+      // Sync buildings into the same Three.js scene
+      syncBuildings();
     };
 
     map.on("moveend", trySync);
@@ -230,6 +393,10 @@ export function ThreeLayerManager({
     }) => {
       if (e.sourceId === config.sourceId && e.isSourceLoaded) {
         trySync();
+      }
+      // Sync buildings on any alkis_data tile load (not just isSourceLoaded)
+      if (e.sourceId === "alkis_data") {
+        syncBuildings();
       }
     };
     map.on("sourcedata", handleSourceData);
