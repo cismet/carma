@@ -21,10 +21,10 @@ interface ArbeitsauftraegeSidebarProps {
 type TabKey = "aa" | "ap";
 
 const STATUS_COLORS: Record<string, string> = {
-  offen: "#F59E0B",
-  in_bearbeitung: "#3B82F6",
-  erledigt: "#10B981",
-  fehlmeldung: "#EF4444",
+  offen: "rgba(245, 158, 11, 0.35)",
+  in_bearbeitung: "rgba(59, 130, 246, 0.35)",
+  erledigt: "rgba(16, 185, 129, 0.35)",
+  fehlmeldung: "rgba(239, 68, 68, 0.35)",
 };
 
 const STATUS_LABELS: Record<string, string> = {
