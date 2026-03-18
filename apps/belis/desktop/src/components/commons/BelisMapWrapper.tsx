@@ -60,6 +60,7 @@ import {
   setLoading as setAALoading,
   setError as setAAError,
   getSelectedAAId,
+  clearSelection,
 } from "../../store/slices/arbeitsauftraege";
 import type { ArbeitsauftragTileFeature } from "../../store/slices/arbeitsauftraege";
 
@@ -897,6 +898,29 @@ const BelisMapLibWrapper = ({
       .finally(() => dispatch(setAALoading(false)));
   }, [selectedAAId, jwt, dispatch]);
 
+  // --- Arbeitsauftraege: clear selection on empty map click ---
+  useEffect(() => {
+    if (sidebarVariant !== "arbeitsauftraege" || !map) return;
+
+    const handleClick = (e: maplibregl.MapMouseEvent) => {
+      const hits = map.queryRenderedFeatures(e.point);
+      const hasAA = hits.some(
+        (h) =>
+          h.sourceLayer === "arbeitsauftraege" ||
+          h.layer?.id === "arbeitsauftraege_fill" ||
+          h.layer?.id === "arbeitsauftraege_outline"
+      );
+      if (!hasAA) {
+        dispatch(clearSelection());
+      }
+    };
+
+    map.on("click", handleClick);
+    return () => {
+      map.off("click", handleClick);
+    };
+  }, [sidebarVariant, map, dispatch]);
+
   // Mini-map state
   const [miniMap, setMiniMap] = useState<maplibregl.Map | null>(null);
   const mapContainerRef = useRef<HTMLDivElement>(null);
@@ -945,6 +969,8 @@ const BelisMapLibWrapper = ({
           // Return undefined to prevent normal selection flow
           return undefined;
         }
+        // Non-AA feature clicked while in AA mode — ignore
+        return undefined;
       }
 
       // When highlighting is active, prefer highlighted features over non-highlighted ones
