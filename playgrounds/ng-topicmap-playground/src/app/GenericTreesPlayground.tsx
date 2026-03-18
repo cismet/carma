@@ -42,7 +42,7 @@ const TREES_VISIBILITY_KEY = "generic-trees-layerVisibility";
 const TREES_CROSSHAIR_KEY = "generic-trees-crosshair";
 const BUILDING_OPACITY_KEY = "generic-trees-buildingOpacity";
 const BUILDING_COLOR_KEY = "generic-trees-buildingColor";
-const STENCIL_OCCLUSION_KEY = "generic-trees-stencilOcclusion";
+const POI_SKIP_OCCLUSION_KEY = "generic-trees-poiSkipOcclusion";
 
 const DEFAULT_BUILDING_OPACITY = 0.7;
 const DEFAULT_BUILDING_COLOR = "#c8c8c8";
@@ -349,6 +349,8 @@ function MapBuildingStyle({
   useEffect(() => {
     if (!map) return;
 
+    const SELECTION_COLOR = "#3A7CEB";
+
     const apply = () => {
       const style = map.getStyle();
       if (!style?.layers) return;
@@ -358,15 +360,33 @@ function MapBuildingStyle({
           .metadata?.["layer-id"];
         if (lid !== "Gebaeude") continue;
 
+        // Skip selection layers (their colors are selection-only)
+        if (layer.id.includes("selection")) continue;
+
         if (layer.type === "fill-extrusion") {
           map.setPaintProperty(layer.id, "fill-extrusion-opacity", opacity);
-          map.setPaintProperty(layer.id, "fill-extrusion-color", color);
+          map.setPaintProperty(layer.id, "fill-extrusion-color", [
+            "case",
+            ["boolean", ["feature-state", "selected"], false],
+            SELECTION_COLOR,
+            color,
+          ]);
         } else if (layer.type === "fill") {
           map.setPaintProperty(layer.id, "fill-opacity", opacity);
-          map.setPaintProperty(layer.id, "fill-color", color);
+          map.setPaintProperty(layer.id, "fill-color", [
+            "case",
+            ["boolean", ["feature-state", "selected"], false],
+            SELECTION_COLOR,
+            color,
+          ]);
         } else if (layer.type === "line") {
           map.setPaintProperty(layer.id, "line-opacity", opacity);
-          map.setPaintProperty(layer.id, "line-color", color);
+          map.setPaintProperty(layer.id, "line-color", [
+            "case",
+            ["boolean", ["feature-state", "selected"], false],
+            SELECTION_COLOR,
+            color,
+          ]);
         }
       }
     };
@@ -378,6 +398,61 @@ function MapBuildingStyle({
       map.off("idle", apply);
     };
   }, [map, opacity, color]);
+
+  return null;
+}
+
+// ─────────────────────────────────────────────────────────────
+//  Stencil occlusion metadata sync (patches painter internals in-place)
+// ─────────────────────────────────────────────────────────────
+
+function MapStencilOcclusionSync({
+  layerGroupId,
+  skipStencilOcclusion,
+}: {
+  layerGroupId: string;
+  skipStencilOcclusion: boolean;
+}) {
+  const { map } = useLibreContext();
+
+  useEffect(() => {
+    if (!map) return;
+
+    const patch = () => {
+      const painter = (map as any).painter;
+      const layers = painter?.style?._layers;
+      if (!layers) return;
+
+      for (const [, layerDef] of Object.entries(layers)) {
+        const meta = (layerDef as any)?.metadata as
+          | Record<string, unknown>
+          | undefined;
+        if (meta?.["layer-id"] !== layerGroupId) continue;
+
+        if (skipStencilOcclusion) {
+          meta.carmaConf = {
+            ...(meta.carmaConf as Record<string, unknown> | undefined),
+            skipStencilOcclusion: true,
+          };
+        } else {
+          const conf = meta.carmaConf as
+            | Record<string, unknown>
+            | undefined;
+          if (conf) {
+            delete conf.skipStencilOcclusion;
+          }
+        }
+      }
+
+      map.triggerRepaint();
+    };
+
+    patch();
+    map.once("idle", patch);
+    return () => {
+      map.off("idle", patch);
+    };
+  }, [map, layerGroupId, skipStencilOcclusion]);
 
   return null;
 }
@@ -402,8 +477,8 @@ function LayerToggleBar({
   onBuildingOpacityChange,
   buildingColor,
   onBuildingColorChange,
-  stencilOcclusion,
-  onStencilOcclusionToggle,
+  poiSkipOcclusion,
+  onPoiSkipOcclusionToggle,
 }: {
   visibility: LayerVisibility;
   onToggle: (name: LayerGroupName) => void;
@@ -417,8 +492,8 @@ function LayerToggleBar({
   onBuildingOpacityChange: (v: number) => void;
   buildingColor: string;
   onBuildingColorChange: (v: string) => void;
-  stencilOcclusion: boolean;
-  onStencilOcclusionToggle: () => void;
+  poiSkipOcclusion: boolean;
+  onPoiSkipOcclusionToggle: () => void;
 }) {
   return (
     <div className="absolute top-4 left-1/2 -translate-x-1/2 z-[9999] flex gap-2 items-start">
@@ -518,6 +593,23 @@ function LayerToggleBar({
                   />
                 </>
               )}
+              {name === "POI" && (
+                <button
+                  onClick={onPoiSkipOcclusionToggle}
+                  disabled={!visible}
+                  className={`px-1.5 h-full flex items-center cursor-pointer ${
+                    poiSkipOcclusion
+                      ? "text-blue-600 hover:text-blue-400"
+                      : "text-gray-400 hover:text-gray-500"
+                  } ${!visible ? "opacity-30" : ""}`}
+                  title={poiSkipOcclusion ? "POI above trees" : "POI behind trees"}
+                >
+                  <FontAwesomeIcon
+                    icon={faLayerGroup}
+                    className="text-xs"
+                  />
+                </button>
+              )}
               <button
                 onClick={() => onToggle(name)}
                 className="px-2 h-full flex items-center cursor-pointer hover:text-gray-500 text-gray-600"
@@ -557,30 +649,6 @@ function LayerToggleBar({
         </div>
       </div>
 
-      {/* Stencil occlusion toggle */}
-      <div
-        className={`flex flex-col rounded-[10px] text-sm
-          ${stencilOcclusion ? "bg-white" : "bg-neutral-200/70 opacity-70"}`}
-        style={{ boxShadow: PILL_SHADOW }}
-      >
-        <div className="flex items-center gap-2 pl-3 pr-1 h-8">
-          <FontAwesomeIcon
-            icon={faLayerGroup}
-            className="text-xs"
-            style={{ color: "#1565C0" }}
-          />
-          <span>Stencil</span>
-          <button
-            onClick={onStencilOcclusionToggle}
-            className="px-2 h-full flex items-center cursor-pointer hover:text-gray-500 text-gray-600"
-          >
-            <FontAwesomeIcon
-              icon={stencilOcclusion ? faEye : faEyeSlash}
-              className="text-xs"
-            />
-          </button>
-        </div>
-      </div>
     </div>
   );
 }
@@ -630,11 +698,11 @@ export function GenericTreesPlayground() {
       return false;
     }
   });
-  const [stencilOcclusion, setStencilOcclusion] = useState(() => {
+  const [poiSkipOcclusion, setPoiSkipOcclusion] = useState(() => {
     try {
-      return localStorage.getItem(STENCIL_OCCLUSION_KEY) === "true";
+      return localStorage.getItem(POI_SKIP_OCCLUSION_KEY) !== "false";
     } catch {
-      return false;
+      return true;
     }
   });
   const { progress, showProgress, handleProgressUpdate } = useProgress();
@@ -673,8 +741,8 @@ export function GenericTreesPlayground() {
     radiusMix,
     //viewportPadding: 0.3000,
     useLoft: useLoft ? 1 : 0,
-    useStencilOcclusion: stencilOcclusion ? 1 : 0,
   };
+
 
   return (
     <TopicMapContextProvider
@@ -690,6 +758,10 @@ export function GenericTreesPlayground() {
               <PerfOverlay perfRef={perfRef} />
               <MapLayerVisibility visibility={layerVisibility} />
               <MapBuildingStyle opacity={buildingOpacity} color={buildingColor} />
+              <MapStencilOcclusionSync
+                layerGroupId="POI"
+                skipStencilOcclusion={poiSkipOcclusion}
+              />
               <ProgressIndicator progress={progress} show={showProgress} />
               <CarmaMap
                 clickCrosshairDebugMode={crosshair}
@@ -725,11 +797,11 @@ export function GenericTreesPlayground() {
                     return next;
                   })
                 }
-                stencilOcclusion={stencilOcclusion}
-                onStencilOcclusionToggle={() =>
-                  setStencilOcclusion((v) => {
+                poiSkipOcclusion={poiSkipOcclusion}
+                onPoiSkipOcclusionToggle={() =>
+                  setPoiSkipOcclusion((v) => {
                     const next = !v;
-                    localStorage.setItem(STENCIL_OCCLUSION_KEY, String(next));
+                    localStorage.setItem(POI_SKIP_OCCLUSION_KEY, String(next));
                     return next;
                   })
                 }
