@@ -72,7 +72,10 @@ const ArbeitsauftraegeePage = () => {
         <div>
           <TeamSelect
             value={selectedTeamId}
-            onChange={(id) => dispatch(setSelectedTeamId(id))}
+            onChange={(id) => {
+              dispatch(setSelectedTeamId(id));
+              dispatch(clearSelection());
+            }}
           />
         </div>
       ),

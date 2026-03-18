@@ -60,8 +60,10 @@ import {
   setLoading as setAALoading,
   setError as setAAError,
   getSelectedAAId,
+  getSelectedTeamId,
   clearSelection,
 } from "../../store/slices/arbeitsauftraege";
+import { getKeyTablesData } from "../../store/slices/keyTables";
 import type { ArbeitsauftragTileFeature } from "../../store/slices/arbeitsauftraege";
 
 const LIST_WIDTH = 300;
@@ -153,6 +155,18 @@ const BelisMapLibWrapper = ({
     ARBEITSAUFTRAEGE_STYLE_URL
   )}::${BELIS_ORIGINAL_SOURCE}`;
   const selectedAAId = useSelector(getSelectedAAId);
+
+  // Team filter: resolve selectedTeamId → team name for map layer filtering
+  const selectedTeamId = useSelector(getSelectedTeamId);
+  const keyTablesData = useSelector(getKeyTablesData);
+  const selectedTeamName = useMemo(() => {
+    if (selectedTeamId == null) return null;
+    const team = ((keyTablesData.teams || []) as { id: number; name?: string }[]).find(
+      (t) => t.id === selectedTeamId
+    );
+    return team?.name ?? null;
+  }, [selectedTeamId, keyTablesData.teams]);
+
   const highlightSources = useMemo(
     () => [
       { source: namespacedSource, sourceLayers: [...BELIS_SOURCE_LAYERS] },
@@ -854,6 +868,36 @@ const BelisMapLibWrapper = ({
       map.off("moveend", extractFeatures);
     };
   }, [sidebarVariant, map, arbeitsauftraegeNamespacedSource, dispatch]);
+
+  // --- Arbeitsauftraege: filter map layers by selected team ---
+  useEffect(() => {
+    if (sidebarVariant !== "arbeitsauftraege" || !map) return;
+
+    const applyTeamFilter = () => {
+      const style = map.getStyle();
+      if (!style?.layers) return;
+      for (const layer of style.layers) {
+        if ("source" in layer && layer.source === arbeitsauftraegeNamespacedSource) {
+          try {
+            if (selectedTeamName) {
+              map.setFilter(layer.id, ["==", ["get", "team"], selectedTeamName]);
+            } else {
+              map.setFilter(layer.id, null);
+            }
+          } catch {
+            // layer may not be ready yet
+          }
+        }
+      }
+    };
+
+    applyTeamFilter();
+    map.on("styledata", applyTeamFilter);
+
+    return () => {
+      map.off("styledata", applyTeamFilter);
+    };
+  }, [sidebarVariant, map, selectedTeamName, arbeitsauftraegeNamespacedSource]);
 
   // --- Arbeitsauftraege: selection feature-state on map ---
   const prevAAIdRef = useRef<number | null>(null);
