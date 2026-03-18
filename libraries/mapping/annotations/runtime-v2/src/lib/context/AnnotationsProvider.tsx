@@ -6,7 +6,6 @@ import {
   useMemo,
   useRef,
   useState,
-  useSyncExternalStore,
   type ReactNode,
 } from "react";
 
@@ -50,6 +49,7 @@ import {
   setPointTemporaryMode as setPointTemporaryModeInStoreAction,
   setSelectionModeActive,
   setSelectedAnnotationId,
+  AnnotationsReduxContext,
   useAnnotationsSelector,
   type AnnotationsStore,
   type AnnotationsStoreState,
@@ -100,6 +100,17 @@ type AnnotationsProviderProps = {
   initialPointTemporaryMode?: boolean;
   plugins?: readonly AnnotationToolPlugin[];
 };
+
+type AnnotationsReduxProviderProps = {
+  store: AnnotationsStore;
+  context: typeof AnnotationsReduxContext;
+  children?: ReactNode;
+};
+
+const AnnotationsReduxProvider =
+  ReduxProvider as unknown as (
+    props: AnnotationsReduxProviderProps
+  ) => ReactNode;
 
 type RuntimeRenderHostState = {
   renderLayers: Readonly<Record<string, RuntimeRenderLayer>>;
@@ -475,11 +486,7 @@ const RuntimeInteractionHost = ({
   const activeToolType = useAnnotationsSelector(
     (state) => state.annotationToolType
   );
-  const state = useSyncExternalStore(
-    annotationsStore.subscribe,
-    annotationsStore.getState,
-    annotationsStore.getState
-  );
+  const state = useAnnotationsSelector((annotationsState) => annotationsState);
   const nodes = useAnnotationsSelector(
     (annotationsState) => annotationsState.nodes
   );
@@ -733,11 +740,7 @@ const RuntimeVisualizationHost = ({
 }) => {
   useOverlayPositionSync(scene);
 
-  const state = useSyncExternalStore(
-    annotationsStore.subscribe,
-    annotationsStore.getState,
-    annotationsStore.getState
-  );
+  const state = useAnnotationsSelector((annotationsState) => annotationsState);
   const nodes = useAnnotationsSelector(
     (annotationsState) => annotationsState.nodes
   );
@@ -1056,7 +1059,10 @@ export const AnnotationsProvider = ({
   );
 
   return (
-    <ReduxProvider store={annotationsStore}>
+    <AnnotationsReduxProvider
+      context={AnnotationsReduxContext}
+      store={annotationsStore}
+    >
       <AnnotationsRuntimeContext.Provider value={services}>
         <RuntimeToolAvailabilityGuard
           registry={registry}
@@ -1092,7 +1098,7 @@ export const AnnotationsProvider = ({
         />
         {children}
       </AnnotationsRuntimeContext.Provider>
-    </ReduxProvider>
+    </AnnotationsReduxProvider>
   );
 };
 

@@ -1,7 +1,7 @@
-import type { SceneViewState as SharedSceneViewState } from "@carma-mapping/engines-interop";
+import type { ViewState as SharedViewState } from "@carma-mapping/engines-interop/view-sync";
 
-export type SceneViewState = SharedSceneViewState;
-export type SceneStateHashSnapshot = SceneViewState;
+export type ViewState = SharedViewState;
+export type SceneStateHashSnapshot = ViewState;
 
 export type SceneStateHashCodec = {
   decode: (value: string | undefined) => SceneStateHashSnapshot | undefined;

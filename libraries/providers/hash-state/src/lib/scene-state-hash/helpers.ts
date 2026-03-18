@@ -7,7 +7,6 @@ export {
   negativeOneEightyToOneEighty,
   negativePiToPi,
   radToDegNumeric,
-  zeroToThreeSixty,
   zeroToTwoPi,
 } from "@carma/units/helpers";
 

@@ -8,7 +8,6 @@ import {
 } from "react";
 
 import { type Scene } from "@carma/cesium";
-import { useStoreSelector } from "@carma-commons/react-store";
 
 import { getUniqueIds } from "@carma-mapping/annotations/core";
 import type { RectangleSelectionState } from "./useRectangleSelectionOverlay";
@@ -17,25 +16,14 @@ import type {
   AnnotationSelectionStoreState,
   AnnotationsStore,
 } from "../../store";
-
-const areIdListsEqual = (
-  left: readonly string[],
-  right: readonly string[]
-): boolean => {
-  if (left.length !== right.length) {
-    return false;
-  }
-
-  return left.every((id, index) => id === right[index]);
-};
-
-const resolveSetStateAction = <TValue>(
-  action: SetStateAction<TValue>,
-  previousValue: TValue
-): TValue =>
-  typeof action === "function"
-    ? (action as (previousValue: TValue) => TValue)(previousValue)
-    : action;
+import {
+  replaceAnnotationsStoreState,
+  useStoreSelector,
+} from "../../store";
+import {
+  areStringListsEqual,
+  resolveSetStateAction,
+} from "../../store/stateUpdateUtils";
 
 const getPrimarySelectedAnnotationId = (
   selectedAnnotationIds: readonly string[]
@@ -67,19 +55,22 @@ export const useSelectionController = (
             previousState: AnnotationSelectionStoreState
           ) => AnnotationSelectionStoreState)
     ) => {
-      annotationsStore.setState((previousStoreState) => {
-        const nextSelectionState =
-          typeof updater === "function"
-            ? updater(previousStoreState.selectionState)
-            : updater;
+      const previousStoreState = annotationsStore.getState();
+      const nextSelectionState =
+        typeof updater === "function"
+          ? updater(previousStoreState.selectionState)
+          : updater;
 
-        return Object.is(nextSelectionState, previousStoreState.selectionState)
-          ? previousStoreState
-          : {
-              ...previousStoreState,
-              selectionState: nextSelectionState,
-            };
-      });
+      if (Object.is(nextSelectionState, previousStoreState.selectionState)) {
+        return;
+      }
+
+      annotationsStore.dispatch(
+        replaceAnnotationsStoreState({
+          ...previousStoreState,
+          selectionState: nextSelectionState,
+        })
+      );
     },
     [annotationsStore]
   );
@@ -266,12 +257,17 @@ export const useSelectionController = (
           previousState.selectedAnnotationIds.filter((id) =>
             selectableAnnotationIds.has(id)
           );
-        const previousSelectedAnnotationId = getPrimarySelectedAnnotationId(
-          previousState.selectedAnnotationIds
-        );
-        const nextSelectedAnnotationId = getPrimarySelectedAnnotationId(
-          nextSelectedAnnotationIds
-        );
+
+        if (
+          nextSelectedAnnotationIds.length ===
+            previousState.selectedAnnotationIds.length &&
+          areStringListsEqual(
+            nextSelectedAnnotationIds,
+            previousState.selectedAnnotationIds
+          )
+        ) {
+          return previousState;
+        }
         const nextPreviousSelectedAnnotationId =
           previousState.previousSelectedAnnotationId &&
           !selectableAnnotationIds.has(
@@ -279,18 +275,6 @@ export const useSelectionController = (
           )
             ? null
             : previousState.previousSelectedAnnotationId;
-
-        if (
-          areIdListsEqual(
-            previousState.selectedAnnotationIds,
-            nextSelectedAnnotationIds
-          ) &&
-          previousSelectedAnnotationId === nextSelectedAnnotationId &&
-          previousState.previousSelectedAnnotationId ===
-            nextPreviousSelectedAnnotationId
-        ) {
-          return previousState;
-        }
 
         return {
           ...previousState,
@@ -338,29 +322,20 @@ export const useSelectionController = (
           previousState.selectedAnnotationIds.filter(
             (id) => !removedIds.has(id) && selectableAnnotationIds.has(id)
           );
-        const previousSelectedAnnotationId = getPrimarySelectedAnnotationId(
-          previousState.selectedAnnotationIds
-        );
-        const nextSelectedAnnotationId = getPrimarySelectedAnnotationId(
-          nextSelectedAnnotationIds
-        );
+
+        if (
+          areStringListsEqual(
+            nextSelectedAnnotationIds,
+            previousState.selectedAnnotationIds
+          )
+        ) {
+          return previousState;
+        }
         const nextPreviousSelectedAnnotationId =
           previousState.previousSelectedAnnotationId &&
           removedIds.has(previousState.previousSelectedAnnotationId)
             ? null
             : previousState.previousSelectedAnnotationId;
-
-        if (
-          areIdListsEqual(
-            previousState.selectedAnnotationIds,
-            nextSelectedAnnotationIds
-          ) &&
-          previousSelectedAnnotationId === nextSelectedAnnotationId &&
-          previousState.previousSelectedAnnotationId ===
-            nextPreviousSelectedAnnotationId
-        ) {
-          return previousState;
-        }
 
         return {
           ...previousState,
@@ -399,7 +374,7 @@ export const useSelectionController = (
             : previousState.previousSelectedAnnotationId;
 
         if (
-          areIdListsEqual(
+          areStringListsEqual(
             previousState.selectedAnnotationIds,
             nextSelectedAnnotationIds
           ) &&
@@ -445,13 +420,11 @@ export const useSelectionController = (
             : previousState.previousSelectedAnnotationId;
 
         if (
-          previousSelectedAnnotationId === id &&
-          areIdListsEqual(
+          areStringListsEqual(
             previousState.selectedAnnotationIds,
             nextSelectedAnnotationIds
           ) &&
-          previousState.previousSelectedAnnotationId ===
-            nextPreviousSelectedAnnotationId
+          previousSelectedAnnotationId === nextPreviousSelectedAnnotationId
         ) {
           return previousState;
         }
@@ -488,7 +461,7 @@ export const useSelectionController = (
 
         if (
           previousSelectedAnnotationId === id &&
-          areIdListsEqual(
+          areStringListsEqual(
             previousState.selectedAnnotationIds,
             nextSelectedAnnotationIds
           ) &&

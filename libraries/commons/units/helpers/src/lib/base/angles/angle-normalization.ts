@@ -56,34 +56,6 @@ export function negativePiToPi(angle: Radians): Radians {
 }
 
 /**
- * Normalizes an angle in degrees to the range [0, 360).
- *
- * This is the degree equivalent of {@link zeroToTwoPi}.
- * Useful for bearing / heading normalization.
- *
- * @param angle - The angle in degrees to normalize
- * @returns The normalized angle in the range [0, 360)
- *
- * @example
- * ```typescript
- * zeroToThreeSixty(0 as Degrees) // 0
- * zeroToThreeSixty(360 as Degrees) // 0
- * zeroToThreeSixty(-90 as Degrees) // 270
- * zeroToThreeSixty(450 as Degrees) // 90
- * ```
- */
-export function zeroToThreeSixty(angle: Degrees): Degrees {
-  if (angle >= 0 && angle < 360) {
-    return angle;
-  }
-  const mod = angle % 360;
-  if (mod < 0) {
-    return (mod + 360) as Degrees;
-  }
-  return mod as Degrees;
-}
-
-/**
  * Normalizes an angle in degrees to the range [-180, 180).
  *
  * This function takes an angle in degrees and returns an equivalent angle

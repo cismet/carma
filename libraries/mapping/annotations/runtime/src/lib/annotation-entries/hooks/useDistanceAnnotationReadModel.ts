@@ -1,10 +1,9 @@
 import { useMemo } from "react";
 
-import { useStoreSelector } from "@carma-commons/react-store";
 import type { PointDistanceRelation } from "@carma-mapping/annotations/core";
 import { type Cartesian3 } from "@carma/cesium";
 
-import { useAnnotationsStore } from "../../store";
+import { useAnnotationsStore, useStoreSelector } from "../../store";
 
 export type DistanceAnnotationReadModel = {
   referencePoint: Cartesian3 | null;

@@ -1,19 +1,11 @@
 import { useCallback } from "react";
 
-import { useStoreSelector } from "@carma-commons/react-store";
-
-import type { AnnotationsStore } from "../../store";
-
-const areStringListsEqual = (
-  left: readonly string[],
-  right: readonly string[]
-): boolean => {
-  if (left.length !== right.length) {
-    return false;
-  }
-
-  return left.every((value, index) => value === right[index]);
-};
+import {
+  replaceAnnotationsStoreState,
+  useStoreSelector,
+  type AnnotationsStore,
+} from "../../store";
+import { areStringListsEqual } from "../../store/stateUpdateUtils";
 
 const mergeUniqueIds = (
   previousIds: readonly string[],
@@ -40,15 +32,20 @@ export const useDraftRollbackState = (annotationsStore: AnnotationsStore) => {
   );
 
   const clearMeasurementDraftSession = useCallback(() => {
-    annotationsStore.setState((previousState) =>
+    const previousState = annotationsStore.getState();
+    if (
       previousState.createdPointIds.length === 0 &&
       previousState.createdRelationIds.length === 0
-        ? previousState
-        : {
-            ...previousState,
-            createdPointIds: [],
-            createdRelationIds: [],
-          }
+    ) {
+      return;
+    }
+
+    annotationsStore.dispatch(
+      replaceAnnotationsStoreState({
+        ...previousState,
+        createdPointIds: [],
+        createdRelationIds: [],
+      })
     );
   }, [annotationsStore]);
 
@@ -59,18 +56,21 @@ export const useDraftRollbackState = (annotationsStore: AnnotationsStore) => {
         return;
       }
 
-      annotationsStore.setState((previousState) => {
-        const nextPointIds = mergeUniqueIds(
-          previousState.createdPointIds,
-          normalizedPointIds
-        );
-        return nextPointIds === previousState.createdPointIds
-          ? previousState
-          : {
-              ...previousState,
-              createdPointIds: nextPointIds,
-            };
-      });
+      const previousState = annotationsStore.getState();
+      const nextPointIds = mergeUniqueIds(
+        previousState.createdPointIds,
+        normalizedPointIds
+      );
+      if (nextPointIds === previousState.createdPointIds) {
+        return;
+      }
+
+      annotationsStore.dispatch(
+        replaceAnnotationsStoreState({
+          ...previousState,
+          createdPointIds: nextPointIds,
+        })
+      );
     },
     [annotationsStore]
   );
@@ -87,26 +87,28 @@ export const useDraftRollbackState = (annotationsStore: AnnotationsStore) => {
         return;
       }
 
-      annotationsStore.setState((previousState) => {
-        const nextPointIds = previousState.createdPointIds.filter(
-          (pointId) => !removedPointIds.has(pointId)
-        );
-        const nextRelationIds = previousState.createdRelationIds.filter(
-          (relationId) => !removedRelationIds?.has(relationId)
-        );
+      const previousState = annotationsStore.getState();
+      const nextPointIds = previousState.createdPointIds.filter(
+        (pointId) => !removedPointIds.has(pointId)
+      );
+      const nextRelationIds = previousState.createdRelationIds.filter(
+        (relationId) => !removedRelationIds?.has(relationId)
+      );
 
-        return areStringListsEqual(
-          previousState.createdPointIds,
-          nextPointIds
-        ) &&
-          areStringListsEqual(previousState.createdRelationIds, nextRelationIds)
-          ? previousState
-          : {
-              ...previousState,
-              createdPointIds: nextPointIds,
-              createdRelationIds: nextRelationIds,
-            };
-      });
+      if (
+        areStringListsEqual(previousState.createdPointIds, nextPointIds) &&
+        areStringListsEqual(previousState.createdRelationIds, nextRelationIds)
+      ) {
+        return;
+      }
+
+      annotationsStore.dispatch(
+        replaceAnnotationsStoreState({
+          ...previousState,
+          createdPointIds: nextPointIds,
+          createdRelationIds: nextRelationIds,
+        })
+      );
     },
     [annotationsStore]
   );

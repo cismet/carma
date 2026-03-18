@@ -1,12 +1,19 @@
 import { useMemo } from "react";
 import { useHashState } from "@carma-providers/hash-state";
 import {
-  readSceneViewStateFromHashValues,
-  type SceneViewState,
-} from "@carma-mapping/engines-interop";
+  readViewStateFromHashValues,
+  type ViewState,
+} from "@carma-mapping/engines-interop/view-sync";
 
-export const useInitialSceneViewState = (): {
-  initialViewState: SceneViewState | null;
+export type UseInitialSceneViewStateOptions = {
+  defaultFovDeg?: number;
+  maxPitchDeg?: number;
+};
+
+export const useInitialSceneViewState = (
+  options: UseInitialSceneViewStateOptions = {}
+): {
+  initialViewState: ViewState | null;
   isResolved: boolean;
 } => {
   const { getHashValues } = useHashState();
@@ -14,8 +21,15 @@ export const useInitialSceneViewState = (): {
   return useMemo(() => {
     const hashValues = getHashValues();
     return {
-      initialViewState: readSceneViewStateFromHashValues(hashValues),
+      initialViewState: readViewStateFromHashValues(hashValues, {
+        ...(Number.isFinite(options.defaultFovDeg)
+          ? { defaultFovDeg: options.defaultFovDeg }
+          : {}),
+        ...(Number.isFinite(options.maxPitchDeg)
+          ? { maxPitchDeg: options.maxPitchDeg }
+          : {}),
+      }),
       isResolved: true,
     };
-  }, [getHashValues]);
+  }, [getHashValues, options.defaultFovDeg, options.maxPitchDeg]);
 };

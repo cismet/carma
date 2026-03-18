@@ -152,6 +152,7 @@ const GeoportalCesiumCameraHashSync = ({ enabled }: { enabled: boolean }) => {
     <CesiumSceneStateHashSync
       enabled={enabled}
       fallbackHeightM={200}
+      defaultFovDeg={DEFAULT_CAMERA_FOV_DEG}
       replace={true}
       label="[GEOPORTAL] Cesium camera hash"
     />
@@ -288,7 +289,9 @@ export const GeoportalMap = ({ height, width, allow3d }: MapProps) => {
   const flags = useFeatureFlags();
   const { isDebugMode } = flags;
   const { initialViewState, isResolved: isInitialCameraResolved } =
-    useInitialSceneViewState();
+    useInitialSceneViewState({
+      defaultFovDeg: DEFAULT_CAMERA_FOV_DEG,
+    });
   const cesiumInitialCameraView = useMemo(
     () =>
       readInitialCameraViewFromSceneViewState(initialViewState, {

@@ -5,7 +5,10 @@ import {
   type AnnotationToolType,
 } from "@carma-mapping/annotations/core";
 
-import type { AnnotationsStore } from "../../store";
+import {
+  replaceAnnotationsStoreState,
+  type AnnotationsStore,
+} from "../../store";
 
 type UseAnnotationModeTransitionParams = {
   annotationsStore: AnnotationsStore;
@@ -35,13 +38,16 @@ export const useModeTransition = ({
           ? previousValue
           : nextSelectionModeActive
       );
-      annotationsStore.setState((previousStoreState) =>
-        previousStoreState.annotationToolType === toolType
-          ? previousStoreState
-          : {
-              ...previousStoreState,
-              annotationToolType: toolType,
-            }
+      const previousStoreState = annotationsStore.getState();
+      if (previousStoreState.annotationToolType === toolType) {
+        return;
+      }
+
+      annotationsStore.dispatch(
+        replaceAnnotationsStoreState({
+          ...previousStoreState,
+          annotationToolType: toolType,
+        })
       );
     },
     [annotationsStore, setSelectionModeActive]

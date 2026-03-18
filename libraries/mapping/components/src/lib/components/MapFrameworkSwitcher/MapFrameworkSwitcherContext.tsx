@@ -19,16 +19,16 @@ import type { LeafletMap } from "@carma-mapping/engines/leaflet";
 import {
   CesiumTerrainProvider,
   type Scene,
+  type SerializedCameraStateHeadingPitchRoll,
   waitForRenderFrames,
 } from "@carma/cesium";
-import type { Radians } from "@carma/units/types";
 
 import {
   transitionToCesium,
   transitionToLeaflet,
   TransitionStage,
   type TransitionOptions,
-} from "@carma-mapping/engines-interop";
+} from "@carma-mapping/engines-interop/leaflet-cesium";
 import { validateRequirements } from "./utils/validate-requirements";
 
 export const CARMA_MAP_FRAMEWORKS = {
@@ -44,10 +44,7 @@ export type CarmaMapFramework = FrameworkMap[keyof FrameworkMap];
  * add more as needed
  */
 export interface EngineState {
-  cesium?: {
-    heading: Radians;
-    pitch: Radians;
-  };
+  cesium?: SerializedCameraStateHeadingPitchRoll;
 }
 
 export interface MapFrameworkSwitcherState {
@@ -407,7 +404,7 @@ export const MapFrameworkSwitcherProvider = ({
 
       setIsTransitioning(true);
 
-      const lastHeadingPitch = await transitionToLeaflet(
+      const lastCameraState = await transitionToLeaflet(
         scene,
         leaflet,
         cesiumContainer,
@@ -433,16 +430,8 @@ export const MapFrameworkSwitcherProvider = ({
       );
 
       // Store cesium camera state for when we return to 3D
-      if (lastHeadingPitch) {
-        if (!lastEngineStateRef.current.cesium) {
-          lastEngineStateRef.current.cesium = {
-            heading: lastHeadingPitch.heading,
-            pitch: lastHeadingPitch.pitch,
-          };
-        } else {
-          lastEngineStateRef.current.cesium.heading = lastHeadingPitch.heading;
-          lastEngineStateRef.current.cesium.pitch = lastHeadingPitch.pitch;
-        }
+      if (lastCameraState) {
+        lastEngineStateRef.current.cesium = lastCameraState;
       }
     } catch (error) {
       console.error("[CESIUM] Transition to Leaflet failed:", error);

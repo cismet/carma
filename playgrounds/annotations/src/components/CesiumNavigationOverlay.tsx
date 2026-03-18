@@ -14,20 +14,20 @@ import {
   useCesiumSceneStateOptional,
 } from "@carma-mapping/engines/cesium/react/scene-state";
 import {
-  readSceneViewStateFromSceneState,
-  type SceneViewState,
-} from "@carma-mapping/engines-interop";
+  readViewStateFromSceneState,
+  type ViewState,
+} from "@carma-mapping/engines-interop/view-sync";
 
 const toObjectCentricCameraViewInput = (
-  viewState: SceneViewState
+  viewState: ViewState
 ): ObjectCentricCameraViewInput => ({
-  anchorLngRad: degToRadNumeric(viewState.anchor.lngDeg),
-  anchorLatRad: degToRadNumeric(viewState.anchor.latDeg),
-  anchorHeightM: viewState.anchor.heightM,
-  bearingRad: viewState.orientation.bearingRad,
-  pitchRad: viewState.orientation.pitchRad,
-  rangeM: viewState.orientation.rangeM,
-  fovVerticalRad: viewState.orientation.fovVerticalRad,
+  anchorLngRad: viewState.longitude,
+  anchorLatRad: viewState.latitude,
+  anchorHeightM: viewState.altitude,
+  bearingRad: viewState.bearing,
+  pitchRad: viewState.pitch,
+  rangeM: viewState.range,
+  fovVerticalRad: viewState.fovVertical,
 });
 
 const MIN_COMPASS_PITCH_RAD = 0;
@@ -46,7 +46,7 @@ const clampCompassPitchRad = (pitchRad: number) =>
 
 const animateSceneToViewState = (
   scene: Scene,
-  viewState: SceneViewState,
+  viewState: ViewState,
   options: {
     durationMs: number;
     onDone?: () => void;
@@ -54,10 +54,10 @@ const animateSceneToViewState = (
 ) => {
   const { durationMs, onDone } = options;
   const center = Cartographic.toCartesian(
-    Cartographic.fromDegrees(
-      viewState.anchor.lngDeg,
-      viewState.anchor.latDeg,
-      viewState.anchor.heightM
+    Cartographic.fromRadians(
+      viewState.longitude,
+      viewState.latitude,
+      viewState.altitude
     )
   );
   if (!center || !Cartesian3.magnitudeSquared(center)) {
@@ -68,9 +68,9 @@ const animateSceneToViewState = (
     scene,
     center,
     {
-      heading: (viewState.orientation.bearingRad ?? 0) as Radians,
-      pitch: ((viewState.orientation.pitchRad ?? 0) - PI_OVER_TWO) as Radians,
-      range: viewState.orientation.rangeM ?? DEFAULT_OBJECT_CENTRIC_RANGE_M,
+      heading: (viewState.bearing ?? 0) as Radians,
+      pitch: ((viewState.pitch ?? 0) - PI_OVER_TWO) as Radians,
+      range: viewState.range ?? DEFAULT_OBJECT_CENTRIC_RANGE_M,
     },
     {
       durationMs,
@@ -82,7 +82,7 @@ const animateSceneToViewState = (
 
 const flySceneToViewState = (
   scene: Scene,
-  viewState: SceneViewState,
+  viewState: ViewState,
   options: {
     durationMs: number;
     onDone?: () => void;
@@ -137,13 +137,11 @@ export const CesiumNavigationOverlay = ({
   initialHomeViewState = null,
 }: {
   scene: Scene | null;
-  initialHomeViewState?: SceneViewState | null;
+  initialHomeViewState?: ViewState | null;
 }) => {
   const sceneState = useCesiumSceneStateOptional();
-  const viewState = readSceneViewStateFromSceneState(sceneState, {
-    fallbackHeightM: 200,
-  });
-  const homeViewStateRef = useRef<SceneViewState | null>(initialHomeViewState);
+  const viewState = readViewStateFromSceneState(sceneState);
+  const homeViewStateRef = useRef<ViewState | null>(initialHomeViewState);
   const initialDragStateRef = useRef<{
     mouseX: number;
     mouseY: number;
@@ -167,7 +165,7 @@ export const CesiumNavigationOverlay = ({
   }, [initialHomeViewState, viewState]);
 
   const applyViewStateUpdate = useCallback(
-    (update: (current: SceneViewState) => SceneViewState) => {
+    (update: (current: ViewState) => ViewState) => {
       if (!scene || !viewState) {
         return;
       }
@@ -220,12 +218,9 @@ export const CesiumNavigationOverlay = ({
 
       applyViewStateUpdate((current) => ({
         ...current,
-        orientation: {
-          ...current.orientation,
-          bearingRad: nextBearingRad,
-          pitchRad: nextPitchRad,
-          rangeM: dragState.rangeM,
-        },
+        bearing: nextBearingRad as ViewState["bearing"],
+        pitch: nextPitchRad as ViewState["pitch"],
+        range: dragState.rangeM as ViewState["range"],
       }));
     };
 
@@ -266,16 +261,16 @@ export const CesiumNavigationOverlay = ({
       initialDragStateRef.current = {
         mouseX: event.clientX,
         mouseY: event.clientY,
-        bearingRad: viewState.orientation.bearingRad ?? 0,
-        pitchRad: clampCompassPitchRad(viewState.orientation.pitchRad ?? 0),
-        rangeM: viewState.orientation.rangeM ?? DEFAULT_OBJECT_CENTRIC_RANGE_M,
+        bearingRad: viewState.bearing ?? 0,
+        pitchRad: clampCompassPitchRad(viewState.pitch ?? 0),
+        rangeM: viewState.range ?? DEFAULT_OBJECT_CENTRIC_RANGE_M,
       };
     },
     [viewState]
   );
 
   const animateToViewState = useCallback(
-    (nextViewState: SceneViewState, durationMs: number) => {
+    (nextViewState: ViewState, durationMs: number) => {
       if (!scene) {
         return false;
       }
@@ -305,14 +300,10 @@ export const CesiumNavigationOverlay = ({
 
       const nextViewState = {
         ...viewState,
-        orientation: {
-          ...viewState.orientation,
-          rangeM: Math.max(
-            5,
-            (viewState.orientation.rangeM ?? DEFAULT_OBJECT_CENTRIC_RANGE_M) *
-              multiplier
-          ),
-        },
+        range: Math.max(
+          5,
+          (viewState.range ?? DEFAULT_OBJECT_CENTRIC_RANGE_M) * multiplier
+        ) as ViewState["range"],
       };
 
       if (!animateToViewState(nextViewState, ZOOM_ANIMATION_DURATION_MS)) {
@@ -343,10 +334,7 @@ export const CesiumNavigationOverlay = ({
       pendingCompassClickTimeoutRef.current = window.setTimeout(() => {
         const nextViewState = {
           ...viewState,
-          orientation: {
-            ...viewState.orientation,
-            bearingRad: 0,
-          },
+          bearing: 0 as ViewState["bearing"],
         };
 
         if (
@@ -379,11 +367,8 @@ export const CesiumNavigationOverlay = ({
 
       const nextViewState = {
         ...viewState,
-        orientation: {
-          ...viewState.orientation,
-          bearingRad: 0,
-          pitchRad: 0,
-        },
+        bearing: 0 as ViewState["bearing"],
+        pitch: 0 as ViewState["pitch"],
       };
 
       if (
@@ -435,9 +420,9 @@ export const CesiumNavigationOverlay = ({
 
   const disabled = !scene || !viewState;
   const homeDisabled = !scene || !homeViewStateRef.current;
-  const headingDeg = radToDegNumeric(viewState?.orientation.bearingRad ?? 0)!;
+  const headingDeg = radToDegNumeric(viewState?.bearing ?? 0)!;
   const pitchDeg = radToDegNumeric(
-    clampCompassPitchRad(viewState?.orientation.pitchRad ?? 0)
+    clampCompassPitchRad(viewState?.pitch ?? 0)
   )!;
 
   return (

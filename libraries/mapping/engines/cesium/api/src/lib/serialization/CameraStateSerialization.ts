@@ -1,5 +1,5 @@
 import type { Altitude, LatLngAlt } from "@carma/geo/types";
-import type { Degrees, Radians } from "@carma/units/types";
+import type { Radians } from "@carma/units/types";
 import type { Cartesian3, Matrix4 } from "../cesium";
 import type { SerializedCesiumFrustum } from "./FrustumSerialization";
 
@@ -23,13 +23,13 @@ export type CapturedCameraState = CameraStateRecord & {
 };
 
 export type CameraStateHeadingPitchRoll = {
-  longitude: Degrees;
-  latitude: Degrees;
+  longitude: Radians;
+  latitude: Radians;
   altitude: Altitude.EllipsoidalWGS84Meters;
-  heading: Degrees;
-  pitch: Degrees;
-  roll?: Degrees;
-  fov?: Degrees;
+  heading: Radians;
+  pitch: Radians;
+  roll?: Radians;
+  fov?: Radians;
 };
 
 export type CameraState = CameraStateRecord | CameraStateHeadingPitchRoll;

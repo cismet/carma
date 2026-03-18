@@ -1,5 +1,5 @@
 import type { Cartesian3 } from "@carma/cesium";
-import type { Store } from "@carma-commons/react-store";
+import type { Store } from "redux";
 
 import type {
   AnnotationCollection,
