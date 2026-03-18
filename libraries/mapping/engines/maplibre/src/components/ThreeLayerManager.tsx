@@ -156,8 +156,15 @@ export function ThreeLayerManager({
   }, [map, config.skipIn2DLayerIds]);
 
   // Effect 2b: Hide fill-extrusion layers (replaced by Three.js building extrusions)
+  // Also ensures at least one layer using alkis_data stays visible (with near-zero
+  // opacity) so MapLibre continues loading tiles for that source after viewport changes.
   useEffect(() => {
     if (!map) return;
+
+    // The layer we force-show to keep alkis_data tiles loading.
+    // Pick a lightweight line layer so there is minimal rendering cost.
+    const TILE_KEEPALIVE_LAYER = "Gebaeude-gebaeude_outlines";
+    let keepaliveWasHidden = false;
 
     const hideExtrusions = () => {
       const styleLayers = map.getStyle().layers ?? [];
@@ -169,6 +176,19 @@ export function ThreeLayerManager({
             (map as any).__savedExtrusionOpacity.set(sl.id, cur);
           }
           map.setPaintProperty(sl.id, "fill-extrusion-opacity", 0.00001);
+        }
+      }
+
+      // Keep one alkis_data layer visible so MapLibre keeps loading tiles.
+      // Without this, querySourceFeatures returns 0 after viewport changes
+      // because MapLibre skips tile fetching when all layers for a source
+      // have visibility: "none".
+      if (map.getLayer(TILE_KEEPALIVE_LAYER)) {
+        const vis = map.getLayoutProperty(TILE_KEEPALIVE_LAYER, "visibility");
+        if (vis === "none") {
+          keepaliveWasHidden = true;
+          map.setLayoutProperty(TILE_KEEPALIVE_LAYER, "visibility", "visible");
+          map.setPaintProperty(TILE_KEEPALIVE_LAYER, "line-opacity", 0.00001);
         }
       }
     };
@@ -192,6 +212,11 @@ export function ThreeLayerManager({
           }
         }
         saved.clear();
+      }
+      // Restore keepalive layer to hidden if we changed it
+      if (keepaliveWasHidden && map.getLayer(TILE_KEEPALIVE_LAYER)) {
+        map.setLayoutProperty(TILE_KEEPALIVE_LAYER, "visibility", "none");
+        map.setPaintProperty(TILE_KEEPALIVE_LAYER, "line-opacity", 1);
       }
     };
   }, [map]);
@@ -281,12 +306,33 @@ export function ThreeLayerManager({
 
     const syncBuildings = () => {
       const layer = layerRef.current;
-      if (!layer?._originMerc || !map.getSource("alkis_data")) return;
+      if (!layer?._originMerc) { console.log("[3D-BUILDINGS] skip: no origin"); return; }
+      if (!map.getSource("alkis_data")) { console.log("[3D-BUILDINGS] skip: no alkis_data source"); return; }
 
       const hasTerrain = map.getTerrain() != null;
       const raw = map.querySourceFeatures("alkis_data", {
         sourceLayer: "building",
       });
+
+      // Diagnostic: understand why querySourceFeatures may return 0
+      const allSources = Object.keys(map.getStyle().sources);
+      const alkisSource = map.getSource("alkis_data");
+      const rawNoFilter = map.querySourceFeatures("alkis_data");
+      console.log("[3D-BUILDINGS-DEBUG]", {
+        zoom: map.getZoom().toFixed(1),
+        allSources,
+        alkisSourceExists: !!alkisSource,
+        rawWithFilter: raw.length,
+        rawNoFilter: rawNoFilter.length,
+        // Check which source-layers actually exist in the returned features
+        sourceLayersFound: [...new Set(rawNoFilter.map(f => (f as any).sourceLayer as string))],
+        // Check if any layers reference alkis_data
+        layersUsingAlkis: (map.getStyle().layers ?? [])
+          .filter((l: any) => l.source === "alkis_data")
+          .map((l: any) => ({ id: l.id, type: l.type, visibility: l.layout?.visibility })),
+      });
+
+      console.log("[3D-BUILDINGS] raw:", raw.length, "zoom:", map.getZoom().toFixed(1));
 
       // Group tile fragments by feature ID
       interface BldgGroup {
@@ -360,6 +406,13 @@ export function ThreeLayerManager({
         }
       }
 
+      // Skip rebuild if no buildings found and we're above building minzoom
+      // (tiles still loading). Below minzoom 14, clear buildings explicitly.
+      if (buildings.length === 0) {
+        if (map.getZoom() >= 14) return;
+        // Below building minzoom: clear any stale buildings
+      }
+
       buildExtrusionMeshes(buildings, layer.scene, layer._originMerc, layer._mScale);
       console.log("[3D-BUILDINGS]", buildings.length, "buildings,",
         mergedOk, "merged,", mergeFailed, "merge-failed (fallback to fragments)");
@@ -387,6 +440,10 @@ export function ThreeLayerManager({
 
     map.on("moveend", trySync);
 
+    // Sync buildings after map becomes idle (all tiles loaded and rendered)
+    const handleIdle = () => { syncBuildings(); };
+    map.on("idle", handleIdle);
+
     const handleSourceData = (e: {
       sourceId: string;
       isSourceLoaded: boolean;
@@ -394,7 +451,6 @@ export function ThreeLayerManager({
       if (e.sourceId === config.sourceId && e.isSourceLoaded) {
         trySync();
       }
-      // Sync buildings on any alkis_data tile load (not just isSourceLoaded)
       if (e.sourceId === "alkis_data") {
         syncBuildings();
       }
@@ -427,6 +483,7 @@ export function ThreeLayerManager({
 
     return () => {
       map.off("moveend", trySync);
+      map.off("idle", handleIdle);
       map.off("sourcedata", handleSourceData);
       map.off("terrain", handleTerrain);
       map.off("styledata", handleStyleData);
