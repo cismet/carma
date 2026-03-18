@@ -15,19 +15,19 @@ export const backgroundModes = [
     layerKey: "lbk",
   },
   {
-    title: "basemap.de Farbe",
+    title: "cismet - basemap.de Farbe",
     mode: "default",
-    layerKey: "basemap_color",
+    layerKey: "our_basemap_color",
   },
   {
-    title: "basemap.de Grau",
+    title: "cismet - basemap.de Grau",
     mode: "default",
-    layerKey: "basemap_grey",
+    layerKey: "our_basemap_grey",
   },
   {
-    title: "basemap.de Relief",
+    title: "cismet - basemap.de Relief",
     mode: "default",
-    layerKey: "basemap_relief",
+    layerKey: "our_basemap_relief",
   },
 ];
 
@@ -42,16 +42,16 @@ export const backgroundConfigurations = {
     src: "/images/rain-hazard-map-bg/ortho.png",
     title: "Luftbildkarte",
   },
-  basemap_color: {
-    layerkey: "basemap_color",
-    title: "basemap.de Farbe",
+  our_basemap_color: {
+    layerkey: "our_basemap_color",
+    title: "our basemap.de Farbe",
   },
-  basemap_grey: {
-    layerkey: "basemap_grey",
-    title: "basemap.de Grau",
+  our_basemap_grey: {
+    layerkey: "our_basemap_grey",
+    title: "our basemap.de Grau",
   },
-  basemap_relief: {
-    layerkey: "basemap_relief",
-    title: "basemap.de Relief",
+  our_basemap_relief: {
+    layerkey: "our_basemap_relief",
+    title: "our basemap.de Relief",
   },
 };

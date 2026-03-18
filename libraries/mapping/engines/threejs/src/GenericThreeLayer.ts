@@ -470,6 +470,11 @@ export function buildGenericLayer(
       // but may use a default depth range that differs from MapLibre's 3D range.
       const savedDepthRange = gl.getParameter(gl.DEPTH_RANGE) as Float32Array;
 
+      // Disable frustum culling on all scene objects: the base Camera's
+      // projection matrix comes from MapLibre and the default bounding-sphere
+      // test incorrectly culls InstancedMesh crowns at steep tilt angles.
+      this.scene.traverse((obj) => { obj.frustumCulled = false; });
+
       this.renderer.resetState();
       this.renderer.render(this.scene, this.camera);
 
@@ -897,6 +902,7 @@ export function buildOverlayLayer(
         .copy(mainLayer.camera.projectionMatrix)
         .invert();
 
+      mainLayer.scene.traverse((obj) => { obj.frustumCulled = false; });
       mainLayer.renderer.resetState();
       mainLayer.renderer.render(mainLayer.scene, mainLayer.camera);
     },

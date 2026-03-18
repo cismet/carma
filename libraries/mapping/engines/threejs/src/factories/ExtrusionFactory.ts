@@ -245,10 +245,12 @@ export function buildExtrusionMeshes(
 
   const wallMesh = new THREE.Mesh(wallGeo, wallMat);
   wallMesh.userData.isBuilding = true;
+  wallMesh.frustumCulled = false;
   scene.add(wallMesh);
 
   const roofMesh = new THREE.Mesh(roofGeo, roofMat);
   roofMesh.userData.isBuilding = true;
+  roofMesh.frustumCulled = false;
   scene.add(roofMesh);
 
   const wallTris = wi / 3;

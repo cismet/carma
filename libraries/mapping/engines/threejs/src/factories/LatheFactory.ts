@@ -111,8 +111,6 @@ export function buildLatheInstances(
     const crownMat = new THREE.MeshLambertMaterial({
       color: 0xffffff,
       flatShading: true,
-      transparent: true,
-      opacity: 1,
       depthWrite: true,
     });
     const crownMesh = new THREE.InstancedMesh(proto.crown, crownMat, count);
@@ -179,6 +177,9 @@ export function buildLatheInstances(
     const sourceIndices = feats.map((f) => f._sourceIndex);
     crownMesh.userData.sourceIndices = sourceIndices;
     trunkMesh.userData.sourceIndices = sourceIndices;
+
+    crownMesh.frustumCulled = false;
+    trunkMesh.frustumCulled = false;
 
     scene.add(crownMesh);
     scene.add(trunkMesh);

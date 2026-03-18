@@ -452,5 +452,20 @@ export const defaultLayerConf = {
       style:
         "https://sgx.geodatenzentrum.de/gdz_basemapde_vektor/styles/bm_web_top.json",
     },
+    our_basemap_grey: {
+      type: "vector",
+      style:
+        "https://tiles.cismet.de/basemap_de/basemap_grey.style.json",
+    },
+    our_basemap_color: {
+      type: "vector",
+      style:
+        "https://tiles.cismet.de/basemap_de/basemap_color.style.json",
+    },
+    our_basemap_relief: {
+      type: "vector",
+      style:
+        "https://tiles.cismet.de/basemap_de/basemap_relief.style.json",
+    },
   },
 };

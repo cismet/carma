@@ -458,6 +458,7 @@ export function buildLoftMeshes(
     crownMesh.userData.vertexRanges = result.crownVertexRanges;
     crownMesh.userData.originalColors = (result.crownGeo.getAttribute("color") as THREE.BufferAttribute).array.slice();
     crownMesh.userData.sourceIndexMap = buildSourceIndexMap(result.crownVertexRanges);
+    crownMesh.frustumCulled = false;
     scene.add(crownMesh);
 
     const trunkMesh = new THREE.Mesh(result.trunkGeo, trunkMat);
@@ -465,6 +466,7 @@ export function buildLoftMeshes(
     trunkMesh.userData.vertexRanges = result.trunkVertexRanges;
     trunkMesh.userData.originalColors = (result.trunkGeo.getAttribute("color") as THREE.BufferAttribute).array.slice();
     trunkMesh.userData.sourceIndexMap = buildSourceIndexMap(result.trunkVertexRanges);
+    trunkMesh.frustumCulled = false;
     scene.add(trunkMesh);
   }
 
