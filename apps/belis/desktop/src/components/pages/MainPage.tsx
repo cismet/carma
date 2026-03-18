@@ -16,6 +16,7 @@ import {
   setKeyTablesErrors,
   setKeyTablesLoading,
 } from "../../store/slices/keyTables";
+import LeitungstypDropdown from "../ui/LeitungstypDropdown";
 import { fetchAllKeyTables } from "../../helper/apiMethods";
 import localForage from "localforage";
 import { useMapPage } from "../../contexts/MapPageContext";
@@ -108,13 +109,15 @@ const MainPage = () => {
         <>
           <div className="flex items-center gap-2 border-l border-gray-300 pl-4">
             {BELIS_FILTER_CATEGORIES.map((cat) => (
-              <Switch
-                key={cat.key}
-                checkedChildren={cat.label}
-                unCheckedChildren={cat.label}
-                checked={enabledFilters[cat.key]}
-                onChange={(on) => setFilterEnabled(cat.key, on)}
-              />
+              <div key={cat.key} className="flex items-center">
+                <Switch
+                  checkedChildren={cat.label}
+                  unCheckedChildren={cat.label}
+                  checked={enabledFilters[cat.key]}
+                  onChange={(on) => setFilterEnabled(cat.key, on)}
+                />
+                {cat.key === "leitungen" && <LeitungstypDropdown />}
+              </div>
             ))}
           </div>
 
