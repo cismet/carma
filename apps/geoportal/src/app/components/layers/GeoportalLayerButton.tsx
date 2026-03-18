@@ -229,7 +229,7 @@ const GeoportalLayerButton = ({
         {!background && (
           <>
             <span className="text-base ml-1">{title}</span>
-            {(layer.filterConfig || id.toLowerCase().includes("poi")) && (
+            {layer.filterConfig && (
               <button
                 id={`filterLayerButton-${id}`}
                 className={cn("px-1.5 flex items-center justify-center")}
