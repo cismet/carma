@@ -1,27 +1,24 @@
 import { useCallback, useEffect, type SetStateAction } from "react";
 
 import { Cartesian3 } from "@carma/cesium";
-import { useStoreSelector } from "@carma-commons/react-store";
 import {
   isPointAnnotationEntry,
   type AnnotationCollection,
 } from "@carma-mapping/annotations/core";
 
-import type { AnnotationEditStoreState, AnnotationsStore } from "../../store";
+import {
+  replaceAnnotationsStoreState,
+  useStoreSelector,
+  type AnnotationEditStoreState,
+  type AnnotationsStore,
+} from "../../store";
+import { resolveSetStateAction } from "../../store/stateUpdateUtils";
 import type {
   AnnotationEditTarget,
   MoveGizmoAxisCandidate,
   MoveGizmoSession,
   MoveGizmoStartOptions,
 } from "./annotationEdit.types";
-
-const resolveSetStateAction = <TValue>(
-  action: SetStateAction<TValue>,
-  previousValue: TValue
-): TValue =>
-  typeof action === "function"
-    ? (action as (previousValue: TValue) => TValue)(previousValue)
-    : action;
 
 const cloneAxisCandidates = (
   axisCandidates: MoveGizmoAxisCandidate[] | null | undefined
@@ -70,19 +67,22 @@ export const useEditState = (
 
   const setEditState = useCallback(
     (nextValueOrUpdater: SetStateAction<AnnotationEditStoreState>) => {
-      annotationsStore.setState((previousStoreState) => {
-        const nextEditState = resolveSetStateAction(
-          nextValueOrUpdater,
-          previousStoreState.editState
-        );
+      const previousStoreState = annotationsStore.getState();
+      const nextEditState = resolveSetStateAction(
+        nextValueOrUpdater,
+        previousStoreState.editState
+      );
 
-        return Object.is(nextEditState, previousStoreState.editState)
-          ? previousStoreState
-          : {
-              ...previousStoreState,
-              editState: nextEditState,
-            };
-      });
+      if (Object.is(nextEditState, previousStoreState.editState)) {
+        return;
+      }
+
+      annotationsStore.dispatch(
+        replaceAnnotationsStoreState({
+          ...previousStoreState,
+          editState: nextEditState,
+        })
+      );
     },
     [annotationsStore]
   );

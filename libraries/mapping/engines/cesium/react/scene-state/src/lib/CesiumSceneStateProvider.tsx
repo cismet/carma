@@ -1,10 +1,25 @@
-import { useEffect, useMemo, type ReactNode } from "react";
+import { createElement, useEffect, useMemo, type ReactNode } from "react";
+import { Provider as ReduxProvider } from "react-redux";
 import {
   createCesiumSceneStateStore,
   type CesiumSceneStateStore,
 } from "./utils/createCesiumSceneStateStore";
 import type { SceneLike, SceneStateOptions } from "./types";
-import { CesiumSceneStateStoreContext } from "./CesiumSceneStateStoreContext";
+import {
+  CesiumSceneStateReduxContext,
+  CesiumSceneStateStoreContext,
+} from "./CesiumSceneStateStoreContext";
+
+type CesiumSceneStateReduxProviderProps = {
+  store: CesiumSceneStateStore;
+  context: typeof CesiumSceneStateReduxContext;
+  children?: ReactNode;
+};
+
+const CesiumSceneStateReduxProvider =
+  ReduxProvider as unknown as (
+    props: CesiumSceneStateReduxProviderProps
+  ) => ReactNode;
 
 type SceneStateProviderProps = {
   scene?: SceneLike | null;
@@ -50,7 +65,18 @@ export const CesiumSceneStateProvider = ({
 
   return (
     <CesiumSceneStateStoreContext.Provider value={store}>
-      {children}
+      {store ? (
+        createElement(
+          CesiumSceneStateReduxProvider,
+          {
+            context: CesiumSceneStateReduxContext,
+            store,
+          },
+          children
+        )
+      ) : (
+        children
+      )}
     </CesiumSceneStateStoreContext.Provider>
   );
 };

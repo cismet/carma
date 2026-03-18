@@ -4,19 +4,16 @@ import {
   HeadingPitchRange,
   getPointsFromCartographicAndHeadingPitchRange,
 } from "@carma/cesium";
+import { toCesiumPitchFromViewSyncPitch } from "@carma-mapping/engines-interop/view-sync";
 
-export type SceneViewStateLike = {
-  anchor: {
-    lngDeg: number;
-    latDeg: number;
-    heightM: number;
-  };
-  orientation: {
-    bearingRad?: number;
-    pitchRad?: number;
-    fovVerticalRad?: number;
-    rangeM?: number;
-  };
+export type ViewStateLike = {
+  longitude: number;
+  latitude: number;
+  altitude: number;
+  bearing?: number;
+  pitch?: number;
+  fovVertical?: number;
+  range?: number;
 };
 
 export type InitialCameraViewLike = {
@@ -27,7 +24,7 @@ export type InitialCameraViewLike = {
 };
 
 export const readInitialCameraViewFromSceneViewState = (
-  viewState: SceneViewStateLike | null | undefined,
+  viewState: ViewStateLike | null | undefined,
   options: {
     defaultRangeM?: number;
   } = {}
@@ -36,21 +33,23 @@ export const readInitialCameraViewFromSceneViewState = (
     return undefined;
   }
 
-  const headingRad = viewState.orientation.bearingRad ?? 0;
-  const pitchRad = viewState.orientation.pitchRad ?? 0;
-  const fovVerticalRad = viewState.orientation.fovVerticalRad;
+  const headingRad = viewState.bearing ?? 0;
+  const pitchRad = toCesiumPitchFromViewSyncPitch(
+    viewState.pitch ?? 0
+  );
+  const fovVerticalRad = viewState.fovVertical;
   const defaultRangeM = options.defaultRangeM ?? 750;
 
-  const anchorCartographic = Cartographic.fromDegrees(
-    viewState.anchor.lngDeg,
-    viewState.anchor.latDeg,
-    viewState.anchor.heightM
+  const anchorCartographic = Cartographic.fromRadians(
+    viewState.longitude,
+    viewState.latitude,
+    viewState.altitude
   );
 
   const headingPitchRange = new HeadingPitchRange(
     headingRad,
     pitchRad,
-    Math.max(0.01, viewState.orientation.rangeM ?? defaultRangeM)
+    Math.max(0.01, viewState.range ?? defaultRangeM)
   );
 
   const points = getPointsFromCartographicAndHeadingPitchRange({

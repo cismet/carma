@@ -1,4 +1,8 @@
-import { createStore } from "@carma-commons/react-store";
+import {
+  configureStore,
+  createSlice,
+  type PayloadAction,
+} from "@reduxjs/toolkit";
 import { normalizeOptions } from "@carma-commons/utils";
 import {
   DEFAULT_LINEAR_SEGMENT_LINE_MODE,
@@ -34,8 +38,6 @@ export type CreateInitialAnnotationsStoreStateOptions = {
   initialPolylineSegmentLineMode?: LinearSegmentLineMode;
   initialHeightOffset?: number;
 };
-
-const noop = () => undefined;
 
 const DEFAULT_INITIAL_SETTINGS_STATE: AnnotationSettingsStoreState = {
   pointQuery: {
@@ -198,6 +200,22 @@ export const createInitialAnnotationsStoreState = (
   };
 };
 
+const annotationsRuntimeSlice = createSlice({
+  name: "annotationsRuntime",
+  initialState: createInitialAnnotationsStoreState(),
+  reducers: {
+    replaceState: (_, action: PayloadAction<AnnotationsStoreState>) =>
+      action.payload,
+  },
+});
+
+export const { replaceState: replaceAnnotationsStoreState } =
+  annotationsRuntimeSlice.actions;
+
 export const createAnnotationsStore = (
   initialState: AnnotationsStoreState
-): AnnotationsStore => createStore(initialState);
+): AnnotationsStore =>
+  configureStore({
+    reducer: annotationsRuntimeSlice.reducer,
+    preloadedState: initialState,
+  });

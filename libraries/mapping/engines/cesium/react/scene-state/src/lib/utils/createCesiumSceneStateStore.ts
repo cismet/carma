@@ -1,4 +1,10 @@
 import { isFiniteNumber } from "@carma/math";
+import {
+  configureStore,
+  createSlice,
+  type PayloadAction,
+} from "@reduxjs/toolkit";
+import type { Store } from "redux";
 import type {
   EventLike,
   SceneLike,
@@ -7,13 +13,36 @@ import type {
 } from "../types";
 import { computeCesiumSceneState } from "./computeCesiumSceneStateSnapshot";
 
-export type CesiumSceneStateStore = {
+export type CesiumSceneStateStoreState = {
+  snapshot: SceneState | null;
+  error: Error | null;
+};
+
+export type CesiumSceneStateStore = Store<CesiumSceneStateStoreState> & {
   getSnapshot: () => SceneState | null;
   getError: () => Error | null;
-  subscribe: (listener: () => void) => () => void;
   refresh: () => SceneState | null;
   destroy: () => void;
 };
+
+const sceneStateSlice = createSlice({
+  name: "cesiumSceneState",
+  initialState: {
+    snapshot: null,
+    error: null,
+  } as CesiumSceneStateStoreState,
+  reducers: {
+    setSceneState: (
+      state,
+      action: PayloadAction<CesiumSceneStateStoreState>
+    ) => {
+      state.snapshot = action.payload.snapshot;
+      state.error = action.payload.error;
+    },
+  },
+});
+
+const { setSceneState } = sceneStateSlice.actions;
 
 const normalizeError = (error: unknown): Error =>
   error instanceof Error ? error : new Error(String(error));
@@ -46,7 +75,9 @@ export const createCesiumSceneStateStore = (
   scene: SceneLike,
   options: SceneStateOptions = {}
 ): CesiumSceneStateStore => {
-  const listeners = new Set<() => void>();
+  const reduxStore = configureStore({
+    reducer: sceneStateSlice.reducer,
+  });
   const scenePreRender = scene.preRender;
   const scenePostRender = scene.postRender;
 
@@ -54,6 +85,21 @@ export const createCesiumSceneStateStore = (
   let snapshot: SceneState | null = null;
   let lastError: Error | null = null;
   let lastResolvedFrameNumber: number | null = null;
+
+  const syncStoreState = () => {
+    const currentStoreState = reduxStore.getState();
+    if (
+      currentStoreState.snapshot !== snapshot ||
+      currentStoreState.error !== lastError
+    ) {
+      reduxStore.dispatch(
+        setSceneState({
+          snapshot,
+          error: lastError,
+        })
+      );
+    }
+  };
 
   const computeSnapshotForFrame = (
     resolvedFrameNumber: number
@@ -123,18 +169,18 @@ export const createCesiumSceneStateStore = (
     return snapshot;
   };
 
-  const notifyListeners = () => {
-    listeners.forEach((listener) => {
-      listener();
-    });
+  const computeAndSync = (force: boolean): SceneState | null => {
+    const previousSnapshot = snapshot;
+    const previousError = lastError;
+    const nextSnapshot = computeSnapshot(force);
+    if (nextSnapshot !== previousSnapshot || lastError !== previousError) {
+      syncStoreState();
+    }
+    return nextSnapshot;
   };
 
   const onFrame = () => {
-    const previousSnapshot = snapshot;
-    const nextSnapshot = computeSnapshot(true);
-    if (nextSnapshot !== previousSnapshot) {
-      notifyListeners();
-    }
+    computeAndSync(true);
   };
 
   if (isEventLike(scenePreRender)) {
@@ -143,35 +189,34 @@ export const createCesiumSceneStateStore = (
     scenePostRender.addEventListener(onFrame);
   }
 
-  return {
-    getSnapshot: () => computeSnapshot(false),
-    getError: () => lastError,
-    subscribe: (listener: () => void) => {
-      listeners.add(listener);
-      return () => {
-        listeners.delete(listener);
-      };
-    },
-    refresh: () => {
-      const previousSnapshot = snapshot;
-      const nextSnapshot = computeSnapshot(true);
-      if (nextSnapshot !== previousSnapshot) {
-        notifyListeners();
-      }
-      return nextSnapshot;
-    },
-    destroy: () => {
-      if (isDestroyed) {
-        return;
-      }
-      isDestroyed = true;
-      if (isEventLike(scenePostRender)) {
-        scenePostRender.removeEventListener(onFrame);
-      }
-      if (isEventLike(scenePreRender)) {
-        scenePreRender.removeEventListener(onFrame);
-      }
-      listeners.clear();
-    },
+  computeAndSync(true);
+
+  const getSnapshot = () => computeAndSync(false);
+
+  const getError = () => {
+    computeAndSync(false);
+    return lastError;
   };
+
+  const refresh = () => computeAndSync(true);
+
+  const destroy = () => {
+    if (isDestroyed) {
+      return;
+    }
+    isDestroyed = true;
+    if (isEventLike(scenePostRender)) {
+      scenePostRender.removeEventListener(onFrame);
+    }
+    if (isEventLike(scenePreRender)) {
+      scenePreRender.removeEventListener(onFrame);
+    }
+  };
+
+  return Object.assign(reduxStore, {
+    getSnapshot,
+    getError,
+    refresh,
+    destroy,
+  });
 };

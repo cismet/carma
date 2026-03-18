@@ -155,6 +155,22 @@ export type {
 
 export type { Matrix4ConstructorArgs } from "./serialization";
 
+export { SCENE_STATE_METADATA_SOURCE } from "./cesiumSceneTypes";
+export type {
+  CameraLike,
+  OrbitPoint,
+  OrbitPointMode,
+  OrbitPointSamplingStrategy,
+  OrbitPointSource,
+  SceneCamera,
+  SceneLighting,
+  SceneLike,
+  SceneState,
+  SceneStateMetadata,
+  SceneStateMetadataSource,
+  SceneStateOptions,
+} from "./cesiumSceneTypes";
+
 // custom low-level utilities
 export * from "./carma-helpers/primitives";
 export * from "./carma-helpers/scene/CoordinateAdapters";

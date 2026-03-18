@@ -22,7 +22,7 @@ import {
   applyObjectCentricCameraViewToScene,
   type ObjectCentricCameraViewInput,
 } from "@carma-mapping/engines/cesium/react/scene-state";
-import type { SceneViewState } from "@carma-mapping/engines-interop";
+import type { ViewState } from "@carma-mapping/engines-interop/view-sync";
 import { isFiniteNumber } from "@carma/math";
 import { degToRadNumeric } from "@carma/units/helpers";
 import {
@@ -33,15 +33,15 @@ import {
 } from "@carma-commons/resources";
 
 const toObjectCentricCameraViewInput = (
-  viewState: SceneViewState
+  viewState: ViewState
 ): ObjectCentricCameraViewInput => ({
-  anchorLngRad: degToRadNumeric(viewState.anchor.lngDeg),
-  anchorLatRad: degToRadNumeric(viewState.anchor.latDeg),
-  anchorHeightM: viewState.anchor.heightM,
-  bearingRad: viewState.orientation.bearingRad,
-  pitchRad: viewState.orientation.pitchRad,
-  rangeM: viewState.orientation.rangeM,
-  fovVerticalRad: viewState.orientation.fovVerticalRad,
+  anchorLngRad: viewState.longitude,
+  anchorLatRad: viewState.latitude,
+  anchorHeightM: viewState.altitude,
+  bearingRad: viewState.bearing,
+  pitchRad: viewState.pitch,
+  rangeM: viewState.range,
+  fovVerticalRad: viewState.fovVertical,
 });
 
 type DefaultCameraState = {
@@ -168,7 +168,7 @@ const applyInitialCameraState = async ({
 }: {
   widget: CesiumWidget;
   terrainProvider: CesiumTerrainProvider;
-  initialViewState: SceneViewState | null;
+  initialViewState: ViewState | null;
 }) => {
   if (initialViewState) {
     const objectCentricView = toObjectCentricCameraViewInput(initialViewState);
@@ -254,7 +254,7 @@ const loadTileset = async (
 type CesiumWidgetContainerProps = {
   rootRef: MutableRefObject<HTMLDivElement | null>;
   onSceneChange?: (scene: Scene | null) => void;
-  initialViewState?: SceneViewState | null;
+  initialViewState?: ViewState | null;
   startPoseResolved?: boolean;
   children: ReactNode;
 };

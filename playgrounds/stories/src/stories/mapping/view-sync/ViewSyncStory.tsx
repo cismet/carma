@@ -26,41 +26,37 @@ import {
   CesiumSceneStateProvider,
   useCesiumSceneStateOptional,
 } from "@carma-mapping/engines/cesium/react/scene-state";
-import { animateOrbitHeadingPitchRange } from "@carma-mapping/engines/cesium/api";
+import {
+  animateOrbitHeadingPitchRange,
+  setViewFromCameraState,
+} from "@carma-mapping/engines/cesium/api";
 import {
   ViewSyncProvider,
   readViewSyncVerticalFov,
   projectLeafletViewToViewSyncTarget,
-  projectMapLibreViewToViewSyncTarget,
   projectViewSyncTargetToLeaflet,
-  projectViewSyncTargetToMapLibre,
-  readViewSyncTargetFromSceneState,
-  readSceneViewStateFromSceneState,
+  readViewStateFromSceneState,
   toCesiumPitchFromViewSyncPitch,
-  transitionToCesium,
-  transitionToLeaflet,
   useRegisterViewSyncParticipant,
   useViewSyncState,
   useViewSyncStore,
   useViewSyncTargetState,
+  cesiumAdapter,
   maplibreAdapter,
-  readSceneViewStateFromLeafletMap,
-  readSceneViewStateFromMapLibreMap,
+  readViewStateFromLeafletMap,
+  readViewStateFromMapLibreMap,
   type ViewSyncPublishedState,
   type ViewSyncState,
-  type ViewSyncTargetState,
-} from "@carma-mapping/engines-interop";
+  type ViewState,
+} from "@carma-mapping/engines-interop/view-sync";
+import {
+  transitionToCesium,
+  transitionToLeaflet,
+} from "@carma-mapping/engines-interop/leaflet-cesium";
 import {
   Cartographic,
-  Cartesian3,
-  Cartesian4,
-  Ellipsoid,
-  HeadingPitchRange,
-  Matrix4,
   PerspectiveFrustum,
-  releaseCameraFromOrbitMode,
-  Transforms,
-  type HeadingPitchJson,
+  type SerializedCameraStateHeadingPitchRoll,
   type CesiumWidget,
 } from "@carma/cesium";
 import { encodeHashParams } from "@carma-providers/hash-state";
@@ -75,7 +71,9 @@ import {
   buildPanelStatusText,
   formatTargetSummary,
   ViewSyncMetaOverlay,
-} from "./ViewSyncStoryChrome";
+} from "./ViewSyncStoryUi";
+
+type ViewSyncTargetState = ViewState;
 
 import "leaflet/dist/leaflet.css";
 import "maplibre-gl/dist/maplibre-gl.css";
@@ -135,7 +133,6 @@ type SlotTransitionRequest = {
 type StoryHomePoseValues = {
   lngDeg: number;
   latDeg: number;
-  zoom: number;
   bearingDeg: number;
   pitchDeg: number;
   altitudeM: number;
@@ -220,47 +217,15 @@ const addButtonStyle: CSSProperties = {
   background: "rgba(15, 23, 42, 0.92)",
 };
 
-const DEFAULT_STORY_BOOT_VIEWPORT = {
-  widthPx: 1920,
-  heightPx: 1080,
-} as const;
-
 const ANNOTATIONS_DEMO_HOME_POSE: StoryHomePoseValues = {
   lngDeg: 7.1960888,
   latDeg: 51.2696499,
-  zoom: 16.994,
   bearingDeg: 3.23,
   pitchDeg: 58.73,
   altitudeM: 149.95,
 };
 
-const createSettledStoryTargetState = ({
-  lngDeg,
-  latDeg,
-  zoom,
-  bearingDeg,
-  pitchDeg,
-  altitudeM,
-  fovVerticalDeg = radToDegNumeric(DEFAULT_FOV_RAD),
-}: StoryHomePoseValues & {
-  fovVerticalDeg?: number;
-}): ViewSyncTargetState | null =>
-  projectMapLibreViewToViewSyncTarget(
-    lngDeg,
-    latDeg,
-    zoom,
-    altitudeM,
-    DEFAULT_STORY_BOOT_VIEWPORT,
-    degToRadNumeric(fovVerticalDeg),
-    {
-      bearingDeg,
-      pitchDeg,
-    }
-  );
-
-const DEFAULT_STORY_RANGE_M =
-  createSettledStoryTargetState(ANNOTATIONS_DEMO_HOME_POSE)?.bearingPitchRange
-    .range ?? 620;
+const DEFAULT_STORY_RANGE_M = 620;
 
 const createStoryTargetState = ({
   longitudeDeg = ANNOTATIONS_DEMO_HOME_POSE.lngDeg,
@@ -273,36 +238,43 @@ const createStoryTargetState = ({
   nearPlaneM,
   farPlaneM,
 }: ViewSyncStoryProps = {}): ViewSyncTargetState => {
-  const projectedTarget = createSettledStoryTargetState({
-    lngDeg: longitudeDeg,
-    latDeg: latitudeDeg,
-    zoom: ANNOTATIONS_DEMO_HOME_POSE.zoom,
-    bearingDeg,
-    pitchDeg,
-    altitudeM,
-    fovVerticalDeg,
-  });
-
   const resolvedRangeM =
     typeof rangeM === "number" && Number.isFinite(rangeM)
       ? rangeM
-      : projectedTarget?.bearingPitchRange.range;
+      : DEFAULT_STORY_RANGE_M;
 
   return {
-    anchor: {
-      longitude: degToRadNumeric(longitudeDeg),
-      latitude: degToRadNumeric(latitudeDeg),
-      altitude: altitudeM,
-    },
-    bearingPitchRange: {
-      bearing: degToRadNumeric(bearingDeg),
-      pitch: degToRadNumeric(pitchDeg),
-      range: resolvedRangeM ?? DEFAULT_STORY_RANGE_M,
-    },
+    longitude: degToRadNumeric(longitudeDeg),
+    latitude: degToRadNumeric(latitudeDeg),
+    altitude: altitudeM,
+    bearing: degToRadNumeric(bearingDeg),
+    pitch: degToRadNumeric(pitchDeg),
+    range: resolvedRangeM ?? DEFAULT_STORY_RANGE_M,
     fovVertical: degToRadNumeric(fovVerticalDeg),
-    ...(Number.isFinite(nearPlaneM) ? { near: nearPlaneM } : {}),
-    ...(Number.isFinite(farPlaneM) ? { far: farPlaneM } : {}),
-    type: CAMERA_TYPE.PERSPECTIVE,
+    cameraModel: {
+      pose: {
+        anchor: {
+          longitude: degToRadNumeric(longitudeDeg),
+          latitude: degToRadNumeric(latitudeDeg),
+          altitude: altitudeM,
+        },
+        bearing: degToRadNumeric(bearingDeg),
+        pitch: degToRadNumeric(pitchDeg),
+        range: resolvedRangeM ?? DEFAULT_STORY_RANGE_M,
+      },
+      intrinsics: {
+        type: CAMERA_TYPE.PERSPECTIVE,
+        fov: degToRadNumeric(fovVerticalDeg),
+        ...((Number.isFinite(nearPlaneM) || Number.isFinite(farPlaneM))
+          ? {
+              frustum: {
+                ...(Number.isFinite(nearPlaneM) ? { near: nearPlaneM } : {}),
+                ...(Number.isFinite(farPlaneM) ? { far: farPlaneM } : {}),
+              },
+            }
+          : {}),
+      },
+    },
   };
 };
 
@@ -379,48 +351,29 @@ const isLeafletCesiumFramework = (
 const isLeafletCesiumTransition = (
   fromFramework: SlotFramework,
   toFramework: SlotFramework
-): toFramework is "leaflet" | "cesium" =>
-  fromFramework !== toFramework &&
+): boolean =>
   isLeafletCesiumFramework(fromFramework) &&
   isLeafletCesiumFramework(toFramework);
 
-const getViewportFromElement = (element: HTMLElement) => ({
-  widthPx: Math.max(1, element.clientWidth),
-  heightPx: Math.max(1, element.clientHeight),
-});
-
 const getCurrentAnchorAltitude = (
   targetState: ViewSyncPublishedState | null
-): number => targetState?.target.anchor.altitude ?? DEFAULT_ANCHOR_ALTITUDE_M;
+): number => targetState?.target.altitude ?? DEFAULT_ANCHOR_ALTITUDE_M;
 
 const getCurrentVerticalFov = (
   targetState: ViewSyncPublishedState | null
 ): number => {
   const target = targetState?.target;
-  return target
-    ? readViewSyncVerticalFov(target) ?? DEFAULT_FOV_RAD
-    : DEFAULT_FOV_RAD;
-};
-
-const getCurrentBearingDeg = (
-  targetState: ViewSyncPublishedState | null
-): number =>
-  targetState
-    ? radToDegNumeric(targetState.target.bearingPitchRange.bearing)
-    : 0;
-
-const toCesiumHeadingPitchJsonFromViewSyncTarget = (
-  target: ViewSyncTargetState | null | undefined
-): HeadingPitchJson | null => {
   if (!target) {
-    return null;
+    return DEFAULT_FOV_RAD;
   }
 
-  return {
-    heading: target.bearingPitchRange.bearing,
-    pitch: toCesiumPitchFromViewSyncPitch(target.bearingPitchRange.pitch),
-  };
+  return readViewSyncVerticalFov(target) ?? DEFAULT_FOV_RAD;
 };
+
+const toCesiumCameraStateFromViewSyncTarget = (
+  target: ViewSyncTargetState | null | undefined
+): SerializedCameraStateHeadingPitchRoll | null =>
+  target ? cesiumAdapter.toFramework(target) : null;
 
 const MIN_COMPASS_PITCH_DEG = 0;
 const MAX_COMPASS_PITCH_DEG = 85;
@@ -431,153 +384,6 @@ const INITIAL_SLOT_BOOT_DELAY_STEP_MS = 220;
 const VIEW_SYNC_CONTROL_SOURCE_ENGINE = "view-sync-control";
 const COMPASS_CLICK_DELAY_MS = 180;
 const COMPASS_DRAG_THRESHOLD_PX = 3;
-
-const VIEW_SYNC_DIRECTION_EPSILON = 1e-9;
-
-const toCartesian3IfFinite = (
-  value:
-    | {
-        x: number;
-        y: number;
-        z: number;
-      }
-    | null
-    | undefined
-): Cartesian3 | null => {
-  if (
-    !value ||
-    !Number.isFinite(value.x) ||
-    !Number.isFinite(value.y) ||
-    !Number.isFinite(value.z)
-  ) {
-    return null;
-  }
-
-  return new Cartesian3(value.x, value.y, value.z);
-};
-
-const readEllipsoidalUpAtAnchor = (anchorECEF: Cartesian3): Cartesian3 => {
-  const enuFrame = Transforms.eastNorthUpToFixedFrame(
-    anchorECEF,
-    Ellipsoid.WGS84
-  );
-  const upColumn = Matrix4.getColumn(enuFrame, 2, new Cartesian4());
-
-  return Cartesian3.normalize(
-    new Cartesian3(upColumn.x, upColumn.y, upColumn.z),
-    new Cartesian3()
-  );
-};
-
-const buildStableCesiumOrientationFromTarget = (
-  target: ViewSyncTargetState,
-  anchorECEF: Cartesian3
-): {
-  destination: Cartesian3;
-  direction: Cartesian3;
-  up: Cartesian3;
-} | null => {
-  const pose = target.cameraModel?.pose;
-  const posePosition = toCartesian3IfFinite(pose?.position);
-  const poseDirection = toCartesian3IfFinite(pose?.direction);
-  const poseUp = toCartesian3IfFinite(pose?.up);
-
-  if (
-    posePosition &&
-    poseDirection &&
-    poseUp &&
-    Cartesian3.magnitudeSquared(poseDirection) > VIEW_SYNC_DIRECTION_EPSILON &&
-    Cartesian3.magnitudeSquared(poseUp) > VIEW_SYNC_DIRECTION_EPSILON
-  ) {
-    return {
-      destination: Cartesian3.clone(posePosition),
-      direction: Cartesian3.normalize(poseDirection, new Cartesian3()),
-      up: Cartesian3.normalize(poseUp, new Cartesian3()),
-    };
-  }
-
-  const bearing = target.bearingPitchRange.bearing;
-  const pitch = target.bearingPitchRange.pitch;
-  const range = target.bearingPitchRange.range;
-  if (
-    !Number.isFinite(bearing) ||
-    !Number.isFinite(pitch) ||
-    !Number.isFinite(range) ||
-    range <= 0
-  ) {
-    return null;
-  }
-
-  const upAnchor = readEllipsoidalUpAtAnchor(anchorECEF);
-  const enuFrame = Transforms.eastNorthUpToFixedFrame(
-    anchorECEF,
-    Ellipsoid.WGS84
-  );
-  const eastColumn = Matrix4.getColumn(enuFrame, 0, new Cartesian4());
-  const northColumn = Matrix4.getColumn(enuFrame, 1, new Cartesian4());
-  const eastAxis = Cartesian3.normalize(
-    new Cartesian3(eastColumn.x, eastColumn.y, eastColumn.z),
-    new Cartesian3()
-  );
-  const northAxis = Cartesian3.normalize(
-    new Cartesian3(northColumn.x, northColumn.y, northColumn.z),
-    new Cartesian3()
-  );
-
-  const forwardHorizontal = Cartesian3.normalize(
-    Cartesian3.add(
-      Cartesian3.multiplyByScalar(
-        eastAxis,
-        Math.sin(bearing),
-        new Cartesian3()
-      ),
-      Cartesian3.multiplyByScalar(
-        northAxis,
-        Math.cos(bearing),
-        new Cartesian3()
-      ),
-      new Cartesian3()
-    ),
-    new Cartesian3()
-  );
-
-  const direction = Cartesian3.normalize(
-    Cartesian3.add(
-      Cartesian3.multiplyByScalar(
-        forwardHorizontal,
-        Math.sin(pitch),
-        new Cartesian3()
-      ),
-      Cartesian3.multiplyByScalar(upAnchor, -Math.cos(pitch), new Cartesian3()),
-      new Cartesian3()
-    ),
-    new Cartesian3()
-  );
-
-  const right = Cartesian3.normalize(
-    Cartesian3.cross(forwardHorizontal, upAnchor, new Cartesian3()),
-    new Cartesian3()
-  );
-  if (Cartesian3.magnitudeSquared(right) <= VIEW_SYNC_DIRECTION_EPSILON) {
-    return null;
-  }
-
-  const up = Cartesian3.normalize(
-    Cartesian3.cross(right, direction, new Cartesian3()),
-    new Cartesian3()
-  );
-  if (Cartesian3.magnitudeSquared(up) <= VIEW_SYNC_DIRECTION_EPSILON) {
-    return null;
-  }
-
-  const destination = Cartesian3.subtract(
-    anchorECEF,
-    Cartesian3.multiplyByScalar(direction, range, new Cartesian3()),
-    new Cartesian3()
-  );
-
-  return { destination, direction, up };
-};
 
 const applyViewSyncTargetToCesiumWidget = ({
   widget,
@@ -591,43 +397,16 @@ const applyViewSyncTargetToCesiumWidget = ({
   }
 
   const scene = widget.scene;
-  const camera = scene?.camera;
-  if (!scene || !camera) {
+  if (!scene) {
     return false;
   }
 
-  const cartographic = Cartographic.fromRadians(
-    target.anchor.longitude,
-    target.anchor.latitude,
-    target.anchor.altitude
-  );
-  const anchorECEF = Cartographic.toCartesian(cartographic);
-  if (!anchorECEF) {
+  const cameraState = cesiumAdapter.toFramework(target);
+  if (!cameraState) {
     return false;
   }
 
-  const orientation = buildStableCesiumOrientationFromTarget(
-    target,
-    anchorECEF
-  );
-  if (!orientation) {
-    return false;
-  }
-
-  camera.lookAtTransform(Matrix4.IDENTITY);
-  camera.setView({
-    destination: orientation.destination,
-    orientation: {
-      direction: orientation.direction,
-      up: orientation.up,
-    },
-  });
-  releaseCameraFromOrbitMode(camera);
-
-  if (target.fovVertical && camera.frustum instanceof PerspectiveFrustum) {
-    camera.frustum.fov = target.fovVertical;
-  }
-
+  setViewFromCameraState(scene.camera, cameraState);
   scene.requestRender();
   return true;
 };
@@ -664,14 +443,12 @@ const isViewSyncTargetState = (
   Boolean(
     value &&
       typeof value === "object" &&
-      value.anchor &&
-      value.bearingPitchRange &&
-      typeof value.anchor.longitude === "number" &&
-      typeof value.anchor.latitude === "number" &&
-      typeof value.anchor.altitude === "number" &&
-      typeof value.bearingPitchRange.bearing === "number" &&
-      typeof value.bearingPitchRange.pitch === "number" &&
-      typeof value.bearingPitchRange.range === "number"
+      typeof value.longitude === "number" &&
+      typeof value.latitude === "number" &&
+      typeof value.altitude === "number" &&
+      typeof value.bearing === "number" &&
+      typeof value.pitch === "number" &&
+      typeof value.range === "number"
   );
 
 const useElementWidth = (elementRef: RefObject<HTMLElement>) => {
@@ -843,10 +620,7 @@ const PanelNavigationControls = ({
       const runtimeHandle = getRuntimeHandle();
 
       if (runtimeHandle?.framework === "maplibre") {
-        const projection = projectViewSyncTargetToMapLibre(
-          nextTarget,
-          getViewportFromElement(runtimeHandle.container)
-        );
+        const projection = maplibreAdapter.toFramework(nextTarget);
         if (projection) {
           runtimeHandle.map.jumpTo({
             center: [projection.lng, projection.lat],
@@ -859,10 +633,7 @@ const PanelNavigationControls = ({
       }
 
       if (runtimeHandle?.framework === "leaflet") {
-        const projection = projectViewSyncTargetToLeaflet(
-          nextTarget,
-          getViewportFromElement(runtimeHandle.container)
-        );
+        const projection = projectViewSyncTargetToLeaflet(nextTarget);
         if (projection) {
           runtimeHandle.map.setView(
             [projection.center.lat, projection.center.lng],
@@ -905,13 +676,9 @@ const PanelNavigationControls = ({
       initialDragStateRef.current = {
         mouseX: event.clientX,
         mouseY: event.clientY,
-        bearingDeg: radToDegNumeric(
-          publishedState.target.bearingPitchRange.bearing
-        ),
-        pitchDeg: toCompassPitchDeg(
-          publishedState.target.bearingPitchRange.pitch
-        ),
-        range: publishedState.target.bearingPitchRange.range,
+        bearingDeg: radToDegNumeric(publishedState.target.bearing),
+        pitchDeg: toCompassPitchDeg(publishedState.target.pitch),
+        range: publishedState.target.range,
       };
     },
     [canPitchDrag, publishedState]
@@ -948,10 +715,7 @@ const PanelNavigationControls = ({
         stripCameraModelFromInteractiveTarget(nextTarget);
 
       if (runtimeHandle.framework === "maplibre") {
-        const projection = projectViewSyncTargetToMapLibre(
-          interactiveTarget,
-          getViewportFromElement(runtimeHandle.container)
-        );
+        const projection = maplibreAdapter.toFramework(interactiveTarget);
         if (!projection) {
           return false;
         }
@@ -976,9 +740,9 @@ const PanelNavigationControls = ({
 
         const center = Cartographic.toCartesian(
           Cartographic.fromRadians(
-            interactiveTarget.anchor.longitude,
-            interactiveTarget.anchor.latitude,
-            interactiveTarget.anchor.altitude
+            interactiveTarget.longitude,
+            interactiveTarget.latitude,
+            interactiveTarget.altitude
           )
         );
         if (!center) {
@@ -997,11 +761,11 @@ const PanelNavigationControls = ({
           runtimeHandle.widget.scene,
           center,
           {
-            heading: interactiveTarget.bearingPitchRange.bearing,
+            heading: interactiveTarget.bearing,
             pitch: toCesiumPitchFromViewSyncPitch(
-              interactiveTarget.bearingPitchRange.pitch
+              interactiveTarget.pitch
             ),
-            range: interactiveTarget.bearingPitchRange.range,
+            range: interactiveTarget.range,
           },
           {
             durationMs,
@@ -1030,13 +794,7 @@ const PanelNavigationControls = ({
       const nextTarget = publishedState?.target
         ? stripCameraModelFromInteractiveTarget({
             ...publishedState.target,
-            bearingPitchRange: {
-              ...publishedState.target.bearingPitchRange,
-              range: Math.max(
-                5,
-                publishedState.target.bearingPitchRange.range * 0.5
-              ),
-            },
+            range: Math.max(5, publishedState.target.range * 0.5),
           })
         : null;
 
@@ -1044,29 +802,25 @@ const PanelNavigationControls = ({
         !nextTarget ||
         !animateRuntimeToTarget(nextTarget, ZOOM_CONTROL_DURATION_MS)
       ) {
-        applyCompassTargetUpdate((target) => ({
-          ...target,
-          bearingPitchRange: {
-            ...target.bearingPitchRange,
-            range: Math.max(5, target.bearingPitchRange.range * 0.5),
-          },
-        }));
+        if (nextTarget) {
+          applyTargetUpdate((target) => ({
+            ...target,
+            range: Math.max(5, target.range * 0.5),
+          }));
+        }
       }
     },
-    [animateRuntimeToTarget, applyCompassTargetUpdate, publishedState]
+    [animateRuntimeToTarget, publishedState]
   );
 
   const handleZoomOut = useCallback(
     (event: React.MouseEvent<HTMLButtonElement>) => {
       event.preventDefault();
       event.stopPropagation();
-      const nextTarget = publishedState?.target
+      const nextTarget = publishedState
         ? stripCameraModelFromInteractiveTarget({
             ...publishedState.target,
-            bearingPitchRange: {
-              ...publishedState.target.bearingPitchRange,
-              range: publishedState.target.bearingPitchRange.range * 2,
-            },
+            range: publishedState.target.range * 2,
           })
         : null;
 
@@ -1074,16 +828,15 @@ const PanelNavigationControls = ({
         !nextTarget ||
         !animateRuntimeToTarget(nextTarget, ZOOM_CONTROL_DURATION_MS)
       ) {
-        applyCompassTargetUpdate((target) => ({
-          ...target,
-          bearingPitchRange: {
-            ...target.bearingPitchRange,
-            range: target.bearingPitchRange.range * 2,
-          },
-        }));
+        if (nextTarget) {
+          applyTargetUpdate((target) => ({
+            ...target,
+            range: target.range * 2,
+          }));
+        }
       }
     },
-    [animateRuntimeToTarget, applyCompassTargetUpdate, publishedState]
+    [animateRuntimeToTarget, applyTargetUpdate, publishedState]
   );
 
   useEffect(() => {
@@ -1115,12 +868,9 @@ const PanelNavigationControls = ({
 
       applyCompassTargetUpdate((target) => ({
         ...target,
-        bearingPitchRange: {
-          ...target.bearingPitchRange,
-          bearing: degToRadNumeric(nextBearingDeg),
-          pitch: fromCompassPitchDeg(nextPitchDeg),
-          range: dragState.range,
-        },
+        bearing: degToRadNumeric(nextBearingDeg),
+        pitch: fromCompassPitchDeg(nextPitchDeg),
+        range: dragState.range,
       }));
     };
 
@@ -1170,10 +920,7 @@ const PanelNavigationControls = ({
         const nextTarget = publishedState?.target
           ? {
               ...publishedState.target,
-              bearingPitchRange: {
-                ...publishedState.target.bearingPitchRange,
-                bearing: degToRadNumeric(0),
-              },
+              bearing: degToRadNumeric(0),
             }
           : null;
 
@@ -1183,10 +930,7 @@ const PanelNavigationControls = ({
         ) {
           applyCompassTargetUpdate((target) => ({
             ...target,
-            bearingPitchRange: {
-              ...target.bearingPitchRange,
-              bearing: degToRadNumeric(0),
-            },
+            bearing: degToRadNumeric(0),
           }));
         }
 
@@ -1220,11 +964,8 @@ const PanelNavigationControls = ({
       const nextTarget = publishedState?.target
         ? {
             ...publishedState.target,
-            bearingPitchRange: {
-              ...publishedState.target.bearingPitchRange,
-              bearing: degToRadNumeric(0),
-              pitch: fromCompassPitchDeg(0),
-            },
+            bearing: degToRadNumeric(0),
+            pitch: fromCompassPitchDeg(0),
           }
         : null;
 
@@ -1237,11 +978,8 @@ const PanelNavigationControls = ({
       ) {
         applyCompassTargetUpdate((target) => ({
           ...target,
-          bearingPitchRange: {
-            ...target.bearingPitchRange,
-            bearing: degToRadNumeric(0),
-            pitch: fromCompassPitchDeg(0),
-          },
+          bearing: degToRadNumeric(0),
+          pitch: fromCompassPitchDeg(0),
         }));
       }
     },
@@ -1254,10 +992,10 @@ const PanelNavigationControls = ({
   );
 
   const sceneBearingDeg = publishedState
-    ? radToDegNumeric(publishedState.target.bearingPitchRange.bearing)
+    ? radToDegNumeric(publishedState.target.bearing)
     : 0;
   const scenePitchDeg = publishedState
-    ? toCompassPitchDeg(publishedState.target.bearingPitchRange.pitch)
+    ? toCompassPitchDeg(publishedState.target.pitch)
     : 0;
   const bearingDeg = isRotationLockedCompass ? 0 : sceneBearingDeg;
   const pitchDeg = isRotationLockedCompass ? 0 : scenePitchDeg;
@@ -1476,7 +1214,7 @@ const CesiumViewSyncBridge = ({
   }, [claimControl, widget.scene.canvas]);
 
   useEffect(() => {
-    const nextTarget = readViewSyncTargetFromSceneState(sceneState);
+    const nextTarget = readViewStateFromSceneState(sceneState);
     setStatusText(
       nextTarget
         ? `cesium • ${formatTargetSummary(nextTarget)}`
@@ -1484,20 +1222,14 @@ const CesiumViewSyncBridge = ({
     );
     setHashText(
       (() => {
-        const viewport = {
-          widthPx: Math.max(1, widget.scene.canvas.clientWidth),
-          heightPx: Math.max(1, widget.scene.canvas.clientHeight),
-        };
-        const viewState = readSceneViewStateFromSceneState(sceneState, {
+        const viewState = readViewStateFromSceneState(sceneState, {
           fallbackHeightM: DEFAULT_ANCHOR_ALTITUDE_M,
         });
         if (!viewState) {
           return null;
         }
 
-        return encodeHashParams(
-          maplibreAdapter.carmaToHashParams(viewState, viewport)
-        );
+        return encodeHashParams(maplibreAdapter.toHashParams(viewState));
       })()
     );
 
@@ -1733,16 +1465,13 @@ const MapLibreViewSyncBridge = ({
         )}° • p ${view.pitchDeg.toFixed(1)}°`
       );
       {
-        const viewport = getViewportFromElement(map.getContainer());
-        const viewState = readSceneViewStateFromMapLibreMap(
+        const viewState = readViewStateFromMapLibreMap(
           map,
           getCurrentAnchorAltitude(providerTargetRef.current)
         );
         setHashText(
           viewState
-            ? encodeHashParams(
-                maplibreAdapter.carmaToHashParams(viewState, viewport)
-              )
+            ? encodeHashParams(maplibreAdapter.toHashParams(viewState))
             : null
         );
       }
@@ -1751,17 +1480,9 @@ const MapLibreViewSyncBridge = ({
         return;
       }
 
-      const target = projectMapLibreViewToViewSyncTarget(
-        view.lngDeg,
-        view.latDeg,
-        view.zoom,
+      const target = readViewStateFromMapLibreMap(
+        map,
         getCurrentAnchorAltitude(providerTargetRef.current),
-        getViewportFromElement(map.getContainer()),
-        getCurrentVerticalFov(providerTargetRef.current),
-        {
-          bearingDeg: view.bearingDeg,
-          pitchDeg: view.pitchDeg,
-        }
       );
 
       if (target) {
@@ -1799,10 +1520,7 @@ const MapLibreViewSyncBridge = ({
       return;
     }
 
-    const projection = projectViewSyncTargetToMapLibre(
-      providerTarget.target,
-      getViewportFromElement(map.getContainer())
-    );
+    const projection = maplibreAdapter.toFramework(providerTarget.target);
 
     if (!projection) {
       return;
@@ -1869,10 +1587,7 @@ const MapLibreSlot = ({
     }
 
     const initialView = isViewSyncTargetState(initialTargetRef.current)
-      ? projectViewSyncTargetToMapLibre(
-          initialTargetRef.current,
-          getViewportFromElement(container)
-        )
+      ? maplibreAdapter.toFramework(initialTargetRef.current)
       : null;
 
     const map = new maplibregl.Map({
@@ -1980,16 +1695,13 @@ const LeafletViewSyncBridge = ({
         )} • z ${view.zoom.toFixed(2)}`
       );
       {
-        const viewport = getViewportFromElement(map.getContainer());
-        const viewState = readSceneViewStateFromLeafletMap(
+        const viewState = readViewStateFromLeafletMap(
           map,
           getCurrentAnchorAltitude(providerTargetRef.current)
         );
         setHashText(
           viewState
-            ? encodeHashParams(
-                maplibreAdapter.carmaToHashParams(viewState, viewport)
-              )
+            ? encodeHashParams(maplibreAdapter.toHashParams(viewState))
             : null
         );
       }
@@ -2003,10 +1715,11 @@ const LeafletViewSyncBridge = ({
         view.latDeg,
         view.zoom,
         getCurrentAnchorAltitude(providerTargetRef.current),
-        getViewportFromElement(map.getContainer()),
         getCurrentVerticalFov(providerTargetRef.current),
         {
-          bearingDeg: getCurrentBearingDeg(providerTargetRef.current),
+          bearingDeg: radToDegNumeric(
+            providerTargetRef.current?.target.bearing ?? 0
+          ),
         }
       );
 
@@ -2044,10 +1757,7 @@ const LeafletViewSyncBridge = ({
       return;
     }
 
-    const projection = projectViewSyncTargetToLeaflet(
-      providerTarget.target,
-      getViewportFromElement(map.getContainer())
-    );
+    const projection = projectViewSyncTargetToLeaflet(providerTarget.target);
 
     if (!projection) {
       return;
@@ -2121,10 +1831,7 @@ const LeafletSlot = ({
 
     const nextMap = initializeLeaflet(container);
     const initialView = isViewSyncTargetState(initialTargetRef.current)
-      ? projectViewSyncTargetToLeaflet(
-          initialTargetRef.current,
-          getViewportFromElement(container)
-        )
+      ? projectViewSyncTargetToLeaflet(initialTargetRef.current)
       : null;
     if (initialView) {
       nextMap.setView(
@@ -2432,7 +2139,8 @@ const SlotPanelController = ({
   );
   const transitionRunRef = useRef<string | null>(null);
   const nextMountIndexRef = useRef(2);
-  const lastCesiumHeadingPitchRef = useRef<HeadingPitchJson | null>(null);
+  const lastCesiumCameraStateRef =
+    useRef<SerializedCameraStateHeadingPitchRoll | null>(null);
   const [initialBootDelayConsumed, setInitialBootDelayConsumed] = useState(
     initialBootDelayMs <= 0
   );
@@ -2651,16 +2359,16 @@ const SlotPanelController = ({
           sourceHandle.framework === "leaflet" &&
           targetHandle.framework === "cesium"
         ) {
-          const targetHeadingPitch =
-            toCesiumHeadingPitchJsonFromViewSyncTarget(providerTarget) ??
-            lastCesiumHeadingPitchRef.current;
+          const targetCameraState =
+            toCesiumCameraStateFromViewSyncTarget(providerTarget) ??
+            lastCesiumCameraStateRef.current;
 
           await transitionToCesium(
             targetHandle.widget.scene,
             sourceHandle.map,
             targetHandle.container,
             targetHandle.terrainProviders,
-            targetHeadingPitch,
+            targetCameraState,
             {
               onStageChange: (_stage, message) =>
                 setStatusText(`leaflet -> cesium • ${message}`),
@@ -2679,7 +2387,7 @@ const SlotPanelController = ({
           sourceHandle.framework === "cesium" &&
           targetHandle.framework === "leaflet"
         ) {
-          const lastHeadingPitch = await transitionToLeaflet(
+          const lastCameraState = await transitionToLeaflet(
             sourceHandle.widget.scene,
             targetHandle.map,
             sourceHandle.container,
@@ -2692,7 +2400,7 @@ const SlotPanelController = ({
                 revertTransition(`cesium -> leaflet • ${error.message}`),
             }
           );
-          lastCesiumHeadingPitchRef.current = lastHeadingPitch ?? null;
+          lastCesiumCameraStateRef.current = lastCameraState ?? null;
           return;
         }
 

@@ -1,8 +1,26 @@
 import { createContext, useContext, useMemo } from "react";
-import type { CesiumSceneStateStore } from "./utils/createCesiumSceneStateStore";
+import type { UnknownAction } from "@reduxjs/toolkit";
+import {
+  createSelectorHook,
+  type ReactReduxContextValue,
+  type TypedUseSelectorHook,
+} from "react-redux";
+import type {
+  CesiumSceneStateStore,
+  CesiumSceneStateStoreState,
+} from "./utils/createCesiumSceneStateStore";
 
 export const CesiumSceneStateStoreContext =
   createContext<CesiumSceneStateStore | null>(null);
+
+export const CesiumSceneStateReduxContext = createContext<
+  ReactReduxContextValue<CesiumSceneStateStoreState, UnknownAction> | null
+>(null);
+
+export const useCesiumSceneStateReduxSelector =
+  createSelectorHook(
+    CesiumSceneStateReduxContext
+  ) as TypedUseSelectorHook<CesiumSceneStateStoreState>;
 
 export type CesiumSceneStateUpdateDriver = (
   updateFn: () => void

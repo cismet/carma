@@ -1,5 +1,4 @@
 import { useCallback, useMemo } from "react";
-import { useStoreSelector } from "@carma-commons/react-store";
 
 import {
   ANNOTATION_TYPE_LABEL,
@@ -9,7 +8,11 @@ import {
   type NodeChainAnnotation,
 } from "@carma-mapping/annotations/core";
 import type { AnnotationSlotActions } from "./getAnnotationInfoBoxSlots";
-import { useCollection, useAnnotationsStore } from "../../store";
+import {
+  useCollection,
+  useAnnotationsStore,
+  useStoreSelector,
+} from "../../store";
 
 const sanitizeFileNameSegment = (value: string | undefined | null): string => {
   const normalized = (value ?? "")

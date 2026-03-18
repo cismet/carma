@@ -3,23 +3,16 @@ import type {
   HashCodecs,
   HashKeyAliases,
 } from "../HashStateProvider";
+import {
+  SCENE_VIEW_STATE_HASH_KEY_ALIASES,
+  SCENE_VIEW_STATE_HASH_KEYS,
+  SCENE_VIEW_STATE_HASH_KEY_ORDER,
+} from "./hashKeys";
 
-export const sceneViewStateHashKeyAliases: HashKeyAliases = {
-  bearing: "b",
-  pitch: "p",
-  altitude: "h",
-};
+export const sceneViewStateHashKeyAliases: HashKeyAliases =
+  SCENE_VIEW_STATE_HASH_KEY_ALIASES;
 
-export const sceneViewStateHashKeyOrder: string[] = [
-  "lat",
-  "lng",
-  "zoom",
-  "b",
-  "p",
-  "h",
-  "range",
-  "fov",
-];
+export const sceneViewStateHashKeyOrder: string[] = SCENE_VIEW_STATE_HASH_KEY_ORDER;
 
 const getNumberCodec = (fixed?: number, trailingZeros = false): HashCodec => ({
   encode: (value: unknown) => {
@@ -44,12 +37,13 @@ const getNumberCodec = (fixed?: number, trailingZeros = false): HashCodec => ({
 });
 
 export const sceneViewStateHashCodecs: HashCodecs = Object.freeze({
-  lat: getNumberCodec(7),
-  lng: getNumberCodec(7),
-  zoom: getNumberCodec(3),
-  altitude: getNumberCodec(2),
-  range: getNumberCodec(2),
-  bearing: getNumberCodec(2),
-  pitch: getNumberCodec(2),
-  fov: getNumberCodec(2),
+  [SCENE_VIEW_STATE_HASH_KEYS.LATITUDE]: getNumberCodec(7),
+  [SCENE_VIEW_STATE_HASH_KEYS.LONGITUDE]: getNumberCodec(7),
+  [SCENE_VIEW_STATE_HASH_KEYS.ZOOM]: getNumberCodec(3),
+  [SCENE_VIEW_STATE_HASH_KEYS.ALTITUDE]: getNumberCodec(2),
+  [SCENE_VIEW_STATE_HASH_KEYS.RANGE]: getNumberCodec(2),
+  [SCENE_VIEW_STATE_HASH_KEYS.BEARING]: getNumberCodec(2),
+  [SCENE_VIEW_STATE_HASH_KEYS.PITCH]: getNumberCodec(2),
+  [SCENE_VIEW_STATE_HASH_KEYS.ROLL]: getNumberCodec(2),
+  [SCENE_VIEW_STATE_HASH_KEYS.FOV]: getNumberCodec(2),
 });

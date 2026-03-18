@@ -1,5 +1,4 @@
 import { useCallback, useMemo } from "react";
-import { useStoreSelector } from "@carma-commons/react-store";
 
 import type { AnnotationInfoBoxPayload } from "./AnnotationInfo.types";
 import { AnnotationInfoBoxNavigation } from "./components";
@@ -23,6 +22,7 @@ import {
   useSelectionState,
   useSettings,
   useAnnotationsStore,
+  useStoreSelector,
   useTools,
 } from "../../store";
 import { usePointMarkerBadges } from "../../render/useRender";

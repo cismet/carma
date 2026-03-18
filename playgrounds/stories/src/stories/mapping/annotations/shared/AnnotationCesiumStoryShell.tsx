@@ -67,13 +67,19 @@ export const AnnotationCesiumStoryShell = ({
 
     const initialize = async () => {
       const setup = await setupCesium(
-        cesiumContainerRef.current as HTMLDivElement
+        cesiumContainerRef.current as HTMLDivElement,
+        { useBrowserRecommendedResolution: false }
       );
       if (disposed) {
         if (!setup.widget.isDestroyed()) {
           setup.widget.destroy();
         }
         return;
+      }
+
+      if (setup.terrainProviders.TERRAIN) {
+        setup.widget.scene.terrainProvider =
+          setup.terrainProviders.TERRAIN;
       }
 
       widgetRef.current = setup.widget;
@@ -124,26 +130,17 @@ export const AnnotationCesiumStoryShell = ({
           inset: 0,
         }}
       />
-      <CesiumSceneStateProvider scene={scene}>
+      <CesiumSceneStateProvider
+        scene={scene}
+        options={{
+          orbitPointMode: "screen-center",
+          screenCenterSamplingStrategy: "terrain-only",
+          throwOnMissingScreenCenterIntersection: true,
+          fallbackHeightM: 200,
+        }}
+      >
         <LabelOverlayProvider containerRef={rootRef}>
-          <div
-            style={{
-              position: "absolute",
-              inset: 0,
-              pointerEvents: "none",
-              zIndex: 10,
-            }}
-          >
-            <div
-              style={{
-                position: "absolute",
-                inset: 0,
-                pointerEvents: "auto",
-              }}
-            >
-              {renderedChildren}
-            </div>
-          </div>
+          {renderedChildren}
         </LabelOverlayProvider>
       </CesiumSceneStateProvider>
     </div>

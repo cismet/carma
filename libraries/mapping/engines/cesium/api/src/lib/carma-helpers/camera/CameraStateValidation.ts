@@ -1,6 +1,5 @@
 import type { Altitude } from "@carma/geo/types";
-import { MINUS_PI_OVER_TWO, radToDeg, ZERO_PI } from "@carma/units/helpers";
-import type { Degrees } from "@carma/units/types";
+import { MINUS_PI_OVER_TWO, ZERO_PI } from "@carma/units/helpers";
 import type { CameraStateHeadingPitchRoll } from "./CameraTypes";
 
 /**
@@ -30,12 +29,12 @@ export function validateCameraStateHeadingPitchRoll(
   }
 
   const result: CameraStateHeadingPitchRoll = {
-    latitude: latitude as Degrees,
-    longitude: longitude as Degrees,
+    latitude: latitude,
+    longitude: longitude,
     altitude: altitude as Altitude.EllipsoidalWGS84Meters,
-    heading: radToDeg(ZERO_PI),
-    pitch: radToDeg(MINUS_PI_OVER_TWO),
-    roll: radToDeg(ZERO_PI),
+    heading: ZERO_PI,
+    pitch: MINUS_PI_OVER_TWO,
+    roll: ZERO_PI,
   };
 
   const hasOrientation =

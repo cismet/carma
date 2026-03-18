@@ -1,4 +1,4 @@
-import { degToRad, ZERO_PI } from "@carma/units/helpers";
+import { ZERO_PI } from "@carma/units/helpers";
 import {
   Camera,
   Cartesian3,
@@ -20,6 +20,8 @@ export const setViewFromCameraState = (
   camera: Camera,
   state: CameraState
 ): void => {
+  const isHeadingPitchRollState = isCameraStateHeadingPitchRoll(state);
+
   if (isCameraStateRecord(state)) {
     const { position, direction, up, right } = state;
     const destination = position;
@@ -31,20 +33,20 @@ export const setViewFromCameraState = (
       orientation.right = right;
     }
     camera.setView({ destination, orientation });
-  } else if (isCameraStateHeadingPitchRoll(state)) {
-    const destination = Cartesian3.fromDegrees(
+  } else if (isHeadingPitchRollState) {
+    const destination = Cartesian3.fromRadians(
       state.longitude,
       state.latitude,
       state.altitude
     );
     const orientation: HeadingPitchRollValues = {
-      heading: degToRad(state.heading),
-      pitch: degToRad(state.pitch),
+      heading: state.heading,
+      pitch: state.pitch,
       roll: ZERO_PI,
     };
 
     if (state.roll !== undefined) {
-      orientation.roll = degToRad(state.roll);
+      orientation.roll = state.roll;
     }
     camera.setView({ destination, orientation });
   } else {

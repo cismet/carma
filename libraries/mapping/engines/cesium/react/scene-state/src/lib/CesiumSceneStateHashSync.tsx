@@ -1,9 +1,9 @@
 import { useCallback, useEffect, useMemo, useRef } from "react";
 import { HASH_CLEAR_KEY_SET, useHashState } from "@carma-providers/hash-state";
 import {
-  readHashParamsFromSceneViewState,
-  readSceneViewStateFromSceneState,
-} from "@carma-mapping/engines-interop";
+  readHashParamsFromViewState,
+  readViewStateFromSceneState,
+} from "@carma-mapping/engines-interop/view-sync";
 
 import { useCesiumSceneStateOptional } from "./useCesiumSceneState";
 
@@ -20,6 +20,8 @@ export type CesiumSceneStateHashSyncProps = {
   label?: string;
   fallbackHeightM?: number;
   minUpdateIntervalMs?: number;
+  defaultFovDeg?: number;
+  maxPitchDeg?: number;
 };
 
 export const CesiumSceneStateHashSync = ({
@@ -30,6 +32,8 @@ export const CesiumSceneStateHashSync = ({
   label = "SceneState:camera",
   fallbackHeightM = 200,
   minUpdateIntervalMs = 100,
+  defaultFovDeg,
+  maxPitchDeg,
 }: CesiumSceneStateHashSyncProps) => {
   const sceneState = useCesiumSceneStateOptional();
   const { updateHash } = useHashState();
@@ -46,11 +50,8 @@ export const CesiumSceneStateHashSync = ({
 
   const writeCameraHash = useCallback(
     (replaceHash: boolean) => {
-      const viewStateFromSceneState = readSceneViewStateFromSceneState(
+      const viewStateFromSceneState = readViewStateFromSceneState(
         sceneState,
-        {
-          fallbackHeightM,
-        }
       );
 
       const viewState = viewStateFromSceneState;
@@ -59,7 +60,14 @@ export const CesiumSceneStateHashSync = ({
       }
 
       const params: Record<string, unknown> = {
-        ...(readHashParamsFromSceneViewState(viewState) ?? {}),
+        ...(readHashParamsFromViewState(viewState, {
+          ...(Number.isFinite(defaultFovDeg)
+            ? { defaultFovDeg }
+            : {}),
+          ...(Number.isFinite(maxPitchDeg)
+            ? { maxPitchDeg }
+            : {}),
+        }) ?? {}),
         ...(extraHashParams ?? {}),
       };
 
@@ -74,6 +82,8 @@ export const CesiumSceneStateHashSync = ({
       extraHashParams,
       fallbackHeightM,
       label,
+      defaultFovDeg,
+      maxPitchDeg,
       resolvedClearKeys,
       sceneState,
       updateHash,
