@@ -18,9 +18,11 @@ import {
   backgroundLayerConfigs,
   additionalLayerConfigs,
   leuchtenDataLayer,
+  arbeitsauftraegeDataLayer,
   BELIS_STYLE_URL,
   BELIS_ORIGINAL_SOURCE,
   BELIS_SOURCE_LAYERS,
+  ARBEITSAUFTRAEGE_STYLE_URL,
 } from "../../config/mapLayerConfigs";
 import type { LibreLayer } from "@carma-mapping/engines/maplibre";
 import { AppDispatch, type RootState } from "../../store";
@@ -44,9 +46,22 @@ import type maplibregl from "maplibre-gl";
 import BelisDatasheetView from "../ui/BelisDatasheetView";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faMap } from "@fortawesome/free-solid-svg-icons";
-import { FeatureType, fetchFeatureById } from "../../helper/apiMethods";
+import {
+  FeatureType,
+  fetchFeatureById,
+  fetchArbeitsauftragById,
+} from "../../helper/apiMethods";
 import { getJWT } from "../../store/slices/auth";
 import { flattenGqlRecord } from "../../helper/flattenGqlRecord";
+import {
+  setFeatures as setAAFeatures,
+  setSelectedAAId,
+  setSelectedAAData,
+  setLoading as setAALoading,
+  setError as setAAError,
+  getSelectedAAId,
+} from "../../store/slices/arbeitsauftraege";
+import type { ArbeitsauftragTileFeature } from "../../store/slices/arbeitsauftraege";
 
 const LIST_WIDTH = 300;
 
@@ -131,6 +146,12 @@ const BelisMapLibWrapper = ({
   const namespacedSource = `${slugifyUrl(
     BELIS_STYLE_URL
   )}::${BELIS_ORIGINAL_SOURCE}`;
+
+  // Arbeitsauftraege: separate namespaced source (same tile set, different style URL)
+  const arbeitsauftraegeNamespacedSource = `${slugifyUrl(
+    ARBEITSAUFTRAEGE_STYLE_URL
+  )}::${BELIS_ORIGINAL_SOURCE}`;
+  const selectedAAId = useSelector(getSelectedAAId);
   const highlightSources = useMemo(
     () => [
       { source: namespacedSource, sourceLayers: [...BELIS_SOURCE_LAYERS] },
@@ -772,6 +793,11 @@ const BelisMapLibWrapper = ({
     // Data layer (always on)
     layers.push(leuchtenDataLayer);
 
+    // Arbeitsauftraege layer (only on arbeitsauftraege route)
+    if (sidebarVariant === "arbeitsauftraege") {
+      layers.push(arbeitsauftraegeDataLayer);
+    }
+
     return layers;
   }, [
     activeBackgroundLayer,
@@ -779,7 +805,97 @@ const BelisMapLibWrapper = ({
     activeAdditionalLayers,
     additionalLayerOpacities,
     inPaleMode,
+    sidebarVariant,
   ]);
+
+  // --- Arbeitsauftraege: extract tile features into Redux ---
+  useEffect(() => {
+    if (sidebarVariant !== "arbeitsauftraege" || !map) return;
+
+    const extractFeatures = () => {
+      try {
+        const raw = map.querySourceFeatures(
+          arbeitsauftraegeNamespacedSource,
+          { sourceLayer: "arbeitsauftraege" }
+        );
+        const seen = new Map<number, ArbeitsauftragTileFeature>();
+        for (const f of raw) {
+          const id = (f.id ?? f.properties?.id) as number;
+          if (id != null && !seen.has(id)) {
+            seen.set(id, {
+              id,
+              nummer: (f.properties?.nummer as string) ?? "",
+              team: (f.properties?.team as string) ?? "",
+              angelegt_am: (f.properties?.angelegt_am as string) ?? "",
+              angelegt_von: (f.properties?.angelegt_von as string) ?? "",
+              total_protokolle: Number(f.properties?.total_protokolle) || 0,
+              pct_offen: Number(f.properties?.pct_offen) || 0,
+              pct_in_bearbeitung: Number(f.properties?.pct_in_bearbeitung) || 0,
+              pct_erledigt: Number(f.properties?.pct_erledigt) || 0,
+              pct_fehlmeldung: Number(f.properties?.pct_fehlmeldung) || 0,
+              geometry: f.geometry,
+            });
+          }
+        }
+        dispatch(setAAFeatures([...seen.values()]));
+      } catch {
+        // source may not be loaded yet
+      }
+    };
+
+    map.on("sourcedata", extractFeatures);
+    map.on("moveend", extractFeatures);
+    // Initial extraction
+    extractFeatures();
+
+    return () => {
+      map.off("sourcedata", extractFeatures);
+      map.off("moveend", extractFeatures);
+    };
+  }, [sidebarVariant, map, arbeitsauftraegeNamespacedSource, dispatch]);
+
+  // --- Arbeitsauftraege: selection feature-state on map ---
+  const prevAAIdRef = useRef<number | null>(null);
+  useEffect(() => {
+    if (sidebarVariant !== "arbeitsauftraege" || !map) return;
+
+    const prevId = prevAAIdRef.current;
+    if (prevId != null && prevId !== selectedAAId) {
+      try {
+        map.setFeatureState(
+          { source: arbeitsauftraegeNamespacedSource, sourceLayer: "arbeitsauftraege", id: prevId },
+          { selected: false }
+        );
+      } catch {
+        // ignore
+      }
+    }
+    if (selectedAAId != null) {
+      try {
+        map.setFeatureState(
+          { source: arbeitsauftraegeNamespacedSource, sourceLayer: "arbeitsauftraege", id: selectedAAId },
+          { selected: true }
+        );
+      } catch {
+        // ignore
+      }
+    }
+    prevAAIdRef.current = selectedAAId;
+  }, [sidebarVariant, map, selectedAAId, arbeitsauftraegeNamespacedSource]);
+
+  // --- Arbeitsauftraege: fetch GraphQL detail on selection ---
+  useEffect(() => {
+    if (selectedAAId == null || !jwt) {
+      dispatch(setSelectedAAData(null));
+      return;
+    }
+    dispatch(setAALoading(true));
+    dispatch(setAAError(null));
+    fetchArbeitsauftragById(jwt, selectedAAId)
+      .then((data) => dispatch(setSelectedAAData(data)))
+      .catch((err: Error) => dispatch(setAAError(err.message)))
+      .finally(() => dispatch(setAALoading(false)));
+  }, [selectedAAId, jwt, dispatch]);
 
   // Mini-map state
   const [miniMap, setMiniMap] = useState<maplibregl.Map | null>(null);
@@ -813,6 +929,24 @@ const BelisMapLibWrapper = ({
   // }
   const handleSelectFromHits = useCallback(
     (hits: maplibregl.MapGeoJSONFeature[]) => {
+      // Arbeitsauftraege: intercept clicks on AA polygon layers
+      if (sidebarVariant === "arbeitsauftraege") {
+        const aaHit = hits.find(
+          (h) =>
+            h.sourceLayer === "arbeitsauftraege" ||
+            h.layer?.id === "arbeitsauftraege_fill" ||
+            h.layer?.id === "arbeitsauftraege_outline"
+        );
+        if (aaHit) {
+          const aaId = (aaHit.id ?? aaHit.properties?.id) as number;
+          if (aaId != null) {
+            dispatch(setSelectedAAId(aaId));
+          }
+          // Return undefined to prevent normal selection flow
+          return undefined;
+        }
+      }
+
       // When highlighting is active, prefer highlighted features over non-highlighted ones
       let candidates = hits;
       if (map) {
@@ -840,7 +974,7 @@ const BelisMapLibWrapper = ({
       }
       return candidates[0];
     },
-    [map]
+    [map, sidebarVariant, dispatch]
   );
 
   const handleReturnToMap = useCallback(() => {

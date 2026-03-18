@@ -6,6 +6,7 @@ import authSlice from "./slices/auth";
 import mapSettings from "./slices/mapSettings";
 import ui from "./slices/ui";
 import keyTables from "./slices/keyTables";
+import arbeitsauftraege from "./slices/arbeitsauftraege";
 import featureCollectionSlice from "./slices/featureCollection";
 import featuresFormsSlice from "./slices/featuresForms";
 
@@ -90,6 +91,7 @@ const store = configureStore({
     ),
     ui: ui.reducer,
     keyTables: keyTables.reducer,
+    arbeitsauftraege: arbeitsauftraege.reducer,
     featuresForms: persistReducer(featuresFormsConfig, featuresFormsSlice.reducer),
   },
   devTools: devToolsEnabled === true && inProduction === false,
