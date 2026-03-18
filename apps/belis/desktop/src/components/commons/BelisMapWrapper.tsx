@@ -598,6 +598,7 @@ const BelisMapLibWrapper = ({
   useEffect(() => {
     console.log("[AA-DEBUG] bounds-check effect fired", { sidebarMode, sidebarVariant, selectedFeatureId, rawFeature: !!rawFeature });
     if (
+      sidebarVariant === "arbeitsauftraege" ||
       (sidebarMode !== "fachobjekte" && sidebarMode !== "highlights") ||
       !selectedFeatureId ||
       !map
