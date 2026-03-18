@@ -289,8 +289,8 @@ export function ThreeLayerManager({
       }
     };
 
-    /** Union tile-clipped polygon fragments using turf. */
-    const unionRings = (rings: number[][][]): number[][] | null => {
+    /** Union tile-clipped polygon fragments using turf. Returns one or more rings. */
+    const unionRings = (rings: number[][][]): number[][][] | null => {
       try {
         // Ensure each ring is closed (turf requires it)
         const features = rings.map((r) => {
@@ -304,16 +304,23 @@ export function ThreeLayerManager({
         // turf v7 union takes a FeatureCollection
         const fc = { type: "FeatureCollection" as const, features };
         const merged = turfUnion(fc);
-        if (!merged || merged.geometry.type !== "Polygon") {
-          console.warn("[3D-MERGE] turf union produced", merged?.geometry.type);
-          return null;
+        if (!merged) return null;
+
+        if (merged.geometry.type === "Polygon") {
+          const outerRing = merged.geometry.coordinates[0] as number[][];
+          return [outerRing.slice(0, -1)];
         }
 
-        // Extract outer ring, strip closing vertex for our factory
-        const outerRing = merged.geometry.coordinates[0] as number[][];
-        return outerRing.slice(0, -1);
+        if (merged.geometry.type === "MultiPolygon") {
+          // Extract outer ring from each polygon in the MultiPolygon
+          return (merged.geometry.coordinates as number[][][][]).map(
+            (poly) => (poly[0] as number[][]).slice(0, -1)
+          );
+        }
+
+        return null;
       } catch (err) {
-        console.warn("[3D-MERGE] turf union failed:", err);
+        console.warn("[3D-MERGE] turf union failed:", (err as Error).message);
         return null;
       }
     };
@@ -418,14 +425,12 @@ export function ThreeLayerManager({
         } else {
           const merged = unionRings(g.fragments);
           if (merged) {
-            ringsToExtrude = [merged];
+            ringsToExtrude = merged;
             mergedOk++;
           } else {
             // Fallback: render fragments separately (minor overlap seam)
             ringsToExtrude = g.fragments;
             mergeFailed++;
-            console.warn("[3D-BUILDINGS] merge failed, fragments:",
-              JSON.stringify(g.fragments));
           }
         }
 
