@@ -285,6 +285,8 @@ export interface GenericCustomLayer extends CustomLayerInterface {
   _lastRayOrigin: THREE.Vector3 | null;
   /** Ray direction from the last raycast call (scene space) */
   _lastRayDir: THREE.Vector3 | null;
+  /** When true, stencil read-mode is set after render to occlude subsequent symbol layers. */
+  _useStencilOcclusion: boolean;
   rebuild(): void;
   /** Debug raycast: test a screen point against the 3D scene. */
   raycast(screenX: number, screenY: number): RaycastDebugResult | null;
@@ -347,6 +349,7 @@ export function buildGenericLayer(
     _spatialGrid: new Map(),
     _lastRayOrigin: null,
     _lastRayDir: null,
+    _useStencilOcclusion: config.useStencilOcclusion ?? false,
 
     onAdd(
       map: MaplibreMap,
@@ -472,6 +475,16 @@ export function buildGenericLayer(
 
       this.renderer.resetState();
       this.renderer.render(this.scene, this.camera);
+
+      // Stencil occlusion: switch to read mode so subsequent MapLibre layers
+      // (fill-extrusion, symbols) are tested against the tree mask.
+      // Tree crown pixels have bit 7 set; symbols at those pixels are rejected.
+      if (this._useStencilOcclusion) {
+        gl.enable(gl.STENCIL_TEST);
+        gl.stencilFunc(gl.NOTEQUAL, 0x80, 0x80);
+        gl.stencilOp(gl.KEEP, gl.KEEP, gl.KEEP);
+        gl.stencilMask(0x00);
+      }
 
       // Restore MapLibre's depth range so subsequent symbol layers
       // test against the same depth space the trees wrote to.

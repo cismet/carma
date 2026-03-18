@@ -89,15 +89,19 @@ export function ThreeLayerManager({
   const overlayIdRef = useRef<string | null>(null);
   const profilesEnsuredRef = useRef(false);
   const addingRef = useRef(false);
+  const origGlDisableRef = useRef<((cap: number) => void) | null>(null);
 
   const useLoft = (runtimeParams.useLoft ?? 0) > 0;
   const radiusMix = runtimeParams.radiusMix ?? 0;
   const viewportPadding = runtimeParams.viewportPadding;
+  const useStencilOcclusion = (runtimeParams.useStencilOcclusion ?? 0) > 0;
 
-  // Merge runtime viewportPadding override into config
-  const effectiveConfig = viewportPadding != null
-    ? { ...config, viewportPadding }
-    : config;
+  // Merge runtime overrides into config
+  const effectiveConfig: Carma3dConfig = {
+    ...config,
+    ...(viewportPadding != null ? { viewportPadding } : {}),
+    useStencilOcclusion: useStencilOcclusion || config.useStencilOcclusion,
+  };
 
   // Effect 1: Layer lifecycle (tear down on mode change or unmount)
   useEffect(() => {
@@ -107,6 +111,17 @@ export function ThreeLayerManager({
         map.removeLayer(overlayIdRef.current);
       }
       overlayIdRef.current = null;
+
+      // Restore original gl.disable if we patched it
+      if (origGlDisableRef.current) {
+        const canvas = map.getCanvas();
+        const gl = canvas.getContext("webgl2") ?? canvas.getContext("webgl");
+        if (gl) {
+          gl.disable = origGlDisableRef.current as typeof gl.disable;
+        }
+        origGlDisableRef.current = null;
+      }
+
       if (layerRef.current) {
         layerRef.current.unhighlight();
         unregister3dLayer(map, layerRef.current);
@@ -119,7 +134,7 @@ export function ThreeLayerManager({
       layerRef.current = null;
       addingRef.current = false;
     };
-  }, [map, useLoft]);
+  }, [map, useLoft, useStencilOcclusion]);
 
   // Effect 2: Hide 2D layers with skipIn2D (set opacity to near-zero, restore on cleanup)
   useEffect(() => {
@@ -191,12 +206,33 @@ export function ThreeLayerManager({
         map.addLayer(customLayer, firstExtrusion?.id);
         register3dLayer(map, customLayer);
 
-        // Add overlay layer at the end (after symbols) to paint trees
-        // over labels that should be occluded by 3D geometry.
-        const oId = layerId + "-overlay";
-        const overlay = buildOverlayLayer(customLayer, oId);
-        map.addLayer(overlay);
-        overlayIdRef.current = oId;
+        if (effectiveConfig.useStencilOcclusion) {
+          // Stencil occlusion: intercept gl.disable(GL_STENCIL_TEST) during the
+          // translucent render pass. Instead of disabling stencil, switch to the
+          // tree-mask test so symbols behind trees are rejected.
+          const canvas = map.getCanvas();
+          const gl = canvas.getContext("webgl2") ?? canvas.getContext("webgl");
+          if (gl) {
+            const painter = (map as any).painter;
+            const origDisable = gl.disable.bind(gl);
+            origGlDisableRef.current = origDisable;
+            gl.disable = ((cap: number) => {
+              if (cap === gl.STENCIL_TEST && painter?.renderPass === "translucent") {
+                gl.stencilFunc(gl.NOTEQUAL, 0x80, 0x80);
+                gl.stencilOp(gl.KEEP, gl.KEEP, gl.KEEP);
+                gl.stencilMask(0x00);
+                return;
+              }
+              origDisable(cap);
+            }) as typeof gl.disable;
+          }
+        } else {
+          // Fallback: dual-pass overlay (re-renders trees after symbols)
+          const oId = layerId + "-overlay";
+          const overlay = buildOverlayLayer(customLayer, oId);
+          map.addLayer(overlay);
+          overlayIdRef.current = oId;
+        }
       } catch (err) {
         console.warn("[3D-SELECT] addLayer failed:", err);
         layerRef.current = null;
