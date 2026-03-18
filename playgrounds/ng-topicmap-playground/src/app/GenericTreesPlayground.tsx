@@ -22,6 +22,7 @@ import {
   faCrosshairs,
   faEye,
   faEyeSlash,
+  faLayerGroup,
 } from "@fortawesome/free-solid-svg-icons";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { Switch } from "antd";
@@ -41,6 +42,7 @@ const TREES_VISIBILITY_KEY = "generic-trees-layerVisibility";
 const TREES_CROSSHAIR_KEY = "generic-trees-crosshair";
 const BUILDING_OPACITY_KEY = "generic-trees-buildingOpacity";
 const BUILDING_COLOR_KEY = "generic-trees-buildingColor";
+const STENCIL_OCCLUSION_KEY = "generic-trees-stencilOcclusion";
 
 const DEFAULT_BUILDING_OPACITY = 0.7;
 const DEFAULT_BUILDING_COLOR = "#c8c8c8";
@@ -400,6 +402,8 @@ function LayerToggleBar({
   onBuildingOpacityChange,
   buildingColor,
   onBuildingColorChange,
+  stencilOcclusion,
+  onStencilOcclusionToggle,
 }: {
   visibility: LayerVisibility;
   onToggle: (name: LayerGroupName) => void;
@@ -413,6 +417,8 @@ function LayerToggleBar({
   onBuildingOpacityChange: (v: number) => void;
   buildingColor: string;
   onBuildingColorChange: (v: string) => void;
+  stencilOcclusion: boolean;
+  onStencilOcclusionToggle: () => void;
 }) {
   return (
     <div className="absolute top-4 left-1/2 -translate-x-1/2 z-[9999] flex gap-2 items-start">
@@ -550,6 +556,31 @@ function LayerToggleBar({
           </button>
         </div>
       </div>
+
+      {/* Stencil occlusion toggle */}
+      <div
+        className={`flex flex-col rounded-[10px] text-sm
+          ${stencilOcclusion ? "bg-white" : "bg-neutral-200/70 opacity-70"}`}
+        style={{ boxShadow: PILL_SHADOW }}
+      >
+        <div className="flex items-center gap-2 pl-3 pr-1 h-8">
+          <FontAwesomeIcon
+            icon={faLayerGroup}
+            className="text-xs"
+            style={{ color: "#1565C0" }}
+          />
+          <span>Stencil</span>
+          <button
+            onClick={onStencilOcclusionToggle}
+            className="px-2 h-full flex items-center cursor-pointer hover:text-gray-500 text-gray-600"
+          >
+            <FontAwesomeIcon
+              icon={stencilOcclusion ? faEye : faEyeSlash}
+              className="text-xs"
+            />
+          </button>
+        </div>
+      </div>
     </div>
   );
 }
@@ -599,6 +630,13 @@ export function GenericTreesPlayground() {
       return false;
     }
   });
+  const [stencilOcclusion, setStencilOcclusion] = useState(() => {
+    try {
+      return localStorage.getItem(STENCIL_OCCLUSION_KEY) === "true";
+    } catch {
+      return false;
+    }
+  });
   const { progress, showProgress, handleProgressUpdate } = useProgress();
   const perfRef = useRef<ThreePerfData>(EMPTY_PERF);
 
@@ -635,6 +673,7 @@ export function GenericTreesPlayground() {
     radiusMix,
     //viewportPadding: 0.3000,
     useLoft: useLoft ? 1 : 0,
+    useStencilOcclusion: stencilOcclusion ? 1 : 0,
   };
 
   return (
@@ -683,6 +722,14 @@ export function GenericTreesPlayground() {
                   setCrosshair((v) => {
                     const next = !v;
                     localStorage.setItem(TREES_CROSSHAIR_KEY, String(next));
+                    return next;
+                  })
+                }
+                stencilOcclusion={stencilOcclusion}
+                onStencilOcclusionToggle={() =>
+                  setStencilOcclusion((v) => {
+                    const next = !v;
+                    localStorage.setItem(STENCIL_OCCLUSION_KEY, String(next));
                     return next;
                   })
                 }
