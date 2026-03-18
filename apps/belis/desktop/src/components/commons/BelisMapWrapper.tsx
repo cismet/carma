@@ -60,9 +60,12 @@ import {
   setLoading as setAALoading,
   setError as setAAError,
   getSelectedAAId,
+  getSelectedAAData,
+  getActiveAATab,
   clearSelection,
 } from "../../store/slices/arbeitsauftraege";
 import { getSelectedTeamName } from "../../store/selectors";
+import { buildApGeoJson } from "../../helper/buildApGeoJson";
 import type { ArbeitsauftragTileFeature } from "../../store/slices/arbeitsauftraege";
 
 const LIST_WIDTH = 300;
@@ -154,6 +157,8 @@ const BelisMapLibWrapper = ({
     ARBEITSAUFTRAEGE_STYLE_URL
   )}::${BELIS_ORIGINAL_SOURCE}`;
   const selectedAAId = useSelector(getSelectedAAId);
+  const selectedAAData = useSelector(getSelectedAAData);
+  const activeAATab = useSelector(getActiveAATab);
 
   // Team filter: resolve selectedTeamId → team name for map layer filtering
   const selectedTeamName = useSelector(getSelectedTeamName);
@@ -591,6 +596,7 @@ const BelisMapLibWrapper = ({
   const [featureOnMap, setFeatureOnMap] = useState(true);
 
   useEffect(() => {
+    console.log("[AA-DEBUG] bounds-check effect fired", { sidebarMode, sidebarVariant, selectedFeatureId, rawFeature: !!rawFeature });
     if (
       (sidebarMode !== "fachobjekte" && sidebarMode !== "highlights") ||
       !selectedFeatureId ||
@@ -602,6 +608,7 @@ const BelisMapLibWrapper = ({
 
     const geometry = rawFeature?.geometry;
     if (!geometry) {
+      console.log("[AA-DEBUG] no geometry, skipping");
       setFeatureOnMap(true);
       return;
     }
@@ -624,8 +631,10 @@ const BelisMapLibWrapper = ({
       );
     }
     setFeatureOnMap(inside);
+    console.log("[AA-DEBUG] bounds check result", { inside, geometryType: geometry.type, sourceLayer: selectedFeatureId.sourceLayer });
 
     if (!inside) {
+      console.log("[AA-DEBUG] >>> openDatasheet() called from bounds-check");
       openDatasheet();
     }
   }, [map, selectedFeatureId, rawFeature, sidebarMode, openDatasheet]);
@@ -813,11 +822,12 @@ const BelisMapLibWrapper = ({
     inPaleMode,
   ]);
 
-  // Toggle AA layer visibility based on active route
+  // Toggle AA layer visibility based on active route (hide when AP tab is active)
   useEffect(() => {
     if (!map) return;
     const toggle = () => {
-      const visible = sidebarVariant === "arbeitsauftraege";
+      const visible =
+        sidebarVariant === "arbeitsauftraege" && activeAATab !== "ap";
       for (const layer of map.getStyle()?.layers ?? []) {
         if (
           "source" in layer &&
@@ -840,7 +850,7 @@ const BelisMapLibWrapper = ({
     return () => {
       map.off("styledata", toggle);
     };
-  }, [sidebarVariant, map, arbeitsauftraegeNamespacedSource]);
+  }, [sidebarVariant, activeAATab, map, arbeitsauftraegeNamespacedSource]);
 
   // Hide Fachobjekte layers when in Arbeitsaufträge mode
   useEffect(() => {
@@ -1007,13 +1017,15 @@ const BelisMapLibWrapper = ({
 
     const handleClick = (e: maplibregl.MapMouseEvent) => {
       const hits = map.queryRenderedFeatures(e.point);
-      const hasAA = hits.some(
+      const hasRelevant = hits.some(
         (h) =>
           h.sourceLayer === "arbeitsauftraege" ||
           h.layer?.id === "arbeitsauftraege_fill" ||
-          h.layer?.id === "arbeitsauftraege_outline"
+          h.layer?.id === "arbeitsauftraege_outline" ||
+          h.layer?.id === "ap-features-points" ||
+          h.layer?.id === "ap-features-lines"
       );
-      if (!hasAA) {
+      if (!hasRelevant) {
         dispatch(clearSelection());
       }
     };
@@ -1023,6 +1035,107 @@ const BelisMapLibWrapper = ({
       map.off("click", handleClick);
     };
   }, [sidebarVariant, map, dispatch]);
+
+  // --- Arbeitsauftraege: show AP Fachobjekte on map when AP tab is active ---
+  useEffect(() => {
+    if (!map) return;
+
+    const AP_SOURCE = "ap-features-source";
+    const AP_POINTS_LAYER = "ap-features-points";
+    const AP_LINES_LAYER = "ap-features-lines";
+
+    const removeLayers = () => {
+      try {
+        if (map.getLayer(AP_LINES_LAYER)) map.removeLayer(AP_LINES_LAYER);
+        if (map.getLayer(AP_POINTS_LAYER)) map.removeLayer(AP_POINTS_LAYER);
+        if (map.getSource(AP_SOURCE)) map.removeSource(AP_SOURCE);
+      } catch {
+        // layers/source may not exist
+      }
+    };
+
+    const shouldShow =
+      sidebarVariant === "arbeitsauftraege" &&
+      activeAATab === "ap" &&
+      selectedAAData != null;
+
+    if (!shouldShow) {
+      removeLayers();
+      return removeLayers;
+    }
+
+    const geojson = buildApGeoJson(selectedAAData);
+
+    // Add or update the GeoJSON source
+    const existing = map.getSource(AP_SOURCE) as
+      | maplibregl.GeoJSONSource
+      | undefined;
+    if (existing) {
+      existing.setData(geojson);
+    } else {
+      map.addSource(AP_SOURCE, { type: "geojson", data: geojson });
+    }
+
+    // Add circle layer for points (if not already present)
+    if (!map.getLayer(AP_POINTS_LAYER)) {
+      map.addLayer({
+        id: AP_POINTS_LAYER,
+        type: "circle",
+        source: AP_SOURCE,
+        filter: ["!=", ["geometry-type"], "LineString"],
+        paint: {
+          "circle-radius": 7,
+          "circle-stroke-width": 2,
+          "circle-stroke-color": "#ffffff",
+          "circle-color": [
+            "match",
+            ["get", "status"],
+            "offen",
+            "#F59E0B",
+            "in_bearbeitung",
+            "#3B82F6",
+            "erledigt",
+            "#10B981",
+            "fehlmeldung",
+            "#EF4444",
+            "#9CA3AF",
+          ],
+        },
+      });
+    }
+
+    // Add line layer for leitungen (if not already present)
+    if (!map.getLayer(AP_LINES_LAYER)) {
+      map.addLayer({
+        id: AP_LINES_LAYER,
+        type: "line",
+        source: AP_SOURCE,
+        filter: [
+          "any",
+          ["==", ["geometry-type"], "LineString"],
+          ["==", ["geometry-type"], "MultiLineString"],
+        ],
+        paint: {
+          "line-width": 3,
+          "line-color": [
+            "match",
+            ["get", "status"],
+            "offen",
+            "#F59E0B",
+            "in_bearbeitung",
+            "#3B82F6",
+            "erledigt",
+            "#10B981",
+            "fehlmeldung",
+            "#EF4444",
+            "#9CA3AF",
+          ],
+        },
+      });
+    }
+
+    return removeLayers;
+  }, [map, sidebarVariant, activeAATab, selectedAAData]);
 
   // Mini-map state
   const [miniMap, setMiniMap] = useState<maplibregl.Map | null>(null);

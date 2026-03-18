@@ -18,11 +18,14 @@ export interface ArbeitsauftragTileFeature {
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export type ArbeitsauftragDetail = Record<string, any>;
 
+type AATabKey = "aa" | "ap";
+
 interface ArbeitsauftraegeState {
   features: ArbeitsauftragTileFeature[];
   selectedAAId: number | null;
   selectedAAData: ArbeitsauftragDetail | null;
   selectedTeamId: number | null;
+  activeAATab: AATabKey;
   loading: boolean;
   error: string | null;
 }
@@ -32,6 +35,7 @@ const initialState: ArbeitsauftraegeState = {
   selectedAAId: null,
   selectedAAData: null,
   selectedTeamId: null,
+  activeAATab: "aa",
   loading: false,
   error: null,
 };
@@ -55,12 +59,16 @@ const slice = createSlice({
     setSelectedTeamId(state, action) {
       state.selectedTeamId = action.payload;
     },
+    setActiveAATab(state, action: { payload: AATabKey }) {
+      state.activeAATab = action.payload;
+    },
     setError(state, action) {
       state.error = action.payload;
     },
     clearSelection(state) {
       state.selectedAAId = null;
       state.selectedAAData = null;
+      state.activeAATab = "aa";
       state.error = null;
     },
   },
@@ -73,6 +81,7 @@ export const {
   setSelectedAAId,
   setSelectedAAData,
   setSelectedTeamId,
+  setActiveAATab,
   setLoading,
   setError,
   clearSelection,
@@ -89,3 +98,5 @@ export const getAALoading = (state: RootState) =>
 export const getAAError = (state: RootState) => state.arbeitsauftraege.error;
 export const getSelectedTeamId = (state: RootState) =>
   state.arbeitsauftraege.selectedTeamId;
+export const getActiveAATab = (state: RootState) =>
+  state.arbeitsauftraege.activeAATab;

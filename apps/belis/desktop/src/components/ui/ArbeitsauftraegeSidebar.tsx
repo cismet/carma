@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useMemo } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { Spin } from "antd";
 import {
@@ -6,7 +6,9 @@ import {
   getSelectedAAId,
   getSelectedAAData,
   getAALoading,
+  getActiveAATab,
   setSelectedAAId,
+  setActiveAATab,
 } from "../../store/slices/arbeitsauftraege";
 import { getSelectedTeamName } from "../../store/selectors";
 import type { AppDispatch } from "../../store";
@@ -79,7 +81,8 @@ const ArbeitsauftraegeSidebar = ({ width, onFeatureSelect }: ArbeitsauftraegeSid
   const selectedAAId = useSelector(getSelectedAAId);
   const selectedAAData = useSelector(getSelectedAAData);
   const loading = useSelector(getAALoading);
-  const [activeTab, setActiveTab] = useState<TabKey>("aa");
+  const activeTab = useSelector(getActiveAATab);
+  const setActiveTab = (tab: TabKey) => dispatch(setActiveAATab(tab));
 
   // Team filter: resolve selectedTeamId → team name, then filter features
   const selectedTeamName = useSelector(getSelectedTeamName);
