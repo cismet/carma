@@ -200,7 +200,7 @@ function raycastLoftCandidates(
 const WUPPERTAL_CENTER: [number, number] = [7.150764, 51.256915];
 
 /** Resolve Three.js origin: config > env > Wuppertal default */
-function resolveOrigin(config: Carma3dConfig): [number, number] {
+export function resolveOrigin(config: Carma3dConfig): [number, number] {
   if (config.mapCenter) return config.mapCenter;
   try {
     const env = (import.meta as any).env?.VITE_THREEJS_ORIGIN;

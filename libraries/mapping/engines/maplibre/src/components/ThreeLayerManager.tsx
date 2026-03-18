@@ -15,6 +15,7 @@ import {
   buildLoftMeshes,
   buildExtrusionMeshes,
   ensureProfiles,
+  resolveOrigin,
 } from "@carma-mapping/engines/threejs";
 import type { BuildingFeature } from "@carma-mapping/engines/threejs";
 import type { Scene } from "three";
@@ -244,14 +245,14 @@ export function ThreeLayerManager({
 
       // Initialize origin if not yet set (extrusion layers skip the tree rebuild() path)
       if (!layer._originMerc) {
-        const center: [number, number] = config.mapCenter ?? [7.150764, 51.256222];
-        const originMerc = MercatorCoordinate.fromLngLat(center, 0);
+        const originMerc = MercatorCoordinate.fromLngLat(resolveOrigin(config), 0);
         layer._originMerc = originMerc;
         layer._mScale = originMerc.meterInMercatorCoordinateUnits();
       }
 
-      const heightField = config.fields?.heightField ?? "building_height";
-      const publicField = config.fields?.publicField ?? "oeffentl";
+      const heightField = config.fields?.heightField;
+      const publicField = config.fields?.publicField;
+      if (!heightField) { console.warn("[3D-BUILDINGS] no heightField configured"); return; }
 
       const hasTerrain = map.getTerrain() != null;
       const raw = map.querySourceFeatures(config.sourceId, {

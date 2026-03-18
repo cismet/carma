@@ -28,6 +28,7 @@ export {
   buildGenericLayer,
   buildOverlayLayer,
   syncGenericLayerFromSource,
+  resolveOrigin,
 } from "./GenericThreeLayer";
 export type {
   RebuildFn,
