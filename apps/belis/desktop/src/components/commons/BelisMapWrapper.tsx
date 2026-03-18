@@ -842,6 +842,32 @@ const BelisMapLibWrapper = ({
     };
   }, [sidebarVariant, map, arbeitsauftraegeNamespacedSource]);
 
+  // Hide Fachobjekte layers when in Arbeitsaufträge mode
+  useEffect(() => {
+    if (!map) return;
+    const apply = () => {
+      const visible = sidebarVariant !== "arbeitsauftraege";
+      for (const layer of map.getStyle()?.layers ?? []) {
+        if ("source" in layer && layer.source === namespacedSource) {
+          try {
+            map.setLayoutProperty(
+              layer.id,
+              "visibility",
+              visible ? "visible" : "none"
+            );
+          } catch {
+            /* layer may not be ready */
+          }
+        }
+      }
+    };
+    apply();
+    map.on("styledata", apply);
+    return () => {
+      map.off("styledata", apply);
+    };
+  }, [sidebarVariant, map, namespacedSource]);
+
   // --- Arbeitsauftraege: extract tile features into Redux ---
   useEffect(() => {
     if (sidebarVariant !== "arbeitsauftraege" || !map) return;
