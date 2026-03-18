@@ -977,6 +977,32 @@ const BelisMapLibWrapper = ({
     [map, sidebarVariant, dispatch]
   );
 
+  // Sidebar click → trigger the same LibreMap selection pipeline that map clicks use.
+  // Finds the MVT feature in loaded tiles and calls selectFeature() so the infobox appears.
+  const handleAAFeatureSelect = useCallback(
+    (aaId: number) => {
+      if (!map) return;
+      const sourceFeatures = map.querySourceFeatures(
+        arbeitsauftraegeNamespacedSource,
+        { sourceLayer: "arbeitsauftraege" }
+      );
+      const match = sourceFeatures.find(
+        (f) => f.id === aaId || f.properties?.id === aaId
+      );
+      if (match) {
+        selectFeature(
+          {
+            source: arbeitsauftraegeNamespacedSource,
+            sourceLayer: "arbeitsauftraege",
+            id: match.id,
+          },
+          match as any
+        );
+      }
+    },
+    [map, arbeitsauftraegeNamespacedSource, selectFeature]
+  );
+
   const handleReturnToMap = useCallback(() => {
     map?.resize();
   }, [map]);
@@ -1073,7 +1099,7 @@ const BelisMapLibWrapper = ({
       style={{ width: mapSizes.width, height: mapSizes.height }}
     >
       {sidebarVariant === "arbeitsauftraege" ? (
-        <ArbeitsauftraegeSidebar width={LIST_WIDTH} />
+        <ArbeitsauftraegeSidebar width={LIST_WIDTH} onFeatureSelect={handleAAFeatureSelect} />
       ) : (
         <BelisSidebar
           features={effectiveSidebarData.features}

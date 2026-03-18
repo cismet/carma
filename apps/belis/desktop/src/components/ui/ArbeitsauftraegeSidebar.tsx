@@ -14,6 +14,7 @@ import type { AppDispatch } from "../../store";
 
 interface ArbeitsauftraegeSidebarProps {
   width: number;
+  onFeatureSelect?: (aaId: number) => void;
 }
 
 type TabKey = "aa" | "ap";
@@ -73,7 +74,7 @@ function getStatusBadgeColor(status: Record<string, any> | null): string {
   return "#9CA3AF";
 }
 
-const ArbeitsauftraegeSidebar = ({ width }: ArbeitsauftraegeSidebarProps) => {
+const ArbeitsauftraegeSidebar = ({ width, onFeatureSelect }: ArbeitsauftraegeSidebarProps) => {
   const dispatch: AppDispatch = useDispatch();
   const allFeatures = useSelector(getAAFeatures);
   const selectedAAId = useSelector(getSelectedAAId);
@@ -173,7 +174,10 @@ const ArbeitsauftraegeSidebar = ({ width }: ArbeitsauftraegeSidebarProps) => {
                       ? "bg-blue-50 border-l-2 border-l-blue-500"
                       : "hover:bg-blue-50/50"
                   }`}
-                  onClick={() => dispatch(setSelectedAAId(item.id))}
+                  onClick={() => {
+                    dispatch(setSelectedAAId(item.id));
+                    onFeatureSelect?.(item.id);
+                  }}
                 >
                   <div className="flex justify-between items-baseline">
                     <span className="font-semibold text-sm text-gray-900">
