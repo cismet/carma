@@ -85,7 +85,7 @@ export function buildLatheInstances(
 
   // Build prototypes per type
   const prototypes = new Map<string, Prototype>();
-  for (const [typeName, entry] of Object.entries(config.typeMap)) {
+  for (const [typeName, entry] of Object.entries(config.typeMap!)) {
     prototypes.set(typeName, buildPrototype(entry));
   }
 
@@ -103,7 +103,7 @@ export function buildLatheInstances(
     if (feats.length === 0) continue;
     const proto = prototypes.get(typeName);
     if (!proto) continue;
-    const entry = config.typeMap[typeName];
+    const entry = config.typeMap![typeName];
     if (!entry) continue;
 
     const count = feats.length;
@@ -154,8 +154,8 @@ export function buildLatheInstances(
       crownColors.set([cc.r, cc.g, cc.b], i * 3);
 
       const tc = new THREE.Color(
-        config.trunkColors[
-          Math.floor(Math.random() * config.trunkColors.length)
+        config.trunkColors![
+          Math.floor(Math.random() * config.trunkColors!.length)
         ]
       );
       tc.offsetHSL(0, 0, Math.random() * 0.04 - 0.02);

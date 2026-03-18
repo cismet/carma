@@ -119,7 +119,7 @@ function buildMergedGeometry(
   let tv = 0;
   let ti = 0;
 
-  const trunkBaseCol = new THREE.Color(config.trunkColors[0]);
+  const trunkBaseCol = new THREE.Color(config.trunkColors![0]);
 
   const crownFaceRanges: FaceRange[] = [];
   const trunkFaceRanges: FaceRange[] = [];
@@ -130,7 +130,7 @@ function buildMergedGeometry(
   for (const tree of validTrees) {
     const ring = tree.ring!;
     const nR = ring.length;
-    const entry = config.typeMap[tree.type];
+    const entry = config.typeMap![tree.type];
     if (!entry) continue;
     const profileFn = getProfile(entry.profileName);
 

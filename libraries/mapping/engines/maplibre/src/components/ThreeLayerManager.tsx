@@ -18,7 +18,8 @@ import {
 } from "@carma-mapping/engines/threejs";
 import type { BuildingFeature } from "@carma-mapping/engines/threejs";
 import type { Scene } from "three";
-import type { MercatorCoordinate, Map as MaplibreMap } from "maplibre-gl";
+import { MercatorCoordinate } from "maplibre-gl";
+import type { Map as MaplibreMap } from "maplibre-gl";
 import { polygon as turfPolygon } from "@turf/helpers";
 import turfUnion from "@turf/union";
 
@@ -155,75 +156,11 @@ export function ThreeLayerManager({
     };
   }, [map, config.skipIn2DLayerIds]);
 
-  // Effect 2b: Hide fill-extrusion layers (replaced by Three.js building extrusions)
-  // Also ensures at least one layer using alkis_data stays visible (with near-zero
-  // opacity) so MapLibre continues loading tiles for that source after viewport changes.
-  useEffect(() => {
-    if (!map) return;
-
-    // The layer we force-show to keep alkis_data tiles loading.
-    // Pick a lightweight line layer so there is minimal rendering cost.
-    const TILE_KEEPALIVE_LAYER = "Gebaeude-gebaeude_outlines";
-    let keepaliveWasHidden = false;
-
-    const hideExtrusions = () => {
-      const styleLayers = map.getStyle().layers ?? [];
-      for (const sl of styleLayers) {
-        if (sl.type === "fill-extrusion") {
-          const cur = map.getPaintProperty(sl.id, "fill-extrusion-opacity");
-          if (typeof cur === "number" && cur > 0.001) {
-            (map as any).__savedExtrusionOpacity ??= new Map();
-            (map as any).__savedExtrusionOpacity.set(sl.id, cur);
-          }
-          map.setPaintProperty(sl.id, "fill-extrusion-opacity", 0.00001);
-        }
-      }
-
-      // Keep one alkis_data layer visible so MapLibre keeps loading tiles.
-      // Without this, querySourceFeatures returns 0 after viewport changes
-      // because MapLibre skips tile fetching when all layers for a source
-      // have visibility: "none".
-      if (map.getLayer(TILE_KEEPALIVE_LAYER)) {
-        const vis = map.getLayoutProperty(TILE_KEEPALIVE_LAYER, "visibility");
-        if (vis === "none") {
-          keepaliveWasHidden = true;
-          map.setLayoutProperty(TILE_KEEPALIVE_LAYER, "visibility", "visible");
-          map.setPaintProperty(TILE_KEEPALIVE_LAYER, "line-opacity", 0.00001);
-        }
-      }
-    };
-
-    // Hide after style is loaded
-    if (map.isStyleLoaded()) {
-      hideExtrusions();
-    } else {
-      map.once("idle", hideExtrusions);
-    }
-    // Also re-hide after style changes (background swap re-adds layers)
-    map.on("styledata", hideExtrusions);
-
-    return () => {
-      map.off("styledata", hideExtrusions);
-      const saved = (map as any).__savedExtrusionOpacity as Map<string, number> | undefined;
-      if (saved) {
-        for (const [layerId, opacity] of saved) {
-          if (map.getLayer(layerId)) {
-            map.setPaintProperty(layerId, "fill-extrusion-opacity", opacity);
-          }
-        }
-        saved.clear();
-      }
-      // Restore keepalive layer to hidden if we changed it
-      if (keepaliveWasHidden && map.getLayer(TILE_KEEPALIVE_LAYER)) {
-        map.setLayoutProperty(TILE_KEEPALIVE_LAYER, "visibility", "none");
-        map.setPaintProperty(TILE_KEEPALIVE_LAYER, "line-opacity", 1);
-      }
-    };
-  }, [map]);
-
   // Effect 3: Data sync (re-runs on radius change without tearing down)
   useEffect(() => {
     if (!map) return;
+
+    const isExtrusion = config.renderMode === "extrusion";
 
     const rebuildFn = useLoft
       ? (
@@ -241,28 +178,23 @@ export function ThreeLayerManager({
       if (!map.getSource(config.sourceId)) return;
       addingRef.current = true;
 
-      // Compile any inline JS profiles before the first synchronous rebuild
-      if (!profilesEnsuredRef.current) {
+      // Compile any inline JS profiles before the first synchronous rebuild (trees only)
+      if (!isExtrusion && !profilesEnsuredRef.current) {
         await ensureProfiles(effectiveConfig);
         profilesEnsuredRef.current = true;
       }
 
-      const layerId = useLoft ? "3d-generic-loft" : "3d-generic";
+      const layerId = isExtrusion
+        ? `3d-extrusion-${config.sourceId}`
+        : useLoft ? "3d-generic-loft" : "3d-generic";
       const customLayer = buildGenericLayer(effectiveConfig, rebuildFn, layerId);
       layerRef.current = customLayer;
 
-      // Insert before fill-extrusion so trees render first and show through
-      // semi-transparent buildings. Label occlusion relies on depthWrite + depth range restore.
-      const styleLayers = map.getStyle().layers ?? [];
-      const firstExtrusion = styleLayers.find(
-        (l) => l.type === "fill-extrusion"
-      );
       try {
-        map.addLayer(customLayer, firstExtrusion?.id);
+        map.addLayer(customLayer);
         register3dLayer(map, customLayer);
 
-        // Add overlay layer at the end (after symbols) to paint trees
-        // over labels that should be occluded by 3D geometry.
+        // Add overlay layer at the end (after symbols) for label occlusion
         const oId = layerId + "-overlay";
         const overlay = buildOverlayLayer(customLayer, oId);
         map.addLayer(overlay);
@@ -304,35 +236,30 @@ export function ThreeLayerManager({
       }
     };
 
+    /** Config-driven building sync: reads field names from config.fields. */
     const syncBuildings = () => {
       const layer = layerRef.current;
-      if (!layer?._originMerc) { console.log("[3D-BUILDINGS] skip: no origin"); return; }
-      if (!map.getSource("alkis_data")) { console.log("[3D-BUILDINGS] skip: no alkis_data source"); return; }
+      if (!layer) return;
+      if (!map.getSource(config.sourceId)) { console.log("[3D-BUILDINGS] skip: no source", config.sourceId); return; }
+
+      // Initialize origin if not yet set (extrusion layers skip the tree rebuild() path)
+      if (!layer._originMerc) {
+        const center: [number, number] = config.mapCenter ?? [7.150764, 51.256222];
+        const originMerc = MercatorCoordinate.fromLngLat(center, 0);
+        layer._originMerc = originMerc;
+        layer._mScale = originMerc.meterInMercatorCoordinateUnits();
+      }
+
+      const heightField = config.fields?.heightField ?? "building_height";
+      const publicField = config.fields?.publicField ?? "oeffentl";
 
       const hasTerrain = map.getTerrain() != null;
-      const raw = map.querySourceFeatures("alkis_data", {
-        sourceLayer: "building",
+      const raw = map.querySourceFeatures(config.sourceId, {
+        sourceLayer: config.sourceLayer,
       });
 
-      // Diagnostic: understand why querySourceFeatures may return 0
-      const allSources = Object.keys(map.getStyle().sources);
-      const alkisSource = map.getSource("alkis_data");
-      const rawNoFilter = map.querySourceFeatures("alkis_data");
-      console.log("[3D-BUILDINGS-DEBUG]", {
-        zoom: map.getZoom().toFixed(1),
-        allSources,
-        alkisSourceExists: !!alkisSource,
-        rawWithFilter: raw.length,
-        rawNoFilter: rawNoFilter.length,
-        // Check which source-layers actually exist in the returned features
-        sourceLayersFound: [...new Set(rawNoFilter.map(f => (f as any).sourceLayer as string))],
-        // Check if any layers reference alkis_data
-        layersUsingAlkis: (map.getStyle().layers ?? [])
-          .filter((l: any) => l.source === "alkis_data")
-          .map((l: any) => ({ id: l.id, type: l.type, visibility: l.layout?.visibility })),
-      });
-
-      console.log("[3D-BUILDINGS] raw:", raw.length, "zoom:", map.getZoom().toFixed(1));
+      console.log("[3D-BUILDINGS] raw:", raw.length, "zoom:", map.getZoom().toFixed(1),
+        "source:", config.sourceId, "sourceLayer:", config.sourceLayer);
 
       // Group tile fragments by feature ID
       interface BldgGroup {
@@ -343,7 +270,7 @@ export function ThreeLayerManager({
       const groups = new Map<string | number, BldgGroup>();
 
       for (const f of raw) {
-        const height = (f.properties?.building_height as number) ?? 0;
+        const height = (f.properties?.[heightField] as number) ?? 0;
         if (height <= 0) continue;
 
         const geom = f.geometry;
@@ -365,7 +292,7 @@ export function ThreeLayerManager({
           if (g) {
             g.fragments.push(ring);
           } else {
-            groups.set(fid, { fragments: [ring], height, isPublic: f.properties?.oeffentl === "1" });
+            groups.set(fid, { fragments: [ring], height, isPublic: f.properties?.[publicField] === "1" });
           }
         }
       }
@@ -410,7 +337,6 @@ export function ThreeLayerManager({
       // (tiles still loading). Below minzoom 14, clear buildings explicitly.
       if (buildings.length === 0) {
         if (map.getZoom() >= 14) return;
-        // Below building minzoom: clear any stale buildings
       }
 
       buildExtrusionMeshes(buildings, layer.scene, layer._originMerc, layer._mScale);
@@ -418,8 +344,8 @@ export function ThreeLayerManager({
         mergedOk, "merged,", mergeFailed, "merge-failed (fallback to fragments)");
     };
 
-    const trySync = async () => {
-      await addLayerIfReady();
+    /** Sync trees: queries source features and rebuilds tree geometry. */
+    const syncTrees = () => {
       if (!layerRef.current || !map.getSource(config.sourceId)) return;
 
       const result = syncGenericLayerFromSource(
@@ -433,16 +359,24 @@ export function ThreeLayerManager({
           mode: useLoft ? "umring" : "kreis",
         };
       }
+    };
 
-      // Sync buildings into the same Three.js scene
-      syncBuildings();
+    const trySync = async () => {
+      await addLayerIfReady();
+      if (!layerRef.current || !map.getSource(config.sourceId)) return;
+
+      if (isExtrusion) {
+        syncBuildings();
+      } else {
+        syncTrees();
+      }
     };
 
     map.on("moveend", trySync);
 
-    // Sync buildings after map becomes idle (all tiles loaded and rendered)
-    const handleIdle = () => { syncBuildings(); };
-    map.on("idle", handleIdle);
+    // For extrusion layers, also sync after idle (all tiles loaded)
+    const handleIdle = isExtrusion ? () => { syncBuildings(); } : undefined;
+    if (handleIdle) map.on("idle", handleIdle);
 
     const handleSourceData = (e: {
       sourceId: string;
@@ -450,9 +384,6 @@ export function ThreeLayerManager({
     }) => {
       if (e.sourceId === config.sourceId && e.isSourceLoaded) {
         trySync();
-      }
-      if (e.sourceId === "alkis_data") {
-        syncBuildings();
       }
     };
     map.on("sourcedata", handleSourceData);
@@ -483,7 +414,7 @@ export function ThreeLayerManager({
 
     return () => {
       map.off("moveend", trySync);
-      map.off("idle", handleIdle);
+      if (handleIdle) map.off("idle", handleIdle);
       map.off("sourcedata", handleSourceData);
       map.off("terrain", handleTerrain);
       map.off("styledata", handleStyleData);
