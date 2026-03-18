@@ -12,6 +12,9 @@ import {
   createFilterButtons,
   FilterInfo,
   FilterState,
+  AdvancedFilterPanel,
+  type AdvancedFilterState,
+  type AdvancedFilterCategory,
 } from "@carma-mapping/components";
 import {
   getSelectedFeature,
@@ -25,7 +28,57 @@ import {
 import { useFilterBackground } from "./useFilterBackground";
 import FilterBackdrop from "./FilterBackdrop";
 
+// Hardcoded POI test data for the AdvancedFilterPanel
+const POI_CATEGORIES: AdvancedFilterCategory[] = [
+  { key: "Freizeit", label: "Freizeit" },
+  { key: "Sport", label: "Sport" },
+  { key: "Mobilität", label: "Mobilität" },
+  { key: "Religion", label: "Religion" },
+  { key: "Gesundheit", label: "Gesundheit" },
+  { key: "Kultur", label: "Kultur" },
+  { key: "Gesellschaft", label: "Gesellschaft" },
+  { key: "Bildung", label: "Bildung" },
+  { key: "Kinderbetreuung", label: "Kinderbetreuung" },
+  { key: "Dienstleistungen", label: "Dienstleistungen" },
+  {
+    key: "öffentliche Dienstleistungen",
+    label: "öffentliche Dienstleistungen",
+  },
+  { key: "Orientierung", label: "Orientierung" },
+  { key: "Stadtbild", label: "Stadtbild" },
+  { key: "Erholung", label: "Erholung" },
+];
+
+// Dummy PieChart data for testing
+const DUMMY_PIE_DATA: [string, number][] = [
+  ["Freizeit, Sport", 42],
+  ["Mobilität", 35],
+  ["Religion", 28],
+  ["Gesundheit", 22],
+  ["Bildung", 38],
+  ["Kultur", 15],
+  ["Gesellschaft", 20],
+  ["Kinderbetreuung", 12],
+];
+
+const DUMMY_PIE_COLORS = [
+  "#194761",
+  "#6BB6D7",
+  "#0D0D0D",
+  "#CB0D0D",
+  "#FFC000",
+  "#B27A08",
+  "#B0CBEC",
+  "#00A0B0",
+];
+
 const InteractionView = ({ isDragging }: { isDragging?: boolean }) => {
+  const [filterState, setFilterState] = useState<FilterState | undefined>();
+  const [advancedFilterState, setAdvancedFilterState] =
+    useState<AdvancedFilterState>({
+      positiv: POI_CATEGORIES.map((c) => c.key),
+      negativ: [],
+    });
   const dispatch = useDispatch();
   const activeInteractionLayerID = useSelector(getActiveInteractionLayerID);
   const layers = useSelector(getLayers);
@@ -43,6 +96,7 @@ const InteractionView = ({ isDragging }: { isDragging?: boolean }) => {
     activeInteractionLayerID,
     isDragging
   );
+  const isPoiLayer = layer?.id?.toLowerCase().includes("poi");
 
   const FilterComponent = useMemo(
     () =>
@@ -51,6 +105,24 @@ const InteractionView = ({ isDragging }: { isDragging?: boolean }) => {
   );
 
   if (!layer) {
+    return null;
+  }
+
+  if (isPoiLayer) {
+    return (
+      <div className="pt-3 w-full">
+        <AdvancedFilterPanel
+          categories={POI_CATEGORIES}
+          filterState={advancedFilterState}
+          onFilterStateChange={setAdvancedFilterState}
+          pieChartData={DUMMY_PIE_DATA}
+          pieChartColors={DUMMY_PIE_COLORS}
+        />
+      </div>
+    );
+  }
+
+  if (!FilterComponent) {
     return null;
   }
 
