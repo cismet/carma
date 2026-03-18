@@ -39,6 +39,10 @@ export interface Carma3dConfig {
   skipIn2D?: boolean;
   /** Layer IDs to hide when skipIn2D is active. Populated during config detection, not from metadata. */
   skipIn2DLayerIds?: string[];
+  /** When true, use stencil buffer to occlude MapLibre symbol layers behind 3D geometry.
+   *  Crown materials write bit 7 of the stencil buffer; subsequent symbol rendering is
+   *  rejected where bit 7 is set. Replaces the dual-pass overlay approach. */
+  useStencilOcclusion?: boolean;
 }
 
 /** A single feature after field mapping and normalisation. */

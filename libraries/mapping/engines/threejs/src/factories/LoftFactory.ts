@@ -446,6 +446,16 @@ export function buildLoftMeshes(
       opacity: 1,
       depthWrite: true,
     });
+
+    // Stencil occlusion: write bit 7 where crown pixels are visible.
+    if (config.useStencilOcclusion) {
+      crownMat.stencilWrite = true;
+      crownMat.stencilRef = 0x80;
+      crownMat.stencilFunc = THREE.AlwaysStencilFunc;
+      crownMat.stencilFuncMask = 0x80;
+      crownMat.stencilZPass = THREE.ReplaceStencilOp;
+      crownMat.stencilWriteMask = 0x80;
+    }
     const trunkMat = new THREE.MeshLambertMaterial({
       vertexColors: true,
       flatShading: true,

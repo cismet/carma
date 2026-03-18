@@ -114,6 +114,17 @@ export function buildLatheInstances(
       opacity: 1,
       depthWrite: true,
     });
+
+    // Stencil occlusion: write bit 7 where crown pixels are visible.
+    // Subsequent symbol layers are rejected at those pixels.
+    if (config.useStencilOcclusion) {
+      crownMat.stencilWrite = true;
+      crownMat.stencilRef = 0x80;
+      crownMat.stencilFunc = THREE.AlwaysStencilFunc;
+      crownMat.stencilFuncMask = 0x80;
+      crownMat.stencilZPass = THREE.ReplaceStencilOp;
+      crownMat.stencilWriteMask = 0x80;
+    }
     const crownMesh = new THREE.InstancedMesh(proto.crown, crownMat, count);
 
     const trunkMat = new THREE.MeshLambertMaterial({
