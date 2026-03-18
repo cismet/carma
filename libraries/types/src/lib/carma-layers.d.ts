@@ -80,6 +80,7 @@ type BaseLayer = {
   other?: OtherLayerProps;
   filterConfig?: FilterConfig;
   filterInfo?: LayerFilterInfo;
+  filterState?: Record<string, boolean>;
   layerInfo?: {
     accentColor?: string;
     title?: string;

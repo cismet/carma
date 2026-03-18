@@ -221,6 +221,20 @@ const slice = createSlice({
       }
     },
 
+    setLayerFilterState(
+      state,
+      action: PayloadAction<{
+        id: string;
+        filterState: Record<string, boolean>;
+      }>
+    ) {
+      const { id, filterState } = action.payload;
+      const layer = state.layers.find((l) => l.id === id);
+      if (layer) {
+        layer.filterState = filterState;
+      }
+    },
+
     setSelectedLayerIndex(state, action) {
       state.selectedLayerIndex = action.payload;
     },
@@ -350,6 +364,7 @@ export const {
 
   toggleUseInFeatureInfo,
   setLayerFilterInfo,
+  setLayerFilterState,
   setLibreMapRef,
   setMaplibreMaps,
   setConfigSelection,

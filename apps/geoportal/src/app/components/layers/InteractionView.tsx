@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useMemo } from "react";
 import { useDispatch, useSelector } from "react-redux";
 
 import {
@@ -6,6 +6,7 @@ import {
   getLayers,
   getMaplibreMaps,
   setLayerFilterInfo,
+  setLayerFilterState,
 } from "../../store/slices/mapping";
 import {
   createFilterButtons,
@@ -23,7 +24,6 @@ import {
 } from "../../store/slices/ui";
 
 const InteractionView = () => {
-  const [filterState, setFilterState] = useState<FilterState | undefined>();
   const dispatch = useDispatch();
   const activeInteractionLayerID = useSelector(getActiveInteractionLayerID);
   const layers = useSelector(getLayers);
@@ -57,7 +57,12 @@ const InteractionView = () => {
           dispatch(setSelectedFeatureAction(feature));
         }}
         onFilterChange={(info: FilterInfo, state: FilterState) => {
-          setFilterState(state);
+          dispatch(
+            setLayerFilterState({
+              id: layer.id,
+              filterState: state,
+            })
+          );
           dispatch(
             setLayerFilterInfo({
               id: layer.id,
@@ -66,7 +71,7 @@ const InteractionView = () => {
           );
           dispatch(triggerFeatureInfoUpdateAction());
         }}
-        initialFilters={filterState}
+        initialFilters={layer.filterState}
       />
     </div>
   );
