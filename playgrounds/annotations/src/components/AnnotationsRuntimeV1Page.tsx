@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState } from "react";
+import { useRef, useState } from "react";
 
 import { type Scene } from "@carma/cesium";
 
@@ -12,11 +12,12 @@ import {
 import {
   CesiumSceneStateHashSync,
   CesiumSceneStateProvider,
-  type CesiumSceneLike,
+  type SceneLike,
+  useInitialSceneViewState,
 } from "@carma-mapping/engines/cesium/react/scene-state";
-import { useInitialSceneStateHashSnapshot } from "@carma-providers/hash-state";
 import { LabelOverlayProvider } from "@carma-providers/label-overlay";
 
+import { ANNOTATIONS_DEMO_HOME_VIEW_STATE } from "../config";
 import { INFOBOX_WIDTH_PX, readInitialToolType } from "../playgroundConfig";
 import type { PlaygroundRuntimePageProps } from "../playground.types";
 import { CesiumNavigationOverlay } from "./CesiumNavigationOverlay";
@@ -24,7 +25,6 @@ import { CesiumWidgetContainer } from "./CesiumWidgetContainer";
 import { PersistActiveToolMode } from "./PersistActiveToolMode";
 import { PlaygroundStatusBar } from "./PlaygroundStatusBar";
 import { SceneStateErrorModal } from "./SceneStateErrorModal";
-import { readAnnotationsDemoHomeSnapshot } from "./annotationsDemoHomePose";
 
 const TERRAIN_SCENE_STATE_OPTIONS = {
   orbitPointMode: "screen-center",
@@ -93,15 +93,9 @@ export const AnnotationsRuntimeV1Page = ({
 }: PlaygroundRuntimePageProps) => {
   const rootRef = useRef<HTMLDivElement | null>(null);
   const [scene, setScene] = useState<Scene | null>(null);
-  const { initialCameraState, isResolved } = useInitialSceneStateHashSnapshot();
-  const homeSnapshot = useMemo(
-    () =>
-      readAnnotationsDemoHomeSnapshot({
-        viewportWidthPx: scene?.canvas?.clientWidth,
-        viewportHeightPx: scene?.canvas?.clientHeight,
-      }),
-    [scene]
-  );
+  const { initialViewState: hashViewState, isResolved } =
+    useInitialSceneViewState();
+  const initialViewState = hashViewState ?? ANNOTATIONS_DEMO_HOME_VIEW_STATE;
   const [initialToolType] = useState(() => readInitialToolType());
   const { initialPersistenceState, onPersistenceStateChange } =
     useLocalAnnotationPersistence<AnnotationEntry>({
@@ -113,20 +107,18 @@ export const AnnotationsRuntimeV1Page = ({
     <CesiumWidgetContainer
       rootRef={rootRef}
       onSceneChange={setScene}
-      initialCameraState={initialCameraState}
+      initialViewState={initialViewState}
       startPoseResolved={isResolved}
     >
       <CesiumSceneStateProvider
-        scene={scene as unknown as CesiumSceneLike | null}
+        scene={scene as unknown as SceneLike | null}
         options={TERRAIN_SCENE_STATE_OPTIONS}
       >
         <SceneStateErrorModal
           fallbackHeightM={TERRAIN_SCENE_STATE_OPTIONS.fallbackHeightM}
         />
         <CesiumSceneStateHashSync
-          scene={scene as unknown as CesiumSceneLike | null}
           enabled={Boolean(scene)}
-          anchorMode="screen-center"
           fallbackHeightM={TERRAIN_SCENE_STATE_OPTIONS.fallbackHeightM}
           replace={true}
           label="annotations-playground:camera3d"
@@ -145,7 +137,7 @@ export const AnnotationsRuntimeV1Page = ({
               <PersistActiveToolMode />
               <CesiumNavigationOverlay
                 scene={scene}
-                initialHomeSnapshot={homeSnapshot}
+                initialHomeViewState={ANNOTATIONS_DEMO_HOME_VIEW_STATE}
               />
               <RuntimeToolbar />
               <RuntimeInfoBox />

@@ -1,7 +1,7 @@
 import type { ReadonlyStore } from "@carma-commons/react-store";
 import type {
   CameraType,
-  CameraView,
+  CameraViewOffset,
   ObjectCentricCameraAnchor,
   ObjectCentricCameraModel,
 } from "@carma-commons/camera/model";
@@ -41,7 +41,7 @@ export type ViewSyncTargetState = {
   near?: Meters;
   far?: Meters;
   type?: CameraType;
-  view?: CameraView;
+  viewOffset?: CameraViewOffset;
   cameraModel?: ObjectCentricCameraModel;
 };
 

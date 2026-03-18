@@ -8,7 +8,7 @@ import {
   type Scene,
 } from "../../cesium";
 import type { CssPixelPosition, CssPixels } from "@carma/units/types";
-import type { Cartesian3Json } from "../../serialization/base";
+import type { Cartesian3Json } from "../../serialization";
 
 export type CesiumGeographicCoordinate = {
   latitude: number;

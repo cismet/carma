@@ -2,13 +2,13 @@ import { useEffect, useMemo, type ReactNode } from "react";
 import {
   createCesiumSceneStateStore,
   type CesiumSceneStateStore,
-} from "./createCesiumSceneStateStore";
-import type { CesiumSceneLike, CesiumSceneStateOptions } from "./types";
+} from "./utils/createCesiumSceneStateStore";
+import type { SceneLike, SceneStateOptions } from "./types";
 import { CesiumSceneStateStoreContext } from "./CesiumSceneStateStoreContext";
 
-type CesiumSceneStateProviderProps = {
-  scene?: CesiumSceneLike | null;
-  options?: CesiumSceneStateOptions;
+type SceneStateProviderProps = {
+  scene?: SceneLike | null;
+  options?: SceneStateOptions;
   children: ReactNode;
 };
 
@@ -16,7 +16,7 @@ export const CesiumSceneStateProvider = ({
   scene,
   options,
   children,
-}: CesiumSceneStateProviderProps) => {
+}: SceneStateProviderProps) => {
   const fallbackHeightM = options?.fallbackHeightM;
   const orbitPointMode = options?.orbitPointMode;
   const screenCenterSamplingStrategy = options?.screenCenterSamplingStrategy;

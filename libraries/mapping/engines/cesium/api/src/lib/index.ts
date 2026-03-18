@@ -69,24 +69,24 @@ export {
   cartesian3Distance,
   offsetCartesian3Positions,
 } from "./carma-helpers/cartesian3";
-export { cartesian3FromJson, cartesian3ToJson } from "./serialization/base";
+export { cartesian3FromJson, cartesian3ToJson } from "./serialization";
 export type {
   Cartesian3ConstructorArgs,
   Cartesian3Json,
-} from "./serialization/base";
+} from "./serialization";
 
 export {
   getDegreesFromCartographic,
   getEllipsoidalAltitudeOrZero,
 } from "./carma-helpers/cartographic";
-export { cartographicToJson } from "./serialization/base";
+export { cartographicToJson } from "./serialization";
 export type {
   CartographicJson,
   CartographicJsonTyped,
-} from "./serialization/base";
+} from "./serialization";
 
 export { guardTileset } from "./carma-helpers/tileset/TilesetGuard";
-export type { Cesium3DTilesetConstructorOptions } from "./serialization/base";
+export type { Cesium3DTilesetConstructorOptions } from "./serialization";
 
 export { createMinimalCesiumWidget } from "./carma-helpers/widget";
 
@@ -94,44 +94,41 @@ export {
   colorFromConstructorArgs,
   colorToConstructorArgs,
   isColorConstructorArgs,
-} from "./serialization/base";
-export type { ColorConstructorArgs, ColorJson } from "./serialization/base";
+} from "./serialization";
+export type { ColorConstructorArgs, ColorJson } from "./serialization";
 
 export { newHeadingPitchRange } from "./carma-helpers/heading-pitch-range/HeadingPitchRangeFactory";
 export type {
   HeadingPitchRangeJson,
   HeadingPitchRangeJsonRaw,
-} from "./serialization/base";
+} from "./serialization";
 
 export type {
   HeadingPitchJson,
   HeadingPitchRollDegreesJson,
   HeadingPitchRollJson,
   HeadingPitchRollJsonRaw,
-} from "./serialization/base";
+  SerializedPerspectiveFrustum,
+  SerializedOrthographicFrustum,
+  SerializedOrthographicOffCenterFrustum,
+  SerializedCesiumFrustum,
+  CapturedCameraState as SerializedCapturedCameraState,
+  CameraStateRecord as SerializedCameraStateRecord,
+  CameraStateHeadingPitchRoll as SerializedCameraStateHeadingPitchRoll,
+  CameraState as SerializedCameraState,
+} from "./serialization";
 
 export {
   rectangleFromBBox,
   rectangleFromJson,
   rectangleToBBox,
   rectangleToJson,
-} from "./serialization/base";
+} from "./serialization";
 export type {
   RectangleConstructorArgs,
   RectangleJson,
   RectangleJsonRaw,
-} from "./serialization/base";
-
-export {
-  getCartographicAndHeadingPitchRangeFromPoints,
-  getCartographicAndHeadingPitchRangeFromPoints as getCartographicAndHeadingPitchRangeFromWorldPoints,
-  getPointsFromCartographicAndHeadingPitchRange,
-  getPointsFromCartographicAndHeadingPitchRange as getWorldPointsFromCartographicAndHeadingPitchRange,
-} from "./carma-helpers/Transforms";
-export type {
-  CartographicHeadingPitchRange,
-  CartographicHeadingPitchRangePoints,
-} from "./carma-helpers/Transforms";
+} from "./serialization";
 
 export {
   ensureSceneReady,
@@ -147,54 +144,16 @@ export {
   tileMapServiceImageryProviderConstructorOptionsFromJson,
   webMapServiceImageryProviderConstructorOptionsFromJson,
   webMapTileServiceProviderConstructorOptionsFromJson,
-} from "./serialization/base";
+} from "./serialization";
 export type {
   OpenStreetMapImageryProviderConstructorOptionsJson,
   SingleTileImageryProviderConstructorOptionsJson,
   TileMapServiceImageryProviderConstructorOptionsJson,
   WebMapServiceImageryProviderConstructorOptionsJson,
   WebMapTileServiceProviderConstructorOptionsJson,
-} from "./serialization/base";
+} from "./serialization";
 
-export type { Matrix4ConstructorArgs } from "./serialization/base";
-
-// scene-state adapter (engine-agnostic DTOs + Cesium adapter)
-export * from "./serialization/derived/computeCesiumSceneStateSnapshot";
-export type {
-  CameraLike,
-  EventLike,
-  FrustumLike,
-  Mat4,
-  Matrix4Like,
-  OrbitPointMode,
-  OrbitPointSamplingStrategy,
-  OrbitPointSnapshot,
-  OrbitPointSource,
-  RayLike,
-  SceneCameraSnapshot,
-  SceneLike,
-  SceneStateOptions,
-  SceneStateSnapshot,
-  Vec2,
-  Vec3,
-} from "@carma/types";
-export type {
-  CameraLike as CesiumCameraLike,
-  EventLike as CesiumEventLike,
-  FrustumLike as CesiumFrustumLike,
-  Matrix4Like as CesiumMatrix4Like,
-  OrbitPointMode as CesiumOrbitPointMode,
-  OrbitPointSamplingStrategy as CesiumOrbitPointSamplingStrategy,
-  OrbitPointSnapshot as CesiumOrbitPointSnapshot,
-  OrbitPointSource as CesiumOrbitPointSource,
-  RayLike as CesiumRayLike,
-  SceneCameraSnapshot as CesiumSceneCameraSnapshot,
-  SceneLike as CesiumSceneLike,
-  SceneStateOptions as CesiumSceneStateOptions,
-  SceneStateSnapshot as CesiumSceneStateSnapshot,
-  Vec2 as CesiumVec2,
-} from "@carma/types";
-export type { LatLngAlt } from "@carma/geo/types";
+export type { Matrix4ConstructorArgs } from "./serialization";
 
 // custom low-level utilities
 export * from "./carma-helpers/primitives";
@@ -205,7 +164,6 @@ export * from "./carma-helpers/cartographic/getDegreesFromCartesian";
 export * from "./carma-helpers/cartographic/getBoundingSphereFromCoordinates";
 export * from "./carma-helpers/camera/getFrustumPixelDimensionsForDistance";
 export * from "./carma-helpers/terrain";
-export * from "./carma-helpers/scene-state";
 export * from "./carma-helpers/Transforms";
 export * as CarmaTransforms from "./carma-helpers/Transforms";
 export { getCesiumVersion } from "./carma-helpers/version";

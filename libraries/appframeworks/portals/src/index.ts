@@ -79,6 +79,8 @@ export { useShareUrl, SHORTENER_URL } from "./lib/hooks/useShareUrl";
 export { useProgress } from "./lib/hooks/useProgress";
 export { useAdhocCesiumFeatureDisplay } from "./lib/hooks/useAdhocCesiumFeatureDisplay";
 export { useUrlFeatureSelection } from "./lib/hooks/useUrlFeatureSelection";
+export { useHashLaunchMode } from "./lib/hooks/useHashLaunchMode";
+export { useRegisterDefaultMapHashClearKeySets } from "./lib/hooks/useRegisterDefaultMapHashClearKeySets";
 export {
   useMapHashRouting,
   type LatLngZoom,

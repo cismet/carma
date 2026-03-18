@@ -29,25 +29,7 @@ export type ViewStateVisualizerPose = Pick<
 
 export type ViewStateVisualizerIntrinsics = Pick<
   CameraIntrinsics,
-  | "type"
-  | "projectionMatrix"
-  | "projectionMatrixInverse"
-  | "fov"
-  | "fovHorizontal"
-  | "aspect"
-  | "zoom"
-  | "focus"
-  | "filmGauge"
-  | "filmOffset"
-  | "focalLength"
-  | "left"
-  | "right"
-  | "top"
-  | "bottom"
-  | "principalPoint"
-  | "sensorSize"
-  | "image"
-  | "view"
+  "type" | "projectionMatrix" | "fov" | "fovHorizontal" | "viewOffset"
 >;
 
 export type ViewStateVisualizerSpecification = {

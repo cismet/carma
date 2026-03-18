@@ -61,6 +61,8 @@ export {
   PolylineGeometry,
   Model,
   ModelGraphics,
+  OrthographicFrustum,
+  OrthographicOffCenterFrustum,
   Primitive,
   PrimitiveCollection,
   Quaternion,

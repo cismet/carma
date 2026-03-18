@@ -2,13 +2,20 @@
 
 Hash state provider for URL-based application state management.
 
+## Separation of concerns
+
+`@carma-providers/hash-state` is intentionally a **hash codec/state transport layer**.
+
+- It owns hash read/write mechanics and string-to-value / value-to-string codec behavior.
+- It may expose raw decoded hash values and generic update APIs.
+- It does **not** own domain interpretation of those values (for example startup framework choice, map launch preference policy, or view-mode business decisions).
+- It does **not** own engine/view-state orchestration logic.
+
+In short: hash-state restores and persists typed hash parameters, while reusable domain hooks/providers in other libraries decide what those values mean.
+
 ## Scene descriptor hash helpers
 
-The package includes pure scene-descriptor hash helpers for the shared CARMA URL contract plus engine adapters that can sample scene state into that shared format.
-
-- supported URL encoding schemes:
-  - `carma-maplibre-plus-elevation` (`lat/lng/zoom/bearing/pitch/h`, MapLibre-style pitch with added elevation) ← CARMA standard map URL query scheme for cross-engine sharing
-- legacy compact `camera3d` / `c3` hashes are only decoded in the dedicated initial-camera adapter path
+The package provides hash read/write + decode/encode mechanics and exposes decoded values via `useHashState()`.
 
 Default shared CARMA map URL aliases are:
 
@@ -17,58 +24,36 @@ Default shared CARMA map URL aliases are:
 - `zoom`
 - optional `b` (`bearing`)
 - optional `p` (`pitch`)
-- optional `h` (`altitude`)
+- optional `altitude`
 - optional `fov`
 
-Typical usage (direct 3D scene sampling):
+Typical usage:
 
 ```tsx
 import {
   HashStateProvider,
-  useSceneStateHashSync,
+  useHashState,
 } from "@carma-providers/hash-state";
 
-function SceneHashSync({ scene }: { scene: unknown }) {
-  useSceneStateHashSync({
-    scene: scene as any,
-    encodeScheme: "carma-maplibre-plus-elevation",
-    anchorMode: "screen-center", // samples center once per camera move event
-    fallbackHeightM: 200,
-    replace: true,
-  });
+function HashConsumer() {
+  const { getHash, getHashValues, updateHash } = useHashState();
+
+  const raw = getHash();
+  const decoded = getHashValues();
+
+  const writeExample = () => {
+    updateHash({ lat: 51.25, lng: 7.15, zoom: 13 }, { replace: true });
+  };
+
   return null;
 }
 ```
 
-Typical usage (with a scene-state provider):
+Scene-state/hash projection helpers and launch-mode policy are intentionally out of scope for this package.
 
-```tsx
-import {
-  HashStateProvider,
-  useSceneStateHashSync,
-} from "@carma-providers/hash-state";
-import { useCesiumSceneStateOptional } from "@carma-mapping/engines/cesium/react/scene-state";
+For shared launch-mode interpretation from hash parameters, use the generic helpers from `@carma-commons/utils` (for example `resolveHashLaunchMode(...)`).
 
-function SceneHashSyncFromSceneState() {
-  const sceneState = useCesiumSceneStateOptional();
-  useSceneStateHashSync({
-    sceneState,
-    encodeScheme: "carma-maplibre-plus-elevation",
-    anchorMode: "screen-center",
-    fallbackHeightM: 200,
-    replace: true,
-  });
-  return null;
-}
-```
-
-Notes:
-
-- No dedicated terrain provider is required for basic operation.
-- Center sampling tries `scene.pickPosition` first, then `globe.pick`.
-- If no center hit is available, it falls back to camera position with `fallbackHeightM`.
-- When `sceneState` is provided, hash updates use the already computed shared scene-state adapter
-  instead of querying the underlying engine internals again.
+Inside this package, `SceneViewState` hash encode/decode logic is owned by the specialized `scene-state-hash/*` codecs (single source of truth). Root-level hash codecs only compose those specialized codecs; they do not duplicate `SceneViewState` field encoding logic.
 
 ## Running unit tests
 

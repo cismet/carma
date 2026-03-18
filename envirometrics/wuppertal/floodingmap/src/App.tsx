@@ -26,28 +26,20 @@ import {
   SelectionMetaData,
   TopicMapSelectionContent,
   useGazData,
+  useHashLaunchMode,
   useSelection,
   useSelectionCesium,
   useSelectionTopicMap,
 } from "@carma-appframeworks/portals";
-import {
-  useHashState,
-  useInitialSceneStateHashSnapshot,
-} from "@carma-providers/hash-state";
+import { useHashState } from "@carma-providers/hash-state";
+import { readInitialCameraViewFromSceneViewState } from "@carma-mapping/engines/cesium/react/scene-state";
 import { ENDPOINT, isAreaTypeWithGEP } from "@carma-commons/resources";
-import { getApplicationVersion } from "@carma-commons/utils";
+import { getApplicationVersion, HASH_LAUNCH_MODE } from "@carma-commons/utils";
 
 // TODO fix collab path names
 import { getCollabedHelpComponentConfig } from "@carma-collab/wuppertal/hochwassergefahrenkarte";
 
-import {
-  Cartographic,
-  Ellipsoid,
-  getDegreesFromCartesian,
-  HeadingPitchRange,
-} from "@carma/cesium";
-import { degToRadNumeric } from "@carma/units/helpers";
-import { getPointsFromCartographicAndHeadingPitchRange } from "@carma-mapping/engines/cesium/api";
+import { getDegreesFromCartesian } from "@carma/cesium";
 
 import {
   CustomViewer,
@@ -62,7 +54,8 @@ import {
 import {
   CesiumSceneStateHashSync,
   CesiumSceneStateProvider,
-  type CesiumSceneLike,
+  type SceneLike,
+  useInitialSceneViewState,
 } from "@carma-mapping/engines/cesium/react/scene-state";
 import {
   EmptySearchComponent,
@@ -120,67 +113,14 @@ const parseHashNumber = (value: unknown): number | undefined => {
   return undefined;
 };
 
-const readInitialCameraViewFromHashSnapshot = (
-  snapshot: ReturnType<
-    typeof useInitialSceneStateHashSnapshot
-  >["initialCameraState"]
+const readInitialCameraViewFromInitialViewState = (
+  initialViewState: ReturnType<
+    typeof useInitialSceneViewState
+  >["initialViewState"]
 ): InitialCameraView | undefined => {
-  if (!snapshot) {
-    return undefined;
-  }
-
-  const orientation = snapshot.orientation as typeof snapshot.orientation & {
-    bearingDeg?: number;
-    pitchDeg?: number;
-    fovDeg?: number;
-  };
-  const headingRad = isFiniteNumber(orientation.bearingRad)
-    ? orientation.bearingRad
-    : degToRadNumeric(orientation.bearingDeg ?? 0);
-  const pitchRad = isFiniteNumber(orientation.pitchRad)
-    ? orientation.pitchRad
-    : degToRadNumeric(orientation.pitchDeg ?? 0);
-  const fovVerticalRad = isFiniteNumber(orientation.fovVerticalRad)
-    ? orientation.fovVerticalRad
-    : isFiniteNumber(orientation.fovDeg)
-    ? degToRadNumeric(orientation.fovDeg)
-    : undefined;
-
-  const anchorCartographic = Cartographic.fromDegrees(
-    snapshot.anchor.lngDeg,
-    snapshot.anchor.latDeg,
-    snapshot.anchor.heightM
-  );
-
-  const headingPitchRange = new HeadingPitchRange(
-    headingRad,
-    pitchRad,
-    Math.max(0.01, snapshot.orientation.rangeM ?? DEFAULT_HASH_RANGE_M)
-  );
-
-  const points = getPointsFromCartographicAndHeadingPitchRange({
-    cartographic: anchorCartographic,
-    headingPitchRange,
-  });
-  if (!points) {
-    return undefined;
-  }
-
-  const position = Ellipsoid.WGS84.cartesianToCartographic(
-    points.cameraPositionECEF
-  );
-  if (!position) {
-    return undefined;
-  }
-
-  return {
-    position,
-    heading: headingPitchRange.heading,
-    pitch: headingPitchRange.pitch,
-    ...(isFiniteNumber(fovVerticalRad)
-      ? { fov: fovVerticalRad }
-      : {}),
-  };
+  return readInitialCameraViewFromSceneViewState(initialViewState, {
+    defaultRangeM: DEFAULT_HASH_RANGE_M,
+  }) as InitialCameraView | undefined;
 };
 
 function App({ sync = false }: { sync?: boolean }) {
@@ -194,13 +134,14 @@ function App({ sync = false }: { sync?: boolean }) {
 
   const { gazData } = useGazData();
 
+  // Resolve launch mode from hash, set framework, clean up flags
+  useHashLaunchMode({ defaultMode: HASH_LAUNCH_MODE.THREE_D });
+
   const reactCismapEnvirometricsVersion = cismapEnvirometricsVersion;
   const [hochwasserschutz, setHochwasserschutz] = useState(true);
   const { getHashValues } = useHashState();
-  const { initialCameraState, isResolved: isInitialCameraResolved } =
-    useInitialSceneStateHashSnapshot({
-      defaultFovDeg: DEFAULT_HASH_FOV_DEG,
-    });
+  const { initialViewState, isResolved: isInitialCameraResolved } =
+    useInitialSceneViewState();
   const initialHashValues = getHashValues();
   const initialQueryX = parseHashNumber(initialHashValues.qx);
   const initialQueryY = parseHashNumber(initialHashValues.qy);
@@ -217,8 +158,8 @@ function App({ sync = false }: { sync?: boolean }) {
     };
   }, [initialQueryX, initialQueryY]);
   const initialCameraView = useMemo(
-    () => readInitialCameraViewFromHashSnapshot(initialCameraState),
-    [initialCameraState]
+    () => readInitialCameraViewFromInitialViewState(initialViewState),
+    [initialViewState]
   );
 
   const ctx = useCesiumContext();
@@ -536,13 +477,10 @@ function App({ sync = false }: { sync?: boolean }) {
         }}
       >
         <CesiumSceneStateProvider
-          scene={cesiumScene as unknown as CesiumSceneLike | null}
+          scene={cesiumScene as unknown as SceneLike | null}
         >
           <CesiumSceneStateHashSync
-            scene={cesiumScene as unknown as CesiumSceneLike | null}
             enabled={isCesium && Boolean(cesiumScene)}
-            anchorMode="screen-center"
-            defaultFovDeg={DEFAULT_HASH_FOV_DEG}
             replace={true}
             label="app/hgk:3D"
           />

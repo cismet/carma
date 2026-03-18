@@ -1,3 +1,4 @@
+import { CAMERA_TYPE } from "@carma-commons/camera/model";
 import {
   clamp,
   isFiniteNumber,
@@ -615,32 +616,32 @@ const buildImagePlaneGeometry = (
   const fovVertical = readVerticalFov(cameraModel);
   const fovHorizontal = readHorizontalFov(cameraModel);
   const imagePlaneDistance = readImagePlaneDistance(cameraModel);
-  const type = cameraModel.intrinsics?.type ?? "PerspectiveCamera";
-  const view = cameraModel.intrinsics?.view;
+  const type = cameraModel.intrinsics?.type ?? CAMERA_TYPE.PERSPECTIVE;
+  const viewOffset = cameraModel.intrinsics?.viewOffset;
   const projectionMatrix = cameraModel.intrinsics?.projectionMatrix;
   const hasHorizontalViewOffset =
-    !!view &&
-    isFiniteNumber(view.fullWidth) &&
-    isFiniteNumber(view.width) &&
-    isFiniteNumber(view.offsetX) &&
-    view.fullWidth > 0;
+    !!viewOffset &&
+    isFiniteNumber(viewOffset.fullWidth) &&
+    isFiniteNumber(viewOffset.width) &&
+    isFiniteNumber(viewOffset.offsetX) &&
+    viewOffset.fullWidth > 0;
   const hasVerticalViewOffset =
-    !!view &&
-    isFiniteNumber(view.fullHeight) &&
-    isFiniteNumber(view.height) &&
-    isFiniteNumber(view.offsetY) &&
-    view.fullHeight > 0;
+    !!viewOffset &&
+    isFiniteNumber(viewOffset.fullHeight) &&
+    isFiniteNumber(viewOffset.height) &&
+    isFiniteNumber(viewOffset.offsetY) &&
+    viewOffset.fullHeight > 0;
 
   const imagePlaneCenter = cameraPosition
     .clone()
     .add(forward.clone().multiplyScalar(imagePlaneDistance));
 
   const projectionScaleX =
-    type === "PerspectiveCamera" && projectionMatrix
+    type === CAMERA_TYPE.PERSPECTIVE && projectionMatrix
       ? Math.abs(projectionMatrix.elements[0])
       : null;
   const projectionScaleY =
-    type === "PerspectiveCamera" && projectionMatrix
+    type === CAMERA_TYPE.PERSPECTIVE && projectionMatrix
       ? Math.abs(projectionMatrix.elements[5])
       : null;
 
@@ -675,10 +676,12 @@ const buildImagePlaneGeometry = (
       : 0.24;
 
   const horizontalViewScale =
-    hasHorizontalViewOffset && view.width > 0 ? view.width / view.fullWidth : 1;
+    hasHorizontalViewOffset && viewOffset.width > 0
+      ? viewOffset.width / viewOffset.fullWidth
+      : 1;
   const verticalViewScale =
-    hasVerticalViewOffset && view.height > 0
-      ? view.height / view.fullHeight
+    hasVerticalViewOffset && viewOffset.height > 0
+      ? viewOffset.height / viewOffset.fullHeight
       : 1;
   const fullHalfWidth =
     horizontalViewScale > 0
@@ -690,12 +693,15 @@ const buildImagePlaneGeometry = (
       : croppedHalfHeight;
 
   const offsetX = hasHorizontalViewOffset
-    ? ((view.offsetX + view.width * 0.5) / view.fullWidth - 0.5) *
+    ? ((viewOffset.offsetX + viewOffset.width * 0.5) / viewOffset.fullWidth -
+        0.5) *
       fullHalfWidth *
       2
     : 0;
   const offsetY = hasVerticalViewOffset
-    ? (0.5 - (view.offsetY + view.height * 0.5) / view.fullHeight) *
+    ? (0.5 -
+        (viewOffset.offsetY + viewOffset.height * 0.5) /
+          viewOffset.fullHeight) *
       fullHalfHeight *
       2
     : 0;

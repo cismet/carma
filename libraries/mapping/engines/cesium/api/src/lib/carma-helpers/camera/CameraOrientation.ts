@@ -10,7 +10,7 @@ import { shortestAngleDelta } from "@carma/math";
 import type {
   HeadingPitchJson,
   HeadingPitchRollJson,
-} from "../../serialization/base";
+} from "../../serialization";
 
 // Camera direction when pointing straight down (nadir).
 const TOP_DOWN_DIRECTION = new Cartesian3(0, 0, -1);

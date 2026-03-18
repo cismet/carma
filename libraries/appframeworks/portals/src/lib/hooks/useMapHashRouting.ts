@@ -14,13 +14,14 @@
 
 import { useCallback, useEffect, useRef } from "react";
 import {
-  DEFAULT_SCENE_STATE_HASH_CLEAR_KEYS,
+  HASH_CLEAR_KEY_SET,
   useHashState,
   type HashChangeEvent,
 } from "@carma-providers/hash-state";
 import { useMapFrameworkSwitcherContext } from "@carma-mapping/components";
 import { isMapCenterZoomEquivalent } from "@carma/geo/utils";
 import { Degrees } from "@carma/units/types";
+import { useRegisterDefaultMapHashClearKeySets } from "./useRegisterDefaultMapHashClearKeySets";
 
 export type LatLngZoom = { lat: number; lng: number; zoom: number };
 export type CesiumSceneChangeEvent = { hashParams: Record<string, string> };
@@ -43,7 +44,7 @@ type LeafletLikeMap = {
 export interface UseMapHashRoutingOptions {
   getLeafletMap?: () => LeafletLikeMap | null | undefined;
   getLeafletZoom?: () => number;
-  cesiumClearKeys?: string[];
+  additionalClearKeys?: string[];
   labels?: Labels;
   pixelTolerance?: number; // px
 }
@@ -51,10 +52,12 @@ export interface UseMapHashRoutingOptions {
 export function useMapHashRouting({
   getLeafletMap,
   getLeafletZoom,
-  cesiumClearKeys = [...DEFAULT_SCENE_STATE_HASH_CLEAR_KEYS],
+  additionalClearKeys,
   labels,
   pixelTolerance,
 }: UseMapHashRoutingOptions) {
+  useRegisterDefaultMapHashClearKeySets();
+  const resolvedAdditionalClearKeys = additionalClearKeys ?? [];
   const { updateHash, registerOnPopState, getHashValues } = useHashState();
   const { getIsLeaflet, getIsCesium, getIsTransitioning, activeFramework } =
     useMapFrameworkSwitcherContext();
@@ -149,7 +152,11 @@ export function useMapHashRouting({
       updateHash(
         { lat, lng, zoom },
         {
-          clearKeys: cesiumClearKeys,
+          clearKeySetIds: [
+            HASH_CLEAR_KEY_SET.SCENE_VIEW_STATE,
+            HASH_CLEAR_KEY_SET.LAUNCH_MODE,
+          ],
+          clearKeys: resolvedAdditionalClearKeys,
           label: labels?.topicMapLocation ?? "Map:2D:location",
           replace: false,
         }
@@ -160,7 +167,7 @@ export function useMapHashRouting({
       getIsTransitioning,
       updateHash,
       getHashValues,
-      cesiumClearKeys,
+      resolvedAdditionalClearKeys,
       labels?.topicMapLocation,
       pixelTolerance,
     ]
@@ -185,14 +192,15 @@ export function useMapHashRouting({
     // Only update hash when transitioning TO Leaflet AND not currently transitioning
     if (!wasLeafletLike && isLeafletLike && !getIsTransitioning()) {
       // Replace current entry to clear 3D-specific state
-      updateHash(
-        { is2d: 1 },
-        {
-          clearKeys: cesiumClearKeys,
-          label: labels?.clearCesium ?? "Map:2D:clearCesium",
-          replace: true,
-        }
-      );
+      updateHash(undefined, {
+        clearKeySetIds: [
+          HASH_CLEAR_KEY_SET.SCENE_VIEW_STATE,
+          HASH_CLEAR_KEY_SET.LAUNCH_MODE,
+        ],
+        clearKeys: resolvedAdditionalClearKeys,
+        label: labels?.clearCesium ?? "Map:2D:clearCesium",
+        replace: true,
+      });
       // Then push current 2D location
       const map = getLeafletMap?.();
       if (
@@ -203,7 +211,11 @@ export function useMapHashRouting({
         const center = map.getCenter();
         const zoom = getLeafletZoom();
         updateHash(
-          { lat: center.lat, lng: center.lng, zoom, is2d: 1 },
+          {
+            lat: center.lat,
+            lng: center.lng,
+            zoom,
+          },
           { label: labels?.writeLeafletLike ?? "Map:2D:writeLocation" }
         );
       }
@@ -215,7 +227,7 @@ export function useMapHashRouting({
     updateHash,
     getLeafletMap,
     getLeafletZoom,
-    cesiumClearKeys,
+    resolvedAdditionalClearKeys,
     labels?.clearCesium,
     labels?.writeLeafletLike,
   ]);

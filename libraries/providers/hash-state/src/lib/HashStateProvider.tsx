@@ -2,8 +2,12 @@ import React, { startTransition } from "react";
 import { useLocation } from "react-router-dom";
 import { computeHashDiff } from "./utils";
 import {
+  HASH_CHANGE_SOURCE,
+  HASH_CLEAR_KEY_SET,
+  HASH_ROUTING_MODE,
   HashStateProviderBase,
   useHashState,
+  type HashClearKeySetId,
   type HashChangeEvent,
   type HashChangeSource,
   type HashCodecs,
@@ -14,14 +18,19 @@ import {
 } from "./hashStateShared";
 
 export {
+  HASH_CHANGE_SOURCE,
+  HASH_CLEAR_KEY_SET,
+  HASH_ROUTING_MODE,
   useHashState,
+  type HashClearKeySetId,
   type HashChangeEvent,
   type HashChangeSource,
   type HashCodecs,
   type HashCodec,
   type HashKeyAliases,
   type HashRoutingMode,
-};
+  type HashStateProviderSharedProps,
+} from "./hashStateShared";
 
 type HashStateProviderProps = HashStateProviderSharedProps & {
   routingMode?: HashRoutingMode;
@@ -56,10 +65,10 @@ const NeutralHashStateProvider: React.FC<HashStateProviderProps> = ({
 );
 
 export const HashStateProvider: React.FC<HashStateProviderProps> = ({
-  routingMode = "routed",
+  routingMode = HASH_ROUTING_MODE.ROUTED,
   ...props
 }) =>
-  routingMode === "neutral" ? (
+  routingMode === HASH_ROUTING_MODE.NEUTRAL ? (
     <NeutralHashStateProvider {...props} />
   ) : (
     <RoutedHashStateProvider {...props} />

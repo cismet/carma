@@ -2,19 +2,19 @@
 
 import { Cartesian3, Color } from "cesium";
 
-import { WUPPERTAL } from "@carma-commons/resources";
 import { CesiumState } from "@carma-mapping/engines/cesium";
 
 import { colorToConstructorArgs } from "@carma/cesium";
 
 import { MODEL_ASSETS } from "./assets.config";
+import { DEFAULT_VIEW_ANCHOR } from "../view.config";
 
 // SETUP Store State
 
 const homePosition = Cartesian3.fromDegrees(
-  WUPPERTAL.position.longitude,
-  WUPPERTAL.position.latitude,
-  WUPPERTAL.position.altitude
+  DEFAULT_VIEW_ANCHOR.lng,
+  DEFAULT_VIEW_ANCHOR.lat,
+  DEFAULT_VIEW_ANCHOR.altitude
 );
 
 // position relative to the home position

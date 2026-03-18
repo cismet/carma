@@ -1,4 +1,5 @@
 import { useMemo, type CSSProperties, type ReactNode } from "react";
+import { CAMERA_TYPE, type CameraType } from "@carma-commons/camera/model";
 import {
   ObjectCentricViewStateInfoBox,
   type ObjectCentricViewStateInfoRow,
@@ -53,14 +54,14 @@ const formatOrUnresolved = (
     ? formatter(value)
     : "unresolved";
 
-const formatCameraType = (cameraType: string | null | undefined) => {
+const formatCameraType = (cameraType: CameraType | null | undefined) => {
   if (!cameraType) {
     return "unresolved";
   }
-  if (cameraType === "PerspectiveCamera") {
+  if (cameraType === CAMERA_TYPE.PERSPECTIVE) {
     return "Perspective";
   }
-  if (cameraType === "OrthographicCamera") {
+  if (cameraType === CAMERA_TYPE.ORTHOGRAPHIC) {
     return "Orthographic";
   }
   return cameraType;
@@ -130,10 +131,10 @@ const formatViewSyncTargetTableRows = (
 
   const fovVertical = readViewSyncVerticalFov(target);
   const fovHorizontal = readViewSyncHorizontalFov(target);
-  const projection = projectViewSyncTargetToMapLibre({
+  const projection = projectViewSyncTargetToMapLibre(
     target,
-    viewport: getMetaProjectionViewport(),
-  });
+    getMetaProjectionViewport()
+  );
 
   return [
     {
