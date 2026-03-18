@@ -26,6 +26,7 @@ interface ArbeitsauftraegeState {
   selectedAAData: ArbeitsauftragDetail | null;
   selectedTeamId: number | null;
   activeAATab: AATabKey;
+  selectedAPId: number | null;
   loading: boolean;
   error: string | null;
 }
@@ -36,6 +37,7 @@ const initialState: ArbeitsauftraegeState = {
   selectedAAData: null,
   selectedTeamId: null,
   activeAATab: "aa",
+  selectedAPId: null,
   loading: false,
   error: null,
 };
@@ -61,6 +63,10 @@ const slice = createSlice({
     },
     setActiveAATab(state, action: { payload: AATabKey }) {
       state.activeAATab = action.payload;
+      if (action.payload === "aa") state.selectedAPId = null;
+    },
+    setSelectedAPId(state, action: { payload: number | null }) {
+      state.selectedAPId = action.payload;
     },
     setError(state, action) {
       state.error = action.payload;
@@ -69,6 +75,7 @@ const slice = createSlice({
       state.selectedAAId = null;
       state.selectedAAData = null;
       state.activeAATab = "aa";
+      state.selectedAPId = null;
       state.error = null;
     },
   },
@@ -82,6 +89,7 @@ export const {
   setSelectedAAData,
   setSelectedTeamId,
   setActiveAATab,
+  setSelectedAPId,
   setLoading,
   setError,
   clearSelection,
@@ -100,3 +108,5 @@ export const getSelectedTeamId = (state: RootState) =>
   state.arbeitsauftraege.selectedTeamId;
 export const getActiveAATab = (state: RootState) =>
   state.arbeitsauftraege.activeAATab;
+export const getSelectedAPId = (state: RootState) =>
+  state.arbeitsauftraege.selectedAPId;

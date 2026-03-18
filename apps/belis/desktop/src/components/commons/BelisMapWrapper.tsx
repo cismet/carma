@@ -28,7 +28,7 @@ import type { LibreLayer } from "@carma-mapping/engines/maplibre";
 import { AppDispatch, type RootState } from "../../store";
 import BelisSidebar from "../ui/BelisSidebar";
 import ArbeitsauftraegeSidebar from "../ui/ArbeitsauftraegeSidebar";
-import { useVisibleMapFeatures, functionToInfo } from "@carma-mapping/utils";
+import { useVisibleMapFeatures, functionToInfo, objectToInfo } from "@carma-mapping/utils";
 import { extractCarmaConfig } from "@carma-commons/utils";
 import {
   useMapSelection,
@@ -62,11 +62,13 @@ import {
   getSelectedAAId,
   getSelectedAAData,
   getActiveAATab,
+  getSelectedAPId,
+  setSelectedAPId,
   clearSelection,
 } from "../../store/slices/arbeitsauftraege";
 import { getSelectedTeamName } from "../../store/selectors";
 import { buildApGeoJson } from "../../helper/buildApGeoJson";
-import { debugLayers } from "../../config/debugLayers";
+import { debugLayers, apInfoboxMapping } from "../../config/debugLayers";
 import type { ArbeitsauftragTileFeature } from "../../store/slices/arbeitsauftraege";
 
 const LIST_WIDTH = 300;
@@ -165,6 +167,7 @@ const BelisMapLibWrapper = ({
   const selectedAAId = useSelector(getSelectedAAId);
   const selectedAAData = useSelector(getSelectedAAData);
   const activeAATab = useSelector(getActiveAATab);
+  const selectedAPId = useSelector(getSelectedAPId);
 
   // Team filter: resolve selectedTeamId → team name for map layer filtering
   const selectedTeamName = useSelector(getSelectedTeamName);
@@ -1023,10 +1026,19 @@ const BelisMapLibWrapper = ({
     if (sidebarVariant !== "arbeitsauftraege" || !map) return;
 
     const handleClick = (e: maplibregl.MapMouseEvent) => {
-      // Don't clear selection when AP tab is active
-      if (activeAATab === "ap") return;
-
       const hits = map.queryRenderedFeatures(e.point);
+
+      if (activeAATab === "ap") {
+        // In AP mode: select clicked AP feature
+        const apHit = hits.find((h) => h.source === AP_SOURCE);
+        if (apHit) {
+          const apId = apHit.properties?.id as number | undefined;
+          if (apId != null) dispatch(setSelectedAPId(apId));
+        }
+        return;
+      }
+
+      // In AA mode: clear on empty click
       const hasRelevant = hits.some(
         (h) =>
           h.sourceLayer === "arbeitsauftraege" ||
@@ -1093,7 +1105,7 @@ const BelisMapLibWrapper = ({
     if (existing) {
       existing.setData(geojson);
     } else {
-      map.addSource(AP_SOURCE, { type: "geojson", data: geojson });
+      map.addSource(AP_SOURCE, { type: "geojson", data: geojson, promoteId: "id" });
     }
 
     // Add layers derived from debugLayers, rewritten for the AP GeoJSON source
@@ -1243,6 +1255,70 @@ const BelisMapLibWrapper = ({
     }
   }, [activeAATab]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  // --- Arbeitsauftraege: AP feature-state selection ---
+  const prevAPIdRef = useRef<number | null>(null);
+  useEffect(() => {
+    if (!map) return;
+
+    // Deselect previous
+    if (prevAPIdRef.current != null && prevAPIdRef.current !== selectedAPId) {
+      try {
+        map.setFeatureState(
+          { source: AP_SOURCE, id: prevAPIdRef.current },
+          { selected: false },
+        );
+      } catch {
+        // source may not exist
+      }
+    }
+    prevAPIdRef.current = selectedAPId;
+
+    if (selectedAPId == null) return;
+
+    // Select current
+    try {
+      map.setFeatureState(
+        { source: AP_SOURCE, id: selectedAPId },
+        { selected: true },
+      );
+    } catch {
+      // source may not exist yet
+    }
+  }, [map, selectedAPId]);
+
+  // --- Arbeitsauftraege: build infobox override for selected AP feature ---
+  useEffect(() => {
+    if (activeAATab !== "ap" || selectedAPId == null || !selectedAAData) {
+      // Only clear if we're leaving AP mode (don't clobber fachobjekte overrides)
+      if (activeAATab === "ap") setOverrideSelectedFeature(null);
+      return;
+    }
+
+    const geojson = buildApGeoJson(selectedAAData);
+    const feature = geojson.features.find(
+      (f) => f.properties?.id === selectedAPId,
+    );
+    if (!feature?.properties || !feature.geometry) {
+      setOverrideSelectedFeature(null);
+      return;
+    }
+
+    const mappingCode = apInfoboxMapping.join("\n");
+    objectToInfo(feature.properties as Record<string, unknown>, mappingCode)
+      .then((info) => {
+        if (info) {
+          setOverrideSelectedFeature({
+            properties: { ...info },
+            geometry: feature.geometry,
+            carmaInfo: { sourceLayer: "ap-features" },
+          });
+        } else {
+          setOverrideSelectedFeature(null);
+        }
+      })
+      .catch(() => setOverrideSelectedFeature(null));
+  }, [activeAATab, selectedAPId, selectedAAData]);
+
   const handleReturnToMap = useCallback(() => {
     map?.resize();
   }, [map]);
@@ -1340,6 +1416,7 @@ const BelisMapLibWrapper = ({
         <ArbeitsauftraegeSidebar
           width={LIST_WIDTH}
           onFeatureSelect={handleAAFeatureSelect}
+          onProtokollSelect={() => {/* fly-to handled by selectedAPId effect */}}
         />
       ) : (
         <BelisSidebar

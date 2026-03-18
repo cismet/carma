@@ -7,8 +7,10 @@ import {
   getSelectedAAData,
   getAALoading,
   getActiveAATab,
+  getSelectedAPId,
   setSelectedAAId,
   setActiveAATab,
+  setSelectedAPId,
 } from "../../store/slices/arbeitsauftraege";
 import { getSelectedTeamName } from "../../store/selectors";
 import type { AppDispatch } from "../../store";
@@ -16,6 +18,7 @@ import type { AppDispatch } from "../../store";
 interface ArbeitsauftraegeSidebarProps {
   width: number;
   onFeatureSelect?: (aaId: number) => void;
+  onProtokollSelect?: (protokollId: number) => void;
 }
 
 type TabKey = "aa" | "ap";
@@ -75,13 +78,14 @@ function getStatusBadgeColor(status: Record<string, any> | null): string {
   return "#9CA3AF";
 }
 
-const ArbeitsauftraegeSidebar = ({ width, onFeatureSelect }: ArbeitsauftraegeSidebarProps) => {
+const ArbeitsauftraegeSidebar = ({ width, onFeatureSelect, onProtokollSelect }: ArbeitsauftraegeSidebarProps) => {
   const dispatch: AppDispatch = useDispatch();
   const allFeatures = useSelector(getAAFeatures);
   const selectedAAId = useSelector(getSelectedAAId);
   const selectedAAData = useSelector(getSelectedAAData);
   const loading = useSelector(getAALoading);
   const activeTab = useSelector(getActiveAATab);
+  const selectedAPId = useSelector(getSelectedAPId);
   const setActiveTab = (tab: TabKey) => dispatch(setActiveAATab(tab));
 
   // Team filter: resolve selectedTeamId → team name, then filter features
@@ -252,10 +256,19 @@ const ArbeitsauftraegeSidebar = ({ width, onFeatureSelect }: ArbeitsauftraegeSid
                 const statusLabel =
                   p.arbeitsprotokollstatus?.bezeichnung ?? "Unbekannt";
                 const featureType = getProtocolFeatureType(p);
+                const isSelected = p.id === selectedAPId;
                 return (
                   <div
                     key={p.id}
-                    className="px-3 py-2 border-b border-gray-100"
+                    className={`px-3 py-2 border-b border-gray-100 cursor-pointer transition-colors ${
+                      isSelected
+                        ? "bg-blue-50 border-l-2 border-l-blue-500"
+                        : "hover:bg-blue-50/50"
+                    }`}
+                    onClick={() => {
+                      dispatch(setSelectedAPId(p.id));
+                      onProtokollSelect?.(p.id);
+                    }}
                   >
                     <div className="flex items-center gap-2">
                       <span
