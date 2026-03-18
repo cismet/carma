@@ -364,7 +364,10 @@ function MapBuildingStyle({
         if (layer.id.includes("selection")) continue;
 
         if (layer.type === "fill-extrusion") {
-          map.setPaintProperty(layer.id, "fill-extrusion-opacity", opacity);
+          // Cap at 0.99: at exactly 1.0 MapLibre moves fill-extrusion to the
+          // opaque render pass, which changes the draw order vs. custom 3D layers
+          // and causes trees to render on top of buildings.
+          map.setPaintProperty(layer.id, "fill-extrusion-opacity", Math.min(opacity, 0.999));
           map.setPaintProperty(layer.id, "fill-extrusion-color", [
             "case",
             ["boolean", ["feature-state", "selected"], false],
