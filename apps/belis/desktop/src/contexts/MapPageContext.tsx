@@ -6,22 +6,28 @@ import {
   type ReactNode,
 } from "react";
 
+export type FilterConfig =
+  | { variant: "fachobjekte"; enabledFilters: Record<string, boolean> }
+  | { variant: "arbeitsauftraege" };
+
 export interface MapPageConfig {
   title: string;
-  filterPanel: ReactNode;
+  filterConfig: FilterConfig | null;
   activeSourceLayers: Set<string>;
   isMapRoute: boolean;
   showSearch: boolean;
   sidebarVariant: "fachobjekte" | "arbeitsauftraege";
+  onFilterChange: ((key: string, enabled: boolean) => void) | null;
 }
 
 const DEFAULT_CONFIG: MapPageConfig = {
   title: "",
-  filterPanel: null,
+  filterConfig: null,
   activeSourceLayers: new Set(),
   isMapRoute: false,
   showSearch: true,
   sidebarVariant: "fachobjekte",
+  onFilterChange: null,
 };
 
 interface MapPageContextValue {

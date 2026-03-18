@@ -5,13 +5,21 @@ import { CustomCard } from "./CustomCard";
 import { useWindowSize } from "@react-hook/window-size";
 import type { AppDispatch } from "../../store";
 import { useDatasheet } from "@carma-mapping/engines/maplibre";
-import { Button, Spin, Tooltip } from "antd";
+import { Button, Spin, Switch, Tooltip } from "antd";
 import { EditOutlined, LockOutlined } from "@ant-design/icons";
 import {
   getGlobalEditMode,
   toggleGlobalEditMode,
 } from "../../store/slices/featuresForms";
 import { getKeyTablesLoading } from "../../store/slices/keyTables";
+import {
+  getSelectedTeamId,
+  setSelectedTeamId,
+  clearSelection,
+} from "../../store/slices/arbeitsauftraege";
+import { BELIS_FILTER_CATEGORIES } from "../../config/mapLayerConfigs";
+import LeitungstypDropdown from "../ui/LeitungstypDropdown";
+import TeamSelect from "../ui/TeamSelect";
 import SearchModal from "../ui/SearchModal";
 import StreetSearch from "../ui/StreetSearch";
 import type { SidebarFeature } from "../ui/BelisSidebar";
@@ -36,8 +44,10 @@ const BelisMapPageShell = () => {
   const keyTablesLoading = useSelector(getKeyTablesLoading);
   const globalEditMode = useSelector(getGlobalEditMode);
 
+  const selectedTeamId = useSelector(getSelectedTeamId);
+
   const { config } = useMapPage();
-  const { title, filterPanel, activeSourceLayers, showSearch, sidebarVariant } = config;
+  const { title, filterConfig, activeSourceLayers, showSearch, sidebarVariant, onFilterChange } = config;
 
   const [streets, setStreets] = useState<BelisStreet[]>([]);
   const [highlightResults, setHighlightResults] = useState<
@@ -154,9 +164,31 @@ const BelisMapPageShell = () => {
                 </button>
               )}
 
-              {filterPanel && (
-                <div className={sidebarVariant === "arbeitsauftraege" ? "ml-auto" : ""}>
-                  {filterPanel}
+              {filterConfig?.variant === "fachobjekte" && onFilterChange && (
+                <div className="flex items-center gap-2 border-l border-gray-300 pl-4">
+                  {BELIS_FILTER_CATEGORIES.map((cat) => (
+                    <div key={cat.key} className="flex items-center">
+                      <Switch
+                        checkedChildren={cat.label}
+                        unCheckedChildren={cat.label}
+                        checked={filterConfig.enabledFilters[cat.key]}
+                        onChange={(on) => onFilterChange(cat.key, on)}
+                      />
+                      {cat.key === "leitungen" && <LeitungstypDropdown />}
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {filterConfig?.variant === "arbeitsauftraege" && (
+                <div className="ml-auto">
+                  <TeamSelect
+                    value={selectedTeamId}
+                    onChange={(id) => {
+                      dispatch(setSelectedTeamId(id));
+                      dispatch(clearSelection());
+                    }}
+                  />
                 </div>
               )}
             </div>

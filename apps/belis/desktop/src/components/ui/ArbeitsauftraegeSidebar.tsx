@@ -6,10 +6,9 @@ import {
   getSelectedAAId,
   getSelectedAAData,
   getAALoading,
-  getSelectedTeamId,
   setSelectedAAId,
 } from "../../store/slices/arbeitsauftraege";
-import { getKeyTablesData } from "../../store/slices/keyTables";
+import { getSelectedTeamName } from "../../store/selectors";
 import type { AppDispatch } from "../../store";
 
 interface ArbeitsauftraegeSidebarProps {
@@ -83,15 +82,7 @@ const ArbeitsauftraegeSidebar = ({ width, onFeatureSelect }: ArbeitsauftraegeSid
   const [activeTab, setActiveTab] = useState<TabKey>("aa");
 
   // Team filter: resolve selectedTeamId → team name, then filter features
-  const selectedTeamId = useSelector(getSelectedTeamId);
-  const keyTablesData = useSelector(getKeyTablesData);
-  const selectedTeamName = useMemo(() => {
-    if (selectedTeamId == null) return null;
-    const team = ((keyTablesData.teams || []) as { id: number; name?: string }[]).find(
-      (t) => t.id === selectedTeamId
-    );
-    return team?.name ?? null;
-  }, [selectedTeamId, keyTablesData.teams]);
+  const selectedTeamName = useSelector(getSelectedTeamName);
 
   const features = useMemo(
     () =>

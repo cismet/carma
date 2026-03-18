@@ -60,10 +60,9 @@ import {
   setLoading as setAALoading,
   setError as setAAError,
   getSelectedAAId,
-  getSelectedTeamId,
   clearSelection,
 } from "../../store/slices/arbeitsauftraege";
-import { getKeyTablesData } from "../../store/slices/keyTables";
+import { getSelectedTeamName } from "../../store/selectors";
 import type { ArbeitsauftragTileFeature } from "../../store/slices/arbeitsauftraege";
 
 const LIST_WIDTH = 300;
@@ -157,15 +156,7 @@ const BelisMapLibWrapper = ({
   const selectedAAId = useSelector(getSelectedAAId);
 
   // Team filter: resolve selectedTeamId → team name for map layer filtering
-  const selectedTeamId = useSelector(getSelectedTeamId);
-  const keyTablesData = useSelector(getKeyTablesData);
-  const selectedTeamName = useMemo(() => {
-    if (selectedTeamId == null) return null;
-    const team = ((keyTablesData.teams || []) as { id: number; name?: string }[]).find(
-      (t) => t.id === selectedTeamId
-    );
-    return team?.name ?? null;
-  }, [selectedTeamId, keyTablesData.teams]);
+  const selectedTeamName = useSelector(getSelectedTeamName);
 
   const highlightSources = useMemo(
     () => [
@@ -805,13 +796,9 @@ const BelisMapLibWrapper = ({
       }
     }
 
-    // Data layer (always on)
+    // Data layers (always loaded — visibility toggled per route)
     layers.push(leuchtenDataLayer);
-
-    // Arbeitsauftraege layer (only on arbeitsauftraege route)
-    if (sidebarVariant === "arbeitsauftraege") {
-      layers.push(arbeitsauftraegeDataLayer);
-    }
+    layers.push(arbeitsauftraegeDataLayer);
 
     return layers;
   }, [
@@ -820,8 +807,25 @@ const BelisMapLibWrapper = ({
     activeAdditionalLayers,
     additionalLayerOpacities,
     inPaleMode,
-    sidebarVariant,
   ]);
+
+  // Toggle AA layer visibility based on active route
+  useEffect(() => {
+    if (!map) return;
+    const toggle = () => {
+      const visible = sidebarVariant === "arbeitsauftraege";
+      for (const layer of map.getStyle()?.layers ?? []) {
+        if ("source" in layer && layer.source === arbeitsauftraegeNamespacedSource) {
+          try {
+            map.setLayoutProperty(layer.id, "visibility", visible ? "visible" : "none");
+          } catch { /* layer may not be ready */ }
+        }
+      }
+    };
+    toggle();
+    map.on("styledata", toggle);
+    return () => { map.off("styledata", toggle); };
+  }, [sidebarVariant, map, arbeitsauftraegeNamespacedSource]);
 
   // --- Arbeitsauftraege: extract tile features into Redux ---
   useEffect(() => {
