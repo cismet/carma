@@ -110,8 +110,13 @@ const BelisMapLibWrapper = ({
   const reduxGeometryRef = useRef<any>(null);
   reduxGeometryRef.current = reduxSelectedFeature?.geometry ?? null;
   const { map } = useLibreContext();
-  const { selectedFeature, rawFeature, selectedFeatureId, selectFeature } =
-    useMapSelection();
+  const {
+    selectedFeature,
+    rawFeature,
+    selectedFeatureId,
+    selectFeature,
+    clearSelection: clearMapSelection,
+  } = useMapSelection();
   const { closeDatasheet, openDatasheet } = useDatasheet();
   const [fetchedFeatureData, setFetchedFeatureData] = useState<any>(null);
   // Preserve last valid featureType to prevent unmount when selectedFeature briefly becomes undefined
@@ -1245,6 +1250,17 @@ const BelisMapLibWrapper = ({
     },
     [map, arbeitsauftraegeNamespacedSource, selectFeature]
   );
+
+  // --- Arbeitsauftraege: clear/restore map selection when switching tabs ---
+  useEffect(() => {
+    if (sidebarVariant !== "arbeitsauftraege") return;
+
+    if (activeAATab === "ap") {
+      clearMapSelection();
+    } else if (activeAATab === "aa" && selectedAAId != null) {
+      handleAAFeatureSelect(selectedAAId);
+    }
+  }, [activeAATab]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleReturnToMap = useCallback(() => {
     map?.resize();
