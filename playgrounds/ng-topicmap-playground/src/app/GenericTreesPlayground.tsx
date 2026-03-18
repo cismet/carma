@@ -39,6 +39,11 @@ const TREES_LOFT_KEY = "generic-trees-useLoft";
 const TREES_RADIUS_MIX_KEY = "generic-trees-radiusMix";
 const TREES_VISIBILITY_KEY = "generic-trees-layerVisibility";
 const TREES_CROSSHAIR_KEY = "generic-trees-crosshair";
+const BUILDING_OPACITY_KEY = "generic-trees-buildingOpacity";
+const BUILDING_COLOR_KEY = "generic-trees-buildingColor";
+
+const DEFAULT_BUILDING_OPACITY = 0.7;
+const DEFAULT_BUILDING_COLOR = "#c8c8c8";
 
 function loadUseLoft(): boolean {
   try {
@@ -54,6 +59,25 @@ function loadRadiusMix(): number {
     return Number.isFinite(raw) ? Math.max(0, Math.min(1, raw)) : 0;
   } catch {
     return 0;
+  }
+}
+
+function loadBuildingOpacity(): number {
+  try {
+    const raw = parseFloat(
+      localStorage.getItem(BUILDING_OPACITY_KEY) ?? String(DEFAULT_BUILDING_OPACITY)
+    );
+    return Number.isFinite(raw) ? Math.max(0, Math.min(1, raw)) : DEFAULT_BUILDING_OPACITY;
+  } catch {
+    return DEFAULT_BUILDING_OPACITY;
+  }
+}
+
+function loadBuildingColor(): string {
+  try {
+    return localStorage.getItem(BUILDING_COLOR_KEY) ?? DEFAULT_BUILDING_COLOR;
+  } catch {
+    return DEFAULT_BUILDING_COLOR;
   }
 }
 
@@ -214,7 +238,7 @@ function PerfOverlay({ perfRef }: { perfRef: React.RefObject<ThreePerfData> }) {
 //  Layer visibility sync (drives map layout property)
 // ─────────────────────────────────────────────────────────────
 
-type LayerGroupName = "Einzelbaum 3D" | "Einzelbaum Umringe" | "Gebaeude";
+type LayerGroupName = "Einzelbaum 3D" | "Einzelbaum Umringe" | "Gebaeude" | "POI";
 type LayerVisibility = Record<LayerGroupName, boolean>;
 
 const LAYER_GROUPS: {
@@ -225,12 +249,14 @@ const LAYER_GROUPS: {
   { name: "Einzelbaum 3D", label: "3D Bäume", color: "#5D4037" },
   { name: "Einzelbaum Umringe", label: "Umringe", color: "#4CAF50" },
   { name: "Gebaeude", label: "Gebäude", color: "#607D8B" },
+  { name: "POI", label: "POI", color: "#FF9800" },
 ];
 
 const DEFAULT_VISIBILITY: LayerVisibility = {
   "Einzelbaum 3D": true,
   "Einzelbaum Umringe": true,
   Gebaeude: true,
+  POI: true,
 };
 
 function MapLayerVisibility({ visibility }: { visibility: LayerVisibility }) {
@@ -306,6 +332,55 @@ function MapLayerVisibility({ visibility }: { visibility: LayerVisibility }) {
 }
 
 // ─────────────────────────────────────────────────────────────
+//  Building style sync (opacity + color via paint properties)
+// ─────────────────────────────────────────────────────────────
+
+function MapBuildingStyle({
+  opacity,
+  color,
+}: {
+  opacity: number;
+  color: string;
+}) {
+  const { map } = useLibreContext();
+
+  useEffect(() => {
+    if (!map) return;
+
+    const apply = () => {
+      const style = map.getStyle();
+      if (!style?.layers) return;
+
+      for (const layer of style.layers) {
+        const lid = (layer as { metadata?: Record<string, unknown> })
+          .metadata?.["layer-id"];
+        if (lid !== "Gebaeude") continue;
+
+        if (layer.type === "fill-extrusion") {
+          map.setPaintProperty(layer.id, "fill-extrusion-opacity", opacity);
+          map.setPaintProperty(layer.id, "fill-extrusion-color", color);
+        } else if (layer.type === "fill") {
+          map.setPaintProperty(layer.id, "fill-opacity", opacity);
+          map.setPaintProperty(layer.id, "fill-color", color);
+        } else if (layer.type === "line") {
+          map.setPaintProperty(layer.id, "line-opacity", opacity);
+          map.setPaintProperty(layer.id, "line-color", color);
+        }
+      }
+    };
+
+    apply();
+    map.once("idle", apply);
+
+    return () => {
+      map.off("idle", apply);
+    };
+  }, [map, opacity, color]);
+
+  return null;
+}
+
+// ─────────────────────────────────────────────────────────────
 //  Layer toggle bar UI
 // ─────────────────────────────────────────────────────────────
 
@@ -321,6 +396,10 @@ function LayerToggleBar({
   onRadiusMixChange,
   crosshair,
   onCrosshairToggle,
+  buildingOpacity,
+  onBuildingOpacityChange,
+  buildingColor,
+  onBuildingColorChange,
 }: {
   visibility: LayerVisibility;
   onToggle: (name: LayerGroupName) => void;
@@ -330,12 +409,17 @@ function LayerToggleBar({
   onRadiusMixChange: (v: number) => void;
   crosshair: boolean;
   onCrosshairToggle: () => void;
+  buildingOpacity: number;
+  onBuildingOpacityChange: (v: number) => void;
+  buildingColor: string;
+  onBuildingColorChange: (v: string) => void;
 }) {
   return (
     <div className="absolute top-4 left-1/2 -translate-x-1/2 z-[9999] flex gap-2 items-start">
       {LAYER_GROUPS.map(({ name, label, color }) => {
         const visible = visibility[name];
         const is3D = name === "Einzelbaum 3D";
+        const isBuilding = name === "Gebaeude";
         return (
           <div
             key={name}
@@ -346,7 +430,7 @@ function LayerToggleBar({
             <div className="flex items-center gap-2 pl-3 pr-1 h-8 whitespace-nowrap">
               <span
                 className="inline-block w-2.5 h-2.5 rounded-full shrink-0"
-                style={{ backgroundColor: color }}
+                style={{ backgroundColor: isBuilding ? buildingColor : color }}
               />
               <span>{label}</span>
               {is3D && (
@@ -389,6 +473,43 @@ function LayerToggleBar({
                   >
                     Umkreis
                   </span>
+                </>
+              )}
+              {isBuilding && (
+                <>
+                  <span className="border-l border-gray-300 h-4" />
+                  <input
+                    type="range"
+                    min={0}
+                    max={1}
+                    step={0.05}
+                    value={buildingOpacity}
+                    disabled={!visible}
+                    onChange={(e) =>
+                      onBuildingOpacityChange(parseFloat(e.target.value))
+                    }
+                    className={`w-16 h-1 accent-[#607D8B] ${
+                      !visible ? "opacity-30" : ""
+                    }`}
+                    title={`Opacity: ${Math.round(buildingOpacity * 100)}%`}
+                  />
+                  <span
+                    className={`text-xs text-gray-500 ${
+                      !visible ? "opacity-30" : ""
+                    }`}
+                  >
+                    {Math.round(buildingOpacity * 100)}%
+                  </span>
+                  <input
+                    type="color"
+                    value={buildingColor}
+                    disabled={!visible}
+                    onChange={(e) => onBuildingColorChange(e.target.value)}
+                    className={`w-5 h-5 border-0 p-0 cursor-pointer rounded ${
+                      !visible ? "opacity-30" : ""
+                    }`}
+                    title="Building color"
+                  />
                 </>
               )}
               <button
@@ -453,6 +574,11 @@ const LIBRE_LAYERS = [
     name: "Gebaeude",
     style: "https://tiles.cismet.de/alkis/gebaeude-only.style.json",
   },
+  {
+    type: "vector" as const,
+    name: "POI",
+    style: "https://tiles.cismet.de/poi/style.json",
+  },
 ];
 
 // ─────────────────────────────────────────────────────────────
@@ -464,6 +590,8 @@ export function GenericTreesPlayground() {
   const [radiusMix, setRadiusMix] = useState(loadRadiusMix);
   const [layerVisibility, setLayerVisibility] =
     useState<LayerVisibility>(loadLayerVisibility);
+  const [buildingOpacity, setBuildingOpacity] = useState(loadBuildingOpacity);
+  const [buildingColor, setBuildingColor] = useState(loadBuildingColor);
   const [crosshair, setCrosshair] = useState(() => {
     try {
       return localStorage.getItem(TREES_CROSSHAIR_KEY) === "true";
@@ -482,6 +610,16 @@ export function GenericTreesPlayground() {
   const handleRadiusMixChange = (v: number) => {
     setRadiusMix(v);
     localStorage.setItem(TREES_RADIUS_MIX_KEY, String(v));
+  };
+
+  const handleBuildingOpacityChange = (v: number) => {
+    setBuildingOpacity(v);
+    localStorage.setItem(BUILDING_OPACITY_KEY, String(v));
+  };
+
+  const handleBuildingColorChange = (v: string) => {
+    setBuildingColor(v);
+    localStorage.setItem(BUILDING_COLOR_KEY, v);
   };
 
   const toggleLayer = (name: LayerGroupName) => {
@@ -512,6 +650,7 @@ export function GenericTreesPlayground() {
               <CameraPersistence />
               <PerfOverlay perfRef={perfRef} />
               <MapLayerVisibility visibility={layerVisibility} />
+              <MapBuildingStyle opacity={buildingOpacity} color={buildingColor} />
               <ProgressIndicator progress={progress} show={showProgress} />
               <CarmaMap
                 clickCrosshairDebugMode={crosshair}
@@ -535,6 +674,10 @@ export function GenericTreesPlayground() {
                 onLoftChange={handleLoftChange}
                 radiusMix={radiusMix}
                 onRadiusMixChange={handleRadiusMixChange}
+                buildingOpacity={buildingOpacity}
+                onBuildingOpacityChange={handleBuildingOpacityChange}
+                buildingColor={buildingColor}
+                onBuildingColorChange={handleBuildingColorChange}
                 crosshair={crosshair}
                 onCrosshairToggle={() =>
                   setCrosshair((v) => {
