@@ -64,6 +64,7 @@ const ArbeitsauftraegeePage = () => {
     setConfig({
       title: "Arbeitsaufträge",
       activeSourceLayers: ALL_SOURCE_LAYERS,
+      selectedTeamId,
       filterPanel: (
         <div>
           <TeamSelect value={selectedTeamId} onChange={setSelectedTeamId} />

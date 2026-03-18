@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { Spin } from "antd";
 import {
@@ -8,6 +8,8 @@ import {
   getAALoading,
   setSelectedAAId,
 } from "../../store/slices/arbeitsauftraege";
+import { getKeyTablesData } from "../../store/slices/keyTables";
+import { useMapPage } from "../../contexts/MapPageContext";
 import type { AppDispatch } from "../../store";
 
 interface ArbeitsauftraegeSidebarProps {
@@ -73,11 +75,30 @@ function getStatusBadgeColor(status: Record<string, any> | null): string {
 
 const ArbeitsauftraegeSidebar = ({ width }: ArbeitsauftraegeSidebarProps) => {
   const dispatch: AppDispatch = useDispatch();
-  const features = useSelector(getAAFeatures);
+  const allFeatures = useSelector(getAAFeatures);
   const selectedAAId = useSelector(getSelectedAAId);
   const selectedAAData = useSelector(getSelectedAAData);
   const loading = useSelector(getAALoading);
   const [activeTab, setActiveTab] = useState<TabKey>("aa");
+
+  // Team filter: resolve selectedTeamId → team name, then filter features
+  const { config } = useMapPage();
+  const keyTablesData = useSelector(getKeyTablesData);
+  const selectedTeamName = useMemo(() => {
+    if (config.selectedTeamId == null) return null;
+    const team = ((keyTablesData.teams || []) as { id: number; name?: string }[]).find(
+      (t) => t.id === config.selectedTeamId
+    );
+    return team?.name ?? null;
+  }, [config.selectedTeamId, keyTablesData.teams]);
+
+  const features = useMemo(
+    () =>
+      selectedTeamName
+        ? allFeatures.filter((f) => f.team === selectedTeamName)
+        : allFeatures,
+    [allFeatures, selectedTeamName]
+  );
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const protokolle: Record<string, any>[] =
