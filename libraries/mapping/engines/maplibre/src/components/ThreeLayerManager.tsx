@@ -209,6 +209,13 @@ export function ThreeLayerManager({
         map.addLayer(customLayer, firstExtrusion?.id);
         register3dLayer(map, customLayer);
 
+        // Overlay: re-renders trees after all other layers so they paint
+        // on top of fill layers (e.g. Umringe) that aren't affected by stencil.
+        const oId = layerId + "-overlay";
+        const overlay = buildOverlayLayer(customLayer, oId);
+        map.addLayer(overlay);
+        overlayIdRef.current = oId;
+
         if (effectiveConfig.useStencilOcclusion) {
           // Stencil occlusion: intercept gl.disable(GL_STENCIL_TEST) during the
           // translucent render pass. Instead of disabling stencil, switch to the
@@ -240,12 +247,6 @@ export function ThreeLayerManager({
               origDisable(cap);
             }) as typeof gl.disable;
           }
-        } else {
-          // Fallback: dual-pass overlay (re-renders trees after symbols)
-          const oId = layerId + "-overlay";
-          const overlay = buildOverlayLayer(customLayer, oId);
-          map.addLayer(overlay);
-          overlayIdRef.current = oId;
         }
       } catch (err) {
         console.warn("[3D-SELECT] addLayer failed:", err);
