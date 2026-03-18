@@ -511,15 +511,25 @@ export const vectorStylesToMapLibreStyle = async ({
           (styleLayer: LayerSpecification) => ({
             ...styleLayer,
             id: `${layerId}-${styleLayer.id}`,
-            metadata: {
-              ...(
+            metadata: (() => {
+              const orig = (
                 styleLayer as LayerSpecification & {
                   metadata?: Record<string, unknown>;
                 }
-              ).metadata,
-              "z-index": index,
-              "layer-id": layerId,
-            },
+              ).metadata;
+              const meta: Record<string, unknown> = {
+                ...orig,
+                "z-index": index,
+                "layer-id": layerId,
+              };
+              if ((layer as { skipStencilOcclusion?: boolean }).skipStencilOcclusion) {
+                meta.carmaConf = {
+                  ...(orig?.carmaConf as Record<string, unknown> | undefined),
+                  skipStencilOcclusion: true,
+                };
+              }
+              return meta;
+            })(),
             paint: {
               ...styleLayer.paint,
               ...(() => {

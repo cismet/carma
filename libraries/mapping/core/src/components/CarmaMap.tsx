@@ -70,6 +70,8 @@ interface CarmaMapProps extends LibreMapProps {
   miniMap?: boolean;
   /** Runtime parameters for 3D layers (e.g. radiusMix, useLoft) */
   threeRuntimeParams?: Record<string, number>;
+  /** Use stencil buffer to occlude labels behind 3D geometry (default: true) */
+  useStencilOcclusion?: boolean;
   /** Ref for 3D layer performance data */
   threePerfRef?: React.MutableRefObject<
     import("@carma-mapping/engines/threejs").ThreePerfData
@@ -353,6 +355,7 @@ const CarmaMapContent = (props: CarmaMapProps) => {
                 backgroundRasterPaint={effectiveRasterPaint}
                 threeRuntimeParams={props.threeRuntimeParams}
                 threePerfRef={props.threePerfRef}
+                useStencilOcclusion={props.useStencilOcclusion}
               />
             )}
             {modalMenu}

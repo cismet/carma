@@ -70,6 +70,8 @@ export interface VectorStyle {
   infoboxMapping?: string[];
   /** Optional 3D layer config; when present, a Three.js layer is auto-created. */
   carma3d?: import("@carma-mapping/engines/threejs").Carma3dConfig;
+  /** When true, symbol sublayers in this group are exempt from stencil occlusion by 3D geometry. */
+  skipStencilOcclusion?: boolean;
 }
 
 /**
@@ -165,6 +167,8 @@ export interface LibreMapProps {
   threePerfRef?: React.MutableRefObject<
     import("@carma-mapping/engines/threejs").ThreePerfData
   >;
+  /** Use stencil buffer to occlude labels behind 3D geometry (default: true) */
+  useStencilOcclusion?: boolean;
 }
 
 /**
@@ -255,6 +259,7 @@ export const LibreMap = ({
   backgroundRasterPaint,
   threeRuntimeParams,
   threePerfRef,
+  useStencilOcclusion = true,
 }: LibreMapProps) => {
   const mapContainer = useRef<HTMLDivElement>(null);
   const map = useRef<maplibregl.Map | null>(null);
@@ -1788,6 +1793,7 @@ export const LibreMap = ({
             config={config}
             runtimeParams={threeRuntimeParams}
             perfRef={threePerfRef}
+            useStencilOcclusion={useStencilOcclusion}
           />
         ))}
     </>

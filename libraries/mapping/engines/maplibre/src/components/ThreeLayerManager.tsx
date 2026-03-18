@@ -37,6 +37,8 @@ export interface ThreeLayerManagerProps {
   config: Carma3dConfig;
   runtimeParams: Record<string, number>;
   perfRef?: React.MutableRefObject<ThreePerfData>;
+  /** Use stencil buffer to occlude labels behind 3D geometry (default: true) */
+  useStencilOcclusion?: boolean;
 }
 
 // ─────────────────────────────────────────────────────────────
@@ -83,6 +85,7 @@ export function ThreeLayerManager({
   config,
   runtimeParams,
   perfRef,
+  useStencilOcclusion: useStencilOcclusionProp = true,
 }: ThreeLayerManagerProps) {
   const { map } = useLibreContext();
   const layerRef = useRef<GenericCustomLayer | null>(null);
@@ -94,13 +97,13 @@ export function ThreeLayerManager({
   const useLoft = (runtimeParams.useLoft ?? 0) > 0;
   const radiusMix = runtimeParams.radiusMix ?? 0;
   const viewportPadding = runtimeParams.viewportPadding;
-  const useStencilOcclusion = (runtimeParams.useStencilOcclusion ?? 0) > 0;
+  const useStencilOcclusion = useStencilOcclusionProp || config.useStencilOcclusion === true;
 
   // Merge runtime overrides into config
   const effectiveConfig: Carma3dConfig = {
     ...config,
     ...(viewportPadding != null ? { viewportPadding } : {}),
-    useStencilOcclusion: useStencilOcclusion || config.useStencilOcclusion,
+    useStencilOcclusion,
   };
 
   // Effect 1: Layer lifecycle (tear down on mode change or unmount)
@@ -218,6 +221,17 @@ export function ThreeLayerManager({
             origGlDisableRef.current = origDisable;
             gl.disable = ((cap: number) => {
               if (cap === gl.STENCIL_TEST && painter?.renderPass === "translucent") {
+                // Check if the current layer is exempt from stencil occlusion.
+                // painter.currentLayer is the index into painter.style._order.
+                const lid = painter.style?._order?.[painter.currentLayer];
+                const conf = lid && (painter.style?._layers?.[lid]?.metadata as
+                  Record<string, unknown> | undefined)?.carmaConf as
+                  Record<string, unknown> | undefined;
+                if (conf?.skipStencilOcclusion) {
+                  origDisable(cap);
+                  return;
+                }
+                // Not exempt: switch to tree-mask stencil test
                 gl.stencilFunc(gl.NOTEQUAL, 0x80, 0x80);
                 gl.stencilOp(gl.KEEP, gl.KEEP, gl.KEEP);
                 gl.stencilMask(0x00);
