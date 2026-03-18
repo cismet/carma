@@ -2,8 +2,9 @@ import {
   getPixelResolutionFromZoomAtLatitudeRad,
   getZoomFromPixelResolutionAtLatitudeRad,
 } from "@carma/geo/utils";
+import { CAMERA_TYPE } from "@carma-commons/camera/model";
 import { isFiniteNumber, PI_OVER_TWO } from "@carma/math";
-import type { SceneStateSnapshot } from "@carma/types";
+import type { SceneState } from "./sceneState";
 import {
   degToRadNumeric,
   radToDegNumeric,
@@ -101,9 +102,7 @@ export const readViewSyncHorizontalFov = (
   return null;
 };
 
-const readLineOfSightDistance = (
-  sceneState: SceneStateSnapshot
-): number | null => {
+const readLineOfSightDistance = (sceneState: SceneState): number | null => {
   const orbitPoint = sceneState.orbitPoint?.worldPosition;
   const camera = sceneState.camera.worldPosition;
   if (!orbitPoint) {
@@ -169,9 +168,10 @@ const readRangeFromMetersPerCssPixel = ({
 };
 
 export const readViewSyncTargetFromSceneState = (
-  sceneState: SceneStateSnapshot | null | undefined
+  sceneState: SceneState | null | undefined
 ): ViewSyncTargetState | null => {
   const objectCentricPose = sceneState?.camera.cameraModel?.pose;
+  const intrinsics = sceneState?.camera.cameraModel?.intrinsics;
   // Prefer the shared object-centric camera model when present. It carries the
   // richer camera pose payload (basis / quaternion / matrices) alongside the
   // orbit-style convenience fields. Raw bearing/pitch/roll remain a fallback
@@ -201,6 +201,18 @@ export const readViewSyncTargetFromSceneState = (
     : sceneState
     ? readLineOfSightDistance(sceneState)
     : null;
+  const aspect =
+    intrinsics?.viewOffset &&
+    isFiniteNumber(intrinsics.viewOffset.width) &&
+    isFiniteNumber(intrinsics.viewOffset.height) &&
+    intrinsics.viewOffset.height > 0
+      ? intrinsics.viewOffset.width / intrinsics.viewOffset.height
+      : intrinsics?.viewOffset &&
+        isFiniteNumber(intrinsics.viewOffset.fullWidth) &&
+        isFiniteNumber(intrinsics.viewOffset.fullHeight) &&
+        intrinsics.viewOffset.fullHeight > 0
+      ? intrinsics.viewOffset.fullWidth / intrinsics.viewOffset.fullHeight
+      : null;
 
   if (
     !anchor ||
@@ -234,48 +246,41 @@ export const readViewSyncTargetFromSceneState = (
       : isFiniteNumber(sceneState.camera.rollRad)
       ? { roll: sceneState.camera.rollRad as Radians }
       : {}),
-    ...(isFiniteNumber(sceneState.camera.fovVertical)
-      ? { fovVertical: sceneState.camera.fovVertical as Radians }
+    ...(isFiniteNumber(intrinsics?.fov)
+      ? { fovVertical: intrinsics.fov as Radians }
       : {}),
-    ...(isFiniteNumber(sceneState.camera.fovHorizontal)
-      ? { fovHorizontal: sceneState.camera.fovHorizontal as Radians }
+    ...(isFiniteNumber(intrinsics?.fovHorizontal)
+      ? { fovHorizontal: intrinsics.fovHorizontal as Radians }
       : {}),
-    ...(isFiniteNumber(sceneState.camera.aspect)
-      ? { aspect: sceneState.camera.aspect }
-      : isFiniteNumber(sceneState.camera.aspectRatio)
-      ? { aspect: sceneState.camera.aspectRatio }
+    ...(isFiniteNumber(aspect) ? { aspect } : {}),
+    ...(isFiniteNumber(intrinsics?.frustum?.near)
+      ? { near: intrinsics.frustum.near as Meters }
       : {}),
-    ...(isFiniteNumber(sceneState.camera.near)
-      ? { near: sceneState.camera.near as Meters }
-      : isFiniteNumber(sceneState.camera.nearPlane)
-      ? { near: sceneState.camera.nearPlane as Meters }
+    ...(isFiniteNumber(intrinsics?.frustum?.far)
+      ? { far: intrinsics.frustum.far as Meters }
       : {}),
-    ...(isFiniteNumber(sceneState.camera.far)
-      ? { far: sceneState.camera.far as Meters }
-      : isFiniteNumber(sceneState.camera.farPlane)
-      ? { far: sceneState.camera.farPlane as Meters }
-      : {}),
-    ...(sceneState.camera.type ? { type: sceneState.camera.type } : {}),
-    ...(sceneState.camera.view ? { view: sceneState.camera.view } : {}),
+    ...(intrinsics?.type ? { type: intrinsics.type } : {}),
+    ...(intrinsics?.viewOffset ? { viewOffset: intrinsics.viewOffset } : {}),
     ...(sceneState.camera.cameraModel
       ? { cameraModel: sceneState.camera.cameraModel }
       : {}),
   };
 };
 
-export const projectViewSyncTargetToMapLibre = ({
-  target,
-  viewport,
-  fovVertical,
-  tileSizePx = MAPLIBRE_TILE_SIZE_PX,
-  maxPitchDeg = 85,
-}: {
-  target: ViewSyncTargetState;
-  viewport: ViewSyncViewport;
-  fovVertical?: number;
-  tileSizePx?: number;
-  maxPitchDeg?: number;
-}): ViewSyncMapLibreProjection | null => {
+export const projectViewSyncTargetToMapLibre = (
+  target: ViewSyncTargetState,
+  viewport: ViewSyncViewport,
+  options: {
+    fovVertical?: number;
+    tileSizePx?: number;
+    maxPitchDeg?: number;
+  } = {}
+): ViewSyncMapLibreProjection | null => {
+  const {
+    fovVertical,
+    tileSizePx = MAPLIBRE_TILE_SIZE_PX,
+    maxPitchDeg = 85,
+  } = options;
   const resolvedFovVertical = fovVertical ?? readViewSyncVerticalFov(target);
   if (!isFiniteNumber(resolvedFovVertical)) {
     return null;
@@ -313,19 +318,20 @@ export const projectViewSyncTargetToMapLibre = ({
   };
 };
 
-export const projectViewSyncTargetToLeaflet = ({
-  target,
-  viewport,
-  fovVertical,
-  tileSizePx = LEAFLET_TILE_SIZE_PX,
-  includeBearing = false,
-}: {
-  target: ViewSyncTargetState;
-  viewport: ViewSyncViewport;
-  fovVertical?: number;
-  tileSizePx?: number;
-  includeBearing?: boolean;
-}): ViewSyncLeafletProjection | null => {
+export const projectViewSyncTargetToLeaflet = (
+  target: ViewSyncTargetState,
+  viewport: ViewSyncViewport,
+  options: {
+    fovVertical?: number;
+    tileSizePx?: number;
+    includeBearing?: boolean;
+  } = {}
+): ViewSyncLeafletProjection | null => {
+  const {
+    fovVertical,
+    tileSizePx = LEAFLET_TILE_SIZE_PX,
+    includeBearing = false,
+  } = options;
   const resolvedFovVertical = fovVertical ?? readViewSyncVerticalFov(target);
   if (!isFiniteNumber(resolvedFovVertical)) {
     return null;
@@ -365,27 +371,24 @@ export const projectViewSyncTargetToLeaflet = ({
   };
 };
 
-export const projectMapLibreViewToViewSyncTarget = ({
-  lngDeg,
-  latDeg,
-  zoom,
-  bearingDeg = 0,
-  pitchDeg = 0,
-  anchorAltitudeM,
-  viewport,
-  fovVertical,
-  tileSizePx = MAPLIBRE_TILE_SIZE_PX,
-}: {
-  lngDeg: number;
-  latDeg: number;
-  zoom: number;
-  bearingDeg?: number;
-  pitchDeg?: number;
-  anchorAltitudeM: number;
-  viewport: ViewSyncViewport;
-  fovVertical: number;
-  tileSizePx?: number;
-}): ViewSyncTargetState | null => {
+export const projectMapLibreViewToViewSyncTarget = (
+  lngDeg: number,
+  latDeg: number,
+  zoom: number,
+  anchorAltitudeM: number,
+  viewport: ViewSyncViewport,
+  fovVertical: number,
+  options: {
+    bearingDeg?: number;
+    pitchDeg?: number;
+    tileSizePx?: number;
+  } = {}
+): ViewSyncTargetState | null => {
+  const {
+    bearingDeg = 0,
+    pitchDeg = 0,
+    tileSizePx = MAPLIBRE_TILE_SIZE_PX,
+  } = options;
   const latitudeRad = degToRadNumeric(latDeg) as Radians;
   const metersPerCssPixel = getPixelResolutionFromZoomAtLatitudeRad(
     zoom,
@@ -427,34 +430,28 @@ export const projectMapLibreViewToViewSyncTarget = ({
               fovVertical,
               aspect: viewport.widthPx / viewport.heightPx,
             }) ?? undefined,
-          type: "PerspectiveCamera" as const,
+          type: CAMERA_TYPE.PERSPECTIVE,
         }
       : {
           fovVertical: fovVertical as Radians,
-          type: "PerspectiveCamera" as const,
+          type: CAMERA_TYPE.PERSPECTIVE,
         }),
   };
 };
 
-export const projectLeafletViewToViewSyncTarget = ({
-  lngDeg,
-  latDeg,
-  zoom,
-  anchorAltitudeM,
-  viewport,
-  fovVertical,
-  bearingDeg = 0,
-  tileSizePx = LEAFLET_TILE_SIZE_PX,
-}: {
-  lngDeg: number;
-  latDeg: number;
-  zoom: number;
-  anchorAltitudeM: number;
-  viewport: ViewSyncViewport;
-  fovVertical: number;
-  bearingDeg?: number;
-  tileSizePx?: number;
-}): ViewSyncTargetState | null => {
+export const projectLeafletViewToViewSyncTarget = (
+  lngDeg: number,
+  latDeg: number,
+  zoom: number,
+  anchorAltitudeM: number,
+  viewport: ViewSyncViewport,
+  fovVertical: number,
+  options: {
+    bearingDeg?: number;
+    tileSizePx?: number;
+  } = {}
+): ViewSyncTargetState | null => {
+  const { bearingDeg = 0, tileSizePx = LEAFLET_TILE_SIZE_PX } = options;
   const latitudeRad = degToRadNumeric(latDeg) as Radians;
   const metersPerCssPixel = getPixelResolutionFromZoomAtLatitudeRad(
     zoom,
@@ -496,11 +493,11 @@ export const projectLeafletViewToViewSyncTarget = ({
               fovVertical,
               aspect: viewport.widthPx / viewport.heightPx,
             }) ?? undefined,
-          type: "PerspectiveCamera" as const,
+          type: CAMERA_TYPE.ORTHOGRAPHIC,
         }
       : {
           fovVertical: fovVertical as Radians,
-          type: "PerspectiveCamera" as const,
+          type: CAMERA_TYPE.ORTHOGRAPHIC,
         }),
   };
 };

@@ -3,6 +3,10 @@ import { getHashParams } from "@carma-commons/utils";
 import { computeHashDiff } from "../utils";
 import type { HashChangeEvent } from "../HashStateProvider";
 
+const BROWSER_POPSTATE_EVENT = "popstate";
+const HASH_CHANGE_SOURCE_POPSTATE: HashChangeEvent["source"] =
+  BROWSER_POPSTATE_EVENT;
+
 /**
  * Listens to browser back/forward navigation (popstate) and calls the callback.
  * Does NOT listen to hashchange - hash is write-only after initial load.
@@ -27,14 +31,14 @@ export function usePopStateListener(
         values: getHashValues(),
         changedKeys,
         removedKeys,
-        source: "popstate",
+        source: HASH_CHANGE_SOURCE_POPSTATE,
       });
       prevRawRef.current = afterRaw;
     };
 
-    window.addEventListener("popstate", handlePopState);
+    window.addEventListener(BROWSER_POPSTATE_EVENT, handlePopState);
     return () => {
-      window.removeEventListener("popstate", handlePopState);
+      window.removeEventListener(BROWSER_POPSTATE_EVENT, handlePopState);
     };
   }, [onPopState, getHashValues, aliasReverseLookup, prevRawRef]);
 }

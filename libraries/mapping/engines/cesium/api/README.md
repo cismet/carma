@@ -8,7 +8,7 @@
 - **No Entities** - Direct primitive manipulation for performance
 - **Curated API** - Only expose features we actively use and support
 - **Type Safety** - Guards, converters, and wrappers for safe usage
-
+- **Serializers** - Plain JSON types and helpers for config and state persistence
 ## Usage
 
 ```typescript
@@ -29,6 +29,12 @@ import {
 ## Structure
 
 Flat like CesiumJS API
+
+## Serialization: Location and Naming
+
+Serializer DTOs and helpers live in:
+
+- `libraries/mapping/engines/cesium/api/src/lib/serialization/`
 
 ## Dependencies
 

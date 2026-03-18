@@ -1,4 +1,4 @@
-import type { SceneStateSnapshot } from "@carma/types";
+import type { SceneState } from "./core/sceneState";
 import { describe, expect, it } from "vitest";
 import { createViewSyncStore } from "./core/createViewSyncStore";
 import {
@@ -33,7 +33,7 @@ describe("createViewSyncStore", () => {
         range: 800,
       },
       fovVertical: 1,
-    } as const;
+    } as unknown as Parameters<typeof store.publishViewState>[1];
 
     store.publishViewState("cesium-main", firstTarget, {
       frameNumber: 12,
@@ -50,7 +50,7 @@ describe("createViewSyncStore", () => {
         ...firstTarget.bearingPitchRange,
         bearing: 2.5,
       },
-    } as const;
+    } as unknown as Parameters<typeof store.publishViewState>[1];
 
     store.publishViewState("maplibre-preview", passiveTarget, {
       frameNumber: 13,
@@ -68,8 +68,11 @@ describe("createViewSyncStore", () => {
 describe("view-sync target helpers", () => {
   it("reads an object-centric target from scene-state and projects it", () => {
     const sceneState = {
-      frameNumber: 4,
-      timestampMs: 1000,
+      metadata: {
+        frameNumber: 4,
+        timestampMs: 1000,
+        source: "framework",
+      },
       camera: {
         worldPosition: { x: 0, y: 0, z: 1200 },
         cartographic: {
@@ -91,7 +94,7 @@ describe("view-sync target helpers", () => {
         },
         source: "screen-center-globe",
       },
-    } satisfies SceneStateSnapshot;
+    } as unknown as SceneState;
 
     const target = readViewSyncTargetFromSceneState(sceneState);
 
@@ -104,15 +107,17 @@ describe("view-sync target helpers", () => {
       heightPx: 900,
     };
 
-    const mapLibreProjection = projectViewSyncTargetToMapLibre({
-      target: target!,
+    const mapLibreProjection = projectViewSyncTargetToMapLibre(
+      target!,
+      viewport
+    );
+    const leafletProjection = projectViewSyncTargetToLeaflet(
+      target!,
       viewport,
-    });
-    const leafletProjection = projectViewSyncTargetToLeaflet({
-      target: target!,
-      viewport,
-      includeBearing: true,
-    });
+      {
+        includeBearing: true,
+      }
+    );
 
     expect(mapLibreProjection?.lng).toBeCloseTo(6.3025, 4);
     expect(mapLibreProjection?.lat).toBeCloseTo(52.1392, 4);
@@ -127,8 +132,11 @@ describe("view-sync target helpers", () => {
 
   it("prefers object-centric cameraModel pose over raw camera heading/pitch", () => {
     const sceneState = {
-      frameNumber: 5,
-      timestampMs: 1001,
+      metadata: {
+        frameNumber: 5,
+        timestampMs: 1001,
+        source: "framework",
+      },
       camera: {
         worldPosition: { x: 100, y: 200, z: 1200 },
         bearingRad: 0.3,
@@ -155,7 +163,7 @@ describe("view-sync target helpers", () => {
         },
         source: "screen-center-globe",
       },
-    } satisfies SceneStateSnapshot;
+    } as unknown as SceneState;
 
     const target = readViewSyncTargetFromSceneState(sceneState);
 

@@ -1,5 +1,11 @@
-import type { CssPixels, Radians } from "@carma/units/types";
-import { Camera, Matrix4, PerspectiveFrustum } from "../../cesium";
+import type { Radians } from "@carma/units/types";
+import {
+  Camera,
+  Matrix4,
+  OrthographicFrustum,
+  OrthographicOffCenterFrustum,
+  PerspectiveFrustum,
+} from "../../cesium";
 import { cameraPositionCartographicRadians } from "./CameraPosition";
 import type {
   CaptureCurrentCameraStateOptions,
@@ -70,86 +76,62 @@ export const captureCurrentCameraState = (
       camera.inverseViewMatrix,
       new Matrix4()
     );
-    state.matrixWorld = Matrix4.clone(camera.inverseViewMatrix, new Matrix4());
-    state.matrixWorldInverse = Matrix4.clone(camera.viewMatrix, new Matrix4());
+    const frustum = camera.frustum;
 
-    const frustum = camera.frustum as
-      | {
-          projectionMatrix?: Matrix4;
-          aspect?: number;
-          aspectRatio?: number;
-          near?: number;
-          nearPlane?: number;
-          far?: number;
-          farPlane?: number;
-          zoom?: number;
-          focus?: number;
-          filmGauge?: number;
-          filmOffset?: number;
-          viewOffset?: {
-            enabled?: boolean;
-            fullWidthPx: number;
-            fullHeightPx: number;
-            offsetXPx: number;
-            offsetYPx: number;
-            widthPx: number;
-            heightPx: number;
-          };
-          width?: number;
-          fov?: number;
-        }
-      | undefined;
-
-    if (frustum?.projectionMatrix) {
-      state.projectionMatrix = Matrix4.clone(
-        frustum.projectionMatrix,
-        new Matrix4()
-      );
-      state.projectionMatrixInverse = Matrix4.inverse(
-        frustum.projectionMatrix,
-        new Matrix4()
-      );
-    }
-
-    state.type =
-      camera.frustum instanceof PerspectiveFrustum
-        ? "PerspectiveCamera"
-        : Number.isFinite(frustum?.width) ||
-          (!Number.isFinite(frustum?.fov) &&
-            Number.isFinite((frustum as { left?: number } | undefined)?.left) &&
-            Number.isFinite((frustum as { right?: number } | undefined)?.right))
-        ? "OrthographicCamera"
-        : undefined;
-    state.aspect =
-      (Number.isFinite(frustum?.aspect) ? frustum?.aspect : undefined) ??
-      (Number.isFinite(frustum?.aspectRatio)
-        ? frustum?.aspectRatio
-        : undefined);
-    state.near =
-      (Number.isFinite(frustum?.near) ? frustum?.near : undefined) ??
-      (Number.isFinite(frustum?.nearPlane) ? frustum?.nearPlane : undefined);
-    state.far =
-      (Number.isFinite(frustum?.far) ? frustum?.far : undefined) ??
-      (Number.isFinite(frustum?.farPlane) ? frustum?.farPlane : undefined);
-    if (frustum) {
-      state.zoom = Number.isFinite(frustum.zoom) ? frustum.zoom : undefined;
-      state.focus = Number.isFinite(frustum.focus) ? frustum.focus : undefined;
-      state.filmGauge = Number.isFinite(frustum.filmGauge)
-        ? frustum.filmGauge
-        : undefined;
-      state.filmOffset = Number.isFinite(frustum.filmOffset)
-        ? frustum.filmOffset
-        : undefined;
-    }
-    if (frustum?.viewOffset) {
-      state.view = {
-        enabled: frustum.viewOffset.enabled,
-        fullWidth: frustum.viewOffset.fullWidthPx as CssPixels,
-        fullHeight: frustum.viewOffset.fullHeightPx as CssPixels,
-        offsetX: frustum.viewOffset.offsetXPx as CssPixels,
-        offsetY: frustum.viewOffset.offsetYPx as CssPixels,
-        width: frustum.viewOffset.widthPx as CssPixels,
-        height: frustum.viewOffset.heightPx as CssPixels,
+    if (frustum instanceof PerspectiveFrustum) {
+      state.frustum = {
+        type: "PerspectiveFrustum",
+        ...(frustum.projectionMatrix
+          ? {
+              projectionMatrix: Matrix4.clone(
+                frustum.projectionMatrix,
+                new Matrix4()
+              ),
+            }
+          : {}),
+        ...(Number.isFinite(frustum.fov) ? { fov: frustum.fov } : {}),
+        ...(Number.isFinite(frustum.fovy) ? { fovy: frustum.fovy } : {}),
+        ...(Number.isFinite(frustum.aspectRatio)
+          ? { aspectRatio: frustum.aspectRatio }
+          : {}),
+        ...(Number.isFinite(frustum.near) ? { near: frustum.near } : {}),
+        ...(Number.isFinite(frustum.far) ? { far: frustum.far } : {}),
+      };
+    } else if (frustum instanceof OrthographicFrustum) {
+      state.frustum = {
+        type: "OrthographicFrustum",
+        ...(frustum.projectionMatrix
+          ? {
+              projectionMatrix: Matrix4.clone(
+                frustum.projectionMatrix,
+                new Matrix4()
+              ),
+            }
+          : {}),
+        ...(Number.isFinite(frustum.width) ? { width: frustum.width } : {}),
+        ...(Number.isFinite(frustum.aspectRatio)
+          ? { aspectRatio: frustum.aspectRatio }
+          : {}),
+        ...(Number.isFinite(frustum.near) ? { near: frustum.near } : {}),
+        ...(Number.isFinite(frustum.far) ? { far: frustum.far } : {}),
+      };
+    } else if (frustum instanceof OrthographicOffCenterFrustum) {
+      state.frustum = {
+        type: "OrthographicOffCenterFrustum",
+        ...(frustum.projectionMatrix
+          ? {
+              projectionMatrix: Matrix4.clone(
+                frustum.projectionMatrix,
+                new Matrix4()
+              ),
+            }
+          : {}),
+        ...(Number.isFinite(frustum.left) ? { left: frustum.left } : {}),
+        ...(Number.isFinite(frustum.right) ? { right: frustum.right } : {}),
+        ...(Number.isFinite(frustum.top) ? { top: frustum.top } : {}),
+        ...(Number.isFinite(frustum.bottom) ? { bottom: frustum.bottom } : {}),
+        ...(Number.isFinite(frustum.near) ? { near: frustum.near } : {}),
+        ...(Number.isFinite(frustum.far) ? { far: frustum.far } : {}),
       };
     }
   }

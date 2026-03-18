@@ -267,7 +267,9 @@ const CesiumLandmarksOverlay = ({
 }) => {
   const sceneState = useCesiumSceneStateOptional();
   const cameraPitchRad = sceneState?.camera.pitchRad ?? -Math.PI / 4;
-  const hasCameraMatrix = Boolean(sceneState?.camera.viewMatrix);
+  const hasCameraMatrix = Boolean(
+    sceneState?.camera.cameraModel?.pose.matrixWorldInverse
+  );
   const shouldTestOcclusion = enableOcclusionTesting && occlusionAvailable;
   const registeredPointIdSetRef = useRef<Set<string>>(new Set());
   const { registerPoints, unregisterPointIds, visibilityStateById } =

@@ -6,17 +6,28 @@ import { Matrix4 } from "three";
 import { isFiniteNumber } from "./numeric/isFiniteNumber";
 
 export { Matrix4 };
-export type Mat4 = Matrix4;
-
-// prettier-ignore
-export type Mat4Json = [
-  number, number, number, number,
-  number, number, number, number,
-  number, number, number, number,
-  number, number, number, number,
+export type Matrix4Json = [
+  number,
+  number,
+  number,
+  number,
+  number,
+  number,
+  number,
+  number,
+  number,
+  number,
+  number,
+  number,
+  number,
+  number,
+  number,
+  number
 ];
 
-export const mat4ToJson = (matrix: Mat4): Mat4Json => {
+export type Matrix4Like = Matrix4 | Matrix4Json;
+
+export const matrix4ToJson = (matrix: Matrix4): Matrix4Json => {
   const elements = matrix.elements;
   return [
     elements[0],
@@ -38,7 +49,7 @@ export const mat4ToJson = (matrix: Mat4): Mat4Json => {
   ];
 };
 
-export const mat4FromJson = (json: Mat4Json): Mat4 => {
+export const matrix4FromJson = (json: Matrix4Json): Matrix4 => {
   const matrix = new Matrix4();
   const elements = matrix.elements;
   for (let index = 0; index < 16; index += 1) {
@@ -47,7 +58,7 @@ export const mat4FromJson = (json: Mat4Json): Mat4 => {
   return matrix;
 };
 
-export const coerceMat4Json = (value: unknown): Mat4Json | null => {
+export const coerceMatrix4Json = (value: unknown): Matrix4Json | null => {
   if (!value || typeof value !== "object") {
     return null;
   }
@@ -62,13 +73,13 @@ export const coerceMat4Json = (value: unknown): Mat4Json | null => {
     json[index] = entry;
   }
 
-  return json as Mat4Json;
+  return json as Matrix4Json;
 };
 
-export const coerceMat4 = (value: unknown): Mat4 | null => {
+export const coerceMatrix4 = (value: unknown): Matrix4 | null => {
   if (value instanceof Matrix4) {
     return value.clone();
   }
-  const json = coerceMat4Json(value);
-  return json ? mat4FromJson(json) : null;
+  const json = coerceMatrix4Json(value);
+  return json ? matrix4FromJson(json) : null;
 };

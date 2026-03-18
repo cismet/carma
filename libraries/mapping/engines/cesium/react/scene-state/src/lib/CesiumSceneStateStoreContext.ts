@@ -1,5 +1,5 @@
 import { createContext, useContext, useMemo } from "react";
-import type { CesiumSceneStateStore } from "./createCesiumSceneStateStore";
+import type { CesiumSceneStateStore } from "./utils/createCesiumSceneStateStore";
 
 export const CesiumSceneStateStoreContext =
   createContext<CesiumSceneStateStore | null>(null);

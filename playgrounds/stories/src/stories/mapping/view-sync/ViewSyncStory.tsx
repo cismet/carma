@@ -14,6 +14,7 @@ import maplibregl from "maplibre-gl";
 import type { StyleSpecification } from "maplibre-gl";
 import { Button, Radio, Tooltip } from "antd";
 import { DeleteOutlined, PlusOutlined } from "@ant-design/icons";
+import { CAMERA_TYPE } from "@carma-commons/camera/model";
 import { ResponsiveStatusBar } from "@carma-commons/ui/components";
 import { SceneNavigationControls } from "@carma-mapping/components";
 import { WUPPERTAL } from "@carma-commons/resources";
@@ -34,6 +35,7 @@ import {
   projectViewSyncTargetToLeaflet,
   projectViewSyncTargetToMapLibre,
   readViewSyncTargetFromSceneState,
+  readSceneViewStateFromSceneState,
   toCesiumPitchFromViewSyncPitch,
   transitionToCesium,
   transitionToLeaflet,
@@ -41,6 +43,9 @@ import {
   useViewSyncState,
   useViewSyncStore,
   useViewSyncTargetState,
+  maplibreAdapter,
+  readSceneViewStateFromLeafletMap,
+  readSceneViewStateFromMapLibreMap,
   type ViewSyncPublishedState,
   type ViewSyncState,
   type ViewSyncTargetState,
@@ -58,10 +63,7 @@ import {
   type HeadingPitchJson,
   type CesiumWidget,
 } from "@carma/cesium";
-import {
-  readMapLibrePlusElevationHashValuesFromSceneState,
-  readSceneStateHashSnapshotFromSceneState,
-} from "@carma-providers/hash-state";
+import { encodeHashParams } from "@carma-providers/hash-state";
 import { degToRadNumeric, radToDegNumeric } from "@carma/units/helpers";
 import {
   initializeCesium,
@@ -128,20 +130,6 @@ type SlotTransitionRequest = {
   sourceFramework: "leaflet" | "cesium";
   targetFramework: "leaflet" | "cesium";
   restoreControllerAfterTransition: boolean;
-};
-
-type MapLibreViewState = {
-  lngDeg: number;
-  latDeg: number;
-  zoom: number;
-  bearingDeg: number;
-  pitchDeg: number;
-};
-
-type LeafletViewState = {
-  lngDeg: number;
-  latDeg: number;
-  zoom: number;
 };
 
 type StoryHomePoseValues = {
@@ -257,16 +245,18 @@ const createSettledStoryTargetState = ({
 }: StoryHomePoseValues & {
   fovVerticalDeg?: number;
 }): ViewSyncTargetState | null =>
-  projectMapLibreViewToViewSyncTarget({
+  projectMapLibreViewToViewSyncTarget(
     lngDeg,
     latDeg,
     zoom,
-    bearingDeg,
-    pitchDeg,
-    anchorAltitudeM: altitudeM,
-    fovVertical: degToRadNumeric(fovVerticalDeg),
-    viewport: DEFAULT_STORY_BOOT_VIEWPORT,
-  });
+    altitudeM,
+    DEFAULT_STORY_BOOT_VIEWPORT,
+    degToRadNumeric(fovVerticalDeg),
+    {
+      bearingDeg,
+      pitchDeg,
+    }
+  );
 
 const DEFAULT_STORY_RANGE_M =
   createSettledStoryTargetState(ANNOTATIONS_DEMO_HOME_POSE)?.bearingPitchRange
@@ -312,7 +302,7 @@ const createStoryTargetState = ({
     fovVertical: degToRadNumeric(fovVerticalDeg),
     ...(Number.isFinite(nearPlaneM) ? { near: nearPlaneM } : {}),
     ...(Number.isFinite(farPlaneM) ? { far: farPlaneM } : {}),
-    type: "PerspectiveCamera",
+    type: CAMERA_TYPE.PERSPECTIVE,
   };
 };
 
@@ -353,7 +343,7 @@ const claimOnContainerInteraction = (
   };
 };
 
-const readMapLibreViewState = (map: maplibregl.Map): MapLibreViewState => {
+const readMapLibreViewState = (map: maplibregl.Map) => {
   const center = map.getCenter();
   return {
     lngDeg: center.lng,
@@ -364,7 +354,7 @@ const readMapLibreViewState = (map: maplibregl.Map): MapLibreViewState => {
   };
 };
 
-const readLeafletViewState = (map: L.Map): LeafletViewState | null => {
+const readLeafletViewState = (map: L.Map) => {
   if (!(map as L.Map & { _loaded?: boolean })._loaded) {
     return null;
   }
@@ -665,103 +655,24 @@ const stripCameraModelFromInteractiveTarget = (
   return targetWithoutCameraModel;
 };
 
-const encodeQueryHash = (
-  params: Record<string, number | undefined>
-): string => {
-  const query = new URLSearchParams();
-  for (const [key, value] of Object.entries(params)) {
-    if (typeof value === "number" && Number.isFinite(value)) {
-      query.set(
-        key === "bearing"
-          ? "b"
-          : key === "pitch"
-          ? "p"
-          : key === "altitude"
-          ? "h"
-          : key,
-        String(value)
-      );
-    }
-  }
-  return `#?${query.toString()}`;
-};
-
-const buildCarmaStandardMapHashFromCesium = (
-  sceneState: ReturnType<typeof useCesiumSceneStateOptional>,
-  canvas: HTMLCanvasElement
-): string | null => {
-  const snapshot = readSceneStateHashSnapshotFromSceneState({
-    sceneState,
-    anchorMode: "screen-center",
-    fallbackHeightM: DEFAULT_ANCHOR_ALTITUDE_M,
-  });
-  if (!snapshot) {
-    return null;
-  }
-
-  const params = readMapLibrePlusElevationHashValuesFromSceneState({
-    snapshot,
-    viewportWidthPx: Math.max(1, canvas.clientWidth),
-    viewportHeightPx: Math.max(1, canvas.clientHeight),
-  });
-
-  return params ? encodeQueryHash(params) : null;
-};
-
-const buildCarmaStandardMapHashFromMapLibre = (
-  view: MapLibreViewState
-): string =>
-  encodeQueryHash({
-    lng: view.lngDeg,
-    lat: view.latDeg,
-    zoom: view.zoom,
-    bearing: view.bearingDeg,
-    pitch: view.pitchDeg,
-  });
-
-const buildCarmaStandardMapHashFromLeaflet = (view: LeafletViewState): string =>
-  encodeQueryHash({
-    lng: view.lngDeg,
-    lat: view.latDeg,
-    zoom: view.zoom,
-  });
-
 const clamp = (value: number, min: number, max: number): number =>
   Math.min(max, Math.max(min, value));
 
-const readInitialMapLibreViewFromTarget = ({
-  target,
-  container,
-}: {
-  target: ViewSyncTargetState | null | undefined;
-  container: HTMLElement;
-}) => {
-  if (!target) {
-    return null;
-  }
-
-  return projectViewSyncTargetToMapLibre({
-    target,
-    viewport: getViewportFromElement(container),
-  });
-};
-
-const readInitialLeafletViewFromTarget = ({
-  target,
-  container,
-}: {
-  target: ViewSyncTargetState | null | undefined;
-  container: HTMLElement;
-}) => {
-  if (!target) {
-    return null;
-  }
-
-  return projectViewSyncTargetToLeaflet({
-    target,
-    viewport: getViewportFromElement(container),
-  });
-};
+const isViewSyncTargetState = (
+  value: ViewSyncTargetState | null | undefined
+): value is ViewSyncTargetState =>
+  Boolean(
+    value &&
+      typeof value === "object" &&
+      value.anchor &&
+      value.bearingPitchRange &&
+      typeof value.anchor.longitude === "number" &&
+      typeof value.anchor.latitude === "number" &&
+      typeof value.anchor.altitude === "number" &&
+      typeof value.bearingPitchRange.bearing === "number" &&
+      typeof value.bearingPitchRange.pitch === "number" &&
+      typeof value.bearingPitchRange.range === "number"
+  );
 
 const useElementWidth = (elementRef: RefObject<HTMLElement>) => {
   const [width, setWidth] = useState(0);
@@ -932,10 +843,10 @@ const PanelNavigationControls = ({
       const runtimeHandle = getRuntimeHandle();
 
       if (runtimeHandle?.framework === "maplibre") {
-        const projection = projectViewSyncTargetToMapLibre({
-          target: nextTarget,
-          viewport: getViewportFromElement(runtimeHandle.container),
-        });
+        const projection = projectViewSyncTargetToMapLibre(
+          nextTarget,
+          getViewportFromElement(runtimeHandle.container)
+        );
         if (projection) {
           runtimeHandle.map.jumpTo({
             center: [projection.lng, projection.lat],
@@ -948,10 +859,10 @@ const PanelNavigationControls = ({
       }
 
       if (runtimeHandle?.framework === "leaflet") {
-        const projection = projectViewSyncTargetToLeaflet({
-          target: nextTarget,
-          viewport: getViewportFromElement(runtimeHandle.container),
-        });
+        const projection = projectViewSyncTargetToLeaflet(
+          nextTarget,
+          getViewportFromElement(runtimeHandle.container)
+        );
         if (projection) {
           runtimeHandle.map.setView(
             [projection.center.lat, projection.center.lng],
@@ -1037,10 +948,10 @@ const PanelNavigationControls = ({
         stripCameraModelFromInteractiveTarget(nextTarget);
 
       if (runtimeHandle.framework === "maplibre") {
-        const projection = projectViewSyncTargetToMapLibre({
-          target: interactiveTarget,
-          viewport: getViewportFromElement(runtimeHandle.container),
-        });
+        const projection = projectViewSyncTargetToMapLibre(
+          interactiveTarget,
+          getViewportFromElement(runtimeHandle.container)
+        );
         if (!projection) {
           return false;
         }
@@ -1572,7 +1483,22 @@ const CesiumViewSyncBridge = ({
         : "cesium • waiting for terrain target"
     );
     setHashText(
-      buildCarmaStandardMapHashFromCesium(sceneState, widget.scene.canvas)
+      (() => {
+        const viewport = {
+          widthPx: Math.max(1, widget.scene.canvas.clientWidth),
+          heightPx: Math.max(1, widget.scene.canvas.clientHeight),
+        };
+        const viewState = readSceneViewStateFromSceneState(sceneState, {
+          fallbackHeightM: DEFAULT_ANCHOR_ALTITUDE_M,
+        });
+        if (!viewState) {
+          return null;
+        }
+
+        return encodeHashParams(
+          maplibreAdapter.carmaToHashParams(viewState, viewport)
+        );
+      })()
     );
 
     if (!isController || !nextTarget || !sceneState) {
@@ -1806,18 +1732,37 @@ const MapLibreViewSyncBridge = ({
           1
         )}° • p ${view.pitchDeg.toFixed(1)}°`
       );
-      setHashText(buildCarmaStandardMapHashFromMapLibre(view));
+      {
+        const viewport = getViewportFromElement(map.getContainer());
+        const viewState = readSceneViewStateFromMapLibreMap(
+          map,
+          getCurrentAnchorAltitude(providerTargetRef.current)
+        );
+        setHashText(
+          viewState
+            ? encodeHashParams(
+                maplibreAdapter.carmaToHashParams(viewState, viewport)
+              )
+            : null
+        );
+      }
 
       if (!isControllerRef.current) {
         return;
       }
 
-      const target = projectMapLibreViewToViewSyncTarget({
-        ...view,
-        anchorAltitudeM: getCurrentAnchorAltitude(providerTargetRef.current),
-        fovVertical: getCurrentVerticalFov(providerTargetRef.current),
-        viewport: getViewportFromElement(map.getContainer()),
-      });
+      const target = projectMapLibreViewToViewSyncTarget(
+        view.lngDeg,
+        view.latDeg,
+        view.zoom,
+        getCurrentAnchorAltitude(providerTargetRef.current),
+        getViewportFromElement(map.getContainer()),
+        getCurrentVerticalFov(providerTargetRef.current),
+        {
+          bearingDeg: view.bearingDeg,
+          pitchDeg: view.pitchDeg,
+        }
+      );
 
       if (target) {
         publishViewState(target, {
@@ -1854,10 +1799,10 @@ const MapLibreViewSyncBridge = ({
       return;
     }
 
-    const projection = projectViewSyncTargetToMapLibre({
-      target: providerTarget.target,
-      viewport: getViewportFromElement(map.getContainer()),
-    });
+    const projection = projectViewSyncTargetToMapLibre(
+      providerTarget.target,
+      getViewportFromElement(map.getContainer())
+    );
 
     if (!projection) {
       return;
@@ -1923,10 +1868,12 @@ const MapLibreSlot = ({
       return;
     }
 
-    const initialView = readInitialMapLibreViewFromTarget({
-      target: initialTargetRef.current,
-      container,
-    });
+    const initialView = isViewSyncTargetState(initialTargetRef.current)
+      ? projectViewSyncTargetToMapLibre(
+          initialTargetRef.current,
+          getViewportFromElement(container)
+        )
+      : null;
 
     const map = new maplibregl.Map({
       container,
@@ -2032,19 +1979,36 @@ const LeafletViewSyncBridge = ({
           5
         )} • z ${view.zoom.toFixed(2)}`
       );
-      setHashText(buildCarmaStandardMapHashFromLeaflet(view));
+      {
+        const viewport = getViewportFromElement(map.getContainer());
+        const viewState = readSceneViewStateFromLeafletMap(
+          map,
+          getCurrentAnchorAltitude(providerTargetRef.current)
+        );
+        setHashText(
+          viewState
+            ? encodeHashParams(
+                maplibreAdapter.carmaToHashParams(viewState, viewport)
+              )
+            : null
+        );
+      }
 
       if (!isControllerRef.current) {
         return;
       }
 
-      const target = projectLeafletViewToViewSyncTarget({
-        ...view,
-        anchorAltitudeM: getCurrentAnchorAltitude(providerTargetRef.current),
-        fovVertical: getCurrentVerticalFov(providerTargetRef.current),
-        bearingDeg: getCurrentBearingDeg(providerTargetRef.current),
-        viewport: getViewportFromElement(map.getContainer()),
-      });
+      const target = projectLeafletViewToViewSyncTarget(
+        view.lngDeg,
+        view.latDeg,
+        view.zoom,
+        getCurrentAnchorAltitude(providerTargetRef.current),
+        getViewportFromElement(map.getContainer()),
+        getCurrentVerticalFov(providerTargetRef.current),
+        {
+          bearingDeg: getCurrentBearingDeg(providerTargetRef.current),
+        }
+      );
 
       if (target) {
         publishViewState(target, {
@@ -2080,10 +2044,10 @@ const LeafletViewSyncBridge = ({
       return;
     }
 
-    const projection = projectViewSyncTargetToLeaflet({
-      target: providerTarget.target,
-      viewport: getViewportFromElement(map.getContainer()),
-    });
+    const projection = projectViewSyncTargetToLeaflet(
+      providerTarget.target,
+      getViewportFromElement(map.getContainer())
+    );
 
     if (!projection) {
       return;
@@ -2156,10 +2120,12 @@ const LeafletSlot = ({
     }
 
     const nextMap = initializeLeaflet(container);
-    const initialView = readInitialLeafletViewFromTarget({
-      target: initialTargetRef.current,
-      container,
-    });
+    const initialView = isViewSyncTargetState(initialTargetRef.current)
+      ? projectViewSyncTargetToLeaflet(
+          initialTargetRef.current,
+          getViewportFromElement(container)
+        )
+      : null;
     if (initialView) {
       nextMap.setView(
         [initialView.center.lat, initialView.center.lng],

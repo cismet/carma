@@ -3,18 +3,21 @@
 // CARMA adopts three.js vectors/rays as native geometry interaction types.
 import { Ray, Vector3 } from "three";
 
+export { Ray };
+export type RayLike = Pick<Ray, "origin" | "direction">;
+
 export type PlaneBasis3 = {
   xAxis: Vector3;
   yAxis: Vector3;
 };
 
-export const VEC3_NUMERIC_EPSILON = 1e-6;
+export const VECTOR3_NUMERIC_EPSILON = 1e-6;
 
 export const getClosestLineParamToRay = (
   ray: Ray,
   lineOrigin: Vector3,
   lineDirection: Vector3,
-  epsilon: number = VEC3_NUMERIC_EPSILON
+  epsilon: number = VECTOR3_NUMERIC_EPSILON
 ): number => {
   const rayDirection = ray.direction.clone();
   const normalizedLineDirection = lineDirection.clone();
@@ -49,7 +52,7 @@ export const intersectRayWithPlane = (
   ray: Ray,
   planeOrigin: Vector3,
   planeNormal: Vector3,
-  epsilon: number = VEC3_NUMERIC_EPSILON
+  epsilon: number = VECTOR3_NUMERIC_EPSILON
 ): Vector3 | null => {
   const denominator = ray.direction.dot(planeNormal);
   if (Math.abs(denominator) <= epsilon) return null;
@@ -63,7 +66,7 @@ export const intersectRayWithPlane = (
 
 export const createPlaneBasisFromNormal = (
   normal: Vector3,
-  epsilon: number = VEC3_NUMERIC_EPSILON
+  epsilon: number = VECTOR3_NUMERIC_EPSILON
 ): PlaneBasis3 => {
   const up =
     normal.lengthSq() > epsilon

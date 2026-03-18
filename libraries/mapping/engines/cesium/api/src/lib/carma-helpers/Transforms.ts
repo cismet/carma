@@ -7,7 +7,7 @@ import {
   Transforms,
 } from "../cesium";
 
-import { cartesian3FromJson, type Cartesian3Json } from "../serialization/base";
+import { cartesian3FromJson, type Cartesian3Json } from "../serialization";
 
 const PLANAR_TRANSFORM_ELEMENTS = new Array<number>(16);
 const BASIS_SCALE_TRANSLATION_ELEMENTS = new Array<number>(16);

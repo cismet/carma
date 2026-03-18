@@ -22,6 +22,129 @@ const sortArrayByKeys = (
     }
   });
 
+export const buildOrderedSearchParamsString = (
+  params: Record<string, string | number | boolean | null | undefined>,
+  keyOrder: string[] = []
+): string => {
+  const sortedPairs = sortArrayByKeys(Object.entries(params), keyOrder);
+  const encodedParts: string[] = [];
+
+  sortedPairs.forEach(([key, value]) => {
+    if (value === undefined || value === null) {
+      return;
+    }
+
+    const encodedKey = encodeURIComponent(key);
+    if (value === "") {
+      encodedParts.push(encodedKey);
+      return;
+    }
+
+    if (
+      typeof value === "string" ||
+      typeof value === "number" ||
+      typeof value === "boolean"
+    ) {
+      encodedParts.push(`${encodedKey}=${encodeURIComponent(String(value))}`);
+    }
+  });
+
+  return encodedParts.join("&");
+};
+
+export const HASH_LAUNCH_MODE = {
+  TWO_D: "2d",
+  THREE_D: "3d",
+  UNSET: "unset",
+} as const;
+
+export type HashLaunchMode =
+  (typeof HASH_LAUNCH_MODE)[keyof typeof HASH_LAUNCH_MODE];
+
+type ResolvedHashLaunchMode = Exclude<
+  HashLaunchMode,
+  typeof HASH_LAUNCH_MODE.UNSET
+>;
+
+export const DEFAULT_HASH_LAUNCH_FLAG_2D_KEY = HASH_LAUNCH_MODE.TWO_D;
+export const DEFAULT_HASH_LAUNCH_FLAG_3D_KEY = HASH_LAUNCH_MODE.THREE_D;
+export const DEFAULT_HASH_LAUNCH_ALTITUDE_KEYS = ["h", "altitude"] as const;
+
+export type HashLaunchModeConfig = {
+  defaultMode?: ResolvedHashLaunchMode;
+  flag2dKey?: string;
+  flag3dKey?: string;
+};
+
+const resolveLaunchModeConfig = (config: HashLaunchModeConfig = {}) => ({
+  defaultMode: config.defaultMode,
+  flag2dKey: config.flag2dKey ?? DEFAULT_HASH_LAUNCH_FLAG_2D_KEY,
+  flag3dKey: config.flag3dKey ?? DEFAULT_HASH_LAUNCH_FLAG_3D_KEY,
+});
+
+export const readHashLaunchMode = (
+  hash: Record<string, unknown> | undefined,
+  config: HashLaunchModeConfig = {}
+): HashLaunchMode => {
+  const resolved = resolveLaunchModeConfig(config);
+  const params = hash ?? {};
+
+  const hasAltitude = DEFAULT_HASH_LAUNCH_ALTITUDE_KEYS.some(
+    (key) => params[key] !== undefined
+  );
+  if (hasAltitude) {
+    return HASH_LAUNCH_MODE.THREE_D;
+  }
+
+  if (params[resolved.flag3dKey] !== undefined) {
+    return HASH_LAUNCH_MODE.THREE_D;
+  }
+
+  if (params[resolved.flag2dKey] !== undefined) {
+    return HASH_LAUNCH_MODE.TWO_D;
+  }
+
+  return HASH_LAUNCH_MODE.UNSET;
+};
+
+export const resolveHashLaunchMode = (
+  hash: Record<string, unknown> | undefined,
+  config: HashLaunchModeConfig = {}
+): ResolvedHashLaunchMode => {
+  const resolved = resolveLaunchModeConfig(config);
+  const mode = readHashLaunchMode(hash, resolved);
+  if (mode !== HASH_LAUNCH_MODE.UNSET) {
+    return mode;
+  }
+  return resolved.defaultMode ?? HASH_LAUNCH_MODE.TWO_D;
+};
+
+export const buildHashLaunchModeParams = (
+  mode: HashLaunchMode,
+  config: HashLaunchModeConfig = {}
+): Record<string, string | undefined> => {
+  const resolved = resolveLaunchModeConfig(config);
+
+  if (mode === HASH_LAUNCH_MODE.THREE_D) {
+    return {
+      [resolved.flag3dKey]: "",
+      [resolved.flag2dKey]: undefined,
+    };
+  }
+
+  if (mode === HASH_LAUNCH_MODE.TWO_D) {
+    return {
+      [resolved.flag2dKey]: "",
+      [resolved.flag3dKey]: undefined,
+    };
+  }
+
+  return {
+    [resolved.flag2dKey]: undefined,
+    [resolved.flag3dKey]: undefined,
+  };
+};
+
 /**
  * Get the stored parameters or parse them from the URL as fallback
  */
@@ -107,22 +230,7 @@ export const updateHashHistoryState = (
     }
   });
 
-  const combinedSearchParams = new URLSearchParams();
-  const sortedAllPairs = sortArrayByKeys(
-    Object.entries(combinedParams),
-    keyOrder
-  );
-  sortedAllPairs.forEach(([key, value]) => {
-    if (
-      typeof value === "string" ||
-      typeof value === "number" ||
-      typeof value === "boolean"
-    ) {
-      combinedSearchParams.append(key, String(value)); // append preserves insertion order
-    }
-  });
-
-  const combinedHash = combinedSearchParams.toString();
+  const combinedHash = buildOrderedSearchParamsString(combinedParams, keyOrder);
   const toPath = `${routedPath}${combinedHash ? `?${combinedHash}` : ""}`;
   const fullHashState = `#${toPath}`;
   // No-op: target equals current hash

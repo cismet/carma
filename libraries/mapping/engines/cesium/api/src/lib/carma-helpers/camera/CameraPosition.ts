@@ -7,7 +7,7 @@ import type {
 import { radToDeg } from "@carma/units/helpers";
 import type { Radians } from "@carma/units/types";
 import type { Camera } from "../../cesium";
-import { cartographicToJson } from "../../serialization/base";
+import { cartographicToJson } from "../../serialization";
 
 export const cameraPositionCartographicRadians = (
   camera: Camera

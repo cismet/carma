@@ -55,6 +55,11 @@ import store from "./store";
 import { featureFlagConfig } from "./config/featureFlags";
 
 import { OBLIQUE_CONFIG, CAMERA_ID_TO_DIRECTION } from "./oblique/config";
+import {
+  getHashParams,
+  HASH_LAUNCH_MODE,
+  resolveHashLaunchMode,
+} from "@carma-commons/utils";
 
 // Stable config objects
 const MEASUREMENTS_BASE_CONFIG = {
@@ -87,21 +92,10 @@ const readInitialFrameworkFromHash = (): "leaflet" | "cesium" => {
     return "leaflet";
   }
 
-  const hash = window.location.hash ?? "";
-  const queryIndex = hash.indexOf("?");
-  const query = queryIndex >= 0 ? hash.slice(queryIndex + 1) : "";
-  const params = new URLSearchParams(query);
-
-  const is3dValue = params.get("is3d");
-  const hasExplicit3dFlag =
-    is3dValue === "1" || is3dValue === "true" || is3dValue === "yes";
-  const has3dPosition =
-    params.has("h") ||
-    params.has("altitude") ||
-    params.has("camera3d") ||
-    params.has("c3");
-
-  return hasExplicit3dFlag || has3dPosition ? "cesium" : "leaflet";
+  const mode = resolveHashLaunchMode(getHashParams(), {
+    defaultMode: HASH_LAUNCH_MODE.TWO_D,
+  });
+  return mode === HASH_LAUNCH_MODE.THREE_D ? "cesium" : "leaflet";
 };
 
 function CesiumDevConsoleIntegration() {

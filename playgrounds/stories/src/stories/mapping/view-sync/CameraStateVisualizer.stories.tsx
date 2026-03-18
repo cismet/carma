@@ -1,3 +1,4 @@
+import { CAMERA_TYPE } from "@carma-commons/camera/model";
 import { ResponsiveStatusBar } from "@carma-commons/ui/components";
 import { ViewStateVisualizer } from "@carma-mapping/components";
 import { degToRadNumeric, radToDegNumeric } from "@carma/units/helpers";
@@ -68,7 +69,7 @@ const createSpecification = (
     imagePlaneDistance: args.imagePlaneDistanceUnit,
   },
   intrinsics: {
-    type: "PerspectiveCamera",
+    type: CAMERA_TYPE.PERSPECTIVE,
     fov: degToRadNumeric(args.fovVerticalDeg),
     fovHorizontal: degToRadNumeric(args.fovHorizontalDeg),
   },

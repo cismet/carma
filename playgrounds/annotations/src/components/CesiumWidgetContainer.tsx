@@ -11,8 +11,6 @@ import {
   Cartesian3,
   Cesium3DTileset,
   CesiumTerrainProvider,
-  Matrix4,
-  PerspectiveFrustum,
   type CesiumWidget,
   type Scene,
 } from "@carma/cesium";
@@ -20,9 +18,13 @@ import {
   createMinimalCesiumWidget,
   sampleTerrainMostDetailedGuardedAsync,
 } from "@carma-mapping/engines/cesium/api";
+import {
+  applyObjectCentricCameraViewToScene,
+  type ObjectCentricCameraViewInput,
+} from "@carma-mapping/engines/cesium/react/scene-state";
+import type { SceneViewState } from "@carma-mapping/engines-interop";
 import { isFiniteNumber } from "@carma/math";
 import { degToRadNumeric } from "@carma/units/helpers";
-import type { SceneStateHashSnapshot } from "@carma-providers/hash-state";
 import {
   WUPPERTAL,
   WUPP_MESH_2024,
@@ -30,7 +32,17 @@ import {
   WUPP_TERRAIN_PROVIDER_DSM_MESH_2024_1M,
 } from "@carma-commons/resources";
 
-import { buildObjectCentricCameraOrientation } from "./objectCentricCesiumCamera";
+const toObjectCentricCameraViewInput = (
+  viewState: SceneViewState
+): ObjectCentricCameraViewInput => ({
+  anchorLngRad: degToRadNumeric(viewState.anchor.lngDeg),
+  anchorLatRad: degToRadNumeric(viewState.anchor.latDeg),
+  anchorHeightM: viewState.anchor.heightM,
+  bearingRad: viewState.orientation.bearingRad,
+  pitchRad: viewState.orientation.pitchRad,
+  rangeM: viewState.orientation.rangeM,
+  fovVerticalRad: viewState.orientation.fovVerticalRad,
+});
 
 type DefaultCameraState = {
   longitude: number;
@@ -152,32 +164,20 @@ const initializeTerrainProviders = async () => {
 const applyInitialCameraState = async ({
   widget,
   terrainProvider,
-  initialCameraState,
+  initialViewState,
 }: {
   widget: CesiumWidget;
   terrainProvider: CesiumTerrainProvider;
-  initialCameraState: SceneStateHashSnapshot | null;
+  initialViewState: SceneViewState | null;
 }) => {
-  if (initialCameraState) {
-    const orientation = buildObjectCentricCameraOrientation(initialCameraState);
-    if (orientation) {
-      widget.camera.lookAtTransform(Matrix4.IDENTITY);
-      widget.camera.setView({
-        destination: orientation.destination,
-        orientation: {
-          direction: orientation.direction,
-          up: orientation.up,
-        },
-      });
-
-      if (
-        isFiniteNumber(orientation.fovRad) &&
-        widget.camera.frustum instanceof PerspectiveFrustum
-      ) {
-        widget.camera.frustum.fov = orientation.fovRad;
-      }
-
-      widget.scene.requestRender();
+  if (initialViewState) {
+    const objectCentricView = toObjectCentricCameraViewInput(initialViewState);
+    if (
+      applyObjectCentricCameraViewToScene({
+        scene: widget.scene,
+        view: objectCentricView,
+      })
+    ) {
       return;
     }
   }
@@ -254,7 +254,7 @@ const loadTileset = async (
 type CesiumWidgetContainerProps = {
   rootRef: MutableRefObject<HTMLDivElement | null>;
   onSceneChange?: (scene: Scene | null) => void;
-  initialCameraState?: SceneStateHashSnapshot | null;
+  initialViewState?: SceneViewState | null;
   startPoseResolved?: boolean;
   children: ReactNode;
 };
@@ -262,7 +262,7 @@ type CesiumWidgetContainerProps = {
 export function CesiumWidgetContainer({
   rootRef,
   onSceneChange,
-  initialCameraState = null,
+  initialViewState = null,
   startPoseResolved = true,
   children,
 }: CesiumWidgetContainerProps) {
@@ -305,7 +305,7 @@ export function CesiumWidgetContainer({
       await applyInitialCameraState({
         widget,
         terrainProvider: providers.terrain,
-        initialCameraState,
+        initialViewState,
       });
       await assertScreenCenterTerrainIntersection(widget.scene);
 
@@ -353,7 +353,7 @@ export function CesiumWidgetContainer({
         widget.destroy();
       }
     };
-  }, [initialCameraState, onSceneChange, startPoseResolved]);
+  }, [initialViewState, onSceneChange, startPoseResolved]);
 
   useEffect(() => {
     if (!isWidgetReady) {

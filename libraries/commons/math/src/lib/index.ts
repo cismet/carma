@@ -9,6 +9,6 @@ export * from "./geometry3d";
 export * from "./orientation3d";
 export * from "./matrix4";
 export * from "./quaternion";
-export * from "./vec2";
-export * from "./vec3";
+export * from "./vector2";
+export * from "./vector3";
 export * from "./trig";

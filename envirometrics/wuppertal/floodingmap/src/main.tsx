@@ -23,6 +23,11 @@ import {
   MapFrameworkSwitcherProvider,
   type CarmaMapFramework,
 } from "@carma-mapping/components";
+import {
+  getHashParams,
+  HASH_LAUNCH_MODE,
+  resolveHashLaunchMode,
+} from "@carma-commons/utils";
 
 import App from "./App";
 import store from "./store";
@@ -37,40 +42,14 @@ const persistor = persistStore(store);
 
 const enableSync = true;
 
-const isTruthyHashFlag = (value: string | null): boolean => {
-  if (!value) {
-    return false;
-  }
-
-  const normalized = value.trim().toLowerCase();
-  return normalized !== "0" && normalized !== "false";
-};
-
-const readHashQueryParams = (): URLSearchParams => {
-  const hash = window.location.hash ?? "";
-  const queryIndex = hash.indexOf("?");
-
-  if (queryIndex < 0) {
-    return new URLSearchParams();
-  }
-
-  return new URLSearchParams(hash.slice(queryIndex + 1));
-};
-
 const readInitialFrameworkFromHash = (): CarmaMapFramework => {
-  const params = readHashQueryParams();
+  const mode = resolveHashLaunchMode(getHashParams(), {
+    defaultMode: HASH_LAUNCH_MODE.THREE_D,
+  });
 
-  // Explicit 2D reload must win over stale/leftover 3D flags.
-  if (isTruthyHashFlag(params.get("is2d"))) {
-    return CARMA_MAP_FRAMEWORKS.LEAFLET;
-  }
-
-  if (isTruthyHashFlag(params.get("is3d"))) {
-    return CARMA_MAP_FRAMEWORKS.CESIUM;
-  }
-
-  // Preserve existing app default when no explicit mode hint is present.
-  return CARMA_MAP_FRAMEWORKS.CESIUM;
+  return mode === HASH_LAUNCH_MODE.TWO_D
+    ? CARMA_MAP_FRAMEWORKS.LEAFLET
+    : CARMA_MAP_FRAMEWORKS.CESIUM;
 };
 
 const initialFramework = readInitialFrameworkFromHash();
