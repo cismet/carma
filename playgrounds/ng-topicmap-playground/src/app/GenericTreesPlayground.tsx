@@ -22,6 +22,7 @@ import {
   faCrosshairs,
   faEye,
   faEyeSlash,
+  faUndo,
 } from "@fortawesome/free-solid-svg-icons";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { Switch } from "antd";
@@ -321,6 +322,11 @@ function LayerToggleBar({
   onRadiusMixChange,
   crosshair,
   onCrosshairToggle,
+  buildingColor,
+  onBuildingColorChange,
+  buildingOpacity,
+  onBuildingOpacityChange,
+  onBuildingReset,
 }: {
   visibility: LayerVisibility;
   onToggle: (name: LayerGroupName) => void;
@@ -330,12 +336,19 @@ function LayerToggleBar({
   onRadiusMixChange: (v: number) => void;
   crosshair: boolean;
   onCrosshairToggle: () => void;
+  buildingColor: string | null;
+  onBuildingColorChange: (color: string) => void;
+  buildingOpacity: number;
+  onBuildingOpacityChange: (opacity: number) => void;
+  onBuildingReset: () => void;
 }) {
   return (
     <div className="absolute top-4 left-1/2 -translate-x-1/2 z-[9999] flex gap-2 items-start">
       {LAYER_GROUPS.map(({ name, label, color }) => {
         const visible = visibility[name];
         const is3D = name === "Einzelbaum 3D";
+        const isBuilding = name === "Gebaeude";
+        const hasCustomColor = buildingColor != null;
         return (
           <div
             key={name}
@@ -388,6 +401,44 @@ function LayerToggleBar({
                     }`}
                   >
                     Umkreis
+                  </span>
+                </>
+              )}
+              {isBuilding && visible && (
+                <>
+                  <span className="border-l border-gray-300 h-4" />
+                  <input
+                    type="color"
+                    value={buildingColor ?? "#ffffff"}
+                    onClick={() => { if (!buildingColor) onBuildingColorChange("#ffffff"); }}
+                    onInput={(e) => onBuildingColorChange((e.target as HTMLInputElement).value)}
+                    className="w-6 h-6 p-0 border-0 cursor-pointer rounded"
+                    title="Gebäudefarbe"
+                  />
+                  <button
+                    onClick={onBuildingReset}
+                    disabled={!hasCustomColor}
+                    className={`px-1 flex items-center cursor-pointer text-gray-500 ${
+                      !hasCustomColor ? "opacity-30 cursor-default" : "hover:text-gray-700"
+                    }`}
+                    title="Farbe zurücksetzen (öffentl. Gebäude rötlich)"
+                  >
+                    <FontAwesomeIcon icon={faUndo} className="text-xs" />
+                  </button>
+                  <input
+                    type="range"
+                    min={0.1}
+                    max={1}
+                    step={0.05}
+                    value={buildingOpacity}
+                    onChange={(e) =>
+                      onBuildingOpacityChange(parseFloat(e.target.value))
+                    }
+                    className="w-14 h-1 accent-[#607D8B]"
+                    title={`Transparenz: ${Math.round(buildingOpacity * 100)}%`}
+                  />
+                  <span className="text-xs text-gray-500">
+                    {Math.round(buildingOpacity * 100)}%
                   </span>
                 </>
               )}
@@ -471,6 +522,8 @@ export function GenericTreesPlayground() {
       return false;
     }
   });
+  const [buildingColor, setBuildingColor] = useState<string | null>(null);
+  const [buildingOpacity, setBuildingOpacity] = useState(0.65);
   const { progress, showProgress, handleProgressUpdate } = useProgress();
   const perfRef = useRef<ThreePerfData>(EMPTY_PERF);
 
@@ -493,10 +546,12 @@ export function GenericTreesPlayground() {
   };
 
   // Runtime params drive 3D layer behaviour via CarmaMap -> LibreMap -> ThreeLayerManager
-  const threeRuntimeParams = {
+  const threeRuntimeParams: Record<string, number | string> = {
     radiusMix,
     //viewportPadding: 0.3000,
     useLoft: useLoft ? 1 : 0,
+    buildingOpacity,
+    ...(buildingColor ? { buildingColor } : {}),
   };
 
   return (
@@ -539,6 +594,11 @@ export function GenericTreesPlayground() {
                     return next;
                   })
                 }
+                buildingColor={buildingColor}
+                onBuildingColorChange={setBuildingColor}
+                buildingOpacity={buildingOpacity}
+                onBuildingOpacityChange={setBuildingOpacity}
+                onBuildingReset={() => setBuildingColor(null)}
               />
             </LibreContextProvider>
           </SelectionProvider>

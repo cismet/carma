@@ -295,6 +295,7 @@ export function buildExtrusionMeshes(
 
   const wallMesh = new THREE.Mesh(wallGeo, wallMat);
   wallMesh.userData.isBuilding = true;
+  wallMesh.userData.isBuildingWall = true;
   wallMesh.userData.faceRanges = wallFaceRanges;
   wallMesh.userData.vertexRanges = wallVertexRanges;
   wallMesh.userData.originalColors = wC.subarray(0, wv * 3).slice();

@@ -69,7 +69,7 @@ interface CarmaMapProps extends LibreMapProps {
   /** Non-interactive map: disables all controls, compass, interaction */
   miniMap?: boolean;
   /** Runtime parameters for 3D layers (e.g. radiusMix, useLoft) */
-  threeRuntimeParams?: Record<string, number>;
+  threeRuntimeParams?: Record<string, number | string>;
   /** Ref for 3D layer performance data */
   threePerfRef?: React.MutableRefObject<
     import("@carma-mapping/engines/threejs").ThreePerfData

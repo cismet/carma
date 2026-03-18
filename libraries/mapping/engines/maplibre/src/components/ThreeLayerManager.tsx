@@ -18,7 +18,7 @@ import {
   resolveOrigin,
 } from "@carma-mapping/engines/threejs";
 import type { BuildingFeature } from "@carma-mapping/engines/threejs";
-import type { Scene } from "three";
+import * as THREE from "three";
 import { MercatorCoordinate } from "maplibre-gl";
 import type { Map as MaplibreMap } from "maplibre-gl";
 import { polygon as turfPolygon } from "@turf/helpers";
@@ -41,7 +41,7 @@ const OPACITY_PROPS: Record<string, string[]> = {
 
 export interface ThreeLayerManagerProps {
   config: Carma3dConfig;
-  runtimeParams: Record<string, number>;
+  runtimeParams: Record<string, number | string>;
   perfRef?: React.MutableRefObject<ThreePerfData>;
 }
 
@@ -77,6 +77,44 @@ export function get3dLayers(map: MaplibreMap): GenericCustomLayer[] {
   return ((map as any)[LAYER_REGISTRY_KEY] as GenericCustomLayer[] | undefined) ?? [];
 }
 
+/** Apply building color/opacity overrides to existing building meshes in-place. */
+function applyBuildingAppearance(
+  layer: GenericCustomLayer | null,
+  color: string | undefined,
+  opacity: number | undefined,
+): void {
+  if (!layer) return;
+  for (const child of layer.scene.children) {
+    const mesh = child as THREE.Mesh;
+    if (!mesh.isMesh || !mesh.userData.isBuilding) continue;
+
+    // Update opacity
+    const mat = mesh.material as THREE.MeshLambertMaterial;
+    if (opacity != null) {
+      mat.opacity = opacity;
+      mat.transparent = opacity < 1;
+    }
+
+    // Update vertex colors
+    const colorAttr = mesh.geometry.getAttribute("color") as THREE.BufferAttribute | undefined;
+    if (!colorAttr) continue;
+    const colorArray = colorAttr.array as Float32Array;
+    const origColors = mesh.userData.originalColors as Float32Array | undefined;
+
+    if (color) {
+      const base = new THREE.Color(color);
+      for (let i = 0; i < colorArray.length; i += 3) {
+        colorArray[i] = base.r;
+        colorArray[i + 1] = base.g;
+        colorArray[i + 2] = base.b;
+      }
+    } else if (origColors) {
+      colorArray.set(origColors);
+    }
+    colorAttr.needsUpdate = true;
+  }
+}
+
 const EMPTY_PERF: ThreePerfData = {
   mode: "",
   treeCount: 0,
@@ -97,10 +135,12 @@ export function ThreeLayerManager({
   const addingRef = useRef(false);
   /** Saved 2D layer opacity values for restore when 3D layer is removed */
   const savedOpacityRef = useRef<Map<string, Array<[string, unknown]>>>(new Map());
+  /** Current building appearance overrides (kept in ref so syncBuildings can access) */
+  const buildingAppearanceRef = useRef<{ color?: string; opacity?: number }>({});
 
-  const useLoft = (runtimeParams.useLoft ?? 0) > 0;
-  const radiusMix = runtimeParams.radiusMix ?? 0;
-  const viewportPadding = runtimeParams.viewportPadding;
+  const useLoft = (Number(runtimeParams.useLoft) || 0) > 0;
+  const radiusMix = Number(runtimeParams.radiusMix) || 0;
+  const viewportPadding = typeof runtimeParams.viewportPadding === "number" ? runtimeParams.viewportPadding : undefined;
 
   // Merge runtime viewportPadding override into config
   const effectiveConfig = viewportPadding != null
@@ -153,7 +193,7 @@ export function ThreeLayerManager({
     const rebuildFn = useLoft
       ? (
           features: MappedFeature[],
-          scene: Scene,
+          scene: THREE.Scene,
           originMerc: MercatorCoordinate,
           mScale: number,
           cfg: Carma3dConfig
@@ -438,6 +478,12 @@ export function ThreeLayerManager({
 
       buildExtrusionMeshes(buildings, layer.scene, layer._originMerc, layer._mScale);
 
+      // Re-apply building appearance overrides after geometry rebuild
+      const { color, opacity } = buildingAppearanceRef.current;
+      if (color || opacity != null) {
+        applyBuildingAppearance(layer, color, opacity);
+      }
+
       // Build the spatial grid for raycast pre-filtering (reuse rebuild() logic)
       // We call rebuild() which rebuilds the grid from _features, but for extrusion
       // the geometry was already built above, so we just need the grid part.
@@ -557,6 +603,19 @@ export function ThreeLayerManager({
       }
     };
   }, [map, useLoft, radiusMix, config, effectiveConfig, perfRef]);
+
+  // Effect 4: Update building appearance (color + opacity) in-place, no rebuild needed
+  const buildingColor = typeof runtimeParams.buildingColor === "string" ? runtimeParams.buildingColor : undefined;
+  const buildingOpacity = typeof runtimeParams.buildingOpacity === "number" ? runtimeParams.buildingOpacity : undefined;
+
+  // Keep ref in sync so syncBuildings can re-apply after geometry rebuild
+  buildingAppearanceRef.current = { color: buildingColor, opacity: buildingOpacity };
+
+  useEffect(() => {
+    if (!map || config.renderMode !== "extrusion") return;
+    applyBuildingAppearance(layerRef.current, buildingColor, buildingOpacity);
+    map.triggerRepaint();
+  }, [map, config.renderMode, buildingColor, buildingOpacity]);
 
   return null;
 }

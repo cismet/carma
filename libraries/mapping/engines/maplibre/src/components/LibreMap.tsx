@@ -160,7 +160,7 @@ export interface LibreMapProps {
   /** Raster paint overrides applied to all background raster layers (night mode, etc.) */
   backgroundRasterPaint?: RasterPaintOverrides;
   /** Runtime parameters for 3D layers (e.g. radiusMix, useLoft) */
-  threeRuntimeParams?: Record<string, number>;
+  threeRuntimeParams?: Record<string, number | string>;
   /** Ref for 3D layer performance data */
   threePerfRef?: React.MutableRefObject<
     import("@carma-mapping/engines/threejs").ThreePerfData
