@@ -22,6 +22,7 @@ interface ArbeitsauftraegeState {
   features: ArbeitsauftragTileFeature[];
   selectedAAId: number | null;
   selectedAAData: ArbeitsauftragDetail | null;
+  selectedTeamId: number | null;
   loading: boolean;
   error: string | null;
 }
@@ -30,6 +31,7 @@ const initialState: ArbeitsauftraegeState = {
   features: [],
   selectedAAId: null,
   selectedAAData: null,
+  selectedTeamId: null,
   loading: false,
   error: null,
 };
@@ -50,6 +52,9 @@ const slice = createSlice({
     setLoading(state, action) {
       state.loading = action.payload;
     },
+    setSelectedTeamId(state, action) {
+      state.selectedTeamId = action.payload;
+    },
     setError(state, action) {
       state.error = action.payload;
     },
@@ -67,6 +72,7 @@ export const {
   setFeatures,
   setSelectedAAId,
   setSelectedAAData,
+  setSelectedTeamId,
   setLoading,
   setError,
   clearSelection,
@@ -81,3 +87,5 @@ export const getSelectedAAData = (state: RootState) =>
 export const getAALoading = (state: RootState) =>
   state.arbeitsauftraege.loading;
 export const getAAError = (state: RootState) => state.arbeitsauftraege.error;
+export const getSelectedTeamId = (state: RootState) =>
+  state.arbeitsauftraege.selectedTeamId;

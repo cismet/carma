@@ -154,7 +154,11 @@ const BelisMapPageShell = () => {
                 </button>
               )}
 
-              {filterPanel}
+              {filterPanel && (
+                <div className={sidebarVariant === "arbeitsauftraege" ? "ml-auto" : ""}>
+                  {filterPanel}
+                </div>
+              )}
             </div>
           }
         >

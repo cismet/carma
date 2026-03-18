@@ -13,7 +13,6 @@ export interface MapPageConfig {
   isMapRoute: boolean;
   showSearch: boolean;
   sidebarVariant: "fachobjekte" | "arbeitsauftraege";
-  selectedTeamId: number | null;
 }
 
 const DEFAULT_CONFIG: MapPageConfig = {
@@ -23,7 +22,6 @@ const DEFAULT_CONFIG: MapPageConfig = {
   isMapRoute: false,
   showSearch: true,
   sidebarVariant: "fachobjekte",
-  selectedTeamId: null,
 };
 
 interface MapPageContextValue {

@@ -81,6 +81,12 @@ const featuresFormsConfig = {
   whitelist: ["drafts"],
 };
 
+const arbeitsauftraegeConfig = {
+  key: "@belis-desktop.arbeitsauftraege",
+  storage: localForage,
+  whitelist: ["selectedTeamId"],
+};
+
 const store = configureStore({
   reducer: {
     auth: persistReducer(authConfig, authSlice.reducer),
@@ -91,7 +97,7 @@ const store = configureStore({
     ),
     ui: ui.reducer,
     keyTables: keyTables.reducer,
-    arbeitsauftraege: arbeitsauftraege.reducer,
+    arbeitsauftraege: persistReducer(arbeitsauftraegeConfig, arbeitsauftraege.reducer),
     featuresForms: persistReducer(featuresFormsConfig, featuresFormsSlice.reducer),
   },
   devTools: devToolsEnabled === true && inProduction === false,

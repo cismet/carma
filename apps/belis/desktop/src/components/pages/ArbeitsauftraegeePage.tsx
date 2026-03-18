@@ -1,9 +1,13 @@
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { message } from "antd";
 import { BELIS_FILTER_CATEGORIES } from "../../config/mapLayerConfigs";
 import { useMapPage } from "../../contexts/MapPageContext";
-import { clearSelection } from "../../store/slices/arbeitsauftraege";
+import {
+  clearSelection,
+  getSelectedTeamId,
+  setSelectedTeamId,
+} from "../../store/slices/arbeitsauftraege";
 import {
   getKeyTablesFetched,
   setKeyTablesData,
@@ -24,7 +28,7 @@ const ArbeitsauftraegeePage = () => {
   const dispatch: AppDispatch = useDispatch();
   const jwt = useSelector(getJWT);
   const keyTablesFetched = useSelector(getKeyTablesFetched);
-  const [selectedTeamId, setSelectedTeamId] = useState<number | null>(null);
+  const selectedTeamId = useSelector(getSelectedTeamId);
 
   // Ensure key tables (teams, etc.) are loaded even when landing directly on this route
   useEffect(() => {
@@ -64,10 +68,12 @@ const ArbeitsauftraegeePage = () => {
     setConfig({
       title: "Arbeitsaufträge",
       activeSourceLayers: ALL_SOURCE_LAYERS,
-      selectedTeamId,
       filterPanel: (
         <div>
-          <TeamSelect value={selectedTeamId} onChange={setSelectedTeamId} />
+          <TeamSelect
+            value={selectedTeamId}
+            onChange={(id) => dispatch(setSelectedTeamId(id))}
+          />
         </div>
       ),
     });
