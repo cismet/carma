@@ -591,7 +591,11 @@ const BelisMapLibWrapper = ({
   const [featureOnMap, setFeatureOnMap] = useState(true);
 
   useEffect(() => {
-    if ((sidebarMode !== "fachobjekte" && sidebarMode !== "highlights") || !selectedFeatureId || !map) {
+    if (
+      (sidebarMode !== "fachobjekte" && sidebarMode !== "highlights") ||
+      !selectedFeatureId ||
+      !map
+    ) {
       setFeatureOnMap(true);
       return;
     }
@@ -613,8 +617,8 @@ const BelisMapLibWrapper = ({
         geometry.type === "LineString"
           ? geometry.coordinates
           : geometry.type === "Polygon"
-            ? geometry.coordinates[0]
-            : [];
+          ? geometry.coordinates[0]
+          : [];
       inside = coords.some(([lng, lat]: number[]) =>
         bounds.contains([lng, lat])
       );
@@ -815,16 +819,27 @@ const BelisMapLibWrapper = ({
     const toggle = () => {
       const visible = sidebarVariant === "arbeitsauftraege";
       for (const layer of map.getStyle()?.layers ?? []) {
-        if ("source" in layer && layer.source === arbeitsauftraegeNamespacedSource) {
+        if (
+          "source" in layer &&
+          layer.source === arbeitsauftraegeNamespacedSource
+        ) {
           try {
-            map.setLayoutProperty(layer.id, "visibility", visible ? "visible" : "none");
-          } catch { /* layer may not be ready */ }
+            map.setLayoutProperty(
+              layer.id,
+              "visibility",
+              visible ? "visible" : "none"
+            );
+          } catch {
+            /* layer may not be ready */
+          }
         }
       }
     };
     toggle();
     map.on("styledata", toggle);
-    return () => { map.off("styledata", toggle); };
+    return () => {
+      map.off("styledata", toggle);
+    };
   }, [sidebarVariant, map, arbeitsauftraegeNamespacedSource]);
 
   // --- Arbeitsauftraege: extract tile features into Redux ---
@@ -833,13 +848,12 @@ const BelisMapLibWrapper = ({
 
     const extractFeatures = () => {
       try {
-        const raw = map.querySourceFeatures(
-          arbeitsauftraegeNamespacedSource,
-          { sourceLayer: "arbeitsauftraege" }
-        );
+        const raw = map.querySourceFeatures(arbeitsauftraegeNamespacedSource, {
+          sourceLayer: "arbeitsauftraege",
+        });
         const seen = new Map<number, ArbeitsauftragTileFeature>();
         for (const f of raw) {
-          const id = (f.id ?? f.properties?.id) as number;
+          const id = f.properties?.id as number;
           if (id != null && !seen.has(id)) {
             seen.set(id, {
               id,
@@ -881,10 +895,17 @@ const BelisMapLibWrapper = ({
       const style = map.getStyle();
       if (!style?.layers) return;
       for (const layer of style.layers) {
-        if ("source" in layer && layer.source === arbeitsauftraegeNamespacedSource) {
+        if (
+          "source" in layer &&
+          layer.source === arbeitsauftraegeNamespacedSource
+        ) {
           try {
             if (selectedTeamName) {
-              map.setFilter(layer.id, ["==", ["get", "team"], selectedTeamName]);
+              map.setFilter(layer.id, [
+                "==",
+                ["get", "team"],
+                selectedTeamName,
+              ]);
             } else {
               map.setFilter(layer.id, null);
             }
@@ -912,7 +933,11 @@ const BelisMapLibWrapper = ({
     if (prevId != null && prevId !== selectedAAId) {
       try {
         map.setFeatureState(
-          { source: arbeitsauftraegeNamespacedSource, sourceLayer: "arbeitsauftraege", id: prevId },
+          {
+            source: arbeitsauftraegeNamespacedSource,
+            sourceLayer: "arbeitsauftraege",
+            id: prevId,
+          },
           { selected: false }
         );
       } catch {
@@ -922,7 +947,11 @@ const BelisMapLibWrapper = ({
     if (selectedAAId != null) {
       try {
         map.setFeatureState(
-          { source: arbeitsauftraegeNamespacedSource, sourceLayer: "arbeitsauftraege", id: selectedAAId },
+          {
+            source: arbeitsauftraegeNamespacedSource,
+            sourceLayer: "arbeitsauftraege",
+            id: selectedAAId,
+          },
           { selected: true }
         );
       } catch {
@@ -1130,9 +1159,7 @@ const BelisMapLibWrapper = ({
         // Feature not in viewport — dispatch stored raw feature to Redux
         // and pass it as rawFeature for the selection context.
         // The draft feature already has the correct MapGeoJSON structure.
-        dispatch(
-          setSelectedFeature({ ...feature, id: dbPK, selected: true })
-        );
+        dispatch(setSelectedFeature({ ...feature, id: dbPK, selected: true }));
         selectFeature(identifier, feature as any);
         return;
       }
@@ -1173,7 +1200,10 @@ const BelisMapLibWrapper = ({
       style={{ width: mapSizes.width, height: mapSizes.height }}
     >
       {sidebarVariant === "arbeitsauftraege" ? (
-        <ArbeitsauftraegeSidebar width={LIST_WIDTH} onFeatureSelect={handleAAFeatureSelect} />
+        <ArbeitsauftraegeSidebar
+          width={LIST_WIDTH}
+          onFeatureSelect={handleAAFeatureSelect}
+        />
       ) : (
         <BelisSidebar
           features={effectiveSidebarData.features}
