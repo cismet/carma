@@ -13,7 +13,7 @@ const ArbeitsauftraegeePage = () => {
 
   // Register as a map route — show the shell, clear on unmount
   useEffect(() => {
-    setConfig({ isMapRoute: true, showSearch: false });
+    setConfig({ isMapRoute: true, showSearch: false, sidebarVariant: "arbeitsauftraege" });
     return () => setConfig({ isMapRoute: false });
   }, [setConfig]);
 

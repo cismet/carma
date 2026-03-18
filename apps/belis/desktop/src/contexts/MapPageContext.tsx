@@ -12,6 +12,7 @@ export interface MapPageConfig {
   activeSourceLayers: Set<string>;
   isMapRoute: boolean;
   showSearch: boolean;
+  sidebarVariant: "fachobjekte" | "arbeitsauftraege";
 }
 
 const DEFAULT_CONFIG: MapPageConfig = {
@@ -20,6 +21,7 @@ const DEFAULT_CONFIG: MapPageConfig = {
   activeSourceLayers: new Set(),
   isMapRoute: false,
   showSearch: true,
+  sidebarVariant: "fachobjekte",
 };
 
 interface MapPageContextValue {

@@ -25,6 +25,7 @@ import {
 import type { LibreLayer } from "@carma-mapping/engines/maplibre";
 import { AppDispatch, type RootState } from "../../store";
 import BelisSidebar from "../ui/BelisSidebar";
+import ArbeitsauftraegeSidebar from "../ui/ArbeitsauftraegeSidebar";
 import { useVisibleMapFeatures, functionToInfo } from "@carma-mapping/utils";
 import { extractCarmaConfig } from "@carma-commons/utils";
 import {
@@ -68,6 +69,7 @@ interface BelisMapLibWrapperProps {
   highlightResults: SidebarFeature[] | null;
   lassoActive: boolean;
   onLassoDeactivate?: () => void;
+  sidebarVariant: "fachobjekte" | "arbeitsauftraege";
 }
 
 const BelisMapLibWrapper = ({
@@ -76,6 +78,7 @@ const BelisMapLibWrapper = ({
   highlightResults,
   lassoActive,
   onLassoDeactivate,
+  sidebarVariant,
 }: BelisMapLibWrapperProps) => {
   const dispatch: AppDispatch = useDispatch();
   const store = useStore<RootState>();
@@ -935,30 +938,34 @@ const BelisMapLibWrapper = ({
       className="relative flex"
       style={{ width: mapSizes.width, height: mapSizes.height }}
     >
-      <BelisSidebar
-        features={effectiveSidebarData.features}
-        countsByLayer={effectiveSidebarData.countsByLayer}
-        totalCount={effectiveSidebarData.totalCount}
-        isLoading={effectiveSidebarData.isLoading}
-        isOverviewMode={effectiveSidebarData.isOverviewMode}
-        activeSourceLayers={effectiveSidebarData.activeSourceLayers}
-        selectedFeatureId={selectedFeatureId}
-        selectedDatabaseId={selectedDatabaseId}
-        onFeatureSelect={handleSidebarFeatureSelect}
-        emptyMessage={
-          map
-            ? "Keine Objekte im aktuellen Kartenausschnitt"
-            : "Karte wird geladen..."
-        }
-        sidebarMode={sidebarMode}
-        onModeChange={setSidebarMode}
-        hasHighlights={hasHighlights}
-        hasDrafts={draftFeaturesCount > 0}
-        fachobjekteCount={totalCount}
-        highlightCount={adjustedHighlights?.length ?? undefined}
-        draftsCount={draftFeaturesCount}
-        onFeatureDismiss={handleSidebarDismiss}
-      />
+      {sidebarVariant === "arbeitsauftraege" ? (
+        <ArbeitsauftraegeSidebar width={LIST_WIDTH} />
+      ) : (
+        <BelisSidebar
+          features={effectiveSidebarData.features}
+          countsByLayer={effectiveSidebarData.countsByLayer}
+          totalCount={effectiveSidebarData.totalCount}
+          isLoading={effectiveSidebarData.isLoading}
+          isOverviewMode={effectiveSidebarData.isOverviewMode}
+          activeSourceLayers={effectiveSidebarData.activeSourceLayers}
+          selectedFeatureId={selectedFeatureId}
+          selectedDatabaseId={selectedDatabaseId}
+          onFeatureSelect={handleSidebarFeatureSelect}
+          emptyMessage={
+            map
+              ? "Keine Objekte im aktuellen Kartenausschnitt"
+              : "Karte wird geladen..."
+          }
+          sidebarMode={sidebarMode}
+          onModeChange={setSidebarMode}
+          hasHighlights={hasHighlights}
+          hasDrafts={draftFeaturesCount > 0}
+          fachobjekteCount={totalCount}
+          highlightCount={adjustedHighlights?.length ?? undefined}
+          draftsCount={draftFeaturesCount}
+          onFeatureDismiss={handleSidebarDismiss}
+        />
+      )}
       <div
         ref={mapContainerRef}
         style={{

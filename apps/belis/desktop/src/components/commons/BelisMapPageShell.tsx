@@ -37,7 +37,7 @@ const BelisMapPageShell = () => {
   const globalEditMode = useSelector(getGlobalEditMode);
 
   const { config } = useMapPage();
-  const { title, filterPanel, activeSourceLayers, showSearch } = config;
+  const { title, filterPanel, activeSourceLayers, showSearch, sidebarVariant } = config;
 
   const [streets, setStreets] = useState<BelisStreet[]>([]);
   const [highlightResults, setHighlightResults] = useState<
@@ -164,6 +164,7 @@ const BelisMapPageShell = () => {
             highlightResults={highlightResults}
             lassoActive={lassoActive}
             onLassoDeactivate={() => setLassoActive(false)}
+            sidebarVariant={sidebarVariant}
           />
         </CustomCard>
       </div>
