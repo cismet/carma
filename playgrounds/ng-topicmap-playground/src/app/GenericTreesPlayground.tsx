@@ -521,11 +521,7 @@ export function GenericTreesPlayground() {
                 onProgressUpdate={handleProgressUpdate}
                 libreLayers={LIBRE_LAYERS}
                 modalMenu={<Menu />}
-                threeRuntimeParams={
-                  layerVisibility["Einzelbaum 3D"]
-                    ? threeRuntimeParams
-                    : undefined
-                }
+                threeRuntimeParams={threeRuntimeParams}
                 threePerfRef={perfRef}
               />
               <LayerToggleBar

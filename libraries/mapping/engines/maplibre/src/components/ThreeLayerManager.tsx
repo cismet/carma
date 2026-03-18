@@ -95,6 +95,8 @@ export function ThreeLayerManager({
   const overlayIdRef = useRef<string | null>(null);
   const profilesEnsuredRef = useRef(false);
   const addingRef = useRef(false);
+  /** Saved 2D layer opacity values for restore when 3D layer is removed */
+  const savedOpacityRef = useRef<Map<string, Array<[string, unknown]>>>(new Map());
 
   const useLoft = (runtimeParams.useLoft ?? 0) > 0;
   const radiusMix = runtimeParams.radiusMix ?? 0;
@@ -127,35 +129,20 @@ export function ThreeLayerManager({
     };
   }, [map, useLoft]);
 
-  // Effect 2: Hide 2D layers with skipIn2D (set opacity to near-zero, restore on cleanup)
+  // Effect 2: Restore 2D layer opacity on unmount (opacity is managed by addLayer/removeLayer)
   useEffect(() => {
-    if (!map || !config.skipIn2DLayerIds?.length) return;
-
-    const saved = new Map<string, Array<[string, unknown]>>();
-
-    for (const layerId of config.skipIn2DLayerIds) {
-      const layer = map.getLayer(layerId);
-      if (!layer) continue;
-      const props = OPACITY_PROPS[layer.type];
-      if (!props) continue;
-
-      const originals: Array<[string, unknown]> = [];
-      for (const prop of props) {
-        originals.push([prop, map.getPaintProperty(layerId, prop)]);
-        map.setPaintProperty(layerId, prop, 0.00001);
-      }
-      saved.set(layerId, originals);
-    }
-
+    if (!map) return;
     return () => {
-      for (const [layerId, originals] of saved) {
+      // Restore any saved 2D layer opacity on unmount
+      for (const [layerId, originals] of savedOpacityRef.current) {
         if (!map.getLayer(layerId)) continue;
         for (const [prop, value] of originals) {
           map.setPaintProperty(layerId, prop, (value as number) ?? 1);
         }
       }
+      savedOpacityRef.current.clear();
     };
-  }, [map, config.skipIn2DLayerIds]);
+  }, [map]);
 
   // Effect 3: Data sync (re-runs on radius change without tearing down)
   useEffect(() => {
@@ -173,6 +160,44 @@ export function ThreeLayerManager({
         ): FactoryStats =>
           buildLoftMeshes(features, scene, originMerc, mScale, cfg, 14)
       : buildLatheInstances;
+
+    /** Check if the 2D source layers for this config are visible (layout visibility).
+     *  Returns true if no skipIn2DLayerIds are configured or at least one is visible. */
+    const isSourceVisible = (): boolean => {
+      const ids = config.skipIn2DLayerIds;
+      if (!ids || ids.length === 0) return true;
+      return ids.some((id) => {
+        const vis = map.getLayoutProperty(id, "visibility");
+        return vis !== "none";
+      });
+    };
+
+    /** Tear down the 3D custom layer and overlay (without unmounting the component). */
+    const removeLayer = () => {
+      if (overlayIdRef.current && map.getLayer(overlayIdRef.current)) {
+        map.removeLayer(overlayIdRef.current);
+      }
+      overlayIdRef.current = null;
+      if (layerRef.current) {
+        layerRef.current.unhighlight();
+        unregister3dLayer(map, layerRef.current);
+        if (map.getLayer(layerRef.current.id)) {
+          map.removeLayer(layerRef.current.id);
+        }
+        map.triggerRepaint();
+      }
+      layerRef.current = null;
+      addingRef.current = false;
+
+      // Restore 2D layer opacity
+      for (const [lid, originals] of savedOpacityRef.current) {
+        if (!map.getLayer(lid)) continue;
+        for (const [prop, value] of originals) {
+          map.setPaintProperty(lid, prop, (value as number) ?? 1);
+        }
+      }
+      savedOpacityRef.current.clear();
+    };
 
     const addLayerIfReady = async () => {
       if (layerRef.current || addingRef.current) return;
@@ -200,6 +225,22 @@ export function ThreeLayerManager({
         const overlay = buildOverlayLayer(customLayer, oId);
         map.addLayer(overlay);
         overlayIdRef.current = oId;
+
+        // Hide 2D layers (skipIn2D) now that 3D layer is active
+        if (config.skipIn2DLayerIds?.length) {
+          for (const lid of config.skipIn2DLayerIds) {
+            const layer2d = map.getLayer(lid);
+            if (!layer2d) continue;
+            const props = OPACITY_PROPS[layer2d.type];
+            if (!props) continue;
+            const originals: Array<[string, unknown]> = [];
+            for (const prop of props) {
+              originals.push([prop, map.getPaintProperty(lid, prop)]);
+              map.setPaintProperty(lid, prop, 0.00001);
+            }
+            savedOpacityRef.current.set(lid, originals);
+          }
+        }
       } catch (err) {
         console.warn("[3D-SELECT] addLayer failed:", err);
         layerRef.current = null;
@@ -445,6 +486,15 @@ export function ThreeLayerManager({
     };
 
     const trySync = async () => {
+      // If the source's 2D layers are hidden, tear down the 3D layer
+      if (!isSourceVisible()) {
+        if (layerRef.current) {
+          console.log("[3D-LAYER] hiding 3D layer (source layers not visible):", config.sourceId);
+          removeLayer();
+        }
+        return;
+      }
+
       await addLayerIfReady();
       if (!layerRef.current || !map.getSource(config.sourceId)) return;
 
@@ -478,13 +528,14 @@ export function ThreeLayerManager({
     map.on("terrain", handleTerrain);
 
     // Re-add layer after background style change (style swap removes custom layers)
+    // Also re-checks visibility so toggling a layer back on re-creates the 3D layer
     const handleStyleData = () => {
       if (layerRef.current && !map.getLayer(layerRef.current.id)) {
         overlayIdRef.current = null;
         layerRef.current = null;
         addingRef.current = false;
-        trySync();
       }
+      trySync();
     };
     map.on("styledata", handleStyleData);
 
