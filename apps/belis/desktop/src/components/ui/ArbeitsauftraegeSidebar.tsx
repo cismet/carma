@@ -133,7 +133,7 @@ const ArbeitsauftraegeSidebar = ({ width, onFeatureSelect, onProtokollSelect }: 
           }`}
           onClick={() => setActiveTab("aa")}
         >
-          AA
+          AU
           <span className="ml-1 text-[10px] bg-gray-200 text-gray-600 rounded-full px-1.5 py-0.5">
             {features.length}
           </span>
@@ -179,7 +179,7 @@ const ArbeitsauftraegeSidebar = ({ width, onFeatureSelect, onProtokollSelect }: 
                 >
                   <div className="flex justify-between items-baseline">
                     <span className="font-semibold text-sm text-gray-900">
-                      AA-{item.nummer}
+                      AU-{item.nummer}
                     </span>
                     <span className="text-xs text-gray-500">{item.team?.replace("erledigte Arbeitsaufträge", "")}</span>
                   </div>
