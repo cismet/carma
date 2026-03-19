@@ -40,6 +40,7 @@ const TREES_LOFT_KEY = "generic-trees-useLoft";
 const TREES_RADIUS_MIX_KEY = "generic-trees-radiusMix";
 const TREES_VISIBILITY_KEY = "generic-trees-layerVisibility";
 const TREES_CROSSHAIR_KEY = "generic-trees-crosshair";
+const TREES_MERGE_TILES_KEY = "generic-trees-mergeTiles";
 
 function loadUseLoft(): boolean {
   try {
@@ -327,6 +328,8 @@ function LayerToggleBar({
   buildingOpacity,
   onBuildingOpacityChange,
   onBuildingReset,
+  mergeTiles,
+  onMergeTilesChange,
 }: {
   visibility: LayerVisibility;
   onToggle: (name: LayerGroupName) => void;
@@ -341,6 +344,8 @@ function LayerToggleBar({
   buildingOpacity: number;
   onBuildingOpacityChange: (opacity: number) => void;
   onBuildingReset: () => void;
+  mergeTiles: boolean;
+  onMergeTilesChange: (v: boolean) => void;
 }) {
   return (
     <div className="absolute top-4 left-1/2 -translate-x-1/2 z-[9999] flex gap-2 items-start">
@@ -406,6 +411,14 @@ function LayerToggleBar({
               )}
               {isBuilding && visible && (
                 <>
+                  <span className="border-l border-gray-300 h-4" />
+                  <Switch
+                    size="small"
+                    checked={mergeTiles}
+                    onChange={onMergeTilesChange}
+                    checkedChildren="Merge"
+                    unCheckedChildren="Merge"
+                  />
                   <span className="border-l border-gray-300 h-4" />
                   <input
                     type="color"
@@ -524,6 +537,13 @@ export function GenericTreesPlayground() {
   });
   const [buildingColor, setBuildingColor] = useState<string | null>(null);
   const [buildingOpacity, setBuildingOpacity] = useState(0.65);
+  const [mergeTiles, setMergeTiles] = useState(() => {
+    try {
+      return localStorage.getItem(TREES_MERGE_TILES_KEY) !== "false";
+    } catch {
+      return true;
+    }
+  });
   const { progress, showProgress, handleProgressUpdate } = useProgress();
   const perfRef = useRef<ThreePerfData>(EMPTY_PERF);
 
@@ -545,12 +565,18 @@ export function GenericTreesPlayground() {
     });
   };
 
+  const handleMergeTilesChange = (v: boolean) => {
+    setMergeTiles(v);
+    localStorage.setItem(TREES_MERGE_TILES_KEY, String(v));
+  };
+
   // Runtime params drive 3D layer behaviour via CarmaMap -> LibreMap -> ThreeLayerManager
   const threeRuntimeParams: Record<string, number | string> = {
     radiusMix,
     //viewportPadding: 0.3000,
     useLoft: useLoft ? 1 : 0,
     buildingOpacity,
+    mergeTiles: mergeTiles ? 1 : 0,
     ...(buildingColor ? { buildingColor } : {}),
   };
 
@@ -599,6 +625,8 @@ export function GenericTreesPlayground() {
                 buildingOpacity={buildingOpacity}
                 onBuildingOpacityChange={setBuildingOpacity}
                 onBuildingReset={() => setBuildingColor(null)}
+                mergeTiles={mergeTiles}
+                onMergeTilesChange={handleMergeTilesChange}
               />
             </LibreContextProvider>
           </SelectionProvider>

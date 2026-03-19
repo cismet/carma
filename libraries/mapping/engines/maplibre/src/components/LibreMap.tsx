@@ -689,7 +689,7 @@ export const LibreMap = ({
 
           for (const threeLayer of threeLayers) {
             const result = threeLayer.raycast(e.point.x, e.point.y);
-            console.log("[3D-SELECT] layer", threeLayer.id, "result:", result);
+            // [3D-SELECT] per-layer raycast log suppressed
             if (result && result.resolvedSourceIndex != null) {
               const dist = result.hitDistance ?? Infinity;
               if (dist < bestDist) {
@@ -703,7 +703,7 @@ export const LibreMap = ({
           if (bestHitLayer && bestResult && bestResult.resolvedSourceIndex != null) {
               const threeLayer = bestHitLayer;
               const result = bestResult;
-              console.log("[3D-SELECT] closest hit: layer", threeLayer.id, "dist:", bestDist.toFixed(2));
+              // [3D-SELECT] closest hit log suppressed
 
               // 3D hit detected: takes priority over 2D
               clearVisualSelection(mapInstance);
@@ -721,11 +721,7 @@ export const LibreMap = ({
                   sourceLayer: sf.sourceLayer,
                   id: sf.id,
                 };
-                console.log(
-                  "[3D-SELECT] forwarding to 2D selection:",
-                  featureId
-                );
-                console.log("[3D-SELECT] feature properties:", sf.properties);
+                // [3D-SELECT] forwarding + properties logs suppressed
 
                 if (sf.id != null) {
                   applyVisualSelection(mapInstance, featureId);
@@ -778,13 +774,7 @@ export const LibreMap = ({
                   }
                 }
 
-                console.log("[3D-SELECT] mapping lookup:", {
-                  layerId3d,
-                  fallbackLayerId,
-                  source: sf.source,
-                  sourceLayer: sf.sourceLayer,
-                  available: Object.keys(mappingRef.current),
-                });
+                // [3D-SELECT] mapping lookup log suppressed
                 const layerMapping3d =
                   mappingRef.current[layerId3d ?? ""] ||
                   mappingRef.current[fallbackLayerId ?? ""] ||

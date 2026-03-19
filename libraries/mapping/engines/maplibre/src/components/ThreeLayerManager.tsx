@@ -58,7 +58,7 @@ function register3dLayer(map: MaplibreMap, layer: GenericCustomLayer): void {
     registry.push(layer);
   }
   (map as any)[LAYER_REGISTRY_KEY] = registry;
-  console.log("[3D-SELECT] registered layer:", layer.id, "total:", registry.length);
+  // console.log("[3D-SELECT] registered layer:", layer.id, "total:", registry.length);
 }
 
 function unregister3dLayer(map: MaplibreMap, layer: GenericCustomLayer): void {
@@ -67,7 +67,7 @@ function unregister3dLayer(map: MaplibreMap, layer: GenericCustomLayer): void {
   const idx = registry.indexOf(layer);
   if (idx >= 0) {
     registry.splice(idx, 1);
-    console.log("[3D-SELECT] unregistered layer:", layer.id, "remaining:", registry.length);
+    // console.log("[3D-SELECT] unregistered layer:", layer.id, "remaining:", registry.length);
   }
   (map as any)[LAYER_REGISTRY_KEY] = registry;
 }
@@ -137,9 +137,12 @@ export function ThreeLayerManager({
   const savedOpacityRef = useRef<Map<string, Array<[string, unknown]>>>(new Map());
   /** Current building appearance overrides (kept in ref so syncBuildings can access) */
   const buildingAppearanceRef = useRef<{ color?: string; opacity?: number }>({});
+  /** Last logged building count to suppress repeated log lines */
+  const lastLoggedCountRef = useRef(-1);
 
   const useLoft = (Number(runtimeParams.useLoft) || 0) > 0;
   const radiusMix = Number(runtimeParams.radiusMix) || 0;
+  const mergeTiles = (Number(runtimeParams.mergeTiles) ?? 1) > 0;
   const viewportPadding = typeof runtimeParams.viewportPadding === "number" ? runtimeParams.viewportPadding : undefined;
 
   // Merge runtime viewportPadding override into config
@@ -329,7 +332,7 @@ export function ThreeLayerManager({
     const syncBuildings = () => {
       const layer = layerRef.current;
       if (!layer) return;
-      if (!map.getSource(config.sourceId)) { console.log("[3D-BUILDINGS] skip: no source", config.sourceId); return; }
+      if (!map.getSource(config.sourceId)) return;
 
       // Initialize origin if not yet set (extrusion layers skip the tree rebuild() path)
       if (!layer._originMerc) {
@@ -347,8 +350,7 @@ export function ThreeLayerManager({
         sourceLayer: config.sourceLayer,
       });
 
-      console.log("[3D-BUILDINGS] raw:", raw.length, "zoom:", map.getZoom().toFixed(1),
-        "source:", config.sourceId, "sourceLayer:", config.sourceLayer);
+      // Logging moved to end-of-sync summary (only on change)
 
       // Group tile fragments by feature ID, keeping raw feature refs for _sourceFeatures
       interface BldgGroup {
@@ -422,6 +424,9 @@ export function ThreeLayerManager({
 
         if (g.fragments.length === 1) {
           ringsToExtrude = [g.fragments[0]];
+        } else if (!mergeTiles) {
+          // Skip turf union: render tile fragments as-is (faster, minor overlap seam)
+          ringsToExtrude = g.fragments;
         } else {
           const merged = unionRings(g.fragments);
           if (merged) {
@@ -513,10 +518,14 @@ export function ThreeLayerManager({
       }
       layer._spatialGrid = grid;
 
-      console.log("[3D-BUILDINGS]", buildings.length, "buildings,",
-        mergedOk, "merged,", mergeFailed, "merge-failed,",
-        sourceFeatures.length, "sourceFeatures,",
-        grid.size, "grid cells");
+      if (buildings.length !== lastLoggedCountRef.current) {
+        lastLoggedCountRef.current = buildings.length;
+        console.log("[3D-BUILDINGS]", buildings.length, "buildings,",
+          mergedOk, "merged,", mergeFailed, "merge-failed,",
+          sourceFeatures.length, "sourceFeatures,",
+          grid.size, "grid cells",
+          mergeTiles ? "(merge ON)" : "(merge OFF)");
+      }
     };
 
     /** Sync trees: queries source features and rebuilds tree geometry. */
@@ -540,7 +549,7 @@ export function ThreeLayerManager({
       // If the source's 2D layers are hidden, tear down the 3D layer
       if (!isSourceVisible()) {
         if (layerRef.current) {
-          console.log("[3D-LAYER] hiding 3D layer (source layers not visible):", config.sourceId);
+          // console.log("[3D-LAYER] hiding 3D layer (source layers not visible):", config.sourceId);
           removeLayer();
         }
         return;
@@ -607,7 +616,7 @@ export function ThreeLayerManager({
         perfRef.current = EMPTY_PERF;
       }
     };
-  }, [map, useLoft, radiusMix, config, effectiveConfig, perfRef]);
+  }, [map, useLoft, radiusMix, mergeTiles, config, effectiveConfig, perfRef]);
 
   // Effect 4: Update building appearance (color + opacity) in-place, no rebuild needed
   const buildingColor = typeof runtimeParams.buildingColor === "string" ? runtimeParams.buildingColor : undefined;

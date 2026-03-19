@@ -381,7 +381,6 @@ export function buildGenericLayer(
       this._lastFeatureCount = this._features.length;
 
       // Build 2D spatial grid for fast raycast selection
-      const t0Grid = performance.now();
       const grid: SpatialGrid = new Map();
       for (const f of this._features) {
         const mrc = MercatorCoordinate.fromLngLat(
@@ -412,12 +411,6 @@ export function buildGenericLayer(
         }
       }
       this._spatialGrid = grid;
-      const gridBuildMs = performance.now() - t0Grid;
-      console.log("[3D-PERF] gridBuild", JSON.stringify({
-        gridBuildMs: +gridBuildMs.toFixed(2),
-        entries: this._features.length,
-        cells: grid.size,
-      }));
     },
 
     render(
@@ -484,8 +477,6 @@ export function buildGenericLayer(
       const near = new THREE.Vector3(ndcX, ndcY, -1).unproject(this.camera);
       const far = new THREE.Vector3(ndcX, ndcY, 1).unproject(this.camera);
       const dir = far.sub(near).normalize();
-
-      const t0Ray = performance.now();
 
       // Two-phase raycast (same approach for Lathe and Loft):
       // 1. Spatial grid cylinder pre-filter -> ~30-40 candidate sourceIndices
@@ -573,8 +564,6 @@ export function buildGenericLayer(
         }
       }
 
-      const raycastMs = performance.now() - t0Ray;
-
       const result: RaycastDebugResult = {
         ndc: { x: ndcX, y: ndcY },
         candidates,
@@ -586,26 +575,18 @@ export function buildGenericLayer(
         const srcFeature = this._sourceFeatures[bestSourceIndex];
         if (srcFeature) {
           result.sourceFeature = srcFeature;
-          console.log(
-            "[3D-SELECT] HIT sourceIndex", bestSourceIndex,
-            { id: srcFeature.id, source: srcFeature.source, sourceLayer: srcFeature.sourceLayer },
-          );
+          // [3D-SELECT] HIT log suppressed
         }
       } else {
-        console.log("[3D-SELECT] no hit, checked", candidates, "candidates");
+        // [3D-SELECT] no hit log suppressed
       }
 
-      console.log("[3D-PERF] raycast", JSON.stringify({
-        raycastMs: +raycastMs.toFixed(2),
-        candidates,
-        resolvedSourceIndex: result.resolvedSourceIndex,
-      }));
+      // [3D-PERF] raycast log suppressed
 
       return result;
     },
 
     highlight(sourceIndex: number) {
-      const t0Hl = performance.now();
       this.unhighlight();
 
       const instancedMeshes: THREE.InstancedMesh[] = [];
@@ -666,7 +647,7 @@ export function buildGenericLayer(
         colorAttr.needsUpdate = true;
 
         vertexEntries.push({ mesh, ranges: vRanges });
-        console.log("[3D-SELECT] Loft highlight: mesh", mesh.name || "(unnamed)", "vertices:", totalVerts);
+        // [3D-SELECT] Loft highlight detail log suppressed
       }
 
       if (instancedMeshes.length > 0 || vertexEntries.length > 0) {
@@ -677,24 +658,18 @@ export function buildGenericLayer(
           vertexEntries,
         };
         if (instancedMeshes.length > 0) {
-          console.log("[3D-SELECT] Lathe highlighted sourceIndex", sourceIndex, "instanceId", foundInstanceId, "across", instancedMeshes.length, "meshes");
+          // [3D-SELECT] Lathe highlight log suppressed
         }
         if (vertexEntries.length > 0) {
-          console.log("[3D-SELECT] Loft highlighted sourceIndex", sourceIndex, "across", vertexEntries.length, "meshes");
+          // [3D-SELECT] Loft highlight log suppressed
         }
-        console.log("[3D-PERF] highlight", JSON.stringify({
-          highlightMs: +(performance.now() - t0Hl).toFixed(2),
-          sourceIndex,
-          lathe: instancedMeshes.length,
-          loft: vertexEntries.length,
-        }));
+        // [3D-PERF] highlight log suppressed
         this.map.triggerRepaint();
       }
     },
 
     unhighlight() {
       if (!this._highlightState) return;
-      const t0Un = performance.now();
 
       const { instancedMeshes, instanceId, instanceSavedColors, vertexEntries } =
         this._highlightState;
@@ -705,7 +680,7 @@ export function buildGenericLayer(
         instancedMeshes[i].instanceColor!.needsUpdate = true;
       }
       if (instancedMeshes.length > 0) {
-        console.log("[3D-SELECT] unhighlighted Lathe instanceId", instanceId, "across", instancedMeshes.length, "meshes");
+        // [3D-SELECT] unhighlight Lathe log suppressed
       }
 
       // Restore Loft (merged Mesh) vertex colors: only the highlighted ranges
@@ -722,14 +697,10 @@ export function buildGenericLayer(
         colorAttr.needsUpdate = true;
       }
       if (vertexEntries.length > 0) {
-        console.log("[3D-SELECT] unhighlighted Loft across", vertexEntries.length, "meshes");
+        // [3D-SELECT] unhighlight Loft log suppressed
       }
 
-      console.log("[3D-PERF] unhighlight", JSON.stringify({
-        unhighlightMs: +(performance.now() - t0Un).toFixed(2),
-        lathe: instancedMeshes.length,
-        loft: vertexEntries.length,
-      }));
+      // [3D-PERF] unhighlight log suppressed
       this._highlightState = null;
       this.map.triggerRepaint();
     },
@@ -828,19 +799,11 @@ export function syncGenericLayerFromSource(
   radiusMix = 0
 ): ThreePerfData | null {
   const config = layer._config;
-  const t0Query = performance.now();
   const features = map.querySourceFeatures(config.sourceId, {
     sourceLayer: config.sourceLayer,
   });
-  const queryMs = performance.now() - t0Query;
-
-  const t0Dedup = performance.now();
   const unique = deduplicateFeatures(features as never[]);
-  const dedupMs = performance.now() - t0Dedup;
-
-  const t0Map = performance.now();
   const mapped = mapFeatures(unique, config, radiusMix);
-  const mapMs = performance.now() - t0Map;
 
   // Only apply elevation when terrain is active
   const hasTerrain = map.getTerrain() != null;
@@ -904,20 +867,7 @@ export function syncGenericLayerFromSource(
 
   map.triggerRepaint();
 
-  console.log("[3D-PERF] sync", JSON.stringify({
-    rawFeatures: features.length,
-    uniqueFeatures: unique.length,
-    mappedFeatures: mapped.length,
-    visibleFeatures: visible.length,
-    treeCount: layer._stats.treeCount,
-    triangles: layer._stats.triangles,
-    drawCalls: layer._stats.drawCalls,
-    queryMs: +queryMs.toFixed(2),
-    dedupMs: +dedupMs.toFixed(2),
-    mapMs: +mapMs.toFixed(2),
-    rebuildMs: +rebuildMs.toFixed(2),
-    totalMs: +(queryMs + dedupMs + mapMs + rebuildMs).toFixed(2),
-  }));
+  // [3D-PERF] sync log suppressed (fires on every moveend/idle)
 
   return {
     mode: "generic",
