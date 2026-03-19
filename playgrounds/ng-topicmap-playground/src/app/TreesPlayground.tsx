@@ -39,9 +39,10 @@ import "leaflet/dist/leaflet.css";
 //  LocalStorage helpers for tree options
 // ─────────────────────────────────────────────────────────────
 
-const TREES_LOFT_KEY = "trees-useLoft";
-const TREES_RADIUS_MIX_KEY = "trees-radiusMix";
-const TREES_VISIBILITY_KEY = "trees-layerVisibility";
+const LS_PREFIX = "ng-topicmap-playground:";
+const TREES_LOFT_KEY = `${LS_PREFIX}trees-useLoft`;
+const TREES_RADIUS_MIX_KEY = `${LS_PREFIX}trees-radiusMix`;
+const TREES_VISIBILITY_KEY = `${LS_PREFIX}trees-layerVisibility`;
 
 function loadUseLoft(): boolean {
   try {
@@ -74,7 +75,7 @@ function loadLayerVisibility(): LayerVisibility {
 //  Camera persistence
 // ─────────────────────────────────────────────────────────────
 
-const STORAGE_KEY = "trees-camera";
+const STORAGE_KEY = `${LS_PREFIX}trees-camera`;
 
 function CameraPersistence() {
   const { map } = useLibreContext();

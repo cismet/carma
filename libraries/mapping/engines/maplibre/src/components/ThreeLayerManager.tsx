@@ -256,14 +256,35 @@ export function ThreeLayerManager({
       const customLayer = buildGenericLayer(effectiveConfig, rebuildFn, layerId);
       layerRef.current = customLayer;
 
+      // Find the first sub-style boundary that comes after this layer's own
+      // source boundary so the 3D layer stays in z-order (not appended on top
+      // of later sub-styles like POI).
+      // config.sourceId is namespaced as "<slugifiedStyleUrl>::<source>", so
+      // the sub-style boundary is "---<slugifiedStyleUrl>:last---".
+      const nsPrefix = config.sourceId.split("::")[0];
+      const ownLastBoundary = `---${nsPrefix}:last---`;
+      let insertBeforeId: string | undefined;
+      const styleLayers = map.getStyle()?.layers ?? [];
+      let pastOwn = false;
+      for (const sl of styleLayers) {
+        if (sl.id === ownLastBoundary) {
+          pastOwn = true;
+          continue;
+        }
+        if (pastOwn && sl.id.startsWith("---") && sl.id.endsWith(":first---")) {
+          insertBeforeId = sl.id;
+          break;
+        }
+      }
+
       try {
-        map.addLayer(customLayer);
+        map.addLayer(customLayer, insertBeforeId);
         register3dLayer(map, customLayer);
 
-        // Add overlay layer at the end (after symbols) for label occlusion
+        // Add overlay layer right after the custom layer (before the same boundary)
         const oId = layerId + "-overlay";
         const overlay = buildOverlayLayer(customLayer, oId);
-        map.addLayer(overlay);
+        map.addLayer(overlay, insertBeforeId);
         overlayIdRef.current = oId;
 
         // Hide 2D layers (skipIn2D) now that 3D layer is active

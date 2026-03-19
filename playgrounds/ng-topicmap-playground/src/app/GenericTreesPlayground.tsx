@@ -36,10 +36,11 @@ import "leaflet/dist/leaflet.css";
 //  LocalStorage helpers
 // ─────────────────────────────────────────────────────────────
 
-const TREES_LOFT_KEY = "generic-trees-useLoft";
-const TREES_RADIUS_MIX_KEY = "generic-trees-radiusMix";
-const TREES_VISIBILITY_KEY = "generic-trees-layerVisibility";
-const TREES_CROSSHAIR_KEY = "generic-trees-crosshair";
+const LS_PREFIX = "ng-topicmap-playground:";
+const TREES_LOFT_KEY = `${LS_PREFIX}generic-trees-useLoft`;
+const TREES_RADIUS_MIX_KEY = `${LS_PREFIX}generic-trees-radiusMix`;
+const TREES_VISIBILITY_KEY = `${LS_PREFIX}generic-trees-layerVisibility`;
+const TREES_CROSSHAIR_KEY = `${LS_PREFIX}generic-trees-crosshair`;
 
 function loadUseLoft(): boolean {
   try {
@@ -72,7 +73,7 @@ function loadLayerVisibility(): LayerVisibility {
 //  Camera persistence
 // ─────────────────────────────────────────────────────────────
 
-const STORAGE_KEY = "generic-trees-camera";
+const STORAGE_KEY = `${LS_PREFIX}generic-trees-camera`;
 
 function CameraPersistence() {
   const { map } = useLibreContext();
@@ -232,8 +233,8 @@ const LAYER_GROUPS: {
 
 const DEFAULT_VISIBILITY: LayerVisibility = {
   "Einzelbaum 3D": true,
-  Wohnlagen: true,
-  "Einzelbaum Umringe": true,
+  Wohnlagen: false,
+  "Einzelbaum Umringe": false,
   Gebaeude: true,
   POI: true,
 };

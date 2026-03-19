@@ -19,7 +19,8 @@ import "react-bootstrap-typeahead/css/Typeahead.css";
 import "react-cismap/topicMaps.css";
 import "leaflet/dist/leaflet.css";
 
-const STORAGE_KEY = "buildings-camera";
+const LS_PREFIX = "ng-topicmap-playground:";
+const STORAGE_KEY = `${LS_PREFIX}buildings-camera`;
 
 function CameraPersistence() {
   const { map } = useLibreContext();
