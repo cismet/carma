@@ -62,7 +62,7 @@ const root = ReactDOM.createRoot(
 );
 
 root.render(
-  <HashStateProvider routingMode="neutral">
+  <HashStateProvider>
     <ConfigProvider
       theme={{
         algorithm: theme.compactAlgorithm,
