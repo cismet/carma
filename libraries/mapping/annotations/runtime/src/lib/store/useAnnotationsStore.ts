@@ -84,7 +84,8 @@ export const useStoreSelector = <TSelected>(
   );
 
   useEffect(() => {
-    const readSelectedValue = () => selectorRef.current(annotationsStore.getState());
+    const readSelectedValue = () =>
+      selectorRef.current(annotationsStore.getState());
 
     setSelectedValue(readSelectedValue());
     return annotationsStore.subscribe(() => {

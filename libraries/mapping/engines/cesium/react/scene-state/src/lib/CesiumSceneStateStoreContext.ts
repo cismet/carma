@@ -13,14 +13,15 @@ import type {
 export const CesiumSceneStateStoreContext =
   createContext<CesiumSceneStateStore | null>(null);
 
-export const CesiumSceneStateReduxContext = createContext<
-  ReactReduxContextValue<CesiumSceneStateStoreState, UnknownAction> | null
->(null);
+export const CesiumSceneStateReduxContext =
+  createContext<ReactReduxContextValue<
+    CesiumSceneStateStoreState,
+    UnknownAction
+  > | null>(null);
 
-export const useCesiumSceneStateReduxSelector =
-  createSelectorHook(
-    CesiumSceneStateReduxContext
-  ) as TypedUseSelectorHook<CesiumSceneStateStoreState>;
+export const useCesiumSceneStateReduxSelector = createSelectorHook(
+  CesiumSceneStateReduxContext
+) as TypedUseSelectorHook<CesiumSceneStateStoreState>;
 
 export type CesiumSceneStateUpdateDriver = (
   updateFn: () => void

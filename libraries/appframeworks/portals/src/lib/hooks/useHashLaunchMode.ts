@@ -4,6 +4,8 @@ import { useMapFrameworkSwitcherContext } from "@carma-mapping/components";
 import {
   DEFAULT_HASH_LAUNCH_FLAG_2D_KEY,
   DEFAULT_HASH_LAUNCH_FLAG_3D_KEY,
+  DEFAULT_HASH_LAUNCH_LEGACY_FLAG_2D_KEY,
+  DEFAULT_HASH_LAUNCH_LEGACY_FLAG_3D_KEY,
   getHashParams,
   HASH_LAUNCH_MODE,
   resolveHashLaunchMode,
@@ -47,6 +49,8 @@ export const useHashLaunchMode = (
       {
         [DEFAULT_HASH_LAUNCH_FLAG_2D_KEY]: undefined,
         [DEFAULT_HASH_LAUNCH_FLAG_3D_KEY]: undefined,
+        [DEFAULT_HASH_LAUNCH_LEGACY_FLAG_2D_KEY]: undefined,
+        [DEFAULT_HASH_LAUNCH_LEGACY_FLAG_3D_KEY]: undefined,
       },
       {
         label: "hash-launch-mode:clear",

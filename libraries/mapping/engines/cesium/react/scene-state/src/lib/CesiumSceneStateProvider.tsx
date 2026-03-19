@@ -16,10 +16,9 @@ type CesiumSceneStateReduxProviderProps = {
   children?: ReactNode;
 };
 
-const CesiumSceneStateReduxProvider =
-  ReduxProvider as unknown as (
-    props: CesiumSceneStateReduxProviderProps
-  ) => ReactNode;
+const CesiumSceneStateReduxProvider = ReduxProvider as unknown as (
+  props: CesiumSceneStateReduxProviderProps
+) => ReactNode;
 
 type SceneStateProviderProps = {
   scene?: SceneLike | null;
@@ -65,18 +64,16 @@ export const CesiumSceneStateProvider = ({
 
   return (
     <CesiumSceneStateStoreContext.Provider value={store}>
-      {store ? (
-        createElement(
-          CesiumSceneStateReduxProvider,
-          {
-            context: CesiumSceneStateReduxContext,
-            store,
-          },
-          children
-        )
-      ) : (
-        children
-      )}
+      {store
+        ? createElement(
+            CesiumSceneStateReduxProvider,
+            {
+              context: CesiumSceneStateReduxContext,
+              store,
+            },
+            children
+          )
+        : children}
     </CesiumSceneStateStoreContext.Provider>
   );
 };

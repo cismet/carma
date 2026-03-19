@@ -45,10 +45,13 @@ export {
   flyToTarget,
   getHeadingPitchRollDiff,
   getTopDownCameraDeviationAngle,
+  readPerspectiveFrustumVerticalFov,
   releaseCameraFromOrbitMode,
   setViewFromCameraState,
   tryWithValidCamera,
   validateCameraStateHeadingPitchRoll,
+  writePerspectiveFrustumLongerEdgeFov,
+  writePerspectiveFrustumVerticalFov,
 } from "./carma-helpers/camera";
 export type {
   CaptureCurrentCameraStateOptions,
@@ -80,10 +83,7 @@ export {
   getEllipsoidalAltitudeOrZero,
 } from "./carma-helpers/cartographic";
 export { cartographicToJson } from "./serialization";
-export type {
-  CartographicJson,
-  CartographicJsonTyped,
-} from "./serialization";
+export type { CartographicJson, CartographicJsonTyped } from "./serialization";
 
 export { guardTileset } from "./carma-helpers/tileset/TilesetGuard";
 export type { Cesium3DTilesetConstructorOptions } from "./serialization";

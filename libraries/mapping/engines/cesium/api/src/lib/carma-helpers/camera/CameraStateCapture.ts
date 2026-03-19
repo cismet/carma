@@ -11,6 +11,7 @@ import type {
   CaptureCurrentCameraStateOptions,
   CapturedCameraState,
 } from "./CameraTypes";
+import { readPerspectiveFrustumVerticalFov } from "./PerspectiveFrustumFov";
 
 const resolveCaptureOptions = (
   includeFovOrOptions: boolean | CaptureCurrentCameraStateOptions
@@ -139,9 +140,9 @@ export const captureCurrentCameraState = (
   if (
     includeFov &&
     camera.frustum instanceof PerspectiveFrustum &&
-    camera.frustum.fov !== undefined
+    readPerspectiveFrustumVerticalFov(camera.frustum) !== undefined
   ) {
-    state.fov = camera.frustum.fov;
+    state.fov = readPerspectiveFrustumVerticalFov(camera.frustum);
   }
 
   return state;

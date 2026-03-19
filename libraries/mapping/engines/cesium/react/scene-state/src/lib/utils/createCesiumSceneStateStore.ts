@@ -77,6 +77,13 @@ export const createCesiumSceneStateStore = (
 ): CesiumSceneStateStore => {
   const reduxStore = configureStore({
     reducer: sceneStateSlice.reducer,
+    middleware: (getDefaultMiddleware) =>
+      getDefaultMiddleware({
+        // Scene snapshots intentionally carry Cesium classes (Cartesian/Matrix/etc.)
+        // and are consumed locally through this provider-only store.
+        serializableCheck: false,
+        immutableCheck: false,
+      }),
   });
   const scenePreRender = scene.preRender;
   const scenePostRender = scene.postRender;

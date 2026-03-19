@@ -18,6 +18,11 @@ export {
   releaseCameraFromOrbitMode,
   setViewFromCameraState,
 } from "./CameraStateRestore";
+export {
+  writePerspectiveFrustumLongerEdgeFov,
+  readPerspectiveFrustumVerticalFov,
+  writePerspectiveFrustumVerticalFov,
+} from "./PerspectiveFrustumFov";
 export { flyToTarget } from "./CameraFlight";
 export { animateOrbitHeadingPitchRange } from "./CameraFlight";
 export type { OrbitHeadingPitchRangeAnimationOptions } from "./CameraFlight";

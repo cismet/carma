@@ -1,6 +1,7 @@
 export {
   HashStateProvider,
   HASH_CLEAR_KEY_SET,
+  HASH_ROUTING_MODE,
   useHashState,
   type HashClearKeySetId,
   type HashChangeEvent,

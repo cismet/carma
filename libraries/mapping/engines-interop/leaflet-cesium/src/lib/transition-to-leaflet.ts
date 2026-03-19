@@ -15,6 +15,7 @@ import {
   type TransitionToLeafletCallbacks,
 } from "./types";
 import { animateInterpolateHeadingPitchRange } from "@carma-mapping/engines/cesium";
+import { readPerspectiveFrustumVerticalFov } from "@carma-mapping/engines/cesium/api";
 import { getGroundPosition } from "./utils/cesium/get-ground-position";
 import { calculateAnimationDuration } from "./utils/cesium/calculate-animation-duration";
 import { fadeOutContainer } from "./utils/dom-utils";
@@ -78,9 +79,11 @@ export const transitionToLeaflet = async (
                 }
               : {}),
             ...(camera.frustum instanceof PerspectiveFrustum &&
-            Number.isFinite(camera.frustum.fov)
+            Number.isFinite(readPerspectiveFrustumVerticalFov(camera.frustum))
               ? {
-                  fov: camera.frustum.fov as SerializedCameraStateHeadingPitchRoll["fov"],
+                  fov: readPerspectiveFrustumVerticalFov(
+                    camera.frustum
+                  ) as SerializedCameraStateHeadingPitchRoll["fov"],
                 }
               : {}),
           }

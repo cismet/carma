@@ -13,8 +13,9 @@ type ViewSyncReduxProviderProps = {
   children?: ReactNode;
 };
 
-const ViewSyncReduxProvider =
-  ReduxProvider as unknown as (props: ViewSyncReduxProviderProps) => ReactNode;
+const ViewSyncReduxProvider = ReduxProvider as unknown as (
+  props: ViewSyncReduxProviderProps
+) => ReactNode;
 
 type ViewSyncProviderProps = {
   children: ReactNode;

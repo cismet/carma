@@ -8,6 +8,7 @@ import {
   getPointsFromCartographicAndHeadingPitchRange,
   type Scene,
 } from "@carma/cesium";
+import { writePerspectiveFrustumVerticalFov } from "@carma-mapping/engines/cesium/api";
 
 export type ObjectCentricCameraViewInput = {
   anchorLngRad: number;
@@ -143,7 +144,10 @@ export const applyObjectCentricCameraViewToScene = ({
     Number.isFinite(orientation.fovRad) &&
     scene.camera.frustum instanceof PerspectiveFrustum
   ) {
-    scene.camera.frustum.fov = orientation.fovRad;
+    writePerspectiveFrustumVerticalFov(
+      scene.camera.frustum,
+      orientation.fovRad
+    );
   }
 
   scene.requestRender();

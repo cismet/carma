@@ -11,13 +11,25 @@ export const normalizeBearingRadToDeg = (bearingRad: number): number =>
 export const readMetersPerCssPixel = ({
   rangeM,
   fovRad,
+  viewportWidthPx,
+  viewportHeightPx,
 }: {
   rangeM: number;
   fovRad: number;
+  viewportWidthPx?: number;
+  viewportHeightPx?: number;
 }): number | null => {
+  const projectionCenterRadiusPx =
+    isFiniteNumber(viewportWidthPx) &&
+    isFiniteNumber(viewportHeightPx) &&
+    viewportWidthPx > 0 &&
+    viewportHeightPx > 0
+      ? Math.max(viewportWidthPx, viewportHeightPx) * 0.5
+      : DEFAULT_PROJECTION_CENTER_RADIUS_PX;
+
   if (
-    !isFiniteNumber(DEFAULT_PROJECTION_CENTER_RADIUS_PX) ||
-    DEFAULT_PROJECTION_CENTER_RADIUS_PX <= 0
+    !isFiniteNumber(projectionCenterRadiusPx) ||
+    projectionCenterRadiusPx <= 0
   ) {
     return null;
   }
@@ -28,7 +40,7 @@ export const readMetersPerCssPixel = ({
   }
 
   const groundRadiusM = rangeM * Math.abs(tanHalfFov);
-  const metersPerCssPixel = groundRadiusM / DEFAULT_PROJECTION_CENTER_RADIUS_PX;
+  const metersPerCssPixel = groundRadiusM / projectionCenterRadiusPx;
   return isFiniteNumber(metersPerCssPixel) && metersPerCssPixel > 0
     ? metersPerCssPixel
     : null;
@@ -38,14 +50,26 @@ export const readRangeFromMetersPerCssPixel = ({
   metersPerCssPixel,
   fovRad,
   minRangeM = 0.01,
+  viewportWidthPx,
+  viewportHeightPx,
 }: {
   metersPerCssPixel: number;
   fovRad: number;
   minRangeM?: number;
+  viewportWidthPx?: number;
+  viewportHeightPx?: number;
 }): number | null => {
+  const projectionCenterRadiusPx =
+    isFiniteNumber(viewportWidthPx) &&
+    isFiniteNumber(viewportHeightPx) &&
+    viewportWidthPx > 0 &&
+    viewportHeightPx > 0
+      ? Math.max(viewportWidthPx, viewportHeightPx) * 0.5
+      : DEFAULT_PROJECTION_CENTER_RADIUS_PX;
+
   if (
-    !isFiniteNumber(DEFAULT_PROJECTION_CENTER_RADIUS_PX) ||
-    DEFAULT_PROJECTION_CENTER_RADIUS_PX <= 0
+    !isFiniteNumber(projectionCenterRadiusPx) ||
+    projectionCenterRadiusPx <= 0
   ) {
     return null;
   }
@@ -55,7 +79,7 @@ export const readRangeFromMetersPerCssPixel = ({
     return null;
   }
 
-  const groundRadiusM = metersPerCssPixel * DEFAULT_PROJECTION_CENTER_RADIUS_PX;
+  const groundRadiusM = metersPerCssPixel * projectionCenterRadiusPx;
   const rangeM = groundRadiusM / Math.abs(tanHalfFov);
   return isFiniteNumber(rangeM) && rangeM >= minRangeM ? rangeM : null;
 };

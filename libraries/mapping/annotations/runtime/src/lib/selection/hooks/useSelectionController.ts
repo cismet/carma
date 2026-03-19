@@ -16,10 +16,7 @@ import type {
   AnnotationSelectionStoreState,
   AnnotationsStore,
 } from "../../store";
-import {
-  replaceAnnotationsStoreState,
-  useStoreSelector,
-} from "../../store";
+import { replaceAnnotationsStoreState, useStoreSelector } from "../../store";
 import {
   areStringListsEqual,
   resolveSetStateAction,

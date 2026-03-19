@@ -75,7 +75,6 @@ export type FrustumLike = {
   projectionMatrix?: Matrix4Like;
 };
 
-
 export type CameraLike = {
   positionWC?: Vector3;
   position?: Vector3;

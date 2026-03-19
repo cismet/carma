@@ -6,6 +6,7 @@ import {
   type SerializedCameraStateHeadingPitchRoll,
   isValidScene,
 } from "@carma/cesium";
+import { writePerspectiveFrustumVerticalFov } from "@carma-mapping/engines/cesium/api";
 import { animateInterpolateHeadingPitchRange } from "@carma-mapping/engines/cesium";
 import type { Degrees } from "@carma/units/types";
 
@@ -70,7 +71,7 @@ export const restoreCesiumCameraView = (
       Number.isFinite(targetFov) &&
       scene.camera.frustum instanceof PerspectiveFrustum
     ) {
-      scene.camera.frustum.fov = targetFov;
+      writePerspectiveFrustumVerticalFov(scene.camera.frustum, targetFov);
     }
     onComplete();
   };

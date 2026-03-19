@@ -38,9 +38,12 @@ export type CameraLimiterOptions = {
 
 export type InitialCameraView = {
   position?: Cartographic;
+  anchor?: Cartographic;
+  zoom?: number;
   heading?: number;
   pitch?: number;
-  fov?: number;
+  fov?: number | null;
+  fovLongerEdge?: number | null;
 };
 
 export type CustomViewerProps = {

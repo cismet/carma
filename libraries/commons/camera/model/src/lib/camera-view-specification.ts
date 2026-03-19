@@ -30,7 +30,7 @@ export const OBJECT_CENTRIC_CAMERA_SPACE = {
   axes: {
     east: "+X",
     up: "+Y",
-    north: "-Z"
+    north: "-Z",
   },
   orbit: {
     bearing: "positive around +Y from north (-Z) toward east (+X)",

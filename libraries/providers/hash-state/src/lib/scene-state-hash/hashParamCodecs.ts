@@ -12,7 +12,8 @@ import {
 export const sceneViewStateHashKeyAliases: HashKeyAliases =
   SCENE_VIEW_STATE_HASH_KEY_ALIASES;
 
-export const sceneViewStateHashKeyOrder: string[] = SCENE_VIEW_STATE_HASH_KEY_ORDER;
+export const sceneViewStateHashKeyOrder: string[] =
+  SCENE_VIEW_STATE_HASH_KEY_ORDER;
 
 const getNumberCodec = (fixed?: number, trailingZeros = false): HashCodec => ({
   encode: (value: unknown) => {

@@ -107,10 +107,9 @@ type AnnotationsReduxProviderProps = {
   children?: ReactNode;
 };
 
-const AnnotationsReduxProvider =
-  ReduxProvider as unknown as (
-    props: AnnotationsReduxProviderProps
-  ) => ReactNode;
+const AnnotationsReduxProvider = ReduxProvider as unknown as (
+  props: AnnotationsReduxProviderProps
+) => ReactNode;
 
 type RuntimeRenderHostState = {
   renderLayers: Readonly<Record<string, RuntimeRenderLayer>>;

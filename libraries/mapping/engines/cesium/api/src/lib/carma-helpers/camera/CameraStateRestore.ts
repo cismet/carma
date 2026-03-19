@@ -12,6 +12,7 @@ import {
 } from "../../carma-guards";
 import { captureCurrentCameraState } from "./CameraStateCapture";
 import type { CameraState, DirectionUp } from "./CameraTypes";
+import { writePerspectiveFrustumVerticalFov } from "./PerspectiveFrustumFov";
 
 /**
  * Restore camera state from CameraState (for crash recovery).
@@ -55,7 +56,7 @@ export const setViewFromCameraState = (
   }
 
   if (state.fov !== undefined && camera.frustum instanceof PerspectiveFrustum) {
-    camera.frustum.fov = state.fov;
+    writePerspectiveFrustumVerticalFov(camera.frustum, state.fov);
   }
 };
 
