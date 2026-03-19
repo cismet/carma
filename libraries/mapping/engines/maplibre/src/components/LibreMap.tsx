@@ -711,20 +711,19 @@ export const LibreMap = ({
               // If the topmost 2D hit is from a LIBRE_LAYERS sub-style (has
               // layer-id metadata) but NOT from a source that has a 3D layer,
               // it renders above the 3D objects, so let 2D selection win.
-              // Find the highest z-index among 3D layer sources (from style metadata).
-              // Any 2D hit with a higher z-index renders above the 3D layers.
-              let maxThreeZIndex = -1;
+              // Check if any 2D hit comes from a layer positioned after all
+              // 3D source layers in the style stack. Such layers render visually
+              // above the 3D objects and should win the click.
+              const styleLayers = mapInstance.getStyle()?.layers ?? [];
               const threeSources = new Set(threeLayers.map((l) => l._config.sourceId));
-              for (const sl of (mapInstance.getStyle()?.layers ?? [])) {
-                const src = (sl as { source?: string }).source;
-                if (src && threeSources.has(src)) {
-                  const z = ((sl as any).metadata?.["z-index"] as number) ?? -1;
-                  if (z > maxThreeZIndex) maxThreeZIndex = z;
-                }
+              let lastThreeSourceIdx = -1;
+              for (let i = 0; i < styleLayers.length; i++) {
+                const src = (styleLayers[i] as { source?: string }).source;
+                if (src && threeSources.has(src)) lastThreeSourceIdx = i;
               }
-              const hitAbove3d = hits2d.some((f) => {
-                const z = (f.layer.metadata as Record<string, unknown>)?.["z-index"] as number | undefined;
-                return z != null && z > maxThreeZIndex;
+              const hitAbove3d = lastThreeSourceIdx >= 0 && hits2d.some((f) => {
+                const idx = styleLayers.findIndex((sl) => sl.id === f.layer.id);
+                return idx > lastThreeSourceIdx;
               });
               if (hitAbove3d) {
                 // Let the 2D selection path handle this click
