@@ -81,8 +81,7 @@ export const FormItem = ({ name, className, ...rest }: FormItemProps) => {
   const fieldName = Array.isArray(name)
     ? name[name.length - 1]?.toString() ?? ""
     : String(name ?? "");
-  const fullPath =
-    prefix && fieldName ? `${prefix}.${fieldName}` : fieldName;
+  const fullPath = prefix && fieldName ? `${prefix}.${fieldName}` : fieldName;
   const isChanged = fullPath !== "" && changedFields.has(fullPath);
 
   if (isChanged) injectStyles();
@@ -90,7 +89,9 @@ export const FormItem = ({ name, className, ...rest }: FormItemProps) => {
   return (
     <Form.Item
       name={name}
-      className={isChanged ? `${className ?? ""} ${DRAFT_CLASS}`.trim() : className}
+      className={
+        isChanged ? `${className ?? ""} ${DRAFT_CLASS}`.trim() : className
+      }
       {...rest}
     />
   );

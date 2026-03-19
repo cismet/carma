@@ -45,7 +45,10 @@ interface LeuchteFormFieldsProps {
   readOnly?: boolean;
   onFormInstance?: (form: import("antd").FormInstance) => void;
   draftValues?: Record<string, unknown>;
-  onValuesChange?: (changedValues: Record<string, unknown>, allValues: Record<string, unknown>) => void;
+  onValuesChange?: (
+    changedValues: Record<string, unknown>,
+    allValues: Record<string, unknown>
+  ) => void;
   onOriginalValues?: (values: Record<string, unknown>) => void;
 }
 

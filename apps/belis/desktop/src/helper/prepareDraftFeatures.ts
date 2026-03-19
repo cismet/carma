@@ -10,7 +10,7 @@ import type { MapGeoJSONFeatureWithOriginal as SidebarFeature } from "@carma-map
  *    with `_noIndent: true` so BelisSidebar can skip indentation for them.
  */
 export function prepareDraftFeatures(
-  features: SidebarFeature[],
+  features: SidebarFeature[]
 ): SidebarFeature[] {
   // Collect all standort IDs present in the draft list
   const standortIds = new Set<string>();
@@ -30,8 +30,8 @@ export function prepareDraftFeatures(
       typeof raw === "object" && raw != null && raw.id != null
         ? String(raw.id)
         : raw != null
-          ? String(raw)
-          : undefined;
+        ? String(raw)
+        : undefined;
 
     const isPaired = flatId != null && standortIds.has(flatId);
 

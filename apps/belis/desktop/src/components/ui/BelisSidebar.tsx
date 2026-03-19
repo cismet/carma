@@ -179,7 +179,10 @@ export interface BelisSidebarProps {
   onFeatureDismiss?: (feature: SidebarFeature) => void;
   /** Optional custom extractors that take priority over the built-in ones.
    *  Used by the drafts tab to display features with database PKs instead of MVT tile IDs. */
-  listItemExtractors?: Record<string, (feature: SidebarFeature) => ListItemData>;
+  listItemExtractors?: Record<
+    string,
+    (feature: SidebarFeature) => ListItemData
+  >;
 }
 
 const BelisSidebar = ({

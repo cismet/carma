@@ -216,15 +216,18 @@ const LeuchteForm = ({
   const [isMastLoading, setIsMastLoading] = useState(false);
   const jwt = useSelector(getJWT);
 
-  const handleToggleRemoveDocument = useCallback((key: string) => {
-    const next = new Set(removedDocumentKeys);
-    if (next.has(key)) {
-      next.delete(key);
-    } else {
-      next.add(key);
-    }
-    onRemovedDocumentKeysChange?.(next);
-  }, [removedDocumentKeys, onRemovedDocumentKeysChange]);
+  const handleToggleRemoveDocument = useCallback(
+    (key: string) => {
+      const next = new Set(removedDocumentKeys);
+      if (next.has(key)) {
+        next.delete(key);
+      } else {
+        next.add(key);
+      }
+      onRemovedDocumentKeysChange?.(next);
+    },
+    [removedDocumentKeys, onRemovedDocumentKeysChange]
+  );
 
   // Reset local documents override when data changes
   useEffect(() => {
@@ -299,7 +302,9 @@ const LeuchteForm = ({
 
   // Compute sidebar main title to display in form header
   const sidebarMain = rawProps
-    ? `${rawProps.leuchtentyp || rawProps.leuchttyp || "L"}-${rawProps.leuchtennummer || "0"}${rawProps.lfd_nummer ? `, ${rawProps.lfd_nummer}` : ""}`
+    ? `${rawProps.leuchtentyp || rawProps.leuchttyp || "L"}-${
+        rawProps.leuchtennummer || "0"
+      }${rawProps.lfd_nummer ? `, ${rawProps.lfd_nummer}` : ""}`
     : "";
 
   if (!data) {

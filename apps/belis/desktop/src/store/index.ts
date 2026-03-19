@@ -90,7 +90,10 @@ const store = configureStore({
     ),
     ui: ui.reducer,
     keyTables: keyTables.reducer,
-    featuresForms: persistReducer(featuresFormsConfig, featuresFormsSlice.reducer),
+    featuresForms: persistReducer(
+      featuresFormsConfig,
+      featuresFormsSlice.reducer
+    ),
   },
   devTools: devToolsEnabled === true && inProduction === false,
   middleware,

@@ -561,7 +561,11 @@ const BelisMapLibWrapper = ({
   const [featureOnMap, setFeatureOnMap] = useState(true);
 
   useEffect(() => {
-    if ((sidebarMode !== "karte" && sidebarMode !== "highlights") || !selectedFeatureId || !map) {
+    if (
+      (sidebarMode !== "karte" && sidebarMode !== "highlights") ||
+      !selectedFeatureId ||
+      !map
+    ) {
       setFeatureOnMap(true);
       return;
     }
@@ -583,8 +587,8 @@ const BelisMapLibWrapper = ({
         geometry.type === "LineString"
           ? geometry.coordinates
           : geometry.type === "Polygon"
-            ? geometry.coordinates[0]
-            : [];
+          ? geometry.coordinates[0]
+          : [];
       inside = coords.some(([lng, lat]: number[]) =>
         bounds.contains([lng, lat])
       );
@@ -893,9 +897,7 @@ const BelisMapLibWrapper = ({
         // Feature not in viewport — dispatch stored raw feature to Redux
         // and pass it as rawFeature for the selection context.
         // The draft feature already has the correct MapGeoJSON structure.
-        dispatch(
-          setSelectedFeature({ ...feature, id: dbPK, selected: true })
-        );
+        dispatch(setSelectedFeature({ ...feature, id: dbPK, selected: true }));
         selectFeature(identifier, feature as any);
         return;
       }

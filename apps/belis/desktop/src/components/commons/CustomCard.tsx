@@ -37,7 +37,9 @@ export const CustomCard = ({
       size="small"
       hoverable={false}
       {...props}
-      className={`${!title ? "[&_.ant-card-extra]:ml-0 [&_.ant-card-extra]:w-full" : ""} ${props.className || ""}`}
+      className={`${
+        !title ? "[&_.ant-card-extra]:ml-0 [&_.ant-card-extra]:w-full" : ""
+      } ${props.className || ""}`}
     >
       {children}
     </Card>

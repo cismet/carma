@@ -11,7 +11,10 @@ import { updateDataByClassName } from "../../../helper/apiMethods";
 
 interface AbzweigdoseFormProps {
   data: Record<string, unknown> | null;
-  rawFeature?: { id?: string | number; properties?: Record<string, unknown> } | null;
+  rawFeature?: {
+    id?: string | number;
+    properties?: Record<string, unknown>;
+  } | null;
   onClose?: () => void;
   readOnly?: boolean;
   loading?: boolean;
@@ -81,7 +84,10 @@ const AbzweigdoseForm = ({
 
   // Compute sidebar main title to display in form header
   const rawProps = rawFeature?.properties;
-  const sidebarMain = rawFeature?.id || rawProps?.id ? `ID-${rawFeature?.id || rawProps?.id}` : "";
+  const sidebarMain =
+    rawFeature?.id || rawProps?.id
+      ? `ID-${rawFeature?.id || rawProps?.id}`
+      : "";
 
   const handleSave = async () => {
     if (!jwt) {
