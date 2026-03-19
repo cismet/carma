@@ -15,25 +15,6 @@ const FEATURE_TYPE_KEYS = [
 
 type FeatureTypeKey = (typeof FEATURE_TYPE_KEYS)[number];
 
-/**
- * Maps Fachobjekt database keys to MVT source-layer names used in the Belis tile style.
- */
-const FEATURE_TYPE_TO_SOURCE_LAYER: Record<FeatureTypeKey, string> = {
-  tdta_leuchten: "leuchten",
-  tdta_standort_mast: "standorte",
-  schaltstelle: "schaltstelle",
-  mauerlasche: "mauerlaschen",
-  leitung: "leitungen",
-  abzweigdose: "abzweigdosen",
-};
-
-export interface ApFachobjektEntry {
-  fachobjektPK: number;
-  sourceLayer: string;
-  protokollId: number;
-  status: string;
-}
-
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 function getStatusInfo(status: Record<string, any> | null): {
   key: string;
@@ -124,41 +105,6 @@ function convertGeometry(geoField: any): GeoJSON.Geometry | null {
   } catch {
     return null;
   }
-}
-
-/**
- * Extract a lookup of Fachobjekt PKs referenced by Protokolle.
- * Key: "sourceLayer::fachobjektPK" for O(1) lookup when matching tile features.
- */
-export function extractApFachobjektPKs(
-  selectedAAData: ArbeitsauftragDetail | null,
-): Map<string, ApFachobjektEntry> {
-  const result = new Map<string, ApFachobjektEntry>();
-  if (!selectedAAData?.ar_protokolleArray) return result;
-
-  for (const entry of selectedAAData.ar_protokolleArray) {
-    const protokoll = entry.arbeitsprotokoll;
-    if (!protokoll) continue;
-
-    for (const key of FEATURE_TYPE_KEYS) {
-      const ref = protokoll[key];
-      if (ref == null || ref.id == null) continue;
-
-      const sourceLayer = FEATURE_TYPE_TO_SOURCE_LAYER[key];
-      const statusInfo = getStatusInfo(protokoll.arbeitsprotokollstatus);
-      const lookupKey = `${sourceLayer}::${ref.id}`;
-
-      result.set(lookupKey, {
-        fachobjektPK: ref.id as number,
-        sourceLayer,
-        protokollId: protokoll.id as number,
-        status: statusInfo.key,
-      });
-      break; // each protokoll references one fachobjekt
-    }
-  }
-
-  return result;
 }
 
 /**
