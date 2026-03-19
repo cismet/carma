@@ -899,7 +899,7 @@ const BelisMapLibWrapper = ({
         });
         const seen = new Map<number, ArbeitsauftragTileFeature>();
         for (const f of raw) {
-          const id = f.properties?.id as number;
+          const id = Number(f.properties?.id);
           if (id != null && !seen.has(id)) {
             seen.set(id, {
               id,
@@ -1177,7 +1177,7 @@ const BelisMapLibWrapper = ({
             h.layer?.id === "arbeitsauftraege_outline"
         );
         if (aaHit) {
-          const aaId = (aaHit.id ?? aaHit.properties?.id) as number;
+          const aaId = Number(aaHit.id ?? aaHit.properties?.id);
           if (aaId != null) {
             dispatch(setSelectedAAId(aaId));
           }
