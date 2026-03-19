@@ -573,7 +573,6 @@ export function GenericTreesPlayground() {
             <LibreContextProvider>
               <CameraPersistence />
               <PerfOverlay perfRef={perfRef} />
-              <MapLayerVisibility visibility={layerVisibility} />
               <ProgressIndicator progress={progress} show={showProgress} />
               <CarmaMap
                 clickCrosshairDebugMode={crosshair}
@@ -581,7 +580,9 @@ export function GenericTreesPlayground() {
                 exposeMapToWindow
                 overrideGlyphs="https://tiles.cismet.de/fonts/{fontstack}/{range}.pbf"
                 onProgressUpdate={handleProgressUpdate}
-                libreLayers={LIBRE_LAYERS}
+                libreLayers={LIBRE_LAYERS.filter(
+                  (l) => layerVisibility[l.name as LayerGroupName] !== false
+                )}
                 modalMenu={<Menu />}
                 threeRuntimeParams={threeRuntimeParams}
                 threePerfRef={perfRef}

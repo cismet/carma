@@ -508,7 +508,7 @@ export function ThreeLayerManager({
     map.on("moveend", trySync);
 
     // For extrusion layers, also sync after idle (all tiles loaded)
-    const handleIdle = isExtrusion ? () => { syncBuildings(); } : undefined;
+    const handleIdle = isExtrusion ? () => { trySync(); } : undefined;
     if (handleIdle) map.on("idle", handleIdle);
 
     const handleSourceData = (e: {
