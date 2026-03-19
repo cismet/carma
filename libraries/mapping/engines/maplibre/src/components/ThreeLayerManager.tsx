@@ -281,11 +281,21 @@ export function ThreeLayerManager({
       if (zOrderTarget === beforeId) return;
       zOrderTarget = beforeId;
 
-      console.log("[3D-ZORDER] moving", layer.id, "before", beforeId);
-      map.moveLayer(layer.id, beforeId);
-      if (overlayIdRef.current && map.getLayer(overlayIdRef.current)) {
-        map.moveLayer(overlayIdRef.current, beforeId);
-      }
+      // Defer to next frame to avoid mutating the style during a styledata callback,
+      // which can crash MapLibre's internal diff/painter state.
+      requestAnimationFrame(() => {
+        try {
+          if (!map.getLayer(layer.id)) return;
+          console.log("[3D-ZORDER] moving", layer.id, "before", beforeId);
+          map.moveLayer(layer.id, beforeId);
+          if (overlayIdRef.current && map.getLayer(overlayIdRef.current)) {
+            map.moveLayer(overlayIdRef.current, beforeId);
+          }
+        } catch (err) {
+          console.warn("[3D-ZORDER] moveLayer failed:", err);
+          zOrderTarget = undefined; // allow retry
+        }
+      });
     };
 
     const addLayerIfReady = async () => {
@@ -582,6 +592,7 @@ export function ThreeLayerManager({
     // Also re-checks visibility so toggling a layer back on re-creates the 3D layer
     const handleStyleData = () => {
       if (layerRef.current && !map.getLayer(layerRef.current.id)) {
+        unregister3dLayer(map, layerRef.current);
         overlayIdRef.current = null;
         layerRef.current = null;
         addingRef.current = false;
