@@ -47,6 +47,7 @@ export interface UseMapHashRoutingOptions {
   additionalClearKeys?: string[];
   labels?: Labels;
   pixelTolerance?: number; // px
+  isHashWriteEnabled?: () => boolean;
 }
 
 export function useMapHashRouting({
@@ -55,6 +56,7 @@ export function useMapHashRouting({
   additionalClearKeys,
   labels,
   pixelTolerance,
+  isHashWriteEnabled,
 }: UseMapHashRoutingOptions) {
   useRegisterDefaultMapHashClearKeySets();
   const resolvedAdditionalClearKeys = additionalClearKeys ?? [];
@@ -74,6 +76,12 @@ export function useMapHashRouting({
   const handleTopicMapLocationChange = useCallback(
     ({ lat, lng, zoom }: LatLngZoom) => {
       console.debug("[Routing][hash]", lat, lng, zoom);
+      if (isHashWriteEnabled && !isHashWriteEnabled()) {
+        console.debug(
+          "[Routing][hash] (Leaflet) suppress push: hash writes disabled by guard"
+        );
+        return;
+      }
       if (!getIsLeaflet() || getIsTransitioning()) {
         console.debug(
           "[Routing][hash] (Leaflet) suppress push: not in Leaflet mode or transitioning"
@@ -170,11 +178,15 @@ export function useMapHashRouting({
       resolvedAdditionalClearKeys,
       labels?.topicMapLocation,
       pixelTolerance,
+      isHashWriteEnabled,
     ]
   );
 
   const handleCesiumSceneChange = useCallback(
     (e: CesiumSceneChangeEvent) => {
+      if (isHashWriteEnabled && !isHashWriteEnabled()) {
+        return;
+      }
       if (!getIsCesium() || getIsTransitioning()) return;
       updateHash(e.hashParams, {
         clearKeys: ["zoom"],
@@ -182,7 +194,13 @@ export function useMapHashRouting({
         replace: true, // don't push to history until cesium handled history navigation
       });
     },
-    [getIsCesium, updateHash, labels?.cesiumScene, getIsTransitioning]
+    [
+      getIsCesium,
+      updateHash,
+      labels?.cesiumScene,
+      getIsTransitioning,
+      isHashWriteEnabled,
+    ]
   );
 
   const prevIsModeLeafletLikeRef = useRef<boolean>(getIsLeaflet());
@@ -191,6 +209,10 @@ export function useMapHashRouting({
     const isLeafletLike = getIsLeaflet();
     // Only update hash when transitioning TO Leaflet AND not currently transitioning
     if (!wasLeafletLike && isLeafletLike && !getIsTransitioning()) {
+      if (isHashWriteEnabled && !isHashWriteEnabled()) {
+        prevIsModeLeafletLikeRef.current = isLeafletLike;
+        return;
+      }
       // Replace current entry to clear 3D-specific state
       updateHash(undefined, {
         clearKeySetIds: [
@@ -230,6 +252,7 @@ export function useMapHashRouting({
     resolvedAdditionalClearKeys,
     labels?.clearCesium,
     labels?.writeLeafletLike,
+    isHashWriteEnabled,
   ]);
 
   // Trigger hash update when framework switch completes (debounced)

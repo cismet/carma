@@ -15,11 +15,13 @@ type SceneStateHashViewStateFieldCodec = {
 
 export const sceneStateHashViewStateFieldCodecs = {
   [SCENE_VIEW_STATE_HASH_KEYS.LONGITUDE]: {
-    encode: (viewState) => toDelimitedField(radToDegNumeric(viewState.longitude), 7),
+    encode: (viewState) =>
+      toDelimitedField(radToDegNumeric(viewState.longitude), 7),
     decode: decodeField,
   } satisfies SceneStateHashViewStateFieldCodec,
   [SCENE_VIEW_STATE_HASH_KEYS.LATITUDE]: {
-    encode: (viewState) => toDelimitedField(radToDegNumeric(viewState.latitude), 7),
+    encode: (viewState) =>
+      toDelimitedField(radToDegNumeric(viewState.latitude), 7),
     decode: decodeField,
   } satisfies SceneStateHashViewStateFieldCodec,
   [SCENE_VIEW_STATE_HASH_KEYS.ALTITUDE]: {
@@ -39,8 +41,7 @@ export const sceneStateHashViewStateFieldCodecs = {
     decode: decodeAngleRad,
   } satisfies SceneStateHashViewStateFieldCodec,
   [SCENE_VIEW_STATE_HASH_KEYS.FOV]: {
-    encode: (viewState) =>
-      encodeAngleDeg(viewState.fovVertical, 2),
+    encode: (viewState) => encodeAngleDeg(viewState.fovVertical, 2),
     decode: decodeAngleRad,
   } satisfies SceneStateHashViewStateFieldCodec,
   [SCENE_VIEW_STATE_HASH_KEYS.RANGE]: {

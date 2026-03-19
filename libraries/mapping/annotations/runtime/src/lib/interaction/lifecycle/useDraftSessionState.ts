@@ -71,7 +71,8 @@ export const useDraftSessionState = (annotationsStore: AnnotationsStore) => {
       annotationsStore.dispatch(
         replaceAnnotationsStoreState({
           ...previousState,
-          pendingLabelPlacementAnnotationId: nextPendingLabelPlacementAnnotationId,
+          pendingLabelPlacementAnnotationId:
+            nextPendingLabelPlacementAnnotationId,
         })
       );
     },

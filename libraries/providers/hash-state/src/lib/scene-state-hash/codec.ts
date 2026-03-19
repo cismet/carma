@@ -42,18 +42,15 @@ export const decodeViewState = (
   }
 
   const fields = value.split(",");
-  const lngDeg =
-    sceneStateHashViewStateFieldCodecs[SCENE_VIEW_STATE_HASH_KEYS.LONGITUDE].decode(
-      fields[0]
-    );
-  const latDeg =
-    sceneStateHashViewStateFieldCodecs[SCENE_VIEW_STATE_HASH_KEYS.LATITUDE].decode(
-      fields[1]
-    );
-  const heightM =
-    sceneStateHashViewStateFieldCodecs[SCENE_VIEW_STATE_HASH_KEYS.ALTITUDE].decode(
-      fields[2]
-    );
+  const lngDeg = sceneStateHashViewStateFieldCodecs[
+    SCENE_VIEW_STATE_HASH_KEYS.LONGITUDE
+  ].decode(fields[0]);
+  const latDeg = sceneStateHashViewStateFieldCodecs[
+    SCENE_VIEW_STATE_HASH_KEYS.LATITUDE
+  ].decode(fields[1]);
+  const heightM = sceneStateHashViewStateFieldCodecs[
+    SCENE_VIEW_STATE_HASH_KEYS.ALTITUDE
+  ].decode(fields[2]);
   if (
     !isFiniteNumber(lngDeg) ||
     !isFiniteNumber(latDeg) ||
@@ -62,35 +59,36 @@ export const decodeViewState = (
     return undefined;
   }
 
-  const bearingRad =
-    sceneStateHashViewStateFieldCodecs[SCENE_VIEW_STATE_HASH_KEYS.BEARING].decode(
-      fields[3]
-    );
-  const pitchRad =
-    sceneStateHashViewStateFieldCodecs[SCENE_VIEW_STATE_HASH_KEYS.PITCH].decode(
-      fields[4]
-    );
-  const rollRad =
-    sceneStateHashViewStateFieldCodecs[SCENE_VIEW_STATE_HASH_KEYS.ROLL].decode(
-      fields[5]
-    );
-  const fovVerticalRad =
-    sceneStateHashViewStateFieldCodecs[SCENE_VIEW_STATE_HASH_KEYS.FOV].decode(
-      fields[6]
-    );
-  const maybeRange =
-    sceneStateHashViewStateFieldCodecs[SCENE_VIEW_STATE_HASH_KEYS.RANGE].decode(
-      fields[7]
-    );
+  const bearingRad = sceneStateHashViewStateFieldCodecs[
+    SCENE_VIEW_STATE_HASH_KEYS.BEARING
+  ].decode(fields[3]);
+  const pitchRad = sceneStateHashViewStateFieldCodecs[
+    SCENE_VIEW_STATE_HASH_KEYS.PITCH
+  ].decode(fields[4]);
+  const rollRad = sceneStateHashViewStateFieldCodecs[
+    SCENE_VIEW_STATE_HASH_KEYS.ROLL
+  ].decode(fields[5]);
+  const fovVerticalRad = sceneStateHashViewStateFieldCodecs[
+    SCENE_VIEW_STATE_HASH_KEYS.FOV
+  ].decode(fields[6]);
+  const maybeRange = sceneStateHashViewStateFieldCodecs[
+    SCENE_VIEW_STATE_HASH_KEYS.RANGE
+  ].decode(fields[7]);
 
   return {
     longitude: degToRadNumeric(lngDeg)! as Radians,
     latitude: degToRadNumeric(latDeg)! as Radians,
     altitude: heightM as Meters,
-    bearing: (isFiniteNumber(bearingRad) ? bearingRad : degToRadNumeric(0)!) as Radians,
-    pitch: (isFiniteNumber(pitchRad) ? pitchRad : degToRadNumeric(0)!) as Radians,
+    bearing: (isFiniteNumber(bearingRad)
+      ? bearingRad
+      : degToRadNumeric(0)!) as Radians,
+    pitch: (isFiniteNumber(pitchRad)
+      ? pitchRad
+      : degToRadNumeric(0)!) as Radians,
     ...(isFiniteNumber(rollRad) ? { roll: rollRad as Radians } : {}),
-    ...(isFiniteNumber(fovVerticalRad) ? { fovVertical: fovVerticalRad as Radians } : {}),
+    ...(isFiniteNumber(fovVerticalRad)
+      ? { fovVertical: fovVerticalRad as Radians }
+      : {}),
     range: (isFiniteNumber(maybeRange) ? maybeRange : 750) as Meters,
   };
 };

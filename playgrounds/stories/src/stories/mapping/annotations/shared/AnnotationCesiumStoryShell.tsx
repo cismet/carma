@@ -78,8 +78,7 @@ export const AnnotationCesiumStoryShell = ({
       }
 
       if (setup.terrainProviders.TERRAIN) {
-        setup.widget.scene.terrainProvider =
-          setup.terrainProviders.TERRAIN;
+        setup.widget.scene.terrainProvider = setup.terrainProviders.TERRAIN;
       }
 
       widgetRef.current = setup.widget;

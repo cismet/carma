@@ -3,8 +3,10 @@ export {
   toCesiumPitchFromViewSyncPitch,
   toViewSyncPitchFromCesiumPitch,
   readViewSyncHorizontalFov,
+  readViewSyncLongerEdgeFov,
   readViewStateFromSceneState,
   readViewSyncVerticalFov,
+  readLongerEdgeFovRad,
   readVerticalFovRad,
 } from "./core/targetState";
 export { cesiumAdapter } from "./adapters/cesiumAdapter";
@@ -28,9 +30,15 @@ export {
   type MapLibreViewValues,
 } from "./adapters/types";
 export {
+  HASH_FOV_CONVENTION,
+  HASH_ZOOM_CONVENTION,
   readHashParamsFromViewState,
   readViewStateFromHashValues,
   readViewStateHashNumber,
+} from "./core/viewStateHash";
+export type {
+  HashFovConvention,
+  HashZoomConvention,
 } from "./core/viewStateHash";
 export type {
   BuiltInViewSyncEngine,

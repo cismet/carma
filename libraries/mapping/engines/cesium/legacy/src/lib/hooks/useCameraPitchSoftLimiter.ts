@@ -32,7 +32,8 @@ const useCameraPitchSoftLimiter = (
   const collisions = useSelector(
     selectScreenSpaceCameraControllerEnableCollisionDetection
   );
-  const { getScene, shouldSuspendCameraLimitersRef } = useCesiumContext();
+  const { getScene, shouldSuspendCameraLimitersRef, initialViewApplied } =
+    useCesiumContext();
 
   const onComplete = useCallback(
     () => dispatch(clearIsAnimating()),
@@ -54,6 +55,7 @@ const useCameraPitchSoftLimiter = (
 
       const moveEndListener = async () => {
         if (shouldSuspendCameraLimitersRef?.current) return;
+        if (!initialViewApplied) return;
         const scene = getScene();
         if (!scene) {
           console.warn(
@@ -122,6 +124,7 @@ const useCameraPitchSoftLimiter = (
     minPitchDeg,
     resetPitchOffsetDeg,
     debug,
+    initialViewApplied,
     shouldSuspendCameraLimitersRef,
   ]);
 };

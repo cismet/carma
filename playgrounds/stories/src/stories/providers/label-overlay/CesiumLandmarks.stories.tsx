@@ -78,37 +78,217 @@ const FALLBACK_ALTITUDE_METERS = 200;
 
 const WUPPERTAL_LANDMARKS: readonly LandmarkSpec[] = [
   // POI landmarks — coordinates validated against Wikipedia GeoHack
-  { id: "historische-stadthalle", name: "Historische Stadthalle", longitude: 7.14306, latitude: 51.25306, icon: faLandmark },
-  { id: "elisenturm", name: "Elisenturm", longitude: 7.16089, latitude: 51.26053, icon: faTowerObservation },
-  { id: "toelleturm", name: "Toelleturm", longitude: 7.20158, latitude: 51.25656, icon: faTowerObservation },
-  { id: "von-der-heydt-museum", name: "Von der Heydt-Museum", longitude: 7.14658, latitude: 51.25725, icon: faPalette },
-  { id: "skulpturenpark-waldfrieden", name: "Skulpturenpark Waldfrieden", longitude: 7.16861, latitude: 51.25278, icon: faTree },
-  { id: "adlerbruecke", name: "Adlerbrücke", longitude: 7.18944, latitude: 51.26694, icon: faBridge },
-  { id: "stadion-am-zoo", name: "Stadion am Zoo", longitude: 7.105, latitude: 51.23917, icon: faFutbol },
-  { id: "botanischer-garten", name: "Botanischer Garten", longitude: 7.16056, latitude: 51.26028, icon: faSeedling },
-  { id: "bismarckturm", name: "Bismarckturm", longitude: 7.16601, latitude: 51.26271, icon: faTowerObservation },
-  { id: "buga-haengebruecke", name: "BUGA Hängebrücke (Entwurf)", longitude: 7.12128, latitude: 51.25255, icon: faBridge },
+  {
+    id: "historische-stadthalle",
+    name: "Historische Stadthalle",
+    longitude: 7.14306,
+    latitude: 51.25306,
+    icon: faLandmark,
+  },
+  {
+    id: "elisenturm",
+    name: "Elisenturm",
+    longitude: 7.16089,
+    latitude: 51.26053,
+    icon: faTowerObservation,
+  },
+  {
+    id: "toelleturm",
+    name: "Toelleturm",
+    longitude: 7.20158,
+    latitude: 51.25656,
+    icon: faTowerObservation,
+  },
+  {
+    id: "von-der-heydt-museum",
+    name: "Von der Heydt-Museum",
+    longitude: 7.14658,
+    latitude: 51.25725,
+    icon: faPalette,
+  },
+  {
+    id: "skulpturenpark-waldfrieden",
+    name: "Skulpturenpark Waldfrieden",
+    longitude: 7.16861,
+    latitude: 51.25278,
+    icon: faTree,
+  },
+  {
+    id: "adlerbruecke",
+    name: "Adlerbrücke",
+    longitude: 7.18944,
+    latitude: 51.26694,
+    icon: faBridge,
+  },
+  {
+    id: "stadion-am-zoo",
+    name: "Stadion am Zoo",
+    longitude: 7.105,
+    latitude: 51.23917,
+    icon: faFutbol,
+  },
+  {
+    id: "botanischer-garten",
+    name: "Botanischer Garten",
+    longitude: 7.16056,
+    latitude: 51.26028,
+    icon: faSeedling,
+  },
+  {
+    id: "bismarckturm",
+    name: "Bismarckturm",
+    longitude: 7.16601,
+    latitude: 51.26271,
+    icon: faTowerObservation,
+  },
+  {
+    id: "buga-haengebruecke",
+    name: "BUGA Hängebrücke (Entwurf)",
+    longitude: 7.12128,
+    latitude: 51.25255,
+    icon: faBridge,
+  },
   // Schwebebahn stops
-  { id: "schwebebahn-vohwinkel", name: "Vohwinkel", longitude: 7.06773, latitude: 51.23034, icon: "🚟" },
-  { id: "schwebebahn-bruch", name: "Bruch", longitude: 7.07709, latitude: 51.23428, icon: "🚟" },
-  { id: "schwebebahn-hammerstein", name: "Hammerstein", longitude: 7.08831, latitude: 51.2364, icon: "🚟" },
-  { id: "schwebebahn-sonnborner-str", name: "Sonnborner Straße", longitude: 7.09673, latitude: 51.23811, icon: "🚟" },
-  { id: "schwebebahn-zoo-stadion", name: "Zoo / Stadion", longitude: 7.10329, latitude: 51.24094, icon: "🚟" },
-  { id: "schwebebahn-varresbecker-str", name: "Varresbecker Straße", longitude: 7.10708, latitude: 51.2466, icon: "🚟" },
-  { id: "schwebebahn-westende", name: "Westende", longitude: 7.11853, latitude: 51.24896, icon: "🚟" },
-  { id: "schwebebahn-pestalozzistr", name: "Pestalozzistraße", longitude: 7.12543, latitude: 51.24864, icon: "🚟" },
-  { id: "schwebebahn-robert-daum-platz", name: "Robert-Daum-Platz", longitude: 7.13432, latitude: 51.25238, icon: "🚟" },
-  { id: "schwebebahn-ohligsmuehle", name: "Ohligsmühle", longitude: 7.14268, latitude: 51.25538, icon: "🚟" },
-  { id: "schwebebahn-hauptbahnhof", name: "Hauptbahnhof", longitude: 7.14851, latitude: 51.25589, icon: "🚟" },
-  { id: "schwebebahn-kluse", name: "Kluse", longitude: 7.15448, latitude: 51.2557, icon: "🚟" },
-  { id: "schwebebahn-landgericht", name: "Landgericht", longitude: 7.16243, latitude: 51.25804, icon: "🚟" },
-  { id: "schwebebahn-voelklinger-str", name: "Völklinger Straße", longitude: 7.17402, latitude: 51.26248, icon: "🚟" },
-  { id: "schwebebahn-loher-bruecke", name: "Loher Brücke", longitude: 7.18136, latitude: 51.26719, icon: "🚟" },
-  { id: "schwebebahn-adlerbruecke", name: "Adlerbrücke (Hst.)", longitude: 7.18906, latitude: 51.26709, icon: "🚟" },
-  { id: "schwebebahn-alter-markt", name: "Alter Markt", longitude: 7.19825, latitude: 51.26953, icon: "🚟" },
-  { id: "schwebebahn-werther-bruecke", name: "Werther Brücke", longitude: 7.20674, latitude: 51.27238, icon: "🚟" },
-  { id: "schwebebahn-wupperfeld", name: "Wupperfeld", longitude: 7.21376, latitude: 51.27328, icon: "🚟" },
-  { id: "schwebebahn-oberbarmen", name: "Oberbarmen Bahnhof", longitude: 7.22211, latitude: 51.27474, icon: "🚟" },
+  {
+    id: "schwebebahn-vohwinkel",
+    name: "Vohwinkel",
+    longitude: 7.06773,
+    latitude: 51.23034,
+    icon: "🚟",
+  },
+  {
+    id: "schwebebahn-bruch",
+    name: "Bruch",
+    longitude: 7.07709,
+    latitude: 51.23428,
+    icon: "🚟",
+  },
+  {
+    id: "schwebebahn-hammerstein",
+    name: "Hammerstein",
+    longitude: 7.08831,
+    latitude: 51.2364,
+    icon: "🚟",
+  },
+  {
+    id: "schwebebahn-sonnborner-str",
+    name: "Sonnborner Straße",
+    longitude: 7.09673,
+    latitude: 51.23811,
+    icon: "🚟",
+  },
+  {
+    id: "schwebebahn-zoo-stadion",
+    name: "Zoo / Stadion",
+    longitude: 7.10329,
+    latitude: 51.24094,
+    icon: "🚟",
+  },
+  {
+    id: "schwebebahn-varresbecker-str",
+    name: "Varresbecker Straße",
+    longitude: 7.10708,
+    latitude: 51.2466,
+    icon: "🚟",
+  },
+  {
+    id: "schwebebahn-westende",
+    name: "Westende",
+    longitude: 7.11853,
+    latitude: 51.24896,
+    icon: "🚟",
+  },
+  {
+    id: "schwebebahn-pestalozzistr",
+    name: "Pestalozzistraße",
+    longitude: 7.12543,
+    latitude: 51.24864,
+    icon: "🚟",
+  },
+  {
+    id: "schwebebahn-robert-daum-platz",
+    name: "Robert-Daum-Platz",
+    longitude: 7.13432,
+    latitude: 51.25238,
+    icon: "🚟",
+  },
+  {
+    id: "schwebebahn-ohligsmuehle",
+    name: "Ohligsmühle",
+    longitude: 7.14268,
+    latitude: 51.25538,
+    icon: "🚟",
+  },
+  {
+    id: "schwebebahn-hauptbahnhof",
+    name: "Hauptbahnhof",
+    longitude: 7.14851,
+    latitude: 51.25589,
+    icon: "🚟",
+  },
+  {
+    id: "schwebebahn-kluse",
+    name: "Kluse",
+    longitude: 7.15448,
+    latitude: 51.2557,
+    icon: "🚟",
+  },
+  {
+    id: "schwebebahn-landgericht",
+    name: "Landgericht",
+    longitude: 7.16243,
+    latitude: 51.25804,
+    icon: "🚟",
+  },
+  {
+    id: "schwebebahn-voelklinger-str",
+    name: "Völklinger Straße",
+    longitude: 7.17402,
+    latitude: 51.26248,
+    icon: "🚟",
+  },
+  {
+    id: "schwebebahn-loher-bruecke",
+    name: "Loher Brücke",
+    longitude: 7.18136,
+    latitude: 51.26719,
+    icon: "🚟",
+  },
+  {
+    id: "schwebebahn-adlerbruecke",
+    name: "Adlerbrücke (Hst.)",
+    longitude: 7.18906,
+    latitude: 51.26709,
+    icon: "🚟",
+  },
+  {
+    id: "schwebebahn-alter-markt",
+    name: "Alter Markt",
+    longitude: 7.19825,
+    latitude: 51.26953,
+    icon: "🚟",
+  },
+  {
+    id: "schwebebahn-werther-bruecke",
+    name: "Werther Brücke",
+    longitude: 7.20674,
+    latitude: 51.27238,
+    icon: "🚟",
+  },
+  {
+    id: "schwebebahn-wupperfeld",
+    name: "Wupperfeld",
+    longitude: 7.21376,
+    latitude: 51.27328,
+    icon: "🚟",
+  },
+  {
+    id: "schwebebahn-oberbarmen",
+    name: "Oberbarmen Bahnhof",
+    longitude: 7.22211,
+    latitude: 51.27474,
+    icon: "🚟",
+  },
 ] as const;
 
 const sampleLandmarkAltitudes = async (
@@ -309,7 +489,10 @@ const CesiumLandmarksOverlay = ({
           compactText: landmark.name.slice(0, 2),
           index,
           ...(selected
-            ? { layoutPriority: Number.MAX_SAFE_INTEGER, lockPreferredPlacement: true }
+            ? {
+                layoutPriority: Number.MAX_SAFE_INTEGER,
+                lockPreferredPlacement: true,
+              }
             : {}),
         };
       })
@@ -577,7 +760,6 @@ const CesiumLandmarksStory = ({
             fixedLabelPitchDeg={fixedLabelPitchDeg}
             enableOcclusionTesting={enableOcclusionTesting}
             occlusionAvailable={occlusionAvailable}
-
           />
         </SceneStateOverlayBridge>
       </CesiumSceneStateProvider>

@@ -121,7 +121,10 @@ const viewSyncSlice = createSlice({
       state.controllerId = id;
       state.target = state.latestById[id] ?? state.target;
     },
-    publishViewState: (state, action: PayloadAction<PublishViewStatePayload>) => {
+    publishViewState: (
+      state,
+      action: PayloadAction<PublishViewStatePayload>
+    ) => {
       const { id, target, options } = action.payload;
       const registration = state.registrations[id];
       if (!registration) {

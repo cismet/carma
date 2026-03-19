@@ -1,5 +1,6 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useSelector } from "react-redux";
+import { getPixelResolutionFromZoomAtLatitudeRad } from "@carma/geo/utils";
 
 // legacy viewer dependency should be widget only
 // eslint-disable-next-line carma/no-direct-cesium
@@ -20,10 +21,15 @@ import {
   Color,
   Globe,
   Ellipsoid,
+  getPointsFromCartographicAndHeadingPitchRange,
   waitForRenderFrames,
 } from "@carma/cesium";
 
 import type { Scene } from "@carma/cesium";
+import {
+  writePerspectiveFrustumLongerEdgeFov,
+  writePerspectiveFrustumVerticalFov,
+} from "@carma-mapping/engines/cesium/api";
 
 import { useCesiumContext } from "./useCesiumContext";
 
@@ -52,6 +58,12 @@ interface CameraState {
   postionCartographic?: Cartographic;
 }
 
+type ContainerViewport = {
+  width: number;
+  height: number;
+};
+const VIEWPORT_SETTLE_DELAY_MS = 120;
+
 const postRenderHandlerMap: WeakMap<Viewer, () => void> = new WeakMap();
 const cameraChangedHandlerMap: WeakMap<Viewer, () => void> = new WeakMap();
 const initialViewSetMap: WeakMap<Viewer, boolean> = new WeakMap();
@@ -62,6 +74,238 @@ const DEFAULT_HPR = new HeadingPitchRange(
   1500
 );
 const DEFAULT_INITIAL_CAMERA_FOV_RAD = CesiumMath.PI_OVER_THREE;
+const CANONICAL_MAPLIBRE_TILE_SIZE_PX = 512;
+const MIN_INITIAL_CAMERA_RANGE_M = 0.01;
+const MIN_TAN_HALF_FOV = 1e-6;
+const INITIAL_VIEW_STABLE_REQUIRED_FRAMES = 6;
+const INITIAL_VIEW_STABLE_MAX_FRAMES = 120;
+const INITIAL_VIEW_POSITION_EPSILON_M = 0.02;
+const INITIAL_VIEW_ANGLE_EPSILON_RAD = 1e-4;
+
+const readLongerEdgeFovFromVerticalFov = ({
+  verticalFovRad,
+  viewportWidthPx,
+  viewportHeightPx,
+}: {
+  verticalFovRad: number;
+  viewportWidthPx: number;
+  viewportHeightPx: number;
+}): number | null => {
+  if (
+    !Number.isFinite(verticalFovRad) ||
+    verticalFovRad <= 0 ||
+    !Number.isFinite(viewportWidthPx) ||
+    viewportWidthPx <= 0 ||
+    !Number.isFinite(viewportHeightPx) ||
+    viewportHeightPx <= 0
+  ) {
+    return null;
+  }
+
+  return viewportWidthPx > viewportHeightPx
+    ? Math.atan(
+        Math.tan(verticalFovRad * 0.5) * (viewportWidthPx / viewportHeightPx)
+      ) * 2
+    : verticalFovRad;
+};
+
+const readRangeFromCanonicalMapZoom = ({
+  zoom,
+  latitudeRad,
+  longerEdgeFovRad,
+  viewportWidthPx,
+  viewportHeightPx,
+}: {
+  zoom: number;
+  latitudeRad: number;
+  longerEdgeFovRad: number;
+  viewportWidthPx: number;
+  viewportHeightPx: number;
+}): number | null => {
+  if (
+    !Number.isFinite(zoom) ||
+    !Number.isFinite(latitudeRad) ||
+    !Number.isFinite(longerEdgeFovRad) ||
+    longerEdgeFovRad <= 0 ||
+    !Number.isFinite(viewportWidthPx) ||
+    viewportWidthPx <= 0 ||
+    !Number.isFinite(viewportHeightPx) ||
+    viewportHeightPx <= 0
+  ) {
+    return null;
+  }
+
+  const projectionCenterRadiusPx =
+    Math.max(viewportWidthPx, viewportHeightPx) * 0.5;
+  const tanHalfFov = Math.tan(longerEdgeFovRad * 0.5);
+  if (!Number.isFinite(tanHalfFov) || Math.abs(tanHalfFov) < MIN_TAN_HALF_FOV) {
+    return null;
+  }
+
+  const metersPerCssPixel = getPixelResolutionFromZoomAtLatitudeRad(
+    zoom,
+    latitudeRad as Parameters<
+      typeof getPixelResolutionFromZoomAtLatitudeRad
+    >[1],
+    { tileSize: CANONICAL_MAPLIBRE_TILE_SIZE_PX }
+  );
+  if (!Number.isFinite(metersPerCssPixel) || metersPerCssPixel <= 0) {
+    return null;
+  }
+
+  const rangeM =
+    (metersPerCssPixel * projectionCenterRadiusPx) / Math.abs(tanHalfFov);
+  return Number.isFinite(rangeM) && rangeM >= MIN_INITIAL_CAMERA_RANGE_M
+    ? rangeM
+    : null;
+};
+
+const readCameraDestinationFromAnchorAndZoom = ({
+  anchor,
+  zoom,
+  headingRad,
+  pitchRad,
+  longerEdgeFovRad,
+  viewportWidthPx,
+  viewportHeightPx,
+}: {
+  anchor: Cartographic;
+  zoom: number;
+  headingRad: number;
+  pitchRad: number;
+  longerEdgeFovRad: number;
+  viewportWidthPx: number;
+  viewportHeightPx: number;
+}): Cartesian3 | null => {
+  const rangeM = readRangeFromCanonicalMapZoom({
+    zoom,
+    latitudeRad: anchor.latitude,
+    longerEdgeFovRad,
+    viewportWidthPx,
+    viewportHeightPx,
+  });
+  if (!Number.isFinite(rangeM)) {
+    return null;
+  }
+
+  const points = getPointsFromCartographicAndHeadingPitchRange({
+    cartographic: anchor,
+    headingPitchRange: new HeadingPitchRange(
+      headingRad,
+      pitchRad,
+      Math.max(MIN_INITIAL_CAMERA_RANGE_M, rangeM)
+    ),
+  });
+
+  return points?.cameraPositionECEF ?? null;
+};
+
+type CameraViewportStabilitySnapshot = {
+  positionX: number;
+  positionY: number;
+  positionZ: number;
+  heading: number;
+  pitch: number;
+  roll: number;
+  viewportWidth: number;
+  viewportHeight: number;
+};
+
+const readCameraViewportStabilitySnapshot = (
+  scene: Scene,
+  camera: Camera
+): CameraViewportStabilitySnapshot | null => {
+  const position = camera.positionWC;
+  const heading = camera.heading;
+  const pitch = camera.pitch;
+  const roll = camera.roll;
+  const viewportWidth = scene.canvas?.clientWidth ?? 0;
+  const viewportHeight = scene.canvas?.clientHeight ?? 0;
+
+  if (
+    !Number.isFinite(position?.x) ||
+    !Number.isFinite(position?.y) ||
+    !Number.isFinite(position?.z) ||
+    !Number.isFinite(heading) ||
+    !Number.isFinite(pitch) ||
+    !Number.isFinite(roll) ||
+    !Number.isFinite(viewportWidth) ||
+    !Number.isFinite(viewportHeight) ||
+    viewportWidth <= 0 ||
+    viewportHeight <= 0
+  ) {
+    return null;
+  }
+
+  return {
+    positionX: position.x,
+    positionY: position.y,
+    positionZ: position.z,
+    heading,
+    pitch,
+    roll,
+    viewportWidth,
+    viewportHeight,
+  };
+};
+
+const isStableSnapshot = (
+  previous: CameraViewportStabilitySnapshot,
+  current: CameraViewportStabilitySnapshot
+): boolean => {
+  const positionDelta = Math.hypot(
+    current.positionX - previous.positionX,
+    current.positionY - previous.positionY,
+    current.positionZ - previous.positionZ
+  );
+
+  return (
+    positionDelta <= INITIAL_VIEW_POSITION_EPSILON_M &&
+    Math.abs(current.heading - previous.heading) <=
+      INITIAL_VIEW_ANGLE_EPSILON_RAD &&
+    Math.abs(current.pitch - previous.pitch) <=
+      INITIAL_VIEW_ANGLE_EPSILON_RAD &&
+    Math.abs(current.roll - previous.roll) <= INITIAL_VIEW_ANGLE_EPSILON_RAD &&
+    current.viewportWidth === previous.viewportWidth &&
+    current.viewportHeight === previous.viewportHeight
+  );
+};
+
+const waitForStableCameraAndViewport = async ({
+  scene,
+  camera,
+  requiredStableFrames = INITIAL_VIEW_STABLE_REQUIRED_FRAMES,
+  maxFrames = INITIAL_VIEW_STABLE_MAX_FRAMES,
+}: {
+  scene: Scene;
+  camera: Camera;
+  requiredStableFrames?: number;
+  maxFrames?: number;
+}): Promise<void> => {
+  let previous: CameraViewportStabilitySnapshot | null = null;
+  let stableFrames = 0;
+
+  for (let frame = 0; frame < maxFrames; frame += 1) {
+    await waitForRenderFrames(scene, 1);
+    const current = readCameraViewportStabilitySnapshot(scene, camera);
+    if (!current) {
+      previous = null;
+      stableFrames = 0;
+      continue;
+    }
+
+    if (previous && isStableSnapshot(previous, current)) {
+      stableFrames += 1;
+      if (stableFrames >= requiredStableFrames) {
+        return;
+      }
+    } else {
+      stableFrames = 0;
+    }
+
+    previous = current;
+  }
+};
 
 export const useInitializeViewer = (
   containerRef?: React.RefObject<HTMLDivElement>,
@@ -100,9 +344,83 @@ export const useInitializeViewer = (
   const enableCollisionDetection = useSelector(
     selectScreenSpaceCameraControllerEnableCollisionDetection
   );
+  const [containerViewport, setContainerViewport] = useState<ContainerViewport>(
+    {
+      width: 0,
+      height: 0,
+    }
+  );
+  const [settledContainerViewport, setSettledContainerViewport] =
+    useState<ContainerViewport>({
+      width: 0,
+      height: 0,
+    });
 
   // Store camera position and orientation vectors
   const lastGoodCameraState = useRef<CameraState | null>(null);
+
+  useEffect(() => {
+    const container = containerRef?.current;
+    if (!container) {
+      return;
+    }
+
+    const syncContainerViewport = () => {
+      const width = container.clientWidth;
+      const height = container.clientHeight;
+
+      setContainerViewport((previous) =>
+        previous.width === width && previous.height === height
+          ? previous
+          : { width, height }
+      );
+
+      const viewer = viewerRef.current;
+      if (!viewer || viewer.isDestroyed()) {
+        return;
+      }
+
+      viewer.canvas.width = width;
+      viewer.canvas.height = height;
+      viewer.canvas.style.width = "100%";
+      viewer.canvas.style.height = "100%";
+    };
+
+    syncContainerViewport();
+
+    const resizeObserver = new ResizeObserver(() => {
+      syncContainerViewport();
+    });
+
+    resizeObserver.observe(container);
+
+    return () => {
+      resizeObserver.disconnect();
+    };
+  }, [containerRef, viewerRef]);
+
+  useEffect(() => {
+    if (containerViewport.width <= 0 || containerViewport.height <= 0) {
+      setSettledContainerViewport({ width: 0, height: 0 });
+      return;
+    }
+
+    const timerId = window.setTimeout(() => {
+      setSettledContainerViewport((previous) =>
+        previous.width === containerViewport.width &&
+        previous.height === containerViewport.height
+          ? previous
+          : {
+              width: containerViewport.width,
+              height: containerViewport.height,
+            }
+      );
+    }, VIEWPORT_SETTLE_DELAY_MS);
+
+    return () => {
+      window.clearTimeout(timerId);
+    };
+  }, [containerViewport.height, containerViewport.width]);
 
   // override cesium default home
   useEffect(() => {
@@ -127,11 +445,20 @@ export const useInitializeViewer = (
 
   useEffect(() => {
     const containerEl = containerRef?.current;
+    const hasSettledContainerViewport =
+      settledContainerViewport.width > 0 && settledContainerViewport.height > 0;
 
     // Wait for providers to be ready before creating viewer
     if (!providersReady) {
       console.debug(
         "[CESIUM] HOOK: [CESIUM|INIT] Waiting for providers to be ready..."
+      );
+      return;
+    }
+
+    if (!hasSettledContainerViewport) {
+      console.debug(
+        "[CESIUM] HOOK: [CESIUM|INIT] Waiting for settled container dimensions..."
       );
       return;
     }
@@ -290,32 +617,11 @@ export const useInitializeViewer = (
         console.error("[CESIUM] Error initializing viewer:", error);
       }
     }
-    return () => {
-      // Don't cleanup - viewer and listeners persist across 2D/3D transitions
-      // This should only run during app shutdown or if effect dependencies change unexpectedly
-      console.error(
-        "[CESIUM] [CESIUM|INIT|CLEANUP] Viewer initialization effect cleanup triggered!",
-        {
-          hasViewer: !!viewerRef.current,
-          isViewerValid: isValidViewer(),
-          isViewerDestroyed: viewerRef.current?.isDestroyed(),
-          reason:
-            "Effect dependencies changed - investigating which dependency caused re-init",
-        }
-      );
-
-      // Log which dependencies might have changed
-      console.debug("[CESIUM] [CESIUM|INIT|CLEANUP] Effect dependency check:", {
-        hasOptions: !!options,
-        hasContainerEl: !!containerEl,
-        hasInitialCameraView: !!initialCameraView,
-        hasHome: !!home,
-        maxZoom,
-      });
-    };
   }, [
     options,
     containerRef,
+    settledContainerViewport.height,
+    settledContainerViewport.width,
     initialCameraView,
     providersReady,
     viewerRef,
@@ -358,6 +664,12 @@ export const useInitializeViewer = (
 
   useEffect(() => {
     if (!isViewerReady) return;
+    if (
+      settledContainerViewport.width <= 0 ||
+      settledContainerViewport.height <= 0
+    ) {
+      return;
+    }
 
     let alreadySet = false;
     withViewer((viewer) => {
@@ -373,18 +685,31 @@ export const useInitializeViewer = (
         let cancelled = false;
         (async () => {
           let sceneRef: Scene | null = null;
+          let cameraRef: Camera | null = null;
           withScene((scene) => {
             sceneRef = scene;
           });
-          if (!sceneRef) return;
-          await waitForRenderFrames(sceneRef, 2);
+          withCamera((camera) => {
+            cameraRef = camera;
+          });
+          if (!sceneRef || !cameraRef) return;
+          await waitForStableCameraAndViewport({
+            scene: sceneRef,
+            camera: cameraRef,
+          });
           if (!cancelled) {
             setInitialViewApplied(true);
+            if (shouldSuspendCameraLimitersRef) {
+              shouldSuspendCameraLimitersRef.current = false;
+            }
           }
         })();
 
         return () => {
           cancelled = true;
+          if (shouldSuspendCameraLimitersRef) {
+            shouldSuspendCameraLimitersRef.current = false;
+          }
         };
       }
 
@@ -416,22 +741,49 @@ export const useInitializeViewer = (
     // suspend camera limiters during the initial apply to avoid unintended corrections
     if (shouldSuspendCameraLimitersRef) {
       shouldSuspendCameraLimitersRef.current = true;
-      withScene((scene) => {
-        const enableLimitersNextFrame = () => {
-          if (shouldSuspendCameraLimitersRef) {
-            shouldSuspendCameraLimitersRef.current = false;
-          }
-          scene.postRender.removeEventListener(enableLimitersNextFrame);
-        };
-        scene.postRender.addEventListener(enableLimitersNextFrame);
-      });
     }
     if (initialCameraView) {
-      const { position, heading, pitch, fov } = initialCameraView;
-      if (position) {
-        const restoredHeight = Math.max(position?.height || 1000, 0);
+      const { position, anchor, zoom, heading, pitch, fov, fovLongerEdge } =
+        initialCameraView;
+      let destination: Cartesian3 | null = null;
+
+      withViewer(() => {
+        const viewportWidthPx = settledContainerViewport.width;
+        const viewportHeightPx = settledContainerViewport.height;
+        const resolvedLongerEdgeFov = Number.isFinite(fovLongerEdge)
+          ? fovLongerEdge
+          : Number.isFinite(fov)
+          ? readLongerEdgeFovFromVerticalFov({
+              verticalFovRad: fov,
+              viewportWidthPx,
+              viewportHeightPx,
+            })
+          : DEFAULT_INITIAL_CAMERA_FOV_RAD;
+
+        if (
+          anchor &&
+          Number.isFinite(zoom) &&
+          Number.isFinite(resolvedLongerEdgeFov)
+        ) {
+          destination = readCameraDestinationFromAnchorAndZoom({
+            anchor,
+            zoom,
+            headingRad: heading ?? 0,
+            pitchRad: pitch ?? -CesiumMath.PI_OVER_TWO,
+            longerEdgeFovRad: resolvedLongerEdgeFov,
+            viewportWidthPx,
+            viewportHeightPx,
+          });
+        }
+      });
+
+      if (!destination && position) {
+        const restoredHeight = Math.max(position.height || 1000, 0);
         position.height = restoredHeight;
-        const destination = Cartographic.toCartesian(position);
+        destination = Cartographic.toCartesian(position);
+      }
+
+      if (destination) {
         const isValidDestination = hasHome
           ? validateWorldCoordinate(destination, home, maxZoom, 0)
           : true;
@@ -447,7 +799,19 @@ export const useInitializeViewer = (
               },
             });
             if (camera.frustum instanceof PerspectiveFrustum) {
-              camera.frustum.fov = fov ?? DEFAULT_INITIAL_CAMERA_FOV_RAD;
+              if (Number.isFinite(fovLongerEdge)) {
+                writePerspectiveFrustumLongerEdgeFov(
+                  camera.frustum,
+                  fovLongerEdge
+                );
+              } else if (Number.isFinite(fov)) {
+                writePerspectiveFrustumVerticalFov(camera.frustum, fov);
+              } else {
+                writePerspectiveFrustumLongerEdgeFov(
+                  camera.frustum,
+                  DEFAULT_INITIAL_CAMERA_FOV_RAD
+                );
+              }
             }
             usedInitial = true;
             withViewer((viewer) => viewer.scene.requestRender());
@@ -498,10 +862,16 @@ export const useInitializeViewer = (
         });
       }
 
-      await waitForRenderFrames(sceneRef, 2);
+      await waitForStableCameraAndViewport({
+        scene: sceneRef,
+        camera: cameraRef,
+      });
 
       if (!cancelled) {
         setInitialViewApplied(true);
+        if (shouldSuspendCameraLimitersRef) {
+          shouldSuspendCameraLimitersRef.current = false;
+        }
       }
     })();
 
@@ -509,6 +879,9 @@ export const useInitializeViewer = (
       cancelled = true;
       detachMoveEndListener?.();
       detachMoveEndListener = null;
+      if (shouldSuspendCameraLimitersRef) {
+        shouldSuspendCameraLimitersRef.current = false;
+      }
     };
   }, [
     isViewerReady,
@@ -516,6 +889,8 @@ export const useInitializeViewer = (
     home,
     homeOffset,
     maxZoom,
+    settledContainerViewport.height,
+    settledContainerViewport.width,
     setInitialViewApplied,
     initialViewApplied,
     withViewer,
@@ -523,32 +898,6 @@ export const useInitializeViewer = (
     withScene,
     shouldSuspendCameraLimitersRef,
   ]);
-
-  useEffect(() => {
-    if (viewerRef.current && containerRef?.current) {
-      const viewer = viewerRef.current;
-      const container = containerRef.current;
-
-      const resizeObserver = new ResizeObserver(() => {
-        if (!viewer || viewer.isDestroyed() || !container) {
-          return;
-        }
-
-        viewer.canvas.width = container.clientWidth;
-        viewer.canvas.height = container.clientHeight;
-        viewer.canvas.style.width = "100%";
-        viewer.canvas.style.height = "100%";
-      });
-
-      if (container) {
-        resizeObserver.observe(container);
-      }
-
-      return () => {
-        resizeObserver.disconnect();
-      };
-    }
-  }, [viewerRef, containerRef]);
 };
 
 export default useInitializeViewer;

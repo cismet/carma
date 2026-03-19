@@ -74,7 +74,6 @@ export type EventLike = {
   removeEventListener: (...args: any[]) => void;
 };
 
-
 export type CameraLike = {
   positionWC?: Cartesian3;
   position?: Cartesian3;

@@ -134,17 +134,11 @@ const formatViewSyncTargetTableRows = (
     },
     {
       label: "longitude",
-      value: `${formatAlignedNumber(
-        radToDegNumeric(target.longitude),
-        5
-      )}°`,
+      value: `${formatAlignedNumber(radToDegNumeric(target.longitude), 5)}°`,
     },
     {
       label: "latitude",
-      value: `${formatAlignedNumber(
-        radToDegNumeric(target.latitude),
-        5
-      )}°`,
+      value: `${formatAlignedNumber(radToDegNumeric(target.latitude), 5)}°`,
     },
     {
       cueLabel: "ℎ",
@@ -206,26 +200,31 @@ const formatViewSyncTargetTableRows = (
     },
     {
       label: "aspect ratio",
-      value: formatOrUnresolved(target.cameraModel?.intrinsics?.aspect, (resolvedAspect) =>
-        formatCompactNumber(resolvedAspect, 3)
+      value: formatOrUnresolved(
+        target.cameraModel?.intrinsics?.aspect,
+        (resolvedAspect) => formatCompactNumber(resolvedAspect, 3)
       ),
     },
     {
       label: "near",
-      value: formatOrUnresolved(target.cameraModel?.intrinsics?.frustum?.near, (resolvedNear) =>
-        formatLengthMeters(resolvedNear, {
-          maximumFractionDigitsMeters: 2,
-          maximumFractionDigitsKilometers: 2,
-        })
+      value: formatOrUnresolved(
+        target.cameraModel?.intrinsics?.frustum?.near,
+        (resolvedNear) =>
+          formatLengthMeters(resolvedNear, {
+            maximumFractionDigitsMeters: 2,
+            maximumFractionDigitsKilometers: 2,
+          })
       ),
     },
     {
       label: "far",
-      value: formatOrUnresolved(target.cameraModel?.intrinsics?.frustum?.far, (resolvedFar) =>
-        formatLengthMeters(resolvedFar, {
-          maximumFractionDigitsMeters: 2,
-          maximumFractionDigitsKilometers: 2,
-        })
+      value: formatOrUnresolved(
+        target.cameraModel?.intrinsics?.frustum?.far,
+        (resolvedFar) =>
+          formatLengthMeters(resolvedFar, {
+            maximumFractionDigitsMeters: 2,
+            maximumFractionDigitsKilometers: 2,
+          })
       ),
     },
   ];

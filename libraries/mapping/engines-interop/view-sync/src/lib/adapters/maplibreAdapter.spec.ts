@@ -3,7 +3,10 @@ import type { SceneState } from "@carma-mapping/engines/cesium/api";
 import { WEB_MERCATOR_MAX_LATITUDE_DEG } from "@carma/geo/utils";
 import { degToRadNumeric, radToDegNumeric } from "@carma/units/helpers";
 import { maplibreAdapter as maplibreAdapterTyped } from "./maplibreAdapter";
-import { readVerticalFovRad, readViewStateFromSceneState } from "../core/targetState";
+import {
+  readVerticalFovRad,
+  readViewStateFromSceneState,
+} from "../core/targetState";
 import type { ViewState } from "../core/types";
 
 const maplibreAdapter = maplibreAdapterTyped;
@@ -60,18 +63,9 @@ describe("view adapter round-trips", () => {
     expect(snapshot?.altitude).toBe(180);
     expect(toDeg(snapshot?.longitude ?? 0)).toBeCloseTo(expectedLngDeg, 7);
     expect(toDeg(snapshot?.latitude ?? 0)).toBeCloseTo(expectedLatDeg, 7);
-    expect(toDeg(snapshot?.bearing ?? 0)).toBeCloseTo(
-      expectedBearingDeg,
-      7
-    );
-    expect(toDeg(snapshot?.pitch ?? 0)).toBeCloseTo(
-      expectedPitchDeg,
-      7
-    );
-    expect(toDeg(snapshot?.roll ?? 0)).toBeCloseTo(
-      expectedRollDeg,
-      7
-    );
+    expect(toDeg(snapshot?.bearing ?? 0)).toBeCloseTo(expectedBearingDeg, 7);
+    expect(toDeg(snapshot?.pitch ?? 0)).toBeCloseTo(expectedPitchDeg, 7);
+    expect(toDeg(snapshot?.roll ?? 0)).toBeCloseTo(expectedRollDeg, 7);
     expect(snapshot?.fovVertical).toBeUndefined();
   });
 
@@ -119,16 +113,14 @@ describe("view adapter round-trips", () => {
   });
 
   it("round-trips maplibre view values through carma conversion", () => {
-    const snapshot = maplibreAdapter.toCarmaViewState(
-      {
-        lng: 7.2061216,
-        lat: 51.2712774,
-        zoom: 16.4,
-        altitude: 155.6,
-        bearing: 278.4,
-        pitch: 57.3,
-      }
-    );
+    const snapshot = maplibreAdapter.toCarmaViewState({
+      lng: 7.2061216,
+      lat: 51.2712774,
+      zoom: 16.4,
+      altitude: 155.6,
+      bearing: 278.4,
+      pitch: 57.3,
+    });
 
     expect(snapshot).not.toBeNull();
     expect(toDeg(snapshot?.longitude ?? 0)).toBeCloseTo(7.2061216, 7);
@@ -151,17 +143,15 @@ describe("view adapter round-trips", () => {
   });
 
   it("omits zero bearing and pitch in carmaToView", () => {
-    const params = maplibreAdapter.toFramework(
-      {
-        longitude: asRadians(toRad(7.2)),
-        latitude: asRadians(toRad(51.27)),
-        altitude: asMeters(155.6),
-        bearing: asRadians(0),
-        pitch: asRadians(toRad(0)),
-        range: asMeters(750),
-        fovVertical: asRadians(toRad(50)),
-      }
-    );
+    const params = maplibreAdapter.toFramework({
+      longitude: asRadians(toRad(7.2)),
+      latitude: asRadians(toRad(51.27)),
+      altitude: asMeters(155.6),
+      bearing: asRadians(0),
+      pitch: asRadians(toRad(0)),
+      range: asMeters(750),
+      fovVertical: asRadians(toRad(50)),
+    });
 
     expect(params).not.toBeNull();
     expect(params!.lng).toBeCloseTo(7.2, 7);
@@ -171,18 +161,49 @@ describe("view adapter round-trips", () => {
     expect(params).not.toHaveProperty("pitch");
   });
 
+  it("sanitizes maplibre pitch to a tiny positive epsilon when bearing is non-zero at nadir", () => {
+    const params = maplibreAdapter.toFramework({
+      longitude: asRadians(toRad(7.2)),
+      latitude: asRadians(toRad(51.27)),
+      altitude: asMeters(155.6),
+      bearing: asRadians(toRad(45)),
+      pitch: asRadians(0),
+      range: asMeters(750),
+      fovVertical: asRadians(toRad(45)),
+    });
+
+    expect(params).not.toBeNull();
+    expect(params!.bearing).toBeCloseTo(45, 7);
+    expect(params!.pitch).toBeGreaterThan(0);
+    expect(params!.pitch).toBeLessThan(0.001);
+  });
+
+  it("clamps negative maplibre pitch to zero", () => {
+    const params = maplibreAdapter.toFramework({
+      longitude: asRadians(toRad(7.2)),
+      latitude: asRadians(toRad(51.27)),
+      altitude: asMeters(155.6),
+      bearing: asRadians(0),
+      pitch: asRadians(toRad(-15)),
+      range: asMeters(750),
+      fovVertical: asRadians(toRad(45)),
+    });
+
+    expect(params).not.toBeNull();
+    expect(params).not.toHaveProperty("bearing");
+    expect(params).not.toHaveProperty("pitch");
+  });
+
   it("round-trips explicit fov through maplibre conversion", () => {
-    const snapshot = maplibreAdapter.toCarmaViewState(
-      {
-        lng: 7.2061216,
-        lat: 51.2712774,
-        zoom: 15.2,
-        altitude: 155.6,
-        bearing: 278.4,
-        pitch: 57.3,
-        fovDeg: 45,
-      }
-    );
+    const snapshot = maplibreAdapter.toCarmaViewState({
+      lng: 7.2061216,
+      lat: 51.2712774,
+      zoom: 15.2,
+      altitude: 155.6,
+      bearing: 278.4,
+      pitch: 57.3,
+      fovDeg: 45,
+    });
 
     expect(snapshot).not.toBeNull();
     expect(toDeg(snapshot?.fovVertical ?? 0)).toBeCloseTo(45, 7);
@@ -200,16 +221,14 @@ describe("view adapter round-trips", () => {
   });
 
   it("prefers stored zoom over recomputing from range", () => {
-    const snapshot = maplibreAdapter.toCarmaViewState(
-      {
-        lng: 7.2061216,
-        lat: 51.2712774,
-        zoom: 16.4,
-        altitude: 155.6,
-        bearing: 278.4,
-        pitch: 57.3,
-      }
-    );
+    const snapshot = maplibreAdapter.toCarmaViewState({
+      lng: 7.2061216,
+      lat: 51.2712774,
+      zoom: 16.4,
+      altitude: 155.6,
+      bearing: 278.4,
+      pitch: 57.3,
+    });
 
     expect(snapshot).not.toBeNull();
 
@@ -236,10 +255,7 @@ describe("view adapter round-trips", () => {
         },
       }
     );
-    expect(toDeg(fovVerticalRad ?? 0)).toBeCloseTo(
-      53.130102,
-      5
-    );
+    expect(toDeg(fovVerticalRad ?? 0)).toBeCloseTo(53.130102, 5);
   });
 
   it("omits fov in carmaToHashParams when it matches the configured default", () => {
@@ -492,17 +508,15 @@ describe("view adapter round-trips", () => {
   });
 
   it("hydrates maplibre view-state from string hash values", () => {
-    const hydrated = maplibreAdapter.fromHashValues(
-      {
-        lng: "7.2061216",
-        lat: "51.2712774",
-        zoom: "16.4",
-        altitude: "155.6",
-        bearing: "278.4",
-        pitch: "57.3",
-        fov: "45",
-      }
-    );
+    const hydrated = maplibreAdapter.fromHashValues({
+      lng: "7.2061216",
+      lat: "51.2712774",
+      zoom: "16.4",
+      altitude: "155.6",
+      bearing: "278.4",
+      pitch: "57.3",
+      fov: "45",
+    });
 
     expect(hydrated).not.toBeNull();
     expect(toDeg(hydrated?.longitude ?? 0)).toBeCloseTo(7.2061216, 7);
@@ -548,14 +562,12 @@ describe("view adapter round-trips", () => {
   });
 
   it("clamps latitude=90 to web-mercator extent and produces finite maplibre params", () => {
-    const snapshot = maplibreAdapter.toCarmaViewState(
-      {
-        lng: 7.2061216,
-        lat: 90,
-        zoom: 10,
-        altitude: 155.6,
-      }
-    );
+    const snapshot = maplibreAdapter.toCarmaViewState({
+      lng: 7.2061216,
+      lat: 90,
+      zoom: 10,
+      altitude: 155.6,
+    });
 
     expect(snapshot).not.toBeNull();
     expect(toDeg(snapshot?.latitude ?? 0)).toBe(WEB_MERCATOR_MAX_LATITUDE_DEG);

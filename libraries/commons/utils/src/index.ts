@@ -52,10 +52,20 @@ export {
 export { isHtmlString } from "./lib/regex";
 
 export {
+  DEFAULT_HASH_LAUNCH_FLAG_2D_KEY,
+  DEFAULT_HASH_LAUNCH_FLAG_3D_KEY,
+  DEFAULT_HASH_LAUNCH_LEGACY_FLAG_2D_KEY,
+  DEFAULT_HASH_LAUNCH_LEGACY_FLAG_3D_KEY,
+  DEFAULT_HASH_LAUNCH_ALTITUDE_KEYS,
+  DEFAULT_HASH_LAUNCH_2D_VIEW_KEYS,
+  HASH_LAUNCH_MODE,
+  readHashLaunchMode,
+  resolveHashLaunchMode,
   updateHashHistoryState,
   getHashParams,
   diffHashParams,
 } from "./lib/routing.ts";
+export type { HashLaunchMode, HashLaunchModeConfig } from "./lib/routing.ts";
 
 export {
   generateRandomString,

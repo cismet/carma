@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { radToDegNumeric } from "@carma/units/helpers";
+import { degToRadNumeric, radToDegNumeric } from "@carma/units/helpers";
 import { leafletAdapter } from "./leafletAdapter";
 
 describe("leafletAdapter", () => {
@@ -68,5 +68,64 @@ describe("leafletAdapter", () => {
     });
 
     expect(values?.zoom).toBeCloseTo(16.4, 6);
+  });
+
+  it("preserves prior bearing and pitch when deriving shared state from leaflet", () => {
+    const snapshot = leafletAdapter.toCarmaViewState(
+      {
+        lng: 7.2061216,
+        lat: 51.2712774,
+        zoom: 16.4,
+      },
+      155.6,
+      {
+        previousViewState: {
+          longitude: degToRadNumeric(7.2061216)!,
+          latitude: degToRadNumeric(51.2712774)!,
+          altitude: 155.6,
+          zoom: 15.4,
+          bearing: degToRadNumeric(180)!,
+          pitch: degToRadNumeric(35)!,
+          range: 500,
+          fovVertical: degToRadNumeric(55)!,
+        },
+      }
+    );
+
+    expect(snapshot).not.toBeNull();
+    expect(radToDegNumeric(snapshot!.bearing)).toBeCloseTo(180, 7);
+    expect(radToDegNumeric(snapshot!.pitch)).toBeCloseTo(35, 7);
+    expect(radToDegNumeric(snapshot!.fovVertical!)).toBeCloseTo(55, 7);
+  });
+
+  it("can explicitly reset heading, pitch, and roll while preserving center and zoom", () => {
+    const snapshot = leafletAdapter.toCarmaViewState(
+      {
+        lng: 7.2061216,
+        lat: 51.2712774,
+        zoom: 16.4,
+      },
+      155.6,
+      {
+        previousViewState: {
+          longitude: degToRadNumeric(7.2061216)!,
+          latitude: degToRadNumeric(51.2712774)!,
+          altitude: 155.6,
+          zoom: 15.4,
+          bearing: degToRadNumeric(180)!,
+          pitch: degToRadNumeric(35)!,
+          roll: degToRadNumeric(12)!,
+          range: 500,
+          fovVertical: degToRadNumeric(55)!,
+        },
+        resetHeadingPitchRoll: true,
+      }
+    );
+
+    expect(snapshot).not.toBeNull();
+    expect(radToDegNumeric(snapshot!.bearing)).toBeCloseTo(0, 7);
+    expect(radToDegNumeric(snapshot!.pitch)).toBeCloseTo(0, 7);
+    expect(snapshot!.roll).toBeUndefined();
+    expect(radToDegNumeric(snapshot!.fovVertical!)).toBeCloseTo(55, 7);
   });
 });

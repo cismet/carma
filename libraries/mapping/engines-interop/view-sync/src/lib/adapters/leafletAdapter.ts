@@ -4,13 +4,14 @@ import {
   getZoomFromPixelResolutionAtLatitudeRad,
 } from "@carma/geo/utils";
 import { isFiniteNumber } from "@carma/math";
-import { degToRadNumeric, radToDegNumeric, zeroToTwoPi } from "@carma/units/helpers";
+import {
+  degToRadNumeric,
+  radToDegNumeric,
+  zeroToTwoPi,
+} from "@carma/units/helpers";
 import type { Meters, Radians } from "@carma/units/types";
 import type { ViewState } from "../core/types";
-import {
-  DEFAULT_FOV_DEG,
-  type LeafletViewValues,
-} from "./types";
+import { DEFAULT_FOV_DEG, type LeafletViewValues } from "./types";
 import {
   normalizeBearingRadToDeg,
   readMetersPerCssPixel,
@@ -23,6 +24,14 @@ const LEAFLET_PROJECTION_MIN_RANGE_M = 0.01;
 
 const zoom512as256 = (zoom512: number): number => zoom512 + 1;
 const zoom256as512 = (zoom256: number): number => zoom256 - 1;
+
+export type LeafletViewStateUpdateOptions = {
+  previousViewState?: ViewState | null;
+  // Backwards-compatible alias for older call sites.
+  preserveFromViewState?: ViewState | null;
+  resetHeadingPitchRoll?: boolean;
+  resetFov?: boolean;
+};
 
 export type ViewSyncLeafletProjection = {
   center: {
@@ -106,10 +115,17 @@ export const projectLeafletViewToViewSyncTarget = (
   fovVertical: number,
   options: {
     bearingDeg?: number;
+    pitchRad?: number;
+    rollRad?: number;
     tileSizePx?: number;
   } = {}
 ): ViewState | null => {
-  const { bearingDeg = 0, tileSizePx = LEAFLET_TILE_SIZE_PX } = options;
+  const {
+    bearingDeg = 0,
+    pitchRad = 0,
+    rollRad,
+    tileSizePx = LEAFLET_TILE_SIZE_PX,
+  } = options;
   const latitudeRad = degToRadNumeric(latDeg) as Radians;
   const metersPerCssPixel = getPixelResolutionFromZoomAtLatitudeRad(
     zoom,
@@ -137,8 +153,13 @@ export const projectLeafletViewToViewSyncTarget = (
     altitude: anchorAltitudeM as Meters,
     zoom: zoom256as512(zoom),
     bearing: zeroToTwoPi(degToRadNumeric(bearingDeg)! as Radians) as Radians,
-    pitch: 0 as Radians,
+    pitch: pitchRad as Radians,
     range: rangeM as Meters,
+    ...(isFiniteNumber(rollRad)
+      ? {
+          roll: rollRad as Radians,
+        }
+      : {}),
     ...(isFiniteNumber(fovVertical)
       ? {
           fovVertical: fovVertical as Radians,
@@ -149,32 +170,50 @@ export const projectLeafletViewToViewSyncTarget = (
 
 const toCarmaViewState = (
   values: LeafletViewValues,
-  fallbackAltitudeM: number = 200
+  fallbackAltitudeM: number = 200,
+  options: LeafletViewStateUpdateOptions = {}
 ): ViewState | null => {
   const { lng, lat, zoom, rollDeg } = values;
   if (!isFiniteNumber(lng) || !isFiniteNumber(lat) || !isFiniteNumber(zoom)) {
     return null;
   }
 
+  const previousViewState =
+    options.previousViewState ?? options.preserveFromViewState ?? null;
+  const resetHeadingPitchRoll = options.resetHeadingPitchRoll === true;
+  const resetFov = options.resetFov === true;
+
+  const preservedBearingDeg =
+    !resetHeadingPitchRoll && isFiniteNumber(previousViewState?.bearing)
+      ? radToDegNumeric(previousViewState.bearing)
+      : 0;
+  const preservedPitchRad =
+    !resetHeadingPitchRoll && isFiniteNumber(previousViewState?.pitch)
+      ? previousViewState.pitch
+      : 0;
+  const preservedRollRad = isFiniteNumber(rollDeg)
+    ? (degToRadNumeric(rollDeg)! as ViewState["roll"])
+    : !resetHeadingPitchRoll && isFiniteNumber(previousViewState?.roll)
+    ? previousViewState.roll
+    : undefined;
+  const resolvedFovVertical =
+    !resetFov && isFiniteNumber(previousViewState?.fovVertical)
+      ? previousViewState.fovVertical
+      : DEFAULT_LEAFLET_FOV_VERTICAL_RAD;
+
   const target = projectLeafletViewToViewSyncTarget(
     lng,
     lat,
     zoom,
     fallbackAltitudeM,
-    DEFAULT_LEAFLET_FOV_VERTICAL_RAD
+    resolvedFovVertical,
+    {
+      bearingDeg: preservedBearingDeg,
+      pitchRad: preservedPitchRad,
+      rollRad: preservedRollRad,
+    }
   );
-  if (!target) {
-    return null;
-  }
-
-  if (!isFiniteNumber(rollDeg)) {
-    return target;
-  }
-
-  return {
-    ...target,
-    roll: degToRadNumeric(rollDeg)! as ViewState["roll"],
-  };
+  return target;
 };
 
 export const leafletAdapter = {
@@ -195,15 +234,17 @@ export const leafletAdapter = {
 
   toCarmaViewState(
     values: LeafletViewValues,
-    fallbackAltitudeM: number = 200
+    fallbackAltitudeM: number = 200,
+    options: LeafletViewStateUpdateOptions = {}
   ): ViewState | null {
-    return toCarmaViewState(values, fallbackAltitudeM);
+    return toCarmaViewState(values, fallbackAltitudeM, options);
   },
 };
 
 export const readViewStateFromLeafletMap = (
   map: LeafletMap | null | undefined,
-  fallbackAltitudeM: number = 200
+  fallbackAltitudeM: number = 200,
+  options: LeafletViewStateUpdateOptions = {}
 ): ViewState | null => {
   if (!map || !(map as LeafletMap & { _loaded?: boolean })._loaded) {
     return null;
@@ -224,7 +265,8 @@ export const readViewStateFromLeafletMap = (
         zoom: map.getZoom(),
         ...(isFiniteNumber(rollDeg) ? { rollDeg } : {}),
       },
-      fallbackAltitudeM
+      fallbackAltitudeM,
+      options
     );
   } catch {
     return null;

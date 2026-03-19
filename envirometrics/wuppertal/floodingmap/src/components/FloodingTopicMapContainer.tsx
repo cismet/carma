@@ -4,6 +4,8 @@ import TopicMapComponent from "react-cismap/topicmaps/TopicMapComponent";
 import { TopicMapContext } from "react-cismap/contexts/TopicMapContextProvider";
 
 import { useMapHashRouting } from "@carma-appframeworks/portals";
+import { useMapFrameworkSwitcherContext } from "@carma-mapping/components";
+import { useCesiumContext } from "@carma-mapping/engines/cesium";
 
 type TopicMapComponentProps = ComponentProps<typeof TopicMapComponent>;
 
@@ -16,6 +18,8 @@ const HASH_ROUTING_LABELS = {
 export const FloodingTopicMapContainer = (props: TopicMapComponentProps) => {
   const { routedMapRef } = useContext<typeof TopicMapContext>(TopicMapContext);
   const forwardedLocationChangedHandler = props.locationChangedHandler;
+  const { getIsTransitioning, getIsCesium } = useMapFrameworkSwitcherContext();
+  const { initialViewApplied } = useCesiumContext();
 
   const getLeafletMap = useCallback(
     () => routedMapRef?.leafletMap?.leafletElement ?? null,
@@ -31,9 +35,26 @@ export const FloodingTopicMapContainer = (props: TopicMapComponentProps) => {
     () => ({
       getLeafletMap,
       getLeafletZoom,
+      isHashWriteEnabled: () => {
+        if (getIsTransitioning()) {
+          return false;
+        }
+
+        if (getIsCesium()) {
+          return initialViewApplied;
+        }
+
+        return true;
+      },
       labels: HASH_ROUTING_LABELS,
     }),
-    [getLeafletMap, getLeafletZoom]
+    [
+      getLeafletMap,
+      getLeafletZoom,
+      getIsTransitioning,
+      getIsCesium,
+      initialViewApplied,
+    ]
   );
 
   const { handleTopicMapLocationChange } = useMapHashRouting(routingOptions);
@@ -49,6 +70,7 @@ export const FloodingTopicMapContainer = (props: TopicMapComponentProps) => {
   return (
     <TopicMapComponent
       {...props}
+      disableUseLocation={true}
       locationChangedHandler={handleLocationChanged}
       outerLocationChangedHandlerExclusive={true}
     />

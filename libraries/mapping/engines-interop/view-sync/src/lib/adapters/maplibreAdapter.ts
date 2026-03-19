@@ -29,6 +29,7 @@ import {
 
 const MAPLIBRE_TILE_SIZE_PX = 512;
 const MAPLIBRE_PROJECTION_MIN_RANGE_M = 0.01;
+const MAPLIBRE_MIN_BEARING_PITCH_DEG = 1e-6;
 
 export type ViewSyncMapProjection = {
   lng: number;
@@ -36,6 +37,22 @@ export type ViewSyncMapProjection = {
   zoom: number;
   bearing: number;
   pitch: number;
+};
+
+const sanitizeMapLibrePitchDeg = ({
+  pitchDeg,
+  bearingDeg,
+  maxPitchDeg,
+}: {
+  pitchDeg: number;
+  bearingDeg: number;
+  maxPitchDeg: number;
+}): number => {
+  const clampedPitchDeg = clamp(pitchDeg, 0, maxPitchDeg);
+  return !isZeroish(bearingDeg) &&
+    clampedPitchDeg < MAPLIBRE_MIN_BEARING_PITCH_DEG
+    ? MAPLIBRE_MIN_BEARING_PITCH_DEG
+    : clampedPitchDeg;
 };
 
 const resolveOptions = (
@@ -57,9 +74,7 @@ const isWithinWebMercatorLat = (latitudeDeg: number): boolean =>
   Math.abs(latitudeDeg) <= WEB_MERCATOR_MAX_LATITUDE_DEG;
 
 const HASH_ROLL_ZERO_EPSILON_DEG = 0.01;
-const HASH_ROLL_ZERO_EPSILON_RAD = degToRadNumeric(
-  HASH_ROLL_ZERO_EPSILON_DEG
-)!;
+const HASH_ROLL_ZERO_EPSILON_RAD = degToRadNumeric(HASH_ROLL_ZERO_EPSILON_DEG)!;
 
 const coerceFiniteNumber = (value: unknown): number | undefined => {
   if (isFiniteNumber(value)) {
@@ -89,12 +104,19 @@ export const projectViewSyncTargetToMapLibre = (
   } = options;
   const storedZoom = isFiniteNumber(target.zoom) ? target.zoom : undefined;
   if (isFiniteNumber(storedZoom)) {
+    const bearingDeg = normalizeBearingRadToDeg(target.bearing);
+    const pitchDeg = sanitizeMapLibrePitchDeg({
+      pitchDeg: radToDegNumeric(target.pitch),
+      bearingDeg,
+      maxPitchDeg,
+    });
+
     return {
       lng: radToDegNumeric(target.longitude),
       lat: radToDegNumeric(target.latitude),
       zoom: storedZoom,
-      bearing: normalizeBearingRadToDeg(target.bearing),
-      pitch: Math.min(radToDegNumeric(target.pitch), maxPitchDeg),
+      bearing: bearingDeg,
+      pitch: pitchDeg,
     };
   }
 
@@ -120,12 +142,19 @@ export const projectViewSyncTargetToMapLibre = (
     return null;
   }
 
+  const bearingDeg = normalizeBearingRadToDeg(target.bearing);
+  const pitchDeg = sanitizeMapLibrePitchDeg({
+    pitchDeg: radToDegNumeric(target.pitch),
+    bearingDeg,
+    maxPitchDeg,
+  });
+
   return {
     lng: radToDegNumeric(target.longitude),
     lat: radToDegNumeric(target.latitude),
     zoom,
-    bearing: normalizeBearingRadToDeg(target.bearing),
-    pitch: Math.min(radToDegNumeric(target.pitch), maxPitchDeg),
+    bearing: bearingDeg,
+    pitch: pitchDeg,
   };
 };
 
@@ -192,7 +221,9 @@ const toMapLibreBearingDeg = (
   return radToDegNumeric(zeroToTwoPi(bearingRad as Radians) as number)!;
 };
 
-const toHashBearingDeg = (bearingRad: number | undefined): number | undefined => {
+const toHashBearingDeg = (
+  bearingRad: number | undefined
+): number | undefined => {
   if (!isFiniteNumber(bearingRad)) {
     return undefined;
   }
@@ -222,15 +253,11 @@ export const maplibreAdapter = {
   ): MapLibreViewValues | null {
     const { defaultFovDeg, maxPitchDeg } = resolveOptions(options);
 
-    const projection = projectViewSyncTargetToMapLibre(
-      viewState,
-      {
-        fovVertical:
-          viewState.fovVertical ??
-          (degToRadNumeric(defaultFovDeg)! as Radians),
-        maxPitchDeg,
-      }
-    );
+    const projection = projectViewSyncTargetToMapLibre(viewState, {
+      fovVertical:
+        viewState.fovVertical ?? (degToRadNumeric(defaultFovDeg)! as Radians),
+      maxPitchDeg,
+    });
     if (!projection) {
       return null;
     }
@@ -242,19 +269,12 @@ export const maplibreAdapter = {
       altitude: viewState.altitude,
     };
 
-    const bearingDeg = toMapLibreBearingDeg(viewState.bearing);
-    if (!isZeroish(bearingDeg)) {
-      params.bearing = bearingDeg;
+    if (isFiniteNumber(projection.bearing) && !isZeroish(projection.bearing)) {
+      params.bearing = projection.bearing;
     }
 
-    const scenePitchDeg = isFiniteNumber(viewState.pitch)
-      ? radToDegNumeric(viewState.pitch)!
-      : undefined;
-    const mlPitchDeg = isFiniteNumber(scenePitchDeg)
-      ? clamp(scenePitchDeg, 0, maxPitchDeg)
-      : undefined;
-    if (!isZeroish(mlPitchDeg)) {
-      params.pitch = mlPitchDeg;
+    if (isFiniteNumber(projection.pitch) && projection.pitch > 0) {
+      params.pitch = projection.pitch;
     }
 
     return params;
@@ -312,14 +332,20 @@ export const maplibreAdapter = {
           }
         : {}),
       ...(isFiniteNumber(values.pitch)
-        ? { pitch: degToRadNumeric(clamp(values.pitch, 0, maxPitchDeg))! as Radians }
+        ? {
+            pitch: degToRadNumeric(
+              clamp(values.pitch, 0, maxPitchDeg)
+            )! as Radians,
+          }
         : {
             pitch: degToRadNumeric(0)! as Radians,
           }),
       ...(isFiniteNumber(values.roll)
         ? { roll: degToRadNumeric(values.roll)! as Radians }
         : {}),
-      ...(isFiniteNumber(clampedRangeM) ? { range: clampedRangeM as Meters } : {}),
+      ...(isFiniteNumber(clampedRangeM)
+        ? { range: clampedRangeM as Meters }
+        : {}),
       ...(isFiniteNumber(values.fovDeg)
         ? { fovVertical: degToRadNumeric(values.fovDeg)! as Radians }
         : {}),
@@ -393,7 +419,11 @@ export const maplibreAdapter = {
     const roll = coerceFiniteNumber(values.roll);
     const fovDeg = coerceFiniteNumber(values.fov);
 
-    if (!isFiniteNumber(lng) || !isFiniteNumber(lat) || !isFiniteNumber(altitude)) {
+    if (
+      !isFiniteNumber(lng) ||
+      !isFiniteNumber(lat) ||
+      !isFiniteNumber(altitude)
+    ) {
       return null;
     }
 
@@ -428,7 +458,9 @@ export const maplibreAdapter = {
         pitch: isFiniteNumber(pitch)
           ? (degToRadNumeric(clamp(pitch, 0, maxPitchDeg))! as Radians)
           : (degToRadNumeric(0)! as Radians),
-        ...(isFiniteNumber(roll) ? { roll: degToRadNumeric(roll)! as Radians } : {}),
+        ...(isFiniteNumber(roll)
+          ? { roll: degToRadNumeric(roll)! as Radians }
+          : {}),
         range: clampedRangeM as Meters,
         ...(isFiniteNumber(fovDeg)
           ? { fovVertical: degToRadNumeric(fovDeg)! as Radians }
@@ -456,7 +488,6 @@ export const maplibreAdapter = {
       options
     );
   },
-
 };
 
 export const readViewStateFromMapLibreMap = (

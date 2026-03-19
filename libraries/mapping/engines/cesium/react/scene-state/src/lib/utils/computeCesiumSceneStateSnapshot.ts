@@ -10,7 +10,7 @@ import {
   captureCurrentCameraState,
   isValidCamera,
   type CapturedCameraState,
-  getEastNorthUpOffset
+  getEastNorthUpOffset,
 } from "@carma/cesium";
 import type {
   CameraIntrinsics,
@@ -156,6 +156,32 @@ const getHorizontalFov = ({
   return (Math.atan(Math.tan(fovVertical * 0.5) * aspect) * 2) as Radians;
 };
 
+const getVerticalFov = ({
+  frustum,
+  capturedFov,
+  aspect,
+}: {
+  frustum: FrustumLike | undefined;
+  capturedFov?: number;
+  aspect: number | undefined;
+}): Radians | undefined => {
+  if (frustum && isFiniteNumber(frustum.fovy) && frustum.fovy > 0) {
+    return frustum.fovy as Radians;
+  }
+
+  if (!isFiniteNumber(capturedFov) || capturedFov <= 0) {
+    return frustum && isFiniteNumber(frustum?.fov) && frustum.fov > 0
+      ? (frustum.fov as Radians)
+      : undefined;
+  }
+
+  if (isFiniteNumber(aspect) && aspect > 1) {
+    return (Math.atan(Math.tan(capturedFov * 0.5) / aspect) * 2) as Radians;
+  }
+
+  return capturedFov as Radians;
+};
+
 const readProjectionMatrix = (
   frustum: FrustumLike | undefined
 ): Matrix4 | null =>
@@ -171,19 +197,14 @@ const readProjectionSnapshot = (
   const frustum = camera?.frustum as FrustumLike | undefined;
   const aspect = readAspectRatio(scene, camera);
   const near =
-    frustum && isFiniteNumber(frustum.near)
-      ? frustum.near
-      : undefined;
-  const far =
-    frustum && isFiniteNumber(frustum.far)
-      ? frustum.far
-      : undefined;
+    frustum && isFiniteNumber(frustum.near) ? frustum.near : undefined;
+  const far = frustum && isFiniteNumber(frustum.far) ? frustum.far : undefined;
   const type = readProjectionMode({ camera, frustum, capturedFov });
-  const fovVertical = isFiniteNumber(capturedFov)
-    ? (capturedFov as Radians)
-    : frustum && isFiniteNumber(frustum.fov)
-    ? (frustum.fov as Radians)
-    : undefined;
+  const fovVertical = getVerticalFov({
+    frustum,
+    capturedFov,
+    aspect,
+  });
   const fovHorizontal = getHorizontalFov({ fovVertical, aspect });
   const projectionMatrix = readProjectionMatrix(frustum);
   const intrinsics = {

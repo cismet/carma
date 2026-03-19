@@ -326,7 +326,9 @@ export const useAnnotationEntriesStoreState = (
         nextValueOrUpdater,
         previousStoreState.distanceRelations
       );
-      if (Object.is(nextDistanceRelations, previousStoreState.distanceRelations)) {
+      if (
+        Object.is(nextDistanceRelations, previousStoreState.distanceRelations)
+      ) {
         return;
       }
 
@@ -349,7 +351,12 @@ export const useAnnotationEntriesStoreState = (
         nextValueOrUpdater,
         previousStoreState.nodeChainAnnotations
       );
-      if (Object.is(nextNodeChainAnnotations, previousStoreState.nodeChainAnnotations)) {
+      if (
+        Object.is(
+          nextNodeChainAnnotations,
+          previousStoreState.nodeChainAnnotations
+        )
+      ) {
         return;
       }
 

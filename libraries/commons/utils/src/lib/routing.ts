@@ -68,7 +68,10 @@ type ResolvedHashLaunchMode = Exclude<
 
 export const DEFAULT_HASH_LAUNCH_FLAG_2D_KEY = HASH_LAUNCH_MODE.TWO_D;
 export const DEFAULT_HASH_LAUNCH_FLAG_3D_KEY = HASH_LAUNCH_MODE.THREE_D;
+export const DEFAULT_HASH_LAUNCH_LEGACY_FLAG_2D_KEY = "is2d";
+export const DEFAULT_HASH_LAUNCH_LEGACY_FLAG_3D_KEY = "is3d";
 export const DEFAULT_HASH_LAUNCH_ALTITUDE_KEYS = ["h", "altitude"] as const;
+export const DEFAULT_HASH_LAUNCH_2D_VIEW_KEYS = ["lat", "lng", "zoom"] as const;
 
 export type HashLaunchModeConfig = {
   defaultMode?: ResolvedHashLaunchMode;
@@ -81,6 +84,50 @@ const resolveLaunchModeConfig = (config: HashLaunchModeConfig = {}) => ({
   flag2dKey: config.flag2dKey ?? DEFAULT_HASH_LAUNCH_FLAG_2D_KEY,
   flag3dKey: config.flag3dKey ?? DEFAULT_HASH_LAUNCH_FLAG_3D_KEY,
 });
+
+const hasTruthyLegacyLaunchFlag = (value: unknown): boolean => {
+  if (value === undefined || value === null) {
+    return false;
+  }
+
+  if (typeof value === "boolean") {
+    return value;
+  }
+
+  if (typeof value === "number") {
+    return value !== 0;
+  }
+
+  if (typeof value === "string") {
+    const normalized = value.trim().toLowerCase();
+    return (
+      normalized.length > 0 &&
+      normalized !== "0" &&
+      normalized !== "false" &&
+      normalized !== "off"
+    );
+  }
+
+  return true;
+};
+
+const readFiniteHashNumber = (value: unknown): number | null => {
+  if (typeof value === "number") {
+    return Number.isFinite(value) ? value : null;
+  }
+
+  if (typeof value === "string") {
+    const parsed = Number(value);
+    return Number.isFinite(parsed) ? parsed : null;
+  }
+
+  return null;
+};
+
+const hasValid2dViewParams = (params: Record<string, unknown>): boolean =>
+  DEFAULT_HASH_LAUNCH_2D_VIEW_KEYS.every(
+    (key) => readFiniteHashNumber(params[key]) !== null
+  );
 
 export const readHashLaunchMode = (
   hash: Record<string, unknown> | undefined,
@@ -100,7 +147,23 @@ export const readHashLaunchMode = (
     return HASH_LAUNCH_MODE.THREE_D;
   }
 
+  if (
+    hasTruthyLegacyLaunchFlag(params[DEFAULT_HASH_LAUNCH_LEGACY_FLAG_3D_KEY])
+  ) {
+    return HASH_LAUNCH_MODE.THREE_D;
+  }
+
   if (params[resolved.flag2dKey] !== undefined) {
+    return HASH_LAUNCH_MODE.TWO_D;
+  }
+
+  if (
+    hasTruthyLegacyLaunchFlag(params[DEFAULT_HASH_LAUNCH_LEGACY_FLAG_2D_KEY])
+  ) {
+    return HASH_LAUNCH_MODE.TWO_D;
+  }
+
+  if (hasValid2dViewParams(params)) {
     return HASH_LAUNCH_MODE.TWO_D;
   }
 

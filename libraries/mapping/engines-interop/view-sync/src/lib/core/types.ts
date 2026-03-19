@@ -1,6 +1,4 @@
-import type {
-  ObjectCentricCameraModel,
-} from "@carma-commons/camera/model";
+import type { ObjectCentricCameraModel } from "@carma-commons/camera/model";
 import type { Store } from "redux";
 import type { Meters, Radians } from "@carma/units/types";
 
@@ -32,6 +30,7 @@ export type ViewState = {
   range: Meters;
   fovVertical?: Radians;
   fovHorizontal?: Radians;
+  fovLongerEdge?: Radians;
   cameraModel?: ObjectCentricCameraModel;
 };
 

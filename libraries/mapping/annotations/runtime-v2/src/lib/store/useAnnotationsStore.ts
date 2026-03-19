@@ -11,22 +11,22 @@ import {
 import type { AnnotationsStoreState } from "./annotationsStore.types";
 import type { AnnotationsStore } from "./createAnnotationsStore";
 
-export const AnnotationsReduxContext = createContext<
-  ReactReduxContextValue<AnnotationsStoreState, UnknownAction> | null
->(null);
+export const AnnotationsReduxContext = createContext<ReactReduxContextValue<
+  AnnotationsStoreState,
+  UnknownAction
+> | null>(null);
 
-const useAnnotationsReduxStore =
-  createStoreHook<AnnotationsStoreState, UnknownAction>(
-    AnnotationsReduxContext
-  );
-const useAnnotationsReduxDispatch =
-  createDispatchHook<AnnotationsStoreState, UnknownAction>(
-    AnnotationsReduxContext
-  );
-const useAnnotationsReduxSelector =
-  createSelectorHook(
-    AnnotationsReduxContext
-  ) as TypedUseSelectorHook<AnnotationsStoreState>;
+const useAnnotationsReduxStore = createStoreHook<
+  AnnotationsStoreState,
+  UnknownAction
+>(AnnotationsReduxContext);
+const useAnnotationsReduxDispatch = createDispatchHook<
+  AnnotationsStoreState,
+  UnknownAction
+>(AnnotationsReduxContext);
+const useAnnotationsReduxSelector = createSelectorHook(
+  AnnotationsReduxContext
+) as TypedUseSelectorHook<AnnotationsStoreState>;
 
 export const useAnnotationsStore = (hookName: string): AnnotationsStore => {
   const store = useAnnotationsReduxStore() as AnnotationsStore;

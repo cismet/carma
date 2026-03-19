@@ -1,4 +1,5 @@
 import { isFiniteNumber } from "@carma/math";
+import { getPixelResolutionFromZoomAtLatitudeRad } from "@carma/geo/utils";
 import type { Meters } from "@carma/units/types";
 import {
   Cartographic,
@@ -7,13 +8,21 @@ import {
   getPointsFromCartographicAndHeadingPitchRange,
   type SerializedCameraStateHeadingPitchRoll,
 } from "@carma/cesium";
-import { toCesiumPitchFromViewSyncPitch, toViewSyncPitchFromCesiumPitch } from "../core/targetState";
+import type { SceneLike } from "@carma-mapping/engines/cesium/api";
+import {
+  readViewSyncLongerEdgeFov,
+  toCesiumPitchFromViewSyncPitch,
+  toViewSyncPitchFromCesiumPitch,
+} from "../core/targetState";
+import { readRangeFromMetersPerCssPixel } from "./sharedProjection";
 import type { ViewState } from "../core/types";
 
 const MIN_CESIUM_CAMERA_RANGE_M = 0.01;
+const LEAFLET_DISPLAY_TILE_SIZE_PX = 256;
 
 const readCameraCartographicFromViewState = (
-  viewState: ViewState
+  viewState: ViewState,
+  scene?: SceneLike | null
 ): Cartographic | null => {
   if (
     !isFiniteNumber(viewState.longitude) ||
@@ -29,6 +38,21 @@ const readCameraCartographicFromViewState = (
     viewState.altitude
   );
 
+  const effectiveRangeM =
+    isFiniteNumber(viewState.zoom) && isFiniteNumber(viewState.latitude)
+      ? readRangeFromMetersPerCssPixel({
+          metersPerCssPixel: getPixelResolutionFromZoomAtLatitudeRad(
+            viewState.zoom + 1,
+            viewState.latitude,
+            { tileSize: LEAFLET_DISPLAY_TILE_SIZE_PX }
+          ),
+          fovRad: readViewSyncLongerEdgeFov(viewState) ?? 0,
+          minRangeM: MIN_CESIUM_CAMERA_RANGE_M,
+          viewportWidthPx: scene?.canvas?.clientWidth,
+          viewportHeightPx: scene?.canvas?.clientHeight,
+        })
+      : null;
+
   const points = getPointsFromCartographicAndHeadingPitchRange({
     cartographic: anchorCartographic,
     headingPitchRange: new HeadingPitchRange(
@@ -36,7 +60,9 @@ const readCameraCartographicFromViewState = (
       isFiniteNumber(viewState.pitch)
         ? toCesiumPitchFromViewSyncPitch(viewState.pitch)
         : 0,
-      isFiniteNumber(viewState.range)
+      isFiniteNumber(effectiveRangeM)
+        ? Math.max(MIN_CESIUM_CAMERA_RANGE_M, effectiveRangeM)
+        : isFiniteNumber(viewState.range)
         ? Math.max(MIN_CESIUM_CAMERA_RANGE_M, viewState.range)
         : MIN_CESIUM_CAMERA_RANGE_M
     ),
@@ -56,18 +82,26 @@ const readCameraCartographicFromViewState = (
 
 export const cesiumAdapter = {
   toFramework(
-    viewState: ViewState | null | undefined
+    viewState: ViewState | null | undefined,
+    options: {
+      scene?: SceneLike | null;
+    } = {}
   ): SerializedCameraStateHeadingPitchRoll | null {
     if (!viewState) {
       return null;
     }
 
-    const cameraCartographic = readCameraCartographicFromViewState(viewState);
+    const cameraCartographic = readCameraCartographicFromViewState(
+      viewState,
+      options.scene
+    );
     if (!cameraCartographic) {
       return null;
     }
 
-    const headingRad = isFiniteNumber(viewState.bearing) ? viewState.bearing : 0;
+    const headingRad = isFiniteNumber(viewState.bearing)
+      ? viewState.bearing
+      : 0;
     const pitchRad = isFiniteNumber(viewState.pitch)
       ? toCesiumPitchFromViewSyncPitch(viewState.pitch)
       : 0;

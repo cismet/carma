@@ -75,6 +75,7 @@ import {
   useInitialSceneViewState,
   readInitialCameraViewFromSceneViewState,
 } from "@carma-mapping/engines/cesium/react/scene-state";
+import { HASH_ZOOM_CONVENTION } from "@carma-mapping/engines-interop/view-sync";
 import {
   useMapFrameworkSwitcherContext,
   useRegisterMapFramework,
@@ -147,10 +148,18 @@ interface MapProps {
 
 const CLICK_DELAY_MS = 200;
 
-const GeoportalCesiumCameraHashSync = ({ enabled }: { enabled: boolean }) => {
+const GeoportalCesiumCameraHashSync = ({
+  enabled,
+  scene,
+}: {
+  enabled: boolean;
+  scene: SceneLike | null;
+}) => {
   return (
     <CesiumSceneStateHashSync
       enabled={enabled}
+      scene={scene}
+      zoomConvention={HASH_ZOOM_CONVENTION.LEAFLET_256}
       fallbackHeightM={200}
       defaultFovDeg={DEFAULT_CAMERA_FOV_DEG}
       replace={true}
@@ -171,6 +180,7 @@ export const GeoportalMap = ({ height, width, allow3d }: MapProps) => {
     getScene,
     isValidViewer: isValidViewerCtx,
     isViewerReady,
+    initialViewApplied,
   } = useCesiumContext();
 
   const rerenderCountRef = useRef(0);
@@ -291,6 +301,7 @@ export const GeoportalMap = ({ height, width, allow3d }: MapProps) => {
   const { initialViewState, isResolved: isInitialCameraResolved } =
     useInitialSceneViewState({
       defaultFovDeg: DEFAULT_CAMERA_FOV_DEG,
+      zoomConvention: HASH_ZOOM_CONVENTION.LEAFLET_256,
     });
   const cesiumInitialCameraView = useMemo(
     () =>
@@ -377,6 +388,17 @@ export const GeoportalMap = ({ height, width, allow3d }: MapProps) => {
     () => ({
       getLeafletMap,
       getLeafletZoom,
+      isHashWriteEnabled: () => {
+        if (getIsTransitioning()) {
+          return false;
+        }
+
+        if (getIsCesium()) {
+          return initialViewApplied;
+        }
+
+        return isInitialCameraResolved;
+      },
       labels: {
         clearCesium: "GPM:2D:clearCesium",
         writeLeafletLike: "GPM:2D:writeLocation",
@@ -384,7 +406,14 @@ export const GeoportalMap = ({ height, width, allow3d }: MapProps) => {
         cesiumScene: "GPM:3D",
       },
     }),
-    [getLeafletMap, getLeafletZoom]
+    [
+      getLeafletMap,
+      getLeafletZoom,
+      getIsTransitioning,
+      getIsCesium,
+      initialViewApplied,
+      isInitialCameraResolved,
+    ]
   );
 
   const { handleTopicMapLocationChange } = useMapHashRouting(routingOptions);
@@ -767,6 +796,8 @@ export const GeoportalMap = ({ height, width, allow3d }: MapProps) => {
     []
   );
 
+  const show2dContainer = !(isCesium && !initialViewApplied);
+
   const createLayerOptions = useMemo(
     () => ({
       mode: uiMode,
@@ -803,7 +834,13 @@ export const GeoportalMap = ({ height, width, allow3d }: MapProps) => {
 
   return (
     <>
-      <div className={"map-container-2d"} style={{ zIndex: 400 }}>
+      <div
+        className={"map-container-2d"}
+        style={{
+          zIndex: 400,
+          visibility: show2dContainer ? "visible" : "hidden",
+        }}
+      >
         <TopicMapComponent
           gazData={gazData}
           modalMenu={
@@ -1012,7 +1049,8 @@ export const GeoportalMap = ({ height, width, allow3d }: MapProps) => {
             scene={cesiumScene as unknown as SceneLike | null}
           >
             <GeoportalCesiumCameraHashSync
-              enabled={isCesium && !getIsTransitioning()}
+              enabled={isCesium && !getIsTransitioning() && initialViewApplied}
+              scene={cesiumScene as unknown as SceneLike | null}
             />
             <CustomViewer
               containerRef={container3dMapRef}

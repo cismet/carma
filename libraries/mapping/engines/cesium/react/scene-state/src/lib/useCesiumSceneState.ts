@@ -9,9 +9,8 @@ import {
   useCesiumSceneStateReduxSelector,
 } from "./CesiumSceneStateStoreContext";
 
-const readSceneSnapshot = (
-  store: CesiumSceneStateStore
-): SceneState | null => store.getSnapshot();
+const readSceneSnapshot = (store: CesiumSceneStateStore): SceneState | null =>
+  store.getSnapshot();
 
 const readSceneError = (store: CesiumSceneStateStore): Error | null =>
   store.getError();

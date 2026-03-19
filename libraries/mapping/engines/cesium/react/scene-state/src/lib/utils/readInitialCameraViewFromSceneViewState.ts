@@ -10,17 +10,23 @@ export type ViewStateLike = {
   longitude: number;
   latitude: number;
   altitude: number;
+  zoom?: number;
   bearing?: number;
   pitch?: number;
   fovVertical?: number;
+  fovHorizontal?: number;
+  fovLongerEdge?: number;
   range?: number;
 };
 
 export type InitialCameraViewLike = {
   position?: Cartographic;
+  anchor?: Cartographic;
+  zoom?: number;
   heading?: number;
   pitch?: number;
-  fov?: number;
+  fov?: number | null;
+  fovLongerEdge?: number | null;
 };
 
 export const readInitialCameraViewFromSceneViewState = (
@@ -34,11 +40,20 @@ export const readInitialCameraViewFromSceneViewState = (
   }
 
   const headingRad = viewState.bearing ?? 0;
-  const pitchRad = toCesiumPitchFromViewSyncPitch(
-    viewState.pitch ?? 0
-  );
-  const fovVerticalRad = viewState.fovVertical;
+  const pitchRad = toCesiumPitchFromViewSyncPitch(viewState.pitch ?? 0);
   const defaultRangeM = options.defaultRangeM ?? 750;
+  const finiteLongerEdgeCandidates = [
+    viewState.fovLongerEdge,
+    viewState.fovHorizontal,
+    viewState.fovVertical,
+  ].filter(Number.isFinite) as number[];
+  const longerEdgeFovRad =
+    finiteLongerEdgeCandidates.length > 0
+      ? Math.max(...finiteLongerEdgeCandidates)
+      : undefined;
+  const verticalFovRad = Number.isFinite(viewState.fovVertical)
+    ? viewState.fovVertical
+    : undefined;
 
   const anchorCartographic = Cartographic.fromRadians(
     viewState.longitude,
@@ -69,8 +84,11 @@ export const readInitialCameraViewFromSceneViewState = (
 
   return {
     position,
+    anchor: anchorCartographic,
+    ...(Number.isFinite(viewState.zoom) ? { zoom: viewState.zoom } : {}),
     heading: headingPitchRange.heading,
     pitch: headingPitchRange.pitch,
-    ...(Number.isFinite(fovVerticalRad) ? { fov: fovVerticalRad } : {}),
+    fov: Number.isFinite(verticalFovRad) ? verticalFovRad : null,
+    fovLongerEdge: Number.isFinite(longerEdgeFovRad) ? longerEdgeFovRad : null,
   };
 };

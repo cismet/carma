@@ -57,6 +57,7 @@ import {
   type SceneLike,
   useInitialSceneViewState,
 } from "@carma-mapping/engines/cesium/react/scene-state";
+import { HASH_ZOOM_CONVENTION } from "@carma-mapping/engines-interop/view-sync";
 import {
   EmptySearchComponent,
   LibFuzzySearch,
@@ -141,7 +142,9 @@ function App({ sync = false }: { sync?: boolean }) {
   const [hochwasserschutz, setHochwasserschutz] = useState(true);
   const { getHashValues } = useHashState();
   const { initialViewState, isResolved: isInitialCameraResolved } =
-    useInitialSceneViewState();
+    useInitialSceneViewState({
+      zoomConvention: HASH_ZOOM_CONVENTION.LEAFLET_256,
+    });
   const initialHashValues = getHashValues();
   const initialQueryX = parseHashNumber(initialHashValues.qx);
   const initialQueryY = parseHashNumber(initialHashValues.qy);
@@ -163,8 +166,13 @@ function App({ sync = false }: { sync?: boolean }) {
   );
 
   const ctx = useCesiumContext();
-  const { getScene, getTerrainProvider, getSurfaceProvider, isViewerReady } =
-    ctx;
+  const {
+    getScene,
+    getTerrainProvider,
+    getSurfaceProvider,
+    isViewerReady,
+    initialViewApplied,
+  } = ctx;
   const cesiumScene = getScene();
   const homeControl = useHomeControl();
   const {
@@ -480,7 +488,9 @@ function App({ sync = false }: { sync?: boolean }) {
           scene={cesiumScene as unknown as SceneLike | null}
         >
           <CesiumSceneStateHashSync
-            enabled={isCesium && Boolean(cesiumScene)}
+            enabled={isCesium && Boolean(cesiumScene) && initialViewApplied}
+            scene={cesiumScene as unknown as SceneLike | null}
+            zoomConvention={HASH_ZOOM_CONVENTION.LEAFLET_256}
             replace={true}
             label="app/hgk:3D"
           />
