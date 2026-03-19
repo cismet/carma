@@ -97,7 +97,7 @@ const FormHeader = ({
                 <Button
                   onClick={hasDraft ? onCancel : undefined}
                   disabled={saving}
-                  style={!hasDraft ? { pointerEvents: "none" } : undefined}
+                  style={!hasDraft ? { pointerEvents: "none", color: "#d9d9d9", borderColor: "#d9d9d9", backgroundColor: "#f5f5f5" } : undefined}
                 >
                   {cancelLabel
                     ? `${cancelLabel}: zurücksetzen`
