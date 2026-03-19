@@ -171,6 +171,7 @@ const BelisMapPageShell = () => {
                       {cat.key === "leitungen" ? (
                         <LeitungstypDropdown
                           masterChecked={filterConfig.enabledFilters[cat.key]}
+                          onMasterChange={(on) => onFilterChange(cat.key, on)}
                         >
                           <Switch
                             checkedChildren={cat.label}

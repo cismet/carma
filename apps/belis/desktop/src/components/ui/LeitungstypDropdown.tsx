@@ -15,11 +15,13 @@ import {
 interface LeitungstypDropdownProps {
   children: ReactNode;
   masterChecked?: boolean;
+  onMasterChange?: (checked: boolean) => void;
 }
 
 const LeitungstypDropdown = ({
   children,
   masterChecked,
+  onMasterChange,
 }: LeitungstypDropdownProps) => {
   const dispatch = useDispatch();
   const keyTablesData = useSelector(getKeyTablesData);
@@ -37,13 +39,19 @@ const LeitungstypDropdown = ({
       .sort((a, b) => a.id - b.id);
   }, [keyTablesData.leitungstyp]);
 
-  // When master "Leitungen" is switched off, set all items off
+  // Sync sub-toggles on master switch transitions:
+  // off → on: set all items on (dark blue)
+  // on → off: set all items off
   const prevMasterChecked = useRef(masterChecked);
   useEffect(() => {
-    if (prevMasterChecked.current === true && masterChecked === false && sortedItems.length > 0) {
+    if (sortedItems.length === 0) return;
+    const prev = prevMasterChecked.current;
+    if (prev !== masterChecked) {
       dispatch(
         setAllLeitungstypen(
-          Object.fromEntries(sortedItems.map((item) => [item.id, false]))
+          Object.fromEntries(
+            sortedItems.map((item) => [item.id, !!masterChecked])
+          )
         )
       );
     }
@@ -51,6 +59,12 @@ const LeitungstypDropdown = ({
   }, [masterChecked, sortedItems, dispatch]);
 
   const isEnabled = (id: number) => enabledTypes[id] !== false;
+
+  // Partial state: master is on but not all sub-toggles are on
+  const isPartial = useMemo(() => {
+    if (!masterChecked || sortedItems.length === 0) return false;
+    return sortedItems.some((item) => !isEnabled(item.id));
+  }, [masterChecked, sortedItems, enabledTypes]);
 
   const menuItems: MenuProps["items"] = useMemo(
     () =>
@@ -68,6 +82,13 @@ const LeitungstypDropdown = ({
                 dispatch(
                   setLeitungstypEnabled({ id: item.id, enabled: checked })
                 );
+                // Compute would-be state to sync master switch
+                const allOff = sortedItems.every((si) =>
+                  si.id === item.id ? !checked : !isEnabled(si.id)
+                );
+                if (allOff && masterChecked) {
+                  onMasterChange?.(false);
+                }
               }}
             />
             <span>{item.bezeichnung || `ID ${item.id}`}</span>
@@ -87,7 +108,14 @@ const LeitungstypDropdown = ({
       placement="bottomLeft"
     >
       <div className="flex items-center">
-        {children}
+        <style>{`
+          .leitungstyp-partial .ant-switch-checked {
+            background: #93c5fd !important;
+          }
+        `}</style>
+        <div className={isPartial ? "leitungstyp-partial" : ""}>
+          {children}
+        </div>
         <CaretDownFilled
           className="ml-1 text-gray-500 cursor-pointer hover:text-gray-700"
           style={{ fontSize: 10 }}
