@@ -168,13 +168,25 @@ const BelisMapPageShell = () => {
                 <div className="flex items-center gap-2 border-l border-gray-300 pl-4">
                   {BELIS_FILTER_CATEGORIES.map((cat) => (
                     <div key={cat.key} className="flex items-center">
-                      <Switch
-                        checkedChildren={cat.label}
-                        unCheckedChildren={cat.label}
-                        checked={filterConfig.enabledFilters[cat.key]}
-                        onChange={(on) => onFilterChange(cat.key, on)}
-                      />
-                      {cat.key === "leitungen" && <LeitungstypDropdown />}
+                      {cat.key === "leitungen" ? (
+                        <LeitungstypDropdown
+                          masterChecked={filterConfig.enabledFilters[cat.key]}
+                        >
+                          <Switch
+                            checkedChildren={cat.label}
+                            unCheckedChildren={cat.label}
+                            checked={filterConfig.enabledFilters[cat.key]}
+                            onChange={(on) => onFilterChange(cat.key, on)}
+                          />
+                        </LeitungstypDropdown>
+                      ) : (
+                        <Switch
+                          checkedChildren={cat.label}
+                          unCheckedChildren={cat.label}
+                          checked={filterConfig.enabledFilters[cat.key]}
+                          onChange={(on) => onFilterChange(cat.key, on)}
+                        />
+                      )}
                     </div>
                   ))}
                 </div>

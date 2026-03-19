@@ -66,6 +66,7 @@ const mapSettingsConfig = {
     "additionalLayerOpacities",
     "inPaleMode",
     "inSearchMode",
+    "enabledLeitungstypen",
   ],
 };
 
