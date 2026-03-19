@@ -45,7 +45,10 @@ const slice = createSlice({
     setWishedSearchMode(state, action) {
       state.inSearchWishedMode = action.payload;
     },
-    setLeitungstypEnabled(state, action: { payload: { id: number; enabled: boolean } }) {
+    setLeitungstypEnabled(
+      state,
+      action: { payload: { id: number; enabled: boolean } }
+    ) {
       state.enabledLeitungstypen[action.payload.id] = action.payload.enabled;
     },
     setAllLeitungstypen(state, action: { payload: Record<number, boolean> }) {

@@ -78,7 +78,11 @@ function getStatusBadgeColor(status: Record<string, any> | null): string {
   return "#9CA3AF";
 }
 
-const ArbeitsauftraegeSidebar = ({ width, onFeatureSelect, onProtokollSelect }: ArbeitsauftraegeSidebarProps) => {
+const ArbeitsauftraegeSidebar = ({
+  width,
+  onFeatureSelect,
+  onProtokollSelect,
+}: ArbeitsauftraegeSidebarProps) => {
   const dispatch: AppDispatch = useDispatch();
   const allFeatures = useSelector(getAAFeatures);
   const selectedAAId = useSelector(getSelectedAAId);
@@ -181,7 +185,9 @@ const ArbeitsauftraegeSidebar = ({ width, onFeatureSelect, onProtokollSelect }: 
                     <span className="font-semibold text-sm text-gray-900">
                       AU-{item.nummer}
                     </span>
-                    <span className="text-xs text-gray-500">{item.team?.replace("erledigte Arbeitsaufträge", "")}</span>
+                    <span className="text-xs text-gray-500">
+                      {item.team?.replace("erledigte Arbeitsaufträge", "")}
+                    </span>
                   </div>
                   <div className="flex justify-between items-baseline mt-0.5">
                     <span className="text-xs text-gray-400">

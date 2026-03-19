@@ -98,8 +98,14 @@ const store = configureStore({
     ),
     ui: ui.reducer,
     keyTables: keyTables.reducer,
-    arbeitsauftraege: persistReducer(arbeitsauftraegeConfig, arbeitsauftraege.reducer),
-    featuresForms: persistReducer(featuresFormsConfig, featuresFormsSlice.reducer),
+    arbeitsauftraege: persistReducer(
+      arbeitsauftraegeConfig,
+      arbeitsauftraege.reducer
+    ),
+    featuresForms: persistReducer(
+      featuresFormsConfig,
+      featuresFormsSlice.reducer
+    ),
   },
   devTools: devToolsEnabled === true && inProduction === false,
   middleware,

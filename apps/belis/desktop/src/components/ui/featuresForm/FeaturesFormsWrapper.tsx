@@ -143,7 +143,11 @@ const FeaturesFormsWrapper = ({
       geometry: f.geometry,
       sourceLayer: f.sourceLayer ?? sourceLayer,
       source: f.source ?? "",
-      layer: { id: f.sourceLayer ?? sourceLayer, source: f.source ?? "", type: "circle" as const },
+      layer: {
+        id: f.sourceLayer ?? sourceLayer,
+        source: f.source ?? "",
+        type: "circle" as const,
+      },
       state: {},
     };
   }, [rawFeature, selectedFeature, sourceLayer]);

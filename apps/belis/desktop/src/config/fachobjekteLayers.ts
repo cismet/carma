@@ -3,1347 +3,729 @@ import type { LayerSpecification } from "maplibre-gl";
 /** Fachobjekte layer definitions extracted from styleY.json */
 export const fachobjekteLayers: LayerSpecification[] = [
   {
-    "id": "leitungen-selection-helper-underlay-almost-invisible",
-    "type": "line",
-    "source": "belis-source",
+    id: "leitungen-selection-helper-underlay-almost-invisible",
+    type: "line",
+    source: "belis-source",
     "source-layer": "leitungen",
-    "minzoom": 0,
-    "maxzoom": 22,
-    "layout": {
+    minzoom: 0,
+    maxzoom: 22,
+    layout: {
       "line-join": "round",
-      "line-cap": "round"
+      "line-cap": "round",
     },
-    "paint": {
+    paint: {
       "line-color": "#FFFFFF",
       "line-width": [
         "interpolate",
-        [
-          "linear"
-        ],
-        [
-          "zoom"
-        ],
+        ["linear"],
+        ["zoom"],
         10,
         3,
         16,
         10,
         22,
-        20
+        20,
       ],
-      "line-opacity": 0.01
-    }
+      "line-opacity": 0.01,
+    },
   },
   {
-    "id": "leitungen-base",
-    "type": "line",
-    "source": "belis-source",
+    id: "leitungen-base",
+    type: "line",
+    source: "belis-source",
     "source-layer": "leitungen",
-    "minzoom": 0,
-    "maxzoom": 22,
-    "layout": {
+    minzoom: 0,
+    maxzoom: 22,
+    layout: {
       "line-join": "round",
-      "line-cap": "round"
+      "line-cap": "round",
     },
-    "paint": {
+    paint: {
       "line-color": [
         "case",
-        [
-          "boolean",
-          [
-            "feature-state",
-            "selected"
-          ],
-          false
-        ],
+        ["boolean", ["feature-state", "selected"], false],
         "#4892F0",
         [
           "match",
-          [
-            "get",
-            "bezeichnung"
-          ],
-          [
-            "Freileitung",
-            "Tragseil mit Freileitung"
-          ],
+          ["get", "bezeichnung"],
+          ["Freileitung", "Tragseil mit Freileitung"],
           "#C04040",
           "Tragseil",
           "#333333",
-          "#D3976C"
-        ]
+          "#D3976C",
+        ],
       ],
       "line-width": [
         "interpolate",
-        [
-          "linear"
-        ],
-        [
-          "zoom"
-        ],
+        ["linear"],
+        ["zoom"],
         10,
         0.5,
         16,
         2,
         22,
-        6
+        6,
       ],
       "line-opacity": [
         "interpolate",
-        [
-          "linear"
-        ],
-        [
-          "zoom"
-        ],
+        ["linear"],
+        ["zoom"],
         9,
         [
           "case",
-          [
-            "boolean",
-            [
-              "feature-state",
-              "selected"
-            ],
-            false
-          ],
+          ["boolean", ["feature-state", "selected"], false],
           1,
           [
             "all",
-            [
-              "boolean",
-              [
-                "global-state",
-                "highlightingEnabled"
-              ],
-              false
-            ],
-            [
-              "!",
-              [
-                "boolean",
-                [
-                  "feature-state",
-                  "highlighted"
-                ],
-                false
-              ]
-            ]
+            ["boolean", ["global-state", "highlightingEnabled"], false],
+            ["!", ["boolean", ["feature-state", "highlighted"], false]],
           ],
           0,
-          0.9
+          0.9,
         ],
         14,
         [
           "case",
-          [
-            "boolean",
-            [
-              "feature-state",
-              "selected"
-            ],
-            false
-          ],
+          ["boolean", ["feature-state", "selected"], false],
           1,
           [
             "all",
-            [
-              "boolean",
-              [
-                "global-state",
-                "highlightingEnabled"
-              ],
-              false
-            ],
-            [
-              "!",
-              [
-                "boolean",
-                [
-                  "feature-state",
-                  "highlighted"
-                ],
-                false
-              ]
-            ]
+            ["boolean", ["global-state", "highlightingEnabled"], false],
+            ["!", ["boolean", ["feature-state", "highlighted"], false]],
           ],
           0.05,
-          0.9
+          0.9,
         ],
         16,
         [
           "case",
-          [
-            "boolean",
-            [
-              "feature-state",
-              "selected"
-            ],
-            false
-          ],
+          ["boolean", ["feature-state", "selected"], false],
           1,
           [
             "all",
-            [
-              "boolean",
-              [
-                "global-state",
-                "highlightingEnabled"
-              ],
-              false
-            ],
-            [
-              "!",
-              [
-                "boolean",
-                [
-                  "feature-state",
-                  "highlighted"
-                ],
-                false
-              ]
-            ]
+            ["boolean", ["global-state", "highlightingEnabled"], false],
+            ["!", ["boolean", ["feature-state", "highlighted"], false]],
           ],
           0.15,
-          0.9
-        ]
-      ]
-    }
+          0.9,
+        ],
+      ],
+    },
   },
   {
-    "id": "leuchten-selection",
-    "type": "symbol",
-    "source": "belis-source",
+    id: "leuchten-selection",
+    type: "symbol",
+    source: "belis-source",
     "source-layer": "leuchten",
-    "minzoom": 0,
-    "maxzoom": 24,
-    "layout": {
+    minzoom: 0,
+    maxzoom: 24,
+    layout: {
       "icon-image": "Icon_Full",
       "icon-anchor": "center",
       "icon-size": [
         "interpolate",
-        [
-          "linear"
-        ],
-        [
-          "zoom"
-        ],
+        ["linear"],
+        ["zoom"],
         10,
         0.05,
         16,
         0.3,
         23,
-        0.6
+        0.6,
       ],
-      "icon-allow-overlap": true
+      "icon-allow-overlap": true,
     },
-    "paint": {
+    paint: {
       "icon-opacity": [
         "case",
-        [
-          "boolean",
-          [
-            "feature-state",
-            "selected"
-          ],
-          false
-        ],
+        ["boolean", ["feature-state", "selected"], false],
         0.7,
-        [
-          "boolean",
-          [
-            "feature-state",
-            "selectionInNeighborhood"
-          ],
-          false
-        ],
+        ["boolean", ["feature-state", "selectionInNeighborhood"], false],
         0.7,
-        0
-      ]
-    }
+        0,
+      ],
+    },
   },
   {
-    "id": "leuchten-icon",
-    "type": "symbol",
-    "source": "belis-source",
+    id: "leuchten-icon",
+    type: "symbol",
+    source: "belis-source",
     "source-layer": "leuchten",
-    "minzoom": 0,
-    "maxzoom": 24,
-    "layout": {
+    minzoom: 0,
+    maxzoom: 24,
+    layout: {
       "icon-image": [
         "case",
-        [
-          ">",
-          [
-            "coalesce",
-            [
-              "get",
-              "leuchten_count"
-            ],
-            1
-          ],
-          12
-        ],
+        [">", ["coalesce", ["get", "leuchten_count"], 1], 12],
         "leuchtenMax",
         [
           "concat",
           "leuchten",
-          [
-            "to-string",
-            [
-              "coalesce",
-              [
-                "get",
-                "leuchten_count"
-              ],
-              1
-            ]
-          ]
-        ]
+          ["to-string", ["coalesce", ["get", "leuchten_count"], 1]],
+        ],
       ],
       "icon-size": [
         "interpolate",
-        [
-          "linear"
-        ],
-        [
-          "zoom"
-        ],
+        ["linear"],
+        ["zoom"],
         10,
         0.05,
         16,
         0.3,
         23,
-        0.6
+        0.6,
       ],
-      "icon-allow-overlap": true
+      "icon-allow-overlap": true,
     },
-    "paint": {
+    paint: {
       "icon-opacity": [
         "interpolate",
-        [
-          "linear"
-        ],
-        [
-          "zoom"
-        ],
+        ["linear"],
+        ["zoom"],
         9,
         [
           "case",
           [
             "all",
-            [
-              "boolean",
-              [
-                "global-state",
-                "highlightingEnabled"
-              ],
-              false
-            ],
-            [
-              "!",
-              [
-                "boolean",
-                [
-                  "feature-state",
-                  "highlighted"
-                ],
-                false
-              ]
-            ]
+            ["boolean", ["global-state", "highlightingEnabled"], false],
+            ["!", ["boolean", ["feature-state", "highlighted"], false]],
           ],
-          [
-            "/",
-            0,
-            [
-              "coalesce",
-              [
-                "get",
-                "leuchten_count"
-              ],
-              1
-            ]
-          ],
-          1
+          ["/", 0, ["coalesce", ["get", "leuchten_count"], 1]],
+          1,
         ],
         14,
         [
           "case",
           [
             "all",
-            [
-              "boolean",
-              [
-                "global-state",
-                "highlightingEnabled"
-              ],
-              false
-            ],
-            [
-              "!",
-              [
-                "boolean",
-                [
-                  "feature-state",
-                  "highlighted"
-                ],
-                false
-              ]
-            ]
+            ["boolean", ["global-state", "highlightingEnabled"], false],
+            ["!", ["boolean", ["feature-state", "highlighted"], false]],
           ],
-          [
-            "/",
-            0.05,
-            [
-              "coalesce",
-              [
-                "get",
-                "leuchten_count"
-              ],
-              1
-            ]
-          ],
-          1
+          ["/", 0.05, ["coalesce", ["get", "leuchten_count"], 1]],
+          1,
         ],
         16,
         [
           "case",
           [
             "all",
-            [
-              "boolean",
-              [
-                "global-state",
-                "highlightingEnabled"
-              ],
-              false
-            ],
-            [
-              "!",
-              [
-                "boolean",
-                [
-                  "feature-state",
-                  "highlighted"
-                ],
-                false
-              ]
-            ]
+            ["boolean", ["global-state", "highlightingEnabled"], false],
+            ["!", ["boolean", ["feature-state", "highlighted"], false]],
           ],
-          [
-            "/",
-            0.15,
-            [
-              "coalesce",
-              [
-                "get",
-                "leuchten_count"
-              ],
-              1
-            ]
-          ],
-          1
-        ]
-      ]
-    }
+          ["/", 0.15, ["coalesce", ["get", "leuchten_count"], 1]],
+          1,
+        ],
+      ],
+    },
   },
   {
-    "id": "abzweigdosen-selection",
-    "type": "symbol",
-    "source": "belis-source",
+    id: "abzweigdosen-selection",
+    type: "symbol",
+    source: "belis-source",
     "source-layer": "abzweigdosen",
-    "minzoom": 0,
-    "maxzoom": 24,
-    "layout": {
+    minzoom: 0,
+    maxzoom: 24,
+    layout: {
       "icon-image": "Icon_Full",
       "icon-size": [
         "interpolate",
-        [
-          "linear"
-        ],
-        [
-          "zoom"
-        ],
+        ["linear"],
+        ["zoom"],
         10,
         0.05,
         16,
         0.3,
         23,
-        0.6
+        0.6,
       ],
-      "icon-allow-overlap": true
+      "icon-allow-overlap": true,
     },
-    "paint": {
+    paint: {
       "icon-opacity": [
         "case",
-        [
-          "boolean",
-          [
-            "feature-state",
-            "selected"
-          ],
-          false
-        ],
+        ["boolean", ["feature-state", "selected"], false],
         0.7,
-        0
-      ]
-    }
+        0,
+      ],
+    },
   },
   {
-    "id": "abzweigdosen-icon",
-    "type": "symbol",
-    "source": "belis-source",
+    id: "abzweigdosen-icon",
+    type: "symbol",
+    source: "belis-source",
     "source-layer": "abzweigdosen",
-    "minzoom": 0,
-    "maxzoom": 24,
-    "layout": {
+    minzoom: 0,
+    maxzoom: 24,
+    layout: {
       "icon-image": "abzweigdose",
       "icon-size": [
         "interpolate",
-        [
-          "linear"
-        ],
-        [
-          "zoom"
-        ],
+        ["linear"],
+        ["zoom"],
         10,
         0.05,
         16,
         0.3,
         23,
-        0.6
+        0.6,
       ],
-      "icon-allow-overlap": true
+      "icon-allow-overlap": true,
     },
-    "paint": {
+    paint: {
       "icon-opacity": [
         "interpolate",
-        [
-          "linear"
-        ],
-        [
-          "zoom"
-        ],
+        ["linear"],
+        ["zoom"],
         9,
         [
           "case",
           [
             "all",
-            [
-              "boolean",
-              [
-                "global-state",
-                "highlightingEnabled"
-              ],
-              false
-            ],
-            [
-              "!",
-              [
-                "boolean",
-                [
-                  "feature-state",
-                  "highlighted"
-                ],
-                false
-              ]
-            ]
+            ["boolean", ["global-state", "highlightingEnabled"], false],
+            ["!", ["boolean", ["feature-state", "highlighted"], false]],
           ],
           0,
-          1
+          1,
         ],
         14,
         [
           "case",
           [
             "all",
-            [
-              "boolean",
-              [
-                "global-state",
-                "highlightingEnabled"
-              ],
-              false
-            ],
-            [
-              "!",
-              [
-                "boolean",
-                [
-                  "feature-state",
-                  "highlighted"
-                ],
-                false
-              ]
-            ]
+            ["boolean", ["global-state", "highlightingEnabled"], false],
+            ["!", ["boolean", ["feature-state", "highlighted"], false]],
           ],
           0.05,
-          1
+          1,
         ],
         16,
         [
           "case",
           [
             "all",
-            [
-              "boolean",
-              [
-                "global-state",
-                "highlightingEnabled"
-              ],
-              false
-            ],
-            [
-              "!",
-              [
-                "boolean",
-                [
-                  "feature-state",
-                  "highlighted"
-                ],
-                false
-              ]
-            ]
+            ["boolean", ["global-state", "highlightingEnabled"], false],
+            ["!", ["boolean", ["feature-state", "highlighted"], false]],
           ],
           0.15,
-          1
-        ]
-      ]
-    }
+          1,
+        ],
+      ],
+    },
   },
   {
-    "id": "mauerlaschen-selection",
-    "type": "symbol",
-    "source": "belis-source",
+    id: "mauerlaschen-selection",
+    type: "symbol",
+    source: "belis-source",
     "source-layer": "mauerlaschen",
-    "minzoom": 0,
-    "maxzoom": 24,
-    "layout": {
+    minzoom: 0,
+    maxzoom: 24,
+    layout: {
       "icon-image": "Icon_Full",
       "icon-size": [
         "interpolate",
-        [
-          "linear"
-        ],
-        [
-          "zoom"
-        ],
+        ["linear"],
+        ["zoom"],
         10,
         0.05,
         16,
         0.3,
         23,
-        0.6
+        0.6,
       ],
-      "icon-allow-overlap": true
+      "icon-allow-overlap": true,
     },
-    "paint": {
+    paint: {
       "icon-opacity": [
         "case",
-        [
-          "boolean",
-          [
-            "feature-state",
-            "selected"
-          ],
-          false
-        ],
+        ["boolean", ["feature-state", "selected"], false],
         0.7,
-        0
-      ]
-    }
+        0,
+      ],
+    },
   },
   {
-    "id": "mauerlaschen-icon",
-    "type": "symbol",
-    "source": "belis-source",
+    id: "mauerlaschen-icon",
+    type: "symbol",
+    source: "belis-source",
     "source-layer": "mauerlaschen",
-    "minzoom": 0,
-    "maxzoom": 24,
-    "layout": {
+    minzoom: 0,
+    maxzoom: 24,
+    layout: {
       "icon-image": "mauerlasche",
       "icon-size": [
         "interpolate",
-        [
-          "linear"
-        ],
-        [
-          "zoom"
-        ],
+        ["linear"],
+        ["zoom"],
         10,
         0.05,
         16,
         0.3,
         23,
-        0.6
+        0.6,
       ],
-      "icon-allow-overlap": true
+      "icon-allow-overlap": true,
     },
-    "paint": {
+    paint: {
       "icon-opacity": [
         "interpolate",
-        [
-          "linear"
-        ],
-        [
-          "zoom"
-        ],
+        ["linear"],
+        ["zoom"],
         9,
         [
           "case",
           [
             "all",
-            [
-              "boolean",
-              [
-                "global-state",
-                "highlightingEnabled"
-              ],
-              false
-            ],
-            [
-              "!",
-              [
-                "boolean",
-                [
-                  "feature-state",
-                  "highlighted"
-                ],
-                false
-              ]
-            ]
+            ["boolean", ["global-state", "highlightingEnabled"], false],
+            ["!", ["boolean", ["feature-state", "highlighted"], false]],
           ],
           0,
-          1
+          1,
         ],
         14,
         [
           "case",
           [
             "all",
-            [
-              "boolean",
-              [
-                "global-state",
-                "highlightingEnabled"
-              ],
-              false
-            ],
-            [
-              "!",
-              [
-                "boolean",
-                [
-                  "feature-state",
-                  "highlighted"
-                ],
-                false
-              ]
-            ]
+            ["boolean", ["global-state", "highlightingEnabled"], false],
+            ["!", ["boolean", ["feature-state", "highlighted"], false]],
           ],
           0.05,
-          1
+          1,
         ],
         16,
         [
           "case",
           [
             "all",
-            [
-              "boolean",
-              [
-                "global-state",
-                "highlightingEnabled"
-              ],
-              false
-            ],
-            [
-              "!",
-              [
-                "boolean",
-                [
-                  "feature-state",
-                  "highlighted"
-                ],
-                false
-              ]
-            ]
+            ["boolean", ["global-state", "highlightingEnabled"], false],
+            ["!", ["boolean", ["feature-state", "highlighted"], false]],
           ],
           0.15,
-          1
-        ]
-      ]
-    }
+          1,
+        ],
+      ],
+    },
   },
   {
-    "id": "schaltstelle-selection",
-    "type": "symbol",
-    "source": "belis-source",
+    id: "schaltstelle-selection",
+    type: "symbol",
+    source: "belis-source",
     "source-layer": "schaltstelle",
-    "minzoom": 0,
-    "maxzoom": 24,
-    "layout": {
+    minzoom: 0,
+    maxzoom: 24,
+    layout: {
       "icon-image": "Icon_Full",
       "icon-size": [
         "interpolate",
-        [
-          "linear"
-        ],
-        [
-          "zoom"
-        ],
+        ["linear"],
+        ["zoom"],
         10,
         0.05,
         16,
         0.3,
         23,
-        0.6
+        0.6,
       ],
-      "icon-allow-overlap": true
+      "icon-allow-overlap": true,
     },
-    "paint": {
+    paint: {
       "icon-opacity": [
         "case",
-        [
-          "boolean",
-          [
-            "feature-state",
-            "selected"
-          ],
-          false
-        ],
+        ["boolean", ["feature-state", "selected"], false],
         0.7,
-        0
-      ]
-    }
+        0,
+      ],
+    },
   },
   {
-    "id": "schaltstelle-icon",
-    "type": "symbol",
-    "source": "belis-source",
+    id: "schaltstelle-icon",
+    type: "symbol",
+    source: "belis-source",
     "source-layer": "schaltstelle",
-    "minzoom": 0,
-    "maxzoom": 24,
-    "layout": {
+    minzoom: 0,
+    maxzoom: 24,
+    layout: {
       "icon-image": "schaltstelle",
       "icon-size": [
         "interpolate",
-        [
-          "linear"
-        ],
-        [
-          "zoom"
-        ],
+        ["linear"],
+        ["zoom"],
         10,
         0.05,
         16,
         0.3,
         23,
-        0.6
+        0.6,
       ],
-      "icon-allow-overlap": true
+      "icon-allow-overlap": true,
     },
-    "paint": {
+    paint: {
       "icon-opacity": [
         "interpolate",
-        [
-          "linear"
-        ],
-        [
-          "zoom"
-        ],
+        ["linear"],
+        ["zoom"],
         9,
         [
           "case",
           [
             "all",
-            [
-              "boolean",
-              [
-                "global-state",
-                "highlightingEnabled"
-              ],
-              false
-            ],
-            [
-              "!",
-              [
-                "boolean",
-                [
-                  "feature-state",
-                  "highlighted"
-                ],
-                false
-              ]
-            ]
+            ["boolean", ["global-state", "highlightingEnabled"], false],
+            ["!", ["boolean", ["feature-state", "highlighted"], false]],
           ],
           0,
-          1
+          1,
         ],
         14,
         [
           "case",
           [
             "all",
-            [
-              "boolean",
-              [
-                "global-state",
-                "highlightingEnabled"
-              ],
-              false
-            ],
-            [
-              "!",
-              [
-                "boolean",
-                [
-                  "feature-state",
-                  "highlighted"
-                ],
-                false
-              ]
-            ]
+            ["boolean", ["global-state", "highlightingEnabled"], false],
+            ["!", ["boolean", ["feature-state", "highlighted"], false]],
           ],
           0.05,
-          1
+          1,
         ],
         16,
         [
           "case",
           [
             "all",
-            [
-              "boolean",
-              [
-                "global-state",
-                "highlightingEnabled"
-              ],
-              false
-            ],
-            [
-              "!",
-              [
-                "boolean",
-                [
-                  "feature-state",
-                  "highlighted"
-                ],
-                false
-              ]
-            ]
+            ["boolean", ["global-state", "highlightingEnabled"], false],
+            ["!", ["boolean", ["feature-state", "highlighted"], false]],
           ],
           0.15,
-          1
-        ]
-      ]
-    }
+          1,
+        ],
+      ],
+    },
   },
   {
-    "id": "standorte-selection",
-    "type": "symbol",
-    "source": "belis-source",
+    id: "standorte-selection",
+    type: "symbol",
+    source: "belis-source",
     "source-layer": "standorte",
-    "minzoom": 0,
-    "maxzoom": 24,
-    "layout": {
+    minzoom: 0,
+    maxzoom: 24,
+    layout: {
       "icon-image": "Icon_Full",
       "icon-anchor": "center",
       "icon-size": [
         "interpolate",
-        [
-          "linear"
-        ],
-        [
-          "zoom"
-        ],
+        ["linear"],
+        ["zoom"],
         10,
         0.05,
         16,
         0.3,
         23,
-        0.6
+        0.6,
       ],
-      "icon-allow-overlap": true
+      "icon-allow-overlap": true,
     },
-    "paint": {
+    paint: {
       "icon-opacity": [
         "case",
-        [
-          "boolean",
-          [
-            "feature-state",
-            "selected"
-          ],
-          false
-        ],
+        ["boolean", ["feature-state", "selected"], false],
         0.7,
-        [
-          "boolean",
-          [
-            "feature-state",
-            "selectionInNeighborhood"
-          ],
-          false
-        ],
+        ["boolean", ["feature-state", "selectionInNeighborhood"], false],
         0.7,
-        0
-      ]
-    }
+        0,
+      ],
+    },
   },
   {
-    "id": "standorte-icon",
-    "type": "symbol",
-    "source": "belis-source",
+    id: "standorte-icon",
+    type: "symbol",
+    source: "belis-source",
     "source-layer": "standorte",
-    "minzoom": 0,
-    "maxzoom": 24,
-    "layout": {
+    minzoom: 0,
+    maxzoom: 24,
+    layout: {
       "icon-image": [
         "case",
-        [
-          "==",
-          [
-            "coalesce",
-            [
-              "get",
-              "leuchten_count"
-            ],
-            0
-          ],
-          0
-        ],
+        ["==", ["coalesce", ["get", "leuchten_count"], 0], 0],
         "standort_mast",
-        [
-          ">",
-          [
-            "coalesce",
-            [
-              "get",
-              "leuchten_count"
-            ],
-            0
-          ],
-          12
-        ],
+        [">", ["coalesce", ["get", "leuchten_count"], 0], 12],
         "leuchtenMax",
-        [
-          "concat",
-          "leuchten",
-          [
-            "to-string",
-            [
-              "get",
-              "leuchten_count"
-            ]
-          ]
-        ]
+        ["concat", "leuchten", ["to-string", ["get", "leuchten_count"]]],
       ],
       "icon-size": [
         "interpolate",
-        [
-          "linear"
-        ],
-        [
-          "zoom"
-        ],
+        ["linear"],
+        ["zoom"],
         10,
         0.05,
         16,
         0.3,
         23,
-        0.6
+        0.6,
       ],
-      "icon-allow-overlap": true
+      "icon-allow-overlap": true,
     },
-    "paint": {
+    paint: {
       "icon-opacity": [
         "interpolate",
-        [
-          "linear"
-        ],
-        [
-          "zoom"
-        ],
+        ["linear"],
+        ["zoom"],
         9,
         [
           "case",
           [
             "all",
-            [
-              "boolean",
-              [
-                "global-state",
-                "highlightingEnabled"
-              ],
-              false
-            ],
-            [
-              "!",
-              [
-                "boolean",
-                [
-                  "feature-state",
-                  "highlighted"
-                ],
-                false
-              ]
-            ]
+            ["boolean", ["global-state", "highlightingEnabled"], false],
+            ["!", ["boolean", ["feature-state", "highlighted"], false]],
           ],
           0,
-          1
+          1,
         ],
         14,
         [
           "case",
           [
             "all",
-            [
-              "boolean",
-              [
-                "global-state",
-                "highlightingEnabled"
-              ],
-              false
-            ],
-            [
-              "!",
-              [
-                "boolean",
-                [
-                  "feature-state",
-                  "highlighted"
-                ],
-                false
-              ]
-            ]
+            ["boolean", ["global-state", "highlightingEnabled"], false],
+            ["!", ["boolean", ["feature-state", "highlighted"], false]],
           ],
           0.05,
-          1
+          1,
         ],
         16,
         [
           "case",
           [
             "all",
-            [
-              "boolean",
-              [
-                "global-state",
-                "highlightingEnabled"
-              ],
-              false
-            ],
-            [
-              "!",
-              [
-                "boolean",
-                [
-                  "feature-state",
-                  "highlighted"
-                ],
-                false
-              ]
-            ]
+            ["boolean", ["global-state", "highlightingEnabled"], false],
+            ["!", ["boolean", ["feature-state", "highlighted"], false]],
           ],
           0.15,
-          1
-        ]
-      ]
-    }
+          1,
+        ],
+      ],
+    },
   },
   {
-    "id": "standorte-label",
-    "type": "symbol",
-    "source": "belis-source",
+    id: "standorte-label",
+    type: "symbol",
+    source: "belis-source",
     "source-layer": "standorte",
-    "minzoom": 18,
-    "maxzoom": 24,
-    "layout": {
-      "text-field": [
-        "get",
-        "lfd_nummer"
-      ],
-      "text-font": [
-        "Open Sans Bold"
-      ],
+    minzoom: 18,
+    maxzoom: 24,
+    layout: {
+      "text-field": ["get", "lfd_nummer"],
+      "text-font": ["Open Sans Bold"],
       "text-size": [
         "interpolate",
-        [
-          "linear"
-        ],
-        [
-          "zoom"
-        ],
+        ["linear"],
+        ["zoom"],
         18,
         16,
         20,
         24,
         23,
-        30
+        30,
       ],
       "text-anchor": "left",
       "text-radial-offset": [
         "interpolate",
-        [
-          "linear"
-        ],
-        [
-          "zoom"
-        ],
+        ["linear"],
+        ["zoom"],
         18,
         0.65,
         20,
         0.65,
         22,
-        0.65
+        0.65,
       ],
-      "text-offset": [
-        0,
-        -0.3
-      ],
-      "text-allow-overlap": false
+      "text-offset": [0, -0.3],
+      "text-allow-overlap": false,
     },
-    "paint": {
+    paint: {
       "text-color": "#333333",
       "text-halo-color": "#FFFFFF",
       "text-halo-width": 1.5,
       "text-opacity": [
         "case",
-        [
-          "boolean",
-          [
-            "feature-state",
-            "selected"
-          ],
-          false
-        ],
+        ["boolean", ["feature-state", "selected"], false],
         0,
-        [
-          "boolean",
-          [
-            "feature-state",
-            "selectionInNeighborhood"
-          ],
-          false
-        ],
+        ["boolean", ["feature-state", "selectionInNeighborhood"], false],
         0,
         [
           "all",
-          [
-            "boolean",
-            [
-              "global-state",
-              "highlightingEnabled"
-            ],
-            false
-          ],
-          [
-            "!",
-            [
-              "boolean",
-              [
-                "feature-state",
-                "highlighted"
-              ],
-              false
-            ]
-          ]
+          ["boolean", ["global-state", "highlightingEnabled"], false],
+          ["!", ["boolean", ["feature-state", "highlighted"], false]],
         ],
         0.15,
-        1
-      ]
-    }
+        1,
+      ],
+    },
   },
   {
-    "id": "standorte-label-selected",
-    "type": "symbol",
-    "source": "belis-source",
+    id: "standorte-label-selected",
+    type: "symbol",
+    source: "belis-source",
     "source-layer": "standorte",
-    "minzoom": 18,
-    "maxzoom": 24,
-    "layout": {
-      "text-field": [
-        "get",
-        "lfd_nummer"
-      ],
-      "text-font": [
-        "Open Sans Bold"
-      ],
+    minzoom: 18,
+    maxzoom: 24,
+    layout: {
+      "text-field": ["get", "lfd_nummer"],
+      "text-font": ["Open Sans Bold"],
       "text-size": [
         "interpolate",
-        [
-          "linear"
-        ],
-        [
-          "zoom"
-        ],
+        ["linear"],
+        ["zoom"],
         18,
         16,
         20,
         24,
         23,
-        30
+        30,
       ],
       "text-anchor": "left",
       "text-radial-offset": [
         "interpolate",
-        [
-          "linear"
-        ],
-        [
-          "zoom"
-        ],
+        ["linear"],
+        ["zoom"],
         18,
         1.25,
         20,
         1.25,
         22,
-        1.25
+        1.25,
       ],
-      "text-offset": [
-        0,
-        -0.3
-      ],
+      "text-offset": [0, -0.3],
       "text-allow-overlap": true,
-      "text-ignore-placement": true
+      "text-ignore-placement": true,
     },
-    "paint": {
+    paint: {
       "text-color": "#4892F0",
       "text-halo-color": "#FFFFFF",
       "text-halo-width": 1.5,
       "text-opacity": [
         "case",
-        [
-          "boolean",
-          [
-            "feature-state",
-            "selected"
-          ],
-          false
-        ],
+        ["boolean", ["feature-state", "selected"], false],
         1,
-        0
-      ]
-    }
+        0,
+      ],
+    },
   },
   {
-    "id": "leuchten-debug-circle",
-    "type": "circle",
-    "source": "belis-source",
+    id: "leuchten-debug-circle",
+    type: "circle",
+    source: "belis-source",
     "source-layer": "leuchten",
-    "minzoom": 0,
-    "maxzoom": 24,
-    "paint": {
+    minzoom: 0,
+    maxzoom: 24,
+    paint: {
       "circle-radius": 2,
       "circle-color": "#FFFFFF",
       "circle-stroke-color": "#333333",
       "circle-stroke-width": 0.5,
       "circle-opacity": 0,
-      "circle-stroke-opacity": 0
+      "circle-stroke-opacity": 0,
     },
-    "layout": {
-      "visibility": "none"
-    }
-  }
+    layout: {
+      visibility: "none",
+    },
+  },
 ];
-

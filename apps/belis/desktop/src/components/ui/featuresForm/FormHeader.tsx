@@ -60,9 +60,7 @@ const FormHeader = ({
         <div className="flex items-center gap-3 flex-shrink-0">
           <div
             className={`w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0 ${
-              readOnly
-                ? "bg-gray-100"
-                : "bg-blue-100"
+              readOnly ? "bg-gray-100" : "bg-blue-100"
             } transition-colors`}
           >
             {loading ? (
@@ -97,7 +95,16 @@ const FormHeader = ({
                 <Button
                   onClick={hasDraft ? onCancel : undefined}
                   disabled={saving}
-                  style={!hasDraft ? { pointerEvents: "none", color: "#d9d9d9", borderColor: "#d9d9d9", backgroundColor: "#f5f5f5" } : undefined}
+                  style={
+                    !hasDraft
+                      ? {
+                          pointerEvents: "none",
+                          color: "#d9d9d9",
+                          borderColor: "#d9d9d9",
+                          backgroundColor: "#f5f5f5",
+                        }
+                      : undefined
+                  }
                 >
                   {cancelLabel
                     ? `${cancelLabel}: zurücksetzen`

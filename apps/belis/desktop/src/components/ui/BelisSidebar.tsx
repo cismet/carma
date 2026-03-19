@@ -179,7 +179,10 @@ export interface BelisSidebarProps {
   onFeatureDismiss?: (feature: SidebarFeature) => void;
   /** Optional custom extractors that take priority over the built-in ones.
    *  Used by the drafts tab to display features with database PKs instead of MVT tile IDs. */
-  listItemExtractors?: Record<string, (feature: SidebarFeature) => ListItemData>;
+  listItemExtractors?: Record<
+    string,
+    (feature: SidebarFeature) => ListItemData
+  >;
 }
 
 const BelisSidebar = ({
@@ -582,7 +585,8 @@ const BelisSidebar = ({
                 : "bg-gray-200 text-gray-600 hover:bg-gray-300"
             }`}
           >
-            Fachobjekte{fachobjekteCount != null ? ` (${fachobjekteCount})` : ""}
+            Fachobjekte
+            {fachobjekteCount != null ? ` (${fachobjekteCount})` : ""}
           </button>
           {hasHighlights && (
             <button

@@ -124,9 +124,7 @@ const LeitungstypDropdown = ({
             background: #93c5fd !important;
           }
         `}</style>
-        <div className={isPartial ? "leitungstyp-partial" : ""}>
-          {children}
-        </div>
+        <div className={isPartial ? "leitungstyp-partial" : ""}>{children}</div>
         <CaretDownFilled
           className="ml-1 text-gray-500 cursor-pointer hover:text-gray-700"
           style={{ fontSize: 10 }}

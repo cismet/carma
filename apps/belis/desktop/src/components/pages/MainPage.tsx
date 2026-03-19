@@ -49,7 +49,8 @@ const MainPage = () => {
       isMapRoute: true,
       showSearch: true,
       sidebarVariant: "fachobjekte",
-      onFilterChange: (key: string, enabled: boolean) => setFilterEnabled(key, enabled),
+      onFilterChange: (key: string, enabled: boolean) =>
+        setFilterEnabled(key, enabled),
     });
     return () => setConfig({ isMapRoute: false, onFilterChange: null });
   }, [setConfig, setFilterEnabled]);

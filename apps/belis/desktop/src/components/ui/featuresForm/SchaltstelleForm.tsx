@@ -40,7 +40,10 @@ const transformDatesForBackend = (
 
 interface SchaltstelleFormProps {
   data: Record<string, unknown> | null;
-  rawFeature?: { id?: string | number; properties?: Record<string, unknown> } | null;
+  rawFeature?: {
+    id?: string | number;
+    properties?: Record<string, unknown>;
+  } | null;
   onClose?: () => void;
   readOnly?: boolean;
   loading?: boolean;
@@ -149,8 +152,8 @@ const SchaltstelleForm = ({
   const sidebarMain = rawProps?.schaltstellen_nummer
     ? `S ${rawProps.schaltstellen_nummer}`
     : rawFeature?.id || rawProps?.id
-      ? `S ${rawFeature?.id || rawProps?.id}`
-      : "";
+    ? `S ${rawFeature?.id || rawProps?.id}`
+    : "";
 
   useEffect(() => {
     // Reset form when data changes to clear old values

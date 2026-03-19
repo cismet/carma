@@ -83,18 +83,15 @@ function convertGeometry(geoField: any): GeoJSON.Geometry | null {
       const [lng, lat] = proj4(proj4crs25832def, proj4crs4326def, [x, y]);
       return { type: "Point", coordinates: [lng, lat] };
     }
-    if (
-      geoField.type === "LineString" ||
-      geoField.type === "MultiLineString"
-    ) {
+    if (geoField.type === "LineString" || geoField.type === "MultiLineString") {
       const coords =
         geoField.type === "LineString"
           ? [geoField.coordinates]
           : geoField.coordinates;
       const converted = coords.map((ring: number[][]) =>
         ring.map(([x, y]: number[]) =>
-          proj4(proj4crs25832def, proj4crs4326def, [x, y]),
-        ),
+          proj4(proj4crs25832def, proj4crs4326def, [x, y])
+        )
       );
       return geoField.type === "LineString"
         ? { type: "LineString", coordinates: converted[0] }
@@ -112,7 +109,7 @@ function convertGeometry(geoField: any): GeoJSON.Geometry | null {
  * Each feature represents one Arbeitsprotokoll with its referenced Fachobjekt geometry.
  */
 export function buildApGeoJson(
-  selectedAAData: ArbeitsauftragDetail | null,
+  selectedAAData: ArbeitsauftragDetail | null
 ): GeoJSON.FeatureCollection {
   const features: GeoJSON.Feature[] = [];
 

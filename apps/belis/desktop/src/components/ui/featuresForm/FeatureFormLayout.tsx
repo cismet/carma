@@ -170,7 +170,10 @@ const FeatureFormLayout = ({
 
   // Combine main + extra documents for image pre-fetching
   const allDocumentsForImages = useMemo(
-    () => [...uniqueDocuments, ...extraDocumentSections.flatMap((s) => s.documents)],
+    () => [
+      ...uniqueDocuments,
+      ...extraDocumentSections.flatMap((s) => s.documents),
+    ],
     [uniqueDocuments, extraDocumentSections]
   );
 
@@ -379,7 +382,9 @@ const FeatureFormLayout = ({
         <div className="flex flex-1 overflow-hidden">
           {/* Form column - 60% */}
           <div
-            className={`w-3/5 min-w-[400px] px-6 pb-4 overflow-y-auto border-r border-gray-100 transition-opacity ${saving ? "opacity-50 pointer-events-none" : ""}`}
+            className={`w-3/5 min-w-[400px] px-6 pb-4 overflow-y-auto border-r border-gray-100 transition-opacity ${
+              saving ? "opacity-50 pointer-events-none" : ""
+            }`}
           >
             {showRaw || additionalTabs.length > 0 ? (
               <div className="[&_.ant-tabs-nav]:sticky [&_.ant-tabs-nav]:top-0 [&_.ant-tabs-nav]:bg-white [&_.ant-tabs-nav]:z-10">
@@ -391,7 +396,9 @@ const FeatureFormLayout = ({
           </div>
           {/* Documents column - 40% */}
           <div
-            className={`w-2/5 min-w-[480px] px-6 py-4 overflow-y-auto transition-opacity ${saving ? "opacity-50 pointer-events-none" : ""}`}
+            className={`w-2/5 min-w-[480px] px-6 py-4 overflow-y-auto transition-opacity ${
+              saving ? "opacity-50 pointer-events-none" : ""
+            }`}
           >
             {documentsContent}
           </div>
@@ -402,7 +409,11 @@ const FeatureFormLayout = ({
 
   // Narrow screen: tabbed layout
   return (
-    <div className={`bg-white rounded-xl border border-gray-100 w-full h-full flex flex-col min-w-[350px] ${singleColumn ? "" : "max-w-4xl"}`}>
+    <div
+      className={`bg-white rounded-xl border border-gray-100 w-full h-full flex flex-col min-w-[350px] ${
+        singleColumn ? "" : "max-w-4xl"
+      }`}
+    >
       <FormHeader
         title={title}
         subtitle={subtitle}
@@ -416,7 +427,9 @@ const FeatureFormLayout = ({
         onToggleReadOnly={onToggleReadOnly}
       />
       <div
-        className={`px-6 pb-60 overflow-y-auto flex-1 transition-opacity ${saving ? "opacity-50 pointer-events-none" : ""}`}
+        className={`px-6 pb-60 overflow-y-auto flex-1 transition-opacity ${
+          saving ? "opacity-50 pointer-events-none" : ""
+        }`}
       >
         {singleColumn && !showRaw ? (
           <div className="pt-4">{documentsContent}</div>

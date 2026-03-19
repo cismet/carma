@@ -14,7 +14,10 @@ import { uploadDraftFiles } from "../../../helper/uploadDraftFiles";
 
 interface LeitungFormProps {
   data: Record<string, unknown> | null;
-  rawFeature?: { id?: string | number; properties?: Record<string, unknown> } | null;
+  rawFeature?: {
+    id?: string | number;
+    properties?: Record<string, unknown>;
+  } | null;
   onClose?: () => void;
   readOnly?: boolean;
   loading?: boolean;
@@ -117,7 +120,8 @@ const LeitungForm = ({
     "-ohne Bezeichnung-";
 
   // Compute sidebar main title to display in form header
-  const sidebarMain = rawFeature?.id || rawProps?.id ? `L-${rawFeature?.id || rawProps?.id}` : "";
+  const sidebarMain =
+    rawFeature?.id || rawProps?.id ? `L-${rawFeature?.id || rawProps?.id}` : "";
 
   useEffect(() => {
     // Reset form when data changes to clear old values
@@ -191,10 +195,7 @@ const LeitungForm = ({
           : {}),
       };
 
-      console.log(
-        "xxx saving leitung:",
-        JSON.stringify(dataToSave, null, 2)
-      );
+      console.log("xxx saving leitung:", JSON.stringify(dataToSave, null, 2));
       await updateDataByClassName(jwt, "leitung", dataToSave);
 
       // Update local documents so changes appear immediately

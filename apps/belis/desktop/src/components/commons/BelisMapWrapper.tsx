@@ -28,7 +28,11 @@ import type { LibreLayer } from "@carma-mapping/engines/maplibre";
 import { AppDispatch, type RootState } from "../../store";
 import BelisSidebar from "../ui/BelisSidebar";
 import ArbeitsauftraegeSidebar from "../ui/ArbeitsauftraegeSidebar";
-import { useVisibleMapFeatures, functionToInfo, objectToInfo } from "@carma-mapping/utils";
+import {
+  useVisibleMapFeatures,
+  functionToInfo,
+  objectToInfo,
+} from "@carma-mapping/utils";
 import { extractCarmaConfig } from "@carma-commons/utils";
 import {
   useMapSelection,
@@ -613,7 +617,12 @@ const BelisMapLibWrapper = ({
   const [featureOnMap, setFeatureOnMap] = useState(true);
 
   useEffect(() => {
-    console.log("[AA-DEBUG] bounds-check effect fired", { sidebarMode, sidebarVariant, selectedFeatureId, rawFeature: !!rawFeature });
+    console.log("[AA-DEBUG] bounds-check effect fired", {
+      sidebarMode,
+      sidebarVariant,
+      selectedFeatureId,
+      rawFeature: !!rawFeature,
+    });
     if (
       sidebarVariant === "arbeitsauftraege" ||
       (sidebarMode !== "fachobjekte" && sidebarMode !== "highlights") ||
@@ -649,7 +658,11 @@ const BelisMapLibWrapper = ({
       );
     }
     setFeatureOnMap(inside);
-    console.log("[AA-DEBUG] bounds check result", { inside, geometryType: geometry.type, sourceLayer: selectedFeatureId.sourceLayer });
+    console.log("[AA-DEBUG] bounds check result", {
+      inside,
+      geometryType: geometry.type,
+      sourceLayer: selectedFeatureId.sourceLayer,
+    });
 
     if (!inside) {
       console.log("[AA-DEBUG] >>> openDatasheet() called from bounds-check");
@@ -1151,7 +1164,11 @@ const BelisMapLibWrapper = ({
     if (existing) {
       existing.setData(geojson);
     } else {
-      map.addSource(AP_SOURCE, { type: "geojson", data: geojson, promoteId: "id" });
+      map.addSource(AP_SOURCE, {
+        type: "geojson",
+        data: geojson,
+        promoteId: "id",
+      });
     }
 
     // Fit map to the bounding box of all AP features
@@ -1168,10 +1185,10 @@ const BelisMapLibWrapper = ({
           geom.type === "Point"
             ? [(geom as GeoJSON.Point).coordinates]
             : geom.type === "LineString"
-              ? (geom as GeoJSON.LineString).coordinates
-              : geom.type === "MultiLineString"
-                ? (geom as GeoJSON.MultiLineString).coordinates.flat()
-                : [];
+            ? (geom as GeoJSON.LineString).coordinates
+            : geom.type === "MultiLineString"
+            ? (geom as GeoJSON.MultiLineString).coordinates.flat()
+            : [];
         for (const [lng, lat] of flatCoords) {
           if (lng < minLng) minLng = lng;
           if (lat < minLat) minLat = lat;
@@ -1186,14 +1203,17 @@ const BelisMapLibWrapper = ({
             [minLng, minLat],
             [maxLng, maxLat],
           ],
-          { padding: 60 },
+          { padding: 60 }
         );
       }
     }
 
     // Add layers derived from debugLayers, rewritten for the AP GeoJSON source
     for (const layer of debugLayers) {
-      const sourceLayer = "source-layer" in layer ? (layer as Record<string, unknown>)["source-layer"] as string : undefined;
+      const sourceLayer =
+        "source-layer" in layer
+          ? ((layer as Record<string, unknown>)["source-layer"] as string)
+          : undefined;
       const featureType = sourceLayer
         ? SOURCE_LAYER_TO_FEATURE_TYPE_AP[sourceLayer]
         : undefined;
@@ -1348,7 +1368,7 @@ const BelisMapLibWrapper = ({
       try {
         map.setFeatureState(
           { source: AP_SOURCE, id: prevAPIdRef.current },
-          { selected: false },
+          { selected: false }
         );
       } catch {
         // source may not exist
@@ -1362,7 +1382,7 @@ const BelisMapLibWrapper = ({
     try {
       map.setFeatureState(
         { source: AP_SOURCE, id: selectedAPId },
-        { selected: true },
+        { selected: true }
       );
     } catch {
       // source may not exist yet
@@ -1382,7 +1402,7 @@ const BelisMapLibWrapper = ({
 
     const geojson = buildApGeoJson(selectedAAData);
     const feature = geojson.features.find(
-      (f) => f.properties?.id === selectedAPId,
+      (f) => f.properties?.id === selectedAPId
     );
     if (!feature?.properties || !feature.geometry) {
       setOverrideSelectedFeature(null);
@@ -1502,7 +1522,9 @@ const BelisMapLibWrapper = ({
         <ArbeitsauftraegeSidebar
           width={LIST_WIDTH}
           onFeatureSelect={handleAAFeatureSelect}
-          onProtokollSelect={() => {/* fly-to handled by selectedAPId effect */}}
+          onProtokollSelect={() => {
+            /* fly-to handled by selectedAPId effect */
+          }}
         />
       ) : (
         <BelisSidebar

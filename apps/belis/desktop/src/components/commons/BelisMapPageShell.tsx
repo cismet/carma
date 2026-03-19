@@ -47,7 +47,14 @@ const BelisMapPageShell = () => {
   const selectedTeamId = useSelector(getSelectedTeamId);
 
   const { config } = useMapPage();
-  const { title, filterConfig, activeSourceLayers, showSearch, sidebarVariant, onFilterChange } = config;
+  const {
+    title,
+    filterConfig,
+    activeSourceLayers,
+    showSearch,
+    sidebarVariant,
+    onFilterChange,
+  } = config;
 
   const [streets, setStreets] = useState<BelisStreet[]>([]);
   const [highlightResults, setHighlightResults] = useState<
@@ -104,9 +111,7 @@ const BelisMapPageShell = () => {
   };
 
   const editModeButton = (
-    <Tooltip
-      title={globalEditMode ? "Bearbeitung sperren" : "Alle bearbeiten"}
-    >
+    <Tooltip title={globalEditMode ? "Bearbeitung sperren" : "Alle bearbeiten"}>
       <Button
         icon={globalEditMode ? <LockOutlined /> : <EditOutlined />}
         type={globalEditMode ? "primary" : "default"}
