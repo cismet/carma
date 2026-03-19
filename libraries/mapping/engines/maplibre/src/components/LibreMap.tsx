@@ -701,6 +701,37 @@ export const LibreMap = ({
           }
 
           if (bestHitLayer && bestResult && bestResult.resolvedSourceIndex != null) {
+              // Before accepting the 3D hit, check if there's a 2D symbol
+              // feature at the click point. Symbol layers (POI icons/text)
+              // render visually above 3D layers, so they should win clicks.
+              const hits2d = mapInstance.queryRenderedFeatures(e.point);
+              // queryRenderedFeatures returns hits in visual order (top first).
+              // If the topmost hit has a layerMapping, it's a selectable feature
+              // rendered above the 3D layer, so let the 2D path handle the click.
+              // If the topmost 2D hit is from a LIBRE_LAYERS sub-style (has
+              // layer-id metadata) but NOT from a source that has a 3D layer,
+              // it renders above the 3D objects, so let 2D selection win.
+              // Find the highest z-index among 3D layer sources (from style metadata).
+              // Any 2D hit with a higher z-index renders above the 3D layers.
+              let maxThreeZIndex = -1;
+              const threeSources = new Set(threeLayers.map((l) => l._config.sourceId));
+              for (const sl of (mapInstance.getStyle()?.layers ?? [])) {
+                const src = (sl as { source?: string }).source;
+                if (src && threeSources.has(src)) {
+                  const z = ((sl as any).metadata?.["z-index"] as number) ?? -1;
+                  if (z > maxThreeZIndex) maxThreeZIndex = z;
+                }
+              }
+              const hitAbove3d = hits2d.some((f) => {
+                const z = (f.layer.metadata as Record<string, unknown>)?.["z-index"] as number | undefined;
+                return z != null && z > maxThreeZIndex;
+              });
+              if (hitAbove3d) {
+                // Let the 2D selection path handle this click
+                threeLayers.forEach((l) => l.unhighlight());
+              }
+
+              if (!hitAbove3d) {
               const threeLayer = bestHitLayer;
               const result = bestResult;
               // [3D-SELECT] closest hit log suppressed
@@ -811,6 +842,7 @@ export const LibreMap = ({
                 );
               }
               return; // skip 2D selection
+              } // end if (!hitAbove3d)
           }
         }
         // ── end 3D raycast ────────────────────────────────────
