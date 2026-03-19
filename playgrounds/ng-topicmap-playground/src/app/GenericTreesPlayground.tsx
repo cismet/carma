@@ -215,7 +215,7 @@ function PerfOverlay({ perfRef }: { perfRef: React.RefObject<ThreePerfData> }) {
 //  Layer visibility sync (drives map layout property)
 // ─────────────────────────────────────────────────────────────
 
-type LayerGroupName = "Einzelbaum 3D" | "Wohnlagen" | "Einzelbaum Umringe" | "Gebaeude";
+type LayerGroupName = "Einzelbaum 3D" | "Wohnlagen" | "Einzelbaum Umringe" | "Gebaeude" | "POI";
 type LayerVisibility = Record<LayerGroupName, boolean>;
 
 const LAYER_GROUPS: {
@@ -227,6 +227,7 @@ const LAYER_GROUPS: {
   { name: "Wohnlagen", label: "Wohnlagen", color: "#FF9800" },
   { name: "Einzelbaum Umringe", label: "Umringe", color: "#4CAF50" },
   { name: "Gebaeude", label: "Gebäude", color: "#607D8B" },
+  { name: "POI", label: "POI", color: "#E91E63" },
 ];
 
 const DEFAULT_VISIBILITY: LayerVisibility = {
@@ -234,6 +235,7 @@ const DEFAULT_VISIBILITY: LayerVisibility = {
   Wohnlagen: true,
   "Einzelbaum Umringe": true,
   Gebaeude: true,
+  POI: true,
 };
 
 function MapLayerVisibility({ visibility }: { visibility: LayerVisibility }) {
@@ -510,6 +512,11 @@ const LIBRE_LAYERS = [
     type: "vector" as const,
     name: "Gebaeude",
     style: "https://tiles.cismet.de/alkis/gebaeude-only.style.json",
+  },
+  {
+    type: "vector" as const,
+    name: "POI",
+    style: "https://tiles.cismet.de/poi/style.json",
   },
 ];
 
