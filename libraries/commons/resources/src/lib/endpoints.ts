@@ -123,6 +123,7 @@ export const defaultGazDataConfig = {
     return createConfig(endpoint, { crs: DEFAULT_PROJ, host: DEFAULT_HOST });
   }),
   prefix: gazDataPrefix,
+  landParcelUrl: "https://wunda-geoportal.cismet.de/data/4326/fstck.json",
 };
 
 export const isEndpoint = (value: string): value is ENDPOINT => {

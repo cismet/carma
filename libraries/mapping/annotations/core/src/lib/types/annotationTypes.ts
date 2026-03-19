@@ -1,172 +1,80 @@
-import type {
-  DirectLineLabelMode,
-  DistanceRelationLabelVisibilityByKind,
-} from "../visualizers/distance/distanceRelationLabel.types";
+import type { Cartesian3Json } from "@carma/cesium";
 
-export const ANNOTATION_TYPES = [
-  "point",
-  "distance",
-  "polyline",
-  "area",
-  "planar",
-  "vertical",
-  "label",
+import type { LinearSegmentLineMode } from "./linearSegment";
+
+// Tool and annotation identifiers
+export const SELECT_TOOL_TYPE = "select" as const;
+export const ANNOTATION_TYPE_POINT = "point" as const;
+export const ANNOTATION_TYPE_DISTANCE = "distance" as const;
+export const ANNOTATION_TYPE_POLYLINE = "polyline" as const;
+export const ANNOTATION_TYPE_AREA_GROUND = "area" as const;
+export const ANNOTATION_TYPE_AREA_PLANAR = "planar" as const;
+export const ANNOTATION_TYPE_AREA_VERTICAL = "vertical" as const;
+export const ANNOTATION_TYPE_LABEL = "label" as const;
+
+const ANNOTATION_TYPES = [
+  ANNOTATION_TYPE_POINT,
+  ANNOTATION_TYPE_DISTANCE,
+  ANNOTATION_TYPE_POLYLINE,
+  ANNOTATION_TYPE_AREA_GROUND,
+  ANNOTATION_TYPE_AREA_PLANAR,
+  ANNOTATION_TYPE_AREA_VERTICAL,
+  ANNOTATION_TYPE_LABEL,
 ] as const;
 
 export type AnnotationType = (typeof ANNOTATION_TYPES)[number];
 export type AnnotationShortLabelKind = AnnotationType;
 
-const [
-  POINT_KIND,
-  DISTANCE_KIND,
-  POLYLINE_KIND,
-  AREA_KIND,
-  PLANAR_KIND,
-  VERTICAL_KIND,
-  LABEL_KIND,
-] = ANNOTATION_TYPES;
+export type AnnotationToolType = typeof SELECT_TOOL_TYPE | AnnotationType;
 
-export const SELECT_TOOL_TYPE = "select" as const;
-export const ANNOTATION_TYPE_POINT = POINT_KIND;
-export const ANNOTATION_TYPE_DISTANCE = DISTANCE_KIND;
-export const ANNOTATION_TYPE_POLYLINE = POLYLINE_KIND;
-export const ANNOTATION_TYPE_AREA_GROUND = AREA_KIND;
-export const ANNOTATION_TYPE_AREA_PLANAR = PLANAR_KIND;
-export const ANNOTATION_TYPE_AREA_VERTICAL = VERTICAL_KIND;
-export const ANNOTATION_TYPE_LABEL = LABEL_KIND;
+export const isAreaToolType = (
+  toolType: AnnotationToolType
+): toolType is
+  | typeof ANNOTATION_TYPE_AREA_GROUND
+  | typeof ANNOTATION_TYPE_AREA_VERTICAL
+  | typeof ANNOTATION_TYPE_AREA_PLANAR =>
+  toolType === ANNOTATION_TYPE_AREA_GROUND ||
+  toolType === ANNOTATION_TYPE_AREA_VERTICAL ||
+  toolType === ANNOTATION_TYPE_AREA_PLANAR;
 
-export const POINT_MEASUREMENT_KINDS = [POINT_KIND] as const;
-export type PointMeasurementKind = (typeof POINT_MEASUREMENT_KINDS)[number];
+export type PlanarPolygonType =
+  | typeof ANNOTATION_TYPE_AREA_PLANAR
+  | typeof ANNOTATION_TYPE_AREA_VERTICAL;
 
-export const LINEAR_MEASUREMENT_KINDS = [DISTANCE_KIND, POLYLINE_KIND] as const;
-export type LinearMeasurementKind = (typeof LINEAR_MEASUREMENT_KINDS)[number];
+export type GroundPolygonType = typeof ANNOTATION_TYPE_AREA_GROUND;
 
-export const POLYGON_MEASUREMENT_KINDS = [
-  AREA_KIND,
-  PLANAR_KIND,
-  VERTICAL_KIND,
-] as const;
-export type PolygonMeasurementKind = (typeof POLYGON_MEASUREMENT_KINDS)[number];
+export type PolygonType = GroundPolygonType | PlanarPolygonType;
+export type PolygonAreaType = PolygonType;
 
-export const ANNOTATION_KINDS = [LABEL_KIND] as const;
-export type AnnotationKind = (typeof ANNOTATION_KINDS)[number];
-
-export const MEASUREMENT_FAMILY_KINDS = [
-  ...POINT_MEASUREMENT_KINDS,
-  ...LINEAR_MEASUREMENT_KINDS,
-  ...POLYGON_MEASUREMENT_KINDS,
-] as const;
-export type AnnotationFamilyKind = (typeof MEASUREMENT_FAMILY_KINDS)[number];
-
-export const MULTINODE_MEASUREMENT_KINDS = [
-  ...LINEAR_MEASUREMENT_KINDS,
-  ...POLYGON_MEASUREMENT_KINDS,
-] as const;
-export type MultinodeMeasurementKind =
-  (typeof MULTINODE_MEASUREMENT_KINDS)[number];
-
-export const MEASUREMENT_TOOL_TYPES = [
-  SELECT_TOOL_TYPE,
-  ...ANNOTATION_TYPES,
-] as const;
-export type AnnotationToolType = (typeof MEASUREMENT_TOOL_TYPES)[number];
-
-const POLYGON_KIND_SET = new Set<AnnotationType>(POLYGON_MEASUREMENT_KINDS);
-const LINEAR_KIND_SET = new Set<AnnotationType>(LINEAR_MEASUREMENT_KINDS);
-const POINT_KIND_SET = new Set<AnnotationType>(POINT_MEASUREMENT_KINDS);
-const ANNOTATION_KIND_SET = new Set<AnnotationType>(ANNOTATION_KINDS);
-
-export const isPolygonMeasurementType = (
-  kind: AnnotationType
-): kind is PolygonMeasurementKind => POLYGON_KIND_SET.has(kind);
-
-export const isLinearMeasurementType = (
-  kind: AnnotationType
-): kind is LinearMeasurementKind => LINEAR_KIND_SET.has(kind);
-
-export const isPointMeasurementType = (
-  kind: AnnotationType
-): kind is PointMeasurementKind => POINT_KIND_SET.has(kind);
-
-export const isAnnotationType = (
-  kind: AnnotationType
-): kind is AnnotationKind => ANNOTATION_KIND_SET.has(kind);
-
-export const KNOWN_MEASUREMENT_TYPES = [...MEASUREMENT_FAMILY_KINDS] as const;
-export type KnownMeasurementType = (typeof KNOWN_MEASUREMENT_TYPES)[number];
-
-export const KNOWN_ANNOTATION_TYPES = [...ANNOTATION_KINDS] as const;
-export type KnownAnnotationType = (typeof KNOWN_ANNOTATION_TYPES)[number];
-
-export type PointLabelMetricMode =
-  | "elevation"
-  | "absoluteElevation"
-  | "none"
-  | "distance";
-export const DEFAULT_POINT_LABEL_METRIC_MODE: PointLabelMetricMode =
-  "elevation";
-
-export type PolylinePointLabelMode =
-  | "cumulativeDistance"
-  | "elevationSinceStart"
-  | "elevationSinceLastNode";
-export const DEFAULT_POLYLINE_POINT_LABEL_MODE: PolylinePointLabelMode =
-  "cumulativeDistance";
-export const LINEAR_SEGMENT_LINE_MODES = ["direct", "components"] as const;
-export type LinearSegmentLineMode = (typeof LINEAR_SEGMENT_LINE_MODES)[number];
-const [DIRECT_SEGMENT_LINE_MODE, COMPONENTS_SEGMENT_LINE_MODE] =
-  LINEAR_SEGMENT_LINE_MODES;
-export const LINEAR_SEGMENT_LINE_MODE_DIRECT = DIRECT_SEGMENT_LINE_MODE;
-export const LINEAR_SEGMENT_LINE_MODE_COMPONENTS = COMPONENTS_SEGMENT_LINE_MODE;
-export const DEFAULT_LINEAR_SEGMENT_LINE_MODE =
-  LINEAR_SEGMENT_LINE_MODE_COMPONENTS;
-export const PLANAR_POLYGON_SOURCE_KINDS = [
-  ANNOTATION_TYPE_POLYLINE,
-  ANNOTATION_TYPE_AREA_GROUND,
-] as const;
-export type PlanarPolygonSourceKind =
-  (typeof PLANAR_POLYGON_SOURCE_KINDS)[number];
-
-export const PLANAR_MEASUREMENT_CREATION_MODE_POLYLINE = "polyline";
-export const PLANAR_MEASUREMENT_CREATION_MODE_POLYGON = "polygon";
-export type PlanarMeasurementCreationMode =
-  | typeof PLANAR_MEASUREMENT_CREATION_MODE_POLYLINE
-  | typeof PLANAR_MEASUREMENT_CREATION_MODE_POLYGON;
-
-export const PLANAR_SURFACE_TYPES = [
-  "roof",
-  "facade",
-  "terrain",
-  "footprint",
-] as const;
-export type PlanarSurfaceType = (typeof PLANAR_SURFACE_TYPES)[number];
-
-export type SerializableCartesian3 = {
-  x: number;
-  y: number;
-  z: number;
-};
+export type NodeChainAnnotationType =
+  | typeof ANNOTATION_TYPE_DISTANCE
+  | typeof ANNOTATION_TYPE_POLYLINE
+  | PolygonType;
 
 export type PlanarPolygonPlane = {
-  anchorECEF: SerializableCartesian3;
-  normalECEF: SerializableCartesian3;
+  anchorECEF: Cartesian3Json;
+  normalECEF: Cartesian3Json;
 };
 
 export type PlanarPolygonLocalFrame = {
-  originECEF: SerializableCartesian3;
-  eastECEF: SerializableCartesian3;
-  northECEF: SerializableCartesian3;
-  upECEF: SerializableCartesian3;
+  originECEF: Cartesian3Json;
+  eastECEF: Cartesian3Json;
+  northECEF: Cartesian3Json;
+  upECEF: Cartesian3Json;
 };
 
-export type PlanarPolygonGroup = {
+type NodeChainAnnotationBase = {
   id: string;
   name?: string;
   hidden?: boolean;
-  measurementKind?: PlanarPolygonSourceKind;
   segmentLineMode?: LinearSegmentLineMode;
+  distanceLineVisibility?: {
+    direct: boolean;
+    vertical: boolean;
+    horizontal: boolean;
+  };
   verticalOffsetMeters?: number;
-  vertexPointIds: string[];
+  nodeIds: string[];
   edgeRelationIds: string[];
   distanceMeasurementStartPointId?: string;
   closed: boolean;
@@ -177,110 +85,8 @@ export type PlanarPolygonGroup = {
   areaSquareMeters?: number;
   verticalityDeg?: number;
   bearingDeg?: number;
-  surfaceType?: PlanarSurfaceType;
 };
 
-export type PolylineCollection = {
-  id: string;
-  name?: string;
-  vertexPointIds: string[];
-  edgeRelationIds: string[];
-  distanceMeasurementStartPointId: string | null;
-  vertexHeightsMeters: number[];
-  segmentLengthsMeters: number[];
-  segmentLengthsCumulativeMeters: number[];
-  totalLengthMeters: number;
-};
-
-export type PointDistanceRelation = {
-  id: string;
-  edgeId: string;
-  pointAId: string;
-  pointBId: string;
-  // The anchor point defines the "from" side for component visualization.
-  anchorPointId: string;
-  polygonGroupId?: string;
-  showDirectLine?: boolean;
-  showVerticalLine?: boolean;
-  showHorizontalLine?: boolean;
-  showComponentLines?: boolean;
-  labelVisibilityByKind?: DistanceRelationLabelVisibilityByKind;
-  directLabelMode?: DirectLineLabelMode;
-};
-
-export type PointReferenceLineAnnotation = {
-  showDirectLine?: boolean;
-  showComponentLines?: boolean;
-};
-
-export type AnnotationLabelAnchor = {
-  anchorPointId: string;
-  compactContent?: string;
-  collapseToCompact: boolean;
-};
-
-export type AnnotationLabelAppearance = {
-  fontSizePx?: number;
-  backgroundColor?: string;
-  textColor?: string;
-};
-
-export type BaseAnnotationEntry<TMode extends string = string> = {
-  id: string;
-  type: TMode;
-  timestamp: number;
-  isLivePreview?: boolean;
-  index?: number;
-  name?: string;
-  hidden?: boolean;
-  locked?: boolean;
-  temporary?: boolean;
-  auxiliaryLabelAnchor?: boolean;
-  metadata?: unknown;
-  derived?: unknown;
-  pointLabelMode?: PointLabelMetricMode;
-  labelAnchor?: AnnotationLabelAnchor;
-  labelAppearance?: AnnotationLabelAppearance;
-};
-
-export type AnnotationGeometryPoint = {
-  id: string;
-  longitude: number;
-  latitude: number;
-  height: number;
-  geometryECEF: SerializableCartesian3;
-  hidden?: boolean;
-  locked?: boolean;
-  pointLabelMode?: PointLabelMetricMode;
-  auxiliaryLabelAnchor?: boolean;
-  verticalOffsetAnchorECEF?: SerializableCartesian3;
-  labelAnchor?: AnnotationLabelAnchor;
-  labelAppearance?: AnnotationLabelAppearance;
-};
-
-export type AnnotationGeometryEdge = {
-  id: string;
-  pointAId: string;
-  pointBId: string;
-};
-
-export type PlanarPolygonGroupVertex = {
-  id: string;
-  groupId: string;
-  pointId: string;
-  order: number;
-};
-
-export type AnnotationPersistenceEnvelopeV2Base<TMeasurementEntry> = {
-  version: 2;
-  geometry: {
-    points: AnnotationGeometryPoint[];
-    edges: AnnotationGeometryEdge[];
-  };
-  tables: {
-    measurements: TMeasurementEntry[];
-    distanceRelations: PointDistanceRelation[];
-    planarPolygonGroups: PlanarPolygonGroup[];
-    planarPolygonGroupVertices: PlanarPolygonGroupVertex[];
-  };
+export type NodeChainAnnotation = NodeChainAnnotationBase & {
+  type: NodeChainAnnotationType;
 };

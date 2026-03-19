@@ -1,13 +1,18 @@
 /* eslint-disable jsx-a11y/no-static-element-interactions */
 /* eslint-disable jsx-a11y/click-events-have-key-events */
-import { useCallback, useContext, useEffect, useRef, useState } from "react";
+import { useCallback, useContext, useEffect, useRef } from "react";
 import { useInView } from "react-intersection-observer";
 import { useDispatch, useSelector } from "react-redux";
 
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 
-import { faEye, faEyeSlash, faX } from "@fortawesome/free-solid-svg-icons";
+import {
+  faEye,
+  faEyeSlash,
+  faFilter,
+  faX,
+} from "@fortawesome/free-solid-svg-icons";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import L from "leaflet";
 
@@ -16,31 +21,39 @@ import { TopicMapContext } from "react-cismap/contexts/TopicMapContextProvider";
 import type { Layer } from "@carma/types";
 import { cn, getHashParams } from "@carma-commons/utils";
 
-import { updateInfoElementsAfterRemovingFeature } from "../../store/slices/features";
+import {
+  getSelectedFeature,
+  setSelectedFeature as setSelectedFeatureAction,
+  updateInfoElementsAfterRemovingFeature,
+} from "../../store/slices/features";
 import {
   changeVisibility,
   getClickFromInfoView,
   getLayers,
   getSelectedLayerIndex,
+  getActiveInteractionLayerID,
   getShowLeftScrollButton,
   removeLayer,
   setClickFromInfoView,
   setSelectedLayerIndex,
   setSelectedLayerIndexNoSelection,
+  setActiveInteractionLayerID,
   setShowLeftScrollButton,
   setShowRightScrollButton,
   toggleUseInFeatureInfo,
+  getMaplibreMaps,
 } from "../../store/slices/mapping";
 import {
   UIMode,
   getUIMode,
   getUIShowLayerHideButtons,
+  triggerFeatureInfoUpdateAction,
 } from "../../store/slices/ui";
 import "./pulsing.css";
 import "./tabs.css";
 
 import { LayerButton, LayerIcon } from "@carma-mapping/components";
-import { Spin } from "antd";
+import { Badge, Spin } from "antd";
 import { LoadingOutlined } from "@ant-design/icons";
 import { useLayerLoading } from "@carma-mapping/utils";
 import { useAdhocFeatureDisplay } from "@carma-appframeworks/portals";
@@ -50,7 +63,6 @@ interface LayerButtonProps {
   title: string;
   id: string;
   index: number;
-  icon?: string;
   layer: Layer;
   background?: boolean;
   hide?: boolean;
@@ -60,7 +72,6 @@ const GeoportalLayerButton = ({
   title,
   id,
   index,
-  icon,
   layer,
   background,
   hide = false,
@@ -91,6 +102,7 @@ const GeoportalLayerButton = ({
   const showLayerHideButtons = useSelector(getUIShowLayerHideButtons);
   const showLeftScrollButton = useSelector(getShowLeftScrollButton);
   const clickFromInfoView = useSelector(getClickFromInfoView);
+  const activeInteractionLayerID = useSelector(getActiveInteractionLayerID);
   const mode = useSelector(getUIMode);
   const showSettings = index === selectedLayerIndex;
   const layers = useSelector(getLayers);
@@ -119,6 +131,12 @@ const GeoportalLayerButton = ({
     zoom < (layer.props.maxZoom ? layer.props.maxZoom : Infinity) &&
     zoom > (layer.props.minZoom ? layer.props.minZoom : 0);
   const map = routedMapRef?.leafletMap?.leafletElement as L.Map;
+
+  useEffect(() => {
+    if (hide && activeInteractionLayerID === id) {
+      dispatch(setActiveInteractionLayerID(null));
+    }
+  }, [hide, activeInteractionLayerID, id, dispatch]);
 
   useEffect(() => {
     if (!inView && selectedLayerIndex === index) {
@@ -211,6 +229,42 @@ const GeoportalLayerButton = ({
         {!background && (
           <>
             <span className="text-base ml-1">{title}</span>
+            {layer.filterConfig && (
+              <button
+                id={`filterLayerButton-${id}`}
+                className={cn("px-1.5 flex items-center justify-center")}
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  dispatch(
+                    setActiveInteractionLayerID(
+                      activeInteractionLayerID === id ? null : id
+                    )
+                  );
+                }}
+              >
+                <Badge
+                  count={
+                    layer.filterInfo && !layer.filterInfo.isShowingAll
+                      ? layer.filterInfo.activeCount
+                      : 0
+                  }
+                  size="small"
+                  color={"#4b5563"}
+                >
+                  <FontAwesomeIcon
+                    icon={faFilter}
+                    className={cn(
+                      "text-sm",
+                      activeInteractionLayerID === id
+                        ? "text-[#1677ff]"
+                        : "text-gray-600 hover:text-gray-500"
+                    )}
+                  />
+                </Badge>
+              </button>
+            )}
+
             <button
               id={`removeLayerButton-${id}`}
               className="hover:text-gray-500 text-gray-600 px-1.5 flex items-center justify-center"

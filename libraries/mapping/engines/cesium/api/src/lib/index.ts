@@ -72,6 +72,7 @@ export * from "./Color";
 export * from "./CustomShader";
 export * from "./EllipsoidTerrainProvider";
 export * from "./Globe";
+export * from "./GuidePrimitives";
 export * from "./GroundPrimitive";
 export * from "./HeadingPitchRange";
 export * from "./HeadingPitchRoll";
@@ -90,3 +91,8 @@ export * from "./ScreenSpaceEventHandler";
 export * from "./SingleTileImageryProvider";
 export * from "./TileMapServiceImageryProvider";
 export * from "./version";
+export type { Matrix4ConstructorArgs } from "./Matrix4";
+
+// custom low level utilities
+export * from "./CarmaTransforms";
+export * as CarmaTransforms from "./CarmaTransforms";

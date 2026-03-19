@@ -19,7 +19,7 @@ import {
   MapMeasurementsProvider,
   MEASUREMENT_MODE,
 } from "@carma-commons/measurements";
-import { CesiumAnnotationsProvider } from "@carma-mapping/annotations/cesium";
+import { AnnotationsProvider } from "@carma-mapping/annotations/runtime";
 import {
   CesiumContext,
   type CesiumContextType,
@@ -90,6 +90,10 @@ export const MeasurementCesiumStoryShell = ({
   const [providersReady, setProvidersReady] = useState(false);
   const [isViewerReady, setIsViewerReady] = useState(false);
   const [initialViewApplied, setInitialViewApplied] = useState(true);
+  const scene =
+    isViewerReady && widgetRef.current && !widgetRef.current.isDestroyed()
+      ? widgetRef.current.scene
+      : null;
 
   useEffect(() => {
     if (!cesiumContainerRef.current) return;
@@ -228,29 +232,26 @@ export const MeasurementCesiumStoryShell = ({
           }}
         >
           <LabelOverlayProvider containerRef={rootRef}>
-            <CesiumAnnotationsProvider
-              enabled={true}
-              options={{
-                persistenceEnabled: false,
-              }}
-            >
-              <div
-                style={{
-                  position: "absolute",
-                  top: 12,
-                  left: 12,
-                  width: overlayWidth,
-                  maxWidth: "calc(100% - 24px)",
-                  display: "flex",
-                  flexDirection: "column",
-                  gap: 10,
-                  pointerEvents: "none",
-                  zIndex: 10,
-                }}
-              >
-                <div style={{ pointerEvents: "auto" }}>{children}</div>
-              </div>
-            </CesiumAnnotationsProvider>
+            {scene ? (
+              <AnnotationsProvider enabled={true} cesiumScene={scene}>
+                <div
+                  style={{
+                    position: "absolute",
+                    top: 12,
+                    left: 12,
+                    width: overlayWidth,
+                    maxWidth: "calc(100% - 24px)",
+                    display: "flex",
+                    flexDirection: "column",
+                    gap: 10,
+                    pointerEvents: "none",
+                    zIndex: 10,
+                  }}
+                >
+                  <div style={{ pointerEvents: "auto" }}>{children}</div>
+                </div>
+              </AnnotationsProvider>
+            ) : null}
           </LabelOverlayProvider>
         </MapMeasurementsProvider>
       </CesiumContext.Provider>

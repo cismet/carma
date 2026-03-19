@@ -549,6 +549,10 @@ const ImageList = () => {
                               layer={parsedLayer || (layer as any)}
                               fallbackIcon={layer.icon}
                               displayUrl={true}
+                              iconPrefix={
+                                import.meta.env.VITE_WUPP_ASSET_BASEURL +
+                                "/geoportal/geoportal_icon_legends/"
+                              }
                               onError={handleIconError}
                             />
                           </div>
@@ -567,7 +571,6 @@ const ImageList = () => {
                             <LayerIcon
                               layer={parsedLayer || (layer as any)}
                               fallbackIcon={layer.icon}
-                              iconPrefix="https://geo.wuppertal.de/geoportal/geoportal_icon_legends/"
                               displayUrl={true}
                               onError={handleIconError}
                             />

@@ -54,6 +54,7 @@ import { SelectionItem, useSelection } from "@carma-appframeworks/portals";
 import { defaultLayerConf } from "@carma-appframeworks/portals";
 import { useMapHashRouting } from "@carma-appframeworks/portals";
 import { displayRouteOnMap } from "@carma-mapping/routing";
+import { ThreeLayerManager } from "./ThreeLayerManager";
 
 export interface GeoJsonData {
   sourceId: string;
@@ -66,6 +67,20 @@ export interface VectorStyle {
   layer?: string;
   opacity?: number;
   infoboxMapping?: string[];
+  /** Optional 3D layer config; when present, a Three.js layer is auto-created. */
+  carma3d?: import("@carma-mapping/engines/threejs").Carma3dConfig;
+}
+
+/**
+ * Additional raster paint properties for image manipulation (night mode, etc.).
+ * These map directly to MapLibre raster paint properties.
+ */
+export interface RasterPaintOverrides {
+  "raster-brightness-min"?: number; // 0–1, default 0
+  "raster-brightness-max"?: number; // 0–1, default 1
+  "raster-saturation"?: number; // -1–1, default 0 (-1 = grayscale)
+  "raster-contrast"?: number; // -1–1, default 0
+  "raster-hue-rotate"?: number; // degrees, default 0
 }
 
 export type LibreLayer =
@@ -82,8 +97,15 @@ export type LibreLayer =
       format?: string;
       opacity?: number;
       transparent?: boolean;
+      rasterPaint?: RasterPaintOverrides;
     }
-  | { type: "cog"; name: string; url: string; opacity?: number };
+  | {
+      type: "cog";
+      name: string;
+      url: string;
+      opacity?: number;
+      rasterPaint?: RasterPaintOverrides;
+    };
 
 export interface LibreMapProps {
   backgroundLayers?: string | null;
@@ -134,6 +156,14 @@ export interface LibreMapProps {
   overrideSelectedFeature?: Record<string, unknown> | null;
   /** Show gazetteer selection info when clicking on empty map area (default: true) */
   gazetteerInfoOnClick?: boolean;
+  /** Raster paint overrides applied to all background raster layers (night mode, etc.) */
+  backgroundRasterPaint?: RasterPaintOverrides;
+  /** Runtime parameters for 3D layers (e.g. radiusMix, useLoft) */
+  threeRuntimeParams?: Record<string, number>;
+  /** Ref for 3D layer performance data */
+  threePerfRef?: React.MutableRefObject<
+    import("@carma-mapping/engines/threejs").ThreePerfData
+  >;
 }
 
 export const LibreMap = ({
@@ -155,6 +185,9 @@ export const LibreMap = ({
   exposeMapToWindow = false,
   overrideSelectedFeature,
   gazetteerInfoOnClick = true,
+  backgroundRasterPaint,
+  threeRuntimeParams,
+  threePerfRef,
 }: LibreMapProps) => {
   const mapContainer = useRef<HTMLDivElement>(null);
   const map = useRef<maplibregl.Map | null>(null);
@@ -180,6 +213,9 @@ export const LibreMap = ({
   const isIdleRef = useRef(false);
   const vectorSourcesReadyRef = useRef(false);
   const [selectedFeature, setSelectedFeature] = useState(null);
+  const [detectedCarma3dConfigs, setDetectedCarma3dConfigs] = useState<
+    import("@carma-mapping/engines/threejs").Carma3dConfig[]
+  >([]);
   const geoJsonMetadataRef = useRef<
     Array<{ sourceId: string; uniqueColors: string[] }>
   >([]);
@@ -446,6 +482,33 @@ export const LibreMap = ({
     () => buildBackgroundStyle(),
     [backgroundLayers]
   );
+
+  // Imperatively apply/clear raster paint overrides on background layers
+  // so that toggling night mode doesn't rebuild the entire style (which
+  // would reset vector layer visibility, selection state, etc.).
+  // Also updates the context mapStyle so the preview map stays in sync.
+  useEffect(() => {
+    if (!map.current || !map.current.isStyleLoaded()) return;
+
+    const defaults: Required<RasterPaintOverrides> = {
+      "raster-brightness-min": 0,
+      "raster-brightness-max": 1,
+      "raster-saturation": 0,
+      "raster-contrast": 0,
+      "raster-hue-rotate": 0,
+    };
+    const paint = backgroundRasterPaint ?? defaults;
+
+    for (const layer of map.current.getStyle().layers ?? []) {
+      if (layer.type !== "raster") continue;
+      for (const [key, value] of Object.entries(paint)) {
+        map.current.setPaintProperty(layer.id, key, value);
+      }
+    }
+
+    // Push the updated style into context so PreviewLibreMap picks it up
+    setMapStyle(map.current.getStyle());
+  }, [backgroundRasterPaint, setMapStyle]);
 
   // Stable callbacks for useImperativeStyle
   const handleImperativeMappingUpdate = useCallback(
@@ -839,6 +902,51 @@ export const LibreMap = ({
           // Update context with the full map style
           setMapStyle(style);
 
+          // Detect carma3d configs from style metadata and explicit layer props
+          {
+            const configs: import("@carma-mapping/engines/threejs").Carma3dConfig[] =
+              [];
+            const sourceToIdx = new Map<string, number>();
+
+            for (const layer of style.layers ?? []) {
+              const meta = (layer as any).metadata?.carmaConf?.["3d"];
+              if (!meta) continue;
+              const sourceId = meta.sourceId ?? (layer as any).source;
+              const sourceLayer =
+                meta.sourceLayer ?? (layer as any)["source-layer"];
+              if (!sourceId) continue;
+
+              if (!sourceToIdx.has(sourceId)) {
+                sourceToIdx.set(sourceId, configs.length);
+                configs.push({
+                  ...meta,
+                  sourceId,
+                  sourceLayer,
+                  skipIn2DLayerIds: [],
+                });
+              }
+
+              // Collect layer IDs that should be hidden in 2D
+              if (meta.skipIn2D) {
+                const idx = sourceToIdx.get(sourceId)!;
+                configs[idx].skipIn2DLayerIds!.push((layer as any).id);
+              }
+            }
+
+            for (const l of effectiveLayers ?? []) {
+              const propConfig = (l as any).carma3d;
+              if (
+                propConfig?.sourceId &&
+                !sourceToIdx.has(propConfig.sourceId)
+              ) {
+                sourceToIdx.set(propConfig.sourceId, configs.length);
+                configs.push(propConfig);
+              }
+            }
+
+            setDetectedCarma3dConfigs(configs);
+          }
+
           // Refresh hiding forwarding manager with new style (after style is fully loaded)
           // Use 'idle' event to ensure style is completely processed, not 'styledata' which fires early
           const startHidingManager = () => {
@@ -888,6 +996,7 @@ export const LibreMap = ({
                     type: "raster",
                     paint: {
                       "raster-opacity": layer.opacity ?? 1,
+                      ...layer.rasterPaint,
                     },
                   },
                   beforeId
@@ -1283,6 +1392,17 @@ export const LibreMap = ({
       <div className="map-wrap">
         <div ref={mapContainer} className="map" />
       </div>
+
+      {/* Auto-detect carma3d configs from style metadata + explicit layer props */}
+      {threeRuntimeParams &&
+        detectedCarma3dConfigs.map((config) => (
+          <ThreeLayerManager
+            key={config.sourceId}
+            config={config}
+            runtimeParams={threeRuntimeParams}
+            perfRef={threePerfRef}
+          />
+        ))}
     </>
   );
 };

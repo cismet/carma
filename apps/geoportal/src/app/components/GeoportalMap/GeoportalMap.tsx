@@ -109,8 +109,13 @@ import {
   getLayersIdle,
   getShowHamburgerMenu,
   setLayersIdle,
+  setMaplibreMaps as setMaplibreMapsStore,
 } from "../../store/slices/mapping.ts";
-import { getUIMode, UIMode } from "../../store/slices/ui.ts";
+import {
+  getUIMode,
+  UIMode,
+  getTriggerFeatureInfoUpdate,
+} from "../../store/slices/ui.ts";
 
 import LoginForm from "../LoginForm.tsx";
 import { useModelSelectionDispatcher } from "../../hooks/useModelSelectionDispatcher.ts";
@@ -120,6 +125,7 @@ import { CESIUM_CONFIG, LEAFLET_CONFIG } from "../../config/app.config";
 import "cesium/Build/Cesium/Widgets/widgets.css";
 import "../leaflet.css";
 import AdhocSelectionSync from "../feature-info/AdhocSelectionSync.tsx";
+import { selectionPadding } from "../../constants/selection.ts";
 
 interface MapProps {
   height: number;
@@ -149,6 +155,7 @@ export const GeoportalMap = ({ height, width, allow3d }: MapProps) => {
   const container3dMapRef = useRef<HTMLDivElement>(null);
   // Store MapLibre maps outside Redux to avoid serialization issues
   const maplibreMapsRef = useRef<Map<string, MaplibreMap>>(new Map());
+  const selectionSemanticIdentifierRef = useRef<string | undefined>(undefined);
   // Cache fly-to spheres per terrain provider so elevations stay provider-specific.
   const flyToSphereCacheByProviderRef = useRef<
     WeakMap<CesiumTerrainProvider, Map<string, BoundingSphere>>
@@ -240,6 +247,7 @@ export const GeoportalMap = ({ height, width, allow3d }: MapProps) => {
   const [shouldUpdateFeatureInfo, setShouldUpdateFeatureInfo] =
     useState<boolean>(false);
   const layersIdle = useSelector(getLayersIdle);
+  const triggerFeatureInfoUpdate = useSelector(getTriggerFeatureInfoUpdate);
 
   useEffect(() => {
     const maps = layers
@@ -420,11 +428,14 @@ export const GeoportalMap = ({ height, width, allow3d }: MapProps) => {
   const onComplete = useCallback(
     (selection: SelectionItem) => {
       if (layers.filter((l) => l.layerType === "vector").length === 0) return;
+      selectionSemanticIdentifierRef.current =
+        selection.semanticIdentifier ?? undefined;
       // Note: This callback is only called from useSelectionTopicMap for Leaflet selections
       // No need to check getIsLeaflet() here - it's redundant and causes stale closure issues
       if (
         (uiMode === UIMode.DEFAULT || uiMode === UIMode.FEATURE_INFO) &&
-        !isAreaType(selection.type as ENDPOINT)
+        !isAreaType(selection.type as ENDPOINT) &&
+        !getIsCesium()
       ) {
         const selectedPos = getFromWebMercatorToWGS84([
           selection.x,
@@ -503,6 +514,7 @@ export const GeoportalMap = ({ height, width, allow3d }: MapProps) => {
   const selectionTopicMapOptions = useMemo(
     () => ({
       onComplete,
+      padding: selectionPadding,
     }),
     [onComplete]
   );
@@ -682,10 +694,11 @@ export const GeoportalMap = ({ height, width, allow3d }: MapProps) => {
   );
 
   useEffect(() => {
-    if (shouldUpdateFeatureInfo) updateFeatureInfoLeaflet();
+    if (shouldUpdateFeatureInfo || triggerFeatureInfoUpdate > 0)
+      updateFeatureInfoLeaflet();
 
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [shouldUpdateFeatureInfo]);
+  }, [shouldUpdateFeatureInfo, triggerFeatureInfoUpdate]);
 
   const topicMapLocationChangedHandler = useCallback(
     (p: { lat: number; lng: number; zoom: number }) => {
@@ -743,6 +756,8 @@ export const GeoportalMap = ({ height, width, allow3d }: MapProps) => {
       leafletMap: getLeafletMap(),
       maplibreMapsRef,
       store,
+      selectionSemanticIdentifierRef,
+      setMaplibreMaps: (entry) => dispatch(setMaplibreMapsStore(entry)),
     }),
     [
       uiMode,
@@ -751,6 +766,7 @@ export const GeoportalMap = ({ height, width, allow3d }: MapProps) => {
       selectedFeature,
       getLeafletMap,
       maplibreMapsRef,
+      setMaplibreMapsStore,
     ]
   );
 

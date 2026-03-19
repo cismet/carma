@@ -19,6 +19,24 @@ const EXTENDED_RIGHT_EXTRA_PADDING_PX = 2;
 const GROW_SHRINK_WIDTH_TRANSITION_MS = 200;
 const SHRINK_WIDTH_TRANSITION_DELAY_MS = 3000;
 
+const setNullableNumberStateIfChanged = (
+  setState: React.Dispatch<React.SetStateAction<number | null>>,
+  nextValue: number | null
+) => {
+  setState((previousValue) =>
+    previousValue === nextValue ? previousValue : nextValue
+  );
+};
+
+const setNumberStateIfChanged = (
+  setState: React.Dispatch<React.SetStateAction<number>>,
+  nextValue: number
+) => {
+  setState((previousValue) =>
+    previousValue === nextValue ? previousValue : nextValue
+  );
+};
+
 const estimateCompactAnchorOffsetPx = (fontSize: string): number => {
   const parsed = Number.parseFloat(fontSize);
   if (!Number.isFinite(parsed) || parsed <= 0) return 8;
@@ -54,8 +72,8 @@ interface PillbuttonLabelMarkerProps {
   onDoubleClick: (event: React.MouseEvent<HTMLDivElement>) => void;
   onMouseDown: (event: React.MouseEvent<HTMLDivElement>) => void;
   onMouseUp: () => void;
-  onMouseEnter: () => void;
-  onMouseLeave: () => void;
+  onMouseEnter: (event: React.MouseEvent<HTMLDivElement>) => void;
+  onMouseLeave: (event: React.MouseEvent<HTMLDivElement>) => void;
 }
 
 export const PillbuttonLabelMarker = ({
@@ -150,13 +168,14 @@ export const PillbuttonLabelMarker = ({
   useLayoutEffect(() => {
     const el = compactRef.current;
     if (!el || !hasCompact) {
-      setCompactWidthPx(null);
+      setNullableNumberStateIfChanged(setCompactWidthPx, null);
       return;
     }
     const scrollW = Math.ceil(el.scrollWidth);
     const circlePx = el.offsetHeight;
     if (shouldForceCompactPill || scrollW > circlePx) {
-      setCompactWidthPx(
+      setNullableNumberStateIfChanged(
+        setCompactWidthPx,
         Math.max(
           scrollW +
             COMPACT_HORIZONTAL_PADDING_PX * 2 +
@@ -166,7 +185,7 @@ export const PillbuttonLabelMarker = ({
         )
       );
     } else {
-      setCompactWidthPx(null);
+      setNullableNumberStateIfChanged(setCompactWidthPx, null);
     }
   }, [
     hasCompact,
@@ -189,9 +208,9 @@ export const PillbuttonLabelMarker = ({
   useLayoutEffect(() => {
     if (resizeMode !== "fast-grow-slow-shrink" || !showExtended) {
       previousExtendedWidthPxRef.current = null;
-      setAnimatedExtendedWidthPx(null);
-      setExtendedWidthTransitionMs(0);
-      setExtendedWidthTransitionDelayMs(0);
+      setNullableNumberStateIfChanged(setAnimatedExtendedWidthPx, null);
+      setNumberStateIfChanged(setExtendedWidthTransitionMs, 0);
+      setNumberStateIfChanged(setExtendedWidthTransitionDelayMs, 0);
       return;
     }
 
@@ -202,20 +221,29 @@ export const PillbuttonLabelMarker = ({
     const previousWidthPx = previousExtendedWidthPxRef.current;
 
     if (previousWidthPx === null) {
-      setExtendedWidthTransitionMs(0);
-      setExtendedWidthTransitionDelayMs(0);
+      setNumberStateIfChanged(setExtendedWidthTransitionMs, 0);
+      setNumberStateIfChanged(setExtendedWidthTransitionDelayMs, 0);
     } else if (nextWidthPx > previousWidthPx) {
-      setExtendedWidthTransitionMs(GROW_SHRINK_WIDTH_TRANSITION_MS);
-      setExtendedWidthTransitionDelayMs(0);
+      setNumberStateIfChanged(
+        setExtendedWidthTransitionMs,
+        GROW_SHRINK_WIDTH_TRANSITION_MS
+      );
+      setNumberStateIfChanged(setExtendedWidthTransitionDelayMs, 0);
     } else if (nextWidthPx < previousWidthPx) {
-      setExtendedWidthTransitionMs(GROW_SHRINK_WIDTH_TRANSITION_MS);
-      setExtendedWidthTransitionDelayMs(SHRINK_WIDTH_TRANSITION_DELAY_MS);
+      setNumberStateIfChanged(
+        setExtendedWidthTransitionMs,
+        GROW_SHRINK_WIDTH_TRANSITION_MS
+      );
+      setNumberStateIfChanged(
+        setExtendedWidthTransitionDelayMs,
+        SHRINK_WIDTH_TRANSITION_DELAY_MS
+      );
     } else {
-      setExtendedWidthTransitionDelayMs(0);
+      setNumberStateIfChanged(setExtendedWidthTransitionDelayMs, 0);
     }
 
     previousExtendedWidthPxRef.current = nextWidthPx;
-    setAnimatedExtendedWidthPx(nextWidthPx);
+    setNullableNumberStateIfChanged(setAnimatedExtendedWidthPx, nextWidthPx);
   }, [resizeMode, showExtended, content, fontFamily, fontSize, fontWeight]);
 
   const getCompactStylesByMountSide = (

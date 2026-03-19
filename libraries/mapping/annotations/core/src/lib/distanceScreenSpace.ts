@@ -1,11 +1,11 @@
+import { clamp } from "@carma-commons/math";
+import type { CssPixelPosition } from "@carma/units/types";
+
 export type PointDistanceRelationLike = {
   showVerticalLine?: boolean;
   showHorizontalLine?: boolean;
   showComponentLines?: boolean;
 };
-
-const clamp = (value: number, min: number, max: number) =>
-  Math.max(min, Math.min(max, value));
 
 export const isDistanceRelationVerticalLineVisible = (
   relation: PointDistanceRelationLike
@@ -24,15 +24,185 @@ export const hasVisibleDistanceRelationComponentLines = (
 export const normalizeLabelAngleDeg = (angleDeg: number) =>
   angleDeg > 90 || angleDeg < -90 ? angleDeg + 180 : angleDeg;
 
-export type ScreenPoint2D = {
-  x: number;
-  y: number;
+export type DistanceScreenTriangle = {
+  anchor: CssPixelPosition;
+  target: CssPixelPosition;
+  aux: CssPixelPosition;
+  centroid: CssPixelPosition;
+  highest: CssPixelPosition;
+};
+
+export type VerticalDistanceLineScreenData = {
+  start: CssPixelPosition;
+  end: CssPixelPosition;
+  insideSign: -1 | 1;
+  midX: number;
+  midY: number;
+  normalX: number;
+  normalY: number;
+  lineLength: number;
+};
+
+const resolveStableSideSign = (
+  signedDistance: number,
+  previousSign: -1 | 1 | undefined,
+  flipThresholdPx = 4
+): -1 | 1 => {
+  if (!Number.isFinite(signedDistance)) return previousSign ?? 1;
+  const nextSign: -1 | 1 = signedDistance >= 0 ? 1 : -1;
+  if (!previousSign || previousSign === nextSign) return nextSign;
+  if (Math.abs(signedDistance) < flipThresholdPx) return previousSign;
+  return nextSign;
+};
+
+export const buildOutsideReferencePoint2D = (
+  start: CssPixelPosition,
+  end: CssPixelPosition,
+  insidePoint: CssPixelPosition,
+  minDistancePx = 24,
+  maxDistancePx = 48
+): CssPixelPosition | null => {
+  const dx = end.x - start.x;
+  const dy = end.y - start.y;
+  const lineLength = Math.hypot(dx, dy);
+  if (lineLength <= 1e-3) return null;
+  const midX = (start.x + end.x) * 0.5;
+  const midY = (start.y + end.y) * 0.5;
+  const normalX = -dy / lineLength;
+  const normalY = dx / lineLength;
+  const dot =
+    (insidePoint.x - midX) * normalX + (insidePoint.y - midY) * normalY;
+  const insideSign = dot >= 0 ? 1 : -1;
+  const referenceDistancePx = clamp(
+    lineLength * 0.2,
+    minDistancePx,
+    maxDistancePx
+  );
+  return {
+    x: midX + normalX * insideSign * referenceDistancePx,
+    y: midY + normalY * insideSign * referenceDistancePx,
+  } as CssPixelPosition;
+};
+
+export const buildDistanceTriangleInsidePoint2D = ({
+  triangle,
+  auxiliaryAltitudeMeters,
+  highestAltitudeMeters,
+  insideBlendFactor = 0.35,
+  elevationEpsilonMeters = 0.001,
+}: {
+  triangle: DistanceScreenTriangle;
+  auxiliaryAltitudeMeters: number;
+  highestAltitudeMeters: number;
+  insideBlendFactor?: number;
+  elevationEpsilonMeters?: number;
+}): CssPixelPosition => {
+  const elevationDriverPoint =
+    auxiliaryAltitudeMeters < highestAltitudeMeters - elevationEpsilonMeters
+      ? triangle.highest
+      : triangle.aux;
+  return {
+    x:
+      elevationDriverPoint.x +
+      (triangle.centroid.x - elevationDriverPoint.x) * insideBlendFactor,
+    y:
+      elevationDriverPoint.y +
+      (triangle.centroid.y - elevationDriverPoint.y) * insideBlendFactor,
+  } as CssPixelPosition;
+};
+
+export const buildVerticalDistanceLineScreenData = ({
+  triangle,
+  previousInsideSign,
+  flipThresholdPx = 4,
+}: {
+  triangle: DistanceScreenTriangle;
+  previousInsideSign?: -1 | 1;
+  flipThresholdPx?: number;
+}): VerticalDistanceLineScreenData | null => {
+  let start = triangle.anchor;
+  let end = triangle.aux;
+  const inside = triangle.target;
+
+  const computeEdgeMetrics = (
+    nextStart: CssPixelPosition,
+    nextEnd: CssPixelPosition
+  ): {
+    midX: number;
+    midY: number;
+    normalX: number;
+    normalY: number;
+    lineLength: number;
+    insideDot: number;
+  } | null => {
+    const dx = nextEnd.x - nextStart.x;
+    const dy = nextEnd.y - nextStart.y;
+    const lineLength = Math.hypot(dx, dy);
+    if (lineLength <= 1e-3) return null;
+    const midX = (nextStart.x + nextEnd.x) * 0.5;
+    const midY = (nextStart.y + nextEnd.y) * 0.5;
+    const normalX = -dy / lineLength;
+    const normalY = dx / lineLength;
+    const insideDot = (inside.x - midX) * normalX + (inside.y - midY) * normalY;
+    return {
+      midX,
+      midY,
+      normalX,
+      normalY,
+      lineLength,
+      insideDot,
+    };
+  };
+
+  let edge = computeEdgeMetrics(start, end);
+  if (!edge) return null;
+
+  const insideSign = resolveStableSideSign(
+    edge.insideDot,
+    previousInsideSign,
+    flipThresholdPx
+  );
+
+  if (insideSign < 0) {
+    start = triangle.aux;
+    end = triangle.anchor;
+    edge = computeEdgeMetrics(start, end);
+    if (!edge) return null;
+  }
+
+  return {
+    start,
+    end,
+    insideSign,
+    midX: edge.midX,
+    midY: edge.midY,
+    normalX: edge.normalX,
+    normalY: edge.normalY,
+    lineLength: edge.lineLength,
+  };
+};
+
+export const buildVerticalLabelReferencePoint2D = (
+  edge: VerticalDistanceLineScreenData,
+  minDistancePx = 24,
+  maxDistancePx = 48
+): CssPixelPosition => {
+  const referenceDistancePx = clamp(
+    edge.lineLength * 0.2,
+    minDistancePx,
+    maxDistancePx
+  );
+
+  return {
+    x: edge.midX + edge.normalX * edge.insideSign * referenceDistancePx,
+    y: edge.midY + edge.normalY * edge.insideSign * referenceDistancePx,
+  } as CssPixelPosition;
 };
 
 const isPointOnSegment2D = (
-  point: ScreenPoint2D,
-  start: ScreenPoint2D,
-  end: ScreenPoint2D,
+  point: CssPixelPosition,
+  start: CssPixelPosition,
+  end: CssPixelPosition,
   tolerancePx = 1e-6
 ) => {
   const segmentX = end.x - start.x;
@@ -52,9 +222,9 @@ const isPointOnSegment2D = (
 };
 
 const distancePointToSegment2D = (
-  point: ScreenPoint2D,
-  start: ScreenPoint2D,
-  end: ScreenPoint2D
+  point: CssPixelPosition,
+  start: CssPixelPosition,
+  end: CssPixelPosition
 ) => {
   const segmentX = end.x - start.x;
   const segmentY = end.y - start.y;
@@ -73,15 +243,15 @@ const distancePointToSegment2D = (
 };
 
 const closestPointOnSegment2D = (
-  point: ScreenPoint2D,
-  start: ScreenPoint2D,
-  end: ScreenPoint2D
-): ScreenPoint2D => {
+  point: CssPixelPosition,
+  start: CssPixelPosition,
+  end: CssPixelPosition
+): CssPixelPosition => {
   const segmentX = end.x - start.x;
   const segmentY = end.y - start.y;
   const segmentLengthSquared = segmentX * segmentX + segmentY * segmentY;
   if (segmentLengthSquared <= 1e-12) {
-    return { x: start.x, y: start.y };
+    return { x: start.x, y: start.y } as CssPixelPosition;
   }
 
   const projection =
@@ -91,12 +261,12 @@ const closestPointOnSegment2D = (
   return {
     x: start.x + segmentX * t,
     y: start.y + segmentY * t,
-  };
+  } as CssPixelPosition;
 };
 
 export const isPointInsidePolygon2D = (
-  polygonPoints: ScreenPoint2D[],
-  point: ScreenPoint2D
+  polygonPoints: CssPixelPosition[],
+  point: CssPixelPosition
 ) => {
   if (polygonPoints.length < 3) return false;
 
@@ -128,7 +298,7 @@ export const isPointInsidePolygon2D = (
   return inside;
 };
 
-export const computePolygonArea2D = (points: ScreenPoint2D[]) => {
+export const computePolygonArea2D = (points: CssPixelPosition[]) => {
   if (points.length < 3) return 0;
   let areaAccumulator = 0;
   for (let i = 0; i < points.length; i += 1) {
@@ -141,8 +311,8 @@ export const computePolygonArea2D = (points: ScreenPoint2D[]) => {
 };
 
 export const computeDistanceToPolygonEdges2D = (
-  polygonPoints: ScreenPoint2D[],
-  point: ScreenPoint2D
+  polygonPoints: CssPixelPosition[],
+  point: CssPixelPosition
 ) => {
   if (polygonPoints.length < 2) return 0;
 
@@ -160,7 +330,7 @@ export const computeDistanceToPolygonEdges2D = (
   return Number.isFinite(minDistancePx) ? minDistancePx : 0;
 };
 
-export const computePolygonCentroid2D = (points: ScreenPoint2D[]) => {
+export const computePolygonCentroid2D = (points: CssPixelPosition[]) => {
   if (points.length < 3) return null;
 
   let signedArea = 0;
@@ -183,18 +353,18 @@ export const computePolygonCentroid2D = (points: ScreenPoint2D[]) => {
       points.reduce((sum, point) => sum + point.x, 0) / points.length;
     const avgY =
       points.reduce((sum, point) => sum + point.y, 0) / points.length;
-    return { x: avgX, y: avgY };
+    return { x: avgX, y: avgY } as CssPixelPosition;
   }
 
   const factor = 1 / (6 * signedArea);
   return {
     x: centroidX * factor,
     y: centroidY * factor,
-  };
+  } as CssPixelPosition;
 };
 
 export type LargestInscribedPoint2D = {
-  center: ScreenPoint2D;
+  center: CssPixelPosition;
   radiusPx: number;
 };
 
@@ -207,8 +377,8 @@ type PolylabelCell = {
 };
 
 const computeSignedDistanceToPolygon2D = (
-  polygonPoints: ScreenPoint2D[],
-  point: ScreenPoint2D
+  polygonPoints: CssPixelPosition[],
+  point: CssPixelPosition
 ) => {
   const distancePx = computeDistanceToPolygonEdges2D(polygonPoints, point);
   const isInside = isPointInsidePolygon2D(polygonPoints, point);
@@ -216,12 +386,15 @@ const computeSignedDistanceToPolygon2D = (
 };
 
 const createPolylabelCell = (
-  polygonPoints: ScreenPoint2D[],
+  polygonPoints: CssPixelPosition[],
   x: number,
   y: number,
   h: number
 ): PolylabelCell => {
-  const d = computeSignedDistanceToPolygon2D(polygonPoints, { x, y });
+  const d = computeSignedDistanceToPolygon2D(polygonPoints, {
+    x,
+    y,
+  } as CssPixelPosition);
   return {
     x,
     y,
@@ -232,7 +405,7 @@ const createPolylabelCell = (
 };
 
 const findInteriorSamplePoint2D = (
-  polygonPoints: ScreenPoint2D[],
+  polygonPoints: CssPixelPosition[],
   gridResolution = 18
 ): LargestInscribedPoint2D | null => {
   if (polygonPoints.length < 3) return null;
@@ -246,7 +419,7 @@ const findInteriorSamplePoint2D = (
   if (width <= 0 || height <= 0) return null;
 
   const samplesPerAxis = Math.max(6, Math.floor(gridResolution));
-  let bestPoint: ScreenPoint2D | null = null;
+  let bestPoint: CssPixelPosition | null = null;
   let bestRadiusPx = Number.NEGATIVE_INFINITY;
 
   for (let row = 0; row <= samplesPerAxis; row += 1) {
@@ -255,7 +428,7 @@ const findInteriorSamplePoint2D = (
     for (let col = 0; col <= samplesPerAxis; col += 1) {
       const tX = col / samplesPerAxis;
       const x = minX + width * tX;
-      const candidate = { x, y };
+      const candidate = { x, y } as CssPixelPosition;
       if (!isPointInsidePolygon2D(polygonPoints, candidate)) continue;
       const radiusPx = computeDistanceToPolygonEdges2D(
         polygonPoints,
@@ -279,7 +452,7 @@ const findInteriorSamplePoint2D = (
 };
 
 const computePolygonCentroidCell2D = (
-  polygonPoints: ScreenPoint2D[]
+  polygonPoints: CssPixelPosition[]
 ): PolylabelCell | null => {
   const centroid = computePolygonCentroid2D(polygonPoints);
   if (!centroid) return null;
@@ -287,7 +460,7 @@ const computePolygonCentroidCell2D = (
 };
 
 export const findLargestInscribedPoint2D = (
-  polygonPoints: ScreenPoint2D[],
+  polygonPoints: CssPixelPosition[],
   precisionPx = 0.5,
   maxCellsToProcess = 20000
 ): LargestInscribedPoint2D | null => {
@@ -388,23 +561,23 @@ export const findLargestInscribedPoint2D = (
   }
 
   return {
-    center: { x: bestCell.x, y: bestCell.y },
+    center: { x: bestCell.x, y: bestCell.y } as CssPixelPosition,
     radiusPx: Math.max(0, bestCell.d),
   };
 };
 
 export const coercePointInsidePolygon2D = (
-  polygonPoints: ScreenPoint2D[],
-  point: ScreenPoint2D,
-  fallbackPoint?: ScreenPoint2D | null
-): ScreenPoint2D | null => {
+  polygonPoints: CssPixelPosition[],
+  point: CssPixelPosition,
+  fallbackPoint?: CssPixelPosition | null
+): CssPixelPosition | null => {
   if (polygonPoints.length < 3) return null;
   if (isPointInsidePolygon2D(polygonPoints, point)) return point;
   if (fallbackPoint && isPointInsidePolygon2D(polygonPoints, fallbackPoint)) {
     return fallbackPoint;
   }
 
-  let nearestBoundaryPoint: ScreenPoint2D | null = null;
+  let nearestBoundaryPoint: CssPixelPosition | null = null;
   let nearestDistancePx = Number.POSITIVE_INFINITY;
 
   for (let i = 0; i < polygonPoints.length; i += 1) {
@@ -441,7 +614,7 @@ export const coercePointInsidePolygon2D = (
         const candidate = {
           x: nearestBoundaryPoint.x + normX * stepPx,
           y: nearestBoundaryPoint.y + normY * stepPx,
-        };
+        } as CssPixelPosition;
         if (isPointInsidePolygon2D(polygonPoints, candidate)) {
           return candidate;
         }
@@ -466,11 +639,11 @@ export type PolygonLabelFitMetrics = {
   maxInscribedRadiusPx: number;
   requiredRadiusPx: number;
   fitsInsidePolygon: boolean;
-  bestAnchor: ScreenPoint2D | null;
+  bestAnchor: CssPixelPosition | null;
 };
 
 export const computePolygonLabelFitMetrics = (
-  polygonPoints: ScreenPoint2D[],
+  polygonPoints: CssPixelPosition[],
   labelWidthPx: number,
   labelHeightPx: number
 ): PolygonLabelFitMetrics => {

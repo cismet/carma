@@ -31,13 +31,5 @@ export { usePointLabels, type PointLabelData } from "./lib/usePointLabels";
 export {
   useLineVisualizers,
   type LineVisualizerData,
-  type ScreenPoint,
 } from "./lib/useLineVisualizers";
 export * from "./lib/pointLabelLayout";
-
-// Formatters for label text
-export {
-  formatNumberToEnclosed,
-  formatDistance,
-  createPointLabelText,
-} from "./lib/utils/formatters";

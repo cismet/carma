@@ -868,6 +868,33 @@
       },
       "projectPath": "./dist/playgrounds/cesium-reference"
     },
+    "annotations": {
+      "deployment": {
+        "manual": {
+          "dev": {
+            "pages": {
+              "org": "carma-dev-playground-deployments",
+              "prj": "annotations"
+            }
+          },
+          "live": {
+            "pages": {
+              "org": "carma-dev-playground-deployments",
+              "prj": "annotations"
+            }
+          }
+        },
+        "auto": {
+          "dev": {
+            "pages": {
+              "org": "carma-dev-playground-deployments",
+              "prj": "annotations"
+            }
+          }
+        }
+      },
+      "projectPath": "./dist/playgrounds/annotations"
+    },
     "vector": {
       "deployment": {
         "manual": {

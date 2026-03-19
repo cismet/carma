@@ -4,13 +4,12 @@ import {
   ANNOTATION_TYPE_AREA_VERTICAL,
   ANNOTATION_TYPE_POLYLINE,
   type AnnotationType,
-  type PlanarSurfaceType,
 } from "./types/annotationTypes";
+import type { NodeChainAnnotationType } from "./types/annotationTypes";
 
-export type PlanarPolygonGroupLike = {
+export type PolygonAnnotationLike = {
   id: string;
-  closed: boolean;
-  surfaceType?: PlanarSurfaceType;
+  type: NodeChainAnnotationType;
   edgeRelationIds: readonly string[];
 };
 
@@ -41,43 +40,36 @@ const createEditableLineRelationIdsByKind = (): Record<
 });
 
 const resolveEditableLineMeasurementKind = (
-  group: Pick<PlanarPolygonGroupLike, "closed" | "surfaceType">
-): EditableLineMeasurementKind => {
-  if (!group.closed) {
-    return ANNOTATION_TYPE_POLYLINE;
-  }
-
-  const surfaceType = group.surfaceType ?? "roof";
-  if (surfaceType === "facade") {
-    return ANNOTATION_TYPE_AREA_VERTICAL;
-  }
-  if (surfaceType === "roof") {
-    return ANNOTATION_TYPE_AREA_PLANAR;
-  }
-  return ANNOTATION_TYPE_AREA_GROUND;
-};
+  group: Pick<PolygonAnnotationLike, "type">
+): EditableLineMeasurementKind | null =>
+  EDITABLE_LINE_MEASUREMENT_KINDS.includes(
+    group.type as EditableLineMeasurementKind
+  )
+    ? (group.type as EditableLineMeasurementKind)
+    : null;
 
 export const getSplitMarkerRelationIdsByKind = (
-  planarPolygonGroups: readonly PlanarPolygonGroupLike[]
+  nodeChainAnnotations: readonly PolygonAnnotationLike[]
 ): EditableLineRelationIdsByKind => {
   const byKind = createEditableLineRelationIdsByKind();
-  planarPolygonGroups.forEach((group) => {
-    const measurementKind = resolveEditableLineMeasurementKind(group);
+  nodeChainAnnotations.forEach((group) => {
+    const type = resolveEditableLineMeasurementKind(group);
+    if (!type) return;
     group.edgeRelationIds.forEach((edgeRelationId) => {
       if (!edgeRelationId) return;
-      byKind[measurementKind].add(edgeRelationId);
+      byKind[type].add(edgeRelationId);
     });
   });
   return byKind;
 };
 
 export const getSplitMarkerRelationIds = (
-  planarPolygonGroups: readonly PlanarPolygonGroupLike[]
+  nodeChainAnnotations: readonly PolygonAnnotationLike[]
 ): ReadonlySet<string> => {
-  const byKind = getSplitMarkerRelationIdsByKind(planarPolygonGroups);
+  const byKind = getSplitMarkerRelationIdsByKind(nodeChainAnnotations);
   const allRelationIds = new Set<string>();
-  EDITABLE_LINE_MEASUREMENT_KINDS.forEach((measurementKind) => {
-    byKind[measurementKind].forEach((relationId) => {
+  EDITABLE_LINE_MEASUREMENT_KINDS.forEach((type) => {
+    byKind[type].forEach((relationId) => {
       allRelationIds.add(relationId);
     });
   });
@@ -85,12 +77,12 @@ export const getSplitMarkerRelationIds = (
 };
 
 export const getSplitMarkerRelationIdsForGroups = (
-  planarPolygonGroups: readonly PlanarPolygonGroupLike[],
+  nodeChainAnnotations: readonly PolygonAnnotationLike[],
   groupIds: ReadonlySet<string>
 ): ReadonlySet<string> => {
   if (groupIds.size === 0) return new Set<string>();
   const relationIds = new Set<string>();
-  planarPolygonGroups.forEach((group) => {
+  nodeChainAnnotations.forEach((group) => {
     if (!groupIds.has(group.id)) return;
     group.edgeRelationIds.forEach((relationId) => {
       if (!relationId) return;
@@ -101,55 +93,61 @@ export const getSplitMarkerRelationIdsForGroups = (
 };
 
 export const getSplitMarkerRelationIdsByKindForGroups = (
-  planarPolygonGroups: readonly PlanarPolygonGroupLike[],
+  nodeChainAnnotations: readonly PolygonAnnotationLike[],
   groupIds: ReadonlySet<string>
 ): EditableLineRelationIdsByKind => {
   if (groupIds.size === 0) {
     return createEditableLineRelationIdsByKind();
   }
   const byKind = createEditableLineRelationIdsByKind();
-  planarPolygonGroups.forEach((group) => {
+  nodeChainAnnotations.forEach((group) => {
     if (!groupIds.has(group.id)) return;
-    const measurementKind = resolveEditableLineMeasurementKind(group);
+    const type = resolveEditableLineMeasurementKind(group);
+    if (!type) return;
     group.edgeRelationIds.forEach((relationId) => {
       if (!relationId) return;
-      byKind[measurementKind].add(relationId);
+      byKind[type].add(relationId);
     });
   });
   return byKind;
 };
 
-export const getRoofSharedEdgeRelationIds = (
-  planarPolygonGroups: readonly PlanarPolygonGroupLike[]
+export const getPlanarSharedEdgeRelationIds = (
+  nodeChainAnnotations: readonly PolygonAnnotationLike[]
 ): ReadonlySet<string> => {
   const relationUsageCount = new Map<string, number>();
-  const relationSurfaceTypes = new Map<string, Set<PlanarSurfaceType>>();
+  const relationMeasurementKinds = new Map<string, Set<AnnotationType>>();
 
-  planarPolygonGroups.forEach((group) => {
-    const surfaceType = (group.surfaceType ?? "roof") as PlanarSurfaceType;
+  nodeChainAnnotations.forEach((group) => {
+    const type = resolveEditableLineMeasurementKind(group);
+    if (!type) return;
     group.edgeRelationIds.forEach((edgeRelationId) => {
       if (!edgeRelationId) return;
       relationUsageCount.set(
         edgeRelationId,
         (relationUsageCount.get(edgeRelationId) ?? 0) + 1
       );
-      const surfaceTypes = relationSurfaceTypes.get(edgeRelationId);
-      if (surfaceTypes) {
-        surfaceTypes.add(surfaceType);
+      const measurementKinds = relationMeasurementKinds.get(edgeRelationId);
+      if (measurementKinds) {
+        measurementKinds.add(type);
         return;
       }
-      relationSurfaceTypes.set(edgeRelationId, new Set([surfaceType]));
+      relationMeasurementKinds.set(edgeRelationId, new Set([type]));
     });
   });
 
-  const sharedRoofEdgeIds = new Set<string>();
+  const sharedPlanarEdgeIds = new Set<string>();
   relationUsageCount.forEach((count, edgeRelationId) => {
-    const surfaceTypes = relationSurfaceTypes.get(edgeRelationId);
-    if (!surfaceTypes) return;
-    if (count >= 2 && surfaceTypes.size === 1 && surfaceTypes.has("roof")) {
-      sharedRoofEdgeIds.add(edgeRelationId);
+    const measurementKinds = relationMeasurementKinds.get(edgeRelationId);
+    if (!measurementKinds) return;
+    if (
+      count >= 2 &&
+      measurementKinds.size === 1 &&
+      measurementKinds.has(ANNOTATION_TYPE_AREA_PLANAR)
+    ) {
+      sharedPlanarEdgeIds.add(edgeRelationId);
     }
   });
 
-  return sharedRoofEdgeIds;
+  return sharedPlanarEdgeIds;
 };

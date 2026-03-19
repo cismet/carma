@@ -156,12 +156,12 @@ function annotationBoundaryConfigs(baseConfig) {
           {
             paths: [
               {
-                name: "@carma-mapping/annotations/provider",
+                name: "@carma-mapping/annotations/runtime",
                 message:
                   "annotations-cesium must depend on annotations-core, not provider UI.",
               },
             ],
-            patterns: ["@carma-mapping/annotations/provider/*"],
+            patterns: ["@carma-mapping/annotations/runtime/*"],
           },
         ],
       },

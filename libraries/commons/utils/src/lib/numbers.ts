@@ -1,4 +1,4 @@
-// todo consolidate with carma-commons math library
+import { clamp as clampRange } from "@carma-commons/math";
 
 /**
  * @param v
@@ -29,10 +29,12 @@ export const clampToToleranceRange = (
  * @returns the clamped value
  */
 export const clamp = (v: number, min?: number, max?: number): number => {
-  let out = v;
-  if (typeof min === "number") out = Math.max(min, out);
-  if (typeof max === "number") out = Math.min(max, out);
-  return out;
+  if (typeof min === "number" && typeof max === "number") {
+    return clampRange(v, min, max);
+  }
+  if (typeof min === "number") return Math.max(min, v);
+  if (typeof max === "number") return Math.min(max, v);
+  return v;
 };
 
 /**

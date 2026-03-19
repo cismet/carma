@@ -11,6 +11,8 @@ import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { forwardRef, useContext, useEffect, useRef } from "react";
 import { TopicMapContext } from "react-cismap/contexts/TopicMapContextProvider";
 import { useDispatch, useSelector } from "react-redux";
+import centroid from "@turf/centroid";
+import L from "leaflet";
 
 import {
   DEFAULT_ADHOC_FEATURE_LAYER_ID,
@@ -129,9 +131,19 @@ const SecondaryView = forwardRef<Ref, SecondaryViewProps>(({}, _ref) => {
       const openBaseLayerViewButtons = document.querySelectorAll(
         '[id^="openBaseLayerView"]'
       );
+      const filterLayerButtons = document.querySelectorAll(
+        '[id^="filterLayerButton-"]'
+      );
 
       openBaseLayerViewButtons.forEach((layerButton) => {
         if (layerButton.contains(event.target as Node)) {
+          returnFunction = true;
+          return;
+        }
+      });
+
+      filterLayerButtons.forEach((filterButton) => {
+        if (filterButton.contains(event.target as Node)) {
           returnFunction = true;
           return;
         }
@@ -197,7 +209,7 @@ const SecondaryView = forwardRef<Ref, SecondaryViewProps>(({}, _ref) => {
       onClick={() => {
         dispatch(setSelectedLayerIndexNoSelection());
       }}
-      className="pt-4 w-full"
+      className="pt-3 w-full"
     >
       <div className="flex items-center justify-center w-full">
         <div
@@ -276,8 +288,58 @@ const SecondaryView = forwardRef<Ref, SecondaryViewProps>(({}, _ref) => {
                     const styleData = await resolveAdhocStyleData(
                       layer.props.style
                     );
-                    await zoomToStyleFeatures(styleData, routedMapRef);
-                    dispatch(setTriggerSelectionById(layer.id));
+
+                    const leafletMap = routedMapRef?.leafletMap?.leafletElement;
+                    if (styleData && leafletMap) {
+                      let clickFeature: GeoJSON.Feature | undefined;
+                      for (const sourceKey in styleData.sources) {
+                        const source = styleData.sources[sourceKey] as any;
+                        if (
+                          source?.data?.type === "FeatureCollection" &&
+                          source.data.features
+                        ) {
+                          clickFeature = source.data.features.find(
+                            (f: GeoJSON.Feature) => f.geometry
+                          );
+                          if (clickFeature) break;
+                        }
+                      }
+
+                      if (clickFeature?.geometry) {
+                        const center = centroid(
+                          clickFeature as GeoJSON.Feature<GeoJSON.Geometry>
+                        );
+                        const [lng, lat] = center.geometry.coordinates;
+                        const latlngPoint = L.latLng(lat, lng);
+
+                        const fireClick = () => {
+                          leafletMap.fireEvent("click", {
+                            latlng: latlngPoint,
+                            layerPoint:
+                              leafletMap.latLngToLayerPoint(latlngPoint),
+                            containerPoint:
+                              leafletMap.latLngToContainerPoint(latlngPoint),
+                          });
+                        };
+
+                        let fired = false;
+                        const onMoveEnd = () => {
+                          if (fired) return;
+                          fired = true;
+                          leafletMap.off("moveend", onMoveEnd);
+                          setTimeout(fireClick, 300);
+                        };
+
+                        leafletMap.on("moveend", onMoveEnd);
+                        // Fallback: if fitBounds snaps without animation, moveend may already have fired
+                        setTimeout(onMoveEnd, 500);
+                      }
+
+                      await zoomToStyleFeatures(styleData, routedMapRef);
+                    } else {
+                      await zoomToStyleFeatures(styleData, routedMapRef);
+                      dispatch(setTriggerSelectionById(layer.id));
+                    }
                   } else if (isCesium) {
                     let didSelectFeature = false;
                     const selectionTarget =

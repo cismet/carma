@@ -195,6 +195,7 @@ function getCarmaConfigs(baseConfig) {
     ),
     noReactConfig(baseConfig, [
       "libraries/mapping/engines-interop/**/*.ts",
+      "libraries/mapping/engines/threejs/**/*.ts",
       "libraries/commons/geo/**/*.ts",
       "libraries/commons/math/**/*.ts",
       "libraries/commons/units/**/*.ts",

@@ -1,13 +1,19 @@
 import {
   createContext,
   ReactNode,
+  useCallback,
   useContext,
   useEffect,
-  useState,
   useMemo,
+  useRef,
+  useState,
 } from "react";
 
-import { type GazDataItem, getGazData } from "@carma-commons/utils";
+import {
+  type GazDataItem,
+  getGazData,
+  md5FetchText,
+} from "@carma-commons/utils";
 import { GazDataConfig } from "@carma-commons/utils";
 import { defaultGazDataConfig } from "@carma-commons/resources";
 
@@ -16,6 +22,9 @@ interface GazDataContextType {
   crs: string;
   isLoading: boolean;
   error: Error | null;
+  landParcelData: Record<string, unknown> | undefined;
+  landParcelLoading: boolean;
+  loadLandParcelData: () => void;
 }
 
 const GazDataContext = createContext<GazDataContextType | undefined>(undefined);
@@ -33,6 +42,12 @@ export function GazDataProvider({
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<Error | null>(null);
   const crs = config.crs;
+
+  const [landParcelData, setLandParcelData] = useState<
+    Record<string, unknown> | undefined
+  >(undefined);
+  const [landParcelLoading, setLandParcelLoading] = useState(false);
+  const landParcelFetchedRef = useRef(false);
 
   useEffect(() => {
     const loadGazData = async () => {
@@ -53,6 +68,29 @@ export function GazDataProvider({
     loadGazData();
   }, [config]);
 
+  const loadLandParcelData = useCallback(() => {
+    if (
+      !config.landParcelUrl ||
+      landParcelFetchedRef.current ||
+      landParcelData
+    ) {
+      return;
+    }
+    landParcelFetchedRef.current = true;
+    setLandParcelLoading(true);
+    md5FetchText("", config.landParcelUrl)
+      .then((text) => {
+        if (text) {
+          try {
+            setLandParcelData(JSON.parse(text));
+          } catch (e) {
+            console.warn("[LAND_PARCEL] Failed to parse land parcel data", e);
+          }
+        }
+      })
+      .finally(() => setLandParcelLoading(false));
+  }, [config.landParcelUrl, landParcelData]);
+
   // Memoize the context value to prevent unnecessary rerenders
   const value = useMemo(
     () => ({
@@ -60,8 +98,19 @@ export function GazDataProvider({
       crs,
       isLoading,
       error,
+      landParcelData,
+      landParcelLoading,
+      loadLandParcelData,
     }),
-    [gazData, crs, isLoading, error]
+    [
+      gazData,
+      crs,
+      isLoading,
+      error,
+      landParcelData,
+      landParcelLoading,
+      loadLandParcelData,
+    ]
   );
 
   return (

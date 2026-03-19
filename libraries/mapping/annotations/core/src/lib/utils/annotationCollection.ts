@@ -1,120 +1,98 @@
-import { Dispatch, SetStateAction } from "react";
+import { Cartesian3 } from "@carma/cesium";
 
-type TemporaryEntry = {
-  id: string;
-  type: string;
-  temporary?: boolean;
+import {
+  isPointAnnotationEntry,
+  type AnnotationCollection,
+  type AnnotationEntry,
+  type PointAnnotationEntry,
+} from "../types/annotationCesiumTypes";
+import type { NodeChainAnnotation } from "../types/annotationTypes";
+import { getCustomPointAnnotationName } from "./annotationNaming";
+
+export const getPointById = (
+  annotations: AnnotationCollection,
+  pointId: string
+): PointAnnotationEntry | null => {
+  const point = annotations.find((measurement) => measurement.id === pointId);
+  return point && isPointAnnotationEntry(point) ? point : null;
 };
 
-type EntryOrConstructor<TEntry extends TemporaryEntry> =
-  | TEntry
-  | ((prev: TEntry[]) => TEntry);
+export const getPointPositionMap = (
+  annotations: AnnotationCollection,
+  overrides?: Readonly<Record<string, Cartesian3>>
+) => {
+  const map = new Map<string, Cartesian3>();
 
-const isConstructor = <TEntry extends TemporaryEntry>(
-  entryOrConstructor?: EntryOrConstructor<TEntry>
-): entryOrConstructor is (prev: TEntry[]) => TEntry =>
-  typeof entryOrConstructor === "function";
-
-export const updateLastOfMeasurementType =
-  <TEntry extends TemporaryEntry>(
-    entryOrConstructor?: EntryOrConstructor<TEntry>
-  ) =>
-  (prev: TEntry[]) => {
-    const measurement = isConstructor(entryOrConstructor)
-      ? entryOrConstructor(prev)
-      : entryOrConstructor;
-
-    if (!measurement) return prev;
-
-    const type = measurement.type;
-    const existingIndex = prev
-      .map((m, i) => ({ m, i }))
-      .filter(({ m }) => m.type === type)
-      .map(({ i }) => i)
-      .pop();
-    if (existingIndex !== undefined) {
-      const newCollection = [...prev];
-      newCollection[existingIndex] = measurement;
-      console.debug(
-        `[updateLastOfMeasurementType] Updated existing measurement of type ${type} at index ${existingIndex}`
-      );
-      return newCollection;
+  annotations.forEach((measurement) => {
+    if (!isPointAnnotationEntry(measurement)) {
+      return;
     }
-    console.debug(
-      `[updateLastOfMeasurementType] Adding new measurement of type ${type}`
-    );
-    return [...prev, measurement];
-  };
-
-export const clearTemporaryMeasurements = <TEntry extends TemporaryEntry>(
-  setCollection: Dispatch<SetStateAction<TEntry[]>>
-) => {
-  setCollection((prev) => prev.filter((m) => !m.temporary));
-};
-
-export const makeTemporaryMeasurementsPermanent = <
-  TEntry extends TemporaryEntry
->(
-  setCollection: Dispatch<SetStateAction<TEntry[]>>
-) => {
-  setCollection((prev) =>
-    prev.map((m) => (m.temporary ? { ...m, temporary: false } : m))
-  );
-};
-
-export const updateCollection = <TEntry extends TemporaryEntry>(
-  setCollection: Dispatch<SetStateAction<TEntry[]>>,
-  entryOrConstructor: EntryOrConstructor<TEntry>,
-  temporaryMode: boolean
-) => {
-  setCollection((prevCollection: TEntry[]) => {
-    const measurement = isConstructor(entryOrConstructor)
-      ? entryOrConstructor(prevCollection)
-      : entryOrConstructor;
-
-    // Create updated measurement with temporary flag (preserve immutability)
-    const updatedMeasurement = { ...measurement, temporary: temporaryMode };
-
-    // Check if an entry with the same ID already exists
-    const existingIndex = prevCollection.findIndex(
-      (m) => m.id === updatedMeasurement.id
-    );
-
-    if (existingIndex !== -1) {
-      // Update existing entry (same ID - continuing same measurement)
-      const newCollection = [...prevCollection];
-      newCollection[existingIndex] = updatedMeasurement;
-      console.debug(
-        `[updateCollection] Updated existing measurement ${updatedMeasurement.id} at index ${existingIndex}`
-      );
-      return newCollection;
-    } else {
-      // Adding a new entry (new ID - starting new measurement)
-      let newCollection = [...prevCollection];
-
-      if (temporaryMode) {
-        // Remove any existing temporary measurement of the same type
-        const existingTemporaryIndex = newCollection.findIndex(
-          (m) => m.type === updatedMeasurement.type && m.temporary
-        );
-
-        if (existingTemporaryIndex !== -1) {
-          newCollection.splice(existingTemporaryIndex, 1);
-          console.debug(
-            `[updateCollection] Temporary mode: Removed existing temporary measurement of type ${updatedMeasurement.type}`
-          );
-        }
-      }
-
-      // Add the new measurement
-      newCollection.push(updatedMeasurement);
-      console.debug(
-        `[updateCollection] Added new measurement ${updatedMeasurement.id}${
-          temporaryMode ? " (temporary)" : ""
-        }`
-      );
-
-      return newCollection;
-    }
+    map.set(measurement.id, measurement.geometryECEF);
   });
+
+  if (overrides) {
+    Object.entries(overrides).forEach(([id, position]) => {
+      map.set(id, position);
+    });
+  }
+
+  return map;
+};
+
+export const getMeasurementEntryFlyToPoints = (
+  measurement: AnnotationEntry
+): Cartesian3[] => {
+  if (isPointAnnotationEntry(measurement)) {
+    return [measurement.geometryECEF];
+  }
+
+  if (Array.isArray(measurement.geometryECEF)) {
+    return measurement.geometryECEF;
+  }
+
+  return [];
+};
+
+export const getAnnotationFlyToPointsById = (
+  id: string,
+  annotations: AnnotationCollection,
+  nodeChainAnnotations: readonly NodeChainAnnotation[]
+): Cartesian3[] => {
+  if (!id) {
+    return [];
+  }
+
+  const pointById = getPointPositionMap(annotations);
+  const multiNodeAnnotation =
+    nodeChainAnnotations.find((entry) => entry.id === id) ?? null;
+  if (multiNodeAnnotation) {
+    return multiNodeAnnotation.nodeIds
+      .map((pointId) => pointById.get(pointId) ?? null)
+      .filter((point): point is Cartesian3 => Boolean(point));
+  }
+
+  const annotation = annotations.find((entry) => entry.id === id);
+  if (!annotation) {
+    return [];
+  }
+
+  return getMeasurementEntryFlyToPoints(annotation);
+};
+
+export const getLastCustomPointAnnotationName = (
+  annotations: AnnotationCollection
+): string | undefined => {
+  for (let index = annotations.length - 1; index >= 0; index -= 1) {
+    const annotation = annotations[index];
+    if (!annotation || !isPointAnnotationEntry(annotation)) {
+      continue;
+    }
+
+    const customName = getCustomPointAnnotationName(annotation.name);
+    if (customName) {
+      return customName;
+    }
+  }
+
+  return undefined;
 };

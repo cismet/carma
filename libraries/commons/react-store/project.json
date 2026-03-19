@@ -1,0 +1,27 @@
+{
+  "name": "react-store",
+  "$schema": "../../../node_modules/nx/schemas/project-schema.json",
+  "sourceRoot": "libraries/commons/react-store/src",
+  "projectType": "library",
+  "tags": ["type:util", "scope:commons", "scope:react"],
+  "targets": {
+    "lint": {
+      "executor": "@nx/eslint:lint"
+    },
+    "build": {
+      "executor": "@nx/vite:build",
+      "outputs": ["{options.outputPath}"],
+      "options": {
+        "outputPath": "dist/libraries/commons/react-store"
+      }
+    },
+    "test": {
+      "executor": "@nx/vite:test",
+      "outputs": ["{workspaceRoot}/dist/.vite/react-store"],
+      "options": {
+        "config": "libraries/commons/react-store/vite.config.ts",
+        "passWithNoTests": false
+      }
+    }
+  }
+}

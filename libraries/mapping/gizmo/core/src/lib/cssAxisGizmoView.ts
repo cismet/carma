@@ -1,13 +1,13 @@
 import type { GizmoCssAxisController } from "./cssAxisDragController";
-import type { GizmoVec3 } from "./gizmoMath";
+import type { Vector3 } from "three";
 
 export type GizmoAxisId = "x" | "y" | "z";
 
 export type GizmoCssAxisViewOptions = {
   container: HTMLElement;
   controller: GizmoCssAxisController;
-  axisOrigin: GizmoVec3;
-  axisDirections: Record<GizmoAxisId, GizmoVec3>;
+  axisOrigin: Vector3;
+  axisDirections: Record<GizmoAxisId, Vector3>;
   getViewportRect: () => DOMRect | ClientRect | null;
   initialActiveAxisId?: GizmoAxisId;
   axisColors?: Partial<Record<GizmoAxisId, string>>;
@@ -51,7 +51,7 @@ const createDiv = (style: Partial<CSSStyleDeclaration>): HTMLDivElement => {
 
 const getAxisVisual = (
   axisId: GizmoAxisId,
-  axisDirections: Record<GizmoAxisId, GizmoVec3>,
+  axisDirections: Record<GizmoAxisId, Vector3>,
   axisColors: Record<GizmoAxisId, string>
 ) => {
   const direction = axisDirections[axisId];
@@ -220,7 +220,7 @@ export const createCssAxisGizmoView = (
     refresh();
   };
 
-  (Object.keys(axisLayers) as GizmoAxisId[]).forEach((axisId) => {
+  (["x", "y", "z"] as GizmoAxisId[]).forEach((axisId) => {
     const layer = createAxisLayer(axisId, axisColors[axisId], beginDrag);
     axisLayers[axisId] = layer;
     overlay.appendChild(layer.wrapper);
@@ -230,92 +230,79 @@ export const createCssAxisGizmoView = (
     position: "absolute",
     left: "50%",
     top: "50%",
-    transform: "translate(-50%, -50%)",
     width: `${CENTER_DRAG_HIT_AREA_PX}px`,
     height: `${CENTER_DRAG_HIT_AREA_PX}px`,
-    borderRadius: "50%",
+    transform: "translate(-50%, -50%)",
+    borderRadius: "9999px",
     background: "transparent",
-    zIndex: "1",
     pointerEvents: "auto",
     cursor: "move",
-    userSelect: "none",
+    zIndex: "1",
   });
-  centerHit.title = "Move point along active axis";
-  centerHit.addEventListener("mousedown", (event) =>
-    beginDrag(event, activeAxisId)
-  );
-  overlay.appendChild(centerHit);
 
+  centerHit.title = "Move point";
+  centerHit.addEventListener("mousedown", (event) => {
+    event.preventDefault();
+    event.stopPropagation();
+  });
+
+  overlay.appendChild(centerHit);
   options.container.appendChild(overlay);
 
   const refresh = () => {
     const snapshot = options.controller.getSnapshot();
+    const { point } = snapshot;
 
-    (Object.keys(axisLayers) as GizmoAxisId[]).forEach((axisId) => {
+    overlay.style.display = "block";
+    overlay.style.transform = `translate(calc(-50% + ${
+      point.x
+    }px), calc(-50% + ${-point.y}px))`;
+
+    (["x", "y", "z"] as GizmoAxisId[]).forEach((axisId) => {
       const layer = axisLayers[axisId];
-      const axisVisual = getAxisVisual(
-        axisId,
-        options.axisDirections,
-        axisColors
-      );
+      const visual = getAxisVisual(axisId, options.axisDirections, axisColors);
+      const isActive = axisId === activeAxisId;
+      const axisOpacity = isActive ? 1 : INACTIVE_AXIS_OPACITY;
+      const arrowOffsetPx =
+        AXIS_ARROW_OFFSET_PX *
+        (isActive ? 1 : INACTIVE_AXIS_ARROW_OFFSET_SCALE);
+      const arrowScale = isActive ? 1 : INACTIVE_AXIS_ARROW_SCALE;
 
-      const isActiveAxis = axisId === activeAxisId;
-      const axisOpacity = isActiveAxis ? 1 : INACTIVE_AXIS_OPACITY;
-      const arrowScale = isActiveAxis ? 1 : INACTIVE_AXIS_ARROW_SCALE;
-      const arrowOffsetPx = isActiveAxis
-        ? AXIS_ARROW_OFFSET_PX
-        : AXIS_ARROW_OFFSET_PX * INACTIVE_AXIS_ARROW_OFFSET_SCALE;
-
-      layer.line.style.width = `${arrowOffsetPx * 2}px`;
-      layer.line.style.transform = `translate(-50%, -50%) rotate(${axisVisual.angleRad}rad)`;
       layer.line.style.opacity = `${axisOpacity}`;
+      layer.line.style.transform = `translate(-50%, -50%) rotate(${visual.angleRad}rad)`;
 
       setElementCenterPos(
         layer.arrowForward,
-        axisVisual.dirX * arrowOffsetPx,
-        axisVisual.dirY * arrowOffsetPx
+        visual.dirX * arrowOffsetPx,
+        visual.dirY * arrowOffsetPx
       );
-      setElementCenterPos(
-        layer.arrowBackward,
-        -axisVisual.dirX * arrowOffsetPx,
-        -axisVisual.dirY * arrowOffsetPx
-      );
-
       layer.arrowForward.style.transform = `translate(-50%, -50%) rotate(${
-        axisVisual.angleRad + Math.PI / 2
-      }rad) scale(${arrowScale})`;
-      layer.arrowBackward.style.transform = `translate(-50%, -50%) rotate(${
-        axisVisual.angleRad + Math.PI / 2
+        visual.angleRad + Math.PI / 2
       }rad) scale(${arrowScale})`;
       layer.arrowForward.style.opacity = `${axisOpacity}`;
+      layer.arrowForward.style.cursor = isDraggingByView ? "grabbing" : "move";
+
+      setElementCenterPos(
+        layer.arrowBackward,
+        -visual.dirX * arrowOffsetPx,
+        -visual.dirY * arrowOffsetPx
+      );
+      layer.arrowBackward.style.transform = `translate(-50%, -50%) rotate(${
+        visual.angleRad - Math.PI / 2
+      }rad) scale(${arrowScale})`;
       layer.arrowBackward.style.opacity = `${axisOpacity}`;
-
-      const cursor = snapshot.isDragging && isActiveAxis ? "grabbing" : "move";
-      layer.arrowForward.style.cursor = cursor;
-      layer.arrowBackward.style.cursor = cursor;
-      layer.arrowForward.style.zIndex = isActiveAxis ? "3" : "2";
-      layer.arrowBackward.style.zIndex = isActiveAxis ? "3" : "2";
+      layer.arrowBackward.style.cursor = isDraggingByView ? "grabbing" : "move";
     });
-
-    centerHit.style.cursor =
-      snapshot.isDragging || isDraggingByView ? "grabbing" : "move";
-  };
-
-  const setActiveAxisId = (axisId: GizmoAxisId) => {
-    activeAxisId = axisId;
-    options.onActiveAxisChange?.(activeAxisId);
-    options.controller.setAxis(
-      options.axisOrigin,
-      options.axisDirections[axisId]
-    );
-    refresh();
   };
 
   refresh();
 
   return {
     getActiveAxisId: () => activeAxisId,
-    setActiveAxisId,
+    setActiveAxisId: (axisId) => {
+      activeAxisId = axisId;
+      refresh();
+    },
     refresh,
     destroy: () => {
       overlay.remove();

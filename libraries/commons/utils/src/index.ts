@@ -28,6 +28,7 @@ export {
   type GazDataItem,
   type GazDataConfig,
   type GazDataSourceConfig,
+  builtInGazetteerHitTrigger,
 } from "./lib/gazData";
 
 export { extractInformation } from "./lib/layer-parser";
@@ -61,7 +62,6 @@ export {
   capitalizeFirstLetter,
   trimLines,
 } from "./lib/strings";
-export { isKeyboardTargetEditable } from "./lib/dom";
 
 export {
   cn,

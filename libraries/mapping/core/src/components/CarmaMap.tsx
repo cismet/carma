@@ -40,7 +40,9 @@ import {
   VectorStyle,
   slugifyUrl,
   WUPPERTAL_CONFIG,
+  RASTER_PAINT_PRESETS,
 } from "@carma-mapping/engines/maplibre";
+import type { RasterPaintOverrides } from "@carma-mapping/engines/maplibre";
 
 export type { VectorStyle, LibreLayer };
 
@@ -65,6 +67,12 @@ interface CarmaMapProps extends LibreMapProps {
   embedded?: boolean;
   /** Non-interactive map: disables all controls, compass, interaction */
   miniMap?: boolean;
+  /** Runtime parameters for 3D layers (e.g. radiusMix, useLoft) */
+  threeRuntimeParams?: Record<string, number>;
+  /** Ref for 3D layer performance data */
+  threePerfRef?: React.MutableRefObject<
+    import("@carma-mapping/engines/threejs").ThreePerfData
+  >;
 }
 
 const CarmaMapContent = (props: CarmaMapProps) => {
@@ -96,9 +104,8 @@ const CarmaMapContent = (props: CarmaMapProps) => {
   >(ResponsiveTopicMapContext);
   const { setAppMenuVisible } =
     useContext<typeof UIDispatchContext>(UIDispatchContext);
-  const { selectedBackground, backgroundConfigurations } = useContext<
-    typeof TopicMapStylingContext
-  >(TopicMapStylingContext);
+  const { selectedBackground, backgroundConfigurations, namedMapStyle } =
+    useContext<typeof TopicMapStylingContext>(TopicMapStylingContext);
   const [libreMap, setLibreMap] = useState<maplibregl.Map | null>(null);
   const [showTerrain, setShowTerrain] = useState(false);
 
@@ -118,6 +125,15 @@ const CarmaMapContent = (props: CarmaMapProps) => {
     backgroundLayers !== undefined
       ? backgroundLayers
       : backgroundConfigurations?.[selectedBackground]?.layerkey;
+
+  // Resolve backgroundRasterPaint: explicit prop wins, otherwise derive
+  // from namedMapStyle in TopicMapStylingContext (set by the menu's
+  // NamedMapStyleChooser radio buttons, same mechanism as Leaflet).
+  const effectiveRasterPaint: RasterPaintOverrides | undefined =
+    props.backgroundRasterPaint ??
+    (typeof namedMapStyle === "string" && namedMapStyle in RASTER_PAINT_PRESETS
+      ? RASTER_PAINT_PRESETS[namedMapStyle as keyof typeof RASTER_PAINT_PRESETS]
+      : undefined);
 
   return (
     <HashStateProvider>
@@ -276,6 +292,9 @@ const CarmaMapContent = (props: CarmaMapProps) => {
                 gazetteerInfoOnClick={
                   miniMap ? false : props.gazetteerInfoOnClick
                 }
+                backgroundRasterPaint={effectiveRasterPaint}
+                threeRuntimeParams={props.threeRuntimeParams}
+                threePerfRef={props.threePerfRef}
               />
             )}
             {modalMenu}

@@ -1,19 +1,21 @@
 import { useContext, useEffect, useRef } from "react";
 
-import { builtInGazetteerHitTrigger } from "react-cismap/tools/gazetteerHelper";
 import { TopicMapContext } from "react-cismap/contexts/TopicMapContextProvider";
 
 import { SelectionItem, useSelection } from "../components/SelectionProvider";
+import { builtInGazetteerHitTrigger } from "@carma-commons/utils";
 import type { Map } from "leaflet";
 
 const NEW_SELECTION_TIMEOUT = 200;
 
 type SelectionTopicMapOptions = {
   onComplete?: (selection: SelectionItem, map: Map) => void;
+  padding?: [number, number];
 };
 
 export const useSelectionTopicMap = ({
   onComplete,
+  padding,
 }: SelectionTopicMapOptions = {}) => {
   const { selection, setSelection, setOverlayFeature } = useSelection();
   const lastSelectionKey = useRef<number | null>(null);
@@ -62,14 +64,15 @@ export const useSelectionTopicMap = ({
         );
 
         // TODO replace builtin react-cismap trigger, handle topicMap map move and polygon generation for overlayFeature with CarmaMap
-        builtInGazetteerHitTrigger(
-          [selection],
+        builtInGazetteerHitTrigger({
+          hit: [selection],
           leafletElement,
           referenceSystem,
           referenceSystemDefinition,
-          () => {}, //  handleSetSelection with CarmaMap directly
-          setOverlayFeature
-        );
+          setGazetteerHit: () => {}, //  handleSetSelection with CarmaMap directly
+          setOverlayFeature,
+          padding,
+        });
 
         if (leafletElement) {
           onComplete?.(selection, leafletElement);

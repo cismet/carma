@@ -1,4 +1,11 @@
-import { useContext, useEffect, useState, useMemo } from "react";
+import {
+  useCallback,
+  useContext,
+  useEffect,
+  useRef,
+  useState,
+  useMemo,
+} from "react";
 
 import "./App.css";
 import "bootstrap/dist/css/bootstrap.min.css";
@@ -27,9 +34,9 @@ import {
 } from "@carma-appframeworks/portals";
 import { EmptySearchComponent } from "@carma-mapping/fuzzy-search";
 import FuzzySearchWrapper from "./components/FuzzySearchWrapper";
-import { createFilterButtons } from "./components/GenericFilterButtonsFactory";
 import { Control, ControlLayout } from "@carma-mapping/map-controls-layout";
 import {
+  createFilterButtons,
   FullscreenControl,
   RoutedMapLocateControl,
   ZoomControl,
@@ -91,7 +98,8 @@ function renderCismapLayers(
   setGlobalHits,
   initialVisualSelection,
   layerInformation,
-  setMaplibreMap
+  setMaplibreMap,
+  setIdleLayers
 ) {
   return (
     <>
@@ -130,6 +138,14 @@ function renderCismapLayers(
                   return ret;
                 });
               }}
+              onStyleIdle={() => {
+                if (setIdleLayers) {
+                  setIdleLayers((old) => ({
+                    ...old,
+                    [layer.id || index]: true,
+                  }));
+                }
+              }}
               onMapLibreCoreMapReady={(map) => {
                 if (setMaplibreMap) {
                   setMaplibreMap(map);
@@ -157,6 +173,27 @@ const Map = ({
   const { routedMapRef } = useSelectionTopicMap() ?? {};
   const [selectedVectorObject, setSelectedVectorObject] = useState(undefined);
   const [maplibreMap, setMaplibreMap] = useState(null);
+  const [idleLayers, setIdleLayers] = useState({});
+  const layersIdleRef = useRef(false);
+
+  const vectorLayerCount = config.tm?.vectorLayers?.length ?? 0;
+
+  const resetLayersIdle = useCallback(() => {
+    setIdleLayers({});
+    layersIdleRef.current = false;
+  }, []);
+
+  useEffect(() => {
+    const isIdle =
+      vectorLayerCount > 0 &&
+      Object.keys(idleLayers).length >= vectorLayerCount;
+    layersIdleRef.current = isIdle;
+  }, [idleLayers, vectorLayerCount]);
+
+  useEffect(() => {
+    setIdleLayers({});
+    layersIdleRef.current = false;
+  }, [vectorLayerCount]);
 
   // Memoize the filter buttons component to prevent re-creation on every render
   const FilterButtonsComponent = useMemo(() => {
@@ -283,6 +320,8 @@ const Map = ({
                 featureGazData={featureGazData}
                 placeholder={config.tm.gazetteerSearchBoxPlaceholdertext}
                 clickAfterGazetteerHit={config.tm.clickAfterGazetteerHit}
+                layersIdleRef={layersIdleRef}
+                resetLayersIdle={resetLayersIdle}
               />
             </div>
           </Control>
@@ -346,6 +385,7 @@ const Map = ({
                 setGlobalHits,
                 selectedVectorObject,
                 layerInformation,
+                null,
                 null
               )}
               previewFeatureCollectionCount={
@@ -380,7 +420,8 @@ const Map = ({
             setGlobalHits,
             selectedVectorObject,
             layerInformation,
-            setMaplibreMap
+            setMaplibreMap,
+            setIdleLayers
           )}
           {config.tm.noFeatureCollection !== true && (
             <>

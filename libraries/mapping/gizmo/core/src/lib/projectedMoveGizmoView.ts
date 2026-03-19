@@ -1,28 +1,28 @@
 import {
   buildCirclePoints,
+  createPlaneBasisFromNormal,
   getEquilateralTriangleHeight,
   getEquilateralTrianglePathD,
   getEquilateralTriangleViewBox,
+  intersectRayWithPlane,
   getSupportRadius2d,
   type Point2,
 } from "@carma-commons/math";
+import { Vector3 } from "three";
 import {
   createAxisDragConnector,
   type GizmoAxisDragConnector,
 } from "./axisDragConnector";
+import { toSvgPathD } from "./svgProjection";
+import { AXIS_NUMERIC_EPSILON } from "./constants";
 import {
-  AXIS_NUMERIC_EPSILON,
-  gizmoDot,
-  gizmoNormalize,
-  type GizmoAxisCandidate,
-  type GizmoRay3,
-  type GizmoVec3,
-} from "./gizmoMath";
-import { toSvgPathD, transformPointWithMatrix } from "./svgProjection";
+  DEFAULT_VIEW_FOV_RAD,
+  projectPointToViewport,
+  rayFromClientPosition,
+} from "./projectedMoveGizmoMath";
 
 const SVG_NS = "http://www.w3.org/2000/svg";
 
-const DEFAULT_FOV_DEG = 55;
 const DEFAULT_DISC_RADIUS = 1.2;
 const DEFAULT_ACTIVE_ARROW_EDGE_PX = 16;
 const DEFAULT_INACTIVE_ARROW_EDGE_PX = 12;
@@ -44,253 +44,14 @@ const ARROW_LAYER_Z_INDEX = 3;
 const ROTATION_HANDLE_RADIUS_PX = 8;
 const ROTATION_HANDLE_OFFSET_FROM_DISC_ZERO_RAD = -Math.PI / 4;
 
-const cloneVec3 = (v: GizmoVec3): GizmoVec3 => ({ x: v.x, y: v.y, z: v.z });
-
-const addVec3 = (a: GizmoVec3, b: GizmoVec3): GizmoVec3 => ({
-  x: a.x + b.x,
-  y: a.y + b.y,
-  z: a.z + b.z,
-});
-
-const subVec3 = (a: GizmoVec3, b: GizmoVec3): GizmoVec3 => ({
-  x: a.x - b.x,
-  y: a.y - b.y,
-  z: a.z - b.z,
-});
-
-const mulVec3Scalar = (v: GizmoVec3, scalar: number): GizmoVec3 => ({
-  x: v.x * scalar,
-  y: v.y * scalar,
-  z: v.z * scalar,
-});
-
-const addScaledVec3 = (
-  origin: GizmoVec3,
-  direction: GizmoVec3,
-  scalar: number
-): GizmoVec3 => addVec3(origin, mulVec3Scalar(direction, scalar));
-
-const crossVec3 = (a: GizmoVec3, b: GizmoVec3): GizmoVec3 => ({
-  x: a.y * b.z - a.z * b.y,
-  y: a.z * b.x - a.x * b.z,
-  z: a.x * b.y - a.y * b.x,
-});
-
-const toRad = (deg: number): number => (deg * Math.PI) / 180;
-
-const clamp = (value: number, min: number, max: number): number =>
-  Math.max(min, Math.min(max, value));
-
-type Matrix3 = {
-  a11: number;
-  a12: number;
-  a13: number;
-  a21: number;
-  a22: number;
-  a23: number;
-  a31: number;
-  a32: number;
-  a33: number;
-};
-
-type Mat3Inverse = {
-  determinant: number;
-  inverse: Matrix3;
-};
-
-const extractLinear3x3 = (matrix: readonly number[]): Matrix3 => ({
-  a11: matrix[0] ?? 1,
-  a12: matrix[1] ?? 0,
-  a13: matrix[2] ?? 0,
-  a21: matrix[4] ?? 0,
-  a22: matrix[5] ?? 1,
-  a23: matrix[6] ?? 0,
-  a31: matrix[8] ?? 0,
-  a32: matrix[9] ?? 0,
-  a33: matrix[10] ?? 1,
-});
-
-const invert3x3 = (matrix: Matrix3): Mat3Inverse | null => {
-  const { a11, a12, a13, a21, a22, a23, a31, a32, a33 } = matrix;
-
-  const b11 = a22 * a33 - a23 * a32;
-  const b12 = -(a21 * a33 - a23 * a31);
-  const b13 = a21 * a32 - a22 * a31;
-
-  const b21 = -(a12 * a33 - a13 * a32);
-  const b22 = a11 * a33 - a13 * a31;
-  const b23 = -(a11 * a32 - a12 * a31);
-
-  const b31 = a12 * a23 - a13 * a22;
-  const b32 = -(a11 * a23 - a13 * a21);
-  const b33 = a11 * a22 - a12 * a21;
-
-  const determinant = a11 * b11 + a12 * b12 + a13 * b13;
-  if (Math.abs(determinant) <= AXIS_NUMERIC_EPSILON) return null;
-
-  const invDet = 1 / determinant;
-  return {
-    determinant,
-    inverse: {
-      a11: b11 * invDet,
-      a12: b21 * invDet,
-      a13: b31 * invDet,
-      a21: b12 * invDet,
-      a22: b22 * invDet,
-      a23: b32 * invDet,
-      a31: b13 * invDet,
-      a32: b23 * invDet,
-      a33: b33 * invDet,
-    },
-  };
-};
-
-const multiplyMat3Vec3 = (matrix: Matrix3, vector: GizmoVec3): GizmoVec3 => ({
-  x: matrix.a11 * vector.x + matrix.a12 * vector.y + matrix.a13 * vector.z,
-  y: matrix.a21 * vector.x + matrix.a22 * vector.y + matrix.a23 * vector.z,
-  z: matrix.a31 * vector.x + matrix.a32 * vector.y + matrix.a33 * vector.z,
-});
-
-type ProjectedPoint = {
-  x: number;
-  y: number;
-  depth: number;
-};
-
-const projectPointToViewport = (
-  point: GizmoVec3,
-  viewMatrix: number[],
-  viewportRect: DOMRect | ClientRect,
-  fovDeg: number
-): ProjectedPoint | null => {
-  const safeWidth = Math.max(1, viewportRect.width);
-  const safeHeight = Math.max(1, viewportRect.height);
-  const safeFov = clamp(fovDeg, 10, 150);
-  const tanHalfFov = Math.tan(toRad(safeFov) / 2);
-  if (!Number.isFinite(tanHalfFov) || tanHalfFov <= AXIS_NUMERIC_EPSILON) {
-    return null;
-  }
-
-  const view = transformPointWithMatrix(point, viewMatrix, {
-    matrixOrder: "row-major",
-  });
-  if (
-    !Number.isFinite(view.x) ||
-    !Number.isFinite(view.y) ||
-    !Number.isFinite(view.z)
-  ) {
-    return null;
-  }
-  if (view.z <= 0.05) return null;
-
-  const aspect = safeWidth / safeHeight;
-  const xNdc = view.x / (view.z * tanHalfFov * aspect);
-  const yNdc = view.y / (view.z * tanHalfFov);
-  if (!Number.isFinite(xNdc) || !Number.isFinite(yNdc)) return null;
-
-  return {
-    x: (xNdc + 1) * 0.5 * safeWidth,
-    y: (1 - yNdc) * 0.5 * safeHeight,
-    depth: view.z,
-  };
-};
-
-const rayFromClientPosition = (
-  clientX: number,
-  clientY: number,
-  viewportRect: DOMRect | ClientRect,
-  viewMatrix: number[],
-  fovDeg: number
-): GizmoRay3 | null => {
-  const safeWidth = Math.max(1, viewportRect.width);
-  const safeHeight = Math.max(1, viewportRect.height);
-  const safeFov = clamp(fovDeg, 10, 150);
-  const tanHalfFov = Math.tan(toRad(safeFov) / 2);
-  if (!Number.isFinite(tanHalfFov) || tanHalfFov <= AXIS_NUMERIC_EPSILON) {
-    return null;
-  }
-
-  const linear = extractLinear3x3(viewMatrix);
-  const inverted = invert3x3(linear);
-  if (!inverted) return null;
-
-  const ndcX = ((clientX - viewportRect.left) / safeWidth) * 2 - 1;
-  const ndcY = 1 - ((clientY - viewportRect.top) / safeHeight) * 2;
-  const aspect = safeWidth / safeHeight;
-
-  const directionView = gizmoNormalize(
-    {
-      x: ndcX * tanHalfFov * aspect,
-      y: ndcY * tanHalfFov,
-      z: 1,
-    },
-    AXIS_NUMERIC_EPSILON
-  );
-  if (!directionView) return null;
-
-  const directionLocal = gizmoNormalize(
-    multiplyMat3Vec3(inverted.inverse, directionView),
-    AXIS_NUMERIC_EPSILON
-  );
-  if (!directionLocal) return null;
-
-  const translationView: GizmoVec3 = {
-    x: viewMatrix[3] ?? 0,
-    y: viewMatrix[7] ?? 0,
-    z: viewMatrix[11] ?? 0,
-  };
-
-  const originLocal = multiplyMat3Vec3(inverted.inverse, {
-    x: -translationView.x,
-    y: -translationView.y,
-    z: -translationView.z,
-  });
-
-  return {
-    origin: originLocal,
-    direction: directionLocal,
-  };
-};
-
-const intersectRayWithPlane = (
-  ray: GizmoRay3,
-  planeOrigin: GizmoVec3,
-  planeNormal: GizmoVec3
-): GizmoVec3 | null => {
-  const denominator = gizmoDot(ray.direction, planeNormal);
-  if (Math.abs(denominator) <= AXIS_NUMERIC_EPSILON) return null;
-
-  const originToPlane = subVec3(planeOrigin, ray.origin);
-  const t = gizmoDot(originToPlane, planeNormal) / denominator;
-  if (!Number.isFinite(t)) return null;
-
-  return addScaledVec3(ray.origin, ray.direction, t);
-};
-
-const createPlaneBasis = (
-  normal: GizmoVec3
-): { xAxis: GizmoVec3; yAxis: GizmoVec3 } => {
-  const up = gizmoNormalize(normal) ?? { x: 0, y: 0, z: 1 };
-  const reference =
-    Math.abs(gizmoDot(up, { x: 0, y: 0, z: 1 })) > 0.9
-      ? { x: 1, y: 0, z: 0 }
-      : { x: 0, y: 0, z: 1 };
-  const xAxis = gizmoNormalize(crossVec3(up, reference)) ?? {
-    x: 1,
-    y: 0,
-    z: 0,
-  };
-  const yAxis = gizmoNormalize(crossVec3(xAxis, up)) ?? { x: 0, y: 1, z: 0 };
-  return { xAxis, yAxis };
-};
-
 const ensureNormalizedAxisCandidates = (
   axisCandidates: ProjectedMoveGizmoAxisCandidate[]
 ): ProjectedMoveGizmoAxisCandidate[] => {
   const normalized = axisCandidates
     .map((candidate) => {
-      const direction = gizmoNormalize(candidate.direction);
-      if (!direction) return null;
+      const direction = candidate.direction.clone();
+      if (direction.lengthSq() <= AXIS_NUMERIC_EPSILON) return null;
+      direction.normalize();
       return {
         ...candidate,
         direction,
@@ -316,25 +77,30 @@ type DragState =
   | {
       mode: "axis";
       connector: GizmoAxisDragConnector;
-      axisDirection: GizmoVec3;
-      startPoint: GizmoVec3;
+      axisDirection: Vector3;
+      startPoint: Vector3;
     }
   | {
       mode: "plane";
-      planeNormal: GizmoVec3;
-      startPoint: GizmoVec3;
-      startPlanePoint: GizmoVec3;
+      planeNormal: Vector3;
+      startPoint: Vector3;
+      startPlanePoint: Vector3;
     };
 
-export type ProjectedMoveGizmoAxisCandidate = GizmoAxisCandidate<GizmoVec3>;
+export type ProjectedMoveGizmoAxisCandidate = {
+  id: string;
+  direction: Vector3;
+  color?: string;
+  title?: string | null;
+};
 
 export type ProjectedMoveGizmoViewOptions = {
   container: HTMLElement;
   axisCandidates: ProjectedMoveGizmoAxisCandidate[];
-  initialPoint?: GizmoVec3;
+  initialPoint?: Vector3;
   initialActiveAxisId?: string | null;
   viewMatrix?: number[];
-  fovDeg?: number;
+  fovRad?: number;
   discRadius?: number;
   axisWidthPx?: number;
   outlineStrokeWidthPx?: number;
@@ -344,16 +110,16 @@ export type ProjectedMoveGizmoViewOptions = {
   centerPlaneDragCursor?: string;
   showRotationHandle?: boolean;
   getViewportRect?: () => DOMRect | ClientRect | null;
-  onPointChange?: (point: GizmoVec3) => void;
+  onPointChange?: (point: Vector3) => void;
   onActiveAxisChange?: (axisId: string) => void;
   onDragStateChange?: (isDragging: boolean) => void;
 };
 
 export type ProjectedMoveGizmoView = {
-  setPoint: (point: GizmoVec3) => void;
-  getPoint: () => GizmoVec3;
+  setPoint: (point: Vector3) => void;
+  getPoint: () => Vector3;
   setViewMatrix: (viewMatrix: number[]) => void;
-  setFovDeg: (fovDeg: number) => void;
+  setFovRad: (fovRad: number) => void;
   setDiscRadius: (discRadius: number) => void;
   setActiveAxisId: (axisId: string) => void;
   getActiveAxisId: () => string;
@@ -412,7 +178,7 @@ export const createProjectedMoveGizmoView = (
     options.centerPlaneDragCursor ?? DEFAULT_DISC_CURSOR;
   const showRotationHandle = options.showRotationHandle ?? true;
 
-  let point = cloneVec3(options.initialPoint ?? { x: 0, y: 0, z: 0 });
+  let point = options.initialPoint?.clone() ?? new Vector3(0, 0, 0);
   let activeAxisId =
     options.initialActiveAxisId &&
     normalizedCandidates.some(
@@ -424,7 +190,7 @@ export const createProjectedMoveGizmoView = (
   let viewMatrix = Array.from(
     options.viewMatrix ?? [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 4, 0, 0, 0, 1]
   );
-  let fovDeg = options.fovDeg ?? DEFAULT_FOV_DEG;
+  let fovRad = options.fovRad ?? DEFAULT_VIEW_FOV_RAD;
   let discRadius = Math.max(
     AXIS_NUMERIC_EPSILON,
     options.discRadius ?? DEFAULT_DISC_RADIUS
@@ -631,10 +397,10 @@ export const createProjectedMoveGizmoView = (
     );
   };
 
-  const setPointInternal = (nextPoint: GizmoVec3, emit = true) => {
-    point = cloneVec3(nextPoint);
+  const setPointInternal = (nextPoint: Vector3, emit = true) => {
+    point = nextPoint.clone();
     if (emit) {
-      options.onPointChange?.(cloneVec3(point));
+      options.onPointChange?.(point.clone());
     }
   };
 
@@ -679,7 +445,7 @@ export const createProjectedMoveGizmoView = (
       clientY,
       viewportRect,
       viewMatrix,
-      fovDeg
+      fovRad
     );
     if (!ray) return;
 
@@ -698,7 +464,7 @@ export const createProjectedMoveGizmoView = (
       mode: "axis",
       connector,
       axisDirection: axis.direction,
-      startPoint: cloneVec3(point),
+      startPoint: point.clone(),
     };
     isDragging = true;
     options.onDragStateChange?.(true);
@@ -712,17 +478,15 @@ export const createProjectedMoveGizmoView = (
         moveEvent.clientY,
         moveRect,
         viewMatrix,
-        fovDeg
+        fovRad
       );
       if (!moveRay) return;
       const nextAxisParam = dragState.connector.updateDragFromRay(moveRay);
       if (nextAxisParam === null) return;
       setPointInternal(
-        addScaledVec3(
-          dragState.startPoint,
-          dragState.axisDirection,
-          nextAxisParam
-        )
+        dragState.startPoint
+          .clone()
+          .add(dragState.axisDirection.clone().multiplyScalar(nextAxisParam))
       );
       refresh();
     });
@@ -740,7 +504,7 @@ export const createProjectedMoveGizmoView = (
       clientY,
       viewportRect,
       viewMatrix,
-      fovDeg
+      fovRad
     );
     if (!ray) return;
     const startPlanePoint = intersectRayWithPlane(
@@ -753,8 +517,8 @@ export const createProjectedMoveGizmoView = (
     stopDragging();
     dragState = {
       mode: "plane",
-      planeNormal: cloneVec3(activeAxis.direction),
-      startPoint: cloneVec3(point),
+      planeNormal: activeAxis.direction.clone(),
+      startPoint: point.clone(),
       startPlanePoint,
     };
     isDragging = true;
@@ -769,7 +533,7 @@ export const createProjectedMoveGizmoView = (
         moveEvent.clientY,
         moveRect,
         viewMatrix,
-        fovDeg
+        fovRad
       );
       if (!moveRay) return;
       const currentPlanePoint = intersectRayWithPlane(
@@ -778,8 +542,8 @@ export const createProjectedMoveGizmoView = (
         dragState.planeNormal
       );
       if (!currentPlanePoint) return;
-      const delta = subVec3(currentPlanePoint, dragState.startPlanePoint);
-      setPointInternal(addVec3(dragState.startPoint, delta));
+      const delta = currentPlanePoint.clone().sub(dragState.startPlanePoint);
+      setPointInternal(dragState.startPoint.clone().add(delta));
       refresh();
     });
 
@@ -821,7 +585,7 @@ export const createProjectedMoveGizmoView = (
       point,
       viewMatrix,
       viewportRect,
-      fovDeg
+      fovRad
     );
     if (!anchorCanvas) {
       gizmoGroup.style.display = "none";
@@ -842,7 +606,7 @@ export const createProjectedMoveGizmoView = (
 
     normalizedCandidates.forEach((candidate) => {
       const pathEl = discPathById[candidate.id];
-      const planeBasis = createPlaneBasis(candidate.direction);
+      const planeBasis = createPlaneBasisFromNormal(candidate.direction);
       const circlePointsWorld = buildCirclePoints(
         discRadius,
         DISC_OUTLINE_SEGMENTS
@@ -850,18 +614,15 @@ export const createProjectedMoveGizmoView = (
 
       const projectedOutlinePoints = circlePointsWorld
         .map((circlePoint): Point2 | null => {
-          const worldPoint = addVec3(
-            point,
-            addVec3(
-              mulVec3Scalar(planeBasis.xAxis, circlePoint.x),
-              mulVec3Scalar(planeBasis.yAxis, circlePoint.y)
-            )
-          );
+          const worldPoint = point
+            .clone()
+            .add(planeBasis.xAxis.clone().multiplyScalar(circlePoint.x))
+            .add(planeBasis.yAxis.clone().multiplyScalar(circlePoint.y));
           const projected = projectPointToViewport(
             worldPoint,
             viewMatrix,
             viewportRect,
-            fovDeg
+            fovRad
           );
           if (!projected) return null;
           const localX = projected.x - anchorCanvas.x;
@@ -925,22 +686,26 @@ export const createProjectedMoveGizmoView = (
 
       // Keep the handle on the projected disc by projecting a real point on
       // the active disc in world/view space.
-      const planeBasis = createPlaneBasis(activeAxisCandidate.direction);
-      const worldHandlePoint = addVec3(
-        point,
-        addVec3(
-          mulVec3Scalar(
-            planeBasis.xAxis,
-            Math.cos(handleAngleRad) * discRadius
-          ),
-          mulVec3Scalar(planeBasis.yAxis, Math.sin(handleAngleRad) * discRadius)
-        )
+      const planeBasis = createPlaneBasisFromNormal(
+        activeAxisCandidate.direction
       );
+      const worldHandlePoint = point
+        .clone()
+        .add(
+          planeBasis.xAxis
+            .clone()
+            .multiplyScalar(Math.cos(handleAngleRad) * discRadius)
+        )
+        .add(
+          planeBasis.yAxis
+            .clone()
+            .multiplyScalar(Math.sin(handleAngleRad) * discRadius)
+        );
       const projectedHandlePoint = projectPointToViewport(
         worldHandlePoint,
         viewMatrix,
         viewportRect,
-        fovDeg
+        fovRad
       );
       if (projectedHandlePoint) {
         handleX = projectedHandlePoint.x - anchorCanvas.x;
@@ -967,16 +732,20 @@ export const createProjectedMoveGizmoView = (
       let axisAngleRad = previousDirection.angleRad;
 
       const plusPoint = projectPointToViewport(
-        addScaledVec3(point, candidate.direction, sampleDistance),
+        point
+          .clone()
+          .add(candidate.direction.clone().multiplyScalar(sampleDistance)),
         viewMatrix,
         viewportRect,
-        fovDeg
+        fovRad
       );
       const minusPoint = projectPointToViewport(
-        addScaledVec3(point, candidate.direction, -sampleDistance),
+        point
+          .clone()
+          .add(candidate.direction.clone().multiplyScalar(-sampleDistance)),
         viewMatrix,
         viewportRect,
-        fovDeg
+        fovRad
       );
 
       if (plusPoint && minusPoint) {
@@ -1067,7 +836,7 @@ export const createProjectedMoveGizmoView = (
         : centerPlaneDragCursor;
   };
 
-  const setPoint = (nextPoint: GizmoVec3) => {
+  const setPoint = (nextPoint: Vector3) => {
     setPointInternal(nextPoint, false);
     refresh();
   };
@@ -1077,8 +846,8 @@ export const createProjectedMoveGizmoView = (
     refresh();
   };
 
-  const setFov = (nextFovDeg: number) => {
-    fovDeg = nextFovDeg;
+  const setFov = (nextFovRad: number) => {
+    fovRad = nextFovRad;
     refresh();
   };
 
@@ -1105,9 +874,9 @@ export const createProjectedMoveGizmoView = (
 
   return {
     setPoint,
-    getPoint: () => cloneVec3(point),
+    getPoint: () => point.clone(),
     setViewMatrix,
-    setFovDeg: setFov,
+    setFovRad: setFov,
     setDiscRadius: setRadius,
     setActiveAxisId,
     getActiveAxisId: () => activeAxisId,

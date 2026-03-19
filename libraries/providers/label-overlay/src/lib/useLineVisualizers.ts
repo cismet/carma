@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useRef } from "react";
+import type { CssPixelPosition } from "@carma/units/types";
 
 import { useLabelOverlay } from "./useLabelOverlay";
 import {
@@ -6,19 +7,18 @@ import {
   type LineVisualizerProps,
 } from "./components/LineVisualizer";
 
-export type ScreenPoint = { x: number; y: number };
-
 export type LineVisualizerData = LineVisualizerProps & {
   id: string;
   getCanvasLine?: () => {
-    start: ScreenPoint;
-    end: ScreenPoint;
+    start: CssPixelPosition;
+    end: CssPixelPosition;
   } | null;
   labelMinLineLengthPx?: number;
   labelOffsetPx?: number;
+  labelFlippedBaselineOffsetPx?: number;
   labelRotationMode?: "auto" | "clockwise";
-  getLabelOutsideReferencePoint?: () => ScreenPoint | null;
-  getLabelInsideReferencePoint?: () => ScreenPoint | null;
+  getLabelOutsideReferencePoint?: () => CssPixelPosition | null;
+  getLabelInsideReferencePoint?: () => CssPixelPosition | null;
   visible?: boolean;
   isHidden?: boolean;
   contentSignature?: string;
@@ -33,12 +33,238 @@ const LABEL_POSITION_STABILITY_EPSILON_PX = 0.85;
 const LABEL_ANGLE_STABILITY_EPSILON_DEG = 0.75;
 const LABEL_VISIBILITY_HYSTERESIS_PX = 2;
 
+const overlayReferenceIdByValue = new WeakMap<object, number>();
+let nextOverlayReferenceId = 1;
+
+const getOverlayReferenceSignature = (value: unknown): string => {
+  if (value === null || value === undefined) {
+    return "";
+  }
+
+  if (typeof value === "object" || typeof value === "function") {
+    const ref = value as object;
+    const existingId = overlayReferenceIdByValue.get(ref);
+    if (existingId) {
+      return `ref:${existingId}`;
+    }
+
+    const nextId = nextOverlayReferenceId++;
+    overlayReferenceIdByValue.set(ref, nextId);
+    return `ref:${nextId}`;
+  }
+
+  return String(value);
+};
+
+const resolveLineLabelPlacement = ({
+  line,
+  canvasLine,
+  previousShouldFlip,
+}: {
+  line: LineVisualizerData;
+  canvasLine: {
+    start: CssPixelPosition;
+    end: CssPixelPosition;
+  };
+  previousShouldFlip: boolean;
+}) => {
+  const dx = canvasLine.end.x - canvasLine.start.x;
+  const dy = canvasLine.end.y - canvasLine.start.y;
+  const lineLength = Math.hypot(dx, dy);
+  if (lineLength <= MIN_LINE_LENGTH_PX) {
+    return null;
+  }
+
+  const midX = (canvasLine.start.x + canvasLine.end.x) * 0.5;
+  const midY = (canvasLine.start.y + canvasLine.end.y) * 0.5;
+  let normalX = -dy / lineLength;
+  let normalY = dx / lineLength;
+  const outsideRef = line.getLabelOutsideReferencePoint?.();
+  const insideRef = line.getLabelInsideReferencePoint?.();
+  let shouldFlip = previousShouldFlip;
+
+  if (outsideRef) {
+    const refDx = outsideRef.x - midX;
+    const refDy = outsideRef.y - midY;
+    const dotWithNormal = refDx * normalX + refDy * normalY;
+    if (dotWithNormal > LABEL_SIDE_HYSTERESIS_PX) {
+      shouldFlip = true;
+    } else if (dotWithNormal < -LABEL_SIDE_HYSTERESIS_PX) {
+      shouldFlip = false;
+    }
+  } else if (insideRef) {
+    const refDx = insideRef.x - midX;
+    const refDy = insideRef.y - midY;
+    const dotWithNormal = refDx * normalX + refDy * normalY;
+    if (dotWithNormal < -LABEL_SIDE_HYSTERESIS_PX) {
+      shouldFlip = true;
+    } else if (dotWithNormal > LABEL_SIDE_HYSTERESIS_PX) {
+      shouldFlip = false;
+    }
+  }
+
+  if (shouldFlip) {
+    normalX = -normalX;
+    normalY = -normalY;
+  }
+
+  const rawAngleDeg = (Math.atan2(dy, dx) * 180) / Math.PI;
+  const angleDeg =
+    line.labelRotationMode === "clockwise"
+      ? (rawAngleDeg + 360) % 360
+      : (() => {
+          const crossProduct =
+            (dx / lineLength) * normalY - (dy / lineLength) * normalX;
+          const sideAdjustedAngle =
+            crossProduct >= 0 ? rawAngleDeg : rawAngleDeg + 180;
+          const normalizedAngle = ((sideAdjustedAngle % 360) + 360) % 360;
+          return normalizedAngle > 90 && normalizedAngle < 270
+            ? (normalizedAngle + 180) % 360
+            : normalizedAngle;
+        })();
+
+  const labelOffsetPx = line.labelOffsetPx ?? LABEL_OFFSET_PX;
+  const flippedBaselineOffsetPx = shouldFlip
+    ? line.labelFlippedBaselineOffsetPx ?? 0
+    : 0;
+  const angleRad = (angleDeg * Math.PI) / 180;
+  const baselineOffsetX = -Math.sin(angleRad) * flippedBaselineOffsetPx;
+  const baselineOffsetY = Math.cos(angleRad) * flippedBaselineOffsetPx;
+
+  return {
+    lineLength,
+    shouldFlip,
+    angleDeg,
+    textX: midX + normalX * labelOffsetPx + baselineOffsetX,
+    textY: midY + normalY * labelOffsetPx + baselineOffsetY,
+  };
+};
+
+const buildLineOverlayUpdatePosition =
+  (line: LineVisualizerData) => (elementDiv: HTMLElement) => {
+    const canvasLine = line.getCanvasLine ? line.getCanvasLine() : null;
+    if (!canvasLine) return false;
+
+    const lineEl = elementDiv.querySelector(
+      '[data-line-visualizer-segment="true"]'
+    ) as SVGLineElement | null;
+    if (!lineEl) return false;
+
+    elementDiv.style.position = "absolute";
+    elementDiv.style.left = "0";
+    elementDiv.style.top = "0";
+    elementDiv.style.width = "100%";
+    elementDiv.style.height = "100%";
+    elementDiv.style.transform = "none";
+    // Keep map interaction free except for explicit line/label hit targets.
+    elementDiv.style.pointerEvents = "none";
+    elementDiv.style.zIndex = `${LINE_OVERLAY_Z_INDEX}`;
+
+    lineEl.setAttribute("x1", `${canvasLine.start.x}`);
+    lineEl.setAttribute("y1", `${canvasLine.start.y}`);
+    lineEl.setAttribute("x2", `${canvasLine.end.x}`);
+    lineEl.setAttribute("y2", `${canvasLine.end.y}`);
+
+    const lineHitTargetEl = elementDiv.querySelector(
+      '[data-line-visualizer-hit-target="true"]'
+    ) as SVGLineElement | null;
+    if (lineHitTargetEl) {
+      lineHitTargetEl.setAttribute("x1", `${canvasLine.start.x}`);
+      lineHitTargetEl.setAttribute("y1", `${canvasLine.start.y}`);
+      lineHitTargetEl.setAttribute("x2", `${canvasLine.end.x}`);
+      lineHitTargetEl.setAttribute("y2", `${canvasLine.end.y}`);
+    }
+
+    const textEl = elementDiv.querySelector(
+      '[data-line-visualizer-text="true"]'
+    ) as SVGTextElement | null;
+    if (textEl && line.labelText) {
+      const placement = resolveLineLabelPlacement({
+        line,
+        canvasLine,
+        previousShouldFlip: textEl.dataset.normalFlip === "1",
+      });
+      if (placement) {
+        textEl.dataset.normalFlip = placement.shouldFlip ? "1" : "0";
+
+        const previousTextX = Number.parseFloat(
+          textEl.dataset.stableTextX ?? ""
+        );
+        const previousTextY = Number.parseFloat(
+          textEl.dataset.stableTextY ?? ""
+        );
+        const hasPreviousTextPosition =
+          Number.isFinite(previousTextX) && Number.isFinite(previousTextY);
+        const stableTextPosition =
+          hasPreviousTextPosition &&
+          Math.hypot(
+            placement.textX - previousTextX,
+            placement.textY - previousTextY
+          ) <= LABEL_POSITION_STABILITY_EPSILON_PX
+            ? { x: previousTextX, y: previousTextY }
+            : { x: placement.textX, y: placement.textY };
+
+        const previousAngleDeg = Number.parseFloat(
+          textEl.dataset.stableAngleDeg ?? ""
+        );
+        const hasPreviousAngle = Number.isFinite(previousAngleDeg);
+        const normalizedAngleDelta = hasPreviousAngle
+          ? Math.abs(
+              ((placement.angleDeg - previousAngleDeg + 540) % 360) - 180
+            )
+          : Number.POSITIVE_INFINITY;
+        const stableAngleDeg =
+          hasPreviousAngle &&
+          normalizedAngleDelta <= LABEL_ANGLE_STABILITY_EPSILON_DEG
+            ? previousAngleDeg
+            : placement.angleDeg;
+
+        textEl.dataset.stableTextX = `${stableTextPosition.x}`;
+        textEl.dataset.stableTextY = `${stableTextPosition.y}`;
+        textEl.dataset.stableAngleDeg = `${stableAngleDeg}`;
+
+        textEl.setAttribute("x", `${stableTextPosition.x}`);
+        textEl.setAttribute("y", `${stableTextPosition.y}`);
+        textEl.setAttribute(
+          "transform",
+          `rotate(${stableAngleDeg} ${stableTextPosition.x} ${stableTextPosition.y})`
+        );
+        const textLengthPx = textEl.getComputedTextLength();
+        const minLabelLineLengthPx =
+          line.labelMinLineLengthPx ?? DEFAULT_MIN_LABEL_LINE_LENGTH_PX;
+        const previousVisible = textEl.dataset.labelVisible === "1";
+        const lengthThreshold = previousVisible
+          ? minLabelLineLengthPx - LABEL_VISIBILITY_HYSTERESIS_PX
+          : minLabelLineLengthPx + LABEL_VISIBILITY_HYSTERESIS_PX;
+        const fitThreshold = previousVisible
+          ? placement.lineLength + LABEL_VISIBILITY_HYSTERESIS_PX
+          : placement.lineLength - LABEL_VISIBILITY_HYSTERESIS_PX;
+        const shouldShowLabel =
+          placement.lineLength >= lengthThreshold &&
+          textLengthPx + LABEL_MIN_PADDING_PX <= fitThreshold;
+        textEl.dataset.labelVisible = shouldShowLabel ? "1" : "0";
+        textEl.style.display = shouldShowLabel ? "block" : "none";
+      } else {
+        textEl.dataset.labelVisible = "0";
+        textEl.style.display = "none";
+      }
+    } else if (textEl) {
+      textEl.dataset.labelVisible = "0";
+      textEl.style.display = "none";
+    }
+
+    return true;
+  };
+
 export const useLineVisualizers = (
   lines: LineVisualizerData[],
   showLines: boolean = true
 ) => {
-  const { addLabelOverlayElement, removeLabelOverlayElement } =
-    useLabelOverlay();
+  const {
+    addLabelOverlayElement,
+    removeLabelOverlayElement,
+    updateLabelOverlayElement,
+  } = useLabelOverlay();
   const previousLineSignatureByIdRef = useRef<Map<string, string>>(new Map());
 
   const lineSignatureById = useMemo(
@@ -49,16 +275,22 @@ export const useLineVisualizers = (
           `${line.id}:${line.visible}:${line.isHidden}:${line.stroke}:${
             line.strokeWidth
           }:${line.strokeDasharray}:${line.strokeDashoffset}:${line.opacity}:${
-            line.labelText
-          }:${line.labelColor}:${line.labelFontSize}:${line.labelFontFamily}:${
-            line.labelFontWeight
-          }:${line.labelMinLineLengthPx}:${line.labelOffsetPx}:${
+            line.hitTargetStrokeWidth
+          }:${line.labelText}:${line.labelColor}:${line.labelStroke}:${
+            line.labelFontSize
+          }:${line.labelFontFamily}:${line.labelFontWeight}:${
+            line.labelMinLineLengthPx
+          }:${line.labelOffsetPx}:${line.labelFlippedBaselineOffsetPx ?? ""}:${
             line.labelRotationMode ?? "auto"
-          }:${line.labelDominantBaseline ?? "middle"}:${Boolean(
-            line.onLineClick
-          )}:${Boolean(line.onLineLongPress)}:${Boolean(line.onLabelClick)}:${
+          }:${line.labelDominantBaseline ?? "middle"}:${
             line.longPressDurationMs ?? ""
-          }:${line.contentSignature ?? ""}`,
+          }:${getOverlayReferenceSignature(
+            line.onLineClick
+          )}:${getOverlayReferenceSignature(
+            line.onLineLongPress
+          )}:${getOverlayReferenceSignature(line.onLabelClick)}:${
+            line.contentSignature ?? ""
+          }`,
         ])
       ),
     [lines]
@@ -82,14 +314,23 @@ export const useLineVisualizers = (
     lineIndexById.forEach((line, lineId) => {
       const nextSignature = lineSignatureById.get(lineId) ?? "";
       nextSignatureById.set(lineId, nextSignature);
+      const overlayId = `line-visualizer-${line.id}`;
       const previousSignature =
         previousLineSignatureByIdRef.current.get(lineId) ?? null;
+
       if (previousSignature === nextSignature) {
+        updateLabelOverlayElement(overlayId, {
+          visible: line.visible !== false,
+          isHidden: line.isHidden,
+          updatePosition: buildLineOverlayUpdatePosition(line),
+        });
         return;
       }
+
       addLabelOverlayElement({
-        id: `line-visualizer-${line.id}`,
+        id: overlayId,
         zIndex: LINE_OVERLAY_Z_INDEX,
+        contentKey: nextSignature,
         content: React.createElement(LineVisualizer, {
           stroke: line.stroke,
           strokeWidth: line.strokeWidth,
@@ -111,168 +352,7 @@ export const useLineVisualizers = (
         }),
         visible: line.visible !== false,
         isHidden: line.isHidden,
-        updatePosition: (elementDiv) => {
-          const canvasLine = line.getCanvasLine ? line.getCanvasLine() : null;
-          if (!canvasLine) return false;
-
-          const lineEl = elementDiv.querySelector(
-            '[data-line-visualizer-segment="true"]'
-          ) as SVGLineElement | null;
-          if (!lineEl) return false;
-
-          elementDiv.style.position = "absolute";
-          elementDiv.style.left = "0";
-          elementDiv.style.top = "0";
-          elementDiv.style.width = "100%";
-          elementDiv.style.height = "100%";
-          elementDiv.style.transform = "none";
-          // Keep map interaction free except for explicit line/label hit targets.
-          elementDiv.style.pointerEvents = "none";
-          elementDiv.style.zIndex = `${LINE_OVERLAY_Z_INDEX}`;
-
-          lineEl.setAttribute("x1", `${canvasLine.start.x}`);
-          lineEl.setAttribute("y1", `${canvasLine.start.y}`);
-          lineEl.setAttribute("x2", `${canvasLine.end.x}`);
-          lineEl.setAttribute("y2", `${canvasLine.end.y}`);
-
-          const lineHitTargetEl = elementDiv.querySelector(
-            '[data-line-visualizer-hit-target="true"]'
-          ) as SVGLineElement | null;
-          if (lineHitTargetEl) {
-            lineHitTargetEl.setAttribute("x1", `${canvasLine.start.x}`);
-            lineHitTargetEl.setAttribute("y1", `${canvasLine.start.y}`);
-            lineHitTargetEl.setAttribute("x2", `${canvasLine.end.x}`);
-            lineHitTargetEl.setAttribute("y2", `${canvasLine.end.y}`);
-          }
-
-          const textEl = elementDiv.querySelector(
-            '[data-line-visualizer-text="true"]'
-          ) as SVGTextElement | null;
-          if (textEl && line.labelText) {
-            const dx = canvasLine.end.x - canvasLine.start.x;
-            const dy = canvasLine.end.y - canvasLine.start.y;
-            const lineLength = Math.hypot(dx, dy);
-            if (lineLength > MIN_LINE_LENGTH_PX) {
-              const midX = (canvasLine.start.x + canvasLine.end.x) * 0.5;
-              const midY = (canvasLine.start.y + canvasLine.end.y) * 0.5;
-              let normalX = -dy / lineLength;
-              let normalY = dx / lineLength;
-              const outsideRef = line.getLabelOutsideReferencePoint?.();
-              const insideRef = line.getLabelInsideReferencePoint?.();
-              const previousShouldFlip = textEl.dataset.normalFlip === "1";
-              let shouldFlip = previousShouldFlip;
-              if (outsideRef) {
-                const refDx = outsideRef.x - midX;
-                const refDy = outsideRef.y - midY;
-                const dotWithNormal = refDx * normalX + refDy * normalY;
-                if (dotWithNormal > LABEL_SIDE_HYSTERESIS_PX) {
-                  shouldFlip = true;
-                } else if (dotWithNormal < -LABEL_SIDE_HYSTERESIS_PX) {
-                  shouldFlip = false;
-                }
-              } else if (insideRef) {
-                const refDx = insideRef.x - midX;
-                const refDy = insideRef.y - midY;
-                const dotWithNormal = refDx * normalX + refDy * normalY;
-                if (dotWithNormal < -LABEL_SIDE_HYSTERESIS_PX) {
-                  shouldFlip = true;
-                } else if (dotWithNormal > LABEL_SIDE_HYSTERESIS_PX) {
-                  shouldFlip = false;
-                }
-              }
-              if (shouldFlip) {
-                normalX = -normalX;
-                normalY = -normalY;
-              }
-              textEl.dataset.normalFlip = shouldFlip ? "1" : "0";
-              const rawAngleDeg = (Math.atan2(dy, dx) * 180) / Math.PI;
-              const labelOffsetPx = line.labelOffsetPx ?? LABEL_OFFSET_PX;
-              const textX = midX + normalX * labelOffsetPx;
-              const textY = midY + normalY * labelOffsetPx;
-              const angleDeg =
-                line.labelRotationMode === "clockwise"
-                  ? (rawAngleDeg + 360) % 360
-                  : (() => {
-                      // cross product of line direction and final normal:
-                      // positive → label is to the right of the line direction → read forward
-                      // negative → label is to the left → read backward (flip 180°)
-                      const crossProduct =
-                        (dx / lineLength) * normalY -
-                        (dy / lineLength) * normalX;
-                      const sideAdjustedAngle =
-                        crossProduct >= 0 ? rawAngleDeg : rawAngleDeg + 180;
-                      const normalizedAngle =
-                        ((sideAdjustedAngle % 360) + 360) % 360;
-                      return normalizedAngle > 90 && normalizedAngle < 270
-                        ? (normalizedAngle + 180) % 360
-                        : normalizedAngle;
-                    })();
-
-              const previousTextX = Number.parseFloat(
-                textEl.dataset.stableTextX ?? ""
-              );
-              const previousTextY = Number.parseFloat(
-                textEl.dataset.stableTextY ?? ""
-              );
-              const hasPreviousTextPosition =
-                Number.isFinite(previousTextX) &&
-                Number.isFinite(previousTextY);
-              const stableTextPosition =
-                hasPreviousTextPosition &&
-                Math.hypot(textX - previousTextX, textY - previousTextY) <=
-                  LABEL_POSITION_STABILITY_EPSILON_PX
-                  ? { x: previousTextX, y: previousTextY }
-                  : { x: textX, y: textY };
-
-              const previousAngleDeg = Number.parseFloat(
-                textEl.dataset.stableAngleDeg ?? ""
-              );
-              const hasPreviousAngle = Number.isFinite(previousAngleDeg);
-              const normalizedAngleDelta = hasPreviousAngle
-                ? Math.abs(((angleDeg - previousAngleDeg + 540) % 360) - 180)
-                : Number.POSITIVE_INFINITY;
-              const stableAngleDeg =
-                hasPreviousAngle &&
-                normalizedAngleDelta <= LABEL_ANGLE_STABILITY_EPSILON_DEG
-                  ? previousAngleDeg
-                  : angleDeg;
-
-              textEl.dataset.stableTextX = `${stableTextPosition.x}`;
-              textEl.dataset.stableTextY = `${stableTextPosition.y}`;
-              textEl.dataset.stableAngleDeg = `${stableAngleDeg}`;
-
-              textEl.setAttribute("x", `${stableTextPosition.x}`);
-              textEl.setAttribute("y", `${stableTextPosition.y}`);
-              textEl.setAttribute(
-                "transform",
-                `rotate(${stableAngleDeg} ${stableTextPosition.x} ${stableTextPosition.y})`
-              );
-              const textLengthPx = textEl.getComputedTextLength();
-              const minLabelLineLengthPx =
-                line.labelMinLineLengthPx ?? DEFAULT_MIN_LABEL_LINE_LENGTH_PX;
-              const previousVisible = textEl.dataset.labelVisible === "1";
-              const lengthThreshold = previousVisible
-                ? minLabelLineLengthPx - LABEL_VISIBILITY_HYSTERESIS_PX
-                : minLabelLineLengthPx + LABEL_VISIBILITY_HYSTERESIS_PX;
-              const fitThreshold = previousVisible
-                ? lineLength + LABEL_VISIBILITY_HYSTERESIS_PX
-                : lineLength - LABEL_VISIBILITY_HYSTERESIS_PX;
-              const shouldShowLabel =
-                lineLength >= lengthThreshold &&
-                textLengthPx + LABEL_MIN_PADDING_PX <= fitThreshold;
-              textEl.dataset.labelVisible = shouldShowLabel ? "1" : "0";
-              textEl.style.display = shouldShowLabel ? "block" : "none";
-            } else {
-              textEl.dataset.labelVisible = "0";
-              textEl.style.display = "none";
-            }
-          } else if (textEl) {
-            textEl.dataset.labelVisible = "0";
-            textEl.style.display = "none";
-          }
-
-          return true;
-        },
+        updatePosition: buildLineOverlayUpdatePosition(line),
       });
     });
 
@@ -287,6 +367,7 @@ export const useLineVisualizers = (
     lineSignatureById,
     addLabelOverlayElement,
     removeLabelOverlayElement,
+    updateLabelOverlayElement,
   ]);
 
   useEffect(

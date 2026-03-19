@@ -214,8 +214,12 @@ const BelisSidebar = ({
   // Track Alt key for dismiss button visibility
   const [altHeld, setAltHeld] = useState(false);
   useEffect(() => {
-    const down = (e: KeyboardEvent) => { if (e.key === "Alt") setAltHeld(true); };
-    const up = (e: KeyboardEvent) => { if (e.key === "Alt") setAltHeld(false); };
+    const down = (e: KeyboardEvent) => {
+      if (e.key === "Alt") setAltHeld(true);
+    };
+    const up = (e: KeyboardEvent) => {
+      if (e.key === "Alt") setAltHeld(false);
+    };
     window.addEventListener("keydown", down);
     window.addEventListener("keyup", up);
     window.addEventListener("blur", () => setAltHeld(false));
@@ -652,7 +656,16 @@ const BelisSidebar = ({
                             : "hover:bg-gray-50"
                         }`}
                       >
-                        <div className={`transition-opacity ${highlightCount != null && highlightCount > 0 && altHeld && onFeatureDismiss ? "group-hover:opacity-30" : ""}`}>
+                        <div
+                          className={`transition-opacity ${
+                            highlightCount != null &&
+                            highlightCount > 0 &&
+                            altHeld &&
+                            onFeatureDismiss
+                              ? "group-hover:opacity-30"
+                              : ""
+                          }`}
+                        >
                           <div className="flex justify-between gap-2 overflow-hidden">
                             <span className="shrink-0 whitespace-nowrap text-sm">
                               <b>{listItem.main}</b>
@@ -667,18 +680,21 @@ const BelisSidebar = ({
                             </div>
                           )}
                         </div>
-                        {highlightCount != null && highlightCount > 0 && altHeld && onFeatureDismiss && (
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              onFeatureDismiss(feature);
-                            }}
-                            className="absolute inset-0 flex items-center justify-center text-black opacity-0 group-hover:opacity-100 text-lg font-bold"
-                            title="Hervorhebung entfernen"
-                          >
-                            ✕
-                          </button>
-                        )}
+                        {highlightCount != null &&
+                          highlightCount > 0 &&
+                          altHeld &&
+                          onFeatureDismiss && (
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                onFeatureDismiss(feature);
+                              }}
+                              className="absolute inset-0 flex items-center justify-center text-black opacity-0 group-hover:opacity-100 text-lg font-bold"
+                              title="Hervorhebung entfernen"
+                            >
+                              ✕
+                            </button>
+                          )}
                       </div>
                     );
                   })}

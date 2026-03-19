@@ -8,8 +8,8 @@ import {
 } from "react";
 
 import {
+  CarmaTransforms,
   Cartesian3,
-  Cartesian4,
   Color,
   Matrix4,
   Primitive,
@@ -24,7 +24,7 @@ import {
   createRotationAxisVisualizer,
   type RotationAxisVisualizer,
 } from "@carma-mapping/engines/cesium/legacy";
-import { createDisc } from "@carma-mapping/engines/cesium/primitives";
+import { createRing } from "@carma-mapping/engines/cesium/primitives";
 import { AXIS_NUMERIC_EPSILON, toSvgPathD } from "@carma-mapping/gizmo/core";
 import {
   buildCirclePoints,
@@ -157,6 +157,7 @@ const DISC_OUTLINE_SEGMENTS = 72;
 const DISC_SVG_EXTENT = 320;
 const DISC_SVG_HALF_EXTENT = DISC_SVG_EXTENT / 2;
 const DISC_PROJECTION_SCALE_SAMPLE_COUNT = 16;
+const OPEN_GIZMO_SCENE_CLICK_GUARD_MS = 220;
 const AXIS_SCREEN_SAMPLE_TARGET_PX = 48;
 const AXIS_SCREEN_SAMPLE_MIN_WORLD = 0.25;
 const AXIS_SCREEN_SAMPLE_MAX_WORLD = 500;
@@ -250,65 +251,28 @@ const safeRemovePrimitive = (
   }
 };
 
+const DEFAULT_AXIS_ENU_MATRIX_SCRATCH = new Matrix4();
+
 const createOrientedDiscModelMatrix = (
   origin: Cartesian3,
   planeNormal: Cartesian3,
-  radius: number
+  radius: number,
+  result?: Matrix4
 ): Matrix4 => {
   const safeRadius = Math.max(radius, AXIS_NUMERIC_EPSILON);
   const normalizedNormal = Cartesian3.normalize(planeNormal, new Cartesian3());
   const planeBasis = createPlaneBasis(normalizedNormal);
-  const matrix = Matrix4.clone(Matrix4.IDENTITY, new Matrix4());
-  Matrix4.setColumn(
-    matrix,
-    0,
-    new Cartesian4(
-      planeBasis.xAxis.x * safeRadius,
-      planeBasis.xAxis.y * safeRadius,
-      planeBasis.xAxis.z * safeRadius,
-      0
-    ),
-    matrix
-  );
-  Matrix4.setColumn(
-    matrix,
+  return CarmaTransforms.createBasisScaleTranslationMatrix(
+    origin,
+    planeBasis.xAxis,
+    planeBasis.yAxis,
+    normalizedNormal,
+    safeRadius,
+    safeRadius,
     1,
-    new Cartesian4(
-      planeBasis.yAxis.x * safeRadius,
-      planeBasis.yAxis.y * safeRadius,
-      planeBasis.yAxis.z * safeRadius,
-      0
-    ),
-    matrix
+    result
   );
-  Matrix4.setColumn(
-    matrix,
-    2,
-    new Cartesian4(
-      normalizedNormal.x,
-      normalizedNormal.y,
-      normalizedNormal.z,
-      0
-    ),
-    matrix
-  );
-  Matrix4.setColumn(
-    matrix,
-    3,
-    new Cartesian4(origin.x, origin.y, origin.z, 1),
-    matrix
-  );
-  return matrix;
 };
-
-const toCartesian3Json = (value: Cartesian3) => ({
-  x: value.x,
-  y: value.y,
-  z: value.z,
-});
-
-const toMatrix4Array = (value: Matrix4): number[] =>
-  Array.from(value as unknown as ArrayLike<number>);
 
 const updateTrianglePathAppearance = (
   pathElement: SVGPathElement | null,
@@ -328,23 +292,33 @@ const getDefaultAxisCandidatesAtPosition = (
   origin: Cartesian3,
   axisTitle?: string | null
 ): CesiumMoveGizmoAxisCandidate[] => {
-  const eastNorthUpMatrix = Transforms.eastNorthUpToFixedFrame(origin);
-  const eastAxis4 = Matrix4.getColumn(eastNorthUpMatrix, 0, new Cartesian4());
-  const northAxis4 = Matrix4.getColumn(eastNorthUpMatrix, 1, new Cartesian4());
-  const upAxis4 = Matrix4.getColumn(eastNorthUpMatrix, 2, new Cartesian4());
+  const eastNorthUpMatrix = Transforms.eastNorthUpToFixedFrame(
+    origin,
+    undefined,
+    DEFAULT_AXIS_ENU_MATRIX_SCRATCH
+  );
 
+  const eastDirectionRaw = CarmaTransforms.matrix4ColumnToCartesian3(
+    eastNorthUpMatrix,
+    0
+  );
+  const northDirectionRaw = CarmaTransforms.matrix4ColumnToCartesian3(
+    eastNorthUpMatrix,
+    1
+  );
+  const upDirectionRaw = CarmaTransforms.matrix4ColumnToCartesian3(
+    eastNorthUpMatrix,
+    2
+  );
   const eastDirection = Cartesian3.normalize(
-    new Cartesian3(eastAxis4.x, eastAxis4.y, eastAxis4.z),
-    new Cartesian3()
+    eastDirectionRaw,
+    eastDirectionRaw
   );
   const northDirection = Cartesian3.normalize(
-    new Cartesian3(northAxis4.x, northAxis4.y, northAxis4.z),
-    new Cartesian3()
+    northDirectionRaw,
+    northDirectionRaw
   );
-  const upDirection = Cartesian3.normalize(
-    new Cartesian3(upAxis4.x, upAxis4.y, upAxis4.z),
-    new Cartesian3()
-  );
+  const upDirection = Cartesian3.normalize(upDirectionRaw, upDirectionRaw);
 
   const directionsByAxisId: Record<DefaultAxisId, Cartesian3> = {
     vertical: upDirection,
@@ -394,6 +368,7 @@ export const useCesiumPointMoveGizmo = (
   const dragStateRef = useRef<AxisDragState | null>(null);
   const isDraggingRef = useRef(false);
   const suppressNextSceneClickRef = useRef(false);
+  const clearInitialSceneClickGuardTimeoutRef = useRef<number | null>(null);
   const movePointRef = useRef<CesiumGizmoPoint | null>(null);
   const rotationStateRef = useRef<RotationState | null>(null);
   const rotationFrameRef = useRef<RotationFrameState | null>(null);
@@ -501,6 +476,34 @@ export const useCesiumPointMoveGizmo = (
     movePointRef.current = movePoint;
     axisScreenDirectionRef.current = {};
     axisAnchorDistanceRef.current = {};
+  }, [movePoint]);
+
+  useEffect(() => {
+    if (clearInitialSceneClickGuardTimeoutRef.current !== null) {
+      window.clearTimeout(clearInitialSceneClickGuardTimeoutRef.current);
+      clearInitialSceneClickGuardTimeoutRef.current = null;
+    }
+
+    if (!movePoint) {
+      suppressNextSceneClickRef.current = false;
+      return;
+    }
+
+    // Opening the gizmo is usually triggered by a DOM long-press/click.
+    // Ignore the trailing scene click briefly so the newly opened gizmo
+    // does not immediately exit on the same interaction.
+    suppressNextSceneClickRef.current = true;
+    clearInitialSceneClickGuardTimeoutRef.current = window.setTimeout(() => {
+      suppressNextSceneClickRef.current = false;
+      clearInitialSceneClickGuardTimeoutRef.current = null;
+    }, OPEN_GIZMO_SCENE_CLICK_GUARD_MS);
+
+    return () => {
+      if (clearInitialSceneClickGuardTimeoutRef.current !== null) {
+        window.clearTimeout(clearInitialSceneClickGuardTimeoutRef.current);
+        clearInitialSceneClickGuardTimeoutRef.current = null;
+      }
+    };
   }, [movePoint]);
 
   useEffect(() => {
@@ -778,20 +781,6 @@ export const useCesiumPointMoveGizmo = (
         return;
       }
 
-      console.info("[gizmo-drag-start:axis]", {
-        pointId: activePoint.id,
-        activeAxisId: activeAxisCandidate.id,
-        activePoint: toCartesian3Json(activePoint.geometryECEF),
-        axisOrigin: toCartesian3Json(axisOrigin),
-        axisDirection: toCartesian3Json(axisDirection),
-        startAxisParam,
-        cameraPosition: toCartesian3Json(scene.camera.position),
-        cameraDirection: toCartesian3Json(scene.camera.direction),
-        cameraUp: toCartesian3Json(scene.camera.up),
-        cameraRight: toCartesian3Json(scene.camera.right),
-        cameraViewMatrix: toMatrix4Array(scene.camera.viewMatrix),
-      });
-
       const onWindowMouseMove = (mouseMoveEvent: MouseEvent) => {
         const dragState = dragStateRef.current;
         if (
@@ -924,70 +913,6 @@ export const useCesiumPointMoveGizmo = (
       if (startPlaneAngleRad === null) {
         return;
       }
-
-      const startBasisXWorld = Cartesian3.add(
-        axisOrigin,
-        planeBasis.xAxis,
-        new Cartesian3()
-      );
-      const startBasisYWorld = Cartesian3.add(
-        axisOrigin,
-        planeBasis.yAxis,
-        new Cartesian3()
-      );
-      const startOriginCanvas = SceneTransforms.worldToWindowCoordinates(
-        scene,
-        axisOrigin
-      );
-      const startBasisXCanvas = SceneTransforms.worldToWindowCoordinates(
-        scene,
-        startBasisXWorld
-      );
-      const startBasisYCanvas = SceneTransforms.worldToWindowCoordinates(
-        scene,
-        startBasisYWorld
-      );
-      let startProjectedDeterminant = Number.NaN;
-      if (
-        defined(startOriginCanvas) &&
-        defined(startBasisXCanvas) &&
-        defined(startBasisYCanvas)
-      ) {
-        const pxX = startBasisXCanvas.x - startOriginCanvas.x;
-        const pxY = startBasisXCanvas.y - startOriginCanvas.y;
-        const pyX = startBasisYCanvas.x - startOriginCanvas.x;
-        const pyY = startBasisYCanvas.y - startOriginCanvas.y;
-        startProjectedDeterminant = pxX * pyY - pxY * pyX;
-      }
-
-      console.info("[gizmo-drag-start:rotate]", {
-        pointId: activePoint.id,
-        activeAxisId: activeAxisCandidate.id,
-        activePoint: toCartesian3Json(activePoint.geometryECEF),
-        axisOrigin: toCartesian3Json(axisOrigin),
-        rotationNormal: toCartesian3Json(rotationNormal),
-        planeNormal: toCartesian3Json(rotationNormal),
-        planeBasisX: toCartesian3Json(planeBasis.xAxis),
-        planeBasisY: toCartesian3Json(planeBasis.yAxis),
-        startPlaneAngleRad,
-        cameraPosition: toCartesian3Json(scene.camera.position),
-        cameraDirection: toCartesian3Json(scene.camera.direction),
-        cameraUp: toCartesian3Json(scene.camera.up),
-        cameraRight: toCartesian3Json(scene.camera.right),
-        cameraViewMatrix: toMatrix4Array(scene.camera.viewMatrix),
-        cameraSignedFacingToPlane: Cartesian3.dot(
-          Cartesian3.normalize(rotationNormal, new Cartesian3()),
-          Cartesian3.normalize(
-            Cartesian3.subtract(
-              scene.camera.position,
-              axisOrigin,
-              new Cartesian3()
-            ),
-            new Cartesian3()
-          )
-        ),
-        projectedBasisDeterminant: startProjectedDeterminant,
-      });
 
       const currentRotationState = rotationStateRef.current;
       const baseRotationAngleRad =
@@ -1156,22 +1081,6 @@ export const useCesiumPointMoveGizmo = (
       }
       if (!startPlanePoint) return;
 
-      console.info("[gizmo-drag-start:plane]", {
-        pointId: activePoint.id,
-        activeAxisId: activeAxisCandidate.id,
-        activePoint: toCartesian3Json(activePoint.geometryECEF),
-        planeOrigin: toCartesian3Json(planeOrigin),
-        planeNormal: toCartesian3Json(planeNormal),
-        planeBasisX: toCartesian3Json(planeBasisX),
-        planeBasisY: toCartesian3Json(planeBasisY),
-        startPlanePoint: toCartesian3Json(startPlanePoint),
-        cameraPosition: toCartesian3Json(scene.camera.position),
-        cameraDirection: toCartesian3Json(scene.camera.direction),
-        cameraUp: toCartesian3Json(scene.camera.up),
-        cameraRight: toCartesian3Json(scene.camera.right),
-        cameraViewMatrix: toMatrix4Array(scene.camera.viewMatrix),
-      });
-
       const onWindowMouseMove = (mouseMoveEvent: MouseEvent) => {
         const dragState = dragStateRef.current;
         if (!dragState || dragState.mode !== "plane-translate") return;
@@ -1334,10 +1243,11 @@ export const useCesiumPointMoveGizmo = (
         initialAxisDirection,
         radiusRef.current
       );
-      const disc = createDisc(`point-move-disc-${movePoint.id}`, {
+      const disc = createRing(`point-move-disc-${movePoint.id}`, {
         radius: 1,
+        innerRadius: 0.5,
         color: DISC_FILL_COLOR,
-        unitCircleSegments: 24,
+        segments: 24,
         modelMatrix: createOrientedDiscModelMatrix(
           movePoint.geometryECEF,
           initialAxisDirection,
@@ -1375,7 +1285,8 @@ export const useCesiumPointMoveGizmo = (
           discVisualizer.modelMatrix = createOrientedDiscModelMatrix(
             currentPoint.geometryECEF,
             axisDirection,
-            discWorldRadius
+            discWorldRadius,
+            discVisualizer.modelMatrix
           );
         }
       } catch {
@@ -2313,6 +2224,10 @@ export const useCesiumPointMoveGizmo = (
 
   useEffect(
     () => () => {
+      if (clearInitialSceneClickGuardTimeoutRef.current !== null) {
+        window.clearTimeout(clearInitialSceneClickGuardTimeoutRef.current);
+        clearInitialSceneClickGuardTimeoutRef.current = null;
+      }
       stopDragging(false);
       removeLabelOverlayElement(OVERLAY_HANDLE_ID);
       if (axisVisualizerRef.current) {

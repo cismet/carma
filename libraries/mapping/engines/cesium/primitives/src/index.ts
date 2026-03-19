@@ -1,2 +1,2 @@
 export * from "./lib/createPrimitiveGroup";
-export * from "./lib/createDisc";
+export * from "./lib/createRingSegment";

@@ -1,7 +1,12 @@
 import { createSelector, createSlice } from "@reduxjs/toolkit";
 import type { PayloadAction } from "@reduxjs/toolkit";
 
-import type { BackgroundLayer, Layer, SavedLayerConfig } from "@carma/types";
+import type {
+  BackgroundLayer,
+  Layer,
+  LayerFilterInfo,
+  SavedLayerConfig,
+} from "@carma/types";
 import {
   SELECTED_LAYER_INDEX,
   SelectionItem,
@@ -11,14 +16,21 @@ import {
 import { RootState } from "..";
 import { layerMap } from "../../config";
 
+type MapLibreMapEntry = {
+  id: string;
+  map: any;
+};
+
 const defaultOpacity = 0.2;
 
 const initialState: MappingState = {
   layers: [],
   savedLayerConfigs: [],
   selectedLayerIndex: SELECTED_LAYER_INDEX.NO_SELECTION,
+  activeInteractionLayerID: null,
   paleOpacityValue: defaultOpacity,
   libreMapRef: null,
+  maplibreMaps: [],
   layersIdle: false,
 
   selectedMapLayer: {
@@ -94,11 +106,20 @@ const slice = createSlice({
       state.layers = newLayers;
     },
     removeLayer(state, action: PayloadAction<string>) {
+      const removedIndex = state.layers.findIndex(
+        (obj) => obj.id === action.payload
+      );
       const newLayers = state.layers.filter((obj) => obj.id !== action.payload);
       if (state.selectedLayerIndex > newLayers.length - 1) {
         state.selectedLayerIndex = newLayers.length - 1;
       }
       state.layers = newLayers;
+      state.maplibreMaps = state.maplibreMaps.filter(
+        (entry) => entry.id !== action.payload
+      );
+      if (state.activeInteractionLayerID === action.payload) {
+        state.activeInteractionLayerID = null;
+      }
     },
     removeLastLayer(state) {
       const newLayers = state.layers.slice(0, -1);
@@ -189,6 +210,31 @@ const slice = createSlice({
       state.layers = newLayers;
     },
 
+    setLayerFilterInfo(
+      state,
+      action: PayloadAction<{ id: string; filterInfo: LayerFilterInfo }>
+    ) {
+      const { id, filterInfo } = action.payload;
+      const layer = state.layers.find((l) => l.id === id);
+      if (layer) {
+        layer.filterInfo = filterInfo;
+      }
+    },
+
+    setLayerFilterState(
+      state,
+      action: PayloadAction<{
+        id: string;
+        filterState: Record<string, boolean>;
+      }>
+    ) {
+      const { id, filterState } = action.payload;
+      const layer = state.layers.find((l) => l.id === id);
+      if (layer) {
+        layer.filterState = filterState;
+      }
+    },
+
     setSelectedLayerIndex(state, action) {
       state.selectedLayerIndex = action.payload;
     },
@@ -215,6 +261,9 @@ const slice = createSlice({
       }
     },
 
+    setActiveInteractionLayerID(state, action) {
+      state.activeInteractionLayerID = action.payload;
+    },
     setSelectedMapLayer(state, action: PayloadAction<BackgroundLayer>) {
       state.selectedMapLayer = action.payload;
     },
@@ -257,6 +306,18 @@ const slice = createSlice({
     setLibreMapRef(state, action: PayloadAction<any>) {
       state.libreMapRef = action.payload;
     },
+    setMaplibreMaps(state, action: PayloadAction<MapLibreMapEntry>) {
+      const entry = action.payload;
+      const current = state.maplibreMaps;
+      const idx = current.findIndex((e) => e.id === entry.id);
+      if (idx === -1) {
+        state.maplibreMaps = [...current, entry];
+      } else {
+        const next = [...current];
+        next[idx] = entry;
+        state.maplibreMaps = next;
+      }
+    },
     setConfigSelection(state, action: PayloadAction<SelectionItem>) {
       state.configSelection = action.payload;
     },
@@ -286,6 +347,7 @@ export const {
   setSelectedLayerIndexNoSelection,
   setNextSelectedLayerIndex,
   setPreviousSelectedLayerIndex,
+  setActiveInteractionLayerID,
   setSelectedMapLayer,
   setBackgroundLayer,
   setSelectedLuftbildLayer,
@@ -301,7 +363,10 @@ export const {
   setStartDrawing,
 
   toggleUseInFeatureInfo,
+  setLayerFilterInfo,
+  setLayerFilterState,
   setLibreMapRef,
+  setMaplibreMaps,
   setConfigSelection,
   setLayersIdle,
 } = slice.actions;
@@ -344,8 +409,11 @@ export const getShowMeasurementButton = (state: RootState) =>
   state.mapping.showMeasurementButton;
 export const getShowRightScrollButton = (state: RootState) =>
   state.mapping.showRightScrollButton;
+export const getActiveInteractionLayerID = (state: RootState) =>
+  state.mapping.activeInteractionLayerID;
 export const getStartDrawing = (state: RootState) => state.mapping.startDrawing;
 export const getLibreMapRef = (state: RootState) => state.mapping.libreMapRef;
+export const getMaplibreMaps = (state: RootState) => state.mapping.maplibreMaps;
 export const getConfigSelection = (state: RootState) =>
   state.mapping.configSelection;
 export const getLayersIdle = (state: RootState) => state.mapping.layersIdle;

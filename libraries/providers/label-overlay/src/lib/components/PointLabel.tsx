@@ -1,4 +1,5 @@
 import React, { useEffect, useRef, useState } from "react";
+import type { CssPixelPosition } from "@carma/units/types";
 import { PointLabelMarker, type PointLabelAttach } from "./PointLabelMarker";
 import { PillbuttonLabelMarker } from "./PillbuttonLabelMarker";
 import { PointLabelStem } from "./PointLabelStem";
@@ -47,8 +48,12 @@ interface PointLabelProps extends PointLabelStyleProps {
   onDoubleClick?: () => void;
   onLongPress?: () => void;
   longPressDurationMs?: number;
-  onHoverChange?: (hovered: boolean) => void;
+  onHoverChange?: (
+    hovered: boolean,
+    anchorPosition?: CssPixelPosition | null
+  ) => void;
   markerOnlyPointerEvents?: boolean;
+  forceMarkerInteractionTarget?: boolean;
   onMarkerDragStart?: (clientX: number, clientY: number) => void;
   onMarkerDragMove?: (clientX: number, clientY: number) => void;
   onMarkerDragEnd?: () => void;
@@ -158,6 +163,7 @@ export const PointLabel = React.memo(
     longPressDurationMs = 300,
     onHoverChange,
     markerOnlyPointerEvents = false,
+    forceMarkerInteractionTarget = false,
     onMarkerDragStart,
     onMarkerDragMove,
     onMarkerDragEnd,
@@ -237,9 +243,14 @@ export const PointLabel = React.memo(
     const labelPointerEvents =
       isInteractive && !markerOnlyPointerEvents ? "auto" : "none";
     const renderInvisibleInteractionMarker =
-      markerOnlyPointerEvents && hideMarker && isInteractive;
-    const cursor =
-      onClick || onDoubleClick || onLongPress ? "pointer" : "default";
+      isInteractive &&
+      hideMarker &&
+      (forceMarkerInteractionTarget || markerOnlyPointerEvents);
+    const cursor = forceMarkerInteractionTarget
+      ? "none"
+      : onClick || onDoubleClick || onLongPress
+      ? "pointer"
+      : "default";
     const effectiveLineColor = lineColor;
     const effectiveTextColor = textColor;
     const effectiveBackgroundColor = selected
@@ -267,18 +278,46 @@ export const PointLabel = React.memo(
       fullBorder;
     const usePillLabelShape =
       shouldRenderPillbuttonMarker || (!collapse && hasCompactContent);
-    const handleMouseEnter = () => {
+    const getOverlayAnchorPosition = (
+      target: EventTarget | null
+    ): CssPixelPosition | null => {
+      if (!(target instanceof HTMLElement)) return null;
+      const overlayHost = target.closest(
+        "[data-label-overlay-id]"
+      ) as HTMLElement | null;
+      if (!overlayHost) return null;
+
+      const x = Number.parseFloat(overlayHost.style.left);
+      const y = Number.parseFloat(overlayHost.style.top);
+      if (!Number.isFinite(x) || !Number.isFinite(y)) {
+        return null;
+      }
+
+      return { x, y } as CssPixelPosition;
+    };
+    const isTransitionWithinSamePointLabel = (
+      relatedTarget: EventTarget | null
+    ) => {
+      if (!(relatedTarget instanceof Element)) return false;
+      const relatedPointId = relatedTarget
+        .closest("[data-point-label-id]")
+        ?.getAttribute("data-point-label-id");
+      return Boolean(pointId && relatedPointId === pointId);
+    };
+    const handleMouseEnter = (event: React.MouseEvent<HTMLDivElement>) => {
+      if (isTransitionWithinSamePointLabel(event.relatedTarget)) return;
       if (!isInteractive || isHoveredRef.current) return;
       isHoveredRef.current = true;
       setIsHovered(true);
-      onHoverChange?.(true);
+      onHoverChange?.(true, getOverlayAnchorPosition(event.currentTarget));
     };
-    const handleMouseLeave = () => {
+    const handleMouseLeave = (event: React.MouseEvent<HTMLDivElement>) => {
       clearLongPressTimeout();
+      if (isTransitionWithinSamePointLabel(event.relatedTarget)) return;
       if (!isInteractive || !isHoveredRef.current) return;
       isHoveredRef.current = false;
       setIsHovered(false);
-      onHoverChange?.(false);
+      onHoverChange?.(false, getOverlayAnchorPosition(event.currentTarget));
     };
     const handleClick = (event: React.MouseEvent<HTMLDivElement>) => {
       event.stopPropagation();
@@ -460,11 +499,8 @@ export const PointLabel = React.memo(
           window.clearTimeout(longPressTimeoutRef.current);
         }
         clearMarkerDragListeners();
-        if (isHoveredRef.current) {
-          onHoverChange?.(false);
-        }
       },
-      [onHoverChange]
+      []
     );
 
     return (

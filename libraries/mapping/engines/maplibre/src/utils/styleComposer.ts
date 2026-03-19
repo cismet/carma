@@ -20,7 +20,7 @@ import {
   extractGeoJson,
   transformedPois,
 } from "./styleBuilder";
-import type { LibreLayer } from "../components/LibreMap";
+import type { LibreLayer, RasterPaintOverrides } from "../components/LibreMap";
 
 /**
  * Slugify a URL into a compact ID: strips protocol and .json extension,
@@ -600,7 +600,10 @@ export class StyleComposer {
         id: layerId,
         type: "raster",
         source: sourceId,
-        paint: { "raster-opacity": layer.opacity ?? 1 },
+        paint: {
+          "raster-opacity": layer.opacity ?? 1,
+          ...("rasterPaint" in layer ? layer.rasterPaint : undefined),
+        },
         metadata: { "z-index": opts.zIndex, "layer-id": id },
       } as LayerSpecification,
       lastId
@@ -660,7 +663,10 @@ export class StyleComposer {
         id: layerId,
         type: "raster",
         source: sourceId,
-        paint: { "raster-opacity": layer.opacity ?? 1 },
+        paint: {
+          "raster-opacity": layer.opacity ?? 1,
+          ...("rasterPaint" in layer ? layer.rasterPaint : undefined),
+        },
         metadata: { "z-index": opts.zIndex, "layer-id": id },
       } as LayerSpecification,
       lastId
@@ -723,6 +729,17 @@ export class StyleComposer {
     for (const layerId of entry.layerIds) {
       if (this.map.getLayer(layerId)) {
         this.map.setPaintProperty(layerId, "raster-opacity", opacity);
+      }
+    }
+  }
+
+  updateRasterPaint(id: string, paint: RasterPaintOverrides): void {
+    const entry = this.managed.get(id);
+    if (!entry) return;
+    for (const layerId of entry.layerIds) {
+      if (!this.map.getLayer(layerId)) continue;
+      for (const [key, value] of Object.entries(paint)) {
+        this.map.setPaintProperty(layerId, key, value);
       }
     }
   }

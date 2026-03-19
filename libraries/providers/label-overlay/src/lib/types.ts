@@ -1,15 +1,19 @@
 import type { ReactNode } from "react";
+import type { CssPixelPosition } from "@carma/units/types";
+import type { CSSProperties } from "react";
 
 export interface LabelOverlayElement {
   id: string;
-  getCanvasPosition?: () => { x: number; y: number } | null;
+  getCanvasPosition?: () => CssPixelPosition | null;
   updatePosition?: (elementDiv: HTMLElement) => boolean;
   content: ReactNode;
+  contentKey?: string;
   zIndex?: number;
   visible?: boolean;
   isHidden?: boolean;
   onClick?: () => void;
   onDoubleClick?: () => void;
+  cursor?: CSSProperties["cursor"];
 }
 
 export interface LabelOverlayContextType {

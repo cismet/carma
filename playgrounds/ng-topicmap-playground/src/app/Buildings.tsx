@@ -93,6 +93,11 @@ export function Buildings() {
                     style:
                       "https://tiles.cismet.de/alkis/gebaeude-only.style.json",
                   },
+                  {
+                    type: "vector",
+                    name: "POIs",
+                    style: "https://tiles.cismet.de/poi/style.json",
+                  },
                 ]}
                 modalMenu={<Menu />}
               />
