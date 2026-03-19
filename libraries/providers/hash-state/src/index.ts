@@ -1,7 +1,6 @@
 export {
   HashStateProvider,
   HASH_CLEAR_KEY_SET,
-  HASH_ROUTING_MODE,
   useHashState,
   type HashClearKeySetId,
   type HashChangeEvent,
@@ -9,7 +8,6 @@ export {
   type HashCodecs,
   type HashCodec,
   type HashKeyAliases,
-  type HashRoutingMode,
 } from "./lib/HashStateProvider";
 
 export {

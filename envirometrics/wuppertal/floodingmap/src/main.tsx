@@ -12,10 +12,7 @@ import {
   GazDataProvider,
   SelectionProvider,
 } from "@carma-appframeworks/portals";
-import {
-  HASH_ROUTING_MODE,
-  HashStateProvider,
-} from "@carma-providers/hash-state";
+import { HashStateProvider } from "@carma-providers/hash-state";
 import { suppressReactCismapErrors } from "@carma-commons/utils";
 import {
   CesiumContextProvider,
@@ -64,10 +61,7 @@ const syncedApp = (
 );
 
 const appWithContext = (
-  <HashStateProvider
-    routingMode={HASH_ROUTING_MODE.NEUTRAL}
-    routedPathOverride="/"
-  >
+  <HashStateProvider>
     <GazDataProvider config={gazDataConfig}>
       <SelectionProvider>
         <TopicMapContextProvider

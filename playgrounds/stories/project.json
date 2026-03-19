@@ -20,6 +20,20 @@
         }
       }
     },
+    "build": {
+      "executor": "@nx/storybook:build",
+      "outputs": ["{options.outputDir}"],
+      "options": {
+        "outputDir": "dist/playgrounds/stories",
+        "configDir": "playgrounds/stories/.storybook"
+      },
+      "configurations": {
+        "ci": {
+          "quiet": true
+        },
+        "production": {}
+      }
+    },
     "build-storybook": {
       "executor": "@nx/storybook:build",
       "outputs": ["{options.outputDir}"],

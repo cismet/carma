@@ -48,12 +48,6 @@ export type HashCodec<T = unknown> = {
 
 export type HashCodecs = Record<string, HashCodec>;
 export type HashKeyAliases = Record<string, string>;
-export const HASH_ROUTING_MODE = {
-  ROUTED: "routed",
-  NEUTRAL: "neutral",
-} as const;
-export type HashRoutingMode =
-  (typeof HASH_ROUTING_MODE)[keyof typeof HASH_ROUTING_MODE];
 
 const HASH_UPDATE_LABEL_UNSPECIFIED = "unspecified";
 

@@ -571,7 +571,7 @@
       },
       "projectPath": "./dist/playgrounds/techdemo"
     },
-    "__disabled_issue454_floodingmap-wuppertal": {
+    "floodingmap-wuppertal": {
       "deployment": {
         "manual": {
           "dev": {
@@ -921,6 +921,19 @@
         }
       },
       "projectPath": "./dist/playgrounds/vector"
+    },
+    "stories": {
+      "deployment": {
+        "manual": {
+          "dev": {
+            "pages": {
+              "org": "carma-dev-playground-deployments",
+              "prj": "stories"
+            }
+          }
+        }
+      },
+      "projectPath": "./dist/playgrounds/stories"
     },
     "rainhazardmap-korschenbroich": {
       "deployment": {

@@ -53,11 +53,13 @@ if (stateLoggingEnabled === true) {
   middleware = (getDefaultMiddleware) =>
     getDefaultMiddleware({
       serializableCheck: false,
+      immutableCheck: false,
     }).concat(logger);
 } else {
   middleware = (getDefaultMiddleware) =>
     getDefaultMiddleware({
       serializableCheck: false,
+      immutableCheck: false,
     });
 }
 

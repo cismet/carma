@@ -32,6 +32,10 @@ const config: StorybookConfig = {
       },
     };
 
+    if (process.env.BASE_URL) {
+      proxyConfig.base = process.env.BASE_URL;
+    }
+
     return mergeConfig(baseConfig, proxyConfig);
   },
 };

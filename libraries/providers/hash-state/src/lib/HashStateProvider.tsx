@@ -4,7 +4,6 @@ import { computeHashDiff } from "./utils";
 import {
   HASH_CHANGE_SOURCE,
   HASH_CLEAR_KEY_SET,
-  HASH_ROUTING_MODE,
   HashStateProviderBase,
   useHashState,
   type HashClearKeySetId,
@@ -13,14 +12,12 @@ import {
   type HashCodecs,
   type HashCodec,
   type HashKeyAliases,
-  type HashRoutingMode,
   type HashStateProviderSharedProps,
 } from "./hashStateShared";
 
 export {
   HASH_CHANGE_SOURCE,
   HASH_CLEAR_KEY_SET,
-  HASH_ROUTING_MODE,
   useHashState,
   type HashClearKeySetId,
   type HashChangeEvent,
@@ -28,48 +25,18 @@ export {
   type HashCodecs,
   type HashCodec,
   type HashKeyAliases,
-  type HashRoutingMode,
   type HashStateProviderSharedProps,
 } from "./hashStateShared";
 
-type HashStateProviderProps = HashStateProviderSharedProps & {
-  routingMode?: HashRoutingMode;
-  routedPathOverride?: string;
-};
-
-const RoutedHashStateProvider: React.FC<HashStateProviderProps> = ({
-  routedPathOverride,
+export const HashStateProvider: React.FC<HashStateProviderSharedProps> = ({
   children,
   ...props
 }) => {
   const location = useLocation();
 
   return (
-    <HashStateProviderBase
-      {...props}
-      routedPath={routedPathOverride ?? location.pathname}
-    >
+    <HashStateProviderBase {...props} routedPath={location.pathname}>
       {children}
     </HashStateProviderBase>
   );
 };
-
-const NeutralHashStateProvider: React.FC<HashStateProviderProps> = ({
-  routedPathOverride,
-  children,
-  ...props
-}) => (
-  <HashStateProviderBase {...props} routedPath={routedPathOverride ?? ""}>
-    {children}
-  </HashStateProviderBase>
-);
-
-export const HashStateProvider: React.FC<HashStateProviderProps> = ({
-  routingMode = HASH_ROUTING_MODE.ROUTED,
-  ...props
-}) =>
-  routingMode === HASH_ROUTING_MODE.NEUTRAL ? (
-    <NeutralHashStateProvider {...props} />
-  ) : (
-    <RoutedHashStateProvider {...props} />
-  );
