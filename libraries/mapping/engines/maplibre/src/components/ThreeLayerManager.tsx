@@ -239,6 +239,55 @@ export function ThreeLayerManager({
       savedOpacityRef.current.clear();
     };
 
+    // The 3D custom layers should render above fill/line layers but below
+    // the last sub-style in the stack (POI). Find the first layer from the
+    // very last source in the style (by position) and insert before it.
+    const findInsertBefore = (): string | undefined => {
+      const layers = map.getStyle()?.layers ?? [];
+
+      // Walk backwards to find the source used by the very last real layer
+      let lastSource: string | undefined;
+      for (let i = layers.length - 1; i >= 0; i--) {
+        const src = (layers[i] as { source?: string }).source;
+        if (src) {
+          lastSource = src;
+          break;
+        }
+      }
+      if (!lastSource) return undefined;
+
+      // If the last source is our own, nothing to insert before
+      const srcId = config.sourceId;
+      if (lastSource === srcId || lastSource.endsWith(`::${srcId}`)) return undefined;
+
+      // Find the first layer from that last source
+      for (const sl of layers) {
+        if ((sl as { source?: string }).source === lastSource) {
+          return sl.id;
+        }
+      }
+      return undefined;
+    };
+
+    /** Move the 3D + overlay layers to the correct z-position if a later
+     *  sub-style (e.g. POI) was added after the 3D layer. */
+    let zOrderTarget: string | undefined;
+    const ensureZOrder = () => {
+      const layer = layerRef.current;
+      if (!layer || !map.getLayer(layer.id)) return;
+      const beforeId = findInsertBefore();
+      if (!beforeId) return;
+      // Already moved to this target; skip to avoid styledata loop
+      if (zOrderTarget === beforeId) return;
+      zOrderTarget = beforeId;
+
+      console.log("[3D-ZORDER] moving", layer.id, "before", beforeId);
+      map.moveLayer(layer.id, beforeId);
+      if (overlayIdRef.current && map.getLayer(overlayIdRef.current)) {
+        map.moveLayer(overlayIdRef.current, beforeId);
+      }
+    };
+
     const addLayerIfReady = async () => {
       if (layerRef.current || addingRef.current) return;
       if (!map.getSource(config.sourceId)) return;
@@ -256,35 +305,16 @@ export function ThreeLayerManager({
       const customLayer = buildGenericLayer(effectiveConfig, rebuildFn, layerId);
       layerRef.current = customLayer;
 
-      // Find the first sub-style boundary that comes after this layer's own
-      // source boundary so the 3D layer stays in z-order (not appended on top
-      // of later sub-styles like POI).
-      // config.sourceId is namespaced as "<slugifiedStyleUrl>::<source>", so
-      // the sub-style boundary is "---<slugifiedStyleUrl>:last---".
-      const nsPrefix = config.sourceId.split("::")[0];
-      const ownLastBoundary = `---${nsPrefix}:last---`;
-      let insertBeforeId: string | undefined;
-      const styleLayers = map.getStyle()?.layers ?? [];
-      let pastOwn = false;
-      for (const sl of styleLayers) {
-        if (sl.id === ownLastBoundary) {
-          pastOwn = true;
-          continue;
-        }
-        if (pastOwn && sl.id.startsWith("---") && sl.id.endsWith(":first---")) {
-          insertBeforeId = sl.id;
-          break;
-        }
-      }
-
       try {
-        map.addLayer(customLayer, insertBeforeId);
+        const initialBeforeId = findInsertBefore();
+        console.log("[3D-ZORDER] addLayer", layerId, "beforeId:", initialBeforeId,
+          "source:", config.sourceId);
+        map.addLayer(customLayer, initialBeforeId);
         register3dLayer(map, customLayer);
 
-        // Add overlay layer right after the custom layer (before the same boundary)
         const oId = layerId + "-overlay";
         const overlay = buildOverlayLayer(customLayer, oId);
-        map.addLayer(overlay, insertBeforeId);
+        map.addLayer(overlay, initialBeforeId ?? customLayer.id);
         overlayIdRef.current = oId;
 
         // Hide 2D layers (skipIn2D) now that 3D layer is active
@@ -555,7 +585,11 @@ export function ThreeLayerManager({
         overlayIdRef.current = null;
         layerRef.current = null;
         addingRef.current = false;
+        zOrderTarget = undefined;
       }
+      // A later sub-style (e.g. POI) may have loaded after the 3D layer was
+      // added, pushing it behind. Re-position if needed.
+      ensureZOrder();
       trySync();
     };
     map.on("styledata", handleStyleData);
