@@ -127,6 +127,14 @@ const BelisMapLibWrapper = ({
     undefined
   );
 
+  // --- Per-route selection persistence ---
+  // Save fachobjekte selection when leaving, restore when returning.
+  const savedFachobjekteRef = useRef<{
+    identifier: { source: string; sourceLayer?: string; id?: string | number };
+    rawFeature: any;
+  } | null>(null);
+  const prevVariantRef = useRef(sidebarVariant);
+
   // Extract the infoboxMapping code from the style (browser-cached, no extra network cost)
   const [infoboxMappingCode, setInfoboxMappingCode] = useState<string | null>(
     null
@@ -888,6 +896,44 @@ const BelisMapLibWrapper = ({
     };
   }, [sidebarVariant, map, namespacedSource]);
 
+  // --- Save/restore selection when switching between route variants ---
+  useEffect(() => {
+    const prev = prevVariantRef.current;
+    prevVariantRef.current = sidebarVariant;
+    if (prev === sidebarVariant) return;
+
+    // Save outgoing fachobjekte selection
+    if (prev === "fachobjekte" && selectedFeatureId) {
+      savedFachobjekteRef.current = {
+        identifier: { ...selectedFeatureId },
+        rawFeature: rawFeature ?? null,
+      };
+    }
+
+    // Clear current selection to prevent stale infobox bleed-through
+    clearMapSelection();
+    setOverrideSelectedFeature(null);
+    setFetchedFeatureData(null);
+
+    // Restore incoming variant's selection
+    if (sidebarVariant === "fachobjekte") {
+      const saved = savedFachobjekteRef.current;
+      if (saved?.identifier) {
+        // Re-trigger selection pipeline; the override path handles
+        // the infobox when the feature is not visible on the map.
+        selectFeature(saved.identifier, saved.rawFeature);
+      }
+    } else if (sidebarVariant === "arbeitsauftraege") {
+      // AA state persists in Redux — re-select on map if present
+      const state = store.getState();
+      const aaId = state.arbeitsauftraege.selectedAAId;
+      const aaTab = state.arbeitsauftraege.activeAATab;
+      if (aaId != null && aaTab === "aa") {
+        handleAAFeatureSelect(aaId);
+      }
+    }
+  }, [sidebarVariant]); // eslint-disable-line react-hooks/exhaustive-deps
+
   // --- Arbeitsauftraege: extract tile features into Redux ---
   useEffect(() => {
     if (sidebarVariant !== "arbeitsauftraege" || !map) return;
@@ -1288,6 +1334,9 @@ const BelisMapLibWrapper = ({
 
   // --- Arbeitsauftraege: build infobox override for selected AP feature ---
   useEffect(() => {
+    // Skip when not in Arbeitsaufträge mode (prevents stale AP overrides in Fachobjekte)
+    if (sidebarVariant !== "arbeitsauftraege") return;
+
     if (activeAATab !== "ap" || selectedAPId == null || !selectedAAData) {
       // Only clear if we're leaving AP mode (don't clobber fachobjekte overrides)
       if (activeAATab === "ap") setOverrideSelectedFeature(null);
@@ -1317,7 +1366,7 @@ const BelisMapLibWrapper = ({
         }
       })
       .catch(() => setOverrideSelectedFeature(null));
-  }, [activeAATab, selectedAPId, selectedAAData]);
+  }, [activeAATab, selectedAPId, selectedAAData, sidebarVariant]);
 
   const handleReturnToMap = useCallback(() => {
     map?.resize();

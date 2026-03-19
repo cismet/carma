@@ -1,9 +1,6 @@
 import { useEffect } from "react";
-import { useDispatch } from "react-redux";
 import { BELIS_FILTER_CATEGORIES } from "../../config/mapLayerConfigs";
 import { useMapPage } from "../../contexts/MapPageContext";
-import { clearSelection } from "../../store/slices/arbeitsauftraege";
-import type { AppDispatch } from "../../store";
 
 const ALL_SOURCE_LAYERS = new Set(
   BELIS_FILTER_CATEGORIES.flatMap((c) => c.sourceLayers)
@@ -11,7 +8,6 @@ const ALL_SOURCE_LAYERS = new Set(
 
 const ArbeitsauftraegeePage = () => {
   const { setConfig } = useMapPage();
-  const dispatch: AppDispatch = useDispatch();
 
   useEffect(() => {
     setConfig({
@@ -24,9 +20,8 @@ const ArbeitsauftraegeePage = () => {
     });
     return () => {
       setConfig({ isMapRoute: false });
-      dispatch(clearSelection());
     };
-  }, [setConfig, dispatch]);
+  }, [setConfig]);
 
   return null;
 };
