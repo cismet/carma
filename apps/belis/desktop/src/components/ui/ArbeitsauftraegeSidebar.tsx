@@ -181,7 +181,7 @@ const ArbeitsauftraegeSidebar = ({ width, onFeatureSelect, onProtokollSelect }: 
                     <span className="font-semibold text-sm text-gray-900">
                       AA-{item.nummer}
                     </span>
-                    <span className="text-xs text-gray-500">{item.team}</span>
+                    <span className="text-xs text-gray-500">{item.team?.replace("erledigte Arbeitsaufträge", "")}</span>
                   </div>
                   <div className="flex justify-between items-baseline mt-0.5">
                     <span className="text-xs text-gray-400">
