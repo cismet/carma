@@ -42,28 +42,35 @@ const LeitungstypDropdown = ({
   // Sync sub-toggles on master switch transitions:
   // off → on: set all items on (dark blue)
   // on → off: set all items off
+  // Skip sync when master was auto-toggled by a sub-toggle change
   const prevMasterChecked = useRef(masterChecked);
+  const skipNextSync = useRef(false);
   useEffect(() => {
     if (sortedItems.length === 0) return;
     const prev = prevMasterChecked.current;
     if (prev !== masterChecked) {
-      dispatch(
-        setAllLeitungstypen(
-          Object.fromEntries(
-            sortedItems.map((item) => [item.id, !!masterChecked])
+      if (skipNextSync.current) {
+        skipNextSync.current = false;
+      } else {
+        dispatch(
+          setAllLeitungstypen(
+            Object.fromEntries(
+              sortedItems.map((item) => [item.id, !!masterChecked])
+            )
           )
-        )
-      );
+        );
+      }
     }
     prevMasterChecked.current = masterChecked;
   }, [masterChecked, sortedItems, dispatch]);
 
   const isEnabled = (id: number) => enabledTypes[id] !== false;
 
-  // Partial state: master is on but not all sub-toggles are on
+  // Partial state: master is on but not all sub-toggles match
   const isPartial = useMemo(() => {
     if (!masterChecked || sortedItems.length === 0) return false;
-    return sortedItems.some((item) => !isEnabled(item.id));
+    const allOn = sortedItems.every((item) => isEnabled(item.id));
+    return !allOn;
   }, [masterChecked, sortedItems, enabledTypes]);
 
   const menuItems: MenuProps["items"] = useMemo(
@@ -83,11 +90,15 @@ const LeitungstypDropdown = ({
                   setLeitungstypEnabled({ id: item.id, enabled: checked })
                 );
                 // Compute would-be state to sync master switch
-                const allOff = sortedItems.every((si) =>
-                  si.id === item.id ? !checked : !isEnabled(si.id)
+                const wouldBeState = sortedItems.map((si) =>
+                  si.id === item.id ? checked : isEnabled(si.id)
                 );
+                const allOff = wouldBeState.every((v) => !v);
                 if (allOff && masterChecked) {
                   onMasterChange?.(false);
+                } else if (!allOff && !masterChecked) {
+                  skipNextSync.current = true;
+                  onMasterChange?.(true);
                 }
               }}
             />
@@ -95,7 +106,7 @@ const LeitungstypDropdown = ({
           </div>
         ),
       })),
-    [sortedItems, enabledTypes, dispatch]
+    [sortedItems, enabledTypes, dispatch, masterChecked, onMasterChange]
   );
 
   return (
