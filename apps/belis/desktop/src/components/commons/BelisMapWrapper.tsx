@@ -1154,6 +1154,43 @@ const BelisMapLibWrapper = ({
       map.addSource(AP_SOURCE, { type: "geojson", data: geojson, promoteId: "id" });
     }
 
+    // Fit map to the bounding box of all AP features
+    if (geojson.features.length > 0) {
+      let minLng = Infinity;
+      let minLat = Infinity;
+      let maxLng = -Infinity;
+      let maxLat = -Infinity;
+
+      for (const feature of geojson.features) {
+        const geom = feature.geometry;
+        if (!geom) continue;
+        const flatCoords: number[][] =
+          geom.type === "Point"
+            ? [(geom as GeoJSON.Point).coordinates]
+            : geom.type === "LineString"
+              ? (geom as GeoJSON.LineString).coordinates
+              : geom.type === "MultiLineString"
+                ? (geom as GeoJSON.MultiLineString).coordinates.flat()
+                : [];
+        for (const [lng, lat] of flatCoords) {
+          if (lng < minLng) minLng = lng;
+          if (lat < minLat) minLat = lat;
+          if (lng > maxLng) maxLng = lng;
+          if (lat > maxLat) maxLat = lat;
+        }
+      }
+
+      if (minLng !== Infinity) {
+        map.fitBounds(
+          [
+            [minLng, minLat],
+            [maxLng, maxLat],
+          ],
+          { padding: 60 },
+        );
+      }
+    }
+
     // Add layers derived from debugLayers, rewritten for the AP GeoJSON source
     for (const layer of debugLayers) {
       const sourceLayer = "source-layer" in layer ? (layer as Record<string, unknown>)["source-layer"] as string : undefined;
