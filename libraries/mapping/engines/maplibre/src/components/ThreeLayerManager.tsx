@@ -21,8 +21,6 @@ import type { BuildingFeature } from "@carma-mapping/engines/threejs";
 import * as THREE from "three";
 import { MercatorCoordinate } from "maplibre-gl";
 import type { Map as MaplibreMap } from "maplibre-gl";
-import { polygon as turfPolygon } from "@turf/helpers";
-import turfUnion from "@turf/union";
 
 // ─────────────────────────────────────────────────────────────
 //  ThreeLayerManager: bridges carma3d configs to the threejs engine
@@ -142,7 +140,6 @@ export function ThreeLayerManager({
 
   const useLoft = (Number(runtimeParams.useLoft) || 0) > 0;
   const radiusMix = Number(runtimeParams.radiusMix) || 0;
-  const mergeTiles = (Number(runtimeParams.mergeTiles) ?? 1) > 0;
   const viewportPadding = typeof runtimeParams.viewportPadding === "number" ? runtimeParams.viewportPadding : undefined;
 
   // Merge runtime viewportPadding override into config
@@ -292,42 +289,6 @@ export function ThreeLayerManager({
       }
     };
 
-    /** Union tile-clipped polygon fragments using turf. Returns one or more rings. */
-    const unionRings = (rings: number[][][]): number[][][] | null => {
-      try {
-        // Ensure each ring is closed (turf requires it)
-        const features = rings.map((r) => {
-          const first = r[0];
-          const last = r[r.length - 1];
-          const closed = (first[0] !== last[0] || first[1] !== last[1])
-            ? [...r, first] : r;
-          return turfPolygon([closed]);
-        });
-
-        // turf v7 union takes a FeatureCollection
-        const fc = { type: "FeatureCollection" as const, features };
-        const merged = turfUnion(fc);
-        if (!merged) return null;
-
-        if (merged.geometry.type === "Polygon") {
-          const outerRing = merged.geometry.coordinates[0] as number[][];
-          return [outerRing.slice(0, -1)];
-        }
-
-        if (merged.geometry.type === "MultiPolygon") {
-          // Extract outer ring from each polygon in the MultiPolygon
-          return (merged.geometry.coordinates as number[][][][]).map(
-            (poly) => (poly[0] as number[][]).slice(0, -1)
-          );
-        }
-
-        return null;
-      } catch (err) {
-        console.warn("[3D-MERGE] turf union failed:", (err as Error).message);
-        return null;
-      }
-    };
-
     /** Config-driven building sync: reads field names from config.fields. */
     const syncBuildings = () => {
       const layer = layerRef.current;
@@ -415,29 +376,10 @@ export function ThreeLayerManager({
       const buildings: BuildingFeature[] = [];
       // MappedFeature entries for the spatial grid
       const mappedFeatures: MappedFeature[] = [];
-      let mergedOk = 0;
-      let mergeFailed = 0;
       for (let gi = 0; gi < groupEntries.length; gi++) {
         const [, g] = groupEntries[gi];
         const sourceIndex = gi;
-        let ringsToExtrude: number[][][];
-
-        if (g.fragments.length === 1) {
-          ringsToExtrude = [g.fragments[0]];
-        } else if (!mergeTiles) {
-          // Skip turf union: render tile fragments as-is (faster, minor overlap seam)
-          ringsToExtrude = g.fragments;
-        } else {
-          const merged = unionRings(g.fragments);
-          if (merged) {
-            ringsToExtrude = merged;
-            mergedOk++;
-          } else {
-            // Fallback: render fragments separately (minor overlap seam)
-            ringsToExtrude = g.fragments;
-            mergeFailed++;
-          }
-        }
+        const ringsToExtrude = g.fragments;
 
         for (const ring of ringsToExtrude) {
           let cLng = 0;
@@ -521,10 +463,8 @@ export function ThreeLayerManager({
       if (buildings.length !== lastLoggedCountRef.current) {
         lastLoggedCountRef.current = buildings.length;
         console.log("[3D-BUILDINGS]", buildings.length, "buildings,",
-          mergedOk, "merged,", mergeFailed, "merge-failed,",
           sourceFeatures.length, "sourceFeatures,",
-          grid.size, "grid cells",
-          mergeTiles ? "(merge ON)" : "(merge OFF)");
+          grid.size, "grid cells");
       }
     };
 
@@ -616,7 +556,7 @@ export function ThreeLayerManager({
         perfRef.current = EMPTY_PERF;
       }
     };
-  }, [map, useLoft, radiusMix, mergeTiles, config, effectiveConfig, perfRef]);
+  }, [map, useLoft, radiusMix, config, effectiveConfig, perfRef]);
 
   // Effect 4: Update building appearance (color + opacity) in-place, no rebuild needed
   const buildingColor = typeof runtimeParams.buildingColor === "string" ? runtimeParams.buildingColor : undefined;
