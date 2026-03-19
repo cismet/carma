@@ -67,8 +67,13 @@ import {
   clearSelection,
 } from "../../store/slices/arbeitsauftraege";
 import { getSelectedTeamName } from "../../store/selectors";
-import { buildApGeoJson } from "../../helper/buildApGeoJson";
-import { debugLayers, apInfoboxMapping } from "../../config/debugLayers";
+import {
+  buildApGeoJson,
+  extractApFachobjektPKs,
+} from "../../helper/buildApGeoJson";
+import type { ApFachobjektEntry } from "../../helper/buildApGeoJson";
+import { apInfoboxMapping } from "../../config/debugLayers";
+import { apStatusOverlayLayers } from "../../config/apStatusOverlayLayers";
 import type { ArbeitsauftragTileFeature } from "../../store/slices/arbeitsauftraege";
 
 const LIST_WIDTH = 300;
@@ -870,11 +875,12 @@ const BelisMapLibWrapper = ({
     };
   }, [sidebarVariant, activeAATab, map, arbeitsauftraegeNamespacedSource]);
 
-  // Hide Fachobjekte layers when in Arbeitsaufträge mode
+  // Hide Fachobjekte layers when in Arbeitsaufträge mode (except AP tab)
   useEffect(() => {
     if (!map) return;
     const apply = () => {
-      const visible = sidebarVariant !== "arbeitsauftraege";
+      const visible =
+        sidebarVariant !== "arbeitsauftraege" || activeAATab === "ap";
       for (const layer of map.getStyle()?.layers ?? []) {
         if ("source" in layer && layer.source === namespacedSource) {
           try {
@@ -894,7 +900,102 @@ const BelisMapLibWrapper = ({
     return () => {
       map.off("styledata", apply);
     };
-  }, [sidebarVariant, map, namespacedSource]);
+  }, [sidebarVariant, activeAATab, map, namespacedSource]);
+
+  // --- AP mode: highlight only Fachobjekte linked to Protokolle (dim the rest) ---
+  const apPkLookupRef = useRef<Map<string, ApFachobjektEntry>>(new Map());
+  useEffect(() => {
+    if (!map) return;
+
+    const shouldHighlight =
+      sidebarVariant === "arbeitsauftraege" &&
+      activeAATab === "ap" &&
+      selectedAAData != null;
+
+    type MapWithGlobalState = maplibregl.Map & {
+      setGlobalStateProperty?(key: string, value: unknown): void;
+    };
+
+    if (!shouldHighlight) {
+      apPkLookupRef.current = new Map();
+
+      // Reset all highlighted states on Fachobjekte tiles
+      for (const sl of BELIS_SOURCE_LAYERS) {
+        try {
+          const features = map.querySourceFeatures(namespacedSource, {
+            sourceLayer: sl,
+          });
+          for (const f of features) {
+            if (f.id != null) {
+              map.setFeatureState(
+                { source: namespacedSource, sourceLayer: sl, id: f.id },
+                { highlighted: false },
+              );
+            }
+          }
+        } catch {
+          /* source may not be ready */
+        }
+      }
+
+      // Disable global highlighting
+      const m = map as MapWithGlobalState;
+      if (typeof m.setGlobalStateProperty === "function") {
+        m.setGlobalStateProperty("highlightingEnabled", false);
+      }
+      return;
+    }
+
+    const pkLookup = extractApFachobjektPKs(selectedAAData);
+    apPkLookupRef.current = pkLookup;
+
+    const applyHighlighting = () => {
+      if (!map.isStyleLoaded()) return;
+
+      // Enable global highlighting so the style dims non-highlighted features
+      const m = map as MapWithGlobalState;
+      if (typeof m.setGlobalStateProperty === "function") {
+        m.setGlobalStateProperty("highlightingEnabled", true);
+      }
+
+      for (const sl of BELIS_SOURCE_LAYERS) {
+        try {
+          const features = map.querySourceFeatures(namespacedSource, {
+            sourceLayer: sl,
+          });
+          for (const f of features) {
+            if (f.id == null) continue;
+            const pk = f.properties?.id;
+            if (pk == null) continue;
+            const lookupKey = `${sl}::${pk}`;
+            const isLinked = pkLookup.has(lookupKey);
+            map.setFeatureState(
+              { source: namespacedSource, sourceLayer: sl, id: f.id },
+              { highlighted: isLinked },
+            );
+          }
+        } catch {
+          /* source may not be ready */
+        }
+      }
+    };
+
+    applyHighlighting();
+
+    // Debounced re-apply when new tiles load
+    let timer: ReturnType<typeof setTimeout> | null = null;
+    const onSourceData = (e: maplibregl.MapSourceDataEvent) => {
+      if (e.source?.type !== "vector") return;
+      if (timer) clearTimeout(timer);
+      timer = setTimeout(applyHighlighting, 150);
+    };
+    map.on("sourcedata", onSourceData);
+
+    return () => {
+      map.off("sourcedata", onSourceData);
+      if (timer) clearTimeout(timer);
+    };
+  }, [map, sidebarVariant, activeAATab, selectedAAData, namespacedSource]);
 
   // --- Save/restore selection when switching between route variants ---
   useEffect(() => {
@@ -1075,11 +1176,26 @@ const BelisMapLibWrapper = ({
       const hits = map.queryRenderedFeatures(e.point);
 
       if (activeAATab === "ap") {
-        // In AP mode: select clicked AP feature
+        // In AP mode: select clicked AP status overlay feature
         const apHit = hits.find((h) => h.source === AP_SOURCE);
         if (apHit) {
           const apId = apHit.properties?.id as number | undefined;
           if (apId != null) dispatch(setSelectedAPId(apId));
+          return;
+        }
+
+        // Fallback: check if a Fachobjekte tile feature was clicked
+        const pkLookup = apPkLookupRef.current;
+        for (const hit of hits) {
+          if (hit.source !== namespacedSource) continue;
+          const sl = hit.sourceLayer ?? "";
+          const pk = hit.properties?.id;
+          if (pk == null) continue;
+          const entry = pkLookup.get(`${sl}::${pk}`);
+          if (entry) {
+            dispatch(setSelectedAPId(entry.protokollId));
+            return;
+          }
         }
         return;
       }
@@ -1101,20 +1217,10 @@ const BelisMapLibWrapper = ({
     return () => {
       map.off("click", handleClick);
     };
-  }, [sidebarVariant, activeAATab, map, dispatch]);
+  }, [sidebarVariant, activeAATab, map, dispatch, namespacedSource]);
 
-  // --- Arbeitsauftraege: show AP Fachobjekte on map when AP tab is active ---
-  // Map debug layer source-layer names to featureType property values in AP GeoJSON
+  // --- Arbeitsauftraege: show AP status overlay on map when AP tab is active ---
   const AP_SOURCE = "ap-features-source";
-  const AP_LAYER_PREFIX = "ap-";
-  const SOURCE_LAYER_TO_FEATURE_TYPE_AP: Record<string, string> = {
-    leuchten: "tdta_leuchten",
-    mast: "tdta_standort_mast",
-    leitungen: "leitung",
-    schaltstelle: "schaltstelle",
-    mauerlaschen: "mauerlasche",
-    abzweigdosen: "abzweigdose",
-  };
 
   useEffect(() => {
     if (!map) return;
@@ -1191,29 +1297,11 @@ const BelisMapLibWrapper = ({
       }
     }
 
-    // Add layers derived from debugLayers, rewritten for the AP GeoJSON source
-    for (const layer of debugLayers) {
-      const sourceLayer = "source-layer" in layer ? (layer as Record<string, unknown>)["source-layer"] as string : undefined;
-      const featureType = sourceLayer
-        ? SOURCE_LAYER_TO_FEATURE_TYPE_AP[sourceLayer]
-        : undefined;
-      if (!featureType) continue;
-
-      const apLayerId = `${AP_LAYER_PREFIX}${layer.id}`;
-      if (map.getLayer(apLayerId)) continue;
-
-      // Clone the layer spec, replacing source and adding featureType filter
-      const apLayer = {
-        ...layer,
-        id: apLayerId,
-        source: AP_SOURCE,
-        filter: ["==", ["get", "featureType"], featureType],
-      };
-      // Remove source-layer (not applicable for GeoJSON)
-      delete (apLayer as Record<string, unknown>)["source-layer"];
-
-      map.addLayer(apLayer as maplibregl.LayerSpecification);
-      addedLayerIds.push(apLayerId);
+    // Add status overlay layers (small dots/lines showing Protokoll status)
+    for (const layer of apStatusOverlayLayers) {
+      if (map.getLayer(layer.id)) continue;
+      map.addLayer(layer);
+      addedLayerIds.push(layer.id);
     }
 
     return removeLayers;
@@ -1338,12 +1426,18 @@ const BelisMapLibWrapper = ({
     }
   }, [activeAATab]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // --- Arbeitsauftraege: AP feature-state selection ---
+  // --- Arbeitsauftraege: AP feature-state selection (overlay + tile) ---
   const prevAPIdRef = useRef<number | null>(null);
+  const prevApTileSelRef = useRef<{
+    source: string;
+    sourceLayer: string;
+    id: string | number;
+  } | null>(null);
+
   useEffect(() => {
     if (!map) return;
 
-    // Deselect previous
+    // Deselect previous overlay feature
     if (prevAPIdRef.current != null && prevAPIdRef.current !== selectedAPId) {
       try {
         map.setFeatureState(
@@ -1354,11 +1448,22 @@ const BelisMapLibWrapper = ({
         // source may not exist
       }
     }
+
+    // Deselect previous tile feature
+    if (prevApTileSelRef.current != null) {
+      try {
+        map.setFeatureState(prevApTileSelRef.current, { selected: false });
+      } catch {
+        /* tile may have unloaded */
+      }
+      prevApTileSelRef.current = null;
+    }
+
     prevAPIdRef.current = selectedAPId;
 
     if (selectedAPId == null) return;
 
-    // Select current
+    // Select current overlay feature
     try {
       map.setFeatureState(
         { source: AP_SOURCE, id: selectedAPId },
@@ -1367,7 +1472,35 @@ const BelisMapLibWrapper = ({
     } catch {
       // source may not exist yet
     }
-  }, [map, selectedAPId]);
+
+    // Also select the corresponding Fachobjekte tile feature
+    const pkLookup = apPkLookupRef.current;
+    for (const [, entry] of pkLookup) {
+      if (entry.protokollId !== selectedAPId) continue;
+
+      try {
+        const features = map.querySourceFeatures(namespacedSource, {
+          sourceLayer: entry.sourceLayer,
+        });
+        const match = features.find(
+          (f) =>
+            f.properties && String(f.properties.id) === String(entry.fachobjektPK),
+        );
+        if (match?.id != null) {
+          const tileRef = {
+            source: namespacedSource,
+            sourceLayer: entry.sourceLayer,
+            id: match.id,
+          };
+          map.setFeatureState(tileRef, { selected: true });
+          prevApTileSelRef.current = tileRef;
+        }
+      } catch {
+        /* source may not be ready */
+      }
+      break;
+    }
+  }, [map, selectedAPId, namespacedSource]);
 
   // --- Arbeitsauftraege: build infobox override for selected AP feature ---
   useEffect(() => {
