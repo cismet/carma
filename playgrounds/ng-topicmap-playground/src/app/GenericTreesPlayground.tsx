@@ -216,7 +216,7 @@ function PerfOverlay({ perfRef }: { perfRef: React.RefObject<ThreePerfData> }) {
 //  Layer visibility sync (drives map layout property)
 // ─────────────────────────────────────────────────────────────
 
-type LayerGroupName = "Einzelbaum 3D" | "Einzelbaum Umringe" | "Gebaeude";
+type LayerGroupName = "Einzelbaum 3D" | "Wohnlagen" | "Einzelbaum Umringe" | "Gebaeude";
 type LayerVisibility = Record<LayerGroupName, boolean>;
 
 const LAYER_GROUPS: {
@@ -225,12 +225,14 @@ const LAYER_GROUPS: {
   color: string;
 }[] = [
   { name: "Einzelbaum 3D", label: "3D Bäume", color: "#5D4037" },
+  { name: "Wohnlagen", label: "Wohnlagen", color: "#FF9800" },
   { name: "Einzelbaum Umringe", label: "Umringe", color: "#4CAF50" },
   { name: "Gebaeude", label: "Gebäude", color: "#607D8B" },
 ];
 
 const DEFAULT_VISIBILITY: LayerVisibility = {
   "Einzelbaum 3D": true,
+  Wohnlagen: true,
   "Einzelbaum Umringe": true,
   Gebaeude: true,
 };
@@ -506,6 +508,11 @@ const LIBRE_LAYERS = [
     type: "vector" as const,
     name: "Einzelbaum 3D",
     style: "https://tiles.cismet.de/einzelbaumX/styleX.json",
+  },
+  {
+    type: "vector" as const,
+    name: "Wohnlagen",
+    style: "https://tiles.cismet.de/wohnlagen2024/style.json",
   },
   {
     type: "vector" as const,
