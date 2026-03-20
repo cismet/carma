@@ -6,5 +6,5 @@ export {
   loadObjectsIntoFeatureCollection,
   featuresFilter,
 } from "./lib/utils/fetchingHelper";
-export { getVCard } from "./lib/utils/featureHelper";
+export { getVCard, getFachobjektOfProtocol } from "./lib/utils/featureHelper";
 export * from "./index.d";

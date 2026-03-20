@@ -1,6 +1,7 @@
 import { useMemo } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { Spin } from "antd";
+import { getFachobjektOfProtocol } from "@carma-appframeworks/belis";
 import {
   getAAFeatures,
   getSelectedAAId,
@@ -69,12 +70,12 @@ function getProtocolFeatureType(protokoll: Record<string, any>): string {
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 function getStatusBadgeColor(status: Record<string, any> | null): string {
-  if (!status?.schluessel) return "#9CA3AF";
-  const key = String(status.schluessel).toLowerCase();
-  if (key.includes("offen")) return STATUS_COLORS.offen;
-  if (key.includes("bearbeitung")) return STATUS_COLORS.in_bearbeitung;
-  if (key.includes("erledigt")) return STATUS_COLORS.erledigt;
-  if (key.includes("fehl")) return STATUS_COLORS.fehlmeldung;
+  if (!status?.bezeichnung) return "#9CA3AF";
+  const b = String(status.bezeichnung).toLowerCase();
+  if (b.includes("offen")) return STATUS_COLORS.offen;
+  if (b.includes("bearbeitung")) return STATUS_COLORS.in_bearbeitung;
+  if (b.includes("erledigt")) return STATUS_COLORS.erledigt;
+  if (b.includes("fehl")) return STATUS_COLORS.fehlmeldung;
   return "#9CA3AF";
 }
 
@@ -261,7 +262,9 @@ const ArbeitsauftraegeSidebar = ({
                 );
                 const statusLabel =
                   p.arbeitsprotokollstatus?.bezeichnung ?? "Unbekannt";
-                const featureType = getProtocolFeatureType(p);
+                const fachobjekt = getFachobjektOfProtocol(p);
+                const shortname =
+                  fachobjekt?.shortname ?? getProtocolFeatureType(p);
                 const isSelected = p.id === selectedAPId;
                 return (
                   <div
@@ -286,7 +289,7 @@ const ArbeitsauftraegeSidebar = ({
                         #{p.protokollnummer}
                       </span>
                       <span className="text-xs text-gray-400 ml-auto">
-                        {featureType}
+                        {shortname}
                       </span>
                     </div>
                     <div className="flex justify-between items-baseline mt-0.5 ml-4">
@@ -295,14 +298,6 @@ const ArbeitsauftraegeSidebar = ({
                       </span>
                       <span className="text-xs text-gray-400">
                         {formatDate(p.datum ?? "")}
-                      </span>
-                    </div>
-                    <div className="ml-4 mt-0.5">
-                      <span
-                        className="inline-block text-[10px] px-1.5 py-0.5 rounded-full text-white"
-                        style={{ backgroundColor: statusColor }}
-                      >
-                        {statusLabel}
                       </span>
                     </div>
                   </div>
