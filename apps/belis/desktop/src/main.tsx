@@ -100,10 +100,10 @@ const router = createHashRouter(
           path: "/",
           element: <MainPage />,
         },
-        // {
-        //   path: "/arbeitsauftraege",
-        //   element: <ArbeitsauftraegeePage />,
-        // },
+        {
+          path: "/arbeitsauftraege",
+          element: <ArbeitsauftraegeePage />,
+        },
         {
           path: "/key-tables",
           element: <KeyTablesPage />,
