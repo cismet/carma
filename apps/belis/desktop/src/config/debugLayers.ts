@@ -11,6 +11,7 @@ import type { LayerSpecification } from "maplibre-gl";
 export const apInfoboxMapping: string[] = [
   "title: 'Protokoll #' + p.protokollnummer",
   "header: p.featureType",
+  "headerColor: p.headerColor",
   "subtitle: p.statusLabel",
   "additionalInfo: p.monteur || ''",
 ];

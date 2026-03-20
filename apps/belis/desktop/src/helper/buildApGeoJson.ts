@@ -31,6 +31,22 @@ function getStatusInfo(status: Record<string, any> | null): {
 }
 
 /**
+ * Derive a solid header color from the protokoll status `bezeichnung`.
+ * Uses the same color families as ArbeitsauftraegeSidebar STATUS_COLORS
+ * but fully opaque for use as infobox header background.
+ */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function getHeaderColorFromStatus(status: Record<string, any> | null): string {
+  if (!status?.bezeichnung) return "#9CA3AF";
+  const b = String(status.bezeichnung).toLowerCase();
+  if (b.includes("offen")) return "#F59E0B";
+  if (b.includes("bearbeitung")) return "#3B82F6";
+  if (b.includes("erledigt")) return "#10B981";
+  if (b.includes("fehl")) return "#EF4444";
+  return "#9CA3AF";
+}
+
+/**
  * Extract a WGS84 geometry from a protokoll's referenced Fachobjekt.
  * Returns a GeoJSON geometry or null if none could be found.
  */
@@ -135,6 +151,7 @@ export function buildApGeoJson(
         featureType: result.featureType,
         status: statusInfo.key,
         statusLabel: statusInfo.label,
+        headerColor: getHeaderColorFromStatus(protokoll.arbeitsprotokollstatus),
         monteur: protokoll.monteur ?? null,
         datum: protokoll.datum ?? null,
       },
