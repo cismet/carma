@@ -1,4 +1,5 @@
 import proj4 from "proj4";
+import { getFachobjektOfProtocol } from "@carma-appframeworks/belis";
 import type { ArbeitsauftragDetail } from "../store/slices/arbeitsauftraege";
 
 const proj4crs25832def = "+proj=utm +zone=32 +ellps=GRS80 +units=m +no_defs";
@@ -141,6 +142,7 @@ export function buildApGeoJson(
     if (!result) continue;
 
     const statusInfo = getStatusInfo(protokoll.arbeitsprotokollstatus);
+    const fachobjekt = getFachobjektOfProtocol(protokoll);
 
     features.push({
       type: "Feature",
@@ -152,8 +154,12 @@ export function buildApGeoJson(
         status: statusInfo.key,
         statusLabel: statusInfo.label,
         headerColor: getHeaderColorFromStatus(protokoll.arbeitsprotokollstatus),
+        shortname: fachobjekt?.shortname ?? result.featureType,
+        veranlassung: protokoll.veranlassung?.bezeichnung ?? "",
         monteur: protokoll.monteur ?? null,
-        datum: protokoll.datum ?? null,
+        datum: protokoll.datum
+          ? new Date(protokoll.datum).toLocaleDateString("en-US")
+          : null,
       },
     });
   }

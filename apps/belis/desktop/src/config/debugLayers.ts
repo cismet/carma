@@ -9,11 +9,11 @@ import type { LayerSpecification } from "maplibre-gl";
 
 /** Simple infobox mapping for AP features (object-style) */
 export const apInfoboxMapping: string[] = [
-  "title: 'Protokoll #' + p.protokollnummer",
-  "header: p.featureType",
+  "header: 'Arbeitsprotokoll'",
+  "title: '#' + p.protokollnummer + ' - ' + p.shortname",
   "headerColor: p.headerColor",
-  "subtitle: p.statusLabel",
-  "additionalInfo: p.monteur || ''",
+  "subtitle: p.datum || ''",
+  "additionalInfo: p.veranlassung || ''",
 ];
 
 const statusColor = [
