@@ -69,7 +69,9 @@ const BelisMapPageShell = () => {
     const params = new URLSearchParams(
       window.location.hash.split("?")[1] ?? ""
     );
-    return params.get("showRaw") === "true";
+    const param = params.get("showRaw");
+    if (param !== null) return param === "true";
+    return window.location.hostname === "localhost";
   }, []);
 
   // Fetch streets data once

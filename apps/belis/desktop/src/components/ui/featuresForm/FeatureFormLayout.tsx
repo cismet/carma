@@ -95,11 +95,11 @@ const FeatureFormLayout = ({
   // Support both regular query params and hash-based routing (/#/?param=value)
   const showRaw = useMemo(() => {
     const hashQuery = window.location.hash.split("?")[1] || "";
-    return (
-      new URLSearchParams(hashQuery || window.location.search).get(
-        "showRaw"
-      ) === "true"
-    );
+    const param = new URLSearchParams(
+      hashQuery || window.location.search
+    ).get("showRaw");
+    if (param !== null) return param === "true";
+    return window.location.hostname === "localhost";
   }, []);
   const [isWideScreen, setIsWideScreen] = useState(
     typeof window !== "undefined" ? window.innerWidth > 1200 : false
