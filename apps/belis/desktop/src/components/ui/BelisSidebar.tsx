@@ -56,11 +56,33 @@ const defaultListItemExtractors: Record<
       subtitle: p.fk_mastart?.mastart || "-ohne Mastart-",
     };
   },
+  // schaltstelle: (feature) => {
+  //   const p = feature.properties || {};
+  //   const title = p.schaltstellen_nummer
+  //     ? `S ${p.schaltstellen_nummer}`
+  //     : `S ${feature.id || p.id}`;
+  //   return {
+  //     main: title,
+  //     upperright: toTitleCase(p.strasse || "") || "-",
+  //     subtitle: p.bezeichnung || p.bauart || "Schaltstelle",
+  //   };
+  // },
+  // schaltstellen: (feature) => {
+  //   const p = feature.properties || {};
+  //   const title = p.schaltstellen_nummer
+  //     ? `S ${p.schaltstellen_nummer}`
+  //     : `S ${feature.id || p.id}`;
+  //   return {
+  //     main: title,
+  //     upperright: toTitleCase(p.strasse || "") || "-",
+  //     subtitle: p.bezeichnung || p.bauart || "Schaltstelle",
+  //   };
+  // },
   schaltstelle: (feature) => {
     const p = feature.properties || {};
     const title = p.schaltstellen_nummer
       ? `S ${p.schaltstellen_nummer}`
-      : `S ${feature.id || p.id}`;
+      : `ID: ${p.id}`;
     return {
       main: title,
       upperright: toTitleCase(p.strasse || "") || "-",
@@ -71,7 +93,7 @@ const defaultListItemExtractors: Record<
     const p = feature.properties || {};
     const title = p.schaltstellen_nummer
       ? `S ${p.schaltstellen_nummer}`
-      : `S ${feature.id || p.id}`;
+      : `ID: ${p.id}`;
     return {
       main: title,
       upperright: toTitleCase(p.strasse || "") || "-",
