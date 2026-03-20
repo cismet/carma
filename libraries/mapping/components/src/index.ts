@@ -1,5 +1,7 @@
 export { FontAwesomeLikeIcon } from "./lib/components/FontAwesomeLikeIcon.tsx";
 export {
+  buildFilterExpression,
+  captureOriginalFilters,
   createFilterButtons,
   type FilterInfo,
   type FilterOption,
