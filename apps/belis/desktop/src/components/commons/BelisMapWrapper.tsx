@@ -13,7 +13,9 @@ import {
   getActiveAdditionalLayers,
   getAdditionalLayerOpacities,
   isInPaleMode,
+  getEnabledLeitungstypen,
 } from "../../store/slices/mapSettings";
+import { getKeyTablesData } from "../../store/slices/keyTables";
 import {
   backgroundLayerConfigs,
   additionalLayerConfigs,
@@ -111,6 +113,8 @@ const BelisMapLibWrapper = ({
   const store = useStore<RootState>();
   const jwt = useSelector(getJWT);
   const featureDataVersion = useSelector(getFeatureDataVersion);
+  const enabledLeitungstypen = useSelector(getEnabledLeitungstypen);
+  const keyTablesData = useSelector(getKeyTablesData);
   const reduxSelectedFeature = useSelector(getReduxSelectedFeature);
   // Ref for geometry fallback in override effect — avoids adding
   // reduxSelectedFeature to deps (which would cause spurious re-fires).
@@ -898,6 +902,50 @@ const BelisMapLibWrapper = ({
       }
     }
   }, [sidebarVariant, map, namespacedSource]);
+
+  // Filter leitungen layers by sub-type (Freileitung, Erdkabel, etc.)
+  useEffect(() => {
+    if (!map) return;
+
+    const leitungstypen = (
+      (keyTablesData.leitungstyp || []) as {
+        id: number;
+        bezeichnung?: string;
+      }[]
+    );
+
+    // Nothing to filter if key tables haven't loaded yet
+    if (leitungstypen.length === 0) return;
+
+    const allEnabled = leitungstypen.every(
+      (t) => enabledLeitungstypen[t.id] !== false
+    );
+    const noneExplicitlySet = Object.keys(enabledLeitungstypen).length === 0;
+
+    // Build the filter or clear it
+    let filter: maplibregl.FilterSpecification | null = null;
+    if (!allEnabled && !noneExplicitlySet) {
+      const allowedNames = leitungstypen
+        .filter((t) => enabledLeitungstypen[t.id] !== false)
+        .map((t) => t.bezeichnung)
+        .filter(Boolean);
+      filter = ["in", ["get", "bezeichnung"], ["literal", allowedNames]];
+    }
+
+    for (const layer of map.getStyle()?.layers ?? []) {
+      if (
+        "source" in layer &&
+        layer.source === namespacedSource &&
+        layer.id.toLowerCase().includes("leitungen")
+      ) {
+        try {
+          map.setFilter(layer.id, filter);
+        } catch {
+          /* layer may not be ready */
+        }
+      }
+    }
+  }, [map, enabledLeitungstypen, keyTablesData, namespacedSource]);
 
   // --- Save/restore selection when switching between route variants ---
   useEffect(() => {
