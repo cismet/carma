@@ -56,28 +56,6 @@ const defaultListItemExtractors: Record<
       subtitle: p.fk_mastart?.mastart || "-ohne Mastart-",
     };
   },
-  // schaltstelle: (feature) => {
-  //   const p = feature.properties || {};
-  //   const title = p.schaltstellen_nummer
-  //     ? `S ${p.schaltstellen_nummer}`
-  //     : `S ${feature.id || p.id}`;
-  //   return {
-  //     main: title,
-  //     upperright: toTitleCase(p.strasse || "") || "-",
-  //     subtitle: p.bezeichnung || p.bauart || "Schaltstelle",
-  //   };
-  // },
-  // schaltstellen: (feature) => {
-  //   const p = feature.properties || {};
-  //   const title = p.schaltstellen_nummer
-  //     ? `S ${p.schaltstellen_nummer}`
-  //     : `S ${feature.id || p.id}`;
-  //   return {
-  //     main: title,
-  //     upperright: toTitleCase(p.strasse || "") || "-",
-  //     subtitle: p.bezeichnung || p.bauart || "Schaltstelle",
-  //   };
-  // },
   schaltstelle: (feature) => {
     const p = feature.properties || {};
     const title = p.schaltstellen_nummer
@@ -105,7 +83,7 @@ const defaultListItemExtractors: Record<
     const laenge = p.laenge || p.length || "";
     const laengeStr = laenge ? `${laenge}m` : "";
     return {
-      main: `L-${feature.id || p.id || "?"}`,
+      main: `L-${p.id || "?"}`,
       upperright: laengeStr,
       subtitle: p.bezeichnung || p.leitungstyp || "",
     };
@@ -124,7 +102,7 @@ const defaultListItemExtractors: Record<
   mauerlaschen: (feature) => {
     const p = feature.properties || {};
     return {
-      main: `M-${p.laufende_nummer || feature.id || p.id || "?"}`,
+      main: `M-${p.laufende_nummer || p.id || "?"}`,
       upperright: toTitleCase(p.strasse || "") || "-",
       subtitle: p.bezeichnung || p.material || "Mauerlasche",
     };
