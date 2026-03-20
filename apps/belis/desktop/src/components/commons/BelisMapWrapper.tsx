@@ -616,6 +616,13 @@ const BelisMapLibWrapper = ({
     fetchData();
   }, [selectedFeature, selectedFeatureId, jwt, featureDataVersion]);
 
+  // Close the datasheet when the selection is cleared in fachobjekte mode
+  useEffect(() => {
+    if (sidebarVariant === "fachobjekte" && !selectedFeatureId) {
+      closeDatasheet();
+    }
+  }, [selectedFeatureId, sidebarVariant, closeDatasheet]);
+
   // Check if selected feature is inside visible map boundary.
   // When not visible, auto-open the datasheet to show NoFeatureSelected.
   const [featureOnMap, setFeatureOnMap] = useState(true);
