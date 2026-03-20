@@ -899,15 +899,22 @@ const BelisMapLibWrapper = ({
   // will re-mount and apply the correct per-category visibility.
   useEffect(() => {
     if (!map || sidebarVariant !== "arbeitsauftraege") return;
-    for (const layer of map.getStyle()?.layers ?? []) {
-      if ("source" in layer && layer.source === namespacedSource) {
-        try {
-          map.setLayoutProperty(layer.id, "visibility", "none");
-        } catch {
-          /* layer may not be ready */
+    const hide = () => {
+      for (const layer of map.getStyle()?.layers ?? []) {
+        if ("source" in layer && layer.source === namespacedSource) {
+          try {
+            map.setLayoutProperty(layer.id, "visibility", "none");
+          } catch {
+            /* layer may not be ready */
+          }
         }
       }
-    }
+    };
+    hide();
+    map.on("styledata", hide);
+    return () => {
+      map.off("styledata", hide);
+    };
   }, [sidebarVariant, map, namespacedSource]);
 
   // Filter leitungen layers by sub-type (Freileitung, Erdkabel, etc.)
