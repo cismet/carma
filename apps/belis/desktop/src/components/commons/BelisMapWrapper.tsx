@@ -1458,8 +1458,20 @@ const BelisMapLibWrapper = ({
     objectToInfo(feature.properties as Record<string, unknown>, mappingCode)
       .then((info) => {
         if (info) {
+          const genericLinks: {
+            iconname: string;
+            tooltip: string;
+            action?: () => void;
+          }[] = [];
+          if ((info as Record<string, unknown>).datasheet && openDatasheet) {
+            genericLinks.push({
+              iconname: "info",
+              tooltip: "Datenblatt",
+              action: openDatasheet,
+            });
+          }
           setOverrideSelectedFeature({
-            properties: { ...info },
+            properties: { ...info, genericLinks },
             geometry: feature.geometry,
             carmaInfo: { sourceLayer: "ap-features" },
           });
