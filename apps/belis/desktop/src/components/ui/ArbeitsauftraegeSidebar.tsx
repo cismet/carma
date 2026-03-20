@@ -52,7 +52,7 @@ const FEATURE_TYPE_KEYS = Object.keys(FEATURE_TYPE_LABELS);
 function formatDate(isoDate: string): string {
   if (!isoDate) return "";
   try {
-    return new Date(isoDate).toLocaleDateString("de-DE");
+    return new Date(isoDate).toLocaleDateString("en-US");
   } catch {
     return isoDate;
   }
@@ -105,11 +105,14 @@ const ArbeitsauftraegeSidebar = ({
   );
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const protokolle: Record<string, any>[] =
+  const protokolle: Record<string, any>[] = (
     selectedAAData?.ar_protokolleArray?.map(
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       (entry: Record<string, any>) => entry.arbeitsprotokoll
-    ) ?? [];
+    ) ?? []
+  ).sort(
+    (a, b) => Number(a.protokollnummer) - Number(b.protokollnummer)
+  );
 
   const selectedFeature = features.find((f) => f.id === selectedAAId);
   const protokolleCount =
@@ -292,12 +295,9 @@ const ArbeitsauftraegeSidebar = ({
                         {shortname}
                       </span>
                     </div>
-                    <div className="flex justify-between items-baseline mt-0.5 ml-4">
+                    <div className="mt-0.5 ml-4">
                       <span className="text-xs text-gray-500">
-                        {p.monteur ?? "–"}
-                      </span>
-                      <span className="text-xs text-gray-400">
-                        {formatDate(p.datum ?? "")}
+                        {p.veranlassung?.bezeichnung ?? "–"}
                       </span>
                     </div>
                   </div>
