@@ -93,27 +93,47 @@ const LeitungstypDropdown = ({
 
   const menuItems: MenuProps["items"] = useMemo(
     () =>
-      sortedItems.map((item) => ({
-        key: item.id,
-        label: (
-          <div
-            className="flex items-center justify-between gap-3 cursor-pointer"
-            onClick={(e) => {
-              e.stopPropagation();
-              handleToggle(item.id);
-            }}
-          >
-            <span onClick={(e) => e.stopPropagation()}>
-              <Switch
-                size="small"
-                checked={isEnabled(item.id)}
-                onChange={() => handleToggle(item.id)}
+      sortedItems.map((item) => {
+        const name = item.bezeichnung ?? "";
+        const LEITUNGSTYP_COLORS: Record<string, string> = {
+          Freileitung: "#C04040",
+          "Tragseil mit Freileitung": "#C04040",
+          Tragseil: "#333333",
+          Leerrohr: "#555555",
+          Hinweis: "#5B9A8B",
+        };
+        const color = LEITUNGSTYP_COLORS[name] ?? "#D3976C";
+        return {
+          key: item.id,
+          label: (
+            <div
+              className="flex items-center gap-3 cursor-pointer"
+              onClick={(e) => {
+                e.stopPropagation();
+                handleToggle(item.id);
+              }}
+            >
+              <span onClick={(e) => e.stopPropagation()}>
+                <Switch
+                  size="small"
+                  checked={isEnabled(item.id)}
+                  onChange={() => handleToggle(item.id)}
+                />
+              </span>
+              <span className="flex-1">{name || `ID ${item.id}`}</span>
+              <span
+                style={{
+                  width: 10,
+                  height: 10,
+                  borderRadius: "50%",
+                  backgroundColor: color,
+                  flexShrink: 0,
+                }}
               />
-            </span>
-            <span>{item.bezeichnung || `ID ${item.id}`}</span>
-          </div>
-        ),
-      })),
+            </div>
+          ),
+        };
+      }),
     [sortedItems, enabledTypes, handleToggle]
   );
 
