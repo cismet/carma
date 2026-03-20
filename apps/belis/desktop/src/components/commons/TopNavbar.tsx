@@ -26,7 +26,7 @@ const TopNavbar = () => {
         >
           Fachobjekte
         </NavLink>
-        {/* <NavLink
+        <NavLink
           to="/arbeitsauftraege"
           className={({ isActive }) => `text-base hover:text-gray-600`}
           style={({ isActive }) => ({
@@ -34,7 +34,7 @@ const TopNavbar = () => {
           })}
         >
           Arbeitsaufträge
-        </NavLink> */}
+        </NavLink>
         <NavLink
           to="/key-tables"
           className={({ isActive }) => `text-base hover:text-gray-600`}
