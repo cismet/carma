@@ -883,30 +883,20 @@ const BelisMapLibWrapper = ({
     };
   }, [sidebarVariant, activeAATab, map, arbeitsauftraegeNamespacedSource]);
 
-  // Hide Fachobjekte layers when in Arbeitsaufträge mode
+  // Hide Fachobjekte layers when entering Arbeitsaufträge mode.
+  // When returning to Fachobjekte, do nothing: useLayerFilter in MainPage
+  // will re-mount and apply the correct per-category visibility.
   useEffect(() => {
-    if (!map) return;
-    const apply = () => {
-      const visible = sidebarVariant !== "arbeitsauftraege";
-      for (const layer of map.getStyle()?.layers ?? []) {
-        if ("source" in layer && layer.source === namespacedSource) {
-          try {
-            map.setLayoutProperty(
-              layer.id,
-              "visibility",
-              visible ? "visible" : "none"
-            );
-          } catch {
-            /* layer may not be ready */
-          }
+    if (!map || sidebarVariant !== "arbeitsauftraege") return;
+    for (const layer of map.getStyle()?.layers ?? []) {
+      if ("source" in layer && layer.source === namespacedSource) {
+        try {
+          map.setLayoutProperty(layer.id, "visibility", "none");
+        } catch {
+          /* layer may not be ready */
         }
       }
-    };
-    apply();
-    map.on("styledata", apply);
-    return () => {
-      map.off("styledata", apply);
-    };
+    }
   }, [sidebarVariant, map, namespacedSource]);
 
   // --- Save/restore selection when switching between route variants ---

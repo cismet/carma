@@ -1,47 +1,38 @@
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
 import {
   useLibreContext,
   useLayerFilter,
 } from "@carma-mapping/engines/maplibre";
+import { useSelector, useDispatch } from "react-redux";
 import { BELIS_FILTER_CATEGORIES } from "../../config/mapLayerConfigs";
-import localForage from "localforage";
 import { useMapPage } from "../../contexts/MapPageContext";
-
-const FILTER_STORAGE_KEY = "@belis-desktop.layerFilter";
+import {
+  getEnabledCategoryFilters,
+  setAllCategoryFilters,
+} from "../../store/slices/mapSettings";
 
 const MainPage = () => {
   const { setConfig } = useMapPage();
+  const dispatch = useDispatch();
 
   const { map } = useLibreContext();
 
-  // Layer filtering with localForage persistence
-  const [initialFilterState, setInitialFilterState] = useState<
-    Record<string, boolean> | undefined
-  >(undefined);
-  const [filterReady, setFilterReady] = useState(false);
-
-  useEffect(() => {
-    localForage.getItem<Record<string, boolean>>(FILTER_STORAGE_KEY).then(
-      (stored) => {
-        if (stored) setInitialFilterState(stored);
-        setFilterReady(true);
-      },
-      () => setFilterReady(true)
-    );
-  }, []);
+  // Filter state from Redux (persisted via redux-persist)
+  const storedFilters = useSelector(getEnabledCategoryFilters);
+  const initialState =
+    Object.keys(storedFilters).length > 0 ? storedFilters : undefined;
 
   const { enabledFilters, setFilterEnabled, activeSourceLayers } =
     useLayerFilter({
       map,
       categories: BELIS_FILTER_CATEGORIES,
-      initialState: initialFilterState,
+      initialState,
     });
 
-  // Persist filter changes to localForage
+  // Sync filter changes back to Redux
   useEffect(() => {
-    if (!filterReady) return;
-    localForage.setItem(FILTER_STORAGE_KEY, enabledFilters);
-  }, [enabledFilters, filterReady]);
+    dispatch(setAllCategoryFilters(enabledFilters));
+  }, [enabledFilters, dispatch]);
 
   // Register as a map route — show the shell, clear on unmount
   useEffect(() => {

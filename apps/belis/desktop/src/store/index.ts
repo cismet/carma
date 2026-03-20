@@ -67,6 +67,7 @@ const mapSettingsConfig = {
     "inPaleMode",
     "inSearchMode",
     "enabledLeitungstypen",
+    "enabledCategoryFilters",
   ],
 };
 
