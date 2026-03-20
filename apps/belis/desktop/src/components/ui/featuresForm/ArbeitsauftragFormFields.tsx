@@ -1,0 +1,203 @@
+import { useMemo } from "react";
+import { Form, Input, Table } from "antd";
+import type { ColumnsType } from "antd/es/table";
+import { useDispatch, useSelector } from "react-redux";
+import { getFachobjektOfProtocol } from "@carma-appframeworks/belis";
+import {
+  setSelectedAPId,
+  setActiveAATab,
+  getSelectedAPId,
+} from "../../../store/slices/arbeitsauftraege";
+import type { AppDispatch } from "../../../store";
+
+const FEATURE_TYPE_LABELS: Record<string, string> = {
+  tdta_leuchten: "Leuchte",
+  tdta_standort_mast: "Standort/Mast",
+  schaltstelle: "Schaltstelle",
+  mauerlasche: "Mauerlasche",
+  leitung: "Leitung",
+  abzweigdose: "Abzweigdose",
+  geom: "Freie Geometrie",
+};
+
+function formatDate(isoDate: string): string {
+  if (!isoDate) return "";
+  try {
+    return new Date(isoDate).toLocaleDateString("de-DE");
+  } catch {
+    return isoDate;
+  }
+}
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function getPosition(fachobjekt: Record<string, any> | undefined): string {
+  if (!fachobjekt) return "";
+
+  // For leuchten, use the standort's street
+  if (fachobjekt.type === "tdta_leuchten") {
+    return (
+      fachobjekt.fk_standort?.fk_strassenschluessel?.strasse ??
+      fachobjekt.fk_strassenschluessel?.strasse ??
+      ""
+    );
+  }
+
+  return fachobjekt.fk_strassenschluessel?.strasse ?? "";
+}
+
+interface ProtokolleRow {
+  key: number;
+  protokollnummer: number;
+  herkunft: string;
+  fachobjektType: string;
+  kennzeichnung: string;
+  bearbeiter: string;
+  position: string;
+  status: string;
+  isDeleted: boolean;
+  id: number;
+}
+
+interface ArbeitsauftragFormFieldsProps {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  data: Record<string, any>;
+}
+
+const ArbeitsauftragFormFields = ({ data }: ArbeitsauftragFormFieldsProps) => {
+  const dispatch: AppDispatch = useDispatch();
+  const selectedAPId = useSelector(getSelectedAPId);
+
+  const protokolleRows: ProtokolleRow[] = useMemo(() => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const protokolle: Record<string, any>[] = (
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      data?.ar_protokolleArray?.map((entry: Record<string, any>) => entry.arbeitsprotokoll) ?? []
+    ).sort(
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      (a: Record<string, any>, b: Record<string, any>) =>
+        Number(a.protokollnummer) - Number(b.protokollnummer)
+    );
+
+    return protokolle.map((p) => {
+      const fachobjekt = getFachobjektOfProtocol(p);
+      const veranlassung = p.veranlassung;
+      const herkunftParts = ["V" + (veranlassung?.nummer ?? "")];
+      if (veranlassung?.fk_veranlassungsart?.schluessel) {
+        herkunftParts.push(veranlassung.fk_veranlassungsart.schluessel);
+      }
+
+      return {
+        key: p.id,
+        id: p.id,
+        protokollnummer: p.protokollnummer,
+        herkunft: herkunftParts.join(" "),
+        fachobjektType:
+          FEATURE_TYPE_LABELS[fachobjekt?.type ?? ""] ?? fachobjekt?.type ?? "Unbekannt",
+        kennzeichnung: fachobjekt?.shortname ?? "",
+        bearbeiter: p.monteur ?? "",
+        position: getPosition(fachobjekt),
+        status: p.arbeitsprotokollstatus?.bezeichnung ?? "Unbekannt",
+        isDeleted: p.is_deleted === true,
+      };
+    });
+  }, [data]);
+
+  const columns: ColumnsType<ProtokolleRow> = [
+    {
+      title: "#",
+      dataIndex: "protokollnummer",
+      key: "protokollnummer",
+      width: 50,
+    },
+    {
+      title: "Herkunft",
+      dataIndex: "herkunft",
+      key: "herkunft",
+      width: 100,
+    },
+    {
+      title: "Fachobjekt",
+      dataIndex: "fachobjektType",
+      key: "fachobjektType",
+      width: 110,
+    },
+    {
+      title: "Kennzeichnung",
+      dataIndex: "kennzeichnung",
+      key: "kennzeichnung",
+      ellipsis: true,
+    },
+    {
+      title: "Bearbeiter",
+      dataIndex: "bearbeiter",
+      key: "bearbeiter",
+      width: 100,
+    },
+    {
+      title: "Position",
+      dataIndex: "position",
+      key: "position",
+      ellipsis: true,
+    },
+    {
+      title: "Status",
+      dataIndex: "status",
+      key: "status",
+      width: 120,
+    },
+  ];
+
+  return (
+    <div className="flex flex-col gap-4 pt-2">
+      {/* Header fields */}
+      <Form layout="vertical" size="small">
+        <div className="grid grid-cols-2 gap-x-4">
+          <Form.Item label="Auftragsnummer">
+            <Input value={data.nummer ?? ""} readOnly />
+          </Form.Item>
+          <Form.Item label="Zugewiesen an">
+            <Input
+              value={data.team?.name ?? data.zugewiesen_an ?? ""}
+              readOnly
+            />
+          </Form.Item>
+          <Form.Item label="angelegt von">
+            <Input value={data.angelegt_von ?? ""} readOnly />
+          </Form.Item>
+          <Form.Item label="Angelegt am">
+            <Input value={formatDate(data.angelegt_am ?? "")} readOnly />
+          </Form.Item>
+        </div>
+      </Form>
+
+      {/* Protokolle table */}
+      <div>
+        <div className="text-sm font-medium text-gray-700 mb-2">
+          Protokolle ({protokolleRows.length})
+        </div>
+        <Table<ProtokolleRow>
+          columns={columns}
+          dataSource={protokolleRows}
+          size="small"
+          pagination={false}
+          scroll={{ y: 400 }}
+          rowClassName={(record) => {
+            const classes: string[] = [];
+            if (record.isDeleted) classes.push("line-through opacity-50");
+            if (record.id === selectedAPId) classes.push("bg-blue-50");
+            return classes.join(" ");
+          }}
+          onRow={(record) => ({
+            onClick: () => {
+              dispatch(setSelectedAPId(record.id));
+              dispatch(setActiveAATab("ap"));
+            },
+            style: { cursor: "pointer" },
+          })}
+        />
+      </div>
+    </div>
+  );
+};
+
+export default ArbeitsauftragFormFields;

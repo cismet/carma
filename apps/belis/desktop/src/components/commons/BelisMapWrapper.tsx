@@ -50,6 +50,7 @@ import {
 } from "@carma-mapping/engines/maplibre";
 import type maplibregl from "maplibre-gl";
 import BelisDatasheetView from "../ui/BelisDatasheetView";
+import ArbeitsauftragForm from "../ui/featuresForm/ArbeitsauftragForm";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faMap } from "@fortawesome/free-solid-svg-icons";
 import {
@@ -71,6 +72,7 @@ import {
   getSelectedAPId,
   setSelectedAPId,
   clearSelection,
+  getAALoading,
 } from "../../store/slices/arbeitsauftraege";
 import { getSelectedTeamName } from "../../store/selectors";
 import { buildApGeoJson } from "../../helper/buildApGeoJson";
@@ -184,6 +186,7 @@ const BelisMapLibWrapper = ({
   const selectedAAData = useSelector(getSelectedAAData);
   const activeAATab = useSelector(getActiveAATab);
   const selectedAPId = useSelector(getSelectedAPId);
+  const aaLoading = useSelector(getAALoading);
 
   // Team filter: resolve selectedTeamId → team name for map layer filtering
   const selectedTeamName = useSelector(getSelectedTeamName);
@@ -622,6 +625,15 @@ const BelisMapLibWrapper = ({
       closeDatasheet();
     }
   }, [selectedFeatureId, sidebarVariant, closeDatasheet]);
+
+  // Open the datasheet when an Arbeitsauftrag is selected (detail data loaded)
+  useEffect(() => {
+    if (sidebarVariant === "arbeitsauftraege" && selectedAAData) {
+      openDatasheet();
+    } else if (sidebarVariant === "arbeitsauftraege" && !selectedAAData) {
+      closeDatasheet();
+    }
+  }, [sidebarVariant, selectedAAData, openDatasheet, closeDatasheet]);
 
   // Check if selected feature is inside visible map boundary.
   // When not visible, auto-open the datasheet to show NoFeatureSelected.
@@ -1822,20 +1834,27 @@ const BelisMapLibWrapper = ({
             />
           }
           datasheetContent={
-            <div style={{ height: "100%", overflow: "hidden" }}>
-              <BelisDatasheetView
-                feature={selectedFeature}
-                rawFeature={rawFeature}
-                fetchedData={fetchedFeatureData}
-                featureType={
-                  selectedFeature?.carmaInfo?.sourceLayer ||
-                  selectedFeatureId?.sourceLayer ||
-                  lastFeatureType
-                }
-                featureOnMap={featureOnMap}
-                onSelectNextDraft={handleSelectNextDraft}
+            sidebarVariant === "arbeitsauftraege" && selectedAAData ? (
+              <ArbeitsauftragForm
+                data={selectedAAData}
+                loading={aaLoading}
               />
-            </div>
+            ) : (
+              <div style={{ height: "100%", overflow: "hidden" }}>
+                <BelisDatasheetView
+                  feature={selectedFeature}
+                  rawFeature={rawFeature}
+                  fetchedData={fetchedFeatureData}
+                  featureType={
+                    selectedFeature?.carmaInfo?.sourceLayer ||
+                    selectedFeatureId?.sourceLayer ||
+                    lastFeatureType
+                  }
+                  featureOnMap={featureOnMap}
+                  onSelectNextDraft={handleSelectNextDraft}
+                />
+              </div>
+            )
           }
           onReturnToMap={handleReturnToMap}
         />
