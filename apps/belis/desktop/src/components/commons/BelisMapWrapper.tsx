@@ -1304,6 +1304,138 @@ const BelisMapLibWrapper = ({
     setMiniMap(m);
   }, []);
 
+  // --- Mini-map: toggle AA vector-tile layer visibility (hide when AP tab) ---
+  useEffect(() => {
+    if (!miniMap || sidebarVariant !== "arbeitsauftraege") return;
+    const toggle = () => {
+      const visible = activeAATab !== "ap";
+      for (const layer of miniMap.getStyle()?.layers ?? []) {
+        if (
+          "source" in layer &&
+          layer.source === arbeitsauftraegeNamespacedSource
+        ) {
+          try {
+            miniMap.setLayoutProperty(
+              layer.id,
+              "visibility",
+              visible ? "visible" : "none"
+            );
+          } catch {
+            /* layer may not be ready */
+          }
+        }
+      }
+    };
+    toggle();
+    miniMap.on("styledata", toggle);
+    return () => {
+      miniMap.off("styledata", toggle);
+    };
+  }, [sidebarVariant, activeAATab, miniMap, arbeitsauftraegeNamespacedSource]);
+
+  // --- Mini-map: add AP GeoJSON overlay when in AP tab ---
+  const MINI_AP_LAYER_PREFIX = "mini-ap-";
+  useEffect(() => {
+    if (!miniMap) return;
+
+    const addedLayerIds: string[] = [];
+
+    const removeLayers = () => {
+      try {
+        for (const id of addedLayerIds) {
+          if (miniMap.getLayer(id)) miniMap.removeLayer(id);
+        }
+        if (miniMap.getSource(AP_SOURCE)) miniMap.removeSource(AP_SOURCE);
+      } catch {
+        // layers/source may not exist
+      }
+    };
+
+    const shouldShow =
+      sidebarVariant === "arbeitsauftraege" &&
+      activeAATab === "ap" &&
+      selectedAAData != null;
+
+    if (!shouldShow) {
+      removeLayers();
+      return removeLayers;
+    }
+
+    const geojson = buildApGeoJson(selectedAAData);
+
+    const existing = miniMap.getSource(AP_SOURCE) as
+      | maplibregl.GeoJSONSource
+      | undefined;
+    if (existing) {
+      existing.setData(geojson);
+    } else {
+      miniMap.addSource(AP_SOURCE, {
+        type: "geojson",
+        data: geojson,
+        promoteId: "id",
+      });
+    }
+
+    for (const layer of debugLayers) {
+      const sourceLayer =
+        "source-layer" in layer
+          ? ((layer as Record<string, unknown>)["source-layer"] as string)
+          : undefined;
+      const featureType = sourceLayer
+        ? SOURCE_LAYER_TO_FEATURE_TYPE_AP[sourceLayer]
+        : undefined;
+      if (!featureType) continue;
+
+      const apLayerId = `${MINI_AP_LAYER_PREFIX}${layer.id}`;
+      if (miniMap.getLayer(apLayerId)) continue;
+
+      const apLayer = {
+        ...layer,
+        id: apLayerId,
+        source: AP_SOURCE,
+        filter: ["==", ["get", "featureType"], featureType],
+      };
+      delete (apLayer as Record<string, unknown>)["source-layer"];
+
+      miniMap.addLayer(apLayer as maplibregl.LayerSpecification);
+      addedLayerIds.push(apLayerId);
+    }
+
+    return removeLayers;
+  }, [miniMap, sidebarVariant, activeAATab, selectedAAData]);
+
+  // --- Mini-map: sync AP feature-state selection ---
+  const prevMiniAPIdRef = useRef<number | null>(null);
+  useEffect(() => {
+    if (!miniMap) return;
+
+    if (
+      prevMiniAPIdRef.current != null &&
+      prevMiniAPIdRef.current !== selectedAPId
+    ) {
+      try {
+        miniMap.setFeatureState(
+          { source: AP_SOURCE, id: prevMiniAPIdRef.current },
+          { selected: false }
+        );
+      } catch {
+        // source may not exist
+      }
+    }
+    prevMiniAPIdRef.current = selectedAPId;
+
+    if (selectedAPId == null) return;
+
+    try {
+      miniMap.setFeatureState(
+        { source: AP_SOURCE, id: selectedAPId },
+        { selected: true }
+      );
+    } catch {
+      // source may not exist yet
+    }
+  }, [miniMap, selectedAPId]);
+
   // #554: Deterministic click selection: prefer standorte over leuchten
   // (Previous logic preferred leuchten, sorted by leuchtennummer:)
   // const leuchten = hits.filter((h) => h.sourceLayer === "leuchten");
@@ -1654,7 +1786,11 @@ const BelisMapLibWrapper = ({
               overrideGlyphs="https://tiles.cismet.de/fonts/{fontstack}/{range}.pbf"
               backgroundLayers="basemap_grey@60"
               layerMode="imperative"
-              libreLayers={[leuchtenDataLayer]}
+              libreLayers={[
+                sidebarVariant === "arbeitsauftraege"
+                  ? arbeitsauftraegeDataLayer
+                  : leuchtenDataLayer,
+              ]}
               setLibreMap={handleMiniMapReady}
             />
           </LibreContextProvider>
