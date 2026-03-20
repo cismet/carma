@@ -14,6 +14,7 @@ export const apInfoboxMapping: string[] = [
   "headerColor: p.headerColor",
   "subtitle: p.datum || ''",
   "additionalInfo: p.veranlassung || ''",
+  "datasheet: true",
 ];
 
 const statusColor = [
