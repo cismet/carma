@@ -24,8 +24,17 @@ const TopNavbar = () => {
             color: isActive ? "#1677ff" : undefined,
           })}
         >
-          Karte
+          Fachobjekte
         </NavLink>
+        {/* <NavLink
+          to="/arbeitsauftraege"
+          className={({ isActive }) => `text-base hover:text-gray-600`}
+          style={({ isActive }) => ({
+            color: isActive ? "#1677ff" : undefined,
+          })}
+        >
+          Arbeitsaufträge
+        </NavLink> */}
         <NavLink
           to="/key-tables"
           className={({ isActive }) => `text-base hover:text-gray-600`}

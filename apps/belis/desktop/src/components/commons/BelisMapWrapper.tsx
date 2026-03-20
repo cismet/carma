@@ -13,19 +13,28 @@ import {
   getActiveAdditionalLayers,
   getAdditionalLayerOpacities,
   isInPaleMode,
+  getEnabledLeitungstypen,
 } from "../../store/slices/mapSettings";
+import { getKeyTablesData } from "../../store/slices/keyTables";
 import {
   backgroundLayerConfigs,
   additionalLayerConfigs,
   leuchtenDataLayer,
+  arbeitsauftraegeDataLayer,
   BELIS_STYLE_URL,
   BELIS_ORIGINAL_SOURCE,
   BELIS_SOURCE_LAYERS,
+  ARBEITSAUFTRAEGE_STYLE_URL,
 } from "../../config/mapLayerConfigs";
 import type { LibreLayer } from "@carma-mapping/engines/maplibre";
 import { AppDispatch, type RootState } from "../../store";
 import BelisSidebar from "../ui/BelisSidebar";
-import { useVisibleMapFeatures, functionToInfo } from "@carma-mapping/utils";
+import ArbeitsauftraegeSidebar from "../ui/ArbeitsauftraegeSidebar";
+import {
+  useVisibleMapFeatures,
+  functionToInfo,
+  objectToInfo,
+} from "@carma-mapping/utils";
 import { extractCarmaConfig } from "@carma-commons/utils";
 import {
   useMapSelection,
@@ -43,9 +52,30 @@ import type maplibregl from "maplibre-gl";
 import BelisDatasheetView from "../ui/BelisDatasheetView";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faMap } from "@fortawesome/free-solid-svg-icons";
-import { FeatureType, fetchFeatureById } from "../../helper/apiMethods";
+import {
+  FeatureType,
+  fetchFeatureById,
+  fetchArbeitsauftragById,
+} from "../../helper/apiMethods";
 import { getJWT } from "../../store/slices/auth";
 import { flattenGqlRecord } from "../../helper/flattenGqlRecord";
+import {
+  setFeatures as setAAFeatures,
+  setSelectedAAId,
+  setSelectedAAData,
+  setLoading as setAALoading,
+  setError as setAAError,
+  getSelectedAAId,
+  getSelectedAAData,
+  getActiveAATab,
+  getSelectedAPId,
+  setSelectedAPId,
+  clearSelection,
+} from "../../store/slices/arbeitsauftraege";
+import { getSelectedTeamName } from "../../store/selectors";
+import { buildApGeoJson } from "../../helper/buildApGeoJson";
+import { debugLayers, apInfoboxMapping } from "../../config/debugLayers";
+import type { ArbeitsauftragTileFeature } from "../../store/slices/arbeitsauftraege";
 
 const LIST_WIDTH = 300;
 
@@ -60,7 +90,7 @@ import {
 } from "../../store/slices/featuresForms";
 import { prepareDraftFeatures } from "../../helper/prepareDraftFeatures";
 
-type SidebarMode = "karte" | "highlights" | "drafts";
+type SidebarMode = "fachobjekte" | "highlights" | "drafts";
 
 interface BelisMapLibWrapperProps {
   mapSizes: { width: number; height: number };
@@ -68,6 +98,7 @@ interface BelisMapLibWrapperProps {
   highlightResults: SidebarFeature[] | null;
   lassoActive: boolean;
   onLassoDeactivate?: () => void;
+  sidebarVariant: "fachobjekte" | "arbeitsauftraege";
 }
 
 const BelisMapLibWrapper = ({
@@ -76,25 +107,41 @@ const BelisMapLibWrapper = ({
   highlightResults,
   lassoActive,
   onLassoDeactivate,
+  sidebarVariant,
 }: BelisMapLibWrapperProps) => {
   const dispatch: AppDispatch = useDispatch();
   const store = useStore<RootState>();
   const jwt = useSelector(getJWT);
   const featureDataVersion = useSelector(getFeatureDataVersion);
+  const enabledLeitungstypen = useSelector(getEnabledLeitungstypen);
+  const keyTablesData = useSelector(getKeyTablesData);
   const reduxSelectedFeature = useSelector(getReduxSelectedFeature);
   // Ref for geometry fallback in override effect — avoids adding
   // reduxSelectedFeature to deps (which would cause spurious re-fires).
   const reduxGeometryRef = useRef<any>(null);
   reduxGeometryRef.current = reduxSelectedFeature?.geometry ?? null;
   const { map } = useLibreContext();
-  const { selectedFeature, rawFeature, selectedFeatureId, selectFeature } =
-    useMapSelection();
+  const {
+    selectedFeature,
+    rawFeature,
+    selectedFeatureId,
+    selectFeature,
+    clearSelection: clearMapSelection,
+  } = useMapSelection();
   const { closeDatasheet, openDatasheet } = useDatasheet();
   const [fetchedFeatureData, setFetchedFeatureData] = useState<any>(null);
   // Preserve last valid featureType to prevent unmount when selectedFeature briefly becomes undefined
   const [lastFeatureType, setLastFeatureType] = useState<string | undefined>(
     undefined
   );
+
+  // --- Per-route selection persistence ---
+  // Save fachobjekte selection when leaving, restore when returning.
+  const savedFachobjekteRef = useRef<{
+    identifier: { source: string; sourceLayer?: string; id?: string | number };
+    rawFeature: any;
+  } | null>(null);
+  const prevVariantRef = useRef(sidebarVariant);
 
   // Extract the infoboxMapping code from the style (browser-cached, no extra network cost)
   const [infoboxMappingCode, setInfoboxMappingCode] = useState<string | null>(
@@ -128,6 +175,19 @@ const BelisMapLibWrapper = ({
   const namespacedSource = `${slugifyUrl(
     BELIS_STYLE_URL
   )}::${BELIS_ORIGINAL_SOURCE}`;
+
+  // Arbeitsauftraege: separate namespaced source (same tile set, different style URL)
+  const arbeitsauftraegeNamespacedSource = `${slugifyUrl(
+    ARBEITSAUFTRAEGE_STYLE_URL
+  )}::${BELIS_ORIGINAL_SOURCE}`;
+  const selectedAAId = useSelector(getSelectedAAId);
+  const selectedAAData = useSelector(getSelectedAAData);
+  const activeAATab = useSelector(getActiveAATab);
+  const selectedAPId = useSelector(getSelectedAPId);
+
+  // Team filter: resolve selectedTeamId → team name for map layer filtering
+  const selectedTeamName = useSelector(getSelectedTeamName);
+
   const highlightSources = useMemo(
     () => [
       { source: namespacedSource, sourceLayers: [...BELIS_SOURCE_LAYERS] },
@@ -357,12 +417,12 @@ const BelisMapLibWrapper = ({
     });
 
   // Sidebar mode: "karte" shows viewport features, "highlights" shows highlighted features
-  const [sidebarMode, setSidebarMode] = useState<SidebarMode>("karte");
+  const [sidebarMode, setSidebarMode] = useState<SidebarMode>("fachobjekte");
 
   // When highlighting is killed, reset to Karte mode and clear highlight collection
   useEffect(() => {
     if (!highlightingActive) {
-      setSidebarMode("karte");
+      setSidebarMode("fachobjekte");
       setAdjustedHighlights(null);
     }
   }, [highlightingActive]);
@@ -556,13 +616,27 @@ const BelisMapLibWrapper = ({
     fetchData();
   }, [selectedFeature, selectedFeatureId, jwt, featureDataVersion]);
 
+  // Close the datasheet when the selection is cleared in fachobjekte mode
+  useEffect(() => {
+    if (sidebarVariant === "fachobjekte" && !selectedFeatureId) {
+      closeDatasheet();
+    }
+  }, [selectedFeatureId, sidebarVariant, closeDatasheet]);
+
   // Check if selected feature is inside visible map boundary.
   // When not visible, auto-open the datasheet to show NoFeatureSelected.
   const [featureOnMap, setFeatureOnMap] = useState(true);
 
   useEffect(() => {
+    console.log("[AA-DEBUG] bounds-check effect fired", {
+      sidebarMode,
+      sidebarVariant,
+      selectedFeatureId,
+      rawFeature: !!rawFeature,
+    });
     if (
-      (sidebarMode !== "karte" && sidebarMode !== "highlights") ||
+      sidebarVariant === "arbeitsauftraege" ||
+      (sidebarMode !== "fachobjekte" && sidebarMode !== "highlights") ||
       !selectedFeatureId ||
       !map
     ) {
@@ -572,6 +646,7 @@ const BelisMapLibWrapper = ({
 
     const geometry = rawFeature?.geometry;
     if (!geometry) {
+      console.log("[AA-DEBUG] no geometry, skipping");
       setFeatureOnMap(true);
       return;
     }
@@ -594,8 +669,14 @@ const BelisMapLibWrapper = ({
       );
     }
     setFeatureOnMap(inside);
+    console.log("[AA-DEBUG] bounds check result", {
+      inside,
+      geometryType: geometry.type,
+      sourceLayer: selectedFeatureId.sourceLayer,
+    });
 
     if (!inside) {
+      console.log("[AA-DEBUG] >>> openDatasheet() called from bounds-check");
       openDatasheet();
     }
   }, [map, selectedFeatureId, rawFeature, sidebarMode, openDatasheet]);
@@ -770,8 +851,9 @@ const BelisMapLibWrapper = ({
       }
     }
 
-    // Data layer (always on)
+    // Data layers (always loaded — visibility toggled per route)
     layers.push(leuchtenDataLayer);
+    layers.push(arbeitsauftraegeDataLayer);
 
     return layers;
   }, [
@@ -781,6 +863,426 @@ const BelisMapLibWrapper = ({
     additionalLayerOpacities,
     inPaleMode,
   ]);
+
+  // Toggle AA layer visibility based on active route (hide when AP tab is active)
+  useEffect(() => {
+    if (!map) return;
+    const toggle = () => {
+      const visible =
+        sidebarVariant === "arbeitsauftraege" && activeAATab !== "ap";
+      for (const layer of map.getStyle()?.layers ?? []) {
+        if (
+          "source" in layer &&
+          layer.source === arbeitsauftraegeNamespacedSource
+        ) {
+          try {
+            map.setLayoutProperty(
+              layer.id,
+              "visibility",
+              visible ? "visible" : "none"
+            );
+          } catch {
+            /* layer may not be ready */
+          }
+        }
+      }
+    };
+    toggle();
+    map.on("styledata", toggle);
+    return () => {
+      map.off("styledata", toggle);
+    };
+  }, [sidebarVariant, activeAATab, map, arbeitsauftraegeNamespacedSource]);
+
+  // Hide Fachobjekte layers when entering Arbeitsaufträge mode.
+  // When returning to Fachobjekte, do nothing: useLayerFilter in MainPage
+  // will re-mount and apply the correct per-category visibility.
+  useEffect(() => {
+    if (!map || sidebarVariant !== "arbeitsauftraege") return;
+    for (const layer of map.getStyle()?.layers ?? []) {
+      if ("source" in layer && layer.source === namespacedSource) {
+        try {
+          map.setLayoutProperty(layer.id, "visibility", "none");
+        } catch {
+          /* layer may not be ready */
+        }
+      }
+    }
+  }, [sidebarVariant, map, namespacedSource]);
+
+  // Filter leitungen layers by sub-type (Freileitung, Erdkabel, etc.)
+  useEffect(() => {
+    if (!map) return;
+
+    const leitungstypen = (
+      (keyTablesData.leitungstyp || []) as {
+        id: number;
+        bezeichnung?: string;
+      }[]
+    );
+
+    // Nothing to filter if key tables haven't loaded yet
+    if (leitungstypen.length === 0) return;
+
+    const allEnabled = leitungstypen.every(
+      (t) => enabledLeitungstypen[t.id] !== false
+    );
+    const noneExplicitlySet = Object.keys(enabledLeitungstypen).length === 0;
+
+    // Build the filter or clear it
+    let filter: maplibregl.FilterSpecification | null = null;
+    if (!allEnabled && !noneExplicitlySet) {
+      const allowedNames = leitungstypen
+        .filter((t) => enabledLeitungstypen[t.id] !== false)
+        .map((t) => t.bezeichnung)
+        .filter(Boolean);
+      filter = ["in", ["get", "bezeichnung"], ["literal", allowedNames]];
+    }
+
+    for (const layer of map.getStyle()?.layers ?? []) {
+      if (
+        "source" in layer &&
+        layer.source === namespacedSource &&
+        layer.id.toLowerCase().includes("leitungen")
+      ) {
+        try {
+          map.setFilter(layer.id, filter);
+        } catch {
+          /* layer may not be ready */
+        }
+      }
+    }
+  }, [map, enabledLeitungstypen, keyTablesData, namespacedSource]);
+
+  // --- Save/restore selection when switching between route variants ---
+  useEffect(() => {
+    const prev = prevVariantRef.current;
+    prevVariantRef.current = sidebarVariant;
+    if (prev === sidebarVariant) return;
+
+    // Save outgoing fachobjekte selection
+    if (prev === "fachobjekte" && selectedFeatureId) {
+      savedFachobjekteRef.current = {
+        identifier: { ...selectedFeatureId },
+        rawFeature: rawFeature ?? null,
+      };
+    }
+
+    // Clear current selection to prevent stale infobox bleed-through
+    clearMapSelection();
+    setOverrideSelectedFeature(null);
+    setFetchedFeatureData(null);
+
+    // Restore incoming variant's selection
+    if (sidebarVariant === "fachobjekte") {
+      const saved = savedFachobjekteRef.current;
+      if (saved?.identifier) {
+        // Re-trigger selection pipeline; the override path handles
+        // the infobox when the feature is not visible on the map.
+        selectFeature(saved.identifier, saved.rawFeature);
+      }
+    } else if (sidebarVariant === "arbeitsauftraege") {
+      // AA state persists in Redux — re-select on map if present
+      const state = store.getState();
+      const aaId = state.arbeitsauftraege.selectedAAId;
+      const aaTab = state.arbeitsauftraege.activeAATab;
+      if (aaId != null && aaTab === "aa") {
+        handleAAFeatureSelect(aaId);
+      }
+    }
+  }, [sidebarVariant]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // --- Arbeitsauftraege: extract tile features into Redux ---
+  useEffect(() => {
+    if (sidebarVariant !== "arbeitsauftraege" || !map) return;
+
+    const extractFeatures = () => {
+      try {
+        const raw = map.querySourceFeatures(arbeitsauftraegeNamespacedSource, {
+          sourceLayer: "arbeitsauftraege",
+        });
+        const seen = new Map<number, ArbeitsauftragTileFeature>();
+        for (const f of raw) {
+          const id = Number(f.properties?.id);
+          if (id != null && !seen.has(id)) {
+            seen.set(id, {
+              id,
+              nummer: (f.properties?.nummer as string) ?? "",
+              team: (f.properties?.team as string) ?? "",
+              angelegt_am: (f.properties?.angelegt_am as string) ?? "",
+              angelegt_von: (f.properties?.angelegt_von as string) ?? "",
+              total_protokolle: Number(f.properties?.total_protokolle) || 0,
+              pct_offen: Number(f.properties?.pct_offen) || 0,
+              pct_in_bearbeitung: Number(f.properties?.pct_in_bearbeitung) || 0,
+              pct_erledigt: Number(f.properties?.pct_erledigt) || 0,
+              pct_fehlmeldung: Number(f.properties?.pct_fehlmeldung) || 0,
+              geometry: f.geometry,
+            });
+          }
+        }
+        dispatch(setAAFeatures([...seen.values()]));
+      } catch {
+        // source may not be loaded yet
+      }
+    };
+
+    map.on("sourcedata", extractFeatures);
+    map.on("moveend", extractFeatures);
+    // Initial extraction
+    extractFeatures();
+
+    return () => {
+      map.off("sourcedata", extractFeatures);
+      map.off("moveend", extractFeatures);
+    };
+  }, [sidebarVariant, map, arbeitsauftraegeNamespacedSource, dispatch]);
+
+  // --- Arbeitsauftraege: filter map layers by selected team ---
+  useEffect(() => {
+    if (sidebarVariant !== "arbeitsauftraege" || !map) return;
+
+    const applyTeamFilter = () => {
+      const style = map.getStyle();
+      if (!style?.layers) return;
+      for (const layer of style.layers) {
+        if (
+          "source" in layer &&
+          layer.source === arbeitsauftraegeNamespacedSource
+        ) {
+          try {
+            if (selectedTeamName) {
+              map.setFilter(layer.id, [
+                "==",
+                ["get", "team"],
+                selectedTeamName,
+              ]);
+            } else {
+              map.setFilter(layer.id, null);
+            }
+          } catch {
+            // layer may not be ready yet
+          }
+        }
+      }
+    };
+
+    applyTeamFilter();
+    map.on("styledata", applyTeamFilter);
+
+    return () => {
+      map.off("styledata", applyTeamFilter);
+    };
+  }, [sidebarVariant, map, selectedTeamName, arbeitsauftraegeNamespacedSource]);
+
+  // --- Arbeitsauftraege: selection feature-state on map ---
+  const prevAAIdRef = useRef<number | null>(null);
+  useEffect(() => {
+    if (sidebarVariant !== "arbeitsauftraege" || !map) return;
+
+    const prevId = prevAAIdRef.current;
+    if (prevId != null && prevId !== selectedAAId) {
+      try {
+        map.setFeatureState(
+          {
+            source: arbeitsauftraegeNamespacedSource,
+            sourceLayer: "arbeitsauftraege",
+            id: prevId,
+          },
+          { selected: false }
+        );
+      } catch {
+        // ignore
+      }
+    }
+    if (selectedAAId != null) {
+      try {
+        map.setFeatureState(
+          {
+            source: arbeitsauftraegeNamespacedSource,
+            sourceLayer: "arbeitsauftraege",
+            id: selectedAAId,
+          },
+          { selected: true }
+        );
+      } catch {
+        // ignore
+      }
+    }
+    prevAAIdRef.current = selectedAAId;
+  }, [sidebarVariant, map, selectedAAId, arbeitsauftraegeNamespacedSource]);
+
+  // --- Arbeitsauftraege: fetch GraphQL detail on selection ---
+  useEffect(() => {
+    if (selectedAAId == null || !jwt) {
+      dispatch(setSelectedAAData(null));
+      return;
+    }
+    dispatch(setAALoading(true));
+    dispatch(setAAError(null));
+    fetchArbeitsauftragById(jwt, selectedAAId)
+      .then((data) => dispatch(setSelectedAAData(data)))
+      .catch((err: Error) => dispatch(setAAError(err.message)))
+      .finally(() => dispatch(setAALoading(false)));
+  }, [selectedAAId, jwt, dispatch]);
+
+  // --- Arbeitsauftraege: clear selection on empty map click ---
+  useEffect(() => {
+    if (sidebarVariant !== "arbeitsauftraege" || !map) return;
+
+    const handleClick = (e: maplibregl.MapMouseEvent) => {
+      const hits = map.queryRenderedFeatures(e.point);
+
+      if (activeAATab === "ap") {
+        // In AP mode: select clicked AP feature
+        const apHit = hits.find((h) => h.source === AP_SOURCE);
+        if (apHit) {
+          const apId = apHit.properties?.id as number | undefined;
+          if (apId != null) dispatch(setSelectedAPId(apId));
+        }
+        return;
+      }
+
+      // In AA mode: clear on empty click
+      const hasRelevant = hits.some(
+        (h) =>
+          h.sourceLayer === "arbeitsauftraege" ||
+          h.layer?.id === "arbeitsauftraege_fill" ||
+          h.layer?.id === "arbeitsauftraege_outline" ||
+          h.source === AP_SOURCE
+      );
+      if (!hasRelevant) {
+        dispatch(clearSelection());
+      }
+    };
+
+    map.on("click", handleClick);
+    return () => {
+      map.off("click", handleClick);
+    };
+  }, [sidebarVariant, activeAATab, map, dispatch]);
+
+  // --- Arbeitsauftraege: show AP Fachobjekte on map when AP tab is active ---
+  // Map debug layer source-layer names to featureType property values in AP GeoJSON
+  const AP_SOURCE = "ap-features-source";
+  const AP_LAYER_PREFIX = "ap-";
+  const SOURCE_LAYER_TO_FEATURE_TYPE_AP: Record<string, string> = {
+    leuchten: "tdta_leuchten",
+    mast: "tdta_standort_mast",
+    leitungen: "leitung",
+    schaltstelle: "schaltstelle",
+    mauerlaschen: "mauerlasche",
+    abzweigdosen: "abzweigdose",
+  };
+
+  useEffect(() => {
+    if (!map) return;
+
+    const addedLayerIds: string[] = [];
+
+    const removeLayers = () => {
+      try {
+        for (const id of addedLayerIds) {
+          if (map.getLayer(id)) map.removeLayer(id);
+        }
+        if (map.getSource(AP_SOURCE)) map.removeSource(AP_SOURCE);
+      } catch {
+        // layers/source may not exist
+      }
+    };
+
+    const shouldShow =
+      sidebarVariant === "arbeitsauftraege" &&
+      activeAATab === "ap" &&
+      selectedAAData != null;
+
+    if (!shouldShow) {
+      removeLayers();
+      return removeLayers;
+    }
+
+    const geojson = buildApGeoJson(selectedAAData);
+
+    // Add or update the GeoJSON source
+    const existing = map.getSource(AP_SOURCE) as
+      | maplibregl.GeoJSONSource
+      | undefined;
+    if (existing) {
+      existing.setData(geojson);
+    } else {
+      map.addSource(AP_SOURCE, {
+        type: "geojson",
+        data: geojson,
+        promoteId: "id",
+      });
+    }
+
+    // Fit map to the bounding box of all AP features
+    if (geojson.features.length > 0) {
+      let minLng = Infinity;
+      let minLat = Infinity;
+      let maxLng = -Infinity;
+      let maxLat = -Infinity;
+
+      for (const feature of geojson.features) {
+        const geom = feature.geometry;
+        if (!geom) continue;
+        const flatCoords: number[][] =
+          geom.type === "Point"
+            ? [(geom as GeoJSON.Point).coordinates]
+            : geom.type === "LineString"
+            ? (geom as GeoJSON.LineString).coordinates
+            : geom.type === "MultiLineString"
+            ? (geom as GeoJSON.MultiLineString).coordinates.flat()
+            : [];
+        for (const [lng, lat] of flatCoords) {
+          if (lng < minLng) minLng = lng;
+          if (lat < minLat) minLat = lat;
+          if (lng > maxLng) maxLng = lng;
+          if (lat > maxLat) maxLat = lat;
+        }
+      }
+
+      if (minLng !== Infinity) {
+        map.fitBounds(
+          [
+            [minLng, minLat],
+            [maxLng, maxLat],
+          ],
+          { padding: 60 }
+        );
+      }
+    }
+
+    // Add layers derived from debugLayers, rewritten for the AP GeoJSON source
+    for (const layer of debugLayers) {
+      const sourceLayer =
+        "source-layer" in layer
+          ? ((layer as Record<string, unknown>)["source-layer"] as string)
+          : undefined;
+      const featureType = sourceLayer
+        ? SOURCE_LAYER_TO_FEATURE_TYPE_AP[sourceLayer]
+        : undefined;
+      if (!featureType) continue;
+
+      const apLayerId = `${AP_LAYER_PREFIX}${layer.id}`;
+      if (map.getLayer(apLayerId)) continue;
+
+      // Clone the layer spec, replacing source and adding featureType filter
+      const apLayer = {
+        ...layer,
+        id: apLayerId,
+        source: AP_SOURCE,
+        filter: ["==", ["get", "featureType"], featureType],
+      };
+      // Remove source-layer (not applicable for GeoJSON)
+      delete (apLayer as Record<string, unknown>)["source-layer"];
+
+      map.addLayer(apLayer as maplibregl.LayerSpecification);
+      addedLayerIds.push(apLayerId);
+    }
+
+    return removeLayers;
+  }, [map, sidebarVariant, activeAATab, selectedAAData]);
 
   // Mini-map state
   const [miniMap, setMiniMap] = useState<maplibregl.Map | null>(null);
@@ -814,6 +1316,26 @@ const BelisMapLibWrapper = ({
   // }
   const handleSelectFromHits = useCallback(
     (hits: maplibregl.MapGeoJSONFeature[]) => {
+      // Arbeitsauftraege: intercept clicks on AA polygon layers
+      if (sidebarVariant === "arbeitsauftraege") {
+        const aaHit = hits.find(
+          (h) =>
+            h.sourceLayer === "arbeitsauftraege" ||
+            h.layer?.id === "arbeitsauftraege_fill" ||
+            h.layer?.id === "arbeitsauftraege_outline"
+        );
+        if (aaHit) {
+          const aaId = Number(aaHit.id ?? aaHit.properties?.id);
+          if (aaId != null) {
+            dispatch(setSelectedAAId(aaId));
+          }
+          // Return undefined to prevent normal selection flow
+          return undefined;
+        }
+        // Non-AA feature clicked while in AA mode — ignore
+        return undefined;
+      }
+
       // When highlighting is active, prefer highlighted features over non-highlighted ones
       let candidates = hits;
       if (map) {
@@ -841,8 +1363,112 @@ const BelisMapLibWrapper = ({
       }
       return candidates[0];
     },
-    [map]
+    [map, sidebarVariant, dispatch]
   );
+
+  // Sidebar click → trigger the same LibreMap selection pipeline that map clicks use.
+  // Finds the MVT feature in loaded tiles and calls selectFeature() so the infobox appears.
+  const handleAAFeatureSelect = useCallback(
+    (aaId: number) => {
+      if (!map) return;
+      const sourceFeatures = map.querySourceFeatures(
+        arbeitsauftraegeNamespacedSource,
+        { sourceLayer: "arbeitsauftraege" }
+      );
+      const match = sourceFeatures.find(
+        (f) => f.id === aaId || f.properties?.id === aaId
+      );
+      if (match) {
+        selectFeature(
+          {
+            source: arbeitsauftraegeNamespacedSource,
+            sourceLayer: "arbeitsauftraege",
+            id: match.id,
+          },
+          match as any
+        );
+      }
+    },
+    [map, arbeitsauftraegeNamespacedSource, selectFeature]
+  );
+
+  // --- Arbeitsauftraege: clear/restore map selection when switching tabs ---
+  useEffect(() => {
+    if (sidebarVariant !== "arbeitsauftraege") return;
+
+    if (activeAATab === "ap") {
+      clearMapSelection();
+    } else if (activeAATab === "aa" && selectedAAId != null) {
+      handleAAFeatureSelect(selectedAAId);
+    }
+  }, [activeAATab]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // --- Arbeitsauftraege: AP feature-state selection ---
+  const prevAPIdRef = useRef<number | null>(null);
+  useEffect(() => {
+    if (!map) return;
+
+    // Deselect previous
+    if (prevAPIdRef.current != null && prevAPIdRef.current !== selectedAPId) {
+      try {
+        map.setFeatureState(
+          { source: AP_SOURCE, id: prevAPIdRef.current },
+          { selected: false }
+        );
+      } catch {
+        // source may not exist
+      }
+    }
+    prevAPIdRef.current = selectedAPId;
+
+    if (selectedAPId == null) return;
+
+    // Select current
+    try {
+      map.setFeatureState(
+        { source: AP_SOURCE, id: selectedAPId },
+        { selected: true }
+      );
+    } catch {
+      // source may not exist yet
+    }
+  }, [map, selectedAPId]);
+
+  // --- Arbeitsauftraege: build infobox override for selected AP feature ---
+  useEffect(() => {
+    // Skip when not in Arbeitsaufträge mode (prevents stale AP overrides in Fachobjekte)
+    if (sidebarVariant !== "arbeitsauftraege") return;
+
+    if (activeAATab !== "ap" || selectedAPId == null || !selectedAAData) {
+      // Only clear if we're leaving AP mode (don't clobber fachobjekte overrides)
+      if (activeAATab === "ap") setOverrideSelectedFeature(null);
+      return;
+    }
+
+    const geojson = buildApGeoJson(selectedAAData);
+    const feature = geojson.features.find(
+      (f) => f.properties?.id === selectedAPId
+    );
+    if (!feature?.properties || !feature.geometry) {
+      setOverrideSelectedFeature(null);
+      return;
+    }
+
+    const mappingCode = apInfoboxMapping.join("\n");
+    objectToInfo(feature.properties as Record<string, unknown>, mappingCode)
+      .then((info) => {
+        if (info) {
+          setOverrideSelectedFeature({
+            properties: { ...info },
+            geometry: feature.geometry,
+            carmaInfo: { sourceLayer: "ap-features" },
+          });
+        } else {
+          setOverrideSelectedFeature(null);
+        }
+      })
+      .catch(() => setOverrideSelectedFeature(null));
+  }, [activeAATab, selectedAPId, selectedAAData, sidebarVariant]);
 
   const handleReturnToMap = useCallback(() => {
     map?.resize();
@@ -902,7 +1528,7 @@ const BelisMapLibWrapper = ({
         return;
       }
 
-      // Normal flow for karte/highlights
+      // Normal flow for fachobjekte/highlights
       selectFeature(identifier, feature as any);
     },
     [selectFeature, sidebarMode, dispatch, map, namespacedSource]
@@ -937,30 +1563,40 @@ const BelisMapLibWrapper = ({
       className="relative flex"
       style={{ width: mapSizes.width, height: mapSizes.height }}
     >
-      <BelisSidebar
-        features={effectiveSidebarData.features}
-        countsByLayer={effectiveSidebarData.countsByLayer}
-        totalCount={effectiveSidebarData.totalCount}
-        isLoading={effectiveSidebarData.isLoading}
-        isOverviewMode={effectiveSidebarData.isOverviewMode}
-        activeSourceLayers={effectiveSidebarData.activeSourceLayers}
-        selectedFeatureId={selectedFeatureId}
-        selectedDatabaseId={selectedDatabaseId}
-        onFeatureSelect={handleSidebarFeatureSelect}
-        emptyMessage={
-          map
-            ? "Keine Objekte im aktuellen Kartenausschnitt"
-            : "Karte wird geladen..."
-        }
-        sidebarMode={sidebarMode}
-        onModeChange={setSidebarMode}
-        hasHighlights={hasHighlights}
-        hasDrafts={draftFeaturesCount > 0}
-        karteCount={totalCount}
-        highlightCount={adjustedHighlights?.length ?? undefined}
-        draftsCount={draftFeaturesCount}
-        onFeatureDismiss={handleSidebarDismiss}
-      />
+      {sidebarVariant === "arbeitsauftraege" ? (
+        <ArbeitsauftraegeSidebar
+          width={LIST_WIDTH}
+          onFeatureSelect={handleAAFeatureSelect}
+          onProtokollSelect={() => {
+            /* fly-to handled by selectedAPId effect */
+          }}
+        />
+      ) : (
+        <BelisSidebar
+          features={effectiveSidebarData.features}
+          countsByLayer={effectiveSidebarData.countsByLayer}
+          totalCount={effectiveSidebarData.totalCount}
+          isLoading={effectiveSidebarData.isLoading}
+          isOverviewMode={effectiveSidebarData.isOverviewMode}
+          activeSourceLayers={effectiveSidebarData.activeSourceLayers}
+          selectedFeatureId={selectedFeatureId}
+          selectedDatabaseId={selectedDatabaseId}
+          onFeatureSelect={handleSidebarFeatureSelect}
+          emptyMessage={
+            map
+              ? "Keine Objekte im aktuellen Kartenausschnitt"
+              : "Karte wird geladen..."
+          }
+          sidebarMode={sidebarMode}
+          onModeChange={setSidebarMode}
+          hasHighlights={hasHighlights}
+          hasDrafts={draftFeaturesCount > 0}
+          fachobjekteCount={totalCount}
+          highlightCount={adjustedHighlights?.length ?? undefined}
+          draftsCount={draftFeaturesCount}
+          onFeatureDismiss={handleSidebarDismiss}
+        />
+      )}
       <div
         ref={mapContainerRef}
         style={{

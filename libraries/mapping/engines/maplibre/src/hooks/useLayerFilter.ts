@@ -65,27 +65,38 @@ export const useLayerFilter = ({
     return set;
   }, [categories, enabledFilters]);
 
-  // Toggle map layer visibility when filters change
+  // Toggle map layer visibility when filters change.
+  // Also listens to styledata so filters are re-applied when
+  // external style layers arrive after initial mount.
   useEffect(() => {
     if (!map) return;
-    const style = map.getStyle();
-    if (!style?.layers) return;
 
-    for (const cat of categories) {
-      const visible = enabledFilters[cat.key] !== false;
-      for (const layer of style.layers) {
-        const matchesPattern = cat.layerPatterns.some((p) =>
-          layer.id.toLowerCase().includes(p)
-        );
-        if (matchesPattern) {
-          map.setLayoutProperty(
-            layer.id,
-            "visibility",
-            visible ? "visible" : "none"
+    const apply = () => {
+      const style = map.getStyle();
+      if (!style?.layers) return;
+
+      for (const cat of categories) {
+        const visible = enabledFilters[cat.key] !== false;
+        for (const layer of style.layers) {
+          const matchesPattern = cat.layerPatterns.some((p) =>
+            layer.id.toLowerCase().includes(p)
           );
+          if (matchesPattern) {
+            map.setLayoutProperty(
+              layer.id,
+              "visibility",
+              visible ? "visible" : "none"
+            );
+          }
         }
       }
-    }
+    };
+
+    apply();
+    map.on("styledata", apply);
+    return () => {
+      map.off("styledata", apply);
+    };
   }, [map, categories, enabledFilters]);
 
   return {

@@ -15,6 +15,7 @@ import { SandboxedEvalProvider } from "@carma-commons/sandbox-eval";
 import { Navigate, RouterProvider, createHashRouter } from "react-router-dom";
 import { Provider, useDispatch, useSelector } from "react-redux";
 import Layout from "./components/commons/Layout";
+import BelisDataProvider from "./components/commons/BelisDataProvider";
 import Login from "./components/pages/Login";
 import store from "./store";
 import persistStore from "redux-persist/es/persistStore";
@@ -22,6 +23,7 @@ import { PersistGate } from "redux-persist/integration/react";
 import TopicMapContextProvider from "react-cismap/contexts/TopicMapContextProvider";
 import MainPage from "./components/pages/MainPage";
 import KeyTablesPage from "./components/pages/KeyTablesPage";
+import ArbeitsauftraegeePage from "./components/pages/ArbeitsauftraegeePage";
 import {
   checkJWTValidation,
   getJWT,
@@ -69,7 +71,9 @@ const NavBarWrapper = () => {
       config={APP_CONFIG.sync}
       taskFormatter={belisTaskFormatter}
     >
-      <Layout />
+      <BelisDataProvider jwt={jwt}>
+        <Layout />
+      </BelisDataProvider>
     </SyncProvider>
   );
 };
@@ -96,6 +100,10 @@ const router = createHashRouter(
           path: "/",
           element: <MainPage />,
         },
+        // {
+        //   path: "/arbeitsauftraege",
+        //   element: <ArbeitsauftraegeePage />,
+        // },
         {
           path: "/key-tables",
           element: <KeyTablesPage />,

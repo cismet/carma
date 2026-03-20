@@ -151,8 +151,14 @@ const SchaltstelleForm = ({
   // Compute sidebar main title to display in form header
   const sidebarMain = rawProps?.schaltstellen_nummer
     ? `S ${rawProps.schaltstellen_nummer}`
-    : rawFeature?.id || rawProps?.id
-    ? `S ${rawFeature?.id || rawProps?.id}`
+    : rawProps?.id || ""
+    ? `ID: ${rawProps?.id || ""}`
+    : "";
+
+  const cancelBTn = rawProps?.schaltstellen_nummer
+    ? `S ${rawProps.schaltstellen_nummer}`
+    : rawProps?.id || ""
+    ? `ID - ${rawProps?.id || ""}`
     : "";
 
   useEffect(() => {
@@ -256,10 +262,6 @@ const SchaltstelleForm = ({
           : {}),
       });
 
-      console.log(
-        "xxx saving schaltstelle:",
-        JSON.stringify(dataToSave, null, 2)
-      );
       await updateDataByClassName(jwt, "schaltstelle", dataToSave);
 
       // Update local documents so changes appear immediately
@@ -298,7 +300,7 @@ const SchaltstelleForm = ({
   return (
     <FeatureFormLayout
       title={sidebarMain ? `Schaltstelle ${sidebarMain}` : "Schaltstelle"}
-      cancelLabel={sidebarMain || ""}
+      cancelLabel={cancelBTn || ""}
       subtitle={subtitle}
       documents={documents}
       jwt={jwt}

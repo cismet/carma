@@ -33,6 +33,7 @@ import {
   mauerlascheByIdQuery,
   leitungByIdQuery,
   abzweigdoseByIdQuery,
+  arbeitsauftragByIdQuery,
 } from "../constants/belis";
 
 export const savebauart = async (jwt: string) => {
@@ -1242,4 +1243,38 @@ export const fetchFeatureById = async (
   }
 
   return json.data;
+};
+
+export const fetchArbeitsauftragById = async (jwt: string, aaId: number) => {
+  const response = await fetch(ENDPOINT, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${jwt}`,
+    },
+    body: JSON.stringify({
+      query: arbeitsauftragByIdQuery,
+      variables: { aaId },
+    }),
+  });
+
+  const text = await response.text();
+  if (!response.ok) {
+    throw new Error(
+      `fetchArbeitsauftragById failed: ${response.status} ${text}`
+    );
+  }
+
+  const json = JSON.parse(text) as {
+    data?: { arbeitsauftrag?: unknown[] };
+    errors?: unknown;
+  };
+
+  if (json.errors) {
+    throw new Error(
+      `fetchArbeitsauftragById GraphQL errors: ${JSON.stringify(json.errors)}`
+    );
+  }
+
+  return json.data?.arbeitsauftrag?.[0] ?? null;
 };

@@ -1226,6 +1226,7 @@ export const LibreMap = ({
         mappingRef.current[source] ||
         (sourcePrefix ? mappingRef.current[sourcePrefix] : undefined);
 
+      console.log("[AA-DEBUG] LibreMap external watcher: layerMapping found", { layerMapping: !!layerMapping, source: ctxSelectedFeatureId?.source, sourceLayer: ctxSelectedFeatureId?.sourceLayer, hasOpenDatasheet: !!openDatasheetRef.current });
       if (layerMapping) {
         void createFeature(
           ctxRawFeature,
@@ -1234,6 +1235,7 @@ export const LibreMap = ({
           useRoutingRef.current,
           openDatasheetRef.current
         ).then((feature) => {
+          console.log("[AA-DEBUG] LibreMap external watcher: createFeature result", { hasFeature: !!feature, datasheet: feature?.properties?.datasheet });
           if (feature) {
             setSelectedFeature(feature);
             mapSelectionCtxRef.current.setSelectedFeature(feature);
