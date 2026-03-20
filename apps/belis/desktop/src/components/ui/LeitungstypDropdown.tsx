@@ -1,4 +1,4 @@
-import { useMemo, useEffect, useRef } from "react";
+import { useMemo, useEffect, useRef, useCallback } from "react";
 import type { ReactNode } from "react";
 import { Dropdown, Switch } from "antd";
 import type { MenuProps } from "antd";
@@ -73,40 +73,48 @@ const LeitungstypDropdown = ({
     return !allOn;
   }, [masterChecked, sortedItems, enabledTypes]);
 
+  const handleToggle = useCallback(
+    (id: number) => {
+      const checked = !isEnabled(id);
+      dispatch(setLeitungstypEnabled({ id, enabled: checked }));
+      const wouldBeState = sortedItems.map((si) =>
+        si.id === id ? checked : isEnabled(si.id)
+      );
+      const allOff = wouldBeState.every((v) => !v);
+      if (allOff && masterChecked) {
+        onMasterChange?.(false);
+      } else if (!allOff && !masterChecked) {
+        skipNextSync.current = true;
+        onMasterChange?.(true);
+      }
+    },
+    [sortedItems, enabledTypes, dispatch, masterChecked, onMasterChange]
+  );
+
   const menuItems: MenuProps["items"] = useMemo(
     () =>
       sortedItems.map((item) => ({
         key: item.id,
         label: (
           <div
-            className="flex items-center justify-between gap-3"
-            onClick={(e) => e.stopPropagation()}
+            className="flex items-center justify-between gap-3 cursor-pointer"
+            onClick={(e) => {
+              e.stopPropagation();
+              handleToggle(item.id);
+            }}
           >
-            <Switch
-              size="small"
-              checked={isEnabled(item.id)}
-              onChange={(checked) => {
-                dispatch(
-                  setLeitungstypEnabled({ id: item.id, enabled: checked })
-                );
-                // Compute would-be state to sync master switch
-                const wouldBeState = sortedItems.map((si) =>
-                  si.id === item.id ? checked : isEnabled(si.id)
-                );
-                const allOff = wouldBeState.every((v) => !v);
-                if (allOff && masterChecked) {
-                  onMasterChange?.(false);
-                } else if (!allOff && !masterChecked) {
-                  skipNextSync.current = true;
-                  onMasterChange?.(true);
-                }
-              }}
-            />
+            <span onClick={(e) => e.stopPropagation()}>
+              <Switch
+                size="small"
+                checked={isEnabled(item.id)}
+                onChange={() => handleToggle(item.id)}
+              />
+            </span>
             <span>{item.bezeichnung || `ID ${item.id}`}</span>
           </div>
         ),
       })),
-    [sortedItems, enabledTypes, dispatch, masterChecked, onMasterChange]
+    [sortedItems, enabledTypes, handleToggle]
   );
 
   return (
