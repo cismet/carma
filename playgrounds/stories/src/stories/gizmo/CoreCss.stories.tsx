@@ -6,7 +6,7 @@ import {
   useState,
   type MouseEvent as ReactMouseEvent,
 } from "react";
-import { Vector3 } from "three";
+import { Vector3 } from "@carma/math";
 import {
   createProjectedMoveGizmoView,
   transformPointWithMatrix,

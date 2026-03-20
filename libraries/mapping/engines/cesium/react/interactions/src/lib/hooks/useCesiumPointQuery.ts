@@ -18,7 +18,8 @@ const DOUBLE_CLICK_POSITION_THRESHOLD_PX = 12;
 const CLEARED_POINTER_POSITION = new Cartesian2(Number.NaN, Number.NaN);
 const INTERACTIVE_POINT_LABEL_SELECTOR =
   '[data-point-label-interactive="true"]';
-const LABEL_OVERLAY_CONTAINER_SELECTOR = "#label-overlay-container";
+const LABEL_OVERLAY_CONTAINER_SELECTOR =
+  '[data-label-overlay-container="true"]';
 
 const isSameDoubleClickArea = (
   previousPosition: Cartesian2 | null,

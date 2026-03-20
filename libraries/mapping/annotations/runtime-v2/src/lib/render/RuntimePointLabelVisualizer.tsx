@@ -1,30 +1,24 @@
 import { useEffect, useMemo, useRef } from "react";
 
+import { MINUS_PI_OVER_FOUR } from "@carma/math";
 import {
   cartesian3FromGeographicCoordinate,
-  projectGeographicCoordinateToScreen,
+  createGeographicCoordinateToScreenProjector,
 } from "@carma-mapping/engines/cesium/api";
 import { useCesiumSceneVisibilityIndex } from "@carma-mapping/engines/cesium/react/visibility";
-import { useCesiumSceneStateOptional } from "@carma-mapping/engines/cesium/react/scene-state";
 import {
   computePointLabelLayout,
   resolvePointLabelLayoutConfig,
+  shouldTestPointLabelOcclusion,
   usePointLabels,
   type LayoutPointInput,
   type PointLabelData,
   type PointLabelLayoutResult,
 } from "@carma-providers/label-overlay";
-import type { CssPixelPosition } from "@carma/units/types";
 
 import type { RuntimePointLabelRenderModel } from "./measurementRenderModels";
 import type { RuntimeScene } from "../types/runtimeScene.types";
 import { runtimeMeasurementVisualDefaults } from "../config/measurementVisualDefaults";
-
-const toScreenPosition = (
-  scene: RuntimeScene | null,
-  coordinate: RuntimePointLabelRenderModel["coordinate"]
-): CssPixelPosition | null =>
-  projectGeographicCoordinateToScreen(scene, coordinate);
 
 const POINT_STEM_START_DISTANCE_PX =
   runtimeMeasurementVisualDefaults.sizes.pointPixelSize / 2;
@@ -43,17 +37,28 @@ export const RuntimePointLabelVisualizer = ({
   blockLabelInteractions = false,
 }: RuntimePointLabelVisualizerProps) => {
   const registeredPointIdSetRef = useRef<Set<string>>(new Set());
-  const sceneState = useCesiumSceneStateOptional();
-  const cameraPitch =
-    sceneState?.camera.pitchRad ?? scene?.camera.pitch ?? -Math.PI / 4;
+  const cameraPitch = scene?.camera.pitch ?? MINUS_PI_OVER_FOUR;
   const layoutConfig = useMemo(
     () => resolvePointLabelLayoutConfig(undefined),
     []
+  );
+  const occlusionPointIds = useMemo(
+    () =>
+      labels
+        .filter((label) =>
+          shouldTestPointLabelOcclusion({
+            anchorKind: label.anchorKind,
+            occlusionMode: label.occlusionMode,
+          })
+        )
+        .map((label) => label.id),
+    [labels]
   );
   const { registerPoints, unregisterPointIds, visibilityStateById } =
     useCesiumSceneVisibilityIndex(scene, {
       shouldTestVisibility: true,
       shouldTestOcclusion: true,
+      occlusionPointIds,
       viewportPaddingHorizontal: 12,
       viewportPaddingVertical: 8,
       occlusionToleranceMeters: 1.0,
@@ -99,24 +104,35 @@ export const RuntimePointLabelVisualizer = ({
         collapsedToCompact: new Set<string>(),
       };
     }
+    const projectToScreen = createGeographicCoordinateToScreenProjector(scene);
 
     const layoutPoints = labels
       .map<LayoutPointInput | null>((label, index) => {
-        const anchor = toScreenPosition(scene, label.coordinate);
+        const anchor = projectToScreen(label.coordinate);
 
         if (!anchor) {
           return null;
         }
 
+        const isAreaCentroid = label.anchorKind === "area-centroid";
+
         return {
           id: label.id,
           anchor,
+          anchorKind: label.anchorKind,
           text: label.content,
           compactText:
             typeof label.markerContent === "string"
               ? label.markerContent
               : label.content,
           index,
+          ...(isAreaCentroid
+            ? {
+                lockPreferredPlacement: true,
+                preferredAttach: "center" as const,
+                preferredStemDistance: 0,
+              }
+            : {}),
           ...(label.selected
             ? {
                 layoutPriority: Number.MAX_SAFE_INTEGER,
@@ -137,8 +153,11 @@ export const RuntimePointLabelVisualizer = ({
   }, [cameraPitch, labels, layoutConfig, scene]);
 
   const pointLabels = useMemo<readonly PointLabelData[]>(
-    () =>
-      labels.map((label) => ({
+    () => {
+      const projectToScreen = createGeographicCoordinateToScreenProjector(scene);
+      return labels.map((label) => ({
+        anchorKind: label.anchorKind,
+        occlusionMode: label.occlusionMode,
         id: label.id,
         content: label.content,
         compactContent: label.markerContent ?? label.content,
@@ -146,9 +165,18 @@ export const RuntimePointLabelVisualizer = ({
         markerTextColor: label.markerTextColor,
         selected: label.selected,
         pitch: cameraPitch,
-        labelAngleRad: layoutResult.placements[label.id]?.angleRad,
-        labelDistance: layoutResult.placements[label.id]?.distance,
-        labelAttach: layoutResult.placements[label.id]?.attach,
+        labelAngleRad:
+          label.anchorKind === "area-centroid"
+            ? 0
+            : layoutResult.placements[label.id]?.angleRad,
+        labelDistance:
+          label.anchorKind === "area-centroid"
+            ? 0
+            : layoutResult.placements[label.id]?.distance,
+        labelAttach:
+          label.anchorKind === "area-centroid"
+            ? "center"
+            : layoutResult.placements[label.id]?.attach,
         hideLabelAndStem:
           Boolean(label.hideLabelAndStem) ||
           layoutResult.hiddenByLayout.has(label.id) ||
@@ -157,7 +185,10 @@ export const RuntimePointLabelVisualizer = ({
         stemStartDistance: label.selected
           ? SELECTED_POINT_STEM_START_DISTANCE_PX
           : POINT_STEM_START_DISTANCE_PX,
-        isOccluded: visibilityStateById[label.id]?.isOccluded ?? false,
+        isOccluded:
+          label.anchorKind === "area-centroid"
+            ? false
+            : (visibilityStateById[label.id]?.isOccluded ?? false),
         isHidden: visibilityStateById[label.id]?.isHidden ?? false,
         labelStyle: "capsule",
         collapse: true,
@@ -167,8 +198,9 @@ export const RuntimePointLabelVisualizer = ({
         onClick: label.onClick,
         onLongPress: label.onLongPress,
         longPressDurationMs: label.longPressDurationMs,
-        getCanvasPosition: () => toScreenPosition(scene, label.coordinate),
-      })),
+        getCanvasPosition: () => projectToScreen(label.coordinate),
+      }));
+    },
     [
       cameraPitch,
       labels,

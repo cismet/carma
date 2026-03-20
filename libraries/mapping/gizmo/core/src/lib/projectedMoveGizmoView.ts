@@ -6,6 +6,7 @@ import {
   getEquilateralTriangleViewBox,
   intersectRayWithPlane,
   getSupportRadius2d,
+  MINUS_PI_OVER_FOUR,
   type Point2,
 } from "@carma-commons/math";
 import { Vector3 } from "three";
@@ -42,7 +43,7 @@ const DISC_LAYER_Z_INDEX = 1;
 const CENTER_HIT_LAYER_Z_INDEX = 2;
 const ARROW_LAYER_Z_INDEX = 3;
 const ROTATION_HANDLE_RADIUS_PX = 8;
-const ROTATION_HANDLE_OFFSET_FROM_DISC_ZERO_RAD = -Math.PI / 4;
+const ROTATION_HANDLE_OFFSET_FROM_DISC_ZERO_RAD = MINUS_PI_OVER_FOUR;
 
 const ensureNormalizedAxisCandidates = (
   axisCandidates: ProjectedMoveGizmoAxisCandidate[]

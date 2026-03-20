@@ -272,10 +272,14 @@ export const useAreaLabelVisualizerBase = (
       layoutPoints.push({
         id: group.id,
         anchor: centroidAnchor,
+        anchorKind: "area-centroid",
         text: areaText,
         compactText: compactText.length > 0 ? compactText : undefined,
         index,
         layoutPriority: group.id === focusedPolygonGroupId ? 2 : 1,
+        lockPreferredPlacement: true,
+        preferredAttach: "center",
+        preferredStemDistance: 0,
       });
     });
 
@@ -298,6 +302,7 @@ export const useAreaLabelVisualizerBase = (
   }, [
     focusedPolygonGroupId,
     polygonAreaBadgeByGroupId,
+    resolveAreaLabelText,
     viewProjector,
     relevantGroups,
   ]);

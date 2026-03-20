@@ -6,7 +6,7 @@ import {
   WebMapTileServiceImageryProvider,
 } from "../cesium";
 import type { BBox } from "@carma/geo/types";
-import { rectangleFromBBox } from "./RectangleSerialization";
+import { rectangleFromBBox } from "./Rectangle";
 
 export type UnsupportedProviderOptions =
   | "clock"

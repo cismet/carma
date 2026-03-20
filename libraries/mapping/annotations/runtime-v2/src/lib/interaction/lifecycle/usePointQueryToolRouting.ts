@@ -1,6 +1,6 @@
 import { useCallback } from "react";
 
-import { projectGeographicCoordinateToScreen } from "@carma-mapping/engines/cesium/api";
+import { createGeographicCoordinateToScreenProjector } from "@carma-mapping/engines/cesium/api";
 
 import type { RuntimeCoordinate, RuntimeNode } from "../../store";
 import type { AnnotationModeSessionMap } from "./annotationModeSession.types";
@@ -36,16 +36,14 @@ const resolveSnappedNodeCoordinate = ({
   if (!screenPosition || !scene || scene.isDestroyed() || nodes.length === 0) {
     return coordinate;
   }
+  const projectToScreen = createGeographicCoordinateToScreenProjector(scene);
 
   const thresholdSquared = SNAP_DISTANCE_THRESHOLD_PX ** 2;
   let bestSquaredDistance = thresholdSquared;
   let snappedCoordinate: RuntimeCoordinate | null = null;
 
   for (const node of nodes) {
-    const nodeScreenPosition = projectGeographicCoordinateToScreen(
-      scene,
-      node.coordinate
-    );
+    const nodeScreenPosition = projectToScreen(node.coordinate);
     if (!nodeScreenPosition) {
       continue;
     }

@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef } from "react";
 
 import {
   cartesian3FromGeographicCoordinate,
-  projectGeographicCoordinateToScreen,
+  createGeographicCoordinateToScreenProjector,
 } from "@carma-mapping/engines/cesium/api";
 import { useCesiumSceneVisibilityIndex } from "@carma-mapping/engines/cesium/react/visibility";
 import {
@@ -65,8 +65,9 @@ export const RuntimePointMarkerVisualizer = ({
   }, [unregisterPointIds]);
 
   const markerLabels = useMemo<readonly PointLabelData[]>(
-    () =>
-      points.map((point) => ({
+    () => {
+      const projectToScreen = createGeographicCoordinateToScreenProjector(scene);
+      return points.map((point) => ({
         id: `runtime-point-marker-${point.id}`,
         content: "",
         hideLabelAndStem: true,
@@ -81,9 +82,9 @@ export const RuntimePointMarkerVisualizer = ({
         attachOverlayClickHandlers: false,
         markerOnlyPointerEvents: false,
         forceMarkerInteractionTarget: false,
-        getCanvasPosition: () =>
-          projectGeographicCoordinateToScreen(scene, point.coordinate),
-      })),
+        getCanvasPosition: () => projectToScreen(point.coordinate),
+      }));
+    },
     [points, scene, visibilityStateById]
   );
 

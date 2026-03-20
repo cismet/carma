@@ -8,6 +8,7 @@ import {
   type ReactNode,
 } from "react";
 
+import { MINUS_PI_OVER_FOUR } from "@carma/math";
 import {
   Cartesian2,
   Cartesian3,
@@ -42,7 +43,6 @@ import type { AnnotationSelectionState } from "../../selection/types/annotationS
 
 import { projectCartesian3JsonToScreen } from "@carma-mapping/engines/cesium/api";
 import { useCesiumSceneVisibilityIndex } from "@carma-mapping/engines/cesium/react/visibility";
-import { useCesiumSceneStateOptional } from "@carma-mapping/engines/cesium/react/scene-state";
 
 const ELEVATION_NEUTRAL_THRESHOLD_METERS = 0.03;
 const REFERENCE_POINT_DISTANCE_EPSILON_METERS = 0.001;
@@ -532,9 +532,7 @@ export const usePointLabelVisualizer = (
     onPointVerticalOffsetStemLongPress,
     pointLongPressDurationMs = 300,
   } = interactions ?? {};
-  const sceneState = useCesiumSceneStateOptional();
-  const cameraPitch =
-    sceneState?.camera.pitchRad ?? scene?.camera.pitch ?? -Math.PI / 4;
+  const cameraPitch = scene?.camera.pitch ?? MINUS_PI_OVER_FOUR;
   const registeredPointIdSetRef = useRef<Set<string>>(new Set());
   const selectedAnnotationIdSet = useMemo(() => {
     const ids = new Set(selectedAnnotationIds);

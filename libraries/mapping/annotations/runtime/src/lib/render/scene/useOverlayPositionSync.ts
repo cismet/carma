@@ -5,15 +5,15 @@ import { useCesiumOverlaySync } from "@carma-mapping/engines/cesium/react/intera
 import type { Scene } from "@carma/cesium";
 
 export const useOverlayPositionSync = (scene: Scene) => {
-  const requestUpdateCallback = useCesiumOverlaySync(scene);
+  const subscribeFrame = useCesiumOverlaySync(scene);
   const overlayContext = useLabelOverlay();
 
   useEffect(
     function effectSyncOverlayContextPositions() {
       if (overlayContext && overlayContext.updatePositions) {
-        requestUpdateCallback(overlayContext.updatePositions);
+        subscribeFrame(overlayContext.updatePositions);
       }
     },
-    [overlayContext, requestUpdateCallback]
+    [overlayContext, subscribeFrame]
   );
 };

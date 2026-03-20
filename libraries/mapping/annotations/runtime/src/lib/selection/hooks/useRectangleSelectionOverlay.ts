@@ -20,6 +20,31 @@ export type RectangleSelectionState = {
 };
 
 const MIN_RECTANGLE_SELECTION_SIZE_PX = 4;
+const LABEL_OVERLAY_CONTAINER_SELECTOR =
+  '[data-label-overlay-container="true"]';
+
+const resolveLabelOverlayContainer = (
+  canvas: HTMLCanvasElement
+): HTMLElement | null => {
+  let ancestor: HTMLElement | null = canvas.parentElement;
+
+  while (ancestor) {
+    const overlayContainer = ancestor.querySelector(
+      LABEL_OVERLAY_CONTAINER_SELECTOR
+    );
+    if (overlayContainer instanceof HTMLElement) {
+      return overlayContainer;
+    }
+    ancestor = ancestor.parentElement;
+  }
+
+  const fallbackOverlayContainer = document.querySelector(
+    LABEL_OVERLAY_CONTAINER_SELECTOR
+  );
+  return fallbackOverlayContainer instanceof HTMLElement
+    ? fallbackOverlayContainer
+    : null;
+};
 
 export const useRectangleSelectionOverlay = (
   scene: Scene | null,
@@ -47,7 +72,7 @@ export const useRectangleSelectionOverlay = (
       return;
     }
 
-    const overlayContainer = document.getElementById("label-overlay-container");
+    const overlayContainer = resolveLabelOverlayContainer(scene.canvas);
     if (!overlayContainer) {
       return;
     }

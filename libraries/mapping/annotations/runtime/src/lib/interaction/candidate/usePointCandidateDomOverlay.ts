@@ -1,5 +1,6 @@
 import { useMemo, useRef } from "react";
 
+import { MINUS_PI_OVER_FOUR } from "@carma/math";
 import {
   Cartesian3,
   SceneTransforms,
@@ -17,7 +18,6 @@ import {
   useLineVisualizers,
   usePointLabels,
 } from "@carma-providers/label-overlay";
-import { useCesiumSceneStateOptional } from "@carma-mapping/engines/cesium/react/scene-state";
 import type { CssPixelPosition } from "@carma/units/types";
 
 const CANDIDATE_HEIGHT_LABEL_ID = "measurement-candidate-height";
@@ -96,9 +96,7 @@ export const usePointCandidateDomOverlay = (
 
   const hasCandidatePoint = Boolean(candidatePointECEF);
   const hasCandidateAuxAnchor = Boolean(candidateVerticalOffsetAnchorECEF);
-  const sceneState = useCesiumSceneStateOptional();
-  const cameraPitch =
-    sceneState?.camera.pitchRad ?? scene?.camera.pitch ?? -Math.PI / 4;
+  const cameraPitch = scene?.camera.pitch ?? MINUS_PI_OVER_FOUR;
 
   candidateElevatedPointRef.current = candidatePointECEF;
   candidateAuxAnchorRef.current = candidateVerticalOffsetAnchorECEF;

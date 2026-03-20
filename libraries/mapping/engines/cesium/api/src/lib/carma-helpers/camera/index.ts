@@ -23,6 +23,14 @@ export {
   readPerspectiveFrustumVerticalFov,
   writePerspectiveFrustumVerticalFov,
 } from "./PerspectiveFrustumFov";
+export {
+  applyObjectCentricCameraViewToScene,
+  buildObjectCentricCameraOrientation,
+  DEFAULT_OBJECT_CENTRIC_RANGE_M,
+  type ObjectCentricCameraOrientation,
+  type ObjectCentricCameraViewInput,
+  type ObjectCentricCameraViewOptions,
+} from "./ObjectCentricCameraOrientation";
 export { flyToTarget } from "./CameraFlight";
 export { animateOrbitHeadingPitchRange } from "./CameraFlight";
 export type { OrbitHeadingPitchRangeAnimationOptions } from "./CameraFlight";

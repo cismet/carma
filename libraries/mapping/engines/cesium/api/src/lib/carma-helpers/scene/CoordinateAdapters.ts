@@ -16,14 +16,19 @@ export type CesiumGeographicCoordinate = {
   altitude: number;
 };
 
-const CARTESIAN_JSON_SCRATCH = new Cartesian3();
-const GEOGRAPHIC_COORDINATE_SCRATCH = new Cartesian3();
-
 const toCssPixelPosition = (position: { x: number; y: number }) =>
   ({
     x: position.x as CssPixels,
     y: position.y as CssPixels,
   } satisfies CssPixelPosition);
+
+export type Cartesian3JsonToScreenProjector = (
+  coordinate: Cartesian3Json
+) => CssPixelPosition | null;
+
+export type GeographicToScreenProjector = (
+  coordinate: CesiumGeographicCoordinate
+) => CssPixelPosition | null;
 
 export const cartesian3FromGeographicCoordinate = (
   coordinate: CesiumGeographicCoordinate
@@ -50,61 +55,92 @@ export const projectCartesian3JsonToScreen = (
   scene: Scene | null,
   coordinate: Cartesian3Json
 ): CssPixelPosition | null => {
-  if (!scene || scene.isDestroyed()) {
-    return null;
-  }
-
-  const worldPoint = Cartesian3.fromElements(
-    coordinate.x,
-    coordinate.y,
-    coordinate.z,
-    CARTESIAN_JSON_SCRATCH
-  );
-  const screenPosition = SceneTransforms.worldToWindowCoordinates(
-    scene,
-    worldPoint
-  );
-
-  if (
-    !defined(screenPosition) ||
-    !Number.isFinite(screenPosition.x) ||
-    !Number.isFinite(screenPosition.y)
-  ) {
-    return null;
-  }
-
-  return toCssPixelPosition(screenPosition);
+  return createCartesian3JsonToScreenProjector(scene)(coordinate);
 };
 
 export const projectGeographicCoordinateToScreen = (
   scene: Scene | null,
   coordinate: CesiumGeographicCoordinate
 ): CssPixelPosition | null => {
-  if (!scene || scene.isDestroyed()) {
-    return null;
+  return createGeographicCoordinateToScreenProjector(scene)(coordinate);
+};
+
+export const createCartesian3JsonToScreenProjector = (scene: Scene | null) => {
+  const worldPointScratch = new Cartesian3();
+  return ((coordinate: Cartesian3Json): CssPixelPosition | null => {
+    if (!scene || scene.isDestroyed()) {
+      return null;
+    }
+
+    const worldPoint = Cartesian3.fromElements(
+      coordinate.x,
+      coordinate.y,
+      coordinate.z,
+      worldPointScratch
+    );
+    const screenPosition = SceneTransforms.worldToWindowCoordinates(
+      scene,
+      worldPoint
+    );
+
+    if (
+      !defined(screenPosition) ||
+      !Number.isFinite(screenPosition.x) ||
+      !Number.isFinite(screenPosition.y)
+    ) {
+      return null;
+    }
+
+    return toCssPixelPosition(screenPosition);
+  }) satisfies Cartesian3JsonToScreenProjector;
+};
+
+export const createGeographicCoordinateToScreenProjector = (
+  scene: Scene | null
+) => {
+  const worldPointScratch = new Cartesian3();
+  return ((
+    coordinate: CesiumGeographicCoordinate
+  ): CssPixelPosition | null => {
+    if (!scene || scene.isDestroyed()) {
+      return null;
+    }
+
+    const worldPoint = Cartesian3.fromDegrees(
+      coordinate.longitude,
+      coordinate.latitude,
+      coordinate.altitude,
+      undefined,
+      worldPointScratch
+    );
+    const screenPosition = SceneTransforms.worldToWindowCoordinates(
+      scene,
+      worldPoint
+    );
+
+    if (
+      !defined(screenPosition) ||
+      !Number.isFinite(screenPosition.x) ||
+      !Number.isFinite(screenPosition.y)
+    ) {
+      return null;
+    }
+
+    return toCssPixelPosition(screenPosition);
+  }) satisfies GeographicToScreenProjector;
+};
+
+export const projectGeographicCoordinatesToScreen = (
+  scene: Scene | null,
+  coordinates: readonly CesiumGeographicCoordinate[],
+  output: Array<CssPixelPosition | null> = []
+): Array<CssPixelPosition | null> => {
+  const project = createGeographicCoordinateToScreenProjector(scene);
+  output.length = coordinates.length;
+  for (let index = 0; index < coordinates.length; index += 1) {
+    output[index] = project(coordinates[index]);
   }
-
-  const worldPoint = Cartesian3.fromDegrees(
-    coordinate.longitude,
-    coordinate.latitude,
-    coordinate.altitude,
-    undefined,
-    GEOGRAPHIC_COORDINATE_SCRATCH
-  );
-  const screenPosition = SceneTransforms.worldToWindowCoordinates(
-    scene,
-    worldPoint
-  );
-
-  if (
-    !defined(screenPosition) ||
-    !Number.isFinite(screenPosition.x) ||
-    !Number.isFinite(screenPosition.y)
-  ) {
-    return null;
-  }
-
-  return toCssPixelPosition(screenPosition);
+  return output;
 };
 
 export const resolveGeographicCoordinateFromScreenPosition = (

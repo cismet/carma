@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import type { Scene, CesiumWidget } from "@carma/cesium";
 import { LabelOverlayProvider } from "@carma-providers/label-overlay";
-import { CesiumSceneStateProvider } from "@carma-mapping/engines/cesium/react/scene-state";
+import { useCesiumLabelOverlayHost } from "@carma-mapping/engines/cesium/react/interactions";
 import { setupCesium } from "../../../map-framework-switcher/helpers/cesium-setup";
 
 import "cesium/Build/Cesium/Widgets/widgets.css";
@@ -60,6 +60,10 @@ export const AnnotationCesiumStoryShell = ({
     isWidgetReady && widgetRef.current && !widgetRef.current.isDestroyed()
       ? widgetRef.current.scene
       : null;
+  const overlayHost = useCesiumLabelOverlayHost({
+    scene,
+    containerRef: rootRef,
+  });
 
   useEffect(() => {
     if (!cesiumContainerRef.current) return;
@@ -129,19 +133,9 @@ export const AnnotationCesiumStoryShell = ({
           inset: 0,
         }}
       />
-      <CesiumSceneStateProvider
-        scene={scene}
-        options={{
-          orbitPointMode: "screen-center",
-          screenCenterSamplingStrategy: "terrain-only",
-          throwOnMissingScreenCenterIntersection: true,
-          fallbackHeightM: 200,
-        }}
-      >
-        <LabelOverlayProvider containerRef={rootRef}>
-          {renderedChildren}
-        </LabelOverlayProvider>
-      </CesiumSceneStateProvider>
+      <LabelOverlayProvider host={overlayHost}>
+        {renderedChildren}
+      </LabelOverlayProvider>
     </div>
   );
 };

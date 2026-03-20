@@ -13,6 +13,7 @@ import {
 import { ResponsiveStatusBar } from "@carma-commons/ui/components";
 import {
   LabelOverlayProvider,
+  useLabelOverlayHost,
   useLineVisualizers,
 } from "@carma-providers/label-overlay";
 
@@ -812,10 +813,14 @@ const LiveLineGeneratorStory = (args: LineGeneratorStoryArgs) => {
       args.strokeWidth,
     ]
   );
+  const overlayHost = useLabelOverlayHost({
+    kind: "svg",
+    containerRef: rootRef,
+  });
 
   return (
     <div ref={rootRef} style={frameStyle}>
-      <LabelOverlayProvider containerRef={rootRef}>
+      <LabelOverlayProvider host={overlayHost}>
         <LiveLineGeneratorOverlay {...args} containerRef={rootRef} />
       </LabelOverlayProvider>
       <div

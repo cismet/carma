@@ -16,6 +16,7 @@ import {
   type SceneLike,
   useInitialSceneViewState,
 } from "@carma-mapping/engines/cesium/react/scene-state";
+import { useCesiumLabelOverlayHost } from "@carma-mapping/engines/cesium/react/interactions";
 import {
   AnnotationsToolbar,
   AnnotationsToolbarButton,
@@ -207,6 +208,10 @@ export const AnnotationsRuntimeV2Page = ({
 }: PlaygroundRuntimePageProps) => {
   const rootRef = useRef<HTMLDivElement | null>(null);
   const [scene, setScene] = useState<Scene | null>(null);
+  const overlayHost = useCesiumLabelOverlayHost({
+    scene,
+    containerRef: rootRef,
+  });
   const { initialViewState, isResolved } = useInitialSceneViewState();
 
   return (
@@ -229,7 +234,7 @@ export const AnnotationsRuntimeV2Page = ({
           replace={true}
           label="annotations-playground:camera3d"
         />
-        <LabelOverlayProvider containerRef={rootRef}>
+        <LabelOverlayProvider host={overlayHost}>
           <AnnotationsProvider scene={scene} initialActiveToolType="polyline">
             <CesiumNavigationOverlay
               scene={scene}

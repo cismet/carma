@@ -32,6 +32,7 @@ import {
   getEquilateralTrianglePathD,
   getEquilateralTriangleViewBox,
   getSupportRadius2d,
+  MINUS_PI_OVER_FOUR,
   negativePiToPi,
 } from "@carma-commons/math";
 import { useLabelOverlay } from "@carma-providers/label-overlay";
@@ -174,7 +175,7 @@ const PLANE_DRAG_DISC_CURSOR = "move";
 const ACTIVE_AXIS_ANCHOR_RADIUS_MULTIPLIER = 1.3;
 const INACTIVE_AXIS_ANCHOR_RADIUS_MULTIPLIER = 1.05;
 const ROTATION_HANDLE_RADIUS_PX = 8;
-const ROTATION_HANDLE_OFFSET_FROM_DISC_ZERO_RAD = -Math.PI / 4;
+const ROTATION_HANDLE_OFFSET_FROM_DISC_ZERO_RAD = MINUS_PI_OVER_FOUR;
 const ROTATION_HANDLE_MIN_MINOR_RADIUS_PX = 0.25;
 const ROTATION_NORMAL_SCREEN_SAMPLE_WORLD = 1;
 

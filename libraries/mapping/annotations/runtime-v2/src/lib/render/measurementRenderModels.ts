@@ -1,4 +1,8 @@
 import type { RuntimeCoordinate } from "../store";
+import type {
+  PointLabelAnchorKind,
+  PointLabelOcclusionMode,
+} from "@carma-providers/label-overlay";
 
 export type RuntimePointMarkerRenderModel = {
   id: string;
@@ -22,6 +26,8 @@ export type RuntimePointLabelRenderModel = {
   measurementId?: string;
   nodeId?: string;
   coordinate: RuntimeCoordinate;
+  anchorKind?: PointLabelAnchorKind;
+  occlusionMode?: PointLabelOcclusionMode;
   content: string;
   markerContent?: string;
   markerBackgroundColor?: string;

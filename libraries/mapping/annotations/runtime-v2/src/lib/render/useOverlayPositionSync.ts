@@ -5,7 +5,7 @@ import { useLabelOverlay } from "@carma-providers/label-overlay";
 import type { RuntimeScene } from "../types/runtimeScene.types";
 
 export const useOverlayPositionSync = (scene: RuntimeScene | null) => {
-  const requestUpdateCallback = useCesiumOverlaySync(scene);
+  const subscribeFrame = useCesiumOverlaySync(scene);
   const overlayContext = useLabelOverlay();
 
   useEffect(() => {
@@ -13,6 +13,6 @@ export const useOverlayPositionSync = (scene: RuntimeScene | null) => {
       return;
     }
 
-    requestUpdateCallback(overlayContext.updatePositions);
-  }, [overlayContext, requestUpdateCallback]);
+    subscribeFrame(overlayContext.updatePositions);
+  }, [overlayContext, subscribeFrame]);
 };

@@ -13,6 +13,7 @@ import {
   type Scene,
 } from "@carma/cesium";
 import { LabelOverlayProvider } from "@carma-providers/label-overlay";
+import { useCesiumLabelOverlayHost } from "@carma-mapping/engines/cesium/react/interactions";
 import {
   useCesiumPointMoveGizmo,
   useCesiumPointMoveGizmoConnector,
@@ -208,6 +209,8 @@ const getCubeAnchorWorld = (
 };
 
 const GizmoSandboxContent = ({
+  scene,
+  onSceneChange,
   rootRef,
   pointLon,
   pointLat,
@@ -224,11 +227,14 @@ const GizmoSandboxContent = ({
   axisMode,
   preferredAxisId,
   axisTitle,
-}: GizmoSandboxProps & { rootRef: React.RefObject<HTMLDivElement | null> }) => {
+}: GizmoSandboxProps & {
+  scene: Scene | null;
+  onSceneChange: (scene: Scene | null) => void;
+  rootRef: React.RefObject<HTMLDivElement | null>;
+}) => {
   const cesiumContainerRef = useRef<HTMLDivElement>(null);
   const widgetRef = useRef<CesiumWidget | null>(null);
   const cubeVisualsRef = useRef<CubePrimitiveVisuals | null>(null);
-  const [scene, setScene] = useState<Scene | null>(null);
 
   const initialCubeCenter = useMemo(
     () => Cartesian3.fromDegrees(pointLon, pointLat, pointHeight),
@@ -315,7 +321,7 @@ const GizmoSandboxContent = ({
 
       const widget = result.widget;
       widgetRef.current = widget;
-      setScene(widget.scene);
+      onSceneChange(widget.scene);
 
       setPointPosition(initialCubeCenter);
 
@@ -340,9 +346,9 @@ const GizmoSandboxContent = ({
         }
       }
       widgetRef.current = null;
-      setScene(null);
+      onSceneChange(null);
     };
-  }, [initialCubeCenter, setPointPosition]);
+  }, [initialCubeCenter, onSceneChange, setPointPosition]);
 
   useEffect(() => {
     if (!scene || scene.isDestroyed()) {
@@ -552,10 +558,20 @@ const GizmoSandboxContent = ({
 
 const GizmoSandbox = (props: GizmoSandboxProps) => {
   const rootRef = useRef<HTMLDivElement>(null);
+  const [scene, setScene] = useState<Scene | null>(null);
+  const overlayHost = useCesiumLabelOverlayHost({
+    scene,
+    containerRef: rootRef,
+  });
 
   return (
-    <LabelOverlayProvider containerRef={rootRef}>
-      <GizmoSandboxContent {...props} rootRef={rootRef} />
+    <LabelOverlayProvider host={overlayHost}>
+      <GizmoSandboxContent
+        {...props}
+        scene={scene}
+        onSceneChange={setScene}
+        rootRef={rootRef}
+      />
     </LabelOverlayProvider>
   );
 };

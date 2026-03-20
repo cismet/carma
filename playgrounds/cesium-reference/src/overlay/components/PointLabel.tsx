@@ -1,4 +1,5 @@
 import React from "react";
+import { MINUS_PI_OVER_FOUR } from "@carma/math";
 
 enum MarkerStyle {
   CROSS,
@@ -34,7 +35,7 @@ const baseStyles: React.CSSProperties = {
   margin: 0,
 };
 
-const defaultPitch = -Math.PI / 4;
+const defaultPitch = MINUS_PI_OVER_FOUR;
 // pitch is 0 near horizon -pi/2 in nadir
 
 // Simple offset calculation - labels go to the right and slightly up

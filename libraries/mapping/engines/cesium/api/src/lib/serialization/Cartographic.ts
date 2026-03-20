@@ -13,6 +13,17 @@ export type CartographicJsonTyped = {
   height: Altitude.EllipsoidalWGS84Meters;
 };
 
+export const isCartographicJson = (
+  value: CartographicJson | CartographicJsonTyped | undefined | null
+): value is CartographicJson | CartographicJsonTyped =>
+  !!value &&
+  typeof value.latitude === "number" &&
+  Number.isFinite(value.latitude) &&
+  typeof value.longitude === "number" &&
+  Number.isFinite(value.longitude) &&
+  typeof value.height === "number" &&
+  Number.isFinite(value.height);
+
 export function cartographicToJson(
   cartographic: Cartographic,
   typed?: true
@@ -37,3 +48,7 @@ export function cartographicToJson(
         height: cartographic.height,
       };
 }
+
+export const cartographicFromJson = (
+  value: CartographicJson | CartographicJsonTyped
+): Cartographic => new Cartographic(value.longitude, value.latitude, value.height);

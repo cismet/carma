@@ -1,5 +1,6 @@
-import type { PointLabelAttach } from "../components/PointLabel";
 import type { CssPixelPosition } from "@carma/units/types";
+import type { PointLabelAnchorKind } from "../pointLabelAnchorSemantics";
+import type { PointLabelAttach } from "../pointLabelAttach";
 export type { CssPixelPosition } from "@carma/units/types";
 
 export type Rect = {
@@ -9,6 +10,11 @@ export type Rect = {
   bottom: number;
 };
 
+export type StemSegment = {
+  start: CssPixelPosition;
+  end: CssPixelPosition;
+};
+
 export type LabelPlacement = {
   id: string;
   angleRad: number;
@@ -16,18 +22,24 @@ export type LabelPlacement = {
   attach: PointLabelAttach;
 };
 
+export type DynamicLabelPlacementMode = "fallback" | "always";
+
 export type CandidateEvaluation = {
   placement: LabelPlacement;
   rect: Rect;
+  stemSegment: StemSegment;
   score: number;
   orderIndex: number;
   intersectsLabel: boolean;
   intersectsOtherAnchor: boolean;
+  crossesStem: boolean;
   viewportPenalty: number;
   collisionFree: boolean;
 };
 
 export type DynamicLabelPlacementConfig = {
+  mode: DynamicLabelPlacementMode;
+  avoidStemCrossing: boolean;
   iterations: number;
   step: number;
   maxDelta: number;
@@ -41,6 +53,7 @@ export type DynamicLabelPlacementConfig = {
 export type PointLabelLayoutConfig = {
   placementOrder: PointLabelAttach[];
   stemDistance: number;
+  stemDistanceScaleOrder: number[];
   dynamicLabelPlacement: boolean;
   dynamicLabelPlacementConfig: DynamicLabelPlacementConfig;
   pitchResponsiveAngle: boolean;
@@ -63,16 +76,21 @@ export type PointLabelLayoutConfigOverrides = Partial<
   // Backward compatibility for older option names.
   regularDistance?: number;
   forceEnabled?: boolean;
+  forceLayoutOnTop?: boolean;
+  distanceScaleOrder?: number[];
 };
 
 export type LayoutPointInput = {
   id: string;
   anchor: CssPixelPosition;
+  anchorKind?: PointLabelAnchorKind;
   text: string;
   compactText?: string;
   index: number;
   layoutPriority?: number;
   lockPreferredPlacement?: boolean;
+  preferredAttach?: PointLabelAttach;
+  preferredStemDistance?: number;
 };
 
 export type PointLabelLayoutResult = {

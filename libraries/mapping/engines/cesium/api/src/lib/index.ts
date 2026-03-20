@@ -36,12 +36,15 @@ export {
 } from "./carma-guards";
 
 export {
+  applyObjectCentricCameraViewToScene,
   applyRollToHeadingForCameraNearNadir,
   animateOrbitHeadingPitchRange,
+  buildObjectCentricCameraOrientation,
   cameraPositionCartographicDegrees,
   cameraPositionCartographicRadians,
   cameraToHeadingPitchJson,
   captureCurrentCameraState,
+  DEFAULT_OBJECT_CENTRIC_RANGE_M,
   flyToTarget,
   getHeadingPitchRollDiff,
   getTopDownCameraDeviationAngle,
@@ -60,6 +63,9 @@ export type {
   CameraStateHeadingPitchRoll,
   CameraStateRecord,
   DirectionUp,
+  ObjectCentricCameraOrientation,
+  ObjectCentricCameraViewInput,
+  ObjectCentricCameraViewOptions,
   OrbitHeadingPitchRangeAnimationOptions,
 } from "./carma-helpers/camera";
 export type {
@@ -72,7 +78,11 @@ export {
   cartesian3Distance,
   offsetCartesian3Positions,
 } from "./carma-helpers/cartesian3";
-export { cartesian3FromJson, cartesian3ToJson } from "./serialization";
+export {
+  cartesian3FromJson,
+  cartesian3ToJson,
+  isCartesian3Json,
+} from "./serialization";
 export type {
   Cartesian3ConstructorArgs,
   Cartesian3Json,
@@ -82,8 +92,26 @@ export {
   getDegreesFromCartographic,
   getEllipsoidalAltitudeOrZero,
 } from "./carma-helpers/cartographic";
-export { cartographicToJson } from "./serialization";
+export { cartographicFromJson, cartographicToJson, isCartographicJson } from "./serialization";
 export type { CartographicJson, CartographicJsonTyped } from "./serialization";
+export {
+  cartesian3FromCartographicRad,
+  cartographicRadFromCartesian3,
+  cartographicRadFromJson,
+  cartographicRadToJson,
+  isCartographicRadJson,
+} from "./serialization";
+export type { CartographicRadJson } from "./serialization";
+
+export {
+  isQuaternionJson,
+  quaternionFromJson,
+  quaternionToJson,
+} from "./serialization";
+export type { QuaternionJson } from "./serialization";
+
+export { errorFromJson, errorToJson, isSerializedError } from "./serialization";
+export type { SerializedError } from "./serialization";
 
 export { guardTileset } from "./carma-helpers/tileset/TilesetGuard";
 export type { Cesium3DTilesetConstructorOptions } from "./serialization";
@@ -91,8 +119,11 @@ export type { Cesium3DTilesetConstructorOptions } from "./serialization";
 export { createMinimalCesiumWidget } from "./carma-helpers/widget";
 
 export {
+  colorFromJson,
   colorFromConstructorArgs,
+  colorToJson,
   colorToConstructorArgs,
+  isColorJson,
   isColorConstructorArgs,
 } from "./serialization";
 export type { ColorConstructorArgs, ColorJson } from "./serialization";
@@ -132,6 +163,10 @@ export type {
 
 export {
   ensureSceneReady,
+  toSceneStateCartographicRad,
+  toSceneStateMat4,
+  toSceneStateQuat,
+  toSceneStateVec3,
   tryWithValidScene,
   waitForCondition,
   waitForRenderFrames,
@@ -154,6 +189,7 @@ export type {
 } from "./serialization";
 
 export type { Matrix4ConstructorArgs } from "./serialization";
+export { isMatrix4Json, matrix4FromJson, matrix4ToJson } from "./serialization";
 
 export { SCENE_STATE_METADATA_SOURCE } from "./cesiumSceneTypes";
 export type {

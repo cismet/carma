@@ -3,22 +3,36 @@ import Icon from "react-cismap/commons/Icon";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faGripVertical } from "@fortawesome/free-solid-svg-icons";
 
-const parseCssRgb = (colorValue: string): [number, number, number] | null => {
+const HEADER_BAR_MIN_HEIGHT_PX = 30;
+const BODY_HORIZONTAL_PADDING_PX = 12;
+const BODY_VERTICAL_PADDING_PX = 10;
+const BODY_SECTION_GAP_PX = 6;
+
+type ParsedCssColor = {
+  rgb: [number, number, number];
+  alpha: number;
+};
+
+const parseCssColor = (colorValue: string): ParsedCssColor | null => {
   const match = colorValue.match(/rgba?\(([^)]+)\)/i);
   if (!match) {
     return null;
   }
   const channels = match[1]
     .split(",")
-    .slice(0, 3)
     .map((channel) => Number.parseFloat(channel.trim()));
+  const rgb = channels.slice(0, 3);
   if (
-    channels.length !== 3 ||
-    channels.some((channel) => Number.isNaN(channel))
+    rgb.length !== 3 ||
+    rgb.some((channel) => Number.isNaN(channel))
   ) {
     return null;
   }
-  return [channels[0], channels[1], channels[2]];
+  return {
+    rgb: [rgb[0], rgb[1], rgb[2]],
+    alpha:
+      channels.length >= 4 && Number.isFinite(channels[3]) ? channels[3] : 1,
+  };
 };
 
 const srgbToLinear = (channel: number): number => {
@@ -28,7 +42,13 @@ const srgbToLinear = (channel: number): number => {
     : ((normalized + 0.055) / 1.055) ** 2.4;
 };
 
-const isPerceptuallyDark = ([r, g, b]: [number, number, number]): boolean => {
+const isPerceptuallyDark = ({
+  rgb: [r, g, b],
+  alpha,
+}: ParsedCssColor): boolean => {
+  if (alpha < 0.55) {
+    return false;
+  }
   const luminance =
     0.2126 * srgbToLinear(r) +
     0.7152 * srgbToLinear(g) +
@@ -147,6 +167,8 @@ const CarmaCard = ({
     : header
     ? "0 0 4px 4px"
     : "4px";
+  const isCollapsibleContentVisible =
+    hasCollapsibleBodyContent && !(collapsible && Boolean(collapsed));
   const collapseAreaWidth = collapseButtonAreaStyle.width;
   const headerToggleSlotStyle: React.CSSProperties = {
     marginLeft: 6,
@@ -216,8 +238,10 @@ const CarmaCard = ({
     const backgroundColor = containerElement
       ? window.getComputedStyle(containerElement).backgroundColor
       : "";
-    const rgb = parseCssRgb(backgroundColor);
-    setIsHeaderBackgroundDark(rgb ? isPerceptuallyDark(rgb) : true);
+    const parsedColor = parseCssColor(backgroundColor);
+    setIsHeaderBackgroundDark(
+      parsedColor ? isPerceptuallyDark(parsedColor) : false
+    );
 
     if (!draggable || dragGripPlacement !== "auto") {
       setShowCenteredGrip(false);
@@ -358,6 +382,17 @@ const CarmaCard = ({
     background: "transparent",
     boxShadow: "none",
   };
+  const headerFrostingStyle: React.CSSProperties = {
+    position: "absolute",
+    inset: 0,
+    pointerEvents: "none",
+    background: isHeaderBackgroundDark
+      ? "linear-gradient(180deg, rgba(255, 255, 255, 0.14) 0%, rgba(255, 255, 255, 0.04) 100%)"
+      : "linear-gradient(180deg, rgba(255, 255, 255, 0.46) 0%, rgba(255, 255, 255, 0.18) 100%)",
+    boxShadow: isHeaderBackgroundDark
+      ? "inset 0 1px 0 rgba(255, 255, 255, 0.18), inset 0 -1px 0 rgba(255, 255, 255, 0.05)"
+      : "inset 0 1px 0 rgba(255, 255, 255, 0.55), inset 0 -1px 0 rgba(15, 23, 42, 0.08)",
+  };
 
   const inlineDragGrip =
     draggable && (dragGripPlacement !== "auto" || !showCenteredGrip) ? (
@@ -446,10 +481,11 @@ const CarmaCard = ({
             boxShadow: "0 2px 8px rgba(0, 0, 0, 0.2)",
             position: "relative",
             zIndex: 1,
-            backgroundColor: headerColor,
-            backdropFilter: "blur(3px)",
-            WebkitBackdropFilter: "blur(3px)",
-            padding: "3px 0px",
+            backgroundColor: headerColor ?? "rgba(255, 255, 255, 0.24)",
+            backdropFilter: "blur(8px) saturate(115%)",
+            WebkitBackdropFilter: "blur(8px) saturate(115%)",
+            minHeight: HEADER_BAR_MIN_HEIGHT_PX,
+            padding: 0,
             ...(draggable
               ? {
                   cursor: "grab",
@@ -461,8 +497,19 @@ const CarmaCard = ({
           title={draggable ? dragHandleTitle : undefined}
           onPointerDown={draggable ? onDragHandlePointerDown : undefined}
         >
+          <div aria-hidden style={headerFrostingStyle} />
           {useLegacyHeaderRowLayout ? (
-            <div style={{ minWidth: 0, padding: "0 8px" }}>
+            <div
+              style={{
+                position: "relative",
+                zIndex: 1,
+                minWidth: 0,
+                minHeight: HEADER_BAR_MIN_HEIGHT_PX,
+                padding: "0 8px",
+                display: "flex",
+                alignItems: "center",
+              }}
+            >
               <div ref={headerContentRef} style={{ minWidth: 0 }}>
                 {header}
               </div>
@@ -472,7 +519,9 @@ const CarmaCard = ({
               ref={headerRowRef}
               style={{
                 position: "relative",
+                zIndex: 1,
                 minWidth: 0,
+                minHeight: HEADER_BAR_MIN_HEIGHT_PX,
                 padding: shouldRenderCollapseInHeader ? "0 0 0 8px" : "0 8px",
                 display: "flex",
                 alignItems: "center",
@@ -522,10 +571,21 @@ const CarmaCard = ({
               flex: 1,
               minWidth: 0,
               borderRadius: bodyContentAreaBorderRadius,
+              boxSizing: "border-box",
+              padding: `${BODY_VERTICAL_PADDING_PX}px ${BODY_HORIZONTAL_PADDING_PX}px`,
             }}
           >
             {hasNode(subtitle) ? (
-              <div style={{ paddingBottom: 2 }}>{subtitle}</div>
+              <div
+                style={{
+                  paddingBottom:
+                    hasCollapsibleBodyContent || hasNode(footer)
+                      ? BODY_SECTION_GAP_PX
+                      : 0,
+                }}
+              >
+                {subtitle}
+              </div>
             ) : null}
             <div
               style={{
@@ -544,7 +604,17 @@ const CarmaCard = ({
             >
               <div ref={collapsibleContentRef}>{content}</div>
             </div>
-            {footer ? <div style={{ paddingTop: 2 }}>{footer}</div> : null}
+            {footer ? (
+              <div
+                style={{
+                  paddingTop: isCollapsibleContentVisible
+                    ? BODY_SECTION_GAP_PX
+                    : 0,
+                }}
+              >
+                {footer}
+              </div>
+            ) : null}
           </div>
           {collapsible && !shouldRenderCollapseInHeader
             ? renderCollapseToggle(false)

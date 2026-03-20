@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo } from "react";
+import { MINUS_PI_OVER_FOUR } from "@carma/math";
 
 import { useOverlay } from "../contexts/OverlayContext";
 import { PointLabel } from "../components/PointLabel";
@@ -45,7 +46,8 @@ export const usePointLabels = (
       const labelId = `point-label-${point.id}`;
 
       // Use pitch from point data or fallback to getPitch callback
-      const pitch = point.pitch ?? (getPitch ? getPitch() : -Math.PI / 4);
+      const pitch =
+        point.pitch ?? (getPitch ? getPitch() : MINUS_PI_OVER_FOUR);
 
       addOverlayElement({
         id: labelId,

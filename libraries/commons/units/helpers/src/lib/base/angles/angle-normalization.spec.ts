@@ -1,6 +1,7 @@
 import { describe, it, expect } from "vitest";
 
 import type { Radians } from "@carma/units/types";
+import { MINUS_PI_OVER_FOUR } from "./pi";
 import { zeroToTwoPi, negativePiToPi } from "./angle-normalization";
 
 describe("angle-normalization", () => {
@@ -26,9 +27,7 @@ describe("angle-normalization", () => {
     });
 
     it("should wrap negative angles to [0, 2π)", () => {
-      expect(zeroToTwoPi((-Math.PI / 4) as Radians)).toBeCloseTo(
-        (7 * Math.PI) / 4
-      );
+      expect(zeroToTwoPi(MINUS_PI_OVER_FOUR)).toBeCloseTo((7 * Math.PI) / 4);
       expect(zeroToTwoPi((-Math.PI / 2) as Radians)).toBeCloseTo(
         (3 * Math.PI) / 2
       );
@@ -89,7 +88,7 @@ describe("angle-normalization", () => {
         -Math.PI / 2
       );
       expect(negativePiToPi(((7 * Math.PI) / 4) as Radians)).toBeCloseTo(
-        -Math.PI / 4
+        MINUS_PI_OVER_FOUR
       );
     });
 

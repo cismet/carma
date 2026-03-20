@@ -1,4 +1,5 @@
 import type { CssPixelPosition } from "@carma/units/types";
+import { PI } from "@carma-commons/math";
 
 const MIN_SEGMENT_LENGTH_PX = 0.0001;
 const MIN_SIGNED_AREA_TWICE = 0.000001;
@@ -125,7 +126,7 @@ const resolveReadableRotationDeg = ({
     return 0;
   }
 
-  const rawAngleDeg = (Math.atan2(dy, dx) * 180) / Math.PI;
+  const rawAngleDeg = (Math.atan2(dy, dx) * 180) / PI;
   const lineUnitX = dx / lineLengthPx;
   const lineUnitY = dy / lineLengthPx;
   const crossProduct = lineUnitX * normalY - lineUnitY * normalX;
@@ -197,7 +198,7 @@ export const computePolygonSegmentLabelPlacements = ({
       midX + outsideNormalX * offsetPx,
       midY + outsideNormalY * offsetPx
     );
-    const rawAngleDeg = (Math.atan2(dy, dx) * 180) / Math.PI;
+    const rawAngleDeg = (Math.atan2(dy, dx) * 180) / PI;
     const rotationDeg =
       rotationMode === "clockwise"
         ? normalizeAngleDeg(rawAngleDeg)

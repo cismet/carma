@@ -5,10 +5,10 @@ import {
   HeadingPitchRange,
   Matrix4,
   PerspectiveFrustum,
-  getPointsFromCartographicAndHeadingPitchRange,
   type Scene,
-} from "@carma/cesium";
-import { writePerspectiveFrustumVerticalFov } from "@carma-mapping/engines/cesium/api";
+} from "../../cesium";
+import { writePerspectiveFrustumVerticalFov } from "./PerspectiveFrustumFov";
+import { getPointsFromCartographicAndHeadingPitchRange } from "../Transforms";
 
 export type ObjectCentricCameraViewInput = {
   anchorLngRad: number;
@@ -36,11 +36,6 @@ const CAMERA_DIRECTION_EPSILON = 1e-9;
 const DEFAULT_MIN_RANGE_M = 0.01;
 export const DEFAULT_OBJECT_CENTRIC_RANGE_M = 750;
 
-/**
- * ENU convention contract:
- * Always derive local up from the chosen ENU origin (input anchor point),
- * never from camera position or other transient points.
- */
 const readEllipsoidalUpAtEnuOrigin = (enuOriginECEF: Cartesian3): Cartesian3 =>
   Cartesian3.normalize(enuOriginECEF, new Cartesian3());
 
@@ -140,13 +135,15 @@ export const applyObjectCentricCameraViewToScene = ({
     },
   });
 
+  const { fovRad } = orientation;
   if (
-    Number.isFinite(orientation.fovRad) &&
+    typeof fovRad === "number" &&
+    Number.isFinite(fovRad) &&
     scene.camera.frustum instanceof PerspectiveFrustum
   ) {
     writePerspectiveFrustumVerticalFov(
       scene.camera.frustum,
-      orientation.fovRad
+      fovRad
     );
   }
 

@@ -192,7 +192,7 @@ const Showcase = () => {
                 style={{
                   margin: 0,
                   fontSize: 12,
-                  fontWeight: 700,
+                  fontWeight: 600,
                   letterSpacing: "0.08em",
                   textTransform: "uppercase",
                   color: "#334155",
@@ -214,7 +214,7 @@ const Showcase = () => {
                 defaultCollapsed
               />
               <CardVariant
-                title="collapsed • static (header only)"
+                title="totally collapsed • static (header only)"
                 content="Collapsed body content."
                 defaultCollapsed
               />
@@ -240,7 +240,7 @@ const Showcase = () => {
                 style={{
                   margin: 0,
                   fontSize: 12,
-                  fontWeight: 700,
+                  fontWeight: 600,
                   letterSpacing: "0.08em",
                   textTransform: "uppercase",
                   color: "#334155",
@@ -262,7 +262,7 @@ const Showcase = () => {
                 defaultCollapsed
               />
               <InfoBoxVariant
-                title="collapsed • static (header only)"
+                title="totally collapsed • static (header only)"
                 content="Collapsed body content."
                 defaultCollapsed
               />

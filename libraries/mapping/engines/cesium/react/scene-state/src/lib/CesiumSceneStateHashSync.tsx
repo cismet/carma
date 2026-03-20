@@ -93,7 +93,8 @@ const isCloseSample = (a: CameraHashSample, b: CameraHashSample): boolean => {
 const readPoseSample = (
   sceneState: NonNullable<ReturnType<typeof useCesiumSceneStateOptional>>
 ): CameraPoseSample | null => {
-  const worldPosition = sceneState.camera?.worldPosition;
+  const worldPosition =
+    sceneState.camera?.worldPosition ?? sceneState.camera?.cameraModel?.pose?.position;
   if (
     !worldPosition ||
     !Number.isFinite(worldPosition.x) ||

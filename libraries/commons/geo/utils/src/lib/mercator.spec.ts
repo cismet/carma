@@ -1,6 +1,6 @@
 import { describe, expect, test } from "vitest";
 import type { Degrees, Meters, Radians } from "@carma/units/types";
-import { PI } from "@carma/units/helpers";
+import { MINUS_PI_OVER_FOUR, PI } from "@carma/units/helpers";
 
 import {
   distanceFromMercatorZoomAtLatitudeDeg,
@@ -31,7 +31,7 @@ describe("commons/utils mercator", () => {
       getMercatorScaleFactorAtLatitudeRad((Math.PI / 3) as Radians)
     ).toBeCloseTo(2);
     expect(
-      getMercatorScaleFactorAtLatitudeRad((-Math.PI / 4) as Radians)
+      getMercatorScaleFactorAtLatitudeRad(MINUS_PI_OVER_FOUR)
     ).toBeCloseTo(Math.SQRT2);
     expect(getMercatorScaleFactorAtLatitudeRad((Math.PI / 2) as Radians)).toBe(
       maxScale

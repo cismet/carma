@@ -12,10 +12,20 @@ import type {
   SceneState,
 } from "../types";
 import { computeCesiumSceneState } from "./computeCesiumSceneStateSnapshot";
+import {
+  deserializeSceneState,
+  serializeSceneState,
+  type SerializedSceneState,
+} from "./sceneStateSerialization";
+import {
+  errorFromJson,
+  errorToJson,
+  type SerializedError,
+} from "@carma/cesium";
 
 export type CesiumSceneStateStoreState = {
-  snapshot: SceneState | null;
-  error: Error | null;
+  snapshot: SerializedSceneState | null;
+  error: SerializedError | null;
 };
 
 export type CesiumSceneStateStore = Store<CesiumSceneStateStoreState> & {
@@ -77,13 +87,6 @@ export const createCesiumSceneStateStore = (
 ): CesiumSceneStateStore => {
   const reduxStore = configureStore({
     reducer: sceneStateSlice.reducer,
-    middleware: (getDefaultMiddleware) =>
-      getDefaultMiddleware({
-        // Scene snapshots intentionally carry Cesium classes (Cartesian/Matrix/etc.)
-        // and are consumed locally through this provider-only store.
-        serializableCheck: false,
-        immutableCheck: false,
-      }),
   });
   const scenePreRender = scene.preRender;
   const scenePostRender = scene.postRender;
@@ -92,17 +95,34 @@ export const createCesiumSceneStateStore = (
   let snapshot: SceneState | null = null;
   let lastError: Error | null = null;
   let lastResolvedFrameNumber: number | null = null;
+  let serializedSnapshot: SerializedSceneState | null = null;
+  let serializedError: SerializedError | null = null;
+  let serializedSnapshotSource: SceneState | null = null;
+  let serializedErrorSource: Error | null = null;
+  let deserializedSnapshotCacheSource: SerializedSceneState | null = null;
+  let deserializedSnapshotCache: SceneState | null = null;
+  let deserializedErrorCacheSource: SerializedError | null = null;
+  let deserializedErrorCache: Error | null = null;
 
   const syncStoreState = () => {
+    if (snapshot !== serializedSnapshotSource) {
+      serializedSnapshot = serializeSceneState(snapshot);
+      serializedSnapshotSource = snapshot;
+    }
+    if (lastError !== serializedErrorSource) {
+      serializedError = errorToJson(lastError);
+      serializedErrorSource = lastError;
+    }
+
     const currentStoreState = reduxStore.getState();
     if (
-      currentStoreState.snapshot !== snapshot ||
-      currentStoreState.error !== lastError
+      currentStoreState.snapshot !== serializedSnapshot ||
+      currentStoreState.error !== serializedError
     ) {
       reduxStore.dispatch(
         setSceneState({
-          snapshot,
-          error: lastError,
+          snapshot: serializedSnapshot,
+          error: serializedError,
         })
       );
     }
@@ -198,14 +218,34 @@ export const createCesiumSceneStateStore = (
 
   computeAndSync(true);
 
-  const getSnapshot = () => computeAndSync(false);
+  const getSnapshot = () => {
+    computeAndSync(false);
+    const serialized = reduxStore.getState().snapshot;
+    if (serialized === deserializedSnapshotCacheSource) {
+      return deserializedSnapshotCache;
+    }
+    const deserialized = deserializeSceneState(serialized);
+    deserializedSnapshotCacheSource = serialized;
+    deserializedSnapshotCache = deserialized;
+    return deserialized;
+  };
 
   const getError = () => {
     computeAndSync(false);
-    return lastError;
+    const serialized = reduxStore.getState().error;
+    if (serialized === deserializedErrorCacheSource) {
+      return deserializedErrorCache;
+    }
+    const deserialized = errorFromJson(serialized);
+    deserializedErrorCacheSource = serialized;
+    deserializedErrorCache = deserialized;
+    return deserialized;
   };
 
-  const refresh = () => computeAndSync(true);
+  const refresh = () => {
+    computeAndSync(true);
+    return getSnapshot();
+  };
 
   const destroy = () => {
     if (isDestroyed) {

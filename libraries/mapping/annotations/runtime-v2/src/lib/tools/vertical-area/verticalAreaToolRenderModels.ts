@@ -190,6 +190,8 @@ export const buildVerticalAreaToolRenderModels = ({
           id: `${measurement.id}-area-label`,
           measurementId: measurement.id,
           coordinate,
+          anchorKind: "area-centroid" as const,
+          occlusionMode: "auto" as const,
           content: formatAreaAdaptive(
             Math.max(0, measurement.areaSquareMeters ?? 0)
           ),

@@ -14,14 +14,9 @@ import {
 export const lockPosition = async (viewer: Viewer) => {
   const { center, camera, cameraHeight } = await getAll(viewer);
   const transform = Transforms.eastNorthUpToFixedFrame(center);
-  // viewer.scene.camera.lookAtTransform(
-  //   transform,
-  //   new Cesium.HeadingPitchRange(0, -Math.PI / 4, cameraHeight - 150)
-  // );
 
   viewer.scene.camera.lookAt(
     center,
-    // new Cesium.HeadingPitchRange(0, -Math.PI / 4, cameraHeight)
     new HeadingPitchRange(camera.heading, camera.pitch, cameraHeight)
   );
 

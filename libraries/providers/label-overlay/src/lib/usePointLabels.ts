@@ -1,16 +1,21 @@
 import React, { useEffect, useMemo, useRef } from "react";
+import { MINUS_PI_OVER_FOUR } from "@carma/math";
 import type { CssPixelPosition } from "@carma/units/types";
 
+import type { PointLabelAttach } from "./core/pointLabelAttach";
+import type {
+  PointLabelAnchorKind,
+  PointLabelOcclusionMode,
+} from "./core/pointLabelAnchorSemantics";
 import { useLabelOverlay } from "./useLabelOverlay";
-import {
-  PointLabel,
-  type PointLabelAttach,
-  type PointLabelStyleProps,
-} from "./components/PointLabel";
+import { PointLabel, type PointLabelStyleProps } from "./components/PointLabel";
 
 export interface PointLabelData {
   id: string;
   getCanvasPosition?: () => CssPixelPosition | null;
+  anchorKind?: PointLabelAnchorKind;
+  occlusionMode?: PointLabelOcclusionMode;
+  zIndex?: number;
   fontSize?: string;
   fontFamily?: string;
   fontWeight?: string | number;
@@ -37,7 +42,7 @@ export interface PointLabelData {
   collapse?: boolean;
   forceCollapse?: boolean;
   fullBorder?: boolean;
-  resizeMode?: "none" | "fast-grow-slow-shrink";
+  resizeMode?: "none" | "fast-grow-slow-shrink" | "snappy";
   content: React.ReactNode;
   contentSignature?: string;
   selected?: boolean;
@@ -142,7 +147,9 @@ export const usePointLabels = (
           p.id,
           `${p.id}:${
             p.contentSignature ?? getOverlayReferenceSignature(p.content)
-          }:${p.selected}:${p.visible}:${p.isOccluded}:${p.isHidden}:${
+          }:${p.anchorKind ?? ""}:${p.occlusionMode ?? ""}:${p.selected}:${p.visible}:${p.isOccluded}:${p.isHidden}:${
+            p.zIndex
+          }:${
             p.pitch
           }:${p.labelAngleRad}:${p.labelDistance}:${p.labelAttach}:${
             p.hideLabelAndStem
@@ -207,7 +214,8 @@ export const usePointLabels = (
         previousPointSignatureByIdRef.current.get(pointId) ?? null;
 
       // Use pitch from point data or fallback to getPitch callback
-      const pitch = point.pitch ?? (getPitch ? getPitch() : -Math.PI / 4);
+      const pitch =
+        point.pitch ?? (getPitch ? getPitch() : MINUS_PI_OVER_FOUR);
 
       const attachOverlayClickHandlers =
         point.attachOverlayClickHandlers ?? true;
@@ -243,6 +251,7 @@ export const usePointLabels = (
       if (previousSignature === nextSignature) {
         updateLabelOverlayElement(labelId, {
           getCanvasPosition: point.getCanvasPosition,
+          zIndex: point.zIndex ?? 20,
           visible: point.visible !== false,
           isHidden: point.isHidden,
           onClick: overlayClickHandler,
@@ -254,7 +263,7 @@ export const usePointLabels = (
 
       addLabelOverlayElement({
         id: labelId,
-        zIndex: 20,
+        zIndex: point.zIndex ?? 20,
         contentKey: nextSignature,
         getCanvasPosition: point.getCanvasPosition,
         content: React.createElement(PointLabel, {

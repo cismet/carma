@@ -56,6 +56,12 @@ playgrounds/stories/src/stories/
 
 - Prefer shared CARMA infobox/card/status bar components over custom story
   chrome.
+- Do not add separate Storybook controls for story-only chrome such as helper
+  infoboxes, status bars, or demo panels.
+- If a story genuinely needs chrome toggling, prefer one `hideChrome` boolean
+  that hides all story-only chrome at once.
+- If a story uses `CarmaResponsiveInfoBox`, make it `draggable` unless the
+  story is explicitly demonstrating fixed positioning.
 - Prefer `antd` for story controls and compact UI affordances when shared CARMA
   components do not already cover the need.
 - Prefer the standard Leva container where Leva is used; do not restyle it into
@@ -64,6 +70,14 @@ playgrounds/stories/src/stories/
   widgets.
 - Keep stories fullscreen unless a smaller layout is specifically the point of
   the story.
+- For map/overlay stories, prefer one plain baseline scene first and then
+  separate focused variants for benchmarking, clustering, expansion, or other
+  special interaction modes.
+- For label-overlay stories, group by intent after the library level:
+  - `Reference`
+  - `Layout`
+  - `Components`
+  - `Benchmarks`
 
 ### Cesium Stories
 

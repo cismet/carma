@@ -51,7 +51,7 @@ export const CarmaResponsiveInfoBox = ({
   footer,
   collapsed,
   onCollapsedChange,
-  collapsible = false,
+  collapsible = true,
   defaultCollapsed = false,
   useControlLayout = true,
   controlPosition = "bottomright",

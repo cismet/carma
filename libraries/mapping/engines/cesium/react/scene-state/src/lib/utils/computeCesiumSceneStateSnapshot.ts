@@ -11,6 +11,9 @@ import {
   isValidCamera,
   type CapturedCameraState,
   getEastNorthUpOffset,
+  toSceneStateCartographicRad,
+  toSceneStateMat4,
+  toSceneStateVec3,
 } from "@carma/cesium";
 import type {
   CameraIntrinsics,
@@ -27,11 +30,6 @@ import type {
 } from "../types";
 
 import { resolveSceneStateOrbitPoint } from "./SceneStateOrbitPoint";
-import {
-  toSceneStateCartographicRad,
-  toSceneStateMat4,
-  toSceneStateVec3,
-} from "./SceneStateValueAdapters";
 
 const DEFAULT_FALLBACK_HEIGHT_M = 200;
 const MIN_BASIS_VECTOR_LENGTH = 1e-6;

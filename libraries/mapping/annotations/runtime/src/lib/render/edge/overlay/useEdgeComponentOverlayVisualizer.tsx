@@ -1,6 +1,7 @@
 /* @refresh reset */
 import { createElement, useCallback, useEffect, useMemo, useRef } from "react";
 
+import { MINUS_PI_OVER_FOUR } from "@carma/math";
 import {
   BoundingSphere,
   Cartesian3,
@@ -36,7 +37,6 @@ import {
   useLineVisualizers,
   type LineVisualizerData,
 } from "@carma-providers/label-overlay";
-import { useCesiumSceneStateOptional } from "@carma-mapping/engines/cesium/react/scene-state";
 
 import {
   applyMidpointMarkerOverlayLayout,
@@ -111,9 +111,7 @@ export const useEdgeComponentOverlayVisualizer = (
   const cornerOverlayIdsRef = useRef<string[]>([]);
   const midpointOverlayIdsRef = useRef<string[]>([]);
   const verticalLabelSideByRelationIdRef = useRef<Record<string, -1 | 1>>({});
-  const sceneState = useCesiumSceneStateOptional();
-  const cameraPitch =
-    sceneState?.camera.pitchRad ?? scene?.camera.pitch ?? -Math.PI / 4;
+  const cameraPitch = scene?.camera.pitch ?? MINUS_PI_OVER_FOUR;
 
   const { addLabelOverlayElement, removeLabelOverlayElement } =
     useLabelOverlay();

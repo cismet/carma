@@ -1,6 +1,7 @@
 import { useMemo, useState, useEffect } from "react";
 
 import { defined } from "cesium";
+import { MINUS_PI_OVER_FOUR } from "@carma/math";
 
 import { usePointLabels, type PointLabelData } from "../../overlay";
 import { useCesiumViewer } from "../../contexts/CesiumViewerContext";
@@ -27,7 +28,7 @@ export const useCesiumPointLabels = (
   const [hiddenResults, setHiddenResults] = useState<Record<string, boolean>>(
     {}
   );
-  const [cameraPitch, setCameraPitch] = useState<number>(-Math.PI / 4);
+  const [cameraPitch, setCameraPitch] = useState<number>(MINUS_PI_OVER_FOUR);
 
   // Cesium-specific visibility and occlusion detection
   useEffect(() => {

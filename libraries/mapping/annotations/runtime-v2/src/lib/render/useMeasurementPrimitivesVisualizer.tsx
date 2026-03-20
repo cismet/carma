@@ -2,7 +2,7 @@ import { useMemo } from "react";
 
 import {
   cartesian3FromGeographicCoordinate,
-  projectGeographicCoordinateToScreen,
+  createGeographicCoordinateToScreenProjector,
 } from "@carma-mapping/engines/cesium/api";
 import { useCesiumEdgeVisualizer } from "@carma-mapping/engines/cesium/react/primitives";
 import {
@@ -72,19 +72,14 @@ export const useMeasurementPrimitivesVisualizer = ({
   });
 
   const overlayLines = useMemo<readonly LineVisualizerData[]>(
-    () =>
-      edgeSegments.flatMap((edge) =>
+    () => {
+      const projectToScreen = createGeographicCoordinateToScreenProjector(scene);
+      return edgeSegments.flatMap((edge) =>
         createSvgLineVisualizers({
           id: `runtime-edge-overlay-${edge.id}`,
           getSvgLine: () => {
-            const start = projectGeographicCoordinateToScreen(
-              scene,
-              edge.startCoordinate
-            );
-            const end = projectGeographicCoordinateToScreen(
-              scene,
-              edge.endCoordinate
-            );
+            const start = projectToScreen(edge.startCoordinate);
+            const end = projectToScreen(edge.endCoordinate);
             if (!start || !end) {
               return null;
             }
@@ -99,7 +94,8 @@ export const useMeasurementPrimitivesVisualizer = ({
           dashed: edge.dashed,
           hitTargetStrokeWidth: 10,
         })
-      ),
+      );
+    },
     [edgeSegments, scene]
   );
 
