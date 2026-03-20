@@ -120,8 +120,7 @@ const LeitungForm = ({
     "-ohne Bezeichnung-";
 
   // Compute sidebar main title to display in form header
-  const sidebarMain =
-    rawFeature?.id || rawProps?.id ? `L-${rawFeature?.id || rawProps?.id}` : "";
+  const sidebarMain = rawProps?.id ? `L - ${rawProps?.id}` : "";
 
   useEffect(() => {
     // Reset form when data changes to clear old values

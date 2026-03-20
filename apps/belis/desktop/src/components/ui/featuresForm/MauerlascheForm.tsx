@@ -137,8 +137,8 @@ const MauerlascheForm = ({
 
   // Compute sidebar main title to display in form header
   const sidebarMain =
-    rawProps?.laufende_nummer || rawFeature?.id || rawProps?.id
-      ? `M-${rawProps?.laufende_nummer || rawFeature?.id || rawProps?.id}`
+    rawProps?.laufende_nummer || rawProps?.id
+      ? `M - ${rawProps?.laufende_nummer || rawProps?.id}`
       : "";
 
   useEffect(() => {
