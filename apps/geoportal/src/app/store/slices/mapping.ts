@@ -96,14 +96,10 @@ const slice = createSlice({
       state.layers = newLayers;
     },
     updateLayer(state, action: PayloadAction<Layer>) {
-      const newLayers = state.layers.map((obj) => {
-        if (obj.id === action.payload.id) {
-          return action.payload;
-        } else {
-          return obj;
-        }
-      });
-      state.layers = newLayers;
+      const layer = state.layers.find((obj) => obj.id === action.payload.id);
+      if (layer) {
+        Object.assign(layer, action.payload);
+      }
     },
     removeLayer(state, action: PayloadAction<string>) {
       const removedIndex = state.layers.findIndex(
