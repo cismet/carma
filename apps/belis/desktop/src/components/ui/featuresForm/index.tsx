@@ -5,6 +5,7 @@ import StandortForm from "./StandortForm";
 import MauerlascheForm from "./MauerlascheForm";
 import SchaltstelleForm from "./SchaltstelleForm";
 import FeaturesFormsWrapper from "./FeaturesFormsWrapper";
+import ArbeitsauftragForm from "./ArbeitsauftragForm";
 
 export {
   AbzweigdoseForm,
@@ -14,6 +15,7 @@ export {
   MauerlascheForm,
   SchaltstelleForm,
   FeaturesFormsWrapper,
+  ArbeitsauftragForm,
 };
 
 export const featureFormRegistry: Record<string, React.ComponentType<any>> = {
