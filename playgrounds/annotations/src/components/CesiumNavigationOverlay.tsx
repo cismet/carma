@@ -1,100 +1,55 @@
-import { useCallback, useEffect, useRef } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 import { PI_OVER_TWO } from "@carma/math";
 import { degToRadNumeric, radToDegNumeric } from "@carma/units/helpers";
-import type { Radians } from "@carma/units/types";
-import { Cartesian3, Cartographic, type Scene } from "@carma/cesium";
+import { Cartesian3, type Scene } from "@carma/cesium";
 import { SceneNavigationControls } from "@carma-mapping/components";
-import { animateOrbitHeadingPitchRange } from "@carma-mapping/engines/cesium/api";
-import {
-  DEFAULT_OBJECT_CENTRIC_RANGE_M,
-  applyObjectCentricCameraViewToScene,
-  buildObjectCentricCameraOrientation,
-  type ObjectCentricCameraViewInput,
-  useCesiumSceneStateOptional,
-} from "@carma-mapping/engines/cesium/react/scene-state";
-import {
-  readViewStateFromSceneState,
-  type ViewState,
-} from "@carma-mapping/engines-interop/view-sync";
 
-const toObjectCentricCameraViewInput = (
-  viewState: ViewState
-): ObjectCentricCameraViewInput => ({
-  anchorLngRad: viewState.longitude,
-  anchorLatRad: viewState.latitude,
-  anchorHeightM: viewState.altitude,
-  bearingRad: viewState.bearing,
-  pitchRad: viewState.pitch,
-  rangeM: viewState.range,
-  fovVerticalRad: viewState.fovVertical,
-});
+import type { AnnotationsDemoCameraState } from "../config";
 
-const MIN_COMPASS_PITCH_RAD = 0;
-const MAX_COMPASS_PITCH_RAD = degToRadNumeric(85)!;
+const MIN_CESIUM_PITCH_RAD = -PI_OVER_TWO;
+const MAX_CESIUM_PITCH_RAD = 0;
 const COMPASS_DRAG_FACTOR_RAD_PER_PX = degToRadNumeric(0.3)!;
 const COMPASS_DRAG_THRESHOLD_PX = 3;
 const COMPASS_CLICK_DELAY_MS = 180;
-const COMPASS_ALIGN_NORTH_DURATION_MS = 700;
-const COMPASS_ALIGN_NORTH_NADIR_DURATION_MS = 900;
 
-const ZOOM_ANIMATION_DURATION_MS = 280;
 const HOME_ANIMATION_DURATION_MS = 900;
 
-const clampCompassPitchRad = (pitchRad: number) =>
-  Math.max(MIN_COMPASS_PITCH_RAD, Math.min(MAX_COMPASS_PITCH_RAD, pitchRad));
+const clampCesiumPitchRad = (pitchRad: number) =>
+  Math.max(MIN_CESIUM_PITCH_RAD, Math.min(MAX_CESIUM_PITCH_RAD, pitchRad));
 
-const animateSceneToViewState = (
+const toCompassPitchDeg = (pitchRad: number) =>
+  radToDegNumeric(clampCesiumPitchRad(pitchRad) + PI_OVER_TWO)!;
+
+const readCameraAngles = (scene: Scene) => ({
+  heading: scene.camera.heading,
+  pitch: scene.camera.pitch,
+});
+
+const applyCameraOrientation = (
   scene: Scene,
-  viewState: ViewState,
-  options: {
-    durationMs: number;
-    onDone?: () => void;
-  }
+  angles: { heading: number; pitch: number }
 ) => {
-  const { durationMs, onDone } = options;
-  const center = Cartographic.toCartesian(
-    Cartographic.fromRadians(
-      viewState.longitude,
-      viewState.latitude,
-      viewState.altitude
-    )
-  );
-  if (!center || !Cartesian3.magnitudeSquared(center)) {
-    return null;
-  }
-
-  return animateOrbitHeadingPitchRange(
-    scene,
-    center,
-    {
-      heading: (viewState.bearing ?? 0) as Radians,
-      pitch: ((viewState.pitch ?? 0) - PI_OVER_TWO) as Radians,
-      range: viewState.range ?? DEFAULT_OBJECT_CENTRIC_RANGE_M,
+  scene.camera.setView({
+    destination: scene.camera.position,
+    orientation: {
+      heading: angles.heading,
+      pitch: angles.pitch,
+      roll: scene.camera.roll,
     },
-    {
-      durationMs,
-      onComplete: onDone,
-      onCancel: onDone,
-    }
-  );
+  });
+  scene.requestRender();
 };
 
-const flySceneToViewState = (
+const flyToCameraState = (
   scene: Scene,
-  viewState: ViewState,
+  cameraState: AnnotationsDemoCameraState,
   options: {
     durationMs: number;
     onDone?: () => void;
   }
 ) => {
   const { durationMs, onDone } = options;
-  const objectCentricView = toObjectCentricCameraViewInput(viewState);
-  const orientation = buildObjectCentricCameraOrientation(objectCentricView);
-  if (!orientation) {
-    return null;
-  }
-
   let settled = false;
   const settle = () => {
     if (settled) {
@@ -104,19 +59,16 @@ const flySceneToViewState = (
     onDone?.();
   };
 
-  if (
-    typeof orientation.fovRad === "number" &&
-    scene.camera.frustum &&
-    "fov" in scene.camera.frustum
-  ) {
-    (scene.camera.frustum as { fov?: number }).fov = orientation.fovRad;
-  }
-
   scene.camera.flyTo({
-    destination: orientation.destination,
+    destination: Cartesian3.fromRadians(
+      cameraState.longitude,
+      cameraState.latitude,
+      cameraState.altitude
+    ),
     orientation: {
-      direction: orientation.direction,
-      up: orientation.up,
+      heading: cameraState.heading,
+      pitch: cameraState.pitch,
+      roll: cameraState.roll,
     },
     duration: Math.max(0, durationMs) / 1000,
     complete: settle,
@@ -134,63 +86,72 @@ const flySceneToViewState = (
 
 export const CesiumNavigationOverlay = ({
   scene,
-  initialHomeViewState = null,
+  initialHomeCameraState = null,
 }: {
   scene: Scene | null;
-  initialHomeViewState?: ViewState | null;
+  initialHomeCameraState?: AnnotationsDemoCameraState | null;
 }) => {
-  const sceneState = useCesiumSceneStateOptional();
-  const viewState = readViewStateFromSceneState(sceneState);
-  const homeViewStateRef = useRef<ViewState | null>(initialHomeViewState);
+  const homeCameraStateRef = useRef<AnnotationsDemoCameraState | null>(
+    initialHomeCameraState
+  );
+  const [cameraAngles, setCameraAngles] = useState(() =>
+    scene ? readCameraAngles(scene) : { heading: 0, pitch: degToRadNumeric(-45)! }
+  );
   const initialDragStateRef = useRef<{
     mouseX: number;
     mouseY: number;
-    bearingRad: number;
+    headingRad: number;
     pitchRad: number;
-    rangeM: number;
   } | null>(null);
   const didCompassDragRef = useRef(false);
   const pendingCompassClickTimeoutRef = useRef<number | null>(null);
   const cancelAnimationRef = useRef<(() => void) | null>(null);
 
   useEffect(() => {
-    if (initialHomeViewState) {
-      homeViewStateRef.current = initialHomeViewState;
+    if (initialHomeCameraState) {
+      homeCameraStateRef.current = initialHomeCameraState;
+    }
+  }, [initialHomeCameraState]);
+
+  useEffect(() => {
+    if (!scene) {
       return;
     }
 
-    if (!homeViewStateRef.current && viewState) {
-      homeViewStateRef.current = viewState;
-    }
-  }, [initialHomeViewState, viewState]);
+    const syncAngles = () => {
+      setCameraAngles(readCameraAngles(scene));
+    };
 
-  const applyViewStateUpdate = useCallback(
-    (update: (current: ViewState) => ViewState) => {
-      if (!scene || !viewState) {
+    syncAngles();
+    const removeMoveEndListener = scene.camera.moveEnd.addEventListener(syncAngles);
+
+    return () => {
+      removeMoveEndListener?.();
+    };
+  }, [scene]);
+
+  const applyCameraAnglesUpdate = useCallback(
+    (update: (current: { heading: number; pitch: number }) => {
+      heading: number;
+      pitch: number;
+    }) => {
+      if (!scene) {
         return;
       }
 
       cancelAnimationRef.current?.();
-      const nextViewState = update(viewState);
-      const cancelAnimation = animateSceneToViewState(scene, nextViewState, {
-        durationMs: 0,
-        onDone: () => {
-          cancelAnimationRef.current = null;
-        },
-      });
-
-      if (cancelAnimation) {
-        cancelAnimationRef.current = cancelAnimation;
-        return;
-      }
-
+      const nextAngles = update(cameraAngles);
       cancelAnimationRef.current = null;
-      applyObjectCentricCameraViewToScene({
-        scene,
-        view: toObjectCentricCameraViewInput(nextViewState),
+      applyCameraOrientation(scene, {
+        heading: nextAngles.heading,
+        pitch: clampCesiumPitchRad(nextAngles.pitch),
+      });
+      setCameraAngles({
+        heading: nextAngles.heading,
+        pitch: clampCesiumPitchRad(nextAngles.pitch),
       });
     },
-    [scene, viewState]
+    [cameraAngles, scene]
   );
 
   useEffect(() => {
@@ -208,19 +169,17 @@ export const CesiumNavigationOverlay = ({
         didCompassDragRef.current = true;
       }
 
-      const nextBearingRad =
-        dragState.bearingRad +
+      const nextHeadingRad =
+        dragState.headingRad +
         (event.clientX - dragState.mouseX) * COMPASS_DRAG_FACTOR_RAD_PER_PX;
-      const nextPitchRad = clampCompassPitchRad(
+      const nextPitchRad = clampCesiumPitchRad(
         dragState.pitchRad -
           (event.clientY - dragState.mouseY) * COMPASS_DRAG_FACTOR_RAD_PER_PX
       );
 
-      applyViewStateUpdate((current) => ({
-        ...current,
-        bearing: nextBearingRad as ViewState["bearing"],
-        pitch: nextPitchRad as ViewState["pitch"],
-        range: dragState.rangeM as ViewState["range"],
+      applyCameraAnglesUpdate(() => ({
+        heading: nextHeadingRad,
+        pitch: nextPitchRad,
       }));
     };
 
@@ -235,7 +194,7 @@ export const CesiumNavigationOverlay = ({
       window.removeEventListener("mousemove", handleMouseMove);
       window.removeEventListener("mouseup", handleMouseUp);
     };
-  }, [applyViewStateUpdate]);
+  }, [applyCameraAnglesUpdate]);
 
   useEffect(
     () => () => {
@@ -253,7 +212,7 @@ export const CesiumNavigationOverlay = ({
       event.preventDefault();
       event.stopPropagation();
 
-      if (!viewState) {
+      if (!scene) {
         return;
       }
 
@@ -261,56 +220,30 @@ export const CesiumNavigationOverlay = ({
       initialDragStateRef.current = {
         mouseX: event.clientX,
         mouseY: event.clientY,
-        bearingRad: viewState.bearing ?? 0,
-        pitchRad: clampCompassPitchRad(viewState.pitch ?? 0),
-        rangeM: viewState.range ?? DEFAULT_OBJECT_CENTRIC_RANGE_M,
+        headingRad: scene.camera.heading,
+        pitchRad: clampCesiumPitchRad(scene.camera.pitch),
       };
-    },
-    [viewState]
-  );
-
-  const animateToViewState = useCallback(
-    (nextViewState: ViewState, durationMs: number) => {
-      if (!scene) {
-        return false;
-      }
-
-      cancelAnimationRef.current?.();
-      cancelAnimationRef.current = animateSceneToViewState(
-        scene,
-        nextViewState,
-        {
-          durationMs,
-          onDone: () => {
-            cancelAnimationRef.current = null;
-          },
-        }
-      );
-
-      return Boolean(cancelAnimationRef.current);
     },
     [scene]
   );
 
-  const animateRangeMultiplier = useCallback(
+  const zoomCamera = useCallback(
     (multiplier: number) => {
-      if (!viewState) {
+      if (!scene) {
         return;
       }
 
-      const nextViewState = {
-        ...viewState,
-        range: Math.max(
-          5,
-          (viewState.range ?? DEFAULT_OBJECT_CENTRIC_RANGE_M) * multiplier
-        ) as ViewState["range"],
-      };
-
-      if (!animateToViewState(nextViewState, ZOOM_ANIMATION_DURATION_MS)) {
-        applyViewStateUpdate(() => nextViewState);
+      const height = scene.camera.positionCartographic?.height;
+      const amount = Math.max(10, (Number.isFinite(height) ? height : 1000) * multiplier);
+      if (multiplier < 1) {
+        scene.camera.zoomIn(amount);
+      } else {
+        scene.camera.zoomOut(amount);
       }
+      scene.requestRender();
+      setCameraAngles(readCameraAngles(scene));
     },
-    [animateToViewState, applyViewStateUpdate, viewState]
+    [scene]
   );
 
   const handleCompassClick = useCallback(
@@ -318,7 +251,7 @@ export const CesiumNavigationOverlay = ({
       event.preventDefault();
       event.stopPropagation();
 
-      if (!viewState) {
+      if (!scene) {
         return;
       }
 
@@ -332,21 +265,14 @@ export const CesiumNavigationOverlay = ({
       }
 
       pendingCompassClickTimeoutRef.current = window.setTimeout(() => {
-        const nextViewState = {
-          ...viewState,
-          bearing: 0 as ViewState["bearing"],
-        };
-
-        if (
-          !animateToViewState(nextViewState, COMPASS_ALIGN_NORTH_DURATION_MS)
-        ) {
-          applyViewStateUpdate(() => nextViewState);
-        }
-
+        applyCameraAnglesUpdate((current) => ({
+          heading: 0,
+          pitch: current.pitch,
+        }));
         pendingCompassClickTimeoutRef.current = null;
       }, COMPASS_CLICK_DELAY_MS);
     },
-    [animateToViewState, applyViewStateUpdate, viewState]
+    [applyCameraAnglesUpdate, scene]
   );
 
   const handleCompassDoubleClick = useCallback(
@@ -354,7 +280,7 @@ export const CesiumNavigationOverlay = ({
       event.preventDefault();
       event.stopPropagation();
 
-      if (!viewState) {
+      if (!scene) {
         return;
       }
 
@@ -365,22 +291,12 @@ export const CesiumNavigationOverlay = ({
 
       didCompassDragRef.current = false;
 
-      const nextViewState = {
-        ...viewState,
-        bearing: 0 as ViewState["bearing"],
-        pitch: 0 as ViewState["pitch"],
-      };
-
-      if (
-        !animateToViewState(
-          nextViewState,
-          COMPASS_ALIGN_NORTH_NADIR_DURATION_MS
-        )
-      ) {
-        applyViewStateUpdate(() => nextViewState);
-      }
+      applyCameraAnglesUpdate(() => ({
+        heading: 0,
+        pitch: -PI_OVER_TWO,
+      }));
     },
-    [animateToViewState, applyViewStateUpdate, viewState]
+    [applyCameraAnglesUpdate, scene]
   );
 
   const handleHomeClick = useCallback(
@@ -388,42 +304,31 @@ export const CesiumNavigationOverlay = ({
       event.preventDefault();
       event.stopPropagation();
 
-      const homeViewState = homeViewStateRef.current;
-      if (!homeViewState) {
+      const homeCameraState = homeCameraStateRef.current;
+      if (!scene || !homeCameraState) {
         return;
       }
 
       cancelAnimationRef.current?.();
-      cancelAnimationRef.current = flySceneToViewState(
-        scene as Scene,
-        homeViewState,
+      cancelAnimationRef.current = flyToCameraState(
+        scene,
+        homeCameraState,
         {
           durationMs: HOME_ANIMATION_DURATION_MS,
           onDone: () => {
             cancelAnimationRef.current = null;
+            setCameraAngles(readCameraAngles(scene));
           },
         }
       );
-
-      if (
-        !cancelAnimationRef.current &&
-        !animateToViewState(homeViewState, HOME_ANIMATION_DURATION_MS)
-      ) {
-        applyObjectCentricCameraViewToScene({
-          scene: scene as Scene,
-          view: toObjectCentricCameraViewInput(homeViewState),
-        });
-      }
     },
-    [animateToViewState, scene]
+    [scene]
   );
 
-  const disabled = !scene || !viewState;
-  const homeDisabled = !scene || !homeViewStateRef.current;
-  const headingDeg = radToDegNumeric(viewState?.bearing ?? 0)!;
-  const pitchDeg = radToDegNumeric(
-    clampCompassPitchRad(viewState?.pitch ?? 0)
-  )!;
+  const disabled = !scene;
+  const homeDisabled = !scene || !homeCameraStateRef.current;
+  const headingDeg = radToDegNumeric(cameraAngles.heading ?? 0)!;
+  const pitchDeg = toCompassPitchDeg(cameraAngles.pitch ?? -PI_OVER_TWO);
 
   return (
     <SceneNavigationControls
@@ -442,7 +347,7 @@ export const CesiumNavigationOverlay = ({
         onClick: (event) => {
           event.preventDefault();
           event.stopPropagation();
-          animateRangeMultiplier(0.5);
+          zoomCamera(0.5);
         },
       }}
       zoomOut={{
@@ -452,7 +357,7 @@ export const CesiumNavigationOverlay = ({
         onClick: (event) => {
           event.preventDefault();
           event.stopPropagation();
-          animateRangeMultiplier(2);
+          zoomCamera(2);
         },
       }}
       compass={{

@@ -14,19 +14,19 @@ const barStyle = {
   left: 0,
   right: 0,
   bottom: 0,
-  zIndex: 1800,
-  padding: "0 10px 10px",
+  zIndex: 1500,
+  padding: 0,
   pointerEvents: "none",
 } as const;
 
 const shellStyle = {
   width: "100%",
-  minHeight: 36,
+  minHeight: 20,
   display: "flex",
   alignItems: "center",
   justifyContent: "space-between",
   gap: 12,
-  padding: "8px 14px",
+  padding: "2px 14px",
   boxSizing: "border-box",
   border: "1px solid rgba(148, 163, 184, 0.35)",
   background: "rgba(255, 255, 255, 0.44)",
@@ -36,8 +36,8 @@ const shellStyle = {
   color: "#4b5563",
   fontFamily:
     'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace',
-  fontSize: 12,
-  lineHeight: 1.2,
+  fontSize: 11,
+  lineHeight: 1.05,
   pointerEvents: "auto",
 } as const;
 

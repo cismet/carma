@@ -6,6 +6,8 @@ import { annotationTooltipProps } from "../../shared/annotationTooltip";
 
 const DEFAULT_ICON_CLASSNAME =
   "cursor-pointer text-base text-[#808080] hover:text-[#a0a0a0]";
+const DISABLED_ICON_CLASSNAME =
+  "cursor-not-allowed text-base text-[#b8b8b8] opacity-50";
 
 type AnnotationInfoBoxActionIconProps = {
   title: string;
@@ -14,6 +16,8 @@ type AnnotationInfoBoxActionIconProps = {
   dataTestId?: string;
   className?: string;
   ariaLabel?: string;
+  disabled?: boolean;
+  fixedWidth?: boolean;
 };
 
 export const AnnotationInfoBoxActionIcon = ({
@@ -23,15 +27,27 @@ export const AnnotationInfoBoxActionIcon = ({
   dataTestId,
   className,
   ariaLabel,
+  disabled = false,
+  fixedWidth = false,
 }: AnnotationInfoBoxActionIconProps) => {
   return (
     <Tooltip {...annotationTooltipProps} title={title}>
       <FontAwesomeIcon
-        onClick={onClick}
-        className={className ?? DEFAULT_ICON_CLASSNAME}
+        onClick={(event) => {
+          if (disabled) {
+            event.stopPropagation();
+            return;
+          }
+          onClick(event);
+        }}
+        className={
+          className ?? (disabled ? DISABLED_ICON_CLASSNAME : DEFAULT_ICON_CLASSNAME)
+        }
         icon={icon}
         data-test-id={dataTestId}
         aria-label={ariaLabel}
+        aria-disabled={disabled}
+        fixedWidth={fixedWidth}
       />
     </Tooltip>
   );

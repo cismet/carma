@@ -27,6 +27,8 @@ import {
   getVerticalPolygonAxisRotationSuffix,
   isPointAnnotationEntry,
   orientPlaneNormalTowardPosition,
+  type AnnotationCollection,
+  type NodeChainAnnotation,
   type PlanarPolygonPlane,
   type ReferenceLineLabelKind,
 } from "@carma-mapping/annotations/core";
@@ -37,10 +39,6 @@ import type {
   AnnotationEditTarget,
   AnnotationEditUpdateTarget,
 } from "./annotationEdit.types";
-import type {
-  AnnotationCollection,
-  NodeChainAnnotation,
-} from "@carma-mapping/annotations/core";
 import type { Scene } from "@carma/cesium";
 import type { AnnotationsStore } from "../../store";
 import type { AnnotationEditingContextType } from "../../context/annotationsContext.types";
@@ -154,6 +152,16 @@ export const useEditing = (
     () => annotations.filter((measurement) => !measurement.hidden),
     [annotations]
   );
+  const isLockedPointMeasurement = useCallback(
+    (pointId: string) =>
+      annotations.some(
+        (annotation) =>
+          isPointAnnotationEntry(annotation) &&
+          annotation.id === pointId &&
+          Boolean(annotation.locked)
+      ),
+    [annotations]
+  );
 
   usePointEditingGizmo(scene, visibleAnnotationsForRendering, moveGizmo, {
     pointRadius,
@@ -191,6 +199,10 @@ export const useEditing = (
 
   const handlePointVerticalOffsetStemLongPress = useCallback(
     (pointId: string) => {
+      if (isLockedPointMeasurement(pointId)) {
+        return;
+      }
+
       const pointMeasurement = annotations.find(
         (annotation) =>
           isPointAnnotationEntry(annotation) && annotation.id === pointId
@@ -224,6 +236,7 @@ export const useEditing = (
     },
     [
       annotations,
+      isLockedPointMeasurement,
       nodeChainAnnotations,
       selectAnnotationById,
       startMoveGizmoForAnnotationId,
@@ -232,6 +245,10 @@ export const useEditing = (
 
   const handlePointLabelLongPress = useCallback(
     (pointId: string) => {
+      if (isLockedPointMeasurement(pointId)) {
+        return;
+      }
+
       const targetVerticalPolygonGroup =
         (focusedNodeChainAnnotationId
           ? nodeChainAnnotations.find(
@@ -633,6 +650,7 @@ export const useEditing = (
     [
       annotations,
       focusedNodeChainAnnotationId,
+      isLockedPointMeasurement,
       orientPlaneTowardSceneCamera,
       nodeChainAnnotations,
       selectAnnotationById,
@@ -642,6 +660,10 @@ export const useEditing = (
 
   const requestStartEdit = useCallback(
     (target: AnnotationEditTarget) => {
+      if (isLockedPointMeasurement(target.pointId)) {
+        return;
+      }
+
       switch (target.kind) {
         case "point-vertical-offset-stem":
           handlePointVerticalOffsetStemLongPress(target.pointId);
@@ -661,6 +683,8 @@ export const useEditing = (
     [
       handlePointLabelLongPress,
       handlePointVerticalOffsetStemLongPress,
+      isLockedPointMeasurement,
+      setActiveEditTarget,
       selectAnnotationById,
       startMoveGizmoForAnnotationId,
     ]

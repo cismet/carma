@@ -985,6 +985,7 @@ export const usePointLabelVisualizer = (
         !isEditingPoint &&
         !Boolean(markerlessPointIds?.has(point.id)) &&
         Boolean(pointMarkerBadge?.text);
+      const isLockedPoint = Boolean(point.locked);
       const inlineLabelBadgeContent =
         showInlineLabelBadge && pointMarkerBadge
           ? createInlineLabelBadgeContent(
@@ -1117,8 +1118,12 @@ export const usePointLabelVisualizer = (
             ? (hovered: boolean, anchorPosition?: CssPixelPosition | null) =>
                 onPointHoverChange(point.id, hovered, anchorPosition)
             : undefined,
-        markerOnlyPointerEvents: markerOnlyOverlayNodeInteractions,
-        attachOverlayClickHandlers: !markerOnlyOverlayNodeInteractions,
+        markerOnlyPointerEvents:
+          markerOnlyOverlayNodeInteractions || isLockedPoint,
+        attachOverlayClickHandlers:
+          !(markerOnlyOverlayNodeInteractions || isLockedPoint),
+        markerCursor: isLockedPoint ? "pointer" : "grab",
+        labelCursor: "pointer",
         forceMarkerInteractionTarget: Boolean(
           interactivePointIds?.has(point.id)
         ),

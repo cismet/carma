@@ -233,12 +233,23 @@ const stopHeadingActionPropagation = (
 
 const renderNodeChainHeadingActions = (
   input: AnnotationInfoBoxEntryPayload
-) => (
-  <div
-    className="flex items-center gap-2"
-    onMouseDown={stopInputEventPropagation}
-    onClick={stopInputEventPropagation}
-  >
+) => {
+  const annotationLockedById = new Map(
+    input.annotations.map((entry) => [entry.id, Boolean(entry.locked)] as const)
+  );
+  const isLocked =
+    Boolean(input.nodeChainAnnotation) &&
+    input.nodeChainAnnotation.nodeIds.length > 0 &&
+    input.nodeChainAnnotation.nodeIds.every((nodeId) =>
+      Boolean(annotationLockedById.get(nodeId))
+    );
+
+  return (
+    <div
+      className="flex items-center gap-2"
+      onMouseDown={stopInputEventPropagation}
+      onClick={stopInputEventPropagation}
+    >
     <Tooltip {...annotationTooltipProps} title="Zur Messung fliegen">
       <Icon
         name="search-location"
@@ -270,45 +281,21 @@ const renderNodeChainHeadingActions = (
         input.actions.toggleVisibilityByIds([input.nodeChainAnnotation.id]);
       }}
       dataTestId="carma-toggle-node-chain-annotation-visibility-btn"
+      fixedWidth={true}
     />
     <AnnotationInfoBoxActionIcon
-      title={(() => {
-        if (!input.nodeChainAnnotation) return "Sperren";
-        const annotationLockedById = new Map(
-          input.annotations.map(
-            (entry) => [entry.id, Boolean(entry.locked)] as const
-          )
-        );
-        const isLocked =
-          input.nodeChainAnnotation.nodeIds.length > 0 &&
-          input.nodeChainAnnotation.nodeIds.every((nodeId) =>
-            Boolean(annotationLockedById.get(nodeId))
-          );
-        return isLocked ? "Entsperren" : "Sperren";
-      })()}
-      icon={(() => {
-        if (!input.nodeChainAnnotation) return faLockOpen;
-        const annotationLockedById = new Map(
-          input.annotations.map(
-            (entry) => [entry.id, Boolean(entry.locked)] as const
-          )
-        );
-        const isLocked =
-          input.nodeChainAnnotation.nodeIds.length > 0 &&
-          input.nodeChainAnnotation.nodeIds.every((nodeId) =>
-            Boolean(annotationLockedById.get(nodeId))
-          );
-        return isLocked ? faLock : faLockOpen;
-      })()}
+      title={isLocked ? "Entsperren" : "Sperren"}
+      icon={isLocked ? faLock : faLockOpen}
       onClick={(event) => {
         stopHeadingActionPropagation(event);
         if (!input.nodeChainAnnotation) return;
         input.actions.toggleLockByIds([input.nodeChainAnnotation.id]);
       }}
       dataTestId="carma-toggle-node-chain-annotation-lock-btn"
+      fixedWidth={true}
     />
     <AnnotationInfoBoxActionIcon
-      title="Löschen"
+      title={isLocked ? "Gesperrte Messung kann nicht gelöscht werden" : "Löschen"}
       icon={faTrashCan}
       onClick={(event) => {
         stopHeadingActionPropagation(event);
@@ -316,9 +303,11 @@ const renderNodeChainHeadingActions = (
         input.actions.removeByIds([input.nodeChainAnnotation.id]);
       }}
       dataTestId="carma-delete-node-chain-annotation-btn"
+      disabled={isLocked}
     />
   </div>
-);
+  );
+};
 
 export const getNodeChainAnnotationInfoBoxSlots = (
   input: AnnotationInfoBoxEntryPayload

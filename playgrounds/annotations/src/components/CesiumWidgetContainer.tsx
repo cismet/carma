@@ -7,99 +7,36 @@ import {
 } from "react";
 import {
   Cartesian2,
-  Cartographic,
   Cartesian3,
   Cesium3DTileset,
   CesiumTerrainProvider,
   type CesiumWidget,
   type Scene,
 } from "@carma/cesium";
+import { createMinimalCesiumWidget } from "@carma-mapping/engines/cesium/api";
 import {
-  createMinimalCesiumWidget,
-  sampleTerrainMostDetailedGuardedAsync,
-} from "@carma-mapping/engines/cesium/api";
-import {
-  applyObjectCentricCameraViewToScene,
-  type ObjectCentricCameraViewInput,
-} from "@carma-mapping/engines/cesium/react/scene-state";
-import type { ViewState } from "@carma-mapping/engines-interop/view-sync";
-import { isFiniteNumber } from "@carma/math";
-import { degToRadNumeric } from "@carma/units/helpers";
-import {
-  WUPPERTAL,
   WUPP_MESH_2024,
   WUPP_TERRAIN_PROVIDER,
   WUPP_TERRAIN_PROVIDER_DSM_MESH_2024_1M,
 } from "@carma-commons/resources";
+import {
+  ANNOTATIONS_DEMO_HOME_CAMERA_STATE,
+  type AnnotationsDemoCameraState,
+} from "../config";
 
-const toObjectCentricCameraViewInput = (
-  viewState: ViewState
-): ObjectCentricCameraViewInput => ({
-  anchorLngRad: viewState.longitude,
-  anchorLatRad: viewState.latitude,
-  anchorHeightM: viewState.altitude,
-  bearingRad: viewState.bearing,
-  pitchRad: viewState.pitch,
-  rangeM: viewState.range,
-  fovVerticalRad: viewState.fovVertical,
-});
-
-type DefaultCameraState = {
-  longitude: number;
-  latitude: number;
-  heightAboveTerrain: number;
-  heading: number;
-  pitch: number;
-  roll: number;
-};
-
-const DEFAULT_CAMERA_HEIGHT_ABOVE_TERRAIN_M = 500;
-const DEFAULT_INITIAL_CAMERA_STATE: DefaultCameraState = {
-  longitude: degToRadNumeric(WUPPERTAL.position.longitude),
-  latitude: degToRadNumeric(WUPPERTAL.position.latitude - 0.003),
-  heightAboveTerrain: DEFAULT_CAMERA_HEIGHT_ABOVE_TERRAIN_M,
-  heading: degToRadNumeric(0),
-  pitch: degToRadNumeric(-45),
-  roll: 0,
-};
-
-const sampleTerrainHeightAtPosition = async (
-  terrainProvider: CesiumTerrainProvider,
-  longitude: number,
-  latitude: number
-): Promise<number> => {
-  const [sampledCartographic] = await sampleTerrainMostDetailedGuardedAsync(
-    terrainProvider,
-    [Cartographic.fromRadians(longitude, latitude)],
-    true,
-    true
-  );
-  const sampledHeight = sampledCartographic?.height;
-  if (!isFiniteNumber(sampledHeight)) {
-    throw new Error(
-      `[annotations-playground] Missing terrain height sample at lon=${longitude.toFixed(
-        6
-      )}rad lat=${latitude.toFixed(6)}rad`
-    );
-  }
-  return sampledHeight;
+const DEFAULT_INITIAL_CAMERA_STATE: AnnotationsDemoCameraState = {
+  ...ANNOTATIONS_DEMO_HOME_CAMERA_STATE,
 };
 
 const applyCameraState = async (
   widget: CesiumWidget,
-  terrainProvider: CesiumTerrainProvider,
-  state: DefaultCameraState
+  state: AnnotationsDemoCameraState
 ) => {
-  const sampledTerrainHeight = await sampleTerrainHeightAtPosition(
-    terrainProvider,
-    state.longitude,
-    state.latitude
-  );
   widget.camera.setView({
     destination: Cartesian3.fromRadians(
       state.longitude,
       state.latitude,
-      sampledTerrainHeight + state.heightAboveTerrain
+      state.altitude
     ),
     orientation: {
       heading: state.heading,
@@ -163,26 +100,12 @@ const initializeTerrainProviders = async () => {
 
 const applyInitialCameraState = async ({
   widget,
-  terrainProvider,
-  initialViewState,
+  initialCameraState,
 }: {
   widget: CesiumWidget;
-  terrainProvider: CesiumTerrainProvider;
-  initialViewState: ViewState | null;
+  initialCameraState: AnnotationsDemoCameraState | null;
 }) => {
-  if (initialViewState) {
-    const objectCentricView = toObjectCentricCameraViewInput(initialViewState);
-    if (
-      applyObjectCentricCameraViewToScene({
-        scene: widget.scene,
-        view: objectCentricView,
-      })
-    ) {
-      return;
-    }
-  }
-
-  await applyCameraState(widget, terrainProvider, DEFAULT_INITIAL_CAMERA_STATE);
+  await applyCameraState(widget, initialCameraState ?? DEFAULT_INITIAL_CAMERA_STATE);
 };
 
 const sampleScreenCenterTerrainIntersection = (scene: Scene) => {
@@ -201,14 +124,14 @@ const sampleScreenCenterTerrainIntersection = (scene: Scene) => {
   return globe.pick(ray, scene);
 };
 
-const assertScreenCenterTerrainIntersection = async (
+const ensureScreenCenterTerrainIntersection = async (
   scene: Scene,
   maxAttempts = 45
 ) => {
   for (let attempt = 0; attempt < maxAttempts; attempt += 1) {
     const hit = sampleScreenCenterTerrainIntersection(scene);
     if (hit) {
-      return;
+      return true;
     }
     scene.requestRender();
     await new Promise<void>((resolve) => {
@@ -216,9 +139,10 @@ const assertScreenCenterTerrainIntersection = async (
     });
   }
 
-  throw new Error(
-    "[annotations-playground] Missing terrain intersection at screen center."
+  console.warn(
+    "[annotations-playground] Missing terrain intersection at screen center during startup. Continuing with scene-state fallback handling."
   );
+  return false;
 };
 
 const loadTileset = async (
@@ -254,7 +178,7 @@ const loadTileset = async (
 type CesiumWidgetContainerProps = {
   rootRef: MutableRefObject<HTMLDivElement | null>;
   onSceneChange?: (scene: Scene | null) => void;
-  initialViewState?: ViewState | null;
+  initialCameraState?: AnnotationsDemoCameraState | null;
   startPoseResolved?: boolean;
   children: ReactNode;
 };
@@ -262,7 +186,7 @@ type CesiumWidgetContainerProps = {
 export function CesiumWidgetContainer({
   rootRef,
   onSceneChange,
-  initialViewState = null,
+  initialCameraState = null,
   startPoseResolved = true,
   children,
 }: CesiumWidgetContainerProps) {
@@ -304,10 +228,9 @@ export function CesiumWidgetContainer({
 
       await applyInitialCameraState({
         widget,
-        terrainProvider: providers.terrain,
-        initialViewState,
+        initialCameraState,
       });
-      await assertScreenCenterTerrainIntersection(widget.scene);
+      await ensureScreenCenterTerrainIntersection(widget.scene);
 
       if (disposed || widget.isDestroyed()) return;
 
@@ -353,7 +276,7 @@ export function CesiumWidgetContainer({
         widget.destroy();
       }
     };
-  }, [initialViewState, onSceneChange, startPoseResolved]);
+  }, [initialCameraState, onSceneChange, startPoseResolved]);
 
   useEffect(() => {
     if (!isWidgetReady) {

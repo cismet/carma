@@ -10,6 +10,8 @@ export interface PointLabelStyleProps {
   fontSize?: string;
   fontFamily?: string;
   fontWeight?: string | number;
+  markerCursor?: React.CSSProperties["cursor"];
+  labelCursor?: React.CSSProperties["cursor"];
   textColor?: string;
   textBackgroundColor?: string;
   selectedBackgroundColor?: string;
@@ -129,6 +131,8 @@ export const PointLabel = React.memo(
     fontSize = "12px",
     fontFamily = "Arial, sans-serif",
     fontWeight = "400",
+    markerCursor,
+    labelCursor,
     textColor = "black",
     textBackgroundColor = POINT_LABEL_TEXT_BACKGROUND_COLOR,
     selectedBackgroundColor = POINT_LABEL_SELECTED_BACKGROUND_COLOR,
@@ -239,18 +243,26 @@ export const PointLabel = React.memo(
         onMarkerDragMove ||
         onMarkerDragEnd
     );
-    const markerPointerEvents = isInteractive ? "auto" : "none";
-    const labelPointerEvents =
-      isInteractive && !markerOnlyPointerEvents ? "auto" : "none";
+    const markerCapturesPointer = isInteractive || Boolean(markerCursor);
+    const markerPointerEvents = markerCapturesPointer ? "auto" : "none";
+    const labelCapturesPointer =
+      (isInteractive && !markerOnlyPointerEvents) || Boolean(labelCursor);
+    const labelPointerEvents = labelCapturesPointer ? "auto" : "none";
     const renderInvisibleInteractionMarker =
-      isInteractive &&
+      markerCapturesPointer &&
       hideMarker &&
       (forceMarkerInteractionTarget || markerOnlyPointerEvents);
-    const cursor = forceMarkerInteractionTarget
+    const resolvedMarkerCursor = forceMarkerInteractionTarget
       ? "none"
-      : onClick || onDoubleClick || onLongPress
-      ? "pointer"
-      : "default";
+      : markerCursor ??
+        (onClick || onDoubleClick || onLongPress ? "pointer" : "default");
+    const resolvedLabelCursor =
+      labelCursor ??
+      (forceMarkerInteractionTarget
+        ? "none"
+        : onClick || onDoubleClick || onLongPress
+        ? "pointer"
+        : "default");
     const effectiveLineColor = lineColor;
     const effectiveTextColor = textColor;
     const effectiveBackgroundColor = selected
@@ -531,7 +543,7 @@ export const PointLabel = React.memo(
               renderInvisibleInteractionMarker ? "transparent" : markerTextColor
             }
             pointerEvents={markerPointerEvents}
-            cursor={cursor}
+            cursor={resolvedMarkerCursor}
             onClick={handleClick}
             onDoubleClick={handleDoubleClick}
             onMouseDown={(event) => handleMouseDown(event)}
@@ -571,7 +583,7 @@ export const PointLabel = React.memo(
                 backgroundColor={effectiveBackgroundColor}
                 textColor={effectiveTextColor}
                 pointerEvents={labelPointerEvents}
-                cursor={cursor}
+                cursor={resolvedLabelCursor}
                 transition={positionTransition}
                 collapse={collapseToCompact}
                 markerContent={hasCompactContent ? compactContent : undefined}
@@ -615,7 +627,7 @@ export const PointLabel = React.memo(
                   top: labelTop,
                   transform: labelTransform,
                   pointerEvents: labelPointerEvents,
-                  cursor,
+                  cursor: resolvedLabelCursor,
                   transition: positionTransition,
                 }}
                 onClick={handleClick}

@@ -1,9 +1,7 @@
 export {
   HashStateProvider,
-  HashStateProviderBase,
   HASH_CLEAR_KEY_SET,
   useHashState,
-  type HashStateProviderBaseProps,
   type HashClearKeySetId,
   type HashChangeEvent,
   type HashChangeSource,
