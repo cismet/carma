@@ -81,10 +81,6 @@ import "leaflet/dist/leaflet.css";
 import "maplibre-gl/dist/maplibre-gl.css";
 import "cesium/Build/Cesium/Widgets/widgets.css";
 
-if (typeof window !== "undefined") {
-  (window as any).CESIUM_BASE_URL = "/__cesium__/";
-}
-
 type SlotFramework = "cesium" | "maplibre" | "leaflet";
 
 type SlotConfig = {

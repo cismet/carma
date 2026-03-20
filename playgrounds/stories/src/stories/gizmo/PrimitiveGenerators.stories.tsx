@@ -27,7 +27,10 @@ if (
   typeof window !== "undefined" &&
   !(window as { CESIUM_BASE_URL?: string }).CESIUM_BASE_URL
 ) {
-  (window as { CESIUM_BASE_URL?: string }).CESIUM_BASE_URL = "/__cesium__/";
+  (window as { CESIUM_BASE_URL?: string }).CESIUM_BASE_URL = new URL(
+    "__cesium__/",
+    document.baseURI
+  ).toString();
 }
 
 type PrimitiveContentMode = "unit-disc" | "unique-primitives";

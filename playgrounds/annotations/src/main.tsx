@@ -3,7 +3,7 @@ import * as ReactDOM from "react-dom/client";
 import { ConfigProvider, theme } from "antd";
 
 import { setupCesiumEnvironment } from "@carma-mapping/engines/cesium";
-import { HashStateProvider } from "@carma-providers/hash-state";
+import { HashStateProviderBase } from "@carma-providers/hash-state";
 
 import { App } from "./App";
 import { APP_BASE_PATH, CESIUM_PATHNAME } from "./config";
@@ -62,7 +62,7 @@ const root = ReactDOM.createRoot(
 );
 
 root.render(
-  <HashStateProvider>
+  <HashStateProviderBase routedPath="/">
     <ConfigProvider
       theme={{
         algorithm: theme.compactAlgorithm,
@@ -71,5 +71,5 @@ root.render(
     >
       <App />
     </ConfigProvider>
-  </HashStateProvider>
+  </HashStateProviderBase>
 );

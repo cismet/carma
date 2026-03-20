@@ -32,7 +32,6 @@ import {
 import "cesium/Build/Cesium/Widgets/widgets.css";
 
 if (typeof window !== "undefined") {
-  (window as any).CESIUM_BASE_URL = "/__cesium__/";
   (window as any).__CARMA_DEBUG_AXIS_VISUALIZER__ = true;
 }
 

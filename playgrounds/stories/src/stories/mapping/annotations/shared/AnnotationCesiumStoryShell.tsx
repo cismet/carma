@@ -1,17 +1,11 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
+import { MemoryRouter } from "react-router-dom";
 import type { Scene, CesiumWidget } from "@carma/cesium";
 import { LabelOverlayProvider } from "@carma-providers/label-overlay";
 import { CesiumSceneStateProvider } from "@carma-mapping/engines/cesium/react/scene-state";
 import { setupCesium } from "../../../map-framework-switcher/helpers/cesium-setup";
 
 import "cesium/Build/Cesium/Widgets/widgets.css";
-
-if (
-  typeof window !== "undefined" &&
-  !(window as { CESIUM_BASE_URL?: string }).CESIUM_BASE_URL
-) {
-  (window as { CESIUM_BASE_URL?: string }).CESIUM_BASE_URL = "/__cesium__/";
-}
 
 const STORY_HEIGHT = "100vh";
 
@@ -112,36 +106,38 @@ export const AnnotationCesiumStoryShell = ({
     typeof children === "function" ? children({ scene }) : children;
 
   return (
-    <div
-      ref={rootRef}
-      style={{
-        position: "relative",
-        width: "100%",
-        height,
-        overflow: "hidden",
-        backgroundColor: "transparent",
-      }}
-    >
+    <MemoryRouter initialEntries={["/"]}>
       <div
-        ref={cesiumContainerRef}
+        ref={rootRef}
         style={{
-          position: "absolute",
-          inset: 0,
-        }}
-      />
-      <CesiumSceneStateProvider
-        scene={scene}
-        options={{
-          orbitPointMode: "screen-center",
-          screenCenterSamplingStrategy: "terrain-only",
-          throwOnMissingScreenCenterIntersection: true,
-          fallbackHeightM: 200,
+          position: "relative",
+          width: "100%",
+          height,
+          overflow: "hidden",
+          backgroundColor: "transparent",
         }}
       >
-        <LabelOverlayProvider containerRef={rootRef}>
-          {renderedChildren}
-        </LabelOverlayProvider>
-      </CesiumSceneStateProvider>
-    </div>
+        <div
+          ref={cesiumContainerRef}
+          style={{
+            position: "absolute",
+            inset: 0,
+          }}
+        />
+        <CesiumSceneStateProvider
+          scene={scene}
+          options={{
+            orbitPointMode: "screen-center",
+            screenCenterSamplingStrategy: "terrain-only",
+            throwOnMissingScreenCenterIntersection: true,
+            fallbackHeightM: 200,
+          }}
+        >
+          <LabelOverlayProvider containerRef={rootRef}>
+            {renderedChildren}
+          </LabelOverlayProvider>
+        </CesiumSceneStateProvider>
+      </div>
+    </MemoryRouter>
   );
 };

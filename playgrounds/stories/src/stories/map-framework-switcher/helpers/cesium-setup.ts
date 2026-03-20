@@ -17,8 +17,17 @@ import {
   WUPPERTAL,
 } from "@carma-commons/resources";
 
+const CESIUM_PATHNAME = "__cesium__";
+
 const STORYBOOK_TERRAIN_PROXY_BASE = "/__wupp_terrain__";
 const STORYBOOK_3D_PROXY_BASE = "/__wupp_3d__";
+
+if (typeof window !== "undefined") {
+  (window as { CESIUM_BASE_URL?: string }).CESIUM_BASE_URL = new URL(
+    `${CESIUM_PATHNAME}/`,
+    document.baseURI
+  ).toString();
+}
 
 const toStorybookProxyUrl = (url: string, proxyBase: string): string => {
   if (!import.meta.env.DEV) return url;

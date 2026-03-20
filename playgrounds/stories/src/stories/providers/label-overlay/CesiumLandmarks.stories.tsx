@@ -51,10 +51,6 @@ import { setupCesium } from "../../map-framework-switcher/helpers/cesium-setup";
 
 import "cesium/Build/Cesium/Widgets/widgets.css";
 
-if (typeof window !== "undefined") {
-  (window as { CESIUM_BASE_URL?: string }).CESIUM_BASE_URL = "/__cesium__/";
-}
-
 type LandmarkLabelStoryArgs = {
   syncLabelPitchToCamera: boolean;
   fixedLabelPitchDeg: number;

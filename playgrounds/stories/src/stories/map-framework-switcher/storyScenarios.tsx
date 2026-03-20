@@ -20,10 +20,6 @@ import { useLeafletCesiumSetup } from "./hooks/useLeafletCesiumSetup";
 import "leaflet/dist/leaflet.css";
 import "cesium/Build/Cesium/Widgets/widgets.css";
 
-if (typeof window !== "undefined") {
-  (window as any).CESIUM_BASE_URL = "/__cesium__/";
-}
-
 type Framework = "leaflet" | "cesium";
 
 export type ResolutionScaleControls = {

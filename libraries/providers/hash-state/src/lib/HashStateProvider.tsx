@@ -12,12 +12,14 @@ import {
   type HashCodecs,
   type HashCodec,
   type HashKeyAliases,
+  type HashStateProviderBaseProps,
   type HashStateProviderSharedProps,
 } from "./hashStateShared";
 
 export {
   HASH_CHANGE_SOURCE,
   HASH_CLEAR_KEY_SET,
+  HashStateProviderBase,
   useHashState,
   type HashClearKeySetId,
   type HashChangeEvent,
@@ -25,6 +27,7 @@ export {
   type HashCodecs,
   type HashCodec,
   type HashKeyAliases,
+  type HashStateProviderBaseProps,
   type HashStateProviderSharedProps,
 } from "./hashStateShared";
 
