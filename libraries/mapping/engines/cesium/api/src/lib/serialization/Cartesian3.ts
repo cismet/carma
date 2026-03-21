@@ -1,5 +1,6 @@
 import { Cartesian3 } from "../cesium";
 import type { Meters } from "@carma/units/types";
+import { isFiniteNumber } from "@carma/math";
 
 /**
  * Serializable object representation of Cartesian3.
@@ -29,3 +30,11 @@ export const cartesian3ToJson = (cartesian3: Cartesian3): Cartesian3Json => ({
  */
 export const cartesian3FromJson = ({ x, y, z }: Cartesian3Json): Cartesian3 =>
   new Cartesian3(x, y, z);
+
+export const isCartesian3Json = (
+  value: Cartesian3Json | undefined | null
+): value is Cartesian3Json =>
+  !!value &&
+  isFiniteNumber(value.x) &&
+  isFiniteNumber(value.y) &&
+  isFiniteNumber(value.z);

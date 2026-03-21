@@ -193,7 +193,7 @@ export const ObjectCentricViewStateInfoBox = ({
                             padding: "6px 8px 1px 0",
                             color: "#334155",
                             fontSize: 10,
-                            fontWeight: 700,
+                            fontWeight: 600,
                             letterSpacing: "0.04em",
                             textTransform: "uppercase",
                             whiteSpace: "nowrap",

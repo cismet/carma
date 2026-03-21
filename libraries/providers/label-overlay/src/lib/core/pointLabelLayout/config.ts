@@ -1,5 +1,15 @@
-import type { PointLabelAttach } from "../components/PointLabel";
-import { clamp } from "@carma-commons/math";
+import {
+  clamp,
+  PI,
+  MINUS_PI,
+  MINUS_PI_OVER_TWO,
+  PI_OVER_FOUR,
+  negativePiToPi,
+} from "@carma-commons/math";
+import {
+  POINT_LABEL_ATTACHES,
+  type PointLabelAttach,
+} from "../pointLabelAttach";
 
 import type {
   DynamicLabelPlacementConfig,
@@ -8,12 +18,19 @@ import type {
   PointLabelLayoutConfigOverrides,
 } from "./types";
 
-const DEFAULT_STEM_ANGLE_RAD = Math.PI / 4;
-const ALL_ATTACHES: PointLabelAttach[] = ["left", "right", "center"];
-const DEFAULT_PLACEMENT_ORDER: PointLabelAttach[] = ["left", "right"];
+const DEFAULT_STEM_ANGLE_RAD = PI_OVER_FOUR;
+const ALL_ATTACHES: readonly PointLabelAttach[] = POINT_LABEL_ATTACHES;
+const DEFAULT_PLACEMENT_ORDER: PointLabelAttach[] = [
+  "left",
+  "right",
+  "center",
+];
+const DEFAULT_STEM_DISTANCE_SCALE_ORDER = [1, 0.75, 0.5, 0.25, 0, 1.125, 1.25];
 
 export const DEFAULT_DYNAMIC_LABEL_PLACEMENT_CONFIG: DynamicLabelPlacementConfig =
   {
+    mode: "fallback",
+    avoidStemCrossing: true,
     iterations: 14,
     step: 0.38,
     maxDelta: 14,
@@ -27,20 +44,19 @@ export const DEFAULT_DYNAMIC_LABEL_PLACEMENT_CONFIG: DynamicLabelPlacementConfig
 export const DEFAULT_POINT_LABEL_LAYOUT_CONFIG: PointLabelLayoutConfig = {
   placementOrder: DEFAULT_PLACEMENT_ORDER,
   stemDistance: 20,
+  stemDistanceScaleOrder: DEFAULT_STEM_DISTANCE_SCALE_ORDER,
   dynamicLabelPlacement: true,
   dynamicLabelPlacementConfig: DEFAULT_DYNAMIC_LABEL_PLACEMENT_CONFIG,
   pitchResponsiveAngle: true,
   pitchResponseStrength: 1,
   // Full perspective mimic default: 45deg max when camera is side-on.
-  pitchResponseClampRad: Math.PI / 4,
+  pitchResponseClampRad: PI_OVER_FOUR,
   transitionDurationMs: 300,
 };
 
 const normalizeAngle = (angleRad: number): number => {
-  let normalized = angleRad;
-  while (normalized <= -Math.PI) normalized += 2 * Math.PI;
-  while (normalized > Math.PI) normalized -= 2 * Math.PI;
-  return normalized;
+  const normalized = negativePiToPi(angleRad);
+  return normalized === MINUS_PI ? PI : normalized;
 };
 
 const normalizePlacementOrder = (
@@ -67,6 +83,26 @@ const resolveDynamicLabelPlacementConfig = (
   ...overrides,
 });
 
+const normalizeStemDistanceScaleOrder = (
+  stemDistanceScaleOrder?: number[]
+): number[] => {
+  const sourceOrder =
+    stemDistanceScaleOrder && stemDistanceScaleOrder.length > 0
+      ? stemDistanceScaleOrder
+      : DEFAULT_STEM_DISTANCE_SCALE_ORDER;
+  const normalized = sourceOrder.reduce<number[]>((accumulator, value) => {
+    if (!Number.isFinite(value) || value < 0 || accumulator.includes(value)) {
+      return accumulator;
+    }
+
+    return [...accumulator, value];
+  }, []);
+
+  return normalized.length > 0
+    ? normalized
+    : DEFAULT_STEM_DISTANCE_SCALE_ORDER;
+};
+
 export const resolvePointLabelLayoutConfig = (
   overrides?: PointLabelLayoutConfigOverrides
 ): PointLabelLayoutConfig => {
@@ -78,7 +114,10 @@ export const resolvePointLabelLayoutConfig = (
     dynamicLabelPlacement,
     forceDirectedPlacement,
     forceEnabled,
+    forceLayoutOnTop,
     regularDistance,
+    stemDistanceScaleOrder,
+    distanceScaleOrder,
     stemDistance: stemDistanceOverride,
     ...restOverrides
   } = overrides ?? {};
@@ -97,6 +136,18 @@ export const resolvePointLabelLayoutConfig = (
         )
       ) as Partial<DynamicLabelPlacementConfig>)
     : undefined;
+  const dynamicLabelPlacementConfigOverrides: Partial<DynamicLabelPlacementConfig> =
+    {
+    ...legacyDynamicLabelPlacementConfig,
+    ...(forceLayoutOnTop !== undefined &&
+    dynamicLabelPlacementConfig?.mode === undefined &&
+    legacyDynamicLabelPlacementConfig?.mode === undefined
+      ? {
+          mode: forceLayoutOnTop ? "always" : "fallback",
+        }
+      : {}),
+    ...dynamicLabelPlacementConfig,
+    };
   const resolvedTransitionDurationMs =
     transitionDurationMs ??
     anchorSwitchTransitionMs ??
@@ -107,13 +158,16 @@ export const resolvePointLabelLayoutConfig = (
     ...restOverrides,
     transitionDurationMs: resolvedTransitionDurationMs,
     stemDistance,
+    stemDistanceScaleOrder: normalizeStemDistanceScaleOrder(
+      stemDistanceScaleOrder ?? distanceScaleOrder
+    ),
     placementOrder: normalizePlacementOrder(placementOrder),
     dynamicLabelPlacement:
       dynamicLabelPlacement ??
       legacyDynamicLabelPlacement ??
       DEFAULT_POINT_LABEL_LAYOUT_CONFIG.dynamicLabelPlacement,
     dynamicLabelPlacementConfig: resolveDynamicLabelPlacementConfig(
-      dynamicLabelPlacementConfig ?? legacyDynamicLabelPlacementConfig
+      dynamicLabelPlacementConfigOverrides
     ),
   };
 };
@@ -140,20 +194,21 @@ const getPlacementAngleForAttach = (
     case "left":
       return -angleMagnitudeRad;
     case "right":
-      return -Math.PI + angleMagnitudeRad;
+      return MINUS_PI + angleMagnitudeRad;
     case "center":
-      return -Math.PI / 2;
+      return MINUS_PI_OVER_TWO;
     default:
-      return -Math.PI / 2;
+      return MINUS_PI_OVER_TWO;
   }
 };
 
 export const createPlacement = (
   attach: PointLabelAttach,
   distance: number,
-  angleMagnitudeRad: number
+  angleMagnitudeRad: number,
+  id?: string
 ): LabelPlacement => ({
-  id: attach,
+  id: id ?? `${attach}:${distance.toFixed(3)}`,
   attach,
   distance,
   angleRad: normalizeAngle(

@@ -9,6 +9,7 @@ import {
   AnnotationToolbar3D,
   useLocalAnnotationPersistence,
 } from "@carma-mapping/annotations/runtime";
+import { useCesiumLabelOverlayHost } from "@carma-mapping/engines/cesium/react/interactions";
 import { LabelOverlayProvider } from "@carma-providers/label-overlay";
 
 import { ANNOTATIONS_DEMO_HOME_CAMERA_STATE } from "../config";
@@ -79,6 +80,10 @@ export const AnnotationsRuntimeV1Page = ({
 }: PlaygroundRuntimePageProps) => {
   const rootRef = useRef<HTMLDivElement | null>(null);
   const [scene, setScene] = useState<Scene | null>(null);
+  const overlayHost = useCesiumLabelOverlayHost({
+    scene,
+    containerRef: rootRef,
+  });
   const [initialToolType] = useState(() => readInitialToolType());
   const { initialPersistenceState, onPersistenceStateChange } =
     useLocalAnnotationPersistence<AnnotationEntry>({
@@ -92,7 +97,7 @@ export const AnnotationsRuntimeV1Page = ({
       onSceneChange={setScene}
       initialCameraState={ANNOTATIONS_DEMO_HOME_CAMERA_STATE}
     >
-      <LabelOverlayProvider containerRef={rootRef}>
+      <LabelOverlayProvider host={overlayHost}>
         {scene ? (
           <AnnotationsProvider
             enabled={true}

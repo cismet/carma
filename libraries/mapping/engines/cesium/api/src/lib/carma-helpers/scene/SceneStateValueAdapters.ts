@@ -39,9 +39,8 @@ export const toSceneStateCartographicRad = (
   };
 };
 
-export const toSceneStateMat4 = (value: unknown): Matrix4 | null => {
-  return coerceMatrix4(value);
-};
+export const toSceneStateMat4 = (value: unknown): Matrix4 | null =>
+  coerceMatrix4(value);
 
 export const toSceneStateQuat = (value: unknown): Quaternion | null =>
   coerceQuaternion(value);

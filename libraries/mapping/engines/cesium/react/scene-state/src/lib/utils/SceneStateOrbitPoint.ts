@@ -1,16 +1,16 @@
 import type { LatLngAlt } from "@carma/geo/types";
 import { Cartesian3 } from "@carma/cesium";
 import { Vector2, type Vector3 } from "@carma/math";
+import {
+  toSceneStateCartographicRad,
+  toSceneStateVec3,
+} from "@carma/cesium";
 import type {
   CameraLike,
   OrbitPoint,
   OrbitPointSamplingStrategy,
   SceneLike,
 } from "../types";
-import {
-  toSceneStateCartographicRad,
-  toSceneStateVec3,
-} from "./SceneStateValueAdapters";
 
 export type SceneStateScreenCenterSample = {
   worldPosition: Vector3;

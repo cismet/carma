@@ -50,6 +50,7 @@ export type SceneVisibilityState = {
 export type SceneVisibilityIndexOptions = {
   shouldTestVisibility?: boolean;
   shouldTestOcclusion?: boolean;
+  occlusionPointIds?: string[];
   realtimeOcclusionPointIds?: string[];
   viewportPaddingHorizontal?: number;
   viewportPaddingVertical?: number;
@@ -75,6 +76,7 @@ export const useCesiumSceneVisibilityIndex = (
   {
     shouldTestVisibility = true,
     shouldTestOcclusion = true,
+    occlusionPointIds = [],
     realtimeOcclusionPointIds = [],
     viewportPaddingHorizontal = DEFAULT_VIEWPORT_PADDING_HORIZONTAL,
     viewportPaddingVertical = DEFAULT_VIEWPORT_PADDING_VERTICAL,
@@ -181,6 +183,15 @@ export const useCesiumSceneVisibilityIndex = (
         currentRegistry.registrationsById
       );
       if (uniquePointKeys.length === 0) return;
+      const allowedOcclusionPointKeys =
+        occlusionPointIds.length > 0
+          ? new Set(
+              getUniquePointKeysForIds(
+                occlusionPointIds,
+                currentRegistry.registrationsById
+              )
+            )
+          : null;
 
       // Pass 1: Reproject world positions into screen space and viewport flags.
       const projectionStateByKey: Record<string, ProjectedPointState> = {};
@@ -207,7 +218,10 @@ export const useCesiumSceneVisibilityIndex = (
           if (!projectedPoint || !projectedPoint.point) return;
 
           const shouldRunOcclusionCheck =
-            shouldTestOcclusion && projectedPoint.isInViewport;
+            shouldTestOcclusion &&
+            projectedPoint.isInViewport &&
+            (allowedOcclusionPointKeys === null ||
+              allowedOcclusionPointKeys.has(key));
           occlusionByKey[key] =
             shouldRunOcclusionCheck &&
             projectedPoint.canvasPosition &&
@@ -262,6 +276,7 @@ export const useCesiumSceneVisibilityIndex = (
     [
       computeProjectionStateForPoint,
       occlusionToleranceMeters,
+      occlusionPointIds,
       scene,
       shouldTestOcclusion,
     ]
@@ -412,6 +427,14 @@ export const useCesiumSceneVisibilityIndex = (
       ),
     [registry.registrationsById, realtimeOcclusionPointIds]
   );
+  const occlusionPointIdSignature = useMemo(
+    () =>
+      buildRealtimeOcclusionSignature(
+        occlusionPointIds,
+        registry.registrationsById
+      ),
+    [occlusionPointIds, registry.registrationsById]
+  );
 
   useEffect(() => {
     if (!scene || scene.isDestroyed()) return;
@@ -420,6 +443,15 @@ export const useCesiumSceneVisibilityIndex = (
       includeOcclusion: false,
     });
   }, [refreshAll, registrationIdSignature, scene]);
+
+  useEffect(() => {
+    if (!scene || scene.isDestroyed()) return;
+    if (!shouldTestOcclusion) return;
+
+    refreshAll({
+      includeOcclusion: true,
+    });
+  }, [occlusionPointIdSignature, refreshAll, scene, shouldTestOcclusion]);
 
   useEffect(() => {
     if (!scene || scene.isDestroyed()) return;

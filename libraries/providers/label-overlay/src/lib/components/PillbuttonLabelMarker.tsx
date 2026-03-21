@@ -1,9 +1,9 @@
 import React, { useLayoutEffect, useMemo, useRef, useState } from "react";
+import type { PointLabelAttach } from "../core/pointLabelAttach";
 
 import {
   resolvePillbuttonMountSide,
   type PillbuttonMountSide,
-  type PointLabelAttach,
 } from "./PointLabelMarker";
 
 const COMPACT_DIAMETER_EM = 1.9;
@@ -18,6 +18,10 @@ const EXTENDED_LEFT_EXTRA_PADDING_PX = 2;
 const EXTENDED_RIGHT_EXTRA_PADDING_PX = 2;
 const GROW_SHRINK_WIDTH_TRANSITION_MS = 200;
 const SHRINK_WIDTH_TRANSITION_DELAY_MS = 3000;
+const SNAPPY_WIDTH_TRANSITION_MS = 115;
+const SNAPPY_WIDTH_TRANSITION_DELAY_MS = 0;
+const SNAPPY_WIDTH_TRANSITION_EASING =
+  "cubic-bezier(0.22, 1, 0.36, 1)";
 
 const setNullableNumberStateIfChanged = (
   setState: React.Dispatch<React.SetStateAction<number | null>>,
@@ -66,7 +70,7 @@ interface PillbuttonLabelMarkerProps {
   anchorAtSemicircleCenter?: boolean;
   fullBorder?: boolean;
   solidBorderStyle?: string;
-  resizeMode?: "none" | "fast-grow-slow-shrink";
+  resizeMode?: "none" | "fast-grow-slow-shrink" | "snappy";
   content: React.ReactNode;
   onClick: (event: React.MouseEvent<HTMLDivElement>) => void;
   onDoubleClick: (event: React.MouseEvent<HTMLDivElement>) => void;
@@ -145,9 +149,9 @@ export const PillbuttonLabelMarker = ({
             paddingLeft: `calc(${EXTENDED_HORIZONTAL_PADDING_PX}px + ${
               COMPACT_DIAMETER_EM / 2
             }em + ${COMPACT_EXTENDED_GAP_PX}px + ${EXTENDED_LEFT_EXTRA_PADDING_PX}px)`,
-            paddingRight: `calc(${EXTENDED_HORIZONTAL_PADDING_PX}px + ${
-              COMPACT_DIAMETER_EM / 2
-            }em + ${COMPACT_EXTENDED_GAP_PX}px + ${EXTENDED_RIGHT_EXTRA_PADDING_PX}px)`,
+            paddingRight: `${
+              EXTENDED_HORIZONTAL_PADDING_PX + EXTENDED_RIGHT_EXTRA_PADDING_PX
+            }px`,
           }
       : null;
   const extendedOffsetBySide =
@@ -206,7 +210,7 @@ export const PillbuttonLabelMarker = ({
     useState(0);
 
   useLayoutEffect(() => {
-    if (resizeMode !== "fast-grow-slow-shrink" || !showExtended) {
+    if (resizeMode === "none" || !showExtended) {
       previousExtendedWidthPxRef.current = null;
       setNullableNumberStateIfChanged(setAnimatedExtendedWidthPx, null);
       setNumberStateIfChanged(setExtendedWidthTransitionMs, 0);
@@ -223,6 +227,15 @@ export const PillbuttonLabelMarker = ({
     if (previousWidthPx === null) {
       setNumberStateIfChanged(setExtendedWidthTransitionMs, 0);
       setNumberStateIfChanged(setExtendedWidthTransitionDelayMs, 0);
+    } else if (resizeMode === "snappy") {
+      setNumberStateIfChanged(
+        setExtendedWidthTransitionMs,
+        SNAPPY_WIDTH_TRANSITION_MS
+      );
+      setNumberStateIfChanged(
+        setExtendedWidthTransitionDelayMs,
+        SNAPPY_WIDTH_TRANSITION_DELAY_MS
+      );
     } else if (nextWidthPx > previousWidthPx) {
       setNumberStateIfChanged(
         setExtendedWidthTransitionMs,
@@ -262,7 +275,7 @@ export const PillbuttonLabelMarker = ({
       };
     }
     return {
-      left: "50%",
+      left: 0,
       transform: "translate(-50%, -50%)",
     };
   };
@@ -367,15 +380,17 @@ export const PillbuttonLabelMarker = ({
             position: "relative",
             zIndex: 1,
             width:
-              resizeMode === "fast-grow-slow-shrink" &&
-              animatedExtendedWidthPx !== null
+              resizeMode !== "none" && animatedExtendedWidthPx !== null
                 ? `${animatedExtendedWidthPx}px`
                 : undefined,
-            overflow:
-              resizeMode === "fast-grow-slow-shrink" ? "hidden" : undefined,
+            overflow: resizeMode !== "none" ? "hidden" : undefined,
             transition:
-              resizeMode === "fast-grow-slow-shrink"
-                ? `width ${extendedWidthTransitionMs}ms ease ${extendedWidthTransitionDelayMs}ms`
+              resizeMode !== "none"
+                ? `width ${extendedWidthTransitionMs}ms ${
+                    resizeMode === "snappy"
+                      ? SNAPPY_WIDTH_TRANSITION_EASING
+                      : "ease"
+                  } ${extendedWidthTransitionDelayMs}ms`
                 : undefined,
           }}
         >

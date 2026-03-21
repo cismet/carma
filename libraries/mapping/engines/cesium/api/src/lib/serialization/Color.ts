@@ -28,6 +28,18 @@ export const isColorConstructorArgs = (
   );
 };
 
+export const isColorJson = (color: unknown): color is ColorJson =>
+  !!color &&
+  typeof color === "object" &&
+  "red" in color &&
+  "green" in color &&
+  "blue" in color &&
+  "alpha" in color &&
+  typeof (color as ColorJson).red === "number" &&
+  typeof (color as ColorJson).green === "number" &&
+  typeof (color as ColorJson).blue === "number" &&
+  typeof (color as ColorJson).alpha === "number";
+
 /**
  * Convert Cesium Color to constructor args array.
  */
@@ -46,4 +58,18 @@ export const colorFromConstructorArgs = (color: unknown): Color | null => {
   }
   const [red, green, blue, alpha] = color;
   return new Color(red, green, blue, alpha);
+};
+
+export const colorToJson = (color: Color): ColorJson => ({
+  red: color.red,
+  green: color.green,
+  blue: color.blue,
+  alpha: color.alpha,
+});
+
+export const colorFromJson = (color: unknown): Color | null => {
+  if (!isColorJson(color)) {
+    return null;
+  }
+  return new Color(color.red, color.green, color.blue, color.alpha);
 };

@@ -1,10 +1,16 @@
 import React, { useEffect, useRef, useState } from "react";
+import { MINUS_PI_OVER_FOUR } from "@carma/math";
 import type { CssPixelPosition } from "@carma/units/types";
-import { PointLabelMarker, type PointLabelAttach } from "./PointLabelMarker";
+import type { PointLabelAttach } from "../core/pointLabelAttach";
+import {
+  estimatePillCapRadiusPx,
+  resolveSegmentEndOutsideCircle,
+} from "../core/pillConnectorGeometry";
+import { PointLabelMarker } from "./PointLabelMarker";
 import { PillbuttonLabelMarker } from "./PillbuttonLabelMarker";
 import { PointLabelStem } from "./PointLabelStem";
 
-export type { PointLabelAttach };
+export type { PointLabelAttach } from "../core/pointLabelAttach";
 
 export interface PointLabelStyleProps {
   fontSize?: string;
@@ -31,7 +37,7 @@ export interface PointLabelStyleProps {
   collapse?: boolean;
   forceCollapse?: boolean;
   fullBorder?: boolean;
-  resizeMode?: "none" | "fast-grow-slow-shrink";
+  resizeMode?: "none" | "fast-grow-slow-shrink" | "snappy";
   labelDistance?: number;
 }
 
@@ -70,11 +76,8 @@ const baseStyles: React.CSSProperties = {
   margin: 0,
 };
 
-const defaultPitch = -Math.PI / 4;
+const defaultPitch = MINUS_PI_OVER_FOUR;
 const DRAG_START_THRESHOLD_PX = 3;
-const PILL_STEM_EXTRA_LENGTH_PX = 9;
-const POINT_PILL_STEM_EXTRA_LENGTH_PX = 12;
-const PREVIEW_PILL_STEM_EXTRA_LENGTH_PX = 0;
 export const POINT_LABEL_TEXT_BACKGROUND_COLOR = "rgba(200, 200, 200, 0.7)";
 export const POINT_LABEL_HOVER_BACKGROUND_COLOR = "rgba(255, 247, 230, 0.7)";
 export const POINT_LABEL_SELECTED_BACKGROUND_COLOR = "rgba(255, 229, 143, 0.7)";
@@ -192,9 +195,7 @@ export const PointLabel = React.memo(
     const stemReferenceRadius = (stemReferenceMarkerSize ?? markerSize) / 2;
     const parsedFontSizePx = Number.parseFloat(fontSize);
     const effectivePillCornerRadiusPx =
-      Number.isFinite(parsedFontSizePx) && parsedFontSizePx > 0
-        ? parsedFontSizePx * 0.95
-        : 10;
+      estimatePillCapRadiusPx(parsedFontSizePx);
     const hasCompactContent =
       compactContent !== null &&
       compactContent !== undefined &&
@@ -212,28 +213,32 @@ export const PointLabel = React.memo(
       useCapsuleStyle || collapse || hasCompactContent || fullBorder;
     const anchorAtSemicircleCenter =
       useCapsuleStyle || collapse || hasCompactContent || fullBorder;
-    const pointLikePillShape = anchorAtSemicircleCenter;
-    const pillStemExtraLengthPx = hasAnyPillShape
-      ? pointLikePillShape
-        ? POINT_PILL_STEM_EXTRA_LENGTH_PX
-        : PILL_STEM_EXTRA_LENGTH_PX
-      : 0;
-    const previewPillStemExtraLengthPx =
-      collapse && fullBorder ? PREVIEW_PILL_STEM_EXTRA_LENGTH_PX : 0;
-    const pillStemInvisibleTailPx = pointLikePillShape
-      ? effectivePillCornerRadiusPx
-      : 0;
-    const anchorLineDistance = Math.max(
-      0,
-      baseLineLength + pillStemExtraLengthPx + previewPillStemExtraLengthPx
-    );
-    const lineLength = Math.max(
-      0,
-      anchorLineDistance - pillStemInvisibleTailPx
-    );
-    const labelAnchorDistance = resolvedStemStartDistance + anchorLineDistance;
-    const labelOffsetX = xComponent * labelAnchorDistance;
-    const labelOffsetY = yComponent * labelAnchorDistance;
+    const pillCapRadiusPx =
+      hasAnyPillShape && labelAttach !== "center"
+        ? effectivePillCornerRadiusPx
+        : 0;
+    const stemStartPoint = {
+      x: xComponent * resolvedStemStartDistance,
+      y: yComponent * resolvedStemStartDistance,
+    } as CssPixelPosition;
+    const labelAnchorPoint = {
+      x:
+        xComponent *
+        (resolvedStemStartDistance + baseLineLength + pillCapRadiusPx),
+      y:
+        yComponent *
+        (resolvedStemStartDistance + baseLineLength + pillCapRadiusPx),
+    } as CssPixelPosition;
+    const labelOffsetX = labelAnchorPoint.x;
+    const labelOffsetY = labelAnchorPoint.y;
+    const visibleStemEndPoint =
+      pillCapRadiusPx > 0
+        ? resolveSegmentEndOutsideCircle(
+            stemStartPoint,
+            labelAnchorPoint,
+            pillCapRadiusPx
+          )
+        : labelAnchorPoint;
     const isInteractive = Boolean(
       onClick ||
         onDoubleClick ||
@@ -473,11 +478,8 @@ export const PointLabel = React.memo(
     const positionTransition = sharedAttachTransition
       ? `left ${sharedAttachTransition}, top ${sharedAttachTransition}, transform ${sharedAttachTransition}`
       : undefined;
-    const angleTransition = sharedAttachTransition
-      ? `transform ${sharedAttachTransition}`
-      : undefined;
     const stemTransition = sharedAttachTransition
-      ? `left ${sharedAttachTransition}, top ${sharedAttachTransition}, width ${sharedAttachTransition}`
+      ? `left ${sharedAttachTransition}, top ${sharedAttachTransition}, width ${sharedAttachTransition}, transform ${sharedAttachTransition}`
       : undefined;
 
     useEffect(() => {
@@ -557,15 +559,12 @@ export const PointLabel = React.memo(
           <>
             {/* Transform container for hairline rotation */}
             <PointLabelStem
-              angleRad={effectiveLabelAngleRad}
-              anchors={{
-                startDistancePx: resolvedStemStartDistance,
-                endDistancePx: resolvedStemStartDistance + lineLength,
-              }}
+              startPoint={stemStartPoint}
+              endPoint={visibleStemEndPoint}
               lineColor={lineColor}
               lineWidth={lineWidth}
               isOccluded={isOccluded}
-              transition={angleTransition ?? stemTransition}
+              transition={stemTransition}
             />
 
             {/* Label positioned at the end of the hairline */}

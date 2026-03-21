@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { MemoryRouter } from "react-router-dom";
 import type { Scene, CesiumWidget } from "@carma/cesium";
+import { useCesiumLabelOverlayHost } from "@carma-mapping/engines/cesium/react/interactions";
 import { LabelOverlayProvider } from "@carma-providers/label-overlay";
 import { CesiumSceneStateProvider } from "@carma-mapping/engines/cesium/react/scene-state";
 import { setupCesium } from "../../../map-framework-switcher/helpers/cesium-setup";
@@ -54,6 +55,10 @@ export const AnnotationCesiumStoryShell = ({
     isWidgetReady && widgetRef.current && !widgetRef.current.isDestroyed()
       ? widgetRef.current.scene
       : null;
+  const overlayHost = useCesiumLabelOverlayHost({
+    scene,
+    containerRef: rootRef,
+  });
 
   useEffect(() => {
     if (!cesiumContainerRef.current) return;
@@ -133,7 +138,7 @@ export const AnnotationCesiumStoryShell = ({
             fallbackHeightM: 200,
           }}
         >
-          <LabelOverlayProvider containerRef={rootRef}>
+          <LabelOverlayProvider host={overlayHost}>
             {renderedChildren}
           </LabelOverlayProvider>
         </CesiumSceneStateProvider>

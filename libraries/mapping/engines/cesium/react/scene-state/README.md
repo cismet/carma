@@ -1,5 +1,12 @@
 # Cesium React scene-state
 
+> **Migration target:** This package is being superseded by a framework-agnostic
+> `CommonSceneState` layer. See
+> [SPEC-common-scene-state.md](../../../engines-interop/view-sync/SPEC-common-scene-state.md)
+> and [SPEC-implementation-steps.md](../../../engines-interop/view-sync/SPEC-implementation-steps.md).
+> During migration this package remains functional but new features should target
+> the common layer.
+
 This package exposes React bindings around Cesium scene-state snapshots.
 
 ## Orientation semantics

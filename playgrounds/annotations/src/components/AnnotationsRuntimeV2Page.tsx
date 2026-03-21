@@ -18,6 +18,7 @@ import {
   AnnotationsToolbarSeparator,
 } from "@carma-mapping/components";
 import { ControlLayout } from "@carma-mapping/map-controls-layout";
+import { useCesiumLabelOverlayHost } from "@carma-mapping/engines/cesium/react/interactions";
 import { LabelOverlayProvider } from "@carma-providers/label-overlay";
 
 import { ANNOTATIONS_DEMO_HOME_CAMERA_STATE } from "../config";
@@ -194,6 +195,10 @@ export const AnnotationsRuntimeV2Page = ({
 }: PlaygroundRuntimePageProps) => {
   const rootRef = useRef<HTMLDivElement | null>(null);
   const [scene, setScene] = useState<Scene | null>(null);
+  const overlayHost = useCesiumLabelOverlayHost({
+    scene,
+    containerRef: rootRef,
+  });
 
   return (
     <CesiumWidgetContainer
@@ -201,7 +206,7 @@ export const AnnotationsRuntimeV2Page = ({
       onSceneChange={setScene}
       initialCameraState={ANNOTATIONS_DEMO_HOME_CAMERA_STATE}
     >
-      <LabelOverlayProvider containerRef={rootRef}>
+      <LabelOverlayProvider host={overlayHost}>
         <ControlLayout>
           <AnnotationsProvider scene={scene} initialActiveToolType="polyline">
             <CesiumNavigationOverlay

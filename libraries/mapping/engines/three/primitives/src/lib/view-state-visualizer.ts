@@ -16,9 +16,9 @@ import { Line2 } from "three/examples/jsm/lines/Line2.js";
 import { LineGeometry } from "three/examples/jsm/lines/LineGeometry.js";
 import { LineMaterial } from "three/examples/jsm/lines/LineMaterial.js";
 import {
+  createPointToCanvasProjector,
   projectOrthogonalLineLabelAnchor,
   projectOrthogonalPolylineLabelAnchor,
-  projectPointToCanvas,
 } from "./overlay/labelAnchors";
 import type {
   ViewStateVisualizerCamera,
@@ -516,9 +516,10 @@ const isPointerInsideProjectedMesh = ({
   } satisfies CanvasPoint;
 
   const vertex = new THREE.Vector3();
+  const projectPoint = createPointToCanvasProjector(size, camera);
   const projectedPoints = Array.from({ length: position.count }, (_, index) => {
     vertex.fromBufferAttribute(position, index).applyMatrix4(mesh.matrixWorld);
-    const projected = projectPointToCanvas(vertex, size, camera);
+    const projected = projectPoint(vertex);
     return {
       x: projected.leftPx,
       y: projected.topPx,
@@ -1644,15 +1645,12 @@ export const createViewStateVisualizerPrimitive = (
     cameraMarker.setRotationFromMatrix(cameraBasisMatrix);
 
     renderer.render(scene, activeCamera);
+    const projectPoint = createPointToCanvasProjector(size, activeCamera);
 
     const commonPlanarLabelOffset =
       WORLD_UP.clone().multiplyScalar(LABEL_UP_OFFSET);
     const altitudeLabelWorldPoint = new THREE.Vector3(0, planeDiscY * 0.5, 0);
-    const altitudeAnchor = projectPointToCanvas(
-      altitudeLabelWorldPoint,
-      size,
-      activeCamera
-    );
+    const altitudeAnchor = projectPoint(altitudeLabelWorldPoint);
     const bearingArcMidpoint =
       bearingArcPoints[Math.floor(bearingArcPoints.length * 0.5)] ??
       ORIGIN.clone();
@@ -1663,6 +1661,7 @@ export const createViewStateVisualizerPrimitive = (
       points: bearingArcPoints,
       size,
       camera: activeCamera,
+      projectPoint,
       offsetPx: labelFontSizePx,
       biasToward: bearingArcMidpoint.clone().multiplyScalar(1.08),
     });
@@ -1670,6 +1669,7 @@ export const createViewStateVisualizerPrimitive = (
       points: elevationArcPoints,
       size,
       camera: activeCamera,
+      projectPoint,
       offsetPx: labelFontSizePx,
       biasToward: pitchArcMidpoint.clone().multiplyScalar(1.08),
     });
@@ -1681,6 +1681,7 @@ export const createViewStateVisualizerPrimitive = (
       lineEnd: pitchArcStartPoint,
       size,
       camera: activeCamera,
+      projectPoint,
       offsetPx: labelFontSizePx,
       biasToward: pitchArcMidpoint,
       fallbackBiasToward: rangeLabelFallbackBiasPoint,
@@ -1694,40 +1695,30 @@ export const createViewStateVisualizerPrimitive = (
         leftPx: altitudeAnchor.leftPx + labelFontSizePx,
         topPx: altitudeAnchor.topPx,
       },
-      east: projectPointToCanvas(
+      east: projectPoint(
         WORLD_EAST.clone().multiplyScalar(AXIS_LENGTH),
-        size,
-        activeCamera
       ),
-      north: projectPointToCanvas(
+      north: projectPoint(
         WORLD_NORTH.clone()
           .multiplyScalar(AXIS_LENGTH + 0.05)
           .add(commonPlanarLabelOffset),
-        size,
-        activeCamera
       ),
-      up: projectPointToCanvas(
+      up: projectPoint(
         WORLD_UP.clone().multiplyScalar(AXIS_LENGTH),
-        size,
-        activeCamera
       ),
-      imageX: projectPointToCanvas(
+      imageX: projectPoint(
         visual.basisRightEnd
           .clone()
           .add(
             visual.right.clone().multiplyScalar(CAMERA_BASIS_LINE_LENGTH * 0.14)
           ),
-        size,
-        activeCamera
       ),
-      imageY: projectPointToCanvas(
+      imageY: projectPoint(
         visual.basisUpEnd
           .clone()
           .add(
             visual.up.clone().multiplyScalar(CAMERA_BASIS_LINE_LENGTH * 0.14)
           ),
-        size,
-        activeCamera
       ),
     };
   };

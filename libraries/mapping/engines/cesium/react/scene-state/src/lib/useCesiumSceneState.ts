@@ -1,13 +1,7 @@
 import { useContext, useEffect, useState } from "react";
-import type {
-  CesiumSceneStateStore,
-  CesiumSceneStateStoreState,
-} from "./utils/createCesiumSceneStateStore";
+import type { CesiumSceneStateStore } from "./utils/createCesiumSceneStateStore";
 import type { SceneState } from "./types";
-import {
-  CesiumSceneStateStoreContext,
-  useCesiumSceneStateReduxSelector,
-} from "./CesiumSceneStateStoreContext";
+import { CesiumSceneStateStoreContext } from "./CesiumSceneStateStoreContext";
 
 const readSceneSnapshot = (store: CesiumSceneStateStore): SceneState | null =>
   store.getSnapshot();
@@ -51,9 +45,7 @@ export const useCesiumSceneStateStore = (): CesiumSceneStateStore => {
 
 export const useCesiumSceneState = (): SceneState | null => {
   useCesiumSceneStateStore();
-  return useCesiumSceneStateReduxSelector(
-    (state: CesiumSceneStateStoreState) => state.snapshot
-  );
+  return useOptionalStoreValue(readSceneSnapshot, null);
 };
 
 export const useCesiumSceneStateOptional = (): SceneState | null => {

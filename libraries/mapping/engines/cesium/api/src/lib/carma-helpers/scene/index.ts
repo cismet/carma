@@ -8,3 +8,4 @@ export {
 export * from "./CoordinateAdapters";
 export * from "./Occlusion";
 export * from "./Picking";
+export * from "./SceneStateValueAdapters";
