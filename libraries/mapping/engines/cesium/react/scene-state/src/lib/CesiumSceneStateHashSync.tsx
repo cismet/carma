@@ -1,13 +1,11 @@
 import { useCallback, useEffect, useMemo, useRef } from "react";
 import { HASH_CLEAR_KEY_SET, useHashState } from "@carma-providers/hash-state";
 import {
-  HASH_FOV_CONVENTION,
-  type HashFovConvention,
   type HashZoomConvention,
-  readHashParamsFromViewState,
   readViewStateFromSceneState,
 } from "@carma-mapping/engines-interop/view-sync";
 
+import { createCesiumViewStateHashCodec } from "./createCesiumViewStateHashCodec";
 import { useCesiumSceneStateOptional } from "./useCesiumSceneState";
 import type { SceneLike } from "./types";
 
@@ -169,12 +167,9 @@ export type CesiumSceneStateHashSyncProps = {
   clearKeys?: string[];
   replace?: boolean;
   label?: string;
-  fallbackHeightM?: number;
   minUpdateIntervalMs?: number;
   defaultFovDeg?: number;
-  maxPitchDeg?: number;
   zoomConvention?: HashZoomConvention;
-  fovConvention?: HashFovConvention;
   minEnabledDurationMs?: number;
   minStableSamples?: number;
 };
@@ -186,12 +181,9 @@ export const CesiumSceneStateHashSync = ({
   clearKeys,
   replace = true,
   label = "SceneState:camera",
-  fallbackHeightM = 200,
   minUpdateIntervalMs = 100,
   defaultFovDeg,
-  maxPitchDeg,
   zoomConvention,
-  fovConvention = HASH_FOV_CONVENTION.CESIUM_LONGER_EDGE,
   minEnabledDurationMs = 350,
   minStableSamples = 3,
 }: CesiumSceneStateHashSyncProps) => {
@@ -244,6 +236,15 @@ export const CesiumSceneStateHashSync = ({
     [label, resolvedClearKeys, updateHash]
   );
 
+  const codec = useMemo(
+    () =>
+      createCesiumViewStateHashCodec({
+        ...(Number.isFinite(defaultFovDeg) ? { defaultFovDeg } : {}),
+        ...(zoomConvention ? { zoomConvention } : {}),
+      }),
+    [defaultFovDeg, zoomConvention]
+  );
+
   useEffect(() => {
     if (!enabled) {
       return;
@@ -264,12 +265,7 @@ export const CesiumSceneStateHashSync = ({
     }
 
     const params: Record<string, unknown> = {
-      ...(readHashParamsFromViewState(viewStateFromSceneState, {
-        ...(Number.isFinite(defaultFovDeg) ? { defaultFovDeg } : {}),
-        ...(Number.isFinite(maxPitchDeg) ? { maxPitchDeg } : {}),
-        ...(zoomConvention ? { zoomConvention } : {}),
-        ...(fovConvention ? { fovConvention } : {}),
-      }) ?? {}),
+      ...(codec.encode(viewStateFromSceneState) ?? {}),
       ...(extraHashParams ?? {}),
     };
 
@@ -320,11 +316,9 @@ export const CesiumSceneStateHashSync = ({
     writeCameraHash(params, replace);
     lastPublishedPoseRef.current = currentPoseSample;
   }, [
-    defaultFovDeg,
+    codec,
     enabled,
     extraHashParams,
-    fovConvention,
-    maxPitchDeg,
     minEnabledDurationMs,
     minStableSamples,
     minUpdateIntervalMs,
@@ -332,7 +326,6 @@ export const CesiumSceneStateHashSync = ({
     scene,
     sceneState,
     writeCameraHash,
-    zoomConvention,
   ]);
 
   return null;

@@ -1,18 +1,15 @@
 import { useMemo } from "react";
 import { useHashState } from "@carma-providers/hash-state";
 import {
-  HASH_FOV_CONVENTION,
-  type HashFovConvention,
   type HashZoomConvention,
-  readViewStateFromHashValues,
   type ViewState,
 } from "@carma-mapping/engines-interop/view-sync";
 
+import { createCesiumViewStateHashCodec } from "./createCesiumViewStateHashCodec";
+
 export type UseInitialSceneViewStateOptions = {
   defaultFovDeg?: number;
-  maxPitchDeg?: number;
   zoomConvention?: HashZoomConvention;
-  fovConvention?: HashFovConvention;
 };
 
 export const useInitialSceneViewState = (
@@ -24,28 +21,11 @@ export const useInitialSceneViewState = (
   const { getHashValues } = useHashState();
 
   return useMemo(() => {
+    const codec = createCesiumViewStateHashCodec(options);
     const hashValues = getHashValues();
     return {
-      initialViewState: readViewStateFromHashValues(hashValues, {
-        ...(Number.isFinite(options.defaultFovDeg)
-          ? { defaultFovDeg: options.defaultFovDeg }
-          : {}),
-        ...(Number.isFinite(options.maxPitchDeg)
-          ? { maxPitchDeg: options.maxPitchDeg }
-          : {}),
-        ...(options.zoomConvention
-          ? { zoomConvention: options.zoomConvention }
-          : {}),
-        fovConvention:
-          options.fovConvention ?? HASH_FOV_CONVENTION.CESIUM_LONGER_EDGE,
-      }),
+      initialViewState: codec.decode(hashValues),
       isResolved: true,
     };
-  }, [
-    getHashValues,
-    options.defaultFovDeg,
-    options.maxPitchDeg,
-    options.fovConvention,
-    options.zoomConvention,
-  ]);
+  }, [getHashValues, options.defaultFovDeg, options.zoomConvention]);
 };

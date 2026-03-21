@@ -15,6 +15,8 @@ export {
   projectMapLibreViewToViewSyncTarget,
   projectViewSyncTargetToMapLibre,
   readViewStateFromMapLibreMap,
+  readHashParamsFromViewState,
+  readViewStateFromHashValues,
 } from "./adapters/maplibreAdapter";
 export {
   leafletAdapter,
@@ -30,16 +32,10 @@ export {
   type MapLibreViewValues,
 } from "./adapters/types";
 export {
-  HASH_FOV_CONVENTION,
   HASH_ZOOM_CONVENTION,
-  readHashParamsFromViewState,
-  readViewStateFromHashValues,
   readViewStateHashNumber,
 } from "./core/viewStateHash";
-export type {
-  HashFovConvention,
-  HashZoomConvention,
-} from "./core/viewStateHash";
+export type { HashZoomConvention } from "./core/viewStateHash";
 export type {
   BuiltInViewSyncEngine,
   ViewSyncEngine,

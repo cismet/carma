@@ -1,3 +1,4 @@
+import { useCallback } from "react";
 import { useMapStyle as usePortalsMapStyle } from "@carma-appframeworks/portals";
 import { MapStyleKeys, type MapStyle } from "../constants/MapStyleKeys";
 
@@ -11,9 +12,12 @@ export const useMapStyle = () => {
     ? (currentStringStyle as MapStyleKeys)
     : MapStyleKeys.TOPO;
 
-  const setCurrentStyle = (style: MapStyleKeys) => {
-    setStringStyle(style);
-  };
+  const setCurrentStyle = useCallback(
+    (style: MapStyleKeys) => {
+      setStringStyle(style);
+    },
+    [setStringStyle]
+  );
 
   return {
     currentStyle,

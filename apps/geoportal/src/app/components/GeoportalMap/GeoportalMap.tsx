@@ -160,7 +160,6 @@ const GeoportalCesiumCameraHashSync = ({
       enabled={enabled}
       scene={scene}
       zoomConvention={HASH_ZOOM_CONVENTION.LEAFLET_256}
-      fallbackHeightM={200}
       defaultFovDeg={DEFAULT_CAMERA_FOV_DEG}
       replace={true}
       label="[GEOPORTAL] Cesium camera hash"

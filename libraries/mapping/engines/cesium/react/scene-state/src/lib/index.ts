@@ -3,5 +3,6 @@ export * from "./utils";
 export * from "./CesiumSceneStateStoreContext";
 export * from "./CesiumSceneStateProvider";
 export * from "./CesiumSceneStateHashSync";
+export * from "./createCesiumViewStateHashCodec";
 export * from "./useCesiumSceneState";
 export * from "./useInitialSceneViewState";

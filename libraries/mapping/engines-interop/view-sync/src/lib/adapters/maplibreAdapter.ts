@@ -246,235 +246,187 @@ const isWrappedRollCloseToZeroRad = (rollRad: number | undefined): boolean => {
   );
 };
 
-export const maplibreAdapter = {
-  toFramework(
-    viewState: ViewState,
-    options?: MapLibreAdapterOptions
-  ): MapLibreViewValues | null {
-    const { defaultFovDeg, maxPitchDeg } = resolveOptions(options);
+const toMapLibreFrameworkView = (
+  viewState: ViewState,
+  options?: MapLibreAdapterOptions
+): MapLibreViewValues | null => {
+  const { defaultFovDeg, maxPitchDeg } = resolveOptions(options);
 
-    const projection = projectViewSyncTargetToMapLibre(viewState, {
-      fovVertical:
-        viewState.fovVertical ?? (degToRadNumeric(defaultFovDeg)! as Radians),
-      maxPitchDeg,
-    });
-    if (!projection) {
-      return null;
+  const projection = projectViewSyncTargetToMapLibre(viewState, {
+    fovVertical:
+      viewState.fovVertical ?? (degToRadNumeric(defaultFovDeg)! as Radians),
+    maxPitchDeg,
+  });
+  if (!projection) {
+    return null;
+  }
+
+  const params: MapLibreViewValues = {
+    lng: projection.lng,
+    lat: projection.lat,
+    zoom: projection.zoom,
+    altitude: viewState.altitude,
+  };
+
+  if (isFiniteNumber(projection.bearing) && !isZeroish(projection.bearing)) {
+    params.bearing = projection.bearing;
+  }
+
+  if (isFiniteNumber(projection.pitch) && projection.pitch > 0) {
+    params.pitch = projection.pitch;
+  }
+
+  return params;
+};
+
+const toCarmaViewStateFromMapLibre = (
+  values: MapLibreViewValues & { fovDeg?: number },
+  options?: MapLibreAdapterOptions
+): ViewState | null => {
+  const { defaultFovDeg, maxPitchDeg, minRangeM } = resolveOptions(options);
+  const { lng, lat, zoom, altitude } = values;
+  if (
+    !isFiniteNumber(lng) ||
+    !isFiniteNumber(lat) ||
+    !isFiniteNumber(zoom) ||
+    !isFiniteNumber(altitude)
+  ) {
+    return null;
+  }
+
+  const fovDeg =
+    isFiniteNumber(values.fovDeg) && values.fovDeg > 0
+      ? values.fovDeg
+      : defaultFovDeg;
+
+  const target = projectMapLibreViewToViewSyncTarget(
+    lng,
+    clampLat(lat),
+    zoom,
+    altitude,
+    degToRadNumeric(fovDeg)!,
+    {
+      bearingDeg: isFiniteNumber(values.bearing) ? values.bearing : 0,
+      pitchDeg: isFiniteNumber(values.pitch) ? values.pitch : 0,
     }
+  );
+  if (!target) {
+    return null;
+  }
 
-    const params: MapLibreViewValues = {
-      lng: projection.lng,
-      lat: projection.lat,
-      zoom: projection.zoom,
-      altitude: viewState.altitude,
-    };
+  const clampedRangeM =
+    isFiniteNumber(target.range) && target.range < minRangeM
+      ? minRangeM
+      : target.range;
 
-    if (isFiniteNumber(projection.bearing) && !isZeroish(projection.bearing)) {
-      params.bearing = projection.bearing;
+  return {
+    ...target,
+    latitude: clampLatitudeToWebMercatorExtent(target.latitude),
+    zoom,
+    ...(isFiniteNumber(values.bearing)
+      ? {
+          bearing: zeroToTwoPi(
+            degToRadNumeric(values.bearing)! as Radians
+          ) as Radians,
+        }
+      : {}),
+    ...(isFiniteNumber(values.pitch)
+      ? {
+          pitch: degToRadNumeric(
+            clamp(values.pitch, 0, maxPitchDeg)
+          )! as Radians,
+        }
+      : {
+          pitch: degToRadNumeric(0)! as Radians,
+        }),
+    ...(isFiniteNumber(values.roll)
+      ? { roll: degToRadNumeric(values.roll)! as Radians }
+      : {}),
+    ...(isFiniteNumber(clampedRangeM)
+      ? { range: clampedRangeM as Meters }
+      : {}),
+    ...(isFiniteNumber(values.fovDeg)
+      ? { fovVertical: degToRadNumeric(values.fovDeg)! as Radians }
+      : {}),
+  };
+};
+
+export const readHashParamsFromViewState = (
+  viewState: ViewState,
+  options?: MapLibreAdapterOptions
+): Record<string, number> => {
+  const { defaultFovDeg, maxPitchDeg } = resolveOptions(options);
+  const latitudeDeg = radToDegNumeric(viewState.latitude);
+  const hasWebMercatorLatitude =
+    isFiniteNumber(latitudeDeg) && isWithinWebMercatorLat(latitudeDeg);
+
+  const params: Record<string, number> = {
+    lng: radToDegNumeric(viewState.longitude),
+    lat: latitudeDeg,
+    altitude: viewState.altitude,
+  };
+
+  const projected = hasWebMercatorLatitude
+    ? toMapLibreFrameworkView(viewState, { defaultFovDeg, maxPitchDeg })
+    : null;
+
+  if (projected) {
+    params.zoom = projected.zoom;
+    const bearingDeg = toHashBearingDeg(viewState.bearing);
+    if (isFiniteNumber(bearingDeg) && !isZeroish(bearingDeg)) {
+      params.bearing = bearingDeg;
     }
-
-    if (isFiniteNumber(projection.pitch) && projection.pitch > 0) {
-      params.pitch = projection.pitch;
+    if (isFiniteNumber(projected.pitch) && !isZeroish(projected.pitch)) {
+      params.pitch = projected.pitch;
     }
+  } else {
+    params.range = viewState.range;
+  }
 
-    return params;
-  },
+  if (!isWrappedRollCloseToZeroRad(viewState.roll)) {
+    params.roll = radToDegNumeric(viewState.roll)!;
+  }
 
-  toCarmaViewState(
-    values: MapLibreViewValues & { fovDeg?: number },
-    options?: MapLibreAdapterOptions
-  ): ViewState | null {
-    const { defaultFovDeg, maxPitchDeg, minRangeM } = resolveOptions(options);
-    const { lng, lat, zoom, altitude } = values;
-    if (
-      !isFiniteNumber(lng) ||
-      !isFiniteNumber(lat) ||
-      !isFiniteNumber(zoom) ||
-      !isFiniteNumber(altitude)
-    ) {
-      return null;
-    }
+  const effectiveFovDeg = isFiniteNumber(viewState.fovVertical)
+    ? radToDegNumeric(viewState.fovVertical)!
+    : undefined;
+  if (
+    isFiniteNumber(effectiveFovDeg) &&
+    !isZeroish(effectiveFovDeg - defaultFovDeg)
+  ) {
+    params.fov = effectiveFovDeg;
+  }
 
-    const fovDeg =
-      isFiniteNumber(values.fovDeg) && values.fovDeg > 0
-        ? values.fovDeg
-        : defaultFovDeg;
+  return params;
+};
 
-    const target = projectMapLibreViewToViewSyncTarget(
-      lng,
-      clampLat(lat),
-      zoom,
-      altitude,
-      degToRadNumeric(fovDeg)!,
-      {
-        bearingDeg: isFiniteNumber(values.bearing) ? values.bearing : 0,
-        pitchDeg: isFiniteNumber(values.pitch) ? values.pitch : 0,
-      }
-    );
-    if (!target) {
-      return null;
-    }
+export const readViewStateFromHashValues = (
+  values: Record<string, unknown>,
+  options?: MapLibreAdapterOptions
+): ViewState | null => {
+  const { defaultFovDeg, maxPitchDeg, minRangeM } = resolveOptions(options);
+  const lng = coerceFiniteNumber(values.lng);
+  const lat = coerceFiniteNumber(values.lat);
+  const altitude = coerceFiniteNumber(values.altitude);
+  const zoom = coerceFiniteNumber(values.zoom);
+  const range = coerceFiniteNumber(values.range);
+  const bearing = coerceFiniteNumber(values.bearing);
+  const pitch = coerceFiniteNumber(values.pitch);
+  const roll = coerceFiniteNumber(values.roll);
+  const fovDeg = coerceFiniteNumber(values.fov);
 
-    const clampedRangeM =
-      isFiniteNumber(target.range) && target.range < minRangeM
-        ? minRangeM
-        : target.range;
+  if (
+    !isFiniteNumber(lng) ||
+    !isFiniteNumber(lat) ||
+    !isFiniteNumber(altitude)
+  ) {
+    return null;
+  }
 
-    return {
-      ...target,
-      latitude: clampLatitudeToWebMercatorExtent(target.latitude),
-      zoom,
-      ...(isFiniteNumber(values.bearing)
-        ? {
-            bearing: zeroToTwoPi(
-              degToRadNumeric(values.bearing)! as Radians
-            ) as Radians,
-          }
-        : {}),
-      ...(isFiniteNumber(values.pitch)
-        ? {
-            pitch: degToRadNumeric(
-              clamp(values.pitch, 0, maxPitchDeg)
-            )! as Radians,
-          }
-        : {
-            pitch: degToRadNumeric(0)! as Radians,
-          }),
-      ...(isFiniteNumber(values.roll)
-        ? { roll: degToRadNumeric(values.roll)! as Radians }
-        : {}),
-      ...(isFiniteNumber(clampedRangeM)
-        ? { range: clampedRangeM as Meters }
-        : {}),
-      ...(isFiniteNumber(values.fovDeg)
-        ? { fovVertical: degToRadNumeric(values.fovDeg)! as Radians }
-        : {}),
-    };
-  },
+  const hasWebMercatorLatitude = isWithinWebMercatorLat(lat);
 
-  toHashParams(
-    viewState: ViewState,
-    options?: MapLibreAdapterOptions
-  ): Record<string, number> {
-    const { defaultFovDeg, maxPitchDeg } = resolveOptions(options);
-    const latitudeDeg = radToDegNumeric(viewState.latitude);
-    const hasWebMercatorLatitude =
-      isFiniteNumber(latitudeDeg) && isWithinWebMercatorLat(latitudeDeg);
-
-    const params: Record<string, number> = {
-      lng: radToDegNumeric(viewState.longitude),
-      lat: latitudeDeg,
-      altitude: viewState.altitude,
-    };
-
-    const projected = hasWebMercatorLatitude
-      ? maplibreAdapter.toFramework(viewState, {
-          defaultFovDeg,
-          maxPitchDeg,
-        })
-      : null;
-
-    if (projected) {
-      params.zoom = projected.zoom;
-      const bearingDeg = toHashBearingDeg(viewState.bearing);
-      if (isFiniteNumber(bearingDeg) && !isZeroish(bearingDeg)) {
-        params.bearing = bearingDeg;
-      }
-      if (isFiniteNumber(projected.pitch) && !isZeroish(projected.pitch)) {
-        params.pitch = projected.pitch;
-      }
-    } else {
-      params.range = viewState.range;
-    }
-
-    if (!isWrappedRollCloseToZeroRad(viewState.roll)) {
-      params.roll = radToDegNumeric(viewState.roll)!;
-    }
-
-    const effectiveFovDeg = isFiniteNumber(viewState.fovVertical)
-      ? radToDegNumeric(viewState.fovVertical)!
-      : undefined;
-    if (
-      isFiniteNumber(effectiveFovDeg) &&
-      !isZeroish(effectiveFovDeg - defaultFovDeg)
-    ) {
-      params.fov = effectiveFovDeg;
-    }
-
-    return params;
-  },
-
-  fromHashValues(
-    values: Record<string, unknown>,
-    options?: MapLibreAdapterOptions
-  ): ViewState | null {
-    const { defaultFovDeg, maxPitchDeg, minRangeM } = resolveOptions(options);
-    const lng = coerceFiniteNumber(values.lng);
-    const lat = coerceFiniteNumber(values.lat);
-    const altitude = coerceFiniteNumber(values.altitude);
-    const zoom = coerceFiniteNumber(values.zoom);
-    const range = coerceFiniteNumber(values.range);
-    const bearing = coerceFiniteNumber(values.bearing);
-    const pitch = coerceFiniteNumber(values.pitch);
-    const roll = coerceFiniteNumber(values.roll);
-    const fovDeg = coerceFiniteNumber(values.fov);
-
-    if (
-      !isFiniteNumber(lng) ||
-      !isFiniteNumber(lat) ||
-      !isFiniteNumber(altitude)
-    ) {
-      return null;
-    }
-
-    const hasWebMercatorLatitude = isWithinWebMercatorLat(lat);
-
-    if (isFiniteNumber(zoom) && hasWebMercatorLatitude) {
-      return maplibreAdapter.toCarmaViewState(
-        {
-          lng,
-          lat,
-          zoom,
-          altitude,
-          ...(isFiniteNumber(bearing) ? { bearing } : {}),
-          ...(isFiniteNumber(pitch) ? { pitch } : {}),
-          ...(isFiniteNumber(roll) ? { roll } : {}),
-          ...(isFiniteNumber(fovDeg) ? { fovDeg } : {}),
-        },
-        options
-      );
-    }
-
-    if (isFiniteNumber(range)) {
-      const clampedRangeM = range < minRangeM ? minRangeM : range;
-      return {
-        longitude: degToRadNumeric(lng)! as Radians,
-        latitude: degToRadNumeric(lat)! as Radians,
-        altitude: altitude as Meters,
-        ...(isFiniteNumber(zoom) ? { zoom } : {}),
-        bearing: isFiniteNumber(bearing)
-          ? (zeroToTwoPi(degToRadNumeric(bearing)! as Radians) as Radians)
-          : (degToRadNumeric(0)! as Radians),
-        pitch: isFiniteNumber(pitch)
-          ? (degToRadNumeric(clamp(pitch, 0, maxPitchDeg))! as Radians)
-          : (degToRadNumeric(0)! as Radians),
-        ...(isFiniteNumber(roll)
-          ? { roll: degToRadNumeric(roll)! as Radians }
-          : {}),
-        range: clampedRangeM as Meters,
-        ...(isFiniteNumber(fovDeg)
-          ? { fovVertical: degToRadNumeric(fovDeg)! as Radians }
-          : {
-              fovVertical: degToRadNumeric(defaultFovDeg)! as Radians,
-            }),
-      };
-    }
-
-    if (!isFiniteNumber(zoom)) {
-      return null;
-    }
-
-    return maplibreAdapter.toCarmaViewState(
+  if (isFiniteNumber(zoom) && hasWebMercatorLatitude) {
+    return toCarmaViewStateFromMapLibre(
       {
         lng,
         lat,
@@ -487,7 +439,57 @@ export const maplibreAdapter = {
       },
       options
     );
-  },
+  }
+
+  if (isFiniteNumber(range)) {
+    const clampedRangeM = range < minRangeM ? minRangeM : range;
+    return {
+      longitude: degToRadNumeric(lng)! as Radians,
+      latitude: degToRadNumeric(lat)! as Radians,
+      altitude: altitude as Meters,
+      ...(isFiniteNumber(zoom) ? { zoom } : {}),
+      bearing: isFiniteNumber(bearing)
+        ? (zeroToTwoPi(degToRadNumeric(bearing)! as Radians) as Radians)
+        : (degToRadNumeric(0)! as Radians),
+      pitch: isFiniteNumber(pitch)
+        ? (degToRadNumeric(clamp(pitch, 0, maxPitchDeg))! as Radians)
+        : (degToRadNumeric(0)! as Radians),
+      ...(isFiniteNumber(roll)
+        ? { roll: degToRadNumeric(roll)! as Radians }
+        : {}),
+      range: clampedRangeM as Meters,
+      ...(isFiniteNumber(fovDeg)
+        ? { fovVertical: degToRadNumeric(fovDeg)! as Radians }
+        : {
+            fovVertical: degToRadNumeric(defaultFovDeg)! as Radians,
+          }),
+    };
+  }
+
+  if (!isFiniteNumber(zoom)) {
+    return null;
+  }
+
+  return toCarmaViewStateFromMapLibre(
+    {
+      lng,
+      lat,
+      zoom,
+      altitude,
+      ...(isFiniteNumber(bearing) ? { bearing } : {}),
+      ...(isFiniteNumber(pitch) ? { pitch } : {}),
+      ...(isFiniteNumber(roll) ? { roll } : {}),
+      ...(isFiniteNumber(fovDeg) ? { fovDeg } : {}),
+    },
+    options
+  );
+};
+
+export const maplibreAdapter = {
+  toFramework: toMapLibreFrameworkView,
+  toCarmaViewState: toCarmaViewStateFromMapLibre,
+  toHashParams: readHashParamsFromViewState,
+  fromHashValues: readViewStateFromHashValues,
 };
 
 export const readViewStateFromMapLibreMap = (

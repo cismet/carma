@@ -31,10 +31,8 @@ import {
   setViewFromCameraState,
 } from "@carma-mapping/engines/cesium/api";
 import {
-  HASH_ZOOM_CONVENTION,
   ViewSyncProvider,
   projectViewSyncTargetToMapLibre,
-  readHashParamsFromViewState,
   readViewSyncVerticalFov,
   projectViewSyncTargetToLeaflet,
   readViewStateFromSceneState,
@@ -44,9 +42,10 @@ import {
   useViewSyncStore,
   useViewSyncTargetState,
   cesiumAdapter,
-  maplibreAdapter,
+  readHashParamsFromViewState,
   readViewStateFromLeafletMap,
   readViewStateFromMapLibreMap,
+  maplibreAdapter,
   type ViewSyncPublishedState,
   type ViewSyncState,
   type ViewState,
@@ -469,9 +468,13 @@ const encodeStoryHashFromViewState = (
 ) =>
   viewState
     ? encodeHashParams(
-        readHashParamsFromViewState(viewState, {
-          zoomConvention: HASH_ZOOM_CONVENTION.LEAFLET_256,
-        }) ?? {}
+        (() => {
+          const params = readHashParamsFromViewState(viewState);
+          // Apply Leaflet +1 zoom offset for story hash display
+          return params.zoom != null
+            ? { ...params, zoom: params.zoom + 1 }
+            : params;
+        })()
       )
     : null;
 
