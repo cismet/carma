@@ -1,6 +1,11 @@
 import { useMemo } from "react";
-import { Form, Input, Table, Tag } from "antd";
+import { Form, Input, Row, Col, Table, Tag } from "antd";
 import type { ColumnsType } from "antd/es/table";
+import { getFormClassName } from "./readOnlyFormUtils";
+
+const FormLabel = ({ children }: { children: React.ReactNode }) => (
+  <span className="text-sm font-medium text-gray-700">{children}</span>
+);
 
 const AKTIONEN_BY_FACHOBJEKT_TYPE: Record<string, string[]> = {
   tdta_leuchten: [
@@ -95,27 +100,62 @@ const ArbeitsprotokollFormFields = ({
   return (
     <div className="flex flex-col gap-4 pt-2">
       {/* Section A: Basic fields */}
-      <Form layout="vertical" size="small">
-        <div className="grid grid-cols-2 gap-x-4">
-          <Form.Item label="Monteur">
-            <Input value={data.monteur ?? ""} readOnly />
-          </Form.Item>
-          <Form.Item label="Datum">
-            <Input value={formatDate(data.datum ?? "")} readOnly />
-          </Form.Item>
-          <Form.Item label="Status">
-            <Input
-              value={data.arbeitsprotokollstatus?.bezeichnung ?? ""}
-              readOnly
-            />
-          </Form.Item>
-          <Form.Item label="Material">
-            <Input value={data.material ?? ""} readOnly />
-          </Form.Item>
-        </div>
-        <Form.Item label="Bemerkung">
+      <Form
+        layout="vertical"
+        requiredMark={false}
+        className={getFormClassName(true)}
+      >
+        <Row gutter={16}>
+          <Col span={12}>
+            <Form.Item
+              label={<FormLabel>Monteur</FormLabel>}
+              className="mb-4"
+            >
+              <Input value={data.monteur ?? ""} size="large" readOnly />
+            </Form.Item>
+          </Col>
+          <Col span={12}>
+            <Form.Item
+              label={<FormLabel>Datum</FormLabel>}
+              className="mb-4"
+            >
+              <Input
+                value={formatDate(data.datum ?? "")}
+                size="large"
+                readOnly
+              />
+            </Form.Item>
+          </Col>
+        </Row>
+        <Row gutter={16}>
+          <Col span={12}>
+            <Form.Item
+              label={<FormLabel>Status</FormLabel>}
+              className="mb-4"
+            >
+              <Input
+                value={data.arbeitsprotokollstatus?.bezeichnung ?? ""}
+                size="large"
+                readOnly
+              />
+            </Form.Item>
+          </Col>
+          <Col span={12}>
+            <Form.Item
+              label={<FormLabel>Material</FormLabel>}
+              className="mb-4"
+            >
+              <Input value={data.material ?? ""} size="large" readOnly />
+            </Form.Item>
+          </Col>
+        </Row>
+        <Form.Item
+          label={<FormLabel>Bemerkung</FormLabel>}
+          className="mb-4"
+        >
           <Input.TextArea
             value={data.bemerkung ?? ""}
+            size="large"
             readOnly
             autoSize={{ minRows: 2, maxRows: 6 }}
           />

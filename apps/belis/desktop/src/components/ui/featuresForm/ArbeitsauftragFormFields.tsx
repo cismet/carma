@@ -1,5 +1,5 @@
 import { useMemo } from "react";
-import { Form, Input, Table } from "antd";
+import { Form, Input, Row, Col, Table } from "antd";
 import type { ColumnsType } from "antd/es/table";
 import { useDispatch, useSelector } from "react-redux";
 import { getFachobjektOfProtocol } from "@carma-appframeworks/belis";
@@ -9,6 +9,11 @@ import {
   getSelectedAPId,
 } from "../../../store/slices/arbeitsauftraege";
 import type { AppDispatch } from "../../../store";
+import { getFormClassName } from "./readOnlyFormUtils";
+
+const FormLabel = ({ children }: { children: React.ReactNode }) => (
+  <span className="text-sm font-medium text-gray-700">{children}</span>
+);
 
 const FEATURE_TYPE_LABELS: Record<string, string> = {
   tdta_leuchten: "Leuchte",
@@ -150,24 +155,55 @@ const ArbeitsauftragFormFields = ({ data }: ArbeitsauftragFormFieldsProps) => {
   return (
     <div className="flex flex-col gap-4 pt-2">
       {/* Header fields */}
-      <Form layout="vertical" size="small">
-        <div className="grid grid-cols-2 gap-x-4">
-          <Form.Item label="Auftragsnummer">
-            <Input value={data.nummer ?? ""} readOnly />
-          </Form.Item>
-          <Form.Item label="Zugewiesen an">
-            <Input
-              value={data.team?.name ?? data.zugewiesen_an ?? ""}
-              readOnly
-            />
-          </Form.Item>
-          <Form.Item label="angelegt von">
-            <Input value={data.angelegt_von ?? ""} readOnly />
-          </Form.Item>
-          <Form.Item label="Angelegt am">
-            <Input value={formatDate(data.angelegt_am ?? "")} readOnly />
-          </Form.Item>
-        </div>
+      <Form
+        layout="vertical"
+        requiredMark={false}
+        className={getFormClassName(true)}
+      >
+        <Row gutter={16}>
+          <Col span={12}>
+            <Form.Item
+              label={<FormLabel>Auftragsnummer</FormLabel>}
+              className="mb-4"
+            >
+              <Input value={data.nummer ?? ""} size="large" readOnly />
+            </Form.Item>
+          </Col>
+          <Col span={12}>
+            <Form.Item
+              label={<FormLabel>Zugewiesen an</FormLabel>}
+              className="mb-4"
+            >
+              <Input
+                value={data.team?.name ?? data.zugewiesen_an ?? ""}
+                size="large"
+                readOnly
+              />
+            </Form.Item>
+          </Col>
+        </Row>
+        <Row gutter={16}>
+          <Col span={12}>
+            <Form.Item
+              label={<FormLabel>Angelegt von</FormLabel>}
+              className="mb-4"
+            >
+              <Input value={data.angelegt_von ?? ""} size="large" readOnly />
+            </Form.Item>
+          </Col>
+          <Col span={12}>
+            <Form.Item
+              label={<FormLabel>Angelegt am</FormLabel>}
+              className="mb-4"
+            >
+              <Input
+                value={formatDate(data.angelegt_am ?? "")}
+                size="large"
+                readOnly
+              />
+            </Form.Item>
+          </Col>
+        </Row>
       </Form>
 
       {/* Protokolle table */}
