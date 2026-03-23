@@ -630,15 +630,6 @@ const BelisMapLibWrapper = ({
     }
   }, [selectedFeatureId, sidebarVariant, closeDatasheet]);
 
-  // Open the datasheet when an Arbeitsauftrag is selected (detail data loaded)
-  useEffect(() => {
-    if (sidebarVariant === "arbeitsauftraege" && selectedAAData) {
-      openDatasheet();
-    } else if (sidebarVariant === "arbeitsauftraege" && !selectedAAData) {
-      closeDatasheet();
-    }
-  }, [sidebarVariant, selectedAAData, openDatasheet, closeDatasheet]);
-
   // Check if selected feature is inside visible map boundary.
   // When not visible, auto-open the datasheet to show NoFeatureSelected.
   const [featureOnMap, setFeatureOnMap] = useState(true);
@@ -937,12 +928,10 @@ const BelisMapLibWrapper = ({
   useEffect(() => {
     if (!map) return;
 
-    const leitungstypen = (
-      (keyTablesData.leitungstyp || []) as {
-        id: number;
-        bezeichnung?: string;
-      }[]
-    );
+    const leitungstypen = (keyTablesData.leitungstyp || []) as {
+      id: number;
+      bezeichnung?: string;
+    }[];
 
     // Nothing to filter if key tables haven't loaded yet
     if (leitungstypen.length === 0) return;
