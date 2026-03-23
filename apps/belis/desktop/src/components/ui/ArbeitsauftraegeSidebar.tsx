@@ -53,7 +53,7 @@ const FEATURE_TYPE_KEYS = Object.keys(FEATURE_TYPE_LABELS);
 function formatDate(isoDate: string): string {
   if (!isoDate) return "";
   try {
-    return new Date(isoDate).toLocaleDateString("en-US");
+    return new Date(isoDate).toLocaleDateString("de-DE", { day: "2-digit", month: "2-digit", year: "numeric" });
   } catch {
     return isoDate;
   }

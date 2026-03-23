@@ -10,6 +10,7 @@ import {
 } from "../../../store/slices/arbeitsauftraege";
 import type { AppDispatch } from "../../../store";
 import { getFormClassName } from "./readOnlyFormUtils";
+import toTitleCase from "../../../helper/toTitleCase";
 
 const FormLabel = ({ children }: { children: React.ReactNode }) => (
   <span className="text-sm font-medium text-gray-700">{children}</span>
@@ -29,7 +30,7 @@ const FEATURE_TYPE_LABELS: Record<string, string> = {
 function formatDate(isoDate: string): string {
   if (!isoDate) return "";
   try {
-    return new Date(isoDate).toLocaleDateString("de-DE");
+    return new Date(isoDate).toLocaleDateString("de-DE", { day: "2-digit", month: "2-digit", year: "numeric" });
   } catch {
     return isoDate;
   }
@@ -153,7 +154,7 @@ const ArbeitsauftragFormFields = ({ data }: ArbeitsauftragFormFieldsProps) => {
           FEATURE_TYPE_LABELS[resolvedType] ?? fachobjekt?.type ?? "Unbekannt",
         kennzeichnung,
         bearbeiter: p.monteur ?? "",
-        position: getPosition(fachobjekt),
+        position: toTitleCase(getPosition(fachobjekt)),
         status: p.arbeitsprotokollstatus?.bezeichnung ?? "Unbekannt",
         isDeleted: p.is_deleted === true,
       };

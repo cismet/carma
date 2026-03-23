@@ -158,7 +158,7 @@ export function buildApGeoJson(
         veranlassung: protokoll.veranlassung?.bezeichnung ?? "",
         monteur: protokoll.monteur ?? null,
         datum: protokoll.datum
-          ? new Date(protokoll.datum).toLocaleDateString("en-US")
+          ? new Date(protokoll.datum).toLocaleDateString("de-DE", { day: "2-digit", month: "2-digit", year: "numeric" })
           : null,
       },
     });

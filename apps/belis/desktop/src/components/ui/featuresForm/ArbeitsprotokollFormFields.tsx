@@ -35,7 +35,7 @@ const AKTIONEN_BY_FACHOBJEKT_TYPE: Record<string, string[]> = {
 function formatDate(isoDate: string): string {
   if (!isoDate) return "";
   try {
-    return new Date(isoDate).toLocaleDateString("de-DE");
+    return new Date(isoDate).toLocaleDateString("de-DE", { day: "2-digit", month: "2-digit", year: "numeric" });
   } catch {
     return isoDate;
   }
