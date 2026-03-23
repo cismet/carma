@@ -66,7 +66,7 @@ const meta: Meta<ViewSyncStoryProps> = {
 export default meta;
 
 export const SideBySide: StoryObj<ViewSyncStoryProps> = {
-  name: "Side By Side",
+  name: "Multi View",
   render: (args) => (
     <Suspense
       fallback={<div style={{ padding: 24 }}>Loading ViewSync story...</div>}

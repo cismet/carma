@@ -1,28 +1,16 @@
 import type { CssPixelPosition } from "@carma/units/types";
+import type {
+  SvgLine,
+  SvgLineDynamicDashPattern,
+  SvgLineLabelDominantBaseline,
+  SvgLineLabelRotationMode,
+} from "@carma-commons/svg";
 
 import type { LineVisualizerProps } from "./components/LineVisualizer";
 
-export type SvgLine = {
-  start: CssPixelPosition;
-  end: CssPixelPosition;
-};
-
-export type LineDynamicDashPattern = {
-  dashLengthToStrokeWidthRatio: number;
-  dashGapToDashLengthRatio: number;
-  collapseNegativeGaps?: boolean;
-  collapseCapThresholdEffectiveGapRatio?: number;
-};
-
-export type LineLabelDominantBaseline =
-  | "middle"
-  | "central"
-  | "text-before-edge"
-  | "text-after-edge"
-  | "alphabetic"
-  | "hanging"
-  | "ideographic"
-  | "auto";
+export type { SvgLine };
+export type LineDynamicDashPattern = SvgLineDynamicDashPattern;
+export type LineLabelDominantBaseline = SvgLineLabelDominantBaseline;
 
 export type LineVisualizerData = LineVisualizerProps & {
   id: string;
@@ -41,7 +29,7 @@ export type LineVisualizerData = LineVisualizerProps & {
   labelMinLineLengthPx?: number;
   labelOffsetPx?: number;
   labelFlippedBaselineOffsetPx?: number;
-  labelRotationMode?: "auto" | "clockwise";
+  labelRotationMode?: SvgLineLabelRotationMode;
   labelDominantBaseline?: LineLabelDominantBaseline;
   getLabelOutsideReferencePoint?: () => CssPixelPosition | null;
   getLabelInsideReferencePoint?: () => CssPixelPosition | null;

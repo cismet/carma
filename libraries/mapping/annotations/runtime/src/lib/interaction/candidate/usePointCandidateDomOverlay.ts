@@ -7,8 +7,8 @@ import {
   type Scene,
 } from "@carma/cesium";
 import { formatNumber } from "@carma-mapping/annotations/core";
+import { createSvgLineVisualizers } from "@carma-commons/svg";
 import {
-  createSvgLineVisualizers,
   createPlacement,
   getPerspectiveStemAngleMagnitude,
   type PointLabelData,

@@ -1,15 +1,12 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import type {
-  CSSProperties,
-  PointerEvent as ReactPointerEvent,
-  RefObject,
-} from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import type { CSSProperties, RefObject } from "react";
 import type { Meta, StoryObj } from "@storybook/react";
 import type { CssPixelPosition } from "@carma/units/types";
 import {
   createScreenPointSvgLineVisualizers,
   type SvgLineCapStyle,
 } from "@carma-commons/svg";
+import { DraggableDebugAnchor } from "@carma-commons/interaction/drag";
 import { ResponsiveStatusBar } from "@carma-commons/ui/components";
 import {
   LabelOverlayProvider,
@@ -62,20 +59,6 @@ const frameStyle: CSSProperties = {
   height: "100vh",
   overflow: "hidden",
   background: "#fff",
-};
-
-const crosshairStyle: CSSProperties = {
-  position: "absolute",
-  width: 20,
-  height: 20,
-  transform: "translate(-50%, -50%)",
-  border: "none",
-  outline: "none",
-  backgroundColor: "transparent",
-  cursor: "none",
-  touchAction: "none",
-  padding: 0,
-  zIndex: 20,
 };
 
 const REPRESENTATIVE_LENGTH_MULTIPLIERS = [0, 0.1, 0.2, 0.5, 1, 2, 5, 10, 20];
@@ -235,140 +218,6 @@ const useContainerSize = (containerRef: RefObject<HTMLDivElement | null>) => {
   }, [containerRef]);
 
   return size;
-};
-
-type DraggableCrosshairProps = {
-  anchorId: string;
-  position: CssPixelPosition;
-  color: string;
-  containerRef: RefObject<HTMLDivElement | null>;
-  onChange: (nextPosition: CssPixelPosition) => void;
-};
-
-const DraggableCrosshair = ({
-  anchorId,
-  position,
-  color,
-  containerRef,
-  onChange,
-}: DraggableCrosshairProps) => {
-  const isDraggingRef = useRef(false);
-  const previousDocumentCursorRef = useRef<string | null>(null);
-  const hairlinePx =
-    typeof window !== "undefined" && window.devicePixelRatio > 0
-      ? 1 / window.devicePixelRatio
-      : 1;
-
-  const hideNativeCursor = useCallback(() => {
-    if (typeof document === "undefined") {
-      return;
-    }
-    const root = document.documentElement;
-    if (previousDocumentCursorRef.current === null) {
-      previousDocumentCursorRef.current = root.style.cursor ?? "";
-    }
-    root.style.cursor = "none";
-  }, []);
-
-  const restoreNativeCursor = useCallback(() => {
-    if (typeof document === "undefined") {
-      return;
-    }
-    if (previousDocumentCursorRef.current === null) {
-      return;
-    }
-    document.documentElement.style.cursor = previousDocumentCursorRef.current;
-    previousDocumentCursorRef.current = null;
-  }, []);
-
-  useEffect(
-    () => () => {
-      restoreNativeCursor();
-    },
-    [restoreNativeCursor]
-  );
-
-  const updateFromPointer = useCallback(
-    (event: ReactPointerEvent<HTMLButtonElement>) => {
-      const container = containerRef.current;
-      if (!container) {
-        return;
-      }
-
-      const bounds = container.getBoundingClientRect();
-      const nextX = clamp(event.clientX - bounds.left, 0, bounds.width);
-      const nextY = clamp(event.clientY - bounds.top, 0, bounds.height);
-      onChange(toCssPixelPosition(nextX, nextY));
-    },
-    [containerRef, onChange]
-  );
-
-  return (
-    <button
-      type="button"
-      aria-label={`${anchorId} anchor`}
-      onPointerDown={(event) => {
-        isDraggingRef.current = true;
-        hideNativeCursor();
-        event.currentTarget.setPointerCapture(event.pointerId);
-        updateFromPointer(event);
-      }}
-      onPointerMove={(event) => {
-        if (!isDraggingRef.current) {
-          return;
-        }
-        updateFromPointer(event);
-      }}
-      onPointerUp={(event) => {
-        isDraggingRef.current = false;
-        restoreNativeCursor();
-        if (event.currentTarget.hasPointerCapture(event.pointerId)) {
-          event.currentTarget.releasePointerCapture(event.pointerId);
-        }
-      }}
-      onPointerCancel={(event) => {
-        isDraggingRef.current = false;
-        restoreNativeCursor();
-        if (event.currentTarget.hasPointerCapture(event.pointerId)) {
-          event.currentTarget.releasePointerCapture(event.pointerId);
-        }
-      }}
-      onLostPointerCapture={() => {
-        isDraggingRef.current = false;
-        restoreNativeCursor();
-      }}
-      style={{
-        ...crosshairStyle,
-        left: position.x,
-        top: position.y,
-      }}
-    >
-      <span
-        style={{
-          position: "absolute",
-          left: "50%",
-          top: 0,
-          width: hairlinePx,
-          height: "100%",
-          transform: "translateX(-50%)",
-          backgroundColor: color,
-          opacity: 0.5,
-        }}
-      />
-      <span
-        style={{
-          position: "absolute",
-          left: 0,
-          top: "50%",
-          width: "100%",
-          height: hairlinePx,
-          transform: "translateY(-50%)",
-          backgroundColor: color,
-          opacity: 0.5,
-        }}
-      />
-    </button>
-  );
 };
 
 const LiveLineGeneratorOverlay = ({
@@ -550,7 +399,7 @@ const LiveLineGeneratorOverlay = ({
 
   return (
     <>
-      <DraggableCrosshair
+      <DraggableDebugAnchor
         anchorId="selected-dashed-single-start"
         position={singleAnchors[0]?.start ?? toCssPixelPosition(0, 0)}
         color="#1d4ed8"
@@ -563,7 +412,7 @@ const LiveLineGeneratorOverlay = ({
           )
         }
       />
-      <DraggableCrosshair
+      <DraggableDebugAnchor
         anchorId="selected-dashed-single-end"
         position={singleAnchors[0]?.end ?? toCssPixelPosition(0, 0)}
         color="#1d4ed8"
@@ -576,7 +425,7 @@ const LiveLineGeneratorOverlay = ({
           )
         }
       />
-      <DraggableCrosshair
+      <DraggableDebugAnchor
         anchorId="selected-solid-single-start"
         position={singleAnchors[1]?.start ?? toCssPixelPosition(0, 0)}
         color="#059669"
@@ -589,7 +438,7 @@ const LiveLineGeneratorOverlay = ({
           )
         }
       />
-      <DraggableCrosshair
+      <DraggableDebugAnchor
         anchorId="selected-solid-single-end"
         position={singleAnchors[1]?.end ?? toCssPixelPosition(0, 0)}
         color="#059669"
@@ -602,7 +451,7 @@ const LiveLineGeneratorOverlay = ({
           )
         }
       />
-      <DraggableCrosshair
+      <DraggableDebugAnchor
         anchorId="square-dashed-single-start"
         position={singleAnchors[2]?.start ?? toCssPixelPosition(0, 0)}
         color="#be185d"
@@ -615,7 +464,7 @@ const LiveLineGeneratorOverlay = ({
           )
         }
       />
-      <DraggableCrosshair
+      <DraggableDebugAnchor
         anchorId="square-dashed-single-end"
         position={singleAnchors[2]?.end ?? toCssPixelPosition(0, 0)}
         color="#be185d"
@@ -628,7 +477,7 @@ const LiveLineGeneratorOverlay = ({
           )
         }
       />
-      <DraggableCrosshair
+      <DraggableDebugAnchor
         anchorId="selected-dashed-chain-a"
         position={chainAnchors[0]?.a ?? toCssPixelPosition(0, 0)}
         color="#1d4ed8"
@@ -641,7 +490,7 @@ const LiveLineGeneratorOverlay = ({
           )
         }
       />
-      <DraggableCrosshair
+      <DraggableDebugAnchor
         anchorId="selected-dashed-chain-b"
         position={chainAnchors[0]?.b ?? toCssPixelPosition(0, 0)}
         color="#1d4ed8"
@@ -654,7 +503,7 @@ const LiveLineGeneratorOverlay = ({
           )
         }
       />
-      <DraggableCrosshair
+      <DraggableDebugAnchor
         anchorId="selected-dashed-chain-c"
         position={chainAnchors[0]?.c ?? toCssPixelPosition(0, 0)}
         color="#1d4ed8"
@@ -667,7 +516,7 @@ const LiveLineGeneratorOverlay = ({
           )
         }
       />
-      <DraggableCrosshair
+      <DraggableDebugAnchor
         anchorId="selected-dashed-chain-d"
         position={chainAnchors[0]?.d ?? toCssPixelPosition(0, 0)}
         color="#1d4ed8"
@@ -680,7 +529,7 @@ const LiveLineGeneratorOverlay = ({
           )
         }
       />
-      <DraggableCrosshair
+      <DraggableDebugAnchor
         anchorId="selected-solid-chain-a"
         position={chainAnchors[1]?.a ?? toCssPixelPosition(0, 0)}
         color="#059669"
@@ -693,7 +542,7 @@ const LiveLineGeneratorOverlay = ({
           )
         }
       />
-      <DraggableCrosshair
+      <DraggableDebugAnchor
         anchorId="selected-solid-chain-b"
         position={chainAnchors[1]?.b ?? toCssPixelPosition(0, 0)}
         color="#059669"
@@ -706,7 +555,7 @@ const LiveLineGeneratorOverlay = ({
           )
         }
       />
-      <DraggableCrosshair
+      <DraggableDebugAnchor
         anchorId="selected-solid-chain-c"
         position={chainAnchors[1]?.c ?? toCssPixelPosition(0, 0)}
         color="#059669"
@@ -719,7 +568,7 @@ const LiveLineGeneratorOverlay = ({
           )
         }
       />
-      <DraggableCrosshair
+      <DraggableDebugAnchor
         anchorId="selected-solid-chain-d"
         position={chainAnchors[1]?.d ?? toCssPixelPosition(0, 0)}
         color="#059669"
@@ -732,7 +581,7 @@ const LiveLineGeneratorOverlay = ({
           )
         }
       />
-      <DraggableCrosshair
+      <DraggableDebugAnchor
         anchorId="square-dashed-chain-a"
         position={chainAnchors[2]?.a ?? toCssPixelPosition(0, 0)}
         color="#be185d"
@@ -745,7 +594,7 @@ const LiveLineGeneratorOverlay = ({
           )
         }
       />
-      <DraggableCrosshair
+      <DraggableDebugAnchor
         anchorId="square-dashed-chain-b"
         position={chainAnchors[2]?.b ?? toCssPixelPosition(0, 0)}
         color="#be185d"
@@ -758,7 +607,7 @@ const LiveLineGeneratorOverlay = ({
           )
         }
       />
-      <DraggableCrosshair
+      <DraggableDebugAnchor
         anchorId="square-dashed-chain-c"
         position={chainAnchors[2]?.c ?? toCssPixelPosition(0, 0)}
         color="#be185d"
@@ -771,7 +620,7 @@ const LiveLineGeneratorOverlay = ({
           )
         }
       />
-      <DraggableCrosshair
+      <DraggableDebugAnchor
         anchorId="square-dashed-chain-d"
         position={chainAnchors[2]?.d ?? toCssPixelPosition(0, 0)}
         color="#be185d"

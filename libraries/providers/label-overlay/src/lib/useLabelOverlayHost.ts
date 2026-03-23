@@ -27,6 +27,19 @@ export const useLabelOverlayHost = ({
       if (typeof cleanupFrameSubscription === "function") {
         cleanupCallbacks.push(cleanupFrameSubscription);
       }
+      if (!subscribeFrame && typeof window !== "undefined") {
+        let animationFrameId = 0;
+        const animationLoop = () => {
+          updateFn();
+          animationFrameId = window.requestAnimationFrame(animationLoop);
+        };
+        animationFrameId = window.requestAnimationFrame(animationLoop);
+        cleanupCallbacks.push(() => {
+          if (animationFrameId) {
+            window.cancelAnimationFrame(animationFrameId);
+          }
+        });
+      }
 
       if (typeof window !== "undefined") {
         let resizeAnimationFrameId = 0;

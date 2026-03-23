@@ -5,8 +5,8 @@ import {
   projectGeographicCoordinateToScreen,
 } from "@carma-mapping/engines/cesium/api";
 import { useCesiumEdgeVisualizer } from "@carma-mapping/engines/cesium/react/primitives";
+import { createSvgLineVisualizers } from "@carma-commons/svg";
 import {
-  createSvgLineVisualizers,
   useLineVisualizers,
   type LineVisualizerData,
 } from "@carma-providers/label-overlay";

@@ -5,7 +5,40 @@ export type SvgLine = {
   end: CssPixelPosition;
 };
 
-export type SvgLineCapStyle = "round" | "square";
+export const SVG_LINE_CAP_STYLE = {
+  ROUND: "round",
+  SQUARE: "square",
+} as const;
+export type SvgLineCapStyle =
+  (typeof SVG_LINE_CAP_STYLE)[keyof typeof SVG_LINE_CAP_STYLE];
+
+export const SVG_LINE_STROKE_LINECAP = {
+  BUTT: "butt",
+  ROUND: "round",
+  SQUARE: "square",
+} as const;
+export type SvgLineStrokeLinecap =
+  (typeof SVG_LINE_STROKE_LINECAP)[keyof typeof SVG_LINE_STROKE_LINECAP];
+
+export const SVG_LINE_LABEL_ROTATION_MODE = {
+  AUTO: "auto",
+  CLOCKWISE: "clockwise",
+} as const;
+export type SvgLineLabelRotationMode =
+  (typeof SVG_LINE_LABEL_ROTATION_MODE)[keyof typeof SVG_LINE_LABEL_ROTATION_MODE];
+
+export const SVG_LINE_LABEL_DOMINANT_BASELINE_VALUES = [
+  "middle",
+  "central",
+  "text-before-edge",
+  "text-after-edge",
+  "alphabetic",
+  "hanging",
+  "ideographic",
+  "auto",
+] as const;
+export type SvgLineLabelDominantBaseline =
+  (typeof SVG_LINE_LABEL_DOMINANT_BASELINE_VALUES)[number];
 
 export type SvgLineDynamicDashPattern = {
   dashLengthToStrokeWidthRatio: number;
@@ -14,22 +47,12 @@ export type SvgLineDynamicDashPattern = {
   collapseCapThresholdEffectiveGapRatio?: number;
 };
 
-export type SvgLineLabelDominantBaseline =
-  | "middle"
-  | "central"
-  | "text-before-edge"
-  | "text-after-edge"
-  | "alphabetic"
-  | "hanging"
-  | "ideographic"
-  | "auto";
-
 export type SvgLineVisualizerData = {
   id: string;
   getSvgLine?: () => SvgLine | null;
   stroke?: string;
   strokeWidth?: number;
-  strokeLinecap?: "butt" | "round" | "square";
+  strokeLinecap?: SvgLineStrokeLinecap;
   strokeDasharray?: string;
   strokeDashoffset?: number;
   opacity?: number;
@@ -51,7 +74,7 @@ export type SvgLineVisualizerData = {
   labelMinLineLengthPx?: number;
   labelOffsetPx?: number;
   labelFlippedBaselineOffsetPx?: number;
-  labelRotationMode?: "auto" | "clockwise";
+  labelRotationMode?: SvgLineLabelRotationMode;
   labelDominantBaseline?: SvgLineLabelDominantBaseline;
   getLabelOutsideReferencePoint?: () => CssPixelPosition | null;
   getLabelInsideReferencePoint?: () => CssPixelPosition | null;
@@ -143,7 +166,8 @@ const resolveDynamicDashPattern = ({
 
 const resolveStrokeLinecap = (
   capStyle: SvgLineCapStyle | undefined
-): SvgLineVisualizerData["strokeLinecap"] => capStyle ?? "round";
+): SvgLineVisualizerData["strokeLinecap"] =>
+  capStyle ?? SVG_LINE_CAP_STYLE.ROUND;
 
 export const getScreenPointDistance = (
   start: CssPixelPosition,

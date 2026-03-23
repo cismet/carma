@@ -1,4 +1,8 @@
-import type { LineVisualizerData, SvgLine } from "../lineVisualizers.types";
+import type {
+  SvgLine,
+  SvgLineDynamicDashPattern,
+  SvgLineStrokeLinecap,
+} from "./line-generator";
 
 const MIN_LINE_LENGTH_PX = 0.0001;
 const MIN_STROKE_WIDTH_PX = 0.1;
@@ -6,6 +10,7 @@ const MAX_DASH_COUNT = 2048;
 const MIN_DOT_RAW_DASH_LENGTH_PX = 0.01;
 const DASH_MATH_EPSILON_PX = 0.000001;
 const NEGATIVE_GAP_COLLAPSE_EPSILON_RATIO = 0.001;
+const DASHARRAY_CACHE_LENGTH_PRECISION_PX = 0.1;
 
 export type SvgLineDasharrayCache = Map<number, string | null>;
 
@@ -17,8 +22,14 @@ type ResolvedDashPatternConfig = {
   collapseThresholdWithEpsilon: number;
 };
 
+export type SvgLineDasharrayInputLine = {
+  dynamicDashPattern?: SvgLineDynamicDashPattern;
+  strokeWidth?: number;
+  strokeLinecap?: SvgLineStrokeLinecap;
+};
+
 const resolveDashPatternConfig = (
-  dynamicDashPattern: LineVisualizerData["dynamicDashPattern"]
+  dynamicDashPattern: SvgLineDynamicDashPattern | undefined
 ): ResolvedDashPatternConfig | null => {
   if (!dynamicDashPattern) {
     return null;
@@ -75,10 +86,7 @@ export const resolveSvgLineDasharray = ({
   svgLine,
   dasharrayCache,
 }: {
-  line: Pick<
-    LineVisualizerData,
-    "dynamicDashPattern" | "strokeWidth" | "strokeLinecap"
-  >;
+  line: SvgLineDasharrayInputLine;
   svgLine: SvgLine;
   dasharrayCache?: SvgLineDasharrayCache;
 }): string | null => {
@@ -111,15 +119,21 @@ export const resolveSvgLineDasharray = ({
   if (!Number.isFinite(lineLengthPx)) {
     return "none";
   }
-  const dasharrayCacheKey = Math.max(0, Math.round(lineLengthPx));
+
+  const dasharrayCacheKey = Math.max(
+    0,
+    Math.round(lineLengthPx / DASHARRAY_CACHE_LENGTH_PRECISION_PX)
+  );
   const cachedDasharray = dasharrayCache?.get(dasharrayCacheKey);
   if (cachedDasharray !== undefined) {
     return cachedDasharray;
   }
+
   const resolveDasharray = (value: string | null): string | null => {
     dasharrayCache?.set(dasharrayCacheKey, value);
     return value;
   };
+
   if (lineLengthPx <= MIN_LINE_LENGTH_PX) {
     return resolveDasharray("none");
   }
@@ -150,12 +164,14 @@ export const resolveSvgLineDasharray = ({
     targetVisibleDashLengthPx - DASH_MATH_EPSILON_PX,
     MIN_LINE_LENGTH_PX
   );
+
   if (
     dashGapToDashLengthRatio >= -NEGATIVE_GAP_COLLAPSE_EPSILON_RATIO &&
     lineLengthPx < minVisibleDashFitPx
   ) {
     return resolveDasharray("none");
   }
+
   const targetEffectiveGapRatio = targetVisibleGapPx / fixedVisibleDashLengthPx;
   if (
     shouldCollapseForEffectiveGap({
@@ -166,6 +182,7 @@ export const resolveSvgLineDasharray = ({
   ) {
     return resolveDasharray("none");
   }
+
   const targetRawGapPx = Math.max(targetVisibleGapPx + capCompensationPx, 0);
   const maxDashCountByLength =
     fixedRawDashLengthPx <= MIN_LINE_LENGTH_PX
@@ -197,6 +214,7 @@ export const resolveSvgLineDasharray = ({
     ) {
       return resolveDasharray("none");
     }
+
     const forcedVisibleGapPx = DASH_MATH_EPSILON_PX - capCompensationPx;
     const forcedEffectiveGapRatio =
       forcedVisibleGapPx / fixedVisibleDashLengthPx;
@@ -209,6 +227,7 @@ export const resolveSvgLineDasharray = ({
     ) {
       return resolveDasharray("none");
     }
+
     return resolveDasharray(`${forcedRawDashLengthPx} ${DASH_MATH_EPSILON_PX}`);
   }
 
@@ -257,6 +276,7 @@ export const resolveSvgLineDasharray = ({
     ) {
       return;
     }
+
     const score = Math.abs(clampedRawGapPx - targetRawGapPx);
     if (!best) {
       best = { dashCount: n, rawGapPx: clampedRawGapPx, score };

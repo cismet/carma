@@ -1,16 +1,23 @@
 import { useMemo, type CSSProperties, type ReactNode } from "react";
-import { CAMERA_TYPE, type CameraType } from "@carma-commons/camera/model";
+import {
+  CAMERA_TYPE,
+  type CameraIntrinsics,
+  type CameraType,
+} from "@carma-commons/camera/model";
 import {
   ObjectCentricViewStateInfoBox,
   type ObjectCentricViewStateInfoRow,
 } from "@carma-mapping/components";
 import {
+  deriveView,
   projectViewSyncTargetToMapLibre,
   readViewSyncHorizontalFov,
   readViewSyncVerticalFov,
-  useViewSyncState,
+  useViewState,
+  type CommonViewState,
   type ViewState,
 } from "@carma-mapping/engines-interop/view-sync";
+import { PI_OVER_TWO } from "@carma/math";
 import { formatLengthMeters, radToDegNumeric } from "@carma/units/helpers";
 
 const FIGURE_SPACE = "\u2007";
@@ -60,6 +67,38 @@ const formatCameraType = (cameraType: CameraType | null | undefined) => {
   return cameraType;
 };
 
+const readIntrinsicsAspect = (
+  intrinsics: CameraIntrinsics | null | undefined
+): number | null => {
+  const candidate = (intrinsics as { aspect?: unknown } | null | undefined)
+    ?.aspect;
+  return typeof candidate === "number" && Number.isFinite(candidate)
+    ? candidate
+    : null;
+};
+
+const toOverlayViewState = (state: CommonViewState): ViewState => {
+  const derived = deriveView(state);
+  return {
+    longitude: derived.longitude,
+    latitude: derived.latitude,
+    altitude: derived.altitude,
+    zoom: derived.zoom,
+    bearing: derived.bearing,
+    pitch: derived.pitch,
+    roll: derived.roll,
+    range: derived.range,
+    ...(typeof state.intrinsics.fov === "number" &&
+    Number.isFinite(state.intrinsics.fov)
+      ? { fovVertical: state.intrinsics.fov }
+      : {}),
+    ...(typeof state.intrinsics.fovHorizontal === "number" &&
+    Number.isFinite(state.intrinsics.fovHorizontal)
+      ? { fovHorizontal: state.intrinsics.fovHorizontal }
+      : {}),
+  };
+};
+
 export const formatTargetSummary = (
   target: ViewState | null | undefined
 ): string => {
@@ -78,7 +117,8 @@ export const formatTargetSummary = (
 };
 
 const formatViewSyncTargetTableRows = (
-  target: ViewState | null | undefined
+  target: ViewState | null | undefined,
+  intrinsics: CameraIntrinsics | null | undefined
 ): ObjectCentricViewStateInfoRow[] => {
   if (!target) {
     return [
@@ -184,7 +224,7 @@ const formatViewSyncTargetTableRows = (
     },
     {
       label: "type",
-      value: formatCameraType(target.cameraModel?.intrinsics?.type),
+      value: formatCameraType(intrinsics?.type),
     },
     {
       label: "fov v / h",
@@ -201,30 +241,26 @@ const formatViewSyncTargetTableRows = (
     {
       label: "aspect ratio",
       value: formatOrUnresolved(
-        target.cameraModel?.intrinsics?.aspect,
+        readIntrinsicsAspect(intrinsics),
         (resolvedAspect) => formatCompactNumber(resolvedAspect, 3)
       ),
     },
     {
       label: "near",
-      value: formatOrUnresolved(
-        target.cameraModel?.intrinsics?.frustum?.near,
-        (resolvedNear) =>
-          formatLengthMeters(resolvedNear, {
-            maximumFractionDigitsMeters: 2,
-            maximumFractionDigitsKilometers: 2,
-          })
+      value: formatOrUnresolved(intrinsics?.frustum?.near, (resolvedNear) =>
+        formatLengthMeters(resolvedNear, {
+          maximumFractionDigitsMeters: 2,
+          maximumFractionDigitsKilometers: 2,
+        })
       ),
     },
     {
       label: "far",
-      value: formatOrUnresolved(
-        target.cameraModel?.intrinsics?.frustum?.far,
-        (resolvedFar) =>
-          formatLengthMeters(resolvedFar, {
-            maximumFractionDigitsMeters: 2,
-            maximumFractionDigitsKilometers: 2,
-          })
+      value: formatOrUnresolved(intrinsics?.frustum?.far, (resolvedFar) =>
+        formatLengthMeters(resolvedFar, {
+          maximumFractionDigitsMeters: 2,
+          maximumFractionDigitsKilometers: 2,
+        })
       ),
     },
   ];
@@ -271,13 +307,23 @@ export const ViewSyncMetaOverlay = ({
   fallbackTarget,
   style,
 }: {
-  fallbackTarget: ViewState;
+  fallbackTarget: CommonViewState;
   style?: CSSProperties;
 }) => {
-  const viewSyncState = useViewSyncState();
-  const target = viewSyncState.target?.target ?? null;
-  const visualizerTarget = target ?? fallbackTarget;
-  const rows = useMemo(() => formatViewSyncTargetTableRows(target), [target]);
+  const currentState = useViewState();
+  const visualizerState = currentState ?? fallbackTarget;
+  const visualizerTarget = useMemo(
+    () => toOverlayViewState(visualizerState),
+    [visualizerState]
+  );
+  const rows = useMemo(
+    () =>
+      formatViewSyncTargetTableRows(
+        visualizerTarget,
+        visualizerState.intrinsics
+      ),
+    [visualizerTarget, visualizerState.intrinsics]
+  );
   const formattedViewJson = useMemo(
     () => formatViewSyncJson(visualizerTarget),
     [visualizerTarget]
@@ -285,10 +331,29 @@ export const ViewSyncMetaOverlay = ({
   const visualizerDisplayOptions = useMemo(
     () => ({
       interactive: true,
+      fovDeg: 38,
+      showGraticule: false,
+      showSurface: true,
+      showAxes: true,
+      showAngleArcs: true,
+      showImagePlane: true,
+      showFrustum: true,
+      showAltitudeStem: true,
+      showCameraLink: true,
+      showAxisLabels: true,
+      showAngleLabels: true,
+      showImagePlaneLabels: true,
+      sphereCapRad: PI_OVER_TWO,
+      axisLineWidthPx: 2,
+      arcLineWidthPx: 2,
+      frustumLineWidthPx: 2,
+      cameraLinkLineWidthPx: 2,
+      altitudeLineWidthPx: 2,
     }),
     []
   );
-  const specification = visualizerTarget.cameraModel ?? {
+  const aspect = readIntrinsicsAspect(visualizerState.intrinsics);
+  const specification = {
     pose: {
       anchor: {
         longitude: visualizerTarget.longitude,
@@ -303,10 +368,10 @@ export const ViewSyncMetaOverlay = ({
     intrinsics: {
       fov: readViewSyncVerticalFov(visualizerTarget) ?? undefined,
       fovHorizontal: readViewSyncHorizontalFov(visualizerTarget) ?? undefined,
-      aspect: visualizerTarget.cameraModel?.intrinsics?.aspect,
-      type: visualizerTarget.cameraModel?.intrinsics?.type,
-      frustum: visualizerTarget.cameraModel?.intrinsics?.frustum,
-      viewOffset: visualizerTarget.cameraModel?.intrinsics?.viewOffset,
+      ...(aspect !== null ? { aspect } : {}),
+      type: visualizerState.intrinsics.type,
+      frustum: visualizerState.intrinsics.frustum,
+      viewOffset: visualizerState.intrinsics.viewOffset,
     },
   };
 

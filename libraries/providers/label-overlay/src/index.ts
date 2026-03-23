@@ -33,18 +33,6 @@ export {
 } from "./lib/react-runtime";
 export type { PointLabelAttach } from "./lib/core";
 export {
-  createSvgLineVisualizers,
-  createScreenPointSvgLineVisualizers,
-  createSvgLineVisualizer,
-  createScreenPointSvgLineVisualizer,
-  getScreenPointDistance,
-  type SvgLineCapStyle,
-  type CreateSvgLineVisualizersOptions,
-  type CreateScreenPointSvgLineVisualizersOptions,
-  type CreateSvgLineVisualizerOptions,
-  type CreateScreenPointSvgLineVisualizerOptions,
-} from "./lib/utils/lineVisualizerGenerator";
-export {
   resolvePointLabelOcclusionMode,
   shouldTestPointLabelOcclusion,
   estimatePillCapRadiusPx,
@@ -59,8 +47,6 @@ export {
   assignPointLabelClusterExpansionSlots,
   getVolumeEquivalentPointClusterRadiusPx,
   getVolumeEquivalentPointClusterDiameterPx,
-  computePolygonScreenWindingOrder,
-  computePolygonSegmentLabelPlacements,
   type ClusterableScreenPoint,
   type PointLabelExpansionSlotDescriptor,
   type PointLabelExpansionSlotStrategy,
@@ -75,11 +61,5 @@ export {
   type PointLabelClusterExpansionSlot,
   type PointLabelClusterExpansionConfig,
   type AssignPointLabelClusterExpansionSlotsResult,
-  type PolygonSegmentLabelSide,
-  type PolygonSegmentLabelRotationMode,
-  type PolygonSegmentLabelWindingOrder,
-  type PolygonSegmentLabelWindingPolicy,
-  type PolygonSegmentLabelPlacement,
-  type ComputePolygonSegmentLabelPlacementsOptions,
 } from "./lib/core";
 export * from "./lib/core/pointLabelLayout";

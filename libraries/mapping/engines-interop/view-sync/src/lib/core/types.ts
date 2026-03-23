@@ -1,5 +1,4 @@
 import type { ObjectCentricCameraModel } from "@carma-commons/camera/model";
-import type { Store } from "redux";
 import type { Meters, Radians } from "@carma/units/types";
 
 export const VIEW_SYNC_ENGINES = {
@@ -32,55 +31,4 @@ export type ViewState = {
   fovHorizontal?: Radians;
   fovLongerEdge?: Radians;
   cameraModel?: ObjectCentricCameraModel;
-};
-
-export type ViewSyncPublishedState = {
-  sourceId: string;
-  sourceEngine: ViewSyncEngine;
-  frameNumber: number | null;
-  timestampMs: number;
-  target: ViewState;
-};
-
-export type ViewSyncRegistration = {
-  id: string;
-  engine: ViewSyncEngine;
-  label?: string;
-  canControl?: boolean;
-};
-
-export type ViewSyncState = {
-  registrations: Record<string, ViewSyncRegistration>;
-  latestById: Record<string, ViewSyncPublishedState>;
-  controllerId: string | null;
-  target: ViewSyncPublishedState | null;
-};
-
-export type ViewSyncPublishOptions = {
-  frameNumber?: number | null;
-  timestampMs?: number;
-  claimControl?: boolean;
-};
-
-export type ViewSyncSetTargetOptions = {
-  sourceId?: string;
-  sourceEngine?: ViewSyncEngine;
-  frameNumber?: number | null;
-  timestampMs?: number;
-};
-
-export type ViewSyncStore = Store<ViewSyncState> & {
-  registerView: (registration: ViewSyncRegistration) => () => void;
-  unregisterView: (id: string) => void;
-  setController: (id: string | null) => void;
-  clearController: () => void;
-  publishViewState: (
-    id: string,
-    target: ViewState,
-    options?: ViewSyncPublishOptions
-  ) => void;
-  setTargetState: (
-    target: ViewState,
-    options?: ViewSyncSetTargetOptions
-  ) => void;
 };

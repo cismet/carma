@@ -9,6 +9,7 @@ import {
   getArcPointsInSpannedPlane,
   type Scene,
 } from "@carma/cesium";
+import { createSvgLineVisualizers } from "@carma-commons/svg";
 import {
   buildDistanceTriangleInsidePoint2D,
   buildOutsideReferencePoint2D,
@@ -31,7 +32,6 @@ import {
 import type { AnnotationPointMarkerBadge } from "../../../render/useRender";
 import type { CssPixelPosition } from "@carma/units/types";
 import {
-  createSvgLineVisualizers,
   useLabelOverlay,
   useLineVisualizers,
   type LineVisualizerData,

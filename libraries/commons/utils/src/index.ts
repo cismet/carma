@@ -85,3 +85,11 @@ export type { VersionData } from "./lib/version";
 export { detectWebGLContext } from "./lib/webgl";
 
 export * from "./lib/window";
+
+export {
+  createRingBuffer,
+  pushRingBufferEntry,
+  readRingBufferEntries,
+  clearRingBuffer,
+  type RingBuffer,
+} from "./lib/collections";

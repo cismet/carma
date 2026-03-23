@@ -1,5 +1,9 @@
 import { CAMERA_TYPE } from "@carma-commons/camera/model";
 import {
+  buildWorldVersorRotationFromArcballVectors,
+  mapPointerToArcballVector,
+} from "@carma-commons/interaction/rotation";
+import {
   clamp,
   isFiniteNumber,
   MINUS_PI_OVER_TWO,
@@ -23,6 +27,7 @@ import {
 import type {
   ViewStateVisualizerCamera,
   ViewStateVisualizerCueKey,
+  ViewStateVisualizerDebugVector,
   ViewStateVisualizerDisplayOptions,
   ViewStateVisualizerLabelAnchors,
   ViewStateVisualizerOptions,
@@ -37,6 +42,15 @@ const DEFAULT_SIZE: ViewStateVisualizerSize = {
 };
 
 const HEMISPHERE_RADIUS = 1;
+const SPHERE_WIDTH_SEGMENTS = 80;
+const SPHERE_HEIGHT_SEGMENTS = 48;
+const DEFAULT_CIRCLE_SAMPLE_COUNT = 96;
+const DEFAULT_SEMICIRCLE_SAMPLE_COUNT = 96;
+const DEFAULT_HORIZONTAL_ARC_SAMPLE_COUNT = 64;
+const DEFAULT_PITCH_ARC_SAMPLE_COUNT = 56;
+const DEFAULT_DISC_SEGMENTS = 96;
+const DEBUG_POINT_WIDTH_SEGMENTS = 40;
+const DEBUG_POINT_HEIGHT_SEGMENTS = 24;
 const CAMERA_BOX_SIZE = HEMISPHERE_RADIUS / 6;
 const VISUALIZER_FRAME_PADDING = CAMERA_BOX_SIZE * 1.5;
 const DEFAULT_VIEW_ROTATION_AROUND_UP = PI_OVER_SIX;
@@ -86,12 +100,11 @@ const AXIS_LENGTH = HEMISPHERE_RADIUS * 0.5;
 const CAMERA_BASIS_LINE_LENGTH = HEMISPHERE_RADIUS * 0.24;
 const IMAGE_PLANE_DISTANCE = HEMISPHERE_RADIUS * 0.42;
 const IMAGE_PLANE_ORIGIN_SIZE = HEMISPHERE_RADIUS * 0.05;
-const MAX_IMAGE_PLANE_HALF_EXTENT = HEMISPHERE_RADIUS * 0.44;
+const MIN_IMAGE_PLANE_HALF_EXTENT = HEMISPHERE_RADIUS * 0.08;
 const ALTITUDE_OVERFLOW_GAP_HALF_HEIGHT = HEMISPHERE_RADIUS * 0.16;
 const ALTITUDE_SCALE_BREAK_HALF_HEIGHT = HEMISPHERE_RADIUS * 0.032;
 const ALTITUDE_SCALE_BREAK_HALF_WIDTH = HEMISPHERE_RADIUS * 0.024;
 const OUTER_ARC_RADIUS = HEMISPHERE_RADIUS;
-const GRATICULE_CARDINAL_OPACITY = 0.42;
 const LABEL_UP_OFFSET = HEMISPHERE_RADIUS * 0.01;
 const CAMERA_GREY = 0x94a3b8;
 const CAMERA_GREY_DARK = 0x64748b;
@@ -110,9 +123,139 @@ const DEFAULT_CUE_COLORS: Record<ViewStateVisualizerCueKey, string> = {
 };
 const DEFAULT_IMPORTANT_LINE_WIDTH_PX = 2;
 const DEFAULT_HAIRLINE_WIDTH_PX = 0.5;
+const MIN_RENDER_LINE_WIDTH_PX = 0.1;
+const DEFAULT_SPHERE_CAP_RAD = PI_OVER_TWO;
+const DEFAULT_SPHERE_OPACITY = 0.13;
+const MIN_SPHERE_CAP_RAD = 0.01;
+const DEBUG_VECTOR_LENGTH = HEMISPHERE_RADIUS;
+const DEBUG_POINT_MARKER_RADIUS = HEMISPHERE_RADIUS * 0.03;
+const NUMERIC_EPSILON = 1e-6;
+const POINTER_DRAG_MODE = {
+  ORBIT: "orbit",
+  CAMERA_MARKER_ARCBALL_POSE: "camera-marker-arcball-pose",
+} as const;
+
+type PointerDragMode =
+  | (typeof POINTER_DRAG_MODE)[keyof typeof POINTER_DRAG_MODE]
+  | null;
+
+type ResolvedDisplayVisibility = {
+  showSurface: boolean;
+  showAxes: boolean;
+  showAngleArcs: boolean;
+  showImagePlane: boolean;
+  showImagePlaneAxes: boolean;
+  showAltitude: boolean;
+  showCameraMarker: boolean;
+  showLink: boolean;
+};
+
+type ResolvedLineWidths = {
+  axisLineWidthPx: number;
+  arcLineWidthPx: number;
+  frustumLineWidthPx: number;
+  cameraLinkLineWidthPx: number;
+  altitudeLineWidthPx: number;
+  hairlineWidthPx: number;
+};
 
 const normalizeBearing = (bearingRadians: number): number =>
   zeroToTwoPi(bearingRadians as Radians) as number;
+
+const createSphereGeometry = (capRad: number) =>
+  new THREE.SphereGeometry(
+    HEMISPHERE_RADIUS,
+    SPHERE_WIDTH_SEGMENTS,
+    SPHERE_HEIGHT_SEGMENTS,
+    0,
+    TWO_PI,
+    0,
+    capRad
+  );
+
+const resolveSphereCapRad = (display: ViewStateVisualizerDisplayOptions) =>
+  clamp(display.sphereCapRad ?? DEFAULT_SPHERE_CAP_RAD, MIN_SPHERE_CAP_RAD, PI);
+
+const resolveSphereOpacity = (display: ViewStateVisualizerDisplayOptions) =>
+  clamp(display.sphereOpacity ?? DEFAULT_SPHERE_OPACITY, 0, 1);
+
+const resolveDisplayVisibility = (
+  display: ViewStateVisualizerDisplayOptions
+): ResolvedDisplayVisibility => {
+  return {
+    showSurface: display.showSurface ?? true,
+    showAxes: display.showAxes ?? true,
+    showAngleArcs: display.showAngleArcs ?? true,
+    showImagePlane: display.showImagePlane ?? true,
+    showImagePlaneAxes:
+      (display.showImagePlane ?? true) && (display.showAxes ?? true),
+    showAltitude: display.showAltitudeStem ?? true,
+    showCameraMarker: display.showCameraMarker ?? true,
+    showLink: display.showCameraLink ?? true,
+  };
+};
+
+const resolveDisplayLineWidths = (
+  display: ViewStateVisualizerDisplayOptions
+): ResolvedLineWidths => {
+  const importantLineWidthPx = Math.max(
+    MIN_RENDER_LINE_WIDTH_PX,
+    display.lineWidthPx ?? DEFAULT_IMPORTANT_LINE_WIDTH_PX
+  );
+  const axisLineWidthPx = Math.max(
+    MIN_RENDER_LINE_WIDTH_PX,
+    display.axisLineWidthPx ?? importantLineWidthPx * (2 / 3)
+  );
+  const hairlineWidthPx = Math.max(
+    MIN_RENDER_LINE_WIDTH_PX,
+    display.hairlineWidthPx ?? DEFAULT_HAIRLINE_WIDTH_PX
+  );
+
+  return {
+    axisLineWidthPx,
+    arcLineWidthPx: Math.max(
+      MIN_RENDER_LINE_WIDTH_PX,
+      display.arcLineWidthPx ?? importantLineWidthPx
+    ),
+    frustumLineWidthPx: Math.max(
+      MIN_RENDER_LINE_WIDTH_PX,
+      display.frustumLineWidthPx ?? importantLineWidthPx
+    ),
+    cameraLinkLineWidthPx: Math.max(
+      MIN_RENDER_LINE_WIDTH_PX,
+      display.cameraLinkLineWidthPx ?? importantLineWidthPx
+    ),
+    altitudeLineWidthPx: Math.max(
+      MIN_RENDER_LINE_WIDTH_PX,
+      display.altitudeLineWidthPx ?? importantLineWidthPx
+    ),
+    hairlineWidthPx,
+  };
+};
+
+const resolveCueColors = (
+  display: ViewStateVisualizerDisplayOptions
+): Record<ViewStateVisualizerCueKey, string> => ({
+  ...DEFAULT_CUE_COLORS,
+  ...(display.cueColors ?? {}),
+});
+
+const coerceDebugVector = (
+  value: ViewStateVisualizerDebugVector | null | undefined
+): THREE.Vector3 | null => {
+  if (!value) return null;
+  if (
+    !isFiniteNumber(value.x) ||
+    !isFiniteNumber(value.y) ||
+    !isFiniteNumber(value.z)
+  ) {
+    return null;
+  }
+
+  const vector = new THREE.Vector3(value.x, value.y, value.z);
+  if (vector.lengthSq() <= 1e-8) return null;
+  return vector.normalize().multiplyScalar(DEBUG_VECTOR_LENGTH);
+};
 
 const pointOnBearingCircle = ({
   bearing,
@@ -284,7 +427,7 @@ const buildCirclePoints = ({
   radius,
   axis,
   offset = ORIGIN,
-  sampleCount = 48,
+  sampleCount = DEFAULT_CIRCLE_SAMPLE_COUNT,
   closeLoop = true,
 }: {
   radius: number;
@@ -322,7 +465,7 @@ const buildCirclePoints = ({
 const buildUpperSemicirclePoints = ({
   radius,
   axis,
-  sampleCount = 48,
+  sampleCount = DEFAULT_SEMICIRCLE_SAMPLE_COUNT,
 }: {
   radius: number;
   axis: "xy" | "yz";
@@ -349,7 +492,7 @@ const buildHorizontalArcPoints = ({
   startAngle,
   endAngle,
   y = 0,
-  sampleCount = 32,
+  sampleCount = DEFAULT_HORIZONTAL_ARC_SAMPLE_COUNT,
 }: {
   radius: number;
   startAngle: number;
@@ -371,7 +514,7 @@ const buildPitchArcPoints = ({
   bearing,
   elevation,
   radius,
-  sampleCount = 28,
+  sampleCount = DEFAULT_PITCH_ARC_SAMPLE_COUNT,
 }: {
   bearing: number;
   elevation: number;
@@ -389,6 +532,28 @@ const buildPitchArcPoints = ({
     point.applyAxisAngle(WORLD_UP, -bearing);
     return point;
   });
+
+const readMaxPitchLimit = (
+  cameraModel: ViewStateVisualizerSpecification
+): number | null =>
+  isFiniteNumber(cameraModel.limits?.maxPitch)
+    ? clamp(cameraModel.limits?.maxPitch ?? 0, 0, PI_OVER_TWO)
+    : null;
+
+const clampImagePlaneHalfExtent = (value: number): number =>
+  Math.max(MIN_IMAGE_PLANE_HALF_EXTENT, value);
+
+const buildMaxPitchRingPoints = (
+  maxPitch: number | null
+): THREE.Vector3[] | null =>
+  maxPitch === null
+    ? null
+    : buildCirclePoints({
+        radius: Math.sin(maxPitch) * HEMISPHERE_RADIUS,
+        axis: "xz",
+        offset: new THREE.Vector3(0, Math.cos(maxPitch) * HEMISPHERE_RADIUS, 0),
+        closeLoop: true,
+      });
 
 const buildVisualizerCamera = (
   size: ViewStateVisualizerSize,
@@ -541,16 +706,18 @@ const setLineGeometry = (
 
 const setQuadMeshGeometry = (
   mesh: THREE.Mesh,
-  corners: readonly THREE.Vector3[]
+  corners: readonly THREE.Vector3[] | null
 ) => {
   const geometry = mesh.geometry as THREE.BufferGeometry;
-  if (corners.length < 4) {
+  if (!corners || corners.length < 4) {
     geometry.setAttribute(
       "position",
       new THREE.BufferAttribute(new Float32Array(18), 3)
     );
+    geometry.computeBoundingSphere();
     return;
   }
+
   const positions = new Float32Array([
     corners[0].x,
     corners[0].y,
@@ -648,69 +815,26 @@ const buildImagePlaneGeometry = (
 
   const croppedHalfHeight =
     isFiniteNumber(projectionScaleY) && projectionScaleY > 0
-      ? clamp(
-          imagePlaneDistance / projectionScaleY,
-          0.08,
-          MAX_IMAGE_PLANE_HALF_EXTENT
-        )
+      ? clampImagePlaneHalfExtent(imagePlaneDistance / projectionScaleY)
       : isFiniteNumber(fovVertical)
-      ? clamp(
-          Math.tan((fovVertical ?? PI_OVER_THREE) * 0.5) * imagePlaneDistance,
-          0.08,
-          MAX_IMAGE_PLANE_HALF_EXTENT
+      ? clampImagePlaneHalfExtent(
+          Math.tan((fovVertical ?? PI_OVER_THREE) * 0.5) * imagePlaneDistance
         )
       : 0.18;
 
   const croppedHalfWidth =
     isFiniteNumber(projectionScaleX) && projectionScaleX > 0
-      ? clamp(
-          imagePlaneDistance / projectionScaleX,
-          0.12,
-          MAX_IMAGE_PLANE_HALF_EXTENT
-        )
+      ? clampImagePlaneHalfExtent(imagePlaneDistance / projectionScaleX)
       : isFiniteNumber(fovHorizontal)
-      ? clamp(
-          Math.tan((fovHorizontal ?? PI_OVER_TWO) * 0.5) * imagePlaneDistance,
-          0.12,
-          MAX_IMAGE_PLANE_HALF_EXTENT
+      ? clampImagePlaneHalfExtent(
+          Math.tan((fovHorizontal ?? PI_OVER_TWO) * 0.5) * imagePlaneDistance
         )
       : 0.24;
 
-  const horizontalViewScale =
-    hasHorizontalViewOffset && viewOffset.width > 0
-      ? viewOffset.width / viewOffset.fullWidth
-      : 1;
-  const verticalViewScale =
-    hasVerticalViewOffset && viewOffset.height > 0
-      ? viewOffset.height / viewOffset.fullHeight
-      : 1;
-  const fullHalfWidth =
-    horizontalViewScale > 0
-      ? croppedHalfWidth / horizontalViewScale
-      : croppedHalfWidth;
-  const fullHalfHeight =
-    verticalViewScale > 0
-      ? croppedHalfHeight / verticalViewScale
-      : croppedHalfHeight;
-
-  const offsetX = hasHorizontalViewOffset
-    ? ((viewOffset.offsetX + viewOffset.width * 0.5) / viewOffset.fullWidth -
-        0.5) *
-      fullHalfWidth *
-      2
-    : 0;
-  const offsetY = hasVerticalViewOffset
-    ? (0.5 -
-        (viewOffset.offsetY + viewOffset.height * 0.5) /
-          viewOffset.fullHeight) *
-      fullHalfHeight *
-      2
-    : 0;
-
-  const croppedImagePlaneCenter = imagePlaneCenter
-    .clone()
-    .add(right.clone().multiplyScalar(offsetX))
-    .add(up.clone().multiplyScalar(offsetY));
+  // Keep the displayed reference plane stable; viewOffset only adds an inset.
+  const fullHalfWidth = croppedHalfWidth;
+  const fullHalfHeight = croppedHalfHeight;
+  const croppedImagePlaneCenter = imagePlaneCenter.clone();
 
   const fullTopRight = imagePlaneCenter
     .clone()
@@ -729,29 +853,66 @@ const buildImagePlaneGeometry = (
     .add(right.clone().multiplyScalar(fullHalfWidth))
     .add(up.clone().multiplyScalar(-fullHalfHeight));
 
-  const topRight = croppedImagePlaneCenter
-    .clone()
-    .add(right.clone().multiplyScalar(croppedHalfWidth))
-    .add(up.clone().multiplyScalar(croppedHalfHeight));
-  const topLeft = croppedImagePlaneCenter
-    .clone()
-    .add(right.clone().multiplyScalar(-croppedHalfWidth))
-    .add(up.clone().multiplyScalar(croppedHalfHeight));
-  const bottomLeft = croppedImagePlaneCenter
-    .clone()
-    .add(right.clone().multiplyScalar(-croppedHalfWidth))
-    .add(up.clone().multiplyScalar(-croppedHalfHeight));
-  const bottomRight = croppedImagePlaneCenter
-    .clone()
-    .add(right.clone().multiplyScalar(croppedHalfWidth))
-    .add(up.clone().multiplyScalar(-croppedHalfHeight));
-
-  const frustumEdges = [
-    [cameraPosition, topRight],
-    [cameraPosition, topLeft],
-    [cameraPosition, bottomLeft],
-    [cameraPosition, bottomRight],
+  const hasViewOffset = hasHorizontalViewOffset || hasVerticalViewOffset;
+  const offsetPlaneLeftRatio =
+    hasHorizontalViewOffset && viewOffset.fullWidth > 0
+      ? viewOffset.offsetX / viewOffset.fullWidth
+      : 0;
+  const offsetPlaneTopRatio =
+    hasVerticalViewOffset && viewOffset.fullHeight > 0
+      ? viewOffset.offsetY / viewOffset.fullHeight
+      : 0;
+  const offsetPlaneWidthRatio =
+    hasHorizontalViewOffset && viewOffset.fullWidth > 0
+      ? viewOffset.width / viewOffset.fullWidth
+      : 1;
+  const offsetPlaneHeightRatio =
+    hasVerticalViewOffset && viewOffset.fullHeight > 0
+      ? viewOffset.height / viewOffset.fullHeight
+      : 1;
+  const hasNonStandardViewOffset =
+    hasViewOffset &&
+    (Math.abs(offsetPlaneLeftRatio) > NUMERIC_EPSILON ||
+      Math.abs(offsetPlaneTopRatio) > NUMERIC_EPSILON ||
+      Math.abs(offsetPlaneWidthRatio - 1) > NUMERIC_EPSILON ||
+      Math.abs(offsetPlaneHeightRatio - 1) > NUMERIC_EPSILON);
+  const fullPlaneWidthVector = fullTopRight.clone().sub(fullTopLeft);
+  const fullPlaneHeightVector = fullBottomLeft.clone().sub(fullTopLeft);
+  const imagePlaneDown = fullPlaneHeightVector.clone().normalize();
+  const imagePlaneAxisOrigin = fullTopLeft.clone();
+  const offsetPlaneTopLeft = hasViewOffset
+    ? fullTopLeft
+        .clone()
+        .add(fullPlaneWidthVector.clone().multiplyScalar(offsetPlaneLeftRatio))
+        .add(fullPlaneHeightVector.clone().multiplyScalar(offsetPlaneTopRatio))
+    : null;
+  const offsetPlaneTopRight = offsetPlaneTopLeft
+    ? offsetPlaneTopLeft
+        .clone()
+        .add(fullPlaneWidthVector.clone().multiplyScalar(offsetPlaneWidthRatio))
+    : null;
+  const offsetPlaneBottomLeft = offsetPlaneTopLeft
+    ? offsetPlaneTopLeft
+        .clone()
+        .add(
+          fullPlaneHeightVector.clone().multiplyScalar(offsetPlaneHeightRatio)
+        )
+    : null;
+  const offsetPlaneBottomRight =
+    offsetPlaneTopRight && offsetPlaneBottomLeft
+      ? offsetPlaneTopRight
+          .clone()
+          .add(
+            fullPlaneHeightVector.clone().multiplyScalar(offsetPlaneHeightRatio)
+          )
+      : null;
+  const frustumCorners = [
+    fullTopRight,
+    fullTopLeft,
+    fullBottomLeft,
+    fullBottomRight,
   ];
+  const frustumEdges = frustumCorners.map((corner) => [cameraPosition, corner]);
 
   return {
     cameraPosition,
@@ -760,8 +921,22 @@ const buildImagePlaneGeometry = (
     up,
     imagePlaneCenter,
     croppedImagePlaneCenter,
-    hasViewOffset: hasHorizontalViewOffset || hasVerticalViewOffset,
-    imagePlaneCorners: [topRight, topLeft, bottomLeft, bottomRight],
+    hasViewOffset,
+    hasNonStandardViewOffset,
+    imagePlaneCorners: [
+      fullTopRight,
+      fullTopLeft,
+      fullBottomLeft,
+      fullBottomRight,
+    ],
+    offsetImagePlaneCorners: hasViewOffset
+      ? [
+          offsetPlaneTopRight!,
+          offsetPlaneTopLeft!,
+          offsetPlaneBottomLeft!,
+          offsetPlaneBottomRight!,
+        ]
+      : null,
     fullImagePlaneCorners: [
       fullTopRight,
       fullTopLeft,
@@ -769,6 +944,13 @@ const buildImagePlaneGeometry = (
       fullBottomRight,
     ],
     frustumEdges,
+    imagePlaneAxisOrigin,
+    imagePlaneXAxisEnd: imagePlaneAxisOrigin
+      .clone()
+      .add(right.clone().multiplyScalar(CAMERA_BASIS_LINE_LENGTH)),
+    imagePlaneYAxisEnd: imagePlaneAxisOrigin
+      .clone()
+      .add(imagePlaneDown.clone().multiplyScalar(CAMERA_BASIS_LINE_LENGTH)),
     basisRightEnd: imagePlaneCenter
       .clone()
       .add(right.clone().multiplyScalar(CAMERA_BASIS_LINE_LENGTH)),
@@ -938,35 +1120,35 @@ export const createViewStateVisualizerPrimitive = (
 
   // --- Raycaster + drag state ---
   const raycaster = new THREE.Raycaster();
-  type DragMode = "orbit" | "pose" | null;
-  let dragMode: DragMode = null;
-  let dragStartVector = new THREE.Vector3();
+  let dragMode: PointerDragMode = null;
+  let dragStartArcballVector = new THREE.Vector3();
   let dragLastClientX = 0;
   let dragLastClientY = 0;
-  // For pose: the bearing/pitch at drag start
+  // For arcball pose drag: the bearing/pitch at drag start
   let dragStartBearing = 0;
   let dragStartPitch = 0;
 
-  const pointerToArcball = (
+  const readPointerArcballVector = (
     clientX: number,
     clientY: number
   ): THREE.Vector3 => {
     const rect = canvas.getBoundingClientRect();
-    const nx = ((clientX - rect.left) / rect.width) * 2 - 1;
-    // Use the conventional arcball y-up mapping so the resulting versor
-    // rotation does not invert vertical pointer input.
-    const ny = 1 - ((clientY - rect.top) / rect.height) * 2;
-    const lenSq = nx * nx + ny * ny;
-    if (lenSq <= 1) {
-      return new THREE.Vector3(nx, ny, Math.sqrt(1 - lenSq));
-    }
-    const len = Math.sqrt(lenSq);
-    return new THREE.Vector3(nx / len, ny / len, 0);
+    return mapPointerToArcballVector({
+      clientX,
+      clientY,
+      viewport: {
+        left: rect.left,
+        top: rect.top,
+        width: rect.width,
+        height: rect.height,
+      },
+    });
   };
 
   // --- Display state ---
   let currentDisplay: ViewStateVisualizerDisplayOptions = { ...initialDisplay };
   let lastSpecification: ViewStateVisualizerSpecification | null = null;
+  let spherePoseReferenceCameraVector: THREE.Vector3 | null = null;
 
   // --- Scene objects ---
   scene.add(new THREE.AmbientLight(0xffffff, 0.45));
@@ -974,14 +1156,16 @@ export const createViewStateVisualizerPrimitive = (
   const sun = new THREE.DirectionalLight(0xffffff, 1.34);
   sun.position.set(2.6, 3.1, 1.7);
   scene.add(sun);
+  let currentSphereCapRad = resolveSphereCapRad(currentDisplay);
+  const initialSphereOpacity = resolveSphereOpacity(currentDisplay);
 
   const hemisphere = new THREE.Mesh(
-    new THREE.SphereGeometry(1, 40, 24, 0, TWO_PI, 0, PI_OVER_TWO),
+    createSphereGeometry(currentSphereCapRad),
     new THREE.MeshPhysicalMaterial({
       color: 0xf1f5f9,
-      transparent: true,
-      opacity: 0.13,
-      depthWrite: false,
+      transparent: initialSphereOpacity < 1,
+      opacity: initialSphereOpacity,
+      depthWrite: initialSphereOpacity >= 1,
       roughness: 0.12,
       metalness: 0.01,
       clearcoat: 1,
@@ -993,9 +1177,10 @@ export const createViewStateVisualizerPrimitive = (
   );
   hemisphere.renderOrder = 0;
   scene.add(hemisphere);
+  const hemisphereMaterial = hemisphere.material as THREE.MeshPhysicalMaterial;
 
   const planeDisc = new THREE.Mesh(
-    new THREE.CircleGeometry(ZERO_ELEVATION_DISC_RADIUS, 48),
+    new THREE.CircleGeometry(ZERO_ELEVATION_DISC_RADIUS, DEFAULT_DISC_SEGMENTS),
     new THREE.MeshBasicMaterial({
       color: 0x94a3b8,
       transparent: true,
@@ -1017,7 +1202,7 @@ export const createViewStateVisualizerPrimitive = (
   );
   scene.add(planeDiscOutline);
 
-  const minPitchRing = new THREE.Line(
+  const maxPitchRing = new THREE.Line(
     new THREE.BufferGeometry(),
     new THREE.LineDashedMaterial({
       color: 0xdc2626,
@@ -1027,27 +1212,7 @@ export const createViewStateVisualizerPrimitive = (
       gapSize: HEMISPHERE_RADIUS * 0.06,
     })
   );
-  scene.add(minPitchRing);
-
-  const northSouthGreatCircle = new THREE.Line(
-    new THREE.BufferGeometry(),
-    new THREE.LineBasicMaterial({
-      color: 0x000000,
-      transparent: true,
-      opacity: GRATICULE_CARDINAL_OPACITY,
-    })
-  );
-  scene.add(northSouthGreatCircle);
-
-  const eastWestGreatCircle = new THREE.Line(
-    new THREE.BufferGeometry(),
-    new THREE.LineBasicMaterial({
-      color: 0x000000,
-      transparent: true,
-      opacity: GRATICULE_CARDINAL_OPACITY,
-    })
-  );
-  scene.add(eastWestGreatCircle);
+  scene.add(maxPitchRing);
 
   const cameraLink = new Line2(
     new LineGeometry(),
@@ -1230,21 +1395,63 @@ export const createViewStateVisualizerPrimitive = (
   );
   scene.add(cameraUp);
 
+  const imagePlaneOutline = new THREE.LineLoop(
+    new THREE.BufferGeometry(),
+    new THREE.LineBasicMaterial({
+      color: CAMERA_GREY_DARK,
+      transparent: true,
+      opacity: 0.96,
+    })
+  );
+  scene.add(imagePlaneOutline);
+
   const imagePlaneSurface = new THREE.Mesh(
     new THREE.BufferGeometry(),
     new THREE.MeshStandardMaterial({
       color: CAMERA_GREY,
       transparent: true,
-      opacity: 0.33,
+      opacity: 0.14,
+      depthWrite: false,
+      roughness: 0.82,
+      metalness: 0.03,
+      emissive: CAMERA_GREY_EMISSIVE,
+      emissiveIntensity: 0.03,
+      side: THREE.DoubleSide,
+      polygonOffset: true,
+      polygonOffsetFactor: 2,
+      polygonOffsetUnits: 2,
+    })
+  );
+  scene.add(imagePlaneSurface);
+
+  const imagePlaneOffsetSurface = new THREE.Mesh(
+    new THREE.BufferGeometry(),
+    new THREE.MeshStandardMaterial({
+      color: CAMERA_GREY,
+      transparent: true,
+      opacity: 0.28,
       depthWrite: false,
       roughness: 0.82,
       metalness: 0.03,
       emissive: CAMERA_GREY_EMISSIVE,
       emissiveIntensity: 0.04,
       side: THREE.DoubleSide,
+      polygonOffset: true,
+      polygonOffsetFactor: 1,
+      polygonOffsetUnits: 1,
     })
   );
-  scene.add(imagePlaneSurface);
+  scene.add(imagePlaneOffsetSurface);
+
+  const imagePlaneOffsetOutline = new THREE.LineLoop(
+    new THREE.BufferGeometry(),
+    new THREE.LineBasicMaterial({
+      color: 0x0f172a,
+      transparent: true,
+      opacity: 0.92,
+    })
+  );
+  scene.add(imagePlaneOffsetOutline);
 
   const imagePlaneOriginX = new THREE.Line(
     new THREE.BufferGeometry(),
@@ -1267,14 +1474,15 @@ export const createViewStateVisualizerPrimitive = (
   scene.add(imagePlaneOriginY);
 
   const frustumEdgeLines = Array.from({ length: 4 }, () => {
-    const line = new THREE.Line(
-      new THREE.BufferGeometry(),
-      new THREE.LineBasicMaterial({
+    const line = new Line2(
+      new LineGeometry(),
+      new LineMaterial({
         color: 0x475569,
         transparent: true,
         opacity: 0.64,
       })
     );
+    setWideLineResolution(line, size);
     scene.add(line);
     return line;
   });
@@ -1296,104 +1504,207 @@ export const createViewStateVisualizerPrimitive = (
   );
   scene.add(cameraMarker);
 
-  // --- Graticule line groups ---
-  const graticuleCardinalLines: THREE.Line[] = [
-    northSouthGreatCircle,
-    eastWestGreatCircle,
-  ];
-  const graticuleLines: THREE.Line[] = [...graticuleCardinalLines];
+  const debugStartVectorLine = new THREE.Line(
+    new THREE.BufferGeometry(),
+    new THREE.LineBasicMaterial({
+      color: 0x0ea5e9,
+      transparent: true,
+      opacity: 0.95,
+      depthTest: false,
+      depthWrite: false,
+    })
+  );
+  debugStartVectorLine.renderOrder = 40;
+  scene.add(debugStartVectorLine);
+
+  const debugCurrentVectorLine = new THREE.Line(
+    new THREE.BufferGeometry(),
+    new THREE.LineBasicMaterial({
+      color: 0xf97316,
+      transparent: true,
+      opacity: 0.95,
+      depthTest: false,
+      depthWrite: false,
+    })
+  );
+  debugCurrentVectorLine.renderOrder = 40;
+  scene.add(debugCurrentVectorLine);
+
+  const debugConnectorLine = new THREE.Line(
+    new THREE.BufferGeometry(),
+    new THREE.LineDashedMaterial({
+      color: 0x0f172a,
+      transparent: true,
+      opacity: 0.82,
+      dashSize: HEMISPHERE_RADIUS * 0.06,
+      gapSize: HEMISPHERE_RADIUS * 0.04,
+      depthTest: false,
+      depthWrite: false,
+    })
+  );
+  debugConnectorLine.renderOrder = 39;
+  scene.add(debugConnectorLine);
+
+  const debugPointGeometry = new THREE.SphereGeometry(
+    DEBUG_POINT_MARKER_RADIUS,
+    DEBUG_POINT_WIDTH_SEGMENTS,
+    DEBUG_POINT_HEIGHT_SEGMENTS
+  );
+  const debugStartPoint = new THREE.Mesh(
+    debugPointGeometry,
+    new THREE.MeshBasicMaterial({
+      color: 0x0ea5e9,
+      transparent: true,
+      opacity: 0.95,
+      depthTest: false,
+      depthWrite: false,
+    })
+  );
+  debugStartPoint.renderOrder = 41;
+  scene.add(debugStartPoint);
+  const debugCurrentPoint = new THREE.Mesh(
+    debugPointGeometry,
+    new THREE.MeshBasicMaterial({
+      color: 0xf97316,
+      transparent: true,
+      opacity: 0.95,
+      depthTest: false,
+      depthWrite: false,
+    })
+  );
+  debugCurrentPoint.renderOrder = 41;
+  scene.add(debugCurrentPoint);
+
+  const applyDebugArcballVectors = (
+    display: ViewStateVisualizerDisplayOptions
+  ) => {
+    const startVector = coerceDebugVector(display.debugArcballVectors?.start);
+    const currentVector = coerceDebugVector(
+      display.debugArcballVectors?.current
+    );
+    const showStart = Boolean(startVector);
+    const showCurrent = Boolean(currentVector);
+    const showConnector = showStart && showCurrent;
+
+    setLineGeometry(
+      debugStartVectorLine,
+      showStart
+        ? [ORIGIN.clone(), startVector!.clone()]
+        : [ORIGIN.clone(), ORIGIN.clone()]
+    );
+    setLineGeometry(
+      debugCurrentVectorLine,
+      showCurrent
+        ? [ORIGIN.clone(), currentVector!.clone()]
+        : [ORIGIN.clone(), ORIGIN.clone()]
+    );
+    setLineGeometry(
+      debugConnectorLine,
+      showConnector
+        ? [startVector!.clone(), currentVector!.clone()]
+        : [ORIGIN.clone(), ORIGIN.clone()]
+    );
+
+    debugStartVectorLine.visible = showStart;
+    debugCurrentVectorLine.visible = showCurrent;
+    debugConnectorLine.visible = showConnector;
+
+    if (startVector) {
+      debugStartPoint.position.copy(startVector);
+    }
+    if (currentVector) {
+      debugCurrentPoint.position.copy(currentVector);
+    }
+    debugStartPoint.visible = showStart;
+    debugCurrentPoint.visible = showCurrent;
+  };
 
   // --- Display option application ---
   const applyDisplayOptions = (display: ViewStateVisualizerDisplayOptions) => {
-    const showGraticule = display.showGraticule ?? true;
-    const showSurface = display.showSurface ?? true;
-    const showAxes = display.showAxes ?? true;
-    const showAngleArcs = display.showAngleArcs ?? true;
-    const showImagePlane = display.showImagePlane ?? true;
-    const showAltitude = display.showAltitudeStem ?? true;
-    const showLink = display.showCameraLink ?? true;
+    const visibility = resolveDisplayVisibility(display);
+    const lineWidths = resolveDisplayLineWidths(display);
+    const cueColors = resolveCueColors(display);
 
-    hemisphere.visible = showSurface;
+    hemisphere.visible = visibility.showSurface;
+    const nextSphereOpacity = resolveSphereOpacity(display);
+    hemisphereMaterial.opacity = nextSphereOpacity;
+    hemisphereMaterial.transparent = nextSphereOpacity < 1;
+    hemisphereMaterial.depthWrite = nextSphereOpacity >= 1;
+    hemisphereMaterial.needsUpdate = true;
 
-    graticuleLines.forEach((line) => {
-      line.visible = showGraticule;
-    });
+    const nextSphereCapRad = resolveSphereCapRad(display);
+    if (Math.abs(nextSphereCapRad - currentSphereCapRad) > 1e-6) {
+      hemisphere.geometry.dispose();
+      hemisphere.geometry = createSphereGeometry(nextSphereCapRad);
+      currentSphereCapRad = nextSphereCapRad;
+    }
 
-    eastAxis.visible = showAxes;
-    northAxis.visible = showAxes;
-    upAxis.visible = showAxes;
+    eastAxis.visible = visibility.showAxes;
+    northAxis.visible = visibility.showAxes;
+    upAxis.visible = visibility.showAxes;
 
-    bearingArc.visible = showAngleArcs;
-    pitchArc.visible = showAngleArcs;
-    bearingIndicatorArc.visible = showAngleArcs;
-    bearingRadial.visible = showAngleArcs;
-    pitchOriginLine.visible = showAngleArcs;
-    elevationArc.visible = showAngleArcs;
-    // minPitchRing visibility also depends on data; handled in update
+    bearingArc.visible = visibility.showAngleArcs;
+    pitchArc.visible = visibility.showAngleArcs;
+    bearingIndicatorArc.visible = visibility.showAngleArcs;
+    bearingRadial.visible = visibility.showAngleArcs;
+    pitchOriginLine.visible = visibility.showAngleArcs;
+    elevationArc.visible = visibility.showAngleArcs;
+    // maxPitchRing visibility also depends on data; handled in update
 
-    cameraForward.visible = showImagePlane;
-    cameraRight.visible = showImagePlane;
-    cameraUp.visible = showImagePlane;
-    imagePlaneSurface.visible = showImagePlane;
-    imagePlaneOriginX.visible = showImagePlane;
-    imagePlaneOriginY.visible = showImagePlane;
+    cameraForward.visible = visibility.showImagePlane;
+    cameraRight.visible = visibility.showImagePlaneAxes;
+    cameraUp.visible = visibility.showImagePlaneAxes;
+    imagePlaneOutline.visible = false;
+    imagePlaneSurface.visible = visibility.showImagePlane;
+    imagePlaneOffsetSurface.visible = visibility.showImagePlane;
+    imagePlaneOffsetOutline.visible = false;
+    imagePlaneOriginX.visible = visibility.showImagePlaneAxes;
+    imagePlaneOriginY.visible = visibility.showImagePlaneAxes;
 
     // frustumEdgeLines visibility also depends on data; handled in update
 
-    cameraLink.visible = showLink;
+    cameraMarker.visible = visibility.showCameraMarker;
+    cameraLink.visible = visibility.showLink;
 
-    planeDisc.visible = showAltitude;
-    planeDiscOutline.visible = showAltitude;
-    altitudeLineLower.visible = showAltitude;
-    altitudeLineUpper.visible = showAltitude;
+    planeDisc.visible = visibility.showAltitude;
+    planeDiscOutline.visible = visibility.showAltitude;
+    altitudeLineLower.visible = visibility.showAltitude;
+    altitudeLineUpper.visible = visibility.showAltitude;
     // altitude scale-break marker visibility depends on data; handled in update
 
-    const importantLineWidthPx = Math.max(
-      0.5,
-      display.lineWidthPx ?? DEFAULT_IMPORTANT_LINE_WIDTH_PX
+    setLineWidth(maxPitchRing, lineWidths.arcLineWidthPx);
+
+    setLineWidth(eastAxis, lineWidths.axisLineWidthPx);
+    setLineWidth(northAxis, lineWidths.axisLineWidthPx);
+    setLineWidth(upAxis, lineWidths.axisLineWidthPx);
+
+    setWideLineWidth(bearingArc, lineWidths.arcLineWidthPx);
+    setWideLineWidth(pitchArc, lineWidths.arcLineWidthPx);
+    setWideLineWidth(bearingIndicatorArc, lineWidths.arcLineWidthPx);
+    setWideLineWidth(bearingRadial, lineWidths.arcLineWidthPx);
+    setWideLineWidth(pitchOriginLine, lineWidths.arcLineWidthPx);
+    setWideLineWidth(elevationArc, lineWidths.arcLineWidthPx);
+    setWideLineWidth(cameraLink, lineWidths.cameraLinkLineWidthPx);
+    setWideLineWidth(altitudeLineLower, lineWidths.altitudeLineWidthPx);
+    setWideLineWidth(altitudeLineUpper, lineWidths.altitudeLineWidthPx);
+    setWideLineWidth(altitudeScaleBreakUpper, lineWidths.altitudeLineWidthPx);
+    setWideLineWidth(altitudeScaleBreakLower, lineWidths.altitudeLineWidthPx);
+
+    setLineWidth(imagePlaneOutline, lineWidths.hairlineWidthPx);
+    setLineWidth(imagePlaneOffsetOutline, lineWidths.hairlineWidthPx);
+    setLineWidth(imagePlaneOriginX, lineWidths.hairlineWidthPx);
+    setLineWidth(imagePlaneOriginY, lineWidths.hairlineWidthPx);
+    setLineWidth(cameraForward, lineWidths.hairlineWidthPx);
+    setLineWidth(cameraRight, lineWidths.axisLineWidthPx);
+    setLineWidth(cameraUp, lineWidths.axisLineWidthPx);
+    setLineWidth(planeDiscOutline, lineWidths.altitudeLineWidthPx);
+    setLineWidth(debugStartVectorLine, lineWidths.axisLineWidthPx);
+    setLineWidth(debugCurrentVectorLine, lineWidths.axisLineWidthPx);
+    setLineWidth(debugConnectorLine, lineWidths.hairlineWidthPx);
+
+    frustumEdgeLines.forEach((line) =>
+      setWideLineWidth(line, lineWidths.frustumLineWidthPx)
     );
-    const axisLineWidthPx = Math.max(
-      0.5,
-      display.axisLineWidthPx ?? importantLineWidthPx * (2 / 3)
-    );
-    const hairlineWidthPx = Math.max(
-      0.5,
-      display.hairlineWidthPx ?? DEFAULT_HAIRLINE_WIDTH_PX
-    );
-    const cueColors = {
-      ...DEFAULT_CUE_COLORS,
-      ...(display.cueColors ?? {}),
-    };
-
-    graticuleCardinalLines.forEach((line) =>
-      setLineWidth(line, hairlineWidthPx)
-    );
-    setLineWidth(minPitchRing, importantLineWidthPx);
-
-    setLineWidth(eastAxis, axisLineWidthPx);
-    setLineWidth(northAxis, axisLineWidthPx);
-    setLineWidth(upAxis, axisLineWidthPx);
-
-    setWideLineWidth(bearingArc, importantLineWidthPx);
-    setWideLineWidth(pitchArc, importantLineWidthPx);
-    setWideLineWidth(bearingIndicatorArc, importantLineWidthPx);
-    setWideLineWidth(bearingRadial, importantLineWidthPx);
-    setWideLineWidth(pitchOriginLine, importantLineWidthPx);
-    setWideLineWidth(elevationArc, importantLineWidthPx);
-    setWideLineWidth(cameraLink, importantLineWidthPx);
-    setWideLineWidth(altitudeLineLower, importantLineWidthPx);
-    setWideLineWidth(altitudeLineUpper, importantLineWidthPx);
-    setWideLineWidth(altitudeScaleBreakUpper, importantLineWidthPx);
-    setWideLineWidth(altitudeScaleBreakLower, importantLineWidthPx);
-
-    setLineWidth(imagePlaneOriginX, axisLineWidthPx);
-    setLineWidth(imagePlaneOriginY, axisLineWidthPx);
-    setLineWidth(cameraForward, hairlineWidthPx);
-    setLineWidth(cameraRight, axisLineWidthPx);
-    setLineWidth(cameraUp, axisLineWidthPx);
-    setLineWidth(planeDiscOutline, hairlineWidthPx);
-
-    frustumEdgeLines.forEach((line) => setLineWidth(line, hairlineWidthPx));
 
     setWideLineColor(bearingArc, cueColors.bearing);
     setWideLineColor(bearingIndicatorArc, cueColors.bearing);
@@ -1411,10 +1722,14 @@ export const createViewStateVisualizerPrimitive = (
     setLineColor(eastAxis, cueColors.east);
     setLineColor(northAxis, cueColors.north);
     setLineColor(upAxis, cueColors.up);
-    setLineColor(imagePlaneOriginX, cueColors.imageX);
-    setLineColor(imagePlaneOriginY, cueColors.imageY);
+    setLineColor(imagePlaneOutline, CAMERA_GREY_DARK);
+    setLineColor(imagePlaneOffsetOutline, cueColors.imageX);
+    setLineColor(imagePlaneOriginX, CAMERA_GREY_DARK);
+    setLineColor(imagePlaneOriginY, CAMERA_GREY_DARK);
     setLineColor(cameraRight, cueColors.imageX);
     setLineColor(cameraUp, cueColors.imageY);
+
+    applyDebugArcballVectors(display);
 
     // Orbit
     if (display.orbitTheta !== undefined) orbitTheta = display.orbitTheta;
@@ -1437,6 +1752,224 @@ export const createViewStateVisualizerPrimitive = (
     }
 
     syncCamerasToOrbit();
+  };
+
+  const capturePointerDrag = (pointerId: number) => {
+    canvas.setPointerCapture(pointerId);
+    canvas.style.cursor = "grabbing";
+  };
+
+  const readCurrentDisplayPose = () => {
+    const specification = lastSpecification;
+    if (!specification) {
+      return {
+        bearing: dragStartBearing,
+        pitch: dragStartPitch,
+      };
+    }
+
+    const displayCameraPosition =
+      computeUnitHemisphereCameraPosition(specification);
+    return cameraSpherePositionToViewingBearingPitch(displayCameraPosition);
+  };
+
+  const beginCameraMarkerArcballPoseDrag = (
+    pointerId: number,
+    clientX: number,
+    clientY: number
+  ) => {
+    dragMode = POINTER_DRAG_MODE.CAMERA_MARKER_ARCBALL_POSE;
+    dragStartArcballVector = readPointerArcballVector(clientX, clientY);
+    const displayPose = readCurrentDisplayPose();
+    dragStartBearing = displayPose.bearing;
+    dragStartPitch = displayPose.pitch;
+    capturePointerDrag(pointerId);
+  };
+
+  const beginOrbitDrag = (
+    pointerId: number,
+    clientX: number,
+    clientY: number
+  ) => {
+    dragMode = POINTER_DRAG_MODE.ORBIT;
+    dragLastClientX = clientX;
+    dragLastClientY = clientY;
+    capturePointerDrag(pointerId);
+  };
+
+  const updateArcballPoseDrag = (clientX: number, clientY: number) => {
+    const currentArcballVector = readPointerArcballVector(clientX, clientY);
+    const worldRotation = buildWorldVersorRotationFromArcballVectors({
+      startVector: dragStartArcballVector,
+      currentVector: currentArcballVector,
+      cameraWorldQuaternion: getActiveCamera().quaternion,
+    });
+
+    const startCamVec = viewingBearingPitchToCameraSpherePosition(
+      dragStartBearing,
+      dragStartPitch,
+      1
+    );
+    const rotated = startCamVec.clone().applyQuaternion(worldRotation);
+    const next = cameraSpherePositionToViewingBearingPitch(rotated);
+    const maxPitch = lastSpecification?.limits?.maxPitch ?? PI_OVER_TWO;
+
+    options.onPoseChange?.(next.bearing, clamp(next.pitch, 0, maxPitch));
+  };
+
+  const updateOrbitDrag = (clientX: number, clientY: number) => {
+    const rect = canvas.getBoundingClientRect();
+    const deltaX = (clientX - dragLastClientX) / Math.max(rect.width, 1);
+    const deltaY = (clientY - dragLastClientY) / Math.max(rect.height, 1);
+    const orbitSensitivity = PI * 1.2;
+
+    orbitTheta -= deltaX * orbitSensitivity;
+    orbitPhi = clamp(orbitPhi - deltaY * orbitSensitivity, 0.15, PI * 0.48);
+    dragLastClientX = clientX;
+    dragLastClientY = clientY;
+
+    syncCamerasToOrbit();
+    const anchors = update(lastSpecification!);
+    options.onInteraction?.(anchors);
+  };
+
+  const updateMaxPitchRing = (
+    maxPitchRingPoints: THREE.Vector3[] | null,
+    showAngleArcs: boolean
+  ) => {
+    if (maxPitchRingPoints) {
+      setLineGeometry(maxPitchRing, maxPitchRingPoints);
+      maxPitchRing.visible = showAngleArcs;
+      return;
+    }
+
+    setLineGeometry(maxPitchRing, [ORIGIN.clone(), ORIGIN.clone()]);
+    maxPitchRing.visible = false;
+  };
+
+  const updateAltitudeStemVisuals = ({
+    altitudeStemGeometry,
+    planeDiscY,
+    showAltitude,
+    showAltitudeScaleBreak,
+  }: {
+    altitudeStemGeometry: ReturnType<typeof buildAltitudeStemGeometry>;
+    planeDiscY: number;
+    showAltitude: boolean;
+    showAltitudeScaleBreak: boolean;
+  }) => {
+    const [lowerSegment, upperSegment] = altitudeStemGeometry.stemSegments;
+    setWideLineGeometry(
+      altitudeLineLower,
+      lowerSegment ?? [new THREE.Vector3(0, planeDiscY, 0), ORIGIN.clone()]
+    );
+    if (upperSegment) {
+      setWideLineGeometry(altitudeLineUpper, upperSegment);
+      altitudeLineUpper.visible = showAltitude;
+    } else {
+      setWideLineGeometry(altitudeLineUpper, [ORIGIN.clone(), ORIGIN.clone()]);
+      altitudeLineUpper.visible = false;
+    }
+
+    if (altitudeStemGeometry.overflowScaleBreakMarkers) {
+      setWideLineGeometry(
+        altitudeScaleBreakUpper,
+        altitudeStemGeometry.overflowScaleBreakMarkers[0]
+      );
+      setWideLineGeometry(
+        altitudeScaleBreakLower,
+        altitudeStemGeometry.overflowScaleBreakMarkers[1]
+      );
+      altitudeScaleBreakUpper.visible = showAltitude && showAltitudeScaleBreak;
+      altitudeScaleBreakLower.visible = showAltitude && showAltitudeScaleBreak;
+      return;
+    }
+
+    setWideLineGeometry(altitudeScaleBreakUpper, [
+      ORIGIN.clone(),
+      ORIGIN.clone(),
+    ]);
+    setWideLineGeometry(altitudeScaleBreakLower, [
+      ORIGIN.clone(),
+      ORIGIN.clone(),
+    ]);
+    altitudeScaleBreakUpper.visible = false;
+    altitudeScaleBreakLower.visible = false;
+  };
+
+  const updateImagePlaneVisuals = (
+    visual: ReturnType<typeof buildImagePlaneGeometry>
+  ) => {
+    setLineGeometry(cameraForward, [
+      visual.cameraPosition.clone(),
+      visual.imagePlaneCenter.clone(),
+    ]);
+    setLineGeometry(cameraRight, [
+      visual.imagePlaneAxisOrigin.clone(),
+      visual.imagePlaneXAxisEnd.clone(),
+    ]);
+    setLineGeometry(cameraUp, [
+      visual.imagePlaneAxisOrigin.clone(),
+      visual.imagePlaneYAxisEnd.clone(),
+    ]);
+    setLineGeometry(imagePlaneOutline, visual.imagePlaneCorners);
+    setQuadMeshGeometry(imagePlaneSurface, visual.imagePlaneCorners);
+    setQuadMeshGeometry(
+      imagePlaneOffsetSurface,
+      visual.offsetImagePlaneCorners
+    );
+    setLineGeometry(
+      imagePlaneOffsetOutline,
+      visual.offsetImagePlaneCorners ?? [
+        visual.imagePlaneCorners[0],
+        visual.imagePlaneCorners[0],
+        visual.imagePlaneCorners[0],
+        visual.imagePlaneCorners[0],
+      ]
+    );
+    imagePlaneSurface.visible = currentDisplay.showImagePlane ?? true;
+    imagePlaneOffsetSurface.visible =
+      (currentDisplay.showImagePlane ?? true) && visual.hasViewOffset;
+    imagePlaneOffsetOutline.visible = false;
+    setLineGeometry(imagePlaneOriginX, visual.imagePlaneOriginX);
+    setLineGeometry(imagePlaneOriginY, visual.imagePlaneOriginY);
+  };
+
+  const updateFrustumEdgeVisuals = (
+    visual: ReturnType<typeof buildImagePlaneGeometry>,
+    showFrustum: boolean
+  ) => {
+    frustumEdgeLines.forEach((line, index) => {
+      const edge = visual.frustumEdges[index];
+      setWideLineGeometry(
+        line,
+        edge
+          ? edge
+          : [visual.cameraPosition.clone(), visual.cameraPosition.clone()]
+      );
+      line.visible = showFrustum && Boolean(edge);
+    });
+  };
+
+  const updateSpherePoseRotation = (
+    cameraPosition: THREE.Vector3,
+    rotateSphereWithPose: boolean
+  ) => {
+    hemisphere.position.copy(ORIGIN);
+    if (rotateSphereWithPose) {
+      const currentCameraVector = cameraPosition.clone().normalize();
+      if (!spherePoseReferenceCameraVector) {
+        spherePoseReferenceCameraVector = currentCameraVector.clone();
+      }
+      hemisphere.quaternion.setFromUnitVectors(
+        spherePoseReferenceCameraVector,
+        currentCameraVector
+      );
+      return;
+    }
+
+    spherePoseReferenceCameraVector = null;
+    hemisphere.quaternion.identity();
   };
 
   // Apply initial display options
@@ -1467,28 +2000,15 @@ export const createViewStateVisualizerPrimitive = (
       currentDisplay.showAltitudeScaleBreak ?? true;
     const showFrustum = currentDisplay.showFrustum ?? true;
     const labelFontSizePx = currentDisplay.labelFontSizePx ?? 11;
+    const rotateSphereWithPose = currentDisplay.rotateSphereWithPose ?? false;
 
     const planeDiscPoints = buildCirclePoints({
       radius: ZERO_ELEVATION_DISC_RADIUS,
       axis: "xz",
       offset: new THREE.Vector3(0, planeDiscY, 0),
     });
-    const minPitch = isFiniteNumber(cameraModel.limits?.minPitch)
-      ? clamp(cameraModel.limits?.minPitch ?? 0, 0, PI_OVER_TWO)
-      : null;
-    const minPitchRingPoints =
-      minPitch === null
-        ? null
-        : buildCirclePoints({
-            radius: Math.sin(minPitch) * HEMISPHERE_RADIUS,
-            axis: "xz",
-            offset: new THREE.Vector3(
-              0,
-              Math.cos(minPitch) * HEMISPHERE_RADIUS,
-              0
-            ),
-            closeLoop: true,
-          });
+    const maxPitch = readMaxPitchLimit(cameraModel);
+    const maxPitchRingPoints = buildMaxPitchRingPoints(maxPitch);
 
     const visual = buildImagePlaneGeometry(cameraModel);
     const altitudeStemGeometry = buildAltitudeStemGeometry({
@@ -1498,60 +2018,17 @@ export const createViewStateVisualizerPrimitive = (
     });
 
     setLineGeometry(planeDiscOutline, planeDiscPoints);
-    if (minPitchRingPoints) {
-      setLineGeometry(minPitchRing, minPitchRingPoints);
-      minPitchRing.visible = showAngleArcs;
-    } else {
-      setLineGeometry(minPitchRing, [ORIGIN.clone(), ORIGIN.clone()]);
-      minPitchRing.visible = false;
-    }
-    setLineGeometry(
-      northSouthGreatCircle,
-      buildUpperSemicirclePoints({ radius: 1, axis: "yz" })
-    );
-    setLineGeometry(
-      eastWestGreatCircle,
-      buildUpperSemicirclePoints({ radius: 1, axis: "xy" })
-    );
+    updateMaxPitchRing(maxPitchRingPoints, showAngleArcs);
     setWideLineGeometry(cameraLink, [
       ORIGIN.clone(),
       visual.cameraPosition.clone(),
     ]);
-    const [lowerSegment, upperSegment] = altitudeStemGeometry.stemSegments;
-    setWideLineGeometry(
-      altitudeLineLower,
-      lowerSegment ?? [new THREE.Vector3(0, planeDiscY, 0), ORIGIN.clone()]
-    );
-    if (upperSegment) {
-      setWideLineGeometry(altitudeLineUpper, upperSegment);
-      altitudeLineUpper.visible = showAltitude;
-    } else {
-      setWideLineGeometry(altitudeLineUpper, [ORIGIN.clone(), ORIGIN.clone()]);
-      altitudeLineUpper.visible = false;
-    }
-    if (altitudeStemGeometry.overflowScaleBreakMarkers) {
-      setWideLineGeometry(
-        altitudeScaleBreakUpper,
-        altitudeStemGeometry.overflowScaleBreakMarkers[0]
-      );
-      setWideLineGeometry(
-        altitudeScaleBreakLower,
-        altitudeStemGeometry.overflowScaleBreakMarkers[1]
-      );
-      altitudeScaleBreakUpper.visible = showAltitude && showAltitudeScaleBreak;
-      altitudeScaleBreakLower.visible = showAltitude && showAltitudeScaleBreak;
-    } else {
-      setWideLineGeometry(altitudeScaleBreakUpper, [
-        ORIGIN.clone(),
-        ORIGIN.clone(),
-      ]);
-      setWideLineGeometry(altitudeScaleBreakLower, [
-        ORIGIN.clone(),
-        ORIGIN.clone(),
-      ]);
-      altitudeScaleBreakUpper.visible = false;
-      altitudeScaleBreakLower.visible = false;
-    }
+    updateAltitudeStemVisuals({
+      altitudeStemGeometry,
+      planeDiscY,
+      showAltitude,
+      showAltitudeScaleBreak,
+    });
     const bearingArcPoints = buildHorizontalArcPoints({
       radius: OUTER_ARC_RADIUS,
       startAngle: 0,
@@ -1602,34 +2079,9 @@ export const createViewStateVisualizerPrimitive = (
       ORIGIN.clone(),
       WORLD_UP.clone().multiplyScalar(AXIS_LENGTH),
     ]);
-    setLineGeometry(cameraForward, [
-      visual.cameraPosition.clone(),
-      visual.imagePlaneCenter.clone(),
-    ]);
-    setLineGeometry(cameraRight, [
-      visual.imagePlaneCenter.clone(),
-      visual.basisRightEnd.clone(),
-    ]);
-    setLineGeometry(cameraUp, [
-      visual.imagePlaneCenter.clone(),
-      visual.basisUpEnd.clone(),
-    ]);
-    setQuadMeshGeometry(imagePlaneSurface, visual.imagePlaneCorners);
-    setLineGeometry(imagePlaneOriginX, visual.imagePlaneOriginX);
-    setLineGeometry(imagePlaneOriginY, visual.imagePlaneOriginY);
-
-    frustumEdgeLines.forEach((line, index) => {
-      const edge = visual.frustumEdges[index];
-      setLineGeometry(
-        line,
-        edge
-          ? edge
-          : [visual.cameraPosition.clone(), visual.cameraPosition.clone()]
-      );
-      line.visible = showFrustum && Boolean(edge);
-    });
-
-    hemisphere.position.copy(ORIGIN);
+    updateImagePlaneVisuals(visual);
+    updateFrustumEdgeVisuals(visual, showFrustum);
+    updateSpherePoseRotation(visual.cameraPosition, rotateSphereWithPose);
     planeDisc.position.set(0, planeDiscY, 0);
     const cameraRadial = visual.cameraPosition.clone().normalize();
     cameraMarker.position.copy(
@@ -1695,35 +2147,33 @@ export const createViewStateVisualizerPrimitive = (
         leftPx: altitudeAnchor.leftPx + labelFontSizePx,
         topPx: altitudeAnchor.topPx,
       },
-      east: projectPoint(
-        WORLD_EAST.clone().multiplyScalar(AXIS_LENGTH),
-      ),
+      east: projectPoint(WORLD_EAST.clone().multiplyScalar(AXIS_LENGTH)),
       north: projectPoint(
         WORLD_NORTH.clone()
           .multiplyScalar(AXIS_LENGTH + 0.05)
-          .add(commonPlanarLabelOffset),
+          .add(commonPlanarLabelOffset)
       ),
-      up: projectPoint(
-        WORLD_UP.clone().multiplyScalar(AXIS_LENGTH),
-      ),
+      up: projectPoint(WORLD_UP.clone().multiplyScalar(AXIS_LENGTH)),
       imageX: projectPoint(
-        visual.basisRightEnd
+        visual.imagePlaneXAxisEnd
           .clone()
           .add(
             visual.right.clone().multiplyScalar(CAMERA_BASIS_LINE_LENGTH * 0.14)
-          ),
+          )
       ),
       imageY: projectPoint(
-        visual.basisUpEnd
-          .clone()
-          .add(
-            visual.up.clone().multiplyScalar(CAMERA_BASIS_LINE_LENGTH * 0.14)
-          ),
+        visual.imagePlaneYAxisEnd.clone().add(
+          visual.imagePlaneYAxisEnd
+            .clone()
+            .sub(visual.imagePlaneAxisOrigin)
+            .normalize()
+            .multiplyScalar(CAMERA_BASIS_LINE_LENGTH * 0.14)
+        )
       ),
     };
   };
 
-  // --- Pointer interaction (raycaster-based versor drag) ---
+  // --- Pointer interaction ---
   const onPointerDown = (e: PointerEvent) => {
     if (!lastSpecification) return;
 
@@ -1733,48 +2183,42 @@ export const createViewStateVisualizerPrimitive = (
     const ndcY = 1 - ((e.clientY - rect.top) / rect.height) * 2;
     raycaster.setFromCamera(new THREE.Vector2(ndcX, ndcY), getActiveCamera());
 
-    const sphereHits = raycaster.intersectObject(hemisphere);
+    const sphereHits = raycaster.intersectObject(hemisphere, false);
 
     // Check camera cube first, but only if it is not occluded by the hemisphere.
-    const cubeHits = raycaster.intersectObject(cameraMarker, false);
+    const canUseCameraMarkerDrag =
+      (currentDisplay.showCameraMarker ?? true) &&
+      Boolean(options.onPoseChange);
+    const cubeHits = canUseCameraMarkerDrag
+      ? raycaster.intersectObject(cameraMarker, false)
+      : [];
     const cubeHit = cubeHits[0];
     const sphereHit = sphereHits[0];
     const cubeIsInFrontOfSphere =
       cubeHit && (!sphereHit || cubeHit.distance <= sphereHit.distance);
-    const pointerInsideCubeSilhouette = isPointerInsideProjectedMesh({
-      clientX: e.clientX,
-      clientY: e.clientY,
-      mesh: cameraMarker,
-      geometry: cameraBoxGeometry,
-      size,
-      camera: getActiveCamera(),
-      canvas,
-    });
+    const pointerInsideCubeSilhouette =
+      canUseCameraMarkerDrag &&
+      Boolean(cubeHit) &&
+      isPointerInsideProjectedMesh({
+        clientX: e.clientX,
+        clientY: e.clientY,
+        mesh: cameraMarker,
+        geometry: cameraBoxGeometry,
+        size,
+        camera: getActiveCamera(),
+        canvas,
+      });
     if (
+      canUseCameraMarkerDrag &&
       cubeIsInFrontOfSphere &&
       pointerInsideCubeSilhouette &&
       options.onPoseChange
     ) {
-      dragMode = "pose";
-      dragStartVector = pointerToArcball(e.clientX, e.clientY);
-      const displayCameraPosition =
-        computeUnitHemisphereCameraPosition(lastSpecification);
-      const displayPose = cameraSpherePositionToViewingBearingPitch(
-        displayCameraPosition
-      );
-      dragStartBearing = displayPose.bearing;
-      dragStartPitch = displayPose.pitch;
-      canvas.setPointerCapture(e.pointerId);
-      canvas.style.cursor = "grabbing";
+      beginCameraMarkerArcballPoseDrag(e.pointerId, e.clientX, e.clientY);
       return;
     }
     if (sphereHits.length > 0 && (currentDisplay.interactive ?? false)) {
-      dragMode = "orbit";
-      dragStartVector = pointerToArcball(e.clientX, e.clientY);
-      dragLastClientX = e.clientX;
-      dragLastClientY = e.clientY;
-      canvas.setPointerCapture(e.pointerId);
-      canvas.style.cursor = "grabbing";
+      beginOrbitDrag(e.pointerId, e.clientX, e.clientY);
       return;
     }
   };
@@ -1782,50 +2226,10 @@ export const createViewStateVisualizerPrimitive = (
   const onPointerMove = (e: PointerEvent) => {
     if (!dragMode || !lastSpecification) return;
 
-    if (dragMode === "pose") {
-      const currentVector = pointerToArcball(e.clientX, e.clientY);
-      const screenRotation = new THREE.Quaternion().setFromUnitVectors(
-        dragStartVector,
-        currentVector
-      );
-      const activeCamera = getActiveCamera();
-      const cameraWorldQuaternion = activeCamera.quaternion.clone();
-      const worldRotation = cameraWorldQuaternion
-        .clone()
-        .multiply(screenRotation)
-        .multiply(cameraWorldQuaternion.clone().invert())
-        .normalize();
-
-      // Rotate camera direction vector on the hemisphere
-      const startCamVec = viewingBearingPitchToCameraSpherePosition(
-        dragStartBearing,
-        dragStartPitch,
-        1
-      );
-      const rotated = startCamVec.clone().applyQuaternion(worldRotation);
-      const next = cameraSpherePositionToViewingBearingPitch(rotated);
-
-      const minPitch = lastSpecification.limits?.minPitch ?? 0;
-      options.onPoseChange?.(
-        next.bearing,
-        clamp(next.pitch, minPitch, PI_OVER_TWO)
-      );
-    } else if (dragMode === "orbit") {
-      // Incremental pointer-delta orbit avoids unstable fast spins when the
-      // arcball pointer crosses the flattened outer ring.
-      const rect = canvas.getBoundingClientRect();
-      const deltaX = (e.clientX - dragLastClientX) / Math.max(rect.width, 1);
-      const deltaY = (e.clientY - dragLastClientY) / Math.max(rect.height, 1);
-      const orbitSensitivity = PI * 1.2;
-
-      orbitTheta -= deltaX * orbitSensitivity;
-      orbitPhi = clamp(orbitPhi - deltaY * orbitSensitivity, 0.15, PI * 0.48);
-      dragLastClientX = e.clientX;
-      dragLastClientY = e.clientY;
-
-      syncCamerasToOrbit();
-      const anchors = update(lastSpecification);
-      options.onInteraction?.(anchors);
+    if (dragMode === POINTER_DRAG_MODE.CAMERA_MARKER_ARCBALL_POSE) {
+      updateArcballPoseDrag(e.clientX, e.clientY);
+    } else if (dragMode === POINTER_DRAG_MODE.ORBIT) {
+      updateOrbitDrag(e.clientX, e.clientY);
     }
   };
 
@@ -1860,6 +2264,7 @@ export const createViewStateVisualizerPrimitive = (
     setWideLineResolution(altitudeLineUpper, size);
     setWideLineResolution(altitudeScaleBreakUpper, size);
     setWideLineResolution(altitudeScaleBreakLower, size);
+    frustumEdgeLines.forEach((line) => setWideLineResolution(line, size));
     const aspect = size.widthPx / size.heightPx;
     orthographicCamera.left = -baseTangentProduct * aspect;
     orthographicCamera.right = baseTangentProduct * aspect;
@@ -1898,12 +2303,8 @@ export const createViewStateVisualizerPrimitive = (
     (planeDisc.material as THREE.Material).dispose();
     planeDiscOutline.geometry.dispose();
     (planeDiscOutline.material as THREE.Material).dispose();
-    minPitchRing.geometry.dispose();
-    (minPitchRing.material as THREE.Material).dispose();
-    northSouthGreatCircle.geometry.dispose();
-    (northSouthGreatCircle.material as THREE.Material).dispose();
-    eastWestGreatCircle.geometry.dispose();
-    (eastWestGreatCircle.material as THREE.Material).dispose();
+    maxPitchRing.geometry.dispose();
+    (maxPitchRing.material as THREE.Material).dispose();
     (cameraLink.geometry as LineGeometry).dispose();
     (cameraLink.material as LineMaterial).dispose();
     (altitudeLineLower.geometry as LineGeometry).dispose();
@@ -1938,15 +2339,30 @@ export const createViewStateVisualizerPrimitive = (
     (cameraRight.material as THREE.Material).dispose();
     cameraUp.geometry.dispose();
     (cameraUp.material as THREE.Material).dispose();
+    debugStartVectorLine.geometry.dispose();
+    (debugStartVectorLine.material as THREE.Material).dispose();
+    debugCurrentVectorLine.geometry.dispose();
+    (debugCurrentVectorLine.material as THREE.Material).dispose();
+    debugConnectorLine.geometry.dispose();
+    (debugConnectorLine.material as THREE.Material).dispose();
+    debugPointGeometry.dispose();
+    (debugStartPoint.material as THREE.Material).dispose();
+    (debugCurrentPoint.material as THREE.Material).dispose();
+    imagePlaneOutline.geometry.dispose();
+    (imagePlaneOutline.material as THREE.Material).dispose();
     imagePlaneSurface.geometry.dispose();
     (imagePlaneSurface.material as THREE.Material).dispose();
+    imagePlaneOffsetSurface.geometry.dispose();
+    (imagePlaneOffsetSurface.material as THREE.Material).dispose();
+    imagePlaneOffsetOutline.geometry.dispose();
+    (imagePlaneOffsetOutline.material as THREE.Material).dispose();
     imagePlaneOriginX.geometry.dispose();
     (imagePlaneOriginX.material as THREE.Material).dispose();
     imagePlaneOriginY.geometry.dispose();
     (imagePlaneOriginY.material as THREE.Material).dispose();
     frustumEdgeLines.forEach((line) => {
-      line.geometry.dispose();
-      (line.material as THREE.Material).dispose();
+      (line.geometry as LineGeometry).dispose();
+      (line.material as LineMaterial).dispose();
     });
     cameraMarker.geometry.dispose();
     (cameraMarker.material as THREE.Material).dispose();

@@ -1,6 +1,11 @@
 import { describe, expect, it } from "vitest";
 import { degToRadNumeric, radToDegNumeric } from "@carma/units/helpers";
+import type { Meters, Radians } from "@carma/units/types";
 import { leafletAdapter } from "./leafletAdapter";
+
+const meters = (value: number): Meters => value as Meters;
+const radians = (degrees: number): Radians =>
+  degToRadNumeric(degrees)! as Radians;
 
 describe("leafletAdapter", () => {
   it("round-trips leaflet view values through view-state conversion", () => {
@@ -64,7 +69,7 @@ describe("leafletAdapter", () => {
     const values = leafletAdapter.toFramework({
       ...snapshot!,
       zoom: 15.4,
-      range: 10,
+      range: meters(10),
     });
 
     expect(values?.zoom).toBeCloseTo(16.4, 6);
@@ -80,14 +85,14 @@ describe("leafletAdapter", () => {
       155.6,
       {
         previousViewState: {
-          longitude: degToRadNumeric(7.2061216)!,
-          latitude: degToRadNumeric(51.2712774)!,
-          altitude: 155.6,
+          longitude: radians(7.2061216),
+          latitude: radians(51.2712774),
+          altitude: meters(155.6),
           zoom: 15.4,
-          bearing: degToRadNumeric(180)!,
-          pitch: degToRadNumeric(35)!,
-          range: 500,
-          fovVertical: degToRadNumeric(55)!,
+          bearing: radians(180),
+          pitch: radians(35),
+          range: meters(500),
+          fovVertical: radians(55),
         },
       }
     );
@@ -108,15 +113,15 @@ describe("leafletAdapter", () => {
       155.6,
       {
         previousViewState: {
-          longitude: degToRadNumeric(7.2061216)!,
-          latitude: degToRadNumeric(51.2712774)!,
-          altitude: 155.6,
+          longitude: radians(7.2061216),
+          latitude: radians(51.2712774),
+          altitude: meters(155.6),
           zoom: 15.4,
-          bearing: degToRadNumeric(180)!,
-          pitch: degToRadNumeric(35)!,
-          roll: degToRadNumeric(12)!,
-          range: 500,
-          fovVertical: degToRadNumeric(55)!,
+          bearing: radians(180),
+          pitch: radians(35),
+          roll: radians(12),
+          range: meters(500),
+          fovVertical: radians(55),
         },
         resetHeadingPitchRoll: true,
       }

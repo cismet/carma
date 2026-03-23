@@ -1,4 +1,7 @@
-export { createViewSyncStore } from "./core/createViewSyncStore";
+// New ViewState API (core/react/adapters)
+export * from "./state";
+
+// Legacy conversion/adapters kept for compatibility with flattened ViewState consumers.
 export {
   toCesiumPitchFromViewSyncPitch,
   toViewSyncPitchFromCesiumPitch,
@@ -39,20 +42,6 @@ export type { HashZoomConvention } from "./core/viewStateHash";
 export type {
   BuiltInViewSyncEngine,
   ViewSyncEngine,
-  ViewSyncPublishedState,
-  ViewSyncPublishOptions,
-  ViewSyncRegistration,
-  ViewSyncSetTargetOptions,
-  ViewSyncState,
-  ViewSyncStore,
   ViewState,
 } from "./core/types";
 export { VIEW_SYNC_ENGINES } from "./core/types";
-export { ViewSyncProvider } from "./hooks/ViewSyncProvider";
-export {
-  useRegisterViewSyncParticipant,
-  useViewSyncSelector,
-  useViewSyncState,
-  useViewSyncStore,
-  useViewSyncTargetState,
-} from "./hooks/useViewSync";

@@ -113,6 +113,15 @@ export const ViewStateVisualizer = ({
   const showAxisLabels = displayOptions?.showAxisLabels ?? true;
   const showAngleLabels = displayOptions?.showAngleLabels ?? true;
   const showImagePlaneLabels = displayOptions?.showImagePlaneLabels ?? true;
+  const showAxes = displayOptions?.showAxes ?? true;
+  const showAngleArcs = displayOptions?.showAngleArcs ?? true;
+  const showImagePlane = displayOptions?.showImagePlane ?? true;
+  const showAltitudeStem = displayOptions?.showAltitudeStem ?? true;
+  const showVisibleAngleLabels = showAngleLabels && showAngleArcs;
+  const showVisibleAltitudeLabel = showAngleLabels && showAltitudeStem;
+  const showVisibleAxisLabels = showAxisLabels && showAxes;
+  const showVisibleImagePlaneLabels =
+    showImagePlaneLabels && showImagePlane && showAxes;
   const labelFontSizePx = displayOptions?.labelFontSizePx ?? 11;
   const resolvedCueOptions = useMemo(
     () => ({
@@ -308,7 +317,7 @@ export const ViewStateVisualizer = ({
           fontVariantNumeric: "tabular-nums",
         }}
       >
-        {showAngleLabels && (
+        {showVisibleAngleLabels && (
           <>
             <span
               ref={bindLabelRef("bearing")}
@@ -361,26 +370,28 @@ export const ViewStateVisualizer = ({
             >
               {resolvedCueOptions.range.label}
             </span>
-            <span
-              ref={bindLabelRef("altitude")}
-              style={{
-                position: "absolute",
-                left: `${(
-                  squareOffsetLeft + defaultLabelAnchors.altitude.leftPx
-                ).toFixed(1)}px`,
-                top: `${(
-                  squareOffsetTop + defaultLabelAnchors.altitude.topPx
-                ).toFixed(1)}px`,
-                fontWeight: 700,
-                color: resolvedCueOptions.altitude.color,
-                transform: "translate(-50%, -50%)",
-              }}
-            >
-              {resolvedCueOptions.altitude.label}
-            </span>
           </>
         )}
-        {showAxisLabels && (
+        {showVisibleAltitudeLabel && (
+          <span
+            ref={bindLabelRef("altitude")}
+            style={{
+              position: "absolute",
+              left: `${(
+                squareOffsetLeft + defaultLabelAnchors.altitude.leftPx
+              ).toFixed(1)}px`,
+              top: `${(
+                squareOffsetTop + defaultLabelAnchors.altitude.topPx
+              ).toFixed(1)}px`,
+              fontWeight: 700,
+              color: resolvedCueOptions.altitude.color,
+              transform: "translate(-50%, -50%)",
+            }}
+          >
+            {resolvedCueOptions.altitude.label}
+          </span>
+        )}
+        {showVisibleAxisLabels && (
           <>
             <span
               ref={bindLabelRef("east")}
@@ -435,7 +446,7 @@ export const ViewStateVisualizer = ({
             </span>
           </>
         )}
-        {showImagePlaneLabels && (
+        {showVisibleImagePlaneLabels && (
           <>
             <span
               ref={bindLabelRef("imageX")}

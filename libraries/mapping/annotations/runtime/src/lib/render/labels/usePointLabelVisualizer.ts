@@ -16,9 +16,9 @@ import {
   getDegreesFromCartesian,
   type Scene,
 } from "@carma/cesium";
+import { createSvgLineVisualizers } from "@carma-commons/svg";
 
 import {
-  createSvgLineVisualizers,
   computePointLabelLayout,
   resolvePointLabelLayoutConfig,
   useLineVisualizers,
@@ -1120,8 +1120,9 @@ export const usePointLabelVisualizer = (
             : undefined,
         markerOnlyPointerEvents:
           markerOnlyOverlayNodeInteractions || isLockedPoint,
-        attachOverlayClickHandlers:
-          !(markerOnlyOverlayNodeInteractions || isLockedPoint),
+        attachOverlayClickHandlers: !(
+          markerOnlyOverlayNodeInteractions || isLockedPoint
+        ),
         markerCursor: isLockedPoint ? "pointer" : "grab",
         labelCursor: "pointer",
         forceMarkerInteractionTarget: Boolean(

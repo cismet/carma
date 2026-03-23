@@ -36,7 +36,7 @@ export type ViewStateVisualizerSpecification = {
   pose: ViewStateVisualizerPose;
   intrinsics?: ViewStateVisualizerIntrinsics;
   limits?: {
-    minPitch?: Radians;
+    maxPitch?: Radians;
   };
   display?: {
     imagePlaneDistance?: number;
@@ -54,6 +54,12 @@ export type ViewStateVisualizerCueKey =
   | "imageX"
   | "imageY";
 
+export type ViewStateVisualizerDebugVector = {
+  x: number;
+  y: number;
+  z: number;
+};
+
 export type ViewStateVisualizerDisplayOptions = {
   /** Horizontal orbit angle in radians */
   orbitTheta?: number;
@@ -68,11 +74,11 @@ export type ViewStateVisualizerDisplayOptions = {
 
   /** Show graticule meridians and parallels */
   showGraticule?: boolean;
-  /** Show hemisphere surface fill */
+  /** Show sphere surface fill */
   showSurface?: boolean;
   /** Show E/N/U world axes */
   showAxes?: boolean;
-  /** Show bearing/pitch angle arcs and min-pitch ring */
+  /** Show bearing/pitch angle arcs and max-pitch ring */
   showAngleArcs?: boolean;
   /** Show camera image plane, origin marker, and basis vectors */
   showImagePlane?: boolean;
@@ -82,8 +88,27 @@ export type ViewStateVisualizerDisplayOptions = {
   showAltitudeStem?: boolean;
   /** If the altitude stem is out of scale, render the center section as dashed */
   showAltitudeScaleBreak?: boolean;
+  /** Show camera marker cube */
+  showCameraMarker?: boolean;
   /** Show line from origin to camera position on hemisphere */
   showCameraLink?: boolean;
+  /** If true, sphere mesh is rotated from pose bearing/pitch for globe-like drag feedback. */
+  rotateSphereWithPose?: boolean;
+
+  /**
+   * Polar cap angle in radians for the sphere surface:
+   * - PI/2: upper hemisphere (default)
+   * - PI: full sphere
+   */
+  sphereCapRad?: number;
+  /** Sphere surface opacity in [0..1]. */
+  sphereOpacity?: number;
+
+  /** Optional screen-arcball debug vectors rendered directly in the scene. */
+  debugArcballVectors?: {
+    start?: ViewStateVisualizerDebugVector | null;
+    current?: ViewStateVisualizerDebugVector | null;
+  };
 
   /** Show E/N/U axis text labels */
   showAxisLabels?: boolean;
@@ -98,6 +123,14 @@ export type ViewStateVisualizerDisplayOptions = {
   lineWidthPx?: number;
   /** Rendered width in CSS px for ENU axis lines. Defaults to 66% of lineWidthPx. */
   axisLineWidthPx?: number;
+  /** Rendered width in CSS px for bearing/pitch/elevation/radial arc cues. Defaults to lineWidthPx. */
+  arcLineWidthPx?: number;
+  /** Rendered width in CSS px for frustum edge lines. Defaults to lineWidthPx. */
+  frustumLineWidthPx?: number;
+  /** Rendered width in CSS px for the origin-to-camera link line. Defaults to lineWidthPx. */
+  cameraLinkLineWidthPx?: number;
+  /** Rendered width in CSS px for altitude stem and related markers. Defaults to lineWidthPx. */
+  altitudeLineWidthPx?: number;
   /** Target rendered width in CSS px for all remaining hairline geometry. */
   hairlineWidthPx?: number;
 

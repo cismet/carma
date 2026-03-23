@@ -1,20 +1,25 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import type {
-  CSSProperties,
-  PointerEvent as ReactPointerEvent,
-  RefObject,
-} from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import type { CSSProperties, RefObject } from "react";
 import type { CssPixelPosition } from "@carma/units/types";
-import { ResponsiveStatusBar } from "@carma-commons/ui/components";
+import { DraggableDebugAnchor } from "@carma-commons/interaction/drag";
 import {
-  createScreenPointSvgLineVisualizers,
-  LabelOverlayProvider,
   computePolygonSegmentLabelPlacements,
-  useLabelOverlayHost,
-  type SvgLineCapStyle,
-  type SvgLineLabelDominantBaseline,
+  createScreenPointSvgLineVisualizers,
+  POLYGON_SEGMENT_LABEL_ROTATION_MODE,
+  resolveLineLabelPlacement,
+  resolveLineLabelPlacementWithReference,
+  POLYGON_SEGMENT_LABEL_SIDE,
+  POLYGON_SEGMENT_LABEL_WINDING_POLICY,
   type PolygonSegmentLabelSide,
   type PolygonSegmentLabelWindingOrder,
+  type SvgLineCapStyle,
+  type SvgLineLabelDominantBaseline,
+  type SvgLineLabelRotationMode,
+} from "@carma-commons/svg";
+import { ResponsiveStatusBar } from "@carma-commons/ui/components";
+import {
+  LabelOverlayProvider,
+  useLabelOverlayHost,
   useLineVisualizers,
 } from "@carma-providers/label-overlay";
 
@@ -26,27 +31,10 @@ const frameStyle: CSSProperties = {
   background: "#fff",
 };
 
-const crosshairStyle: CSSProperties = {
-  position: "absolute",
-  width: 20,
-  height: 20,
-  transform: "translate(-50%, -50%)",
-  border: "none",
-  outline: "none",
-  backgroundColor: "transparent",
-  cursor: "none",
-  touchAction: "none",
-  padding: 0,
-  zIndex: 20,
-};
-
 const toCssPixelPosition = (x: number, y: number): CssPixelPosition => ({
   x: x as CssPixelPosition["x"],
   y: y as CssPixelPosition["y"],
 });
-
-const clamp = (value: number, min: number, max: number): number =>
-  Math.min(Math.max(value, min), max);
 
 const formatStatusNumber = (value: number, digits = 2): string =>
   Number.isFinite(value) ? value.toFixed(digits) : "0";
@@ -85,140 +73,6 @@ const useContainerSize = (containerRef: RefObject<HTMLDivElement | null>) => {
   }, [containerRef]);
 
   return size;
-};
-
-type DraggableCrosshairProps = {
-  anchorId: string;
-  position: CssPixelPosition;
-  color: string;
-  containerRef: RefObject<HTMLDivElement | null>;
-  onChange: (nextPosition: CssPixelPosition) => void;
-};
-
-const DraggableCrosshair = ({
-  anchorId,
-  position,
-  color,
-  containerRef,
-  onChange,
-}: DraggableCrosshairProps) => {
-  const isDraggingRef = useRef(false);
-  const previousDocumentCursorRef = useRef<string | null>(null);
-  const hairlinePx =
-    typeof window !== "undefined" && window.devicePixelRatio > 0
-      ? 1 / window.devicePixelRatio
-      : 1;
-
-  const hideNativeCursor = useCallback(() => {
-    if (typeof document === "undefined") {
-      return;
-    }
-    const root = document.documentElement;
-    if (previousDocumentCursorRef.current === null) {
-      previousDocumentCursorRef.current = root.style.cursor ?? "";
-    }
-    root.style.cursor = "none";
-  }, []);
-
-  const restoreNativeCursor = useCallback(() => {
-    if (typeof document === "undefined") {
-      return;
-    }
-    if (previousDocumentCursorRef.current === null) {
-      return;
-    }
-    document.documentElement.style.cursor = previousDocumentCursorRef.current;
-    previousDocumentCursorRef.current = null;
-  }, []);
-
-  useEffect(
-    () => () => {
-      restoreNativeCursor();
-    },
-    [restoreNativeCursor]
-  );
-
-  const updateFromPointer = useCallback(
-    (event: ReactPointerEvent<HTMLButtonElement>) => {
-      const container = containerRef.current;
-      if (!container) {
-        return;
-      }
-
-      const bounds = container.getBoundingClientRect();
-      const nextX = clamp(event.clientX - bounds.left, 0, bounds.width);
-      const nextY = clamp(event.clientY - bounds.top, 0, bounds.height);
-      onChange(toCssPixelPosition(nextX, nextY));
-    },
-    [containerRef, onChange]
-  );
-
-  return (
-    <button
-      type="button"
-      aria-label={`${anchorId} anchor`}
-      onPointerDown={(event) => {
-        isDraggingRef.current = true;
-        hideNativeCursor();
-        event.currentTarget.setPointerCapture(event.pointerId);
-        updateFromPointer(event);
-      }}
-      onPointerMove={(event) => {
-        if (!isDraggingRef.current) {
-          return;
-        }
-        updateFromPointer(event);
-      }}
-      onPointerUp={(event) => {
-        isDraggingRef.current = false;
-        restoreNativeCursor();
-        if (event.currentTarget.hasPointerCapture(event.pointerId)) {
-          event.currentTarget.releasePointerCapture(event.pointerId);
-        }
-      }}
-      onPointerCancel={(event) => {
-        isDraggingRef.current = false;
-        restoreNativeCursor();
-        if (event.currentTarget.hasPointerCapture(event.pointerId)) {
-          event.currentTarget.releasePointerCapture(event.pointerId);
-        }
-      }}
-      onLostPointerCapture={() => {
-        isDraggingRef.current = false;
-        restoreNativeCursor();
-      }}
-      style={{
-        ...crosshairStyle,
-        left: position.x,
-        top: position.y,
-      }}
-    >
-      <span
-        style={{
-          position: "absolute",
-          left: "50%",
-          top: 0,
-          width: hairlinePx,
-          height: "100%",
-          transform: "translateX(-50%)",
-          backgroundColor: color,
-          opacity: 0.5,
-        }}
-      />
-      <span
-        style={{
-          position: "absolute",
-          left: 0,
-          top: "50%",
-          width: "100%",
-          height: hairlinePx,
-          transform: "translateY(-50%)",
-          backgroundColor: color,
-          opacity: 0.5,
-        }}
-      />
-    </button>
-  );
 };
 
 const LabelAnchorAngleDebug = ({
@@ -295,91 +149,6 @@ const LabelAnchorAngleDebug = ({
   );
 };
 
-const resolveSimpleLineLabelPlacement = ({
-  start,
-  end,
-  offsetPx = 14,
-}: {
-  start: CssPixelPosition;
-  end: CssPixelPosition;
-  offsetPx?: number;
-}) => {
-  const dx = end.x - start.x;
-  const dy = end.y - start.y;
-  const length = Math.hypot(dx, dy);
-  if (length <= 0.0001) {
-    return null;
-  }
-
-  const midX = (start.x + end.x) * 0.5;
-  const midY = (start.y + end.y) * 0.5;
-  const normalX = -dy / length;
-  const normalY = dx / length;
-  const rawAngleDeg = (Math.atan2(dy, dx) * 180) / Math.PI;
-  const normalizedAngle = ((rawAngleDeg % 360) + 360) % 360;
-  const angleDeg =
-    normalizedAngle > 90 && normalizedAngle < 270
-      ? (normalizedAngle + 180) % 360
-      : normalizedAngle;
-
-  return {
-    textX: midX + normalX * offsetPx,
-    textY: midY + normalY * offsetPx,
-    angleDeg,
-  };
-};
-
-const resolveLineLabelPlacementWithReference = ({
-  start,
-  end,
-  targetReferencePoint,
-  offsetPx = 14,
-}: {
-  start: CssPixelPosition;
-  end: CssPixelPosition;
-  targetReferencePoint: CssPixelPosition | null;
-  offsetPx?: number;
-}) => {
-  const dx = end.x - start.x;
-  const dy = end.y - start.y;
-  const lineLength = Math.hypot(dx, dy);
-  if (lineLength <= 0.0001) {
-    return null;
-  }
-
-  const midX = (start.x + end.x) * 0.5;
-  const midY = (start.y + end.y) * 0.5;
-  let normalX = -dy / lineLength;
-  let normalY = dx / lineLength;
-
-  if (targetReferencePoint) {
-    const refDx = targetReferencePoint.x - midX;
-    const refDy = targetReferencePoint.y - midY;
-    const dotWithNormal = refDx * normalX + refDy * normalY;
-    if (dotWithNormal < 0) {
-      normalX = -normalX;
-      normalY = -normalY;
-    }
-  }
-
-  const rawAngleDeg = (Math.atan2(dy, dx) * 180) / Math.PI;
-  const lineUnitX = dx / lineLength;
-  const lineUnitY = dy / lineLength;
-  const crossProduct = lineUnitX * normalY - lineUnitY * normalX;
-  const sideAdjustedAngle = crossProduct >= 0 ? rawAngleDeg : rawAngleDeg + 180;
-  const normalizedAngle = ((sideAdjustedAngle % 360) + 360) % 360;
-  const angleDeg =
-    normalizedAngle > 90 && normalizedAngle < 270
-      ? (normalizedAngle + 180) % 360
-      : normalizedAngle;
-
-  return {
-    textX: midX + normalX * offsetPx,
-    textY: midY + normalY * offsetPx,
-    angleDeg,
-  };
-};
-
 type SingleLineStoryArgs = {
   stroke: string;
   strokeWidth: number;
@@ -405,7 +174,7 @@ type SingleLineStoryArgs = {
   labelMinLineLengthPx: number;
   labelOffsetPx: number;
   labelFlippedBaselineOffsetPx: number;
-  labelRotationMode: "auto" | "clockwise";
+  labelRotationMode: SvgLineLabelRotationMode;
   labelDominantBaseline: SvgLineLabelDominantBaseline;
   visible: boolean;
   isHidden: boolean;
@@ -501,7 +270,7 @@ const SingleLineLabelDebugOverlay = ({
   }, [defaults]);
 
   const labelPlacement = useMemo(
-    () => resolveSimpleLineLabelPlacement({ start, end, offsetPx: 14 }),
+    () => resolveLineLabelPlacement({ start, end, offsetPx: 14 }),
     [end, start]
   );
   const lineDx = end.x - start.x;
@@ -579,14 +348,14 @@ const SingleLineLabelDebugOverlay = ({
         placement={labelPlacement}
         color="rgba(220, 38, 38, 0.95)"
       />
-      <DraggableCrosshair
+      <DraggableDebugAnchor
         anchorId="single-line-debug-start"
         position={start}
         color="#1d4ed8"
         containerRef={containerRef}
         onChange={setStart}
       />
-      <DraggableCrosshair
+      <DraggableDebugAnchor
         anchorId="single-line-debug-end"
         position={end}
         color="#1d4ed8"
@@ -657,8 +426,8 @@ const PolygonSegmentLabelDebugOverlay = ({
         closed: true,
         side: sidePreference,
         offsetPx: 72,
-        rotationMode: "readable",
-        windingPolicy: "respect-input",
+        rotationMode: POLYGON_SEGMENT_LABEL_ROTATION_MODE.READABLE,
+        windingPolicy: POLYGON_SEGMENT_LABEL_WINDING_POLICY.RESPECT_INPUT,
       }).find((placement) => placement.segmentIndex === 0) ?? null,
     [apex, end, sidePreference, start]
   );
@@ -672,7 +441,7 @@ const PolygonSegmentLabelDebugOverlay = ({
       start,
       end,
       targetReferencePoint:
-        sidePreference === "outside"
+        sidePreference === POLYGON_SEGMENT_LABEL_SIDE.OUTSIDE
           ? primarySegmentLabelPlacement.outsideReferencePoint
           : primarySegmentLabelPlacement.insideReferencePoint,
       offsetPx: 14,
@@ -698,11 +467,11 @@ const PolygonSegmentLabelDebugOverlay = ({
         labelFontFamily: "monospace",
         labelOffsetPx: 14,
         getLabelOutsideReferencePoint:
-          sidePreference === "outside"
+          sidePreference === POLYGON_SEGMENT_LABEL_SIDE.OUTSIDE
             ? () => primarySegmentLabelPlacement?.outsideReferencePoint ?? null
             : undefined,
         getLabelInsideReferencePoint:
-          sidePreference === "inside"
+          sidePreference === POLYGON_SEGMENT_LABEL_SIDE.INSIDE
             ? () => primarySegmentLabelPlacement?.insideReferencePoint ?? null
             : undefined,
       }),
@@ -752,7 +521,9 @@ const PolygonSegmentLabelDebugOverlay = ({
           windingOrder={primarySegmentLabelPlacement.resolvedWindingOrder}
           onToggleSidePreference={() =>
             setSidePreference((previous) =>
-              previous === "outside" ? "inside" : "outside"
+              previous === POLYGON_SEGMENT_LABEL_SIDE.OUTSIDE
+                ? POLYGON_SEGMENT_LABEL_SIDE.INSIDE
+                : POLYGON_SEGMENT_LABEL_SIDE.OUTSIDE
             )
           }
         />
@@ -761,21 +532,21 @@ const PolygonSegmentLabelDebugOverlay = ({
         placement={labelPlacement}
         color="rgba(220, 38, 38, 0.95)"
       />
-      <DraggableCrosshair
+      <DraggableDebugAnchor
         anchorId="polygon-segment-debug-start"
         position={start}
         color="#1d4ed8"
         containerRef={containerRef}
         onChange={setStart}
       />
-      <DraggableCrosshair
+      <DraggableDebugAnchor
         anchorId="polygon-segment-debug-end"
         position={end}
         color="#1d4ed8"
         containerRef={containerRef}
         onChange={setEnd}
       />
-      <DraggableCrosshair
+      <DraggableDebugAnchor
         anchorId="polygon-segment-debug-apex"
         position={apex}
         color="#1d4ed8"
@@ -830,142 +601,142 @@ export const PolygonSegmentLabelDebugStory = ({
 };
 
 export const LABEL_PLACEMENT_SINGLE_LINE_ARG_TYPES = {
-    stroke: { control: { type: "color" }, table: { category: "Line" } },
-    strokeWidth: {
-      control: { type: "range", min: 1, max: 30, step: 1 },
-      table: { category: "Line" },
-    },
-    opacity: {
-      control: { type: "range", min: 0, max: 1, step: 0.01 },
-      table: { category: "Line" },
-    },
-    hitTargetStrokeWidth: {
-      control: { type: "range", min: 1, max: 64, step: 1 },
-      table: { category: "Line" },
-    },
-    visible: { control: { type: "boolean" }, table: { category: "Line" } },
-    isHidden: { control: { type: "boolean" }, table: { category: "Line" } },
-    contentSignature: {
-      control: { type: "text" },
-      table: { category: "Line" },
-    },
-    dashed: { control: { type: "boolean" }, table: { category: "Dash" } },
-    capStyle: {
-      control: { type: "inline-radio" },
-      options: ["round", "square"],
-      table: { category: "Dash" },
-    },
-    dashLengthRatio: {
-      control: { type: "range", min: 1, max: 12, step: 0.1 },
-      table: { category: "Dash" },
-    },
-    dashGapRatio: {
-      control: { type: "range", min: -1, max: 12, step: 0.1 },
-      table: { category: "Dash" },
-    },
-    collapseNegativeGaps: {
-      control: { type: "boolean" },
-      table: { category: "Dash" },
-    },
-    collapseCapThresholdEffectiveGapRatio: {
-      control: { type: "range", min: -1, max: 2, step: 0.01 },
-      table: { category: "Dash" },
-    },
-    showDistanceLabel: {
-      control: { type: "boolean" },
-      table: { category: "Label" },
-    },
-    labelText: { control: { type: "text" }, table: { category: "Label" } },
-    labelColor: { control: { type: "color" }, table: { category: "Label" } },
-    labelStroke: { control: { type: "color" }, table: { category: "Label" } },
-    labelFontSize: {
-      control: { type: "range", min: 8, max: 40, step: 1 },
-      table: { category: "Label" },
-    },
-    labelFontFamily: {
-      control: { type: "text" },
-      table: { category: "Label" },
-    },
-    labelFontWeight: {
-      control: { type: "text" },
-      table: { category: "Label" },
-    },
-    labelPill: { control: { type: "boolean" }, table: { category: "Label" } },
-    labelPillBackgroundColor: {
-      control: { type: "color" },
-      table: { category: "Label" },
-    },
-    labelPillBorderColor: {
-      control: { type: "color" },
-      table: { category: "Label" },
-    },
-    labelPillBorderWidth: {
-      control: { type: "range", min: 0, max: 8, step: 0.5 },
-      table: { category: "Label" },
-    },
-    labelMinLineLengthPx: {
-      control: { type: "range", min: 0, max: 500, step: 1 },
-      table: { category: "Label" },
-    },
-    labelOffsetPx: {
-      control: { type: "range", min: -64, max: 128, step: 1 },
-      table: { category: "Label" },
-    },
-    labelFlippedBaselineOffsetPx: {
-      control: { type: "range", min: -64, max: 128, step: 1 },
-      table: { category: "Label" },
-    },
-    labelRotationMode: {
-      control: { type: "inline-radio" },
-      options: ["auto", "clockwise"],
-      table: { category: "Label" },
-    },
-    labelDominantBaseline: {
-      control: { type: "select" },
-      options: [
-        "auto",
-        "middle",
-        "central",
-        "text-before-edge",
-        "text-after-edge",
-        "alphabetic",
-        "hanging",
-        "ideographic",
-      ],
-      table: { category: "Label" },
-    },
-  };
+  stroke: { control: { type: "color" }, table: { category: "Line" } },
+  strokeWidth: {
+    control: { type: "range", min: 1, max: 30, step: 1 },
+    table: { category: "Line" },
+  },
+  opacity: {
+    control: { type: "range", min: 0, max: 1, step: 0.01 },
+    table: { category: "Line" },
+  },
+  hitTargetStrokeWidth: {
+    control: { type: "range", min: 1, max: 64, step: 1 },
+    table: { category: "Line" },
+  },
+  visible: { control: { type: "boolean" }, table: { category: "Line" } },
+  isHidden: { control: { type: "boolean" }, table: { category: "Line" } },
+  contentSignature: {
+    control: { type: "text" },
+    table: { category: "Line" },
+  },
+  dashed: { control: { type: "boolean" }, table: { category: "Dash" } },
+  capStyle: {
+    control: { type: "inline-radio" },
+    options: ["round", "square"],
+    table: { category: "Dash" },
+  },
+  dashLengthRatio: {
+    control: { type: "range", min: 1, max: 12, step: 0.1 },
+    table: { category: "Dash" },
+  },
+  dashGapRatio: {
+    control: { type: "range", min: -1, max: 12, step: 0.1 },
+    table: { category: "Dash" },
+  },
+  collapseNegativeGaps: {
+    control: { type: "boolean" },
+    table: { category: "Dash" },
+  },
+  collapseCapThresholdEffectiveGapRatio: {
+    control: { type: "range", min: -1, max: 2, step: 0.01 },
+    table: { category: "Dash" },
+  },
+  showDistanceLabel: {
+    control: { type: "boolean" },
+    table: { category: "Label" },
+  },
+  labelText: { control: { type: "text" }, table: { category: "Label" } },
+  labelColor: { control: { type: "color" }, table: { category: "Label" } },
+  labelStroke: { control: { type: "color" }, table: { category: "Label" } },
+  labelFontSize: {
+    control: { type: "range", min: 8, max: 40, step: 1 },
+    table: { category: "Label" },
+  },
+  labelFontFamily: {
+    control: { type: "text" },
+    table: { category: "Label" },
+  },
+  labelFontWeight: {
+    control: { type: "text" },
+    table: { category: "Label" },
+  },
+  labelPill: { control: { type: "boolean" }, table: { category: "Label" } },
+  labelPillBackgroundColor: {
+    control: { type: "color" },
+    table: { category: "Label" },
+  },
+  labelPillBorderColor: {
+    control: { type: "color" },
+    table: { category: "Label" },
+  },
+  labelPillBorderWidth: {
+    control: { type: "range", min: 0, max: 8, step: 0.5 },
+    table: { category: "Label" },
+  },
+  labelMinLineLengthPx: {
+    control: { type: "range", min: 0, max: 500, step: 1 },
+    table: { category: "Label" },
+  },
+  labelOffsetPx: {
+    control: { type: "range", min: -64, max: 128, step: 1 },
+    table: { category: "Label" },
+  },
+  labelFlippedBaselineOffsetPx: {
+    control: { type: "range", min: -64, max: 128, step: 1 },
+    table: { category: "Label" },
+  },
+  labelRotationMode: {
+    control: { type: "inline-radio" },
+    options: ["auto", "clockwise"],
+    table: { category: "Label" },
+  },
+  labelDominantBaseline: {
+    control: { type: "select" },
+    options: [
+      "auto",
+      "middle",
+      "central",
+      "text-before-edge",
+      "text-after-edge",
+      "alphabetic",
+      "hanging",
+      "ideographic",
+    ],
+    table: { category: "Label" },
+  },
+};
 
 export const LABEL_PLACEMENT_SINGLE_LINE_ARGS = {
-    stroke: "rgba(30, 64, 175, 0.95)",
-    strokeWidth: 10,
-    opacity: 1,
-    hitTargetStrokeWidth: 12,
-    dashed: true,
-    capStyle: "round",
-    dashLengthRatio: 1,
-    dashGapRatio: 1.5,
-    collapseNegativeGaps: true,
-    collapseCapThresholdEffectiveGapRatio: -0.1,
-    showDistanceLabel: false,
-    labelText: "single line",
-    labelColor: "#111827",
-    labelStroke: "rgba(255, 255, 255, 0.98)",
-    labelFontSize: 14,
-    labelFontFamily: "monospace",
-    labelFontWeight: "600",
-    labelPill: false,
-    labelPillBackgroundColor: "rgba(255,255,255,0.9)",
-    labelPillBorderColor: "rgba(17,24,39,0.35)",
-    labelPillBorderWidth: 1,
-    labelMinLineLengthPx: 0,
-    labelOffsetPx: 14,
-    labelFlippedBaselineOffsetPx: 0,
-    labelRotationMode: "auto",
-    labelDominantBaseline: "middle",
-    visible: true,
-    isHidden: false,
-    contentSignature: "",
+  stroke: "rgba(30, 64, 175, 0.95)",
+  strokeWidth: 10,
+  opacity: 1,
+  hitTargetStrokeWidth: 12,
+  dashed: true,
+  capStyle: "round",
+  dashLengthRatio: 1,
+  dashGapRatio: 1.5,
+  collapseNegativeGaps: true,
+  collapseCapThresholdEffectiveGapRatio: -0.1,
+  showDistanceLabel: false,
+  labelText: "single line",
+  labelColor: "#111827",
+  labelStroke: "rgba(255, 255, 255, 0.98)",
+  labelFontSize: 14,
+  labelFontFamily: "monospace",
+  labelFontWeight: "600",
+  labelPill: false,
+  labelPillBackgroundColor: "rgba(255,255,255,0.9)",
+  labelPillBorderColor: "rgba(17,24,39,0.35)",
+  labelPillBorderWidth: 1,
+  labelMinLineLengthPx: 0,
+  labelOffsetPx: 14,
+  labelFlippedBaselineOffsetPx: 0,
+  labelRotationMode: "auto",
+  labelDominantBaseline: "middle",
+  visible: true,
+  isHidden: false,
+  contentSignature: "",
 };
 
 export const LABEL_PLACEMENT_POLYGON_ARG_TYPES = {
@@ -977,5 +748,5 @@ export const LABEL_PLACEMENT_POLYGON_ARG_TYPES = {
 };
 
 export const LABEL_PLACEMENT_POLYGON_ARGS = {
-  polygonSidePreference: "outside",
+  polygonSidePreference: POLYGON_SEGMENT_LABEL_SIDE.OUTSIDE,
 };

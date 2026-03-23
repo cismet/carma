@@ -6,9 +6,10 @@ import {
   PolygonSegmentLabelDebugStory,
   SingleLineLabelDebugStory,
 } from "./LabelPlacement.story-helpers";
+import { POLYGON_SEGMENT_LABEL_SIDE } from "@carma-commons/svg";
 
 const meta = {
-  title: "Providers/LabelOverlay",
+  title: "Common/SVG/Label Placement",
   parameters: {
     layout: "fullscreen",
     controls: {
@@ -33,7 +34,9 @@ export const PolygonSegment = {
   args: LABEL_PLACEMENT_POLYGON_ARGS,
   render: (args) => (
     <PolygonSegmentLabelDebugStory
-      sidePreference={args.polygonSidePreference ?? "outside"}
+      sidePreference={
+        args.polygonSidePreference ?? POLYGON_SEGMENT_LABEL_SIDE.OUTSIDE
+      }
     />
   ),
 };
