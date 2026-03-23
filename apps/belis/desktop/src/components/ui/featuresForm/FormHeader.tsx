@@ -1,5 +1,9 @@
 import { useState } from "react";
-import { EditOutlined, ExclamationCircleOutlined } from "@ant-design/icons";
+import {
+  ArrowLeftOutlined,
+  EditOutlined,
+  ExclamationCircleOutlined,
+} from "@ant-design/icons";
 import { Badge, Button, Spin, Tooltip } from "antd";
 import { useSelector, useDispatch } from "react-redux";
 import {
@@ -22,6 +26,7 @@ interface FormHeaderProps {
   readOnly?: boolean;
   hasDraft?: boolean;
   onToggleReadOnly?: () => void;
+  onBack?: () => void;
 }
 
 const FormHeader = ({
@@ -35,6 +40,7 @@ const FormHeader = ({
   readOnly,
   hasDraft,
   onToggleReadOnly,
+  onBack,
 }: FormHeaderProps) => {
   const dispatch = useDispatch();
   const draftsCount = useSelector(getDraftFeaturesCount);
@@ -58,6 +64,14 @@ const FormHeader = ({
     <div className="flex flex-col border-b border-gray-100">
       <div className="flex items-center justify-between flex-wrap p-6 gap-4">
         <div className="flex items-center gap-3 flex-shrink-0">
+          {onBack && (
+            <Button
+              type="text"
+              icon={<ArrowLeftOutlined />}
+              onClick={onBack}
+              className="flex-shrink-0"
+            />
+          )}
           <div
             className={`w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0 ${
               readOnly ? "bg-gray-100" : "bg-blue-100"

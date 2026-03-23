@@ -54,6 +54,7 @@ interface FeatureFormLayoutProps {
   hasDraft?: boolean;
   onToggleReadOnly?: () => void;
   singleColumn?: boolean;
+  onBack?: () => void;
 }
 
 const FeatureFormLayout = ({
@@ -79,6 +80,7 @@ const FeatureFormLayout = ({
   hasDraft,
   onToggleReadOnly,
   singleColumn,
+  onBack,
 }: FeatureFormLayoutProps) => {
   // Deduplicate documents to prevent stale data from appearing as extra items
   // when switching between features quickly.
@@ -378,6 +380,7 @@ const FeatureFormLayout = ({
           readOnly={readOnly}
           hasDraft={hasDraft}
           onToggleReadOnly={onToggleReadOnly}
+          onBack={onBack}
         />
         <div className="flex flex-1 overflow-hidden">
           {/* Form column - 60% */}
@@ -425,6 +428,7 @@ const FeatureFormLayout = ({
         readOnly={readOnly}
         hasDraft={hasDraft}
         onToggleReadOnly={onToggleReadOnly}
+        onBack={onBack}
       />
       <div
         className={`px-6 pb-60 overflow-y-auto flex-1 transition-opacity ${

@@ -20,6 +20,8 @@ export type ArbeitsauftragDetail = Record<string, any>;
 
 type AATabKey = "aa" | "ap";
 
+type ApOpenedFrom = "sidebar" | "auTable" | null;
+
 interface ArbeitsauftraegeState {
   features: ArbeitsauftragTileFeature[];
   selectedAAId: number | null;
@@ -27,6 +29,7 @@ interface ArbeitsauftraegeState {
   selectedTeamId: number | null;
   activeAATab: AATabKey;
   selectedAPId: number | null;
+  apOpenedFrom: ApOpenedFrom;
   loading: boolean;
   error: string | null;
 }
@@ -38,6 +41,7 @@ const initialState: ArbeitsauftraegeState = {
   selectedTeamId: null,
   activeAATab: "aa",
   selectedAPId: null,
+  apOpenedFrom: null,
   loading: false,
   error: null,
 };
@@ -51,6 +55,7 @@ const slice = createSlice({
     },
     setSelectedAAId(state, action) {
       state.selectedAAId = action.payload;
+      state.apOpenedFrom = null;
     },
     setSelectedAAData(state, action) {
       state.selectedAAData = action.payload;
@@ -68,6 +73,9 @@ const slice = createSlice({
     setSelectedAPId(state, action: { payload: number | null }) {
       state.selectedAPId = action.payload;
     },
+    setApOpenedFrom(state, action: { payload: ApOpenedFrom }) {
+      state.apOpenedFrom = action.payload;
+    },
     setError(state, action) {
       state.error = action.payload;
     },
@@ -76,6 +84,7 @@ const slice = createSlice({
       state.selectedAAData = null;
       state.activeAATab = "aa";
       state.selectedAPId = null;
+      state.apOpenedFrom = null;
       state.error = null;
     },
   },
@@ -90,6 +99,7 @@ export const {
   setSelectedTeamId,
   setActiveAATab,
   setSelectedAPId,
+  setApOpenedFrom,
   setLoading,
   setError,
   clearSelection,
@@ -110,3 +120,5 @@ export const getActiveAATab = (state: RootState) =>
   state.arbeitsauftraege.activeAATab;
 export const getSelectedAPId = (state: RootState) =>
   state.arbeitsauftraege.selectedAPId;
+export const getApOpenedFrom = (state: RootState) =>
+  state.arbeitsauftraege.apOpenedFrom;

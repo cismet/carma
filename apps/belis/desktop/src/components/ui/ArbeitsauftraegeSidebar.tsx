@@ -12,6 +12,7 @@ import {
   setSelectedAAId,
   setActiveAATab,
   setSelectedAPId,
+  setApOpenedFrom,
 } from "../../store/slices/arbeitsauftraege";
 import { getSelectedTeamName } from "../../store/selectors";
 import type { AppDispatch } from "../../store";
@@ -279,6 +280,7 @@ const ArbeitsauftraegeSidebar = ({
                     }`}
                     onClick={() => {
                       dispatch(setSelectedAPId(p.id));
+                      dispatch(setApOpenedFrom("sidebar"));
                       onProtokollSelect?.(p.id);
                     }}
                   >
