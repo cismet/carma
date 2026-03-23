@@ -97,6 +97,53 @@ const ArbeitsauftragFormFields = ({ data }: ArbeitsauftragFormFieldsProps) => {
         resolvedType = p.tdta_standort_mast?.fk_masttyp ? "mast" : "standort";
       }
 
+      let kennzeichnung = "";
+      switch (resolvedType) {
+        case "abzweigdose":
+          break;
+        case "geom":
+          kennzeichnung = p.geometrie?.bezeichnung ?? "";
+          break;
+        case "leitung":
+          kennzeichnung = p.leitung?.fk_leitungstyp?.bezeichnung ?? "";
+          break;
+        case "tdta_leuchten": {
+          const leuchtennummer = p.tdta_leuchten?.lfd_nummer ?? null;
+          const leuchtentyp = p.tdta_leuchten?.fk_leuchttyp?.leuchtentyp ?? null;
+          if (leuchtennummer != null && leuchtentyp != null) {
+            kennzeichnung = leuchtennummer + ", " + leuchtentyp;
+          } else if (leuchtennummer != null) {
+            kennzeichnung = String(leuchtennummer);
+          } else if (leuchtentyp != null) {
+            kennzeichnung = String(leuchtentyp);
+          }
+          break;
+        }
+        case "mauerlasche":
+          kennzeichnung = p.mauerlasche?.laufende_nummer != null
+            ? String(p.mauerlasche.laufende_nummer)
+            : "";
+          break;
+        case "schaltstelle":
+          kennzeichnung = p.schaltstelle?.schaltstellen_nummer != null
+            ? String(p.schaltstelle.schaltstellen_nummer)
+            : "";
+          break;
+        case "mast":
+        case "standort": {
+          const masttyp = p.tdta_standort_mast?.fk_masttyp?.masttyp ?? null;
+          const mastart = p.tdta_standort_mast?.fk_mastart?.mastart ?? null;
+          if (masttyp != null && mastart != null) {
+            kennzeichnung = masttyp + ", " + mastart;
+          } else if (masttyp != null) {
+            kennzeichnung = String(masttyp);
+          } else if (mastart != null) {
+            kennzeichnung = String(mastart);
+          }
+          break;
+        }
+      }
+
       return {
         key: p.id,
         id: p.id,
@@ -104,7 +151,7 @@ const ArbeitsauftragFormFields = ({ data }: ArbeitsauftragFormFieldsProps) => {
         herkunft: herkunftParts.join(" "),
         fachobjektType:
           FEATURE_TYPE_LABELS[resolvedType] ?? fachobjekt?.type ?? "Unbekannt",
-        kennzeichnung: fachobjekt?.shortname ?? "",
+        kennzeichnung,
         bearbeiter: p.monteur ?? "",
         position: getPosition(fachobjekt),
         status: p.arbeitsprotokollstatus?.bezeichnung ?? "Unbekannt",
