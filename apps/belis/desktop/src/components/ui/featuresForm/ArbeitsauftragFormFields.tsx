@@ -17,7 +17,8 @@ const FormLabel = ({ children }: { children: React.ReactNode }) => (
 
 const FEATURE_TYPE_LABELS: Record<string, string> = {
   tdta_leuchten: "Leuchte",
-  tdta_standort_mast: "Standort/Mast",
+  mast: "Mast",
+  standort: "Standort",
   schaltstelle: "Schaltstelle",
   mauerlasche: "Mauerlasche",
   leitung: "Leitung",
@@ -91,13 +92,18 @@ const ArbeitsauftragFormFields = ({ data }: ArbeitsauftragFormFieldsProps) => {
         herkunftParts.push(veranlassung.fk_veranlassungsart.schluessel);
       }
 
+      let resolvedType = fachobjekt?.type ?? "";
+      if (resolvedType === "tdta_standort_mast") {
+        resolvedType = p.tdta_standort_mast?.fk_masttyp ? "mast" : "standort";
+      }
+
       return {
         key: p.id,
         id: p.id,
         protokollnummer: p.protokollnummer,
         herkunft: herkunftParts.join(" "),
         fachobjektType:
-          FEATURE_TYPE_LABELS[fachobjekt?.type ?? ""] ?? fachobjekt?.type ?? "Unbekannt",
+          FEATURE_TYPE_LABELS[resolvedType] ?? fachobjekt?.type ?? "Unbekannt",
         kennzeichnung: fachobjekt?.shortname ?? "",
         bearbeiter: p.monteur ?? "",
         position: getPosition(fachobjekt),
