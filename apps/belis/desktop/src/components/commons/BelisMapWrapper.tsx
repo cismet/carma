@@ -51,6 +51,7 @@ import {
 import type maplibregl from "maplibre-gl";
 import BelisDatasheetView from "../ui/BelisDatasheetView";
 import ArbeitsauftragForm from "../ui/featuresForm/ArbeitsauftragForm";
+import ArbeitsprotokollForm from "../ui/featuresForm/ArbeitsprotokollForm";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faMap } from "@fortawesome/free-solid-svg-icons";
 import {
@@ -71,6 +72,8 @@ import {
   getActiveAATab,
   getSelectedAPId,
   setSelectedAPId,
+  setApOpenedFrom,
+  getApOpenedFrom,
   clearSelection,
   getAALoading,
 } from "../../store/slices/arbeitsauftraege";
@@ -186,6 +189,7 @@ const BelisMapLibWrapper = ({
   const selectedAAData = useSelector(getSelectedAAData);
   const activeAATab = useSelector(getActiveAATab);
   const selectedAPId = useSelector(getSelectedAPId);
+  const apOpenedFrom = useSelector(getApOpenedFrom);
   const aaLoading = useSelector(getAALoading);
 
   // Team filter: resolve selectedTeamId → team name for map layer filtering
@@ -1835,10 +1839,37 @@ const BelisMapLibWrapper = ({
           }
           datasheetContent={
             sidebarVariant === "arbeitsauftraege" && selectedAAData ? (
-              <ArbeitsauftragForm
-                data={selectedAAData}
-                loading={aaLoading}
-              />
+              (() => {
+                const selectedProtokoll =
+                  apOpenedFrom != null && selectedAPId != null
+                    ? selectedAAData.ar_protokolleArray?.find(
+                        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                        (entry: Record<string, any>) =>
+                          entry.arbeitsprotokoll?.id === selectedAPId
+                      )?.arbeitsprotokoll
+                    : null;
+
+                if (selectedProtokoll) {
+                  return (
+                    <ArbeitsprotokollForm
+                      data={selectedProtokoll}
+                      loading={aaLoading}
+                      onBack={
+                        apOpenedFrom === "auTable"
+                          ? () => dispatch(setApOpenedFrom(null))
+                          : undefined
+                      }
+                    />
+                  );
+                }
+
+                return (
+                  <ArbeitsauftragForm
+                    data={selectedAAData}
+                    loading={aaLoading}
+                  />
+                );
+              })()
             ) : (
               <div style={{ height: "100%", overflow: "hidden" }}>
                 <BelisDatasheetView

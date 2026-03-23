@@ -5,7 +5,7 @@ import { useDispatch, useSelector } from "react-redux";
 import { getFachobjektOfProtocol } from "@carma-appframeworks/belis";
 import {
   setSelectedAPId,
-  setActiveAATab,
+  setApOpenedFrom,
   getSelectedAPId,
 } from "../../../store/slices/arbeitsauftraege";
 import type { AppDispatch } from "../../../store";
@@ -190,7 +190,10 @@ const ArbeitsauftragFormFields = ({ data }: ArbeitsauftragFormFieldsProps) => {
           onRow={(record) => ({
             onClick: () => {
               dispatch(setSelectedAPId(record.id));
-              dispatch(setActiveAATab("ap"));
+            },
+            onDoubleClick: () => {
+              dispatch(setSelectedAPId(record.id));
+              dispatch(setApOpenedFrom("auTable"));
             },
             style: { cursor: "pointer" },
           })}
