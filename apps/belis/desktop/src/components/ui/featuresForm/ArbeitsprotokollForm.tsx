@@ -1,8 +1,14 @@
 import { useMemo } from "react";
+import type { ReactNode } from "react";
 import { useSelector } from "react-redux";
 import { getFachobjektOfProtocol } from "@carma-appframeworks/belis";
 import FeatureFormLayout from "./FeatureFormLayout";
 import ArbeitsprotokollFormFields from "./ArbeitsprotokollFormFields";
+import LeuchteFormFields from "./LeuchteFormFields";
+import MastFormFields from "./MastFormFields";
+import LeitungFormFields from "./LeitungFormFields";
+import SchaltstelleFormFields from "./SchaltstelleFormFields";
+import MauerlascheFormFields from "./MauerlascheFormFields";
 import type { DokumentItem } from "../DocumentPreview";
 import { getJWT } from "../../../store/slices/auth";
 
@@ -38,6 +44,36 @@ const ArbeitsprotokollForm = ({
   const title = `Protokoll #${data.protokollnummer ?? ""}`;
   const subtitle = fachobjekt?.shortname ?? "";
 
+  const fachobjektTab = useMemo(() => {
+    if (!fachobjekt?.type) return null;
+    const type = fachobjekt.type;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const obj = (data as Record<string, any>)[type] ?? null;
+    if (!obj) return null;
+
+    let content: ReactNode = null;
+    switch (type) {
+      case "tdta_leuchten":
+        content = <LeuchteFormFields leuchte={obj} readOnly />;
+        break;
+      case "tdta_standort_mast":
+        content = <MastFormFields mast={obj} readOnly />;
+        break;
+      case "leitung":
+        content = <LeitungFormFields leitung={obj} readOnly />;
+        break;
+      case "schaltstelle":
+        content = <SchaltstelleFormFields schaltstelle={obj} readOnly />;
+        break;
+      case "mauerlasche":
+        content = <MauerlascheFormFields mauerlasche={obj} readOnly />;
+        break;
+      default:
+        return null;
+    }
+    return { key: "fachobjekt", label: subtitle, children: content };
+  }, [fachobjekt, data, subtitle]);
+
   return (
     <FeatureFormLayout
       title={title}
@@ -48,6 +84,7 @@ const ArbeitsprotokollForm = ({
       loading={loading}
       readOnly
       onBack={onBack}
+      additionalTabs={fachobjektTab ? [fachobjektTab] : []}
     >
       <ArbeitsprotokollFormFields
         data={data}
