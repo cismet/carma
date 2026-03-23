@@ -219,13 +219,13 @@ export const getVCard = (feature) => {
       //propper date formatting
       vcard.infobox.subtitle =
         "am: " + item?.angelegt_am
-          ? new Date(item.angelegt_am).toLocaleDateString()
+          ? new Date(item.angelegt_am).toLocaleDateString("de-DE", { day: "2-digit", month: "2-digit", year: "numeric" })
           : "";
       // List
       vcard.list.main = "A" + item.nummer;
       vcard.list.upperright = item.angelegt_von;
       vcard.list.subtitle = item?.angelegt_am
-        ? new Date(item.angelegt_am).toLocaleDateString()
+        ? new Date(item.angelegt_am).toLocaleDateString("de-DE", { day: "2-digit", month: "2-digit", year: "numeric" })
         : "";
       vcard.list.lowerright = (item.ar_protokolleArray || []).length;
 
