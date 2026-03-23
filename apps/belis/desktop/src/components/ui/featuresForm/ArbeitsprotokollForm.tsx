@@ -53,21 +53,67 @@ const ArbeitsprotokollForm = ({
 
     let content: ReactNode = null;
     switch (type) {
-      case "tdta_leuchten":
-        content = <LeuchteFormFields leuchte={obj} readOnly />;
+      case "tdta_leuchten": {
+        // Map fk_* keys from AP endpoint to tkey_* keys expected by LeuchteFormFields
+        const leuchteData = {
+          ...obj,
+          tkey_strassenschluessel: obj.fk_strassenschluessel,
+          tkey_kennziffer: obj.fk_kennziffer,
+          tkey_leuchtentyp: obj.fk_leuchttyp,
+          tkey_energielieferant: obj.fk_energielieferant,
+          tkey_unterh_leuchte: obj.fk_unterhaltspflicht_leuchte,
+          rundsteuerempfaengerObject: obj.rundsteuerempfaenger,
+          fk_dk1Object: obj.fk_dk1,
+          fk_dk2Object: obj.fk_dk2,
+          leuchtmittelObject: obj.leuchtmittel,
+        };
+        content = <LeuchteFormFields leuchte={leuchteData} readOnly />;
         break;
-      case "tdta_standort_mast":
-        content = <MastFormFields mast={obj} readOnly />;
+      }
+      case "tdta_standort_mast": {
+        // Map fk_* keys from AP endpoint to tkey_* keys expected by MastFormFields
+        const mastData = {
+          ...obj,
+          tkey_strassenschluessel: obj.fk_strassenschluessel,
+          tkey_kennziffer: obj.fk_kennziffer,
+          tkey_bezirk: obj.fk_stadtbezirk,
+          tkey_mastart: obj.fk_mastart,
+          tkey_masttyp: obj.fk_masttyp,
+          tkey_klassifizierung: obj.fk_klassifizierung,
+          tkey_unterh_mast: obj.fk_unterhaltspflicht_mast,
+          anlagengruppeObject: obj.anlagengruppe,
+        };
+        content = <MastFormFields mast={mastData} readOnly />;
         break;
+      }
       case "leitung":
         content = <LeitungFormFields leitung={obj} readOnly />;
         break;
-      case "schaltstelle":
-        content = <SchaltstelleFormFields schaltstelle={obj} readOnly />;
+      case "schaltstelle": {
+        // Map fk_* keys from AP endpoint to tkey_* keys expected by SchaltstelleFormFields
+        const schaltstelleData = {
+          ...obj,
+          tkey_strassenschluessel: obj.fk_strassenschluessel,
+          bauart: obj.fk_bauart,
+          rundsteuerempfaengerObject: obj.rundsteuerempfaenger,
+        };
+        content = (
+          <SchaltstelleFormFields schaltstelle={schaltstelleData} readOnly />
+        );
         break;
-      case "mauerlasche":
-        content = <MauerlascheFormFields mauerlasche={obj} readOnly />;
+      }
+      case "mauerlasche": {
+        // Map fk_* keys from AP endpoint to tkey_* keys expected by MauerlascheFormFields
+        const mauerlascheData = {
+          ...obj,
+          tkey_strassenschluessel: obj.fk_strassenschluessel,
+          material_mauerlasche: obj.fk_material,
+        };
+        content = (
+          <MauerlascheFormFields mauerlasche={mauerlascheData} readOnly />
+        );
         break;
+      }
       default:
         return null;
     }
