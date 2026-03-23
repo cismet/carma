@@ -69,16 +69,6 @@ function getProtocolFeatureType(protokoll: Record<string, any>): string {
   return "Unbekannt";
 }
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-function getStatusBadgeColor(status: Record<string, any> | null): string {
-  if (!status?.bezeichnung) return "#9CA3AF";
-  const b = String(status.bezeichnung).toLowerCase();
-  if (b.includes("offen")) return STATUS_COLORS.offen;
-  if (b.includes("bearbeitung")) return STATUS_COLORS.in_bearbeitung;
-  if (b.includes("erledigt")) return STATUS_COLORS.erledigt;
-  if (b.includes("fehl")) return STATUS_COLORS.fehlmeldung;
-  return "#9CA3AF";
-}
 
 const ArbeitsauftraegeSidebar = ({
   width,
@@ -261,11 +251,6 @@ const ArbeitsauftraegeSidebar = ({
               </div>
             ) : (
               protokolle.map((p) => {
-                const statusColor = getStatusBadgeColor(
-                  p.arbeitsprotokollstatus
-                );
-                const statusLabel =
-                  p.arbeitsprotokollstatus?.bezeichnung ?? "Unbekannt";
                 const fachobjekt = getFachobjektOfProtocol(p);
                 const shortname =
                   fachobjekt?.shortname ?? getProtocolFeatureType(p);
@@ -285,11 +270,6 @@ const ArbeitsauftraegeSidebar = ({
                     }}
                   >
                     <div className="flex items-center gap-2">
-                      <span
-                        className="inline-block w-2 h-2 rounded-full flex-shrink-0"
-                        style={{ backgroundColor: statusColor }}
-                        title={statusLabel}
-                      />
                       <span className="font-medium text-sm text-gray-900">
                         #{p.protokollnummer}
                       </span>
@@ -297,7 +277,7 @@ const ArbeitsauftraegeSidebar = ({
                         {shortname}
                       </span>
                     </div>
-                    <div className="mt-0.5 ml-4">
+                    <div className="mt-0.5">
                       <span className="text-xs text-gray-500">
                         {p.veranlassung?.bezeichnung ?? "–"}
                       </span>
