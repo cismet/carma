@@ -32,6 +32,8 @@ interface ArbeitsauftraegeState {
   apOpenedFrom: ApOpenedFrom;
   loading: boolean;
   error: string | null;
+  graphqlLoading: boolean;
+  graphqlError: string | null;
 }
 
 const initialState: ArbeitsauftraegeState = {
@@ -44,6 +46,8 @@ const initialState: ArbeitsauftraegeState = {
   apOpenedFrom: null,
   loading: false,
   error: null,
+  graphqlLoading: false,
+  graphqlError: null,
 };
 
 const slice = createSlice({
@@ -79,6 +83,12 @@ const slice = createSlice({
     setError(state, action) {
       state.error = action.payload;
     },
+    setGraphqlLoading(state, action: { payload: boolean }) {
+      state.graphqlLoading = action.payload;
+    },
+    setGraphqlError(state, action: { payload: string | null }) {
+      state.graphqlError = action.payload;
+    },
     clearSelection(state) {
       state.selectedAAId = null;
       state.selectedAAData = null;
@@ -102,6 +112,8 @@ export const {
   setApOpenedFrom,
   setLoading,
   setError,
+  setGraphqlLoading,
+  setGraphqlError,
   clearSelection,
 } = slice.actions;
 
@@ -122,3 +134,7 @@ export const getSelectedAPId = (state: RootState) =>
   state.arbeitsauftraege.selectedAPId;
 export const getApOpenedFrom = (state: RootState) =>
   state.arbeitsauftraege.apOpenedFrom;
+export const getGraphqlLoading = (state: RootState) =>
+  state.arbeitsauftraege.graphqlLoading;
+export const getGraphqlError = (state: RootState) =>
+  state.arbeitsauftraege.graphqlError;

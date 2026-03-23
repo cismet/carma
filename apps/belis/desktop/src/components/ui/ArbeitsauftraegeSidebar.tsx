@@ -9,6 +9,7 @@ import {
   getAALoading,
   getActiveAATab,
   getSelectedAPId,
+  getGraphqlLoading,
   setSelectedAAId,
   setActiveAATab,
   setSelectedAPId,
@@ -80,6 +81,7 @@ const ArbeitsauftraegeSidebar = ({
   const selectedAAId = useSelector(getSelectedAAId);
   const selectedAAData = useSelector(getSelectedAAData);
   const loading = useSelector(getAALoading);
+  const graphqlLoading = useSelector(getGraphqlLoading);
   const activeTab = useSelector(getActiveAATab);
   const selectedAPId = useSelector(getSelectedAPId);
   const setActiveTab = (tab: TabKey) => dispatch(setActiveAATab(tab));
@@ -156,7 +158,11 @@ const ArbeitsauftraegeSidebar = ({
       <div className="flex-1 overflow-y-auto">
         {activeTab === "aa" ? (
           /* Tab 1: Arbeitsaufträge list */
-          features.length === 0 ? (
+          graphqlLoading && features.length === 0 ? (
+            <div className="flex justify-center py-8">
+              <Spin size="small" />
+            </div>
+          ) : features.length === 0 ? (
             <div className="px-3 py-6 text-center text-xs text-gray-400">
               Keine Arbeitsaufträge im Kartenausschnitt
             </div>
