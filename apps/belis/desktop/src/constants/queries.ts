@@ -1020,6 +1020,91 @@ query MyQuery($id: Int!) {
   }
 }`;
 
+queries.arbeitsauftraege_by_team = `
+query ArbeitsauftraegeByTeam($teamId: Int!) {
+  arbeitsauftrag(where: {
+    _and: [
+      { team: { id: { _eq: $teamId } } },
+      { _or: [
+        { is_deleted: { _is_null: true } },
+        { is_deleted: { _eq: false } }
+      ]},
+      { _or: [
+        { ar_protokolleArray: { arbeitsprotokoll: { fk_status: { _is_null: true } } } },
+        { ar_protokolleArray: { arbeitsprotokoll: { arbeitsprotokollstatus: { schluessel: { _eq: "0" } } } } }
+      ]},
+      { _or: [
+        { _and: [
+          { ar_protokolleArray: { arbeitsprotokoll: { fk_geometrie: { _is_null: false } } } },
+          { ar_protokolleArray: { arbeitsprotokoll: { geometrie: { fk_geom: { _is_null: false } } } } }
+        ]},
+        { ar_protokolleArray: { arbeitsprotokoll: { fk_leuchte: { _is_null: false } } } },
+        { ar_protokolleArray: { arbeitsprotokoll: { fk_standort: { _is_null: false } } } },
+        { ar_protokolleArray: { arbeitsprotokoll: { fk_mauerlasche: { _is_null: false } } } },
+        { ar_protokolleArray: { arbeitsprotokoll: { fk_leitung: { _is_null: false } } } },
+        { ar_protokolleArray: { arbeitsprotokoll: { fk_abzweigdose: { _is_null: false } } } },
+        { ar_protokolleArray: { arbeitsprotokoll: { fk_schaltstelle: { _is_null: false } } } }
+      ]}
+    ]
+  }) {
+    id
+    nummer
+    angelegt_am
+    angelegt_von
+    team {
+      id
+      name
+    }
+    ar_protokolleArray {
+      arbeitsprotokoll {
+        id
+        arbeitsprotokollstatus {
+          id
+          bezeichnung
+          schluessel
+        }
+        geometrie {
+          geom {
+            geo_field
+          }
+        }
+        tdta_leuchten {
+          fk_standort: tdta_standort_mast {
+            geom {
+              geo_field
+            }
+          }
+        }
+        tdta_standort_mast {
+          geom {
+            geo_field
+          }
+        }
+        schaltstelle {
+          geom {
+            geo_field
+          }
+        }
+        mauerlasche {
+          geom {
+            geo_field
+          }
+        }
+        leitung {
+          geom {
+            geo_field
+          }
+        }
+        abzweigdose {
+          geom {
+            geo_field
+          }
+        }
+      }
+    }
+  }
+}`;
+
 queries.arbeitsauftragById = `
 query ArbeitsauftragById($aaId: Int!) {
   arbeitsauftrag(where: {id: {_eq: $aaId}}) {

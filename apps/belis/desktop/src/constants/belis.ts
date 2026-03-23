@@ -146,6 +146,10 @@ export const tdtaStandortMastByIdQuery = gql`
   ${queries.tdta_standort_mast_by_id}
 `;
 
+export const arbeitsauftraegeByTeamQuery = gql`
+  ${queries.arbeitsauftraege_by_team}
+`;
+
 export const arbeitsauftragByIdQuery = gql`
   ${queries.arbeitsauftragById}
 `;

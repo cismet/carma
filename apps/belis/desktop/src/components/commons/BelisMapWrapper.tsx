@@ -58,6 +58,7 @@ import {
   FeatureType,
   fetchFeatureById,
   fetchArbeitsauftragById,
+  fetchArbeitsauftraegeByTeam,
 } from "../../helper/apiMethods";
 import { getJWT } from "../../store/slices/auth";
 import { flattenGqlRecord } from "../../helper/flattenGqlRecord";
@@ -67,10 +68,13 @@ import {
   setSelectedAAData,
   setLoading as setAALoading,
   setError as setAAError,
+  setGraphqlLoading,
+  setGraphqlError,
   getSelectedAAId,
   getSelectedAAData,
   getActiveAATab,
   getSelectedAPId,
+  getSelectedTeamId,
   setSelectedAPId,
   setApOpenedFrom,
   getApOpenedFrom,
@@ -81,6 +85,7 @@ import { getSelectedTeamName } from "../../store/selectors";
 import { buildApGeoJson } from "../../helper/buildApGeoJson";
 import { debugLayers, apInfoboxMapping } from "../../config/debugLayers";
 import type { ArbeitsauftragTileFeature } from "../../store/slices/arbeitsauftraege";
+import { transformGqlToTileFeatures } from "../../helper/transformArbeitsauftraege";
 
 const LIST_WIDTH = 300;
 
@@ -193,6 +198,7 @@ const BelisMapLibWrapper = ({
   const aaLoading = useSelector(getAALoading);
 
   // Team filter: resolve selectedTeamId → team name for map layer filtering
+  const selectedTeamId = useSelector(getSelectedTeamId);
   const selectedTeamName = useSelector(getSelectedTeamName);
 
   const highlightSources = useMemo(
@@ -1004,9 +1010,45 @@ const BelisMapLibWrapper = ({
     }
   }, [sidebarVariant]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // --- Arbeitsauftraege: extract tile features into Redux ---
+  // --- Arbeitsauftraege: GraphQL fetch when team is selected ---
+  useEffect(() => {
+    if (sidebarVariant !== "arbeitsauftraege" || selectedTeamId == null || !jwt)
+      return;
+
+    let cancelled = false;
+
+    const fetchData = async () => {
+      dispatch(setGraphqlLoading(true));
+      dispatch(setGraphqlError(null));
+      try {
+        const raw = await fetchArbeitsauftraegeByTeam(jwt, selectedTeamId);
+        if (cancelled) return;
+        const features = transformGqlToTileFeatures(raw as Record<string, unknown>[]);
+        dispatch(setAAFeatures(features));
+      } catch (err) {
+        if (cancelled) return;
+        dispatch(
+          setGraphqlError(
+            err instanceof Error ? err.message : "Unknown error"
+          )
+        );
+      } finally {
+        if (!cancelled) dispatch(setGraphqlLoading(false));
+      }
+    };
+
+    void fetchData();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [sidebarVariant, selectedTeamId, jwt, dispatch]);
+
+  // --- Arbeitsauftraege: extract tile features into Redux (fallback when no team) ---
   useEffect(() => {
     if (sidebarVariant !== "arbeitsauftraege" || !map) return;
+    // When a team is selected, GraphQL handles sidebar data
+    if (selectedTeamId != null) return;
 
     const extractFeatures = () => {
       try {
@@ -1047,7 +1089,7 @@ const BelisMapLibWrapper = ({
       map.off("sourcedata", extractFeatures);
       map.off("moveend", extractFeatures);
     };
-  }, [sidebarVariant, map, arbeitsauftraegeNamespacedSource, dispatch]);
+  }, [sidebarVariant, map, selectedTeamId, arbeitsauftraegeNamespacedSource, dispatch]);
 
   // --- Arbeitsauftraege: filter map layers by selected team ---
   useEffect(() => {
