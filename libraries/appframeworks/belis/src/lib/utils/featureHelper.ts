@@ -1091,24 +1091,25 @@ export const compareFeature = (a, b) => {
   }
 };
 
+const joinParts = (parts, separator) =>
+  parts.filter((p) => p != null && p !== "").join(separator);
+
 export const getFachobjektOfProtocol = (item) => {
   if (item.tdta_leuchten) {
+    const typ = item.tdta_leuchten?.fk_leuchttyp?.leuchtentyp;
+    const nr = item.tdta_leuchten.leuchtennummer;
+    const lfd = item.tdta_leuchten.lfd_nummer;
+    const typNr = joinParts([typ, nr], "-");
     return {
       ...item.tdta_leuchten,
-
       type: "tdta_leuchten",
-      shortname:
-        item.tdta_leuchten?.fk_leuchttyp?.leuchtentyp +
-        "-" +
-        item.tdta_leuchten.leuchtennummer +
-        ", " +
-        item.tdta_leuchten.lfd_nummer,
+      shortname: joinParts([typNr, lfd], ", "),
     };
   } else if (item.tdta_standort_mast) {
     return {
       ...item.tdta_standort_mast,
       type: "tdta_standort_mast",
-      shortname: "Mast - " + item.tdta_standort_mast.lfd_nummer,
+      shortname: joinParts(["Mast", item.tdta_standort_mast.lfd_nummer], " - "),
     };
   } else if (item.leitung) {
     const laengePart =
@@ -1118,34 +1119,34 @@ export const getFachobjektOfProtocol = (item) => {
     return {
       ...item.leitung,
       type: "leitung",
-      shortname: item.leitung.fk_leitungstyp?.bezeichnung + " - " + laengePart,
+      shortname: joinParts([item.leitung.fk_leitungstyp?.bezeichnung, laengePart], " - "),
     };
   } else if (item.schaltstelle) {
     return {
       ...item.schaltstelle,
       type: "schaltstelle",
-      shortname:
-        item.schaltstelle.fk_bauart?.bezeichnung +
-        " - " +
-        item.schaltstelle.schaltstellen_nummer,
+      shortname: joinParts(
+        [item.schaltstelle.fk_bauart?.bezeichnung, item.schaltstelle.schaltstellen_nummer],
+        " - ",
+      ),
     };
   } else if (item.abzweigdose) {
     return {
       ...item.abzweigdose,
       type: "abzweigdose",
-      shortname: "AZD - " + item.abzweigdose.id,
+      shortname: joinParts(["AZD", item.abzweigdose.id], " - "),
     };
   } else if (item.mauerlasche) {
     return {
       ...item.mauerlasche,
       type: "mauerlasche",
-      shortname: "M - " + item.mauerlasche.laufende_nummer,
+      shortname: joinParts(["M", item.mauerlasche.laufende_nummer], " - "),
     };
   } else if (item.geometrie) {
     return {
       ...item.geometrie,
       type: "geom",
-      shortname: "FG - " + item.geometrie.bezeichnung,
+      shortname: joinParts(["FG", item.geometrie.bezeichnung], " - "),
     };
   }
 };
