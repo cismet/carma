@@ -1,7 +1,9 @@
-import { useMemo } from "react";
-import { Form, Input, Row, Col, Table, Tag } from "antd";
+import { useEffect, useMemo } from "react";
+import { Form, Input, Row, Col, Table, Tag, DatePicker } from "antd";
+import dayjs from "dayjs";
 import type { ColumnsType } from "antd/es/table";
 import { getFormClassName } from "./readOnlyFormUtils";
+import { FormItem } from "./DraftFieldHighlight";
 
 const FormLabel = ({ children }: { children: React.ReactNode }) => (
   <span className="text-sm font-medium text-gray-700">{children}</span>
@@ -32,15 +34,6 @@ const AKTIONEN_BY_FACHOBJEKT_TYPE: Record<string, string[]> = {
   geom: ["Sonstiges"],
 };
 
-function formatDate(isoDate: string): string {
-  if (!isoDate) return "";
-  try {
-    return new Date(isoDate).toLocaleDateString("de-DE", { day: "2-digit", month: "2-digit", year: "numeric" });
-  } catch {
-    return isoDate;
-  }
-}
-
 interface AenderungRow {
   key: number;
   aenderung: string;
@@ -52,20 +45,55 @@ interface ArbeitsprotokollFormFieldsProps {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   data: Record<string, any>;
   fachobjektType?: string;
+  readOnly?: boolean;
+  onFormInstance?: (form: import("antd").FormInstance) => void;
+  draftValues?: Record<string, unknown>;
+  onValuesChange?: (
+    changedValues: Record<string, unknown>,
+    allValues: Record<string, unknown>,
+  ) => void;
+  onOriginalValues?: (values: Record<string, unknown>) => void;
 }
 
 const ArbeitsprotokollFormFields = ({
   data,
   fachobjektType,
+  readOnly = true,
+  onFormInstance,
+  draftValues,
+  onValuesChange,
+  onOriginalValues,
 }: ArbeitsprotokollFormFieldsProps) => {
+  const [form] = Form.useForm();
+
+  useEffect(() => {
+    onFormInstance?.(form);
+  }, [form, onFormInstance]);
+
+  useEffect(() => {
+    form.resetFields();
+    if (data) {
+      const serverValues = {
+        monteur: data.monteur ?? "",
+        datum: data.datum ? dayjs(data.datum) : null,
+        status: data.arbeitsprotokollstatus?.bezeichnung ?? "",
+        material: data.material ?? "",
+        bemerkung: data.bemerkung ?? "",
+      };
+      form.setFieldsValue(serverValues);
+      onOriginalValues?.(form.getFieldsValue());
+      if (draftValues) {
+        form.setFieldsValue(draftValues);
+      }
+    }
+  }, [data, form, draftValues, onOriginalValues]);
   const aktionen = fachobjektType
     ? AKTIONEN_BY_FACHOBJEKT_TYPE[fachobjektType] ?? []
     : [];
 
   const aenderungRows: AenderungRow[] = useMemo(() => {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const arr: Record<string, any>[] =
-      data?.arbeitsprotokollaktionArray ?? [];
+    const arr: Record<string, any>[] = data?.arbeitsprotokollaktionArray ?? [];
     return arr.map((entry, idx) => ({
       key: idx,
       aenderung: entry.aenderung ?? "",
@@ -101,73 +129,48 @@ const ArbeitsprotokollFormFields = ({
     <div className="flex flex-col gap-4 pt-2">
       {/* Section A: Basic fields */}
       <Form
+        form={form}
         layout="vertical"
         requiredMark={false}
-        className={getFormClassName(true)}
+        className={getFormClassName(readOnly)}
+        onValuesChange={onValuesChange}
       >
         <Row gutter={16}>
           <Col span={12}>
-            <Form.Item
-              label={<FormLabel>Monteur</FormLabel>}
-              className="mb-4"
-            >
-              <Input value={data.monteur ?? ""} size="large" readOnly />
-            </Form.Item>
+            <FormItem name="monteur" label={<FormLabel>Monteur</FormLabel>} className="mb-4">
+              <Input size="large" />
+            </FormItem>
           </Col>
           <Col span={12}>
-            <Form.Item
-              label={<FormLabel>Datum</FormLabel>}
-              className="mb-4"
-            >
-              <Input
-                value={formatDate(data.datum ?? "")}
-                size="large"
-                readOnly
-              />
-            </Form.Item>
+            <FormItem name="datum" label={<FormLabel>Datum</FormLabel>} className="mb-4">
+              <DatePicker size="large" format="DD.MM.YYYY" style={{ width: "100%" }} />
+            </FormItem>
           </Col>
         </Row>
         <Row gutter={16}>
           <Col span={12}>
-            <Form.Item
-              label={<FormLabel>Status</FormLabel>}
-              className="mb-4"
-            >
-              <Input
-                value={data.arbeitsprotokollstatus?.bezeichnung ?? ""}
-                size="large"
-                readOnly
-              />
-            </Form.Item>
+            <FormItem name="status" label={<FormLabel>Status</FormLabel>} className="mb-4">
+              <Input size="large" />
+            </FormItem>
           </Col>
           <Col span={12}>
-            <Form.Item
-              label={<FormLabel>Material</FormLabel>}
-              className="mb-4"
-            >
-              <Input value={data.material ?? ""} size="large" readOnly />
-            </Form.Item>
+            <FormItem name="material" label={<FormLabel>Material</FormLabel>} className="mb-4">
+              <Input size="large" />
+            </FormItem>
           </Col>
         </Row>
-        <Form.Item
-          label={<FormLabel>Bemerkung</FormLabel>}
-          className="mb-4"
-        >
+        <FormItem name="bemerkung" label={<FormLabel>Bemerkung</FormLabel>} className="mb-4">
           <Input.TextArea
-            value={data.bemerkung ?? ""}
             size="large"
-            readOnly
             autoSize={{ minRows: 2, maxRows: 6 }}
           />
-        </Form.Item>
+        </FormItem>
       </Form>
 
       {/* Section B: Aktionen */}
       {aktionen.length > 0 && (
         <div>
-          <div className="text-sm font-medium text-gray-700 mb-2">
-            Aktionen
-          </div>
+          <div className="text-sm font-medium text-gray-700 mb-2">Aktionen</div>
           <div className="flex flex-wrap gap-1">
             {aktionen.map((aktion) => (
               <Tag key={aktion}>{aktion}</Tag>
@@ -177,11 +180,11 @@ const ArbeitsprotokollFormFields = ({
       )}
 
       {/* Section C: Änderung table */}
-      {aenderungRows.length > 0 && (
-        <div>
-          <div className="text-sm font-medium text-gray-700 mb-2">
-            Änderungen ({aenderungRows.length})
-          </div>
+      <div>
+        <div className="text-sm font-medium text-gray-700 mb-2">
+          Änderungen ({aenderungRows.length})
+        </div>
+        {aenderungRows.length > 0 ? (
           <Table<AenderungRow>
             columns={aenderungColumns}
             dataSource={aenderungRows}
@@ -189,8 +192,12 @@ const ArbeitsprotokollFormFields = ({
             pagination={false}
             scroll={{ y: 300 }}
           />
-        </div>
-      )}
+        ) : (
+          <div className="text-sm text-gray-400 italic">
+            Keine Änderungen vorhanden
+          </div>
+        )}
+      </div>
     </div>
   );
 };

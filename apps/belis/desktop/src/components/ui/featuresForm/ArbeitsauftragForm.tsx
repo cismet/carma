@@ -9,9 +9,29 @@ interface ArbeitsauftragFormProps {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   data: Record<string, any>;
   loading?: boolean;
+  readOnly?: boolean;
+  onToggleReadOnly?: () => void;
+  onCancel?: () => void;
+  onFormInstance?: (form: import("antd").FormInstance) => void;
+  draftValues?: Record<string, unknown>;
+  onValuesChange?: (
+    changedValues: Record<string, unknown>,
+    allValues: Record<string, unknown>,
+  ) => void;
+  onOriginalValues?: (values: Record<string, unknown>) => void;
 }
 
-const ArbeitsauftragForm = ({ data, loading }: ArbeitsauftragFormProps) => {
+const ArbeitsauftragForm = ({
+  data,
+  loading,
+  readOnly = true,
+  onToggleReadOnly,
+  onCancel,
+  onFormInstance,
+  draftValues,
+  onValuesChange,
+  onOriginalValues,
+}: ArbeitsauftragFormProps) => {
   const jwt = useSelector(getJWT);
 
   // Collect documents from all protocols' veranlassung.ar_dokumenteArray
@@ -42,9 +62,18 @@ const ArbeitsauftragForm = ({ data, loading }: ArbeitsauftragFormProps) => {
       jwt={jwt}
       debugData={data}
       loading={loading}
-      readOnly
+      readOnly={readOnly}
+      onToggleReadOnly={onToggleReadOnly}
+      onCancel={onCancel}
     >
-      <ArbeitsauftragFormFields data={data} />
+      <ArbeitsauftragFormFields
+        data={data}
+        readOnly={readOnly}
+        onFormInstance={onFormInstance}
+        draftValues={draftValues}
+        onValuesChange={onValuesChange}
+        onOriginalValues={onOriginalValues}
+      />
     </FeatureFormLayout>
   );
 };

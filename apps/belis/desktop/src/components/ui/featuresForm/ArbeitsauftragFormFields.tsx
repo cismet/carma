@@ -1,5 +1,5 @@
-import { useMemo } from "react";
-import { Form, Input, Row, Col, Table } from "antd";
+import { useEffect, useMemo } from "react";
+import { Form, Input, Row, Col, Table, Select } from "antd";
 import type { ColumnsType } from "antd/es/table";
 import { useDispatch, useSelector } from "react-redux";
 import { getFachobjektOfProtocol } from "@carma-appframeworks/belis";
@@ -9,7 +9,9 @@ import {
   getSelectedAPId,
 } from "../../../store/slices/arbeitsauftraege";
 import type { AppDispatch } from "../../../store";
+import { getKeyTablesData } from "../../../store/slices/keyTables";
 import { getFormClassName } from "./readOnlyFormUtils";
+import { FormItem } from "./DraftFieldHighlight";
 import toTitleCase from "../../../helper/toTitleCase";
 
 const FormLabel = ({ children }: { children: React.ReactNode }) => (
@@ -30,7 +32,11 @@ const FEATURE_TYPE_LABELS: Record<string, string> = {
 function formatDate(isoDate: string): string {
   if (!isoDate) return "";
   try {
-    return new Date(isoDate).toLocaleDateString("de-DE", { day: "2-digit", month: "2-digit", year: "numeric" });
+    return new Date(isoDate).toLocaleDateString("de-DE", {
+      day: "2-digit",
+      month: "2-digit",
+      year: "numeric",
+    });
   } catch {
     return isoDate;
   }
@@ -68,22 +74,72 @@ interface ProtokolleRow {
 interface ArbeitsauftragFormFieldsProps {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   data: Record<string, any>;
+  readOnly?: boolean;
+  onFormInstance?: (form: import("antd").FormInstance) => void;
+  draftValues?: Record<string, unknown>;
+  onValuesChange?: (
+    changedValues: Record<string, unknown>,
+    allValues: Record<string, unknown>,
+  ) => void;
+  onOriginalValues?: (values: Record<string, unknown>) => void;
 }
 
-const ArbeitsauftragFormFields = ({ data }: ArbeitsauftragFormFieldsProps) => {
+const ArbeitsauftragFormFields = ({
+  data,
+  readOnly = true,
+  onFormInstance,
+  draftValues,
+  onValuesChange,
+  onOriginalValues,
+}: ArbeitsauftragFormFieldsProps) => {
+  const [form] = Form.useForm();
   const dispatch: AppDispatch = useDispatch();
   const selectedAPId = useSelector(getSelectedAPId);
+  const keyTablesData = useSelector(getKeyTablesData);
+
+  const teamOptions = useMemo(
+    () =>
+      [...((keyTablesData.teams || []) as { id: number; name?: string }[])]
+        .sort((a, b) =>
+          (a.name || "").localeCompare(b.name || "", "de", {
+            sensitivity: "base",
+          }),
+        )
+        .map((team) => ({ value: team.id, label: team.name || "" })),
+    [keyTablesData.teams],
+  );
+
+  useEffect(() => {
+    onFormInstance?.(form);
+  }, [form, onFormInstance]);
+
+  useEffect(() => {
+    form.resetFields();
+    if (data) {
+      const serverValues = {
+        zugewiesen_an: data.team?.id ?? null,
+      };
+      form.setFieldsValue(serverValues);
+      onOriginalValues?.(form.getFieldsValue());
+      if (draftValues) {
+        form.setFieldsValue(draftValues);
+      }
+    }
+  }, [data, form, draftValues, onOriginalValues]);
 
   const protokolleRows: ProtokolleRow[] = useMemo(() => {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const protokolle: Record<string, any>[] = (
+    const protokolle: Record<string, any>[] =
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      data?.ar_protokolleArray?.map((entry: Record<string, any>) => entry.arbeitsprotokoll) ?? []
-    ).sort(
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      (a: Record<string, any>, b: Record<string, any>) =>
-        Number(a.protokollnummer) - Number(b.protokollnummer)
-    );
+      (
+        data?.ar_protokolleArray?.map(
+          (entry: Record<string, any>) => entry.arbeitsprotokoll
+        ) ?? []
+      ).sort(
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        (a: Record<string, any>, b: Record<string, any>) =>
+          Number(a.protokollnummer) - Number(b.protokollnummer)
+      );
 
     return protokolle.map((p) => {
       const fachobjekt = getFachobjektOfProtocol(p);
@@ -110,7 +166,8 @@ const ArbeitsauftragFormFields = ({ data }: ArbeitsauftragFormFieldsProps) => {
           break;
         case "tdta_leuchten": {
           const leuchtennummer = p.tdta_leuchten?.lfd_nummer ?? null;
-          const leuchtentyp = p.tdta_leuchten?.fk_leuchttyp?.leuchtentyp ?? null;
+          const leuchtentyp =
+            p.tdta_leuchten?.fk_leuchttyp?.leuchtentyp ?? null;
           if (leuchtennummer != null && leuchtentyp != null) {
             kennzeichnung = leuchtennummer + ", " + leuchtentyp;
           } else if (leuchtennummer != null) {
@@ -121,14 +178,16 @@ const ArbeitsauftragFormFields = ({ data }: ArbeitsauftragFormFieldsProps) => {
           break;
         }
         case "mauerlasche":
-          kennzeichnung = p.mauerlasche?.laufende_nummer != null
-            ? String(p.mauerlasche.laufende_nummer)
-            : "";
+          kennzeichnung =
+            p.mauerlasche?.laufende_nummer != null
+              ? String(p.mauerlasche.laufende_nummer)
+              : "";
           break;
         case "schaltstelle":
-          kennzeichnung = p.schaltstelle?.schaltstellen_nummer != null
-            ? String(p.schaltstelle.schaltstellen_nummer)
-            : "";
+          kennzeichnung =
+            p.schaltstelle?.schaltstellen_nummer != null
+              ? String(p.schaltstelle.schaltstellen_nummer)
+              : "";
           break;
         case "mast":
         case "standort": {
@@ -210,52 +269,67 @@ const ArbeitsauftragFormFields = ({ data }: ArbeitsauftragFormFieldsProps) => {
     <div className="flex flex-col gap-4 pt-2">
       {/* Header fields */}
       <Form
+        form={form}
         layout="vertical"
         requiredMark={false}
-        className={getFormClassName(true)}
+        className={getFormClassName(readOnly)}
+        onValuesChange={onValuesChange}
       >
         <Row gutter={16}>
-          <Col span={12}>
-            <Form.Item
-              label={<FormLabel>Auftragsnummer</FormLabel>}
-              className="mb-4"
-            >
-              <Input value={data.nummer ?? ""} size="large" readOnly />
-            </Form.Item>
+          <Col span={12} className="cursor-not-allowed">
+            <div className="pointer-events-none">
+              <Form.Item
+                label={<FormLabel>Auftragsnummer</FormLabel>}
+                className="mb-4"
+              >
+                <Input value={data.nummer ?? ""} size="large" readOnly />
+              </Form.Item>
+            </div>
           </Col>
           <Col span={12}>
-            <Form.Item
+            <FormItem
+              name="zugewiesen_an"
               label={<FormLabel>Zugewiesen an</FormLabel>}
               className="mb-4"
             >
-              <Input
-                value={data.team?.name ?? data.zugewiesen_an ?? ""}
+              <Select
                 size="large"
-                readOnly
+                options={teamOptions}
+                showSearch
+                filterOption={(input, option) =>
+                  (option?.label ?? "")
+                    .toLowerCase()
+                    .includes(input.toLowerCase())
+                }
+                allowClear
               />
-            </Form.Item>
+            </FormItem>
           </Col>
         </Row>
         <Row gutter={16}>
-          <Col span={12}>
-            <Form.Item
-              label={<FormLabel>Angelegt von</FormLabel>}
-              className="mb-4"
-            >
-              <Input value={data.angelegt_von ?? ""} size="large" readOnly />
-            </Form.Item>
+          <Col span={12} className="cursor-not-allowed">
+            <div className="pointer-events-none">
+              <Form.Item
+                label={<FormLabel>Angelegt von</FormLabel>}
+                className="mb-4"
+              >
+                <Input value={data.angelegt_von ?? ""} size="large" readOnly />
+              </Form.Item>
+            </div>
           </Col>
-          <Col span={12}>
-            <Form.Item
-              label={<FormLabel>Angelegt am</FormLabel>}
-              className="mb-4"
-            >
-              <Input
-                value={formatDate(data.angelegt_am ?? "")}
-                size="large"
-                readOnly
-              />
-            </Form.Item>
+          <Col span={12} className="cursor-not-allowed">
+            <div className="pointer-events-none">
+              <Form.Item
+                label={<FormLabel>Angelegt am</FormLabel>}
+                className="mb-4"
+              >
+                <Input
+                  value={formatDate(data.angelegt_am ?? "")}
+                  size="large"
+                  readOnly
+                />
+              </Form.Item>
+            </div>
           </Col>
         </Row>
       </Form>
