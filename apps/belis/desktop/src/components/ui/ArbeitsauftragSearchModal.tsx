@@ -86,7 +86,11 @@ const generateQueryPreview = (values: ArbeitsauftragSearchValues): string => {
 }`;
 };
 
-const ArbeitsauftragSearchModal = () => {
+interface ArbeitsauftragSearchModalProps {
+  onSearchDone?: () => void;
+}
+
+const ArbeitsauftragSearchModal = ({ onSearchDone }: ArbeitsauftragSearchModalProps) => {
   const dispatch: AppDispatch = useDispatch();
   const jwt = useSelector(getJWT);
 
@@ -185,12 +189,13 @@ const ArbeitsauftragSearchModal = () => {
 
         setIsSearching(false);
         setIsOpen(false);
+        onSearchDone?.();
       })
       .catch((err) => {
         console.error("yyy [AA_SEARCH] fetch error:", err);
         setIsSearching(false);
       });
-  }, [jwt, dispatch]);
+  }, [jwt, dispatch, onSearchDone]);
 
   return (
     <>

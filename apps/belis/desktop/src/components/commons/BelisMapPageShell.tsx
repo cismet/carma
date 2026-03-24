@@ -209,12 +209,13 @@ const BelisMapPageShell = () => {
 
               {filterConfig?.variant === "arbeitsauftraege" && (
                 <div className="flex items-center gap-2 ml-auto">
-                  <ArbeitsauftragSearchModal />
+                  <ArbeitsauftragSearchModal onSearchDone={closeDatasheet} />
                   <TeamSelect
                     value={selectedTeamId}
                     onChange={(id) => {
                       dispatch(setSelectedTeamId(id));
                       dispatch(clearSelection());
+                      closeDatasheet();
                     }}
                   />
                 </div>
