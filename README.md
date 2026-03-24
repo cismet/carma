@@ -86,22 +86,12 @@ the projects are not transpiled by TypeScript itself and does not emit js.
 
 vite build and [`vite-plugin-dts`](https://www.npmjs.com/package/vite-plugin-dts) are taking care of the actual transpiling and typescript declaration.
 
-#### For _new_ production level projects:
+#### Connector `tsconfig.json` rule (all libs/apps)
 
-- [`/tsconfig.strict.base.json`](/tsconfig.strict.base.json) should be extending the local project `./tsconfig.json`.
-
-- changes to [`compilerOptions`](https://www.typescriptlang.org/tsconfig/#compilerOptions) on a per project basis should be avoided.
-
-#### For _new_ playground level projects:
-
-- [`/tsconfig.strict.base.json`](/tsconfig.strict.base.json) is recommended but not required.
-- [`/tsconfig.base.json`](/tsconfig.base.json) can be used with local changes as needed.
-
-#### For _existing_ production level projects:
-
-- [`/tsconfig.legacy.base.json`](/tsconfig.legacy.base.json) as lowest level of existing strictness permitted.
-- [`/tsconfig.base.json`](/tsconfig.base.json) as optional intermediate step
-- [`/tsconfig.strict.base.json`](/tsconfig.strict.base.json) should be adopted, if feasible, on a per project commit basis.
+- use exactly one base extend in connector `tsconfig.json`:
+  - [`/tsconfig.base.json`](/tsconfig.base.json) as default.
+  - [`/tsconfig.legacy.base.json`](/tsconfig.legacy.base.json) only when dependency compatibility issues require fallback.
+- no custom project-level [`compilerOptions`](https://www.typescriptlang.org/tsconfig/#compilerOptions) in connector `tsconfig.json`.
 
 #### handling code imports
 
@@ -190,4 +180,3 @@ update the individual packages as needed or use interactive mode for batch updat
 
 should happen on a per package basis only as needed and has no update policy yet.
 be sure to check and update the complementing @types packages in dev deps as well.
-
