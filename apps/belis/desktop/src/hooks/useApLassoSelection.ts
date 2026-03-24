@@ -1,0 +1,138 @@
+import { useEffect, useRef, useCallback } from "react";
+import { LassoDrawingManager } from "@carma-mapping/engines/maplibre";
+import type { Map as MaplibreMap } from "maplibre-gl";
+import type { Polygon } from "geojson";
+import { polygon as turfPolygon, booleanPointInPolygon } from "@turf/turf";
+
+const AP_SOURCE = "ap-features-source";
+
+interface UseApLassoSelectionOptions {
+  map: MaplibreMap | null;
+  active: boolean;
+  onDeactivate?: () => void;
+}
+
+export function useApLassoSelection({
+  map,
+  active,
+  onDeactivate,
+}: UseApLassoSelectionOptions) {
+  const managerRef = useRef<LassoDrawingManager | null>(null);
+  const onDeactivateRef = useRef(onDeactivate);
+  onDeactivateRef.current = onDeactivate;
+
+  const handleDrawComplete = useCallback(
+    (lassoPolygon: Polygon) => {
+      if (!map) return;
+
+      // 1. Compute pixel bounding box from polygon vertices
+      const ring = lassoPolygon.coordinates[0];
+      let minX = Infinity,
+        minY = Infinity,
+        maxX = -Infinity,
+        maxY = -Infinity;
+      for (const coord of ring) {
+        const px = map.project([coord[0], coord[1]]);
+        if (px.x < minX) minX = px.x;
+        if (px.y < minY) minY = px.y;
+        if (px.x > maxX) maxX = px.x;
+        if (px.y > maxY) maxY = px.y;
+      }
+      const bboxSW: [number, number] = [minX - 1, minY - 1];
+      const bboxNE: [number, number] = [maxX + 1, maxY + 1];
+
+      // 2. Query rendered features in bounding box
+      const candidates = map.queryRenderedFeatures([bboxSW, bboxNE]);
+
+      // 3. Build turf polygon for spatial test
+      const turfLasso = turfPolygon(lassoPolygon.coordinates);
+
+      // 4. Filter to AP source and spatial test
+      const seen = new Set<string | number>();
+      const matched: typeof candidates = [];
+
+      for (const f of candidates) {
+        if (f.source !== AP_SOURCE) continue;
+        if (!f.geometry) continue;
+        if (f.id != null && seen.has(f.id)) continue;
+
+        let inside = false;
+        try {
+          if (f.geometry.type === "Point") {
+            inside = booleanPointInPolygon(f.geometry, turfLasso);
+          }
+        } catch {
+          continue;
+        }
+
+        if (!inside) continue;
+
+        if (f.id != null) seen.add(f.id);
+        matched.push(f);
+      }
+
+      if (matched.length > 0) {
+        console.log(
+          `[AP Lasso] ${matched.length} AP feature(s) selected:`,
+          matched.map((f) => ({
+            id: f.id,
+            properties: f.properties,
+            geometry: f.geometry,
+          }))
+        );
+      } else {
+        console.log("[AP Lasso] No AP features found in selection.");
+      }
+
+      // Deactivate after draw
+      onDeactivateRef.current?.();
+    },
+    [map]
+  );
+
+  const handleDrawCancel = useCallback(() => {
+    // stay in lasso mode on cancel (user can try again)
+  }, []);
+
+  // Create / destroy manager when map changes
+  useEffect(() => {
+    if (!map) return;
+
+    const mgr = new LassoDrawingManager({
+      map,
+      onDrawComplete: handleDrawComplete,
+      onDrawCancel: handleDrawCancel,
+    });
+    managerRef.current = mgr;
+
+    return () => {
+      mgr.destroy();
+      managerRef.current = null;
+    };
+  }, [map, handleDrawComplete, handleDrawCancel]);
+
+  // Activate / deactivate based on active prop
+  useEffect(() => {
+    const mgr = managerRef.current;
+    if (!mgr) return;
+
+    if (active) {
+      mgr.activate();
+    } else {
+      mgr.deactivate();
+    }
+  }, [active]);
+
+  // Escape key exits lasso mode
+  useEffect(() => {
+    if (!active) return;
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        onDeactivateRef.current?.();
+      }
+    };
+    document.addEventListener("keydown", handleKeyDown);
+    return () => document.removeEventListener("keydown", handleKeyDown);
+  }, [active]);
+}

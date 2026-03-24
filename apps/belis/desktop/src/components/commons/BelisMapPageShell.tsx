@@ -62,6 +62,7 @@ const BelisMapPageShell = () => {
     SidebarFeature[] | null
   >(null);
   const [lassoActive, setLassoActive] = useState(false);
+  const [apLassoActive, setApLassoActive] = useState(false);
 
   const { isDatasheetOpen, closeDatasheet } = useDatasheet();
   const [windowWidth, windowHeight] = useWindowSize();
@@ -133,6 +134,26 @@ const BelisMapPageShell = () => {
               <div className="flex items-center gap-2">
                 <span>{isDatasheetOpen ? "Datenblatt" : title}</span>
                 {editModeButton}
+                {sidebarVariant === "arbeitsauftraege" && (
+                  <Tooltip
+                    title={
+                      apLassoActive
+                        ? "AP-Lasso beenden"
+                        : "AP-Lasso-Auswahl"
+                    }
+                  >
+                    <button
+                      onClick={() => setApLassoActive((prev) => !prev)}
+                      className={`flex items-center justify-center w-8 h-8 rounded border ${
+                        apLassoActive
+                          ? "border-blue-500 bg-blue-50 text-blue-600"
+                          : "border-gray-300 bg-white text-gray-500 hover:bg-gray-50"
+                      }`}
+                    >
+                      <FontAwesomeIcon icon={faDrawPolygon} />
+                    </button>
+                  </Tooltip>
+                )}
               </div>
             ) : undefined
           }
@@ -140,6 +161,27 @@ const BelisMapPageShell = () => {
           extra={
             <div className="flex items-center gap-4">
               {windowWidth <= 1364 && editModeButton}
+              {windowWidth <= 1364 &&
+                sidebarVariant === "arbeitsauftraege" && (
+                  <Tooltip
+                    title={
+                      apLassoActive
+                        ? "AP-Lasso beenden"
+                        : "AP-Lasso-Auswahl"
+                    }
+                  >
+                    <button
+                      onClick={() => setApLassoActive((prev) => !prev)}
+                      className={`flex items-center justify-center w-8 h-8 rounded border ${
+                        apLassoActive
+                          ? "border-blue-500 bg-blue-50 text-blue-600"
+                          : "border-gray-300 bg-white text-gray-500 hover:bg-gray-50"
+                      }`}
+                    >
+                      <FontAwesomeIcon icon={faDrawPolygon} />
+                    </button>
+                  </Tooltip>
+                )}
 
               {showSearch && (
                 <div className="flex items-center gap-2">
@@ -229,6 +271,8 @@ const BelisMapPageShell = () => {
             highlightResults={highlightResults}
             lassoActive={lassoActive}
             onLassoDeactivate={() => setLassoActive(false)}
+            apLassoActive={apLassoActive}
+            onApLassoDeactivate={() => setApLassoActive(false)}
             sidebarVariant={sidebarVariant}
           />
         </CustomCard>
