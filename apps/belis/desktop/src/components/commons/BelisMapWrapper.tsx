@@ -1192,6 +1192,8 @@ const BelisMapLibWrapper = ({
         if (apHit) {
           const apId = apHit.properties?.id as number | undefined;
           if (apId != null) dispatch(setSelectedAPId(apId));
+        } else {
+          dispatch(setSelectedAPId(null));
         }
         return;
       }
@@ -1511,7 +1513,7 @@ const BelisMapLibWrapper = ({
             h.layer?.id === "arbeitsauftraege_outline"
         );
         if (aaHit) {
-          const aaId = Number(aaHit.id ?? aaHit.properties?.id);
+          const aaId = Number(aaHit.properties?.id ?? aaHit.id);
           if (aaId != null) {
             dispatch(setSelectedAAId(aaId));
           }
