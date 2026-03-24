@@ -145,46 +145,6 @@ describe("applyToMaplibre", () => {
       0.9
     );
   });
-
-  it("stabilizes exact nadir pitch to a tiny positive epsilon at the MapLibre boundary", () => {
-    const state = buildCommonViewState({
-      longitude: radians(7.2),
-      latitude: radians(51.27),
-      altitude: meters(180),
-      bearing: radians(0),
-      pitch: radians(0),
-      range: meters(620),
-      intrinsics: {
-        type: CAMERA_TYPE.PERSPECTIVE,
-        fov: radians(60),
-      },
-      metadata: {
-        frameId: 1,
-        timestampMs: 1_700_000_000_000,
-        sourceId: "spec",
-        source: "sync",
-      },
-    });
-    const jumpTo = vi.fn();
-    const map = {
-      getCenter: () => ({ lng: 0, lat: 0 }),
-      getZoom: () => 0,
-      getBearing: () => 0,
-      getPitch: () => 0,
-      jumpTo,
-    };
-
-    applyToMaplibre(map as unknown as MapLibreMap, state);
-
-    expect(jumpTo).toHaveBeenCalledWith(
-      expect.objectContaining({
-        bearing: 0,
-        pitch: expect.any(Number),
-      })
-    );
-    expect(jumpTo.mock.calls[0]?.[0]?.pitch).toBeGreaterThan(0);
-    expect(jumpTo.mock.calls[0]?.[0]?.pitch).toBeLessThan(0.001);
-  });
 });
 
 describe("readFromMaplibre", () => {

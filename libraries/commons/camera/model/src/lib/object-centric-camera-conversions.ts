@@ -1,11 +1,10 @@
-import { Matrix4, Quaternion, Vector3, isZeroish } from "@carma/math";
+import { Matrix4, Quaternion, Vector3 } from "@carma/math";
 import type { Meters, Radians } from "@carma/units/types";
 
 const LOCAL_RIGHT = new Vector3(1, 0, 0);
 const LOCAL_UP = new Vector3(0, 1, 0);
 const LOCAL_FORWARD = new Vector3(0, 0, -1);
 const LOCAL_ROLL_AXIS = new Vector3(0, 0, 1);
-const NADIR_HORIZONTAL_EPSILON_M = 1e-6;
 
 export type ObjectCentricEnuOffset = {
   east: number;
@@ -55,9 +54,7 @@ export const enuOffsetToObjectCentricOrbit = ({
 }: ObjectCentricEnuOffset): ObjectCentricOrbit => {
   const range = Math.hypot(east, north, up);
   const horizontalDist = Math.hypot(east, north);
-  const bearing = isZeroish(horizontalDist, NADIR_HORIZONTAL_EPSILON_M)
-    ? 0
-    : Math.atan2(-east, -north);
+  const bearing = Math.atan2(-east, -north);
   const cesiumPitch = -Math.atan2(up, horizontalDist);
   const pitch = cesiumPitch + Math.PI * 0.5;
 

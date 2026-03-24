@@ -23,7 +23,6 @@ import {
   WUPPERTAL_CONFIG,
   createDefaultStyle,
 } from "@carma-mapping/engines/maplibre";
-import { stabilizeMapLibreViewTarget } from "@carma-mapping/engines/maplibre-gl/utils";
 import {
   ViewStateProvider,
   ViewStateContext,
@@ -469,12 +468,10 @@ const buildMapLibreCameraOptionsFromState = (
   }
 
   return {
-    ...stabilizeMapLibreViewTarget({
-      center: [lngDeg, latDeg],
-      zoom: view.zoom,
-      bearing: Number.isFinite(bearingDeg) ? bearingDeg : 0,
-      pitch: Number.isFinite(pitchDeg) ? pitchDeg : 0,
-    }),
+    center: [lngDeg, latDeg],
+    zoom: view.zoom,
+    bearing: Number.isFinite(bearingDeg) ? bearingDeg : 0,
+    pitch: Number.isFinite(pitchDeg) ? pitchDeg : 0,
   };
 };
 

@@ -161,23 +161,6 @@ describe("view adapter round-trips", () => {
     expect(params).not.toHaveProperty("pitch");
   });
 
-  it("sanitizes maplibre pitch to a tiny positive epsilon when bearing is non-zero at nadir", () => {
-    const params = maplibreAdapter.toFramework({
-      longitude: asRadians(toRad(7.2)),
-      latitude: asRadians(toRad(51.27)),
-      altitude: asMeters(155.6),
-      bearing: asRadians(toRad(45)),
-      pitch: asRadians(0),
-      range: asMeters(750),
-      fovVertical: asRadians(toRad(45)),
-    });
-
-    expect(params).not.toBeNull();
-    expect(params!.bearing).toBeCloseTo(45, 7);
-    expect(params!.pitch).toBeGreaterThan(0);
-    expect(params!.pitch).toBeLessThan(0.001);
-  });
-
   it("clamps negative maplibre pitch to zero", () => {
     const params = maplibreAdapter.toFramework({
       longitude: asRadians(toRad(7.2)),

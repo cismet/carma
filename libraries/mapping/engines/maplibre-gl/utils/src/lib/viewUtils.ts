@@ -1,6 +1,5 @@
 import { LngLat } from "maplibre-gl";
 import type { CameraOptions, Map as MapLibreMap } from "maplibre-gl";
-import { clamp } from "@carma/math";
 import { degToRadNumeric, negativePiToPi } from "@carma/units/helpers";
 import type { CssPixels, Radians } from "@carma/units/types";
 import {
@@ -11,43 +10,10 @@ import {
 const CENTER_EPSILON_DEG = 1e-7;
 const ZOOM_EPSILON = 1e-6;
 const ANGLE_EPSILON_RAD = degToRadNumeric(1e-6)! as Radians;
-const DEFAULT_MAPLIBRE_MAX_PITCH_DEG = 85;
-const MAPLIBRE_MIN_STABLE_NADIR_PITCH_DEG = 1e-6;
 
 export type MapLibreViewTarget = Required<
   Pick<CameraOptions, "center" | "zoom" | "bearing" | "pitch">
 >;
-
-export const stabilizeMapLibrePitchDeg = (
-  pitchDeg: number,
-  options?: {
-    maxPitchDeg?: number;
-    minStableNadirPitchDeg?: number;
-  }
-): number => {
-  const maxPitchDeg = options?.maxPitchDeg ?? DEFAULT_MAPLIBRE_MAX_PITCH_DEG;
-  const minStableNadirPitchDeg =
-    options?.minStableNadirPitchDeg ?? MAPLIBRE_MIN_STABLE_NADIR_PITCH_DEG;
-  const clampedPitchDeg = clamp(pitchDeg, 0, maxPitchDeg);
-
-  // MapLibre treats an exact nadir pitch as bearing-ambiguous and may snap
-  // to the 180°-equivalent end pose after transitions. Keep a tiny positive
-  // epsilon at the engine boundary so bearing stays stable.
-  return clampedPitchDeg < minStableNadirPitchDeg
-    ? minStableNadirPitchDeg
-    : clampedPitchDeg;
-};
-
-export const stabilizeMapLibreViewTarget = (
-  target: MapLibreViewTarget,
-  options?: {
-    maxPitchDeg?: number;
-    minStableNadirPitchDeg?: number;
-  }
-): MapLibreViewTarget => ({
-  ...target,
-  pitch: stabilizeMapLibrePitchDeg(target.pitch, options),
-});
 
 export const readMapLibreViewOffsetFromCanvas = (
   canvas: HTMLCanvasElement | null | undefined

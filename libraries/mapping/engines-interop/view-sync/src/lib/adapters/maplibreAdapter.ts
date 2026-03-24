@@ -29,7 +29,6 @@ import {
 
 const MAPLIBRE_TILE_SIZE_PX = 512;
 const MAPLIBRE_PROJECTION_MIN_RANGE_M = 0.01;
-const MAPLIBRE_MIN_BEARING_PITCH_DEG = 1e-6;
 
 export type ViewSyncMapProjection = {
   lng: number;
@@ -37,22 +36,6 @@ export type ViewSyncMapProjection = {
   zoom: number;
   bearing: number;
   pitch: number;
-};
-
-const sanitizeMapLibrePitchDeg = ({
-  pitchDeg,
-  bearingDeg,
-  maxPitchDeg,
-}: {
-  pitchDeg: number;
-  bearingDeg: number;
-  maxPitchDeg: number;
-}): number => {
-  const clampedPitchDeg = clamp(pitchDeg, 0, maxPitchDeg);
-  return !isZeroish(bearingDeg) &&
-    clampedPitchDeg < MAPLIBRE_MIN_BEARING_PITCH_DEG
-    ? MAPLIBRE_MIN_BEARING_PITCH_DEG
-    : clampedPitchDeg;
 };
 
 const resolveOptions = (
@@ -105,11 +88,7 @@ export const projectViewSyncTargetToMapLibre = (
   const storedZoom = isFiniteNumber(target.zoom) ? target.zoom : undefined;
   if (isFiniteNumber(storedZoom)) {
     const bearingDeg = normalizeBearingRadToDeg(target.bearing);
-    const pitchDeg = sanitizeMapLibrePitchDeg({
-      pitchDeg: radToDegNumeric(target.pitch),
-      bearingDeg,
-      maxPitchDeg,
-    });
+    const pitchDeg = clamp(radToDegNumeric(target.pitch), 0, maxPitchDeg);
 
     return {
       lng: radToDegNumeric(target.longitude),
@@ -143,11 +122,7 @@ export const projectViewSyncTargetToMapLibre = (
   }
 
   const bearingDeg = normalizeBearingRadToDeg(target.bearing);
-  const pitchDeg = sanitizeMapLibrePitchDeg({
-    pitchDeg: radToDegNumeric(target.pitch),
-    bearingDeg,
-    maxPitchDeg,
-  });
+  const pitchDeg = clamp(radToDegNumeric(target.pitch), 0, maxPitchDeg);
 
   return {
     lng: radToDegNumeric(target.longitude),
