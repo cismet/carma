@@ -150,6 +150,7 @@ export const ecefToEnuMatrix = (
 
   // Matrix4 in Three.js uses column-major order
   const m = out ?? new Matrix4();
+  // prettier-ignore
   m.set(
     ex, ey, ez, tx, // row 0 (east)
     nx, ny, nz, ty, // row 1 (north)

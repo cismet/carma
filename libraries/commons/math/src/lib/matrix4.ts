@@ -6,46 +6,24 @@ import { Matrix4 } from "three";
 import { isFiniteNumber } from "./numeric/isFiniteNumber";
 
 export { Matrix4 };
+// prettier-ignore
 export type Matrix4Json = [
-  number,
-  number,
-  number,
-  number,
-  number,
-  number,
-  number,
-  number,
-  number,
-  number,
-  number,
-  number,
-  number,
-  number,
-  number,
-  number
+  number, number, number, number,
+  number, number, number, number,
+  number, number, number, number,
+  number, number, number, number
 ];
 
 export type Matrix4Like = Matrix4 | Matrix4Json;
 
 export const matrix4ToJson = (matrix: Matrix4): Matrix4Json => {
   const elements = matrix.elements;
+  // prettier-ignore
   return [
-    elements[0],
-    elements[1],
-    elements[2],
-    elements[3],
-    elements[4],
-    elements[5],
-    elements[6],
-    elements[7],
-    elements[8],
-    elements[9],
-    elements[10],
-    elements[11],
-    elements[12],
-    elements[13],
-    elements[14],
-    elements[15],
+    elements[0],  elements[1],  elements[2],  elements[3],
+    elements[4],  elements[5],  elements[6],  elements[7],
+    elements[8],  elements[9],  elements[10], elements[11],
+    elements[12], elements[13], elements[14], elements[15],
   ];
 };
 
