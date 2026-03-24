@@ -1,4 +1,5 @@
-import { useEffect, useState, useMemo, useRef, useCallback } from "react";
+import { useCallback, useEffect, useState, useMemo, useRef } from "react";
+import { useKeyboardListNavigation } from "../../hooks/useKeyboardListNavigation";
 import type { MapGeoJSONFeatureWithOriginal as SidebarFeature } from "@carma-mapping/utils";
 export type { SidebarFeature };
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
@@ -501,23 +502,15 @@ const BelisSidebar = ({
 
   const listRef = useRef<HTMLDivElement>(null);
 
-  const handleKeyDown = useCallback(
-    (e: React.KeyboardEvent) => {
-      if (e.key !== "ArrowDown" && e.key !== "ArrowUp") return;
-      e.preventDefault();
-      if (flatFeatures.length === 0) return;
+  const selectedIdx = useMemo(
+    () => flatFeatures.findIndex((f) => isFeatureSelected(f)),
+    [flatFeatures, isFeatureSelected]
+  );
 
-      const currentIdx = flatFeatures.findIndex((f) => isFeatureSelected(f));
-      let nextIdx: number;
-      if (e.key === "ArrowDown") {
-        nextIdx = currentIdx < 0 ? 0 : (currentIdx + 1) % flatFeatures.length;
-      } else {
-        nextIdx =
-          currentIdx < 0
-            ? flatFeatures.length - 1
-            : (currentIdx - 1 + flatFeatures.length) % flatFeatures.length;
-      }
-      const next = flatFeatures[nextIdx];
+  const { onKeyDown: handleKeyDown } = useKeyboardListNavigation({
+    items: flatFeatures,
+    selectedIndex: selectedIdx,
+    onSelect: (next) => {
       selectionFromListRef.current = {
         source: next.source,
         sourceLayer: next.sourceLayer,
@@ -528,8 +521,7 @@ const BelisSidebar = ({
         next
       );
     },
-    [flatFeatures, onFeatureSelect, isFeatureSelected]
-  );
+  });
 
   const getListItem = (feature: SidebarFeature): ListItemData => {
     const layerKey = feature.sourceLayer || feature.source || "";

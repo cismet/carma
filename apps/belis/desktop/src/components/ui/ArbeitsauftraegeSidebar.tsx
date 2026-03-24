@@ -1,5 +1,6 @@
-import { useMemo } from "react";
+import { useCallback, useMemo } from "react";
 import { useDispatch, useSelector } from "react-redux";
+import { useKeyboardListNavigation } from "../../hooks/useKeyboardListNavigation";
 import { Spin } from "antd";
 import { getFachobjektOfProtocol } from "@carma-appframeworks/belis";
 import {
@@ -111,10 +112,59 @@ const ArbeitsauftraegeSidebar = ({
   const protokolleCount =
     selectedFeature?.total_protokolle ?? protokolle.length;
 
+  // Keyboard navigation for AA tab
+  const selectedAAIndex = useMemo(
+    () => features.findIndex((f) => f.id === selectedAAId),
+    [features, selectedAAId]
+  );
+
+  const handleAASelect = useCallback(
+    (item: (typeof features)[number]) => {
+      dispatch(setSelectedAAId(item.id));
+      onFeatureSelect?.(item.id);
+    },
+    [dispatch, onFeatureSelect]
+  );
+
+  const { onKeyDown: onAAKeyDown } = useKeyboardListNavigation({
+    items: features,
+    selectedIndex: selectedAAIndex,
+    onSelect: handleAASelect,
+    enabled: activeTab === "aa",
+  });
+
+  // Keyboard navigation for AP tab
+  const selectedAPIndex = useMemo(
+    () => protokolle.findIndex((p) => p.id === selectedAPId),
+    [protokolle, selectedAPId]
+  );
+
+  const handleAPSelect = useCallback(
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    (item: Record<string, any>) => {
+      dispatch(setSelectedAPId(item.id));
+      dispatch(setApOpenedFrom("sidebar"));
+      onProtokollSelect?.(item.id);
+    },
+    [dispatch, onProtokollSelect]
+  );
+
+  const { onKeyDown: onAPKeyDown } = useKeyboardListNavigation({
+    items: protokolle,
+    selectedIndex: selectedAPIndex,
+    onSelect: handleAPSelect,
+    enabled: activeTab === "ap",
+  });
+
+  const handleKeyDown = activeTab === "aa" ? onAAKeyDown : onAPKeyDown;
+
   return (
     <div
+      role="listbox"
       style={{ width, minWidth: width }}
-      className="h-full border-r border-gray-200 bg-white flex flex-col overflow-hidden"
+      tabIndex={0}
+      onKeyDown={handleKeyDown}
+      className="h-full border-r border-gray-200 bg-white flex flex-col overflow-hidden outline-none"
     >
       {/* Header */}
       <div className="px-3 py-2 border-b border-gray-200 bg-gray-50">
