@@ -151,13 +151,13 @@ export const usePointLabels = (
           p.id,
           `${p.id}:${
             p.contentSignature ?? getOverlayReferenceSignature(p.content)
-          }:${p.anchorKind ?? ""}:${p.occlusionMode ?? ""}:${p.selected}:${p.visible}:${p.isOccluded}:${p.isHidden}:${
-            p.zIndex
-          }:${
-            p.pitch
-          }:${p.labelAngleRad}:${p.labelDistance}:${p.labelAttach}:${
-            p.hideLabelAndStem
-          }:${p.hideMarker}:${p.markerSize}:${p.markerStrokeWidth}:${
+          }:${p.anchorKind ?? ""}:${p.occlusionMode ?? ""}:${p.selected}:${
+            p.visible
+          }:${p.isOccluded}:${p.isHidden}:${p.zIndex}:${p.pitch}:${
+            p.labelAngleRad
+          }:${p.labelDistance}:${p.labelAttach}:${p.hideLabelAndStem}:${
+            p.hideMarker
+          }:${p.markerSize}:${p.markerStrokeWidth}:${
             p.stemReferenceMarkerSize
           }:${p.stemStartDistance}:${getOverlayReferenceSignature(
             p.markerContent
@@ -220,8 +220,7 @@ export const usePointLabels = (
         previousPointSignatureByIdRef.current.get(pointId) ?? null;
 
       // Use pitch from point data or fallback to getPitch callback
-      const pitch =
-        point.pitch ?? (getPitch ? getPitch() : MINUS_PI_OVER_FOUR);
+      const pitch = point.pitch ?? (getPitch ? getPitch() : MINUS_PI_OVER_FOUR);
 
       const attachOverlayClickHandlers =
         point.attachOverlayClickHandlers ?? true;

@@ -95,7 +95,9 @@ export const CesiumNavigationOverlay = ({
     initialHomeCameraState
   );
   const [cameraAngles, setCameraAngles] = useState(() =>
-    scene ? readCameraAngles(scene) : { heading: 0, pitch: degToRadNumeric(-45)! }
+    scene
+      ? readCameraAngles(scene)
+      : { heading: 0, pitch: degToRadNumeric(-45)! }
   );
   const initialDragStateRef = useRef<{
     mouseX: number;
@@ -123,7 +125,8 @@ export const CesiumNavigationOverlay = ({
     };
 
     syncAngles();
-    const removeMoveEndListener = scene.camera.moveEnd.addEventListener(syncAngles);
+    const removeMoveEndListener =
+      scene.camera.moveEnd.addEventListener(syncAngles);
 
     return () => {
       removeMoveEndListener?.();
@@ -131,10 +134,12 @@ export const CesiumNavigationOverlay = ({
   }, [scene]);
 
   const applyCameraAnglesUpdate = useCallback(
-    (update: (current: { heading: number; pitch: number }) => {
-      heading: number;
-      pitch: number;
-    }) => {
+    (
+      update: (current: { heading: number; pitch: number }) => {
+        heading: number;
+        pitch: number;
+      }
+    ) => {
       if (!scene) {
         return;
       }
@@ -234,7 +239,10 @@ export const CesiumNavigationOverlay = ({
       }
 
       const height = scene.camera.positionCartographic?.height;
-      const amount = Math.max(10, (Number.isFinite(height) ? height : 1000) * multiplier);
+      const amount = Math.max(
+        10,
+        (Number.isFinite(height) ? height : 1000) * multiplier
+      );
       if (multiplier < 1) {
         scene.camera.zoomIn(amount);
       } else {
@@ -310,17 +318,13 @@ export const CesiumNavigationOverlay = ({
       }
 
       cancelAnimationRef.current?.();
-      cancelAnimationRef.current = flyToCameraState(
-        scene,
-        homeCameraState,
-        {
-          durationMs: HOME_ANIMATION_DURATION_MS,
-          onDone: () => {
-            cancelAnimationRef.current = null;
-            setCameraAngles(readCameraAngles(scene));
-          },
-        }
-      );
+      cancelAnimationRef.current = flyToCameraState(scene, homeCameraState, {
+        durationMs: HOME_ANIMATION_DURATION_MS,
+        onDone: () => {
+          cancelAnimationRef.current = null;
+          setCameraAngles(readCameraAngles(scene));
+        },
+      });
     },
     [scene]
   );

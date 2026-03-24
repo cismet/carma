@@ -32,8 +32,7 @@ const FLYOUT_LABEL_DISTANCE_OFFSET_PX = 18;
 const COLLAPSED_FLYOUT_SCALE = 0.05;
 const RADIAL_FLYOUT_TRANSITION_MS = 110;
 const POINT_LABEL_TRANSITION_MS = 110;
-const RADIAL_FLYOUT_TRANSITION_EASING =
-  "cubic-bezier(0.22, 1, 0.36, 1)";
+const RADIAL_FLYOUT_TRANSITION_EASING = "cubic-bezier(0.22, 1, 0.36, 1)";
 const SLOT_LABEL_FONT_FAMILY =
   'ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif';
 
@@ -98,7 +97,8 @@ const SlotCanvas = ({
     () => sortedSlots.filter((slot) => !slot.isCenter),
     [sortedSlots]
   );
-  const effectiveFlyoutSlots = flyoutSlots.length > 0 ? flyoutSlots : sortedSlots;
+  const effectiveFlyoutSlots =
+    flyoutSlots.length > 0 ? flyoutSlots : sortedSlots;
   const aggregateCount = effectiveFlyoutSlots.length;
   const resolvedLabelFontSizePx = Math.max(10, Math.round(labelFontSizePx));
   const startGuideX = VIEWBOX_CENTER + Math.cos(startAngleRad) * radiusPx;
@@ -215,61 +215,61 @@ const SlotCanvas = ({
           />
         </div>
         {effectiveFlyoutSlots.map((slot) => {
-              const resolvedAttach = resolveDemoAttach(slot);
-              const fullText = `${slot.attach} · ${formatAngle(slot.angleRad)} · ${
-                slot.orderIndex + 1
-              }`;
-              const compactText = `${slot.orderIndex + 1}`;
+          const resolvedAttach = resolveDemoAttach(slot);
+          const fullText = `${slot.attach} · ${formatAngle(slot.angleRad)} · ${
+            slot.orderIndex + 1
+          }`;
+          const compactText = `${slot.orderIndex + 1}`;
 
-              return (
-                <div
-                  key={slot.id}
-                  style={{
-                    position: "absolute",
-                    left: VIEWBOX_CENTER,
-                    top: VIEWBOX_CENTER,
-                    zIndex: 1,
-                    transform: `translate(${expanded ? slot.offset.x : 0}px, ${
-                      expanded ? slot.offset.y : 0
-                    }px) scale(${expanded ? 1 : COLLAPSED_FLYOUT_SCALE})`,
-                    transformOrigin: "0 0",
-                    transition: `transform ${RADIAL_FLYOUT_TRANSITION_MS}ms ${RADIAL_FLYOUT_TRANSITION_EASING}`,
-                    willChange: "transform",
-                    opacity: 1,
-                    pointerEvents: expanded ? "auto" : "none",
-                  }}
-                >
-                  <PointLabel
-                    pointId={`slot-${slot.id}`}
-                    content={fullText}
-                    compactContent={compactText}
-                    selected={expanded}
-                    hideMarker
-                    labelStyle="capsule"
-                    collapse={!expanded}
-                    forceCollapse={!expanded}
-                    compactBorderless
-                    fullBorder={false}
-                    labelAttach={resolvedAttach}
-                    labelAngleRad={slot.angleRad}
-                    labelDistance={expanded ? FLYOUT_LABEL_DISTANCE_OFFSET_PX : 0}
-                    lineColor={SLOT_DEMO_COLORS.stemStroke}
-                    lineWidth={showStems && expanded ? 1 : 0}
-                    fontFamily={SLOT_LABEL_FONT_FAMILY}
-                    fontSize={`${resolvedLabelFontSizePx}px`}
-                    fontWeight={600}
-                    textColor={SLOT_DEMO_COLORS.flyoutText}
-                    textBackgroundColor={SLOT_DEMO_COLORS.flyoutFill}
-                    selectedBackgroundColor={SLOT_DEMO_COLORS.flyoutSelectedFill}
-                    hoverBackgroundColor={SLOT_DEMO_COLORS.flyoutHoverFill}
-                    markerBackgroundColor={SLOT_DEMO_COLORS.flyoutSelectedFill}
-                    markerTextColor={SLOT_DEMO_COLORS.flyoutText}
-                    resizeMode="snappy"
-                    transitionDurationMs={POINT_LABEL_TRANSITION_MS}
-                  />
-                </div>
-              );
-            })}
+          return (
+            <div
+              key={slot.id}
+              style={{
+                position: "absolute",
+                left: VIEWBOX_CENTER,
+                top: VIEWBOX_CENTER,
+                zIndex: 1,
+                transform: `translate(${expanded ? slot.offset.x : 0}px, ${
+                  expanded ? slot.offset.y : 0
+                }px) scale(${expanded ? 1 : COLLAPSED_FLYOUT_SCALE})`,
+                transformOrigin: "0 0",
+                transition: `transform ${RADIAL_FLYOUT_TRANSITION_MS}ms ${RADIAL_FLYOUT_TRANSITION_EASING}`,
+                willChange: "transform",
+                opacity: 1,
+                pointerEvents: expanded ? "auto" : "none",
+              }}
+            >
+              <PointLabel
+                pointId={`slot-${slot.id}`}
+                content={fullText}
+                compactContent={compactText}
+                selected={expanded}
+                hideMarker
+                labelStyle="capsule"
+                collapse={!expanded}
+                forceCollapse={!expanded}
+                compactBorderless
+                fullBorder={false}
+                labelAttach={resolvedAttach}
+                labelAngleRad={slot.angleRad}
+                labelDistance={expanded ? FLYOUT_LABEL_DISTANCE_OFFSET_PX : 0}
+                lineColor={SLOT_DEMO_COLORS.stemStroke}
+                lineWidth={showStems && expanded ? 1 : 0}
+                fontFamily={SLOT_LABEL_FONT_FAMILY}
+                fontSize={`${resolvedLabelFontSizePx}px`}
+                fontWeight={600}
+                textColor={SLOT_DEMO_COLORS.flyoutText}
+                textBackgroundColor={SLOT_DEMO_COLORS.flyoutFill}
+                selectedBackgroundColor={SLOT_DEMO_COLORS.flyoutSelectedFill}
+                hoverBackgroundColor={SLOT_DEMO_COLORS.flyoutHoverFill}
+                markerBackgroundColor={SLOT_DEMO_COLORS.flyoutSelectedFill}
+                markerTextColor={SLOT_DEMO_COLORS.flyoutText}
+                resizeMode="snappy"
+                transitionDurationMs={POINT_LABEL_TRANSITION_MS}
+              />
+            </div>
+          );
+        })}
       </div>
       <div
         style={{
@@ -288,13 +288,13 @@ const SlotCanvas = ({
           slot nearest the configured start angle.
         </div>
         <div>
-          <strong>Interaction:</strong> click the center aggregate to animate the
-          compact pills outward along the slot radius while they expand in parallel
-          into the full pill through the horizontal middle section.
+          <strong>Interaction:</strong> click the center aggregate to animate
+          the compact pills outward along the slot radius while they expand in
+          parallel into the full pill through the horizontal middle section.
         </div>
         <div>
-          <strong>Center:</strong> the center anchor stays at the exact origin, and
-          the anchor marker is layered above the helper ring.
+          <strong>Center:</strong> the center anchor stays at the exact origin,
+          and the anchor marker is layered above the helper ring.
         </div>
       </div>
     </div>
@@ -550,8 +550,8 @@ export const PointLabelSlotComparisonStory = ({
       >
         <strong>Strategy comparison</strong>
         <span style={{ fontSize: 12, color: "#475569" }}>
-          `equal-height-sides` is highlighted first because it better exposes the
-          side-balanced flyout pattern for clustered labels.
+          `equal-height-sides` is highlighted first because it better exposes
+          the side-balanced flyout pattern for clustered labels.
         </span>
         <div
           style={{

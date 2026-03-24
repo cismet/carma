@@ -211,7 +211,11 @@ const renderAnnotationActions = (
       fixedWidth={true}
     />
     <AnnotationInfoBoxActionIcon
-      title={measurement.locked ? "Gesperrte Messung kann nicht gelöscht werden" : "Löschen"}
+      title={
+        measurement.locked
+          ? "Gesperrte Messung kann nicht gelöscht werden"
+          : "Löschen"
+      }
       icon={faTrashCan}
       onClick={(event) => {
         event.stopPropagation();

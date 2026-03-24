@@ -41,7 +41,8 @@ export const AnnotationInfoBoxActionIcon = ({
           onClick(event);
         }}
         className={
-          className ?? (disabled ? DISABLED_ICON_CLASSNAME : DEFAULT_ICON_CLASSNAME)
+          className ??
+          (disabled ? DISABLED_ICON_CLASSNAME : DEFAULT_ICON_CLASSNAME)
         }
         icon={icon}
         data-test-id={dataTestId}

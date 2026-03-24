@@ -125,9 +125,7 @@ const areAnchorsWithinDistance = (
   maxDistancePx: number
 ): boolean => Math.hypot(left.x - right.x, left.y - right.y) <= maxDistancePx;
 
-const resolveAttachForOffset = (
-  offset: CssPixelPosition
-): PointLabelAttach => {
+const resolveAttachForOffset = (offset: CssPixelPosition): PointLabelAttach => {
   if (offset.x < 0) {
     return "right";
   }
@@ -206,10 +204,7 @@ export const getVolumeEquivalentPointClusterDiameterPx = (
 
 export const assignPointLabelClusterExpansionSlots = <T>(
   members: readonly ClusterableScreenPoint<T>[],
-  {
-    stepPx = 40,
-    slots,
-  }: Partial<PointLabelClusterExpansionConfig> = {}
+  { stepPx = 40, slots }: Partial<PointLabelClusterExpansionConfig> = {}
 ): AssignPointLabelClusterExpansionSlotsResult<T>[] => {
   const resolvedSlots =
     slots && slots.length > 0
@@ -241,7 +236,8 @@ export const clusterScreenSpaceLabelPoints = <T>(
   const clusterBuckets = new Map<string, typeof indexedPoints>();
   indexedPoints.forEach((entry) => {
     const key = entry.point.collapseKey?.trim();
-    const bucketKey = key && key.length > 0 ? key : `__single__:${entry.point.id}`;
+    const bucketKey =
+      key && key.length > 0 ? key : `__single__:${entry.point.id}`;
     const bucket = clusterBuckets.get(bucketKey) ?? [];
     bucket.push(entry);
     clusterBuckets.set(bucketKey, bucket);
@@ -296,10 +292,17 @@ export const clusterScreenSpaceLabelPoints = <T>(
         });
       }
 
-      const componentEntries = componentIndices.map((index) => bucketEntries[index]);
+      const componentEntries = componentIndices.map(
+        (index) => bucketEntries[index]
+      );
       const members = componentEntries
         .sort((left, right) =>
-          compareClusterMembers(left.point, right.point, left.index, right.index)
+          compareClusterMembers(
+            left.point,
+            right.point,
+            left.index,
+            right.index
+          )
         )
         .map((componentEntry) => componentEntry.point);
       const representative = members[0];
@@ -325,7 +328,9 @@ export const clusterScreenSpaceLabelPoints = <T>(
       }
 
       clusters.push({
-        id: `cluster:${bucketKey}:${members.map((member) => member.id).join("|")}`,
+        id: `cluster:${bucketKey}:${members
+          .map((member) => member.id)
+          .join("|")}`,
         anchor: resolveClusterAnchor(members, representative, config),
         collapseKey: bucketKey,
         members,

@@ -92,7 +92,11 @@ export {
   getDegreesFromCartographic,
   getEllipsoidalAltitudeOrZero,
 } from "./carma-helpers/cartographic";
-export { cartographicFromJson, cartographicToJson, isCartographicJson } from "./serialization";
+export {
+  cartographicFromJson,
+  cartographicToJson,
+  isCartographicJson,
+} from "./serialization";
 export type { CartographicJson, CartographicJsonTyped } from "./serialization";
 export {
   cartesian3FromCartographicRad,

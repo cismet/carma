@@ -51,4 +51,5 @@ export function cartographicToJson(
 
 export const cartographicFromJson = (
   value: CartographicJson | CartographicJsonTyped
-): Cartographic => new Cartographic(value.longitude, value.latitude, value.height);
+): Cartographic =>
+  new Cartographic(value.longitude, value.latitude, value.height);

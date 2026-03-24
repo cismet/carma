@@ -75,7 +75,10 @@ export const createCesiumViewStateHashCodec = (
 
       // Apply zoom convention offset
       const paramsWithZoom = isFiniteNumber(params.zoom)
-        ? { ...params, zoom: formatCanonicalZoomForHash(params.zoom, zoomConvention) }
+        ? {
+            ...params,
+            zoom: formatCanonicalZoomForHash(params.zoom, zoomConvention),
+          }
         : params;
 
       // Strip the vertical-FOV that the base encode wrote — Cesium uses

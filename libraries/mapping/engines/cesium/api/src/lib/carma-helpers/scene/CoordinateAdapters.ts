@@ -99,9 +99,7 @@ export const createGeographicCoordinateToScreenProjector = (
   scene: Scene | null
 ) => {
   const worldPointScratch = new Cartesian3();
-  return ((
-    coordinate: CesiumGeographicCoordinate
-  ): CssPixelPosition | null => {
+  return ((coordinate: CesiumGeographicCoordinate): CssPixelPosition | null => {
     if (!scene || scene.isDestroyed()) {
       return null;
     }

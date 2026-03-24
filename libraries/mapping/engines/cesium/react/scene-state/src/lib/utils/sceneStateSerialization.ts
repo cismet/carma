@@ -79,9 +79,9 @@ const toAnchorEcef = (
       {
         longitude: pose.anchor.longitude as LatLngAlt.rad["longitude"],
         latitude: pose.anchor.latitude as LatLngAlt.rad["latitude"],
-        altitude: (isFiniteNumber(pose.anchor.altitude) ? pose.anchor.altitude : 0) as NonNullable<
-          LatLngAlt.rad["altitude"]
-        >,
+        altitude: (isFiniteNumber(pose.anchor.altitude)
+          ? pose.anchor.altitude
+          : 0) as NonNullable<LatLngAlt.rad["altitude"]>,
       },
       anchorEcefScratch
     );
@@ -92,7 +92,10 @@ const toAnchorEcef = (
 const toAnchorCartographic = (
   anchorEcef: Cartesian3 | null | undefined
 ): LatLngAlt.rad | null => {
-  if (!anchorEcef || !isCartesian3Json(anchorEcef as unknown as Cartesian3Json)) {
+  if (
+    !anchorEcef ||
+    !isCartesian3Json(anchorEcef as unknown as Cartesian3Json)
+  ) {
     return null;
   }
   return cartographicRadFromCartesian3(
@@ -113,7 +116,9 @@ const serializePoseFields = (
   return {
     ...(anchorEcef
       ? {
-          anchorEcef: cartesian3ToJson(anchorEcef as unknown as CesiumCartesian3),
+          anchorEcef: cartesian3ToJson(
+            anchorEcef as unknown as CesiumCartesian3
+          ),
         }
       : {}),
     ...(pose.matrixWorldInverse
@@ -164,15 +169,18 @@ const deserializePoseFields = (
       : {}),
     ...(anchorEcef
       ? {
-          position:
-            anchorEcef as unknown as NonNullable<ObjectCentricCameraPose["position"]>,
+          position: anchorEcef as unknown as NonNullable<
+            ObjectCentricCameraPose["position"]
+          >,
         }
       : {}),
     ...(isMatrix4Json(value.viewMatrix)
       ? {
           matrixWorldInverse: matrix4FromJson(
             value.viewMatrix
-          ) as unknown as NonNullable<ObjectCentricCameraPose["matrixWorldInverse"]>,
+          ) as unknown as NonNullable<
+            ObjectCentricCameraPose["matrixWorldInverse"]
+          >,
         }
       : {}),
   };
@@ -188,7 +196,9 @@ const serializeIntrinsicsFields = (
   }
 
   return {
-    ...(isFiniteNumber(intrinsics.fov) ? { intrinsicsFov: intrinsics.fov } : {}),
+    ...(isFiniteNumber(intrinsics.fov)
+      ? { intrinsicsFov: intrinsics.fov }
+      : {}),
     ...(isFiniteNumber(intrinsics.fovHorizontal)
       ? { intrinsicsFovHorizontal: intrinsics.fovHorizontal }
       : {}),
@@ -295,7 +305,8 @@ export const deserializeSceneState = (
     metadata: value.metadata,
     camera: {
       worldPosition:
-        (cameraModel?.pose.position as unknown as SceneState["camera"]["worldPosition"]) ??
+        (cameraModel?.pose
+          .position as unknown as SceneState["camera"]["worldPosition"]) ??
         ({
           x: 0,
           y: 0,
@@ -311,13 +322,13 @@ export const deserializeSceneState = (
           }
         : cameraModel?.pose.matrixWorldInverse
         ? {
-            matrixWorldInverse:
-              cameraModel.pose.matrixWorldInverse as SceneState["camera"]["matrixWorldInverse"],
+            matrixWorldInverse: cameraModel.pose
+              .matrixWorldInverse as SceneState["camera"]["matrixWorldInverse"],
           }
         : {}),
       ...(isQuaternionJson(value.camera.orientationQuat)
         ? {
-          worldQuaternion: quaternionFromJson(
+            worldQuaternion: quaternionFromJson(
               value.camera.orientationQuat
             ) as SceneState["camera"]["worldQuaternion"],
           }
@@ -328,7 +339,9 @@ export const deserializeSceneState = (
         ? {
             worldPosition: cartesian3FromJson(
               value.orbitPoint.worldPosition
-            ) as unknown as NonNullable<SceneState["orbitPoint"]>["worldPosition"],
+            ) as unknown as NonNullable<
+              SceneState["orbitPoint"]
+            >["worldPosition"],
             cartographic: isCartographicRadJson(value.orbitPoint.cartographic)
               ? cartographicRadFromJson(value.orbitPoint.cartographic)
               : null,

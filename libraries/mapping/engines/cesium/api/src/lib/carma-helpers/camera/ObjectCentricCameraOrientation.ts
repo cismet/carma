@@ -141,10 +141,7 @@ export const applyObjectCentricCameraViewToScene = ({
     Number.isFinite(fovRad) &&
     scene.camera.frustum instanceof PerspectiveFrustum
   ) {
-    writePerspectiveFrustumVerticalFov(
-      scene.camera.frustum,
-      fovRad
-    );
+    writePerspectiveFrustumVerticalFov(scene.camera.frustum, fovRad);
   }
 
   scene.requestRender();

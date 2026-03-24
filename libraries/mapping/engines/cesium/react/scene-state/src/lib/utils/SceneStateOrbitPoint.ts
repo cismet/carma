@@ -1,10 +1,7 @@
 import type { LatLngAlt } from "@carma/geo/types";
 import { Cartesian3 } from "@carma/cesium";
 import { Vector2, type Vector3 } from "@carma/math";
-import {
-  toSceneStateCartographicRad,
-  toSceneStateVec3,
-} from "@carma/cesium";
+import { toSceneStateCartographicRad, toSceneStateVec3 } from "@carma/cesium";
 import type {
   CameraLike,
   OrbitPoint,

@@ -25,7 +25,9 @@ export const cartographicRadToJson = (
   ...(isFiniteNumber(value.altitude) ? { altitude: value.altitude } : {}),
 });
 
-export const cartographicRadFromJson = (value: CartographicRadJson): LatLngAlt.rad => ({
+export const cartographicRadFromJson = (
+  value: CartographicRadJson
+): LatLngAlt.rad => ({
   longitude: value.longitude as LatLngAlt.rad["longitude"],
   latitude: value.latitude as LatLngAlt.rad["latitude"],
   ...(isFiniteNumber(value.altitude)

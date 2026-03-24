@@ -105,7 +105,10 @@ const applyInitialCameraState = async ({
   widget: CesiumWidget;
   initialCameraState: AnnotationsDemoCameraState | null;
 }) => {
-  await applyCameraState(widget, initialCameraState ?? DEFAULT_INITIAL_CAMERA_STATE);
+  await applyCameraState(
+    widget,
+    initialCameraState ?? DEFAULT_INITIAL_CAMERA_STATE
+  );
 };
 
 const sampleScreenCenterTerrainIntersection = (scene: Scene) => {

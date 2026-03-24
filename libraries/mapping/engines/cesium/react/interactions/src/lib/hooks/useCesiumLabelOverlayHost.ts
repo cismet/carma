@@ -26,9 +26,8 @@ export const useCesiumLabelOverlayHost = ({
         return;
       }
 
-      const removePreRenderListener = scene.preRender.addEventListener(
-        updateFn
-      );
+      const removePreRenderListener =
+        scene.preRender.addEventListener(updateFn);
 
       return () => {
         removePreRenderListener?.();

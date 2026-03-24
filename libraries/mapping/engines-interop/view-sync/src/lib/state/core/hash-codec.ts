@@ -1,13 +1,21 @@
 import { isFiniteNumber } from "@carma/math";
 import type { Meters, Radians } from "@carma/units/types";
-import { degToRadNumeric, radToDegNumeric, zeroToTwoPi, negativePiToPi } from "@carma/units/helpers";
+import {
+  degToRadNumeric,
+  radToDegNumeric,
+  zeroToTwoPi,
+  negativePiToPi,
+} from "@carma/units/helpers";
 import {
   getPixelResolutionFromZoomAtLatitudeRad,
   getZoomFromPixelResolutionAtLatitudeRad,
   WEB_MERCATOR_MAX_LATITUDE_DEG,
 } from "@carma/geo/utils";
 import type { CameraIntrinsics } from "@carma-commons/camera/model";
-import { readMetersPerCssPixel, readRangeFromMetersPerCssPixel } from "../../adapters/sharedProjection";
+import {
+  readMetersPerCssPixel,
+  readRangeFromMetersPerCssPixel,
+} from "../../adapters/sharedProjection";
 import { deriveView } from "./derivations";
 import { buildCommonViewState, type AngleBasedViewInput } from "./construct";
 import type { CommonViewState, ViewStateMetadata } from "./types";
@@ -36,7 +44,8 @@ export const encodeHashFromViewState = (
 
   const latDeg = radToDegNumeric(view.latitude as number);
   const lngDeg = radToDegNumeric(view.longitude as number);
-  const isWebMercator = isFiniteNumber(latDeg) && Math.abs(latDeg) <= WEB_MERCATOR_MAX_LATITUDE_DEG;
+  const isWebMercator =
+    isFiniteNumber(latDeg) && Math.abs(latDeg) <= WEB_MERCATOR_MAX_LATITUDE_DEG;
 
   const params: Record<string, number> = {
     lng: lngDeg,
@@ -54,9 +63,8 @@ export const encodeHashFromViewState = (
   const bearingNorm = zeroToTwoPi(view.bearing) as number;
   const bearingDeg = radToDegNumeric(bearingNorm);
   if (isFiniteNumber(bearingDeg) && Math.abs(bearingDeg) > 0.01) {
-    params.bearing = bearingNorm === 0 && (view.bearing as number) > 0
-      ? 360
-      : bearingDeg;
+    params.bearing =
+      bearingNorm === 0 && (view.bearing as number) > 0 ? 360 : bearingDeg;
   }
 
   // Pitch
@@ -72,7 +80,9 @@ export const encodeHashFromViewState = (
   }
 
   // FOV (only if non-default)
-  const fovDeg = isFiniteNumber(view.fov) ? radToDegNumeric(view.fov as number) : undefined;
+  const fovDeg = isFiniteNumber(view.fov)
+    ? radToDegNumeric(view.fov as number)
+    : undefined;
   if (isFiniteNumber(fovDeg) && Math.abs(fovDeg - defaultFovDeg) > 0.01) {
     params.fov = fovDeg;
   }
@@ -111,7 +121,11 @@ export const decodeHashToViewState = (
   const roll = coerceNumber(values.roll);
   const fovDeg = coerceNumber(values.fov);
 
-  if (!isFiniteNumber(lng) || !isFiniteNumber(lat) || !isFiniteNumber(altitude)) {
+  if (
+    !isFiniteNumber(lng) ||
+    !isFiniteNumber(lat) ||
+    !isFiniteNumber(altitude)
+  ) {
     return null;
   }
 

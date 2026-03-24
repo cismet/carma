@@ -233,7 +233,10 @@ export const computePointLabelLayout = ({
     cameraPitch,
     config
   );
-  const regularCandidates = createRegularCandidates(config, perspectiveStemAngle);
+  const regularCandidates = createRegularCandidates(
+    config,
+    perspectiveStemAngle
+  );
 
   const sortedPoints = [...points].sort((left, right) => {
     const priorityDelta =
@@ -256,7 +259,7 @@ export const computePointLabelLayout = ({
   );
 
   const finalState = sortedPoints.reduce<LayoutAccumulator>(
-      (state, point) => {
+    (state, point) => {
       const preferredPlacement = regularCandidates[0];
       if (point.lockPreferredPlacement && preferredPlacement) {
         const lockedPlacement =
@@ -325,20 +328,20 @@ export const computePointLabelLayout = ({
               config: config.dynamicLabelPlacementConfig,
             });
 
-              return evaluatePlacement({
-                anchor: point.anchor,
-                labelText: point.text,
-                placement: forcedPlacement,
-                orderIndex,
-                occupiedLabelRects: state.occupiedLabelRects,
-                occupiedStemSegments: state.occupiedStemSegments,
-                otherAnchorRects,
-                viewportWidth,
-                viewportHeight,
-                avoidStemCrossing:
-                  config.dynamicLabelPlacementConfig.avoidStemCrossing,
-              });
-            })
+            return evaluatePlacement({
+              anchor: point.anchor,
+              labelText: point.text,
+              placement: forcedPlacement,
+              orderIndex,
+              occupiedLabelRects: state.occupiedLabelRects,
+              occupiedStemSegments: state.occupiedStemSegments,
+              otherAnchorRects,
+              viewportWidth,
+              viewportHeight,
+              avoidStemCrossing:
+                config.dynamicLabelPlacementConfig.avoidStemCrossing,
+            });
+          })
         : [];
 
       const selectedEvaluation = pickEvaluation(
@@ -386,7 +389,9 @@ export const computePointLabelLayout = ({
 
         const shouldGenerateCompactForcedEvaluations =
           config.dynamicLabelPlacementConfig.mode === "always" ||
-          !compactRegularEvaluations.some((evaluation) => evaluation.collisionFree);
+          !compactRegularEvaluations.some(
+            (evaluation) => evaluation.collisionFree
+          );
         const compactForcedEvaluations = shouldGenerateCompactForcedEvaluations
           ? regularCandidates.map((placement, orderIndex) => {
               const forcedPlacement = relaxPlacementWithForces({

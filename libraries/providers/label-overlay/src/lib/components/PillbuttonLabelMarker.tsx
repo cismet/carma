@@ -20,8 +20,7 @@ const GROW_SHRINK_WIDTH_TRANSITION_MS = 200;
 const SHRINK_WIDTH_TRANSITION_DELAY_MS = 3000;
 const SNAPPY_WIDTH_TRANSITION_MS = 115;
 const SNAPPY_WIDTH_TRANSITION_DELAY_MS = 0;
-const SNAPPY_WIDTH_TRANSITION_EASING =
-  "cubic-bezier(0.22, 1, 0.36, 1)";
+const SNAPPY_WIDTH_TRANSITION_EASING = "cubic-bezier(0.22, 1, 0.36, 1)";
 
 const setNullableNumberStateIfChanged = (
   setState: React.Dispatch<React.SetStateAction<number | null>>,

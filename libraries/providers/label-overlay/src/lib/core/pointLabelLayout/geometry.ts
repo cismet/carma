@@ -157,8 +157,7 @@ const segmentsHaveSeparatedBounds = (
     Math.min(rightSegment.start.y, rightSegment.end.y) -
       SEGMENT_GEOMETRY_EPSILON ||
   Math.max(rightSegment.start.y, rightSegment.end.y) <
-    Math.min(leftSegment.start.y, leftSegment.end.y) -
-      SEGMENT_GEOMETRY_EPSILON;
+    Math.min(leftSegment.start.y, leftSegment.end.y) - SEGMENT_GEOMETRY_EPSILON;
 
 export const stemSegmentsIntersect = (
   leftSegment: StemSegment,

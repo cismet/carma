@@ -1,6 +1,9 @@
 import { useCallback, useEffect, useRef } from "react";
 import { useViewState } from "./hooks";
-import { encodeHashFromViewState, decodeHashToViewState } from "../core/hash-codec";
+import {
+  encodeHashFromViewState,
+  decodeHashToViewState,
+} from "../core/hash-codec";
 import type { CommonViewState } from "../core/types";
 
 // ---------------------------------------------------------------------------

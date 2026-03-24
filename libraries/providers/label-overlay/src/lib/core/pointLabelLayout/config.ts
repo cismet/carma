@@ -20,11 +20,7 @@ import type {
 
 const DEFAULT_STEM_ANGLE_RAD = PI_OVER_FOUR;
 const ALL_ATTACHES: readonly PointLabelAttach[] = POINT_LABEL_ATTACHES;
-const DEFAULT_PLACEMENT_ORDER: PointLabelAttach[] = [
-  "left",
-  "right",
-  "center",
-];
+const DEFAULT_PLACEMENT_ORDER: PointLabelAttach[] = ["left", "right", "center"];
 const DEFAULT_STEM_DISTANCE_SCALE_ORDER = [1, 0.75, 0.5, 0.25, 0, 1.125, 1.25];
 
 export const DEFAULT_DYNAMIC_LABEL_PLACEMENT_CONFIG: DynamicLabelPlacementConfig =
@@ -98,9 +94,7 @@ const normalizeStemDistanceScaleOrder = (
     return [...accumulator, value];
   }, []);
 
-  return normalized.length > 0
-    ? normalized
-    : DEFAULT_STEM_DISTANCE_SCALE_ORDER;
+  return normalized.length > 0 ? normalized : DEFAULT_STEM_DISTANCE_SCALE_ORDER;
 };
 
 export const resolvePointLabelLayoutConfig = (
@@ -138,15 +132,15 @@ export const resolvePointLabelLayoutConfig = (
     : undefined;
   const dynamicLabelPlacementConfigOverrides: Partial<DynamicLabelPlacementConfig> =
     {
-    ...legacyDynamicLabelPlacementConfig,
-    ...(forceLayoutOnTop !== undefined &&
-    dynamicLabelPlacementConfig?.mode === undefined &&
-    legacyDynamicLabelPlacementConfig?.mode === undefined
-      ? {
-          mode: forceLayoutOnTop ? "always" : "fallback",
-        }
-      : {}),
-    ...dynamicLabelPlacementConfig,
+      ...legacyDynamicLabelPlacementConfig,
+      ...(forceLayoutOnTop !== undefined &&
+      dynamicLabelPlacementConfig?.mode === undefined &&
+      legacyDynamicLabelPlacementConfig?.mode === undefined
+        ? {
+            mode: forceLayoutOnTop ? "always" : "fallback",
+          }
+        : {}),
+      ...dynamicLabelPlacementConfig,
     };
   const resolvedTransitionDurationMs =
     transitionDurationMs ??

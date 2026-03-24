@@ -15,9 +15,7 @@ const asMeters = (value: number) => value as ViewState["range"];
 // Helpers
 // ---------------------------------------------------------------------------
 
-const make2dViewState = (
-  overrides: Partial<ViewState> = {}
-): ViewState => ({
+const make2dViewState = (overrides: Partial<ViewState> = {}): ViewState => ({
   longitude: asRadians(7.2018253),
   latitude: asRadians(51.2720217),
   altitude: asMeters(165.14),

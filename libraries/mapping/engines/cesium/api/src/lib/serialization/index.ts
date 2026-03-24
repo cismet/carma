@@ -1,17 +1,11 @@
-export type {
-  Cartesian3ConstructorArgs,
-  Cartesian3Json,
-} from "./Cartesian3";
+export type { Cartesian3ConstructorArgs, Cartesian3Json } from "./Cartesian3";
 export {
   cartesian3FromJson,
   isCartesian3Json,
   cartesian3ToJson,
 } from "./Cartesian3";
 
-export type {
-  CartographicJson,
-  CartographicJsonTyped,
-} from "./Cartographic";
+export type { CartographicJson, CartographicJsonTyped } from "./Cartographic";
 export {
   cartographicFromJson,
   cartographicToJson,
@@ -35,11 +29,7 @@ export {
 } from "./Quaternion";
 
 export type { SerializedError } from "./Common";
-export {
-  errorFromJson,
-  errorToJson,
-  isSerializedError,
-} from "./Common";
+export { errorFromJson, errorToJson, isSerializedError } from "./Common";
 
 export type { ColorConstructorArgs, ColorJson } from "./Color";
 export {

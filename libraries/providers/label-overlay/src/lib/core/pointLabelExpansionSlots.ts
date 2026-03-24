@@ -18,10 +18,7 @@ export type PointLabelExpansionSlotStrategy =
   | "equal-angle"
   | "equal-height-sides";
 
-export type PointLabelExpansionSlotPreset =
-  | "qgis-9"
-  | "diagonal-4"
-  | "ring-12";
+export type PointLabelExpansionSlotPreset = "qgis-9" | "diagonal-4" | "ring-12";
 
 export type CreatePointLabelExpansionSlotsOptions = {
   slotCount: number;
@@ -164,7 +161,7 @@ const createEqualHeightSideRingSlots = (
       return Math.sin(startAngleRad) * radiusPx;
     }
 
-    return -radiusPx + (((levelIndex + 1) * 2 * radiusPx) / (levelCount + 1));
+    return -radiusPx + ((levelIndex + 1) * 2 * radiusPx) / (levelCount + 1);
   });
 
   const slots: PointLabelExpansionSlotDescriptor[] = [];
@@ -196,7 +193,9 @@ export const createPointLabelExpansionSlots = ({
   strategy = "equal-angle",
 }: CreatePointLabelExpansionSlotsOptions): PointLabelExpansionSlotDescriptor[] => {
   const resolvedSlotCount = clampSlotCount(slotCount);
-  const resolvedRadiusPx = Number.isFinite(radiusPx) ? Math.max(0, radiusPx) : 0;
+  const resolvedRadiusPx = Number.isFinite(radiusPx)
+    ? Math.max(0, radiusPx)
+    : 0;
 
   const ringSlots =
     strategy === "equal-height-sides"

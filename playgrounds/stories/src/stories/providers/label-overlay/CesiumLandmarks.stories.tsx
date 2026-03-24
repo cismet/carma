@@ -1,10 +1,4 @@
-import {
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-  type ReactNode,
-} from "react";
+import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import type { Meta, StoryObj } from "@storybook/react";
 import {
   Cartesian3,
@@ -466,7 +460,9 @@ const resolveStoryLandmarks = (
     ? [...WUPPERTAL_LANDMARKS, ...WUPPERTAL_STACK_LANDMARKS]
     : WUPPERTAL_LANDMARKS;
 
-const resolveLandmarkMarkerBackgroundColor = (landmark: LandmarkSpec): string => {
+const resolveLandmarkMarkerBackgroundColor = (
+  landmark: LandmarkSpec
+): string => {
   if (typeof landmark.icon === "string" || landmark.id.startsWith("stack-")) {
     return "rgba(3, 105, 161, 0.95)";
   }
@@ -544,7 +540,9 @@ const resolveClusterSummaryLabel = (
     return "stack";
   }
 
-  return `${members.length} ${resolveLandmarkTypeLabel(representativeLandmark)} stack`;
+  return `${members.length} ${resolveLandmarkTypeLabel(
+    representativeLandmark
+  )} stack`;
 };
 
 const resolveCollapsedClusterAnchorMarkerSizePx = (
@@ -584,7 +582,11 @@ const resolveLiveClusterAnchor = (
 
   const anchors = members
     .map((member) =>
-      resolveLandmarkScreenAnchor(scene, visibilityStateById, member.item.landmark)
+      resolveLandmarkScreenAnchor(
+        scene,
+        visibilityStateById,
+        member.item.landmark
+      )
     )
     .filter((anchor): anchor is CssPixelPosition => anchor !== null);
 
@@ -705,7 +707,9 @@ const CesiumLandmarksOverlay = ({
 }) => {
   const cameraPitchRad = scene?.camera.pitch ?? MINUS_PI_OVER_FOUR;
   const shouldTestOcclusion = enableOcclusionTesting && occlusionAvailable;
-  const [expandedClusterId, setExpandedClusterId] = useState<string | null>(null);
+  const [expandedClusterId, setExpandedClusterId] = useState<string | null>(
+    null
+  );
   const [selectedLandmarkId, setSelectedLandmarkId] = useState<string | null>(
     scenePreset === "city" ? "historische-stadthalle" : null
   );
@@ -785,9 +789,8 @@ const CesiumLandmarksOverlay = ({
         if (!anchor) return null;
 
         const selected = landmark.id === selectedLandmarkId;
-        const markerBackgroundColor = resolveLandmarkMarkerBackgroundColor(
-          landmark
-        );
+        const markerBackgroundColor =
+          resolveLandmarkMarkerBackgroundColor(landmark);
         const distanceToCamera = Cartesian3.distance(
           scene.camera.positionWC,
           landmark.positionECEF
@@ -798,8 +801,12 @@ const CesiumLandmarksOverlay = ({
           anchor,
           collapseKey: resolveLandmarkCollapseKey(landmark),
           selected,
-          layoutPriority: selected ? Number.MAX_SAFE_INTEGER : -distanceToCamera,
-          zIndex: selected ? 30_000 : Math.max(1_000, 12_000 - distanceToCamera),
+          layoutPriority: selected
+            ? Number.MAX_SAFE_INTEGER
+            : -distanceToCamera,
+          zIndex: selected
+            ? 30_000
+            : Math.max(1_000, 12_000 - distanceToCamera),
           item: {
             landmark,
             orderIndex: index,
@@ -810,7 +817,9 @@ const CesiumLandmarksOverlay = ({
           },
         };
       })
-      .filter((landmark): landmark is ProjectedLandmarkPoint => landmark !== null);
+      .filter(
+        (landmark): landmark is ProjectedLandmarkPoint => landmark !== null
+      );
   }, [landmarks, scene, selectedLandmarkId, visibilityStateById]);
 
   const clusters = useMemo(
@@ -830,12 +839,7 @@ const CesiumLandmarksOverlay = ({
             selectedPreventsCollapse: false,
             anchorMode: "average",
           }),
-    [
-      clusterMode,
-      collapseDistancePx,
-      collapseMinimumSize,
-      projectedLandmarks,
-    ]
+    [clusterMode, collapseDistancePx, collapseMinimumSize, projectedLandmarks]
   );
 
   useEffect(() => {
@@ -931,7 +935,9 @@ const CesiumLandmarksOverlay = ({
               fontWeight: 700,
             }}
           >
-            <span>{resolveLandmarkIconNode(representative.item.landmark.icon, 11)}</span>
+            <span>
+              {resolveLandmarkIconNode(representative.item.landmark.icon, 11)}
+            </span>
             <span>{cluster.stackCount}</span>
           </span>
         );
@@ -958,7 +964,11 @@ const CesiumLandmarksOverlay = ({
           selected: false,
           zIndex: (representative.zIndex ?? 0) + 100,
           getCanvasPosition: () =>
-            resolveLiveClusterAnchor(scene, visibilityStateById, cluster.members),
+            resolveLiveClusterAnchor(
+              scene,
+              visibilityStateById,
+              cluster.members
+            ),
           onClick:
             clusterMode === "interactive"
               ? () => {
@@ -1006,12 +1016,18 @@ const CesiumLandmarksOverlay = ({
         selected,
         zIndex: member.zIndex ?? 20,
         getCanvasPosition: () =>
-          resolveLandmarkScreenAnchor(scene, visibilityStateById, member.item.landmark),
+          resolveLandmarkScreenAnchor(
+            scene,
+            visibilityStateById,
+            member.item.landmark
+          ),
         onClick: () => {
           setSelectedLandmarkId(member.item.landmark.id);
         },
-        isOccluded: visibilityStateById[member.item.landmark.id]?.isOccluded ?? false,
-        isHidden: visibilityStateById[member.item.landmark.id]?.isHidden ?? false,
+        isOccluded:
+          visibilityStateById[member.item.landmark.id]?.isOccluded ?? false,
+        isHidden:
+          visibilityStateById[member.item.landmark.id]?.isHidden ?? false,
         forceCompact: false,
       });
     });
@@ -1067,9 +1083,7 @@ const CesiumLandmarksOverlay = ({
           labelDistance:
             entry.anchorKind === "area-centroid" ? 0 : placement?.distance,
           labelAttach:
-            entry.anchorKind === "area-centroid"
-              ? "center"
-              : placement?.attach,
+            entry.anchorKind === "area-centroid" ? "center" : placement?.attach,
           hideLabelAndStem:
             layoutResult.hiddenByLayout.has(entry.id) || entry.isHidden,
           pitch: resolvedPitchRad,
@@ -1096,20 +1110,16 @@ const CesiumLandmarksOverlay = ({
           onClick: entry.onClick,
         };
       }),
-    [
-      displayEntries,
-      layoutResult,
-      resolvedPitchRad,
-      shouldTestOcclusion,
-    ]
+    [displayEntries, layoutResult, resolvedPitchRad, shouldTestOcclusion]
   );
 
   const statusValues = useMemo(() => {
     const occludedCount = labels.filter((l) => l.isOccluded).length;
     const hiddenCount = labels.filter((l) => l.isHidden).length;
     const placedCount = Object.keys(layoutResult.placements).length;
-    const collapsedClusterCount = displayEntries.filter((entry) => entry.forceCompact)
-      .length;
+    const collapsedClusterCount = displayEntries.filter(
+      (entry) => entry.forceCompact
+    ).length;
     const terrainSourceCount = landmarks.filter(
       (l) => l.altitudeSource === "terrain"
     ).length;
