@@ -76,6 +76,7 @@ import {
   getSelectedAPId,
   getSelectedTeamId,
   getSearchActive,
+  getAAFeatures,
   setSelectedAPId,
   setApOpenedFrom,
   getApOpenedFrom,
@@ -204,6 +205,13 @@ const BelisMapLibWrapper = ({
   const selectedTeamId = useSelector(getSelectedTeamId);
   const selectedTeamName = useSelector(getSelectedTeamName);
   const searchActive = useSelector(getSearchActive);
+  const aaFeatures = useSelector(getAAFeatures);
+
+  // Stable list of IDs for map filtering when search is active
+  const searchFilterIds = useMemo(
+    () => (searchActive ? aaFeatures.map((f) => f.id) : null),
+    [searchActive, aaFeatures]
+  );
 
   const highlightSources = useMemo(
     () => [
@@ -1097,11 +1105,11 @@ const BelisMapLibWrapper = ({
     };
   }, [sidebarVariant, map, selectedTeamId, searchActive, arbeitsauftraegeNamespacedSource, dispatch]);
 
-  // --- Arbeitsauftraege: filter map layers by selected team ---
+  // --- Arbeitsauftraege: filter map layers by selected team or search results ---
   useEffect(() => {
     if (sidebarVariant !== "arbeitsauftraege" || !map) return;
 
-    const applyTeamFilter = () => {
+    const applyFilter = () => {
       const style = map.getStyle();
       if (!style?.layers) return;
       for (const layer of style.layers) {
@@ -1110,7 +1118,14 @@ const BelisMapLibWrapper = ({
           layer.source === arbeitsauftraegeNamespacedSource
         ) {
           try {
-            if (selectedTeamName) {
+            if (searchFilterIds) {
+              // Search active: show only matching AA polygons by id
+              map.setFilter(layer.id, [
+                "in",
+                ["get", "id"],
+                ["literal", searchFilterIds],
+              ]);
+            } else if (selectedTeamName) {
               map.setFilter(layer.id, [
                 "==",
                 ["get", "team"],
@@ -1126,13 +1141,13 @@ const BelisMapLibWrapper = ({
       }
     };
 
-    applyTeamFilter();
-    map.on("styledata", applyTeamFilter);
+    applyFilter();
+    map.on("styledata", applyFilter);
 
     return () => {
-      map.off("styledata", applyTeamFilter);
+      map.off("styledata", applyFilter);
     };
-  }, [sidebarVariant, map, selectedTeamName, arbeitsauftraegeNamespacedSource]);
+  }, [sidebarVariant, map, selectedTeamName, searchFilterIds, arbeitsauftraegeNamespacedSource]);
 
   // --- Arbeitsauftraege: selection feature-state on map ---
   const prevAAIdRef = useRef<number | null>(null);
