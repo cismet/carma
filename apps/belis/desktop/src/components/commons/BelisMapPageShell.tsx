@@ -21,6 +21,7 @@ import { BELIS_FILTER_CATEGORIES } from "../../config/mapLayerConfigs";
 import LeitungstypDropdown from "../ui/LeitungstypDropdown";
 import TeamSelect from "../ui/TeamSelect";
 import SearchModal from "../ui/SearchModal";
+import ArbeitsauftragSearchModal from "../ui/ArbeitsauftragSearchModal";
 import StreetSearch from "../ui/StreetSearch";
 import type { SidebarFeature } from "../ui/BelisSidebar";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
@@ -207,7 +208,8 @@ const BelisMapPageShell = () => {
               )}
 
               {filterConfig?.variant === "arbeitsauftraege" && (
-                <div className="ml-auto">
+                <div className="flex items-center gap-2 ml-auto">
+                  <ArbeitsauftragSearchModal />
                   <TeamSelect
                     value={selectedTeamId}
                     onChange={(id) => {
