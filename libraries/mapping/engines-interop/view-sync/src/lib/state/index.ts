@@ -58,13 +58,5 @@ export { ViewStateHashSync } from "./react/ViewStateHashSync";
 
 // Framework adapters (pure functions, no React)
 export { readFromCesium, applyToCesium } from "./adapters/cesium";
-export {
-  readFromMaplibre,
-  applyToMaplibre,
-  type MapLike,
-} from "./adapters/maplibre";
-export {
-  readFromLeaflet,
-  applyToLeaflet,
-  type LeafletMapLike,
-} from "./adapters/leaflet";
+export { readFromMaplibre, applyToMaplibre } from "./adapters/maplibre";
+export { readFromLeaflet, applyToLeaflet } from "./adapters/leaflet";

@@ -1,4 +1,5 @@
 import { isFiniteNumber, Quaternion, Vector3 } from "@carma/math";
+import type { CameraIntrinsics } from "@carma-commons/camera/model";
 import type { Meters, Radians } from "@carma/units/types";
 import {
   getZoomFromPixelResolutionAtLatitudeRad,
@@ -14,6 +15,67 @@ import type { CommonViewState, DerivedView } from "./types";
 
 const MAPLIBRE_TILE_SIZE_PX = 512;
 const DEFAULT_VIEWPORT_PX = 1920;
+
+const readViewportDimension = (
+  preferred: number | undefined,
+  fallback: number | undefined
+): number | undefined =>
+  isFiniteNumber(preferred) && preferred > 0
+    ? preferred
+    : isFiniteNumber(fallback) && fallback > 0
+    ? fallback
+    : undefined;
+
+const readViewportDimensions = (
+  intrinsics: CameraIntrinsics,
+  viewportWidthPx?: number,
+  viewportHeightPx?: number
+): { widthPx: number; heightPx: number } => {
+  const viewOffset = intrinsics.viewOffset;
+  const widthPx =
+    readViewportDimension(viewportWidthPx, viewOffset?.width) ??
+    DEFAULT_VIEWPORT_PX;
+  const heightPx =
+    readViewportDimension(viewportHeightPx, viewOffset?.height) ??
+    DEFAULT_VIEWPORT_PX;
+
+  return { widthPx, heightPx };
+};
+
+const readLongerEdgeFovRad = (
+  intrinsics: CameraIntrinsics,
+  viewportWidthPx: number,
+  viewportHeightPx: number
+): number | undefined => {
+  const verticalFov = intrinsics.fov;
+  const horizontalFov = intrinsics.fovHorizontal;
+  const aspect =
+    isFiniteNumber(viewportWidthPx) &&
+    isFiniteNumber(viewportHeightPx) &&
+    viewportWidthPx > 0 &&
+    viewportHeightPx > 0
+      ? viewportWidthPx / viewportHeightPx
+      : undefined;
+  const derivedHorizontalFov =
+    isFiniteNumber(verticalFov) &&
+    verticalFov > 0 &&
+    isFiniteNumber(aspect) &&
+    aspect > 1
+      ? Math.atan(Math.tan(verticalFov * 0.5) * aspect) * 2
+      : undefined;
+  const finiteCandidates = [
+    verticalFov,
+    horizontalFov,
+    derivedHorizontalFov,
+  ].filter(
+    (candidate): candidate is number =>
+      isFiniteNumber(candidate) && candidate > 0
+  );
+
+  return finiteCandidates.length > 0
+    ? Math.max(...finiteCandidates)
+    : undefined;
+};
 
 /**
  * Line-of-sight distance from camera to anchor in meters.
@@ -87,11 +149,16 @@ const _xAxis = new Vector3(1, 0, 0);
  */
 export const deriveZoom = (
   state: CommonViewState,
-  viewportWidthPx: number = DEFAULT_VIEWPORT_PX,
-  viewportHeightPx: number = DEFAULT_VIEWPORT_PX
+  viewportWidthPx?: number,
+  viewportHeightPx?: number
 ): number => {
+  const { widthPx, heightPx } = readViewportDimensions(
+    state.intrinsics,
+    viewportWidthPx,
+    viewportHeightPx
+  );
   const range = deriveRange(state);
-  const fov = state.intrinsics.fov;
+  const fov = readLongerEdgeFovRad(state.intrinsics, widthPx, heightPx);
   if (!isFiniteNumber(fov) || fov <= 0 || range <= 0) {
     return 0;
   }
@@ -99,8 +166,8 @@ export const deriveZoom = (
   const mpp = readMetersPerCssPixel({
     rangeM: range,
     fovRad: fov,
-    viewportWidthPx,
-    viewportHeightPx,
+    viewportWidthPx: widthPx,
+    viewportHeightPx: heightPx,
   });
   if (!isFiniteNumber(mpp) || mpp <= 0) {
     return 0;

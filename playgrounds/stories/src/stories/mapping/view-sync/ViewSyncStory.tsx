@@ -12,7 +12,7 @@ import {
 } from "react";
 import L from "leaflet";
 import maplibregl from "maplibre-gl";
-import type { StyleSpecification } from "maplibre-gl";
+import type { Map as MapLibreMap, StyleSpecification } from "maplibre-gl";
 import { Button, Radio, Tooltip } from "antd";
 import { DeleteOutlined, PlusOutlined } from "@ant-design/icons";
 import { CAMERA_TYPE } from "@carma-commons/camera/model";
@@ -102,7 +102,7 @@ type LeafletRuntimeHandle = {
 
 type MapLibreRuntimeHandle = {
   framework: "maplibre";
-  map: maplibregl.Map;
+  map: MapLibreMap;
   container: HTMLDivElement;
 };
 
@@ -298,7 +298,7 @@ const claimOnContainerInteraction = (
   };
 };
 
-const readMapLibreViewState = (map: maplibregl.Map) => {
+const readMapLibreViewState = (map: MapLibreMap) => {
   const center = map.getCenter();
   return {
     lngDeg: center.lng,
@@ -427,14 +427,16 @@ const clamp = (value: number, min: number, max: number): number =>
   Math.min(max, Math.max(min, value));
 
 const buildMapLibreCameraOptionsFromState = (
-  state: CommonViewState
+  state: CommonViewState,
+  viewportWidthPx?: number,
+  viewportHeightPx?: number
 ): {
   center: [number, number];
   zoom: number;
   bearing: number;
   pitch: number;
 } | null => {
-  const view = deriveView(state);
+  const view = deriveView(state, viewportWidthPx, viewportHeightPx);
   const lngDeg = radToDegNumeric(view.longitude as number);
   const latDeg = radToDegNumeric(view.latitude as number);
   const bearingDeg = radToDegNumeric(view.bearing as number);
@@ -457,9 +459,11 @@ const buildMapLibreCameraOptionsFromState = (
 };
 
 const buildLeafletViewFromState = (
-  state: CommonViewState
+  state: CommonViewState,
+  viewportWidthPx?: number,
+  viewportHeightPx?: number
 ): { center: { lat: number; lng: number }; zoom: number } | null => {
-  const view = deriveView(state);
+  const view = deriveView(state, viewportWidthPx, viewportHeightPx);
   const lngDeg = radToDegNumeric(view.longitude as number);
   const latDeg = radToDegNumeric(view.latitude as number);
 
@@ -741,11 +745,15 @@ const PanelNavigationControls = ({
           currentState.intrinsics,
           slotId
         );
-        const cameraOptions = buildMapLibreCameraOptionsFromState(nextState);
+        const cameraOptions = buildMapLibreCameraOptionsFromState(
+          nextState,
+          runtimeHandle.map.getCanvas().clientWidth,
+          runtimeHandle.map.getCanvas().clientHeight
+        );
         if (!cameraOptions) return false;
 
         runtimeHandle.map.stop();
-        (runtimeHandle.map as maplibregl.Map).easeTo({
+        runtimeHandle.map.easeTo({
           ...cameraOptions,
           duration: durationMs,
           essential: true,
@@ -1356,7 +1364,7 @@ const MapLibreViewSyncBridge = ({
   setHashText,
 }: {
   slotId: string;
-  map: maplibregl.Map;
+  map: MapLibreMap;
   setStatusText: (value: string) => void;
   setHashText: (value: string | null) => void;
 }) => {
@@ -1441,7 +1449,7 @@ const MapLibreSlot = ({
   bootDelayMs?: number;
 }) => {
   const containerRef = useRef<HTMLDivElement | null>(null);
-  const [map, setMap] = useState<maplibregl.Map | null>(null);
+  const [map, setMap] = useState<MapLibreMap | null>(null);
   const initialTargetRef = useRef(initialTarget ?? null);
   const onReadyChangeRef = useRef(onReadyChange);
   const isBootReady = useDeferredBootReady(true, bootDelayMs);
@@ -1465,7 +1473,11 @@ const MapLibreSlot = ({
     }
 
     const initialCameraOptions = isCommonViewState(initialTargetRef.current)
-      ? buildMapLibreCameraOptionsFromState(initialTargetRef.current)
+      ? buildMapLibreCameraOptionsFromState(
+          initialTargetRef.current,
+          container.clientWidth,
+          container.clientHeight
+        )
       : null;
 
     const map = new maplibregl.Map({
@@ -1536,15 +1548,25 @@ const LeafletViewSyncBridge = ({
   setStatusText: (value: string) => void;
   setHashText: (value: string | null) => void;
 }) => {
+  const sharedState = useViewState();
+  const sharedStateRef = useRef(sharedState);
+  sharedStateRef.current = sharedState;
+  const readLeafletState = useCallback(
+    () =>
+      readFromLeaflet(map, slotId, {
+        seedState: sharedStateRef.current,
+      }),
+    [map, slotId]
+  );
   const { isController, claimControl, pushState } = useViewAdapter(
     slotId,
     "leaflet",
     useMemo(
       () => ({
-        read: () => readFromLeaflet(map, slotId),
+        read: readLeafletState,
         apply: (state: CommonViewState) => applyToLeaflet(map, state),
       }),
-      [map, slotId]
+      [map, readLeafletState]
     )
   );
   const isControllerRef = useRef(isController);
@@ -1570,7 +1592,7 @@ const LeafletViewSyncBridge = ({
         )} • z ${view.zoom.toFixed(2)}`
       );
 
-      const state = readFromLeaflet(map, slotId);
+      const state = readLeafletState();
       setHashText(formatHashFromState(state));
 
       if (!isControllerRef.current || !state) return;
@@ -1585,7 +1607,7 @@ const LeafletViewSyncBridge = ({
       map.off("move", updateStatus);
       map.off("zoom", updateStatus);
     };
-  }, [map, pushState, setHashText, setStatusText, slotId]);
+  }, [map, pushState, readLeafletState, setHashText, setStatusText]);
 
   return null;
 };
@@ -1637,7 +1659,11 @@ const LeafletSlot = ({
 
     const nextMap = initializeLeaflet(container);
     const initialView = isCommonViewState(initialTargetRef.current)
-      ? buildLeafletViewFromState(initialTargetRef.current)
+      ? buildLeafletViewFromState(
+          initialTargetRef.current,
+          container.clientWidth,
+          container.clientHeight
+        )
       : null;
     if (initialView) {
       nextMap.setView(
@@ -1789,18 +1815,46 @@ const SlotsLayout = ({
   const nextSlotIndexRef = useRef(4);
   const ctx = useContext(ViewStateContext);
   const controllerId = useViewStateControllerId();
+  const initialControllerAssignedRef = useRef(false);
   const [transitioningSlotIds, setTransitioningSlotIds] = useState<string[]>(
     []
   );
   const isAnyFrameworkTransitioning = transitioningSlotIds.length > 0;
 
-  // Auto-assign controller to first slot when none is set
+  // Auto-assign controller to the first slot only once during initial boot.
+  // Do not silently steal control back later when a user-controlled framework
+  // goes idle.
   useEffect(() => {
-    if (controllerId || slots.length === 0) {
+    if (
+      initialControllerAssignedRef.current ||
+      controllerId ||
+      slots.length === 0 ||
+      !ctx
+    ) {
       return;
     }
 
-    ctx?.claimControl(slots[0]?.id ?? "", "sync");
+    let rafId: number | null = null;
+    const tryInitialClaim = () => {
+      if (initialControllerAssignedRef.current || ctx.getControllerId()) {
+        return;
+      }
+
+      if (ctx.claimControl(slots[0]?.id ?? "", "sync")) {
+        initialControllerAssignedRef.current = true;
+        return;
+      }
+
+      rafId = window.requestAnimationFrame(tryInitialClaim);
+    };
+
+    rafId = window.requestAnimationFrame(tryInitialClaim);
+
+    return () => {
+      if (rafId !== null) {
+        window.cancelAnimationFrame(rafId);
+      }
+    };
   }, [controllerId, ctx, slots]);
 
   const addSlot = useCallback(() => {

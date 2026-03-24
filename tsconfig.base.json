@@ -56,7 +56,6 @@
       
       // aliases to carma root
       "@carma/cesium": ["libraries/mapping/engines/cesium/api/src/index.ts"],
-      "@carma/leaflet": ["libraries/mapping/engines/leaflet/src/index.ts"],
       "@carma/geo/*": ["libraries/commons/geo/*/src/index.ts"],
       "@carma/geo/types": ["libraries/commons/geo/types/src/index.d.ts"],
       "@carma/math": ["libraries/commons/math/src/index.ts"],

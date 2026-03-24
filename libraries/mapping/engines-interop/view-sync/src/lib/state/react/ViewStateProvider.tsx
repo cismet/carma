@@ -34,8 +34,9 @@ type FrameWriteState = {
   writtenAt: number;
 };
 
-// Stale controller timeout: if controller hasn't written for this many frames,
-// any adapter can claim control.
+// Stale controller timeout: non-interactive controllers may expire if they stop
+// writing for this many frames. User-interaction controllers stay latched until
+// another source claims control or they explicitly release.
 const STALE_CONTROLLER_FRAME_THRESHOLD = 10;
 
 // ---------------------------------------------------------------------------
@@ -93,6 +94,7 @@ export const ViewStateProvider = ({
       const ctrl = controllerRef.current;
       if (
         ctrl.id &&
+        ctrl.priority !== "user-interaction" &&
         frameRef.current.frameId - ctrl.lastWriteFrameId >
           STALE_CONTROLLER_FRAME_THRESHOLD
       ) {
@@ -102,6 +104,8 @@ export const ViewStateProvider = ({
           lastWriteFrameId: 0,
           claimedAt: 0,
         };
+        const listeners = listenersRef.current;
+        listeners.forEach((fn) => fn());
       }
 
       rafId = requestAnimationFrame(tick);
@@ -123,6 +127,8 @@ export const ViewStateProvider = ({
           lastWriteFrameId: 0,
           claimedAt: 0,
         };
+        const listeners = listenersRef.current;
+        listeners.forEach((fn) => fn());
       }
     };
   }, []);
@@ -137,12 +143,22 @@ export const ViewStateProvider = ({
       const currentRank = ctrl.id ? WRITE_PRIORITY_RANK[ctrl.priority] : -1;
 
       if (ctrl.id === id || newRank >= currentRank || ctrl.id === null) {
-        controllerRef.current = {
+        const nextController: ControllerState = {
           id,
           priority,
           lastWriteFrameId: frameRef.current.frameId,
           claimedAt: Date.now(),
         };
+        const changed =
+          ctrl.id !== nextController.id ||
+          ctrl.priority !== nextController.priority;
+        controllerRef.current = {
+          ...nextController,
+        };
+        if (changed) {
+          const listeners = listenersRef.current;
+          listeners.forEach((fn) => fn());
+        }
         return true;
       }
       return false;
@@ -158,6 +174,8 @@ export const ViewStateProvider = ({
         lastWriteFrameId: 0,
         claimedAt: 0,
       };
+      const listeners = listenersRef.current;
+      listeners.forEach((fn) => fn());
     }
   }, []);
 
@@ -179,11 +197,7 @@ export const ViewStateProvider = ({
 
       // Guard: controller check
       const ctrl = controllerRef.current;
-      if (
-        ctrl.id &&
-        ctrl.id !== token.sourceId &&
-        WRITE_PRIORITY_RANK[token.priority] < WRITE_PRIORITY_RANK[ctrl.priority]
-      ) {
+      if (ctrl.id && ctrl.id !== token.sourceId) {
         return { rejected: true, reason: "not-controller" };
       }
 

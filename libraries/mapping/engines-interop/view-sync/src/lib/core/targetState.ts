@@ -161,6 +161,7 @@ export const readViewStateFromSceneState = (
   sceneState: SceneStateLike | null | undefined,
   scene?: SceneLike | null
 ): ViewState | null => {
+  const sceneCamera = sceneState?.camera;
   const objectCentricPose = sceneState?.camera.cameraModel?.pose;
   const intrinsics = sceneState?.camera.cameraModel?.intrinsics;
 
@@ -250,8 +251,8 @@ export const readViewStateFromSceneState = (
     pitch: pitch as Radians,
     ...(isFiniteNumber(objectCentricPose?.roll)
       ? { roll: objectCentricPose.roll as Radians }
-      : isFiniteNumber(sceneState.camera.rollRad)
-      ? { roll: sceneState.camera.rollRad as Radians }
+      : isFiniteNumber(sceneCamera?.rollRad)
+      ? { roll: sceneCamera.rollRad as Radians }
       : {}),
     ...(isFiniteNumber(zoom) ? { zoom } : {}),
     range: rangeM as Meters,
@@ -264,10 +265,10 @@ export const readViewStateFromSceneState = (
     ...(isFiniteNumber(intrinsics?.fovHorizontal)
       ? { fovHorizontal: intrinsics.fovHorizontal as Radians }
       : {}),
-    ...(sceneState.camera.cameraModel
+    ...(sceneCamera?.cameraModel
       ? {
-          cameraModel: sceneState.camera
-            .cameraModel as unknown as ViewState["cameraModel"],
+          cameraModel:
+            sceneCamera.cameraModel as unknown as ViewState["cameraModel"],
         }
       : {}),
   };

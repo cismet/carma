@@ -1,35 +1,28 @@
 import { isFiniteNumber, clamp } from "@carma/math";
-import type { Meters, Radians } from "@carma/units/types";
-import { degToRadNumeric, radToDegNumeric } from "@carma/units/helpers";
+import type { CssPixels, Radians } from "@carma/units/types";
+import {
+  degToRadNumeric,
+  radToDegNumeric,
+  negativePiToPi,
+} from "@carma/units/helpers";
 import {
   getPixelResolutionFromZoomAtLatitudeRad,
   clampLatitudeToWebMercatorExtent,
   WEB_MERCATOR_MAX_LATITUDE_DEG,
 } from "@carma/geo/utils";
+import {
+  isMapViewEqualToTarget,
+  readMapLibreViewOffsetFromCanvas,
+} from "@carma-mapping/engines/maplibre-gl/utils";
 import type { CameraIntrinsics } from "@carma-commons/camera/model";
+import type { Map as MapLibreMap } from "maplibre-gl";
 import { readRangeFromMetersPerCssPixel } from "../../adapters/sharedProjection";
-import { buildCommonViewState, type AngleBasedViewInput } from "../core/construct";
+import {
+  buildCommonViewState,
+  type AngleBasedViewInput,
+} from "../core/construct";
 import { deriveOrbitAngles, deriveZoom } from "../core/derivations";
 import type { CommonViewState, ViewStateMetadata } from "../core/types";
-
-// ---------------------------------------------------------------------------
-// MapLibre type surface — only what we actually use, avoids hard dependency
-// ---------------------------------------------------------------------------
-
-export type MapLike = {
-  getCenter(): { lng: number; lat: number };
-  getZoom(): number;
-  getBearing(): number;
-  getPitch(): number;
-  getRoll?: () => number;
-  getCanvas?(): HTMLCanvasElement | null;
-  jumpTo(options: {
-    center?: [number, number];
-    zoom?: number;
-    bearing?: number;
-    pitch?: number;
-  }): void;
-};
 
 // ---------------------------------------------------------------------------
 // Constants
@@ -46,7 +39,7 @@ const MAX_PITCH_DEG = 85;
 // ---------------------------------------------------------------------------
 
 export const readFromMaplibre = (
-  map: MapLike,
+  map: MapLibreMap,
   sourceId: string,
   options?: { altitudeM?: number; fovDeg?: number }
 ): CommonViewState | null => {
@@ -61,21 +54,22 @@ export const readFromMaplibre = (
   const altitudeM = options?.altitudeM ?? DEFAULT_ALTITUDE_M;
   const fovDeg = options?.fovDeg ?? DEFAULT_FOV_DEG;
   const fovRad = degToRadNumeric(fovDeg)!;
+  const viewOffset = readMapLibreViewOffsetFromCanvas(map.getCanvas?.());
 
   const latRad = clampLatitudeToWebMercatorExtent(
     degToRadNumeric(center.lat)! as Radians
   );
   const lonRad = degToRadNumeric(center.lng)! as Radians;
 
-  const metersPerPx = getPixelResolutionFromZoomAtLatitudeRad(
-    zoom,
-    latRad,
-    { tileSize: MAPLIBRE_TILE_SIZE_PX }
-  );
+  const metersPerPx = getPixelResolutionFromZoomAtLatitudeRad(zoom, latRad, {
+    tileSize: MAPLIBRE_TILE_SIZE_PX,
+  });
   const rangeM = readRangeFromMetersPerCssPixel({
     metersPerCssPixel: metersPerPx,
     fovRad,
     minRangeM: MIN_RANGE_M,
+    viewportWidthPx: viewOffset?.width as number | undefined,
+    viewportHeightPx: viewOffset?.height as number | undefined,
   });
   if (!isFiniteNumber(rangeM)) return null;
 
@@ -84,6 +78,7 @@ export const readFromMaplibre = (
 
   const intrinsics: CameraIntrinsics = {
     fov: fovRad as Radians,
+    ...(viewOffset ? { viewOffset } : {}),
   };
 
   const metadata: ViewStateMetadata = {
@@ -112,17 +107,22 @@ export const readFromMaplibre = (
 // ---------------------------------------------------------------------------
 
 export const applyToMaplibre = (
-  map: MapLike,
+  map: MapLibreMap,
   state: CommonViewState
 ): void => {
   const { bearing, pitch } = deriveOrbitAngles(state);
-  const zoom = deriveZoom(state);
+  const canvas = map.getCanvas?.();
+  const zoom = deriveZoom(state, canvas?.clientWidth, canvas?.clientHeight);
   const carto = state.anchorCartographic;
 
   const lngDeg = radToDegNumeric(carto.longitude as number);
   const latDeg = radToDegNumeric(carto.latitude as number);
 
-  if (!isFiniteNumber(lngDeg) || !isFiniteNumber(latDeg) || !isFiniteNumber(zoom)) {
+  if (
+    !isFiniteNumber(lngDeg) ||
+    !isFiniteNumber(latDeg) ||
+    !isFiniteNumber(zoom)
+  ) {
     return;
   }
 
@@ -134,6 +134,17 @@ export const applyToMaplibre = (
 
   const bearingDeg = radToDegNumeric(bearing as number);
   const pitchDeg = clamp(radToDegNumeric(pitch as number), 0, MAX_PITCH_DEG);
+
+  if (
+    isMapViewEqualToTarget(map, {
+      center: [lngDeg, clampedLatDeg],
+      zoom,
+      bearing: bearingDeg,
+      pitch: pitchDeg,
+    })
+  ) {
+    return;
+  }
 
   map.jumpTo({
     center: [lngDeg, clampedLatDeg],

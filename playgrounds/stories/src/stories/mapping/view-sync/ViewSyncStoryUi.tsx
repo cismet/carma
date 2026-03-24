@@ -8,6 +8,7 @@ import {
   ObjectCentricViewStateInfoBox,
   type ObjectCentricViewStateInfoRow,
 } from "@carma-mapping/components";
+import { type ViewStateVisualizerDisplayOptions } from "@carma-mapping/engines/three/primitives";
 import {
   deriveView,
   projectViewSyncTargetToMapLibre,
@@ -17,7 +18,6 @@ import {
   type CommonViewState,
   type ViewState,
 } from "@carma-mapping/engines-interop/view-sync";
-import { PI_OVER_TWO } from "@carma/math";
 import { formatLengthMeters, radToDegNumeric } from "@carma/units/helpers";
 
 const FIGURE_SPACE = "\u2007";
@@ -329,56 +329,14 @@ export const ViewSyncMetaOverlay = ({
     [visualizerTarget]
   );
   const visualizerDisplayOptions = useMemo(
-    () => ({
-      interactive: true,
-      fovDeg: 38,
-      showGraticule: false,
-      showSurface: true,
-      showAxes: true,
-      showAngleArcs: true,
-      showImagePlane: true,
-      showFrustum: true,
-      showAltitudeStem: true,
-      showCameraLink: true,
-      showAxisLabels: true,
-      showAngleLabels: true,
-      showImagePlaneLabels: true,
-      sphereCapRad: PI_OVER_TWO,
-      axisLineWidthPx: 2,
-      arcLineWidthPx: 2,
-      frustumLineWidthPx: 2,
-      cameraLinkLineWidthPx: 2,
-      altitudeLineWidthPx: 2,
-    }),
+    () => ({} satisfies ViewStateVisualizerDisplayOptions),
     []
   );
-  const aspect = readIntrinsicsAspect(visualizerState.intrinsics);
-  const specification = {
-    pose: {
-      anchor: {
-        longitude: visualizerTarget.longitude,
-        latitude: visualizerTarget.latitude,
-        altitude: visualizerTarget.altitude,
-      },
-      bearing: visualizerTarget.bearing,
-      pitch: visualizerTarget.pitch,
-      range: visualizerTarget.range,
-      roll: visualizerTarget.roll,
-    },
-    intrinsics: {
-      fov: readViewSyncVerticalFov(visualizerTarget) ?? undefined,
-      fovHorizontal: readViewSyncHorizontalFov(visualizerTarget) ?? undefined,
-      ...(aspect !== null ? { aspect } : {}),
-      type: visualizerState.intrinsics.type,
-      frustum: visualizerState.intrinsics.frustum,
-      viewOffset: visualizerState.intrinsics.viewOffset,
-    },
-  };
-
   return (
     <ObjectCentricViewStateInfoBox
       rows={rows}
-      specification={specification}
+      viewState={visualizerState}
+      visualizerInteractive={true}
       visualizerDisplayOptions={visualizerDisplayOptions}
       visualizerBearingLabel="b"
       visualizerPitchLabel="p"

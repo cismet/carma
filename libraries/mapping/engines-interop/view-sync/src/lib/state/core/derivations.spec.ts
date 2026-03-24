@@ -1,0 +1,89 @@
+import { describe, expect, it } from "vitest";
+import { CAMERA_TYPE } from "@carma-commons/camera/model";
+import { getZoomFromPixelResolutionAtLatitudeRad } from "@carma/geo/utils";
+import { degToRadNumeric } from "@carma/units/helpers";
+import type { CssPixels, Meters, Radians } from "@carma/units/types";
+import { readMetersPerCssPixel } from "../../adapters/sharedProjection";
+import { buildCommonViewState } from "./construct";
+import { deriveRange, deriveZoom } from "./derivations";
+
+const meters = (value: number): Meters => value as Meters;
+const radians = (valueDeg: number): Radians =>
+  degToRadNumeric(valueDeg)! as Radians;
+
+const buildViewportState = (widthPx: number, heightPx: number) =>
+  buildCommonViewState({
+    longitude: radians(7.2),
+    latitude: radians(51.27),
+    altitude: meters(180),
+    bearing: radians(195),
+    pitch: radians(58),
+    range: meters(620),
+    intrinsics: {
+      type: CAMERA_TYPE.PERSPECTIVE,
+      fov: radians(60),
+      viewOffset: {
+        fullWidth: widthPx as CssPixels,
+        fullHeight: heightPx as CssPixels,
+        offsetX: 0 as CssPixels,
+        offsetY: 0 as CssPixels,
+        width: widthPx as CssPixels,
+        height: heightPx as CssPixels,
+      },
+    },
+    metadata: {
+      frameId: 1,
+      timestampMs: 1_700_000_000_000,
+      sourceId: "spec",
+      source: "sync",
+    },
+  });
+
+describe("deriveZoom", () => {
+  it("uses stored viewport dimensions when available", () => {
+    const state = buildViewportState(480, 900);
+    const explicitState = buildCommonViewState({
+      longitude: state.anchorCartographic.longitude as number,
+      latitude: state.anchorCartographic.latitude as number,
+      altitude: state.anchorCartographic.altitude as number,
+      bearing: radians(195),
+      pitch: radians(58),
+      range: meters(620),
+      intrinsics: {
+        type: CAMERA_TYPE.PERSPECTIVE,
+        fov: radians(60),
+      },
+      metadata: state.metadata,
+    });
+
+    expect(deriveZoom(state)).toBeCloseTo(
+      deriveZoom(explicitState, 480, 900),
+      8
+    );
+    expect(deriveZoom(explicitState) - deriveZoom(state)).toBeGreaterThan(0.9);
+  });
+
+  it("uses the longer-edge fov when only vertical fov is stored", () => {
+    const widthPx = 1600;
+    const heightPx = 900;
+    const state = buildViewportState(widthPx, heightPx);
+    const range = deriveRange(state);
+    const longerEdgeFov =
+      Math.atan(
+        Math.tan((state.intrinsics.fov as number) * 0.5) * (widthPx / heightPx)
+      ) * 2;
+    const metersPerCssPixel = readMetersPerCssPixel({
+      rangeM: range,
+      fovRad: longerEdgeFov,
+      viewportWidthPx: widthPx,
+      viewportHeightPx: heightPx,
+    });
+    const expectedZoom = getZoomFromPixelResolutionAtLatitudeRad(
+      metersPerCssPixel as Meters,
+      state.anchorCartographic.latitude,
+      { tileSize: 512 }
+    );
+
+    expect(deriveZoom(state)).toBeCloseTo(expectedZoom, 8);
+  });
+});

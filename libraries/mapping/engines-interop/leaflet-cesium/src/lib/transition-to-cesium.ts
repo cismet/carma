@@ -16,7 +16,7 @@ import { calculateDistanceFromZoom } from "./zoom-distance-converter";
 import { defaultTransitionOptions } from "./utils/cesium/elevation-reference";
 import { applyElevationToPosition } from "./utils/cesium/apply-elevation";
 import { Degrees } from "@carma/units/types";
-import { type LeafletMap, getLeafletView } from "@carma/leaflet";
+import type { Map as LeafletMap } from "leaflet";
 import { degToRad, isZoom } from "@carma/units/helpers";
 
 /**
@@ -82,7 +82,10 @@ export const transitionToCesium = async (
     scene.camera.cancelFlight();
 
     // Get Leaflet view for camera positioning
-    const leafletView = getLeafletView(leaflet);
+    const leafletView = {
+      center: leaflet.getCenter(),
+      zoom: leaflet.getZoom(),
+    };
 
     const container = scene.canvas.parentElement;
     if (!container) {

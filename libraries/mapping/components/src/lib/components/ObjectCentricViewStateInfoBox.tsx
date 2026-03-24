@@ -43,7 +43,10 @@ export type ObjectCentricViewStateInfoRow =
 export type ObjectCentricViewStateInfoBoxProps = {
   heading?: ReactNode;
   rows: readonly ObjectCentricViewStateInfoRow[];
-  specification: ViewStateVisualizerProps["specification"];
+  viewState: ViewStateVisualizerProps["viewState"];
+  visualizerOverviewOptions?: ViewStateVisualizerProps["overviewOptions"];
+  visualizerInteractive?: ViewStateVisualizerProps["interactive"];
+  visualizerVisualizedOptions?: ViewStateVisualizerProps["visualizedOptions"];
   visualizerDisplayOptions?: ViewStateVisualizerProps["displayOptions"];
   visualizerCueOptions?: ViewStateVisualizerCueOptions;
   visualizerBearingLabel?: ViewStateVisualizerProps["bearingLabel"];
@@ -68,7 +71,10 @@ export type ObjectCentricViewStateInfoBoxProps = {
 export const ObjectCentricViewStateInfoBox = ({
   heading,
   rows,
-  specification,
+  viewState,
+  visualizerOverviewOptions,
+  visualizerInteractive,
+  visualizerVisualizedOptions,
   visualizerDisplayOptions,
   visualizerCueOptions,
   visualizerBearingLabel = "b",
@@ -308,7 +314,10 @@ export const ObjectCentricViewStateInfoBox = ({
               }}
             >
               <ViewStateVisualizer
-                specification={specification}
+                viewState={viewState}
+                overviewOptions={visualizerOverviewOptions}
+                interactive={visualizerInteractive}
+                visualizedOptions={visualizerVisualizedOptions}
                 displayOptions={visualizerDisplayOptions}
                 cueOptions={visualizerCueOptions}
                 width={resolvedVisualizerSize}

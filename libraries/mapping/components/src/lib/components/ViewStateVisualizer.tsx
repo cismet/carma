@@ -1,10 +1,17 @@
+import type { CommonViewState } from "@carma-mapping/engines-interop/view-sync";
 import {
+  DEFAULT_VIEW_STATE_VISUALIZER_CUE_COLORS,
   createViewStateVisualizerPrimitive,
+  mergeViewStateVisualizerDisplayOptions,
+  mergeViewStateVisualizerOverviewOptions,
+  mergeViewStateVisualizerVisualizedOptions,
+  type ResolvedViewStateVisualizerDisplayOptions,
   type ViewStateVisualizerCueKey,
   type ViewStateVisualizerDisplayOptions,
   type ViewStateVisualizerLabelAnchors,
+  type ViewStateVisualizerOverviewOptions,
   type ViewStateVisualizerPrimitive,
-  type ViewStateVisualizerSpecification,
+  type ViewStateVisualizerVisualizedOptions,
 } from "@carma-mapping/engines/three/primitives";
 import {
   useLayoutEffect,
@@ -14,22 +21,16 @@ import {
   type ReactNode,
 } from "react";
 
-const DEFAULT_CUE_OPTIONS: Record<
-  ViewStateVisualizerCueKey,
-  {
-    label: ReactNode;
-    color: string;
-  }
-> = {
-  bearing: { label: "b", color: "#22d3ee" },
-  pitch: { label: "p", color: "#f59e0b" },
-  range: { label: "r", color: "#64748b" },
-  altitude: { label: "ℎ", color: "#94a3b8" },
-  east: { label: "E", color: "#dc2626" },
-  north: { label: "N", color: "#16a34a" },
-  up: { label: "U", color: "#2563eb" },
-  imageX: { label: "x", color: "#dc2626" },
-  imageY: { label: "y", color: "#2563eb" },
+const DEFAULT_CUE_LABELS: Record<ViewStateVisualizerCueKey, ReactNode> = {
+  bearing: "b",
+  pitch: "p",
+  range: "r",
+  altitude: "ℎ",
+  east: "E",
+  north: "N",
+  up: "U",
+  imageX: "x",
+  imageY: "y",
 };
 
 export type ViewStateVisualizerCueOption = {
@@ -42,7 +43,10 @@ export type ViewStateVisualizerCueOptions = Partial<
 >;
 
 export type ViewStateVisualizerProps = {
-  specification: ViewStateVisualizerSpecification;
+  viewState: CommonViewState;
+  overviewOptions?: ViewStateVisualizerOverviewOptions;
+  interactive?: boolean;
+  visualizedOptions?: ViewStateVisualizerVisualizedOptions;
   displayOptions?: ViewStateVisualizerDisplayOptions;
   /** Called when the user drags the camera cube to change bearing/pitch (radians). */
   onPoseChange?: (bearing: number, pitch: number) => void;
@@ -62,7 +66,10 @@ export type ViewStateVisualizerProps = {
 };
 
 export const ViewStateVisualizer = ({
-  specification,
+  viewState,
+  overviewOptions,
+  interactive = false,
+  visualizedOptions,
   displayOptions,
   onPoseChange,
   width = 176,
@@ -85,9 +92,16 @@ export const ViewStateVisualizer = ({
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const primitiveRef = useRef<ViewStateVisualizerPrimitive | null>(null);
   const onPoseChangeRef = useRef(onPoseChange);
-  const resolvedDisplayOptionsRef = useRef<
-    ViewStateVisualizerDisplayOptions | undefined
-  >(displayOptions);
+  const resolvedDisplayOptionsRef =
+    useRef<ResolvedViewStateVisualizerDisplayOptions>(
+      mergeViewStateVisualizerDisplayOptions(displayOptions)
+    );
+  const resolvedOverviewOptionsRef = useRef(
+    mergeViewStateVisualizerOverviewOptions(overviewOptions)
+  );
+  const resolvedVisualizedOptionsRef = useRef(
+    mergeViewStateVisualizerVisualizedOptions(visualizedOptions)
+  );
   onPoseChangeRef.current = onPoseChange;
 
   const defaultLabelAnchors = useMemo<ViewStateVisualizerLabelAnchors>(
@@ -110,57 +124,98 @@ export const ViewStateVisualizer = ({
     Partial<Record<ViewStateVisualizerCueKey, HTMLSpanElement | null>>
   >({});
 
-  const showAxisLabels = displayOptions?.showAxisLabels ?? true;
-  const showAngleLabels = displayOptions?.showAngleLabels ?? true;
-  const showImagePlaneLabels = displayOptions?.showImagePlaneLabels ?? true;
-  const showAxes = displayOptions?.showAxes ?? true;
-  const showAngleArcs = displayOptions?.showAngleArcs ?? true;
-  const showImagePlane = displayOptions?.showImagePlane ?? true;
-  const showAltitudeStem = displayOptions?.showAltitudeStem ?? true;
+  const resolvedDisplayOptions = useMemo(
+    () => mergeViewStateVisualizerDisplayOptions(displayOptions),
+    [displayOptions]
+  ) satisfies ResolvedViewStateVisualizerDisplayOptions;
+  const resolvedOverviewOptions = useMemo(
+    () => mergeViewStateVisualizerOverviewOptions(overviewOptions),
+    [overviewOptions]
+  );
+  const resolvedVisualizedOptions = useMemo(
+    () => mergeViewStateVisualizerVisualizedOptions(visualizedOptions),
+    [visualizedOptions]
+  );
+
+  const showAxisLabels = resolvedDisplayOptions.labels.showAxes;
+  const showAngleLabels = resolvedDisplayOptions.labels.showAngles;
+  const showImagePlaneLabels = resolvedDisplayOptions.labels.showImagePlane;
+  const showAxes = resolvedDisplayOptions.worldAxes.show;
+  const showAngleArcs = resolvedDisplayOptions.angleCues.show;
+  const showImagePlane = resolvedDisplayOptions.cameraView.imagePlane.show;
+  const showImagePlaneAxes = resolvedDisplayOptions.cameraView.axes.show;
+  const showAltitudeStem = resolvedDisplayOptions.altitude.show;
   const showVisibleAngleLabels = showAngleLabels && showAngleArcs;
   const showVisibleAltitudeLabel = showAngleLabels && showAltitudeStem;
   const showVisibleAxisLabels = showAxisLabels && showAxes;
   const showVisibleImagePlaneLabels =
-    showImagePlaneLabels && showImagePlane && showAxes;
-  const labelFontSizePx = displayOptions?.labelFontSizePx ?? 11;
+    showImagePlaneLabels && showImagePlane && showImagePlaneAxes;
+  const labelFontSizePx = resolvedDisplayOptions.labels.fontSizePx;
   const resolvedCueOptions = useMemo(
     () => ({
       bearing: {
-        label: cueOptions?.bearing?.label ?? bearingLabel,
-        color: cueOptions?.bearing?.color ?? DEFAULT_CUE_OPTIONS.bearing.color,
+        label:
+          cueOptions?.bearing?.label ??
+          bearingLabel ??
+          DEFAULT_CUE_LABELS.bearing,
+        color:
+          cueOptions?.bearing?.color ??
+          DEFAULT_VIEW_STATE_VISUALIZER_CUE_COLORS.bearing,
       },
       pitch: {
-        label: cueOptions?.pitch?.label ?? pitchLabel,
-        color: cueOptions?.pitch?.color ?? DEFAULT_CUE_OPTIONS.pitch.color,
+        label:
+          cueOptions?.pitch?.label ?? pitchLabel ?? DEFAULT_CUE_LABELS.pitch,
+        color:
+          cueOptions?.pitch?.color ??
+          DEFAULT_VIEW_STATE_VISUALIZER_CUE_COLORS.pitch,
       },
       range: {
-        label: cueOptions?.range?.label ?? rangeLabel,
-        color: cueOptions?.range?.color ?? DEFAULT_CUE_OPTIONS.range.color,
+        label:
+          cueOptions?.range?.label ?? rangeLabel ?? DEFAULT_CUE_LABELS.range,
+        color:
+          cueOptions?.range?.color ??
+          DEFAULT_VIEW_STATE_VISUALIZER_CUE_COLORS.range,
       },
       altitude: {
-        label: cueOptions?.altitude?.label ?? altitudeLabel,
+        label:
+          cueOptions?.altitude?.label ??
+          altitudeLabel ??
+          DEFAULT_CUE_LABELS.altitude,
         color:
-          cueOptions?.altitude?.color ?? DEFAULT_CUE_OPTIONS.altitude.color,
+          cueOptions?.altitude?.color ??
+          DEFAULT_VIEW_STATE_VISUALIZER_CUE_COLORS.altitude,
       },
       east: {
-        label: cueOptions?.east?.label ?? eastLabel,
-        color: cueOptions?.east?.color ?? DEFAULT_CUE_OPTIONS.east.color,
+        label: cueOptions?.east?.label ?? eastLabel ?? DEFAULT_CUE_LABELS.east,
+        color:
+          cueOptions?.east?.color ??
+          DEFAULT_VIEW_STATE_VISUALIZER_CUE_COLORS.east,
       },
       north: {
-        label: cueOptions?.north?.label ?? northLabel,
-        color: cueOptions?.north?.color ?? DEFAULT_CUE_OPTIONS.north.color,
+        label:
+          cueOptions?.north?.label ?? northLabel ?? DEFAULT_CUE_LABELS.north,
+        color:
+          cueOptions?.north?.color ??
+          DEFAULT_VIEW_STATE_VISUALIZER_CUE_COLORS.north,
       },
       up: {
-        label: cueOptions?.up?.label ?? upLabel,
-        color: cueOptions?.up?.color ?? DEFAULT_CUE_OPTIONS.up.color,
+        label: cueOptions?.up?.label ?? upLabel ?? DEFAULT_CUE_LABELS.up,
+        color:
+          cueOptions?.up?.color ?? DEFAULT_VIEW_STATE_VISUALIZER_CUE_COLORS.up,
       },
       imageX: {
-        label: cueOptions?.imageX?.label ?? imageXLabel,
-        color: cueOptions?.imageX?.color ?? DEFAULT_CUE_OPTIONS.imageX.color,
+        label:
+          cueOptions?.imageX?.label ?? imageXLabel ?? DEFAULT_CUE_LABELS.imageX,
+        color:
+          cueOptions?.imageX?.color ??
+          DEFAULT_VIEW_STATE_VISUALIZER_CUE_COLORS.imageX,
       },
       imageY: {
-        label: cueOptions?.imageY?.label ?? imageYLabel,
-        color: cueOptions?.imageY?.color ?? DEFAULT_CUE_OPTIONS.imageY.color,
+        label:
+          cueOptions?.imageY?.label ?? imageYLabel ?? DEFAULT_CUE_LABELS.imageY,
+        color:
+          cueOptions?.imageY?.color ??
+          DEFAULT_VIEW_STATE_VISUALIZER_CUE_COLORS.imageY,
       },
     }),
     [
@@ -179,11 +234,11 @@ export const ViewStateVisualizer = ({
     ViewStateVisualizerCueKey,
     { label: ReactNode; color: string }
   >;
-  const resolvedDisplayOptions = useMemo(
+  const resolvedDisplayOptionsWithCueColors = useMemo(
     () => ({
-      ...displayOptions,
+      ...resolvedDisplayOptions,
       cueColors: {
-        ...displayOptions?.cueColors,
+        ...resolvedDisplayOptions.cueColors,
         bearing: resolvedCueOptions.bearing.color,
         pitch: resolvedCueOptions.pitch.color,
         range: resolvedCueOptions.range.color,
@@ -195,10 +250,12 @@ export const ViewStateVisualizer = ({
         imageY: resolvedCueOptions.imageY.color,
       },
     }),
-    [displayOptions, resolvedCueOptions]
-  ) satisfies ViewStateVisualizerDisplayOptions;
+    [resolvedCueOptions, resolvedDisplayOptions]
+  ) satisfies ResolvedViewStateVisualizerDisplayOptions;
 
-  resolvedDisplayOptionsRef.current = resolvedDisplayOptions;
+  resolvedDisplayOptionsRef.current = resolvedDisplayOptionsWithCueColors;
+  resolvedOverviewOptionsRef.current = resolvedOverviewOptions;
+  resolvedVisualizedOptionsRef.current = resolvedVisualizedOptions;
 
   const applyLabelAnchors = (anchors: ViewStateVisualizerLabelAnchors) => {
     labelAnchorsRef.current = anchors;
@@ -229,42 +286,90 @@ export const ViewStateVisualizer = ({
   };
 
   useLayoutEffect(() => {
-    const canvas = canvasRef.current;
-    if (!canvas) return;
+    const primitive = primitiveRef.current;
+    if (!primitive) return;
 
-    primitiveRef.current = createViewStateVisualizerPrimitive(canvas, {
-      size: { widthPx: squareSize, heightPx: squareSize },
-      display: resolvedDisplayOptionsRef.current,
-      onInteraction: applyLabelAnchors,
-      onPoseChange: (bearing, pitch) =>
-        onPoseChangeRef.current?.(bearing, pitch),
+    const anchors = primitive.resize({
+      widthPx: squareSize,
+      heightPx: squareSize,
     });
-
-    applyLabelAnchors(labelAnchorsRef.current);
-
-    return () => {
-      primitiveRef.current?.dispose();
-      primitiveRef.current = null;
-    };
+    if (anchors) {
+      applyLabelAnchors(anchors);
+    }
   }, [squareSize]);
 
   useLayoutEffect(() => {
     const primitive = primitiveRef.current;
     if (!primitive) return;
 
-    primitive.resize({ widthPx: squareSize, heightPx: squareSize });
-    applyLabelAnchors(primitive.update(specification));
-  }, [specification, squareSize]);
+    applyLabelAnchors(primitive.update(viewState));
+  }, [viewState]);
 
   useLayoutEffect(() => {
     const primitive = primitiveRef.current;
-    if (!primitive || !resolvedDisplayOptions) return;
+    if (!primitive) return;
 
-    const anchors = primitive.setDisplay(resolvedDisplayOptions);
+    const anchors = primitive.setOverview(resolvedOverviewOptions);
     if (anchors) {
       applyLabelAnchors(anchors);
     }
-  }, [resolvedDisplayOptions]);
+  }, [resolvedOverviewOptions]);
+
+  useLayoutEffect(() => {
+    const primitive = primitiveRef.current;
+    if (!primitive) return;
+
+    const anchors = primitive.setVisualized(resolvedVisualizedOptions);
+    if (anchors) {
+      applyLabelAnchors(anchors);
+    }
+  }, [resolvedVisualizedOptions]);
+
+  useLayoutEffect(() => {
+    const primitive = primitiveRef.current;
+    if (!primitive) return;
+
+    const anchors = primitive.setDisplay(resolvedDisplayOptionsWithCueColors);
+    if (anchors) {
+      applyLabelAnchors(anchors);
+    }
+  }, [resolvedDisplayOptionsWithCueColors]);
+
+  useLayoutEffect(() => {
+    const primitive = primitiveRef.current;
+    if (!primitive) return;
+
+    primitive.setInteractive(interactive);
+  }, [interactive]);
+
+  useLayoutEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+
+    primitiveRef.current = createViewStateVisualizerPrimitive(
+      canvas,
+      viewState,
+      {
+        size: { widthPx: squareSize, heightPx: squareSize },
+        overview: resolvedOverviewOptionsRef.current,
+        interactive,
+        visualized: resolvedVisualizedOptionsRef.current,
+        display: resolvedDisplayOptionsRef.current,
+        onInteraction: applyLabelAnchors,
+        onPoseChange: (bearing, pitch) =>
+          onPoseChangeRef.current?.(bearing, pitch),
+      }
+    );
+
+    applyLabelAnchors(
+      primitiveRef.current.readLabelAnchors() ?? labelAnchorsRef.current
+    );
+
+    return () => {
+      primitiveRef.current?.dispose();
+      primitiveRef.current = null;
+    };
+  }, []);
 
   useLayoutEffect(() => {
     applyLabelAnchors(labelAnchorsRef.current);

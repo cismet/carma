@@ -1,18 +1,19 @@
-import * as THREE from "three";
+import { Vector2, Vector3 } from "three";
+import type { Camera } from "three";
 import type {
   ViewStateVisualizerLabelAnchor,
   ViewStateVisualizerSize,
-} from "../types";
+} from "../view-state-visualizer-types";
 
 // NOTE: These helpers intentionally mix Three world projection with screen-space
-// label placement. Keep them scoped here under `overlay` for now. If CARMA's
-// broader overlay/label engines converge on the same concepts later, this is a
-// good consolidation seam.
+// label placement. Keep them scoped here under `projection` for now. If
+// CARMA's broader overlay/label engines converge on the same concepts later,
+// this is still a good consolidation seam.
 
 export const projectPointToCanvas = (
-  point: THREE.Vector3,
+  point: Vector3,
   size: ViewStateVisualizerSize,
-  camera: THREE.Camera
+  camera: Camera
 ): ViewStateVisualizerLabelAnchor => {
   const projected = point.clone().project(camera);
   return {
@@ -22,15 +23,15 @@ export const projectPointToCanvas = (
 };
 
 export type PointToCanvasProjector = (
-  point: THREE.Vector3
+  point: Vector3
 ) => ViewStateVisualizerLabelAnchor;
 
 export const createPointToCanvasProjector = (
   size: ViewStateVisualizerSize,
-  camera: THREE.Camera
+  camera: Camera
 ): PointToCanvasProjector => {
-  const projected = new THREE.Vector3();
-  return (point: THREE.Vector3) => {
+  const projected = new Vector3();
+  return (point: Vector3) => {
     projected.copy(point).project(camera);
     return {
       leftPx: (projected.x * 0.5 + 0.5) * size.widthPx,
@@ -50,24 +51,25 @@ export const projectOrthogonalLineLabelAnchor = ({
   fallbackBiasToward,
   biasDotEpsilonPx = 0.5,
 }: {
-  lineStart: THREE.Vector3;
-  lineEnd: THREE.Vector3;
+  lineStart: Vector3;
+  lineEnd: Vector3;
   size: ViewStateVisualizerSize;
-  camera: THREE.Camera;
+  camera: Camera;
   projectPoint?: PointToCanvasProjector;
   offsetPx: number;
-  biasToward?: THREE.Vector3;
-  fallbackBiasToward?: THREE.Vector3;
+  biasToward?: Vector3;
+  fallbackBiasToward?: Vector3;
   biasDotEpsilonPx?: number;
 }): ViewStateVisualizerLabelAnchor => {
-  const pointProjector = projectPoint ?? createPointToCanvasProjector(size, camera);
+  const pointProjector =
+    projectPoint ?? createPointToCanvasProjector(size, camera);
   const projectedStart = pointProjector(lineStart);
   const projectedEnd = pointProjector(lineEnd);
-  const midpoint = new THREE.Vector2(
+  const midpoint = new Vector2(
     (projectedStart.leftPx + projectedEnd.leftPx) * 0.5,
     (projectedStart.topPx + projectedEnd.topPx) * 0.5
   );
-  const tangent = new THREE.Vector2(
+  const tangent = new Vector2(
     projectedEnd.leftPx - projectedStart.leftPx,
     projectedEnd.topPx - projectedStart.topPx
   );
@@ -79,10 +81,10 @@ export const projectOrthogonalLineLabelAnchor = ({
     };
   }
 
-  const normal = new THREE.Vector2(-tangent.y, tangent.x).normalize();
-  const applyBias = (biasPoint: THREE.Vector3): number => {
+  const normal = new Vector2(-tangent.y, tangent.x).normalize();
+  const applyBias = (biasPoint: Vector3): number => {
     const projectedBias = pointProjector(biasPoint);
-    const biasVector = new THREE.Vector2(
+    const biasVector = new Vector2(
       projectedBias.leftPx - midpoint.x,
       projectedBias.topPx - midpoint.y
     );
@@ -122,14 +124,15 @@ export const projectOrthogonalPolylineLabelAnchor = ({
   offsetPx,
   biasToward,
 }: {
-  points: THREE.Vector3[];
+  points: Vector3[];
   size: ViewStateVisualizerSize;
-  camera: THREE.Camera;
+  camera: Camera;
   projectPoint?: PointToCanvasProjector;
   offsetPx: number;
-  biasToward?: THREE.Vector3;
+  biasToward?: Vector3;
 }): ViewStateVisualizerLabelAnchor => {
-  const pointProjector = projectPoint ?? createPointToCanvasProjector(size, camera);
+  const pointProjector =
+    projectPoint ?? createPointToCanvasProjector(size, camera);
   if (points.length < 2) {
     return {
       leftPx: size.widthPx * 0.5,
@@ -145,7 +148,7 @@ export const projectOrthogonalPolylineLabelAnchor = ({
   const projectedCenter = pointProjector(centerPoint);
   const projectedPrev = pointProjector(prevPoint);
   const projectedNext = pointProjector(nextPoint);
-  const tangent = new THREE.Vector2(
+  const tangent = new Vector2(
     projectedNext.leftPx - projectedPrev.leftPx,
     projectedNext.topPx - projectedPrev.topPx
   );
@@ -154,10 +157,10 @@ export const projectOrthogonalPolylineLabelAnchor = ({
     return projectedCenter;
   }
 
-  const normal = new THREE.Vector2(-tangent.y, tangent.x).normalize();
+  const normal = new Vector2(-tangent.y, tangent.x).normalize();
   if (biasToward) {
     const projectedBias = pointProjector(biasToward);
-    const biasVector = new THREE.Vector2(
+    const biasVector = new Vector2(
       projectedBias.leftPx - projectedCenter.leftPx,
       projectedBias.topPx - projectedCenter.topPx
     );

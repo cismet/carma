@@ -54,10 +54,7 @@ export const useViewState = (): CommonViewState | null => {
  */
 export const useViewStateDerived = (): DerivedView | null => {
   const state = useViewState();
-  return useMemo(
-    () => (state ? deriveView(state) : null),
-    [state]
-  );
+  return useMemo(() => (state ? deriveView(state) : null), [state]);
 };
 
 // ---------------------------------------------------------------------------
@@ -121,14 +118,22 @@ export const useViewAdapter = (
   const isApplyingRef = useRef(false);
 
   useEffect(() => {
-    if (isController || !state || isApplyingRef.current) return;
+    if (
+      !controllerId ||
+      isController ||
+      !state ||
+      state.metadata.sourceId === id ||
+      isApplyingRef.current
+    ) {
+      return;
+    }
     isApplyingRef.current = true;
     try {
       callbacksRef.current.apply(state);
     } finally {
       isApplyingRef.current = false;
     }
-  }, [isController, state]);
+  }, [controllerId, id, isController, state]);
 
   const claimControl = useCallback(() => {
     ctx.claimControl(id, "user-interaction");

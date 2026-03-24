@@ -1,10 +1,11 @@
 import { Matrix4, Quaternion, Vector3, isFiniteNumber } from "@carma/math";
-import type { Meters, Radians } from "@carma/units/types";
+import type { CssPixels, Meters, Radians } from "@carma/units/types";
 import { ecefToCartographic } from "@carma/geo/utils";
 import type { CameraIntrinsics } from "@carma-commons/camera/model";
 import {
   Cartesian2,
   applyObjectCentricCameraViewToScene,
+  readPerspectiveFrustumVerticalFov,
   toSceneStateVec3,
   toSceneStateMat4,
   type CameraLike,
@@ -56,25 +57,75 @@ const sampleOrbitAnchor = (
   return null;
 };
 
-const readFov = (camera: CameraLike): Radians | undefined => {
-  const frustum = camera.frustum;
-  if (isFiniteNumber(frustum?.fovy) && frustum.fovy > 0) {
-    return frustum.fovy as Radians;
+const readViewportViewOffset = (
+  scene: SceneLike
+): CameraIntrinsics["viewOffset"] | undefined => {
+  const widthPx = scene.canvas?.clientWidth;
+  const heightPx = scene.canvas?.clientHeight;
+  if (
+    !isFiniteNumber(widthPx) ||
+    !isFiniteNumber(heightPx) ||
+    widthPx <= 0 ||
+    heightPx <= 0
+  ) {
+    return undefined;
   }
-  if (isFiniteNumber(frustum?.fov) && frustum.fov > 0) {
-    return frustum.fov as Radians;
-  }
-  return undefined;
+
+  return {
+    fullWidth: widthPx as CssPixels,
+    fullHeight: heightPx as CssPixels,
+    offsetX: 0 as CssPixels,
+    offsetY: 0 as CssPixels,
+    width: widthPx as CssPixels,
+    height: heightPx as CssPixels,
+  };
 };
+
+const readAspectRatio = (
+  camera: CameraLike,
+  scene: SceneLike
+): number | undefined => {
+  const frustumAspect = camera.frustum?.aspectRatio;
+  if (isFiniteNumber(frustumAspect) && frustumAspect > 0) {
+    return frustumAspect;
+  }
+
+  const widthPx = scene.canvas?.clientWidth;
+  const heightPx = scene.canvas?.clientHeight;
+  return isFiniteNumber(widthPx) &&
+    isFiniteNumber(heightPx) &&
+    widthPx > 0 &&
+    heightPx > 0
+    ? widthPx / heightPx
+    : undefined;
+};
+
+const readHorizontalFov = (
+  verticalFov: number | undefined,
+  aspect: number | undefined
+): Radians | undefined =>
+  isFiniteNumber(verticalFov) &&
+  verticalFov > 0 &&
+  isFiniteNumber(aspect) &&
+  aspect > 0
+    ? ((Math.atan(Math.tan(verticalFov * 0.5) * aspect) * 2) as Radians)
+    : undefined;
 
 const readIntrinsics = (
   camera: CameraLike,
   scene: SceneLike
 ): CameraIntrinsics => {
-  const fov = readFov(camera);
+  const fov = readPerspectiveFrustumVerticalFov(
+    camera.frustum as Parameters<typeof readPerspectiveFrustumVerticalFov>[0]
+  ) as Radians | undefined;
   const frustum = camera.frustum;
+  const aspect = readAspectRatio(camera, scene);
+  const fovHorizontal = readHorizontalFov(fov, aspect);
+  const viewOffset = readViewportViewOffset(scene);
   return {
     ...(fov ? { fov } : {}),
+    ...(fovHorizontal ? { fovHorizontal } : {}),
+    ...(viewOffset ? { viewOffset } : {}),
     ...(frustum && isFiniteNumber(frustum.near)
       ? { frustum: { near: frustum.near as Meters } }
       : {}),
@@ -125,28 +176,24 @@ export const readFromCesium = (
     }
   }
 
-  function buildResult() {
-    const intrinsics = readIntrinsics(camera!, scene);
-    const frameNumber = (scene as { frameState?: { frameNumber?: number } })
-      .frameState?.frameNumber;
+  const intrinsics = readIntrinsics(camera, scene);
+  const frameNumber = (scene as { frameState?: { frameNumber?: number } })
+    .frameState?.frameNumber;
 
-    const metadata: ViewStateMetadata = {
-      frameId: isFiniteNumber(frameNumber) ? frameNumber : 0,
-      timestampMs: Date.now(),
-      sourceId,
-      source: "user-interaction",
-    };
+  const metadata: ViewStateMetadata = {
+    frameId: isFiniteNumber(frameNumber) ? frameNumber : 0,
+    timestampMs: Date.now(),
+    sourceId,
+    source: "user-interaction",
+  };
 
-    return buildCommonViewStateFromEcef({
-      anchor,
-      cameraPosition: cameraEcef!,
-      orientation: orientation!,
-      intrinsics,
-      metadata,
-    });
-  }
-
-  return buildResult();
+  return buildCommonViewStateFromEcef({
+    anchor,
+    cameraPosition: cameraEcef,
+    orientation,
+    intrinsics,
+    metadata,
+  });
 };
 
 // ---------------------------------------------------------------------------
