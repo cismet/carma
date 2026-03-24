@@ -4,13 +4,16 @@ import dayjs from "dayjs";
 import type { ColumnsType } from "antd/es/table";
 import { getFormClassName } from "./readOnlyFormUtils";
 import { FormItem } from "./DraftFieldHighlight";
-import { AktionModal, getAktionLabels, findAktionDefinition } from "./aktionModal";
+import {
+  AktionModal,
+  getAktionLabels,
+  findAktionDefinition,
+} from "./aktionModal";
 import type { AktionDefinition, AktionFormValues } from "./aktionModal";
 
 const FormLabel = ({ children }: { children: React.ReactNode }) => (
   <span className="text-sm font-medium text-gray-700">{children}</span>
 );
-
 
 interface AenderungRow {
   key: number;
@@ -28,7 +31,7 @@ interface ArbeitsprotokollFormFieldsProps {
   draftValues?: Record<string, unknown>;
   onValuesChange?: (
     changedValues: Record<string, unknown>,
-    allValues: Record<string, unknown>,
+    allValues: Record<string, unknown>
   ) => void;
   onOriginalValues?: (values: Record<string, unknown>) => void;
 }
@@ -67,7 +70,9 @@ const ArbeitsprotokollFormFields = ({
   }, [data, form, draftValues, onOriginalValues]);
   const aktionen = fachobjektType ? getAktionLabels(fachobjektType) : [];
 
-  const [selectedAktion, setSelectedAktion] = useState<AktionDefinition | null>(null);
+  const [selectedAktion, setSelectedAktion] = useState<AktionDefinition | null>(
+    null
+  );
   const [modalOpen, setModalOpen] = useState(false);
 
   const handleTagClick = useCallback(
@@ -79,7 +84,7 @@ const ArbeitsprotokollFormFields = ({
         setModalOpen(true);
       }
     },
-    [readOnly, fachobjektType],
+    [readOnly, fachobjektType]
   );
 
   const handleModalClose = useCallback(() => {
@@ -95,7 +100,7 @@ const ArbeitsprotokollFormFields = ({
         values,
       });
     },
-    [],
+    []
   );
 
   const aenderungRows: AenderungRow[] = useMemo(() => {
@@ -144,33 +149,54 @@ const ArbeitsprotokollFormFields = ({
       >
         <Row gutter={16}>
           <Col span={12}>
-            <FormItem name="monteur" label={<FormLabel>Monteur</FormLabel>} className="mb-4">
+            <FormItem
+              name="monteur"
+              label={<FormLabel>Monteur</FormLabel>}
+              className="mb-4"
+            >
               <Input size="large" />
             </FormItem>
           </Col>
           <Col span={12}>
-            <FormItem name="datum" label={<FormLabel>Datum</FormLabel>} className="mb-4">
-              <DatePicker size="large" format="DD.MM.YYYY" style={{ width: "100%" }} />
+            <FormItem
+              name="datum"
+              label={<FormLabel>Datum</FormLabel>}
+              className="mb-4"
+            >
+              <DatePicker
+                size="large"
+                format="DD.MM.YYYY"
+                style={{ width: "100%" }}
+              />
             </FormItem>
           </Col>
         </Row>
         <Row gutter={16}>
           <Col span={12}>
-            <FormItem name="status" label={<FormLabel>Status</FormLabel>} className="mb-4">
+            <FormItem
+              name="status"
+              label={<FormLabel>Status</FormLabel>}
+              className="mb-4"
+            >
               <Input size="large" />
             </FormItem>
           </Col>
           <Col span={12}>
-            <FormItem name="material" label={<FormLabel>Material</FormLabel>} className="mb-4">
+            <FormItem
+              name="material"
+              label={<FormLabel>Material</FormLabel>}
+              className="mb-4"
+            >
               <Input size="large" />
             </FormItem>
           </Col>
         </Row>
-        <FormItem name="bemerkung" label={<FormLabel>Bemerkung</FormLabel>} className="mb-4">
-          <Input.TextArea
-            size="large"
-            autoSize={{ minRows: 2, maxRows: 6 }}
-          />
+        <FormItem
+          name="bemerkung"
+          label={<FormLabel>Bemerkung</FormLabel>}
+          className="mb-4"
+        >
+          <Input.TextArea size="large" autoSize={{ minRows: 2, maxRows: 6 }} />
         </FormItem>
       </Form>
 
@@ -187,7 +213,7 @@ const ArbeitsprotokollFormFields = ({
                     ? ""
                     : "cursor-pointer hover:bg-blue-50 hover:border-blue-300 transition-colors"
                 }
-                color={readOnly ? undefined : "blue"}
+                color={"default"}
                 onClick={() => handleTagClick(aktion)}
               >
                 {aktion}
@@ -211,7 +237,7 @@ const ArbeitsprotokollFormFields = ({
             scroll={{ y: 300 }}
           />
         ) : (
-          <div className="text-sm text-gray-400 italic">
+          <div className="text-sm text-gray-400">
             Keine Änderungen vorhanden
           </div>
         )}
