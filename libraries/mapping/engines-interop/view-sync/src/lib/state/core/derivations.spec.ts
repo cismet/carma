@@ -122,4 +122,32 @@ describe("object-centric round-trip", () => {
     expect(orbit.range).toBeCloseTo(meters(620), 8);
     expect(deriveRoll(state)).toBeCloseTo(radians(17), 8);
   });
+
+  it("keeps exact nadir views at bearing=0 and roll=0", () => {
+    const state = buildCommonViewState({
+      longitude: radians(7.2),
+      latitude: radians(51.27),
+      altitude: meters(180),
+      bearing: radians(0),
+      pitch: radians(0),
+      roll: radians(0),
+      range: meters(620),
+      intrinsics: {
+        type: CAMERA_TYPE.PERSPECTIVE,
+        fov: radians(60),
+      },
+      metadata: {
+        frameId: 1,
+        timestampMs: 1_700_000_000_000,
+        sourceId: "spec",
+        source: "sync",
+      },
+    });
+
+    const orbit = deriveOrbitAngles(state);
+
+    expect(orbit.bearing).toBeCloseTo(radians(0), 8);
+    expect(orbit.pitch).toBeCloseTo(radians(0), 8);
+    expect(deriveRoll(state)).toBeCloseTo(radians(0), 8);
+  });
 });

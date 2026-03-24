@@ -14,6 +14,7 @@ import {
   isMapViewEqualToTarget,
   readMapLibrePerspectiveIntrinsics,
   readMapLibreViewOffsetFromCanvas,
+  stabilizeMapLibreViewTarget,
 } from "@carma-mapping/engines/maplibre-gl/utils";
 import {
   CAMERA_TYPE,
@@ -161,22 +162,19 @@ export const applyToMaplibre = (
 
   const bearingDeg = radToDegNumeric(bearing as number);
   const pitchDeg = clamp(radToDegNumeric(pitch as number), 0, MAX_PITCH_DEG);
-
-  if (
-    isMapViewEqualToTarget(map, {
+  const target = stabilizeMapLibreViewTarget(
+    {
       center: [lngDeg, clampedLatDeg],
       zoom,
       bearing: bearingDeg,
       pitch: pitchDeg,
-    })
-  ) {
+    },
+    { maxPitchDeg: MAX_PITCH_DEG }
+  );
+
+  if (isMapViewEqualToTarget(map, target)) {
     return;
   }
 
-  map.jumpTo({
-    center: [lngDeg, clampedLatDeg],
-    zoom,
-    bearing: bearingDeg,
-    pitch: pitchDeg,
-  });
+  map.jumpTo(target);
 };

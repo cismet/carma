@@ -3,12 +3,15 @@ import type { CssPixels, Meters, Radians } from "@carma/units/types";
 import { ecefToEnuMatrix } from "@carma/geo/utils";
 import {
   buildObjectCentricOrientationQuaternionFromBasis,
+  readObjectCentricCameraBasis,
   type CameraIntrinsics,
 } from "@carma-commons/camera/model";
 import {
   Cartesian2,
-  applyObjectCentricCameraViewToScene,
+  Cartesian3,
+  Matrix4 as CesiumMatrix4,
   readPerspectiveFrustumVerticalFov,
+  setViewFromCameraState,
   toSceneStateVec3,
   toSceneStateMat4,
   type CameraLike,
@@ -18,7 +21,6 @@ import {
   buildCommonViewStateFromEcef,
   type AngleBasedViewInput,
 } from "../core/construct";
-import { deriveOrbitAngles } from "../core/derivations";
 import type { CommonViewState, ViewStateMetadata } from "../core/types";
 
 // ---------------------------------------------------------------------------
@@ -277,6 +279,25 @@ export const readFromCesium = (
 };
 
 const _ecefToEnuScratch = new Matrix4();
+const _enuToEcefScratch = new Matrix4();
+
+const objectCentricVectorToWorldVector = ({
+  localVector,
+  anchor,
+}: {
+  localVector: Vector3;
+  anchor: Vector3;
+}): Vector3 => {
+  const enuVector = new Vector3(localVector.x, -localVector.z, localVector.y);
+  const enuToEcef = _enuToEcefScratch
+    .copy(ecefToEnuMatrix(anchor, _ecefToEnuScratch))
+    .invert();
+
+  return enuVector.transformDirection(enuToEcef).normalize();
+};
+
+const toCesiumCartesian3 = (value: Vector3): Cartesian3 =>
+  new Cartesian3(value.x, value.y, value.z);
 
 // ---------------------------------------------------------------------------
 // Apply: CommonViewState → Cesium scene
@@ -286,25 +307,33 @@ export const applyToCesium = (
   scene: SceneLike,
   state: CommonViewState
 ): void => {
-  const { bearing, pitch, range } = deriveOrbitAngles(state);
-  const carto = state.anchorCartographic;
-
-  // Convert orbit convention pitch back to Cesium pitch
-  const cesiumPitch = (pitch as number) - Math.PI * 0.5;
-  const cesiumScene = scene as unknown as Parameters<
-    typeof applyObjectCentricCameraViewToScene
-  >[0]["scene"];
-
-  applyObjectCentricCameraViewToScene({
-    scene: cesiumScene,
-    view: {
-      anchorLngRad: carto.longitude as number,
-      anchorLatRad: carto.latitude as number,
-      anchorHeightM: carto.altitude as number,
-      bearingRad: bearing as number,
-      pitchRad: cesiumPitch,
-      rangeM: range as number,
-      fovVerticalRad: state.intrinsics.fov as number | undefined,
-    },
+  const camera = scene.camera as unknown as Parameters<
+    typeof setViewFromCameraState
+  >[0];
+  const basis = readObjectCentricCameraBasis(state.orientation);
+  const direction = objectCentricVectorToWorldVector({
+    localVector: basis.forward,
+    anchor: state.anchor,
   });
+  const up = objectCentricVectorToWorldVector({
+    localVector: basis.up,
+    anchor: state.anchor,
+  });
+  const right = objectCentricVectorToWorldVector({
+    localVector: basis.right,
+    anchor: state.anchor,
+  });
+
+  camera.lookAtTransform(CesiumMatrix4.IDENTITY);
+  setViewFromCameraState(camera, {
+    position: toCesiumCartesian3(state.cameraPosition),
+    direction: toCesiumCartesian3(direction),
+    up: toCesiumCartesian3(up),
+    right: toCesiumCartesian3(right),
+    ...(Number.isFinite(state.intrinsics.fov)
+      ? { fov: state.intrinsics.fov as number }
+      : {}),
+  });
+
+  (scene as SceneLike & { requestRender?: () => void }).requestRender?.();
 };

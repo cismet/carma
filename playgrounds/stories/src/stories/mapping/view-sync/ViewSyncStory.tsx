@@ -23,7 +23,7 @@ import {
   WUPPERTAL_CONFIG,
   createDefaultStyle,
 } from "@carma-mapping/engines/maplibre";
-import { animateOrbitHeadingPitchRange } from "@carma-mapping/engines/cesium/api";
+import { stabilizeMapLibreViewTarget } from "@carma-mapping/engines/maplibre-gl/utils";
 import {
   ViewStateProvider,
   ViewStateContext,
@@ -50,12 +50,12 @@ import {
   transitionToCesium,
   transitionToLeaflet,
 } from "@carma-mapping/engines-interop/leaflet-cesium";
+import { type CesiumWidget } from "@carma/cesium";
 import {
-  Cartographic,
-  PerspectiveFrustum,
-  type CesiumWidget,
-} from "@carma/cesium";
-import { degToRadNumeric, radToDegNumeric } from "@carma/units/helpers";
+  degToRadNumeric,
+  negativePiToPi,
+  radToDegNumeric,
+} from "@carma/units/helpers";
 import {
   initializeCesium,
   initializeTerrainProviders,
@@ -384,6 +384,23 @@ const applyCommonViewStateToCesiumWidget = ({
 const COMPASS_ALIGN_NORTH_DURATION_MS = 700;
 const COMPASS_ALIGN_NORTH_NADIR_DURATION_MS = 900;
 const ZOOM_CONTROL_DURATION_MS = 280;
+const ANIMATION_MIN_DURATION_MS = 1;
+
+const easeInOutCubic = (t: number): number =>
+  t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) * 0.5;
+
+const interpolateLinear = (
+  startValue: number,
+  endValue: number,
+  t: number
+): number => startValue + (endValue - startValue) * t;
+
+const interpolateAngle = (
+  startAngleRad: number,
+  endAngleRad: number,
+  t: number
+): number =>
+  startAngleRad + (negativePiToPi(endAngleRad - startAngleRad) as number) * t;
 
 const toCompassPitchDeg = (pitchRad: number): number =>
   Math.max(
@@ -403,7 +420,8 @@ const buildFromDerived = (
     range: number;
   }>,
   intrinsics: CommonViewState["intrinsics"],
-  sourceId: string
+  sourceId: string,
+  source: CommonViewState["metadata"]["source"] = "user-interaction"
 ): CommonViewState => {
   const input: AngleBasedViewInput = {
     longitude: derived.longitude as number,
@@ -417,7 +435,7 @@ const buildFromDerived = (
       frameId: 0,
       timestampMs: Date.now(),
       sourceId,
-      source: "user-interaction",
+      source,
     },
   };
   return buildCommonViewState(input);
@@ -451,10 +469,12 @@ const buildMapLibreCameraOptionsFromState = (
   }
 
   return {
-    center: [lngDeg, latDeg],
-    zoom: view.zoom,
-    bearing: Number.isFinite(bearingDeg) ? bearingDeg : 0,
-    pitch: Number.isFinite(pitchDeg) ? pitchDeg : 0,
+    ...stabilizeMapLibreViewTarget({
+      center: [lngDeg, latDeg],
+      zoom: view.zoom,
+      bearing: Number.isFinite(bearingDeg) ? bearingDeg : 0,
+      pitch: Number.isFinite(pitchDeg) ? pitchDeg : 0,
+    }),
   };
 };
 
@@ -650,6 +670,7 @@ const PanelNavigationControls = ({
   const isRotationLockedCompass = compassDisplayMode === "rotation-locked-2d";
   const canPitchDrag = !isRotationLockedCompass && framework !== "leaflet";
   const canNorthInteract = !isRotationLockedCompass;
+  const controlSourceId = `${slotId}:${VIEW_SYNC_CONTROL_SOURCE_ENGINE}`;
   const initialDragStateRef = useRef<{
     mouseX: number;
     mouseY: number;
@@ -659,11 +680,27 @@ const PanelNavigationControls = ({
   } | null>(null);
   const pendingCompassClickTimeoutRef = useRef<number | null>(null);
   const didCompassDragRef = useRef(false);
-  const cancelCesiumCompassAnimationRef = useRef<(() => void) | null>(null);
+  const animationFrameRef = useRef<number | null>(null);
+
+  useEffect(() => {
+    if (!ctx) {
+      return;
+    }
+    return ctx.register(controlSourceId, VIEW_SYNC_CONTROL_SOURCE_ENGINE);
+  }, [controlSourceId, ctx]);
+
+  const cancelSharedStateAnimation = useCallback(() => {
+    if (animationFrameRef.current !== null) {
+      window.cancelAnimationFrame(animationFrameRef.current);
+      animationFrameRef.current = null;
+    }
+    ctx?.releaseControl(controlSourceId);
+  }, [controlSourceId, ctx]);
 
   /** Apply a modified CommonViewState to the active framework directly. */
   const applyStateToRuntime = useCallback(
     (nextState: CommonViewState) => {
+      cancelSharedStateAnimation();
       ctx?.claimControl(slotId, "user-interaction");
       const runtimeHandle = getRuntimeHandle();
 
@@ -685,7 +722,7 @@ const PanelNavigationControls = ({
         return;
       }
     },
-    [ctx, getRuntimeHandle, slotId]
+    [cancelSharedStateAnimation, ctx, getRuntimeHandle, slotId]
   );
 
   /** Build a CommonViewState with modified angles and apply it. */
@@ -707,6 +744,7 @@ const PanelNavigationControls = ({
     (event: React.MouseEvent<HTMLButtonElement>) => {
       event.preventDefault();
       event.stopPropagation();
+      cancelSharedStateAnimation();
 
       if (!canPitchDrag || !derived) {
         return;
@@ -721,95 +759,76 @@ const PanelNavigationControls = ({
         range: derived.range as number,
       };
     },
-    [canPitchDrag, derived]
+    [cancelSharedStateAnimation, canPitchDrag, derived]
   );
 
-  const animateRuntimeToAngles = useCallback(
+  const animateSharedStateToAngles = useCallback(
     (
       overrides: Partial<{ bearing: number; pitch: number; range: number }>,
       durationMs: number
     ): boolean => {
-      if (!currentState || !derived) return false;
-      const runtimeHandle = getRuntimeHandle();
-      if (!runtimeHandle) return false;
+      if (!currentState || !derived || !ctx) return false;
 
-      ctx?.claimControl(slotId, "user-interaction");
-      const targetBearing = overrides.bearing ?? (derived.bearing as number);
-      const targetPitch = overrides.pitch ?? (derived.pitch as number);
-      const targetRange = overrides.range ?? (derived.range as number);
+      const startBearing = derived.bearing as number;
+      const startPitch = derived.pitch as number;
+      const startRange = derived.range as number;
+      const targetBearing = overrides.bearing ?? startBearing;
+      const targetPitch = overrides.pitch ?? startPitch;
+      const targetRange = overrides.range ?? startRange;
+      const resolvedDurationMs = Math.max(
+        durationMs,
+        ANIMATION_MIN_DURATION_MS
+      );
+      const animationStartMs = performance.now();
 
-      if (runtimeHandle.framework === "maplibre") {
+      cancelSharedStateAnimation();
+      if (!ctx.claimControl(controlSourceId, "user-interaction")) {
+        return false;
+      }
+
+      const writeAnimatedState = (easedT: number) => {
         const nextState = buildFromDerived(
           derived,
-          overrides,
+          {
+            bearing: interpolateAngle(startBearing, targetBearing, easedT),
+            pitch: interpolateLinear(startPitch, targetPitch, easedT),
+            range: interpolateLinear(startRange, targetRange, easedT),
+          },
           currentState.intrinsics,
-          slotId
+          controlSourceId,
+          "animation"
         );
-        const cameraOptions = buildMapLibreCameraOptionsFromState(
-          nextState,
-          runtimeHandle.map.getCanvas().clientWidth,
-          runtimeHandle.map.getCanvas().clientHeight
-        );
-        if (!cameraOptions) return false;
 
-        runtimeHandle.map.stop();
-        runtimeHandle.map.easeTo({
-          ...cameraOptions,
-          duration: durationMs,
-          essential: true,
+        ctx.update(nextState, {
+          sourceId: controlSourceId,
+          timestampMs: Date.now(),
+          priority: "animation",
         });
-        return true;
-      }
+      };
 
-      if (runtimeHandle.framework === "cesium") {
-        const camera = runtimeHandle.widget.scene?.camera;
-        if (!camera) return false;
+      writeAnimatedState(0);
 
-        const carto = currentState.anchorCartographic;
-        const center = Cartographic.toCartesian(
-          Cartographic.fromRadians(
-            carto.longitude as number,
-            carto.latitude as number,
-            carto.altitude as number
-          )
+      const step = (nowMs: number) => {
+        const linearT = Math.min(
+          1,
+          (nowMs - animationStartMs) / resolvedDurationMs
         );
-        if (!center) return false;
+        const easedT = easeInOutCubic(linearT);
+        writeAnimatedState(easedT);
 
-        const fov = currentState.intrinsics.fov;
-        if (fov && camera.frustum instanceof PerspectiveFrustum) {
-          camera.frustum.fov = fov;
+        if (linearT >= 1) {
+          animationFrameRef.current = null;
+          ctx.releaseControl(controlSourceId);
+          return;
         }
 
-        // Convert orbit pitch (0=nadir, PI/2=horizon) to Cesium pitch (-PI/2=nadir, 0=horizon)
-        const cesiumPitch = targetPitch - Math.PI * 0.5;
+        animationFrameRef.current = window.requestAnimationFrame(step);
+      };
 
-        cancelCesiumCompassAnimationRef.current?.();
-        cancelCesiumCompassAnimationRef.current = animateOrbitHeadingPitchRange(
-          runtimeHandle.widget.scene,
-          center,
-          {
-            heading: targetBearing,
-            pitch: cesiumPitch,
-            range: targetRange,
-          },
-          {
-            durationMs,
-            onComplete: () => {
-              cancelCesiumCompassAnimationRef.current = null;
-              runtimeHandle.widget.scene.requestRender();
-            },
-            onCancel: () => {
-              cancelCesiumCompassAnimationRef.current = null;
-              runtimeHandle.widget.scene.requestRender();
-            },
-          }
-        );
-        return true;
-      }
-
-      return false;
+      animationFrameRef.current = window.requestAnimationFrame(step);
+      return true;
     },
-    [ctx, currentState, derived, getRuntimeHandle, slotId]
+    [cancelSharedStateAnimation, controlSourceId, ctx, currentState, derived]
   );
 
   const handleZoomIn = useCallback(
@@ -820,12 +839,15 @@ const PanelNavigationControls = ({
 
       const nextRange = Math.max(5, (derived.range as number) * 0.5);
       if (
-        !animateRuntimeToAngles({ range: nextRange }, ZOOM_CONTROL_DURATION_MS)
+        !animateSharedStateToAngles(
+          { range: nextRange },
+          ZOOM_CONTROL_DURATION_MS
+        )
       ) {
         applyAngleUpdate({ range: nextRange });
       }
     },
-    [animateRuntimeToAngles, applyAngleUpdate, derived]
+    [animateSharedStateToAngles, applyAngleUpdate, derived]
   );
 
   const handleZoomOut = useCallback(
@@ -836,12 +858,15 @@ const PanelNavigationControls = ({
 
       const nextRange = (derived.range as number) * 2;
       if (
-        !animateRuntimeToAngles({ range: nextRange }, ZOOM_CONTROL_DURATION_MS)
+        !animateSharedStateToAngles(
+          { range: nextRange },
+          ZOOM_CONTROL_DURATION_MS
+        )
       ) {
         applyAngleUpdate({ range: nextRange });
       }
     },
-    [animateRuntimeToAngles, applyAngleUpdate, derived]
+    [animateSharedStateToAngles, applyAngleUpdate, derived]
   );
 
   useEffect(() => {
@@ -894,10 +919,9 @@ const PanelNavigationControls = ({
       if (pendingCompassClickTimeoutRef.current !== null) {
         window.clearTimeout(pendingCompassClickTimeoutRef.current);
       }
-      cancelCesiumCompassAnimationRef.current?.();
-      cancelCesiumCompassAnimationRef.current = null;
+      cancelSharedStateAnimation();
     },
-    []
+    [cancelSharedStateAnimation]
   );
 
   const handleCompassClick = useCallback(
@@ -918,7 +942,7 @@ const PanelNavigationControls = ({
 
       pendingCompassClickTimeoutRef.current = window.setTimeout(() => {
         if (
-          !animateRuntimeToAngles(
+          !animateSharedStateToAngles(
             { bearing: 0 },
             COMPASS_ALIGN_NORTH_DURATION_MS
           )
@@ -928,7 +952,7 @@ const PanelNavigationControls = ({
         pendingCompassClickTimeoutRef.current = null;
       }, COMPASS_CLICK_DELAY_MS);
     },
-    [animateRuntimeToAngles, applyAngleUpdate, canNorthInteract]
+    [animateSharedStateToAngles, applyAngleUpdate, canNorthInteract]
   );
 
   const handleCompassDoubleClick = useCallback(
@@ -946,7 +970,7 @@ const PanelNavigationControls = ({
       didCompassDragRef.current = false;
 
       if (
-        !animateRuntimeToAngles(
+        !animateSharedStateToAngles(
           { bearing: 0, pitch: fromCompassPitchDeg(0) },
           COMPASS_ALIGN_NORTH_NADIR_DURATION_MS
         )
@@ -954,7 +978,7 @@ const PanelNavigationControls = ({
         applyAngleUpdate({ bearing: 0, pitch: fromCompassPitchDeg(0) });
       }
     },
-    [animateRuntimeToAngles, applyAngleUpdate, canNorthInteract]
+    [animateSharedStateToAngles, applyAngleUpdate, canNorthInteract]
   );
 
   const sceneBearingDeg = derived

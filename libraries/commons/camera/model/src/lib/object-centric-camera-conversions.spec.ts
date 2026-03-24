@@ -44,6 +44,18 @@ describe("object-centric camera conversions", () => {
     expect(roundTrip.range).toBeCloseTo(orbit.range, 8);
   });
 
+  it("canonicalizes nadir orbit bearing to zero instead of 180", () => {
+    const roundTrip = enuOffsetToObjectCentricOrbit({
+      east: 0,
+      north: 0,
+      up: 620,
+    });
+
+    expect(roundTrip.bearing).toBeCloseTo(radians(0), 8);
+    expect(roundTrip.pitch).toBeCloseTo(radians(0), 8);
+    expect(roundTrip.range).toBeCloseTo(meters(620), 8);
+  });
+
   it("reads the expected basis for a nadir orientation", () => {
     const basis = readObjectCentricCameraBasis(
       buildObjectCentricOrientationQuaternion({
