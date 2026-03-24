@@ -1,38 +1,16 @@
-import { useEffect, useMemo } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { Form, Input, Row, Col, Table, Tag, DatePicker } from "antd";
 import dayjs from "dayjs";
 import type { ColumnsType } from "antd/es/table";
 import { getFormClassName } from "./readOnlyFormUtils";
 import { FormItem } from "./DraftFieldHighlight";
+import { AktionModal, getAktionLabels, findAktionDefinition } from "./aktionModal";
+import type { AktionDefinition, AktionFormValues } from "./aktionModal";
 
 const FormLabel = ({ children }: { children: React.ReactNode }) => (
   <span className="text-sm font-medium text-gray-700">{children}</span>
 );
 
-const AKTIONEN_BY_FACHOBJEKT_TYPE: Record<string, string[]> = {
-  tdta_leuchten: [
-    "Sonderturnus",
-    "Leuchtenerneuerung",
-    "Leuchtmittelwechsel",
-    "Leuchtmittelwechsel (mit EP)",
-    "Vorschaltgerätwechsel",
-    "Rundsteuerempfängerwechsel",
-    "Sonstiges",
-  ],
-  tdta_standort_mast: [
-    "Elektrische Prüfung",
-    "Revision",
-    "Masterneuerung",
-    "Anstricharbeiten",
-    "Standsicherheitsprüfung",
-    "Sonstiges",
-  ],
-  schaltstelle: ["Revision", "Sonstiges"],
-  mauerlasche: ["Prüfung", "Sonstiges"],
-  abzweigdose: ["Sonstiges"],
-  leitung: ["Sonstiges"],
-  geom: ["Sonstiges"],
-};
 
 interface AenderungRow {
   key: number;
@@ -87,9 +65,38 @@ const ArbeitsprotokollFormFields = ({
       }
     }
   }, [data, form, draftValues, onOriginalValues]);
-  const aktionen = fachobjektType
-    ? AKTIONEN_BY_FACHOBJEKT_TYPE[fachobjektType] ?? []
-    : [];
+  const aktionen = fachobjektType ? getAktionLabels(fachobjektType) : [];
+
+  const [selectedAktion, setSelectedAktion] = useState<AktionDefinition | null>(null);
+  const [modalOpen, setModalOpen] = useState(false);
+
+  const handleTagClick = useCallback(
+    (aktionLabel: string) => {
+      if (readOnly || !fachobjektType) return;
+      const definition = findAktionDefinition(fachobjektType, aktionLabel);
+      if (definition) {
+        setSelectedAktion(definition);
+        setModalOpen(true);
+      }
+    },
+    [readOnly, fachobjektType],
+  );
+
+  const handleModalClose = useCallback(() => {
+    setModalOpen(false);
+    setSelectedAktion(null);
+  }, []);
+
+  const handleAktionSubmit = useCallback(
+    (aktionLabel: string, fType: string, values: AktionFormValues) => {
+      console.log("[ArbeitsprotokollFormFields] Aktion submitted:", {
+        aktionLabel,
+        fachobjektType: fType,
+        values,
+      });
+    },
+    [],
+  );
 
   const aenderungRows: AenderungRow[] = useMemo(() => {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -173,7 +180,18 @@ const ArbeitsprotokollFormFields = ({
           <div className="text-sm font-medium text-gray-700 mb-2">Aktionen</div>
           <div className="flex flex-wrap gap-1">
             {aktionen.map((aktion) => (
-              <Tag key={aktion}>{aktion}</Tag>
+              <Tag
+                key={aktion}
+                className={
+                  readOnly
+                    ? ""
+                    : "cursor-pointer hover:bg-blue-50 hover:border-blue-300 transition-colors"
+                }
+                color={readOnly ? undefined : "blue"}
+                onClick={() => handleTagClick(aktion)}
+              >
+                {aktion}
+              </Tag>
             ))}
           </div>
         </div>
@@ -198,6 +216,13 @@ const ArbeitsprotokollFormFields = ({
           </div>
         )}
       </div>
+      <AktionModal
+        aktion={selectedAktion}
+        fachobjektType={fachobjektType ?? ""}
+        open={modalOpen}
+        onClose={handleModalClose}
+        onSubmit={handleAktionSubmit}
+      />
     </div>
   );
 };
