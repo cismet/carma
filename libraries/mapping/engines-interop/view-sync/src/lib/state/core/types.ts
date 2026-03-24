@@ -18,7 +18,10 @@ export type CommonViewState = {
   readonly anchorCartographic: ObjectCentricCameraAnchor;
   /** Camera eye position in ECEF (meters). */
   readonly cameraPosition: Vector3;
-  /** Camera world-space rotation (Three.js convention). */
+  /**
+   * Camera rotation in the shared object-centric local tangent frame:
+   * +X east, +Y up, -Z north.
+   */
   readonly orientation: Quaternion;
   /** Camera projection parameters (FOV, near, far, type). */
   readonly intrinsics: CameraIntrinsics;

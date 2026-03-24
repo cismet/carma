@@ -1,7 +1,10 @@
 import { Matrix4, Quaternion, Vector3, isFiniteNumber } from "@carma/math";
 import type { CssPixels, Meters, Radians } from "@carma/units/types";
-import { ecefToCartographic } from "@carma/geo/utils";
-import type { CameraIntrinsics } from "@carma-commons/camera/model";
+import { ecefToEnuMatrix } from "@carma/geo/utils";
+import {
+  buildObjectCentricOrientationQuaternionFromBasis,
+  type CameraIntrinsics,
+} from "@carma-commons/camera/model";
 import {
   Cartesian2,
   applyObjectCentricCameraViewToScene,
@@ -55,6 +58,96 @@ const sampleOrbitAnchor = (
   }
 
   return null;
+};
+
+const readCameraWorldBasis = (
+  camera: CameraLike
+): { forward: Vector3; right: Vector3; up: Vector3 } => {
+  const direction = toSceneStateVec3(camera.directionWC);
+  const up = toSceneStateVec3(camera.upWC);
+  const right = toSceneStateVec3(
+    (camera as CameraLike & { rightWC?: unknown }).rightWC
+  );
+
+  if (direction && up) {
+    const forward = direction.clone().normalize();
+    const orthRight =
+      right?.clone().normalize() ??
+      new Vector3().crossVectors(forward, up).normalize();
+    const orthUp = new Vector3().crossVectors(orthRight, forward).normalize();
+
+    return {
+      forward,
+      right: orthRight,
+      up: orthUp,
+    };
+  }
+
+  const matrixWorld = toSceneStateMat4(camera.inverseViewMatrix);
+  if (matrixWorld) {
+    const orientation = new Quaternion().setFromRotationMatrix(matrixWorld);
+    const forward = new Vector3(0, 0, -1).applyQuaternion(orientation);
+    const localRight = new Vector3(1, 0, 0).applyQuaternion(orientation);
+    const localUp = new Vector3(0, 1, 0).applyQuaternion(orientation);
+    return {
+      forward: forward.normalize(),
+      right: localRight.normalize(),
+      up: localUp.normalize(),
+    };
+  }
+
+  return {
+    forward: new Vector3(0, 0, -1),
+    right: new Vector3(1, 0, 0),
+    up: new Vector3(0, 1, 0),
+  };
+};
+
+const worldVectorToObjectCentricVector = ({
+  worldVector,
+  anchor,
+}: {
+  worldVector: Vector3;
+  anchor: Vector3;
+}): Vector3 => {
+  const enuVector = worldVector
+    .clone()
+    .transformDirection(ecefToEnuMatrix(anchor, _ecefToEnuScratch));
+  return new Vector3(enuVector.x, enuVector.z, -enuVector.y).normalize();
+};
+
+const readLocalOrientation = ({
+  camera,
+  anchor,
+}: {
+  camera: CameraLike;
+  anchor: Vector3;
+}): Quaternion => {
+  const worldBasis = readCameraWorldBasis(camera);
+  const localBasis = {
+    forward: worldVectorToObjectCentricVector({
+      worldVector: worldBasis.forward,
+      anchor,
+    }),
+    right: worldVectorToObjectCentricVector({
+      worldVector: worldBasis.right,
+      anchor,
+    }),
+    up: worldVectorToObjectCentricVector({
+      worldVector: worldBasis.up,
+      anchor,
+    }),
+  };
+
+  const right = localBasis.right.clone().normalize();
+  const up = new Vector3().crossVectors(right, localBasis.forward).normalize();
+  const forward = new Vector3().crossVectors(up, right).normalize();
+
+  return buildObjectCentricOrientationQuaternionFromBasis({
+    forward,
+    right,
+    up,
+  });
 };
 
 const readViewportViewOffset = (
@@ -158,23 +251,10 @@ export const readFromCesium = (
   const anchor = sampleOrbitAnchor(scene, camera);
   if (!anchor) return null;
 
-  let orientation: Quaternion;
-  const matrixWorld = toSceneStateMat4(camera.inverseViewMatrix);
-  if (matrixWorld) {
-    orientation = new Quaternion().setFromRotationMatrix(matrixWorld);
-  } else {
-    const dir = toSceneStateVec3(camera.directionWC);
-    const up = toSceneStateVec3(camera.upWC);
-    if (dir && up) {
-      const right = new Vector3().crossVectors(dir, up).normalize();
-      const orthUp = new Vector3().crossVectors(right, dir).normalize();
-      const backward = dir.clone().negate();
-      const basis = new Matrix4().makeBasis(right, orthUp, backward);
-      orientation = new Quaternion().setFromRotationMatrix(basis);
-    } else {
-      orientation = new Quaternion();
-    }
-  }
+  const orientation = readLocalOrientation({
+    camera,
+    anchor,
+  });
 
   const intrinsics = readIntrinsics(camera, scene);
   const frameNumber = (scene as { frameState?: { frameNumber?: number } })
@@ -195,6 +275,8 @@ export const readFromCesium = (
     metadata,
   });
 };
+
+const _ecefToEnuScratch = new Matrix4();
 
 // ---------------------------------------------------------------------------
 // Apply: CommonViewState → Cesium scene

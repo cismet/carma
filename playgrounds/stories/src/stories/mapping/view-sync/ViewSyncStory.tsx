@@ -1368,15 +1368,25 @@ const MapLibreViewSyncBridge = ({
   setStatusText: (value: string) => void;
   setHashText: (value: string | null) => void;
 }) => {
+  const sharedState = useViewState();
+  const sharedStateRef = useRef(sharedState);
+  sharedStateRef.current = sharedState;
+  const readMapLibreState = useCallback(
+    () =>
+      readFromMaplibre(map, slotId, {
+        seedState: sharedStateRef.current,
+      }),
+    [map, slotId]
+  );
   const { isController, claimControl, pushState } = useViewAdapter(
     slotId,
     "maplibre",
     useMemo(
       () => ({
-        read: () => readFromMaplibre(map, slotId),
+        read: readMapLibreState,
         apply: (state: CommonViewState) => applyToMaplibre(map, state),
       }),
-      [map, slotId]
+      [map, readMapLibreState]
     )
   );
   const isControllerRef = useRef(isController);
@@ -1402,7 +1412,7 @@ const MapLibreViewSyncBridge = ({
         )}° • p ${view.pitchDeg.toFixed(1)}°`
       );
 
-      const state = readFromMaplibre(map, slotId);
+      const state = readMapLibreState();
       setHashText(formatHashFromState(state));
 
       if (!isControllerRef.current || !state) return;
@@ -1422,7 +1432,7 @@ const MapLibreViewSyncBridge = ({
       map.off("pitch", updateStatus);
       map.off("resize", updateStatus);
     };
-  }, [map, pushState, setHashText, setStatusText, slotId]);
+  }, [map, pushState, readMapLibreState, setHashText, setStatusText]);
 
   return null;
 };

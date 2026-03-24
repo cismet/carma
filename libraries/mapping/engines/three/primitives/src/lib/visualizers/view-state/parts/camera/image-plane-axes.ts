@@ -10,6 +10,9 @@ export const IMAGE_PLANE_AXIS_KEYS = {
   UP: "up",
   ORIGIN_X: "originX",
   ORIGIN_Y: "originY",
+  CAMERA_FORWARD: "cameraForward",
+  CAMERA_RIGHT: "cameraRight",
+  CAMERA_UP: "cameraUp",
 } as const;
 
 type ImagePlaneAxisKey =
@@ -38,6 +41,7 @@ export const createImagePlaneAxes = (
   size: ViewStateVisualizerSize,
   options: {
     initialColors: ImagePlaneAxisColors;
+    cameraBoxSize: number;
     forwardOpacity: number;
     rightOpacity: number;
     upOpacity: number;
@@ -70,6 +74,21 @@ export const createImagePlaneAxes = (
       color: options.initialColors.edge,
       opacity: options.originOpacity,
     },
+    {
+      key: IMAGE_PLANE_AXIS_KEYS.CAMERA_FORWARD,
+      color: options.initialColors.edge,
+      opacity: options.forwardOpacity,
+    },
+    {
+      key: IMAGE_PLANE_AXIS_KEYS.CAMERA_RIGHT,
+      color: options.initialColors.imageX,
+      opacity: options.rightOpacity,
+    },
+    {
+      key: IMAGE_PLANE_AXIS_KEYS.CAMERA_UP,
+      color: options.initialColors.imageY,
+      opacity: options.upOpacity,
+    },
   ]);
 
   return createThreePart<
@@ -77,6 +96,12 @@ export const createImagePlaneAxes = (
     ImagePlaneAxisDisplay
   >({
     update: (geometry) => {
+      const cameraRadial = geometry.cameraPosition.clone().normalize();
+      const cameraBasisOrigin = geometry.cameraPosition
+        .clone()
+        .add(cameraRadial.multiplyScalar(options.cameraBoxSize * 0.5));
+      const cameraBasisLineLength = options.cameraBoxSize * 1.1;
+
       wideLines.setLine(IMAGE_PLANE_AXIS_KEYS.FORWARD, [
         geometry.cameraPosition.clone(),
         geometry.imagePlaneCenter.clone(),
@@ -97,6 +122,24 @@ export const createImagePlaneAxes = (
         IMAGE_PLANE_AXIS_KEYS.ORIGIN_Y,
         geometry.imagePlaneOriginY
       );
+      wideLines.setLine(IMAGE_PLANE_AXIS_KEYS.CAMERA_FORWARD, [
+        cameraBasisOrigin.clone(),
+        cameraBasisOrigin
+          .clone()
+          .add(geometry.forward.clone().multiplyScalar(cameraBasisLineLength)),
+      ]);
+      wideLines.setLine(IMAGE_PLANE_AXIS_KEYS.CAMERA_RIGHT, [
+        cameraBasisOrigin.clone(),
+        cameraBasisOrigin
+          .clone()
+          .add(geometry.right.clone().multiplyScalar(cameraBasisLineLength)),
+      ]);
+      wideLines.setLine(IMAGE_PLANE_AXIS_KEYS.CAMERA_UP, [
+        cameraBasisOrigin.clone(),
+        cameraBasisOrigin
+          .clone()
+          .add(geometry.up.clone().multiplyScalar(cameraBasisLineLength)),
+      ]);
     },
     setDisplay: (display) => {
       wideLines.setVisible(
@@ -107,6 +150,15 @@ export const createImagePlaneAxes = (
       wideLines.setVisible(IMAGE_PLANE_AXIS_KEYS.UP, display.showAxes);
       wideLines.setVisible(IMAGE_PLANE_AXIS_KEYS.ORIGIN_X, display.showAxes);
       wideLines.setVisible(IMAGE_PLANE_AXIS_KEYS.ORIGIN_Y, display.showAxes);
+      wideLines.setVisible(
+        IMAGE_PLANE_AXIS_KEYS.CAMERA_FORWARD,
+        display.showAxes
+      );
+      wideLines.setVisible(
+        IMAGE_PLANE_AXIS_KEYS.CAMERA_RIGHT,
+        display.showAxes
+      );
+      wideLines.setVisible(IMAGE_PLANE_AXIS_KEYS.CAMERA_UP, display.showAxes);
 
       wideLines.setWidth(
         IMAGE_PLANE_AXIS_KEYS.FORWARD,
@@ -122,12 +174,36 @@ export const createImagePlaneAxes = (
         IMAGE_PLANE_AXIS_KEYS.ORIGIN_Y,
         display.axisLineWidthPx
       );
+      wideLines.setWidth(
+        IMAGE_PLANE_AXIS_KEYS.CAMERA_FORWARD,
+        display.axisLineWidthPx
+      );
+      wideLines.setWidth(
+        IMAGE_PLANE_AXIS_KEYS.CAMERA_RIGHT,
+        display.axisLineWidthPx
+      );
+      wideLines.setWidth(
+        IMAGE_PLANE_AXIS_KEYS.CAMERA_UP,
+        display.axisLineWidthPx
+      );
 
       wideLines.setColor(IMAGE_PLANE_AXIS_KEYS.FORWARD, display.edgeColor);
       wideLines.setColor(IMAGE_PLANE_AXIS_KEYS.RIGHT, display.cueColors.imageX);
       wideLines.setColor(IMAGE_PLANE_AXIS_KEYS.UP, display.cueColors.imageY);
       wideLines.setColor(IMAGE_PLANE_AXIS_KEYS.ORIGIN_X, display.edgeColor);
       wideLines.setColor(IMAGE_PLANE_AXIS_KEYS.ORIGIN_Y, display.edgeColor);
+      wideLines.setColor(
+        IMAGE_PLANE_AXIS_KEYS.CAMERA_FORWARD,
+        display.edgeColor
+      );
+      wideLines.setColor(
+        IMAGE_PLANE_AXIS_KEYS.CAMERA_RIGHT,
+        display.cueColors.imageX
+      );
+      wideLines.setColor(
+        IMAGE_PLANE_AXIS_KEYS.CAMERA_UP,
+        display.cueColors.imageY
+      );
     },
     resize: wideLines.resize,
     dispose: wideLines.dispose,

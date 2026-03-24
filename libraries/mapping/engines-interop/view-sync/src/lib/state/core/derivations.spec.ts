@@ -5,7 +5,12 @@ import { degToRadNumeric } from "@carma/units/helpers";
 import type { CssPixels, Meters, Radians } from "@carma/units/types";
 import { readMetersPerCssPixel } from "../../adapters/sharedProjection";
 import { buildCommonViewState } from "./construct";
-import { deriveRange, deriveZoom } from "./derivations";
+import {
+  deriveOrbitAngles,
+  deriveRange,
+  deriveRoll,
+  deriveZoom,
+} from "./derivations";
 
 const meters = (value: number): Meters => value as Meters;
 const radians = (valueDeg: number): Radians =>
@@ -85,5 +90,36 @@ describe("deriveZoom", () => {
     );
 
     expect(deriveZoom(state)).toBeCloseTo(expectedZoom, 8);
+  });
+});
+
+describe("object-centric round-trip", () => {
+  it("recovers bearing, pitch, and roll from a state built from angle inputs", () => {
+    const state = buildCommonViewState({
+      longitude: radians(7.2),
+      latitude: radians(51.27),
+      altitude: meters(180),
+      bearing: radians(54),
+      pitch: radians(42),
+      roll: radians(17),
+      range: meters(620),
+      intrinsics: {
+        type: CAMERA_TYPE.PERSPECTIVE,
+        fov: radians(60),
+      },
+      metadata: {
+        frameId: 1,
+        timestampMs: 1_700_000_000_000,
+        sourceId: "spec",
+        source: "sync",
+      },
+    });
+
+    const orbit = deriveOrbitAngles(state);
+
+    expect(orbit.bearing).toBeCloseTo(radians(54), 8);
+    expect(orbit.pitch).toBeCloseTo(radians(42), 8);
+    expect(orbit.range).toBeCloseTo(meters(620), 8);
+    expect(deriveRoll(state)).toBeCloseTo(radians(17), 8);
   });
 });

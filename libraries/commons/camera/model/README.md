@@ -2,6 +2,13 @@
 
 Shared camera specification types with a canonical object-centric orbit convention.
 
+The package now also owns the pure object-centric conversion helpers that
+define the SSOT for:
+
+- `bearing/pitch/range <-> ENU offset`
+- `bearing/pitch/roll <-> quaternion`
+- `quaternion <-> camera basis`
+
 ## Object-Centric Convention
 
 - Basis: right-handed local tangent ENU frame embedded into a Three-compatible scene basis

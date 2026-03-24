@@ -1,7 +1,9 @@
-import { CAMERA_TYPE } from "@carma-commons/camera/model";
+import {
+  CAMERA_TYPE,
+  readObjectCentricCameraBasis,
+} from "@carma-commons/camera/model";
 import {
   deriveOrbitAngles,
-  deriveRoll,
   type CommonViewState,
 } from "@carma-mapping/engines-interop/view-sync";
 import {
@@ -18,9 +20,6 @@ import type { ResolvedViewStateVisualizerVisualizedOptions } from "../view-state
 import { pointOnBearingCircle } from "./angle-cue-geometry";
 import { buildCrosshairLinePoints } from "./crosshair-line-points";
 
-const WORLD_UP = new Vector3(0, 1, 0);
-const WORLD_EAST = new Vector3(1, 0, 0);
-const ORIGIN = new Vector3(0, 0, 0);
 const OPEN_FOV_EPSILON_RAD = 1e-6;
 
 const normalizeBearing = (bearingRadians: number): number =>
@@ -131,22 +130,9 @@ const resolveCameraBasis = ({
     viewState,
     hemisphereRadius,
   });
-  const roll = deriveRoll(viewState);
-  const forward = ORIGIN.clone().sub(cameraPosition).normalize();
-
-  let right = new Vector3().crossVectors(forward, WORLD_UP);
-  if (right.lengthSq() < 1e-6) {
-    right = WORLD_EAST.clone();
-  } else {
-    right.normalize();
-  }
-
-  const up = new Vector3().crossVectors(right, forward).normalize();
-
-  if (Number.isFinite(roll) && Math.abs(roll ?? 0) > 1e-6) {
-    right.applyAxisAngle(forward, roll as number);
-    up.applyAxisAngle(forward, roll as number);
-  }
+  const { forward, right, up } = readObjectCentricCameraBasis(
+    viewState.orientation
+  );
 
   return {
     cameraPosition,

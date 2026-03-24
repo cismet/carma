@@ -171,4 +171,87 @@ describe("readFromMaplibre", () => {
     expect(state?.intrinsics.viewOffset?.height).toBe(900);
     expect(deriveZoom(state!)).toBeCloseTo(16.25, 6);
   });
+
+  it("reads vertical fov from maplibre runtime and derives horizontal fov from canvas aspect", () => {
+    const state = readFromMaplibre(
+      {
+        getCenter: () => ({ lng: 7.2, lat: 51.27 }),
+        getZoom: () => 16.25,
+        getBearing: () => 0,
+        getPitch: () => 0,
+        getVerticalFieldOfView: () => 50,
+        getCanvas: () =>
+          ({
+            clientWidth: 1200,
+            clientHeight: 800,
+          } as HTMLCanvasElement),
+        jumpTo: vi.fn(),
+      } as unknown as MapLibreMap,
+      "spec"
+    );
+
+    expect(state).not.toBeNull();
+    expect(degrees(state?.intrinsics.fov as number)).toBeCloseTo(50, 8);
+    expect(degrees(state?.intrinsics.fovHorizontal as number)).toBeCloseTo(
+      degrees(2 * Math.atan(Math.tan((radians(50) as number) * 0.5) * 1.5)),
+      8
+    );
+    expect(state?.intrinsics.viewOffset?.width).toBe(1200);
+    expect(state?.intrinsics.viewOffset?.height).toBe(800);
+  });
+
+  it("preserves seed altitude and intrinsics that maplibre cannot observe", () => {
+    const seedState = buildCommonViewState({
+      longitude: radians(7.2),
+      latitude: radians(51.27),
+      altitude: meters(212.4),
+      bearing: radians(214),
+      pitch: radians(42),
+      range: meters(620),
+      intrinsics: {
+        type: CAMERA_TYPE.PERSPECTIVE,
+        fov: radians(60),
+        frustum: {
+          near: meters(1),
+          far: meters(500_000),
+        },
+      },
+      metadata: {
+        frameId: 1,
+        timestampMs: 1_700_000_000_000,
+        sourceId: "spec",
+        source: "sync",
+      },
+    });
+
+    const state = readFromMaplibre(
+      {
+        getCenter: () => ({ lng: 7.21, lat: 51.28 }),
+        getZoom: () => 16.25,
+        getBearing: () => 214,
+        getPitch: () => 42,
+        getCanvas: () =>
+          ({
+            clientWidth: 480,
+            clientHeight: 900,
+          } as HTMLCanvasElement),
+        jumpTo: vi.fn(),
+      } as unknown as MapLibreMap,
+      "spec",
+      { seedState }
+    );
+
+    expect(state).not.toBeNull();
+    expect(state?.anchorCartographic.altitude).toBeCloseTo(212.4, 6);
+    expect(state?.intrinsics.type).toBe(CAMERA_TYPE.PERSPECTIVE);
+    expect(state?.intrinsics.fov).toBe(seedState.intrinsics.fov);
+    expect(state?.intrinsics.frustum?.near).toBe(
+      seedState.intrinsics.frustum?.near
+    );
+    expect(state?.intrinsics.frustum?.far).toBe(
+      seedState.intrinsics.frustum?.far
+    );
+    expect(state?.intrinsics.viewOffset?.width).toBe(480);
+    expect(state?.intrinsics.viewOffset?.height).toBe(900);
+  });
 });

@@ -2,7 +2,10 @@ import { LngLat } from "maplibre-gl";
 import type { CameraOptions, Map as MapLibreMap } from "maplibre-gl";
 import { degToRadNumeric, negativePiToPi } from "@carma/units/helpers";
 import type { CssPixels, Radians } from "@carma/units/types";
-import type { CameraIntrinsics } from "@carma-commons/camera/model";
+import {
+  CAMERA_TYPE,
+  type CameraIntrinsics,
+} from "@carma-commons/camera/model";
 
 const CENTER_EPSILON_DEG = 1e-7;
 const ZOOM_EPSILON = 1e-6;
@@ -35,6 +38,58 @@ export const readMapLibreViewOffsetFromCanvas = (
     offsetY: 0 as CssPixels,
     width: widthPx as CssPixels,
     height: heightPx as CssPixels,
+  };
+};
+
+const readAspectRatioFromCanvas = (
+  canvas: HTMLCanvasElement | null | undefined
+): number | undefined => {
+  const widthPx = canvas?.clientWidth;
+  const heightPx = canvas?.clientHeight;
+  return typeof widthPx === "number" &&
+    typeof heightPx === "number" &&
+    Number.isFinite(widthPx) &&
+    Number.isFinite(heightPx) &&
+    widthPx > 0 &&
+    heightPx > 0
+    ? widthPx / heightPx
+    : undefined;
+};
+
+const readHorizontalFovFromVertical = (
+  verticalFov: Radians | undefined,
+  aspect: number | undefined
+): Radians | undefined =>
+  typeof verticalFov === "number" &&
+  Number.isFinite(verticalFov) &&
+  verticalFov > 0 &&
+  typeof aspect === "number" &&
+  Number.isFinite(aspect) &&
+  aspect > 0
+    ? ((Math.atan(Math.tan(verticalFov * 0.5) * aspect) * 2) as Radians)
+    : undefined;
+
+export const readMapLibrePerspectiveIntrinsics = (
+  map: MapLibreMap
+): CameraIntrinsics => {
+  const canvas = map.getCanvas?.();
+  const viewOffset = readMapLibreViewOffsetFromCanvas(canvas);
+  const aspect = readAspectRatioFromCanvas(canvas);
+  const fovDeg =
+    typeof (map as MapLibreMap & { getVerticalFieldOfView?: () => number })
+      .getVerticalFieldOfView === "function"
+      ? (
+          map as MapLibreMap & { getVerticalFieldOfView: () => number }
+        ).getVerticalFieldOfView()
+      : undefined;
+  const fov = degToRadNumeric(fovDeg ?? Number.NaN) as Radians | null;
+  const fovHorizontal = readHorizontalFovFromVertical(fov ?? undefined, aspect);
+
+  return {
+    type: CAMERA_TYPE.PERSPECTIVE,
+    ...(fov ? { fov } : {}),
+    ...(fovHorizontal ? { fovHorizontal } : {}),
+    ...(viewOffset ? { viewOffset } : {}),
   };
 };
 

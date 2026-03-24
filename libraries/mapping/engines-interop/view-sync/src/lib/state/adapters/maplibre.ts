@@ -12,9 +12,13 @@ import {
 } from "@carma/geo/utils";
 import {
   isMapViewEqualToTarget,
+  readMapLibrePerspectiveIntrinsics,
   readMapLibreViewOffsetFromCanvas,
 } from "@carma-mapping/engines/maplibre-gl/utils";
-import type { CameraIntrinsics } from "@carma-commons/camera/model";
+import {
+  CAMERA_TYPE,
+  type CameraIntrinsics,
+} from "@carma-commons/camera/model";
 import type { Map as MapLibreMap } from "maplibre-gl";
 import { readRangeFromMetersPerCssPixel } from "../../adapters/sharedProjection";
 import {
@@ -41,7 +45,11 @@ const MAX_PITCH_DEG = 85;
 export const readFromMaplibre = (
   map: MapLibreMap,
   sourceId: string,
-  options?: { altitudeM?: number; fovDeg?: number }
+  options?: {
+    altitudeM?: number;
+    fovDeg?: number;
+    seedState?: CommonViewState | null;
+  }
 ): CommonViewState | null => {
   const center = map.getCenter();
   if (!isFiniteNumber(center.lng) || !isFiniteNumber(center.lat)) return null;
@@ -49,12 +57,21 @@ export const readFromMaplibre = (
   const zoom = map.getZoom();
   if (!isFiniteNumber(zoom)) return null;
 
+  const seedState = options?.seedState ?? null;
   const bearingDeg = map.getBearing();
   const pitchDeg = map.getPitch();
-  const altitudeM = options?.altitudeM ?? DEFAULT_ALTITUDE_M;
-  const fovDeg = options?.fovDeg ?? DEFAULT_FOV_DEG;
-  const fovRad = degToRadNumeric(fovDeg)!;
-  const viewOffset = readMapLibreViewOffsetFromCanvas(map.getCanvas?.());
+  const altitudeM =
+    options?.altitudeM ??
+    (seedState?.anchorCartographic.altitude as number | undefined) ??
+    DEFAULT_ALTITUDE_M;
+  const runtimeIntrinsics = readMapLibrePerspectiveIntrinsics(map);
+  const fovRad =
+    runtimeIntrinsics.fov ??
+    seedState?.intrinsics.fov ??
+    degToRadNumeric(options?.fovDeg ?? DEFAULT_FOV_DEG)!;
+  const viewOffset =
+    runtimeIntrinsics.viewOffset ??
+    readMapLibreViewOffsetFromCanvas(map.getCanvas?.());
 
   const latRad = clampLatitudeToWebMercatorExtent(
     degToRadNumeric(center.lat)! as Radians
@@ -76,10 +93,20 @@ export const readFromMaplibre = (
   const pitchRad = degToRadNumeric(clamp(pitchDeg, 0, MAX_PITCH_DEG))!;
   const bearingRad = degToRadNumeric(bearingDeg)!;
 
-  const intrinsics: CameraIntrinsics = {
-    fov: fovRad as Radians,
-    ...(viewOffset ? { viewOffset } : {}),
-  };
+  const intrinsics: CameraIntrinsics = seedState
+    ? {
+        ...seedState.intrinsics,
+        ...runtimeIntrinsics,
+        type: seedState.intrinsics.type ?? runtimeIntrinsics.type,
+        fov: fovRad as Radians,
+        ...(viewOffset ? { viewOffset } : {}),
+      }
+    : {
+        ...runtimeIntrinsics,
+        type: runtimeIntrinsics.type ?? CAMERA_TYPE.PERSPECTIVE,
+        fov: fovRad as Radians,
+        ...(viewOffset ? { viewOffset } : {}),
+      };
 
   const metadata: ViewStateMetadata = {
     frameId: 0,

@@ -76,6 +76,7 @@ export const createCameraView = (
       imageX: options.initialImageXColor,
       imageY: options.initialImageYColor,
     },
+    cameraBoxSize: options.cameraBoxSize,
     forwardOpacity: options.imagePlane.forwardOpacity,
     rightOpacity: options.imagePlane.rightOpacity,
     upOpacity: options.imagePlane.upOpacity,

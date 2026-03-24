@@ -1,5 +1,9 @@
-import { isFiniteNumber, Quaternion, Vector3 } from "@carma/math";
-import type { CameraIntrinsics } from "@carma-commons/camera/model";
+import { isFiniteNumber } from "@carma/math";
+import {
+  deriveObjectCentricRoll,
+  enuOffsetToObjectCentricOrbit,
+  type CameraIntrinsics,
+} from "@carma-commons/camera/model";
 import type { Meters, Radians } from "@carma/units/types";
 import {
   getZoomFromPixelResolutionAtLatitudeRad,
@@ -93,25 +97,7 @@ export const deriveOrbitAngles = (
   state: CommonViewState
 ): { bearing: Radians; pitch: Radians; range: Meters } => {
   const enu = ecefToEnuOffset(state.cameraPosition, state.anchor);
-  const range = Math.sqrt(
-    enu.east * enu.east + enu.north * enu.north + enu.up * enu.up
-  );
-  const horizontalDist = Math.hypot(enu.east, enu.north);
-
-  // Target-facing bearing: negate offset to get camera-looking-at-target direction
-  const bearing = Math.atan2(-enu.east, -enu.north);
-
-  // Cesium pitch convention: -PI/2 = nadir, 0 = horizon
-  // Our convention: 0 = nadir, +PI/2 = horizon
-  // enu.up > 0 means camera is above anchor → pitch < PI/2
-  const cesiumPitch = -Math.atan2(enu.up, horizontalDist);
-  const pitch = cesiumPitch + Math.PI * 0.5;
-
-  return {
-    bearing: bearing as Radians,
-    pitch: pitch as Radians,
-    range: range as Meters,
-  };
+  return enuOffsetToObjectCentricOrbit(enu);
 };
 
 /**
@@ -121,28 +107,12 @@ export const deriveOrbitAngles = (
  */
 export const deriveRoll = (state: CommonViewState): Radians => {
   const { bearing, pitch } = deriveOrbitAngles(state);
-
-  // Build expected orientation from bearing + pitch (no roll)
-  const qBearing = _quatScratchA.setFromAxisAngle(_yAxis, bearing as number);
-  const cesiumPitch = (pitch as number) - Math.PI * 0.5;
-  const qPitch = _quatScratchB.setFromAxisAngle(_xAxis, cesiumPitch);
-  const qExpected = qBearing.multiply(qPitch);
-
-  // Roll = angle between expected and actual orientation
-  const qDiff = qExpected.conjugate().multiply(state.orientation);
-  const rollAngle =
-    2 *
-    Math.atan2(
-      Math.sqrt(qDiff.x * qDiff.x + qDiff.y * qDiff.y + qDiff.z * qDiff.z),
-      Math.abs(qDiff.w)
-    );
-  return (qDiff.z < 0 ? -rollAngle : rollAngle) as Radians;
+  return deriveObjectCentricRoll({
+    orientation: state.orientation,
+    bearing,
+    pitch,
+  });
 };
-
-const _quatScratchA = new Quaternion();
-const _quatScratchB = new Quaternion();
-const _yAxis = new Vector3(0, 1, 0);
-const _xAxis = new Vector3(1, 0, 0);
 
 /**
  * Derive MapLibre-convention zoom from range + FOV + latitude.
