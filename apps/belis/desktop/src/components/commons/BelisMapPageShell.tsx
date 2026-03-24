@@ -62,7 +62,7 @@ const BelisMapPageShell = () => {
   >(null);
   const [lassoActive, setLassoActive] = useState(false);
 
-  const { isDatasheetOpen } = useDatasheet();
+  const { isDatasheetOpen, closeDatasheet } = useDatasheet();
   const [windowWidth, windowHeight] = useWindowSize();
 
   const showRaw = useMemo(() => {
@@ -144,11 +144,17 @@ const BelisMapPageShell = () => {
                 <div className="flex items-center gap-2">
                   <StreetSearch
                     gazData={gazData}
-                    onClearHighlightResults={() => setHighlightResults(null)}
+                    onClearHighlightResults={() => {
+                      setHighlightResults(null);
+                      closeDatasheet();
+                    }}
                   />
                   <SearchModal
                     showFinalQuery={showRaw}
-                    onSearchResults={setHighlightResults}
+                    onSearchResults={(features) => {
+                      setHighlightResults(features);
+                      closeDatasheet();
+                    }}
                   />
                 </div>
               )}
