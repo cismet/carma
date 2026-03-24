@@ -102,6 +102,7 @@ import {
   getGlobalEditMode,
 } from "../../store/slices/featuresForms";
 import { prepareDraftFeatures } from "../../helper/prepareDraftFeatures";
+import { useApLassoSelection } from "../../hooks/useApLassoSelection";
 
 type SidebarMode = "fachobjekte" | "highlights" | "drafts";
 
@@ -111,6 +112,8 @@ interface BelisMapLibWrapperProps {
   highlightResults: SidebarFeature[] | null;
   lassoActive: boolean;
   onLassoDeactivate?: () => void;
+  apLassoActive: boolean;
+  onApLassoDeactivate?: () => void;
   sidebarVariant: "fachobjekte" | "arbeitsauftraege";
 }
 
@@ -120,6 +123,8 @@ const BelisMapLibWrapper = ({
   highlightResults,
   lassoActive,
   onLassoDeactivate,
+  apLassoActive,
+  onApLassoDeactivate,
   sidebarVariant,
 }: BelisMapLibWrapperProps) => {
   const dispatch: AppDispatch = useDispatch();
@@ -396,6 +401,13 @@ const BelisMapLibWrapper = ({
     sources: highlightSources,
     onDeactivate: onLassoDeactivate,
     onToggle: handleHighlightToggle,
+  });
+
+  // AP lasso selection (Arbeitsaufträge mode)
+  useApLassoSelection({
+    map,
+    active: apLassoActive,
+    onDeactivate: onApLassoDeactivate,
   });
 
   const showRaw = useMemo(() => {
