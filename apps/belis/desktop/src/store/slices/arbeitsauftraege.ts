@@ -27,6 +27,7 @@ interface ArbeitsauftraegeState {
   selectedAAId: number | null;
   selectedAAData: ArbeitsauftragDetail | null;
   selectedTeamId: number | null;
+  searchActive: boolean;
   activeAATab: AATabKey;
   selectedAPId: number | null;
   apOpenedFrom: ApOpenedFrom;
@@ -41,6 +42,7 @@ const initialState: ArbeitsauftraegeState = {
   selectedAAId: null,
   selectedAAData: null,
   selectedTeamId: null,
+  searchActive: false,
   activeAATab: "aa",
   selectedAPId: null,
   apOpenedFrom: null,
@@ -69,6 +71,13 @@ const slice = createSlice({
     },
     setSelectedTeamId(state, action) {
       state.selectedTeamId = action.payload;
+      // Only clear searchActive when user explicitly picks a team
+      if (action.payload != null) {
+        state.searchActive = false;
+      }
+    },
+    setSearchActive(state, action: { payload: boolean }) {
+      state.searchActive = action.payload;
     },
     setActiveAATab(state, action: { payload: AATabKey }) {
       state.activeAATab = action.payload;
@@ -107,6 +116,7 @@ export const {
   setSelectedAAId,
   setSelectedAAData,
   setSelectedTeamId,
+  setSearchActive,
   setActiveAATab,
   setSelectedAPId,
   setApOpenedFrom,
@@ -138,3 +148,5 @@ export const getGraphqlLoading = (state: RootState) =>
   state.arbeitsauftraege.graphqlLoading;
 export const getGraphqlError = (state: RootState) =>
   state.arbeitsauftraege.graphqlError;
+export const getSearchActive = (state: RootState) =>
+  state.arbeitsauftraege.searchActive;

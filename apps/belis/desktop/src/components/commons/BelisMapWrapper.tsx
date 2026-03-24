@@ -75,6 +75,7 @@ import {
   getActiveAATab,
   getSelectedAPId,
   getSelectedTeamId,
+  getSearchActive,
   setSelectedAPId,
   setApOpenedFrom,
   getApOpenedFrom,
@@ -202,6 +203,7 @@ const BelisMapLibWrapper = ({
   // Team filter: resolve selectedTeamId → team name for map layer filtering
   const selectedTeamId = useSelector(getSelectedTeamId);
   const selectedTeamName = useSelector(getSelectedTeamName);
+  const searchActive = useSelector(getSearchActive);
 
   const highlightSources = useMemo(
     () => [
@@ -1046,11 +1048,13 @@ const BelisMapLibWrapper = ({
     };
   }, [sidebarVariant, selectedTeamId, jwt, dispatch]);
 
-  // --- Arbeitsauftraege: extract tile features into Redux (fallback when no team) ---
+  // --- Arbeitsauftraege: extract tile features into Redux (fallback when no team and no search) ---
   useEffect(() => {
     if (sidebarVariant !== "arbeitsauftraege" || !map) return;
     // When a team is selected, GraphQL handles sidebar data
     if (selectedTeamId != null) return;
+    // When search is active, don't overwrite search results with tile extraction
+    if (searchActive) return;
 
     const extractFeatures = () => {
       try {
@@ -1091,7 +1095,7 @@ const BelisMapLibWrapper = ({
       map.off("sourcedata", extractFeatures);
       map.off("moveend", extractFeatures);
     };
-  }, [sidebarVariant, map, selectedTeamId, arbeitsauftraegeNamespacedSource, dispatch]);
+  }, [sidebarVariant, map, selectedTeamId, searchActive, arbeitsauftraegeNamespacedSource, dispatch]);
 
   // --- Arbeitsauftraege: filter map layers by selected team ---
   useEffect(() => {
