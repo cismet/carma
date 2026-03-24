@@ -97,6 +97,7 @@ import type { SidebarFeature } from "../ui/BelisSidebar";
 import {
   getAllDraftFeatures,
   getDraftFeaturesCount,
+  getGlobalEditMode,
 } from "../../store/slices/featuresForms";
 import { prepareDraftFeatures } from "../../helper/prepareDraftFeatures";
 
@@ -196,6 +197,7 @@ const BelisMapLibWrapper = ({
   const selectedAPId = useSelector(getSelectedAPId);
   const apOpenedFrom = useSelector(getApOpenedFrom);
   const aaLoading = useSelector(getAALoading);
+  const globalEditMode = useSelector(getGlobalEditMode);
 
   // Team filter: resolve selectedTeamId → team name for map layer filtering
   const selectedTeamId = useSelector(getSelectedTeamId);
@@ -1887,6 +1889,7 @@ const BelisMapLibWrapper = ({
                     <ArbeitsprotokollForm
                       data={selectedProtokoll}
                       loading={aaLoading}
+                      readOnly={!globalEditMode}
                       onBack={
                         apOpenedFrom === "auTable"
                           ? () => dispatch(setApOpenedFrom(null))
@@ -1900,6 +1903,7 @@ const BelisMapLibWrapper = ({
                   <ArbeitsauftragForm
                     data={selectedAAData}
                     loading={aaLoading}
+                    readOnly={!globalEditMode}
                   />
                 );
               })()

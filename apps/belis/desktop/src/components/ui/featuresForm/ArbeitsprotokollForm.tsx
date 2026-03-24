@@ -16,13 +16,30 @@ interface ArbeitsprotokollFormProps {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   data: Record<string, any>;
   loading?: boolean;
+  readOnly?: boolean;
+  onToggleReadOnly?: () => void;
+  onCancel?: () => void;
   onBack?: () => void;
+  onFormInstance?: (form: import("antd").FormInstance) => void;
+  draftValues?: Record<string, unknown>;
+  onValuesChange?: (
+    changedValues: Record<string, unknown>,
+    allValues: Record<string, unknown>,
+  ) => void;
+  onOriginalValues?: (values: Record<string, unknown>) => void;
 }
 
 const ArbeitsprotokollForm = ({
   data,
   loading,
+  readOnly = true,
+  onToggleReadOnly,
+  onCancel,
   onBack,
+  onFormInstance,
+  draftValues,
+  onValuesChange,
+  onOriginalValues,
 }: ArbeitsprotokollFormProps) => {
   const jwt = useSelector(getJWT);
 
@@ -128,13 +145,20 @@ const ArbeitsprotokollForm = ({
       jwt={jwt}
       debugData={data}
       loading={loading}
-      readOnly
+      readOnly={readOnly}
+      onToggleReadOnly={onToggleReadOnly}
+      onCancel={onCancel}
       onBack={onBack}
       additionalTabs={fachobjektTab ? [fachobjektTab] : []}
     >
       <ArbeitsprotokollFormFields
         data={data}
         fachobjektType={fachobjekt?.type}
+        readOnly={readOnly}
+        onFormInstance={onFormInstance}
+        draftValues={draftValues}
+        onValuesChange={onValuesChange}
+        onOriginalValues={onOriginalValues}
       />
     </FeatureFormLayout>
   );
