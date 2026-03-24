@@ -1,5 +1,6 @@
 import { useMemo } from "react";
 import type { ReactNode } from "react";
+import { Timeline } from "antd";
 import { useSelector } from "react-redux";
 import { getFachobjektOfProtocol } from "@carma-appframeworks/belis";
 import FeatureFormLayout from "./FeatureFormLayout";
@@ -57,6 +58,38 @@ const ArbeitsprotokollForm = ({
     }
     return docs;
   }, [data]);
+
+  const aenderungItems = useMemo(() => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const arr: Record<string, any>[] = data?.arbeitsprotokollaktionArray ?? [];
+    return arr.map((entry) => ({
+      color: "blue" as const,
+      children: (
+        <div>
+          {entry.aenderung ?? ""}:{" "}von{" "}
+          <span style={{ color: "grey" }}>{entry.alt}</span> zu{" "}
+          <b>{entry.neu || "-"}</b>
+        </div>
+      ),
+    }));
+  }, [data]);
+
+  const timelineContent = (
+    <div>
+      <div
+        style={{ fontSize: 14, fontWeight: 500, color: "#374151", marginBottom: 8 }}
+      >
+        Änderungen ({aenderungItems.length})
+      </div>
+      {aenderungItems.length > 0 ? (
+        <Timeline style={{ paddingInlineStart: 0 }} items={aenderungItems} />
+      ) : (
+        <div style={{ color: "#8c8c8c", fontSize: 13, padding: "16px 0" }}>
+          Keine Änderungen vorhanden
+        </div>
+      )}
+    </div>
+  );
 
   const title = `Protokoll #${data.protokollnummer ?? ""}`;
   const subtitle = fachobjekt?.shortname ?? "";
@@ -143,6 +176,7 @@ const ArbeitsprotokollForm = ({
       subtitle={subtitle}
       documents={documents}
       jwt={jwt}
+      sideContent={timelineContent}
       debugData={data}
       loading={loading}
       readOnly={readOnly}
