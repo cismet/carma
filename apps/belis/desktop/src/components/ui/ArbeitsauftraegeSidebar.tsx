@@ -1,8 +1,7 @@
 import { useCallback, useMemo } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { useKeyboardListNavigation } from "../../hooks/useKeyboardListNavigation";
-import { Badge, Spin } from "antd";
-import { SaveOutlined } from "@ant-design/icons";
+import { Spin } from "antd";
 import { getFachobjektOfProtocol } from "@carma-appframeworks/belis";
 import {
   getAAFeatures,
@@ -17,12 +16,10 @@ import {
   setActiveAATab,
   setSelectedAPId,
   setApOpenedFrom,
-  setDraftMode,
 } from "../../store/slices/arbeitsauftraege";
 import {
   getAllAADrafts,
   getAllAPDrafts,
-  getTotalDraftCount,
   getAADraftCount,
   getAPDraftCount,
 } from "../../store/slices/arbeitsauftraegeDrafts";
@@ -102,7 +99,7 @@ const ArbeitsauftraegeSidebar = ({
   const draftMode = useSelector(getDraftMode);
   const aaDrafts = useSelector(getAllAADrafts);
   const apDrafts = useSelector(getAllAPDrafts);
-  const totalDraftCount = useSelector(getTotalDraftCount);
+
   const aaDraftCount = useSelector(getAADraftCount);
   const apDraftCount = useSelector(getAPDraftCount);
 
@@ -211,28 +208,13 @@ const ArbeitsauftraegeSidebar = ({
       className="h-full border-r border-gray-200 bg-white flex flex-col overflow-hidden outline-none"
     >
       {/* Header */}
-      <div className="px-3 py-2 border-b border-gray-200 bg-gray-50 flex items-center justify-between">
+      <div className="px-3 py-2 border-b border-gray-200 bg-gray-50 flex items-center">
         <div className="flex items-center gap-2">
           <span className="font-semibold text-sm text-gray-700">
             Arbeitsaufträge
           </span>
           <span className="text-xs text-gray-400">{allFeatures.length}</span>
         </div>
-        {totalDraftCount > 0 && (
-          <Badge count={totalDraftCount} size="small" offset={[-2, 0]}>
-            <button
-              onClick={() => dispatch(setDraftMode(!draftMode))}
-              className={`flex items-center justify-center w-6 h-6 rounded transition-colors ${
-                draftMode
-                  ? "bg-blue-600 text-white"
-                  : "bg-gray-200 text-gray-600 hover:bg-gray-300"
-              }`}
-              title={draftMode ? "Entwurfsmodus beenden" : "Entwürfe anzeigen"}
-            >
-              <SaveOutlined style={{ fontSize: 12 }} />
-            </button>
-          </Badge>
-        )}
       </div>
 
       {/* Tabs */}
