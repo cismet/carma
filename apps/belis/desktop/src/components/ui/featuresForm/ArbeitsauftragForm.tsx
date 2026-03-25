@@ -16,7 +16,7 @@ interface ArbeitsauftragFormProps {
   draftValues?: Record<string, unknown>;
   onValuesChange?: (
     changedValues: Record<string, unknown>,
-    allValues: Record<string, unknown>,
+    allValues: Record<string, unknown>
   ) => void;
   onOriginalValues?: (values: Record<string, unknown>) => void;
 }
@@ -52,7 +52,7 @@ const ArbeitsauftragForm = ({
     return docs;
   }, [data]);
 
-  const subtitle = data.nummer ? `AU-${data.nummer}` : "";
+  const subtitle = data.nummer ? `AA-${data.nummer}` : "";
 
   return (
     <FeatureFormLayout
@@ -60,6 +60,7 @@ const ArbeitsauftragForm = ({
       subtitle={subtitle}
       documents={documents}
       jwt={jwt}
+      sideContent={""}
       debugData={data}
       loading={loading}
       readOnly={readOnly}
