@@ -31,6 +31,8 @@ interface ArbeitsprotokollFormProps {
   ) => void;
   onOriginalValues?: (values: Record<string, unknown>) => void;
   apId?: string;
+  customDraftsCount?: number;
+  onSaveAll?: () => void;
 }
 
 const ArbeitsprotokollForm = ({
@@ -47,6 +49,8 @@ const ArbeitsprotokollForm = ({
   onValuesChange,
   onOriginalValues,
   apId,
+  customDraftsCount,
+  onSaveAll,
 }: ArbeitsprotokollFormProps) => {
   const jwt = useSelector(getJWT);
 
@@ -196,6 +200,8 @@ const ArbeitsprotokollForm = ({
       onSave={onSave}
       hasDraft={hasDraft}
       onBack={onBack}
+      customDraftsCount={customDraftsCount}
+      onSaveAll={onSaveAll}
       additionalTabs={fachobjektTab ? [fachobjektTab] : []}
     >
       <ArbeitsprotokollFormFields

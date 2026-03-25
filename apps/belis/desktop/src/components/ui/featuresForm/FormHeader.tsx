@@ -27,6 +27,10 @@ interface FormHeaderProps {
   hasDraft?: boolean;
   onToggleReadOnly?: () => void;
   onBack?: () => void;
+  /** When provided, overrides the default Fachobjekte drafts count for the badge */
+  customDraftsCount?: number;
+  /** When provided, overrides the default Fachobjekte save-all handler */
+  onSaveAll?: () => void;
 }
 
 const FormHeader = ({
@@ -41,14 +45,22 @@ const FormHeader = ({
   hasDraft,
   onToggleReadOnly,
   onBack,
+  customDraftsCount,
+  onSaveAll,
 }: FormHeaderProps) => {
   const dispatch = useDispatch();
-  const draftsCount = useSelector(getDraftFeaturesCount);
+  const featureDraftsCount = useSelector(getDraftFeaturesCount);
   const drafts = useSelector(getAllDrafts);
   const jwt = useSelector(getJWT);
   const [savingAll, setSavingAll] = useState(false);
 
+  const draftsCount = customDraftsCount ?? featureDraftsCount;
+
   const handleSaveAll = () => {
+    if (onSaveAll) {
+      onSaveAll();
+      return;
+    }
     handleSaveAllDrafts({
       jwt,
       drafts,
