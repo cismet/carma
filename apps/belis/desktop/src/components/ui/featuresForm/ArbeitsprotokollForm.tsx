@@ -20,6 +20,8 @@ interface ArbeitsprotokollFormProps {
   readOnly?: boolean;
   onToggleReadOnly?: () => void;
   onCancel?: () => void;
+  onSave?: () => void;
+  hasDraft?: boolean;
   onBack?: () => void;
   onFormInstance?: (form: import("antd").FormInstance) => void;
   draftValues?: Record<string, unknown>;
@@ -36,6 +38,8 @@ const ArbeitsprotokollForm = ({
   readOnly = true,
   onToggleReadOnly,
   onCancel,
+  onSave,
+  hasDraft,
   onBack,
   onFormInstance,
   draftValues,
@@ -187,6 +191,8 @@ const ArbeitsprotokollForm = ({
       readOnly={readOnly}
       onToggleReadOnly={onToggleReadOnly}
       onCancel={onCancel}
+      onSave={onSave}
+      hasDraft={hasDraft}
       onBack={onBack}
       additionalTabs={fachobjektTab ? [fachobjektTab] : []}
     >

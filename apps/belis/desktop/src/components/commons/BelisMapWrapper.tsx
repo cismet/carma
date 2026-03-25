@@ -50,8 +50,7 @@ import {
 } from "@carma-mapping/engines/maplibre";
 import type maplibregl from "maplibre-gl";
 import BelisDatasheetView from "../ui/BelisDatasheetView";
-import ArbeitsauftragForm from "../ui/featuresForm/ArbeitsauftragForm";
-import ArbeitsprotokollForm from "../ui/featuresForm/ArbeitsprotokollForm";
+import ArbeitsauftraegeFormsWrapper from "../ui/featuresForm/ArbeitsauftraegeFormsWrapper";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faMap } from "@fortawesome/free-solid-svg-icons";
 import {
@@ -82,6 +81,7 @@ import {
   getApOpenedFrom,
   clearSelection,
   getAALoading,
+  getDraftMode,
 } from "../../store/slices/arbeitsauftraege";
 import { getSelectedTeamName } from "../../store/selectors";
 import { buildApGeoJson } from "../../helper/buildApGeoJson";
@@ -101,6 +101,10 @@ import {
   getDraftFeaturesCount,
   getGlobalEditMode,
 } from "../../store/slices/featuresForms";
+import {
+  getAllAADrafts,
+  getAllAPDrafts,
+} from "../../store/slices/arbeitsauftraegeDrafts";
 import { prepareDraftFeatures } from "../../helper/prepareDraftFeatures";
 import { useApLassoSelection } from "../../hooks/useApLassoSelection";
 
@@ -211,6 +215,9 @@ const BelisMapLibWrapper = ({
   const selectedTeamName = useSelector(getSelectedTeamName);
   const searchActive = useSelector(getSearchActive);
   const aaFeatures = useSelector(getAAFeatures);
+  const aaDrafts = useSelector(getAllAADrafts);
+  const apDrafts = useSelector(getAllAPDrafts);
+  const draftMode = useSelector(getDraftMode);
 
   // Stable list of IDs for map filtering when search is active
   const searchFilterIds = useMemo(
@@ -1117,7 +1124,12 @@ const BelisMapLibWrapper = ({
     };
   }, [sidebarVariant, map, selectedTeamId, searchActive, arbeitsauftraegeNamespacedSource, dispatch]);
 
-  // --- Arbeitsauftraege: filter map layers by selected team or search results ---
+  // --- Arbeitsauftraege: filter map layers by selected team, search results, or draft mode ---
+  const aaDraftIds = useMemo(
+    () => Object.keys(aaDrafts).map(Number),
+    [aaDrafts]
+  );
+
   useEffect(() => {
     if (sidebarVariant !== "arbeitsauftraege" || !map) return;
 
@@ -1130,7 +1142,17 @@ const BelisMapLibWrapper = ({
           layer.source === arbeitsauftraegeNamespacedSource
         ) {
           try {
-            if (searchFilterIds) {
+            if (draftMode && aaDraftIds.length > 0) {
+              // Draft mode: show only AA features with drafts
+              map.setFilter(layer.id, [
+                "in",
+                ["get", "id"],
+                ["literal", aaDraftIds],
+              ]);
+            } else if (draftMode) {
+              // Draft mode but no AA drafts: hide all
+              map.setFilter(layer.id, ["==", ["get", "id"], -1]);
+            } else if (searchFilterIds) {
               // Search active: show only matching AA polygons by id
               map.setFilter(layer.id, [
                 "in",
@@ -1159,7 +1181,7 @@ const BelisMapLibWrapper = ({
     return () => {
       map.off("styledata", applyFilter);
     };
-  }, [sidebarVariant, map, selectedTeamName, searchFilterIds, arbeitsauftraegeNamespacedSource]);
+  }, [sidebarVariant, map, selectedTeamName, searchFilterIds, arbeitsauftraegeNamespacedSource, draftMode, aaDraftIds]);
 
   // --- Arbeitsauftraege: selection feature-state on map ---
   const prevAAIdRef = useRef<number | null>(null);
@@ -1263,6 +1285,24 @@ const BelisMapLibWrapper = ({
     abzweigdosen: "abzweigdose",
   };
 
+  // Build GeoJSON from AP drafts for draft mode map rendering
+  const apDraftGeoJson = useMemo((): GeoJSON.FeatureCollection => {
+    const features: GeoJSON.Feature[] = Object.entries(apDrafts)
+      .filter(([, d]) => d.geometry != null)
+      .map(([id, d]) => ({
+        type: "Feature" as const,
+        geometry: d.geometry!,
+        properties: {
+          id: Number(id),
+          featureType: d.featureType ?? "tdta_standort_mast",
+          protokollnummer: d.meta?.protokollnummer ?? id,
+          shortname: d.meta?.fachobjektType ?? "",
+          veranlassung: d.meta?.veranlassung ?? "",
+        },
+      }));
+    return { type: "FeatureCollection", features };
+  }, [apDrafts]);
+
   useEffect(() => {
     if (!map) return;
 
@@ -1279,17 +1319,25 @@ const BelisMapLibWrapper = ({
       }
     };
 
-    const shouldShow =
+    // Show AP features when: normal mode with AP tab + selected AA, or draft mode with AP tab
+    const shouldShowNormal =
       sidebarVariant === "arbeitsauftraege" &&
       activeAATab === "ap" &&
+      !draftMode &&
       selectedAAData != null;
+    const shouldShowDraft =
+      sidebarVariant === "arbeitsauftraege" &&
+      activeAATab === "ap" &&
+      draftMode;
 
-    if (!shouldShow) {
+    if (!shouldShowNormal && !shouldShowDraft) {
       removeLayers();
       return removeLayers;
     }
 
-    const geojson = buildApGeoJson(selectedAAData);
+    const geojson = shouldShowDraft
+      ? apDraftGeoJson
+      : buildApGeoJson(selectedAAData);
 
     // Add or update the GeoJSON source
     const existing = map.getSource(AP_SOURCE) as
@@ -1371,7 +1419,7 @@ const BelisMapLibWrapper = ({
     }
 
     return removeLayers;
-  }, [map, sidebarVariant, activeAATab, selectedAAData]);
+  }, [map, sidebarVariant, activeAATab, selectedAAData, draftMode, apDraftGeoJson]);
 
   // Mini-map state
   const [miniMap, setMiniMap] = useState<maplibregl.Map | null>(null);
@@ -1916,11 +1964,21 @@ const BelisMapLibWrapper = ({
                     : null;
 
                 if (selectedProtokoll) {
+                  // Extract AP geometry and featureType from the AP GeoJSON
+                  const apGeo = buildApGeoJson(selectedAAData);
+                  const apFeature = apGeo.features.find(
+                    (f) => f.properties?.id === selectedAPId
+                  );
                   return (
-                    <ArbeitsprotokollForm
+                    <ArbeitsauftraegeFormsWrapper
+                      mode="ap"
+                      id={selectedAPId != null ? String(selectedAPId) : undefined}
                       data={selectedProtokoll}
                       loading={aaLoading}
                       readOnly={!globalEditMode}
+                      aaId={selectedAAId != null ? String(selectedAAId) : undefined}
+                      geometry={apFeature?.geometry ?? undefined}
+                      fachobjektType={apFeature?.properties?.featureType as string | undefined}
                       onBack={
                         apOpenedFrom === "auTable"
                           ? () => dispatch(setApOpenedFrom(null))
@@ -1931,10 +1989,15 @@ const BelisMapLibWrapper = ({
                 }
 
                 return (
-                  <ArbeitsauftragForm
+                  <ArbeitsauftraegeFormsWrapper
+                    mode="aa"
+                    id={selectedAAId != null ? String(selectedAAId) : undefined}
                     data={selectedAAData}
                     loading={aaLoading}
                     readOnly={!globalEditMode}
+                    geometry={
+                      aaFeatures.find((f) => f.id === selectedAAId)?.geometry
+                    }
                   />
                 );
               })()

@@ -1,0 +1,245 @@
+import { createSlice, type PayloadAction } from "@reduxjs/toolkit";
+import type { RootState } from "../index";
+import { isFormDirty } from "../../components/ui/featuresForm/formDiffUtils";
+
+export interface AADraftMeta {
+  nummer?: string;
+  team?: string;
+  angelegt_am?: string;
+}
+
+export interface APDraftMeta {
+  protokollnummer?: string;
+  fachobjektType?: string;
+  veranlassung?: string;
+}
+
+export interface AADraft {
+  values: Record<string, unknown>;
+  geometry?: GeoJSON.Geometry;
+  meta?: AADraftMeta;
+  updatedAt: number;
+}
+
+export interface APDraft {
+  values: Record<string, unknown>;
+  geometry?: GeoJSON.Geometry;
+  featureType?: string;
+  aaId?: string;
+  meta?: APDraftMeta;
+  updatedAt: number;
+}
+
+interface ArbeitsauftraegeDraftsState {
+  aaDrafts: Record<string, AADraft>;
+  apDrafts: Record<string, APDraft>;
+  originalValues: Record<string, Record<string, unknown>>;
+}
+
+const initialState: ArbeitsauftraegeDraftsState = {
+  aaDrafts: {},
+  apDrafts: {},
+  originalValues: {},
+};
+
+const arbeitsauftraegeDraftsSlice = createSlice({
+  name: "arbeitsauftraegeDrafts",
+  initialState,
+  reducers: {
+    setAADraft(
+      state,
+      action: PayloadAction<{
+        id: string;
+        values: Record<string, unknown>;
+        geometry?: GeoJSON.Geometry;
+        meta?: AADraftMeta;
+      }>
+    ) {
+      const { id, values, geometry, meta } = action.payload;
+      const key = `aa:${id}`;
+      const original = state.originalValues[key];
+
+      // Auto-cleanup when reverted to original
+      if (original && !isFormDirty(original, values)) {
+        delete state.aaDrafts[id];
+        return;
+      }
+
+      state.aaDrafts[id] = {
+        values,
+        geometry: geometry ?? state.aaDrafts[id]?.geometry,
+        meta: meta ?? state.aaDrafts[id]?.meta,
+        updatedAt: Date.now(),
+      };
+    },
+    setAPDraft(
+      state,
+      action: PayloadAction<{
+        id: string;
+        values: Record<string, unknown>;
+        geometry?: GeoJSON.Geometry;
+        featureType?: string;
+        aaId?: string;
+        meta?: APDraftMeta;
+      }>
+    ) {
+      const { id, values, geometry, featureType, aaId, meta } = action.payload;
+      const key = `ap:${id}`;
+      const original = state.originalValues[key];
+
+      // Auto-cleanup when reverted to original
+      if (original && !isFormDirty(original, values)) {
+        delete state.apDrafts[id];
+        return;
+      }
+
+      state.apDrafts[id] = {
+        values,
+        geometry: geometry ?? state.apDrafts[id]?.geometry,
+        featureType: featureType ?? state.apDrafts[id]?.featureType,
+        aaId: aaId ?? state.apDrafts[id]?.aaId,
+        meta: meta ?? state.apDrafts[id]?.meta,
+        updatedAt: Date.now(),
+      };
+    },
+    removeAADraft(state, action: PayloadAction<string>) {
+      delete state.aaDrafts[action.payload];
+      delete state.originalValues[`aa:${action.payload}`];
+    },
+    removeAPDraft(state, action: PayloadAction<string>) {
+      delete state.apDrafts[action.payload];
+      delete state.originalValues[`ap:${action.payload}`];
+    },
+    clearAllArbeitsauftraegeDrafts(state) {
+      state.aaDrafts = {};
+      state.apDrafts = {};
+      state.originalValues = {};
+    },
+    setAAOriginalValues(
+      state,
+      action: PayloadAction<{
+        id: string;
+        values: Record<string, unknown>;
+      }>
+    ) {
+      const key = `aa:${action.payload.id}`;
+      state.originalValues[key] = action.payload.values;
+      // Clean up orphaned originalValues that have no corresponding draft
+      for (const k of Object.keys(state.originalValues)) {
+        if (k === key) continue;
+        if (k.startsWith("aa:") && !state.aaDrafts[k.slice(3)]) {
+          delete state.originalValues[k];
+        }
+      }
+    },
+    setAPOriginalValues(
+      state,
+      action: PayloadAction<{
+        id: string;
+        values: Record<string, unknown>;
+      }>
+    ) {
+      const key = `ap:${action.payload.id}`;
+      state.originalValues[key] = action.payload.values;
+      // Clean up orphaned originalValues that have no corresponding draft
+      for (const k of Object.keys(state.originalValues)) {
+        if (k === key) continue;
+        if (k.startsWith("ap:") && !state.apDrafts[k.slice(3)]) {
+          delete state.originalValues[k];
+        }
+      }
+    },
+  },
+});
+
+export default arbeitsauftraegeDraftsSlice;
+
+export const {
+  setAADraft,
+  setAPDraft,
+  removeAADraft,
+  removeAPDraft,
+  clearAllArbeitsauftraegeDrafts,
+  setAAOriginalValues,
+  setAPOriginalValues,
+} = arbeitsauftraegeDraftsSlice.actions;
+
+// --- Selectors ---
+
+export const getAADraft = (
+  state: RootState,
+  id: string | undefined
+): AADraft | undefined =>
+  id ? state.arbeitsauftraegeDrafts?.aaDrafts[id] : undefined;
+
+export const getAPDraft = (
+  state: RootState,
+  id: string | undefined
+): APDraft | undefined =>
+  id ? state.arbeitsauftraegeDrafts?.apDrafts[id] : undefined;
+
+export const getAllAADrafts = (state: RootState): Record<string, AADraft> =>
+  state.arbeitsauftraegeDrafts?.aaDrafts ?? {};
+
+export const getAllAPDrafts = (state: RootState): Record<string, APDraft> =>
+  state.arbeitsauftraegeDrafts?.apDrafts ?? {};
+
+export const getAADraftCount = (state: RootState): number =>
+  Object.keys(state.arbeitsauftraegeDrafts?.aaDrafts ?? {}).length;
+
+export const getAPDraftCount = (state: RootState): number =>
+  Object.keys(state.arbeitsauftraegeDrafts?.apDrafts ?? {}).length;
+
+export const getTotalDraftCount = (state: RootState): number =>
+  getAADraftCount(state) + getAPDraftCount(state);
+
+export const hasAADraftChanges = (
+  state: RootState,
+  id: string | undefined
+): boolean => {
+  if (!id) return false;
+  const draft = state.arbeitsauftraegeDrafts?.aaDrafts[id];
+  if (!draft) return false;
+  const original = state.arbeitsauftraegeDrafts?.originalValues[`aa:${id}`];
+  if (!original) return true;
+  return isFormDirty(original, draft.values);
+};
+
+export const hasAPDraftChanges = (
+  state: RootState,
+  id: string | undefined
+): boolean => {
+  if (!id) return false;
+  const draft = state.arbeitsauftraegeDrafts?.apDrafts[id];
+  if (!draft) return false;
+  const original = state.arbeitsauftraegeDrafts?.originalValues[`ap:${id}`];
+  if (!original) return true;
+  return isFormDirty(original, draft.values);
+};
+
+export const getAAOriginalValues = (
+  state: RootState,
+  id: string | undefined
+): Record<string, unknown> | undefined =>
+  id ? state.arbeitsauftraegeDrafts?.originalValues[`aa:${id}`] : undefined;
+
+export const getAPOriginalValues = (
+  state: RootState,
+  id: string | undefined
+): Record<string, unknown> | undefined =>
+  id ? state.arbeitsauftraegeDrafts?.originalValues[`ap:${id}`] : undefined;
+
+export const getAADraftIds = (state: RootState): string[] =>
+  Object.keys(state.arbeitsauftraegeDrafts?.aaDrafts ?? {});
+
+export const getAPDraftIds = (state: RootState): string[] =>
+  Object.keys(state.arbeitsauftraegeDrafts?.apDrafts ?? {});
+
+export const getAAIdsWithAPDrafts = (state: RootState): string[] => {
+  const apDrafts = state.arbeitsauftraegeDrafts?.apDrafts ?? {};
+  const aaIds = new Set<string>();
+  for (const draft of Object.values(apDrafts)) {
+    if (draft.aaId) aaIds.add(draft.aaId);
+  }
+  return [...aaIds];
+};

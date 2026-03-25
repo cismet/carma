@@ -1,7 +1,8 @@
 import { useCallback, useMemo } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { useKeyboardListNavigation } from "../../hooks/useKeyboardListNavigation";
-import { Spin } from "antd";
+import { Badge, Spin } from "antd";
+import { SaveOutlined } from "@ant-design/icons";
 import { getFachobjektOfProtocol } from "@carma-appframeworks/belis";
 import {
   getAAFeatures,
@@ -11,11 +12,21 @@ import {
   getActiveAATab,
   getSelectedAPId,
   getGraphqlLoading,
+  getDraftMode,
   setSelectedAAId,
   setActiveAATab,
   setSelectedAPId,
   setApOpenedFrom,
+  setDraftMode,
 } from "../../store/slices/arbeitsauftraege";
+import {
+  getAllAADrafts,
+  getAllAPDrafts,
+  getTotalDraftCount,
+  getAADraftCount,
+  getAPDraftCount,
+} from "../../store/slices/arbeitsauftraegeDrafts";
+import type { APDraft } from "../../store/slices/arbeitsauftraegeDrafts";
 import { getSelectedTeamName } from "../../store/selectors";
 import type { AppDispatch } from "../../store";
 
@@ -87,30 +98,63 @@ const ArbeitsauftraegeSidebar = ({
   const selectedAPId = useSelector(getSelectedAPId);
   const setActiveTab = (tab: TabKey) => dispatch(setActiveAATab(tab));
 
+  // Draft mode
+  const draftMode = useSelector(getDraftMode);
+  const aaDrafts = useSelector(getAllAADrafts);
+  const apDrafts = useSelector(getAllAPDrafts);
+  const totalDraftCount = useSelector(getTotalDraftCount);
+  const aaDraftCount = useSelector(getAADraftCount);
+  const apDraftCount = useSelector(getAPDraftCount);
+
   // Team filter: resolve selectedTeamId → team name, then filter features
   const selectedTeamName = useSelector(getSelectedTeamName);
 
-  const features = useMemo(
-    () =>
-      selectedTeamName
-        ? allFeatures.filter((f) => f.team === selectedTeamName)
-        : allFeatures,
-    [allFeatures, selectedTeamName]
-  );
+  const features = useMemo(() => {
+    let filtered = selectedTeamName
+      ? allFeatures.filter((f) => f.team === selectedTeamName)
+      : allFeatures;
+
+    // In draft mode, show only AA features that have drafts
+    if (draftMode) {
+      const draftIdSet = new Set(Object.keys(aaDrafts).map(Number));
+      filtered = filtered.filter((f) => draftIdSet.has(f.id));
+    }
+
+    return filtered;
+  }, [allFeatures, selectedTeamName, draftMode, aaDrafts]);
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const protokolle: Record<string, any>[] = (
-    selectedAAData?.ar_protokolleArray?.map(
+  const protokolle: Record<string, any>[] = useMemo(() => {
+    if (draftMode) {
+      // In draft mode, build AP list from draft entries
+      return Object.entries(apDrafts)
+        .map(([id, draft]: [string, APDraft]) => ({
+          id: Number(id),
+          protokollnummer: draft.meta?.protokollnummer ?? id,
+          _fachobjektType: draft.meta?.fachobjektType ?? "Unbekannt",
+          veranlassung: draft.meta?.veranlassung
+            ? { bezeichnung: draft.meta.veranlassung }
+            : null,
+        }))
+        .sort((a, b) => Number(a.protokollnummer) - Number(b.protokollnummer));
+    }
+
+    return (
+      selectedAAData?.ar_protokolleArray?.map(
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        (entry: Record<string, any>) => entry.arbeitsprotokoll
+      ) ?? []
+    ).sort(
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      (entry: Record<string, any>) => entry.arbeitsprotokoll
-    ) ?? []
-  ).sort(
-    (a, b) => Number(a.protokollnummer) - Number(b.protokollnummer)
-  );
+      (a: Record<string, any>, b: Record<string, any>) =>
+        Number(a.protokollnummer) - Number(b.protokollnummer)
+    );
+  }, [draftMode, apDrafts, selectedAAData]);
 
   const selectedFeature = features.find((f) => f.id === selectedAAId);
-  const protokolleCount =
-    selectedFeature?.total_protokolle ?? protokolle.length;
+  const protokolleCount = draftMode
+    ? apDraftCount
+    : selectedFeature?.total_protokolle ?? protokolle.length;
 
   // Keyboard navigation for AA tab
   const selectedAAIndex = useMemo(
@@ -167,11 +211,28 @@ const ArbeitsauftraegeSidebar = ({
       className="h-full border-r border-gray-200 bg-white flex flex-col overflow-hidden outline-none"
     >
       {/* Header */}
-      <div className="px-3 py-2 border-b border-gray-200 bg-gray-50">
-        <span className="font-semibold text-sm text-gray-700">
-          Arbeitsaufträge
-        </span>
-        <span className="ml-2 text-xs text-gray-400">{features.length}</span>
+      <div className="px-3 py-2 border-b border-gray-200 bg-gray-50 flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <span className="font-semibold text-sm text-gray-700">
+            Arbeitsaufträge
+          </span>
+          <span className="text-xs text-gray-400">{allFeatures.length}</span>
+        </div>
+        {totalDraftCount > 0 && (
+          <Badge count={totalDraftCount} size="small" offset={[-2, 0]}>
+            <button
+              onClick={() => dispatch(setDraftMode(!draftMode))}
+              className={`flex items-center justify-center w-6 h-6 rounded transition-colors ${
+                draftMode
+                  ? "bg-blue-600 text-white"
+                  : "bg-gray-200 text-gray-600 hover:bg-gray-300"
+              }`}
+              title={draftMode ? "Entwurfsmodus beenden" : "Entwürfe anzeigen"}
+            >
+              <SaveOutlined style={{ fontSize: 12 }} />
+            </button>
+          </Badge>
+        )}
       </div>
 
       {/* Tabs */}
@@ -186,7 +247,7 @@ const ArbeitsauftraegeSidebar = ({
         >
           AA
           <span className="ml-1 text-[10px] bg-gray-200 text-gray-600 rounded-full px-1.5 py-0.5">
-            {features.length}
+            {draftMode ? aaDraftCount : features.length}
           </span>
         </button>
         <button
@@ -199,7 +260,7 @@ const ArbeitsauftraegeSidebar = ({
         >
           AP
           <span className="ml-1 text-[10px] bg-gray-200 text-gray-600 rounded-full px-1.5 py-0.5">
-            {protokolleCount}
+            {draftMode ? apDraftCount : protokolleCount}
           </span>
         </button>
       </div>
@@ -214,7 +275,9 @@ const ArbeitsauftraegeSidebar = ({
             </div>
           ) : features.length === 0 ? (
             <div className="px-3 py-6 text-center text-xs text-gray-400">
-              Keine Arbeitsaufträge im Kartenausschnitt
+              {draftMode
+                ? "Keine AA-Entwürfe vorhanden"
+                : "Keine Arbeitsaufträge im Kartenausschnitt"}
             </div>
           ) : (
             features.map((item) => {
@@ -293,23 +356,25 @@ const ArbeitsauftraegeSidebar = ({
         ) : (
           /* Tab 2: Arbeitsprotokolle */
           <>
-            {selectedAAId == null ? (
+            {!draftMode && selectedAAId == null ? (
               <div className="px-3 py-6 text-center text-xs text-gray-400">
                 Bitte einen Arbeitsauftrag auswählen
               </div>
-            ) : loading ? (
+            ) : !draftMode && loading ? (
               <div className="flex justify-center py-8">
                 <Spin size="small" />
               </div>
             ) : protokolle.length === 0 ? (
               <div className="px-3 py-6 text-center text-xs text-gray-400">
-                Keine Protokolle vorhanden
+                {draftMode
+                  ? "Keine AP-Entwürfe vorhanden"
+                  : "Keine Protokolle vorhanden"}
               </div>
             ) : (
               protokolle.map((p) => {
-                const fachobjekt = getFachobjektOfProtocol(p);
-                const shortname =
-                  fachobjekt?.shortname ?? getProtocolFeatureType(p);
+                const shortname = draftMode
+                  ? (p._fachobjektType ?? "Unbekannt")
+                  : (getFachobjektOfProtocol(p)?.shortname ?? getProtocolFeatureType(p));
                 const isSelected = p.id === selectedAPId;
                 return (
                   <div
@@ -346,18 +411,21 @@ const ArbeitsauftraegeSidebar = ({
         )}
       </div>
 
+
       {/* Status bar legend */}
-      <div className="px-3 py-1.5 border-t border-gray-200 bg-gray-50 flex gap-3 flex-wrap">
-        {Object.entries(STATUS_LABELS).map(([key, label]) => (
-          <div key={key} className="flex items-center gap-1">
-            <span
-              className="inline-block w-2 h-2 rounded-full"
-              style={{ backgroundColor: STATUS_COLORS[key] }}
-            />
-            <span className="text-[10px] text-gray-500">{label}</span>
-          </div>
-        ))}
-      </div>
+      {!draftMode && (
+        <div className="px-3 py-1.5 border-t border-gray-200 bg-gray-50 flex gap-3 flex-wrap">
+          {Object.entries(STATUS_LABELS).map(([key, label]) => (
+            <div key={key} className="flex items-center gap-1">
+              <span
+                className="inline-block w-2 h-2 rounded-full"
+                style={{ backgroundColor: STATUS_COLORS[key] }}
+              />
+              <span className="text-[10px] text-gray-500">{label}</span>
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 };

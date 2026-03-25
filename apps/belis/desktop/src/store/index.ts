@@ -9,6 +9,7 @@ import keyTables from "./slices/keyTables";
 import arbeitsauftraege from "./slices/arbeitsauftraege";
 import featureCollectionSlice from "./slices/featureCollection";
 import featuresFormsSlice from "./slices/featuresForms";
+import arbeitsauftraegeDraftsSlice from "./slices/arbeitsauftraegeDrafts";
 
 console.log("store initializing ....");
 
@@ -89,6 +90,12 @@ const arbeitsauftraegeConfig = {
   whitelist: ["selectedTeamId"],
 };
 
+const arbeitsauftraegeDraftsConfig = {
+  key: "@belis-desktop.arbeitsauftraegeDrafts",
+  storage: localForage,
+  whitelist: ["aaDrafts", "apDrafts"],
+};
+
 const store = configureStore({
   reducer: {
     auth: persistReducer(authConfig, authSlice.reducer),
@@ -106,6 +113,10 @@ const store = configureStore({
     featuresForms: persistReducer(
       featuresFormsConfig,
       featuresFormsSlice.reducer
+    ),
+    arbeitsauftraegeDrafts: persistReducer(
+      arbeitsauftraegeDraftsConfig,
+      arbeitsauftraegeDraftsSlice.reducer
     ),
   },
   devTools: devToolsEnabled === true && inProduction === false,

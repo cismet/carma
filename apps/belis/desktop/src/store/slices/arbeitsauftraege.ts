@@ -35,6 +35,7 @@ interface ArbeitsauftraegeState {
   error: string | null;
   graphqlLoading: boolean;
   graphqlError: string | null;
+  draftMode: boolean;
 }
 
 const initialState: ArbeitsauftraegeState = {
@@ -50,6 +51,7 @@ const initialState: ArbeitsauftraegeState = {
   error: null,
   graphqlLoading: false,
   graphqlError: null,
+  draftMode: false,
 };
 
 const slice = createSlice({
@@ -106,6 +108,9 @@ const slice = createSlice({
       state.apOpenedFrom = null;
       state.error = null;
     },
+    setDraftMode(state, action: { payload: boolean }) {
+      state.draftMode = action.payload;
+    },
   },
 });
 
@@ -125,6 +130,7 @@ export const {
   setGraphqlLoading,
   setGraphqlError,
   clearSelection,
+  setDraftMode,
 } = slice.actions;
 
 export const getAAFeatures = (state: RootState) =>
@@ -150,3 +156,5 @@ export const getGraphqlError = (state: RootState) =>
   state.arbeitsauftraege.graphqlError;
 export const getSearchActive = (state: RootState) =>
   state.arbeitsauftraege.searchActive;
+export const getDraftMode = (state: RootState) =>
+  state.arbeitsauftraege.draftMode;
