@@ -87,7 +87,8 @@ const ArbeitsprotokollFormFields = ({
         form.setFieldsValue(draftValues);
       }
     }
-  }, [data, form, draftValues, onOriginalValues]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [data, form]);
   const aktionen = fachobjektType ? getAktionLabels(fachobjektType) : [];
 
   const [selectedAktion, setSelectedAktion] = useState<AktionDefinition | null>(

@@ -125,7 +125,8 @@ const ArbeitsauftragFormFields = ({
         form.setFieldsValue(draftValues);
       }
     }
-  }, [data, form, draftValues, onOriginalValues]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [data, form]);
 
   const protokolleRows: ProtokolleRow[] = useMemo(() => {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
