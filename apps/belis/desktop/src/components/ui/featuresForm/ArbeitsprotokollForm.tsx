@@ -30,6 +30,7 @@ interface ArbeitsprotokollFormProps {
     allValues: Record<string, unknown>
   ) => void;
   onOriginalValues?: (values: Record<string, unknown>) => void;
+  apId?: string;
 }
 
 const ArbeitsprotokollForm = ({
@@ -45,6 +46,7 @@ const ArbeitsprotokollForm = ({
   draftValues,
   onValuesChange,
   onOriginalValues,
+  apId,
 }: ArbeitsprotokollFormProps) => {
   const jwt = useSelector(getJWT);
 
@@ -204,6 +206,7 @@ const ArbeitsprotokollForm = ({
         draftValues={draftValues}
         onValuesChange={onValuesChange}
         onOriginalValues={onOriginalValues}
+        apId={apId}
       />
     </FeatureFormLayout>
   );

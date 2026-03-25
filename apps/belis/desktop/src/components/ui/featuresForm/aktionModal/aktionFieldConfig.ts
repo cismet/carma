@@ -354,6 +354,15 @@ export const AKTIONEN_CONFIG: AktionenConfig = {
 
 // ── Helpers ───────────────────────────────────────────────────────
 
+/** Replace `{key}` placeholders in a template with values from an object */
+export const applyTemplate = (
+  template: string,
+  item: Record<string, unknown>,
+): string =>
+  template
+    .replace(/\{(\w+)\}/g, (_, key: string) => String(item[key] ?? ""))
+    .trim();
+
 /** Get action labels for a fachobjekt type (replaces old AKTIONEN_BY_FACHOBJEKT_TYPE) */
 export const getAktionLabels = (fachobjektType: string): string[] =>
   (AKTIONEN_CONFIG[fachobjektType] ?? []).map((a) => a.label);
