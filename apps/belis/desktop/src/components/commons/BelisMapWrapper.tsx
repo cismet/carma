@@ -58,6 +58,7 @@ import {
   fetchFeatureById,
   fetchArbeitsauftragById,
   fetchArbeitsauftraegeByTeam,
+  fetchArbeitsauftraegeByIds,
 } from "../../helper/apiMethods";
 import { getJWT } from "../../store/slices/auth";
 import { flattenGqlRecord } from "../../helper/flattenGqlRecord";
@@ -1075,6 +1076,44 @@ const BelisMapLibWrapper = ({
     };
   }, [sidebarVariant, selectedTeamId, jwt, dispatch]);
 
+  // --- Arbeitsauftraege: GraphQL fetch draft AAs by IDs when in draft mode ---
+  useEffect(() => {
+    if (sidebarVariant !== "arbeitsauftraege" || !draftMode || !jwt) return;
+    const ids = Object.keys(aaDrafts).map(Number);
+    if (ids.length === 0) {
+      dispatch(setAAFeatures([]));
+      return;
+    }
+
+    let cancelled = false;
+
+    const fetchData = async () => {
+      dispatch(setGraphqlLoading(true));
+      dispatch(setGraphqlError(null));
+      try {
+        const raw = await fetchArbeitsauftraegeByIds(jwt, ids);
+        if (cancelled) return;
+        const features = transformGqlToTileFeatures(
+          raw as Record<string, unknown>[]
+        );
+        dispatch(setAAFeatures(features));
+      } catch (err) {
+        if (cancelled) return;
+        dispatch(
+          setGraphqlError(err instanceof Error ? err.message : "Unknown error")
+        );
+      } finally {
+        if (!cancelled) dispatch(setGraphqlLoading(false));
+      }
+    };
+
+    void fetchData();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [sidebarVariant, draftMode, aaDrafts, jwt, dispatch]);
+
   // --- Arbeitsauftraege: extract tile features into Redux (fallback when no team and no search) ---
   useEffect(() => {
     if (sidebarVariant !== "arbeitsauftraege" || !map) return;
@@ -1082,6 +1121,8 @@ const BelisMapLibWrapper = ({
     if (selectedTeamId != null) return;
     // When search is active, don't overwrite search results with tile extraction
     if (searchActive) return;
+    // When in draft mode, dedicated fetch handles data
+    if (draftMode) return;
 
     const extractFeatures = () => {
       try {
@@ -1127,6 +1168,7 @@ const BelisMapLibWrapper = ({
     map,
     selectedTeamId,
     searchActive,
+    draftMode,
     arbeitsauftraegeNamespacedSource,
     dispatch,
   ]);

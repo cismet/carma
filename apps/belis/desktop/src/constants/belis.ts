@@ -150,6 +150,10 @@ export const arbeitsauftraegeByTeamQuery = gql`
   ${queries.arbeitsauftraege_by_team}
 `;
 
+export const arbeitsauftraegeByIdsQuery = gql`
+  ${queries.arbeitsauftraege_by_ids}
+`;
+
 export const arbeitsauftragByIdQuery = gql`
   ${queries.arbeitsauftragById}
 `;
