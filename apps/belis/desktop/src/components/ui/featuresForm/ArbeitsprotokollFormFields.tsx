@@ -20,6 +20,8 @@ import {
   getAPDraftActions,
 } from "../../../store/slices/arbeitsauftraegeDrafts";
 import { serializeValues } from "../../../helper/draftSerialize";
+import { getFachobjektOfProtocol } from "@carma-appframeworks/belis";
+import { getHeaderColorFromStatus } from "../../../helper/buildApGeoJson";
 import type { RootState } from "../../../store";
 
 const FormLabel = ({ children }: { children: React.ReactNode }) => (
@@ -136,6 +138,22 @@ const ArbeitsprotokollFormFields = ({
             createdAt: Date.now(),
           },
           serverData: data as Record<string, unknown>,
+          meta: {
+            protokollnummer: data?.protokollnummer != null
+              ? String(data.protokollnummer)
+              : undefined,
+            fachobjektType,
+            veranlassung: data?.veranlassung?.bezeichnung as string | undefined,
+            headerColor: getHeaderColorFromStatus(data?.arbeitsprotokollstatus ?? null),
+            datum: data?.datum
+              ? new Date(data.datum as string).toLocaleDateString("de-DE", {
+                  day: "2-digit",
+                  month: "2-digit",
+                  year: "numeric",
+                })
+              : undefined,
+            shortname: getFachobjektOfProtocol(data)?.shortname as string | undefined ?? fachobjektType,
+          },
         })
       );
     },

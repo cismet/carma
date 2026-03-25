@@ -193,14 +193,16 @@ const arbeitsauftraegeDraftsSlice = createSlice({
         id: string;
         draftAction: DraftAction;
         serverData?: Record<string, unknown>;
+        meta?: APDraftMeta;
       }>
     ) {
-      const { id, draftAction, serverData } = action.payload;
+      const { id, draftAction, serverData, meta } = action.payload;
       if (!state.apDrafts[id]) {
         state.apDrafts[id] = {
           values: {},
           actions: [],
           serverData,
+          meta,
           updatedAt: Date.now(),
         };
       }
@@ -209,6 +211,9 @@ const arbeitsauftraegeDraftsSlice = createSlice({
       draft.actions.push(draftAction);
       if (serverData && !draft.serverData) {
         draft.serverData = serverData;
+      }
+      if (meta && !draft.meta) {
+        draft.meta = meta;
       }
       draft.updatedAt = Date.now();
     },
