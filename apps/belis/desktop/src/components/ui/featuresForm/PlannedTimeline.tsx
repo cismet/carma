@@ -16,7 +16,18 @@ const PlannedTimeline = ({
   if (actions.length === 0) return null;
 
   const items = actions.map((action, idx) => ({
-    color: "green" as const,
+    dot: (
+      <span
+        style={{
+          display: "inline-block",
+          width: 10,
+          height: 10,
+          borderRadius: "50%",
+          background: "#f5f5f5",
+          border: "1px solid #d9d9d9",
+        }}
+      />
+    ),
     children: (
       <div key={idx}>
         <div className="flex items-center gap-2 mb-1">
