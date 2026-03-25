@@ -12,6 +12,8 @@ interface ArbeitsauftragFormProps {
   readOnly?: boolean;
   onToggleReadOnly?: () => void;
   onCancel?: () => void;
+  onSave?: () => void;
+  hasDraft?: boolean;
   onFormInstance?: (form: import("antd").FormInstance) => void;
   draftValues?: Record<string, unknown>;
   onValuesChange?: (
@@ -27,6 +29,8 @@ const ArbeitsauftragForm = ({
   readOnly = true,
   onToggleReadOnly,
   onCancel,
+  onSave,
+  hasDraft,
   onFormInstance,
   draftValues,
   onValuesChange,
@@ -66,6 +70,8 @@ const ArbeitsauftragForm = ({
       readOnly={readOnly}
       onToggleReadOnly={onToggleReadOnly}
       onCancel={onCancel}
+      onSave={onSave}
+      hasDraft={hasDraft}
     >
       <ArbeitsauftragFormFields
         data={data}
