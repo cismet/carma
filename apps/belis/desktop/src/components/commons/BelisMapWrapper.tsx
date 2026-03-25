@@ -85,7 +85,7 @@ import {
 } from "../../store/slices/arbeitsauftraege";
 import { getSelectedTeamName } from "../../store/selectors";
 import { buildApGeoJson } from "../../helper/buildApGeoJson";
-import { debugLayers, apInfoboxMapping } from "../../config/debugLayers";
+import { debugLayers, apInfoboxMapping, aaInfoboxMapping } from "../../config/debugLayers";
 import type { ArbeitsauftragTileFeature } from "../../store/slices/arbeitsauftraege";
 import { transformGqlToTileFeatures } from "../../helper/transformArbeitsauftraege";
 
@@ -1278,6 +1278,7 @@ const BelisMapLibWrapper = ({
       );
       if (!hasRelevant) {
         dispatch(clearSelection());
+        setOverrideSelectedFeature(null);
       }
     };
 
@@ -1680,9 +1681,44 @@ const BelisMapLibWrapper = ({
           },
           match as any
         );
+      } else {
+        // Tile not loaded — build override from Redux aaFeatures
+        clearMapSelection();
+        const aaFeature = aaFeatures.find((f) => f.id === aaId);
+        if (aaFeature) {
+          const mappingCode = aaInfoboxMapping.join("\n");
+          objectToInfo(
+            aaFeature as unknown as Record<string, unknown>,
+            mappingCode
+          )
+            .then((info) => {
+              if (info) {
+                const genericLinks: {
+                  iconname: string;
+                  tooltip: string;
+                  action?: () => void;
+                }[] = [];
+                if ((info as Record<string, unknown>).datasheet && openDatasheet) {
+                  genericLinks.push({
+                    iconname: "info",
+                    tooltip: "Datenblatt",
+                    action: openDatasheet,
+                  });
+                }
+                setOverrideSelectedFeature({
+                  properties: { ...info, genericLinks },
+                  geometry: aaFeature.geometry,
+                  carmaInfo: { sourceLayer: "arbeitsauftraege" },
+                });
+              }
+            })
+            .catch(() => {
+              // ignore
+            });
+        }
       }
     },
-    [map, arbeitsauftraegeNamespacedSource, selectFeature]
+    [map, arbeitsauftraegeNamespacedSource, selectFeature, aaFeatures, clearMapSelection]
   );
 
   // --- Arbeitsauftraege: clear/restore map selection when switching tabs ---
@@ -1691,8 +1727,12 @@ const BelisMapLibWrapper = ({
 
     if (activeAATab === "ap") {
       clearMapSelection();
-    } else if (activeAATab === "aa" && selectedAAId != null) {
-      handleAAFeatureSelect(selectedAAId);
+    } else if (activeAATab === "aa") {
+      // Clear any stale AP override before the AA handler sets its own
+      setOverrideSelectedFeature(null);
+      if (selectedAAId != null) {
+        handleAAFeatureSelect(selectedAAId);
+      }
     }
   }, [activeAATab]); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -1732,9 +1772,11 @@ const BelisMapLibWrapper = ({
     // Skip when not in Arbeitsaufträge mode (prevents stale AP overrides in Fachobjekte)
     if (sidebarVariant !== "arbeitsauftraege") return;
 
-    if (activeAATab !== "ap" || selectedAPId == null) {
-      // Only clear if we're leaving AP mode (don't clobber fachobjekte overrides)
-      if (activeAATab === "ap") setOverrideSelectedFeature(null);
+    // Not on AP tab — return early without clearing (AA handler manages its own override;
+    // stale AP override is cleared in the tab-switching effect above)
+    if (activeAATab !== "ap") return;
+    if (selectedAPId == null) {
+      setOverrideSelectedFeature(null);
       return;
     }
 
