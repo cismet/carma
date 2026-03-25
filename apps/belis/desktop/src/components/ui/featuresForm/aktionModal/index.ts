@@ -4,7 +4,9 @@ export {
   AKTIONEN_CONFIG,
   getAktionLabels,
   findAktionDefinition,
+  applyTemplate,
 } from "./aktionFieldConfig";
+export { computeAenderungen } from "./computeAenderungen";
 export type {
   AktionFieldConfig,
   AktionDefinition,

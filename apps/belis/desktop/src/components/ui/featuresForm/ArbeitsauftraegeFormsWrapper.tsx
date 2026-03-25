@@ -177,6 +177,7 @@ const ArbeitsauftraegeFormsWrapper = ({
           draftValues={deserializedDraftValues}
           onValuesChange={handleDraftChange}
           onOriginalValues={handleOriginalValues}
+          apId={id}
         />
       </ChangedFieldsProvider>
     );

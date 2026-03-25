@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Form, Input, Row, Col, Table, Tag, DatePicker } from "antd";
+import { useSelector, useDispatch } from "react-redux";
 import dayjs from "dayjs";
 import type { ColumnsType } from "antd/es/table";
 import { getFormClassName } from "./readOnlyFormUtils";
@@ -8,8 +9,18 @@ import {
   AktionModal,
   getAktionLabels,
   findAktionDefinition,
+  computeAenderungen,
 } from "./aktionModal";
 import type { AktionDefinition, AktionFormValues } from "./aktionModal";
+import PlannedTimeline from "./PlannedTimeline";
+import { getKeyTablesData } from "../../../store/slices/keyTables";
+import {
+  addActionToAPDraft,
+  removeActionFromAPDraft,
+  getAPDraftActions,
+} from "../../../store/slices/arbeitsauftraegeDrafts";
+import { serializeValues } from "../../../helper/draftSerialize";
+import type { RootState } from "../../../store";
 
 const FormLabel = ({ children }: { children: React.ReactNode }) => (
   <span className="text-sm font-medium text-gray-700">{children}</span>
@@ -34,6 +45,7 @@ interface ArbeitsprotokollFormFieldsProps {
     allValues: Record<string, unknown>
   ) => void;
   onOriginalValues?: (values: Record<string, unknown>) => void;
+  apId?: string;
 }
 
 const ArbeitsprotokollFormFields = ({
@@ -44,8 +56,14 @@ const ArbeitsprotokollFormFields = ({
   draftValues,
   onValuesChange,
   onOriginalValues,
+  apId,
 }: ArbeitsprotokollFormFieldsProps) => {
   const [form] = Form.useForm();
+  const dispatch = useDispatch();
+  const keyTablesData = useSelector(getKeyTablesData);
+  const draftActions = useSelector((state: RootState) =>
+    getAPDraftActions(state, apId)
+  );
 
   useEffect(() => {
     onFormInstance?.(form);
@@ -94,13 +112,41 @@ const ArbeitsprotokollFormFields = ({
 
   const handleAktionSubmit = useCallback(
     (aktionLabel: string, fType: string, values: AktionFormValues) => {
-      console.log("[ArbeitsprotokollFormFields] Aktion submitted:", {
-        aktionLabel,
-        fachobjektType: fType,
+      if (!apId || !fachobjektType) return;
+      const definition = findAktionDefinition(fachobjektType, aktionLabel);
+      if (!definition) return;
+
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const fachobjektData = (data?.[fachobjektType] as Record<string, any>) ?? null;
+      const aenderungen = computeAenderungen(
+        definition,
         values,
-      });
+        fachobjektData,
+        keyTablesData as Record<string, Record<string, unknown>[]>,
+      );
+
+      dispatch(
+        addActionToAPDraft({
+          id: apId,
+          draftAction: {
+            actionLabel: aktionLabel,
+            fachobjektType: fType,
+            values: serializeValues(values),
+            aenderungen,
+            createdAt: Date.now(),
+          },
+        })
+      );
     },
-    []
+    [apId, fachobjektType, data, keyTablesData, dispatch]
+  );
+
+  const handleAktionRemove = useCallback(
+    (index: number) => {
+      if (!apId) return;
+      dispatch(removeActionFromAPDraft({ id: apId, actionIndex: index }));
+    },
+    [apId, dispatch]
   );
 
   const aenderungRows: AenderungRow[] = useMemo(() => {
@@ -222,6 +268,13 @@ const ArbeitsprotokollFormFields = ({
           </div>
         </div>
       )}
+
+      {/* Section B2: Planned actions timeline */}
+      <PlannedTimeline
+        actions={draftActions}
+        onRemove={handleAktionRemove}
+        readOnly={readOnly}
+      />
 
       {/* Section C: Änderung table */}
       <div>

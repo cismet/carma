@@ -1,19 +1,12 @@
 import { Input, Select, DatePicker, Checkbox, Row, Col, Form } from "antd";
 import { useSelector } from "react-redux";
 import { getKeyTablesData } from "../../../../store/slices/keyTables";
+import { applyTemplate } from "./aktionFieldConfig";
 import type { AktionFieldConfig } from "./aktionFieldConfig";
 
 const FormLabel = ({ children }: { children: React.ReactNode }) => (
   <span className="text-sm font-medium text-gray-700">{children}</span>
 );
-
-const applyTemplate = (
-  template: string,
-  item: Record<string, unknown>,
-): string =>
-  template
-    .replace(/\{(\w+)\}/g, (_, key: string) => String(item[key] ?? ""))
-    .trim();
 
 interface AktionFieldRendererProps {
   field: AktionFieldConfig;

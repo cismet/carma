@@ -24,12 +24,34 @@ export interface AADraft {
   updatedAt: number;
 }
 
+export interface Aenderung {
+  /** Display label, e.g. "Leuchtentyp" */
+  field: string;
+  /** Old value (formatted for display) */
+  alt: string | null;
+  /** New value (formatted for display) */
+  neu: string;
+}
+
+export interface DraftAction {
+  /** Action label, e.g. "Leuchtenerneuerung" */
+  actionLabel: string;
+  /** Target fachobjekt type, e.g. "tdta_leuchten" */
+  fachobjektType: string;
+  /** Serialized form values from the action modal */
+  values: Record<string, unknown>;
+  /** Computed old → new changes for display */
+  aenderungen: Aenderung[];
+  createdAt: number;
+}
+
 export interface APDraft {
   values: Record<string, unknown>;
   geometry?: GeoJSON.Geometry;
   featureType?: string;
   aaId?: string;
   meta?: APDraftMeta;
+  actions?: DraftAction[];
   updatedAt: number;
 }
 
@@ -90,8 +112,15 @@ const arbeitsauftraegeDraftsSlice = createSlice({
       const key = `ap:${id}`;
       const original = state.originalValues[key];
 
-      // Auto-cleanup when reverted to original
+      // Auto-cleanup when reverted to original (but keep if actions exist)
       if (original && !isFormDirty(original, values)) {
+        const existingActions = state.apDrafts[id]?.actions;
+        if (existingActions && existingActions.length > 0) {
+          // Keep draft alive for actions, just update values
+          state.apDrafts[id].values = values;
+          state.apDrafts[id].updatedAt = Date.now();
+          return;
+        }
         delete state.apDrafts[id];
         return;
       }
@@ -102,6 +131,7 @@ const arbeitsauftraegeDraftsSlice = createSlice({
         featureType: featureType ?? state.apDrafts[id]?.featureType,
         aaId: aaId ?? state.apDrafts[id]?.aaId,
         meta: meta ?? state.apDrafts[id]?.meta,
+        actions: state.apDrafts[id]?.actions,
         updatedAt: Date.now(),
       };
     },
@@ -152,6 +182,40 @@ const arbeitsauftraegeDraftsSlice = createSlice({
         }
       }
     },
+    addActionToAPDraft(
+      state,
+      action: PayloadAction<{ id: string; draftAction: DraftAction }>
+    ) {
+      const { id, draftAction } = action.payload;
+      if (!state.apDrafts[id]) {
+        state.apDrafts[id] = {
+          values: {},
+          actions: [],
+          updatedAt: Date.now(),
+        };
+      }
+      const draft = state.apDrafts[id];
+      if (!draft.actions) draft.actions = [];
+      draft.actions.push(draftAction);
+      draft.updatedAt = Date.now();
+    },
+    removeActionFromAPDraft(
+      state,
+      action: PayloadAction<{ id: string; actionIndex: number }>
+    ) {
+      const { id, actionIndex } = action.payload;
+      const draft = state.apDrafts[id];
+      if (!draft?.actions) return;
+      draft.actions.splice(actionIndex, 1);
+      draft.updatedAt = Date.now();
+      // Clean up draft if no actions and no value changes remain
+      if (draft.actions.length === 0) {
+        const original = state.originalValues[`ap:${id}`];
+        if (original && !isFormDirty(original, draft.values)) {
+          delete state.apDrafts[id];
+        }
+      }
+    },
   },
 });
 
@@ -165,6 +229,8 @@ export const {
   clearAllArbeitsauftraegeDrafts,
   setAAOriginalValues,
   setAPOriginalValues,
+  addActionToAPDraft,
+  removeActionFromAPDraft,
 } = arbeitsauftraegeDraftsSlice.actions;
 
 // --- Selectors ---
@@ -215,10 +281,17 @@ export const hasAPDraftChanges = (
   if (!id) return false;
   const draft = state.arbeitsauftraegeDrafts?.apDrafts[id];
   if (!draft) return false;
+  if (draft.actions && draft.actions.length > 0) return true;
   const original = state.arbeitsauftraegeDrafts?.originalValues[`ap:${id}`];
   if (!original) return true;
   return isFormDirty(original, draft.values);
 };
+
+export const getAPDraftActions = (
+  state: RootState,
+  id: string | undefined
+): DraftAction[] =>
+  id ? state.arbeitsauftraegeDrafts?.apDrafts[id]?.actions ?? [] : [];
 
 export const getAAOriginalValues = (
   state: RootState,
