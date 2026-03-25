@@ -1,12 +1,5 @@
 /* @refresh reset */
-import {
-  createElement,
-  useCallback,
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-} from "react";
+import { createElement, useCallback, useEffect, useMemo, useRef } from "react";
 
 import {
   BoundingSphere,
@@ -16,6 +9,7 @@ import {
   getArcPointsInSpannedPlane,
   type Scene,
 } from "@carma/cesium";
+import { createSvgLineVisualizers } from "@carma-commons/svg";
 import {
   buildDistanceTriangleInsidePoint2D,
   buildOutsideReferencePoint2D,
@@ -42,6 +36,7 @@ import {
   useLineVisualizers,
   type LineVisualizerData,
 } from "@carma-providers/label-overlay";
+import { useCesiumSceneStateOptional } from "@carma-mapping/engines/cesium/react/scene-state";
 
 import {
   applyMidpointMarkerOverlayLayout,
@@ -116,7 +111,9 @@ export const useEdgeComponentOverlayVisualizer = (
   const cornerOverlayIdsRef = useRef<string[]>([]);
   const midpointOverlayIdsRef = useRef<string[]>([]);
   const verticalLabelSideByRelationIdRef = useRef<Record<string, -1 | 1>>({});
-  const [cameraPitch, setCameraPitch] = useState(-Math.PI / 4);
+  const sceneState = useCesiumSceneStateOptional();
+  const cameraPitch =
+    sceneState?.camera.pitchRad ?? scene?.camera.pitch ?? -Math.PI / 4;
 
   const { addLabelOverlayElement, removeLabelOverlayElement } =
     useLabelOverlay();
@@ -153,27 +150,6 @@ export const useEdgeComponentOverlayVisualizer = (
     distanceRelationRenderContext.planarPolygonSharedEdgeRelationIds;
   const midpointTickRelationIdSet =
     distanceRelationRenderContext.midpointTickRelationIds;
-
-  useEffect(() => {
-    if (!scene || scene.isDestroyed()) return;
-    const camera = scene.camera;
-
-    const updatePitch = () => {
-      const nextPitch = camera.pitch;
-      setCameraPitch((prev) =>
-        Math.abs(nextPitch - prev) > 0.001 ? nextPitch : prev
-      );
-    };
-
-    updatePitch();
-    const removeChangedListener = camera.changed.addEventListener(updatePitch);
-    const removeMoveEndListener = camera.moveEnd.addEventListener(updatePitch);
-
-    return () => {
-      removeChangedListener?.();
-      removeMoveEndListener?.();
-    };
-  }, [scene]);
 
   const edgeRelationOwnerGroupIdSet =
     distanceRelationRenderContext.focusedRelationIds;
@@ -492,93 +468,105 @@ export const useEdgeComponentOverlayVisualizer = (
           const onDirectLabelClick = onDistanceLineLabelToggle
             ? () => onDistanceLineLabelToggle(relation.id, "direct")
             : undefined;
-          lines.push({
-            id: `reference-direct-${relation.id}`,
-            getCanvasLine: () => {
-              const start = getScreenAnchor();
-              const end = getScreenTarget();
-              if (!start || !end) return null;
-              return { start, end };
-            },
-            getLabelOutsideReferencePoint: getDirectLabelOutsideReferencePoint,
-            stroke: "rgba(255, 255, 255, 0.9)",
-            strokeWidth: 1.5,
-            strokeDasharray: "6 8",
-            hitTargetStrokeWidth: 10,
-            ...edgeLabelOverlays.direct,
-            onLineClick: onDirectLineClick,
-            onLabelClick: onDirectLabelClick,
-          });
+          lines.push(
+            ...createSvgLineVisualizers({
+              id: `reference-direct-${relation.id}`,
+              getSvgLine: () => {
+                const start = getScreenAnchor();
+                const end = getScreenTarget();
+                if (!start || !end) return null;
+                return { start, end };
+              },
+              getLabelOutsideReferencePoint:
+                getDirectLabelOutsideReferencePoint,
+              stroke: "rgba(255, 255, 255, 0.9)",
+              strokeWidth: 1.5,
+              dashed: true,
+              hitTargetStrokeWidth: 10,
+              ...edgeLabelOverlays.direct,
+              onLineClick: onDirectLineClick,
+              onLabelClick: onDirectLabelClick,
+            })
+          );
         }
 
         if (isDistanceRelationVerticalLineVisible(relation)) {
           const onVerticalLineClick = onDistanceLineLabelToggle
             ? () => onDistanceLineLabelToggle(relation.id, "vertical")
             : undefined;
-          lines.push({
-            id: `reference-vertical-${relation.id}`,
-            getCanvasLine: () => {
-              const edge = getVerticalLineScreenData();
-              if (!edge) return null;
-              return { start: edge.start, end: edge.end };
-            },
-            getLabelOutsideReferencePoint:
-              getVerticalLabelOutsideReferencePoint,
-            stroke: REFERENCE_COMPONENT_VERTICAL_COLOR,
-            strokeWidth: REFERENCE_COMPONENT_LINE_STROKE_WIDTH_PX,
-            strokeDasharray: "6 8",
-            hitTargetStrokeWidth: 10,
-            ...edgeLabelOverlays.vertical,
-            onLineClick: onVerticalLineClick,
-          });
+          lines.push(
+            ...createSvgLineVisualizers({
+              id: `reference-vertical-${relation.id}`,
+              getSvgLine: () => {
+                const edge = getVerticalLineScreenData();
+                if (!edge) return null;
+                return { start: edge.start, end: edge.end };
+              },
+              getLabelOutsideReferencePoint:
+                getVerticalLabelOutsideReferencePoint,
+              stroke: REFERENCE_COMPONENT_VERTICAL_COLOR,
+              strokeWidth: REFERENCE_COMPONENT_LINE_STROKE_WIDTH_PX,
+              dashed: true,
+              hitTargetStrokeWidth: 10,
+              ...edgeLabelOverlays.vertical,
+              onLineClick: onVerticalLineClick,
+            })
+          );
         }
 
         if (isDistanceRelationHorizontalLineVisible(relation)) {
           const onHorizontalLineClick = onDistanceLineLabelToggle
             ? () => onDistanceLineLabelToggle(relation.id, "horizontal")
             : undefined;
-          lines.push({
-            id: `reference-horizontal-${relation.id}`,
-            getCanvasLine: () => {
-              const start = getScreenAux();
-              const end = getScreenTarget();
-              if (!start || !end) return null;
-              return { start, end };
-            },
-            getLabelOutsideReferencePoint:
-              getHorizontalLabelOutsideReferencePoint,
-            stroke: REFERENCE_COMPONENT_HORIZONTAL_COLOR,
-            strokeWidth: REFERENCE_COMPONENT_LINE_STROKE_WIDTH_PX,
-            strokeDasharray: "6 8",
-            hitTargetStrokeWidth: 10,
-            ...edgeLabelOverlays.horizontal,
-            onLineClick: onHorizontalLineClick,
-          });
+          lines.push(
+            ...createSvgLineVisualizers({
+              id: `reference-horizontal-${relation.id}`,
+              getSvgLine: () => {
+                const start = getScreenAux();
+                const end = getScreenTarget();
+                if (!start || !end) return null;
+                return { start, end };
+              },
+              getLabelOutsideReferencePoint:
+                getHorizontalLabelOutsideReferencePoint,
+              stroke: REFERENCE_COMPONENT_HORIZONTAL_COLOR,
+              strokeWidth: REFERENCE_COMPONENT_LINE_STROKE_WIDTH_PX,
+              dashed: true,
+              hitTargetStrokeWidth: 10,
+              ...edgeLabelOverlays.horizontal,
+              onLineClick: onHorizontalLineClick,
+            })
+          );
         }
       }
     );
 
     previewEdges.forEach((edge) => {
-      lines.push({
-        id: `preview-edge-${edge.id}`,
-        getCanvasLine: () => {
-          if (!scene || scene.isDestroyed()) return null;
-          const start = SceneTransforms.worldToWindowCoordinates(
-            scene,
-            edge.start
-          );
-          const end = SceneTransforms.worldToWindowCoordinates(scene, edge.end);
-          if (!defined(start) || !defined(end)) return null;
-          return {
-            start: { x: start.x, y: start.y } as CssPixelPosition,
-            end: { x: end.x, y: end.y } as CssPixelPosition,
-          };
-        },
-        stroke: edge.stroke,
-        strokeWidth: edge.strokeWidth,
-        strokeDasharray: edge.dashed ? "6 8" : undefined,
-        hitTargetStrokeWidth: 10,
-      });
+      lines.push(
+        ...createSvgLineVisualizers({
+          id: `preview-edge-${edge.id}`,
+          getSvgLine: () => {
+            if (!scene || scene.isDestroyed()) return null;
+            const start = SceneTransforms.worldToWindowCoordinates(
+              scene,
+              edge.start
+            );
+            const end = SceneTransforms.worldToWindowCoordinates(
+              scene,
+              edge.end
+            );
+            if (!defined(start) || !defined(end)) return null;
+            return {
+              start: { x: start.x, y: start.y } as CssPixelPosition,
+              end: { x: end.x, y: end.y } as CssPixelPosition,
+            };
+          },
+          stroke: edge.stroke,
+          strokeWidth: edge.strokeWidth,
+          dashed: edge.dashed ?? false,
+          hitTargetStrokeWidth: 10,
+        })
+      );
     });
 
     return lines;

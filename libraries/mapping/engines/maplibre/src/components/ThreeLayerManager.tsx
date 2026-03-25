@@ -100,6 +100,15 @@ export function ThreeLayerManager({
     };
   }, [map, config.skipIn2DLayerIds]);
 
+  useEffect(() => {
+    if (!layerRef.current) {
+      return;
+    }
+
+    layerRef.current._config = config;
+    map?.triggerRepaint();
+  }, [config, map]);
+
   // Effect 3: Data sync (re-runs on radius change without tearing down)
   useEffect(() => {
     if (!map) return;

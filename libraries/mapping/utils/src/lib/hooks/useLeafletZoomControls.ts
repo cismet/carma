@@ -4,13 +4,13 @@ import { TopicMapContext } from "react-cismap/contexts/TopicMapContextProvider";
 
 import { logOnce } from "@carma-commons/utils";
 
-logOnce("deprecated useLeafletZoomControls should live in engines/leaflet");
-
 /**
  * Custom hook to handle Leaflet zoom controls.
  * Provides stable zoom in and zoom out functions.
  */
 export const useLeafletZoomControls = () => {
+  logOnce("deprecated useLeafletZoomControls should live in engines/leaflet");
+
   const { routedMapRef } = useContext<typeof TopicMapContext>(TopicMapContext);
 
   const leafletElement: LeafletMap | undefined =

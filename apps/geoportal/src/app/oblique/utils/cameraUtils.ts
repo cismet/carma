@@ -229,15 +229,13 @@ export const enterObliqueMode = (
 export const leaveObliqueMode = (
   scene: Scene,
   originalFovRef: MutableRefObject<number | null>,
-  onComplete: () => void
+  onComplete: () => void,
+  fallbackRestoreFovRad = CesiumMath.toRadians(60)
 ) => {
   const camera = scene.camera;
-  if (
-    camera.frustum instanceof PerspectiveFrustum &&
-    originalFovRef.current !== null
-  ) {
+  if (camera.frustum instanceof PerspectiveFrustum) {
+    const targetFov = originalFovRef.current ?? fallbackRestoreFovRad;
     const currentFov = camera.frustum.fov || 1;
-    const targetFov = originalFovRef.current || 1;
 
     if (currentFov === targetFov) {
       console.debug("No FOV change needed, skipping animation");
@@ -270,7 +268,7 @@ export const leaveObliqueMode = (
   } else {
     // If no animation is needed, directly reset the FOV and invoke the onComplete callback
     if (camera.frustum instanceof PerspectiveFrustum) {
-      camera.frustum.fov = originalFovRef.current || camera.frustum.fov;
+      camera.frustum.fov = originalFovRef.current ?? fallbackRestoreFovRad;
     }
     onComplete();
   }

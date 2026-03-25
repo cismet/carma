@@ -1,8 +1,14 @@
 export * from "./pi";
 export * as PI_VALUES from "./pi";
+export * from "./numeric";
 export * from "./easingFunctions";
 export * from "./scaling";
 export * from "./interpolation";
 export * from "./geometry2d";
-export * from "./vec3";
+export * from "./geometry3d";
+export * from "./orientation3d";
+export * from "./matrix4";
+export * from "./quaternion";
+export * from "./vector2";
+export * from "./vector3";
 export * from "./trig";

@@ -5,8 +5,11 @@ import {
   type Dispatch,
   type SetStateAction,
 } from "react";
-import { Cartesian3, type Scene } from "@carma/cesium";
-import { useStoreSelector } from "@carma-commons/react-store";
+import {
+  Cartesian3,
+  type Cartesian3 as CesiumCartesian3,
+  type Scene,
+} from "@carma/cesium";
 import type {
   AnnotationCollection,
   AnnotationEntry,
@@ -23,14 +26,18 @@ import {
   ANNOTATION_TYPE_POINT,
   isPointAnnotationEntry,
   isPointMeasurementEntry,
-  syncNodeChainEdgeDistanceRelations,
 } from "@carma-mapping/annotations/core";
 
 import type {
   AnnotationCollectionContextType,
   AnnotationVisualizerOptionsPatch,
 } from "../context/annotationsContext.types";
-import type { AnnotationsStore } from "../store";
+import {
+  replaceAnnotationsStoreState,
+  useStoreSelector,
+  type AnnotationsStore,
+} from "../store";
+import { resolveSetStateAction } from "../store/stateUpdateUtils";
 import { useAnnotationEntryActions } from "./hooks/useAnnotationEntryActions";
 import { useFlyToActions } from "./hooks/useFlyToActions";
 
@@ -38,11 +45,9 @@ type UseAnnotationEntriesParams = {
   scene: Scene;
   annotations: AnnotationCollection;
   nodeChainAnnotations: NodeChainAnnotation[];
-  referencePoint: import("@carma/cesium").Cartesian3 | null;
+  referencePoint: CesiumCartesian3 | null;
   setAnnotations: Dispatch<SetStateAction<AnnotationCollection>>;
-  setReferencePoint: Dispatch<
-    SetStateAction<import("@carma/cesium").Cartesian3 | null>
-  >;
+  setReferencePoint: Dispatch<SetStateAction<CesiumCartesian3 | null>>;
   referencePointSyncEpsilonMeters: number;
   updateAnnotationNameById: (id: string, name: string) => void;
   updateAnnotationVisualizerOptionsById: (
@@ -257,14 +262,6 @@ export const useCollectionState = (
   };
 };
 
-const resolveSetStateAction = <TValue>(
-  action: SetStateAction<TValue>,
-  previousValue: TValue
-): TValue =>
-  typeof action === "function"
-    ? (action as (previousValue: TValue) => TValue)(previousValue)
-    : action;
-
 export const useAnnotationEntriesStoreState = (
   annotationsStore: AnnotationsStore
 ) => {
@@ -301,19 +298,21 @@ export const useAnnotationEntriesStoreState = (
     Dispatch<SetStateAction<AnnotationCollection>>
   >(
     (nextValueOrUpdater) => {
-      annotationsStore.setState((previousStoreState) => {
-        const nextAnnotations = resolveSetStateAction(
-          nextValueOrUpdater,
-          previousStoreState.annotationEntries
-        );
+      const previousStoreState = annotationsStore.getState();
+      const nextAnnotations = resolveSetStateAction(
+        nextValueOrUpdater,
+        previousStoreState.annotationEntries
+      );
+      if (Object.is(nextAnnotations, previousStoreState.annotationEntries)) {
+        return;
+      }
 
-        return Object.is(nextAnnotations, previousStoreState.annotationEntries)
-          ? previousStoreState
-          : {
-              ...previousStoreState,
-              annotationEntries: nextAnnotations,
-            };
-      });
+      annotationsStore.dispatch(
+        replaceAnnotationsStoreState({
+          ...previousStoreState,
+          annotationEntries: nextAnnotations,
+        })
+      );
     },
     [annotationsStore]
   );
@@ -322,22 +321,23 @@ export const useAnnotationEntriesStoreState = (
     Dispatch<SetStateAction<PointDistanceRelation[]>>
   >(
     (nextValueOrUpdater) => {
-      annotationsStore.setState((previousStoreState) => {
-        const nextDistanceRelations = resolveSetStateAction(
-          nextValueOrUpdater,
-          previousStoreState.distanceRelations
-        );
+      const previousStoreState = annotationsStore.getState();
+      const nextDistanceRelations = resolveSetStateAction(
+        nextValueOrUpdater,
+        previousStoreState.distanceRelations
+      );
+      if (
+        Object.is(nextDistanceRelations, previousStoreState.distanceRelations)
+      ) {
+        return;
+      }
 
-        return Object.is(
-          nextDistanceRelations,
-          previousStoreState.distanceRelations
-        )
-          ? previousStoreState
-          : {
-              ...previousStoreState,
-              distanceRelations: nextDistanceRelations,
-            };
-      });
+      annotationsStore.dispatch(
+        replaceAnnotationsStoreState({
+          ...previousStoreState,
+          distanceRelations: nextDistanceRelations,
+        })
+      );
     },
     [annotationsStore]
   );
@@ -346,22 +346,26 @@ export const useAnnotationEntriesStoreState = (
     Dispatch<SetStateAction<NodeChainAnnotation[]>>
   >(
     (nextValueOrUpdater) => {
-      annotationsStore.setState((previousStoreState) => {
-        const nextNodeChainAnnotations = resolveSetStateAction(
-          nextValueOrUpdater,
-          previousStoreState.nodeChainAnnotations
-        );
-
-        return Object.is(
+      const previousStoreState = annotationsStore.getState();
+      const nextNodeChainAnnotations = resolveSetStateAction(
+        nextValueOrUpdater,
+        previousStoreState.nodeChainAnnotations
+      );
+      if (
+        Object.is(
           nextNodeChainAnnotations,
           previousStoreState.nodeChainAnnotations
         )
-          ? previousStoreState
-          : {
-              ...previousStoreState,
-              nodeChainAnnotations: nextNodeChainAnnotations,
-            };
-      });
+      ) {
+        return;
+      }
+
+      annotationsStore.dispatch(
+        replaceAnnotationsStoreState({
+          ...previousStoreState,
+          nodeChainAnnotations: nextNodeChainAnnotations,
+        })
+      );
     },
     [annotationsStore]
   );
@@ -370,19 +374,21 @@ export const useAnnotationEntriesStoreState = (
     Dispatch<SetStateAction<Cartesian3 | null>>
   >(
     (nextValueOrUpdater) => {
-      annotationsStore.setState((previousStoreState) => {
-        const nextReferencePoint = resolveSetStateAction(
-          nextValueOrUpdater,
-          previousStoreState.referencePoint
-        );
+      const previousStoreState = annotationsStore.getState();
+      const nextReferencePoint = resolveSetStateAction(
+        nextValueOrUpdater,
+        previousStoreState.referencePoint
+      );
+      if (Object.is(nextReferencePoint, previousStoreState.referencePoint)) {
+        return;
+      }
 
-        return Object.is(nextReferencePoint, previousStoreState.referencePoint)
-          ? previousStoreState
-          : {
-              ...previousStoreState,
-              referencePoint: nextReferencePoint,
-            };
-      });
+      annotationsStore.dispatch(
+        replaceAnnotationsStoreState({
+          ...previousStoreState,
+          referencePoint: nextReferencePoint,
+        })
+      );
     },
     [annotationsStore]
   );

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useMemo, useRef } from "react";
 
 import {
   Cartesian3,
@@ -7,16 +7,17 @@ import {
   type Scene,
 } from "@carma/cesium";
 import { formatNumber } from "@carma-mapping/annotations/core";
+import { createSvgLineVisualizers } from "@carma-commons/svg";
 import {
   createPlacement,
   getPerspectiveStemAngleMagnitude,
   type PointLabelData,
   resolvePointLabelLayoutConfig,
-  type LineVisualizerData,
   type PointLabelLayoutConfigOverrides,
   useLineVisualizers,
   usePointLabels,
 } from "@carma-providers/label-overlay";
+import { useCesiumSceneStateOptional } from "@carma-mapping/engines/cesium/react/scene-state";
 import type { CssPixelPosition } from "@carma/units/types";
 
 const CANDIDATE_HEIGHT_LABEL_ID = "measurement-candidate-height";
@@ -95,7 +96,9 @@ export const usePointCandidateDomOverlay = (
 
   const hasCandidatePoint = Boolean(candidatePointECEF);
   const hasCandidateAuxAnchor = Boolean(candidateVerticalOffsetAnchorECEF);
-  const [cameraPitch, setCameraPitch] = useState<number>(-Math.PI / 4);
+  const sceneState = useCesiumSceneStateOptional();
+  const cameraPitch =
+    sceneState?.camera.pitchRad ?? scene?.camera.pitch ?? -Math.PI / 4;
 
   candidateElevatedPointRef.current = candidatePointECEF;
   candidateAuxAnchorRef.current = candidateVerticalOffsetAnchorECEF;
@@ -117,36 +120,6 @@ export const usePointCandidateDomOverlay = (
       ),
     [cameraPitch, candidateLabelLayoutConfig]
   );
-
-  useEffect(() => {
-    if (
-      !renderDomVisuals ||
-      !scene ||
-      scene.isDestroyed() ||
-      !hasCandidatePoint
-    ) {
-      return;
-    }
-
-    const camera = scene.camera;
-    const updatePitch = () => {
-      const currentPitch = camera.pitch;
-      setCameraPitch((previousPitch) =>
-        Math.abs(currentPitch - previousPitch) > 0.001
-          ? currentPitch
-          : previousPitch
-      );
-    };
-
-    updatePitch();
-    const removeChangedListener = camera.changed.addEventListener(updatePitch);
-    const removeMoveEndListener = camera.moveEnd.addEventListener(updatePitch);
-
-    return () => {
-      removeChangedListener?.();
-      removeMoveEndListener?.();
-    };
-  }, [scene, hasCandidatePoint, renderDomVisuals]);
 
   const candidateHeightLabelData = useMemo<PointLabelData[]>(() => {
     if (
@@ -224,7 +197,7 @@ export const usePointCandidateDomOverlay = (
     candidateReferenceElevation,
   ]);
 
-  const candidateVerticalOffsetStemLines = useMemo<LineVisualizerData[]>(() => {
+  const candidateVerticalOffsetStemLines = useMemo(() => {
     if (
       !renderDomVisuals ||
       !scene ||
@@ -236,15 +209,15 @@ export const usePointCandidateDomOverlay = (
     }
 
     return [
-      {
+      ...createSvgLineVisualizers({
         id: CANDIDATE_VERTICAL_OFFSET_STEM_ID,
         stroke: "rgba(255, 255, 255, 1)",
         strokeWidth: 2,
-        strokeDasharray: "0 3",
-        strokeDashoffset: 0,
+        dashed: true,
+        dashLengthRatio: 0.25,
         opacity: 0.9,
         visible: true,
-        getCanvasLine: () => {
+        getSvgLine: () => {
           if (!scene || scene.isDestroyed()) {
             return null;
           }
@@ -269,7 +242,7 @@ export const usePointCandidateDomOverlay = (
             end: { x: end.x, y: end.y } as CssPixelPosition,
           };
         },
-      } satisfies LineVisualizerData,
+      }),
     ];
   }, [renderDomVisuals, scene, hasCandidatePoint, hasCandidateAuxAnchor]);
 

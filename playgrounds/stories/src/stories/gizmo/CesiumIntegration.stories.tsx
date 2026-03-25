@@ -3,25 +3,17 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   Cartesian3,
   Cartesian4,
-  Color,
   Matrix3,
   Matrix4,
-  PointPrimitiveCollection,
   Quaternion,
-  SceneTransforms,
   ScreenSpaceEventHandler,
   ScreenSpaceEventType,
   Transforms,
-  defined,
   type CesiumWidget,
-  type PointPrimitive,
   type Scene,
 } from "@carma/cesium";
-import {
-  LabelOverlayProvider,
-  PointLabel,
-  useLabelOverlay,
-} from "@carma-providers/label-overlay";
+import { LabelOverlayProvider } from "@carma-providers/label-overlay";
+import { useCesiumLabelOverlayHost } from "@carma-mapping/engines/cesium/react/interactions";
 import {
   useCesiumPointMoveGizmo,
   useCesiumPointMoveGizmoConnector,
@@ -41,9 +33,7 @@ import {
 import "cesium/Build/Cesium/Widgets/widgets.css";
 
 if (typeof window !== "undefined") {
-  (window as any).CESIUM_BASE_URL = "/__cesium__/";
   (window as any).__CARMA_DEBUG_AXIS_VISUALIZER__ = true;
-  (window as any).__CARMA_DEBUG_DISC_VISUALIZER__ = true;
 }
 
 type AxisMode = "geoportal-default" | "enu" | "up-only" | "world";
@@ -53,12 +43,17 @@ type GizmoSandboxProps = {
   pointLat: number;
   pointHeight: number;
   radius: number;
+  showRotationHandle: boolean;
+  showDisc: boolean;
+  snapPlaneDragToGround: boolean;
+  discOutlineFixedScreenSize: boolean;
+  discOutlineScreenPixelRadius: number;
+  axisWidthPx?: number;
+  arrowActiveEdgePx: number;
+  arrowInactiveEdgePx: number;
   axisMode: AxisMode;
+  preferredAxisId: string;
   axisTitle: string;
-  showGridMirror: boolean;
-  showPointLabelVis: boolean;
-  gridTiltDeg: number;
-  gridDeltaScale: number;
 };
 
 type CubeState = {
@@ -68,7 +63,6 @@ type CubeState = {
   selectedTarget: CubePickTarget | null;
 };
 
-const DEMO_POINT_LABEL_ID = "gizmo-demo-point-label";
 const CUBE_HALF_SIZE_M = 10;
 const ROTATION_DELTA_EPSILON = 1e-7;
 const RATHAUS_START = {
@@ -76,22 +70,6 @@ const RATHAUS_START = {
   latitude: 51.27225,
   height: 170,
 } as const;
-
-const number = (value: number, digits = 2) =>
-  Number.isFinite(value) ? value.toFixed(digits) : "—";
-
-const hasMeaningfulMatrixHeadChange = (
-  previous: number[],
-  next: number[],
-  epsilon = 1e-3
-): boolean => {
-  for (let i = 0; i < 4; i += 1) {
-    if (Math.abs((previous[i] ?? 0) - (next[i] ?? 0)) > epsilon) {
-      return true;
-    }
-  }
-  return false;
-};
 
 const buildEnuCandidates = (
   origin: Cartesian3,
@@ -229,36 +207,33 @@ const getCubeAnchorWorld = (
   );
 };
 
-const describeCubePickTarget = (target: CubePickTarget | null): string => {
-  if (!target) return "cube-centroid";
-  if (target.kind === "corner") return `corner-${target.cornerIndex}`;
-  if (target.kind === "edge") return `edge-${target.edgeId}`;
-  return `face-${target.faceId}`;
-};
-
 const GizmoSandboxContent = ({
+  scene,
+  onSceneChange,
   rootRef,
   pointLon,
   pointLat,
   pointHeight,
   radius,
+  showRotationHandle,
+  showDisc,
+  snapPlaneDragToGround,
+  discOutlineFixedScreenSize,
+  discOutlineScreenPixelRadius,
+  axisWidthPx,
+  arrowActiveEdgePx,
+  arrowInactiveEdgePx,
   axisMode,
+  preferredAxisId,
   axisTitle,
-  showGridMirror,
-  showPointLabelVis,
-  gridTiltDeg,
-  gridDeltaScale,
-}: GizmoSandboxProps & { rootRef: React.RefObject<HTMLDivElement | null> }) => {
-  const { addLabelOverlayElement, removeLabelOverlayElement } =
-    useLabelOverlay();
+}: GizmoSandboxProps & {
+  scene: Scene | null;
+  onSceneChange: (scene: Scene | null) => void;
+  rootRef: React.RefObject<HTMLDivElement | null>;
+}) => {
   const cesiumContainerRef = useRef<HTMLDivElement>(null);
   const widgetRef = useRef<CesiumWidget | null>(null);
-  const pointPrimitiveCollectionRef = useRef<PointPrimitiveCollection | null>(
-    null
-  );
-  const pointPrimitiveRef = useRef<PointPrimitive | null>(null);
   const cubeVisualsRef = useRef<CubePrimitiveVisuals | null>(null);
-  const [scene, setScene] = useState<Scene | null>(null);
 
   const initialCubeCenter = useMemo(
     () => Cartesian3.fromDegrees(pointLon, pointLat, pointHeight),
@@ -272,10 +247,6 @@ const GizmoSandboxContent = ({
 
   const [cubeState, setCubeState] = useState<CubeState>(() =>
     createInitialCubeState(initialCubeCenter)
-  );
-
-  const [viewMatrixSnapshot, setViewMatrixSnapshot] = useState<number[]>(
-    Array.from({ length: 16 }, () => 0)
   );
 
   const handleAnchorPositionChange = useCallback(
@@ -324,16 +295,6 @@ const GizmoSandboxContent = ({
     [cubeState.centerWorld, cubeState.orientation]
   );
 
-  const cubeAnchorWorld = useMemo(
-    () =>
-      Matrix4.multiplyByPoint(
-        cubeModelMatrix,
-        cubeState.anchorLocal,
-        new Cartesian3()
-      ),
-    [cubeModelMatrix, cubeState.anchorLocal]
-  );
-
   useEffect(() => {
     if (!cesiumContainerRef.current) return;
 
@@ -359,21 +320,9 @@ const GizmoSandboxContent = ({
 
       const widget = result.widget;
       widgetRef.current = widget;
-      setScene(widget.scene);
+      onSceneChange(widget.scene);
 
       setPointPosition(initialCubeCenter);
-
-      const pointCollection = new PointPrimitiveCollection();
-      widget.scene.primitives.add(pointCollection);
-      pointPrimitiveCollectionRef.current = pointCollection;
-      pointPrimitiveRef.current = pointCollection.add({
-        position: initialCubeCenter,
-        pixelSize: 14,
-        color: Color.CYAN,
-        outlineColor: Color.WHITE,
-        outlineWidth: 2,
-        disableDepthTestDistance: Number.POSITIVE_INFINITY,
-      });
 
       widget.scene.requestRender();
     };
@@ -382,8 +331,6 @@ const GizmoSandboxContent = ({
 
     return () => {
       mounted = false;
-      pointPrimitiveRef.current = null;
-      pointPrimitiveCollectionRef.current = null;
       if (cubeVisualsRef.current) {
         cubeVisualsRef.current.destroy();
         cubeVisualsRef.current = null;
@@ -398,9 +345,9 @@ const GizmoSandboxContent = ({
         }
       }
       widgetRef.current = null;
-      setScene(null);
+      onSceneChange(null);
     };
-  }, [initialCubeCenter, setPointPosition]);
+  }, [initialCubeCenter, onSceneChange, setPointPosition]);
 
   useEffect(() => {
     if (!scene || scene.isDestroyed()) {
@@ -495,41 +442,6 @@ const GizmoSandboxContent = ({
     };
   }, [dragging, localCorners, scene, setPointPosition]);
 
-  useEffect(() => {
-    if (!showGridMirror || !scene || scene.isDestroyed()) {
-      return;
-    }
-
-    const timer = window.setInterval(() => {
-      if (!scene || scene.isDestroyed()) return;
-      try {
-        const nextSnapshot = Matrix4.toArray(
-          scene.camera.viewMatrix,
-          new Array<number>(16)
-        );
-        setViewMatrixSnapshot((previous) =>
-          hasMeaningfulMatrixHeadChange(previous, nextSnapshot)
-            ? nextSnapshot
-            : previous
-        );
-      } catch {
-        // Ignore camera sampling races during teardown.
-      }
-    }, 200);
-
-    return () => {
-      window.clearInterval(timer);
-    };
-  }, [scene, showGridMirror]);
-
-  useEffect(() => {
-    const point = pointPrimitiveRef.current;
-    if (!point) return;
-
-    point.position = pointPosition;
-    scene?.requestRender();
-  }, [pointPosition, scene]);
-
   const handleRotationDelta = useCallback((delta: CesiumGizmoRotationDelta) => {
     if (Math.abs(delta.deltaAngleRad) <= ROTATION_DELTA_EPSILON) {
       return;
@@ -604,89 +516,28 @@ const GizmoSandboxContent = ({
   useCesiumPointMoveGizmo(scene, {
     ...gizmoBinding,
     axisTitle: axisTitleForHook,
+    preferredAxisId:
+      preferredAxisId.trim().toLowerCase() === "auto"
+        ? null
+        : preferredAxisId.trim(),
     axisCandidates: axisCandidatesForHook,
     axisDirection: axisDirectionForHook,
     onRotationDelta: handleRotationDelta,
+    showDisc,
+    showRotationHandle,
+    snapPlaneDragToGround,
+    discOutlineFixedScreenSize,
+    discOutlineScreenPixelRadius,
+    axisWidthPx,
+    arrowActiveEdgePx,
+    arrowInactiveEdgePx,
     radius,
   });
-
-  const selectedTargetLabel = useMemo(
-    () => describeCubePickTarget(cubeState.selectedTarget),
-    [cubeState.selectedTarget]
-  );
-
-  useEffect(() => {
-    if (!scene || scene.isDestroyed() || !showPointLabelVis) {
-      removeLabelOverlayElement(DEMO_POINT_LABEL_ID);
-      return;
-    }
-
-    addLabelOverlayElement({
-      id: DEMO_POINT_LABEL_ID,
-      zIndex: 20,
-      content: (
-        <PointLabel
-          content={`Anchor (${selectedTargetLabel})`}
-          lineColor="rgba(255,255,255,0.95)"
-          textColor="white"
-          textBackgroundColor="rgba(15,23,42,0.85)"
-          selectedBackgroundColor="rgba(15,23,42,0.85)"
-          hoverBackgroundColor="rgba(15,23,42,0.85)"
-          markerSize={10}
-          markerStrokeWidth={1}
-          labelDistance={18}
-        />
-      ),
-      getCanvasPosition: () => {
-        if (!scene || scene.isDestroyed()) return null;
-        const p = SceneTransforms.worldToWindowCoordinates(
-          scene,
-          pointPosition
-        );
-        if (!defined(p)) return null;
-        return { x: p.x, y: p.y };
-      },
-      visible: true,
-      isHidden: false,
-    });
-
-    return () => {
-      removeLabelOverlayElement(DEMO_POINT_LABEL_ID);
-    };
-  }, [
-    addLabelOverlayElement,
-    pointPosition,
-    removeLabelOverlayElement,
-    scene,
-    selectedTargetLabel,
-    showPointLabelVis,
-  ]);
-
-  const delta = useMemo(
-    () =>
-      Cartesian3.subtract(pointPosition, initialCubeCenter, new Cartesian3()),
-    [pointPosition, initialCubeCenter]
-  );
-
-  const cssGridTransform = useMemo(() => {
-    const dx = delta.x * gridDeltaScale;
-    const dy = delta.y * gridDeltaScale;
-    const dz = delta.z * gridDeltaScale;
-
-    return `perspective(900px) rotateX(${gridTiltDeg + dz}deg) rotateZ(${
-      dx * 0.6
-    }deg) translate3d(${dx}px, ${-dy}px, 0px)`;
-  }, [delta.x, delta.y, delta.z, gridDeltaScale, gridTiltDeg]);
-
-  const cameraHeight = scene?.camera?.positionCartographic?.height ?? null;
 
   return (
     <div
       ref={rootRef}
       style={{
-        display: "grid",
-        gridTemplateColumns: showGridMirror ? "1fr 360px" : "1fr",
-        gap: 12,
         height: "100vh",
         width: "100%",
         position: "relative",
@@ -700,129 +551,113 @@ const GizmoSandboxContent = ({
           overflow: "hidden",
         }}
       />
-
-      {showGridMirror && (
-        <div
-          style={{
-            background: "#0b1020",
-            color: "#d1d5db",
-            padding: 12,
-            display: "flex",
-            flexDirection: "column",
-            gap: 10,
-          }}
-        >
-          <strong style={{ color: "#fff" }}>CSS Grid Mirror</strong>
-          <div
-            style={{
-              position: "relative",
-              height: 220,
-              background:
-                "radial-gradient(circle at 50% 45%, rgba(148,163,184,0.16), rgba(15,23,42,0.96))",
-              border: "1px solid rgba(148,163,184,0.35)",
-              overflow: "hidden",
-            }}
-          >
-            <div
-              style={{
-                position: "absolute",
-                inset: 0,
-                margin: "auto",
-                width: 260,
-                height: 260,
-                transformStyle: "preserve-3d",
-                transform: cssGridTransform,
-                backgroundImage:
-                  "linear-gradient(rgba(34,211,238,0.35) 1px, transparent 1px), linear-gradient(90deg, rgba(34,211,238,0.35) 1px, transparent 1px)",
-                backgroundSize: "20px 20px",
-                boxShadow: "0 0 30px rgba(34,211,238,0.18)",
-              }}
-            />
-          </div>
-
-          <div style={{ fontSize: 12, lineHeight: 1.45 }}>
-            <div>
-              <strong>Drag state:</strong> {dragging ? "dragging" : "idle"}
-            </div>
-            <div>
-              <strong>Anchor target:</strong> {selectedTargetLabel}
-            </div>
-            <div>
-              <strong>ECEF Δx/Δy/Δz:</strong> {number(delta.x, 2)} /{" "}
-              {number(delta.y, 2)} / {number(delta.z, 2)}
-            </div>
-            <div>
-              <strong>Anchor x/y/z:</strong> {number(pointPosition.x, 1)} /{" "}
-              {number(pointPosition.y, 1)} / {number(pointPosition.z, 1)}
-            </div>
-            <div>
-              <strong>Cube center x/y/z:</strong>{" "}
-              {number(cubeState.centerWorld.x, 1)} /{" "}
-              {number(cubeState.centerWorld.y, 1)} /{" "}
-              {number(cubeState.centerWorld.z, 1)}
-            </div>
-            <div>
-              <strong>Camera h:</strong>{" "}
-              {cameraHeight !== null ? `${number(cameraHeight, 2)}m` : "—"}
-            </div>
-            <div>
-              <strong>Axis dir:</strong>{" "}
-              {activeAxis
-                ? `${number(activeAxis.x, 3)}, ${number(
-                    activeAxis.y,
-                    3
-                  )}, ${number(activeAxis.z, 3)}`
-                : "—"}
-            </div>
-            <div>
-              <strong>View matrix m00..m03:</strong>{" "}
-              {viewMatrixSnapshot
-                .slice(0, 4)
-                .map((value) => number(value, 3))
-                .join(", ")}
-            </div>
-            <div>
-              <strong>Anchor err:</strong>{" "}
-              {number(Cartesian3.distance(pointPosition, cubeAnchorWorld), 4)}m
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 };
 
 const GizmoSandbox = (props: GizmoSandboxProps) => {
   const rootRef = useRef<HTMLDivElement>(null);
+  const [scene, setScene] = useState<Scene | null>(null);
+  const overlayHost = useCesiumLabelOverlayHost({
+    scene,
+    containerRef: rootRef,
+  });
 
   return (
-    <LabelOverlayProvider containerRef={rootRef}>
-      <GizmoSandboxContent {...props} rootRef={rootRef} />
+    <LabelOverlayProvider host={overlayHost}>
+      <GizmoSandboxContent
+        {...props}
+        scene={scene}
+        onSceneChange={setScene}
+        rootRef={rootRef}
+      />
     </LabelOverlayProvider>
   );
 };
 
 const meta: Meta<GizmoSandboxProps> = {
-  title: "Gizmo/Cesium Integration",
+  title: "Mapping/Gizmo",
   component: GizmoSandbox,
   parameters: {
     layout: "fullscreen",
+    controls: {
+      expanded: false,
+      sort: "requiredFirst",
+    },
   },
   argTypes: {
-    pointLon: { control: { type: "number" } },
-    pointLat: { control: { type: "number" } },
-    pointHeight: { control: { type: "number" } },
-    radius: { control: { type: "range", min: 0.5, max: 30, step: 0.5 } },
+    pointLon: {
+      control: { type: "number" },
+      table: { category: "Position" },
+    },
+    pointLat: {
+      control: { type: "number" },
+      table: { category: "Position" },
+    },
+    pointHeight: {
+      control: { type: "number" },
+      table: { category: "Position" },
+    },
+    radius: {
+      control: { type: "range", min: 0.5, max: 30, step: 0.5 },
+      table: { category: "Disc" },
+    },
+    showRotationHandle: {
+      control: { type: "boolean" },
+      table: { category: "Disc" },
+    },
+    showDisc: {
+      control: { type: "boolean" },
+      table: { category: "Disc" },
+    },
+    snapPlaneDragToGround: {
+      control: { type: "boolean" },
+      table: { category: "Disc" },
+    },
+    discOutlineScreenPixelRadius: {
+      control: { type: "range", min: 8, max: 120, step: 1 },
+      table: { category: "Disc" },
+    },
+    discOutlineFixedScreenSize: {
+      control: { type: "boolean" },
+      table: { category: "Disc" },
+    },
+    axisWidthPx: {
+      control: { type: "range", min: 0.5, max: 6, step: 0.5 },
+      table: { category: "Axes" },
+    },
+    arrowActiveEdgePx: {
+      control: { type: "range", min: 8, max: 40, step: 1 },
+      table: { category: "Axes" },
+    },
+    arrowInactiveEdgePx: {
+      control: { type: "range", min: 6, max: 30, step: 1 },
+      table: { category: "Axes" },
+    },
     axisMode: {
       control: { type: "inline-radio" },
       options: ["geoportal-default", "enu", "up-only", "world"],
+      table: { category: "Axes" },
     },
-    axisTitle: { control: { type: "text" } },
-    showGridMirror: { control: { type: "boolean" } },
-    showPointLabelVis: { control: { type: "boolean" } },
-    gridTiltDeg: { control: { type: "range", min: -85, max: 85, step: 1 } },
-    gridDeltaScale: {
-      control: { type: "range", min: 0.0001, max: 0.02, step: 0.0001 },
+    preferredAxisId: {
+      control: { type: "select" },
+      options: [
+        "auto",
+        "vertical",
+        "horizontal-east",
+        "horizontal-north",
+        "east",
+        "north",
+        "up",
+        "world-x",
+        "world-y",
+        "world-z",
+      ],
+      table: { category: "Axes" },
+    },
+    axisTitle: {
+      control: { type: "text" },
+      table: { category: "Axes" },
     },
   },
 };
@@ -836,11 +671,16 @@ export const Cesium: StoryObj<GizmoSandboxProps> = {
     pointLat: RATHAUS_START.latitude,
     pointHeight: RATHAUS_START.height,
     radius: 8,
+    showRotationHandle: true,
+    showDisc: true,
+    snapPlaneDragToGround: true,
+    discOutlineFixedScreenSize: true,
+    discOutlineScreenPixelRadius: 32,
+    axisWidthPx: 1,
+    arrowActiveEdgePx: 16,
+    arrowInactiveEdgePx: 12,
     axisMode: "enu",
+    preferredAxisId: "auto",
     axisTitle: "Move cube anchor along selected axis",
-    showGridMirror: false,
-    showPointLabelVis: true,
-    gridTiltDeg: 62,
-    gridDeltaScale: 0.002,
   },
 };

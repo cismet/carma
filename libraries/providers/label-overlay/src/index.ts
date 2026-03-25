@@ -1,35 +1,65 @@
-export { LabelOverlayProvider } from "./lib/LabelOverlayProvider";
-export { useLabelOverlay } from "./lib/useLabelOverlay";
-export type { LabelOverlayElement, LabelOverlayContextType } from "./lib/types";
-
-export { LabelOverlayContainer } from "./lib/components/LabelOverlayContainer";
 export {
+  LabelOverlayProvider,
+  useLabelOverlay,
+  useLabelOverlayHost,
   PointLabel,
   POINT_LABEL_TEXT_BACKGROUND_COLOR,
   POINT_LABEL_HOVER_BACKGROUND_COLOR,
   POINT_LABEL_SELECTED_BACKGROUND_COLOR,
-  type PointLabelAttach,
-  type PointLabelStyleProps,
-} from "./lib/components/PointLabel";
-export {
   PointLabelMarker,
   getPillbuttonAnchorBorderStyle,
   getPillbuttonAnchorTransform,
   resolvePillbuttonMountSide,
-  type PillbuttonMountSide,
-} from "./lib/components/PointLabelMarker";
-export { PillbuttonLabelMarker } from "./lib/components/PillbuttonLabelMarker";
-export {
+  PillbuttonLabelMarker,
   PointLabelStem,
-  type PointLabelStemAnchorPoints,
-} from "./lib/components/PointLabelStem";
-export {
   LineVisualizer,
-  type LineVisualizerProps,
-} from "./lib/components/LineVisualizer";
-export { usePointLabels, type PointLabelData } from "./lib/usePointLabels";
-export {
+  AnchoredLabelVisualizer,
+  usePointLabels,
   useLineVisualizers,
+} from "./lib/react-runtime";
+export {
+  type LabelOverlayElement,
+  type LabelOverlayContextType,
+  type LabelOverlayFrameSubscription,
+  type LabelOverlayHostBinding,
+  type PointLabelStyleProps,
+  type PillbuttonMountSide,
+  type PointLabelStemAnchorPoints,
+  type PointLabelStemLinePoints,
+  type LineVisualizerProps,
+  type AnchoredLabelVisualizerProps,
+  type PointLabelData,
   type LineVisualizerData,
-} from "./lib/useLineVisualizers";
-export * from "./lib/pointLabelLayout";
+} from "./lib/react-runtime";
+export type { PointLabelAttach } from "./lib/core";
+export {
+  resolvePointLabelOcclusionMode,
+  shouldTestPointLabelOcclusion,
+  estimatePillCapRadiusPx,
+  resolvePillCapCenterPoint,
+  resolveSegmentEndOutsideCircle,
+  addCssPixelPositions,
+  averageCssPixelPositions,
+  createPointLabelExpansionSlots,
+  createPresetPointLabelExpansionSlots,
+  clusterScreenSpaceLabelPoints,
+  createDefaultPointLabelClusterExpansionSlots,
+  assignPointLabelClusterExpansionSlots,
+  getVolumeEquivalentPointClusterRadiusPx,
+  getVolumeEquivalentPointClusterDiameterPx,
+  type ClusterableScreenPoint,
+  type PointLabelExpansionSlotDescriptor,
+  type PointLabelExpansionSlotStrategy,
+  type PointLabelExpansionSlotPreset,
+  type PointLabelAnchorKind,
+  type PointLabelOcclusionMode,
+  type PointLabelAnchorSemantics,
+  type CreatePointLabelExpansionSlotsOptions,
+  type CreatePresetPointLabelExpansionSlotsOptions,
+  type ScreenPointCluster,
+  type ScreenPointClusterConfig,
+  type PointLabelClusterExpansionSlot,
+  type PointLabelClusterExpansionConfig,
+  type AssignPointLabelClusterExpansionSlotsResult,
+} from "./lib/core";
+export * from "./lib/core/pointLabelLayout";

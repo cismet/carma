@@ -47,7 +47,6 @@ import {
   useSelectionCesium,
   useSelectionTopicMap,
 } from "@carma-appframeworks/portals";
-import { useHashState } from "@carma-providers/hash-state";
 import {
   getCollabedHelpComponentConfig,
   tooltipText,
@@ -224,7 +223,6 @@ export const CarmaMap = ({
   const { width, height } = useWindowSize(wrapperRef);
 
   const { setSelection } = useSelection();
-  const { updateHash } = useHashState();
 
   useSelectionTopicMap();
   useSelectionCesium(
@@ -559,20 +557,16 @@ export const CarmaMap = ({
                 pointerEvents: isLeaflet ? "none" : "auto",
               }}
             >
+              {/*
+                Legacy hash sync intentionally removed.
+                If 3D URL sync is needed again here, replace this with the current
+                scene-state based approach (`CesiumSceneStateProvider` +
+                `CesiumSceneStateHashSync` / `useSceneStateHashSync`) instead
+                of `onSceneChange` + legacy camera hash encoding.
+              */}
               <CustomViewer
                 containerRef={container3dMapRef}
                 cameraLimiterOptions={CESIUM_CONFIG.camera}
-                onSceneChange={(e) => {
-                  console.debug(
-                    "[GEOPORTALMAP|HASH|SCENE|CESIUM]cesium scene changed",
-                    e
-                  );
-                  updateHash(e.hashParams, {
-                    clearKeys: ["zoom"],
-                    label: "app/carma:3D",
-                    replace: true,
-                  });
-                }}
               ></CustomViewer>
             </div>
           )}

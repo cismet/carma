@@ -13,6 +13,13 @@
         "outputPath": "dist/libraries/providers/hash-state"
       }
     },
+    "test": {
+      "executor": "@nx/vite:test",
+      "outputs": ["{options.reportsDirectory}"],
+      "options": {
+        "reportsDirectory": "../../../coverage/libraries/providers/hash-state"
+      }
+    },
     "lint": {
       "executor": "@nx/eslint:lint"
     }

@@ -1,6 +1,11 @@
 import { useEffect } from "react";
 import { useSelector } from "react-redux";
-import { Camera, type Viewer } from "cesium";
+import {
+  Camera,
+  Math as CesiumMath,
+  PerspectiveFrustum,
+  type Viewer,
+} from "cesium";
 
 import {
   selectShowSecondaryTileset,
@@ -9,12 +14,77 @@ import {
 
 import { useCesiumContext } from "./useCesiumContext";
 
-import {
-  encodeCesiumCamera,
-  type StringifiedCameraState,
-} from "../utils/cesiumHashParamsCodec";
-
 import { VIEWERSTATE_KEYS } from "../constants";
+
+type HashCodec = {
+  key: string;
+  encode: (value: number) => string;
+};
+
+export type StringifiedCameraState = { key: string; value: string }[];
+
+const DEGREE_DIGITS = 7;
+const CAMERA_DEGREE_DIGITS = 2;
+
+const formatRadians = (value: number, fixed = DEGREE_DIGITS): string =>
+  parseFloat(CesiumMath.toDegrees(value).toFixed(fixed)).toString();
+
+const cameraCodec: Record<string, HashCodec> = {
+  longitude: {
+    key: "lng",
+    encode: (value: number) => formatRadians(value),
+  },
+  latitude: {
+    key: "lat",
+    encode: (value: number) => formatRadians(value),
+  },
+  height: {
+    key: "h",
+    encode: (value: number) => parseFloat(value.toFixed(2)).toString(),
+  },
+  heading: {
+    key: "heading",
+    encode: (value: number) =>
+      formatRadians(CesiumMath.zeroToTwoPi(value), CAMERA_DEGREE_DIGITS),
+  },
+  pitch: {
+    key: "pitch",
+    encode: (value: number) =>
+      formatRadians(CesiumMath.zeroToTwoPi(value), CAMERA_DEGREE_DIGITS),
+  },
+  fov: {
+    key: "fov",
+    encode: (value: number) => formatRadians(value, CAMERA_DEGREE_DIGITS),
+  },
+};
+
+const isNumber = (value: unknown): value is number =>
+  value !== undefined &&
+  value !== null &&
+  !isNaN(Number(value)) &&
+  isFinite(Number(value));
+
+const encodeCesiumCamera = (camera: Camera): StringifiedCameraState => {
+  const { positionCartographic, pitch, heading, frustum } = camera;
+  const { longitude, latitude, height } = positionCartographic;
+  const fov = frustum instanceof PerspectiveFrustum ? frustum.fov : undefined;
+
+  const orderedParams: [number | undefined, HashCodec][] = [
+    [longitude, cameraCodec.longitude],
+    [latitude, cameraCodec.latitude],
+    [height, cameraCodec.height],
+    [heading, cameraCodec.heading],
+    [pitch, cameraCodec.pitch],
+    [fov, cameraCodec.fov],
+  ];
+
+  return orderedParams
+    .filter(([numberValue]) => isNumber(numberValue))
+    .map(([numberValue, codec]) => ({
+      key: codec.key,
+      value: codec.encode(numberValue as number),
+    }));
+};
 
 const toHashParams = (
   cesiumCameraState: StringifiedCameraState,
@@ -51,7 +121,7 @@ export const useOnSceneChange = (
 
   useEffect(() => {
     // on changes to mode or style
-    if (isTransitioning) {
+    if (!onSceneChange || isTransitioning) {
       return;
     }
     if (ctx.isValidViewer() && isCesiumActive) {
@@ -59,30 +129,26 @@ export const useOnSceneChange = (
         "HOOK: update Hash, route or style changed",
         isSecondaryStyle
       );
-      if (onSceneChange) {
-        let cameraState: StringifiedCameraState | null = null;
-        ctx.withCamera((camera) => {
-          cameraState = encodeCesiumCamera(camera);
-        });
-        if (cameraState === null) {
-          return;
-        }
-        const hashParams = toHashParams(cameraState, {
-          isSecondaryStyle,
-          isCesiumActive,
-        });
-        hashParams.zoom = "";
-        onSceneChange({ hashParams });
-      } else {
-        console.info("HOOK: [NOOP] no onSceneChange callback");
+      let cameraState: StringifiedCameraState | null = null;
+      ctx.withCamera((camera) => {
+        cameraState = encodeCesiumCamera(camera);
+      });
+      if (cameraState === null) {
+        return;
       }
+      const hashParams = toHashParams(cameraState, {
+        isSecondaryStyle,
+        isCesiumActive,
+      });
+      hashParams.zoom = "";
+      onSceneChange({ hashParams });
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [ctx, isCesiumActive, isSecondaryStyle, isTransitioning]);
 
   useEffect(() => {
     // update hash hook
-    if (isTransitioning) {
+    if (!onSceneChange || isTransitioning) {
       return;
     }
 
@@ -103,20 +169,16 @@ export const useOnSceneChange = (
             isSecondaryStyle
           );
 
-          if (onSceneChange) {
-            let cameraState: StringifiedCameraState | null = null;
-            cameraState = encodeCesiumCamera(camera);
-            if (cameraState === null) {
-              return;
-            }
-            const hashParams = toHashParams(cameraState, {
-              isSecondaryStyle,
-              isCesiumActive,
-            });
-            onSceneChange({ hashParams });
-          } else {
-            console.info("HOOK: [NOOP] no onSceneChange callback");
+          let cameraState: StringifiedCameraState | null = null;
+          cameraState = encodeCesiumCamera(camera);
+          if (cameraState === null) {
+            return;
           }
+          const hashParams = toHashParams(cameraState, {
+            isSecondaryStyle,
+            isCesiumActive,
+          });
+          onSceneChange({ hashParams });
         }
       };
       ctx.withCamera((camera) => {

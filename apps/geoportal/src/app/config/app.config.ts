@@ -18,6 +18,7 @@ export const CONFIG_BASE_URL =
   "https://ceepr.cismet.de/config/wuppertal/_dev_geoportal/";
 
 export const MIN_MOBILE_WIDTH = 600;
+export const DEFAULT_CAMERA_FOV_DEG = 60;
 
 const CESIUM_PATHNAME = "__cesium__";
 
@@ -57,5 +58,4 @@ export const LEAFLET_CONFIG: LeafletConfig = {
 // URL hash parameter keys for viewer state
 export const URL_PARAM_KEYS = {
   mapStyle: "m",
-  is3d: "is3d",
 } as const;

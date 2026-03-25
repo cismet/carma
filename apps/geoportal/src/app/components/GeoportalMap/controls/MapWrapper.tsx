@@ -27,6 +27,7 @@ import {
 import { ENDPOINT, isAreaType } from "@carma-commons/resources";
 import type { SearchResultItem } from "@carma/types";
 import { detectWebGLContext } from "@carma-commons/utils";
+import { ResponsiveStatusBar } from "@carma-commons/ui/components";
 
 import {
   PitchingCompass,
@@ -38,7 +39,6 @@ import {
   MapFrameworkSwitcher,
   FullscreenControl,
   LibrePitchingCompass,
-  ResponsiveStatusFooter,
   RoutedMapLocateControl,
   useMapFrameworkSwitcherContext,
 } from "@carma-mapping/components";
@@ -511,7 +511,18 @@ const MapWrapper = () => {
           )}
         </div>
       </ControlLayoutCanvas>
-      <ResponsiveStatusFooter text={statusFooterText} />
+      <div
+        style={{
+          position: "fixed",
+          left: 0,
+          right: 0,
+          bottom: 0,
+          zIndex: 1000000,
+          pointerEvents: "none",
+        }}
+      >
+        <ResponsiveStatusBar text={statusFooterText} />
+      </div>
     </ControlLayout>
   );
 };

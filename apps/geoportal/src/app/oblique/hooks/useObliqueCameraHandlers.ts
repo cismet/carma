@@ -1,12 +1,8 @@
 import { type MutableRefObject, useCallback, useEffect, useState } from "react";
 
-import {
-  Cartesian3,
-  Cartesian2,
-  HeadingPitchRange,
-  CesiumMath,
-} from "@carma/cesium";
-import { Easing } from "@carma-commons/math";
+import { Cartesian3, Cartesian2, CesiumMath } from "@carma/cesium";
+import type { Radians } from "@carma/units/types";
+import { animateOrbitHeadingPitchRange } from "@carma-mapping/engines/cesium/api";
 
 import {
   useCesiumContext,
@@ -19,12 +15,13 @@ import {
   getCardinalHeadings,
 } from "../utils/orientationUtils";
 import { useOblique } from "./useOblique";
-import { resetCamera } from "../utils/cameraUtils";
+
+const HEADING_EPSILON = 0.0001;
 
 export const useObliqueCameraHandlers = (
   animationInProgressRef: MutableRefObject<boolean>
 ) => {
-  const { requestRender, getScene } = useCesiumContext();
+  const { getScene } = useCesiumContext();
   const { headingOffset, isObliqueMode } = useOblique();
 
   // Returns a stable orbit center. If no orbitPoint is available yet (e.g., before selecting an image),
@@ -76,79 +73,43 @@ export const useObliqueCameraHandlers = (
       const normalizedTarget = CesiumMath.zeroToTwoPi(targetHeading);
       const normalizedCurrent = CesiumMath.zeroToTwoPi(currentHeading);
 
-      if (Math.abs(normalizedCurrent - normalizedTarget) < 0.0001) {
+      if (Math.abs(normalizedCurrent - normalizedTarget) < HEADING_EPSILON) {
         return;
       }
 
-      // Calculate the range (distance from center)
       const centerPoint = getOrbitCenter();
       const range = Cartesian3.distance(centerPoint, camera.position);
 
-      // Start the animation
       animationInProgressRef.current = true;
-
-      let startTime = Date.now();
-      const duration = 500; // ms
-
-      let headingChange = normalizedTarget - normalizedCurrent;
-
-      // Ensure we take the shortest path
-      if (headingChange > Math.PI) {
-        headingChange -= CesiumMath.TWO_PI;
-      } else if (headingChange < -Math.PI) {
-        headingChange += CesiumMath.TWO_PI;
-      }
-
-      // Skip animation if the change is very small
-      if (Math.abs(headingChange) < 0.0001) {
-        animationInProgressRef.current = false;
-        return;
-      }
-
-      const onPreUpdate = () => {
-        const currentTime = Date.now();
-        let t = Math.min((currentTime - startTime) / duration, 1);
-        t = Easing.SINUSOIDAL_IN_OUT(t);
-
-        if (t < 1) {
-          const intermediateHeading = normalizedCurrent + headingChange * t;
-
-          camera.lookAt(
-            centerPoint,
-            new HeadingPitchRange(intermediateHeading, camera.pitch, range)
-          );
-
-          requestRender();
-        } else {
-          camera.lookAt(
-            centerPoint,
-            new HeadingPitchRange(normalizedTarget, camera.pitch, range)
-          );
-
-          resetCamera(scene);
-          animationInProgressRef.current = false;
-
-          // update activeDirection to closest cardinal to target heading
-          const cardinals = getCardinalHeadings(headingOffset);
-          const closest = findClosestCardinalIndex(normalizedTarget, cardinals);
-          setActiveDirection(closest);
-          scene.preUpdate.removeEventListener(onPreUpdate);
+      const cancelAnimation = animateOrbitHeadingPitchRange(
+        scene,
+        centerPoint,
+        {
+          heading: normalizedTarget as Radians,
+          pitch: camera.pitch as Radians,
+          range,
+        },
+        {
+          onComplete: () => {
+            animationInProgressRef.current = false;
+            const cardinals = getCardinalHeadings(headingOffset);
+            const closest = findClosestCardinalIndex(
+              normalizedTarget,
+              cardinals
+            );
+            setActiveDirection(closest);
+          },
+          onCancel: () => {
+            animationInProgressRef.current = false;
+          },
         }
-      };
-      scene.preUpdate.addEventListener(onPreUpdate);
+      );
+
       return () => {
-        resetCamera(scene);
-        animationInProgressRef.current = false;
-        scene.preUpdate.removeEventListener(onPreUpdate);
+        cancelAnimation();
       };
     },
-    [
-      getScene,
-      headingOffset,
-      animationInProgressRef,
-      getOrbitCenter,
-      requestRender,
-    ]
+    [getScene, headingOffset, animationInProgressRef, getOrbitCenter]
   );
 
   const rotateToDirection = useCallback(
@@ -171,73 +132,38 @@ export const useObliqueCameraHandlers = (
 
       const targetHeading = cardinalHeadings[targetDirection];
 
-      // Calculate the range (distance from center)
       const centerPoint = getOrbitCenter();
       const range = Cartesian3.distance(centerPoint, camera.position);
 
-      // Start the animation
-      animationInProgressRef.current = true;
-
-      let startTime = Date.now();
-      const duration = 500; // ms
-
-      let headingChange = targetHeading - currentHeading;
-
-      // Ensure we take the shortest path
-      if (headingChange > Math.PI) {
-        headingChange -= CesiumMath.TWO_PI;
-      } else if (headingChange < -Math.PI) {
-        headingChange += CesiumMath.TWO_PI;
-      }
-
-      // Skip animation if the change is very small
-      if (Math.abs(headingChange) < 0.0001) {
-        animationInProgressRef.current = false;
+      if (Math.abs(currentHeading - targetHeading) < HEADING_EPSILON) {
         return;
       }
 
-      const onPreUpdate = () => {
-        const currentTime = Date.now();
-        let t = Math.min((currentTime - startTime) / duration, 1);
-        t = Easing.SINUSOIDAL_IN_OUT(t);
-
-        if (t < 1) {
-          const intermediateHeading = currentHeading + headingChange * t;
-
-          camera.lookAt(
-            centerPoint,
-            new HeadingPitchRange(intermediateHeading, camera.pitch, range)
-          );
-
-          requestRender();
-        } else {
-          camera.lookAt(
-            centerPoint,
-            new HeadingPitchRange(targetHeading, camera.pitch, range)
-          );
-
-          resetCamera(scene);
-          animationInProgressRef.current = false;
-
-          scene.preUpdate.removeEventListener(onPreUpdate);
-          setActiveDirection(targetDirection);
+      animationInProgressRef.current = true;
+      const cancelAnimation = animateOrbitHeadingPitchRange(
+        scene,
+        centerPoint,
+        {
+          heading: targetHeading as Radians,
+          pitch: camera.pitch as Radians,
+          range,
+        },
+        {
+          onComplete: () => {
+            animationInProgressRef.current = false;
+            setActiveDirection(targetDirection);
+          },
+          onCancel: () => {
+            animationInProgressRef.current = false;
+          },
         }
-      };
+      );
 
-      scene.preUpdate.addEventListener(onPreUpdate);
       return () => {
-        resetCamera(scene);
-        animationInProgressRef.current = false;
-        scene.preUpdate.removeEventListener(onPreUpdate);
+        cancelAnimation();
       };
     },
-    [
-      headingOffset,
-      animationInProgressRef,
-      getOrbitCenter,
-      requestRender,
-      getScene,
-    ]
+    [headingOffset, animationInProgressRef, getOrbitCenter, getScene]
   );
 
   const rotateCamera = useCallback(

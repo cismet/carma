@@ -21,6 +21,19 @@ import type {
 
 const EPSILON = 1e-8;
 
+const getEllipsoidalUpAtPoint = (anchorECEF: Cartesian3): Cartesian3 => {
+  const upMatrix = Transforms.eastNorthUpToFixedFrame(
+    anchorECEF,
+    Ellipsoid.WGS84
+  );
+  const up4 = Matrix4.getColumn(upMatrix, 2, new Cartesian4());
+
+  return Cartesian3.normalize(
+    new Cartesian3(up4.x, up4.y, up4.z),
+    new Cartesian3()
+  );
+};
+
 const normalizeBearingDeg = (bearingDeg: number): number =>
   ((bearingDeg % 360) + 360) % 360;
 
@@ -274,12 +287,7 @@ export const computeVerticalityDeg = (plane: PlanarPolygonPlane): number => {
     cartesian3FromJson(plane.normalECEF),
     new Cartesian3()
   );
-  const upMatrix = Transforms.eastNorthUpToFixedFrame(anchor, Ellipsoid.WGS84);
-  const up4 = Matrix4.getColumn(upMatrix, 2, new Cartesian4());
-  const up = Cartesian3.normalize(
-    new Cartesian3(up4.x, up4.y, up4.z),
-    new Cartesian3()
-  );
+  const up = getEllipsoidalUpAtPoint(anchor);
   const dot = Math.max(-1, Math.min(1, Math.abs(Cartesian3.dot(normal, up))));
   return (Math.acos(dot) * 180) / Math.PI;
 };
@@ -361,14 +369,14 @@ const deriveVerticalPolygonLocalFrame = (
     }
   }
 
-  const geocentricUp = normalizeDirection(origin);
-  let upInPlane = geocentricUp
+  const ellipsoidalUp = getEllipsoidalUpAtPoint(origin);
+  let upInPlane = ellipsoidalUp
     ? normalizeDirection(
         Cartesian3.subtract(
-          geocentricUp,
+          ellipsoidalUp,
           Cartesian3.multiplyByScalar(
             north,
-            Cartesian3.dot(geocentricUp, north),
+            Cartesian3.dot(ellipsoidalUp, north),
             new Cartesian3()
           ),
           new Cartesian3()

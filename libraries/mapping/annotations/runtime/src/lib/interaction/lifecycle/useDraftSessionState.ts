@@ -1,26 +1,14 @@
 import { useCallback, type Dispatch, type SetStateAction } from "react";
 
-import { useStoreSelector } from "@carma-commons/react-store";
-
-import type { AnnotationsStore } from "../../store";
-const resolveSetStateAction = <TValue>(
-  action: SetStateAction<TValue>,
-  previousValue: TValue
-): TValue =>
-  typeof action === "function"
-    ? (action as (previousValue: TValue) => TValue)(previousValue)
-    : action;
-
-const areStringListsEqual = (
-  left: readonly string[],
-  right: readonly string[]
-): boolean => {
-  if (left.length !== right.length) {
-    return false;
-  }
-
-  return left.every((value, index) => value === right[index]);
-};
+import {
+  replaceAnnotationsStoreState,
+  useStoreSelector,
+  type AnnotationsStore,
+} from "../../store";
+import {
+  areStringListsEqual,
+  resolveSetStateAction,
+} from "../../store/stateUpdateUtils";
 
 export const useDraftSessionState = (annotationsStore: AnnotationsStore) => {
   const activeNodeChainAnnotationId = useStoreSelector(
@@ -40,20 +28,25 @@ export const useDraftSessionState = (annotationsStore: AnnotationsStore) => {
     Dispatch<SetStateAction<string | null>>
   >(
     (nextValueOrUpdater) => {
-      annotationsStore.setState((previousState) => {
-        const nextActiveNodeChainAnnotationId = resolveSetStateAction(
-          nextValueOrUpdater,
-          previousState.activeNodeChainAnnotationId
-        );
+      const previousState = annotationsStore.getState();
+      const nextActiveNodeChainAnnotationId = resolveSetStateAction(
+        nextValueOrUpdater,
+        previousState.activeNodeChainAnnotationId
+      );
 
-        return nextActiveNodeChainAnnotationId ===
-          previousState.activeNodeChainAnnotationId
-          ? previousState
-          : {
-              ...previousState,
-              activeNodeChainAnnotationId: nextActiveNodeChainAnnotationId,
-            };
-      });
+      if (
+        nextActiveNodeChainAnnotationId ===
+        previousState.activeNodeChainAnnotationId
+      ) {
+        return;
+      }
+
+      annotationsStore.dispatch(
+        replaceAnnotationsStoreState({
+          ...previousState,
+          activeNodeChainAnnotationId: nextActiveNodeChainAnnotationId,
+        })
+      );
     },
     [annotationsStore]
   );
@@ -62,46 +55,52 @@ export const useDraftSessionState = (annotationsStore: AnnotationsStore) => {
     Dispatch<SetStateAction<string | null>>
   >(
     (nextValueOrUpdater) => {
-      annotationsStore.setState((previousState) => {
-        const nextPendingLabelPlacementAnnotationId = resolveSetStateAction(
-          nextValueOrUpdater,
-          previousState.pendingLabelPlacementAnnotationId
-        );
+      const previousState = annotationsStore.getState();
+      const nextPendingLabelPlacementAnnotationId = resolveSetStateAction(
+        nextValueOrUpdater,
+        previousState.pendingLabelPlacementAnnotationId
+      );
 
-        return nextPendingLabelPlacementAnnotationId ===
-          previousState.pendingLabelPlacementAnnotationId
-          ? previousState
-          : {
-              ...previousState,
-              pendingLabelPlacementAnnotationId:
-                nextPendingLabelPlacementAnnotationId,
-            };
-      });
+      if (
+        nextPendingLabelPlacementAnnotationId ===
+        previousState.pendingLabelPlacementAnnotationId
+      ) {
+        return;
+      }
+
+      annotationsStore.dispatch(
+        replaceAnnotationsStoreState({
+          ...previousState,
+          pendingLabelPlacementAnnotationId:
+            nextPendingLabelPlacementAnnotationId,
+        })
+      );
     },
     [annotationsStore]
   );
 
   const clearDistanceSession = useCallback(() => {
-    annotationsStore.setState((previousState) => {
-      const { sourcePointId, createdPointIds, createdRelationIds } =
-        previousState.distanceSession;
-      if (
-        sourcePointId === null &&
-        createdPointIds.length === 0 &&
-        createdRelationIds.length === 0
-      ) {
-        return previousState;
-      }
+    const previousState = annotationsStore.getState();
+    const { sourcePointId, createdPointIds, createdRelationIds } =
+      previousState.distanceSession;
+    if (
+      sourcePointId === null &&
+      createdPointIds.length === 0 &&
+      createdRelationIds.length === 0
+    ) {
+      return;
+    }
 
-      return {
+    annotationsStore.dispatch(
+      replaceAnnotationsStoreState({
         ...previousState,
         distanceSession: {
           sourcePointId: null,
           createdPointIds: [],
           createdRelationIds: [],
         },
-      };
-    });
+      })
+    );
   }, [annotationsStore]);
 
   const pruneDistanceSession = useCallback(
@@ -116,36 +115,38 @@ export const useDraftSessionState = (annotationsStore: AnnotationsStore) => {
         return;
       }
 
-      annotationsStore.setState((previousState) => {
-        const previousSession = previousState.distanceSession;
-        const nextPointIds = previousSession.createdPointIds.filter(
-          (pointId) => !removedPointIds.has(pointId)
-        );
-        const nextRelationIds = previousSession.createdRelationIds.filter(
-          (relationId) => !removedRelationIds?.has(relationId)
-        );
-        const nextSourcePointId =
-          previousSession.sourcePointId &&
-          removedPointIds.has(previousSession.sourcePointId)
-            ? null
-            : previousSession.sourcePointId;
+      const previousState = annotationsStore.getState();
+      const previousSession = previousState.distanceSession;
+      const nextPointIds = previousSession.createdPointIds.filter(
+        (pointId) => !removedPointIds.has(pointId)
+      );
+      const nextRelationIds = previousSession.createdRelationIds.filter(
+        (relationId) => !removedRelationIds?.has(relationId)
+      );
+      const nextSourcePointId =
+        previousSession.sourcePointId &&
+        removedPointIds.has(previousSession.sourcePointId)
+          ? null
+          : previousSession.sourcePointId;
 
-        return nextSourcePointId === previousSession.sourcePointId &&
-          areStringListsEqual(previousSession.createdPointIds, nextPointIds) &&
-          areStringListsEqual(
-            previousSession.createdRelationIds,
-            nextRelationIds
-          )
-          ? previousState
-          : {
-              ...previousState,
-              distanceSession: {
-                sourcePointId: nextSourcePointId,
-                createdPointIds: nextPointIds,
-                createdRelationIds: nextRelationIds,
-              },
-            };
-      });
+      if (
+        nextSourcePointId === previousSession.sourcePointId &&
+        areStringListsEqual(previousSession.createdPointIds, nextPointIds) &&
+        areStringListsEqual(previousSession.createdRelationIds, nextRelationIds)
+      ) {
+        return;
+      }
+
+      annotationsStore.dispatch(
+        replaceAnnotationsStoreState({
+          ...previousState,
+          distanceSession: {
+            sourcePointId: nextSourcePointId,
+            createdPointIds: nextPointIds,
+            createdRelationIds: nextRelationIds,
+          },
+        })
+      );
     },
     [annotationsStore]
   );

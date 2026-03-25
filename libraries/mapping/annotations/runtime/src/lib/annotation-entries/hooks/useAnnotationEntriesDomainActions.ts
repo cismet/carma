@@ -1,4 +1,5 @@
 import type { Dispatch, SetStateAction } from "react";
+import type { Cartesian3 } from "@carma/cesium";
 
 import {
   applyLabelAppearance,
@@ -39,7 +40,7 @@ type Params = {
   getOwnerGroupIdsForPointId: (pointId: string) => readonly string[];
   computePolygonGroupDerivedDataWithCamera: (
     group: NodeChainAnnotation,
-    pointById: Map<string, import("@carma/cesium").Cartesian3>
+    pointById: Map<string, Cartesian3>
   ) => NodeChainAnnotation;
   pruneDistanceSession: (
     removedPointIds: ReadonlySet<string>,

@@ -233,92 +233,83 @@ const stopHeadingActionPropagation = (
 
 const renderNodeChainHeadingActions = (
   input: AnnotationInfoBoxEntryPayload
-) => (
-  <div
-    className="flex items-center gap-2"
-    onMouseDown={stopInputEventPropagation}
-    onClick={stopInputEventPropagation}
-  >
-    <Tooltip {...annotationTooltipProps} title="Zur Messung fliegen">
-      <Icon
-        name="search-location"
-        onClick={(event: ReactMouseEvent<HTMLElement, MouseEvent>) => {
+) => {
+  const annotationLockedById = new Map(
+    input.annotations.map((entry) => [entry.id, Boolean(entry.locked)] as const)
+  );
+  const isLocked =
+    Boolean(input.nodeChainAnnotation) &&
+    input.nodeChainAnnotation.nodeIds.length > 0 &&
+    input.nodeChainAnnotation.nodeIds.every((nodeId) =>
+      Boolean(annotationLockedById.get(nodeId))
+    );
+
+  return (
+    <div
+      className="flex items-center gap-2"
+      onMouseDown={stopInputEventPropagation}
+      onClick={stopInputEventPropagation}
+    >
+      <Tooltip {...annotationTooltipProps} title="Zur Messung fliegen">
+        <Icon
+          name="search-location"
+          onClick={(event: ReactMouseEvent<HTMLElement, MouseEvent>) => {
+            stopHeadingActionPropagation(event);
+            if (!input.nodeChainAnnotation) return;
+            input.actions.flyToById(input.nodeChainAnnotation.id);
+          }}
+          className={INFO_BOX_ACTION_ICON_CLASSNAME}
+          data-test-id="carma-flyto-node-chain-annotation-btn"
+        />
+      </Tooltip>
+      <AnnotationInfoBoxActionIcon
+        title="Als GeoJSON exportieren"
+        icon={faDownload}
+        onClick={(event) => {
           stopHeadingActionPropagation(event);
           if (!input.nodeChainAnnotation) return;
-          input.actions.flyToById(input.nodeChainAnnotation.id);
+          input.actions.exportGeoJsonById(input.nodeChainAnnotation.id);
         }}
-        className={INFO_BOX_ACTION_ICON_CLASSNAME}
-        data-test-id="carma-flyto-node-chain-annotation-btn"
+        dataTestId="carma-export-node-chain-annotation-geojson-btn"
       />
-    </Tooltip>
-    <AnnotationInfoBoxActionIcon
-      title="Als GeoJSON exportieren"
-      icon={faDownload}
-      onClick={(event) => {
-        stopHeadingActionPropagation(event);
-        if (!input.nodeChainAnnotation) return;
-        input.actions.exportGeoJsonById(input.nodeChainAnnotation.id);
-      }}
-      dataTestId="carma-export-node-chain-annotation-geojson-btn"
-    />
-    <AnnotationInfoBoxActionIcon
-      title={input.nodeChainAnnotation?.hidden ? "Einblenden" : "Ausblenden"}
-      icon={input.nodeChainAnnotation?.hidden ? faEyeSlash : faEye}
-      onClick={(event) => {
-        stopHeadingActionPropagation(event);
-        if (!input.nodeChainAnnotation) return;
-        input.actions.toggleVisibilityByIds([input.nodeChainAnnotation.id]);
-      }}
-      dataTestId="carma-toggle-node-chain-annotation-visibility-btn"
-    />
-    <AnnotationInfoBoxActionIcon
-      title={(() => {
-        if (!input.nodeChainAnnotation) return "Sperren";
-        const annotationLockedById = new Map(
-          input.annotations.map(
-            (entry) => [entry.id, Boolean(entry.locked)] as const
-          )
-        );
-        const isLocked =
-          input.nodeChainAnnotation.nodeIds.length > 0 &&
-          input.nodeChainAnnotation.nodeIds.every((nodeId) =>
-            Boolean(annotationLockedById.get(nodeId))
-          );
-        return isLocked ? "Entsperren" : "Sperren";
-      })()}
-      icon={(() => {
-        if (!input.nodeChainAnnotation) return faLockOpen;
-        const annotationLockedById = new Map(
-          input.annotations.map(
-            (entry) => [entry.id, Boolean(entry.locked)] as const
-          )
-        );
-        const isLocked =
-          input.nodeChainAnnotation.nodeIds.length > 0 &&
-          input.nodeChainAnnotation.nodeIds.every((nodeId) =>
-            Boolean(annotationLockedById.get(nodeId))
-          );
-        return isLocked ? faLock : faLockOpen;
-      })()}
-      onClick={(event) => {
-        stopHeadingActionPropagation(event);
-        if (!input.nodeChainAnnotation) return;
-        input.actions.toggleLockByIds([input.nodeChainAnnotation.id]);
-      }}
-      dataTestId="carma-toggle-node-chain-annotation-lock-btn"
-    />
-    <AnnotationInfoBoxActionIcon
-      title="Löschen"
-      icon={faTrashCan}
-      onClick={(event) => {
-        stopHeadingActionPropagation(event);
-        if (!input.nodeChainAnnotation) return;
-        input.actions.removeByIds([input.nodeChainAnnotation.id]);
-      }}
-      dataTestId="carma-delete-node-chain-annotation-btn"
-    />
-  </div>
-);
+      <AnnotationInfoBoxActionIcon
+        title={input.nodeChainAnnotation?.hidden ? "Einblenden" : "Ausblenden"}
+        icon={input.nodeChainAnnotation?.hidden ? faEyeSlash : faEye}
+        onClick={(event) => {
+          stopHeadingActionPropagation(event);
+          if (!input.nodeChainAnnotation) return;
+          input.actions.toggleVisibilityByIds([input.nodeChainAnnotation.id]);
+        }}
+        dataTestId="carma-toggle-node-chain-annotation-visibility-btn"
+        fixedWidth={true}
+      />
+      <AnnotationInfoBoxActionIcon
+        title={isLocked ? "Entsperren" : "Sperren"}
+        icon={isLocked ? faLock : faLockOpen}
+        onClick={(event) => {
+          stopHeadingActionPropagation(event);
+          if (!input.nodeChainAnnotation) return;
+          input.actions.toggleLockByIds([input.nodeChainAnnotation.id]);
+        }}
+        dataTestId="carma-toggle-node-chain-annotation-lock-btn"
+        fixedWidth={true}
+      />
+      <AnnotationInfoBoxActionIcon
+        title={
+          isLocked ? "Gesperrte Messung kann nicht gelöscht werden" : "Löschen"
+        }
+        icon={faTrashCan}
+        onClick={(event) => {
+          stopHeadingActionPropagation(event);
+          if (!input.nodeChainAnnotation) return;
+          input.actions.removeByIds([input.nodeChainAnnotation.id]);
+        }}
+        dataTestId="carma-delete-node-chain-annotation-btn"
+        disabled={isLocked}
+      />
+    </div>
+  );
+};
 
 export const getNodeChainAnnotationInfoBoxSlots = (
   input: AnnotationInfoBoxEntryPayload

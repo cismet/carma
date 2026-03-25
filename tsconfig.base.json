@@ -42,6 +42,12 @@
       "@carma-commons/ui/shadcn": ["libraries/commons/ui/shadcn/src/index.ts"],
       "@carma-commons/utils/*": ["libraries/commons/utils/src/lib/*/index.ts"],
       "@carma-mapping/*": ["libraries/mapping/*/src/index.ts"],
+      "@carma-mapping/engines-interop/view-sync": [
+        "libraries/mapping/engines-interop/view-sync/src/index.ts"
+      ],
+      "@carma-mapping/engines-interop/leaflet-cesium": [
+        "libraries/mapping/engines-interop/leaflet-cesium/src/index.ts"
+      ],
       "@carma-providers/*": ["libraries/providers/*/src/index.ts"],
       "@carma/types": ["libraries/types/src/index.d.ts"],
       
@@ -50,7 +56,6 @@
       
       // aliases to carma root
       "@carma/cesium": ["libraries/mapping/engines/cesium/api/src/index.ts"],
-      "@carma/leaflet": ["libraries/mapping/engines/leaflet/src/index.ts"],
       "@carma/geo/*": ["libraries/commons/geo/*/src/index.ts"],
       "@carma/geo/types": ["libraries/commons/geo/types/src/index.d.ts"],
       "@carma/math": ["libraries/commons/math/src/index.ts"],

@@ -1,7 +1,6 @@
 import { useMemo, type Dispatch, type SetStateAction } from "react";
 
 import type { Cartesian3, Scene } from "@carma/cesium";
-import { useStoreSelector } from "@carma-commons/react-store";
 import {
   ANNOTATION_TYPE_POINT,
   SELECT_TOOL_TYPE,
@@ -20,7 +19,7 @@ import { useToolCandidatePreview } from "../interaction/useInteraction";
 import type { UserInteractionState } from "../interaction/lifecycle/modes/useUserInteraction";
 import type { RectangleSelectionState } from "../selection/hooks/useRectangleSelectionOverlay";
 import type { AnnotationSelectionState } from "../selection/types/annotationSelection.types";
-import type { AnnotationsStore } from "../store";
+import { useStoreSelector, type AnnotationsStore } from "../store";
 import {
   isPointVisibleForRendering,
   useClosedAreaBridge,
@@ -240,6 +239,8 @@ export const useRenderBridgeState = ({
     effectiveDistanceToReferenceByPointId:
       polylineBridge.effectiveDistanceToReferenceByPointId,
     pointMarkerBadgeByPointId: pointBridge.pointMarkerBadgeByPointId,
+    polylinePointLabelTextByPointId:
+      pointBridge.polylinePointLabelTextByPointId,
     collapsedPillPointIds: pointBridge.collapsedPillPointIds,
     visiblePointEntries,
     showPoints: pointBridge.showPoints,
@@ -368,6 +369,8 @@ export const useRenderEffects = (
         effectiveDistanceToReferenceByPointId:
           renderState.effectiveDistanceToReferenceByPointId,
         pointMarkerBadgeByPointId: renderState.pointMarkerBadgeByPointId,
+        polylinePointLabelTextByPointId:
+          renderState.polylinePointLabelTextByPointId,
         hiddenPointLabelIds: renderState.hiddenPointLabelIds,
         effectiveFullyHiddenPointIds: renderState.effectiveFullyHiddenPointIds,
         markerlessPointIds: renderState.markerlessPointIds,

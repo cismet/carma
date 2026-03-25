@@ -1,23 +1,28 @@
+import {
+  buildOrderedSearchParamsString,
+  DEFAULT_HASH_LAUNCH_FLAG_2D_KEY,
+  DEFAULT_HASH_LAUNCH_FLAG_3D_KEY,
+} from "@carma-commons/utils";
 import { HashCodec, HashCodecs } from "./HashStateProvider";
+import { applyHashCodecs } from "./utils";
+import {
+  sceneViewStateHashCodecs,
+  sceneViewStateHashKeyAliases,
+  sceneViewStateHashKeyOrder,
+} from "./scene-state-hash/hashParamCodecs";
 
 export const defaultHashKeyAliases = {
   mapStyle: "m",
   isOblique: "oblq",
-  isCesium: "is3d",
+  ...sceneViewStateHashKeyAliases,
 };
 
 export const defaultHashKeyOrder: string[] = [
-  "lat",
-  "lng",
-  "zoom",
-  "h",
-  "heading",
-  "bearing",
-  "pitch",
-  "roll",
-  "fov",
+  DEFAULT_HASH_LAUNCH_FLAG_2D_KEY,
+  DEFAULT_HASH_LAUNCH_FLAG_3D_KEY,
+  ...sceneViewStateHashKeyOrder,
   "m",
-  "isOblique",
+  "oblq",
 ];
 
 // TODO move to a shared location
@@ -45,34 +50,46 @@ const getStringLookupCodec = <T extends string>(
   };
 };
 
-const getNumberCodec = (fixed?: number, trailingZeros = false): HashCodec => ({
-  encode: (value: unknown) => {
-    if (typeof value === "string" && value.length > 0) {
-      return value; // Allow preformatted string values to pass through as is
-    }
-
-    if (typeof value === "number") {
-      if (isNaN(value) || !isFinite(value)) {
-        return undefined;
-      }
-      if (fixed === undefined) {
-        return value.toString();
-      }
-      const fixedValue = value.toFixed(fixed);
-      return trailingZeros ? fixedValue : parseFloat(fixedValue).toString();
-    }
-    return undefined;
-  },
-  decode: (value: string | undefined) =>
-    value !== undefined ? parseFloat(value) : undefined,
-});
-
 export const defaultHashCodecs: HashCodecs = Object.freeze({
   mapStyle: getStringLookupCodec(mapStyleShortNames),
-  lat: getNumberCodec(7),
-  lng: getNumberCodec(7),
-  zoom: getNumberCodec(2),
-  heading: getNumberCodec(2),
-  bearing: getNumberCodec(2), // bearing is used by maplibre
-  pitch: getNumberCodec(2),
+  ...sceneViewStateHashCodecs,
 });
+
+export const encodeHashParams = (
+  params: Record<string, unknown>,
+  options: {
+    includeHashPrefix?: boolean;
+  } = {}
+): string => {
+  const { includeHashPrefix = true } = options;
+  const { newParams } = applyHashCodecs(
+    params,
+    defaultHashCodecs,
+    defaultHashKeyAliases
+  );
+  const orderedEntries = Object.entries(
+    newParams as Record<string, string>
+  ).sort(([keyA], [keyB]) => {
+    const indexA = defaultHashKeyOrder.indexOf(keyA);
+    const indexB = defaultHashKeyOrder.indexOf(keyB);
+    if (indexA !== -1 && indexB !== -1) {
+      return indexA - indexB;
+    }
+    if (indexA !== -1) {
+      return -1;
+    }
+    if (indexB !== -1) {
+      return 1;
+    }
+    return 0;
+  });
+
+  const encoded = buildOrderedSearchParamsString(
+    Object.fromEntries(orderedEntries),
+    defaultHashKeyOrder
+  );
+  if (!includeHashPrefix) {
+    return encoded;
+  }
+  return `#?${encoded}`;
+};

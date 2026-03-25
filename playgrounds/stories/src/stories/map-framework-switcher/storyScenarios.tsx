@@ -1,11 +1,15 @@
 import { useEffect, type ReactNode } from "react";
 import {
+  CarmaResponsiveInfoBox,
+  ResponsiveStatusBar,
+} from "@carma-commons/ui/components";
+import {
   MapFrameworkSwitcher,
   MapFrameworkSwitcherProvider,
+  useMapFrameworkSwitcherContext,
   useRegisterMapFramework,
 } from "@carma-mapping/components";
 import { ElevationDisplay } from "./components/ElevationDisplay";
-import { ActiveFrameworkIndicator } from "./components/ActiveFrameworkIndicator";
 import { FovControl } from "./components/FovControl";
 import { MapContainers } from "./components/MapContainers";
 import { ResolutionStatus } from "./components/ResolutionStatus";
@@ -16,15 +20,59 @@ import { useLeafletCesiumSetup } from "./hooks/useLeafletCesiumSetup";
 import "leaflet/dist/leaflet.css";
 import "cesium/Build/Cesium/Widgets/widgets.css";
 
-if (typeof window !== "undefined") {
-  (window as any).CESIUM_BASE_URL = "/__cesium__/";
-}
-
 type Framework = "leaflet" | "cesium";
 
 export type ResolutionScaleControls = {
   resolutionScale?: (typeof RESOLUTION_SCALE.options)[number];
   useBrowserRecommendedResolution?: boolean;
+};
+
+const FrameworkStateStatusBar = () => {
+  const {
+    activeFramework,
+    isTransitioning,
+    isPreparingCesiumTransition,
+    preparingCesiumMessage,
+  } = useMapFrameworkSwitcherContext();
+
+  const activeFrameworkText =
+    typeof activeFramework === "string" && activeFramework.trim().length > 0
+      ? activeFramework
+      : "unknown";
+  const transitionText = isTransitioning
+    ? isPreparingCesiumTransition
+      ? preparingCesiumMessage ?? "preparing cesium"
+      : "running"
+    : "idle";
+  const statusText = `${activeFrameworkText} • transition ${transitionText}`;
+
+  return (
+    <div
+      style={{
+        position: "absolute",
+        left: 0,
+        right: 0,
+        bottom: 0,
+        zIndex: 1800,
+        pointerEvents: "none",
+      }}
+    >
+      <ResponsiveStatusBar
+        text={
+          <span
+            style={{
+              width: "100%",
+              display: "block",
+              textAlign: "center",
+            }}
+          >
+            {statusText}
+          </span>
+        }
+        tone="dark"
+      />
+    </div>
+  );
 };
 
 const FrameProvider = ({
@@ -69,7 +117,7 @@ const useRegisteredLeafletCesium = (
 };
 
 const BasicSwitcherScene = () => {
-  const { leafletContainerRef, cesiumContainerRef } =
+  const { leafletContainerRef, cesiumContainerRef, mapsInitialized } =
     useRegisteredLeafletCesium();
 
   return (
@@ -81,14 +129,18 @@ const BasicSwitcherScene = () => {
         nativeTooltip={true}
         style={styles.topLeftAbsolute}
       />
-      <ActiveFrameworkIndicator />
+      <FrameworkStateStatusBar />
     </MapContainers>
   );
 };
 
 const DebugScene = () => {
-  const { leafletContainerRef, cesiumContainerRef, cesiumWidgetRef } =
-    useRegisteredLeafletCesium();
+  const {
+    leafletContainerRef,
+    cesiumContainerRef,
+    cesiumWidgetRef,
+    mapsInitialized,
+  } = useRegisteredLeafletCesium();
 
   return (
     <MapContainers
@@ -99,10 +151,97 @@ const DebugScene = () => {
         nativeTooltip={true}
         style={styles.topLeftAbsolute}
       />
-      <ActiveFrameworkIndicator />
-      <FovControl cesiumWidget={cesiumWidgetRef.current} />
-      <ResolutionStatus />
-      <ElevationDisplay />
+      <CarmaResponsiveInfoBox
+        useControlLayout={false}
+        draggable
+        dragGripPlacement="auto"
+        collapsible
+        heading={
+          <div style={{ fontWeight: 600, color: "#ffffff", lineHeight: 1.25 }}>
+            FOV + Pixel Resolution
+          </div>
+        }
+        headingColor="rgba(15, 23, 42, 0.88)"
+        content={
+          <FovControl
+            cesiumWidget={cesiumWidgetRef.current}
+            style={{
+              position: "static",
+              top: "auto",
+              right: "auto",
+              zIndex: "auto",
+            }}
+          />
+        }
+        style={{
+          position: "absolute",
+          top: 16,
+          right: 16,
+          zIndex: 1100,
+          width: "fit-content",
+          maxWidth: "calc(100vw - 32px)",
+        }}
+      />
+      <CarmaResponsiveInfoBox
+        useControlLayout={false}
+        draggable
+        dragGripPlacement="auto"
+        collapsible
+        defaultCollapsed={true}
+        heading={
+          <div style={{ fontWeight: 600, color: "#ffffff", lineHeight: 1.25 }}>
+            Resolution Status
+          </div>
+        }
+        headingColor="rgba(15, 23, 42, 0.88)"
+        content={
+          <ResolutionStatus
+            style={{
+              position: "static",
+            }}
+          />
+        }
+        style={{
+          position: "absolute",
+          top: 16,
+          right: 458,
+          zIndex: 1100,
+          width: "fit-content",
+          maxWidth: "calc(100vw - 32px)",
+        }}
+      />
+      <CarmaResponsiveInfoBox
+        useControlLayout={false}
+        draggable
+        dragGripPlacement="auto"
+        collapsible
+        defaultCollapsed={true}
+        heading={
+          <div style={{ fontWeight: 600, color: "#ffffff", lineHeight: 1.25 }}>
+            Elevation / Zoom Sync
+          </div>
+        }
+        headingColor="rgba(15, 23, 42, 0.88)"
+        content={
+          <ElevationDisplay
+            style={{
+              position: "static",
+              right: "auto",
+              bottom: "auto",
+              zIndex: "auto",
+            }}
+          />
+        }
+        style={{
+          position: "absolute",
+          top: 16,
+          right: 834,
+          zIndex: 1100,
+          width: "fit-content",
+          maxWidth: "calc(100vw - 32px)",
+        }}
+      />
+      <FrameworkStateStatusBar />
     </MapContainers>
   );
 };
@@ -145,11 +284,18 @@ const ResolutionScaleScene = ({
         nativeTooltip={true}
         style={styles.topLeftAbsolute}
       />
-      <ActiveFrameworkIndicator />
       <ResolutionStatus
+        style={{
+          position: "absolute",
+          left: "50%",
+          bottom: "48px",
+          transform: "translateX(-50%)",
+          zIndex: 1000,
+        }}
         resolutionScale={resolutionScale}
         useBrowserRecommendedResolution={useBrowserRecommendedResolution}
       />
+      <FrameworkStateStatusBar />
     </MapContainers>
   );
 };

@@ -1,6 +1,6 @@
 import { useRef } from "react";
 import { Math as CesiumMath } from "cesium";
-import type { Vector3Arr } from "@carma/types";
+import type { Vector3Arr } from "@carma/math";
 
 const CESIUM_DEBUG_AXIS_COLORS = {
   // https://cesium.com/learn/cesiumjs/ref-doc/DebugModelMatrixPrimitive.html

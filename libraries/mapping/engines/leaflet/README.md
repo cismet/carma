@@ -1,4 +1,6 @@
-# @carma/leaflet (@carma-mapping/engines/leaflet)
+# engines/leaflet/
+
+No sub-projects needed; root acts as api.
 
 **Leaflet Engine Helpers** - Typed wrappers and pure helper functions for Leaflet mapping engine.
 
@@ -12,20 +14,10 @@
 ## Usage
 
 ```typescript
-// Import from the leaflet engine package
-import { 
-  LeafletMap,
-  type LeafletView,
-  getLeafletView,
-  setLeafletView,
-  type LatLngJson,
-  leafletLatLngToLatLngJson,
-  latLngUnitsTypedToLatLngJson
-} from '@carma/leaflet';
+import { Map as LeafletMap } from "leaflet";
 ```
 
-**Import Path**: Always use `@carma/leaflet`  
-**Package Name**: `@carma/leaflet`
+Repo-internal code should prefer raw `leaflet` imports. This library exists for engine-local typed helpers and conversions, not as a repo-wide root alias policy.
 
 ## Structure
 

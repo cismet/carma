@@ -161,6 +161,12 @@ export {
   type CityMapConfig,
 } from "./constants/wuppertalDefaultStyle";
 
+export {
+  DEFAULT_MAPLIBRE_FOV_DEG,
+  DEFAULT_MAPLIBRE_PITCH_MAX_DEG,
+  DEFAULT_MAPLIBRE_PITCH_MIN_DEG,
+} from "./constants/cameraDefaults";
+
 // Three.js layer management
 export { ThreeLayerManager } from "./components/ThreeLayerManager";
 export type { ThreeLayerManagerProps } from "./components/ThreeLayerManager";

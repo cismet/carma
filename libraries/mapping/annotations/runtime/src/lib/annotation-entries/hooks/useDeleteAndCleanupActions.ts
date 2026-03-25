@@ -255,19 +255,23 @@ export const useDeleteAndCleanupActions = ({
       );
       const expandedAnnotationIdSet = new Set<string>(
         ids.filter(
-          (id) => !targetedNodeChainAnnotations.some((group) => group.id === id)
+          (id) =>
+            !lockedAnnotationIdSet.has(id) &&
+            !targetedNodeChainAnnotations.some((group) => group.id === id)
         )
       );
 
       targetedNodeChainAnnotations.forEach((group) => {
         group.nodeIds.forEach((nodeId) => {
-          expandedAnnotationIdSet.add(nodeId);
+          if (!lockedAnnotationIdSet.has(nodeId)) {
+            expandedAnnotationIdSet.add(nodeId);
+          }
         });
       });
 
       clearAnnotationsByIds([...expandedAnnotationIdSet]);
     },
-    [clearAnnotationsByIds, nodeChainAnnotations]
+    [clearAnnotationsByIds, lockedAnnotationIdSet, nodeChainAnnotations]
   );
 
   const deleteSelectedAnnotations = useCallback(() => {

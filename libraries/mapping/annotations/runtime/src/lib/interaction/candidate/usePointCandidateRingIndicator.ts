@@ -12,9 +12,9 @@ import {
   resolveDiscNormal,
   safeCall,
   safeRemovePrimitive,
+  createRing,
   type Scene,
 } from "@carma/cesium";
-import { createRing } from "@carma-mapping/engines/cesium/primitives";
 import {
   type CandidateRingSample,
   getAveragedCandidateRingNormal,

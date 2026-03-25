@@ -4,47 +4,33 @@
  */
 
 import { useEffect } from "react";
-
-import { useHashState } from "@carma-providers/hash-state";
 import { useMapFrameworkSwitcherContext } from "@carma-mapping/components";
 
 type UseGeoportalFrameworkSwitcherOptions = {
   onBeforeTransitionToCesium?: () => Promise<void> | void;
+  onAfterTransitionToCesium?: () => void;
 };
 
 /**
  * Registers geoportal-specific callbacks for framework transitions
- * - Updates hash with Leaflet coordinates after Cesium→Leaflet transition
- * - Clears Cesium-specific hash parameters (h, heading, pitch, fov, is3d)
+ * - Stages Geoportal-specific Cesium content before 2D→3D transitions
+ * - Leaves 2D hash/history updates on the existing guarded routing path
  */
 export const useGeoportalFrameworkSwitcher = (
   options?: UseGeoportalFrameworkSwitcherOptions
 ) => {
-  const { updateHash } = useHashState();
   const { registerCallbacks } = useMapFrameworkSwitcherContext();
   const onBeforeTransitionToCesium = options?.onBeforeTransitionToCesium;
+  const onAfterTransitionToCesium = options?.onAfterTransitionToCesium;
 
   useEffect(() => {
-    const callback = ({
-      center,
-      zoom,
-    }: {
-      center: { lat: number; lng: number };
-      zoom: number;
-    }) => {
-      // Clear Cesium-specific parameters and set Leaflet parameters
-      updateHash(
-        { lat: center.lat, lng: center.lng, zoom },
-        {
-          label: "[GEOPORTAL] Post-transition hash update",
-          clearKeys: ["h", "heading", "pitch", "fov", "is3d"],
-        }
-      );
-    };
-
     registerCallbacks({
       onBeforeTransitionToCesium,
-      onLeafletViewSet: callback,
+      onAfterTransitionToCesium,
     });
-  }, [onBeforeTransitionToCesium, registerCallbacks, updateHash]);
+  }, [
+    onAfterTransitionToCesium,
+    onBeforeTransitionToCesium,
+    registerCallbacks,
+  ]);
 };

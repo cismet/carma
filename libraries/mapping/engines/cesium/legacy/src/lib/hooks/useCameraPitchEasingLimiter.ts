@@ -29,7 +29,8 @@ const useCameraPitchEasingLimiter = (
     options.pitchLimiter === undefined ? true : options.pitchLimiter;
   const enabled = options.enabled ?? true;
   const viewer = useCesiumViewer();
-  const { shouldSuspendCameraLimitersRef } = useCesiumContext();
+  const { shouldSuspendCameraLimitersRef, initialViewApplied } =
+    useCesiumContext();
 
   const isAnimating = useSelector(selectViewerIsAnimating);
 
@@ -52,6 +53,7 @@ const useCameraPitchEasingLimiter = (
 
       const onUpdate = async () => {
         if (shouldSuspendCameraLimitersRef?.current) return;
+        if (!initialViewApplied) return;
         if (isTransitioningRef.current || isAnimatingRef.current) {
           console.debug(
             "HOOK [CESIUM|CAMERA] EASING Pitch Limiter skipped while transitioning or animating"
@@ -128,6 +130,7 @@ const useCameraPitchEasingLimiter = (
     easing,
     easingRangeDeg,
     minPitchDeg,
+    initialViewApplied,
     shouldSuspendCameraLimitersRef,
   ]);
 };

@@ -15,6 +15,7 @@ import {
   computePolygonCentroid2D,
   type NodeChainAnnotation,
 } from "@carma-mapping/annotations/core";
+import type { Cartesian3Json } from "@carma/cesium";
 
 import type { CssPixelPosition } from "@carma/units/types";
 import {
@@ -211,7 +212,7 @@ export const useAreaLabelVisualizerBase = (
   viewProjector: AreaLabelViewProjector,
   polygonPreviewGroups: readonly {
     group: NodeChainAnnotation;
-    vertexPoints: import("@carma/cesium").Cartesian3Json[];
+    vertexPoints: Cartesian3Json[];
   }[],
   {
     overlayPrefix,

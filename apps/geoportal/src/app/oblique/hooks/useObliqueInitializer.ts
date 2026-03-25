@@ -28,6 +28,7 @@ export function useObliqueInitializer(debug = false) {
     fixedPitch,
     minFov,
     maxFov,
+    restoreFovOnLeave,
     setSuspendSelectionSearch,
   } = useOblique();
   const originalFovRef = useRef<number | null>(null);
@@ -118,10 +119,15 @@ export function useObliqueInitializer(debug = false) {
         }
       } else {
         debug && console.debug("leaving Oblique Mode", originalFovRef.current);
-        leaveObliqueMode(scene, originalFovRef, () => {
-          disableCameraForceOblique();
-          requestRender();
-        });
+        leaveObliqueMode(
+          scene,
+          originalFovRef,
+          () => {
+            disableCameraForceOblique();
+            requestRender();
+          },
+          restoreFovOnLeave
+        );
       }
     }
 
@@ -139,6 +145,7 @@ export function useObliqueInitializer(debug = false) {
     fixedHeight,
     minFov,
     maxFov,
+    restoreFovOnLeave,
     setWheelZoomEnabled,
     enableCameraForceOblique,
     disableCameraForceOblique,

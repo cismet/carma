@@ -1,6 +1,8 @@
 export {
   HashStateProvider,
+  HASH_CLEAR_KEY_SET,
   useHashState,
+  type HashClearKeySetId,
   type HashChangeEvent,
   type HashChangeSource,
   type HashCodecs,
@@ -10,6 +12,7 @@ export {
 
 export {
   defaultHashCodecs,
+  encodeHashParams,
   defaultHashKeyAliases,
   defaultHashKeyOrder,
 } from "./lib/hashCodecs";

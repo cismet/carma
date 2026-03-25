@@ -82,7 +82,7 @@ export const ResolutionStatus = ({
               {"Scale "}
               <InfoTooltip
                 title="Cesium Resolution Scale"
-                href="https://cesium.com/learn/cesiumjs/ref-doc/Viewer.html#resolutionScale"
+                href="https://cesium.com/learn/cesiumjs/ref-doc/CesiumWidget.html#resolutionScale"
                 linkText="Cesium Documentation"
               />
             </span>

@@ -187,15 +187,7 @@ const renderAnnotationActions = (
         actions.toggleVisibilityByIds([measurement.id]);
       }}
       dataTestId="carma-toggle-measurement-visibility-btn"
-    />
-    <AnnotationInfoBoxActionIcon
-      title={measurement.locked ? "Entsperren" : "Sperren"}
-      icon={measurement.locked ? faLock : faLockOpen}
-      onClick={(event) => {
-        event.stopPropagation();
-        actions.toggleLockByIds([measurement.id]);
-      }}
-      dataTestId="carma-toggle-measurement-lock-btn"
+      fixedWidth={true}
     />
     {!isReference && (
       <AnnotationInfoBoxActionIcon
@@ -209,13 +201,28 @@ const renderAnnotationActions = (
       />
     )}
     <AnnotationInfoBoxActionIcon
-      title="Löschen"
+      title={measurement.locked ? "Entsperren" : "Sperren"}
+      icon={measurement.locked ? faLock : faLockOpen}
+      onClick={(event) => {
+        event.stopPropagation();
+        actions.toggleLockByIds([measurement.id]);
+      }}
+      dataTestId="carma-toggle-measurement-lock-btn"
+      fixedWidth={true}
+    />
+    <AnnotationInfoBoxActionIcon
+      title={
+        measurement.locked
+          ? "Gesperrte Messung kann nicht gelöscht werden"
+          : "Löschen"
+      }
       icon={faTrashCan}
       onClick={(event) => {
         event.stopPropagation();
         actions.removeByIds([measurement.id]);
       }}
       dataTestId="carma-delete-measurement-btn"
+      disabled={measurement.locked}
     />
   </div>
 );
