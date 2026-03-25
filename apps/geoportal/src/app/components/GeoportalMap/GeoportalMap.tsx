@@ -1,6 +1,7 @@
 import L from "leaflet";
 import { getFromWebMercatorToWGS84 } from "@carma-commons/geo/proj";
 import {
+  forwardRef,
   useCallback,
   useContext,
   useEffect,
@@ -70,6 +71,7 @@ import {
 } from "@carma-mapping/engines/cesium";
 import {
   CesiumSceneStateHashSync,
+  type CesiumSceneStateHashSyncHandle,
   CesiumSceneStateProvider,
   type SceneLike,
   useInitialSceneViewState,
@@ -148,15 +150,16 @@ interface MapProps {
 
 const CLICK_DELAY_MS = 200;
 
-const GeoportalCesiumCameraHashSync = ({
-  enabled,
-  scene,
-}: {
-  enabled: boolean;
-  scene: SceneLike | null;
-}) => {
+const GeoportalCesiumCameraHashSync = forwardRef<
+  CesiumSceneStateHashSyncHandle,
+  {
+    enabled: boolean;
+    scene: SceneLike | null;
+  }
+>(function GeoportalCesiumCameraHashSync({ enabled, scene }, ref) {
   return (
     <CesiumSceneStateHashSync
+      ref={ref}
       enabled={enabled}
       scene={scene}
       zoomConvention={HASH_ZOOM_CONVENTION.LEAFLET_256}
@@ -165,7 +168,7 @@ const GeoportalCesiumCameraHashSync = ({
       label="[GEOPORTAL] Cesium camera hash"
     />
   );
-};
+});
 
 export const GeoportalMap = ({ height, width, allow3d }: MapProps) => {
   const dispatch = useDispatch();
@@ -275,6 +278,9 @@ export const GeoportalMap = ({ height, width, allow3d }: MapProps) => {
   const [isLoginFormVisible, setIsLoginFormVisible] = useState(false);
   const markerRef = useRef(undefined);
   const markerAccentRef = useRef(undefined);
+  const cesiumCameraHashSyncRef = useRef<CesiumSceneStateHashSyncHandle | null>(
+    null
+  );
   const [pos, setPos] = useState<[number, number] | null>(null);
   // TODO: move all these to a custom hook and collect all calls to updateFeatureInfo there
   const [shouldUpdateFeatureInfo, setShouldUpdateFeatureInfo] =
@@ -468,6 +474,10 @@ export const GeoportalMap = ({ height, width, allow3d }: MapProps) => {
     enabled: getIsCesium(),
   });
 
+  const handleAfterTransitionToCesium = useCallback(() => {
+    cesiumCameraHashSyncRef.current?.publishNow();
+  }, []);
+
   // Stop orbit when feature is deselected
   useEffect(() => {
     if (!selectedFeature && isOrbiting) {
@@ -480,6 +490,7 @@ export const GeoportalMap = ({ height, width, allow3d }: MapProps) => {
   // Register geoportal-specific framework switcher callbacks
   useGeoportalFrameworkSwitcher({
     onBeforeTransitionToCesium: stageCesiumPrimitivesForTransition,
+    onAfterTransitionToCesium: handleAfterTransitionToCesium,
   });
 
   const { gazData } = useGazData();
@@ -1048,6 +1059,7 @@ export const GeoportalMap = ({ height, width, allow3d }: MapProps) => {
             scene={cesiumScene as unknown as SceneLike | null}
           >
             <GeoportalCesiumCameraHashSync
+              ref={cesiumCameraHashSyncRef}
               enabled={isCesium && !getIsTransitioning() && initialViewApplied}
               scene={cesiumScene as unknown as SceneLike | null}
             />

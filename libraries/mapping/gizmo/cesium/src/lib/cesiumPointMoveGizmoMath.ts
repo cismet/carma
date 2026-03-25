@@ -5,12 +5,13 @@ import {
   Matrix4,
   SceneTransforms,
   Transforms,
+  cartesian3ToVector3,
   defined,
   type Scene,
 } from "@carma/cesium";
 import { clamp, getClosestLineParamToRay } from "@carma-commons/math";
 import { AXIS_NUMERIC_EPSILON } from "@carma-mapping/gizmo/core";
-import { Ray, Vector3 } from "three";
+import { Ray } from "three";
 
 export type PlaneBasis = {
   xAxis: Cartesian3;
@@ -21,9 +22,6 @@ export type ScreenPoint2 = {
   x: number;
   y: number;
 };
-
-const toThreeVector3 = (vector: Cartesian3): Vector3 =>
-  new Vector3(vector.x, vector.y, vector.z);
 
 const ENU_FRAME_SCRATCH = new Matrix4();
 
@@ -202,9 +200,12 @@ export const getAxisParamFromClientPosition = (
   if (!ray) return null;
 
   return getClosestLineParamToRay(
-    new Ray(toThreeVector3(ray.origin), toThreeVector3(ray.direction)),
-    toThreeVector3(axisOrigin),
-    toThreeVector3(axisDirection)
+    new Ray(
+      cartesian3ToVector3(ray.origin),
+      cartesian3ToVector3(ray.direction)
+    ),
+    cartesian3ToVector3(axisOrigin),
+    cartesian3ToVector3(axisDirection)
   );
 };
 

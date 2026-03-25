@@ -233,6 +233,44 @@ describe("cesium codec round-trips", () => {
     expect(decoded!.pitch).toBeCloseTo(original.pitch, 3);
   });
 
+  it("omits wrapped north bearing and zero pitch from the encoded hash", () => {
+    const encoded = codec.encode(
+      make2dViewState({
+        bearing: asRadians(360),
+        pitch: asRadians(0),
+      })
+    );
+
+    expect(encoded).not.toBeNull();
+    expect(encoded?.bearing).toBeUndefined();
+    expect(encoded?.pitch).toBeUndefined();
+  });
+
+  it("omits pitch when it is below hash precision and would round to zero", () => {
+    const encoded = codec.encode(
+      make2dViewState({
+        bearing: asRadians(15),
+        pitch: asRadians(0.009),
+      })
+    );
+
+    expect(encoded).not.toBeNull();
+    expect(encoded?.pitch).toBeUndefined();
+  });
+
+  it("omits wrapped north bearing when it is numerically just below 360 degrees", () => {
+    const encoded = codec.encode(
+      make2dViewState({
+        bearing: asRadians(359.999999),
+        pitch: asRadians(45),
+      })
+    );
+
+    expect(encoded).not.toBeNull();
+    expect(encoded?.bearing).toBeUndefined();
+    expect(encoded?.pitch).toBeCloseTo(45, 1);
+  });
+
   it("round-trips 3D view state with non-default fov", () => {
     const original = make3dViewState({
       fovVertical: asRadians(40),

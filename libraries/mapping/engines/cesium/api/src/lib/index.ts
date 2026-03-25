@@ -3,14 +3,25 @@
  *
  * Layering:
  * - `./cesium` raw curated Cesium re-exports (SSOT for Cesium symbols)
- * - `./*.ts` wrapper utilities/types (without re-exporting raw classes)
- * - `./carma-helpers/*` low-level helper utilities
+ * - `./carma-guards` runtime guards for Cesium objects
+ * - `./cesiumSceneTypes` lightweight scene contracts
+ * - `./carma-helpers/*` low-level Cesium-focused helpers
+ * - `./serialization/*` JSON and constructor-arg codecs
+ *
+ * The top-level API stays explicit and curated. Local barrel files organize
+ * each domain, but this file decides what becomes part of the public surface.
  */
 
-// raw curated Cesium re-exports
+// ---------------------------------------------------------------------------
+// Raw curated Cesium re-exports
+// ---------------------------------------------------------------------------
+
 export * from "./cesium";
 
-// wrapper utilities and types
+// ---------------------------------------------------------------------------
+// Guards and lightweight scene contracts
+// ---------------------------------------------------------------------------
+
 export {
   isCameraStateHeadingPitchRoll,
   isCameraStateRecord,
@@ -35,169 +46,18 @@ export {
   isValidTileset,
 } from "./carma-guards";
 
-export {
-  applyObjectCentricCameraViewToScene,
-  applyRollToHeadingForCameraNearNadir,
-  animateOrbitHeadingPitchRange,
-  buildObjectCentricCameraOrientation,
-  cameraPositionCartographicDegrees,
-  cameraPositionCartographicRadians,
-  cameraToHeadingPitchJson,
-  captureCurrentCameraState,
-  DEFAULT_OBJECT_CENTRIC_RANGE_M,
-  flyToTarget,
-  getHeadingPitchRollDiff,
-  getTopDownCameraDeviationAngle,
-  readPerspectiveFrustumVerticalFov,
-  releaseCameraFromOrbitMode,
-  setViewFromCameraState,
-  tryWithValidCamera,
-  validateCameraStateHeadingPitchRoll,
-  writePerspectiveFrustumLongerEdgeFov,
-  writePerspectiveFrustumVerticalFov,
-} from "./carma-helpers/camera";
-export type {
-  CaptureCurrentCameraStateOptions,
-  CapturedCameraState,
-  CameraState,
-  CameraStateHeadingPitchRoll,
-  CameraStateRecord,
-  DirectionUp,
-  ObjectCentricCameraOrientation,
-  ObjectCentricCameraViewInput,
-  ObjectCentricCameraViewOptions,
-  OrbitHeadingPitchRangeAnimationOptions,
-} from "./carma-helpers/camera";
-export type {
-  FlyToBoundingSphereExtentOptions,
-  FlyToPointsOptions,
-} from "./carma-helpers/camera";
-export { flyToBoundingSphereExtent, flyToPoints } from "./carma-helpers/camera";
-
-export {
-  cartesian3Distance,
-  offsetCartesian3Positions,
-} from "./carma-helpers/cartesian3";
-export {
-  cartesian3FromJson,
-  cartesian3ToJson,
-  isCartesian3Json,
-} from "./serialization";
-export type {
-  Cartesian3ConstructorArgs,
-  Cartesian3Json,
-} from "./serialization";
-
-export {
-  getDegreesFromCartographic,
-  getEllipsoidalAltitudeOrZero,
-} from "./carma-helpers/cartographic";
-export {
-  cartographicFromJson,
-  cartographicToJson,
-  isCartographicJson,
-} from "./serialization";
-export type { CartographicJson, CartographicJsonTyped } from "./serialization";
-export {
-  cartesian3FromCartographicRad,
-  cartographicRadFromCartesian3,
-  cartographicRadFromJson,
-  cartographicRadToJson,
-  isCartographicRadJson,
-} from "./serialization";
-export type { CartographicRadJson } from "./serialization";
-
-export {
-  isQuaternionJson,
-  quaternionFromJson,
-  quaternionToJson,
-} from "./serialization";
-export type { QuaternionJson } from "./serialization";
-
-export { errorFromJson, errorToJson, isSerializedError } from "./serialization";
-export type { SerializedError } from "./serialization";
-
-export { guardTileset } from "./carma-helpers/tileset/TilesetGuard";
-export type { Cesium3DTilesetConstructorOptions } from "./serialization";
-
-export { createMinimalCesiumWidget } from "./carma-helpers/widget";
-
-export {
-  colorFromJson,
-  colorFromConstructorArgs,
-  colorToJson,
-  colorToConstructorArgs,
-  isColorJson,
-  isColorConstructorArgs,
-} from "./serialization";
-export type { ColorConstructorArgs, ColorJson } from "./serialization";
-
-export { newHeadingPitchRange } from "./carma-helpers/heading-pitch-range/HeadingPitchRangeFactory";
-export type {
-  HeadingPitchRangeJson,
-  HeadingPitchRangeJsonRaw,
-} from "./serialization";
-
-export type {
-  HeadingPitchJson,
-  HeadingPitchRollDegreesJson,
-  HeadingPitchRollJson,
-  HeadingPitchRollJsonRaw,
-  SerializedPerspectiveFrustum,
-  SerializedOrthographicFrustum,
-  SerializedOrthographicOffCenterFrustum,
-  SerializedCesiumFrustum,
-  CapturedCameraState as SerializedCapturedCameraState,
-  CameraStateRecord as SerializedCameraStateRecord,
-  CameraStateHeadingPitchRoll as SerializedCameraStateHeadingPitchRoll,
-  CameraState as SerializedCameraState,
-} from "./serialization";
-
-export {
-  rectangleFromBBox,
-  rectangleFromJson,
-  rectangleToBBox,
-  rectangleToJson,
-} from "./serialization";
-export type {
-  RectangleConstructorArgs,
-  RectangleJson,
-  RectangleJsonRaw,
-} from "./serialization";
-
-export {
-  ensureSceneReady,
-  toSceneStateCartographicRad,
-  toSceneStateMat4,
-  toSceneStateQuat,
-  toSceneStateVec3,
-  tryWithValidScene,
-  waitForCondition,
-  waitForRenderFrames,
-} from "./carma-helpers/scene";
-export type { SceneRenderStage } from "./carma-helpers/scene";
-
-export {
-  openStreetMapImageryProviderConstructorOptionsFromJson,
-  singleTileImageryProviderConstructorOptionsFromJson,
-  tileMapServiceImageryProviderConstructorOptionsFromJson,
-  webMapServiceImageryProviderConstructorOptionsFromJson,
-  webMapTileServiceProviderConstructorOptionsFromJson,
-} from "./serialization";
-export type {
-  OpenStreetMapImageryProviderConstructorOptionsJson,
-  SingleTileImageryProviderConstructorOptionsJson,
-  TileMapServiceImageryProviderConstructorOptionsJson,
-  WebMapServiceImageryProviderConstructorOptionsJson,
-  WebMapTileServiceProviderConstructorOptionsJson,
-} from "./serialization";
-
-export type { Matrix4ConstructorArgs } from "./serialization";
-export { isMatrix4Json, matrix4FromJson, matrix4ToJson } from "./serialization";
-
 export { SCENE_STATE_METADATA_SOURCE } from "./cesiumSceneTypes";
 export type {
+  CameraBasis,
+  CameraFrustum,
+  CameraIntrinsics,
   CameraLike,
+  CameraType,
+  EventLike,
+  FrustumLike,
+  ObjectCentricCameraAnchor,
+  ObjectCentricCameraModel,
+  ObjectCentricCameraPose,
   OrbitPoint,
   OrbitPointMode,
   OrbitPointSamplingStrategy,
@@ -211,15 +71,179 @@ export type {
   SceneStateOptions,
 } from "./cesiumSceneTypes";
 
-// custom low-level utilities
+// ---------------------------------------------------------------------------
+// Camera helpers
+// ---------------------------------------------------------------------------
+
+export {
+  applyObjectCentricCameraViewToScene,
+  applyRollToHeadingForCameraNearNadir,
+  animateOrbitHeadingPitchRange,
+  buildObjectCentricCameraOrientation,
+  cameraPositionCartographicDegrees,
+  cameraPositionCartographicRadians,
+  cameraToHeadingPitchJson,
+  captureCurrentCameraState,
+  DEFAULT_OBJECT_CENTRIC_RANGE_M,
+  flyToBoundingSphereExtent,
+  flyToPoints,
+  flyToTarget,
+  getHeadingPitchRollDiff,
+  getTopDownCameraDeviationAngle,
+  readPerspectiveFrustumVerticalFov,
+  releaseCameraFromOrbitMode,
+  setViewFromCameraState,
+  tryWithValidCamera,
+  validateCameraStateHeadingPitchRoll,
+  writePerspectiveFrustumLongerEdgeFov,
+  writePerspectiveFrustumVerticalFov,
+  type CaptureCurrentCameraStateOptions,
+  type CapturedCameraState,
+  type CameraState,
+  type CameraStateHeadingPitchRoll,
+  type CameraStateRecord,
+  type DirectionUp,
+  type FlyToBoundingSphereExtentOptions,
+  type FlyToPointsOptions,
+  type ObjectCentricCameraOrientation,
+  type ObjectCentricCameraViewInput,
+  type ObjectCentricCameraViewOptions,
+  type OrbitHeadingPitchRangeAnimationOptions,
+} from "./carma-helpers/camera";
+
+// ---------------------------------------------------------------------------
+// Low-level Cesium helpers
+// ---------------------------------------------------------------------------
+
+export {
+  cartesian3Distance,
+  cartesian3ToVector3,
+  offsetCartesian3Positions,
+} from "./carma-helpers/cartesian3";
+export {
+  getDegreesFromCartographic,
+  getEllipsoidalAltitudeOrZero,
+} from "./carma-helpers/cartographic";
+export { getCesiumVersion } from "./carma-helpers/version";
+export { newHeadingPitchRange } from "./carma-helpers/heading-pitch-range/HeadingPitchRangeFactory";
 export * from "./carma-helpers/primitives";
+export {
+  ensureSceneReady,
+  toSceneStateCartographicRad,
+  toSceneStateMat4,
+  toSceneStateQuat,
+  toSceneStateVec3,
+  tryWithValidScene,
+  waitForCondition,
+  waitForRenderFrames,
+  type SceneRenderStage,
+} from "./carma-helpers/scene";
+export * from "./carma-helpers/terrain";
+export { guardTileset } from "./carma-helpers/tileset/TilesetGuard";
+export { createMinimalCesiumWidget } from "./carma-helpers/widget";
+export * from "./carma-helpers/Transforms";
+export * as CarmaTransforms from "./carma-helpers/Transforms";
+
+// ---------------------------------------------------------------------------
+// Direct scene utility modules without local barrels
+// ---------------------------------------------------------------------------
+
 export * from "./carma-helpers/scene/CoordinateAdapters";
 export * from "./carma-helpers/scene/Occlusion";
 export * from "./carma-helpers/scene/Picking";
-export * from "./carma-helpers/cartographic/getDegreesFromCartesian";
 export * from "./carma-helpers/cartographic/getBoundingSphereFromCoordinates";
+export * from "./carma-helpers/cartographic/getDegreesFromCartesian";
 export * from "./carma-helpers/camera/getFrustumPixelDimensionsForDistance";
-export * from "./carma-helpers/terrain";
-export * from "./carma-helpers/Transforms";
-export * as CarmaTransforms from "./carma-helpers/Transforms";
-export { getCesiumVersion } from "./carma-helpers/version";
+
+// ---------------------------------------------------------------------------
+// Serialization: primitive values and JSON codecs
+// ---------------------------------------------------------------------------
+
+export {
+  cartesian3FromJson,
+  cartesian3ToJson,
+  isCartesian3Json,
+  cartographicFromJson,
+  cartographicToJson,
+  isCartographicJson,
+  cartesian3FromCartographicRad,
+  cartographicRadFromCartesian3,
+  cartographicRadFromJson,
+  cartographicRadToJson,
+  isCartographicRadJson,
+  isQuaternionJson,
+  quaternionFromJson,
+  quaternionToJson,
+  colorFromConstructorArgs,
+  colorFromJson,
+  colorToConstructorArgs,
+  colorToJson,
+  isColorConstructorArgs,
+  isColorJson,
+  rectangleFromBBox,
+  rectangleFromJson,
+  rectangleToBBox,
+  rectangleToJson,
+  errorFromJson,
+  errorToJson,
+  isSerializedError,
+  isMatrix4Json,
+  matrix4FromJson,
+  matrix4ToJson,
+} from "./serialization";
+export type {
+  Cartesian3ConstructorArgs,
+  Cartesian3Json,
+  CartographicJson,
+  CartographicJsonTyped,
+  CartographicRadJson,
+  QuaternionJson,
+  ColorConstructorArgs,
+  ColorJson,
+  RectangleConstructorArgs,
+  RectangleJson,
+  RectangleJsonRaw,
+  SerializedError,
+  Matrix4ConstructorArgs,
+} from "./serialization";
+
+// ---------------------------------------------------------------------------
+// Serialization: camera, frustum, and scene-adjacent DTOs
+// ---------------------------------------------------------------------------
+
+export type {
+  CameraState as SerializedCameraState,
+  CameraStateHeadingPitchRoll as SerializedCameraStateHeadingPitchRoll,
+  CameraStateRecord as SerializedCameraStateRecord,
+  CapturedCameraState as SerializedCapturedCameraState,
+  HeadingPitchJson,
+  HeadingPitchRangeJson,
+  HeadingPitchRangeJsonRaw,
+  HeadingPitchRollDegreesJson,
+  HeadingPitchRollJson,
+  HeadingPitchRollJsonRaw,
+  SerializedCesiumFrustum,
+  SerializedOrthographicFrustum,
+  SerializedOrthographicOffCenterFrustum,
+  SerializedPerspectiveFrustum,
+} from "./serialization";
+
+// ---------------------------------------------------------------------------
+// Serialization: provider and tileset config DTOs
+// ---------------------------------------------------------------------------
+
+export {
+  openStreetMapImageryProviderConstructorOptionsFromJson,
+  singleTileImageryProviderConstructorOptionsFromJson,
+  tileMapServiceImageryProviderConstructorOptionsFromJson,
+  webMapServiceImageryProviderConstructorOptionsFromJson,
+  webMapTileServiceProviderConstructorOptionsFromJson,
+} from "./serialization";
+export type {
+  Cesium3DTilesetConstructorOptions,
+  OpenStreetMapImageryProviderConstructorOptionsJson,
+  SingleTileImageryProviderConstructorOptionsJson,
+  TileMapServiceImageryProviderConstructorOptionsJson,
+  WebMapServiceImageryProviderConstructorOptionsJson,
+  WebMapTileServiceProviderConstructorOptionsJson,
+} from "./serialization";

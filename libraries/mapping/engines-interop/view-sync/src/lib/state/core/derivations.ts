@@ -1,15 +1,9 @@
 import { isFiniteNumber } from "@carma/math";
-import {
-  deriveObjectCentricRoll,
-  enuOffsetToObjectCentricOrbit,
-  type CameraIntrinsics,
-} from "@carma-commons/camera/model";
+import { type CameraIntrinsics } from "@carma-commons/camera/model";
 import type { Meters, Radians } from "@carma/units/types";
-import {
-  getZoomFromPixelResolutionAtLatitudeRad,
-  ecefToEnuOffset,
-} from "@carma/geo/utils";
+import { getZoomFromPixelResolutionAtLatitudeRad } from "@carma/geo/utils";
 import { readMetersPerCssPixel } from "../../adapters/sharedProjection";
+import { deriveObjectCentricViewAnglesFromOrientation } from "../../core/objectCentricAngles";
 import type { CommonViewState, DerivedView } from "./types";
 
 // ---------------------------------------------------------------------------
@@ -88,16 +82,22 @@ export const deriveRange = (state: CommonViewState): Meters =>
   state.cameraPosition.distanceTo(state.anchor) as Meters;
 
 /**
- * Derive bearing, pitch, range from camera → anchor offset in the anchor's
- * ENU frame. Uses the same convention as the shared camera model:
- * - bearing: atan2(-east, -north) — target-facing azimuth
- * - pitch: 0 = nadir, +PI/2 = horizon (MapLibre orbit convention)
+ * Derive bearing, pitch, range from the canonical local orientation.
+ * This keeps the angular decomposition stable even when the camera position
+ * is almost perfectly vertical above the anchor.
  */
 export const deriveOrbitAngles = (
   state: CommonViewState
 ): { bearing: Radians; pitch: Radians; range: Meters } => {
-  const enu = ecefToEnuOffset(state.cameraPosition, state.anchor);
-  return enuOffsetToObjectCentricOrbit(enu);
+  const { bearing, pitch } = deriveObjectCentricViewAnglesFromOrientation(
+    state.orientation
+  );
+
+  return {
+    bearing,
+    pitch,
+    range: deriveRange(state),
+  };
 };
 
 /**
@@ -106,12 +106,7 @@ export const deriveOrbitAngles = (
  * camera's forward axis.
  */
 export const deriveRoll = (state: CommonViewState): Radians => {
-  const { bearing, pitch } = deriveOrbitAngles(state);
-  return deriveObjectCentricRoll({
-    orientation: state.orientation,
-    bearing,
-    pitch,
-  });
+  return deriveObjectCentricViewAnglesFromOrientation(state.orientation).roll;
 };
 
 /**

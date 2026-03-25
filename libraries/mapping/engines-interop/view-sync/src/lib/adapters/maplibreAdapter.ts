@@ -29,6 +29,11 @@ import {
 
 const MAPLIBRE_TILE_SIZE_PX = 512;
 const MAPLIBRE_PROJECTION_MIN_RANGE_M = 0.01;
+const HASH_BEARING_ZERO_EPSILON_DEG = 0.01;
+const HASH_BEARING_ZERO_EPSILON_RAD = degToRadNumeric(
+  HASH_BEARING_ZERO_EPSILON_DEG
+)!;
+const HASH_PITCH_ZERO_EPSILON_DEG = 0.01;
 
 export type ViewSyncMapProjection = {
   lng: number;
@@ -58,6 +63,10 @@ const isWithinWebMercatorLat = (latitudeDeg: number): boolean =>
 
 const HASH_ROLL_ZERO_EPSILON_DEG = 0.01;
 const HASH_ROLL_ZERO_EPSILON_RAD = degToRadNumeric(HASH_ROLL_ZERO_EPSILON_DEG)!;
+
+const isHashPitchCloseToZeroDeg = (pitchDeg: number | undefined): boolean =>
+  !isFiniteNumber(pitchDeg) ||
+  Math.abs(pitchDeg) <= HASH_PITCH_ZERO_EPSILON_DEG;
 
 const coerceFiniteNumber = (value: unknown): number | undefined => {
   if (isFiniteNumber(value)) {
@@ -205,9 +214,20 @@ const toHashBearingDeg = (
 
   const normalizedBearingRad = zeroToTwoPi(bearingRad as Radians) as number;
 
-  return normalizedBearingRad === 0 && bearingRad > 0
-    ? 360
-    : radToDegNumeric(normalizedBearingRad)!;
+  return radToDegNumeric(normalizedBearingRad)!;
+};
+
+const isWrappedBearingCloseToZeroRad = (
+  bearingRad: number | undefined
+): boolean => {
+  if (!isFiniteNumber(bearingRad)) {
+    return true;
+  }
+
+  return (
+    Math.abs(negativePiToPi(bearingRad as Radians) as number) <=
+    HASH_BEARING_ZERO_EPSILON_RAD
+  );
 };
 
 const isWrappedRollCloseToZeroRad = (rollRad: number | undefined): boolean => {
@@ -348,10 +368,13 @@ export const readHashParamsFromViewState = (
   if (projected) {
     params.zoom = projected.zoom;
     const bearingDeg = toHashBearingDeg(viewState.bearing);
-    if (isFiniteNumber(bearingDeg) && !isZeroish(bearingDeg)) {
+    if (
+      isFiniteNumber(bearingDeg) &&
+      !isWrappedBearingCloseToZeroRad(viewState.bearing)
+    ) {
       params.bearing = bearingDeg;
     }
-    if (isFiniteNumber(projected.pitch) && !isZeroish(projected.pitch)) {
+    if (!isHashPitchCloseToZeroDeg(projected.pitch)) {
       params.pitch = projected.pitch;
     }
   } else {

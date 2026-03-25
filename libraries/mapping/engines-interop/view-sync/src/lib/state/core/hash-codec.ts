@@ -28,6 +28,8 @@ const DEFAULT_FOV_DEG = 45;
 const DEFAULT_MAX_PITCH_DEG = 85;
 const MIN_RANGE_M = 0.01;
 const MAPLIBRE_TILE_SIZE_PX = 512;
+const BEARING_ZERO_EPSILON_DEG = 0.01;
+const BEARING_ZERO_EPSILON_RAD = degToRadNumeric(BEARING_ZERO_EPSILON_DEG)!;
 const ROLL_ZERO_EPSILON_DEG = 0.01;
 const ROLL_ZERO_EPSILON_RAD = degToRadNumeric(ROLL_ZERO_EPSILON_DEG)!;
 
@@ -60,11 +62,15 @@ export const encodeHashFromViewState = (
   }
 
   // Bearing (0-360 degrees)
-  const bearingNorm = zeroToTwoPi(view.bearing) as number;
-  const bearingDeg = radToDegNumeric(bearingNorm);
-  if (isFiniteNumber(bearingDeg) && Math.abs(bearingDeg) > 0.01) {
-    params.bearing =
-      bearingNorm === 0 && (view.bearing as number) > 0 ? 360 : bearingDeg;
+  const bearingWrapped = negativePiToPi(view.bearing) as number;
+  const bearingDeg = radToDegNumeric(
+    zeroToTwoPi(view.bearing) as number
+  ) as number;
+  if (
+    isFiniteNumber(bearingDeg) &&
+    Math.abs(bearingWrapped) > BEARING_ZERO_EPSILON_RAD
+  ) {
+    params.bearing = bearingDeg;
   }
 
   // Pitch

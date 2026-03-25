@@ -356,9 +356,26 @@ describe("view adapter round-trips", () => {
     expect(params.lat).toBeCloseTo(51.2717904, 7);
     expect(params.altitude).toBeCloseTo(201.15, 2);
     expect(params.zoom).toBeCloseTo(16.282, 3);
-    expect(params.bearing).toBeCloseTo(360, 2);
+    expect(params).not.toHaveProperty("bearing");
     expect(params.pitch).toBeCloseTo(45.01, 2);
     expect(params).not.toHaveProperty("range");
+  });
+
+  it("omits near-north bearing even when it is numerically just below 360 degrees", () => {
+    const params = maplibreAdapter.toHashParams(
+      {
+        longitude: asRadians(toRad(7.1880253)),
+        latitude: asRadians(toRad(51.2717904)),
+        altitude: asMeters(201.15),
+        bearing: asRadians(toRad(359.999999)),
+        pitch: asRadians(toRad(45.01)),
+        range: asMeters(1021.8),
+      },
+      { defaultFovDeg: 60 }
+    );
+
+    expect(params).not.toHaveProperty("bearing");
+    expect(params.pitch).toBeCloseTo(45.01, 2);
   });
 
   it("omits zoom from hash params outside web-mercator bounds", () => {

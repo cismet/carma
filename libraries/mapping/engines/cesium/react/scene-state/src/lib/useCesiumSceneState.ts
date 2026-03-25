@@ -33,8 +33,13 @@ const useOptionalStoreValue = <TValue>(
   return value;
 };
 
+export const useCesiumSceneStateStoreOptional =
+  (): CesiumSceneStateStore | null => {
+    return useContext(CesiumSceneStateStoreContext);
+  };
+
 export const useCesiumSceneStateStore = (): CesiumSceneStateStore => {
-  const store = useContext(CesiumSceneStateStoreContext);
+  const store = useCesiumSceneStateStoreOptional();
   if (!store) {
     throw new Error(
       "useCesiumSceneStateStore must be used within CesiumSceneStateProvider"

@@ -12,7 +12,11 @@ import {
 } from "@carma-commons/utils";
 
 import { usePopStateListener } from "./hooks/usePopStateListener";
-import { getAliasReverseLookup, applyHashCodecs } from "./utils";
+import {
+  getAliasReverseLookup,
+  applyHashCodecs,
+  computeHashDiff,
+} from "./utils";
 import {
   defaultHashCodecs,
   defaultHashKeyAliases,
@@ -56,6 +60,44 @@ const hashUpdateDefaults: Required<HashUpdateOptions> = {
   clearKeySetIds: [],
   label: HASH_UPDATE_LABEL_UNSPECIFIED,
   replace: false,
+};
+
+const logHashChange = ({
+  source,
+  label,
+  replace,
+  params,
+  encodedParams,
+  removeKeys,
+  beforeRaw,
+  afterRaw,
+  changedKeys,
+  removedKeys,
+}: {
+  source: HashChangeSource;
+  label?: string;
+  replace?: boolean;
+  params?: Record<string, unknown>;
+  encodedParams?: Record<string, unknown>;
+  removeKeys?: string[];
+  beforeRaw: Record<string, string>;
+  afterRaw: Record<string, string>;
+  changedKeys: string[];
+  removedKeys: string[];
+}) => {
+  console.debug("[HASH]", {
+    source,
+    label,
+    replace,
+    params,
+    encodedParams,
+    removeKeys,
+    changedKeys,
+    removedKeys,
+    beforeRaw,
+    afterRaw,
+    href: window.location.href,
+  });
 };
 
 export const HASH_CHANGE_SOURCE = {
@@ -177,6 +219,7 @@ export const HashStateProviderBase: React.FC<HashStateProviderBaseProps> = ({
       params: Record<string, unknown> | undefined,
       options?: HashUpdateOptions
     ) => {
+      const beforeRaw = prevRawRef.current || getHashParams();
       const { clearKeys, clearKeySetIds, label, replace } = normalizeOptions(
         options,
         hashUpdateDefaults
@@ -215,9 +258,27 @@ export const HashStateProviderBase: React.FC<HashStateProviderBaseProps> = ({
       });
 
       const afterRaw = getHashParams();
+      const { changedKeys, removedKeys } = computeHashDiff(
+        beforeRaw,
+        afterRaw,
+        aliasReverseLookup
+      );
+      logHashChange({
+        source: HASH_CHANGE_SOURCE.UPDATE,
+        label,
+        replace,
+        params,
+        encodedParams: newParams,
+        removeKeys: clearAndUndefinedKeys,
+        beforeRaw,
+        afterRaw,
+        changedKeys,
+        removedKeys,
+      });
       prevRawRef.current = afterRaw;
     },
     [
+      aliasReverseLookup,
       routedPath,
       keyAliases,
       hashCodecs,

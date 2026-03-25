@@ -65,6 +65,7 @@ export interface MapFrameworkSwitcherRefs {
 
 export interface MapFrameworkSwitcherCallbacks {
   onBeforeTransitionToCesium?: () => Promise<void> | void;
+  onAfterTransitionToCesium?: () => void;
   onLeafletViewSet?: (params: {
     center: { lat: number; lng: number };
     zoom: number;
@@ -344,6 +345,7 @@ export const MapFrameworkSwitcherProvider = ({
           onComplete: () => {
             setActiveFrameworkCesium();
             setIsTransitioning(false);
+            callbacksRef.current.onAfterTransitionToCesium?.();
           },
           onError: (error: Error) => {
             console.error("[CESIUM] Transition error:", error);

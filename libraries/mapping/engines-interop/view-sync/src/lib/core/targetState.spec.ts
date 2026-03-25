@@ -104,6 +104,55 @@ describe("targetState helpers", () => {
     expect(target?.range).toBeCloseTo(900, 8);
   });
 
+  it("canonicalizes nadir-topdown north from world basis instead of keeping the 180/180 equivalent form", () => {
+    const sceneState = {
+      metadata: {
+        frameNumber: 5,
+        timestampMs: 1001,
+        source: "framework",
+      },
+      camera: {
+        worldPosition: { x: 6_378_757, y: 0, z: 0 },
+        worldDirection: { x: -1, y: 0, z: 0 },
+        worldUp: { x: 0, y: 0, z: 1 },
+        worldRight: { x: 0, y: 1, z: 0 },
+        bearingRad: Math.PI,
+        pitchRad: -Math.PI / 2,
+        rollRad: Math.PI,
+        cameraModel: {
+          pose: {
+            anchor: {
+              longitude: 0,
+              latitude: 0,
+              altitude: 0,
+            },
+            bearing: Math.PI,
+            pitch: 0,
+            roll: Math.PI,
+            range: 620,
+          },
+        },
+      },
+      orbitPoint: {
+        worldPosition: { x: 6_378_137, y: 0, z: 0 },
+        cartographic: {
+          longitude: 0,
+          latitude: 0,
+          altitude: 0,
+        },
+        source: "screen-center-globe",
+      },
+    } as unknown as SceneState;
+
+    const target = readViewStateFromSceneState(sceneState);
+
+    expect(target).not.toBeNull();
+    expect(target?.bearing).toBeCloseTo(0, 8);
+    expect(target?.pitch).toBeCloseTo(0, 8);
+    expect(target?.roll).toBeCloseTo(0, 8);
+    expect(target?.range).toBeCloseTo(620, 8);
+  });
+
   it("derives canonical maplibre zoom from scene viewport when available", () => {
     const sceneState = {
       metadata: {

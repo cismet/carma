@@ -33,6 +33,14 @@ export function usePopStateListener(
         removedKeys,
         source: HASH_CHANGE_SOURCE_POPSTATE,
       });
+      console.debug("[HASH]", {
+        source: HASH_CHANGE_SOURCE_POPSTATE,
+        changedKeys,
+        removedKeys,
+        beforeRaw,
+        afterRaw,
+        href: window.location.href,
+      });
       prevRawRef.current = afterRaw;
     };
 

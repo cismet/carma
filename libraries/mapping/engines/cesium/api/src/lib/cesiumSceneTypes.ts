@@ -84,6 +84,9 @@ export type CameraLike = {
   heading?: number;
   pitch?: number;
   roll?: number;
+  changed?: EventLike;
+  moveStart?: EventLike;
+  moveEnd?: EventLike;
   viewMatrix?: Matrix4;
   inverseViewMatrix?: Matrix4;
   frustum?: FrustumLike;
@@ -97,6 +100,7 @@ export type SceneLike = {
     clientHeight: number;
   };
   frameState?: { frameNumber?: number };
+  morphComplete?: EventLike;
   preRender?: EventLike;
   postRender?: EventLike;
   pickPositionSupported?: boolean;

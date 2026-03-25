@@ -1,8 +1,13 @@
-import { isFiniteNumber, PI_OVER_TWO } from "@carma/math";
-import { getZoomFromPixelResolutionAtLatitudeRad } from "@carma/geo/utils";
+import { Matrix4, Vector3, isFiniteNumber, PI_OVER_TWO } from "@carma/math";
+import {
+  ecefToEnuMatrix,
+  getZoomFromPixelResolutionAtLatitudeRad,
+} from "@carma/geo/utils";
+import { buildObjectCentricOrientationQuaternionFromBasis } from "@carma-commons/camera/model";
 import type { CameraLike, SceneLike } from "@carma-mapping/engines/cesium/api";
 import type { Radians, Meters } from "@carma/units/types";
 import { readMetersPerCssPixel } from "../adapters/sharedProjection";
+import { deriveObjectCentricViewAnglesFromOrientation } from "./objectCentricAngles";
 import type { ViewState } from "./types";
 
 // Cesium HeadingPitchRange pitch is measured from the local EN plane:
@@ -115,6 +120,10 @@ type CameraModelPoseLike = {
   pitch?: number;
   range?: number;
   roll?: number;
+  direction?: Vec3Like;
+  up?: Vec3Like;
+  right?: Vec3Like;
+  basis?: CameraBasisLike;
 };
 
 type CameraModelIntrinsicsLike = {
@@ -127,10 +136,19 @@ type CameraModelLike = {
   intrinsics?: CameraModelIntrinsicsLike;
 };
 
+type CameraBasisLike = {
+  direction?: Vec3Like;
+  up?: Vec3Like;
+  right?: Vec3Like;
+};
+
 // Structural shape so callers from both cesium/api and react/scene-state can use this helper.
 type SceneStateLike = {
   camera: {
     worldPosition: Vec3Like;
+    worldDirection?: Vec3Like;
+    worldUp?: Vec3Like;
+    worldRight?: Vec3Like;
     bearingRad?: number;
     pitchRad?: number;
     rollRad?: number;
@@ -157,6 +175,86 @@ const readLineOfSightDistance = (sceneState: SceneStateLike): number | null => {
   return isFiniteNumber(distance) && distance >= MIN_RANGE_M ? distance : null;
 };
 
+const _ecefToEnuScratch = new Matrix4();
+
+const toVector3 = (value?: Vec3Like | null): Vector3 | null =>
+  value &&
+  isFiniteNumber(value.x) &&
+  isFiniteNumber(value.y) &&
+  isFiniteNumber(value.z)
+    ? new Vector3(value.x, value.y, value.z)
+    : null;
+
+const worldVectorToObjectCentricVector = ({
+  worldVector,
+  anchor,
+}: {
+  worldVector: Vector3;
+  anchor: Vector3;
+}): Vector3 => {
+  const enuVector = worldVector
+    .clone()
+    .transformDirection(ecefToEnuMatrix(anchor, _ecefToEnuScratch));
+
+  return new Vector3(enuVector.x, enuVector.z, -enuVector.y).normalize();
+};
+
+const buildObjectCentricOrientationFromSceneState = (
+  sceneState: SceneStateLike
+) => {
+  const anchor = toVector3(sceneState.orbitPoint?.worldPosition);
+  const worldForward =
+    toVector3(sceneState.camera.worldDirection) ??
+    toVector3(sceneState.camera.cameraModel?.pose?.basis?.direction) ??
+    toVector3(sceneState.camera.cameraModel?.pose?.direction);
+  if (!anchor || !worldForward) {
+    return null;
+  }
+
+  const worldUp =
+    toVector3(sceneState.camera.worldUp) ??
+    toVector3(sceneState.camera.cameraModel?.pose?.basis?.up) ??
+    toVector3(sceneState.camera.cameraModel?.pose?.up);
+  const worldRight =
+    toVector3(sceneState.camera.worldRight) ??
+    toVector3(sceneState.camera.cameraModel?.pose?.basis?.right) ??
+    toVector3(sceneState.camera.cameraModel?.pose?.right);
+  if (!worldUp && !worldRight) {
+    return null;
+  }
+
+  const forward = worldVectorToObjectCentricVector({
+    worldVector: worldForward,
+    anchor,
+  });
+  const right = worldRight
+    ? worldVectorToObjectCentricVector({
+        worldVector: worldRight,
+        anchor,
+      })
+    : worldUp
+    ? new Vector3().crossVectors(
+        forward,
+        worldVectorToObjectCentricVector({
+          worldVector: worldUp,
+          anchor,
+        })
+      )
+    : null;
+  if (!right || right.lengthSq() <= 1e-12) {
+    return null;
+  }
+  right.normalize();
+  const up = new Vector3().crossVectors(right, forward).normalize();
+  const orthonormalForward = new Vector3().crossVectors(up, right).normalize();
+
+  return buildObjectCentricOrientationQuaternionFromBasis({
+    forward: orthonormalForward,
+    right,
+    up,
+  });
+};
+
 export const readViewStateFromSceneState = (
   sceneState: SceneStateLike | null | undefined,
   scene?: SceneLike | null
@@ -174,18 +272,28 @@ export const readViewStateFromSceneState = (
     isFiniteNumber(objectCentricPose.bearing) &&
     isFiniteNumber(objectCentricPose.pitch) &&
     isFiniteNumber(objectCentricPose.range);
+  const orientation = sceneState
+    ? buildObjectCentricOrientationFromSceneState(sceneState)
+    : null;
+  const orientationAngles = orientation
+    ? deriveObjectCentricViewAnglesFromOrientation(orientation)
+    : null;
 
   const anchor = hasObjectCentricPose
     ? objectCentricPose.anchor
     : sceneState?.orbitPoint?.cartographic;
-  const bearing = hasObjectCentricPose
-    ? objectCentricPose.bearing
-    : sceneState?.camera.bearingRad;
-  const pitch = hasObjectCentricPose
-    ? objectCentricPose.pitch
-    : isFiniteNumber(sceneState?.camera.pitchRad)
-    ? toViewSyncPitchFromCesiumPitch(sceneState.camera.pitchRad)
-    : sceneState?.camera.pitchRad;
+  const bearing =
+    orientationAngles?.bearing ??
+    (hasObjectCentricPose
+      ? objectCentricPose.bearing
+      : sceneState?.camera.bearingRad);
+  const pitch =
+    orientationAngles?.pitch ??
+    (hasObjectCentricPose
+      ? objectCentricPose.pitch
+      : isFiniteNumber(sceneState?.camera.pitchRad)
+      ? toViewSyncPitchFromCesiumPitch(sceneState.camera.pitchRad)
+      : sceneState?.camera.pitchRad);
   const rangeM = hasObjectCentricPose
     ? objectCentricPose.range
     : sceneState
@@ -249,7 +357,9 @@ export const readViewStateFromSceneState = (
     altitude: anchor.altitude as Meters,
     bearing: bearing as Radians,
     pitch: pitch as Radians,
-    ...(isFiniteNumber(objectCentricPose?.roll)
+    ...(isFiniteNumber(orientationAngles?.roll)
+      ? { roll: orientationAngles.roll as Radians }
+      : isFiniteNumber(objectCentricPose?.roll)
       ? { roll: objectCentricPose.roll as Radians }
       : isFiniteNumber(sceneCamera?.rollRad)
       ? { roll: sceneCamera.rollRad as Radians }

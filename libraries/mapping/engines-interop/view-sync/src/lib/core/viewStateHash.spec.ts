@@ -70,6 +70,20 @@ describe("readHashParamsFromViewState", () => {
     expect(params.bearing).toBeUndefined();
   });
 
+  it("omits bearing when it wraps to 360 degrees", () => {
+    const params = readHashParamsFromViewState(
+      make2dViewState({ bearing: asRadians(360) })
+    );
+    expect(params.bearing).toBeUndefined();
+  });
+
+  it("omits bearing when it is numerically just below 360 degrees", () => {
+    const params = readHashParamsFromViewState(
+      make2dViewState({ bearing: asRadians(359.999999) })
+    );
+    expect(params.bearing).toBeUndefined();
+  });
+
   it("writes bearing when non-zero", () => {
     const params = readHashParamsFromViewState(
       make2dViewState({ bearing: asRadians(45) })
@@ -80,6 +94,13 @@ describe("readHashParamsFromViewState", () => {
   it("omits pitch when zero", () => {
     const params = readHashParamsFromViewState(
       make2dViewState({ pitch: asRadians(0) })
+    );
+    expect(params.pitch).toBeUndefined();
+  });
+
+  it("omits pitch when it is below hash precision and would round to zero", () => {
+    const params = readHashParamsFromViewState(
+      make2dViewState({ pitch: asRadians(0.009) })
     );
     expect(params.pitch).toBeUndefined();
   });

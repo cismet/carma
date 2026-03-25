@@ -1,10 +1,20 @@
 import { describe, expect, it } from "vitest";
-import { CAMERA_TYPE } from "@carma-commons/camera/model";
-import { getZoomFromPixelResolutionAtLatitudeRad } from "@carma/geo/utils";
+import {
+  buildObjectCentricOrientationQuaternion,
+  CAMERA_TYPE,
+} from "@carma-commons/camera/model";
+import {
+  cartographicToEcef,
+  enuOffsetToEcef,
+  getZoomFromPixelResolutionAtLatitudeRad,
+} from "@carma/geo/utils";
 import { degToRadNumeric } from "@carma/units/helpers";
 import type { CssPixels, Meters, Radians } from "@carma/units/types";
 import { readMetersPerCssPixel } from "../../adapters/sharedProjection";
-import { buildCommonViewState } from "./construct";
+import {
+  buildCommonViewState,
+  buildCommonViewStateFromEcef,
+} from "./construct";
 import {
   deriveOrbitAngles,
   deriveRange,
@@ -121,5 +131,37 @@ describe("object-centric round-trip", () => {
     expect(orbit.pitch).toBeCloseTo(radians(42), 8);
     expect(orbit.range).toBeCloseTo(meters(620), 8);
     expect(deriveRoll(state)).toBeCloseTo(radians(17), 8);
+  });
+
+  it("keeps nadir-topdown north stable even when camera position has tiny horizontal noise", () => {
+    const longitude = radians(7.2);
+    const latitude = radians(51.27);
+    const altitude = meters(180);
+    const anchor = cartographicToEcef(longitude, latitude, altitude);
+    const cameraPosition = enuOffsetToEcef(0.001, -0.001, 620, anchor);
+    const state = buildCommonViewStateFromEcef({
+      anchor,
+      cameraPosition,
+      orientation: buildObjectCentricOrientationQuaternion({
+        bearing: radians(0),
+        pitch: radians(0),
+      }),
+      intrinsics: {
+        type: CAMERA_TYPE.PERSPECTIVE,
+        fov: radians(60),
+      },
+      metadata: {
+        frameId: 1,
+        timestampMs: 1_700_000_000_000,
+        sourceId: "spec",
+        source: "sync",
+      },
+    });
+
+    const orbit = deriveOrbitAngles(state);
+
+    expect(orbit.bearing).toBeCloseTo(radians(0), 8);
+    expect(orbit.pitch).toBeCloseTo(radians(0), 8);
+    expect(orbit.range).toBeCloseTo(deriveRange(state), 8);
   });
 });
