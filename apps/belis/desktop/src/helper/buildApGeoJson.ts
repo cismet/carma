@@ -37,7 +37,7 @@ function getStatusInfo(status: Record<string, any> | null): {
  * but fully opaque for use as infobox header background.
  */
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-function getHeaderColorFromStatus(status: Record<string, any> | null): string {
+export function getHeaderColorFromStatus(status: Record<string, any> | null): string {
   if (!status?.bezeichnung) return "#9CA3AF";
   const b = String(status.bezeichnung).toLowerCase();
   if (b.includes("offen")) return "#F59E0B";
