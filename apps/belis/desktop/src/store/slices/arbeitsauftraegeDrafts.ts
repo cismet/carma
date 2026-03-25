@@ -12,6 +12,9 @@ export interface APDraftMeta {
   protokollnummer?: string;
   fachobjektType?: string;
   veranlassung?: string;
+  headerColor?: string;
+  datum?: string;
+  shortname?: string;
 }
 
 export interface AADraft {

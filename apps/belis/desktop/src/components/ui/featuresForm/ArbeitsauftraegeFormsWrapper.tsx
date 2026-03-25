@@ -20,6 +20,8 @@ import {
   serializeValues,
   deserializeValues,
 } from "../../../helper/draftSerialize";
+import { getFachobjektOfProtocol } from "@carma-appframeworks/belis";
+import { getHeaderColorFromStatus } from "../../../helper/buildApGeoJson";
 import ArbeitsauftragForm from "./ArbeitsauftragForm";
 import ArbeitsprotokollForm from "./ArbeitsprotokollForm";
 
@@ -99,6 +101,15 @@ const ArbeitsauftraegeFormsWrapper = ({
               : undefined,
             fachobjektType,
             veranlassung: data?.veranlassung?.bezeichnung as string | undefined,
+            headerColor: getHeaderColorFromStatus(data?.arbeitsprotokollstatus ?? null),
+            datum: data?.datum
+              ? new Date(data.datum as string).toLocaleDateString("de-DE", {
+                  day: "2-digit",
+                  month: "2-digit",
+                  year: "numeric",
+                })
+              : undefined,
+            shortname: getFachobjektOfProtocol(data)?.shortname as string | undefined ?? fachobjektType,
           },
         }));
       }

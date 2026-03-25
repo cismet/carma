@@ -411,11 +411,11 @@ const BelisMapLibWrapper = ({
   });
 
   // AP lasso selection (Arbeitsaufträge mode)
-  useApLassoSelection({
-    map,
-    active: apLassoActive,
-    onDeactivate: onApLassoDeactivate,
-  });
+  // useApLassoSelection({
+  //   map,
+  //   active: apLassoActive,
+  //   onDeactivate: onApLassoDeactivate,
+  // });
 
   const showRaw = useMemo(() => {
     const hashQuery = window.location.hash.split("?")[1] || "";
@@ -1054,14 +1054,14 @@ const BelisMapLibWrapper = ({
       try {
         const raw = await fetchArbeitsauftraegeByTeam(jwt, selectedTeamId);
         if (cancelled) return;
-        const features = transformGqlToTileFeatures(raw as Record<string, unknown>[]);
+        const features = transformGqlToTileFeatures(
+          raw as Record<string, unknown>[]
+        );
         dispatch(setAAFeatures(features));
       } catch (err) {
         if (cancelled) return;
         dispatch(
-          setGraphqlError(
-            err instanceof Error ? err.message : "Unknown error"
-          )
+          setGraphqlError(err instanceof Error ? err.message : "Unknown error")
         );
       } finally {
         if (!cancelled) dispatch(setGraphqlLoading(false));
@@ -1122,7 +1122,14 @@ const BelisMapLibWrapper = ({
       map.off("sourcedata", extractFeatures);
       map.off("moveend", extractFeatures);
     };
-  }, [sidebarVariant, map, selectedTeamId, searchActive, arbeitsauftraegeNamespacedSource, dispatch]);
+  }, [
+    sidebarVariant,
+    map,
+    selectedTeamId,
+    searchActive,
+    arbeitsauftraegeNamespacedSource,
+    dispatch,
+  ]);
 
   // --- Arbeitsauftraege: filter map layers by selected team, search results, or draft mode ---
   const aaDraftIds = useMemo(
@@ -1181,7 +1188,15 @@ const BelisMapLibWrapper = ({
     return () => {
       map.off("styledata", applyFilter);
     };
-  }, [sidebarVariant, map, selectedTeamName, searchFilterIds, arbeitsauftraegeNamespacedSource, draftMode, aaDraftIds]);
+  }, [
+    sidebarVariant,
+    map,
+    selectedTeamName,
+    searchFilterIds,
+    arbeitsauftraegeNamespacedSource,
+    draftMode,
+    aaDraftIds,
+  ]);
 
   // --- Arbeitsauftraege: selection feature-state on map ---
   const prevAAIdRef = useRef<number | null>(null);
@@ -1296,8 +1311,10 @@ const BelisMapLibWrapper = ({
           id: Number(id),
           featureType: d.featureType ?? "tdta_standort_mast",
           protokollnummer: d.meta?.protokollnummer ?? id,
-          shortname: d.meta?.fachobjektType ?? "",
+          shortname: d.meta?.shortname ?? d.meta?.fachobjektType ?? "",
           veranlassung: d.meta?.veranlassung ?? "",
+          headerColor: d.meta?.headerColor ?? "#9CA3AF",
+          datum: d.meta?.datum ?? "",
         },
       }));
     return { type: "FeatureCollection", features };
@@ -1419,7 +1436,14 @@ const BelisMapLibWrapper = ({
     }
 
     return removeLayers;
-  }, [map, sidebarVariant, activeAATab, selectedAAData, draftMode, apDraftGeoJson]);
+  }, [
+    map,
+    sidebarVariant,
+    activeAATab,
+    selectedAAData,
+    draftMode,
+    apDraftGeoJson,
+  ]);
 
   // Mini-map state
   const [miniMap, setMiniMap] = useState<maplibregl.Map | null>(null);
@@ -1708,13 +1732,23 @@ const BelisMapLibWrapper = ({
     // Skip when not in Arbeitsaufträge mode (prevents stale AP overrides in Fachobjekte)
     if (sidebarVariant !== "arbeitsauftraege") return;
 
-    if (activeAATab !== "ap" || selectedAPId == null || !selectedAAData) {
+    if (activeAATab !== "ap" || selectedAPId == null) {
       // Only clear if we're leaving AP mode (don't clobber fachobjekte overrides)
       if (activeAATab === "ap") setOverrideSelectedFeature(null);
       return;
     }
 
-    const geojson = buildApGeoJson(selectedAAData);
+    // In draft mode use local draft GeoJSON; in normal mode require server data
+    const geojson = draftMode
+      ? apDraftGeoJson
+      : selectedAAData
+        ? buildApGeoJson(selectedAAData)
+        : null;
+    if (!geojson) {
+      setOverrideSelectedFeature(null);
+      return;
+    }
+
     const feature = geojson.features.find(
       (f) => f.properties?.id === selectedAPId
     );
@@ -1749,7 +1783,7 @@ const BelisMapLibWrapper = ({
         }
       })
       .catch(() => setOverrideSelectedFeature(null));
-  }, [activeAATab, selectedAPId, selectedAAData, sidebarVariant]);
+  }, [activeAATab, selectedAPId, selectedAAData, sidebarVariant, draftMode, apDraftGeoJson]);
 
   const handleReturnToMap = useCallback(() => {
     map?.resize();
@@ -1972,13 +2006,19 @@ const BelisMapLibWrapper = ({
                   return (
                     <ArbeitsauftraegeFormsWrapper
                       mode="ap"
-                      id={selectedAPId != null ? String(selectedAPId) : undefined}
+                      id={
+                        selectedAPId != null ? String(selectedAPId) : undefined
+                      }
                       data={selectedProtokoll}
                       loading={aaLoading}
                       readOnly={!globalEditMode}
-                      aaId={selectedAAId != null ? String(selectedAAId) : undefined}
+                      aaId={
+                        selectedAAId != null ? String(selectedAAId) : undefined
+                      }
                       geometry={apFeature?.geometry ?? undefined}
-                      fachobjektType={apFeature?.properties?.featureType as string | undefined}
+                      fachobjektType={
+                        apFeature?.properties?.featureType as string | undefined
+                      }
                       onBack={
                         apOpenedFrom === "auTable"
                           ? () => dispatch(setApOpenedFrom(null))
