@@ -52,7 +52,7 @@ export function getHeaderColorFromStatus(status: Record<string, any> | null): st
  * Returns a GeoJSON geometry or null if none could be found.
  */
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-function extractGeometry(protokoll: Record<string, any>): {
+export function extractGeometry(protokoll: Record<string, any>): {
   geometry: GeoJSON.Geometry;
   featureType: FeatureTypeKey;
 } | null {

@@ -84,7 +84,7 @@ import {
   getDraftMode,
 } from "../../store/slices/arbeitsauftraege";
 import { getSelectedTeamName } from "../../store/selectors";
-import { buildApGeoJson } from "../../helper/buildApGeoJson";
+import { buildApGeoJson, extractGeometry } from "../../helper/buildApGeoJson";
 import { debugLayers, apInfoboxMapping, aaInfoboxMapping } from "../../config/debugLayers";
 import type { ArbeitsauftragTileFeature } from "../../store/slices/arbeitsauftraege";
 import { transformGqlToTileFeatures } from "../../helper/transformArbeitsauftraege";
@@ -1303,21 +1303,38 @@ const BelisMapLibWrapper = ({
 
   // Build GeoJSON from AP drafts for draft mode map rendering
   const apDraftGeoJson = useMemo((): GeoJSON.FeatureCollection => {
-    const features: GeoJSON.Feature[] = Object.entries(apDrafts)
-      .filter(([, d]) => d.geometry != null)
-      .map(([id, d]) => ({
+    const features: GeoJSON.Feature[] = [];
+    for (const [id, d] of Object.entries(apDrafts)) {
+      let geometry = d.geometry ?? null;
+      let featureType = d.featureType ?? "tdta_standort_mast";
+
+      // Fallback: extract geometry from serverData snapshot
+      if (!geometry && d.serverData) {
+        const extracted = extractGeometry(
+          d.serverData as Record<string, unknown>
+        );
+        if (extracted) {
+          geometry = extracted.geometry;
+          featureType = extracted.featureType;
+        }
+      }
+
+      if (!geometry) continue;
+
+      features.push({
         type: "Feature" as const,
-        geometry: d.geometry!,
+        geometry,
         properties: {
           id: Number(id),
-          featureType: d.featureType ?? "tdta_standort_mast",
+          featureType,
           protokollnummer: d.meta?.protokollnummer ?? id,
           shortname: d.meta?.shortname ?? d.meta?.fachobjektType ?? "",
           veranlassung: d.meta?.veranlassung ?? "",
           headerColor: d.meta?.headerColor ?? "#9CA3AF",
           datum: d.meta?.datum ?? "",
         },
-      }));
+      });
+    }
     return { type: "FeatureCollection", features };
   }, [apDrafts]);
 
