@@ -21,6 +21,8 @@ interface ArbeitsauftragFormProps {
     allValues: Record<string, unknown>
   ) => void;
   onOriginalValues?: (values: Record<string, unknown>) => void;
+  customDraftsCount?: number;
+  onSaveAll?: () => void;
 }
 
 const ArbeitsauftragForm = ({
@@ -35,6 +37,8 @@ const ArbeitsauftragForm = ({
   draftValues,
   onValuesChange,
   onOriginalValues,
+  customDraftsCount,
+  onSaveAll,
 }: ArbeitsauftragFormProps) => {
   const jwt = useSelector(getJWT);
 
@@ -72,6 +76,8 @@ const ArbeitsauftragForm = ({
       onCancel={onCancel}
       onSave={onSave}
       hasDraft={hasDraft}
+      customDraftsCount={customDraftsCount}
+      onSaveAll={onSaveAll}
     >
       <ArbeitsauftragFormFields
         data={data}

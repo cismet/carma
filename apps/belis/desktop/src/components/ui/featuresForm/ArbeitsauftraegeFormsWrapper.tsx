@@ -13,6 +13,11 @@ import {
   hasAPDraftChanges,
   getAAOriginalValues,
   getAPOriginalValues,
+  getAllAADrafts,
+  getAllAPDrafts,
+  getTotalDraftCount,
+  getAADraftCount,
+  getAPDraftCount,
 } from "../../../store/slices/arbeitsauftraegeDrafts";
 import { ChangedFieldsProvider } from "./DraftFieldHighlight";
 import type { RootState } from "../../../store";
@@ -51,6 +56,12 @@ const ArbeitsauftraegeFormsWrapper = ({
 }: ArbeitsauftraegeFormsWrapperProps) => {
   const dispatch = useDispatch();
   const [resetKey, setResetKey] = useState(0);
+
+  const allAADrafts = useSelector(getAllAADrafts);
+  const allAPDrafts = useSelector(getAllAPDrafts);
+  const totalDraftCount = useSelector(getTotalDraftCount);
+  const aaDraftCount = useSelector(getAADraftCount);
+  const apDraftCount = useSelector(getAPDraftCount);
 
   const draft = useSelector((state: RootState) =>
     mode === "aa" ? getAADraft(state, id) : getAPDraft(state, id)
@@ -160,6 +171,20 @@ const ArbeitsauftraegeFormsWrapper = ({
     }
   }, [id, mode, draft, dispatch]);
 
+  const handleSaveAll = useCallback(() => {
+    console.log(
+      `[ArbeitsauftraegeDrafts] Save ALL — AA drafts: ${aaDraftCount}, AP drafts: ${apDraftCount}`
+    );
+
+    for (const [draftId, aaDraft] of Object.entries(allAADrafts)) {
+      console.log(`[ArbeitsauftraegeDrafts] AA draft "${draftId}":`, JSON.stringify(aaDraft, null, 2));
+    }
+
+    for (const [draftId, apDraft] of Object.entries(allAPDrafts)) {
+      console.log(`[ArbeitsauftraegeDrafts] AP draft "${draftId}":`, JSON.stringify(apDraft, null, 2));
+    }
+  }, [allAADrafts, allAPDrafts, aaDraftCount, apDraftCount]);
+
   if (mode === "ap") {
     return (
       <ChangedFieldsProvider
@@ -179,6 +204,8 @@ const ArbeitsauftraegeFormsWrapper = ({
           onValuesChange={handleDraftChange}
           onOriginalValues={handleOriginalValues}
           apId={id}
+          customDraftsCount={totalDraftCount}
+          onSaveAll={handleSaveAll}
         />
       </ChangedFieldsProvider>
     );
@@ -200,6 +227,8 @@ const ArbeitsauftraegeFormsWrapper = ({
         draftValues={deserializedDraftValues}
         onValuesChange={handleDraftChange}
         onOriginalValues={handleOriginalValues}
+        customDraftsCount={totalDraftCount}
+        onSaveAll={handleSaveAll}
       />
     </ChangedFieldsProvider>
   );
