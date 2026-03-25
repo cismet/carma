@@ -135,6 +135,7 @@ const ArbeitsprotokollFormFields = ({
             aenderungen,
             createdAt: Date.now(),
           },
+          serverData: data as Record<string, unknown>,
         })
       );
     },

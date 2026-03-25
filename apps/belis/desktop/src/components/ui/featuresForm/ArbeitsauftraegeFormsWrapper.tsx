@@ -95,6 +95,7 @@ const ArbeitsauftraegeFormsWrapper = ({
           geometry,
           featureType: fachobjektType,
           aaId,
+          serverData: data,
           meta: {
             protokollnummer: data?.protokollnummer != null
               ? String(data.protokollnummer)
