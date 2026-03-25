@@ -25,7 +25,7 @@ interface ArbeitsprotokollFormProps {
   draftValues?: Record<string, unknown>;
   onValuesChange?: (
     changedValues: Record<string, unknown>,
-    allValues: Record<string, unknown>,
+    allValues: Record<string, unknown>
   ) => void;
   onOriginalValues?: (values: Record<string, unknown>) => void;
 }
@@ -66,7 +66,7 @@ const ArbeitsprotokollForm = ({
       color: "blue" as const,
       children: (
         <div>
-          {entry.aenderung ?? ""}:{" "}von{" "}
+          {entry.aenderung ?? ""}: von{" "}
           <span style={{ color: "grey" }}>{entry.alt}</span> zu{" "}
           <b>{entry.neu || "-"}</b>
         </div>
@@ -77,7 +77,12 @@ const ArbeitsprotokollForm = ({
   const timelineContent = (
     <div>
       <div
-        style={{ fontSize: 14, fontWeight: 500, color: "#374151", marginBottom: 8 }}
+        style={{
+          fontSize: 14,
+          fontWeight: 500,
+          color: "#374151",
+          marginBottom: 8,
+        }}
       >
         Änderungen ({aenderungItems.length})
       </div>
