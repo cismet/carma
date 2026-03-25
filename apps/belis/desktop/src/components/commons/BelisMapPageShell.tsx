@@ -144,7 +144,14 @@ const BelisMapPageShell = () => {
                     <Badge
                       count={totalDraftCount}
                       size="small"
-                      offset={[-2, 0]}
+                      offset={[-2, 2]}
+                      style={{
+                        fontSize: 10,
+                        minWidth: 14,
+                        height: 14,
+                        lineHeight: "14px",
+                        padding: "0 3px",
+                      }}
                     >
                       <button
                         onClick={() => dispatch(setDraftMode(!draftMode))}
@@ -196,7 +203,14 @@ const BelisMapPageShell = () => {
                   <Badge
                     count={totalDraftCount}
                     size="small"
-                    offset={[-2, 0]}
+                    offset={[-2, 2]}
+                    style={{
+                      fontSize: 10,
+                      minWidth: 14,
+                      height: 14,
+                      lineHeight: "14px",
+                      padding: "0 3px",
+                    }}
                   >
                     <button
                       onClick={() => dispatch(setDraftMode(!draftMode))}
