@@ -1105,6 +1105,69 @@ query ArbeitsauftraegeByTeam($teamId: Int!) {
   }
 }`;
 
+queries.arbeitsauftraege_by_ids = `
+query ArbeitsauftraegeByIds($ids: [Int!]!) {
+  arbeitsauftrag(where: {
+    id: { _in: $ids }
+  }) {
+    id
+    nummer
+    angelegt_am
+    angelegt_von
+    team {
+      id
+      name
+    }
+    ar_protokolleArray {
+      arbeitsprotokoll {
+        id
+        arbeitsprotokollstatus {
+          id
+          bezeichnung
+          schluessel
+        }
+        geometrie {
+          geom {
+            geo_field
+          }
+        }
+        tdta_leuchten {
+          fk_standort: tdta_standort_mast {
+            geom {
+              geo_field
+            }
+          }
+        }
+        tdta_standort_mast {
+          geom {
+            geo_field
+          }
+        }
+        schaltstelle {
+          geom {
+            geo_field
+          }
+        }
+        mauerlasche {
+          geom {
+            geo_field
+          }
+        }
+        leitung {
+          geom {
+            geo_field
+          }
+        }
+        abzweigdose {
+          geom {
+            geo_field
+          }
+        }
+      }
+    }
+  }
+}`;
+
 queries.arbeitsauftragById = `
 query ArbeitsauftragById($aaId: Int!) {
   arbeitsauftrag(where: {id: {_eq: $aaId}}) {

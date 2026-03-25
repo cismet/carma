@@ -68,9 +68,7 @@ const ArbeitsauftraegeFormsWrapper = ({
   );
 
   const hasChanges = useSelector((state: RootState) =>
-    mode === "aa"
-      ? hasAADraftChanges(state, id)
-      : hasAPDraftChanges(state, id)
+    mode === "aa" ? hasAADraftChanges(state, id) : hasAPDraftChanges(state, id)
   );
 
   const originalValues = useSelector((state: RootState) =>
@@ -85,45 +83,60 @@ const ArbeitsauftraegeFormsWrapper = ({
   );
 
   const handleDraftChange = useCallback(
-    (_changedValues: Record<string, unknown>, allValues: Record<string, unknown>) => {
+    (
+      _changedValues: Record<string, unknown>,
+      allValues: Record<string, unknown>
+    ) => {
       if (!id) return;
       const serialized = serializeValues(allValues);
       if (mode === "aa") {
-        dispatch(setAADraft({
-          id,
-          values: serialized,
-          geometry,
-          meta: {
-            nummer: data?.nummer != null ? String(data.nummer) : undefined,
-            team: (data?.team?.name as string | undefined) ?? undefined,
-            angelegt_am: data?.angelegt_am as string | undefined,
-          },
-        }));
+        dispatch(
+          setAADraft({
+            id,
+            values: serialized,
+            geometry,
+            meta: {
+              nummer: data?.nummer != null ? String(data.nummer) : undefined,
+              team: (data?.team?.name as string | undefined) ?? undefined,
+              angelegt_am: data?.angelegt_am as string | undefined,
+            },
+          })
+        );
       } else {
-        dispatch(setAPDraft({
-          id,
-          values: serialized,
-          geometry,
-          featureType: fachobjektType,
-          aaId,
-          serverData: data,
-          meta: {
-            protokollnummer: data?.protokollnummer != null
-              ? String(data.protokollnummer)
-              : undefined,
-            fachobjektType,
-            veranlassung: data?.veranlassung?.bezeichnung as string | undefined,
-            headerColor: getHeaderColorFromStatus(data?.arbeitsprotokollstatus ?? null),
-            datum: data?.datum
-              ? new Date(data.datum as string).toLocaleDateString("de-DE", {
-                  day: "2-digit",
-                  month: "2-digit",
-                  year: "numeric",
-                })
-              : undefined,
-            shortname: getFachobjektOfProtocol(data)?.shortname as string | undefined ?? fachobjektType,
-          },
-        }));
+        dispatch(
+          setAPDraft({
+            id,
+            values: serialized,
+            geometry,
+            featureType: fachobjektType,
+            aaId,
+            serverData: data,
+            meta: {
+              protokollnummer:
+                data?.protokollnummer != null
+                  ? String(data.protokollnummer)
+                  : undefined,
+              fachobjektType,
+              veranlassung: data?.veranlassung?.bezeichnung as
+                | string
+                | undefined,
+              headerColor: getHeaderColorFromStatus(
+                data?.arbeitsprotokollstatus ?? null
+              ),
+              datum: data?.datum
+                ? new Date(data.datum as string).toLocaleDateString("de-DE", {
+                    day: "2-digit",
+                    month: "2-digit",
+                    year: "numeric",
+                  })
+                : undefined,
+              shortname:
+                (getFachobjektOfProtocol(data)?.shortname as
+                  | string
+                  | undefined) ?? fachobjektType,
+            },
+          })
+        );
       }
     },
     [id, mode, dispatch, geometry, data, fachobjektType, aaId]
@@ -177,11 +190,17 @@ const ArbeitsauftraegeFormsWrapper = ({
     );
 
     for (const [draftId, aaDraft] of Object.entries(allAADrafts)) {
-      console.log(`[ArbeitsauftraegeDrafts] AA draft "${draftId}":`, JSON.stringify(aaDraft, null, 2));
+      console.log(
+        `[ArbeitsauftraegeDrafts] AA draft "${draftId}":`,
+        JSON.stringify(aaDraft, null, 2)
+      );
     }
 
     for (const [draftId, apDraft] of Object.entries(allAPDrafts)) {
-      console.log(`[ArbeitsauftraegeDrafts] AP draft "${draftId}":`, JSON.stringify(apDraft, null, 2));
+      console.log(
+        `[ArbeitsauftraegeDrafts] AP draft "${draftId}":`,
+        JSON.stringify(apDraft, null, 2)
+      );
     }
   }, [allAADrafts, allAPDrafts, aaDraftCount, apDraftCount]);
 

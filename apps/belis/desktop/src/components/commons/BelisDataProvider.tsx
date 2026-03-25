@@ -1,14 +1,22 @@
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import type { ReactNode } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { message } from "antd";
 import type { AppDispatch } from "../../store";
 import {
   getKeyTablesFetched,
+  getKeyTablesData,
   setKeyTablesData,
   setKeyTablesErrors,
   setKeyTablesLoading,
 } from "../../store/slices/keyTables";
+import {
+  getSelectedTeamId,
+  getPreviousTeamId,
+  getDraftMode,
+  setSelectedTeamId,
+  setPreviousTeamId,
+} from "../../store/slices/arbeitsauftraege";
 import { fetchAllKeyTables } from "../../helper/apiMethods";
 
 interface BelisDataProviderProps {
@@ -19,6 +27,11 @@ interface BelisDataProviderProps {
 const BelisDataProvider = ({ jwt, children }: BelisDataProviderProps) => {
   const dispatch: AppDispatch = useDispatch();
   const keyTablesFetched = useSelector(getKeyTablesFetched);
+  const keyTablesData = useSelector(getKeyTablesData);
+  const selectedTeamId = useSelector(getSelectedTeamId);
+  const previousTeamId = useSelector(getPreviousTeamId);
+  const draftMode = useSelector(getDraftMode);
+  const initialSetupDone = useRef(false);
 
   useEffect(() => {
     if (keyTablesFetched || !jwt) return;
@@ -42,6 +55,36 @@ const BelisDataProvider = ({ jwt, children }: BelisDataProviderProps) => {
     };
     fetchData();
   }, [jwt, keyTablesFetched, dispatch]);
+
+  // Recovery from app restart during draft mode + default team on first load
+  useEffect(() => {
+    if (!keyTablesFetched || initialSetupDone.current) return;
+
+    // App was closed during draft mode (draftMode resets to false on restart,
+    // but previousTeamId is still persisted): restore previous team
+    if (!draftMode && previousTeamId != null && selectedTeamId == null) {
+      dispatch(setSelectedTeamId(previousTeamId));
+      dispatch(setPreviousTeamId(null));
+      initialSetupDone.current = true;
+      return;
+    }
+
+    // First-ever load: default to "erledigte Arbeitsaufträge"
+    if (selectedTeamId == null && previousTeamId == null) {
+      const teams = (keyTablesData.teams || []) as {
+        id: number;
+        name?: string;
+      }[];
+      const defaultTeam = teams.find(
+        (t) => t.name === "erledigte Arbeitsaufträge"
+      );
+      if (defaultTeam) {
+        dispatch(setSelectedTeamId(defaultTeam.id));
+      }
+    }
+
+    initialSetupDone.current = true;
+  }, [keyTablesFetched, selectedTeamId, previousTeamId, draftMode, keyTablesData.teams, dispatch]);
 
   return <>{children}</>;
 };

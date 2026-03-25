@@ -87,7 +87,7 @@ const featuresFormsConfig = {
 const arbeitsauftraegeConfig = {
   key: "@belis-desktop.arbeitsauftraege",
   storage: localForage,
-  whitelist: ["selectedTeamId"],
+  whitelist: ["selectedTeamId", "previousTeamId"],
 };
 
 const arbeitsauftraegeDraftsConfig = {

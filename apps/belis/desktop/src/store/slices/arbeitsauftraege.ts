@@ -27,6 +27,7 @@ interface ArbeitsauftraegeState {
   selectedAAId: number | null;
   selectedAAData: ArbeitsauftragDetail | null;
   selectedTeamId: number | null;
+  previousTeamId: number | null;
   searchActive: boolean;
   activeAATab: AATabKey;
   selectedAPId: number | null;
@@ -43,6 +44,7 @@ const initialState: ArbeitsauftraegeState = {
   selectedAAId: null,
   selectedAAData: null,
   selectedTeamId: null,
+  previousTeamId: null,
   searchActive: false,
   activeAATab: "aa",
   selectedAPId: null,
@@ -109,7 +111,21 @@ const slice = createSlice({
       state.error = null;
     },
     setDraftMode(state, action: { payload: boolean }) {
+      if (action.payload && !state.draftMode) {
+        // Entering draft mode: save current team, clear filter
+        state.previousTeamId = state.selectedTeamId;
+        state.selectedTeamId = null;
+      } else if (!action.payload && state.draftMode) {
+        // Leaving draft mode: restore saved team if user hasn't manually changed it
+        if (state.selectedTeamId == null) {
+          state.selectedTeamId = state.previousTeamId;
+        }
+        state.previousTeamId = null;
+      }
       state.draftMode = action.payload;
+    },
+    setPreviousTeamId(state, action: { payload: number | null }) {
+      state.previousTeamId = action.payload;
     },
   },
 });
@@ -131,6 +147,7 @@ export const {
   setGraphqlError,
   clearSelection,
   setDraftMode,
+  setPreviousTeamId,
 } = slice.actions;
 
 export const getAAFeatures = (state: RootState) =>
@@ -158,3 +175,5 @@ export const getSearchActive = (state: RootState) =>
   state.arbeitsauftraege.searchActive;
 export const getDraftMode = (state: RootState) =>
   state.arbeitsauftraege.draftMode;
+export const getPreviousTeamId = (state: RootState) =>
+  state.arbeitsauftraege.previousTeamId;
