@@ -52,6 +52,8 @@ export interface APDraft {
   aaId?: string;
   meta?: APDraftMeta;
   actions?: DraftAction[];
+  /** Snapshot of the full server arbeitsprotokoll object at draft creation time */
+  serverData?: Record<string, unknown>;
   updatedAt: number;
 }
 
@@ -106,9 +108,11 @@ const arbeitsauftraegeDraftsSlice = createSlice({
         featureType?: string;
         aaId?: string;
         meta?: APDraftMeta;
+        serverData?: Record<string, unknown>;
       }>
     ) {
-      const { id, values, geometry, featureType, aaId, meta } = action.payload;
+      const { id, values, geometry, featureType, aaId, meta, serverData } =
+        action.payload;
       const key = `ap:${id}`;
       const original = state.originalValues[key];
 
@@ -132,6 +136,7 @@ const arbeitsauftraegeDraftsSlice = createSlice({
         aaId: aaId ?? state.apDrafts[id]?.aaId,
         meta: meta ?? state.apDrafts[id]?.meta,
         actions: state.apDrafts[id]?.actions,
+        serverData: serverData ?? state.apDrafts[id]?.serverData,
         updatedAt: Date.now(),
       };
     },
@@ -184,19 +189,27 @@ const arbeitsauftraegeDraftsSlice = createSlice({
     },
     addActionToAPDraft(
       state,
-      action: PayloadAction<{ id: string; draftAction: DraftAction }>
+      action: PayloadAction<{
+        id: string;
+        draftAction: DraftAction;
+        serverData?: Record<string, unknown>;
+      }>
     ) {
-      const { id, draftAction } = action.payload;
+      const { id, draftAction, serverData } = action.payload;
       if (!state.apDrafts[id]) {
         state.apDrafts[id] = {
           values: {},
           actions: [],
+          serverData,
           updatedAt: Date.now(),
         };
       }
       const draft = state.apDrafts[id];
       if (!draft.actions) draft.actions = [];
       draft.actions.push(draftAction);
+      if (serverData && !draft.serverData) {
+        draft.serverData = serverData;
+      }
       draft.updatedAt = Date.now();
     },
     removeActionFromAPDraft(

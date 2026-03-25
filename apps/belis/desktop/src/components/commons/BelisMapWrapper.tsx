@@ -1986,7 +1986,28 @@ const BelisMapLibWrapper = ({
             />
           }
           datasheetContent={
-            sidebarVariant === "arbeitsauftraege" && selectedAAData ? (
+            // Draft mode: render AP form directly from persisted draft snapshot
+            draftMode &&
+            apOpenedFrom != null &&
+            selectedAPId != null &&
+            apDrafts[String(selectedAPId)]?.serverData ? (
+              (() => {
+                const draft = apDrafts[String(selectedAPId)];
+                return (
+                  <ArbeitsauftraegeFormsWrapper
+                    mode="ap"
+                    id={String(selectedAPId)}
+                    data={
+                      draft.serverData as Record<string, unknown>
+                    }
+                    readOnly={!globalEditMode}
+                    aaId={draft.aaId}
+                    geometry={draft.geometry}
+                    fachobjektType={draft.featureType}
+                  />
+                );
+              })()
+            ) : sidebarVariant === "arbeitsauftraege" && selectedAAData ? (
               (() => {
                 const selectedProtokoll =
                   apOpenedFrom != null && selectedAPId != null
