@@ -7,6 +7,16 @@ import type { LayerSpecification } from "maplibre-gl";
  * source/source-layer are placeholders, overridden at runtime.
  */
 
+/** Simple infobox mapping for AA features (object-style) */
+export const aaInfoboxMapping: string[] = [
+  "header: 'Arbeitsauftrag mit ' + p.total_protokolle + ' Protokollen'",
+  "title: 'AA-' + p.nummer",
+  "headerColor: '#c30000'",
+  "subtitle: (p.angelegt_von || '') + (p.angelegt_am ? ' · ' + p.angelegt_am : '')",
+  "additionalInfo: (p.team ? 'Team: ' + p.team : '')",
+  "datasheet: true",
+];
+
 /** Simple infobox mapping for AP features (object-style) */
 export const apInfoboxMapping: string[] = [
   "header: 'Arbeitsprotokoll'",
