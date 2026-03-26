@@ -208,11 +208,11 @@ const ArbeitsauftraegeFormsWrapper = ({
           return;
         }
 
-        // Save AA drafts via updateDataByClassName (pass empty {} for AP)
+        // Save AA + AP base data via updateDataByClassName
         const aaResult = await saveAllArbeitsauftraegeDrafts(
           jwt,
           allAADrafts,
-          {}
+          allAPDrafts
         );
 
         // Save AP actions via dedicated action endpoints
@@ -223,15 +223,13 @@ const ArbeitsauftraegeFormsWrapper = ({
           dispatch(removeAADraft(aaId));
         }
 
-        // Clean up succeeded AP drafts (all actions for that AP succeeded)
-        const succeededApIds = new Set(
-          apActionsResult.succeeded.map((s) => s.apId)
-        );
-        const failedApIds = new Set(
+        // Clean up succeeded AP drafts (base data + all actions must succeed)
+        const actionFailedApIds = new Set(
           apActionsResult.failed.map((f) => f.apId)
         );
-        for (const apId of succeededApIds) {
-          if (!failedApIds.has(apId)) {
+        const baseDataSucceededApIds = new Set(aaResult.ap.succeeded);
+        for (const apId of baseDataSucceededApIds) {
+          if (!actionFailedApIds.has(apId)) {
             dispatch(removeAPDraft(apId));
           }
         }
