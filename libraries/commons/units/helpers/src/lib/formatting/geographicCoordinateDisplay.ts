@@ -1,4 +1,3 @@
-import { formatFixedNumber } from "@carma-commons/utils/number-format";
 import type { Degrees } from "@carma/units/types";
 import { FORMAT_LOCALE } from "./locales";
 
@@ -44,6 +43,17 @@ const DEFAULT_LOCALE = FORMAT_LOCALE.DE_DE;
 const clampFractionDigits = (value: number): number =>
   Math.max(0, Math.min(12, Math.floor(value)));
 
+const formatFixedCoordinateNumber = (
+  value: number,
+  fixedDigits: number
+): string | undefined => {
+  if (!Number.isFinite(value)) {
+    return undefined;
+  }
+
+  return parseFloat(value.toFixed(fixedDigits)).toString();
+};
+
 const readAxisFractionDigits = (
   axis: GeographicFractionAxis,
   options?: GeographicCoordinateFormatOptions
@@ -67,7 +77,7 @@ const formatLocalizedFixedCoordinate = (
   options?: GeographicCoordinateFormatOptions
 ) => {
   const fractionDigits = readAxisFractionDigits(axis, options);
-  const formatted = formatFixedNumber(value, fractionDigits);
+  const formatted = formatFixedCoordinateNumber(value, fractionDigits);
   if (formatted === undefined) {
     return "unresolved";
   }
