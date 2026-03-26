@@ -30,7 +30,10 @@ import { getFachobjektOfProtocol } from "@carma-appframeworks/belis";
 import { getHeaderColorFromStatus } from "../../../helper/buildApGeoJson";
 import { getJWT } from "../../../store/slices/auth";
 import { incrementFeatureDataVersion } from "../../../store/slices/featureCollection";
-import { setDraftMode } from "../../../store/slices/arbeitsauftraege";
+import {
+  setDraftMode,
+  clearSelection,
+} from "../../../store/slices/arbeitsauftraege";
 import {
   saveAllArbeitsauftraegeDrafts,
   saveAllAPActions,
@@ -257,6 +260,11 @@ const ArbeitsauftraegeFormsWrapper = ({
 
         if (failed === 0 && succeeded > 0) {
           dispatch(setDraftMode(false));
+        }
+
+        // AA team may have changed — clear stale detail panel
+        if (aaResult.aa.succeeded.length > 0) {
+          dispatch(clearSelection());
         }
 
         if (succeeded > 0) {
