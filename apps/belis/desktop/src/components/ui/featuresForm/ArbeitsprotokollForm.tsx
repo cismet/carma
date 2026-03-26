@@ -76,9 +76,13 @@ const ArbeitsprotokollForm = ({
       color: "blue" as const,
       children: (
         <div>
-          {entry.aenderung ?? ""}: von{" "}
-          <span style={{ color: "grey" }}>{entry.alt}</span> zu{" "}
-          <b>{entry.neu || "-"}</b>
+          {entry.aenderung ?? ""}:{" "}
+          {entry.alt ? (
+            <>
+              von <span style={{ color: "grey" }}>{entry.alt}</span>{" "}
+            </>
+          ) : null}
+          zu <b>{entry.neu || "-"}</b>
         </div>
       ),
     }));

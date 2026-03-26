@@ -45,13 +45,12 @@ const PlannedTimeline = ({
         {action.aenderungen.map((a, aIdx) => (
           <div key={aIdx} className="text-sm ml-1">
             {a.field}:{" "}
-            {a.alt != null ? (
+            {a.alt ? (
               <>
-                von <span className="text-gray-400">{a.alt}</span> zu{" "}
+                von <span className="text-gray-400">{a.alt}</span>{" "}
               </>
-            ) : (
-              "zu "
-            )}
+            ) : null}
+            zu{" "}
             <b>{a.neu || "-"}</b>
           </div>
         ))}
