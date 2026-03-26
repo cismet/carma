@@ -1,7 +1,7 @@
 import { type NodeChainAnnotation } from "../../types/annotationTypes";
 import type { Cartesian3Json } from "@carma/cesium";
+import { formatAreaSquareMetersAdaptive } from "@carma/units/helpers";
 import { ANNOTATION_TYPE_AREA_VERTICAL } from "../../types/annotationTypes";
-import { formatAreaAdaptive } from "../../utils/displayFormatting";
 
 export type AreaLabelText = {
   primaryText: string;
@@ -77,9 +77,13 @@ const buildAreaLabelText = (
     previewAreaSquareMeters < planarArea * 0.99;
 
   return {
-    primaryText: formatAreaAdaptive(planarArea),
+    primaryText: formatAreaSquareMetersAdaptive(planarArea, {
+      locale: "de-DE",
+    }),
     secondaryText: showPreviewAreaSecondary
-      ? `(${formatAreaAdaptive(previewAreaSquareMeters)})`
+      ? `(${formatAreaSquareMetersAdaptive(previewAreaSquareMeters, {
+          locale: "de-DE",
+        })})`
       : null,
   };
 };
@@ -97,6 +101,11 @@ export const buildPlanarAreaLabelText = (
 export const buildVerticalAreaLabelText = (
   group: NodeChainAnnotation
 ): AreaLabelText => ({
-  primaryText: formatAreaAdaptive(Math.max(0, group.areaSquareMeters ?? 0)),
+  primaryText: formatAreaSquareMetersAdaptive(
+    Math.max(0, group.areaSquareMeters ?? 0),
+    {
+      locale: "de-DE",
+    }
+  ),
   secondaryText: null,
 });

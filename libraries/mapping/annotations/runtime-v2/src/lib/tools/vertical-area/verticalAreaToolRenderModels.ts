@@ -3,7 +3,7 @@ import {
   getDegreesFromCartesian,
   getEllipsoidalAltitudeOrZero,
 } from "@carma/cesium";
-import { formatAreaAdaptive } from "@carma-mapping/annotations/core";
+import { formatAreaSquareMetersAdaptive } from "@carma/units/helpers";
 
 import type {
   RuntimeCoordinate,
@@ -190,8 +190,11 @@ export const buildVerticalAreaToolRenderModels = ({
           id: `${measurement.id}-area-label`,
           measurementId: measurement.id,
           coordinate,
-          content: formatAreaAdaptive(
-            Math.max(0, measurement.areaSquareMeters ?? 0)
+          content: formatAreaSquareMetersAdaptive(
+            Math.max(0, measurement.areaSquareMeters ?? 0),
+            {
+              locale: "de-DE",
+            }
           ),
           markerContent: undefined,
           selected: measurement.id === selectedMeasurementId,

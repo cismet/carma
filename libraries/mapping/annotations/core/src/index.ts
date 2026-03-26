@@ -15,7 +15,6 @@ export {
 export * from "./lib/utils/alphabeticSequence";
 export * from "./lib/utils/orderById";
 export * from "./lib/utils/annotationNaming";
-export * from "./lib/utils/displayFormatting";
 export * from "./lib/utils/annotationLabel";
 export * from "./lib/utils/annotationStateEquality";
 export * from "./lib/utils/annotationCollection";

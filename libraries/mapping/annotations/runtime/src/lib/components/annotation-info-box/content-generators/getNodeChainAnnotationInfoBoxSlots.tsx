@@ -17,11 +17,11 @@ import {
   ANNOTATION_TYPE_POLYLINE,
   LINEAR_SEGMENT_LINE_MODE_COMPONENTS,
   LINEAR_SEGMENT_LINE_MODE_DIRECT,
-  formatAreaAdaptive,
   type DerivedPolylinePath,
   type NodeChainAnnotation,
 } from "@carma-mapping/annotations/core";
 import {
+  formatAreaSquareMetersAdaptive,
   formatDegrees,
   formatLengthMeters,
   LENGTH_UNIT_MODE,
@@ -226,7 +226,12 @@ const getNodeChainMetricContent = (input: AnnotationInfoBoxEntryPayload) => {
         <span>
           {areaLabel}:{" "}
           <span className="tabular-nums">
-            {formatAreaAdaptive(Math.max(0, annotation.areaSquareMeters ?? 0))}
+            {formatAreaSquareMetersAdaptive(
+              Math.max(0, annotation.areaSquareMeters ?? 0),
+              {
+                locale: "de-DE",
+              }
+            )}
           </span>
         </span>
         <span>

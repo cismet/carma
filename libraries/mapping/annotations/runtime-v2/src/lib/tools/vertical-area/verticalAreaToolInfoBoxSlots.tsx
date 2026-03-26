@@ -1,5 +1,4 @@
-import { formatAreaAdaptive } from "@carma-mapping/annotations/core";
-import { formatDegrees } from "@carma/units/helpers";
+import { formatAreaSquareMetersAdaptive, formatDegrees } from "@carma/units/helpers";
 
 import type { RuntimeAnnotationInfoBoxContext } from "../../components/annotation-info-box/annotationInfoBox.types";
 
@@ -41,7 +40,9 @@ export const createVerticalAreaToolInfoBoxSlots = ({
       ),
       content: (
         <div className="text-[12px] leading-normal text-[#212529]">
-          <div>{`Fläche: ${formatAreaAdaptive(areaSquareMeters)}`}</div>
+          <div>{`Fläche: ${formatAreaSquareMetersAdaptive(areaSquareMeters, {
+            locale: "de-DE",
+          })}`}</div>
           <div>{`Vertikalität: ${formatDegrees(verticalityDeg, {
             locale: "de-DE",
           })}`}</div>
