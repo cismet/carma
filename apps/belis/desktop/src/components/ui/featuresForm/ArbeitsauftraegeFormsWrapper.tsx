@@ -1,5 +1,6 @@
 import { useCallback, useMemo, useState } from "react";
 import { useSelector, useDispatch } from "react-redux";
+import { Modal, message } from "antd";
 import {
   getAADraft,
   getAPDraft,
@@ -27,6 +28,8 @@ import {
 } from "../../../helper/draftSerialize";
 import { getFachobjektOfProtocol } from "@carma-appframeworks/belis";
 import { getHeaderColorFromStatus } from "../../../helper/buildApGeoJson";
+import { getJWT } from "../../../store/slices/auth";
+import { saveAllArbeitsauftraegeDrafts } from "../../../helper/arbeitsauftraegeSaveHelpers";
 import ArbeitsauftragForm from "./ArbeitsauftragForm";
 import ArbeitsprotokollForm from "./ArbeitsprotokollForm";
 
@@ -56,6 +59,7 @@ const ArbeitsauftraegeFormsWrapper = ({
 }: ArbeitsauftraegeFormsWrapperProps) => {
   const dispatch = useDispatch();
   const [resetKey, setResetKey] = useState(0);
+  const jwt = useSelector(getJWT);
 
   const allAADrafts = useSelector(getAllAADrafts);
   const allAPDrafts = useSelector(getAllAPDrafts);
@@ -185,24 +189,62 @@ const ArbeitsauftraegeFormsWrapper = ({
   }, [id, mode, draft, dispatch]);
 
   const handleSaveAll = useCallback(() => {
-    console.log(
-      `[ArbeitsauftraegeDrafts] Save ALL — AA drafts: ${aaDraftCount}, AP drafts: ${apDraftCount}`
-    );
+    const totalCount = aaDraftCount + apDraftCount;
 
-    for (const [draftId, aaDraft] of Object.entries(allAADrafts)) {
-      console.log(
-        `[ArbeitsauftraegeDrafts] AA draft "${draftId}":`,
-        JSON.stringify(aaDraft, null, 2)
-      );
-    }
+    Modal.confirm({
+      title: "Alle Entwürfe speichern?",
+      content:
+        totalCount === 1
+          ? "Entwurf wird gespeichert."
+          : `${totalCount} Entwürfe werden gespeichert.`,
+      okText: "Alle speichern",
+      cancelText: "Abbrechen",
+      onOk: async () => {
+        if (!jwt) {
+          message.error("Nicht authentifiziert");
+          return;
+        }
 
-    for (const [draftId, apDraft] of Object.entries(allAPDrafts)) {
-      console.log(
-        `[ArbeitsauftraegeDrafts] AP draft "${draftId}":`,
-        JSON.stringify(apDraft, null, 2)
-      );
-    }
-  }, [allAADrafts, allAPDrafts, aaDraftCount, apDraftCount]);
+        const result = await saveAllArbeitsauftraegeDrafts(
+          jwt,
+          allAADrafts,
+          allAPDrafts
+        );
+
+        for (const aaId of result.aa.succeeded) {
+          dispatch(removeAADraft(aaId));
+        }
+        for (const apId of result.ap.succeeded) {
+          dispatch(removeAPDraft(apId));
+        }
+
+        for (const fail of result.aa.failed) {
+          message.error(`AA ${fail.id}: ${fail.error}`);
+        }
+        for (const fail of result.ap.failed) {
+          message.error(`AP ${fail.id}: ${fail.error}`);
+        }
+
+        const succeeded =
+          result.aa.succeeded.length + result.ap.succeeded.length;
+        const failed = result.aa.failed.length + result.ap.failed.length;
+
+        if (failed === 0) {
+          message.success(
+            succeeded === 1
+              ? "Entwurf gespeichert."
+              : `Alle (${succeeded}) Entwürfe gespeichert.`
+          );
+        } else if (succeeded === 0) {
+          message.error("Alle Entwürfe fehlgeschlagen");
+        } else {
+          message.warning(
+            `${succeeded} von ${succeeded + failed} gespeichert, ${failed} fehlgeschlagen`
+          );
+        }
+      },
+    });
+  }, [jwt, allAADrafts, allAPDrafts, aaDraftCount, apDraftCount, dispatch]);
 
   if (mode === "ap") {
     return (
