@@ -1,10 +1,36 @@
+import dayjs from "dayjs";
 import type {
   AADraft,
   APDraft,
   DraftAction,
 } from "../store/slices/arbeitsauftraegeDrafts";
-import { DAYJS_PREFIX } from "./draftSerialize";
+import { DAYJS_PREFIX, deserializeValues } from "./draftSerialize";
 import { executeAction, updateDataByClassName } from "./apiMethods";
+
+// ---------------------------------------------------------------------------
+// Date transformation for updateDataByClassName payloads
+// ---------------------------------------------------------------------------
+
+const transformDatesForBackend = (
+  values: Record<string, unknown>
+): Record<string, unknown> => {
+  const result: Record<string, unknown> = {};
+  for (const [key, value] of Object.entries(values)) {
+    if (dayjs.isDayjs(value)) {
+      result[key] = value.format("YYYY-MM-DDTHH:mm:ss");
+    } else {
+      result[key] = value;
+    }
+  }
+  return result;
+};
+
+const prepareValuesForSave = (
+  serializedValues: Record<string, unknown>
+): Record<string, unknown> => {
+  const deserialized = deserializeValues(serializedValues);
+  return transformDatesForBackend(deserialized);
+};
 
 // ---------------------------------------------------------------------------
 // Single draft save
@@ -30,7 +56,7 @@ const saveAADraft = async (
   try {
     const dataToSave: Record<string, unknown> = {
       id: Number(id),
-      ...draft.values,
+      ...prepareValuesForSave(draft.values ?? {}),
     };
 
     await updateDataByClassName(jwt, "arbeitsauftrag", dataToSave);
@@ -50,9 +76,25 @@ const saveAPDraft = async (
   draft: APDraft
 ): Promise<APSaveResult> => {
   try {
+    const prepared = prepareValuesForSave(draft.values ?? {});
+
+    // Convert datum to millis (same format as action endpoints)
+    if (prepared.datum != null) {
+      const d = dayjs(prepared.datum as string);
+      if (d.isValid()) {
+        prepared.datum = d.valueOf();
+      }
+    }
+
+    // Remap status (form field) → arbeitsprotokollstatus (server FK object)
+    if (prepared.status != null) {
+      prepared.arbeitsprotokollstatus = { id: prepared.status };
+      delete prepared.status;
+    }
+
     const dataToSave: Record<string, unknown> = {
       id: Number(id),
-      ...draft.values,
+      ...prepared,
     };
 
     await updateDataByClassName(jwt, "arbeitsprotokoll", dataToSave);
@@ -128,6 +170,16 @@ interface ActionSaveConfig {
   params: ParamMapping[];
 }
 
+/**
+ * Config lookup key: "actionLabel" or "actionLabel:fachobjektType" for
+ * actions whose API differs per fachobjekt (e.g. Revision).
+ */
+const getConfigKey = (label: string, fachobjektType?: string): string => {
+  const specific = `${label}:${fachobjektType}`;
+  if (specific in ACTION_SAVE_CONFIGS) return specific;
+  return label;
+};
+
 const ACTION_SAVE_CONFIGS: Record<string, ActionSaveConfig> = {
   Leuchtenerneuerung: {
     apiAction: "ProtokollLeuchteLeuchtenerneuerung",
@@ -164,10 +216,17 @@ const ACTION_SAVE_CONFIGS: Record<string, ActionSaveConfig> = {
       { field: "anstrichfarbe", api: "ANSTRICHFARBE", type: "text" },
     ],
   },
+  // Revision: Mast (default) vs Schaltstelle (fachobjektType-specific)
   Revision: {
     apiAction: "ProtokollStandortRevision",
     params: [
       { field: "revision", api: "REVISIONSDATUM", type: "date" },
+    ],
+  },
+  "Revision:schaltstelle": {
+    apiAction: "ProtokollSchaltstelleRevision",
+    params: [
+      { field: "pruefdatum", api: "PRUEFDATUM", type: "date" },
     ],
   },
   Sonderturnus: {
@@ -176,11 +235,41 @@ const ACTION_SAVE_CONFIGS: Record<string, ActionSaveConfig> = {
       { field: "sonderturnus", api: "DATUM", type: "date" },
     ],
   },
+  Masterneuerung: {
+    apiAction: "ProtokollStandortMasterneuerung",
+    params: [
+      { field: "inbetriebnahme_mast", api: "INBETRIEBNAHMEDATUM", type: "date" },
+      { field: "montagefirma", api: "MONTAGEFIRMA", type: "text" },
+    ],
+  },
   "Elektrische Prüfung": {
     apiAction: "ProtokollStandortElektrischePruefung",
     params: [
       { field: "elek_pruefung", api: "PRUEFDATUM", type: "date" },
       { field: "erdung", api: "ERDUNG_IN_ORDNUNG", type: "boolean" },
+    ],
+  },
+  "Leuchtmittelwechsel (mit EP)": {
+    apiAction: "ProtokollLeuchteLeuchtmittelwechselElekpruefung",
+    params: [
+      { field: "elek_pruefung", api: "PRUEFDATUM", type: "date" },
+      { field: "erdung", api: "ERDUNG_IN_ORDNUNG", type: "boolean" },
+      { field: "wechseldatum", api: "WECHSELDATUM", type: "date" },
+      { field: "leuchtmittel", api: "LEUCHTMITTEL", type: "id" },
+      { field: "lebensdauer", api: "LEBENSDAUER", type: "double" },
+    ],
+  },
+  "Vorschaltgerätwechsel": {
+    apiAction: "ProtokollLeuchteVorschaltgeraetwechsel",
+    params: [
+      { field: "wechselvorschaltgeraet", api: "WECHSELDATUM", type: "date" },
+      { field: "vorschaltgeraet", api: "VORSCHALTGERAET", type: "text" },
+    ],
+  },
+  "Prüfung": {
+    apiAction: "ProtokollMauerlaschePruefung",
+    params: [
+      { field: "pruefdatum", api: "PRUEFDATUM", type: "date" },
     ],
   },
   Leuchtmittelwechsel: {
@@ -214,8 +303,10 @@ const transformValue = (value: unknown, type: ParamMapping["type"]): string => {
       return dayjsToMillis(value);
     case "id":
       return String(value ?? "");
-    case "double":
-      return String(value ?? "");
+    case "double": {
+      const num = Number(value);
+      return isNaN(num) ? "0" : String(num);
+    }
     case "text":
       return String(value ?? "");
     case "boolean":
@@ -238,12 +329,13 @@ const saveAPAction = async (
   protokollId: string,
   action: DraftAction
 ): Promise<ActionSaveResult> => {
-  const config = ACTION_SAVE_CONFIGS[action.actionLabel];
+  const configKey = getConfigKey(action.actionLabel, action.fachobjektType);
+  const config = ACTION_SAVE_CONFIGS[configKey];
   if (!config) {
     return {
       success: false,
       actionLabel: action.actionLabel,
-      error: `No save config for action "${action.actionLabel}"`,
+      error: `No save config for action "${action.actionLabel}" (${action.fachobjektType})`,
     };
   }
 
