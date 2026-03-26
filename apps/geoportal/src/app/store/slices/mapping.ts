@@ -260,6 +260,17 @@ const slice = createSlice({
       }
     },
 
+    setLayerDynamicStylingSelection(
+      state,
+      action: PayloadAction<{ id: string; selection: string }>
+    ) {
+      const { id, selection } = action.payload;
+      const layer = state.layers.find((l) => l.id === id);
+      if (layer) {
+        layer.dynamicStylingSelection = selection;
+      }
+    },
+
     setSelectedLayerIndex(state, action) {
       state.selectedLayerIndex = action.payload;
     },
@@ -411,6 +422,7 @@ export const {
   toggleUseInFeatureInfo,
   setLayerFilterInfo,
   setLayerFilterState,
+  setLayerDynamicStylingSelection,
   setLibreMapRef,
   setMaplibreMaps,
   setConfigSelection,

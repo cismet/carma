@@ -20,6 +20,7 @@ import {
   setSelectedFeature,
 } from "../../../store/slices/features";
 import { setLayersIdle, updateLayer } from "../../../store/slices/mapping";
+import { applyDynamicStyling } from "@carma-mapping/components";
 
 import { UIMode } from "../../../store/slices/ui";
 import {
@@ -63,6 +64,7 @@ interface VectorLayerProps {
   showTileBoundaries?: boolean;
   onSelectionChanged?: (e: { hits: any[]; hit: any; latlng: LatLng }) => void;
   onStyleIdle?: (e: any) => void;
+  onStyleData?: (map: any) => void;
   onMapLibreCoreMapReady?: (map: any) => void;
 }
 
@@ -327,8 +329,22 @@ export const useCreateCismapLayers = (
             selectionEnabled: true,
             manualSelectionManagement: true,
             maxSelectionCount: 10,
+            onStyleData:
+              layer.dynamicStyling &&
+              layer.dynamicStylingSelection &&
+              layer.dynamicStylingSelection !== layer.dynamicStyling.default
+                ? (map) => {
+                    applyDynamicStyling(
+                      map,
+                      layer.id,
+                      layer.dynamicStyling,
+                      layer.dynamicStylingSelection
+                    );
+                  }
+                : undefined,
             onMapLibreCoreMapReady: (map) => {
               console.log("MapLibre map ready for layer:", layer.id, map);
+
               // Store map reference outside of Redux to avoid serialization issues
               if (maplibreMapsRef) {
                 maplibreMapsRef.current.set(layer.id, map);

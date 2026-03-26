@@ -182,6 +182,7 @@ export const parseToMapLayer = async (
         [key: string]: unknown;
       } = {};
       let filterConfig = null;
+      let dynamicStyling = null;
       if (vectorStyle && typeof vectorStyle === "object") {
         zoom = parseZoom(vectorStyle.layers, {
           minzoom: 9,
@@ -191,6 +192,9 @@ export const parseToMapLayer = async (
           metaData = vectorStyle.metadata;
           if (metaData?.carmaConf?.filterConfig) {
             filterConfig = metaData?.carmaConf?.filterConfig;
+          }
+          if (metaData?.carmaConf?.dynamicStyling) {
+            dynamicStyling = metaData?.carmaConf?.dynamicStyling;
           }
         }
       } else if (typeof vectorStyle === "string" && vectorStyle) {
@@ -207,6 +211,9 @@ export const parseToMapLayer = async (
               metaData = result.metadata;
               if (metaData?.carmaConf?.filterConfig) {
                 filterConfig = metaData?.carmaConf?.filterConfig;
+              }
+              if (metaData?.carmaConf?.dynamicStyling) {
+                dynamicStyling = metaData?.carmaConf?.dynamicStyling;
               }
             }
             return parsedZoom;
@@ -262,6 +269,7 @@ export const parseToMapLayer = async (
           ...layerInfo,
         },
         filterConfig,
+        dynamicStyling,
         type: layer.type,
       };
     } else {

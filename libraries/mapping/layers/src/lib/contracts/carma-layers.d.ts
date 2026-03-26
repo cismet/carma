@@ -14,6 +14,21 @@ export type InteractionButton = {
   onClick?: () => void;
 };
 
+export type DynamicStylingOption = {
+  id: string;
+  name: string;
+  color: string;
+  colorMap?: [string, string][];
+};
+
+export type DynamicStylingConfig = {
+  type: "list";
+  label: string;
+  default: string;
+  options: DynamicStylingOption[];
+  targets: string[];
+};
+
 export type BackgroundLayer = BaseLayer & {
   layers: string;
   layerType:
@@ -139,6 +154,8 @@ type BaseLayer = {
   filterConfig?: FilterConfig;
   filterInfo?: LayerFilterInfo;
   filterState?: Record<string, boolean>;
+  dynamicStyling?: DynamicStylingConfig;
+  dynamicStylingSelection?: string;
   layerInfo?: {
     accentColor?: string;
     title?: string;

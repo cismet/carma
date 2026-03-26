@@ -45,6 +45,7 @@ import {
   setShowRightScrollButton,
   toggleUseInFeatureInfo,
   getMaplibreMaps,
+  setLayerDynamicStylingSelection,
 } from "../../store/slices/mapping";
 import {
   UIMode,
@@ -60,6 +61,8 @@ import {
   LayerIcon,
   buildFilterExpression,
   captureOriginalFilters,
+  DynamicStylingControl,
+  applyDynamicStyling,
 } from "@carma-mapping/components";
 import { Badge, Spin, Tooltip } from "antd";
 import { useLayerLoading } from "@carma-mapping/utils";
@@ -209,6 +212,29 @@ const GeoportalLayerButton = ({
       );
     }
   }, [layer.filterConfig, layer.filterState, maplibreMaps, id]);
+
+  const dynamicStylingAppliedRef = useRef(false);
+  useEffect(() => {
+    if (
+      !layer.dynamicStyling ||
+      !layer.dynamicStylingSelection ||
+      layer.dynamicStylingSelection === layer.dynamicStyling.default ||
+      dynamicStylingAppliedRef.current
+    )
+      return;
+
+    const mapEntry = maplibreMaps?.find((entry) => entry.id === id);
+    if (!mapEntry?.map) return;
+
+    applyDynamicStyling(
+      mapEntry.map,
+      id,
+      layer.dynamicStyling,
+      layer.dynamicStylingSelection
+    );
+
+    dynamicStylingAppliedRef.current = true;
+  }, [layer.dynamicStyling, layer.dynamicStylingSelection, maplibreMaps, id]);
 
   const isCurrentlyVisible = () => {
     if (zoom >= layer?.props?.maxZoom || zoom <= layer?.props?.minZoom) {
@@ -369,6 +395,22 @@ const GeoportalLayerButton = ({
                 button
               );
             })}
+
+            {layer.dynamicStyling && (
+              <DynamicStylingControl
+                config={layer.dynamicStyling}
+                maplibreMap={
+                  maplibreMaps?.find((entry) => entry.id === id)?.map
+                }
+                carmaLayerId={id}
+                currentSelection={
+                  layer.dynamicStylingSelection || layer.dynamicStyling.default
+                }
+                onSelectionChange={(selection) => {
+                  dispatch(setLayerDynamicStylingSelection({ id, selection }));
+                }}
+              />
+            )}
 
             <button
               id={`removeLayerButton-${id}`}

@@ -1,3 +1,8 @@
+export {
+  DynamicStylingControl,
+  applyDynamicStyling,
+  type DynamicStylingControlProps,
+} from "./lib/components/DynamicStylingControl";
 export { FontAwesomeLikeIcon } from "./lib/components/FontAwesomeLikeIcon.tsx";
 export {
   buildFilterExpression,
