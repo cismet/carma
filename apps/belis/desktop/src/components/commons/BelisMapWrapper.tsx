@@ -1081,7 +1081,6 @@ const BelisMapLibWrapper = ({
     if (sidebarVariant !== "arbeitsauftraege" || !draftMode || !jwt) return;
     const ids = Object.keys(aaDrafts).map(Number);
     if (ids.length === 0) {
-      dispatch(setAAFeatures([]));
       return;
     }
 

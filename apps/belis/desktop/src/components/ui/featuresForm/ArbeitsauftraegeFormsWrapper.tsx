@@ -247,16 +247,20 @@ const ArbeitsauftraegeFormsWrapper = ({
         }
 
         const succeeded =
-          aaResult.aa.succeeded.length + apActionsResult.succeeded.length;
+          aaResult.aa.succeeded.length +
+          aaResult.ap.succeeded.length +
+          apActionsResult.succeeded.length;
         const failed =
-          aaResult.aa.failed.length + apActionsResult.failed.length;
-
-        if (succeeded > 0) {
-          dispatch(incrementFeatureDataVersion());
-        }
+          aaResult.aa.failed.length +
+          aaResult.ap.failed.length +
+          apActionsResult.failed.length;
 
         if (failed === 0 && succeeded > 0) {
           dispatch(setDraftMode(false));
+        }
+
+        if (succeeded > 0) {
+          dispatch(incrementFeatureDataVersion());
           message.success(
             succeeded === 1
               ? "Entwurf gespeichert."
