@@ -38,6 +38,7 @@ import {
   saveAllArbeitsauftraegeDrafts,
   saveAllAPActions,
 } from "../../../helper/arbeitsauftraegeSaveHelpers";
+import { useDatasheet } from "@carma-mapping/engines/maplibre";
 import ArbeitsauftragForm from "./ArbeitsauftragForm";
 import ArbeitsprotokollForm from "./ArbeitsprotokollForm";
 
@@ -66,6 +67,7 @@ const ArbeitsauftraegeFormsWrapper = ({
   aaId,
 }: ArbeitsauftraegeFormsWrapperProps) => {
   const dispatch = useDispatch();
+  const { closeDatasheet } = useDatasheet();
   const [resetKey, setResetKey] = useState(0);
   const jwt = useSelector(getJWT);
 
@@ -262,9 +264,10 @@ const ArbeitsauftraegeFormsWrapper = ({
           dispatch(setDraftMode(false));
         }
 
-        // AA team may have changed — clear stale detail panel
+        // AA team may have changed — clear stale detail panel and show map
         if (aaResult.aa.succeeded.length > 0) {
           dispatch(clearSelection());
+          closeDatasheet();
         }
 
         if (succeeded > 0) {
