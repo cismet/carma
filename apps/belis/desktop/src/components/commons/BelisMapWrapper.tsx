@@ -1289,7 +1289,7 @@ const BelisMapLibWrapper = ({
       .then((data) => dispatch(setSelectedAAData(data)))
       .catch((err: Error) => dispatch(setAAError(err.message)))
       .finally(() => dispatch(setAALoading(false)));
-  }, [selectedAAId, jwt, dispatch]);
+  }, [selectedAAId, jwt, dispatch, featureDataVersion]);
 
   // --- Arbeitsauftraege: clear selection on empty map click ---
   useEffect(() => {

@@ -29,6 +29,8 @@ import {
 import { getFachobjektOfProtocol } from "@carma-appframeworks/belis";
 import { getHeaderColorFromStatus } from "../../../helper/buildApGeoJson";
 import { getJWT } from "../../../store/slices/auth";
+import { incrementFeatureDataVersion } from "../../../store/slices/featureCollection";
+import { setDraftMode } from "../../../store/slices/arbeitsauftraege";
 import {
   saveAllArbeitsauftraegeDrafts,
   saveAllAPActions,
@@ -249,7 +251,12 @@ const ArbeitsauftraegeFormsWrapper = ({
         const failed =
           aaResult.aa.failed.length + apActionsResult.failed.length;
 
+        if (succeeded > 0) {
+          dispatch(incrementFeatureDataVersion());
+        }
+
         if (failed === 0 && succeeded > 0) {
+          dispatch(setDraftMode(false));
           message.success(
             succeeded === 1
               ? "Entwurf gespeichert."
