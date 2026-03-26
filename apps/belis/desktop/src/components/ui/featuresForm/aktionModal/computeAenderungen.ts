@@ -127,7 +127,9 @@ export const computeAenderungen = (
       case "textarea": {
         const newVal = formValues[field.name];
         if (newVal != null && newVal !== "") {
-          const oldVal = obj[field.name];
+          const skipOld =
+            field.type === "textarea" && field.skipOldValue === true;
+          const oldVal = skipOld ? null : obj[field.name];
           aenderungen.push({
             field: field.label,
             alt: oldVal != null ? String(oldVal) : null,
