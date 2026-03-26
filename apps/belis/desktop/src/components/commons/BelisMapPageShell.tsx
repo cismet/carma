@@ -81,6 +81,13 @@ const BelisMapPageShell = () => {
     return window.location.hostname === "localhost";
   }, []);
 
+  // Auto-exit draft mode when all drafts have been cancelled/removed
+  useEffect(() => {
+    if (draftMode && totalDraftCount === 0) {
+      dispatch(setDraftMode(false));
+    }
+  }, [draftMode, totalDraftCount, dispatch]);
+
   // Fetch streets data once
   useEffect(() => {
     if (streets.length > 0) return;
