@@ -50,7 +50,7 @@ const PlannedTimeline = ({
                 von <span className="text-gray-400">{a.alt}</span> zu{" "}
               </>
             ) : (
-              "neu: "
+              "zu "
             )}
             <b>{a.neu || "-"}</b>
           </div>

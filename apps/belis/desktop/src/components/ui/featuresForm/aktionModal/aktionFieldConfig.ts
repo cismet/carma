@@ -36,6 +36,8 @@ export interface TextAreaField extends BaseField {
   type: "textarea";
   minRows?: number;
   maxRows?: number;
+  /** When true, old value comparison is skipped (always shows as "new") */
+  skipOldValue?: boolean;
 }
 
 export interface CheckboxField extends BaseField {
@@ -141,6 +143,7 @@ export const AKTIONEN_CONFIG: AktionenConfig = {
           label: "Informationen zu den durchgeführten Tätigkeiten",
           minRows: 4,
           maxRows: 8,
+          skipOldValue: true,
         },
       ],
     },
@@ -255,6 +258,7 @@ export const AKTIONEN_CONFIG: AktionenConfig = {
           label: "Informationen zu den durchgeführten Tätigkeiten",
           minRows: 4,
           maxRows: 8,
+          skipOldValue: true,
         },
       ],
     },
@@ -277,6 +281,7 @@ export const AKTIONEN_CONFIG: AktionenConfig = {
           label: "Informationen zu den durchgeführten Tätigkeiten",
           minRows: 4,
           maxRows: 8,
+          skipOldValue: true,
         },
       ],
     },
@@ -300,6 +305,7 @@ export const AKTIONEN_CONFIG: AktionenConfig = {
           label: "Informationen zu den durchgeführten Tätigkeiten",
           minRows: 4,
           maxRows: 8,
+          skipOldValue: true,
         },
       ],
     },
@@ -316,6 +322,7 @@ export const AKTIONEN_CONFIG: AktionenConfig = {
           label: "Informationen zu den durchgeführten Tätigkeiten",
           minRows: 4,
           maxRows: 8,
+          skipOldValue: true,
         },
       ],
     },
@@ -330,6 +337,7 @@ export const AKTIONEN_CONFIG: AktionenConfig = {
           label: "Informationen zu den durchgeführten Tätigkeiten",
           minRows: 4,
           maxRows: 8,
+          skipOldValue: true,
         },
       ],
     },
@@ -344,6 +352,7 @@ export const AKTIONEN_CONFIG: AktionenConfig = {
           label: "Informationen zu den durchgeführten Tätigkeiten",
           minRows: 4,
           maxRows: 8,
+          skipOldValue: true,
         },
       ],
     },
