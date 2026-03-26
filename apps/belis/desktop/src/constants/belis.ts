@@ -16,6 +16,14 @@ export const DELETE_ENDPOINT =
   DOMAIN +
   ".DeleteObject/tasks?resultingInstanceType=result";
 
+export const buildActionEndpoint = (actionName: string) =>
+  REST_SERVICE +
+  "/actions/" +
+  DOMAIN +
+  "." +
+  actionName +
+  "/tasks?resultingInstanceType=result";
+
 export const UPLOAD_DOCUMENT_ENDPOINT =
   REST_SERVICE +
   "/actions/" +

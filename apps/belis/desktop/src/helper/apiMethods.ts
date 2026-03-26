@@ -14,6 +14,7 @@ import {
   SAVE_ENDPOINT,
   DELETE_ENDPOINT,
   UPLOAD_DOCUMENT_ENDPOINT,
+  buildActionEndpoint,
   teamQuery,
   tkeyBezirkQuery,
   tkeyDoppelkommandoQuery,
@@ -112,6 +113,43 @@ export const updateDataByClassName = async <T extends Record<string, unknown>>(
   if (!response.ok) {
     throw new Error(
       `saveObject(${className}) failed: ${response.status} ${text}`
+    );
+  }
+
+  try {
+    return JSON.parse(text) as unknown;
+  } catch {
+    return text;
+  }
+};
+
+export const executeAction = async (
+  jwt: string,
+  actionName: string,
+  params: Record<string, string>
+) => {
+  const formData = new FormData();
+  const taskparams = JSON.stringify({ parameters: params });
+
+  formData.append(
+    "taskparams",
+    new Blob([taskparams], { type: "application/json" }),
+    "taskparams"
+  );
+
+  const response = await fetch(buildActionEndpoint(actionName), {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${jwt}`,
+    },
+    body: formData,
+  });
+
+  const text = await response.text();
+
+  if (!response.ok) {
+    throw new Error(
+      `executeAction(${actionName}) failed: ${response.status} ${text}`
     );
   }
 

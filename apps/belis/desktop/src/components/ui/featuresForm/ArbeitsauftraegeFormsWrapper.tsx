@@ -29,7 +29,10 @@ import {
 import { getFachobjektOfProtocol } from "@carma-appframeworks/belis";
 import { getHeaderColorFromStatus } from "../../../helper/buildApGeoJson";
 import { getJWT } from "../../../store/slices/auth";
-import { saveAllArbeitsauftraegeDrafts } from "../../../helper/arbeitsauftraegeSaveHelpers";
+import {
+  saveAllArbeitsauftraegeDrafts,
+  saveAllAPActions,
+} from "../../../helper/arbeitsauftraegeSaveHelpers";
 import ArbeitsauftragForm from "./ArbeitsauftragForm";
 import ArbeitsprotokollForm from "./ArbeitsprotokollForm";
 
@@ -205,39 +208,58 @@ const ArbeitsauftraegeFormsWrapper = ({
           return;
         }
 
-        const result = await saveAllArbeitsauftraegeDrafts(
+        // Save AA drafts via updateDataByClassName (pass empty {} for AP)
+        const aaResult = await saveAllArbeitsauftraegeDrafts(
           jwt,
           allAADrafts,
-          allAPDrafts
+          {}
         );
 
-        for (const aaId of result.aa.succeeded) {
+        // Save AP actions via dedicated action endpoints
+        const apActionsResult = await saveAllAPActions(jwt, allAPDrafts);
+
+        // Clean up succeeded AA drafts
+        for (const aaId of aaResult.aa.succeeded) {
           dispatch(removeAADraft(aaId));
         }
-        for (const apId of result.ap.succeeded) {
-          dispatch(removeAPDraft(apId));
+
+        // Clean up succeeded AP drafts (all actions for that AP succeeded)
+        const succeededApIds = new Set(
+          apActionsResult.succeeded.map((s) => s.apId)
+        );
+        const failedApIds = new Set(
+          apActionsResult.failed.map((f) => f.apId)
+        );
+        for (const apId of succeededApIds) {
+          if (!failedApIds.has(apId)) {
+            dispatch(removeAPDraft(apId));
+          }
         }
 
-        for (const fail of result.aa.failed) {
+        // Show errors
+        for (const fail of aaResult.aa.failed) {
           message.error(`AA ${fail.id}: ${fail.error}`);
         }
-        for (const fail of result.ap.failed) {
-          message.error(`AP ${fail.id}: ${fail.error}`);
+        for (const fail of apActionsResult.failed) {
+          message.error(
+            `AP ${fail.apId} (${fail.actionLabel}): ${fail.error}`
+          );
         }
 
         const succeeded =
-          result.aa.succeeded.length + result.ap.succeeded.length;
-        const failed = result.aa.failed.length + result.ap.failed.length;
+          aaResult.aa.succeeded.length + apActionsResult.succeeded.length;
+        const failed =
+          aaResult.aa.failed.length + apActionsResult.failed.length;
 
-        if (failed === 0) {
+        if (failed === 0 && succeeded > 0) {
           message.success(
             succeeded === 1
               ? "Entwurf gespeichert."
               : `Alle (${succeeded}) Entwürfe gespeichert.`
           );
-        } else if (succeeded === 0) {
+        } else if (succeeded === 0 && failed > 0) {
           message.error("Alle Entwürfe fehlgeschlagen");
-        } else {
+        } else if (failed > 0) {
           message.warning(
             `${succeeded} von ${succeeded + failed} gespeichert, ${failed} fehlgeschlagen`
           );
