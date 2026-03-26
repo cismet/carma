@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { Form, Input, Row, Col, Table, Tag, DatePicker } from "antd";
+import { Form, Input, Row, Col, Table, Tag, DatePicker, Select } from "antd";
 import { useSelector, useDispatch } from "react-redux";
 import dayjs from "dayjs";
 import type { ColumnsType } from "antd/es/table";
@@ -67,6 +67,23 @@ const ArbeitsprotokollFormFields = ({
     getAPDraftActions(state, apId)
   );
 
+  const statusOptions = useMemo(
+    () =>
+      [
+        ...((keyTablesData.arbeitsprotokollstatus || []) as {
+          id: number;
+          bezeichnung?: string;
+        }[]),
+      ]
+        .sort((a, b) =>
+          (a.bezeichnung || "").localeCompare(b.bezeichnung || "", "de", {
+            sensitivity: "base",
+          })
+        )
+        .map((s) => ({ value: s.id, label: s.bezeichnung || "" })),
+    [keyTablesData.arbeitsprotokollstatus]
+  );
+
   useEffect(() => {
     onFormInstance?.(form);
   }, [form, onFormInstance]);
@@ -77,7 +94,7 @@ const ArbeitsprotokollFormFields = ({
       const serverValues = {
         monteur: data.monteur ?? "",
         datum: data.datum ? dayjs(data.datum) : null,
-        status: data.arbeitsprotokollstatus?.bezeichnung ?? "",
+        status: data.arbeitsprotokollstatus?.id ?? null,
         material: data.material ?? "",
         bemerkung: data.bemerkung ?? "",
       };
@@ -244,7 +261,17 @@ const ArbeitsprotokollFormFields = ({
               label={<FormLabel>Status</FormLabel>}
               className="mb-4"
             >
-              <Input size="large" />
+              <Select
+                size="large"
+                options={statusOptions}
+                showSearch
+                filterOption={(input, option) =>
+                  (option?.label ?? "")
+                    .toLowerCase()
+                    .includes(input.toLowerCase())
+                }
+                allowClear
+              />
             </FormItem>
           </Col>
           <Col span={12}>
