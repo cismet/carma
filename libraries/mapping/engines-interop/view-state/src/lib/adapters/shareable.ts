@@ -471,7 +471,8 @@ export const readFromShareableViewState = (
       timestampMs: Date.now(),
       sourceId: options?.sourceId ?? DEFAULT_SHAREABLE_VIEW_STATE_SOURCE_ID,
       source: options?.source ?? VIEW_STATE_SOURCE.RESTORE,
-      ...((isFiniteNumber(viewState.zoom) || isFiniteNumber(viewState.fovLongerEdge))
+      ...(isFiniteNumber(viewState.zoom) ||
+      isFiniteNumber(viewState.fovLongerEdge)
         ? {
             restoreHints: {
               shareable: {
@@ -524,8 +525,8 @@ export const resolveViewStateRestoreHintsForViewport = (
     aspect
   );
   const view = deriveView(state);
-  const resolvedRange = isFiniteNumber(restoreHints.zoom) &&
-    isFiniteNumber(shareableLongerEdgeFov)
+  const resolvedRange =
+    isFiniteNumber(restoreHints.zoom) && isFiniteNumber(shareableLongerEdgeFov)
       ? readRangeFromMetersPerCssPixel({
           metersPerCssPixel: getPixelResolutionFromZoomAtLatitudeRad(
             restoreHints.zoom,

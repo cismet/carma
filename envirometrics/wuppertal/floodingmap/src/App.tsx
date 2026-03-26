@@ -226,7 +226,8 @@ function FloodingmapAppContent({ sync = false }: { sync?: boolean }) {
   });
 
   const homeCenter = useMemo(
-    () => [DEFAULT_HOME_CENTER.lat, DEFAULT_HOME_CENTER.lng] as [number, number],
+    () =>
+      [DEFAULT_HOME_CENTER.lat, DEFAULT_HOME_CENTER.lng] as [number, number],
     []
   );
 
@@ -316,9 +317,13 @@ function FloodingmapAppContent({ sync = false }: { sync?: boolean }) {
 
   const homeControlCesium = () => {
     if (cesiumScene) {
-      flyToCesium(cesiumScene as unknown as SceneLike, DEFAULT_HOME_VIEW_STATE, {
-        duration: 2,
-      });
+      flyToCesium(
+        cesiumScene as unknown as SceneLike,
+        DEFAULT_HOME_VIEW_STATE,
+        {
+          duration: 2,
+        }
+      );
     }
   };
 

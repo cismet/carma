@@ -378,7 +378,10 @@ const MapWrapper = () => {
                     if (showLibreMap) {
                       if (libreMapRef.current) {
                         libreMapRef.current.flyTo({
-                          center: [DEFAULT_HOME_CENTER.lng, DEFAULT_HOME_CENTER.lat],
+                          center: [
+                            DEFAULT_HOME_CENTER.lng,
+                            DEFAULT_HOME_CENTER.lat,
+                          ],
                           zoom: DEFAULT_HOME_MAPLIBRE_ZOOM,
                           essential: true,
                         });

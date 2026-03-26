@@ -1,7 +1,4 @@
-import {
-  CAMERA_TYPE,
-  readLocalCameraBasis,
-} from "@carma-commons/camera/model";
+import { CAMERA_TYPE, readLocalCameraBasis } from "@carma-commons/camera/model";
 import {
   deriveOrbitAngles,
   type ViewState,

@@ -417,9 +417,8 @@ export const useInitializeViewer = (
   useEffect(() => {
     // align Cesium Default fallback with local home
     if (homeValidationCenter) {
-      const { longitude, latitude } = Cartographic.fromCartesian(
-        homeValidationCenter
-      );
+      const { longitude, latitude } =
+        Cartographic.fromCartesian(homeValidationCenter);
       const rect = new Rectangle(
         longitude - 0.001,
         latitude - 0.001,

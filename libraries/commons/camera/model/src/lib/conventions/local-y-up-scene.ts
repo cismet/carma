@@ -37,6 +37,4 @@ export const localYUpSceneDirectionToEnuDirection = (
 ): Vector3 =>
   out
     .copy(direction)
-    .transformDirection(
-      readLocalYUpSceneToEnuRotationMatrix(_rotationScratch)
-    );
+    .transformDirection(readLocalYUpSceneToEnuRotationMatrix(_rotationScratch));

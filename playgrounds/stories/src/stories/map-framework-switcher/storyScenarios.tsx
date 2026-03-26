@@ -91,7 +91,8 @@ const FrameProvider = ({
 const useRegisteredLeafletCesium = (
   setupOptions?: Parameters<typeof useLeafletCesiumSetup>[0]
 ) => {
-  const { activeFramework, registerCallbacks } = useMapFrameworkSwitcherContext();
+  const { activeFramework, registerCallbacks } =
+    useMapFrameworkSwitcherContext();
   const {
     leafletContainerRef,
     cesiumContainerRef,

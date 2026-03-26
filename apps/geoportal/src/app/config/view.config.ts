@@ -42,7 +42,8 @@ export const DEFAULT_HOME_CENTER = {
 } as const;
 
 export const DEFAULT_HOME_LEAFLET_ZOOM = DEFAULT_HOME_VIEW_HASH_VALUES.zoom;
-export const DEFAULT_HOME_MAPLIBRE_ZOOM = DEFAULT_HOME_VIEW_HASH_VALUES.zoom - 1;
+export const DEFAULT_HOME_MAPLIBRE_ZOOM =
+  DEFAULT_HOME_VIEW_HASH_VALUES.zoom - 1;
 
 // Keep this in sync with view-state hash restore defaults.
 export const DEFAULT_SCENE_HASH_RANGE_M = 750;

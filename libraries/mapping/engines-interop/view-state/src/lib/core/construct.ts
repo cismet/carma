@@ -6,9 +6,7 @@ import {
   enuOffsetToEcef,
   ecefToCartographic,
 } from "@carma/geo/utils";
-import {
-  type CameraIntrinsics,
-} from "@carma-commons/camera/model";
+import { type CameraIntrinsics } from "@carma-commons/camera/model";
 import type { ViewState, ViewStateMetadata } from "./types";
 import {
   anchoredOrbitToEnuOffset,

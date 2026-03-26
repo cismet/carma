@@ -261,7 +261,7 @@ export const PitchingCompass: React.FC<RotateButtonProps> = ({
         justifyContent: "center",
         alignItems: "center",
       }}
-      >
+    >
       <Needle register={registerNeedleOrientation} />
     </div>
   );

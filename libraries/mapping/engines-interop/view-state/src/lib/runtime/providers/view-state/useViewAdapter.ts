@@ -1,9 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef } from "react";
 import type { ViewState, WritePriority, WriteToken } from "../../../core/types";
-import {
-  useViewStateContext,
-  useViewStateControllerId,
-} from "./useViewState";
+import { useViewStateContext, useViewStateControllerId } from "./useViewState";
 
 export type ViewAdapterCallbacks = {
   apply: (state: ViewState) => void;

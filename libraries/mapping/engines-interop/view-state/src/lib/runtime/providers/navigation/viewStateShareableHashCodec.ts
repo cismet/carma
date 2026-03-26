@@ -19,16 +19,10 @@ export const createViewStateShareableHashCodec = (
     }
 
     const shareableViewState = applyToShareableViewState(state);
-    return applyToShareableHashValues(
-      shareableViewState,
-      options
-    );
+    return applyToShareableHashValues(shareableViewState, options);
   },
   decode: (hashValues) => {
-    const shareableViewState = readFromShareableHashValues(
-      hashValues,
-      options
-    );
+    const shareableViewState = readFromShareableHashValues(hashValues, options);
     return shareableViewState
       ? readFromShareableViewState(shareableViewState, options)
       : null;
