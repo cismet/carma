@@ -4,6 +4,8 @@ import { Tooltip } from "antd";
 import { type Scene } from "@carma/cesium";
 import { CarmaResponsiveInfoBox } from "@carma-commons/ui/components";
 import { SELECT_TOOL_TYPE } from "@carma-mapping/annotations/core";
+import { formatLatLonDegrees } from "@carma/units/helpers";
+import type { Degrees } from "@carma/units/types";
 
 import {
   AnnotationsProvider,
@@ -173,13 +175,23 @@ const RuntimeSelectionInfoBox = () => {
             <div>{`Knoten: ${coordinates.length}`}</div>
             {coordinates.map((coordinate, index) => (
               <div key={`${selectedAnnotation.id}-node-${index}`}>
-                {`${index + 1}: ${formatCoordinate(
-                  coordinate.latitude,
-                  6
-                )}° N ${formatCoordinate(
-                  coordinate.longitude,
-                  6
-                )}° O / NHN ${formatCoordinate(coordinate.altitude, 2)} m`}
+                {(() => {
+                  const [latitude, longitude] = formatLatLonDegrees(
+                    coordinate.latitude as Degrees,
+                    coordinate.longitude as Degrees,
+                    {
+                      fractionDigits: 6,
+                      locale: "de-DE",
+                    }
+                  );
+
+                  return `${
+                    index + 1
+                  }: ${latitude} ${longitude} / NHN ${formatCoordinate(
+                    coordinate.altitude,
+                    2
+                  )} m`;
+                })()}
               </div>
             ))}
           </div>

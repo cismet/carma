@@ -1,3 +1,4 @@
+import type { CSSProperties } from "react";
 import type { Meta, StoryObj } from "@storybook/react";
 import {
   AnnotationsProvider,
@@ -10,6 +11,14 @@ import { ResponsiveStatusBar } from "@carma-commons/ui/components";
 import { AnnotationCesiumStoryShell } from "./shared/AnnotationCesiumStoryShell";
 
 const INFOBOX_WIDTH_PX = 330;
+const BOTTOM_STATUS_BAR_OVERLAY_STYLE: CSSProperties = {
+  position: "absolute",
+  bottom: 0,
+  left: 0,
+  right: 0,
+  zIndex: 1800,
+  pointerEvents: "none",
+};
 
 const RuntimeToolbar = () => (
   <div
@@ -58,16 +67,7 @@ const RuntimeStatusBar = () => {
   const entries = useEntries();
 
   return (
-    <div
-      style={{
-        position: "absolute",
-        bottom: 0,
-        left: 0,
-        right: 0,
-        zIndex: 1800,
-        pointerEvents: "none",
-      }}
-    >
+    <div style={BOTTOM_STATUS_BAR_OVERLAY_STYLE}>
       <ResponsiveStatusBar
         label="annotations toolkit v1"
         values={[

@@ -3,18 +3,18 @@ import { Tag } from "antd";
 import { useMapFrameworkSwitcherContext } from "@carma-mapping/components";
 import { styles } from "../helpers/styles";
 
-interface ActiveFrameworkIndicatorProps {
+interface ActiveEngineIndicatorProps {
   style?: CSSProperties;
 }
 
-export const ActiveFrameworkIndicator = ({
+export const ActiveEngineIndicator = ({
   style = styles.topCenterAbsolute,
-}: ActiveFrameworkIndicatorProps) => {
-  const { activeFramework } = useMapFrameworkSwitcherContext();
+}: ActiveEngineIndicatorProps) => {
+  const { activeFramework: activeEngine } = useMapFrameworkSwitcherContext();
 
   return (
     <div style={style}>
-      <Tag>{activeFramework ?? "Unknown Framework"}</Tag>
+      <Tag>{activeEngine ?? "Unknown Engine"}</Tag>
     </div>
   );
 };

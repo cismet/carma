@@ -47,4 +47,3 @@ const normalized = normalizeLongitudeDeg(370.0 as Longitude.deg); // 10.0
 - **[`@carma/geo/proj`](../proj/README.md)** - Projection transformations using proj4
 - **[`@carma/geo/utils`](../utils/README.md)** - Higher-level geographic utilities
 - **[`@carma/units/helpers`](../../commons/units/helpers/README.md)** - Unit conversion helpers (used for angle normalization)
-

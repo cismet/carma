@@ -1,6 +1,8 @@
 import {
   CarmaResponsiveInfoBox,
+  FROSTED_GLASS_BLUR_PRESET,
   type CarmaResponsiveInfoBoxProps,
+  readFrostedGlassBackdropStyle,
 } from "@carma-commons/ui/components";
 import { InfoCircleOutlined } from "@ant-design/icons";
 import { Button, Popover, Tooltip } from "antd";
@@ -135,8 +137,7 @@ export const ObjectCentricViewStateInfoBox = ({
       style={style}
       bodyStyle={{
         backgroundColor: "rgba(255, 255, 255, 0.8)",
-        backdropFilter: "blur(10px)",
-        WebkitBackdropFilter: "blur(10px)",
+        ...readFrostedGlassBackdropStyle(FROSTED_GLASS_BLUR_PRESET.MID),
         ...bodyStyle,
       }}
       content={

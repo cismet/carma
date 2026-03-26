@@ -53,7 +53,7 @@ export const formatFixedNumber = (
     trimTrailingZeros?: boolean;
   } = {}
 ): string | undefined => {
-  if (!Number.isFinite(value)) {
+  if (typeof value !== "number" || !Number.isFinite(value)) {
     return undefined;
   }
 

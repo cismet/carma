@@ -20,7 +20,7 @@ import {
   type CesiumGizmoRotationDelta,
   type CesiumMoveGizmoAxisCandidate,
 } from "@carma-mapping/gizmo/cesium";
-import { setupCesium } from "../map-framework-switcher/helpers/cesium-setup";
+import { setupCesium } from "../map-engine-switcher/helpers/cesium-setup";
 import {
   buildCubeLocalCorners,
   createCubePrimitiveVisuals,

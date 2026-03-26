@@ -212,39 +212,43 @@ export const readFromCesium = (
   scene: SceneLike,
   sourceId: string
 ): ViewState | null => {
-  const camera = scene.camera as CameraLike | undefined;
-  if (!camera) return null;
+  try {
+    const camera = scene.camera as CameraLike | undefined;
+    if (!camera) return null;
 
-  const cameraEcef =
-    toSceneStateVec3(camera.positionWC) ?? toSceneStateVec3(camera.position);
-  if (!cameraEcef) return null;
+    const cameraEcef =
+      toSceneStateVec3(camera.positionWC) ?? toSceneStateVec3(camera.position);
+    if (!cameraEcef) return null;
 
-  const anchor = sampleOrbitAnchor(scene, camera);
-  if (!anchor) return null;
+    const anchor = sampleOrbitAnchor(scene, camera);
+    if (!anchor) return null;
 
-  const orientation = readLocalOrientation({
-    camera,
-    anchor,
-  });
+    const orientation = readLocalOrientation({
+      camera,
+      anchor,
+    });
 
-  const intrinsics = readIntrinsics(camera, scene);
-  const frameNumber = (scene as { frameState?: { frameNumber?: number } })
-    .frameState?.frameNumber;
+    const intrinsics = readIntrinsics(camera, scene);
+    const frameNumber = (scene as { frameState?: { frameNumber?: number } })
+      .frameState?.frameNumber;
 
-  const metadata: ViewStateMetadata = {
-    frameId: isFiniteNumber(frameNumber) ? frameNumber : 0,
-    timestampMs: Date.now(),
-    sourceId,
-    source: "user-interaction",
-  };
+    const metadata: ViewStateMetadata = {
+      frameId: isFiniteNumber(frameNumber) ? frameNumber : 0,
+      timestampMs: Date.now(),
+      sourceId,
+      source: "user-interaction",
+    };
 
-  return buildViewStateFromEcef({
-    anchor,
-    cameraPosition: cameraEcef,
-    orientation,
-    intrinsics,
-    metadata,
-  });
+    return buildViewStateFromEcef({
+      anchor,
+      cameraPosition: cameraEcef,
+      orientation,
+      intrinsics,
+      metadata,
+    });
+  } catch {
+    return null;
+  }
 };
 
 const _ecefToEnuScratch = new Matrix4();

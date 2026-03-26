@@ -78,6 +78,15 @@ type OrbitDragState = {
   startPitchDeg: number;
 };
 
+const TOP_STATUS_BAR_OVERLAY_STYLE: CSSProperties = {
+  position: "absolute",
+  top: 0,
+  left: 0,
+  right: 0,
+  zIndex: 1800,
+  pointerEvents: "none",
+};
+
 const frameStyle: CSSProperties = {
   position: "relative",
   width: "100%",
@@ -927,16 +936,7 @@ export const DomLabelLayoutEngineStory = ({
           })}
         </div>
 
-        <div
-          style={{
-            position: "absolute",
-            top: 0,
-            left: 0,
-            right: 0,
-            zIndex: 1800,
-            pointerEvents: "none",
-          }}
-        >
+        <div style={TOP_STATUS_BAR_OVERLAY_STYLE}>
           <ResponsiveStatusBar label="dom label layout" values={statusValues} />
         </div>
       </div>

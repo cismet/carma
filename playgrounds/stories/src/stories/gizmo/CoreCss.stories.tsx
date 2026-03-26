@@ -4,6 +4,7 @@ import {
   useMemo,
   useRef,
   useState,
+  type CSSProperties,
   type MouseEvent as ReactMouseEvent,
 } from "react";
 import { Vector3 } from "@carma/math";
@@ -78,6 +79,15 @@ const AXIS_CANDIDATES: ProjectedMoveGizmoAxisCandidate[] = [
     title: "Move along Z axis",
   },
 ];
+
+const TOP_STATUS_BAR_OVERLAY_STYLE: CSSProperties = {
+  position: "absolute",
+  top: 0,
+  left: 0,
+  right: 0,
+  zIndex: 1800,
+  pointerEvents: "none",
+};
 
 const ORBIT_YAW_SENSITIVITY_DEG_PER_PX = 0.22;
 const ORBIT_PITCH_SENSITIVITY_DEG_PER_PX = 0.18;
@@ -518,16 +528,7 @@ const CoreCssStory = ({
           ) : null}
         </svg>
 
-        <div
-          style={{
-            position: "absolute",
-            top: 0,
-            left: 0,
-            right: 0,
-            zIndex: 1800,
-            pointerEvents: "none",
-          }}
-        >
+        <div style={TOP_STATUS_BAR_OVERLAY_STYLE}>
           <ResponsiveStatusBar
             label="gizmo css view"
             values={[

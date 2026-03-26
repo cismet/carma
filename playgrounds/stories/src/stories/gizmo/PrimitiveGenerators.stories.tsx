@@ -1,5 +1,11 @@
 import type { Meta, StoryObj } from "@storybook/react";
-import { useCallback, useEffect, useRef, type MutableRefObject } from "react";
+import {
+  useCallback,
+  useEffect,
+  useRef,
+  type CSSProperties,
+  type MutableRefObject,
+} from "react";
 import {
   CarmaTransforms,
   Cartesian3,
@@ -235,6 +241,15 @@ const setInitialTopDownCamera = (widget: CesiumWidget) => {
 const formatNumber = (value: number, digits = 2) =>
   Number.isFinite(value) ? value.toFixed(digits) : "0";
 
+const TOP_STATUS_BAR_OVERLAY_STYLE: CSSProperties = {
+  position: "absolute",
+  top: 0,
+  left: 0,
+  right: 0,
+  zIndex: 1800,
+  pointerEvents: "none",
+};
+
 const StoryStatusBar = ({
   label,
   values,
@@ -242,16 +257,7 @@ const StoryStatusBar = ({
   label: string;
   values: readonly string[];
 }) => (
-  <div
-    style={{
-      position: "absolute",
-      top: 0,
-      left: 0,
-      right: 0,
-      zIndex: 1800,
-      pointerEvents: "none",
-    }}
-  >
+  <div style={TOP_STATUS_BAR_OVERLAY_STYLE}>
     <ResponsiveStatusBar label={label} values={values} tone="dark" />
   </div>
 );

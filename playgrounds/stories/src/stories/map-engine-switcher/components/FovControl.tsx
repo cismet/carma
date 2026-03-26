@@ -3,6 +3,11 @@ import { Card, Slider } from "antd";
 import type { CesiumWidget } from "@carma/cesium";
 import { PixelResolutionVis } from "./PixelResolutionVis";
 import type { CSSProperties } from "react";
+import {
+  bindStoryCesiumCameraChangedListener,
+  readStoryCesiumScene,
+  requestStoryCesiumRender,
+} from "../../shared/cesiumRuntimeGuards";
 
 interface FovControlProps {
   cesiumWidget: CesiumWidget | null;
@@ -301,28 +306,32 @@ export const FovControl = ({ cesiumWidget, style }: FovControlProps) => {
     setFovDegrees(Math.round(value * 10) / 10);
     if (cesiumWidget?.camera?.frustum && "fov" in cesiumWidget.camera.frustum) {
       (cesiumWidget.camera.frustum as any).fov = value * (Math.PI / 180);
-      cesiumWidget.scene.requestRender();
+      requestStoryCesiumRender(cesiumWidget);
     }
   };
 
   // Update viewport, buffer sizes, and camera elevation when widget changes
   useEffect(() => {
-    if (!cesiumWidget?.scene) return;
+    const scene = readStoryCesiumScene(cesiumWidget);
+    if (!scene) return;
 
     const updateMetrics = () => {
-      if (!cesiumWidget?.scene) return;
+      const liveScene = readStoryCesiumScene(cesiumWidget);
+      if (!liveScene) return;
 
-      const canvas = cesiumWidget.scene.canvas;
+      const canvas = liveScene.canvas;
+      if (!canvas) return;
       setViewportSize({
         width: canvas.clientWidth,
         height: canvas.clientHeight,
       });
       setBufferSize({
-        width: cesiumWidget.scene.drawingBufferWidth,
-        height: cesiumWidget.scene.drawingBufferHeight,
+        width: liveScene.drawingBufferWidth,
+        height: liveScene.drawingBufferHeight,
       });
 
-      const camera = cesiumWidget.camera;
+      const camera = liveScene.camera;
+      if (!camera?.positionCartographic) return;
       setCameraElevation(camera.positionCartographic.height);
 
       // Update FOV from camera frustum
@@ -340,7 +349,10 @@ export const FovControl = ({ cesiumWidget, style }: FovControlProps) => {
       updateMetrics();
     };
 
-    cesiumWidget.scene.camera.changed.addEventListener(cameraChangedHandler);
+    const removeCameraListener = bindStoryCesiumCameraChangedListener(
+      scene,
+      cameraChangedHandler
+    );
 
     // Listen to canvas resize to update container dimensions
     const resizeObserver = new ResizeObserver(() => {
@@ -348,12 +360,12 @@ export const FovControl = ({ cesiumWidget, style }: FovControlProps) => {
     });
 
     // Observe the canvas element directly
-    resizeObserver.observe(cesiumWidget.scene.canvas);
+    if (scene.canvas) {
+      resizeObserver.observe(scene.canvas);
+    }
 
     return () => {
-      cesiumWidget.scene.camera.changed.removeEventListener(
-        cameraChangedHandler
-      );
+      removeCameraListener?.();
       resizeObserver.disconnect();
     };
   }, [cesiumWidget]);

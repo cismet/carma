@@ -6,7 +6,7 @@ import {
   defined,
   type Scene,
 } from "@carma/cesium";
-import { formatNumber } from "@carma-mapping/annotations/core";
+import { formatLengthMeters, LENGTH_UNIT_MODE } from "@carma/units/helpers";
 import { createSvgLineVisualizers } from "@carma-commons/svg";
 import {
   createPlacement,
@@ -39,7 +39,11 @@ const CANDIDATE_HEIGHT_LABEL_STEM_DISTANCE_PX = Math.max(
 );
 const CANDIDATE_PILL_STEM_EXTRA_DISTANCE_PX = 4;
 
-const formatMeters = (value: number): string => `${formatNumber(value)}m`;
+const formatMeters = (value: number): string =>
+  formatLengthMeters(value, {
+    locale: "de-DE",
+    unitMode: LENGTH_UNIT_MODE.METERS,
+  });
 
 const formatCandidateElevationText = (
   pointHeightMeters: number,

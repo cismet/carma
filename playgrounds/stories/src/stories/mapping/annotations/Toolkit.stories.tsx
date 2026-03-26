@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { useMemo, type CSSProperties } from "react";
 import type { Meta, StoryObj } from "@storybook/react";
 import { Tooltip } from "antd";
 import { SELECT_TOOL_TYPE } from "@carma-mapping/annotations/core";
@@ -22,6 +22,15 @@ type MeasurementToolkitStoryProps = {
   enableDistance: boolean;
   enablePolyline: boolean;
   enableVerticalArea: boolean;
+};
+
+const BOTTOM_STATUS_BAR_OVERLAY_STYLE: CSSProperties = {
+  position: "absolute",
+  bottom: 0,
+  left: 0,
+  right: 0,
+  zIndex: 1800,
+  pointerEvents: "none",
 };
 
 const buildEnabledPlugins = ({
@@ -151,16 +160,7 @@ const RuntimeStatusBar = () => {
   const secondaryHint = `${annotationEntries.length} annotation(s) saved`;
 
   return (
-    <div
-      style={{
-        position: "absolute",
-        bottom: 0,
-        left: 0,
-        right: 0,
-        zIndex: 1800,
-        pointerEvents: "none",
-      }}
-    >
+    <div style={BOTTOM_STATUS_BAR_OVERLAY_STYLE}>
       <ResponsiveStatusBar
         label="annotations toolkit"
         values={[

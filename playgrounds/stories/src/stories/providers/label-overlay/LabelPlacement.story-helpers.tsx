@@ -31,6 +31,15 @@ const frameStyle: CSSProperties = {
   background: "#fff",
 };
 
+const TOP_STATUS_BAR_OVERLAY_STYLE: CSSProperties = {
+  position: "absolute",
+  top: 0,
+  left: 0,
+  right: 0,
+  zIndex: 1800,
+  pointerEvents: "none",
+};
+
 const toCssPixelPosition = (x: number, y: number): CssPixelPosition => ({
   x: x as CssPixelPosition["x"],
   y: y as CssPixelPosition["y"],
@@ -362,16 +371,7 @@ const SingleLineLabelDebugOverlay = ({
         containerRef={containerRef}
         onChange={setEnd}
       />
-      <div
-        style={{
-          position: "absolute",
-          top: 0,
-          left: 0,
-          right: 0,
-          zIndex: 1800,
-          pointerEvents: "none",
-        }}
-      >
+      <div style={TOP_STATUS_BAR_OVERLAY_STYLE}>
         <ResponsiveStatusBar
           label="svg label placement"
           values={statusValues}

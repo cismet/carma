@@ -31,12 +31,16 @@ import {
 import type { CssPixelPosition } from "@carma/units/types";
 import {
   DEFAULT_POINT_LABEL_METRIC_MODE,
-  formatNumber,
   getCustomPointAnnotationName,
   type PlanarPolygonPlane,
   type PointAnnotationEntry,
   type PointLabelMetricMode,
 } from "@carma-mapping/annotations/core";
+import {
+  formatDecimalNumber,
+  formatLengthMeters,
+  LENGTH_UNIT_MODE,
+} from "@carma/units/helpers";
 import type { AnnotationPointMarkerBadge } from "../useRender";
 import type { AnnotationSelectionState } from "../../selection/types/annotationSelection.types";
 
@@ -70,7 +74,11 @@ const EMPTY_LAYOUT_RESULT: PointLabelLayoutResult = {
   collapsedToCompact: new Set<string>(),
 };
 
-const formatMeters = (value: number): string => `${formatNumber(value)}m`;
+const formatMeters = (value: number): string =>
+  formatLengthMeters(value, {
+    locale: "de-DE",
+    unitMode: LENGTH_UNIT_MODE.METERS,
+  });
 const GLYPH_BASE_STYLE: CSSProperties = {
   display: "inline-block",
   fontSize: `${GLYPH_SIZE_EM}em`,
@@ -211,9 +219,13 @@ const formatOffsetElevationLabelText = (
 ): PointLabelTextRepresentation => {
   const offsetSign = offsetMeters >= 0 ? "+" : "-";
   return {
-    layoutText: `${labelBase} ${formatNumber(
-      baseRelativeHeightMeters
-    )} ${offsetSign} ${formatNumber(Math.abs(offsetMeters))}m`.trim(),
+    layoutText: `${labelBase} ${formatDecimalNumber(baseRelativeHeightMeters, {
+      locale: "de-DE",
+      fractionDigits: 2,
+    })} ${offsetSign} ${formatLengthMeters(Math.abs(offsetMeters), {
+      locale: "de-DE",
+      unitMode: LENGTH_UNIT_MODE.METERS,
+    })}`.trim(),
   };
 };
 

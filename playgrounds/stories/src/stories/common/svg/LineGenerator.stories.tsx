@@ -61,6 +61,24 @@ const frameStyle: CSSProperties = {
   background: "#fff",
 };
 
+const TOP_STATUS_BAR_OVERLAY_STYLE: CSSProperties = {
+  position: "absolute",
+  top: 0,
+  left: 0,
+  right: 0,
+  zIndex: 1800,
+  pointerEvents: "none",
+};
+
+const STICKY_STATUS_BAR_OVERLAY_STYLE: CSSProperties = {
+  position: "sticky",
+  top: 0,
+  left: 0,
+  right: 0,
+  zIndex: 5,
+  pointerEvents: "none",
+};
+
 const REPRESENTATIVE_LENGTH_MULTIPLIERS = [0, 0.1, 0.2, 0.5, 1, 2, 5, 10, 20];
 const REPRESENTATIVE_MIN_ROW_SPACING_PX = 18;
 
@@ -672,16 +690,7 @@ const LiveLineGeneratorStory = (args: LineGeneratorStoryArgs) => {
       <LabelOverlayProvider host={overlayHost}>
         <LiveLineGeneratorOverlay {...args} containerRef={rootRef} />
       </LabelOverlayProvider>
-      <div
-        style={{
-          position: "absolute",
-          top: 0,
-          left: 0,
-          right: 0,
-          zIndex: 1800,
-          pointerEvents: "none",
-        }}
-      >
+      <div style={TOP_STATUS_BAR_OVERLAY_STYLE}>
         <ResponsiveStatusBar label="svg line generator" values={statusValues} />
       </div>
     </div>
@@ -1038,16 +1047,7 @@ const RepresentativeCasesStory = ({
 
   return (
     <div style={{ ...matrixFrameBaseStyle, overflow: "auto" }}>
-      <div
-        style={{
-          position: "sticky",
-          top: 0,
-          left: 0,
-          right: 0,
-          zIndex: 5,
-          pointerEvents: "none",
-        }}
-      >
+      <div style={STICKY_STATUS_BAR_OVERLAY_STYLE}>
         <ResponsiveStatusBar tone="light" values={statusValues} />
       </div>
       <div
@@ -1135,7 +1135,7 @@ const RepresentativeCasesStory = ({
 };
 
 const meta: Meta<LineGeneratorStoryArgs> = {
-  title: "Common/SVG",
+  title: "Common/Svg",
   component: LiveLineGeneratorStory,
   parameters: {
     layout: "fullscreen",
@@ -1169,7 +1169,7 @@ const meta: Meta<LineGeneratorStoryArgs> = {
 export default meta;
 
 export const LiveDemo: StoryObj<LineGeneratorStoryArgs> = {
-  name: "Live Demo",
+  name: "Length-Aware Dash Playground",
   args: {
     screenPointDistancePx: 2250,
     strokeWidth: 10,
@@ -1195,7 +1195,7 @@ export const LiveDemo: StoryObj<LineGeneratorStoryArgs> = {
 };
 
 export const RepresentativeCases: StoryObj<LineGeneratorStoryArgs> = {
-  name: "Representative Cases",
+  name: "Length-Aware Dash Cases",
   args: {
     capStyle: "round",
     collapseNegativeGaps: true,

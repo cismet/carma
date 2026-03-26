@@ -1,4 +1,8 @@
 import type { CSSProperties, ReactNode } from "react";
+import {
+  FROSTED_GLASS_BLUR_PRESET,
+  readFrostedGlassBackdropStyle,
+} from "../utils/frostedGlass";
 
 type ResponsiveStatusBarProps = {
   text?: ReactNode | null;
@@ -9,9 +13,9 @@ type ResponsiveStatusBarProps = {
   tone?: "light" | "dark";
 };
 
-const DEFAULT_STATUS_BAR_HEIGHT = "26px";
+const DEFAULT_STATUS_BAR_HEIGHT = "24px";
 const STATUS_BAR_FONT_FAMILY =
-  'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace';
+  'ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif';
 
 const ResponsiveStatusBar = ({
   text,
@@ -50,7 +54,7 @@ const ResponsiveStatusBar = ({
         <span
           key={`status-value-${index}`}
           style={{
-            fontWeight: 500,
+            fontWeight: 400,
             color: isDarkTone ? "rgba(248, 250, 252, 0.96)" : "#374151",
             whiteSpace: "nowrap",
           }}
@@ -84,11 +88,11 @@ const ResponsiveStatusBar = ({
     background: isDarkTone
       ? "rgba(2, 6, 23, 0.72)"
       : "rgba(255, 255, 255, 0.36)",
-    backdropFilter: "blur(12px)",
-    WebkitBackdropFilter: "blur(12px)",
+    ...readFrostedGlassBackdropStyle(FROSTED_GLASS_BLUR_PRESET.CLOSE),
     borderBottom: isDarkTone
       ? "1px solid rgba(148, 163, 184, 0.42)"
       : "1px solid rgba(148, 163, 184, 0.35)",
+    boxShadow: "none",
   };
 
   const contentStyle: CSSProperties = {
@@ -97,18 +101,19 @@ const ResponsiveStatusBar = ({
     maxWidth: "100%",
     minWidth: 0,
     pointerEvents: "none",
-    padding: "0 16px",
+    padding: "0 12px",
     textAlign: "center",
     color: isDarkTone ? "rgba(248, 250, 252, 0.96)" : "#4b5563",
-    fontWeight: 500,
-    fontSize: 12,
+    fontWeight: 400,
+    fontSize: 11,
     marginBottom: 0,
     display: "flex",
     alignItems: "center",
     justifyContent: "flex-start",
-    gap: 10,
+    gap: 8,
     lineHeight: 1.2,
     fontFamily: STATUS_BAR_FONT_FAMILY,
+    fontVariantNumeric: "tabular-nums",
     whiteSpace: "nowrap",
     overflowX: "auto",
     overflowY: "hidden",

@@ -9,7 +9,7 @@ import {
 import { POLYGON_SEGMENT_LABEL_SIDE } from "@carma-commons/svg";
 
 const meta = {
-  title: "Common/SVG/Label Placement",
+  title: "Common/Svg",
   parameters: {
     layout: "fullscreen",
     controls: {
@@ -22,14 +22,14 @@ const meta = {
 export default meta;
 
 export const SingleLine = {
-  name: "Single Line",
+  name: "Label Placement Single Line",
   argTypes: LABEL_PLACEMENT_SINGLE_LINE_ARG_TYPES,
   args: LABEL_PLACEMENT_SINGLE_LINE_ARGS,
   render: (args) => <SingleLineLabelDebugStory args={args} />,
 };
 
 export const PolygonSegment = {
-  name: "Polygon Segment",
+  name: "Label Placement Polygon Segment",
   argTypes: LABEL_PLACEMENT_POLYGON_ARG_TYPES,
   args: LABEL_PLACEMENT_POLYGON_ARGS,
   render: (args) => (

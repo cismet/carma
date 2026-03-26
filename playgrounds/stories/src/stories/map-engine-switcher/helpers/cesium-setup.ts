@@ -8,6 +8,8 @@ import {
   CesiumTerrainProvider,
   Cartesian3,
   Cesium3DTileset,
+  type Scene,
+  waitForRenderFrames,
 } from "@carma/cesium";
 import { degToRadNumeric } from "@carma/units/helpers";
 import {
@@ -16,6 +18,10 @@ import {
   WUPP_MESH_2024,
   WUPPERTAL,
 } from "@carma-commons/resources";
+import {
+  readStoryCesiumScene,
+  requestStoryCesiumRender,
+} from "../../shared/cesiumRuntimeGuards";
 
 const CESIUM_PATHNAME = "__cesium__";
 
@@ -111,10 +117,22 @@ export const loadTileset = async (
   widget: CesiumWidget,
   tilesetUrl: string = DEFAULT_TILESET_URL
 ): Promise<Cesium3DTileset | null> => {
+  const scene = readStoryCesiumScene(widget);
+  if (!scene) {
+    return null;
+  }
+
   try {
+    await waitForRenderFrames(scene as Scene);
+
+    const readySceneForLoad = readStoryCesiumScene(widget);
+    if (!readySceneForLoad) {
+      return null;
+    }
+
     const tileset = await Cesium3DTileset.fromUrl(tilesetUrl, {
       preloadWhenHidden: false,
-      scene: widget.scene,
+      scene: readySceneForLoad,
       shadows: 0,
       enableCollision: false,
       maximumScreenSpaceError: 6,
@@ -123,9 +141,10 @@ export const loadTileset = async (
       baseScreenSpaceError: 4096,
     });
 
-    if (widget.scene && !widget.isDestroyed()) {
-      widget.scene.primitives.add(tileset);
-      widget.scene.requestRender();
+    const readyScene = readStoryCesiumScene(widget);
+    if (readyScene) {
+      readyScene.primitives.add(tileset);
+      requestStoryCesiumRender(readyScene);
       console.log("Tileset loaded");
       return tileset;
     }

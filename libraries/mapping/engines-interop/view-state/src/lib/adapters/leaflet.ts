@@ -48,10 +48,23 @@ export const readFromLeaflet = (
     seedState?: ViewState | null;
   }
 ): ViewState | null => {
-  const center = map.getCenter();
+  let center: {
+    lng: number;
+    lat: number;
+  } | null = null;
+  let zoom256: number | null = null;
+  let container: HTMLElement | null | undefined = null;
+
+  try {
+    center = map.getCenter();
+    zoom256 = map.getZoom();
+    container = map.getContainer?.();
+  } catch {
+    return null;
+  }
+
   if (!isFiniteNumber(center.lng) || !isFiniteNumber(center.lat)) return null;
 
-  const zoom256 = map.getZoom();
   if (!isFiniteNumber(zoom256)) return null;
 
   const seedState = options?.seedState ?? null;
@@ -64,7 +77,7 @@ export const readFromLeaflet = (
   const fovRad =
     seedState?.intrinsics.fov ??
     degToRadNumeric(options?.fovDeg ?? DEFAULT_FOV_DEG)!;
-  const viewOffset = readViewOffsetFromElement(map.getContainer?.());
+  const viewOffset = readViewOffsetFromElement(container);
 
   const latRad = degToRadNumeric(center.lat)! as Radians;
 

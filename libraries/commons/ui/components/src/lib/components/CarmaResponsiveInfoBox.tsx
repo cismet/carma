@@ -15,6 +15,8 @@ type ControlPosition =
   | "bottomright"
   | "bottomcenter";
 
+const COLLAPSED_INFO_BOX_MIN_WIDTH_PX = 220;
+
 export interface CarmaResponsiveInfoBoxProps {
   onPanelClick?: (event: React.MouseEvent) => void;
   width?: number;
@@ -81,14 +83,26 @@ export const CarmaResponsiveInfoBox = ({
   const fallbackWindowWidth =
     typeof window !== "undefined" ? window.innerWidth : resolvedWidth;
 
-  const infoBoxStyle = {
-    width:
-      typeof window !== "undefined" &&
-      useControlLayout &&
-      fallbackWindowWidth - 25 - resolvedWidth - 300 <= 0
-        ? fallbackWindowWidth - 25
-        : resolvedWidth,
-  };
+  const resolvedExpandedWidth =
+    typeof window !== "undefined" &&
+    useControlLayout &&
+    fallbackWindowWidth - 25 - resolvedWidth - 300 <= 0
+      ? fallbackWindowWidth - 25
+      : resolvedWidth;
+
+  const infoBoxStyle: CSSProperties = actualCollapsed
+    ? {
+        width: "fit-content",
+        minWidth: COLLAPSED_INFO_BOX_MIN_WIDTH_PX,
+        maxWidth: useControlLayout
+          ? Math.max(COLLAPSED_INFO_BOX_MIN_WIDTH_PX, fallbackWindowWidth - 25)
+          : resolvedExpandedWidth,
+        marginLeft: "auto",
+        display: "inline-block",
+      }
+    : {
+        width: resolvedExpandedWidth,
+      };
 
   useEffect(() => {
     if (!draggable) {

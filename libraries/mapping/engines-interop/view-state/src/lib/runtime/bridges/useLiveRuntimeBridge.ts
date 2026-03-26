@@ -67,6 +67,15 @@ export const useLiveRuntimeBridge = <TRuntime>({
   const viewStateContext = useViewStateContext();
   const viewStateContextRef = useRef(viewStateContext);
   viewStateContextRef.current = viewStateContext;
+  const readRef = useRef(read);
+  const applyRef = useRef(apply);
+  const subscribeRef = useRef(subscribe);
+  const getInteractionElementRef = useRef(getInteractionElement);
+
+  readRef.current = read;
+  applyRef.current = apply;
+  subscribeRef.current = subscribe;
+  getInteractionElementRef.current = getInteractionElement;
 
   const adapter = useViewAdapter(id, engine, {
     apply: (state) => {
@@ -74,7 +83,7 @@ export const useLiveRuntimeBridge = <TRuntime>({
         return;
       }
 
-      apply(runtime, state);
+      applyRef.current(runtime, state);
     },
   });
 
@@ -83,8 +92,8 @@ export const useLiveRuntimeBridge = <TRuntime>({
       return null;
     }
 
-    return read(runtime, id, viewStateContextRef.current.getState());
-  }, [enabled, id, read, runtime]);
+    return readRef.current(runtime, id, viewStateContextRef.current.getState());
+  }, [enabled, id, runtime]);
 
   const publishCurrentState = useCallback(() => {
     const nextState = readCurrentState();
@@ -96,35 +105,58 @@ export const useLiveRuntimeBridge = <TRuntime>({
       if (!adapter.claimControl(claimPriority)) {
         return false;
       }
-    } else if (!adapter.isController) {
+    } else if (viewStateContextRef.current.getControllerId() !== id) {
       return false;
     }
 
     adapter.pushState(nextState, pushPriority);
     return true;
-  }, [adapter, claimBeforePush, claimPriority, pushPriority, readCurrentState]);
+  }, [
+    adapter.claimControl,
+    adapter.pushState,
+    claimBeforePush,
+    claimPriority,
+    id,
+    pushPriority,
+    readCurrentState,
+  ]);
+
+  const releaseControl = adapter.releaseControl;
 
   useEffect(() => {
     if (!runtime || !enabled) {
-      adapter.releaseControl();
       return;
     }
 
     publishCurrentState();
-    const cleanup = subscribe(runtime, publishCurrentState);
+    const cleanup = subscribeRef.current(runtime, publishCurrentState);
 
     return () => {
       cleanup?.();
-      adapter.releaseControl();
     };
-  }, [adapter, enabled, publishCurrentState, runtime, subscribe]);
+  }, [enabled, publishCurrentState, runtime]);
+
+  // Release ownership only when the bridge is inactive, not on every
+  // subscribe effect re-run (which happens during controller transitions).
+  useEffect(() => {
+    if (runtime && enabled) {
+      return;
+    }
+    releaseControl();
+  }, [enabled, releaseControl, runtime]);
+
+  useEffect(() => {
+    return () => {
+      releaseControl();
+    };
+  }, [releaseControl]);
 
   useEffect(() => {
     if (!runtime || !enabled || !claimOnInteraction || !getInteractionElement) {
       return;
     }
 
-    const element = getInteractionElement(runtime);
+    const element = getInteractionElementRef.current?.(runtime);
     if (!element) {
       return;
     }
@@ -139,7 +171,6 @@ export const useLiveRuntimeBridge = <TRuntime>({
     claimOnInteraction,
     claimPriority,
     enabled,
-    getInteractionElement,
     runtime,
   ]);
 

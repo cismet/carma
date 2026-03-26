@@ -4,10 +4,10 @@ import {
   ANNOTATION_TYPE_POINT,
   DEFAULT_ANNOTATION_SHORT_LABEL_CONFIG,
   formatMeasurementShortLabelToken,
-  formatNumber,
   isKeyboardTargetEditable,
   type AnnotationToolType,
 } from "@carma-mapping/annotations/core";
+import { formatDecimalNumber } from "@carma/units/helpers";
 
 import {
   createMeasurementToolPlugin,
@@ -35,7 +35,8 @@ const getPointToolInfoBoxSlots = createPointToolInfoBoxSlots({
   headingTitle: "Punktmessung",
   formatMeasurementLabelToken: (counter) =>
     formatMeasurementShortLabelToken(toolType, counter),
-  formatCoordinateValue: (value) => formatNumber(value),
+  formatCoordinateValue: (value) =>
+    formatDecimalNumber(value, { locale: "de-DE", fractionDigits: 2 }),
 });
 
 export const pointToolPlugin = createMeasurementToolPlugin({

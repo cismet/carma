@@ -11,13 +11,18 @@ import { radToDegNumeric, degToRadNumeric } from "@carma/units/helpers";
 import { Cartographic } from "@carma/cesium";
 import { guardSampleTerrainMostDetailedAsync } from "@carma-mapping/engines/cesium";
 import { useMapFrameworkSwitcherContext } from "@carma-mapping/components";
+import { bindStoryCesiumCameraChangedListener } from "../../shared/cesiumRuntimeGuards";
 
 interface ElevationDisplayProps {
   style?: CSSProperties;
 }
 
 export const ElevationDisplay = ({ style }: ElevationDisplayProps) => {
-  const { activeFramework, isCesium, refs } = useMapFrameworkSwitcherContext();
+  const {
+    activeFramework: activeEngine,
+    isCesium,
+    refs,
+  } = useMapFrameworkSwitcherContext();
 
   // Get refs from context
   const cesiumScene = refs.getCesiumScene();
@@ -117,11 +122,15 @@ export const ElevationDisplay = ({ style }: ElevationDisplayProps) => {
 
     // Also listen to camera changes if in Cesium mode
     let cameraChangedHandler: (() => void) | null = null;
+    let removeCameraListener: (() => void) | null = null;
     if (cesiumScene && isCesium) {
       cameraChangedHandler = () => {
         updateElevations();
       };
-      cesiumScene.camera.changed.addEventListener(cameraChangedHandler);
+      removeCameraListener = bindStoryCesiumCameraChangedListener(
+        cesiumScene,
+        cameraChangedHandler
+      );
     }
 
     // Initial update
@@ -129,15 +138,13 @@ export const ElevationDisplay = ({ style }: ElevationDisplayProps) => {
 
     return () => {
       leafletMap.off("moveend", updateElevations);
-      if (cesiumScene && cameraChangedHandler) {
-        cesiumScene.camera.changed.removeEventListener(cameraChangedHandler);
-      }
+      removeCameraListener?.();
     };
   }, [
     cesiumScene,
     leafletMap,
     terrainProviders,
-    activeFramework,
+    activeEngine,
     devicePixelRatio,
   ]);
 
@@ -184,7 +191,7 @@ export const ElevationDisplay = ({ style }: ElevationDisplayProps) => {
       tanHalfFovy,
       viewportHeight,
     };
-  }, [zoomLevel, latitude, devicePixelRatio, cesiumScene, activeFramework]);
+  }, [zoomLevel, latitude, devicePixelRatio, cesiumScene, activeEngine]);
 
   // Calculate max value for scaling
   const maxValue = Math.max(

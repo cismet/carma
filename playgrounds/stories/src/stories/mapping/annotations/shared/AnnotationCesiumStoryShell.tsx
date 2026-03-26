@@ -3,7 +3,11 @@ import { MemoryRouter } from "react-router-dom";
 import type { Scene, CesiumWidget } from "@carma/cesium";
 import { useCesiumLabelOverlayHost } from "@carma-mapping/engines/cesium/react/interactions";
 import { LabelOverlayProvider } from "@carma-providers/label-overlay";
-import { setupCesium } from "../../../map-framework-switcher/helpers/cesium-setup";
+import { setupCesium } from "../../../map-engine-switcher/helpers/cesium-setup";
+import {
+  readStoryCesiumScene,
+  requestStoryCesiumRender,
+} from "../../../shared/cesiumRuntimeGuards";
 
 import "cesium/Build/Cesium/Widgets/widgets.css";
 
@@ -75,13 +79,14 @@ export const AnnotationCesiumStoryShell = ({
         return;
       }
 
-      if (setup.terrainProviders.TERRAIN) {
-        setup.widget.scene.terrainProvider = setup.terrainProviders.TERRAIN;
+      const readyScene = readStoryCesiumScene(setup.widget);
+      if (setup.terrainProviders.TERRAIN && readyScene) {
+        readyScene.terrainProvider = setup.terrainProviders.TERRAIN;
       }
 
       widgetRef.current = setup.widget;
       setIsWidgetReady(true);
-      setup.widget.scene.requestRender();
+      requestStoryCesiumRender(setup.widget);
     };
 
     initialize().catch((error) => {

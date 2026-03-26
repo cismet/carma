@@ -19,7 +19,6 @@ import {
   collectCollapsedPillPointIds,
   collectLabelAnchorPointIdsWithForcedVisibility,
   collectPointIdsWithoutSelfLabelAnchor,
-  formatNumber,
   isPointAnnotationEntry,
 } from "@carma-mapping/annotations/core";
 
@@ -115,7 +114,6 @@ const derivePointLabelAnchors = (
       standaloneDistancePointState.unfocusedStandaloneDistanceNonHighestPointIds,
     focusedStandaloneDistanceNonHighestPointIds:
       standaloneDistancePointState.focusedStandaloneDistanceNonHighestPointIds,
-    formatDistanceLabel: formatNumber,
   });
 
 const applyPointLabelAnchors = (
@@ -267,7 +265,6 @@ export const usePointBridge = ({
         polylines,
         focusedPolylineId: selectedNodeChainAnnotationId,
         pointMarkerBadgeByPointId,
-        formatDistanceLabel: formatNumber,
       }),
     [pointMarkerBadgeByPointId, polylines, selectedNodeChainAnnotationId]
   );

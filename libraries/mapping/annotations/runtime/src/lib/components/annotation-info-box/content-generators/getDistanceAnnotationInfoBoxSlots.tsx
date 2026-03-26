@@ -7,7 +7,7 @@ import {
   isDistancePointEntry,
   type AnnotationPointEntry,
 } from "@carma-mapping/annotations/core";
-import { formatNumber } from "@carma-mapping/annotations/core";
+import { formatLengthMeters, LENGTH_UNIT_MODE } from "@carma/units/helpers";
 import type {
   AnnotationSlots,
   AnnotationInfoBoxEntryPayload,
@@ -253,7 +253,10 @@ export const getDistanceAnnotationInfoBoxSlots = (
       displayPoint,
       subtitleMetaText:
         subtitleDirectDistanceMeters !== null
-          ? `${formatNumber(subtitleDirectDistanceMeters)} m`
+          ? formatLengthMeters(subtitleDirectDistanceMeters, {
+              locale: "de-DE",
+              unitMode: LENGTH_UNIT_MODE.METERS,
+            })
           : null,
       isReference,
       actions: input.actions,

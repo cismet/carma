@@ -1,4 +1,11 @@
-import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import {
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type CSSProperties,
+  type ReactNode,
+} from "react";
 import type { Meta, StoryObj } from "@storybook/react";
 import {
   Cartesian3,
@@ -25,6 +32,7 @@ import {
   faFutbol,
   faSeedling,
 } from "@fortawesome/free-solid-svg-icons";
+import { requestStoryCesiumRender } from "../../shared/cesiumRuntimeGuards";
 import {
   LabelOverlayProvider,
   usePointLabels,
@@ -49,7 +57,7 @@ import {
   useCesiumOverlayView,
 } from "@carma-mapping/engines/cesium/react/interactions";
 import { useCesiumSceneVisibilityIndex } from "@carma-mapping/engines/cesium/react/visibility";
-import { setupCesium } from "../../map-framework-switcher/helpers/cesium-setup";
+import { setupCesium } from "../../map-engine-switcher/helpers/cesium-setup";
 
 import "cesium/Build/Cesium/Widgets/widgets.css";
 
@@ -63,6 +71,15 @@ type LandmarkLabelStoryArgs = {
   expandedSlotStepPx: number;
   hideChrome: boolean;
   scenePreset: "city" | "stack";
+};
+
+const TOP_STATUS_BAR_OVERLAY_STYLE: CSSProperties = {
+  position: "absolute",
+  left: 0,
+  right: 0,
+  top: 0,
+  zIndex: 1800,
+  pointerEvents: "none",
 };
 
 type LandmarkSpec = {
@@ -1130,16 +1147,7 @@ const CesiumLandmarksOverlay = ({
   return (
     <>
       {!hideChrome ? (
-        <div
-          style={{
-            position: "absolute",
-            left: 0,
-            right: 0,
-            top: 0,
-            zIndex: 1800,
-            pointerEvents: "none",
-          }}
-        >
+        <div style={TOP_STATUS_BAR_OVERLAY_STYLE}>
           <ResponsiveStatusBar
             label={
               clusterMode === "off"
@@ -1282,7 +1290,7 @@ const CesiumLandmarksStory = ({
       setScene(setup.widget.scene);
       setOcclusionAvailable(Boolean(setup.tileset));
       setup.widget.camera.setView(resolveCameraView(scenePreset));
-      setup.widget.scene.requestRender();
+      requestStoryCesiumRender(setup.widget);
 
       const provider =
         setup.terrainProviders.SURFACE ?? setup.terrainProviders.TERRAIN;
@@ -1292,7 +1300,7 @@ const CesiumLandmarksStory = ({
       );
       if (disposed) return;
       setLandmarks(sampledLandmarks);
-      setup.widget.scene.requestRender();
+      requestStoryCesiumRender(setup.widget);
     };
 
     initialize().catch((error) => {

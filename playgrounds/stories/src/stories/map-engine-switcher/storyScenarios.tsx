@@ -1,14 +1,16 @@
-import { useEffect, type ReactNode } from "react";
+import { useEffect, type CSSProperties, type ReactNode } from "react";
 import { useCallback } from "react";
 import {
   CarmaResponsiveInfoBox,
   ResponsiveStatusBar,
 } from "@carma-commons/ui/components";
 import {
+  CARMA_MAP_FRAMEWORKS,
   MapFrameworkSwitcher,
   MapFrameworkSwitcherProvider,
   useMapFrameworkSwitcherContext,
   useRegisterMapFramework,
+  type CarmaMapFramework,
 } from "@carma-mapping/components";
 import { ElevationDisplay } from "./components/ElevationDisplay";
 import { FovControl } from "./components/FovControl";
@@ -17,47 +19,48 @@ import { ResolutionStatus } from "./components/ResolutionStatus";
 import { RESOLUTION_SCALE } from "./helpers/constants";
 import { styles } from "./helpers/styles";
 import { useLeafletCesiumSetup } from "./hooks/useLeafletCesiumSetup";
+import { requestStoryCesiumRender } from "../shared/cesiumRuntimeGuards";
 
 import "leaflet/dist/leaflet.css";
 import "cesium/Build/Cesium/Widgets/widgets.css";
 
-type Framework = "leaflet" | "cesium";
+type StoryMappingEngine = CarmaMapFramework;
 
 export type ResolutionScaleControls = {
   resolutionScale?: (typeof RESOLUTION_SCALE.options)[number];
   useBrowserRecommendedResolution?: boolean;
 };
 
-const FrameworkStateStatusBar = () => {
+const BOTTOM_STATUS_BAR_OVERLAY_STYLE: CSSProperties = {
+  position: "absolute",
+  left: 0,
+  right: 0,
+  bottom: 0,
+  zIndex: 1800,
+  pointerEvents: "none",
+};
+
+const MappingEngineStateStatusBar = () => {
   const {
-    activeFramework,
+    activeFramework: activeEngine,
     isTransitioning,
     isPreparingCesiumTransition,
     preparingCesiumMessage,
   } = useMapFrameworkSwitcherContext();
 
-  const activeFrameworkText =
-    typeof activeFramework === "string" && activeFramework.trim().length > 0
-      ? activeFramework
+  const activeEngineText =
+    typeof activeEngine === "string" && activeEngine.trim().length > 0
+      ? activeEngine
       : "unknown";
   const transitionText = isTransitioning
     ? isPreparingCesiumTransition
       ? preparingCesiumMessage ?? "preparing cesium"
       : "running"
     : "idle";
-  const statusText = `${activeFrameworkText} • transition ${transitionText}`;
+  const statusText = `${activeEngineText} • engine transition ${transitionText}`;
 
   return (
-    <div
-      style={{
-        position: "absolute",
-        left: 0,
-        right: 0,
-        bottom: 0,
-        zIndex: 1800,
-        pointerEvents: "none",
-      }}
-    >
+    <div style={BOTTOM_STATUS_BAR_OVERLAY_STYLE}>
       <ResponsiveStatusBar
         text={
           <span
@@ -76,22 +79,22 @@ const FrameworkStateStatusBar = () => {
   );
 };
 
-const FrameProvider = ({
-  initialFramework,
+const MappingEngineProvider = ({
+  initialEngine,
   children,
 }: {
-  initialFramework: Framework;
+  initialEngine: StoryMappingEngine;
   children: ReactNode;
 }) => (
-  <MapFrameworkSwitcherProvider initialFramework={initialFramework}>
+  <MapFrameworkSwitcherProvider initialFramework={initialEngine}>
     {children}
   </MapFrameworkSwitcherProvider>
 );
 
-const useRegisteredLeafletCesium = (
+const useRegisteredLeafletCesiumEngines = (
   setupOptions?: Parameters<typeof useLeafletCesiumSetup>[0]
 ) => {
-  const { activeFramework, registerCallbacks } =
+  const { activeFramework: activeEngine, registerCallbacks } =
     useMapFrameworkSwitcherContext();
   const {
     leafletContainerRef,
@@ -111,10 +114,10 @@ const useRegisteredLeafletCesium = (
   }, [ensureCesiumReady, registerCallbacks]);
 
   useEffect(() => {
-    if (activeFramework === "cesium") {
+    if (activeEngine === CARMA_MAP_FRAMEWORKS.CESIUM) {
       void ensureCesiumReady();
     }
-  }, [activeFramework, ensureCesiumReady]);
+  }, [activeEngine, ensureCesiumReady]);
 
   const getLeafletMap = useCallback(
     () => (isLeafletReady ? leafletMapRef.current : null),
@@ -150,7 +153,7 @@ const useRegisteredLeafletCesium = (
 
 const BasicSwitcherScene = () => {
   const { leafletContainerRef, cesiumContainerRef, mapsInitialized } =
-    useRegisteredLeafletCesium();
+    useRegisteredLeafletCesiumEngines();
 
   return (
     <MapContainers
@@ -161,7 +164,7 @@ const BasicSwitcherScene = () => {
         nativeTooltip={true}
         style={styles.topLeftAbsolute}
       />
-      <FrameworkStateStatusBar />
+      <MappingEngineStateStatusBar />
     </MapContainers>
   );
 };
@@ -172,7 +175,7 @@ const DebugScene = () => {
     cesiumContainerRef,
     cesiumWidgetRef,
     mapsInitialized,
-  } = useRegisteredLeafletCesium();
+  } = useRegisteredLeafletCesiumEngines();
 
   return (
     <MapContainers
@@ -273,7 +276,7 @@ const DebugScene = () => {
           maxWidth: "calc(100vw - 32px)",
         }}
       />
-      <FrameworkStateStatusBar />
+      <MappingEngineStateStatusBar />
     </MapContainers>
   );
 };
@@ -287,7 +290,7 @@ const ResolutionScaleScene = ({
     cesiumContainerRef,
     cesiumWidgetRef,
     mapsInitialized,
-  } = useRegisteredLeafletCesium({
+  } = useRegisteredLeafletCesiumEngines({
     cesium: { useBrowserRecommendedResolution },
   });
 
@@ -295,7 +298,7 @@ const ResolutionScaleScene = ({
     const widget = cesiumWidgetRef.current;
     if (widget && mapsInitialized) {
       widget.resolutionScale = resolutionScale;
-      widget.scene.requestRender();
+      requestStoryCesiumRender(widget);
     }
   }, [resolutionScale, mapsInitialized, cesiumWidgetRef]);
 
@@ -303,7 +306,7 @@ const ResolutionScaleScene = ({
     const widget = cesiumWidgetRef.current;
     if (widget && mapsInitialized) {
       widget.useBrowserRecommendedResolution = useBrowserRecommendedResolution;
-      widget.scene.requestRender();
+      requestStoryCesiumRender(widget);
     }
   }, [useBrowserRecommendedResolution, mapsInitialized, cesiumWidgetRef]);
 
@@ -327,31 +330,31 @@ const ResolutionScaleScene = ({
         resolutionScale={resolutionScale}
         useBrowserRecommendedResolution={useBrowserRecommendedResolution}
       />
-      <FrameworkStateStatusBar />
+      <MappingEngineStateStatusBar />
     </MapContainers>
   );
 };
 
 export const LeafletCesiumStory = () => (
-  <FrameProvider initialFramework="leaflet">
+  <MappingEngineProvider initialEngine={CARMA_MAP_FRAMEWORKS.LEAFLET}>
     <BasicSwitcherScene />
-  </FrameProvider>
+  </MappingEngineProvider>
 );
 
 export const CesiumLeafletStory = () => (
-  <FrameProvider initialFramework="cesium">
+  <MappingEngineProvider initialEngine={CARMA_MAP_FRAMEWORKS.CESIUM}>
     <BasicSwitcherScene />
-  </FrameProvider>
+  </MappingEngineProvider>
 );
 
 export const ResolutionScaleStory = (args: ResolutionScaleControls) => (
-  <FrameProvider initialFramework="cesium">
+  <MappingEngineProvider initialEngine={CARMA_MAP_FRAMEWORKS.CESIUM}>
     <ResolutionScaleScene {...args} />
-  </FrameProvider>
+  </MappingEngineProvider>
 );
 
 export const DebuggingStory = () => (
-  <FrameProvider initialFramework="leaflet">
+  <MappingEngineProvider initialEngine={CARMA_MAP_FRAMEWORKS.LEAFLET}>
     <DebugScene />
-  </FrameProvider>
+  </MappingEngineProvider>
 );

@@ -1,29 +1,30 @@
 import type { Meters } from "@carma/units/types";
+import { formatDecimalNumber } from "./decimal-format";
+import { FORMAT_LOCALE } from "./locales";
+
+export const LENGTH_UNIT_MODE = {
+  ADAPTIVE: "adaptive",
+  METERS: "meters",
+} as const;
+
+export type LengthUnitMode =
+  (typeof LENGTH_UNIT_MODE)[keyof typeof LENGTH_UNIT_MODE];
 
 export type FormatLengthMetersOptions = {
   locale?: string;
   kilometerThresholdMeters?: number;
   maximumFractionDigitsMeters?: number;
   maximumFractionDigitsKilometers?: number;
+  unitMode?: LengthUnitMode;
 };
 
 const DEFAULT_LENGTH_FORMAT_OPTIONS: Required<FormatLengthMetersOptions> = {
-  locale: "en-US",
+  locale: FORMAT_LOCALE.EN_US,
   kilometerThresholdMeters: 1000,
   maximumFractionDigitsMeters: 2,
   maximumFractionDigitsKilometers: 2,
+  unitMode: LENGTH_UNIT_MODE.ADAPTIVE,
 };
-
-const formatWithGrouping = (
-  value: number,
-  locale: string,
-  maximumFractionDigits: number
-) =>
-  new Intl.NumberFormat(locale, {
-    minimumFractionDigits: 0,
-    maximumFractionDigits,
-    useGrouping: true,
-  }).format(value);
 
 export const formatLengthMeters = (
   value: Meters | number,
@@ -34,6 +35,7 @@ export const formatLengthMeters = (
     kilometerThresholdMeters,
     maximumFractionDigitsMeters,
     maximumFractionDigitsKilometers,
+    unitMode,
   } = {
     ...DEFAULT_LENGTH_FORMAT_OPTIONS,
     ...options,
@@ -42,17 +44,25 @@ export const formatLengthMeters = (
   const numericValue = value as number;
   const absoluteValue = Math.abs(numericValue);
 
-  if (absoluteValue >= kilometerThresholdMeters) {
-    return `${formatWithGrouping(
-      numericValue / 1000,
+  if (unitMode === LENGTH_UNIT_MODE.METERS) {
+    return `${formatDecimalNumber(numericValue, {
       locale,
-      maximumFractionDigitsKilometers
-    )} km`;
+      fractionDigits: maximumFractionDigitsMeters,
+      useGrouping: true,
+    })} m`;
   }
 
-  return `${formatWithGrouping(
-    numericValue,
+  if (absoluteValue >= kilometerThresholdMeters) {
+    return `${formatDecimalNumber(numericValue / 1000, {
+      locale,
+      fractionDigits: maximumFractionDigitsKilometers,
+      useGrouping: true,
+    })} km`;
+  }
+
+  return `${formatDecimalNumber(numericValue, {
     locale,
-    maximumFractionDigitsMeters
-  )} m`;
+    fractionDigits: maximumFractionDigitsMeters,
+    useGrouping: true,
+  })} m`;
 };

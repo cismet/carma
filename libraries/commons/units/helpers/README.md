@@ -35,6 +35,15 @@ Angle normalization functions:
 - `negativePiToPi()` - Normalize radians to [-π, π]
 - `zeroToTwoPi()` - Normalize radians to [0, 2π]
 
+### Formatting
+
+- `formatDecimalNumber()` - Fixed-fraction decimal formatting with locale
+- `formatDegrees()` - Degree display formatting with locale and optional unit symbol
+- `formatLengthMeters()` - Length display helper with `m`/`km`
+- `formatAreaSquareMetersAdaptive()` - Adaptive area display helper with `m²`/`ha`
+- `formatSignificantNumber()` - Significant-digits number formatting with locale
+- `formatLatitudeDegrees()`, `formatLongitudeDegrees()`, `formatLatLonDegrees()` - Degree-only geographic display formatting with locale-aware cardinals; expects branded `Degrees` inputs per axis, not a geographic DTO
+
 ### Constants
 
 Pre-defined radian constants:

@@ -4,6 +4,7 @@ import {
   type CameraIntrinsics,
   type CameraType,
 } from "@carma-commons/camera/model";
+import { latLngRadToDeg } from "@carma/geo/helpers";
 import {
   ObjectCentricViewStateInfoBox,
   type ObjectCentricViewStateInfoRow,
@@ -15,10 +16,25 @@ import {
   type ViewState,
   type ShareableViewState,
 } from "@carma-mapping/engines-interop/view-state";
-import { formatLengthMeters, radToDegNumeric } from "@carma/units/helpers";
+import {
+  formatLatLonDegrees,
+  formatLengthMeters,
+  radToDegNumeric,
+} from "@carma/units/helpers";
+import {
+  CARMA_STORY_MAPPING_ENGINES,
+  STORY_MAPPING_ENGINE_OPTIONS,
+  type StoryMappingEngine,
+} from "./mappingEngines";
+
+type MappingEngineStatusFormatOptions = {
+  delimiter?: string;
+};
 
 const FIGURE_SPACE = "\u2007";
+const HAIR_SPACE = "\u200A";
 const NARROW_NO_BREAK_SPACE = "\u202f";
+export const DEFAULT_STATUS_BAR_DELIMITER = FIGURE_SPACE;
 const RANGE_CUE_COLOR = "#64748b";
 const ALTITUDE_CUE_COLOR = "#94a3b8";
 const BEARING_CUE_COLOR = "#22d3ee";
@@ -42,6 +58,15 @@ const formatCompactNumber = (
   const suffix = unit ? `${NARROW_NO_BREAK_SPACE}${unit}` : "";
   return `${Math.abs(value).toFixed(fractionDigits)}${suffix}`;
 };
+
+const formatCompactDecimal = (value: number, fractionDigits: number): string =>
+  value
+    .toFixed(fractionDigits)
+    .replace(/(\.\d*?[1-9])0+$/u, "$1")
+    .replace(/\.0+$/u, "");
+
+const formatStatusMetric = (label: string, value: string): string =>
+  `${label}${HAIR_SPACE}${value}`;
 
 const formatOrUnresolved = (
   value: number | null | undefined,
@@ -111,6 +136,89 @@ export const formatTargetSummary = (
     `p ${radToDegNumeric(target.pitch).toFixed(1)}°`,
     `r ${target.range.toFixed(1)}m`,
   ].join(" • ");
+};
+
+const formatLongitudeLatitudeStatus = (
+  view: ReturnType<typeof deriveView>
+): [string, string] => {
+  const geographicDegrees = latLngRadToDeg({
+    longitude: view.longitude,
+    latitude: view.latitude,
+  });
+
+  const [latitude, longitude] = formatLatLonDegrees(
+    geographicDegrees.latitude,
+    geographicDegrees.longitude,
+    {
+      fractionDigits: 5,
+      locale: "en-US",
+    }
+  );
+
+  return [longitude, latitude];
+};
+
+const joinStatusParts = (
+  parts: Array<string | null | undefined>,
+  delimiter: string
+): string =>
+  parts.filter((part): part is string => Boolean(part)).join(delimiter);
+
+export const formatMappingEngineStatusFromViewState = (
+  engine: StoryMappingEngine,
+  state: ViewState | null | undefined,
+  options: MappingEngineStatusFormatOptions = {}
+): string => {
+  const delimiter = options.delimiter ?? DEFAULT_STATUS_BAR_DELIMITER;
+
+  if (!state) {
+    return joinStatusParts([engine, "waiting for shared view"], delimiter);
+  }
+
+  const view = deriveView(state);
+  const [longitude, latitude] = formatLongitudeLatitudeStatus(view);
+
+  if (engine === CARMA_STORY_MAPPING_ENGINES.LEAFLET) {
+    return joinStatusParts(
+      [
+        engine,
+        longitude,
+        latitude,
+        formatStatusMetric("z", formatCompactDecimal(view.zoom, 2)),
+      ],
+      delimiter
+    );
+  }
+
+  if (engine === CARMA_STORY_MAPPING_ENGINES.MAPLIBRE_GL) {
+    return joinStatusParts(
+      [
+        engine,
+        longitude,
+        latitude,
+        formatStatusMetric("z", formatCompactDecimal(view.zoom, 2)),
+        formatStatusMetric("b", `${radToDegNumeric(view.bearing).toFixed(1)}°`),
+        formatStatusMetric("p", `${radToDegNumeric(view.pitch).toFixed(1)}°`),
+      ],
+      delimiter
+    );
+  }
+
+  return joinStatusParts(
+    [
+      engine,
+      longitude,
+      latitude,
+      formatStatusMetric(
+        "z",
+        `${formatCompactDecimal(view.zoom, 2)} (${view.range.toFixed(1)}m)`
+      ),
+      formatStatusMetric("b", `${radToDegNumeric(view.bearing).toFixed(1)}°`),
+      formatStatusMetric("p", `${radToDegNumeric(view.pitch).toFixed(1)}°`),
+      formatStatusMetric("h", `${view.altitude.toFixed(1)}m`),
+    ],
+    delimiter
+  );
 };
 
 const formatViewSyncTargetTableRows = (
@@ -264,42 +372,132 @@ const formatViewSyncTargetTableRows = (
   ];
 };
 
-const FRAMEWORK_STATUS_PREFIX_RE =
-  /^(?:(?:cesium|maplibre|leaflet)\s*->\s*(?:cesium|maplibre|leaflet)|(cesium|maplibre|leaflet))\s*•\s*/i;
+const MAPPING_ENGINE_STATUS_PATTERN = STORY_MAPPING_ENGINE_OPTIONS.join("|");
 
-const stripFrameworkStatusPrefix = (text: string): string =>
-  text.replace(FRAMEWORK_STATUS_PREFIX_RE, "");
+const escapeRegex = (value: string): string =>
+  value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+
+const readMappingEngineStatusPrefixRegExp = (delimiter: string): RegExp =>
+  new RegExp(
+    `^(?:(?:${MAPPING_ENGINE_STATUS_PATTERN})\\s*->\\s*(?:${MAPPING_ENGINE_STATUS_PATTERN})|(${MAPPING_ENGINE_STATUS_PATTERN}))\\s*${escapeRegex(
+      delimiter
+    )}\\s*`,
+    "i"
+  );
+
+const stripMappingEngineStatusPrefix = (
+  text: string,
+  delimiter: string = DEFAULT_STATUS_BAR_DELIMITER
+): string => text.replace(readMappingEngineStatusPrefixRegExp(delimiter), "");
+
+const STATUS_SEGMENT_LABEL_RE = /^([a-z])\s+(.+)$/i;
+
+const formatStatusValue = (value: string): string => {
+  const normalizedValue = value.replace(/^-/, "\u2212");
+  return normalizedValue;
+};
+
+const renderStatusSegment = (segment: string, key: string): ReactNode => {
+  const trimmedSegment = segment.trim();
+  const match = trimmedSegment.match(STATUS_SEGMENT_LABEL_RE);
+
+  if (!match) {
+    return (
+      <span
+        key={key}
+        style={{
+          display: "inline-flex",
+          alignItems: "baseline",
+          fontVariantNumeric: "tabular-nums",
+        }}
+      >
+        {trimmedSegment}
+      </span>
+    );
+  }
+
+  const [, label, value] = match;
+
+  return (
+    <span
+      key={key}
+      style={{
+        display: "inline-flex",
+        alignItems: "baseline",
+      }}
+    >
+      <span
+        style={{
+          fontWeight: 700,
+          opacity: 0.62,
+          letterSpacing: "0.01em",
+        }}
+      >
+        {label}
+      </span>
+      <span aria-hidden>{HAIR_SPACE}</span>
+      <span
+        style={{
+          fontVariantNumeric: "tabular-nums",
+          fontWeight: 400,
+        }}
+      >
+        {formatStatusValue(value)}
+      </span>
+    </span>
+  );
+};
 
 const formatViewSyncJson = (target: ShareableViewState | null | undefined) =>
   JSON.stringify(target ?? null, null, 2);
 
 export const buildPanelStatusText = (
   text: string,
-  hashText?: string | null
-): ReactNode => (
-  <span
-    style={{
-      display: "flex",
-      flexDirection: "column",
-      width: "100%",
-      textAlign: "center",
-      lineHeight: 1.15,
-      paddingBlock: 3,
-    }}
-  >
-    <span>{stripFrameworkStatusPrefix(text)}</span>
-    {hashText ? (
-      <span
-        style={{
-          opacity: 0.8,
-          fontSize: 11,
-        }}
-      >
-        {hashText}
-      </span>
-    ) : null}
-  </span>
-);
+  delimiter: string = DEFAULT_STATUS_BAR_DELIMITER
+): ReactNode => {
+  const strippedText = stripMappingEngineStatusPrefix(text, delimiter);
+  const segments = strippedText
+    .split(delimiter)
+    .map((segment) => segment.trim())
+    .filter((segment) => segment.length > 0);
+
+  return (
+    <span
+      style={{
+        display: "inline-flex",
+        alignItems: "baseline",
+        width: "100%",
+        justifyContent: "center",
+        lineHeight: 1.15,
+        paddingTop: 2,
+        paddingBottom: 0,
+      }}
+    >
+      {segments.map((segment, index) => (
+        <span
+          key={`status-segment-${index}`}
+          style={{
+            display: "inline-flex",
+            alignItems: "baseline",
+          }}
+        >
+          {index > 0 ? (
+            <span
+              aria-hidden
+              style={{
+                opacity: 0.58,
+                fontWeight: 600,
+              }}
+            >
+              {delimiter}
+            </span>
+          ) : null}
+          {renderStatusSegment(segment, `${index}:${segment}`)}
+        </span>
+      ))}
+    </span>
+  );
+};
 
 export const ViewSyncMetaOverlay = ({
   fallbackTarget,

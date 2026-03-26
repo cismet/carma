@@ -150,4 +150,25 @@ describe("readFromLeaflet", () => {
     expect(nextOrbit.pitch).toBeCloseTo(seedOrbit.pitch, 6);
     expect(state?.intrinsics.fov).toBe(seedState.intrinsics.fov);
   });
+
+  it("returns null for transient leaflet reads during invalid map state", () => {
+    const state = readFromLeaflet(
+      {
+        getCenter: () => {
+          throw new TypeError(
+            "Cannot read properties of undefined (reading '_leaflet_pos')"
+          );
+        },
+        getZoom: () => 17.25,
+        getContainer: () =>
+          ({
+            clientWidth: 480,
+            clientHeight: 900,
+          } as HTMLElement),
+      } as unknown as LeafletMap,
+      "spec"
+    );
+
+    expect(state).toBeNull();
+  });
 });

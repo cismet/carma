@@ -1,5 +1,5 @@
 import type { PointDistanceRelation } from "../../types/distanceRelation";
-import { formatNumber } from "../../utils/displayFormatting";
+import { formatLengthMeters, LENGTH_UNIT_MODE } from "@carma/units/helpers";
 import { REFERENCE_LINE_EPSILON_METERS } from "../../utils/distanceVisualization";
 import type {
   DirectLineLabelMode,
@@ -183,7 +183,10 @@ export const buildDistanceRelationEdgeLabelOverlays = ({
       ...BASE_EDGE_LABEL_OVERLAY,
       ...(styleOverridesByKind?.direct ?? {}),
       labelText: labelDisplay.showDirectLabel
-        ? `${formatNumber(labelDisplay.directLabelDistanceMeters)} m`
+        ? formatLengthMeters(labelDisplay.directLabelDistanceMeters, {
+            locale: "de-DE",
+            unitMode: LENGTH_UNIT_MODE.METERS,
+          })
         : undefined,
       labelMinLineLengthPx: labelDisplay.directLabelMinLineLengthPx,
     },
@@ -191,7 +194,10 @@ export const buildDistanceRelationEdgeLabelOverlays = ({
       ...VERTICAL_EDGE_LABEL_OVERLAY,
       ...(styleOverridesByKind?.vertical ?? {}),
       labelText: labelDisplay.showVerticalLabel
-        ? `${formatNumber(verticalDistanceMeters)} m`
+        ? formatLengthMeters(verticalDistanceMeters, {
+            locale: "de-DE",
+            unitMode: LENGTH_UNIT_MODE.METERS,
+          })
         : undefined,
       labelMinLineLengthPx: labelDisplay.componentLabelMinLineLengthPx,
     },
@@ -199,7 +205,10 @@ export const buildDistanceRelationEdgeLabelOverlays = ({
       ...BASE_EDGE_LABEL_OVERLAY,
       ...(styleOverridesByKind?.horizontal ?? {}),
       labelText: labelDisplay.showHorizontalLabel
-        ? `${formatNumber(horizontalDistanceMeters)} m`
+        ? formatLengthMeters(horizontalDistanceMeters, {
+            locale: "de-DE",
+            unitMode: LENGTH_UNIT_MODE.METERS,
+          })
         : undefined,
       labelMinLineLengthPx: labelDisplay.componentLabelMinLineLengthPx,
     },
