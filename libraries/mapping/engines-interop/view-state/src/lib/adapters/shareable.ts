@@ -15,7 +15,6 @@ import {
 } from "@carma-commons/camera/model";
 import {
   degToRadNumeric,
-  negativePiToPi,
   radToDegNumeric,
   zeroToTwoPi,
 } from "@carma/units/helpers";
@@ -30,17 +29,33 @@ import {
 import {
   VIEW_STATE_SOURCE,
   type ViewState,
-  type ViewStateHashValues,
+  type ViewStateHashCodec,
   type ViewStateSource,
 } from "../core/types";
 import type { ShareableViewState } from "../types";
 
+export type ShareableViewStatePrecision = {
+  lat: number;
+  lng: number;
+  zoom: number;
+  altitude: number;
+  range: number;
+  bearing: number;
+  pitch: number;
+  roll: number;
+  fov: number;
+};
+
 export type ShareableViewStateAdapterOptions = {
   defaultFovDeg?: number;
   zoomConvention?: HashZoomConvention;
+  precision?: Partial<ShareableViewStatePrecision>;
   source?: ViewStateSource;
   sourceId?: string;
 };
+
+export type ViewStateShareableHashCodecOptions =
+  ShareableViewStateAdapterOptions;
 
 const DEFAULT_FOV_DEG = 45;
 const DEFAULT_MAX_PITCH_DEG = 85;
@@ -52,18 +67,24 @@ const HASH_BEARING_ZERO_EPSILON_DEG = 0.01;
 const HASH_PITCH_ZERO_EPSILON_DEG = 0.01;
 const HASH_ROLL_ZERO_EPSILON_DEG = 0.01;
 
-const HASH_BEARING_ZERO_EPSILON_RAD = degToRadNumeric(
-  HASH_BEARING_ZERO_EPSILON_DEG
-)!;
-const HASH_ROLL_ZERO_EPSILON_RAD = degToRadNumeric(HASH_ROLL_ZERO_EPSILON_DEG)!;
-
-const HASH_NUMBER_PRECISION = {
+export const DEFAULT_SHAREABLE_VIEW_STATE_PRECISION: ShareableViewStatePrecision = {
   lat: 7,
   lng: 7,
   zoom: 3,
-  distance: 2,
-  angle: 2,
-} as const;
+  altitude: 2,
+  range: 2,
+  bearing: 2,
+  pitch: 2,
+  roll: 2,
+  fov: 2,
+};
+
+const resolvePrecision = (
+  options?: ShareableViewStateAdapterOptions
+): ShareableViewStatePrecision => ({
+  ...DEFAULT_SHAREABLE_VIEW_STATE_PRECISION,
+  ...(options?.precision ?? {}),
+});
 
 const roundFixedNumber = (
   value: number | undefined,
@@ -80,26 +101,31 @@ const roundFixedNumber = (
   return Number.isFinite(rounded) ? rounded : undefined;
 };
 
+const readRoundedShareableNumber = (
+  value: unknown,
+  fixedDigits: number
+): number | undefined =>
+  roundFixedNumber(readViewStateHashNumber(value), fixedDigits);
+
 const toCameraIntrinsics = (
   viewState: ShareableViewState,
   options?: ShareableViewStateAdapterOptions
 ): CameraIntrinsics => {
-  const longerEdgeFov = viewState.fovLongerEdge;
-  const verticalFov = viewState.fovVertical ?? longerEdgeFov;
-  const horizontalFov = viewState.fovHorizontal ?? longerEdgeFov;
-  const fallbackVerticalFov = isFiniteNumber(options?.defaultFovDeg)
-    ? degToRadNumeric(options.defaultFovDeg)!
-    : undefined;
+  const defaultFovDeg = options?.defaultFovDeg ?? DEFAULT_FOV_DEG;
+  const resolvedFovDeg = isFiniteNumber(viewState.fov)
+    ? viewState.fov
+    : defaultFovDeg;
+  const resolvedFovRad = degToRadNumeric(resolvedFovDeg);
+
+  if (!isFiniteNumber(resolvedFovRad)) {
+    return {};
+  }
 
   return {
-    ...(isFiniteNumber(verticalFov)
-      ? { fov: verticalFov as CameraIntrinsics["fov"] }
-      : isFiniteNumber(fallbackVerticalFov)
-      ? { fov: fallbackVerticalFov as CameraIntrinsics["fov"] }
-      : {}),
-    ...(isFiniteNumber(horizontalFov)
+    fov: resolvedFovRad as CameraIntrinsics["fov"],
+    ...(isFiniteNumber(viewState.fov)
       ? {
-          fovHorizontal: horizontalFov as CameraIntrinsics["fovHorizontal"],
+          fovHorizontal: resolvedFovRad as CameraIntrinsics["fovHorizontal"],
         }
       : {}),
   };
@@ -115,66 +141,32 @@ const clampWebMercatorLatitudeDeg = (latitudeDeg: number): number =>
     WEB_MERCATOR_MAX_LATITUDE_DEG
   );
 
-const readLongerEdgeFovDegFromShareableViewState = (
-  viewState: Pick<
-    ShareableViewState,
-    "fovVertical" | "fovHorizontal" | "fovLongerEdge"
-  >
-): number | undefined => {
-  if (isFiniteNumber(viewState.fovLongerEdge)) {
-    return radToDegNumeric(viewState.fovLongerEdge)!;
-  }
-
-  const finiteFovs = [viewState.fovVertical, viewState.fovHorizontal].filter(
-    isFiniteNumber
-  ) as number[];
-  if (finiteFovs.length === 0) {
-    return undefined;
-  }
-
-  return radToDegNumeric(Math.max(...finiteFovs))!;
+const normalizeDegrees360 = (degrees: number): number => {
+  const normalized = degrees % 360;
+  return normalized < 0 ? normalized + 360 : normalized;
 };
 
-const readVerticalFovDegFromShareableViewState = (
-  viewState: Pick<ShareableViewState, "fovVertical">,
-  defaultFovDeg: number
-): number =>
-  isFiniteNumber(viewState.fovVertical)
-    ? radToDegNumeric(viewState.fovVertical)!
-    : defaultFovDeg;
+const normalizeDegrees180 = (degrees: number): number => {
+  const normalized = normalizeDegrees360(degrees);
+  return normalized > 180 ? normalized - 360 : normalized;
+};
 
-const readBearingDegFromShareableViewState = (
+const readBearingDegreesFromViewState = (
   bearingRad: number | undefined
-): number | undefined => {
-  if (!isFiniteNumber(bearingRad)) {
-    return undefined;
-  }
+): number | undefined =>
+  isFiniteNumber(bearingRad)
+    ? normalizeDegrees360(radToDegNumeric(bearingRad)!)
+    : undefined;
 
-  return radToDegNumeric(zeroToTwoPi(bearingRad as Radians))!;
-};
+const isWrappedBearingCloseToZeroDeg = (
+  bearingDeg: number | undefined
+): boolean =>
+  !isFiniteNumber(bearingDeg) ||
+  Math.abs(normalizeDegrees180(bearingDeg)) <= HASH_BEARING_ZERO_EPSILON_DEG;
 
-const isWrappedBearingCloseToZeroRad = (
-  bearingRad: number | undefined
-): boolean => {
-  if (!isFiniteNumber(bearingRad)) {
-    return true;
-  }
-
-  return (
-    Math.abs(negativePiToPi(bearingRad as Radians)) <=
-    HASH_BEARING_ZERO_EPSILON_RAD
-  );
-};
-
-const isWrappedRollCloseToZeroRad = (rollRad: number | undefined): boolean => {
-  if (!isFiniteNumber(rollRad)) {
-    return true;
-  }
-
-  return (
-    Math.abs(negativePiToPi(rollRad as Radians)) <= HASH_ROLL_ZERO_EPSILON_RAD
-  );
-};
+const isWrappedRollCloseToZeroDeg = (rollDeg: number | undefined): boolean =>
+  !isFiniteNumber(rollDeg) ||
+  Math.abs(normalizeDegrees180(rollDeg)) <= HASH_ROLL_ZERO_EPSILON_DEG;
 
 const isHashPitchCloseToZeroDeg = (pitchDeg: number | undefined): boolean =>
   !isFiniteNumber(pitchDeg) ||
@@ -193,294 +185,255 @@ const formatCanonicalZoomForHash = (
   convention === HASH_ZOOM_CONVENTION.LEAFLET_256 ? zoom + 1 : zoom;
 
 export const applyToShareableViewState = (
-  state: ViewState
+  state: ViewState,
+  options: ShareableViewStateAdapterOptions = {}
 ): ShareableViewState => {
   const view = deriveView(state);
-  const longerEdgeFov = readLongerEdgeFovFromIntrinsics(state.intrinsics);
-
-  return {
-    longitude: view.longitude,
-    latitude: view.latitude,
-    altitude: view.altitude,
-    zoom: view.zoom,
-    bearing: view.bearing,
-    pitch: view.pitch,
-    roll: view.roll,
-    range: view.range,
-    ...(isFiniteNumber(state.intrinsics.fov)
-      ? {
-          fovVertical: state.intrinsics
-            .fov as ShareableViewState["fovVertical"],
-        }
-      : {}),
-    ...(isFiniteNumber(state.intrinsics.fovHorizontal)
-      ? {
-          fovHorizontal: state.intrinsics
-            .fovHorizontal as ShareableViewState["fovHorizontal"],
-        }
-      : {}),
-    ...(isFiniteNumber(longerEdgeFov)
-      ? { fovLongerEdge: longerEdgeFov as ShareableViewState["fovLongerEdge"] }
-      : {}),
-  };
-};
-
-export const applyToShareableHashValues = (
-  viewState: ShareableViewState,
-  options: ShareableViewStateAdapterOptions = {}
-): ViewStateHashValues => {
+  const precision = resolvePrecision(options);
   const defaultFovDeg = options.defaultFovDeg ?? DEFAULT_FOV_DEG;
   const zoomConvention =
     options.zoomConvention ?? HASH_ZOOM_CONVENTION.MAPLIBRE_512;
-  const latitudeDeg = roundFixedNumber(
-    radToDegNumeric(viewState.latitude),
-    HASH_NUMBER_PRECISION.lat
-  );
-  const longitudeDeg = roundFixedNumber(
-    radToDegNumeric(viewState.longitude),
-    HASH_NUMBER_PRECISION.lng
-  );
-  const altitude = roundFixedNumber(
-    viewState.altitude,
-    HASH_NUMBER_PRECISION.distance
-  );
 
-  if (
-    !isFiniteNumber(latitudeDeg) ||
-    !isFiniteNumber(longitudeDeg) ||
-    !isFiniteNumber(altitude)
-  ) {
-    return {};
+  const lat = roundFixedNumber(radToDegNumeric(view.latitude), precision.lat);
+  const lng = roundFixedNumber(radToDegNumeric(view.longitude), precision.lng);
+  const altitude = roundFixedNumber(view.altitude, precision.altitude);
+
+  if (!isFiniteNumber(lat) || !isFiniteNumber(lng) || !isFiniteNumber(altitude)) {
+    throw new Error("Failed to derive ShareableViewState from ViewState.");
   }
 
-  const params: ViewStateHashValues = {
-    lng: longitudeDeg,
-    lat: latitudeDeg,
+  const shareable: ShareableViewState = {
+    lat,
+    lng,
     altitude,
   };
 
-  const verticalFovDeg = readVerticalFovDegFromShareableViewState(
-    viewState,
-    defaultFovDeg
-  );
-  const longerEdgeFovDeg =
-    readLongerEdgeFovDegFromShareableViewState(viewState);
-  const projectedZoom = isFiniteNumber(viewState.zoom)
-    ? viewState.zoom
+  const projectedZoom = isFiniteNumber(view.zoom)
+    ? view.zoom
     : (() => {
+        const verticalFovDeg = isFiniteNumber(state.intrinsics.fov)
+          ? radToDegNumeric(state.intrinsics.fov)!
+          : defaultFovDeg;
+
         if (
-          !isFiniteNumber(viewState.range) ||
+          !isFiniteNumber(view.range) ||
           !isFiniteNumber(verticalFovDeg) ||
-          !isWithinWebMercatorLat(latitudeDeg)
+          !isWithinWebMercatorLat(lat)
         ) {
           return undefined;
         }
 
         const metersPerCssPixel = readMetersPerCssPixel({
-          rangeM: viewState.range,
+          rangeM: view.range,
           fovRad: degToRadNumeric(verticalFovDeg)!,
         });
         return isFiniteNumber(metersPerCssPixel)
           ? getZoomFromPixelResolutionAtLatitudeRad(
               metersPerCssPixel as Meters,
-              viewState.latitude,
+              view.latitude,
               { tileSize: MAPLIBRE_TILE_SIZE_PX }
             )
           : undefined;
       })();
 
-  if (isFiniteNumber(projectedZoom) && isWithinWebMercatorLat(latitudeDeg)) {
+  if (isFiniteNumber(projectedZoom) && isWithinWebMercatorLat(lat)) {
     const hashZoom = roundFixedNumber(
       formatCanonicalZoomForHash(projectedZoom, zoomConvention),
-      HASH_NUMBER_PRECISION.zoom
+      precision.zoom
     );
     if (isFiniteNumber(hashZoom)) {
-      params.zoom = hashZoom;
+      shareable.zoom = hashZoom;
     }
-  } else if (isFiniteNumber(viewState.range)) {
-    const roundedRange = roundFixedNumber(
-      viewState.range,
-      HASH_NUMBER_PRECISION.distance
-    );
+  } else if (isFiniteNumber(view.range)) {
+    const roundedRange = roundFixedNumber(view.range, precision.range);
     if (isFiniteNumber(roundedRange)) {
-      params.range = roundedRange;
+      shareable.range = roundedRange;
     }
   }
 
-  const bearingDeg = readBearingDegFromShareableViewState(viewState.bearing);
-  if (
-    isFiniteNumber(bearingDeg) &&
-    !isWrappedBearingCloseToZeroRad(viewState.bearing)
-  ) {
-    const roundedBearing = roundFixedNumber(
-      bearingDeg,
-      HASH_NUMBER_PRECISION.angle
-    );
-    if (isFiniteNumber(roundedBearing)) {
-      params.bearing = roundedBearing;
-    }
-  }
-
-  const pitchDeg = roundFixedNumber(
-    clamp(radToDegNumeric(viewState.pitch), 0, DEFAULT_MAX_PITCH_DEG),
-    HASH_NUMBER_PRECISION.angle
+  const bearing = roundFixedNumber(
+    readBearingDegreesFromViewState(view.bearing),
+    precision.bearing
   );
-  if (!isHashPitchCloseToZeroDeg(pitchDeg)) {
-    params.pitch = pitchDeg;
+  if (isFiniteNumber(bearing) && !isWrappedBearingCloseToZeroDeg(bearing)) {
+    shareable.bearing = bearing;
   }
 
-  if (!isWrappedRollCloseToZeroRad(viewState.roll)) {
-    const roundedRoll = roundFixedNumber(
-      radToDegNumeric(viewState.roll),
-      HASH_NUMBER_PRECISION.angle
-    );
-    if (isFiniteNumber(roundedRoll)) {
-      params.roll = roundedRoll;
-    }
+  const pitch = roundFixedNumber(
+    clamp(radToDegNumeric(view.pitch), 0, DEFAULT_MAX_PITCH_DEG),
+    precision.pitch
+  );
+  if (!isHashPitchCloseToZeroDeg(pitch)) {
+    shareable.pitch = pitch;
   }
 
-  const roundedLongerEdgeFov = roundFixedNumber(
-    longerEdgeFovDeg,
-    HASH_NUMBER_PRECISION.angle
+  const roll = roundFixedNumber(radToDegNumeric(view.roll), precision.roll);
+  if (isFiniteNumber(roll) && !isWrappedRollCloseToZeroDeg(roll)) {
+    shareable.roll = roll;
+  }
+
+  const longerEdgeFovDeg = roundFixedNumber(
+    radToDegNumeric(readLongerEdgeFovFromIntrinsics(state.intrinsics)),
+    precision.fov
   );
   const hasNonDefaultLongerEdgeFov =
-    isFiniteNumber(roundedLongerEdgeFov) &&
-    !isZeroish(roundedLongerEdgeFov - defaultFovDeg);
+    isFiniteNumber(longerEdgeFovDeg) &&
+    !isZeroish(longerEdgeFovDeg - defaultFovDeg);
 
-  return hasNonDefaultLongerEdgeFov
-    ? { ...params, fov: roundedLongerEdgeFov }
-    : params;
+  if (hasNonDefaultLongerEdgeFov) {
+    shareable.fov = longerEdgeFovDeg;
+  }
+
+  return shareable;
 };
 
-export const readFromShareableHashValues = (
-  hashValues: Record<string, unknown>,
+export const readShareableViewState = (
+  value: Record<string, unknown>,
   options: ShareableViewStateAdapterOptions = {}
 ): ShareableViewState | null => {
-  const defaultFovDeg = options.defaultFovDeg ?? DEFAULT_FOV_DEG;
-  const zoomConvention =
-    options.zoomConvention ?? HASH_ZOOM_CONVENTION.MAPLIBRE_512;
-  const lng = readViewStateHashNumber(hashValues.lng);
-  const lat = readViewStateHashNumber(hashValues.lat);
-  const altitude = readViewStateHashNumber(hashValues.altitude);
+  const precision = resolvePrecision(options);
+  const lat = readRoundedShareableNumber(value.lat, precision.lat);
+  const lng = readRoundedShareableNumber(value.lng, precision.lng);
+  const altitude = readRoundedShareableNumber(
+    value.altitude,
+    precision.altitude
+  );
 
-  if (
-    !isFiniteNumber(lng) ||
-    !isFiniteNumber(lat) ||
-    !isFiniteNumber(altitude)
-  ) {
+  if (!isFiniteNumber(lat) || !isFiniteNumber(lng) || !isFiniteNumber(altitude)) {
     return null;
   }
 
-  const hashLongerEdgeFovDeg = readViewStateHashNumber(hashValues.fov);
-  const hashZoom = readViewStateHashNumber(hashValues.zoom);
-  const zoom = isFiniteNumber(hashZoom)
-    ? normalizeHashZoomToCanonical(hashZoom, zoomConvention)
-    : undefined;
-  const range = readViewStateHashNumber(hashValues.range);
-  const bearing = readViewStateHashNumber(hashValues.bearing);
-  const pitch = readViewStateHashNumber(hashValues.pitch);
-  const roll = readViewStateHashNumber(hashValues.roll);
+  const zoom = readRoundedShareableNumber(value.zoom, precision.zoom);
+  const range = readRoundedShareableNumber(value.range, precision.range);
 
-  const buildShareable = ({
-    latitudeDeg,
-    rangeM,
-    includeZoom,
-  }: {
-    latitudeDeg: number;
-    rangeM: number;
-    includeZoom: boolean;
-  }): ShareableViewState => ({
-    longitude: degToRadNumeric(lng)! as ShareableViewState["longitude"],
-    latitude: degToRadNumeric(latitudeDeg)! as ShareableViewState["latitude"],
-    altitude: altitude as ShareableViewState["altitude"],
-    ...(includeZoom && isFiniteNumber(zoom) ? { zoom } : {}),
-    bearing: isFiniteNumber(bearing)
-      ? (zeroToTwoPi(
-          degToRadNumeric(bearing)! as ShareableViewState["bearing"]
-        ) as ShareableViewState["bearing"])
-      : (degToRadNumeric(0)! as ShareableViewState["bearing"]),
-    pitch: isFiniteNumber(pitch)
-      ? (degToRadNumeric(
-          clamp(pitch, 0, DEFAULT_MAX_PITCH_DEG)
-        )! as ShareableViewState["pitch"])
-      : (degToRadNumeric(0)! as ShareableViewState["pitch"]),
-    ...(isFiniteNumber(roll)
-      ? {
-          roll: degToRadNumeric(roll)! as ShareableViewState["roll"],
-        }
-      : {}),
-    range: rangeM as ShareableViewState["range"],
-    ...(isFiniteNumber(hashLongerEdgeFovDeg)
-      ? {
-          fovLongerEdge: degToRadNumeric(
-            hashLongerEdgeFovDeg
-          )! as ShareableViewState["fovLongerEdge"],
-        }
-      : {}),
-  });
-
-  if (isFiniteNumber(zoom)) {
-    const latitudeDeg = clampWebMercatorLatitudeDeg(lat);
-    const latitudeRad = degToRadNumeric(latitudeDeg)! as Radians;
-    const metersPerCssPixel = getPixelResolutionFromZoomAtLatitudeRad(
-      zoom,
-      latitudeRad,
-      { tileSize: MAPLIBRE_TILE_SIZE_PX }
-    );
-    const rangeM = readRangeFromMetersPerCssPixel({
-      metersPerCssPixel,
-      fovRad: degToRadNumeric(hashLongerEdgeFovDeg ?? defaultFovDeg)!,
-      minRangeM: DEFAULT_MIN_RANGE_M,
-    });
-
-    if (isFiniteNumber(rangeM)) {
-      return buildShareable({
-        latitudeDeg,
-        rangeM,
-        includeZoom: true,
-      });
-    }
-  }
-
-  if (!isFiniteNumber(range)) {
+  if (!isFiniteNumber(zoom) && !isFiniteNumber(range)) {
     return null;
   }
 
-  return buildShareable({
-    latitudeDeg: lat,
-    rangeM: Math.max(range, DEFAULT_MIN_RANGE_M),
-    includeZoom: isFiniteNumber(zoom),
-  });
+  const bearing = readRoundedShareableNumber(value.bearing, precision.bearing);
+  const pitch = readRoundedShareableNumber(value.pitch, precision.pitch);
+  const roll = readRoundedShareableNumber(value.roll, precision.roll);
+  const fov = readRoundedShareableNumber(value.fov, precision.fov);
+
+  return {
+    lat,
+    lng,
+    altitude,
+    ...(isFiniteNumber(zoom) ? { zoom } : {}),
+    ...(isFiniteNumber(range) ? { range } : {}),
+    ...(isFiniteNumber(bearing) ? { bearing } : {}),
+    ...(isFiniteNumber(pitch) ? { pitch } : {}),
+    ...(isFiniteNumber(roll) ? { roll } : {}),
+    ...(isFiniteNumber(fov) ? { fov } : {}),
+  };
 };
 
 export const readFromShareableViewState = (
   viewState: ShareableViewState,
   options?: ShareableViewStateAdapterOptions
-): ViewState =>
-  buildViewState({
-    longitude: viewState.longitude,
-    latitude: viewState.latitude,
-    altitude: viewState.altitude,
-    bearing: viewState.bearing,
-    pitch: viewState.pitch,
-    ...(isFiniteNumber(viewState.roll) ? { roll: viewState.roll } : {}),
-    range: viewState.range,
-    intrinsics: toCameraIntrinsics(viewState, options),
+): ViewState => {
+  const defaultFovDeg = options?.defaultFovDeg ?? DEFAULT_FOV_DEG;
+  const zoomConvention =
+    options?.zoomConvention ?? HASH_ZOOM_CONVENTION.MAPLIBRE_512;
+
+  const normalizedShareable = readShareableViewState(
+    viewState as unknown as Record<string, unknown>,
+    options
+  );
+
+  if (!normalizedShareable) {
+    throw new Error(
+      "Invalid ShareableViewState: lat/lng/altitude and zoom|range are required."
+    );
+  }
+
+  const normalizedZoom = isFiniteNumber(normalizedShareable.zoom)
+    ? normalizeHashZoomToCanonical(normalizedShareable.zoom, zoomConvention)
+    : undefined;
+  const effectiveLatitudeDeg = isFiniteNumber(normalizedZoom)
+    ? clampWebMercatorLatitudeDeg(normalizedShareable.lat)
+    : normalizedShareable.lat;
+
+  const resolvedFovDeg = isFiniteNumber(normalizedShareable.fov)
+    ? normalizedShareable.fov
+    : defaultFovDeg;
+  const resolvedFovRad = degToRadNumeric(resolvedFovDeg);
+
+  if (!isFiniteNumber(resolvedFovRad)) {
+    throw new Error("Invalid ShareableViewState: fov could not be resolved.");
+  }
+
+  const rangeM = (() => {
+    if (isFiniteNumber(normalizedZoom)) {
+      const latitudeRad = degToRadNumeric(effectiveLatitudeDeg)! as Radians;
+      const metersPerCssPixel = getPixelResolutionFromZoomAtLatitudeRad(
+        normalizedZoom,
+        latitudeRad,
+        { tileSize: MAPLIBRE_TILE_SIZE_PX }
+      );
+      const fromZoom = readRangeFromMetersPerCssPixel({
+        metersPerCssPixel,
+        fovRad: resolvedFovRad,
+        minRangeM: DEFAULT_MIN_RANGE_M,
+      });
+      if (isFiniteNumber(fromZoom)) {
+        return fromZoom;
+      }
+    }
+
+    if (isFiniteNumber(normalizedShareable.range)) {
+      return Math.max(normalizedShareable.range, DEFAULT_MIN_RANGE_M);
+    }
+
+    return null;
+  })();
+
+  if (!isFiniteNumber(rangeM)) {
+    throw new Error(
+      "Invalid ShareableViewState: either zoom or range must be finite."
+    );
+  }
+
+  const bearingRad = isFiniteNumber(normalizedShareable.bearing)
+    ? (zeroToTwoPi(
+        degToRadNumeric(normalizedShareable.bearing)! as Radians
+      ) as Radians)
+    : (degToRadNumeric(0)! as Radians);
+  const pitchRad = isFiniteNumber(normalizedShareable.pitch)
+    ? (degToRadNumeric(
+        clamp(normalizedShareable.pitch, 0, DEFAULT_MAX_PITCH_DEG)
+      )! as Radians)
+    : (degToRadNumeric(0)! as Radians);
+  const rollRad = isFiniteNumber(normalizedShareable.roll)
+    ? (degToRadNumeric(normalizedShareable.roll)! as Radians)
+    : undefined;
+  const fovLongerEdge = isFiniteNumber(normalizedShareable.fov)
+    ? (degToRadNumeric(normalizedShareable.fov)! as Radians)
+    : undefined;
+
+  return buildViewState({
+    longitude: degToRadNumeric(normalizedShareable.lng)! as Radians,
+    latitude: degToRadNumeric(effectiveLatitudeDeg)! as Radians,
+    altitude: normalizedShareable.altitude,
+    bearing: bearingRad,
+    pitch: pitchRad,
+    ...(isFiniteNumber(rollRad) ? { roll: rollRad } : {}),
+    range: rangeM,
+    intrinsics: toCameraIntrinsics(normalizedShareable, options),
     metadata: {
       frameId: 0,
       timestampMs: Date.now(),
       sourceId: options?.sourceId ?? DEFAULT_SHAREABLE_VIEW_STATE_SOURCE_ID,
       source: options?.source ?? VIEW_STATE_SOURCE.RESTORE,
-      ...(isFiniteNumber(viewState.zoom) ||
-      isFiniteNumber(viewState.fovLongerEdge)
+      ...(isFiniteNumber(normalizedZoom) || isFiniteNumber(fovLongerEdge)
         ? {
             restoreHints: {
               shareable: {
-                ...(isFiniteNumber(viewState.zoom)
-                  ? { zoom: viewState.zoom }
+                ...(isFiniteNumber(normalizedZoom)
+                  ? { zoom: normalizedZoom }
                   : {}),
-                ...(isFiniteNumber(viewState.fovLongerEdge)
-                  ? { fovLongerEdge: viewState.fovLongerEdge }
+                ...(isFiniteNumber(fovLongerEdge)
+                  ? { fovLongerEdge }
                   : {}),
               },
             },
@@ -488,6 +441,25 @@ export const readFromShareableViewState = (
         : {}),
     },
   });
+};
+
+export const createViewStateShareableHashCodec = (
+  options: ViewStateShareableHashCodecOptions = {}
+): ViewStateHashCodec => ({
+  encode: (state) => {
+    if (!state) {
+      return null;
+    }
+
+    return applyToShareableViewState(state, options);
+  },
+  decode: (hashValues) => {
+    const shareableViewState = readShareableViewState(hashValues, options);
+    return shareableViewState
+      ? readFromShareableViewState(shareableViewState, options)
+      : null;
+  },
+});
 
 export const resolveViewStateRestoreHintsForViewport = (
   state: ViewState,

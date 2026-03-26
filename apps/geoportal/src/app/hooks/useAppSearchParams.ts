@@ -9,10 +9,36 @@ import {
   updateHashHistoryState,
 } from "@carma-commons/utils";
 
-import {
-  buildDefaultLeafletViewHashParams,
-  hasCompleteLeafletViewHash,
-} from "../config/view.config";
+import { DEFAULT_INITIAL_2D_VIEW_REF } from "../config/view.config";
+
+const parseFiniteNumber = (value: unknown): number | undefined => {
+  if (typeof value === "number" && Number.isFinite(value)) {
+    return value;
+  }
+  if (typeof value === "string") {
+    const parsed = Number(value);
+    if (Number.isFinite(parsed)) {
+      return parsed;
+    }
+  }
+  return undefined;
+};
+
+const hasCompleteLeafletViewHash = (
+  hashParams: Record<string, unknown>
+): boolean => {
+  return (
+    parseFiniteNumber(hashParams.lat) !== undefined &&
+    parseFiniteNumber(hashParams.lng) !== undefined &&
+    parseFiniteNumber(hashParams.zoom) !== undefined
+  );
+};
+
+const buildDefaultLeafletViewHashParams = (): Record<string, string> => ({
+  lat: String(DEFAULT_INITIAL_2D_VIEW_REF.latDeg),
+  lng: String(DEFAULT_INITIAL_2D_VIEW_REF.lngDeg),
+  zoom: String(DEFAULT_INITIAL_2D_VIEW_REF.zoomLeaflet256),
+});
 
 export const useAppSearchParams = () => {
   const { pathname } = useLocation();

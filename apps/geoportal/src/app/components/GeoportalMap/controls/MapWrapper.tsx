@@ -90,12 +90,8 @@ import {
   toggleUIMode,
   UIMode,
 } from "../../../store/slices/ui.ts";
-import {
-  DEFAULT_HOME_CENTER,
-  DEFAULT_HOME_LEAFLET_ZOOM,
-  DEFAULT_HOME_MAPLIBRE_ZOOM,
-  DEFAULT_HOME_VIEW_STATE,
-} from "../../../config/view.config";
+import { DEFAULT_HOME_VIEW_REF } from "../../../config/view.config";
+import { HOME_CLICK_VIEW_STATE } from "../../../utils/geoportalHomeViewState";
 
 // detect GPU support, disables 3d mode if not supported
 let hasGPU = false;
@@ -155,13 +151,21 @@ const MapWrapper = () => {
     fovMode: isObliqueMode,
   });
   const { zoomInLeaflet, zoomOutLeaflet } = useLeafletZoomControls();
+  const homeCenter = [
+    DEFAULT_HOME_VIEW_REF.lat,
+    DEFAULT_HOME_VIEW_REF.lng,
+  ] as [number, number];
+  const homeLeafletZoom = DEFAULT_HOME_VIEW_REF.zoom!;
+  const homeMaplibreZoom = homeLeafletZoom - 1;
   const handleCesiumHomeClick = useCallback(() => {
+    if (!isCesium) return;
+
     ctx.withScene((scene) => {
-      flyToCesium(scene as unknown as SceneLike, DEFAULT_HOME_VIEW_STATE, {
+      flyToCesium(scene as unknown as SceneLike, HOME_CLICK_VIEW_STATE, {
         duration: 2,
       });
     });
-  }, [ctx]);
+  }, [ctx, isCesium]);
 
   const { responsiveState, gap, windowSize } = useContext<
     typeof ResponsiveTopicMapContext
@@ -378,18 +382,15 @@ const MapWrapper = () => {
                     if (showLibreMap) {
                       if (libreMapRef.current) {
                         libreMapRef.current.flyTo({
-                          center: [
-                            DEFAULT_HOME_CENTER.lng,
-                            DEFAULT_HOME_CENTER.lat,
-                          ],
-                          zoom: DEFAULT_HOME_MAPLIBRE_ZOOM,
+                          center: [homeCenter[1], homeCenter[0]],
+                          zoom: homeMaplibreZoom,
                           essential: true,
                         });
                       }
                     } else {
                       routedMap.leafletMap.leafletElement.flyTo(
-                        [DEFAULT_HOME_CENTER.lat, DEFAULT_HOME_CENTER.lng],
-                        DEFAULT_HOME_LEAFLET_ZOOM
+                        homeCenter,
+                        homeLeafletZoom
                       );
                       handleCesiumHomeClick();
                     }

@@ -84,19 +84,16 @@ export {
 export { readFromMaplibre, applyToMaplibre } from "../adapters/maplibre";
 export { readFromLeaflet, applyToLeaflet } from "../adapters/leaflet";
 export {
-  applyToShareableHashValues,
+  DEFAULT_SHAREABLE_VIEW_STATE_PRECISION,
   readFromShareableViewState,
-  readFromShareableHashValues,
+  readShareableViewState,
   applyToShareableViewState,
-  resolveViewStateRestoreHintsForViewport,
-  type ShareableViewStateAdapterOptions,
-} from "../adapters/shareable";
-
-// Navigation/shareable hash codec (pure functions, no React)
-export {
   createViewStateShareableHashCodec,
+  resolveViewStateRestoreHintsForViewport,
+  type ShareableViewStatePrecision,
+  type ShareableViewStateAdapterOptions,
   type ViewStateShareableHashCodecOptions,
-} from "./providers/navigation/viewStateShareableHashCodec";
+} from "../adapters/shareable";
 
 // Cesium initial camera (pure functions, no React)
 export {

@@ -13,7 +13,6 @@ import { useDispatch, useSelector } from "react-redux";
 
 import {
   BoundingSphere,
-  Cartesian3,
   flyToBoundingSphereExtent,
   type CesiumTerrainProvider,
 } from "@carma/cesium";
@@ -62,7 +61,6 @@ import {
   getGeoJsonGeometryCacheKey,
   getProviderScopedCache,
   getTerrainAwareBoundingSphereFromGeoJsonGeometry,
-  type InitialCameraView,
   selectScreenSpaceCameraControllerMinimumZoomDistance,
   selectShowPrimaryTileset,
   selectViewerModels,
@@ -72,12 +70,10 @@ import {
 import type { SceneLike } from "@carma-mapping/engines/cesium/api";
 import {
   createViewStateShareableHashCodec,
-  readInitialCameraViewFromViewState,
   HASH_ZOOM_CONVENTION,
   ViewStateNavigationManagerProvider,
   ViewStateProvider,
   useCesiumNavigationBridge,
-  useViewStateNavigationManager,
 } from "@carma-mapping/engines-interop/view-state";
 import {
   useMapFrameworkSwitcherContext,
@@ -98,6 +94,7 @@ import { addCssToOverlayHelperItem } from "../../helper/overlayHelper.ts";
 import useLeafletZoomControls from "../../hooks/leaflet/useLeafletZoomControls.ts";
 import { useDispatchSachdatenInfoText } from "../../hooks/useDispatchSachdatenInfoText.ts";
 import { useFeatureInfoModeCursorStyle } from "../../hooks/useFeatureInfoModeCursorStyle.ts";
+import { useGeoportalInitialView } from "../../hooks/useGeoportalInitialView.ts";
 import { useObliqueInitializer } from "../../oblique/hooks/useObliqueInitializer.ts";
 import { useCameraOrbit } from "../../hooks/useCameraOrbit.ts";
 import { useGeoportalFrameworkSwitcher } from "./controls/use-geoportal-framework-switcher.ts";
@@ -136,12 +133,6 @@ import {
   DEFAULT_CAMERA_FOV_DEG,
   LEAFLET_CONFIG,
 } from "../../config/app.config";
-import {
-  DEFAULT_HOME_CENTER,
-  DEFAULT_HOME_VIEW_HASH_VALUES,
-  DEFAULT_HOME_VIEW_STATE,
-  DEFAULT_SCENE_HASH_RANGE_M,
-} from "../../config/view.config";
 
 import "cesium/Build/Cesium/Widgets/widgets.css";
 import "../leaflet.css";
@@ -261,10 +252,8 @@ const GeoportalMapInner = ({ height, width, allow3d }: MapProps) => {
   const { setAppMenuVisible } =
     useContext<typeof UIDispatchContext>(UIDispatchContext);
   const { setSecondaryWithKey, showOverlayHandler } = useOverlayTourContext();
-  const {
-    initialRestoreState,
-    isInitialRestoreResolved: isInitialCameraResolved,
-  } = useViewStateNavigationManager();
+  const { isInitialCameraResolved, cesiumInitialCameraView, homeValidationCenter } =
+    useGeoportalInitialView();
 
   const [isLoginFormVisible, setIsLoginFormVisible] = useState(false);
   const markerRef = useRef(undefined);
@@ -294,24 +283,6 @@ const GeoportalMapInner = ({ height, width, allow3d }: MapProps) => {
   const [shouldMountCesium, setShouldMountCesium] = useState(false);
   const cesiumReadyPromiseRef = useRef<Promise<void> | null>(null);
   const cesiumReadyResolversRef = useRef<Array<() => void>>([]);
-  const initialCesiumViewState = initialRestoreState ?? DEFAULT_HOME_VIEW_STATE;
-  const cesiumInitialCameraView = useMemo(
-    () =>
-      readInitialCameraViewFromViewState(initialCesiumViewState, {
-        defaultRangeM: DEFAULT_SCENE_HASH_RANGE_M,
-      }) as InitialCameraView | undefined,
-    [initialCesiumViewState]
-  );
-  const homeValidationCenter = useMemo(
-    () =>
-      Cartesian3.fromDegrees(
-        DEFAULT_HOME_CENTER.lng,
-        DEFAULT_HOME_CENTER.lat,
-        DEFAULT_HOME_VIEW_HASH_VALUES.altitude
-      ),
-    []
-  );
-
   const { isObliqueMode } = useObliqueInitializer(isDebugMode);
 
   const previousPositionRef = useRef<{

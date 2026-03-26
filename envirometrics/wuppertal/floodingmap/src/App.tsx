@@ -31,20 +31,16 @@ import {
   useSelectionCesium,
   useSelectionTopicMap,
 } from "@carma-appframeworks/portals";
-import { useHashState } from "@carma-providers/hash-state";
 import { ENDPOINT, isAreaTypeWithGEP } from "@carma-commons/resources";
 import { getApplicationVersion, HASH_LAUNCH_MODE } from "@carma-commons/utils";
-import { isFiniteNumber } from "@carma/math";
+import { Cartesian3 } from "@carma/cesium";
 
 // TODO fix collab path names
 import { getCollabedHelpComponentConfig } from "@carma-collab/wuppertal/hochwassergefahrenkarte";
 
-import { Cartesian3 } from "@carma/cesium";
-
 import {
   CustomViewer,
   PitchingCompass,
-  type InitialCameraView,
   selectViewerModels,
   useCesiumContext,
   useZoomControls as useZoomControlsCesium,
@@ -54,12 +50,9 @@ import {
   createViewStateShareableHashCodec,
   flyToCesium,
   HASH_ZOOM_CONVENTION,
-  readInitialCameraViewFromViewState,
-  readViewStateHashNumber,
   ViewStateNavigationManagerProvider,
   ViewStateProvider,
   useCesiumNavigationBridge,
-  useViewStateNavigationManager,
 } from "@carma-mapping/engines-interop/view-state";
 import {
   EmptySearchComponent,
@@ -86,6 +79,7 @@ import { StateAwareChildren } from "./components/StateAwareChildren";
 import versionData from "./version.json";
 
 import useLeafletZoomControls from "./hooks/useLeafletZoomControls";
+import { useFloodingmapInitialView } from "./hooks/useFloodingmapInitialView";
 
 import config from "./config";
 import { EMAIL, HOME_ZOOM } from "./config/app.config";
@@ -94,14 +88,12 @@ import {
   CONSTRUCTOR_OPTIONS,
 } from "./config/cesium/cesium.config";
 import {
-  DEFAULT_HOME_CENTER,
-  DEFAULT_HOME_VIEW_HASH_VALUES,
-  DEFAULT_HOME_VIEW_STATE,
+  DEFAULT_HOME_VIEW_REF,
 } from "./config/view.config";
+import { DEFAULT_HOME_VIEW_STATE } from "./utils/floodingmapHomeViewState";
 
 import "cesium/Build/Cesium/Widgets/widgets.css";
 
-const DEFAULT_HASH_RANGE_M = 750;
 const DEFAULT_HASH_FOV_DEG = 45;
 const FLOODINGMAP_CESIUM_VIEW_ADAPTER_ID = "floodingmap-cesium";
 
@@ -121,44 +113,20 @@ function FloodingmapAppContent({ sync = false }: { sync?: boolean }) {
 
   const reactCismapEnvirometricsVersion = cismapEnvirometricsVersion;
   const [hochwasserschutz, setHochwasserschutz] = useState(true);
-  const { getHashValues } = useHashState();
   const {
-    initialRestoreState: initialViewState,
-    isInitialRestoreResolved: isInitialCameraResolved,
-  } = useViewStateNavigationManager();
-  const initialHashValues = getHashValues();
-  const initialQueryX = readViewStateHashNumber(initialHashValues.qx);
-  const initialQueryY = readViewStateHashNumber(initialHashValues.qy);
-  const initialEnviroMetricState = useMemo(() => {
-    const restoredQueryPosition =
-      isFiniteNumber(initialQueryX) && isFiniteNumber(initialQueryY)
-        ? ([initialQueryX, initialQueryY] as [number, number])
-        : undefined;
-
-    return {
-      ...config.initialState,
-      featureInfoModeActivated: Boolean(restoredQueryPosition),
-      currentFeatureInfoPosition: restoredQueryPosition,
-    };
-  }, [initialQueryX, initialQueryY]);
-  const initialCesiumViewState = initialViewState ?? DEFAULT_HOME_VIEW_STATE;
-  const initialCameraView = useMemo(
-    () =>
-      readInitialCameraViewFromViewState(initialCesiumViewState, {
-        defaultRangeM: DEFAULT_HASH_RANGE_M,
-      }) as InitialCameraView | undefined,
-    [initialCesiumViewState]
-  );
+    initialEnviroMetricState,
+    initialCameraView,
+    isInitialCameraResolved,
+  } = useFloodingmapInitialView();
   const homeValidationCenter = useMemo(
     () =>
       Cartesian3.fromDegrees(
-        DEFAULT_HOME_CENTER.lng,
-        DEFAULT_HOME_CENTER.lat,
-        DEFAULT_HOME_VIEW_HASH_VALUES.altitude
+        DEFAULT_HOME_VIEW_REF.lng,
+        DEFAULT_HOME_VIEW_REF.lat,
+        DEFAULT_HOME_VIEW_REF.altitude
       ),
     []
   );
-
   const ctx = useCesiumContext();
   const {
     getScene,
@@ -227,7 +195,10 @@ function FloodingmapAppContent({ sync = false }: { sync?: boolean }) {
 
   const homeCenter = useMemo(
     () =>
-      [DEFAULT_HOME_CENTER.lat, DEFAULT_HOME_CENTER.lng] as [number, number],
+      [
+        DEFAULT_HOME_VIEW_REF.lat,
+        DEFAULT_HOME_VIEW_REF.lng,
+      ] as [number, number],
     []
   );
 
@@ -316,20 +287,20 @@ function FloodingmapAppContent({ sync = false }: { sync?: boolean }) {
   };
 
   const homeControlCesium = () => {
-    if (cesiumScene) {
-      flyToCesium(
-        cesiumScene as unknown as SceneLike,
-        DEFAULT_HOME_VIEW_STATE,
-        {
-          duration: 2,
-        }
-      );
-    }
+    if (!isCesium || !cesiumScene) return;
+
+    flyToCesium(
+      cesiumScene as unknown as SceneLike,
+      DEFAULT_HOME_VIEW_STATE,
+      {
+        duration: 2,
+      }
+    );
   };
 
   const onHomeClick = () => {
-    homeControlCesium();
     homeControlLeaflet();
+    homeControlCesium();
   };
 
   useSelectionTopicMap();

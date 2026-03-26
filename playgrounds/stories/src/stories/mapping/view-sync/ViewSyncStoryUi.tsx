@@ -102,21 +102,17 @@ const readIntrinsicsAspect = (
 const toOverlayViewState = (state: ViewState): ShareableViewState => {
   const derived = deriveView(state);
   return {
-    longitude: derived.longitude,
-    latitude: derived.latitude,
+    lng: radToDegNumeric(derived.longitude),
+    lat: radToDegNumeric(derived.latitude),
     altitude: derived.altitude,
     zoom: derived.zoom,
-    bearing: derived.bearing,
-    pitch: derived.pitch,
-    roll: derived.roll,
+    bearing: radToDegNumeric(derived.bearing),
+    pitch: radToDegNumeric(derived.pitch),
+    roll: radToDegNumeric(derived.roll),
     range: derived.range,
     ...(typeof state.intrinsics.fov === "number" &&
     Number.isFinite(state.intrinsics.fov)
-      ? { fovVertical: state.intrinsics.fov }
-      : {}),
-    ...(typeof state.intrinsics.fovHorizontal === "number" &&
-    Number.isFinite(state.intrinsics.fovHorizontal)
-      ? { fovHorizontal: state.intrinsics.fovHorizontal }
+      ? { fov: radToDegNumeric(state.intrinsics.fov) }
       : {}),
   };
 };
@@ -129,12 +125,12 @@ export const formatTargetSummary = (
   }
 
   return [
-    `${radToDegNumeric(target.longitude).toFixed(5)}`,
-    `${radToDegNumeric(target.latitude).toFixed(5)}`,
+    `${target.lng.toFixed(5)}`,
+    `${target.lat.toFixed(5)}`,
     `${target.altitude.toFixed(1)}m`,
-    `b ${radToDegNumeric(target.bearing).toFixed(1)}°`,
-    `p ${radToDegNumeric(target.pitch).toFixed(1)}°`,
-    `r ${target.range.toFixed(1)}m`,
+    `b ${(target.bearing ?? 0).toFixed(1)}°`,
+    `p ${(target.pitch ?? 0).toFixed(1)}°`,
+    `r ${target.range?.toFixed(1) ?? "unresolved"}m`,
   ].join(" • ");
 };
 
@@ -267,8 +263,16 @@ const formatViewSyncTargetTableRows = (
     ];
   }
 
-  const fovVertical = target.fovVertical ?? target.fovLongerEdge;
-  const fovHorizontal = target.fovHorizontal ?? target.fovLongerEdge;
+  const fovVertical =
+    target.fov ??
+    (typeof intrinsics?.fov === "number" && Number.isFinite(intrinsics.fov)
+      ? radToDegNumeric(intrinsics.fov)
+      : undefined);
+  const fovHorizontal =
+    (typeof intrinsics?.fovHorizontal === "number" &&
+    Number.isFinite(intrinsics.fovHorizontal)
+      ? radToDegNumeric(intrinsics.fovHorizontal)
+      : undefined) ?? fovVertical;
   const projectionZoom = Number.isFinite(target.zoom) ? target.zoom : null;
 
   return [
@@ -279,11 +283,11 @@ const formatViewSyncTargetTableRows = (
     },
     {
       label: "longitude",
-      value: `${formatAlignedNumber(radToDegNumeric(target.longitude), 5)}°`,
+      value: `${formatAlignedNumber(target.lng, 5)}°`,
     },
     {
       label: "latitude",
-      value: `${formatAlignedNumber(radToDegNumeric(target.latitude), 5)}°`,
+      value: `${formatAlignedNumber(target.lat, 5)}°`,
     },
     {
       cueLabel: "ℎ",
@@ -302,19 +306,21 @@ const formatViewSyncTargetTableRows = (
       cueLabel: "b",
       cueColor: BEARING_CUE_COLOR,
       label: "bearing",
-      value: `${formatAlignedNumber(radToDegNumeric(target.bearing), 1)}°`,
+      value: `${formatAlignedNumber(target.bearing ?? 0, 1)}°`,
     },
     {
       cueLabel: "p",
       cueColor: PITCH_CUE_COLOR,
       label: "pitch",
-      value: `${formatAlignedNumber(radToDegNumeric(target.pitch), 1)}°`,
+      value: `${formatAlignedNumber(target.pitch ?? 0, 1)}°`,
     },
     {
       cueLabel: "r",
       cueColor: RANGE_CUE_COLOR,
       label: "range",
-      value: formatAlignedNumber(target.range, 1, "m"),
+      value: Number.isFinite(target.range)
+        ? formatAlignedNumber(target.range, 1, "m")
+        : "unresolved",
     },
     {
       label: "zoom equiv.",
@@ -337,11 +343,11 @@ const formatViewSyncTargetTableRows = (
       value: `${formatOrUnresolved(
         fovVertical,
         (resolvedFovVertical) =>
-          `${formatCompactNumber(radToDegNumeric(resolvedFovVertical), 1)}°`
+          `${formatCompactNumber(resolvedFovVertical, 1)}°`
       )} / ${formatOrUnresolved(
         fovHorizontal,
         (resolvedFovHorizontal) =>
-          `${formatCompactNumber(radToDegNumeric(resolvedFovHorizontal), 1)}°`
+          `${formatCompactNumber(resolvedFovHorizontal, 1)}°`
       )}`,
     },
     {
