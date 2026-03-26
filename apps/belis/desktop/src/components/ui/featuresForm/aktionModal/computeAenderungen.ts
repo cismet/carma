@@ -123,6 +123,19 @@ export const computeAenderungen = (
         break;
       }
 
+      case "number": {
+        const newVal = formValues[field.name];
+        if (newVal != null) {
+          const oldVal = obj[field.name];
+          aenderungen.push({
+            field: field.label,
+            alt: oldVal != null ? String(oldVal) : null,
+            neu: String(newVal),
+          });
+        }
+        break;
+      }
+
       case "text":
       case "textarea": {
         const newVal = formValues[field.name];
