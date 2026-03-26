@@ -1074,7 +1074,7 @@ const BelisMapLibWrapper = ({
     return () => {
       cancelled = true;
     };
-  }, [sidebarVariant, selectedTeamId, jwt, dispatch]);
+  }, [sidebarVariant, selectedTeamId, jwt, dispatch, featureDataVersion]);
 
   // --- Arbeitsauftraege: GraphQL fetch draft AAs by IDs when in draft mode ---
   useEffect(() => {
