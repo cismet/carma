@@ -18,6 +18,7 @@ import {
 import { Navigation } from "./components/Navigation";
 import { viewerRoutes, otherRoutes } from "./routes";
 import { routeGenerator } from "./utils/routeGenerator";
+import { CESIUM_HOME_POSITION } from "./config/store.config";
 
 import "leaflet/dist/leaflet.css";
 import "cesium/Build/Cesium/Widgets/widgets.css";
@@ -72,7 +73,10 @@ export function App() {
                       ref={viewerContainerRef}
                       style={{ position: "absolute", inset: 0 }}
                     />
-                    <CustomViewer containerRef={viewerContainerRef} />
+                    <CustomViewer
+                      containerRef={viewerContainerRef}
+                      homeValidationCenter={CESIUM_HOME_POSITION}
+                    />
                     <div
                       style={{
                         pointerEvents: "none",

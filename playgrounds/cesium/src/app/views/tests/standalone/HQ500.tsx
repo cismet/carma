@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef } from "react";
+import { useCallback, useEffect, useMemo, useRef } from "react";
 
 import { CesiumTerrainProvider, Color, Terrain } from "cesium";
 
@@ -19,11 +19,11 @@ import {
   CustomViewer,
   isValidCesiumTerrainProvider,
   useCesiumContext,
-  useHomeControl,
   useZoomControls as useZoomControlsCesium,
 } from "@carma-mapping/engines/cesium";
 
 import "cesium/Build/Cesium/Widgets/widgets.css";
+import { CESIUM_HOME_POSITION } from "../../../config/store.config";
 
 const TERRAIN_HQ500_CM = "https://cesium-wupp-terrain.cismet.de/HQ500cm/";
 
@@ -37,11 +37,16 @@ export const HQ500 = () => {
   // State and Selectors
   const ctx = useCesiumContext();
   const { viewerRef, withScene } = ctx;
-  const homeControl = useHomeControl();
   const {
     handleZoomIn: handleZoomInCesium,
     handleZoomOut: handleZoomOutCesium,
   } = useZoomControlsCesium(ctx);
+  const handleHomeClick = useCallback(() => {
+    ctx.withViewer((viewer) => {
+      viewer.camera.flyHome(0.5);
+      viewer.scene.requestRender();
+    });
+  }, [ctx]);
 
   console.debug("RENDER: [DEMOAPP] MAP");
   rerenderCountRef.current++;
@@ -101,9 +106,7 @@ export const HQ500 = () => {
 
       <Control position="topleft" order={40}>
         <ControlButtonStyler
-          onClick={() => {
-            homeControl();
-          }}
+          onClick={handleHomeClick}
         >
           <FontAwesomeIcon icon={faHouseChimney} className="text-lg" />
         </ControlButtonStyler>
@@ -124,6 +127,7 @@ export const HQ500 = () => {
           */}
           <CustomViewer
             containerRef={container3dMapRef}
+            homeValidationCenter={CESIUM_HOME_POSITION}
             cameraLimiterOptions={{
               pitchLimiter: false,
             }}
