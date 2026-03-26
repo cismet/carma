@@ -1042,6 +1042,22 @@ const BelisMapLibWrapper = ({
     }
   }, [sidebarVariant]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  // Clear map selection when the user switches to a different team so the
+  // info box doesn't show stale data from the previous team.
+  const prevTeamIdRef = useRef(selectedTeamId);
+  const teamVersionRef = useRef(0);
+  useEffect(() => {
+    const prev = prevTeamIdRef.current;
+    prevTeamIdRef.current = selectedTeamId;
+    // Only clear when switching from one real team to another real team.
+    // Skip null ↔ value transitions (draft mode enter/exit).
+    if (prev != null && selectedTeamId != null && prev !== selectedTeamId) {
+      teamVersionRef.current += 1;
+      clearMapSelection();
+      setOverrideSelectedFeature(null);
+    }
+  }, [selectedTeamId]); // eslint-disable-line react-hooks/exhaustive-deps
+
   // --- Arbeitsauftraege: GraphQL fetch when team is selected ---
   useEffect(() => {
     if (sidebarVariant !== "arbeitsauftraege" || selectedTeamId == null || !jwt)
@@ -1745,11 +1761,14 @@ const BelisMapLibWrapper = ({
         const aaFeature = aaFeatures.find((f) => f.id === aaId);
         if (aaFeature) {
           const mappingCode = aaInfoboxMapping.join("\n");
+          const versionAtStart = teamVersionRef.current;
           objectToInfo(
             aaFeature as unknown as Record<string, unknown>,
             mappingCode
           )
             .then((info) => {
+              // Team changed while async — discard stale result
+              if (teamVersionRef.current !== versionAtStart) return;
               if (info) {
                 const genericLinks: {
                   iconname: string;
