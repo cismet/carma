@@ -1,3 +1,4 @@
+import { describe, expect, it } from "vitest";
 import { formatDecimalNumber } from "./decimal-format";
 
 describe("formatDecimalNumber", () => {

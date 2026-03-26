@@ -39,14 +39,7 @@ export const useRegisterMapFramework = (
       getLeafletMap,
       getCesiumScene,
       getCesiumContainer,
-      getCesiumTerrainProviders: () => ({
-        TERRAIN:
-          getCesiumTerrainProviders().TERRAIN ??
-          (null as unknown as CesiumTerrainProvider),
-        SURFACE:
-          getCesiumTerrainProviders().SURFACE ??
-          (null as unknown as CesiumTerrainProvider),
-      }),
+      getCesiumTerrainProviders,
     });
   }, [
     options,

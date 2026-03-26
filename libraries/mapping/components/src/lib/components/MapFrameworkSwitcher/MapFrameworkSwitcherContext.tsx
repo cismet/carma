@@ -60,8 +60,8 @@ export interface MapFrameworkSwitcherRefs {
   getCesiumScene: () => Scene | null | undefined;
   getCesiumContainer: () => HTMLElement | null | undefined;
   getCesiumTerrainProviders: () => {
-    TERRAIN: CesiumTerrainProvider;
-    SURFACE: CesiumTerrainProvider;
+    TERRAIN: CesiumTerrainProvider | null;
+    SURFACE: CesiumTerrainProvider | null;
   };
 }
 
@@ -244,8 +244,8 @@ export const MapFrameworkSwitcherProvider = ({
     getCesiumScene: () => null,
     getCesiumContainer: () => null,
     getCesiumTerrainProviders: () => ({
-      TERRAIN: null as unknown as CesiumTerrainProvider,
-      SURFACE: null as unknown as CesiumTerrainProvider,
+      TERRAIN: null,
+      SURFACE: null,
     }),
   });
 
