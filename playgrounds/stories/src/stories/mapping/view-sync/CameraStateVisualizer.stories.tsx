@@ -8,9 +8,9 @@ import {
   type ViewStateVisualizerVisualizedOptions,
 } from "@carma-mapping/engines/three/primitives";
 import {
-  buildCommonViewState,
-  type CommonViewState,
-} from "@carma-mapping/engines-interop/view-sync";
+  buildViewState,
+  type ViewState,
+} from "@carma-mapping/engines-interop/view-state";
 import { clamp, PI_OVER_TWO } from "@carma/math";
 import { degToRadNumeric, radToDegNumeric } from "@carma/units/helpers";
 import type { Meta, StoryObj } from "@storybook/react";
@@ -118,8 +118,8 @@ const createViewState = (
   args: CameraStateVisualizerStoryProps,
   bearingRad: number,
   pitchRad: number
-): CommonViewState =>
-  buildCommonViewState({
+): ViewState =>
+  buildViewState({
     longitude: 0,
     latitude: 0,
     altitude: args.altitudeM,

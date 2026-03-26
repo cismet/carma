@@ -181,34 +181,26 @@ export const PitchingCompass: React.FC<RotateButtonProps> = ({
     });
   }, [cesiumCtx, durationReset, initialRange, sceneAnimationMapRef]);
 
+  const registerNeedleOrientation = useCallback(
+    (setOrientation: (p: Radians, h: Radians) => void) => {
+      needleOrientationRef.current = setOrientation;
+    },
+    []
+  );
+
   useEffect(() => {
     const animationMap = sceneAnimationMapRef.current;
     let cleanup;
     cesiumCtx.withScene((scene) => {
       const camera = scene.camera;
-      const getCameraOrientation = () => {
-        // TODO why double withCamera here in original code?
-        needleOrientationRef.current?.(
-          camera.pitch as Radians,
-          camera.heading as Radians
-        );
-      };
-
       try {
         const handler = new ScreenSpaceEventHandler(scene.canvas);
         handler.setInputAction(() => {
           cancelSceneAnimation(scene, animationMap);
         }, ScreenSpaceEventType.LEFT_DOWN);
 
-        guardCamera(camera, "compass setup").changed.addEventListener(
-          getCameraOrientation
-        );
-
         cleanup = () => {
           isValidScreenSpaceEventHandler(handler) && handler.destroy();
-          guardCamera(camera, "compass cleanup").changed.removeEventListener(
-            getCameraOrientation
-          );
         };
       } catch (error) {
         console.warn("Error setting up screen space event handler:", error);
@@ -239,6 +231,7 @@ export const PitchingCompass: React.FC<RotateButtonProps> = ({
           applyRollToHeadingForCameraNearNadir(camera)
         );
       };
+      updateOrientation();
       camera.percentageChanged = 0.01;
       guardCamera(camera).changed.addEventListener(updateOrientation);
 
@@ -268,8 +261,8 @@ export const PitchingCompass: React.FC<RotateButtonProps> = ({
         justifyContent: "center",
         alignItems: "center",
       }}
-    >
-      <Needle register={(fn) => (needleOrientationRef.current = fn)} />
+      >
+      <Needle register={registerNeedleOrientation} />
     </div>
   );
 };

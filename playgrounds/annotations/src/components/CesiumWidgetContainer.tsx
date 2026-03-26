@@ -143,7 +143,7 @@ const ensureScreenCenterTerrainIntersection = async (
   }
 
   console.warn(
-    "[annotations-playground] Missing terrain intersection at screen center during startup. Continuing with scene-state fallback handling."
+    "[annotations-playground] Missing terrain intersection at screen center during startup. Continuing with view-state fallback handling."
   );
   return false;
 };

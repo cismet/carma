@@ -1,4 +1,4 @@
-import { useMemo, useRef } from "react";
+import { useEffect, useMemo, useRef } from "react";
 
 import {
   Cartesian3,
@@ -17,10 +17,12 @@ import {
   useLineVisualizers,
   usePointLabels,
 } from "@carma-providers/label-overlay";
-import { useCesiumSceneStateOptional } from "@carma-mapping/engines/cesium/react/scene-state";
+import { useCesiumOverlayView } from "@carma-mapping/engines/cesium/react/interactions";
+import { useCesiumSceneVisibilityIndex } from "@carma-mapping/engines/cesium/react/visibility";
 import type { CssPixelPosition } from "@carma/units/types";
 
 const CANDIDATE_HEIGHT_LABEL_ID = "measurement-candidate-height";
+const CANDIDATE_POINT_VISIBILITY_ID = "measurement-candidate-point";
 const CANDIDATE_VERTICAL_OFFSET_STEM_ID =
   "measurement-candidate-vertical-offset-stem";
 
@@ -96,12 +98,40 @@ export const usePointCandidateDomOverlay = (
 
   const hasCandidatePoint = Boolean(candidatePointECEF);
   const hasCandidateAuxAnchor = Boolean(candidateVerticalOffsetAnchorECEF);
-  const sceneState = useCesiumSceneStateOptional();
-  const cameraPitch =
-    sceneState?.camera.pitchRad ?? scene?.camera.pitch ?? -Math.PI / 4;
+  const overlayView = useCesiumOverlayView(scene);
+  const cameraPitch = overlayView.derivedView?.pitch ?? 0;
+  const { registerPoints, unregisterPointIds, visibilityStateById } =
+    useCesiumSceneVisibilityIndex(scene, {
+      shouldTestVisibility: true,
+      shouldTestOcclusion: true,
+      realtimeOcclusionPointIds: hasCandidatePoint
+        ? [CANDIDATE_POINT_VISIBILITY_ID]
+        : [],
+      viewportPaddingHorizontal: 12,
+      viewportPaddingVertical: 8,
+      occlusionToleranceMeters: 1.0,
+    });
 
   candidateElevatedPointRef.current = candidatePointECEF;
   candidateAuxAnchorRef.current = candidateVerticalOffsetAnchorECEF;
+
+  useEffect(() => {
+    if (!candidatePointECEF) {
+      unregisterPointIds([CANDIDATE_POINT_VISIBILITY_ID]);
+      return;
+    }
+
+    registerPoints([
+      {
+        id: CANDIDATE_POINT_VISIBILITY_ID,
+        positionECEF: candidatePointECEF,
+      },
+    ]);
+
+    return () => {
+      unregisterPointIds([CANDIDATE_POINT_VISIBILITY_ID]);
+    };
+  }, [candidatePointECEF, registerPoints, unregisterPointIds]);
 
   const candidateLabelLayoutConfig = useMemo(
     () => resolvePointLabelLayoutConfig(labelLayoutConfig),
@@ -152,24 +182,10 @@ export const usePointCandidateDomOverlay = (
       {
         id: CANDIDATE_HEIGHT_LABEL_ID,
         getCanvasPosition: () => {
-          if (!scene || scene.isDestroyed()) {
-            return null;
-          }
-          const elevatedPoint = candidateElevatedPointRef.current;
-          if (!elevatedPoint) {
-            return null;
-          }
-          const canvasPosition = SceneTransforms.worldToWindowCoordinates(
-            scene,
-            elevatedPoint
+          return (
+            visibilityStateById[CANDIDATE_POINT_VISIBILITY_ID]
+              ?.screenPosition ?? null
           );
-          if (!defined(canvasPosition)) {
-            return null;
-          }
-          return {
-            x: canvasPosition.x,
-            y: canvasPosition.y,
-          } as CssPixelPosition;
         },
         content: text,
         collapse: true,
@@ -179,6 +195,11 @@ export const usePointCandidateDomOverlay = (
         labelAngleRad: candidateHeightLabelPlacement.angleRad,
         labelAttach: candidateHeightLabelPlacement.attach,
         hideMarker: true,
+        isOccluded:
+          visibilityStateById[CANDIDATE_POINT_VISIBILITY_ID]?.isOccluded ??
+          false,
+        isHidden:
+          visibilityStateById[CANDIDATE_POINT_VISIBILITY_ID]?.isHidden ?? false,
         labelDistance:
           candidateHeightLabelPlacement.distance +
           CANDIDATE_PILL_STEM_EXTRA_DISTANCE_PX,
@@ -195,6 +216,7 @@ export const usePointCandidateDomOverlay = (
     previewDistanceMeters,
     candidateHasReferenceElevation,
     candidateReferenceElevation,
+    visibilityStateById,
   ]);
 
   const candidateVerticalOffsetStemLines = useMemo(() => {

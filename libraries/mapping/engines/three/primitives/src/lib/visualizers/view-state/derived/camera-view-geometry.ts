@@ -1,11 +1,11 @@
 import {
   CAMERA_TYPE,
-  readObjectCentricCameraBasis,
+  readLocalCameraBasis,
 } from "@carma-commons/camera/model";
 import {
   deriveOrbitAngles,
-  type CommonViewState,
-} from "@carma-mapping/engines-interop/view-sync";
+  type ViewState,
+} from "@carma-mapping/engines-interop/view-state";
 import {
   clamp,
   isFiniteNumber,
@@ -28,14 +28,14 @@ const normalizeBearing = (bearingRadians: number): number =>
 const clampPerspectiveFovRad = (fovRadians: number): number =>
   clamp(fovRadians, OPEN_FOV_EPSILON_RAD, PI - OPEN_FOV_EPSILON_RAD);
 
-const readHorizontalFov = (viewState: CommonViewState): number | null => {
+const readHorizontalFov = (viewState: ViewState): number | null => {
   const fovHorizontal = viewState.intrinsics?.fovHorizontal;
   return isFiniteNumber(fovHorizontal)
     ? clampPerspectiveFovRad(fovHorizontal)
     : null;
 };
 
-const readVerticalFov = (viewState: CommonViewState): number | null => {
+const readVerticalFov = (viewState: ViewState): number | null => {
   const fovVertical = viewState.intrinsics?.fov;
   return isFiniteNumber(fovVertical)
     ? clampPerspectiveFovRad(fovVertical)
@@ -50,7 +50,7 @@ const readImagePlaneDistance = ({
   maxDistance,
   hemisphereRadius,
 }: {
-  viewState: CommonViewState;
+  viewState: ViewState;
   visualized: ResolvedViewStateVisualizerVisualizedOptions;
   distance: number;
   minHalfExtent: number;
@@ -107,7 +107,7 @@ export const computeUnitHemisphereCameraPosition = ({
   viewState,
   hemisphereRadius,
 }: {
-  viewState: CommonViewState;
+  viewState: ViewState;
   hemisphereRadius: number;
 }): Vector3 =>
   (() => {
@@ -123,16 +123,14 @@ const resolveCameraBasis = ({
   viewState,
   hemisphereRadius,
 }: {
-  viewState: CommonViewState;
+  viewState: ViewState;
   hemisphereRadius: number;
 }) => {
   const cameraPosition = computeUnitHemisphereCameraPosition({
     viewState,
     hemisphereRadius,
   });
-  const { forward, right, up } = readObjectCentricCameraBasis(
-    viewState.orientation
-  );
+  const { forward, right, up } = readLocalCameraBasis(viewState.orientation);
 
   return {
     cameraPosition,
@@ -171,7 +169,7 @@ export const buildImagePlaneGeometry = ({
   imagePlaneDefaults,
   epsilon,
 }: {
-  viewState: CommonViewState;
+  viewState: ViewState;
   visualized: ResolvedViewStateVisualizerVisualizedOptions;
   hemisphereRadius: number;
   imagePlaneDefaults: {

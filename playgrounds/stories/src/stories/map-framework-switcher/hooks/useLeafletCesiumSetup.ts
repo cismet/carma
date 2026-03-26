@@ -3,7 +3,7 @@
  * Handles terrain providers, map creation, and cleanup
  */
 
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import {
   CesiumWidget,
   CesiumTerrainProvider,
@@ -40,7 +40,10 @@ export interface LeafletCesiumRefs {
 }
 
 export interface UseLeafletCesiumSetupReturn extends LeafletCesiumRefs {
+  isLeafletReady: boolean;
+  isCesiumReady: boolean;
   mapsInitialized: boolean;
+  ensureCesiumReady: () => Promise<void>;
 }
 
 /**
@@ -61,7 +64,8 @@ export interface UseLeafletCesiumSetupReturn extends LeafletCesiumRefs {
 export const useLeafletCesiumSetup = (
   options: LeafletCesiumSetupOptions = {}
 ): UseLeafletCesiumSetupReturn => {
-  const [mapsInitialized, setMapsInitialized] = useState(false);
+  const [isLeafletReady, setIsLeafletReady] = useState(false);
+  const [isCesiumReady, setIsCesiumReady] = useState(false);
 
   const leafletContainerRef = useRef<HTMLDivElement>(null);
   const cesiumContainerRef = useRef<HTMLDivElement>(null);
@@ -72,60 +76,91 @@ export const useLeafletCesiumSetup = (
     TERRAIN: CesiumTerrainProvider | null;
     SURFACE: CesiumTerrainProvider | null;
   }>({ TERRAIN: null, SURFACE: null });
+  const cesiumInitPromiseRef = useRef<Promise<void> | null>(null);
+  const isUnmountedRef = useRef(false);
 
-  // Initialize maps
   useEffect(() => {
-    if (!leafletContainerRef.current || !cesiumContainerRef.current) return;
+    const leafletContainer = leafletContainerRef.current;
+    if (!leafletContainer || leafletMapRef.current) {
+      return;
+    }
 
-    const initMaps = async () => {
-      if (!leafletContainerRef.current || !cesiumContainerRef.current) return;
+    try {
+      const leafletMap = initializeLeaflet(leafletContainer, options.leaflet);
+      leafletMapRef.current = leafletMap;
+      if (!isUnmountedRef.current) {
+        setIsLeafletReady(true);
+      }
+    } catch (error) {
+      console.error("Leaflet initialization error:", error);
+    }
+  }, [options.leaflet]);
 
-      try {
-        // Initialize Leaflet with helper
-        const leafletMap = initializeLeaflet(
-          leafletContainerRef.current,
-          options.leaflet
-        );
-        leafletMapRef.current = leafletMap;
-      } catch (error) {
-        console.error("Leaflet initialization error:", error);
+  const ensureCesiumReady = useCallback(async () => {
+    const widget = cesiumWidgetRef.current;
+    if (widget && !widget.isDestroyed()) {
+      if (!isCesiumReady && !isUnmountedRef.current) {
+        setIsCesiumReady(true);
+      }
+      return;
+    }
+
+    if (cesiumInitPromiseRef.current) {
+      await cesiumInitPromiseRef.current;
+      return;
+    }
+
+    const cesiumContainer = cesiumContainerRef.current;
+    if (!cesiumContainer) {
+      throw new Error("Cesium story container is not mounted.");
+    }
+
+    const initPromise = (async () => {
+      const providers = await initializeTerrainProviders(
+        options.cesium?.terrainProviderUrl,
+        options.cesium?.surfaceProviderUrl
+      );
+      terrainProvidersRef.current = providers;
+
+      const nextWidget = initializeCesium(cesiumContainer, options.cesium);
+      cesiumWidgetRef.current = nextWidget;
+
+      await waitForRenderFrames(nextWidget.scene);
+
+      if (!isUnmountedRef.current) {
+        setIsCesiumReady(true);
       }
 
-      try {
-        // Initialize terrain providers first (before widget creation)
-        const providers = await initializeTerrainProviders(
-          options.cesium?.terrainProviderUrl,
-          options.cesium?.surfaceProviderUrl
-        );
-        terrainProvidersRef.current = providers;
-
-        // Initialize Cesium with helper
-        const widget = initializeCesium(
-          cesiumContainerRef.current,
-          options.cesium
-        );
-        cesiumWidgetRef.current = widget;
-
-        // Wait for scene to be ready before signaling initialization
-        // Use waitForRenderFrames helper to ensure scene is valid
-        waitForRenderFrames(widget.scene).then(() => {
-          setMapsInitialized(true);
-        });
-
-        // Load tileset (async, don't block)
-        loadTileset(widget, options.cesium?.tilesetUrl).then((tileset) => {
-          if (tileset) {
-            tilesetRef.current = tileset;
-          }
-        });
-      } catch (error) {
-        console.error("Cesium initialization error:", error);
+      const tileset = await loadTileset(nextWidget, options.cesium?.tilesetUrl);
+      if (tileset) {
+        tilesetRef.current = tileset;
       }
-    };
+    })();
 
-    initMaps();
+    cesiumInitPromiseRef.current = initPromise;
 
+    try {
+      await initPromise;
+    } catch (error) {
+      console.error("Cesium initialization error:", error);
+      throw error;
+    } finally {
+      if (cesiumInitPromiseRef.current === initPromise) {
+        cesiumInitPromiseRef.current = null;
+      }
+    }
+  }, [
+    isCesiumReady,
+    options.cesium,
+    options.cesium?.surfaceProviderUrl,
+    options.cesium?.terrainProviderUrl,
+    options.cesium?.tilesetUrl,
+  ]);
+
+  useEffect(() => {
     return () => {
+      isUnmountedRef.current = true;
+
       try {
         if (leafletMapRef.current) {
           leafletMapRef.current.remove();
@@ -153,8 +188,7 @@ export const useLeafletCesiumSetup = (
         console.error("Error cleaning up Cesium:", error);
       }
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []); // Empty deps - initialize once on mount, cleanup on unmount
+  }, []);
 
   return {
     leafletContainerRef,
@@ -163,6 +197,9 @@ export const useLeafletCesiumSetup = (
     cesiumWidgetRef,
     tilesetRef,
     terrainProvidersRef,
-    mapsInitialized,
+    isLeafletReady,
+    isCesiumReady,
+    mapsInitialized: isCesiumReady,
+    ensureCesiumReady,
   };
 };

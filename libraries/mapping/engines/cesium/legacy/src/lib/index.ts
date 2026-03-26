@@ -15,8 +15,8 @@ export {
 
 export {
   CustomViewer,
-  type InitialCameraView,
   type CameraLimiterOptions,
+  type InitialCameraView,
 } from "./CustomViewer";
 export { DEFAULT_VIEWER_CONSTRUCTOR_OPTIONS } from "./viewerDefaults";
 
@@ -24,7 +24,6 @@ export { ByGeojsonClassifier } from "./components/ByGeojsonClassifier";
 export { ByTilesetClassifier } from "./components/ByTilesetClassifier";
 
 export { Compass } from "./components/controls/Compass";
-export { HomeControl } from "./components/controls/HomeControl";
 export { MarkerContainer } from "./components/MarkerContainer";
 export { PitchingCompass } from "./components/controls/PitchingCompass";
 export { SceneStyleToggle } from "./components/controls/SceneStyleToggle";
@@ -38,7 +37,6 @@ export {
   useCesiumModelManager,
   type UseCesiumModelManagerOptions,
 } from "./hooks/useCesiumModelManager";
-export { useHomeControl } from "./hooks/useHomeControl";
 export { useFovWheelZoom } from "./hooks/useFovWheelZoom";
 export { useGeometryInstanceOpacityAnimation } from "./hooks/useGeometryInstanceOpacityAnimation";
 export { useSceneStyles } from "./hooks/useSceneStyles";

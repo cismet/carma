@@ -1,4 +1,4 @@
-import { useContext, useEffect, useRef, useState } from "react";
+import { useCallback, useContext, useEffect, useRef, useState } from "react";
 import { isMobile } from "react-device-detect";
 import { useDispatch, useSelector } from "react-redux";
 
@@ -32,9 +32,10 @@ import { ResponsiveStatusBar } from "@carma-commons/ui/components";
 import {
   PitchingCompass,
   useCesiumContext,
-  useHomeControl,
   useZoomControls as useZoomControlsCesium,
 } from "@carma-mapping/engines/cesium";
+import type { SceneLike } from "@carma-mapping/engines/cesium/api";
+import { flyToCesium } from "@carma-mapping/engines-interop/view-state";
 import {
   MapFrameworkSwitcher,
   FullscreenControl,
@@ -89,6 +90,12 @@ import {
   toggleUIMode,
   UIMode,
 } from "../../../store/slices/ui.ts";
+import {
+  DEFAULT_HOME_CENTER,
+  DEFAULT_HOME_LEAFLET_ZOOM,
+  DEFAULT_HOME_MAPLIBRE_ZOOM,
+  DEFAULT_HOME_VIEW_STATE,
+} from "../../../config/view.config";
 
 // detect GPU support, disables 3d mode if not supported
 let hasGPU = false;
@@ -136,7 +143,6 @@ const MapWrapper = () => {
   const showLocatorButton = useSelector(getShowLocatorButton);
   const zenMode = useSelector(getZenMode);
   const ctx = useCesiumContext();
-  const homeControl = useHomeControl();
   const configSelection = useSelector(getConfigSelection);
 
   const { isObliqueMode, isPreviewVisible: isObliquePreviewVisible } =
@@ -149,6 +155,13 @@ const MapWrapper = () => {
     fovMode: isObliqueMode,
   });
   const { zoomInLeaflet, zoomOutLeaflet } = useLeafletZoomControls();
+  const handleCesiumHomeClick = useCallback(() => {
+    ctx.withScene((scene) => {
+      flyToCesium(scene as unknown as SceneLike, DEFAULT_HOME_VIEW_STATE, {
+        duration: 2,
+      });
+    });
+  }, [ctx]);
 
   const { responsiveState, gap, windowSize } = useContext<
     typeof ResponsiveTopicMapContext
@@ -365,17 +378,17 @@ const MapWrapper = () => {
                     if (showLibreMap) {
                       if (libreMapRef.current) {
                         libreMapRef.current.flyTo({
-                          center: [7.199918031692506, 51.272570027476256],
-                          zoom: 17,
+                          center: [DEFAULT_HOME_CENTER.lng, DEFAULT_HOME_CENTER.lat],
+                          zoom: DEFAULT_HOME_MAPLIBRE_ZOOM,
                           essential: true,
                         });
                       }
                     } else {
                       routedMap.leafletMap.leafletElement.flyTo(
-                        [51.272570027476256, 7.199918031692506],
-                        18
+                        [DEFAULT_HOME_CENTER.lat, DEFAULT_HOME_CENTER.lng],
+                        DEFAULT_HOME_LEAFLET_ZOOM
                       );
-                      homeControl();
+                      handleCesiumHomeClick();
                     }
                   }}
                   dataTestId="home-control"

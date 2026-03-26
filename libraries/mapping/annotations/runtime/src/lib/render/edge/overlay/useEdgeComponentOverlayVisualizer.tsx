@@ -36,7 +36,7 @@ import {
   useLineVisualizers,
   type LineVisualizerData,
 } from "@carma-providers/label-overlay";
-import { useCesiumSceneStateOptional } from "@carma-mapping/engines/cesium/react/scene-state";
+import { useCesiumOverlayView } from "@carma-mapping/engines/cesium/react/interactions";
 
 import {
   applyMidpointMarkerOverlayLayout,
@@ -111,9 +111,8 @@ export const useEdgeComponentOverlayVisualizer = (
   const cornerOverlayIdsRef = useRef<string[]>([]);
   const midpointOverlayIdsRef = useRef<string[]>([]);
   const verticalLabelSideByRelationIdRef = useRef<Record<string, -1 | 1>>({});
-  const sceneState = useCesiumSceneStateOptional();
-  const cameraPitch =
-    sceneState?.camera.pitchRad ?? scene?.camera.pitch ?? -Math.PI / 4;
+  const overlayView = useCesiumOverlayView(scene);
+  const cameraPitch = overlayView.derivedView?.pitch ?? 0;
 
   const { addLabelOverlayElement, removeLabelOverlayElement } =
     useLabelOverlay();

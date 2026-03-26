@@ -9,10 +9,10 @@ import { CesiumTerrainProvider, type Scene } from "@carma/cesium";
 import { useMapFrameworkSwitcherContext } from "./MapFrameworkSwitcherContext";
 
 interface UseRegisterMapFrameworkParams {
-  leafletMap: LeafletMap | null;
-  cesiumScene: Scene | null;
-  cesiumContainer: HTMLElement | null;
-  terrainProviders: {
+  getLeafletMap: () => LeafletMap | null | undefined;
+  getCesiumScene: () => Scene | null | undefined;
+  getCesiumContainer: () => HTMLElement | null | undefined;
+  getCesiumTerrainProviders: () => {
     TERRAIN: CesiumTerrainProvider | null;
     SURFACE: CesiumTerrainProvider | null;
   };
@@ -28,21 +28,32 @@ export const useRegisterMapFramework = (
   const { registerRefs } = useMapFrameworkSwitcherContext();
   useEffect(() => {
     if (!options) return;
-    const { leafletMap, cesiumScene, cesiumContainer, terrainProviders } =
-      options;
+    const {
+      getLeafletMap,
+      getCesiumScene,
+      getCesiumContainer,
+      getCesiumTerrainProviders,
+    } = options;
 
     registerRefs({
-      getLeafletMap: () => leafletMap,
-      getCesiumScene: () => cesiumScene,
-      getCesiumContainer: () => cesiumContainer,
+      getLeafletMap,
+      getCesiumScene,
+      getCesiumContainer,
       getCesiumTerrainProviders: () => ({
         TERRAIN:
-          terrainProviders.TERRAIN ??
+          getCesiumTerrainProviders().TERRAIN ??
           (null as unknown as CesiumTerrainProvider),
         SURFACE:
-          terrainProviders.SURFACE ??
+          getCesiumTerrainProviders().SURFACE ??
           (null as unknown as CesiumTerrainProvider),
       }),
     });
-  }, [options, registerRefs]);
+  }, [
+    options,
+    options?.getCesiumContainer,
+    options?.getCesiumScene,
+    options?.getCesiumTerrainProviders,
+    options?.getLeafletMap,
+    registerRefs,
+  ]);
 };

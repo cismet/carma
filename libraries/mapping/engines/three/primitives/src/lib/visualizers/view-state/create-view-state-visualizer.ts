@@ -4,8 +4,8 @@ import {
 } from "@carma-commons/interaction/rotation";
 import {
   deriveOrbitAngles,
-  type CommonViewState,
-} from "@carma-mapping/engines-interop/view-sync";
+  type ViewState,
+} from "@carma-mapping/engines-interop/view-state";
 import { clamp, isFiniteNumber, PI, PI_OVER_TWO } from "@carma/math";
 import {
   degToRadNumeric,
@@ -245,7 +245,7 @@ const createOverviewPerspectiveCamera = (fovDeg: number) => {
 
 export const createViewStateVisualizerPrimitive = (
   canvas: HTMLCanvasElement,
-  viewState: CommonViewState,
+  viewState: ViewState,
   options: ViewStateVisualizerOptions = {}
 ): ViewStateVisualizerPrimitive => {
   let size: ViewStateVisualizerSize = {
@@ -662,7 +662,7 @@ export const createViewStateVisualizerPrimitive = (
 
   // --- Update ---
   const update = (
-    nextViewState: CommonViewState
+    nextViewState: ViewState
   ): ViewStateVisualizerLabelAnchors => {
     lastViewState = nextViewState;
     const activeCamera = getActiveCamera();

@@ -11,13 +11,10 @@ import {
 import { type ViewStateVisualizerDisplayOptions } from "@carma-mapping/engines/three/primitives";
 import {
   deriveView,
-  projectViewSyncTargetToMapLibre,
-  readViewSyncHorizontalFov,
-  readViewSyncVerticalFov,
   useViewState,
-  type CommonViewState,
   type ViewState,
-} from "@carma-mapping/engines-interop/view-sync";
+  type ShareableViewState,
+} from "@carma-mapping/engines-interop/view-state";
 import { formatLengthMeters, radToDegNumeric } from "@carma/units/helpers";
 
 const FIGURE_SPACE = "\u2007";
@@ -77,7 +74,7 @@ const readIntrinsicsAspect = (
     : null;
 };
 
-const toOverlayViewState = (state: CommonViewState): ViewState => {
+const toOverlayViewState = (state: ViewState): ShareableViewState => {
   const derived = deriveView(state);
   return {
     longitude: derived.longitude,
@@ -100,7 +97,7 @@ const toOverlayViewState = (state: CommonViewState): ViewState => {
 };
 
 export const formatTargetSummary = (
-  target: ViewState | null | undefined
+  target: ShareableViewState | null | undefined
 ): string => {
   if (!target) {
     return "target unresolved";
@@ -117,7 +114,7 @@ export const formatTargetSummary = (
 };
 
 const formatViewSyncTargetTableRows = (
-  target: ViewState | null | undefined,
+  target: ShareableViewState | null | undefined,
   intrinsics: CameraIntrinsics | null | undefined
 ): ObjectCentricViewStateInfoRow[] => {
   if (!target) {
@@ -162,9 +159,9 @@ const formatViewSyncTargetTableRows = (
     ];
   }
 
-  const fovVertical = readViewSyncVerticalFov(target);
-  const fovHorizontal = readViewSyncHorizontalFov(target);
-  const projection = projectViewSyncTargetToMapLibre(target);
+  const fovVertical = target.fovVertical ?? target.fovLongerEdge;
+  const fovHorizontal = target.fovHorizontal ?? target.fovLongerEdge;
+  const projectionZoom = Number.isFinite(target.zoom) ? target.zoom : null;
 
   return [
     {
@@ -213,9 +210,10 @@ const formatViewSyncTargetTableRows = (
     },
     {
       label: "zoom equiv.",
-      value: projection
-        ? formatCompactNumber(projection.zoom, 2)
-        : "unresolved",
+      value:
+        projectionZoom !== null
+          ? formatCompactNumber(projectionZoom, 2)
+          : "unresolved",
     },
     {
       kind: "section",
@@ -272,7 +270,7 @@ const FRAMEWORK_STATUS_PREFIX_RE =
 const stripFrameworkStatusPrefix = (text: string): string =>
   text.replace(FRAMEWORK_STATUS_PREFIX_RE, "");
 
-const formatViewSyncJson = (target: ViewState | null | undefined) =>
+const formatViewSyncJson = (target: ShareableViewState | null | undefined) =>
   JSON.stringify(target ?? null, null, 2);
 
 export const buildPanelStatusText = (
@@ -307,7 +305,7 @@ export const ViewSyncMetaOverlay = ({
   fallbackTarget,
   style,
 }: {
-  fallbackTarget: CommonViewState;
+  fallbackTarget: ViewState;
   style?: CSSProperties;
 }) => {
   const currentState = useViewState();

@@ -7,7 +7,6 @@ import { getPixelResolutionFromZoomAtLatitudeRad } from "@carma/geo/utils";
 import { Viewer } from "cesium";
 
 import {
-  BoundingSphere,
   Camera,
   Cartesian3,
   Cartographic,
@@ -38,8 +37,6 @@ import {
   selectScreenSpaceCameraControllerMinimumZoomDistance,
   selectScreenSpaceCameraControllerEnableCollisionDetection,
   selectShowSecondaryTileset,
-  selectViewerHome,
-  selectViewerHomeOffset,
   selectCurrentSceneStyle,
   selectSceneStylePrimary,
   selectSceneStyleSecondary,
@@ -68,11 +65,6 @@ const postRenderHandlerMap: WeakMap<Viewer, () => void> = new WeakMap();
 const cameraChangedHandlerMap: WeakMap<Viewer, () => void> = new WeakMap();
 const initialViewSetMap: WeakMap<Viewer, boolean> = new WeakMap();
 
-const DEFAULT_HPR = new HeadingPitchRange(
-  CesiumMath.toRadians(0),
-  CesiumMath.toRadians(-45),
-  1500
-);
 const DEFAULT_INITIAL_CAMERA_FOV_RAD = CesiumMath.PI_OVER_THREE;
 const CANONICAL_MAPLIBRE_TILE_SIZE_PX = 512;
 const MIN_INITIAL_CAMERA_RANGE_M = 0.01;
@@ -310,7 +302,8 @@ const waitForStableCameraAndViewport = async ({
 export const useInitializeViewer = (
   containerRef?: React.RefObject<HTMLDivElement>,
   options?: Viewer.ConstructorOptions,
-  initialCameraView?: InitialCameraView | null
+  initialCameraView?: InitialCameraView | null,
+  homeValidationCenter?: Cartesian3 | null
 ) => {
   const {
     viewerRef,
@@ -329,8 +322,6 @@ export const useInitializeViewer = (
     getImageryLayer,
   } = useCesiumContext();
 
-  const home = useSelector(selectViewerHome);
-  const homeOffset = useSelector(selectViewerHomeOffset);
   const isSecondaryStyle = useSelector(selectShowSecondaryTileset);
   const currentSceneStyle = useSelector(selectCurrentSceneStyle);
   const primaryStyle = useSelector(selectSceneStylePrimary);
@@ -425,8 +416,10 @@ export const useInitializeViewer = (
   // override cesium default home
   useEffect(() => {
     // align Cesium Default fallback with local home
-    if (home) {
-      const { longitude, latitude } = Cartographic.fromCartesian(home);
+    if (homeValidationCenter) {
+      const { longitude, latitude } = Cartographic.fromCartesian(
+        homeValidationCenter
+      );
       const rect = new Rectangle(
         longitude - 0.001,
         latitude - 0.001,
@@ -436,12 +429,11 @@ export const useInitializeViewer = (
 
       console.debug(
         "[CESIUM] HOOK: [CESIUM|INIT] override default cesium with configured home",
-        home
+        homeValidationCenter
       );
       Camera.DEFAULT_VIEW_RECTANGLE = rect;
-      Camera.DEFAULT_OFFSET = DEFAULT_HPR;
     }
-  }, [home]);
+  }, [homeValidationCenter]);
 
   useEffect(() => {
     const containerEl = containerRef?.current;
@@ -567,11 +559,11 @@ export const useInitializeViewer = (
         const handleValidCameraPosition = () => {
           //console.debug("[CESIUM] v", viewerRef.current?.scene.requestRenderMode);
           if (shouldSuspendCameraLimitersRef?.current) return;
-          if (!home) return;
+          if (!homeValidationCenter) return;
           withCamera((camera) => {
             const isValidWorldCoordinate = validateWorldCoordinate(
               camera,
-              home,
+              homeValidationCenter,
               maxZoom
             );
             if (isValidWorldCoordinate) {
@@ -625,7 +617,7 @@ export const useInitializeViewer = (
     initialCameraView,
     providersReady,
     viewerRef,
-    home,
+    homeValidationCenter,
     maxZoom,
     shouldSuspendCameraLimitersRef,
     isValidViewer,
@@ -716,27 +708,7 @@ export const useInitializeViewer = (
       return;
     }
 
-    const hasHome = !!home && !!homeOffset;
-    if (!hasHome) {
-      console.warn(
-        "[CESIUM] HOOK: [2D3D|CESIUM|CAMERA] initViewer has no home or homeOffset yet; applying hash camera without validation"
-      );
-    }
-
-    let willFlyHome = false;
     let cancelled = false;
-    let detachMoveEndListener: (() => void) | null = null;
-    const resetToHome = () => {
-      if (!hasHome) return;
-      withCamera((camera) => {
-        camera.lookAt(home, homeOffset);
-        willFlyHome = true;
-        camera.flyToBoundingSphere(new BoundingSphere(home, 500), {
-          duration: 2,
-        });
-      });
-    };
-
     let usedInitial = false;
     // suspend camera limiters during the initial apply to avoid unintended corrections
     if (shouldSuspendCameraLimitersRef) {
@@ -784,8 +756,13 @@ export const useInitializeViewer = (
       }
 
       if (destination) {
-        const isValidDestination = hasHome
-          ? validateWorldCoordinate(destination, home, maxZoom, 0)
+        const isValidDestination = homeValidationCenter
+          ? validateWorldCoordinate(
+              destination,
+              homeValidationCenter,
+              maxZoom,
+              0
+            )
           : true;
         withCamera((camera) => {
           if (isValidDestination) {
@@ -817,9 +794,9 @@ export const useInitializeViewer = (
             withViewer((viewer) => viewer.scene.requestRender());
           } else {
             console.warn(
-              "[CESIUM] invalid camera position restored, using default as fallback",
+              "[CESIUM] invalid initial camera position restored; skipping initial apply",
               destination,
-              home
+              homeValidationCenter
             );
           }
         });
@@ -830,12 +807,8 @@ export const useInitializeViewer = (
       );
     }
 
-    if (!usedInitial && hasHome) {
-      console.info(
-        "[CESIUM] Cesium Viewer initialized with default home position",
-        home
-      );
-      resetToHome();
+    if (!usedInitial) {
+      console.info("[CESIUM] Cesium Viewer initialized without initial view");
     }
     withViewer((viewer) => initialViewSetMap.set(viewer, true));
 
@@ -848,19 +821,6 @@ export const useInitializeViewer = (
       });
 
       if (!sceneRef || !cameraRef) return;
-
-      if (willFlyHome) {
-        await new Promise<void>((resolve) => {
-          const handler = () => {
-            cameraRef?.moveEnd.removeEventListener(handler);
-            detachMoveEndListener = null;
-            resolve();
-          };
-          cameraRef.moveEnd.addEventListener(handler);
-          detachMoveEndListener = () =>
-            cameraRef?.moveEnd.removeEventListener(handler);
-        });
-      }
 
       await waitForStableCameraAndViewport({
         scene: sceneRef,
@@ -877,8 +837,6 @@ export const useInitializeViewer = (
 
     return () => {
       cancelled = true;
-      detachMoveEndListener?.();
-      detachMoveEndListener = null;
       if (shouldSuspendCameraLimitersRef) {
         shouldSuspendCameraLimitersRef.current = false;
       }
@@ -886,8 +844,7 @@ export const useInitializeViewer = (
   }, [
     isViewerReady,
     initialCameraView,
-    home,
-    homeOffset,
+    homeValidationCenter,
     maxZoom,
     settledContainerViewport.height,
     settledContainerViewport.width,

@@ -1,6 +1,5 @@
 import {
   useCallback,
-  useContext,
   useEffect,
   useMemo,
   useRef,
@@ -25,26 +24,24 @@ import {
 } from "@carma-mapping/engines/maplibre";
 import {
   ViewStateProvider,
-  ViewStateContext,
+  createViewStateShareableHashCodec,
   useViewState,
   useViewStateDerived,
   useViewStateControllerId,
   useViewAdapter,
-  buildCommonViewState,
+  useViewStateNavigationManager,
+  buildViewState,
   deriveView,
   deriveOrbitAngles,
-  encodeHashFromViewState,
-  readFromCesium,
   applyToCesium,
-  readFromMaplibre,
-  applyToMaplibre,
-  readFromLeaflet,
-  applyToLeaflet,
-  type CommonViewState,
+  useCesiumRuntimeBridge,
+  useMaplibreRuntimeBridge,
+  useLeafletRuntimeBridge,
+  type ViewState,
   type DerivedView,
   type AngleBasedViewInput,
-  type ViewStateContextValue,
-} from "@carma-mapping/engines-interop/view-sync";
+  type WritePriority,
+} from "@carma-mapping/engines-interop/view-state";
 import {
   transitionToCesium,
   transitionToLeaflet,
@@ -91,24 +88,33 @@ type CesiumRuntimeHandle = {
   widget: CesiumWidget;
   container: HTMLDivElement;
   terrainProviders: Awaited<ReturnType<typeof initializeTerrainProviders>>;
+  viewSync: SlotViewSyncHandle | null;
 };
 
 type LeafletRuntimeHandle = {
   framework: "leaflet";
   map: L.Map;
   container: HTMLDivElement;
+  viewSync: SlotViewSyncHandle | null;
 };
 
 type MapLibreRuntimeHandle = {
   framework: "maplibre";
   map: MapLibreMap;
   container: HTMLDivElement;
+  viewSync: SlotViewSyncHandle | null;
 };
 
 type SlotRuntimeHandle =
   | CesiumRuntimeHandle
   | LeafletRuntimeHandle
   | MapLibreRuntimeHandle;
+
+type SlotViewSyncHandle = {
+  claimControl: (priority?: WritePriority) => boolean;
+  releaseControl: () => void;
+  pushState: (state: ViewState, priority?: WritePriority) => void;
+};
 
 type SlotTransitionRequest = {
   sourceMountId: string;
@@ -236,7 +242,7 @@ const createStoryTargetState = ({
   fovVerticalDeg = radToDegNumeric(DEFAULT_FOV_RAD),
   nearPlaneM,
   farPlaneM,
-}: ViewSyncStoryProps = {}): CommonViewState => {
+}: ViewSyncStoryProps = {}): ViewState => {
   const resolvedRangeM =
     typeof rangeM === "number" && Number.isFinite(rangeM)
       ? rangeM
@@ -269,33 +275,11 @@ const createStoryTargetState = ({
     },
   };
 
-  return buildCommonViewState(input);
+  return buildViewState(input);
 };
 
 const DEFAULT_STORY_TARGET_STATE = createStoryTargetState();
-
-const claimOnContainerInteraction = (
-  element: HTMLElement,
-  claimControl: () => void,
-  isApplyingExternalRef: MutableRefObject<boolean>
-) => {
-  const maybeClaim = () => {
-    if (isApplyingExternalRef.current) {
-      return;
-    }
-    claimControl();
-  };
-
-  element.addEventListener("pointerdown", maybeClaim);
-  element.addEventListener("wheel", maybeClaim, { passive: true });
-  element.addEventListener("touchstart", maybeClaim, { passive: true });
-
-  return () => {
-    element.removeEventListener("pointerdown", maybeClaim);
-    element.removeEventListener("wheel", maybeClaim);
-    element.removeEventListener("touchstart", maybeClaim);
-  };
-};
+const noopApplyViewState = (_state: ViewState) => {};
 
 const readMapLibreViewState = (map: MapLibreMap) => {
   const center = map.getCenter();
@@ -337,12 +321,12 @@ const isLeafletCesiumTransition = (
   isLeafletCesiumFramework(fromFramework) &&
   isLeafletCesiumFramework(toFramework);
 
-const getCurrentAnchorAltitude = (state: CommonViewState | null): number =>
+const getCurrentAnchorAltitude = (state: ViewState | null): number =>
   state
     ? (state.anchorCartographic.altitude as number)
     : DEFAULT_ANCHOR_ALTITUDE_M;
 
-const getCurrentVerticalFov = (state: CommonViewState | null): number => {
+const getCurrentVerticalFov = (state: ViewState | null): number => {
   if (!state) return DEFAULT_FOV_RAD;
   const fov = state.intrinsics.fov;
   return typeof fov === "number" && Number.isFinite(fov)
@@ -360,12 +344,12 @@ const VIEW_SYNC_CONTROL_SOURCE_ENGINE = "view-sync-control";
 const COMPASS_CLICK_DELAY_MS = 180;
 const COMPASS_DRAG_THRESHOLD_PX = 3;
 
-const applyCommonViewStateToCesiumWidget = ({
+const applyViewStateToCesiumWidget = ({
   widget,
   state,
 }: {
   widget: CesiumWidget;
-  state: CommonViewState;
+  state: ViewState;
 }): boolean => {
   if (typeof widget.isDestroyed === "function" && widget.isDestroyed()) {
     return false;
@@ -410,7 +394,7 @@ const toCompassPitchDeg = (pitchRad: number): number =>
 const fromCompassPitchDeg = (pitchDeg: number): number =>
   degToRadNumeric(pitchDeg);
 
-/** Build a new CommonViewState from a DerivedView with modified angles. */
+/** Build a new ViewState from a DerivedView with modified angles. */
 const buildFromDerived = (
   derived: DerivedView,
   overrides: Partial<{
@@ -418,10 +402,10 @@ const buildFromDerived = (
     pitch: number;
     range: number;
   }>,
-  intrinsics: CommonViewState["intrinsics"],
+  intrinsics: ViewState["intrinsics"],
   sourceId: string,
-  source: CommonViewState["metadata"]["source"] = "user-interaction"
-): CommonViewState => {
+  source: ViewState["metadata"]["source"] = "user-interaction"
+): ViewState => {
   const input: AngleBasedViewInput = {
     longitude: derived.longitude as number,
     latitude: derived.latitude as number,
@@ -437,14 +421,14 @@ const buildFromDerived = (
       source,
     },
   };
-  return buildCommonViewState(input);
+  return buildViewState(input);
 };
 
 const clamp = (value: number, min: number, max: number): number =>
   Math.min(max, Math.max(min, value));
 
 const buildMapLibreCameraOptionsFromState = (
-  state: CommonViewState,
+  state: ViewState,
   viewportWidthPx?: number,
   viewportHeightPx?: number
 ): {
@@ -476,7 +460,7 @@ const buildMapLibreCameraOptionsFromState = (
 };
 
 const buildLeafletViewFromState = (
-  state: CommonViewState,
+  state: ViewState,
   viewportWidthPx?: number,
   viewportHeightPx?: number
 ): { center: { lat: number; lng: number }; zoom: number } | null => {
@@ -500,19 +484,22 @@ const buildLeafletViewFromState = (
 };
 
 const formatHashFromState = (
-  state: CommonViewState | null | undefined
+  state: ViewState | null | undefined
 ): string | null => {
   if (!state) return null;
-  const params = encodeHashFromViewState(state);
+  const params = STORY_HASH_CODEC.encode(state);
+  if (!params) {
+    return null;
+  }
   const parts = Object.entries(params)
-    .map(([k, v]) => `${k}=${typeof v === "number" ? v.toFixed(2) : v}`)
+    .map(([k, v]) => `${k}=${String(v)}`)
     .join("&");
   return parts || null;
 };
 
-const isCommonViewState = (
-  value: CommonViewState | null | undefined
-): value is CommonViewState =>
+const STORY_HASH_CODEC = createViewStateShareableHashCodec();
+
+const isViewState = (value: ViewState | null | undefined): value is ViewState =>
   Boolean(
     value &&
       typeof value === "object" &&
@@ -636,38 +623,32 @@ const useDeferredBootReady = (enabled: boolean, delayMs: number = 0) => {
   return isReady;
 };
 
-/** Read the current shared view state. */
-const usePanelViewState = (): CommonViewState | null => {
-  return useViewState();
-};
-
-/** Read the derived (angle-based) view from current state. */
-const usePanelDerivedView = (): DerivedView | null => {
-  return useViewStateDerived();
-};
-
-type CompassDisplayMode = "scene-state" | "rotation-locked-2d";
+type CompassDisplayMode = "shared-view-state" | "rotation-locked-2d";
 
 const PanelNavigationControls = ({
   slotId,
   framework,
-  getRuntimeHandle,
   disabled = false,
 }: {
   slotId: string;
   framework: SlotFramework;
-  getRuntimeHandle: () => SlotRuntimeHandle | null;
   disabled?: boolean;
 }) => {
-  const ctx = useContext(ViewStateContext);
-  const currentState = usePanelViewState();
-  const derived = usePanelDerivedView();
+  const currentState = useViewState();
+  const derived = useViewStateDerived();
   const compassDisplayMode: CompassDisplayMode =
-    framework === "leaflet" ? "rotation-locked-2d" : "scene-state";
+    framework === "leaflet" ? "rotation-locked-2d" : "shared-view-state";
   const isRotationLockedCompass = compassDisplayMode === "rotation-locked-2d";
   const canPitchDrag = !isRotationLockedCompass && framework !== "leaflet";
   const canNorthInteract = !isRotationLockedCompass;
   const controlSourceId = `${slotId}:${VIEW_SYNC_CONTROL_SOURCE_ENGINE}`;
+  const { claimControl, pushState, releaseControl } = useViewAdapter(
+    controlSourceId,
+    VIEW_SYNC_CONTROL_SOURCE_ENGINE,
+    {
+      apply: noopApplyViewState,
+    }
+  );
   const initialDragStateRef = useRef<{
     mouseX: number;
     mouseY: number;
@@ -679,50 +660,15 @@ const PanelNavigationControls = ({
   const didCompassDragRef = useRef(false);
   const animationFrameRef = useRef<number | null>(null);
 
-  useEffect(() => {
-    if (!ctx) {
-      return;
-    }
-    return ctx.register(controlSourceId, VIEW_SYNC_CONTROL_SOURCE_ENGINE);
-  }, [controlSourceId, ctx]);
-
   const cancelSharedStateAnimation = useCallback(() => {
     if (animationFrameRef.current !== null) {
       window.cancelAnimationFrame(animationFrameRef.current);
       animationFrameRef.current = null;
     }
-    ctx?.releaseControl(controlSourceId);
-  }, [controlSourceId, ctx]);
+    releaseControl();
+  }, [releaseControl]);
 
-  /** Apply a modified CommonViewState to the active framework directly. */
-  const applyStateToRuntime = useCallback(
-    (nextState: CommonViewState) => {
-      cancelSharedStateAnimation();
-      ctx?.claimControl(slotId, "user-interaction");
-      const runtimeHandle = getRuntimeHandle();
-
-      if (runtimeHandle?.framework === "maplibre") {
-        applyToMaplibre(runtimeHandle.map, nextState);
-        return;
-      }
-
-      if (runtimeHandle?.framework === "leaflet") {
-        applyToLeaflet(runtimeHandle.map, nextState);
-        return;
-      }
-
-      if (runtimeHandle?.framework === "cesium") {
-        applyCommonViewStateToCesiumWidget({
-          widget: runtimeHandle.widget,
-          state: nextState,
-        });
-        return;
-      }
-    },
-    [cancelSharedStateAnimation, ctx, getRuntimeHandle, slotId]
-  );
-
-  /** Build a CommonViewState with modified angles and apply it. */
+  /** Build a ViewState with modified angles and publish it. */
   const applyAngleUpdate = useCallback(
     (overrides: Partial<{ bearing: number; pitch: number; range: number }>) => {
       if (!currentState || !derived) return;
@@ -730,11 +676,24 @@ const PanelNavigationControls = ({
         derived,
         overrides,
         currentState.intrinsics,
-        slotId
+        controlSourceId
       );
-      applyStateToRuntime(nextState);
+      cancelSharedStateAnimation();
+      if (!claimControl("user-interaction")) {
+        return;
+      }
+      pushState(nextState, "user-interaction");
+      releaseControl();
     },
-    [applyStateToRuntime, currentState, derived, slotId]
+    [
+      cancelSharedStateAnimation,
+      claimControl,
+      controlSourceId,
+      currentState,
+      derived,
+      pushState,
+      releaseControl,
+    ]
   );
 
   const handleCompassMouseDown = useCallback(
@@ -764,7 +723,7 @@ const PanelNavigationControls = ({
       overrides: Partial<{ bearing: number; pitch: number; range: number }>,
       durationMs: number
     ): boolean => {
-      if (!currentState || !derived || !ctx) return false;
+      if (!currentState || !derived) return false;
 
       const startBearing = derived.bearing as number;
       const startPitch = derived.pitch as number;
@@ -779,7 +738,7 @@ const PanelNavigationControls = ({
       const animationStartMs = performance.now();
 
       cancelSharedStateAnimation();
-      if (!ctx.claimControl(controlSourceId, "user-interaction")) {
+      if (!claimControl("animation")) {
         return false;
       }
 
@@ -796,11 +755,7 @@ const PanelNavigationControls = ({
           "animation"
         );
 
-        ctx.update(nextState, {
-          sourceId: controlSourceId,
-          timestampMs: Date.now(),
-          priority: "animation",
-        });
+        pushState(nextState, "animation");
       };
 
       writeAnimatedState(0);
@@ -815,7 +770,7 @@ const PanelNavigationControls = ({
 
         if (linearT >= 1) {
           animationFrameRef.current = null;
-          ctx.releaseControl(controlSourceId);
+          releaseControl();
           return;
         }
 
@@ -825,7 +780,15 @@ const PanelNavigationControls = ({
       animationFrameRef.current = window.requestAnimationFrame(step);
       return true;
     },
-    [cancelSharedStateAnimation, controlSourceId, ctx, currentState, derived]
+    [
+      cancelSharedStateAnimation,
+      claimControl,
+      controlSourceId,
+      currentState,
+      derived,
+      pushState,
+      releaseControl,
+    ]
   );
 
   const handleZoomIn = useCallback(
@@ -1179,39 +1142,38 @@ const CesiumViewSyncBridge = ({
   widget,
   setStatusText,
   setHashText,
+  onViewSyncHandleChange,
 }: {
   slotId: string;
   widget: CesiumWidget;
   setStatusText: (value: string) => void;
   setHashText: (value: string | null) => void;
+  onViewSyncHandleChange?: (handle: SlotViewSyncHandle | null) => void;
 }) => {
-  const { isController, claimControl, pushState } = useViewAdapter(
-    slotId,
-    "cesium",
-    useMemo(
-      () => ({
-        read: () => readFromCesium(widget.scene, slotId),
-        apply: (state: CommonViewState) => applyToCesium(widget.scene, state),
-      }),
-      [widget.scene, slotId]
-    )
-  );
-  const isControllerRef = useRef(isController);
-  isControllerRef.current = isController;
-
-  // Claim control on user interaction with the canvas
-  useEffect(() => {
-    const canvas = widget.scene.canvas;
-    return claimOnContainerInteraction(canvas, claimControl, {
-      current: false,
+  const { claimControl, releaseControl, pushState, readCurrentState } =
+    useCesiumRuntimeBridge({
+      id: slotId,
+      scene: widget.scene,
+      claimBeforePush: false,
+      claimOnInteraction: true,
     });
-  }, [claimControl, widget.scene.canvas]);
 
-  // Subscribe to Cesium postRender to read state and push when controller
+  useEffect(() => {
+    onViewSyncHandleChange?.({
+      claimControl,
+      releaseControl,
+      pushState,
+    });
+    return () => {
+      onViewSyncHandleChange?.(null);
+    };
+  }, [claimControl, onViewSyncHandleChange, pushState, releaseControl]);
+
+  // Subscribe to Cesium postRender for story-specific status/hash display.
   useEffect(() => {
     const scene = widget.scene;
     const handler = () => {
-      const state = readFromCesium(scene, slotId);
+      const state = readCurrentState();
       if (!state) {
         setStatusText("cesium • waiting for terrain target");
         return;
@@ -1221,18 +1183,13 @@ const CesiumViewSyncBridge = ({
       const view = deriveView(state);
       setStatusText(`cesium • ${formatDerivedSummary(view)}`);
       setHashText(formatHashFromState(state));
-
-      // Push state when we're the controller
-      if (isControllerRef.current) {
-        pushState(state);
-      }
     };
 
     scene.postRender.addEventListener(handler);
     return () => {
       scene.postRender.removeEventListener(handler);
     };
-  }, [pushState, setHashText, setStatusText, slotId, widget.scene]);
+  }, [readCurrentState, setHashText, setStatusText, widget.scene]);
 
   return null;
 };
@@ -1251,7 +1208,7 @@ const CesiumSlot = ({
   slotId: string;
   setStatusText: (value: string) => void;
   setHashText: (value: string | null) => void;
-  initialTarget?: CommonViewState | null;
+  initialTarget?: ViewState | null;
   registerWithViewSync?: boolean;
   reportStatus?: boolean;
   onReadyChange?: (handle: CesiumRuntimeHandle | null) => void;
@@ -1260,6 +1217,8 @@ const CesiumSlot = ({
 }) => {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const [widget, setWidget] = useState<CesiumWidget | null>(null);
+  const [viewSyncHandle, setViewSyncHandle] =
+    useState<SlotViewSyncHandle | null>(null);
   const initialTargetRef = useRef(initialTarget ?? null);
   const terrainProvidersRef = useRef<Awaited<
     ReturnType<typeof initializeTerrainProviders>
@@ -1300,9 +1259,9 @@ const CesiumSlot = ({
             return;
           }
 
-          applyCommonViewStateToCesiumWidget({
+          applyViewStateToCesiumWidget({
             widget: nextWidget,
-            state: initialTargetRef.current as CommonViewState,
+            state: initialTargetRef.current as ViewState,
           });
         });
       }
@@ -1322,14 +1281,7 @@ const CesiumSlot = ({
       if (cancelled || !nextWidget || nextWidget.isDestroyed()) {
         return;
       }
-
       setWidget(nextWidget);
-      onReadyChangeRef.current?.({
-        framework: "cesium",
-        widget: nextWidget,
-        container,
-        terrainProviders,
-      });
       nextWidget.scene.requestRender();
     })();
 
@@ -1346,6 +1298,22 @@ const CesiumSlot = ({
       setWidget(null);
     };
   }, [isBootReady]);
+
+  useEffect(() => {
+    const container = containerRef.current;
+    const terrainProviders = terrainProvidersRef.current;
+    if (!widget || widget.isDestroyed() || !container || !terrainProviders) {
+      return;
+    }
+
+    onReadyChangeRef.current?.({
+      framework: "cesium",
+      widget,
+      container,
+      terrainProviders,
+      viewSync: viewSyncHandle,
+    });
+  }, [viewSyncHandle, widget]);
 
   useContainerResize(containerRef, () => {
     if (!widget || widget.isDestroyed()) {
@@ -1372,6 +1340,7 @@ const CesiumSlot = ({
           widget={widget}
           setStatusText={reportStatus ? setStatusText : () => {}}
           setHashText={reportStatus ? setHashText : () => {}}
+          onViewSyncHandleChange={setViewSyncHandle}
         />
       ) : null}
     </>
@@ -1383,45 +1352,34 @@ const MapLibreViewSyncBridge = ({
   map,
   setStatusText,
   setHashText,
+  onViewSyncHandleChange,
 }: {
   slotId: string;
   map: MapLibreMap;
   setStatusText: (value: string) => void;
   setHashText: (value: string | null) => void;
+  onViewSyncHandleChange?: (handle: SlotViewSyncHandle | null) => void;
 }) => {
-  const sharedState = useViewState();
-  const sharedStateRef = useRef(sharedState);
-  sharedStateRef.current = sharedState;
-  const readMapLibreState = useCallback(
-    () =>
-      readFromMaplibre(map, slotId, {
-        seedState: sharedStateRef.current,
-      }),
-    [map, slotId]
-  );
-  const { isController, claimControl, pushState } = useViewAdapter(
-    slotId,
-    "maplibre",
-    useMemo(
-      () => ({
-        read: readMapLibreState,
-        apply: (state: CommonViewState) => applyToMaplibre(map, state),
-      }),
-      [map, readMapLibreState]
-    )
-  );
-  const isControllerRef = useRef(isController);
-  isControllerRef.current = isController;
-
-  // Claim control on user interaction
-  useEffect(() => {
-    const container = map.getContainer();
-    return claimOnContainerInteraction(container, claimControl, {
-      current: false,
+  const { claimControl, releaseControl, pushState, readCurrentState } =
+    useMaplibreRuntimeBridge({
+      id: slotId,
+      map,
+      claimBeforePush: false,
+      claimOnInteraction: true,
     });
-  }, [claimControl, map]);
 
-  // Subscribe to MapLibre events to read state and push when controller
+  useEffect(() => {
+    onViewSyncHandleChange?.({
+      claimControl,
+      releaseControl,
+      pushState,
+    });
+    return () => {
+      onViewSyncHandleChange?.(null);
+    };
+  }, [claimControl, onViewSyncHandleChange, pushState, releaseControl]);
+
+  // Subscribe to MapLibre events for story-specific status/hash display.
   useEffect(() => {
     const updateStatus = () => {
       const view = readMapLibreViewState(map);
@@ -1433,11 +1391,8 @@ const MapLibreViewSyncBridge = ({
         )}° • p ${view.pitchDeg.toFixed(1)}°`
       );
 
-      const state = readMapLibreState();
+      const state = readCurrentState();
       setHashText(formatHashFromState(state));
-
-      if (!isControllerRef.current || !state) return;
-      pushState(state);
     };
 
     map.on("load", updateStatus);
@@ -1453,7 +1408,7 @@ const MapLibreViewSyncBridge = ({
       map.off("pitch", updateStatus);
       map.off("resize", updateStatus);
     };
-  }, [map, pushState, readMapLibreState, setHashText, setStatusText]);
+  }, [map, readCurrentState, setHashText, setStatusText]);
 
   return null;
 };
@@ -1472,7 +1427,7 @@ const MapLibreSlot = ({
   slotId: string;
   setStatusText: (value: string) => void;
   setHashText: (value: string | null) => void;
-  initialTarget?: CommonViewState | null;
+  initialTarget?: ViewState | null;
   registerWithViewSync?: boolean;
   reportStatus?: boolean;
   onReadyChange?: (handle: MapLibreRuntimeHandle | null) => void;
@@ -1481,6 +1436,8 @@ const MapLibreSlot = ({
 }) => {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const [map, setMap] = useState<MapLibreMap | null>(null);
+  const [viewSyncHandle, setViewSyncHandle] =
+    useState<SlotViewSyncHandle | null>(null);
   const initialTargetRef = useRef(initialTarget ?? null);
   const onReadyChangeRef = useRef(onReadyChange);
   const isBootReady = useDeferredBootReady(true, bootDelayMs);
@@ -1503,7 +1460,7 @@ const MapLibreSlot = ({
       return;
     }
 
-    const initialCameraOptions = isCommonViewState(initialTargetRef.current)
+    const initialCameraOptions = isViewState(initialTargetRef.current)
       ? buildMapLibreCameraOptionsFromState(
           initialTargetRef.current,
           container.clientWidth,
@@ -1523,13 +1480,7 @@ const MapLibreSlot = ({
       attributionControl: false,
       hash: false,
     });
-
     setMap(map);
-    onReadyChangeRef.current?.({
-      framework: "maplibre",
-      map,
-      container,
-    });
 
     return () => {
       onReadyChangeRef.current?.(null);
@@ -1537,6 +1488,20 @@ const MapLibreSlot = ({
       setMap(null);
     };
   }, [isBootReady]);
+
+  useEffect(() => {
+    const container = containerRef.current;
+    if (!map || !container) {
+      return;
+    }
+
+    onReadyChangeRef.current?.({
+      framework: "maplibre",
+      map,
+      container,
+      viewSync: viewSyncHandle,
+    });
+  }, [map, viewSyncHandle]);
 
   useContainerResize(containerRef, () => {
     if (!map) {
@@ -1562,6 +1527,7 @@ const MapLibreSlot = ({
           map={map}
           setStatusText={reportStatus ? setStatusText : () => {}}
           setHashText={reportStatus ? setHashText : () => {}}
+          onViewSyncHandleChange={setViewSyncHandle}
         />
       ) : null}
     </>
@@ -1573,45 +1539,34 @@ const LeafletViewSyncBridge = ({
   map,
   setStatusText,
   setHashText,
+  onViewSyncHandleChange,
 }: {
   slotId: string;
   map: L.Map;
   setStatusText: (value: string) => void;
   setHashText: (value: string | null) => void;
+  onViewSyncHandleChange?: (handle: SlotViewSyncHandle | null) => void;
 }) => {
-  const sharedState = useViewState();
-  const sharedStateRef = useRef(sharedState);
-  sharedStateRef.current = sharedState;
-  const readLeafletState = useCallback(
-    () =>
-      readFromLeaflet(map, slotId, {
-        seedState: sharedStateRef.current,
-      }),
-    [map, slotId]
-  );
-  const { isController, claimControl, pushState } = useViewAdapter(
-    slotId,
-    "leaflet",
-    useMemo(
-      () => ({
-        read: readLeafletState,
-        apply: (state: CommonViewState) => applyToLeaflet(map, state),
-      }),
-      [map, readLeafletState]
-    )
-  );
-  const isControllerRef = useRef(isController);
-  isControllerRef.current = isController;
-
-  // Claim control on user interaction
-  useEffect(() => {
-    const container = map.getContainer();
-    return claimOnContainerInteraction(container, claimControl, {
-      current: false,
+  const { claimControl, releaseControl, pushState, readCurrentState } =
+    useLeafletRuntimeBridge({
+      id: slotId,
+      map,
+      claimBeforePush: false,
+      claimOnInteraction: true,
     });
-  }, [claimControl, map]);
 
-  // Subscribe to Leaflet events to read state and push when controller
+  useEffect(() => {
+    onViewSyncHandleChange?.({
+      claimControl,
+      releaseControl,
+      pushState,
+    });
+    return () => {
+      onViewSyncHandleChange?.(null);
+    };
+  }, [claimControl, onViewSyncHandleChange, pushState, releaseControl]);
+
+  // Subscribe to Leaflet events for story-specific status/hash display.
   useEffect(() => {
     const updateStatus = () => {
       const view = readLeafletViewState(map);
@@ -1623,11 +1578,8 @@ const LeafletViewSyncBridge = ({
         )} • z ${view.zoom.toFixed(2)}`
       );
 
-      const state = readLeafletState();
+      const state = readCurrentState();
       setHashText(formatHashFromState(state));
-
-      if (!isControllerRef.current || !state) return;
-      pushState(state);
     };
 
     map.on("move", updateStatus);
@@ -1638,7 +1590,7 @@ const LeafletViewSyncBridge = ({
       map.off("move", updateStatus);
       map.off("zoom", updateStatus);
     };
-  }, [map, pushState, readLeafletState, setHashText, setStatusText]);
+  }, [map, readCurrentState, setHashText, setStatusText]);
 
   return null;
 };
@@ -1657,7 +1609,7 @@ const LeafletSlot = ({
   slotId: string;
   setStatusText: (value: string) => void;
   setHashText: (value: string | null) => void;
-  initialTarget?: CommonViewState | null;
+  initialTarget?: ViewState | null;
   registerWithViewSync?: boolean;
   reportStatus?: boolean;
   onReadyChange?: (handle: LeafletRuntimeHandle | null) => void;
@@ -1666,6 +1618,8 @@ const LeafletSlot = ({
 }) => {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const [map, setMap] = useState<L.Map | null>(null);
+  const [viewSyncHandle, setViewSyncHandle] =
+    useState<SlotViewSyncHandle | null>(null);
   const initialTargetRef = useRef(initialTarget ?? null);
   const onReadyChangeRef = useRef(onReadyChange);
   const isBootReady = useDeferredBootReady(true, bootDelayMs);
@@ -1689,7 +1643,7 @@ const LeafletSlot = ({
     }
 
     const nextMap = initializeLeaflet(container);
-    const initialView = isCommonViewState(initialTargetRef.current)
+    const initialView = isViewState(initialTargetRef.current)
       ? buildLeafletViewFromState(
           initialTargetRef.current,
           container.clientWidth,
@@ -1704,11 +1658,6 @@ const LeafletSlot = ({
       );
     }
     setMap(nextMap);
-    onReadyChangeRef.current?.({
-      framework: "leaflet",
-      map: nextMap,
-      container,
-    });
 
     return () => {
       onReadyChangeRef.current?.(null);
@@ -1716,6 +1665,20 @@ const LeafletSlot = ({
       setMap(null);
     };
   }, [isBootReady]);
+
+  useEffect(() => {
+    const container = containerRef.current;
+    if (!map || !container) {
+      return;
+    }
+
+    onReadyChangeRef.current?.({
+      framework: "leaflet",
+      map,
+      container,
+      viewSync: viewSyncHandle,
+    });
+  }, [map, viewSyncHandle]);
 
   useContainerResize(containerRef, () => {
     if (!map) {
@@ -1741,6 +1704,7 @@ const LeafletSlot = ({
           map={map}
           setStatusText={reportStatus ? setStatusText : () => {}}
           setHashText={reportStatus ? setHashText : () => {}}
+          onViewSyncHandleChange={setViewSyncHandle}
         />
       ) : null}
     </>
@@ -1758,7 +1722,7 @@ const SlotMountRenderer = ({
 }: {
   slotId: string;
   mount: SlotMountConfig;
-  initialTarget: CommonViewState | null;
+  initialTarget: ViewState | null;
   setStatusText: (value: string) => void;
   setHashText: (value: string | null) => void;
   onRuntimeHandleChange: (
@@ -1833,60 +1797,18 @@ const SlotMountRenderer = ({
   );
 };
 
-const SlotsLayout = ({
-  fallbackTarget,
-}: {
-  fallbackTarget: CommonViewState;
-}) => {
+const SlotsLayout = ({ fallbackTarget }: { fallbackTarget: ViewState }) => {
   const [slots, setSlots] = useState<SlotConfig[]>([
     { id: "slot-1", framework: "cesium" },
     { id: "slot-2", framework: "maplibre" },
     { id: "slot-3", framework: "leaflet" },
   ]);
   const nextSlotIndexRef = useRef(4);
-  const ctx = useContext(ViewStateContext);
   const controllerId = useViewStateControllerId();
-  const initialControllerAssignedRef = useRef(false);
   const [transitioningSlotIds, setTransitioningSlotIds] = useState<string[]>(
     []
   );
   const isAnyFrameworkTransitioning = transitioningSlotIds.length > 0;
-
-  // Auto-assign controller to the first slot only once during initial boot.
-  // Do not silently steal control back later when a user-controlled framework
-  // goes idle.
-  useEffect(() => {
-    if (
-      initialControllerAssignedRef.current ||
-      controllerId ||
-      slots.length === 0 ||
-      !ctx
-    ) {
-      return;
-    }
-
-    let rafId: number | null = null;
-    const tryInitialClaim = () => {
-      if (initialControllerAssignedRef.current || ctx.getControllerId()) {
-        return;
-      }
-
-      if (ctx.claimControl(slots[0]?.id ?? "", "sync")) {
-        initialControllerAssignedRef.current = true;
-        return;
-      }
-
-      rafId = window.requestAnimationFrame(tryInitialClaim);
-    };
-
-    rafId = window.requestAnimationFrame(tryInitialClaim);
-
-    return () => {
-      if (rafId !== null) {
-        window.cancelAnimationFrame(rafId);
-      }
-    };
-  }, [controllerId, ctx, slots]);
 
   const addSlot = useCallback(() => {
     const nextIndex = nextSlotIndexRef.current++;
@@ -1942,6 +1864,7 @@ const SlotsLayout = ({
             key={slot.id}
             slot={slot}
             fallbackTarget={fallbackTarget}
+            shouldAutoClaimOnBoot={index === 0}
             initialBootDelayMs={INITIAL_SLOT_BOOT_DELAY_STEP_MS * index}
             canDelete={slots.length > 1}
             isController={controllerId === slot.id}
@@ -1987,6 +1910,7 @@ const SlotsLayout = ({
 const SlotPanelController = ({
   slot,
   fallbackTarget,
+  shouldAutoClaimOnBoot,
   initialBootDelayMs = 0,
   isController,
   disableFrameworkSelection,
@@ -1996,7 +1920,8 @@ const SlotPanelController = ({
   onTransitioningChange,
 }: {
   slot: SlotConfig;
-  fallbackTarget: CommonViewState;
+  fallbackTarget: ViewState;
+  shouldAutoClaimOnBoot: boolean;
   initialBootDelayMs?: number;
   isController: boolean;
   disableFrameworkSelection: boolean;
@@ -2005,7 +1930,6 @@ const SlotPanelController = ({
   onDelete: () => void;
   onTransitioningChange: (isTransitioning: boolean) => void;
 }) => {
-  const ctx = useContext(ViewStateContext);
   const controllerId = useViewStateControllerId();
   const currentState = useViewState();
   const providerTarget = currentState ?? fallbackTarget;
@@ -2025,8 +1949,10 @@ const SlotPanelController = ({
   const runtimeHandlesRef = useRef<Record<string, SlotRuntimeHandle | null>>(
     {}
   );
+  const [runtimeHandleVersion, setRuntimeHandleVersion] = useState(0);
   const transitionRunRef = useRef<string | null>(null);
   const nextMountIndexRef = useRef(2);
+  const initialControllerAssignedRef = useRef(false);
   const [initialBootDelayConsumed, setInitialBootDelayConsumed] = useState(
     initialBootDelayMs <= 0
   );
@@ -2079,6 +2005,7 @@ const SlotPanelController = ({
   const handleRuntimeHandleChange = useCallback(
     (mountId: string, handle: SlotRuntimeHandle | null) => {
       runtimeHandlesRef.current[mountId] = handle;
+      setRuntimeHandleVersion((version) => version + 1);
       if (handle && !initialBootDelayConsumed) {
         setInitialBootDelayConsumed(true);
       }
@@ -2092,7 +2019,42 @@ const SlotPanelController = ({
       return null;
     }
     return runtimeHandlesRef.current[activeMount.id] ?? null;
-  }, [mounts]);
+  }, [mounts, runtimeHandleVersion]);
+
+  const activeRuntimeHandle = getActiveRuntimeHandle();
+
+  useEffect(() => {
+    if (
+      !shouldAutoClaimOnBoot ||
+      initialControllerAssignedRef.current ||
+      controllerId ||
+      !activeRuntimeHandle?.viewSync
+    ) {
+      return;
+    }
+
+    let rafId: number | null = null;
+    const tryInitialClaim = () => {
+      if (initialControllerAssignedRef.current || controllerId) {
+        return;
+      }
+
+      if (activeRuntimeHandle.viewSync?.claimControl("sync")) {
+        initialControllerAssignedRef.current = true;
+        return;
+      }
+
+      rafId = window.requestAnimationFrame(tryInitialClaim);
+    };
+
+    rafId = window.requestAnimationFrame(tryInitialClaim);
+
+    return () => {
+      if (rafId !== null) {
+        window.cancelAnimationFrame(rafId);
+      }
+    };
+  }, [activeRuntimeHandle, controllerId, shouldAutoClaimOnBoot]);
 
   const handleFrameworkSelection = useCallback(
     (nextFramework: SlotFramework) => {
@@ -2113,7 +2075,7 @@ const SlotPanelController = ({
         // Pause shared sync while this slot is visually handing off between engines.
         // The slot can reclaim controller ownership after the transition completes.
         if (restoreControllerAfterTransition) {
-          ctx?.releaseControl(slot.id);
+          activeRuntimeHandle?.viewSync?.releaseControl();
         }
 
         setMounts((previousMounts) => [
@@ -2163,8 +2125,8 @@ const SlotPanelController = ({
       onFrameworkChange,
       slot.framework,
       slot.id,
+      activeRuntimeHandle,
       controllerId,
-      ctx,
     ]
   );
 
@@ -2208,7 +2170,7 @@ const SlotPanelController = ({
       if (transitionRequest.restoreControllerAfterTransition) {
         window.requestAnimationFrame(() => {
           window.requestAnimationFrame(() => {
-            ctx?.claimControl(slot.id, "sync");
+            targetHandle.viewSync?.claimControl("sync");
           });
         });
       }
@@ -2302,7 +2264,7 @@ const SlotPanelController = ({
     };
 
     void runTransition();
-  }, [onFrameworkChange, providerTarget, slot.id, transitionRequest]);
+  }, [onFrameworkChange, providerTarget, transitionRequest]);
 
   return (
     <FrameworkPanel
@@ -2320,7 +2282,6 @@ const SlotPanelController = ({
       <PanelNavigationControls
         slotId={slot.id}
         framework={activeRuntimeFramework}
-        getRuntimeHandle={getActiveRuntimeHandle}
         disabled={isFrameworkTransitioning}
       />
       {mounts.map((mount) => (
@@ -2346,24 +2307,23 @@ const SlotPanelController = ({
   );
 };
 
-const ViewSyncStoryArgsSync = ({ target }: { target: CommonViewState }) => {
-  const ctx = useContext(ViewStateContext);
+const ViewSyncStoryArgsSync = ({ target }: { target: ViewState }) => {
   const animationFrameRef = useRef<number | null>(null);
+  const { claimControl, pushState, releaseControl } = useViewAdapter(
+    "storybook-controls",
+    "system",
+    {
+      apply: noopApplyViewState,
+    }
+  );
 
-  // Register as a source so we can push state
   useEffect(() => {
-    return ctx?.register("storybook-controls", "system");
-  }, [ctx]);
-
-  useEffect(() => {
-    if (!ctx) return;
-
     const push = () => {
-      ctx.update(target, {
-        sourceId: "storybook-controls",
-        timestampMs: Date.now(),
-        priority: "restore",
-      });
+      if (!claimControl("restore")) {
+        return;
+      }
+      pushState(target, "restore");
+      releaseControl();
     };
 
     if (typeof window === "undefined") {
@@ -2386,7 +2346,7 @@ const ViewSyncStoryArgsSync = ({ target }: { target: CommonViewState }) => {
         animationFrameRef.current = null;
       }
     };
-  }, [ctx, target]);
+  }, [claimControl, pushState, releaseControl, target]);
 
   return null;
 };

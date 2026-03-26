@@ -1,9 +1,11 @@
 import { LngLat } from "maplibre-gl";
 import type { CameraOptions, Map as MapLibreMap } from "maplibre-gl";
 import { degToRadNumeric, negativePiToPi } from "@carma/units/helpers";
-import type { CssPixels, Radians } from "@carma/units/types";
+import type { Radians } from "@carma/units/types";
 import {
   CAMERA_TYPE,
+  readHorizontalFovFromVertical,
+  readViewOffsetFromElement,
   type CameraIntrinsics,
 } from "@carma-commons/camera/model";
 
@@ -17,64 +19,20 @@ export type MapLibreViewTarget = Required<
 
 export const readMapLibreViewOffsetFromCanvas = (
   canvas: HTMLCanvasElement | null | undefined
-): CameraIntrinsics["viewOffset"] | undefined => {
-  const widthPx = canvas?.clientWidth;
-  const heightPx = canvas?.clientHeight;
-  if (
-    typeof widthPx !== "number" ||
-    typeof heightPx !== "number" ||
-    !Number.isFinite(widthPx) ||
-    !Number.isFinite(heightPx) ||
-    widthPx <= 0 ||
-    heightPx <= 0
-  ) {
-    return undefined;
-  }
-
-  return {
-    fullWidth: widthPx as CssPixels,
-    fullHeight: heightPx as CssPixels,
-    offsetX: 0 as CssPixels,
-    offsetY: 0 as CssPixels,
-    width: widthPx as CssPixels,
-    height: heightPx as CssPixels,
-  };
-};
-
-const readAspectRatioFromCanvas = (
-  canvas: HTMLCanvasElement | null | undefined
-): number | undefined => {
-  const widthPx = canvas?.clientWidth;
-  const heightPx = canvas?.clientHeight;
-  return typeof widthPx === "number" &&
-    typeof heightPx === "number" &&
-    Number.isFinite(widthPx) &&
-    Number.isFinite(heightPx) &&
-    widthPx > 0 &&
-    heightPx > 0
-    ? widthPx / heightPx
-    : undefined;
-};
-
-const readHorizontalFovFromVertical = (
-  verticalFov: Radians | undefined,
-  aspect: number | undefined
-): Radians | undefined =>
-  typeof verticalFov === "number" &&
-  Number.isFinite(verticalFov) &&
-  verticalFov > 0 &&
-  typeof aspect === "number" &&
-  Number.isFinite(aspect) &&
-  aspect > 0
-    ? ((Math.atan(Math.tan(verticalFov * 0.5) * aspect) * 2) as Radians)
-    : undefined;
+): CameraIntrinsics["viewOffset"] | undefined =>
+  readViewOffsetFromElement(canvas);
 
 export const readMapLibrePerspectiveIntrinsics = (
   map: MapLibreMap
 ): CameraIntrinsics => {
   const canvas = map.getCanvas?.();
   const viewOffset = readMapLibreViewOffsetFromCanvas(canvas);
-  const aspect = readAspectRatioFromCanvas(canvas);
+  const aspect =
+    typeof viewOffset?.width === "number" &&
+    typeof viewOffset?.height === "number" &&
+    viewOffset.height > 0
+      ? viewOffset.width / viewOffset.height
+      : undefined;
   const fovDeg =
     typeof (map as MapLibreMap & { getVerticalFieldOfView?: () => number })
       .getVerticalFieldOfView === "function"

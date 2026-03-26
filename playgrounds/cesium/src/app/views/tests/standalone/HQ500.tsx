@@ -119,9 +119,8 @@ export const HQ500 = () => {
           {/*
             Legacy hash sync intentionally removed.
             If 3D URL sync is needed again here, replace this with the current
-            scene-state based approach (`CesiumSceneStateProvider` +
-            `CesiumSceneStateHashSync` / `useSceneStateHashSync`) instead
-            of `onSceneChange` + legacy camera hash encoding.
+            `ViewStateProvider` + `ViewStateNavigationManagerProvider` pattern
+            instead of `onSceneChange` + legacy camera hash encoding.
           */}
           <CustomViewer
             containerRef={container3dMapRef}

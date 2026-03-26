@@ -4,8 +4,8 @@ import {
   cartesian3FromGeographicCoordinate,
   projectGeographicCoordinateToScreen,
 } from "@carma-mapping/engines/cesium/api";
+import { useCesiumOverlayView } from "@carma-mapping/engines/cesium/react/interactions";
 import { useCesiumSceneVisibilityIndex } from "@carma-mapping/engines/cesium/react/visibility";
-import { useCesiumSceneStateOptional } from "@carma-mapping/engines/cesium/react/scene-state";
 import {
   computePointLabelLayout,
   resolvePointLabelLayoutConfig,
@@ -43,9 +43,8 @@ export const RuntimePointLabelVisualizer = ({
   blockLabelInteractions = false,
 }: RuntimePointLabelVisualizerProps) => {
   const registeredPointIdSetRef = useRef<Set<string>>(new Set());
-  const sceneState = useCesiumSceneStateOptional();
-  const cameraPitch =
-    sceneState?.camera.pitchRad ?? scene?.camera.pitch ?? -Math.PI / 4;
+  const overlayView = useCesiumOverlayView(scene);
+  const cameraPitch = overlayView.derivedView?.pitch ?? 0;
   const layoutConfig = useMemo(
     () => resolvePointLabelLayoutConfig(undefined),
     []

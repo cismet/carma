@@ -1,4 +1,5 @@
 import { useEffect, type ReactNode } from "react";
+import { useCallback } from "react";
 import {
   CarmaResponsiveInfoBox,
   ResponsiveStatusBar,
@@ -90,22 +91,52 @@ const FrameProvider = ({
 const useRegisteredLeafletCesium = (
   setupOptions?: Parameters<typeof useLeafletCesiumSetup>[0]
 ) => {
+  const { activeFramework, registerCallbacks } = useMapFrameworkSwitcherContext();
   const {
     leafletContainerRef,
     cesiumContainerRef,
     leafletMapRef,
     cesiumWidgetRef,
     terrainProvidersRef,
+    isLeafletReady,
     mapsInitialized,
+    ensureCesiumReady,
   } = useLeafletCesiumSetup(setupOptions);
 
+  useEffect(() => {
+    registerCallbacks({
+      onEnsureCesiumReady: ensureCesiumReady,
+    });
+  }, [ensureCesiumReady, registerCallbacks]);
+
+  useEffect(() => {
+    if (activeFramework === "cesium") {
+      void ensureCesiumReady();
+    }
+  }, [activeFramework, ensureCesiumReady]);
+
+  const getLeafletMap = useCallback(
+    () => (isLeafletReady ? leafletMapRef.current : null),
+    [isLeafletReady, leafletMapRef]
+  );
+  const getCesiumScene = useCallback(
+    () => (mapsInitialized ? cesiumWidgetRef.current?.scene ?? null : null),
+    [cesiumWidgetRef, mapsInitialized]
+  );
+  const getCesiumContainer = useCallback(
+    () => cesiumContainerRef.current,
+    [cesiumContainerRef]
+  );
+  const getCesiumTerrainProviders = useCallback(
+    () => terrainProvidersRef.current,
+    [terrainProvidersRef]
+  );
+
   useRegisterMapFramework({
-    leafletMap: mapsInitialized ? leafletMapRef.current : null,
-    cesiumScene: mapsInitialized
-      ? cesiumWidgetRef.current?.scene ?? null
-      : null,
-    cesiumContainer: cesiumContainerRef.current,
-    terrainProviders: terrainProvidersRef.current,
+    getLeafletMap,
+    getCesiumScene,
+    getCesiumContainer,
+    getCesiumTerrainProviders,
   });
 
   return {

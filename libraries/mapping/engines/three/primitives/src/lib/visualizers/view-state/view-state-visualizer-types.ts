@@ -1,4 +1,4 @@
-import type { CommonViewState } from "@carma-mapping/engines-interop/view-sync";
+import type { ViewState } from "@carma-mapping/engines-interop/view-state";
 import type { Radians } from "@carma/units/types";
 import type { ThreePart, ThreePartSize } from "../../common/create-part";
 
@@ -239,7 +239,7 @@ export type ViewStateVisualizerPart<UpdateInput, DisplayInput> = ThreePart<
 >;
 
 export type ViewStateVisualizerPrimitive = {
-  update: (viewState: CommonViewState) => ViewStateVisualizerLabelAnchors;
+  update: (viewState: ViewState) => ViewStateVisualizerLabelAnchors;
   resize: (
     size: ViewStateVisualizerSize
   ) => ViewStateVisualizerLabelAnchors | null;

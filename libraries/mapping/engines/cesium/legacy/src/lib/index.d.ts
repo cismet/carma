@@ -1,4 +1,4 @@
-import type { Cartesian3Json, ColorConstructorArgs } from "@carma/cesium";
+import type { ColorConstructorArgs } from "@carma/cesium";
 import type { ModelConfig } from "@carma-commons/resources";
 
 import type { ProviderConfig } from "./utils/cesiumProviders";
@@ -78,8 +78,6 @@ export interface CesiumState {
   isAnimating?: boolean;
   currentTransition?: VIEWER_TRANSITION_STATE;
   currentSceneStyle?: keyof SceneStyles;
-  homePosition: null | Cartesian3Json;
-  homeOffset: null | Cartesian3Json;
   showPrimaryTileset: boolean; // tileset is the base 3D model equivalent to a basemap
   showSecondaryTileset: boolean; // tileset is the base 3D model equivalent to a basemap
 

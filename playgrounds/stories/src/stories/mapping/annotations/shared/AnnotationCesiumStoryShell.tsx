@@ -3,7 +3,6 @@ import { MemoryRouter } from "react-router-dom";
 import type { Scene, CesiumWidget } from "@carma/cesium";
 import { useCesiumLabelOverlayHost } from "@carma-mapping/engines/cesium/react/interactions";
 import { LabelOverlayProvider } from "@carma-providers/label-overlay";
-import { CesiumSceneStateProvider } from "@carma-mapping/engines/cesium/react/scene-state";
 import { setupCesium } from "../../../map-framework-switcher/helpers/cesium-setup";
 
 import "cesium/Build/Cesium/Widgets/widgets.css";
@@ -129,19 +128,9 @@ export const AnnotationCesiumStoryShell = ({
             inset: 0,
           }}
         />
-        <CesiumSceneStateProvider
-          scene={scene}
-          options={{
-            orbitPointMode: "screen-center",
-            screenCenterSamplingStrategy: "terrain-only",
-            throwOnMissingScreenCenterIntersection: true,
-            fallbackHeightM: 200,
-          }}
-        >
-          <LabelOverlayProvider host={overlayHost}>
-            {renderedChildren}
-          </LabelOverlayProvider>
-        </CesiumSceneStateProvider>
+        <LabelOverlayProvider host={overlayHost}>
+          {renderedChildren}
+        </LabelOverlayProvider>
       </div>
     </MemoryRouter>
   );

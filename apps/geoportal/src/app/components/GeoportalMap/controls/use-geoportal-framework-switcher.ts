@@ -7,6 +7,7 @@ import { useEffect } from "react";
 import { useMapFrameworkSwitcherContext } from "@carma-mapping/components";
 
 type UseGeoportalFrameworkSwitcherOptions = {
+  onEnsureCesiumReady?: () => Promise<void> | void;
   onBeforeTransitionToCesium?: () => Promise<void> | void;
   onAfterTransitionToCesium?: () => void;
 };
@@ -20,15 +21,18 @@ export const useGeoportalFrameworkSwitcher = (
   options?: UseGeoportalFrameworkSwitcherOptions
 ) => {
   const { registerCallbacks } = useMapFrameworkSwitcherContext();
+  const onEnsureCesiumReady = options?.onEnsureCesiumReady;
   const onBeforeTransitionToCesium = options?.onBeforeTransitionToCesium;
   const onAfterTransitionToCesium = options?.onAfterTransitionToCesium;
 
   useEffect(() => {
     registerCallbacks({
+      onEnsureCesiumReady,
       onBeforeTransitionToCesium,
       onAfterTransitionToCesium,
     });
   }, [
+    onEnsureCesiumReady,
     onAfterTransitionToCesium,
     onBeforeTransitionToCesium,
     registerCallbacks,

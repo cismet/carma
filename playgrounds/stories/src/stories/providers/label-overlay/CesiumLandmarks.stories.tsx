@@ -8,7 +8,6 @@ import {
   type CesiumWidget,
   type Scene,
 } from "@carma/cesium";
-import { MINUS_PI_OVER_FOUR } from "@carma/math";
 import {
   CarmaResponsiveInfoBox,
   ResponsiveStatusBar,
@@ -44,11 +43,11 @@ import {
   type LayoutPointInput,
   type PointLabelLayoutResult,
 } from "@carma-providers/label-overlay";
+import { cartesian3FromGeographicCoordinate } from "@carma-mapping/engines/cesium/api";
 import {
-  cartesian3FromGeographicCoordinate,
-  projectGeographicCoordinateToScreen,
-} from "@carma-mapping/engines/cesium/api";
-import { useCesiumLabelOverlayHost } from "@carma-mapping/engines/cesium/react/interactions";
+  useCesiumLabelOverlayHost,
+  useCesiumOverlayView,
+} from "@carma-mapping/engines/cesium/react/interactions";
 import { useCesiumSceneVisibilityIndex } from "@carma-mapping/engines/cesium/react/visibility";
 import { setupCesium } from "../../map-framework-switcher/helpers/cesium-setup";
 
@@ -553,41 +552,14 @@ const resolveCollapsedClusterAnchorMarkerSizePx = (
     clusteredPointCount
   );
 
-const resolveLandmarkScreenAnchor = (
-  scene: Scene,
-  visibilityStateById: Record<
-    string,
-    { screenPosition: CssPixelPosition | null } | undefined
-  >,
-  landmark: LandmarkPoint
-): CssPixelPosition | null =>
-  visibilityStateById[landmark.id]?.screenPosition ??
-  projectGeographicCoordinateToScreen(scene, {
-    longitude: landmark.longitude,
-    latitude: landmark.latitude,
-    altitude: landmark.altitude,
-  });
-
 const resolveLiveClusterAnchor = (
-  scene: Scene | null,
-  visibilityStateById: Record<
-    string,
-    { screenPosition: CssPixelPosition | null } | undefined
-  >,
+  projectWorldToScreen: (
+    position: CssPixelPosition | Cartesian3
+  ) => CssPixelPosition | null,
   members: readonly ProjectedLandmarkPoint[]
 ): CssPixelPosition | null => {
-  if (!scene || scene.isDestroyed()) {
-    return null;
-  }
-
   const anchors = members
-    .map((member) =>
-      resolveLandmarkScreenAnchor(
-        scene,
-        visibilityStateById,
-        member.item.landmark
-      )
-    )
+    .map((member) => projectWorldToScreen(member.item.landmark.positionECEF))
     .filter((anchor): anchor is CssPixelPosition => anchor !== null);
 
   if (anchors.length === 0) {
@@ -705,7 +677,9 @@ const CesiumLandmarksOverlay = ({
   hideChrome: boolean;
   scenePreset: StoryScenePreset;
 }) => {
-  const cameraPitchRad = scene?.camera.pitch ?? MINUS_PI_OVER_FOUR;
+  const overlayView = useCesiumOverlayView(scene);
+  const cameraPitchRad = overlayView.derivedView?.pitch ?? 0;
+  const overlayFrameNumber = overlayView.frameNumber ?? 0;
   const shouldTestOcclusion = enableOcclusionTesting && occlusionAvailable;
   const [expandedClusterId, setExpandedClusterId] = useState<string | null>(
     null
@@ -781,11 +755,7 @@ const CesiumLandmarksOverlay = ({
 
     return landmarks
       .map<ProjectedLandmarkPoint | null>((landmark, index) => {
-        const anchor = resolveLandmarkScreenAnchor(
-          scene,
-          visibilityStateById,
-          landmark
-        );
+        const anchor = overlayView.projectWorldToScreen(landmark.positionECEF);
         if (!anchor) return null;
 
         const selected = landmark.id === selectedLandmarkId;
@@ -820,7 +790,7 @@ const CesiumLandmarksOverlay = ({
       .filter(
         (landmark): landmark is ProjectedLandmarkPoint => landmark !== null
       );
-  }, [landmarks, scene, selectedLandmarkId, visibilityStateById]);
+  }, [landmarks, overlayFrameNumber, overlayView, scene, selectedLandmarkId]);
 
   const clusters = useMemo(
     () =>
@@ -902,8 +872,7 @@ const CesiumLandmarksOverlay = ({
               (selected ? 40_000 : EXPANDED_CLUSTER_Z_INDEX_BASE) - slotIndex,
             getCanvasPosition: () => {
               const liveAnchor = resolveLiveClusterAnchor(
-                scene,
-                visibilityStateById,
+                overlayView.projectWorldToScreen,
                 cluster.members
               );
               return liveAnchor
@@ -965,8 +934,7 @@ const CesiumLandmarksOverlay = ({
           zIndex: (representative.zIndex ?? 0) + 100,
           getCanvasPosition: () =>
             resolveLiveClusterAnchor(
-              scene,
-              visibilityStateById,
+              overlayView.projectWorldToScreen,
               cluster.members
             ),
           onClick:
@@ -1016,11 +984,7 @@ const CesiumLandmarksOverlay = ({
         selected,
         zIndex: member.zIndex ?? 20,
         getCanvasPosition: () =>
-          resolveLandmarkScreenAnchor(
-            scene,
-            visibilityStateById,
-            member.item.landmark
-          ),
+          overlayView.projectWorldToScreen(member.item.landmark.positionECEF),
         onClick: () => {
           setSelectedLandmarkId(member.item.landmark.id);
         },
@@ -1041,6 +1005,8 @@ const CesiumLandmarksOverlay = ({
     scene,
     selectedLandmarkId,
     visibilityStateById,
+    overlayFrameNumber,
+    overlayView,
   ]);
 
   const layoutResult = useMemo<PointLabelLayoutResult>(() => {

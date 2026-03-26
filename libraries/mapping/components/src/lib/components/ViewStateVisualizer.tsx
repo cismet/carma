@@ -1,4 +1,4 @@
-import type { CommonViewState } from "@carma-mapping/engines-interop/view-sync";
+import type { ViewState } from "@carma-mapping/engines-interop/view-state";
 import {
   DEFAULT_VIEW_STATE_VISUALIZER_CUE_COLORS,
   createViewStateVisualizerPrimitive,
@@ -43,7 +43,7 @@ export type ViewStateVisualizerCueOptions = Partial<
 >;
 
 export type ViewStateVisualizerProps = {
-  viewState: CommonViewState;
+  viewState: ViewState;
   overviewOptions?: ViewStateVisualizerOverviewOptions;
   interactive?: boolean;
   visualizedOptions?: ViewStateVisualizerVisualizedOptions;
