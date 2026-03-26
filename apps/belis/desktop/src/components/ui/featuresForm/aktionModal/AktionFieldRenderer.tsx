@@ -1,4 +1,13 @@
-import { Input, Select, DatePicker, Checkbox, Row, Col, Form } from "antd";
+import {
+  Input,
+  InputNumber,
+  Select,
+  DatePicker,
+  Checkbox,
+  Row,
+  Col,
+  Form,
+} from "antd";
 import { useSelector } from "react-redux";
 import { getKeyTablesData } from "../../../../store/slices/keyTables";
 import { applyTemplate } from "./aktionFieldConfig";
@@ -138,6 +147,23 @@ const AktionFieldRenderer = ({ field }: AktionFieldRendererProps) => {
               minRows: field.minRows ?? 3,
               maxRows: field.maxRows ?? 6,
             }}
+          />
+        </Form.Item>
+      );
+
+    case "number":
+      return (
+        <Form.Item
+          name={field.name}
+          label={<FormLabel>{field.label}</FormLabel>}
+          className="mb-4"
+        >
+          <InputNumber
+            className="w-full"
+            size="large"
+            min={field.min}
+            max={field.max}
+            step={field.step}
           />
         </Form.Item>
       );

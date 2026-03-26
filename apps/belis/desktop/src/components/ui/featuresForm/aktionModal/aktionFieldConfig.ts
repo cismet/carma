@@ -50,6 +50,13 @@ export interface DateField extends BaseField {
   type: "date";
 }
 
+export interface NumberField extends BaseField {
+  type: "number";
+  min?: number;
+  max?: number;
+  step?: number;
+}
+
 /** Union of all field types */
 export type AktionFieldConfig =
   | DateSelectField
@@ -57,7 +64,8 @@ export type AktionFieldConfig =
   | TextField
   | TextAreaField
   | CheckboxField
-  | DateField;
+  | DateField
+  | NumberField;
 
 /** Definition of a single action within a fachobjekt type */
 export interface AktionDefinition {
@@ -186,9 +194,11 @@ export const AKTIONEN_CONFIG: AktionenConfig = {
           optionTemplate: "{hersteller} {lichtfarbe}",
         },
         {
-          type: "text",
+          type: "number",
           name: "lebensdauer",
           label: "Lebensdauer des Leuchtmittels",
+          min: 0,
+          step: 0.1,
         },
       ],
     },
@@ -215,9 +225,11 @@ export const AKTIONEN_CONFIG: AktionenConfig = {
           optionTemplate: "{hersteller} {lichtfarbe}",
         },
         {
-          type: "text",
+          type: "number",
           name: "lebensdauer",
           label: "Lebensdauer des Leuchtmittels",
+          min: 0,
+          step: 0.1,
         },
       ],
     },
