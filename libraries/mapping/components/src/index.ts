@@ -97,3 +97,5 @@ export {
 } from "./lib/components/PoiFilterPanel";
 
 export { applyStoredPoiFilter } from "./lib/components/poiFilterUtils";
+
+export { PieChart } from "./lib/components/PieChart";

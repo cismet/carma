@@ -21,7 +21,7 @@ import { getColorFromLebenslagenCombination } from "./helper/styler";
 import MultiToggleButton from "./MultiToggleButton";
 
 import "url-search-params-polyfill";
-import { PieChart } from "@carma-appframeworks/portals";
+import { PieChart } from "@carma-mapping/components";
 
 const FilterUI = ({ apps = crossLinkApps }) => {
   const { itemsDictionary, filteredItems, filterState } = useContext(

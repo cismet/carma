@@ -1,6 +1,6 @@
 import { useCallback } from "react";
 import { TriStateFilterButton, type TriState } from "./TriStateFilterButton";
-import { PieChart } from "@carma-appframeworks/portals";
+import { PieChart } from "./PieChart";
 
 export interface AdvancedFilterCategory {
   key: string;
