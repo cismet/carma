@@ -1,4 +1,4 @@
-import { FC, useState } from "react";
+import { FC } from "react";
 import { useDispatch, useSelector } from "react-redux";
 
 import { DevelopmentOnlyUiBackdrop } from "@carma-commons/ui/components";
@@ -24,11 +24,6 @@ import {
   CESIUM_ANNOTATION_INTERACTION_ID,
   CESIUM_ANNOTATION_SAVE_INTERACTION_ID,
 } from "../annotations/cesium-annotations.constants";
-import {
-  AdvancedFilterPanel,
-  type AdvancedFilterState,
-  type AdvancedFilterCategory,
-} from "@carma-mapping/components";
 import {
   GEOPORTAL_ANNOTATION_DEVELOPMENT_PREVIEW_PATTERN_OPTIONS,
   isGeoportalDevelopmentPreviewAnnotationToolId,
@@ -138,56 +133,7 @@ export const InteractionContent: FC<{
   return null;
 };
 
-// Hardcoded POI test data for the AdvancedFilterPanel
-const POI_CATEGORIES: AdvancedFilterCategory[] = [
-  { key: "Freizeit", label: "Freizeit" },
-  { key: "Sport", label: "Sport" },
-  { key: "Mobilität", label: "Mobilität" },
-  { key: "Religion", label: "Religion" },
-  { key: "Gesundheit", label: "Gesundheit" },
-  { key: "Kultur", label: "Kultur" },
-  { key: "Gesellschaft", label: "Gesellschaft" },
-  { key: "Bildung", label: "Bildung" },
-  { key: "Kinderbetreuung", label: "Kinderbetreuung" },
-  { key: "Dienstleistungen", label: "Dienstleistungen" },
-  {
-    key: "öffentliche Dienstleistungen",
-    label: "öffentliche Dienstleistungen",
-  },
-  { key: "Orientierung", label: "Orientierung" },
-  { key: "Stadtbild", label: "Stadtbild" },
-  { key: "Erholung", label: "Erholung" },
-];
-
-// Dummy PieChart data for testing
-const DUMMY_PIE_DATA: [string, number][] = [
-  ["Freizeit, Sport", 42],
-  ["Mobilität", 35],
-  ["Religion", 28],
-  ["Gesundheit", 22],
-  ["Bildung", 38],
-  ["Kultur", 15],
-  ["Gesellschaft", 20],
-  ["Kinderbetreuung", 12],
-];
-
-const DUMMY_PIE_COLORS = [
-  "#194761",
-  "#6BB6D7",
-  "#0D0D0D",
-  "#CB0D0D",
-  "#FFC000",
-  "#B27A08",
-  "#B0CBEC",
-  "#00A0B0",
-];
-
 const InteractionView = ({ isDragging }: { isDragging?: boolean }) => {
-  const [advancedFilterState, setAdvancedFilterState] =
-    useState<AdvancedFilterState>({
-      positiv: POI_CATEGORIES.map((c) => c.key),
-      negativ: [],
-    });
   const activeInteractionLayerID = useSelector(getActiveInteractionLayerID);
   const activeInteractionButtonID = useSelector(getActiveInteractionButtonID);
   const layers = useSelector(getLayers);
@@ -202,7 +148,6 @@ const InteractionView = ({ isDragging }: { isDragging?: boolean }) => {
     activeInteractionLayerID,
     isDragging
   );
-  const isPoiLayer = layer?.id?.toLowerCase().includes("poi");
 
   const hasInteractionComponent = activeInteractionButtonID
     ? Boolean(INTERACTION_COMPONENTS[activeInteractionButtonID])
@@ -217,20 +162,6 @@ const InteractionView = ({ isDragging }: { isDragging?: boolean }) => {
     ) : layer && (hasInteractionComponent || showFilter) ? (
       <InteractionContent layer={layer} />
     ) : null;
-
-  if (isPoiLayer) {
-    return (
-      <div className="pt-3 w-full">
-        <AdvancedFilterPanel
-          categories={POI_CATEGORIES}
-          filterState={advancedFilterState}
-          onFilterStateChange={setAdvancedFilterState}
-          pieChartData={DUMMY_PIE_DATA}
-          pieChartColors={DUMMY_PIE_COLORS}
-        />
-      </div>
-    );
-  }
 
   if (!content) {
     return null;
