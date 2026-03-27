@@ -81,6 +81,11 @@ export default function App() {
     [filterState, allFeatures]
   );
 
+  const filteredPoiCount = useMemo(
+    () => pieChartData.reduce((sum, [, count]) => sum + count, 0),
+    [pieChartData]
+  );
+
   const categories = useMemo(
     () => lebenslagen.map((ll) => ({ key: ll, label: ll })),
     [lebenslagen]
@@ -104,6 +109,8 @@ export default function App() {
             onFilterStateChange={setFilterState}
             pieChartData={pieChartData}
             pieChartColors={pieChartColors}
+            filteredPoiCount={filteredPoiCount}
+            totalPoiCount={allFeatures.length}
           />
         }
       />
