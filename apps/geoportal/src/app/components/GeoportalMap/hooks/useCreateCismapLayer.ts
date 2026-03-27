@@ -15,6 +15,7 @@ import CismapLayer from "react-cismap/CismapLayer";
 import { TopicMapContext } from "react-cismap/contexts/TopicMapContextProvider";
 
 import type { Layer } from "@carma-mapping/layers";
+import { FILTER_TYPES } from "@carma-mapping/layers";
 import { useFeatureFlags } from "@carma-providers/feature-flag";
 
 import type { RootState } from "../../../store";
@@ -368,7 +369,11 @@ export const useCreateCismapLayers = (
             );
             const filterConfig = latestLayer?.filterConfig;
             const filterState = latestLayer?.filterState;
-            if (!filterConfig || !filterState) {
+            if (
+              !filterConfig ||
+              filterConfig.filterType === FILTER_TYPES.POI ||
+              !filterState
+            ) {
               return;
             }
 
@@ -502,7 +507,11 @@ export const useCreateCismapLayers = (
             onMapLibreCoreMapReady: (map) => {
               console.log("MapLibre map ready for layer:", layer.id, map);
 
-              if (layer.filterConfig?.layerPattern) {
+              if (
+                layer.filterConfig &&
+                layer.filterConfig.filterType !== FILTER_TYPES.POI &&
+                layer.filterConfig.layerPattern
+              ) {
                 applyLayerFilters(map);
                 map.on("styledata", () => applyLayerFilters(map));
               }
