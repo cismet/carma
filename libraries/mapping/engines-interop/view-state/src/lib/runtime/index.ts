@@ -11,9 +11,13 @@ export type {
   ViewStateHashValues,
   ViewStateHashCodec,
   ViewStateNavigationCommitReason,
-  ViewStateNavigationCommitEvent,
+  ViewStateNavigationEvent,
+  ViewStateNavigationEventType,
 } from "../core/types";
-export { WRITE_PRIORITY_RANK } from "../core/types";
+export {
+  VIEW_STATE_NAVIGATION_EVENT,
+  WRITE_PRIORITY_RANK,
+} from "../core/types";
 
 // Provider
 export { ViewStateProvider } from "./providers/view-state/ViewStateProvider";
@@ -31,9 +35,10 @@ export {
   type ViewAdapterHandle,
 } from "./providers/view-state/useViewAdapter";
 export {
-  useViewStateNavigationManager,
-  type UseViewStateNavigationManagerResult,
-} from "./providers/navigation/useViewStateNavigationManager";
+  useViewStateNavigationRestore,
+  type UseViewStateNavigationRestoreResult,
+} from "./providers/navigation/useViewStateNavigationRestore";
+export { useOnViewStateNavigationEvent } from "./providers/navigation/useOnViewStateNavigationEvent";
 export {
   useCesiumRuntimeBridge,
   type UseCesiumRuntimeBridgeOptions,

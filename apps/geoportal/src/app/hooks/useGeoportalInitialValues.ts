@@ -19,14 +19,21 @@ const DEFAULT_HOME_VIEW_STATE = readLeafletHomeViewState(
 );
 
 export const useGeoportalInitialValues = () => {
-  const { initialCameraView, isInitialCameraResolved } =
-    useInitialCesiumCameraView(DEFAULT_HOME_VIEW_STATE);
+  const homeValues = useGeoportalHomeValues();
+  const initialCameraValues = useGeoportalInitialCameraValues();
 
+  return {
+    ...homeValues,
+    ...initialCameraValues,
+  };
+};
+
+export const useGeoportalHomeValues = () => {
   const homeCenter = useMemo(
     () =>
       [DEFAULT_HOME_VIEW_REF.lat, DEFAULT_HOME_VIEW_REF.lng] as [
         number,
-        number,
+        number
       ],
     []
   );
@@ -50,6 +57,14 @@ export const useGeoportalInitialValues = () => {
     homeLeafletZoom,
     homeMaplibreZoom,
     homeValidationCenter,
+  };
+};
+
+export const useGeoportalInitialCameraValues = () => {
+  const { initialCameraView, isInitialCameraResolved } =
+    useInitialCesiumCameraView(DEFAULT_HOME_VIEW_STATE);
+
+  return {
     initialCameraView,
     isInitialCameraResolved,
   };

@@ -171,40 +171,32 @@ export type ViewStateNavigationCommitReason =
   | "initial-hash-restore"
   | "browser-popstate-restore";
 
+export const VIEW_STATE_NAVIGATION_EVENT = {
+  BROWSER_POPSTATE_RESTORE: "browser-popstate-restore",
+} as const;
+
+export type ViewStateNavigationEventType =
+  (typeof VIEW_STATE_NAVIGATION_EVENT)[keyof typeof VIEW_STATE_NAVIGATION_EVENT];
+
 export type ViewStateHashCodec = {
   encode: (state: ViewState | null | undefined) => ViewStateHashValues | null;
   decode: (hashValues: ViewStateHashValues) => ViewState | null;
 };
 
-export type ViewStateNavigationCommitEvent = {
-  readonly sequenceId: number;
-  readonly timestampMs: number;
-  readonly reason: ViewStateNavigationCommitReason;
+export type ViewStateNavigationEvent = {
+  readonly type: ViewStateNavigationEventType;
   readonly state: ViewState;
-  readonly sourceId: string | null;
-  readonly replace: boolean;
-  readonly hashValues: ViewStateHashValues;
-};
-
-export type ViewStateNavigationHistoryView = {
-  readonly entries: readonly ViewStateNavigationCommitEvent[];
-  readonly length: number;
-  recent(count: number): readonly ViewStateNavigationCommitEvent[];
 };
 
 export type ViewStateNavigationManagerContextValue = {
-  getInitialRestoreState(): ViewState | null;
-  isInitialRestoreResolved(): boolean;
-  getLatestCommittedState(): ViewState | null;
-  getLatestCommitEvent(): ViewStateNavigationCommitEvent | null;
-  subscribe(listener: () => void): () => void;
-  registerOnCommit(
-    listener: (event: ViewStateNavigationCommitEvent) => void
+  readonly restoreState: ViewState | null;
+  readonly isRestoreResolved: boolean;
+  registerOnNavigationEvent(
+    listener: (event: ViewStateNavigationEvent) => void
   ): () => void;
   commitCurrentState(
     reason: ViewStateNavigationCommitReason,
     options?: { replace?: boolean; force?: boolean }
   ): boolean;
   suspendHashWrites(reason?: string): () => void;
-  getHistory(): ViewStateNavigationHistoryView;
 };

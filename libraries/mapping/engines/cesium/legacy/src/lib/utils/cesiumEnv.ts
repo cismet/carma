@@ -11,7 +11,9 @@ type CesiumNamespaceWithVersion = typeof CesiumNs & {
  * We avoid a named import for VERSION because some type bundles may not expose it.
  */
 export function getCesiumVersion(): string {
-  return (CesiumNs as CesiumNamespaceWithVersion).VERSION || UNKNOWN_CESIUM_VERSION;
+  return (
+    (CesiumNs as CesiumNamespaceWithVersion).VERSION || UNKNOWN_CESIUM_VERSION
+  );
 }
 
 /**

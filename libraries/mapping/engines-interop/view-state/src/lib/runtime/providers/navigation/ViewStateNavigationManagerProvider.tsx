@@ -1,8 +1,10 @@
 import {
   useCallback,
   useContext,
+  useEffect,
   useMemo,
   useRef,
+  useState,
   type ReactNode,
 } from "react";
 import {
@@ -10,21 +12,16 @@ import {
   type HashClearKeySetId,
   useHashState,
 } from "@carma-providers/hash-state";
+import { VIEW_STATE_NAVIGATION_EVENT } from "../../../core/types";
 import type {
   ViewState,
   ViewStateHashCodec,
   ViewStateHashValues,
-  ViewStateNavigationCommitEvent,
-  ViewStateNavigationHistoryView,
+  ViewStateNavigationEvent,
   ViewStateNavigationManagerContextValue,
 } from "../../../core/types";
 import { ViewStateContext } from "../view-state/ViewStateContext";
 import { ViewStateNavigationManagerContext } from "./ViewStateNavigationManagerContext";
-import {
-  appendViewStateNavigationHistoryEntry,
-  createViewStateNavigationHistoryBuffer,
-  readViewStateNavigationHistory,
-} from "./viewStateNavigationHistory";
 
 const DEFAULT_HASH_LABEL = "ViewStateNavigationManager";
 const DEFAULT_MIN_COMMIT_INTERVAL_MS = 100;
@@ -39,6 +36,14 @@ const serializeHashValues = (values: ViewStateHashValues): string =>
       .map((key) => [key, values[key]])
   );
 
+const readRestoreCommitSignature = (
+  codec: ViewStateHashCodec,
+  state: ViewState | null
+): string | null => {
+  const restoreHashValues = state ? codec.encode(state) : null;
+  return restoreHashValues ? serializeHashValues(restoreHashValues) : null;
+};
+
 type ViewStateNavigationManagerProviderProps = {
   children: ReactNode;
   codec: ViewStateHashCodec;
@@ -46,7 +51,6 @@ type ViewStateNavigationManagerProviderProps = {
   replace?: boolean;
   clearKeys?: readonly string[];
   clearKeySetIds?: readonly HashClearKeySetId[];
-  historyMaxEntries?: number;
   minCommitIntervalMs?: number;
   isHashWriteEnabled?: () => boolean;
 };
@@ -58,7 +62,6 @@ export const ViewStateNavigationManagerProvider = ({
   replace = true,
   clearKeys,
   clearKeySetIds,
-  historyMaxEntries,
   minCommitIntervalMs = DEFAULT_MIN_COMMIT_INTERVAL_MS,
   isHashWriteEnabled,
 }: ViewStateNavigationManagerProviderProps) => {
@@ -69,31 +72,22 @@ export const ViewStateNavigationManagerProvider = ({
     );
   }
 
-  const { getHashValues, updateHash } = useHashState();
+  const { getHashValues, registerOnPopState, updateHash } = useHashState();
 
-  const listenersRef = useRef<Set<() => void>>(new Set());
-  const commitListenersRef = useRef<
-    Set<(event: ViewStateNavigationCommitEvent) => void>
-  >(new Set());
-  const historyRef = useRef(
-    createViewStateNavigationHistoryBuffer(historyMaxEntries)
-  );
-  const latestCommittedStateRef = useRef<ViewState | null>(null);
-  const latestCommitEventRef = useRef<ViewStateNavigationCommitEvent | null>(
-    null
+  const [restoreState, setRestoreState] = useState<ViewState | null>(() =>
+    codec.decode(getHashValues())
   );
   const lastCommitSignatureRef = useRef<string | null>(null);
   const lastCommitReplaceRef = useRef<boolean>(replace);
   const lastCommitTimestampRef = useRef(0);
-  const sequenceIdRef = useRef(0);
   const hashWriteSuspensionCountRef = useRef(0);
-  const initialRestoreStateRef = useRef<ViewState | null>(null);
-  const initialRestoreResolvedRef = useRef(false);
-
-  if (!initialRestoreResolvedRef.current) {
-    initialRestoreStateRef.current = codec.decode(getHashValues());
-    initialRestoreResolvedRef.current = true;
-  }
+  const navigationListenersRef = useRef<
+    Set<(event: ViewStateNavigationEvent) => void>
+  >(new Set());
+  const pendingRestoreCommitSignatureRef = useRef<string | null>(
+    readRestoreCommitSignature(codec, restoreState)
+  );
+  const isRestoreResolved = true;
 
   const resolvedClearKeys = useMemo(
     () => [...new Set((clearKeys ?? []).filter((key) => key.length > 0))],
@@ -104,26 +98,39 @@ export const ViewStateNavigationManagerProvider = ({
     [clearKeySetIds]
   );
 
-  const notifyListeners = useCallback(() => {
-    listenersRef.current.forEach((listener) => listener());
+  const emitNavigationEvent = useCallback((event: ViewStateNavigationEvent) => {
+    navigationListenersRef.current.forEach((listener) => listener(event));
   }, []);
 
-  const subscribe = useCallback((listener: () => void) => {
-    listenersRef.current.add(listener);
-    return () => {
-      listenersRef.current.delete(listener);
-    };
-  }, []);
-
-  const registerOnCommit = useCallback(
-    (listener: (event: ViewStateNavigationCommitEvent) => void) => {
-      commitListenersRef.current.add(listener);
+  const registerOnNavigationEvent = useCallback(
+    (listener: (event: ViewStateNavigationEvent) => void) => {
+      navigationListenersRef.current.add(listener);
       return () => {
-        commitListenersRef.current.delete(listener);
+        navigationListenersRef.current.delete(listener);
       };
     },
     []
   );
+
+  useEffect(() => {
+    return registerOnPopState((event) => {
+      const nextRestoreState = codec.decode(event.values);
+      setRestoreState(nextRestoreState);
+      pendingRestoreCommitSignatureRef.current = readRestoreCommitSignature(
+        codec,
+        nextRestoreState
+      );
+
+      if (!nextRestoreState) {
+        return;
+      }
+
+      emitNavigationEvent({
+        type: VIEW_STATE_NAVIGATION_EVENT.BROWSER_POPSTATE_RESTORE,
+        state: nextRestoreState,
+      });
+    });
+  }, [codec, emitNavigationEvent, registerOnPopState]);
 
   const commitCurrentState = useCallback<
     ViewStateNavigationManagerContextValue["commitCurrentState"]
@@ -151,6 +158,15 @@ export const ViewStateNavigationManagerProvider = ({
       const forceCommit = options?.force ?? false;
       const commitTimestamp = Date.now();
       const nextSignature = serializeHashValues(hashValues);
+      const restoreCommitSignature = pendingRestoreCommitSignatureRef.current;
+
+      if (!forceCommit && nextSignature === restoreCommitSignature) {
+        pendingRestoreCommitSignatureRef.current = null;
+        lastCommitSignatureRef.current = nextSignature;
+        lastCommitReplaceRef.current = replaceHash;
+        lastCommitTimestampRef.current = commitTimestamp;
+        return false;
+      }
 
       if (!forceCommit) {
         const isDuplicateCommit =
@@ -175,29 +191,10 @@ export const ViewStateNavigationManagerProvider = ({
         replace: replaceHash,
       });
 
+      pendingRestoreCommitSignatureRef.current = null;
       lastCommitSignatureRef.current = nextSignature;
       lastCommitReplaceRef.current = replaceHash;
       lastCommitTimestampRef.current = commitTimestamp;
-
-      const commitEvent: ViewStateNavigationCommitEvent = {
-        sequenceId: sequenceIdRef.current + 1,
-        timestampMs: commitTimestamp,
-        reason,
-        state: currentState,
-        sourceId: currentState.metadata.sourceId ?? null,
-        replace: replaceHash,
-        hashValues,
-      };
-      sequenceIdRef.current = commitEvent.sequenceId;
-      latestCommittedStateRef.current = currentState;
-      latestCommitEventRef.current = commitEvent;
-      historyRef.current = appendViewStateNavigationHistoryEntry(
-        historyRef.current,
-        commitEvent
-      );
-
-      notifyListeners();
-      commitListenersRef.current.forEach((listener) => listener(commitEvent));
 
       return true;
     },
@@ -206,7 +203,6 @@ export const ViewStateNavigationManagerProvider = ({
       isHashWriteEnabled,
       label,
       minCommitIntervalMs,
-      notifyListeners,
       replace,
       resolvedClearKeySetIds,
       resolvedClearKeys,
@@ -225,49 +221,19 @@ export const ViewStateNavigationManagerProvider = ({
     };
   }, []);
 
-  const getInitialRestoreState = useCallback(
-    () => initialRestoreStateRef.current,
-    []
-  );
-  const isInitialRestoreResolved = useCallback(
-    () => initialRestoreResolvedRef.current,
-    []
-  );
-  const getLatestCommittedState = useCallback(
-    () => latestCommittedStateRef.current,
-    []
-  );
-  const getLatestCommitEvent = useCallback(
-    () => latestCommitEventRef.current,
-    []
-  );
-  const getHistory = useCallback(
-    (): ViewStateNavigationHistoryView =>
-      readViewStateNavigationHistory(historyRef.current),
-    []
-  );
-
   const value = useMemo<ViewStateNavigationManagerContextValue>(
     () => ({
-      getInitialRestoreState,
-      isInitialRestoreResolved,
-      getLatestCommittedState,
-      getLatestCommitEvent,
-      subscribe,
-      registerOnCommit,
+      restoreState,
+      isRestoreResolved,
+      registerOnNavigationEvent,
       commitCurrentState,
       suspendHashWrites,
-      getHistory,
     }),
     [
       commitCurrentState,
-      getHistory,
-      getInitialRestoreState,
-      getLatestCommitEvent,
-      getLatestCommittedState,
-      isInitialRestoreResolved,
-      registerOnCommit,
-      subscribe,
+      isRestoreResolved,
+      registerOnNavigationEvent,
+      restoreState,
       suspendHashWrites,
     ]
   );

@@ -1,13 +1,12 @@
-import { useCallback, useContext, useEffect, useMemo } from "react";
+import { useCallback, useEffect, useMemo, useRef } from "react";
 import type { Scene } from "@carma-mapping/engines/cesium/api";
 import type {
   ViewStateNavigationCommitReason,
-  ViewStateNavigationManagerContextValue,
   WritePriority,
 } from "../../core/types";
 import { useCesiumRuntimeBridge } from "./useCesiumRuntimeBridge";
 import type { SubscribedRuntimeBridgeHandle } from "./useSubscribedRuntimeBridge";
-import { ViewStateNavigationManagerContext } from "../providers/navigation/ViewStateNavigationManagerContext";
+import { useViewStateNavigationContext } from "../providers/navigation/useViewStateNavigationContext";
 
 export const CESIUM_NAVIGATION_BRIDGE_LISTENER = {
   MOVE_END: "moveEnd",
@@ -46,18 +45,8 @@ export type CesiumNavigationBridgeHandle = SubscribedRuntimeBridgeHandle & {
     reason: ViewStateNavigationCommitReason,
     options?: { replace?: boolean; force?: boolean }
   ) => boolean;
+  suppressCommitsUntilInteraction: () => void;
 };
-
-const useViewStateNavigationCommitContext =
-  (): ViewStateNavigationManagerContextValue => {
-    const ctx = useContext(ViewStateNavigationManagerContext);
-    if (!ctx) {
-      throw new Error(
-        "useCesiumNavigationBridge requires a <ViewStateNavigationManagerProvider> ancestor."
-      );
-    }
-    return ctx;
-  };
 
 export const useCesiumNavigationBridge = ({
   id,
@@ -65,20 +54,29 @@ export const useCesiumNavigationBridge = ({
   isSyncEnabled = true,
   isCommitEnabled = true,
   pushPriority = "sync",
-  replace = true,
+  replace = false,
   listeners = DEFAULT_CESIUM_NAVIGATION_BRIDGE_LISTENERS,
 }: UseCesiumNavigationBridgeOptions): CesiumNavigationBridgeHandle => {
-  const { commitCurrentState } = useViewStateNavigationCommitContext();
+  const { commitCurrentState } = useViewStateNavigationContext();
+  const releaseSuppression = useCallback(() => {
+    suppressCommitUntilInteractionRef.current = false;
+  }, []);
   const adapter = useCesiumRuntimeBridge({
     id,
     scene,
     enabled: isSyncEnabled,
     pushPriority,
+    onInteraction: releaseSuppression,
   });
   const listenerSet = useMemo(
     () => normalizeCesiumNavigationBridgeListeners(listeners),
     [listeners]
   );
+  const suppressCommitUntilInteractionRef = useRef(false);
+
+  const suppressCommitsUntilInteraction = useCallback(() => {
+    suppressCommitUntilInteractionRef.current = true;
+  }, []);
 
   const commitCurrentSceneState = useCallback(
     (
@@ -90,6 +88,10 @@ export const useCesiumNavigationBridge = ({
       }
 
       adapter.publishCurrentState();
+      if (!options?.force && suppressCommitUntilInteractionRef.current) {
+        return false;
+      }
+
       return commitCurrentState(reason, {
         replace: options?.replace ?? replace,
         force: options?.force,
@@ -140,7 +142,8 @@ export const useCesiumNavigationBridge = ({
     () => ({
       ...adapter,
       commitCurrentSceneState,
+      suppressCommitsUntilInteraction,
     }),
-    [adapter, commitCurrentSceneState]
+    [adapter, commitCurrentSceneState, suppressCommitsUntilInteraction]
   );
 };

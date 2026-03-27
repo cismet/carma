@@ -6,23 +6,27 @@ import {
 } from "../providers/view-state/useViewAdapter";
 import { useViewStateContext } from "../providers/view-state/useViewState";
 
-const bindInteractionClaiming = (
+const bindInteractionHandling = (
   element: HTMLElement,
-  claimControl: (priority?: WritePriority) => boolean,
-  priority: WritePriority
+  options: {
+    claimControl?: (priority?: WritePriority) => boolean;
+    priority: WritePriority;
+    onInteraction?: () => void;
+  }
 ) => {
-  const maybeClaim = () => {
-    claimControl(priority);
+  const handleInteraction = () => {
+    options.onInteraction?.();
+    options.claimControl?.(options.priority);
   };
 
-  element.addEventListener("pointerdown", maybeClaim);
-  element.addEventListener("wheel", maybeClaim, { passive: true });
-  element.addEventListener("touchstart", maybeClaim, { passive: true });
+  element.addEventListener("pointerdown", handleInteraction);
+  element.addEventListener("wheel", handleInteraction, { passive: true });
+  element.addEventListener("touchstart", handleInteraction, { passive: true });
 
   return () => {
-    element.removeEventListener("pointerdown", maybeClaim);
-    element.removeEventListener("wheel", maybeClaim);
-    element.removeEventListener("touchstart", maybeClaim);
+    element.removeEventListener("pointerdown", handleInteraction);
+    element.removeEventListener("wheel", handleInteraction);
+    element.removeEventListener("touchstart", handleInteraction);
   };
 };
 
@@ -35,6 +39,7 @@ export type UseSubscribedRuntimeBridgeOptions<TRuntime> = {
   claimPriority?: WritePriority;
   claimBeforePush?: boolean;
   claimOnInteraction?: boolean;
+  onInteraction?: () => void;
   read: (
     runtime: TRuntime,
     sourceId: string,
@@ -59,6 +64,7 @@ export const useSubscribedRuntimeBridge = <TRuntime>({
   claimPriority = "user-interaction",
   claimBeforePush = true,
   claimOnInteraction = false,
+  onInteraction,
   read,
   apply,
   subscribe,
@@ -71,11 +77,13 @@ export const useSubscribedRuntimeBridge = <TRuntime>({
   const applyRef = useRef(apply);
   const subscribeRef = useRef(subscribe);
   const getInteractionElementRef = useRef(getInteractionElement);
+  const onInteractionRef = useRef(onInteraction);
 
   readRef.current = read;
   applyRef.current = apply;
   subscribeRef.current = subscribe;
   getInteractionElementRef.current = getInteractionElement;
+  onInteractionRef.current = onInteraction;
 
   const adapter = useViewAdapter(id, engine, {
     apply: (state) => {
@@ -152,7 +160,12 @@ export const useSubscribedRuntimeBridge = <TRuntime>({
   }, [releaseControl]);
 
   useEffect(() => {
-    if (!runtime || !enabled || !claimOnInteraction || !getInteractionElement) {
+    if (
+      !runtime ||
+      !enabled ||
+      (!claimOnInteraction && !onInteraction) ||
+      !getInteractionElement
+    ) {
       return;
     }
 
@@ -161,16 +174,17 @@ export const useSubscribedRuntimeBridge = <TRuntime>({
       return;
     }
 
-    return bindInteractionClaiming(
-      element,
-      adapter.claimControl,
-      claimPriority
-    );
+    return bindInteractionHandling(element, {
+      claimControl: claimOnInteraction ? adapter.claimControl : undefined,
+      priority: claimPriority,
+      onInteraction: onInteractionRef.current,
+    });
   }, [
     adapter.claimControl,
     claimOnInteraction,
     claimPriority,
     enabled,
+    onInteraction,
     runtime,
   ]);
 

@@ -30,6 +30,7 @@ export type UseCesiumRuntimeBridgeOptions = {
   claimPriority?: WritePriority;
   claimBeforePush?: boolean;
   claimOnInteraction?: boolean;
+  onInteraction?: () => void;
 };
 
 export const useCesiumRuntimeBridge = ({
@@ -40,6 +41,7 @@ export const useCesiumRuntimeBridge = ({
   claimPriority = "user-interaction",
   claimBeforePush = true,
   claimOnInteraction = false,
+  onInteraction,
 }: UseCesiumRuntimeBridgeOptions): SubscribedRuntimeBridgeHandle => {
   const adapter = useSubscribedRuntimeBridge({
     id,
@@ -50,6 +52,7 @@ export const useCesiumRuntimeBridge = ({
     claimPriority,
     claimBeforePush,
     claimOnInteraction,
+    onInteraction,
     read: (runtime, sourceId) => readFromCesium(runtime, sourceId),
     apply: applyToCesium,
     subscribe: attachSceneFrameListener,

@@ -8,8 +8,6 @@ const MINIMAL_WIDGET_OPTIONS = {
   baseLayer: false,
   requestRenderMode: true,
   useBrowserRecommendedResolution: false,
-  // We handle attribution externally in apps and avoid default Ion assets.
-  creditContainer: document.createElement("div"),
   contextOptions: {
     webgl: {
       alpha: true,
@@ -17,6 +15,14 @@ const MINIMAL_WIDGET_OPTIONS = {
     },
   },
 };
+
+const createRuntimeMinimalWidgetOptions = () => ({
+  ...MINIMAL_WIDGET_OPTIONS,
+  // We handle attribution externally in apps and avoid default Ion assets.
+  ...(typeof document === "undefined"
+    ? {}
+    : { creditContainer: document.createElement("div") }),
+});
 
 /**
  * Create CesiumWidget with minimal defaults and deep-merge of contextOptions.webgl.
@@ -31,15 +37,16 @@ export const createMinimalCesiumWidget = (
   const webglOptions = contextOptions?.["webgl"] as
     | Record<string, unknown>
     | undefined;
+  const runtimeDefaults = createRuntimeMinimalWidgetOptions();
 
   const mergedOptions = {
-    ...MINIMAL_WIDGET_OPTIONS,
+    ...runtimeDefaults,
     ...options,
     contextOptions: {
-      ...MINIMAL_WIDGET_OPTIONS.contextOptions,
+      ...runtimeDefaults.contextOptions,
       ...(contextOptions || {}),
       webgl: {
-        ...MINIMAL_WIDGET_OPTIONS.contextOptions.webgl,
+        ...runtimeDefaults.contextOptions.webgl,
         ...(webglOptions || {}),
       },
     },

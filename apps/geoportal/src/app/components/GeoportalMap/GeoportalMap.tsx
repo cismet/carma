@@ -99,10 +99,10 @@ import { useCameraOrbit } from "../../hooks/useCameraOrbit.ts";
 import { useGeoportalInitialValues } from "../../hooks/useGeoportalInitialValues.ts";
 
 import { onClickTopicMap } from "./topicmap.utils.ts";
+import { useGeoportalCesiumNavigationRestore } from "./hooks/useGeoportalCesiumNavigationRestore.ts";
 import { useCreateCismapLayers } from "./hooks/useCreateCismapLayer.ts";
 
 import store from "../../store/index.ts";
-import { DEFAULT_HOME_VIEW_REF } from "../../config/view.config";
 import {
   getLoading,
   getSelectedFeature,
@@ -439,11 +439,17 @@ const GeoportalMapInner = ({ height, width, allow3d }: MapProps) => {
     scene: cesiumScene,
     enabled: getIsCesium(),
   });
-  const { commitCurrentSceneState } = useCesiumNavigationBridge({
-    id: GEOPORTAL_CESIUM_VIEW_ADAPTER_ID,
+  const { commitCurrentSceneState, suppressCommitsUntilInteraction } =
+    useCesiumNavigationBridge({
+      id: GEOPORTAL_CESIUM_VIEW_ADAPTER_ID,
+      scene: cesiumScene,
+      isSyncEnabled: Boolean(cesiumScene),
+      isCommitEnabled: isCesium && !getIsTransitioning() && initialViewApplied,
+    });
+  useGeoportalCesiumNavigationRestore({
     scene: cesiumScene,
-    isSyncEnabled: Boolean(cesiumScene),
-    isCommitEnabled: isCesium && !getIsTransitioning() && initialViewApplied,
+    enabled: isCesiumRuntimeReady,
+    suppressCommitsUntilInteraction,
   });
 
   // Stop orbit when feature is deselected

@@ -34,9 +34,7 @@ import {
   useCesiumContext,
   useZoomControls as useZoomControlsCesium,
 } from "@carma-mapping/engines/cesium";
-import {
-  flyViewStateInCesium,
-} from "@carma-mapping/engines-interop/view-state";
+import { flyViewStateInCesium } from "@carma-mapping/engines-interop/view-state";
 import {
   MapFrameworkSwitcher,
   FullscreenControl,
@@ -66,7 +64,7 @@ import { useFeatureInfoModeCursorStyle } from "../../../hooks/useFeatureInfoMode
 import { useMapStyleReduxSync } from "../../../hooks/useMapStyleReduxSync";
 import { useTourRefCollabLabels } from "../../../hooks/useTourRefCollabLabels.ts";
 import { useWindowSize } from "../../../hooks/useWindowSize.ts";
-import { useGeoportalInitialValues } from "../../../hooks/useGeoportalInitialValues.ts";
+import { useGeoportalHomeValues } from "../../../hooks/useGeoportalInitialValues.ts";
 
 import { useOblique } from "../../../oblique/hooks/useOblique.ts";
 
@@ -92,7 +90,6 @@ import {
   toggleUIMode,
   UIMode,
 } from "../../../store/slices/ui.ts";
-import { DEFAULT_HOME_VIEW_REF } from "../../../config/view.config";
 
 // detect GPU support, disables 3d mode if not supported
 let hasGPU = false;
@@ -155,7 +152,7 @@ const MapWrapper = () => {
     homeCenter,
     homeLeafletZoom,
     homeMaplibreZoom,
-  } = useGeoportalInitialValues();
+  } = useGeoportalHomeValues();
   const handleCesiumHomeClick = useCallback(() => {
     if (!isCesium) return;
 
