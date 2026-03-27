@@ -83,6 +83,7 @@ import {
   clearSelection,
   getAALoading,
   getDraftMode,
+  setLassoSelectedFeatures,
 } from "../../store/slices/arbeitsauftraege";
 import { getSelectedTeamName } from "../../store/selectors";
 import { buildApGeoJson, extractGeometry } from "../../helper/buildApGeoJson";
@@ -416,6 +417,9 @@ const BelisMapLibWrapper = ({
     map,
     active: aaLassoActive,
     onDeactivate: onAaLassoDeactivate,
+    onFeaturesSelected: (features) => {
+      dispatch(setLassoSelectedFeatures(features));
+    },
   });
 
   const showRaw = useMemo(() => {
