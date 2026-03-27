@@ -185,15 +185,17 @@ export const panelSlotStyle: CSSProperties = {
   display: "flex",
 };
 
-const ANNOTATIONS_DEMO_HOME_POSE: StoryHomePoseValues = {
-  lngDeg: 7.1960888,
-  latDeg: 51.2696499,
-  bearingDeg: 3.23,
-  pitchDeg: 58.73,
-  altitudeM: 149.95,
-};
+// Align the multiview story center with the Geoportal home position at
+// Rathaus Barmen while keeping the oblique story presentation.
+export const RATHAUS_BARMEN_HOME_POSE = {
+  lngDeg: 7.1999207,
+  latDeg: 51.2725716,
+  bearingDeg: 154.69,
+  pitchDeg: 45,
+  altitudeM: 157,
+} satisfies StoryHomePoseValues;
 
-const DEFAULT_STORY_RANGE_M = 620;
+export const DEFAULT_STORY_RANGE_M = 620;
 
 export const MIN_COMPASS_PITCH_DEG = 0;
 export const MAX_COMPASS_PITCH_DEG = 85;
@@ -210,11 +212,11 @@ export const ZOOM_CONTROL_DURATION_MS = 280;
 export const ANIMATION_MIN_DURATION_MS = 1;
 
 export const createStoryTargetState = ({
-  longitudeDeg = ANNOTATIONS_DEMO_HOME_POSE.lngDeg,
-  latitudeDeg = ANNOTATIONS_DEMO_HOME_POSE.latDeg,
-  altitudeM = ANNOTATIONS_DEMO_HOME_POSE.altitudeM,
-  bearingDeg = ANNOTATIONS_DEMO_HOME_POSE.bearingDeg,
-  pitchDeg = ANNOTATIONS_DEMO_HOME_POSE.pitchDeg,
+  longitudeDeg = RATHAUS_BARMEN_HOME_POSE.lngDeg,
+  latitudeDeg = RATHAUS_BARMEN_HOME_POSE.latDeg,
+  altitudeM = RATHAUS_BARMEN_HOME_POSE.altitudeM,
+  bearingDeg = RATHAUS_BARMEN_HOME_POSE.bearingDeg,
+  pitchDeg = RATHAUS_BARMEN_HOME_POSE.pitchDeg,
   rangeM,
   fovVerticalDeg = radToDegNumeric(DEFAULT_FOV_RAD),
   nearPlaneM,

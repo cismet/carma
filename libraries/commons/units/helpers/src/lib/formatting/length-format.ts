@@ -1,5 +1,6 @@
 import type { Meters } from "@carma/units/types";
 import { formatDecimalNumber } from "./decimal-format";
+import { formatSignificantNumber } from "./formatSignificantNumber";
 import { FORMAT_LOCALE } from "./locales";
 
 export const LENGTH_UNIT_MODE = {
@@ -18,12 +19,47 @@ export type FormatLengthMetersOptions = {
   unitMode?: LengthUnitMode;
 };
 
+export type FormatLengthMetersScientificOptions = {
+  locale?: Intl.LocalesArgument;
+  significantDigits?: number;
+};
+
+export type FormattedLengthMetersScientificParts = {
+  coefficient: string;
+  exponent: number | null;
+  unit: "m";
+  text: string;
+};
+
 const DEFAULT_LENGTH_FORMAT_OPTIONS: Required<FormatLengthMetersOptions> = {
   locale: FORMAT_LOCALE.EN_US,
   kilometerThresholdMeters: 1000,
   maximumFractionDigitsMeters: 2,
   maximumFractionDigitsKilometers: 2,
   unitMode: LENGTH_UNIT_MODE.ADAPTIVE,
+};
+
+const DEFAULT_SCIENTIFIC_LENGTH_FORMAT_OPTIONS: Required<FormatLengthMetersScientificOptions> =
+  {
+    locale: FORMAT_LOCALE.EN_US,
+    significantDigits: 3,
+  };
+
+const THIN_SPACE = "\u2009";
+const NARROW_NO_BREAK_SPACE = "\u202F";
+
+const clampScientificSignificantDigits = (value: number): number =>
+  Math.max(1, Math.min(12, Math.floor(value)));
+
+const readScientificSignificantDigits = (
+  options?: FormatLengthMetersScientificOptions
+): number => {
+  const candidate = options?.significantDigits;
+  if (typeof candidate === "number" && Number.isFinite(candidate)) {
+    return clampScientificSignificantDigits(candidate);
+  }
+
+  return DEFAULT_SCIENTIFIC_LENGTH_FORMAT_OPTIONS.significantDigits;
 };
 
 export const formatLengthMeters = (
@@ -65,4 +101,60 @@ export const formatLengthMeters = (
     fractionDigits: maximumFractionDigitsMeters,
     useGrouping: true,
   })} m`;
+};
+
+export const formatLengthMetersScientific = (
+  value: Meters | number,
+  options?: FormatLengthMetersScientificOptions
+): string => {
+  return formatLengthMetersScientificParts(value, options).text;
+};
+
+export const formatLengthMetersScientificParts = (
+  value: Meters | number,
+  options?: FormatLengthMetersScientificOptions
+): FormattedLengthMetersScientificParts => {
+  const numericValue = value as number;
+
+  if (!Number.isFinite(numericValue)) {
+    return {
+      coefficient: String(numericValue),
+      exponent: null,
+      unit: "m",
+      text: `${String(numericValue)} m`,
+    };
+  }
+
+  if (numericValue === 0) {
+    return {
+      coefficient: "0",
+      exponent: null,
+      unit: "m",
+      text: "0 m",
+    };
+  }
+
+  const { locale, significantDigits } = {
+    ...DEFAULT_SCIENTIFIC_LENGTH_FORMAT_OPTIONS,
+    ...options,
+  };
+  const resolvedSignificantDigits = readScientificSignificantDigits({
+    significantDigits,
+  });
+  const [coefficientSource = "0", exponentSource = "0"] = numericValue
+    .toExponential(resolvedSignificantDigits - 1)
+    .split("e");
+  const coefficient = Number.parseFloat(coefficientSource);
+  const exponent = Number.parseInt(exponentSource, 10);
+  const formattedCoefficient = formatSignificantNumber(coefficient, {
+    locale,
+    significantDigits: resolvedSignificantDigits,
+  });
+
+  return {
+    coefficient: formattedCoefficient,
+    exponent,
+    unit: "m",
+    text: `${formattedCoefficient}${THIN_SPACE}\u00D7${THIN_SPACE}10^${exponent}${NARROW_NO_BREAK_SPACE}m`,
+  };
 };

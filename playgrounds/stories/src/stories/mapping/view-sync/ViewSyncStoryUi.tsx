@@ -1,9 +1,5 @@
 import { useMemo, type CSSProperties, type ReactNode } from "react";
-import {
-  CAMERA_TYPE,
-  type CameraIntrinsics,
-  type CameraType,
-} from "@carma-commons/camera/model";
+import { CAMERA_TYPE, type CameraType } from "@carma-commons/camera/model";
 import { latLngRadToDeg } from "@carma/geo/helpers";
 import {
   ObjectCentricViewStateInfoBox,
@@ -13,12 +9,13 @@ import { type ViewStateVisualizerDisplayOptions } from "@carma-mapping/engines/t
 import {
   deriveView,
   useViewState,
+  useViewStateControllerId,
   type ViewState,
   type ShareableViewState,
 } from "@carma-mapping/engines-interop/view-state";
 import {
   formatLatLonDegrees,
-  formatLengthMeters,
+  formatLengthMetersScientificParts,
   radToDegNumeric,
 } from "@carma/units/helpers";
 import {
@@ -34,6 +31,7 @@ type MappingEngineStatusFormatOptions = {
 const FIGURE_SPACE = "\u2007";
 const HAIR_SPACE = "\u200A";
 const NARROW_NO_BREAK_SPACE = "\u202f";
+const THIN_SPACE = "\u2009";
 export const DEFAULT_STATUS_BAR_DELIMITER = FIGURE_SPACE;
 const RANGE_CUE_COLOR = "#64748b";
 const ALTITUDE_CUE_COLOR = "#94a3b8";
@@ -70,11 +68,31 @@ const formatStatusMetric = (label: string, value: string): string =>
 
 const formatOrUnresolved = (
   value: number | null | undefined,
-  formatter: (resolvedValue: number) => string
+  formatter: (resolvedValue: number) => ReactNode
 ) =>
   typeof value === "number" && Number.isFinite(value)
     ? formatter(value)
     : "unresolved";
+
+const renderScientificLengthMeters = (value: number): ReactNode => {
+  const formatted = formatLengthMetersScientificParts(value);
+  if (formatted.exponent === null) {
+    return formatted.text;
+  }
+
+  return (
+    <>
+      {formatted.coefficient}
+      {THIN_SPACE}
+      {"\u00D7"}
+      {THIN_SPACE}
+      10
+      <sup>{formatted.exponent}</sup>
+      {NARROW_NO_BREAK_SPACE}
+      {formatted.unit}
+    </>
+  );
+};
 
 const formatCameraType = (cameraType: CameraType | null | undefined) => {
   if (!cameraType) {
@@ -90,13 +108,61 @@ const formatCameraType = (cameraType: CameraType | null | undefined) => {
 };
 
 const readIntrinsicsAspect = (
-  intrinsics: CameraIntrinsics | null | undefined
+  state: ViewState | null | undefined
 ): number | null => {
+  const intrinsics = state?.intrinsics;
+  const viewport = state?.metadata.viewport;
+  const viewOffset = intrinsics?.viewOffset;
   const candidate = (intrinsics as { aspect?: unknown } | null | undefined)
     ?.aspect;
-  return typeof candidate === "number" && Number.isFinite(candidate)
-    ? candidate
-    : null;
+  if (typeof candidate === "number" && Number.isFinite(candidate)) {
+    return candidate;
+  }
+
+  if (
+    typeof viewport?.widthPx === "number" &&
+    Number.isFinite(viewport.widthPx) &&
+    viewport.widthPx > 0 &&
+    typeof viewport?.heightPx === "number" &&
+    Number.isFinite(viewport.heightPx) &&
+    viewport.heightPx > 0
+  ) {
+    return viewport.widthPx / viewport.heightPx;
+  }
+
+  if (
+    typeof viewOffset?.width === "number" &&
+    Number.isFinite(viewOffset.width) &&
+    viewOffset.width > 0 &&
+    typeof viewOffset?.height === "number" &&
+    Number.isFinite(viewOffset.height) &&
+    viewOffset.height > 0
+  ) {
+    return viewOffset.width / viewOffset.height;
+  }
+
+  if (
+    typeof intrinsics?.fov === "number" &&
+    Number.isFinite(intrinsics.fov) &&
+    intrinsics.fov > 0 &&
+    typeof intrinsics?.fovHorizontal === "number" &&
+    Number.isFinite(intrinsics.fovHorizontal) &&
+    intrinsics.fovHorizontal > 0
+  ) {
+    const tanVerticalHalfFov = Math.tan(intrinsics.fov * 0.5);
+    const tanHorizontalHalfFov = Math.tan(intrinsics.fovHorizontal * 0.5);
+
+    if (
+      Number.isFinite(tanVerticalHalfFov) &&
+      tanVerticalHalfFov > 0 &&
+      Number.isFinite(tanHorizontalHalfFov) &&
+      tanHorizontalHalfFov > 0
+    ) {
+      return tanHorizontalHalfFov / tanVerticalHalfFov;
+    }
+  }
+
+  return null;
 };
 
 const toOverlayViewState = (state: ViewState): ShareableViewState => {
@@ -219,8 +285,9 @@ export const formatMappingEngineStatusFromViewState = (
 
 const formatViewSyncTargetTableRows = (
   target: ShareableViewState | null | undefined,
-  intrinsics: CameraIntrinsics | null | undefined
+  state: ViewState | null | undefined
 ): ObjectCentricViewStateInfoRow[] => {
+  const intrinsics = state?.intrinsics;
   if (!target) {
     return [
       { kind: "section", key: "geographic", label: "Geographic" },
@@ -229,7 +296,7 @@ const formatViewSyncTargetTableRows = (
       {
         cueLabel: "ℎ",
         cueColor: ALTITUDE_CUE_COLOR,
-        label: "ellipsoidal height",
+        label: "height",
         value: "unresolved",
         tooltip:
           "Geodetic / ellipsoidal height h above the reference ellipsoid at the ENU anchor.",
@@ -292,7 +359,7 @@ const formatViewSyncTargetTableRows = (
     {
       cueLabel: "ℎ",
       cueColor: ALTITUDE_CUE_COLOR,
-      label: "ellipsoidal height",
+      label: "height",
       value: formatAlignedNumber(target.altitude, 1, "m"),
       tooltip:
         "Geodetic / ellipsoidal height h above the reference ellipsoid at the ENU anchor.",
@@ -352,27 +419,20 @@ const formatViewSyncTargetTableRows = (
     },
     {
       label: "aspect ratio",
-      value: formatOrUnresolved(
-        readIntrinsicsAspect(intrinsics),
-        (resolvedAspect) => formatCompactNumber(resolvedAspect, 3)
+      value: formatOrUnresolved(readIntrinsicsAspect(state), (resolvedAspect) =>
+        formatCompactNumber(resolvedAspect, 3)
       ),
     },
     {
       label: "near",
       value: formatOrUnresolved(intrinsics?.frustum?.near, (resolvedNear) =>
-        formatLengthMeters(resolvedNear, {
-          maximumFractionDigitsMeters: 2,
-          maximumFractionDigitsKilometers: 2,
-        })
+        renderScientificLengthMeters(resolvedNear)
       ),
     },
     {
       label: "far",
       value: formatOrUnresolved(intrinsics?.frustum?.far, (resolvedFar) =>
-        formatLengthMeters(resolvedFar, {
-          maximumFractionDigitsMeters: 2,
-          maximumFractionDigitsKilometers: 2,
-        })
+        renderScientificLengthMeters(resolvedFar)
       ),
     },
   ];
@@ -508,23 +568,26 @@ export const buildPanelStatusText = (
 export const ViewSyncMetaOverlay = ({
   fallbackTarget,
   style,
+  visualizerWidth,
+  visualizerHeight,
 }: {
   fallbackTarget: ViewState;
   style?: CSSProperties;
+  visualizerWidth?: number;
+  visualizerHeight?: number;
 }) => {
   const currentState = useViewState();
-  const visualizerState = currentState ?? fallbackTarget;
+  const controllerId = useViewStateControllerId();
+  const visualizerState = controllerId
+    ? currentState ?? fallbackTarget
+    : fallbackTarget;
   const visualizerTarget = useMemo(
     () => toOverlayViewState(visualizerState),
     [visualizerState]
   );
   const rows = useMemo(
-    () =>
-      formatViewSyncTargetTableRows(
-        visualizerTarget,
-        visualizerState.intrinsics
-      ),
-    [visualizerTarget, visualizerState.intrinsics]
+    () => formatViewSyncTargetTableRows(visualizerTarget, visualizerState),
+    [visualizerState, visualizerTarget]
   );
   const formattedViewJson = useMemo(
     () => formatViewSyncJson(visualizerTarget),
@@ -540,6 +603,8 @@ export const ViewSyncMetaOverlay = ({
       viewState={visualizerState}
       visualizerInteractive={true}
       visualizerDisplayOptions={visualizerDisplayOptions}
+      visualizerWidth={visualizerWidth}
+      visualizerHeight={visualizerHeight}
       visualizerBearingLabel="b"
       visualizerPitchLabel="p"
       width={560}

@@ -12,7 +12,7 @@ import {
   type ViewStateVisualizerCueOptions,
 } from "./ViewStateVisualizer";
 import {
-  useEffect,
+  useLayoutEffect,
   useRef,
   useState,
   type CSSProperties,
@@ -95,34 +95,57 @@ export const ObjectCentricViewStateInfoBox = ({
   headingColor = "rgba(51, 65, 85, 0.94)",
   style,
 }: ObjectCentricViewStateInfoBoxProps) => {
-  const visualizerSlotRef = useRef<HTMLDivElement | null>(null);
-  const [measuredVisualizerWidth, setMeasuredVisualizerWidth] = useState(0);
-  const fallbackVisualizerSize = Math.min(visualizerWidth, visualizerHeight);
-  const resolvedVisualizerSize =
-    measuredVisualizerWidth > 0
-      ? Math.max(fallbackVisualizerSize, Math.floor(measuredVisualizerWidth))
-      : fallbackVisualizerSize;
+  const resolvedVisualizerWidth = Math.max(1, Math.floor(visualizerWidth));
+  const resolvedVisualizerHeight = Math.max(1, Math.floor(visualizerHeight));
+  const visualizerHostRef = useRef<HTMLDivElement | null>(null);
+  const [renderedVisualizerWidth, setRenderedVisualizerWidth] = useState(
+    resolvedVisualizerWidth
+  );
+  const renderedVisualizerHeight = Math.max(
+    1,
+    Math.round(
+      (renderedVisualizerWidth * resolvedVisualizerHeight) /
+        resolvedVisualizerWidth
+    )
+  );
 
-  useEffect(() => {
-    const element = visualizerSlotRef.current;
-    if (!element || typeof ResizeObserver === "undefined") {
+  useLayoutEffect(() => {
+    const host = visualizerHostRef.current;
+    const commitWidth = (nextWidth: number) => {
+      const resolvedWidth = Math.max(
+        resolvedVisualizerWidth,
+        Math.floor(nextWidth)
+      );
+      setRenderedVisualizerWidth((currentWidth) =>
+        currentWidth === resolvedWidth ? currentWidth : resolvedWidth
+      );
+    };
+
+    if (!host) {
+      commitWidth(resolvedVisualizerWidth);
       return;
     }
 
-    const updateMeasuredWidth = () => {
-      setMeasuredVisualizerWidth(element.clientWidth);
-    };
+    commitWidth(host.getBoundingClientRect().width || host.clientWidth);
 
-    updateMeasuredWidth();
-    const observer = new ResizeObserver(() => {
-      updateMeasuredWidth();
+    if (typeof ResizeObserver === "undefined") {
+      return;
+    }
+
+    const resizeObserver = new ResizeObserver((entries) => {
+      const entry = entries[0];
+      if (!entry) {
+        return;
+      }
+
+      commitWidth(entry.contentRect.width || host.clientWidth);
     });
-    observer.observe(element);
 
+    resizeObserver.observe(host);
     return () => {
-      observer.disconnect();
+      resizeObserver.disconnect();
     };
-  }, []);
+  }, [resolvedVisualizerWidth]);
 
   return (
     <CarmaResponsiveInfoBox
@@ -144,30 +167,55 @@ export const ObjectCentricViewStateInfoBox = ({
         <div
           style={{
             display: "grid",
-            gap: 8,
             minWidth: 0,
           }}
         >
           <div
             style={{
+              gridArea: "1 / 1",
               display: "grid",
-              gridTemplateColumns: "max-content minmax(0, 1fr)",
+              gridTemplateColumns: `minmax(${resolvedVisualizerWidth}px, 1fr) fit-content(100%)`,
               alignItems: "start",
-              gap: 10,
+              gap: 0,
               width: "100%",
             }}
           >
             <div
+              ref={visualizerHostRef}
+              style={{
+                display: "flex",
+                justifyContent: "center",
+                alignItems: "flex-start",
+                minWidth: resolvedVisualizerWidth,
+                width: "100%",
+              }}
+            >
+              <ViewStateVisualizer
+                viewState={viewState}
+                overviewOptions={visualizerOverviewOptions}
+                interactive={visualizerInteractive}
+                visualizedOptions={visualizerVisualizedOptions}
+                displayOptions={visualizerDisplayOptions}
+                cueOptions={visualizerCueOptions}
+                width={renderedVisualizerWidth}
+                height={renderedVisualizerHeight}
+                bearingLabel={visualizerBearingLabel}
+                pitchLabel={visualizerPitchLabel}
+              />
+            </div>
+            <div
               style={{
                 display: "grid",
-                gap: 6,
-                width: "fit-content",
+                width: "max-content",
+                minWidth: "max-content",
+                maxWidth: "100%",
+                justifySelf: "start",
+                paddingRight: 4,
               }}
             >
               <table
                 style={{
                   width: "auto",
-                  display: "inline-table",
                   borderCollapse: "collapse",
                   fontSize: 11,
                   color: "#1f2937",
@@ -185,7 +233,7 @@ export const ObjectCentricViewStateInfoBox = ({
                           style={{
                             width: CUE_GLYPH_COLUMN_WIDTH_PX,
                             minWidth: CUE_GLYPH_COLUMN_WIDTH_PX,
-                            padding: "6px 2px 1px 8px",
+                            padding: "6px 2px 1px 0",
                           }}
                         />
                         <td
@@ -197,7 +245,7 @@ export const ObjectCentricViewStateInfoBox = ({
                         />
                         <td
                           style={{
-                            padding: "6px 8px 1px 0",
+                            padding: "6px 0 1px 0",
                             color: "#334155",
                             fontSize: 10,
                             fontWeight: 600,
@@ -214,7 +262,7 @@ export const ObjectCentricViewStateInfoBox = ({
                       <tr key={row.key ?? row.label}>
                         <td
                           style={{
-                            padding: "1px 2px 1px 8px",
+                            padding: "1px 2px 1px 0",
                             color: row.cueColor ?? "#94a3b8",
                             whiteSpace: "nowrap",
                             width: CUE_GLYPH_COLUMN_WIDTH_PX,
@@ -253,7 +301,7 @@ export const ObjectCentricViewStateInfoBox = ({
                         </td>
                         <td
                           style={{
-                            padding: "1px 8px 1px 0",
+                            padding: "1px 0 1px 0",
                             lineHeight: 1.15,
                           }}
                         >
@@ -304,70 +352,58 @@ export const ObjectCentricViewStateInfoBox = ({
                 </tbody>
               </table>
             </div>
-            <div
-              ref={visualizerSlotRef}
-              style={{
-                display: "flex",
-                justifyContent: "center",
-                alignItems: "flex-start",
-                minWidth: 0,
-                width: "100%",
-              }}
-            >
-              <ViewStateVisualizer
-                viewState={viewState}
-                overviewOptions={visualizerOverviewOptions}
-                interactive={visualizerInteractive}
-                visualizedOptions={visualizerVisualizedOptions}
-                displayOptions={visualizerDisplayOptions}
-                cueOptions={visualizerCueOptions}
-                width={resolvedVisualizerSize}
-                height={resolvedVisualizerSize}
-                bearingLabel={visualizerBearingLabel}
-                pitchLabel={visualizerPitchLabel}
-              />
-            </div>
           </div>
           {detailsContent ? (
             <div
+              data-testid="object-centric-info-details"
               style={{
+                gridArea: "1 / 1",
                 display: "flex",
-                justifyContent: "flex-start",
-                padding: "0 8px 4px",
+                justifyContent: "flex-end",
+                alignItems: "flex-end",
+                padding: "0 4px 4px 0",
+                zIndex: 1,
+                pointerEvents: "none",
               }}
             >
-              <Popover
-                trigger="click"
-                placement="bottomLeft"
-                title={detailsTitle ?? "Details"}
-                content={
-                  <div
+              <div
+                style={{
+                  pointerEvents: "auto",
+                }}
+              >
+                <Popover
+                  trigger="click"
+                  placement="bottomLeft"
+                  title={detailsTitle ?? "Details"}
+                  content={
+                    <div
+                      style={{
+                        maxWidth: 520,
+                        maxHeight: 360,
+                        overflow: "auto",
+                      }}
+                    >
+                      {detailsContent}
+                    </div>
+                  }
+                >
+                  <Button
+                    type="text"
+                    size="small"
+                    icon={<InfoCircleOutlined />}
                     style={{
-                      maxWidth: 520,
-                      maxHeight: 360,
-                      overflow: "auto",
+                      paddingInline: 0,
+                      color: "#475569",
+                      fontSize: 12,
+                      display: "inline-flex",
+                      alignItems: "center",
+                      gap: 6,
                     }}
                   >
-                    {detailsContent}
-                  </div>
-                }
-              >
-                <Button
-                  type="text"
-                  size="small"
-                  icon={<InfoCircleOutlined />}
-                  style={{
-                    paddingInline: 0,
-                    color: "#475569",
-                    fontSize: 12,
-                    display: "inline-flex",
-                    alignItems: "center",
-                    gap: 6,
-                  }}
-                >
-                  {detailsTitle ?? "Details"}
-                </Button>
-              </Popover>
+                    {detailsTitle ?? "Details"}
+                  </Button>
+                </Popover>
+              </div>
             </div>
           ) : null}
         </div>

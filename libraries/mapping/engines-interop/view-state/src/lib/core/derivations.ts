@@ -28,17 +28,22 @@ const readViewportDimension = (
     : undefined;
 
 const readViewportDimensions = (
-  intrinsics: CameraIntrinsics,
+  state: ViewState,
   viewportWidthPx?: number,
   viewportHeightPx?: number
 ): { widthPx: number; heightPx: number } => {
-  const viewOffset = intrinsics.viewOffset;
+  const viewOffset = state.intrinsics.viewOffset;
+  const storedViewport = state.metadata.viewport;
   const widthPx =
-    readViewportDimension(viewportWidthPx, viewOffset?.width) ??
-    DEFAULT_VIEWPORT_PX;
+    readViewportDimension(
+      viewportWidthPx,
+      readViewportDimension(storedViewport?.widthPx, viewOffset?.width)
+    ) ?? DEFAULT_VIEWPORT_PX;
   const heightPx =
-    readViewportDimension(viewportHeightPx, viewOffset?.height) ??
-    DEFAULT_VIEWPORT_PX;
+    readViewportDimension(
+      viewportHeightPx,
+      readViewportDimension(storedViewport?.heightPx, viewOffset?.height)
+    ) ?? DEFAULT_VIEWPORT_PX;
 
   return { widthPx, heightPx };
 };
@@ -86,7 +91,7 @@ export const deriveZoom = (
   viewportHeightPx?: number
 ): number => {
   const { widthPx, heightPx } = readViewportDimensions(
-    state.intrinsics,
+    state,
     viewportWidthPx,
     viewportHeightPx
   );

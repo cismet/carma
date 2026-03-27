@@ -50,12 +50,25 @@ export const readFromCesium = (
 
     const intrinsics = readSceneCameraIntrinsics(scene);
     const frameNumber = (scene as SceneFrameStateLike).frameState?.frameNumber;
+    const viewportWidthPx = scene.canvas?.clientWidth;
+    const viewportHeightPx = scene.canvas?.clientHeight;
 
     const metadata: ViewStateMetadata = {
       frameId: isFiniteNumber(frameNumber) ? frameNumber : 0,
       timestampMs: Date.now(),
       sourceId,
       source: "user-interaction",
+      ...(isFiniteNumber(viewportWidthPx) &&
+      viewportWidthPx > 0 &&
+      isFiniteNumber(viewportHeightPx) &&
+      viewportHeightPx > 0
+        ? {
+            viewport: {
+              widthPx: viewportWidthPx,
+              heightPx: viewportHeightPx,
+            },
+          }
+        : {}),
     };
 
     return buildViewStateFromEcef({

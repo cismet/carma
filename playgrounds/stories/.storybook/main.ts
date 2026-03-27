@@ -1,6 +1,9 @@
 import type { StorybookConfig } from "@storybook/react-vite";
 import { mergeConfig, type UserConfig } from "vite";
 
+const REACT_ERROR_BOUNDARY_ESM_ID =
+  "react-error-boundary/dist/react-error-boundary.esm.js";
+
 const config: StorybookConfig = {
   stories: ["../src/**/*.stories.@(ts|tsx)", "../src/**/*.@(mdx)"],
   addons: ["@storybook/addon-essentials", "@storybook/addon-interactions"],
@@ -14,6 +17,24 @@ const config: StorybookConfig = {
   },
   async viteFinal(baseConfig) {
     const proxyConfig: UserConfig = {
+      build: {
+        rollupOptions: {
+          onwarn(warning, warn) {
+            const isIgnoredReactErrorBoundaryClientDirectiveWarning =
+              warning.code === "MODULE_LEVEL_DIRECTIVE" &&
+              typeof warning.id === "string" &&
+              warning.id.includes(REACT_ERROR_BOUNDARY_ESM_ID) &&
+              typeof warning.message === "string" &&
+              warning.message.includes('"use client"');
+
+            if (isIgnoredReactErrorBoundaryClientDirectiveWarning) {
+              return;
+            }
+
+            warn(warning);
+          },
+        },
+      },
       server: {
         proxy: {
           "/__wupp_terrain__": {

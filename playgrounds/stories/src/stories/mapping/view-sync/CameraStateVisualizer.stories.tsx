@@ -47,7 +47,6 @@ type CameraStateVisualizerStoryProps = {
   showAltitudeStem: boolean;
   showAltitudeScaleBreak: boolean;
   showCameraMarker: boolean;
-  showCameraLink: boolean;
   showAxisLabels: boolean;
   showAngleLabels: boolean;
   showImagePlaneLabels: boolean;
@@ -55,7 +54,6 @@ type CameraStateVisualizerStoryProps = {
   axisLineWidthPx: number;
   arcLineWidthPx: number;
   frustumLineWidthPx: number;
-  cameraLinkLineWidthPx: number;
   altitudeLineWidthPx: number;
 };
 
@@ -176,7 +174,6 @@ const createDisplayOptions = (
     imagePlane: {
       show: args.showImagePlane,
       showOffset: args.enableViewOffset,
-      frameLineWidthPx: args.frustumLineWidthPx,
     },
     axes: {
       show: args.showAxes,
@@ -188,10 +185,6 @@ const createDisplayOptions = (
     },
     marker: {
       show: args.showCameraMarker,
-    },
-    link: {
-      show: args.showCameraLink,
-      lineWidthPx: args.cameraLinkLineWidthPx,
     },
   },
   altitude: {
@@ -334,8 +327,6 @@ const meta: Meta<CameraStateVisualizerStoryProps> = {
       DEFAULT_VIEW_STATE_VISUALIZER_DISPLAY_OPTIONS.altitude.showScaleBreak,
     showCameraMarker:
       DEFAULT_VIEW_STATE_VISUALIZER_DISPLAY_OPTIONS.cameraView.marker.show,
-    showCameraLink:
-      DEFAULT_VIEW_STATE_VISUALIZER_DISPLAY_OPTIONS.cameraView.link.show,
     showAxisLabels:
       DEFAULT_VIEW_STATE_VISUALIZER_DISPLAY_OPTIONS.labels.showAxes,
     showAngleLabels:
@@ -351,8 +342,6 @@ const meta: Meta<CameraStateVisualizerStoryProps> = {
     frustumLineWidthPx:
       DEFAULT_VIEW_STATE_VISUALIZER_DISPLAY_OPTIONS.cameraView.frustum
         .lineWidthPx,
-    cameraLinkLineWidthPx:
-      DEFAULT_VIEW_STATE_VISUALIZER_DISPLAY_OPTIONS.cameraView.link.lineWidthPx,
     altitudeLineWidthPx:
       DEFAULT_VIEW_STATE_VISUALIZER_DISPLAY_OPTIONS.altitude.lineWidthPx,
   },
@@ -446,7 +435,7 @@ const meta: Meta<CameraStateVisualizerStoryProps> = {
     },
     imagePlaneDistanceUnit: {
       name: "image plane dist u",
-      control: { type: "range", min: 0.08, max: 1.5, step: 0.01 },
+      control: { type: "range", min: 0.01, max: 1.5, step: 0.01 },
       table: { category: "Visualized" },
     },
     sizePx: {
@@ -509,11 +498,6 @@ const meta: Meta<CameraStateVisualizerStoryProps> = {
       control: { type: "boolean" },
       table: { category: "Display/Visibility" },
     },
-    showCameraLink: {
-      name: "camera link",
-      control: { type: "boolean" },
-      table: { category: "Display/Visibility" },
-    },
     showAxisLabels: {
       name: "axis labels",
       control: { type: "boolean" },
@@ -546,11 +530,6 @@ const meta: Meta<CameraStateVisualizerStoryProps> = {
     },
     frustumLineWidthPx: {
       name: "frustum width",
-      control: { type: "range", min: 0.1, max: 5, step: 0.1 },
-      table: { category: "Display/Line Widths" },
-    },
-    cameraLinkLineWidthPx: {
-      name: "camera link width",
       control: { type: "range", min: 0.1, max: 5, step: 0.1 },
       table: { category: "Display/Line Widths" },
     },

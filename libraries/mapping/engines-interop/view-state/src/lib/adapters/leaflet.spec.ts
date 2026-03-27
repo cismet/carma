@@ -1,15 +1,34 @@
 import { describe, expect, it, vi } from "vitest";
 import { CAMERA_TYPE } from "@carma-commons/camera/model";
+import { readMetersPerCssPixel } from "@carma-commons/camera/model";
+import { getZoomFromPixelResolutionAtLatitudeRad } from "@carma/geo/utils";
 import { degToRadNumeric } from "@carma/units/helpers";
 import type { Meters, Radians } from "@carma/units/types";
 import { buildViewState } from "../core/construct";
-import { deriveOrbitAngles, deriveZoom } from "../core/derivations";
+import { deriveOrbitAngles, deriveRange } from "../core/derivations";
 import type { Map as LeafletMap } from "leaflet";
 import { applyToLeaflet, readFromLeaflet } from "./leaflet";
 
 const meters = (value: number): Meters => value as Meters;
 const radians = (valueDeg: number): Radians =>
   degToRadNumeric(valueDeg)! as Radians;
+const LEAFLET_DEFAULT_FOV_RAD = radians(45);
+
+const deriveExpectedLeafletZoom = (
+  state: ReturnType<typeof buildTestState>,
+  widthPx: number,
+  heightPx: number
+): number =>
+  getZoomFromPixelResolutionAtLatitudeRad(
+    readMetersPerCssPixel({
+      rangeM: deriveRange(state),
+      fovRad: LEAFLET_DEFAULT_FOV_RAD,
+      viewportWidthPx: widthPx,
+      viewportHeightPx: heightPx,
+    }),
+    state.anchorCartographic.latitude,
+    { tileSize: 256 }
+  );
 
 const buildTestState = () =>
   buildViewState({
@@ -91,17 +110,14 @@ describe("applyToLeaflet", () => {
 
     expect(setView).toHaveBeenCalledWith(
       expect.any(Array),
-      deriveZoom(state, 480, 900) + 1,
+      deriveExpectedLeafletZoom(state, 480, 900),
       { animate: false }
-    );
-    expect(deriveZoom(state) - deriveZoom(state, 480, 900)).toBeGreaterThan(
-      0.9
     );
   });
 });
 
 describe("readFromLeaflet", () => {
-  it("stores the live container viewport so derived zoom round-trips", () => {
+  it("stores the live container viewport so leaflet zoom round-trips", () => {
     const state = readFromLeaflet(
       {
         getCenter: () => ({ lng: 7.2, lat: 51.27 }),
@@ -113,14 +129,37 @@ describe("readFromLeaflet", () => {
           } as HTMLElement),
         setView: vi.fn(),
       } as unknown as LeafletMap,
-      "spec",
-      { fovDeg: 60 }
+      "spec"
     );
 
     expect(state).not.toBeNull();
-    expect(state?.intrinsics.viewOffset?.width).toBe(480);
-    expect(state?.intrinsics.viewOffset?.height).toBe(900);
-    expect(deriveZoom(state!) + 1).toBeCloseTo(17.25, 6);
+    expect(state?.intrinsics.viewOffset).toBeUndefined();
+    expect(state?.intrinsics.fov).toBeUndefined();
+    expect(state?.metadata.viewport).toEqual({
+      widthPx: 480,
+      heightPx: 900,
+    });
+    const setView = vi.fn();
+    applyToLeaflet(
+      {
+        getCenter: () => ({ lat: 0, lng: 0 }),
+        getZoom: () => 0,
+        getContainer: () =>
+          ({
+            clientWidth: 480,
+            clientHeight: 900,
+          } as HTMLElement),
+        setView,
+      } as unknown as LeafletMap,
+      state!
+    );
+
+    expect(setView).toHaveBeenCalledTimes(1);
+    expect(setView.mock.calls[0]?.[0]).toEqual([51.27, 7.2]);
+    expect(setView.mock.calls[0]?.[1]).toBeCloseTo(17.25, 6);
+    expect(setView.mock.calls[0]?.[2]).toEqual({
+      animate: false,
+    });
   });
 
   it("preserves seed bearing and pitch for 2d leaflet-only moves", () => {
@@ -141,14 +180,14 @@ describe("readFromLeaflet", () => {
     );
 
     expect(state).not.toBeNull();
-    expect(deriveZoom(state!) + 1).toBeCloseTo(17.25, 6);
 
     const seedOrbit = deriveOrbitAngles(seedState);
     const nextOrbit = deriveOrbitAngles(state!);
 
     expect(nextOrbit.bearing).toBeCloseTo(seedOrbit.bearing, 6);
     expect(nextOrbit.pitch).toBeCloseTo(seedOrbit.pitch, 6);
-    expect(state?.intrinsics.fov).toBe(seedState.intrinsics.fov);
+    expect(state?.intrinsics.fov).toBeUndefined();
+    expect(state?.intrinsics.viewOffset).toBeUndefined();
   });
 
   it("returns null for transient leaflet reads during invalid map state", () => {

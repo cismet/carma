@@ -43,30 +43,32 @@ const readImagePlaneDistance = ({
   viewState,
   visualized,
   distance,
-  minHalfExtent,
   maxDistance,
   hemisphereRadius,
+  epsilon,
 }: {
   viewState: ViewState;
   visualized: ResolvedViewStateVisualizerVisualizedOptions;
   distance: number;
-  minHalfExtent: number;
   maxDistance: number;
   hemisphereRadius: number;
+  epsilon: number;
 }): number =>
   clamp(
     visualized.imagePlaneDistance ?? distance,
-    minHalfExtent,
+    epsilon,
     hemisphereRadius * maxDistance
   );
 
-const clampImagePlaneHalfExtent = ({
+const clampPositiveImagePlaneHalfExtent = ({
   value,
-  minHalfExtent,
+  epsilon,
 }: {
   value: number;
-  minHalfExtent: number;
-}): number => Math.max(minHalfExtent, value);
+  epsilon: number;
+  // Keep the image plane numerically open, but do not impose a visual minimum
+  // extent. Small resolved FOVs must be allowed to collapse accordingly.
+}): number => Math.max(epsilon, value);
 
 export const viewingBearingPitchToCameraSpherePosition = ({
   viewingBearing,
@@ -145,7 +147,6 @@ export type ViewStateVisualizerImagePlaneGeometry = {
   imagePlaneCenter: Vector3;
   croppedImagePlaneCenter: Vector3;
   hasViewOffset: boolean;
-  hasNonStandardViewOffset: boolean;
   imagePlaneCorners: [Vector3, Vector3, Vector3, Vector3];
   offsetImagePlaneCorners: [Vector3, Vector3, Vector3, Vector3] | null;
   fullImagePlaneCorners: [Vector3, Vector3, Vector3, Vector3];
@@ -173,7 +174,6 @@ export const buildImagePlaneGeometry = ({
     distance: number;
     basisLineLength: number;
     originHalfExtent: number;
-    minHalfExtent: number;
     fallbackHalfHeight: number;
     fallbackHalfWidth: number;
     maxDistance: number;
@@ -190,9 +190,9 @@ export const buildImagePlaneGeometry = ({
     viewState,
     visualized,
     distance: imagePlaneDefaults.distance,
-    minHalfExtent: imagePlaneDefaults.minHalfExtent,
     maxDistance: imagePlaneDefaults.maxDistance,
     hemisphereRadius,
+    epsilon,
   });
   const type = viewState.intrinsics?.type ?? CAMERA_TYPE.PERSPECTIVE;
   const viewOffset = viewState.intrinsics?.viewOffset;
@@ -225,29 +225,29 @@ export const buildImagePlaneGeometry = ({
 
   const croppedHalfHeight =
     isFiniteNumber(projectionScaleY) && projectionScaleY > 0
-      ? clampImagePlaneHalfExtent({
+      ? clampPositiveImagePlaneHalfExtent({
           value: imagePlaneDistance / projectionScaleY,
-          minHalfExtent: imagePlaneDefaults.minHalfExtent,
+          epsilon,
         })
       : isFiniteNumber(fovVertical)
-      ? clampImagePlaneHalfExtent({
+      ? clampPositiveImagePlaneHalfExtent({
           value:
             Math.tan((fovVertical ?? PI_OVER_THREE) * 0.5) * imagePlaneDistance,
-          minHalfExtent: imagePlaneDefaults.minHalfExtent,
+          epsilon,
         })
       : imagePlaneDefaults.fallbackHalfHeight;
 
   const croppedHalfWidth =
     isFiniteNumber(projectionScaleX) && projectionScaleX > 0
-      ? clampImagePlaneHalfExtent({
+      ? clampPositiveImagePlaneHalfExtent({
           value: imagePlaneDistance / projectionScaleX,
-          minHalfExtent: imagePlaneDefaults.minHalfExtent,
+          epsilon,
         })
       : isFiniteNumber(fovHorizontal)
-      ? clampImagePlaneHalfExtent({
+      ? clampPositiveImagePlaneHalfExtent({
           value:
             Math.tan((fovHorizontal ?? PI_OVER_TWO) * 0.5) * imagePlaneDistance,
-          minHalfExtent: imagePlaneDefaults.minHalfExtent,
+          epsilon,
         })
       : imagePlaneDefaults.fallbackHalfWidth;
 
@@ -289,12 +289,6 @@ export const buildImagePlaneGeometry = ({
     hasVerticalViewOffset && viewOffset.fullHeight > 0
       ? viewOffset.height / viewOffset.fullHeight
       : 1;
-  const hasNonStandardViewOffset =
-    hasViewOffset &&
-    (Math.abs(offsetPlaneLeftRatio) > epsilon ||
-      Math.abs(offsetPlaneTopRatio) > epsilon ||
-      Math.abs(offsetPlaneWidthRatio - 1) > epsilon ||
-      Math.abs(offsetPlaneHeightRatio - 1) > epsilon);
   const fullPlaneWidthVector = fullTopRight.clone().sub(fullTopLeft);
   const fullPlaneHeightVector = fullBottomLeft.clone().sub(fullTopLeft);
   const imagePlaneDown = fullPlaneHeightVector.clone().normalize();
@@ -350,7 +344,6 @@ export const buildImagePlaneGeometry = ({
     imagePlaneCenter,
     croppedImagePlaneCenter,
     hasViewOffset,
-    hasNonStandardViewOffset,
     imagePlaneCorners: [
       fullTopRight,
       fullTopLeft,

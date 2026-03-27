@@ -20,6 +20,7 @@ export const createCameraMarker = (
     fillColor: number;
     emissiveColor: number;
     markerEmissiveIntensity: number;
+    opacity: number;
   }
 ) => {
   const mesh = new Mesh(
@@ -30,6 +31,9 @@ export const createCameraMarker = (
     ),
     new MeshStandardMaterial({
       color: options.fillColor,
+      transparent: options.opacity < 1,
+      opacity: options.opacity,
+      depthWrite: options.opacity >= 1,
       roughness: 0.82,
       metalness: 0.03,
       emissive: options.emissiveColor,

@@ -34,6 +34,14 @@ export type ViewStateMetadata = {
   readonly timestampMs: number;
   readonly sourceId: string;
   readonly source: ViewStateSource;
+  /**
+   * Live viewport dimensions used for zoom/hash derivation.
+   * This is render-surface context only, not a camera view offset.
+   */
+  readonly viewport?: {
+    readonly widthPx: number;
+    readonly heightPx: number;
+  };
   readonly restoreHints?: ViewStateRestoreHints;
 };
 

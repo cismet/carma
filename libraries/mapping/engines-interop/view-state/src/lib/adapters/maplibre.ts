@@ -13,7 +13,6 @@ import {
 import {
   isMapViewEqualToTarget,
   readMapLibrePerspectiveIntrinsics,
-  readMapLibreViewOffsetFromCanvas,
 } from "@carma-mapping/engines/maplibre-gl/utils";
 import {
   CAMERA_TYPE,
@@ -61,14 +60,24 @@ export const readFromMaplibre = (
     options?.altitudeM ??
     (seedState?.anchorCartographic.altitude as number | undefined) ??
     DEFAULT_ALTITUDE_M;
+  const canvas = map.getCanvas?.();
+  const viewportWidthPx =
+    typeof canvas?.clientWidth === "number" &&
+    isFiniteNumber(canvas.clientWidth) &&
+    canvas.clientWidth > 0
+      ? canvas.clientWidth
+      : undefined;
+  const viewportHeightPx =
+    typeof canvas?.clientHeight === "number" &&
+    isFiniteNumber(canvas.clientHeight) &&
+    canvas.clientHeight > 0
+      ? canvas.clientHeight
+      : undefined;
   const runtimeIntrinsics = readMapLibrePerspectiveIntrinsics(map);
   const fovRad =
     runtimeIntrinsics.fov ??
     seedState?.intrinsics.fov ??
     degToRadNumeric(options?.fovDeg ?? DEFAULT_FOV_DEG)!;
-  const viewOffset =
-    runtimeIntrinsics.viewOffset ??
-    readMapLibreViewOffsetFromCanvas(map.getCanvas?.());
 
   const latRad = clampLatitudeToWebMercatorExtent(
     degToRadNumeric(center.lat)! as Radians
@@ -82,8 +91,8 @@ export const readFromMaplibre = (
     metersPerCssPixel: metersPerPx,
     fovRad,
     minRangeM: MIN_RANGE_M,
-    viewportWidthPx: viewOffset?.width as number | undefined,
-    viewportHeightPx: viewOffset?.height as number | undefined,
+    viewportWidthPx,
+    viewportHeightPx,
   });
   if (!isFiniteNumber(rangeM)) return null;
 
@@ -91,18 +100,20 @@ export const readFromMaplibre = (
   const bearingRad = degToRadNumeric(bearingDeg)!;
 
   const intrinsics: CameraIntrinsics = seedState
-    ? {
-        ...seedState.intrinsics,
-        ...runtimeIntrinsics,
-        type: seedState.intrinsics.type ?? runtimeIntrinsics.type,
-        fov: fovRad as Radians,
-        ...(viewOffset ? { viewOffset } : {}),
-      }
+    ? (() => {
+        const { viewOffset: _ignoredViewOffset, ...seedIntrinsics } =
+          seedState.intrinsics;
+        return {
+          ...seedIntrinsics,
+          ...runtimeIntrinsics,
+          type: seedIntrinsics.type ?? runtimeIntrinsics.type,
+          fov: fovRad as Radians,
+        };
+      })()
     : {
         ...runtimeIntrinsics,
         type: runtimeIntrinsics.type ?? CAMERA_TYPE.PERSPECTIVE,
         fov: fovRad as Radians,
-        ...(viewOffset ? { viewOffset } : {}),
       };
 
   const metadata: ViewStateMetadata = {
@@ -110,6 +121,14 @@ export const readFromMaplibre = (
     timestampMs: Date.now(),
     sourceId,
     source: "user-interaction",
+    ...(viewportWidthPx && viewportHeightPx
+      ? {
+          viewport: {
+            widthPx: viewportWidthPx,
+            heightPx: viewportHeightPx,
+          },
+        }
+      : {}),
   };
 
   const input: AngleBasedViewInput = {

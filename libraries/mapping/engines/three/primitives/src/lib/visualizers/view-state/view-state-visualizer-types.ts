@@ -10,6 +10,9 @@ export type ViewStateVisualizerCueKey =
   | "east"
   | "north"
   | "up"
+  | "cameraForward"
+  | "cameraRight"
+  | "cameraUp"
   | "imageX"
   | "imageY";
 
@@ -59,7 +62,6 @@ export type ViewStateVisualizerAngleCueDisplayOptions = {
 export type ViewStateVisualizerCameraViewImagePlaneDisplayOptions = {
   show?: boolean;
   showOffset?: boolean;
-  frameLineWidthPx?: number;
 };
 
 export type ViewStateVisualizerCameraViewAxesDisplayOptions = {
@@ -76,17 +78,11 @@ export type ViewStateVisualizerCameraViewMarkerDisplayOptions = {
   show?: boolean;
 };
 
-export type ViewStateVisualizerCameraViewLinkDisplayOptions = {
-  show?: boolean;
-  lineWidthPx?: number;
-};
-
 export type ViewStateVisualizerCameraViewDisplayOptions = {
   imagePlane?: ViewStateVisualizerCameraViewImagePlaneDisplayOptions;
   axes?: ViewStateVisualizerCameraViewAxesDisplayOptions;
   frustum?: ViewStateVisualizerCameraViewFrustumDisplayOptions;
   marker?: ViewStateVisualizerCameraViewMarkerDisplayOptions;
-  link?: ViewStateVisualizerCameraViewLinkDisplayOptions;
 };
 
 export type ViewStateVisualizerAltitudeDisplayOptions = {
@@ -149,7 +145,6 @@ export type ResolvedViewStateVisualizerAngleCueDisplayOptions = {
 export type ResolvedViewStateVisualizerCameraViewImagePlaneDisplayOptions = {
   show: boolean;
   showOffset: boolean;
-  frameLineWidthPx: number;
 };
 
 export type ResolvedViewStateVisualizerCameraViewAxesDisplayOptions = {
@@ -166,17 +161,11 @@ export type ResolvedViewStateVisualizerCameraViewMarkerDisplayOptions = {
   show: boolean;
 };
 
-export type ResolvedViewStateVisualizerCameraViewLinkDisplayOptions = {
-  show: boolean;
-  lineWidthPx: number;
-};
-
 export type ResolvedViewStateVisualizerCameraViewDisplayOptions = {
   imagePlane: ResolvedViewStateVisualizerCameraViewImagePlaneDisplayOptions;
   axes: ResolvedViewStateVisualizerCameraViewAxesDisplayOptions;
   frustum: ResolvedViewStateVisualizerCameraViewFrustumDisplayOptions;
   marker: ResolvedViewStateVisualizerCameraViewMarkerDisplayOptions;
-  link: ResolvedViewStateVisualizerCameraViewLinkDisplayOptions;
 };
 
 export type ResolvedViewStateVisualizerAltitudeDisplayOptions = {
@@ -215,6 +204,9 @@ export type ViewStateVisualizerLabelAnchors = {
   east: ViewStateVisualizerLabelAnchor;
   north: ViewStateVisualizerLabelAnchor;
   up: ViewStateVisualizerLabelAnchor;
+  cameraForward: ViewStateVisualizerLabelAnchor;
+  cameraRight: ViewStateVisualizerLabelAnchor;
+  cameraUp: ViewStateVisualizerLabelAnchor;
   imageX: ViewStateVisualizerLabelAnchor;
   imageY: ViewStateVisualizerLabelAnchor;
 };

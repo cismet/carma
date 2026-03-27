@@ -25,10 +25,8 @@ export type ImagePlaneAxisColors = {
 };
 
 export type ImagePlaneAxisDisplay = {
-  showImagePlane: boolean;
   showAxes: boolean;
   axisLineWidthPx: number;
-  frustumLineWidthPx: number;
   cueColors: {
     imageX: string;
     imageY: string;
@@ -96,15 +94,18 @@ export const createImagePlaneAxes = (
     ImagePlaneAxisDisplay
   >({
     update: (geometry) => {
-      const cameraRadial = geometry.cameraPosition.clone().normalize();
-      const cameraBasisOrigin = geometry.cameraPosition
-        .clone()
-        .add(cameraRadial.multiplyScalar(options.cameraBoxSize * 0.5));
+      const cameraBasisOrigin = geometry.cameraPosition.clone();
       const cameraBasisLineLength = options.cameraBoxSize * 1.1;
 
       wideLines.setLine(IMAGE_PLANE_AXIS_KEYS.FORWARD, [
         geometry.cameraPosition.clone(),
-        geometry.imagePlaneCenter.clone(),
+        geometry.cameraPosition
+          .clone()
+          .add(
+            geometry.forward
+              .clone()
+              .multiplyScalar(geometry.cameraPosition.length())
+          ),
       ]);
       wideLines.setLine(IMAGE_PLANE_AXIS_KEYS.RIGHT, [
         geometry.imagePlaneAxisOrigin.clone(),
@@ -126,7 +127,12 @@ export const createImagePlaneAxes = (
         cameraBasisOrigin.clone(),
         cameraBasisOrigin
           .clone()
-          .add(geometry.forward.clone().multiplyScalar(cameraBasisLineLength)),
+          .add(
+            geometry.forward
+              .clone()
+              .negate()
+              .multiplyScalar(cameraBasisLineLength)
+          ),
       ]);
       wideLines.setLine(IMAGE_PLANE_AXIS_KEYS.CAMERA_RIGHT, [
         cameraBasisOrigin.clone(),
@@ -142,10 +148,7 @@ export const createImagePlaneAxes = (
       ]);
     },
     setDisplay: (display) => {
-      wideLines.setVisible(
-        IMAGE_PLANE_AXIS_KEYS.FORWARD,
-        display.showImagePlane
-      );
+      wideLines.setVisible(IMAGE_PLANE_AXIS_KEYS.FORWARD, display.showAxes);
       wideLines.setVisible(IMAGE_PLANE_AXIS_KEYS.RIGHT, display.showAxes);
       wideLines.setVisible(IMAGE_PLANE_AXIS_KEYS.UP, display.showAxes);
       wideLines.setVisible(IMAGE_PLANE_AXIS_KEYS.ORIGIN_X, display.showAxes);
@@ -162,7 +165,7 @@ export const createImagePlaneAxes = (
 
       wideLines.setWidth(
         IMAGE_PLANE_AXIS_KEYS.FORWARD,
-        display.frustumLineWidthPx
+        display.axisLineWidthPx
       );
       wideLines.setWidth(IMAGE_PLANE_AXIS_KEYS.RIGHT, display.axisLineWidthPx);
       wideLines.setWidth(IMAGE_PLANE_AXIS_KEYS.UP, display.axisLineWidthPx);

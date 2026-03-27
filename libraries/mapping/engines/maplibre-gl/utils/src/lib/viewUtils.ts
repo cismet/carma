@@ -5,7 +5,6 @@ import type { Radians } from "@carma/units/types";
 import {
   CAMERA_TYPE,
   readHorizontalFovFromVertical,
-  readViewOffsetFromElement,
   type CameraIntrinsics,
 } from "@carma-commons/camera/model";
 
@@ -17,21 +16,18 @@ export type MapLibreViewTarget = Required<
   Pick<CameraOptions, "center" | "zoom" | "bearing" | "pitch">
 >;
 
-export const readMapLibreViewOffsetFromCanvas = (
-  canvas: HTMLCanvasElement | null | undefined
-): CameraIntrinsics["viewOffset"] | undefined =>
-  readViewOffsetFromElement(canvas);
-
 export const readMapLibrePerspectiveIntrinsics = (
   map: MapLibreMap
 ): CameraIntrinsics => {
   const canvas = map.getCanvas?.();
-  const viewOffset = readMapLibreViewOffsetFromCanvas(canvas);
   const aspect =
-    typeof viewOffset?.width === "number" &&
-    typeof viewOffset?.height === "number" &&
-    viewOffset.height > 0
-      ? viewOffset.width / viewOffset.height
+    typeof canvas?.clientWidth === "number" &&
+    Number.isFinite(canvas.clientWidth) &&
+    canvas.clientWidth > 0 &&
+    typeof canvas?.clientHeight === "number" &&
+    Number.isFinite(canvas.clientHeight) &&
+    canvas.clientHeight > 0
+      ? canvas.clientWidth / canvas.clientHeight
       : undefined;
   const fovDeg =
     typeof (map as MapLibreMap & { getVerticalFieldOfView?: () => number })
@@ -47,7 +43,6 @@ export const readMapLibrePerspectiveIntrinsics = (
     type: CAMERA_TYPE.PERSPECTIVE,
     ...(fov ? { fov } : {}),
     ...(fovHorizontal ? { fovHorizontal } : {}),
-    ...(viewOffset ? { viewOffset } : {}),
   };
 };
 

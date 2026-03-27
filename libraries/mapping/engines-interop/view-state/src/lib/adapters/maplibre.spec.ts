@@ -167,8 +167,11 @@ describe("readFromMaplibre", () => {
     );
 
     expect(state).not.toBeNull();
-    expect(state?.intrinsics.viewOffset?.width).toBe(480);
-    expect(state?.intrinsics.viewOffset?.height).toBe(900);
+    expect(state?.intrinsics.viewOffset).toBeUndefined();
+    expect(state?.metadata.viewport).toEqual({
+      widthPx: 480,
+      heightPx: 900,
+    });
     expect(deriveZoom(state!)).toBeCloseTo(16.25, 6);
   });
 
@@ -196,8 +199,11 @@ describe("readFromMaplibre", () => {
       degrees(2 * Math.atan(Math.tan((radians(50) as number) * 0.5) * 1.5)),
       8
     );
-    expect(state?.intrinsics.viewOffset?.width).toBe(1200);
-    expect(state?.intrinsics.viewOffset?.height).toBe(800);
+    expect(state?.intrinsics.viewOffset).toBeUndefined();
+    expect(state?.metadata.viewport).toEqual({
+      widthPx: 1200,
+      heightPx: 800,
+    });
   });
 
   it("preserves seed altitude and intrinsics that maplibre cannot observe", () => {
@@ -251,7 +257,10 @@ describe("readFromMaplibre", () => {
     expect(state?.intrinsics.frustum?.far).toBe(
       seedState.intrinsics.frustum?.far
     );
-    expect(state?.intrinsics.viewOffset?.width).toBe(480);
-    expect(state?.intrinsics.viewOffset?.height).toBe(900);
+    expect(state?.intrinsics.viewOffset).toBeUndefined();
+    expect(state?.metadata.viewport).toEqual({
+      widthPx: 480,
+      heightPx: 900,
+    });
   });
 });

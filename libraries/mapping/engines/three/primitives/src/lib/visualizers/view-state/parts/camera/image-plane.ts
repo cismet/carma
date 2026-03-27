@@ -12,23 +12,10 @@ import {
   disposeMeshObject,
   setQuadMeshGeometry,
 } from "../../../../common/mesh-helpers";
-import {
-  disposeWideLine,
-  setWideLineColor,
-  setWideLineLoopGeometry,
-  setWideLineResolution,
-  setWideLineWidth,
-} from "../../../../common/wide-lines";
-import { Line2 } from "three/examples/jsm/lines/Line2.js";
-import { LineGeometry } from "three/examples/jsm/lines/LineGeometry.js";
-import { LineMaterial } from "three/examples/jsm/lines/LineMaterial.js";
 
 export type ImagePlaneDisplay = {
   show: boolean;
   showOffset: boolean;
-  frameLineWidthPx: number;
-  edgeColor: string | number;
-  offsetColor: string | number;
 };
 
 const createMeshMaterial = ({
@@ -63,29 +50,14 @@ const createMeshMaterial = ({
 
 export const createImagePlane = (
   scene: Scene,
-  size: ViewStateVisualizerSize,
+  _size: ViewStateVisualizerSize,
   options: {
-    edgeColor: string | number;
     fillColor: number;
     emissiveColor: number;
-    outlineOpacity: number;
     surfaceOpacity: number;
     offsetSurfaceOpacity: number;
-    offsetOutlineOpacity: number;
-    neutralColor: number;
   }
 ) => {
-  const outline = new Line2(
-    new LineGeometry(),
-    new LineMaterial({
-      color: options.edgeColor,
-      transparent: true,
-      opacity: options.outlineOpacity,
-    })
-  );
-  setWideLineResolution(outline, size);
-  scene.add(outline);
-
   const surface = new Mesh(
     new BufferGeometry(),
     createMeshMaterial({
@@ -112,23 +84,9 @@ export const createImagePlane = (
   );
   scene.add(offsetSurface);
 
-  const offsetOutline = new Line2(
-    new LineGeometry(),
-    new LineMaterial({
-      color: options.neutralColor,
-      transparent: true,
-      opacity: options.offsetOutlineOpacity,
-    })
-  );
-  setWideLineResolution(offsetOutline, size);
-  scene.add(offsetOutline);
-
   let currentDisplay: ImagePlaneDisplay = {
     show: true,
     showOffset: true,
-    frameLineWidthPx: 1,
-    edgeColor: options.edgeColor,
-    offsetColor: options.neutralColor,
   };
   let currentVisual: ViewStateVisualizerImagePlaneGeometry | null = null;
 
@@ -136,7 +94,6 @@ export const createImagePlane = (
     surface.visible = currentDisplay.show;
     offsetSurface.visible =
       currentDisplay.showOffset && Boolean(currentVisual?.hasViewOffset);
-    offsetOutline.visible = false;
   };
 
   return createThreePart<
@@ -145,32 +102,18 @@ export const createImagePlane = (
   >({
     update: (visual) => {
       currentVisual = visual;
-      setWideLineLoopGeometry(outline, visual.imagePlaneCorners);
       setQuadMeshGeometry(surface, visual.imagePlaneCorners);
       setQuadMeshGeometry(offsetSurface, visual.offsetImagePlaneCorners);
-      setWideLineLoopGeometry(
-        offsetOutline,
-        visual.offsetImagePlaneCorners ?? []
-      );
       applyVisibility();
     },
     setDisplay: (display) => {
       currentDisplay = display;
-      setWideLineWidth(outline, display.frameLineWidthPx);
-      setWideLineWidth(offsetOutline, display.frameLineWidthPx);
-      setWideLineColor(outline, display.edgeColor);
-      setWideLineColor(offsetOutline, display.offsetColor);
       applyVisibility();
     },
-    resize: (nextSize) => {
-      setWideLineResolution(outline, nextSize);
-      setWideLineResolution(offsetOutline, nextSize);
-    },
+    resize: () => undefined,
     dispose: () => {
-      disposeWideLine(outline);
       disposeMeshObject(surface);
       disposeMeshObject(offsetSurface);
-      disposeWideLine(offsetOutline);
     },
   });
 };

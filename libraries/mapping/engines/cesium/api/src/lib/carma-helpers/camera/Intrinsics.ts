@@ -1,4 +1,5 @@
 import {
+  CAMERA_TYPE,
   readHorizontalFovFromVertical,
   type CameraIntrinsics,
 } from "@carma-commons/camera/model";
@@ -44,7 +45,12 @@ export const readSceneCameraIntrinsics = (
   // Keep the field in shared intrinsics for other engines, but do not
   // synthesize it from canvas dimensions here. Cesium therefore leaves
   // `viewOffset` undefined rather than inventing placeholder values.
+  // Important: this is not a missing convenience field that should later be
+  // "restored" into Cesium. Cesium has no equivalent camera offset feature in
+  // this sense, so feeding canvas dimensions back as `viewOffset` would imply
+  // semantics that the engine does not actually support.
   const intrinsics: CameraIntrinsics = {
+    type: CAMERA_TYPE.PERSPECTIVE,
     ...(fov ? { fov: fov as CameraIntrinsics["fov"] } : {}),
     ...(isFiniteNumber(scene.camera?.frustum?.near)
       ? {

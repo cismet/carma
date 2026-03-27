@@ -120,7 +120,6 @@ type ResolvedDisplayVisibility = {
   showCameraFrustum: boolean;
   showAltitude: boolean;
   showCameraMarker: boolean;
-  showCameraLink: boolean;
   showAltitudeScaleBreak: boolean;
   rotateSurfaceWithPose: boolean;
 };
@@ -128,10 +127,8 @@ type ResolvedDisplayVisibility = {
 type ResolvedLineWidths = {
   worldAxesLineWidthPx: number;
   angleCueLineWidthPx: number;
-  cameraImagePlaneFrameLineWidthPx: number;
   cameraAxesLineWidthPx: number;
   cameraFrustumLineWidthPx: number;
-  cameraLinkLineWidthPx: number;
   altitudeLineWidthPx: number;
 };
 
@@ -175,7 +172,6 @@ const resolveDisplayVisibility = (
       display.cameraView.imagePlane.show && display.cameraView.frustum.show,
     showAltitude: display.altitude.show,
     showCameraMarker: display.cameraView.marker.show,
-    showCameraLink: display.cameraView.link.show,
     showAltitudeScaleBreak:
       display.altitude.show && display.altitude.showScaleBreak,
     rotateSurfaceWithPose: display.surface.rotateWithPose,
@@ -196,10 +192,6 @@ const resolveDisplayLineWidths = (
       MIN_RENDER_LINE_WIDTH_PX,
       display.angleCues.lineWidthPx
     ),
-    cameraImagePlaneFrameLineWidthPx: Math.max(
-      MIN_RENDER_LINE_WIDTH_PX,
-      display.cameraView.imagePlane.frameLineWidthPx
-    ),
     cameraAxesLineWidthPx: Math.max(
       MIN_RENDER_LINE_WIDTH_PX,
       display.cameraView.axes.lineWidthPx
@@ -207,10 +199,6 @@ const resolveDisplayLineWidths = (
     cameraFrustumLineWidthPx: Math.max(
       MIN_RENDER_LINE_WIDTH_PX,
       display.cameraView.frustum.lineWidthPx
-    ),
-    cameraLinkLineWidthPx: Math.max(
-      MIN_RENDER_LINE_WIDTH_PX,
-      display.cameraView.link.lineWidthPx
     ),
     altitudeLineWidthPx: Math.max(
       MIN_RENDER_LINE_WIDTH_PX,
@@ -447,7 +435,7 @@ export const createViewStateVisualizerPrimitive = (
     },
     bearingOpacity: MATERIALS.arcs.bearingOpacity,
     pitchOpacity: MATERIALS.arcs.pitchOpacity,
-    rangeOpacity: MATERIALS.camera.linkOpacity,
+    rangeOpacity: MATERIALS.camera.rangeOpacity,
   });
 
   const worldAxes = createWorldAxes(scene, size, {
@@ -465,10 +453,8 @@ export const createViewStateVisualizerPrimitive = (
     initialImageXColor: DEFAULT_VIEW_STATE_VISUALIZER_CUE_COLORS.imageX,
     initialImageYColor: DEFAULT_VIEW_STATE_VISUALIZER_CUE_COLORS.imageY,
     imagePlane: {
-      outlineOpacity: MATERIALS.imagePlane.outlineOpacity,
       surfaceOpacity: MATERIALS.imagePlane.surfaceOpacity,
       offsetSurfaceOpacity: MATERIALS.imagePlane.offsetSurfaceOpacity,
-      offsetOutlineOpacity: MATERIALS.imagePlane.offsetOutlineOpacity,
       forwardOpacity: MATERIALS.imagePlane.forwardOpacity,
       rightOpacity: MATERIALS.imagePlane.rightOpacity,
       upOpacity: MATERIALS.imagePlane.upOpacity,
@@ -477,9 +463,8 @@ export const createViewStateVisualizerPrimitive = (
     },
     camera: {
       fillColor: MATERIALS.camera.fillColor,
-      edgeColor: MATERIALS.camera.edgeColor,
       emissiveColor: MATERIALS.camera.emissiveColor,
-      linkOpacity: MATERIALS.camera.linkOpacity,
+      markerOpacity: MATERIALS.camera.markerOpacity,
       markerEmissiveIntensity: MATERIALS.camera.markerEmissiveIntensity,
     },
     frustum: {
@@ -534,17 +519,13 @@ export const createViewStateVisualizerPrimitive = (
       showAxes: visibility.showCameraAxes,
       showFrustum: visibility.showCameraFrustum,
       showMarker: visibility.showCameraMarker,
-      showLink: visibility.showCameraLink,
-      frameLineWidthPx: lineWidths.cameraImagePlaneFrameLineWidthPx,
       axisLineWidthPx: lineWidths.cameraAxesLineWidthPx,
       frustumLineWidthPx: lineWidths.cameraFrustumLineWidthPx,
-      linkLineWidthPx: lineWidths.cameraLinkLineWidthPx,
       cueColors: {
         imageX: cueColors.imageX,
         imageY: cueColors.imageY,
         range: cueColors.range,
       },
-      edgeColor: MATERIALS.camera.edgeColor,
     });
 
     altitude.setDisplay({
@@ -767,11 +748,11 @@ export const createViewStateVisualizerPrimitive = (
     worldAxes.update({
       origin: ORIGIN,
       eastDirection: WORLD_EAST,
-      eastLength: GEOMETRY.axes.axisLength,
+      eastLength: HEMISPHERE_RADIUS,
       northDirection: WORLD_NORTH,
-      northLength: GEOMETRY.arcs.outerRadius,
+      northLength: HEMISPHERE_RADIUS,
       upDirection: WORLD_UP,
-      upLength: GEOMETRY.axes.axisLength,
+      upLength: HEMISPHERE_RADIUS,
     });
     cameraView.update(visual);
     hemisphereSurface.update(visual.cameraPosition);
@@ -823,6 +804,66 @@ export const createViewStateVisualizerPrimitive = (
       biasToward: pitchArcMidpoint,
       fallbackBiasToward: rangeLabelFallbackBiasPoint,
     });
+    const cameraRightEnd = visual.cameraPosition
+      .clone()
+      .add(
+        visual.right.clone().multiplyScalar(GEOMETRY.frame.cameraBoxSize * 1.25)
+      );
+    const cameraUpEnd = visual.cameraPosition
+      .clone()
+      .add(
+        visual.up.clone().multiplyScalar(GEOMETRY.frame.cameraBoxSize * 1.25)
+      );
+    const cameraForwardEnd = visual.cameraPosition.clone().add(
+      visual.forward
+        .clone()
+        .negate()
+        .multiplyScalar(GEOMETRY.frame.cameraBoxSize * 1.25)
+    );
+    const imagePlaneXEnd = visual.imagePlaneXAxisEnd
+      .clone()
+      .add(
+        visual.right
+          .clone()
+          .multiplyScalar(
+            GEOMETRY.imagePlane.basisLineLength *
+              GEOMETRY.imagePlane.labelOffsetFactor
+          )
+      );
+    const imagePlaneYEnd = visual.imagePlaneYAxisEnd.clone().add(
+      visual.imagePlaneYAxisEnd
+        .clone()
+        .sub(visual.imagePlaneAxisOrigin)
+        .normalize()
+        .multiplyScalar(
+          GEOMETRY.imagePlane.basisLineLength *
+            GEOMETRY.imagePlane.labelOffsetFactor
+        )
+    );
+    const projectExtendedAxisEndLabel = ({
+      lineStart,
+      lineEnd,
+      extension,
+      extraOffset,
+    }: {
+      lineStart: Vector3;
+      lineEnd: Vector3;
+      extension: number;
+      extraOffset?: Vector3;
+    }) =>
+      projectPoint(
+        lineEnd
+          .clone()
+          .add(
+            lineEnd.clone().sub(lineStart).normalize().multiplyScalar(extension)
+          )
+          .add(extraOffset ?? ORIGIN)
+      );
+    const cameraAxisLabelExtension = GEOMETRY.axes.northLabelExtraLength * 0.35;
+    const imagePlaneAxisLabelExtension =
+      GEOMETRY.imagePlane.basisLineLength *
+      GEOMETRY.imagePlane.labelOffsetFactor *
+      0.35;
 
     currentLabelAnchors = {
       bearing: bearingAnchor,
@@ -833,42 +874,51 @@ export const createViewStateVisualizerPrimitive = (
         topPx: altitudeAnchor.topPx,
       },
       east: projectPoint(
-        WORLD_EAST.clone().multiplyScalar(GEOMETRY.axes.axisLength)
+        WORLD_EAST.clone()
+          .multiplyScalar(
+            HEMISPHERE_RADIUS + GEOMETRY.axes.northLabelExtraLength
+          )
+          .add(commonPlanarLabelOffset)
       ),
       north: projectPoint(
         WORLD_NORTH.clone()
           .multiplyScalar(
-            GEOMETRY.axes.axisLength + GEOMETRY.axes.northLabelExtraLength
+            HEMISPHERE_RADIUS + GEOMETRY.axes.northLabelExtraLength
           )
           .add(commonPlanarLabelOffset)
       ),
       up: projectPoint(
-        WORLD_UP.clone().multiplyScalar(GEOMETRY.axes.axisLength)
-      ),
-      imageX: projectPoint(
-        visual.imagePlaneXAxisEnd
-          .clone()
-          .add(
-            visual.right
-              .clone()
-              .multiplyScalar(
-                GEOMETRY.imagePlane.basisLineLength *
-                  GEOMETRY.imagePlane.labelOffsetFactor
-              )
-          )
-      ),
-      imageY: projectPoint(
-        visual.imagePlaneYAxisEnd.clone().add(
-          visual.imagePlaneYAxisEnd
-            .clone()
-            .sub(visual.imagePlaneAxisOrigin)
-            .normalize()
-            .multiplyScalar(
-              GEOMETRY.imagePlane.basisLineLength *
-                GEOMETRY.imagePlane.labelOffsetFactor
-            )
+        WORLD_UP.clone().multiplyScalar(
+          HEMISPHERE_RADIUS + GEOMETRY.axes.labelUpOffset * 2
         )
       ),
+      cameraForward: projectExtendedAxisEndLabel({
+        lineStart: visual.cameraPosition,
+        lineEnd: cameraForwardEnd,
+        extension: cameraAxisLabelExtension,
+      }),
+      cameraRight: projectExtendedAxisEndLabel({
+        lineStart: visual.cameraPosition,
+        lineEnd: cameraRightEnd,
+        extension: cameraAxisLabelExtension,
+        extraOffset: commonPlanarLabelOffset,
+      }),
+      cameraUp: projectExtendedAxisEndLabel({
+        lineStart: visual.cameraPosition,
+        lineEnd: cameraUpEnd,
+        extension: GEOMETRY.axes.labelUpOffset * 2,
+      }),
+      imageX: projectExtendedAxisEndLabel({
+        lineStart: visual.imagePlaneAxisOrigin,
+        lineEnd: imagePlaneXEnd,
+        extension: imagePlaneAxisLabelExtension,
+        extraOffset: commonPlanarLabelOffset,
+      }),
+      imageY: projectExtendedAxisEndLabel({
+        lineStart: visual.imagePlaneAxisOrigin,
+        lineEnd: imagePlaneYEnd,
+        extension: imagePlaneAxisLabelExtension,
+      }),
     };
 
     return currentLabelAnchors;

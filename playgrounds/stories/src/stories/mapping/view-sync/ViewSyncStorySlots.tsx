@@ -625,11 +625,13 @@ const CesiumViewSyncBridge = ({
   widget,
   setStatusText,
   onViewSyncHandleChange,
+  onObservedStateChange,
 }: {
   slotId: string;
   widget: CesiumWidget;
   setStatusText: (value: string) => void;
   onViewSyncHandleChange?: (handle: SlotViewSyncHandle | null) => void;
+  onObservedStateChange?: (state: ViewState | null) => void;
 }) => {
   const { claimControl, releaseControl, pushState, readCurrentState } =
     useCesiumRuntimeBridge({
@@ -638,17 +640,22 @@ const CesiumViewSyncBridge = ({
       claimBeforePush: false,
       claimOnInteraction: true,
     });
+  const viewSyncHandleChangeRef = useRef(onViewSyncHandleChange);
+  const observedStateChangeRef = useRef(onObservedStateChange);
+
+  viewSyncHandleChangeRef.current = onViewSyncHandleChange;
+  observedStateChangeRef.current = onObservedStateChange;
 
   useEffect(() => {
-    onViewSyncHandleChange?.({
+    viewSyncHandleChangeRef.current?.({
       claimControl,
       releaseControl,
       pushState,
     });
     return () => {
-      onViewSyncHandleChange?.(null);
+      viewSyncHandleChangeRef.current?.(null);
     };
-  }, [claimControl, onViewSyncHandleChange, pushState, releaseControl]);
+  }, [claimControl, pushState, releaseControl]);
 
   useEffect(() => {
     const scene = readStoryCesiumScene(widget);
@@ -658,6 +665,7 @@ const CesiumViewSyncBridge = ({
 
     const handler = () => {
       const state = readCurrentState();
+      observedStateChangeRef.current?.(state);
       if (!state) {
         setStatusText(
           `${CARMA_STORY_MAPPING_ENGINES.CESIUM}${DEFAULT_STATUS_BAR_DELIMITER}waiting for terrain target`
@@ -677,6 +685,7 @@ const CesiumViewSyncBridge = ({
     const removeListener = bindStoryCesiumFrameListener(scene, handler);
     handler();
     return () => {
+      observedStateChangeRef.current?.(null);
       removeListener?.();
     };
   }, [readCurrentState, setStatusText, widget]);
@@ -691,6 +700,7 @@ const CesiumSlot = ({
   registerWithViewSync = true,
   reportStatus = true,
   onReadyChange,
+  onObservedStateChange,
   containerStyle,
   bootDelayMs = 0,
 }: {
@@ -700,6 +710,7 @@ const CesiumSlot = ({
   registerWithViewSync?: boolean;
   reportStatus?: boolean;
   onReadyChange?: (handle: CesiumRuntimeHandle | null) => void;
+  onObservedStateChange?: (state: ViewState | null) => void;
   containerStyle?: CSSProperties;
   bootDelayMs?: number;
 }) => {
@@ -830,6 +841,7 @@ const CesiumSlot = ({
           widget={widget}
           setStatusText={reportStatus ? setStatusText : () => {}}
           onViewSyncHandleChange={setViewSyncHandle}
+          onObservedStateChange={onObservedStateChange}
         />
       ) : null}
     </>
@@ -841,11 +853,13 @@ const MapLibreViewSyncBridge = ({
   map,
   setStatusText,
   onViewSyncHandleChange,
+  onObservedStateChange,
 }: {
   slotId: string;
   map: MapLibreMap;
   setStatusText: (value: string) => void;
   onViewSyncHandleChange?: (handle: SlotViewSyncHandle | null) => void;
+  onObservedStateChange?: (state: ViewState | null) => void;
 }) => {
   const { claimControl, releaseControl, pushState, readCurrentState } =
     useMaplibreRuntimeBridge({
@@ -854,21 +868,27 @@ const MapLibreViewSyncBridge = ({
       claimBeforePush: false,
       claimOnInteraction: true,
     });
+  const viewSyncHandleChangeRef = useRef(onViewSyncHandleChange);
+  const observedStateChangeRef = useRef(onObservedStateChange);
+
+  viewSyncHandleChangeRef.current = onViewSyncHandleChange;
+  observedStateChangeRef.current = onObservedStateChange;
 
   useEffect(() => {
-    onViewSyncHandleChange?.({
+    viewSyncHandleChangeRef.current?.({
       claimControl,
       releaseControl,
       pushState,
     });
     return () => {
-      onViewSyncHandleChange?.(null);
+      viewSyncHandleChangeRef.current?.(null);
     };
-  }, [claimControl, onViewSyncHandleChange, pushState, releaseControl]);
+  }, [claimControl, pushState, releaseControl]);
 
   useEffect(() => {
     const updateStatus = () => {
       const state = readCurrentState();
+      observedStateChangeRef.current?.(state);
       setStatusText(
         formatMappingEngineStatusFromViewState(
           CARMA_STORY_MAPPING_ENGINES.MAPLIBRE_GL,
@@ -885,6 +905,7 @@ const MapLibreViewSyncBridge = ({
     map.on("resize", updateStatus);
 
     return () => {
+      observedStateChangeRef.current?.(null);
       map.off("load", updateStatus);
       map.off("move", updateStatus);
       map.off("rotate", updateStatus);
@@ -903,6 +924,7 @@ const MapLibreSlot = ({
   registerWithViewSync = true,
   reportStatus = true,
   onReadyChange,
+  onObservedStateChange,
   containerStyle,
   bootDelayMs = 0,
 }: {
@@ -912,6 +934,7 @@ const MapLibreSlot = ({
   registerWithViewSync?: boolean;
   reportStatus?: boolean;
   onReadyChange?: (handle: MapLibreRuntimeHandle | null) => void;
+  onObservedStateChange?: (state: ViewState | null) => void;
   containerStyle?: CSSProperties;
   bootDelayMs?: number;
 }) => {
@@ -1008,6 +1031,7 @@ const MapLibreSlot = ({
           map={map}
           setStatusText={reportStatus ? setStatusText : () => {}}
           onViewSyncHandleChange={setViewSyncHandle}
+          onObservedStateChange={onObservedStateChange}
         />
       ) : null}
     </>
@@ -1019,11 +1043,13 @@ const LeafletViewSyncBridge = ({
   map,
   setStatusText,
   onViewSyncHandleChange,
+  onObservedStateChange,
 }: {
   slotId: string;
   map: L.Map;
   setStatusText: (value: string) => void;
   onViewSyncHandleChange?: (handle: SlotViewSyncHandle | null) => void;
+  onObservedStateChange?: (state: ViewState | null) => void;
 }) => {
   const { claimControl, releaseControl, pushState, readCurrentState } =
     useLeafletRuntimeBridge({
@@ -1032,21 +1058,27 @@ const LeafletViewSyncBridge = ({
       claimBeforePush: false,
       claimOnInteraction: true,
     });
+  const viewSyncHandleChangeRef = useRef(onViewSyncHandleChange);
+  const observedStateChangeRef = useRef(onObservedStateChange);
+
+  viewSyncHandleChangeRef.current = onViewSyncHandleChange;
+  observedStateChangeRef.current = onObservedStateChange;
 
   useEffect(() => {
-    onViewSyncHandleChange?.({
+    viewSyncHandleChangeRef.current?.({
       claimControl,
       releaseControl,
       pushState,
     });
     return () => {
-      onViewSyncHandleChange?.(null);
+      viewSyncHandleChangeRef.current?.(null);
     };
-  }, [claimControl, onViewSyncHandleChange, pushState, releaseControl]);
+  }, [claimControl, pushState, releaseControl]);
 
   useEffect(() => {
     const updateStatus = () => {
       const state = readCurrentState();
+      observedStateChangeRef.current?.(state);
       setStatusText(
         formatMappingEngineStatusFromViewState(
           CARMA_STORY_MAPPING_ENGINES.LEAFLET,
@@ -1061,6 +1093,7 @@ const LeafletViewSyncBridge = ({
     map.whenReady(updateStatus);
 
     return () => {
+      observedStateChangeRef.current?.(null);
       map.off("move", updateStatus);
       map.off("zoom", updateStatus);
     };
@@ -1076,6 +1109,7 @@ const LeafletSlot = ({
   registerWithViewSync = true,
   reportStatus = true,
   onReadyChange,
+  onObservedStateChange,
   containerStyle,
   bootDelayMs = 0,
 }: {
@@ -1085,6 +1119,7 @@ const LeafletSlot = ({
   registerWithViewSync?: boolean;
   reportStatus?: boolean;
   onReadyChange?: (handle: LeafletRuntimeHandle | null) => void;
+  onObservedStateChange?: (state: ViewState | null) => void;
   containerStyle?: CSSProperties;
   bootDelayMs?: number;
 }) => {
@@ -1176,6 +1211,7 @@ const LeafletSlot = ({
           map={map}
           setStatusText={reportStatus ? setStatusText : () => {}}
           onViewSyncHandleChange={setViewSyncHandle}
+          onObservedStateChange={onObservedStateChange}
         />
       ) : null}
     </>
@@ -1188,6 +1224,7 @@ const SlotMountRenderer = ({
   initialTarget,
   setStatusText,
   onRuntimeHandleChange,
+  onObservedStateChange,
   bootDelayMs = 0,
 }: {
   slotId: string;
@@ -1198,6 +1235,7 @@ const SlotMountRenderer = ({
     mountId: string,
     handle: SlotRuntimeHandle | null
   ) => void;
+  onObservedStateChange?: (state: ViewState | null) => void;
   bootDelayMs?: number;
 }) => {
   const containerStyle: CSSProperties =
@@ -1228,6 +1266,7 @@ const SlotMountRenderer = ({
         registerWithViewSync={mount.registerWithViewSync}
         reportStatus={mount.reportStatus}
         onReadyChange={(handle) => onRuntimeHandleChange(mount.id, handle)}
+        onObservedStateChange={onObservedStateChange}
         containerStyle={containerStyle}
         bootDelayMs={bootDelayMs}
       />
@@ -1243,6 +1282,7 @@ const SlotMountRenderer = ({
         registerWithViewSync={mount.registerWithViewSync}
         reportStatus={mount.reportStatus}
         onReadyChange={(handle) => onRuntimeHandleChange(mount.id, handle)}
+        onObservedStateChange={onObservedStateChange}
         containerStyle={containerStyle}
         bootDelayMs={bootDelayMs}
       />
@@ -1257,6 +1297,7 @@ const SlotMountRenderer = ({
       registerWithViewSync={mount.registerWithViewSync}
       reportStatus={mount.reportStatus}
       onReadyChange={(handle) => onRuntimeHandleChange(mount.id, handle)}
+      onObservedStateChange={onObservedStateChange}
       containerStyle={containerStyle}
       bootDelayMs={bootDelayMs}
     />
@@ -1274,6 +1315,8 @@ const SlotPanelController = ({
   onEngineChange,
   onDelete,
   onTransitioningChange,
+  onObservedStateChange,
+  onActiveRuntimeChange,
 }: {
   slot: SlotConfig;
   fallbackTarget: ViewState;
@@ -1285,6 +1328,8 @@ const SlotPanelController = ({
   onEngineChange: (engine: StoryMappingEngine) => void;
   onDelete: () => void;
   onTransitioningChange: (slotId: string, isTransitioning: boolean) => void;
+  onObservedStateChange?: (state: ViewState | null) => void;
+  onActiveRuntimeChange?: (isActive: boolean) => void;
 }) => {
   const controllerId = useViewStateControllerId();
   const currentState = useViewState();
@@ -1318,6 +1363,9 @@ const SlotPanelController = ({
   const activeRuntimeEngine =
     mounts.find((mount) => mount.registerWithViewSync)?.engine ?? slot.engine;
   const isEngineTransitioning = transitionRequest !== null;
+  const activeRuntimeChangeRef = useRef(onActiveRuntimeChange);
+
+  activeRuntimeChangeRef.current = onActiveRuntimeChange;
 
   useEffect(() => {
     onTransitioningChange(slot.id, isEngineTransitioning);
@@ -1382,6 +1430,13 @@ const SlotPanelController = ({
   }, [mounts, runtimeHandleVersion]);
 
   const activeRuntimeHandle = getActiveRuntimeHandle();
+
+  useEffect(() => {
+    activeRuntimeChangeRef.current?.(Boolean(activeRuntimeHandle));
+    return () => {
+      activeRuntimeChangeRef.current?.(false);
+    };
+  }, [activeRuntimeHandle]);
 
   useEffect(() => {
     if (
@@ -1662,6 +1717,7 @@ const SlotPanelController = ({
           initialTarget={providerTarget}
           setStatusText={setStatusText}
           onRuntimeHandleChange={handleRuntimeHandleChange}
+          onObservedStateChange={onObservedStateChange}
           bootDelayMs={
             !initialBootDelayConsumed &&
             !isEngineTransitioning &&
@@ -1692,8 +1748,15 @@ export const SlotsLayout = ({
   const [transitioningSlotIds, setTransitioningSlotIds] = useState<string[]>(
     []
   );
+  const [slotObservedStates, setSlotObservedStates] = useState<
+    Record<string, ViewState | null>
+  >({});
+  const [slotActiveRuntimeMap, setSlotActiveRuntimeMap] = useState<
+    Record<string, boolean>
+  >({});
   const layoutWidth = useElementWidth(layoutRef);
   const isAnyEngineTransitioning = transitioningSlotIds.length > 0;
+  const primarySlotId = slots[0]?.id ?? null;
   const maxSlotCount =
     layoutWidth > 0
       ? Math.max(1, Math.floor(layoutWidth / PANEL_MIN_WIDTH_PX))
@@ -1755,6 +1818,55 @@ export const SlotsLayout = ({
     []
   );
 
+  useEffect(() => {
+    setSlotObservedStates({});
+    setSlotActiveRuntimeMap({});
+  }, [primarySlotId]);
+
+  const handleSlotObservedStateChange = useCallback(
+    (slotId: string, state: ViewState | null) => {
+      setSlotObservedStates((previous) => {
+        if (previous[slotId] === state) {
+          return previous;
+        }
+
+        return {
+          ...previous,
+          [slotId]: state,
+        };
+      });
+    },
+    []
+  );
+
+  const handleSlotActiveRuntimeChange = useCallback(
+    (slotId: string, isActive: boolean) => {
+      setSlotActiveRuntimeMap((previous) => {
+        if (previous[slotId] === isActive) {
+          return previous;
+        }
+
+        return {
+          ...previous,
+          [slotId]: isActive,
+        };
+      });
+    },
+    []
+  );
+
+  const overlaySourceSlotId =
+    controllerId && slots.some((slot) => slot.id === controllerId)
+      ? controllerId
+      : primarySlotId;
+  const overlayFallbackTarget =
+    (overlaySourceSlotId ? slotObservedStates[overlaySourceSlotId] : null) ??
+    fallbackTarget;
+  const shouldRenderOverlay =
+    Boolean(overlaySourceSlotId) &&
+    slotActiveRuntimeMap[overlaySourceSlotId as string] === true &&
+    Boolean(slotObservedStates[overlaySourceSlotId as string]);
+
   return (
     <>
       <div
@@ -1779,6 +1891,12 @@ export const SlotsLayout = ({
                 onEngineChange={(engine) => updateSlotEngine(slot.id, engine)}
                 onDelete={() => deleteSlot(slot.id)}
                 onTransitioningChange={handleTransitioningChange}
+                onObservedStateChange={(state) =>
+                  handleSlotObservedStateChange(slot.id, state)
+                }
+                onActiveRuntimeChange={(isActive) =>
+                  handleSlotActiveRuntimeChange(slot.id, isActive)
+                }
               />
             </div>
           ))}
@@ -1797,17 +1915,21 @@ export const SlotsLayout = ({
           }}
         />
       ) : null}
-      <div style={overlayLayerStyle}>
-        <ViewSyncMetaOverlay
-          fallbackTarget={fallbackTarget}
-          style={{
-            position: "absolute",
-            top: 44,
-            right: 12,
-            zIndex: 1,
-          }}
-        />
-      </div>
+      {shouldRenderOverlay ? (
+        <div style={overlayLayerStyle}>
+          <ViewSyncMetaOverlay
+            fallbackTarget={overlayFallbackTarget}
+            visualizerWidth={META_VISUAL_WIDTH_PX}
+            visualizerHeight={META_VISUAL_HEIGHT_PX}
+            style={{
+              position: "absolute",
+              top: 44,
+              right: 12,
+              zIndex: 1,
+            }}
+          />
+        </div>
+      ) : null}
     </>
   );
 };

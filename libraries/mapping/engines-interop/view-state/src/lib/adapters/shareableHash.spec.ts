@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import type { CssPixels } from "@carma/units/types";
 import { HASH_ZOOM_CONVENTION } from "../core/viewStateHash";
 import type { ShareableViewState } from "../types";
 import {
@@ -6,6 +7,7 @@ import {
   createViewStateShareableHashCodec,
   readFromShareableViewState,
   readShareableViewState,
+  resolveViewStateForViewport,
   type ShareableViewStateAdapterOptions,
 } from "./shareable";
 
@@ -20,6 +22,24 @@ const makeShareableViewState = (
   pitch: 45,
   ...overrides,
 });
+
+const px = (value: number): CssPixels => value as CssPixels;
+
+const withViewport = <T extends ReturnType<typeof readFromShareableViewState>>(
+  state: T,
+  width: number,
+  height: number
+): T =>
+  ({
+    ...state,
+    metadata: {
+      ...state.metadata,
+      viewport: {
+        widthPx: px(width),
+        heightPx: px(height),
+      },
+    },
+  } as T);
 
 describe("readShareableViewState", () => {
   it("parses hash payload values and rounds by configured precision", () => {
@@ -197,4 +217,52 @@ describe("createViewStateShareableHashCodec", () => {
       pitch: 45,
     });
   });
+
+  it.each([
+    [976, 732],
+    [732, 976],
+    [1440, 900],
+    [900, 1440],
+  ])(
+    "keeps the shareable zoom stable across viewport round-trips for %ix%i canvases",
+    (viewportWidthPx, viewportHeightPx) => {
+      const codec = createShareableHashCodec({
+        zoomConvention: HASH_ZOOM_CONVENTION.LEAFLET_256,
+        defaultFovDeg: 45,
+      });
+      const hashState: ShareableViewState = {
+        lat: 51.2699953,
+        lng: 7.2001875,
+        altitude: 157,
+        zoom: 19.105,
+        pitch: 44.92,
+        bearing: 154.69,
+      };
+
+      const restoredState = codec.decode(hashState);
+
+      expect(restoredState).not.toBeNull();
+
+      const viewportResolvedState = resolveViewStateForViewport(
+        restoredState!,
+        {
+          viewportWidthPx,
+          viewportHeightPx,
+        }
+      );
+      const liveState = withViewport(
+        viewportResolvedState,
+        viewportWidthPx,
+        viewportHeightPx
+      );
+      const reEncoded = codec.encode(liveState) as ShareableViewState;
+
+      expect(reEncoded.zoom).toBeCloseTo(hashState.zoom!, 3);
+      expect(reEncoded.lat).toBeCloseTo(hashState.lat, 7);
+      expect(reEncoded.lng).toBeCloseTo(hashState.lng, 7);
+      expect(reEncoded.altitude).toBeCloseTo(hashState.altitude, 2);
+      expect(reEncoded.pitch).toBeCloseTo(hashState.pitch!, 2);
+      expect(reEncoded.bearing).toBeCloseTo(hashState.bearing!, 2);
+    }
+  );
 });
