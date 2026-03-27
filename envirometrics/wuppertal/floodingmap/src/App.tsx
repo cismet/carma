@@ -33,9 +33,6 @@ import {
 } from "@carma-appframeworks/portals";
 import { ENDPOINT, isAreaTypeWithGEP } from "@carma-commons/resources";
 import { getApplicationVersion, HASH_LAUNCH_MODE } from "@carma-commons/utils";
-import { Cartesian3 } from "@carma/cesium";
-
-// TODO fix collab path names
 import { getCollabedHelpComponentConfig } from "@carma-collab/wuppertal/hochwassergefahrenkarte";
 
 import {
@@ -45,7 +42,6 @@ import {
   useCesiumContext,
   useZoomControls as useZoomControlsCesium,
 } from "@carma-mapping/engines/cesium";
-import type { SceneLike } from "@carma-mapping/engines/cesium/api";
 import {
   createViewStateShareableHashCodec,
   flyViewStateInCesium,
@@ -79,7 +75,6 @@ import { StateAwareChildren } from "./components/StateAwareChildren";
 import versionData from "./version.json";
 
 import useLeafletZoomControls from "./hooks/useLeafletZoomControls";
-import { useFloodingmapInitialView } from "./hooks/useFloodingmapInitialView";
 
 import config from "./config";
 import { EMAIL } from "./config/app.config";
@@ -87,13 +82,19 @@ import {
   CESIUM_CONFIG,
   CONSTRUCTOR_OPTIONS,
 } from "./config/cesium/cesium.config";
-import { DEFAULT_HOME_VIEW_REF } from "./config/view.config";
-import { DEFAULT_HOME_VIEW_STATE } from "./utils/floodingmapHomeViewState";
+import { useFloodingmapInitialValues } from "./hooks/useFloodingmapInitialValues";
 
 import "cesium/Build/Cesium/Widgets/widgets.css";
 
 const DEFAULT_HASH_FOV_DEG = 45;
 const FLOODINGMAP_CESIUM_VIEW_ADAPTER_ID = "floodingmap-cesium";
+const HIDDEN_DISPLAY_VALUE = "none" as const;
+
+type CesiumViewerCreditContainer = {
+  _cesiumWidget?: {
+    _creditContainer?: { style?: { display?: string } };
+  };
+};
 
 function FloodingmapAppContent({ sync = false }: { sync?: boolean }) {
   const version = getApplicationVersion(versionData);
@@ -112,19 +113,14 @@ function FloodingmapAppContent({ sync = false }: { sync?: boolean }) {
   const reactCismapEnvirometricsVersion = cismapEnvirometricsVersion;
   const [hochwasserschutz, setHochwasserschutz] = useState(true);
   const {
-    initialEnviroMetricState,
+    defaultHomeViewState,
+    homeCenter,
+    homeLeafletZoom,
+    homeValidationCenter,
     initialCameraView,
+    initialEnviroMetricState,
     isInitialCameraResolved,
-  } = useFloodingmapInitialView();
-  const homeValidationCenter = useMemo(
-    () =>
-      Cartesian3.fromDegrees(
-        DEFAULT_HOME_VIEW_REF.lng,
-        DEFAULT_HOME_VIEW_REF.lat,
-        DEFAULT_HOME_VIEW_REF.altitude
-      ),
-    []
-  );
+  } = useFloodingmapInitialValues();
   const ctx = useCesiumContext();
   const {
     getScene,
@@ -191,16 +187,6 @@ function FloodingmapAppContent({ sync = false }: { sync?: boolean }) {
     getCesiumTerrainProviders,
   });
 
-  const homeCenter = useMemo(
-    () =>
-      [DEFAULT_HOME_VIEW_REF.lat, DEFAULT_HOME_VIEW_REF.lng] as [
-        number,
-        number
-      ],
-    []
-  );
-  const homeLeafletZoom = DEFAULT_HOME_VIEW_REF.zoom ?? 18;
-
   const { isCesium, isLeaflet, getIsCesium, registerCallbacks } =
     useMapFrameworkSwitcherContext();
 
@@ -252,7 +238,7 @@ function FloodingmapAppContent({ sync = false }: { sync?: boolean }) {
 
   useCesiumNavigationBridge({
     id: FLOODINGMAP_CESIUM_VIEW_ADAPTER_ID,
-    scene: cesiumScene as unknown as SceneLike | null,
+    scene: cesiumScene,
     isSyncEnabled: Boolean(cesiumScene),
     isCommitEnabled: isCesium && Boolean(cesiumScene) && initialViewApplied,
   });
@@ -279,25 +265,25 @@ function FloodingmapAppContent({ sync = false }: { sync?: boolean }) {
     setSelection(Object.assign({}, selection, selectionMetaData));
   };
 
-  const homeControlLeaflet = () => {
+  const homeControlLeaflet = useCallback(() => {
     if (homeCenter && routedMap?.leafletMap?.leafletElement) {
       routedMap.leafletMap.leafletElement.flyTo(homeCenter, homeLeafletZoom);
     }
-  };
+  }, [homeCenter, homeLeafletZoom, routedMap]);
 
-  const homeControlCesium = () => {
+  const homeControlCesium = useCallback(() => {
     if (!isCesium || !cesiumScene) return;
 
-    flyViewStateInCesium(cesiumScene, DEFAULT_HOME_VIEW_STATE, {
+    flyViewStateInCesium(cesiumScene, defaultHomeViewState, {
       duration: 2,
       applyFov: false,
     });
-  };
+  }, [cesiumScene, defaultHomeViewState, isCesium]);
 
-  const onHomeClick = () => {
+  const onHomeClick = useCallback(() => {
     homeControlLeaflet();
     homeControlCesium();
-  };
+  }, [homeControlCesium, homeControlLeaflet]);
 
   useSelectionTopicMap();
   useSelectionCesium(
@@ -316,12 +302,14 @@ function FloodingmapAppContent({ sync = false }: { sync?: boolean }) {
 
   useEffect(() => {
     ctx.withViewer((viewer) => {
+      const viewerWithCreditContainer = viewer as CesiumViewerCreditContainer;
+
       // remove default cesium credit because no ion resource is used
-      (
-        viewer as unknown as {
-          _cesiumWidget: { _creditContainer: { style: { display: string } } };
-        }
-      )._cesiumWidget._creditContainer.style.display = "none";
+      const creditContainer =
+        viewerWithCreditContainer._cesiumWidget?._creditContainer;
+      if (creditContainer?.style) {
+        creditContainer.style.display = HIDDEN_DISPLAY_VALUE;
+      }
       ctx.requestRender();
     });
   }, [ctx]);

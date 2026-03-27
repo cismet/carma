@@ -3,8 +3,17 @@ import {
   type CameraIntrinsics,
 } from "@carma-commons/camera/model";
 import { isFiniteNumber } from "@carma/math";
-import type { FrustumLike } from "../../cesiumSceneTypes";
+import type { Matrix4 } from "../../cesium";
 import { readPerspectiveFrustumVerticalFov } from "./PerspectiveFrustumFov";
+
+type FrustumLike = {
+  fov?: number;
+  fovy?: number;
+  aspectRatio?: number;
+  near?: number;
+  far?: number;
+  projectionMatrix?: Matrix4;
+};
 
 type SceneCameraIntrinsicsSource = {
   camera?: {

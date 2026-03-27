@@ -4,12 +4,15 @@ import {
   Cartesian3,
   HeadingPitchRange,
   Matrix4,
-  Scene,
+  PerspectiveFrustum,
+  type Scene,
   CesiumMath,
 } from "../../cesium";
 import { Easing } from "@carma-commons/math";
 import { shortestAngleDelta } from "@carma/math";
 import type { Radians } from "@carma/units/types";
+import type { CameraStateRecord } from "./Types";
+import { writePerspectiveFrustumVerticalFov } from "./PerspectiveFrustumFov";
 
 // Reusable scratch objects for flyToTarget.
 const scratchBoundingSphere = new BoundingSphere();
@@ -21,6 +24,11 @@ export type OrbitHeadingPitchRangeAnimationOptions = {
   easing?: (time: number) => number;
   onComplete?: () => void;
   onCancel?: () => void;
+};
+
+export type FlyCameraStateToSceneOptions = {
+  duration?: number;
+  applyFov?: boolean;
 };
 
 /**
@@ -153,4 +161,36 @@ export const animateOrbitHeadingPitchRange = (
     cancelled = true;
     stop(true);
   };
+};
+
+export const flyToCameraState = (
+  scene: Scene,
+  state: CameraStateRecord,
+  options: FlyCameraStateToSceneOptions = {}
+): boolean => {
+  const camera = scene.camera;
+  if (!camera) {
+    return false;
+  }
+
+  camera.lookAtTransform(Matrix4.IDENTITY);
+  camera.flyTo({
+    destination: state.position,
+    orientation: {
+      direction: state.direction,
+      up: state.up,
+    },
+    duration: options.duration,
+  });
+
+  if (
+    options.applyFov !== false &&
+    state.fov !== undefined &&
+    camera.frustum instanceof PerspectiveFrustum
+  ) {
+    writePerspectiveFrustumVerticalFov(camera.frustum, state.fov);
+  }
+
+  scene.requestRender();
+  return true;
 };

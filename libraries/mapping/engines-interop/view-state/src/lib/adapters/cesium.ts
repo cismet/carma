@@ -8,27 +8,30 @@ import {
   Cartesian3,
   type CameraStateRecord,
   Matrix4 as CesiumMatrix4,
+  type Scene,
   pickBestAvailablePositionAtViewportCenter,
   readCameraWorldBasis,
   readSceneCameraIntrinsics,
   setViewFromCameraState,
   toSceneStateVec3,
-  type CameraLike,
-  type SceneLike,
 } from "@carma-mapping/engines/cesium/api";
 import { buildViewStateFromEcef } from "../core/construct";
 import type { ViewState, ViewStateMetadata } from "../core/types";
+
+type SceneFrameStateLike = {
+  frameState?: { frameNumber?: number };
+};
 
 // ---------------------------------------------------------------------------
 // Read: Cesium scene → ViewState
 // ---------------------------------------------------------------------------
 
 export const readFromCesium = (
-  scene: SceneLike,
+  scene: Scene,
   sourceId: string
 ): ViewState | null => {
   try {
-    const camera = scene.camera as CameraLike | undefined;
+    const camera = scene.camera;
     if (!camera) return null;
 
     const cameraEcef =
@@ -46,8 +49,7 @@ export const readFromCesium = (
     );
 
     const intrinsics = readSceneCameraIntrinsics(scene);
-    const frameNumber = (scene as { frameState?: { frameNumber?: number } })
-      .frameState?.frameNumber;
+    const frameNumber = (scene as SceneFrameStateLike).frameState?.frameNumber;
 
     const metadata: ViewStateMetadata = {
       frameId: isFiniteNumber(frameNumber) ? frameNumber : 0,
@@ -70,6 +72,13 @@ export const readFromCesium = (
 
 const toCesiumCartesian3 = (value: ViewState["cameraPosition"]): Cartesian3 =>
   new Cartesian3(value.x, value.y, value.z);
+
+const isWritableCesiumCamera = (
+  camera: Scene["camera"]
+): camera is NonNullable<Scene["camera"]> & {
+  lookAtTransform: NonNullable<NonNullable<Scene["camera"]>["lookAtTransform"]>;
+  setView: NonNullable<NonNullable<Scene["camera"]>["setView"]>;
+} => Boolean(camera?.lookAtTransform && camera.setView);
 
 // ---------------------------------------------------------------------------
 // Apply: ViewState → Cesium scene
@@ -103,14 +112,15 @@ export const readCesiumCameraStateFromViewState = (
   };
 };
 
-export const applyToCesium = (scene: SceneLike, state: ViewState): void => {
-  const camera = scene.camera as unknown as Parameters<
-    typeof setViewFromCameraState
-  >[0];
+export const applyToCesium = (scene: Scene, state: ViewState): void => {
+  const camera = scene.camera;
+  if (!isWritableCesiumCamera(camera)) {
+    return;
+  }
   const cameraState = readCesiumCameraStateFromViewState(state);
 
   camera.lookAtTransform(CesiumMatrix4.IDENTITY);
   setViewFromCameraState(camera, cameraState);
 
-  (scene as SceneLike & { requestRender?: () => void }).requestRender?.();
+  scene.requestRender?.();
 };

@@ -2,33 +2,26 @@ import { ZERO_PI } from "@carma/units/helpers";
 import {
   Camera,
   Cartesian3,
-  Matrix4,
   PerspectiveFrustum,
-  type Scene,
   type HeadingPitchRollValues,
 } from "../../cesium";
 import {
   isCameraStateHeadingPitchRoll,
   isCameraStateRecord,
 } from "../../carma-guards";
-import { captureCurrentCameraState } from "./CameraStateCapture";
-import type {
-  CameraState,
-  CameraStateRecord,
-  DirectionUp,
-} from "./CameraTypes";
+import type { CameraState, DirectionUp } from "./Types";
 import { writePerspectiveFrustumVerticalFov } from "./PerspectiveFrustumFov";
 
-export type FlyCameraStateToSceneOptions = {
-  duration?: number;
-  applyFov?: boolean;
+type CameraViewWriter = {
+  setView: NonNullable<Camera["setView"]>;
+  frustum?: Camera["frustum"];
 };
 
 /**
  * Restore camera state from CameraState (for crash recovery).
  */
 export const setViewFromCameraState = (
-  camera: Camera,
+  camera: CameraViewWriter,
   state: CameraState
 ): void => {
   const isHeadingPitchRollState = isCameraStateHeadingPitchRoll(state);
@@ -68,50 +61,4 @@ export const setViewFromCameraState = (
   if (state.fov !== undefined && camera.frustum instanceof PerspectiveFrustum) {
     writePerspectiveFrustumVerticalFov(camera.frustum, state.fov);
   }
-};
-
-export const flyToCameraState = (
-  scene: Scene,
-  state: CameraStateRecord,
-  options: FlyCameraStateToSceneOptions = {}
-): boolean => {
-  const camera = scene.camera;
-  if (!camera) {
-    return false;
-  }
-
-  camera.lookAtTransform(Matrix4.IDENTITY);
-  camera.flyTo({
-    destination: state.position,
-    orientation: {
-      direction: state.direction,
-      up: state.up,
-    },
-    duration: options.duration,
-  });
-
-  if (
-    options.applyFov !== false &&
-    state.fov !== undefined &&
-    camera.frustum instanceof PerspectiveFrustum
-  ) {
-    writePerspectiveFrustumVerticalFov(camera.frustum, state.fov);
-  }
-
-  scene.requestRender();
-  return true;
-};
-
-/**
- * Release camera from orbit/lookAt mode while preserving current position.
- */
-export const releaseCameraFromOrbitMode = (camera: Camera): void => {
-  const state = captureCurrentCameraState(camera, false);
-
-  camera.lookAtTransform(Matrix4.IDENTITY);
-
-  if (state.position) camera.position = state.position;
-  if (state.direction) camera.direction = state.direction;
-  if (state.up) camera.up = state.up;
-  if (state.right) camera.right = state.right;
 };

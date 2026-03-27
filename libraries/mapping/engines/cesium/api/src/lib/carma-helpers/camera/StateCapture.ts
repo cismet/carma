@@ -7,26 +7,28 @@ import {
   OrthographicOffCenterFrustum,
   PerspectiveFrustum,
 } from "../../cesium";
-import type { CameraLike } from "../../cesiumSceneTypes";
 import {
   toSceneStateMat4,
   toSceneStateVec3,
-} from "../scene/SceneStateValueAdapters";
-import { cameraPositionCartographicRadians } from "./CameraPosition";
+} from "../scene/StateValueAdapters";
+import { cameraPositionCartographicRadians } from "./Position";
 import type {
   CaptureCurrentCameraStateOptions,
   CapturedCameraState,
-} from "./CameraTypes";
+} from "./Types";
 import { readPerspectiveFrustumVerticalFov } from "./PerspectiveFrustumFov";
 
+type CameraWorldBasisSource = Pick<
+  Camera,
+  "directionWC" | "upWC" | "rightWC" | "inverseViewMatrix"
+>;
+
 export const readCameraWorldBasis = (
-  camera: CameraLike
+  camera: CameraWorldBasisSource
 ): { forward: Vector3; right: Vector3; up: Vector3 } => {
   const direction = toSceneStateVec3(camera.directionWC);
   const up = toSceneStateVec3(camera.upWC);
-  const right = toSceneStateVec3(
-    (camera as CameraLike & { rightWC?: unknown }).rightWC
-  );
+  const right = toSceneStateVec3(camera.rightWC);
 
   if (direction && up) {
     const forward = direction.clone().normalize();

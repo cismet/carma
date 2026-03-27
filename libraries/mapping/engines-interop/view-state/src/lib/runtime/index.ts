@@ -82,6 +82,7 @@ export { readFromLeaflet, applyToLeaflet } from "../adapters/leaflet";
 export {
   DEFAULT_SHAREABLE_VIEW_STATE_PRECISION,
   readFromShareableViewState,
+  readLeafletHomeViewState,
   readShareableViewState,
   applyToShareableViewState,
   createViewStateShareableHashCodec,
@@ -94,3 +95,4 @@ export { readInitialCameraViewFromViewState } from "../adapters/cesium-initial-c
 
 // Runtime integrations (engine side-effects / orchestration)
 export { flyViewStateInCesium } from "./integrations/flyViewStateInCesium";
+export { useInitialCesiumCameraView } from "./integrations/useInitialCesiumCameraView";

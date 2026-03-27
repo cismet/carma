@@ -12,9 +12,16 @@ import {
 } from "@carma-mapping/annotations/core";
 import { useLabelOverlay } from "@carma-providers/label-overlay";
 
-const VERTICAL_CORNER_OVERLAY_ID_PREFIX = "distance-vertical-corner";
-const VERTICAL_CORNER_MARKER_SIZE_PX = 10;
-const VERTICAL_CORNER_MARKER_STROKE_WIDTH_PX = 1;
+const POLYLINE_OVERLAY_DEFAULTS = {
+  ids: {
+    verticalCornerOverlayPrefix: "distance-vertical-corner",
+  },
+  verticalCornerMarker: {
+    sizePx: 10,
+    strokeWidthPx: 1,
+    strokeColor: "rgba(255, 255, 255, 0.95)",
+  },
+} as const;
 
 export type PolylineOverlayVisualizerOptions = Record<string, never>;
 
@@ -36,10 +43,10 @@ export const usePolylineOverlayVisualizer = (
     () =>
       createElement("div", {
         style: {
-          width: `${VERTICAL_CORNER_MARKER_SIZE_PX}px`,
-          height: `${VERTICAL_CORNER_MARKER_SIZE_PX}px`,
+          width: `${POLYLINE_OVERLAY_DEFAULTS.verticalCornerMarker.sizePx}px`,
+          height: `${POLYLINE_OVERLAY_DEFAULTS.verticalCornerMarker.sizePx}px`,
           borderRadius: "50%",
-          border: `${VERTICAL_CORNER_MARKER_STROKE_WIDTH_PX}px solid rgba(255, 255, 255, 0.95)`,
+          border: `${POLYLINE_OVERLAY_DEFAULTS.verticalCornerMarker.strokeWidthPx}px solid ${POLYLINE_OVERLAY_DEFAULTS.verticalCornerMarker.strokeColor}`,
           background: "transparent",
           boxSizing: "border-box",
           pointerEvents: "none",
@@ -60,7 +67,7 @@ export const usePolylineOverlayVisualizer = (
 
     const nextOverlayIds: string[] = [];
     verticalCornerMarkers.forEach((marker) => {
-      const overlayId = `${VERTICAL_CORNER_OVERLAY_ID_PREFIX}-${marker.id}`;
+      const overlayId = `${POLYLINE_OVERLAY_DEFAULTS.ids.verticalCornerOverlayPrefix}-${marker.id}`;
       addLabelOverlayElement({
         id: overlayId,
         zIndex: 9,

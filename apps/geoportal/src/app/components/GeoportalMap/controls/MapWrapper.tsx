@@ -34,7 +34,9 @@ import {
   useCesiumContext,
   useZoomControls as useZoomControlsCesium,
 } from "@carma-mapping/engines/cesium";
-import { flyViewStateInCesium } from "@carma-mapping/engines-interop/view-state";
+import {
+  flyViewStateInCesium,
+} from "@carma-mapping/engines-interop/view-state";
 import {
   MapFrameworkSwitcher,
   FullscreenControl,
@@ -64,6 +66,7 @@ import { useFeatureInfoModeCursorStyle } from "../../../hooks/useFeatureInfoMode
 import { useMapStyleReduxSync } from "../../../hooks/useMapStyleReduxSync";
 import { useTourRefCollabLabels } from "../../../hooks/useTourRefCollabLabels.ts";
 import { useWindowSize } from "../../../hooks/useWindowSize.ts";
+import { useGeoportalInitialValues } from "../../../hooks/useGeoportalInitialValues.ts";
 
 import { useOblique } from "../../../oblique/hooks/useOblique.ts";
 
@@ -90,15 +93,12 @@ import {
   UIMode,
 } from "../../../store/slices/ui.ts";
 import { DEFAULT_HOME_VIEW_REF } from "../../../config/view.config";
-import { DEFAULT_HOME_VIEW_STATE } from "../../../utils/geoportalHomeViewState";
 
 // detect GPU support, disables 3d mode if not supported
 let hasGPU = false;
 const setHasGPU = (flag: boolean) => (hasGPU = flag);
 const testGPU = () => detectWebGLContext(setHasGPU);
 window.addEventListener("load", testGPU, false);
-
-// TODO: centralize the hash params update behavior
 
 const MapWrapper = () => {
   const dispatch = useDispatch();
@@ -150,22 +150,22 @@ const MapWrapper = () => {
     fovMode: isObliqueMode,
   });
   const { zoomInLeaflet, zoomOutLeaflet } = useLeafletZoomControls();
-  const homeCenter = [DEFAULT_HOME_VIEW_REF.lat, DEFAULT_HOME_VIEW_REF.lng] as [
-    number,
-    number
-  ];
-  const homeLeafletZoom = DEFAULT_HOME_VIEW_REF.zoom ?? 18;
-  const homeMaplibreZoom = homeLeafletZoom - 1;
+  const {
+    defaultHomeViewState,
+    homeCenter,
+    homeLeafletZoom,
+    homeMaplibreZoom,
+  } = useGeoportalInitialValues();
   const handleCesiumHomeClick = useCallback(() => {
     if (!isCesium) return;
 
     ctx.withScene((scene) => {
-      flyViewStateInCesium(scene, DEFAULT_HOME_VIEW_STATE, {
+      flyViewStateInCesium(scene, defaultHomeViewState, {
         duration: 2,
         applyFov: false,
       });
     });
-  }, [ctx, isCesium]);
+  }, [ctx, defaultHomeViewState, isCesium]);
 
   const { responsiveState, gap, windowSize } = useContext<
     typeof ResponsiveTopicMapContext
@@ -349,10 +349,6 @@ const MapWrapper = () => {
 
                   // nativeTooltip={true}
                 />
-
-                {
-                  // TODO implement cesium home action with generic home control for all mapping engines
-                }
               </div>
             </Control>
           )}

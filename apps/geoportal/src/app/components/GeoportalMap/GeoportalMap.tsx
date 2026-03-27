@@ -13,6 +13,7 @@ import { useDispatch, useSelector } from "react-redux";
 
 import {
   BoundingSphere,
+  Cartesian3,
   flyToBoundingSphereExtent,
   type CesiumTerrainProvider,
 } from "@carma/cesium";
@@ -67,7 +68,6 @@ import {
   setCurrentSceneStyle,
   useCesiumContext,
 } from "@carma-mapping/engines/cesium";
-import type { SceneLike } from "@carma-mapping/engines/cesium/api";
 import {
   createViewStateShareableHashCodec,
   HASH_ZOOM_CONVENTION,
@@ -94,15 +94,15 @@ import { addCssToOverlayHelperItem } from "../../helper/overlayHelper.ts";
 import useLeafletZoomControls from "../../hooks/leaflet/useLeafletZoomControls.ts";
 import { useDispatchSachdatenInfoText } from "../../hooks/useDispatchSachdatenInfoText.ts";
 import { useFeatureInfoModeCursorStyle } from "../../hooks/useFeatureInfoModeCursorStyle.ts";
-import { useGeoportalInitialView } from "../../hooks/useGeoportalInitialView.ts";
 import { useObliqueInitializer } from "../../oblique/hooks/useObliqueInitializer.ts";
 import { useCameraOrbit } from "../../hooks/useCameraOrbit.ts";
-import { useGeoportalFrameworkSwitcher } from "./controls/use-geoportal-framework-switcher.ts";
+import { useGeoportalInitialValues } from "../../hooks/useGeoportalInitialValues.ts";
 
 import { onClickTopicMap } from "./topicmap.utils.ts";
 import { useCreateCismapLayers } from "./hooks/useCreateCismapLayer.ts";
 
 import store from "../../store/index.ts";
+import { DEFAULT_HOME_VIEW_REF } from "../../config/view.config";
 import {
   getLoading,
   getSelectedFeature,
@@ -147,7 +147,6 @@ interface MapProps {
 
 const CLICK_DELAY_MS = 200;
 const GEOPORTAL_CESIUM_VIEW_ADAPTER_ID = "geoportal-cesium";
-
 const GeoportalMapInner = ({ height, width, allow3d }: MapProps) => {
   const dispatch = useDispatch();
 
@@ -188,6 +187,7 @@ const GeoportalMapInner = ({ height, width, allow3d }: MapProps) => {
     getIsCesium,
     getIsLeaflet,
     getIsTransitioning, // Check if framework transition in progress
+    registerCallbacks,
   } = useMapFrameworkSwitcherContext();
 
   const models = useSelector(selectViewerModels);
@@ -253,10 +253,10 @@ const GeoportalMapInner = ({ height, width, allow3d }: MapProps) => {
     useContext<typeof UIDispatchContext>(UIDispatchContext);
   const { setSecondaryWithKey, showOverlayHandler } = useOverlayTourContext();
   const {
-    isInitialCameraResolved,
-    cesiumInitialCameraView,
     homeValidationCenter,
-  } = useGeoportalInitialView();
+    initialCameraView: cesiumInitialCameraView,
+    isInitialCameraResolved,
+  } = useGeoportalInitialValues();
 
   const [isLoginFormVisible, setIsLoginFormVisible] = useState(false);
   const markerRef = useRef(undefined);
@@ -441,7 +441,7 @@ const GeoportalMapInner = ({ height, width, allow3d }: MapProps) => {
   });
   const { commitCurrentSceneState } = useCesiumNavigationBridge({
     id: GEOPORTAL_CESIUM_VIEW_ADAPTER_ID,
-    scene: cesiumScene as unknown as SceneLike | null,
+    scene: cesiumScene,
     isSyncEnabled: Boolean(cesiumScene),
     isCommitEnabled: isCesium && !getIsTransitioning() && initialViewApplied,
   });
@@ -472,16 +472,23 @@ const GeoportalMapInner = ({ height, width, allow3d }: MapProps) => {
     getCesiumTerrainProviders,
   });
 
-  // Register geoportal-specific framework switcher callbacks
-  useGeoportalFrameworkSwitcher({
-    onEnsureCesiumReady: allow3d ? ensureCesiumReadyForTransition : undefined,
-    onBeforeTransitionToCesium: stageCesiumPrimitivesForTransition,
-    onAfterTransitionToCesium: () => {
-      commitCurrentSceneState("transition-complete", {
-        force: true,
-      });
-    },
-  });
+  useEffect(() => {
+    registerCallbacks({
+      onEnsureCesiumReady: allow3d ? ensureCesiumReadyForTransition : undefined,
+      onBeforeTransitionToCesium: stageCesiumPrimitivesForTransition,
+      onAfterTransitionToCesium: () => {
+        commitCurrentSceneState("transition-complete", {
+          force: true,
+        });
+      },
+    });
+  }, [
+    allow3d,
+    commitCurrentSceneState,
+    ensureCesiumReadyForTransition,
+    registerCallbacks,
+    stageCesiumPrimitivesForTransition,
+  ]);
 
   const { gazData } = useGazData();
 

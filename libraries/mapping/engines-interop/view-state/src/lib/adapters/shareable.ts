@@ -343,10 +343,7 @@ export const readFromShareableViewState = (
   const zoomConvention =
     options?.zoomConvention ?? HASH_ZOOM_CONVENTION.MAPLIBRE_512;
 
-  const normalizedShareable = readShareableViewState(
-    viewState as unknown as Record<string, unknown>,
-    options
-  );
+  const normalizedShareable = readShareableViewState(viewState, options);
 
   if (!normalizedShareable) {
     throw new Error(
@@ -465,5 +462,14 @@ export const createViewStateShareableHashCodec = (
       : null;
   },
 });
+
+export const readLeafletHomeViewState = (
+  viewState: ShareableViewState,
+  options: Omit<ShareableViewStateAdapterOptions, "zoomConvention"> = {}
+): ViewState =>
+  readFromShareableViewState(viewState, {
+    ...options,
+    zoomConvention: HASH_ZOOM_CONVENTION.LEAFLET_256,
+  });
 
 export { resolveViewStateForViewport };

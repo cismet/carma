@@ -1,5 +1,5 @@
 import { useCallback, useContext, useEffect, useMemo } from "react";
-import type { SceneLike } from "@carma-mapping/engines/cesium/api";
+import type { Scene } from "@carma-mapping/engines/cesium/api";
 import type {
   ViewStateNavigationCommitReason,
   ViewStateNavigationManagerContextValue,
@@ -31,7 +31,7 @@ const normalizeCesiumNavigationBridgeListeners = (
 
 export type UseCesiumNavigationBridgeOptions = {
   id: string;
-  scene?: SceneLike | null;
+  scene?: Scene | null;
   isSyncEnabled?: boolean;
   isCommitEnabled?: boolean;
   pushPriority?: WritePriority;

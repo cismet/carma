@@ -106,7 +106,6 @@ Common custom CARMA types and type declarations for external libraries are defin
 - `@carma/types` - Global types index ([`libraries/types/`](libraries/types/))
 - `@carma/geo/types` - Geographic types ([`libraries/commons/geo/types/`](libraries/commons/geo/types/))
 - `@carma/units/types` - Branded unit types with [Radians-first convention](libraries/commons/units/types/BRANDED-UNITS.md) ([`libraries/commons/units/types/`](libraries/commons/units/types/))
-- `@carma/cesium-types` - Cesium configuration types ([`libraries/mapping/engines/cesium/types/`](libraries/mapping/engines/cesium/types/))
 
 **Configuration:** Type-only packages have no build target. Their `package.json` points exports directly to source (e.g., `"types": "./src/index.d.ts"`), and path aliases in `tsconfig.base.json` resolve directly to `.d.ts` files. This approach requires no compilation since TypeScript natively reads declaration files.
 

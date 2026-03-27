@@ -42,6 +42,12 @@ type Props = {
 
 const eps = 0.001;
 
+type PerspectiveFrustumLike = {
+  fovy?: number;
+  _fovy?: number;
+  aspectRatio?: number;
+};
+
 const getTransforms = (tz: number) => ({
   top: `translateZ(${tz}px)`,
   bottom: `translateZ(${-tz}px)`,
@@ -223,11 +229,7 @@ const ObliqueOrientationCube: React.FC<Props> = ({
           const rect = el.getBoundingClientRect();
           const w = rect.width;
           const h = rect.height;
-          const frustum = camera.frustum as unknown as {
-            fovy?: number;
-            _fovy?: number;
-            aspectRatio?: number;
-          };
+          const frustum = camera.frustum as PerspectiveFrustumLike;
           const fovy: number | undefined = frustum?.fovy ?? frustum?._fovy;
           if (!(w > 0) || !(h > 0) || !(typeof fovy === "number" && fovy > 0))
             return;

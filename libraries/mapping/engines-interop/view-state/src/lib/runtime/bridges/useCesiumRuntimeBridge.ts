@@ -1,5 +1,5 @@
 import { useMemo } from "react";
-import type { SceneLike } from "@carma-mapping/engines/cesium/api";
+import type { Scene } from "@carma-mapping/engines/cesium/api";
 import type { WritePriority } from "../../core/types";
 import { applyToCesium, readFromCesium } from "../../adapters/cesium";
 import {
@@ -8,7 +8,7 @@ import {
 } from "./useSubscribedRuntimeBridge";
 
 const attachSceneFrameListener = (
-  scene: SceneLike,
+  scene: Scene,
   listener: () => void
 ): (() => void) | null => {
   const frameEvent = scene.postRender ?? scene.preRender;
@@ -24,7 +24,7 @@ const attachSceneFrameListener = (
 
 export type UseCesiumRuntimeBridgeOptions = {
   id: string;
-  scene?: SceneLike | null;
+  scene?: Scene | null;
   enabled?: boolean;
   pushPriority?: WritePriority;
   claimPriority?: WritePriority;

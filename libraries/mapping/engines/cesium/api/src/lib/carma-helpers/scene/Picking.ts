@@ -1,5 +1,4 @@
 import { Cartesian2, Cartesian3, type Scene } from "../../cesium";
-import type { SceneLike } from "../../cesiumSceneTypes";
 import {
   GUIDE_NORMAL_EPSILON_SQUARED,
   getLocalUpDirectionAtPosition,
@@ -22,7 +21,7 @@ export const pickGlobePositionAtScreenPosition = (
 };
 
 export const pickBestAvailablePositionAtScreenPosition = (
-  scene: SceneLike,
+  scene: Scene,
   screenPosition: Cartesian2
 ): Cartesian3 | null => {
   if (
@@ -49,7 +48,7 @@ export const pickBestAvailablePositionAtScreenPosition = (
 };
 
 export const pickBestAvailablePositionAtViewportCenter = (
-  scene: SceneLike
+  scene: Scene
 ): Cartesian3 | null => {
   const viewportWidth = scene.canvas?.clientWidth;
   const viewportHeight = scene.canvas?.clientHeight;

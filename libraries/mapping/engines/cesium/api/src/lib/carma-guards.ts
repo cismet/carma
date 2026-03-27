@@ -22,7 +22,7 @@ import {
 import type {
   CameraStateHeadingPitchRoll,
   CameraStateRecord,
-} from "./carma-helpers/camera/CameraTypes";
+} from "./carma-helpers/camera/Types";
 
 export const isValidBoundingSphere = (
   sphere: unknown

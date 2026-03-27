@@ -1,7 +1,7 @@
 export {
   getDegreesFromCartographic,
   getEllipsoidalAltitudeOrZero,
-} from "./CartographicConversions";
+} from "./Conversions";
 export { getDegreesFromCartesian } from "./getDegreesFromCartesian";
 export {
   getBoundingSphereFromCoordinates,

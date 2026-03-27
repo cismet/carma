@@ -1,5 +1,3 @@
-// TODO CONSOLIDATE_CESIUM
-
 import { Color } from "cesium";
 
 import { CesiumState } from "@carma-mapping/engines/cesium";

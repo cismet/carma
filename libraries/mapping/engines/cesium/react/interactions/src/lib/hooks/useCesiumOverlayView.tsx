@@ -109,10 +109,7 @@ const readOverlayViewSnapshot = (
   }
 
   const viewportState = projector.getViewState();
-  const commonViewState = readFromCesium(
-    scene as unknown as Parameters<typeof readFromCesium>[0],
-    CESIUM_OVERLAY_VIEW_SOURCE_ID
-  );
+  const commonViewState = readFromCesium(scene, CESIUM_OVERLAY_VIEW_SOURCE_ID);
   const viewportWidth = Math.max(0, viewportState?.width ?? 0);
   const viewportHeight = Math.max(0, viewportState?.height ?? 0);
 

@@ -17,13 +17,15 @@ const MATRIX4_ARRAY_SCRATCH = new Array<number>(16).fill(
   0
 ) as Matrix4ConstructorArgs;
 
+type SceneFrameStateLike = {
+  frameState?: { frameNumber?: number };
+};
+
 export const useCesiumViewProjector = (scene: Scene | null) => {
   const getViewState = useCallback(() => {
     if (!scene || scene.isDestroyed()) return null;
 
-    const frameNumber = (
-      scene as unknown as { frameState?: { frameNumber?: number } }
-    ).frameState?.frameNumber;
+    const frameNumber = (scene as SceneFrameStateLike).frameState?.frameNumber;
 
     return {
       width: Math.max(1, scene.canvas.clientWidth || scene.canvas.width || 1),
