@@ -27,11 +27,11 @@ const CreateAAModal = ({ open, onClose, highlights }: CreateAAModalProps) => {
 
   const teamOptions = useMemo(() => {
     if (!keyTablesData?.teams) return [];
-    return [...keyTablesData.teams]
-      .sort((a: { name?: string }, b: { name?: string }) =>
+    return ([...keyTablesData.teams] as { id: number; name?: string }[])
+      .sort((a, b) =>
         (a.name ?? "").localeCompare(b.name ?? "", "de")
       )
-      .map((team: { id: number; name?: string }) => ({
+      .map((team) => ({
         value: team.id,
         label: team.name || "",
       }));
