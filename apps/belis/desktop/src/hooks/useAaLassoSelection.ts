@@ -8,22 +8,26 @@ import {
   booleanIntersects,
   lineString as turfLineString,
 } from "@turf/turf";
-
+import type { LassoSelectedFeature } from "../store/slices/arbeitsauftraege";
 
 interface UseAaLassoSelectionOptions {
   map: MaplibreMap | null;
   active: boolean;
   onDeactivate?: () => void;
+  onFeaturesSelected?: (features: LassoSelectedFeature[]) => void;
 }
 
 export function useAaLassoSelection({
   map,
   active,
   onDeactivate,
+  onFeaturesSelected,
 }: UseAaLassoSelectionOptions) {
   const managerRef = useRef<LassoDrawingManager | null>(null);
   const onDeactivateRef = useRef(onDeactivate);
   onDeactivateRef.current = onDeactivate;
+  const onFeaturesSelectedRef = useRef(onFeaturesSelected);
+  onFeaturesSelectedRef.current = onFeaturesSelected;
 
   const handleDrawComplete = useCallback(
     (lassoPolygon: Polygon) => {
@@ -77,20 +81,24 @@ export function useAaLassoSelection({
         matched.push(f);
       }
 
-      if (matched.length > 0) {
+      const serialized = matched.map((f) => ({
+        id: f.id,
+        source: f.source,
+        sourceLayer: f.sourceLayer,
+        properties: f.properties as Record<string, unknown>,
+        geometry: f.geometry,
+      }));
+
+      if (serialized.length > 0) {
         console.log(
-          `[AA Lasso] ${matched.length} feature(s) selected:`,
-          matched.map((f) => ({
-            id: f.id,
-            source: f.source,
-            sourceLayer: f.sourceLayer,
-            properties: f.properties,
-            geometry: f.geometry,
-          }))
+          `[AA Lasso] ${serialized.length} feature(s) selected:`,
+          serialized
         );
       } else {
         console.log("[AA Lasso] No features found in selection.");
       }
+
+      onFeaturesSelectedRef.current?.(serialized);
 
       // Deactivate after draw
       onDeactivateRef.current?.();

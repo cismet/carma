@@ -18,6 +18,14 @@ export interface ArbeitsauftragTileFeature {
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export type ArbeitsauftragDetail = Record<string, any>;
 
+export interface LassoSelectedFeature {
+  id: string | number | undefined;
+  source: string;
+  sourceLayer: string | undefined;
+  properties: Record<string, unknown>;
+  geometry: GeoJSON.Geometry;
+}
+
 type AATabKey = "aa" | "ap";
 
 type ApOpenedFrom = "sidebar" | "auTable" | null;
@@ -37,6 +45,7 @@ interface ArbeitsauftraegeState {
   graphqlLoading: boolean;
   graphqlError: string | null;
   draftMode: boolean;
+  lassoSelectedFeatures: LassoSelectedFeature[];
 }
 
 const initialState: ArbeitsauftraegeState = {
@@ -54,6 +63,7 @@ const initialState: ArbeitsauftraegeState = {
   graphqlLoading: false,
   graphqlError: null,
   draftMode: false,
+  lassoSelectedFeatures: [],
 };
 
 const slice = createSlice({
@@ -127,6 +137,15 @@ const slice = createSlice({
     setPreviousTeamId(state, action: { payload: number | null }) {
       state.previousTeamId = action.payload;
     },
+    setLassoSelectedFeatures(
+      state,
+      action: { payload: LassoSelectedFeature[] }
+    ) {
+      state.lassoSelectedFeatures = action.payload;
+    },
+    clearLassoSelectedFeatures(state) {
+      state.lassoSelectedFeatures = [];
+    },
   },
 });
 
@@ -148,6 +167,8 @@ export const {
   clearSelection,
   setDraftMode,
   setPreviousTeamId,
+  setLassoSelectedFeatures,
+  clearLassoSelectedFeatures,
 } = slice.actions;
 
 export const getAAFeatures = (state: RootState) =>
@@ -177,3 +198,5 @@ export const getDraftMode = (state: RootState) =>
   state.arbeitsauftraege.draftMode;
 export const getPreviousTeamId = (state: RootState) =>
   state.arbeitsauftraege.previousTeamId;
+export const getLassoSelectedFeatures = (state: RootState) =>
+  state.arbeitsauftraege.lassoSelectedFeatures;
