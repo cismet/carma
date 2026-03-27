@@ -177,8 +177,7 @@ const BelisMapPageShell = () => {
                       </button>
                     </Badge>
                   )}
-                {/* AP-Lasso button hidden until feature is fully implemented */}
-                {false && sidebarVariant === "arbeitsauftraege" && (
+                {sidebarVariant === "fachobjekte" && (
                   <Tooltip
                     title={
                       apLassoActive
@@ -237,10 +236,8 @@ const BelisMapPageShell = () => {
                     </button>
                   </Badge>
                 )}
-              {/* AP-Lasso button hidden until feature is fully implemented */}
-              {false &&
-                windowWidth <= 1364 &&
-                sidebarVariant === "arbeitsauftraege" && (
+              {windowWidth <= 1364 &&
+                sidebarVariant === "fachobjekte" && (
                   <Tooltip
                     title={
                       apLassoActive
