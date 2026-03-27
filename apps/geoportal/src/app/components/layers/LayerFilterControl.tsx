@@ -5,9 +5,14 @@ import {
   createFilterButtons,
   FilterInfo,
   FilterState,
+  PoiFilterPanel,
 } from "@carma-mapping/components";
 import { useLibreContext } from "@carma-mapping/contexts";
-import type { FilterConfig, FilterType, Layer } from "@carma-mapping/layers";
+import type {
+  ButtonsFilterConfig,
+  FilterType,
+  Layer,
+} from "@carma-mapping/layers";
 import { FILTER_TYPES } from "@carma-mapping/layers";
 
 import {
@@ -28,16 +33,17 @@ import {
 const FILTER_FACTORIES: Partial<
   Record<
     FilterType,
-    (config: FilterConfig) => ReturnType<typeof createFilterButtons>
+    (config: ButtonsFilterConfig) => ReturnType<typeof createFilterButtons>
   >
 > = {
   [FILTER_TYPES.BUTTON]: createFilterButtons,
 };
 
 export const hasLayerFilterControl = (layer?: Layer) => {
+  const filterType = layer?.filterConfig?.filterType;
   return Boolean(
-    layer?.filterConfig?.filterType &&
-      FILTER_FACTORIES[layer.filterConfig.filterType]
+    filterType &&
+      (filterType === FILTER_TYPES.POI || FILTER_FACTORIES[filterType])
   );
 };
 
@@ -51,22 +57,40 @@ const LayerFilterControl: FC<{ layer: Layer }> = ({ layer }) => {
 
   const FilterComponent = useMemo(() => {
     const filterConfig = layer?.filterConfig;
-    if (!filterConfig?.filterType) {
+    if (
+      !filterConfig?.filterType ||
+      filterConfig.filterType === FILTER_TYPES.POI
+    ) {
       return null;
     }
     const factory = FILTER_FACTORIES[filterConfig.filterType];
     return factory ? factory(filterConfig) : null;
   }, [layer?.filterConfig]);
 
-  if (!FilterComponent) {
-    return null;
-  }
-
   const maplibreMap =
     libreContextMap ??
     (maplibreMaps
       ? maplibreMaps.find((entry) => entry.id === layer.id)?.map ?? null
       : null);
+
+  if (layer.filterConfig?.filterType === FILTER_TYPES.POI) {
+    return (
+      <div
+        style={{
+          maxWidth: 700,
+          background: "rgba(255, 255, 255, 0.9)",
+          borderRadius: 12,
+          padding: "8px 12px",
+        }}
+      >
+        <PoiFilterPanel maplibreMap={maplibreMap} />
+      </div>
+    );
+  }
+
+  if (!FilterComponent) {
+    return null;
+  }
 
   return (
     <FilterComponent

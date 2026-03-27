@@ -1,6 +1,7 @@
 import type { StyleSpecification } from "maplibre-gl";
 
 import type { DynamicStylingOptionsConfig, Layer } from "@carma-mapping/layers";
+import { FILTER_TYPES } from "@carma-mapping/layers";
 import type { LibreLayer } from "@carma-mapping/core";
 import {
   THREE_TILES_LAYER_TYPE,
@@ -200,7 +201,9 @@ export const geoportalLayersToLibreLayers = (layers: Layer[]): LibreLayer[] => {
         continue;
       }
       const userFilter =
-        layer.filterConfig && layer.filterState
+        layer.filterConfig &&
+        layer.filterConfig.filterType !== FILTER_TYPES.POI &&
+        layer.filterState
           ? buildFilterExpression(layer.filterConfig, layer.filterState)
           : null;
       const dynamicTransform = buildDynamicStylingTransform(layer);
