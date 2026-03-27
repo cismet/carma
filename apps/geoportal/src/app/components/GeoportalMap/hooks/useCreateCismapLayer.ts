@@ -36,6 +36,7 @@ import {
   setLastAppliedSelection,
   buildFilterExpression,
   captureOriginalFilters,
+  applyStoredPoiFilter,
 } from "@carma-mapping/components";
 
 import { UIMode } from "../../../store/slices/ui";
@@ -369,12 +370,12 @@ export const useCreateCismapLayers = (
             );
             const filterConfig = latestLayer?.filterConfig;
             const filterState = latestLayer?.filterState;
-            if (
-              !filterConfig ||
-              filterConfig.filterType === FILTER_TYPES.POI ||
-              !filterState
-            ) {
-              return;
+            if (!filterConfig || !filterState) {
+              return true;
+            }
+
+            if (filterConfig.filterType === FILTER_TYPES.POI) {
+              return applyStoredPoiFilter(map, filterState);
             }
 
             const pattern = filterConfig.layerPattern.toLowerCase();
@@ -382,7 +383,7 @@ export const useCreateCismapLayers = (
               (styleLayer) => styleLayer.id.toLowerCase().includes(pattern)
             );
             if (styleLayers.length === 0) {
-              return;
+              return true;
             }
 
             styleLayers.forEach((styleLayer) => {
@@ -426,6 +427,7 @@ export const useCreateCismapLayers = (
                 );
               }
             });
+            return true;
           };
 
           return createCismapLayer({
@@ -509,10 +511,18 @@ export const useCreateCismapLayers = (
 
               if (
                 layer.filterConfig &&
-                layer.filterConfig.filterType !== FILTER_TYPES.POI &&
-                layer.filterConfig.layerPattern
+                (layer.filterConfig.filterType === FILTER_TYPES.POI ||
+                  layer.filterConfig.layerPattern)
               ) {
-                applyLayerFilters(map);
+                if (!applyLayerFilters(map)) {
+                  // POI kombis come from loaded tiles, so retry until they arrive
+                  const onSourceData = () => {
+                    if (applyLayerFilters(map)) {
+                      map.off("sourcedata", onSourceData);
+                    }
+                  };
+                  map.on("sourcedata", onSourceData);
+                }
                 map.on("styledata", () => applyLayerFilters(map));
               }
 
