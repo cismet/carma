@@ -35,6 +35,7 @@ import type { SidebarFeature } from "../ui/BelisSidebar";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faDrawPolygon } from "@fortawesome/free-solid-svg-icons";
 import { useMapPage } from "../../contexts/MapPageContext";
+import CreateAAModal from "../ui/CreateAAModal";
 
 interface BelisStreet {
   s: string;
@@ -75,6 +76,7 @@ const BelisMapPageShell = () => {
   const [activeHighlights, setActiveHighlights] = useState<
     SidebarFeature[] | null
   >(null);
+  const [aaModalOpen, setAaModalOpen] = useState(false);
 
   const handleHighlightsChange = useCallback(
     (highlights: SidebarFeature[] | null) => {
@@ -200,11 +202,7 @@ const BelisMapPageShell = () => {
                     }
                   >
                     <button
-                      onClick={() => {
-                        if (activeHighlights && activeHighlights.length > 0) {
-                          console.log(activeHighlights);
-                        }
-                      }}
+                      onClick={() => setAaModalOpen(true)}
                       disabled={!activeHighlights || activeHighlights.length === 0}
                       className={`flex items-center justify-center w-8 h-8 rounded border ${
                         activeHighlights && activeHighlights.length > 0
@@ -265,11 +263,7 @@ const BelisMapPageShell = () => {
                     }
                   >
                     <button
-                      onClick={() => {
-                        if (activeHighlights && activeHighlights.length > 0) {
-                          console.log(activeHighlights);
-                        }
-                      }}
+                      onClick={() => setAaModalOpen(true)}
                       disabled={!activeHighlights || activeHighlights.length === 0}
                       className={`flex items-center justify-center w-8 h-8 rounded border ${
                         activeHighlights && activeHighlights.length > 0
@@ -374,6 +368,11 @@ const BelisMapPageShell = () => {
             onHighlightsChange={handleHighlightsChange}
           />
         </CustomCard>
+        <CreateAAModal
+          open={aaModalOpen}
+          onClose={() => setAaModalOpen(false)}
+          highlights={activeHighlights ?? []}
+        />
       </div>
     </Spin>
   );
