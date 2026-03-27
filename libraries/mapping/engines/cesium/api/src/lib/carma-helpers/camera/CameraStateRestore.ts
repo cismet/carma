@@ -4,6 +4,7 @@ import {
   Cartesian3,
   Matrix4,
   PerspectiveFrustum,
+  type Scene,
   type HeadingPitchRollValues,
 } from "../../cesium";
 import {
@@ -11,8 +12,13 @@ import {
   isCameraStateRecord,
 } from "../../carma-guards";
 import { captureCurrentCameraState } from "./CameraStateCapture";
-import type { CameraState, DirectionUp } from "./CameraTypes";
+import type { CameraState, CameraStateRecord, DirectionUp } from "./CameraTypes";
 import { writePerspectiveFrustumVerticalFov } from "./PerspectiveFrustumFov";
+
+export type FlyCameraStateToSceneOptions = {
+  duration?: number;
+  applyFov?: boolean;
+};
 
 /**
  * Restore camera state from CameraState (for crash recovery).
@@ -58,6 +64,38 @@ export const setViewFromCameraState = (
   if (state.fov !== undefined && camera.frustum instanceof PerspectiveFrustum) {
     writePerspectiveFrustumVerticalFov(camera.frustum, state.fov);
   }
+};
+
+export const flyToCameraState = (
+  scene: Scene,
+  state: CameraStateRecord,
+  options: FlyCameraStateToSceneOptions = {}
+): boolean => {
+  const camera = scene.camera;
+  if (!camera) {
+    return false;
+  }
+
+  camera.lookAtTransform(Matrix4.IDENTITY);
+  camera.flyTo({
+    destination: state.position,
+    orientation: {
+      direction: state.direction,
+      up: state.up,
+    },
+    duration: options.duration,
+  });
+
+  if (
+    options.applyFov !== false &&
+    state.fov !== undefined &&
+    camera.frustum instanceof PerspectiveFrustum
+  ) {
+    writePerspectiveFrustumVerticalFov(camera.frustum, state.fov);
+  }
+
+  scene.requestRender();
+  return true;
 };
 
 /**

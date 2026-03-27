@@ -46,8 +46,9 @@ export type InitialCameraView = {
   position?: Cartographic;
   anchor?: Cartographic;
   zoom?: number;
-  heading?: number;
-  pitch?: number;
+  direction?: Cartesian3;
+  up?: Cartesian3;
+  right?: Cartesian3;
   fov?: number | null;
   fovLongerEdge?: number | null;
 };

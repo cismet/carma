@@ -17,13 +17,11 @@ import {
   Matrix4 as CesiumMatrix4,
   readPerspectiveFrustumVerticalFov,
   setViewFromCameraState,
-  writePerspectiveFrustumVerticalFov,
   toSceneStateVec3,
   toSceneStateMat4,
   type CameraLike,
   type SceneLike,
 } from "@carma-mapping/engines/cesium/api";
-import { PerspectiveFrustum } from "@carma/cesium";
 import {
   buildViewStateFromEcef,
   type AngleBasedViewInput,
@@ -314,50 +312,6 @@ export const applyToCesium = (scene: SceneLike, state: ViewState): void => {
 
   camera.lookAtTransform(CesiumMatrix4.IDENTITY);
   setViewFromCameraState(camera, cameraState);
-
-  (scene as SceneLike & { requestRender?: () => void }).requestRender?.();
-};
-
-export const flyToCesium = (
-  scene: SceneLike,
-  state: ViewState,
-  options: { duration?: number } = {}
-): void => {
-  const camera = scene.camera as unknown as Parameters<
-    typeof setViewFromCameraState
-  >[0] & {
-    flyTo?: (options: {
-      destination: Cartesian3;
-      orientation: {
-        direction: Cartesian3;
-        up: Cartesian3;
-      };
-      duration?: number;
-    }) => void;
-  };
-  const cameraState = readCesiumCameraStateFromViewState(state);
-
-  camera.lookAtTransform(CesiumMatrix4.IDENTITY);
-
-  if (typeof camera.flyTo === "function") {
-    camera.flyTo({
-      destination: cameraState.position,
-      orientation: {
-        direction: cameraState.direction,
-        up: cameraState.up,
-      },
-      duration: options.duration,
-    });
-  } else {
-    setViewFromCameraState(camera, cameraState);
-  }
-
-  if (
-    Number.isFinite(cameraState.fov) &&
-    camera.frustum instanceof PerspectiveFrustum
-  ) {
-    writePerspectiveFrustumVerticalFov(camera.frustum, cameraState.fov);
-  }
 
   (scene as SceneLike & { requestRender?: () => void }).requestRender?.();
 };

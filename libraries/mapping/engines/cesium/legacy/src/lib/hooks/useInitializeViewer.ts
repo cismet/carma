@@ -11,7 +11,6 @@ import {
   Cartesian3,
   Cartographic,
   CesiumMath,
-  HeadingPitchRange,
   Matrix4,
   PerspectiveFrustum,
   Rectangle,
@@ -20,7 +19,6 @@ import {
   Color,
   Globe,
   Ellipsoid,
-  getPointsFromCartographicAndHeadingPitchRange,
   waitForRenderFrames,
 } from "@carma/cesium";
 
@@ -155,16 +153,14 @@ const readRangeFromCanonicalMapZoom = ({
 const readCameraDestinationFromAnchorAndZoom = ({
   anchor,
   zoom,
-  headingRad,
-  pitchRad,
+  direction,
   longerEdgeFovRad,
   viewportWidthPx,
   viewportHeightPx,
 }: {
   anchor: Cartographic;
   zoom: number;
-  headingRad: number;
-  pitchRad: number;
+  direction: Cartesian3;
   longerEdgeFovRad: number;
   viewportWidthPx: number;
   viewportHeightPx: number;
@@ -180,16 +176,24 @@ const readCameraDestinationFromAnchorAndZoom = ({
     return null;
   }
 
-  const points = getPointsFromCartographicAndHeadingPitchRange({
-    cartographic: anchor,
-    headingPitchRange: new HeadingPitchRange(
-      headingRad,
-      pitchRad,
-      Math.max(MIN_INITIAL_CAMERA_RANGE_M, rangeM)
-    ),
-  });
+  const anchorCartesian = Cartographic.toCartesian(anchor);
+  if (!anchorCartesian) {
+    return null;
+  }
 
-  return points?.cameraPositionECEF ?? null;
+  const directionMagnitude = Cartesian3.magnitudeSquared(direction);
+  if (!Number.isFinite(directionMagnitude) || directionMagnitude <= 1e-12) {
+    return null;
+  }
+
+  const normalizedDirection = Cartesian3.normalize(direction, new Cartesian3());
+  const offset = Cartesian3.multiplyByScalar(
+    normalizedDirection,
+    -Math.max(MIN_INITIAL_CAMERA_RANGE_M, rangeM),
+    new Cartesian3()
+  );
+
+  return Cartesian3.add(anchorCartesian, offset, new Cartesian3());
 };
 
 type CameraViewportStabilitySnapshot = {
@@ -714,7 +718,7 @@ export const useInitializeViewer = (
       shouldSuspendCameraLimitersRef.current = true;
     }
     if (initialCameraView) {
-      const { position, anchor, zoom, heading, pitch, fov, fovLongerEdge } =
+      const { position, anchor, zoom, direction, up, fov, fovLongerEdge } =
         initialCameraView;
       let destination: Cartesian3 | null = null;
 
@@ -734,13 +738,13 @@ export const useInitializeViewer = (
         if (
           anchor &&
           Number.isFinite(zoom) &&
+          direction &&
           Number.isFinite(resolvedLongerEdgeFov)
         ) {
           destination = readCameraDestinationFromAnchorAndZoom({
             anchor,
             zoom,
-            headingRad: heading ?? 0,
-            pitchRad: pitch ?? -CesiumMath.PI_OVER_TWO,
+            direction,
             longerEdgeFovRad: resolvedLongerEdgeFov,
             viewportWidthPx,
             viewportHeightPx,
@@ -769,10 +773,14 @@ export const useInitializeViewer = (
             camera.lookAtTransform(Matrix4.IDENTITY);
             camera.setView({
               destination,
-              orientation: {
-                heading: heading ?? 0,
-                pitch: pitch ?? -CesiumMath.PI_OVER_TWO,
-              },
+              ...(direction && up
+                ? {
+                    orientation: {
+                      direction,
+                      up,
+                    },
+                  }
+                : {}),
             });
             if (camera.frustum instanceof PerspectiveFrustum) {
               if (Number.isFinite(fovLongerEdge)) {

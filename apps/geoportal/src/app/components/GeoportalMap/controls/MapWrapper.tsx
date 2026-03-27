@@ -34,8 +34,7 @@ import {
   useCesiumContext,
   useZoomControls as useZoomControlsCesium,
 } from "@carma-mapping/engines/cesium";
-import type { SceneLike } from "@carma-mapping/engines/cesium/api";
-import { flyToCesium } from "@carma-mapping/engines-interop/view-state";
+import { flyViewStateInCesium } from "@carma-mapping/engines-interop/view-state";
 import {
   MapFrameworkSwitcher,
   FullscreenControl,
@@ -91,7 +90,7 @@ import {
   UIMode,
 } from "../../../store/slices/ui.ts";
 import { DEFAULT_HOME_VIEW_REF } from "../../../config/view.config";
-import { HOME_CLICK_VIEW_STATE } from "../../../utils/geoportalHomeViewState";
+import { DEFAULT_HOME_VIEW_STATE } from "../../../utils/geoportalHomeViewState";
 
 // detect GPU support, disables 3d mode if not supported
 let hasGPU = false;
@@ -155,14 +154,15 @@ const MapWrapper = () => {
     DEFAULT_HOME_VIEW_REF.lat,
     DEFAULT_HOME_VIEW_REF.lng,
   ] as [number, number];
-  const homeLeafletZoom = DEFAULT_HOME_VIEW_REF.zoom!;
+  const homeLeafletZoom = DEFAULT_HOME_VIEW_REF.zoom ?? 18;
   const homeMaplibreZoom = homeLeafletZoom - 1;
   const handleCesiumHomeClick = useCallback(() => {
     if (!isCesium) return;
 
     ctx.withScene((scene) => {
-      flyToCesium(scene as unknown as SceneLike, HOME_CLICK_VIEW_STATE, {
+      flyViewStateInCesium(scene, DEFAULT_HOME_VIEW_STATE, {
         duration: 2,
+        applyFov: false,
       });
     });
   }, [ctx, isCesium]);

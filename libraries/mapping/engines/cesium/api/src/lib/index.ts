@@ -76,15 +76,13 @@ export type {
 // ---------------------------------------------------------------------------
 
 export {
-  applyObjectCentricCameraViewToScene,
   applyRollToHeadingForCameraNearNadir,
   animateOrbitHeadingPitchRange,
-  buildObjectCentricCameraOrientation,
   cameraPositionCartographicDegrees,
   cameraPositionCartographicRadians,
   cameraToHeadingPitchJson,
   captureCurrentCameraState,
-  DEFAULT_OBJECT_CENTRIC_RANGE_M,
+  flyToCameraState,
   flyToBoundingSphereExtent,
   flyToPoints,
   flyToTarget,
@@ -103,11 +101,9 @@ export {
   type CameraStateHeadingPitchRoll,
   type CameraStateRecord,
   type DirectionUp,
+  type FlyCameraStateToSceneOptions,
   type FlyToBoundingSphereExtentOptions,
   type FlyToPointsOptions,
-  type ObjectCentricCameraOrientation,
-  type ObjectCentricCameraViewInput,
-  type ObjectCentricCameraViewOptions,
   type OrbitHeadingPitchRangeAnimationOptions,
 } from "./carma-helpers/camera";
 

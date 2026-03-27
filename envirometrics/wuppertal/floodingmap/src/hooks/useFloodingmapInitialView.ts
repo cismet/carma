@@ -10,8 +10,6 @@ import config from "../config";
 import { buildFloodingmapInitialState } from "../utils/floodingmapInitialState";
 import { DEFAULT_HOME_VIEW_STATE } from "../utils/floodingmapHomeViewState";
 
-const DEFAULT_HASH_RANGE_M = 750;
-
 export const useFloodingmapInitialView = () => {
   const { getHashValues } = useHashState();
   const {
@@ -35,9 +33,9 @@ export const useFloodingmapInitialView = () => {
   const initialCesiumViewState = initialRestoreState ?? DEFAULT_HOME_VIEW_STATE;
   const initialCameraView = useMemo(
     () =>
-      readInitialCameraViewFromViewState(initialCesiumViewState, {
-        defaultRangeM: DEFAULT_HASH_RANGE_M,
-      }) as InitialCameraView | undefined,
+      readInitialCameraViewFromViewState(
+        initialCesiumViewState
+      ) as InitialCameraView | undefined,
     [initialCesiumViewState]
   );
 

@@ -48,7 +48,7 @@ import {
 import type { SceneLike } from "@carma-mapping/engines/cesium/api";
 import {
   createViewStateShareableHashCodec,
-  flyToCesium,
+  flyViewStateInCesium,
   HASH_ZOOM_CONVENTION,
   ViewStateNavigationManagerProvider,
   ViewStateProvider,
@@ -82,7 +82,7 @@ import useLeafletZoomControls from "./hooks/useLeafletZoomControls";
 import { useFloodingmapInitialView } from "./hooks/useFloodingmapInitialView";
 
 import config from "./config";
-import { EMAIL, HOME_ZOOM } from "./config/app.config";
+import { EMAIL } from "./config/app.config";
 import {
   CESIUM_CONFIG,
   CONSTRUCTOR_OPTIONS,
@@ -201,6 +201,7 @@ function FloodingmapAppContent({ sync = false }: { sync?: boolean }) {
       ] as [number, number],
     []
   );
+  const homeLeafletZoom = DEFAULT_HOME_VIEW_REF.zoom ?? 18;
 
   const { isCesium, isLeaflet, getIsCesium, registerCallbacks } =
     useMapFrameworkSwitcherContext();
@@ -282,18 +283,19 @@ function FloodingmapAppContent({ sync = false }: { sync?: boolean }) {
 
   const homeControlLeaflet = () => {
     if (homeCenter && routedMap?.leafletMap?.leafletElement) {
-      routedMap.leafletMap.leafletElement.flyTo(homeCenter, HOME_ZOOM);
+      routedMap.leafletMap.leafletElement.flyTo(homeCenter, homeLeafletZoom);
     }
   };
 
   const homeControlCesium = () => {
     if (!isCesium || !cesiumScene) return;
 
-    flyToCesium(
-      cesiumScene as unknown as SceneLike,
+    flyViewStateInCesium(
+      cesiumScene,
       DEFAULT_HOME_VIEW_STATE,
       {
         duration: 2,
+        applyFov: false,
       }
     );
   };
@@ -467,7 +469,7 @@ function FloodingmapAppContent({ sync = false }: { sync?: boolean }) {
           emailaddress="hochwasser@stadt.wuppertal.de"
           config={config.config}
           contactButtonEnabled={false}
-          homeZoom={HOME_ZOOM}
+          homeZoom={homeLeafletZoom}
           homeCenter={homeCenter}
           modeSwitcherTitle="Hochwassergefahrenkarte Wuppertal"
           documentTitle="Hochwassergefahrenkarte Wuppertal"

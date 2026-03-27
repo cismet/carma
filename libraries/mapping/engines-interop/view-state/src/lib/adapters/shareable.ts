@@ -21,6 +21,7 @@ import {
 import type { Meters, Radians } from "@carma/units/types";
 import { buildViewState } from "../core/construct";
 import { deriveView } from "../core/derivations";
+import { resolveViewStateForViewport } from "../core/viewport";
 import {
   HASH_ZOOM_CONVENTION,
   readViewStateHashNumber,
@@ -461,76 +462,4 @@ export const createViewStateShareableHashCodec = (
   },
 });
 
-export const resolveViewStateRestoreHintsForViewport = (
-  state: ViewState,
-  options: {
-    viewportWidthPx: number;
-    viewportHeightPx: number;
-  }
-): ViewState => {
-  const restoreHints = state.metadata.restoreHints?.shareable;
-  const { viewportWidthPx, viewportHeightPx } = options;
-
-  if (
-    !restoreHints ||
-    !isFiniteNumber(viewportWidthPx) ||
-    viewportWidthPx <= 0 ||
-    !isFiniteNumber(viewportHeightPx) ||
-    viewportHeightPx <= 0
-  ) {
-    return state;
-  }
-
-  const aspect = viewportWidthPx / viewportHeightPx;
-  const shareableLongerEdgeFov =
-    restoreHints.fovLongerEdge ??
-    readLongerEdgeFovFromIntrinsics(state.intrinsics, {
-      viewportWidthPx,
-      viewportHeightPx,
-    });
-  const resolvedVerticalFov = readVerticalFovFromLongerEdge(
-    shareableLongerEdgeFov,
-    aspect
-  );
-  const resolvedHorizontalFov = readHorizontalFovFromVertical(
-    resolvedVerticalFov,
-    aspect
-  );
-  const view = deriveView(state);
-  const resolvedRange =
-    isFiniteNumber(restoreHints.zoom) && isFiniteNumber(shareableLongerEdgeFov)
-      ? readRangeFromMetersPerCssPixel({
-          metersPerCssPixel: getPixelResolutionFromZoomAtLatitudeRad(
-            restoreHints.zoom,
-            state.anchorCartographic.latitude,
-            { tileSize: MAPLIBRE_TILE_SIZE_PX }
-          ),
-          fovRad: shareableLongerEdgeFov,
-          viewportWidthPx,
-          viewportHeightPx,
-        })
-      : null;
-
-  return buildViewState({
-    longitude: view.longitude,
-    latitude: view.latitude,
-    altitude: view.altitude,
-    bearing: view.bearing,
-    pitch: view.pitch,
-    roll: view.roll,
-    range: (resolvedRange ?? view.range) as Meters,
-    intrinsics: {
-      ...state.intrinsics,
-      ...(isFiniteNumber(resolvedVerticalFov)
-        ? { fov: resolvedVerticalFov as CameraIntrinsics["fov"] }
-        : {}),
-      ...(isFiniteNumber(resolvedHorizontalFov)
-        ? {
-            fovHorizontal:
-              resolvedHorizontalFov as CameraIntrinsics["fovHorizontal"],
-          }
-        : {}),
-    },
-    metadata: state.metadata,
-  });
-};
+export { resolveViewStateForViewport };
