@@ -107,7 +107,7 @@ import {
   getAllAPDrafts,
 } from "../../store/slices/arbeitsauftraegeDrafts";
 import { prepareDraftFeatures } from "../../helper/prepareDraftFeatures";
-import { useApLassoSelection } from "../../hooks/useApLassoSelection";
+import { useAaLassoSelection } from "../../hooks/useAaLassoSelection";
 
 type SidebarMode = "fachobjekte" | "highlights" | "drafts";
 
@@ -117,8 +117,8 @@ interface BelisMapLibWrapperProps {
   highlightResults: SidebarFeature[] | null;
   lassoActive: boolean;
   onLassoDeactivate?: () => void;
-  apLassoActive: boolean;
-  onApLassoDeactivate?: () => void;
+  aaLassoActive: boolean;
+  onAaLassoDeactivate?: () => void;
   sidebarVariant: "fachobjekte" | "arbeitsauftraege";
 }
 
@@ -128,8 +128,8 @@ const BelisMapLibWrapper = ({
   highlightResults,
   lassoActive,
   onLassoDeactivate,
-  apLassoActive,
-  onApLassoDeactivate,
+  aaLassoActive,
+  onAaLassoDeactivate,
   sidebarVariant,
 }: BelisMapLibWrapperProps) => {
   const dispatch: AppDispatch = useDispatch();
@@ -411,12 +411,12 @@ const BelisMapLibWrapper = ({
     onToggle: handleHighlightToggle,
   });
 
-  // AP lasso selection (Arbeitsaufträge mode)
-  // useApLassoSelection({
-  //   map,
-  //   active: apLassoActive,
-  //   onDeactivate: onApLassoDeactivate,
-  // });
+  // AA lasso selection
+  useAaLassoSelection({
+    map,
+    active: aaLassoActive,
+    onDeactivate: onAaLassoDeactivate,
+  });
 
   const showRaw = useMemo(() => {
     const hashQuery = window.location.hash.split("?")[1] || "";

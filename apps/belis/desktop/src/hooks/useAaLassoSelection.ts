@@ -2,21 +2,25 @@ import { useEffect, useRef, useCallback } from "react";
 import { LassoDrawingManager } from "@carma-mapping/engines/maplibre";
 import type { Map as MaplibreMap } from "maplibre-gl";
 import type { Polygon } from "geojson";
-import { polygon as turfPolygon, booleanPointInPolygon } from "@turf/turf";
+import {
+  polygon as turfPolygon,
+  booleanPointInPolygon,
+  booleanIntersects,
+  lineString as turfLineString,
+} from "@turf/turf";
 
-const AP_SOURCE = "ap-features-source";
 
-interface UseApLassoSelectionOptions {
+interface UseAaLassoSelectionOptions {
   map: MaplibreMap | null;
   active: boolean;
   onDeactivate?: () => void;
 }
 
-export function useApLassoSelection({
+export function useAaLassoSelection({
   map,
   active,
   onDeactivate,
-}: UseApLassoSelectionOptions) {
+}: UseAaLassoSelectionOptions) {
   const managerRef = useRef<LassoDrawingManager | null>(null);
   const onDeactivateRef = useRef(onDeactivate);
   onDeactivateRef.current = onDeactivate;
@@ -47,12 +51,11 @@ export function useApLassoSelection({
       // 3. Build turf polygon for spatial test
       const turfLasso = turfPolygon(lassoPolygon.coordinates);
 
-      // 4. Filter to AP source and spatial test
+      // 4. Spatial test – keep every feature whose geometry falls inside the lasso
       const seen = new Set<string | number>();
       const matched: typeof candidates = [];
 
       for (const f of candidates) {
-        if (f.source !== AP_SOURCE) continue;
         if (!f.geometry) continue;
         if (f.id != null && seen.has(f.id)) continue;
 
@@ -60,6 +63,9 @@ export function useApLassoSelection({
         try {
           if (f.geometry.type === "Point") {
             inside = booleanPointInPolygon(f.geometry, turfLasso);
+          } else if (f.geometry.type === "LineString") {
+            const line = turfLineString(f.geometry.coordinates);
+            inside = booleanIntersects(line, turfLasso);
           }
         } catch {
           continue;
@@ -73,15 +79,17 @@ export function useApLassoSelection({
 
       if (matched.length > 0) {
         console.log(
-          `[AP Lasso] ${matched.length} AP feature(s) selected:`,
+          `[AA Lasso] ${matched.length} feature(s) selected:`,
           matched.map((f) => ({
             id: f.id,
+            source: f.source,
+            sourceLayer: f.sourceLayer,
             properties: f.properties,
             geometry: f.geometry,
           }))
         );
       } else {
-        console.log("[AP Lasso] No AP features found in selection.");
+        console.log("[AA Lasso] No features found in selection.");
       }
 
       // Deactivate after draw

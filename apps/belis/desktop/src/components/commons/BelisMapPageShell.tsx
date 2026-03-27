@@ -6,7 +6,12 @@ import { useWindowSize } from "@react-hook/window-size";
 import type { AppDispatch } from "../../store";
 import { useDatasheet } from "@carma-mapping/engines/maplibre";
 import { Badge, Button, Spin, Switch, Tooltip } from "antd";
-import { EditOutlined, LockOutlined, SaveOutlined } from "@ant-design/icons";
+import {
+  EditOutlined,
+  LockOutlined,
+  PlusOutlined,
+  SaveOutlined,
+} from "@ant-design/icons";
 import {
   getGlobalEditMode,
   toggleGlobalEditMode,
@@ -67,7 +72,7 @@ const BelisMapPageShell = () => {
     SidebarFeature[] | null
   >(null);
   const [lassoActive, setLassoActive] = useState(false);
-  const [apLassoActive, setApLassoActive] = useState(false);
+  const [aaLassoActive, setAaLassoActive] = useState(false);
 
   const { isDatasheetOpen, closeDatasheet } = useDatasheet();
   const [windowWidth, windowHeight] = useWindowSize();
@@ -180,20 +185,20 @@ const BelisMapPageShell = () => {
                 {sidebarVariant === "fachobjekte" && (
                   <Tooltip
                     title={
-                      apLassoActive
-                        ? "AP-Lasso beenden"
-                        : "AP-Lasso-Auswahl"
+                      aaLassoActive
+                        ? "AA-Lasso beenden"
+                        : "AA-Lasso-Auswahl"
                     }
                   >
                     <button
-                      onClick={() => setApLassoActive((prev) => !prev)}
+                      onClick={() => setAaLassoActive((prev) => !prev)}
                       className={`flex items-center justify-center w-8 h-8 rounded border ${
-                        apLassoActive
+                        aaLassoActive
                           ? "border-blue-500 bg-blue-50 text-blue-600"
                           : "border-gray-300 bg-white text-gray-500 hover:bg-gray-50"
                       }`}
                     >
-                      <FontAwesomeIcon icon={faDrawPolygon} />
+                      <PlusOutlined />
                     </button>
                   </Tooltip>
                 )}
@@ -240,20 +245,20 @@ const BelisMapPageShell = () => {
                 sidebarVariant === "fachobjekte" && (
                   <Tooltip
                     title={
-                      apLassoActive
-                        ? "AP-Lasso beenden"
-                        : "AP-Lasso-Auswahl"
+                      aaLassoActive
+                        ? "AA-Lasso beenden"
+                        : "AA-Lasso-Auswahl"
                     }
                   >
                     <button
-                      onClick={() => setApLassoActive((prev) => !prev)}
+                      onClick={() => setAaLassoActive((prev) => !prev)}
                       className={`flex items-center justify-center w-8 h-8 rounded border ${
-                        apLassoActive
+                        aaLassoActive
                           ? "border-blue-500 bg-blue-50 text-blue-600"
                           : "border-gray-300 bg-white text-gray-500 hover:bg-gray-50"
                       }`}
                     >
-                      <FontAwesomeIcon icon={faDrawPolygon} />
+                      <PlusOutlined />
                     </button>
                   </Tooltip>
                 )}
@@ -346,8 +351,8 @@ const BelisMapPageShell = () => {
             highlightResults={highlightResults}
             lassoActive={lassoActive}
             onLassoDeactivate={() => setLassoActive(false)}
-            apLassoActive={apLassoActive}
-            onApLassoDeactivate={() => setApLassoActive(false)}
+            aaLassoActive={aaLassoActive}
+            onAaLassoDeactivate={() => setAaLassoActive(false)}
             sidebarVariant={sidebarVariant}
           />
         </CustomCard>
