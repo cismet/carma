@@ -102,19 +102,7 @@ export const AdvancedFilterPanel = ({
   };
 
   return (
-    <div
-      style={{
-        background: "white",
-        borderRadius: "8px",
-        boxShadow: "0 2px 8px rgba(0,0,0,0.15)",
-        padding: "12px",
-        maxWidth: "480px",
-        maxHeight: "60vh",
-        overflowY: "auto",
-        margin: "0 auto",
-        fontSize: "13px",
-      }}
-    >
+    <div style={{ fontSize: "13px" }}>
       <div
         style={{
           display: "flex",
@@ -137,7 +125,7 @@ export const AdvancedFilterPanel = ({
 
       {isWide && pieChart ? (
         <div style={{ display: "flex", gap: "12px" }}>
-          <div style={{ flex: "0 1 auto", minWidth: 0 }}>{filterRows}</div>
+          <div style={{ flex: "0 0 auto" }}>{filterRows}</div>
           <div
             style={{ flex: "1 1 auto", minWidth: 0, alignContent: "center" }}
           >
