@@ -81,3 +81,5 @@ export {
 } from "./lib/components/PoiFilterPanel";
 
 export { useRestoreLayerFilter } from "./lib/components/useRestoreLayerFilter";
+
+export { PieChart } from "./lib/components/PieChart";
