@@ -345,7 +345,10 @@ const saveAPAction = async (
 
   for (const mapping of config.params) {
     const rawValue = action.values[mapping.field];
-    apiParams[mapping.api] = transformValue(rawValue, mapping.type);
+    const transformed = transformValue(rawValue, mapping.type);
+    if (transformed !== "") {
+      apiParams[mapping.api] = transformed;
+    }
   }
 
   try {
