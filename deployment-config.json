@@ -31,6 +31,33 @@
       },
       "projectPath": "./dist/apps/topicmaps/stadtplan"
     },
+    "ng-stadtplan": {
+      "deployment": {
+        "manual": {
+          "dev": {
+            "pages": {
+              "org": "carma-dev-deployments",
+              "prj": "topicmaps-ng-stadtplan-wuppertal"
+            }
+          },
+          "live": {
+            "pages": {
+              "org": "digital-twin-wuppertal-live",
+              "prj": "ng-stadtplan"
+            }
+          }
+        },
+        "auto": {
+          "dev": {
+            "pages": {
+              "org": "carma-dev-deployments",
+              "prj": "topicmaps-ng-stadtplan-wuppertal"
+            }
+          }
+        }
+      },
+      "projectPath": "./dist/apps/topicmaps/ng-stadtplan"
+    },
     "legals": {
       "deployment": {
         "manual": {
