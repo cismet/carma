@@ -84,10 +84,8 @@ export const AdvancedFilterPanel = ({
     </div>
   );
 
-  const pieChart =
-    pieChartData && pieChartData.length > 0 && pieChartColors ? (
-      <PieChart data={pieChartData} colors={pieChartColors} />
-    ) : null;
+  const hasPieChartProps =
+    pieChartData !== undefined && pieChartColors !== undefined;
 
   const isWide = width >= 600;
 
@@ -123,19 +121,23 @@ export const AdvancedFilterPanel = ({
         </button>
       </div>
 
-      {isWide && pieChart ? (
+      {isWide && hasPieChartProps ? (
         <div style={{ display: "flex", gap: "12px" }}>
           <div style={{ flex: "0 0 auto" }}>{filterRows}</div>
           <div
             style={{ flex: "1 1 auto", minWidth: 0, alignContent: "center" }}
           >
-            {pieChart}
+            <PieChart data={pieChartData!} colors={pieChartColors!} />
           </div>
         </div>
       ) : (
         <>
           {filterRows}
-          {pieChart && <div style={{ marginTop: "8px" }}>{pieChart}</div>}
+          {hasPieChartProps && (
+            <div style={{ marginTop: "8px" }}>
+              <PieChart data={pieChartData!} colors={pieChartColors!} />
+            </div>
+          )}
         </>
       )}
     </div>
