@@ -1,6 +1,5 @@
 import { useMemo } from "react";
 import { Cartesian3 } from "@carma/cesium";
-import type { InitialCameraView } from "@carma-mapping/engines/cesium";
 import {
   readInitialCameraViewFromViewState,
   useViewStateNavigationManager,
@@ -16,10 +15,7 @@ export const useGeoportalInitialView = () => {
 
   const initialCesiumViewState = initialRestoreState ?? DEFAULT_HOME_VIEW_STATE;
   const cesiumInitialCameraView = useMemo(
-    () =>
-      readInitialCameraViewFromViewState(
-        initialCesiumViewState
-      ) as InitialCameraView | undefined,
+    () => readInitialCameraViewFromViewState(initialCesiumViewState),
     [initialCesiumViewState]
   );
 

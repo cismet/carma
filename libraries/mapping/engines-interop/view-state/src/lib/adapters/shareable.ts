@@ -68,17 +68,18 @@ const HASH_BEARING_ZERO_EPSILON_DEG = 0.01;
 const HASH_PITCH_ZERO_EPSILON_DEG = 0.01;
 const HASH_ROLL_ZERO_EPSILON_DEG = 0.01;
 
-export const DEFAULT_SHAREABLE_VIEW_STATE_PRECISION: ShareableViewStatePrecision = {
-  lat: 7,
-  lng: 7,
-  zoom: 3,
-  altitude: 2,
-  range: 2,
-  bearing: 2,
-  pitch: 2,
-  roll: 2,
-  fov: 2,
-};
+export const DEFAULT_SHAREABLE_VIEW_STATE_PRECISION: ShareableViewStatePrecision =
+  {
+    lat: 7,
+    lng: 7,
+    zoom: 3,
+    altitude: 2,
+    range: 2,
+    bearing: 2,
+    pitch: 2,
+    roll: 2,
+    fov: 2,
+  };
 
 const resolvePrecision = (
   options?: ShareableViewStateAdapterOptions
@@ -199,7 +200,11 @@ export const applyToShareableViewState = (
   const lng = roundFixedNumber(radToDegNumeric(view.longitude), precision.lng);
   const altitude = roundFixedNumber(view.altitude, precision.altitude);
 
-  if (!isFiniteNumber(lat) || !isFiniteNumber(lng) || !isFiniteNumber(altitude)) {
+  if (
+    !isFiniteNumber(lat) ||
+    !isFiniteNumber(lng) ||
+    !isFiniteNumber(altitude)
+  ) {
     throw new Error("Failed to derive ShareableViewState from ViewState.");
   }
 
@@ -300,7 +305,11 @@ export const readShareableViewState = (
     precision.altitude
   );
 
-  if (!isFiniteNumber(lat) || !isFiniteNumber(lng) || !isFiniteNumber(altitude)) {
+  if (
+    !isFiniteNumber(lat) ||
+    !isFiniteNumber(lng) ||
+    !isFiniteNumber(altitude)
+  ) {
     return null;
   }
 
@@ -433,9 +442,7 @@ export const readFromShareableViewState = (
                 ...(isFiniteNumber(normalizedZoom)
                   ? { zoom: normalizedZoom }
                   : {}),
-                ...(isFiniteNumber(fovLongerEdge)
-                  ? { fovLongerEdge }
-                  : {}),
+                ...(isFiniteNumber(fovLongerEdge) ? { fovLongerEdge } : {}),
               },
             },
           }

@@ -12,7 +12,11 @@ import {
   isCameraStateRecord,
 } from "../../carma-guards";
 import { captureCurrentCameraState } from "./CameraStateCapture";
-import type { CameraState, CameraStateRecord, DirectionUp } from "./CameraTypes";
+import type {
+  CameraState,
+  CameraStateRecord,
+  DirectionUp,
+} from "./CameraTypes";
 import { writePerspectiveFrustumVerticalFov } from "./PerspectiveFrustumFov";
 
 export type FlyCameraStateToSceneOptions = {

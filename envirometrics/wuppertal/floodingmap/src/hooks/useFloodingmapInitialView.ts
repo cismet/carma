@@ -1,6 +1,5 @@
 import { useMemo } from "react";
 import { useHashState } from "@carma-providers/hash-state";
-import type { InitialCameraView } from "@carma-mapping/engines/cesium";
 import {
   readInitialCameraViewFromViewState,
   readViewStateHashNumber,
@@ -32,10 +31,7 @@ export const useFloodingmapInitialView = () => {
 
   const initialCesiumViewState = initialRestoreState ?? DEFAULT_HOME_VIEW_STATE;
   const initialCameraView = useMemo(
-    () =>
-      readInitialCameraViewFromViewState(
-        initialCesiumViewState
-      ) as InitialCameraView | undefined,
+    () => readInitialCameraViewFromViewState(initialCesiumViewState),
     [initialCesiumViewState]
   );
 

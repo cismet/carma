@@ -65,9 +65,7 @@ export {
   deriveZoom,
   deriveView,
 } from "../core/derivations";
-export {
-  resolveViewStateForViewport,
-} from "../core/viewport";
+export { resolveViewStateForViewport } from "../core/viewport";
 
 // Construction (pure functions, no React)
 export {
@@ -97,10 +95,7 @@ export {
 } from "../adapters/shareable";
 
 // Cesium initial camera (pure functions, no React)
-export {
-  readInitialCameraViewFromViewState,
-  type InitialCameraViewLike,
-} from "../adapters/cesium-initial-camera";
+export { readInitialCameraViewFromViewState } from "../adapters/cesium-initial-camera";
 
 // Runtime integrations (engine side-effects / orchestration)
 export { flyViewStateInCesium } from "./integrations/flyViewStateInCesium";

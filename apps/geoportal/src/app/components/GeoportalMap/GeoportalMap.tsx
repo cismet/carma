@@ -252,8 +252,11 @@ const GeoportalMapInner = ({ height, width, allow3d }: MapProps) => {
   const { setAppMenuVisible } =
     useContext<typeof UIDispatchContext>(UIDispatchContext);
   const { setSecondaryWithKey, showOverlayHandler } = useOverlayTourContext();
-  const { isInitialCameraResolved, cesiumInitialCameraView, homeValidationCenter } =
-    useGeoportalInitialView();
+  const {
+    isInitialCameraResolved,
+    cesiumInitialCameraView,
+    homeValidationCenter,
+  } = useGeoportalInitialView();
 
   const [isLoginFormVisible, setIsLoginFormVisible] = useState(false);
   const markerRef = useRef(undefined);

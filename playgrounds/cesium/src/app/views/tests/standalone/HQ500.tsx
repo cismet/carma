@@ -105,9 +105,7 @@ export const HQ500 = () => {
       </Control>
 
       <Control position="topleft" order={40}>
-        <ControlButtonStyler
-          onClick={handleHomeClick}
-        >
+        <ControlButtonStyler onClick={handleHomeClick}>
           <FontAwesomeIcon icon={faHouseChimney} className="text-lg" />
         </ControlButtonStyler>
       </Control>

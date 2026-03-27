@@ -28,10 +28,13 @@ export const useFloodingmapDeferredCesiumRuntime = (
   const cesiumReadyPromiseRef = useRef<Promise<void> | null>(null);
   const cesiumReadyResolversRef = useRef<Array<() => void>>([]);
 
-  const handleCesiumContainerRef = useCallback((node: HTMLDivElement | null) => {
-    container3dMapRef.current = node;
-    setCesiumContainerElement(node);
-  }, []);
+  const handleCesiumContainerRef = useCallback(
+    (node: HTMLDivElement | null) => {
+      container3dMapRef.current = node;
+      setCesiumContainerElement(node);
+    },
+    []
+  );
 
   const getCesiumContainer = useCallback(
     () => container3dMapRef.current,

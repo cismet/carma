@@ -48,7 +48,6 @@ export type InitialCameraView = {
   zoom?: number;
   direction?: Cartesian3;
   up?: Cartesian3;
-  right?: Cartesian3;
   fov?: number | null;
   fovLongerEdge?: number | null;
 };

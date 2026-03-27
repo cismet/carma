@@ -150,10 +150,10 @@ const MapWrapper = () => {
     fovMode: isObliqueMode,
   });
   const { zoomInLeaflet, zoomOutLeaflet } = useLeafletZoomControls();
-  const homeCenter = [
-    DEFAULT_HOME_VIEW_REF.lat,
-    DEFAULT_HOME_VIEW_REF.lng,
-  ] as [number, number];
+  const homeCenter = [DEFAULT_HOME_VIEW_REF.lat, DEFAULT_HOME_VIEW_REF.lng] as [
+    number,
+    number
+  ];
   const homeLeafletZoom = DEFAULT_HOME_VIEW_REF.zoom ?? 18;
   const homeMaplibreZoom = homeLeafletZoom - 1;
   const handleCesiumHomeClick = useCallback(() => {

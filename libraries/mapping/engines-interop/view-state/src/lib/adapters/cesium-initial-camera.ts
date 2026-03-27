@@ -1,29 +1,22 @@
-import {
-  Cartesian3,
-  Cartographic,
-  Ellipsoid,
-} from "@carma/cesium";
-import {
-  readLongerEdgeFovFromIntrinsics,
-} from "@carma-commons/camera/model";
+import { Cartesian3, Cartographic, Ellipsoid } from "@carma/cesium";
+import { readLongerEdgeFovFromIntrinsics } from "@carma-commons/camera/model";
 import { readCesiumCameraStateFromViewState } from "./cesium";
 import { deriveView } from "../core/derivations";
 import type { ViewState } from "../core/types";
 
-export type InitialCameraViewLike = {
+type InitialCameraViewValue = {
   position?: Cartographic;
   anchor?: Cartographic;
   zoom?: number;
   direction?: Cartesian3;
   up?: Cartesian3;
-  right?: Cartesian3;
   fov?: number | null;
   fovLongerEdge?: number | null;
 };
 
 export const readInitialCameraViewFromViewState = (
   state: ViewState | null | undefined
-): InitialCameraViewLike | undefined => {
+): InitialCameraViewValue | undefined => {
   if (!state) {
     return undefined;
   }
@@ -54,7 +47,6 @@ export const readInitialCameraViewFromViewState = (
     ...(Number.isFinite(view.zoom) ? { zoom: view.zoom } : {}),
     direction: cameraState.direction,
     up: cameraState.up,
-    ...(cameraState.right ? { right: cameraState.right } : {}),
     fov: Number.isFinite(state.intrinsics.fov) ? state.intrinsics.fov : null,
     fovLongerEdge: Number.isFinite(fovLongerEdge) ? fovLongerEdge : null,
   };

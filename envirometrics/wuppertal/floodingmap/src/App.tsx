@@ -87,9 +87,7 @@ import {
   CESIUM_CONFIG,
   CONSTRUCTOR_OPTIONS,
 } from "./config/cesium/cesium.config";
-import {
-  DEFAULT_HOME_VIEW_REF,
-} from "./config/view.config";
+import { DEFAULT_HOME_VIEW_REF } from "./config/view.config";
 import { DEFAULT_HOME_VIEW_STATE } from "./utils/floodingmapHomeViewState";
 
 import "cesium/Build/Cesium/Widgets/widgets.css";
@@ -195,10 +193,10 @@ function FloodingmapAppContent({ sync = false }: { sync?: boolean }) {
 
   const homeCenter = useMemo(
     () =>
-      [
-        DEFAULT_HOME_VIEW_REF.lat,
-        DEFAULT_HOME_VIEW_REF.lng,
-      ] as [number, number],
+      [DEFAULT_HOME_VIEW_REF.lat, DEFAULT_HOME_VIEW_REF.lng] as [
+        number,
+        number
+      ],
     []
   );
   const homeLeafletZoom = DEFAULT_HOME_VIEW_REF.zoom ?? 18;
@@ -290,14 +288,10 @@ function FloodingmapAppContent({ sync = false }: { sync?: boolean }) {
   const homeControlCesium = () => {
     if (!isCesium || !cesiumScene) return;
 
-    flyViewStateInCesium(
-      cesiumScene,
-      DEFAULT_HOME_VIEW_STATE,
-      {
-        duration: 2,
-        applyFov: false,
-      }
-    );
+    flyViewStateInCesium(cesiumScene, DEFAULT_HOME_VIEW_STATE, {
+      duration: 2,
+      applyFov: false,
+    });
   };
 
   const onHomeClick = () => {

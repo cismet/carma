@@ -1,4 +1,7 @@
-import { formatAreaSquareMetersAdaptive, formatDegrees } from "@carma/units/helpers";
+import {
+  formatAreaSquareMetersAdaptive,
+  formatDegrees,
+} from "@carma/units/helpers";
 
 import type { RuntimeAnnotationInfoBoxContext } from "../../components/annotation-info-box/annotationInfoBox.types";
 

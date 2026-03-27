@@ -43,7 +43,9 @@ export const resolveViewStateForViewport = (
 
   const aspect = viewportWidthPx / viewportHeightPx;
   const longerEdgeFov =
-    (isFiniteNumber(longerEdgeFovOverride) ? longerEdgeFovOverride : undefined) ??
+    (isFiniteNumber(longerEdgeFovOverride)
+      ? longerEdgeFovOverride
+      : undefined) ??
     restoreHints.fovLongerEdge ??
     readLongerEdgeFovFromIntrinsics(state.intrinsics, {
       viewportWidthPx,

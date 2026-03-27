@@ -10,7 +10,7 @@ export const buildFloodingmapInitialState = <
   TState extends {
     featureInfoModeActivated?: boolean;
     currentFeatureInfoPosition?: [number, number] | undefined;
-  },
+  }
 >(
   baseState: TState,
   queryX: number | undefined,
