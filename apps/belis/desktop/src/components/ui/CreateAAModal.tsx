@@ -72,9 +72,8 @@ const CreateAAModal = ({ open, onClose, highlights }: CreateAAModalProps) => {
     setSaving(true);
 
     updateDataByClassName(jwt as string, "arbeitsauftrag", aaSaveData)
-      .then((result) => {
-        const aaId = (result as { id: number }).id;
-        void message.success(`Arbeitsauftrag erstellt (ID: ${aaId})`);
+      .then(() => {
+        void message.success("Arbeitsauftrag erstellt");
         form.resetFields();
         onClose();
       })
