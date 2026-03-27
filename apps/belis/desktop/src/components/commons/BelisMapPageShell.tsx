@@ -159,7 +159,7 @@ const BelisMapPageShell = () => {
         <CustomCard
           title={
             windowWidth > 1364 ? (
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2 my-1">
                 <span>{isDatasheetOpen ? "Datenblatt" : title}</span>
                 {editModeButton}
                 {sidebarVariant === "arbeitsauftraege" &&
@@ -203,14 +203,16 @@ const BelisMapPageShell = () => {
                   >
                     <button
                       onClick={() => setAaModalOpen(true)}
-                      disabled={!activeHighlights || activeHighlights.length === 0}
-                      className={`flex items-center justify-center w-8 h-8 rounded border ${
+                      disabled={
+                        !activeHighlights || activeHighlights.length === 0
+                      }
+                      className={`flex items-center justify-center w-[24px] h-[24px] rounded border ${
                         activeHighlights && activeHighlights.length > 0
                           ? "border-gray-300 bg-white text-gray-500 hover:bg-gray-50"
                           : "border-gray-200 bg-gray-100 text-gray-300 cursor-not-allowed"
                       }`}
                     >
-                      <PlusOutlined />
+                      <PlusOutlined style={{ fontSize: 14 }} />
                     </button>
                   </Tooltip>
                 )}
@@ -253,28 +255,29 @@ const BelisMapPageShell = () => {
                     </button>
                   </Badge>
                 )}
-              {windowWidth <= 1364 &&
-                sidebarVariant === "fachobjekte" && (
-                  <Tooltip
-                    title={
-                      activeHighlights && activeHighlights.length > 0
-                        ? "AA erstellen"
-                        : "Zuerst Fachobjekte auswählen"
+              {windowWidth <= 1364 && sidebarVariant === "fachobjekte" && (
+                <Tooltip
+                  title={
+                    activeHighlights && activeHighlights.length > 0
+                      ? "AA erstellen"
+                      : "Zuerst Fachobjekte auswählen"
+                  }
+                >
+                  <button
+                    onClick={() => setAaModalOpen(true)}
+                    disabled={
+                      !activeHighlights || activeHighlights.length === 0
                     }
+                    className={`flex items-center justify-center w-7 h-7 rounded border ${
+                      activeHighlights && activeHighlights.length > 0
+                        ? "border-gray-300 bg-white text-gray-500 hover:bg-gray-50"
+                        : "border-gray-200 bg-gray-100 text-gray-300 cursor-not-allowed"
+                    }`}
                   >
-                    <button
-                      onClick={() => setAaModalOpen(true)}
-                      disabled={!activeHighlights || activeHighlights.length === 0}
-                      className={`flex items-center justify-center w-8 h-8 rounded border ${
-                        activeHighlights && activeHighlights.length > 0
-                          ? "border-gray-300 bg-white text-gray-500 hover:bg-gray-50"
-                          : "border-gray-200 bg-gray-100 text-gray-300 cursor-not-allowed"
-                      }`}
-                    >
-                      <PlusOutlined />
-                    </button>
-                  </Tooltip>
-                )}
+                    <PlusOutlined style={{ fontSize: 14 }} />
+                  </button>
+                </Tooltip>
+              )}
 
               {showSearch && (
                 <div className="flex items-center gap-2">
