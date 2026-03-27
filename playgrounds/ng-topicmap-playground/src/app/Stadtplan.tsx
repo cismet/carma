@@ -1,10 +1,4 @@
-import {
-  useState,
-  useCallback,
-  useEffect,
-  useMemo,
-  useRef,
-} from "react";
+import { useState, useCallback, useEffect, useMemo, useRef } from "react";
 import {
   SelectionProvider,
   ProgressIndicator,
@@ -94,9 +88,12 @@ function buildPoiFilterExpression(allowedKombis: string[]): any[] {
   ];
 }
 
-/** Apply the current POI filter to all layers belonging to the POI source. */
+/** Apply the current POI filter.
+ *  - setFilter on non-cluster layers for instant, flicker-free toggling
+ *  - setData on the source so cluster aggregation only includes visible features */
 function applyPoiFilter(
   map: any,
+  allFeatures: any[],
   allKombis: string[],
   filterState: AdvancedFilterState
 ) {
@@ -106,14 +103,36 @@ function applyPoiFilter(
     ? null
     : buildPoiFilterExpression(allowedKombis);
 
+  // Instant visual update on non-cluster layers via setFilter
   const layers = map.getStyle()?.layers || [];
   for (const layer of layers) {
-    if (layer.id.startsWith(POI_SOURCE_ID)) {
+    if (layer.id.startsWith(POI_SOURCE_ID) && !layer.id.endsWith("-clusters")) {
       try {
         map.setFilter(layer.id, filterExpr);
       } catch (e) {
         console.error(`Error setting filter on layer ${layer.id}:`, e);
       }
+    }
+  }
+
+  // Update source data so clusters recompute with only the visible features
+  const source = map.getSource(POI_SOURCE_ID);
+  if (source && "setData" in source) {
+    if (isShowingAll) {
+      (source as any).setData({
+        type: "FeatureCollection",
+        features: allFeatures,
+      });
+    } else {
+      const allowedSet = new Set(allowedKombis);
+      (source as any).setData({
+        type: "FeatureCollection",
+        features: allFeatures.filter((f: any) => {
+          const kombi = f.properties?.kombi;
+          if (typeof kombi !== "string" || kombi.length === 0) return true;
+          return allowedSet.has(kombi);
+        }),
+      });
     }
   }
 }
@@ -127,6 +146,7 @@ export function Stadtplan() {
     positiv: [],
     negativ: [],
   });
+  const allFeaturesRef = useRef<any[]>([]);
   const allKombisRef = useRef<string[]>([]);
   const filterStateRef = useRef(filterState);
   filterStateRef.current = filterState;
@@ -144,6 +164,7 @@ export function Stadtplan() {
         // Extract lebenslagen and kombi values only once
         if (allKombisRef.current.length === 0) {
           const features = styleSource.data.features;
+          allFeaturesRef.current = features;
           setAllFeatures(features);
 
           const llSet = new Set<string>();
@@ -166,8 +187,13 @@ export function Stadtplan() {
           setFilterState(initialFilter);
         }
 
-        // Apply current filter via setFilter (also handles style rebuilds)
-        applyPoiFilter(map, allKombisRef.current, filterStateRef.current);
+        // Apply current filter (also handles style rebuilds)
+        applyPoiFilter(
+          map,
+          allFeaturesRef.current,
+          allKombisRef.current,
+          filterStateRef.current
+        );
       });
     },
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -181,7 +207,12 @@ export function Stadtplan() {
     const map = (window as any).__carmaMap;
     if (!map) return;
 
-    applyPoiFilter(map, allKombisRef.current, filterState);
+    applyPoiFilter(
+      map,
+      allFeaturesRef.current,
+      allKombisRef.current,
+      filterState
+    );
   }, [filterState, lebenslagen]);
 
   // Compute pie chart data from filtered features
