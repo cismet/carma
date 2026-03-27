@@ -72,7 +72,6 @@ const BelisMapPageShell = () => {
     SidebarFeature[] | null
   >(null);
   const [lassoActive, setLassoActive] = useState(false);
-  const [aaLassoActive, setAaLassoActive] = useState(false);
 
   const { isDatasheetOpen, closeDatasheet } = useDatasheet();
   const [windowWidth, windowHeight] = useWindowSize();
@@ -183,20 +182,10 @@ const BelisMapPageShell = () => {
                     </Badge>
                   )}
                 {sidebarVariant === "fachobjekte" && (
-                  <Tooltip
-                    title={
-                      aaLassoActive
-                        ? "AA-Lasso beenden"
-                        : "AA-Lasso-Auswahl"
-                    }
-                  >
+                  <Tooltip title="AA erstellen">
                     <button
-                      onClick={() => setAaLassoActive((prev) => !prev)}
-                      className={`flex items-center justify-center w-8 h-8 rounded border ${
-                        aaLassoActive
-                          ? "border-blue-500 bg-blue-50 text-blue-600"
-                          : "border-gray-300 bg-white text-gray-500 hover:bg-gray-50"
-                      }`}
+                      onClick={() => console.log("hallo world")}
+                      className="flex items-center justify-center w-8 h-8 rounded border border-gray-300 bg-white text-gray-500 hover:bg-gray-50"
                     >
                       <PlusOutlined />
                     </button>
@@ -243,20 +232,10 @@ const BelisMapPageShell = () => {
                 )}
               {windowWidth <= 1364 &&
                 sidebarVariant === "fachobjekte" && (
-                  <Tooltip
-                    title={
-                      aaLassoActive
-                        ? "AA-Lasso beenden"
-                        : "AA-Lasso-Auswahl"
-                    }
-                  >
+                  <Tooltip title="AA erstellen">
                     <button
-                      onClick={() => setAaLassoActive((prev) => !prev)}
-                      className={`flex items-center justify-center w-8 h-8 rounded border ${
-                        aaLassoActive
-                          ? "border-blue-500 bg-blue-50 text-blue-600"
-                          : "border-gray-300 bg-white text-gray-500 hover:bg-gray-50"
-                      }`}
+                      onClick={() => console.log("hallo world")}
+                      className="flex items-center justify-center w-8 h-8 rounded border border-gray-300 bg-white text-gray-500 hover:bg-gray-50"
                     >
                       <PlusOutlined />
                     </button>
@@ -351,8 +330,6 @@ const BelisMapPageShell = () => {
             highlightResults={highlightResults}
             lassoActive={lassoActive}
             onLassoDeactivate={() => setLassoActive(false)}
-            aaLassoActive={aaLassoActive}
-            onAaLassoDeactivate={() => setAaLassoActive(false)}
             sidebarVariant={sidebarVariant}
           />
         </CustomCard>

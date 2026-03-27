@@ -83,7 +83,6 @@ import {
   clearSelection,
   getAALoading,
   getDraftMode,
-  setLassoSelectedFeatures,
 } from "../../store/slices/arbeitsauftraege";
 import { getSelectedTeamName } from "../../store/selectors";
 import { buildApGeoJson, extractGeometry } from "../../helper/buildApGeoJson";
@@ -108,7 +107,7 @@ import {
   getAllAPDrafts,
 } from "../../store/slices/arbeitsauftraegeDrafts";
 import { prepareDraftFeatures } from "../../helper/prepareDraftFeatures";
-import { useAaLassoSelection } from "../../hooks/useAaLassoSelection";
+// import { useAaLassoSelection } from "../../hooks/useAaLassoSelection";
 
 type SidebarMode = "fachobjekte" | "highlights" | "drafts";
 
@@ -118,8 +117,6 @@ interface BelisMapLibWrapperProps {
   highlightResults: SidebarFeature[] | null;
   lassoActive: boolean;
   onLassoDeactivate?: () => void;
-  aaLassoActive: boolean;
-  onAaLassoDeactivate?: () => void;
   sidebarVariant: "fachobjekte" | "arbeitsauftraege";
 }
 
@@ -129,8 +126,6 @@ const BelisMapLibWrapper = ({
   highlightResults,
   lassoActive,
   onLassoDeactivate,
-  aaLassoActive,
-  onAaLassoDeactivate,
   sidebarVariant,
 }: BelisMapLibWrapperProps) => {
   const dispatch: AppDispatch = useDispatch();
@@ -412,15 +407,15 @@ const BelisMapLibWrapper = ({
     onToggle: handleHighlightToggle,
   });
 
-  // AA lasso selection
-  useAaLassoSelection({
-    map,
-    active: aaLassoActive,
-    onDeactivate: onAaLassoDeactivate,
-    onFeaturesSelected: (features) => {
-      dispatch(setLassoSelectedFeatures(features));
-    },
-  });
+  // AA lasso selection (disabled – button now only logs "hallo world")
+  // useAaLassoSelection({
+  //   map,
+  //   active: aaLassoActive,
+  //   onDeactivate: onAaLassoDeactivate,
+  //   onFeaturesSelected: (features) => {
+  //     dispatch(setLassoSelectedFeatures(features));
+  //   },
+  // });
 
   const showRaw = useMemo(() => {
     const hashQuery = window.location.hash.split("?")[1] || "";
