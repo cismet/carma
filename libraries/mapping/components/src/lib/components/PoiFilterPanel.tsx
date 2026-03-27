@@ -4,6 +4,7 @@ import {
   type AdvancedFilterCategory,
   type AdvancedFilterState,
 } from "./AdvancedFilterPanel";
+import type { FilterInfo } from "./GenericFilterButtonsFactory";
 
 // Color mapping for lebenslage combinations (sorted alphabetically)
 const POI_COLORS: Record<string, string> = {
@@ -76,14 +77,49 @@ function findPoiLayerIds(map: any): string[] {
     .map((l: any) => l.id);
 }
 
+/**
+ * Serialize AdvancedFilterState to Record<string, boolean> for store persistence.
+ * true = positiv, false = negativ, absent = neutral.
+ */
+function serializeFilterState(
+  state: AdvancedFilterState
+): Record<string, boolean> {
+  const result: Record<string, boolean> = {};
+  for (const key of state.positiv) result[key] = true;
+  for (const key of state.negativ) result[key] = false;
+  return result;
+}
+
+/**
+ * Deserialize Record<string, boolean> back to AdvancedFilterState.
+ */
+function deserializeFilterState(
+  stored: Record<string, boolean>
+): AdvancedFilterState {
+  const positiv: string[] = [];
+  const negativ: string[] = [];
+  for (const [key, value] of Object.entries(stored)) {
+    if (value === true) positiv.push(key);
+    else if (value === false) negativ.push(key);
+  }
+  return { positiv, negativ };
+}
+
 export interface PoiFilterPanelProps {
   maplibreMap: any;
   width?: number;
+  initialFilterState?: Record<string, boolean>;
+  onFilterChange?: (
+    filterInfo: FilterInfo,
+    filterState: Record<string, boolean>
+  ) => void;
 }
 
 export const PoiFilterPanel = ({
   maplibreMap,
   width = 700,
+  initialFilterState,
+  onFilterChange,
 }: PoiFilterPanelProps) => {
   const [advancedFilterState, setAdvancedFilterState] =
     useState<AdvancedFilterState>({ positiv: [], negativ: [] });
@@ -91,6 +127,10 @@ export const PoiFilterPanel = ({
   const [allKombis, setAllKombis] = useState<string[]>([]);
   const allKombisRef = useRef<string[]>([]);
   const initializedForMap = useRef<any>(null);
+  const onFilterChangeRef = useRef(onFilterChange);
+  onFilterChangeRef.current = onFilterChange;
+  const initialFilterStateRef = useRef(initialFilterState);
+  const userHasInteracted = useRef(false);
 
   // Extract categories from vector tile features once the map is available
   const extractCategories = useCallback((map: any) => {
@@ -118,7 +158,31 @@ export const PoiFilterPanel = ({
     allKombisRef.current = kombis;
     setAllKombis(kombis);
     setCategories(sorted.map((ll) => ({ key: ll, label: ll })));
-    setAdvancedFilterState({ positiv: sorted, negativ: [] });
+
+    // Restore persisted state or default to all positiv
+    const stored = initialFilterStateRef.current;
+    let restoredState: AdvancedFilterState;
+    if (stored && Object.keys(stored).length > 0) {
+      restoredState = deserializeFilterState(stored);
+    } else {
+      restoredState = { positiv: sorted, negativ: [] };
+    }
+    setAdvancedFilterState(restoredState);
+
+    // Apply persisted filter to the map immediately (in case map was recreated)
+    const allowed = getAllowedKombis(kombis, restoredState);
+    const isShowingAll = allowed.length === kombis.length;
+    if (!isShowingAll) {
+      const filterExpr = buildPoiFilterExpression(allowed);
+      const poiLayerIds = findPoiLayerIds(map);
+      for (const layerId of poiLayerIds) {
+        try {
+          map.setFilter(layerId, filterExpr);
+        } catch (e) {
+          // Layer may not be ready yet
+        }
+      }
+    }
     initializedForMap.current = map;
   }, []);
 
@@ -135,9 +199,11 @@ export const PoiFilterPanel = ({
     }
   }, [maplibreMap, extractCategories]);
 
-  // Apply filter to map layers when filter state changes
+  // Apply filter to map layers and notify parent when filter state changes
   useEffect(() => {
     if (!maplibreMap || allKombisRef.current.length === 0) return;
+    // Skip filter application on mount/restore; the map already has the correct filters
+    if (!userHasInteracted.current) return;
 
     const allowed = getAllowedKombis(allKombisRef.current, advancedFilterState);
     const isShowingAll = allowed.length === allKombisRef.current.length;
@@ -151,7 +217,21 @@ export const PoiFilterPanel = ({
         console.error(`[POI_FILTER] Error setting filter on ${layerId}:`, e);
       }
     }
-  }, [advancedFilterState, maplibreMap]);
+
+    if (onFilterChangeRef.current) {
+      const totalCount = categories.length;
+      // Count categories changed from default (not in positiv = changed)
+      const changedCount = totalCount - advancedFilterState.positiv.length;
+      onFilterChangeRef.current(
+        {
+          activeCount: changedCount,
+          totalCount,
+          isShowingAll,
+        },
+        serializeFilterState(advancedFilterState)
+      );
+    }
+  }, [advancedFilterState, maplibreMap, categories.length]);
 
   // Compute pie chart data from the current filter state
   const { pieChartData, pieChartColors } = useMemo(() => {
@@ -192,7 +272,10 @@ export const PoiFilterPanel = ({
     <AdvancedFilterPanel
       categories={categories}
       filterState={advancedFilterState}
-      onFilterStateChange={setAdvancedFilterState}
+      onFilterStateChange={(state) => {
+        userHasInteracted.current = true;
+        setAdvancedFilterState(state);
+      }}
       pieChartData={pieChartData}
       pieChartColors={pieChartColors}
       width={width}

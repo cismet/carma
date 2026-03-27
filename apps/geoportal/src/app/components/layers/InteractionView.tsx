@@ -74,7 +74,18 @@ const InteractionView = ({ isDragging }: { isDragging?: boolean }) => {
               padding: "8px 12px",
             }}
           >
-            <PoiFilterPanel maplibreMap={maplibreMap} />
+            <PoiFilterPanel
+              maplibreMap={maplibreMap}
+              initialFilterState={layer.filterState}
+              onFilterChange={(info, state) => {
+                dispatch(
+                  setLayerFilterState({ id: layer.id, filterState: state })
+                );
+                dispatch(
+                  setLayerFilterInfo({ id: layer.id, filterInfo: info })
+                );
+              }}
+            />
           </div>
         </div>
       </div>
