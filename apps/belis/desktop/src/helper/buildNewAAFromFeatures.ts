@@ -108,7 +108,7 @@ export function buildNewAAFromFeatures(
     id: -1,
     team: { id: team.id },
     angelegt_von: angelegtVon,
-    angelegt_am: now.format("YYYY-MM-DD"),
+    angelegt_am: now.valueOf(),
     ...(nummer != null ? { nummer } : {}),
     ar_protokolleArray: arProtokollArray,
   };
