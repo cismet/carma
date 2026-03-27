@@ -1,0 +1,77 @@
+import {
+  readHorizontalFovFromVertical,
+  type CameraIntrinsics,
+} from "@carma-commons/camera/model";
+import { isFiniteNumber } from "@carma/math";
+import type { FrustumLike } from "../../cesiumSceneTypes";
+import { readPerspectiveFrustumVerticalFov } from "./PerspectiveFrustumFov";
+
+type SceneCameraIntrinsicsSource = {
+  camera?: {
+    frustum?: FrustumLike;
+  };
+};
+
+const readAspectRatio = (
+  scene: SceneCameraIntrinsicsSource
+): number | undefined => {
+  const frustumAspect = scene.camera?.frustum?.aspectRatio;
+  if (isFiniteNumber(frustumAspect) && frustumAspect > 0) {
+    return frustumAspect;
+  }
+
+  return undefined;
+};
+
+export const readSceneCameraIntrinsics = (
+  scene: SceneCameraIntrinsicsSource
+): CameraIntrinsics => {
+  const fov = readPerspectiveFrustumVerticalFov(
+    scene.camera?.frustum as Parameters<
+      typeof readPerspectiveFrustumVerticalFov
+    >[0]
+  );
+  // Cesium does not expose a ViewState-compatible `viewOffset` concept.
+  // Keep the field in shared intrinsics for other engines, but do not
+  // synthesize it from canvas dimensions here. Cesium therefore leaves
+  // `viewOffset` undefined rather than inventing placeholder values.
+  const intrinsics: CameraIntrinsics = {
+    ...(fov ? { fov: fov as CameraIntrinsics["fov"] } : {}),
+    ...(isFiniteNumber(scene.camera?.frustum?.near)
+      ? {
+          frustum: {
+            near: scene.camera.frustum.near as NonNullable<
+              CameraIntrinsics["frustum"]
+            >["near"],
+          },
+        }
+      : {}),
+    ...(isFiniteNumber(scene.camera?.frustum?.far)
+      ? {
+          frustum: {
+            ...(isFiniteNumber(scene.camera?.frustum?.near)
+              ? {
+                  near: scene.camera.frustum.near as NonNullable<
+                    CameraIntrinsics["frustum"]
+                  >["near"],
+                }
+              : {}),
+            far: scene.camera.frustum.far as NonNullable<
+              CameraIntrinsics["frustum"]
+            >["far"],
+          },
+        }
+      : {}),
+  };
+  const fovHorizontal = readHorizontalFovFromVertical(
+    intrinsics.fov,
+    readAspectRatio(scene)
+  );
+
+  return {
+    ...intrinsics,
+    ...(fovHorizontal
+      ? { fovHorizontal: fovHorizontal as CameraIntrinsics["fovHorizontal"] }
+      : {}),
+  };
+};

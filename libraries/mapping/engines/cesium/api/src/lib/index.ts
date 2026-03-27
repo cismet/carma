@@ -89,6 +89,8 @@ export {
   getHeadingPitchRollDiff,
   getTopDownCameraDeviationAngle,
   readPerspectiveFrustumVerticalFov,
+  readCameraWorldBasis,
+  readSceneCameraIntrinsics,
   releaseCameraFromOrbitMode,
   setViewFromCameraState,
   tryWithValidCamera,

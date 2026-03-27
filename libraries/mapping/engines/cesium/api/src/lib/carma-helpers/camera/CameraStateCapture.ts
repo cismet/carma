@@ -1,3 +1,4 @@
+import { Quaternion, Vector3 } from "@carma/math";
 import type { Radians } from "@carma/units/types";
 import {
   Camera,
@@ -6,12 +7,60 @@ import {
   OrthographicOffCenterFrustum,
   PerspectiveFrustum,
 } from "../../cesium";
+import type { CameraLike } from "../../cesiumSceneTypes";
+import {
+  toSceneStateMat4,
+  toSceneStateVec3,
+} from "../scene/SceneStateValueAdapters";
 import { cameraPositionCartographicRadians } from "./CameraPosition";
 import type {
   CaptureCurrentCameraStateOptions,
   CapturedCameraState,
 } from "./CameraTypes";
 import { readPerspectiveFrustumVerticalFov } from "./PerspectiveFrustumFov";
+
+export const readCameraWorldBasis = (
+  camera: CameraLike
+): { forward: Vector3; right: Vector3; up: Vector3 } => {
+  const direction = toSceneStateVec3(camera.directionWC);
+  const up = toSceneStateVec3(camera.upWC);
+  const right = toSceneStateVec3(
+    (camera as CameraLike & { rightWC?: unknown }).rightWC
+  );
+
+  if (direction && up) {
+    const forward = direction.clone().normalize();
+    const orthRight =
+      right?.clone().normalize() ??
+      new Vector3().crossVectors(forward, up).normalize();
+    const orthUp = new Vector3().crossVectors(orthRight, forward).normalize();
+
+    return {
+      forward,
+      right: orthRight,
+      up: orthUp,
+    };
+  }
+
+  const matrixWorld = toSceneStateMat4(camera.inverseViewMatrix);
+  if (matrixWorld) {
+    const orientation = new Quaternion().setFromRotationMatrix(matrixWorld);
+    const forward = new Vector3(0, 0, -1).applyQuaternion(orientation);
+    const localRight = new Vector3(1, 0, 0).applyQuaternion(orientation);
+    const localUp = new Vector3(0, 1, 0).applyQuaternion(orientation);
+    return {
+      forward: forward.normalize(),
+      right: localRight.normalize(),
+      up: localUp.normalize(),
+    };
+  }
+
+  return {
+    forward: new Vector3(0, 0, -1),
+    right: new Vector3(1, 0, 0),
+    up: new Vector3(0, 1, 0),
+  };
+};
 
 const resolveCaptureOptions = (
   includeFovOrOptions: boolean | CaptureCurrentCameraStateOptions

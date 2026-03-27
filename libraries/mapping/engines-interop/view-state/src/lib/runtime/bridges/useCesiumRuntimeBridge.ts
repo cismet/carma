@@ -3,9 +3,9 @@ import type { SceneLike } from "@carma-mapping/engines/cesium/api";
 import type { WritePriority } from "../../core/types";
 import { applyToCesium, readFromCesium } from "../../adapters/cesium";
 import {
-  useLiveRuntimeBridge,
-  type LiveRuntimeBridgeHandle,
-} from "./useLiveRuntimeBridge";
+  useSubscribedRuntimeBridge,
+  type SubscribedRuntimeBridgeHandle,
+} from "./useSubscribedRuntimeBridge";
 
 const attachSceneFrameListener = (
   scene: SceneLike,
@@ -32,8 +32,6 @@ export type UseCesiumRuntimeBridgeOptions = {
   claimOnInteraction?: boolean;
 };
 
-export type CesiumRuntimeBridgeHandle = LiveRuntimeBridgeHandle;
-
 export const useCesiumRuntimeBridge = ({
   id,
   scene = null,
@@ -42,8 +40,8 @@ export const useCesiumRuntimeBridge = ({
   claimPriority = "user-interaction",
   claimBeforePush = true,
   claimOnInteraction = false,
-}: UseCesiumRuntimeBridgeOptions): CesiumRuntimeBridgeHandle => {
-  const adapter = useLiveRuntimeBridge({
+}: UseCesiumRuntimeBridgeOptions): SubscribedRuntimeBridgeHandle => {
+  const adapter = useSubscribedRuntimeBridge({
     id,
     engine: "cesium",
     runtime: scene,

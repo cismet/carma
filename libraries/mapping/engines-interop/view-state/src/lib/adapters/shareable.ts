@@ -55,9 +55,6 @@ export type ShareableViewStateAdapterOptions = {
   sourceId?: string;
 };
 
-export type ViewStateShareableHashCodecOptions =
-  ShareableViewStateAdapterOptions;
-
 const DEFAULT_FOV_DEG = 45;
 const DEFAULT_MAX_PITCH_DEG = 85;
 const DEFAULT_MIN_RANGE_M = 10;
@@ -452,7 +449,7 @@ export const readFromShareableViewState = (
 };
 
 export const createViewStateShareableHashCodec = (
-  options: ViewStateShareableHashCodecOptions = {}
+  options: ShareableViewStateAdapterOptions = {}
 ): ViewStateHashCodec => ({
   encode: (state) => {
     if (!state) {

@@ -3,9 +3,9 @@ import type { Map as LeafletMap } from "leaflet";
 import type { WritePriority } from "../../core/types";
 import { applyToLeaflet, readFromLeaflet } from "../../adapters/leaflet";
 import {
-  useLiveRuntimeBridge,
-  type LiveRuntimeBridgeHandle,
-} from "./useLiveRuntimeBridge";
+  useSubscribedRuntimeBridge,
+  type SubscribedRuntimeBridgeHandle,
+} from "./useSubscribedRuntimeBridge";
 
 const attachLeafletListener = (
   map: LeafletMap,
@@ -31,8 +31,6 @@ export type UseLeafletRuntimeBridgeOptions = {
   claimOnInteraction?: boolean;
 };
 
-export type LeafletRuntimeBridgeHandle = LiveRuntimeBridgeHandle;
-
 export const useLeafletRuntimeBridge = ({
   id,
   map = null,
@@ -41,8 +39,8 @@ export const useLeafletRuntimeBridge = ({
   claimPriority = "user-interaction",
   claimBeforePush = true,
   claimOnInteraction = true,
-}: UseLeafletRuntimeBridgeOptions): LeafletRuntimeBridgeHandle => {
-  const adapter = useLiveRuntimeBridge({
+}: UseLeafletRuntimeBridgeOptions): SubscribedRuntimeBridgeHandle => {
+  const adapter = useSubscribedRuntimeBridge({
     id,
     engine: "leaflet",
     runtime: map,

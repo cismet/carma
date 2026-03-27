@@ -1,13 +1,8 @@
-import { isFiniteNumber } from "@carma/math";
-import {
-  readLongerEdgeFovFromIntrinsics,
-  readViewOffsetFromElement,
-  type CameraIntrinsics,
-} from "@carma-commons/camera/model";
+import { readLongerEdgeFovFromIntrinsics } from "@carma-commons/camera/model";
 import type { Radians } from "@carma/units/types";
 import {
   flyToCameraState,
-  readPerspectiveFrustumVerticalFov,
+  readSceneCameraIntrinsics,
   type Scene,
 } from "@carma-mapping/engines/cesium/api";
 import { readCesiumCameraStateFromViewState } from "../../adapters/cesium";
@@ -20,19 +15,7 @@ const readSceneLongerEdgeFov = (scene: Scene): Radians | undefined => {
     return undefined;
   }
 
-  const viewOffset = readViewOffsetFromElement(scene.canvas);
-  const fov = readPerspectiveFrustumVerticalFov(
-    camera.frustum as Parameters<typeof readPerspectiveFrustumVerticalFov>[0]
-  );
-  const intrinsics: CameraIntrinsics = {};
-  if (isFiniteNumber(fov)) {
-    intrinsics.fov = fov as CameraIntrinsics["fov"];
-  }
-  if (viewOffset) {
-    intrinsics.viewOffset = viewOffset;
-  }
-
-  return readLongerEdgeFovFromIntrinsics(intrinsics, {
+  return readLongerEdgeFovFromIntrinsics(readSceneCameraIntrinsics(scene), {
     viewportWidthPx: scene.canvas?.clientWidth,
     viewportHeightPx: scene.canvas?.clientHeight,
   });

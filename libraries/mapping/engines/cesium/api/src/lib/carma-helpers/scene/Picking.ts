@@ -1,4 +1,5 @@
 import { Cartesian2, Cartesian3, type Scene } from "../../cesium";
+import type { SceneLike } from "../../cesiumSceneTypes";
 import {
   GUIDE_NORMAL_EPSILON_SQUARED,
   getLocalUpDirectionAtPosition,
@@ -18,6 +19,58 @@ export const pickGlobePositionAtScreenPosition = (
   const pickRay = scene.camera.getPickRay(screenPosition);
   if (!pickRay) return null;
   return scene.globe.pick(pickRay, scene) ?? null;
+};
+
+export const pickBestAvailablePositionAtScreenPosition = (
+  scene: SceneLike,
+  screenPosition: Cartesian2
+): Cartesian3 | null => {
+  if (
+    scene.pickPositionSupported !== false &&
+    typeof scene.pickPosition === "function"
+  ) {
+    const picked = scene.pickPosition(screenPosition);
+    if (picked) {
+      return picked;
+    }
+  }
+
+  if (
+    typeof scene.camera?.getPickRay === "function" &&
+    typeof scene.globe?.pick === "function"
+  ) {
+    const pickRay = scene.camera.getPickRay(screenPosition);
+    if (pickRay) {
+      return scene.globe.pick(pickRay, scene) ?? null;
+    }
+  }
+
+  return null;
+};
+
+export const pickBestAvailablePositionAtViewportCenter = (
+  scene: SceneLike
+): Cartesian3 | null => {
+  const viewportWidth = scene.canvas?.clientWidth;
+  const viewportHeight = scene.canvas?.clientHeight;
+  if (
+    typeof viewportWidth !== "number" ||
+    !Number.isFinite(viewportWidth) ||
+    viewportWidth <= 0 ||
+    typeof viewportHeight !== "number" ||
+    !Number.isFinite(viewportHeight) ||
+    viewportHeight <= 0
+  ) {
+    return null;
+  }
+
+  const centerX = viewportWidth * 0.5;
+  const centerY = viewportHeight * 0.5;
+
+  return pickBestAvailablePositionAtScreenPosition(
+    scene,
+    new Cartesian2(centerX, centerY)
+  );
 };
 
 export const sampleSurfaceNormalAtScreenPosition = (

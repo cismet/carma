@@ -36,7 +36,6 @@ export {
 } from "./providers/navigation/useViewStateNavigationManager";
 export {
   useCesiumRuntimeBridge,
-  type CesiumRuntimeBridgeHandle,
   type UseCesiumRuntimeBridgeOptions,
 } from "./bridges/useCesiumRuntimeBridge";
 export {
@@ -48,12 +47,10 @@ export {
 } from "./bridges/useCesiumNavigationBridge";
 export {
   useMaplibreRuntimeBridge,
-  type MaplibreRuntimeBridgeHandle,
   type UseMaplibreRuntimeBridgeOptions,
 } from "./bridges/useMaplibreRuntimeBridge";
 export {
   useLeafletRuntimeBridge,
-  type LeafletRuntimeBridgeHandle,
   type UseLeafletRuntimeBridgeOptions,
 } from "./bridges/useLeafletRuntimeBridge";
 
@@ -79,7 +76,6 @@ export {
   readFromCesium,
   applyToCesium,
   readCesiumCameraStateFromViewState,
-  type CesiumCameraStateFromViewState,
 } from "../adapters/cesium";
 export { readFromMaplibre, applyToMaplibre } from "../adapters/maplibre";
 export { readFromLeaflet, applyToLeaflet } from "../adapters/leaflet";
@@ -91,7 +87,6 @@ export {
   createViewStateShareableHashCodec,
   type ShareableViewStatePrecision,
   type ShareableViewStateAdapterOptions,
-  type ViewStateShareableHashCodecOptions,
 } from "../adapters/shareable";
 
 // Cesium initial camera (pure functions, no React)

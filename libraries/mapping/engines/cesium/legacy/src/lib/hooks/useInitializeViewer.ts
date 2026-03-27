@@ -1,6 +1,10 @@
 import { useEffect, useRef, useState } from "react";
 import { useSelector } from "react-redux";
 import { getPixelResolutionFromZoomAtLatitudeRad } from "@carma/geo/utils";
+import {
+  readLongerEdgeFovFromIntrinsics,
+  readRangeFromMetersPerCssPixel,
+} from "@carma-commons/camera/model";
 
 // legacy viewer dependency should be widget only
 // eslint-disable-next-line carma/no-direct-cesium
@@ -66,89 +70,10 @@ const initialViewSetMap: WeakMap<Viewer, boolean> = new WeakMap();
 const DEFAULT_INITIAL_CAMERA_FOV_RAD = CesiumMath.PI_OVER_THREE;
 const CANONICAL_MAPLIBRE_TILE_SIZE_PX = 512;
 const MIN_INITIAL_CAMERA_RANGE_M = 0.01;
-const MIN_TAN_HALF_FOV = 1e-6;
 const INITIAL_VIEW_STABLE_REQUIRED_FRAMES = 6;
 const INITIAL_VIEW_STABLE_MAX_FRAMES = 120;
 const INITIAL_VIEW_POSITION_EPSILON_M = 0.02;
 const INITIAL_VIEW_ANGLE_EPSILON_RAD = 1e-4;
-
-const readLongerEdgeFovFromVerticalFov = ({
-  verticalFovRad,
-  viewportWidthPx,
-  viewportHeightPx,
-}: {
-  verticalFovRad: number;
-  viewportWidthPx: number;
-  viewportHeightPx: number;
-}): number | null => {
-  if (
-    !Number.isFinite(verticalFovRad) ||
-    verticalFovRad <= 0 ||
-    !Number.isFinite(viewportWidthPx) ||
-    viewportWidthPx <= 0 ||
-    !Number.isFinite(viewportHeightPx) ||
-    viewportHeightPx <= 0
-  ) {
-    return null;
-  }
-
-  return viewportWidthPx > viewportHeightPx
-    ? Math.atan(
-        Math.tan(verticalFovRad * 0.5) * (viewportWidthPx / viewportHeightPx)
-      ) * 2
-    : verticalFovRad;
-};
-
-const readRangeFromCanonicalMapZoom = ({
-  zoom,
-  latitudeRad,
-  longerEdgeFovRad,
-  viewportWidthPx,
-  viewportHeightPx,
-}: {
-  zoom: number;
-  latitudeRad: number;
-  longerEdgeFovRad: number;
-  viewportWidthPx: number;
-  viewportHeightPx: number;
-}): number | null => {
-  if (
-    !Number.isFinite(zoom) ||
-    !Number.isFinite(latitudeRad) ||
-    !Number.isFinite(longerEdgeFovRad) ||
-    longerEdgeFovRad <= 0 ||
-    !Number.isFinite(viewportWidthPx) ||
-    viewportWidthPx <= 0 ||
-    !Number.isFinite(viewportHeightPx) ||
-    viewportHeightPx <= 0
-  ) {
-    return null;
-  }
-
-  const projectionCenterRadiusPx =
-    Math.max(viewportWidthPx, viewportHeightPx) * 0.5;
-  const tanHalfFov = Math.tan(longerEdgeFovRad * 0.5);
-  if (!Number.isFinite(tanHalfFov) || Math.abs(tanHalfFov) < MIN_TAN_HALF_FOV) {
-    return null;
-  }
-
-  const metersPerCssPixel = getPixelResolutionFromZoomAtLatitudeRad(
-    zoom,
-    latitudeRad as Parameters<
-      typeof getPixelResolutionFromZoomAtLatitudeRad
-    >[1],
-    { tileSize: CANONICAL_MAPLIBRE_TILE_SIZE_PX }
-  );
-  if (!Number.isFinite(metersPerCssPixel) || metersPerCssPixel <= 0) {
-    return null;
-  }
-
-  const rangeM =
-    (metersPerCssPixel * projectionCenterRadiusPx) / Math.abs(tanHalfFov);
-  return Number.isFinite(rangeM) && rangeM >= MIN_INITIAL_CAMERA_RANGE_M
-    ? rangeM
-    : null;
-};
 
 const readCameraDestinationFromAnchorAndZoom = ({
   anchor,
@@ -165,10 +90,17 @@ const readCameraDestinationFromAnchorAndZoom = ({
   viewportWidthPx: number;
   viewportHeightPx: number;
 }): Cartesian3 | null => {
-  const rangeM = readRangeFromCanonicalMapZoom({
+  const metersPerCssPixel = getPixelResolutionFromZoomAtLatitudeRad(
     zoom,
-    latitudeRad: anchor.latitude,
-    longerEdgeFovRad,
+    anchor.latitude as Parameters<
+      typeof getPixelResolutionFromZoomAtLatitudeRad
+    >[1],
+    { tileSize: CANONICAL_MAPLIBRE_TILE_SIZE_PX }
+  );
+  const rangeM = readRangeFromMetersPerCssPixel({
+    metersPerCssPixel,
+    fovRad: longerEdgeFovRad,
+    minRangeM: MIN_INITIAL_CAMERA_RANGE_M,
     viewportWidthPx,
     viewportHeightPx,
   });
@@ -728,11 +660,18 @@ export const useInitializeViewer = (
         const resolvedLongerEdgeFov = Number.isFinite(fovLongerEdge)
           ? fovLongerEdge
           : Number.isFinite(fov)
-          ? readLongerEdgeFovFromVerticalFov({
-              verticalFovRad: fov,
-              viewportWidthPx,
-              viewportHeightPx,
-            })
+          ? readLongerEdgeFovFromIntrinsics(
+              {
+                fov: fov as Parameters<
+                  typeof readLongerEdgeFovFromIntrinsics
+                >[0]["fov"],
+                fovHorizontal: undefined,
+              },
+              {
+                viewportWidthPx,
+                viewportHeightPx,
+              }
+            )
           : DEFAULT_INITIAL_CAMERA_FOV_RAD;
 
         if (

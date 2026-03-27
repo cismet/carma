@@ -26,7 +26,7 @@ const bindInteractionClaiming = (
   };
 };
 
-export type UseLiveRuntimeBridgeOptions<TRuntime> = {
+export type UseSubscribedRuntimeBridgeOptions<TRuntime> = {
   id: string;
   engine: string;
   runtime?: TRuntime | null;
@@ -45,12 +45,12 @@ export type UseLiveRuntimeBridgeOptions<TRuntime> = {
   getInteractionElement?: (runtime: TRuntime) => HTMLElement | null | undefined;
 };
 
-export type LiveRuntimeBridgeHandle = ViewAdapterHandle & {
+export type SubscribedRuntimeBridgeHandle = ViewAdapterHandle & {
   publishCurrentState: () => boolean;
   readCurrentState: () => ViewState | null;
 };
 
-export const useLiveRuntimeBridge = <TRuntime>({
+export const useSubscribedRuntimeBridge = <TRuntime>({
   id,
   engine,
   runtime = null,
@@ -63,7 +63,7 @@ export const useLiveRuntimeBridge = <TRuntime>({
   apply,
   subscribe,
   getInteractionElement,
-}: UseLiveRuntimeBridgeOptions<TRuntime>): LiveRuntimeBridgeHandle => {
+}: UseSubscribedRuntimeBridgeOptions<TRuntime>): SubscribedRuntimeBridgeHandle => {
   const viewStateContext = useViewStateContext();
   const viewStateContextRef = useRef(viewStateContext);
   viewStateContextRef.current = viewStateContext;

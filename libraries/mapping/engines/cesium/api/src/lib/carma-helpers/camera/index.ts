@@ -25,10 +25,14 @@ export {
   readPerspectiveFrustumVerticalFov,
   writePerspectiveFrustumVerticalFov,
 } from "./PerspectiveFrustumFov";
+export { readSceneCameraIntrinsics } from "./SceneCameraIntrinsics";
 export { flyToTarget } from "./CameraFlight";
 export { animateOrbitHeadingPitchRange } from "./CameraFlight";
 export type { OrbitHeadingPitchRangeAnimationOptions } from "./CameraFlight";
-export { captureCurrentCameraState } from "./CameraStateCapture";
+export {
+  captureCurrentCameraState,
+  readCameraWorldBasis,
+} from "./CameraStateCapture";
 export { validateCameraStateHeadingPitchRoll } from "./CameraStateValidation";
 export {
   flyToBoundingSphereExtent,

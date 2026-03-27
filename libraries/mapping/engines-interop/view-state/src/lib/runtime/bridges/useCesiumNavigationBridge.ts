@@ -5,10 +5,8 @@ import type {
   ViewStateNavigationManagerContextValue,
   WritePriority,
 } from "../../core/types";
-import {
-  useCesiumRuntimeBridge,
-  type CesiumRuntimeBridgeHandle,
-} from "./useCesiumRuntimeBridge";
+import { useCesiumRuntimeBridge } from "./useCesiumRuntimeBridge";
+import type { SubscribedRuntimeBridgeHandle } from "./useSubscribedRuntimeBridge";
 import { ViewStateNavigationManagerContext } from "../providers/navigation/ViewStateNavigationManagerContext";
 
 export const CESIUM_NAVIGATION_BRIDGE_LISTENER = {
@@ -43,7 +41,7 @@ export type UseCesiumNavigationBridgeOptions = {
     | readonly CesiumNavigationBridgeListener[];
 };
 
-export type CesiumNavigationBridgeHandle = CesiumRuntimeBridgeHandle & {
+export type CesiumNavigationBridgeHandle = SubscribedRuntimeBridgeHandle & {
   commitCurrentSceneState: (
     reason: ViewStateNavigationCommitReason,
     options?: { replace?: boolean; force?: boolean }

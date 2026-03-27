@@ -3,9 +3,9 @@ import type { Map as MapLibreMap } from "maplibre-gl";
 import type { WritePriority } from "../../core/types";
 import { applyToMaplibre, readFromMaplibre } from "../../adapters/maplibre";
 import {
-  useLiveRuntimeBridge,
-  type LiveRuntimeBridgeHandle,
-} from "./useLiveRuntimeBridge";
+  useSubscribedRuntimeBridge,
+  type SubscribedRuntimeBridgeHandle,
+} from "./useSubscribedRuntimeBridge";
 
 const attachMaplibreListener = (
   map: MapLibreMap,
@@ -36,8 +36,6 @@ export type UseMaplibreRuntimeBridgeOptions = {
   claimOnInteraction?: boolean;
 };
 
-export type MaplibreRuntimeBridgeHandle = LiveRuntimeBridgeHandle;
-
 export const useMaplibreRuntimeBridge = ({
   id,
   map = null,
@@ -46,8 +44,8 @@ export const useMaplibreRuntimeBridge = ({
   claimPriority = "user-interaction",
   claimBeforePush = true,
   claimOnInteraction = true,
-}: UseMaplibreRuntimeBridgeOptions): MaplibreRuntimeBridgeHandle => {
-  const adapter = useLiveRuntimeBridge({
+}: UseMaplibreRuntimeBridgeOptions): SubscribedRuntimeBridgeHandle => {
+  const adapter = useSubscribedRuntimeBridge({
     id,
     engine: "maplibre",
     runtime: map,
