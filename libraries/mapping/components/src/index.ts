@@ -95,3 +95,5 @@ export {
   PoiFilterPanel,
   type PoiFilterPanelProps,
 } from "./lib/components/PoiFilterPanel";
+
+export { applyStoredPoiFilter } from "./lib/components/poiFilterUtils";
