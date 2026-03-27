@@ -79,3 +79,5 @@ export {
   PoiFilterPanel,
   type PoiFilterPanelProps,
 } from "./lib/components/PoiFilterPanel";
+
+export { useRestoreLayerFilter } from "./lib/components/useRestoreLayerFilter";
