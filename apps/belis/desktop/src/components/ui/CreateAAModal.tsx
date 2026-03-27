@@ -1,9 +1,11 @@
-import { useMemo } from "react";
-import { Modal, Button, Form, Input, Row, Col, Select } from "antd";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { Modal, Button, Form, Input, Row, Col, Select, message } from "antd";
 import { useSelector } from "react-redux";
 import dayjs from "dayjs";
-import { getLogin } from "../../store/slices/auth";
+import { getLogin, getJWT } from "../../store/slices/auth";
 import { getKeyTablesData } from "../../store/slices/keyTables";
+import { buildNewAAFromFeatures } from "../../helper/buildNewAAFromFeatures";
+import { updateDataByClassName } from "../../helper/apiMethods";
 import type { SidebarFeature } from "./BelisSidebar";
 
 const FormLabel = ({ children }: { children: React.ReactNode }) => (
@@ -19,7 +21,9 @@ interface CreateAAModalProps {
 const CreateAAModal = ({ open, onClose, highlights }: CreateAAModalProps) => {
   const [form] = Form.useForm();
   const login = useSelector(getLogin);
+  const jwt = useSelector(getJWT);
   const keyTablesData = useSelector(getKeyTablesData);
+  const [saving, setSaving] = useState(false);
 
   const teamOptions = useMemo(() => {
     if (!keyTablesData?.teams) return [];
@@ -35,19 +39,53 @@ const CreateAAModal = ({ open, onClose, highlights }: CreateAAModalProps) => {
 
   const today = dayjs().format("DD.MM.YYYY");
 
-  const handleSubmit = () => {
+  useEffect(() => {
+    if (open) {
+      console.log(
+        "xx features:",
+        highlights.map((f) => ({
+          sourceLayer: f.sourceLayer,
+          dbId: f.properties?.id,
+          properties: f.properties,
+        }))
+      );
+    }
+  }, [open, highlights]);
+
+  const handleSubmit = useCallback(() => {
+    if (!jwt || !login) return;
+
     const values = form.getFieldsValue();
-    console.log({
-      formData: {
-        zugewiesen_an: values.zugewiesen_an ?? null,
-        angelegt_von: login,
-        angelegt_am: dayjs().format("YYYY-MM-DDTHH:mm:ss"),
-      },
-      highlights,
+    const teamId = values.zugewiesen_an as number | undefined;
+
+    const aaSaveData = buildNewAAFromFeatures({
+      team: teamId ? { id: teamId } : { id: -1 },
+      angelegtVon: login,
+      features: highlights,
     });
-    form.resetFields();
-    onClose();
-  };
+
+    console.log(
+      "xx final save payload:",
+      JSON.stringify(aaSaveData, null, 2)
+    );
+
+    setSaving(true);
+
+    updateDataByClassName(jwt as string, "arbeitsauftrag", aaSaveData)
+      .then((result) => {
+        const aaId = (result as { id: number }).id;
+        void message.success(`Arbeitsauftrag erstellt (ID: ${aaId})`);
+        form.resetFields();
+        onClose();
+      })
+      .catch((err: unknown) => {
+        console.error("[CreateAAModal] Save failed:", err);
+        void message.error("Fehler beim Erstellen des Arbeitsauftrags");
+      })
+      .finally(() => {
+        setSaving(false);
+      });
+  }, [jwt, login, highlights, form, onClose]);
 
   const handleCancel = () => {
     form.resetFields();
@@ -63,8 +101,8 @@ const CreateAAModal = ({ open, onClose, highlights }: CreateAAModalProps) => {
       width={600}
       footer={
         <div className="flex justify-end gap-2 pt-2 border-t border-gray-100">
-          <Button onClick={handleCancel}>Abbrechen</Button>
-          <Button type="primary" onClick={handleSubmit}>
+          <Button onClick={handleCancel} disabled={saving}>Abbrechen</Button>
+          <Button type="primary" onClick={handleSubmit} loading={saving}>
             Erstellen
           </Button>
         </div>
