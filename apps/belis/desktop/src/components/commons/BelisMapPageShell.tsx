@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import BelisMapLibWrapper from "./BelisMapWrapper";
 import { useSelector, useDispatch } from "react-redux";
 import { CustomCard } from "./CustomCard";
@@ -72,6 +72,16 @@ const BelisMapPageShell = () => {
     SidebarFeature[] | null
   >(null);
   const [lassoActive, setLassoActive] = useState(false);
+  const [activeHighlights, setActiveHighlights] = useState<
+    SidebarFeature[] | null
+  >(null);
+
+  const handleHighlightsChange = useCallback(
+    (highlights: SidebarFeature[] | null) => {
+      setActiveHighlights(highlights);
+    },
+    []
+  );
 
   const { isDatasheetOpen, closeDatasheet } = useDatasheet();
   const [windowWidth, windowHeight] = useWindowSize();
@@ -182,10 +192,25 @@ const BelisMapPageShell = () => {
                     </Badge>
                   )}
                 {sidebarVariant === "fachobjekte" && (
-                  <Tooltip title="AA erstellen">
+                  <Tooltip
+                    title={
+                      activeHighlights && activeHighlights.length > 0
+                        ? "AA erstellen"
+                        : "Zuerst Fachobjekte auswählen"
+                    }
+                  >
                     <button
-                      onClick={() => console.log("hallo world")}
-                      className="flex items-center justify-center w-8 h-8 rounded border border-gray-300 bg-white text-gray-500 hover:bg-gray-50"
+                      onClick={() => {
+                        if (activeHighlights && activeHighlights.length > 0) {
+                          console.log(activeHighlights);
+                        }
+                      }}
+                      disabled={!activeHighlights || activeHighlights.length === 0}
+                      className={`flex items-center justify-center w-8 h-8 rounded border ${
+                        activeHighlights && activeHighlights.length > 0
+                          ? "border-gray-300 bg-white text-gray-500 hover:bg-gray-50"
+                          : "border-gray-200 bg-gray-100 text-gray-300 cursor-not-allowed"
+                      }`}
                     >
                       <PlusOutlined />
                     </button>
@@ -232,10 +257,25 @@ const BelisMapPageShell = () => {
                 )}
               {windowWidth <= 1364 &&
                 sidebarVariant === "fachobjekte" && (
-                  <Tooltip title="AA erstellen">
+                  <Tooltip
+                    title={
+                      activeHighlights && activeHighlights.length > 0
+                        ? "AA erstellen"
+                        : "Zuerst Fachobjekte auswählen"
+                    }
+                  >
                     <button
-                      onClick={() => console.log("hallo world")}
-                      className="flex items-center justify-center w-8 h-8 rounded border border-gray-300 bg-white text-gray-500 hover:bg-gray-50"
+                      onClick={() => {
+                        if (activeHighlights && activeHighlights.length > 0) {
+                          console.log(activeHighlights);
+                        }
+                      }}
+                      disabled={!activeHighlights || activeHighlights.length === 0}
+                      className={`flex items-center justify-center w-8 h-8 rounded border ${
+                        activeHighlights && activeHighlights.length > 0
+                          ? "border-gray-300 bg-white text-gray-500 hover:bg-gray-50"
+                          : "border-gray-200 bg-gray-100 text-gray-300 cursor-not-allowed"
+                      }`}
                     >
                       <PlusOutlined />
                     </button>
@@ -331,6 +371,7 @@ const BelisMapPageShell = () => {
             lassoActive={lassoActive}
             onLassoDeactivate={() => setLassoActive(false)}
             sidebarVariant={sidebarVariant}
+            onHighlightsChange={handleHighlightsChange}
           />
         </CustomCard>
       </div>

@@ -118,6 +118,7 @@ interface BelisMapLibWrapperProps {
   lassoActive: boolean;
   onLassoDeactivate?: () => void;
   sidebarVariant: "fachobjekte" | "arbeitsauftraege";
+  onHighlightsChange?: (highlights: SidebarFeature[] | null) => void;
 }
 
 const BelisMapLibWrapper = ({
@@ -127,6 +128,7 @@ const BelisMapLibWrapper = ({
   lassoActive,
   onLassoDeactivate,
   sidebarVariant,
+  onHighlightsChange,
 }: BelisMapLibWrapperProps) => {
   const dispatch: AppDispatch = useDispatch();
   const store = useStore<RootState>();
@@ -245,6 +247,11 @@ const BelisMapLibWrapper = ({
   useEffect(() => {
     setAdjustedHighlights(highlightResults);
   }, [highlightResults]);
+
+  // Notify parent about highlight changes
+  useEffect(() => {
+    onHighlightsChange?.(adjustedHighlights);
+  }, [adjustedHighlights, onHighlightsChange]);
 
   const handleHighlightToggle = useCallback(
     (feature: maplibregl.MapGeoJSONFeature) => {
