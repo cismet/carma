@@ -160,6 +160,8 @@ const GeoportalLayerButton = ({
   useEffect(() => {
     if (!layer.filterConfig || !layer.filterState || filterAppliedRef.current)
       return;
+    if (layer.filterConfig.filterType === "poi") return;
+    const filterConfig = layer.filterConfig;
 
     const mapEntry = maplibreMaps?.find((entry) => entry.id === id);
     if (!mapEntry?.map) return;
@@ -167,12 +169,12 @@ const GeoportalLayerButton = ({
     const libreMap = mapEntry.map;
     try {
       const originals = captureOriginalFilters(
-        layer.filterConfig.layerPattern,
+        filterConfig.layerPattern,
         libreMap
       );
 
       const filterExpression = buildFilterExpression(
-        layer.filterConfig,
+        filterConfig,
         layer.filterState
       );
 

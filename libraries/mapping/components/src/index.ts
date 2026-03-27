@@ -74,3 +74,8 @@ export {
   type AdvancedFilterState,
   type AdvancedFilterPanelProps,
 } from "./lib/components/AdvancedFilterPanel";
+
+export {
+  PoiFilterPanel,
+  type PoiFilterPanelProps,
+} from "./lib/components/PoiFilterPanel";
