@@ -1,4 +1,4 @@
-import { Matrix4, Quaternion, Vector3 } from "@carma/math";
+import { Matrix4, Quaternion, Vector3 } from "three";
 
 const LOCAL_RIGHT = new Vector3(1, 0, 0);
 const LOCAL_UP = new Vector3(0, 1, 0);

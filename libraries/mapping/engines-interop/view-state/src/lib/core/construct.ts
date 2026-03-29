@@ -1,6 +1,6 @@
-import { Quaternion, Vector3 } from "@carma/math";
 import type { Meters, Radians } from "@carma/units/types";
 import type { Altitude } from "@carma/geo/types";
+import { Quaternion, Vector3 } from "three";
 import {
   cartographicToEcef,
   enuOffsetToEcef,

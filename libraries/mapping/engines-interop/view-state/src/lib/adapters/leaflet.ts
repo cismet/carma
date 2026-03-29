@@ -7,14 +7,14 @@ import {
 } from "@carma/geo/utils";
 import type { Map as LeafletMap } from "leaflet";
 import {
-  readRangeFromMetersPerCssPixel,
-  readMetersPerCssPixel,
+  CAMERA_TYPE,
+  buildOrthographicScale,
 } from "@carma-commons/camera/model";
-import { buildViewState, type AngleBasedViewInput } from "../core/construct";
+import { buildViewState } from "../core/construct";
 import {
   deriveOrbitAngles,
-  deriveRange,
   deriveRoll,
+  readMetersPerCssPixelFromViewState,
 } from "../core/derivations";
 import type { ViewState, ViewStateMetadata } from "../core/types";
 
@@ -22,15 +22,13 @@ import type { ViewState, ViewStateMetadata } from "../core/types";
 // Constants
 // ---------------------------------------------------------------------------
 
-const DEFAULT_FOV_DEG = 45;
 const DEFAULT_ALTITUDE_M = 0;
+const DEFAULT_CANONICAL_BEARING_RAD = 0;
+const DEFAULT_CANONICAL_PITCH_RAD = 0;
+const DEFAULT_CANONICAL_RANGE_M = 1;
 const LEAFLET_TILE_SIZE_PX = 256;
-const MIN_RANGE_M = 0.01;
 const LEAFLET_APPLY_CENTER_EPSILON_DEG = 1e-7;
 const LEAFLET_APPLY_ZOOM_EPSILON = 1e-6;
-const DEFAULT_VIEWPORT_PX = 1920;
-
-const zoom512to256 = (z512: number): number => z512 + 1;
 
 const isLeafletTargetViewEqual = (
   current: { lat: number; lng: number; zoom: number },
@@ -40,38 +38,16 @@ const isLeafletTargetViewEqual = (
   Math.abs(current.lng - target.lng) <= LEAFLET_APPLY_CENTER_EPSILON_DEG &&
   Math.abs(current.zoom - target.zoom) <= LEAFLET_APPLY_ZOOM_EPSILON;
 
-const readViewportDimension = (
-  preferred: number | undefined,
-  fallback: number | undefined
-): number =>
-  isFiniteNumber(preferred) && preferred > 0
-    ? preferred
-    : isFiniteNumber(fallback) && fallback > 0
-    ? fallback
-    : DEFAULT_VIEWPORT_PX;
-
 const deriveLeafletZoom = (
   state: ViewState,
   viewportWidthPx?: number,
   viewportHeightPx?: number
 ): number => {
-  const widthPx = readViewportDimension(
+  const metersPerPx = readMetersPerCssPixelFromViewState(
+    state,
     viewportWidthPx,
-    state.metadata.viewport?.widthPx
+    viewportHeightPx
   );
-  const heightPx = readViewportDimension(
-    viewportHeightPx,
-    state.metadata.viewport?.heightPx
-  );
-  const rangeM = deriveRange(state);
-  const fovRad = degToRadNumeric(DEFAULT_FOV_DEG)!;
-
-  const metersPerPx = readMetersPerCssPixel({
-    rangeM,
-    fovRad,
-    viewportWidthPx: widthPx,
-    viewportHeightPx: heightPx,
-  });
   if (!isFiniteNumber(metersPerPx) || metersPerPx <= 0) {
     return 0;
   }
@@ -91,11 +67,7 @@ const deriveLeafletZoom = (
 export const readFromLeaflet = (
   map: LeafletMap,
   sourceId: string,
-  options?: {
-    altitudeM?: number;
-    fovDeg?: number;
-    seedState?: ViewState | null;
-  }
+  seedState: ViewState | null = null
 ): ViewState | null => {
   let center: {
     lng: number;
@@ -116,16 +88,9 @@ export const readFromLeaflet = (
 
   if (!isFiniteNumber(zoom256)) return null;
 
-  const seedState = options?.seedState ?? null;
-  const seedOrbit = seedState ? deriveOrbitAngles(seedState) : null;
-  const seedRoll = seedState ? deriveRoll(seedState) : null;
   const altitudeM =
-    options?.altitudeM ??
     (seedState?.anchorCartographic.altitude as number | undefined) ??
     DEFAULT_ALTITUDE_M;
-  const fovRad =
-    seedState?.intrinsics.fov ??
-    degToRadNumeric(options?.fovDeg ?? DEFAULT_FOV_DEG)!;
   const viewportWidthPx =
     typeof container?.clientWidth === "number" &&
     isFiniteNumber(container.clientWidth) &&
@@ -144,20 +109,19 @@ export const readFromLeaflet = (
   const metersPerPx = getPixelResolutionFromZoomAtLatitudeRad(zoom256, latRad, {
     tileSize: LEAFLET_TILE_SIZE_PX,
   });
-  const rangeM = readRangeFromMetersPerCssPixel({
-    metersPerCssPixel: metersPerPx,
-    fovRad,
-    minRangeM: MIN_RANGE_M,
-    viewportWidthPx,
-    viewportHeightPx,
-  });
-  if (!isFiniteNumber(rangeM)) return null;
+  const orthographicScale = buildOrthographicScale(metersPerPx);
 
   const metadata: ViewStateMetadata = {
     frameId: 0,
     timestampMs: Date.now(),
     sourceId,
     source: "user-interaction",
+    poseEvaluability: {
+      bearing: false,
+      pitch: false,
+      roll: false,
+      range: false,
+    },
     ...(viewportWidthPx && viewportHeightPx
       ? {
           viewport: {
@@ -168,19 +132,26 @@ export const readFromLeaflet = (
       : {}),
   };
 
-  const input: AngleBasedViewInput = {
+  const preservedOrbit = seedState ? deriveOrbitAngles(seedState) : null;
+  const preservedRoll = seedState ? deriveRoll(seedState) : undefined;
+
+  return buildViewState({
     longitude: degToRadNumeric(center.lng)!,
     latitude: latRad as number,
     altitude: altitudeM,
-    bearing: seedOrbit?.bearing ?? 0,
-    pitch: seedOrbit?.pitch ?? 0,
-    ...(seedRoll ? { roll: seedRoll } : {}),
-    range: rangeM,
-    intrinsics: {},
+    // Leaflet remains an orthographic source, but when a shared seed state is
+    // available we preserve its orbit pose so a 2D controller does not erase
+    // the current 3D comparison pose of sibling runtimes.
+    bearing: preservedOrbit?.bearing ?? DEFAULT_CANONICAL_BEARING_RAD,
+    pitch: preservedOrbit?.pitch ?? DEFAULT_CANONICAL_PITCH_RAD,
+    ...(typeof preservedRoll === "number" ? { roll: preservedRoll } : {}),
+    range: preservedOrbit?.range ?? DEFAULT_CANONICAL_RANGE_M,
+    intrinsics: {
+      type: CAMERA_TYPE.ORTHOGRAPHIC,
+      ...(orthographicScale ? { orthographicScale } : {}),
+    },
     metadata,
-  };
-
-  return buildViewState(input);
+  });
 };
 
 // ---------------------------------------------------------------------------

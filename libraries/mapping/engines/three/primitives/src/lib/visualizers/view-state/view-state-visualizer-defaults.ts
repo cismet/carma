@@ -60,11 +60,16 @@ export const DEFAULT_VIEW_STATE_VISUALIZER_DISPLAY_OPTIONS = Object.freeze({
     }),
     axes: Object.freeze({
       show: true,
+      showInactive: true,
       lineWidthPx: 0.5,
     }),
     frustum: Object.freeze({
       show: true,
+      showInactive: true,
       lineWidthPx: 0.5,
+    }),
+    projectionPlane: Object.freeze({
+      show: true,
     }),
     marker: Object.freeze({
       show: true,
@@ -177,6 +182,10 @@ export const mergeViewStateVisualizerDisplayOptions = (
             ...(accumulator.cameraView?.frustum ?? {}),
             ...(display.cameraView?.frustum ?? {}),
           },
+          projectionPlane: {
+            ...(accumulator.cameraView?.projectionPlane ?? {}),
+            ...(display.cameraView?.projectionPlane ?? {}),
+          },
           marker: {
             ...(accumulator.cameraView?.marker ?? {}),
             ...(display.cameraView?.marker ?? {}),
@@ -224,6 +233,11 @@ export const mergeViewStateVisualizerDisplayOptions = (
       frustum: {
         ...DEFAULT_VIEW_STATE_VISUALIZER_DISPLAY_OPTIONS.cameraView.frustum,
         ...(merged.cameraView?.frustum ?? {}),
+      },
+      projectionPlane: {
+        ...DEFAULT_VIEW_STATE_VISUALIZER_DISPLAY_OPTIONS.cameraView
+          .projectionPlane,
+        ...(merged.cameraView?.projectionPlane ?? {}),
       },
       marker: {
         ...DEFAULT_VIEW_STATE_VISUALIZER_DISPLAY_OPTIONS.cameraView.marker,
@@ -348,7 +362,7 @@ export const VIEW_STATE_VISUALIZER_MATERIAL_DEFAULTS = Object.freeze({
     edgeColor: 0x64748b,
     emissiveColor: 0x334155,
     rangeOpacity: 0.76,
-    markerOpacity: 0.56,
+    bodyOpacity: 0.32,
     markerEmissiveIntensity: 0.05,
   }),
   altitude: Object.freeze({
@@ -371,8 +385,8 @@ export const VIEW_STATE_VISUALIZER_MATERIAL_DEFAULTS = Object.freeze({
     rightOpacity: 0.95,
     upColor: 0x15803d,
     upOpacity: 0.95,
-    surfaceOpacity: 0.14,
-    offsetSurfaceOpacity: 0.28,
+    surfaceOpacity: 0.32,
+    offsetSurfaceOpacity: 0.32,
   }),
   frustum: Object.freeze({
     color: 0x475569,

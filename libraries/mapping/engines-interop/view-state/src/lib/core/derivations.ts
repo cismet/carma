@@ -1,9 +1,5 @@
 import { isFiniteNumber } from "@carma/math";
-import {
-  readMetersPerCssPixel,
-  readLongerEdgeFovFromIntrinsics,
-  type CameraIntrinsics,
-} from "@carma-commons/camera/model";
+import { readMetersPerCssPixelFromIntrinsics } from "@carma-commons/camera/model";
 import type { Meters, Radians } from "@carma/units/types";
 import { getZoomFromPixelResolutionAtLatitudeRad } from "@carma/geo/utils";
 import { deriveAnchoredViewAnglesFromOrientation } from "./anchoredOrbitAngles";
@@ -48,6 +44,25 @@ const readViewportDimensions = (
   return { widthPx, heightPx };
 };
 
+export const readMetersPerCssPixelFromViewState = (
+  state: ViewState,
+  viewportWidthPx?: number,
+  viewportHeightPx?: number
+): Meters | null => {
+  const { widthPx, heightPx } = readViewportDimensions(
+    state,
+    viewportWidthPx,
+    viewportHeightPx
+  );
+
+  return readMetersPerCssPixelFromIntrinsics({
+    intrinsics: state.intrinsics,
+    rangeM: deriveRange(state),
+    viewportWidthPx: widthPx,
+    viewportHeightPx: heightPx,
+  });
+};
+
 /**
  * Line-of-sight distance from camera to anchor in meters.
  */
@@ -90,26 +105,11 @@ export const deriveZoom = (
   viewportWidthPx?: number,
   viewportHeightPx?: number
 ): number => {
-  const { widthPx, heightPx } = readViewportDimensions(
+  const mpp = readMetersPerCssPixelFromViewState(
     state,
     viewportWidthPx,
     viewportHeightPx
   );
-  const range = deriveRange(state);
-  const fov = readLongerEdgeFovFromIntrinsics(state.intrinsics, {
-    viewportWidthPx: widthPx,
-    viewportHeightPx: heightPx,
-  });
-  if (!isFiniteNumber(fov) || fov <= 0 || range <= 0) {
-    return 0;
-  }
-
-  const mpp = readMetersPerCssPixel({
-    rangeM: range,
-    fovRad: fov,
-    viewportWidthPx: widthPx,
-    viewportHeightPx: heightPx,
-  });
   if (!isFiniteNumber(mpp) || mpp <= 0) {
     return 0;
   }

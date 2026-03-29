@@ -1,12 +1,24 @@
 import { useMemo, type CSSProperties, type ReactNode } from "react";
-import { CAMERA_TYPE, type CameraType } from "@carma-commons/camera/model";
+import {
+  CAMERA_TYPE,
+  readLongerEdgeFovFromIntrinsics,
+  readMetersPerCssPixelFromIntrinsics,
+  readRangeFromMetersPerCssPixel,
+  type CameraType,
+} from "@carma-commons/camera/model";
 import { latLngRadToDeg } from "@carma/geo/helpers";
 import {
   ObjectCentricViewStateInfoBox,
   type ObjectCentricViewStateInfoRow,
 } from "@carma-mapping/components";
-import { type ViewStateVisualizerDisplayOptions } from "@carma-mapping/engines/three/primitives";
 import {
+  type ViewStateVisualizerDisplayOptions,
+  type ViewStateVisualizerVisualizedOptions,
+} from "@carma-mapping/engines/three/primitives";
+import {
+  buildViewState,
+  deriveOrbitAngles,
+  deriveRoll,
   deriveView,
   useViewState,
   useViewStateControllerId,
@@ -163,6 +175,140 @@ const readIntrinsicsAspect = (
   }
 
   return null;
+};
+
+const readVisualizerViewportDimensions = (
+  state: ViewState | null | undefined
+): { widthPx: number; heightPx: number } | null => {
+  const viewport = state?.metadata.viewport;
+  if (
+    typeof viewport?.widthPx === "number" &&
+    Number.isFinite(viewport.widthPx) &&
+    viewport.widthPx > 0 &&
+    typeof viewport?.heightPx === "number" &&
+    Number.isFinite(viewport.heightPx) &&
+    viewport.heightPx > 0
+  ) {
+    return {
+      widthPx: viewport.widthPx,
+      heightPx: viewport.heightPx,
+    };
+  }
+
+  const viewOffset = state?.intrinsics.viewOffset;
+  if (
+    typeof viewOffset?.width === "number" &&
+    Number.isFinite(viewOffset.width) &&
+    viewOffset.width > 0 &&
+    typeof viewOffset?.height === "number" &&
+    Number.isFinite(viewOffset.height) &&
+    viewOffset.height > 0
+  ) {
+    return {
+      widthPx: viewOffset.width,
+      heightPx: viewOffset.height,
+    };
+  }
+
+  return null;
+};
+
+const readPoseEvaluability = (
+  state: ViewState,
+  key: "bearing" | "pitch" | "roll" | "range"
+): boolean => state.metadata.poseEvaluability?.[key] ?? true;
+
+const buildVisualizerComparisonState = ({
+  state,
+  referencePerspectiveState,
+}: {
+  state: ViewState;
+  referencePerspectiveState: ViewState | null;
+}): ViewState => {
+  const isOrthographic = state.intrinsics.type === CAMERA_TYPE.ORTHOGRAPHIC;
+  if (!isOrthographic) {
+    return state;
+  }
+
+  let comparisonRange: number | null = null;
+  if (
+    referencePerspectiveState &&
+    referencePerspectiveState.intrinsics.type === CAMERA_TYPE.PERSPECTIVE
+  ) {
+    const stateViewport =
+      readVisualizerViewportDimensions(state) ??
+      readVisualizerViewportDimensions(referencePerspectiveState);
+    const referenceViewport = readVisualizerViewportDimensions(
+      referencePerspectiveState
+    );
+    const longerEdgeFov = readLongerEdgeFovFromIntrinsics(
+      referencePerspectiveState.intrinsics,
+      {
+        viewportWidthPx: referenceViewport?.widthPx,
+        viewportHeightPx: referenceViewport?.heightPx,
+      }
+    );
+    const metersPerCssPixel = readMetersPerCssPixelFromIntrinsics({
+      intrinsics: state.intrinsics,
+      viewportWidthPx: stateViewport?.widthPx,
+      viewportHeightPx: stateViewport?.heightPx,
+    });
+
+    if (
+      typeof longerEdgeFov === "number" &&
+      Number.isFinite(longerEdgeFov) &&
+      longerEdgeFov > 0 &&
+      typeof metersPerCssPixel === "number" &&
+      Number.isFinite(metersPerCssPixel) &&
+      metersPerCssPixel > 0
+    ) {
+      comparisonRange = readRangeFromMetersPerCssPixel({
+        metersPerCssPixel,
+        fovRad: longerEdgeFov,
+        viewportWidthPx: stateViewport?.widthPx,
+        viewportHeightPx: stateViewport?.heightPx,
+      });
+    }
+  }
+
+  const derivedOrbit = deriveOrbitAngles(state);
+  const derivedRoll = deriveRoll(state);
+  const resolvedBearing = readPoseEvaluability(state, "bearing")
+    ? derivedOrbit.bearing
+    : 0;
+  const resolvedPitch = readPoseEvaluability(state, "pitch")
+    ? derivedOrbit.pitch
+    : 0;
+  const resolvedRoll = readPoseEvaluability(state, "roll") ? derivedRoll : 0;
+  const resolvedRange =
+    typeof comparisonRange === "number" &&
+    Number.isFinite(comparisonRange) &&
+    comparisonRange > 0
+      ? comparisonRange
+      : readPoseEvaluability(state, "range")
+      ? derivedOrbit.range
+      : 1;
+
+  if (
+    resolvedBearing === derivedOrbit.bearing &&
+    resolvedPitch === derivedOrbit.pitch &&
+    resolvedRoll === derivedRoll &&
+    resolvedRange === derivedOrbit.range
+  ) {
+    return state;
+  }
+
+  return buildViewState({
+    longitude: state.anchorCartographic.longitude,
+    latitude: state.anchorCartographic.latitude,
+    altitude: state.anchorCartographic.altitude as number,
+    bearing: resolvedBearing,
+    pitch: resolvedPitch,
+    roll: resolvedRoll,
+    range: resolvedRange,
+    intrinsics: state.intrinsics,
+    metadata: state.metadata,
+  });
 };
 
 const toOverlayViewState = (state: ViewState): ShareableViewState => {
@@ -341,6 +487,18 @@ const formatViewSyncTargetTableRows = (
       ? radToDegNumeric(intrinsics.fovHorizontal)
       : undefined) ?? fovVertical;
   const projectionZoom = Number.isFinite(target.zoom) ? target.zoom : null;
+  const fovDisplayValue =
+    intrinsics?.type === CAMERA_TYPE.ORTHOGRAPHIC
+      ? "n/a"
+      : `${formatOrUnresolved(
+          fovVertical,
+          (resolvedFovVertical) =>
+            `${formatCompactNumber(resolvedFovVertical, 1)}°`
+        )} / ${formatOrUnresolved(
+          fovHorizontal,
+          (resolvedFovHorizontal) =>
+            `${formatCompactNumber(resolvedFovHorizontal, 1)}°`
+        )}`;
 
   return [
     {
@@ -407,15 +565,7 @@ const formatViewSyncTargetTableRows = (
     },
     {
       label: "fov v / h",
-      value: `${formatOrUnresolved(
-        fovVertical,
-        (resolvedFovVertical) =>
-          `${formatCompactNumber(resolvedFovVertical, 1)}°`
-      )} / ${formatOrUnresolved(
-        fovHorizontal,
-        (resolvedFovHorizontal) =>
-          `${formatCompactNumber(resolvedFovHorizontal, 1)}°`
-      )}`,
+      value: fovDisplayValue,
     },
     {
       label: "aspect ratio",
@@ -567,34 +717,77 @@ export const buildPanelStatusText = (
 
 export const ViewSyncMetaOverlay = ({
   fallbackTarget,
+  visualizerStates,
+  visualizerActiveCameraIndex = 0,
   style,
   visualizerWidth,
   visualizerHeight,
 }: {
   fallbackTarget: ViewState;
+  visualizerStates?: readonly ViewState[];
+  visualizerActiveCameraIndex?: number;
   style?: CSSProperties;
   visualizerWidth?: number;
   visualizerHeight?: number;
 }) => {
   const currentState = useViewState();
   const controllerId = useViewStateControllerId();
-  const visualizerState = controllerId
+  const primaryVisualizerState = controllerId
     ? currentState ?? fallbackTarget
     : fallbackTarget;
+  const rawVisualizerStates = useMemo(
+    () =>
+      !visualizerStates || visualizerStates.length === 0
+        ? [primaryVisualizerState]
+        : [...visualizerStates],
+    [primaryVisualizerState, visualizerStates]
+  );
+  const visualizerReferencePerspectiveState = useMemo(
+    () =>
+      rawVisualizerStates.find(
+        (state) => state.intrinsics.type === CAMERA_TYPE.PERSPECTIVE
+      ) ?? null,
+    [rawVisualizerStates]
+  );
+  const visualizerState = useMemo(() => {
+    const resolvedStates = rawVisualizerStates.map((state) =>
+      buildVisualizerComparisonState({
+        state,
+        referencePerspectiveState: visualizerReferencePerspectiveState,
+      })
+    );
+
+    return resolvedStates.length === 1 ? resolvedStates[0]! : resolvedStates;
+  }, [rawVisualizerStates, visualizerReferencePerspectiveState]);
   const visualizerTarget = useMemo(
-    () => toOverlayViewState(visualizerState),
-    [visualizerState]
+    () => toOverlayViewState(primaryVisualizerState),
+    [primaryVisualizerState]
   );
   const rows = useMemo(
-    () => formatViewSyncTargetTableRows(visualizerTarget, visualizerState),
-    [visualizerState, visualizerTarget]
+    () =>
+      formatViewSyncTargetTableRows(visualizerTarget, primaryVisualizerState),
+    [primaryVisualizerState, visualizerTarget]
   );
   const formattedViewJson = useMemo(
     () => formatViewSyncJson(visualizerTarget),
     [visualizerTarget]
   );
   const visualizerDisplayOptions = useMemo(
-    () => ({} satisfies ViewStateVisualizerDisplayOptions),
+    () =>
+      ({
+        cameraView: {
+          frustum: {
+            showInactive: false,
+          },
+        },
+      } satisfies ViewStateVisualizerDisplayOptions),
+    []
+  );
+  const visualizerVisualizedOptions = useMemo(
+    () =>
+      ({
+        imagePlaneDistance: 0.33,
+      } satisfies ViewStateVisualizerVisualizedOptions),
     []
   );
   return (
@@ -602,6 +795,8 @@ export const ViewSyncMetaOverlay = ({
       rows={rows}
       viewState={visualizerState}
       visualizerInteractive={true}
+      visualizerActiveCameraIndex={visualizerActiveCameraIndex}
+      visualizerVisualizedOptions={visualizerVisualizedOptions}
       visualizerDisplayOptions={visualizerDisplayOptions}
       visualizerWidth={visualizerWidth}
       visualizerHeight={visualizerHeight}

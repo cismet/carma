@@ -1,4 +1,4 @@
-import { Matrix4, Vector3 } from "@carma/math";
+import { Matrix4, Vector3 } from "three";
 
 const EAST_IN_ENU = new Vector3(1, 0, 0);
 const UP_IN_ENU = new Vector3(0, 0, 1);

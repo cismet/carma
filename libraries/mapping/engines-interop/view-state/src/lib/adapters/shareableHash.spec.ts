@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { CAMERA_TYPE } from "@carma-commons/camera/model";
 import type { CssPixels } from "@carma/units/types";
 import { HASH_ZOOM_CONVENTION } from "../core/viewStateHash";
 import type { ShareableViewState } from "../types";
@@ -144,6 +145,28 @@ describe("applyToShareableViewState", () => {
     expect(encoded.altitude).toBe(200.1);
     expect(encoded.bearing).toBe(123.5);
     expect(encoded.pitch).toBe(44.9);
+  });
+
+  it("encodes orthographic states via zoom without writing a fallback fov", () => {
+    const source = readFromShareableViewState(makeShareableViewState(), {
+      zoomConvention: HASH_ZOOM_CONVENTION.LEAFLET_256,
+    });
+    const orthographicSource = {
+      ...source,
+      intrinsics: {
+        type: CAMERA_TYPE.ORTHOGRAPHIC,
+        orthographicScale: {
+          metersPerCssPixel: 1.5,
+        },
+      },
+    };
+
+    const encoded = applyToShareableViewState(orthographicSource, {
+      zoomConvention: HASH_ZOOM_CONVENTION.LEAFLET_256,
+    });
+
+    expect(encoded.zoom).toBeDefined();
+    expect(encoded.fov).toBeUndefined();
   });
 });
 

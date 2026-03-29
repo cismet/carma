@@ -1,9 +1,11 @@
 import { isFiniteNumber } from "@carma/math";
 import type { CssPixels, Meters, Radians } from "@carma/units/types";
 import type {
+  CameraOrthographicScale,
   CameraIntrinsics,
   CameraViewOffset,
 } from "./camera-view-specification";
+import { CAMERA_TYPE } from "./camera-view-specification";
 
 export type ElementSizeLike =
   | {
@@ -92,6 +94,30 @@ export const readLongerEdgeFovFromIntrinsics = (
     : undefined;
 };
 
+const readOrthographicMetersPerCssPixel = (
+  intrinsics:
+    | Pick<CameraIntrinsics, "type" | "orthographicScale">
+    | null
+    | undefined
+): Meters | null => {
+  const metersPerCssPixel = intrinsics?.orthographicScale?.metersPerCssPixel;
+
+  return intrinsics?.type === CAMERA_TYPE.ORTHOGRAPHIC &&
+    isFiniteNumber(metersPerCssPixel) &&
+    metersPerCssPixel > 0
+    ? (metersPerCssPixel as Meters)
+    : null;
+};
+
+export const buildOrthographicScale = (
+  metersPerCssPixel: number
+): CameraOrthographicScale | undefined =>
+  isFiniteNumber(metersPerCssPixel) && metersPerCssPixel > 0
+    ? {
+        metersPerCssPixel,
+      }
+    : undefined;
+
 export const readViewOffsetFromElement = (
   element: ElementSizeLike
 ): CameraViewOffset | undefined => {
@@ -179,6 +205,47 @@ export const readMetersPerCssPixel = ({
   return isFiniteNumber(metersPerCssPixel) && metersPerCssPixel > 0
     ? (metersPerCssPixel as Meters)
     : null;
+};
+
+export const readMetersPerCssPixelFromIntrinsics = ({
+  intrinsics,
+  rangeM,
+  viewportWidthPx,
+  viewportHeightPx,
+}: {
+  intrinsics: Pick<
+    CameraIntrinsics,
+    "type" | "fov" | "fovHorizontal" | "orthographicScale"
+  >;
+  rangeM?: number;
+  viewportWidthPx?: number;
+  viewportHeightPx?: number;
+}): Meters | null => {
+  const orthographicMetersPerCssPixel =
+    readOrthographicMetersPerCssPixel(intrinsics);
+  if (orthographicMetersPerCssPixel !== null) {
+    return orthographicMetersPerCssPixel;
+  }
+
+  const longerEdgeFov = readLongerEdgeFovFromIntrinsics(intrinsics, {
+    viewportWidthPx,
+    viewportHeightPx,
+  });
+  if (
+    !isFiniteNumber(longerEdgeFov) ||
+    longerEdgeFov <= 0 ||
+    !isFiniteNumber(rangeM) ||
+    rangeM <= 0
+  ) {
+    return null;
+  }
+
+  return readMetersPerCssPixel({
+    rangeM,
+    fovRad: longerEdgeFov,
+    viewportWidthPx,
+    viewportHeightPx,
+  });
 };
 
 export const readRangeFromMetersPerCssPixel = ({

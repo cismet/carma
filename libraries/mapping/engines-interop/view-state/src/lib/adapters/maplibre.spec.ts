@@ -263,4 +263,50 @@ describe("readFromMaplibre", () => {
       heightPx: 900,
     });
   });
+
+  it("overrides a seed orthographic camera mode with maplibre runtime perspective intrinsics", () => {
+    const seedState = buildViewState({
+      longitude: radians(7.2),
+      latitude: radians(51.27),
+      altitude: meters(212.4),
+      bearing: radians(214),
+      pitch: radians(42),
+      range: meters(620),
+      intrinsics: {
+        type: CAMERA_TYPE.ORTHOGRAPHIC,
+        orthographicScale: {
+          metersPerCssPixel: 2.5,
+        },
+      },
+      metadata: {
+        frameId: 1,
+        timestampMs: 1_700_000_000_000,
+        sourceId: "spec",
+        source: "sync",
+      },
+    });
+
+    const state = readFromMaplibre(
+      {
+        getCenter: () => ({ lng: 7.21, lat: 51.28 }),
+        getZoom: () => 16.25,
+        getBearing: () => 214,
+        getPitch: () => 42,
+        getVerticalFieldOfView: () => 50,
+        getCanvas: () =>
+          ({
+            clientWidth: 480,
+            clientHeight: 900,
+          } as HTMLCanvasElement),
+        jumpTo: vi.fn(),
+      } as unknown as MapLibreMap,
+      "spec",
+      { seedState }
+    );
+
+    expect(state).not.toBeNull();
+    expect(state?.intrinsics.type).toBe(CAMERA_TYPE.PERSPECTIVE);
+    expect(state?.intrinsics.orthographicScale).toBeUndefined();
+    expect(state?.intrinsics.fov).toBeDefined();
+  });
 });

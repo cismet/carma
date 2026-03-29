@@ -1,6 +1,7 @@
 import { useMemo } from "react";
 import type { Map as MapLibreMap } from "maplibre-gl";
 import type { WritePriority } from "../../core/types";
+import type { ViewState } from "../../core/types";
 import { applyToMaplibre, readFromMaplibre } from "../../adapters/maplibre";
 import {
   useSubscribedRuntimeBridge,
@@ -29,6 +30,7 @@ const attachMaplibreListener = (
 export type UseMaplibreRuntimeBridgeOptions = {
   id: string;
   map?: MapLibreMap | null;
+  fallbackSeedState?: ViewState | null;
   enabled?: boolean;
   pushPriority?: WritePriority;
   claimPriority?: WritePriority;
@@ -39,6 +41,7 @@ export type UseMaplibreRuntimeBridgeOptions = {
 export const useMaplibreRuntimeBridge = ({
   id,
   map = null,
+  fallbackSeedState = null,
   enabled = true,
   pushPriority = "sync",
   claimPriority = "user-interaction",
@@ -56,7 +59,7 @@ export const useMaplibreRuntimeBridge = ({
     claimOnInteraction,
     read: (runtime, sourceId, seedState) =>
       readFromMaplibre(runtime, sourceId, {
-        seedState,
+        seedState: seedState ?? fallbackSeedState ?? null,
       }),
     apply: applyToMaplibre,
     subscribe: attachMaplibreListener,

@@ -1,8 +1,8 @@
 import { describe, expect, it } from "vitest";
-import { Vector3 } from "@carma/math";
 import { degToRadNumeric } from "@carma/units/helpers";
 import type { Meters, Radians } from "@carma/units/types";
 import { readLocalCameraBasis } from "@carma-commons/camera/model";
+import { Vector3 } from "three";
 import {
   anchoredOrbitToEnuOffset,
   buildAnchoredOrientationQuaternion,

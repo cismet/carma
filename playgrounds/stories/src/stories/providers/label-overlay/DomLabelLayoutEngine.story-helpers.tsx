@@ -7,7 +7,7 @@ import {
   type MouseEvent as ReactMouseEvent,
 } from "react";
 import type { CssPixelPosition } from "@carma/units/types";
-import { Vector3 } from "@carma/math";
+import { Vector3 } from "three";
 import { createScreenPointSvgLineVisualizers } from "@carma-commons/svg";
 import {
   createProjectedMoveGizmoView,

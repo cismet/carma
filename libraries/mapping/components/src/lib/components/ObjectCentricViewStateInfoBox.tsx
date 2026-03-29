@@ -53,6 +53,7 @@ export type ObjectCentricViewStateInfoBoxProps = {
   visualizerCueOptions?: ViewStateVisualizerCueOptions;
   visualizerBearingLabel?: ViewStateVisualizerProps["bearingLabel"];
   visualizerPitchLabel?: ViewStateVisualizerProps["pitchLabel"];
+  visualizerActiveCameraIndex?: ViewStateVisualizerProps["activeCameraIndex"];
   visualizerWidth?: number;
   visualizerHeight?: number;
   width?: number;
@@ -81,6 +82,7 @@ export const ObjectCentricViewStateInfoBox = ({
   visualizerCueOptions,
   visualizerBearingLabel = "b",
   visualizerPitchLabel = "p",
+  visualizerActiveCameraIndex = 0,
   visualizerWidth = 176,
   visualizerHeight = 176,
   width = 440,
@@ -197,6 +199,7 @@ export const ObjectCentricViewStateInfoBox = ({
                 visualizedOptions={visualizerVisualizedOptions}
                 displayOptions={visualizerDisplayOptions}
                 cueOptions={visualizerCueOptions}
+                activeCameraIndex={visualizerActiveCameraIndex}
                 width={renderedVisualizerWidth}
                 height={renderedVisualizerHeight}
                 bearingLabel={visualizerBearingLabel}

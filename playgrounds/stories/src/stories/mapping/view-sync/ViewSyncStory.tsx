@@ -80,7 +80,10 @@ export const ViewSyncStory = (props: ViewSyncStoryProps) => {
     <ViewStateProvider>
       <ViewSyncStoryArgsSync target={initialTarget} />
       <div style={shellStyle}>
-        <SlotsLayout fallbackTarget={initialTarget} />
+        <SlotsLayout
+          fallbackTarget={initialTarget}
+          allowLeafletFractionalZoom={props.allowLeafletFractionalZoom}
+        />
       </div>
     </ViewStateProvider>
   );

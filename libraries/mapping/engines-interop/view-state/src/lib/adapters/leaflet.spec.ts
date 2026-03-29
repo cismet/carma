@@ -1,18 +1,23 @@
 import { describe, expect, it, vi } from "vitest";
-import { CAMERA_TYPE } from "@carma-commons/camera/model";
-import { readMetersPerCssPixel } from "@carma-commons/camera/model";
+import {
+  buildOrthographicScale,
+  CAMERA_TYPE,
+} from "@carma-commons/camera/model";
 import { getZoomFromPixelResolutionAtLatitudeRad } from "@carma/geo/utils";
 import { degToRadNumeric } from "@carma/units/helpers";
 import type { Meters, Radians } from "@carma/units/types";
 import { buildViewState } from "../core/construct";
-import { deriveOrbitAngles, deriveRange } from "../core/derivations";
+import {
+  deriveOrbitAngles,
+  deriveRoll,
+  readMetersPerCssPixelFromViewState,
+} from "../core/derivations";
 import type { Map as LeafletMap } from "leaflet";
 import { applyToLeaflet, readFromLeaflet } from "./leaflet";
 
 const meters = (value: number): Meters => value as Meters;
 const radians = (valueDeg: number): Radians =>
   degToRadNumeric(valueDeg)! as Radians;
-const LEAFLET_DEFAULT_FOV_RAD = radians(45);
 
 const deriveExpectedLeafletZoom = (
   state: ReturnType<typeof buildTestState>,
@@ -20,12 +25,7 @@ const deriveExpectedLeafletZoom = (
   heightPx: number
 ): number =>
   getZoomFromPixelResolutionAtLatitudeRad(
-    readMetersPerCssPixel({
-      rangeM: deriveRange(state),
-      fovRad: LEAFLET_DEFAULT_FOV_RAD,
-      viewportWidthPx: widthPx,
-      viewportHeightPx: heightPx,
-    }),
+    readMetersPerCssPixelFromViewState(state, widthPx, heightPx)!,
     state.anchorCartographic.latitude,
     { tileSize: 256 }
   );
@@ -133,6 +133,10 @@ describe("readFromLeaflet", () => {
     );
 
     expect(state).not.toBeNull();
+    expect(state?.intrinsics.type).toBe(CAMERA_TYPE.ORTHOGRAPHIC);
+    expect(
+      state?.intrinsics.orthographicScale?.metersPerCssPixel
+    ).toBeGreaterThan(0);
     expect(state?.intrinsics.viewOffset).toBeUndefined();
     expect(state?.intrinsics.fov).toBeUndefined();
     expect(state?.metadata.viewport).toEqual({
@@ -162,8 +166,61 @@ describe("readFromLeaflet", () => {
     });
   });
 
-  it("preserves seed bearing and pitch for 2d leaflet-only moves", () => {
-    const seedState = buildTestState();
+  it("uses a canonical nadir orthographic pose instead of inheriting 3d seed semantics", () => {
+    const state = readFromLeaflet(
+      {
+        getCenter: () => ({ lng: 7.25, lat: 51.28 }),
+        getZoom: () => 17.25,
+        getContainer: () =>
+          ({
+            clientWidth: 480,
+            clientHeight: 900,
+          } as HTMLElement),
+        setView: vi.fn(),
+      } as unknown as LeafletMap,
+      "spec"
+    );
+
+    expect(state).not.toBeNull();
+
+    const nextOrbit = deriveOrbitAngles(state!);
+
+    expect(nextOrbit.bearing).toBeCloseTo(0, 8);
+    expect(nextOrbit.pitch).toBeCloseTo(0, 8);
+    expect(nextOrbit.range).toBeCloseTo(1, 8);
+    expect(deriveRoll(state!)).toBeCloseTo(0, 8);
+    expect(state?.intrinsics.type).toBe(CAMERA_TYPE.ORTHOGRAPHIC);
+    expect(state?.intrinsics.fov).toBeUndefined();
+    expect(state?.intrinsics.viewOffset).toBeUndefined();
+    expect(state?.metadata.poseEvaluability).toEqual({
+      bearing: false,
+      pitch: false,
+      roll: false,
+      range: false,
+    });
+  });
+
+  it("preserves the shared seed orbit pose so leaflet control does not reset sibling 3d cameras", () => {
+    const seedState = buildViewState({
+      longitude: radians(7.2),
+      latitude: radians(51.27),
+      altitude: meters(180),
+      bearing: radians(208),
+      pitch: radians(63),
+      roll: radians(-12),
+      range: meters(640),
+      intrinsics: {
+        type: CAMERA_TYPE.PERSPECTIVE,
+        fov: radians(55),
+      },
+      metadata: {
+        frameId: 1,
+        timestampMs: 1_700_000_000_000,
+        sourceId: "spec",
+        source: "sync",
+      },
+    });
+
     const state = readFromLeaflet(
       {
         getCenter: () => ({ lng: 7.25, lat: 51.28 }),
@@ -176,18 +233,73 @@ describe("readFromLeaflet", () => {
         setView: vi.fn(),
       } as unknown as LeafletMap,
       "spec",
-      { seedState }
+      seedState
     );
 
     expect(state).not.toBeNull();
-
-    const seedOrbit = deriveOrbitAngles(seedState);
-    const nextOrbit = deriveOrbitAngles(state!);
-
-    expect(nextOrbit.bearing).toBeCloseTo(seedOrbit.bearing, 6);
-    expect(nextOrbit.pitch).toBeCloseTo(seedOrbit.pitch, 6);
+    expect(state?.intrinsics.type).toBe(CAMERA_TYPE.ORTHOGRAPHIC);
     expect(state?.intrinsics.fov).toBeUndefined();
     expect(state?.intrinsics.viewOffset).toBeUndefined();
+
+    const nextOrbit = deriveOrbitAngles(state!);
+    const seedOrbit = deriveOrbitAngles(seedState);
+
+    expect(nextOrbit.bearing).toBeCloseTo(seedOrbit.bearing, 8);
+    expect(nextOrbit.pitch).toBeCloseTo(seedOrbit.pitch, 8);
+    expect(nextOrbit.range).toBeCloseTo(seedOrbit.range, 8);
+    expect(deriveRoll(state!)).toBeCloseTo(deriveRoll(seedState), 8);
+    expect(state?.metadata.poseEvaluability).toEqual({
+      bearing: false,
+      pitch: false,
+      roll: false,
+      range: false,
+    });
+  });
+
+  it("applies orthographic states through their stored pixel scale", () => {
+    const state = buildViewState({
+      longitude: radians(7.2),
+      latitude: radians(51.27),
+      altitude: meters(180),
+      bearing: radians(0),
+      pitch: radians(0),
+      range: meters(620),
+      intrinsics: {
+        type: CAMERA_TYPE.ORTHOGRAPHIC,
+        orthographicScale: buildOrthographicScale(2.1),
+      },
+      metadata: {
+        frameId: 1,
+        timestampMs: 1_700_000_000_000,
+        sourceId: "spec",
+        source: "sync",
+      },
+    });
+    const setView = vi.fn();
+
+    applyToLeaflet(
+      {
+        getCenter: () => ({ lat: 0, lng: 0 }),
+        getZoom: () => 0,
+        getContainer: () =>
+          ({
+            clientWidth: 480,
+            clientHeight: 900,
+          } as HTMLElement),
+        setView,
+      } as unknown as LeafletMap,
+      state
+    );
+
+    expect(setView).toHaveBeenCalledWith(
+      [51.27, 7.2],
+      getZoomFromPixelResolutionAtLatitudeRad(
+        2.1 as Meters,
+        state.anchorCartographic.latitude,
+        { tileSize: 256 }
+      ),
+      { animate: false }
+    );
   });
 
   it("returns null for transient leaflet reads during invalid map state", () => {

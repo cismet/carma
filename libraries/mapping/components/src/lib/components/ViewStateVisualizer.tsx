@@ -1,4 +1,3 @@
-import type { ViewState } from "@carma-mapping/engines-interop/view-state";
 import {
   DEFAULT_VIEW_STATE_VISUALIZER_CUE_COLORS,
   createViewStateVisualizerPrimitive,
@@ -8,6 +7,7 @@ import {
   type ResolvedViewStateVisualizerDisplayOptions,
   type ViewStateVisualizerCueKey,
   type ViewStateVisualizerDisplayOptions,
+  type ViewStateVisualizerInput,
   type ViewStateVisualizerLabelAnchors,
   type ViewStateVisualizerOverviewOptions,
   type ViewStateVisualizerPrimitive,
@@ -46,13 +46,23 @@ export type ViewStateVisualizerCueOptions = Partial<
 >;
 
 export type ViewStateVisualizerProps = {
-  viewState: ViewState;
+  viewState: ViewStateVisualizerInput;
   overviewOptions?: ViewStateVisualizerOverviewOptions;
   interactive?: boolean;
   visualizedOptions?: ViewStateVisualizerVisualizedOptions;
   displayOptions?: ViewStateVisualizerDisplayOptions;
+  activeCameraIndex?: number;
   /** Called when the user drags the camera cube to change bearing/pitch (radians). */
   onPoseChange?: (bearing: number, pitch: number) => void;
+  /** Called when the user drags any camera cube in a multi-camera visualizer. */
+  onCameraPoseChange?: (
+    cameraIndex: number,
+    bearing: number,
+    pitch: number
+  ) => void;
+  onCameraPoseDragStateChange?: (dragging: boolean) => void;
+  onOrbitDragStateChange?: (dragging: boolean) => void;
+  onActiveCameraChange?: (cameraIndex: number) => void;
   width?: number;
   height?: number;
   cueOptions?: ViewStateVisualizerCueOptions;
@@ -77,7 +87,12 @@ export const ViewStateVisualizer = ({
   interactive = false,
   visualizedOptions,
   displayOptions,
+  activeCameraIndex = 0,
   onPoseChange,
+  onCameraPoseChange,
+  onCameraPoseDragStateChange,
+  onOrbitDragStateChange,
+  onActiveCameraChange,
   width = 176,
   height = 176,
   cueOptions,
@@ -100,6 +115,10 @@ export const ViewStateVisualizer = ({
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const primitiveRef = useRef<ViewStateVisualizerPrimitive | null>(null);
   const onPoseChangeRef = useRef(onPoseChange);
+  const onCameraPoseChangeRef = useRef(onCameraPoseChange);
+  const onCameraPoseDragStateChangeRef = useRef(onCameraPoseDragStateChange);
+  const onOrbitDragStateChangeRef = useRef(onOrbitDragStateChange);
+  const onActiveCameraChangeRef = useRef(onActiveCameraChange);
   const resolvedDisplayOptionsRef =
     useRef<ResolvedViewStateVisualizerDisplayOptions>(
       mergeViewStateVisualizerDisplayOptions(displayOptions)
@@ -111,6 +130,10 @@ export const ViewStateVisualizer = ({
     mergeViewStateVisualizerVisualizedOptions(visualizedOptions)
   );
   onPoseChangeRef.current = onPoseChange;
+  onCameraPoseChangeRef.current = onCameraPoseChange;
+  onCameraPoseDragStateChangeRef.current = onCameraPoseDragStateChange;
+  onOrbitDragStateChangeRef.current = onOrbitDragStateChange;
+  onActiveCameraChangeRef.current = onActiveCameraChange;
 
   const defaultLabelAnchors = useMemo<ViewStateVisualizerLabelAnchors>(
     () => ({
@@ -416,6 +439,16 @@ export const ViewStateVisualizer = ({
   }, [interactive]);
 
   useLayoutEffect(() => {
+    const primitive = primitiveRef.current;
+    if (!primitive) return;
+
+    const anchors = primitive.setActiveCameraIndex(activeCameraIndex);
+    if (anchors) {
+      applyLabelAnchors(anchors);
+    }
+  }, [activeCameraIndex]);
+
+  useLayoutEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
 
@@ -428,9 +461,18 @@ export const ViewStateVisualizer = ({
         interactive,
         visualized: resolvedVisualizedOptionsRef.current,
         display: resolvedDisplayOptionsRef.current,
+        activeCameraIndex,
         onInteraction: applyLabelAnchors,
         onPoseChange: (bearing, pitch) =>
           onPoseChangeRef.current?.(bearing, pitch),
+        onCameraPoseChange: (cameraIndex, bearing, pitch) =>
+          onCameraPoseChangeRef.current?.(cameraIndex, bearing, pitch),
+        onCameraPoseDragStateChange: (dragging) =>
+          onCameraPoseDragStateChangeRef.current?.(dragging),
+        onOrbitDragStateChange: (dragging) =>
+          onOrbitDragStateChangeRef.current?.(dragging),
+        onActiveCameraChange: (cameraIndex) =>
+          onActiveCameraChangeRef.current?.(cameraIndex),
       }
     );
 

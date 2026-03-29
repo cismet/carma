@@ -1,5 +1,5 @@
-import { Quaternion, Vector3 } from "@carma/math";
 import type { Radians } from "@carma/units/types";
+import { Quaternion, Vector3 } from "three";
 import {
   Camera,
   Matrix4,

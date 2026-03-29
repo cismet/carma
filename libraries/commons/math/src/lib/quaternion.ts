@@ -2,15 +2,7 @@
 // Intentionally depends on three.js:
 // Quaternion is a CARMA-native 3D rotation type across camera/view code.
 import { Quaternion } from "three";
-import { isFiniteNumber } from "./numeric/isFiniteNumber";
-
-export { Quaternion };
-export type QuaternionJson = {
-  x: number;
-  y: number;
-  z: number;
-  w: number;
-};
+import { isFiniteNumber } from "./numeric/is-finite-number";
 
 export const coerceQuaternion = (value: unknown): Quaternion | null => {
   if (value instanceof Quaternion) {
@@ -38,13 +30,3 @@ export const coerceQuaternion = (value: unknown): Quaternion | null => {
 
   return new Quaternion(candidate.x, candidate.y, candidate.z, candidate.w);
 };
-
-export const quaternionToJson = (quaternion: Quaternion): QuaternionJson => ({
-  x: quaternion.x,
-  y: quaternion.y,
-  z: quaternion.z,
-  w: quaternion.w,
-});
-
-export const quaternionFromJson = (json: QuaternionJson): Quaternion =>
-  new Quaternion(json.x, json.y, json.z, json.w);

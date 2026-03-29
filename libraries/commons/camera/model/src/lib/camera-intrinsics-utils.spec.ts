@@ -1,9 +1,11 @@
 import { describe, expect, it } from "vitest";
 import type { CameraIntrinsics } from "./camera-view-specification";
 import {
+  buildOrthographicScale,
   readHorizontalFovFromVertical,
   readLongerEdgeFovFromIntrinsics,
   readMetersPerCssPixel,
+  readMetersPerCssPixelFromIntrinsics,
   readRangeFromMetersPerCssPixel,
   readVerticalFovFromLongerEdge,
   readViewOffsetFromElement,
@@ -108,6 +110,38 @@ describe("camera intrinsics utils", () => {
         viewportHeightPx: 900,
       })
     ).toBeCloseTo(620, 8);
+  });
+
+  it("prefers orthographic meters-per-css-pixel over perspective derivation", () => {
+    expect(
+      readMetersPerCssPixelFromIntrinsics({
+        intrinsics: {
+          type: "OrthographicCamera",
+          orthographicScale: buildOrthographicScale(3.25),
+          fov: Math.PI / 3,
+        },
+        rangeM: 620,
+        viewportWidthPx: 1600,
+        viewportHeightPx: 900,
+      })
+    ).toBe(3.25);
+  });
+
+  it("derives meters-per-css-pixel from perspective intrinsics when orthographic scale is absent", () => {
+    const expectedLongerEdgeFov =
+      2 * Math.atan(Math.tan((Math.PI / 3) * 0.5) * (1600 / 900));
+
+    expect(
+      readMetersPerCssPixelFromIntrinsics({
+        intrinsics: {
+          type: "PerspectiveCamera",
+          fov: Math.PI / 3,
+        },
+        rangeM: 620,
+        viewportWidthPx: 1600,
+        viewportHeightPx: 900,
+      })
+    ).toBeCloseTo((620 * Math.tan(expectedLongerEdgeFov * 0.5)) / 800, 8);
   });
 
   it("falls back to a default projection radius when viewport is unknown", () => {

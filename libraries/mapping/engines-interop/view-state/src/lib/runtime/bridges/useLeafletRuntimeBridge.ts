@@ -50,9 +50,7 @@ export const useLeafletRuntimeBridge = ({
     claimBeforePush,
     claimOnInteraction,
     read: (runtime, sourceId, seedState) =>
-      readFromLeaflet(runtime, sourceId, {
-        seedState,
-      }),
+      readFromLeaflet(runtime, sourceId, seedState),
     apply: applyToLeaflet,
     subscribe: attachLeafletListener,
     getInteractionElement: (runtime) => runtime.getContainer(),

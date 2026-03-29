@@ -26,7 +26,7 @@ import {
   Vector3,
   WebGLRenderer,
 } from "three";
-import type { BufferGeometry, Camera } from "three";
+import type { Camera } from "three";
 import {
   buildCirclePoints,
   buildHorizontalArcPoints,
@@ -56,13 +56,13 @@ import { createAngleCues } from "./parts/cues/angle-cues";
 import { createMaxPitchRing } from "./parts/cues/max-pitch-ring";
 import { createHemisphereSurface } from "./parts/sphere/hemisphere-surface";
 import { createWorldAxes } from "./parts/world-axes/world-axes";
-import { isPointerInsideProjectedMesh } from "./interaction/projected-mesh-hit-test";
 import type {
   ResolvedViewStateVisualizerDisplayOptions,
   ResolvedViewStateVisualizerOverviewOptions,
   ResolvedViewStateVisualizerVisualizedOptions,
   ViewStateVisualizerCueKey,
   ViewStateVisualizerDisplayOptions,
+  ViewStateVisualizerInput,
   ViewStateVisualizerLabelAnchors,
   ViewStateVisualizerOverviewOptions,
   ViewStateVisualizerOptions,
@@ -106,9 +106,80 @@ const POINTER_CURSOR = {
   DRAGGING: "grabbing",
 } as const;
 
+// Intentionally interleave warm/cool hues so newly added cameras do not step
+// through adjacent colors in sequence.
+const CAMERA_VIEW_VARIANT_STYLES: readonly CameraViewVariantStyle[] = [
+  {
+    edgeColor: "#2563eb",
+    imageXColor: "#60a5fa",
+    imageYColor: "#93c5fd",
+    fillColor: 0x2563eb,
+    emissiveColor: 0x2563eb,
+    frustumColor: 0x2563eb,
+  },
+  {
+    edgeColor: "#d97706",
+    imageXColor: "#f59e0b",
+    imageYColor: "#fbbf24",
+    fillColor: 0xd97706,
+    emissiveColor: 0xd97706,
+    frustumColor: 0xd97706,
+  },
+  {
+    edgeColor: "#7c3aed",
+    imageXColor: "#a855f7",
+    imageYColor: "#fb7185",
+    fillColor: 0x7c3aed,
+    emissiveColor: 0x7c3aed,
+    frustumColor: 0x7c3aed,
+  },
+  {
+    edgeColor: "#0f766e",
+    imageXColor: "#2dd4bf",
+    imageYColor: "#99f6e4",
+    fillColor: 0x0f766e,
+    emissiveColor: 0x0f766e,
+    frustumColor: 0x0f766e,
+  },
+  {
+    edgeColor: "#e11d48",
+    imageXColor: "#fb7185",
+    imageYColor: "#fda4af",
+    fillColor: 0xe11d48,
+    emissiveColor: 0xe11d48,
+    frustumColor: 0xe11d48,
+  },
+  {
+    edgeColor: "#65a30d",
+    imageXColor: "#84cc16",
+    imageYColor: "#bef264",
+    fillColor: 0x65a30d,
+    emissiveColor: 0x65a30d,
+    frustumColor: 0x65a30d,
+  },
+  {
+    edgeColor: "#0891b2",
+    imageXColor: "#22d3ee",
+    imageYColor: "#67e8f9",
+    fillColor: 0x0891b2,
+    emissiveColor: 0x0891b2,
+    frustumColor: 0x0891b2,
+  },
+  {
+    edgeColor: "#c2410c",
+    imageXColor: "#fb923c",
+    imageYColor: "#fdba74",
+    fillColor: 0xc2410c,
+    emissiveColor: 0xc2410c,
+    frustumColor: 0xc2410c,
+  },
+] as const;
+
 type PointerDragMode =
   | (typeof POINTER_DRAG_MODE)[keyof typeof POINTER_DRAG_MODE]
   | null;
+
+type CameraViewPartInstance = ReturnType<typeof createCameraView>;
 
 type ResolvedDisplayVisibility = {
   showSurface: boolean;
@@ -118,6 +189,7 @@ type ResolvedDisplayVisibility = {
   showCameraImagePlaneOffset: boolean;
   showCameraAxes: boolean;
   showCameraFrustum: boolean;
+  showCameraProjectionPlane: boolean;
   showAltitude: boolean;
   showCameraMarker: boolean;
   showAltitudeScaleBreak: boolean;
@@ -132,8 +204,43 @@ type ResolvedLineWidths = {
   altitudeLineWidthPx: number;
 };
 
+type CameraViewVariantStyle = {
+  edgeColor: string;
+  imageXColor: string;
+  imageYColor: string;
+  fillColor: number;
+  emissiveColor: number;
+  frustumColor: number;
+};
+
 const normalizeBearing = (bearingRadians: number): number =>
   zeroToTwoPi(bearingRadians as Radians) as number;
+
+const normalizeViewStateInput = (
+  viewState: ViewStateVisualizerInput
+): ViewState[] => (Array.isArray(viewState) ? [...viewState] : [viewState]);
+
+const clampActiveCameraIndex = (
+  cameraIndex: number,
+  viewStates: readonly ViewState[]
+): number => {
+  if (viewStates.length <= 1) {
+    return 0;
+  }
+
+  const resolvedCameraIndex = Number.isFinite(cameraIndex)
+    ? Math.floor(cameraIndex)
+    : 0;
+
+  return clamp(resolvedCameraIndex, 0, viewStates.length - 1);
+};
+
+const readCameraViewVariantStyle = (index: number): CameraViewVariantStyle =>
+  CAMERA_VIEW_VARIANT_STYLES[
+    ((Math.max(0, Math.floor(index)) % CAMERA_VIEW_VARIANT_STYLES.length) +
+      CAMERA_VIEW_VARIANT_STYLES.length) %
+      CAMERA_VIEW_VARIANT_STYLES.length
+  ]!;
 
 const clampPerspectiveFovRad = (fovRadians: number): number =>
   clamp(fovRadians, NUMERIC_EPSILON, PI - NUMERIC_EPSILON);
@@ -170,6 +277,7 @@ const resolveDisplayVisibility = (
       display.cameraView.imagePlane.show && display.cameraView.axes.show,
     showCameraFrustum:
       display.cameraView.imagePlane.show && display.cameraView.frustum.show,
+    showCameraProjectionPlane: display.cameraView.projectionPlane.show,
     showAltitude: display.altitude.show,
     showCameraMarker: display.cameraView.marker.show,
     showAltitudeScaleBreak:
@@ -233,7 +341,7 @@ const createOverviewPerspectiveCamera = (fovDeg: number) => {
 
 export const createViewStateVisualizerPrimitive = (
   canvas: HTMLCanvasElement,
-  viewState: ViewState,
+  viewState: ViewStateVisualizerInput,
   options: ViewStateVisualizerOptions = {}
 ): ViewStateVisualizerPrimitive => {
   let size: ViewStateVisualizerSize = {
@@ -339,6 +447,9 @@ export const createViewStateVisualizerPrimitive = (
   let dragStartArcballVector = new Vector3();
   let dragLastClientX = 0;
   let dragLastClientY = 0;
+  let dragCameraIndex = 0;
+  let isCameraPoseDragging = false;
+  let isOrbitDragging = false;
   // For arcball pose drag: the bearing/pitch at drag start
   let dragStartBearing = 0;
   let dragStartPitch = 0;
@@ -361,7 +472,11 @@ export const createViewStateVisualizerPrimitive = (
   };
 
   // --- Display state ---
-  let lastViewState = viewState;
+  let lastViewStates = normalizeViewStateInput(viewState);
+  let activeCameraIndex = clampActiveCameraIndex(
+    options.activeCameraIndex ?? 0,
+    lastViewStates
+  );
   let currentLabelAnchors: ViewStateVisualizerLabelAnchors | null = null;
 
   // --- Scene objects ---
@@ -447,31 +562,47 @@ export const createViewStateVisualizerPrimitive = (
     opacity: MATERIALS.axes.opacity,
   });
 
-  const cameraView = createCameraView(scene, size, {
-    cameraBoxSize: GEOMETRY.frame.cameraBoxSize,
-    initialEdgeColor: MATERIALS.camera.edgeColor,
-    initialImageXColor: DEFAULT_VIEW_STATE_VISUALIZER_CUE_COLORS.imageX,
-    initialImageYColor: DEFAULT_VIEW_STATE_VISUALIZER_CUE_COLORS.imageY,
-    imagePlane: {
-      surfaceOpacity: MATERIALS.imagePlane.surfaceOpacity,
-      offsetSurfaceOpacity: MATERIALS.imagePlane.offsetSurfaceOpacity,
-      forwardOpacity: MATERIALS.imagePlane.forwardOpacity,
-      rightOpacity: MATERIALS.imagePlane.rightOpacity,
-      upOpacity: MATERIALS.imagePlane.upOpacity,
-      originOpacity: MATERIALS.imagePlane.originOpacity,
-      neutralColor: MATERIALS.imagePlane.neutralColor,
-    },
-    camera: {
-      fillColor: MATERIALS.camera.fillColor,
-      emissiveColor: MATERIALS.camera.emissiveColor,
-      markerOpacity: MATERIALS.camera.markerOpacity,
-      markerEmissiveIntensity: MATERIALS.camera.markerEmissiveIntensity,
-    },
-    frustum: {
-      color: MATERIALS.frustum.color,
-      opacity: MATERIALS.frustum.opacity,
-    },
-  });
+  const cameraViews: CameraViewPartInstance[] = [];
+
+  const createCameraViewInstance = (index: number): CameraViewPartInstance => {
+    const style = readCameraViewVariantStyle(index);
+
+    return createCameraView(scene, size, {
+      cameraBoxSize: GEOMETRY.frame.cameraBoxSize,
+      initialEdgeColor: style.edgeColor,
+      initialImageXColor: style.imageXColor,
+      initialImageYColor: style.imageYColor,
+      imagePlane: {
+        surfaceOpacity: MATERIALS.imagePlane.surfaceOpacity,
+        offsetSurfaceOpacity: MATERIALS.imagePlane.offsetSurfaceOpacity,
+        forwardOpacity: MATERIALS.imagePlane.forwardOpacity,
+        rightOpacity: MATERIALS.imagePlane.rightOpacity,
+        upOpacity: MATERIALS.imagePlane.upOpacity,
+        originOpacity: MATERIALS.imagePlane.originOpacity,
+        neutralColor: MATERIALS.imagePlane.neutralColor,
+      },
+      camera: {
+        fillColor: style.fillColor,
+        emissiveColor: style.emissiveColor,
+        bodyOpacity: MATERIALS.camera.bodyOpacity,
+        markerEmissiveIntensity: MATERIALS.camera.markerEmissiveIntensity,
+      },
+      frustum: {
+        color: style.frustumColor,
+        opacity: MATERIALS.frustum.opacity,
+      },
+    });
+  };
+
+  const ensureCameraViewCount = (count: number) => {
+    while (cameraViews.length < count) {
+      cameraViews.push(createCameraViewInstance(cameraViews.length));
+    }
+
+    while (cameraViews.length > count) {
+      cameraViews.pop()?.dispose();
+    }
+  };
 
   // --- Display option application ---
   const applyDisplayOptions = (
@@ -513,19 +644,31 @@ export const createViewStateVisualizerPrimitive = (
       color: MATERIALS.surface.maxPitchRing.color,
     });
 
-    cameraView.setDisplay({
-      showImagePlane: visibility.showCameraImagePlane,
-      showImagePlaneOffset: visibility.showCameraImagePlaneOffset,
-      showAxes: visibility.showCameraAxes,
-      showFrustum: visibility.showCameraFrustum,
-      showMarker: visibility.showCameraMarker,
-      axisLineWidthPx: lineWidths.cameraAxesLineWidthPx,
-      frustumLineWidthPx: lineWidths.cameraFrustumLineWidthPx,
-      cueColors: {
-        imageX: cueColors.imageX,
-        imageY: cueColors.imageY,
-        range: cueColors.range,
-      },
+    cameraViews.forEach((cameraView, index) => {
+      const style = readCameraViewVariantStyle(index);
+      const showCameraAxes =
+        visibility.showCameraAxes &&
+        (display.cameraView.axes.showInactive || index === activeCameraIndex);
+      const showCameraFrustum =
+        visibility.showCameraFrustum &&
+        (display.cameraView.frustum.showInactive ||
+          index === activeCameraIndex);
+
+      cameraView.setDisplay({
+        showImagePlane: visibility.showCameraImagePlane,
+        showImagePlaneOffset: visibility.showCameraImagePlaneOffset,
+        showAxes: showCameraAxes,
+        showFrustum: showCameraFrustum,
+        showProjectionPlane: visibility.showCameraProjectionPlane,
+        showMarker: visibility.showCameraMarker,
+        axisLineWidthPx: lineWidths.cameraAxesLineWidthPx,
+        frustumLineWidthPx: lineWidths.cameraFrustumLineWidthPx,
+        cueColors: {
+          imageX: style.imageXColor,
+          imageY: style.imageYColor,
+          range: cueColors.range,
+        },
+      });
     });
 
     altitude.setDisplay({
@@ -565,22 +708,29 @@ export const createViewStateVisualizerPrimitive = (
     canvas.style.cursor = POINTER_CURSOR.DRAGGING;
   };
 
-  const readCurrentDisplayPose = () => {
+  const readCurrentDisplayPose = (cameraIndex: number) => {
     const displayCameraPosition = computeUnitHemisphereCameraPosition({
-      viewState: lastViewState,
+      viewState:
+        lastViewStates[clampActiveCameraIndex(cameraIndex, lastViewStates)]!,
       hemisphereRadius: HEMISPHERE_RADIUS,
     });
     return cameraSpherePositionToViewingBearingPitch(displayCameraPosition);
   };
 
   const beginCameraMarkerArcballPoseDrag = (
+    cameraIndex: number,
     pointerId: number,
     clientX: number,
     clientY: number
   ) => {
+    if (!isCameraPoseDragging) {
+      isCameraPoseDragging = true;
+      options.onCameraPoseDragStateChange?.(true);
+    }
     dragMode = POINTER_DRAG_MODE.CAMERA_MARKER_ARCBALL_POSE;
+    dragCameraIndex = clampActiveCameraIndex(cameraIndex, lastViewStates);
     dragStartArcballVector = readPointerArcballVector(clientX, clientY);
-    const displayPose = readCurrentDisplayPose();
+    const displayPose = readCurrentDisplayPose(dragCameraIndex);
     dragStartBearing = displayPose.bearing;
     dragStartPitch = displayPose.pitch;
     capturePointerDrag(pointerId);
@@ -591,6 +741,10 @@ export const createViewStateVisualizerPrimitive = (
     clientX: number,
     clientY: number
   ) => {
+    if (!isOrbitDragging) {
+      isOrbitDragging = true;
+      options.onOrbitDragStateChange?.(true);
+    }
     dragMode = POINTER_DRAG_MODE.ORBIT;
     dragLastClientX = clientX;
     dragLastClientY = clientY;
@@ -613,8 +767,16 @@ export const createViewStateVisualizerPrimitive = (
     const rotated = startCamVec.clone().applyQuaternion(worldRotation);
     const next = cameraSpherePositionToViewingBearingPitch(rotated);
     const maxPitch = currentVisualized.maxPitch ?? PI_OVER_TWO;
+    const nextPitch = clamp(next.pitch, 0, maxPitch);
 
-    options.onPoseChange?.(next.bearing, clamp(next.pitch, 0, maxPitch));
+    if (options.onCameraPoseChange) {
+      options.onCameraPoseChange(dragCameraIndex, next.bearing, nextPitch);
+      return;
+    }
+
+    if (dragCameraIndex === 0) {
+      options.onPoseChange?.(next.bearing, nextPitch);
+    }
   };
 
   const updateOrbitDrag = (clientX: number, clientY: number) => {
@@ -633,7 +795,7 @@ export const createViewStateVisualizerPrimitive = (
     dragLastClientY = clientY;
 
     syncCamerasToOrbit();
-    const anchors = update(lastViewState);
+    const anchors = update(lastViewStates);
     options.onInteraction?.(anchors);
   };
 
@@ -643,14 +805,22 @@ export const createViewStateVisualizerPrimitive = (
 
   // --- Update ---
   const update = (
-    nextViewState: ViewState
+    nextViewStateInput: ViewStateVisualizerInput
   ): ViewStateVisualizerLabelAnchors => {
-    lastViewState = nextViewState;
+    const nextViewStates = normalizeViewStateInput(nextViewStateInput);
+    const resolvedActiveCameraIndex = clampActiveCameraIndex(
+      activeCameraIndex,
+      nextViewStates
+    );
+    const activeViewState = nextViewStates[resolvedActiveCameraIndex]!;
+
+    lastViewStates = nextViewStates;
+    activeCameraIndex = resolvedActiveCameraIndex;
     const activeCamera = getActiveCamera();
-    const { range } = deriveOrbitAngles(nextViewState);
+    const { range } = deriveOrbitAngles(activeViewState);
 
     const displayCameraPosition = computeUnitHemisphereCameraPosition({
-      viewState: nextViewState,
+      viewState: activeViewState,
       hemisphereRadius: HEMISPHERE_RADIUS,
     });
     const { bearing: viewingBearing, elevation } =
@@ -658,7 +828,7 @@ export const createViewStateVisualizerPrimitive = (
     const visualBearing = normalizeBearing(viewingBearing);
     const cameraSideBearing = normalizeBearing(viewingBearing + PI);
     const { groundDistance, overflow } = readGroundDistance({
-      altitudeMeters: nextViewState.anchorCartographic.altitude ?? 0,
+      altitudeMeters: activeViewState.anchorCartographic.altitude ?? 0,
       rangeMeters: range ?? 0,
       hemisphereRadius: HEMISPHERE_RADIUS,
     });
@@ -680,13 +850,19 @@ export const createViewStateVisualizerPrimitive = (
       sampleCount: GEOMETRY.sampling.circleSampleCount,
     });
 
-    const visual = buildImagePlaneGeometry({
-      viewState: nextViewState,
-      visualized: currentVisualized,
-      hemisphereRadius: HEMISPHERE_RADIUS,
-      imagePlaneDefaults: GEOMETRY.imagePlane,
-      epsilon: NUMERIC_EPSILON,
-    });
+    ensureCameraViewCount(nextViewStates.length);
+    applyDisplayOptions(currentDisplay);
+
+    const cameraVisuals = nextViewStates.map((currentViewState) =>
+      buildImagePlaneGeometry({
+        viewState: currentViewState,
+        visualized: currentVisualized,
+        hemisphereRadius: HEMISPHERE_RADIUS,
+        imagePlaneDefaults: GEOMETRY.imagePlane,
+        epsilon: NUMERIC_EPSILON,
+      })
+    );
+    const activeVisual = cameraVisuals[resolvedActiveCameraIndex]!;
     const altitudeStemGeometry = buildAltitudeStemGeometry({
       planeDiscY,
       overflow,
@@ -754,8 +930,10 @@ export const createViewStateVisualizerPrimitive = (
       upDirection: WORLD_UP,
       upLength: HEMISPHERE_RADIUS,
     });
-    cameraView.update(visual);
-    hemisphereSurface.update(visual.cameraPosition);
+    cameraVisuals.forEach((visual, index) => {
+      cameraViews[index]?.update(visual);
+    });
+    hemisphereSurface.update(activeVisual.cameraPosition);
 
     renderer.render(scene, activeCamera);
     const projectPoint = createPointToCanvasProjector(size, activeCamera);
@@ -804,36 +982,40 @@ export const createViewStateVisualizerPrimitive = (
       biasToward: pitchArcMidpoint,
       fallbackBiasToward: rangeLabelFallbackBiasPoint,
     });
-    const cameraRightEnd = visual.cameraPosition
+    const cameraRightEnd = activeVisual.cameraPosition
       .clone()
       .add(
-        visual.right.clone().multiplyScalar(GEOMETRY.frame.cameraBoxSize * 1.25)
+        activeVisual.right
+          .clone()
+          .multiplyScalar(GEOMETRY.frame.cameraBoxSize * 1.25)
       );
-    const cameraUpEnd = visual.cameraPosition
+    const cameraUpEnd = activeVisual.cameraPosition
       .clone()
       .add(
-        visual.up.clone().multiplyScalar(GEOMETRY.frame.cameraBoxSize * 1.25)
+        activeVisual.up
+          .clone()
+          .multiplyScalar(GEOMETRY.frame.cameraBoxSize * 1.25)
       );
-    const cameraForwardEnd = visual.cameraPosition.clone().add(
-      visual.forward
+    const cameraForwardEnd = activeVisual.cameraPosition.clone().add(
+      activeVisual.forward
         .clone()
         .negate()
         .multiplyScalar(GEOMETRY.frame.cameraBoxSize * 1.25)
     );
-    const imagePlaneXEnd = visual.imagePlaneXAxisEnd
+    const imagePlaneXEnd = activeVisual.imagePlaneXAxisEnd
       .clone()
       .add(
-        visual.right
+        activeVisual.right
           .clone()
           .multiplyScalar(
             GEOMETRY.imagePlane.basisLineLength *
               GEOMETRY.imagePlane.labelOffsetFactor
           )
       );
-    const imagePlaneYEnd = visual.imagePlaneYAxisEnd.clone().add(
-      visual.imagePlaneYAxisEnd
+    const imagePlaneYEnd = activeVisual.imagePlaneYAxisEnd.clone().add(
+      activeVisual.imagePlaneYAxisEnd
         .clone()
-        .sub(visual.imagePlaneAxisOrigin)
+        .sub(activeVisual.imagePlaneAxisOrigin)
         .normalize()
         .multiplyScalar(
           GEOMETRY.imagePlane.basisLineLength *
@@ -893,29 +1075,29 @@ export const createViewStateVisualizerPrimitive = (
         )
       ),
       cameraForward: projectExtendedAxisEndLabel({
-        lineStart: visual.cameraPosition,
+        lineStart: activeVisual.cameraPosition,
         lineEnd: cameraForwardEnd,
         extension: cameraAxisLabelExtension,
       }),
       cameraRight: projectExtendedAxisEndLabel({
-        lineStart: visual.cameraPosition,
+        lineStart: activeVisual.cameraPosition,
         lineEnd: cameraRightEnd,
         extension: cameraAxisLabelExtension,
         extraOffset: commonPlanarLabelOffset,
       }),
       cameraUp: projectExtendedAxisEndLabel({
-        lineStart: visual.cameraPosition,
+        lineStart: activeVisual.cameraPosition,
         lineEnd: cameraUpEnd,
         extension: GEOMETRY.axes.labelUpOffset * 2,
       }),
       imageX: projectExtendedAxisEndLabel({
-        lineStart: visual.imagePlaneAxisOrigin,
+        lineStart: activeVisual.imagePlaneAxisOrigin,
         lineEnd: imagePlaneXEnd,
         extension: imagePlaneAxisLabelExtension,
         extraOffset: commonPlanarLabelOffset,
       }),
       imageY: projectExtendedAxisEndLabel({
-        lineStart: visual.imagePlaneAxisOrigin,
+        lineStart: activeVisual.imagePlaneAxisOrigin,
         lineEnd: imagePlaneYEnd,
         extension: imagePlaneAxisLabelExtension,
       }),
@@ -934,35 +1116,53 @@ export const createViewStateVisualizerPrimitive = (
 
     const sphereHits = raycaster.intersectObject(hemisphereSurface.mesh, false);
 
-    // Check camera cube first, but only if it is not occluded by the hemisphere.
-    const canUseCameraMarkerDrag =
-      currentDisplay.cameraView.marker.show && Boolean(options.onPoseChange);
-    const cubeHits = canUseCameraMarkerDrag
-      ? raycaster.intersectObject(cameraView.cameraMarker, false)
-      : [];
-    const cubeHit = cubeHits[0];
-    const sphereHit = sphereHits[0];
-    const cubeIsInFrontOfSphere =
-      cubeHit && (!sphereHit || cubeHit.distance <= sphereHit.distance);
-    const pointerInsideCubeSilhouette =
-      canUseCameraMarkerDrag &&
-      Boolean(cubeHit) &&
-      isPointerInsideProjectedMesh({
-        clientX: e.clientX,
-        clientY: e.clientY,
-        mesh: cameraView.cameraMarker,
-        geometry: cameraView.cameraMarker.geometry as BufferGeometry,
-        size,
-        camera: getActiveCamera(),
-        canvas,
-      });
-    if (
-      canUseCameraMarkerDrag &&
-      cubeIsInFrontOfSphere &&
-      pointerInsideCubeSilhouette &&
-      options.onPoseChange
-    ) {
-      beginCameraMarkerArcballPoseDrag(e.pointerId, e.clientX, e.clientY);
+    const dragTarget = cameraViews
+      .flatMap((cameraView, cameraIndex) => {
+        const dragTargetMesh = cameraView.readDragTargetMesh();
+        const canDragTarget =
+          Boolean(dragTargetMesh) &&
+          dragTargetMesh.visible &&
+          (Boolean(options.onCameraPoseChange) ||
+            (cameraIndex === 0 && Boolean(options.onPoseChange)));
+
+        if (!canDragTarget || !dragTargetMesh) {
+          return [];
+        }
+
+        const dragTargetHit = raycaster.intersectObject(
+          dragTargetMesh,
+          false
+        )[0];
+        if (!dragTargetHit) {
+          return [];
+        }
+
+        // Raycaster mesh hits are authoritative enough for draggable camera
+        // bodies; an additional projected-silhouette test was rejecting valid
+        // visible hits on the standalone camera box.
+        return [{ cameraIndex, distance: dragTargetHit.distance }];
+      })
+      .sort((left, right) => left.distance - right.distance)[0];
+
+    if (dragTarget) {
+      const nextActiveCameraIndex = clampActiveCameraIndex(
+        dragTarget.cameraIndex,
+        lastViewStates
+      );
+
+      if (nextActiveCameraIndex !== activeCameraIndex) {
+        activeCameraIndex = nextActiveCameraIndex;
+        const anchors = update(lastViewStates);
+        options.onInteraction?.(anchors);
+        options.onActiveCameraChange?.(nextActiveCameraIndex);
+      }
+
+      beginCameraMarkerArcballPoseDrag(
+        nextActiveCameraIndex,
+        e.pointerId,
+        e.clientX,
+        e.clientY
+      );
       return;
     }
     if (sphereHits.length > 0 && interactive) {
@@ -983,6 +1183,13 @@ export const createViewStateVisualizerPrimitive = (
 
   const onPointerUp = (e: PointerEvent) => {
     if (!dragMode) return;
+    if (dragMode === POINTER_DRAG_MODE.CAMERA_MARKER_ARCBALL_POSE) {
+      isCameraPoseDragging = false;
+      options.onCameraPoseDragStateChange?.(false);
+    } else if (dragMode === POINTER_DRAG_MODE.ORBIT) {
+      isOrbitDragging = false;
+      options.onOrbitDragStateChange?.(false);
+    }
     dragMode = null;
     canvas.releasePointerCapture(e.pointerId);
     canvas.style.cursor = POINTER_CURSOR.IDLE;
@@ -1007,7 +1214,7 @@ export const createViewStateVisualizerPrimitive = (
     worldAxes.resize(size);
     maxPitchRing.resize(size);
     altitude.resize(size);
-    cameraView.resize(size);
+    cameraViews.forEach((cameraView) => cameraView.resize(size));
     const aspect = size.widthPx / size.heightPx;
     orthographicCamera.left = -baseTangentProduct * aspect;
     orthographicCamera.right = baseTangentProduct * aspect;
@@ -1016,7 +1223,22 @@ export const createViewStateVisualizerPrimitive = (
     orthographicCamera.updateProjectionMatrix();
     orthographicCamera.updateMatrixWorld();
 
-    currentLabelAnchors = update(lastViewState);
+    currentLabelAnchors = update(lastViewStates);
+    return currentLabelAnchors;
+  };
+
+  const setActiveCameraIndex = (cameraIndex: number) => {
+    const nextActiveCameraIndex = clampActiveCameraIndex(
+      cameraIndex,
+      lastViewStates
+    );
+
+    if (nextActiveCameraIndex === activeCameraIndex) {
+      return currentLabelAnchors;
+    }
+
+    activeCameraIndex = nextActiveCameraIndex;
+    currentLabelAnchors = update(lastViewStates);
     return currentLabelAnchors;
   };
 
@@ -1029,7 +1251,7 @@ export const createViewStateVisualizerPrimitive = (
       overviewOptions
     );
     applyOverviewOptions(currentOverview);
-    currentLabelAnchors = update(lastViewState);
+    currentLabelAnchors = update(lastViewStates);
     return currentLabelAnchors;
   };
 
@@ -1040,7 +1262,7 @@ export const createViewStateVisualizerPrimitive = (
       currentVisualized,
       visualizedOptions
     );
-    currentLabelAnchors = update(lastViewState);
+    currentLabelAnchors = update(lastViewStates);
     return currentLabelAnchors;
   };
 
@@ -1058,7 +1280,7 @@ export const createViewStateVisualizerPrimitive = (
       ? POINTER_CURSOR.DRAGGING
       : POINTER_CURSOR.IDLE;
 
-    currentLabelAnchors = update(lastViewState);
+    currentLabelAnchors = update(lastViewStates);
     return currentLabelAnchors;
   };
 
@@ -1071,6 +1293,14 @@ export const createViewStateVisualizerPrimitive = (
 
   // --- Dispose ---
   const dispose = () => {
+    if (isCameraPoseDragging) {
+      isCameraPoseDragging = false;
+      options.onCameraPoseDragStateChange?.(false);
+    }
+    if (isOrbitDragging) {
+      isOrbitDragging = false;
+      options.onOrbitDragStateChange?.(false);
+    }
     canvas.removeEventListener("pointerdown", onPointerDown);
     canvas.removeEventListener("pointermove", onPointerMove);
     canvas.removeEventListener("pointerup", onPointerUp);
@@ -1082,12 +1312,13 @@ export const createViewStateVisualizerPrimitive = (
     altitude.dispose();
     angleCues.dispose();
     worldAxes.dispose();
-    cameraView.dispose();
+    cameraViews.forEach((cameraView) => cameraView.dispose());
   };
 
   return {
     update,
     resize,
+    setActiveCameraIndex,
     setOverview,
     setVisualized,
     setDisplay,

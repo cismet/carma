@@ -13,12 +13,16 @@ const { primitiveMock, createPrimitiveMock } = vi.hoisted(() => {
     east: { leftPx: 50, topPx: 50 },
     north: { leftPx: 60, topPx: 60 },
     up: { leftPx: 70, topPx: 70 },
+    cameraForward: { leftPx: 75, topPx: 75 },
+    cameraRight: { leftPx: 78, topPx: 78 },
+    cameraUp: { leftPx: 79, topPx: 79 },
     imageX: { leftPx: 80, topPx: 80 },
     imageY: { leftPx: 90, topPx: 90 },
   };
   const primitive = {
     resize: vi.fn(() => labelAnchors),
     update: vi.fn(() => labelAnchors),
+    setActiveCameraIndex: vi.fn(() => labelAnchors),
     setOverview: vi.fn(() => null),
     setVisualized: vi.fn(() => null),
     setDisplay: vi.fn(() => null),
@@ -81,6 +85,7 @@ describe("ViewStateVisualizer", () => {
     createPrimitiveMock.mockClear();
     primitiveMock.resize.mockClear();
     primitiveMock.update.mockClear();
+    primitiveMock.setActiveCameraIndex.mockClear();
     primitiveMock.setOverview.mockClear();
     primitiveMock.setVisualized.mockClear();
     primitiveMock.setDisplay.mockClear();
@@ -128,6 +133,72 @@ describe("ViewStateVisualizer", () => {
         widthPx: 72,
         heightPx: 320,
       });
+    });
+  });
+
+  it("passes multiple camera states through to the primitive unchanged", async () => {
+    const viewStates = [{} as ViewState, {} as ViewState];
+
+    render(
+      <ViewStateVisualizer viewState={viewStates} width={96} height={96} />
+    );
+
+    await waitFor(() => {
+      expect(createPrimitiveMock).toHaveBeenCalledWith(
+        expect.any(HTMLCanvasElement),
+        viewStates,
+        expect.any(Object)
+      );
+    });
+  });
+
+  it("forwards active camera and indexed pose callbacks to the primitive", async () => {
+    const onCameraPoseChange = vi.fn();
+    const onCameraPoseDragStateChange = vi.fn();
+    const onOrbitDragStateChange = vi.fn();
+    const onActiveCameraChange = vi.fn();
+    const { rerender } = render(
+      <ViewStateVisualizer
+        viewState={[{} as ViewState, {} as ViewState]}
+        activeCameraIndex={1}
+        onCameraPoseChange={onCameraPoseChange}
+        onCameraPoseDragStateChange={onCameraPoseDragStateChange}
+        onOrbitDragStateChange={onOrbitDragStateChange}
+        onActiveCameraChange={onActiveCameraChange}
+        width={96}
+        height={96}
+      />
+    );
+
+    await waitFor(() => {
+      expect(createPrimitiveMock).toHaveBeenCalledWith(
+        expect.any(HTMLCanvasElement),
+        expect.any(Array),
+        expect.objectContaining({
+          activeCameraIndex: 1,
+          onCameraPoseChange: expect.any(Function),
+          onCameraPoseDragStateChange: expect.any(Function),
+          onOrbitDragStateChange: expect.any(Function),
+          onActiveCameraChange: expect.any(Function),
+        })
+      );
+    });
+
+    rerender(
+      <ViewStateVisualizer
+        viewState={[{} as ViewState, {} as ViewState]}
+        activeCameraIndex={0}
+        onCameraPoseChange={onCameraPoseChange}
+        onCameraPoseDragStateChange={onCameraPoseDragStateChange}
+        onOrbitDragStateChange={onOrbitDragStateChange}
+        onActiveCameraChange={onActiveCameraChange}
+        width={96}
+        height={96}
+      />
+    );
+
+    await waitFor(() => {
+      expect(primitiveMock.setActiveCameraIndex).toHaveBeenLastCalledWith(0);
     });
   });
 });

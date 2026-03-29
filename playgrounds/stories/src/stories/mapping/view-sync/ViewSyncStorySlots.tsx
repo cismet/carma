@@ -1,6 +1,7 @@
 import {
   useCallback,
   useEffect,
+  useMemo,
   useRef,
   useState,
   type CSSProperties,
@@ -851,12 +852,14 @@ const CesiumSlot = ({
 const MapLibreViewSyncBridge = ({
   slotId,
   map,
+  fallbackSeedState,
   setStatusText,
   onViewSyncHandleChange,
   onObservedStateChange,
 }: {
   slotId: string;
   map: MapLibreMap;
+  fallbackSeedState?: ViewState | null;
   setStatusText: (value: string) => void;
   onViewSyncHandleChange?: (handle: SlotViewSyncHandle | null) => void;
   onObservedStateChange?: (state: ViewState | null) => void;
@@ -865,6 +868,7 @@ const MapLibreViewSyncBridge = ({
     useMaplibreRuntimeBridge({
       id: slotId,
       map,
+      fallbackSeedState,
       claimBeforePush: false,
       claimOnInteraction: true,
     });
@@ -1029,6 +1033,7 @@ const MapLibreSlot = ({
         <MapLibreViewSyncBridge
           slotId={slotId}
           map={map}
+          fallbackSeedState={initialTargetRef.current}
           setStatusText={reportStatus ? setStatusText : () => {}}
           onViewSyncHandleChange={setViewSyncHandle}
           onObservedStateChange={onObservedStateChange}
@@ -1106,6 +1111,7 @@ const LeafletSlot = ({
   slotId,
   setStatusText,
   initialTarget,
+  allowFractionalZoom = false,
   registerWithViewSync = true,
   reportStatus = true,
   onReadyChange,
@@ -1116,6 +1122,7 @@ const LeafletSlot = ({
   slotId: string;
   setStatusText: (value: string) => void;
   initialTarget?: ViewState | null;
+  allowFractionalZoom?: boolean;
   registerWithViewSync?: boolean;
   reportStatus?: boolean;
   onReadyChange?: (handle: LeafletRuntimeHandle | null) => void;
@@ -1149,7 +1156,9 @@ const LeafletSlot = ({
       return;
     }
 
-    const nextMap = initializeLeaflet(container);
+    const nextMap = initializeLeaflet(container, {
+      allowFractionalZoom,
+    });
     const initialView = isViewState(initialTargetRef.current)
       ? buildLeafletViewFromState(
           initialTargetRef.current,
@@ -1171,7 +1180,7 @@ const LeafletSlot = ({
       nextMap.remove();
       setMap(null);
     };
-  }, [isBootReady]);
+  }, [allowFractionalZoom, isBootReady]);
 
   useEffect(() => {
     const container = containerRef.current;
@@ -1222,6 +1231,7 @@ const SlotMountRenderer = ({
   slotId,
   mount,
   initialTarget,
+  allowLeafletFractionalZoom = false,
   setStatusText,
   onRuntimeHandleChange,
   onObservedStateChange,
@@ -1230,6 +1240,7 @@ const SlotMountRenderer = ({
   slotId: string;
   mount: SlotMountConfig;
   initialTarget: ViewState | null;
+  allowLeafletFractionalZoom?: boolean;
   setStatusText: (value: string) => void;
   onRuntimeHandleChange: (
     mountId: string,
@@ -1294,6 +1305,7 @@ const SlotMountRenderer = ({
       slotId={slotId}
       setStatusText={setStatusText}
       initialTarget={initialTarget}
+      allowFractionalZoom={allowLeafletFractionalZoom}
       registerWithViewSync={mount.registerWithViewSync}
       reportStatus={mount.reportStatus}
       onReadyChange={(handle) => onRuntimeHandleChange(mount.id, handle)}
@@ -1307,6 +1319,7 @@ const SlotMountRenderer = ({
 const SlotPanelController = ({
   slot,
   fallbackTarget,
+  allowLeafletFractionalZoom = false,
   shouldAutoClaimOnBoot,
   initialBootDelayMs = 0,
   isController,
@@ -1320,6 +1333,7 @@ const SlotPanelController = ({
 }: {
   slot: SlotConfig;
   fallbackTarget: ViewState;
+  allowLeafletFractionalZoom?: boolean;
   shouldAutoClaimOnBoot: boolean;
   initialBootDelayMs?: number;
   isController: boolean;
@@ -1715,6 +1729,7 @@ const SlotPanelController = ({
           slotId={slot.id}
           mount={mount}
           initialTarget={providerTarget}
+          allowLeafletFractionalZoom={allowLeafletFractionalZoom}
           setStatusText={setStatusText}
           onRuntimeHandleChange={handleRuntimeHandleChange}
           onObservedStateChange={onObservedStateChange}
@@ -1734,8 +1749,10 @@ const SlotPanelController = ({
 
 export const SlotsLayout = ({
   fallbackTarget,
+  allowLeafletFractionalZoom = false,
 }: {
   fallbackTarget: ViewState;
+  allowLeafletFractionalZoom?: boolean;
 }) => {
   const layoutRef = useRef<HTMLDivElement | null>(null);
   const [slots, setSlots] = useState<SlotConfig[]>([
@@ -1859,6 +1876,23 @@ export const SlotsLayout = ({
     controllerId && slots.some((slot) => slot.id === controllerId)
       ? controllerId
       : primarySlotId;
+  const overlayVisualizerStates = useMemo(() => {
+    return slots.flatMap((slot) => {
+      const slotId = slot.id;
+      const state = slotObservedStates[slotId];
+      return slotActiveRuntimeMap[slotId] === true && state ? [state] : [];
+    });
+  }, [slotActiveRuntimeMap, slotObservedStates, slots]);
+  const overlayActiveCameraIndex = useMemo(() => {
+    const activeSlotIds = slots
+      .map((slot) => slot.id)
+      .filter((slotId) => slotActiveRuntimeMap[slotId] === true);
+    const resolvedIndex = overlaySourceSlotId
+      ? activeSlotIds.indexOf(overlaySourceSlotId)
+      : -1;
+
+    return resolvedIndex >= 0 ? resolvedIndex : 0;
+  }, [overlaySourceSlotId, slotActiveRuntimeMap, slots]);
   const overlayFallbackTarget =
     (overlaySourceSlotId ? slotObservedStates[overlaySourceSlotId] : null) ??
     fallbackTarget;
@@ -1883,6 +1917,7 @@ export const SlotsLayout = ({
               <SlotPanelController
                 slot={slot}
                 fallbackTarget={fallbackTarget}
+                allowLeafletFractionalZoom={allowLeafletFractionalZoom}
                 shouldAutoClaimOnBoot={index === 0}
                 initialBootDelayMs={INITIAL_SLOT_BOOT_DELAY_STEP_MS * index}
                 canDelete={slots.length > 1}
@@ -1919,6 +1954,8 @@ export const SlotsLayout = ({
         <div style={overlayLayerStyle}>
           <ViewSyncMetaOverlay
             fallbackTarget={overlayFallbackTarget}
+            visualizerStates={overlayVisualizerStates}
+            visualizerActiveCameraIndex={overlayActiveCameraIndex}
             visualizerWidth={META_VISUAL_WIDTH_PX}
             visualizerHeight={META_VISUAL_HEIGHT_PX}
             style={{

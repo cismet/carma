@@ -1,10 +1,6 @@
 import { isFiniteNumber, clamp } from "@carma/math";
-import type { CssPixels, Radians } from "@carma/units/types";
-import {
-  degToRadNumeric,
-  radToDegNumeric,
-  negativePiToPi,
-} from "@carma/units/helpers";
+import type { Radians } from "@carma/units/types";
+import { degToRadNumeric, radToDegNumeric } from "@carma/units/helpers";
 import {
   getPixelResolutionFromZoomAtLatitudeRad,
   clampLatitudeToWebMercatorExtent,
@@ -101,12 +97,18 @@ export const readFromMaplibre = (
 
   const intrinsics: CameraIntrinsics = seedState
     ? (() => {
-        const { viewOffset: _ignoredViewOffset, ...seedIntrinsics } =
-          seedState.intrinsics;
+        const {
+          type: _ignoredType,
+          fov: _ignoredFov,
+          fovHorizontal: _ignoredFovHorizontal,
+          viewOffset: _ignoredViewOffset,
+          orthographicScale: _ignoredOrthographicScale,
+          ...seedIntrinsics
+        } = seedState.intrinsics;
         return {
           ...seedIntrinsics,
           ...runtimeIntrinsics,
-          type: seedIntrinsics.type ?? runtimeIntrinsics.type,
+          type: runtimeIntrinsics.type ?? CAMERA_TYPE.PERSPECTIVE,
           fov: fovRad as Radians,
         };
       })()

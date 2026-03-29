@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  buildOrthographicScale,
   CAMERA_TYPE,
   readMetersPerCssPixel,
 } from "@carma-commons/camera/model";
@@ -17,6 +18,7 @@ import {
   deriveRange,
   deriveRoll,
   deriveZoom,
+  readMetersPerCssPixelFromViewState,
 } from "./derivations";
 
 const meters = (value: number): Meters => value as Meters;
@@ -97,6 +99,37 @@ describe("deriveZoom", () => {
     );
 
     expect(deriveZoom(state)).toBeCloseTo(expectedZoom, 8);
+  });
+
+  it("uses orthographic scale directly when the view state is orthographic", () => {
+    const state = buildViewState({
+      longitude: radians(7.2),
+      latitude: radians(51.27),
+      altitude: meters(180),
+      bearing: radians(195),
+      pitch: radians(58),
+      range: meters(620),
+      intrinsics: {
+        type: CAMERA_TYPE.ORTHOGRAPHIC,
+        orthographicScale: buildOrthographicScale(1.75),
+      },
+      metadata: {
+        frameId: 1,
+        timestampMs: 1_700_000_000_000,
+        sourceId: "spec",
+        source: "sync",
+      },
+    });
+
+    expect(readMetersPerCssPixelFromViewState(state)).toBe(1.75);
+    expect(deriveZoom(state)).toBeCloseTo(
+      getZoomFromPixelResolutionAtLatitudeRad(
+        1.75 as Meters,
+        state.anchorCartographic.latitude,
+        { tileSize: 512 }
+      ),
+      8
+    );
   });
 });
 

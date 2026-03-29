@@ -1,13 +1,12 @@
 import { type CSSProperties } from "react";
-import type { Map as MapLibreMap } from "maplibre-gl";
+import type { Map as MapLibreMap, StyleSpecification } from "maplibre-gl";
 import L from "leaflet";
 import { PI_OVER_TWO } from "@carma/math";
 import { CAMERA_TYPE } from "@carma-commons/camera/model";
-import { WUPPERTAL } from "@carma-commons/resources";
 import {
-  WUPPERTAL_CONFIG,
-  createDefaultStyle,
-} from "@carma-mapping/engines/maplibre";
+  METROPOLERUHR_WMTS_SPW2_WEBMERCATOR_HQ,
+  WUPPERTAL,
+} from "@carma-commons/resources";
 import {
   buildViewState,
   deriveView,
@@ -112,20 +111,33 @@ export type ViewSyncStoryProps = {
   fovVerticalDeg?: number;
   nearPlaneM?: number;
   farPlaneM?: number;
+  allowLeafletFractionalZoom?: boolean;
 };
 
 export const DEFAULT_FOV_RAD = Math.PI / 3;
 export const DEFAULT_ANCHOR_ALTITUDE_M = 200;
 export const PANEL_MIN_WIDTH_PX = 256;
 
-export const GEO_PORTAL_MAPLIBRE_STYLE = createDefaultStyle({
-  ...WUPPERTAL_CONFIG,
-  baseMap: {
-    url: "https://geodaten.metropoleruhr.de/spw2?SERVICE=WMTS&REQUEST=GetTile&VERSION=1.0.0&LAYER=spw2_light&STYLE=default&FORMAT=image/png&TILEMATRIXSET=webmercator_hq&TILEMATRIX={z}&TILEROW={y}&TILECOL={x}",
-    tileSize: 256,
-    opacity: 1,
+export const GEO_PORTAL_MAPLIBRE_STYLE: StyleSpecification = {
+  version: 8,
+  sources: {
+    "source-basemap": {
+      type: "raster",
+      tiles: [METROPOLERUHR_WMTS_SPW2_WEBMERCATOR_HQ.layers.spw2_light.url],
+      tileSize: 256,
+    },
   },
-});
+  layers: [
+    {
+      id: "layer-basemap",
+      type: "raster",
+      source: "source-basemap",
+      paint: {
+        "raster-opacity": 1,
+      },
+    },
+  ],
+};
 
 export const LEAFLET_TO_CESIUM_TRANSITION_OPTIONS = {
   step1_prepare2dViewMaxZoom: 20,

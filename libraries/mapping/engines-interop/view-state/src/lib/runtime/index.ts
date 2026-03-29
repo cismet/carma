@@ -66,6 +66,7 @@ export {
   deriveRoll,
   deriveZoom,
   deriveView,
+  readMetersPerCssPixelFromViewState,
 } from "../core/derivations";
 export { resolveViewStateForViewport } from "../core/viewport";
 

@@ -1,4 +1,5 @@
-import { isFiniteNumber, Quaternion, Vector3 } from "@carma/math";
+import { isFiniteNumber } from "@carma/math";
+import { Quaternion, Vector3 } from "three";
 
 export type ArcballViewport = {
   left: number;

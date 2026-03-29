@@ -1,9 +1,10 @@
-import type { Vector3, Quaternion } from "@carma/math";
+import type { Quaternion } from "three";
 import type { Meters, Radians } from "@carma/units/types";
 import type {
   CameraIntrinsics,
   ObjectCentricCameraAnchor,
 } from "@carma-commons/camera/model";
+import type { Vector3 } from "three";
 
 // ---------------------------------------------------------------------------
 // Canonical view state — ECEF positions + quaternion orientation.
@@ -41,6 +42,20 @@ export type ViewStateMetadata = {
   readonly viewport?: {
     readonly widthPx: number;
     readonly heightPx: number;
+  };
+  /**
+   * Whether the source runtime can actually evaluate the shared orbit fields.
+   * Unspecified means "treat as evaluable".
+   *
+   * Example: Leaflet may temporarily preserve shared bearing/pitch/range from a
+   * seed state for sync continuity, even though the engine itself is a
+   * top-down orthographic map and cannot observe those values natively.
+   */
+  readonly poseEvaluability?: {
+    readonly bearing?: boolean;
+    readonly pitch?: boolean;
+    readonly roll?: boolean;
+    readonly range?: boolean;
   };
   readonly restoreHints?: ViewStateRestoreHints;
 };

@@ -14,7 +14,7 @@ const GEO_PORTAL_BASE_LAYER = {
 };
 
 export interface LeafletSetupOptions {
-  // Future: Add leaflet-specific options here
+  allowFractionalZoom?: boolean;
 }
 
 /**
@@ -24,6 +24,8 @@ export const initializeLeaflet = (
   container: HTMLDivElement,
   options: LeafletSetupOptions = {}
 ): L.Map => {
+  const allowFractionalZoom = options.allowFractionalZoom === true;
+
   // Create Leaflet map
   const leafletMap = L.map(container, {
     center: [WUPPERTAL.position.latitude, WUPPERTAL.position.longitude],
@@ -32,8 +34,8 @@ export const initializeLeaflet = (
     maxZoom: 22,
     zoomControl: false,
     attributionControl: false,
-    zoomSnap: 1,
-    zoomDelta: 1,
+    zoomSnap: allowFractionalZoom ? 0 : 1,
+    zoomDelta: allowFractionalZoom ? 0.25 : 1,
   });
 
   L.tileLayer(GEO_PORTAL_BASE_LAYER.url, {

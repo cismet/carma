@@ -26,6 +26,7 @@ const meta: Meta<ViewSyncStoryProps> = {
     fovVerticalDeg: 60,
     nearPlaneM: 1,
     farPlaneM: 500000,
+    allowLeafletFractionalZoom: false,
   },
   argTypes: {
     longitudeDeg: {
@@ -63,6 +64,10 @@ const meta: Meta<ViewSyncStoryProps> = {
     farPlaneM: {
       name: "far m",
       control: { type: "number" },
+    },
+    allowLeafletFractionalZoom: {
+      name: "leaflet fractional zoom",
+      control: { type: "boolean" },
     },
   },
 };

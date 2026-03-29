@@ -1,9 +1,8 @@
 export * from "./pi";
 export * as PI_VALUES from "./pi";
 export * from "./numeric";
-export * from "./easingFunctions";
+export * from "./easing-functions";
 export * from "./scaling";
-export * from "./interpolation";
 export * from "./geometry2d";
 export * from "./geometry3d";
 export * from "./orientation3d";

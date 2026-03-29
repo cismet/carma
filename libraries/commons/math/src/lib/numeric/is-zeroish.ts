@@ -1,4 +1,4 @@
-import { isFiniteNumber } from "./isFiniteNumber";
+import { isFiniteNumber } from "./is-finite-number";
 
 /**
  * Returns true if value is not a finite number or is within epsilon of zero.
