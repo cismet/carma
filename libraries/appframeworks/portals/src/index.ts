@@ -111,3 +111,4 @@ export {
 // RouteOptionsDrawer moved to @carma-mapping/routing
 
 export { defaultLayerConf } from "./lib/components/react-cismap/tools/layerFactory";
+export { default as getLayers } from "./lib/components/react-cismap/tools/layerFactory";

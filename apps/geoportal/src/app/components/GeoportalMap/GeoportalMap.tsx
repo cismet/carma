@@ -85,13 +85,13 @@ import {
 import { EmptySearchComponent } from "@carma-mapping/fuzzy-search";
 import { useAuth } from "@carma-providers/auth";
 import { useFeatureFlags } from "@carma-providers/feature-flag";
+import { getLayers as getBackgroundLayers } from "@carma-appframeworks/portals";
 
 import FeatureInfoBox from "../feature-info/FeatureInfoBox.tsx";
 import PrintPreview from "../map-print/PrintPreview.tsx";
 
 import versionData from "../../../version.json";
 
-import { getBackgroundLayers } from "../../helper/layer.tsx";
 import { addCssToOverlayHelperItem } from "../../helper/overlayHelper.ts";
 
 import useLeafletZoomControls from "../../hooks/leaflet/useLeafletZoomControls.ts";
@@ -1038,10 +1038,10 @@ export const GeoportalMap = ({ height, width, allow3d }: MapProps) => {
           <TopicMapSelectionContent />
           {backgroundLayer &&
             backgroundLayer.visible &&
-            getBackgroundLayers({
-              layerString: backgroundLayer.layers,
-              masterOpacity: backgroundLayer.opacity,
-            })}
+            getBackgroundLayers(
+              backgroundLayer.layers,
+              backgroundLayer.opacity
+            )}
 
           {useCreateCismapLayers(layers, createLayerOptions)}
           <PrintPreview />
