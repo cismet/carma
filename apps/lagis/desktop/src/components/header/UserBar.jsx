@@ -18,6 +18,7 @@ import {
   getLandparcelInternaDataStructure,
   buildLandparcelInternalDataStructure,
 } from "../../store/slices/lagis";
+import { setHasFittedBounds } from "../../store/slices/mapping";
 import {
   getSyncLandparcel,
   setFetchLandParcelError,
@@ -80,6 +81,9 @@ const UserBar = () => {
               )
             );
             handleOpenLandparcelInJavaApp(fstck);
+            setTimeout(() => {
+              dispatch(setHasFittedBounds(false));
+            }, 800);
           }
         }}
         showDropdownBelow={true}
