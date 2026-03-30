@@ -15,7 +15,6 @@ import { getBoundsForFeatureArray } from "../../tools/mappingTools";
 import Dot from "./Dot";
 import { faImage as regularImage } from "@fortawesome/free-regular-svg-icons";
 import Overlay from "./Overlay";
-import LandParcelChooser from "./LandParcelChooser";
 
 import {
   getIsLoading,
@@ -39,7 +38,6 @@ import {
 } from "../../store/slices/mapping";
 import {
   faExpandArrowsAlt,
-  faF,
   faLock,
   faLockOpen,
   faPlane,
@@ -101,7 +99,6 @@ const Map = ({
   // const [fallback, setFallback] = useState({});
   const [showVirtualCityOverlay, setShowVirtualCityOverlay] = useState(false);
   const [infoText, setInfoText] = useState("");
-  const [showFIcon, setShowFIcon] = useState(true);
   const showCurrentFeatureCollection = useSelector(
     getShowCurrentFeatureCollection
   );
@@ -120,7 +117,6 @@ const Map = ({
 
   const cardRef = useRef(null);
   const [mapWidth, setMapWidth] = useState(0);
-  const [showLandParcelChooser, setShowLandParcelChooser] = useState(false);
   const [initialFitBoundsCounter, setInitialFitBoundsCounter] =
     useState(fitBoundsCounter);
   const [mapHeight, setMapHeight] = useState(window.innerHeight * 0.5); //uggly winning
@@ -225,9 +221,6 @@ const Map = ({
     }
   }, [mapWidth, mapHeight]);
   [];
-  const handleShowFIcon = () => {
-    setShowFIcon(true);
-  };
   const lockMap = useSelector(getLockMap);
   const lockMapOnlyInKassenzeichen = useSelector(getLockMapOnlyInKassenzeichen);
 
@@ -302,7 +295,6 @@ const Map = ({
         });
       }
 
-      setShowFIcon(false);
     }, 0);
   };
 
@@ -507,14 +499,6 @@ const Map = ({
             mapRef={leafletRoutedMapRef}
           />
         )} */}
-        {showLandParcelChooser && (
-          <LandParcelChooser
-            setGazetteerHit={onGazetteerSelection}
-            setOverlayFeature={setOverlayFeature}
-            setShowLandParcelChooser={setShowLandParcelChooser}
-            setShowFIcon={setShowFIcon}
-          />
-        )}
 
         {showBackground && (
           <>
@@ -617,32 +601,15 @@ const Map = ({
           mode={mode}
         />
       </RoutedMap>
-      {!showLandParcelChooser && (
-        <div className="custom-left-control">
-          {showFIcon && (
-            <Tooltip
-              title="Flurstückssuche"
-              align={{
-                offset: [0, -6],
-              }}
-            >
-              <button
-                className="absolute border-[#0d6efd] z-[9999] bg-gradient-to-b from-[#ffffff] to-[#e0e0e0] h-[34px] w-[32px] border rounded-l-[4px]"
-                onClick={() => setShowLandParcelChooser(true)}
-              >
-                <FontAwesomeIcon icon={faF} />
-              </button>
-            </Tooltip>
-          )}
-          <LibFuzzySearch
-            gazData={gazData}
-            onCLose={handleShowFIcon}
-            onSelection={onGazetteerSelection}
-            pixelwidth="500px"
-            placeholder="Geben Sie einen Suchbegriff ein"
-          />
-        </div>
-      )}
+      <div className="custom-left-control">
+        <LibFuzzySearch
+          gazData={gazData}
+          onSelection={onGazetteerSelection}
+          pixelwidth="500px"
+          placeholder="Geben Sie einen Suchbegriff ein"
+          landParcelSearch={true}
+        />
+      </div>
 
       <Toolbar />
     </Card>

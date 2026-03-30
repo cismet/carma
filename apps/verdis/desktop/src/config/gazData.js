@@ -11,4 +11,6 @@ const sources = endpoints.map((endpoint) => {
   return createConfig(endpoint, { crs, host });
 });
 
-export const gazDataConfig = { crs, prefix, sources };
+const landParcelUrl = "https://wunda-geoportal.cismet.de/data/4326/fstck.json";
+
+export const gazDataConfig = { crs, prefix, sources, landParcelUrl };
