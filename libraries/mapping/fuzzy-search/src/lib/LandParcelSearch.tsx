@@ -24,13 +24,21 @@ import {
 
 import "./fuzzy-search.css";
 
+export type ParcelChangeInfo = {
+  gemarkung: string;
+  flur: string;
+  fstck: string;
+};
+
 export type LandParcelSearchProps = {
   onSelection?: (hit: SearchResultItem | null) => void;
+  onParcelChange?: (info: ParcelChangeInfo | null) => void;
   pixelwidth?: number | string;
   placeholder?: string;
   landParcelData?: LandParcelDataStructure;
   showDropdownBelow?: boolean;
   showButton?: boolean;
+  defaultValue?: string;
 };
 
 const defaultIcon = (
@@ -44,16 +52,18 @@ const defaultIcon = (
 
 export function LandParcelSearch({
   onSelection,
+  onParcelChange,
   pixelwidth = 300,
   placeholder = `Gemarkung${LAND_PARCEL_SEPARATOR}Flur${LAND_PARCEL_SEPARATOR}Flurstück`,
   landParcelData: externalData,
   showDropdownBelow = false,
   showButton = true,
+  defaultValue,
 }: LandParcelSearchProps) {
   const [searchResult, setSearchResult] = useState<GroupedOptions[]>([]);
   const [options, setOptions] = useState<Option[]>([]);
-  const [value, setValue] = useState("");
-  const [cleanBtnDisable, setCleanBtnDisable] = useState(true);
+  const [value, setValue] = useState(defaultValue ?? "");
+  const [cleanBtnDisable, setCleanBtnDisable] = useState(!defaultValue);
   const [autoCompleteOpen, setAutoCompleteOpen] = useState(false);
 
   const btnClosRef = useRef<HTMLButtonElement>(null);
@@ -75,6 +85,14 @@ export function LandParcelSearch({
       loadLandParcelData();
     }
   };
+
+  // Sync value when defaultValue changes from outside
+  useEffect(() => {
+    if (defaultValue != null) {
+      setValue(defaultValue);
+      setCleanBtnDisable(!defaultValue);
+    }
+  }, [defaultValue]);
 
   // Load data immediately on mount
   useEffect(() => {
@@ -168,6 +186,14 @@ export function LandParcelSearch({
         onSelection(selectionItem);
       }
 
+      if (onParcelChange && option.parcelData) {
+        onParcelChange({
+          gemarkung: option.parcelData.gemarkung,
+          flur: option.parcelData.flur,
+          fstck: option.parcelData.label,
+        });
+      }
+
       setTimeout(() => {
         btnClosRef.current?.focus();
       }, 100);
@@ -180,6 +206,7 @@ export function LandParcelSearch({
     setSearchResult([]);
     setCleanBtnDisable(true);
     onSelection?.(null);
+    onParcelChange?.(null);
   };
 
   const dropdownAlign = showDropdownBelow

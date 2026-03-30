@@ -8,7 +8,7 @@ import type { LandParcelDataStructure } from "./lib/utils/landParcelSearchHelper
 
 export * from "./lib/lib-fuzzy-search";
 export { LandParcelSearch } from "./lib/LandParcelSearch";
-export type { LandParcelSearchProps } from "./lib/LandParcelSearch";
+export type { LandParcelSearchProps, ParcelChangeInfo } from "./lib/LandParcelSearch";
 // export { EmptySearchComponent } from ''
 export { EmptySearchComponent } from "./lib/components/EmptySearchComponent";
 export { defaultTypeInference } from "./lib/utils/fuzzySearchHelper";
