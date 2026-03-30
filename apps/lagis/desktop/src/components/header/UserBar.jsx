@@ -15,6 +15,8 @@ import {
   storeMipa,
   storeHistory,
   fetchFlurstueck,
+  getLandparcelInternaDataStructure,
+  buildLandparcelInternalDataStructure,
 } from "../../store/slices/lagis";
 import {
   getSyncLandparcel,
@@ -22,8 +24,10 @@ import {
 } from "../../store/slices/ui";
 import { useSelector, useDispatch } from "react-redux";
 import { useNavigate } from "react-router-dom";
-import LandParcelChooser from "../chooser/LandParcelChooser";
+import { useEffect } from "react";
 import { removeLeadingZeros } from "../../core/tools/helper";
+import { LandParcelSearch } from "@carma-mapping/fuzzy-search";
+import LandParcelHistoryNav from "../navigation/lp-history/LandParcelHistoryNav";
 
 const UserBar = () => {
   const dispatch = useDispatch();
@@ -32,6 +36,17 @@ const UserBar = () => {
   const navigate = useNavigate();
   const { landParcels } = useSelector(getLandParcels);
   const { landmarks } = useSelector(getLandmarks);
+  const landparcelInternaDataStructure = useSelector(
+    getLandparcelInternaDataStructure
+  );
+
+  useEffect(() => {
+    if (landParcels && landParcels.length > 1) {
+      dispatch(
+        buildLandparcelInternalDataStructure(landParcels, landmarks || [])
+      );
+    }
+  }, [landParcels, landmarks]);
 
   const handleOpenLandparcelInJavaApp = (fstck) => {
     if (syncLandparcel) {
@@ -49,11 +64,16 @@ const UserBar = () => {
   };
   return (
     <div className="flex items-center">
-      <LandParcelChooser
-        all={landParcels ? landParcels : []}
-        gemarkungen={landmarks ? landmarks : []}
-        flurstueckChoosen={(fstck) => {
-          if (fstck.lfk) {
+      <div className="mr-3">
+        <LandParcelHistoryNav />
+      </div>
+      <LandParcelSearch
+        pixelwidth={400}
+        landParcelData={landparcelInternaDataStructure}
+        onSelection={(hit) => {
+          if (!hit) return;
+          const fstck = hit.more?.parcel;
+          if (fstck?.lfk) {
             dispatch(
               fetchFlurstueck(fstck.lfk, fstck.alkis_id, navigate, () =>
                 dispatch(setFetchLandParcelError(true))
@@ -62,6 +82,8 @@ const UserBar = () => {
             handleOpenLandparcelInJavaApp(fstck);
           }
         }}
+        showDropdownBelow={true}
+        showButton={false}
       />
       <div className="ml-auto flex gap-1 items-center">
         <div className="logout ml-auto pl-1 flex items-center">

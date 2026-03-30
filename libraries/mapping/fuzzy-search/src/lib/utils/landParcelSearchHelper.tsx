@@ -428,22 +428,29 @@ export const generateLandParcelOptions = (
 
 export const parseLandparcelToSelectionItem = (option) => {
   const parcel = option.parcelData;
-  if (!parcel?.x || !parcel?.y) {
+  if (!parcel) {
     return null;
   }
-  const bounds = parcel.bounds;
+  const hasCoords = parcel.x != null && parcel.y != null;
   const toMercator = (coords: number[]) =>
     proj4("EPSG:4326", "EPSG:3857", coords);
-  const [x3857, y3857] = toMercator([parcel.x, parcel.y]);
-  const boundsCoords = bounds
-    ? (() => {
-        const bl = toMercator([bounds[0], bounds[1]]);
-        const br = toMercator([bounds[2], bounds[1]]);
-        const tr = toMercator([bounds[2], bounds[3]]);
-        const tl = toMercator([bounds[0], bounds[3]]);
-        return [[bl, br, tr, tl, bl]];
-      })()
-    : [];
+
+  let x3857 = 0;
+  let y3857 = 0;
+  let boundsCoords: number[][][] = [];
+
+  if (hasCoords) {
+    [x3857, y3857] = toMercator([parcel.x, parcel.y]);
+    const bounds = parcel.bounds;
+    if (bounds) {
+      const bl = toMercator([bounds[0], bounds[1]]);
+      const br = toMercator([bounds[2], bounds[1]]);
+      const tr = toMercator([bounds[2], bounds[3]]);
+      const tl = toMercator([bounds[0], bounds[3]]);
+      boundsCoords = [[bl, br, tr, tl, bl]];
+    }
+  }
+
   const selectionItem: SearchResultItem = {
     x: x3857,
     y: y3857,
@@ -459,6 +466,7 @@ export const parseLandparcelToSelectionItem = (option) => {
         type: "Polygon",
         coordinates: boundsCoords,
       },
+      parcel,
     },
   };
 
