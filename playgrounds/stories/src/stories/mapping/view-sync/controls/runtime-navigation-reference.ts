@@ -64,26 +64,53 @@ import {
 
 const MAX_MAPLIBRE_PITCH_DEG = 85;
 const CESIUM_FALLBACK_ORBIT_SOURCE_ID = "story-navigation/orbit-fallback";
-const MIN_CESIUM_FOV_RAD = degToRadNumeric(5)!;
-const MAX_CESIUM_FOV_RAD = degToRadNumeric(120)!;
+const ABSOLUTE_MIN_CESIUM_FOV_RAD = degToRadNumeric(0.1)!;
+const DEFAULT_MIN_CESIUM_FOV_RAD = degToRadNumeric(2)!;
+const DEFAULT_MAX_CESIUM_FOV_RAD = degToRadNumeric(120)!;
+const ABSOLUTE_MAX_CESIUM_FOV_RAD = degToRadNumeric(179)!;
 
-const readDurationSeconds = (durationMs?: number): number | undefined => {
+const readTransitionDurationSeconds = (
+  duration?: NavigationTransitionOptions["duration"]
+): number | undefined => {
   if (
-    typeof durationMs !== "number" ||
-    !Number.isFinite(durationMs) ||
-    durationMs <= 0
+    typeof duration !== "number" ||
+    !Number.isFinite(duration) ||
+    duration <= 0
   ) {
     return undefined;
   }
 
-  return durationMs / 1000;
+  return duration / 1000;
+};
+
+const readZoomDurationMs = (
+  options: Pick<NavigationZoomOptions, "animate" | "duration">
+): number | undefined => {
+  if (options.animate === false) {
+    return 0;
+  }
+
+  const { duration } = options;
+  if (duration === 0) {
+    return 0;
+  }
+
+  if (
+    typeof duration !== "number" ||
+    !Number.isFinite(duration) ||
+    duration <= 0
+  ) {
+    return undefined;
+  }
+
+  return duration;
 };
 
 const readHomeDurationMs = (options: NavigationTransitionOptions): number =>
-  typeof options.durationMs === "number" &&
-  Number.isFinite(options.durationMs) &&
-  options.durationMs >= 0
-    ? options.durationMs
+  typeof options.duration === "number" &&
+  Number.isFinite(options.duration) &&
+  options.duration >= 0
+    ? options.duration
     : DEFAULT_NAVIGATION_HOME_DURATION_MS;
 
 type NeedleOrientationSink = (
@@ -211,6 +238,74 @@ const readMapLibreNextZoomLevel = ({
     : desiredZoom;
 };
 
+const runLeafletZoomLifecycle = (
+  map: LeafletMap,
+  options: NavigationZoomOptions,
+  applyZoom: () => void
+) => {
+  const animated =
+    options.animate !== false &&
+    typeof options.duration === "number" &&
+    Number.isFinite(options.duration)
+      ? options.duration > 0
+      : true;
+
+  if (!animated) {
+    options.onStarted?.();
+    applyZoom();
+    options.onCompleted?.();
+    return;
+  }
+
+  let settled = false;
+  const complete = () => {
+    if (settled) {
+      return;
+    }
+    settled = true;
+    map.off("zoomend", complete);
+    options.onCompleted?.();
+  };
+
+  map.once("zoomend", complete);
+  options.onStarted?.();
+  applyZoom();
+};
+
+const runMapLibreZoomLifecycle = (
+  map: MapLibreMap,
+  options: NavigationZoomOptions,
+  applyZoom: () => void
+) => {
+  const animated =
+    options.animate !== false &&
+    typeof options.duration === "number" &&
+    Number.isFinite(options.duration)
+      ? options.duration > 0
+      : true;
+
+  if (!animated) {
+    options.onStarted?.();
+    applyZoom();
+    options.onCompleted?.();
+    return;
+  }
+
+  let settled = false;
+  const complete = () => {
+    if (settled) {
+      return;
+    }
+    settled = true;
+    map.off("moveend", complete);
+    options.onCompleted?.();
+  };
+
+  map.once("moveend", complete);
+  options.onStarted?.();
+  applyZoom();
+};
+
 const readOrbitDirectionSign = (options: NavigationOrbitOptions): number => {
   if (options.direction === NAVIGATION_ORBIT_DIRECTIONS.CCW) {
     return -1;
@@ -264,10 +359,10 @@ const readOrbitSpeedDegPerSecond = (
 };
 
 const readOrbitPrepDurationMs = (options: NavigationOrbitOptions): number =>
-  typeof options.durationMs === "number" &&
-  Number.isFinite(options.durationMs) &&
-  options.durationMs > 0
-    ? options.durationMs
+  typeof options.duration === "number" &&
+  Number.isFinite(options.duration) &&
+  options.duration > 0
+    ? options.duration
     : DEFAULT_ORBIT_PREP_DURATION_MS;
 
 const readMinimumOrbitPitchDeg = (options: NavigationOrbitOptions): number =>
@@ -280,6 +375,32 @@ const readMinimumOrbitPitchDeg = (options: NavigationOrbitOptions): number =>
     MAX_MAPLIBRE_PITCH_DEG
   );
 
+const readResolvedCesiumFovBounds = (options: NavigationZoomOptions) => {
+  const rawMinimumFovRad =
+    typeof options.minimumFovRad === "number" &&
+    Number.isFinite(options.minimumFovRad)
+      ? options.minimumFovRad
+      : DEFAULT_MIN_CESIUM_FOV_RAD;
+  const rawMaximumFovRad =
+    typeof options.maximumFovRad === "number" &&
+    Number.isFinite(options.maximumFovRad)
+      ? options.maximumFovRad
+      : DEFAULT_MAX_CESIUM_FOV_RAD;
+
+  return {
+    minimumFovRad: clamp(
+      Math.min(rawMinimumFovRad, rawMaximumFovRad),
+      ABSOLUTE_MIN_CESIUM_FOV_RAD as number,
+      ABSOLUTE_MAX_CESIUM_FOV_RAD as number
+    ) as Radians,
+    maximumFovRad: clamp(
+      Math.max(rawMinimumFovRad, rawMaximumFovRad),
+      ABSOLUTE_MIN_CESIUM_FOV_RAD as number,
+      ABSOLUTE_MAX_CESIUM_FOV_RAD as number
+    ) as Radians,
+  };
+};
+
 const readResolvedCesiumTargetFov = (
   scene: NonNullable<ReturnType<typeof readStoryCesiumScene>>,
   options: NavigationZoomOptions,
@@ -289,23 +410,14 @@ const readResolvedCesiumTargetFov = (
     return null;
   }
 
-  if (
-    typeof options.targetFovRad === "number" &&
-    Number.isFinite(options.targetFovRad)
-  ) {
-    return clamp(
-      options.targetFovRad,
-      MIN_CESIUM_FOV_RAD as number,
-      MAX_CESIUM_FOV_RAD as number
-    ) as Radians;
-  }
+  const { minimumFovRad, maximumFovRad } = readResolvedCesiumFovBounds(options);
 
   return computeNextCesiumFov({
     scene,
     direction,
     zoomDelta: options.zoomDelta,
-    minimumFovRad: MIN_CESIUM_FOV_RAD,
-    maximumFovRad: MAX_CESIUM_FOV_RAD,
+    minimumFovRad,
+    maximumFovRad,
   });
 };
 
@@ -617,7 +729,7 @@ export const createRuntimeNavigationReference = ({
     state: ViewState,
     options: NavigationTransitionOptions = {}
   ) => {
-    const durationMs = options.durationMs;
+    const durationMs = options.duration;
     if (
       typeof durationMs !== "number" ||
       !Number.isFinite(durationMs) ||
@@ -668,7 +780,7 @@ export const createRuntimeNavigationReference = ({
     }
 
     flyViewStateInCesium(scene, state, {
-      duration: readDurationSeconds(durationMs),
+      duration: readTransitionDurationSeconds(durationMs),
     });
   };
 
@@ -725,12 +837,13 @@ export const createRuntimeNavigationReference = ({
             direction: "in",
             zoomDelta: options.zoomDelta,
           });
-
-          activeRuntimeHandle.map.setZoom(nextZoom, {
-            animate:
-              typeof options.durationMs === "number"
-                ? options.durationMs > 0
-                : undefined,
+          runLeafletZoomLifecycle(activeRuntimeHandle.map, options, () => {
+            activeRuntimeHandle.map.setZoom(nextZoom, {
+              animate:
+                typeof options.duration === "number"
+                  ? options.duration > 0
+                  : undefined,
+            });
           });
           return;
         }
@@ -743,20 +856,22 @@ export const createRuntimeNavigationReference = ({
             direction: "in",
             zoomDelta: options.zoomDelta,
           });
-          if (
-            typeof options.durationMs === "number" &&
-            Number.isFinite(options.durationMs) &&
-            options.durationMs <= 0
-          ) {
-            activeRuntimeHandle.map.jumpTo({
-              zoom: nextZoom,
-            });
-            return;
-          }
+          runMapLibreZoomLifecycle(activeRuntimeHandle.map, options, () => {
+            if (
+              typeof options.duration === "number" &&
+              Number.isFinite(options.duration) &&
+              options.duration <= 0
+            ) {
+              activeRuntimeHandle.map.jumpTo({
+                zoom: nextZoom,
+              });
+              return;
+            }
 
-          activeRuntimeHandle.map.easeTo({
-            zoom: nextZoom,
-            duration: options.durationMs ?? 250,
+            activeRuntimeHandle.map.easeTo({
+              zoom: nextZoom,
+              duration: options.duration ?? 250,
+            });
           });
           return;
         }
@@ -771,6 +886,9 @@ export const createRuntimeNavigationReference = ({
             return;
           }
 
+          const { minimumFovRad, maximumFovRad } =
+            readResolvedCesiumFovBounds(options);
+
           if (isDollyMode) {
             const nextFov = readResolvedCesiumTargetFov(scene, options, "in");
             if (nextFov === null) {
@@ -778,28 +896,36 @@ export const createRuntimeNavigationReference = ({
             }
             animateCesiumSceneTravelZoom(scene, {
               direction: "in",
-              durationSeconds: readDurationSeconds(options.durationMs) ?? 0.5,
+              durationMs: readZoomDurationMs(options) ?? 500,
               zoomDelta: options.zoomDelta,
               synchronizedFovTargetRad: nextFov,
+              onStarted: options.onStarted,
+              onCompleted: options.onCompleted,
+              onCanceled: options.onCanceled,
             });
             return;
           }
 
           flyCesiumSceneFovZoom(scene, {
             direction: "in",
-            durationSeconds: readDurationSeconds(options.durationMs) ?? 0.25,
+            durationMs: readZoomDurationMs(options) ?? 250,
             zoomDelta: options.zoomDelta,
-            targetFovRad: options.targetFovRad,
-            minimumFovRad: MIN_CESIUM_FOV_RAD,
-            maximumFovRad: MAX_CESIUM_FOV_RAD,
+            minimumFovRad,
+            maximumFovRad,
+            onStarted: options.onStarted,
+            onCompleted: options.onCompleted,
+            onCanceled: options.onCanceled,
           });
           return;
         }
 
         animateCesiumSceneTravelZoom(scene, {
           direction: "in",
-          durationSeconds: readDurationSeconds(options.durationMs) ?? 0.5,
+          durationMs: readZoomDurationMs(options) ?? 500,
           zoomDelta: options.zoomDelta,
+          onStarted: options.onStarted,
+          onCompleted: options.onCompleted,
+          onCanceled: options.onCanceled,
         });
         requestStoryCesiumRender(scene);
       },
@@ -820,12 +946,13 @@ export const createRuntimeNavigationReference = ({
             direction: "out",
             zoomDelta: options.zoomDelta,
           });
-
-          activeRuntimeHandle.map.setZoom(nextZoom, {
-            animate:
-              typeof options.durationMs === "number"
-                ? options.durationMs > 0
-                : undefined,
+          runLeafletZoomLifecycle(activeRuntimeHandle.map, options, () => {
+            activeRuntimeHandle.map.setZoom(nextZoom, {
+              animate:
+                typeof options.duration === "number"
+                  ? options.duration > 0
+                  : undefined,
+            });
           });
           return;
         }
@@ -838,20 +965,22 @@ export const createRuntimeNavigationReference = ({
             direction: "out",
             zoomDelta: options.zoomDelta,
           });
-          if (
-            typeof options.durationMs === "number" &&
-            Number.isFinite(options.durationMs) &&
-            options.durationMs <= 0
-          ) {
-            activeRuntimeHandle.map.jumpTo({
-              zoom: nextZoom,
-            });
-            return;
-          }
+          runMapLibreZoomLifecycle(activeRuntimeHandle.map, options, () => {
+            if (
+              typeof options.duration === "number" &&
+              Number.isFinite(options.duration) &&
+              options.duration <= 0
+            ) {
+              activeRuntimeHandle.map.jumpTo({
+                zoom: nextZoom,
+              });
+              return;
+            }
 
-          activeRuntimeHandle.map.easeTo({
-            zoom: nextZoom,
-            duration: options.durationMs ?? 250,
+            activeRuntimeHandle.map.easeTo({
+              zoom: nextZoom,
+              duration: options.duration ?? 250,
+            });
           });
           return;
         }
@@ -866,6 +995,9 @@ export const createRuntimeNavigationReference = ({
             return;
           }
 
+          const { minimumFovRad, maximumFovRad } =
+            readResolvedCesiumFovBounds(options);
+
           if (isDollyMode) {
             const nextFov = readResolvedCesiumTargetFov(scene, options, "out");
             if (nextFov === null) {
@@ -873,28 +1005,36 @@ export const createRuntimeNavigationReference = ({
             }
             animateCesiumSceneTravelZoom(scene, {
               direction: "out",
-              durationSeconds: readDurationSeconds(options.durationMs) ?? 0.5,
+              durationMs: readZoomDurationMs(options) ?? 500,
               zoomDelta: options.zoomDelta,
               synchronizedFovTargetRad: nextFov,
+              onStarted: options.onStarted,
+              onCompleted: options.onCompleted,
+              onCanceled: options.onCanceled,
             });
             return;
           }
 
           flyCesiumSceneFovZoom(scene, {
             direction: "out",
-            durationSeconds: readDurationSeconds(options.durationMs) ?? 0.25,
+            durationMs: readZoomDurationMs(options) ?? 250,
             zoomDelta: options.zoomDelta,
-            targetFovRad: options.targetFovRad,
-            minimumFovRad: MIN_CESIUM_FOV_RAD,
-            maximumFovRad: MAX_CESIUM_FOV_RAD,
+            minimumFovRad,
+            maximumFovRad,
+            onStarted: options.onStarted,
+            onCompleted: options.onCompleted,
+            onCanceled: options.onCanceled,
           });
           return;
         }
 
         animateCesiumSceneTravelZoom(scene, {
           direction: "out",
-          durationSeconds: readDurationSeconds(options.durationMs) ?? 0.5,
+          durationMs: readZoomDurationMs(options) ?? 500,
           zoomDelta: options.zoomDelta,
+          onStarted: options.onStarted,
+          onCompleted: options.onCompleted,
+          onCanceled: options.onCanceled,
         });
         requestStoryCesiumRender(scene);
       },
@@ -907,7 +1047,7 @@ export const createRuntimeNavigationReference = ({
     if (durationMs > 0) {
       flyTo(homeTarget, {
         ...options,
-        durationMs,
+        duration: durationMs as NavigationTransitionOptions["duration"],
       });
       return;
     }
@@ -1077,7 +1217,7 @@ export const createRuntimeNavigationReference = ({
       ) {
         activeRuntimeHandle.map.easeTo({
           bearing: 0,
-          duration: options.durationMs ?? 250,
+          duration: options.duration ?? 250,
         });
         return;
       }
@@ -1123,7 +1263,7 @@ export const createRuntimeNavigationReference = ({
         activeRuntimeHandle.map.easeTo({
           bearing: 0,
           pitch: 0,
-          duration: options.durationMs ?? 300,
+          duration: options.duration ?? 300,
         });
         return;
       }

@@ -29,6 +29,8 @@ export type OrbitHeadingPitchRangeAnimationOptions = {
 export type FlyCameraStateToSceneOptions = {
   duration?: number;
   applyFov?: boolean;
+  onComplete?: () => void;
+  onCancel?: () => void;
 };
 
 /**
@@ -181,6 +183,8 @@ export const flyToCameraState = (
       up: state.up,
     },
     duration: options.duration,
+    complete: options.onComplete,
+    cancel: options.onCancel,
   });
 
   if (

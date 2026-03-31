@@ -27,6 +27,8 @@ import {
   registerCesiumWidgetAdaptiveRenderScale,
   subscribeCesiumAdaptiveRenderScaleStatus,
   type CesiumAdaptiveRenderScaleStatus,
+  type CesiumAdaptiveRenderScaleActivitySummary,
+  type CesiumAdaptiveRenderScaleChange,
 } from "@carma-mapping/engines/cesium/api";
 import { ViewSyncRuntimeNavigationControls } from "./controls/view-sync-runtime-navigation-controls";
 import { useContainerResize } from "./viewSyncStoryHooks";
@@ -34,6 +36,20 @@ import { setupCesium } from "../../map-engine-switcher/helpers/cesium-setup";
 import { initializeLeaflet } from "../../map-engine-switcher/helpers/leaflet-setup";
 import { requestStoryCesiumRender } from "../../shared/cesiumRuntimeGuards";
 import { CARMA_STORY_MAPPING_ENGINES } from "./mappingEngines";
+import {
+  buildOrbitOptions,
+  buildZoomOptions,
+  DEFAULT_STORY_CESIUM_MAXIMUM_FOV_DEG,
+  DEFAULT_STORY_CESIUM_MINIMUM_FOV_DEG,
+  DOLLY_ZOOM_DURATION_ARG_TYPE,
+  MAX_STORY_CESIUM_FOV_DEG,
+  MIN_STORY_CESIUM_FOV_DEG,
+  readZoomDeltaArgValue,
+  ZOOM_ANIMATE_ARG_TYPE,
+  ZOOM_DELTA_ARG_TYPE,
+  ZOOM_DELTA_PRESETS,
+  ZOOM_DURATION_ARG_TYPE,
+} from "./framework-controls.story-helpers";
 
 import "leaflet/dist/leaflet.css";
 import "maplibre-gl/dist/maplibre-gl.css";
@@ -47,90 +63,6 @@ const meta: Meta = {
 };
 
 export default meta;
-
-const readOrbitRevolutionDurationSec = (durationSec?: number) =>
-  typeof durationSec === "number" &&
-  Number.isFinite(durationSec) &&
-  durationSec > 0
-    ? durationSec
-    : DEFAULT_NAVIGATION_ORBIT_REVOLUTION_DURATION_SEC;
-
-const buildOrbitOptions = ({
-  direction = NAVIGATION_ORBIT_DIRECTIONS.CW,
-  revolutionDurationSec,
-  durationMs,
-  minPitchDeg,
-  rangeM,
-}: {
-  direction?: NavigationOrbitDirection;
-  revolutionDurationSec?: number;
-  durationMs?: number;
-  minPitchDeg?: number;
-  rangeM?: number;
-}): NavigationOrbitOptions => ({
-  direction,
-  revolutionDurationSec: readOrbitRevolutionDurationSec(revolutionDurationSec),
-  durationMs,
-  minPitchDeg,
-  rangeM,
-});
-
-const ZOOM_DELTA_PRESETS = {
-  QUARTER: 0.25,
-  THIRD: 1 / 3,
-  HALF: 0.5,
-  TWO_THIRDS: 2 / 3,
-  ONE: 1,
-} as const;
-
-const ZOOM_DELTA_OPTIONS = {
-  QUARTER: "quarter",
-  THIRD: "third",
-  HALF: "half",
-  TWO_THIRDS: "two-thirds",
-  ONE: "one",
-} as const;
-
-const ZOOM_DELTA_OPTION_TO_VALUE = {
-  [ZOOM_DELTA_OPTIONS.QUARTER]: ZOOM_DELTA_PRESETS.QUARTER,
-  [ZOOM_DELTA_OPTIONS.THIRD]: ZOOM_DELTA_PRESETS.THIRD,
-  [ZOOM_DELTA_OPTIONS.HALF]: ZOOM_DELTA_PRESETS.HALF,
-  [ZOOM_DELTA_OPTIONS.TWO_THIRDS]: ZOOM_DELTA_PRESETS.TWO_THIRDS,
-  [ZOOM_DELTA_OPTIONS.ONE]: ZOOM_DELTA_PRESETS.ONE,
-} as const;
-
-const readZoomDelta = (zoomDelta?: number) =>
-  typeof zoomDelta === "number" &&
-  Number.isFinite(zoomDelta) &&
-  zoomDelta > 0
-    ? zoomDelta
-    : ZOOM_DELTA_PRESETS.ONE;
-
-const readZoomDeltaArgValue = (zoomDelta?: number | string) =>
-  typeof zoomDelta === "string"
-    ? ZOOM_DELTA_OPTION_TO_VALUE[
-        zoomDelta as keyof typeof ZOOM_DELTA_OPTION_TO_VALUE
-      ] ?? ZOOM_DELTA_PRESETS.ONE
-    : readZoomDelta(zoomDelta);
-
-const buildZoomOptions = ({
-  zoomDelta,
-  animate = true,
-  durationMs = 250,
-}: {
-  zoomDelta?: number;
-  animate?: boolean;
-  durationMs?: number;
-}): NavigationZoomOptions => ({
-  zoomDelta: readZoomDelta(zoomDelta),
-  durationMs:
-    animate &&
-    typeof durationMs === "number" &&
-    Number.isFinite(durationMs) &&
-    durationMs > 0
-      ? durationMs
-      : 0,
-});
 
 const standaloneSurfaceStyle = {
   ...shellStyle,
@@ -157,45 +89,51 @@ const standaloneLabelStyle = {
 const formatCesiumAdaptiveScale = (renderScale: number): string =>
   Number.isFinite(renderScale) ? renderScale.toFixed(3).replace(/0+$/u, "").replace(/\.$/u, "") : "1";
 
+const formatCesiumAdaptiveMetric = (
+  value: number | null,
+  digits: number
+): string | null =>
+  typeof value === "number" && Number.isFinite(value)
+    ? value.toFixed(digits).replace(/0+$/u, "").replace(/\.$/u, "")
+    : null;
+
 const formatCesiumAdaptiveStatusLabel = (
-  status: CesiumAdaptiveRenderScaleStatus | null
+  status: CesiumAdaptiveRenderScaleStatus | null,
+  lastSummary: CesiumAdaptiveRenderScaleActivitySummary | null
 ): string =>
   status
-    ? `Cesium Reference • target ${status.targetFps} fps • scale ${formatCesiumAdaptiveScale(status.renderScale)}×`
+    ? (() => {
+        const lastFps = formatCesiumAdaptiveMetric(
+          lastSummary?.averageFps ?? null,
+          1
+        );
+        const lastRenderMs = formatCesiumAdaptiveMetric(
+          lastSummary?.averageRenderMs ?? null,
+          2
+        );
+        const lastSummaryLabel =
+          lastSummary !== null
+            ? ` • last ${lastSummary.activityKey} ${lastFps ?? "?"} fps / ${lastRenderMs ?? "?"} ms`
+            : "";
+        const scaleChange = status.lastScaleChange;
+        const scaleChangeLabel =
+          scaleChange !== null
+            ? ` • scale ${formatCesiumAdaptiveScale(
+                scaleChange.previousRenderScale
+              )}→${formatCesiumAdaptiveScale(scaleChange.nextRenderScale)} (${scaleChange.reason})`
+            : "";
+        const liveFps = formatCesiumAdaptiveMetric(status.measuredFps, 1);
+        const liveMs = formatCesiumAdaptiveMetric(status.averageRenderMs, 2);
+        const livePixelsMpx = status.drawingBufferPixels !== null
+          ? formatCesiumAdaptiveMetric(status.drawingBufferPixels / 1_000_000, 2)
+          : null;
+        const liveFpsLabel = status.active && liveFps !== null
+          ? ` • ${liveFps} fps / ${liveMs ?? "?"} ms`
+          : "";
+        const livePixelsLabel = livePixelsMpx !== null ? ` • ${livePixelsMpx} Mpx` : "";
+        return `Cesium Reference • target ${status.targetFps} fps • scale ${formatCesiumAdaptiveScale(status.renderScale)}×${livePixelsLabel}${liveFpsLabel}${lastSummaryLabel}${scaleChangeLabel}`;
+      })()
     : "Cesium Reference";
-
-const ZOOM_DELTA_ARG_TYPE = {
-  name: "zoomDelta",
-  options: [
-    ZOOM_DELTA_OPTIONS.QUARTER,
-    ZOOM_DELTA_OPTIONS.THIRD,
-    ZOOM_DELTA_OPTIONS.HALF,
-    ZOOM_DELTA_OPTIONS.TWO_THIRDS,
-    ZOOM_DELTA_OPTIONS.ONE,
-  ],
-  control: {
-    type: "inline-radio",
-    labels: {
-      [ZOOM_DELTA_OPTIONS.QUARTER]: "¼",
-      [ZOOM_DELTA_OPTIONS.THIRD]: "⅓",
-      [ZOOM_DELTA_OPTIONS.HALF]: "½",
-      [ZOOM_DELTA_OPTIONS.TWO_THIRDS]: "⅔",
-      [ZOOM_DELTA_OPTIONS.ONE]: "1",
-    },
-  },
-  mapping: ZOOM_DELTA_OPTION_TO_VALUE,
-} as const;
-
-const ZOOM_ANIMATE_ARG_TYPE = {
-  name: "animate",
-  control: { type: "boolean" },
-} as const;
-
-const ZOOM_DURATION_ARG_TYPE = {
-  name: "duration (ms)",
-  control: { type: "range", min: 0, max: 1200, step: 25 },
-  if: { arg: "animate" },
-} as const;
 
 const StandaloneSurface = ({
   label,
@@ -421,7 +359,11 @@ const CesiumReferenceSurface = ({
   orbitRangeM,
   zoomDelta = ZOOM_DELTA_PRESETS.ONE,
   animate = true,
-  durationMs = 250,
+  travelDurationMs = 250,
+  fovDurationMs = 250,
+  dollyDurationMs = 2000,
+  minimumFovDeg = DEFAULT_STORY_CESIUM_MINIMUM_FOV_DEG,
+  maximumFovDeg = DEFAULT_STORY_CESIUM_MAXIMUM_FOV_DEG,
 }: {
   orbitDirection?: NavigationOrbitDirection;
   orbitRevolutionDurationSec?: number;
@@ -430,13 +372,19 @@ const CesiumReferenceSurface = ({
   orbitRangeM?: number;
   zoomDelta?: number;
   animate?: boolean;
-  durationMs?: number;
+  travelDurationMs?: number;
+  fovDurationMs?: number;
+  dollyDurationMs?: number;
+  minimumFovDeg?: number;
+  maximumFovDeg?: number;
 }) => {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const [runtimeHandle, setRuntimeHandle] =
     useState<CesiumRuntimeHandle | null>(null);
   const [adaptiveRenderScaleStatus, setAdaptiveRenderScaleStatus] =
     useState<CesiumAdaptiveRenderScaleStatus | null>(null);
+  const [lastAdaptiveRenderScaleSummary, setLastAdaptiveRenderScaleSummary] =
+    useState<CesiumAdaptiveRenderScaleActivitySummary | null>(null);
   const homeTarget = useMemo(
     () =>
       createStoryTargetState({
@@ -466,9 +414,33 @@ const CesiumReferenceSurface = ({
       buildZoomOptions({
         zoomDelta,
         animate,
-        durationMs,
+        durationMs: travelDurationMs,
+        minimumFovDeg,
+        maximumFovDeg,
       }),
-    [animate, durationMs, zoomDelta]
+    [animate, maximumFovDeg, minimumFovDeg, travelDurationMs, zoomDelta]
+  );
+  const fovZoomOptions = useMemo(
+    () =>
+      buildZoomOptions({
+        zoomDelta,
+        animate,
+        durationMs: fovDurationMs,
+        minimumFovDeg,
+        maximumFovDeg,
+      }),
+    [animate, fovDurationMs, maximumFovDeg, minimumFovDeg, zoomDelta]
+  );
+  const dollyZoomOptions = useMemo(
+    () =>
+      buildZoomOptions({
+        zoomDelta,
+        animate,
+        durationMs: dollyDurationMs,
+        minimumFovDeg,
+        maximumFovDeg,
+      }),
+    [animate, dollyDurationMs, maximumFovDeg, minimumFovDeg, zoomDelta]
   );
 
   useEffect(() => {
@@ -507,7 +479,9 @@ const CesiumReferenceSurface = ({
       unregisterAdaptiveRenderScale = registerCesiumWidgetAdaptiveRenderScale(
         setup.widget,
         {
-          targetFps: 60,
+          targetFps: 144,
+          restingScale: 1,
+          onActivitySummary: setLastAdaptiveRenderScaleSummary,
         }
       );
       setRuntimeHandle({
@@ -530,6 +504,7 @@ const CesiumReferenceSurface = ({
       disposed = true;
       unregisterAdaptiveRenderScale();
       setAdaptiveRenderScaleStatus(null);
+      setLastAdaptiveRenderScaleSummary(null);
       setRuntimeHandle(null);
       if (activeWidget && !activeWidget.isDestroyed()) {
         activeWidget.destroy();
@@ -540,6 +515,7 @@ const CesiumReferenceSurface = ({
   useEffect(() => {
     if (!runtimeHandle) {
       setAdaptiveRenderScaleStatus(null);
+      setLastAdaptiveRenderScaleSummary(null);
       return;
     }
 
@@ -560,7 +536,10 @@ const CesiumReferenceSurface = ({
 
   return (
     <StandaloneSurface
-      label={formatCesiumAdaptiveStatusLabel(adaptiveRenderScaleStatus)}
+      label={formatCesiumAdaptiveStatusLabel(
+        adaptiveRenderScaleStatus,
+        lastAdaptiveRenderScaleSummary
+      )}
     >
       <div
         ref={containerRef}
@@ -579,6 +558,8 @@ const CesiumReferenceSurface = ({
         showFovZoomControl
         showDollyZoomControl
         zoomOptions={zoomOptions}
+        fovZoomOptions={fovZoomOptions}
+        dollyZoomOptions={dollyZoomOptions}
       />
     </StandaloneSurface>
   );
@@ -586,7 +567,7 @@ const CesiumReferenceSurface = ({
 
 export const Leaflet: StoryObj = {
   args: {
-    zoomDelta: ZOOM_DELTA_OPTIONS.ONE,
+    zoomDelta: "one",
     animate: true,
     durationMs: 250,
   },
@@ -609,7 +590,7 @@ export const MapLibre: StoryObj = {
     orbitRevolutionDurationSec:
       DEFAULT_NAVIGATION_ORBIT_REVOLUTION_DURATION_SEC,
     orbitDirection: NAVIGATION_ORBIT_DIRECTIONS.CW,
-    zoomDelta: ZOOM_DELTA_OPTIONS.ONE,
+    zoomDelta: "one",
     animate: true,
     durationMs: 250,
   },
@@ -658,9 +639,13 @@ export const Cesium: StoryObj = {
     orbitAnimationDurationMs: 300,
     orbitMinPitchDeg: 30,
     orbitRangeM: undefined,
-    zoomDelta: ZOOM_DELTA_OPTIONS.ONE,
+    zoomDelta: "one",
     animate: true,
-    durationMs: 250,
+    travelDurationMs: 250,
+    fovDurationMs: 250,
+    dollyDurationMs: 2000,
+    minimumFovDeg: DEFAULT_STORY_CESIUM_MINIMUM_FOV_DEG,
+    maximumFovDeg: DEFAULT_STORY_CESIUM_MAXIMUM_FOV_DEG,
   },
   argTypes: {
     orbitDirection: {
@@ -674,6 +659,7 @@ export const Cesium: StoryObj = {
         [NAVIGATION_ORBIT_DIRECTIONS.CW]: "cw",
         [NAVIGATION_ORBIT_DIRECTIONS.CCW]: "ccw",
       },
+      table: { category: "Orbit" },
     },
     orbitRevolutionDurationSec: {
       name: "orbit revolution duration (s)",
@@ -683,22 +669,70 @@ export const Cesium: StoryObj = {
         max: 120,
         step: 1,
       },
+      table: { category: "Orbit" },
     },
     orbitAnimationDurationMs: {
       name: "orbit prep animation duration (ms)",
       control: { type: "range", min: 0, max: 2000, step: 25 },
+      table: { category: "Orbit" },
     },
     orbitMinPitchDeg: {
       name: "orbit min pitch (deg)",
       control: { type: "range", min: 0, max: 85, step: 1 },
+      table: { category: "Orbit" },
     },
     orbitRangeM: {
-      name: "orbit range (m)",
+      name: "orbit radius (m)",
       control: { type: "number", min: 1, step: 1 },
+      description: "Fixed camera distance to the orbit target. Empty = keep the current distance.",
+      table: { category: "Orbit" },
     },
-    zoomDelta: ZOOM_DELTA_ARG_TYPE,
-    animate: ZOOM_ANIMATE_ARG_TYPE,
-    durationMs: ZOOM_DURATION_ARG_TYPE,
+    minimumFovDeg: {
+      name: "minimum fov (deg)",
+      control: {
+        type: "number",
+        min: MIN_STORY_CESIUM_FOV_DEG,
+        max: MAX_STORY_CESIUM_FOV_DEG,
+        step: 0.1,
+      },
+      table: { category: "Zoom · FOV" },
+    },
+    maximumFovDeg: {
+      name: "maximum fov (deg)",
+      control: {
+        type: "number",
+        min: MIN_STORY_CESIUM_FOV_DEG,
+        max: MAX_STORY_CESIUM_FOV_DEG,
+        step: 0.1,
+      },
+      table: { category: "Zoom · FOV" },
+    },
+    zoomDelta: {
+      ...ZOOM_DELTA_ARG_TYPE,
+      table: { category: "Zoom · General" },
+    },
+    animate: {
+      ...ZOOM_ANIMATE_ARG_TYPE,
+      table: { category: "Zoom · General" },
+    },
+    travelDurationMs: {
+      ...ZOOM_DURATION_ARG_TYPE,
+      name: "travel duration (ms)",
+      description: "Applies to the primary travel zoom buttons.",
+      table: { category: "Zoom · Travel" },
+    },
+    fovDurationMs: {
+      ...ZOOM_DURATION_ARG_TYPE,
+      name: "fov duration (ms)",
+      description: "Applies to the camera-only FOV zoom buttons.",
+      table: { category: "Zoom · FOV" },
+    },
+    dollyDurationMs: {
+      ...DOLLY_ZOOM_DURATION_ARG_TYPE,
+      name: "dolly duration (ms)",
+      description: "Applies to the synchronized travel + FOV dolly buttons.",
+      table: { category: "Zoom · Dolly" },
+    },
   },
   render: (args) => (
     <CesiumReferenceSurface
@@ -707,9 +741,13 @@ export const Cesium: StoryObj = {
       orbitAnimationDurationMs={args.orbitAnimationDurationMs}
       orbitMinPitchDeg={args.orbitMinPitchDeg}
       orbitRangeM={args.orbitRangeM}
+      minimumFovDeg={args.minimumFovDeg}
+      maximumFovDeg={args.maximumFovDeg}
       zoomDelta={readZoomDeltaArgValue(args.zoomDelta)}
       animate={args.animate}
-      durationMs={args.durationMs}
+      travelDurationMs={args.travelDurationMs}
+      fovDurationMs={args.fovDurationMs}
+      dollyDurationMs={args.dollyDurationMs}
     />
   ),
 };

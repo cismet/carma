@@ -26,11 +26,12 @@ import {
   endCesiumAdaptiveRenderScaleActivity,
 } from "./adaptive-render-scale";
 import { readCachedCesiumViewportCenterZoomAnchor } from "./per-frame-cache";
+import type { CesiumTransitionLifecycle } from "./transition-lifecycle";
 import type { Radians } from "@carma/units/types";
 
-export type CesiumSceneTravelZoomOptions = {
+export type CesiumSceneTravelZoomOptions = CesiumTransitionLifecycle & {
   direction: "in" | "out";
-  durationSeconds?: number;
+  durationMs?: number;
   zoomDelta?: number;
   synchronizedFovTargetRad?: number;
 };
@@ -58,6 +59,9 @@ type ActiveCesiumSceneZoom = SceneZoomTarget & {
   startDistanceM: number;
   targetDistanceM: number;
   fovCurve?: TimedCesiumFovCurve;
+} & CesiumTransitionLifecycle & {
+  settled: boolean;
+  started: boolean;
 };
 
 const sceneZoomAnimations = new WeakMap<Scene, ActiveCesiumSceneZoom>();
@@ -65,7 +69,7 @@ const sceneZoomAnimations = new WeakMap<Scene, ActiveCesiumSceneZoom>();
 // Keep enough distance to the globe fallback so the camera does not dive below
 // likely terrain elevations when no scene content was picked.
 const FALLBACK_MIN_DISTANCE_TO_GLOBE = 2500;
-const DEFAULT_ZOOM_DURATION_SECONDS = 0.5;
+const DEFAULT_ZOOM_DURATION_MS = 500;
 const DEFAULT_ZOOM_DELTA = 1;
 const MIN_DURATION_MS = 80;
 const TRAVEL_ZOOM_RENDER_SCALE_ACTIVITY_KEY = "travel-zoom";
@@ -89,20 +93,20 @@ const readZoomDelta = (zoomDelta?: number) => {
   return DEFAULT_ZOOM_DELTA;
 };
 
-const readDurationMs = (durationSeconds?: number) => {
-  if (durationSeconds === 0) {
+const readDurationMs = (durationMs?: number) => {
+  if (durationMs === 0) {
     return 0;
   }
 
   if (
-    typeof durationSeconds === "number" &&
-    Number.isFinite(durationSeconds) &&
-    durationSeconds > 0
+    typeof durationMs === "number" &&
+    Number.isFinite(durationMs) &&
+    durationMs > 0
   ) {
-    return Math.max(durationSeconds * 1000, MIN_DURATION_MS);
+    return Math.max(durationMs, MIN_DURATION_MS);
   }
 
-  return DEFAULT_ZOOM_DURATION_SECONDS * 1000;
+  return DEFAULT_ZOOM_DURATION_MS;
 };
 
 const readSceneZoomTarget = (scene: Scene): SceneZoomTarget | null => {
@@ -377,6 +381,15 @@ const stopSceneZoomLoop = (
     scene,
     TRAVEL_ZOOM_RENDER_SCALE_ACTIVITY_KEY
   );
+
+  if (!activeAnimation.settled) {
+    activeAnimation.settled = true;
+    if (commitFinalState) {
+      activeAnimation.onCompleted?.();
+    } else {
+      activeAnimation.onCanceled?.();
+    }
+  }
 };
 
 const ensureSceneZoomLoop = (
@@ -470,9 +483,12 @@ export const animateCesiumSceneTravelZoom = (
   scene: Scene,
   {
     direction,
-    durationSeconds = DEFAULT_ZOOM_DURATION_SECONDS,
+    durationMs = DEFAULT_ZOOM_DURATION_MS,
     zoomDelta,
     synchronizedFovTargetRad,
+    onStarted,
+    onCompleted,
+    onCanceled,
   }: CesiumSceneTravelZoomOptions
 ): boolean => {
   const camera = scene.camera;
@@ -512,7 +528,7 @@ export const animateCesiumSceneTravelZoom = (
   );
 
   const resolvedZoomDelta = readZoomDelta(zoomDelta);
-  const durationMs = readDurationMs(durationSeconds);
+  const resolvedDurationMs = readDurationMs(durationMs);
   const targetDistanceM = computeTargetDistanceM({
     scene,
     currentDistanceM: startDistanceM,
@@ -529,8 +545,9 @@ export const animateCesiumSceneTravelZoom = (
     return false;
   }
 
-  if (durationMs <= 0) {
+  if (resolvedDurationMs <= 0) {
     cancelCesiumSceneTravelZoom(scene);
+    onStarted?.();
     applySceneZoomTargetDistance(scene, liveContext, targetDistanceM);
     if (
       scene.camera.frustum instanceof PerspectiveFrustum &&
@@ -543,6 +560,7 @@ export const animateCesiumSceneTravelZoom = (
       );
     }
     scene.requestRender();
+    onCompleted?.();
     return true;
   }
 
@@ -552,13 +570,18 @@ export const animateCesiumSceneTravelZoom = (
     removePreRenderListener: null,
     renderRequested: false,
     startedAtMs: nowMs,
-    durationMs,
+    durationMs: resolvedDurationMs,
     startDistanceM,
     targetDistanceM,
     targetPoint: Cartesian3.clone(zoomTarget.targetPoint, new Cartesian3()),
     distanceBiasM: zoomTarget.distanceBiasM,
     minDistanceM: zoomTarget.minDistanceM,
     maxDistanceM: zoomTarget.maxDistanceM,
+    onStarted,
+    onCompleted,
+    onCanceled,
+    settled: false,
+    started: false,
     fovCurve:
       typeof synchronizedFovTargetRad === "number" &&
       Number.isFinite(synchronizedFovTargetRad) &&
@@ -567,7 +590,7 @@ export const animateCesiumSceneTravelZoom = (
         ? buildTimedCesiumFovCurve({
             scene,
             startedAtMs: nowMs,
-            durationMs,
+            durationMs: resolvedDurationMs,
             startFovRad: startVerticalFovRad,
             targetFovRad: synchronizedFovTargetRad,
           })
@@ -575,6 +598,10 @@ export const animateCesiumSceneTravelZoom = (
   };
 
   sceneZoomAnimations.set(scene, nextAnimation);
+  if (!nextAnimation.started) {
+    nextAnimation.started = true;
+    nextAnimation.onStarted?.();
+  }
   beginCesiumAdaptiveRenderScaleActivity(
     scene,
     TRAVEL_ZOOM_RENDER_SCALE_ACTIVITY_KEY

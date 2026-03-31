@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef } from "react";
 import {
   mountNavigationControlsOverlay,
   NAVIGATION_ZOOM_MODES,
@@ -13,12 +13,6 @@ import {
 } from "../mappingEngines";
 import type { SlotRuntimeHandle } from "../viewSyncStoryShared";
 import { createRuntimeNavigationReference } from "./runtime-navigation-reference";
-import { readCurrentCesiumFovDeg } from "./cesium-dolly-presets";
-import {
-  bindStoryCesiumCameraChangedListener,
-  bindStoryCesiumFrameListener,
-  readStoryCesiumScene,
-} from "../../../shared/cesiumRuntimeGuards";
 
 const DEFAULT_CONTROL_STYLE = {
   top: 10,
@@ -27,9 +21,6 @@ const DEFAULT_CONTROL_STYLE = {
 };
 
 const CONTROL_HOST_Z_INDEX = 1200;
-const MIN_CESIUM_ZOOM_FOV_DEG = 5;
-const MAX_CESIUM_ZOOM_FOV_DEG = 120;
-const CESIUM_ZOOM_FOV_LIMIT_EPSILON_DEG = 0.5;
 
 const readStoryMessages = (
   engine: StoryMappingEngine
@@ -64,6 +55,8 @@ export const ViewSyncRuntimeNavigationControls = ({
   showCompass,
   orbitOptions,
   zoomOptions,
+  fovZoomOptions,
+  dollyZoomOptions,
 }: {
   controlId: string;
   engine: StoryMappingEngine;
@@ -76,65 +69,10 @@ export const ViewSyncRuntimeNavigationControls = ({
   showCompass?: boolean;
   orbitOptions?: NavigationOrbitOptions;
   zoomOptions?: NavigationZoomOptions;
+  fovZoomOptions?: NavigationZoomOptions;
+  dollyZoomOptions?: NavigationZoomOptions;
 }) => {
   const hostRef = useRef<HTMLDivElement | null>(null);
-  const [currentCesiumFovDeg, setCurrentCesiumFovDeg] = useState<number | null>(
-    null
-  );
-
-  useEffect(() => {
-    if (
-      (!showFovZoomControl && !showDollyZoomControl) ||
-      engine !== CARMA_STORY_MAPPING_ENGINES.CESIUM ||
-      !runtimeHandle
-    ) {
-      setCurrentCesiumFovDeg(null);
-      return;
-    }
-
-    const scene = readStoryCesiumScene(runtimeHandle.widget);
-    if (!scene) {
-      setCurrentCesiumFovDeg(null);
-      return;
-    }
-
-    const sync = () => {
-      const nextFovDeg = readCurrentCesiumFovDeg(runtimeHandle);
-      setCurrentCesiumFovDeg((currentFovDeg) => {
-        if (nextFovDeg === null) {
-          return currentFovDeg === null ? currentFovDeg : null;
-        }
-
-        return currentFovDeg !== null &&
-          Math.abs(currentFovDeg - nextFovDeg) < 0.01
-          ? currentFovDeg
-          : nextFovDeg;
-      });
-    };
-
-    sync();
-    const unbindCameraChanged =
-      bindStoryCesiumCameraChangedListener(runtimeHandle.widget, sync) ??
-      (() => {});
-    const unbindFrame =
-      bindStoryCesiumFrameListener(runtimeHandle.widget, sync) ?? (() => {});
-    const intervalId = window.setInterval(sync, 100);
-
-    return () => {
-      unbindCameraChanged();
-      unbindFrame();
-      window.clearInterval(intervalId);
-    };
-  }, [engine, runtimeHandle, showDollyZoomControl, showFovZoomControl]);
-
-  const cesiumFovZoomInDisabled =
-    currentCesiumFovDeg !== null &&
-    currentCesiumFovDeg <=
-      MIN_CESIUM_ZOOM_FOV_DEG + CESIUM_ZOOM_FOV_LIMIT_EPSILON_DEG;
-  const cesiumFovZoomOutDisabled =
-    currentCesiumFovDeg !== null &&
-    currentCesiumFovDeg >=
-      MAX_CESIUM_ZOOM_FOV_DEG - CESIUM_ZOOM_FOV_LIMIT_EPSILON_DEG;
 
   useEffect(() => {
     const host = hostRef.current;
@@ -172,15 +110,13 @@ export const ViewSyncRuntimeNavigationControls = ({
         runtimeHandle
           ? {
               zoomInOptions: {
-                ...zoomOptions,
+                ...(fovZoomOptions ?? zoomOptions),
                 mode: NAVIGATION_ZOOM_MODES.FOV,
               },
               zoomOutOptions: {
-                ...zoomOptions,
+                ...(fovZoomOptions ?? zoomOptions),
                 mode: NAVIGATION_ZOOM_MODES.FOV,
               },
-              zoomInDisabled: cesiumFovZoomInDisabled,
-              zoomOutDisabled: cesiumFovZoomOutDisabled,
               zoomInTooltip: "Sichtfeld verkleinern (Kamera-Zoom in)",
               zoomOutTooltip: "Sichtfeld vergrößern (Kamera-Zoom out)",
             }
@@ -191,17 +127,13 @@ export const ViewSyncRuntimeNavigationControls = ({
         runtimeHandle
           ? {
               zoomInOptions: {
-                ...zoomOptions,
-                durationMs: 2000,
+                ...(dollyZoomOptions ?? zoomOptions),
                 mode: NAVIGATION_ZOOM_MODES.DOLLY,
               },
               zoomOutOptions: {
-                ...zoomOptions,
-                durationMs: 2000,
+                ...(dollyZoomOptions ?? zoomOptions),
                 mode: NAVIGATION_ZOOM_MODES.DOLLY,
               },
-              zoomInDisabled: cesiumFovZoomInDisabled,
-              zoomOutDisabled: cesiumFovZoomOutDisabled,
               zoomInTooltip: "Dolly-Zoom in (Fahrt + FOV synchron)",
               zoomOutTooltip: "Dolly-Zoom out (Fahrt + FOV synchron)",
             }
@@ -219,8 +151,8 @@ export const ViewSyncRuntimeNavigationControls = ({
     showCompass,
     orbitOptions,
     zoomOptions,
-    cesiumFovZoomInDisabled,
-    cesiumFovZoomOutDisabled,
+    fovZoomOptions,
+    dollyZoomOptions,
   ]);
 
   return (

@@ -1,3 +1,5 @@
+import type { Milliseconds } from "@carma/units/types";
+
 export const NAVIGATION_ZOOM_MODES = {
   AUTO: "auto",
   RANGE: "range",
@@ -33,14 +35,25 @@ export type NavigationNeedleOrientationDeg = {
   headingDeg: number;
 };
 
-export type NavigationTransitionOptions = {
-  durationMs?: number;
+export type NavigationTransitionLifecycle = {
+  onStarted?: () => void;
+  onCompleted?: () => void;
+  onCanceled?: () => void;
 };
 
+export type NavigationTransitionTiming = {
+  duration?: Milliseconds;
+};
+
+export type NavigationTransitionOptions = NavigationTransitionTiming &
+  NavigationTransitionLifecycle;
+
 export type NavigationZoomOptions = NavigationTransitionOptions & {
+  animate?: boolean;
   mode?: NavigationZoomMode;
   zoomDelta?: number;
-  targetFovRad?: number;
+  minimumFovRad?: number;
+  maximumFovRad?: number;
 };
 
 export type NavigationOrbitTarget =

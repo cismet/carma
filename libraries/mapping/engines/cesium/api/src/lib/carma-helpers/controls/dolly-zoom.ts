@@ -20,6 +20,7 @@ import {
   beginCesiumAdaptiveRenderScaleActivity,
   endCesiumAdaptiveRenderScaleActivity,
 } from "./adaptive-render-scale";
+import type { CesiumTransitionLifecycle } from "./transition-lifecycle";
 import type { Radians } from "@carma/units/types";
 
 const DEFAULT_CESIUM_FOV_ZOOM_DELTA = 1;
@@ -29,6 +30,9 @@ type ActiveCesiumFovZoom = {
   removePreRenderListener: (() => void) | null;
   renderRequested: boolean;
   curve: TimedCesiumFovCurve;
+} & CesiumTransitionLifecycle & {
+  settled: boolean;
+  started: boolean;
 };
 
 const cesiumFovZoomAnimations = new WeakMap<Scene, ActiveCesiumFovZoom>();
@@ -118,12 +122,17 @@ export const cancelCesiumSceneFovZoom = (scene: Scene) => {
   activeAnimation.renderRequested = false;
   cesiumFovZoomAnimations.delete(scene);
   endCesiumAdaptiveRenderScaleActivity(scene, FOV_ZOOM_RENDER_SCALE_ACTIVITY_KEY);
+  if (!activeAnimation.settled) {
+    activeAnimation.settled = true;
+    activeAnimation.onCanceled?.();
+  }
 };
 
 export const animateCesiumFov = (
   scene: Scene,
   targetFovRad: number,
-  durationMs: number
+  durationMs: number,
+  callbacks: CesiumTransitionLifecycle = {}
 ) => {
   if (!(scene.camera.frustum instanceof PerspectiveFrustum)) {
     return () => {};
@@ -137,8 +146,10 @@ export const animateCesiumFov = (
     !Number.isFinite(targetFovRad) ||
     durationMs <= 0
   ) {
+    callbacks.onStarted?.();
     writePerspectiveFrustumVerticalFov(scene.camera.frustum, targetFovRad);
     scene.requestRender();
+    callbacks.onCompleted?.();
     return () => {};
   }
 
@@ -147,6 +158,11 @@ export const animateCesiumFov = (
   const nextAnimation: ActiveCesiumFovZoom = {
     removePreRenderListener: null,
     renderRequested: false,
+    onStarted: callbacks.onStarted,
+    onCompleted: callbacks.onCompleted,
+    onCanceled: callbacks.onCanceled,
+    settled: false,
+    started: false,
     curve: buildTimedCesiumFovCurve({
       scene,
       startedAtMs: nowMs,
@@ -156,6 +172,10 @@ export const animateCesiumFov = (
     }),
   };
   cesiumFovZoomAnimations.set(scene, nextAnimation);
+  if (!nextAnimation.started) {
+    nextAnimation.started = true;
+    nextAnimation.onStarted?.();
+  }
   beginCesiumAdaptiveRenderScaleActivity(scene, FOV_ZOOM_RENDER_SCALE_ACTIVITY_KEY);
 
   const requestNextRender = () => {
@@ -216,6 +236,10 @@ export const animateCesiumFov = (
     }
     cesiumFovZoomAnimations.delete(scene);
     endCesiumAdaptiveRenderScaleActivity(scene, FOV_ZOOM_RENDER_SCALE_ACTIVITY_KEY);
+    if (!nextAnimation.settled) {
+      nextAnimation.settled = true;
+      nextAnimation.onCompleted?.();
+    }
   };
 
   nextAnimation.removePreRenderListener = scene.preRender.addEventListener(() => {
@@ -232,16 +256,17 @@ export const flyCesiumSceneFovZoom = (
   scene: Scene,
   {
     direction,
-    durationSeconds = 0.25,
+    durationMs = 250,
     zoomDelta,
-    targetFovRad,
     minimumFovRad,
     maximumFovRad,
-  }: {
+    onStarted,
+    onCompleted,
+    onCanceled,
+  }: CesiumTransitionLifecycle & {
     direction: "in" | "out";
-    durationSeconds?: number;
+    durationMs?: number;
     zoomDelta?: number;
-    targetFovRad?: number;
     minimumFovRad: number;
     maximumFovRad: number;
   }
@@ -250,16 +275,13 @@ export const flyCesiumSceneFovZoom = (
     return false;
   }
 
-  const resolvedTargetFov =
-    typeof targetFovRad === "number" && Number.isFinite(targetFovRad)
-      ? clamp(targetFovRad, minimumFovRad, maximumFovRad)
-      : computeNextCesiumFov({
-          scene,
-          direction,
-          zoomDelta,
-          minimumFovRad,
-          maximumFovRad,
-        });
+  const resolvedTargetFov = computeNextCesiumFov({
+    scene,
+    direction,
+    zoomDelta,
+    minimumFovRad,
+    maximumFovRad,
+  });
 
   if (
     typeof resolvedTargetFov !== "number" ||
@@ -268,20 +290,24 @@ export const flyCesiumSceneFovZoom = (
     return false;
   }
 
-  const durationMs =
-    typeof durationSeconds === "number" &&
-    Number.isFinite(durationSeconds) &&
-    durationSeconds > 0
-      ? durationSeconds * 1000
+  const resolvedDurationMs =
+    typeof durationMs === "number" && Number.isFinite(durationMs) && durationMs > 0
+      ? durationMs
       : 0;
 
-  if (durationMs <= 0) {
+  if (resolvedDurationMs <= 0) {
     cancelCesiumSceneFovZoom(scene);
+    onStarted?.();
     writePerspectiveFrustumVerticalFov(scene.camera.frustum, resolvedTargetFov);
     scene.requestRender();
+    onCompleted?.();
     return true;
   }
 
-  animateCesiumFov(scene, resolvedTargetFov, durationMs);
+  animateCesiumFov(scene, resolvedTargetFov, resolvedDurationMs, {
+    onStarted,
+    onCompleted,
+    onCanceled,
+  });
   return true;
 };

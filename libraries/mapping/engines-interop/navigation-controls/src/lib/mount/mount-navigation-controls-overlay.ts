@@ -29,7 +29,7 @@ const DEFAULT_CONTROL_STYLE: NonNullable<SceneNavigationDomConfig["style"]> = {
 
 const DEFAULT_ORBIT_OPTIONS: NavigationOrbitOptions = {
   target: NAVIGATION_ORBIT_TARGETS.CURRENT_VIEW,
-  durationMs: 300,
+  duration: 300 as NavigationTransitionOptions["duration"],
   direction: NAVIGATION_ORBIT_DIRECTIONS.CW,
   revolutionDurationSec: DEFAULT_NAVIGATION_ORBIT_REVOLUTION_DURATION_SEC,
   minPitchDeg: 30,

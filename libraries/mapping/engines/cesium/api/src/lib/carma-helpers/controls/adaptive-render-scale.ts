@@ -21,12 +21,19 @@ export type CesiumAdaptiveRenderScaleOptions = {
   targetFps?: number;
   minimumScale?: number;
   maximumScale?: number;
+  restingScale?: number;
   scaleSteps?: readonly number[];
   benchmarkBlend?: number;
   minimumAdjustmentIntervalMs?: number;
   idleRestoreDelayMs?: number;
   upscaleHeadroomRatio?: number;
   downscaleToleranceRatio?: number;
+  logActivitySummary?: boolean;
+  logScaleChanges?: boolean;
+  onActivitySummary?: (
+    summary: CesiumAdaptiveRenderScaleActivitySummary
+  ) => void;
+  onScaleChange?: (change: CesiumAdaptiveRenderScaleChange) => void;
 };
 
 export type CesiumAdaptiveRenderScaleStatus = {
@@ -38,6 +45,26 @@ export type CesiumAdaptiveRenderScaleStatus = {
   pixelsPerMsEstimate: number | null;
   drawingBufferPixels: number | null;
   basePixelCountAtScaleOne: number | null;
+  lastScaleChange: CesiumAdaptiveRenderScaleChange | null;
+};
+
+export type CesiumAdaptiveRenderScaleActivitySummary = {
+  activityKey: string;
+  targetFps: number;
+  startedAtMs: number;
+  endedAtMs: number;
+  durationMs: number;
+  frameCount: number;
+  averageFps: number | null;
+  averageRenderMs: number | null;
+  finalRenderScale: number;
+};
+
+export type CesiumAdaptiveRenderScaleChange = {
+  atMs: number;
+  previousRenderScale: number;
+  nextRenderScale: number;
+  reason: "predicted-downscale" | "adaptive-step" | "idle-restore" | "destroy-restore";
 };
 
 type CesiumAdaptiveRenderScaleListener = (
@@ -49,10 +76,12 @@ type CesiumAdaptiveRenderScaleController = {
   bindings: CesiumAdaptiveRenderScaleBindings;
   settings: Required<CesiumAdaptiveRenderScaleOptions>;
   activeKeys: Set<string>;
+  activitySessions: Map<string, CesiumAdaptiveRenderScaleActivitySession>;
   listeners: Set<CesiumAdaptiveRenderScaleListener>;
   removePreRenderListener: (() => void) | null;
   removePostRenderListener: (() => void) | null;
   currentFrameStartedAtMs: number | null;
+  lastPostRenderAtMs: number | null;
   averageRenderMs: number | null;
   measuredFps: number | null;
   pixelsPerMsEstimate: number | null;
@@ -60,7 +89,14 @@ type CesiumAdaptiveRenderScaleController = {
   lastAdjustmentAtMs: number;
   restingRenderScale: number;
   idleRestoreTimer: ReturnType<typeof setTimeout> | null;
+  lastScaleChange: CesiumAdaptiveRenderScaleChange | null;
   status: CesiumAdaptiveRenderScaleStatus;
+};
+
+type CesiumAdaptiveRenderScaleActivitySession = {
+  startedAtMs: number;
+  frameCount: number;
+  totalRenderMs: number;
 };
 
 const DEFAULT_TARGET_FPS = 60;
@@ -122,6 +158,12 @@ const resolveSettings = (
     targetFps,
     minimumScale: lowerBound,
     maximumScale: upperBound,
+    restingScale:
+      isFinitePositiveNumber(options.restingScale) &&
+      options.restingScale >= lowerBound &&
+      options.restingScale <= upperBound
+        ? options.restingScale
+        : upperBound,
     scaleSteps:
       scaleSteps.length > 0
         ? scaleSteps
@@ -162,6 +204,14 @@ const resolveSettings = (
       options.downscaleToleranceRatio >= 1
         ? options.downscaleToleranceRatio
         : DEFAULT_DOWNSCALE_TOLERANCE_RATIO,
+    logActivitySummary: options.logActivitySummary === true,
+    logScaleChanges: options.logScaleChanges === true,
+    onActivitySummary:
+      typeof options.onActivitySummary === "function"
+        ? options.onActivitySummary
+        : () => {},
+    onScaleChange:
+      typeof options.onScaleChange === "function" ? options.onScaleChange : () => {},
   };
 };
 
@@ -180,7 +230,8 @@ const readCurrentScenePixelCount = (scene: CesiumSceneLike): number | null =>
 
 const applyRenderScale = (
   controller: CesiumAdaptiveRenderScaleController,
-  nextRenderScale: number
+  nextRenderScale: number,
+  reason: CesiumAdaptiveRenderScaleChange["reason"]
 ) => {
   const clampedRenderScale = clampScale(
     nextRenderScale,
@@ -198,6 +249,24 @@ const applyRenderScale = (
   }
 
   controller.bindings.setRenderScale(clampedRenderScale);
+  controller.lastScaleChange = {
+    atMs: performance.now(),
+    previousRenderScale: isFinitePositiveNumber(currentRenderScale)
+      ? currentRenderScale
+      : clampedRenderScale,
+    nextRenderScale: clampedRenderScale,
+    reason,
+  };
+  if (controller.settings.logScaleChanges) {
+    console.info("[Cesium render scale change]", {
+      previousRenderScale: Number(
+        controller.lastScaleChange.previousRenderScale.toFixed(3)
+      ),
+      nextRenderScale: Number(controller.lastScaleChange.nextRenderScale.toFixed(3)),
+      reason: controller.lastScaleChange.reason,
+    });
+  }
+  controller.settings.onScaleChange(controller.lastScaleChange);
   controller.bindings.resize?.();
   (controller.bindings.requestRender ?? (() => requestCesiumRender(controller.scene)))();
 };
@@ -212,6 +281,7 @@ const updateStatus = (controller: CesiumAdaptiveRenderScaleController) => {
     pixelsPerMsEstimate: controller.pixelsPerMsEstimate,
     drawingBufferPixels: readCurrentScenePixelCount(controller.scene),
     basePixelCountAtScaleOne: controller.basePixelCountAtScaleOne,
+    lastScaleChange: controller.lastScaleChange,
   };
 
   controller.listeners.forEach((listener) => {
@@ -352,6 +422,7 @@ const detachFrameListeners = (
   controller.removePostRenderListener?.();
   controller.removePostRenderListener = null;
   controller.currentFrameStartedAtMs = null;
+  controller.lastPostRenderAtMs = null;
 };
 
 const maybeAdjustRenderScale = (
@@ -379,65 +450,26 @@ const maybeAdjustRenderScale = (
     return;
   }
 
-  const targetRenderScale = readCesiumAdaptiveRenderScaleTarget({
-    basePixelCountAtScaleOne: controller.basePixelCountAtScaleOne,
-    pixelsPerMsEstimate: controller.pixelsPerMsEstimate,
-    targetFps: controller.settings.targetFps,
-    minimumScale: controller.settings.minimumScale,
-    maximumScale: controller.settings.maximumScale,
-  });
-
-  if (targetRenderScale === null) {
+  if (!isFinitePositiveNumber(controller.measuredFps)) {
     return;
   }
 
-  const conservativeTargetScale = quantizeCesiumAdaptiveRenderScale({
-    targetScale: targetRenderScale,
-    scaleSteps: controller.settings.scaleSteps,
-    minimumScale: controller.settings.minimumScale,
-    maximumScale: controller.settings.maximumScale,
-    mode: targetRenderScale < currentRenderScale ? "down" : "up",
-  });
+  const factor = controller.measuredFps / controller.settings.targetFps;
+  const rawTargetScale = currentRenderScale * Math.sqrt(factor);
+  const clampedTarget = clampScale(
+    rawTargetScale,
+    controller.settings.minimumScale,
+    controller.settings.maximumScale
+  );
+  const nextRenderScale = clampScale(
+    Math.round(clampedTarget * 8) / 8,
+    controller.settings.minimumScale,
+    controller.settings.maximumScale
+  );
 
-  if (conservativeTargetScale === null) {
-    return;
-  }
-
-  const targetFrameMs = 1000 / controller.settings.targetFps;
-  let nextRenderScale: number | null = null;
-
-  if (
-    controller.averageRenderMs >
-      targetFrameMs * controller.settings.downscaleToleranceRatio &&
-    conservativeTargetScale < currentRenderScale - SCALE_EPSILON
-  ) {
-    nextRenderScale = readNextCesiumAdaptiveRenderScaleStep({
-      currentScale: currentRenderScale,
-      direction: "down",
-      scaleSteps: controller.settings.scaleSteps,
-      minimumScale: controller.settings.minimumScale,
-      maximumScale: controller.settings.maximumScale,
-    });
-  } else if (
-    controller.averageRenderMs <
-      targetFrameMs * controller.settings.upscaleHeadroomRatio &&
-    conservativeTargetScale > currentRenderScale + SCALE_EPSILON
-  ) {
-    nextRenderScale = readNextCesiumAdaptiveRenderScaleStep({
-      currentScale: currentRenderScale,
-      direction: "up",
-      scaleSteps: controller.settings.scaleSteps,
-      minimumScale: controller.settings.minimumScale,
-      maximumScale: controller.settings.maximumScale,
-    });
-  }
-
-  if (
-    nextRenderScale !== null &&
-    Math.abs(nextRenderScale - currentRenderScale) >= SCALE_EPSILON
-  ) {
+  if (Math.abs(nextRenderScale - currentRenderScale) >= SCALE_EPSILON) {
     controller.lastAdjustmentAtMs = nowMs;
-    applyRenderScale(controller, nextRenderScale);
+    applyRenderScale(controller, nextRenderScale, "adaptive-step");
   }
 };
 
@@ -464,7 +496,12 @@ const attachFrameListeners = (
         return;
       }
 
-      const renderDurationMs = Math.max(performance.now() - frameStartedAtMs, 0.01);
+      const now = performance.now();
+      const renderDurationMs = Math.max(now - frameStartedAtMs, 0.01);
+      const interFrameMs = controller.lastPostRenderAtMs !== null
+        ? Math.max(now - controller.lastPostRenderAtMs, 0.01)
+        : renderDurationMs;
+      controller.lastPostRenderAtMs = now;
       const alpha = controller.settings.benchmarkBlend;
       const currentRenderScale = controller.bindings.getRenderScale();
       const currentPixelCount = readCurrentScenePixelCount(controller.scene);
@@ -480,8 +517,8 @@ const attachFrameListeners = (
 
       controller.averageRenderMs =
         controller.averageRenderMs === null
-          ? renderDurationMs
-          : controller.averageRenderMs * (1 - alpha) + renderDurationMs * alpha;
+          ? interFrameMs
+          : controller.averageRenderMs * (1 - alpha) + interFrameMs * alpha;
       controller.measuredFps =
         controller.averageRenderMs > 0 ? 1000 / controller.averageRenderMs : null;
       controller.basePixelCountAtScaleOne =
@@ -493,10 +530,59 @@ const attachFrameListeners = (
             ? pixelsPerMs
             : controller.pixelsPerMsEstimate * (1 - alpha) + pixelsPerMs * alpha;
 
+      controller.activitySessions.forEach((session) => {
+        session.frameCount += 1;
+        session.totalRenderMs += renderDurationMs;
+      });
+
       maybeAdjustRenderScale(controller, performance.now());
       updateStatus(controller);
     }
   );
+};
+
+const emitActivitySummary = (
+  controller: CesiumAdaptiveRenderScaleController,
+  activityKey: string,
+  session: CesiumAdaptiveRenderScaleActivitySession,
+  endedAtMs: number
+) => {
+  const durationMs = Math.max(endedAtMs - session.startedAtMs, 0);
+  const averageFps =
+    durationMs > 0 && session.frameCount > 0
+      ? (session.frameCount * 1000) / durationMs
+      : null;
+  const averageRenderMs =
+    session.frameCount > 0 ? session.totalRenderMs / session.frameCount : null;
+  const summary: CesiumAdaptiveRenderScaleActivitySummary = {
+    activityKey,
+    targetFps: controller.settings.targetFps,
+    startedAtMs: session.startedAtMs,
+    endedAtMs,
+    durationMs,
+    frameCount: session.frameCount,
+    averageFps,
+    averageRenderMs,
+    finalRenderScale: controller.bindings.getRenderScale(),
+  };
+
+  if (controller.settings.logActivitySummary) {
+    console.info("[Cesium adaptive render scale]", {
+      activity: summary.activityKey,
+      targetFps: summary.targetFps,
+      averageFps:
+        summary.averageFps !== null ? Number(summary.averageFps.toFixed(1)) : null,
+      averageRenderMs:
+        summary.averageRenderMs !== null
+          ? Number(summary.averageRenderMs.toFixed(2))
+          : null,
+      frameCount: summary.frameCount,
+      durationMs: Number(summary.durationMs.toFixed(1)),
+      finalRenderScale: Number(summary.finalRenderScale.toFixed(3)),
+    });
+  }
+
+  controller.settings.onActivitySummary(summary);
 };
 
 const cancelIdleRestore = (controller: CesiumAdaptiveRenderScaleController) => {
@@ -518,7 +604,7 @@ const scheduleIdleRestore = (
     }
 
     detachFrameListeners(controller);
-    applyRenderScale(controller, controller.restingRenderScale);
+    applyRenderScale(controller, controller.restingRenderScale, "idle-restore");
     updateStatus(controller);
   }, controller.settings.idleRestoreDelayMs);
 };
@@ -536,6 +622,7 @@ const buildInitialStatus = (
   pixelsPerMsEstimate: null,
   drawingBufferPixels: readCurrentScenePixelCount(scene),
   basePixelCountAtScaleOne: null,
+  lastScaleChange: null,
 });
 
 const createController = ({
@@ -551,17 +638,20 @@ const createController = ({
   bindings,
   settings,
   activeKeys: new Set<string>(),
+  activitySessions: new Map<string, CesiumAdaptiveRenderScaleActivitySession>(),
   listeners: new Set<CesiumAdaptiveRenderScaleListener>(),
   removePreRenderListener: null,
   removePostRenderListener: null,
   currentFrameStartedAtMs: null,
+  lastPostRenderAtMs: null,
   averageRenderMs: null,
   measuredFps: null,
   pixelsPerMsEstimate: null,
   basePixelCountAtScaleOne: null,
   lastAdjustmentAtMs: 0,
-  restingRenderScale: bindings.getRenderScale(),
+  restingRenderScale: settings.restingScale,
   idleRestoreTimer: null,
+  lastScaleChange: null,
   status: buildInitialStatus(scene, settings, bindings),
 });
 
@@ -572,8 +662,9 @@ const destroyController = (
   cancelIdleRestore(controller);
   detachFrameListeners(controller);
   controller.activeKeys.clear();
+  controller.activitySessions.clear();
   if (restoreScale) {
-    applyRenderScale(controller, controller.restingRenderScale);
+    applyRenderScale(controller, controller.restingRenderScale, "destroy-restore");
   }
   updateStatus(controller);
   sceneAdaptiveRenderScaleControllers.delete(controller.scene);
@@ -630,9 +721,6 @@ export const registerCesiumWidgetAdaptiveRenderScale = (
       setRenderScale: (scale) => {
         widget.resolutionScale = scale;
       },
-      resize: () => {
-        widget.resize?.();
-      },
       requestRender: () => {
         requestCesiumRender(widget.scene);
       },
@@ -655,9 +743,17 @@ export const beginCesiumAdaptiveRenderScaleActivity = (
   cancelIdleRestore(controller);
   const wasInactive = controller.activeKeys.size === 0;
   controller.activeKeys.add(activityKey);
+  if (!controller.activitySessions.has(activityKey)) {
+    controller.activitySessions.set(activityKey, {
+      startedAtMs: performance.now(),
+      frameCount: 0,
+      totalRenderMs: 0,
+    });
+  }
 
   if (wasInactive) {
     controller.restingRenderScale = controller.bindings.getRenderScale();
+    controller.restingRenderScale = controller.settings.restingScale;
     attachFrameListeners(controller);
 
     const predictedRenderScale =
@@ -683,7 +779,7 @@ export const beginCesiumAdaptiveRenderScaleActivity = (
       predictedRenderScale !== null &&
       predictedRenderScale < controller.restingRenderScale - SCALE_EPSILON
     ) {
-      applyRenderScale(controller, predictedRenderScale);
+      applyRenderScale(controller, predictedRenderScale, "predicted-downscale");
     } else {
       (controller.bindings.requestRender ?? (() => requestCesiumRender(scene)))();
     }
@@ -705,6 +801,16 @@ export const endCesiumAdaptiveRenderScaleActivity = (
   }
 
   controller.activeKeys.delete(activityKey);
+  const completedSession = controller.activitySessions.get(activityKey);
+  if (completedSession) {
+    controller.activitySessions.delete(activityKey);
+    emitActivitySummary(
+      controller,
+      activityKey,
+      completedSession,
+      performance.now()
+    );
+  }
   if (controller.activeKeys.size === 0) {
     scheduleIdleRestore(controller);
   }

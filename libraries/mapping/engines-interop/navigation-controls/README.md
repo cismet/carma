@@ -19,12 +19,25 @@ The target public seam is operation-shaped rather than button-shaped so that Sto
 Current direction:
 
 - `setView(...)`
-- `flyTo(..., { durationMs })`
-- `orbit(..., { durationMs, target })`
-- `zoomIn({ mode, durationMs })`
-- `zoomOut({ mode, durationMs })`
+- `flyTo(..., { duration })`
+- `orbit(..., { duration, target })`
+- `zoomIn({ mode, duration })`
+- `zoomOut({ mode, duration })`
 - `getPosition()`
 - engine or mode activation handled one layer up by interop switching
+
+Animated navigation commands may additionally carry lightweight lifecycle
+callbacks via `NavigationTransitionLifecycle` / `NavigationTransitionOptions`.
+`NavigationZoomOptions` inherits these hooks, and the same lifecycle is intended
+for other finite animated actions such as `flyTo`, home transitions, or
+compass-triggered alignment transitions:
+
+- `onStarted`
+- `onCompleted`
+- `onCanceled`
+
+These hooks are intended for transition-adjacent concerns such as temporary
+render-scale adaptation or status instrumentation, not for owning camera state.
 
 The final `carma.mapping.*` scripting surface can sit on top of this command layer without deep rewrites in the control implementation.
 

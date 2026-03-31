@@ -19,7 +19,9 @@ export {
   type NavigationOrbitActiveSink,
   type NavigationOrbitOptions,
   type NavigationOrbitTarget,
+  type NavigationTransitionLifecycle,
   type NavigationTransitionOptions,
+  type NavigationTransitionTiming,
   type NavigationZoomMode,
   type NavigationZoomOptions,
 } from "./navigation-methods";

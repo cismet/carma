@@ -50,30 +50,57 @@ import {
 } from "../../contracts";
 
 const ZERO_RADIANS = degToRadNumeric(0)! as Radians;
-const MIN_CESIUM_FOV_RAD = degToRadNumeric(5)! as Radians;
-const MAX_CESIUM_FOV_RAD = degToRadNumeric(120)! as Radians;
+const ABSOLUTE_MIN_CESIUM_FOV_RAD = degToRadNumeric(0.1)! as Radians;
+const DEFAULT_MIN_CESIUM_FOV_RAD = degToRadNumeric(2)! as Radians;
+const DEFAULT_MAX_CESIUM_FOV_RAD = degToRadNumeric(120)! as Radians;
+const ABSOLUTE_MAX_CESIUM_FOV_RAD = degToRadNumeric(179)! as Radians;
 const DEFAULT_ORBIT_PREP_DURATION_MS = 300;
 const DEFAULT_ORBIT_SPEED_DEG_PER_SECOND =
   360 / DEFAULT_NAVIGATION_ORBIT_REVOLUTION_DURATION_SEC;
 const DEFAULT_MIN_ORBIT_PITCH_DEG = 30;
 
-const readDurationSeconds = (durationMs?: number): number | undefined => {
+const readTransitionDurationSeconds = (
+  duration?: NavigationTransitionOptions["duration"]
+): number | undefined => {
   if (
-    typeof durationMs !== "number" ||
-    !Number.isFinite(durationMs) ||
-    durationMs <= 0
+    typeof duration !== "number" ||
+    !Number.isFinite(duration) ||
+    duration <= 0
   ) {
     return undefined;
   }
 
-  return durationMs / 1000;
+  return duration / 1000;
+};
+
+const readZoomDurationMs = (
+  options: Pick<NavigationZoomOptions, "animate" | "duration">
+): number | undefined => {
+  if (options.animate === false) {
+    return 0;
+  }
+
+  const { duration } = options;
+  if (duration === 0) {
+    return 0;
+  }
+
+  if (
+    typeof duration !== "number" ||
+    !Number.isFinite(duration) ||
+    duration <= 0
+  ) {
+    return undefined;
+  }
+
+  return duration;
 };
 
 const readHomeDurationMs = (options: NavigationTransitionOptions): number =>
-  typeof options.durationMs === "number" &&
-  Number.isFinite(options.durationMs) &&
-  options.durationMs >= 0
-    ? options.durationMs
+  typeof options.duration === "number" &&
+  Number.isFinite(options.duration) &&
+  options.duration >= 0
+    ? options.duration
     : DEFAULT_NAVIGATION_HOME_DURATION_MS;
 
 const readOrbitDirectionSign = (options: NavigationOrbitOptions): number => {
@@ -129,10 +156,10 @@ const readOrbitSpeedDegPerSecond = (
 };
 
 const readOrbitPrepDurationMs = (options: NavigationOrbitOptions): number =>
-  typeof options.durationMs === "number" &&
-  Number.isFinite(options.durationMs) &&
-  options.durationMs > 0
-    ? options.durationMs
+  typeof options.duration === "number" &&
+  Number.isFinite(options.duration) &&
+  options.duration > 0
+    ? options.duration
     : DEFAULT_ORBIT_PREP_DURATION_MS;
 
 const readMinimumOrbitPitchDeg = (options: NavigationOrbitOptions): number =>
@@ -145,6 +172,32 @@ const readMinimumOrbitPitchDeg = (options: NavigationOrbitOptions): number =>
     MAX_CESIUM_COMPASS_PITCH_DEG
   );
 
+const readResolvedCesiumFovBounds = (options: NavigationZoomOptions) => {
+  const rawMinimumFovRad =
+    typeof options.minimumFovRad === "number" &&
+    Number.isFinite(options.minimumFovRad)
+      ? options.minimumFovRad
+      : DEFAULT_MIN_CESIUM_FOV_RAD;
+  const rawMaximumFovRad =
+    typeof options.maximumFovRad === "number" &&
+    Number.isFinite(options.maximumFovRad)
+      ? options.maximumFovRad
+      : DEFAULT_MAX_CESIUM_FOV_RAD;
+
+  return {
+    minimumFovRad: clamp(
+      Math.min(rawMinimumFovRad, rawMaximumFovRad),
+      ABSOLUTE_MIN_CESIUM_FOV_RAD,
+      ABSOLUTE_MAX_CESIUM_FOV_RAD
+    ) as Radians,
+    maximumFovRad: clamp(
+      Math.max(rawMinimumFovRad, rawMaximumFovRad),
+      ABSOLUTE_MIN_CESIUM_FOV_RAD,
+      ABSOLUTE_MAX_CESIUM_FOV_RAD
+    ) as Radians,
+  };
+};
+
 const readResolvedCesiumTargetFov = (
   activeScene: Scene,
   options: NavigationZoomOptions,
@@ -154,19 +207,14 @@ const readResolvedCesiumTargetFov = (
     return null;
   }
 
-  if (
-    typeof options.targetFovRad === "number" &&
-    Number.isFinite(options.targetFovRad)
-  ) {
-    return clamp(options.targetFovRad, MIN_CESIUM_FOV_RAD, MAX_CESIUM_FOV_RAD);
-  }
+  const { minimumFovRad, maximumFovRad } = readResolvedCesiumFovBounds(options);
 
   return computeNextCesiumFov({
     scene: activeScene,
     direction,
     zoomDelta: options.zoomDelta,
-    minimumFovRad: MIN_CESIUM_FOV_RAD,
-    maximumFovRad: MAX_CESIUM_FOV_RAD,
+    minimumFovRad,
+    maximumFovRad,
   });
 };
 
@@ -344,18 +392,23 @@ export const createCesiumNavigationMethods = ({
   ) => {
     runWithScene((activeScene) => {
       if (
-        typeof options.durationMs !== "number" ||
-        !Number.isFinite(options.durationMs) ||
-        options.durationMs <= 0
+        typeof options.duration !== "number" ||
+        !Number.isFinite(options.duration) ||
+        options.duration <= 0
       ) {
+        options.onStarted?.();
         setViewFromCameraState(activeScene.camera, state);
         requestCesiumRender(activeScene);
+        options.onCompleted?.();
         return;
       }
 
+      options.onStarted?.();
       flyToCameraState(activeScene, state, {
-        duration: readDurationSeconds(options.durationMs),
+        duration: readTransitionDurationSeconds(options.duration),
         applyFov: true,
+        onComplete: options.onCompleted,
+        onCancel: options.onCanceled,
       });
     });
   };
@@ -370,6 +423,9 @@ export const createCesiumNavigationMethods = ({
             return;
           }
 
+          const { minimumFovRad, maximumFovRad } =
+            readResolvedCesiumFovBounds(options);
+
           if (isDollyMode) {
             const nextFov = readResolvedCesiumTargetFov(
               activeScene,
@@ -381,28 +437,36 @@ export const createCesiumNavigationMethods = ({
             }
             animateCesiumSceneTravelZoom(activeScene, {
               direction: "in",
-              durationSeconds: readDurationSeconds(options.durationMs) ?? 0.5,
+              durationMs: readZoomDurationMs(options) ?? 500,
               zoomDelta: options.zoomDelta,
               synchronizedFovTargetRad: nextFov,
+              onStarted: options.onStarted,
+              onCompleted: options.onCompleted,
+              onCanceled: options.onCanceled,
             });
             return;
           }
 
           flyCesiumSceneFovZoom(activeScene, {
             direction: "in",
-            durationSeconds: readDurationSeconds(options.durationMs) ?? 0.25,
+            durationMs: readZoomDurationMs(options) ?? 250,
             zoomDelta: options.zoomDelta,
-            targetFovRad: options.targetFovRad,
-            minimumFovRad: MIN_CESIUM_FOV_RAD,
-            maximumFovRad: MAX_CESIUM_FOV_RAD,
+            minimumFovRad,
+            maximumFovRad,
+            onStarted: options.onStarted,
+            onCompleted: options.onCompleted,
+            onCanceled: options.onCanceled,
           });
           return;
         }
 
         animateCesiumSceneTravelZoom(activeScene, {
           direction: "in",
-          durationSeconds: readDurationSeconds(options.durationMs) ?? 0.5,
+          durationMs: readZoomDurationMs(options) ?? 500,
           zoomDelta: options.zoomDelta,
+          onStarted: options.onStarted,
+          onCompleted: options.onCompleted,
+          onCanceled: options.onCanceled,
         });
       },
       { keepSceneZoom: !(isFovMode || isDollyMode) }
@@ -419,6 +483,9 @@ export const createCesiumNavigationMethods = ({
             return;
           }
 
+          const { minimumFovRad, maximumFovRad } =
+            readResolvedCesiumFovBounds(options);
+
           if (isDollyMode) {
             const nextFov = readResolvedCesiumTargetFov(
               activeScene,
@@ -430,28 +497,36 @@ export const createCesiumNavigationMethods = ({
             }
             animateCesiumSceneTravelZoom(activeScene, {
               direction: "out",
-              durationSeconds: readDurationSeconds(options.durationMs) ?? 0.5,
+              durationMs: readZoomDurationMs(options) ?? 500,
               zoomDelta: options.zoomDelta,
               synchronizedFovTargetRad: nextFov,
+              onStarted: options.onStarted,
+              onCompleted: options.onCompleted,
+              onCanceled: options.onCanceled,
             });
             return;
           }
 
           flyCesiumSceneFovZoom(activeScene, {
             direction: "out",
-            durationSeconds: readDurationSeconds(options.durationMs) ?? 0.25,
+            durationMs: readZoomDurationMs(options) ?? 250,
             zoomDelta: options.zoomDelta,
-            targetFovRad: options.targetFovRad,
-            minimumFovRad: MIN_CESIUM_FOV_RAD,
-            maximumFovRad: MAX_CESIUM_FOV_RAD,
+            minimumFovRad,
+            maximumFovRad,
+            onStarted: options.onStarted,
+            onCompleted: options.onCompleted,
+            onCanceled: options.onCanceled,
           });
           return;
         }
 
         animateCesiumSceneTravelZoom(activeScene, {
           direction: "out",
-          durationSeconds: readDurationSeconds(options.durationMs) ?? 0.5,
+          durationMs: readZoomDurationMs(options) ?? 500,
           zoomDelta: options.zoomDelta,
+          onStarted: options.onStarted,
+          onCompleted: options.onCompleted,
+          onCanceled: options.onCanceled,
         });
       },
       { keepSceneZoom: !(isFovMode || isDollyMode) }
@@ -467,12 +542,17 @@ export const createCesiumNavigationMethods = ({
     if (durationMs > 0) {
       flyTo(homeCameraState, {
         ...options,
-        durationMs,
+        duration: durationMs as NavigationTransitionOptions["duration"],
       });
       return;
     }
 
-    setView(homeCameraState);
+    runWithScene((activeScene) => {
+      options.onStarted?.();
+      setViewFromCameraState(activeScene.camera, homeCameraState);
+      requestCesiumRender(activeScene);
+      options.onCompleted?.();
+    });
   };
 
   const orbit = (options: NavigationOrbitOptions = {}) => {
@@ -511,9 +591,11 @@ export const createCesiumNavigationMethods = ({
             targetRange,
             orbitPitchDeg
           );
+          options.onCompleted?.();
         };
 
         if (currentPitchDeg < minimumPitchDeg) {
+          options.onStarted?.();
           cancelOrbitPreparationAnimation = animateOrbitHeadingPitchRange(
             activeScene,
             orbitCenter,
@@ -530,12 +612,14 @@ export const createCesiumNavigationMethods = ({
               },
               onCancel: () => {
                 cancelOrbitPreparationAnimation = null;
+                options.onCanceled?.();
               },
             }
           );
           return;
         }
 
+        options.onStarted?.();
         startContinuousOrbit();
       },
       { stopCurrentMotion: false }
@@ -586,10 +670,11 @@ export const createCesiumNavigationMethods = ({
         );
 
         if (
-          typeof options.durationMs === "number" &&
-          Number.isFinite(options.durationMs) &&
-          options.durationMs > 0
+          typeof options.duration === "number" &&
+          Number.isFinite(options.duration) &&
+          options.duration > 0
         ) {
+          options.onStarted?.();
           cancelOrbitPreparationAnimation = animateOrbitHeadingPitchRange(
             activeScene,
             orbitCenter,
@@ -599,27 +684,32 @@ export const createCesiumNavigationMethods = ({
               range,
             },
             {
-              durationMs: options.durationMs,
+              durationMs: options.duration,
               onComplete: () => {
                 cancelOrbitPreparationAnimation = null;
+                options.onCompleted?.();
               },
               onCancel: () => {
                 cancelOrbitPreparationAnimation = null;
+                options.onCanceled?.();
               },
             }
           );
           return;
         }
 
+        options.onStarted?.();
         activeScene.camera.lookAt(
           orbitCenter,
           new HeadingPitchRange(0, activeScene.camera.pitch, range)
         );
         activeScene.camera.lookAtTransform(Matrix4.IDENTITY);
         requestCesiumRender(activeScene);
+        options.onCompleted?.();
         return;
       }
 
+      options.onStarted?.();
       activeScene.camera.setView({
         destination: activeScene.camera.position,
         orientation: {
@@ -629,6 +719,7 @@ export const createCesiumNavigationMethods = ({
         },
       });
       requestCesiumRender(activeScene);
+      options.onCompleted?.();
     });
   };
 
@@ -642,10 +733,11 @@ export const createCesiumNavigationMethods = ({
         );
 
         if (
-          typeof options.durationMs === "number" &&
-          Number.isFinite(options.durationMs) &&
-          options.durationMs > 0
+          typeof options.duration === "number" &&
+          Number.isFinite(options.duration) &&
+          options.duration > 0
         ) {
+          options.onStarted?.();
           cancelOrbitPreparationAnimation = animateOrbitHeadingPitchRange(
             activeScene,
             orbitCenter,
@@ -655,27 +747,32 @@ export const createCesiumNavigationMethods = ({
               range,
             },
             {
-              durationMs: options.durationMs,
+              durationMs: options.duration,
               onComplete: () => {
                 cancelOrbitPreparationAnimation = null;
+                options.onCompleted?.();
               },
               onCancel: () => {
                 cancelOrbitPreparationAnimation = null;
+                options.onCanceled?.();
               },
             }
           );
           return;
         }
 
+        options.onStarted?.();
         activeScene.camera.lookAt(
           orbitCenter,
           new HeadingPitchRange(0, MIN_CESIUM_COMPASS_PITCH_RAD, range)
         );
         activeScene.camera.lookAtTransform(Matrix4.IDENTITY);
         requestCesiumRender(activeScene);
+        options.onCompleted?.();
         return;
       }
 
+      options.onStarted?.();
       activeScene.camera.setView({
         destination: activeScene.camera.position,
         orientation: {
@@ -685,6 +782,7 @@ export const createCesiumNavigationMethods = ({
         },
       });
       requestCesiumRender(activeScene);
+      options.onCompleted?.();
     });
   };
 
