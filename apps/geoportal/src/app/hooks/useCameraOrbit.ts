@@ -5,11 +5,12 @@ import {
   type CesiumSceneOrbitControllerStopOptions,
   type Scene,
 } from "@carma-mapping/engines/cesium/api";
+import type { Seconds } from "@carma/units/types";
 
 interface UseCameraOrbitOptions {
   scene: Scene | null;
   enabled: boolean;
-  revolutionDurationSec?: number;
+  revolutionDurationSec?: Seconds;
   direction?: "cw" | "ccw";
   minPitchDeg?: number;
   restartDelayMs?: number;
@@ -18,7 +19,7 @@ interface UseCameraOrbitOptions {
 export const useCameraOrbit = ({
   scene,
   enabled,
-  revolutionDurationSec = 30,
+  revolutionDurationSec = 30 as Seconds,
   direction = "cw",
   minPitchDeg = 30,
   restartDelayMs = 300,

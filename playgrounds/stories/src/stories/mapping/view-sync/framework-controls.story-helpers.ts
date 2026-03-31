@@ -7,6 +7,7 @@ import {
   type NavigationZoomOptions,
 } from "@carma-mapping/engines-interop/navigation-controls";
 import { degToRadNumeric } from "@carma/units/helpers";
+import type { Seconds } from "@carma/units/types";
 
 export const ZOOM_DELTA_PRESETS = {
   QUARTER: 0.25,
@@ -46,11 +47,11 @@ const ZOOM_DELTA_OPTION_VALUES = {
   three: ZOOM_DELTA_PRESETS.THREE,
 } as const;
 
-const readOrbitRevolutionDurationSec = (durationSec?: number) =>
+const readOrbitRevolutionDurationSec = (durationSec?: Seconds | number) =>
   typeof durationSec === "number" &&
   Number.isFinite(durationSec) &&
   durationSec > 0
-    ? durationSec
+    ? (durationSec as Seconds)
     : DEFAULT_NAVIGATION_ORBIT_REVOLUTION_DURATION_SEC;
 
 const readZoomDelta = (zoomDelta?: number) =>
@@ -97,6 +98,16 @@ export const readZoomDeltaArgValue = (zoomDelta?: number | string) =>
       ] ?? ZOOM_DELTA_PRESETS.ONE
     : readZoomDelta(zoomDelta);
 
+export const buildHomeOptions = ({
+  animate = true,
+  durationMs = 900,
+}: {
+  animate?: boolean;
+  durationMs?: number;
+}): NavigationTransitionOptions => ({
+  duration: (animate && durationMs > 0 ? durationMs : 0) as NavigationTransitionOptions["duration"],
+});
+
 export const buildOrbitOptions = ({
   direction = NAVIGATION_ORBIT_DIRECTIONS.CW,
   revolutionDurationSec,
@@ -105,7 +116,7 @@ export const buildOrbitOptions = ({
   rangeM,
 }: {
   direction?: NavigationOrbitDirection;
-  revolutionDurationSec?: number;
+  revolutionDurationSec?: Seconds;
   durationMs?: number;
   minPitchDeg?: number;
   rangeM?: number;
@@ -167,6 +178,17 @@ export const ZOOM_DELTA_ARG_TYPE = {
       three: "\u2060\u2060\u2060\u2060\u2060\u2060\u2060\u20603",
     },
   },
+} as const;
+
+export const HOME_ANIMATE_ARG_TYPE = {
+  name: "animate",
+  control: { type: "boolean" },
+} as const;
+
+export const HOME_DURATION_ARG_TYPE = {
+  name: "duration (ms)",
+  control: { type: "range", min: 0, max: 3000, step: 50 },
+  if: { arg: "homeAnimate" },
 } as const;
 
 export const ZOOM_ANIMATE_ARG_TYPE = {

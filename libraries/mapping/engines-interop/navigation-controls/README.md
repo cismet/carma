@@ -1,13 +1,13 @@
 # navigation-controls
 
-Shared runtime-bound navigation controls for Leaflet, MapLibre, and Cesium.
+Shared runtime-bound navigation controls for Leaflet, MapLibre GL JS, and Cesium.
 
 ## Role
 
 This package is the intended shared home for:
 
 - cross-engine navigation-control contracts
-- runtime adapter composition across Leaflet, MapLibre, and Cesium
+- runtime adapter composition across Leaflet, MapLibre GL JS, and Cesium
 - the React-free DOM/mount layer that binds generic control actions to a provided engine-bound methods object
 
 This package is not the home for generic control skinning or `ViewState` provider logic.
@@ -41,13 +41,75 @@ render-scale adaptation or status instrumentation, not for owning camera state.
 
 The final `carma.mapping.*` scripting surface can sit on top of this command layer without deep rewrites in the control implementation.
 
+## Engine Implementation Reference
+
+All methods are part of `NavigationMethods<TView>`. The home pose is fixed at construction time (not passed per call). Duration `0` means instant; duration absent uses the engine default (900 ms for `goHome`, 250–500 ms for zoom).
+
+### `goHome(options?: NavigationTransitionOptions)`
+
+| | Leaflet | MapLibre GL JS | Cesium |
+|---|---|---|---|
+| animated | `map.flyTo(center, zoom, { duration: s })` | `map.easeTo({ ...camera, duration: ms })` | `flyToCameraState(scene, state, { duration: s })` |
+| instant (`duration: 0`) | `map.setView(center, zoom)` | `map.jumpTo(camera)` | `setViewFromCameraState(scene.camera, state)` |
+| home pose source | closed over `homeTarget: ViewState` | closed over `homeTarget: ViewState` | closed over `homeCameraState` |
+
+### `setView(state: ViewState)`
+
+| | Leaflet | MapLibre GL JS | Cesium |
+|---|---|---|---|
+| always instant | `map.setView(center, zoom)` | `map.jumpTo(camera)` | `applyViewStateToCesiumWidget(widget, state)` |
+
+### `flyTo(state: ViewState, options?: NavigationTransitionOptions)`
+
+| | Leaflet | MapLibre GL JS | Cesium |
+|---|---|---|---|
+| animated | `map.flyTo(center, zoom, { duration: s })` | `map.easeTo({ ...camera, duration: ms })` | `flyToCameraState(scene, state, { duration: s })` |
+| instant (`duration: 0`) | `map.setView(center, zoom)` | `map.jumpTo(camera)` | `setViewFromCameraState(scene.camera, state)` |
+
+### `zoomIn(options?: NavigationZoomOptions)` / `zoomOut(options?: NavigationZoomOptions)`
+
+Modes: `auto` (travel/range), `fov` (perspective FOV only), `dolly` (travel + FOV synchronized). Leaflet and MapLibre GL JS only support `auto`.
+
+| | Leaflet | MapLibre GL JS | Cesium `auto` | Cesium `fov` | Cesium `dolly` |
+|---|---|---|---|---|---|
+| animated | `map.setZoom(n, { animate: true })` | `map.easeTo({ zoom: n, duration: ms })` | `animateCesiumSceneTravelZoom` | `flyCesiumSceneFovZoom` | `animateCesiumSceneTravelZoom` + synchronized FOV target |
+| instant (`duration: 0`) | `map.setZoom(n, { animate: false })` | `map.jumpTo({ zoom: n })` | `animateCesiumSceneTravelZoom` (durationMs 0) | `flyCesiumSceneFovZoom` (durationMs 0) | same, durationMs 0 |
+| default duration | 250 ms | 250 ms | 500 ms | 250 ms | 500 ms |
+| `zoomDelta` | snapped to `zoomSnap` | snapped to `zoomSnap` | scene range step | FOV step | scene range + FOV step |
+
+### `orbit(options?: NavigationOrbitOptions)`
+
+Toggle: calling while active stops the orbit. Not supported on Leaflet.
+
+| | Leaflet | MapLibre GL JS | Cesium |
+|---|---|---|---|
+| not supported | no-op | — | — |
+| start | — | `render` loop: `transform.setBearing(bearing - speed·dt)`, fires `move`/`rotate` | `CesiumSceneOrbitController`: quaternion rotation around surface normal |
+| stop | — | cancel `render` listener | `stopOrbit()` on controller |
+| drag during orbit | — | allowed — bearing delta applied on top each frame | allowed — controller pauses/resumes via `ScreenSpaceEventHandler` |
+| pitch correction | — | eases pitch toward `minPitchDeg` at 60°/s | rotates camera elevation toward `minPitchDeg` at ~60°/s |
+| center point | — | current map center (fixed at start) | `readCachedCesiumSceneCenter`, updated on drag/zoom |
+| options | `direction`, `revolutionDurationSec`, `minPitchDeg` | `direction`, `revolutionDurationSec`, `minPitchDeg` | `direction`, `revolutionDurationSec`, `minPitchDeg` |
+
+### `alignNorth(options?: NavigationTransitionOptions)`
+
+| | Leaflet | MapLibre GL JS | Cesium |
+|---|---|---|---|
+| action | no-op (always north) | `map.easeTo({ bearing: 0, duration: ms })` | `camera.lookAt(center, HeadingPitchRange(0, pitch, range))` |
+
+### `alignNorthNadir(options?: NavigationTransitionOptions)`
+
+| | Leaflet | MapLibre GL JS | Cesium |
+|---|---|---|---|
+| action | no-op | `map.easeTo({ bearing: 0, pitch: 0, duration: ms })` | `camera.lookAt(center, HeadingPitchRange(0, MIN_PITCH, range))` |
+
 ## Related Packages
 
 - Presentation-only control chrome and DOM layout live in [`map-controls-layout`](../../map-controls-layout/README.md).
 - Canonical `ViewState` adapters, providers, and runtime bridges live in [`view-state`](../view-state/README.md).
 - Cesium-native low-level camera and scene helpers live in [`engines/cesium/api`](../../engines/cesium/api/README.md).
 - Leaflet-native low-level map helpers live in [`engines/leaflet`](../../engines/leaflet/README.md).
-- MapLibre-native low-level helper guidance lives in [`engines/maplibre-gl`](../../engines/maplibre-gl/README.md).
+- MapLibre GL JS-native low-level helper guidance lives in [`engines/maplibre-gl`](../../engines/maplibre-gl/README.md).
 
 ## Planned Internal Split
 
@@ -62,7 +124,7 @@ The final `carma.mapping.*` scripting surface can sit on top of this command lay
 - `src/lib/runtime/leaflet/*`
   Leaflet runtime bindings.
 - `src/lib/runtime/maplibre/*`
-  MapLibre runtime bindings.
+  MapLibre GL JS runtime bindings.
 
 ## Current Minimal API
 
@@ -81,7 +143,7 @@ Cesium-specific low-level runtime helpers now live in:
 
 Current reference consumers:
 
-- `Mapping / Controls / Cesium` in Storybook now goes through `createCesiumNavigationMethods(...)` for the Cesium runtime path and only keeps story-local glue for the still-missing Leaflet/MapLibre runtime adapters.
+- `Mapping / Controls / Cesium` in Storybook now goes through `createCesiumNavigationMethods(...)` for the Cesium runtime path and only keeps story-local glue for the still-missing Leaflet/MapLibre GL JS runtime adapters.
 - `playgrounds/annotations` mounts the same shared Cesium control block via `createCesiumNavigationMethods(...)` instead of keeping its own separate Cesium compass/zoom/home implementation.
 
 Intended consumer pattern:

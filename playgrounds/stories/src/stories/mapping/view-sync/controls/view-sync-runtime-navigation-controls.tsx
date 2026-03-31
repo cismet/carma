@@ -4,6 +4,7 @@ import {
   NAVIGATION_ZOOM_MODES,
   type NavigationControlsOverlayMessages,
   type NavigationOrbitOptions,
+  type NavigationTransitionOptions,
   type NavigationZoomOptions,
 } from "@carma-mapping/engines-interop/navigation-controls";
 import type { ViewState } from "@carma-mapping/engines-interop/view-state";
@@ -57,6 +58,7 @@ export const ViewSyncRuntimeNavigationControls = ({
   showFovZoomControl = false,
   showDollyZoomControl = false,
   showCompass,
+  homeOptions,
   orbitOptions,
   zoomOptions,
   fovZoomOptions,
@@ -71,6 +73,7 @@ export const ViewSyncRuntimeNavigationControls = ({
   showFovZoomControl?: boolean;
   showDollyZoomControl?: boolean;
   showCompass?: boolean;
+  homeOptions?: NavigationTransitionOptions;
   orbitOptions?: NavigationOrbitOptions;
   zoomOptions?: NavigationZoomOptions;
   fovZoomOptions?: NavigationZoomOptions;
@@ -143,6 +146,7 @@ export const ViewSyncRuntimeNavigationControls = ({
       methods: effectiveMethods,
       disabled: disabled || !runtimeHandle,
       showOrbitControl,
+      homeOptions,
       orbitOptions,
       zoomInOptions: zoomOptions,
       zoomOutOptions: zoomOptions,
@@ -193,6 +197,7 @@ export const ViewSyncRuntimeNavigationControls = ({
     showFovZoomControl,
     showOrbitControl,
     showCompass,
+    homeOptions,
     orbitOptions,
     zoomOptions,
     fovZoomOptions,

@@ -1,4 +1,4 @@
-import type { Milliseconds } from "@carma/units/types";
+import type { Milliseconds, Seconds } from "@carma/units/types";
 
 export const NAVIGATION_ZOOM_MODES = {
   AUTO: "auto",
@@ -8,7 +8,8 @@ export const NAVIGATION_ZOOM_MODES = {
 } as const;
 
 export const DEFAULT_NAVIGATION_HOME_DURATION_MS = 900;
-export const DEFAULT_NAVIGATION_ORBIT_REVOLUTION_DURATION_SEC = 30;
+export const DEFAULT_NAVIGATION_ORBIT_REVOLUTION_DURATION_SEC =
+  30 as Seconds;
 
 export const NAVIGATION_ORBIT_TARGETS = {
   CURRENT_VIEW: "current-view",
@@ -72,7 +73,7 @@ export type NavigationOrbitOptions = NavigationTransitionOptions & {
   direction?: NavigationOrbitDirection;
   bearingDeltaDeg?: number;
   rangeM?: number;
-  revolutionDurationSec?: number;
+  revolutionDurationSec?: Seconds;
   speedDegPerSecond?: number;
   minPitchDeg?: number;
 };

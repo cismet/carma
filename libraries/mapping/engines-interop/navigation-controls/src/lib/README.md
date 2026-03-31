@@ -16,7 +16,7 @@ Planned next folders:
 - `runtime/leaflet/`
   Leaflet runtime bindings
 - `runtime/maplibre/`
-  MapLibre runtime bindings
+  MapLibre GL JS runtime bindings
 
 Current public seam:
 
@@ -39,4 +39,4 @@ Compass-specific interaction is handled semantically:
 That gives consumers two levels:
 
 - bind framework/runtime-specific methods once
-- let DOM buttons or other callers trigger generic actions without hardcoding Leaflet/MapLibre/Cesium branches in the button layer
+- let DOM buttons or other callers trigger generic actions without hardcoding Leaflet/MapLibre GL JS/Cesium branches in the button layer

@@ -19,6 +19,7 @@ import {
   type RotationAxisVisualizer,
 } from "./rotation-axis-visualizer";
 import { readCachedCesiumSceneCenter } from "./per-frame-cache";
+import type { Seconds } from "@carma/units/types";
 
 export type CesiumSceneOrbitControllerStopOptions = {
   immediate?: boolean;
@@ -28,7 +29,7 @@ export type CreateCesiumSceneOrbitControllerOptions = {
   scene: Scene;
   enabled?: boolean;
   /** Seconds per full revolution. Default: 30. */
-  revolutionDurationSec?: number;
+  revolutionDurationSec?: Seconds;
   /** Orbit direction. Default: "cw". */
   direction?: "cw" | "ccw";
   /**
@@ -68,7 +69,7 @@ const DEFAULT_RESTART_DELAY_MS = 300;
 const STOP_VELOCITY_EPSILON = 0.0001;
 const DRAG_START_THRESHOLD_PX = 4;
 const PITCH_CORRECTION_RATE_RAD_PER_SEC = Math.PI / 3; // ~60°/s
-const DEFAULT_REVOLUTION_DURATION_SEC = 30;
+const DEFAULT_REVOLUTION_DURATION_SEC = 30 as Seconds;
 const DEFAULT_DIRECTION = "cw" as const;
 
 const getVerticalFov = (scene: Scene): number => {

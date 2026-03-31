@@ -37,11 +37,14 @@ import { initializeLeaflet } from "../../map-engine-switcher/helpers/leaflet-set
 import { requestStoryCesiumRender } from "../../shared/cesiumRuntimeGuards";
 import { CARMA_STORY_MAPPING_ENGINES } from "./mappingEngines";
 import {
+  buildHomeOptions,
   buildOrbitOptions,
   buildZoomOptions,
   DEFAULT_STORY_CESIUM_MAXIMUM_FOV_DEG,
   DEFAULT_STORY_CESIUM_MINIMUM_FOV_DEG,
   DOLLY_ZOOM_DURATION_ARG_TYPE,
+  HOME_ANIMATE_ARG_TYPE,
+  HOME_DURATION_ARG_TYPE,
   MAX_STORY_CESIUM_FOV_DEG,
   MIN_STORY_CESIUM_FOV_DEG,
   readZoomDeltaArgValue,
@@ -156,15 +159,23 @@ const LeafletReferenceSurface = ({
   zoomDelta = ZOOM_DELTA_PRESETS.ONE,
   animate = true,
   durationMs = 250,
+  homeAnimate = true,
+  homeDurationMs = 900,
 }: {
   zoomDelta?: number;
   animate?: boolean;
   durationMs?: number;
+  homeAnimate?: boolean;
+  homeDurationMs?: number;
 }) => {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const [runtimeHandle, setRuntimeHandle] =
     useState<LeafletRuntimeHandle | null>(null);
   const homeTarget = useMemo(() => createStoryTargetState(), []);
+  const homeOptions = useMemo(
+    () => buildHomeOptions({ animate: homeAnimate, durationMs: homeDurationMs }),
+    [homeAnimate, homeDurationMs]
+  );
   const zoomOptions = useMemo(
     () =>
       buildZoomOptions({
@@ -236,6 +247,7 @@ const LeafletReferenceSurface = ({
         runtimeHandle={runtimeHandle}
         homeTarget={homeTarget}
         showCompass={false}
+        homeOptions={homeOptions}
         zoomOptions={zoomOptions}
       />
     </StandaloneSurface>
@@ -245,27 +257,38 @@ const LeafletReferenceSurface = ({
 const MapLibreReferenceSurface = ({
   orbitRevolutionDurationSec = DEFAULT_NAVIGATION_ORBIT_REVOLUTION_DURATION_SEC,
   orbitDirection = NAVIGATION_ORBIT_DIRECTIONS.CW,
+  orbitMinPitchDeg = 30,
   zoomDelta = ZOOM_DELTA_PRESETS.ONE,
   animate = true,
   durationMs = 250,
+  homeAnimate = true,
+  homeDurationMs = 900,
 }: {
   orbitRevolutionDurationSec?: number;
   orbitDirection?: NavigationOrbitDirection;
+  orbitMinPitchDeg?: number;
   zoomDelta?: number;
   animate?: boolean;
   durationMs?: number;
+  homeAnimate?: boolean;
+  homeDurationMs?: number;
 }) => {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const [runtimeHandle, setRuntimeHandle] =
     useState<MapLibreRuntimeHandle | null>(null);
   const homeTarget = useMemo(() => createStoryTargetState(), []);
+  const homeOptions = useMemo(
+    () => buildHomeOptions({ animate: homeAnimate, durationMs: homeDurationMs }),
+    [homeAnimate, homeDurationMs]
+  );
   const orbitOptions = useMemo(
     () =>
       buildOrbitOptions({
         direction: orbitDirection,
         revolutionDurationSec: orbitRevolutionDurationSec,
+        minPitchDeg: orbitMinPitchDeg,
       }),
-    [orbitDirection, orbitRevolutionDurationSec]
+    [orbitDirection, orbitMinPitchDeg, orbitRevolutionDurationSec]
   );
   const zoomOptions = useMemo(
     () =>
@@ -330,7 +353,7 @@ const MapLibreReferenceSurface = ({
   });
 
   return (
-    <StandaloneSurface label="MapLibre Reference">
+    <StandaloneSurface label="MapLibre GL JS Reference">
       <div
         ref={containerRef}
         style={{
@@ -344,6 +367,7 @@ const MapLibreReferenceSurface = ({
         runtimeHandle={runtimeHandle}
         homeTarget={homeTarget}
         showOrbitControl
+        homeOptions={homeOptions}
         orbitOptions={orbitOptions}
         zoomOptions={zoomOptions}
       />
@@ -555,17 +579,30 @@ const CesiumReferenceSurface = ({
 
 export const Leaflet: StoryObj = {
   args: {
+    homeAnimate: true,
+    homeDurationMs: 900,
     zoomDelta: "one",
     animate: true,
     durationMs: 250,
   },
   argTypes: {
+    homeAnimate: {
+      ...HOME_ANIMATE_ARG_TYPE,
+      table: { category: "Home" },
+    },
+    homeDurationMs: {
+      ...HOME_DURATION_ARG_TYPE,
+      if: { arg: "homeAnimate" },
+      table: { category: "Home" },
+    },
     zoomDelta: ZOOM_DELTA_ARG_TYPE,
     animate: ZOOM_ANIMATE_ARG_TYPE,
     durationMs: ZOOM_DURATION_ARG_TYPE,
   },
   render: (args) => (
     <LeafletReferenceSurface
+      homeAnimate={args.homeAnimate}
+      homeDurationMs={args.homeDurationMs}
       zoomDelta={readZoomDeltaArgValue(args.zoomDelta)}
       animate={args.animate}
       durationMs={args.durationMs}
@@ -573,24 +610,28 @@ export const Leaflet: StoryObj = {
   ),
 };
 
-export const MapLibre: StoryObj = {
+export const MapLibreGLJS: StoryObj = {
+  name: "MapLibre GL JS",
   args: {
+    homeAnimate: true,
+    homeDurationMs: 900,
+    orbitDirection: NAVIGATION_ORBIT_DIRECTIONS.CW,
     orbitRevolutionDurationSec:
       DEFAULT_NAVIGATION_ORBIT_REVOLUTION_DURATION_SEC,
-    orbitDirection: NAVIGATION_ORBIT_DIRECTIONS.CW,
+    orbitMinPitchDeg: 30,
     zoomDelta: "one",
     animate: true,
     durationMs: 250,
   },
   argTypes: {
-    orbitRevolutionDurationSec: {
-      name: "orbit revolution duration (s)",
-      control: {
-        type: "range",
-        min: 4,
-        max: 120,
-        step: 1,
-      },
+    homeAnimate: {
+      ...HOME_ANIMATE_ARG_TYPE,
+      table: { category: "Home" },
+    },
+    homeDurationMs: {
+      ...HOME_DURATION_ARG_TYPE,
+      if: { arg: "homeAnimate" },
+      table: { category: "Home" },
     },
     orbitDirection: {
       name: "orbit direction",
@@ -603,6 +644,22 @@ export const MapLibre: StoryObj = {
         [NAVIGATION_ORBIT_DIRECTIONS.CW]: "cw",
         [NAVIGATION_ORBIT_DIRECTIONS.CCW]: "ccw",
       },
+      table: { category: "Orbit" },
+    },
+    orbitRevolutionDurationSec: {
+      name: "orbit revolution duration (s)",
+      control: {
+        type: "range",
+        min: 4,
+        max: 120,
+        step: 1,
+      },
+      table: { category: "Orbit" },
+    },
+    orbitMinPitchDeg: {
+      name: "orbit min pitch (deg)",
+      control: { type: "range", min: 0, max: 85, step: 1 },
+      table: { category: "Orbit" },
     },
     zoomDelta: ZOOM_DELTA_ARG_TYPE,
     animate: ZOOM_ANIMATE_ARG_TYPE,
@@ -610,8 +667,11 @@ export const MapLibre: StoryObj = {
   },
   render: (args) => (
     <MapLibreReferenceSurface
+      homeAnimate={args.homeAnimate}
+      homeDurationMs={args.homeDurationMs}
       orbitDirection={args.orbitDirection}
       orbitRevolutionDurationSec={args.orbitRevolutionDurationSec}
+      orbitMinPitchDeg={args.orbitMinPitchDeg}
       zoomDelta={readZoomDeltaArgValue(args.zoomDelta)}
       animate={args.animate}
       durationMs={args.durationMs}

@@ -132,6 +132,7 @@ const DEFAULT_ORBIT_PREP_DURATION_MS = 300;
 const DEFAULT_ORBIT_SPEED_DEG_PER_SECOND =
   360 / DEFAULT_NAVIGATION_ORBIT_REVOLUTION_DURATION_SEC;
 const DEFAULT_MIN_ORBIT_PITCH_DEG = 30;
+const ORBIT_PITCH_CORRECTION_DEG_PER_SEC = 60;
 const MAPLIBRE_ORBIT_FRAME_STATE = new WeakMap<
   MapLibreMap,
   MapLibreOrbitFrameState
@@ -534,7 +535,14 @@ export const createRuntimeNavigationReference = ({
         center: [options.target.longitudeDeg, options.target.latitudeDeg],
       });
     }
-    const orbitSpeedDegPerSecond = readOrbitSpeedDegPerSecond(options);
+
+    const speedDegPerSecond = readOrbitSpeedDegPerSecond(options);
+    const minPitchDeg =
+      typeof options.minPitchDeg === "number" &&
+      Number.isFinite(options.minPitchDeg)
+        ? clamp(options.minPitchDeg, 0, MAX_MAPLIBRE_PITCH_DEG)
+        : 0;
+
     MAPLIBRE_ORBIT_FRAME_STATE.set(map, {
       lastBearingDeg: map.getBearing(),
       lastFrameTimeMs: null,
@@ -553,17 +561,30 @@ export const createRuntimeNavigationReference = ({
         return;
       }
 
-      const frameTime = performance.now();
+      const now = performance.now();
       const deltaSeconds =
         orbitState.lastFrameTimeMs === null
           ? 0
-          : (frameTime - orbitState.lastFrameTimeMs) / 1000;
-      orbitState.lastFrameTimeMs = frameTime;
+          : (now - orbitState.lastFrameTimeMs) / 1000;
+      orbitState.lastFrameTimeMs = now;
 
-      const nextBearingDeg =
-        map.getBearing() + orbitSpeedDegPerSecond * deltaSeconds;
+      const nextBearingDeg = map.getBearing() - speedDegPerSecond * deltaSeconds;
       orbitState.lastBearingDeg = nextBearingDeg;
-      map.setBearing(nextBearingDeg);
+      // Write directly to the transform to avoid jumpTo→stop() canceling drags.
+      map.transform.setBearing(nextBearingDeg);
+
+      // Parallel pitch correction toward minPitchDeg.
+      if (minPitchDeg > 0 && deltaSeconds > 0) {
+        const currentPitch = map.getPitch();
+        if (currentPitch < minPitchDeg) {
+          const pitchStep = ORBIT_PITCH_CORRECTION_DEG_PER_SEC * deltaSeconds;
+          map.transform.setPitch(Math.min(currentPitch + pitchStep, minPitchDeg));
+        }
+      }
+
+      // Fire move/rotate so compass and orbit icon subscribers receive bearing updates.
+      map.fire('move');
+      map.fire('rotate');
       map.triggerRepaint();
     };
 
