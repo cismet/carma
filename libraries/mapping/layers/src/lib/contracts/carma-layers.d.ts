@@ -21,7 +21,7 @@ export type DynamicStylingOption = {
   colorMap?: [string, string][];
 };
 
-export type DynamicStylingConfig = {
+export type DynamicStylingListConfig = {
   type: "list";
   label: string;
   default: string;
@@ -29,6 +29,20 @@ export type DynamicStylingConfig = {
   targets: string[];
   showIcon?: boolean;
 };
+
+export type DynamicStylingVisibilityConfig = {
+  type: "visibility";
+  label: string;
+  default: "visible" | "hidden";
+  layers: string[];
+  showIcon?: boolean;
+  iconVisible?: string;
+  iconHidden?: string;
+};
+
+export type DynamicStylingConfig =
+  | DynamicStylingListConfig
+  | DynamicStylingVisibilityConfig;
 
 export type BackgroundLayer = BaseLayer & {
   layers: string;
@@ -155,8 +169,8 @@ type BaseLayer = {
   filterConfig?: FilterConfig;
   filterInfo?: LayerFilterInfo;
   filterState?: Record<string, boolean>;
-  dynamicStyling?: DynamicStylingConfig;
-  dynamicStylingSelection?: string;
+  dynamicStyling?: DynamicStylingConfig | DynamicStylingConfig[];
+  dynamicStylingSelection?: string | Record<number, string>;
   layerInfo?: {
     accentColor?: string;
     title?: string;

@@ -63,6 +63,7 @@ import {
   captureOriginalFilters,
   DynamicStylingControl,
   applyDynamicStyling,
+  applyDynamicVisibility,
 } from "@carma-mapping/components";
 import { Badge, Spin, Tooltip } from "antd";
 import { useLayerLoading } from "@carma-mapping/utils";
@@ -213,27 +214,46 @@ const GeoportalLayerButton = ({
     }
   }, [layer.filterConfig, layer.filterState, maplibreMaps, id]);
 
+  const dynamicStylingConfigs = Array.isArray(layer.dynamicStyling)
+    ? layer.dynamicStyling
+    : layer.dynamicStyling
+      ? [layer.dynamicStyling]
+      : [];
+  const dynamicStylingSelections =
+    typeof layer.dynamicStylingSelection === "object" &&
+    layer.dynamicStylingSelection !== null
+      ? layer.dynamicStylingSelection
+      : {};
+
   const dynamicStylingAppliedRef = useRef(false);
   useEffect(() => {
-    if (
-      !layer.dynamicStyling ||
-      !layer.dynamicStylingSelection ||
-      layer.dynamicStylingSelection === layer.dynamicStyling.default ||
-      dynamicStylingAppliedRef.current
-    )
+    if (!dynamicStylingConfigs.length || dynamicStylingAppliedRef.current)
       return;
 
     const mapEntry = maplibreMaps?.find((entry) => entry.id === id);
     if (!mapEntry?.map) return;
 
-    applyDynamicStyling(
-      mapEntry.map,
-      id,
-      layer.dynamicStyling,
-      layer.dynamicStylingSelection
-    );
+    let applied = false;
+    dynamicStylingConfigs.forEach((config, idx) => {
+      const selection = dynamicStylingSelections[idx];
+      if (!selection || selection === config.default) return;
 
-    dynamicStylingAppliedRef.current = true;
+      if (config.type === "list") {
+        applyDynamicStyling(mapEntry.map, id, config, selection);
+        applied = true;
+      } else if (config.type === "visibility") {
+        applyDynamicVisibility(
+          mapEntry.map,
+          config,
+          selection as "visible" | "hidden"
+        );
+        applied = true;
+      }
+    });
+
+    if (applied) {
+      dynamicStylingAppliedRef.current = true;
+    }
   }, [layer.dynamicStyling, layer.dynamicStylingSelection, maplibreMaps, id]);
 
   const isCurrentlyVisible = () => {
@@ -396,22 +416,29 @@ const GeoportalLayerButton = ({
               );
             })}
 
-            {layer.dynamicStyling && (
+            {dynamicStylingConfigs.map((config, idx) => (
               <DynamicStylingControl
-                config={layer.dynamicStyling}
+                key={idx}
+                config={config}
                 maplibreMap={
                   maplibreMaps?.find((entry) => entry.id === id)?.map
                 }
                 carmaLayerId={id}
                 currentSelection={
-                  layer.dynamicStylingSelection || layer.dynamicStyling.default
+                  dynamicStylingSelections[idx] || config.default
                 }
                 onSelectionChange={(selection) => {
-                  dispatch(setLayerDynamicStylingSelection({ id, selection }));
+                  dispatch(
+                    setLayerDynamicStylingSelection({
+                      id,
+                      configIndex: idx,
+                      selection,
+                    })
+                  );
                 }}
                 showIcon={false}
               />
-            )}
+            ))}
 
             <button
               id={`removeLayerButton-${id}`}

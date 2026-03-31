@@ -262,12 +262,21 @@ const slice = createSlice({
 
     setLayerDynamicStylingSelection(
       state,
-      action: PayloadAction<{ id: string; selection: string }>
+      action: PayloadAction<{
+        id: string;
+        configIndex: number;
+        selection: string;
+      }>
     ) {
-      const { id, selection } = action.payload;
+      const { id, configIndex, selection } = action.payload;
       const layer = state.layers.find((l) => l.id === id);
       if (layer) {
-        layer.dynamicStylingSelection = selection;
+        const prev =
+          typeof layer.dynamicStylingSelection === "object" &&
+          layer.dynamicStylingSelection !== null
+            ? layer.dynamicStylingSelection
+            : {};
+        layer.dynamicStylingSelection = { ...prev, [configIndex]: selection };
       }
     },
 

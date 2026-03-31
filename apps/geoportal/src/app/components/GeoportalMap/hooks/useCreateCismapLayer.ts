@@ -20,7 +20,10 @@ import {
   setSelectedFeature,
 } from "../../../store/slices/features";
 import { setLayersIdle, updateLayer } from "../../../store/slices/mapping";
-import { applyDynamicStyling } from "@carma-mapping/components";
+import {
+  applyDynamicStyling,
+  applyDynamicVisibility,
+} from "@carma-mapping/components";
 
 import { UIMode } from "../../../store/slices/ui";
 import {
@@ -329,19 +332,37 @@ export const useCreateCismapLayers = (
             selectionEnabled: true,
             manualSelectionManagement: true,
             maxSelectionCount: 10,
-            onStyleData:
-              layer.dynamicStyling &&
-              layer.dynamicStylingSelection &&
-              layer.dynamicStylingSelection !== layer.dynamicStyling.default
-                ? (map) => {
-                    applyDynamicStyling(
+            onStyleData: (() => {
+              const configs = Array.isArray(layer.dynamicStyling)
+                ? layer.dynamicStyling
+                : layer.dynamicStyling
+                  ? [layer.dynamicStyling]
+                  : [];
+              const selections =
+                typeof layer.dynamicStylingSelection === "object" &&
+                layer.dynamicStylingSelection !== null
+                  ? layer.dynamicStylingSelection
+                  : {};
+              const hasNonDefault = configs.some(
+                (c, idx) => selections[idx] && selections[idx] !== c.default
+              );
+              if (!hasNonDefault) return undefined;
+              return (map: any) => {
+                configs.forEach((config, idx) => {
+                  const sel = selections[idx];
+                  if (!sel || sel === config.default) return;
+                  if (config.type === "list") {
+                    applyDynamicStyling(map, layer.id, config, sel);
+                  } else if (config.type === "visibility") {
+                    applyDynamicVisibility(
                       map,
-                      layer.id,
-                      layer.dynamicStyling,
-                      layer.dynamicStylingSelection
+                      config,
+                      sel as "visible" | "hidden"
                     );
                   }
-                : undefined,
+                });
+              };
+            })(),
             onMapLibreCoreMapReady: (map) => {
               console.log("MapLibre map ready for layer:", layer.id, map);
 

@@ -1,6 +1,14 @@
-import type { DynamicStylingConfig } from "@carma/types";
+import type {
+  DynamicStylingConfig,
+  DynamicStylingListConfig,
+  DynamicStylingVisibilityConfig,
+} from "@carma/types";
 import { Dropdown } from "antd";
-import { faPalette } from "@fortawesome/free-solid-svg-icons";
+import {
+  faToggleOff,
+  faToggleOn,
+  faPalette,
+} from "@fortawesome/free-solid-svg-icons";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 
 const dynamicStylingOriginals: Record<string, Record<string, unknown>> = {};
@@ -35,7 +43,7 @@ const setProperty = (libreMap: any, target: string, value: unknown) => {
 const captureOriginals = (
   libreMap: any,
   carmaLayerId: string,
-  config: DynamicStylingConfig
+  config: DynamicStylingListConfig
 ) => {
   if (dynamicStylingOriginals[carmaLayerId]) {
     return dynamicStylingOriginals[carmaLayerId];
@@ -54,7 +62,7 @@ const captureOriginals = (
 export const applyDynamicStyling = (
   libreMap: any,
   carmaLayerId: string,
-  config: DynamicStylingConfig,
+  config: DynamicStylingListConfig,
   selectedOptionId: string
 ) => {
   const originals = captureOriginals(libreMap, carmaLayerId, config);
@@ -106,6 +114,26 @@ export const applyDynamicStyling = (
   }
 };
 
+export const applyDynamicVisibility = (
+  libreMap: any,
+  config: DynamicStylingVisibilityConfig,
+  selection: "visible" | "hidden"
+) => {
+  const visibility = selection === "visible" ? "visible" : "none";
+  for (const layerId of config.layers) {
+    try {
+      if (libreMap.getLayer(layerId)) {
+        libreMap.setLayoutProperty(layerId, "visibility", visibility);
+      }
+    } catch (error) {
+      console.error(
+        `[DynamicVisibility] Error setting visibility on ${layerId}:`,
+        error
+      );
+    }
+  }
+};
+
 export interface DynamicStylingControlProps {
   config: DynamicStylingConfig;
   maplibreMap: any;
@@ -123,16 +151,21 @@ const DynamicStylingList = ({
   onSelectionChange,
   showIcon: showIconProp,
 }: DynamicStylingControlProps) => {
-  const currentOption = config.options.find((o) => o.id === currentSelection);
-  const isBinaryToggle = config.options.length === 2;
+  const listConfig = config as DynamicStylingListConfig;
+  const currentOption = listConfig.options.find(
+    (o) => o.id === currentSelection
+  );
+  const isBinaryToggle = listConfig.options.length === 2;
   const showIcon = showIconProp ?? config.showIcon !== false;
 
   const handleToggle = (e: React.MouseEvent) => {
     e.stopPropagation();
-    const nextOption = config.options.find((o) => o.id !== currentSelection);
+    const nextOption = listConfig.options.find(
+      (o) => o.id !== currentSelection
+    );
     if (!nextOption) return;
     if (maplibreMap) {
-      applyDynamicStyling(maplibreMap, carmaLayerId, config, nextOption.id);
+      applyDynamicStyling(maplibreMap, carmaLayerId, listConfig, nextOption.id);
     }
     onSelectionChange(nextOption.id);
   };
@@ -176,14 +209,19 @@ const DynamicStylingList = ({
           selectedKeys: [currentSelection],
           onClick: ({ key }) => {
             if (key === currentSelection) return;
-            const opt = config.options.find((o) => o.id === key);
+            const opt = listConfig.options.find((o) => o.id === key);
             if (!opt) return;
             if (maplibreMap) {
-              applyDynamicStyling(maplibreMap, carmaLayerId, config, opt.id);
+              applyDynamicStyling(
+                maplibreMap,
+                carmaLayerId,
+                listConfig,
+                opt.id
+              );
             }
             onSelectionChange(key);
           },
-          items: config.options.map((opt) => ({
+          items: listConfig.options.map((opt) => ({
             key: opt.id,
             label: (
               <div className="flex items-center gap-2">
@@ -219,10 +257,58 @@ const DynamicStylingList = ({
   );
 };
 
+const DynamicStylingVisibility = ({
+  config,
+  maplibreMap,
+  carmaLayerId,
+  currentSelection,
+  onSelectionChange,
+}: DynamicStylingControlProps) => {
+  const visConfig = config as DynamicStylingVisibilityConfig;
+  const isVisible = currentSelection === "visible";
+  const customSvg = isVisible ? visConfig.iconVisible : visConfig.iconHidden;
+
+  const handleToggle = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    const next = isVisible ? "hidden" : "visible";
+    if (maplibreMap) {
+      applyDynamicVisibility(maplibreMap, visConfig, next);
+    }
+    onSelectionChange(next);
+  };
+
+  return (
+    <div
+      onClick={(e) => e.stopPropagation()}
+      onMouseDown={(e) => e.stopPropagation()}
+    >
+      <button
+        id={`visibilityLayerButton-${carmaLayerId}`}
+        className="px-1.5 flex items-center justify-center"
+        onClick={handleToggle}
+      >
+        {customSvg ? (
+          <span
+            className="inline-flex items-center justify-center w-[14px] h-[14px] text-gray-600 hover:text-gray-500"
+            dangerouslySetInnerHTML={{ __html: customSvg }}
+          />
+        ) : (
+          <FontAwesomeIcon
+            icon={isVisible ? faToggleOn : faToggleOff}
+            className="text-sm text-gray-600 hover:text-gray-500"
+          />
+        )}
+      </button>
+    </div>
+  );
+};
+
 export const DynamicStylingControl = (props: DynamicStylingControlProps) => {
   switch (props.config.type) {
     case "list":
       return <DynamicStylingList {...props} />;
+    case "visibility":
+      return <DynamicStylingVisibility {...props} />;
     default:
       return null;
   }

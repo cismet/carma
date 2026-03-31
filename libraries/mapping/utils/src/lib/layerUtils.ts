@@ -194,7 +194,8 @@ export const parseToMapLayer = async (
             filterConfig = metaData?.carmaConf?.filterConfig;
           }
           if (metaData?.carmaConf?.dynamicStyling) {
-            dynamicStyling = metaData?.carmaConf?.dynamicStyling;
+            const ds = metaData.carmaConf.dynamicStyling;
+            dynamicStyling = Array.isArray(ds) ? ds : [ds];
           }
         }
       } else if (typeof vectorStyle === "string" && vectorStyle) {
