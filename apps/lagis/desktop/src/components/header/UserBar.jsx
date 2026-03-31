@@ -76,7 +76,12 @@ const UserBar = () => {
     const fstck = urlParams.get("fstck") || undefined;
 
     if (gem && flur && fstck) {
-      const fullFstckLabel = gem + " " + flur + " " + fstck.replace("-", "/");
+      const fullFstckLabel =
+        gem +
+        " " +
+        removeLeadingZeros(flur, true) +
+        " " +
+        removeLeadingZeros(fstck.replace("-", "/"));
       if (fullFstckLabel !== currentLParcelNav) {
         dispatch(setCurrentLP(fullFstckLabel));
       }

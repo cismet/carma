@@ -12,6 +12,10 @@ const slice = createSlice({
   initialState,
   reducers: {
     setCurrentLP(state, action) {
+      if (action.payload === state.current) {
+        return;
+      }
+
       if (state.current) {
         state.previous.unshift(state.current);
         // Enforce history limit for previous items
