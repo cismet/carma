@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import type { CameraIntrinsics } from "./camera-view-specification";
+
 import {
   buildOrthographicScale,
   interpolateDollyCompensatedFov,
@@ -17,7 +17,7 @@ import {
   readViewOffsetFromElement,
   readZoomStepScale,
 } from "./camera-intrinsics-utils";
-
+import type { CameraIntrinsics } from "./camera-view-specification";
 describe("camera intrinsics utils", () => {
   it("derives horizontal fov from vertical fov and aspect", () => {
     const verticalFov = Math.PI / 4;
@@ -262,10 +262,7 @@ describe("camera intrinsics utils", () => {
         viewportWidthPx: 1600,
         viewportHeightPx: 900,
       })
-    ).toBeCloseTo(
-      2 * Math.atan(Math.tan(currentLongerEdgeFov * 0.5) * 2),
-      8
-    );
+    ).toBeCloseTo(2 * Math.atan(Math.tan(currentLongerEdgeFov * 0.5) * 2), 8);
     expect(
       readTargetLongerEdgeFovForZoomStepFromIntrinsics({
         intrinsics,
@@ -275,10 +272,7 @@ describe("camera intrinsics utils", () => {
         viewportWidthPx: 1600,
         viewportHeightPx: 900,
       })
-    ).toBeCloseTo(
-      2 * Math.atan(Math.tan(currentLongerEdgeFov * 0.5) * 0.5),
-      8
-    );
+    ).toBeCloseTo(2 * Math.atan(Math.tan(currentLongerEdgeFov * 0.5) * 0.5), 8);
   });
 
   it("keeps meters-per-css-pixel constant across dolly interpolation steps", () => {

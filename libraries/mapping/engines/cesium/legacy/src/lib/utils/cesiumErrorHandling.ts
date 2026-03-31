@@ -1,6 +1,6 @@
 import { Viewer } from "cesium";
-import { getCesiumVersion, checkWindowEnv } from "./cesiumEnv";
 
+import { getCesiumVersion, checkWindowEnv } from "./cesiumEnv";
 const patchedScenes = new WeakSet<object>();
 
 const normalizeError = (e: unknown): Error =>

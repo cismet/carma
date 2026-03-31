@@ -1,6 +1,5 @@
-import { Cesium3DTileset } from "../../cesium";
 import { isValidTileset } from "../../carma-guards";
-
+import { Cesium3DTileset } from "../../cesium";
 /**
  * Guard helper for Cesium3DTileset.
  */

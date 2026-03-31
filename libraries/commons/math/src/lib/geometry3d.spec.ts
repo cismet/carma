@@ -1,13 +1,12 @@
-import { describe, expect, it } from "vitest";
 import { Plane, Vector3 } from "three";
+import { Ray } from "three";
+import { describe, expect, it } from "vitest";
 
 import {
   clipConvexPolygonByPlanes3d,
   createPlaneBasisFromNormal,
   intersectRayWithPlane,
 } from "./geometry3d";
-import { Ray } from "three";
-
 const createPlaneFromOriginAndNormal = ({
   origin,
   normal,

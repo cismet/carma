@@ -1,4 +1,5 @@
 import { Cartesian3 } from "@carma/cesium";
+
 import {
   getPlanarSharedEdgeRelationIds,
   getSplitMarkerRelationIds,
@@ -13,7 +14,6 @@ import {
 } from "../types/annotationTypes";
 import type { DistanceRelationRenderContext } from "../types/distanceRelationRenderContext";
 import { getDistanceRelationId } from "./measurementRelations";
-
 const VERTICAL_OPPOSING_EDGE_LABEL_EPSILON_METERS = 0.01;
 
 export const buildEdgeRelationRenderContext = ({

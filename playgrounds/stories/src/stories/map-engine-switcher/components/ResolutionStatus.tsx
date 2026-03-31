@@ -1,9 +1,11 @@
 import { type CSSProperties, useEffect, useState } from "react";
-import { Statistic, Card, Typography } from "antd";
-import { useMapFrameworkSwitcherContext } from "@carma-mapping/components";
-import { InfoTooltip } from "../../../components/InfoTooltip";
-import { styles } from "../helpers/styles";
 
+import { Card, Statistic, Typography } from "antd";
+
+import { useMapFrameworkSwitcherContext } from "@carma-mapping/components";
+
+import { styles } from "../helpers/styles";
+import { InfoTooltip } from "../../../components/InfoTooltip";
 const { Text } = Typography;
 
 interface ResolutionStatusProps {

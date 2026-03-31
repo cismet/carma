@@ -4,11 +4,16 @@ import {
 } from "@carma-commons/camera/model";
 import { Cartesian3, PerspectiveFrustum, type Scene } from "@carma/cesium";
 import { clamp } from "@carma/math";
+import type { Radians } from "@carma/units/types";
+
 import {
   readPerspectiveFrustumVerticalFov,
   writePerspectiveFrustumVerticalFov,
 } from "../camera";
-import { readCachedCesiumViewportCenterZoomAnchor } from "./per-frame-cache";
+import {
+  beginCesiumAdaptiveRenderScaleActivity,
+  endCesiumAdaptiveRenderScaleActivity,
+} from "./adaptive-render-scale";
 import {
   buildTimedCesiumFovCurve,
   readSceneAspectRatio,
@@ -16,13 +21,8 @@ import {
   readTimedCesiumVerticalFov,
   type TimedCesiumFovCurve,
 } from "./cesium-zoom-curves";
-import {
-  beginCesiumAdaptiveRenderScaleActivity,
-  endCesiumAdaptiveRenderScaleActivity,
-} from "./adaptive-render-scale";
+import { readCachedCesiumViewportCenterZoomAnchor } from "./per-frame-cache";
 import type { CesiumTransitionLifecycle } from "./transition-lifecycle";
-import type { Radians } from "@carma/units/types";
-
 const DEFAULT_CESIUM_FOV_ZOOM_DELTA = 1;
 const FOV_ZOOM_RENDER_SCALE_ACTIVITY_KEY = "fov-zoom";
 

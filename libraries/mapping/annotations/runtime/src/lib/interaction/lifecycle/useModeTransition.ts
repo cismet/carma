@@ -9,7 +9,6 @@ import {
   replaceAnnotationsStoreState,
   type AnnotationsStore,
 } from "../../store";
-
 type UseAnnotationModeTransitionParams = {
   annotationsStore: AnnotationsStore;
   setSelectionModeActive: Dispatch<SetStateAction<boolean>>;

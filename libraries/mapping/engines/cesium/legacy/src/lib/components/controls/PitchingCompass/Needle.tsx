@@ -1,13 +1,12 @@
 import { useCallback, useEffect, useRef } from "react";
-import { CesiumMath } from "@carma/cesium";
 
+import { CesiumMath } from "@carma/cesium";
 import type { Radians } from "@carma/units/types";
 
 import {
   CompassNeedleSVG,
   computeCompassNeedleTransform,
 } from "./CompassNeedleSVG";
-
 type Props = {
   register: (setOrientation: (p: Radians, h: Radians) => void) => void;
 };

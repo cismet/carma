@@ -14,18 +14,12 @@ import {
 import StyledWMSTileLayer from "react-cismap/StyledWMSTileLayer";
 
 import { isNumberArrayEqual } from "@carma-commons/utils";
-
+import { useMapFrameworkSwitcherContext } from "@carma-mapping/components";
 import {
   getTerrainElevationAsync,
   useCesiumContext,
 } from "@carma-mapping/engines/cesium";
-import { useMapFrameworkSwitcherContext } from "@carma-mapping/components";
 import { useHashState } from "@carma-providers/hash-state";
-
-import { useHGKCesiumTerrain } from "../hooks/useHGKCesiumTerrain";
-import { onCesiumClick } from "../utils/cesiumHandlers";
-import { getWebMercatorInWGS84, getWGS84InWebMercator } from "../utils/geo";
-import { updateMarkerPosition } from "../utils/marker";
 
 import config from "../config";
 import {
@@ -33,8 +27,11 @@ import {
   HGK_KEYS,
   HGK_TERRAIN_PROVIDER_URLS,
 } from "../config/app.config";
+import { useHGKCesiumTerrain } from "../hooks/useHGKCesiumTerrain";
+import { onCesiumClick } from "../utils/cesiumHandlers";
+import { getWebMercatorInWGS84, getWGS84InWebMercator } from "../utils/geo";
+import { updateMarkerPosition } from "../utils/marker";
 import NotesDisplay from "./NotesDisplay";
-
 export const StateAwareChildren = () => {
   const floorToMeterGrid = (value: number): number => Math.floor(value);
 

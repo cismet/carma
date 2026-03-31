@@ -1,4 +1,3 @@
-import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import {
   faArrowPointer,
   faBuilding,
@@ -6,6 +5,8 @@ import {
   faMessage,
   faRuler,
 } from "@fortawesome/free-solid-svg-icons";
+import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
+
 import {
   VectorPolylineIcon,
   VectorSquareIcon,
@@ -25,8 +26,8 @@ import {
   ANNOTATION_TYPE_POLYLINE,
   ANNOTATION_TYPE_AREA_VERTICAL,
 } from "@carma-mapping/annotations/core";
-import { resolveAnnotationToolText } from "../../config/annotationToolText";
 
+import { resolveAnnotationToolText } from "../../config/annotationToolText";
 export type AnnotationToolManagerContext = {
   modeActive?: boolean;
 };

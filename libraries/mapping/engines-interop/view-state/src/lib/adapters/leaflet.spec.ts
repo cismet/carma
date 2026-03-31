@@ -1,4 +1,6 @@
+import type { Map as LeafletMap } from "leaflet";
 import { describe, expect, it, vi } from "vitest";
+
 import {
   buildOrthographicScale,
   CAMERA_TYPE,
@@ -6,15 +8,14 @@ import {
 import { getZoomFromPixelResolutionAtLatitudeRad } from "@carma/geo/utils";
 import { degToRadNumeric } from "@carma/units/helpers";
 import type { Meters, Radians } from "@carma/units/types";
+
 import { buildViewState } from "../core/construct";
 import {
   deriveOrbitAngles,
   deriveRoll,
   readMetersPerCssPixelFromViewState,
 } from "../core/derivations";
-import type { Map as LeafletMap } from "leaflet";
 import { applyToLeaflet, readFromLeaflet } from "./leaflet";
-
 const meters = (value: number): Meters => value as Meters;
 const radians = (valueDeg: number): Radians =>
   degToRadNumeric(valueDeg)! as Radians;

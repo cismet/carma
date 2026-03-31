@@ -7,17 +7,6 @@ import {
 } from "react";
 
 import {
-  Cartesian3,
-  Cartesian4,
-  Matrix4,
-  Transforms,
-  cartesian3FromJson,
-  getLocalUpDirectionAtAnchor,
-  getSignedAngleDegAroundAxis,
-  normalizeDirection,
-  resolveLocalFrameVectors,
-} from "@carma/cesium";
-import {
   ANNOTATION_TYPE_AREA_PLANAR,
   ANNOTATION_TYPE_AREA_VERTICAL,
   ANNOTATION_TYPE_POINT,
@@ -32,17 +21,28 @@ import {
   type PlanarPolygonPlane,
   type ReferenceLineLabelKind,
 } from "@carma-mapping/annotations/core";
-import { usePointEditingGizmo } from "./usePointEditingGizmo";
-import { useEditState } from "./useEditState";
-import { usePointEditingState } from "./usePointEditingState";
+import {
+  Cartesian3,
+  Cartesian4,
+  Matrix4,
+  Transforms,
+  cartesian3FromJson,
+  getLocalUpDirectionAtAnchor,
+  getSignedAngleDegAroundAxis,
+  normalizeDirection,
+  resolveLocalFrameVectors,
+} from "@carma/cesium";
+import type { Scene } from "@carma/cesium";
+
+import type { AnnotationEditingContextType } from "../../context/annotationsContext.types";
+import type { AnnotationsStore } from "../../store";
 import type {
   AnnotationEditTarget,
   AnnotationEditUpdateTarget,
 } from "./annotationEdit.types";
-import type { Scene } from "@carma/cesium";
-import type { AnnotationsStore } from "../../store";
-import type { AnnotationEditingContextType } from "../../context/annotationsContext.types";
-
+import { useEditState } from "./useEditState";
+import { usePointEditingGizmo } from "./usePointEditingGizmo";
+import { usePointEditingState } from "./usePointEditingState";
 const VERTICAL_POLYGON_AXIS_ID_ENU_UP = "enu-up";
 const VERTICAL_POLYGON_AXIS_ID_ENU_EAST = "enu-east";
 const VERTICAL_POLYGON_AXIS_ID_ENU_NORTH = "enu-north";

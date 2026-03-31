@@ -1,9 +1,10 @@
 import { useEffect, useMemo, useState } from "react";
+
 import type { Meta, StoryObj } from "@storybook/react";
 import { Radio } from "antd";
+
 import { ResponsiveStatusBar } from "@carma-commons/ui/components";
 import { FORMAT_LOCALE, formatDecimalNumber } from "@carma/units/helpers";
-
 type DecimalNumberFormatterStoryProps = {
   value: number;
   fractionDigits: number;

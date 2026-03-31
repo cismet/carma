@@ -1,19 +1,21 @@
 // @vitest-environment jsdom
 
 import { useContext, type PropsWithChildren } from "react";
+
 import { act, renderHook } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import type { Scene } from "@carma-mapping/engines/cesium/api";
+
 import { CAMERA_TYPE } from "@carma-commons/camera/model";
+import type { Scene } from "@carma-mapping/engines/cesium/api";
 import { degToRadNumeric } from "@carma/units/helpers";
 import type { Meters, Radians } from "@carma/units/types";
-import { buildViewState } from "../../core/construct";
-import type { ViewState, ViewStateHashCodec } from "../../core/types";
+
+import { ViewStateNavigationManagerProvider } from "../providers/navigation/ViewStateNavigationManagerProvider";
 import { ViewStateContext } from "../providers/view-state/ViewStateContext";
 import { ViewStateProvider } from "../providers/view-state/ViewStateProvider";
-import { ViewStateNavigationManagerProvider } from "../providers/navigation/ViewStateNavigationManagerProvider";
+import { buildViewState } from "../../core/construct";
+import type { ViewState, ViewStateHashCodec } from "../../core/types";
 import { useCesiumNavigationBridge } from "./useCesiumNavigationBridge";
-
 const updateHashMock = vi.fn();
 const publishCurrentStateMock = vi.fn(() => true);
 const claimControlMock = vi.fn(() => true);

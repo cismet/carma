@@ -1,13 +1,12 @@
 import { Scene, PerspectiveFrustum } from "@carma/cesium";
-import type { Zoom } from "@carma/types";
-import { degToRad } from "@carma/units/helpers";
 import type { Degrees, Radians } from "@carma/geo/types";
-import type { Meters } from "@carma/units/types";
 import {
   getPixelResolutionFromZoomAtLatitudeRad,
   getZoomFromPixelResolutionAtLatitudeRad,
 } from "@carma/geo/utils";
-
+import type { Zoom } from "@carma/types";
+import { degToRad } from "@carma/units/helpers";
+import type { Meters } from "@carma/units/types";
 /**
  * Converter for bidirectional zoom ↔ distance conversions
  */

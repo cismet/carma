@@ -1,7 +1,8 @@
 import { useCallback, useContext } from "react";
-import type { Map as LeafletMap } from "leaflet";
-import { TopicMapContext } from "react-cismap/contexts/TopicMapContextProvider";
 
+import type { Map as LeafletMap } from "leaflet";
+
+import { TopicMapContext } from "react-cismap/contexts/TopicMapContextProvider";
 /**
  * Custom hook to handle Leaflet zoom controls.
  * Provides stable zoom in and zoom out functions.

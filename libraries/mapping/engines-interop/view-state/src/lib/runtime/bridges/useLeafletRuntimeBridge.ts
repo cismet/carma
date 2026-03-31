@@ -1,12 +1,13 @@
 import { useMemo } from "react";
+
 import type { Map as LeafletMap } from "leaflet";
-import type { WritePriority } from "../../core/types";
+
 import { applyToLeaflet, readFromLeaflet } from "../../adapters/leaflet";
+import type { WritePriority } from "../../core/types";
 import {
   useSubscribedRuntimeBridge,
   type SubscribedRuntimeBridgeHandle,
 } from "./useSubscribedRuntimeBridge";
-
 const attachLeafletListener = (
   map: LeafletMap,
   listener: () => void

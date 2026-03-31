@@ -1,11 +1,12 @@
 // @vitest-environment jsdom
 
 import { useContext, type PropsWithChildren } from "react";
+
 import { act, renderHook } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+
 import { ViewStateContext } from "./ViewStateContext";
 import { ViewStateProvider } from "./ViewStateProvider";
-
 const wrapper = ({ children }: PropsWithChildren) => (
   <ViewStateProvider>{children}</ViewStateProvider>
 );

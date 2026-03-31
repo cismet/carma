@@ -9,7 +9,6 @@ import {
   type AnnotationShortLabelKind,
 } from "../types/annotationTypes";
 import { toAlphabeticSequence } from "./alphabeticSequence";
-
 export type AnnotationShortLabelCounterStyle = "numeric" | "alphabetic";
 
 export type AnnotationShortLabelStyleConfig = {

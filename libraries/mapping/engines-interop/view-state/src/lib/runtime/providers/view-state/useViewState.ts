@@ -1,4 +1,5 @@
 import { useContext, useMemo, useSyncExternalStore } from "react";
+
 import { deriveView } from "../../../core/derivations";
 import type {
   ViewState,
@@ -6,7 +7,6 @@ import type {
   ViewStateContextValue,
 } from "../../../core/types";
 import { ViewStateContext } from "./ViewStateContext";
-
 export const useViewStateContext = (): ViewStateContextValue => {
   const ctx = useContext(ViewStateContext);
   if (!ctx) {

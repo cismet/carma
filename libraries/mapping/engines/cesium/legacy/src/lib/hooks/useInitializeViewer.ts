@@ -1,11 +1,11 @@
 import { useEffect, useRef, useState } from "react";
 import { useSelector } from "react-redux";
-import { getPixelResolutionFromZoomAtLatitudeRad } from "@carma/geo/utils";
+
 import {
   readLongerEdgeFovFromIntrinsics,
   readRangeFromMetersPerCssPixel,
 } from "@carma-commons/camera/model";
-
+import { getPixelResolutionFromZoomAtLatitudeRad } from "@carma/geo/utils";
 // legacy viewer dependency should be widget only
 // eslint-disable-next-line carma/no-direct-cesium
 import { Viewer } from "cesium";

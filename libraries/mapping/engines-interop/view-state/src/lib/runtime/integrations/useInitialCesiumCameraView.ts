@@ -1,8 +1,8 @@
 import { useMemo } from "react";
-import type { ViewState } from "../../core/types";
-import { readInitialCameraViewFromViewState } from "../../adapters/cesium-initial-camera";
-import { useViewStateNavigationRestore } from "../providers/navigation/useViewStateNavigationRestore";
 
+import { useViewStateNavigationRestore } from "../providers/navigation/useViewStateNavigationRestore";
+import { readInitialCameraViewFromViewState } from "../../adapters/cesium-initial-camera";
+import type { ViewState } from "../../core/types";
 export const useInitialCesiumCameraView = (defaultViewState: ViewState) => {
   const { restoreState, isRestoreResolved: isInitialCameraResolved } =
     useViewStateNavigationRestore();

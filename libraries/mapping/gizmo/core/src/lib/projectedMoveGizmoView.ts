@@ -1,3 +1,5 @@
+import { Plane, Vector3 } from "three";
+
 import {
   buildCirclePoints,
   createPlaneBasisFromNormal,
@@ -9,19 +11,18 @@ import {
   MINUS_PI_OVER_FOUR,
   type Point2,
 } from "@carma-commons/math";
-import { Plane, Vector3 } from "three";
+
 import {
   createAxisDragConnector,
   type GizmoAxisDragConnector,
 } from "./axisDragConnector";
-import { toSvgPathD } from "./svgProjection";
 import { AXIS_NUMERIC_EPSILON } from "./constants";
 import {
   DEFAULT_VIEW_FOV_RAD,
   projectPointToViewport,
   rayFromClientPosition,
 } from "./projectedMoveGizmoMath";
-
+import { toSvgPathD } from "./svgProjection";
 const SVG_NS = "http://www.w3.org/2000/svg";
 
 const DEFAULT_DISC_RADIUS = 1.2;

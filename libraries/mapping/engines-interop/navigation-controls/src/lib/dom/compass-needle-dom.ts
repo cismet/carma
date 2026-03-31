@@ -1,8 +1,8 @@
 import { Easing, type Easing as EasingFunction } from "@carma-commons/math";
 import { clamp, PI_OVER_TWO } from "@carma/math";
 import { degToRadNumeric } from "@carma/units/helpers";
-import type { NavigationNeedleOrientationDeg } from "../contracts";
 
+import type { NavigationNeedleOrientationDeg } from "../contracts";
 const SVG_NS = "http://www.w3.org/2000/svg";
 const MAX_COMPASS_PITCH_DEG = 90;
 const ABSOLUTE_MAX_VISUAL_COMPASS_PITCH_DEG = 89;

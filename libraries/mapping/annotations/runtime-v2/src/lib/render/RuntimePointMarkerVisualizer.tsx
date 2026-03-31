@@ -10,9 +10,8 @@ import {
   type PointLabelData,
 } from "@carma-providers/label-overlay";
 
-import type { RuntimePointMarkerRenderModel } from "./measurementRenderModels";
 import type { RuntimeScene } from "../types/runtimeScene.types";
-
+import type { RuntimePointMarkerRenderModel } from "./measurementRenderModels";
 type RuntimePointMarkerVisualizerProps = {
   scene: RuntimeScene | null;
   points: readonly RuntimePointMarkerRenderModel[];

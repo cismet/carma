@@ -10,9 +10,8 @@ import {
 import type { Scene, Cartesian2, Cartesian3 } from "@carma/cesium";
 
 import type { EditingState } from "../../editing/useEditing";
-import { useNodeInteractionController } from "./useNodeInteractionController";
 import { usePointQueryCreationController } from "../../point-query/usePointQueryCreationController";
-
+import { useNodeInteractionController } from "./useNodeInteractionController";
 type UserInteractionInput = {
   annotations: AnnotationCollection;
   activeToolType: AnnotationToolType;

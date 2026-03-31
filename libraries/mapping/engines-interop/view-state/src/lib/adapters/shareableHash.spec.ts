@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
+
 import { CAMERA_TYPE } from "@carma-commons/camera/model";
 import type { CssPixels } from "@carma/units/types";
+
 import { HASH_ZOOM_CONVENTION } from "../core/viewStateHash";
 import type { ShareableViewState } from "../types";
 import {
@@ -11,7 +13,6 @@ import {
   resolveViewStateForViewport,
   type ShareableViewStateAdapterOptions,
 } from "./shareable";
-
 const makeShareableViewState = (
   overrides: Partial<ShareableViewState> = {}
 ): ShareableViewState => ({

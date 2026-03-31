@@ -2,8 +2,8 @@ import {
   ANNOTATION_COMMON_SHORTCUT_ACTIONS,
   resolveAnnotationCommonShortcutAction,
 } from "@carma-mapping/annotations/core";
-import type { PolylineToolAction } from "./polylineToolActions";
 
+import type { PolylineToolAction } from "./polylineToolActions";
 export const resolvePolylineToolKeyAction = (
   event: KeyboardEvent
 ): PolylineToolAction | null => {

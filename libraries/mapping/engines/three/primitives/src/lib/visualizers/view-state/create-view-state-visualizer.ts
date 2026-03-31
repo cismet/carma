@@ -1,4 +1,19 @@
 import {
+  AmbientLight,
+  DirectionalLight,
+  HemisphereLight,
+  OrthographicCamera,
+  PerspectiveCamera,
+  Raycaster,
+  SRGBColorSpace,
+  Scene,
+  Vector2,
+  Vector3,
+  WebGLRenderer,
+} from "three";
+import type { Camera } from "three";
+
+import {
   buildWorldVersorRotationFromArcballVectors,
   mapPointerToArcballVector,
 } from "@carma-commons/interaction/rotation";
@@ -13,20 +28,11 @@ import {
   zeroToTwoPi,
 } from "@carma/units/helpers";
 import type { Radians } from "@carma/units/types";
+
 import {
-  AmbientLight,
-  DirectionalLight,
-  HemisphereLight,
-  OrthographicCamera,
-  PerspectiveCamera,
-  Raycaster,
-  SRGBColorSpace,
-  Scene,
-  Vector2,
-  Vector3,
-  WebGLRenderer,
-} from "three";
-import type { Camera } from "three";
+  buildAltitudeStemGeometry,
+  readGroundDistance,
+} from "./derived/altitude-stem-geometry";
 import {
   buildCirclePoints,
   buildHorizontalArcPoints,
@@ -36,26 +42,33 @@ import {
   pointOnBearingCircle,
 } from "./derived/angle-cue-geometry";
 import {
-  buildAltitudeStemGeometry,
-  readGroundDistance,
-} from "./derived/altitude-stem-geometry";
-import {
   buildImagePlaneGeometry,
   cameraSpherePositionToViewingBearingPitch,
   computeUnitHemisphereCameraPosition,
   viewingBearingPitchToCameraSpherePosition,
 } from "./derived/camera-view-geometry";
-import {
-  createPointToCanvasProjector,
-  projectOrthogonalLineLabelAnchor,
-  projectOrthogonalPolylineLabelAnchor,
-} from "./projection/label-anchors";
 import { createAltitude } from "./parts/altitude/altitude";
 import { createCameraView } from "./parts/camera/camera-view";
 import { createAngleCues } from "./parts/cues/angle-cues";
 import { createMaxPitchRing } from "./parts/cues/max-pitch-ring";
 import { createHemisphereSurface } from "./parts/sphere/hemisphere-surface";
 import { createWorldAxes } from "./parts/world-axes/world-axes";
+import {
+  createPointToCanvasProjector,
+  projectOrthogonalLineLabelAnchor,
+  projectOrthogonalPolylineLabelAnchor,
+} from "./projection/label-anchors";
+import {
+  DEFAULT_VIEW_STATE_VISUALIZER_CUE_COLORS,
+  DEFAULT_VIEW_STATE_VISUALIZER_INTERACTIVE,
+  DEFAULT_VIEW_STATE_VISUALIZER_OVERVIEW_OPTIONS,
+  VIEW_STATE_VISUALIZER_DEFAULTS,
+  VIEW_STATE_VISUALIZER_GEOMETRY_DEFAULTS,
+  VIEW_STATE_VISUALIZER_MATERIAL_DEFAULTS,
+  mergeViewStateVisualizerDisplayOptions,
+  mergeViewStateVisualizerOverviewOptions,
+  mergeViewStateVisualizerVisualizedOptions,
+} from "./view-state-visualizer-defaults";
 import type {
   ResolvedViewStateVisualizerDisplayOptions,
   ResolvedViewStateVisualizerOverviewOptions,
@@ -70,18 +83,6 @@ import type {
   ViewStateVisualizerVisualizedOptions,
   ViewStateVisualizerSize,
 } from "./view-state-visualizer-types";
-import {
-  DEFAULT_VIEW_STATE_VISUALIZER_CUE_COLORS,
-  DEFAULT_VIEW_STATE_VISUALIZER_INTERACTIVE,
-  DEFAULT_VIEW_STATE_VISUALIZER_OVERVIEW_OPTIONS,
-  VIEW_STATE_VISUALIZER_DEFAULTS,
-  VIEW_STATE_VISUALIZER_GEOMETRY_DEFAULTS,
-  VIEW_STATE_VISUALIZER_MATERIAL_DEFAULTS,
-  mergeViewStateVisualizerDisplayOptions,
-  mergeViewStateVisualizerOverviewOptions,
-  mergeViewStateVisualizerVisualizedOptions,
-} from "./view-state-visualizer-defaults";
-
 const DEFAULT_SIZE: ViewStateVisualizerSize =
   VIEW_STATE_VISUALIZER_DEFAULTS.size;
 const GEOMETRY = VIEW_STATE_VISUALIZER_GEOMETRY_DEFAULTS;

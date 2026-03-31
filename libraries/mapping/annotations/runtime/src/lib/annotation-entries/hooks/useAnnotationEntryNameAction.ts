@@ -1,7 +1,6 @@
 import { useCallback, type Dispatch, type SetStateAction } from "react";
 
 import type { AnnotationCollection } from "@carma-mapping/annotations/core";
-
 export const useAnnotationEntryNameAction = (
   setAnnotations: Dispatch<SetStateAction<AnnotationCollection>>
 ) =>

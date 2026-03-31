@@ -1,21 +1,20 @@
 import {
-  Cartesian3,
-  getDegreesFromCartesian,
-  getEllipsoidalAltitudeOrZero,
-} from "@carma/cesium";
-import {
   ANNOTATION_TYPE_AREA_VERTICAL,
   buildVerticalRectangleCornerFromDiagonal,
   computePolygonGroupDerivedData,
   type NodeChainAnnotation,
 } from "@carma-mapping/annotations/core";
+import {
+  Cartesian3,
+  getDegreesFromCartesian,
+  getEllipsoidalAltitudeOrZero,
+} from "@carma/cesium";
 
 import type {
   RuntimeAddAnnotationOptions,
   RuntimeCoordinate,
   RuntimeMeasurement,
 } from "../../store";
-
 export type VerticalAreaToolAction = "undoLastPoint" | "cancelPreview";
 
 export const appendVerticalAreaPreviewPoint = (

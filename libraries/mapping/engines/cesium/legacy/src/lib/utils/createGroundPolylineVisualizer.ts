@@ -1,3 +1,5 @@
+import type { Feature, FeatureCollection } from "geojson";
+
 import {
   BoundingSphere,
   Cartesian3,
@@ -10,10 +12,7 @@ import {
   getBoundingSphereFromCoordinates,
   type Scene,
 } from "@carma/cesium";
-import type { Feature, FeatureCollection } from "geojson";
-
 import { extractRingsFromGeoJson } from "@carma/geo/utils";
-
 const DEFAULT_LINE_COLOR = "#3A7CEB";
 
 const normalizeColor = (color: string | Color | undefined): Color => {

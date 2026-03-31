@@ -18,7 +18,6 @@ import type {
   Rect,
   StemSegment,
 } from "./types";
-
 type EvaluatePlacementInput = {
   anchor: LayoutPointInput["anchor"];
   labelText: string;

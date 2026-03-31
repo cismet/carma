@@ -12,7 +12,6 @@ import {
 } from "@carma-mapping/annotations/core";
 
 import { useAnnotationsStore, useStoreSelector } from "../../store";
-
 export const useNodeChainAnnotations = (): NodeChainAnnotation[] => {
   const annotationsStore = useAnnotationsStore("useNodeChainAnnotations");
 

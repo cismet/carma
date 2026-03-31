@@ -7,9 +7,9 @@ import {
   ANNOTATION_TYPE_LABEL,
   ANNOTATION_TYPE_POLYLINE,
 } from "@carma-mapping/annotations/core";
-import type { AnnotationInfoBoxEntryPayload } from "./getAnnotationInfoBoxSlots";
-import { useCollection, useSelectionState } from "../../store";
 
+import { useCollection, useSelectionState } from "../../store";
+import type { AnnotationInfoBoxEntryPayload } from "./getAnnotationInfoBoxSlots";
 export type AnnotationInfoBoxNavigationBindings = {
   navigationMeasurements: ReadonlyArray<{ id: string }>;
   currentNavigationId: string | null;

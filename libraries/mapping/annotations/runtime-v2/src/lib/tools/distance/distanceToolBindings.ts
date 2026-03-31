@@ -2,8 +2,8 @@ import {
   ANNOTATION_COMMON_SHORTCUT_ACTIONS,
   resolveAnnotationCommonShortcutAction,
 } from "@carma-mapping/annotations/core";
-import type { DistanceToolAction } from "./distanceToolActions";
 
+import type { DistanceToolAction } from "./distanceToolActions";
 export const resolveDistanceToolKeyAction = (
   event: KeyboardEvent
 ): DistanceToolAction | null => {

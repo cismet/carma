@@ -1,8 +1,8 @@
 import { buildPlanarAreaLabelText } from "@carma-mapping/annotations/core";
-import { type PlanarAreaLabelVisualizerOptions } from "./areaLabelVisualizer.types";
-import { useAreaLabelVisualizerBase } from "./useAreaLabelVisualizerBase";
-import type { AreaLabelViewProjector } from "./areaLabelVisualizer.types";
 
+import { type PlanarAreaLabelVisualizerOptions } from "./areaLabelVisualizer.types";
+import type { AreaLabelViewProjector } from "./areaLabelVisualizer.types";
+import { useAreaLabelVisualizerBase } from "./useAreaLabelVisualizerBase";
 const PLANAR_AREA_OVERLAY_PREFIX = "distance-planar-polygon-preview";
 
 export const usePlanarAreaLabelVisualizer = (

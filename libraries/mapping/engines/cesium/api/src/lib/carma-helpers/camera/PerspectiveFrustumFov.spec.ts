@@ -1,11 +1,11 @@
 import { describe, expect, it } from "vitest";
+
 import { PerspectiveFrustum } from "../../cesium";
 import {
   readPerspectiveFrustumVerticalFov,
   writePerspectiveFrustumLongerEdgeFov,
   writePerspectiveFrustumVerticalFov,
 } from "./PerspectiveFrustumFov";
-
 describe("PerspectiveFrustumFov helpers", () => {
   it("reads vertical fov from a wide frustum", () => {
     const frustum = new PerspectiveFrustum();

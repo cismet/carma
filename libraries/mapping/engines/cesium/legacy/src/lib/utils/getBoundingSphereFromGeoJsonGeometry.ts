@@ -1,15 +1,15 @@
+import type { Feature, FeatureCollection, Geometry } from "geojson";
+
 import {
   getBoundingSphereFromCoordinates,
   type BoundingSphere,
   type CesiumTerrainProvider,
 } from "@carma/cesium";
-import type { Feature, FeatureCollection, Geometry } from "geojson";
 
 import {
   addElevationsToGeoJson,
   type GeoJsonElevationOptions,
 } from "./geojson-elevation";
-
 export const getCoordinatesFromGeoJsonGeometry = (
   geometry: Geometry
 ): number[][] => {

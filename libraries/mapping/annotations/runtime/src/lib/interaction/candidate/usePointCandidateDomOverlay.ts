@@ -1,13 +1,8 @@
 import { useEffect, useMemo, useRef } from "react";
 
-import {
-  Cartesian3,
-  SceneTransforms,
-  defined,
-  type Scene,
-} from "@carma/cesium";
-import { formatLengthMeters, LENGTH_UNIT_MODE } from "@carma/units/helpers";
 import { createSvgLineVisualizers } from "@carma-commons/svg";
+import { useCesiumOverlayView } from "@carma-mapping/engines/cesium/react/interactions";
+import { useCesiumSceneVisibilityIndex } from "@carma-mapping/engines/cesium/react/visibility";
 import {
   createPlacement,
   getPerspectiveStemAngleMagnitude,
@@ -17,10 +12,14 @@ import {
   useLineVisualizers,
   usePointLabels,
 } from "@carma-providers/label-overlay";
-import { useCesiumOverlayView } from "@carma-mapping/engines/cesium/react/interactions";
-import { useCesiumSceneVisibilityIndex } from "@carma-mapping/engines/cesium/react/visibility";
+import {
+  Cartesian3,
+  SceneTransforms,
+  defined,
+  type Scene,
+} from "@carma/cesium";
+import { formatLengthMeters, LENGTH_UNIT_MODE } from "@carma/units/helpers";
 import type { CssPixelPosition } from "@carma/units/types";
-
 const CANDIDATE_HEIGHT_LABEL_ID = "measurement-candidate-height";
 const CANDIDATE_POINT_VISIBILITY_ID = "measurement-candidate-point";
 const CANDIDATE_VERTICAL_OFFSET_STEM_ID =

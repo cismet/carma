@@ -5,13 +5,10 @@ import {
   selectShowPrimaryTileset,
   selectShowSecondaryTileset,
 } from "../slices/cesium";
-
 import { guardScene } from "../utils/guardScene";
 import { guardTileset } from "../utils/guardTileset";
-
 import { useCesiumContext } from "./useCesiumContext";
 import { useSecondaryStyleTilesetClickHandler } from "./useSecondaryStyleTilesetClickHandler";
-
 export const useTilesets = () => {
   const showPrimary = useSelector(selectShowPrimaryTileset);
   const ctx = useCesiumContext();

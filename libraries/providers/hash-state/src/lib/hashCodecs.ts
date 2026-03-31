@@ -3,14 +3,14 @@ import {
   DEFAULT_HASH_LAUNCH_FLAG_2D_KEY,
   DEFAULT_HASH_LAUNCH_FLAG_3D_KEY,
 } from "@carma-commons/utils";
+
 import { HashCodec, HashCodecs } from "./HashStateProvider";
-import { applyHashCodecs } from "./utils";
 import {
   sceneViewStateHashCodecs,
   sceneViewStateHashKeyAliases,
   sceneViewStateHashKeyOrder,
 } from "./scene-state-hash/hashParamCodecs";
-
+import { applyHashCodecs } from "./utils";
 export const defaultHashKeyAliases = {
   mapStyle: "m",
   isOblique: "oblq",

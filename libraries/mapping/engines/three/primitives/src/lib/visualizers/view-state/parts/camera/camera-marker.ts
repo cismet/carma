@@ -6,10 +6,10 @@ import {
   MeshStandardMaterial,
   type Scene,
 } from "three";
+
 import type { ViewStateVisualizerImagePlaneGeometry } from "../../derived/camera-view-geometry";
 import { createThreePart } from "../../../../common/create-part";
 import { disposeMeshObject } from "../../../../common/mesh-helpers";
-
 export type CameraMarkerDisplay = {
   show: boolean;
 };

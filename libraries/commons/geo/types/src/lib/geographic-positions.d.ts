@@ -1,6 +1,5 @@
 import type { Altitude } from "./altitudes";
 import type { LatLng, LngLatArray } from "./geographic-coordinates";
-
 export namespace LatLngAlt {
   export type deg = LatLng.deg &
     Altitude.WithAltitude<Altitude.EllipsoidalWGS84Meters>;

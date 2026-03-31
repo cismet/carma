@@ -9,11 +9,17 @@ import {
   interpolateTimedNumber,
   readTimedInterpolationEasedProgress,
 } from "@carma/math";
-import { Cartesian3, PerspectiveFrustum, type Scene } from "../../cesium";
+import type { Radians } from "@carma/units/types";
+
 import {
   readPerspectiveFrustumVerticalFov,
   writePerspectiveFrustumVerticalFov,
 } from "../camera";
+import { Cartesian3, PerspectiveFrustum, type Scene } from "../../cesium";
+import {
+  beginCesiumAdaptiveRenderScaleActivity,
+  endCesiumAdaptiveRenderScaleActivity,
+} from "./adaptive-render-scale";
 import {
   buildTimedCesiumFovCurve,
   DEFAULT_CESIUM_ZOOM_EASING,
@@ -21,14 +27,8 @@ import {
   readTimedCesiumVerticalFov,
   type TimedCesiumFovCurve,
 } from "./cesium-zoom-curves";
-import {
-  beginCesiumAdaptiveRenderScaleActivity,
-  endCesiumAdaptiveRenderScaleActivity,
-} from "./adaptive-render-scale";
 import { readCachedCesiumViewportCenterZoomAnchor } from "./per-frame-cache";
 import type { CesiumTransitionLifecycle } from "./transition-lifecycle";
-import type { Radians } from "@carma/units/types";
-
 export type CesiumSceneTravelZoomOptions = CesiumTransitionLifecycle & {
   direction: "in" | "out";
   durationMs?: number;

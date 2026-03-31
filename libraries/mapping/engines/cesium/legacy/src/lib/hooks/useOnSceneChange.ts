@@ -1,5 +1,6 @@
 import { useEffect } from "react";
 import { useSelector } from "react-redux";
+
 import {
   Camera,
   Math as CesiumMath,
@@ -7,15 +8,12 @@ import {
   type Viewer,
 } from "cesium";
 
+import { VIEWERSTATE_KEYS } from "../constants";
 import {
   selectShowSecondaryTileset,
   selectViewerIsTransitioning,
 } from "../slices/cesium";
-
 import { useCesiumContext } from "./useCesiumContext";
-
-import { VIEWERSTATE_KEYS } from "../constants";
-
 type HashCodec = {
   key: string;
   encode: (value: number) => string;

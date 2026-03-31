@@ -1,8 +1,9 @@
 import { useEffect, type MutableRefObject } from "react";
-import { getHashParams } from "@carma-commons/utils";
-import { computeHashDiff } from "../utils";
-import type { HashChangeEvent } from "../HashStateProvider";
 
+import { getHashParams } from "@carma-commons/utils";
+
+import type { HashChangeEvent } from "../HashStateProvider";
+import { computeHashDiff } from "../utils";
 const BROWSER_POPSTATE_EVENT = "popstate";
 const HASH_CHANGE_SOURCE_POPSTATE: HashChangeEvent["source"] =
   BROWSER_POPSTATE_EVENT;

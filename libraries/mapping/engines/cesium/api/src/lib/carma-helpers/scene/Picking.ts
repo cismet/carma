@@ -1,9 +1,8 @@
-import { Cartesian2, Cartesian3, type Scene } from "../../cesium";
 import {
   GUIDE_NORMAL_EPSILON_SQUARED,
   getLocalUpDirectionAtPosition,
 } from "../primitives/GuidePrimitives";
-
+import { Cartesian2, Cartesian3, type Scene } from "../../cesium";
 const POINTER_NORMAL_SAMPLE_OFFSET_PX = 2;
 
 export const pickScenePositionAtScreenPosition = (

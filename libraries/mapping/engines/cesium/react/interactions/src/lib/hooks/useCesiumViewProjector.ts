@@ -11,7 +11,6 @@ import {
   type Matrix4ConstructorArgs,
 } from "@carma/cesium";
 import type { CssPixelPosition } from "@carma/units/types";
-
 const WORLD_POINT_SCRATCH = new Cartesian3();
 
 type ProjectedScreenPositionCacheEntry = {

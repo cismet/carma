@@ -1,6 +1,6 @@
-import { PI, TWO_PI } from "@carma/math";
 import { Vector3 } from "three";
 
+import { PI, TWO_PI } from "@carma/math";
 const WORLD_UP = new Vector3(0, 1, 0);
 const WORLD_EAST = new Vector3(1, 0, 0);
 const WORLD_FORWARD = new Vector3(0, 0, 1);

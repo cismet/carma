@@ -1,8 +1,8 @@
 import type { Altitude, LatLngAlt } from "@carma/geo/types";
 import type { Radians } from "@carma/units/types";
+
 import type { Cartesian3, Matrix4 } from "../cesium";
 import type { SerializedCesiumFrustum } from "./Frustum";
-
 export type CameraStateRecord = {
   position: Cartesian3;
   direction: Cartesian3;

@@ -1,12 +1,12 @@
+import { degToRad, brandedNegate } from "@carma/units/helpers";
+import type { Radians, Meters, Degrees } from "@carma/units/types";
+
 import { EARTH_CIRCUMFERENCE } from "./constants/earth";
 import {
   DEFAULT_LEAFLET_TILESIZE,
   DEFAULT_MERCATOR_LATITUDE_RAD,
   WEB_MERCATOR_MAX_LATITUDE_RAD,
 } from "./constants/web-map";
-import { degToRad, brandedNegate } from "@carma/units/helpers";
-import type { Radians, Meters, Degrees } from "@carma/units/types";
-
 export const clampLatitudeToWebMercatorExtent = (
   latitude: Radians
 ): Radians => {

@@ -20,7 +20,6 @@ import {
   isValidCesiumTerrainProvider,
   isValidEllipsoidTerrainProvider,
 } from "../utils/instanceGates";
-
 export type KnownProviders =
   | CesiumTerrainProvider
   | ImageryProvider

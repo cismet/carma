@@ -5,9 +5,8 @@ import {
 } from "@carma/cesium";
 
 import type { CesiumContextType } from "../CesiumContext";
-import { getGroundPrimitiveById } from "./cesiumGroundPrimitives";
 import { SceneStyle } from "../..";
-
+import { getGroundPrimitiveById } from "./cesiumGroundPrimitives";
 // TODO have configurable setup functions for primary and secondary styles
 // TODO MOVE THE ID into viewer config/state
 const INVERTED_SELECTED_POLYGON_ID = "searchgaz-inverted-polygon";

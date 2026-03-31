@@ -7,6 +7,8 @@ import {
   useState,
 } from "react";
 
+import { isPointInViewport } from "@carma-mapping/annotations/core";
+import { isPointOccluded } from "@carma-mapping/engines/cesium/api";
 import {
   Cartesian3,
   SceneTransforms,
@@ -14,10 +16,8 @@ import {
   type Cartesian2,
   type Scene,
 } from "@carma/cesium";
-import { isPointInViewport } from "@carma-mapping/annotations/core";
 import type { CssPixelPosition } from "@carma/units/types";
 
-import { isPointOccluded } from "@carma-mapping/engines/cesium/api";
 import {
   DEFAULT_OCCLUSION_TOLERANCE_METERS,
   DEFAULT_VIEWPORT_PADDING_HORIZONTAL,
@@ -35,7 +35,6 @@ import {
   type PointEntry,
   type VisibilityRegistry,
 } from "../internal/sceneVisibilityIndex";
-
 export type SceneVisibilityIndexedPoint = {
   id: string;
   positionECEF: Cartesian3;

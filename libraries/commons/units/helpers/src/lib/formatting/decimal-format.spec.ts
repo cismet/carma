@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { formatDecimalNumber } from "./decimal-format";
 
+import { formatDecimalNumber } from "./decimal-format";
 describe("formatDecimalNumber", () => {
   it("formats fixed decimal digits in de-DE by default", () => {
     expect(formatDecimalNumber(12.345)).toBe("12,35");

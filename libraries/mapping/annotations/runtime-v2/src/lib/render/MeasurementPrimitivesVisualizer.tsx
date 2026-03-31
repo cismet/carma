@@ -1,11 +1,10 @@
+import type { RuntimeScene } from "../types/runtimeScene.types";
 import type {
   RuntimeEdgeRenderModel,
   RuntimePointMarkerRenderModel,
 } from "./measurementRenderModels";
 import { RuntimePointMarkerVisualizer } from "./RuntimePointMarkerVisualizer";
 import { useMeasurementPrimitivesVisualizer } from "./useMeasurementPrimitivesVisualizer";
-import type { RuntimeScene } from "../types/runtimeScene.types";
-
 type MeasurementPrimitivesVisualizerProps = {
   scene: RuntimeScene | null;
   points: readonly RuntimePointMarkerRenderModel[];

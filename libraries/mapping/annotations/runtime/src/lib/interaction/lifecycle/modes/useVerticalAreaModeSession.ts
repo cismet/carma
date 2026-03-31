@@ -1,14 +1,14 @@
 import { useCallback, useMemo } from "react";
-import type { Cartesian3 } from "@carma/cesium";
+
 import {
   ANNOTATION_TYPE_AREA_VERTICAL,
   type NodeChainAnnotation,
 } from "@carma-mapping/annotations/core";
+import type { Cartesian3 } from "@carma/cesium";
 
 import type { AnnotationModeSession } from "../annotationModeSession.types";
-import { useModeSession } from "./useModeSession";
 import { MINIMUM_CLOSE_POINTS_BY_MODE } from "./modeCloseRequirements";
-
+import { useModeSession } from "./useModeSession";
 export const useVerticalAreaModeSession = (
   activeNodeChainAnnotationId: string | null,
   nodeChainMeasurements: readonly NodeChainAnnotation[],

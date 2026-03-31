@@ -1,8 +1,9 @@
-import maplibregl from "maplibre-gl";
 import { useRef, useCallback, useEffect } from "react";
-import { createPieChart } from "../utils/clusterUtils";
-import type { GeoJsonMetadata } from "../contexts/LibreContext";
 
+import maplibregl from "maplibre-gl";
+
+import type { GeoJsonMetadata } from "../contexts/LibreContext";
+import { createPieChart } from "../utils/clusterUtils";
 interface UseClusterMarkersOptions {
   map: maplibregl.Map | null;
   geoJsonMetadata: GeoJsonMetadata[];

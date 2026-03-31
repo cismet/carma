@@ -1,11 +1,11 @@
 import { describe, expect, it } from "vitest";
+
 import {
   DEFAULT_CESIUM_ADAPTIVE_RENDER_SCALE_STEPS,
   quantizeCesiumAdaptiveRenderScale,
   readCesiumAdaptiveRenderScaleTarget,
   readNextCesiumAdaptiveRenderScaleStep,
 } from "./adaptive-render-scale";
-
 describe("adaptive render scale", () => {
   it("derives a smaller target scale for larger pixel budgets", () => {
     expect(

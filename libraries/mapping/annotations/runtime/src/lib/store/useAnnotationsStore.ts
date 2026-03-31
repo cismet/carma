@@ -6,12 +6,13 @@ import {
   useRef,
   useState,
 } from "react";
-import type { Cartesian3 } from "@carma/cesium";
+
 import type {
   AnnotationCollection,
   AnnotationEntry,
   AnnotationMode,
 } from "@carma-mapping/annotations/core";
+import type { Cartesian3 } from "@carma/cesium";
 
 import type {
   AnnotationsContextType,
@@ -25,7 +26,6 @@ import type {
   AnnotationsStore,
   AnnotationsStoreState,
 } from "./annotationsStore.types";
-
 const EMPTY_ANNOTATIONS: AnnotationEntry[] = [];
 
 export const AnnotationsStoreContext = createContext<

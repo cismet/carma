@@ -1,4 +1,5 @@
 import type { CssPixelPosition } from "@carma/units/types";
+
 import type { PointLabelAnchorKind } from "../pointLabelAnchorSemantics";
 import type { PointLabelAttach } from "../pointLabelAttach";
 export type { CssPixelPosition } from "@carma/units/types";

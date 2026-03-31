@@ -9,7 +9,6 @@ import type {
   AnnotationCollection,
   PointAnnotationEntry,
 } from "../types/annotationCesiumTypes";
-
 const MOVE_DELTA_EPSILON = 1e-12;
 
 export const getSelectedPointIds = (

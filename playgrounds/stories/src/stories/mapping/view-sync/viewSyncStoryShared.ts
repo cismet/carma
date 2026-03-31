@@ -1,7 +1,8 @@
 import { type CSSProperties } from "react";
-import type { Map as MapLibreMap, StyleSpecification } from "maplibre-gl";
+
 import L from "leaflet";
-import { PI_OVER_TWO } from "@carma/math";
+import type { Map as MapLibreMap, StyleSpecification } from "maplibre-gl";
+
 import { CAMERA_TYPE } from "@carma-commons/camera/model";
 import {
   METROPOLERUHR_WMTS_SPW2_WEBMERCATOR_HQ,
@@ -20,21 +21,22 @@ import {
   type CesiumWidget,
   type SerializedCameraStateHeadingPitchRoll,
 } from "@carma/cesium";
+import { PI_OVER_TWO } from "@carma/math";
 import {
   degToRadNumeric,
   negativePiToPi,
   radToDegNumeric,
 } from "@carma/units/helpers";
-import {
-  CARMA_STORY_MAPPING_ENGINES,
-  type StoryMappingEngine,
-} from "./mappingEngines";
+
 import { initializeTerrainProviders } from "../../map-engine-switcher/helpers/cesium-setup";
 import {
   readStoryCesiumScene,
   requestStoryCesiumRender,
 } from "../../shared/cesiumRuntimeGuards";
-
+import {
+  CARMA_STORY_MAPPING_ENGINES,
+  type StoryMappingEngine,
+} from "./mappingEngines";
 export type SlotConfig = {
   id: string;
   engine: StoryMappingEngine;

@@ -125,6 +125,21 @@ not mixed in like
 import React, { useEffect, ReactNode } from "react";
 ```
 
+#### import order
+
+Use this canonical import order in repo code:
+
+1. `react`, `react-redux`, and Node built-ins
+2. true third-party packages such as `antd`, `d3`, `leaflet`, `maplibre-gl`, `three`, Storybook, Vitest, and similar vendor modules
+3. repo first-party packages that are not `@carma-*`, especially `react-cismap`, `react-cismap/*`, `@cismet-dev/*`, and `@cismet/*`
+4. monorepo packages under `@carma-*`
+5. local relative imports
+   - order local relative imports from far to near (for example `../../foo` before `../foo` before `./foo`)
+   - do not jump across monorepo library boundaries with relative paths; use the package alias/import surface instead
+6. side-effect imports last, especially CSS, widget styles, and other asset-only imports such as `import "cesium/Build/Cesium/Widgets/widgets.css";`
+
+Keep import blocks stable and alphabetized within each block.
+
 ### Linting
 
 uses eslint flat config in

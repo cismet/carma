@@ -1,6 +1,6 @@
-import { buildCirclePoints, clipConvexPolygonByPlanes3d } from "@carma/math";
 import { Plane, Vector3 } from "three";
 
+import { buildCirclePoints, clipConvexPolygonByPlanes3d } from "@carma/math";
 const GROUND_PLANE_NORMAL = new Vector3(0, 1, 0);
 const GROUND_PROJECTION_DISK_SEGMENT_COUNT = 128;
 

@@ -3,8 +3,8 @@ import type { Vector3 } from "three";
 import { Line2 } from "three/examples/jsm/lines/Line2.js";
 import { LineGeometry } from "three/examples/jsm/lines/LineGeometry.js";
 import { LineMaterial } from "three/examples/jsm/lines/LineMaterial.js";
-import type { ThreePartSize } from "./create-part";
 
+import type { ThreePartSize } from "./create-part";
 type WideLineDefinition<Key extends string> = {
   key: Key;
   color: string | number;

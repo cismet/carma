@@ -8,13 +8,8 @@ import {
   useState,
   type ReactNode,
 } from "react";
-
 import { Provider as ReduxProvider } from "react-redux";
-import {
-  Cartesian3,
-  getDegreesFromCartesian,
-  getEllipsoidalAltitudeOrZero,
-} from "@carma/cesium";
+
 import {
   ANNOTATION_COMMON_SHORTCUT_ACTIONS,
   ANNOTATION_TYPE_AREA_VERTICAL,
@@ -23,7 +18,13 @@ import {
   isManagedAnnotationKeyboardEvent,
   resolveAnnotationCommonShortcutAction,
 } from "@carma-mapping/annotations/core";
+import {
+  Cartesian3,
+  getDegreesFromCartesian,
+  getEllipsoidalAltitudeOrZero,
+} from "@carma/cesium";
 
+import { runtimeMeasurementVisualDefaults } from "../config/measurementVisualDefaults";
 import {
   useModeLifecycle,
   usePointQueryToolRouting,
@@ -35,14 +36,13 @@ import { usePointPreviewRingIndicator } from "../interaction/usePointPreviewRing
 import { useSceneCoordinateHandler } from "../interaction/useSceneCoordinateHandler";
 import { MeasurementPrimitivesVisualizer } from "../render/MeasurementPrimitivesVisualizer";
 import { RuntimePointLabelVisualizer } from "../render/RuntimePointLabelVisualizer";
-import { useOverlayPositionSync } from "../render/useOverlayPositionSync";
 import {
   areRuntimeCursorScreenPositionsEqual,
   areRuntimeRenderLayersEqual,
   type RuntimeCursorScreenPosition,
   type RuntimeRenderLayer,
 } from "../render/runtimeRenderLayer";
-import { runtimeMeasurementVisualDefaults } from "../config/measurementVisualDefaults";
+import { useOverlayPositionSync } from "../render/useOverlayPositionSync";
 import {
   appendAnnotationEntities,
   createAnnotationsStore,
@@ -64,8 +64,6 @@ import {
   type RuntimeMeasurement,
   type RuntimeNode,
 } from "../store";
-import type { RuntimeToolId } from "../types/runtimeTool.types";
-import type { RuntimeScene } from "../types/runtimeScene.types";
 import {
   buildAnnotationToolRegistry,
   defaultAnnotationToolPlugins,
@@ -74,7 +72,8 @@ import type {
   AnnotationToolPlugin,
   AnnotationToolRegistry,
 } from "../tools/annotationToolPlugin.types";
-
+import type { RuntimeScene } from "../types/runtimeScene.types";
+import type { RuntimeToolId } from "../types/runtimeTool.types";
 type AnnotationsRuntimeServices = {
   scene: RuntimeScene | null;
   registry: AnnotationToolRegistry;

@@ -1,8 +1,8 @@
 import type { Meters } from "@carma/units/types";
+
 import { formatDecimalNumber } from "./decimal-format";
 import { formatSignificantNumber } from "./formatSignificantNumber";
 import { FORMAT_LOCALE } from "./locales";
-
 export const LENGTH_UNIT_MODE = {
   ADAPTIVE: "adaptive",
   METERS: "meters",

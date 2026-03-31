@@ -1,17 +1,17 @@
 import { ZERO_PI } from "@carma/units/helpers";
+
+import {
+  isCameraStateHeadingPitchRoll,
+  isCameraStateRecord,
+} from "../../carma-guards";
 import {
   Camera,
   Cartesian3,
   PerspectiveFrustum,
   type HeadingPitchRollValues,
 } from "../../cesium";
-import {
-  isCameraStateHeadingPitchRoll,
-  isCameraStateRecord,
-} from "../../carma-guards";
-import type { CameraState, DirectionUp } from "./Types";
 import { writePerspectiveFrustumVerticalFov } from "./PerspectiveFrustumFov";
-
+import type { CameraState, DirectionUp } from "./Types";
 type CameraViewWriter = {
   setView: NonNullable<Camera["setView"]>;
   frustum?: Camera["frustum"];

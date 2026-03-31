@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { readViewStateHashNumber } from "./viewStateHash";
 
+import { readViewStateHashNumber } from "./viewStateHash";
 // ---------------------------------------------------------------------------
 // readViewStateHashNumber
 // ---------------------------------------------------------------------------

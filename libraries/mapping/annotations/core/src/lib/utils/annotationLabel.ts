@@ -1,14 +1,14 @@
+import { formatDecimalNumber } from "@carma/units/helpers";
+
+import {
+  DEFAULT_POINT_LABEL_METRIC_MODE,
+  POINT_LABEL_METRIC_MODES,
+} from "../types/annotationLabel";
 import type {
   AnnotationLabelAnchor,
   AnnotationLabelAppearance,
   PointLabelMetricMode,
 } from "../types/annotationLabel";
-import {
-  DEFAULT_POINT_LABEL_METRIC_MODE,
-  POINT_LABEL_METRIC_MODES,
-} from "../types/annotationLabel";
-import { formatDecimalNumber } from "@carma/units/helpers";
-
 const normalizeCompactLabelContent = (
   compactContent?: string
 ): string | undefined => {

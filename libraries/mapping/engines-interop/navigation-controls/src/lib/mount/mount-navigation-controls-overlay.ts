@@ -20,7 +20,6 @@ import {
   mountSceneNavigationControls,
   type SceneNavigationDomConfig,
 } from "../dom";
-
 const DEFAULT_CONTROL_STYLE: NonNullable<SceneNavigationDomConfig["style"]> = {
   top: 10,
   left: 10,

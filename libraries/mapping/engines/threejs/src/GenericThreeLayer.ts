@@ -1,18 +1,18 @@
-import * as THREE from "three";
+import { MercatorCoordinate } from "maplibre-gl";
 import type {
   Map as MaplibreMap,
   CustomLayerInterface,
   CustomRenderMethodInput,
 } from "maplibre-gl";
-import { MercatorCoordinate } from "maplibre-gl";
+import * as THREE from "three";
+
+import { mapFeatures, deduplicateFeatures } from "./featureMapper";
 import type {
   Carma3dConfig,
   MappedFeature,
   FactoryStats,
   ThreePerfData,
 } from "./types";
-import { mapFeatures, deduplicateFeatures } from "./featureMapper";
-
 // Wuppertal center as default Three.js origin
 const WUPPERTAL_CENTER: [number, number] = [7.150764, 51.256915];
 const DEFAULT_MAIN_LIGHT_COLOR = 0xfff8e8;

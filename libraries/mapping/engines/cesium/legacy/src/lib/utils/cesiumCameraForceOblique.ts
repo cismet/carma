@@ -1,5 +1,5 @@
-import { clampToToleranceRange } from "@carma-commons/utils";
 import { Easing } from "@carma-commons/math";
+import { clampToToleranceRange } from "@carma-commons/utils";
 import {
   Cartesian3,
   Cartographic,
@@ -7,7 +7,6 @@ import {
   defined,
   type Scene,
 } from "@carma/cesium";
-
 export const OBLIQUE_PITCH_TOLERANCE = CesiumMath.toRadians(10);
 export const OBLIQUE_HEIGHT_TOLERANCE = 150.0;
 

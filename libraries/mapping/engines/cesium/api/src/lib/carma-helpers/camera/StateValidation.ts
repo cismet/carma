@@ -1,7 +1,7 @@
 import type { Altitude } from "@carma/geo/types";
 import { MINUS_PI_OVER_TWO, ZERO_PI } from "@carma/units/helpers";
-import type { CameraStateHeadingPitchRoll } from "./Types";
 
+import type { CameraStateHeadingPitchRoll } from "./Types";
 /**
  * Validate camera state in HeadingPitchRoll format.
  */

@@ -1,13 +1,14 @@
 import { useMemo } from "react";
+
 import type { Map as MapLibreMap } from "maplibre-gl";
-import type { WritePriority } from "../../core/types";
-import type { ViewState } from "../../core/types";
+
 import { applyToMaplibre, readFromMaplibre } from "../../adapters/maplibre";
+import type { ViewState } from "../../core/types";
+import type { WritePriority } from "../../core/types";
 import {
   useSubscribedRuntimeBridge,
   type SubscribedRuntimeBridgeHandle,
 } from "./useSubscribedRuntimeBridge";
-
 const attachMaplibreListener = (
   map: MapLibreMap,
   listener: () => void

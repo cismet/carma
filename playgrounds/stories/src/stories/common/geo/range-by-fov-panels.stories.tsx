@@ -1,10 +1,11 @@
 import type { Meta, StoryObj } from "@storybook/react";
-import { GeoChartStoryFrame } from "./geo-chart-story-frame";
+
 import {
   DOLLY_ZOOM_X_AXIS_MODES,
   readDollyZoomXAxisStatusValue,
   type DollyZoomXAxisMode,
 } from "./dolly-zoom-axis";
+import { GeoChartStoryFrame } from "./geo-chart-story-frame";
 import {
   RangeByFovAndResolutionPanel,
   type RangeByFovAndResolutionStoryArgs,
@@ -13,7 +14,6 @@ import {
   ResolutionByFovAndRangePanel,
   type ResolutionByFovAndRangeStoryArgs,
 } from "./resolution-by-fov-and-range-plot";
-
 type PlotArgs = {
   xAxisMode: DollyZoomXAxisMode;
 };

@@ -1,5 +1,6 @@
 import { faRuler } from "@fortawesome/free-solid-svg-icons";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
+
 import {
   ANNOTATION_TYPE_DISTANCE,
   DEFAULT_ANNOTATION_SHORT_LABEL_CONFIG,
@@ -23,7 +24,6 @@ import {
 import { resolveDistanceToolKeyAction } from "./distanceToolBindings";
 import { buildDistanceToolRenderModels } from "./distanceToolRenderModels";
 import { createDistanceToolSettings } from "./distanceToolSettings";
-
 const toolType = ANNOTATION_TYPE_DISTANCE;
 const badgeStyle = DEFAULT_ANNOTATION_SHORT_LABEL_CONFIG[toolType];
 const distanceToolSettings = createDistanceToolSettings(badgeStyle);

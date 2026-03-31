@@ -8,7 +8,6 @@ import {
 } from "@carma-mapping/engines-interop/navigation-controls";
 import { degToRadNumeric } from "@carma/units/helpers";
 import type { Seconds } from "@carma/units/types";
-
 export const ZOOM_DELTA_PRESETS = {
   QUARTER: 0.25,
   THIRD: 1 / 3,
@@ -55,9 +54,7 @@ const readOrbitRevolutionDurationSec = (durationSec?: Seconds | number) =>
     : DEFAULT_NAVIGATION_ORBIT_REVOLUTION_DURATION_SEC;
 
 const readZoomDelta = (zoomDelta?: number) =>
-  typeof zoomDelta === "number" &&
-  Number.isFinite(zoomDelta) &&
-  zoomDelta > 0
+  typeof zoomDelta === "number" && Number.isFinite(zoomDelta) && zoomDelta > 0
     ? zoomDelta
     : ZOOM_DELTA_PRESETS.ONE;
 
@@ -105,7 +102,9 @@ export const buildHomeOptions = ({
   animate?: boolean;
   durationMs?: number;
 }): NavigationTransitionOptions => ({
-  duration: (animate && durationMs > 0 ? durationMs : 0) as NavigationTransitionOptions["duration"],
+  duration: (animate && durationMs > 0
+    ? durationMs
+    : 0) as NavigationTransitionOptions["duration"],
 });
 
 export const buildOrbitOptions = ({
@@ -207,4 +206,3 @@ export const DOLLY_ZOOM_DURATION_ARG_TYPE = {
   control: { type: "range", min: 0, max: 4000, step: 25 },
   if: { arg: "animate" },
 } as const;
-

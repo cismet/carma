@@ -6,18 +6,17 @@ import {
   PI_OVER_FOUR,
   negativePiToPi,
 } from "@carma-commons/math";
+
 import {
   POINT_LABEL_ATTACHES,
   type PointLabelAttach,
 } from "../pointLabelAttach";
-
 import type {
   DynamicLabelPlacementConfig,
   LabelPlacement,
   PointLabelLayoutConfig,
   PointLabelLayoutConfigOverrides,
 } from "./types";
-
 const DEFAULT_STEM_ANGLE_RAD = PI_OVER_FOUR;
 const ALL_ATTACHES: readonly PointLabelAttach[] = POINT_LABEL_ATTACHES;
 const DEFAULT_PLACEMENT_ORDER: PointLabelAttach[] = ["left", "right", "center"];

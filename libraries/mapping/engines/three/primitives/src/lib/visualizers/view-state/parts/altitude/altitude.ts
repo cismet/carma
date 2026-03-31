@@ -9,7 +9,12 @@ import {
   type Scene,
   type Vector3,
 } from "three";
+import { Line2 } from "three/examples/jsm/lines/Line2.js";
+import { LineGeometry } from "three/examples/jsm/lines/LineGeometry.js";
+import { LineMaterial } from "three/examples/jsm/lines/LineMaterial.js";
+
 import type { ViewStateVisualizerAltitudeStemGeometry } from "../../derived/altitude-stem-geometry";
+import type { ViewStateVisualizerSize } from "../../view-state-visualizer-types";
 import { createThreePart } from "../../../../common/create-part";
 import {
   disposeBasicLineObject,
@@ -25,11 +30,6 @@ import {
   setWideLineResolution,
   setWideLineWidth,
 } from "../../../../common/wide-lines";
-import { Line2 } from "three/examples/jsm/lines/Line2.js";
-import { LineGeometry } from "three/examples/jsm/lines/LineGeometry.js";
-import { LineMaterial } from "three/examples/jsm/lines/LineMaterial.js";
-import type { ViewStateVisualizerSize } from "../../view-state-visualizer-types";
-
 export type AltitudeDisplay = {
   visible: boolean;
   showScaleBreak: boolean;

@@ -15,9 +15,7 @@ import {
 } from "cesium";
 
 import type { TilesetConfig } from "@carma-commons/resources";
-
 import { logOnce } from "@carma-commons/utils";
-
 logOnce(
   "@carma-mapping/engines/cesium/legacy  utils/cesiumHelpers is deprecated use @carma/cesium api wrapper methods or new cesium/core replacements"
 );

@@ -1,14 +1,14 @@
 import type { Meta, StoryObj } from "@storybook/react";
-import { GeoChartStoryFrame } from "./geo-chart-story-frame";
+
 import {
   DOLLY_ZOOM_X_AXIS_MODES,
   readDollyZoomXAxisStatusValue,
   type DollyZoomXAxisMode,
 } from "./dolly-zoom-axis";
+import { GeoChartStoryFrame } from "./geo-chart-story-frame";
 import { GEO_STORY_STYLES } from "./geo-story-styles";
 import { RangeByFovAndResolutionPanel } from "./range-by-fov-and-resolution-plot";
 import { ResolutionByFovAndRangePanel } from "./resolution-by-fov-and-range-plot";
-
 type RangeByFovOverviewStoryArgs = {
   xAxisMode: DollyZoomXAxisMode;
 };
@@ -50,9 +50,7 @@ export const RangeByFovAndResolution: Story = {
           Dolly zoom trades field of view against distance to keep subject size
           fixed.
         </p>
-        <p style={GEO_STORY_STYLES.text.introText}>
-          range = k / tan(fov / 2)
-        </p>
+        <p style={GEO_STORY_STYLES.text.introText}>range = k / tan(fov / 2)</p>
         <p style={GEO_STORY_STYLES.text.introText}>
           The upper plot shows range as the output. The lower plot shows the
           matching center resolution instead.

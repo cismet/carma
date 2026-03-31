@@ -12,7 +12,6 @@ import {
   type AnnotationCollection,
   type AnnotationToolType,
 } from "@carma-mapping/annotations/core";
-
 type UseManagedToolKeyboardShortcutsParams = {
   annotations: AnnotationCollection;
   activeToolType: AnnotationToolType;

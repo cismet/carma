@@ -4,7 +4,6 @@ import type {
   RuntimePointLabelRenderModel,
   RuntimePointMarkerRenderModel,
 } from "./measurementRenderModels";
-
 export type RuntimeRenderLayer = {
   points?: readonly RuntimePointMarkerRenderModel[];
   edges?: readonly RuntimeEdgeRenderModel[];

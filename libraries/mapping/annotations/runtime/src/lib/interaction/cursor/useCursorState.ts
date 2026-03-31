@@ -1,6 +1,14 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 
 import {
+  getPointById,
+  hasPointCandidateOffsetStem,
+  resolveCandidateCapabilities,
+  type AnnotationCandidateDescriptor,
+  type AnnotationCandidateKind,
+  type AnnotationCollection,
+} from "@carma-mapping/annotations/core";
+import {
   Cartesian2,
   Cartesian3,
   SceneTransforms,
@@ -9,16 +17,6 @@ import {
   getLocalUpDirectionAtAnchor,
   type Scene,
 } from "@carma/cesium";
-
-import {
-  getPointById,
-  hasPointCandidateOffsetStem,
-  resolveCandidateCapabilities,
-  type AnnotationCandidateDescriptor,
-  type AnnotationCandidateKind,
-  type AnnotationCollection,
-} from "@carma-mapping/annotations/core";
-
 type AnnotationCursorSource = "none" | "raw" | "snapped-node";
 
 type AnnotationCursorScreenPosition = { x: number; y: number };

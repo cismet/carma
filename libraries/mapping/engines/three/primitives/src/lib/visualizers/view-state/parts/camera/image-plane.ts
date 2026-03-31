@@ -5,6 +5,7 @@ import {
   MeshStandardMaterial,
   type Scene,
 } from "three";
+
 import type { ViewStateVisualizerImagePlaneGeometry } from "../../derived/camera-view-geometry";
 import type { ViewStateVisualizerSize } from "../../view-state-visualizer-types";
 import { createThreePart } from "../../../../common/create-part";
@@ -16,7 +17,6 @@ import {
   createWideLineSet,
   setWideLineWidth,
 } from "../../../../common/wide-lines";
-
 export type ImagePlaneDisplay = {
   show: boolean;
   showOffset: boolean;

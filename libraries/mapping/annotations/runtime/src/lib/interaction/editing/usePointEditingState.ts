@@ -6,14 +6,6 @@ import {
 } from "react";
 
 import {
-  Cartesian3,
-  getDegreesFromCartesian,
-  getEllipsoidalAltitudeOrZero,
-  getLocalUpDirectionAtAnchor,
-  getPositionWithVerticalOffsetFromAnchor,
-  normalizeDirection,
-} from "@carma/cesium";
-import {
   ANNOTATION_TYPE_AREA_VERTICAL,
   ANNOTATION_TYPE_POLYLINE,
   applyDeltaToSelectedPoints,
@@ -26,9 +18,17 @@ import {
   type AnnotationCollection,
   type NodeChainAnnotation,
 } from "@carma-mapping/annotations/core";
-import { usePointEditingController } from "./usePointEditingController";
-import type { MoveGizmoSession } from "./annotationEdit.types";
+import {
+  Cartesian3,
+  getDegreesFromCartesian,
+  getEllipsoidalAltitudeOrZero,
+  getLocalUpDirectionAtAnchor,
+  getPositionWithVerticalOffsetFromAnchor,
+  normalizeDirection,
+} from "@carma/cesium";
 
+import type { MoveGizmoSession } from "./annotationEdit.types";
+import { usePointEditingController } from "./usePointEditingController";
 const REFERENCE_POINT_SYNC_EPSILON_METERS = 0.001;
 const VERTICAL_POLYGON_AXIS_ALIGNMENT_DOT_EPSILON = 0.999;
 const VERTICAL_POLYGON_EN_MATCH_EPSILON_METERS = 0.05;

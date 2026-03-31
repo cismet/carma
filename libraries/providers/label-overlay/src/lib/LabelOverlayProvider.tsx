@@ -7,12 +7,12 @@ import React, {
   useLayoutEffect,
   type ReactNode,
 } from "react";
+
 import { createPortal } from "react-dom";
 
-import { LabelOverlayContext } from "./LabelOverlayContext";
 import type { LabelOverlayHostBinding } from "./host";
+import { LabelOverlayContext } from "./LabelOverlayContext";
 import type { LabelOverlayElement, LabelOverlayContextType } from "./types";
-
 const hasSameOverlayPortalContent = (
   left: LabelOverlayElement,
   right: LabelOverlayElement

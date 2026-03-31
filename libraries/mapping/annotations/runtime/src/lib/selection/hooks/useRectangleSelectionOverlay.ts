@@ -1,18 +1,16 @@
 import { useEffect, useRef } from "react";
 
-import { isValidScene, type Scene } from "@carma/cesium";
-import type { CssPixelPosition, CssPixels } from "@carma/units/types";
-import {
-  POINT_LABEL_SELECTED_BACKGROUND_COLOR,
-  type PointLabelData,
-} from "@carma-providers/label-overlay";
-
 import {
   buildScreenRectangle,
   getScreenRectangleSize,
   selectPointIdsInScreenRectangle,
 } from "@carma-mapping/annotations/core";
-
+import {
+  POINT_LABEL_SELECTED_BACKGROUND_COLOR,
+  type PointLabelData,
+} from "@carma-providers/label-overlay";
+import { isValidScene, type Scene } from "@carma/cesium";
+import type { CssPixelPosition, CssPixels } from "@carma/units/types";
 export type RectangleSelectionState = {
   enabled: boolean;
   additiveMode: boolean;

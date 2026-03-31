@@ -1,7 +1,6 @@
 import { CarmaResponsiveInfoBox } from "@carma-commons/ui/components";
 
 import type { RuntimeAnnotationInfoBoxSlots } from "./annotationInfoBox.types";
-
 type RuntimeAnnotationInfoBoxContainerProps = {
   pixelWidth?: number;
   slots: RuntimeAnnotationInfoBoxSlots;

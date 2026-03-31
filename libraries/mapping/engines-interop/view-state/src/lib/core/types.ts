@@ -1,11 +1,11 @@
 import type { Quaternion } from "three";
-import type { Meters, Radians } from "@carma/units/types";
+import type { Vector3 } from "three";
+
 import type {
   CameraIntrinsics,
   ObjectCentricCameraAnchor,
 } from "@carma-commons/camera/model";
-import type { Vector3 } from "three";
-
+import type { Meters, Radians } from "@carma/units/types";
 // ---------------------------------------------------------------------------
 // Canonical view state — ECEF positions + quaternion orientation.
 // All angles (bearing, pitch, roll, zoom) are derived, never stored.

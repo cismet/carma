@@ -1,5 +1,6 @@
 import { faArrowPointer } from "@fortawesome/free-solid-svg-icons";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
+
 import {
   SELECT_TOOL_TYPE,
   type AnnotationToolType,
@@ -9,7 +10,6 @@ import {
   createInteractionToolPlugin,
   INTERACTION_PLUGIN_CAPABILITIES,
 } from "../pluginFactories";
-
 const toolType = SELECT_TOOL_TYPE;
 
 export const selectToolPlugin = createInteractionToolPlugin({

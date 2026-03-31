@@ -1,4 +1,9 @@
 import {
+  getCanvasDimensions,
+  normalizedToPixelPosition,
+} from "@carma-commons/dom/canvas";
+import { warnOnce } from "@carma-commons/utils";
+import {
   Cartesian2,
   Cartesian3,
   Cartographic,
@@ -6,14 +11,7 @@ import {
   Scene,
   isValidScene,
 } from "@carma/cesium";
-import {
-  getCanvasDimensions,
-  normalizedToPixelPosition,
-} from "@carma-commons/dom/canvas";
-import { warnOnce } from "@carma-commons/utils";
-
 import { CssPixelPosition } from "@carma/units/types";
-
 export type PickResult = {
   position: [number, number];
   windowPosition: CssPixelPosition;

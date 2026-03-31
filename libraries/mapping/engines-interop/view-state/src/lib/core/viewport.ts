@@ -1,4 +1,3 @@
-import { getPixelResolutionFromZoomAtLatitudeRad } from "@carma/geo/utils";
 import {
   readHorizontalFovFromVertical,
   readLongerEdgeFovFromIntrinsics,
@@ -6,12 +5,13 @@ import {
   readVerticalFovFromLongerEdge,
   type CameraIntrinsics,
 } from "@carma-commons/camera/model";
+import { getPixelResolutionFromZoomAtLatitudeRad } from "@carma/geo/utils";
 import { isFiniteNumber } from "@carma/math";
 import type { Meters, Radians } from "@carma/units/types";
+
 import { buildViewState } from "./construct";
 import { deriveView } from "./derivations";
 import type { ViewState } from "./types";
-
 const MAPLIBRE_TILE_SIZE_PX = 512;
 
 export const resolveViewStateForViewport = (

@@ -6,13 +6,13 @@ import {
   type Scene,
   Vector3,
 } from "three";
+
 import type { ViewStateVisualizerImagePlaneGeometry } from "../../derived/camera-view-geometry";
 import { createThreePart } from "../../../../common/create-part";
 import {
   disposeMeshObject,
   setCoplanarConvexPolygonMeshGeometry,
 } from "../../../../common/mesh-helpers";
-
 export type ProjectionPlaneDisplay = {
   show: boolean;
 };

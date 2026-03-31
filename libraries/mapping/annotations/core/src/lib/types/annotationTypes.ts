@@ -1,7 +1,6 @@
 import type { Cartesian3Json } from "@carma/cesium";
 
 import type { LinearSegmentLineMode } from "./linearSegment";
-
 // Tool and annotation identifiers
 export const SELECT_TOOL_TYPE = "select" as const;
 export const ANNOTATION_TYPE_POINT = "point" as const;

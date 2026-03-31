@@ -4,7 +4,6 @@ import {
 } from "@carma/units/helpers";
 
 import type { RuntimeAnnotationInfoBoxContext } from "../../components/annotation-info-box/annotationInfoBox.types";
-
 export const createVerticalAreaToolInfoBoxSlots = (
   toolType: RuntimeAnnotationInfoBoxContext["annotation"]["toolType"],
   {

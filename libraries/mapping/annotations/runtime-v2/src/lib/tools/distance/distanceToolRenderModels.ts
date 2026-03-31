@@ -13,7 +13,6 @@ import {
   resolveMeasurementCoordinates,
 } from "../../render/resolveMeasurementCoordinates";
 import type { DistanceToolVisualSettings } from "./distanceToolSettings";
-
 type BuildDistanceToolRenderModelsArgs = {
   toolType: RuntimeMeasurement["toolType"];
   visuals: DistanceToolVisualSettings;

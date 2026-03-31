@@ -1,9 +1,9 @@
 import type { Degrees } from "@carma/units/types";
+
 import {
   formatDecimalNumber,
   type FormatDecimalNumberOptions,
 } from "./decimal-format";
-
 export type FormatDegreesOptions = FormatDecimalNumberOptions & {
   unitSymbol?: string | false;
 };

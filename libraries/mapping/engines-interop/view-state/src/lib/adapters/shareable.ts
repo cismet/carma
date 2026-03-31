@@ -1,10 +1,3 @@
-import { formatFixedNumber } from "@carma-commons/utils/number-format";
-import {
-  getPixelResolutionFromZoomAtLatitudeRad,
-  getZoomFromPixelResolutionAtLatitudeRad,
-  WEB_MERCATOR_MAX_LATITUDE_DEG,
-} from "@carma/geo/utils";
-import { clamp, isFiniteNumber, isZeroish } from "@carma/math";
 import {
   readHorizontalFovFromVertical,
   readLongerEdgeFovFromIntrinsics,
@@ -13,28 +6,35 @@ import {
   readVerticalFovFromLongerEdge,
   type CameraIntrinsics,
 } from "@carma-commons/camera/model";
+import { formatFixedNumber } from "@carma-commons/utils/number-format";
+import {
+  getPixelResolutionFromZoomAtLatitudeRad,
+  getZoomFromPixelResolutionAtLatitudeRad,
+  WEB_MERCATOR_MAX_LATITUDE_DEG,
+} from "@carma/geo/utils";
+import { clamp, isFiniteNumber, isZeroish } from "@carma/math";
 import {
   degToRadNumeric,
   radToDegNumeric,
   zeroToTwoPi,
 } from "@carma/units/helpers";
 import type { Meters, Radians } from "@carma/units/types";
+
 import { buildViewState } from "../core/construct";
 import { deriveView } from "../core/derivations";
-import { resolveViewStateForViewport } from "../core/viewport";
-import {
-  HASH_ZOOM_CONVENTION,
-  readViewStateHashNumber,
-  type HashZoomConvention,
-} from "../core/viewStateHash";
 import {
   VIEW_STATE_SOURCE,
   type ViewState,
   type ViewStateHashCodec,
   type ViewStateSource,
 } from "../core/types";
+import { resolveViewStateForViewport } from "../core/viewport";
+import {
+  HASH_ZOOM_CONVENTION,
+  readViewStateHashNumber,
+  type HashZoomConvention,
+} from "../core/viewStateHash";
 import type { ShareableViewState } from "../types";
-
 export type ShareableViewStatePrecision = {
   lat: number;
   lng: number;

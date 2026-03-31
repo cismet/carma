@@ -1,6 +1,5 @@
-import { Scene } from "../../cesium";
 import { isValidScene } from "../../carma-guards";
-
+import { Scene } from "../../cesium";
 /**
  * Cesium Scene render stage events in execution order.
  */

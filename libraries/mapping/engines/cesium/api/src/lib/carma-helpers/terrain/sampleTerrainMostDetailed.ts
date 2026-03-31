@@ -1,14 +1,13 @@
 import {
+  isValidCesiumTerrainProvider,
+  isValidEllipsoidTerrainProvider,
+} from "../../carma-guards";
+import {
   type Cartographic,
   type CesiumTerrainProvider,
   type EllipsoidTerrainProvider,
   sampleTerrainMostDetailed,
 } from "../../cesium";
-import {
-  isValidCesiumTerrainProvider,
-  isValidEllipsoidTerrainProvider,
-} from "../../carma-guards";
-
 /**
  * Wrap sampleTerrainMostDetailed with cloned positions by default
  * Guards against invalid terrain providers

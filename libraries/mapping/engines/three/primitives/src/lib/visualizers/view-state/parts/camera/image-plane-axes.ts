@@ -1,9 +1,9 @@
 import type { Scene } from "three";
+
 import type { ViewStateVisualizerImagePlaneGeometry } from "../../derived/camera-view-geometry";
 import type { ViewStateVisualizerSize } from "../../view-state-visualizer-types";
 import { createThreePart } from "../../../../common/create-part";
 import { createWideLineSet } from "../../../../common/wide-lines";
-
 export const IMAGE_PLANE_AXIS_KEYS = {
   FORWARD: "forward",
   RIGHT: "right",

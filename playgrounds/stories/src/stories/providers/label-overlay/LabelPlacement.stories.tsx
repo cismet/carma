@@ -1,3 +1,5 @@
+import { POLYGON_SEGMENT_LABEL_SIDE } from "@carma-commons/svg";
+
 import {
   LABEL_PLACEMENT_POLYGON_ARGS,
   LABEL_PLACEMENT_POLYGON_ARG_TYPES,
@@ -6,8 +8,6 @@ import {
   PolygonSegmentLabelDebugStory,
   SingleLineLabelDebugStory,
 } from "./LabelPlacement.story-helpers";
-import { POLYGON_SEGMENT_LABEL_SIDE } from "@carma-commons/svg";
-
 const meta = {
   title: "Overlay/Labels",
   parameters: {

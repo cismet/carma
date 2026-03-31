@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+
 import {
   buildOrthographicScale,
   CAMERA_TYPE,
@@ -11,8 +12,9 @@ import {
 } from "@carma/geo/utils";
 import { degToRadNumeric } from "@carma/units/helpers";
 import type { CssPixels, Meters, Radians } from "@carma/units/types";
-import { buildViewState, buildViewStateFromEcef } from "./construct";
+
 import { buildAnchoredOrientationQuaternion } from "./anchoredOrbit";
+import { buildViewState, buildViewStateFromEcef } from "./construct";
 import {
   deriveOrbitAngles,
   deriveRange,
@@ -20,7 +22,6 @@ import {
   deriveZoom,
   readMetersPerCssPixelFromViewState,
 } from "./derivations";
-
 const meters = (value: number): Meters => value as Meters;
 const radians = (valueDeg: number): Radians =>
   degToRadNumeric(valueDeg)! as Radians;

@@ -5,7 +5,6 @@ import type {
   CameraStateHeadingPitchRoll,
   CameraState,
 } from "../../serialization";
-
 export type CaptureCurrentCameraStateOptions = {
   includeFov?: boolean;
   includeOrientation?: boolean;

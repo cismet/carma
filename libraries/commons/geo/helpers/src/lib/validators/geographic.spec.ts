@@ -1,4 +1,8 @@
 import { describe, it, expect } from "vitest";
+
+import type { Latitude, Longitude } from "@carma/geo/types";
+import { PI, PI_OVER_TWO } from "@carma/units/helpers";
+
 import {
   isValidLatitudeDeg,
   isValidLongitudeDeg,
@@ -9,9 +13,6 @@ import {
   normalizeLongitudeDeg,
   normalizeLongitudeRad,
 } from "./geographic";
-import type { Latitude, Longitude } from "@carma/geo/types";
-import { PI, PI_OVER_TWO } from "@carma/units/helpers";
-
 describe("geographic validators", () => {
   describe("isValidLatitudeDeg", () => {
     it("should accept valid latitudes", () => {

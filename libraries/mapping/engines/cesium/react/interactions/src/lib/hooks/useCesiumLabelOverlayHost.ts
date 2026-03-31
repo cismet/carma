@@ -1,12 +1,11 @@
 import { useCallback, type RefObject } from "react";
 
-import type { Scene } from "@carma/cesium";
 import {
   useLabelOverlayHost,
   type LabelOverlayFrameSubscription,
   type LabelOverlayHostBinding,
 } from "@carma-providers/label-overlay";
-
+import type { Scene } from "@carma/cesium";
 export const CESIUM_LABEL_OVERLAY_FRAME_PHASES = {
   PRE_RENDER: "preRender",
   POST_RENDER: "postRender",

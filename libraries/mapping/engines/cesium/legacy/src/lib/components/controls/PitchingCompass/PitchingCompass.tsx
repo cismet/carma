@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from "react";
+
 import {
   applyRollToHeadingForCameraNearNadir,
   Cartesian3,
@@ -8,11 +9,9 @@ import {
   ScreenSpaceEventHandler,
   ScreenSpaceEventType,
 } from "@carma/cesium";
-
 import type { Radians, Meters } from "@carma/units/types";
 
 import { useCesiumContext } from "../../../hooks/useCesiumContext";
-
 import {
   animateCamera,
   getHeadingPitchForMouseEvent,
@@ -20,10 +19,9 @@ import {
 } from "../../../utils/cesiumAnimateOrbits";
 import { guardCamera } from "../../../utils/guardCamera";
 import { isValidScreenSpaceEventHandler } from "../../../utils/instanceGates";
-import { cancelSceneAnimation } from "../../../utils/sceneAnimationMap";
 import { pickSceneCenter } from "../../../utils/pick-position/pick-scene-positions";
+import { cancelSceneAnimation } from "../../../utils/sceneAnimationMap";
 import { Needle } from "./Needle";
-
 interface RotateButtonProps {
   minPitch?: Radians;
   maxPitch?: Radians;

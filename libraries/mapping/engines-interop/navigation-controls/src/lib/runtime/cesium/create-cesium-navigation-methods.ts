@@ -1,4 +1,18 @@
 import {
+  bindCesiumCameraChangedListener,
+  bindCesiumFrameListener,
+  cancelCesiumSceneFovZoom,
+  computeNextCesiumFov,
+  flyCesiumSceneFovZoom,
+  readCachedCesiumCompassOrientationDeg,
+  readCachedCesiumSceneCenter,
+  readCesiumScene,
+  readPerspectiveFrustumVerticalFov,
+  requestCesiumRender,
+  type CameraStateRecord,
+  type CesiumSceneTarget,
+} from "@carma-mapping/engines/cesium/api";
+import {
   applyCesiumCompassBearingPitch,
   applyCesiumSceneTravelZoomStep,
   animateOrbitHeadingPitchRange,
@@ -19,22 +33,9 @@ import {
   type CesiumCompassDragSession,
 } from "@carma/cesium";
 import { clamp } from "@carma/math";
-import {
-  bindCesiumCameraChangedListener,
-  bindCesiumFrameListener,
-  cancelCesiumSceneFovZoom,
-  computeNextCesiumFov,
-  flyCesiumSceneFovZoom,
-  readCachedCesiumCompassOrientationDeg,
-  readCachedCesiumSceneCenter,
-  readCesiumScene,
-  readPerspectiveFrustumVerticalFov,
-  requestCesiumRender,
-  type CameraStateRecord,
-  type CesiumSceneTarget,
-} from "@carma-mapping/engines/cesium/api";
 import { degToRadNumeric } from "@carma/units/helpers";
 import type { Milliseconds, Radians } from "@carma/units/types";
+
 import {
   DEFAULT_NAVIGATION_ORBIT_REVOLUTION_DURATION_SEC,
   DEFAULT_NAVIGATION_HOME_DURATION_MS,
@@ -51,7 +52,6 @@ import {
   type NavigationTransitionOptions,
   type NavigationZoomOptions,
 } from "../../contracts";
-
 const ZERO_RADIANS = degToRadNumeric(0)! as Radians;
 const ABSOLUTE_MIN_CESIUM_FOV_RAD = degToRadNumeric(0.1)! as Radians;
 const DEFAULT_MIN_CESIUM_FOV_RAD = degToRadNumeric(2)! as Radians;

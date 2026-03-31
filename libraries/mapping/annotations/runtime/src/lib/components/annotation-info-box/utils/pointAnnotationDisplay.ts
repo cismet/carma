@@ -1,7 +1,5 @@
-import { Cartesian3, getDegreesFromCartesian } from "@carma/cesium";
-
 import type { PointAnnotationEntry } from "@carma-mapping/annotations/core";
-
+import { Cartesian3, getDegreesFromCartesian } from "@carma/cesium";
 const REFERENCE_POINT_MATCH_EPSILON_METERS = 0.001;
 
 export type AnnotationDisplayPoint = {

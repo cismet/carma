@@ -1,7 +1,7 @@
 import { BufferGeometry, Mesh, Vector3, type Camera } from "three";
-import type { ViewStateVisualizerSize } from "../view-state-visualizer-types";
-import { createPointToCanvasProjector } from "../projection/label-anchors";
 
+import { createPointToCanvasProjector } from "../projection/label-anchors";
+import type { ViewStateVisualizerSize } from "../view-state-visualizer-types";
 type CanvasPoint = {
   x: number;
   y: number;

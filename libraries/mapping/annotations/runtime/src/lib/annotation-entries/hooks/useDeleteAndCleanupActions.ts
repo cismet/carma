@@ -1,6 +1,5 @@
 import { useCallback, type Dispatch, type SetStateAction } from "react";
 
-import { Cartesian3 } from "@carma/cesium";
 import {
   ANNOTATION_TYPE_DISTANCE,
   buildEdgeRelationIdsForPolygon,
@@ -11,7 +10,7 @@ import {
   type NodeChainAnnotation,
   type PointDistanceRelation,
 } from "@carma-mapping/annotations/core";
-
+import { Cartesian3 } from "@carma/cesium";
 type UseDeleteAndCleanupActionsParams = {
   annotations: AnnotationCollection;
   distanceRelations: PointDistanceRelation[];

@@ -7,19 +7,18 @@ import {
 } from "react";
 import { useDispatch, useSelector } from "react-redux";
 
-import { Cartesian3, Color, Matrix4, Transforms, Viewer } from "cesium";
 import { faSync } from "@fortawesome/free-solid-svg-icons";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
+import { Cartesian3, Color, Matrix4, Transforms, Viewer } from "cesium";
 
-import OnMapButton from "./OnMapButton";
+import { useCesiumContext } from "../../hooks/useCesiumContext";
+import { useCesiumViewer } from "../../hooks/useCesiumViewer";
 import {
   toggleIsAnimating,
   selectViewerIsAnimating,
 } from "../../slices/cesium";
-import { useCesiumViewer } from "../../hooks/useCesiumViewer";
-import { useCesiumContext } from "../../hooks/useCesiumContext";
 import { pickScenePositions } from "../../utils/pick-position/pick-scene-positions";
-
+import OnMapButton from "./OnMapButton";
 // TODO use config/context
 const DEFAULT_ROTATION_SPEED = 0.0001;
 

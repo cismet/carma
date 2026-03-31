@@ -8,7 +8,6 @@ import {
   type Cartesian2,
   type Scene,
 } from "@carma/cesium";
-
 export type CesiumCoordinateHandlerOptions = {
   scene: Scene | null;
   enabled: boolean;

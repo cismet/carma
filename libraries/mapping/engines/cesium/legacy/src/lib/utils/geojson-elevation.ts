@@ -1,4 +1,3 @@
-import { Cartographic, type CesiumTerrainProvider } from "@carma/cesium";
 import type {
   Feature,
   FeatureCollection,
@@ -13,8 +12,9 @@ import type {
   Position,
 } from "geojson";
 
-import { getElevationAsync } from "./elevation";
+import { Cartographic, type CesiumTerrainProvider } from "@carma/cesium";
 
+import { getElevationAsync } from "./elevation";
 type ElevationSample = {
   key: string;
   coordinate: Position;

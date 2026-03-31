@@ -1,7 +1,7 @@
-import { Cartographic, CesiumTerrainProvider } from "@carma/cesium";
 import { logOnce } from "@carma-commons/utils";
-import { guardSampleTerrainMostDetailedAsync } from "./guardSampleTerrainMostDetailedAsync";
+import { Cartographic, CesiumTerrainProvider } from "@carma/cesium";
 
+import { guardSampleTerrainMostDetailedAsync } from "./guardSampleTerrainMostDetailedAsync";
 logOnce(
   "[CESIUM|ELEVATION] Using legacy elevation utils, consider migrating to new @carma/cesium elevation helpers."
 );

@@ -1,9 +1,9 @@
-import { clipConvexPolygonByPlanes3d } from "@carma/math";
-import { describe, expect, it } from "vitest";
 import { Vector3 } from "three";
+import { describe, expect, it } from "vitest";
+
+import { clipConvexPolygonByPlanes3d } from "@carma/math";
 
 import { createPerspectiveViewClipPlanes3 } from "./perspective-view-clip-planes";
-
 const sortPointPairs = (points: readonly { x: number; y: number }[]) =>
   [...points].sort((left, right) =>
     left.x === right.x ? left.y - right.y : left.x - right.x

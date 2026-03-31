@@ -1,8 +1,7 @@
 import { Cartesian3 } from "@carma/cesium";
 
-import type { PointDistanceRelation } from "../types/distanceRelation";
 import type { PointAnnotationEntry } from "../types/annotationCesiumTypes";
-
+import type { PointDistanceRelation } from "../types/distanceRelation";
 export const REFERENCE_LINE_EPSILON_METERS = 0.001;
 
 export type ResolvedDistanceRelation = {

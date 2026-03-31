@@ -1,7 +1,13 @@
 import { describe, expect, test } from "vitest";
-import type { Degrees, Meters, Radians } from "@carma/units/types";
-import { PI } from "@carma/units/helpers";
 
+import { PI } from "@carma/units/helpers";
+import type { Degrees, Meters, Radians } from "@carma/units/types";
+
+import { EARTH_CIRCUMFERENCE } from "./constants/earth";
+import {
+  DEFAULT_LEAFLET_TILESIZE,
+  WEB_MERCATOR_MAX_LATITUDE_RAD,
+} from "./constants/web-map";
 import {
   distanceFromMercatorZoomAtLatitudeDeg,
   mercatorZoomFromDistanceAtLatitudeDeg,
@@ -11,12 +17,6 @@ import {
   getZoomFromPixelResolutionAtLatitudeRad,
   getPixelResolutionFromZoomAtLatitudeRad,
 } from "./mercator";
-import { EARTH_CIRCUMFERENCE } from "./constants/earth";
-import {
-  DEFAULT_LEAFLET_TILESIZE,
-  WEB_MERCATOR_MAX_LATITUDE_RAD,
-} from "./constants/web-map";
-
 describe("commons/utils mercator", () => {
   test("getMercatorScaleFactorAtLatitudeRad", () => {
     const maxScale = getMercatorScaleFactorAtLatitudeRad(

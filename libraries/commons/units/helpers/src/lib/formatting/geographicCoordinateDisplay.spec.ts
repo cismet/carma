@@ -1,12 +1,13 @@
 import { describe, expect, it } from "vitest";
+
 import type { Degrees } from "@carma/units/types";
+
 import {
   GEOGRAPHIC_DIRECTION_STYLE,
   formatLatLonDegrees,
   formatLatitudeDegrees,
   formatLongitudeDegrees,
 } from "./geographicCoordinateDisplay";
-
 describe("geographic degree formatters", () => {
   it("formats latitude and longitude with international cardinals", () => {
     expect(

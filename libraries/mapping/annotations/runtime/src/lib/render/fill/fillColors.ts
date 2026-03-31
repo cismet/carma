@@ -1,10 +1,9 @@
-import { Color } from "@carma/cesium";
 import {
   ANNOTATION_TYPE_AREA_GROUND,
   ANNOTATION_TYPE_AREA_PLANAR,
   ANNOTATION_TYPE_AREA_VERTICAL,
 } from "@carma-mapping/annotations/core";
-
+import { Color } from "@carma/cesium";
 const POLYGON_FILL_ALPHA = 0.25;
 const POLYGON_FILL_SELECTED_ALPHA = 0.35;
 

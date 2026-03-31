@@ -1,8 +1,7 @@
-import type { Scene } from "@carma/cesium";
 import { useCesiumCoplanarPolygonPrimitives } from "@carma-mapping/engines/cesium/react/primitives";
+import type { Scene } from "@carma/cesium";
 
 import type { PolygonPrimitiveRenderModel } from "../scene/visualization.types";
-
 export type CoplanarPolygonFillRenderModels = {
   verticalPolygonPrimitives: readonly PolygonPrimitiveRenderModel[];
   planarPolygonPrimitives: readonly PolygonPrimitiveRenderModel[];

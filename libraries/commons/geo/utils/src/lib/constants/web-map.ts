@@ -1,6 +1,5 @@
-import type { Degrees, Radians } from "@carma/units/types";
 import { PI } from "@carma/units/helpers";
-
+import type { Degrees, Radians } from "@carma/units/types";
 const DEG_TO_RAD = PI / 180;
 
 /**

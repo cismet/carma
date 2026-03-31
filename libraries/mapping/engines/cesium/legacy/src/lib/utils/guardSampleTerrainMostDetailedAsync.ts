@@ -4,13 +4,14 @@ import {
   type EllipsoidTerrainProvider,
   sampleTerrainMostDetailed,
 } from "cesium";
+
 import { logOnce } from "@carma-commons/utils";
 import { waitFrames } from "@carma-commons/utils/promise";
+
 import {
   isValidCesiumTerrainProvider,
   isValidEllipsoidTerrainProvider,
 } from "./instanceGates";
-
 logOnce("[CESIUM|ELEVATION] using guarded sampleTerrainMostDetailedAsync");
 
 // wrap sampleTerrainMostDetailed with cloned positions by default

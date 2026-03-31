@@ -1,11 +1,11 @@
-import type { PointDistanceRelation } from "../../types/distanceRelation";
 import { formatLengthMeters, LENGTH_UNIT_MODE } from "@carma/units/helpers";
+
+import type { PointDistanceRelation } from "../../types/distanceRelation";
 import { REFERENCE_LINE_EPSILON_METERS } from "../../utils/distanceVisualization";
 import type {
   DirectLineLabelMode,
   ReferenceLineLabelKind,
 } from "./distanceRelationLabel.types";
-
 export type DistanceRelationLabelDisplay = {
   directLabelMode: DirectLineLabelMode;
   directLabelDistanceMeters: number;

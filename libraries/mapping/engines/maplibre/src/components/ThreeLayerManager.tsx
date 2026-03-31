@@ -1,12 +1,8 @@
 import { useEffect, useRef } from "react";
-import { useLibreContext } from "../contexts/LibreContext";
-import type {
-  Carma3dConfig,
-  ThreePerfData,
-  MappedFeature,
-  FactoryStats,
-  GenericCustomLayer,
-} from "@carma-mapping/engines/threejs";
+
+import type { MercatorCoordinate } from "maplibre-gl";
+import type { Scene } from "three";
+
 import {
   buildGenericLayer,
   syncGenericLayerFromSource,
@@ -14,9 +10,15 @@ import {
   buildLoftMeshes,
   ensureProfiles,
 } from "@carma-mapping/engines/threejs";
-import type { Scene } from "three";
-import type { MercatorCoordinate } from "maplibre-gl";
+import type {
+  Carma3dConfig,
+  ThreePerfData,
+  MappedFeature,
+  FactoryStats,
+  GenericCustomLayer,
+} from "@carma-mapping/engines/threejs";
 
+import { useLibreContext } from "../contexts/LibreContext";
 // ─────────────────────────────────────────────────────────────
 //  ThreeLayerManager: bridges carma3d configs to the threejs engine
 // ─────────────────────────────────────────────────────────────

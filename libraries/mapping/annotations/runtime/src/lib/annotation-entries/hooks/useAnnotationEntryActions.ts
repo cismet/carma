@@ -5,7 +5,6 @@ import type {
   AnnotationEntry,
   AnnotationCreatePayload,
 } from "@carma-mapping/annotations/core";
-
 type UseAnnotationEntryActionsParams = {
   setAnnotations: Dispatch<SetStateAction<AnnotationCollection>>;
 };

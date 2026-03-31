@@ -1,7 +1,7 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
 import { renderHook } from "@testing-library/react";
-import { useCesiumDevConsoleTrigger } from "./useCesiumDevConsoleTrigger";
+import { describe, it, expect, vi, beforeEach } from "vitest";
 
+import { useCesiumDevConsoleTrigger } from "./useCesiumDevConsoleTrigger";
 describe("useCesiumDevConsoleTrigger", () => {
   beforeEach(() => {
     // Reset any prior trigger

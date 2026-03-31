@@ -1,10 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, type ReactNode } from "react";
-import {
-  appendViewStateHistoryEntry,
-  createViewStateHistoryBuffer,
-  DEFAULT_HISTORY_CONFIG,
-  readViewStateHistory,
-} from "./viewStateHistory";
+
 import {
   WRITE_PRIORITY_RANK,
   type ViewState,
@@ -16,7 +11,12 @@ import {
   type WriteToken,
 } from "../../../core/types";
 import { ViewStateContext } from "./ViewStateContext";
-
+import {
+  appendViewStateHistoryEntry,
+  createViewStateHistoryBuffer,
+  DEFAULT_HISTORY_CONFIG,
+  readViewStateHistory,
+} from "./viewStateHistory";
 // ---------------------------------------------------------------------------
 // Internal state types
 // ---------------------------------------------------------------------------

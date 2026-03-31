@@ -7,12 +7,13 @@ import {
   faPlus,
   faRotate,
 } from "@fortawesome/free-solid-svg-icons";
+
 import {
   readControlButtonContentStyle,
   readControlButtonStyle,
 } from "@carma-mapping/map-controls-layout";
-import { createCompassNeedleElement } from "./compass-needle-dom";
 
+import { createCompassNeedleElement } from "./compass-needle-dom";
 type DomMouseHandler = (event: MouseEvent) => void;
 type DomStyleRecord = Record<string, string | number | undefined>;
 

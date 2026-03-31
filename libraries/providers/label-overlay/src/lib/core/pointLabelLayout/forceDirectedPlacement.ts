@@ -1,4 +1,5 @@
 import { clamp } from "@carma-commons/math";
+
 import {
   createLabelRectFromConnector,
   getRectCenter,
@@ -12,7 +13,6 @@ import type {
   Rect,
   CssPixelPosition,
 } from "./types";
-
 type RelaxPlacementWithForcesInput = {
   anchor: CssPixelPosition;
   labelText: string;

@@ -1,11 +1,12 @@
 import { useState, type CSSProperties } from "react";
+
 import type { Meta, StoryObj } from "@storybook/react";
+
 import {
   CarmaCard,
   CarmaResponsiveInfoBox,
   ResponsiveStatusBar,
 } from "@carma-commons/ui/components";
-
 const bodyTextStyle: CSSProperties = {
   fontSize: 12,
   lineHeight: 1.45,

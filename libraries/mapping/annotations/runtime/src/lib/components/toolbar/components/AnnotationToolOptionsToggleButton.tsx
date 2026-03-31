@@ -1,8 +1,8 @@
 import { SettingOutlined } from "@ant-design/icons";
 import { Switch, Tooltip } from "antd";
-import { annotationTooltipProps } from "../../shared/annotationTooltip";
-import { ACTIVE_ACCENT_COLOR, INACTIVE_ICON_COLOR } from "../shared";
 
+import { ACTIVE_ACCENT_COLOR, INACTIVE_ICON_COLOR } from "../shared";
+import { annotationTooltipProps } from "../../shared/annotationTooltip";
 type AnnotationToolOptionsToggleButtonProps = {
   collapsed: boolean;
   onClick: () => void;

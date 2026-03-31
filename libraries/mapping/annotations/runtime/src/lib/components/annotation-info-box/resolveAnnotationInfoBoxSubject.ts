@@ -17,7 +17,6 @@ import {
 } from "@carma-mapping/annotations/core";
 
 import type { AnnotationInfoBoxEntryPayload } from "./annotationInfoBoxSlots.types";
-
 type ResolveAnnotationInfoBoxSubjectParams = {
   activeToolType: AnnotationToolType;
   pointEntries: ReadonlyArray<AnnotationPointEntry>;

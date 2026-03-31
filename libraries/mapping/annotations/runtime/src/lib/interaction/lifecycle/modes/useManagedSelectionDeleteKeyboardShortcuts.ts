@@ -1,6 +1,7 @@
 import { useEffect, useMemo } from "react";
 
 import { Modal } from "antd";
+
 import {
   ANNOTATION_COMMON_SHORTCUT_ACTIONS,
   isManagedAnnotationKeyboardEvent,
@@ -9,7 +10,6 @@ import {
 } from "@carma-mapping/annotations/core";
 
 import { findProtectedPolygonCandidateNodeIds } from "./selectionDeletionPolicy";
-
 export const useManagedSelectionDeleteKeyboardShortcuts = (
   selectedAnnotationIds: string[],
   selectedAnnotationId: string | null,

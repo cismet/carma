@@ -1,25 +1,26 @@
-import { isFiniteNumber, clamp } from "@carma/math";
-import type { Radians } from "@carma/units/types";
-import { degToRadNumeric, radToDegNumeric } from "@carma/units/helpers";
-import {
-  getPixelResolutionFromZoomAtLatitudeRad,
-  clampLatitudeToWebMercatorExtent,
-  WEB_MERCATOR_MAX_LATITUDE_DEG,
-} from "@carma/geo/utils";
-import {
-  isMapViewEqualToTarget,
-  readMapLibrePerspectiveIntrinsics,
-} from "@carma-mapping/engines/maplibre-gl/utils";
+import type { Map as MapLibreMap } from "maplibre-gl";
+
 import {
   CAMERA_TYPE,
   readRangeFromMetersPerCssPixel,
   type CameraIntrinsics,
 } from "@carma-commons/camera/model";
-import type { Map as MapLibreMap } from "maplibre-gl";
+import {
+  isMapViewEqualToTarget,
+  readMapLibrePerspectiveIntrinsics,
+} from "@carma-mapping/engines/maplibre-gl/utils";
+import {
+  getPixelResolutionFromZoomAtLatitudeRad,
+  clampLatitudeToWebMercatorExtent,
+  WEB_MERCATOR_MAX_LATITUDE_DEG,
+} from "@carma/geo/utils";
+import { isFiniteNumber, clamp } from "@carma/math";
+import { degToRadNumeric, radToDegNumeric } from "@carma/units/helpers";
+import type { Radians } from "@carma/units/types";
+
 import { buildViewState, type AngleBasedViewInput } from "../core/construct";
 import { deriveOrbitAngles, deriveZoom } from "../core/derivations";
 import type { ViewState, ViewStateMetadata } from "../core/types";
-
 // ---------------------------------------------------------------------------
 // Constants
 // ---------------------------------------------------------------------------

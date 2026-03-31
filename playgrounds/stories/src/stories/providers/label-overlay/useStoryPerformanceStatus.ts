@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import type { Scene } from "@carma/cesium";
 
+import type { Scene } from "@carma/cesium";
 type StoryPerformanceStatus = {
   fps: number | null;
   averageFrameMs: number | null;

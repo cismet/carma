@@ -1,11 +1,11 @@
 import { describe, expect, it } from "vitest";
+
 import {
   formatLengthMeters,
   formatLengthMetersScientificParts,
   formatLengthMetersScientific,
   LENGTH_UNIT_MODE,
 } from "./length-format";
-
 describe("formatLengthMeters", () => {
   it("formats adaptive metric lengths", () => {
     expect(

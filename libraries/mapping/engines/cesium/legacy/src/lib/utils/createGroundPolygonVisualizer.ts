@@ -1,3 +1,5 @@
+import type { Feature, FeatureCollection, Geometry } from "geojson";
+
 import {
   BoundingSphere,
   Cartesian3,
@@ -12,8 +14,6 @@ import {
   getBoundingSphereFromCoordinates,
   type Scene,
 } from "@carma/cesium";
-import type { Feature, FeatureCollection, Geometry } from "geojson";
-
 const DEFAULT_FILL_COLOR = "#ffffff";
 const MIN_NON_ZERO_OPACITY = 1 / 254;
 const DEFAULT_OPACITY = MIN_NON_ZERO_OPACITY;

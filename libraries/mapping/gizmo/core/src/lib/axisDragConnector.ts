@@ -1,7 +1,8 @@
-import { getClosestLineParamToRay } from "@carma-commons/math";
 import { Ray, Vector3 } from "three";
-import { AXIS_NUMERIC_EPSILON } from "./constants";
 
+import { getClosestLineParamToRay } from "@carma-commons/math";
+
+import { AXIS_NUMERIC_EPSILON } from "./constants";
 export type GizmoAxisDragConnectorState = {
   axisOrigin: Vector3;
   axisDirection: Vector3;

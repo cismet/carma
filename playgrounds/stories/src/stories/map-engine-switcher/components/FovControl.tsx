@@ -1,14 +1,16 @@
 import { useState, useEffect } from "react";
-import { Card, Slider } from "antd";
-import type { CesiumWidget } from "@carma/cesium";
-import { PixelResolutionVis } from "./PixelResolutionVis";
 import type { CSSProperties } from "react";
+
+import { Card, Slider } from "antd";
+
+import type { CesiumWidget } from "@carma/cesium";
+
 import {
   bindStoryCesiumCameraChangedListener,
   readStoryCesiumScene,
   requestStoryCesiumRender,
 } from "../../shared/cesiumRuntimeGuards";
-
+import { PixelResolutionVis } from "./PixelResolutionVis";
 interface FovControlProps {
   cesiumWidget: CesiumWidget | null;
   style?: CSSProperties;

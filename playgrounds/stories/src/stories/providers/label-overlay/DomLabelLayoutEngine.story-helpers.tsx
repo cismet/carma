@@ -6,16 +6,17 @@ import {
   type CSSProperties,
   type MouseEvent as ReactMouseEvent,
 } from "react";
-import type { CssPixelPosition } from "@carma/units/types";
+
 import { Vector3 } from "three";
+
 import { createScreenPointSvgLineVisualizers } from "@carma-commons/svg";
+import { ResponsiveStatusBar } from "@carma-commons/ui/components";
 import {
   createProjectedMoveGizmoView,
   transformPointWithMatrix,
   type ProjectedMoveGizmoAxisCandidate,
   type ProjectedMoveGizmoView,
 } from "@carma-mapping/gizmo/core";
-import { ResponsiveStatusBar } from "@carma-commons/ui/components";
 import {
   computePointLabelLayout,
   resolvePillCapCenterPoint,
@@ -23,12 +24,13 @@ import {
   resolveSegmentEndOutsideCircle,
   type LayoutPointInput,
 } from "@carma-providers/label-overlay";
+import type { CssPixelPosition } from "@carma/units/types";
+
 import { buildAxisGridSegments3d } from "../../shared/buildAxisGridSegments3d";
 import {
   formatStoryPerformanceLabel,
   useAnimationFramePerformanceStatus,
 } from "./useStoryPerformanceStatus";
-
 export type DomLabelLayoutStoryArgs = {
   showGrid: boolean;
   gridExtent: number;

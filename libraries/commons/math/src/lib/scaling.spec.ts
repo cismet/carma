@@ -1,8 +1,8 @@
 import { describe, it, expect } from "vitest";
 
 import type { Ratio } from "@carma/units/types";
-import { geometricScale } from "./scaling";
 
+import { geometricScale } from "./scaling";
 describe("geometricScale", () => {
   it("matches repeated single-step applications", () => {
     const base = 200;

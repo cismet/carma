@@ -1,7 +1,6 @@
+import { fadeOutContainer } from "../dom-utils";
 import { TransitionStage } from "../../types";
 import type { TransitionToLeafletCallbacks } from "../../types";
-import { fadeOutContainer } from "../dom-utils";
-
 export const handleToLeafletTransitionError = (
   error: unknown,
   cesiumContainer: HTMLElement,

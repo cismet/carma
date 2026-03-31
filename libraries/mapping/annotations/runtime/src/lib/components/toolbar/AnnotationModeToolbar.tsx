@@ -6,7 +6,7 @@ import {
   useState,
   type CSSProperties,
 } from "react";
-import "../annotation-info-box/infoBox.css";
+
 import {
   SELECT_TOOL_TYPE,
   ANNOTATION_TYPE_AREA_GROUND,
@@ -18,6 +18,7 @@ import {
   ANNOTATION_TYPE_POLYLINE,
   isAreaToolType,
 } from "@carma-mapping/annotations/core";
+
 import { ANNOTATION_TOOLBAR_HELP_TEXT } from "../../config/annotationToolbarHelpText";
 import type { AnnotationModeToolbarProps } from "./AnnotationModeToolbar.types";
 import { AnnotationToolbarHelpOverlay } from "./components/AnnotationToolbarHelpOverlay";
@@ -29,6 +30,8 @@ import { PointToolOptions } from "./components/tool-options/PointToolOptions";
 import { PolylineToolOptions } from "./components/tool-options/PolylineToolOptions";
 import { SelectionToolOptions } from "./components/tool-options/SelectionToolOptions";
 import { renderHelpContent } from "./components/tool-options/shared";
+
+import "../annotation-info-box/infoBox.css";
 export type { AnnotationToolType } from "@carma-mapping/annotations/core";
 export type {
   AnnotationModeToolbarProps,

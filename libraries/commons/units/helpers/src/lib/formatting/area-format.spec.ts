@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { formatAreaSquareMetersAdaptive } from "./area-format";
 
+import { formatAreaSquareMetersAdaptive } from "./area-format";
 describe("formatAreaSquareMetersAdaptive", () => {
   it("formats small areas in square meters", () => {
     expect(

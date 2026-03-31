@@ -1,12 +1,11 @@
 import { useCallback, useContext, useMemo, type ComponentProps } from "react";
 
-import TopicMapComponent from "react-cismap/topicmaps/TopicMapComponent";
 import { TopicMapContext } from "react-cismap/contexts/TopicMapContextProvider";
+import TopicMapComponent from "react-cismap/topicmaps/TopicMapComponent";
 
 import { useMapHashRouting } from "@carma-appframeworks/portals";
 import { useMapFrameworkSwitcherContext } from "@carma-mapping/components";
 import { useCesiumContext } from "@carma-mapping/engines/cesium";
-
 type TopicMapComponentProps = ComponentProps<typeof TopicMapComponent>;
 
 const HASH_ROUTING_LABELS = {

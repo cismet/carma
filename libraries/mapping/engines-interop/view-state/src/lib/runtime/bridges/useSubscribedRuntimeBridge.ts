@@ -1,11 +1,11 @@
 import { useCallback, useEffect, useMemo, useRef } from "react";
-import type { ViewState, WritePriority } from "../../core/types";
+
 import {
   useViewAdapter,
   type ViewAdapterHandle,
 } from "../providers/view-state/useViewAdapter";
 import { useViewStateContext } from "../providers/view-state/useViewState";
-
+import type { ViewState, WritePriority } from "../../core/types";
 const bindInteractionHandling = (
   element: HTMLElement,
   options: {

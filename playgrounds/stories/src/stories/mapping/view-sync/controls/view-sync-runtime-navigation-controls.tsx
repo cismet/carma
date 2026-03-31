@@ -1,4 +1,5 @@
 import { useEffect, useRef } from "react";
+
 import {
   mountNavigationControlsOverlay,
   NAVIGATION_ORBIT_DIRECTIONS,
@@ -13,6 +14,7 @@ import {
   createCesiumSceneOrbitController,
   type CesiumSceneOrbitController,
 } from "@carma-mapping/engines/cesium/api";
+
 import {
   CARMA_STORY_MAPPING_ENGINES,
   type StoryMappingEngine,
@@ -22,7 +24,6 @@ import type {
   SlotRuntimeHandle,
 } from "../viewSyncStoryShared";
 import { createRuntimeNavigationReference } from "./runtime-navigation-reference";
-
 const DEFAULT_CONTROL_STYLE = {
   top: 10,
   left: 10,

@@ -1,11 +1,12 @@
 import { Suspense, lazy } from "react";
+
 import type { Meta, StoryObj } from "@storybook/react";
+
 import type { ViewSyncStoryProps } from "./ViewSyncStory";
 import {
   DEFAULT_STORY_RANGE_M,
   RATHAUS_BARMEN_HOME_POSE,
 } from "./viewSyncStoryShared";
-
 const LazyViewSyncStory = lazy(async () => {
   const module = await import("./ViewSyncStory");
   return { default: module.ViewSyncStory };

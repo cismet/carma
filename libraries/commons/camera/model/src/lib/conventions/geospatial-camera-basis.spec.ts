@@ -1,12 +1,12 @@
 import { Quaternion, Vector3 } from "three";
 import { describe, expect, it } from "vitest";
+
 import {
   buildOrientationQuaternionFromWorldCameraBasisAtAnchor,
   localYUpSceneDirectionToWorldDirectionAtAnchor,
   worldDirectionToLocalYUpSceneDirectionAtAnchor,
 } from "./geospatial-camera-basis";
 import { readLocalCameraBasis } from "./local-camera-basis";
-
 describe("geospatial camera basis", () => {
   const anchor = new Vector3(6378137, 0, 0);
 

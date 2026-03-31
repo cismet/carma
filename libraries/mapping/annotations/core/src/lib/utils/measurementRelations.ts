@@ -2,9 +2,8 @@ import type {
   AnnotationGeometryEdge,
   PolygonAnnotationVertex,
 } from "../types/annotationPersistenceTypes";
-import type { PointDistanceRelation } from "../types/distanceRelation";
 import type { NodeChainAnnotation } from "../types/annotationTypes";
-
+import type { PointDistanceRelation } from "../types/distanceRelation";
 export const getMeasurementEdgeId = (pointAId: string, pointBId: string) => {
   const [left, right] = [pointAId, pointBId].sort((a, b) => a.localeCompare(b));
   return `edge:${left}:${right}`;

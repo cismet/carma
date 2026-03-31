@@ -1,8 +1,8 @@
 import { useEffect } from "react";
+
 import { CesiumContextType } from "../CesiumContext";
 import { isValidImageryLayer } from "../utils/instanceGates";
 import { useCesiumContext } from "./useCesiumContext";
-
 const hideLayers = (ctx: CesiumContextType) => {
   ctx.withScene((scene) => {
     const hideOnce = () => {

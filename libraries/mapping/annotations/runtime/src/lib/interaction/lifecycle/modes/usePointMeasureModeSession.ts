@@ -4,18 +4,17 @@ import {
   type Dispatch,
   type SetStateAction,
 } from "react";
-import type { Cartesian3 } from "@carma/cesium";
 
 import {
   ANNOTATION_TYPE_POINT,
   isPointMeasurementEntry,
   type AnnotationCollection,
 } from "@carma-mapping/annotations/core";
+import type { Cartesian3 } from "@carma/cesium";
 
 import type { AnnotationModeSession } from "../annotationModeSession.types";
-import { useModeSession } from "./useModeSession";
 import { MINIMUM_CLOSE_POINTS_BY_MODE } from "./modeCloseRequirements";
-
+import { useModeSession } from "./useModeSession";
 export const usePointMeasureModeSession = (
   annotations: AnnotationCollection,
   setAnnotations: Dispatch<SetStateAction<AnnotationCollection>>,

@@ -1,3 +1,5 @@
+import type { BBox } from "@carma/geo/types";
+
 import {
   OpenStreetMapImageryProvider,
   SingleTileImageryProvider,
@@ -5,9 +7,7 @@ import {
   WebMapServiceImageryProvider,
   WebMapTileServiceImageryProvider,
 } from "../cesium";
-import type { BBox } from "@carma/geo/types";
 import { rectangleFromBBox } from "./Rectangle";
-
 export type UnsupportedProviderOptions =
   | "clock"
   | "times"

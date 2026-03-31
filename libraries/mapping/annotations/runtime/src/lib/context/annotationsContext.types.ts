@@ -12,11 +12,11 @@ import type {
   AnnotationToolType,
   LinearSegmentLineMode,
 } from "@carma-mapping/annotations/core";
+
 import type {
   AnnotationEditTarget,
   AnnotationEditUpdateTarget,
 } from "../interaction/editing/annotationEdit.types";
-
 export type AnnotationVisualizerOptionsPatch = {
   segmentLineMode?: LinearSegmentLineMode;
 };

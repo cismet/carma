@@ -1,6 +1,6 @@
 import type { Map as MaplibreMap } from "maplibre-gl";
-import type { CarmaConf } from "./selectionTypes";
 
+import type { CarmaConf } from "./selectionTypes";
 interface LayerSourceInfo {
   source: string;
   sourceLayer?: string;

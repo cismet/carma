@@ -1,7 +1,8 @@
 import React from "react";
-import { Button } from "antd";
-import type { PointLabelAttach } from "../core/pointLabelAttach";
 
+import { Button } from "antd";
+
+import type { PointLabelAttach } from "../core/pointLabelAttach";
 export type { PointLabelAttach };
 
 export type PillbuttonMountSide = "left" | "center" | "right";

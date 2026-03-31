@@ -1,6 +1,6 @@
-import { Cartesian3 } from "../../cesium";
 import type { Meters } from "@carma/units/types";
 
+import { Cartesian3 } from "../../cesium";
 /**
  * Calculate distance between two Cartesian3 points.
  */

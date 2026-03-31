@@ -5,7 +5,6 @@ import {
   PI,
   PI_OVER_TWO,
 } from "@carma/units/helpers";
-
 export function isValidLatitudeDeg(lat: Latitude.deg): boolean {
   return lat >= -90 && lat <= 90;
 }

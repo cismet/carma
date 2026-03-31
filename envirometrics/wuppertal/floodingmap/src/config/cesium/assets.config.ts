@@ -1,7 +1,6 @@
 import { MarkerModelAsset } from "@carma-mapping/engines/cesium";
 
 import { APP_BASE_PATH } from "../app.config";
-
 export const GLB_SAMPLE = `${APP_BASE_PATH}data/glb/map_pointer.glb`;
 // https://sketchfab.com/3d-models/map-pointer-162fba8901ea4ce5894d8b0916d802b4
 // Placeholder asset - CC BY 4.0 DEED - thekiross

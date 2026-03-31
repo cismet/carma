@@ -1,5 +1,5 @@
 import { type MouseEvent as ReactMouseEvent } from "react";
-import { Switch, Tooltip } from "antd";
+
 import {
   faDownload,
   faEye,
@@ -8,7 +8,10 @@ import {
   faLockOpen,
   faTrashCan,
 } from "@fortawesome/free-solid-svg-icons";
+import { Switch, Tooltip } from "antd";
+
 import Icon from "react-cismap/commons/Icon";
+
 import {
   ANNOTATION_TYPE_AREA_GROUND,
   ANNOTATION_TYPE_AREA_PLANAR,
@@ -26,7 +29,13 @@ import {
   formatLengthMeters,
   LENGTH_UNIT_MODE,
 } from "@carma/units/helpers";
+
 import { formatBearingToGermanSectorLabel } from "../AnnotationInfoBox.formatters";
+import type {
+  AnnotationInfoBoxEntryPayload,
+  AnnotationSlots,
+  PolylineSummary,
+} from "../annotationInfoBoxSlots.types";
 import {
   AnnotationInfoBoxActionIcon,
   AnnotationInfoTitleInput,
@@ -38,12 +47,6 @@ import {
   INFO_BOX_BODY_TEXT_CLASSNAME,
   stopInputEventPropagation,
 } from "./shared";
-import type {
-  AnnotationInfoBoxEntryPayload,
-  AnnotationSlots,
-  PolylineSummary,
-} from "../annotationInfoBoxSlots.types";
-
 const NODE_CHAIN_TYPE_TITLE_BY_KIND: Record<
   NodeChainAnnotation["type"],
   string

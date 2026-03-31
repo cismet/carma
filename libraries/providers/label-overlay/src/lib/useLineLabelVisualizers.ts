@@ -4,7 +4,6 @@ import { AnchoredLabelVisualizer } from "./components/AnchoredLabelVisualizer";
 import type { LineVisualizerData, SvgLine } from "./lineVisualizers.types";
 import { useLabelOverlay } from "./useLabelOverlay";
 import { createSvgLineScratch, resolveSvgLine } from "./utils/resolveSvgLine";
-
 const MIN_LINE_LENGTH_PX = 0.0001;
 const DEFAULT_MIN_LABEL_LINE_LENGTH_PX = 50;
 const LABEL_OFFSET_PX = 10;

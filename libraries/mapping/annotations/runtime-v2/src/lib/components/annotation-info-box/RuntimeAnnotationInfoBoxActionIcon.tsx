@@ -1,8 +1,8 @@
-import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
-import { Tooltip } from "antd";
-import type { IconDefinition } from "@fortawesome/fontawesome-svg-core";
 import type { MouseEvent as ReactMouseEvent } from "react";
 
+import type { IconDefinition } from "@fortawesome/fontawesome-svg-core";
+import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
+import { Tooltip } from "antd";
 const DEFAULT_ICON_CLASSNAME =
   "cursor-pointer text-base text-[#808080] hover:text-[#a0a0a0]";
 

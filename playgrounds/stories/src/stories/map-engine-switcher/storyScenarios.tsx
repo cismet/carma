@@ -1,5 +1,6 @@
-import { useEffect, type CSSProperties, type ReactNode } from "react";
 import { useCallback } from "react";
+import { useEffect, type CSSProperties, type ReactNode } from "react";
+
 import {
   CarmaResponsiveInfoBox,
   ResponsiveStatusBar,
@@ -12,6 +13,8 @@ import {
   useRegisterMapFramework,
   type CarmaMapFramework,
 } from "@carma-mapping/components";
+
+import { requestStoryCesiumRender } from "../shared/cesiumRuntimeGuards";
 import { ElevationDisplay } from "./components/ElevationDisplay";
 import { FovControl } from "./components/FovControl";
 import { MapContainers } from "./components/MapContainers";
@@ -19,11 +22,9 @@ import { ResolutionStatus } from "./components/ResolutionStatus";
 import { RESOLUTION_SCALE } from "./helpers/constants";
 import { styles } from "./helpers/styles";
 import { useLeafletCesiumSetup } from "./hooks/useLeafletCesiumSetup";
-import { requestStoryCesiumRender } from "../shared/cesiumRuntimeGuards";
 
-import "leaflet/dist/leaflet.css";
 import "cesium/Build/Cesium/Widgets/widgets.css";
-
+import "leaflet/dist/leaflet.css";
 type StoryMappingEngine = CarmaMapFramework;
 
 export type ResolutionScaleControls = {

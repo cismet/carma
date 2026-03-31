@@ -1,6 +1,5 @@
 import type { ViewState } from "../../../core/types";
 import { useViewStateNavigationContext } from "./useViewStateNavigationContext";
-
 export type UseViewStateNavigationRestoreResult = {
   restoreState: ViewState | null;
   isRestoreResolved: boolean;

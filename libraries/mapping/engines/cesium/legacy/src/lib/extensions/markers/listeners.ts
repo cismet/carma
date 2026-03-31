@@ -1,8 +1,7 @@
 import { isValidScene, Scene } from "@carma/cesium";
+
 import type { MarkerPrimitiveData } from "./index.d";
-
 import { updateTransform } from "./updateTransform";
-
 export const detachListeners = (scene: Scene, data: MarkerPrimitiveData) => {
   if (!data.onPreUpdate) {
     return;

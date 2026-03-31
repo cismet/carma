@@ -1,4 +1,11 @@
-import type { Meters } from "@carma/units/types";
+import {
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type MouseEvent as ReactMouseEvent,
+} from "react";
+
 import {
   axisBottom,
   axisLeft,
@@ -12,13 +19,9 @@ import {
   scaleSequential,
   select,
 } from "d3";
-import {
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-  type MouseEvent as ReactMouseEvent,
-} from "react";
+
+import type { Meters } from "@carma/units/types";
+
 import {
   DOLLY_ZOOM_X_AXIS_MODES,
   buildDollyZoomXAxisTickEntries,
@@ -30,7 +33,10 @@ import {
 } from "./dolly-zoom-axis";
 import { GeoChartStoryFrame } from "./geo-chart-story-frame";
 import { GEO_STORY_STYLES } from "./geo-story-styles";
-import { readCenterResolutionMetersPerPixel, readRangeFromCenterResolutionAtFov } from "./mercator-zoom.shared";
+import {
+  readCenterResolutionMetersPerPixel,
+  readRangeFromCenterResolutionAtFov,
+} from "./mercator-zoom.shared";
 import {
   PlotHoverReadoutLayers,
   createBottomXAxisReadoutLabel,
@@ -39,7 +45,6 @@ import {
   readGuideLeftXFromPrimaryYAxisReadout,
   readSampleAnchoredTooltipBox,
 } from "./plot-hover-readout";
-
 export const RESOLUTION_PLOT_X_AXIS_MODES = DOLLY_ZOOM_X_AXIS_MODES;
 export type ResolutionPlotXAxisMode = DollyZoomXAxisMode;
 
@@ -85,9 +90,7 @@ const PLOT_MARGIN = {
 const Y_READOUT_WIDTH = 112;
 const Y_AXIS_LABEL = "range (m)";
 const Y_AXIS_STATUS_VALUE = "y log2(range)";
-const RESOLUTION_CONTOUR_VALUES_M_PER_PX = [
-  0.01, 0.1, 1, 10, 100,
-] as const;
+const RESOLUTION_CONTOUR_VALUES_M_PER_PX = [0.01, 0.1, 1, 10, 100] as const;
 
 const buildSteppedRange = (minimum: number, maximum: number, step: number) => {
   const values: number[] = [];
@@ -248,7 +251,9 @@ const drawHeatmapRaster = ({
   const rowPixelBounds = rowBounds.map((bound, index) => ({
     start: index === 0 ? Math.floor(bound.start) : Math.round(bound.start),
     end:
-      index === rowBounds.length - 1 ? Math.ceil(bound.end) : Math.round(bound.end),
+      index === rowBounds.length - 1
+        ? Math.ceil(bound.end)
+        : Math.round(bound.end),
   }));
 
   rowPixelBounds.forEach((rowBound, rowIndex) => {
@@ -314,7 +319,8 @@ export const ResolutionByFovAndRangePanel = ({
       rangeRows,
       resolutionRows,
       resolutionExtent:
-        Number.isFinite(resolutionExtent[0]) && Number.isFinite(resolutionExtent[1])
+        Number.isFinite(resolutionExtent[0]) &&
+        Number.isFinite(resolutionExtent[1])
           ? (resolutionExtent as [number, number])
           : [0.01, 100],
     };
@@ -332,21 +338,18 @@ export const ResolutionByFovAndRangePanel = ({
     [plotData.rangeRows]
   );
 
-  const xScale = useMemo(
-    () => {
-      const xDomain = extent(xSampleValues) as
-        | [number, number]
-        | [undefined, undefined];
+  const xScale = useMemo(() => {
+    const xDomain = extent(xSampleValues) as
+      | [number, number]
+      | [undefined, undefined];
 
-      return scaleLinear()
-        .domain([
-          Number.isFinite(xDomain[0]) ? xDomain[0] : 0,
-          Number.isFinite(xDomain[1]) ? xDomain[1] : 1,
-        ])
-        .range([0, innerWidth]);
-    },
-    [innerWidth, xSampleValues]
-  );
+    return scaleLinear()
+      .domain([
+        Number.isFinite(xDomain[0]) ? xDomain[0] : 0,
+        Number.isFinite(xDomain[1]) ? xDomain[1] : 1,
+      ])
+      .range([0, innerWidth]);
+  }, [innerWidth, xSampleValues]);
 
   const yScale = useMemo(
     () =>
@@ -400,7 +403,11 @@ export const ResolutionByFovAndRangePanel = ({
           fovDeg,
         });
 
-        if (!Number.isFinite(rangeM) || rangeM < MIN_RANGE_M || rangeM > MAX_RANGE_M) {
+        if (
+          !Number.isFinite(rangeM) ||
+          rangeM < MIN_RANGE_M ||
+          rangeM > MAX_RANGE_M
+        ) {
           return [];
         }
 
@@ -432,7 +439,13 @@ export const ResolutionByFovAndRangePanel = ({
         path: string;
       } => contourLine !== null && typeof contourLine.path === "string"
     );
-  }, [plotData.fovSamples, plotData.resolutionExtent, xAxisMode, xScale, yScale]);
+  }, [
+    plotData.fovSamples,
+    plotData.resolutionExtent,
+    xAxisMode,
+    xScale,
+    yScale,
+  ]);
 
   useEffect(() => {
     const xTickEntries = buildDollyZoomXAxisTickEntries(xAxisMode);
@@ -481,7 +494,14 @@ export const ResolutionByFovAndRangePanel = ({
       targetWidth: innerWidth,
       targetHeight: innerHeight,
     });
-  }, [colorScale, innerHeight, innerWidth, plotData, xSampleCenters, ySampleCenters]);
+  }, [
+    colorScale,
+    innerHeight,
+    innerWidth,
+    plotData,
+    xSampleCenters,
+    ySampleCenters,
+  ]);
 
   const readReadoutBox = (readout: HeatmapReadout) =>
     readSampleAnchoredTooltipBox({
@@ -493,8 +513,14 @@ export const ResolutionByFovAndRangePanel = ({
 
   const handleHeatmapMove = (event: ReactMouseEvent<SVGRectElement>) => {
     const bounds = event.currentTarget.getBoundingClientRect();
-    const plotX = Math.max(0, Math.min(event.clientX - bounds.left, innerWidth));
-    const plotY = Math.max(0, Math.min(event.clientY - bounds.top, innerHeight));
+    const plotX = Math.max(
+      0,
+      Math.min(event.clientX - bounds.left, innerWidth)
+    );
+    const plotY = Math.max(
+      0,
+      Math.min(event.clientY - bounds.top, innerHeight)
+    );
     const fovIndex = findNearestIndex(xSampleValues, xScale.invert(plotX));
     const rowIndex = findNearestIndex(ySampleValues, yScale.invert(plotY));
 
@@ -510,8 +536,14 @@ export const ResolutionByFovAndRangePanel = ({
 
   const handleHeatmapClick = (event: ReactMouseEvent<SVGRectElement>) => {
     const bounds = event.currentTarget.getBoundingClientRect();
-    const plotX = Math.max(0, Math.min(event.clientX - bounds.left, innerWidth));
-    const plotY = Math.max(0, Math.min(event.clientY - bounds.top, innerHeight));
+    const plotX = Math.max(
+      0,
+      Math.min(event.clientX - bounds.left, innerWidth)
+    );
+    const plotY = Math.max(
+      0,
+      Math.min(event.clientY - bounds.top, innerHeight)
+    );
     const fovIndex = findNearestIndex(xSampleValues, xScale.invert(plotX));
     const rowIndex = findNearestIndex(ySampleValues, yScale.invert(plotY));
 
@@ -539,7 +571,12 @@ export const ResolutionByFovAndRangePanel = ({
         aria-label="Center resolution by field of view and range"
         style={{ display: "block" }}
       >
-        <foreignObject x={0} y={0} width={PLOT_OUTER_WIDTH_PX} height={PLOT_OUTER_HEIGHT_PX}>
+        <foreignObject
+          x={0}
+          y={0}
+          width={PLOT_OUTER_WIDTH_PX}
+          height={PLOT_OUTER_HEIGHT_PX}
+        >
           <canvas
             ref={canvasRef}
             width={PLOT_OUTER_WIDTH_PX}
@@ -580,9 +617,12 @@ export const ResolutionByFovAndRangePanel = ({
         {contourLines.map((contourLine) => {
           const labelX =
             PLOT_MARGIN.left +
-            xScale(readDollyZoomXAxisValue(contourLine.labelPoint.fovDeg, xAxisMode)) +
+            xScale(
+              readDollyZoomXAxisValue(contourLine.labelPoint.fovDeg, xAxisMode)
+            ) +
             6;
-          const labelY = PLOT_MARGIN.top + yScale(contourLine.labelPoint.rangeM) - 6;
+          const labelY =
+            PLOT_MARGIN.top + yScale(contourLine.labelPoint.rangeM) - 6;
 
           if (
             labelX < PLOT_MARGIN.left + 4 ||
@@ -648,8 +688,12 @@ export const ResolutionByFovAndRangePanel = ({
               plotX={readout.plotX}
               plotY={readout.plotY}
               showGuides
-              guideLeftX={readGuideLeftXFromPrimaryYAxisReadout(yAxisValueLabel)}
-              guideBottomY={readGuideBottomYFromBottomXAxisReadout(xAxisValueLabel)}
+              guideLeftX={readGuideLeftXFromPrimaryYAxisReadout(
+                yAxisValueLabel
+              )}
+              guideBottomY={readGuideBottomYFromBottomXAxisReadout(
+                xAxisValueLabel
+              )}
               axisValueLabels={[xAxisValueLabel, yAxisValueLabel]}
               tooltip={{
                 x: PLOT_MARGIN.left + readoutBox.x,
@@ -662,7 +706,11 @@ export const ResolutionByFovAndRangePanel = ({
                   setPinnedReadouts((current) =>
                     current.filter((entry) => entry.id !== readout.id)
                   ),
-                children: <span>{formatResolutionValue(readout.centerResolutionMPerPx)} m/px</span>,
+                children: (
+                  <span>
+                    {formatResolutionValue(readout.centerResolutionMPerPx)} m/px
+                  </span>
+                ),
               }}
             />
           );
@@ -691,8 +739,12 @@ export const ResolutionByFovAndRangePanel = ({
                   plotX={hoverReadout.plotX}
                   plotY={hoverReadout.plotY}
                   showGuides
-                  guideLeftX={readGuideLeftXFromPrimaryYAxisReadout(yAxisValueLabel)}
-                  guideBottomY={readGuideBottomYFromBottomXAxisReadout(xAxisValueLabel)}
+                  guideLeftX={readGuideLeftXFromPrimaryYAxisReadout(
+                    yAxisValueLabel
+                  )}
+                  guideBottomY={readGuideBottomYFromBottomXAxisReadout(
+                    xAxisValueLabel
+                  )}
                   axisValueLabels={[xAxisValueLabel, yAxisValueLabel]}
                   tooltip={{
                     x: PLOT_MARGIN.left + readoutBox.x,
@@ -701,7 +753,14 @@ export const ResolutionByFovAndRangePanel = ({
                     height: readoutBox.height,
                     anchorAttach: "left",
                     anchorAtSemicircleCenter: true,
-                    children: <span>{formatResolutionValue(hoverReadout.centerResolutionMPerPx)} m/px</span>,
+                    children: (
+                      <span>
+                        {formatResolutionValue(
+                          hoverReadout.centerResolutionMPerPx
+                        )}{" "}
+                        m/px
+                      </span>
+                    ),
                   }}
                 />
               );
@@ -721,7 +780,10 @@ export const ResolutionByFovAndRangePlot = ({
   );
 
   return (
-    <GeoChartStoryFrame label="Resolution by FOV and Range" values={statusValues}>
+    <GeoChartStoryFrame
+      label="Resolution by FOV and Range"
+      values={statusValues}
+    >
       <section style={GEO_STORY_STYLES.layout.intro}>
         <p style={GEO_STORY_STYLES.text.introText}>
           Dolly zoom keeps subject size fixed by trading field of view against

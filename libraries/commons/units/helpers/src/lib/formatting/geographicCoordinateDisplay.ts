@@ -1,6 +1,6 @@
 import type { Degrees } from "@carma/units/types";
-import { FORMAT_LOCALE } from "./locales";
 
+import { FORMAT_LOCALE } from "./locales";
 export const GEOGRAPHIC_DIRECTION_STYLE = {
   CARDINAL: "cardinal",
   SIGNED: "signed",

@@ -1,12 +1,13 @@
+import type { Map as MapLibreMap } from "maplibre-gl";
 import { describe, expect, it, vi } from "vitest";
+
 import { CAMERA_TYPE } from "@carma-commons/camera/model";
 import { degToRadNumeric, radToDegNumeric } from "@carma/units/helpers";
 import type { Meters, Radians } from "@carma/units/types";
-import type { Map as MapLibreMap } from "maplibre-gl";
+
 import { buildViewState } from "../core/construct";
 import { deriveOrbitAngles, deriveZoom } from "../core/derivations";
 import { applyToMaplibre, readFromMaplibre } from "./maplibre";
-
 const meters = (value: number): Meters => value as Meters;
 const radians = (valueDeg: number): Radians =>
   degToRadNumeric(valueDeg)! as Radians;

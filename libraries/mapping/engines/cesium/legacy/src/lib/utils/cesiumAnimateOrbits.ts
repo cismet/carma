@@ -5,11 +5,9 @@ import {
   CesiumMath,
   Scene,
 } from "@carma/cesium";
-
 import type { Radians } from "@carma/units/types";
 
 import { AnimationType, SceneAnimationMap } from "./sceneAnimationMap";
-
 // TODO: consolidate cesium animation helper into separate package
 // see also viewerAnimationMap
 

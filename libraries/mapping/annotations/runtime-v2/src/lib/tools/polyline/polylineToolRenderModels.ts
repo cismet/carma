@@ -13,7 +13,6 @@ import {
   resolveMeasurementCoordinates,
 } from "../../render/resolveMeasurementCoordinates";
 import type { PolylineToolVisualSettings } from "./polylineToolSettings";
-
 type BuildPolylineToolRenderModelsArgs = {
   toolType: RuntimeMeasurement["toolType"];
   visuals: PolylineToolVisualSettings;

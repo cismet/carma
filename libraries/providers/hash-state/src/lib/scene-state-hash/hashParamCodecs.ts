@@ -1,4 +1,5 @@
 import { formatFixedNumber } from "@carma-commons/utils/number-format";
+
 import type {
   HashCodec,
   HashCodecs,
@@ -9,7 +10,6 @@ import {
   SCENE_VIEW_STATE_HASH_KEYS,
   SCENE_VIEW_STATE_HASH_KEY_ORDER,
 } from "./hashKeys";
-
 export const sceneViewStateHashKeyAliases: HashKeyAliases =
   SCENE_VIEW_STATE_HASH_KEY_ALIASES;
 

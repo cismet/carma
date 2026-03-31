@@ -7,18 +7,24 @@ import {
   type CSSProperties,
   type ReactNode,
 } from "react";
+
+import { DeleteOutlined, PlusOutlined } from "@ant-design/icons";
+import { Button, Radio } from "antd";
 import L from "leaflet";
 import maplibregl from "maplibre-gl";
 import type { Map as MapLibreMap, StyleSpecification } from "maplibre-gl";
-import { Button, Radio } from "antd";
-import { DeleteOutlined, PlusOutlined } from "@ant-design/icons";
+
+import { WUPPERTAL } from "@carma-commons/resources";
 import {
   FROSTED_GLASS_BLUR_PRESET,
   ResponsiveStatusBar,
   readFrostedGlassBackdropStyle,
   readFrostedGlassShadowStyle,
 } from "@carma-commons/ui/components";
-import { WUPPERTAL } from "@carma-commons/resources";
+import {
+  transitionToCesium,
+  transitionToLeaflet,
+} from "@carma-mapping/engines-interop/leaflet-cesium";
 import {
   useViewState,
   useViewStateControllerId,
@@ -27,11 +33,8 @@ import {
   useLeafletRuntimeBridge,
   type ViewState,
 } from "@carma-mapping/engines-interop/view-state";
-import {
-  transitionToCesium,
-  transitionToLeaflet,
-} from "@carma-mapping/engines-interop/leaflet-cesium";
 import { type CesiumWidget } from "@carma/cesium";
+
 import {
   initializeCesium,
   initializeTerrainProviders,
@@ -43,18 +46,17 @@ import {
   readStoryCesiumScene,
   requestStoryCesiumRender,
 } from "../../shared/cesiumRuntimeGuards";
-import {
-  buildPanelStatusText,
-  DEFAULT_STATUS_BAR_DELIMITER,
-  formatMappingEngineStatusFromViewState,
-  ViewSyncMetaOverlay,
-} from "./ViewSyncStoryUi";
+import { ViewSyncRuntimeNavigationControls } from "./controls/view-sync-runtime-navigation-controls";
 import {
   CARMA_STORY_MAPPING_ENGINES,
   STORY_MAPPING_ENGINE_OPTIONS,
   type StoryMappingEngine,
 } from "./mappingEngines";
-import { ViewSyncRuntimeNavigationControls } from "./controls/view-sync-runtime-navigation-controls";
+import {
+  useContainerResize,
+  useDeferredBootReady,
+  useElementWidth,
+} from "./viewSyncStoryHooks";
 import {
   GEO_PORTAL_MAPLIBRE_STYLE,
   INITIAL_SLOT_BOOT_DELAY_STEP_MS,
@@ -82,11 +84,11 @@ import {
   type SlotViewSyncHandle,
 } from "./viewSyncStoryShared";
 import {
-  useContainerResize,
-  useDeferredBootReady,
-  useElementWidth,
-} from "./viewSyncStoryHooks";
-
+  buildPanelStatusText,
+  DEFAULT_STATUS_BAR_DELIMITER,
+  formatMappingEngineStatusFromViewState,
+  ViewSyncMetaOverlay,
+} from "./ViewSyncStoryUi";
 const MappingEnginePanel = ({
   slot,
   activeRuntimeEngine,

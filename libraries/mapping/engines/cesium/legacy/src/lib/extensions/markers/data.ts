@@ -12,9 +12,7 @@ import type {
   MarkerModelAsset,
   PolylineConfig,
 } from "./index.d";
-
 import { createOrUpdateStemline } from "./stemline";
-
 const defaultMarkerOptions = {
   id: "selected3dmarker",
 } as const;

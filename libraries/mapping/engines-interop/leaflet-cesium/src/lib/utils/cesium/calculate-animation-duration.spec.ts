@@ -1,6 +1,6 @@
-import { calculateAnimationDuration } from "./calculate-animation-duration";
 import type { Camera } from "@carma/cesium";
 
+import { calculateAnimationDuration } from "./calculate-animation-duration";
 // Mock camera with deviation angle
 const createMockCamera = (deviationAngleRadians: number): Camera => {
   // Calculate direction vector based on deviation angle from top-down

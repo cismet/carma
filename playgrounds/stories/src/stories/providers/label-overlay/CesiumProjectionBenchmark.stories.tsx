@@ -8,7 +8,34 @@ import {
   type ReactNode,
   type RefObject,
 } from "react";
+
 import type { Meta, StoryObj } from "@storybook/react";
+import {
+  Matrix4,
+  OrthographicCamera,
+  Scene as ThreeScene,
+  Vector3,
+  Vector4,
+} from "three";
+import {
+  CSS2DObject,
+  CSS2DRenderer,
+} from "three/examples/jsm/renderers/CSS2DRenderer.js";
+
+import { ResponsiveStatusBar } from "@carma-commons/ui/components";
+import {
+  cartesian3FromGeographicCoordinate,
+  isPointOccluded,
+} from "@carma-mapping/engines/cesium/api";
+import {
+  CESIUM_LABEL_OVERLAY_FRAME_PHASES,
+  useCesiumLabelOverlayHost,
+  useCesiumViewProjector,
+} from "@carma-mapping/engines/cesium/react/interactions";
+import {
+  LabelOverlayProvider,
+  useLabelOverlay,
+} from "@carma-providers/label-overlay";
 import {
   BoundingSphere,
   Cartesian2,
@@ -21,31 +48,7 @@ import {
   type CesiumWidget,
   type Scene,
 } from "@carma/cesium";
-import { ResponsiveStatusBar } from "@carma-commons/ui/components";
-import {
-  LabelOverlayProvider,
-  useLabelOverlay,
-} from "@carma-providers/label-overlay";
-import {
-  CESIUM_LABEL_OVERLAY_FRAME_PHASES,
-  useCesiumLabelOverlayHost,
-  useCesiumViewProjector,
-} from "@carma-mapping/engines/cesium/react/interactions";
-import {
-  Matrix4,
-  OrthographicCamera,
-  Scene as ThreeScene,
-  Vector3,
-  Vector4,
-} from "three";
-import {
-  CSS2DObject,
-  CSS2DRenderer,
-} from "three/examples/jsm/renderers/CSS2DRenderer.js";
-import {
-  cartesian3FromGeographicCoordinate,
-  isPointOccluded,
-} from "@carma-mapping/engines/cesium/api";
+
 import { setupCesium } from "../../map-engine-switcher/helpers/cesium-setup";
 import { requestStoryCesiumRender } from "../../shared/cesiumRuntimeGuards";
 import {
@@ -54,7 +57,6 @@ import {
 } from "./useStoryPerformanceStatus";
 
 import "cesium/Build/Cesium/Widgets/widgets.css";
-
 type BenchmarkOverlayRenderer =
   | "provider-portals"
   | "canvas-2d"

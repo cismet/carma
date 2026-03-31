@@ -13,7 +13,6 @@ import {
 } from "@carma-mapping/annotations/core";
 
 import { resolveAnnotationInfoBoxSubject } from "./resolveAnnotationInfoBoxSubject";
-
 const createPointMeasurement = (
   id: string,
   {

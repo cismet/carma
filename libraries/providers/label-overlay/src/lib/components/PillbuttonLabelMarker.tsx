@@ -1,11 +1,10 @@
 import React, { useLayoutEffect, useMemo, useRef, useState } from "react";
-import type { PointLabelAttach } from "../core/pointLabelAttach";
 
+import type { PointLabelAttach } from "../core/pointLabelAttach";
 import {
   resolvePillbuttonMountSide,
   type PillbuttonMountSide,
 } from "./PointLabelMarker";
-
 export const PILLBUTTON_BADGE_POSITIONS = {
   LEFT: "left",
   RIGHT: "right",

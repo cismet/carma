@@ -1,12 +1,13 @@
 import { describe, expect, it } from "vitest";
+
 import { CAMERA_TYPE } from "@carma-commons/camera/model";
 import { degToRadNumeric } from "@carma/units/helpers";
 import type { Radians } from "@carma/units/types";
+
 import {
   isMapViewEqualToTarget,
   readMapLibrePerspectiveIntrinsics,
 } from "./viewUtils";
-
 const radians = (degrees: number): Radians =>
   degToRadNumeric(degrees)! as Radians;
 

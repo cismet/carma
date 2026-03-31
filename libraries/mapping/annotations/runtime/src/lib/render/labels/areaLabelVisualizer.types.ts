@@ -1,12 +1,10 @@
-import type { Cartesian3Json, Matrix4ConstructorArgs } from "@carma/cesium";
 import {
   type AreaLabelText,
   type NodeChainAnnotation,
   type PolygonPreviewGroup,
 } from "@carma-mapping/annotations/core";
-
+import type { Cartesian3Json, Matrix4ConstructorArgs } from "@carma/cesium";
 import type { CssPixelPosition } from "@carma/units/types";
-
 export type PolygonAreaBadge = {
   text: string;
   backgroundColor?: string;

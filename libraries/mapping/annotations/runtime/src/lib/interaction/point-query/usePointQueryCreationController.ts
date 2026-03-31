@@ -1,15 +1,6 @@
 import { useCallback, type Dispatch, type SetStateAction } from "react";
 
 import {
-  Cartesian2,
-  Cartesian3,
-  getDegreesFromCartesian,
-  getEllipsoidalAltitudeOrZero,
-  getLocalUpDirectionAtPosition,
-  isValidScene,
-  type Scene,
-} from "@carma/cesium";
-import {
   ANNOTATION_TYPE_DISTANCE,
   ANNOTATION_TYPE_POINT,
   type ActivePointCreateConfig,
@@ -18,14 +9,22 @@ import {
   type AnnotationCollection,
   type AnnotationEntry,
 } from "@carma-mapping/annotations/core";
-import { useSessionPointCreation } from "../create/useSessionCreation";
-
 import {
   useCesiumPointQuery,
   type CesiumPointQueryCreatePayload,
 } from "@carma-mapping/engines/cesium/react/interactions";
-import { pickPolygonGroupId } from "../../selection/useSelection";
+import {
+  Cartesian2,
+  Cartesian3,
+  getDegreesFromCartesian,
+  getEllipsoidalAltitudeOrZero,
+  getLocalUpDirectionAtPosition,
+  isValidScene,
+  type Scene,
+} from "@carma/cesium";
 
+import { useSessionPointCreation } from "../create/useSessionCreation";
+import { pickPolygonGroupId } from "../../selection/useSelection";
 type PointCreatePayload = {
   geometryPositionECEF: Cartesian3;
   anchorPositionECEF: Cartesian3;

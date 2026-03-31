@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 
 import { Tooltip } from "antd";
-import { type Scene } from "@carma/cesium";
+
 import { CarmaResponsiveInfoBox } from "@carma-commons/ui/components";
 import {
   SELECT_TOOL_TYPE,
@@ -10,9 +10,6 @@ import {
   renderAnnotationShortcutGlyph,
   resolveAnnotationToolShortcutTarget,
 } from "@carma-mapping/annotations/core";
-import { formatLatLonDegrees } from "@carma/units/helpers";
-import type { Degrees } from "@carma/units/types";
-
 import {
   AnnotationsProvider,
   RuntimeAnnotationInfoBox,
@@ -25,15 +22,17 @@ import {
   AnnotationsToolbarItem,
   AnnotationsToolbarSeparator,
 } from "@carma-mapping/components";
-import { ControlLayout } from "@carma-mapping/map-controls-layout";
 import { useCesiumLabelOverlayHost } from "@carma-mapping/engines/cesium/react/interactions";
+import { ControlLayout } from "@carma-mapping/map-controls-layout";
 import { LabelOverlayProvider } from "@carma-providers/label-overlay";
+import { type Scene } from "@carma/cesium";
+import { formatLatLonDegrees } from "@carma/units/helpers";
+import type { Degrees } from "@carma/units/types";
 
 import type { PlaygroundRuntimePageProps } from "../playground.types";
 import { CesiumNavigationOverlay } from "./CesiumNavigationOverlay";
 import { CesiumWidgetContainer } from "./CesiumWidgetContainer";
 import { PlaygroundStatusBar } from "./PlaygroundStatusBar";
-
 const formatCoordinate = (value: number, digits: number) =>
   Number.isFinite(value) ? value.toFixed(digits) : "0";
 

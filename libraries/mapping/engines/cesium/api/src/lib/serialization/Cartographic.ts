@@ -1,7 +1,7 @@
 import { Altitude } from "@carma/geo/types";
 import { Radians } from "@carma/units/types";
-import { Cartographic } from "../cesium";
 
+import { Cartographic } from "../cesium";
 export type CartographicJson = Pick<
   Cartographic,
   "latitude" | "longitude" | "height"

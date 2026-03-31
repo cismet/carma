@@ -1,7 +1,6 @@
 import { CarmaResponsiveInfoBox } from "@carma-commons/ui/components";
 
 import { usePayload } from "./usePayload";
-
 type AnnotationInfoBoxProps = {
   pixelWidth?: number;
   useControlLayout?: boolean;

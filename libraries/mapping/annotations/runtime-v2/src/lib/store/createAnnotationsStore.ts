@@ -4,6 +4,7 @@ import {
   type PayloadAction,
 } from "@reduxjs/toolkit";
 
+import type { RuntimeToolId } from "../types/runtimeTool.types";
 import type {
   AnnotationsStoreState,
   RuntimeCoordinate,
@@ -11,8 +12,6 @@ import type {
   RuntimeEdge,
   RuntimeNode,
 } from "./annotationsStore.types";
-import type { RuntimeToolId } from "../types/runtimeTool.types";
-
 export type CreateInitialAnnotationsStoreStateOptions = {
   initialToolType?: RuntimeToolId;
   initialSelectionModeActive?: boolean;

@@ -1,7 +1,6 @@
+import type { LineVisualizerData } from "./lineVisualizers.types";
 import { useLineLabelVisualizers } from "./useLineLabelVisualizers";
 import { useLineSegmentVisualizers } from "./useLineSegmentVisualizers";
-import type { LineVisualizerData } from "./lineVisualizers.types";
-
 export type { LineVisualizerData } from "./lineVisualizers.types";
 
 export const useLineVisualizers = (

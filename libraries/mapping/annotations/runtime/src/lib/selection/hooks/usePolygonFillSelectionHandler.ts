@@ -7,7 +7,6 @@ import {
   isValidScene,
   type Scene,
 } from "@carma/cesium";
-
 type UsePolygonFillSelectionHandlerParams = {
   scene: Scene;
   selectionModeActive: boolean;

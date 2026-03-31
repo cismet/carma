@@ -32,9 +32,9 @@ export const initializeLeaflet = (
     options.zoomDelta > 0
       ? options.zoomDelta
       : typeof options.zoomSnap === "number" &&
-          Number.isFinite(options.zoomSnap) &&
-          options.zoomSnap > 0
-        ? options.zoomSnap
+        Number.isFinite(options.zoomSnap) &&
+        options.zoomSnap > 0
+      ? options.zoomSnap
       : null;
   const allowFractionalZoom =
     options.allowFractionalZoom === true ||

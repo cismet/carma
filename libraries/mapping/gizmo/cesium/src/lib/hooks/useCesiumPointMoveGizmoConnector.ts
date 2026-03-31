@@ -6,7 +6,6 @@ import type {
   CesiumGizmoPoint,
   UseCesiumPointMoveGizmoOptions,
 } from "./useCesiumPointMoveGizmo";
-
 const DEFAULT_MOVE_POINT_ID = "demo-point";
 
 export type UseCesiumPointMoveGizmoConnectorOptions = {

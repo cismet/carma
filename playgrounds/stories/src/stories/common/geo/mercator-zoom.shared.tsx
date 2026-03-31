@@ -1,12 +1,11 @@
 import {
-  DEFAULT_LEAFLET_TILESIZE,
-  EARTH_CIRCUMFERENCE,
-  WEB_MERCATOR_MAX_LATITUDE_DEG,
-  metersPerPixel,
-  mercatorZoomFromDistanceAtLatitudeDeg,
-} from "@carma/geo/utils";
-import { degToRadNumeric } from "@carma/units/helpers";
-import type { Degrees, Meters, Radians } from "@carma/units/types";
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type MouseEvent as ReactMouseEvent,
+} from "react";
+
 import {
   axisBottom,
   axisLeft,
@@ -21,16 +20,19 @@ import {
   scaleSequential,
   select,
 } from "d3";
+
 import {
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-  type MouseEvent as ReactMouseEvent,
-} from "react";
-import { GEO_STORY_STYLES } from "./geo-story-styles";
+  DEFAULT_LEAFLET_TILESIZE,
+  EARTH_CIRCUMFERENCE,
+  WEB_MERCATOR_MAX_LATITUDE_DEG,
+  metersPerPixel,
+  mercatorZoomFromDistanceAtLatitudeDeg,
+} from "@carma/geo/utils";
+import { degToRadNumeric } from "@carma/units/helpers";
+import type { Degrees, Meters, Radians } from "@carma/units/types";
+
 import { GeoChartStoryFrame } from "./geo-chart-story-frame";
-import { VerticalPlotReferenceLine } from "./plot-reference-line";
+import { GEO_STORY_STYLES } from "./geo-story-styles";
 import {
   createPrimaryYAxisReadoutLabel,
   createBottomXAxisReadoutLabel,
@@ -40,7 +42,7 @@ import {
   readPrimaryYAxisTitleX,
   readSampleAnchoredTooltipBox,
 } from "./plot-hover-readout";
-
+import { VerticalPlotReferenceLine } from "./plot-reference-line";
 export type MercatorZoomStoryArgs = {
   standardRangePreset: StandardRangePreset;
   standardRangeCustom: number;
@@ -1332,9 +1334,7 @@ export const MercatorZoomLatitudeResolutionHeatmap = ({
             text: `${formatDegrees(
               readout.fovDeg,
               readout.fovDeg >= 10 ? ".0f" : ".1f"
-            )} · ${formatResolutionAxisValue(
-              readout.centerResolutionMPerPx
-            )}`,
+            )} · ${formatResolutionAxisValue(readout.centerResolutionMPerPx)}`,
             y: HEATMAP_MARGIN.top + readout.plotY,
             width: HEATMAP_Y_READOUT_WIDTH,
           });
@@ -1356,7 +1356,9 @@ export const MercatorZoomLatitudeResolutionHeatmap = ({
               plotX={readout.plotX}
               plotY={readout.plotY}
               showGuides
-              guideLeftX={readGuideLeftXFromPrimaryYAxisReadout(yAxisValueLabel)}
+              guideLeftX={readGuideLeftXFromPrimaryYAxisReadout(
+                yAxisValueLabel
+              )}
               guideBottomY={readGuideBottomYFromBottomXAxisReadout(
                 xAxisValueLabel
               )}
@@ -1406,22 +1408,24 @@ export const MercatorZoomLatitudeResolutionHeatmap = ({
                   plotX={hoverReadout.plotX}
                   plotY={hoverReadout.plotY}
                   showGuides
-                  guideLeftX={readGuideLeftXFromPrimaryYAxisReadout(yAxisValueLabel)}
+                  guideLeftX={readGuideLeftXFromPrimaryYAxisReadout(
+                    yAxisValueLabel
+                  )}
                   guideBottomY={readGuideBottomYFromBottomXAxisReadout(
                     xAxisValueLabel
                   )}
                   axisValueLabels={[xAxisValueLabel, yAxisValueLabel]}
-              tooltip={{
-                x: HEATMAP_MARGIN.left + readoutBox.x,
-                y: HEATMAP_MARGIN.top + readoutBox.y,
-                width: readoutBox.width,
-                height: readoutBox.height,
-                anchorAttach: "left",
-                anchorAtSemicircleCenter: true,
-                children: (
-                  <span>{d3Format(".2f")(hoverReadout.displayZoom)}</span>
-                ),
-              }}
+                  tooltip={{
+                    x: HEATMAP_MARGIN.left + readoutBox.x,
+                    y: HEATMAP_MARGIN.top + readoutBox.y,
+                    width: readoutBox.width,
+                    height: readoutBox.height,
+                    anchorAttach: "left",
+                    anchorAtSemicircleCenter: true,
+                    children: (
+                      <span>{d3Format(".2f")(hoverReadout.displayZoom)}</span>
+                    ),
+                  }}
                 />
               );
             })()
@@ -1865,7 +1869,9 @@ export const MercatorZoomLatitudeRangeHeatmap = ({
               plotX={readout.plotX}
               plotY={readout.plotY}
               showGuides
-              guideLeftX={readGuideLeftXFromPrimaryYAxisReadout(yAxisValueLabel)}
+              guideLeftX={readGuideLeftXFromPrimaryYAxisReadout(
+                yAxisValueLabel
+              )}
               guideBottomY={readGuideBottomYFromBottomXAxisReadout(
                 xAxisValueLabel
               )}
@@ -1910,22 +1916,24 @@ export const MercatorZoomLatitudeRangeHeatmap = ({
                   plotX={hoverReadout.plotX}
                   plotY={hoverReadout.plotY}
                   showGuides
-                  guideLeftX={readGuideLeftXFromPrimaryYAxisReadout(yAxisValueLabel)}
+                  guideLeftX={readGuideLeftXFromPrimaryYAxisReadout(
+                    yAxisValueLabel
+                  )}
                   guideBottomY={readGuideBottomYFromBottomXAxisReadout(
                     xAxisValueLabel
                   )}
                   axisValueLabels={[xAxisValueLabel, yAxisValueLabel]}
-              tooltip={{
-                x: RANGE_HEATMAP_MARGIN.left + readoutBox.x,
-                y: RANGE_HEATMAP_MARGIN.top + readoutBox.y,
-                width: readoutBox.width,
-                height: readoutBox.height,
-                anchorAttach: "left",
-                anchorAtSemicircleCenter: true,
-                children: (
-                  <span>{d3Format(".2f")(hoverReadout.displayZoom)}</span>
-                ),
-              }}
+                  tooltip={{
+                    x: RANGE_HEATMAP_MARGIN.left + readoutBox.x,
+                    y: RANGE_HEATMAP_MARGIN.top + readoutBox.y,
+                    width: readoutBox.width,
+                    height: readoutBox.height,
+                    anchorAttach: "left",
+                    anchorAtSemicircleCenter: true,
+                    children: (
+                      <span>{d3Format(".2f")(hoverReadout.displayZoom)}</span>
+                    ),
+                  }}
                 />
               );
             })()
@@ -2266,7 +2274,9 @@ export const MercatorZoomLatitudeLinePlot = ({
               plotX={readout.plotX}
               plotY={readout.plotY}
               showGuides
-              guideLeftX={readGuideLeftXFromPrimaryYAxisReadout(yAxisValueLabel)}
+              guideLeftX={readGuideLeftXFromPrimaryYAxisReadout(
+                yAxisValueLabel
+              )}
               guideBottomY={readGuideBottomYFromBottomXAxisReadout(
                 xAxisValueLabel
               )}
@@ -2311,22 +2321,24 @@ export const MercatorZoomLatitudeLinePlot = ({
                   plotX={hoverReadout.plotX}
                   plotY={hoverReadout.plotY}
                   showGuides
-                  guideLeftX={readGuideLeftXFromPrimaryYAxisReadout(yAxisValueLabel)}
+                  guideLeftX={readGuideLeftXFromPrimaryYAxisReadout(
+                    yAxisValueLabel
+                  )}
                   guideBottomY={readGuideBottomYFromBottomXAxisReadout(
                     xAxisValueLabel
                   )}
                   axisValueLabels={[xAxisValueLabel, yAxisValueLabel]}
-              tooltip={{
-                x: LINE_MARGIN.left + readoutBox.x,
-                y: LINE_MARGIN.top + readoutBox.y,
-                width: readoutBox.width,
-                height: readoutBox.height,
-                anchorAttach: "left",
-                anchorAtSemicircleCenter: true,
-                children: (
-                  <span>{d3Format(".2f")(hoverReadout.displayZoom)}</span>
-                ),
-              }}
+                  tooltip={{
+                    x: LINE_MARGIN.left + readoutBox.x,
+                    y: LINE_MARGIN.top + readoutBox.y,
+                    width: readoutBox.width,
+                    height: readoutBox.height,
+                    anchorAttach: "left",
+                    anchorAtSemicircleCenter: true,
+                    children: (
+                      <span>{d3Format(".2f")(hoverReadout.displayZoom)}</span>
+                    ),
+                  }}
                 />
               );
             })()

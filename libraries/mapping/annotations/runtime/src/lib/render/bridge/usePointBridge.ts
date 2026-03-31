@@ -22,13 +22,12 @@ import {
   isPointAnnotationEntry,
 } from "@carma-mapping/annotations/core";
 
-import { useLockedAnnotationIdSet } from "../../annotation-entries/hooks/useLockedAnnotationIdSet";
 import {
   usePointMarkerBadges,
   type AnnotationPointMarkerBadge,
   type NodeChainBadgeKind,
 } from "../point/usePointMarkerBadges";
-
+import { useLockedAnnotationIdSet } from "../../annotation-entries/hooks/useLockedAnnotationIdSet";
 export const isPointVisibleForRendering = (
   annotation: PointAnnotationEntry,
   hideMeasurementsOfType: ReadonlySet<AnnotationMode>,

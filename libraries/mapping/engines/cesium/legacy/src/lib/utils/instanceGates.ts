@@ -19,7 +19,6 @@ import {
 } from "cesium";
 
 import { logOnce } from "@carma-commons/utils";
-
 logOnce("instanceGates.ts deprecates use @carma/cesium imports");
 
 export const isValidViewerInstance = (viewer: unknown): viewer is Viewer =>

@@ -1,7 +1,6 @@
 import type { CssPixelPosition } from "@carma/units/types";
 
 import type { PointLabelAttach } from "./pointLabelAttach";
-
 const GEOMETRY_EPSILON = 1e-6;
 
 export const estimatePillCapRadiusPx = (fontSizePx: number): number =>

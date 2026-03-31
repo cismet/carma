@@ -1,4 +1,3 @@
-import { isFiniteNumber } from "@carma/math";
 import {
   buildOrientationQuaternionFromWorldCameraBasisAtAnchor,
   localYUpSceneDirectionToWorldDirectionAtAnchor,
@@ -15,9 +14,10 @@ import {
   setViewFromCameraState,
   toSceneStateVec3,
 } from "@carma-mapping/engines/cesium/api";
+import { isFiniteNumber } from "@carma/math";
+
 import { buildViewStateFromEcef } from "../core/construct";
 import type { ViewState, ViewStateMetadata } from "../core/types";
-
 type SceneFrameStateLike = {
   frameState?: { frameNumber?: number };
 };

@@ -11,7 +11,6 @@ import {
   getSignedPolygonArea2d,
   getSupportRadius2d,
 } from "./geometry2d";
-
 const sortPoints = (
   points: readonly {
     x: number;

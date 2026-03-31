@@ -1,4 +1,8 @@
 import { clamp, shortestAngleDelta } from "@carma/math";
+import { degToRadNumeric, PI_OVER_TWO } from "@carma/units/helpers";
+import type { Radians } from "@carma/units/types";
+
+import { applyRollToHeadingForCameraNearNadir } from "../camera";
 import {
   Cartesian3,
   Ellipsoid,
@@ -8,11 +12,7 @@ import {
   type Camera,
   type Scene,
 } from "../../cesium";
-import { applyRollToHeadingForCameraNearNadir } from "../camera";
-import { degToRadNumeric, PI_OVER_TWO } from "@carma/units/helpers";
-import type { Radians } from "@carma/units/types";
 import { readCachedCesiumSceneCenter } from "./per-frame-cache";
-
 export type CesiumCompassNeedleOrientationDeg = {
   headingDeg: number;
   pitchDeg: number;

@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { CSSProperties, RefObject } from "react";
-import type { CssPixelPosition } from "@carma/units/types";
+
 import { DraggableDebugAnchor } from "@carma-commons/interaction/drag";
 import {
   computePolygonSegmentLabelPlacements,
@@ -22,8 +22,9 @@ import {
   useLabelOverlayHost,
   useLineVisualizers,
 } from "@carma-providers/label-overlay";
-import { CenteredStoryFrame } from "../../common/ui/centered-story-frame";
+import type { CssPixelPosition } from "@carma/units/types";
 
+import { CenteredStoryFrame } from "../../common/ui/centered-story-frame";
 const plotFrameStyle: CSSProperties = {
   position: "relative",
   width: "100%",

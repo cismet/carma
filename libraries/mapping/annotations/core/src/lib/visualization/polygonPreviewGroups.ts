@@ -7,7 +7,6 @@ import {
   ANNOTATION_TYPE_POLYLINE,
 } from "../types/annotationTypes";
 import type { NodeChainAnnotation } from "../types/annotationTypes";
-import { buildVerticalRectangleCornerFromDiagonal } from "./verticalRectangleGeometry";
 import type {
   VerticalPreviewCornerMarker,
   VerticalPreviewEdgeSegment,
@@ -15,7 +14,7 @@ import type {
   PolygonPreviewGroup,
   PolygonPreviewGroupsBySurface,
 } from "./previewGeometry.types";
-
+import { buildVerticalRectangleCornerFromDiagonal } from "./verticalRectangleGeometry";
 export const buildPolygonPreviewGroups = ({
   nodeChainAnnotations,
   pointsById,

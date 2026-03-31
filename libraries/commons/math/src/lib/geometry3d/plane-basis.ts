@@ -1,6 +1,6 @@
 import { Vector3 } from "three";
-import { VECTOR3_NUMERIC_EPSILON } from "./constants";
 
+import { VECTOR3_NUMERIC_EPSILON } from "./constants";
 export const createPlaneBasisFromNormal = (
   normal: Vector3,
   epsilon: number = VECTOR3_NUMERIC_EPSILON

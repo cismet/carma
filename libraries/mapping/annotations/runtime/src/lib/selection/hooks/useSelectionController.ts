@@ -7,21 +7,20 @@ import {
   type SetStateAction,
 } from "react";
 
+import { getUniqueIds } from "@carma-mapping/annotations/core";
 import { type Scene } from "@carma/cesium";
 
-import { getUniqueIds } from "@carma-mapping/annotations/core";
-import type { RectangleSelectionState } from "./useRectangleSelectionOverlay";
 import type { AnnotationSelectionState } from "../types/annotationSelection.types";
+import { replaceAnnotationsStoreState, useStoreSelector } from "../../store";
 import type {
   AnnotationSelectionStoreState,
   AnnotationsStore,
 } from "../../store";
-import { replaceAnnotationsStoreState, useStoreSelector } from "../../store";
 import {
   areStringListsEqual,
   resolveSetStateAction,
 } from "../../store/stateUpdateUtils";
-
+import type { RectangleSelectionState } from "./useRectangleSelectionOverlay";
 const getPrimarySelectedAnnotationId = (
   selectedAnnotationIds: readonly string[]
 ): string | null =>

@@ -8,14 +8,17 @@ import {
   type ReactNode,
 } from "react";
 
-import {
-  Cartesian2,
-  Cartesian3,
-  getDegreesFromCartesian,
-  type Scene,
-} from "@carma/cesium";
 import { createSvgLineVisualizers } from "@carma-commons/svg";
-
+import {
+  DEFAULT_POINT_LABEL_METRIC_MODE,
+  getCustomPointAnnotationName,
+  type PlanarPolygonPlane,
+  type PointAnnotationEntry,
+  type PointLabelMetricMode,
+} from "@carma-mapping/annotations/core";
+import { projectCartesian3JsonToScreen } from "@carma-mapping/engines/cesium/api";
+import { useCesiumOverlayView } from "@carma-mapping/engines/cesium/react/interactions";
+import { useCesiumSceneVisibilityIndex } from "@carma-mapping/engines/cesium/react/visibility";
 import {
   computePointLabelLayout,
   resolvePointLabelLayoutConfig,
@@ -26,26 +29,21 @@ import {
   type PointLabelLayoutConfigOverrides,
   type PointLabelLayoutResult,
 } from "@carma-providers/label-overlay";
-import type { CssPixelPosition } from "@carma/units/types";
 import {
-  DEFAULT_POINT_LABEL_METRIC_MODE,
-  getCustomPointAnnotationName,
-  type PlanarPolygonPlane,
-  type PointAnnotationEntry,
-  type PointLabelMetricMode,
-} from "@carma-mapping/annotations/core";
+  Cartesian2,
+  Cartesian3,
+  getDegreesFromCartesian,
+  type Scene,
+} from "@carma/cesium";
 import {
   formatDecimalNumber,
   formatLengthMeters,
   LENGTH_UNIT_MODE,
 } from "@carma/units/helpers";
+import type { CssPixelPosition } from "@carma/units/types";
+
 import type { AnnotationPointMarkerBadge } from "../useRender";
 import type { AnnotationSelectionState } from "../../selection/types/annotationSelection.types";
-
-import { projectCartesian3JsonToScreen } from "@carma-mapping/engines/cesium/api";
-import { useCesiumOverlayView } from "@carma-mapping/engines/cesium/react/interactions";
-import { useCesiumSceneVisibilityIndex } from "@carma-mapping/engines/cesium/react/visibility";
-
 const ELEVATION_NEUTRAL_THRESHOLD_METERS = 0.03;
 const REFERENCE_POINT_DISTANCE_EPSILON_METERS = 0.001;
 const GLYPH_SIZE_EM = 1;

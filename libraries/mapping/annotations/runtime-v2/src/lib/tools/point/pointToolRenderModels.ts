@@ -11,7 +11,6 @@ import {
   resolveMeasurementCoordinates,
 } from "../../render/resolveMeasurementCoordinates";
 import type { PointToolVisualSettings } from "./pointToolSettings";
-
 type BuildPointToolRenderModelsArgs = {
   toolType: RuntimeMeasurement["toolType"];
   visuals: PointToolVisualSettings;

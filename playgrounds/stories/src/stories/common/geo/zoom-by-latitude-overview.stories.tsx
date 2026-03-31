@@ -1,4 +1,5 @@
 import type { Meta, StoryObj } from "@storybook/react";
+
 import {
   BASE_TILE_SIZES_PX,
   DEFAULT_STANDARD_RANGE_M,
@@ -9,7 +10,6 @@ import {
   type MercatorZoomStoryArgs,
   Z_QUANTIZE_STEPS,
 } from "./mercator-zoom.shared";
-
 const meta: Meta<MercatorZoomStoryArgs> = {
   title: "Geo",
   component: MercatorZoomPlots,

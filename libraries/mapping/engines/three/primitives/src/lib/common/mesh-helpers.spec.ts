@@ -1,4 +1,3 @@
-import { describe, expect, it } from "vitest";
 import {
   BufferGeometry,
   Mesh,
@@ -6,11 +5,12 @@ import {
   type BufferAttribute,
   Vector3,
 } from "three";
+import { describe, expect, it } from "vitest";
+
 import {
   setCoplanarConvexPolygonMeshGeometry,
   setQuadMeshGeometry,
 } from "./mesh-helpers";
-
 const createTestMesh = () =>
   new Mesh(new BufferGeometry(), new MeshBasicMaterial());
 

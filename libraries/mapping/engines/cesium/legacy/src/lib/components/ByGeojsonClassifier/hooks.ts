@@ -1,3 +1,5 @@
+import { useEffect, useRef } from "react";
+
 import {
   Color,
   ColorGeometryInstanceAttribute,
@@ -5,11 +7,9 @@ import {
   ScreenSpaceEventHandler,
   ScreenSpaceEventType,
 } from "@carma/cesium";
-import { useEffect, useRef } from "react";
 
 import { CesiumContextType } from "../../CesiumContext";
 import { pickFromClampedGeojson } from "../../utils/pick-position/pick-ground-primitive";
-
 interface PrimitiveColorState {
   primitive: GroundPrimitive;
   id: string;

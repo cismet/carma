@@ -1,4 +1,3 @@
-import type { LineSegments } from "three";
 import {
   BufferAttribute,
   Line,
@@ -8,7 +7,7 @@ import {
   type BufferGeometry,
   type Vector3,
 } from "three";
-
+import type { LineSegments } from "three";
 export type BasicLineObject = Line | LineLoop | LineSegments;
 
 const setEmptyBasicLineGeometry = (geometry: BufferGeometry): void => {

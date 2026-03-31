@@ -1,5 +1,8 @@
 import { useCallback, useMemo } from "react";
+import type { CSSProperties } from "react";
+
 import { Modal } from "antd";
+
 import {
   ANNOTATION_TYPE_DISTANCE,
   ANNOTATION_TYPE_POINT,
@@ -7,19 +10,18 @@ import {
   isPointAnnotationEntry,
   isPointMeasurementEntry,
 } from "@carma-mapping/annotations/core";
+
+import type { AnnotationModeToolbarProps } from "../AnnotationModeToolbar.types";
 import type { AnnotationToolManager } from "../annotationToolManager";
+import { useNodeChainAnnotations } from "../../../annotation-entries/hooks/useNodeChainAnnotationReadModel";
+import { findProtectedPolygonCandidateNodeIds } from "../../../interaction/lifecycle/modes/selectionDeletionPolicy";
 import {
   useCollection,
   useSelectionState,
   useSettings,
   useTools,
 } from "../../../store";
-import { useNodeChainAnnotations } from "../../../annotation-entries/hooks/useNodeChainAnnotationReadModel";
 import { useToolbarToolMode } from "./useToolbarToolMode";
-import type { AnnotationModeToolbarProps } from "../AnnotationModeToolbar.types";
-import type { CSSProperties } from "react";
-import { findProtectedPolygonCandidateNodeIds } from "../../../interaction/lifecycle/modes/selectionDeletionPolicy";
-
 type UseToolbarModelOptions = {
   pixelWidth?: number;
   toolManager?: AnnotationToolManager;

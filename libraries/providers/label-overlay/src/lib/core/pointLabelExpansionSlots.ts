@@ -1,8 +1,8 @@
 import { MINUS_PI_OVER_FOUR, TWO_PI } from "@carma/math";
 import { negativePiToPi, zeroToTwoPi } from "@carma/units/helpers";
 import type { CssPixelPosition, Radians } from "@carma/units/types";
-import type { PointLabelAttach } from "./pointLabelAttach";
 
+import type { PointLabelAttach } from "./pointLabelAttach";
 export type PointLabelExpansionSlotDescriptor = {
   id: string;
   offset: CssPixelPosition;

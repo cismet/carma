@@ -1,6 +1,5 @@
-import { Scene } from "../../cesium";
 import { isValidScene } from "../../carma-guards";
-
+import { Scene } from "../../cesium";
 /**
  * Validates a Scene and executes a callback if valid.
  */

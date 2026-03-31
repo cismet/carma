@@ -1,3 +1,5 @@
+import type { CssPixelPosition, CssPixels } from "@carma/units/types";
+
 import {
   Cartesian3,
   Cartographic,
@@ -7,9 +9,7 @@ import {
   type Cartesian2,
   type Scene,
 } from "../../cesium";
-import type { CssPixelPosition, CssPixels } from "@carma/units/types";
 import type { Cartesian3Json } from "../../serialization";
-
 export type CesiumGeographicCoordinate = {
   latitude: number;
   longitude: number;

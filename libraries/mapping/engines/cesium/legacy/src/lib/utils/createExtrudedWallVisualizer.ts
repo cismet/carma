@@ -1,3 +1,6 @@
+import type { Feature, FeatureCollection } from "geojson";
+
+import { Easing, type Easing as EasingFunction } from "@carma-commons/math";
 import {
   BoundingSphere,
   Color,
@@ -6,22 +9,18 @@ import {
   getBoundingSphereFromCoordinates,
   type Scene,
 } from "@carma/cesium";
-import type { Feature, FeatureCollection } from "geojson";
-import { Easing, type Easing as EasingFunction } from "@carma-commons/math";
-
 import { extractRingsFromGeoJson } from "@carma/geo/utils";
 
+import { createSelectionEdgePrimitive } from "./adhoc-primitives/create-selection-edge-primitive";
 import {
   createWallPrimitives,
   type WallPrimitiveSegment,
 } from "./adhoc-primitives/create-wall-primitives";
-import { createSelectionEdgePrimitive } from "./adhoc-primitives/create-selection-edge-primitive";
 import { animateOpacity } from "./animateOpacity";
 import {
   applyGeometryInstanceOpacity,
   readGeometryInstanceOpacity,
 } from "./geometryInstanceOpacity";
-
 // Default values
 const DEFAULT_WALL_HEIGHT_METERS = 15;
 const DEFAULT_OPACITY = 0.7;

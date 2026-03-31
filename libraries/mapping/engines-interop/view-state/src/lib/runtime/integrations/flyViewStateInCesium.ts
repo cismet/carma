@@ -1,14 +1,14 @@
 import { readLongerEdgeFovFromIntrinsics } from "@carma-commons/camera/model";
-import type { Radians } from "@carma/units/types";
 import {
   flyToCameraState,
   readSceneCameraIntrinsics,
   type Scene,
 } from "@carma-mapping/engines/cesium/api";
-import { readCesiumCameraStateFromViewState } from "../../adapters/cesium";
-import { resolveViewStateForViewport } from "../../core/viewport";
-import type { ViewState } from "../../core/types";
+import type { Radians } from "@carma/units/types";
 
+import { readCesiumCameraStateFromViewState } from "../../adapters/cesium";
+import type { ViewState } from "../../core/types";
+import { resolveViewStateForViewport } from "../../core/viewport";
 const readSceneLongerEdgeFov = (scene: Scene): Radians | undefined => {
   const camera = scene.camera;
   if (!camera) {

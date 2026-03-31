@@ -1,8 +1,7 @@
-import type { LatLng } from "@carma/geo/types";
-import type { Radians } from "@carma/units/types";
-import { EARTH_RADIUS } from "@carma/geo/utils";
 import { Cartographic, CesiumMath } from "@carma/cesium";
-
+import type { LatLng } from "@carma/geo/types";
+import { EARTH_RADIUS } from "@carma/geo/utils";
+import type { Radians } from "@carma/units/types";
 export const generatePositionsForRing = (
   n = 8,
   radius = 0.1,

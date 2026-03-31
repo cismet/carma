@@ -1,19 +1,20 @@
 import React, { useEffect, useRef, useState } from "react";
+
 import { MINUS_PI_OVER_FOUR } from "@carma/math";
 import type { CssPixelPosition } from "@carma/units/types";
-import type { PointLabelAttach } from "../core/pointLabelAttach";
+
 import {
   estimatePillCapRadiusPx,
   resolveSegmentEndOutsideCircle,
 } from "../core/pillConnectorGeometry";
-import { PointLabelMarker } from "./PointLabelMarker";
+import type { PointLabelAttach } from "../core/pointLabelAttach";
 import {
   PILLBUTTON_BADGE_POSITIONS,
   PillbuttonLabelMarker,
   type PillbuttonBadgePosition,
 } from "./PillbuttonLabelMarker";
+import { PointLabelMarker } from "./PointLabelMarker";
 import { PointLabelStem } from "./PointLabelStem";
-
 export type { PointLabelAttach } from "../core/pointLabelAttach";
 
 export interface PointLabelStyleProps {

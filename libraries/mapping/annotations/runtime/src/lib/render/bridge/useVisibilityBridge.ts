@@ -7,7 +7,6 @@ import {
   NodeChainAnnotation,
   PointDistanceRelation,
 } from "@carma-mapping/annotations/core";
-
 type UseVisibilityBridgeOptions = {
   selectedAnnotationId: string | null;
   pointIdsWithoutLabelAnchor: ReadonlySet<string>;

@@ -1,7 +1,5 @@
 import { useRef, useState } from "react";
 
-import { type Scene } from "@carma/cesium";
-
 import type { AnnotationEntry } from "@carma-mapping/annotations/core";
 import {
   AnnotationInfoBox,
@@ -11,14 +9,14 @@ import {
 } from "@carma-mapping/annotations/runtime";
 import { useCesiumLabelOverlayHost } from "@carma-mapping/engines/cesium/react/interactions";
 import { LabelOverlayProvider } from "@carma-providers/label-overlay";
+import { type Scene } from "@carma/cesium";
 
-import { INFOBOX_WIDTH_PX, readInitialToolType } from "../playgroundConfig";
 import type { PlaygroundRuntimePageProps } from "../playground.types";
+import { INFOBOX_WIDTH_PX, readInitialToolType } from "../playgroundConfig";
 import { CesiumNavigationOverlay } from "./CesiumNavigationOverlay";
 import { CesiumWidgetContainer } from "./CesiumWidgetContainer";
 import { PersistActiveToolMode } from "./PersistActiveToolMode";
 import { PlaygroundStatusBar } from "./PlaygroundStatusBar";
-
 const RuntimeToolbar = () => (
   <div
     style={{

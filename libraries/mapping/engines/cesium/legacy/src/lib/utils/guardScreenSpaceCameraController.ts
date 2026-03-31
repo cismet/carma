@@ -1,7 +1,7 @@
 // guardSSCC.ts
 import type { ScreenSpaceCameraController } from "cesium";
-import { isValidScreenSpaceCameraController } from "./instanceGates";
 
+import { isValidScreenSpaceCameraController } from "./instanceGates";
 export const guardScreenSpaceCameraController = (
   sscc: ScreenSpaceCameraController,
   label?: string

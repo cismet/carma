@@ -1,4 +1,5 @@
 import type { Scene } from "three";
+
 import type { ViewStateVisualizerImagePlaneGeometry } from "../../derived/camera-view-geometry";
 import type { ViewStateVisualizerSize } from "../../view-state-visualizer-types";
 import { createThreePart } from "../../../../common/create-part";
@@ -7,7 +8,6 @@ import { createFrustum } from "./frustum";
 import { createImagePlane } from "./image-plane";
 import { createImagePlaneAxes } from "./image-plane-axes";
 import { createProjectionPlane } from "./projection-plane";
-
 export type CameraViewDisplay = {
   showImagePlane: boolean;
   showImagePlaneOffset: boolean;

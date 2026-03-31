@@ -1,15 +1,14 @@
 import { useMemo } from "react";
 
-import type { Cartesian3 } from "@carma/cesium";
 import type {
   AnnotationCollection,
   LinearSegmentLineMode,
   NodeChainAnnotation,
 } from "@carma-mapping/annotations/core";
+import type { Cartesian3 } from "@carma/cesium";
 
-import { useCandidatePreviewState } from "./useCandidatePreviewState";
 import { useStoreSelector, type AnnotationsStore } from "../../store";
-
+import { useCandidatePreviewState } from "./useCandidatePreviewState";
 type UseToolCandidatePreviewParams = {
   annotationsStore: AnnotationsStore;
   referencePointMeasurementId: string | null;

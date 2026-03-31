@@ -6,22 +6,7 @@ import {
   type CSSProperties,
   type ReactNode,
 } from "react";
-import type { Meta, StoryObj } from "@storybook/react";
-import {
-  Cartesian3,
-  Cartographic,
-  sampleTerrainMostDetailedGuardedAsync,
-  type CesiumTerrainProvider,
-  type CesiumWidget,
-  type Scene,
-} from "@carma/cesium";
-import {
-  CarmaResponsiveInfoBox,
-  ResponsiveStatusBar,
-} from "@carma-commons/ui/components";
-import { degToRadNumeric, radToDegNumeric } from "@carma/units/helpers";
-import type { CssPixelPosition } from "@carma/units/types";
-import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
+
 import type { IconDefinition } from "@fortawesome/fontawesome-svg-core";
 import {
   faLandmark,
@@ -32,7 +17,19 @@ import {
   faFutbol,
   faSeedling,
 } from "@fortawesome/free-solid-svg-icons";
-import { requestStoryCesiumRender } from "../../shared/cesiumRuntimeGuards";
+import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
+import type { Meta, StoryObj } from "@storybook/react";
+
+import {
+  CarmaResponsiveInfoBox,
+  ResponsiveStatusBar,
+} from "@carma-commons/ui/components";
+import { cartesian3FromGeographicCoordinate } from "@carma-mapping/engines/cesium/api";
+import {
+  useCesiumLabelOverlayHost,
+  useCesiumOverlayView,
+} from "@carma-mapping/engines/cesium/react/interactions";
+import { useCesiumSceneVisibilityIndex } from "@carma-mapping/engines/cesium/react/visibility";
 import {
   LabelOverlayProvider,
   usePointLabels,
@@ -51,20 +48,25 @@ import {
   type LayoutPointInput,
   type PointLabelLayoutResult,
 } from "@carma-providers/label-overlay";
-import { cartesian3FromGeographicCoordinate } from "@carma-mapping/engines/cesium/api";
 import {
-  useCesiumLabelOverlayHost,
-  useCesiumOverlayView,
-} from "@carma-mapping/engines/cesium/react/interactions";
-import { useCesiumSceneVisibilityIndex } from "@carma-mapping/engines/cesium/react/visibility";
+  Cartesian3,
+  Cartographic,
+  sampleTerrainMostDetailedGuardedAsync,
+  type CesiumTerrainProvider,
+  type CesiumWidget,
+  type Scene,
+} from "@carma/cesium";
+import { degToRadNumeric, radToDegNumeric } from "@carma/units/helpers";
+import type { CssPixelPosition } from "@carma/units/types";
+
 import { setupCesium } from "../../map-engine-switcher/helpers/cesium-setup";
+import { requestStoryCesiumRender } from "../../shared/cesiumRuntimeGuards";
 import {
   formatStoryPerformanceLabel,
   useCesiumFramePerformanceStatus,
 } from "./useStoryPerformanceStatus";
 
 import "cesium/Build/Cesium/Widgets/widgets.css";
-
 type LandmarkLabelStoryArgs = {
   syncLabelPitchToCamera: boolean;
   fixedLabelPitchDeg: number;

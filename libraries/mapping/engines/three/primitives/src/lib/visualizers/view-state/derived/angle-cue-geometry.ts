@@ -1,10 +1,10 @@
 import { Vector3 } from "three";
+
 import {
   buildCirclePoints,
   buildPlanarArcPoints,
   PLANAR_CURVE_AXES,
 } from "../../../common/planar-curve-points";
-
 const WORLD_UP = new Vector3(0, 1, 0);
 const WORLD_EAST = new Vector3(1, 0, 0);
 const WORLD_NORTH = new Vector3(0, 0, -1);

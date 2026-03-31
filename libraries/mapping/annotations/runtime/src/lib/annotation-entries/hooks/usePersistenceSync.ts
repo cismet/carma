@@ -17,7 +17,6 @@ import {
   type NodeChainAnnotation,
   type PointDistanceRelation,
 } from "@carma-mapping/annotations/core";
-
 const PERSISTENCE_RESTORE_DELAY_MS = 250;
 
 type UsePersistenceSyncParams = {

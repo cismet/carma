@@ -1,5 +1,6 @@
 import { faVectorSquare } from "@fortawesome/free-solid-svg-icons";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
+
 import {
   ANNOTATION_TYPE_AREA_VERTICAL,
   DEFAULT_ANNOTATION_SHORT_LABEL_CONFIG,
@@ -24,7 +25,6 @@ import { resolveVerticalAreaToolKeyAction } from "./verticalAreaToolBindings";
 import { createVerticalAreaToolInfoBoxSlots } from "./verticalAreaToolInfoBoxSlots";
 import { buildVerticalAreaToolRenderModels } from "./verticalAreaToolRenderModels";
 import { createVerticalAreaToolSettings } from "./verticalAreaToolSettings";
-
 const toolType = ANNOTATION_TYPE_AREA_VERTICAL;
 const badgeStyle = DEFAULT_ANNOTATION_SHORT_LABEL_CONFIG[toolType];
 const verticalAreaToolSettings = createVerticalAreaToolSettings(badgeStyle);

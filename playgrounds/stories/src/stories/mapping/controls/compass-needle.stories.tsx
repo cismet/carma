@@ -1,12 +1,3 @@
-import { clamp } from "@carma/math";
-import {
-  COMPASS_NEEDLE_PITCH_LIMIT_EASINGS,
-  createCompassNeedleController,
-  createCompassNeedleElement,
-  readCompassNeedlePitchLimitEasing,
-  readCompassNeedleVisualPitchDeg,
-} from "@carma-mapping/engines-interop/navigation-controls";
-import type { Meta, StoryObj } from "@storybook/react";
 import {
   useEffect,
   useMemo,
@@ -16,6 +7,16 @@ import {
   type PointerEvent as ReactPointerEvent,
 } from "react";
 
+import type { Meta, StoryObj } from "@storybook/react";
+
+import {
+  COMPASS_NEEDLE_PITCH_LIMIT_EASINGS,
+  createCompassNeedleController,
+  createCompassNeedleElement,
+  readCompassNeedlePitchLimitEasing,
+  readCompassNeedleVisualPitchDeg,
+} from "@carma-mapping/engines-interop/navigation-controls";
+import { clamp } from "@carma/math";
 type CompassNeedleStoryArgs = {
   headingDeg: number;
   pitchDeg: number;

@@ -12,7 +12,6 @@ import {
 
 import { selectShowSecondaryTileset } from "../slices/cesium";
 import { useCesiumViewer } from "./useCesiumViewer";
-
 export const useSecondaryStyleTilesetClickHandler = (
   disableSelection = true
 ) => {

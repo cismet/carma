@@ -1,6 +1,11 @@
 import type { CesiumWidget } from "@carma/cesium";
-import { readCesiumScene, requestCesiumRender, type CesiumSceneLike, type CesiumSceneTarget } from "./scene-runtime";
 
+import {
+  readCesiumScene,
+  requestCesiumRender,
+  type CesiumSceneLike,
+  type CesiumSceneTarget,
+} from "./scene-runtime";
 export const DEFAULT_CESIUM_ADAPTIVE_RENDER_SCALE_STEPS = [
   1,
   0.875,
@@ -64,7 +69,11 @@ export type CesiumAdaptiveRenderScaleChange = {
   atMs: number;
   previousRenderScale: number;
   nextRenderScale: number;
-  reason: "predicted-downscale" | "adaptive-step" | "idle-restore" | "destroy-restore";
+  reason:
+    | "predicted-downscale"
+    | "adaptive-step"
+    | "idle-restore"
+    | "destroy-restore";
 };
 
 type CesiumAdaptiveRenderScaleListener = (
@@ -211,7 +220,9 @@ const resolveSettings = (
         ? options.onActivitySummary
         : () => {},
     onScaleChange:
-      typeof options.onScaleChange === "function" ? options.onScaleChange : () => {},
+      typeof options.onScaleChange === "function"
+        ? options.onScaleChange
+        : () => {},
   };
 };
 
@@ -219,8 +230,7 @@ const clampScale = (
   scale: number,
   minimumScale: number,
   maximumScale: number
-) =>
-  Math.min(Math.max(scale, minimumScale), maximumScale);
+) => Math.min(Math.max(scale, minimumScale), maximumScale);
 
 const readCurrentScenePixelCount = (scene: CesiumSceneLike): number | null =>
   isFinitePositiveNumber(scene.drawingBufferWidth) &&
@@ -262,13 +272,18 @@ const applyRenderScale = (
       previousRenderScale: Number(
         controller.lastScaleChange.previousRenderScale.toFixed(3)
       ),
-      nextRenderScale: Number(controller.lastScaleChange.nextRenderScale.toFixed(3)),
+      nextRenderScale: Number(
+        controller.lastScaleChange.nextRenderScale.toFixed(3)
+      ),
       reason: controller.lastScaleChange.reason,
     });
   }
   controller.settings.onScaleChange(controller.lastScaleChange);
   controller.bindings.resize?.();
-  (controller.bindings.requestRender ?? (() => requestCesiumRender(controller.scene)))();
+  (
+    controller.bindings.requestRender ??
+    (() => requestCesiumRender(controller.scene))
+  )();
 };
 
 const updateStatus = (controller: CesiumAdaptiveRenderScaleController) => {
@@ -312,7 +327,9 @@ export const readCesiumAdaptiveRenderScaleTarget = ({
 
   const targetFrameMs = 1000 / targetFps;
   const targetPixelBudget = pixelsPerMsEstimate * targetFrameMs;
-  const rawRenderScale = Math.sqrt(targetPixelBudget / basePixelCountAtScaleOne);
+  const rawRenderScale = Math.sqrt(
+    targetPixelBudget / basePixelCountAtScaleOne
+  );
 
   return isFinitePositiveNumber(rawRenderScale)
     ? clampScale(rawRenderScale, minimumScale, maximumScale)
@@ -346,21 +363,27 @@ export const quantizeCesiumAdaptiveRenderScale = ({
     return clampScale(targetScale, minimumScale, maximumScale);
   }
 
-  const clampedTargetScale = clampScale(targetScale, minimumScale, maximumScale);
+  const clampedTargetScale = clampScale(
+    targetScale,
+    minimumScale,
+    maximumScale
+  );
   const descendingSteps = normalizedScaleSteps;
   const ascendingSteps = [...normalizedScaleSteps].reverse();
 
   if (mode === "down") {
     return (
-      descendingSteps.find((scale) => scale <= clampedTargetScale + SCALE_EPSILON) ??
-      descendingSteps[descendingSteps.length - 1]
+      descendingSteps.find(
+        (scale) => scale <= clampedTargetScale + SCALE_EPSILON
+      ) ?? descendingSteps[descendingSteps.length - 1]
     );
   }
 
   if (mode === "up") {
     return (
-      ascendingSteps.find((scale) => scale >= clampedTargetScale - SCALE_EPSILON) ??
-      ascendingSteps[ascendingSteps.length - 1]
+      ascendingSteps.find(
+        (scale) => scale >= clampedTargetScale - SCALE_EPSILON
+      ) ?? ascendingSteps[ascendingSteps.length - 1]
     );
   }
 
@@ -401,8 +424,9 @@ export const readNextCesiumAdaptiveRenderScaleStep = ({
 
   if (direction === "down") {
     return (
-      normalizedScaleSteps.find((scale) => scale < currentScale - SCALE_EPSILON) ??
-      normalizedScaleSteps[normalizedScaleSteps.length - 1]
+      normalizedScaleSteps.find(
+        (scale) => scale < currentScale - SCALE_EPSILON
+      ) ?? normalizedScaleSteps[normalizedScaleSteps.length - 1]
     );
   }
 
@@ -476,18 +500,20 @@ const maybeAdjustRenderScale = (
 const attachFrameListeners = (
   controller: CesiumAdaptiveRenderScaleController
 ) => {
-  if (controller.removePreRenderListener || controller.removePostRenderListener) {
+  if (
+    controller.removePreRenderListener ||
+    controller.removePostRenderListener
+  ) {
     return;
   }
 
-  controller.removePreRenderListener = controller.scene.preRender.addEventListener(
-    () => {
+  controller.removePreRenderListener =
+    controller.scene.preRender.addEventListener(() => {
       controller.currentFrameStartedAtMs = performance.now();
-    }
-  );
+    });
 
-  controller.removePostRenderListener = controller.scene.postRender.addEventListener(
-    () => {
+  controller.removePostRenderListener =
+    controller.scene.postRender.addEventListener(() => {
       const frameStartedAtMs = controller.currentFrameStartedAtMs;
       controller.currentFrameStartedAtMs = null;
 
@@ -498,16 +524,16 @@ const attachFrameListeners = (
 
       const now = performance.now();
       const renderDurationMs = Math.max(now - frameStartedAtMs, 0.01);
-      const interFrameMs = controller.lastPostRenderAtMs !== null
-        ? Math.max(now - controller.lastPostRenderAtMs, 0.01)
-        : renderDurationMs;
+      const interFrameMs =
+        controller.lastPostRenderAtMs !== null
+          ? Math.max(now - controller.lastPostRenderAtMs, 0.01)
+          : renderDurationMs;
       controller.lastPostRenderAtMs = now;
       const alpha = controller.settings.benchmarkBlend;
       const currentRenderScale = controller.bindings.getRenderScale();
       const currentPixelCount = readCurrentScenePixelCount(controller.scene);
       const basePixelCountAtScaleOne =
-        currentPixelCount !== null &&
-        isFinitePositiveNumber(currentRenderScale)
+        currentPixelCount !== null && isFinitePositiveNumber(currentRenderScale)
           ? currentPixelCount / (currentRenderScale * currentRenderScale)
           : null;
       const pixelsPerMs =
@@ -520,15 +546,17 @@ const attachFrameListeners = (
           ? interFrameMs
           : controller.averageRenderMs * (1 - alpha) + interFrameMs * alpha;
       controller.measuredFps =
-        controller.averageRenderMs > 0 ? 1000 / controller.averageRenderMs : null;
+        controller.averageRenderMs > 0
+          ? 1000 / controller.averageRenderMs
+          : null;
       controller.basePixelCountAtScaleOne =
         basePixelCountAtScaleOne ?? controller.basePixelCountAtScaleOne;
       controller.pixelsPerMsEstimate =
         pixelsPerMs === null
           ? controller.pixelsPerMsEstimate
           : controller.pixelsPerMsEstimate === null
-            ? pixelsPerMs
-            : controller.pixelsPerMsEstimate * (1 - alpha) + pixelsPerMs * alpha;
+          ? pixelsPerMs
+          : controller.pixelsPerMsEstimate * (1 - alpha) + pixelsPerMs * alpha;
 
       controller.activitySessions.forEach((session) => {
         session.frameCount += 1;
@@ -537,8 +565,7 @@ const attachFrameListeners = (
 
       maybeAdjustRenderScale(controller, performance.now());
       updateStatus(controller);
-    }
-  );
+    });
 };
 
 const emitActivitySummary = (
@@ -571,7 +598,9 @@ const emitActivitySummary = (
       activity: summary.activityKey,
       targetFps: summary.targetFps,
       averageFps:
-        summary.averageFps !== null ? Number(summary.averageFps.toFixed(1)) : null,
+        summary.averageFps !== null
+          ? Number(summary.averageFps.toFixed(1))
+          : null,
       averageRenderMs:
         summary.averageRenderMs !== null
           ? Number(summary.averageRenderMs.toFixed(2))
@@ -664,7 +693,11 @@ const destroyController = (
   controller.activeKeys.clear();
   controller.activitySessions.clear();
   if (restoreScale) {
-    applyRenderScale(controller, controller.restingRenderScale, "destroy-restore");
+    applyRenderScale(
+      controller,
+      controller.restingRenderScale,
+      "destroy-restore"
+    );
   }
   updateStatus(controller);
   sceneAdaptiveRenderScaleControllers.delete(controller.scene);
@@ -781,7 +814,9 @@ export const beginCesiumAdaptiveRenderScaleActivity = (
     ) {
       applyRenderScale(controller, predictedRenderScale, "predicted-downscale");
     } else {
-      (controller.bindings.requestRender ?? (() => requestCesiumRender(scene)))();
+      (
+        controller.bindings.requestRender ?? (() => requestCesiumRender(scene))
+      )();
     }
   }
 

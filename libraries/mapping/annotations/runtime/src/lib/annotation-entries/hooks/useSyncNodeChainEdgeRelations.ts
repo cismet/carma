@@ -1,5 +1,6 @@
 import { useEffect, type Dispatch, type SetStateAction } from "react";
 
+import { syncNodeChainEdgeDistanceRelations } from "@carma-mapping/annotations/core";
 import type {
   DirectLineLabelMode,
   LinearSegmentLineMode,
@@ -7,8 +8,6 @@ import type {
   PointDistanceRelation,
   ReferenceLineLabelKind,
 } from "@carma-mapping/annotations/core";
-import { syncNodeChainEdgeDistanceRelations } from "@carma-mapping/annotations/core";
-
 export const useSyncNodeChainEdgeRelations = ({
   setDistanceRelations,
   nodeChainAnnotations,

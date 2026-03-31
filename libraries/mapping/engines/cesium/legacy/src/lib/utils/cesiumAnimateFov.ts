@@ -1,7 +1,7 @@
 import { EasingFunction, PerspectiveFrustum } from "cesium";
-import { cancelSceneAnimation, AnimationType } from "./sceneAnimationMap";
-import type { CesiumContextType } from "../CesiumContext";
 
+import type { CesiumContextType } from "../CesiumContext";
+import { cancelSceneAnimation, AnimationType } from "./sceneAnimationMap";
 export interface CesiumAnimateFovOptions {
   startFov: number;
   targetFov: number;

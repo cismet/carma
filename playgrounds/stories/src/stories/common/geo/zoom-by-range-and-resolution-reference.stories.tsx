@@ -1,10 +1,10 @@
 import type { Meta, StoryObj } from "@storybook/react";
+
 import {
   BASE_TILE_SIZES_PX,
   MercatorZoomReferenceTables,
   type MercatorZoomReferenceStoryArgs,
 } from "./mercator-zoom.shared";
-
 const meta: Meta<MercatorZoomReferenceStoryArgs> = {
   title: "Geo/Mercator Zoom",
   component: MercatorZoomReferenceTables,

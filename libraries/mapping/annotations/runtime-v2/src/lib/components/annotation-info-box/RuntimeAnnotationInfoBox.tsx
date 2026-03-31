@@ -2,7 +2,6 @@ import { useMemo } from "react";
 
 import { useAnnotationsRuntime } from "../../context/AnnotationsProvider";
 import { RuntimeAnnotationInfoBoxContainer } from "./RuntimeAnnotationInfoBoxContainer";
-
 type RuntimeAnnotationInfoBoxProps = {
   pixelWidth?: number;
 };

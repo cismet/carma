@@ -1,9 +1,9 @@
 import type { Scene, Vector3 } from "three";
+
 import { buildAxisLinePoints } from "../../derived/axis-line-points";
 import type { ViewStateVisualizerSize } from "../../view-state-visualizer-types";
 import { createThreePart } from "../../../../common/create-part";
 import { createWideLineSet } from "../../../../common/wide-lines";
-
 export const WORLD_AXIS_KEYS = {
   EAST: "east",
   NORTH: "north",

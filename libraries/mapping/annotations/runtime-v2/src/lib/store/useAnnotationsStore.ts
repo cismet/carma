@@ -1,5 +1,4 @@
 import { createContext } from "react";
-import type { UnknownAction } from "@reduxjs/toolkit";
 import {
   createDispatchHook,
   createSelectorHook,
@@ -8,9 +7,10 @@ import {
   type TypedUseSelectorHook,
 } from "react-redux";
 
+import type { UnknownAction } from "@reduxjs/toolkit";
+
 import type { AnnotationsStoreState } from "./annotationsStore.types";
 import type { AnnotationsStore } from "./createAnnotationsStore";
-
 export const AnnotationsReduxContext = createContext<ReactReduxContextValue<
   AnnotationsStoreState,
   UnknownAction

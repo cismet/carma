@@ -1,4 +1,6 @@
 import { clamp, TWO_PI } from "@carma/math";
+
+import { createPlanarScaleRotationTranslationMatrix } from "../Transforms";
 import {
   Cartesian3,
   Color,
@@ -10,8 +12,6 @@ import {
   PolygonHierarchy,
   Primitive,
 } from "../../cesium";
-import { createPlanarScaleRotationTranslationMatrix } from "../Transforms";
-
 export type RingSegmentOptions = {
   radius: number;
   innerRadius?: number;

@@ -1,7 +1,5 @@
 import { FC } from "react";
 import { useSelector } from "react-redux";
-import { GeoJsonDataSource as ResiumGeoJsonDataSource } from "resium";
-import { useCesiumContext } from "../../hooks/useCesiumContext";
 
 import {
   ClassificationType,
@@ -11,12 +9,12 @@ import {
   defined,
   GeoJsonDataSource,
 } from "cesium";
+import { GeoJsonDataSource as ResiumGeoJsonDataSource } from "resium";
 
-import { GeoJsonConfig } from "../../..";
+import { useCesiumContext } from "../../hooks/useCesiumContext";
 import { selectShowPrimaryTileset } from "../../slices/cesium";
-
+import { GeoJsonConfig } from "../../..";
 import { useSelectAndHighlightGeoJsonEntity } from "./hooks";
-
 interface ByGeoJsonClassifier {
   debug?: boolean;
   geojson: GeoJsonConfig;

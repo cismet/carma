@@ -1,16 +1,15 @@
 import type { Cartesian3Json } from "@carma/cesium";
 
-import type { AnnotationGeometryPoint } from "../types/annotationPersistenceTypes";
 import type {
   AnnotationLabelAnchor,
   AnnotationLabelAppearance,
   PointLabelMetricMode,
 } from "../types/annotationLabel";
+import type { AnnotationGeometryPoint } from "../types/annotationPersistenceTypes";
 import {
   normalizeLabelAnchor,
   normalizeLabelAppearance,
 } from "./annotationLabel";
-
 type PointGeometryLike = {
   id: string;
   geometryWGS84: {

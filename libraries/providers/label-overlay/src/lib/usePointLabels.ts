@@ -1,15 +1,15 @@
 import React, { useEffect, useMemo, useRef } from "react";
+
 import { MINUS_PI_OVER_FOUR } from "@carma/math";
 import type { CssPixelPosition } from "@carma/units/types";
 
-import type { PointLabelAttach } from "./core/pointLabelAttach";
+import { PointLabel, type PointLabelStyleProps } from "./components/PointLabel";
 import type {
   PointLabelAnchorKind,
   PointLabelOcclusionMode,
 } from "./core/pointLabelAnchorSemantics";
+import type { PointLabelAttach } from "./core/pointLabelAttach";
 import { useLabelOverlay } from "./useLabelOverlay";
-import { PointLabel, type PointLabelStyleProps } from "./components/PointLabel";
-
 export interface PointLabelData {
   id: string;
   getCanvasPosition?: () => CssPixelPosition | null;

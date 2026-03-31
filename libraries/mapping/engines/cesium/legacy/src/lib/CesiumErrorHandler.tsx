@@ -1,10 +1,12 @@
+import { useState, useEffect, useMemo } from "react";
+
+import { CesiumWidget } from "cesium";
 import {
   type ErrorBoundaryProps,
   useErrorBoundary,
   withErrorBoundary,
 } from "react-error-boundary";
-import { useState, useEffect, useMemo } from "react";
-import { CesiumWidget } from "cesium";
+
 import { useCesiumContextOptional } from "./hooks/useCesiumContext";
 import {
   useCesiumDevConsoleTrigger,
@@ -15,7 +17,6 @@ import {
   type ReloadOnCesiumRenderErrorOptions,
 } from "./hooks/useReloadOnCesiumRenderError";
 import { getCesiumVersion, checkWindowEnv } from "./utils/cesiumEnv";
-
 export type ForwardedCesiumError = Error & {
   cesiumTitle?: string;
   cesiumMessage?: string;

@@ -1,4 +1,3 @@
-import type { Meta, StoryObj } from "@storybook/react";
 import {
   useEffect,
   useMemo,
@@ -7,16 +6,19 @@ import {
   type CSSProperties,
   type MouseEvent as ReactMouseEvent,
 } from "react";
+
+import type { Meta, StoryObj } from "@storybook/react";
 import { Vector3 } from "three";
+
+import { ResponsiveStatusBar } from "@carma-commons/ui/components";
 import {
   createProjectedMoveGizmoView,
   transformPointWithMatrix,
   type ProjectedMoveGizmoAxisCandidate,
   type ProjectedMoveGizmoView,
 } from "@carma-mapping/gizmo/core";
-import { ResponsiveStatusBar } from "@carma-commons/ui/components";
-import { buildAxisGridSegments3d } from "../shared/buildAxisGridSegments3d";
 
+import { buildAxisGridSegments3d } from "../shared/buildAxisGridSegments3d";
 type CoreCssStoryProps = {
   initialOffset: number;
   fovDeg: number;

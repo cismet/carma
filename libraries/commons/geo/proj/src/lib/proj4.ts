@@ -1,10 +1,5 @@
 import proj4 from "proj4";
-import {
-  ManagedProjection,
-  ManagedProjections,
-  ManagedDefs,
-} from "./managed-projections";
-import { registerManagedProjections } from "./utils";
+
 import type {
   Longitude,
   Latitude,
@@ -12,6 +7,12 @@ import type {
   Altitude,
 } from "@carma/geo/types";
 
+import {
+  ManagedProjection,
+  ManagedProjections,
+  ManagedDefs,
+} from "./managed-projections";
+import { registerManagedProjections } from "./utils";
 export type CoordinateFor<P extends ManagedProjection> = P extends "EPSG:4326"
   ?
       | LngLatArrayTyped<Longitude.deg, Latitude.deg>

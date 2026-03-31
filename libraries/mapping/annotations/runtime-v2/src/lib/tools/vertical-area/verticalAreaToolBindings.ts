@@ -2,8 +2,8 @@ import {
   ANNOTATION_COMMON_SHORTCUT_ACTIONS,
   resolveAnnotationCommonShortcutAction,
 } from "@carma-mapping/annotations/core";
-import type { VerticalAreaToolAction } from "./verticalAreaToolActions";
 
+import type { VerticalAreaToolAction } from "./verticalAreaToolActions";
 export const resolveVerticalAreaToolKeyAction = (
   event: KeyboardEvent
 ): VerticalAreaToolAction | null => {

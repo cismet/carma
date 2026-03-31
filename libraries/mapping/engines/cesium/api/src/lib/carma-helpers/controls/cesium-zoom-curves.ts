@@ -4,14 +4,13 @@ import {
   readLongerEdgeFovFromIntrinsics,
   readVerticalFovFromLongerEdge,
 } from "@carma-commons/camera/model";
+import { PerspectiveFrustum, type Scene } from "@carma/cesium";
 import {
   Easing,
   readTimedInterpolationEasedProgress,
   readTimedInterpolationProgress,
 } from "@carma/math";
-import { PerspectiveFrustum, type Scene } from "@carma/cesium";
 import type { Radians } from "@carma/units/types";
-
 export const DEFAULT_CESIUM_ZOOM_EASING = Easing.CUBIC_OUT;
 
 export type TimedCesiumFovCurve = {
@@ -157,7 +156,9 @@ export const readTimedCesiumVerticalFov = ({
     return null;
   }
 
-  return curve.startFovRad + (curve.targetFovRad - curve.startFovRad) * easedProgress;
+  return (
+    curve.startFovRad + (curve.targetFovRad - curve.startFovRad) * easedProgress
+  );
 };
 
 export const readTimedCesiumLongerEdgeFov = ({

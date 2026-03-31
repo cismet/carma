@@ -1,8 +1,8 @@
 import { describe, it, expect } from "vitest";
 
 import type { Radians } from "@carma/units/types";
-import { zeroToTwoPi, negativePiToPi } from "./angle-normalization";
 
+import { zeroToTwoPi, negativePiToPi } from "./angle-normalization";
 describe("angle-normalization", () => {
   describe("zeroToTwoPi", () => {
     it("should return 0 for angle 0", () => {

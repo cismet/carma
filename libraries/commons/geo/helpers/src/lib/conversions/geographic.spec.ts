@@ -1,4 +1,12 @@
 import { describe, it, expect } from "vitest";
+
+import type {
+  LatLng,
+  LngLatArray,
+  Longitude,
+  Latitude,
+} from "@carma/geo/types";
+
 import {
   latLngToLngLatArray,
   lngLatArrayToLatLng,
@@ -7,13 +15,6 @@ import {
   lngLatArrayDegToRad,
   lngLatArrayRadToDeg,
 } from "./geographic";
-import type {
-  LatLng,
-  LngLatArray,
-  Longitude,
-  Latitude,
-} from "@carma/geo/types";
-
 describe("geographic conversions", () => {
   describe("latLngToLngLatArray", () => {
     it("should convert LatLng to LngLatArray", () => {

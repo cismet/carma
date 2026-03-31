@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useRef } from "react";
+
 import {
   resolveSvgLineDasharray,
   type SvgLineDasharrayCache,
@@ -8,7 +9,6 @@ import { LineVisualizer } from "./components/LineVisualizer";
 import type { LineVisualizerData, SvgLine } from "./lineVisualizers.types";
 import { useLabelOverlay } from "./useLabelOverlay";
 import { createSvgLineScratch, resolveSvgLine } from "./utils/resolveSvgLine";
-
 const LINE_OVERLAY_Z_INDEX = 5;
 
 const overlayReferenceIdByValue = new WeakMap<object, number>();

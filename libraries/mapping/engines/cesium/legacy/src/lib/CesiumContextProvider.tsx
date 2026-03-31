@@ -1,6 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { ReactNode } from "react";
-
 // legacy type, prefer using scene, graphic primitives and CesiumWidget where possible
 // eslint-disable-next-line carma/no-direct-cesium
 import type { Viewer } from "cesium";

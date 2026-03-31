@@ -1,7 +1,7 @@
-import { Cartesian3 } from "../cesium";
-import type { Meters } from "@carma/units/types";
 import { isFiniteNumber } from "@carma/math";
+import type { Meters } from "@carma/units/types";
 
+import { Cartesian3 } from "../cesium";
 /**
  * Serializable object representation of Cartesian3.
  */

@@ -1,9 +1,8 @@
-import type { Easing } from "../easing-functions";
 import { LINEAR_NONE } from "../easing-functions";
+import type { Easing } from "../easing-functions";
 import { clamp } from "./clamp";
 import { isFiniteNumber } from "./is-finite-number";
 import { lerp } from "./lerp";
-
 export type TimedInterpolationOptions = {
   startedAtMs: number;
   durationMs: number;

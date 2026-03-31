@@ -3,7 +3,7 @@ import { useSelector } from "react-redux";
 
 import { faCompass } from "@fortawesome/free-solid-svg-icons";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
-
+import { Tooltip } from "antd";
 import {
   Cartesian3,
   Cartographic,
@@ -11,14 +11,13 @@ import {
   defined,
   Cartesian2,
 } from "cesium";
+
 import { ControlButtonStyler } from "@carma-mapping/map-controls-layout";
 
-import { useCesiumViewer } from "../../hooks/useCesiumViewer";
 import { useCesiumContext } from "../../hooks/useCesiumContext";
+import { useCesiumViewer } from "../../hooks/useCesiumViewer";
 import { selectScreenSpaceCameraControllerMinimumZoomDistance } from "../../slices/cesium";
-import { Tooltip } from "antd";
 import { pickScenePositions } from "../../utils/pick-position/pick-scene-positions";
-
 type CompassProps = {
   children?: ReactNode;
   disabled?: boolean;

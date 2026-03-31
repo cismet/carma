@@ -1,7 +1,6 @@
 import type { ReactNode } from "react";
 
 import type { PlaygroundRuntime } from "../playground.types";
-
 type PlaygroundStatusBarProps = {
   runtimeVersion: PlaygroundRuntime;
   onRuntimeVersionChange: (runtimeVersion: PlaygroundRuntime) => void;

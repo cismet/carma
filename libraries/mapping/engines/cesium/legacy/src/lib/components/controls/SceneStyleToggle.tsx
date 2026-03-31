@@ -6,12 +6,11 @@ import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 
 import { ControlButtonStyler } from "@carma-mapping/map-controls-layout";
 
-import { SceneStyles } from "../../..";
 import {
   selectCurrentSceneStyle,
   toggleCurrentSceneStyle,
 } from "../../slices/cesium";
-
+import { SceneStyles } from "../../..";
 type SceneStyleToggleProps = {
   children?: ReactNode;
   defaultStyle?: keyof SceneStyles;

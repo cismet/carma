@@ -1,4 +1,4 @@
-import { Cartesian3, type Camera } from "../../cesium";
+import { shortestAngleDelta } from "@carma/math";
 import {
   PI_OVER_TWO,
   TWO_PI,
@@ -6,12 +6,12 @@ import {
   MINUS_PI_OVER_TWO,
 } from "@carma/units/helpers";
 import type { Radians } from "@carma/units/types";
-import { shortestAngleDelta } from "@carma/math";
+
+import { Cartesian3, type Camera } from "../../cesium";
 import type {
   HeadingPitchJson,
   HeadingPitchRollJson,
 } from "../../serialization";
-
 // Camera direction when pointing straight down (nadir).
 const TOP_DOWN_DIRECTION = new Cartesian3(0, 0, -1);
 

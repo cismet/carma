@@ -1,13 +1,12 @@
 import { useCallback, useRef } from "react";
-import { useBlockDefaultZoomBehaviour } from "./useBlockDefaultZoomBehaviour";
+
 import { PerspectiveFrustum, type Viewer } from "cesium";
 
-import type { Radians, Ratio } from "@carma/units/types";
 import { normalizeOptions, isClose } from "@carma-commons/utils";
+import type { Radians, Ratio } from "@carma/units/types";
 
 import { useCesiumContext } from "../hooks/useCesiumContext";
 import { blockWheelEvent } from "../utils/blockWheelEvent";
-
 import {
   DEFAULT_MAX_FOV,
   DEFAULT_MIN_FOV,
@@ -15,7 +14,7 @@ import {
   DEFAULT_MIN_FOV_CHANGE,
   computeNextFov,
 } from "../utils/fov";
-
+import { useBlockDefaultZoomBehaviour } from "./useBlockDefaultZoomBehaviour";
 const viewerWheelHandlers = new WeakMap<Viewer, (event: WheelEvent) => void>();
 
 export interface FovWheelZoomOptions {

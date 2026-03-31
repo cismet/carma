@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 
 import { type Scene } from "@carma/cesium";
-
 export const useCesiumOverlaySync = (scene: Scene | null) => {
   const overlayUpdateRef = useRef<(() => void) | null>(null);
   const [overlayUpdateVersion, setOverlayUpdateVersion] = useState(0);

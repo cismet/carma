@@ -7,7 +7,6 @@ import type {
   ReferenceLineLabelKind,
 } from "@carma-mapping/annotations/core";
 import type { PointLabelLayoutConfigOverrides } from "@carma-providers/label-overlay";
-
 export type AnnotationsOptions = {
   distance?: {
     stickyToFirstPoint?: boolean;

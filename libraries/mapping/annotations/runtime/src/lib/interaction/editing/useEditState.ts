@@ -1,10 +1,10 @@
 import { useCallback, useEffect, type SetStateAction } from "react";
 
-import { Cartesian3 } from "@carma/cesium";
 import {
   isPointAnnotationEntry,
   type AnnotationCollection,
 } from "@carma-mapping/annotations/core";
+import { Cartesian3 } from "@carma/cesium";
 
 import {
   replaceAnnotationsStoreState,
@@ -19,7 +19,6 @@ import type {
   MoveGizmoSession,
   MoveGizmoStartOptions,
 } from "./annotationEdit.types";
-
 const cloneAxisCandidates = (
   axisCandidates: MoveGizmoAxisCandidate[] | null | undefined
 ): MoveGizmoAxisCandidate[] | null =>

@@ -3,14 +3,13 @@ import { useCallback } from "react";
 import { projectGeographicCoordinateToScreen } from "@carma-mapping/engines/cesium/api";
 
 import type { RuntimeCoordinate, RuntimeNode } from "../../store";
-import type { AnnotationModeSessionMap } from "./annotationModeSession.types";
 import type {
   AnnotationToolPlugin,
   AnnotationToolSessionContext,
 } from "../../tools/annotationToolPlugin.types";
-import type { RuntimeToolId } from "../../types/runtimeTool.types";
 import type { RuntimeScene } from "../../types/runtimeScene.types";
-
+import type { RuntimeToolId } from "../../types/runtimeTool.types";
+import type { AnnotationModeSessionMap } from "./annotationModeSession.types";
 type UsePointQueryToolRoutingParams = {
   scene: RuntimeScene | null;
   nodes: readonly RuntimeNode[];

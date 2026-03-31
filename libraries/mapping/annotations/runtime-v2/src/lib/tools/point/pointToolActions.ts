@@ -7,7 +7,6 @@ import {
   type AnnotationsStore,
   type AnnotationsStoreState,
 } from "../../store";
-
 type AddPointMeasurementArgs = {
   addAnnotation: (
     toolType: RuntimeMeasurement["toolType"],

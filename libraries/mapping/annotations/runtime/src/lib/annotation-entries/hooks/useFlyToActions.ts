@@ -1,18 +1,17 @@
 import { useCallback } from "react";
 
 import {
-  BoundingSphere,
-  flyToBoundingSphereExtent,
-  type Cartesian3,
-  type Scene,
-} from "@carma/cesium";
-import {
   getAnnotationFlyToPointsById,
   getMeasurementEntryFlyToPoints,
   type AnnotationCollection,
   type NodeChainAnnotation,
 } from "@carma-mapping/annotations/core";
-
+import {
+  BoundingSphere,
+  flyToBoundingSphereExtent,
+  type Cartesian3,
+  type Scene,
+} from "@carma/cesium";
 const FLY_TO_MIN_RADIUS_METERS = 50;
 const FLY_TO_PADDING_FACTOR = 1.1;
 

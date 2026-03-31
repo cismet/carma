@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import type { CameraIntrinsics } from "@carma-commons/camera/model";
 
+import type { CameraIntrinsics } from "@carma-commons/camera/model";
 const {
   buildViewStateFromEcefMock,
   buildOrientationQuaternionFromWorldCameraBasisAtAnchorMock,

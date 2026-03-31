@@ -5,25 +5,25 @@ import React, {
   useMemo,
   useRef,
 } from "react";
+
 import {
   getHashParams,
   normalizeOptions,
   updateHashHistoryState,
 } from "@carma-commons/utils";
 
-import { usePopStateListener } from "./hooks/usePopStateListener";
-import {
-  getAliasReverseLookup,
-  applyHashCodecs,
-  computeHashDiff,
-} from "./utils";
 import {
   defaultHashCodecs,
   defaultHashKeyAliases,
   defaultHashKeyOrder,
 } from "./hashCodecs";
+import { usePopStateListener } from "./hooks/usePopStateListener";
 import { sceneViewStateHashCodecs } from "./scene-state-hash/hashParamCodecs";
-
+import {
+  getAliasReverseLookup,
+  applyHashCodecs,
+  computeHashDiff,
+} from "./utils";
 interface HashUpdateOptions {
   clearKeys?: string[];
   clearKeySetIds?: string[];

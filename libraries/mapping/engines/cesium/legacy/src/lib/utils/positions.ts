@@ -8,8 +8,8 @@ import {
 } from "cesium";
 
 import { logOnce } from "@carma-commons/utils";
-import { getSurfaceElevationAsync } from "./elevation";
 
+import { getSurfaceElevationAsync } from "./elevation";
 /**
  * @deprecated Legacy zoom-to-distance conversion with incorrect formula.
  * Use proper geographic calculations from @carma-mapping/engines-interop instead.

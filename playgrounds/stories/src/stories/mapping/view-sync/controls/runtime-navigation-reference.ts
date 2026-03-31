@@ -1,27 +1,4 @@
 import {
-  applyCesiumCompassBearingPitch,
-  beginCesiumCompassDrag,
-  cancelCesiumSceneTravelZoom,
-  Cartesian3,
-  endCesiumCompassDrag,
-  animateCesiumSceneTravelZoom,
-  HeadingPitchRange,
-  MAX_CESIUM_COMPASS_PITCH_DEG,
-  Matrix4,
-  MIN_CESIUM_COMPASS_PITCH_RAD,
-  PerspectiveFrustum,
-  type CesiumCompassDragSession,
-} from "@carma/cesium";
-import {
-  cancelCesiumSceneFovZoom,
-  computeNextCesiumFov,
-  flyCesiumSceneFovZoom,
-  readCachedCesiumCompassOrientationDeg,
-  readCachedCesiumSceneCenter,
-} from "@carma-mapping/engines/cesium/api";
-import { degToRadNumeric, radToDegNumeric } from "@carma/units/helpers";
-import type { Radians } from "@carma/units/types";
-import {
   createCesiumNavigationMethods,
   DEFAULT_NAVIGATION_ORBIT_REVOLUTION_DURATION_SEC,
   DEFAULT_NAVIGATION_HOME_DURATION_MS,
@@ -43,11 +20,29 @@ import {
   type ViewState,
 } from "@carma-mapping/engines-interop/view-state";
 import {
-  bindStoryCesiumFrameListener,
-  bindStoryCesiumCameraChangedListener,
-  readStoryCesiumScene,
-  requestStoryCesiumRender,
-} from "../../../shared/cesiumRuntimeGuards";
+  cancelCesiumSceneFovZoom,
+  computeNextCesiumFov,
+  flyCesiumSceneFovZoom,
+  readCachedCesiumCompassOrientationDeg,
+  readCachedCesiumSceneCenter,
+} from "@carma-mapping/engines/cesium/api";
+import {
+  applyCesiumCompassBearingPitch,
+  beginCesiumCompassDrag,
+  cancelCesiumSceneTravelZoom,
+  Cartesian3,
+  endCesiumCompassDrag,
+  animateCesiumSceneTravelZoom,
+  HeadingPitchRange,
+  MAX_CESIUM_COMPASS_PITCH_DEG,
+  Matrix4,
+  MIN_CESIUM_COMPASS_PITCH_RAD,
+  PerspectiveFrustum,
+  type CesiumCompassDragSession,
+} from "@carma/cesium";
+import { degToRadNumeric, radToDegNumeric } from "@carma/units/helpers";
+import type { Radians } from "@carma/units/types";
+
 import {
   CARMA_STORY_MAPPING_ENGINES,
   type StoryMappingEngine,
@@ -59,7 +54,12 @@ import {
   clamp,
   type SlotRuntimeHandle,
 } from "../viewSyncStoryShared";
-
+import {
+  bindStoryCesiumFrameListener,
+  bindStoryCesiumCameraChangedListener,
+  readStoryCesiumScene,
+  requestStoryCesiumRender,
+} from "../../../shared/cesiumRuntimeGuards";
 const MAX_MAPLIBRE_PITCH_DEG = 85;
 const CESIUM_FALLBACK_ORBIT_SOURCE_ID = "story-navigation/orbit-fallback";
 const ABSOLUTE_MIN_CESIUM_FOV_RAD = degToRadNumeric(0.1)!;

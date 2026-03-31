@@ -1,6 +1,5 @@
 import { useMemo, type Dispatch, type SetStateAction } from "react";
 
-import type { Cartesian3, Scene } from "@carma/cesium";
 import {
   ANNOTATION_TYPE_POINT,
   SELECT_TOOL_TYPE,
@@ -12,11 +11,12 @@ import {
   PointDistanceRelation,
   isPointMeasurementEntry,
 } from "@carma-mapping/annotations/core";
+import type { Cartesian3, Scene } from "@carma/cesium";
 
 import type { AnnotationsOptions } from "../config/annotationsOptions";
 import type { EditingState } from "../interaction/editing/useEditing";
-import { useToolCandidatePreview } from "../interaction/useInteraction";
 import type { UserInteractionState } from "../interaction/lifecycle/modes/useUserInteraction";
+import { useToolCandidatePreview } from "../interaction/useInteraction";
 import type { RectangleSelectionState } from "../selection/hooks/useRectangleSelectionOverlay";
 import type { AnnotationSelectionState } from "../selection/types/annotationSelection.types";
 import { useStoreSelector, type AnnotationsStore } from "../store";
@@ -30,7 +30,6 @@ import {
 import { usePointIndex } from "./point/usePointIndex";
 import { useOverlayPositionSync } from "./scene/useOverlayPositionSync";
 import { useVisualization } from "./scene/useVisualization";
-
 export {
   usePointMarkerBadges,
   type AnnotationPointMarkerBadge,

@@ -1,6 +1,6 @@
-import { ResponsiveStatusBar } from "@carma-commons/ui/components";
 import type { CSSProperties, ReactNode } from "react";
 
+import { ResponsiveStatusBar } from "@carma-commons/ui/components";
 const STORY_FONT_FAMILY =
   'ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif';
 

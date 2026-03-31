@@ -9,7 +9,6 @@ import {
   type NodeChainAnnotation,
   type PointLabelMetricMode,
 } from "@carma-mapping/annotations/core";
-
 type UsePresentationActionsParams = {
   annotations: AnnotationCollection;
   nodeChainAnnotations: NodeChainAnnotation[];

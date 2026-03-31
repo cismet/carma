@@ -1,11 +1,10 @@
+import { degToRad, radToDeg } from "@carma-commons/units/helpers";
 import type {
   LatLng,
   LngLatArray,
   Longitude,
   Latitude,
 } from "@carma/geo/types";
-import { degToRad, radToDeg } from "@carma-commons/units/helpers";
-
 export function latLngToLngLatArray(latLng: LatLng.deg): LngLatArray.deg;
 export function latLngToLngLatArray(latLng: LatLng.rad): LngLatArray.rad;
 export function latLngToLngLatArray(latLng: any): any {

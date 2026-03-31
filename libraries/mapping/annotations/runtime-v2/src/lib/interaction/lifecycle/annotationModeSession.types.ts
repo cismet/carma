@@ -1,6 +1,5 @@
 import type { RuntimeCoordinate } from "../../store";
 import type { RuntimeToolId } from "../../types/runtimeTool.types";
-
 export type AnnotationModeSession = {
   toolType: RuntimeToolId;
   requestStart: () => void;

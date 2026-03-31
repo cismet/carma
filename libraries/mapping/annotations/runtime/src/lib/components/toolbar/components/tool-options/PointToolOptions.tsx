@@ -1,10 +1,12 @@
 import { useEffect, useRef, useState } from "react";
+
 import { Switch } from "antd";
+
 import { EditableMetricValue } from "@carma-commons/ui/components";
+
 import type { AnnotationToolbarPointProps } from "../../AnnotationModeToolbar.types";
 import { optionsLabelStyle } from "../../shared";
 import { ToolOptionsSection } from "./ToolOptionsSection";
-
 type PointToolOptionsProps = {
   point?: AnnotationToolbarPointProps;
 };

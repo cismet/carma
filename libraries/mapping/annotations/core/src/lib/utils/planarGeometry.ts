@@ -18,7 +18,6 @@ import type {
   PlanarPolygonLocalFrame,
   PlanarPolygonPlane,
 } from "../types/annotationTypes";
-
 const EPSILON = 1e-8;
 
 const getEllipsoidalUpAtPoint = (anchorECEF: Cartesian3): Cartesian3 => {

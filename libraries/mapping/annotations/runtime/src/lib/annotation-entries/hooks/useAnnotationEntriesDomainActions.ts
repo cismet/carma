@@ -1,5 +1,4 @@
 import type { Dispatch, SetStateAction } from "react";
-import type { Cartesian3 } from "@carma/cesium";
 
 import {
   applyLabelAppearance,
@@ -12,12 +11,12 @@ import {
   type NodeChainAnnotation,
   type PointDistanceRelation,
 } from "@carma-mapping/annotations/core";
+import type { Cartesian3 } from "@carma/cesium";
 
 import { useAnnotationEntryMutations } from "./useAnnotationEntryMutations";
+import { useDeleteAndCleanupActions } from "./useDeleteAndCleanupActions";
 import { usePresentationActions } from "./usePresentationActions";
 import { useResetActions } from "./useResetActions";
-import { useDeleteAndCleanupActions } from "./useDeleteAndCleanupActions";
-
 type Params = {
   annotations: AnnotationCollection;
   distanceRelations: PointDistanceRelation[];

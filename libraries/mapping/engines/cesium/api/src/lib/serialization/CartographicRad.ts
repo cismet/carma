@@ -1,8 +1,8 @@
 import type { LatLngAlt } from "@carma/geo/types";
-import { Cartesian3, Cartographic } from "../cesium";
-import type { Cartesian3 as CesiumCartesian3 } from "../cesium";
 import { isFiniteNumber } from "@carma/math";
 
+import { Cartesian3, Cartographic } from "../cesium";
+import type { Cartesian3 as CesiumCartesian3 } from "../cesium";
 export type CartographicRadJson = {
   longitude: number;
   latitude: number;

@@ -1,10 +1,10 @@
 import { Quaternion, Vector3 } from "three";
 import { describe, expect, it } from "vitest";
+
 import {
   buildOrientationQuaternionFromLocalCameraBasis,
   readLocalCameraBasis,
 } from "./local-camera-basis";
-
 describe("local camera basis", () => {
   it("reads the identity orientation into the canonical local basis", () => {
     const basis = readLocalCameraBasis(new Quaternion());

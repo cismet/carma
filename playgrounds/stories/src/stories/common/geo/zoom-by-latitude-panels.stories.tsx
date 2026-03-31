@@ -1,4 +1,5 @@
 import type { Meta, StoryObj } from "@storybook/react";
+
 import { GeoChartStoryFrame } from "./geo-chart-story-frame";
 import {
   BASE_TILE_SIZES_PX,
@@ -16,7 +17,6 @@ import {
   type MercatorZoomStoryArgs,
   Z_QUANTIZE_STEPS,
 } from "./mercator-zoom.shared";
-
 type PlotArgs = MercatorZoomStoryArgs;
 
 const commonArgs: PlotArgs = {

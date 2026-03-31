@@ -1,6 +1,6 @@
 import { useCallback } from "react";
-import type { NodeChainAnnotation } from "@carma-mapping/annotations/core";
 
+import type { NodeChainAnnotation } from "@carma-mapping/annotations/core";
 type UseAnnotationFocusActionsParams = {
   nodeChainAnnotations: NodeChainAnnotation[];
   getRepresentativePointIdForGroupId: (groupId: string) => string | null;

@@ -1,4 +1,3 @@
-import type { Meta, StoryObj } from "@storybook/react";
 import {
   useCallback,
   useEffect,
@@ -6,6 +5,11 @@ import {
   type CSSProperties,
   type MutableRefObject,
 } from "react";
+
+import type { Meta, StoryObj } from "@storybook/react";
+
+import { clamp, lerp } from "@carma-commons/math";
+import { ResponsiveStatusBar } from "@carma-commons/ui/components";
 import {
   CarmaTransforms,
   Cartesian3,
@@ -24,11 +28,8 @@ import {
   type CesiumWidget,
   type Primitive,
 } from "@carma/cesium";
-import { ResponsiveStatusBar } from "@carma-commons/ui/components";
-import { clamp, lerp } from "@carma-commons/math";
 
 import "cesium/Build/Cesium/Widgets/widgets.css";
-
 if (
   typeof window !== "undefined" &&
   !(window as { CESIUM_BASE_URL?: string }).CESIUM_BASE_URL

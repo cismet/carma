@@ -1,6 +1,6 @@
 import type { Plane, Vector3 } from "three";
-import { VECTOR3_NUMERIC_EPSILON } from "./constants";
 
+import { VECTOR3_NUMERIC_EPSILON } from "./constants";
 const pushDistinctPolygonPoint = (
   polygon: Vector3[],
   point: Vector3,

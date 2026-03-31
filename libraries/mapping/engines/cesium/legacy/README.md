@@ -15,6 +15,8 @@ How to fix Cesium related issues as of 2024-05-17, cesium@1.117
 
 1. Import the styles in your app
 
+   This is a side-effect asset import and should stay at the end of the import block.
+
 import "cesium/Build/Cesium/Widgets/widgets.css";
 
 2. Copy the assets to the dist folder

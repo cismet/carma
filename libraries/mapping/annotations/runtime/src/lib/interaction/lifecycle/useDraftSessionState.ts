@@ -9,7 +9,6 @@ import {
   areStringListsEqual,
   resolveSetStateAction,
 } from "../../store/stateUpdateUtils";
-
 export const useDraftSessionState = (annotationsStore: AnnotationsStore) => {
   const activeNodeChainAnnotationId = useStoreSelector(
     annotationsStore,

@@ -1,6 +1,5 @@
 import { clamp } from "@carma-commons/math";
 import type { CssPixelPosition } from "@carma/units/types";
-
 export type PointDistanceRelationLike = {
   showVerticalLine?: boolean;
   showHorizontalLine?: boolean;

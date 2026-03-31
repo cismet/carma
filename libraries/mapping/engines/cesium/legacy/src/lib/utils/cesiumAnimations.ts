@@ -1,3 +1,4 @@
+import { Easing } from "@carma-commons/math";
 import {
   Cartesian3,
   Matrix4,
@@ -6,8 +7,6 @@ import {
   Scene,
   isValidCamera,
 } from "@carma/cesium";
-import { Easing } from "@carma-commons/math";
-
 const DEFAULT_MIN_RANGE = 10;
 const DEFAULT_MAX_RANGE = 40000;
 

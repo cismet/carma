@@ -1,9 +1,8 @@
-import type { ColorConstructorArgs } from "@carma/cesium";
 import type { ModelConfig } from "@carma-commons/resources";
+import type { ColorConstructorArgs } from "@carma/cesium";
 
 import type { ProviderConfig } from "./utils/cesiumProviders";
 import type { TilesetConfigs } from "./utils/cesiumTilesetProviders";
-
 export type CameraPositionAndOrientation = {
   position: Cartesian3;
   up: Cartesian3;

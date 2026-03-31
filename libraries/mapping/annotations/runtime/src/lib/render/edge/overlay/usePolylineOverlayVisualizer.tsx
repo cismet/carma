@@ -1,17 +1,16 @@
 import { createElement, useEffect, useMemo, useRef } from "react";
 
 import {
+  buildPolylinePreviewCornerMarkers,
+  type PolylinePreviewMeasurement,
+} from "@carma-mapping/annotations/core";
+import { useLabelOverlay } from "@carma-providers/label-overlay";
+import {
   SceneTransforms,
   defined,
   isValidScene,
   type Scene,
 } from "@carma/cesium";
-import {
-  buildPolylinePreviewCornerMarkers,
-  type PolylinePreviewMeasurement,
-} from "@carma-mapping/annotations/core";
-import { useLabelOverlay } from "@carma-providers/label-overlay";
-
 const POLYLINE_OVERLAY_DEFAULTS = {
   ids: {
     verticalCornerOverlayPrefix: "distance-vertical-corner",

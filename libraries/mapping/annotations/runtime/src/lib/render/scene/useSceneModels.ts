@@ -11,11 +11,10 @@ import { useCesiumViewProjector } from "@carma-mapping/engines/cesium/react/inte
 import type { Scene } from "@carma/cesium";
 
 import { buildEdgeSceneLineRenderModels } from "../edge/buildEdgeSceneLineRenderModels";
-import type { AnnotationPointMarkerBadge } from "../point/usePointMarkerBadges";
 import { usePointIndex } from "../point/usePointIndex";
+import type { AnnotationPointMarkerBadge } from "../point/usePointMarkerBadges";
 import { generateToolPrimitives } from "./generators";
 import { useNodeChainPreviewModels } from "./useNodeChainPreviewModels";
-
 export type SceneModelsOptions = {
   scene: Scene;
   visiblePointEntries: PointAnnotationEntry[];

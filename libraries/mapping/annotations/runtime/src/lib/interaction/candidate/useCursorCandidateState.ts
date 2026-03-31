@@ -1,8 +1,5 @@
 import { useMemo, type Dispatch, type SetStateAction } from "react";
-import {
-  getPositionWithVerticalOffsetFromAnchor,
-  type Scene,
-} from "@carma/cesium";
+
 import {
   ANNOTATION_TYPE_AREA_GROUND,
   ANNOTATION_TYPE_AREA_PLANAR,
@@ -15,6 +12,10 @@ import {
   type AnnotationToolType,
   type NodeChainAnnotation,
 } from "@carma-mapping/annotations/core";
+import {
+  getPositionWithVerticalOffsetFromAnchor,
+  type Scene,
+} from "@carma/cesium";
 
 import {
   ANNOTATION_CANDIDATE_KIND_DISTANCE,
@@ -27,7 +28,6 @@ import {
   type AnnotationCandidateDescriptor,
   useCandidateState,
 } from "../candidate/useCandidateState";
-
 type UseAnnotationCursorCandidateStateParams = {
   scene: Scene;
   annotations: AnnotationCollection;

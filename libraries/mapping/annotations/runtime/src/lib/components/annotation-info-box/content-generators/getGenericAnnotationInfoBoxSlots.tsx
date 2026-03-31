@@ -2,13 +2,13 @@ import type {
   AnnotationEntry,
   NodeChainAnnotation,
 } from "@carma-mapping/annotations/core";
+
 import type {
   AnnotationSlots,
   AnnotationInfoBoxEntryPayload,
 } from "../annotationInfoBoxSlots.types";
 import { AnnotationJsonPreview } from "../components";
 import { INFO_BOX_MUTED_BODY_TEXT_CLASSNAME } from "./shared";
-
 const resolveRawAnnotationEntry = (
   input: AnnotationInfoBoxEntryPayload
 ): AnnotationEntry | NodeChainAnnotation | null => {

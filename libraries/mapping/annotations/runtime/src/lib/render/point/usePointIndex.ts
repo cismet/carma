@@ -5,7 +5,6 @@ import {
   type AnnotationCollection,
   type PointAnnotationEntry,
 } from "@carma-mapping/annotations/core";
-
 export const usePointIndex = (annotations: AnnotationCollection) => {
   const points = useMemo(
     () => annotations.filter(isPointAnnotationEntry),

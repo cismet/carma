@@ -1,8 +1,7 @@
 import { Cesium3DTileset } from "../cesium";
-import type { Matrix4ConstructorArgs } from "./Matrix4";
-import type { ColorConstructorArgs } from "./Color";
 import type { Cartesian3ConstructorArgs } from "./Cartesian3";
-
+import type { ColorConstructorArgs } from "./Color";
+import type { Matrix4ConstructorArgs } from "./Matrix4";
 /**
  * JSON-serializable constructor options for Cesium3DTileset.
  * Overrides Cesium object types with serializable types for config files.

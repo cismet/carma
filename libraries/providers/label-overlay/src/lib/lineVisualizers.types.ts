@@ -1,13 +1,12 @@
-import type { CssPixelPosition } from "@carma/units/types";
 import type {
   SvgLine,
   SvgLineDynamicDashPattern,
   SvgLineLabelDominantBaseline,
   SvgLineLabelRotationMode,
 } from "@carma-commons/svg";
+import type { CssPixelPosition } from "@carma/units/types";
 
 import type { LineVisualizerProps } from "./components/LineVisualizer";
-
 export type { SvgLine };
 export type LineDynamicDashPattern = SvgLineDynamicDashPattern;
 export type LineLabelDominantBaseline = SvgLineLabelDominantBaseline;

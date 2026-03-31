@@ -1,6 +1,6 @@
 import type { Degrees, Radians } from "@carma/units/types";
-import { PI } from "./pi";
 
+import { PI } from "./pi";
 // Conversion constants
 const DEG_TO_RAD_FACTOR = PI / 180;
 const RAD_TO_DEG_FACTOR = 180 / PI;

@@ -6,7 +6,6 @@ import type {
   AnnotationModeSession,
   AnnotationModeSessionMap,
 } from "./annotationModeSession.types";
-
 const getModeSession = (
   sessionsByToolType: AnnotationModeSessionMap,
   toolType: AnnotationToolType

@@ -7,7 +7,6 @@ import {
   selectViewerIsTransitioning,
 } from "../slices/cesium";
 import { useCesiumViewer } from "./useCesiumViewer";
-
 const DEFAULT_TIMEOUT = 4000;
 
 const useTransitionTimeout = (timeOut = DEFAULT_TIMEOUT) => {

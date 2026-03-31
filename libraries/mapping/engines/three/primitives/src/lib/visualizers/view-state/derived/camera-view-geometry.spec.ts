@@ -1,14 +1,15 @@
+import { Vector3 } from "three";
 import { describe, expect, it } from "vitest";
+
 import {
   buildOrthographicScale,
   CAMERA_TYPE,
 } from "@carma-commons/camera/model";
 import { buildViewState } from "@carma-mapping/engines-interop/view-state";
-import { degToRadNumeric } from "@carma/units/helpers";
 import type { ViewState } from "@carma-mapping/engines-interop/view-state";
-import { Vector3 } from "three";
-import { buildImagePlaneGeometry } from "./camera-view-geometry";
+import { degToRadNumeric } from "@carma/units/helpers";
 
+import { buildImagePlaneGeometry } from "./camera-view-geometry";
 const WORLD_UP = new Vector3(0, 1, 0);
 const SPEC_LONGITUDE_RAD = degToRadNumeric(7.2);
 const SPEC_LATITUDE_RAD = degToRadNumeric(51.27);

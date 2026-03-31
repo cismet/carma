@@ -1,9 +1,8 @@
 import { starkregenConstants } from "@cismet-dev/react-cismap-envirometrics-maps/constants";
 
-import topoBG from "../assets/map-bg/topo.png";
 import citymapBG from "../assets/map-bg/citymap.png";
 import mixedBG from "../assets/map-bg/mixed.png";
-
+import topoBG from "../assets/map-bg/topo.png";
 const overridingBaseLayerConf = {};
 
 const config = {

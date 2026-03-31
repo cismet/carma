@@ -1,5 +1,6 @@
 import { useEffect, useRef } from "react";
 
+import { type PolygonPreviewGroup } from "@carma-mapping/annotations/core";
 import {
   Cartesian3,
   ClassificationType,
@@ -12,8 +13,6 @@ import {
   PolygonHierarchy,
   type Scene,
 } from "@carma/cesium";
-import { type PolygonPreviewGroup } from "@carma-mapping/annotations/core";
-
 const removeGroundPrimitives = (
   scene: Scene,
   groundPrimitives: readonly GroundPrimitive[]

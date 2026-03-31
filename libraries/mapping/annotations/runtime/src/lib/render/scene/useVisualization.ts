@@ -7,32 +7,31 @@ import {
   type PointDistanceRelation,
 } from "@carma-mapping/annotations/core";
 import { useCesiumEdgeVisualizer } from "@carma-mapping/engines/cesium/react/primitives";
+import type { Cartesian3, Scene } from "@carma/cesium";
 
+import { useEdgeComponentOverlayVisualizer } from "../edge/overlay/useEdgeComponentOverlayVisualizer";
+import { usePolylineOverlayVisualizer } from "../edge/overlay/usePolylineOverlayVisualizer";
+import {
+  useCoplanarPolygonFillVisualizer,
+  useGroundPolygonFillVisualizer,
+} from "../fill";
 import {
   useGroundAreaLabelVisualizer,
   usePlanarAreaLabelVisualizer,
   useVerticalAreaLabelVisualizer,
 } from "../labels";
-import {
-  useCoplanarPolygonFillVisualizer,
-  useGroundPolygonFillVisualizer,
-} from "../fill";
+import { usePointLabelVisualizer } from "../labels/usePointLabelVisualizer";
+import type { AnnotationPointMarkerBadge } from "../point/usePointMarkerBadges";
+import type { AnnotationsOptions } from "../../config/annotationsOptions";
 import { usePointCandidateDomOverlay } from "../../interaction/candidate/usePointCandidateDomOverlay";
 import { usePointCandidateRingIndicator } from "../../interaction/candidate/usePointCandidateRingIndicator";
-import { useEdgeComponentOverlayVisualizer } from "../edge/overlay/useEdgeComponentOverlayVisualizer";
-import { usePointLabelVisualizer } from "../labels/usePointLabelVisualizer";
-import { usePolylineOverlayVisualizer } from "../edge/overlay/usePolylineOverlayVisualizer";
 import { useCursorOverlay } from "../../interaction/cursor/useCursorOverlay";
-import { useRectangleSelectionOverlay } from "../../selection/hooks/useRectangleSelectionOverlay";
-import { useSceneModels } from "./useSceneModels";
 import type { EditingState } from "../../interaction/editing/useEditing";
 import type { UserInteractionState } from "../../interaction/lifecycle/modes/useUserInteraction";
-import type { Cartesian3, Scene } from "@carma/cesium";
-import type { AnnotationsOptions } from "../../config/annotationsOptions";
-import type { AnnotationPointMarkerBadge } from "../point/usePointMarkerBadges";
-import type { AnnotationSelectionState } from "../../selection/types/annotationSelection.types";
+import { useRectangleSelectionOverlay } from "../../selection/hooks/useRectangleSelectionOverlay";
 import type { RectangleSelectionState } from "../../selection/hooks/useRectangleSelectionOverlay";
-
+import type { AnnotationSelectionState } from "../../selection/types/annotationSelection.types";
+import { useSceneModels } from "./useSceneModels";
 const POINT_LABEL_LONG_PRESS_DURATION_MS = 300;
 
 type VisualizationMoveGizmoOptions = Partial<{

@@ -1,12 +1,12 @@
+import type { Matrix4, Quaternion, Vector3 } from "three";
+
+import type { LatLngAlt } from "@carma/geo/types";
 import {
   coerceMatrix4,
   coerceQuaternion,
   coerceVector3,
   isFiniteNumber,
 } from "@carma/math";
-import type { LatLngAlt } from "@carma/geo/types";
-import type { Matrix4, Quaternion, Vector3 } from "three";
-
 export const toSceneStateVec3 = (value: unknown): Vector3 | null =>
   coerceVector3(value);
 

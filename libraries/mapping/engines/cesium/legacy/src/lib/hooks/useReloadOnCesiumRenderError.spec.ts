@@ -1,8 +1,9 @@
-import { describe, it, expect, vi } from "vitest";
 import { renderHook } from "@testing-library/react";
-import { useReloadOnCesiumRenderError } from "./useReloadOnCesiumRenderError";
+import { describe, it, expect, vi } from "vitest";
+
 import { carmaWindow } from "@carma-commons/utils";
 
+import { useReloadOnCesiumRenderError } from "./useReloadOnCesiumRenderError";
 describe("useReloadOnCesiumRenderError", () => {
   it("reloads window by default when event is dispatched", () => {
     const reloadSpy = vi

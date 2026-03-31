@@ -6,7 +6,6 @@ import {
   type AnnotationsStore,
 } from "../../store";
 import { areStringListsEqual } from "../../store/stateUpdateUtils";
-
 const mergeUniqueIds = (
   previousIds: readonly string[],
   nextIds: readonly string[]

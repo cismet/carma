@@ -1,7 +1,5 @@
 import { useMemo, useState, type CSSProperties } from "react";
-import { MINUS_PI_OVER_FOUR } from "@carma/math";
-import { degToRadNumeric, radToDegNumeric } from "@carma/units/helpers";
-import type { Radians } from "@carma/units/types";
+
 import {
   PointLabel,
   createPointLabelExpansionSlots,
@@ -10,8 +8,11 @@ import {
   type PointLabelExpansionSlotPreset,
   type PointLabelExpansionSlotStrategy,
 } from "@carma-providers/label-overlay";
-import { CenteredStoryFrame } from "../../common/ui/centered-story-frame";
+import { MINUS_PI_OVER_FOUR } from "@carma/math";
+import { degToRadNumeric, radToDegNumeric } from "@carma/units/helpers";
+import type { Radians } from "@carma/units/types";
 
+import { CenteredStoryFrame } from "../../common/ui/centered-story-frame";
 export type PointLabelSlotsStoryArgs = {
   preset: PointLabelExpansionSlotPreset;
   strategy: PointLabelExpansionSlotStrategy;

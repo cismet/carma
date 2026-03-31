@@ -1,13 +1,14 @@
 import { useCallback, useMemo } from "react";
+
 import {
   type AnnotationPersistenceEnvelopeV2Base,
   type BaseAnnotationEntry,
 } from "@carma-mapping/annotations/core";
+
 import {
   loadAnnotationPersistenceState,
   saveAnnotationPersistenceState,
 } from "./annotationPersistence";
-
 type UseLocalAnnotationPersistenceOptions = {
   enabled?: boolean;
   storageKey?: string;

@@ -1,4 +1,3 @@
-import type { Cartesian3 } from "@carma/cesium";
 import type { Store } from "redux";
 
 import type {
@@ -10,12 +9,12 @@ import type {
   PointDistanceRelation,
   ReferenceLineLabelKind,
 } from "@carma-mapping/annotations/core";
+import type { Cartesian3 } from "@carma/cesium";
 
 import type {
   AnnotationEditTarget,
   MoveGizmoSession,
 } from "../interaction/editing/annotationEdit.types";
-
 export type AnnotationSelectionStoreState = {
   selectedAnnotationIds: string[];
   previousSelectedAnnotationId: string | null;

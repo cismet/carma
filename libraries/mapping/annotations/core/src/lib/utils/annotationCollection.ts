@@ -8,7 +8,6 @@ import {
 } from "../types/annotationCesiumTypes";
 import type { NodeChainAnnotation } from "../types/annotationTypes";
 import { getCustomPointAnnotationName } from "./annotationNaming";
-
 export const getPointById = (
   annotations: AnnotationCollection,
   pointId: string

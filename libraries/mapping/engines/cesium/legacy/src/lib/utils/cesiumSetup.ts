@@ -1,6 +1,6 @@
 import { Viewer } from "cesium";
-import type { CesiumConfig } from "./../..";
 
+import type { CesiumConfig } from "./../..";
 const CESIUM_PATHNAME = "__cesium__";
 
 const getAppBaseUrl = (): string => {

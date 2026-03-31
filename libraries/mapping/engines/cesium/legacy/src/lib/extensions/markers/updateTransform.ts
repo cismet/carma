@@ -10,7 +10,6 @@ import {
 import { Radians } from "@carma/units/types";
 
 import type { MarkerPrimitiveData } from "./index.d";
-
 type ScaleTranslation = {
   scale: Cartesian3;
   translation: Cartesian3;

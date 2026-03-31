@@ -6,7 +6,9 @@ import {
   type ReactNode,
   type RefCallback,
 } from "react";
+
 import { Tooltip } from "antd";
+
 import {
   ANNOTATION_TYPE_LABEL,
   isManagedAnnotationKeyboardEvent,
@@ -15,12 +17,12 @@ import {
   resolveAnnotationToolShortcutTarget,
   SELECT_TOOL_TYPE,
 } from "@carma-mapping/annotations/core";
-import { resolveAnnotationToolText } from "../../../config/annotationToolText";
-import { annotationTooltipProps } from "../../shared/annotationTooltip";
-import { annotationToolManager as defaultAnnotationToolManager } from "../annotationToolManager";
-import type { AnnotationModeToolbarProps } from "../AnnotationModeToolbar.types";
-import { primaryToolbarSurfaceStyle, toolButtonStyle } from "../shared";
 
+import type { AnnotationModeToolbarProps } from "../AnnotationModeToolbar.types";
+import { annotationToolManager as defaultAnnotationToolManager } from "../annotationToolManager";
+import { primaryToolbarSurfaceStyle, toolButtonStyle } from "../shared";
+import { annotationTooltipProps } from "../../shared/annotationTooltip";
+import { resolveAnnotationToolText } from "../../../config/annotationToolText";
 type AnnotationToolStripProps = Pick<
   AnnotationModeToolbarProps,
   "activeToolType" | "onToolTypeChange" | "toolCatalog"

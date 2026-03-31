@@ -1,8 +1,8 @@
 import type { Scene, Vector3 } from "three";
+
 import type { ViewStateVisualizerSize } from "../../view-state-visualizer-types";
 import { createThreePart } from "../../../../common/create-part";
 import { createWideLineSet } from "../../../../common/wide-lines";
-
 export const ANGLE_CUE_KEYS = {
   BEARING_ARC: "bearingArc",
   PITCH_ARC: "pitchArc",

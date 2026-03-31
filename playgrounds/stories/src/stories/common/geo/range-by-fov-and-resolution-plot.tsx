@@ -1,4 +1,11 @@
-import type { Meters } from "@carma/units/types";
+import {
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type MouseEvent as ReactMouseEvent,
+} from "react";
+
 import {
   axisBottom,
   axisLeft,
@@ -12,13 +19,9 @@ import {
   scaleSequential,
   select,
 } from "d3";
-import {
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-  type MouseEvent as ReactMouseEvent,
-} from "react";
+
+import type { Meters } from "@carma/units/types";
+
 import {
   DOLLY_ZOOM_X_AXIS_MODES,
   buildDollyZoomXAxisTickEntries,
@@ -42,7 +45,6 @@ import {
   readGuideLeftXFromPrimaryYAxisReadout,
   readSampleAnchoredTooltipBox,
 } from "./plot-hover-readout";
-
 export const RANGE_PLOT_X_AXIS_MODES = DOLLY_ZOOM_X_AXIS_MODES;
 export type RangePlotXAxisMode = DollyZoomXAxisMode;
 
@@ -291,8 +293,7 @@ const drawHeatmapRaster = ({
   const rowBounds = readSampleBandBounds(rowCenters, 0, targetHeight);
 
   const columnPixelBounds = columnBounds.map((bound, index) => ({
-    start:
-      index === 0 ? Math.floor(bound.start) : Math.round(bound.start),
+    start: index === 0 ? Math.floor(bound.start) : Math.round(bound.start),
     end:
       index === columnBounds.length - 1
         ? Math.ceil(bound.end)
@@ -301,7 +302,9 @@ const drawHeatmapRaster = ({
   const rowPixelBounds = rowBounds.map((bound, index) => ({
     start: index === 0 ? Math.floor(bound.start) : Math.round(bound.start),
     end:
-      index === rowBounds.length - 1 ? Math.ceil(bound.end) : Math.round(bound.end),
+      index === rowBounds.length - 1
+        ? Math.ceil(bound.end)
+        : Math.round(bound.end),
   }));
 
   rowPixelBounds.forEach((rowBound, rowIndex) => {
@@ -403,21 +406,18 @@ export const RangeByFovAndResolutionPanel = ({
     [plotData.resolutionRows]
   );
 
-  const xScale = useMemo(
-    () => {
-      const xDomain = extent(xSampleValues) as
-        | [number, number]
-        | [undefined, undefined];
+  const xScale = useMemo(() => {
+    const xDomain = extent(xSampleValues) as
+      | [number, number]
+      | [undefined, undefined];
 
-      return scaleLinear()
-        .domain([
-          Number.isFinite(xDomain[0]) ? xDomain[0] : 0,
-          Number.isFinite(xDomain[1]) ? xDomain[1] : 1,
-        ])
-        .range([0, innerWidth]);
-    },
-    [innerWidth, xSampleValues]
-  );
+    return scaleLinear()
+      .domain([
+        Number.isFinite(xDomain[0]) ? xDomain[0] : 0,
+        Number.isFinite(xDomain[1]) ? xDomain[1] : 1,
+      ])
+      .range([0, innerWidth]);
+  }, [innerWidth, xSampleValues]);
 
   const yScale = useMemo(
     () =>
@@ -453,8 +453,8 @@ export const RangeByFovAndResolutionPanel = ({
     const lineGenerator = d3Line<RangeContourPoint>()
       .x(
         (point) =>
-          xScale(readDollyZoomXAxisValue(point.fovDeg, xAxisMode))
-          + PLOT_MARGIN.left
+          xScale(readDollyZoomXAxisValue(point.fovDeg, xAxisMode)) +
+          PLOT_MARGIN.left
       )
       .y((point) => PLOT_MARGIN.top + yScale(point.centerResolutionMPerPx))
       .curve(curveLinear);
@@ -556,7 +556,14 @@ export const RangeByFovAndResolutionPanel = ({
       targetWidth: innerWidth,
       targetHeight: innerHeight,
     });
-  }, [colorScale, innerHeight, innerWidth, plotData, xSampleCenters, ySampleCenters]);
+  }, [
+    colorScale,
+    innerHeight,
+    innerWidth,
+    plotData,
+    xSampleCenters,
+    ySampleCenters,
+  ]);
 
   const handleHeatmapMove = (event: ReactMouseEvent<SVGRectElement>) => {
     const bounds = event.currentTarget.getBoundingClientRect();
@@ -857,12 +864,8 @@ export const RangeByFovAndResolutionPlot = ({
           </a>
           .
         </p>
-        <p style={GEO_STORY_STYLES.text.introText}>
-          range = k / tan(fov / 2)
-        </p>
-        <p style={GEO_STORY_STYLES.text.introText}>
-          fov = 2 · atan(k / range)
-        </p>
+        <p style={GEO_STORY_STYLES.text.introText}>range = k / tan(fov / 2)</p>
+        <p style={GEO_STORY_STYLES.text.introText}>fov = 2 · atan(k / range)</p>
         <p style={GEO_STORY_STYLES.text.introText}>
           Use plain FOV for intuition, log(fov) to flatten small-angle power
           behavior, or log(tan(fov / 2)) for the exact compensation form.

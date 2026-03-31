@@ -1,9 +1,10 @@
 import { useEffect, useRef } from "react";
+
+import * as turfHelpers from "@turf/helpers";
 import maplibregl from "maplibre-gl";
 import proj4 from "proj4";
-import { proj4crs3857def, proj4crs4326def } from "@carma-mapping/utils";
-import * as turfHelpers from "@turf/helpers";
 
+import { proj4crs3857def, proj4crs4326def } from "@carma-mapping/utils";
 // Import from portals - SelectionProvider is a shared concern
 import { SelectionItem, useSelection } from "@carma-appframeworks/portals";
 

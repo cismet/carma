@@ -1,10 +1,10 @@
 import type { Meta, StoryObj } from "@storybook/react";
+
 import { RESOLUTION_SCALE } from "./helpers/constants";
 import {
   ResolutionScaleStory,
   type ResolutionScaleControls,
 } from "./storyScenarios";
-
 const meta: Meta<ResolutionScaleControls> = {
   title: "Mapping/MapFrameworkSwitcher",
   parameters: {

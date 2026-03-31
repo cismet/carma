@@ -2,7 +2,6 @@ import { useCesiumCoordinateHandler } from "@carma-mapping/engines/cesium/react/
 
 import type { RuntimeCoordinate } from "../store";
 import type { RuntimeScene } from "../types/runtimeScene.types";
-
 type UseSceneCoordinateHandlerOptions = {
   enabled: boolean;
   onCoordinate?: (

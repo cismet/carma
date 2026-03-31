@@ -3,9 +3,9 @@ import {
   ANNOTATION_TYPE_AREA_PLANAR,
   ANNOTATION_TYPE_AREA_VERTICAL,
 } from "@carma-mapping/annotations/core";
+
 import { optionsLabelStyle } from "../../shared";
 import { ToolOptionsSection } from "./ToolOptionsSection";
-
 type AreaToolOptionsProps = {
   activeToolType:
     | typeof ANNOTATION_TYPE_AREA_GROUND

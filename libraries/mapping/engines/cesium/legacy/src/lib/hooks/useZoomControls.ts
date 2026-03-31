@@ -1,20 +1,17 @@
 import { useCallback } from "react";
 
-import { PerspectiveFrustum } from "@carma/cesium";
+import { Easing } from "@carma-commons/math";
 import {
   cancelCesiumSceneTravelZoom,
   animateCesiumSceneTravelZoom,
 } from "@carma-mapping/engines/cesium/api";
-
-import { Easing } from "@carma-commons/math";
-
+import { PerspectiveFrustum } from "@carma/cesium";
 import type { Ratio, Radians } from "@carma/units/types";
 
-import { cancelSceneAnimation } from "../utils/sceneAnimationMap";
-import { cesiumAnimateFov } from "../utils/cesiumAnimateFov";
 import type { CesiumContextType } from "../CesiumContext";
+import { cesiumAnimateFov } from "../utils/cesiumAnimateFov";
 import { DEFAULT_MAX_FOV, DEFAULT_MIN_FOV, computeNextFov } from "../utils/fov";
-
+import { cancelSceneAnimation } from "../utils/sceneAnimationMap";
 type ZoomOptions = {
   duration?: number;
   zoomDelta?: number;
@@ -35,15 +32,13 @@ const readZoomDelta = ({
   zoomDelta,
   moveRateFactor,
 }: Pick<ZoomOptions, "zoomDelta" | "moveRateFactor">) =>
-  typeof zoomDelta === "number" &&
-  Number.isFinite(zoomDelta) &&
-  zoomDelta > 0
+  typeof zoomDelta === "number" && Number.isFinite(zoomDelta) && zoomDelta > 0
     ? zoomDelta
     : typeof moveRateFactor === "number" &&
-        Number.isFinite(moveRateFactor) &&
-        moveRateFactor > 0
-      ? moveRateFactor
-      : defaultZoomOptions.zoomDelta;
+      Number.isFinite(moveRateFactor) &&
+      moveRateFactor > 0
+    ? moveRateFactor
+    : defaultZoomOptions.zoomDelta;
 
 const zoom = (
   ctx: CesiumContextType,
@@ -89,8 +84,7 @@ const fovZoom = (
 
     const currentFov = camera.frustum.fov as Radians;
     const step = zoomIn ? 1 : -1;
-    const stepFraction = (zoomDelta *
-      MOVE_RATE_EQUIVALENT_FACTOR) as Ratio;
+    const stepFraction = (zoomDelta * MOVE_RATE_EQUIVALENT_FACTOR) as Ratio;
     const targetFov = computeNextFov(
       currentFov,
       step,

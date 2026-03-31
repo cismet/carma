@@ -1,9 +1,8 @@
 import type { CSSProperties } from "react";
-import { useToolbarModel } from "./model/useToolbarModel";
-import type { AnnotationToolManager } from "./annotationToolManager";
 
 import { AnnotationModeToolbar } from "./AnnotationModeToolbar";
-
+import type { AnnotationToolManager } from "./annotationToolManager";
+import { useToolbarModel } from "./model/useToolbarModel";
 export function AnnotationToolbar3D({
   pixelWidth = 350,
   toolManager,

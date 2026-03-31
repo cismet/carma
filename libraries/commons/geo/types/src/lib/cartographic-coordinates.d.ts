@@ -1,6 +1,6 @@
 import type { Meters } from "@carma/units/types";
-import type { Altitude } from "./altitudes";
 
+import type { Altitude } from "./altitudes";
 export type EastingNorthingMeters = {
   east: Meters;
   north: Meters;

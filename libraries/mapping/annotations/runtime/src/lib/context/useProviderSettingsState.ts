@@ -1,4 +1,5 @@
 import { useCallback, useMemo } from "react";
+
 import {
   ANNOTATION_TYPE_DISTANCE,
   ANNOTATION_TYPE_POINT,
@@ -6,18 +7,17 @@ import {
   type LinearSegmentLineMode,
 } from "@carma-mapping/annotations/core";
 
-import type {
-  AnnotationSettingsByToolKey,
-  AnnotationSettingsContextType,
-  AnnotationSettingsToolKey,
-} from "./annotationsContext.types";
 import {
   replaceAnnotationsStoreState,
   type AnnotationsStore,
   useStoreSelector,
 } from "../store";
 import { resolveSetStateAction } from "../store/stateUpdateUtils";
-
+import type {
+  AnnotationSettingsByToolKey,
+  AnnotationSettingsContextType,
+  AnnotationSettingsToolKey,
+} from "./annotationsContext.types";
 export const useProviderSettingsState = (
   annotationsStore: AnnotationsStore
 ) => {

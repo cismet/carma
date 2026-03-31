@@ -1,7 +1,7 @@
 import { useEffect } from "react";
-import { useCesiumViewer } from "./useCesiumViewer";
-import type { GlobeOptions } from "../CustomViewer";
 
+import type { GlobeOptions } from "../CustomViewer";
+import { useCesiumViewer } from "./useCesiumViewer";
 export const useCesiumGlobe = (globeOptions: GlobeOptions) => {
   const viewer = useCesiumViewer();
 

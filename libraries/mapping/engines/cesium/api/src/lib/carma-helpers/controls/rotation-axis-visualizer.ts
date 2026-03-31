@@ -1,4 +1,5 @@
 import { Easing, lerp, type Easing as EasingFunction } from "@carma/math";
+
 import {
   Cartesian3,
   Cartesian4,
@@ -8,7 +9,6 @@ import {
   PolylineCollection,
   type Scene,
 } from "../../cesium";
-
 export type RotationAxisVisualizerOptions = {
   origin: Cartesian3;
   upVector: Cartesian3;

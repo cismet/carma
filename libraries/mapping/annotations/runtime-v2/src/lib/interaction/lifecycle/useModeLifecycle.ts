@@ -1,11 +1,10 @@
 import { useCallback } from "react";
 
+import type { RuntimeToolId } from "../../types/runtimeTool.types";
 import type {
   AnnotationModeSession,
   AnnotationModeSessionMap,
 } from "./annotationModeSession.types";
-import type { RuntimeToolId } from "../../types/runtimeTool.types";
-
 const getModeSession = (
   sessionsByToolType: AnnotationModeSessionMap,
   toolType: RuntimeToolId

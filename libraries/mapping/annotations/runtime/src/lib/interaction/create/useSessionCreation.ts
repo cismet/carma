@@ -5,12 +5,7 @@ import {
   type Dispatch,
   type SetStateAction,
 } from "react";
-import {
-  Cartesian3,
-  getDegreesFromCartesian,
-  getEllipsoidalAltitudeOrZero,
-  projectPointToHorizontalPlaneAtAnchor,
-} from "@carma/cesium";
+
 import {
   ANNOTATION_TYPE_AREA_GROUND,
   ANNOTATION_TYPE_AREA_PLANAR,
@@ -37,13 +32,19 @@ import {
   type NodeChainAnnotation,
   type PolygonAreaType,
 } from "@carma-mapping/annotations/core";
-import type { AnnotationsStore } from "../../store";
-import { createUniqueRuntimeId } from "./createUniqueRuntimeId";
+import {
+  Cartesian3,
+  getDegreesFromCartesian,
+  getEllipsoidalAltitudeOrZero,
+  projectPointToHorizontalPlaneAtAnchor,
+} from "@carma/cesium";
+
 import {
   finalizeDraftEntries,
   upsertDraftEntry,
 } from "../lifecycle/draftEntryCollection";
-
+import type { AnnotationsStore } from "../../store";
+import { createUniqueRuntimeId } from "./createUniqueRuntimeId";
 type UseNodeChainPointCreationParams = {
   annotationsStore: AnnotationsStore;
   activeToolType: AnnotationToolType;

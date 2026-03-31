@@ -1,8 +1,8 @@
 import { Altitude, LatLngAlt, Latitude, Longitude } from "@carma/geo/types";
 import { radToDeg } from "@carma/units/helpers";
 import { Radians } from "@carma/units/types";
-import { Cartographic } from "../../cesium";
 
+import { Cartographic } from "../../cesium";
 const ZERO_ELLIPSOIDAL_ALTITUDE = 0 as Altitude.EllipsoidalWGS84Meters;
 
 export const getEllipsoidalAltitudeOrZero = (

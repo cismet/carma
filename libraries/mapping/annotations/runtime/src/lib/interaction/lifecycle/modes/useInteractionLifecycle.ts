@@ -13,9 +13,9 @@ import {
   type NodeChainAnnotation,
   type PointDistanceRelation,
 } from "@carma-mapping/annotations/core";
+
 import { useManagedSelectionDeleteKeyboardShortcuts } from "./useManagedSelectionDeleteKeyboardShortcuts";
 import { useManagedToolKeyboardShortcuts } from "./useManagedToolKeyboardShortcuts";
-
 type InteractionLifecycleState = {
   annotations: AnnotationCollection;
   selectedAnnotationIds: string[];

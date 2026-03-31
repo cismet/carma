@@ -3,6 +3,9 @@ import {
   normalizedToPixelPosition,
 } from "@carma-commons/dom/canvas";
 import { Easing, clamp } from "@carma/math";
+import type { Seconds } from "@carma/units/types";
+
+import { pickBestAvailablePositionAtScreenPosition } from "../scene/Picking";
 import {
   Cartesian3,
   Ellipsoid,
@@ -13,14 +16,11 @@ import {
   ScreenSpaceEventType,
   type Scene,
 } from "../../cesium";
-import { pickBestAvailablePositionAtScreenPosition } from "../scene/Picking";
+import { readCachedCesiumSceneCenter } from "./per-frame-cache";
 import {
   createRotationAxisVisualizer,
   type RotationAxisVisualizer,
 } from "./rotation-axis-visualizer";
-import { readCachedCesiumSceneCenter } from "./per-frame-cache";
-import type { Seconds } from "@carma/units/types";
-
 export type CesiumSceneOrbitControllerStopOptions = {
   immediate?: boolean;
 };

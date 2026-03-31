@@ -1,21 +1,22 @@
 import { useEffect, useMemo, useRef } from "react";
+
 import {
   ViewStateProvider,
   useViewAdapter,
   type ViewState,
 } from "@carma-mapping/engines-interop/view-state";
-import { SlotsLayout } from "./ViewSyncStorySlots";
+
 import {
   createStoryTargetState,
   noopApplyViewState,
   shellStyle,
   type ViewSyncStoryProps,
 } from "./viewSyncStoryShared";
+import { SlotsLayout } from "./ViewSyncStorySlots";
 
+import "cesium/Build/Cesium/Widgets/widgets.css";
 import "leaflet/dist/leaflet.css";
 import "maplibre-gl/dist/maplibre-gl.css";
-import "cesium/Build/Cesium/Widgets/widgets.css";
-
 const ViewSyncStoryArgsSync = ({ target }: { target: ViewState }) => {
   const animationFrameRef = useRef<number | null>(null);
   const { claimControl, pushState, releaseControl } = useViewAdapter(

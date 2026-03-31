@@ -5,9 +5,8 @@ import type {
   AnnotationLabelAppearance,
   PointLabelMetricMode,
 } from "./annotationLabel";
-import type { PointDistanceRelation } from "./distanceRelation";
 import type { NodeChainAnnotation } from "./annotationTypes";
-
+import type { PointDistanceRelation } from "./distanceRelation";
 export type AnnotationGeometryPoint = {
   id: string;
   longitude: number;

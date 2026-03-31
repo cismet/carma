@@ -1,13 +1,6 @@
 import { distance } from "@turf/turf";
-import {
-  DEFAULT_LEAFLET_TILESIZE,
-  DEFAULT_MERCATOR_LATITUDE_RAD,
-  DEFAULT_ZOOM_LEVEL,
-  DEFAULT_PIXEL_TOLERANCE,
-} from "./constants/web-map";
 
-import type { Degrees, Meters, Radians } from "@carma/units/types";
-
+import { LatLng } from "@carma/geo/types";
 import {
   brandedRatio,
   brandedAbs,
@@ -16,13 +9,18 @@ import {
   isZoom,
   isZoomClose,
 } from "@carma/units/helpers";
+import type { Degrees, Meters, Radians } from "@carma/units/types";
 
-import { LatLng } from "@carma/geo/types";
+import {
+  DEFAULT_LEAFLET_TILESIZE,
+  DEFAULT_MERCATOR_LATITUDE_RAD,
+  DEFAULT_ZOOM_LEVEL,
+  DEFAULT_PIXEL_TOLERANCE,
+} from "./constants/web-map";
 import {
   getPixelResolutionFromZoomAtLatitudeRad,
   getZoomFromPixelResolutionAtLatitudeRad,
 } from "./mercator";
-
 const MIN_TAN_HALF_FOV = 1e-6;
 
 const readCenterRadiusPx = (

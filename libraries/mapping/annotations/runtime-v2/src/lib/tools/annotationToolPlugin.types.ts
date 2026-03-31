@@ -20,7 +20,6 @@ import type {
   RuntimeNode,
 } from "../store";
 import type { RuntimeToolId } from "../types/runtimeTool.types";
-
 export const ANNOTATION_TOOL_PLUGIN_KINDS = {
   INTERACTION: "interaction",
   MEASUREMENT: "measurement",

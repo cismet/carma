@@ -1,10 +1,10 @@
 import { Cartesian2, Cartesian3, type Scene } from "@carma/cesium";
+import { radToDegNumeric } from "@carma/units/helpers";
+
 import {
   applyRollToHeadingForCameraNearNadir,
   captureCurrentCameraState,
 } from "../camera";
-import { radToDegNumeric } from "@carma/units/helpers";
-
 const MAX_COMPASS_PITCH_RAD = Math.PI / 2;
 const VIEWPORT_CENTER = new Cartesian2();
 
@@ -127,9 +127,7 @@ const pickViewportCenter = (scene: MinimalCesiumScene): Cartesian3 | null => {
   }
 };
 
-const readViewportCenter = (
-  scene: MinimalCesiumScene
-): Cartesian2 | null => {
+const readViewportCenter = (scene: MinimalCesiumScene): Cartesian2 | null => {
   const width = scene.canvas?.clientWidth;
   const height = scene.canvas?.clientHeight;
   if (
@@ -171,8 +169,8 @@ const pickViewportCenterZoomAnchor = (
     const pickRay = scene.camera.getPickRay(viewportCenter);
     const globePoint =
       pickRay && scene.globe
-        ? ((scene.globe.pick(pickRay, scene as Scene) as Cartesian3 | null) ??
-          null)
+        ? (scene.globe.pick(pickRay, scene as Scene) as Cartesian3 | null) ??
+          null
         : null;
 
     return {

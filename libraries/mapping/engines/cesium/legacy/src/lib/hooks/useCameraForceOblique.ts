@@ -6,7 +6,6 @@ import type { Scene } from "@carma/cesium";
 import { cesiumCameraForceOblique } from "../utils/cesiumCameraForceOblique";
 import type { CameraForceObliqueOptions } from "../utils/cesiumCameraForceOblique";
 import { sceneHasTweens } from "../utils/sceneHasTweens";
-
 const scenePreUpdateHandlers = new WeakMap<Scene, (scene: Scene) => void>();
 
 export function useCesiumCameraForceOblique(

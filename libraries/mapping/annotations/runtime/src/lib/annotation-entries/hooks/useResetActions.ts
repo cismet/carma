@@ -7,7 +7,6 @@ import {
   type NodeChainAnnotation,
   type PointDistanceRelation,
 } from "@carma-mapping/annotations/core";
-
 type UseResetActionsParams = {
   hideAnnotationsOfType: ReadonlySet<AnnotationMode>;
   setHideAnnotationsOfType: Dispatch<SetStateAction<Set<AnnotationMode>>>;

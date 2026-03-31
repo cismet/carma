@@ -1,3 +1,8 @@
+import type {
+  AnnotationLabelAnchor,
+  AnnotationLabelAppearance,
+  PointLabelMetricMode,
+} from "../types/annotationLabel";
 import {
   ANNOTATION_TYPE_LABEL,
   ANNOTATION_TYPE_DISTANCE,
@@ -7,12 +12,6 @@ import {
   SELECT_TOOL_TYPE,
   type AnnotationToolType,
 } from "../types/annotationTypes";
-import type {
-  AnnotationLabelAnchor,
-  AnnotationLabelAppearance,
-  PointLabelMetricMode,
-} from "../types/annotationLabel";
-
 export const PURE_LABEL_DEFAULT_FONT_SIZE_PX = 12;
 export const PURE_LABEL_DEFAULT_BACKGROUND_COLOR = "rgba(200, 200, 200, 0.7)";
 export const PURE_LABEL_DEFAULT_TEXT_COLOR = "#000000";

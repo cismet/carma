@@ -3,6 +3,7 @@ import {
   createSlice,
   type PayloadAction,
 } from "@reduxjs/toolkit";
+
 import { normalizeOptions } from "@carma-commons/utils";
 import {
   DEFAULT_LINEAR_SEGMENT_LINE_MODE,
@@ -14,13 +15,13 @@ import type {
   LinearSegmentLineMode,
   ReferenceLineLabelKind,
 } from "@carma-mapping/annotations/core";
+
 import type {
   AnnotationEditStoreState,
   AnnotationSettingsStoreState,
   AnnotationsStore,
   AnnotationsStoreState,
 } from "./annotationsStore.types";
-
 export type CreateInitialAnnotationsStoreStateOptions = {
   initialToolType?: AnnotationToolType;
   initialPointRadius?: number;

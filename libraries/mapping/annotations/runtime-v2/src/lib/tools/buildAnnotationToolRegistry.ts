@@ -1,11 +1,10 @@
+import type { RuntimeToolId } from "../types/runtimeTool.types";
+import { ANNOTATION_TOOL_PLUGIN_CAPABILITIES } from "./annotationToolPlugin.types";
 import type {
   AnnotationToolPlugin,
   AnnotationToolPluginCapability,
   AnnotationToolRegistry,
 } from "./annotationToolPlugin.types";
-import { ANNOTATION_TOOL_PLUGIN_CAPABILITIES } from "./annotationToolPlugin.types";
-import type { RuntimeToolId } from "../types/runtimeTool.types";
-
 const warnedFallbackKeys = new Set<string>();
 
 const warnCapabilityFallback = (

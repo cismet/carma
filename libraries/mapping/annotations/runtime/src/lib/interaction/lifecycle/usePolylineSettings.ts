@@ -4,19 +4,19 @@ import {
   type Dispatch,
   type SetStateAction,
 } from "react";
-import {
-  Cartesian3,
-  getDegreesFromCartesian,
-  getEllipsoidalAltitudeOrZero,
-  getPositionWithVerticalOffsetFromAnchor,
-} from "@carma/cesium";
+
 import {
   isPointAnnotationEntry,
   type AnnotationCollection,
   type LinearSegmentLineMode,
   type NodeChainAnnotation,
 } from "@carma-mapping/annotations/core";
-
+import {
+  Cartesian3,
+  getDegreesFromCartesian,
+  getEllipsoidalAltitudeOrZero,
+  getPositionWithVerticalOffsetFromAnchor,
+} from "@carma/cesium";
 type UsePolylineSettingsParams = {
   focusedNodeChainAnnotationId: string | null;
   nodeChainAnnotations: NodeChainAnnotation[];

@@ -4,7 +4,6 @@ import type {
   RuntimeAnnotationEntry,
   RuntimeNode,
 } from "../../context/AnnotationsProvider";
-
 export type RuntimeAnnotationInfoBoxSlots = {
   headingTitle: string;
   headingColor?: string;

@@ -1,12 +1,12 @@
 import { Matrix4, Vector3 } from "three";
 import { describe, expect, it } from "vitest";
+
 import {
   enuDirectionToLocalYUpSceneDirection,
   localYUpSceneDirectionToEnuDirection,
   readEnuToLocalYUpSceneRotationMatrix,
   readLocalYUpSceneToEnuRotationMatrix,
 } from "./local-y-up-scene";
-
 const expectVectorCloseTo = (actual: Vector3, expected: Vector3): void => {
   expect(actual.x).toBeCloseTo(expected.x, 8);
   expect(actual.y).toBeCloseTo(expected.y, 8);

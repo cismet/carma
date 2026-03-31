@@ -20,7 +20,6 @@ import {
   resolveMeasurementCoordinates,
 } from "../../render/resolveMeasurementCoordinates";
 import type { VerticalAreaToolVisualSettings } from "./verticalAreaToolSettings";
-
 type BuildVerticalAreaToolRenderModelsArgs = {
   visuals: VerticalAreaToolVisualSettings;
   badgeStyle: {

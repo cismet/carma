@@ -5,6 +5,7 @@ import {
   type Scene,
   type Vector3,
 } from "three";
+
 import { createThreePart } from "../../../../common/create-part";
 import {
   disposeBasicLineObject,
@@ -12,7 +13,6 @@ import {
   setLineGeometry,
   setLineWidth,
 } from "../../../../common/line-helpers";
-
 const ORIGIN_POINTS = [] as Vector3[];
 
 export type MaxPitchRingDisplay = {

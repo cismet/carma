@@ -5,9 +5,8 @@ import {
   type CSSProperties,
   type ReactNode,
 } from "react";
-import { MINUS_PI_OVER_FOUR } from "@carma/math";
+
 import { DraggableDebugAnchor } from "@carma-commons/interaction/drag";
-import type { CssPixelPosition } from "@carma/units/types";
 import { createScreenPointSvgLineVisualizers } from "@carma-commons/svg";
 import {
   PILLBUTTON_BADGE_POSITIONS,
@@ -18,8 +17,10 @@ import {
   type PointLabelAttach,
   type PointLabelStyleProps,
 } from "@carma-providers/label-overlay";
-import { CenteredStoryFrame } from "../../common/ui/centered-story-frame";
+import { MINUS_PI_OVER_FOUR } from "@carma/math";
+import type { CssPixelPosition } from "@carma/units/types";
 
+import { CenteredStoryFrame } from "../../common/ui/centered-story-frame";
 export type LabelMarkersStoryArgs = PointLabelStyleProps & {
   content: ReactNode;
   compactContent?: ReactNode;

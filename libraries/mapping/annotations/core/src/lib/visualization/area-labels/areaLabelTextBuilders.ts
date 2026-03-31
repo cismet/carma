@@ -1,8 +1,8 @@
-import { type NodeChainAnnotation } from "../../types/annotationTypes";
 import type { Cartesian3Json } from "@carma/cesium";
 import { formatAreaSquareMetersAdaptive } from "@carma/units/helpers";
-import { ANNOTATION_TYPE_AREA_VERTICAL } from "../../types/annotationTypes";
 
+import { ANNOTATION_TYPE_AREA_VERTICAL } from "../../types/annotationTypes";
+import { type NodeChainAnnotation } from "../../types/annotationTypes";
 export type AreaLabelText = {
   primaryText: string;
   secondaryText?: string | null;

@@ -1,40 +1,39 @@
+import { Provider } from "react-redux";
+
 import { createRoot } from "react-dom/client";
 import { createHashRouter, RouterProvider } from "react-router-dom";
-
-import { Provider } from "react-redux";
 import { persistStore } from "redux-persist";
 import { PersistGate } from "redux-persist/integration/react";
 
-import { TopicMapContextProvider } from "react-cismap/contexts/TopicMapContextProvider";
 import { CrossTabCommunicationContextProvider } from "react-cismap/contexts/CrossTabCommunicationContextProvider";
+import { TopicMapContextProvider } from "react-cismap/contexts/TopicMapContextProvider";
 
 import {
   GazDataProvider,
   SelectionProvider,
 } from "@carma-appframeworks/portals";
-import { HashStateProvider } from "@carma-providers/hash-state";
-import { suppressReactCismapErrors } from "@carma-commons/utils";
 import {
-  CesiumContextProvider,
-  setupCesiumEnvironment,
-} from "@carma-mapping/engines/cesium";
+  getHashParams,
+  HASH_LAUNCH_MODE,
+  resolveHashLaunchMode,
+} from "@carma-commons/utils";
+import { suppressReactCismapErrors } from "@carma-commons/utils";
 import {
   CARMA_MAP_FRAMEWORKS,
   MapFrameworkSwitcherProvider,
   type CarmaMapFramework,
 } from "@carma-mapping/components";
 import {
-  getHashParams,
-  HASH_LAUNCH_MODE,
-  resolveHashLaunchMode,
-} from "@carma-commons/utils";
+  CesiumContextProvider,
+  setupCesiumEnvironment,
+} from "@carma-mapping/engines/cesium";
+import { HashStateProvider } from "@carma-providers/hash-state";
 
 import App from "./App";
-import store from "./store";
-import { gazDataConfig } from "./config/gazData";
 import { SYNC_TOKEN } from "./config/app.config";
 import { CESIUM_CONFIG } from "./config/cesium/cesium.config";
-
+import { gazDataConfig } from "./config/gazData";
+import store from "./store";
 suppressReactCismapErrors();
 setupCesiumEnvironment(CESIUM_CONFIG);
 

@@ -6,9 +6,9 @@ import type {
 } from "@carma/geo/types";
 import { radToDeg } from "@carma/units/helpers";
 import type { Radians } from "@carma/units/types";
+
 import type { Camera } from "../../cesium";
 import { cartographicToJson } from "../../serialization";
-
 export const cameraPositionCartographicRadians = (
   camera: Camera
 ): LatLngAlt.rad => {

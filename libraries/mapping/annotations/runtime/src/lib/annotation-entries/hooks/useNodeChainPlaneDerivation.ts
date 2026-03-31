@@ -1,12 +1,12 @@
 import { useCallback } from "react";
-import { Cartesian3, isValidScene, type Scene } from "@carma/cesium";
+
 import {
   computePolygonGroupDerivedData,
   orientPlaneNormalTowardPosition,
   type NodeChainAnnotation,
   type PlanarPolygonPlane,
 } from "@carma-mapping/annotations/core";
-
+import { Cartesian3, isValidScene, type Scene } from "@carma/cesium";
 export const useNodeChainPlaneDerivation = (scene: Scene) => {
   const getPreferredPlaneFacingPosition = useCallback((): Cartesian3 | null => {
     if (!isValidScene(scene)) return null;

@@ -1,6 +1,5 @@
 import { ANNOTATION_TYPE_POLYLINE } from "../types/annotationTypes";
 import type { NodeChainAnnotation } from "../types/annotationTypes";
-
 export const getConnectedOpenPolylineGroupIds = (
   groups: readonly NodeChainAnnotation[],
   startGroupId: string

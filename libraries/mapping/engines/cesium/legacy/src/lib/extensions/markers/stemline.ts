@@ -10,7 +10,6 @@ import {
 
 import type { PolylineConfig } from "../../../";
 import type { MarkerPrimitiveData } from "./index.d";
-
 export const createOrUpdateStemline = (
   scene: Scene,
   markerData: MarkerPrimitiveData,

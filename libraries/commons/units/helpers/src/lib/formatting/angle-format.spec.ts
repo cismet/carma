@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { formatDegrees } from "./angle-format";
 
+import { formatDegrees } from "./angle-format";
 describe("formatDegrees", () => {
   it("formats degrees with the default degree symbol", () => {
     expect(formatDegrees(12.345)).toBe("12,35°");

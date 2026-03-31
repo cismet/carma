@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
-import { getProj4Converter, CoordinateFor } from "./proj4";
-import { ManagedProjections } from "./managed-projections";
 
+import { ManagedProjections } from "./managed-projections";
+import { getProj4Converter, CoordinateFor } from "./proj4";
 const WUPPERTAL = {
   position: {
     longitude: 7.20028,

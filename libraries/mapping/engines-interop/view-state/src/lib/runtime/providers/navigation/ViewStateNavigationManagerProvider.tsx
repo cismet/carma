@@ -7,11 +7,14 @@ import {
   useState,
   type ReactNode,
 } from "react";
+
 import {
   HASH_CLEAR_KEY_SET,
   type HashClearKeySetId,
   useHashState,
 } from "@carma-providers/hash-state";
+
+import { ViewStateContext } from "../view-state/ViewStateContext";
 import { VIEW_STATE_NAVIGATION_EVENT } from "../../../core/types";
 import type {
   ViewState,
@@ -20,9 +23,7 @@ import type {
   ViewStateNavigationEvent,
   ViewStateNavigationManagerContextValue,
 } from "../../../core/types";
-import { ViewStateContext } from "../view-state/ViewStateContext";
 import { ViewStateNavigationManagerContext } from "./ViewStateNavigationManagerContext";
-
 const DEFAULT_HASH_LABEL = "ViewStateNavigationManager";
 const DEFAULT_MIN_COMMIT_INTERVAL_MS = 100;
 const DEFAULT_CLEAR_KEY_SET_IDS: readonly HashClearKeySetId[] = [

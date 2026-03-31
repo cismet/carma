@@ -1,41 +1,31 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+
 import type { Meta, StoryObj } from "@storybook/react";
 import maplibregl, { type StyleSpecification } from "maplibre-gl";
+
 import { WUPPERTAL } from "@carma-commons/resources";
 import { ResponsiveStatusBar } from "@carma-commons/ui/components";
+import {
+  DEFAULT_NAVIGATION_ORBIT_REVOLUTION_DURATION_SEC,
+  NAVIGATION_ORBIT_DIRECTIONS,
+} from "@carma-mapping/engines-interop/navigation-controls";
 import type {
   NavigationOrbitDirection,
   NavigationOrbitOptions,
   NavigationZoomOptions,
 } from "@carma-mapping/engines-interop/navigation-controls";
 import {
-  DEFAULT_NAVIGATION_ORBIT_REVOLUTION_DURATION_SEC,
-  NAVIGATION_ORBIT_DIRECTIONS,
-} from "@carma-mapping/engines-interop/navigation-controls";
-import {
-  GEO_PORTAL_MAPLIBRE_STYLE,
-  applyViewStateToCesiumWidget,
-  buildLeafletViewFromState,
-  buildMapLibreCameraOptionsFromState,
-  createStoryTargetState,
-  shellStyle,
-  type CesiumRuntimeHandle,
-  type LeafletRuntimeHandle,
-  type MapLibreRuntimeHandle,
-} from "./viewSyncStoryShared";
-import {
   registerCesiumWidgetAdaptiveRenderScale,
   subscribeCesiumAdaptiveRenderScaleStatus,
-  type CesiumAdaptiveRenderScaleStatus,
   type CesiumAdaptiveRenderScaleActivitySummary,
   type CesiumAdaptiveRenderScaleChange,
+  type CesiumAdaptiveRenderScaleStatus,
 } from "@carma-mapping/engines/cesium/api";
-import { ViewSyncRuntimeNavigationControls } from "./controls/view-sync-runtime-navigation-controls";
-import { useContainerResize } from "./viewSyncStoryHooks";
+
 import { setupCesium } from "../../map-engine-switcher/helpers/cesium-setup";
 import { initializeLeaflet } from "../../map-engine-switcher/helpers/leaflet-setup";
 import { requestStoryCesiumRender } from "../../shared/cesiumRuntimeGuards";
-import { CARMA_STORY_MAPPING_ENGINES } from "./mappingEngines";
+import { ViewSyncRuntimeNavigationControls } from "./controls/view-sync-runtime-navigation-controls";
 import {
   buildHomeOptions,
   buildOrbitOptions,
@@ -53,11 +43,23 @@ import {
   ZOOM_DELTA_PRESETS,
   ZOOM_DURATION_ARG_TYPE,
 } from "./framework-controls.story-helpers";
+import { CARMA_STORY_MAPPING_ENGINES } from "./mappingEngines";
+import { useContainerResize } from "./viewSyncStoryHooks";
+import {
+  GEO_PORTAL_MAPLIBRE_STYLE,
+  applyViewStateToCesiumWidget,
+  buildLeafletViewFromState,
+  buildMapLibreCameraOptionsFromState,
+  createStoryTargetState,
+  shellStyle,
+  type CesiumRuntimeHandle,
+  type LeafletRuntimeHandle,
+  type MapLibreRuntimeHandle,
+} from "./viewSyncStoryShared";
 
+import "cesium/Build/Cesium/Widgets/widgets.css";
 import "leaflet/dist/leaflet.css";
 import "maplibre-gl/dist/maplibre-gl.css";
-import "cesium/Build/Cesium/Widgets/widgets.css";
-
 const meta: Meta = {
   title: "Mapping/Controls",
   parameters: {
@@ -90,7 +92,9 @@ const standaloneLabelStyle = {
 } as const;
 
 const formatCesiumAdaptiveScale = (renderScale: number): string =>
-  Number.isFinite(renderScale) ? renderScale.toFixed(3).replace(/0+$/u, "").replace(/\.$/u, "") : "1";
+  Number.isFinite(renderScale)
+    ? renderScale.toFixed(3).replace(/0+$/u, "").replace(/\.$/u, "")
+    : "1";
 
 const formatCesiumAdaptiveMetric = (
   value: number | null,
@@ -116,25 +120,39 @@ const formatCesiumAdaptiveStatusLabel = (
         );
         const lastSummaryLabel =
           lastSummary !== null
-            ? ` • last ${lastSummary.activityKey} ${lastFps ?? "?"} fps / ${lastRenderMs ?? "?"} ms`
+            ? ` • last ${lastSummary.activityKey} ${lastFps ?? "?"} fps / ${
+                lastRenderMs ?? "?"
+              } ms`
             : "";
         const scaleChange = status.lastScaleChange;
         const scaleChangeLabel =
           scaleChange !== null
             ? ` • scale ${formatCesiumAdaptiveScale(
                 scaleChange.previousRenderScale
-              )}→${formatCesiumAdaptiveScale(scaleChange.nextRenderScale)} (${scaleChange.reason})`
+              )}→${formatCesiumAdaptiveScale(scaleChange.nextRenderScale)} (${
+                scaleChange.reason
+              })`
             : "";
         const liveFps = formatCesiumAdaptiveMetric(status.measuredFps, 1);
         const liveMs = formatCesiumAdaptiveMetric(status.averageRenderMs, 2);
-        const livePixelsMpx = status.drawingBufferPixels !== null
-          ? formatCesiumAdaptiveMetric(status.drawingBufferPixels / 1_000_000, 2)
-          : null;
-        const liveFpsLabel = status.active && liveFps !== null
-          ? ` • ${liveFps} fps / ${liveMs ?? "?"} ms`
-          : "";
-        const livePixelsLabel = livePixelsMpx !== null ? ` • ${livePixelsMpx} Mpx` : "";
-        return `Cesium Reference • target ${status.targetFps} fps • scale ${formatCesiumAdaptiveScale(status.renderScale)}×${livePixelsLabel}${liveFpsLabel}${lastSummaryLabel}${scaleChangeLabel}`;
+        const livePixelsMpx =
+          status.drawingBufferPixels !== null
+            ? formatCesiumAdaptiveMetric(
+                status.drawingBufferPixels / 1_000_000,
+                2
+              )
+            : null;
+        const liveFpsLabel =
+          status.active && liveFps !== null
+            ? ` • ${liveFps} fps / ${liveMs ?? "?"} ms`
+            : "";
+        const livePixelsLabel =
+          livePixelsMpx !== null ? ` • ${livePixelsMpx} Mpx` : "";
+        return `Cesium Reference • target ${
+          status.targetFps
+        } fps • scale ${formatCesiumAdaptiveScale(
+          status.renderScale
+        )}×${livePixelsLabel}${liveFpsLabel}${lastSummaryLabel}${scaleChangeLabel}`;
       })()
     : "Cesium Reference";
 
@@ -173,7 +191,8 @@ const LeafletReferenceSurface = ({
     useState<LeafletRuntimeHandle | null>(null);
   const homeTarget = useMemo(() => createStoryTargetState(), []);
   const homeOptions = useMemo(
-    () => buildHomeOptions({ animate: homeAnimate, durationMs: homeDurationMs }),
+    () =>
+      buildHomeOptions({ animate: homeAnimate, durationMs: homeDurationMs }),
     [homeAnimate, homeDurationMs]
   );
   const zoomOptions = useMemo(
@@ -278,7 +297,8 @@ const MapLibreReferenceSurface = ({
     useState<MapLibreRuntimeHandle | null>(null);
   const homeTarget = useMemo(() => createStoryTargetState(), []);
   const homeOptions = useMemo(
-    () => buildHomeOptions({ animate: homeAnimate, durationMs: homeDurationMs }),
+    () =>
+      buildHomeOptions({ animate: homeAnimate, durationMs: homeDurationMs }),
     [homeAnimate, homeDurationMs]
   );
   const orbitOptions = useMemo(

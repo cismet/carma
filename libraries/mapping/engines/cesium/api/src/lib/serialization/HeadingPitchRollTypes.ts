@@ -1,6 +1,6 @@
-import { HeadingPitchRoll } from "../cesium";
 import type { Degrees, Radians } from "@carma/units/types";
 
+import { HeadingPitchRoll } from "../cesium";
 export type HeadingPitchRollJsonRaw = Pick<
   HeadingPitchRoll,
   "heading" | "pitch" | "roll"

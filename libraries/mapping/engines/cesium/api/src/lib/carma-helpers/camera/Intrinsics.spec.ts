@@ -1,12 +1,13 @@
-import { CAMERA_TYPE } from "@carma-commons/camera/model";
 import { describe, expect, it } from "vitest";
+
+import { CAMERA_TYPE } from "@carma-commons/camera/model";
+
 import {
   OrthographicFrustum,
   OrthographicOffCenterFrustum,
   PerspectiveFrustum,
 } from "../../cesium";
 import { readSceneCameraIntrinsics } from "./Intrinsics";
-
 describe("readSceneCameraIntrinsics", () => {
   it("reads perspective Cesium frusta as perspective intrinsics", () => {
     const frustum = new PerspectiveFrustum();

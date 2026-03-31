@@ -3,7 +3,6 @@ import { useEffect } from "react";
 import { useTools } from "@carma-mapping/annotations/runtime";
 
 import { ACTIVE_TOOL_STORAGE_KEY } from "../playgroundConfig";
-
 export const PersistActiveToolMode = () => {
   const tools = useTools();
 

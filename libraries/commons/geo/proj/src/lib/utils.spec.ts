@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
-import { normalizeCrsCode, getManagedCrs } from "./utils";
-import { ManagedProjections } from "./managed-projections";
 
+import { ManagedProjections } from "./managed-projections";
+import { normalizeCrsCode, getManagedCrs } from "./utils";
 describe("CRS utilities", () => {
   describe("normalizeCrsCode", () => {
     it("should handle EPSG:XXXX format", () => {

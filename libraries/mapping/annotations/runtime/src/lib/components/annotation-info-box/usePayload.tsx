@@ -1,12 +1,5 @@
 import { useCallback, useMemo } from "react";
 
-import type { AnnotationInfoBoxPayload } from "./AnnotationInfo.types";
-import { AnnotationInfoBoxNavigation } from "./components";
-import { getAnnotationInfoBoxSlots } from "./getAnnotationInfoBoxSlots";
-import type { AnnotationInfoBoxEntryPayload } from "./getAnnotationInfoBoxSlots";
-import { useNavigationBindings } from "./useNavigationBindings";
-import { resolveAnnotationInfoBoxSubject } from "./resolveAnnotationInfoBoxSubject";
-import { useSlotActions } from "./useSlotActions";
 import {
   ANNOTATION_TYPE_DISTANCE,
   ANNOTATION_TYPE_POLYLINE,
@@ -16,6 +9,11 @@ import {
   isPointAnnotationEntry,
   isPointMeasurementEntry,
 } from "@carma-mapping/annotations/core";
+
+import { useDistanceAnnotationReadModel } from "../../annotation-entries/hooks/useDistanceAnnotationReadModel";
+import { useNodeChainAnnotationReadModel } from "../../annotation-entries/hooks/useNodeChainAnnotationReadModel";
+import type { NodeChainBadgeKind } from "../../render/point/usePointMarkerBadges";
+import { usePointMarkerBadges } from "../../render/useRender";
 import {
   useCollection,
   useEditingState,
@@ -25,11 +23,13 @@ import {
   useStoreSelector,
   useTools,
 } from "../../store";
-import { usePointMarkerBadges } from "../../render/useRender";
-import type { NodeChainBadgeKind } from "../../render/point/usePointMarkerBadges";
-import { useNodeChainAnnotationReadModel } from "../../annotation-entries/hooks/useNodeChainAnnotationReadModel";
-import { useDistanceAnnotationReadModel } from "../../annotation-entries/hooks/useDistanceAnnotationReadModel";
-
+import type { AnnotationInfoBoxPayload } from "./AnnotationInfo.types";
+import { AnnotationInfoBoxNavigation } from "./components";
+import { getAnnotationInfoBoxSlots } from "./getAnnotationInfoBoxSlots";
+import type { AnnotationInfoBoxEntryPayload } from "./getAnnotationInfoBoxSlots";
+import { resolveAnnotationInfoBoxSubject } from "./resolveAnnotationInfoBoxSubject";
+import { useNavigationBindings } from "./useNavigationBindings";
+import { useSlotActions } from "./useSlotActions";
 export const usePayload = (pixelWidth: number): AnnotationInfoBoxPayload => {
   const tools = useTools();
   const annotations = useCollection();

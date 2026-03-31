@@ -1,5 +1,6 @@
 import { faLocationDot } from "@fortawesome/free-solid-svg-icons";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
+
 import {
   ANNOTATION_TYPE_POINT,
   DEFAULT_ANNOTATION_SHORT_LABEL_CONFIG,
@@ -13,20 +14,19 @@ import {
   createMeasurementToolPlugin,
   POINT_MEASUREMENT_PLUGIN_CAPABILITIES,
 } from "../pluginFactories";
-import { createPointToolInfoBoxSlots } from "./pointToolInfoBoxSlots";
-import { buildPointToolRenderModels } from "./pointToolRenderModels";
-import {
-  addPointMeasurement,
-  removeLatestPointMeasurement,
-} from "./pointToolActions";
-import { resolvePointToolKeyAction } from "./pointToolBindings";
-import { createPointToolSettings } from "./pointToolSettings";
 import {
   clearTemporaryAnnotationsByToolType,
   finalizeTemporaryAnnotationsByToolType,
   setAnnotationTemporaryById,
 } from "../../store";
-
+import {
+  addPointMeasurement,
+  removeLatestPointMeasurement,
+} from "./pointToolActions";
+import { resolvePointToolKeyAction } from "./pointToolBindings";
+import { createPointToolInfoBoxSlots } from "./pointToolInfoBoxSlots";
+import { buildPointToolRenderModels } from "./pointToolRenderModels";
+import { createPointToolSettings } from "./pointToolSettings";
 const toolType = ANNOTATION_TYPE_POINT;
 const badgeStyle = DEFAULT_ANNOTATION_SHORT_LABEL_CONFIG[toolType];
 const pointToolSettings = createPointToolSettings(badgeStyle);

@@ -1,14 +1,14 @@
 import { useCallback, type Dispatch, type SetStateAction } from "react";
+
+import {
+  isPointAnnotationEntry,
+  type AnnotationCollection,
+} from "@carma-mapping/annotations/core";
 import {
   Cartesian3,
   getDegreesFromCartesian,
   getEllipsoidalAltitudeOrZero,
 } from "@carma/cesium";
-import {
-  isPointAnnotationEntry,
-  type AnnotationCollection,
-} from "@carma-mapping/annotations/core";
-
 type UseAnnotationPointEditingControllerParams = {
   moveGizmoPointId: string | null;
   setAnnotations: Dispatch<SetStateAction<AnnotationCollection>>;

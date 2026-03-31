@@ -1,12 +1,12 @@
 import { isFiniteNumber } from "@carma/math";
 import type { CssPixels, Meters, Radians } from "@carma/units/types";
+
+import { CAMERA_TYPE } from "./camera-view-specification";
 import type {
   CameraOrthographicScale,
   CameraIntrinsics,
   CameraViewOffset,
 } from "./camera-view-specification";
-import { CAMERA_TYPE } from "./camera-view-specification";
-
 export type ElementSizeLike =
   | {
       clientWidth?: number;
@@ -215,8 +215,7 @@ export const interpolateDollyCompensatedFov = ({
   }
 
   const interpolatedLogTanHalfFov =
-    startLogTanHalfFov +
-    (targetLogTanHalfFov - startLogTanHalfFov) * progress;
+    startLogTanHalfFov + (targetLogTanHalfFov - startLogTanHalfFov) * progress;
 
   return readFovFromLogTanHalfFov(interpolatedLogTanHalfFov);
 };

@@ -6,10 +6,11 @@ import {
   type Scene,
   type Vector3,
 } from "three";
+
 import { PI, clamp } from "@carma/math";
+
 import { createThreePart } from "../../../../common/create-part";
 import { disposeMeshObject } from "../../../../common/mesh-helpers";
-
 const NUMERIC_EPSILON = 1e-6;
 
 const createSphereGeometry = ({

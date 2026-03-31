@@ -1,6 +1,5 @@
-import { Camera } from "../../cesium";
 import { isValidCamera } from "../../carma-guards";
-
+import { Camera } from "../../cesium";
 /**
  * Validates a Camera and executes a callback if valid.
  */

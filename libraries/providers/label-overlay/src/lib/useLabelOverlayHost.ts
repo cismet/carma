@@ -4,7 +4,6 @@ import type {
   LabelOverlayFrameSubscription,
   LabelOverlayHostBinding,
 } from "./host";
-
 type UseLabelOverlayHostOptions = {
   kind?: string;
   instanceId?: string;

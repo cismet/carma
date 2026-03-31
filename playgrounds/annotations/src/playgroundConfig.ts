@@ -9,8 +9,8 @@ import {
   SELECT_TOOL_TYPE,
   type AnnotationToolType,
 } from "@carma-mapping/annotations/core";
-import type { PlaygroundRuntime } from "./playground.types";
 
+import type { PlaygroundRuntime } from "./playground.types";
 export const INFOBOX_WIDTH_PX = 430;
 export const ACTIVE_TOOL_STORAGE_KEY = "annotations-playground-active-tool.v1";
 export const RUNTIME_VERSION_STORAGE_KEY =

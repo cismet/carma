@@ -1,7 +1,7 @@
-import type { LatLngAlt } from "@carma/geo/types";
-import type { CssPixels, Meters, Radians } from "@carma/units/types";
 import type { Matrix4, Quaternion, Vector3 } from "three";
 
+import type { LatLngAlt } from "@carma/geo/types";
+import type { CssPixels, Meters, Radians } from "@carma/units/types";
 // Mirrors common scene-camera data such as world matrices and projection data.
 // matrixWorld/matrixWorldInverse/projectionMatrix plus optional anchored-orbit
 // convenience fields.

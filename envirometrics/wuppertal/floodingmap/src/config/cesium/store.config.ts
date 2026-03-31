@@ -4,7 +4,6 @@ import { CesiumState } from "@carma-mapping/engines/cesium";
 import { colorToConstructorArgs } from "@carma/cesium";
 
 import { MODEL_ASSETS } from "./assets.config";
-
 export const defaultCesiumState: CesiumState = {
   showPrimaryTileset: true,
   showSecondaryTileset: false,

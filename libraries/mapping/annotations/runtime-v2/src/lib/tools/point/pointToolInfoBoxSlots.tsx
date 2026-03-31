@@ -1,8 +1,8 @@
 import { formatLatLonDegrees } from "@carma/units/helpers";
 import type { Degrees } from "@carma/units/types";
+
 import type { RuntimeAnnotationInfoBoxContext } from "../../components/annotation-info-box/annotationInfoBox.types";
 import { resolveMeasurementCoordinates } from "../../render/resolveMeasurementCoordinates";
-
 export const createPointToolInfoBoxSlots = (
   toolType: RuntimeAnnotationInfoBoxContext["annotation"]["toolType"],
   {

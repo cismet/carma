@@ -1,19 +1,20 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { CSSProperties, RefObject } from "react";
+
 import type { Meta, StoryObj } from "@storybook/react";
-import type { CssPixelPosition } from "@carma/units/types";
+
+import { DraggableDebugAnchor } from "@carma-commons/interaction/drag";
 import {
   createScreenPointSvgLineVisualizers,
   type SvgLineCapStyle,
 } from "@carma-commons/svg";
-import { DraggableDebugAnchor } from "@carma-commons/interaction/drag";
 import { ResponsiveStatusBar } from "@carma-commons/ui/components";
 import {
   LabelOverlayProvider,
   useLabelOverlayHost,
   useLineVisualizers,
 } from "@carma-providers/label-overlay";
-
+import type { CssPixelPosition } from "@carma/units/types";
 type LineGeneratorStoryArgs = {
   screenPointDistancePx: number;
   strokeWidth: number;

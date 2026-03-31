@@ -1,6 +1,5 @@
 import { useCallback } from "react";
 
-import { Cartesian3 } from "@carma/cesium";
 import {
   ANNOTATION_TYPE_DISTANCE,
   ANNOTATION_TYPE_POLYLINE,
@@ -14,7 +13,7 @@ import {
   type NodeChainAnnotation,
   type PolygonAreaType,
 } from "@carma-mapping/annotations/core";
-
+import { Cartesian3 } from "@carma/cesium";
 type UseNodeChainFinishingParams = {
   sceneCameraPosition: Cartesian3 | null;
   activeToolType: AnnotationToolType;

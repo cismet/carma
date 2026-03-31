@@ -1,3 +1,7 @@
+import type {
+  CameraStateHeadingPitchRoll,
+  CameraStateRecord,
+} from "./carma-helpers/camera/Types";
 import {
   BoundingSphere,
   Camera,
@@ -19,11 +23,6 @@ import {
   ScreenSpaceCameraController,
   ScreenSpaceEventHandler,
 } from "./cesium";
-import type {
-  CameraStateHeadingPitchRoll,
-  CameraStateRecord,
-} from "./carma-helpers/camera/Types";
-
 export const isValidBoundingSphere = (
   sphere: unknown
 ): sphere is BoundingSphere => sphere instanceof BoundingSphere;

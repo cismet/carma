@@ -1,13 +1,12 @@
-import type {
-  AnnotationToolPlugin,
-  AnnotationToolPluginCapability,
-} from "./annotationToolPlugin.types";
 import {
   ANNOTATION_TOOL_PLUGIN_CAPABILITIES,
   ANNOTATION_TOOL_PLUGIN_KINDS,
 } from "./annotationToolPlugin.types";
+import type {
+  AnnotationToolPlugin,
+  AnnotationToolPluginCapability,
+} from "./annotationToolPlugin.types";
 import { createAnnotationToolPlugin } from "./createAnnotationToolPlugin";
-
 type InteractionToolPluginInput = Omit<AnnotationToolPlugin, "kind"> & {
   capabilities?: readonly AnnotationToolPluginCapability[];
 };

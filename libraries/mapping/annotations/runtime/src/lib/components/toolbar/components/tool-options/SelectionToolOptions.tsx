@@ -1,10 +1,12 @@
-import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faBorderNone, faTrashCan } from "@fortawesome/free-solid-svg-icons";
+import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { Switch, Tooltip } from "antd";
+
 import {
   LockToggleButton,
   VisibilityToggleButton,
 } from "@carma-commons/ui/components";
+
 import type { AnnotationToolbarSelectionProps } from "../../AnnotationModeToolbar.types";
 import {
   INACTIVE_ICON_COLOR,
@@ -13,7 +15,6 @@ import {
 } from "../../shared";
 import { annotationTooltipProps } from "../../../shared/annotationTooltip";
 import { ToolOptionsSection } from "./ToolOptionsSection";
-
 type SelectionToolOptionsProps = {
   selection?: AnnotationToolbarSelectionProps;
 };

@@ -16,10 +16,9 @@ import {
 } from "@carma-providers/label-overlay";
 import type { CssPixelPosition } from "@carma/units/types";
 
-import type { RuntimePointLabelRenderModel } from "./measurementRenderModels";
-import type { RuntimeScene } from "../types/runtimeScene.types";
 import { runtimeMeasurementVisualDefaults } from "../config/measurementVisualDefaults";
-
+import type { RuntimeScene } from "../types/runtimeScene.types";
+import type { RuntimePointLabelRenderModel } from "./measurementRenderModels";
 const toScreenPosition = (
   scene: RuntimeScene | null,
   coordinate: RuntimePointLabelRenderModel["coordinate"]

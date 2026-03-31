@@ -1,5 +1,6 @@
 import { COLORS_HEX } from "@carma-commons/utils";
 import { PI_OVER_SIX, PI_OVER_TWO } from "@carma/math";
+
 import type {
   ResolvedViewStateVisualizerDisplayOptions,
   ResolvedViewStateVisualizerOverviewOptions,
@@ -10,7 +11,6 @@ import type {
   ViewStateVisualizerVisualizedOptions,
   ViewStateVisualizerSize,
 } from "./view-state-visualizer-types";
-
 export const DEFAULT_VIEW_STATE_VISUALIZER_CUE_COLORS = Object.freeze({
   bearing: "#22d3ee",
   pitch: "#f59e0b",

@@ -5,11 +5,13 @@ import {
   type Dispatch,
   type SetStateAction,
 } from "react";
+
 import {
-  Cartesian3,
-  type Cartesian3 as CesiumCartesian3,
-  type Scene,
-} from "@carma/cesium";
+  ANNOTATION_TYPE_DISTANCE,
+  ANNOTATION_TYPE_POINT,
+  isPointAnnotationEntry,
+  isPointMeasurementEntry,
+} from "@carma-mapping/annotations/core";
 import type {
   AnnotationCollection,
   AnnotationEntry,
@@ -22,11 +24,10 @@ import type {
   PointMeasurementEntry,
 } from "@carma-mapping/annotations/core";
 import {
-  ANNOTATION_TYPE_DISTANCE,
-  ANNOTATION_TYPE_POINT,
-  isPointAnnotationEntry,
-  isPointMeasurementEntry,
-} from "@carma-mapping/annotations/core";
+  Cartesian3,
+  type Cartesian3 as CesiumCartesian3,
+  type Scene,
+} from "@carma/cesium";
 
 import type {
   AnnotationCollectionContextType,
@@ -40,7 +41,6 @@ import {
 import { resolveSetStateAction } from "../store/stateUpdateUtils";
 import { useAnnotationEntryActions } from "./hooks/useAnnotationEntryActions";
 import { useFlyToActions } from "./hooks/useFlyToActions";
-
 type UseAnnotationEntriesParams = {
   scene: Scene;
   annotations: AnnotationCollection;

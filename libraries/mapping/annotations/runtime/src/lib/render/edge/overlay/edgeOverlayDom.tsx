@@ -1,6 +1,6 @@
 import { createElement, type ReactElement } from "react";
-import type { CssPixelPosition } from "@carma/units/types";
 
+import type { CssPixelPosition } from "@carma/units/types";
 const EDGE_OVERLAY_DOM_SELECTORS = {
   rightAnglePath: '[data-right-angle-corner-path="true"]',
   rightAngleDot: '[data-right-angle-corner-dot="true"]',

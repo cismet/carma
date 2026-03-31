@@ -4,12 +4,12 @@ import {
   readRingBufferEntries,
   type RingBuffer,
 } from "@carma-commons/utils";
+
 import type {
   HistoryConfig,
   HistoryEntry,
   HistoryView,
 } from "../../../core/types";
-
 // Reuse note:
 // The generic ring-buffer primitive already lives in @carma-commons/utils.
 // This module stays in view-state because HistoryEntry/HistoryView are

@@ -1,24 +1,25 @@
+import type { Map as LeafletMap } from "leaflet";
+
+import { promiseWithTimeout } from "@carma-commons/utils/promise";
+import { isValidScene, Cartographic } from "@carma/cesium";
 import type {
   Scene,
   CesiumTerrainProvider,
   SerializedCameraStateHeadingPitchRoll,
 } from "@carma/cesium";
-import { isValidScene, Cartographic } from "@carma/cesium";
+import { degToRad, isZoom } from "@carma/units/helpers";
+import { Degrees } from "@carma/units/types";
+
 import {
   TransitionStage,
   type TransitionToCesiumOptions,
   type TransitionCallbacks,
 } from "./types";
-import { prepareLeafletForTransition } from "./utils/leaflet/leaflet-preparation";
-import { restoreCesiumCameraView } from "./utils/cesium/camera-restore";
-import { promiseWithTimeout } from "@carma-commons/utils/promise";
-import { calculateDistanceFromZoom } from "./zoom-distance-converter";
-import { defaultTransitionOptions } from "./utils/cesium/elevation-reference";
 import { applyElevationToPosition } from "./utils/cesium/apply-elevation";
-import { Degrees } from "@carma/units/types";
-import type { Map as LeafletMap } from "leaflet";
-import { degToRad, isZoom } from "@carma/units/helpers";
-
+import { restoreCesiumCameraView } from "./utils/cesium/camera-restore";
+import { defaultTransitionOptions } from "./utils/cesium/elevation-reference";
+import { prepareLeafletForTransition } from "./utils/leaflet/leaflet-preparation";
+import { calculateDistanceFromZoom } from "./zoom-distance-converter";
 /**
  * Pure function: Orchestrates transition from Leaflet (LeafletLike) to Cesium (3D)
  * No React or context dependencies - just Cesium Scene and Leaflet Map

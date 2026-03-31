@@ -1,9 +1,8 @@
-import localForage from "localforage";
 import { createSlice } from "@reduxjs/toolkit";
 import type { PayloadAction } from "@reduxjs/toolkit";
+import localForage from "localforage";
 
 import { type RootState, type CesiumState, SceneStyles } from "../..";
-
 export enum VIEWER_TRANSITION_STATE {
   NONE,
   TO3D,

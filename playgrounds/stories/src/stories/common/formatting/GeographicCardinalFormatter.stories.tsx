@@ -1,7 +1,9 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+
 import type { Meta, StoryObj } from "@storybook/react";
 import { Button, Radio } from "antd";
-import type { Degrees } from "@carma/units/types";
+
+import { ResponsiveStatusBar } from "@carma-commons/ui/components";
 import {
   FORMAT_LOCALE,
   GEOGRAPHIC_DIRECTION_STYLE,
@@ -9,8 +11,7 @@ import {
   type GeographicDirectionStyle,
   type GeographicFractionDigits,
 } from "@carma/units/helpers";
-import { ResponsiveStatusBar } from "@carma-commons/ui/components";
-
+import type { Degrees } from "@carma/units/types";
 type GeographicCardinalFormatterStoryProps = {
   latitudeDeg: number;
   longitudeDeg: number;

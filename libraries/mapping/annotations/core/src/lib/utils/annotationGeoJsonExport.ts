@@ -1,3 +1,5 @@
+import type { Feature, FeatureCollection, Geometry, Position } from "geojson";
+
 import {
   Cartesian3,
   cartesian3FromJson,
@@ -5,8 +7,12 @@ import {
   getDegreesFromCartesian,
   getPositionWithVerticalOffsetFromAnchor,
 } from "@carma/cesium";
-import type { Feature, FeatureCollection, Geometry, Position } from "geojson";
 
+import {
+  isPointAnnotationEntry,
+  type AnnotationCollection,
+  type PointAnnotationEntry,
+} from "../types/annotationCesiumTypes";
 import {
   ANNOTATION_TYPE_AREA_GROUND,
   ANNOTATION_TYPE_AREA_PLANAR,
@@ -18,12 +24,6 @@ import {
   type NodeChainAnnotation,
 } from "../types/annotationTypes";
 import type { PointDistanceRelation } from "../types/distanceRelation";
-import {
-  isPointAnnotationEntry,
-  type AnnotationCollection,
-  type PointAnnotationEntry,
-} from "../types/annotationCesiumTypes";
-
 export type AnnotationGeoJsonFeatureCollection = FeatureCollection<
   Geometry,
   Record<string, unknown>

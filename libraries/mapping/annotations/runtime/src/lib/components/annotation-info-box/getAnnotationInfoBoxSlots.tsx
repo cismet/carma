@@ -7,6 +7,11 @@ import {
   ANNOTATION_TYPE_POINT,
   ANNOTATION_TYPE_POLYLINE,
 } from "@carma-mapping/annotations/core";
+
+import type {
+  AnnotationSlots,
+  AnnotationInfoBoxEntryPayload,
+} from "./annotationInfoBoxSlots.types";
 import {
   getDistanceAnnotationInfoBoxSlots,
   getGenericAnnotationInfoBoxSlots,
@@ -14,11 +19,6 @@ import {
   getNodeChainAnnotationInfoBoxSlots,
   getPointAnnotationInfoBoxSlots,
 } from "./content-generators";
-import type {
-  AnnotationSlots,
-  AnnotationInfoBoxEntryPayload,
-} from "./annotationInfoBoxSlots.types";
-
 export type {
   AnnotationInfoBoxEntryPayload,
   AnnotationDisplayPoint,

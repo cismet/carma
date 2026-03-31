@@ -1,7 +1,8 @@
-import { ResponsiveStatusBar } from "@carma-commons/ui/components";
 import type { ReactNode } from "react";
-import { GEO_STORY_STYLES } from "./geo-story-styles";
 
+import { ResponsiveStatusBar } from "@carma-commons/ui/components";
+
+import { GEO_STORY_STYLES } from "./geo-story-styles";
 type GeoChartStoryFrameProps = {
   label: string;
   values: string[];

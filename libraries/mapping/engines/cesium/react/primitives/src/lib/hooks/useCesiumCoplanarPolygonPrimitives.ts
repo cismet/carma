@@ -12,8 +12,8 @@ import {
   offsetCartesian3Positions,
   type Scene,
 } from "@carma/cesium";
-import type { CesiumPolygonPrimitive } from "./useCesiumGroundPolygonPrimitives";
 
+import type { CesiumPolygonPrimitive } from "./useCesiumGroundPolygonPrimitives";
 const removePrimitiveCollection = (
   scene: Scene,
   primitiveCollection: PrimitiveCollection | null

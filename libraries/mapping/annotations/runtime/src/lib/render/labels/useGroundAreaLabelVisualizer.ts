@@ -1,8 +1,8 @@
 import { buildGroundAreaLabelText } from "@carma-mapping/annotations/core";
-import { type GroundAreaLabelVisualizerOptions } from "./areaLabelVisualizer.types";
-import { useAreaLabelVisualizerBase } from "./useAreaLabelVisualizerBase";
-import type { AreaLabelViewProjector } from "./areaLabelVisualizer.types";
 
+import { type GroundAreaLabelVisualizerOptions } from "./areaLabelVisualizer.types";
+import type { AreaLabelViewProjector } from "./areaLabelVisualizer.types";
+import { useAreaLabelVisualizerBase } from "./useAreaLabelVisualizerBase";
 const GROUND_AREA_OVERLAY_PREFIX = "distance-ground-polygon-preview";
 
 export const useGroundAreaLabelVisualizer = (

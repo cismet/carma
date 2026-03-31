@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { formatSignificantNumber } from "./formatSignificantNumber";
 
+import { formatSignificantNumber } from "./formatSignificantNumber";
 describe("formatSignificantNumber", () => {
   it("formats representative values with default locale and digits", () => {
     expect(formatSignificantNumber(12345)).toBe("12345");

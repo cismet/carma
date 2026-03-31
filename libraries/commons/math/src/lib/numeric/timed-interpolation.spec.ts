@@ -1,11 +1,11 @@
 import { describe, expect, it } from "vitest";
+
 import { Easing } from "../easing-functions";
 import {
   interpolateTimedNumber,
   readTimedInterpolationEasedProgress,
   readTimedInterpolationProgress,
 } from "./timed-interpolation";
-
 describe("timed interpolation", () => {
   it("uses absolute wall-clock progress instead of accumulating missed frames", () => {
     const frameTimes = [1000, 1016, 1032, 1210, 1750, 2000];

@@ -8,7 +8,6 @@ import {
 } from "react";
 
 import { capitalizeFirstLetter } from "@carma-commons/utils";
-
 type AnnotationInfoTitleInputProps = {
   value: string;
   placeholder?: string;

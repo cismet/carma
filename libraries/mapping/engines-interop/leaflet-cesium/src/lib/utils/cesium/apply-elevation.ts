@@ -4,8 +4,8 @@ import {
   isValidCesiumTerrainProvider,
   sampleTerrainMostDetailedGuardedAsync,
 } from "@carma/cesium";
-import { ElevationReference } from "./elevation-reference";
 
+import { ElevationReference } from "./elevation-reference";
 // TODO move to @carma/cesium/core in next iterations ;
 
 export async function applyElevationToPosition(

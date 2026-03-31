@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import type { FC, ReactNode } from "react";
 
 import {
   CesiumWidget,
@@ -20,12 +21,11 @@ import {
   // playground use only and also obsolete
   // eslint-disable-next-line carma/no-direct-cesium
 } from "cesium";
-import { generateRingFromDegrees } from "./utils";
 
-import type { FC, ReactNode } from "react";
-import type { LatLng } from "@carma/types";
 import { CUSTOM_SHADERS_DEFINITIONS } from "@carma-mapping/engines/cesium";
+import type { LatLng } from "@carma/types";
 
+import { generateRingFromDegrees } from "./utils";
 const unlit = new CustomShader(CUSTOM_SHADERS_DEFINITIONS.UNLIT_ENHANCED_2024);
 
 const addDebugPrimitives = (widget: CesiumWidget, cartesian: Cartesian3) => {

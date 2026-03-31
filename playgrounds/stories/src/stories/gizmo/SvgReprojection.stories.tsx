@@ -1,5 +1,7 @@
-import type { Meta, StoryObj } from "@storybook/react";
 import { useMemo } from "react";
+
+import type { Meta, StoryObj } from "@storybook/react";
+
 import { ResponsiveStatusBar } from "@carma-commons/ui/components";
 import {
   projectPointToSvg,
@@ -8,7 +10,6 @@ import {
   type GizmoVec3,
   type SvgProjectedPoint,
 } from "@carma-mapping/gizmo/core";
-
 type SvgReprojectionProps = {
   fovDeg: number;
   zoomPx: number;

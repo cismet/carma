@@ -1,6 +1,6 @@
-import { degToRadNumeric } from "@carma/units/helpers";
 import { format as d3Format } from "d3";
 
+import { degToRadNumeric } from "@carma/units/helpers";
 export const DOLLY_ZOOM_X_AXIS_MODES = {
   FOV_DEG: "fov-deg",
   LOG_FOV_DEG: "log-fov-deg",
@@ -56,9 +56,7 @@ export const readDollyZoomXAxisStatusValue = (xAxisMode: DollyZoomXAxisMode) =>
 export const formatDollyZoomXAxisReadoutValue = (fovDeg: number) =>
   formatDollyZoomDegrees(fovDeg, fovDeg >= 10 ? ".0f" : ".1f");
 
-export const buildDollyZoomXAxisTickEntries = (
-  xAxisMode: DollyZoomXAxisMode
-) =>
+export const buildDollyZoomXAxisTickEntries = (xAxisMode: DollyZoomXAxisMode) =>
   DOLLY_ZOOM_FOV_AXIS_TICK_VALUES_DEG.map((fovDeg) => ({
     value: readDollyZoomXAxisValue(fovDeg, xAxisMode),
     label: formatDollyZoomDegrees(fovDeg, fovDeg >= 10 ? ".0f" : ".1f"),

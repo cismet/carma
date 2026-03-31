@@ -1,6 +1,6 @@
 import type { Meta, StoryObj } from "@storybook/react";
-import { DebuggingStory } from "./storyScenarios";
 
+import { DebuggingStory } from "./storyScenarios";
 const meta: Meta = {
   title: "Mapping/MapFrameworkSwitcher",
   parameters: {

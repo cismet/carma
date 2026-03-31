@@ -1,14 +1,15 @@
 import { useCallback, useEffect, useRef } from "react";
+
+import type { ModelConfig } from "@carma-commons/resources";
 import {
   ScreenSpaceEventHandler,
   ScreenSpaceEventType,
   CustomShader,
   Model,
 } from "@carma/cesium";
-import type { ModelConfig } from "@carma-commons/resources";
 
-import { DEFAULT_MODEL_HIGHLIGHT_SHADER } from "../utils/modelHighlightShader";
 import { createModelPrimitiveFromConfig } from "../utils/createModelPrimitiveFromConfig";
+import { DEFAULT_MODEL_HIGHLIGHT_SHADER } from "../utils/modelHighlightShader";
 import {
   buildModelKey,
   extractPickedProperties,
@@ -16,7 +17,6 @@ import {
   isModelPick,
 } from "../utils/modelManager";
 import { useCesiumContext } from "./useCesiumContext";
-
 export interface UseCesiumModelManagerOptions {
   models: ModelConfig[];
   enabled: boolean;

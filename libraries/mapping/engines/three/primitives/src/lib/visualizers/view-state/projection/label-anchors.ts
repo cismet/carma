@@ -1,10 +1,10 @@
 import { Vector2, Vector3 } from "three";
 import type { Camera } from "three";
+
 import type {
   ViewStateVisualizerLabelAnchor,
   ViewStateVisualizerSize,
 } from "../view-state-visualizer-types";
-
 // NOTE: These helpers intentionally mix Three world projection with screen-space
 // label placement. Keep them scoped here under `projection` for now. If
 // CARMA's broader overlay/label engines converge on the same concepts later,

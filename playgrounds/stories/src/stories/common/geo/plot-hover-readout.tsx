@@ -1,11 +1,12 @@
+import { type CSSProperties, type ReactNode } from "react";
+
 import {
   PILLBUTTON_BADGE_POSITIONS,
   PillbuttonLabelMarker,
   type PointLabelAttach,
 } from "@carma-providers/label-overlay";
-import { type CSSProperties, type ReactNode } from "react";
-import { GEO_STORY_STYLES } from "./geo-story-styles";
 
+import { GEO_STORY_STYLES } from "./geo-story-styles";
 export type PlotHoverAxisValueLabel = {
   text: string;
   x: number;
@@ -308,8 +309,11 @@ export const PlotHoverReadout = ({
       ) : null}
       {showOverlayLayer
         ? axisValueLabels.map((label) => {
-            const { width, textAnchor, x: rectX } =
-              readAxisValueLabelRect(label);
+            const {
+              width,
+              textAnchor,
+              x: rectX,
+            } = readAxisValueLabelRect(label);
             const rectY = label.y - PILL_HEIGHT_PX * 0.5;
             const attach = readAttachFromTextAnchor(textAnchor);
             const anchorLocalX =

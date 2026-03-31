@@ -1,18 +1,17 @@
 import { useEffect, useRef } from "react";
 
 import {
+  pickGlobePositionAtScreenPosition,
+  pickScenePositionAtScreenPosition,
+  sampleSurfaceNormalAtScreenPosition,
+} from "@carma-mapping/engines/cesium/api";
+import {
   Cartesian2,
   Cartesian3,
   ScreenSpaceEventHandler,
   ScreenSpaceEventType,
   type Scene,
 } from "@carma/cesium";
-import {
-  pickGlobePositionAtScreenPosition,
-  pickScenePositionAtScreenPosition,
-  sampleSurfaceNormalAtScreenPosition,
-} from "@carma-mapping/engines/cesium/api";
-
 const POINT_CLICK_DELAY_MS = 220;
 const DOUBLE_CLICK_POSITION_THRESHOLD_PX = 12;
 const CLEARED_POINTER_POSITION = new Cartesian2(Number.NaN, Number.NaN);

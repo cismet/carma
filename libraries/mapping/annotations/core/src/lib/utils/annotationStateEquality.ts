@@ -1,11 +1,10 @@
-import type { PointDistanceRelation } from "../types/distanceRelation";
 import type {
   NodeChainAnnotation,
   PlanarPolygonLocalFrame,
   PlanarPolygonPlane,
 } from "../types/annotationTypes";
+import type { PointDistanceRelation } from "../types/distanceRelation";
 import type { ReferenceLineLabelKind } from "../visualization/distance/distanceRelationLabel.types";
-
 const DEFAULT_NUMERIC_EPSILON = 1e-9;
 
 const areStringArraysEqual = (

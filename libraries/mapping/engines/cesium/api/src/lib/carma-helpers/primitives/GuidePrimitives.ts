@@ -1,4 +1,8 @@
 import {
+  createBasisScaleTranslationMatrix,
+  matrix4ColumnToCartesian3,
+} from "../Transforms";
+import {
   Cartesian3,
   Matrix4,
   Primitive,
@@ -7,12 +11,6 @@ import {
   defined,
   type Scene,
 } from "../../cesium";
-
-import {
-  createBasisScaleTranslationMatrix,
-  matrix4ColumnToCartesian3,
-} from "../Transforms";
-
 export const GUIDE_NORMAL_EPSILON_SQUARED = 1e-8;
 
 const DISC_MIN_WORLD_RADIUS = 1e-3;

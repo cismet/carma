@@ -22,7 +22,6 @@ import {
 import { resolvePolylineToolKeyAction } from "./polylineToolBindings";
 import { buildPolylineToolRenderModels } from "./polylineToolRenderModels";
 import { createPolylineToolSettings } from "./polylineToolSettings";
-
 const toolType = ANNOTATION_TYPE_POLYLINE;
 const badgeStyle = DEFAULT_ANNOTATION_SHORT_LABEL_CONFIG[toolType];
 const polylineToolSettings = createPolylineToolSettings(badgeStyle);

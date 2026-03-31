@@ -8,6 +8,21 @@ import {
 } from "react";
 
 import {
+  buildCirclePoints,
+  getEquilateralTriangleHeight,
+  getEquilateralTrianglePathD,
+  getEquilateralTriangleViewBox,
+  getSupportRadius2d,
+  MINUS_PI_OVER_FOUR,
+  negativePiToPi,
+} from "@carma-commons/math";
+import {
+  createRotationAxisVisualizer,
+  type RotationAxisVisualizer,
+} from "@carma-mapping/engines/cesium/legacy";
+import { AXIS_NUMERIC_EPSILON, toSvgPathD } from "@carma-mapping/gizmo/core";
+import { useLabelOverlay } from "@carma-providers/label-overlay";
+import {
   CarmaTransforms,
   Cartesian3,
   Color,
@@ -21,21 +36,6 @@ import {
   defined,
   type Scene,
 } from "@carma/cesium";
-import {
-  createRotationAxisVisualizer,
-  type RotationAxisVisualizer,
-} from "@carma-mapping/engines/cesium/legacy";
-import { AXIS_NUMERIC_EPSILON, toSvgPathD } from "@carma-mapping/gizmo/core";
-import {
-  buildCirclePoints,
-  getEquilateralTriangleHeight,
-  getEquilateralTrianglePathD,
-  getEquilateralTriangleViewBox,
-  getSupportRadius2d,
-  MINUS_PI_OVER_FOUR,
-  negativePiToPi,
-} from "@carma-commons/math";
-import { useLabelOverlay } from "@carma-providers/label-overlay";
 
 import {
   createPlaneBasis,
@@ -50,7 +50,6 @@ import {
   rotateVectorByVersor,
   type ScreenPoint2,
 } from "../cesiumPointMoveGizmoMath";
-
 export type CesiumGizmoPoint = {
   id: string;
   geometryECEF: Cartesian3;

@@ -1,8 +1,8 @@
-import { radToDeg } from "@carma/units/helpers";
 import type { BBox, Extent } from "@carma/geo/types";
+import { radToDeg } from "@carma/units/helpers";
 import type { Radians } from "@carma/units/types";
-import { Rectangle } from "../cesium";
 
+import { Rectangle } from "../cesium";
 // note this is in radians
 export type RectangleJsonRaw = Pick<
   Rectangle,

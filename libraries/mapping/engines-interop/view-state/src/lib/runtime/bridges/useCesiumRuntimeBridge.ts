@@ -1,12 +1,13 @@
 import { useMemo } from "react";
+
 import type { Scene } from "@carma-mapping/engines/cesium/api";
-import type { WritePriority } from "../../core/types";
+
 import { applyToCesium, readFromCesium } from "../../adapters/cesium";
+import type { WritePriority } from "../../core/types";
 import {
   useSubscribedRuntimeBridge,
   type SubscribedRuntimeBridgeHandle,
 } from "./useSubscribedRuntimeBridge";
-
 const attachSceneFrameListener = (
   scene: Scene,
   listener: () => void

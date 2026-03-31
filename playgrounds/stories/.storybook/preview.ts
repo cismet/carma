@@ -1,7 +1,8 @@
-import "../src/styles.css";
-import type { Preview } from "@storybook/react";
 import * as React from "react";
 
+import type { Preview } from "@storybook/react";
+
+import "../src/styles.css";
 type StorybookRequireShim = {
   require?: (id: string) => unknown;
 };

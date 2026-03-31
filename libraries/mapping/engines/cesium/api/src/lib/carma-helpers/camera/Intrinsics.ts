@@ -5,13 +5,13 @@ import {
   type CameraIntrinsics,
 } from "@carma-commons/camera/model";
 import { isFiniteNumber } from "@carma/math";
+
 import {
   PerspectiveFrustum,
   OrthographicFrustum,
   OrthographicOffCenterFrustum,
 } from "../../cesium";
 import { readPerspectiveFrustumVerticalFov } from "./PerspectiveFrustumFov";
-
 type SupportedCesiumFrustum =
   | PerspectiveFrustum
   | OrthographicFrustum

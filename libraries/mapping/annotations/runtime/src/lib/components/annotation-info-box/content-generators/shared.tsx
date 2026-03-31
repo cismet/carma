@@ -1,6 +1,5 @@
 import type { MouseEvent as ReactMouseEvent, ReactNode } from "react";
 
-import { Tooltip } from "antd";
 import {
   faArrowsDownToLine,
   faDownload,
@@ -10,7 +9,10 @@ import {
   faLockOpen,
   faTrashCan,
 } from "@fortawesome/free-solid-svg-icons";
+import { Tooltip } from "antd";
+
 import Icon from "react-cismap/commons/Icon";
+
 import {
   ANNOTATION_TYPE_DISTANCE,
   ANNOTATION_TYPE_LABEL,
@@ -26,18 +28,18 @@ import {
   LENGTH_UNIT_MODE,
 } from "@carma/units/helpers";
 import type { Degrees } from "@carma/units/types";
-import {
-  AnnotationInfoBoxActionIcon,
-  AnnotationInfoTitleInput,
-} from "../components";
-import { annotationTooltipProps } from "../../shared/annotationTooltip";
+
 import type {
   AnnotationDisplayPoint,
   AnnotationInfoBoxEntryPayload,
   AnnotationSlotActions,
   DistanceTableRow,
 } from "../annotationInfoBoxSlots.types";
-
+import {
+  AnnotationInfoBoxActionIcon,
+  AnnotationInfoTitleInput,
+} from "../components";
+import { annotationTooltipProps } from "../../shared/annotationTooltip";
 export const POINT_TITLE = "Punktmessung";
 export const DISTANCE_TITLE = "Distanzmessung";
 export const LABEL_TITLE = "Beschriftung";

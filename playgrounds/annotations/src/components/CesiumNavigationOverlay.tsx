@@ -1,6 +1,5 @@
 import { useEffect, useRef } from "react";
 
-import { PerspectiveFrustum, type Scene } from "@carma/cesium";
 import {
   ANNOTATION_NAVIGATION_SHORTCUT_ACTIONS,
   isManagedAnnotationKeyboardEvent,
@@ -22,10 +21,10 @@ import {
   type CesiumSceneOrbitController,
   writePerspectiveFrustumVerticalFov,
 } from "@carma-mapping/engines/cesium/api";
+import { PerspectiveFrustum, type Scene } from "@carma/cesium";
 import type { Milliseconds, Seconds } from "@carma/units/types";
 
 import type { AnnotationsDemoCameraState } from "../playground.types";
-
 const DEFAULT_CONTROL_STYLE = {
   top: 10,
   left: 10,

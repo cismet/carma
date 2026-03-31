@@ -9,7 +9,6 @@ import {
   Cartesian2,
   Cartesian3,
 } from "cesium";
-
 export type ClickTilesetData = {
   feature: Cesium3DTileFeature | null;
   properties: Record<string, unknown> | null;

@@ -1,10 +1,10 @@
 import { useEffect, useState } from "react";
+
 import {
   SELECT_TOOL_TYPE,
   ANNOTATION_TYPE_POINT,
   type AnnotationToolType,
 } from "@carma-mapping/annotations/core";
-
 const TOOL_DEBUG_STORAGE_KEY = "carma.annotations.debug.toolChanges";
 const TOOL_DEBUG_GLOBAL_KEY = "__CARMA_ANNOTATIONS_DEBUG_TOOL_CHANGES__";
 
