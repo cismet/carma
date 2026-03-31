@@ -2,6 +2,7 @@ import Fuse from "fuse.js";
 import proj4 from "proj4";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faDrawPolygon } from "@fortawesome/free-solid-svg-icons";
+import { BankOutlined, BlockOutlined } from "@ant-design/icons";
 import { GroupedOptions } from "../..";
 import type { SearchResultItem } from "@carma-mapping/fuzzy-search";
 
@@ -30,14 +31,41 @@ export type GemarkungEntry = {
 
 export type LandParcelDataStructure = Record<string, GemarkungEntry>;
 
-const LandParcelLabel = ({ text }: { text: string }) => (
-  <div style={{ paddingLeft: "0.3rem" }}>
-    <span style={{ marginRight: "0.4rem" }}>
-      <FontAwesomeIcon icon={faDrawPolygon} />
-    </span>
-    <span>{text}</span>
-  </div>
-);
+const LandParcelLabel = ({
+  text,
+  art,
+  hist,
+}: {
+  text: string;
+  art?: string;
+  hist?: boolean;
+}) => {
+  if (art != null) {
+    let color = "lightgrey";
+    if (hist === false && art === "städtisch") {
+      color = "black";
+    } else if (hist === false && art === "Abteilung IX") {
+      color = "purple";
+    }
+    return (
+      <div style={{ paddingLeft: "0.3rem", color }}>
+        <span style={{ marginRight: "0.4rem" }}>
+          {art === "städtisch" ? <BankOutlined /> : <BlockOutlined />}
+        </span>
+        <span>{text}</span>
+      </div>
+    );
+  }
+
+  return (
+    <div style={{ paddingLeft: "0.3rem" }}>
+      <span style={{ marginRight: "0.4rem" }}>
+        <FontAwesomeIcon icon={faDrawPolygon} />
+      </span>
+      <span>{text}</span>
+    </div>
+  );
+};
 
 export type LandParcelParseState =
   | { stage: "none" }
@@ -238,6 +266,8 @@ export const tryDirectLandParcelMatch = (
       label: (
         <LandParcelLabel
           text={`${gemarkungDisplay}-${flurName}-${displayLabel}`}
+          art={fstck.art}
+          hist={fstck.hist}
         />
       ),
       value: `${gemarkungDisplay}${LAND_PARCEL_SEPARATOR}${flurName}${LAND_PARCEL_SEPARATOR}${displayLabel}`,
@@ -398,6 +428,8 @@ export const generateLandParcelOptions = (
           label: (
             <LandParcelLabel
               text={`${parseState.gemarkungDisplay}-${parseState.flurName}-${displayLabel}`}
+              art={fstck.art}
+              hist={fstck.hist}
             />
           ),
           value: `${parseState.gemarkungDisplay}${LAND_PARCEL_SEPARATOR}${parseState.flurName}${LAND_PARCEL_SEPARATOR}${displayLabel}`,
