@@ -14,7 +14,7 @@ const LegendDisplay = ({
     <img
       src={updateUrl ? updateUrlUtil(url) : url}
       alt="Legende"
-      className="h-fit"
+      className="w-full h-auto"
       {...props}
     />
   );
