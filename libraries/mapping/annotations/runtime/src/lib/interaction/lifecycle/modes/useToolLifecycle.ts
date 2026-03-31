@@ -3,6 +3,7 @@ import { type Cartesian3 } from "@carma/cesium";
 import {
   ANNOTATION_TYPE_LABEL,
   ANNOTATION_TYPE_POINT,
+  SELECT_TOOL_TYPE,
   type AnnotationCollection,
   type AnnotationToolType,
   type NodeChainAnnotation,
@@ -110,6 +111,17 @@ export const useToolLifecycle = ({
     requestStartMeasurement,
     requestFinishMeasurement,
   } = useModeLifecycle(activeToolType, toolSessions, clearSharedModeExitState);
+  const requestCancelActiveMeasurementAndEnterSelection = () => {
+    if (activeToolType === SELECT_TOOL_TYPE) {
+      return false;
+    }
+
+    activeToolSession?.discardDraft();
+    clearSharedModeExitState();
+    requestEnterToolType(SELECT_TOOL_TYPE);
+    return true;
+  };
+
   const contextValue = useMemo<AnnotationToolsContextType>(
     () => ({
       activeToolType,
@@ -130,6 +142,7 @@ export const useToolLifecycle = ({
     contextValue,
     confirmLabelPlacementById,
     handlePointQueryPointCreated,
+    requestCancelActiveMeasurementAndEnterSelection,
     requestModeChange,
     requestStartMeasurement,
     requestFinishMeasurement,

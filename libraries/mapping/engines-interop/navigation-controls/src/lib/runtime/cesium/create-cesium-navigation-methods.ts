@@ -1,5 +1,6 @@
 import {
   applyCesiumCompassBearingPitch,
+  applyCesiumSceneTravelZoomStep,
   animateOrbitHeadingPitchRange,
   beginCesiumCompassDrag,
   cancelCesiumSceneTravelZoom,
@@ -27,12 +28,13 @@ import {
   readCachedCesiumCompassOrientationDeg,
   readCachedCesiumSceneCenter,
   readCesiumScene,
+  readPerspectiveFrustumVerticalFov,
   requestCesiumRender,
   type CameraStateRecord,
   type CesiumSceneTarget,
 } from "@carma-mapping/engines/cesium/api";
-import { degToRadNumeric, radToDegNumeric } from "@carma/units/helpers";
-import type { Radians } from "@carma/units/types";
+import { degToRadNumeric } from "@carma/units/helpers";
+import type { Milliseconds, Radians } from "@carma/units/types";
 import {
   DEFAULT_NAVIGATION_ORBIT_REVOLUTION_DURATION_SEC,
   DEFAULT_NAVIGATION_HOME_DURATION_MS,
@@ -40,6 +42,7 @@ import {
   NAVIGATION_ORBIT_DIRECTIONS,
   NAVIGATION_ORBIT_TARGETS,
   NAVIGATION_ZOOM_MODES,
+  type NavigationContinuousZoomOptions,
   type NavigationMethods,
   type NavigationNeedleOrientationDeg,
   type NavigationOrbitActiveSink,
@@ -58,6 +61,9 @@ const DEFAULT_ORBIT_PREP_DURATION_MS = 300;
 const DEFAULT_ORBIT_SPEED_DEG_PER_SECOND =
   360 / DEFAULT_NAVIGATION_ORBIT_REVOLUTION_DURATION_SEC;
 const DEFAULT_MIN_ORBIT_PITCH_DEG = 30;
+const DEFAULT_CONTINUOUS_ZOOM_DELTA_PER_SECOND = 1;
+const DEFAULT_CONTINUOUS_ZOOM_EASE_IN_MS = 180;
+const CONTINUOUS_ZOOM_STOP_EPSILON = 1e-6;
 
 const readTransitionDurationSeconds = (
   duration?: NavigationTransitionOptions["duration"]
@@ -233,6 +239,7 @@ export const createCesiumNavigationMethods = ({
 }: CreateCesiumNavigationMethodsOptions): NavigationMethods<CameraStateRecord> => {
   let cancelOrbitPreparationAnimation: (() => void) | null = null;
   let cancelContinuousOrbit: (() => void) | null = null;
+  let cancelContinuousZoom: (() => void) | null = null;
   let cesiumCompassDragSession: CesiumCompassDragSession | null = null;
   let isOrbitActive = false;
   const orbitActiveSinks = new Set<NavigationOrbitActiveSink>();
@@ -256,6 +263,8 @@ export const createCesiumNavigationMethods = ({
     cancelOrbitPreparationAnimation = null;
     cancelContinuousOrbit?.();
     cancelContinuousOrbit = null;
+    cancelContinuousZoom?.();
+    cancelContinuousZoom = null;
     cancelCesiumSceneFovZoom(activeScene);
     cesiumCompassDragSession = null;
     publishOrbitActive(false);
@@ -386,6 +395,176 @@ export const createCesiumNavigationMethods = ({
     });
   };
 
+  const applyZoom = (
+    activeScene: Scene,
+    direction: "in" | "out",
+    options: NavigationZoomOptions = {}
+  ) => {
+    const isFovMode = options.mode === NAVIGATION_ZOOM_MODES.FOV;
+    const isDollyMode = options.mode === NAVIGATION_ZOOM_MODES.DOLLY;
+
+    if (isFovMode || isDollyMode) {
+      if (!(activeScene.camera.frustum instanceof PerspectiveFrustum)) {
+        return;
+      }
+
+      const { minimumFovRad, maximumFovRad } =
+        readResolvedCesiumFovBounds(options);
+
+      if (isDollyMode) {
+        const nextFov = readResolvedCesiumTargetFov(
+          activeScene,
+          options,
+          direction
+        );
+        if (nextFov === null) {
+          return;
+        }
+
+        if (readZoomDurationMs(options) === 0) {
+          applyCesiumSceneTravelZoomStep(activeScene, {
+            direction,
+            zoomDelta: options.zoomDelta,
+            synchronizedFovTargetRad: nextFov,
+          });
+          return;
+        }
+
+        animateCesiumSceneTravelZoom(activeScene, {
+          direction,
+          durationMs: readZoomDurationMs(options) ?? 500,
+          zoomDelta: options.zoomDelta,
+          synchronizedFovTargetRad: nextFov,
+          onStarted: options.onStarted,
+          onCompleted: options.onCompleted,
+          onCanceled: options.onCanceled,
+        });
+        return;
+      }
+
+      flyCesiumSceneFovZoom(activeScene, {
+        direction,
+        durationMs: readZoomDurationMs(options) ?? 250,
+        zoomDelta: options.zoomDelta,
+        minimumFovRad,
+        maximumFovRad,
+        onStarted: options.onStarted,
+        onCompleted: options.onCompleted,
+        onCanceled: options.onCanceled,
+      });
+      return;
+    }
+
+    animateCesiumSceneTravelZoom(activeScene, {
+      direction,
+      durationMs: readZoomDurationMs(options) ?? 500,
+      zoomDelta: options.zoomDelta,
+      onStarted: options.onStarted,
+      onCompleted: options.onCompleted,
+      onCanceled: options.onCanceled,
+    });
+  };
+
+  const stopContinuousZoom = () => {
+    cancelContinuousZoom?.();
+    cancelContinuousZoom = null;
+  };
+
+  const startContinuousZoom = (options: NavigationContinuousZoomOptions) => {
+    runWithScene(
+      (activeScene) => {
+        const mode = options.mode ?? NAVIGATION_ZOOM_MODES.DOLLY;
+        const zoomDeltaPerSecond =
+          typeof options.zoomDeltaPerSecond === "number" &&
+          Number.isFinite(options.zoomDeltaPerSecond) &&
+          options.zoomDeltaPerSecond > 0
+            ? options.zoomDeltaPerSecond
+            : DEFAULT_CONTINUOUS_ZOOM_DELTA_PER_SECOND;
+        const easeInDurationMs =
+          typeof options.easeInDurationMs === "number" &&
+          Number.isFinite(options.easeInDurationMs) &&
+          options.easeInDurationMs > 0
+            ? options.easeInDurationMs
+            : DEFAULT_CONTINUOUS_ZOOM_EASE_IN_MS;
+
+        let frameId: number | null = null;
+        let lastFrameTimeMs: number | null = null;
+        const startedAtMs = performance.now();
+
+        const step = (frameTimeMs: number) => {
+          const deltaSeconds =
+            lastFrameTimeMs === null
+              ? 0
+              : (frameTimeMs - lastFrameTimeMs) / 1000;
+          lastFrameTimeMs = frameTimeMs;
+
+          const easeFactor =
+            easeInDurationMs <= 0
+              ? 1
+              : clamp((frameTimeMs - startedAtMs) / easeInDurationMs, 0, 1);
+          const zoomDelta = zoomDeltaPerSecond * deltaSeconds * easeFactor;
+
+          if (zoomDelta > 0) {
+            if (
+              mode === NAVIGATION_ZOOM_MODES.DOLLY &&
+              activeScene.camera.frustum instanceof PerspectiveFrustum
+            ) {
+              const currentFov = readPerspectiveFrustumVerticalFov(
+                activeScene.camera.frustum
+              );
+              const nextFov = readResolvedCesiumTargetFov(
+                activeScene,
+                {
+                  mode,
+                  zoomDelta,
+                  minimumFovRad: options.minimumFovRad,
+                  maximumFovRad: options.maximumFovRad,
+                },
+                options.direction
+              );
+
+              if (
+                typeof currentFov !== "number" ||
+                !Number.isFinite(currentFov) ||
+                typeof nextFov !== "number" ||
+                !Number.isFinite(nextFov) ||
+                Math.abs(nextFov - currentFov) <= CONTINUOUS_ZOOM_STOP_EPSILON
+              ) {
+                stopContinuousZoom();
+                return;
+              }
+            }
+
+            const zoomOptions: NavigationZoomOptions = {
+              mode,
+              zoomDelta,
+              duration: 0 as Milliseconds,
+              minimumFovRad: options.minimumFovRad,
+              maximumFovRad: options.maximumFovRad,
+            };
+
+            applyZoom(activeScene, options.direction, zoomOptions);
+          }
+
+          frameId = window.requestAnimationFrame(step);
+        };
+
+        cancelContinuousZoom?.();
+        frameId = window.requestAnimationFrame(step);
+
+        cancelContinuousZoom = () => {
+          if (frameId !== null) {
+            window.cancelAnimationFrame(frameId);
+            frameId = null;
+          }
+
+          cancelContinuousZoom = null;
+        };
+      },
+      { keepSceneZoom: false }
+    );
+  };
+
   const flyTo = (
     state: CameraStateRecord,
     options: NavigationTransitionOptions = {}
@@ -418,56 +597,7 @@ export const createCesiumNavigationMethods = ({
     const isDollyMode = options.mode === NAVIGATION_ZOOM_MODES.DOLLY;
     runWithScene(
       (activeScene) => {
-        if (isFovMode || isDollyMode) {
-          if (!(activeScene.camera.frustum instanceof PerspectiveFrustum)) {
-            return;
-          }
-
-          const { minimumFovRad, maximumFovRad } =
-            readResolvedCesiumFovBounds(options);
-
-          if (isDollyMode) {
-            const nextFov = readResolvedCesiumTargetFov(
-              activeScene,
-              options,
-              "in"
-            );
-            if (nextFov === null) {
-              return;
-            }
-            animateCesiumSceneTravelZoom(activeScene, {
-              direction: "in",
-              durationMs: readZoomDurationMs(options) ?? 500,
-              zoomDelta: options.zoomDelta,
-              synchronizedFovTargetRad: nextFov,
-              onStarted: options.onStarted,
-              onCompleted: options.onCompleted,
-              onCanceled: options.onCanceled,
-            });
-            return;
-          }
-
-          flyCesiumSceneFovZoom(activeScene, {
-            direction: "in",
-            durationMs: readZoomDurationMs(options) ?? 250,
-            zoomDelta: options.zoomDelta,
-            minimumFovRad,
-            maximumFovRad,
-            onStarted: options.onStarted,
-            onCompleted: options.onCompleted,
-            onCanceled: options.onCanceled,
-          });
-          return;
-        }
-
-        animateCesiumSceneTravelZoom(activeScene, {
-          direction: "in",
-          durationMs: readZoomDurationMs(options) ?? 500,
-          zoomDelta: options.zoomDelta,
-          onStarted: options.onStarted,
-          onCompleted: options.onCompleted,
-          onCanceled: options.onCanceled,
-        });
+        applyZoom(activeScene, "in", options);
       },
       { keepSceneZoom: !(isFovMode || isDollyMode) }
     );
@@ -478,56 +608,7 @@ export const createCesiumNavigationMethods = ({
     const isDollyMode = options.mode === NAVIGATION_ZOOM_MODES.DOLLY;
     runWithScene(
       (activeScene) => {
-        if (isFovMode || isDollyMode) {
-          if (!(activeScene.camera.frustum instanceof PerspectiveFrustum)) {
-            return;
-          }
-
-          const { minimumFovRad, maximumFovRad } =
-            readResolvedCesiumFovBounds(options);
-
-          if (isDollyMode) {
-            const nextFov = readResolvedCesiumTargetFov(
-              activeScene,
-              options,
-              "out"
-            );
-            if (nextFov === null) {
-              return;
-            }
-            animateCesiumSceneTravelZoom(activeScene, {
-              direction: "out",
-              durationMs: readZoomDurationMs(options) ?? 500,
-              zoomDelta: options.zoomDelta,
-              synchronizedFovTargetRad: nextFov,
-              onStarted: options.onStarted,
-              onCompleted: options.onCompleted,
-              onCanceled: options.onCanceled,
-            });
-            return;
-          }
-
-          flyCesiumSceneFovZoom(activeScene, {
-            direction: "out",
-            durationMs: readZoomDurationMs(options) ?? 250,
-            zoomDelta: options.zoomDelta,
-            minimumFovRad,
-            maximumFovRad,
-            onStarted: options.onStarted,
-            onCompleted: options.onCompleted,
-            onCanceled: options.onCanceled,
-          });
-          return;
-        }
-
-        animateCesiumSceneTravelZoom(activeScene, {
-          direction: "out",
-          durationMs: readZoomDurationMs(options) ?? 500,
-          zoomDelta: options.zoomDelta,
-          onStarted: options.onStarted,
-          onCompleted: options.onCompleted,
-          onCanceled: options.onCanceled,
-        });
+        applyZoom(activeScene, "out", options);
       },
       { keepSceneZoom: !(isFovMode || isDollyMode) }
     );
@@ -828,6 +909,8 @@ export const createCesiumNavigationMethods = ({
     flyTo,
     zoomIn,
     zoomOut,
+    startContinuousZoom,
+    stopContinuousZoom,
     goHome,
     orbit,
     beginCompassDrag,
@@ -838,6 +921,7 @@ export const createCesiumNavigationMethods = ({
     subscribeCompassOrientation,
     subscribeOrbitActive,
     destroy: () => {
+      stopContinuousZoom();
       endCompassDrag();
       const activeScene = readCesiumScene(scene);
       if (activeScene) {

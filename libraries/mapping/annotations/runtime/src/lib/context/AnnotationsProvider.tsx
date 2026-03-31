@@ -623,6 +623,7 @@ export const AnnotationsProvider: React.FC<AnnotationsProviderProps> = ({
     contextValue: toolsContextValue,
     confirmLabelPlacementById,
     handlePointQueryPointCreated,
+    requestCancelActiveMeasurementAndEnterSelection,
     requestFinishMeasurement,
     requestStartMeasurement,
   } = useToolLifecycle({
@@ -746,6 +747,7 @@ export const AnnotationsProvider: React.FC<AnnotationsProviderProps> = ({
     pointTemporaryMode: pointTemporaryMode,
     activeToolType: activeToolType,
     requestStartMeasurement: requestStartMeasurement,
+    requestCancelActiveMeasurementAndEnterSelection,
     requestFinishMeasurement,
     isInteractionActive: isInteractionActive,
     distanceRelations: annotationEntryState.distanceRelations,

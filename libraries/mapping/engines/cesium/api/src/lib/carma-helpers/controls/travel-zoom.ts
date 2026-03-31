@@ -60,9 +60,9 @@ type ActiveCesiumSceneZoom = SceneZoomTarget & {
   targetDistanceM: number;
   fovCurve?: TimedCesiumFovCurve;
 } & CesiumTransitionLifecycle & {
-  settled: boolean;
-  started: boolean;
-};
+    settled: boolean;
+    started: boolean;
+  };
 
 const sceneZoomAnimations = new WeakMap<Scene, ActiveCesiumSceneZoom>();
 
@@ -125,7 +125,9 @@ const readSceneZoomTarget = (scene: Scene): SceneZoomTarget | null => {
 
   return {
     targetPoint: Cartesian3.clone(zoomAnchor.point, new Cartesian3()),
-    distanceBiasM: zoomAnchor.usedGlobeFallback ? FALLBACK_MIN_DISTANCE_TO_GLOBE : 0,
+    distanceBiasM: zoomAnchor.usedGlobeFallback
+      ? FALLBACK_MIN_DISTANCE_TO_GLOBE
+      : 0,
     minDistanceM: scene.screenSpaceCameraController.minimumZoomDistance,
     maxDistanceM: scene.screenSpaceCameraController.maximumZoomDistance,
   };
@@ -360,7 +362,11 @@ const stopSceneZoomLoop = (
   if (commitFinalState) {
     const context = readSceneZoomContext(scene, activeAnimation);
     if (context) {
-      applySceneZoomTargetDistance(scene, context, activeAnimation.targetDistanceM);
+      applySceneZoomTargetDistance(
+        scene,
+        context,
+        activeAnimation.targetDistanceM
+      );
     }
 
     if (
@@ -464,9 +470,11 @@ const ensureSceneZoomLoop = (
     stopSceneZoomLoop(scene, activeAnimation, { commitFinalState: true });
   };
 
-  activeAnimation.removePreRenderListener = scene.preRender.addEventListener(() => {
-    step();
-  });
+  activeAnimation.removePreRenderListener = scene.preRender.addEventListener(
+    () => {
+      step();
+    }
+  );
   requestNextRender();
 };
 
@@ -477,6 +485,84 @@ export const cancelCesiumSceneTravelZoom = (scene: Scene) => {
   }
 
   stopSceneZoomLoop(scene, activeAnimation, { commitFinalState: false });
+};
+
+export const applyCesiumSceneTravelZoomStep = (
+  scene: Scene,
+  {
+    direction,
+    zoomDelta,
+    synchronizedFovTargetRad,
+  }: Pick<
+    CesiumSceneTravelZoomOptions,
+    "direction" | "zoomDelta" | "synchronizedFovTargetRad"
+  >
+): boolean => {
+  const camera = scene.camera;
+  const canvas = scene.canvas;
+  const globe = scene.globe;
+
+  if (!camera || !canvas || !globe) {
+    return false;
+  }
+
+  if (sceneHasTweens(scene)) {
+    camera.cancelFlight();
+  }
+
+  const nowMs = performance.now();
+  const activeAnimation = sceneZoomAnimations.get(scene);
+  const zoomTarget = activeAnimation ?? readSceneZoomTarget(scene);
+  if (!zoomTarget) {
+    return false;
+  }
+
+  const liveContext = readSceneZoomContext(scene, zoomTarget);
+  if (!liveContext) {
+    return false;
+  }
+
+  const startDistanceM = readCurrentScheduledDistance(
+    scene,
+    activeAnimation,
+    liveContext.currentDistanceM,
+    nowMs
+  );
+  const startVerticalFovRad = readCurrentScheduledVerticalFov(
+    scene,
+    activeAnimation,
+    nowMs
+  );
+  const targetDistanceM = computeTargetDistanceM({
+    scene,
+    currentDistanceM: startDistanceM,
+    currentVerticalFovRad: startVerticalFovRad,
+    direction,
+    zoomDelta: readZoomDelta(zoomDelta),
+    minDistanceM: zoomTarget.minDistanceM,
+    maxDistanceM: zoomTarget.maxDistanceM,
+    distanceBiasM: zoomTarget.distanceBiasM,
+    synchronizedFovTargetRad,
+  });
+
+  if (targetDistanceM === null) {
+    return false;
+  }
+
+  cancelCesiumSceneTravelZoom(scene);
+  applySceneZoomTargetDistance(scene, liveContext, targetDistanceM);
+  if (
+    scene.camera.frustum instanceof PerspectiveFrustum &&
+    typeof synchronizedFovTargetRad === "number" &&
+    Number.isFinite(synchronizedFovTargetRad)
+  ) {
+    writePerspectiveFrustumVerticalFov(
+      scene.camera.frustum,
+      synchronizedFovTargetRad
+    );
+  }
+  scene.requestRender();
+  return true;
 };
 
 export const animateCesiumSceneTravelZoom = (

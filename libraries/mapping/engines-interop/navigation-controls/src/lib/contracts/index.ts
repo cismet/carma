@@ -12,6 +12,7 @@ export {
   NAVIGATION_ORBIT_TARGETS,
   NAVIGATION_ZOOM_MODES,
   type NavigationCompassCursor,
+  type NavigationContinuousZoomOptions,
   type NavigationOrbitDirection,
   type NavigationMethods,
   type NavigationNeedleOrientationDeg,

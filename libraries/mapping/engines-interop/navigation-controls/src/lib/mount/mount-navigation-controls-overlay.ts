@@ -87,6 +87,7 @@ export type MountNavigationControlsOverlayOptions<TView> = {
     zoomOutContent?: HTMLElement | SVGSVGElement;
     zoomInDisabled?: boolean;
     zoomOutDisabled?: boolean;
+    hidden?: boolean;
   } | null;
   tertiaryZoomGroup?: {
     zoomInOptions?: NavigationZoomOptions;
@@ -97,6 +98,7 @@ export type MountNavigationControlsOverlayOptions<TView> = {
     zoomOutContent?: HTMLElement | SVGSVGElement;
     zoomInDisabled?: boolean;
     zoomOutDisabled?: boolean;
+    hidden?: boolean;
   } | null;
 };
 
@@ -345,6 +347,7 @@ export const mountNavigationControlsOverlay = <TView>(
     },
     secondaryZoom: secondaryZoomGroup
       ? {
+          hidden: secondaryZoomGroup.hidden,
           zoomIn: {
             disabled: secondaryZoomGroup.zoomInDisabled,
             tooltip:
@@ -381,6 +384,7 @@ export const mountNavigationControlsOverlay = <TView>(
       : null,
     tertiaryZoom: tertiaryZoomGroup
       ? {
+          hidden: tertiaryZoomGroup.hidden,
           zoomIn: {
             disabled: tertiaryZoomGroup.zoomInDisabled,
             tooltip:

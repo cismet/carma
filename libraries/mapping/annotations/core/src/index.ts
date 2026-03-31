@@ -15,6 +15,8 @@ export {
 export * from "./lib/utils/alphabeticSequence";
 export * from "./lib/utils/orderById";
 export * from "./lib/utils/annotationNaming";
+export * from "./lib/utils/annotationToolShortcuts";
+export * from "./lib/utils/annotationKeyboardShortcuts";
 export * from "./lib/utils/annotationLabel";
 export * from "./lib/utils/annotationStateEquality";
 export * from "./lib/utils/annotationCollection";
@@ -43,7 +45,6 @@ export * from "./lib/types/annotationPersistenceTypes";
 export * from "./lib/types/distanceRelation";
 export * from "./lib/types/lineType";
 export * from "./lib/types/linearSegment";
-export * from "./lib/types/annotationTypes";
 export * from "./lib/types/annotationTypes";
 export * from "./lib/types/annotationCandidate";
 export * from "./lib/types/annotationCesiumTypes";

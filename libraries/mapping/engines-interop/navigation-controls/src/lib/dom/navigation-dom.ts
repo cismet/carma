@@ -42,6 +42,7 @@ type NavigationZoomGroupDomConfig = {
   zoomIn?: NavigationButtonDomConfig | null;
   zoomOut?: NavigationButtonDomConfig | null;
   footer?: NavigationButtonDomConfig | null;
+  hidden?: boolean;
 };
 
 export type SceneNavigationDomConfig = {
@@ -422,12 +423,14 @@ const appendZoomGroup = ({
   zoomIn,
   zoomOut,
   footer,
+  hidden = false,
 }: {
   root: HTMLDivElement;
   disabled: boolean;
   zoomIn?: NavigationButtonDomConfig | null;
   zoomOut?: NavigationButtonDomConfig | null;
   footer?: NavigationButtonDomConfig | null;
+  hidden?: boolean;
 }) => {
   if (!zoomIn && !zoomOut && !footer) {
     return;
@@ -437,6 +440,8 @@ const appendZoomGroup = ({
   applyInlineStyles(group, {
     display: "flex",
     flexDirection: "column",
+    visibility: hidden ? "hidden" : "visible",
+    pointerEvents: hidden ? "none" : "auto",
   });
 
   if (zoomIn) {
@@ -530,6 +535,7 @@ export const mountSceneNavigationControls = (
     zoomIn: secondaryZoom?.zoomIn,
     zoomOut: secondaryZoom?.zoomOut,
     footer: secondaryZoom?.footer,
+    hidden: secondaryZoom?.hidden,
   });
   appendZoomGroup({
     root,
@@ -537,6 +543,7 @@ export const mountSceneNavigationControls = (
     zoomIn: tertiaryZoom?.zoomIn,
     zoomOut: tertiaryZoom?.zoomOut,
     footer: tertiaryZoom?.footer,
+    hidden: tertiaryZoom?.hidden,
   });
 
   if (compass) {

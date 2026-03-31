@@ -13,7 +13,8 @@ import {
   type NodeChainAnnotation,
   type PointDistanceRelation,
 } from "@carma-mapping/annotations/core";
-import { isKeyboardTargetEditable } from "@carma-mapping/annotations/core";
+import { useManagedSelectionDeleteKeyboardShortcuts } from "./useManagedSelectionDeleteKeyboardShortcuts";
+import { useManagedToolKeyboardShortcuts } from "./useManagedToolKeyboardShortcuts";
 
 type InteractionLifecycleState = {
   annotations: AnnotationCollection;
@@ -32,6 +33,7 @@ type InteractionLifecycleState = {
   pointTemporaryMode: boolean;
   activeToolType: AnnotationToolType;
   requestStartMeasurement: (toolType: AnnotationToolType) => void;
+  requestCancelActiveMeasurementAndEnterSelection: () => boolean;
   requestFinishMeasurement: () => boolean;
   isInteractionActive: boolean;
   distanceRelations: PointDistanceRelation[];
@@ -62,6 +64,7 @@ export const useInteractionLifecycle = ({
   pointTemporaryMode,
   activeToolType,
   requestStartMeasurement,
+  requestCancelActiveMeasurementAndEnterSelection,
   requestFinishMeasurement,
   isInteractionActive,
   distanceRelations,
@@ -76,139 +79,30 @@ export const useInteractionLifecycle = ({
     [annotations]
   );
 
-  useEffect(
-    function effectBindDeleteKeyHandler() {
-      const handleDeleteKey = (event: KeyboardEvent) => {
-        if (event.key !== "Delete" && event.key !== "Backspace") return;
-        if (event.defaultPrevented) return;
-        if (event.metaKey || event.ctrlKey || event.altKey) return;
-        if (isKeyboardTargetEditable(event.target)) return;
-        const selectedIds = selectedAnnotationIds.filter(
-          (id) => selectablePointIds.has(id) && !lockedAnnotationIdSet.has(id)
-        );
-        if (selectedIds.length > 1) {
-          return;
-        }
-        const hasDeletablePrimarySelection =
-          Boolean(selectedAnnotationId) &&
-          selectablePointIds.has(selectedAnnotationId) &&
-          !lockedAnnotationIdSet.has(selectedAnnotationId);
-        if (selectedIds.length === 0 && !hasDeletablePrimarySelection) {
-          return;
-        }
+  useManagedSelectionDeleteKeyboardShortcuts({
+    clearAnnotationsByIds,
+    deleteSelectedAnnotations,
+    lockedAnnotationIdSet,
+    selectablePointIds,
+    selectedAnnotationId,
+    selectedAnnotationIds,
+    nodeChainAnnotations,
+  });
 
-        event.preventDefault();
-        event.stopPropagation();
-        deleteSelectedAnnotations();
-      };
-
-      window.addEventListener("keydown", handleDeleteKey, true);
-      return () => {
-        window.removeEventListener("keydown", handleDeleteKey, true);
-      };
-    },
-    [
-      deleteSelectedAnnotations,
-      lockedAnnotationIdSet,
-      selectablePointIds,
-      selectedAnnotationId,
-      selectedAnnotationIds,
-    ]
-  );
-
-  useEffect(
-    function effectBindPointModeKeyboardShortcuts() {
-      const handlePointModeKeyboardShortcuts = (event: KeyboardEvent) => {
-        if (event.defaultPrevented) return;
-        if (event.metaKey || event.ctrlKey || event.altKey) return;
-        if (isKeyboardTargetEditable(event.target)) return;
-        if (activeToolType === SELECT_TOOL_TYPE) {
-          return;
-        }
-
-        const hasSelection =
-          selectedAnnotationIds.length > 0 || Boolean(selectedAnnotationId);
-
-        if (
-          event.key === "Enter" &&
-          isPointMeasureCreateModeActive &&
-          pointTemporaryMode
-        ) {
-          const latestTemporaryPointMeasurement = [...annotations]
-            .reverse()
-            .find(
-              (measurement) =>
-                isPointAnnotationEntry(measurement) && measurement.temporary
-            );
-          if (!latestTemporaryPointMeasurement) {
-            return;
-          }
-
-          event.preventDefault();
-          event.stopPropagation();
-          setAnnotations((prev) =>
-            prev.map((measurement) =>
-              measurement.temporary
-                ? { ...measurement, temporary: false }
-                : measurement
-            )
-          );
-          selectAnnotationById(latestTemporaryPointMeasurement.id);
-          return;
-        }
-
-        if (event.key === "Enter" && isAreaToolType(activeToolType)) {
-          event.preventDefault();
-          event.stopPropagation();
-          requestFinishMeasurement();
-          return;
-        }
-
-        if (event.key !== "Backspace") return;
-        if (hasSelection) return;
-
-        const latestPointMeasurement =
-          pointMeasurementEntries[pointMeasurementEntries.length - 1];
-        if (!latestPointMeasurement) {
-          return;
-        }
-
-        event.preventDefault();
-        event.stopPropagation();
-        clearAnnotationsByIds([latestPointMeasurement.id]);
-        selectAnnotationById(
-          pointMeasurementEntries[pointMeasurementEntries.length - 2]?.id ??
-            null
-        );
-      };
-
-      window.addEventListener(
-        "keydown",
-        handlePointModeKeyboardShortcuts,
-        true
-      );
-      return () => {
-        window.removeEventListener(
-          "keydown",
-          handlePointModeKeyboardShortcuts,
-          true
-        );
-      };
-    },
-    [
-      activeToolType,
-      clearAnnotationsByIds,
-      pointMeasurementEntries,
-      selectedAnnotationId,
-      selectedAnnotationIds.length,
-      selectAnnotationById,
-      setAnnotations,
-      isPointMeasureCreateModeActive,
-      pointTemporaryMode,
-      requestFinishMeasurement,
-      annotations,
-    ]
-  );
+  useManagedToolKeyboardShortcuts({
+    annotations,
+    activeToolType,
+    clearAnnotationsByIds,
+    isPointMeasureCreateModeActive,
+    pointTemporaryMode,
+    pointMeasurementEntries,
+    requestCancelActiveMeasurementAndEnterSelection,
+    requestFinishMeasurement,
+    selectAnnotationById,
+    selectedAnnotationId,
+    selectedAnnotationIds,
+    setAnnotations,
+  });
 
   useEffect(
     function effectSyncInteractionEnabledState() {

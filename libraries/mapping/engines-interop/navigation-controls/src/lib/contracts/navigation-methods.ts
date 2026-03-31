@@ -8,8 +8,7 @@ export const NAVIGATION_ZOOM_MODES = {
 } as const;
 
 export const DEFAULT_NAVIGATION_HOME_DURATION_MS = 900;
-export const DEFAULT_NAVIGATION_ORBIT_REVOLUTION_DURATION_SEC =
-  30 as Seconds;
+export const DEFAULT_NAVIGATION_ORBIT_REVOLUTION_DURATION_SEC = 30 as Seconds;
 
 export const NAVIGATION_ORBIT_TARGETS = {
   CURRENT_VIEW: "current-view",
@@ -57,6 +56,15 @@ export type NavigationZoomOptions = NavigationTransitionOptions & {
   maximumFovRad?: number;
 };
 
+export type NavigationContinuousZoomOptions = {
+  direction: "in" | "out";
+  mode?: NavigationZoomMode;
+  zoomDeltaPerSecond?: number;
+  easeInDurationMs?: Milliseconds;
+  minimumFovRad?: number;
+  maximumFovRad?: number;
+};
+
 export type NavigationOrbitTarget =
   | (typeof NAVIGATION_ORBIT_TARGETS)[keyof typeof NAVIGATION_ORBIT_TARGETS]
   | {
@@ -97,6 +105,8 @@ export type NavigationMethods<TView = unknown, TPosition = unknown> = {
   flyTo: (state: TView, options?: NavigationTransitionOptions) => void;
   zoomIn: (options?: NavigationZoomOptions) => void;
   zoomOut: (options?: NavigationZoomOptions) => void;
+  startContinuousZoom?: (options: NavigationContinuousZoomOptions) => void;
+  stopContinuousZoom?: () => void;
   goHome: (options?: NavigationTransitionOptions) => void;
   orbit: (options?: NavigationOrbitOptions) => void;
   getPosition?: () => TPosition;

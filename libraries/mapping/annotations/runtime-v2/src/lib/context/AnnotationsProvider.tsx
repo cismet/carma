@@ -16,8 +16,12 @@ import {
   getEllipsoidalAltitudeOrZero,
 } from "@carma/cesium";
 import {
+  ANNOTATION_COMMON_SHORTCUT_ACTIONS,
   ANNOTATION_TYPE_AREA_VERTICAL,
+  SELECT_TOOL_TYPE,
   buildVerticalRectangleCornerFromDiagonal,
+  isManagedAnnotationKeyboardEvent,
+  resolveAnnotationCommonShortcutAction,
 } from "@carma-mapping/annotations/core";
 
 import {
@@ -189,19 +193,6 @@ const runtimeCoordinateFromCartesian = (
     latitude: coordinateWgs84.latitude,
     altitude: getEllipsoidalAltitudeOrZero(coordinateWgs84.altitude),
   };
-};
-
-const isEditableKeyboardTarget = (target: EventTarget | null): boolean => {
-  if (!(target instanceof HTMLElement)) {
-    return false;
-  }
-
-  if (target.isContentEditable) {
-    return true;
-  }
-
-  const tagName = target.tagName;
-  return tagName === "INPUT" || tagName === "TEXTAREA" || tagName === "SELECT";
 };
 
 const buildMeasurementEntities = ({
@@ -653,13 +644,16 @@ const RuntimeInteractionHost = ({
 
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
+      const isManagedKeyEvent = isManagedAnnotationKeyboardEvent(event, {
+        allowRepeat: true,
+      });
+      const commonAction = isManagedKeyEvent
+        ? resolveAnnotationCommonShortcutAction(event)
+        : null;
+
       if (
-        !event.defaultPrevented &&
-        !event.metaKey &&
-        !event.ctrlKey &&
-        !event.altKey &&
-        !isEditableKeyboardTarget(event.target) &&
-        (event.key === "Delete" || event.key === "Backspace")
+        commonAction === ANNOTATION_COMMON_SHORTCUT_ACTIONS.DELETE_SELECTION ||
+        commonAction === ANNOTATION_COMMON_SHORTCUT_ACTIONS.UNDO_LAST_POINT
       ) {
         const runtimeState = sessionContext.getState();
         const selectedAnnotationId =
@@ -680,6 +674,18 @@ const RuntimeInteractionHost = ({
       }
 
       if (
+        commonAction ===
+          ANNOTATION_COMMON_SHORTCUT_ACTIONS.CANCEL_ACTIVE_TOOL &&
+        activeToolType !== SELECT_TOOL_TYPE
+      ) {
+        activeToolSession?.discardDraft();
+        setCursorScreenPosition(null);
+        setActiveToolTypeInStore(SELECT_TOOL_TYPE);
+        event.preventDefault();
+        return;
+      }
+
+      if (
         activePlugin?.keyboard?.onKeyDown({
           event,
           activeToolType,
@@ -693,13 +699,11 @@ const RuntimeInteractionHost = ({
         return;
       }
 
-      if (event.key === "Escape" && activeToolSession) {
-        activeToolSession?.discardDraft();
-        event.preventDefault();
-        return;
-      }
-
-      if (event.key === "Enter" && requestFinishMeasurement()) {
+      if (
+        commonAction ===
+          ANNOTATION_COMMON_SHORTCUT_ACTIONS.FINISH_MEASUREMENT &&
+        requestFinishMeasurement()
+      ) {
         event.preventDefault();
       }
     };
@@ -717,6 +721,8 @@ const RuntimeInteractionHost = ({
     requestModeChange,
     requestStartMeasurement,
     sessionContext,
+    setActiveToolTypeInStore,
+    setCursorScreenPosition,
   ]);
 
   return null;
