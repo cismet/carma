@@ -48,10 +48,17 @@ const captureOriginals = (
   if (dynamicStylingOriginals[carmaLayerId]) {
     return dynamicStylingOriginals[carmaLayerId];
   }
+  const defaultOption = config.options.find((o) => o.id === config.default);
   const originals: Record<string, unknown> = {};
-  for (const targets of Object.values(config.targets)) {
+  for (const [key, targets] of Object.entries(config.targets)) {
     for (const target of targets) {
-      const val = getProperty(libreMap, target);
+      let val = getProperty(libreMap, target);
+      if (
+        (val === undefined || val === null) &&
+        defaultOption?.[key] !== undefined
+      ) {
+        val = defaultOption[key];
+      }
       if (val !== undefined && val !== null) {
         originals[target] = JSON.parse(JSON.stringify(val));
       }
