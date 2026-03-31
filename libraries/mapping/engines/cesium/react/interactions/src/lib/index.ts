@@ -1,4 +1,5 @@
 export * from "./hooks/useCesiumCoordinateHandler";
+export * from "./hooks/useCesiumOverlayView";
 export * from "./hooks/useCesiumLabelOverlayHost";
 export * from "./hooks/useCesiumOverlaySync";
 export * from "./hooks/useCesiumPointQuery";

@@ -1,3 +1,4 @@
+import { formatFixedNumber } from "@carma-commons/utils/number-format";
 import type {
   HashCodec,
   HashCodecs,
@@ -28,8 +29,9 @@ const getNumberCodec = (fixed?: number, trailingZeros = false): HashCodec => ({
       if (fixed === undefined) {
         return value.toString();
       }
-      const fixedValue = value.toFixed(fixed);
-      return trailingZeros ? fixedValue : parseFloat(fixedValue).toString();
+      return formatFixedNumber(value, fixed, {
+        trimTrailingZeros: !trailingZeros,
+      });
     }
     return undefined;
   },

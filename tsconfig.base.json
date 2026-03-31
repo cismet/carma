@@ -42,12 +42,6 @@
       "@carma-commons/ui/shadcn": ["libraries/commons/ui/shadcn/src/index.ts"],
       "@carma-commons/utils/*": ["libraries/commons/utils/src/lib/*/index.ts"],
       "@carma-mapping/*": ["libraries/mapping/*/src/index.ts"],
-      "@carma-mapping/engines-interop/view-sync": [
-        "libraries/mapping/engines-interop/view-sync/src/index.ts"
-      ],
-      "@carma-mapping/engines-interop/leaflet-cesium": [
-        "libraries/mapping/engines-interop/leaflet-cesium/src/index.ts"
-      ],
       "@carma-providers/*": ["libraries/providers/*/src/index.ts"],
       "@carma/types": ["libraries/types/src/index.d.ts"],
       

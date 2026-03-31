@@ -1,5 +1,11 @@
 import { type RefObject, useMemo } from "react";
-import { Color, Viewer, Rectangle, Cartographic } from "cesium";
+import {
+  Color,
+  Viewer,
+  Rectangle,
+  Cartesian3,
+  type Cartographic,
+} from "cesium";
 import { merge } from "lodash";
 
 import {
@@ -40,8 +46,8 @@ export type InitialCameraView = {
   position?: Cartographic;
   anchor?: Cartographic;
   zoom?: number;
-  heading?: number;
-  pitch?: number;
+  direction?: Cartesian3;
+  up?: Cartesian3;
   fov?: number | null;
   fovLongerEdge?: number | null;
 };
@@ -49,7 +55,8 @@ export type InitialCameraView = {
 export type CustomViewerProps = {
   containerRef: RefObject<HTMLDivElement>;
   cameraLimiterOptions?: CameraLimiterOptions;
-  initialCameraView?: InitialCameraView;
+  initialCameraView?: InitialCameraView | null;
+  homeValidationCenter?: Cartesian3 | null;
   constructorOptions?: Viewer.ConstructorOptions;
   globeOptions?: GlobeOptions;
   // callbacks
@@ -75,6 +82,7 @@ const CustomViewerComponent = (props: CustomViewerProps) => {
     },
     cameraLimiterOptions,
     initialCameraView,
+    homeValidationCenter,
     constructorOptions,
     containerRef,
     onSceneChange,
@@ -86,7 +94,12 @@ const CustomViewerComponent = (props: CustomViewerProps) => {
     [constructorOptions]
   );
 
-  useInitializeViewer(containerRef, options, initialCameraView);
+  useInitializeViewer(
+    containerRef,
+    options,
+    initialCameraView,
+    homeValidationCenter
+  );
   useCesiumGlobe(globeOptions);
 
   useTransitionTimeout();

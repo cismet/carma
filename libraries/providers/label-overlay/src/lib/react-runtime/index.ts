@@ -20,7 +20,12 @@ export {
   resolvePillbuttonMountSide,
   type PillbuttonMountSide,
 } from "../components/PointLabelMarker";
-export { PillbuttonLabelMarker } from "../components/PillbuttonLabelMarker";
+export {
+  PillbuttonLabelMarker,
+  PILLBUTTON_BADGE_POSITIONS,
+  type PillbuttonBadgePosition,
+  type PillbuttonLabelMarkerProps,
+} from "../components/PillbuttonLabelMarker";
 export {
   PointLabelStem,
   type PointLabelStemAnchorPoints,

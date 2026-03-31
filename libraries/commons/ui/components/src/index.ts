@@ -45,3 +45,14 @@ export {
   type ToolDescriptorI18n,
   type ToolManager,
 } from "./lib/utils/createToolManager";
+export {
+  DEFAULT_FROSTED_GLASS_BLUR_PRESET,
+  DEFAULT_FROSTED_GLASS_BLUR_PX,
+  FROSTED_GLASS_BLUR_PRESET,
+  FROSTED_GLASS_BLUR_PX_BY_PRESET,
+  FROSTED_GLASS_SHADOW_BY_PRESET,
+  readFrostedGlassBlurPx,
+  readFrostedGlassBackdropStyle,
+  readFrostedGlassShadow,
+  readFrostedGlassShadowStyle,
+} from "./lib/utils/frostedGlass";

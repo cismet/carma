@@ -120,8 +120,6 @@ const buildVerticalAreaMeasurementPayload = (
 };
 
 type CommitVerticalAreaMeasurementArgs = {
-  toolType: RuntimeMeasurement["toolType"];
-  coordinates: readonly RuntimeCoordinate[];
   addAnnotation: (
     toolType: RuntimeMeasurement["toolType"],
     nextCoordinates: readonly RuntimeCoordinate[],
@@ -129,11 +127,11 @@ type CommitVerticalAreaMeasurementArgs = {
   ) => RuntimeMeasurement;
 };
 
-export const commitVerticalAreaMeasurement = ({
-  toolType,
-  coordinates,
-  addAnnotation,
-}: CommitVerticalAreaMeasurementArgs) => {
+export const commitVerticalAreaMeasurement = (
+  toolType: RuntimeMeasurement["toolType"],
+  coordinates: readonly RuntimeCoordinate[],
+  { addAnnotation }: CommitVerticalAreaMeasurementArgs
+) => {
   const payload = buildVerticalAreaMeasurementPayload(coordinates);
   if (!payload) {
     return null;

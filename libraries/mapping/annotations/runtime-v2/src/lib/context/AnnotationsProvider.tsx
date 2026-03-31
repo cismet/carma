@@ -16,8 +16,12 @@ import {
   getEllipsoidalAltitudeOrZero,
 } from "@carma/cesium";
 import {
+  ANNOTATION_COMMON_SHORTCUT_ACTIONS,
   ANNOTATION_TYPE_AREA_VERTICAL,
+  SELECT_TOOL_TYPE,
   buildVerticalRectangleCornerFromDiagonal,
+  isManagedAnnotationKeyboardEvent,
+  resolveAnnotationCommonShortcutAction,
 } from "@carma-mapping/annotations/core";
 
 import {
@@ -84,6 +88,7 @@ type AnnotationsRuntimeServices = {
   requestModeChange: (toolType: RuntimeToolId) => void;
   requestStartMeasurement: (toolType?: RuntimeToolId) => void;
   requestFinishMeasurement: () => boolean;
+  focusAdjacentAnnotationEntry: (offset: -1 | 1) => void;
   setPointTemporaryMode: (temporaryMode: boolean) => void;
   setSelectedAnnotationId: (annotationId: string | null) => void;
   setRenderLayer: (layerId: string, layer: RuntimeRenderLayer) => void;
@@ -191,17 +196,26 @@ const runtimeCoordinateFromCartesian = (
   };
 };
 
-const isEditableKeyboardTarget = (target: EventTarget | null): boolean => {
-  if (!(target instanceof HTMLElement)) {
-    return false;
+const selectAdjacentRuntimeAnnotationEntryId = (
+  annotationEntries: readonly RuntimeAnnotationEntry[],
+  selectedAnnotationId: string | null,
+  offset: -1 | 1
+): string | null => {
+  if (annotationEntries.length === 0) {
+    return null;
   }
 
-  if (target.isContentEditable) {
-    return true;
-  }
+  const currentIndex = selectedAnnotationId
+    ? annotationEntries.findIndex((entry) => entry.id === selectedAnnotationId)
+    : -1;
+  const fallbackIndex = offset > 0 ? 0 : annotationEntries.length - 1;
+  const nextIndex =
+    currentIndex < 0
+      ? fallbackIndex
+      : (currentIndex + offset + annotationEntries.length) %
+        annotationEntries.length;
 
-  const tagName = target.tagName;
-  return tagName === "INPUT" || tagName === "TEXTAREA" || tagName === "SELECT";
+  return annotationEntries[nextIndex]?.id ?? null;
 };
 
 const buildMeasurementEntities = ({
@@ -458,6 +472,7 @@ const RuntimeInteractionHost = ({
   registry,
   annotationsStore,
   setActiveToolTypeInStore,
+  focusAdjacentAnnotationEntry,
   addAnnotation,
   setRenderLayer,
   clearRenderLayer,
@@ -469,6 +484,7 @@ const RuntimeInteractionHost = ({
   registry: AnnotationToolRegistry;
   annotationsStore: AnnotationsStore;
   setActiveToolTypeInStore: (toolType: RuntimeToolId) => void;
+  focusAdjacentAnnotationEntry: (offset: -1 | 1) => void;
   addAnnotation: (
     toolType: RuntimeMeasurement["toolType"],
     coordinates: readonly RuntimeCoordinate[],
@@ -577,8 +593,7 @@ const RuntimeInteractionHost = ({
       !activeMoveGizmoNodeId
   );
 
-  useSceneCoordinateHandler({
-    scene,
+  useSceneCoordinateHandler(scene, {
     enabled: pointQueryEnabled,
     onCoordinate: handlePointQueryPointCreated,
     onDoubleCoordinate: activeToolSession?.finishesOnLoopClosure
@@ -653,13 +668,16 @@ const RuntimeInteractionHost = ({
 
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
+      const isManagedKeyEvent = isManagedAnnotationKeyboardEvent(event, {
+        allowRepeat: true,
+      });
+      const commonAction = isManagedKeyEvent
+        ? resolveAnnotationCommonShortcutAction(event)
+        : null;
+
       if (
-        !event.defaultPrevented &&
-        !event.metaKey &&
-        !event.ctrlKey &&
-        !event.altKey &&
-        !isEditableKeyboardTarget(event.target) &&
-        (event.key === "Delete" || event.key === "Backspace")
+        commonAction === ANNOTATION_COMMON_SHORTCUT_ACTIONS.DELETE_SELECTION ||
+        commonAction === ANNOTATION_COMMON_SHORTCUT_ACTIONS.UNDO_LAST_POINT
       ) {
         const runtimeState = sessionContext.getState();
         const selectedAnnotationId =
@@ -680,6 +698,36 @@ const RuntimeInteractionHost = ({
       }
 
       if (
+        commonAction ===
+          ANNOTATION_COMMON_SHORTCUT_ACTIONS.CANCEL_ACTIVE_TOOL &&
+        activeToolType !== SELECT_TOOL_TYPE
+      ) {
+        activeToolSession?.discardDraft();
+        setCursorScreenPosition(null);
+        setActiveToolTypeInStore(SELECT_TOOL_TYPE);
+        event.preventDefault();
+        return;
+      }
+
+      if (
+        commonAction ===
+        ANNOTATION_COMMON_SHORTCUT_ACTIONS.FOCUS_PREVIOUS_NAVIGATION_ITEM
+      ) {
+        focusAdjacentAnnotationEntry(-1);
+        event.preventDefault();
+        return;
+      }
+
+      if (
+        commonAction ===
+        ANNOTATION_COMMON_SHORTCUT_ACTIONS.FOCUS_NEXT_NAVIGATION_ITEM
+      ) {
+        focusAdjacentAnnotationEntry(1);
+        event.preventDefault();
+        return;
+      }
+
+      if (
         activePlugin?.keyboard?.onKeyDown({
           event,
           activeToolType,
@@ -693,13 +741,11 @@ const RuntimeInteractionHost = ({
         return;
       }
 
-      if (event.key === "Escape" && activeToolSession) {
-        activeToolSession?.discardDraft();
-        event.preventDefault();
-        return;
-      }
-
-      if (event.key === "Enter" && requestFinishMeasurement()) {
+      if (
+        commonAction ===
+          ANNOTATION_COMMON_SHORTCUT_ACTIONS.FINISH_MEASUREMENT &&
+        requestFinishMeasurement()
+      ) {
         event.preventDefault();
       }
     };
@@ -713,10 +759,13 @@ const RuntimeInteractionHost = ({
     activePlugin,
     activeToolSession,
     activeToolType,
+    focusAdjacentAnnotationEntry,
     requestFinishMeasurement,
     requestModeChange,
     requestStartMeasurement,
     sessionContext,
+    setActiveToolTypeInStore,
+    setCursorScreenPosition,
   ]);
 
   return null;
@@ -756,9 +805,7 @@ const RuntimeVisualizationHost = ({
     renderLayers: {},
     cursorScreenPosition: null,
   });
-  const { handleNodeLongPress } = usePointEditingGizmo({
-    scene,
-    nodes,
+  const { handleNodeLongPress } = usePointEditingGizmo(scene, nodes, {
     annotationsStore,
     setSelectedAnnotationId,
     onActiveMoveGizmoNodeIdChange,
@@ -978,6 +1025,20 @@ export const AnnotationsProvider = ({
     [annotationsStore]
   );
 
+  const focusAdjacentAnnotationEntry = useCallback(
+    (offset: -1 | 1) => {
+      const runtimeState = annotationsStore.getState();
+      const nextAnnotationId = selectAdjacentRuntimeAnnotationEntryId(
+        runtimeState.annotationEntries,
+        selectSelectedAnnotationId(runtimeState),
+        offset
+      );
+
+      annotationsStore.dispatch(setSelectedAnnotationId(nextAnnotationId));
+    },
+    [annotationsStore]
+  );
+
   const setPointTemporaryModeInStore = useCallback(
     (temporaryMode: boolean) => {
       annotationsStore.dispatch(
@@ -1037,6 +1098,7 @@ export const AnnotationsProvider = ({
         lifecycleHostApiRef.current.requestStartMeasurement(toolType),
       requestFinishMeasurement: () =>
         lifecycleHostApiRef.current.requestFinishMeasurement(),
+      focusAdjacentAnnotationEntry,
       setPointTemporaryMode: setPointTemporaryModeInStore,
       setSelectedAnnotationId: setSelectedAnnotationIdInStore,
       setRenderLayer: (layerId, layer) =>
@@ -1049,6 +1111,7 @@ export const AnnotationsProvider = ({
     [
       addAnnotation,
       annotationsStore,
+      focusAdjacentAnnotationEntry,
       registry,
       scene,
       setActiveToolType,
@@ -1072,6 +1135,7 @@ export const AnnotationsProvider = ({
           registry={registry}
           annotationsStore={annotationsStore}
           setActiveToolTypeInStore={setActiveToolTypeInStore}
+          focusAdjacentAnnotationEntry={focusAdjacentAnnotationEntry}
           addAnnotation={addAnnotation}
           setRenderLayer={(layerId, layer) =>
             renderHostApiRef.current.setRenderLayer(layerId, layer)
@@ -1110,6 +1174,7 @@ export const useAnnotationsRuntime = () => {
     requestModeChange,
     requestStartMeasurement,
     requestFinishMeasurement,
+    focusAdjacentAnnotationEntry,
     setPointTemporaryMode,
     setSelectedAnnotationId,
     setRenderLayer,
@@ -1139,6 +1204,7 @@ export const useAnnotationsRuntime = () => {
     requestModeChange,
     requestStartMeasurement,
     requestFinishMeasurement,
+    focusAdjacentAnnotationEntry,
     pointTemporaryMode,
     setPointTemporaryMode,
     nodes,

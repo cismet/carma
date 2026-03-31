@@ -1,6 +1,6 @@
 import { Cartesian3, Cartographic } from "../../cesium";
 import type { LatLngAlt } from "@carma/geo/types";
-import { getDegreesFromCartographic } from "./CartographicConversions";
+import { getDegreesFromCartographic } from "./Conversions";
 
 export const getDegreesFromCartesian = (
   cartesian: Cartesian3

@@ -1,0 +1,1 @@
+export { formatFixedNumber } from "../numbers";

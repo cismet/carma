@@ -3,7 +3,7 @@ import {
   getDegreesFromCartesian,
   getEllipsoidalAltitudeOrZero,
 } from "@carma/cesium";
-import { formatAreaAdaptive } from "@carma-mapping/annotations/core";
+import { formatAreaSquareMetersAdaptive } from "@carma/units/helpers";
 
 import type {
   RuntimeCoordinate,
@@ -22,15 +22,12 @@ import {
 import type { VerticalAreaToolVisualSettings } from "./verticalAreaToolSettings";
 
 type BuildVerticalAreaToolRenderModelsArgs = {
-  toolType: RuntimeMeasurement["toolType"];
   visuals: VerticalAreaToolVisualSettings;
   badgeStyle: {
     backgroundColor: string;
     textColor: string;
   };
   getMeasurementLabel: (measurementIndex: number) => string;
-  nodes: readonly RuntimeNode[];
-  measurements: readonly RuntimeMeasurement[];
   previewCoordinates: readonly RuntimeCoordinate[];
   selectedMeasurementId: string | null;
   onMeasurementSelect?: (measurementId: string) => void;
@@ -70,18 +67,20 @@ const getVerticalAreaLabelCoordinate = (
   );
 };
 
-export const buildVerticalAreaToolRenderModels = ({
-  toolType,
-  visuals,
-  badgeStyle,
-  getMeasurementLabel,
-  nodes,
-  measurements,
-  previewCoordinates,
-  selectedMeasurementId,
-  onMeasurementSelect,
-  onNodeLongPress,
-}: BuildVerticalAreaToolRenderModelsArgs): {
+export const buildVerticalAreaToolRenderModels = (
+  toolType: RuntimeMeasurement["toolType"],
+  nodes: readonly RuntimeNode[],
+  measurements: readonly RuntimeMeasurement[],
+  {
+    visuals,
+    badgeStyle,
+    getMeasurementLabel,
+    previewCoordinates,
+    selectedMeasurementId,
+    onMeasurementSelect,
+    onNodeLongPress,
+  }: BuildVerticalAreaToolRenderModelsArgs
+): {
   points: readonly RuntimePointMarkerRenderModel[];
   edges: readonly RuntimeEdgeRenderModel[];
   pointLabels: readonly RuntimePointLabelRenderModel[];
@@ -190,8 +189,11 @@ export const buildVerticalAreaToolRenderModels = ({
           id: `${measurement.id}-area-label`,
           measurementId: measurement.id,
           coordinate,
-          content: formatAreaAdaptive(
-            Math.max(0, measurement.areaSquareMeters ?? 0)
+          content: formatAreaSquareMetersAdaptive(
+            Math.max(0, measurement.areaSquareMeters ?? 0),
+            {
+              locale: "de-DE",
+            }
           ),
           markerContent: undefined,
           selected: measurement.id === selectedMeasurementId,

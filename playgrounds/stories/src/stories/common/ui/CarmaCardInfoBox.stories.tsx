@@ -28,6 +28,13 @@ const sectionStyle: CSSProperties = {
   minWidth: 360,
 };
 
+const STICKY_STATUS_BAR_OVERLAY_STYLE: CSSProperties = {
+  position: "sticky",
+  top: 0,
+  zIndex: 1200,
+  pointerEvents: "none",
+};
+
 type VariantProps = {
   title: string;
   subtitle?: string;
@@ -166,14 +173,7 @@ const Showcase = () => {
       }}
     >
       <div style={{ minHeight: "100vh" }}>
-        <div
-          style={{
-            position: "sticky",
-            top: 0,
-            zIndex: 1200,
-            pointerEvents: "none",
-          }}
-        >
+        <div style={STICKY_STATUS_BAR_OVERLAY_STYLE}>
           <ResponsiveStatusBar text="CarmaCard + CarmaResponsiveInfoBox variants" />
         </div>
         <div style={{ padding: 16 }}>

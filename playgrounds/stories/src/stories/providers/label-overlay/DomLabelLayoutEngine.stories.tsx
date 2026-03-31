@@ -5,7 +5,7 @@ import {
 } from "./DomLabelLayoutEngine.story-helpers";
 
 const meta = {
-  title: "Providers/LabelOverlay",
+  title: "Overlay/Layout",
   parameters: {
     layout: "fullscreen",
     controls: {

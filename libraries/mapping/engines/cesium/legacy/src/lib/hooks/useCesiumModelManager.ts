@@ -32,6 +32,10 @@ export interface UseCesiumModelManagerOptions {
   };
 }
 
+type ModelWithReadyPromise = {
+  readyPromise?: Promise<unknown>;
+};
+
 export const useCesiumModelManager = ({
   models,
   enabled,
@@ -105,9 +109,7 @@ export const useCesiumModelManager = ({
         requestRender();
         return;
       }
-      const readyPromise = (
-        primitive as unknown as { readyPromise?: Promise<unknown> }
-      ).readyPromise;
+      const readyPromise = (primitive as ModelWithReadyPromise).readyPromise;
       if (!readyPromise) {
         primitive.customShader = shader;
         requestRender();

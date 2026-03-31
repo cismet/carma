@@ -66,6 +66,7 @@ type UseAnnotationEntriesParams = {
   toggleAnnotationsVisibilityByIds: (ids: string[]) => void;
   confirmLabelPlacementById: (id: string) => void;
   focusAnnotationById: (id: string | null) => void;
+  selectedAnnotationId: string | null;
 };
 
 type UseCollectionStateOptions = {
@@ -199,6 +200,28 @@ const createNavigationAnnotationsByTypeMap = (
   );
 
   return annotationsByType;
+};
+
+const selectAdjacentNavigationAnnotationId = (
+  navigationItems: readonly AnnotationEntry[],
+  selectedAnnotationId: string | null,
+  offset: -1 | 1
+): string | null => {
+  if (navigationItems.length === 0) {
+    return null;
+  }
+
+  const currentIndex = selectedAnnotationId
+    ? navigationItems.findIndex((entry) => entry.id === selectedAnnotationId)
+    : -1;
+  const fallbackIndex = offset > 0 ? 0 : navigationItems.length - 1;
+  const nextIndex =
+    currentIndex < 0
+      ? fallbackIndex
+      : (currentIndex + offset + navigationItems.length) %
+        navigationItems.length;
+
+  return navigationItems[nextIndex]?.id ?? null;
 };
 
 export const useCollectionState = (
@@ -427,6 +450,7 @@ export const useAnnotationEntries = ({
   toggleAnnotationsVisibilityByIds,
   confirmLabelPlacementById,
   focusAnnotationById,
+  selectedAnnotationId,
 }: UseAnnotationEntriesParams) => {
   const {
     annotationsByType,
@@ -442,8 +466,7 @@ export const useAnnotationEntries = ({
     setAnnotations,
   });
 
-  const { flyToAnnotationById, flyToAllAnnotations } = useFlyToActions({
-    scene,
+  const { flyToAnnotationById, flyToAllAnnotations } = useFlyToActions(scene, {
     annotations,
     nodeChainAnnotations,
   });
@@ -511,6 +534,20 @@ export const useAnnotationEntries = ({
     },
     [pointEntries, setReferencePoint]
   );
+
+  const focusAdjacentNavigationItem = useCallback(
+    (offset: -1 | 1) => {
+      const nextAnnotationId = selectAdjacentNavigationAnnotationId(
+        getAnnotationsForNavigation(),
+        selectedAnnotationId,
+        offset
+      );
+
+      focusAnnotationById(nextAnnotationId);
+    },
+    [focusAnnotationById, getAnnotationsForNavigation, selectedAnnotationId]
+  );
+
   const actionsContextValue = useMemo(
     () => ({
       add: addAnnotation as (
@@ -532,6 +569,7 @@ export const useAnnotationEntries = ({
       confirmLabelPlacementById,
       flyToById: flyToAnnotationById,
       focusById: focusAnnotationById,
+      focusAdjacentNavigationItem,
       flyToAll: flyToAllAnnotations,
     }),
     [
@@ -543,6 +581,7 @@ export const useAnnotationEntries = ({
       deleteSelectedAnnotations,
       flyToAllAnnotations,
       flyToAnnotationById,
+      focusAdjacentNavigationItem,
       focusAnnotationById,
       setReferencePointId,
       toggleAnnotationsLockByIds,
@@ -586,6 +625,7 @@ export const useAnnotationEntries = ({
     updateAnnotationById,
     flyToAnnotationById,
     flyToAllAnnotations,
+    focusAdjacentNavigationItem,
     setReferencePointId,
   };
 };

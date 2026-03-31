@@ -1,5 +1,6 @@
 import type { LineSegments } from "three";
 import {
+  BufferAttribute,
   Line,
   LineBasicMaterial,
   LineLoop,
@@ -10,11 +11,33 @@ import {
 
 export type BasicLineObject = Line | LineLoop | LineSegments;
 
+const setEmptyBasicLineGeometry = (geometry: BufferGeometry): void => {
+  geometry.setIndex(null);
+  geometry.setAttribute(
+    "position",
+    new BufferAttribute(new Float32Array(6), 3)
+  );
+  geometry.setAttribute(
+    "lineDistance",
+    new BufferAttribute(new Float32Array(2), 1)
+  );
+  geometry.setDrawRange(0, 0);
+  geometry.computeBoundingSphere();
+};
+
 export const setLineGeometry = (
   line: BasicLineObject,
   points: Vector3[]
 ): void => {
-  line.geometry.setFromPoints(points);
+  const geometry = line.geometry as BufferGeometry;
+
+  if (points.length < 2) {
+    setEmptyBasicLineGeometry(geometry);
+    return;
+  }
+
+  geometry.setFromPoints(points);
+  geometry.setDrawRange(0, points.length);
   if (line instanceof Line && "computeLineDistances" in line) {
     line.computeLineDistances();
   }

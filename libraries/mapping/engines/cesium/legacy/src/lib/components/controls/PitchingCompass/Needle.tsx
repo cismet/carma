@@ -1,24 +1,62 @@
-import { useState, useEffect } from "react";
+import { useCallback, useEffect, useRef } from "react";
+import { CesiumMath } from "@carma/cesium";
 
 import type { Radians } from "@carma/units/types";
 
-import { CompassNeedleSVG } from "./CompassNeedleSVG";
+import {
+  CompassNeedleSVG,
+  computeCompassNeedleTransform,
+} from "./CompassNeedleSVG";
 
 type Props = {
   register: (setOrientation: (p: Radians, h: Radians) => void) => void;
 };
 export const Needle = ({ register }: Props) => {
-  const [pitch, setPitch] = useState<Radians>(0 as Radians);
-  const [heading, setHeading] = useState<Radians>(0 as Radians);
+  const svgRef = useRef<SVGSVGElement | null>(null);
+  const frameRef = useRef<number | null>(null);
+  const pendingOrientationRef = useRef<{
+    pitch: Radians;
+    heading: Radians;
+  }>({
+    pitch: CesiumMath.toRadians(-90) as Radians,
+    heading: 0 as Radians,
+  });
+
+  const applyPendingOrientation = useCallback(() => {
+    frameRef.current = null;
+    const svg = svgRef.current;
+    if (!svg) return;
+    const { pitch, heading } = pendingOrientationRef.current;
+    svg.style.transform = computeCompassNeedleTransform(pitch, heading);
+  }, []);
+
+  const setOrientation = useCallback(
+    (pitch: Radians, heading: Radians) => {
+      pendingOrientationRef.current = { pitch, heading };
+      if (frameRef.current !== null) return;
+      frameRef.current = window.requestAnimationFrame(applyPendingOrientation);
+    },
+    [applyPendingOrientation]
+  );
 
   useEffect(() => {
-    register((p, h) => {
-      setPitch(p);
-      setHeading(h);
-    });
-  }, [register]);
+    register(setOrientation);
+    applyPendingOrientation();
+    return () => {
+      if (frameRef.current !== null) {
+        window.cancelAnimationFrame(frameRef.current);
+        frameRef.current = null;
+      }
+    };
+  }, [applyPendingOrientation, register, setOrientation]);
 
-  return <CompassNeedleSVG pitch={pitch} heading={heading} />;
+  return (
+    <CompassNeedleSVG
+      ref={svgRef}
+      pitch={pendingOrientationRef.current.pitch}
+      heading={pendingOrientationRef.current.heading}
+    />
+  );
 };
 
 export default Needle;

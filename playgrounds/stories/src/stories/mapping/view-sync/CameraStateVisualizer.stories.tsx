@@ -3,14 +3,16 @@ import { ResponsiveStatusBar } from "@carma-commons/ui/components";
 import { ViewStateVisualizer } from "@carma-mapping/components";
 import {
   DEFAULT_VIEW_STATE_VISUALIZER_DISPLAY_OPTIONS,
+  VIEW_STATE_VISUALIZER_CAMERA_MODEL,
+  type ViewStateVisualizerCameraModel,
   type ViewStateVisualizerDisplayOptions,
   type ViewStateVisualizerOverviewOptions,
   type ViewStateVisualizerVisualizedOptions,
 } from "@carma-mapping/engines/three/primitives";
 import {
-  buildCommonViewState,
-  type CommonViewState,
-} from "@carma-mapping/engines-interop/view-sync";
+  buildViewState,
+  type ViewState,
+} from "@carma-mapping/engines-interop/view-state";
 import { clamp, PI_OVER_TWO } from "@carma/math";
 import { degToRadNumeric, radToDegNumeric } from "@carma/units/helpers";
 import type { Meta, StoryObj } from "@storybook/react";
@@ -24,6 +26,9 @@ type CameraStateVisualizerStoryProps = {
   maxPitchDeg: number;
   rollDeg: number;
   rangeM: number;
+  nearPlaneM: number;
+  farPlaneM: number;
+  cameraModel: ViewStateVisualizerCameraModel;
   fovVerticalDeg: number;
   fovHorizontalDeg: number;
   enableViewOffset: boolean;
@@ -44,10 +49,10 @@ type CameraStateVisualizerStoryProps = {
   showAngleArcs: boolean;
   showImagePlane: boolean;
   showFrustum: boolean;
+  showProjectionPlane: boolean;
   showAltitudeStem: boolean;
   showAltitudeScaleBreak: boolean;
   showCameraMarker: boolean;
-  showCameraLink: boolean;
   showAxisLabels: boolean;
   showAngleLabels: boolean;
   showImagePlaneLabels: boolean;
@@ -55,9 +60,49 @@ type CameraStateVisualizerStoryProps = {
   axisLineWidthPx: number;
   arcLineWidthPx: number;
   frustumLineWidthPx: number;
-  cameraLinkLineWidthPx: number;
   altitudeLineWidthPx: number;
+  cameras?: MultiCameraStoryCameraSpec[];
 };
+
+type MultiCameraStoryCameraSpec = {
+  label?: string;
+  cameraModel?: ViewStateVisualizerCameraModel;
+  altitudeM?: number;
+  bearingDeg?: number;
+  pitchDeg?: number;
+  rollDeg?: number;
+  rangeM?: number;
+};
+
+const DEFAULT_MULTI_CAMERA_SPECS: readonly MultiCameraStoryCameraSpec[] = [
+  {
+    label: "Perspective A",
+    cameraModel: VIEW_STATE_VISUALIZER_CAMERA_MODEL.PERSPECTIVE,
+    altitudeM: 222.4,
+    bearingDeg: 214,
+    pitchDeg: 42,
+    rollDeg: 0,
+    rangeM: 620,
+  },
+  {
+    label: "Orthographic B",
+    cameraModel: VIEW_STATE_VISUALIZER_CAMERA_MODEL.ORTHOGRAPHIC,
+    altitudeM: 222.4,
+    bearingDeg: 152,
+    pitchDeg: 55,
+    rollDeg: 0,
+    rangeM: 620,
+  },
+  {
+    label: "Perspective C",
+    cameraModel: VIEW_STATE_VISUALIZER_CAMERA_MODEL.PERSPECTIVE,
+    altitudeM: 222.4,
+    bearingDeg: 286,
+    pitchDeg: 36,
+    rollDeg: 0,
+    rangeM: 540,
+  },
+] as const;
 
 const OUTER_BACKGROUND_STYLE: CSSProperties = {
   width: "100%",
@@ -66,6 +111,30 @@ const OUTER_BACKGROUND_STYLE: CSSProperties = {
   display: "flex",
   flexDirection: "column",
   backgroundColor: "#e2e8f0",
+};
+
+const STATUS_BAR_WRAPPER_STYLE: CSSProperties = {
+  position: "sticky",
+  top: 0,
+  zIndex: 10,
+};
+
+const CENTERED_PAGE_CONTENT_STYLE: CSSProperties = {
+  flex: 1,
+  minHeight: 0,
+  display: "flex",
+  alignItems: "center",
+  justifyContent: "center",
+  padding: 16,
+  boxSizing: "border-box",
+};
+
+const VISUALIZER_STACK_STYLE: CSSProperties = {
+  minWidth: 0,
+  display: "flex",
+  flexDirection: "column",
+  alignItems: "center",
+  gap: 8,
 };
 
 const buildFrameStyle = (
@@ -114,12 +183,42 @@ const buildViewOffset = (args: CameraStateVisualizerStoryProps) => {
   };
 };
 
+const buildPerspectiveIntrinsics = (args: CameraStateVisualizerStoryProps) => ({
+  type: CAMERA_TYPE.PERSPECTIVE,
+  fov: degToRadNumeric(args.fovVerticalDeg),
+  fovHorizontal: degToRadNumeric(args.fovHorizontalDeg),
+  viewOffset: buildViewOffset(args),
+  ...buildOptionalFrustum(args),
+});
+
+const buildOptionalFrustum = (args: CameraStateVisualizerStoryProps) => ({
+  ...(args.nearPlaneM > 0 || args.farPlaneM > 0
+    ? {
+        frustum: {
+          ...(args.nearPlaneM > 0 ? { near: args.nearPlaneM } : {}),
+          ...(args.farPlaneM > 0 ? { far: args.farPlaneM } : {}),
+        },
+      }
+    : {}),
+});
+
+const buildOrthographicIntrinsics = (
+  args: CameraStateVisualizerStoryProps
+) => ({
+  type: CAMERA_TYPE.ORTHOGRAPHIC,
+  orthographicScale: {
+    metersPerCssPixel: 1,
+  },
+  ...buildOptionalFrustum(args),
+});
+
 const createViewState = (
   args: CameraStateVisualizerStoryProps,
+  cameraModel: ViewStateVisualizerCameraModel,
   bearingRad: number,
   pitchRad: number
-): CommonViewState =>
-  buildCommonViewState({
+): ViewState =>
+  buildViewState({
     longitude: 0,
     latitude: 0,
     altitude: args.altitudeM,
@@ -127,12 +226,59 @@ const createViewState = (
     pitch: pitchRad,
     roll: degToRadNumeric(args.rollDeg),
     range: args.rangeM,
-    intrinsics: {
-      type: CAMERA_TYPE.PERSPECTIVE,
-      fov: degToRadNumeric(args.fovVerticalDeg),
-      fovHorizontal: degToRadNumeric(args.fovHorizontalDeg),
-      viewOffset: buildViewOffset(args),
+    intrinsics:
+      cameraModel === VIEW_STATE_VISUALIZER_CAMERA_MODEL.ORTHOGRAPHIC
+        ? buildOrthographicIntrinsics(args)
+        : buildPerspectiveIntrinsics(args),
+    metadata: {
+      frameId: 0,
+      timestampMs: 0,
+      sourceId: "camera-state-visualizer-story",
+      source: "restore",
     },
+  });
+
+const normalizeMultiCameraSpecs = (
+  cameras: CameraStateVisualizerStoryProps["cameras"],
+  args: CameraStateVisualizerStoryProps
+): MultiCameraStoryCameraSpec[] => {
+  const seedCameras =
+    cameras && cameras.length > 0 ? cameras : DEFAULT_MULTI_CAMERA_SPECS;
+
+  return seedCameras.map((camera, index) => ({
+    label: camera.label?.trim() || `Camera ${index + 1}`,
+    cameraModel:
+      camera.cameraModel ?? VIEW_STATE_VISUALIZER_CAMERA_MODEL.PERSPECTIVE,
+    altitudeM: Number.isFinite(camera.altitudeM)
+      ? camera.altitudeM
+      : args.altitudeM,
+    bearingDeg: Number.isFinite(camera.bearingDeg)
+      ? camera.bearingDeg
+      : args.bearingDeg,
+    pitchDeg: Number.isFinite(camera.pitchDeg)
+      ? camera.pitchDeg
+      : args.pitchDeg,
+    rollDeg: Number.isFinite(camera.rollDeg) ? camera.rollDeg : args.rollDeg,
+    rangeM: Number.isFinite(camera.rangeM) ? camera.rangeM : args.rangeM,
+  }));
+};
+
+const createViewStateFromCameraSpec = (
+  args: CameraStateVisualizerStoryProps,
+  camera: MultiCameraStoryCameraSpec
+): ViewState =>
+  buildViewState({
+    longitude: 0,
+    latitude: 0,
+    altitude: camera.altitudeM ?? args.altitudeM,
+    bearing: degToRadNumeric(camera.bearingDeg ?? args.bearingDeg),
+    pitch: degToRadNumeric(camera.pitchDeg ?? args.pitchDeg),
+    roll: degToRadNumeric(camera.rollDeg ?? args.rollDeg),
+    range: camera.rangeM ?? args.rangeM,
+    intrinsics:
+      camera.cameraModel === VIEW_STATE_VISUALIZER_CAMERA_MODEL.ORTHOGRAPHIC
+        ? buildOrthographicIntrinsics(args)
+        : buildPerspectiveIntrinsics(args),
     metadata: {
       frameId: 0,
       timestampMs: 0,
@@ -158,7 +304,8 @@ const createOverviewOptions = (
 });
 
 const createDisplayOptions = (
-  args: CameraStateVisualizerStoryProps
+  args: CameraStateVisualizerStoryProps,
+  cameraModel: ViewStateVisualizerCameraModel
 ): ViewStateVisualizerDisplayOptions => ({
   surface: {
     show: args.showSurface,
@@ -175,8 +322,9 @@ const createDisplayOptions = (
   cameraView: {
     imagePlane: {
       show: args.showImagePlane,
-      showOffset: args.enableViewOffset,
-      frameLineWidthPx: args.frustumLineWidthPx,
+      showOffset:
+        cameraModel === VIEW_STATE_VISUALIZER_CAMERA_MODEL.PERSPECTIVE &&
+        args.enableViewOffset,
     },
     axes: {
       show: args.showAxes,
@@ -186,12 +334,11 @@ const createDisplayOptions = (
       show: args.showFrustum,
       lineWidthPx: args.frustumLineWidthPx,
     },
+    projectionPlane: {
+      show: args.showProjectionPlane,
+    },
     marker: {
       show: args.showCameraMarker,
-    },
-    link: {
-      show: args.showCameraLink,
-      lineWidthPx: args.cameraLinkLineWidthPx,
     },
   },
   altitude: {
@@ -207,7 +354,191 @@ const createDisplayOptions = (
   },
 });
 
-const CameraStateVisualizerStory = (args: CameraStateVisualizerStoryProps) => {
+const createMultiCameraDisplayOptions = ({
+  args,
+  showActiveCameraCues,
+  showOrbitAxes,
+}: {
+  args: CameraStateVisualizerStoryProps;
+  showActiveCameraCues: boolean;
+  showOrbitAxes: boolean;
+}): ViewStateVisualizerDisplayOptions => {
+  const baseDisplayOptions = createDisplayOptions(
+    args,
+    VIEW_STATE_VISUALIZER_CAMERA_MODEL.PERSPECTIVE
+  );
+
+  return {
+    ...baseDisplayOptions,
+    worldAxes: {
+      ...baseDisplayOptions.worldAxes,
+      show: args.showAxes && showOrbitAxes,
+    },
+    angleCues: {
+      ...baseDisplayOptions.angleCues,
+      show: args.showAngleArcs && showActiveCameraCues,
+    },
+    cameraView: {
+      ...baseDisplayOptions.cameraView,
+      projectionPlane: {
+        ...baseDisplayOptions.cameraView?.projectionPlane,
+        show: true,
+      },
+      axes: {
+        ...baseDisplayOptions.cameraView?.axes,
+        show: args.showAxes && showActiveCameraCues,
+        showInactive: false,
+      },
+    },
+    altitude: {
+      ...baseDisplayOptions.altitude,
+      show: false,
+      showScaleBreak: false,
+    },
+    labels: {
+      ...baseDisplayOptions.labels,
+      showAxes: args.showAxisLabels && showOrbitAxes,
+      showAngles: args.showAngleLabels && showActiveCameraCues,
+      showImagePlane: args.showImagePlaneLabels && showActiveCameraCues,
+    },
+  };
+};
+
+const buildSummary = ({
+  args,
+  cameraModel,
+  bearingRad,
+  pitchRad,
+}: {
+  args: CameraStateVisualizerStoryProps;
+  cameraModel: ViewStateVisualizerCameraModel;
+  bearingRad: number;
+  pitchRad: number;
+}) => {
+  const showGroundProjection = args.showProjectionPlane;
+
+  return [
+    `${args.altitudeM.toFixed(1)} m`,
+    cameraModel === VIEW_STATE_VISUALIZER_CAMERA_MODEL.ORTHOGRAPHIC
+      ? "cam ortho"
+      : "cam persp",
+    `b ${radToDegNumeric(bearingRad).toFixed(1)}°`,
+    `p ${radToDegNumeric(pitchRad).toFixed(1)}°`,
+    args.showMaxPitchDeg ? `p max ${args.maxPitchDeg.toFixed(1)}°` : null,
+    `r ${args.rangeM.toFixed(1)} m`,
+    args.nearPlaneM > 0 ? `near ${args.nearPlaneM.toFixed(1)} m` : null,
+    args.farPlaneM > 0 ? `far ${args.farPlaneM.toFixed(1)} m` : null,
+    cameraModel === VIEW_STATE_VISUALIZER_CAMERA_MODEL.PERSPECTIVE
+      ? `plane ${args.imagePlaneDistanceUnit.toFixed(2)}u`
+      : null,
+    cameraModel === VIEW_STATE_VISUALIZER_CAMERA_MODEL.PERSPECTIVE
+      ? `fov v ${args.fovVerticalDeg.toFixed(1)}°`
+      : null,
+    cameraModel === VIEW_STATE_VISUALIZER_CAMERA_MODEL.PERSPECTIVE
+      ? `fov h ${args.fovHorizontalDeg.toFixed(1)}°`
+      : null,
+    args.enableViewOffset &&
+    cameraModel === VIEW_STATE_VISUALIZER_CAMERA_MODEL.PERSPECTIVE
+      ? `offset ${args.viewOffsetXRatio.toFixed(
+          2
+        )},${args.viewOffsetYRatio.toFixed(
+          2
+        )} ${args.viewOffsetWidthRatio.toFixed(
+          2
+        )}x${args.viewOffsetHeightRatio.toFixed(2)}`
+      : null,
+    args.showCheckerboardBackground ? "bg checker" : "bg solid",
+    showGroundProjection ? "ground proj" : null,
+  ]
+    .filter((value): value is string => value !== null)
+    .join(" • ");
+};
+
+const buildMultiCameraSummary = ({
+  args,
+  cameras,
+  activeCameraIndex,
+}: {
+  args: CameraStateVisualizerStoryProps;
+  cameras: MultiCameraStoryCameraSpec[];
+  activeCameraIndex: number;
+}) => {
+  const activeCamera =
+    cameras[clamp(activeCameraIndex, 0, Math.max(0, cameras.length - 1))];
+  const activeCameraLabel = activeCamera?.label ?? "none";
+  const activeCameraType =
+    activeCamera?.cameraModel ===
+    VIEW_STATE_VISUALIZER_CAMERA_MODEL.ORTHOGRAPHIC
+      ? "ortho"
+      : "persp";
+
+  return [
+    `${cameras.length} cams`,
+    `active ${activeCameraIndex + 1}/${cameras.length}`,
+    activeCameraLabel,
+    activeCamera ? activeCameraType : null,
+    args.showCheckerboardBackground ? "bg checker" : "bg solid",
+    args.showProjectionPlane ? "ground proj" : null,
+    "edit cameras control to add/remove",
+  ]
+    .filter((value): value is string => value !== null)
+    .join(" • ");
+};
+
+type CameraVisualizerPanelProps = {
+  args: CameraStateVisualizerStoryProps;
+  cameraModel: ViewStateVisualizerCameraModel;
+  bearingRad: number;
+  pitchRad: number;
+  onPoseChange: (bearing: number, pitch: number) => void;
+};
+
+const CameraVisualizerPanel = ({
+  args,
+  cameraModel,
+  bearingRad,
+  pitchRad,
+  onPoseChange,
+}: CameraVisualizerPanelProps) => {
+  const viewState = useMemo(
+    () => createViewState(args, cameraModel, bearingRad, pitchRad),
+    [args, cameraModel, bearingRad, pitchRad]
+  );
+  const viewStates = useMemo(() => [viewState] as const, [viewState]);
+  const overviewOptions = useMemo(() => createOverviewOptions(args), [args]);
+  const visualizedOptions = useMemo(
+    () => createVisualizedOptions(args),
+    [args]
+  );
+  const displayOptions = useMemo(
+    () => createDisplayOptions(args, cameraModel),
+    [args, cameraModel]
+  );
+
+  return (
+    <div style={VISUALIZER_STACK_STYLE}>
+      <div style={buildFrameStyle(args.showCheckerboardBackground)}>
+        <ViewStateVisualizer
+          viewState={viewStates}
+          activeCameraIndex={0}
+          overviewOptions={overviewOptions}
+          interactive={args.interactive}
+          visualizedOptions={visualizedOptions}
+          displayOptions={displayOptions}
+          onCameraPoseChange={(_cameraIndex, bearing, pitch) => {
+            onPoseChange(bearing, pitch);
+          }}
+          width={args.sizePx}
+          height={args.sizePx}
+          bearingLabel="b"
+          pitchLabel="p"
+        />
+      </div>
+    </div>
+  );
+};
+
+const useSharedPoseState = (args: CameraStateVisualizerStoryProps) => {
   const [bearingRad, setBearingRad] = useState(
     degToRadNumeric(args.bearingDeg)
   );
@@ -218,65 +549,136 @@ const CameraStateVisualizerStory = (args: CameraStateVisualizerStoryProps) => {
     setPitchRad(degToRadNumeric(args.pitchDeg));
   }, [args.bearingDeg, args.pitchDeg]);
 
-  const viewState = useMemo(
-    () => createViewState(args, bearingRad, pitchRad),
+  return {
+    bearingRad,
+    pitchRad,
+    setBearingRad,
+    setPitchRad,
+  };
+};
+
+const CameraStateVisualizerStory = (args: CameraStateVisualizerStoryProps) => {
+  const { bearingRad, pitchRad, setBearingRad, setPitchRad } =
+    useSharedPoseState(args);
+
+  const summary = useMemo(
+    () =>
+      buildSummary({
+        args,
+        cameraModel: args.cameraModel,
+        bearingRad,
+        pitchRad,
+      }),
     [args, bearingRad, pitchRad]
+  );
+
+  return (
+    <div style={OUTER_BACKGROUND_STYLE}>
+      <div style={STATUS_BAR_WRAPPER_STYLE}>
+        <ResponsiveStatusBar text={summary} tone="dark" />
+      </div>
+      <div style={CENTERED_PAGE_CONTENT_STYLE}>
+        <CameraVisualizerPanel
+          args={args}
+          cameraModel={args.cameraModel}
+          bearingRad={bearingRad}
+          pitchRad={pitchRad}
+          onPoseChange={(bearing, pitch) => {
+            setBearingRad(bearing);
+            setPitchRad(pitch);
+          }}
+        />
+      </div>
+    </div>
+  );
+};
+
+const CameraStateVisualizerMultiCameraStory = (
+  args: CameraStateVisualizerStoryProps
+) => {
+  const [cameraSpecs, setCameraSpecs] = useState<MultiCameraStoryCameraSpec[]>(
+    () => normalizeMultiCameraSpecs(args.cameras, args)
+  );
+  const [activeCameraIndex, setActiveCameraIndex] = useState(0);
+  const [isCameraPoseDragging, setIsCameraPoseDragging] = useState(false);
+  const [isOrbitDragging, setIsOrbitDragging] = useState(false);
+
+  useEffect(() => {
+    setCameraSpecs(normalizeMultiCameraSpecs(args.cameras, args));
+  }, [
+    args.altitudeM,
+    args.bearingDeg,
+    args.cameras,
+    args.pitchDeg,
+    args.rangeM,
+    args.rollDeg,
+  ]);
+
+  useEffect(() => {
+    setActiveCameraIndex((currentActiveCameraIndex) =>
+      clamp(currentActiveCameraIndex, 0, Math.max(0, cameraSpecs.length - 1))
+    );
+  }, [cameraSpecs.length]);
+
+  const viewStates = useMemo(
+    () =>
+      cameraSpecs.map((camera) => createViewStateFromCameraSpec(args, camera)),
+    [args, cameraSpecs]
   );
   const overviewOptions = useMemo(() => createOverviewOptions(args), [args]);
   const visualizedOptions = useMemo(
     () => createVisualizedOptions(args),
     [args]
   );
-  const displayOptions = useMemo(() => createDisplayOptions(args), [args]);
-  const summary = [
-    `${args.altitudeM.toFixed(1)} m`,
-    `b ${radToDegNumeric(bearingRad).toFixed(1)}°`,
-    `p ${radToDegNumeric(pitchRad).toFixed(1)}°`,
-    args.showMaxPitchDeg ? `p max ${args.maxPitchDeg.toFixed(1)}°` : null,
-    `r ${args.rangeM.toFixed(1)} m`,
-    `plane ${args.imagePlaneDistanceUnit.toFixed(2)}u`,
-    `fov v ${args.fovVerticalDeg.toFixed(1)}°`,
-    `fov h ${args.fovHorizontalDeg.toFixed(1)}°`,
-    args.enableViewOffset
-      ? `offset ${args.viewOffsetXRatio.toFixed(
-          2
-        )},${args.viewOffsetYRatio.toFixed(
-          2
-        )} ${args.viewOffsetWidthRatio.toFixed(
-          2
-        )}x${args.viewOffsetHeightRatio.toFixed(2)}`
-      : null,
-    args.showCheckerboardBackground ? "bg checker" : "bg solid",
-  ]
-    .filter((value): value is string => value !== null)
-    .join(" • ");
+  const displayOptions = useMemo(
+    () =>
+      createMultiCameraDisplayOptions({
+        args,
+        showActiveCameraCues: isCameraPoseDragging,
+        showOrbitAxes: isOrbitDragging,
+      }),
+    [args, isCameraPoseDragging, isOrbitDragging]
+  );
+  const summary = useMemo(
+    () =>
+      buildMultiCameraSummary({
+        args,
+        cameras: cameraSpecs,
+        activeCameraIndex,
+      }),
+    [args, cameraSpecs, activeCameraIndex]
+  );
 
   return (
     <div style={OUTER_BACKGROUND_STYLE}>
-      <div style={{ position: "sticky", top: 0, zIndex: 10 }}>
+      <div style={STATUS_BAR_WRAPPER_STYLE}>
         <ResponsiveStatusBar text={summary} tone="dark" />
       </div>
-      <div
-        style={{
-          flex: 1,
-          minHeight: 0,
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          padding: 16,
-          boxSizing: "border-box",
-        }}
-      >
+      <div style={CENTERED_PAGE_CONTENT_STYLE}>
         <div style={buildFrameStyle(args.showCheckerboardBackground)}>
           <ViewStateVisualizer
-            viewState={viewState}
+            viewState={viewStates}
+            activeCameraIndex={activeCameraIndex}
             overviewOptions={overviewOptions}
             interactive={args.interactive}
             visualizedOptions={visualizedOptions}
             displayOptions={displayOptions}
-            onPoseChange={(bearing, pitch) => {
-              setBearingRad(bearing);
-              setPitchRad(pitch);
+            onActiveCameraChange={setActiveCameraIndex}
+            onCameraPoseDragStateChange={setIsCameraPoseDragging}
+            onOrbitDragStateChange={setIsOrbitDragging}
+            onCameraPoseChange={(cameraIndex, bearing, pitch) => {
+              setActiveCameraIndex(cameraIndex);
+              setCameraSpecs((currentCameraSpecs) =>
+                currentCameraSpecs.map((camera, index) =>
+                  index === cameraIndex
+                    ? {
+                        ...camera,
+                        bearingDeg: radToDegNumeric(bearing),
+                        pitchDeg: radToDegNumeric(pitch),
+                      }
+                    : camera
+                )
+              );
             }}
             width={args.sizePx}
             height={args.sizePx}
@@ -290,7 +692,7 @@ const CameraStateVisualizerStory = (args: CameraStateVisualizerStoryProps) => {
 };
 
 const meta: Meta<CameraStateVisualizerStoryProps> = {
-  title: "Mapping/ViewSync",
+  title: "Mapping Components/Camera State Visualizer",
   parameters: {
     layout: "fullscreen",
     controls: {
@@ -306,6 +708,9 @@ const meta: Meta<CameraStateVisualizerStoryProps> = {
     maxPitchDeg: 75,
     rollDeg: 0,
     rangeM: 620,
+    nearPlaneM: 0,
+    farPlaneM: 0,
+    cameraModel: VIEW_STATE_VISUALIZER_CAMERA_MODEL.PERSPECTIVE,
     fovVerticalDeg: 60,
     fovHorizontalDeg: 85.461115,
     enableViewOffset: false,
@@ -315,7 +720,7 @@ const meta: Meta<CameraStateVisualizerStoryProps> = {
     viewOffsetYRatio: 0,
     viewOffsetWidthRatio: 1,
     viewOffsetHeightRatio: 1,
-    imagePlaneDistanceUnit: 0.42,
+    imagePlaneDistanceUnit: 0.33,
     sizePx: 420,
     fovDeg: 38,
     orthographic: false,
@@ -328,14 +733,15 @@ const meta: Meta<CameraStateVisualizerStoryProps> = {
       DEFAULT_VIEW_STATE_VISUALIZER_DISPLAY_OPTIONS.cameraView.imagePlane.show,
     showFrustum:
       DEFAULT_VIEW_STATE_VISUALIZER_DISPLAY_OPTIONS.cameraView.frustum.show,
+    showProjectionPlane:
+      DEFAULT_VIEW_STATE_VISUALIZER_DISPLAY_OPTIONS.cameraView.projectionPlane
+        .show,
     showAltitudeStem:
       DEFAULT_VIEW_STATE_VISUALIZER_DISPLAY_OPTIONS.altitude.show,
     showAltitudeScaleBreak:
       DEFAULT_VIEW_STATE_VISUALIZER_DISPLAY_OPTIONS.altitude.showScaleBreak,
     showCameraMarker:
       DEFAULT_VIEW_STATE_VISUALIZER_DISPLAY_OPTIONS.cameraView.marker.show,
-    showCameraLink:
-      DEFAULT_VIEW_STATE_VISUALIZER_DISPLAY_OPTIONS.cameraView.link.show,
     showAxisLabels:
       DEFAULT_VIEW_STATE_VISUALIZER_DISPLAY_OPTIONS.labels.showAxes,
     showAngleLabels:
@@ -351,8 +757,6 @@ const meta: Meta<CameraStateVisualizerStoryProps> = {
     frustumLineWidthPx:
       DEFAULT_VIEW_STATE_VISUALIZER_DISPLAY_OPTIONS.cameraView.frustum
         .lineWidthPx,
-    cameraLinkLineWidthPx:
-      DEFAULT_VIEW_STATE_VISUALIZER_DISPLAY_OPTIONS.cameraView.link.lineWidthPx,
     altitudeLineWidthPx:
       DEFAULT_VIEW_STATE_VISUALIZER_DISPLAY_OPTIONS.altitude.lineWidthPx,
   },
@@ -393,19 +797,52 @@ const meta: Meta<CameraStateVisualizerStoryProps> = {
       control: { type: "range", min: 1, max: 2000, step: 1 },
       table: { category: "Pose" },
     },
+    nearPlaneM: {
+      name: "near m",
+      control: { type: "range", min: 0, max: 2000, step: 0.1 },
+      table: { category: "Intrinsics/Frustum" },
+    },
+    farPlaneM: {
+      name: "far m",
+      control: { type: "range", min: 0, max: 5000, step: 1 },
+      table: { category: "Intrinsics/Frustum" },
+    },
+    cameraModel: {
+      name: "camera model",
+      control: { type: "select" },
+      options: Object.values(VIEW_STATE_VISUALIZER_CAMERA_MODEL),
+      table: { category: "Intrinsics" },
+    },
+    cameras: {
+      name: "cameras",
+      control: { type: "object" },
+      table: { category: "Multi Camera" },
+    },
     fovVerticalDeg: {
       name: "fov v deg",
       control: { type: "range", min: 0.1, max: 179.9, step: 0.1 },
+      if: {
+        arg: "cameraModel",
+        eq: VIEW_STATE_VISUALIZER_CAMERA_MODEL.PERSPECTIVE,
+      },
       table: { category: "Intrinsics" },
     },
     fovHorizontalDeg: {
       name: "fov h deg",
       control: { type: "range", min: 0.1, max: 179.9, step: 0.1 },
+      if: {
+        arg: "cameraModel",
+        eq: VIEW_STATE_VISUALIZER_CAMERA_MODEL.PERSPECTIVE,
+      },
       table: { category: "Intrinsics" },
     },
     enableViewOffset: {
       name: "enable view offset",
       control: { type: "boolean" },
+      if: {
+        arg: "cameraModel",
+        eq: VIEW_STATE_VISUALIZER_CAMERA_MODEL.PERSPECTIVE,
+      },
       table: { category: "Intrinsics/ViewOffset" },
     },
     viewOffsetFullWidthPx: {
@@ -446,7 +883,11 @@ const meta: Meta<CameraStateVisualizerStoryProps> = {
     },
     imagePlaneDistanceUnit: {
       name: "image plane dist u",
-      control: { type: "range", min: 0.08, max: 1.5, step: 0.01 },
+      control: { type: "range", min: 0.01, max: 1.5, step: 0.01 },
+      if: {
+        arg: "cameraModel",
+        eq: VIEW_STATE_VISUALIZER_CAMERA_MODEL.PERSPECTIVE,
+      },
       table: { category: "Visualized" },
     },
     sizePx: {
@@ -494,6 +935,11 @@ const meta: Meta<CameraStateVisualizerStoryProps> = {
       control: { type: "boolean" },
       table: { category: "Display/Visibility" },
     },
+    showProjectionPlane: {
+      name: "ground projection",
+      control: { type: "boolean" },
+      table: { category: "Display/Visibility" },
+    },
     showAltitudeStem: {
       name: "altitude stem",
       control: { type: "boolean" },
@@ -506,11 +952,6 @@ const meta: Meta<CameraStateVisualizerStoryProps> = {
     },
     showCameraMarker: {
       name: "camera marker",
-      control: { type: "boolean" },
-      table: { category: "Display/Visibility" },
-    },
-    showCameraLink: {
-      name: "camera link",
       control: { type: "boolean" },
       table: { category: "Display/Visibility" },
     },
@@ -549,11 +990,6 @@ const meta: Meta<CameraStateVisualizerStoryProps> = {
       control: { type: "range", min: 0.1, max: 5, step: 0.1 },
       table: { category: "Display/Line Widths" },
     },
-    cameraLinkLineWidthPx: {
-      name: "camera link width",
-      control: { type: "range", min: 0.1, max: 5, step: 0.1 },
-      table: { category: "Display/Line Widths" },
-    },
     altitudeLineWidthPx: {
       name: "altitude width",
       control: { type: "range", min: 0.1, max: 5, step: 0.1 },
@@ -569,8 +1005,59 @@ const meta: Meta<CameraStateVisualizerStoryProps> = {
 
 export default meta;
 
-export const CameraStateVisualizer: StoryObj<CameraStateVisualizerStoryProps> =
-  {
-    name: "Camera State Visualizer",
-    render: (args) => <CameraStateVisualizerStory {...args} />,
-  };
+type Story = StoryObj<typeof meta>;
+
+const DISABLED_ARG_TYPE = {
+  control: false,
+  table: {
+    disable: true,
+  },
+} as const;
+
+const FIXED_CAMERA_MODEL_ARG_TYPE = {
+  control: false,
+  table: {
+    disable: true,
+  },
+} as const;
+
+export const Perspective: Story = {
+  args: {
+    interactive: true,
+  },
+  argTypes: {
+    cameras: DISABLED_ARG_TYPE,
+  },
+  render: (args) => <CameraStateVisualizerStory {...args} />,
+};
+
+export const Orthographic: Story = {
+  args: {
+    cameraModel: VIEW_STATE_VISUALIZER_CAMERA_MODEL.ORTHOGRAPHIC,
+    imagePlaneDistanceUnit: 0.33,
+    interactive: true,
+    showProjectionPlane: true,
+  },
+  argTypes: {
+    cameraModel: FIXED_CAMERA_MODEL_ARG_TYPE,
+    cameras: DISABLED_ARG_TYPE,
+  },
+  render: (args) => <CameraStateVisualizerStory {...args} />,
+};
+
+export const MultiCameraWorkbench: Story = {
+  name: "Multi Camera Workbench",
+  args: {
+    imagePlaneDistanceUnit: 0.33,
+    cameras: [...DEFAULT_MULTI_CAMERA_SPECS],
+  },
+  argTypes: {
+    altitudeM: DISABLED_ARG_TYPE,
+    bearingDeg: DISABLED_ARG_TYPE,
+    pitchDeg: DISABLED_ARG_TYPE,
+    rollDeg: DISABLED_ARG_TYPE,
+    rangeM: DISABLED_ARG_TYPE,
+    cameraModel: DISABLED_ARG_TYPE,
+  },
+  render: (args) => <CameraStateVisualizerMultiCameraStory {...args} />,
+};

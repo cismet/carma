@@ -166,14 +166,21 @@ export const resolvePointLabelLayoutConfig = (
   };
 };
 
+/**
+ * Compute the perspective-dependent stem angle magnitude for label placement.
+ *
+ * `cameraPitch` uses the view-sync convention:
+ *   0 = nadir (looking straight down), π/2 = horizon (looking sideways).
+ */
 export const getPerspectiveStemAngleMagnitude = (
   cameraPitch: number,
   config: PointLabelLayoutConfig
 ): number => {
   if (!config.pitchResponsiveAngle) return DEFAULT_STEM_ANGLE_RAD;
 
-  // 0 at nadir (flat/horizontal), 1 near side view.
-  const pitchFactor = clamp(Math.abs(Math.cos(cameraPitch)), 0, 1);
+  // 0 at nadir, 1 near horizon — uses sin because view-sync pitch
+  // starts at 0 (nadir) and increases toward π/2 (horizon).
+  const pitchFactor = clamp(Math.abs(Math.sin(cameraPitch)), 0, 1);
   const rawMagnitude =
     DEFAULT_STEM_ANGLE_RAD * pitchFactor * config.pitchResponseStrength;
 

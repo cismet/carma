@@ -1,4 +1,4 @@
-import { useContext, useEffect, useRef, useState } from "react";
+import { useCallback, useContext, useEffect, useRef, useState } from "react";
 import { isMobile } from "react-device-detect";
 import { useDispatch, useSelector } from "react-redux";
 
@@ -32,9 +32,9 @@ import { ResponsiveStatusBar } from "@carma-commons/ui/components";
 import {
   PitchingCompass,
   useCesiumContext,
-  useHomeControl,
   useZoomControls as useZoomControlsCesium,
 } from "@carma-mapping/engines/cesium";
+import { flyViewStateInCesium } from "@carma-mapping/engines-interop/view-state";
 import {
   MapFrameworkSwitcher,
   FullscreenControl,
@@ -64,6 +64,7 @@ import { useFeatureInfoModeCursorStyle } from "../../../hooks/useFeatureInfoMode
 import { useMapStyleReduxSync } from "../../../hooks/useMapStyleReduxSync";
 import { useTourRefCollabLabels } from "../../../hooks/useTourRefCollabLabels.ts";
 import { useWindowSize } from "../../../hooks/useWindowSize.ts";
+import { useGeoportalHomeValues } from "../../../hooks/useGeoportalInitialValues.ts";
 
 import { useOblique } from "../../../oblique/hooks/useOblique.ts";
 
@@ -95,8 +96,6 @@ let hasGPU = false;
 const setHasGPU = (flag: boolean) => (hasGPU = flag);
 const testGPU = () => detectWebGLContext(setHasGPU);
 window.addEventListener("load", testGPU, false);
-
-// TODO: centralize the hash params update behavior
 
 const MapWrapper = () => {
   const dispatch = useDispatch();
@@ -136,7 +135,6 @@ const MapWrapper = () => {
   const showLocatorButton = useSelector(getShowLocatorButton);
   const zenMode = useSelector(getZenMode);
   const ctx = useCesiumContext();
-  const homeControl = useHomeControl();
   const configSelection = useSelector(getConfigSelection);
 
   const { isObliqueMode, isPreviewVisible: isObliquePreviewVisible } =
@@ -149,6 +147,22 @@ const MapWrapper = () => {
     fovMode: isObliqueMode,
   });
   const { zoomInLeaflet, zoomOutLeaflet } = useLeafletZoomControls();
+  const {
+    defaultHomeViewState,
+    homeCenter,
+    homeLeafletZoom,
+    homeMaplibreZoom,
+  } = useGeoportalHomeValues();
+  const handleCesiumHomeClick = useCallback(() => {
+    if (!isCesium) return;
+
+    ctx.withScene((scene) => {
+      flyViewStateInCesium(scene, defaultHomeViewState, {
+        duration: 2,
+        applyFov: false,
+      });
+    });
+  }, [ctx, defaultHomeViewState, isCesium]);
 
   const { responsiveState, gap, windowSize } = useContext<
     typeof ResponsiveTopicMapContext
@@ -332,10 +346,6 @@ const MapWrapper = () => {
 
                   // nativeTooltip={true}
                 />
-
-                {
-                  // TODO implement cesium home action with generic home control for all mapping engines
-                }
               </div>
             </Control>
           )}
@@ -365,17 +375,17 @@ const MapWrapper = () => {
                     if (showLibreMap) {
                       if (libreMapRef.current) {
                         libreMapRef.current.flyTo({
-                          center: [7.199918031692506, 51.272570027476256],
-                          zoom: 17,
+                          center: [homeCenter[1], homeCenter[0]],
+                          zoom: homeMaplibreZoom,
                           essential: true,
                         });
                       }
                     } else {
                       routedMap.leafletMap.leafletElement.flyTo(
-                        [51.272570027476256, 7.199918031692506],
-                        18
+                        homeCenter,
+                        homeLeafletZoom
                       );
-                      homeControl();
+                      handleCesiumHomeClick();
                     }
                   }}
                   dataTestId="home-control"

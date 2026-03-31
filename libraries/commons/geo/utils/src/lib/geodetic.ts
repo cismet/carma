@@ -1,6 +1,6 @@
-import { Matrix4, Vector3 } from "@carma/math";
 import type { Radians } from "@carma/units/types";
 import type { Altitude } from "@carma/geo/types";
+import { Matrix4, Vector3 } from "three";
 
 // ---------------------------------------------------------------------------
 // WGS84 ellipsoid constants

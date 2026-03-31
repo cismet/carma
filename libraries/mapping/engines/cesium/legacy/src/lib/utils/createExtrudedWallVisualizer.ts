@@ -31,6 +31,10 @@ const DEFAULT_SELECTION_LINE_WIDTH = 1.5;
 const DEFAULT_SELECTION_COLOR = "#FFFF00";
 const DEFAULT_ANIMATION_DURATION_MS = 200;
 
+type PrimitiveWithGeometryInstances = {
+  geometryInstances?: { id?: unknown };
+};
+
 export type ExtrudedWallVisualizerOptions = {
   /** Wall height in meters, or array of per-segment heights */
   wallHeight?: number | number[];
@@ -393,9 +397,8 @@ export const createExtrudedWallVisualizer = (
         for (let i = 0; i < collection.length; i++) {
           const primitive = collection.get(i);
           if (primitive && "geometryInstances" in primitive) {
-            const instanceId = (
-              primitive as unknown as { geometryInstances?: { id?: unknown } }
-            ).geometryInstances?.id;
+            const instanceId = (primitive as PrimitiveWithGeometryInstances)
+              .geometryInstances?.id;
             if (instanceId) {
               allSegments.push({
                 primitive: primitive as Primitive,

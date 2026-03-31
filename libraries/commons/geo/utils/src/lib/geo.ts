@@ -56,20 +56,25 @@ const readTanHalfFov = (fovVerticalRad: number): number | null => {
 };
 
 // Meters per pixel at zoom/latitude (latitude in degrees)
-export function metersPerPixel(zoom: number, latitudeDeg?: Degrees): Meters {
-  return metersPerPixelAtLatitudeRad(zoom, degToRad(latitudeDeg));
+export function metersPerPixel(
+  zoom: number,
+  latitudeDeg?: Degrees,
+  options?: { tileSize?: number }
+): Meters {
+  return metersPerPixelAtLatitudeRad(zoom, degToRad(latitudeDeg), options);
 }
 
 // Meters per pixel at zoom/latitude (latitude in degrees)
 export function metersPerPixelAtLatitudeRad(
   zoom: number,
-  latitudeRad?: Radians
+  latitudeRad?: Radians,
+  { tileSize = DEFAULT_LEAFLET_TILESIZE }: { tileSize?: number } = {}
 ): Meters {
   return getPixelResolutionFromZoomAtLatitudeRad(
     zoom,
     latitudeRad ?? DEFAULT_MERCATOR_LATITUDE_RAD,
     {
-      tileSize: DEFAULT_LEAFLET_TILESIZE,
+      tileSize,
     }
   );
 }
@@ -107,10 +112,12 @@ export function mercatorZoomFromDistanceAtLatitudeDeg(
   latitudeDeg: Degrees,
   {
     fovVerticalRad,
+    tileSize = DEFAULT_LEAFLET_TILESIZE,
     viewportWidthPx,
     viewportHeightPx,
   }: {
     fovVerticalRad: Radians;
+    tileSize?: number;
     viewportWidthPx: number;
     viewportHeightPx: number;
   }
@@ -134,7 +141,8 @@ export function mercatorZoomFromDistanceAtLatitudeDeg(
 
   return getZoomFromPixelResolutionAtLatitudeRad(
     metersPerCssPixel as Meters,
-    degToRad(latitudeDeg)
+    degToRad(latitudeDeg),
+    { tileSize }
   );
 }
 

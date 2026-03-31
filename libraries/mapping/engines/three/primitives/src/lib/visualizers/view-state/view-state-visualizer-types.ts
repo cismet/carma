@@ -1,6 +1,17 @@
-import type { CommonViewState } from "@carma-mapping/engines-interop/view-sync";
+import { CAMERA_TYPE } from "@carma-commons/camera/model";
+import type { ViewState } from "@carma-mapping/engines-interop/view-state";
 import type { Radians } from "@carma/units/types";
 import type { ThreePart, ThreePartSize } from "../../common/create-part";
+
+export const VIEW_STATE_VISUALIZER_CAMERA_MODEL = {
+  PERSPECTIVE: CAMERA_TYPE.PERSPECTIVE,
+  ORTHOGRAPHIC: CAMERA_TYPE.ORTHOGRAPHIC,
+} as const;
+
+export type ViewStateVisualizerCameraModel =
+  (typeof VIEW_STATE_VISUALIZER_CAMERA_MODEL)[keyof typeof VIEW_STATE_VISUALIZER_CAMERA_MODEL];
+
+export type ViewStateVisualizerInput = ViewState | readonly ViewState[];
 
 export type ViewStateVisualizerCueKey =
   | "bearing"
@@ -10,6 +21,9 @@ export type ViewStateVisualizerCueKey =
   | "east"
   | "north"
   | "up"
+  | "cameraForward"
+  | "cameraRight"
+  | "cameraUp"
   | "imageX"
   | "imageY";
 
@@ -59,34 +73,34 @@ export type ViewStateVisualizerAngleCueDisplayOptions = {
 export type ViewStateVisualizerCameraViewImagePlaneDisplayOptions = {
   show?: boolean;
   showOffset?: boolean;
-  frameLineWidthPx?: number;
 };
 
 export type ViewStateVisualizerCameraViewAxesDisplayOptions = {
   show?: boolean;
+  showInactive?: boolean;
   lineWidthPx?: number;
 };
 
 export type ViewStateVisualizerCameraViewFrustumDisplayOptions = {
   show?: boolean;
+  showInactive?: boolean;
   lineWidthPx?: number;
+};
+
+export type ViewStateVisualizerCameraViewProjectionPlaneDisplayOptions = {
+  show?: boolean;
 };
 
 export type ViewStateVisualizerCameraViewMarkerDisplayOptions = {
   show?: boolean;
 };
 
-export type ViewStateVisualizerCameraViewLinkDisplayOptions = {
-  show?: boolean;
-  lineWidthPx?: number;
-};
-
 export type ViewStateVisualizerCameraViewDisplayOptions = {
   imagePlane?: ViewStateVisualizerCameraViewImagePlaneDisplayOptions;
   axes?: ViewStateVisualizerCameraViewAxesDisplayOptions;
   frustum?: ViewStateVisualizerCameraViewFrustumDisplayOptions;
+  projectionPlane?: ViewStateVisualizerCameraViewProjectionPlaneDisplayOptions;
   marker?: ViewStateVisualizerCameraViewMarkerDisplayOptions;
-  link?: ViewStateVisualizerCameraViewLinkDisplayOptions;
 };
 
 export type ViewStateVisualizerAltitudeDisplayOptions = {
@@ -149,34 +163,35 @@ export type ResolvedViewStateVisualizerAngleCueDisplayOptions = {
 export type ResolvedViewStateVisualizerCameraViewImagePlaneDisplayOptions = {
   show: boolean;
   showOffset: boolean;
-  frameLineWidthPx: number;
 };
 
 export type ResolvedViewStateVisualizerCameraViewAxesDisplayOptions = {
   show: boolean;
+  showInactive: boolean;
   lineWidthPx: number;
 };
 
 export type ResolvedViewStateVisualizerCameraViewFrustumDisplayOptions = {
   show: boolean;
+  showInactive: boolean;
   lineWidthPx: number;
 };
+
+export type ResolvedViewStateVisualizerCameraViewProjectionPlaneDisplayOptions =
+  {
+    show: boolean;
+  };
 
 export type ResolvedViewStateVisualizerCameraViewMarkerDisplayOptions = {
   show: boolean;
-};
-
-export type ResolvedViewStateVisualizerCameraViewLinkDisplayOptions = {
-  show: boolean;
-  lineWidthPx: number;
 };
 
 export type ResolvedViewStateVisualizerCameraViewDisplayOptions = {
   imagePlane: ResolvedViewStateVisualizerCameraViewImagePlaneDisplayOptions;
   axes: ResolvedViewStateVisualizerCameraViewAxesDisplayOptions;
   frustum: ResolvedViewStateVisualizerCameraViewFrustumDisplayOptions;
+  projectionPlane: ResolvedViewStateVisualizerCameraViewProjectionPlaneDisplayOptions;
   marker: ResolvedViewStateVisualizerCameraViewMarkerDisplayOptions;
-  link: ResolvedViewStateVisualizerCameraViewLinkDisplayOptions;
 };
 
 export type ResolvedViewStateVisualizerAltitudeDisplayOptions = {
@@ -215,6 +230,9 @@ export type ViewStateVisualizerLabelAnchors = {
   east: ViewStateVisualizerLabelAnchor;
   north: ViewStateVisualizerLabelAnchor;
   up: ViewStateVisualizerLabelAnchor;
+  cameraForward: ViewStateVisualizerLabelAnchor;
+  cameraRight: ViewStateVisualizerLabelAnchor;
+  cameraUp: ViewStateVisualizerLabelAnchor;
   imageX: ViewStateVisualizerLabelAnchor;
   imageY: ViewStateVisualizerLabelAnchor;
 };
@@ -228,9 +246,22 @@ export type ViewStateVisualizerOptions = {
   interactive?: boolean;
   visualized?: ViewStateVisualizerVisualizedOptions;
   display?: ViewStateVisualizerDisplayOptions;
+  activeCameraIndex?: number;
   onInteraction?: (labelAnchors: ViewStateVisualizerLabelAnchors) => void;
   /** Called when the user drags the camera cube to change bearing/pitch (radians). */
   onPoseChange?: (bearing: number, pitch: number) => void;
+  /** Called when the user drags any camera cube in a multi-camera visualizer. */
+  onCameraPoseChange?: (
+    cameraIndex: number,
+    bearing: number,
+    pitch: number
+  ) => void;
+  /** Called when camera pose dragging starts or ends. */
+  onCameraPoseDragStateChange?: (dragging: boolean) => void;
+  /** Called when overview/sphere orbit dragging starts or ends. */
+  onOrbitDragStateChange?: (dragging: boolean) => void;
+  /** Called when the visualizer focus switches to a different camera. */
+  onActiveCameraChange?: (cameraIndex: number) => void;
 };
 
 export type ViewStateVisualizerPart<UpdateInput, DisplayInput> = ThreePart<
@@ -239,9 +270,14 @@ export type ViewStateVisualizerPart<UpdateInput, DisplayInput> = ThreePart<
 >;
 
 export type ViewStateVisualizerPrimitive = {
-  update: (viewState: CommonViewState) => ViewStateVisualizerLabelAnchors;
+  update: (
+    viewState: ViewStateVisualizerInput
+  ) => ViewStateVisualizerLabelAnchors;
   resize: (
     size: ViewStateVisualizerSize
+  ) => ViewStateVisualizerLabelAnchors | null;
+  setActiveCameraIndex: (
+    cameraIndex: number
   ) => ViewStateVisualizerLabelAnchors | null;
   setOverview: (
     options: ViewStateVisualizerOverviewOptions

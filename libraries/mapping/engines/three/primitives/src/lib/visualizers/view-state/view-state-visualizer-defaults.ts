@@ -19,6 +19,9 @@ export const DEFAULT_VIEW_STATE_VISUALIZER_CUE_COLORS = Object.freeze({
   east: COLORS_HEX.AXIS_EAST,
   north: COLORS_HEX.AXIS_NORTH,
   up: COLORS_HEX.AXIS_UP,
+  cameraForward: "#64748b",
+  cameraRight: COLORS_HEX.AXIS_EAST,
+  cameraUp: COLORS_HEX.AXIS_UP,
   imageX: COLORS_HEX.AXIS_EAST,
   imageY: COLORS_HEX.AXIS_UP,
 }) satisfies Readonly<Record<ViewStateVisualizerCueKey, string>>;
@@ -54,22 +57,22 @@ export const DEFAULT_VIEW_STATE_VISUALIZER_DISPLAY_OPTIONS = Object.freeze({
     imagePlane: Object.freeze({
       show: true,
       showOffset: true,
-      frameLineWidthPx: 0.5,
     }),
     axes: Object.freeze({
       show: true,
+      showInactive: true,
       lineWidthPx: 0.5,
     }),
     frustum: Object.freeze({
       show: true,
+      showInactive: true,
       lineWidthPx: 0.5,
+    }),
+    projectionPlane: Object.freeze({
+      show: true,
     }),
     marker: Object.freeze({
       show: true,
-    }),
-    link: Object.freeze({
-      show: true,
-      lineWidthPx: 2,
     }),
   }),
   altitude: Object.freeze({
@@ -179,13 +182,13 @@ export const mergeViewStateVisualizerDisplayOptions = (
             ...(accumulator.cameraView?.frustum ?? {}),
             ...(display.cameraView?.frustum ?? {}),
           },
+          projectionPlane: {
+            ...(accumulator.cameraView?.projectionPlane ?? {}),
+            ...(display.cameraView?.projectionPlane ?? {}),
+          },
           marker: {
             ...(accumulator.cameraView?.marker ?? {}),
             ...(display.cameraView?.marker ?? {}),
-          },
-          link: {
-            ...(accumulator.cameraView?.link ?? {}),
-            ...(display.cameraView?.link ?? {}),
           },
         },
         altitude: {
@@ -231,13 +234,14 @@ export const mergeViewStateVisualizerDisplayOptions = (
         ...DEFAULT_VIEW_STATE_VISUALIZER_DISPLAY_OPTIONS.cameraView.frustum,
         ...(merged.cameraView?.frustum ?? {}),
       },
+      projectionPlane: {
+        ...DEFAULT_VIEW_STATE_VISUALIZER_DISPLAY_OPTIONS.cameraView
+          .projectionPlane,
+        ...(merged.cameraView?.projectionPlane ?? {}),
+      },
       marker: {
         ...DEFAULT_VIEW_STATE_VISUALIZER_DISPLAY_OPTIONS.cameraView.marker,
         ...(merged.cameraView?.marker ?? {}),
-      },
-      link: {
-        ...DEFAULT_VIEW_STATE_VISUALIZER_DISPLAY_OPTIONS.cameraView.link,
-        ...(merged.cameraView?.link ?? {}),
       },
     },
     altitude: {
@@ -294,7 +298,6 @@ export const VIEW_STATE_VISUALIZER_GEOMETRY_DEFAULTS = Object.freeze({
     distance: 0.42,
     basisLineLength: 0.24,
     originHalfExtent: 0.05,
-    minHalfExtent: 0.08,
     fallbackHalfHeight: 0.18,
     fallbackHalfWidth: 0.24,
     maxDistance: 1.5,
@@ -358,7 +361,8 @@ export const VIEW_STATE_VISUALIZER_MATERIAL_DEFAULTS = Object.freeze({
     fillColor: 0x94a3b8,
     edgeColor: 0x64748b,
     emissiveColor: 0x334155,
-    linkOpacity: 0.76,
+    rangeOpacity: 0.76,
+    bodyOpacity: 0.32,
     markerEmissiveIntensity: 0.05,
   }),
   altitude: Object.freeze({
@@ -377,14 +381,12 @@ export const VIEW_STATE_VISUALIZER_MATERIAL_DEFAULTS = Object.freeze({
     neutralColor: 0x0f172a,
     forwardOpacity: 0.62,
     originOpacity: 0.95,
-    offsetOutlineOpacity: 0.92,
-    outlineOpacity: 0.96,
     rightColor: 0x7c3aed,
     rightOpacity: 0.95,
     upColor: 0x15803d,
     upOpacity: 0.95,
-    surfaceOpacity: 0.14,
-    offsetSurfaceOpacity: 0.28,
+    surfaceOpacity: 0.32,
+    offsetSurfaceOpacity: 0.32,
   }),
   frustum: Object.freeze({
     color: 0x475569,

@@ -20,7 +20,7 @@ import {
   type CesiumGizmoRotationDelta,
   type CesiumMoveGizmoAxisCandidate,
 } from "@carma-mapping/gizmo/cesium";
-import { setupCesium } from "../map-framework-switcher/helpers/cesium-setup";
+import { setupCesium } from "../map-engine-switcher/helpers/cesium-setup";
 import {
   buildCubeLocalCorners,
   createCubePrimitiveVisuals,
@@ -576,7 +576,7 @@ const GizmoSandbox = (props: GizmoSandboxProps) => {
 };
 
 const meta: Meta<GizmoSandboxProps> = {
-  title: "Mapping/Gizmo",
+  title: "Mapping Components/Gizmo",
   component: GizmoSandbox,
   parameters: {
     layout: "fullscreen",

@@ -21,16 +21,26 @@ import type {
 } from "../store";
 import type { RuntimeToolId } from "../types/runtimeTool.types";
 
-export type AnnotationToolPluginKind = "interaction" | "measurement";
+export const ANNOTATION_TOOL_PLUGIN_KINDS = {
+  INTERACTION: "interaction",
+  MEASUREMENT: "measurement",
+} as const;
+
+export const ANNOTATION_TOOL_PLUGIN_CAPABILITIES = {
+  SESSION: "session",
+  SETTINGS: "settings",
+  POINT_QUERY: "pointQuery",
+  PREVIEW: "preview",
+  PREVIEW_PRIMITIVES: "previewPrimitives",
+  TOOLBAR_OPTIONS: "toolbarOptions",
+  INFO_BOX: "infoBox",
+} as const;
+
+export type AnnotationToolPluginKind =
+  (typeof ANNOTATION_TOOL_PLUGIN_KINDS)[keyof typeof ANNOTATION_TOOL_PLUGIN_KINDS];
 
 export type AnnotationToolPluginCapability =
-  | "session"
-  | "settings"
-  | "pointQuery"
-  | "preview"
-  | "previewPrimitives"
-  | "toolbarOptions"
-  | "infoBox";
+  (typeof ANNOTATION_TOOL_PLUGIN_CAPABILITIES)[keyof typeof ANNOTATION_TOOL_PLUGIN_CAPABILITIES];
 
 export type AnnotationToolDescriptor = {
   id: RuntimeToolId;

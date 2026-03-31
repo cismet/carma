@@ -10,22 +10,13 @@ import { MODEL_ASSETS } from "./assets.config";
 
 // SETUP Store State
 
-const homePosition = Cartesian3.fromDegrees(
+export const CESIUM_HOME_POSITION = Cartesian3.fromDegrees(
   WUPPERTAL.position.longitude,
   WUPPERTAL.position.latitude,
   WUPPERTAL.position.altitude
 );
 
-// position relative to the home position
-const homeOffset = {
-  x: 0,
-  y: -50000, // southwards
-  z: 45000, // elevation
-};
-
 export const defaultCesiumState: CesiumState = {
-  homeOffset: homeOffset,
-  homePosition,
   showPrimaryTileset: false,
   showSecondaryTileset: true,
   styling: {

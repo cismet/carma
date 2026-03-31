@@ -13,22 +13,14 @@ import {
   setQuadMeshGeometry,
 } from "../../../../common/mesh-helpers";
 import {
-  disposeWideLine,
-  setWideLineColor,
-  setWideLineLoopGeometry,
-  setWideLineResolution,
+  createWideLineSet,
   setWideLineWidth,
 } from "../../../../common/wide-lines";
-import { Line2 } from "three/examples/jsm/lines/Line2.js";
-import { LineGeometry } from "three/examples/jsm/lines/LineGeometry.js";
-import { LineMaterial } from "three/examples/jsm/lines/LineMaterial.js";
 
 export type ImagePlaneDisplay = {
   show: boolean;
   showOffset: boolean;
-  frameLineWidthPx: number;
-  edgeColor: string | number;
-  offsetColor: string | number;
+  outlineLineWidthPx: number;
 };
 
 const createMeshMaterial = ({
@@ -63,29 +55,16 @@ const createMeshMaterial = ({
 
 export const createImagePlane = (
   scene: Scene,
-  size: ViewStateVisualizerSize,
+  _size: ViewStateVisualizerSize,
   options: {
-    edgeColor: string | number;
     fillColor: number;
     emissiveColor: number;
-    outlineOpacity: number;
     surfaceOpacity: number;
     offsetSurfaceOpacity: number;
-    offsetOutlineOpacity: number;
-    neutralColor: number;
+    outlineColor: string | number;
+    outlineOpacity: number;
   }
 ) => {
-  const outline = new Line2(
-    new LineGeometry(),
-    new LineMaterial({
-      color: options.edgeColor,
-      transparent: true,
-      opacity: options.outlineOpacity,
-    })
-  );
-  setWideLineResolution(outline, size);
-  scene.add(outline);
-
   const surface = new Mesh(
     new BufferGeometry(),
     createMeshMaterial({
@@ -112,23 +91,18 @@ export const createImagePlane = (
   );
   scene.add(offsetSurface);
 
-  const offsetOutline = new Line2(
-    new LineGeometry(),
-    new LineMaterial({
-      color: options.neutralColor,
-      transparent: true,
-      opacity: options.offsetOutlineOpacity,
-    })
-  );
-  setWideLineResolution(offsetOutline, size);
-  scene.add(offsetOutline);
+  const tangentOutline = createWideLineSet(scene, _size, [
+    {
+      key: "tangentPlane",
+      color: options.outlineColor,
+      opacity: options.outlineOpacity,
+    },
+  ]);
 
   let currentDisplay: ImagePlaneDisplay = {
     show: true,
     showOffset: true,
-    frameLineWidthPx: 1,
-    edgeColor: options.edgeColor,
-    offsetColor: options.neutralColor,
+    outlineLineWidthPx: 1,
   };
   let currentVisual: ViewStateVisualizerImagePlaneGeometry | null = null;
 
@@ -136,41 +110,43 @@ export const createImagePlane = (
     surface.visible = currentDisplay.show;
     offsetSurface.visible =
       currentDisplay.showOffset && Boolean(currentVisual?.hasViewOffset);
-    offsetOutline.visible = false;
+    tangentOutline.setVisible("tangentPlane", false);
   };
 
-  return createThreePart<
+  const part = createThreePart<
     ViewStateVisualizerImagePlaneGeometry,
     ImagePlaneDisplay
   >({
     update: (visual) => {
       currentVisual = visual;
-      setWideLineLoopGeometry(outline, visual.imagePlaneCorners);
-      setQuadMeshGeometry(surface, visual.imagePlaneCorners);
-      setQuadMeshGeometry(offsetSurface, visual.offsetImagePlaneCorners);
-      setWideLineLoopGeometry(
-        offsetOutline,
-        visual.offsetImagePlaneCorners ?? []
+      setQuadMeshGeometry(
+        surface,
+        visual.orthographicTangentPlaneCorners ?? visual.imagePlaneCorners
       );
+      setQuadMeshGeometry(offsetSurface, visual.offsetImagePlaneCorners);
+      tangentOutline.setLoop("tangentPlane", []);
       applyVisibility();
     },
     setDisplay: (display) => {
       currentDisplay = display;
-      setWideLineWidth(outline, display.frameLineWidthPx);
-      setWideLineWidth(offsetOutline, display.frameLineWidthPx);
-      setWideLineColor(outline, display.edgeColor);
-      setWideLineColor(offsetOutline, display.offsetColor);
+      setWideLineWidth(
+        tangentOutline.lines.tangentPlane,
+        display.outlineLineWidthPx
+      );
       applyVisibility();
     },
     resize: (nextSize) => {
-      setWideLineResolution(outline, nextSize);
-      setWideLineResolution(offsetOutline, nextSize);
+      tangentOutline.resize(nextSize);
     },
     dispose: () => {
-      disposeWideLine(outline);
       disposeMeshObject(surface);
       disposeMeshObject(offsetSurface);
-      disposeWideLine(offsetOutline);
+      tangentOutline.dispose();
     },
   });
+
+  return {
+    ...part,
+    surface,
+  };
 };

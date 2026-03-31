@@ -218,4 +218,10 @@ export const createAnnotationsStore = (
   configureStore({
     reducer: annotationsRuntimeSlice.reducer,
     preloadedState: initialState,
+    middleware: (getDefaultMiddleware) =>
+      getDefaultMiddleware({
+        // The runtime store intentionally carries Cesium instances like
+        // Cartesian3 in annotation geometry and reference-point state.
+        serializableCheck: false,
+      }),
   });

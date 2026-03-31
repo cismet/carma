@@ -22,11 +22,13 @@ import {
   useLabelOverlayHost,
   useLineVisualizers,
 } from "@carma-providers/label-overlay";
+import { CenteredStoryFrame } from "../../common/ui/centered-story-frame";
 
-const frameStyle: CSSProperties = {
+const plotFrameStyle: CSSProperties = {
   position: "relative",
   width: "100%",
-  height: "100vh",
+  height: "calc(100vh - 120px)",
+  minHeight: 560,
   overflow: "hidden",
   background: "#fff",
 };
@@ -362,21 +364,6 @@ const SingleLineLabelDebugOverlay = ({
         containerRef={containerRef}
         onChange={setEnd}
       />
-      <div
-        style={{
-          position: "absolute",
-          top: 0,
-          left: 0,
-          right: 0,
-          zIndex: 1800,
-          pointerEvents: "none",
-        }}
-      >
-        <ResponsiveStatusBar
-          label="svg label placement"
-          values={statusValues}
-        />
-      </div>
     </>
   );
 };
@@ -568,12 +555,24 @@ export const SingleLineLabelDebugStory = ({
     containerRef: rootRef,
   });
 
+  const statusValues = [
+    `line ${args.strokeWidth}px`,
+    `dash ${args.dashed ? "on" : "off"}`,
+    `label ${args.labelText || "off"}`,
+    `drag endpoints`,
+  ];
+
   return (
-    <div ref={rootRef} style={frameStyle}>
-      <LabelOverlayProvider host={overlayHost}>
-        <SingleLineLabelDebugOverlay containerRef={rootRef} args={args} />
-      </LabelOverlayProvider>
-    </div>
+    <CenteredStoryFrame
+      label="label placement single line"
+      values={statusValues}
+    >
+      <div ref={rootRef} style={plotFrameStyle}>
+        <LabelOverlayProvider host={overlayHost}>
+          <SingleLineLabelDebugOverlay containerRef={rootRef} args={args} />
+        </LabelOverlayProvider>
+      </div>
+    </CenteredStoryFrame>
   );
 };
 
@@ -588,15 +587,22 @@ export const PolygonSegmentLabelDebugStory = ({
     containerRef: rootRef,
   });
 
+  const statusValues = [`side ${sidePreference}`, `drag triangle vertices`];
+
   return (
-    <div ref={rootRef} style={frameStyle}>
-      <LabelOverlayProvider host={overlayHost}>
-        <PolygonSegmentLabelDebugOverlay
-          containerRef={rootRef}
-          requestedSidePreference={sidePreference}
-        />
-      </LabelOverlayProvider>
-    </div>
+    <CenteredStoryFrame
+      label="label placement polygon segment"
+      values={statusValues}
+    >
+      <div ref={rootRef} style={plotFrameStyle}>
+        <LabelOverlayProvider host={overlayHost}>
+          <PolygonSegmentLabelDebugOverlay
+            containerRef={rootRef}
+            requestedSidePreference={sidePreference}
+          />
+        </LabelOverlayProvider>
+      </div>
+    </CenteredStoryFrame>
   );
 };
 

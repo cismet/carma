@@ -1,1 +1,1 @@
-export { createMinimalCesiumWidget } from "./MinimalCesiumWidget";
+export { createMinimalCesiumWidget } from "./MinimalWidget";

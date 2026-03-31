@@ -11,8 +11,6 @@ import {
 import {
   Cartesian2,
   Cartesian3,
-  SceneTransforms,
-  defined,
   getDegreesFromCartesian,
   type Scene,
 } from "@carma/cesium";
@@ -31,18 +29,22 @@ import {
 import type { CssPixelPosition } from "@carma/units/types";
 import {
   DEFAULT_POINT_LABEL_METRIC_MODE,
-  formatNumber,
   getCustomPointAnnotationName,
   type PlanarPolygonPlane,
   type PointAnnotationEntry,
   type PointLabelMetricMode,
 } from "@carma-mapping/annotations/core";
+import {
+  formatDecimalNumber,
+  formatLengthMeters,
+  LENGTH_UNIT_MODE,
+} from "@carma/units/helpers";
 import type { AnnotationPointMarkerBadge } from "../useRender";
 import type { AnnotationSelectionState } from "../../selection/types/annotationSelection.types";
 
 import { projectCartesian3JsonToScreen } from "@carma-mapping/engines/cesium/api";
+import { useCesiumOverlayView } from "@carma-mapping/engines/cesium/react/interactions";
 import { useCesiumSceneVisibilityIndex } from "@carma-mapping/engines/cesium/react/visibility";
-import { useCesiumSceneStateOptional } from "@carma-mapping/engines/cesium/react/scene-state";
 
 const ELEVATION_NEUTRAL_THRESHOLD_METERS = 0.03;
 const REFERENCE_POINT_DISTANCE_EPSILON_METERS = 0.001;
@@ -70,7 +72,11 @@ const EMPTY_LAYOUT_RESULT: PointLabelLayoutResult = {
   collapsedToCompact: new Set<string>(),
 };
 
-const formatMeters = (value: number): string => `${formatNumber(value)}m`;
+const formatMeters = (value: number): string =>
+  formatLengthMeters(value, {
+    locale: "de-DE",
+    unitMode: LENGTH_UNIT_MODE.METERS,
+  });
 const GLYPH_BASE_STYLE: CSSProperties = {
   display: "inline-block",
   fontSize: `${GLYPH_SIZE_EM}em`,
@@ -211,9 +217,13 @@ const formatOffsetElevationLabelText = (
 ): PointLabelTextRepresentation => {
   const offsetSign = offsetMeters >= 0 ? "+" : "-";
   return {
-    layoutText: `${labelBase} ${formatNumber(
-      baseRelativeHeightMeters
-    )} ${offsetSign} ${formatNumber(Math.abs(offsetMeters))}m`.trim(),
+    layoutText: `${labelBase} ${formatDecimalNumber(baseRelativeHeightMeters, {
+      locale: "de-DE",
+      fractionDigits: 2,
+    })} ${offsetSign} ${formatLengthMeters(Math.abs(offsetMeters), {
+      locale: "de-DE",
+      unitMode: LENGTH_UNIT_MODE.METERS,
+    })}`.trim(),
   };
 };
 
@@ -532,9 +542,8 @@ export const usePointLabelVisualizer = (
     onPointVerticalOffsetStemLongPress,
     pointLongPressDurationMs = 300,
   } = interactions ?? {};
-  const sceneState = useCesiumSceneStateOptional();
-  const cameraPitch =
-    sceneState?.camera.pitchRad ?? scene?.camera.pitch ?? -Math.PI / 4;
+  const overlayView = useCesiumOverlayView(scene);
+  const cameraPitch = overlayView.derivedView?.pitch ?? 0;
   const registeredPointIdSetRef = useRef<Set<string>>(new Set());
   const selectedAnnotationIdSet = useMemo(() => {
     const ids = new Set(selectedAnnotationIds);
@@ -1021,13 +1030,7 @@ export const usePointLabelVisualizer = (
           if (!scene || scene.isDestroyed()) {
             return visibilityStateById[point.id]?.screenPosition ?? null;
           }
-          const canvasPosition = SceneTransforms.worldToWindowCoordinates(
-            scene,
-            point.geometryECEF
-          );
-          return defined(canvasPosition)
-            ? ({ x: canvasPosition.x, y: canvasPosition.y } as CssPixelPosition)
-            : null;
+          return overlayView.projectWorldToScreen(point.geometryECEF);
         },
         pitch: cameraPitch,
         labelAngleRad: layoutResult.placements[point.id]?.angleRad,

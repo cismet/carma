@@ -1,6 +1,10 @@
 import { Suspense, lazy } from "react";
 import type { Meta, StoryObj } from "@storybook/react";
 import type { ViewSyncStoryProps } from "./ViewSyncStory";
+import {
+  DEFAULT_STORY_RANGE_M,
+  RATHAUS_BARMEN_HOME_POSE,
+} from "./viewSyncStoryShared";
 
 const LazyViewSyncStory = lazy(async () => {
   const module = await import("./ViewSyncStory");
@@ -13,15 +17,16 @@ const meta: Meta<ViewSyncStoryProps> = {
     layout: "fullscreen",
   },
   args: {
-    longitudeDeg: 7.17618,
-    latitudeDeg: 51.25609,
-    altitudeM: 222.4,
-    bearingDeg: 214,
-    pitchDeg: 42,
-    rangeM: 620,
+    longitudeDeg: RATHAUS_BARMEN_HOME_POSE.lngDeg,
+    latitudeDeg: RATHAUS_BARMEN_HOME_POSE.latDeg,
+    altitudeM: RATHAUS_BARMEN_HOME_POSE.altitudeM,
+    bearingDeg: RATHAUS_BARMEN_HOME_POSE.bearingDeg,
+    pitchDeg: RATHAUS_BARMEN_HOME_POSE.pitchDeg,
+    rangeM: DEFAULT_STORY_RANGE_M,
     fovVerticalDeg: 60,
     nearPlaneM: 1,
     farPlaneM: 500000,
+    allowLeafletFractionalZoom: false,
   },
   argTypes: {
     longitudeDeg: {
@@ -59,6 +64,10 @@ const meta: Meta<ViewSyncStoryProps> = {
     farPlaneM: {
       name: "far m",
       control: { type: "number" },
+    },
+    allowLeafletFractionalZoom: {
+      name: "leaflet fractional zoom",
+      control: { type: "boolean" },
     },
   },
 };

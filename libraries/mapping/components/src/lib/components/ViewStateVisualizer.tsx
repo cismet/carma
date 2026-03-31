@@ -1,4 +1,3 @@
-import type { CommonViewState } from "@carma-mapping/engines-interop/view-sync";
 import {
   DEFAULT_VIEW_STATE_VISUALIZER_CUE_COLORS,
   createViewStateVisualizerPrimitive,
@@ -8,6 +7,7 @@ import {
   type ResolvedViewStateVisualizerDisplayOptions,
   type ViewStateVisualizerCueKey,
   type ViewStateVisualizerDisplayOptions,
+  type ViewStateVisualizerInput,
   type ViewStateVisualizerLabelAnchors,
   type ViewStateVisualizerOverviewOptions,
   type ViewStateVisualizerPrimitive,
@@ -29,6 +29,9 @@ const DEFAULT_CUE_LABELS: Record<ViewStateVisualizerCueKey, ReactNode> = {
   east: "E",
   north: "N",
   up: "U",
+  cameraForward: "Z",
+  cameraRight: "X",
+  cameraUp: "Y",
   imageX: "x",
   imageY: "y",
 };
@@ -43,13 +46,23 @@ export type ViewStateVisualizerCueOptions = Partial<
 >;
 
 export type ViewStateVisualizerProps = {
-  viewState: CommonViewState;
+  viewState: ViewStateVisualizerInput;
   overviewOptions?: ViewStateVisualizerOverviewOptions;
   interactive?: boolean;
   visualizedOptions?: ViewStateVisualizerVisualizedOptions;
   displayOptions?: ViewStateVisualizerDisplayOptions;
+  activeCameraIndex?: number;
   /** Called when the user drags the camera cube to change bearing/pitch (radians). */
   onPoseChange?: (bearing: number, pitch: number) => void;
+  /** Called when the user drags any camera cube in a multi-camera visualizer. */
+  onCameraPoseChange?: (
+    cameraIndex: number,
+    bearing: number,
+    pitch: number
+  ) => void;
+  onCameraPoseDragStateChange?: (dragging: boolean) => void;
+  onOrbitDragStateChange?: (dragging: boolean) => void;
+  onActiveCameraChange?: (cameraIndex: number) => void;
   width?: number;
   height?: number;
   cueOptions?: ViewStateVisualizerCueOptions;
@@ -60,6 +73,9 @@ export type ViewStateVisualizerProps = {
   eastLabel?: ReactNode;
   northLabel?: ReactNode;
   upLabel?: ReactNode;
+  cameraForwardLabel?: ReactNode;
+  cameraRightLabel?: ReactNode;
+  cameraUpLabel?: ReactNode;
   imageXLabel?: ReactNode;
   imageYLabel?: ReactNode;
   style?: CSSProperties;
@@ -71,7 +87,12 @@ export const ViewStateVisualizer = ({
   interactive = false,
   visualizedOptions,
   displayOptions,
+  activeCameraIndex = 0,
   onPoseChange,
+  onCameraPoseChange,
+  onCameraPoseDragStateChange,
+  onOrbitDragStateChange,
+  onActiveCameraChange,
   width = 176,
   height = 176,
   cueOptions,
@@ -82,16 +103,22 @@ export const ViewStateVisualizer = ({
   eastLabel = "E",
   northLabel = "N",
   upLabel = "U",
+  cameraForwardLabel = "Z",
+  cameraRightLabel = "X",
+  cameraUpLabel = "Y",
   imageXLabel = "x",
   imageYLabel = "y",
   style,
 }: ViewStateVisualizerProps) => {
-  const squareSize = Math.min(width, height);
-  const squareOffsetLeft = (width - squareSize) * 0.5;
-  const squareOffsetTop = (height - squareSize) * 0.5;
+  const resolvedWidth = Math.max(1, Math.floor(width));
+  const resolvedHeight = Math.max(1, Math.floor(height));
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const primitiveRef = useRef<ViewStateVisualizerPrimitive | null>(null);
   const onPoseChangeRef = useRef(onPoseChange);
+  const onCameraPoseChangeRef = useRef(onCameraPoseChange);
+  const onCameraPoseDragStateChangeRef = useRef(onCameraPoseDragStateChange);
+  const onOrbitDragStateChangeRef = useRef(onOrbitDragStateChange);
+  const onActiveCameraChangeRef = useRef(onActiveCameraChange);
   const resolvedDisplayOptionsRef =
     useRef<ResolvedViewStateVisualizerDisplayOptions>(
       mergeViewStateVisualizerDisplayOptions(displayOptions)
@@ -103,20 +130,36 @@ export const ViewStateVisualizer = ({
     mergeViewStateVisualizerVisualizedOptions(visualizedOptions)
   );
   onPoseChangeRef.current = onPoseChange;
+  onCameraPoseChangeRef.current = onCameraPoseChange;
+  onCameraPoseDragStateChangeRef.current = onCameraPoseDragStateChange;
+  onOrbitDragStateChangeRef.current = onOrbitDragStateChange;
+  onActiveCameraChangeRef.current = onActiveCameraChange;
 
   const defaultLabelAnchors = useMemo<ViewStateVisualizerLabelAnchors>(
     () => ({
-      bearing: { leftPx: squareSize * 0.5, topPx: squareSize * 0.3 },
-      pitch: { leftPx: squareSize * 0.62, topPx: squareSize * 0.54 },
-      range: { leftPx: squareSize * 0.36, topPx: squareSize * 0.42 },
-      altitude: { leftPx: squareSize * 0.5, topPx: squareSize * 0.76 },
-      east: { leftPx: squareSize * 0.72, topPx: squareSize * 0.58 },
-      north: { leftPx: squareSize * 0.5, topPx: squareSize * 0.72 },
-      up: { leftPx: squareSize * 0.5, topPx: squareSize * 0.24 },
-      imageX: { leftPx: squareSize * 0.72, topPx: squareSize * 0.46 },
-      imageY: { leftPx: squareSize * 0.6, topPx: squareSize * 0.3 },
+      bearing: { leftPx: resolvedWidth * 0.5, topPx: resolvedHeight * 0.3 },
+      pitch: { leftPx: resolvedWidth * 0.62, topPx: resolvedHeight * 0.54 },
+      range: { leftPx: resolvedWidth * 0.36, topPx: resolvedHeight * 0.42 },
+      altitude: {
+        leftPx: resolvedWidth * 0.5,
+        topPx: resolvedHeight * 0.76,
+      },
+      east: { leftPx: resolvedWidth * 0.72, topPx: resolvedHeight * 0.58 },
+      north: { leftPx: resolvedWidth * 0.5, topPx: resolvedHeight * 0.72 },
+      up: { leftPx: resolvedWidth * 0.5, topPx: resolvedHeight * 0.24 },
+      cameraForward: {
+        leftPx: resolvedWidth * 0.42,
+        topPx: resolvedHeight * 0.38,
+      },
+      cameraRight: {
+        leftPx: resolvedWidth * 0.68,
+        topPx: resolvedHeight * 0.38,
+      },
+      cameraUp: { leftPx: resolvedWidth * 0.56, topPx: resolvedHeight * 0.22 },
+      imageX: { leftPx: resolvedWidth * 0.72, topPx: resolvedHeight * 0.46 },
+      imageY: { leftPx: resolvedWidth * 0.6, topPx: resolvedHeight * 0.3 },
     }),
-    [squareSize]
+    [resolvedHeight, resolvedWidth]
   );
   const labelAnchorsRef =
     useRef<ViewStateVisualizerLabelAnchors>(defaultLabelAnchors);
@@ -203,6 +246,33 @@ export const ViewStateVisualizer = ({
         color:
           cueOptions?.up?.color ?? DEFAULT_VIEW_STATE_VISUALIZER_CUE_COLORS.up,
       },
+      cameraForward: {
+        label:
+          cueOptions?.cameraForward?.label ??
+          cameraForwardLabel ??
+          DEFAULT_CUE_LABELS.cameraForward,
+        color:
+          cueOptions?.cameraForward?.color ??
+          DEFAULT_VIEW_STATE_VISUALIZER_CUE_COLORS.cameraForward,
+      },
+      cameraRight: {
+        label:
+          cueOptions?.cameraRight?.label ??
+          cameraRightLabel ??
+          DEFAULT_CUE_LABELS.cameraRight,
+        color:
+          cueOptions?.cameraRight?.color ??
+          DEFAULT_VIEW_STATE_VISUALIZER_CUE_COLORS.cameraRight,
+      },
+      cameraUp: {
+        label:
+          cueOptions?.cameraUp?.label ??
+          cameraUpLabel ??
+          DEFAULT_CUE_LABELS.cameraUp,
+        color:
+          cueOptions?.cameraUp?.color ??
+          DEFAULT_VIEW_STATE_VISUALIZER_CUE_COLORS.cameraUp,
+      },
       imageX: {
         label:
           cueOptions?.imageX?.label ?? imageXLabel ?? DEFAULT_CUE_LABELS.imageX,
@@ -223,6 +293,9 @@ export const ViewStateVisualizer = ({
       bearingLabel,
       cueOptions,
       eastLabel,
+      cameraForwardLabel,
+      cameraRightLabel,
+      cameraUpLabel,
       imageXLabel,
       imageYLabel,
       northLabel,
@@ -246,6 +319,9 @@ export const ViewStateVisualizer = ({
         east: resolvedCueOptions.east.color,
         north: resolvedCueOptions.north.color,
         up: resolvedCueOptions.up.color,
+        cameraForward: resolvedCueOptions.cameraForward.color,
+        cameraRight: resolvedCueOptions.cameraRight.color,
+        cameraUp: resolvedCueOptions.cameraUp.color,
         imageX: resolvedCueOptions.imageX.color,
         imageY: resolvedCueOptions.imageY.color,
       },
@@ -256,6 +332,15 @@ export const ViewStateVisualizer = ({
   resolvedDisplayOptionsRef.current = resolvedDisplayOptionsWithCueColors;
   resolvedOverviewOptionsRef.current = resolvedOverviewOptions;
   resolvedVisualizedOptionsRef.current = resolvedVisualizedOptions;
+
+  const formatCssPx = (value: number) => `${value.toFixed(1)}px`;
+  const readDefaultLabelPosition = (key: ViewStateVisualizerCueKey) => {
+    const anchor = defaultLabelAnchors[key];
+    return {
+      left: formatCssPx(anchor.leftPx),
+      top: formatCssPx(anchor.topPx),
+    };
+  };
 
   const applyLabelAnchors = (anchors: ViewStateVisualizerLabelAnchors) => {
     labelAnchorsRef.current = anchors;
@@ -270,8 +355,8 @@ export const ViewStateVisualizer = ({
         return;
       }
 
-      element.style.left = `${(squareOffsetLeft + leftPx).toFixed(1)}px`;
-      element.style.top = `${(squareOffsetTop + topPx).toFixed(1)}px`;
+      element.style.left = formatCssPx(leftPx);
+      element.style.top = formatCssPx(topPx);
     };
 
     setPosition("bearing", anchors.bearing.leftPx, anchors.bearing.topPx);
@@ -281,6 +366,17 @@ export const ViewStateVisualizer = ({
     setPosition("east", anchors.east.leftPx, anchors.east.topPx);
     setPosition("north", anchors.north.leftPx, anchors.north.topPx);
     setPosition("up", anchors.up.leftPx, anchors.up.topPx);
+    setPosition(
+      "cameraForward",
+      anchors.cameraForward.leftPx,
+      anchors.cameraForward.topPx
+    );
+    setPosition(
+      "cameraRight",
+      anchors.cameraRight.leftPx,
+      anchors.cameraRight.topPx
+    );
+    setPosition("cameraUp", anchors.cameraUp.leftPx, anchors.cameraUp.topPx);
     setPosition("imageX", anchors.imageX.leftPx, anchors.imageX.topPx);
     setPosition("imageY", anchors.imageY.leftPx, anchors.imageY.topPx);
   };
@@ -290,13 +386,13 @@ export const ViewStateVisualizer = ({
     if (!primitive) return;
 
     const anchors = primitive.resize({
-      widthPx: squareSize,
-      heightPx: squareSize,
+      widthPx: resolvedWidth,
+      heightPx: resolvedHeight,
     });
     if (anchors) {
       applyLabelAnchors(anchors);
     }
-  }, [squareSize]);
+  }, [resolvedHeight, resolvedWidth]);
 
   useLayoutEffect(() => {
     const primitive = primitiveRef.current;
@@ -343,6 +439,16 @@ export const ViewStateVisualizer = ({
   }, [interactive]);
 
   useLayoutEffect(() => {
+    const primitive = primitiveRef.current;
+    if (!primitive) return;
+
+    const anchors = primitive.setActiveCameraIndex(activeCameraIndex);
+    if (anchors) {
+      applyLabelAnchors(anchors);
+    }
+  }, [activeCameraIndex]);
+
+  useLayoutEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
 
@@ -350,14 +456,23 @@ export const ViewStateVisualizer = ({
       canvas,
       viewState,
       {
-        size: { widthPx: squareSize, heightPx: squareSize },
+        size: { widthPx: resolvedWidth, heightPx: resolvedHeight },
         overview: resolvedOverviewOptionsRef.current,
         interactive,
         visualized: resolvedVisualizedOptionsRef.current,
         display: resolvedDisplayOptionsRef.current,
+        activeCameraIndex,
         onInteraction: applyLabelAnchors,
         onPoseChange: (bearing, pitch) =>
           onPoseChangeRef.current?.(bearing, pitch),
+        onCameraPoseChange: (cameraIndex, bearing, pitch) =>
+          onCameraPoseChangeRef.current?.(cameraIndex, bearing, pitch),
+        onCameraPoseDragStateChange: (dragging) =>
+          onCameraPoseDragStateChangeRef.current?.(dragging),
+        onOrbitDragStateChange: (dragging) =>
+          onOrbitDragStateChangeRef.current?.(dragging),
+        onActiveCameraChange: (cameraIndex) =>
+          onActiveCameraChangeRef.current?.(cameraIndex),
       }
     );
 
@@ -373,17 +488,15 @@ export const ViewStateVisualizer = ({
 
   useLayoutEffect(() => {
     applyLabelAnchors(labelAnchorsRef.current);
-  }, [squareOffsetLeft, squareOffsetTop, squareSize]);
+  }, [resolvedHeight, resolvedWidth]);
 
   const bindLabelRef =
     (key: ViewStateVisualizerCueKey) => (element: HTMLSpanElement | null) => {
       labelElementRefs.current[key] = element;
       if (element) {
         const anchors = labelAnchorsRef.current[key];
-        element.style.left = `${(squareOffsetLeft + anchors.leftPx).toFixed(
-          1
-        )}px`;
-        element.style.top = `${(squareOffsetTop + anchors.topPx).toFixed(1)}px`;
+        element.style.left = formatCssPx(anchors.leftPx);
+        element.style.top = formatCssPx(anchors.topPx);
       }
     };
 
@@ -400,15 +513,12 @@ export const ViewStateVisualizer = ({
     >
       <canvas
         ref={canvasRef}
-        width={squareSize}
-        height={squareSize}
+        width={resolvedWidth}
+        height={resolvedHeight}
         style={{
-          width: squareSize,
-          height: squareSize,
+          width: resolvedWidth,
+          height: resolvedHeight,
           display: "block",
-          position: "absolute",
-          left: squareOffsetLeft,
-          top: squareOffsetTop,
         }}
       />
       <div
@@ -428,12 +538,7 @@ export const ViewStateVisualizer = ({
               ref={bindLabelRef("bearing")}
               style={{
                 position: "absolute",
-                left: `${(
-                  squareOffsetLeft + defaultLabelAnchors.bearing.leftPx
-                ).toFixed(1)}px`,
-                top: `${(
-                  squareOffsetTop + defaultLabelAnchors.bearing.topPx
-                ).toFixed(1)}px`,
+                ...readDefaultLabelPosition("bearing"),
                 fontWeight: 700,
                 color: resolvedCueOptions.bearing.color,
                 transform: "translate(-50%, -50%)",
@@ -445,12 +550,7 @@ export const ViewStateVisualizer = ({
               ref={bindLabelRef("pitch")}
               style={{
                 position: "absolute",
-                left: `${(
-                  squareOffsetLeft + defaultLabelAnchors.pitch.leftPx
-                ).toFixed(1)}px`,
-                top: `${(
-                  squareOffsetTop + defaultLabelAnchors.pitch.topPx
-                ).toFixed(1)}px`,
+                ...readDefaultLabelPosition("pitch"),
                 fontWeight: 700,
                 color: resolvedCueOptions.pitch.color,
                 transform: "translate(-50%, -50%)",
@@ -462,12 +562,7 @@ export const ViewStateVisualizer = ({
               ref={bindLabelRef("range")}
               style={{
                 position: "absolute",
-                left: `${(
-                  squareOffsetLeft + defaultLabelAnchors.range.leftPx
-                ).toFixed(1)}px`,
-                top: `${(
-                  squareOffsetTop + defaultLabelAnchors.range.topPx
-                ).toFixed(1)}px`,
+                ...readDefaultLabelPosition("range"),
                 fontWeight: 700,
                 color: resolvedCueOptions.range.color,
                 transform: "translate(-50%, -50%)",
@@ -482,12 +577,7 @@ export const ViewStateVisualizer = ({
             ref={bindLabelRef("altitude")}
             style={{
               position: "absolute",
-              left: `${(
-                squareOffsetLeft + defaultLabelAnchors.altitude.leftPx
-              ).toFixed(1)}px`,
-              top: `${(
-                squareOffsetTop + defaultLabelAnchors.altitude.topPx
-              ).toFixed(1)}px`,
+              ...readDefaultLabelPosition("altitude"),
               fontWeight: 700,
               color: resolvedCueOptions.altitude.color,
               transform: "translate(-50%, -50%)",
@@ -502,12 +592,7 @@ export const ViewStateVisualizer = ({
               ref={bindLabelRef("east")}
               style={{
                 position: "absolute",
-                left: `${(
-                  squareOffsetLeft + defaultLabelAnchors.east.leftPx
-                ).toFixed(1)}px`,
-                top: `${(
-                  squareOffsetTop + defaultLabelAnchors.east.topPx
-                ).toFixed(1)}px`,
+                ...readDefaultLabelPosition("east"),
                 fontWeight: 700,
                 color: resolvedCueOptions.east.color,
                 transform: "translate(0, -50%)",
@@ -519,12 +604,7 @@ export const ViewStateVisualizer = ({
               ref={bindLabelRef("north")}
               style={{
                 position: "absolute",
-                left: `${(
-                  squareOffsetLeft + defaultLabelAnchors.north.leftPx
-                ).toFixed(1)}px`,
-                top: `${(
-                  squareOffsetTop + defaultLabelAnchors.north.topPx
-                ).toFixed(1)}px`,
+                ...readDefaultLabelPosition("north"),
                 fontWeight: 700,
                 color: resolvedCueOptions.north.color,
                 transform: "translate(-50%, -50%)",
@@ -536,12 +616,7 @@ export const ViewStateVisualizer = ({
               ref={bindLabelRef("up")}
               style={{
                 position: "absolute",
-                left: `${(
-                  squareOffsetLeft + defaultLabelAnchors.up.leftPx
-                ).toFixed(1)}px`,
-                top: `${(
-                  squareOffsetTop + defaultLabelAnchors.up.topPx
-                ).toFixed(1)}px`,
+                ...readDefaultLabelPosition("up"),
                 fontWeight: 700,
                 color: resolvedCueOptions.up.color,
                 transform: "translate(-50%, -100%)",
@@ -554,15 +629,46 @@ export const ViewStateVisualizer = ({
         {showVisibleImagePlaneLabels && (
           <>
             <span
+              ref={bindLabelRef("cameraForward")}
+              style={{
+                position: "absolute",
+                ...readDefaultLabelPosition("cameraForward"),
+                fontWeight: 700,
+                color: resolvedCueOptions.cameraForward.color,
+                transform: "translate(-50%, -50%)",
+              }}
+            >
+              {resolvedCueOptions.cameraForward.label}
+            </span>
+            <span
+              ref={bindLabelRef("cameraRight")}
+              style={{
+                position: "absolute",
+                ...readDefaultLabelPosition("cameraRight"),
+                fontWeight: 700,
+                color: resolvedCueOptions.cameraRight.color,
+                transform: "translate(-50%, -50%)",
+              }}
+            >
+              {resolvedCueOptions.cameraRight.label}
+            </span>
+            <span
+              ref={bindLabelRef("cameraUp")}
+              style={{
+                position: "absolute",
+                ...readDefaultLabelPosition("cameraUp"),
+                fontWeight: 700,
+                color: resolvedCueOptions.cameraUp.color,
+                transform: "translate(-50%, -50%)",
+              }}
+            >
+              {resolvedCueOptions.cameraUp.label}
+            </span>
+            <span
               ref={bindLabelRef("imageX")}
               style={{
                 position: "absolute",
-                left: `${(
-                  squareOffsetLeft + defaultLabelAnchors.imageX.leftPx
-                ).toFixed(1)}px`,
-                top: `${(
-                  squareOffsetTop + defaultLabelAnchors.imageX.topPx
-                ).toFixed(1)}px`,
+                ...readDefaultLabelPosition("imageX"),
                 fontWeight: 700,
                 color: resolvedCueOptions.imageX.color,
                 transform: "translate(-50%, -50%)",
@@ -574,12 +680,7 @@ export const ViewStateVisualizer = ({
               ref={bindLabelRef("imageY")}
               style={{
                 position: "absolute",
-                left: `${(
-                  squareOffsetLeft + defaultLabelAnchors.imageY.leftPx
-                ).toFixed(1)}px`,
-                top: `${(
-                  squareOffsetTop + defaultLabelAnchors.imageY.topPx
-                ).toFixed(1)}px`,
+                ...readDefaultLabelPosition("imageY"),
                 fontWeight: 700,
                 color: resolvedCueOptions.imageY.color,
                 transform: "translate(-50%, -50%)",

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { Quaternion, Vector3 } from "@carma/math";
+import { Quaternion, Vector3 } from "three";
 import {
   buildVersorRotationFromArcballVectors,
   buildWorldVersorRotationFromArcballVectors,

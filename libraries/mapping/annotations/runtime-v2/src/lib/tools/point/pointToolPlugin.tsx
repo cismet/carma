@@ -4,10 +4,10 @@ import {
   ANNOTATION_TYPE_POINT,
   DEFAULT_ANNOTATION_SHORT_LABEL_CONFIG,
   formatMeasurementShortLabelToken,
-  formatNumber,
   isKeyboardTargetEditable,
   type AnnotationToolType,
 } from "@carma-mapping/annotations/core";
+import { formatDecimalNumber } from "@carma/units/helpers";
 
 import {
   createMeasurementToolPlugin,
@@ -30,12 +30,12 @@ import {
 const toolType = ANNOTATION_TYPE_POINT;
 const badgeStyle = DEFAULT_ANNOTATION_SHORT_LABEL_CONFIG[toolType];
 const pointToolSettings = createPointToolSettings(badgeStyle);
-const getPointToolInfoBoxSlots = createPointToolInfoBoxSlots({
-  toolType,
+const getPointToolInfoBoxSlots = createPointToolInfoBoxSlots(toolType, {
   headingTitle: "Punktmessung",
   formatMeasurementLabelToken: (counter) =>
     formatMeasurementShortLabelToken(toolType, counter),
-  formatCoordinateValue: (value) => formatNumber(value),
+  formatCoordinateValue: (value) =>
+    formatDecimalNumber(value, { locale: "de-DE", fractionDigits: 2 }),
 });
 
 export const pointToolPlugin = createMeasurementToolPlugin({
@@ -84,9 +84,7 @@ export const pointToolPlugin = createMeasurementToolPlugin({
         sessionContext.dispatch(clearTemporaryAnnotationsByToolType(toolType));
       }
 
-      const createdMeasurement = addPointMeasurement({
-        toolType,
-        coordinate,
+      const createdMeasurement = addPointMeasurement(toolType, coordinate, {
         addAnnotation: sessionContext.addAnnotation,
       });
       if (temporaryMode) {
@@ -117,8 +115,7 @@ export const pointToolPlugin = createMeasurementToolPlugin({
       }
 
       if (action === "removeLatestPoint") {
-        const removed = removeLatestPointMeasurement({
-          toolType,
+        const removed = removeLatestPointMeasurement(toolType, {
           state: sessionContext.getState(),
           dispatch: sessionContext.dispatch,
         });

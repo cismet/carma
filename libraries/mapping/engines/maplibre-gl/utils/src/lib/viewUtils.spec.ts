@@ -5,38 +5,10 @@ import type { Radians } from "@carma/units/types";
 import {
   isMapViewEqualToTarget,
   readMapLibrePerspectiveIntrinsics,
-  readMapLibreViewOffsetFromCanvas,
 } from "./viewUtils";
 
 const radians = (degrees: number): Radians =>
   degToRadNumeric(degrees)! as Radians;
-
-describe("readMapLibreViewOffsetFromCanvas", () => {
-  it("returns a full-frame view offset for a valid canvas size", () => {
-    const viewOffset = readMapLibreViewOffsetFromCanvas({
-      clientWidth: 480,
-      clientHeight: 900,
-    } as HTMLCanvasElement);
-
-    expect(viewOffset).toEqual({
-      fullWidth: 480,
-      fullHeight: 900,
-      offsetX: 0,
-      offsetY: 0,
-      width: 480,
-      height: 900,
-    });
-  });
-
-  it("returns undefined for an invalid canvas size", () => {
-    expect(
-      readMapLibreViewOffsetFromCanvas({
-        clientWidth: 0,
-        clientHeight: 0,
-      } as HTMLCanvasElement)
-    ).toBeUndefined();
-  });
-});
 
 describe("readMapLibrePerspectiveIntrinsics", () => {
   it("reads vertical fov and derives horizontal fov from the canvas aspect", () => {
@@ -55,8 +27,7 @@ describe("readMapLibrePerspectiveIntrinsics", () => {
       2 * Math.atan(Math.tan((radians(50) as number) * 0.5) * 1.5),
       8
     );
-    expect(intrinsics.viewOffset?.width).toBe(1200);
-    expect(intrinsics.viewOffset?.height).toBe(800);
+    expect(intrinsics.viewOffset).toBeUndefined();
   });
 });
 

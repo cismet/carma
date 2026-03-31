@@ -5,7 +5,7 @@ import {
   type Camera,
 } from "../../cesium";
 
-export type FlyToBoundingSphereExtentOptions = {
+export type FlyToOptions = {
   paddingFactor?: number;
   minRange?: number;
   heading?: number;
@@ -15,7 +15,7 @@ export type FlyToBoundingSphereExtentOptions = {
 export const flyToBoundingSphereExtent = (
   camera: Camera | null | undefined,
   sphere: BoundingSphere,
-  options: FlyToBoundingSphereExtentOptions = {}
+  options: FlyToOptions = {}
 ): void => {
   if (!camera) return;
   const {
@@ -38,12 +38,10 @@ export const flyToBoundingSphereExtent = (
   });
 };
 
-export type FlyToPointsOptions = FlyToBoundingSphereExtentOptions;
-
 export const flyToPoints = (
   camera: Camera | null | undefined,
   points: readonly Cartesian3[],
-  options: FlyToPointsOptions = {}
+  options: FlyToOptions = {}
 ): void => {
   if (!camera || points.length === 0) return;
   const sphere = BoundingSphere.fromPoints([...points]);

@@ -1,9 +1,17 @@
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 import { Tooltip } from "antd";
 import { type Scene } from "@carma/cesium";
 import { CarmaResponsiveInfoBox } from "@carma-commons/ui/components";
-import { SELECT_TOOL_TYPE } from "@carma-mapping/annotations/core";
+import {
+  SELECT_TOOL_TYPE,
+  isManagedAnnotationKeyboardEvent,
+  listAnnotationToolShortcuts,
+  renderAnnotationShortcutGlyph,
+  resolveAnnotationToolShortcutTarget,
+} from "@carma-mapping/annotations/core";
+import { formatLatLonDegrees } from "@carma/units/helpers";
+import type { Degrees } from "@carma/units/types";
 
 import {
   AnnotationsProvider,
@@ -21,7 +29,6 @@ import { ControlLayout } from "@carma-mapping/map-controls-layout";
 import { useCesiumLabelOverlayHost } from "@carma-mapping/engines/cesium/react/interactions";
 import { LabelOverlayProvider } from "@carma-providers/label-overlay";
 
-import { ANNOTATIONS_DEMO_HOME_CAMERA_STATE } from "../config";
 import type { PlaygroundRuntimePageProps } from "../playground.types";
 import { CesiumNavigationOverlay } from "./CesiumNavigationOverlay";
 import { CesiumWidgetContainer } from "./CesiumWidgetContainer";
@@ -30,9 +37,48 @@ import { PlaygroundStatusBar } from "./PlaygroundStatusBar";
 const formatCoordinate = (value: number, digits: number) =>
   Number.isFinite(value) ? value.toFixed(digits) : "0";
 
+const renderShortcutBadges = (shortcuts: readonly string[]) => (
+  <span className="inline-flex items-center gap-1.5 whitespace-nowrap">
+    {shortcuts.map((shortcut) => (
+      <span
+        key={shortcut}
+        className="inline-flex items-center justify-center text-[14px] font-bold leading-none text-white"
+      >
+        {renderAnnotationShortcutGlyph(shortcut)}
+      </span>
+    ))}
+  </span>
+);
+
 const RuntimeToolbar = () => {
   const { registry, activeToolType, requestModeChange } =
     useAnnotationsRuntime();
+  const orderedToolTypes = registry.orderedDescriptors.map(
+    (descriptor) => descriptor.id
+  );
+
+  useEffect(() => {
+    const handleToolShortcutKeyDown = (event: KeyboardEvent) => {
+      if (!isManagedAnnotationKeyboardEvent(event)) return;
+
+      const targetToolType = resolveAnnotationToolShortcutTarget(
+        event.key,
+        orderedToolTypes
+      );
+      if (!targetToolType || targetToolType === activeToolType) {
+        return;
+      }
+
+      event.preventDefault();
+      event.stopPropagation();
+      requestModeChange(targetToolType);
+    };
+
+    window.addEventListener("keydown", handleToolShortcutKeyDown, true);
+    return () => {
+      window.removeEventListener("keydown", handleToolShortcutKeyDown, true);
+    };
+  }, [activeToolType, orderedToolTypes, requestModeChange]);
 
   return (
     <div
@@ -58,16 +104,30 @@ const RuntimeToolbar = () => {
           {registry.orderedDescriptors.map((descriptor) => {
             const isActive = descriptor.id === activeToolType;
             const showSeparator = descriptor.id === SELECT_TOOL_TYPE;
+            const shortcuts = listAnnotationToolShortcuts(
+              descriptor.id,
+              orderedToolTypes
+            );
 
             return (
               <AnnotationsToolbarItem key={descriptor.id}>
-                <Tooltip title={descriptor.tooltip} placement="bottom">
+                <Tooltip
+                  title={
+                    <span className="inline-flex items-center gap-2 whitespace-nowrap">
+                      <span>{descriptor.tooltip}</span>
+                      {renderShortcutBadges(shortcuts)}
+                    </span>
+                  }
+                  placement="bottom"
+                >
                   <span className="inline-block">
                     <AnnotationsToolbarButton
                       active={isActive}
                       onClick={() => requestModeChange(descriptor.id)}
                       aria-pressed={isActive}
-                      aria-label={descriptor.tooltip}
+                      aria-label={`${descriptor.tooltip} (${shortcuts.join(
+                        ", "
+                      )})`}
                     >
                       <AnnotationsToolbarIcon>
                         {descriptor.icon}
@@ -88,7 +148,10 @@ const RuntimeToolbar = () => {
 const RuntimeStatusBar = ({
   runtimeVersion,
   onRuntimeVersionChange,
-}: PlaygroundRuntimePageProps) => {
+}: Pick<
+  PlaygroundRuntimePageProps,
+  "runtimeVersion" | "onRuntimeVersionChange"
+>) => {
   const { registry, activeToolType, annotationEntries } =
     useAnnotationsRuntime();
   const activePlugin = registry.getPlugin(activeToolType);
@@ -173,13 +236,23 @@ const RuntimeSelectionInfoBox = () => {
             <div>{`Knoten: ${coordinates.length}`}</div>
             {coordinates.map((coordinate, index) => (
               <div key={`${selectedAnnotation.id}-node-${index}`}>
-                {`${index + 1}: ${formatCoordinate(
-                  coordinate.latitude,
-                  6
-                )}° N ${formatCoordinate(
-                  coordinate.longitude,
-                  6
-                )}° O / NHN ${formatCoordinate(coordinate.altitude, 2)} m`}
+                {(() => {
+                  const [latitude, longitude] = formatLatLonDegrees(
+                    coordinate.latitude as Degrees,
+                    coordinate.longitude as Degrees,
+                    {
+                      fractionDigits: 6,
+                      locale: "de-DE",
+                    }
+                  );
+
+                  return `${
+                    index + 1
+                  }: ${latitude} ${longitude} / NHN ${formatCoordinate(
+                    coordinate.altitude,
+                    2
+                  )} m`;
+                })()}
               </div>
             ))}
           </div>
@@ -192,6 +265,7 @@ const RuntimeSelectionInfoBox = () => {
 export const AnnotationsRuntimeV2Page = ({
   runtimeVersion,
   onRuntimeVersionChange,
+  homeCameraState,
 }: PlaygroundRuntimePageProps) => {
   const rootRef = useRef<HTMLDivElement | null>(null);
   const [scene, setScene] = useState<Scene | null>(null);
@@ -204,14 +278,14 @@ export const AnnotationsRuntimeV2Page = ({
     <CesiumWidgetContainer
       rootRef={rootRef}
       onSceneChange={setScene}
-      initialCameraState={ANNOTATIONS_DEMO_HOME_CAMERA_STATE}
+      initialCameraState={homeCameraState}
     >
       <LabelOverlayProvider host={overlayHost}>
         <ControlLayout>
           <AnnotationsProvider scene={scene} initialActiveToolType="polyline">
             <CesiumNavigationOverlay
               scene={scene}
-              initialHomeCameraState={ANNOTATIONS_DEMO_HOME_CAMERA_STATE}
+              initialHomeCameraState={homeCameraState}
             />
             <RuntimeToolbar />
             <RuntimeStatusBar

@@ -1,15 +1,3 @@
-export const formatCoordinateWithHemisphere = (
-  value: number,
-  isLatitude: boolean
-): string => {
-  const absoluteFormatted = Math.abs(value).toLocaleString("de-DE", {
-    minimumFractionDigits: 6,
-    maximumFractionDigits: 6,
-  });
-  const suffix = isLatitude ? (value >= 0 ? "N" : "S") : value >= 0 ? "O" : "W";
-  return `${absoluteFormatted}° ${suffix}`;
-};
-
 type GermanCardinalSector = {
   shortLabel: "N" | "NO" | "O" | "SO" | "S" | "SW" | "W" | "NW";
   fullLabel:
@@ -143,9 +131,10 @@ export const formatBearingToGermanSectorLabel = (
   const fractionDigits = Number.isFinite(options?.fractionDigits)
     ? Math.max(0, Math.min(6, Math.floor(options?.fractionDigits ?? 1)))
     : 1;
-  const degreeText = sector.normalizedBearingDeg.toLocaleString("de-DE", {
-    minimumFractionDigits: fractionDigits,
-    maximumFractionDigits: fractionDigits,
+  const degreeText = formatDegrees(sector.normalizedBearingDeg, {
+    locale: "de-DE",
+    fractionDigits,
+    unitSymbol: false,
   });
 
   return `${label} (${degreeText}°)`;
@@ -159,3 +148,4 @@ export const formatBearingToGermanCardinal = (
     useFullLabel: false,
     mainCardinalRangeDeg: 45,
   });
+import { formatDegrees } from "@carma/units/helpers";

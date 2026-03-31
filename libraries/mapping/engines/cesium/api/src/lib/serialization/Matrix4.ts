@@ -1,4 +1,5 @@
-import { isFiniteNumber, Matrix4 } from "@carma/math";
+import { isFiniteNumber } from "@carma/math";
+import { Matrix4 } from "three";
 
 // prettier-ignore
 export type Matrix4ConstructorArgs = [

@@ -102,7 +102,6 @@ const CarmaCard = ({
   dragHandleTitle = "Drag panel",
   dragGripPlacement = "auto",
 }: CarmaCardProps) => {
-  const rootRef = React.useRef<HTMLDivElement | null>(null);
   const headerContainerRef = React.useRef<HTMLDivElement | null>(null);
   const headerRowRef = React.useRef<HTMLDivElement | null>(null);
   const headerContentRef = React.useRef<HTMLDivElement | null>(null);
@@ -117,8 +116,6 @@ const CarmaCard = ({
     React.useState<number>(0);
   const [showCenteredGrip, setShowCenteredGrip] =
     React.useState<boolean>(false);
-  const [referenceExpandedWidthPx, setReferenceExpandedWidthPx] =
-    React.useState<number | null>(null);
   const hasNode = (node: React.ReactNode): boolean =>
     node !== undefined && node !== null && node !== false;
   const hasCollapsibleBodyContent = hasNode(content);
@@ -148,59 +145,19 @@ const CarmaCard = ({
     ? "0 0 4px 4px"
     : "4px";
   const collapseAreaWidth = collapseButtonAreaStyle.width;
+  const resolvedHeaderToggleSlotWidthPx =
+    typeof collapseAreaWidth === "number" ? collapseAreaWidth : 25;
   const headerToggleSlotStyle: React.CSSProperties = {
-    marginLeft: 6,
+    position: "absolute",
+    top: "50%",
+    right: 0,
+    transform: "translateY(-50%)",
+    marginLeft: 0,
     marginRight: 0,
-    ...(collapseAreaWidth !== undefined
-      ? {
-          width: collapseAreaWidth,
-          minWidth: collapseAreaWidth,
-        }
-      : null),
+    width: resolvedHeaderToggleSlotWidthPx,
+    minWidth: resolvedHeaderToggleSlotWidthPx,
   };
   const useLegacyHeaderRowLayout = !draggable && !shouldRenderCollapseInHeader;
-
-  React.useLayoutEffect(() => {
-    if (typeof window === "undefined") {
-      return;
-    }
-
-    const rootElement = rootRef.current;
-    const headerElement = headerContainerRef.current;
-    if (!rootElement && !headerElement) {
-      return;
-    }
-
-    const captureReferenceGeometry = () => {
-      if (rootElement && rootElement.offsetWidth > 0) {
-        setReferenceExpandedWidthPx((previous) =>
-          previous === rootElement.offsetWidth
-            ? previous
-            : rootElement.offsetWidth
-        );
-      }
-    };
-
-    captureReferenceGeometry();
-
-    if (typeof ResizeObserver === "undefined") {
-      return;
-    }
-
-    const resizeObserver = new ResizeObserver(() => {
-      captureReferenceGeometry();
-    });
-    if (rootElement) {
-      resizeObserver.observe(rootElement);
-    }
-    if (headerElement) {
-      resizeObserver.observe(headerElement);
-    }
-
-    return () => {
-      resizeObserver.disconnect();
-    };
-  }, [collapsed, content, footer, header, shouldRenderBody, subtitle]);
 
   React.useLayoutEffect(() => {
     if (typeof window === "undefined") {
@@ -414,7 +371,6 @@ const CarmaCard = ({
 
   return (
     <div
-      ref={rootRef}
       onClick={onClick}
       onKeyDown={
         onClick
@@ -429,9 +385,11 @@ const CarmaCard = ({
       role={onClick ? "button" : undefined}
       tabIndex={onClick ? 0 : undefined}
       style={{
-        ...(collapsible && collapsed && referenceExpandedWidthPx
+        ...(collapsible && collapsed
           ? {
-              minWidth: `${referenceExpandedWidthPx}px`,
+              width: "fit-content",
+              minWidth: 0,
+              maxWidth: "100%",
             }
           : null),
         ...style,
@@ -463,7 +421,17 @@ const CarmaCard = ({
         >
           {useLegacyHeaderRowLayout ? (
             <div style={{ minWidth: 0, padding: "0 8px" }}>
-              <div ref={headerContentRef} style={{ minWidth: 0 }}>
+              <div
+                ref={headerContentRef}
+                style={{
+                  minWidth: 0,
+                  maxWidth: "100%",
+                  overflow: collapsible && collapsed ? "hidden" : undefined,
+                  textOverflow:
+                    collapsible && collapsed ? "ellipsis" : undefined,
+                  whiteSpace: collapsible && collapsed ? "nowrap" : undefined,
+                }}
+              >
                 {header}
               </div>
             </div>
@@ -473,7 +441,9 @@ const CarmaCard = ({
               style={{
                 position: "relative",
                 minWidth: 0,
-                padding: shouldRenderCollapseInHeader ? "0 0 0 8px" : "0 8px",
+                padding: shouldRenderCollapseInHeader
+                  ? `0 ${resolvedHeaderToggleSlotWidthPx + 8}px 0 8px`
+                  : "0 8px",
                 display: "flex",
                 alignItems: "center",
               }}
@@ -494,6 +464,10 @@ const CarmaCard = ({
                     minWidth: 0,
                     maxWidth: "100%",
                     display: "inline-flex",
+                    overflow: collapsible && collapsed ? "hidden" : undefined,
+                    textOverflow:
+                      collapsible && collapsed ? "ellipsis" : undefined,
+                    whiteSpace: collapsible && collapsed ? "nowrap" : undefined,
                   }}
                 >
                   {header}

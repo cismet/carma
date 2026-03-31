@@ -1,380 +1,319 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useEffect, useRef } from "react";
 
-import { PI_OVER_TWO } from "@carma/math";
-import { degToRadNumeric, radToDegNumeric } from "@carma/units/helpers";
-import { Cartesian3, type Scene } from "@carma/cesium";
-import { SceneNavigationControls } from "@carma-mapping/components";
+import { PerspectiveFrustum, type Scene } from "@carma/cesium";
+import {
+  ANNOTATION_NAVIGATION_SHORTCUT_ACTIONS,
+  isManagedAnnotationKeyboardEvent,
+  resolveAnnotationNavigationShortcutAction,
+  type AnnotationNavigationShortcutAction,
+} from "@carma-mapping/annotations/core";
+import {
+  createCesiumNavigationMethods,
+  NAVIGATION_ORBIT_DIRECTIONS,
+  NAVIGATION_ZOOM_MODES,
+  NAVIGATION_ZOOM_DIRECTIONS,
+  mountNavigationControlsOverlay,
+  type NavigationControlsOverlayMessages,
+  type NavigationOrbitOptions,
+  type NavigationMethods,
+} from "@carma-mapping/engines-interop/navigation-controls";
+import {
+  createCesiumSceneOrbitController,
+  type CesiumSceneOrbitController,
+  writePerspectiveFrustumVerticalFov,
+} from "@carma-mapping/engines/cesium/api";
+import type { Milliseconds, Seconds } from "@carma/units/types";
 
-import type { AnnotationsDemoCameraState } from "../config";
+import type { AnnotationsDemoCameraState } from "../playground.types";
 
-const MIN_CESIUM_PITCH_RAD = -PI_OVER_TWO;
-const MAX_CESIUM_PITCH_RAD = 0;
-const COMPASS_DRAG_FACTOR_RAD_PER_PX = degToRadNumeric(0.3)!;
-const COMPASS_DRAG_THRESHOLD_PX = 3;
-const COMPASS_CLICK_DELAY_MS = 180;
+const DEFAULT_CONTROL_STYLE = {
+  top: 10,
+  left: 10,
+  zIndex: 16,
+};
 
-const HOME_ANIMATION_DURATION_MS = 900;
+const CONTROL_HOST_Z_INDEX = 1200;
 
-const clampCesiumPitchRad = (pitchRad: number) =>
-  Math.max(MIN_CESIUM_PITCH_RAD, Math.min(MAX_CESIUM_PITCH_RAD, pitchRad));
+const DEFAULT_ORBIT_REVOLUTION_DURATION_SEC = 30 as Seconds;
+const DEFAULT_ORBIT_MIN_PITCH_DEG = 30;
+const DEFAULT_KEYBOARD_ZOOM_DURATION_MS = 250 as Milliseconds;
+const DEFAULT_CONTINUOUS_DOLLY_ZOOM_DELTA_PER_SECOND = 1;
+const DEFAULT_CONTINUOUS_DOLLY_EASE_IN_MS = 180 as Milliseconds;
 
-const toCompassPitchDeg = (pitchRad: number) =>
-  radToDegNumeric(clampCesiumPitchRad(pitchRad) + PI_OVER_TWO)!;
-
-const readCameraAngles = (scene: Scene) => ({
-  heading: scene.camera.heading,
-  pitch: scene.camera.pitch,
-});
-
-const applyCameraOrientation = (
+const resetSceneFovToDefault = (
   scene: Scene,
-  angles: { heading: number; pitch: number }
+  initialHomeCameraState: AnnotationsDemoCameraState | null
 ) => {
-  scene.camera.setView({
-    destination: scene.camera.position,
-    orientation: {
-      heading: angles.heading,
-      pitch: angles.pitch,
-      roll: scene.camera.roll,
-    },
-  });
+  if (
+    typeof initialHomeCameraState?.fov !== "number" ||
+    !Number.isFinite(initialHomeCameraState.fov)
+  ) {
+    return;
+  }
+
+  if (!(scene.camera.frustum instanceof PerspectiveFrustum)) {
+    return;
+  }
+
+  writePerspectiveFrustumVerticalFov(
+    scene.camera.frustum,
+    initialHomeCameraState.fov
+  );
   scene.requestRender();
 };
 
-const flyToCameraState = (
-  scene: Scene,
-  cameraState: AnnotationsDemoCameraState,
-  options: {
-    durationMs: number;
-    onDone?: () => void;
-  }
-) => {
-  const { durationMs, onDone } = options;
-  let settled = false;
-  const settle = () => {
-    if (settled) {
-      return;
+const bindNavigationKeyboardShortcuts = ({
+  disabledNavigationShortcutActions = [],
+  scene,
+  methods,
+  initialHomeCameraState,
+}: {
+  disabledNavigationShortcutActions?: readonly AnnotationNavigationShortcutAction[];
+  scene: Scene;
+  methods: NavigationMethods;
+  initialHomeCameraState: AnnotationsDemoCameraState | null;
+}) => {
+  const handleKeyDown = (event: KeyboardEvent) => {
+    if (!isManagedAnnotationKeyboardEvent(event)) return;
+
+    switch (
+      resolveAnnotationNavigationShortcutAction(event, {
+        disabledActions: disabledNavigationShortcutActions,
+      })
+    ) {
+      case ANNOTATION_NAVIGATION_SHORTCUT_ACTIONS.ZOOM_IN:
+        event.preventDefault();
+        methods.zoomIn({
+          duration: DEFAULT_KEYBOARD_ZOOM_DURATION_MS,
+          mode: NAVIGATION_ZOOM_MODES.AUTO,
+        });
+        return;
+      case ANNOTATION_NAVIGATION_SHORTCUT_ACTIONS.ZOOM_OUT:
+        event.preventDefault();
+        methods.zoomOut({
+          duration: DEFAULT_KEYBOARD_ZOOM_DURATION_MS,
+          mode: NAVIGATION_ZOOM_MODES.AUTO,
+        });
+        return;
+      case ANNOTATION_NAVIGATION_SHORTCUT_ACTIONS.GO_HOME:
+        event.preventDefault();
+        methods.goHome();
+        return;
+      case ANNOTATION_NAVIGATION_SHORTCUT_ACTIONS.TOGGLE_ORBIT:
+        event.preventDefault();
+        methods.orbit();
+        return;
+      case ANNOTATION_NAVIGATION_SHORTCUT_ACTIONS.START_CONTINUOUS_DOLLY_IN:
+        event.preventDefault();
+        methods.startContinuousZoom?.({
+          direction: NAVIGATION_ZOOM_DIRECTIONS.IN,
+          mode: NAVIGATION_ZOOM_MODES.DOLLY,
+          zoomDeltaPerSecond: DEFAULT_CONTINUOUS_DOLLY_ZOOM_DELTA_PER_SECOND,
+          easeInDurationMs: DEFAULT_CONTINUOUS_DOLLY_EASE_IN_MS,
+        });
+        return;
+      case ANNOTATION_NAVIGATION_SHORTCUT_ACTIONS.START_CONTINUOUS_DOLLY_OUT:
+        event.preventDefault();
+        methods.startContinuousZoom?.({
+          direction: NAVIGATION_ZOOM_DIRECTIONS.OUT,
+          mode: NAVIGATION_ZOOM_MODES.DOLLY,
+          zoomDeltaPerSecond: DEFAULT_CONTINUOUS_DOLLY_ZOOM_DELTA_PER_SECOND,
+          easeInDurationMs: DEFAULT_CONTINUOUS_DOLLY_EASE_IN_MS,
+        });
+        return;
+      case ANNOTATION_NAVIGATION_SHORTCUT_ACTIONS.RESET_FOV:
+        event.preventDefault();
+        resetSceneFovToDefault(scene, initialHomeCameraState);
+        return;
+      default:
+        return;
     }
-    settled = true;
-    onDone?.();
   };
 
-  scene.camera.flyTo({
-    destination: Cartesian3.fromRadians(
-      cameraState.longitude,
-      cameraState.latitude,
-      cameraState.altitude
-    ),
-    orientation: {
-      heading: cameraState.heading,
-      pitch: cameraState.pitch,
-      roll: cameraState.roll,
-    },
-    duration: Math.max(0, durationMs) / 1000,
-    complete: settle,
-    cancel: settle,
-  });
-  scene.requestRender();
+  const handleKeyUp = (event: KeyboardEvent) => {
+    const action = resolveAnnotationNavigationShortcutAction(event, {
+      disabledActions: disabledNavigationShortcutActions,
+    });
+    if (
+      action ===
+        ANNOTATION_NAVIGATION_SHORTCUT_ACTIONS.START_CONTINUOUS_DOLLY_IN ||
+      action ===
+        ANNOTATION_NAVIGATION_SHORTCUT_ACTIONS.START_CONTINUOUS_DOLLY_OUT
+    ) {
+      methods.stopContinuousZoom?.();
+    }
+  };
+
+  const handleWindowBlur = () => {
+    methods.stopContinuousZoom?.();
+  };
+
+  window.addEventListener("keydown", handleKeyDown, true);
+  window.addEventListener("keyup", handleKeyUp, true);
+  window.addEventListener("blur", handleWindowBlur, true);
 
   return () => {
-    if (typeof scene.camera.cancelFlight === "function") {
-      scene.camera.cancelFlight();
-    }
-    settle();
+    methods.stopContinuousZoom?.();
+    window.removeEventListener("keydown", handleKeyDown, true);
+    window.removeEventListener("keyup", handleKeyUp, true);
+    window.removeEventListener("blur", handleWindowBlur, true);
   };
 };
 
+const readOverlayMessages = (): Partial<NavigationControlsOverlayMessages> => ({
+  homeTooltip: "Zur Startansicht wechseln",
+  homeTitle: "Startansicht",
+  orbitTooltip:
+    "Orbit um den aktuellen Fokuspunkt starten oder stoppen (laufende Drehung)",
+  orbitTitle: "Orbit",
+  zoomInTooltip: "Maßstab vergrößern (Zoom in)",
+  zoomInTitle: "Vergrößern",
+  zoomOutTooltip: "Maßstab verkleinern (Zoom out)",
+  zoomOutTitle: "Verkleinern",
+  compassTooltip:
+    "Einfachklick: Norden ausrichten. Doppelklick: Norden + Nadir.",
+  compassTitle: "Kompass",
+});
+
 export const CesiumNavigationOverlay = ({
+  disabledNavigationShortcutActions = [],
   scene,
   initialHomeCameraState = null,
 }: {
+  disabledNavigationShortcutActions?: readonly AnnotationNavigationShortcutAction[];
   scene: Scene | null;
   initialHomeCameraState?: AnnotationsDemoCameraState | null;
 }) => {
-  const homeCameraStateRef = useRef<AnnotationsDemoCameraState | null>(
-    initialHomeCameraState
-  );
-  const [cameraAngles, setCameraAngles] = useState(() =>
-    scene
-      ? readCameraAngles(scene)
-      : { heading: 0, pitch: degToRadNumeric(-45)! }
-  );
-  const initialDragStateRef = useRef<{
-    mouseX: number;
-    mouseY: number;
-    headingRad: number;
-    pitchRad: number;
-  } | null>(null);
-  const didCompassDragRef = useRef(false);
-  const pendingCompassClickTimeoutRef = useRef<number | null>(null);
-  const cancelAnimationRef = useRef<(() => void) | null>(null);
+  const hostRef = useRef<HTMLDivElement | null>(null);
+  const orbitControllerRef = useRef<CesiumSceneOrbitController | null>(null);
 
   useEffect(() => {
-    if (initialHomeCameraState) {
-      homeCameraStateRef.current = initialHomeCameraState;
+    orbitControllerRef.current?.destroy();
+    orbitControllerRef.current = null;
+
+    if (scene) {
+      orbitControllerRef.current = createCesiumSceneOrbitController(scene, {
+        revolutionDurationSec: DEFAULT_ORBIT_REVOLUTION_DURATION_SEC,
+        direction: NAVIGATION_ORBIT_DIRECTIONS.CW,
+        minPitchDeg: DEFAULT_ORBIT_MIN_PITCH_DEG,
+      });
     }
-  }, [initialHomeCameraState]);
+
+    return () => {
+      orbitControllerRef.current?.destroy();
+      orbitControllerRef.current = null;
+    };
+  }, [scene]);
+
+  useEffect(() => {
+    const host = hostRef.current;
+    if (!host || !scene) {
+      return;
+    }
+
+    const orbitController = orbitControllerRef.current;
+
+    const baseMethods = createCesiumNavigationMethods(scene, {
+      homeCameraState: initialHomeCameraState,
+    });
+
+    const methods =
+      orbitController !== null
+        ? {
+            ...baseMethods,
+            orbit: (options: NavigationOrbitOptions = {}) => {
+              if (orbitController.isOrbiting) {
+                orbitController.stopOrbit();
+                options.onCanceled?.();
+              } else {
+                options.onStarted?.();
+                orbitController.startOrbit();
+              }
+            },
+            subscribeOrbitActive: (sink: (active: boolean) => void) =>
+              orbitController.subscribeIsOrbiting(sink),
+          }
+        : baseMethods;
+
+    return mountNavigationControlsOverlay(host, {
+      controlId: "annotations",
+      methods,
+      style: DEFAULT_CONTROL_STYLE,
+      showOrbitControl: true,
+      messages: readOverlayMessages(),
+      secondaryZoomGroup: {
+        hidden: true,
+        zoomInOptions: {
+          mode: NAVIGATION_ZOOM_MODES.FOV,
+          duration: 250 as Milliseconds,
+        },
+        zoomOutOptions: {
+          mode: NAVIGATION_ZOOM_MODES.FOV,
+          duration: 250 as Milliseconds,
+        },
+        zoomInTooltip: "Sichtfeld verkleinern (Kamera-Zoom in)",
+        zoomOutTooltip: "Sichtfeld vergrößern (Kamera-Zoom out)",
+      },
+      tertiaryZoomGroup: {
+        hidden: true,
+        zoomInOptions: {
+          mode: NAVIGATION_ZOOM_MODES.DOLLY,
+          duration: 500 as Milliseconds,
+        },
+        zoomOutOptions: {
+          mode: NAVIGATION_ZOOM_MODES.DOLLY,
+          duration: 500 as Milliseconds,
+        },
+        zoomInTooltip: "Dolly-Zoom in (Fahrt + FOV synchron)",
+        zoomOutTooltip: "Dolly-Zoom out (Fahrt + FOV synchron)",
+      },
+    });
+  }, [initialHomeCameraState, scene]);
 
   useEffect(() => {
     if (!scene) {
       return;
     }
 
-    const syncAngles = () => {
-      setCameraAngles(readCameraAngles(scene));
-    };
+    const orbitController = orbitControllerRef.current;
+    const baseMethods = createCesiumNavigationMethods(scene, {
+      homeCameraState: initialHomeCameraState,
+    });
 
-    syncAngles();
-    const removeMoveEndListener =
-      scene.camera.moveEnd.addEventListener(syncAngles);
+    const methods =
+      orbitController !== null
+        ? {
+            ...baseMethods,
+            orbit: (options: NavigationOrbitOptions = {}) => {
+              if (orbitController.isOrbiting) {
+                orbitController.stopOrbit();
+                options.onCanceled?.();
+              } else {
+                options.onStarted?.();
+                orbitController.startOrbit();
+              }
+            },
+            subscribeOrbitActive: (sink: (active: boolean) => void) =>
+              orbitController.subscribeIsOrbiting(sink),
+          }
+        : baseMethods;
 
-    return () => {
-      removeMoveEndListener?.();
-    };
-  }, [scene]);
-
-  const applyCameraAnglesUpdate = useCallback(
-    (
-      update: (current: { heading: number; pitch: number }) => {
-        heading: number;
-        pitch: number;
-      }
-    ) => {
-      if (!scene) {
-        return;
-      }
-
-      cancelAnimationRef.current?.();
-      const nextAngles = update(cameraAngles);
-      cancelAnimationRef.current = null;
-      applyCameraOrientation(scene, {
-        heading: nextAngles.heading,
-        pitch: clampCesiumPitchRad(nextAngles.pitch),
-      });
-      setCameraAngles({
-        heading: nextAngles.heading,
-        pitch: clampCesiumPitchRad(nextAngles.pitch),
-      });
-    },
-    [cameraAngles, scene]
-  );
-
-  useEffect(() => {
-    const handleMouseMove = (event: MouseEvent) => {
-      const dragState = initialDragStateRef.current;
-      if (!dragState) {
-        return;
-      }
-
-      if (
-        Math.abs(event.clientX - dragState.mouseX) >
-          COMPASS_DRAG_THRESHOLD_PX ||
-        Math.abs(event.clientY - dragState.mouseY) > COMPASS_DRAG_THRESHOLD_PX
-      ) {
-        didCompassDragRef.current = true;
-      }
-
-      const nextHeadingRad =
-        dragState.headingRad +
-        (event.clientX - dragState.mouseX) * COMPASS_DRAG_FACTOR_RAD_PER_PX;
-      const nextPitchRad = clampCesiumPitchRad(
-        dragState.pitchRad -
-          (event.clientY - dragState.mouseY) * COMPASS_DRAG_FACTOR_RAD_PER_PX
-      );
-
-      applyCameraAnglesUpdate(() => ({
-        heading: nextHeadingRad,
-        pitch: nextPitchRad,
-      }));
-    };
-
-    const handleMouseUp = () => {
-      initialDragStateRef.current = null;
-    };
-
-    window.addEventListener("mousemove", handleMouseMove);
-    window.addEventListener("mouseup", handleMouseUp);
-
-    return () => {
-      window.removeEventListener("mousemove", handleMouseMove);
-      window.removeEventListener("mouseup", handleMouseUp);
-    };
-  }, [applyCameraAnglesUpdate]);
-
-  useEffect(
-    () => () => {
-      if (pendingCompassClickTimeoutRef.current !== null) {
-        window.clearTimeout(pendingCompassClickTimeoutRef.current);
-      }
-      cancelAnimationRef.current?.();
-      cancelAnimationRef.current = null;
-    },
-    []
-  );
-
-  const handleCompassMouseDown = useCallback(
-    (event: React.MouseEvent<HTMLButtonElement>) => {
-      event.preventDefault();
-      event.stopPropagation();
-
-      if (!scene) {
-        return;
-      }
-
-      didCompassDragRef.current = false;
-      initialDragStateRef.current = {
-        mouseX: event.clientX,
-        mouseY: event.clientY,
-        headingRad: scene.camera.heading,
-        pitchRad: clampCesiumPitchRad(scene.camera.pitch),
-      };
-    },
-    [scene]
-  );
-
-  const zoomCamera = useCallback(
-    (multiplier: number) => {
-      if (!scene) {
-        return;
-      }
-
-      const height = scene.camera.positionCartographic?.height;
-      const amount = Math.max(
-        10,
-        (Number.isFinite(height) ? height : 1000) * multiplier
-      );
-      if (multiplier < 1) {
-        scene.camera.zoomIn(amount);
-      } else {
-        scene.camera.zoomOut(amount);
-      }
-      scene.requestRender();
-      setCameraAngles(readCameraAngles(scene));
-    },
-    [scene]
-  );
-
-  const handleCompassClick = useCallback(
-    (event: React.MouseEvent<HTMLButtonElement>) => {
-      event.preventDefault();
-      event.stopPropagation();
-
-      if (!scene) {
-        return;
-      }
-
-      if (didCompassDragRef.current) {
-        didCompassDragRef.current = false;
-        return;
-      }
-
-      if (pendingCompassClickTimeoutRef.current !== null) {
-        window.clearTimeout(pendingCompassClickTimeoutRef.current);
-      }
-
-      pendingCompassClickTimeoutRef.current = window.setTimeout(() => {
-        applyCameraAnglesUpdate((current) => ({
-          heading: 0,
-          pitch: current.pitch,
-        }));
-        pendingCompassClickTimeoutRef.current = null;
-      }, COMPASS_CLICK_DELAY_MS);
-    },
-    [applyCameraAnglesUpdate, scene]
-  );
-
-  const handleCompassDoubleClick = useCallback(
-    (event: React.MouseEvent<HTMLButtonElement>) => {
-      event.preventDefault();
-      event.stopPropagation();
-
-      if (!scene) {
-        return;
-      }
-
-      if (pendingCompassClickTimeoutRef.current !== null) {
-        window.clearTimeout(pendingCompassClickTimeoutRef.current);
-        pendingCompassClickTimeoutRef.current = null;
-      }
-
-      didCompassDragRef.current = false;
-
-      applyCameraAnglesUpdate(() => ({
-        heading: 0,
-        pitch: -PI_OVER_TWO,
-      }));
-    },
-    [applyCameraAnglesUpdate, scene]
-  );
-
-  const handleHomeClick = useCallback(
-    (event: React.MouseEvent<HTMLButtonElement>) => {
-      event.preventDefault();
-      event.stopPropagation();
-
-      const homeCameraState = homeCameraStateRef.current;
-      if (!scene || !homeCameraState) {
-        return;
-      }
-
-      cancelAnimationRef.current?.();
-      cancelAnimationRef.current = flyToCameraState(scene, homeCameraState, {
-        durationMs: HOME_ANIMATION_DURATION_MS,
-        onDone: () => {
-          cancelAnimationRef.current = null;
-          setCameraAngles(readCameraAngles(scene));
-        },
-      });
-    },
-    [scene]
-  );
-
-  const disabled = !scene;
-  const homeDisabled = !scene || !homeCameraStateRef.current;
-  const headingDeg = radToDegNumeric(cameraAngles.heading ?? 0)!;
-  const pitchDeg = toCompassPitchDeg(cameraAngles.pitch ?? -PI_OVER_TWO);
+    return bindNavigationKeyboardShortcuts({
+      disabledNavigationShortcutActions,
+      scene,
+      methods,
+      initialHomeCameraState,
+    });
+  }, [disabledNavigationShortcutActions, initialHomeCameraState, scene]);
 
   return (
-    <SceneNavigationControls
-      disabled={disabled}
-      home={{
-        disabled: homeDisabled,
-        tooltip: "Zur Startansicht wechseln",
-        title: "Startansicht",
-        dataTestId: "annotations-home-control",
-        onClick: handleHomeClick,
-      }}
-      zoomIn={{
-        tooltip: "Maßstab vergrößern (Zoom in)",
-        title: "Vergrößern",
-        dataTestId: "annotations-zoom-in-control",
-        onClick: (event) => {
-          event.preventDefault();
-          event.stopPropagation();
-          zoomCamera(0.5);
-        },
-      }}
-      zoomOut={{
-        tooltip: "Maßstab verkleinern (Zoom out)",
-        title: "Verkleinern",
-        dataTestId: "annotations-zoom-out-control",
-        onClick: (event) => {
-          event.preventDefault();
-          event.stopPropagation();
-          zoomCamera(2);
-        },
-      }}
-      compass={{
-        bearingDeg: headingDeg,
-        pitchDeg,
-        tooltip:
-          "Einfachklick: Norden ausrichten. Doppelklick: Norden + Nadir.",
-        title: "Kompass",
-        dataTestId: "annotations-compass-control",
-        cursor: "grab",
-        onMouseDown: handleCompassMouseDown,
-        onClick: handleCompassClick,
-        onDoubleClick: handleCompassDoubleClick,
+    <div
+      ref={hostRef}
+      style={{
+        position: "absolute",
+        inset: 0,
+        zIndex: CONTROL_HOST_Z_INDEX,
+        pointerEvents: "none",
       }}
     />
   );

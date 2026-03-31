@@ -1,4 +1,11 @@
-import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import {
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type CSSProperties,
+  type ReactNode,
+} from "react";
 import type { Meta, StoryObj } from "@storybook/react";
 import {
   Cartesian3,
@@ -8,7 +15,6 @@ import {
   type CesiumWidget,
   type Scene,
 } from "@carma/cesium";
-import { MINUS_PI_OVER_FOUR } from "@carma/math";
 import {
   CarmaResponsiveInfoBox,
   ResponsiveStatusBar,
@@ -26,6 +32,7 @@ import {
   faFutbol,
   faSeedling,
 } from "@fortawesome/free-solid-svg-icons";
+import { requestStoryCesiumRender } from "../../shared/cesiumRuntimeGuards";
 import {
   LabelOverlayProvider,
   usePointLabels,
@@ -44,13 +51,17 @@ import {
   type LayoutPointInput,
   type PointLabelLayoutResult,
 } from "@carma-providers/label-overlay";
+import { cartesian3FromGeographicCoordinate } from "@carma-mapping/engines/cesium/api";
 import {
-  cartesian3FromGeographicCoordinate,
-  projectGeographicCoordinateToScreen,
-} from "@carma-mapping/engines/cesium/api";
-import { useCesiumLabelOverlayHost } from "@carma-mapping/engines/cesium/react/interactions";
+  useCesiumLabelOverlayHost,
+  useCesiumOverlayView,
+} from "@carma-mapping/engines/cesium/react/interactions";
 import { useCesiumSceneVisibilityIndex } from "@carma-mapping/engines/cesium/react/visibility";
-import { setupCesium } from "../../map-framework-switcher/helpers/cesium-setup";
+import { setupCesium } from "../../map-engine-switcher/helpers/cesium-setup";
+import {
+  formatStoryPerformanceLabel,
+  useCesiumFramePerformanceStatus,
+} from "./useStoryPerformanceStatus";
 
 import "cesium/Build/Cesium/Widgets/widgets.css";
 
@@ -64,6 +75,16 @@ type LandmarkLabelStoryArgs = {
   expandedSlotStepPx: number;
   hideChrome: boolean;
   scenePreset: "city" | "stack";
+  forceLayoutOnPortalRender: boolean;
+};
+
+const TOP_STATUS_BAR_OVERLAY_STYLE: CSSProperties = {
+  position: "absolute",
+  left: 0,
+  right: 0,
+  top: 0,
+  zIndex: 1800,
+  pointerEvents: "none",
 };
 
 type LandmarkSpec = {
@@ -553,41 +574,14 @@ const resolveCollapsedClusterAnchorMarkerSizePx = (
     clusteredPointCount
   );
 
-const resolveLandmarkScreenAnchor = (
-  scene: Scene,
-  visibilityStateById: Record<
-    string,
-    { screenPosition: CssPixelPosition | null } | undefined
-  >,
-  landmark: LandmarkPoint
-): CssPixelPosition | null =>
-  visibilityStateById[landmark.id]?.screenPosition ??
-  projectGeographicCoordinateToScreen(scene, {
-    longitude: landmark.longitude,
-    latitude: landmark.latitude,
-    altitude: landmark.altitude,
-  });
-
 const resolveLiveClusterAnchor = (
-  scene: Scene | null,
-  visibilityStateById: Record<
-    string,
-    { screenPosition: CssPixelPosition | null } | undefined
-  >,
+  projectWorldToScreen: (
+    position: CssPixelPosition | Cartesian3
+  ) => CssPixelPosition | null,
   members: readonly ProjectedLandmarkPoint[]
 ): CssPixelPosition | null => {
-  if (!scene || scene.isDestroyed()) {
-    return null;
-  }
-
   const anchors = members
-    .map((member) =>
-      resolveLandmarkScreenAnchor(
-        scene,
-        visibilityStateById,
-        member.item.landmark
-      )
-    )
+    .map((member) => projectWorldToScreen(member.item.landmark.positionECEF))
     .filter((anchor): anchor is CssPixelPosition => anchor !== null);
 
   if (anchors.length === 0) {
@@ -691,6 +685,7 @@ const CesiumLandmarksOverlay = ({
   expandedSlotStepPx,
   hideChrome,
   scenePreset,
+  forceLayoutOnPortalRender,
 }: {
   scene: Scene | null;
   landmarks: readonly LandmarkPoint[];
@@ -704,8 +699,11 @@ const CesiumLandmarksOverlay = ({
   expandedSlotStepPx: number;
   hideChrome: boolean;
   scenePreset: StoryScenePreset;
+  forceLayoutOnPortalRender: boolean;
 }) => {
-  const cameraPitchRad = scene?.camera.pitch ?? MINUS_PI_OVER_FOUR;
+  const overlayView = useCesiumOverlayView(scene);
+  const cameraPitchRad = overlayView.derivedView?.pitch ?? 0;
+  const overlayFrameNumber = overlayView.frameNumber ?? 0;
   const shouldTestOcclusion = enableOcclusionTesting && occlusionAvailable;
   const [expandedClusterId, setExpandedClusterId] = useState<string | null>(
     null
@@ -781,11 +779,7 @@ const CesiumLandmarksOverlay = ({
 
     return landmarks
       .map<ProjectedLandmarkPoint | null>((landmark, index) => {
-        const anchor = resolveLandmarkScreenAnchor(
-          scene,
-          visibilityStateById,
-          landmark
-        );
+        const anchor = overlayView.projectWorldToScreen(landmark.positionECEF);
         if (!anchor) return null;
 
         const selected = landmark.id === selectedLandmarkId;
@@ -820,7 +814,7 @@ const CesiumLandmarksOverlay = ({
       .filter(
         (landmark): landmark is ProjectedLandmarkPoint => landmark !== null
       );
-  }, [landmarks, scene, selectedLandmarkId, visibilityStateById]);
+  }, [landmarks, overlayFrameNumber, overlayView, scene, selectedLandmarkId]);
 
   const clusters = useMemo(
     () =>
@@ -902,8 +896,7 @@ const CesiumLandmarksOverlay = ({
               (selected ? 40_000 : EXPANDED_CLUSTER_Z_INDEX_BASE) - slotIndex,
             getCanvasPosition: () => {
               const liveAnchor = resolveLiveClusterAnchor(
-                scene,
-                visibilityStateById,
+                overlayView.projectWorldToScreen,
                 cluster.members
               );
               return liveAnchor
@@ -965,8 +958,7 @@ const CesiumLandmarksOverlay = ({
           zIndex: (representative.zIndex ?? 0) + 100,
           getCanvasPosition: () =>
             resolveLiveClusterAnchor(
-              scene,
-              visibilityStateById,
+              overlayView.projectWorldToScreen,
               cluster.members
             ),
           onClick:
@@ -1016,11 +1008,7 @@ const CesiumLandmarksOverlay = ({
         selected,
         zIndex: member.zIndex ?? 20,
         getCanvasPosition: () =>
-          resolveLandmarkScreenAnchor(
-            scene,
-            visibilityStateById,
-            member.item.landmark
-          ),
+          overlayView.projectWorldToScreen(member.item.landmark.positionECEF),
         onClick: () => {
           setSelectedLandmarkId(member.item.landmark.id);
         },
@@ -1041,6 +1029,8 @@ const CesiumLandmarksOverlay = ({
     scene,
     selectedLandmarkId,
     visibilityStateById,
+    overlayFrameNumber,
+    overlayView,
   ]);
 
   const layoutResult = useMemo<PointLabelLayoutResult>(() => {
@@ -1138,6 +1128,8 @@ const CesiumLandmarksOverlay = ({
           : "requested (no surface)"
       }`,
       `mesh ${occlusionAvailable ? "loaded" : "unavailable"}`,
+      `overlay ${forceLayoutOnPortalRender ? "forced" : "deferred"}`,
+      `perf ${formatStoryPerformanceLabel(performanceStatus)}`,
       `occluded ${occludedCount}/${labels.length}`,
       `hidden ${hiddenCount}/${labels.length}`,
       `terrainSampled ${terrainSourceCount}/${landmarks.length}`,
@@ -1149,10 +1141,12 @@ const CesiumLandmarksOverlay = ({
     displayEntries,
     enableOcclusionTesting,
     expandedClusterId,
+    forceLayoutOnPortalRender,
     labels,
     landmarks,
     layoutResult,
     occlusionAvailable,
+    performanceStatus,
     selectedLandmarkId,
     shouldTestOcclusion,
   ]);
@@ -1164,16 +1158,7 @@ const CesiumLandmarksOverlay = ({
   return (
     <>
       {!hideChrome ? (
-        <div
-          style={{
-            position: "absolute",
-            left: 0,
-            right: 0,
-            top: 0,
-            zIndex: 1800,
-            pointerEvents: "none",
-          }}
-        >
+        <div style={TOP_STATUS_BAR_OVERLAY_STYLE}>
           <ResponsiveStatusBar
             label={
               clusterMode === "off"
@@ -1251,6 +1236,7 @@ const CesiumLandmarksStory = ({
   expandedSlotStepPx,
   hideChrome,
   scenePreset,
+  forceLayoutOnPortalRender,
 }: LandmarkLabelStoryArgs) => {
   const rootRef = useRef<HTMLDivElement | null>(null);
   const containerRef = useRef<HTMLDivElement | null>(null);
@@ -1262,9 +1248,11 @@ const CesiumLandmarksStory = ({
     () => resolveStoryLandmarks(scenePreset),
     [scenePreset]
   );
+  const performanceStatus = useCesiumFramePerformanceStatus(scene, true);
   const overlayHost = useCesiumLabelOverlayHost({
     scene,
     containerRef: rootRef,
+    forceLayoutOnPortalRender,
   });
 
   useEffect(() => {
@@ -1316,7 +1304,7 @@ const CesiumLandmarksStory = ({
       setScene(setup.widget.scene);
       setOcclusionAvailable(Boolean(setup.tileset));
       setup.widget.camera.setView(resolveCameraView(scenePreset));
-      setup.widget.scene.requestRender();
+      requestStoryCesiumRender(setup.widget);
 
       const provider =
         setup.terrainProviders.SURFACE ?? setup.terrainProviders.TERRAIN;
@@ -1326,7 +1314,7 @@ const CesiumLandmarksStory = ({
       );
       if (disposed) return;
       setLandmarks(sampledLandmarks);
-      setup.widget.scene.requestRender();
+      requestStoryCesiumRender(setup.widget);
     };
 
     initialize().catch((error) => {
@@ -1375,6 +1363,7 @@ const CesiumLandmarksStory = ({
           expandedSlotStepPx={expandedSlotStepPx}
           hideChrome={hideChrome}
           scenePreset={scenePreset}
+          forceLayoutOnPortalRender={forceLayoutOnPortalRender}
         />
       </LabelOverlayProvider>
     </div>
@@ -1382,7 +1371,7 @@ const CesiumLandmarksStory = ({
 };
 
 const meta: Meta<LandmarkLabelStoryArgs> = {
-  title: "Providers/LabelOverlay",
+  title: "Overlay/Layout",
   component: CesiumLandmarksStory,
   parameters: {
     layout: "fullscreen",
@@ -1414,6 +1403,11 @@ const meta: Meta<LandmarkLabelStoryArgs> = {
       control: { type: "boolean" },
       description: "Hide story-only chrome like the status bar and infobox.",
     },
+    forceLayoutOnPortalRender: {
+      control: { type: "boolean" },
+      description:
+        "Force a synchronous overlay position pass immediately after portal renders.",
+    },
     scenePreset: {
       control: { type: "inline-radio" },
       options: ["city", "stack"],
@@ -1433,7 +1427,8 @@ export const WuppertalLabelTestScene: StoryObj<LandmarkLabelStoryArgs> = {
     collapseDistancePx: 5,
     collapseMinimumSize: 2,
     expandedSlotStepPx: 40,
-    hideChrome: true,
+    hideChrome: false,
+    forceLayoutOnPortalRender: false,
     scenePreset: "city",
   },
 };
@@ -1449,6 +1444,7 @@ export const CollapsedLabelStacks: StoryObj<LandmarkLabelStoryArgs> = {
     collapseMinimumSize: 2,
     expandedSlotStepPx: 40,
     hideChrome: false,
+    forceLayoutOnPortalRender: false,
     scenePreset: "stack",
   },
 };
@@ -1464,6 +1460,7 @@ export const InteractiveClusterExpansion: StoryObj<LandmarkLabelStoryArgs> = {
     collapseMinimumSize: 2,
     expandedSlotStepPx: 40,
     hideChrome: false,
+    forceLayoutOnPortalRender: false,
     scenePreset: "stack",
   },
 };
@@ -1479,6 +1476,7 @@ export const AveragedCollapsedAnchors: StoryObj<LandmarkLabelStoryArgs> = {
     collapseMinimumSize: 2,
     expandedSlotStepPx: 40,
     hideChrome: true,
+    forceLayoutOnPortalRender: false,
     scenePreset: "stack",
   },
 };

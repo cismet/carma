@@ -2,13 +2,7 @@
 // Intentionally depends on three.js:
 // Vector2 is a CARMA-native 2D math type across camera/view code.
 import { Vector2 } from "three";
-import { isFiniteNumber } from "./numeric/isFiniteNumber";
-
-export { Vector2 };
-export type Vector2Json = {
-  x: number;
-  y: number;
-};
+import { isFiniteNumber } from "./numeric/is-finite-number";
 
 export const coerceVector2 = (value: unknown): Vector2 | null => {
   if (value instanceof Vector2) {
@@ -26,11 +20,3 @@ export const coerceVector2 = (value: unknown): Vector2 | null => {
 
   return new Vector2(candidate.x, candidate.y);
 };
-
-export const vector2ToJson = (vector2: Vector2): Vector2Json => ({
-  x: vector2.x,
-  y: vector2.y,
-});
-
-export const vector2FromJson = (json: Vector2Json): Vector2 =>
-  new Vector2(json.x, json.y);

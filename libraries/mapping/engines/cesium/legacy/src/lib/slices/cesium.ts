@@ -1,10 +1,5 @@
-import {
-  Cartesian3,
-  type Cartesian3Json,
-  cartesian3FromJson,
-} from "@carma/cesium";
 import localForage from "localforage";
-import { createSelector, createSlice } from "@reduxjs/toolkit";
+import { createSlice } from "@reduxjs/toolkit";
 import type { PayloadAction } from "@reduxjs/toolkit";
 
 import { type RootState, type CesiumState, SceneStyles } from "../..";
@@ -18,8 +13,6 @@ export enum VIEWER_TRANSITION_STATE {
 const initialState: CesiumState = {
   isAnimating: false,
   currentTransition: VIEWER_TRANSITION_STATE.NONE,
-  homeOffset: null,
-  homePosition: null,
   showPrimaryTileset: true,
   showSecondaryTileset: false,
   styling: {
@@ -122,25 +115,10 @@ const sliceCesium = createSlice({
     setTilesetOpacity: (state: CesiumState, action: PayloadAction<number>) => {
       state.styling.tileset.opacity = action.payload;
     },
-    setHomePosition: (
-      state: CesiumState,
-      action: PayloadAction<Cartesian3Json>
-    ) => {
-      state.homePosition = action.payload;
-    },
-    setHomeOffset: (
-      state: CesiumState,
-      action: PayloadAction<Cartesian3Json>
-    ) => {
-      state.homeOffset = action.payload;
-    },
   },
 });
 
 export const {
-  setHomePosition,
-  setHomeOffset,
-
   setIsAnimating,
   clearIsAnimating,
   toggleIsAnimating,
@@ -176,22 +154,6 @@ export const selectViewerDataSources = (state: RootState | undefined) =>
   selectCesiumState(state)?.dataSources;
 export const selectViewerModels = (state: RootState | undefined) =>
   selectCesiumState(state)?.models;
-
-export const selectViewerHomePlain = (state: RootState | undefined) =>
-  selectCesiumState(state)?.homePosition ?? initialState.homePosition;
-export const selectViewerHomeOffsetPlain = (state: RootState | undefined) =>
-  selectCesiumState(state)?.homeOffset ?? initialState.homeOffset;
-
-// memoized selectors
-export const selectViewerHome: (state: RootState) => Cartesian3 | null =
-  createSelector(selectViewerHomePlain, (homePosition) => {
-    return homePosition ? cartesian3FromJson(homePosition) : null;
-  });
-
-export const selectViewerHomeOffset: (state: RootState) => Cartesian3 | null =
-  createSelector(selectViewerHomeOffsetPlain, (homeOffset) => {
-    return homeOffset ? cartesian3FromJson(homeOffset) : null;
-  });
 
 export const selectSceneStyles = (state: RootState | undefined) =>
   selectCesiumState(state)?.sceneStyles;

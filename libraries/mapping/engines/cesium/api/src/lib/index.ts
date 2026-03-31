@@ -4,7 +4,6 @@
  * Layering:
  * - `./cesium` raw curated Cesium re-exports (SSOT for Cesium symbols)
  * - `./carma-guards` runtime guards for Cesium objects
- * - `./cesiumSceneTypes` lightweight scene contracts
  * - `./carma-helpers/*` low-level Cesium-focused helpers
  * - `./serialization/*` JSON and constructor-arg codecs
  *
@@ -19,7 +18,7 @@
 export * from "./cesium";
 
 // ---------------------------------------------------------------------------
-// Guards and lightweight scene contracts
+// Guards
 // ---------------------------------------------------------------------------
 
 export {
@@ -46,52 +45,26 @@ export {
   isValidTileset,
 } from "./carma-guards";
 
-export { SCENE_STATE_METADATA_SOURCE } from "./cesiumSceneTypes";
-export type {
-  CameraBasis,
-  CameraFrustum,
-  CameraIntrinsics,
-  CameraLike,
-  CameraType,
-  EventLike,
-  FrustumLike,
-  ObjectCentricCameraAnchor,
-  ObjectCentricCameraModel,
-  ObjectCentricCameraPose,
-  OrbitPoint,
-  OrbitPointMode,
-  OrbitPointSamplingStrategy,
-  OrbitPointSource,
-  SceneCamera,
-  SceneLighting,
-  SceneLike,
-  SceneState,
-  SceneStateMetadata,
-  SceneStateMetadataSource,
-  SceneStateOptions,
-} from "./cesiumSceneTypes";
-
 // ---------------------------------------------------------------------------
 // Camera helpers
 // ---------------------------------------------------------------------------
 
 export {
-  applyObjectCentricCameraViewToScene,
   applyRollToHeadingForCameraNearNadir,
   animateOrbitHeadingPitchRange,
-  buildObjectCentricCameraOrientation,
   cameraPositionCartographicDegrees,
   cameraPositionCartographicRadians,
   cameraToHeadingPitchJson,
   captureCurrentCameraState,
-  DEFAULT_OBJECT_CENTRIC_RANGE_M,
+  flyToCameraState,
   flyToBoundingSphereExtent,
   flyToPoints,
   flyToTarget,
   getHeadingPitchRollDiff,
   getTopDownCameraDeviationAngle,
   readPerspectiveFrustumVerticalFov,
-  releaseCameraFromOrbitMode,
+  readCameraWorldBasis,
+  readSceneCameraIntrinsics,
   setViewFromCameraState,
   tryWithValidCamera,
   validateCameraStateHeadingPitchRoll,
@@ -103,11 +76,8 @@ export {
   type CameraStateHeadingPitchRoll,
   type CameraStateRecord,
   type DirectionUp,
-  type FlyToBoundingSphereExtentOptions,
-  type FlyToPointsOptions,
-  type ObjectCentricCameraOrientation,
-  type ObjectCentricCameraViewInput,
-  type ObjectCentricCameraViewOptions,
+  type FlyCameraStateToSceneOptions,
+  type FlyToOptions,
   type OrbitHeadingPitchRangeAnimationOptions,
 } from "./carma-helpers/camera";
 
@@ -120,12 +90,13 @@ export {
   cartesian3ToVector3,
   offsetCartesian3Positions,
 } from "./carma-helpers/cartesian3";
+export * from "./carma-helpers/controls";
 export {
   getDegreesFromCartographic,
   getEllipsoidalAltitudeOrZero,
 } from "./carma-helpers/cartographic";
 export { getCesiumVersion } from "./carma-helpers/version";
-export { newHeadingPitchRange } from "./carma-helpers/heading-pitch-range/HeadingPitchRangeFactory";
+export { newHeadingPitchRange } from "./carma-helpers/heading-pitch-range/Factory";
 export * from "./carma-helpers/primitives";
 export {
   ensureSceneReady,
@@ -139,7 +110,7 @@ export {
   type SceneRenderStage,
 } from "./carma-helpers/scene";
 export * from "./carma-helpers/terrain";
-export { guardTileset } from "./carma-helpers/tileset/TilesetGuard";
+export { guardTileset } from "./carma-helpers/tileset/Guard";
 export { createMinimalCesiumWidget } from "./carma-helpers/widget";
 export * from "./carma-helpers/Transforms";
 export * as CarmaTransforms from "./carma-helpers/Transforms";
@@ -171,9 +142,6 @@ export {
   cartographicRadFromJson,
   cartographicRadToJson,
   isCartographicRadJson,
-  isQuaternionJson,
-  quaternionFromJson,
-  quaternionToJson,
   colorFromConstructorArgs,
   colorFromJson,
   colorToConstructorArgs,
@@ -197,7 +165,6 @@ export type {
   CartographicJson,
   CartographicJsonTyped,
   CartographicRadJson,
-  QuaternionJson,
   ColorConstructorArgs,
   ColorJson,
   RectangleConstructorArgs,

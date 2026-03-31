@@ -150,8 +150,8 @@ export function useObliqueNearestImage(
         };
 
         const frameId =
-          (scene as unknown as { frameState?: { frameNumber?: number } })
-            .frameState?.frameNumber ?? null;
+          (scene as { frameState?: { frameNumber?: number } }).frameState
+            ?.frameNumber ?? null;
         const key = `${Math.round(orbitPointTargetCrs.x)}:${Math.round(
           orbitPointTargetCrs.y
         )}:${cameraCardinal}:${k}:${

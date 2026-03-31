@@ -1,19 +1,20 @@
 import {
-  formatAreaAdaptive,
-  formatNumber,
-} from "@carma-mapping/annotations/core";
+  formatAreaSquareMetersAdaptive,
+  formatDegrees,
+} from "@carma/units/helpers";
 
 import type { RuntimeAnnotationInfoBoxContext } from "../../components/annotation-info-box/annotationInfoBox.types";
 
-export const createVerticalAreaToolInfoBoxSlots = ({
-  toolType,
-  headingTitle,
-  formatMeasurementLabelToken,
-}: {
-  toolType: RuntimeAnnotationInfoBoxContext["annotation"]["toolType"];
-  headingTitle: string;
-  formatMeasurementLabelToken: (counter: number) => string;
-}) => {
+export const createVerticalAreaToolInfoBoxSlots = (
+  toolType: RuntimeAnnotationInfoBoxContext["annotation"]["toolType"],
+  {
+    headingTitle,
+    formatMeasurementLabelToken,
+  }: {
+    headingTitle: string;
+    formatMeasurementLabelToken: (counter: number) => string;
+  }
+) => {
   return ({
     annotation,
     annotationEntries,
@@ -43,10 +44,16 @@ export const createVerticalAreaToolInfoBoxSlots = ({
       ),
       content: (
         <div className="text-[12px] leading-normal text-[#212529]">
-          <div>{`Fläche: ${formatAreaAdaptive(areaSquareMeters)}`}</div>
-          <div>{`Vertikalität: ${formatNumber(verticalityDeg)}°`}</div>
+          <div>{`Fläche: ${formatAreaSquareMetersAdaptive(areaSquareMeters, {
+            locale: "de-DE",
+          })}`}</div>
+          <div>{`Vertikalität: ${formatDegrees(verticalityDeg, {
+            locale: "de-DE",
+          })}`}</div>
           {Number.isFinite(bearingDeg) ? (
-            <div>{`Ausrichtung: ${formatNumber(bearingDeg ?? 0)}°`}</div>
+            <div>{`Ausrichtung: ${formatDegrees(bearingDeg ?? 0, {
+              locale: "de-DE",
+            })}`}</div>
           ) : null}
         </div>
       ),

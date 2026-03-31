@@ -1,5 +1,6 @@
 import {
   Fragment,
+  useEffect,
   useLayoutEffect,
   useRef,
   type ReactNode,
@@ -7,8 +8,12 @@ import {
 } from "react";
 import { Tooltip } from "antd";
 import {
-  SELECT_TOOL_TYPE,
   ANNOTATION_TYPE_LABEL,
+  isManagedAnnotationKeyboardEvent,
+  listAnnotationToolShortcuts,
+  renderAnnotationShortcutGlyph,
+  resolveAnnotationToolShortcutTarget,
+  SELECT_TOOL_TYPE,
 } from "@carma-mapping/annotations/core";
 import { resolveAnnotationToolText } from "../../../config/annotationToolText";
 import { annotationTooltipProps } from "../../shared/annotationTooltip";
@@ -36,6 +41,34 @@ const Divider = () => (
   />
 );
 
+const renderShortcutBadges = (shortcuts: readonly string[]) => (
+  <span
+    style={{
+      display: "inline-flex",
+      alignItems: "center",
+      gap: 6,
+      whiteSpace: "nowrap",
+    }}
+  >
+    {shortcuts.map((shortcut) => (
+      <span
+        key={shortcut}
+        style={{
+          display: "inline-flex",
+          alignItems: "center",
+          justifyContent: "center",
+          fontSize: 14,
+          fontWeight: 700,
+          lineHeight: 1,
+          color: "#f8f9fa",
+        }}
+      >
+        {renderAnnotationShortcutGlyph(shortcut)}
+      </span>
+    ))}
+  </span>
+);
+
 export function AnnotationToolStrip({
   activeToolType,
   onToolTypeChange,
@@ -57,10 +90,34 @@ export function AnnotationToolStrip({
   );
   const selectTool =
     availableTools.find(({ id }) => id === SELECT_TOOL_TYPE) ?? null;
+  const orderedToolTypes = availableTools.map((tool) => tool.id);
   const isSelectionModeActive = activeToolType === SELECT_TOOL_TYPE;
   const activeToolButtonRef: RefCallback<HTMLButtonElement> = (node) => {
     activeButtonRef.current = node;
   };
+
+  useEffect(() => {
+    const handleToolShortcutKeyDown = (event: KeyboardEvent) => {
+      if (!isManagedAnnotationKeyboardEvent(event)) return;
+
+      const targetToolType = resolveAnnotationToolShortcutTarget(
+        event.key,
+        orderedToolTypes
+      );
+      if (!targetToolType || targetToolType === activeToolType) {
+        return;
+      }
+
+      event.preventDefault();
+      event.stopPropagation();
+      onToolTypeChange(targetToolType as typeof activeToolType);
+    };
+
+    window.addEventListener("keydown", handleToolShortcutKeyDown, true);
+    return () => {
+      window.removeEventListener("keydown", handleToolShortcutKeyDown, true);
+    };
+  }, [activeToolType, onToolTypeChange, orderedToolTypes]);
 
   useLayoutEffect(() => {
     const stripElement = stripRef.current;
@@ -105,31 +162,74 @@ export function AnnotationToolStrip({
     <div ref={stripRef} style={primaryToolbarSurfaceStyle}>
       {selectTool && (
         <>
-          <Tooltip
-            {...annotationTooltipProps}
-            title={resolveAnnotationToolText(selectTool.i18n.tooltipKey)}
-          >
-            <button
-              ref={isSelectionModeActive ? activeToolButtonRef : undefined}
-              type="button"
-              style={toolButtonStyle(isSelectionModeActive, false)}
-              onClick={() => onToolTypeChange(SELECT_TOOL_TYPE)}
-              aria-pressed={isSelectionModeActive}
-              aria-label={resolveAnnotationToolText(selectTool.i18n.tooltipKey)}
-              data-test-id="measurement-tool-select-toggle"
-            >
-              {selectTool.icon}
-            </button>
-          </Tooltip>
+          {(() => {
+            const tooltip = resolveAnnotationToolText(
+              selectTool.i18n.tooltipKey
+            );
+            const shortcuts = listAnnotationToolShortcuts(
+              selectTool.id,
+              orderedToolTypes
+            );
+
+            return (
+              <Tooltip
+                {...annotationTooltipProps}
+                title={
+                  <span
+                    style={{
+                      display: "inline-flex",
+                      gap: 8,
+                      alignItems: "center",
+                      whiteSpace: "nowrap",
+                    }}
+                  >
+                    <span>{tooltip}</span>
+                    {renderShortcutBadges(shortcuts)}
+                  </span>
+                }
+              >
+                <button
+                  ref={isSelectionModeActive ? activeToolButtonRef : undefined}
+                  type="button"
+                  style={toolButtonStyle(isSelectionModeActive, false)}
+                  onClick={() => onToolTypeChange(SELECT_TOOL_TYPE)}
+                  aria-pressed={isSelectionModeActive}
+                  aria-label={`${tooltip} (${shortcuts.join(", ")})`}
+                  data-test-id="measurement-tool-select-toggle"
+                >
+                  {selectTool.icon}
+                </button>
+              </Tooltip>
+            );
+          })()}
           <Divider />
         </>
       )}
       {primaryTools.map((tool) => {
         const tooltip = resolveAnnotationToolText(tool.i18n.tooltipKey);
+        const shortcuts = listAnnotationToolShortcuts(
+          tool.id,
+          orderedToolTypes
+        );
         return (
           <Fragment key={tool.id}>
             {tool.id === ANNOTATION_TYPE_LABEL && <Divider />}
-            <Tooltip {...annotationTooltipProps} title={tooltip}>
+            <Tooltip
+              {...annotationTooltipProps}
+              title={
+                <span
+                  style={{
+                    display: "inline-flex",
+                    gap: 8,
+                    alignItems: "center",
+                    whiteSpace: "nowrap",
+                  }}
+                >
+                  <span>{tooltip}</span>
+                  {renderShortcutBadges(shortcuts)}
+                </span>
+              }
+            >
               <button
                 ref={
                   activeToolType === tool.id ? activeToolButtonRef : undefined
@@ -138,7 +238,7 @@ export function AnnotationToolStrip({
                 style={toolButtonStyle(activeToolType === tool.id, false)}
                 onClick={() => onToolTypeChange(tool.id)}
                 aria-pressed={activeToolType === tool.id}
-                aria-label={tooltip}
+                aria-label={`${tooltip} (${shortcuts.join(", ")})`}
                 data-test-id={`measurement-tool-${tool.id}`}
               >
                 {tool.icon}

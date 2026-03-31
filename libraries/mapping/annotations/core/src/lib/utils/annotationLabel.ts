@@ -7,6 +7,7 @@ import {
   DEFAULT_POINT_LABEL_METRIC_MODE,
   POINT_LABEL_METRIC_MODES,
 } from "../types/annotationLabel";
+import { formatDecimalNumber } from "@carma/units/helpers";
 
 const normalizeCompactLabelContent = (
   compactContent?: string
@@ -268,7 +269,6 @@ type BuildDesiredPointLabelAnchorByIdParams<
   standaloneDistanceHighestPointIds: ReadonlySet<string>;
   unfocusedStandaloneDistanceNonHighestPointIds: ReadonlySet<string>;
   focusedStandaloneDistanceNonHighestPointIds: ReadonlySet<string>;
-  formatDistanceLabel: (distanceMeters: number) => string;
 };
 
 type BuildPolylinePointLabelTextByPointIdParams<
@@ -277,18 +277,22 @@ type BuildPolylinePointLabelTextByPointIdParams<
   polylines: ReadonlyArray<TPolyline>;
   focusedPolylineId: string | null;
   pointMarkerBadgeByPointId: Readonly<Record<string, PointMarkerBadgeLike>>;
-  formatDistanceLabel: (distanceMeters: number) => string;
 };
+
+const formatCompactDistanceLabel = (distanceMeters: number): string =>
+  `${formatDecimalNumber(distanceMeters, {
+    locale: "de-DE",
+    fractionDigits: 2,
+  })}m`;
 
 const buildPolylinePointLabelText = (
   badgeToken: string | undefined,
-  distanceMeters?: number,
-  formatDistanceLabel?: (distanceMeters: number) => string
+  distanceMeters?: number
 ): string | undefined => {
   const normalizedBadgeToken = normalizeCompactLabelContent(badgeToken);
   const normalizedDistanceText =
-    distanceMeters !== undefined && formatDistanceLabel
-      ? `${formatDistanceLabel(distanceMeters)}m`
+    distanceMeters !== undefined
+      ? formatCompactDistanceLabel(distanceMeters)
       : undefined;
 
   if (normalizedBadgeToken && normalizedDistanceText) {
@@ -303,7 +307,6 @@ export const buildPolylinePointLabelTextByPointId = <
   polylines,
   focusedPolylineId,
   pointMarkerBadgeByPointId,
-  formatDistanceLabel,
 }: BuildPolylinePointLabelTextByPointIdParams<TPolyline>): Readonly<
   Record<string, string>
 > => {
@@ -315,8 +318,7 @@ export const buildPolylinePointLabelTextByPointId = <
         if (!pointId) return;
         const labelText = buildPolylinePointLabelText(
           pointMarkerBadgeByPointId[pointId]?.text,
-          polyline.segmentLengthsCumulativeMeters[index] ?? 0,
-          formatDistanceLabel
+          polyline.segmentLengthsCumulativeMeters[index] ?? 0
         );
         if (!labelText) return;
         byPointId[pointId] = labelText;
@@ -339,8 +341,7 @@ export const buildPolylinePointLabelTextByPointId = <
     if (lastPointId) {
       const lastLabelText = buildPolylinePointLabelText(
         pointMarkerBadgeByPointId[lastPointId]?.text,
-        polyline.totalLengthMeters,
-        formatDistanceLabel
+        polyline.totalLengthMeters
       );
       if (lastLabelText) {
         byPointId[lastPointId] = lastLabelText;
@@ -364,7 +365,6 @@ export const buildDesiredPointLabelAnchorById = <
   standaloneDistanceHighestPointIds,
   unfocusedStandaloneDistanceNonHighestPointIds,
   focusedStandaloneDistanceNonHighestPointIds,
-  formatDistanceLabel,
 }: BuildDesiredPointLabelAnchorByIdParams<
   TPointMeasurement,
   TNodeChain,
@@ -441,8 +441,10 @@ export const buildDesiredPointLabelAnchorById = <
         anchorPointId: lastPointId,
         collapseToCompact: true,
         compactContent: badgeToken
-          ? `${badgeToken} ${formatDistanceLabel(polyline.totalLengthMeters)}m`
-          : `${formatDistanceLabel(polyline.totalLengthMeters)}m`,
+          ? `${badgeToken} ${formatCompactDistanceLabel(
+              polyline.totalLengthMeters
+            )}`
+          : formatCompactDistanceLabel(polyline.totalLengthMeters),
       };
     }
   });

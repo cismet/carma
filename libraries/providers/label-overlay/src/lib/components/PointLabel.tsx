@@ -7,7 +7,11 @@ import {
   resolveSegmentEndOutsideCircle,
 } from "../core/pillConnectorGeometry";
 import { PointLabelMarker } from "./PointLabelMarker";
-import { PillbuttonLabelMarker } from "./PillbuttonLabelMarker";
+import {
+  PILLBUTTON_BADGE_POSITIONS,
+  PillbuttonLabelMarker,
+  type PillbuttonBadgePosition,
+} from "./PillbuttonLabelMarker";
 import { PointLabelStem } from "./PointLabelStem";
 
 export type { PointLabelAttach } from "../core/pointLabelAttach";
@@ -31,6 +35,7 @@ export interface PointLabelStyleProps {
   markerContent?: React.ReactNode;
   markerBackgroundColor?: string;
   markerTextColor?: string;
+  badgePosition?: PillbuttonBadgePosition;
   compactContent?: React.ReactNode;
   compactBorderless?: boolean;
   labelStyle?: "auto" | "capsule";
@@ -156,6 +161,7 @@ export const PointLabel = React.memo(
     markerContent,
     markerBackgroundColor = "rgba(200, 200, 200, 0.92)",
     markerTextColor = "#111111",
+    badgePosition = PILLBUTTON_BADGE_POSITIONS.LEFT,
     compactContent,
     compactBorderless = false,
     labelStyle = "auto",
@@ -588,6 +594,7 @@ export const PointLabel = React.memo(
                 markerContent={hasCompactContent ? compactContent : undefined}
                 markerBackgroundColor={effectiveCompactBackgroundColor}
                 markerTextColor={effectiveCompactTextColor}
+                badgePosition={badgePosition}
                 compactBorderless={compactBorderless}
                 anchorAtSemicircleCenter={anchorAtSemicircleCenter}
                 fullBorder={fullBorder}

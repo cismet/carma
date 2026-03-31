@@ -21,13 +21,6 @@ export {
   isCartographicRadJson,
 } from "./CartographicRad";
 
-export type { QuaternionJson } from "./Quaternion";
-export {
-  isQuaternionJson,
-  quaternionFromJson,
-  quaternionToJson,
-} from "./Quaternion";
-
 export type { SerializedError } from "./Common";
 export { errorFromJson, errorToJson, isSerializedError } from "./Common";
 

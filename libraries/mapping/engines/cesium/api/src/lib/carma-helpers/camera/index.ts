@@ -3,44 +3,42 @@ export {
   isCameraStateRecord,
   isValidCamera,
 } from "../../carma-guards";
-export { tryWithValidCamera } from "./CameraSafety";
+export { tryWithValidCamera } from "./Safety";
 export {
   applyRollToHeadingForCameraNearNadir,
   cameraToHeadingPitchJson,
   getHeadingPitchRollDiff,
   getTopDownCameraDeviationAngle,
-} from "./CameraOrientation";
+} from "./Orientation";
 export {
   cameraPositionCartographicDegrees,
   cameraPositionCartographicRadians,
-} from "./CameraPosition";
-export {
-  releaseCameraFromOrbitMode,
-  setViewFromCameraState,
-} from "./CameraStateRestore";
+} from "./Position";
+export { setViewFromCameraState } from "./StateRestore";
 export {
   writePerspectiveFrustumLongerEdgeFov,
   readPerspectiveFrustumVerticalFov,
   writePerspectiveFrustumVerticalFov,
 } from "./PerspectiveFrustumFov";
+export { readSceneCameraIntrinsics } from "./Intrinsics";
 export {
-  applyObjectCentricCameraViewToScene,
-  buildObjectCentricCameraOrientation,
-  DEFAULT_OBJECT_CENTRIC_RANGE_M,
-  type ObjectCentricCameraOrientation,
-  type ObjectCentricCameraViewInput,
-  type ObjectCentricCameraViewOptions,
-} from "./ObjectCentricCameraOrientation";
-export { flyToTarget } from "./CameraFlight";
-export { animateOrbitHeadingPitchRange } from "./CameraFlight";
-export type { OrbitHeadingPitchRangeAnimationOptions } from "./CameraFlight";
-export { captureCurrentCameraState } from "./CameraStateCapture";
-export { validateCameraStateHeadingPitchRoll } from "./CameraStateValidation";
+  animateOrbitHeadingPitchRange,
+  flyToCameraState,
+  flyToTarget,
+} from "./Flight";
+export type {
+  FlyCameraStateToSceneOptions,
+  OrbitHeadingPitchRangeAnimationOptions,
+} from "./Flight";
+export {
+  captureCurrentCameraState,
+  readCameraWorldBasis,
+} from "./StateCapture";
+export { validateCameraStateHeadingPitchRoll } from "./StateValidation";
 export {
   flyToBoundingSphereExtent,
   flyToPoints,
-  type FlyToBoundingSphereExtentOptions,
-  type FlyToPointsOptions,
+  type FlyToOptions,
 } from "./FlyTo";
 export type {
   CaptureCurrentCameraStateOptions,
@@ -49,4 +47,4 @@ export type {
   CameraStateHeadingPitchRoll,
   CameraStateRecord,
   DirectionUp,
-} from "./CameraTypes";
+} from "./Types";

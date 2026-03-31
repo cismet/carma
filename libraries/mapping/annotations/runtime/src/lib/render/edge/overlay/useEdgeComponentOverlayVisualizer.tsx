@@ -36,7 +36,7 @@ import {
   useLineVisualizers,
   type LineVisualizerData,
 } from "@carma-providers/label-overlay";
-import { useCesiumSceneStateOptional } from "@carma-mapping/engines/cesium/react/scene-state";
+import { useCesiumOverlayView } from "@carma-mapping/engines/cesium/react/interactions";
 
 import {
   applyMidpointMarkerOverlayLayout,
@@ -69,27 +69,49 @@ export type EdgeComponentOverlayVisualizerOptions = {
   enabled?: boolean;
 };
 
-// EN component color: light mix of the standard East (red) and North (green) axis colors.
-const REFERENCE_COMPONENT_HORIZONTAL_COLOR = "rgba(188, 194, 102, 0.95)";
-// U component color: lighter blue for better readability and a softer look.
-const REFERENCE_COMPONENT_VERTICAL_COLOR = "rgba(111, 168, 255, 0.96)";
-const REFERENCE_COMPONENT_ARC_COLOR = "rgba(246, 248, 255, 0.95)";
-const REFERENCE_COMPONENT_LINE_STROKE_WIDTH_PX = 1.25;
-const CORNER_OVERLAY_ID_PREFIX = "distance-right-angle-corner";
-const MIDPOINT_OVERLAY_ID_PREFIX = "distance-edge-midpoint";
-const CORNER_OVERLAY_MIN_BOX_PX = 20;
-const CORNER_OVERLAY_PADDING_PX = 6;
-const CORNER_OVERLAY_TARGET_RADIUS_PX = 20;
+type SceneFrameStateLike = {
+  frameState?: { frameNumber?: number };
+};
+
+const EDGE_OVERLAY_DEFAULTS = {
+  style: {
+    // EN component color: light mix of the standard East (red) and North
+    // (green) axis colors.
+    horizontalColor: "rgba(188, 194, 102, 0.95)",
+    // U component color: lighter blue for better readability and a softer look.
+    verticalColor: "rgba(111, 168, 255, 0.96)",
+    arcColor: "rgba(246, 248, 255, 0.95)",
+    lineStrokeWidthPx: 1.25,
+    midpointTickColor: "rgba(255, 255, 255, 0.95)",
+    directLineColor: "rgba(255, 255, 255, 0.9)",
+    directLineStrokeWidthPx: 1.5,
+    lineHitTargetStrokeWidthPx: 10,
+  },
+  ids: {
+    cornerOverlayPrefix: "distance-right-angle-corner",
+    midpointOverlayPrefix: "distance-edge-midpoint",
+  },
+  cornerOverlay: {
+    minBoxPx: 20,
+    paddingPx: 6,
+    targetRadiusPx: 20,
+    segments: 20,
+  },
+  midpointMarker: {
+    hitTargetPx: 14,
+    tickLengthPx: 8,
+    tickWidthPx: 1.25,
+  },
+  labelReference: {
+    minDistancePx: 24,
+    maxDistancePx: 48,
+    insideBlendFactor: 0.35,
+    verticalSideSwitchThresholdPx: 4,
+  },
+} as const;
+
 const CORNER_OVERLAY_DOT_RADIUS_PX =
-  REFERENCE_COMPONENT_LINE_STROKE_WIDTH_PX / 2;
-const CORNER_OVERLAY_SEGMENTS = 20;
-const MIDPOINT_MARKER_HIT_TARGET_PX = 14;
-const MIDPOINT_MARKER_TICK_LENGTH_PX = 8;
-const MIDPOINT_MARKER_TICK_WIDTH_PX = 1.25;
-const LABEL_REFERENCE_MIN_DISTANCE_PX = 24;
-const LABEL_REFERENCE_MAX_DISTANCE_PX = 48;
-const LABEL_INSIDE_BLEND_FACTOR = 0.35;
-const VERTICAL_LABEL_SIDE_SWITCH_THRESHOLD_PX = 4;
+  EDGE_OVERLAY_DEFAULTS.style.lineStrokeWidthPx / 2;
 
 export const useEdgeComponentOverlayVisualizer = (
   scene: Scene | null,
@@ -111,9 +133,8 @@ export const useEdgeComponentOverlayVisualizer = (
   const cornerOverlayIdsRef = useRef<string[]>([]);
   const midpointOverlayIdsRef = useRef<string[]>([]);
   const verticalLabelSideByRelationIdRef = useRef<Record<string, -1 | 1>>({});
-  const sceneState = useCesiumSceneStateOptional();
-  const cameraPitch =
-    sceneState?.camera.pitchRad ?? scene?.camera.pitch ?? -Math.PI / 4;
+  const overlayView = useCesiumOverlayView(scene);
+  const cameraPitch = overlayView.derivedView?.pitch ?? 0;
 
   const { addLabelOverlayElement, removeLabelOverlayElement } =
     useLabelOverlay();
@@ -236,17 +257,11 @@ export const useEdgeComponentOverlayVisualizer = (
 
   const resolvePointCanvasPositionById = useCallback(
     (pointId: string) => {
-      if (!scene || scene.isDestroyed()) return null;
       const point = pointsById.get(pointId);
       if (!point) return null;
-      const anchor = SceneTransforms.worldToWindowCoordinates(
-        scene,
-        point.geometryECEF
-      );
-      if (!defined(anchor)) return null;
-      return { x: anchor.x, y: anchor.y } as CssPixelPosition;
+      return overlayView.projectWorldToScreen(point.geometryECEF);
     },
-    [pointsById, scene]
+    [overlayView, pointsById]
   );
 
   const viewportWidth = Math.max(
@@ -289,11 +304,8 @@ export const useEdgeComponentOverlayVisualizer = (
       }) => {
         const getWorldToScreen = (
           position: Cartesian3
-        ): CssPixelPosition | null => {
-          if (!scene || scene.isDestroyed()) return null;
-          const p = SceneTransforms.worldToWindowCoordinates(scene, position);
-          return defined(p) ? ({ x: p.x, y: p.y } as CssPixelPosition) : null;
-        };
+        ): CssPixelPosition | null =>
+          overlayView.projectWorldToScreen(position);
         const highestPoint =
           pointA.geometryWGS84.altitude >= pointB.geometryWGS84.altitude
             ? pointA
@@ -303,9 +315,8 @@ export const useEdgeComponentOverlayVisualizer = (
         let cachedTriangle: DistanceScreenTriangle | null = null;
 
         const getSceneFrameNumber = (): number | null => {
-          const frameNumber = (
-            scene as unknown as { frameState?: { frameNumber?: number } }
-          ).frameState?.frameNumber;
+          const frameNumber = (scene as SceneFrameStateLike).frameState
+            ?.frameNumber;
           return typeof frameNumber === "number" ? frameNumber : null;
         };
 
@@ -359,7 +370,8 @@ export const useEdgeComponentOverlayVisualizer = (
               triangle,
               auxiliaryAltitudeMeters: targetPoint.geometryWGS84.altitude,
               highestAltitudeMeters: highestPoint.geometryWGS84.altitude,
-              insideBlendFactor: LABEL_INSIDE_BLEND_FACTOR,
+              insideBlendFactor:
+                EDGE_OVERLAY_DEFAULTS.labelReference.insideBlendFactor,
               elevationEpsilonMeters: REFERENCE_LINE_EPSILON_METERS,
             });
           };
@@ -373,8 +385,8 @@ export const useEdgeComponentOverlayVisualizer = (
               triangle.anchor,
               triangle.target,
               insidePoint,
-              LABEL_REFERENCE_MIN_DISTANCE_PX,
-              LABEL_REFERENCE_MAX_DISTANCE_PX
+              EDGE_OVERLAY_DEFAULTS.labelReference.minDistancePx,
+              EDGE_OVERLAY_DEFAULTS.labelReference.maxDistancePx
             );
           };
 
@@ -387,8 +399,8 @@ export const useEdgeComponentOverlayVisualizer = (
               triangle.aux,
               triangle.target,
               insidePoint,
-              LABEL_REFERENCE_MIN_DISTANCE_PX,
-              LABEL_REFERENCE_MAX_DISTANCE_PX
+              EDGE_OVERLAY_DEFAULTS.labelReference.minDistancePx,
+              EDGE_OVERLAY_DEFAULTS.labelReference.maxDistancePx
             );
           };
 
@@ -408,7 +420,9 @@ export const useEdgeComponentOverlayVisualizer = (
             triangle,
             previousInsideSign:
               verticalLabelSideByRelationIdRef.current[relation.id],
-            flipThresholdPx: VERTICAL_LABEL_SIDE_SWITCH_THRESHOLD_PX,
+            flipThresholdPx:
+              EDGE_OVERLAY_DEFAULTS.labelReference
+                .verticalSideSwitchThresholdPx,
           });
           if (!edgeData) return null;
           verticalLabelSideByRelationIdRef.current[relation.id] =
@@ -422,8 +436,8 @@ export const useEdgeComponentOverlayVisualizer = (
             if (!edge) return null;
             return buildVerticalLabelReferencePoint2D(
               edge,
-              LABEL_REFERENCE_MIN_DISTANCE_PX,
-              LABEL_REFERENCE_MAX_DISTANCE_PX
+              EDGE_OVERLAY_DEFAULTS.labelReference.minDistancePx,
+              EDGE_OVERLAY_DEFAULTS.labelReference.maxDistancePx
             );
           };
 
@@ -479,10 +493,11 @@ export const useEdgeComponentOverlayVisualizer = (
               },
               getLabelOutsideReferencePoint:
                 getDirectLabelOutsideReferencePoint,
-              stroke: "rgba(255, 255, 255, 0.9)",
-              strokeWidth: 1.5,
+              stroke: EDGE_OVERLAY_DEFAULTS.style.directLineColor,
+              strokeWidth: EDGE_OVERLAY_DEFAULTS.style.directLineStrokeWidthPx,
               dashed: true,
-              hitTargetStrokeWidth: 10,
+              hitTargetStrokeWidth:
+                EDGE_OVERLAY_DEFAULTS.style.lineHitTargetStrokeWidthPx,
               ...edgeLabelOverlays.direct,
               onLineClick: onDirectLineClick,
               onLabelClick: onDirectLabelClick,
@@ -504,10 +519,11 @@ export const useEdgeComponentOverlayVisualizer = (
               },
               getLabelOutsideReferencePoint:
                 getVerticalLabelOutsideReferencePoint,
-              stroke: REFERENCE_COMPONENT_VERTICAL_COLOR,
-              strokeWidth: REFERENCE_COMPONENT_LINE_STROKE_WIDTH_PX,
+              stroke: EDGE_OVERLAY_DEFAULTS.style.verticalColor,
+              strokeWidth: EDGE_OVERLAY_DEFAULTS.style.lineStrokeWidthPx,
               dashed: true,
-              hitTargetStrokeWidth: 10,
+              hitTargetStrokeWidth:
+                EDGE_OVERLAY_DEFAULTS.style.lineHitTargetStrokeWidthPx,
               ...edgeLabelOverlays.vertical,
               onLineClick: onVerticalLineClick,
             })
@@ -529,10 +545,11 @@ export const useEdgeComponentOverlayVisualizer = (
               },
               getLabelOutsideReferencePoint:
                 getHorizontalLabelOutsideReferencePoint,
-              stroke: REFERENCE_COMPONENT_HORIZONTAL_COLOR,
-              strokeWidth: REFERENCE_COMPONENT_LINE_STROKE_WIDTH_PX,
+              stroke: EDGE_OVERLAY_DEFAULTS.style.horizontalColor,
+              strokeWidth: EDGE_OVERLAY_DEFAULTS.style.lineStrokeWidthPx,
               dashed: true,
-              hitTargetStrokeWidth: 10,
+              hitTargetStrokeWidth:
+                EDGE_OVERLAY_DEFAULTS.style.lineHitTargetStrokeWidthPx,
               ...edgeLabelOverlays.horizontal,
               onLineClick: onHorizontalLineClick,
             })
@@ -564,7 +581,8 @@ export const useEdgeComponentOverlayVisualizer = (
           stroke: edge.stroke,
           strokeWidth: edge.strokeWidth,
           dashed: edge.dashed ?? false,
-          hitTargetStrokeWidth: 10,
+          hitTargetStrokeWidth:
+            EDGE_OVERLAY_DEFAULTS.style.lineHitTargetStrokeWidthPx,
         })
       );
     });
@@ -591,8 +609,8 @@ export const useEdgeComponentOverlayVisualizer = (
   const rightAngleCornerContent = useMemo(
     () =>
       createElement(RightAngleCornerOverlay, {
-        strokeColor: REFERENCE_COMPONENT_ARC_COLOR,
-        strokeWidthPx: REFERENCE_COMPONENT_LINE_STROKE_WIDTH_PX,
+        strokeColor: EDGE_OVERLAY_DEFAULTS.style.arcColor,
+        strokeWidthPx: EDGE_OVERLAY_DEFAULTS.style.lineStrokeWidthPx,
         dotRadiusPx: CORNER_OVERLAY_DOT_RADIUS_PX,
       }),
     []
@@ -619,7 +637,7 @@ export const useEdgeComponentOverlayVisualizer = (
         hasVisibleDistanceRelationComponentLines(relation)
       )
       .forEach(({ relation, anchorPoint, targetPoint, auxiliaryPoint }) => {
-        const overlayId = `${CORNER_OVERLAY_ID_PREFIX}-${relation.id}`;
+        const overlayId = `${EDGE_OVERLAY_DEFAULTS.ids.cornerOverlayPrefix}-${relation.id}`;
 
         addLabelOverlayElement({
           id: overlayId,
@@ -697,7 +715,8 @@ export const useEdgeComponentOverlayVisualizer = (
               );
             }
 
-            const arcRadiusPx = CORNER_OVERLAY_TARGET_RADIUS_PX;
+            const arcRadiusPx =
+              EDGE_OVERLAY_DEFAULTS.cornerOverlay.targetRadiusPx;
             const arcRadiusMeters = arcRadiusPx * metersPerPixel;
 
             const arcPointsWorld = getArcPointsInSpannedPlane(
@@ -705,7 +724,7 @@ export const useEdgeComponentOverlayVisualizer = (
               anchorPoint.geometryECEF,
               targetPoint.geometryECEF,
               arcRadiusMeters,
-              CORNER_OVERLAY_SEGMENTS
+              EDGE_OVERLAY_DEFAULTS.cornerOverlay.segments
             );
             if (!arcPointsWorld || arcPointsWorld.length < 2) {
               return false;
@@ -739,18 +758,24 @@ export const useEdgeComponentOverlayVisualizer = (
             const minY = Math.min(...arcPointsScreen.map((point) => point.y));
             const maxY = Math.max(...arcPointsScreen.map((point) => point.y));
             const width = Math.max(
-              CORNER_OVERLAY_MIN_BOX_PX,
-              maxX - minX + CORNER_OVERLAY_PADDING_PX * 2
+              EDGE_OVERLAY_DEFAULTS.cornerOverlay.minBoxPx,
+              maxX - minX + EDGE_OVERLAY_DEFAULTS.cornerOverlay.paddingPx * 2
             );
             const height = Math.max(
-              CORNER_OVERLAY_MIN_BOX_PX,
-              maxY - minY + CORNER_OVERLAY_PADDING_PX * 2
+              EDGE_OVERLAY_DEFAULTS.cornerOverlay.minBoxPx,
+              maxY - minY + EDGE_OVERLAY_DEFAULTS.cornerOverlay.paddingPx * 2
             );
 
             const pathData = arcPointsScreen
               .map((point, index) => {
-                const x = point.x - minX + CORNER_OVERLAY_PADDING_PX;
-                const y = point.y - minY + CORNER_OVERLAY_PADDING_PX;
+                const x =
+                  point.x -
+                  minX +
+                  EDGE_OVERLAY_DEFAULTS.cornerOverlay.paddingPx;
+                const y =
+                  point.y -
+                  minY +
+                  EDGE_OVERLAY_DEFAULTS.cornerOverlay.paddingPx;
                 return `${index === 0 ? "M" : "L"} ${x} ${y}`;
               })
               .join(" ");
@@ -767,7 +792,7 @@ export const useEdgeComponentOverlayVisualizer = (
               minY,
               width,
               height,
-              paddingPx: CORNER_OVERLAY_PADDING_PX,
+              paddingPx: EDGE_OVERLAY_DEFAULTS.cornerOverlay.paddingPx,
               clickable: isCornerClickable,
             });
 
@@ -799,9 +824,9 @@ export const useEdgeComponentOverlayVisualizer = (
   const midpointMarkerContent = useMemo(
     () =>
       createElement(MidpointMarkerOverlay, {
-        tickLengthPx: MIDPOINT_MARKER_TICK_LENGTH_PX,
-        tickWidthPx: MIDPOINT_MARKER_TICK_WIDTH_PX,
-        tickColor: "rgba(255, 255, 255, 0.95)",
+        tickLengthPx: EDGE_OVERLAY_DEFAULTS.midpointMarker.tickLengthPx,
+        tickWidthPx: EDGE_OVERLAY_DEFAULTS.midpointMarker.tickWidthPx,
+        tickColor: EDGE_OVERLAY_DEFAULTS.style.midpointTickColor,
       }),
     []
   );
@@ -831,7 +856,7 @@ export const useEdgeComponentOverlayVisualizer = (
         return midpointTickRelationIdSet.has(relation.id);
       })
       .forEach(({ relation, pointA, pointB }) => {
-        const overlayId = `${MIDPOINT_OVERLAY_ID_PREFIX}-${relation.id}`;
+        const overlayId = `${EDGE_OVERLAY_DEFAULTS.ids.midpointOverlayPrefix}-${relation.id}`;
         addLabelOverlayElement({
           id: overlayId,
           zIndex: 11,
@@ -868,7 +893,7 @@ export const useEdgeComponentOverlayVisualizer = (
               elementDiv,
               center: { x: center.x, y: center.y } as CssPixelPosition,
               angleDeg,
-              hitTargetPx: MIDPOINT_MARKER_HIT_TARGET_PX,
+              hitTargetPx: EDGE_OVERLAY_DEFAULTS.midpointMarker.hitTargetPx,
               clickable: Boolean(onDistanceRelationMidpointClick),
             });
             return true;

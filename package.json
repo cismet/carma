@@ -162,6 +162,7 @@
     "@vitejs/plugin-react": "^4.3.4",
     "@vitest/coverage-v8": "1.6.0",
     "@vitest/ui": "1.6.0",
+    "d3": "^7.9.0",
     "esbuild": "^0.19.2",
     "eslint": "8.57.0",
     "eslint-import-resolver-typescript": "^3.7.0",

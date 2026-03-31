@@ -15,21 +15,21 @@ import type { RuntimeScene } from "../types/runtimeScene.types";
 
 const NODE_GIZMO_RADIUS_METERS = 3;
 
-type UsePointEditingGizmoArgs = {
-  scene: RuntimeScene | null;
-  nodes: readonly RuntimeNode[];
+type UsePointEditingGizmoOptions = {
   annotationsStore: AnnotationsStore;
   setSelectedAnnotationId: (annotationId: string | null) => void;
   onActiveMoveGizmoNodeIdChange?: (nodeId: string | null) => void;
 };
 
-export const usePointEditingGizmo = ({
-  scene,
-  nodes,
-  annotationsStore,
-  setSelectedAnnotationId,
-  onActiveMoveGizmoNodeIdChange,
-}: UsePointEditingGizmoArgs) => {
+export const usePointEditingGizmo = (
+  scene: RuntimeScene | null,
+  nodes: readonly RuntimeNode[],
+  {
+    annotationsStore,
+    setSelectedAnnotationId,
+    onActiveMoveGizmoNodeIdChange,
+  }: UsePointEditingGizmoOptions
+) => {
   const [activeMoveGizmoNodeId, setActiveMoveGizmoNodeId] = useState<
     string | null
   >(null);

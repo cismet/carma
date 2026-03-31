@@ -20,6 +20,58 @@ export const pickGlobePositionAtScreenPosition = (
   return scene.globe.pick(pickRay, scene) ?? null;
 };
 
+export const pickBestAvailablePositionAtScreenPosition = (
+  scene: Scene,
+  screenPosition: Cartesian2
+): Cartesian3 | null => {
+  if (
+    scene.pickPositionSupported !== false &&
+    typeof scene.pickPosition === "function"
+  ) {
+    const picked = scene.pickPosition(screenPosition);
+    if (picked) {
+      return picked;
+    }
+  }
+
+  if (
+    typeof scene.camera?.getPickRay === "function" &&
+    typeof scene.globe?.pick === "function"
+  ) {
+    const pickRay = scene.camera.getPickRay(screenPosition);
+    if (pickRay) {
+      return scene.globe.pick(pickRay, scene) ?? null;
+    }
+  }
+
+  return null;
+};
+
+export const pickBestAvailablePositionAtViewportCenter = (
+  scene: Scene
+): Cartesian3 | null => {
+  const viewportWidth = scene.canvas?.clientWidth;
+  const viewportHeight = scene.canvas?.clientHeight;
+  if (
+    typeof viewportWidth !== "number" ||
+    !Number.isFinite(viewportWidth) ||
+    viewportWidth <= 0 ||
+    typeof viewportHeight !== "number" ||
+    !Number.isFinite(viewportHeight) ||
+    viewportHeight <= 0
+  ) {
+    return null;
+  }
+
+  const centerX = viewportWidth * 0.5;
+  const centerY = viewportHeight * 0.5;
+
+  return pickBestAvailablePositionAtScreenPosition(
+    scene,
+    new Cartesian2(centerX, centerY)
+  );
+};
+
 export const sampleSurfaceNormalAtScreenPosition = (
   scene: Scene,
   screenPosition: Cartesian2,

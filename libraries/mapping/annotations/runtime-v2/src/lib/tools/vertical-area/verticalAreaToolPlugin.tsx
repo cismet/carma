@@ -28,12 +28,14 @@ import { createVerticalAreaToolSettings } from "./verticalAreaToolSettings";
 const toolType = ANNOTATION_TYPE_AREA_VERTICAL;
 const badgeStyle = DEFAULT_ANNOTATION_SHORT_LABEL_CONFIG[toolType];
 const verticalAreaToolSettings = createVerticalAreaToolSettings(badgeStyle);
-const getVerticalAreaToolInfoBoxSlots = createVerticalAreaToolInfoBoxSlots({
+const getVerticalAreaToolInfoBoxSlots = createVerticalAreaToolInfoBoxSlots(
   toolType,
-  headingTitle: "Vertikale Fläche",
-  formatMeasurementLabelToken: (counter) =>
-    formatMeasurementShortLabelToken(toolType, counter),
-});
+  {
+    headingTitle: "Vertikale Fläche",
+    formatMeasurementLabelToken: (counter) =>
+      formatMeasurementShortLabelToken(toolType, counter),
+  }
+);
 
 export const verticalAreaToolPlugin = createMeasurementToolPlugin({
   id: toolType satisfies AnnotationToolType,
@@ -61,11 +63,13 @@ export const verticalAreaToolPlugin = createMeasurementToolPlugin({
         setActiveToolType(toolType);
       },
       requestFinish: () => {
-        const nextMeasurement = commitVerticalAreaMeasurement({
+        const nextMeasurement = commitVerticalAreaMeasurement(
           toolType,
-          coordinates: getState().draftState.verticalAreaPreviewCoordinates,
-          addAnnotation,
-        });
+          getState().draftState.verticalAreaPreviewCoordinates,
+          {
+            addAnnotation,
+          }
+        );
 
         dispatch(clearVerticalAreaPreviewCoordinates());
         return Boolean(nextMeasurement);
@@ -88,9 +92,7 @@ export const verticalAreaToolPlugin = createMeasurementToolPlugin({
           return;
         }
 
-        commitVerticalAreaMeasurement({
-          toolType,
-          coordinates: nextCoordinates,
+        commitVerticalAreaMeasurement(toolType, nextCoordinates, {
           addAnnotation,
         });
         dispatch(clearVerticalAreaPreviewCoordinates());
@@ -148,19 +150,21 @@ export const verticalAreaToolPlugin = createMeasurementToolPlugin({
       setSelectedAnnotationId,
       onNodeLongPress,
     }) => {
-      const { points, edges, pointLabels } = buildVerticalAreaToolRenderModels({
+      const { points, edges, pointLabels } = buildVerticalAreaToolRenderModels(
         toolType,
-        visuals: verticalAreaToolSettings.visuals,
-        badgeStyle,
-        getMeasurementLabel: (counter) =>
-          formatMeasurementShortLabelToken(toolType, counter),
         nodes,
-        measurements: annotationEntries,
-        previewCoordinates: state.draftState.verticalAreaPreviewCoordinates,
-        selectedMeasurementId: selectedAnnotationId,
-        onMeasurementSelect: setSelectedAnnotationId,
-        onNodeLongPress,
-      });
+        annotationEntries,
+        {
+          visuals: verticalAreaToolSettings.visuals,
+          badgeStyle,
+          getMeasurementLabel: (counter) =>
+            formatMeasurementShortLabelToken(toolType, counter),
+          previewCoordinates: state.draftState.verticalAreaPreviewCoordinates,
+          selectedMeasurementId: selectedAnnotationId,
+          onMeasurementSelect: setSelectedAnnotationId,
+          onNodeLongPress,
+        }
+      );
 
       return {
         points,

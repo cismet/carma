@@ -1,17 +1,20 @@
+import { formatLatLonDegrees } from "@carma/units/helpers";
+import type { Degrees } from "@carma/units/types";
 import type { RuntimeAnnotationInfoBoxContext } from "../../components/annotation-info-box/annotationInfoBox.types";
 import { resolveMeasurementCoordinates } from "../../render/resolveMeasurementCoordinates";
 
-export const createPointToolInfoBoxSlots = ({
-  toolType,
-  headingTitle,
-  formatMeasurementLabelToken,
-  formatCoordinateValue,
-}: {
-  toolType: RuntimeAnnotationInfoBoxContext["annotation"]["toolType"];
-  headingTitle: string;
-  formatMeasurementLabelToken: (counter: number) => string;
-  formatCoordinateValue: (value: number) => string;
-}) => {
+export const createPointToolInfoBoxSlots = (
+  toolType: RuntimeAnnotationInfoBoxContext["annotation"]["toolType"],
+  {
+    headingTitle,
+    formatMeasurementLabelToken,
+    formatCoordinateValue,
+  }: {
+    headingTitle: string;
+    formatMeasurementLabelToken: (counter: number) => string;
+    formatCoordinateValue: (value: number) => string;
+  }
+) => {
   return ({
     annotation,
     annotationEntries,
@@ -39,6 +42,14 @@ export const createPointToolInfoBoxSlots = ({
     }
 
     const shortLabelToken = formatMeasurementLabelToken(pointOrder);
+    const [latitude, longitude] = formatLatLonDegrees(
+      coordinate.latitude as Degrees,
+      coordinate.longitude as Degrees,
+      {
+        fractionDigits: 6,
+        locale: "de-DE",
+      }
+    );
 
     return {
       headingTitle,
@@ -49,9 +60,7 @@ export const createPointToolInfoBoxSlots = ({
       ),
       content: (
         <div className="text-[12px] leading-normal text-[#212529]">
-          <div>{`${formatCoordinateValue(
-            coordinate.latitude
-          )}° N ${formatCoordinateValue(coordinate.longitude)}° O`}</div>
+          <div>{`${latitude} ${longitude}`}</div>
           <div>{`NHN ${formatCoordinateValue(coordinate.altitude)} m`}</div>
         </div>
       ),

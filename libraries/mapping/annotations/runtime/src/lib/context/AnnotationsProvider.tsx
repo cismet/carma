@@ -623,6 +623,7 @@ export const AnnotationsProvider: React.FC<AnnotationsProviderProps> = ({
     contextValue: toolsContextValue,
     confirmLabelPlacementById,
     handlePointQueryPointCreated,
+    requestCancelActiveMeasurementAndEnterSelection,
     requestFinishMeasurement,
     requestStartMeasurement,
   } = useToolLifecycle({
@@ -684,6 +685,7 @@ export const AnnotationsProvider: React.FC<AnnotationsProviderProps> = ({
     toggleAnnotationsVisibilityByIds,
     confirmLabelPlacementById,
     focusAnnotationById,
+    selectedAnnotationId: annotationSelectionState.selectedAnnotationId,
   });
 
   const annotationUserInteraction = useUserInteraction(
@@ -746,7 +748,10 @@ export const AnnotationsProvider: React.FC<AnnotationsProviderProps> = ({
     pointTemporaryMode: pointTemporaryMode,
     activeToolType: activeToolType,
     requestStartMeasurement: requestStartMeasurement,
+    requestCancelActiveMeasurementAndEnterSelection,
     requestFinishMeasurement,
+    focusAdjacentNavigationItem:
+      annotationCollectionDomain.focusAdjacentNavigationItem,
     isInteractionActive: isInteractionActive,
     distanceRelations: annotationEntryState.distanceRelations,
     nodeChainAnnotations: annotationEntryState.nodeChainAnnotations,

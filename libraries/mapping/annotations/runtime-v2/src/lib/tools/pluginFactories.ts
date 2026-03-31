@@ -2,6 +2,10 @@ import type {
   AnnotationToolPlugin,
   AnnotationToolPluginCapability,
 } from "./annotationToolPlugin.types";
+import {
+  ANNOTATION_TOOL_PLUGIN_CAPABILITIES,
+  ANNOTATION_TOOL_PLUGIN_KINDS,
+} from "./annotationToolPlugin.types";
 import { createAnnotationToolPlugin } from "./createAnnotationToolPlugin";
 
 type InteractionToolPluginInput = Omit<AnnotationToolPlugin, "kind"> & {
@@ -13,33 +17,33 @@ type MeasurementToolPluginInput = Omit<AnnotationToolPlugin, "kind"> & {
 };
 
 const CAPABILITY_ORDER: readonly AnnotationToolPluginCapability[] = [
-  "session",
-  "settings",
-  "pointQuery",
-  "preview",
-  "previewPrimitives",
-  "toolbarOptions",
-  "infoBox",
+  ANNOTATION_TOOL_PLUGIN_CAPABILITIES.SESSION,
+  ANNOTATION_TOOL_PLUGIN_CAPABILITIES.SETTINGS,
+  ANNOTATION_TOOL_PLUGIN_CAPABILITIES.POINT_QUERY,
+  ANNOTATION_TOOL_PLUGIN_CAPABILITIES.PREVIEW,
+  ANNOTATION_TOOL_PLUGIN_CAPABILITIES.PREVIEW_PRIMITIVES,
+  ANNOTATION_TOOL_PLUGIN_CAPABILITIES.TOOLBAR_OPTIONS,
+  ANNOTATION_TOOL_PLUGIN_CAPABILITIES.INFO_BOX,
 ];
 
 export const INTERACTION_PLUGIN_CAPABILITIES = [
-  "session",
+  ANNOTATION_TOOL_PLUGIN_CAPABILITIES.SESSION,
 ] as const satisfies readonly AnnotationToolPluginCapability[];
 
 export const POINT_MEASUREMENT_PLUGIN_CAPABILITIES = [
-  "session",
-  "settings",
-  "pointQuery",
-  "infoBox",
+  ANNOTATION_TOOL_PLUGIN_CAPABILITIES.SESSION,
+  ANNOTATION_TOOL_PLUGIN_CAPABILITIES.SETTINGS,
+  ANNOTATION_TOOL_PLUGIN_CAPABILITIES.POINT_QUERY,
+  ANNOTATION_TOOL_PLUGIN_CAPABILITIES.INFO_BOX,
 ] as const satisfies readonly AnnotationToolPluginCapability[];
 
 export const NODE_CHAIN_MEASUREMENT_PLUGIN_CAPABILITIES = [
-  "session",
-  "settings",
-  "pointQuery",
-  "preview",
-  "previewPrimitives",
-  "toolbarOptions",
+  ANNOTATION_TOOL_PLUGIN_CAPABILITIES.SESSION,
+  ANNOTATION_TOOL_PLUGIN_CAPABILITIES.SETTINGS,
+  ANNOTATION_TOOL_PLUGIN_CAPABILITIES.POINT_QUERY,
+  ANNOTATION_TOOL_PLUGIN_CAPABILITIES.PREVIEW,
+  ANNOTATION_TOOL_PLUGIN_CAPABILITIES.PREVIEW_PRIMITIVES,
+  ANNOTATION_TOOL_PLUGIN_CAPABILITIES.TOOLBAR_OPTIONS,
 ] as const satisfies readonly AnnotationToolPluginCapability[];
 
 const normalizeCapabilities = (
@@ -62,7 +66,7 @@ export const createInteractionToolPlugin = (
 ) =>
   createAnnotationToolPlugin({
     ...plugin,
-    kind: "interaction",
+    kind: ANNOTATION_TOOL_PLUGIN_KINDS.INTERACTION,
     capabilities: normalizeCapabilities(
       plugin.capabilities ?? INTERACTION_PLUGIN_CAPABILITIES
     ),
@@ -73,7 +77,7 @@ export const createMeasurementToolPlugin = (
 ) =>
   createAnnotationToolPlugin({
     ...plugin,
-    kind: "measurement",
+    kind: ANNOTATION_TOOL_PLUGIN_KINDS.MEASUREMENT,
     capabilities: normalizeCapabilities(
       plugin.capabilities ?? POINT_MEASUREMENT_PLUGIN_CAPABILITIES
     ),
