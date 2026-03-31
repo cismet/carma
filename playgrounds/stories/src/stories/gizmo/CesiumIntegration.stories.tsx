@@ -576,7 +576,7 @@ const GizmoSandbox = (props: GizmoSandboxProps) => {
 };
 
 const meta: Meta<GizmoSandboxProps> = {
-  title: "Mapping/Gizmo",
+  title: "Mapping Components/Gizmo",
   component: GizmoSandbox,
   parameters: {
     layout: "fullscreen",

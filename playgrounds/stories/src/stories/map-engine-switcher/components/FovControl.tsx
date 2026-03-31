@@ -30,7 +30,7 @@ const calculatePixelResolutions = (
 ) => {
   const { width, height } = bufferSize;
 
-  // Calculate aspect ratio and vertical FOV
+  // Calculate aspect ratio and FOV
   const aspectRatio = width / height;
   const fovRadians = (fovDegrees * Math.PI) / 180;
   const fovy =

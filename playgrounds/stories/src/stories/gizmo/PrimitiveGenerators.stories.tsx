@@ -702,7 +702,7 @@ const StressPreview = ({
 };
 
 const meta = {
-  title: "Mapping/Cesium",
+  title: "Mapping Components/Cesium",
   parameters: {
     layout: "fullscreen",
   },

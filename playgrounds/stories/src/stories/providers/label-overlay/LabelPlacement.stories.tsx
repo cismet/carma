@@ -9,7 +9,7 @@ import {
 import { POLYGON_SEGMENT_LABEL_SIDE } from "@carma-commons/svg";
 
 const meta = {
-  title: "Common/Svg",
+  title: "Overlay/Labels",
   parameters: {
     layout: "fullscreen",
     controls: {

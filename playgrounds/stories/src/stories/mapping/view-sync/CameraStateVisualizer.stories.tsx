@@ -692,7 +692,7 @@ const CameraStateVisualizerMultiCameraStory = (
 };
 
 const meta: Meta<CameraStateVisualizerStoryProps> = {
-  title: "Mapping/Camera State Visualizer",
+  title: "Mapping Components/Camera State Visualizer",
   parameters: {
     layout: "fullscreen",
     controls: {

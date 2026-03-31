@@ -579,7 +579,7 @@ const CoreCssStory = ({
 };
 
 const meta: Meta<CoreCssStoryProps> = {
-  title: "Mapping/Gizmo",
+  title: "Mapping Components/Gizmo",
   component: CoreCssStory,
   parameters: {
     layout: "fullscreen",

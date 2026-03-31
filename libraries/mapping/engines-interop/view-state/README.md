@@ -26,3 +26,8 @@ Scope note:
 - Projection helper math was moved into `@carma-commons/camera/model`; no local `src/lib/model/*` folder remains.
 - Pure read/apply adapters now live at `src/lib/adapters/*`.
 - `src/lib/runtime/*` is reduced to runtime wiring only: provider ownership plus engine-facing runtime hooks. Repo-wide preferred future naming for direct engine bindings is `runtime/integrations/*`, but the current folder stays `runtime/bridges/*` until touched again.
+
+Sibling package note:
+
+- Runtime-bound shared navigation controls now have a dedicated extraction target in [`../navigation-controls/README.md`](../navigation-controls/README.md).
+- Keep `view-state` focused on `ViewState`, shareable/hash adapters, providers, history, and runtime bridges rather than generic visual control ownership.

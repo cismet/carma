@@ -1,4 +1,8 @@
 import { CSSProperties, forwardRef, ReactNode } from "react";
+import {
+  readControlButtonContentStyle,
+  readControlButtonStyle,
+} from "./control-button-styles";
 
 interface ControlButtonStylerProps
   extends React.ButtonHTMLAttributes<HTMLButtonElement> {
@@ -27,23 +31,14 @@ const ControlButtonStyler = forwardRef<Ref, ControlButtonStylerProps>(
     },
     ref
   ) => {
-    const iconPadding = {
-      backgroundColor: "#fff",
-      border: "2px solid rgba(0, 0, 0, .3)",
-      borderRadius: "4px",
+    const iconPadding = readControlButtonStyle({
       width,
       height,
-      textAlign: "center",
-      cursor: disabled ? "not-allowed" : "pointer",
-      display: "flex",
-      flexDirection: "column",
-      alignItems: "center",
-      justifyContent: "space-evenly",
       fontSize,
-      filter:
-        disabled && useDisabledStyle ? "grayscale(100%) brightness(120%)" : "",
-      // fontWeight: 700,
-    } as CSSProperties;
+      disabled,
+      useDisabledStyle,
+    }) as CSSProperties;
+
     return (
       <button
         data-test-id={dataTestId}
@@ -53,12 +48,7 @@ const ControlButtonStyler = forwardRef<Ref, ControlButtonStylerProps>(
         ref={ref}
       >
         <div
-          style={{
-            opacity: disabled ? 0.5 : 1,
-            height: "auto",
-            display: "flex",
-            alignItems: "center",
-          }}
+          style={readControlButtonContentStyle({ disabled }) as CSSProperties}
         >
           {children}
         </div>

@@ -6,6 +6,14 @@ import {
   type PillbuttonMountSide,
 } from "./PointLabelMarker";
 
+export const PILLBUTTON_BADGE_POSITIONS = {
+  LEFT: "left",
+  RIGHT: "right",
+} as const;
+
+export type PillbuttonBadgePosition =
+  (typeof PILLBUTTON_BADGE_POSITIONS)[keyof typeof PILLBUTTON_BADGE_POSITIONS];
+
 const COMPACT_DIAMETER_EM = 1.9;
 const COMPACT_HORIZONTAL_PADDING_PX = 6;
 const COMPACT_WIDTH_SHRINK_PX = 2;
@@ -13,9 +21,9 @@ const COMPACT_WIDTH_EXTRA_PADDING_PX = 6;
 const COMPACT_PILL_TEXT_LENGTH_THRESHOLD = 2;
 const EXTENDED_VERTICAL_PADDING_PX = 0;
 const EXTENDED_HORIZONTAL_PADDING_PX = 8;
-const COMPACT_EXTENDED_GAP_PX = 4;
-const EXTENDED_LEFT_EXTRA_PADDING_PX = 2;
-const EXTENDED_RIGHT_EXTRA_PADDING_PX = 2;
+const COMPACT_EXTENDED_GAP_PX = 0;
+const EXTENDED_LEFT_EXTRA_PADDING_PX = 0;
+const EXTENDED_RIGHT_EXTRA_PADDING_PX = 0;
 const GROW_SHRINK_WIDTH_TRANSITION_MS = 200;
 const SHRINK_WIDTH_TRANSITION_DELAY_MS = 3000;
 const SNAPPY_WIDTH_TRANSITION_MS = 115;
@@ -46,7 +54,20 @@ const estimateCompactAnchorOffsetPx = (fontSize: string): number => {
   return parsed * (COMPACT_DIAMETER_EM / 2);
 };
 
-interface PillbuttonLabelMarkerProps {
+const resolvePillbuttonBadgePosition = (
+  mountSide: PillbuttonMountSide,
+  badgePosition?: PillbuttonBadgePosition
+): PillbuttonBadgePosition => {
+  if (badgePosition !== undefined) {
+    return badgePosition;
+  }
+
+  return mountSide === "right"
+    ? PILLBUTTON_BADGE_POSITIONS.RIGHT
+    : PILLBUTTON_BADGE_POSITIONS.LEFT;
+};
+
+export interface PillbuttonLabelMarkerProps {
   pointId?: string;
   labelAttach: PointLabelAttach;
   labelOffsetX: number;
@@ -65,6 +86,7 @@ interface PillbuttonLabelMarkerProps {
   markerContent?: React.ReactNode;
   markerBackgroundColor?: string;
   markerTextColor?: string;
+  badgePosition?: PillbuttonBadgePosition;
   compactBorderless?: boolean;
   anchorAtSemicircleCenter?: boolean;
   fullBorder?: boolean;
@@ -98,6 +120,7 @@ export const PillbuttonLabelMarker = ({
   markerContent,
   markerBackgroundColor,
   markerTextColor,
+  badgePosition,
   compactBorderless = false,
   anchorAtSemicircleCenter: anchorAtSemicircleCenterOverride,
   fullBorder = false,
@@ -112,6 +135,10 @@ export const PillbuttonLabelMarker = ({
   onMouseLeave,
 }: PillbuttonLabelMarkerProps) => {
   const mountSide = resolvePillbuttonMountSide(labelAttach);
+  const resolvedBadgePosition = resolvePillbuttonBadgePosition(
+    mountSide,
+    badgePosition
+  );
   const hasCompact =
     markerContent !== undefined &&
     markerContent !== null &&
@@ -129,37 +156,19 @@ export const PillbuttonLabelMarker = ({
     anchorAtSemicircleCenterOverride ?? (hasCompact || fullBorder);
   const extendedPaddingBySide =
     hasCompact && showExtended
-      ? mountSide === "right"
+      ? resolvedBadgePosition === PILLBUTTON_BADGE_POSITIONS.RIGHT
         ? {
-            paddingRight: `calc(${EXTENDED_HORIZONTAL_PADDING_PX}px + ${
-              COMPACT_DIAMETER_EM / 2
-            }em + ${COMPACT_EXTENDED_GAP_PX}px + ${EXTENDED_RIGHT_EXTRA_PADDING_PX}px)`,
+            paddingRight: `calc(${EXTENDED_HORIZONTAL_PADDING_PX}px + ${COMPACT_DIAMETER_EM}em + ${COMPACT_EXTENDED_GAP_PX}px + ${EXTENDED_RIGHT_EXTRA_PADDING_PX}px)`,
             paddingLeft: `${
               EXTENDED_HORIZONTAL_PADDING_PX + EXTENDED_LEFT_EXTRA_PADDING_PX
             }px`,
           }
-        : mountSide === "left"
-        ? {
-            paddingLeft: `calc(${EXTENDED_HORIZONTAL_PADDING_PX}px + ${
-              COMPACT_DIAMETER_EM / 2
-            }em + ${COMPACT_EXTENDED_GAP_PX}px + ${EXTENDED_LEFT_EXTRA_PADDING_PX}px)`,
-          }
         : {
-            paddingLeft: `calc(${EXTENDED_HORIZONTAL_PADDING_PX}px + ${
-              COMPACT_DIAMETER_EM / 2
-            }em + ${COMPACT_EXTENDED_GAP_PX}px + ${EXTENDED_LEFT_EXTRA_PADDING_PX}px)`,
+            paddingLeft: `calc(${EXTENDED_HORIZONTAL_PADDING_PX}px + ${COMPACT_DIAMETER_EM}em + ${COMPACT_EXTENDED_GAP_PX}px + ${EXTENDED_LEFT_EXTRA_PADDING_PX}px)`,
             paddingRight: `${
               EXTENDED_HORIZONTAL_PADDING_PX + EXTENDED_RIGHT_EXTRA_PADDING_PX
             }px`,
           }
-      : null;
-  const extendedOffsetBySide =
-    hasCompact && showExtended
-      ? mountSide === "right"
-        ? { marginRight: `-${COMPACT_DIAMETER_EM / 2}em` }
-        : mountSide === "left"
-        ? { marginLeft: `-${COMPACT_DIAMETER_EM / 2}em` }
-        : null
       : null;
   const compactRef = useRef<HTMLSpanElement | null>(null);
   const [compactWidthPx, setCompactWidthPx] = useState<number | null>(null);
@@ -258,30 +267,24 @@ export const PillbuttonLabelMarker = ({
     setNullableNumberStateIfChanged(setAnimatedExtendedWidthPx, nextWidthPx);
   }, [resizeMode, showExtended, content, fontFamily, fontSize, fontWeight]);
 
-  const getCompactStylesByMountSide = (
-    side: PillbuttonMountSide
+  const getCompactStylesByBadgePosition = (
+    side: PillbuttonBadgePosition
   ): React.CSSProperties => {
-    if (side === "right") {
+    if (side === PILLBUTTON_BADGE_POSITIONS.RIGHT) {
       return {
         right: 0,
-        transform: "translate(50%, -50%)",
-      };
-    }
-    if (side === "left") {
-      return {
-        left: 0,
-        transform: "translate(-50%, -50%)",
+        transform: "translate(0, -50%)",
       };
     }
     return {
       left: 0,
-      transform: "translate(-50%, -50%)",
+      transform: "translate(0, -50%)",
     };
   };
 
   const anchorTransform = useMemo(() => {
     if (mountSide === "right") {
-      if (!anchorAtSemicircleCenter || hasCompact) {
+      if (!anchorAtSemicircleCenter) {
         return "translate(-100%, -50%)";
       }
       return `translate(calc(-100% + ${compactAnchorOffsetPx}px), -50%)`;
@@ -289,16 +292,17 @@ export const PillbuttonLabelMarker = ({
     if (mountSide === "center") {
       return "translate(-50%, -50%)";
     }
-    if (!anchorAtSemicircleCenter || hasCompact) {
+    if (!anchorAtSemicircleCenter) {
       return "translate(0%, -50%)";
     }
     return `translate(${-compactAnchorOffsetPx}px, -50%)`;
-  }, [anchorAtSemicircleCenter, compactAnchorOffsetPx, hasCompact, mountSide]);
+  }, [anchorAtSemicircleCenter, compactAnchorOffsetPx, mountSide]);
 
   return (
     <div
       data-point-label-interactive="true"
       data-point-label-id={pointId}
+      data-pillbutton-root="true"
       style={{
         ...baseStyles,
         padding: 0,
@@ -315,6 +319,7 @@ export const PillbuttonLabelMarker = ({
         pointerEvents,
         cursor,
         transition,
+        overflow: "visible",
       }}
       onClick={onClick}
       onDoubleClick={onDoubleClick}
@@ -326,9 +331,10 @@ export const PillbuttonLabelMarker = ({
       {hasCompact ? (
         <span
           ref={compactRef}
+          data-pillbutton-badge="true"
           style={{
             position: "absolute",
-            ...getCompactStylesByMountSide(mountSide),
+            ...getCompactStylesByBadgePosition(resolvedBadgePosition),
             top: "50%",
             width:
               compactWidthPx != null
@@ -361,6 +367,7 @@ export const PillbuttonLabelMarker = ({
       {showExtended ? (
         <span
           ref={extendedRef}
+          data-pillbutton-content="true"
           style={{
             borderRadius: "999px",
             padding: `${EXTENDED_VERTICAL_PADDING_PX}px ${EXTENDED_HORIZONTAL_PADDING_PX}px`,
@@ -368,7 +375,6 @@ export const PillbuttonLabelMarker = ({
               EXTENDED_HORIZONTAL_PADDING_PX + EXTENDED_LEFT_EXTRA_PADDING_PX
             }px`,
             ...(extendedPaddingBySide ?? null),
-            ...(extendedOffsetBySide ?? null),
             backgroundColor,
             color: textColor,
             border: extendedBorderStyle,
@@ -397,6 +403,7 @@ export const PillbuttonLabelMarker = ({
         </span>
       ) : !hasCompact ? (
         <span
+          data-pillbutton-content="true"
           style={{
             borderRadius: "999px",
             padding: `${EXTENDED_VERTICAL_PADDING_PX}px ${EXTENDED_HORIZONTAL_PADDING_PX}px`,

@@ -2,13 +2,20 @@ import { describe, expect, it } from "vitest";
 import type { CameraIntrinsics } from "./camera-view-specification";
 import {
   buildOrthographicScale,
+  interpolateDollyCompensatedFov,
+  interpolateDollyCompensatedRange,
   readHorizontalFovFromVertical,
+  readLongerEdgeFovFromMetersPerCssPixel,
   readLongerEdgeFovFromIntrinsics,
+  readMetersPerCssPixelAfterZoomStep,
   readMetersPerCssPixel,
   readMetersPerCssPixelFromIntrinsics,
   readRangeFromMetersPerCssPixel,
+  readTargetLongerEdgeFovForZoomStepFromIntrinsics,
+  readTargetRangeForZoomStepFromIntrinsics,
   readVerticalFovFromLongerEdge,
   readViewOffsetFromElement,
+  readZoomStepScale,
 } from "./camera-intrinsics-utils";
 
 describe("camera intrinsics utils", () => {
@@ -112,6 +119,25 @@ describe("camera intrinsics utils", () => {
     ).toBeCloseTo(620, 8);
   });
 
+  it("round-trips longer-edge fov through meters-per-css-pixel", () => {
+    const metersPerCssPixel = readMetersPerCssPixel({
+      rangeM: 620,
+      fovRad: Math.PI / 2,
+      viewportWidthPx: 1600,
+      viewportHeightPx: 900,
+    });
+
+    expect(metersPerCssPixel).not.toBeNull();
+    expect(
+      readLongerEdgeFovFromMetersPerCssPixel({
+        metersPerCssPixel: metersPerCssPixel!,
+        rangeM: 620,
+        viewportWidthPx: 1600,
+        viewportHeightPx: 900,
+      })
+    ).toBeCloseTo(Math.PI / 2, 8);
+  });
+
   it("prefers orthographic meters-per-css-pixel over perspective derivation", () => {
     expect(
       readMetersPerCssPixelFromIntrinsics({
@@ -151,5 +177,150 @@ describe("camera intrinsics utils", () => {
         fovRad: Math.PI / 3,
       })
     ).toBeCloseTo((620 * Math.tan(Math.PI / 6)) / 960, 8);
+  });
+
+  it("derives logarithmic zoom-step scales", () => {
+    expect(
+      readZoomStepScale({
+        direction: "out",
+        zoomDelta: 1,
+      })
+    ).toBeCloseTo(2, 8);
+    expect(
+      readZoomStepScale({
+        direction: "in",
+        zoomDelta: 1,
+      })
+    ).toBeCloseTo(0.5, 8);
+    expect(
+      readZoomStepScale({
+        direction: "out",
+        zoomDelta: 0.5,
+      })
+    ).toBeCloseTo(Math.sqrt(2), 8);
+  });
+
+  it("scales meters-per-css-pixel by logarithmic zoom steps", () => {
+    expect(
+      readMetersPerCssPixelAfterZoomStep({
+        metersPerCssPixel: 3.5,
+        direction: "out",
+        zoomDelta: 1,
+      })
+    ).toBeCloseTo(7, 8);
+    expect(
+      readMetersPerCssPixelAfterZoomStep({
+        metersPerCssPixel: 3.5,
+        direction: "in",
+        zoomDelta: 0.5,
+      })
+    ).toBeCloseTo(3.5 / Math.sqrt(2), 8);
+  });
+
+  it("reads the target range for a zoom step from perspective intrinsics", () => {
+    const intrinsics: CameraIntrinsics = {
+      type: "PerspectiveCamera",
+      fov: Math.PI / 3,
+    };
+
+    expect(
+      readTargetRangeForZoomStepFromIntrinsics({
+        intrinsics,
+        currentRangeM: 620,
+        direction: "out",
+        zoomDelta: 1,
+        viewportWidthPx: 1600,
+        viewportHeightPx: 900,
+      })
+    ).toBeCloseTo(1240, 8);
+    expect(
+      readTargetRangeForZoomStepFromIntrinsics({
+        intrinsics,
+        currentRangeM: 620,
+        direction: "in",
+        zoomDelta: 0.5,
+        viewportWidthPx: 1600,
+        viewportHeightPx: 900,
+      })
+    ).toBeCloseTo(620 / Math.sqrt(2), 8);
+  });
+
+  it("reads the target longer-edge fov for a zoom step from perspective intrinsics", () => {
+    const intrinsics: CameraIntrinsics = {
+      type: "PerspectiveCamera",
+      fov: Math.PI / 3,
+    };
+    const currentLongerEdgeFov =
+      2 * Math.atan(Math.tan((Math.PI / 3) * 0.5) * (1600 / 900));
+
+    expect(
+      readTargetLongerEdgeFovForZoomStepFromIntrinsics({
+        intrinsics,
+        currentRangeM: 620,
+        direction: "out",
+        zoomDelta: 1,
+        viewportWidthPx: 1600,
+        viewportHeightPx: 900,
+      })
+    ).toBeCloseTo(
+      2 * Math.atan(Math.tan(currentLongerEdgeFov * 0.5) * 2),
+      8
+    );
+    expect(
+      readTargetLongerEdgeFovForZoomStepFromIntrinsics({
+        intrinsics,
+        currentRangeM: 620,
+        direction: "in",
+        zoomDelta: 1,
+        viewportWidthPx: 1600,
+        viewportHeightPx: 900,
+      })
+    ).toBeCloseTo(
+      2 * Math.atan(Math.tan(currentLongerEdgeFov * 0.5) * 0.5),
+      8
+    );
+  });
+
+  it("keeps meters-per-css-pixel constant across dolly interpolation steps", () => {
+    const viewportWidthPx = 1920;
+    const viewportHeightPx = 1080;
+    const startRangeM = 840;
+    const startFovRad = Math.PI / 2;
+    const targetFovRad = Math.PI / 6;
+    const startMetersPerCssPixel = readMetersPerCssPixel({
+      rangeM: startRangeM,
+      fovRad: startFovRad,
+      viewportWidthPx,
+      viewportHeightPx,
+    });
+
+    expect(startMetersPerCssPixel).not.toBeNull();
+
+    [0, 0.2, 0.5, 0.8, 1].forEach((progress) => {
+      const interpolatedFovRad = interpolateDollyCompensatedFov({
+        startFovRad,
+        targetFovRad,
+        progress,
+      });
+      const interpolatedRangeM = interpolateDollyCompensatedRange({
+        startRangeM,
+        startFovRad,
+        targetFovRad,
+        progress,
+        viewportWidthPx,
+        viewportHeightPx,
+      });
+
+      expect(interpolatedFovRad).not.toBeNull();
+      expect(interpolatedRangeM).not.toBeNull();
+      expect(
+        readMetersPerCssPixel({
+          rangeM: interpolatedRangeM!,
+          fovRad: interpolatedFovRad!,
+          viewportWidthPx,
+          viewportHeightPx,
+        })
+      ).toBeCloseTo(startMetersPerCssPixel!, 8);
+    });
   });
 });

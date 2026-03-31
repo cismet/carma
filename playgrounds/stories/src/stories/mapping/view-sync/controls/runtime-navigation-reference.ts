@@ -1,0 +1,1258 @@
+import {
+  applyCesiumCompassBearingPitch,
+  animateOrbitHeadingPitchRange,
+  beginCesiumCompassDrag,
+  cancelCesiumSceneTravelZoom,
+  Cartesian3,
+  endCesiumCompassDrag,
+  animateCesiumSceneTravelZoom,
+  HeadingPitchRange,
+  MAX_CESIUM_COMPASS_PITCH_DEG,
+  Matrix4,
+  MIN_CESIUM_COMPASS_PITCH_RAD,
+  PerspectiveFrustum,
+  fromCompassPitchDegToCesiumPitchRad,
+  type CesiumCompassDragSession,
+} from "@carma/cesium";
+import {
+  cancelCesiumSceneFovZoom,
+  computeNextCesiumFov,
+  flyCesiumSceneFovZoom,
+  readCachedCesiumCompassOrientationDeg,
+  readCachedCesiumSceneCenter,
+} from "@carma-mapping/engines/cesium/api";
+import { degToRadNumeric, radToDegNumeric } from "@carma/units/helpers";
+import type { Radians } from "@carma/units/types";
+import {
+  createCesiumNavigationMethods,
+  DEFAULT_NAVIGATION_ORBIT_REVOLUTION_DURATION_SEC,
+  DEFAULT_NAVIGATION_HOME_DURATION_MS,
+  NAVIGATION_COMPASS_CURSORS,
+  NAVIGATION_ORBIT_DIRECTIONS,
+  NAVIGATION_ORBIT_TARGETS,
+  NAVIGATION_ZOOM_MODES,
+  type NavigationMethods,
+  type NavigationNeedleOrientationDeg,
+  type NavigationOrbitOptions,
+  type NavigationOrbitTarget,
+  type NavigationTransitionOptions,
+  type NavigationZoomOptions,
+} from "@carma-mapping/engines-interop/navigation-controls";
+import {
+  flyViewStateInCesium,
+  readFromCesium,
+  readCesiumCameraStateFromViewState,
+  type ViewState,
+} from "@carma-mapping/engines-interop/view-state";
+import {
+  bindStoryCesiumFrameListener,
+  bindStoryCesiumCameraChangedListener,
+  readStoryCesiumScene,
+  requestStoryCesiumRender,
+} from "../../../shared/cesiumRuntimeGuards";
+import {
+  CARMA_STORY_MAPPING_ENGINES,
+  type StoryMappingEngine,
+} from "../mappingEngines";
+import {
+  applyViewStateToCesiumWidget,
+  buildLeafletViewFromState,
+  buildMapLibreCameraOptionsFromState,
+  clamp,
+  type SlotRuntimeHandle,
+} from "../viewSyncStoryShared";
+
+const MAX_MAPLIBRE_PITCH_DEG = 85;
+const CESIUM_FALLBACK_ORBIT_SOURCE_ID = "story-navigation/orbit-fallback";
+const MIN_CESIUM_FOV_RAD = degToRadNumeric(5)!;
+const MAX_CESIUM_FOV_RAD = degToRadNumeric(120)!;
+
+const readDurationSeconds = (durationMs?: number): number | undefined => {
+  if (
+    typeof durationMs !== "number" ||
+    !Number.isFinite(durationMs) ||
+    durationMs <= 0
+  ) {
+    return undefined;
+  }
+
+  return durationMs / 1000;
+};
+
+const readHomeDurationMs = (options: NavigationTransitionOptions): number =>
+  typeof options.durationMs === "number" &&
+  Number.isFinite(options.durationMs) &&
+  options.durationMs >= 0
+    ? options.durationMs
+    : DEFAULT_NAVIGATION_HOME_DURATION_MS;
+
+type NeedleOrientationSink = (
+  orientation: NavigationNeedleOrientationDeg
+) => void;
+type OrbitActiveSink = (active: boolean) => void;
+type LeafletMap = Extract<
+  SlotRuntimeHandle,
+  { engine: typeof CARMA_STORY_MAPPING_ENGINES.LEAFLET }
+>["map"];
+type MapLibreMap = Extract<
+  SlotRuntimeHandle,
+  { engine: typeof CARMA_STORY_MAPPING_ENGINES.MAPLIBRE_GL }
+>["map"];
+type MapLibreOrbitFrameState = {
+  lastBearingDeg: number | null;
+  lastFrameTimeMs: number | null;
+};
+
+const DEFAULT_ORBIT_PREP_DURATION_MS = 300;
+const DEFAULT_ORBIT_SPEED_DEG_PER_SECOND =
+  360 / DEFAULT_NAVIGATION_ORBIT_REVOLUTION_DURATION_SEC;
+const DEFAULT_MIN_ORBIT_PITCH_DEG = 30;
+const MAPLIBRE_ORBIT_FRAME_STATE = new WeakMap<
+  MapLibreMap,
+  MapLibreOrbitFrameState
+>();
+
+const readLeafletZoomStep = (
+  map: LeafletMap,
+  requestedZoomDelta?: number
+): number => {
+  const fallbackStep =
+    typeof map.options.zoomDelta === "number" &&
+    Number.isFinite(map.options.zoomDelta) &&
+    map.options.zoomDelta > 0
+      ? map.options.zoomDelta
+      : 1;
+
+  if (
+    typeof requestedZoomDelta !== "number" ||
+    !Number.isFinite(requestedZoomDelta) ||
+    requestedZoomDelta <= 0
+  ) {
+    return fallbackStep;
+  }
+
+  return requestedZoomDelta;
+};
+
+const snapZoomLevel = (
+  zoom: number,
+  zoomSnap: number,
+  direction: "in" | "out"
+): number => {
+  const inverseZoomSnap = 1 / zoomSnap;
+  return (
+    (direction === "in"
+      ? Math.ceil(zoom * inverseZoomSnap - 1e-9)
+      : Math.floor(zoom * inverseZoomSnap + 1e-10)) / inverseZoomSnap
+  );
+};
+
+const readLeafletNextZoomLevel = ({
+  map,
+  direction,
+  zoomDelta,
+}: {
+  map: LeafletMap;
+  direction: "in" | "out";
+  zoomDelta?: number;
+}): number => {
+  const currentZoom = map.getZoom();
+  const requestedStep = readLeafletZoomStep(map, zoomDelta);
+  const unsignedZoomSnap =
+    typeof map.options.zoomSnap === "number" &&
+    Number.isFinite(map.options.zoomSnap)
+      ? Math.abs(map.options.zoomSnap)
+      : 0;
+  const desiredZoom =
+    direction === "in"
+      ? currentZoom + requestedStep
+      : currentZoom - requestedStep;
+
+  if (unsignedZoomSnap <= 0) {
+    return desiredZoom;
+  }
+
+  return snapZoomLevel(desiredZoom, unsignedZoomSnap, direction);
+};
+
+const readMapLibreZoomStep = (
+  map: MapLibreMap,
+  requestedZoomDelta?: number
+): number => {
+  if (
+    typeof requestedZoomDelta === "number" &&
+    Number.isFinite(requestedZoomDelta) &&
+    requestedZoomDelta > 0
+  ) {
+    return requestedZoomDelta;
+  }
+
+  return map.getZoomSnap() > 0 ? map.getZoomSnap() : 1;
+};
+
+const readMapLibreNextZoomLevel = ({
+  map,
+  direction,
+  zoomDelta,
+}: {
+  map: MapLibreMap;
+  direction: "in" | "out";
+  zoomDelta?: number;
+}) => {
+  const requestedStep = readMapLibreZoomStep(map, zoomDelta);
+  const zoomSnap = map.getZoomSnap();
+  const desiredZoom =
+    direction === "in"
+      ? map.getZoom() + requestedStep
+      : map.getZoom() - requestedStep;
+
+  return zoomSnap > 0
+    ? snapZoomLevel(desiredZoom, zoomSnap, direction)
+    : desiredZoom;
+};
+
+const readOrbitDirectionSign = (options: NavigationOrbitOptions): number => {
+  if (options.direction === NAVIGATION_ORBIT_DIRECTIONS.CCW) {
+    return -1;
+  }
+
+  if (options.direction === NAVIGATION_ORBIT_DIRECTIONS.CW) {
+    return 1;
+  }
+
+  if (
+    typeof options.bearingDeltaDeg === "number" &&
+    Number.isFinite(options.bearingDeltaDeg) &&
+    options.bearingDeltaDeg !== 0
+  ) {
+    return Math.sign(options.bearingDeltaDeg);
+  }
+
+  return 1;
+};
+
+const readOrbitSpeedDegPerSecond = (
+  options: NavigationOrbitOptions
+): number => {
+  const directionSign = readOrbitDirectionSign(options);
+
+  if (
+    typeof options.revolutionDurationSec === "number" &&
+    Number.isFinite(options.revolutionDurationSec) &&
+    options.revolutionDurationSec > 0
+  ) {
+    return (directionSign * 360) / options.revolutionDurationSec;
+  }
+
+  if (
+    typeof options.speedDegPerSecond === "number" &&
+    Number.isFinite(options.speedDegPerSecond) &&
+    options.speedDegPerSecond !== 0
+  ) {
+    return options.speedDegPerSecond;
+  }
+
+  if (
+    typeof options.bearingDeltaDeg === "number" &&
+    Number.isFinite(options.bearingDeltaDeg) &&
+    options.bearingDeltaDeg !== 0
+  ) {
+    return directionSign * DEFAULT_ORBIT_SPEED_DEG_PER_SECOND;
+  }
+
+  return directionSign * DEFAULT_ORBIT_SPEED_DEG_PER_SECOND;
+};
+
+const readOrbitPrepDurationMs = (options: NavigationOrbitOptions): number =>
+  typeof options.durationMs === "number" &&
+  Number.isFinite(options.durationMs) &&
+  options.durationMs > 0
+    ? options.durationMs
+    : DEFAULT_ORBIT_PREP_DURATION_MS;
+
+const readMinimumOrbitPitchDeg = (options: NavigationOrbitOptions): number =>
+  clamp(
+    typeof options.minPitchDeg === "number" &&
+      Number.isFinite(options.minPitchDeg)
+      ? options.minPitchDeg
+      : DEFAULT_MIN_ORBIT_PITCH_DEG,
+    0,
+    MAX_MAPLIBRE_PITCH_DEG
+  );
+
+const readResolvedCesiumTargetFov = (
+  scene: NonNullable<ReturnType<typeof readStoryCesiumScene>>,
+  options: NavigationZoomOptions,
+  direction: "in" | "out"
+) => {
+  if (!(scene.camera.frustum instanceof PerspectiveFrustum)) {
+    return null;
+  }
+
+  if (
+    typeof options.targetFovRad === "number" &&
+    Number.isFinite(options.targetFovRad)
+  ) {
+    return clamp(
+      options.targetFovRad,
+      MIN_CESIUM_FOV_RAD as number,
+      MAX_CESIUM_FOV_RAD as number
+    ) as Radians;
+  }
+
+  return computeNextCesiumFov({
+    scene,
+    direction,
+    zoomDelta: options.zoomDelta,
+    minimumFovRad: MIN_CESIUM_FOV_RAD,
+    maximumFovRad: MAX_CESIUM_FOV_RAD,
+  });
+};
+
+const createStoryCesiumNavigationMethods = ({
+  runtimeHandle,
+  homeTarget,
+  disabled,
+}: {
+  runtimeHandle: Extract<
+    SlotRuntimeHandle,
+    { engine: typeof CARMA_STORY_MAPPING_ENGINES.CESIUM }
+  >;
+  homeTarget: ViewState;
+  disabled: boolean;
+}): NavigationMethods<ViewState> => {
+  const methods = createCesiumNavigationMethods({
+    scene: runtimeHandle.widget,
+    homeCameraState: readCesiumCameraStateFromViewState(homeTarget),
+    disabled,
+    onInteractionStart: () =>
+      runtimeHandle.viewSync?.claimControl("user-interaction") ?? true,
+  });
+
+  return {
+    ...methods,
+    setView: (state) => {
+      methods.setView(readCesiumCameraStateFromViewState(state));
+    },
+    flyTo: (state, options) => {
+      methods.flyTo(readCesiumCameraStateFromViewState(state), options);
+    },
+  };
+};
+
+export const createRuntimeNavigationReference = ({
+  engine,
+  runtimeHandle,
+  homeTarget,
+  disabled = false,
+}: {
+  engine: StoryMappingEngine;
+  runtimeHandle: SlotRuntimeHandle | null;
+  homeTarget: ViewState;
+  disabled?: boolean;
+}): NavigationMethods<ViewState> => {
+  if (
+    engine === CARMA_STORY_MAPPING_ENGINES.CESIUM &&
+    runtimeHandle?.engine === CARMA_STORY_MAPPING_ENGINES.CESIUM
+  ) {
+    return createStoryCesiumNavigationMethods({
+      runtimeHandle,
+      homeTarget,
+      disabled,
+    });
+  }
+
+  let cancelOrbitPreparationAnimation: (() => void) | null = null;
+  let cancelContinuousOrbit: (() => void) | null = null;
+  let cesiumCompassDragSession: CesiumCompassDragSession | null = null;
+  let isOrbitActive = false;
+  const orbitActiveSinks = new Set<OrbitActiveSink>();
+
+  const publishOrbitActive = (active: boolean) => {
+    if (isOrbitActive === active) {
+      return;
+    }
+
+    isOrbitActive = active;
+    orbitActiveSinks.forEach((sink) => {
+      sink(active);
+    });
+  };
+
+  const stopRuntimeMotion = (
+    activeRuntimeHandle: SlotRuntimeHandle,
+    { keepSceneZoom = false }: { keepSceneZoom?: boolean } = {}
+  ) => {
+    cancelOrbitPreparationAnimation?.();
+    cancelOrbitPreparationAnimation = null;
+    cancelContinuousOrbit?.();
+    cancelContinuousOrbit = null;
+    publishOrbitActive(false);
+
+    if (activeRuntimeHandle.engine === CARMA_STORY_MAPPING_ENGINES.LEAFLET) {
+      if (typeof activeRuntimeHandle.map.stop === "function") {
+        activeRuntimeHandle.map.stop();
+      }
+      return;
+    }
+
+    if (
+      activeRuntimeHandle.engine === CARMA_STORY_MAPPING_ENGINES.MAPLIBRE_GL
+    ) {
+      return;
+    }
+    cesiumCompassDragSession = null;
+
+    const scene = readStoryCesiumScene(activeRuntimeHandle.widget);
+    if (!scene) {
+      return;
+    }
+
+    cancelCesiumSceneFovZoom(scene);
+
+    if (!keepSceneZoom) {
+      cancelCesiumSceneTravelZoom(scene);
+    }
+
+    if (typeof scene.camera.cancelFlight === "function") {
+      scene.camera.cancelFlight();
+    }
+
+    try {
+      scene.camera.lookAtTransform(Matrix4.IDENTITY);
+    } catch {
+      // Ignore transient teardown races in Storybook.
+    }
+
+    requestStoryCesiumRender(scene);
+  };
+
+  const resolveCesiumOrbitCenter = (
+    scene: NonNullable<ReturnType<typeof readStoryCesiumScene>>,
+    target: NavigationOrbitTarget | undefined
+  ) => {
+    if (target && target !== NAVIGATION_ORBIT_TARGETS.CURRENT_VIEW) {
+      return Cartesian3.fromDegrees(
+        target.longitudeDeg,
+        target.latitudeDeg,
+        target.altitudeM ?? 0
+      );
+    }
+
+    const cachedCenter = readCachedCesiumSceneCenter(scene);
+    if (cachedCenter) {
+      return cachedCenter;
+    }
+
+    const fallbackState = readFromCesium(
+      scene,
+      CESIUM_FALLBACK_ORBIT_SOURCE_ID
+    );
+    if (!fallbackState) {
+      return null;
+    }
+
+    return Cartesian3.fromDegrees(
+      radToDegNumeric(fallbackState.anchorCartographic.longitude),
+      radToDegNumeric(fallbackState.anchorCartographic.latitude),
+      fallbackState.anchorCartographic.altitude as number
+    );
+  };
+
+  const startMapLibreOrbitLoop = (
+    activeRuntimeHandle: Extract<
+      SlotRuntimeHandle,
+      { engine: typeof CARMA_STORY_MAPPING_ENGINES.MAPLIBRE_GL }
+    >,
+    options: NavigationOrbitOptions
+  ) => {
+    const map = activeRuntimeHandle.map;
+    if (
+      options.target &&
+      options.target !== NAVIGATION_ORBIT_TARGETS.CURRENT_VIEW
+    ) {
+      map.jumpTo({
+        center: [options.target.longitudeDeg, options.target.latitudeDeg],
+      });
+    }
+    const orbitSpeedDegPerSecond = readOrbitSpeedDegPerSecond(options);
+    MAPLIBRE_ORBIT_FRAME_STATE.set(map, {
+      lastBearingDeg: map.getBearing(),
+      lastFrameTimeMs: null,
+    });
+
+    const step = () => {
+      if (!isOrbitActive) {
+        MAPLIBRE_ORBIT_FRAME_STATE.delete(map);
+        cancelContinuousOrbit = null;
+        return;
+      }
+
+      const orbitState = MAPLIBRE_ORBIT_FRAME_STATE.get(map);
+      if (!orbitState) {
+        cancelContinuousOrbit = null;
+        return;
+      }
+
+      const frameTime = performance.now();
+      const deltaSeconds =
+        orbitState.lastFrameTimeMs === null
+          ? 0
+          : (frameTime - orbitState.lastFrameTimeMs) / 1000;
+      orbitState.lastFrameTimeMs = frameTime;
+
+      const nextBearingDeg =
+        map.getBearing() + orbitSpeedDegPerSecond * deltaSeconds;
+      orbitState.lastBearingDeg = nextBearingDeg;
+      map.setBearing(nextBearingDeg);
+      map.triggerRepaint();
+    };
+
+    map.on("render", step);
+    map.triggerRepaint();
+
+    cancelContinuousOrbit = () => {
+      map.off("render", step);
+      MAPLIBRE_ORBIT_FRAME_STATE.delete(map);
+      cancelContinuousOrbit = null;
+    };
+  };
+
+  const startCesiumOrbitLoop = (
+    scene: NonNullable<ReturnType<typeof readStoryCesiumScene>>,
+    orbitCenter: Cartesian3,
+    options: NavigationOrbitOptions,
+    rangeM: number,
+    pitchDeg: number
+  ) => {
+    const targetPitchRad = fromCompassPitchDegToCesiumPitchRad(pitchDeg);
+    const orbitSpeedRadPerSecond = degToRadNumeric(
+      readOrbitSpeedDegPerSecond(options)
+    );
+    let frameId: number | null = null;
+    let lastFrameTime: number | null = null;
+
+    const step = (frameTime: number) => {
+      if (!isOrbitActive) {
+        cancelContinuousOrbit = null;
+        return;
+      }
+
+      const deltaSeconds =
+        lastFrameTime === null ? 0 : (frameTime - lastFrameTime) / 1000;
+      lastFrameTime = frameTime;
+
+      scene.camera.lookAt(
+        orbitCenter,
+        new HeadingPitchRange(
+          scene.camera.heading + orbitSpeedRadPerSecond * deltaSeconds,
+          targetPitchRad,
+          rangeM
+        )
+      );
+      requestStoryCesiumRender(scene);
+
+      frameId = window.requestAnimationFrame(step);
+    };
+
+    frameId = window.requestAnimationFrame(step);
+
+    cancelContinuousOrbit = () => {
+      if (frameId !== null) {
+        window.cancelAnimationFrame(frameId);
+        frameId = null;
+      }
+      try {
+        scene.camera.lookAtTransform(Matrix4.IDENTITY);
+      } catch {
+        // Ignore transient teardown races in Storybook.
+      }
+      requestStoryCesiumRender(scene);
+      cancelContinuousOrbit = null;
+    };
+  };
+
+  const applySetView = (
+    activeRuntimeHandle: SlotRuntimeHandle,
+    state: ViewState
+  ) => {
+    if (activeRuntimeHandle.engine === CARMA_STORY_MAPPING_ENGINES.LEAFLET) {
+      const nextView = buildLeafletViewFromState(
+        state,
+        activeRuntimeHandle.container.clientWidth,
+        activeRuntimeHandle.container.clientHeight
+      );
+      if (!nextView) {
+        return;
+      }
+
+      activeRuntimeHandle.map.setView(nextView.center, nextView.zoom);
+      return;
+    }
+
+    if (
+      activeRuntimeHandle.engine === CARMA_STORY_MAPPING_ENGINES.MAPLIBRE_GL
+    ) {
+      const nextCamera = buildMapLibreCameraOptionsFromState(
+        state,
+        activeRuntimeHandle.container.clientWidth,
+        activeRuntimeHandle.container.clientHeight
+      );
+      if (!nextCamera) {
+        return;
+      }
+
+      activeRuntimeHandle.map.jumpTo(nextCamera);
+      return;
+    }
+
+    applyViewStateToCesiumWidget({
+      widget: activeRuntimeHandle.widget,
+      state,
+    });
+  };
+
+  const applyFlyTo = (
+    activeRuntimeHandle: SlotRuntimeHandle,
+    state: ViewState,
+    options: NavigationTransitionOptions = {}
+  ) => {
+    const durationMs = options.durationMs;
+    if (
+      typeof durationMs !== "number" ||
+      !Number.isFinite(durationMs) ||
+      durationMs <= 0
+    ) {
+      applySetView(activeRuntimeHandle, state);
+      return;
+    }
+
+    if (activeRuntimeHandle.engine === CARMA_STORY_MAPPING_ENGINES.LEAFLET) {
+      const nextView = buildLeafletViewFromState(
+        state,
+        activeRuntimeHandle.container.clientWidth,
+        activeRuntimeHandle.container.clientHeight
+      );
+      if (!nextView) {
+        return;
+      }
+
+      activeRuntimeHandle.map.flyTo(nextView.center, nextView.zoom, {
+        duration: durationMs / 1000,
+      });
+      return;
+    }
+
+    if (
+      activeRuntimeHandle.engine === CARMA_STORY_MAPPING_ENGINES.MAPLIBRE_GL
+    ) {
+      const nextCamera = buildMapLibreCameraOptionsFromState(
+        state,
+        activeRuntimeHandle.container.clientWidth,
+        activeRuntimeHandle.container.clientHeight
+      );
+      if (!nextCamera) {
+        return;
+      }
+
+      activeRuntimeHandle.map.easeTo({
+        ...nextCamera,
+        duration: durationMs,
+      });
+      return;
+    }
+
+    const scene = readStoryCesiumScene(activeRuntimeHandle.widget);
+    if (!scene) {
+      return;
+    }
+
+    flyViewStateInCesium(scene, state, {
+      duration: readDurationSeconds(durationMs),
+    });
+  };
+
+  const runWithInteraction = (
+    action: (activeRuntimeHandle: SlotRuntimeHandle) => void,
+    {
+      stopMotion = true,
+      keepSceneZoom = false,
+    }: { stopMotion?: boolean; keepSceneZoom?: boolean } = {}
+  ) => {
+    if (disabled || !runtimeHandle) {
+      return false;
+    }
+
+    if (
+      runtimeHandle.viewSync &&
+      !runtimeHandle.viewSync.claimControl("user-interaction")
+    ) {
+      return false;
+    }
+
+    if (stopMotion) {
+      stopRuntimeMotion(runtimeHandle, { keepSceneZoom });
+    }
+    action(runtimeHandle);
+    return true;
+  };
+
+  const setView = (state: ViewState) => {
+    runWithInteraction((activeRuntimeHandle) => {
+      applySetView(activeRuntimeHandle, state);
+    });
+  };
+
+  const flyTo = (
+    state: ViewState,
+    options: NavigationTransitionOptions = {}
+  ) => {
+    runWithInteraction((activeRuntimeHandle) => {
+      applyFlyTo(activeRuntimeHandle, state, options);
+    });
+  };
+
+  const zoomIn = (options: NavigationZoomOptions = {}) => {
+    const isFovMode = options.mode === NAVIGATION_ZOOM_MODES.FOV;
+    const isDollyMode = options.mode === NAVIGATION_ZOOM_MODES.DOLLY;
+    runWithInteraction(
+      (activeRuntimeHandle) => {
+        if (
+          activeRuntimeHandle.engine === CARMA_STORY_MAPPING_ENGINES.LEAFLET
+        ) {
+          const nextZoom = readLeafletNextZoomLevel({
+            map: activeRuntimeHandle.map,
+            direction: "in",
+            zoomDelta: options.zoomDelta,
+          });
+
+          activeRuntimeHandle.map.setZoom(nextZoom, {
+            animate:
+              typeof options.durationMs === "number"
+                ? options.durationMs > 0
+                : undefined,
+          });
+          return;
+        }
+
+        if (
+          activeRuntimeHandle.engine === CARMA_STORY_MAPPING_ENGINES.MAPLIBRE_GL
+        ) {
+          const nextZoom = readMapLibreNextZoomLevel({
+            map: activeRuntimeHandle.map,
+            direction: "in",
+            zoomDelta: options.zoomDelta,
+          });
+          if (
+            typeof options.durationMs === "number" &&
+            Number.isFinite(options.durationMs) &&
+            options.durationMs <= 0
+          ) {
+            activeRuntimeHandle.map.jumpTo({
+              zoom: nextZoom,
+            });
+            return;
+          }
+
+          activeRuntimeHandle.map.easeTo({
+            zoom: nextZoom,
+            duration: options.durationMs ?? 250,
+          });
+          return;
+        }
+
+        const scene = readStoryCesiumScene(activeRuntimeHandle.widget);
+        if (!scene) {
+          return;
+        }
+
+        if (isFovMode || isDollyMode) {
+          if (!(scene.camera.frustum instanceof PerspectiveFrustum)) {
+            return;
+          }
+
+          if (isDollyMode) {
+            const nextFov = readResolvedCesiumTargetFov(scene, options, "in");
+            if (nextFov === null) {
+              return;
+            }
+            animateCesiumSceneTravelZoom(scene, {
+              direction: "in",
+              durationSeconds: readDurationSeconds(options.durationMs) ?? 0.5,
+              zoomDelta: options.zoomDelta,
+              synchronizedFovTargetRad: nextFov,
+            });
+            return;
+          }
+
+          flyCesiumSceneFovZoom(scene, {
+            direction: "in",
+            durationSeconds: readDurationSeconds(options.durationMs) ?? 0.25,
+            zoomDelta: options.zoomDelta,
+            targetFovRad: options.targetFovRad,
+            minimumFovRad: MIN_CESIUM_FOV_RAD,
+            maximumFovRad: MAX_CESIUM_FOV_RAD,
+          });
+          return;
+        }
+
+        animateCesiumSceneTravelZoom(scene, {
+          direction: "in",
+          durationSeconds: readDurationSeconds(options.durationMs) ?? 0.5,
+          zoomDelta: options.zoomDelta,
+        });
+        requestStoryCesiumRender(scene);
+      },
+      { keepSceneZoom: !(isFovMode || isDollyMode) }
+    );
+  };
+
+  const zoomOut = (options: NavigationZoomOptions = {}) => {
+    const isFovMode = options.mode === NAVIGATION_ZOOM_MODES.FOV;
+    const isDollyMode = options.mode === NAVIGATION_ZOOM_MODES.DOLLY;
+    runWithInteraction(
+      (activeRuntimeHandle) => {
+        if (
+          activeRuntimeHandle.engine === CARMA_STORY_MAPPING_ENGINES.LEAFLET
+        ) {
+          const nextZoom = readLeafletNextZoomLevel({
+            map: activeRuntimeHandle.map,
+            direction: "out",
+            zoomDelta: options.zoomDelta,
+          });
+
+          activeRuntimeHandle.map.setZoom(nextZoom, {
+            animate:
+              typeof options.durationMs === "number"
+                ? options.durationMs > 0
+                : undefined,
+          });
+          return;
+        }
+
+        if (
+          activeRuntimeHandle.engine === CARMA_STORY_MAPPING_ENGINES.MAPLIBRE_GL
+        ) {
+          const nextZoom = readMapLibreNextZoomLevel({
+            map: activeRuntimeHandle.map,
+            direction: "out",
+            zoomDelta: options.zoomDelta,
+          });
+          if (
+            typeof options.durationMs === "number" &&
+            Number.isFinite(options.durationMs) &&
+            options.durationMs <= 0
+          ) {
+            activeRuntimeHandle.map.jumpTo({
+              zoom: nextZoom,
+            });
+            return;
+          }
+
+          activeRuntimeHandle.map.easeTo({
+            zoom: nextZoom,
+            duration: options.durationMs ?? 250,
+          });
+          return;
+        }
+
+        const scene = readStoryCesiumScene(activeRuntimeHandle.widget);
+        if (!scene) {
+          return;
+        }
+
+        if (isFovMode || isDollyMode) {
+          if (!(scene.camera.frustum instanceof PerspectiveFrustum)) {
+            return;
+          }
+
+          if (isDollyMode) {
+            const nextFov = readResolvedCesiumTargetFov(scene, options, "out");
+            if (nextFov === null) {
+              return;
+            }
+            animateCesiumSceneTravelZoom(scene, {
+              direction: "out",
+              durationSeconds: readDurationSeconds(options.durationMs) ?? 0.5,
+              zoomDelta: options.zoomDelta,
+              synchronizedFovTargetRad: nextFov,
+            });
+            return;
+          }
+
+          flyCesiumSceneFovZoom(scene, {
+            direction: "out",
+            durationSeconds: readDurationSeconds(options.durationMs) ?? 0.25,
+            zoomDelta: options.zoomDelta,
+            targetFovRad: options.targetFovRad,
+            minimumFovRad: MIN_CESIUM_FOV_RAD,
+            maximumFovRad: MAX_CESIUM_FOV_RAD,
+          });
+          return;
+        }
+
+        animateCesiumSceneTravelZoom(scene, {
+          direction: "out",
+          durationSeconds: readDurationSeconds(options.durationMs) ?? 0.5,
+          zoomDelta: options.zoomDelta,
+        });
+        requestStoryCesiumRender(scene);
+      },
+      { keepSceneZoom: !(isFovMode || isDollyMode) }
+    );
+  };
+
+  const goHome = (options: NavigationTransitionOptions = {}) => {
+    const durationMs = readHomeDurationMs(options);
+    if (durationMs > 0) {
+      flyTo(homeTarget, {
+        ...options,
+        durationMs,
+      });
+      return;
+    }
+
+    setView(homeTarget);
+  };
+
+  const orbit = (options: NavigationOrbitOptions = {}) => {
+    runWithInteraction(
+      (activeRuntimeHandle) => {
+        if (isOrbitActive) {
+          stopRuntimeMotion(activeRuntimeHandle);
+          return;
+        }
+
+        if (
+          activeRuntimeHandle.engine === CARMA_STORY_MAPPING_ENGINES.LEAFLET
+        ) {
+          return;
+        }
+
+        publishOrbitActive(true);
+
+        if (
+          activeRuntimeHandle.engine === CARMA_STORY_MAPPING_ENGINES.MAPLIBRE_GL
+        ) {
+          startMapLibreOrbitLoop(activeRuntimeHandle, options);
+          return;
+        }
+
+        const scene = readStoryCesiumScene(activeRuntimeHandle.widget);
+        if (!scene) {
+          publishOrbitActive(false);
+          return;
+        }
+
+        const orbitCenter = resolveCesiumOrbitCenter(scene, options.target);
+        if (!orbitCenter) {
+          publishOrbitActive(false);
+          return;
+        }
+
+        const targetRange =
+          typeof options.rangeM === "number" && Number.isFinite(options.rangeM)
+            ? options.rangeM
+            : Cartesian3.distance(orbitCenter, scene.camera.positionWC);
+        const currentPitchDeg =
+          readCachedCesiumCompassOrientationDeg(scene).pitchDeg;
+        const minimumPitchDeg = readMinimumOrbitPitchDeg(options);
+        const orbitPitchDeg = Math.max(currentPitchDeg, minimumPitchDeg);
+        const startContinuousOrbit = () => {
+          if (!isOrbitActive) {
+            return;
+          }
+
+          startCesiumOrbitLoop(
+            scene,
+            orbitCenter,
+            options,
+            targetRange,
+            orbitPitchDeg
+          );
+        };
+
+        if (currentPitchDeg < minimumPitchDeg) {
+          cancelOrbitPreparationAnimation = animateOrbitHeadingPitchRange(
+            scene,
+            orbitCenter,
+            {
+              heading: scene.camera.heading,
+              pitch: fromCompassPitchDegToCesiumPitchRad(orbitPitchDeg),
+              range: targetRange,
+            },
+            {
+              durationMs: readOrbitPrepDurationMs(options),
+              onComplete: () => {
+                cancelOrbitPreparationAnimation = null;
+                startContinuousOrbit();
+              },
+              onCancel: () => {
+                cancelOrbitPreparationAnimation = null;
+              },
+            }
+          );
+          return;
+        }
+
+        startContinuousOrbit();
+      },
+      { stopMotion: false }
+    );
+  };
+
+  const beginCompassDrag = () => {
+    runWithInteraction((activeRuntimeHandle) => {
+      if (activeRuntimeHandle.engine !== CARMA_STORY_MAPPING_ENGINES.CESIUM) {
+        return;
+      }
+
+      const scene = readStoryCesiumScene(activeRuntimeHandle.widget);
+      if (!scene) {
+        return;
+      }
+
+      cesiumCompassDragSession = beginCesiumCompassDrag(scene);
+    });
+  };
+
+  const setCompassBearingPitch = (
+    orientation: NavigationNeedleOrientationDeg
+  ) => {
+    runWithInteraction(
+      (activeRuntimeHandle) => {
+        if (
+          activeRuntimeHandle.engine === CARMA_STORY_MAPPING_ENGINES.LEAFLET
+        ) {
+          return;
+        }
+
+        if (
+          activeRuntimeHandle.engine === CARMA_STORY_MAPPING_ENGINES.MAPLIBRE_GL
+        ) {
+          activeRuntimeHandle.map.jumpTo({
+            bearing: orientation.headingDeg,
+            pitch: clamp(orientation.pitchDeg, 0, MAX_MAPLIBRE_PITCH_DEG),
+          });
+          return;
+        }
+
+        const scene = readStoryCesiumScene(activeRuntimeHandle.widget);
+        if (!scene) {
+          return;
+        }
+
+        const dragSession =
+          cesiumCompassDragSession ?? beginCesiumCompassDrag(scene);
+        cesiumCompassDragSession = dragSession;
+
+        applyCesiumCompassBearingPitch(scene, dragSession, orientation, {
+          maxPitchDeg: MAX_CESIUM_COMPASS_PITCH_DEG,
+        });
+      },
+      { stopMotion: false }
+    );
+  };
+
+  const endCompassDrag = () => {
+    if (runtimeHandle?.engine !== CARMA_STORY_MAPPING_ENGINES.CESIUM) {
+      cesiumCompassDragSession = null;
+      return;
+    }
+
+    const scene = readStoryCesiumScene(runtimeHandle.widget);
+    if (!scene) {
+      cesiumCompassDragSession = null;
+      return;
+    }
+
+    endCesiumCompassDrag(scene);
+    cesiumCompassDragSession = null;
+  };
+
+  const alignNorth = (options: NavigationTransitionOptions = {}) => {
+    runWithInteraction((activeRuntimeHandle) => {
+      if (
+        activeRuntimeHandle.engine === CARMA_STORY_MAPPING_ENGINES.MAPLIBRE_GL
+      ) {
+        activeRuntimeHandle.map.easeTo({
+          bearing: 0,
+          duration: options.durationMs ?? 250,
+        });
+        return;
+      }
+
+      if (activeRuntimeHandle.engine !== CARMA_STORY_MAPPING_ENGINES.CESIUM) {
+        return;
+      }
+
+      const scene = readStoryCesiumScene(activeRuntimeHandle.widget);
+      if (!scene) {
+        return;
+      }
+
+      const orbitCenter = readCachedCesiumSceneCenter(scene);
+      if (orbitCenter) {
+        const range = Cartesian3.distance(orbitCenter, scene.camera.positionWC);
+        scene.camera.lookAt(
+          orbitCenter,
+          new HeadingPitchRange(0, scene.camera.pitch, range)
+        );
+        scene.camera.lookAtTransform(Matrix4.IDENTITY);
+        requestStoryCesiumRender(scene);
+        return;
+      }
+
+      scene.camera.setView({
+        destination: scene.camera.position,
+        orientation: {
+          heading: 0,
+          pitch: scene.camera.pitch,
+          roll: scene.camera.roll,
+        },
+      });
+      requestStoryCesiumRender(scene);
+    });
+  };
+
+  const alignNorthNadir = (options: NavigationTransitionOptions = {}) => {
+    runWithInteraction((activeRuntimeHandle) => {
+      if (
+        activeRuntimeHandle.engine === CARMA_STORY_MAPPING_ENGINES.MAPLIBRE_GL
+      ) {
+        activeRuntimeHandle.map.easeTo({
+          bearing: 0,
+          pitch: 0,
+          duration: options.durationMs ?? 300,
+        });
+        return;
+      }
+
+      if (activeRuntimeHandle.engine !== CARMA_STORY_MAPPING_ENGINES.CESIUM) {
+        return;
+      }
+
+      const scene = readStoryCesiumScene(activeRuntimeHandle.widget);
+      if (!scene) {
+        return;
+      }
+
+      const orbitCenter = readCachedCesiumSceneCenter(scene);
+      if (orbitCenter) {
+        const range = Cartesian3.distance(orbitCenter, scene.camera.positionWC);
+        scene.camera.lookAt(
+          orbitCenter,
+          new HeadingPitchRange(0, MIN_CESIUM_COMPASS_PITCH_RAD, range)
+        );
+        scene.camera.lookAtTransform(Matrix4.IDENTITY);
+        requestStoryCesiumRender(scene);
+        return;
+      }
+
+      scene.camera.setView({
+        destination: scene.camera.position,
+        orientation: {
+          heading: 0,
+          pitch: MIN_CESIUM_COMPASS_PITCH_RAD,
+          roll: scene.camera.roll,
+        },
+      });
+      requestStoryCesiumRender(scene);
+    });
+  };
+
+  const subscribeCompassOrientation = (sink: NeedleOrientationSink) => {
+    if (
+      !runtimeHandle ||
+      runtimeHandle.engine === CARMA_STORY_MAPPING_ENGINES.LEAFLET
+    ) {
+      sink({ headingDeg: 0, pitchDeg: 0 });
+      return () => {};
+    }
+
+    if (runtimeHandle.engine === CARMA_STORY_MAPPING_ENGINES.MAPLIBRE_GL) {
+      const sync = () => {
+        sink({
+          headingDeg: runtimeHandle.map.getBearing(),
+          pitchDeg: runtimeHandle.map.getPitch(),
+        });
+      };
+
+      sync();
+      runtimeHandle.map.on("move", sync);
+      runtimeHandle.map.on("rotate", sync);
+      runtimeHandle.map.on("pitch", sync);
+
+      return () => {
+        runtimeHandle.map.off("move", sync);
+        runtimeHandle.map.off("rotate", sync);
+        runtimeHandle.map.off("pitch", sync);
+      };
+    }
+
+    const scene = readStoryCesiumScene(runtimeHandle.widget);
+    if (!scene) {
+      sink({ headingDeg: 0, pitchDeg: 0 });
+      return () => {};
+    }
+
+    const sync = () => {
+      sink(readCachedCesiumCompassOrientationDeg(scene));
+    };
+
+    sync();
+    return (
+      bindStoryCesiumFrameListener(scene, sync) ??
+      bindStoryCesiumCameraChangedListener(scene, sync) ??
+      bindStoryCesiumCameraChangedListener(runtimeHandle.widget, sync) ??
+      (() => {})
+    );
+  };
+
+  const subscribeOrbitActive = (sink: OrbitActiveSink) => {
+    sink(isOrbitActive);
+    orbitActiveSinks.add(sink);
+
+    return () => {
+      orbitActiveSinks.delete(sink);
+    };
+  };
+
+  return {
+    showCompass: true,
+    canOrbit:
+      !disabled &&
+      !!runtimeHandle &&
+      engine !== CARMA_STORY_MAPPING_ENGINES.LEAFLET,
+    compassDisabled:
+      disabled ||
+      !runtimeHandle ||
+      engine === CARMA_STORY_MAPPING_ENGINES.LEAFLET,
+    compassCursor:
+      disabled ||
+      !runtimeHandle ||
+      engine === CARMA_STORY_MAPPING_ENGINES.LEAFLET
+        ? NAVIGATION_COMPASS_CURSORS.DEFAULT
+        : NAVIGATION_COMPASS_CURSORS.GRAB,
+    setView,
+    flyTo,
+    zoomIn,
+    zoomOut,
+    goHome,
+    orbit,
+    maxCompassPitchDeg: MAX_CESIUM_COMPASS_PITCH_DEG,
+    beginCompassDrag,
+    setCompassBearingPitch,
+    endCompassDrag,
+    alignNorth,
+    alignNorthNadir,
+    subscribeCompassOrientation,
+    subscribeOrbitActive,
+    destroy: () => {
+      endCompassDrag();
+      if (runtimeHandle) {
+        stopRuntimeMotion(runtimeHandle);
+      }
+    },
+  };
+};

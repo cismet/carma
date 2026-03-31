@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useMemo, useState, type CSSProperties } from "react";
 import { MINUS_PI_OVER_FOUR } from "@carma/math";
 import { degToRadNumeric, radToDegNumeric } from "@carma/units/helpers";
 import type { Radians } from "@carma/units/types";
@@ -10,6 +10,7 @@ import {
   type PointLabelExpansionSlotPreset,
   type PointLabelExpansionSlotStrategy,
 } from "@carma-providers/label-overlay";
+import { CenteredStoryFrame } from "../../common/ui/centered-story-frame";
 
 export type PointLabelSlotsStoryArgs = {
   preset: PointLabelExpansionSlotPreset;
@@ -35,6 +36,17 @@ const POINT_LABEL_TRANSITION_MS = 110;
 const RADIAL_FLYOUT_TRANSITION_EASING = "cubic-bezier(0.22, 1, 0.36, 1)";
 const SLOT_LABEL_FONT_FAMILY =
   'ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif';
+
+const SLOT_STORY_GRID_STYLE: CSSProperties = {
+  display: "grid",
+  gap: 24,
+};
+
+const SLOT_TWO_COLUMN_STYLE: CSSProperties = {
+  display: "grid",
+  gap: 20,
+  gridTemplateColumns: "repeat(auto-fit, minmax(320px, 1fr))",
+};
 
 const SLOT_DEMO_COLORS = {
   helperRingStroke: "rgba(148, 163, 184, 0.42)",
@@ -433,29 +445,30 @@ export const PointLabelSlotPresetStory = ({
     radiusPx,
     startAngleRad,
   });
+  const statusValues = [
+    `preset ${preset}`,
+    `radius ${radiusPx}px`,
+    `start ${startAngleDeg}deg`,
+    `font ${labelFontSizePx}px`,
+    `stems ${showStems ? "on" : "off"}`,
+  ];
 
   return (
-    <div
-      style={{
-        minHeight: "100vh",
-        padding: 20,
-        display: "grid",
-        gap: 20,
-        background: "#ffffff",
-      }}
-    >
-      <SlotCanvas
-        heading={resolvePresetLabel(preset)}
-        subheading="Preset exploration for canonical slot families."
-        slots={slots}
-        radiusPx={radiusPx}
-        startAngleRad={startAngleRad}
-        labelFontSizePx={labelFontSizePx}
-        showHelperRing={showHelperRing}
-        showStems={showStems}
-      />
-      <SlotList slots={slots} />
-    </div>
+    <CenteredStoryFrame label="presets" values={statusValues}>
+      <div style={SLOT_STORY_GRID_STYLE}>
+        <SlotCanvas
+          heading={resolvePresetLabel(preset)}
+          subheading="Preset exploration for canonical slot families."
+          slots={slots}
+          radiusPx={radiusPx}
+          startAngleRad={startAngleRad}
+          labelFontSizePx={labelFontSizePx}
+          showHelperRing={showHelperRing}
+          showStems={showStems}
+        />
+        <SlotList slots={slots} />
+      </div>
+    </CenteredStoryFrame>
   );
 };
 
@@ -477,31 +490,32 @@ export const PointLabelSlotGeneratorStory = ({
     includeCenter,
     strategy,
   });
+  const statusValues = [
+    `strategy ${strategy}`,
+    `slots ${slotCount}`,
+    `radius ${radiusPx}px`,
+    `start ${startAngleDeg}deg`,
+    `center ${includeCenter ? "on" : "off"}`,
+  ];
 
   return (
-    <div
-      style={{
-        minHeight: "100vh",
-        padding: 20,
-        display: "grid",
-        gap: 20,
-        background: "#ffffff",
-      }}
-    >
-      <SlotCanvas
-        heading="Arbitrary slot generator"
-        subheading={`${slotCount} ring slots, ${
-          includeCenter ? "with" : "without"
-        } center slot.`}
-        slots={slots}
-        radiusPx={radiusPx}
-        startAngleRad={startAngleRad}
-        labelFontSizePx={labelFontSizePx}
-        showHelperRing={showHelperRing}
-        showStems={showStems}
-      />
-      <SlotList slots={slots} />
-    </div>
+    <CenteredStoryFrame label="arbitrary generator" values={statusValues}>
+      <div style={SLOT_STORY_GRID_STYLE}>
+        <SlotCanvas
+          heading="Arbitrary slot generator"
+          subheading={`${slotCount} ring slots, ${
+            includeCenter ? "with" : "without"
+          } center slot.`}
+          slots={slots}
+          radiusPx={radiusPx}
+          startAngleRad={startAngleRad}
+          labelFontSizePx={labelFontSizePx}
+          showHelperRing={showHelperRing}
+          showStems={showStems}
+        />
+        <SlotList slots={slots} />
+      </div>
+    </CenteredStoryFrame>
   );
 };
 
@@ -529,74 +543,69 @@ export const PointLabelSlotComparisonStory = ({
     includeCenter,
     strategy: "equal-height-sides",
   });
+  const statusValues = [
+    `slots ${slotCount}`,
+    `radius ${radiusPx}px`,
+    `start ${startAngleDeg}deg`,
+    `center ${includeCenter ? "on" : "off"}`,
+    `stems ${showStems ? "on" : "off"}`,
+  ];
 
   return (
-    <div
-      style={{
-        minHeight: "100vh",
-        padding: 20,
-        display: "grid",
-        gap: 24,
-        background: "#ffffff",
-      }}
-    >
-      <div
-        style={{
-          display: "grid",
-          gap: 8,
-          maxWidth: 860,
-          color: "#0f172a",
-        }}
-      >
-        <strong>Strategy comparison</strong>
-        <span style={{ fontSize: 12, color: "#475569" }}>
-          `equal-height-sides` is highlighted first because it better exposes
-          the side-balanced flyout pattern for clustered labels.
-        </span>
+    <CenteredStoryFrame label="strategy comparison" values={statusValues}>
+      <div style={SLOT_STORY_GRID_STYLE}>
         <div
           style={{
-            display: "inline-flex",
-            width: "fit-content",
-            alignItems: "center",
+            display: "grid",
             gap: 8,
-            padding: "6px 10px",
-            background: "rgba(219, 234, 254, 0.72)",
-            color: "#1d4ed8",
-            fontSize: 12,
-            fontWeight: 600,
+            maxWidth: 860,
+            color: "#0f172a",
           }}
         >
-          Recommended focus: equal-height-sides
+          <strong>Strategy comparison</strong>
+          <span style={{ fontSize: 12, color: "#475569" }}>
+            equal-height-sides is highlighted first because it better exposes
+            the side-balanced flyout pattern for clustered labels.
+          </span>
+          <div
+            style={{
+              display: "inline-flex",
+              width: "fit-content",
+              alignItems: "center",
+              gap: 8,
+              padding: "6px 10px",
+              background: "rgba(219, 234, 254, 0.72)",
+              color: "#1d4ed8",
+              fontSize: 12,
+              fontWeight: 600,
+            }}
+          >
+            Recommended focus: equal-height-sides
+          </div>
+        </div>
+        <div style={SLOT_TWO_COLUMN_STYLE}>
+          <SlotCanvas
+            heading="Equal-height sides"
+            subheading="Side-balanced circle distribution with constant y-spacing on both sides."
+            slots={equalHeightSlots}
+            radiusPx={radiusPx}
+            startAngleRad={startAngleRad}
+            labelFontSizePx={labelFontSizePx}
+            showHelperRing={showHelperRing}
+            showStems={showStems}
+          />
+          <SlotCanvas
+            heading="Equal-angle"
+            subheading="Uniform ring angles, rotated to start at the nearest configured angle."
+            slots={equalAngleSlots}
+            radiusPx={radiusPx}
+            startAngleRad={startAngleRad}
+            labelFontSizePx={labelFontSizePx}
+            showHelperRing={showHelperRing}
+            showStems={showStems}
+          />
         </div>
       </div>
-      <div
-        style={{
-          display: "grid",
-          gap: 20,
-          gridTemplateColumns: "repeat(auto-fit, minmax(320px, 1fr))",
-        }}
-      >
-        <SlotCanvas
-          heading="Equal-height sides"
-          subheading="Side-balanced circle distribution with constant y-spacing on both sides."
-          slots={equalHeightSlots}
-          radiusPx={radiusPx}
-          startAngleRad={startAngleRad}
-          labelFontSizePx={labelFontSizePx}
-          showHelperRing={showHelperRing}
-          showStems={showStems}
-        />
-        <SlotCanvas
-          heading="Equal-angle"
-          subheading="Uniform ring angles, rotated to start at the nearest configured angle."
-          slots={equalAngleSlots}
-          radiusPx={radiusPx}
-          startAngleRad={startAngleRad}
-          labelFontSizePx={labelFontSizePx}
-          showHelperRing={showHelperRing}
-          showStems={showStems}
-        />
-      </div>
-    </div>
+    </CenteredStoryFrame>
   );
 };

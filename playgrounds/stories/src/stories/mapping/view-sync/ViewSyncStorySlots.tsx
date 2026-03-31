@@ -19,12 +19,9 @@ import {
   readFrostedGlassShadowStyle,
 } from "@carma-commons/ui/components";
 import { WUPPERTAL } from "@carma-commons/resources";
-import { SceneNavigationControls } from "@carma-mapping/components";
 import {
   useViewState,
-  useViewStateDerived,
   useViewStateControllerId,
-  useViewAdapter,
   useCesiumRuntimeBridge,
   useMaplibreRuntimeBridge,
   useLeafletRuntimeBridge,
@@ -35,7 +32,6 @@ import {
   transitionToLeaflet,
 } from "@carma-mapping/engines-interop/leaflet-cesium";
 import { type CesiumWidget } from "@carma/cesium";
-import { degToRadNumeric, radToDegNumeric } from "@carma/units/helpers";
 import {
   initializeCesium,
   initializeTerrainProviders,
@@ -58,41 +54,24 @@ import {
   STORY_MAPPING_ENGINE_OPTIONS,
   type StoryMappingEngine,
 } from "./mappingEngines";
+import { ViewSyncRuntimeNavigationControls } from "./controls/view-sync-runtime-navigation-controls";
 import {
-  ANIMATION_MIN_DURATION_MS,
-  COMPASS_ALIGN_NORTH_DURATION_MS,
-  COMPASS_ALIGN_NORTH_NADIR_DURATION_MS,
-  COMPASS_CLICK_DELAY_MS,
-  COMPASS_DRAG_FACTOR_DEG_PER_PX,
-  COMPASS_DRAG_THRESHOLD_PX,
   GEO_PORTAL_MAPLIBRE_STYLE,
   INITIAL_SLOT_BOOT_DELAY_STEP_MS,
   LEAFLET_TO_CESIUM_TRANSITION_OPTIONS,
-  MAX_COMPASS_PITCH_DEG,
   META_VISUAL_HEIGHT_PX,
   META_VISUAL_WIDTH_PX,
-  MIN_COMPASS_PITCH_DEG,
   PANEL_MIN_WIDTH_PX,
-  VIEW_SYNC_CONTROL_SOURCE_ENGINE,
-  ZOOM_CONTROL_DURATION_MS,
   addButtonStyle,
   applyViewStateToCesiumWidget,
-  buildFromDerived,
   buildLeafletViewFromState,
   buildMapLibreCameraOptionsFromState,
-  clamp,
-  easeInOutCubic,
-  fromCompassPitchDeg,
-  interpolateAngle,
-  interpolateLinear,
   isLeafletCesiumTransition,
   isViewState,
-  noopApplyViewState,
   overlayLayerStyle,
   panelSlotStyle,
   panelsRowStyle,
   readCesiumTransitionTargetCameraState,
-  toCompassPitchDeg,
   type CesiumRuntimeHandle,
   type LeafletRuntimeHandle,
   type MapLibreRuntimeHandle,
@@ -107,382 +86,6 @@ import {
   useDeferredBootReady,
   useElementWidth,
 } from "./viewSyncStoryHooks";
-
-type CompassDisplayMode = "shared-view-state" | "rotation-locked-2d";
-
-const PanelNavigationControls = ({
-  slotId,
-  engine,
-  disabled = false,
-}: {
-  slotId: string;
-  engine: StoryMappingEngine;
-  disabled?: boolean;
-}) => {
-  const currentState = useViewState();
-  const derived = useViewStateDerived();
-  const compassDisplayMode: CompassDisplayMode =
-    engine === CARMA_STORY_MAPPING_ENGINES.LEAFLET
-      ? "rotation-locked-2d"
-      : "shared-view-state";
-  const isRotationLockedCompass = compassDisplayMode === "rotation-locked-2d";
-  const canPitchDrag =
-    !isRotationLockedCompass && engine !== CARMA_STORY_MAPPING_ENGINES.LEAFLET;
-  const canNorthInteract = !isRotationLockedCompass;
-  const controlSourceId = `${slotId}:${VIEW_SYNC_CONTROL_SOURCE_ENGINE}`;
-  const { claimControl, pushState, releaseControl } = useViewAdapter(
-    controlSourceId,
-    VIEW_SYNC_CONTROL_SOURCE_ENGINE,
-    {
-      apply: noopApplyViewState,
-    }
-  );
-  const initialDragStateRef = useRef<{
-    mouseX: number;
-    mouseY: number;
-    bearingDeg: number;
-    pitchDeg: number;
-    range: number;
-  } | null>(null);
-  const pendingCompassClickTimeoutRef = useRef<number | null>(null);
-  const didCompassDragRef = useRef(false);
-  const animationFrameRef = useRef<number | null>(null);
-
-  const cancelSharedStateAnimation = useCallback(() => {
-    if (animationFrameRef.current !== null) {
-      window.cancelAnimationFrame(animationFrameRef.current);
-      animationFrameRef.current = null;
-    }
-    releaseControl();
-  }, [releaseControl]);
-
-  const applyAngleUpdate = useCallback(
-    (overrides: Partial<{ bearing: number; pitch: number; range: number }>) => {
-      if (!currentState || !derived) return;
-      const nextState = buildFromDerived(
-        derived,
-        overrides,
-        currentState.intrinsics,
-        controlSourceId
-      );
-      cancelSharedStateAnimation();
-      if (!claimControl("user-interaction")) {
-        return;
-      }
-      pushState(nextState, "user-interaction");
-      releaseControl();
-    },
-    [
-      cancelSharedStateAnimation,
-      claimControl,
-      controlSourceId,
-      currentState,
-      derived,
-      pushState,
-      releaseControl,
-    ]
-  );
-
-  const animateSharedStateToAngles = useCallback(
-    (
-      overrides: Partial<{ bearing: number; pitch: number; range: number }>,
-      durationMs: number
-    ): boolean => {
-      if (!currentState || !derived) return false;
-
-      const startBearing = derived.bearing as number;
-      const startPitch = derived.pitch as number;
-      const startRange = derived.range as number;
-      const targetBearing = overrides.bearing ?? startBearing;
-      const targetPitch = overrides.pitch ?? startPitch;
-      const targetRange = overrides.range ?? startRange;
-      const resolvedDurationMs = Math.max(
-        durationMs,
-        ANIMATION_MIN_DURATION_MS
-      );
-      const animationStartMs = performance.now();
-
-      cancelSharedStateAnimation();
-      if (!claimControl("animation")) {
-        return false;
-      }
-
-      const writeAnimatedState = (easedT: number) => {
-        const nextState = buildFromDerived(
-          derived,
-          {
-            bearing: interpolateAngle(startBearing, targetBearing, easedT),
-            pitch: interpolateLinear(startPitch, targetPitch, easedT),
-            range: interpolateLinear(startRange, targetRange, easedT),
-          },
-          currentState.intrinsics,
-          controlSourceId,
-          "animation"
-        );
-
-        pushState(nextState, "animation");
-      };
-
-      writeAnimatedState(0);
-
-      const step = (nowMs: number) => {
-        const linearT = Math.min(
-          1,
-          (nowMs - animationStartMs) / resolvedDurationMs
-        );
-        const easedT = easeInOutCubic(linearT);
-        writeAnimatedState(easedT);
-
-        if (linearT >= 1) {
-          animationFrameRef.current = null;
-          releaseControl();
-          return;
-        }
-
-        animationFrameRef.current = window.requestAnimationFrame(step);
-      };
-
-      animationFrameRef.current = window.requestAnimationFrame(step);
-      return true;
-    },
-    [
-      cancelSharedStateAnimation,
-      claimControl,
-      controlSourceId,
-      currentState,
-      derived,
-      pushState,
-      releaseControl,
-    ]
-  );
-
-  const handleZoomIn = useCallback(
-    (event: React.MouseEvent<HTMLButtonElement>) => {
-      event.preventDefault();
-      event.stopPropagation();
-      if (!derived) return;
-
-      const nextRange = Math.max(5, (derived.range as number) * 0.5);
-      if (
-        !animateSharedStateToAngles(
-          { range: nextRange },
-          ZOOM_CONTROL_DURATION_MS
-        )
-      ) {
-        applyAngleUpdate({ range: nextRange });
-      }
-    },
-    [animateSharedStateToAngles, applyAngleUpdate, derived]
-  );
-
-  const handleZoomOut = useCallback(
-    (event: React.MouseEvent<HTMLButtonElement>) => {
-      event.preventDefault();
-      event.stopPropagation();
-      if (!derived) return;
-
-      const nextRange = (derived.range as number) * 2;
-      if (
-        !animateSharedStateToAngles(
-          { range: nextRange },
-          ZOOM_CONTROL_DURATION_MS
-        )
-      ) {
-        applyAngleUpdate({ range: nextRange });
-      }
-    },
-    [animateSharedStateToAngles, applyAngleUpdate, derived]
-  );
-
-  useEffect(() => {
-    const handleMouseMove = (event: MouseEvent) => {
-      const dragState = initialDragStateRef.current;
-      if (!dragState || !derived) return;
-
-      if (
-        Math.abs(event.clientX - dragState.mouseX) >
-          COMPASS_DRAG_THRESHOLD_PX ||
-        Math.abs(event.clientY - dragState.mouseY) > COMPASS_DRAG_THRESHOLD_PX
-      ) {
-        didCompassDragRef.current = true;
-      }
-
-      const nextBearingDeg =
-        dragState.bearingDeg +
-        (event.clientX - dragState.mouseX) * COMPASS_DRAG_FACTOR_DEG_PER_PX;
-      const nextPitchDeg = Math.max(
-        MIN_COMPASS_PITCH_DEG,
-        Math.min(
-          MAX_COMPASS_PITCH_DEG,
-          dragState.pitchDeg -
-            (event.clientY - dragState.mouseY) * COMPASS_DRAG_FACTOR_DEG_PER_PX
-        )
-      );
-
-      applyAngleUpdate({
-        bearing: degToRadNumeric(nextBearingDeg),
-        pitch: fromCompassPitchDeg(nextPitchDeg),
-        range: dragState.range,
-      });
-    };
-
-    const handleMouseUp = () => {
-      initialDragStateRef.current = null;
-    };
-
-    window.addEventListener("mousemove", handleMouseMove);
-    window.addEventListener("mouseup", handleMouseUp);
-
-    return () => {
-      window.removeEventListener("mousemove", handleMouseMove);
-      window.removeEventListener("mouseup", handleMouseUp);
-    };
-  }, [applyAngleUpdate, derived]);
-
-  useEffect(
-    () => () => {
-      if (pendingCompassClickTimeoutRef.current !== null) {
-        window.clearTimeout(pendingCompassClickTimeoutRef.current);
-      }
-      cancelSharedStateAnimation();
-    },
-    [cancelSharedStateAnimation]
-  );
-
-  const handleCompassMouseDown = useCallback(
-    (event: React.MouseEvent<HTMLButtonElement>) => {
-      event.preventDefault();
-      event.stopPropagation();
-      cancelSharedStateAnimation();
-
-      if (!canPitchDrag || !derived) {
-        return;
-      }
-
-      didCompassDragRef.current = false;
-      initialDragStateRef.current = {
-        mouseX: event.clientX,
-        mouseY: event.clientY,
-        bearingDeg: radToDegNumeric(derived.bearing as number),
-        pitchDeg: toCompassPitchDeg(derived.pitch as number),
-        range: derived.range as number,
-      };
-    },
-    [cancelSharedStateAnimation, canPitchDrag, derived]
-  );
-
-  const handleCompassClick = useCallback(
-    (event: React.MouseEvent<HTMLButtonElement>) => {
-      event.preventDefault();
-      event.stopPropagation();
-
-      if (!canNorthInteract) return;
-
-      if (didCompassDragRef.current) {
-        didCompassDragRef.current = false;
-        return;
-      }
-
-      if (pendingCompassClickTimeoutRef.current !== null) {
-        window.clearTimeout(pendingCompassClickTimeoutRef.current);
-      }
-
-      pendingCompassClickTimeoutRef.current = window.setTimeout(() => {
-        if (
-          !animateSharedStateToAngles(
-            { bearing: 0 },
-            COMPASS_ALIGN_NORTH_DURATION_MS
-          )
-        ) {
-          applyAngleUpdate({ bearing: 0 });
-        }
-        pendingCompassClickTimeoutRef.current = null;
-      }, COMPASS_CLICK_DELAY_MS);
-    },
-    [animateSharedStateToAngles, applyAngleUpdate, canNorthInteract]
-  );
-
-  const handleCompassDoubleClick = useCallback(
-    (event: React.MouseEvent<HTMLButtonElement>) => {
-      event.preventDefault();
-      event.stopPropagation();
-
-      if (!canNorthInteract) return;
-
-      if (pendingCompassClickTimeoutRef.current !== null) {
-        window.clearTimeout(pendingCompassClickTimeoutRef.current);
-        pendingCompassClickTimeoutRef.current = null;
-      }
-
-      didCompassDragRef.current = false;
-
-      if (
-        !animateSharedStateToAngles(
-          { bearing: 0, pitch: fromCompassPitchDeg(0) },
-          COMPASS_ALIGN_NORTH_NADIR_DURATION_MS
-        )
-      ) {
-        applyAngleUpdate({ bearing: 0, pitch: fromCompassPitchDeg(0) });
-      }
-    },
-    [animateSharedStateToAngles, applyAngleUpdate, canNorthInteract]
-  );
-
-  const sceneBearingDeg = derived
-    ? radToDegNumeric(derived.bearing as number)
-    : 0;
-  const scenePitchDeg = derived
-    ? toCompassPitchDeg(derived.pitch as number)
-    : 0;
-  const bearingDeg = isRotationLockedCompass ? 0 : sceneBearingDeg;
-  const pitchDeg = isRotationLockedCompass ? 0 : scenePitchDeg;
-  const compassTooltip = isRotationLockedCompass
-    ? "2D / rotation locked: north-up display only."
-    : "Einfachklick: Norden ausrichten. Doppelklick: Norden + Nadir.";
-  const showCompass = engine !== CARMA_STORY_MAPPING_ENGINES.LEAFLET;
-
-  return (
-    <SceneNavigationControls
-      disabled={disabled}
-      style={{ top: 10, left: 10, zIndex: 16 }}
-      zoomIn={{
-        tooltip: "Maßstab vergrößern (Zoom in)",
-        title: "Vergrößern",
-        dataTestId: `${slotId}-zoom-in-control`,
-        onClick: handleZoomIn,
-      }}
-      zoomOut={{
-        tooltip: "Maßstab verkleinern (Zoom out)",
-        title: "Verkleinern",
-        dataTestId: `${slotId}-zoom-out-control`,
-        onClick: handleZoomOut,
-      }}
-      compass={
-        showCompass
-          ? {
-              bearingDeg,
-              pitchDeg,
-              tooltip: compassTooltip,
-              title: "Kompass",
-              dataTestId: `${slotId}-compass-control`,
-              cursor: disabled
-                ? "default"
-                : canPitchDrag
-                ? "grab"
-                : canNorthInteract
-                ? "pointer"
-                : "default",
-              onMouseDown: canPitchDrag ? handleCompassMouseDown : undefined,
-              onClick: canNorthInteract ? handleCompassClick : undefined,
-              onDoubleClick: canNorthInteract
-                ? handleCompassDoubleClick
-                : undefined,
-            }
-          : null
-      }
-    />
-  );
-};
 
 const MappingEnginePanel = ({
   slot,
@@ -1718,9 +1321,11 @@ const SlotPanelController = ({
       onDelete={onDelete}
       statusText={statusText}
     >
-      <PanelNavigationControls
-        slotId={slot.id}
+      <ViewSyncRuntimeNavigationControls
+        controlId={slot.id}
         engine={activeRuntimeEngine}
+        runtimeHandle={activeRuntimeHandle}
+        homeTarget={fallbackTarget}
         disabled={isEngineTransitioning}
       />
       {mounts.map((mount) => (

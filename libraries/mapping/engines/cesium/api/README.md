@@ -114,6 +114,32 @@ This allows storing constructor options in JSON config files.
 
 Helper methods for converting primitives from `@carma/cesium/types` to Cesium objects belong here, alongside the types they create.
 
+## Navigation Controls Note
+
+Low-level Cesium camera, orbit, picking, and scene-frame helpers that are directly tied to raw Cesium runtime behavior live here under:
+
+- `src/lib/carma-helpers/controls/*`
+
+Current examples:
+
+- scene/render listener guards for `Scene` / `CesiumWidget`
+- per-frame cache for screen-center picks and passive compass orientation
+- other raw Cesium navigation-control helpers that should not depend on cross-engine interop packages
+
+For transient runtime state keyed by Cesium engine objects such as `Scene`, `Camera`, or `CesiumWidget`, prefer module-local `WeakMap` storage.
+
+- Use `WeakMap` for per-scene caches, active animations, passive orientation state, and similar ephemeral runtime bookkeeping.
+- For scene-local picks, per-frame caches, passive camera readbacks, and similar Cesium-native runtime details, prefer scene-coupled helpers here over React providers or React state loops. Keep that bookkeeping directly attached to the Cesium scene lifecycle rather than routing it through provider rerenders.
+- Do not attach ad-hoc private keys, symbol properties, or hidden fields to Cesium instances unless object-local storage is explicitly required for external interoperability.
+
+Shared runtime-bound navigation control composition belongs in:
+
+- [`../../../engines-interop/navigation-controls/README.md`](../../../engines-interop/navigation-controls/README.md)
+
+Presentation-only control chrome belongs in:
+
+- [`../../../map-controls-layout/README.md`](../../../map-controls-layout/README.md)
+
 # Developer Guidelines
 
 wrap only as needed for carma, no intention of coverage of full cesium api

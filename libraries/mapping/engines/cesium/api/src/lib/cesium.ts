@@ -24,6 +24,7 @@ export {
   defined,
   Ellipsoid,
   EllipsoidTerrainProvider,
+  EasingFunction,
   GeometryInstance,
   Globe,
   GroundPolylineGeometry,

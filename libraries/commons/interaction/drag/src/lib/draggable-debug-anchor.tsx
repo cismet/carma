@@ -16,6 +16,7 @@ type DraggableDebugAnchorProps = {
   sizePx?: number;
   zIndex?: number;
   lineOpacity?: number;
+  blendMode?: CSSProperties["mixBlendMode"];
 };
 
 const DEFAULT_SIZE_PX = 20;
@@ -62,6 +63,7 @@ const DraggableDebugAnchor = ({
   sizePx = DEFAULT_SIZE_PX,
   zIndex = DEFAULT_Z_INDEX,
   lineOpacity = DEFAULT_LINE_OPACITY,
+  blendMode,
 }: DraggableDebugAnchorProps) => {
   const isDraggingRef = useRef(false);
   const previousDocumentCursorRef = useRef<string | null>(null);
@@ -153,6 +155,7 @@ const DraggableDebugAnchor = ({
         zIndex,
         left: position.x,
         top: position.y,
+        mixBlendMode: blendMode,
       }}
     >
       <span

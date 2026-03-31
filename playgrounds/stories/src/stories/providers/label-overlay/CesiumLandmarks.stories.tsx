@@ -1356,7 +1356,7 @@ const CesiumLandmarksStory = ({
 };
 
 const meta: Meta<LandmarkLabelStoryArgs> = {
-  title: "Providers/LabelOverlay",
+  title: "Overlay/Layout",
   component: CesiumLandmarksStory,
   parameters: {
     layout: "fullscreen",

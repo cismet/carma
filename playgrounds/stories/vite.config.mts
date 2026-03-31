@@ -45,6 +45,11 @@ export default defineConfig({
       silent: false,
     }),
   ],
+  build: {
+    commonjsOptions: {
+      transformMixedEsModules: true,
+    },
+  },
   optimizeDeps: {
     include: ["cesium"],
   },

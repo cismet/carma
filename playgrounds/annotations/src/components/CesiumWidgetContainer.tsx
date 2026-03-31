@@ -7,9 +7,9 @@ import {
 } from "react";
 import {
   Cartesian2,
-  Cartesian3,
   Cesium3DTileset,
   CesiumTerrainProvider,
+  setViewFromCameraState,
   type CesiumWidget,
   type Scene,
 } from "@carma/cesium";
@@ -19,31 +19,13 @@ import {
   WUPP_TERRAIN_PROVIDER,
   WUPP_TERRAIN_PROVIDER_DSM_MESH_2024_1M,
 } from "@carma-commons/resources";
-import {
-  ANNOTATIONS_DEMO_HOME_CAMERA_STATE,
-  type AnnotationsDemoCameraState,
-} from "../config";
-
-const DEFAULT_INITIAL_CAMERA_STATE: AnnotationsDemoCameraState = {
-  ...ANNOTATIONS_DEMO_HOME_CAMERA_STATE,
-};
+import type { AnnotationsDemoCameraState } from "../playground.types";
 
 const applyCameraState = async (
   widget: CesiumWidget,
   state: AnnotationsDemoCameraState
 ) => {
-  widget.camera.setView({
-    destination: Cartesian3.fromRadians(
-      state.longitude,
-      state.latitude,
-      state.altitude
-    ),
-    orientation: {
-      heading: state.heading,
-      pitch: state.pitch,
-      roll: state.roll,
-    },
-  });
+  setViewFromCameraState(widget.camera, state);
   widget.scene.requestRender();
 };
 
@@ -103,12 +85,9 @@ const applyInitialCameraState = async ({
   initialCameraState,
 }: {
   widget: CesiumWidget;
-  initialCameraState: AnnotationsDemoCameraState | null;
+  initialCameraState: AnnotationsDemoCameraState;
 }) => {
-  await applyCameraState(
-    widget,
-    initialCameraState ?? DEFAULT_INITIAL_CAMERA_STATE
-  );
+  await applyCameraState(widget, initialCameraState);
 };
 
 const sampleScreenCenterTerrainIntersection = (scene: Scene) => {
@@ -181,7 +160,7 @@ const loadTileset = async (
 type CesiumWidgetContainerProps = {
   rootRef: MutableRefObject<HTMLDivElement | null>;
   onSceneChange?: (scene: Scene | null) => void;
-  initialCameraState?: AnnotationsDemoCameraState | null;
+  initialCameraState: AnnotationsDemoCameraState;
   startPoseResolved?: boolean;
   children: ReactNode;
 };
@@ -189,7 +168,7 @@ type CesiumWidgetContainerProps = {
 export function CesiumWidgetContainer({
   rootRef,
   onSceneChange,
-  initialCameraState = null,
+  initialCameraState,
   startPoseResolved = true,
   children,
 }: CesiumWidgetContainerProps) {

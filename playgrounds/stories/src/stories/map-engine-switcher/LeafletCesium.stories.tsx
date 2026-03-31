@@ -2,7 +2,7 @@ import type { Meta, StoryObj } from "@storybook/react";
 import { LeafletCesiumStory } from "./storyScenarios";
 
 const meta: Meta = {
-  title: "Mapping/MappingEngineSwitcher",
+  title: "Mapping/MapFrameworkSwitcher",
   parameters: {
     layout: "fullscreen",
   },

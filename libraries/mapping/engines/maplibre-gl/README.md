@@ -30,3 +30,15 @@ Preferred split:
 - The old root pass-through is gone.
 - `utils/` is now the concrete home for small pure MapLibre helper logic.
 - Keep higher-order runtime or React concerns out of this folder.
+
+## Navigation Controls Note
+
+Low-level MapLibre control helpers may live under `utils/src/lib/controls/*` when they are pure or directly tied to the raw `maplibre-gl` runtime.
+
+Shared runtime-bound navigation control composition belongs in:
+
+- [`../../engines-interop/navigation-controls/README.md`](../../engines-interop/navigation-controls/README.md)
+
+Presentation-only control chrome belongs in:
+
+- [`../../map-controls-layout/README.md`](../../map-controls-layout/README.md)

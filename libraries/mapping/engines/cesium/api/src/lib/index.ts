@@ -90,6 +90,7 @@ export {
   cartesian3ToVector3,
   offsetCartesian3Positions,
 } from "./carma-helpers/cartesian3";
+export * from "./carma-helpers/controls";
 export {
   getDegreesFromCartographic,
   getEllipsoidalAltitudeOrZero,

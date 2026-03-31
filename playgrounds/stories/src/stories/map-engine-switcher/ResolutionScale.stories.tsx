@@ -6,7 +6,7 @@ import {
 } from "./storyScenarios";
 
 const meta: Meta<ResolutionScaleControls> = {
-  title: "Mapping/MappingEngineSwitcher",
+  title: "Mapping/MapFrameworkSwitcher",
   parameters: {
     layout: "fullscreen",
   },

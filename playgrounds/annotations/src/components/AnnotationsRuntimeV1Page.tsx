@@ -12,7 +12,6 @@ import {
 import { useCesiumLabelOverlayHost } from "@carma-mapping/engines/cesium/react/interactions";
 import { LabelOverlayProvider } from "@carma-providers/label-overlay";
 
-import { ANNOTATIONS_DEMO_HOME_CAMERA_STATE } from "../config";
 import { INFOBOX_WIDTH_PX, readInitialToolType } from "../playgroundConfig";
 import type { PlaygroundRuntimePageProps } from "../playground.types";
 import { CesiumNavigationOverlay } from "./CesiumNavigationOverlay";
@@ -65,7 +64,10 @@ const RuntimeInfoBox = () => (
 const RuntimeStatusBar = ({
   runtimeVersion,
   onRuntimeVersionChange,
-}: PlaygroundRuntimePageProps) => (
+}: Pick<
+  PlaygroundRuntimePageProps,
+  "runtimeVersion" | "onRuntimeVersionChange"
+>) => (
   <PlaygroundStatusBar
     runtimeVersion={runtimeVersion}
     onRuntimeVersionChange={onRuntimeVersionChange}
@@ -77,6 +79,7 @@ const RuntimeStatusBar = ({
 export const AnnotationsRuntimeV1Page = ({
   runtimeVersion,
   onRuntimeVersionChange,
+  homeCameraState,
 }: PlaygroundRuntimePageProps) => {
   const rootRef = useRef<HTMLDivElement | null>(null);
   const [scene, setScene] = useState<Scene | null>(null);
@@ -95,7 +98,7 @@ export const AnnotationsRuntimeV1Page = ({
     <CesiumWidgetContainer
       rootRef={rootRef}
       onSceneChange={setScene}
-      initialCameraState={ANNOTATIONS_DEMO_HOME_CAMERA_STATE}
+      initialCameraState={homeCameraState}
     >
       <LabelOverlayProvider host={overlayHost}>
         {scene ? (
@@ -111,7 +114,7 @@ export const AnnotationsRuntimeV1Page = ({
             <PersistActiveToolMode />
             <CesiumNavigationOverlay
               scene={scene}
-              initialHomeCameraState={ANNOTATIONS_DEMO_HOME_CAMERA_STATE}
+              initialHomeCameraState={homeCameraState}
             />
             <RuntimeToolbar />
             <RuntimeInfoBox />

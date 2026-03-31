@@ -10,6 +10,7 @@ type ResponsiveStatusBarProps = {
   values?: readonly ReactNode[];
   className?: string;
   barHeight?: string;
+  fontSize?: number | string;
   tone?: "light" | "dark";
 };
 
@@ -23,6 +24,7 @@ const ResponsiveStatusBar = ({
   values = [],
   className,
   barHeight = DEFAULT_STATUS_BAR_HEIGHT,
+  fontSize = 11,
   tone = "light",
 }: ResponsiveStatusBarProps) => {
   const isDarkTone = tone === "dark";
@@ -105,7 +107,7 @@ const ResponsiveStatusBar = ({
     textAlign: "center",
     color: isDarkTone ? "rgba(248, 250, 252, 0.96)" : "#4b5563",
     fontWeight: 400,
-    fontSize: 11,
+    fontSize,
     marginBottom: 0,
     display: "flex",
     alignItems: "center",

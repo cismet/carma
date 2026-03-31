@@ -7,6 +7,17 @@ import {
   readInitialRuntimeVersion,
 } from "./playgroundConfig";
 import type { PlaygroundRuntime } from "./playground.types";
+import {
+  readCesiumCameraStateFromViewState,
+  readLeafletHomeViewState,
+} from "@carma-mapping/engines-interop/view-state";
+import { HOME_VIEW } from "./config";
+
+const HOME_CAMERA_STATE = readCesiumCameraStateFromViewState(
+  readLeafletHomeViewState(HOME_VIEW, {
+    sourceId: "annotations-playground/default-home",
+  })
+);
 
 export const App = () => {
   const [runtimeVersion, setRuntimeVersion] = useState<PlaygroundRuntime>(() =>
@@ -24,11 +35,13 @@ export const App = () => {
     <AnnotationsRuntimeV2Page
       runtimeVersion={runtimeVersion}
       onRuntimeVersionChange={handleRuntimeVersionChange}
+      homeCameraState={HOME_CAMERA_STATE}
     />
   ) : (
     <AnnotationsRuntimeV1Page
       runtimeVersion={runtimeVersion}
       onRuntimeVersionChange={handleRuntimeVersionChange}
+      homeCameraState={HOME_CAMERA_STATE}
     />
   );
 };

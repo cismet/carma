@@ -34,7 +34,7 @@ export const PixelResolutionVis = ({
     rectHeight = rectWidth / bufferAspect;
   } else {
     // Buffer is taller than SVG - height is limiting factor
-    // Circle connects center to middle of top/bottom edge (vertical FOV)
+    // Circle connects center to middle of top/bottom edge (FOV)
     radius = svgHeight / 2 - padding;
     rectHeight = svgHeight - 2 * padding;
     rectWidth = rectHeight * bufferAspect;

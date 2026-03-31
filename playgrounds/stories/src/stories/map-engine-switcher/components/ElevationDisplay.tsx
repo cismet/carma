@@ -151,7 +151,7 @@ export const ElevationDisplay = ({ style }: ElevationDisplayProps) => {
   const computed = useMemo(() => {
     // Get FOV from cesium scene (in radians)
     let fovRad = degToRadNumeric(60); // default fallback
-    let fovy = fovRad; // vertical FOV
+    let fovy = fovRad; // FOV
 
     if (cesiumScene?.camera?.frustum && "fov" in cesiumScene.camera.frustum) {
       const frustum = cesiumScene.camera.frustum as any;
