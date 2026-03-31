@@ -122,6 +122,43 @@ const DynamicStylingList = ({
   onSelectionChange,
 }: DynamicStylingControlProps) => {
   const currentOption = config.options.find((o) => o.id === currentSelection);
+  const isBinaryToggle = config.options.length === 2;
+
+  const handleToggle = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    const nextOption = config.options.find((o) => o.id !== currentSelection);
+    if (!nextOption) return;
+    if (maplibreMap) {
+      applyDynamicStyling(maplibreMap, carmaLayerId, config, nextOption.id);
+    }
+    onSelectionChange(nextOption.id);
+  };
+
+  if (isBinaryToggle) {
+    return (
+      <div
+        onClick={(e) => e.stopPropagation()}
+        onMouseDown={(e) => e.stopPropagation()}
+      >
+        <button
+          id={`stylingLayerButton-${carmaLayerId}`}
+          className="px-1.5 flex items-center gap-1 justify-center"
+          onClick={handleToggle}
+        >
+          <FontAwesomeIcon
+            icon={faPalette}
+            className="text-sm text-gray-600 hover:text-gray-500"
+          />
+          <span
+            className="inline-block w-2.5 h-2.5 rounded-full border border-gray-300"
+            style={{
+              backgroundColor: currentOption?.color,
+            }}
+          />
+        </button>
+      </div>
+    );
+  }
 
   return (
     <div
