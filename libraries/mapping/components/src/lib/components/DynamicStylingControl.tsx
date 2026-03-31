@@ -49,10 +49,12 @@ const captureOriginals = (
     return dynamicStylingOriginals[carmaLayerId];
   }
   const originals: Record<string, unknown> = {};
-  for (const target of config.targets) {
-    const val = getProperty(libreMap, target);
-    if (val !== undefined && val !== null) {
-      originals[target] = JSON.parse(JSON.stringify(val));
+  for (const targets of Object.values(config.targets)) {
+    for (const target of targets) {
+      const val = getProperty(libreMap, target);
+      if (val !== undefined && val !== null) {
+        originals[target] = JSON.parse(JSON.stringify(val));
+      }
     }
   }
   dynamicStylingOriginals[carmaLayerId] = originals;
@@ -71,45 +73,48 @@ export const applyDynamicStyling = (
   if (!defaultOption || !selectedOption) return;
 
   if (selectedOptionId === config.default) {
-    for (const target of config.targets) {
-      const originalVal = originals[target];
-      if (originalVal === undefined) continue;
-      try {
-        setProperty(libreMap, target, JSON.parse(JSON.stringify(originalVal)));
-      } catch (error) {
-        console.error(`[DynamicStyling] Error restoring ${target}:`, error);
+    for (const targets of Object.values(config.targets)) {
+      for (const target of targets) {
+        const originalVal = originals[target];
+        if (originalVal === undefined) continue;
+        try {
+          setProperty(
+            libreMap,
+            target,
+            JSON.parse(JSON.stringify(originalVal))
+          );
+        } catch (error) {
+          console.error(`[DynamicStyling] Error restoring ${target}:`, error);
+        }
       }
     }
     return;
   }
 
-  let replacements: [string, string][];
-  if (selectedOption.colorMap) {
-    replacements = selectedOption.colorMap;
-  } else {
-    const fromColor = defaultOption.color;
-    const toColor = selectedOption.color;
-    replacements = [
-      [fromColor, toColor],
-      [fromColor.toLowerCase(), toColor.toLowerCase()],
-      [
-        fromColor.replace("#", "").toLowerCase(),
-        toColor.replace("#", "").toLowerCase(),
-      ],
-    ];
-  }
+  for (const [key, targets] of Object.entries(config.targets)) {
+    const fromVal = defaultOption[key];
+    const toVal = selectedOption[key];
+    if (fromVal === undefined || toVal === undefined) continue;
 
-  for (const target of config.targets) {
-    const originalVal = originals[target];
-    if (originalVal === undefined) continue;
-    try {
-      let serialized = JSON.stringify(originalVal);
-      for (const [from, to] of replacements) {
-        serialized = serialized.replaceAll(from, to);
+    const replacements: [string, string][] = [[String(fromVal), String(toVal)]];
+    if (selectedOption.replacements?.[key]) {
+      replacements.push(
+        ...(selectedOption.replacements[key] as [string, string][])
+      );
+    }
+
+    for (const target of targets) {
+      const originalVal = originals[target];
+      if (originalVal === undefined) continue;
+      try {
+        let serialized = JSON.stringify(originalVal);
+        for (const [from, to] of replacements) {
+          serialized = serialized.replaceAll(from, to);
+        }
+        setProperty(libreMap, target, JSON.parse(serialized));
+      } catch (error) {
+        console.error(`[DynamicStyling] Error applying ${target}:`, error);
       }
-      setProperty(libreMap, target, JSON.parse(serialized));
-    } catch (error) {
-      console.error(`[DynamicStyling] Error applying ${target}:`, error);
     }
   }
 };

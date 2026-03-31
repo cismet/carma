@@ -18,7 +18,8 @@ export type DynamicStylingOption = {
   id: string;
   name: string;
   color: string;
-  colorMap?: [string, string][];
+  replacements?: Record<string, [string, string][]>;
+  [key: string]: unknown;
 };
 
 export type DynamicStylingListConfig = {
@@ -26,7 +27,7 @@ export type DynamicStylingListConfig = {
   label: string;
   default: string;
   options: DynamicStylingOption[];
-  targets: string[];
+  targets: Record<string, string[]>;
   showIcon?: boolean;
 };
 
