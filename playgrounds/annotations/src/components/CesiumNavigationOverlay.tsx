@@ -6,7 +6,12 @@ import {
   NAVIGATION_ZOOM_MODES,
   mountNavigationControlsOverlay,
   type NavigationControlsOverlayMessages,
+  type NavigationOrbitOptions,
 } from "@carma-mapping/engines-interop/navigation-controls";
+import {
+  createCesiumSceneOrbitController,
+  type CesiumSceneOrbitController,
+} from "@carma-mapping/engines/cesium/api";
 
 import type { AnnotationsDemoCameraState } from "../playground.types";
 
@@ -17,6 +22,9 @@ const DEFAULT_CONTROL_STYLE = {
 };
 
 const CONTROL_HOST_Z_INDEX = 1200;
+
+const DEFAULT_ORBIT_REVOLUTION_DURATION_SEC = 30;
+const DEFAULT_ORBIT_MIN_PITCH_DEG = 30;
 
 const readOverlayMessages = (): Partial<NavigationControlsOverlayMessages> => ({
   homeTooltip: "Zur Startansicht wechseln",
@@ -41,6 +49,26 @@ export const CesiumNavigationOverlay = ({
   initialHomeCameraState?: AnnotationsDemoCameraState | null;
 }) => {
   const hostRef = useRef<HTMLDivElement | null>(null);
+  const orbitControllerRef = useRef<CesiumSceneOrbitController | null>(null);
+
+  useEffect(() => {
+    orbitControllerRef.current?.destroy();
+    orbitControllerRef.current = null;
+
+    if (scene) {
+      orbitControllerRef.current = createCesiumSceneOrbitController({
+        scene,
+        revolutionDurationSec: DEFAULT_ORBIT_REVOLUTION_DURATION_SEC,
+        direction: "cw",
+        minPitchDeg: DEFAULT_ORBIT_MIN_PITCH_DEG,
+      });
+    }
+
+    return () => {
+      orbitControllerRef.current?.destroy();
+      orbitControllerRef.current = null;
+    };
+  }, [scene]);
 
   useEffect(() => {
     const host = hostRef.current;
@@ -48,10 +76,30 @@ export const CesiumNavigationOverlay = ({
       return;
     }
 
-    const methods = createCesiumNavigationMethods({
+    const orbitController = orbitControllerRef.current;
+
+    const baseMethods = createCesiumNavigationMethods({
       scene,
       homeCameraState: initialHomeCameraState,
     });
+
+    const methods =
+      orbitController !== null
+        ? {
+            ...baseMethods,
+            orbit: (options: NavigationOrbitOptions = {}) => {
+              if (orbitController.isOrbiting) {
+                orbitController.stopOrbit();
+                options.onCanceled?.();
+              } else {
+                options.onStarted?.();
+                orbitController.startOrbit();
+              }
+            },
+            subscribeOrbitActive: (sink: (active: boolean) => void) =>
+              orbitController.subscribeIsOrbiting(sink),
+          }
+        : baseMethods;
 
     return mountNavigationControlsOverlay(host, {
       controlId: "annotations",
@@ -70,6 +118,18 @@ export const CesiumNavigationOverlay = ({
         },
         zoomInTooltip: "Sichtfeld verkleinern (Kamera-Zoom in)",
         zoomOutTooltip: "Sichtfeld vergrößern (Kamera-Zoom out)",
+      },
+      tertiaryZoomGroup: {
+        zoomInOptions: {
+          mode: NAVIGATION_ZOOM_MODES.DOLLY,
+          durationMs: 500,
+        },
+        zoomOutOptions: {
+          mode: NAVIGATION_ZOOM_MODES.DOLLY,
+          durationMs: 500,
+        },
+        zoomInTooltip: "Dolly-Zoom in (Fahrt + FOV synchron)",
+        zoomOutTooltip: "Dolly-Zoom out (Fahrt + FOV synchron)",
       },
     });
   }, [initialHomeCameraState, scene]);
