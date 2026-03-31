@@ -67,6 +67,8 @@ export interface CesiumSetupOptions {
   surfaceProviderUrl?: string;
   tilesetUrl?: string;
   showRenderLoopErrors?: boolean;
+  loadTerrain?: boolean;
+  loadTileset?: boolean;
 }
 
 export interface CesiumSetupResult {
@@ -205,19 +207,25 @@ export const setupCesium = async (
     terrainProviderUrl = DEFAULT_TERRAIN_PROVIDER_URL,
     surfaceProviderUrl = DEFAULT_SURFACE_PROVIDER_URL,
     tilesetUrl = DEFAULT_TILESET_URL,
+    loadTerrain = true,
+    loadTileset: shouldLoadTileset = true,
   } = options;
 
   // Initialize widget
   const widget = initializeCesium(container, options);
 
   // Initialize terrain providers (async, don't block)
-  const terrainProvidersPromise = initializeTerrainProviders(
-    terrainProviderUrl,
-    surfaceProviderUrl
-  );
+  const terrainProvidersPromise = loadTerrain
+    ? initializeTerrainProviders(terrainProviderUrl, surfaceProviderUrl)
+    : Promise.resolve({
+        TERRAIN: null,
+        SURFACE: null,
+      });
 
   // Load tileset (async, don't block)
-  const tilesetPromise = loadTileset(widget, tilesetUrl);
+  const tilesetPromise = shouldLoadTileset
+    ? loadTileset(widget, tilesetUrl)
+    : Promise.resolve(null);
 
   // Wait for both
   const [terrainProviders, tileset] = await Promise.all([

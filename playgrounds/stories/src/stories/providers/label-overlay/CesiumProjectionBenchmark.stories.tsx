@@ -11,6 +11,7 @@ import {
 import type { Meta, StoryObj } from "@storybook/react";
 import {
   BoundingSphere,
+  Cartesian2,
   Cartesian3,
   HeadingPitchRange,
   Matrix4 as CesiumMatrix4,
@@ -26,6 +27,7 @@ import {
   useLabelOverlay,
 } from "@carma-providers/label-overlay";
 import {
+  CESIUM_LABEL_OVERLAY_FRAME_PHASES,
   useCesiumLabelOverlayHost,
   useCesiumViewProjector,
 } from "@carma-mapping/engines/cesium/react/interactions";
@@ -40,7 +42,10 @@ import {
   CSS2DObject,
   CSS2DRenderer,
 } from "three/examples/jsm/renderers/CSS2DRenderer.js";
-import { cartesian3FromGeographicCoordinate } from "@carma-mapping/engines/cesium/api";
+import {
+  cartesian3FromGeographicCoordinate,
+  isPointOccluded,
+} from "@carma-mapping/engines/cesium/api";
 import { setupCesium } from "../../map-engine-switcher/helpers/cesium-setup";
 import { requestStoryCesiumRender } from "../../shared/cesiumRuntimeGuards";
 import {
@@ -56,6 +61,11 @@ type BenchmarkOverlayRenderer =
   | "three-css2d";
 type BenchmarkProjectionMode = "cesium" | "matrix";
 type BenchmarkPointSource = "tileset-random" | "wuppertal-radial";
+type BenchmarkOcclusionMode =
+  | "none"
+  | "depth-pick"
+  | "move-end-depth-pick"
+  | "active-only-depth-pick";
 
 type CesiumProjectionBenchmarkStoryArgs = {
   pointCount: number;
@@ -63,6 +73,8 @@ type CesiumProjectionBenchmarkStoryArgs = {
   overlayRenderer: BenchmarkOverlayRenderer;
   projectionMode: BenchmarkProjectionMode;
   pointSource: BenchmarkPointSource;
+  occlusionMode: BenchmarkOcclusionMode;
+  pointOffsetMeters: number;
   forceLayoutOnPortalRender: boolean;
 };
 
@@ -78,13 +90,18 @@ type ScreenAnchor = {
   x: number;
   y: number;
   visible: boolean;
+  occluded: boolean;
+  renderable: boolean;
 };
 
 type ProjectionBenchmarkStatus = {
   cesiumAverageMs: number | null;
   matrixAverageMs: number | null;
+  occlusionAverageMs: number | null;
+  moveEndOcclusionBatchMs: number | null;
   maxDeltaPx: number | null;
   sampleCount: number;
+  activeOcclusionPointId: string | null;
 };
 
 type OverlayViewportSize = {
@@ -119,6 +136,7 @@ const BENCHMARK_POINT_MARKER_SIZE_PX = 8;
 const BENCHMARK_POINT_FONT_PX = 8;
 const BENCHMARK_POINT_FILL = "rgba(37, 99, 235, 0.88)";
 const BENCHMARK_POINT_STROKE = "rgba(255, 255, 255, 0.92)";
+const OCCLUDED_POINT_OPACITY = 0.5;
 const RATHAUS_BARMEN_CENTER = {
   longitude: 7.1999207,
   latitude: 51.2725716,
@@ -189,15 +207,16 @@ const buildCss2dPointElement = (label: string): HTMLDivElement => {
 };
 
 const buildRadialBenchmarkPoints = (
-  pointCount: number
+  pointCount: number,
+  pointOffsetMeters: number
 ): readonly BenchmarkPoint[] => {
   const safePointCount = Math.max(1, Math.floor(pointCount));
   const seededRandom = createSeededRandom(4242);
 
   return Array.from({ length: safePointCount }, (_, index) => {
-    const ringIndex = Math.floor(index / 24);
-    const angle = (index / safePointCount) * Math.PI * 2;
-    const radiusMeters = 20 + ringIndex * 12 + (index % 7) * 3;
+    const angle = index * 0.58;
+    const radiusMeters =
+      6 + Math.sqrt(index + 1) * 4.2 + (seededRandom() - 0.5) * 1.5;
     const altitude =
       RADIAL_POINT_BASE_ALTITUDE_M +
       (seededRandom() * 2 - 1) * RADIAL_POINT_ALTITUDE_VARIATION_M;
@@ -215,7 +234,7 @@ const buildRadialBenchmarkPoints = (
         latitude:
           RATHAUS_BARMEN_CENTER.latitude +
           (Math.sin(angle) * radiusMeters) / metersPerDegreeLat,
-        altitude,
+        altitude: altitude + pointOffsetMeters,
       }),
     };
   });
@@ -223,10 +242,11 @@ const buildRadialBenchmarkPoints = (
 
 const buildTilesetBenchmarkPoints = (
   pointCount: number,
-  tileset: Cesium3DTileset | null
+  tileset: Cesium3DTileset | null,
+  pointOffsetMeters: number
 ): readonly BenchmarkPoint[] => {
   if (!tileset) {
-    return buildRadialBenchmarkPoints(pointCount);
+    return buildRadialBenchmarkPoints(pointCount, pointOffsetMeters);
   }
 
   const safePointCount = Math.max(1, Math.floor(pointCount));
@@ -253,7 +273,11 @@ const buildTilesetBenchmarkPoints = (
       label: `${index + 1}`,
       positionECEF: CesiumMatrix4.multiplyByPoint(
         enuTransform,
-        localPoint,
+        new Cartesian3(
+          localPoint.x,
+          localPoint.y,
+          localPoint.z + pointOffsetMeters
+        ),
         new Cartesian3()
       ),
     };
@@ -290,6 +314,10 @@ const projectPointsWithCesium = (
       visible: Boolean(
         windowPoint && isVisibleAnchor(x, y, viewportWidth, viewportHeight)
       ),
+      occluded: false,
+      renderable: Boolean(
+        windowPoint && isVisibleAnchor(x, y, viewportWidth, viewportHeight)
+      ),
     };
   });
 
@@ -324,6 +352,8 @@ const projectPointsWithMatrix = (
         x: Number.NaN,
         y: Number.NaN,
         visible: false,
+        occluded: false,
+        renderable: false,
       };
     }
 
@@ -338,17 +368,135 @@ const projectPointsWithMatrix = (
       x,
       y,
       visible: isVisibleAnchor(x, y, viewportWidth, viewportHeight),
+      occluded: false,
+      renderable: isVisibleAnchor(x, y, viewportWidth, viewportHeight),
     };
   });
+
+const applyDepthPickOcclusion = (
+  scene: Scene,
+  points: readonly BenchmarkPoint[],
+  anchors: readonly ScreenAnchor[],
+  screenPositionScratch: Cartesian2,
+  pointIndexes?: readonly number[]
+): {
+  anchors: ScreenAnchor[];
+  occlusionById: Record<string, boolean>;
+} => {
+  const pointIndexSet = pointIndexes ? new Set(pointIndexes) : null;
+  const occlusionById: Record<string, boolean> = {};
+
+  return {
+    anchors: anchors.map((anchor, index) => {
+      const shouldTestPoint =
+        anchor.visible && (pointIndexSet === null || pointIndexSet.has(index));
+
+      if (!anchor.visible) {
+        return {
+          ...anchor,
+          occluded: false,
+          renderable: false,
+        };
+      }
+
+      if (!shouldTestPoint) {
+        return {
+          ...anchor,
+          occluded: false,
+          renderable: anchor.visible,
+        };
+      }
+
+      const point = points[index];
+      if (!point) {
+        return {
+          ...anchor,
+          occluded: false,
+          renderable: anchor.visible,
+        };
+      }
+
+      screenPositionScratch.x = anchor.x;
+      screenPositionScratch.y = anchor.y;
+
+      const occluded = isPointOccluded(
+        scene,
+        point.positionECEF,
+        screenPositionScratch
+      );
+
+      if (occluded) {
+        occlusionById[anchor.id] = true;
+      }
+
+      return {
+        ...anchor,
+        occluded,
+        renderable: anchor.visible,
+      };
+    }),
+    occlusionById,
+  };
+};
+
+const applyCachedOcclusion = (
+  anchors: readonly ScreenAnchor[],
+  occlusionById: Readonly<Record<string, boolean>>
+): ScreenAnchor[] =>
+  anchors.map((anchor) => {
+    if (!anchor.visible) {
+      return {
+        ...anchor,
+        occluded: false,
+        renderable: false,
+      };
+    }
+    const occluded = Boolean(occlusionById[anchor.id]);
+
+    return {
+      ...anchor,
+      occluded,
+      renderable: anchor.visible,
+    };
+  });
+
+const resolveActiveOcclusionPointIndex = (
+  anchors: readonly ScreenAnchor[],
+  viewportWidth: number,
+  viewportHeight: number
+): number => {
+  const centerX = viewportWidth * 0.5;
+  const centerY = viewportHeight * 0.5;
+  let bestIndex = -1;
+  let bestDistance = Number.POSITIVE_INFINITY;
+
+  anchors.forEach((anchor, index) => {
+    if (!anchor.visible) {
+      return;
+    }
+
+    const distance = Math.hypot(anchor.x - centerX, anchor.y - centerY);
+    if (distance < bestDistance) {
+      bestDistance = distance;
+      bestIndex = index;
+    }
+  });
+
+  return bestIndex;
+};
 
 const useProjectionBenchmarkFrameState = (
   scene: Scene | null,
   points: readonly BenchmarkPoint[],
   projectionMode: BenchmarkProjectionMode,
+  occlusionMode: BenchmarkOcclusionMode,
   benchmarkSamplesPerFrame: number
 ) => {
   const viewProjector = useCesiumViewProjector(scene);
   const anchorsRef = useRef<readonly ScreenAnchor[]>([]);
+  const cachedMoveEndOcclusionByIdRef = useRef<Record<string, boolean>>({});
+  const pendingMoveEndOcclusionRef = useRef(false);
+  const lastMoveEndOcclusionBatchMsRef = useRef<number | null>(null);
   const viewportSizeRef = useRef<OverlayViewportSize>({
     width: 1,
     height: 1,
@@ -358,8 +506,11 @@ const useProjectionBenchmarkFrameState = (
   const [status, setStatus] = useState<ProjectionBenchmarkStatus>({
     cesiumAverageMs: null,
     matrixAverageMs: null,
+    occlusionAverageMs: null,
+    moveEndOcclusionBatchMs: null,
     maxDeltaPx: null,
     sampleCount: 0,
+    activeOcclusionPointId: null,
   });
 
   useEffect(() => {
@@ -374,8 +525,11 @@ const useProjectionBenchmarkFrameState = (
       setStatus({
         cesiumAverageMs: null,
         matrixAverageMs: null,
+        occlusionAverageMs: null,
+        moveEndOcclusionBatchMs: null,
         maxDeltaPx: null,
         sampleCount: 0,
+        activeOcclusionPointId: null,
       });
       return;
     }
@@ -384,6 +538,11 @@ const useProjectionBenchmarkFrameState = (
     const worldPointScratch = new Cartesian3();
     const clipPointScratch = new Vector4();
     const threeViewProjection = new Matrix4();
+    const occlusionScreenPositionScratch = new Cartesian2();
+    cachedMoveEndOcclusionByIdRef.current = {};
+    pendingMoveEndOcclusionRef.current =
+      occlusionMode === "move-end-depth-pick";
+    lastMoveEndOcclusionBatchMsRef.current = null;
 
     const updateFrameState = () => {
       if (!scene || scene.isDestroyed()) {
@@ -424,7 +583,53 @@ const useProjectionBenchmarkFrameState = (
               viewportWidth,
               viewportHeight
             );
-      anchorsRef.current = chosenAnchors;
+      let nextAnchors = chosenAnchors;
+      let activeOcclusionPointId: string | null = null;
+
+      if (occlusionMode === "depth-pick") {
+        nextAnchors = applyDepthPickOcclusion(
+          scene,
+          points,
+          chosenAnchors,
+          occlusionScreenPositionScratch
+        ).anchors;
+      } else if (occlusionMode === "move-end-depth-pick") {
+        if (pendingMoveEndOcclusionRef.current) {
+          const startedAtMs = performance.now();
+          const result = applyDepthPickOcclusion(
+            scene,
+            points,
+            chosenAnchors,
+            occlusionScreenPositionScratch
+          );
+          cachedMoveEndOcclusionByIdRef.current = result.occlusionById;
+          lastMoveEndOcclusionBatchMsRef.current =
+            performance.now() - startedAtMs;
+          pendingMoveEndOcclusionRef.current = false;
+        }
+        nextAnchors = applyCachedOcclusion(
+          chosenAnchors,
+          cachedMoveEndOcclusionByIdRef.current
+        );
+      } else if (occlusionMode === "active-only-depth-pick") {
+        const activePointIndex = resolveActiveOcclusionPointIndex(
+          chosenAnchors,
+          viewportWidth,
+          viewportHeight
+        );
+        if (activePointIndex >= 0) {
+          activeOcclusionPointId = chosenAnchors[activePointIndex]?.id ?? null;
+          nextAnchors = applyDepthPickOcclusion(
+            scene,
+            points,
+            chosenAnchors,
+            occlusionScreenPositionScratch,
+            [activePointIndex]
+          ).anchors;
+        }
+      }
+
+      anchorsRef.current = nextAnchors;
 
       if (nowMs < nextBenchmarkAtMs) {
         return;
@@ -433,6 +638,7 @@ const useProjectionBenchmarkFrameState = (
       const safeSampleCount = Math.max(1, Math.floor(benchmarkSamplesPerFrame));
       let cesiumDurationSumMs = 0;
       let matrixDurationSumMs = 0;
+      let occlusionDurationSumMs = 0;
       let maxDeltaPx = 0;
 
       for (
@@ -461,6 +667,38 @@ const useProjectionBenchmarkFrameState = (
         );
         matrixDurationSumMs += performance.now() - matrixStartedAtMs;
 
+        if (occlusionMode === "depth-pick") {
+          const occlusionInputAnchors =
+            projectionMode === "matrix" ? matrixAnchors : cesiumAnchors;
+          const occlusionStartedAtMs = performance.now();
+          applyDepthPickOcclusion(
+            scene,
+            points,
+            occlusionInputAnchors,
+            occlusionScreenPositionScratch
+          );
+          occlusionDurationSumMs += performance.now() - occlusionStartedAtMs;
+        } else if (occlusionMode === "active-only-depth-pick") {
+          const occlusionInputAnchors =
+            projectionMode === "matrix" ? matrixAnchors : cesiumAnchors;
+          const activePointIndex = resolveActiveOcclusionPointIndex(
+            occlusionInputAnchors,
+            viewportWidth,
+            viewportHeight
+          );
+          if (activePointIndex >= 0) {
+            const occlusionStartedAtMs = performance.now();
+            applyDepthPickOcclusion(
+              scene,
+              points,
+              occlusionInputAnchors,
+              occlusionScreenPositionScratch,
+              [activePointIndex]
+            );
+            occlusionDurationSumMs += performance.now() - occlusionStartedAtMs;
+          }
+        }
+
         const comparableCount = Math.min(
           cesiumAnchors.length,
           matrixAnchors.length
@@ -488,20 +726,45 @@ const useProjectionBenchmarkFrameState = (
       setStatus({
         cesiumAverageMs: cesiumDurationSumMs / safeSampleCount,
         matrixAverageMs: matrixDurationSumMs / safeSampleCount,
+        occlusionAverageMs:
+          occlusionMode === "depth-pick" ||
+          occlusionMode === "active-only-depth-pick"
+            ? occlusionDurationSumMs / safeSampleCount
+            : null,
+        moveEndOcclusionBatchMs:
+          occlusionMode === "move-end-depth-pick"
+            ? lastMoveEndOcclusionBatchMsRef.current
+            : null,
         maxDeltaPx,
         sampleCount: safeSampleCount,
+        activeOcclusionPointId,
       });
       nextBenchmarkAtMs = nowMs + BENCHMARK_SAMPLE_WINDOW_MS;
     };
 
     updateFrameState();
-    const removePreRenderListener =
-      scene.preRender.addEventListener(updateFrameState);
+    const removePostRenderListener =
+      scene.postRender.addEventListener(updateFrameState);
+    const removeMoveEndListener =
+      occlusionMode === "move-end-depth-pick"
+        ? scene.camera.moveEnd.addEventListener(() => {
+            pendingMoveEndOcclusionRef.current = true;
+            scene.requestRender();
+          })
+        : undefined;
 
     return () => {
-      removePreRenderListener?.();
+      removePostRenderListener?.();
+      removeMoveEndListener?.();
     };
-  }, [benchmarkSamplesPerFrame, points, projectionMode, scene, viewProjector]);
+  }, [
+    benchmarkSamplesPerFrame,
+    occlusionMode,
+    points,
+    projectionMode,
+    scene,
+    viewProjector,
+  ]);
 
   return {
     anchorsRef,
@@ -529,16 +792,22 @@ const BenchmarkPortalSquares = ({
         id: point.id,
         contentKey: point.id,
         content: buildPortalPointContent(point.label),
-        getCanvasPosition: () => {
+        updatePosition: (elementDiv) => {
           const anchor = anchorsRef.current[index];
-          if (!anchor || !anchor.visible) {
-            return null;
+          if (!anchor || !anchor.renderable) {
+            elementDiv.style.display = "none";
+            return false;
           }
 
-          return {
-            x: anchor.x,
-            y: anchor.y,
-          };
+          elementDiv.style.position = "absolute";
+          elementDiv.style.left = `${anchor.x}px`;
+          elementDiv.style.top = `${anchor.y}px`;
+          elementDiv.style.transform = "translate(-50%, -50%)";
+          elementDiv.style.opacity = anchor.occluded
+            ? `${OCCLUDED_POINT_OPACITY}`
+            : "1";
+          elementDiv.style.display = "block";
+          return true;
         },
       });
     });
@@ -578,6 +847,7 @@ const BenchmarkPortalOverlay = ({
     kind: "benchmark-cesium",
     containerRef: rootRef,
     forceLayoutOnPortalRender,
+    framePhase: CESIUM_LABEL_OVERLAY_FRAME_PHASES.POST_RENDER,
   });
 
   return (
@@ -642,13 +912,14 @@ const BenchmarkCanvasOverlay = ({
       context.lineWidth = displayScale;
 
       anchorsRef.current.forEach((anchor) => {
-        if (!anchor.visible) {
+        if (!anchor.renderable) {
           return;
         }
 
         const anchorX = anchor.x * scaleX;
         const anchorY = anchor.y * scaleY;
         const markerSizePx = BENCHMARK_POINT_MARKER_SIZE_PX * displayScale;
+        context.globalAlpha = anchor.occluded ? OCCLUDED_POINT_OPACITY : 1;
 
         context.fillStyle = BENCHMARK_POINT_FILL;
         context.strokeStyle = BENCHMARK_POINT_STROKE;
@@ -666,14 +937,15 @@ const BenchmarkCanvasOverlay = ({
         );
         context.fillStyle = "#f8fafc";
         context.fillText(anchor.label, anchorX + markerSizePx, anchorY);
+        context.globalAlpha = 1;
       });
     };
 
     render();
-    const removePreRenderListener = scene.preRender.addEventListener(render);
+    const removePostRenderListener = scene.postRender.addEventListener(render);
 
     return () => {
-      removePreRenderListener?.();
+      removePostRenderListener?.();
       if (canvas.parentElement === rootElement) {
         rootElement.removeChild(canvas);
       }
@@ -732,7 +1004,7 @@ const BenchmarkCss2dOverlay = ({
       for (let index = 0; index < objects.length; index += 1) {
         const object = objects[index];
         const anchor = anchors[index];
-        if (!object || !anchor || !anchor.visible) {
+        if (!object || !anchor || !anchor.renderable) {
           if (object) {
             object.visible = false;
           }
@@ -740,6 +1012,9 @@ const BenchmarkCss2dOverlay = ({
         }
 
         object.visible = true;
+        object.element.style.opacity = anchor.occluded
+          ? `${OCCLUDED_POINT_OPACITY}`
+          : "1";
         object.position.set(anchor.x, viewportHeight - anchor.y, 0);
       }
 
@@ -747,10 +1022,10 @@ const BenchmarkCss2dOverlay = ({
     };
 
     render();
-    const removePreRenderListener = scene.preRender.addEventListener(render);
+    const removePostRenderListener = scene.postRender.addEventListener(render);
 
     return () => {
-      removePreRenderListener?.();
+      removePostRenderListener?.();
       objects.forEach((object) => {
         object.removeFromParent();
       });
@@ -819,6 +1094,8 @@ const CesiumProjectionBenchmarkStory = ({
   overlayRenderer,
   projectionMode,
   pointSource,
+  occlusionMode,
+  pointOffsetMeters,
   forceLayoutOnPortalRender,
 }: CesiumProjectionBenchmarkStoryArgs) => {
   const rootRef = useRef<HTMLDivElement | null>(null);
@@ -831,9 +1108,9 @@ const CesiumProjectionBenchmarkStory = ({
   const points = useMemo(
     () =>
       pointSource === "tileset-random"
-        ? buildTilesetBenchmarkPoints(pointCount, tileset)
-        : buildRadialBenchmarkPoints(pointCount),
-    [pointCount, pointSource, tileset]
+        ? buildTilesetBenchmarkPoints(pointCount, tileset, pointOffsetMeters)
+        : buildRadialBenchmarkPoints(pointCount, pointOffsetMeters),
+    [pointCount, pointOffsetMeters, pointSource, tileset]
   );
   const pointBoundingSphere = useMemo(
     () =>
@@ -847,6 +1124,7 @@ const CesiumProjectionBenchmarkStory = ({
       scene,
       points,
       projectionMode,
+      occlusionMode,
       benchmarkSamplesPerFrame
     );
 
@@ -857,10 +1135,12 @@ const CesiumProjectionBenchmarkStory = ({
     }
 
     let disposed = false;
+    const shouldLoadTileset = pointSource === "tileset-random";
 
     const initialize = async () => {
       const setup = await setupCesium(container, {
         useBrowserRecommendedResolution: false,
+        loadTileset: shouldLoadTileset,
       });
       if (disposed) {
         if (!setup.widget.isDestroyed()) {
@@ -870,19 +1150,6 @@ const CesiumProjectionBenchmarkStory = ({
       }
 
       widgetRef.current = setup.widget;
-      setup.widget.camera.setView({
-        destination: cartesian3FromGeographicCoordinate({
-          longitude: RATHAUS_BARMEN_CENTER.longitude,
-          latitude: RATHAUS_BARMEN_CENTER.latitude,
-          altitude: 900,
-        }),
-        orientation: {
-          heading: 0.42,
-          pitch: -0.78,
-          roll: 0,
-        },
-      });
-
       setTileset(setup.tileset);
       setScene(setup.widget.scene);
     };
@@ -904,27 +1171,32 @@ const CesiumProjectionBenchmarkStory = ({
         widget.destroy();
       }
     };
-  }, []);
+  }, [pointSource]);
 
   useEffect(() => {
-    const widget = widgetRef.current;
-    if (!widget || widget.isDestroyed() || !pointBoundingSphere) {
+    if (!scene || scene.isDestroyed() || !pointBoundingSphere) {
       return;
     }
 
-    widget.camera.flyToBoundingSphere(pointBoundingSphere, {
-      duration: 0,
-      offset: new HeadingPitchRange(
+    scene.camera.viewBoundingSphere(
+      pointBoundingSphere,
+      new HeadingPitchRange(
         0.35,
         -0.65,
         Math.max(pointBoundingSphere.radius * 2.8, 180)
-      ),
-    });
-    requestStoryCesiumRender(widget.scene);
-  }, [pointBoundingSphere]);
+      )
+    );
+    requestStoryCesiumRender(scene);
+  }, [pointBoundingSphere, scene]);
 
   const visibleAnchorCount = anchorsRef.current.filter(
     (anchor) => anchor.visible
+  ).length;
+  const occludedAnchorCount = anchorsRef.current.filter(
+    (anchor) => anchor.occluded
+  ).length;
+  const renderableAnchorCount = anchorsRef.current.filter(
+    (anchor) => anchor.renderable
   ).length;
   const speedup =
     status.cesiumAverageMs !== null &&
@@ -937,14 +1209,23 @@ const CesiumProjectionBenchmarkStory = ({
     `${pointSource === "tileset-random" ? "tileset random" : "radial"} source`,
     `${overlayRenderer} overlay`,
     `${projectionMode} projection`,
+    `${occlusionMode} occlusion`,
+    `${formatMetric(pointOffsetMeters, 0)}m offset`,
     `${pointCount} points`,
     `${visibleAnchorCount} visible`,
+    `${renderableAnchorCount} renderable`,
+    `${occludedAnchorCount} occluded`,
     `frame ${formatStoryPerformanceLabel(animationFrameStatus)}`,
     `Cesium ${formatMetric(status.cesiumAverageMs, 3)} ms`,
     `Matrix ${formatMetric(status.matrixAverageMs, 3)} ms`,
+    `Occlusion ${formatMetric(status.occlusionAverageMs, 3)} ms`,
+    `moveEnd batch ${formatMetric(status.moveEndOcclusionBatchMs, 3)} ms`,
     `speedup ${formatMetric(speedup, 2)}x`,
     `delta ${formatMetric(status.maxDeltaPx, 3)} px`,
     `${status.sampleCount} benchmark samples`,
+    status.activeOcclusionPointId
+      ? `active ${status.activeOcclusionPointId}`
+      : "active n/a",
     overlayRenderer === "provider-portals"
       ? `portal layout ${forceLayoutOnPortalRender ? "forced" : "deferred"}`
       : "portal layout n/a",
@@ -983,6 +1264,8 @@ const meta: Meta<CesiumProjectionBenchmarkStoryArgs> = {
     benchmarkSamplesPerFrame: 2,
     overlayRenderer: "canvas-2d",
     projectionMode: "matrix",
+    occlusionMode: "none",
+    pointOffsetMeters: 50,
     pointSource: "tileset-random",
     forceLayoutOnPortalRender: false,
   },
@@ -1000,6 +1283,18 @@ const meta: Meta<CesiumProjectionBenchmarkStoryArgs> = {
     projectionMode: {
       control: { type: "inline-radio" },
       options: ["matrix", "cesium"],
+    },
+    occlusionMode: {
+      control: { type: "inline-radio" },
+      options: [
+        "none",
+        "depth-pick",
+        "move-end-depth-pick",
+        "active-only-depth-pick",
+      ],
+    },
+    pointOffsetMeters: {
+      control: { type: "range", min: -100, max: 200, step: 5 },
     },
     pointSource: {
       control: { type: "inline-radio" },

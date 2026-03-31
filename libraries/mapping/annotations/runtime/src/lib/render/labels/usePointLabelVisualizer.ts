@@ -11,8 +11,6 @@ import {
 import {
   Cartesian2,
   Cartesian3,
-  SceneTransforms,
-  defined,
   getDegreesFromCartesian,
   type Scene,
 } from "@carma/cesium";
@@ -1032,13 +1030,7 @@ export const usePointLabelVisualizer = (
           if (!scene || scene.isDestroyed()) {
             return visibilityStateById[point.id]?.screenPosition ?? null;
           }
-          const canvasPosition = SceneTransforms.worldToWindowCoordinates(
-            scene,
-            point.geometryECEF
-          );
-          return defined(canvasPosition)
-            ? ({ x: canvasPosition.x, y: canvasPosition.y } as CssPixelPosition)
-            : null;
+          return overlayView.projectWorldToScreen(point.geometryECEF);
         },
         pitch: cameraPitch,
         labelAngleRad: layoutResult.placements[point.id]?.angleRad,

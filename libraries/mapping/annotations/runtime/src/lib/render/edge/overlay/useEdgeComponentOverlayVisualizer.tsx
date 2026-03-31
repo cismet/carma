@@ -257,17 +257,11 @@ export const useEdgeComponentOverlayVisualizer = (
 
   const resolvePointCanvasPositionById = useCallback(
     (pointId: string) => {
-      if (!scene || scene.isDestroyed()) return null;
       const point = pointsById.get(pointId);
       if (!point) return null;
-      const anchor = SceneTransforms.worldToWindowCoordinates(
-        scene,
-        point.geometryECEF
-      );
-      if (!defined(anchor)) return null;
-      return { x: anchor.x, y: anchor.y } as CssPixelPosition;
+      return overlayView.projectWorldToScreen(point.geometryECEF);
     },
-    [pointsById, scene]
+    [overlayView, pointsById]
   );
 
   const viewportWidth = Math.max(
@@ -310,11 +304,8 @@ export const useEdgeComponentOverlayVisualizer = (
       }) => {
         const getWorldToScreen = (
           position: Cartesian3
-        ): CssPixelPosition | null => {
-          if (!scene || scene.isDestroyed()) return null;
-          const p = SceneTransforms.worldToWindowCoordinates(scene, position);
-          return defined(p) ? ({ x: p.x, y: p.y } as CssPixelPosition) : null;
-        };
+        ): CssPixelPosition | null =>
+          overlayView.projectWorldToScreen(position);
         const highestPoint =
           pointA.geometryWGS84.altitude >= pointB.geometryWGS84.altitude
             ? pointA

@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef } from "react";
 
 import {
+  Cartesian2,
   Cartesian3,
   Matrix4,
   SceneTransforms,
@@ -12,6 +13,14 @@ import {
 import type { CssPixelPosition } from "@carma/units/types";
 
 const WORLD_POINT_SCRATCH = new Cartesian3();
+
+type ProjectedScreenPositionCacheEntry = {
+  frameNumber: number;
+  pointX: number;
+  pointY: number;
+  pointZ: number;
+  screenPosition: CssPixelPosition | null;
+};
 
 type SceneFrameStateLike = {
   frameState?: { frameNumber?: number };
@@ -33,6 +42,11 @@ type CachedCesiumViewProjectorSnapshot = {
   hasViewProjectionMatrix: boolean;
   viewProjectionScratch: Matrix4;
   viewProjectionMatrix: Matrix4ConstructorArgs;
+  projectedScreenPositionByPoint: WeakMap<
+    object,
+    ProjectedScreenPositionCacheEntry
+  >;
+  windowCoordinateScratch: Cartesian2;
 };
 
 const cachedCesiumViewProjectorSnapshots = new WeakMap<
@@ -50,7 +64,7 @@ const readSceneFrameNumber = (scene: SceneFrameStateLike): number | null => {
 const readOrCreateCachedSnapshot = (
   scene: Scene
 ): CachedCesiumViewProjectorSnapshot => {
-  const frameNumber = readSceneFrameNumber(scene);
+  const frameNumber = readSceneFrameNumber(scene as SceneFrameStateLike);
   const existingSnapshot = cachedCesiumViewProjectorSnapshots.get(scene);
 
   if (!existingSnapshot) {
@@ -63,6 +77,8 @@ const readOrCreateCachedSnapshot = (
       viewProjectionMatrix: new Array<number>(16).fill(
         0
       ) as Matrix4ConstructorArgs,
+      projectedScreenPositionByPoint: new WeakMap(),
+      windowCoordinateScratch: new Cartesian2(),
     };
     cachedCesiumViewProjectorSnapshots.set(scene, initialSnapshot);
     return initialSnapshot;
@@ -73,6 +89,7 @@ const readOrCreateCachedSnapshot = (
     existingSnapshot.refreshedForFrame = false;
     existingSnapshot.latestViewState = null;
     existingSnapshot.hasViewProjectionMatrix = false;
+    existingSnapshot.projectedScreenPositionByPoint = new WeakMap();
   }
 
   return existingSnapshot;
@@ -86,7 +103,7 @@ const refreshCachedSnapshot = (
     return cachedSnapshot;
   }
 
-  const frameNumber = readSceneFrameNumber(scene);
+  const frameNumber = readSceneFrameNumber(scene as SceneFrameStateLike);
   cachedSnapshot.latestViewState = {
     width: Math.max(1, scene.canvas.clientWidth || scene.canvas.width || 1),
     height: Math.max(1, scene.canvas.clientHeight || scene.canvas.height || 1),
@@ -112,6 +129,58 @@ const refreshCachedSnapshot = (
   cachedSnapshot.refreshedForFrame = true;
 
   return cachedSnapshot;
+};
+
+const readCachedProjectedScreenPosition = (
+  scene: Scene,
+  point: Cartesian3Json,
+  cachedSnapshot: CachedCesiumViewProjectorSnapshot
+): CssPixelPosition | null => {
+  const frameNumber = cachedSnapshot.frameNumber;
+  const cacheKey = point as object;
+  const cachedEntry =
+    frameNumber !== null
+      ? cachedSnapshot.projectedScreenPositionByPoint.get(cacheKey)
+      : undefined;
+
+  if (
+    cachedEntry &&
+    cachedEntry.frameNumber === frameNumber &&
+    cachedEntry.pointX === point.x &&
+    cachedEntry.pointY === point.y &&
+    cachedEntry.pointZ === point.z
+  ) {
+    return cachedEntry.screenPosition;
+  }
+
+  const worldPoint = Cartesian3.fromElements(
+    point.x,
+    point.y,
+    point.z,
+    WORLD_POINT_SCRATCH
+  );
+
+  const screen = SceneTransforms.worldToWindowCoordinates(
+    scene,
+    worldPoint,
+    cachedSnapshot.windowCoordinateScratch
+  );
+  const screenPosition =
+    defined(screen) && Number.isFinite(screen.x) && Number.isFinite(screen.y)
+      ? ({ x: screen.x, y: screen.y } as CssPixelPosition)
+      : null;
+
+  if (frameNumber !== null) {
+    cachedSnapshot.projectedScreenPositionByPoint.set(cacheKey, {
+      frameNumber,
+      pointX: point.x,
+      pointY: point.y,
+      pointZ: point.z,
+      screenPosition,
+    });
+  }
+
+  return screenPosition;
 };
 
 export const useCesiumViewProjector = (scene: Scene | null) => {
@@ -172,26 +241,8 @@ export const useCesiumViewProjector = (scene: Scene | null) => {
   const projectWorldToScreen = useCallback(
     (point: Cartesian3Json) => {
       if (!scene || scene.isDestroyed()) return null;
-      const worldPoint = Cartesian3.fromElements(
-        point.x,
-        point.y,
-        point.z,
-        WORLD_POINT_SCRATCH
-      );
-
-      const screen = SceneTransforms.worldToWindowCoordinates(
-        scene,
-        worldPoint
-      );
-      if (!defined(screen)) return null;
-      if (!Number.isFinite(screen.x) || !Number.isFinite(screen.y)) {
-        return null;
-      }
-
-      return {
-        x: screen.x,
-        y: screen.y,
-      } as CssPixelPosition;
+      const cachedSnapshot = refreshCachedSnapshot(scene);
+      return readCachedProjectedScreenPosition(scene, point, cachedSnapshot);
     },
     [scene]
   );
