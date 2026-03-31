@@ -409,6 +409,7 @@ const GeoportalLayerButton = ({
                 onSelectionChange={(selection) => {
                   dispatch(setLayerDynamicStylingSelection({ id, selection }));
                 }}
+                showIcon={false}
               />
             )}
 

@@ -112,6 +112,7 @@ export interface DynamicStylingControlProps {
   carmaLayerId: string;
   currentSelection: string;
   onSelectionChange: (selection: string) => void;
+  showIcon?: boolean;
 }
 
 const DynamicStylingList = ({
@@ -120,9 +121,11 @@ const DynamicStylingList = ({
   carmaLayerId,
   currentSelection,
   onSelectionChange,
+  showIcon: showIconProp,
 }: DynamicStylingControlProps) => {
   const currentOption = config.options.find((o) => o.id === currentSelection);
   const isBinaryToggle = config.options.length === 2;
+  const showIcon = showIconProp ?? config.showIcon !== false;
 
   const handleToggle = (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -145,10 +148,12 @@ const DynamicStylingList = ({
           className="px-1.5 flex items-center gap-1 justify-center"
           onClick={handleToggle}
         >
-          <FontAwesomeIcon
-            icon={faPalette}
-            className="text-sm text-gray-600 hover:text-gray-500"
-          />
+          {showIcon && (
+            <FontAwesomeIcon
+              icon={faPalette}
+              className="text-sm text-gray-600 hover:text-gray-500"
+            />
+          )}
           <span
             className="inline-block w-2.5 h-2.5 rounded-full border border-gray-300"
             style={{
@@ -196,10 +201,12 @@ const DynamicStylingList = ({
           id={`stylingLayerButton-${carmaLayerId}`}
           className="px-1.5 flex items-center gap-1 justify-center"
         >
-          <FontAwesomeIcon
-            icon={faPalette}
-            className="text-sm text-gray-600 hover:text-gray-500"
-          />
+          {showIcon && (
+            <FontAwesomeIcon
+              icon={faPalette}
+              className="text-sm text-gray-600 hover:text-gray-500"
+            />
+          )}
           <span
             className="inline-block w-2.5 h-2.5 rounded-full border border-gray-300"
             style={{

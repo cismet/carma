@@ -27,6 +27,7 @@ export type DynamicStylingConfig = {
   default: string;
   options: DynamicStylingOption[];
   targets: string[];
+  showIcon?: boolean;
 };
 
 export type BackgroundLayer = BaseLayer & {
