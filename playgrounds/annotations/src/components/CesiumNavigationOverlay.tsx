@@ -9,7 +9,9 @@ import {
 } from "@carma-mapping/annotations/core";
 import {
   createCesiumNavigationMethods,
+  NAVIGATION_ORBIT_DIRECTIONS,
   NAVIGATION_ZOOM_MODES,
+  NAVIGATION_ZOOM_DIRECTIONS,
   mountNavigationControlsOverlay,
   type NavigationControlsOverlayMessages,
   type NavigationOrbitOptions,
@@ -104,7 +106,7 @@ const bindNavigationKeyboardShortcuts = ({
       case ANNOTATION_NAVIGATION_SHORTCUT_ACTIONS.START_CONTINUOUS_DOLLY_IN:
         event.preventDefault();
         methods.startContinuousZoom?.({
-          direction: "in",
+          direction: NAVIGATION_ZOOM_DIRECTIONS.IN,
           mode: NAVIGATION_ZOOM_MODES.DOLLY,
           zoomDeltaPerSecond: DEFAULT_CONTINUOUS_DOLLY_ZOOM_DELTA_PER_SECOND,
           easeInDurationMs: DEFAULT_CONTINUOUS_DOLLY_EASE_IN_MS,
@@ -113,7 +115,7 @@ const bindNavigationKeyboardShortcuts = ({
       case ANNOTATION_NAVIGATION_SHORTCUT_ACTIONS.START_CONTINUOUS_DOLLY_OUT:
         event.preventDefault();
         methods.startContinuousZoom?.({
-          direction: "out",
+          direction: NAVIGATION_ZOOM_DIRECTIONS.OUT,
           mode: NAVIGATION_ZOOM_MODES.DOLLY,
           zoomDeltaPerSecond: DEFAULT_CONTINUOUS_DOLLY_ZOOM_DELTA_PER_SECOND,
           easeInDurationMs: DEFAULT_CONTINUOUS_DOLLY_EASE_IN_MS,
@@ -190,10 +192,9 @@ export const CesiumNavigationOverlay = ({
     orbitControllerRef.current = null;
 
     if (scene) {
-      orbitControllerRef.current = createCesiumSceneOrbitController({
-        scene,
+      orbitControllerRef.current = createCesiumSceneOrbitController(scene, {
         revolutionDurationSec: DEFAULT_ORBIT_REVOLUTION_DURATION_SEC,
-        direction: "cw",
+        direction: NAVIGATION_ORBIT_DIRECTIONS.CW,
         minPitchDeg: DEFAULT_ORBIT_MIN_PITCH_DEG,
       });
     }
@@ -212,8 +213,7 @@ export const CesiumNavigationOverlay = ({
 
     const orbitController = orbitControllerRef.current;
 
-    const baseMethods = createCesiumNavigationMethods({
-      scene,
+    const baseMethods = createCesiumNavigationMethods(scene, {
       homeCameraState: initialHomeCameraState,
     });
 
@@ -276,8 +276,7 @@ export const CesiumNavigationOverlay = ({
     }
 
     const orbitController = orbitControllerRef.current;
-    const baseMethods = createCesiumNavigationMethods({
-      scene,
+    const baseMethods = createCesiumNavigationMethods(scene, {
       homeCameraState: initialHomeCameraState,
     });
 

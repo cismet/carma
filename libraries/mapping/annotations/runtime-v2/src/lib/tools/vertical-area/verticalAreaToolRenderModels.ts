@@ -22,15 +22,12 @@ import {
 import type { VerticalAreaToolVisualSettings } from "./verticalAreaToolSettings";
 
 type BuildVerticalAreaToolRenderModelsArgs = {
-  toolType: RuntimeMeasurement["toolType"];
   visuals: VerticalAreaToolVisualSettings;
   badgeStyle: {
     backgroundColor: string;
     textColor: string;
   };
   getMeasurementLabel: (measurementIndex: number) => string;
-  nodes: readonly RuntimeNode[];
-  measurements: readonly RuntimeMeasurement[];
   previewCoordinates: readonly RuntimeCoordinate[];
   selectedMeasurementId: string | null;
   onMeasurementSelect?: (measurementId: string) => void;
@@ -70,18 +67,20 @@ const getVerticalAreaLabelCoordinate = (
   );
 };
 
-export const buildVerticalAreaToolRenderModels = ({
-  toolType,
-  visuals,
-  badgeStyle,
-  getMeasurementLabel,
-  nodes,
-  measurements,
-  previewCoordinates,
-  selectedMeasurementId,
-  onMeasurementSelect,
-  onNodeLongPress,
-}: BuildVerticalAreaToolRenderModelsArgs): {
+export const buildVerticalAreaToolRenderModels = (
+  toolType: RuntimeMeasurement["toolType"],
+  nodes: readonly RuntimeNode[],
+  measurements: readonly RuntimeMeasurement[],
+  {
+    visuals,
+    badgeStyle,
+    getMeasurementLabel,
+    previewCoordinates,
+    selectedMeasurementId,
+    onMeasurementSelect,
+    onNodeLongPress,
+  }: BuildVerticalAreaToolRenderModelsArgs
+): {
   points: readonly RuntimePointMarkerRenderModel[];
   edges: readonly RuntimeEdgeRenderModel[];
   pointLabels: readonly RuntimePointLabelRenderModel[];

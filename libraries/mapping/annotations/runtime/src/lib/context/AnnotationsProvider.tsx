@@ -685,6 +685,7 @@ export const AnnotationsProvider: React.FC<AnnotationsProviderProps> = ({
     toggleAnnotationsVisibilityByIds,
     confirmLabelPlacementById,
     focusAnnotationById,
+    selectedAnnotationId: annotationSelectionState.selectedAnnotationId,
   });
 
   const annotationUserInteraction = useUserInteraction(
@@ -749,6 +750,8 @@ export const AnnotationsProvider: React.FC<AnnotationsProviderProps> = ({
     requestStartMeasurement: requestStartMeasurement,
     requestCancelActiveMeasurementAndEnterSelection,
     requestFinishMeasurement,
+    focusAdjacentNavigationItem:
+      annotationCollectionDomain.focusAdjacentNavigationItem,
     isInteractionActive: isInteractionActive,
     distanceRelations: annotationEntryState.distanceRelations,
     nodeChainAnnotations: annotationEntryState.nodeChainAnnotations,

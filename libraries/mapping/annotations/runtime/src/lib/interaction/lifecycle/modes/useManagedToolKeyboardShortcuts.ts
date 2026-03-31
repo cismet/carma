@@ -22,6 +22,7 @@ type UseManagedToolKeyboardShortcutsParams = {
   pointMeasurementEntries: AnnotationCollection;
   requestCancelActiveMeasurementAndEnterSelection: () => boolean;
   requestFinishMeasurement: () => boolean;
+  focusAdjacentNavigationItem: (offset: -1 | 1) => void;
   selectAnnotationById: (id: string | null) => void;
   selectedAnnotationId: string | null;
   selectedAnnotationIds: string[];
@@ -41,6 +42,7 @@ export const useManagedToolKeyboardShortcuts = ({
   pointMeasurementEntries,
   requestCancelActiveMeasurementAndEnterSelection,
   requestFinishMeasurement,
+  focusAdjacentNavigationItem,
   selectAnnotationById,
   selectedAnnotationId,
   selectedAnnotationIds,
@@ -62,11 +64,31 @@ export const useManagedToolKeyboardShortcuts = ({
       if (!isManagedAnnotationKeyboardEvent(event, { allowRepeat: true })) {
         return;
       }
-      if (activeToolType === SELECT_TOOL_TYPE) {
+
+      const action = resolveAnnotationCommonShortcutAction(event);
+
+      if (
+        action ===
+        ANNOTATION_COMMON_SHORTCUT_ACTIONS.FOCUS_PREVIOUS_NAVIGATION_ITEM
+      ) {
+        event.preventDefault();
+        event.stopPropagation();
+        focusAdjacentNavigationItem(-1);
         return;
       }
 
-      const action = resolveAnnotationCommonShortcutAction(event);
+      if (
+        action === ANNOTATION_COMMON_SHORTCUT_ACTIONS.FOCUS_NEXT_NAVIGATION_ITEM
+      ) {
+        event.preventDefault();
+        event.stopPropagation();
+        focusAdjacentNavigationItem(1);
+        return;
+      }
+
+      if (activeToolType === SELECT_TOOL_TYPE) {
+        return;
+      }
 
       if (action === ANNOTATION_COMMON_SHORTCUT_ACTIONS.CANCEL_ACTIVE_TOOL) {
         if (!requestCancelActiveMeasurementAndEnterSelection()) {
@@ -145,6 +167,7 @@ export const useManagedToolKeyboardShortcuts = ({
     pointTemporaryMode,
     requestCancelActiveMeasurementAndEnterSelection,
     requestFinishMeasurement,
+    focusAdjacentNavigationItem,
     selectAnnotationById,
     selectedAnnotationId,
     selectedAnnotationIds,

@@ -24,6 +24,10 @@ import {
   type LayoutPointInput,
 } from "@carma-providers/label-overlay";
 import { buildAxisGridSegments3d } from "../../shared/buildAxisGridSegments3d";
+import {
+  formatStoryPerformanceLabel,
+  useAnimationFramePerformanceStatus,
+} from "./useStoryPerformanceStatus";
 
 export type DomLabelLayoutStoryArgs = {
   showGrid: boolean;
@@ -443,6 +447,7 @@ export const DomLabelLayoutEngineStory = ({
   const [orbitYawDeg, setOrbitYawDeg] = useState(cameraYawDeg);
   const [orbitPitchDeg, setOrbitPitchDeg] = useState(cameraPitchDeg);
   const [orbiting, setOrbiting] = useState(false);
+  const performanceStatus = useAnimationFramePerformanceStatus(true);
   const previousInitialOffsetRef = useRef(initialOffset);
   const previousCameraYawRef = useRef(cameraYawDeg);
   const previousCameraPitchRef = useRef(cameraPitchDeg);
@@ -739,23 +744,28 @@ export const DomLabelLayoutEngineStory = ({
     ]
   );
 
-  const layout = useMemo(
-    () =>
-      computePointLabelLayout({
-        points: anchorPoints,
-        viewportWidth: Math.max(1, viewportSize.width),
-        viewportHeight: Math.max(1, viewportSize.height),
-        cameraPitch: toRad(orbitPitchDeg),
-        config: layoutConfig,
-      }),
-    [
-      anchorPoints,
-      layoutConfig,
-      orbitPitchDeg,
-      viewportSize.height,
-      viewportSize.width,
-    ]
-  );
+  const layoutComputation = useMemo(() => {
+    const startedAtMs = performance.now();
+    const result = computePointLabelLayout({
+      points: anchorPoints,
+      viewportWidth: Math.max(1, viewportSize.width),
+      viewportHeight: Math.max(1, viewportSize.height),
+      cameraPitch: toRad(orbitPitchDeg),
+      config: layoutConfig,
+    });
+
+    return {
+      result,
+      durationMs: performance.now() - startedAtMs,
+    };
+  }, [
+    anchorPoints,
+    layoutConfig,
+    orbitPitchDeg,
+    viewportSize.height,
+    viewportSize.width,
+  ]);
+  const layout = layoutComputation.result;
 
   const statusValues = useMemo(
     () => [
@@ -768,6 +778,8 @@ export const DomLabelLayoutEngineStory = ({
       `${Object.keys(layout.placements).length} placed`,
       `${layout.hiddenByLayout.size} hidden`,
       `${layout.collapsedToCompact.size} compact`,
+      `perf ${formatStoryPerformanceLabel(performanceStatus)}`,
+      `layout ${layoutComputation.durationMs.toFixed(2)} ms`,
       `axis ${activeAxis.toUpperCase()} • gizmo ${
         dragging ? "dragging" : "idle"
       }`,
@@ -780,8 +792,10 @@ export const DomLabelLayoutEngineStory = ({
       forceEnabled,
       forceOnTop,
       layout,
+      layoutComputation.durationMs,
       orbitPitchDeg,
       orbitYawDeg,
+      performanceStatus,
       requestedLabelCount,
     ]
   );

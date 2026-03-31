@@ -30,8 +30,7 @@ import {
 const toolType = ANNOTATION_TYPE_POINT;
 const badgeStyle = DEFAULT_ANNOTATION_SHORT_LABEL_CONFIG[toolType];
 const pointToolSettings = createPointToolSettings(badgeStyle);
-const getPointToolInfoBoxSlots = createPointToolInfoBoxSlots({
-  toolType,
+const getPointToolInfoBoxSlots = createPointToolInfoBoxSlots(toolType, {
   headingTitle: "Punktmessung",
   formatMeasurementLabelToken: (counter) =>
     formatMeasurementShortLabelToken(toolType, counter),
@@ -85,9 +84,7 @@ export const pointToolPlugin = createMeasurementToolPlugin({
         sessionContext.dispatch(clearTemporaryAnnotationsByToolType(toolType));
       }
 
-      const createdMeasurement = addPointMeasurement({
-        toolType,
-        coordinate,
+      const createdMeasurement = addPointMeasurement(toolType, coordinate, {
         addAnnotation: sessionContext.addAnnotation,
       });
       if (temporaryMode) {
@@ -118,8 +115,7 @@ export const pointToolPlugin = createMeasurementToolPlugin({
       }
 
       if (action === "removeLatestPoint") {
-        const removed = removeLatestPointMeasurement({
-          toolType,
+        const removed = removeLatestPointMeasurement(toolType, {
           state: sessionContext.getState(),
           dispatch: sessionContext.dispatch,
         });

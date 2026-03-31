@@ -5,15 +5,16 @@ import {
 
 import type { RuntimeAnnotationInfoBoxContext } from "../../components/annotation-info-box/annotationInfoBox.types";
 
-export const createVerticalAreaToolInfoBoxSlots = ({
-  toolType,
-  headingTitle,
-  formatMeasurementLabelToken,
-}: {
-  toolType: RuntimeAnnotationInfoBoxContext["annotation"]["toolType"];
-  headingTitle: string;
-  formatMeasurementLabelToken: (counter: number) => string;
-}) => {
+export const createVerticalAreaToolInfoBoxSlots = (
+  toolType: RuntimeAnnotationInfoBoxContext["annotation"]["toolType"],
+  {
+    headingTitle,
+    formatMeasurementLabelToken,
+  }: {
+    headingTitle: string;
+    formatMeasurementLabelToken: (counter: number) => string;
+  }
+) => {
   return ({
     annotation,
     annotationEntries,

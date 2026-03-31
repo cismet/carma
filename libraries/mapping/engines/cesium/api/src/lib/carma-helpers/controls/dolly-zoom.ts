@@ -31,9 +31,9 @@ type ActiveCesiumFovZoom = {
   renderRequested: boolean;
   curve: TimedCesiumFovCurve;
 } & CesiumTransitionLifecycle & {
-  settled: boolean;
-  started: boolean;
-};
+    settled: boolean;
+    started: boolean;
+  };
 
 const cesiumFovZoomAnimations = new WeakMap<Scene, ActiveCesiumFovZoom>();
 
@@ -43,34 +43,37 @@ const readCurrentAnimatedVerticalFov = (
 ): number | null => {
   const activeAnimation = cesiumFovZoomAnimations.get(scene);
   return activeAnimation
-    ? (readTimedCesiumVerticalFov({
+    ? readTimedCesiumVerticalFov({
         scene,
         curve: activeAnimation.curve,
         nowMs,
-      }) ?? null)
+      }) ?? null
     : scene.camera.frustum instanceof PerspectiveFrustum
-      ? (readPerspectiveFrustumVerticalFov(scene.camera.frustum) ?? null)
-      : null;
+    ? readPerspectiveFrustumVerticalFov(scene.camera.frustum) ?? null
+    : null;
 };
 
-export const computeNextCesiumFov = ({
-  scene,
-  direction,
-  zoomDelta = DEFAULT_CESIUM_FOV_ZOOM_DELTA,
-  minimumFovRad,
-  maximumFovRad,
-}: {
-  scene: Scene;
-  direction: "in" | "out";
-  zoomDelta?: number;
-  minimumFovRad: number;
-  maximumFovRad: number;
-}) => {
+export const computeNextCesiumFov = (
+  scene: Scene,
+  direction: "in" | "out",
+  {
+    zoomDelta = DEFAULT_CESIUM_FOV_ZOOM_DELTA,
+    minimumFovRad,
+    maximumFovRad,
+  }: {
+    zoomDelta?: number;
+    minimumFovRad: number;
+    maximumFovRad: number;
+  }
+) => {
   if (!(scene.camera.frustum instanceof PerspectiveFrustum)) {
     return null;
   }
 
-  const currentVerticalFov = readCurrentAnimatedVerticalFov(scene, performance.now());
+  const currentVerticalFov = readCurrentAnimatedVerticalFov(
+    scene,
+    performance.now()
+  );
   if (
     typeof currentVerticalFov !== "number" ||
     !Number.isFinite(currentVerticalFov)
@@ -103,7 +106,8 @@ export const computeNextCesiumFov = ({
       ? readVerticalFovFromLongerEdge(targetLongerEdgeFov, aspectRatio)
       : null;
 
-  return typeof targetVerticalFov === "number" && Number.isFinite(targetVerticalFov)
+  return typeof targetVerticalFov === "number" &&
+    Number.isFinite(targetVerticalFov)
     ? clamp(targetVerticalFov, minimumFovRad, maximumFovRad)
     : null;
 };
@@ -121,7 +125,10 @@ export const cancelCesiumSceneFovZoom = (scene: Scene) => {
 
   activeAnimation.renderRequested = false;
   cesiumFovZoomAnimations.delete(scene);
-  endCesiumAdaptiveRenderScaleActivity(scene, FOV_ZOOM_RENDER_SCALE_ACTIVITY_KEY);
+  endCesiumAdaptiveRenderScaleActivity(
+    scene,
+    FOV_ZOOM_RENDER_SCALE_ACTIVITY_KEY
+  );
   if (!activeAnimation.settled) {
     activeAnimation.settled = true;
     activeAnimation.onCanceled?.();
@@ -176,7 +183,10 @@ export const animateCesiumFov = (
     nextAnimation.started = true;
     nextAnimation.onStarted?.();
   }
-  beginCesiumAdaptiveRenderScaleActivity(scene, FOV_ZOOM_RENDER_SCALE_ACTIVITY_KEY);
+  beginCesiumAdaptiveRenderScaleActivity(
+    scene,
+    FOV_ZOOM_RENDER_SCALE_ACTIVITY_KEY
+  );
 
   const requestNextRender = () => {
     if (nextAnimation.renderRequested) {
@@ -235,16 +245,21 @@ export const animateCesiumFov = (
       nextAnimation.removePreRenderListener = null;
     }
     cesiumFovZoomAnimations.delete(scene);
-    endCesiumAdaptiveRenderScaleActivity(scene, FOV_ZOOM_RENDER_SCALE_ACTIVITY_KEY);
+    endCesiumAdaptiveRenderScaleActivity(
+      scene,
+      FOV_ZOOM_RENDER_SCALE_ACTIVITY_KEY
+    );
     if (!nextAnimation.settled) {
       nextAnimation.settled = true;
       nextAnimation.onCompleted?.();
     }
   };
 
-  nextAnimation.removePreRenderListener = scene.preRender.addEventListener(() => {
-    step();
-  });
+  nextAnimation.removePreRenderListener = scene.preRender.addEventListener(
+    () => {
+      step();
+    }
+  );
   requestNextRender();
 
   return () => {
@@ -275,9 +290,7 @@ export const flyCesiumSceneFovZoom = (
     return false;
   }
 
-  const resolvedTargetFov = computeNextCesiumFov({
-    scene,
-    direction,
+  const resolvedTargetFov = computeNextCesiumFov(scene, direction, {
     zoomDelta,
     minimumFovRad,
     maximumFovRad,
@@ -291,7 +304,9 @@ export const flyCesiumSceneFovZoom = (
   }
 
   const resolvedDurationMs =
-    typeof durationMs === "number" && Number.isFinite(durationMs) && durationMs > 0
+    typeof durationMs === "number" &&
+    Number.isFinite(durationMs) &&
+    durationMs > 0
       ? durationMs
       : 0;
 

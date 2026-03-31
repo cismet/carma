@@ -43,6 +43,8 @@ export const ANNOTATION_COMMON_SHORTCUT_ACTIONS = {
   CANCEL_ACTIVE_TOOL: "cancel-active-tool",
   DELETE_SELECTION: "delete-selection",
   FINISH_MEASUREMENT: "finish-measurement",
+  FOCUS_NEXT_NAVIGATION_ITEM: "focus-next-navigation-item",
+  FOCUS_PREVIOUS_NAVIGATION_ITEM: "focus-previous-navigation-item",
   UNDO_LAST_POINT: "undo-last-point",
 } as const;
 
@@ -104,6 +106,16 @@ export const ANNOTATION_COMMON_SHORTCUT_CONFIG: readonly AnnotationShortcutDefin
     {
       action: ANNOTATION_COMMON_SHORTCUT_ACTIONS.FINISH_MEASUREMENT,
       keys: ["Enter"],
+      enabled: true,
+    },
+    {
+      action: ANNOTATION_COMMON_SHORTCUT_ACTIONS.FOCUS_PREVIOUS_NAVIGATION_ITEM,
+      keys: ["ArrowLeft"],
+      enabled: true,
+    },
+    {
+      action: ANNOTATION_COMMON_SHORTCUT_ACTIONS.FOCUS_NEXT_NAVIGATION_ITEM,
+      keys: ["ArrowRight"],
       enabled: true,
     },
     {

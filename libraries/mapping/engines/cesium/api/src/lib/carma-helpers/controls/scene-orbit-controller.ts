@@ -26,7 +26,6 @@ export type CesiumSceneOrbitControllerStopOptions = {
 };
 
 export type CreateCesiumSceneOrbitControllerOptions = {
-  scene: Scene;
   enabled?: boolean;
   /** Seconds per full revolution. Default: 30. */
   revolutionDurationSec?: Seconds;
@@ -101,14 +100,16 @@ const getOrbitScreenY = (scene: Scene): number => {
   return clamp(ORBIT_CENTER_Y - shift, MIN_ORBIT_CENTER_Y, MAX_ORBIT_CENTER_Y);
 };
 
-export const createCesiumSceneOrbitController = ({
-  scene,
-  enabled: initialEnabled = true,
-  revolutionDurationSec = DEFAULT_REVOLUTION_DURATION_SEC,
-  direction = DEFAULT_DIRECTION,
-  minPitchDeg = 0,
-  restartDelayMs = DEFAULT_RESTART_DELAY_MS,
-}: CreateCesiumSceneOrbitControllerOptions): CesiumSceneOrbitController => {
+export const createCesiumSceneOrbitController = (
+  scene: Scene,
+  {
+    enabled: initialEnabled = true,
+    revolutionDurationSec = DEFAULT_REVOLUTION_DURATION_SEC,
+    direction = DEFAULT_DIRECTION,
+    minPitchDeg = 0,
+    restartDelayMs = DEFAULT_RESTART_DELAY_MS,
+  }: CreateCesiumSceneOrbitControllerOptions = {}
+): CesiumSceneOrbitController => {
   const directionSign = direction === "ccw" ? -1 : 1;
   const angularVelocity =
     ((2 * Math.PI) / Math.max(revolutionDurationSec, 0.1)) * directionSign;

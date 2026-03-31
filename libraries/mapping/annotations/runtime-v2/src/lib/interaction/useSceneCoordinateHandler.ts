@@ -3,8 +3,7 @@ import { useCesiumCoordinateHandler } from "@carma-mapping/engines/cesium/react/
 import type { RuntimeCoordinate } from "../store";
 import type { RuntimeScene } from "../types/runtimeScene.types";
 
-type UseSceneCoordinateHandlerArgs = {
-  scene: RuntimeScene | null;
+type UseSceneCoordinateHandlerOptions = {
   enabled: boolean;
   onCoordinate?: (
     coordinate: RuntimeCoordinate,
@@ -24,15 +23,17 @@ type UseSceneCoordinateHandlerArgs = {
   singleClickDelayMs?: number;
 };
 
-export const useSceneCoordinateHandler = ({
-  scene,
-  enabled,
-  onCoordinate,
-  onDoubleCoordinate,
-  onHoverCoordinateChange,
-  onScreenPositionChange,
-  singleClickDelayMs = 220,
-}: UseSceneCoordinateHandlerArgs) => {
+export const useSceneCoordinateHandler = (
+  scene: RuntimeScene | null,
+  {
+    enabled,
+    onCoordinate,
+    onDoubleCoordinate,
+    onHoverCoordinateChange,
+    onScreenPositionChange,
+    singleClickDelayMs = 220,
+  }: UseSceneCoordinateHandlerOptions
+) => {
   useCesiumCoordinateHandler({
     scene,
     enabled,

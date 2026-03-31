@@ -11,6 +11,7 @@ type UseLabelOverlayHostOptions = {
   containerRef: RefObject<HTMLElement | null>;
   subscribeFrame?: LabelOverlayFrameSubscription | null;
   onResize?: (() => void) | null;
+  forceLayoutOnPortalRender?: boolean;
 };
 
 export const useLabelOverlayHost = ({
@@ -19,6 +20,7 @@ export const useLabelOverlayHost = ({
   containerRef,
   subscribeFrame,
   onResize,
+  forceLayoutOnPortalRender = true,
 }: UseLabelOverlayHostOptions): LabelOverlayHostBinding => {
   const subscribeResponsiveFrame = useCallback<LabelOverlayFrameSubscription>(
     (updateFn) => {
@@ -92,7 +94,14 @@ export const useLabelOverlayHost = ({
       instanceId,
       containerRef,
       subscribeFrame: subscribeResponsiveFrame,
+      forceLayoutOnPortalRender,
     }),
-    [containerRef, instanceId, kind, subscribeResponsiveFrame]
+    [
+      containerRef,
+      forceLayoutOnPortalRender,
+      instanceId,
+      kind,
+      subscribeResponsiveFrame,
+    ]
   );
 };

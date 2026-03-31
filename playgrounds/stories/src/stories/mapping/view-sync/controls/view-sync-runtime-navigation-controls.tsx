@@ -1,6 +1,7 @@
 import { useEffect, useRef } from "react";
 import {
   mountNavigationControlsOverlay,
+  NAVIGATION_ORBIT_DIRECTIONS,
   NAVIGATION_ZOOM_MODES,
   type NavigationControlsOverlayMessages,
   type NavigationOrbitOptions,
@@ -16,7 +17,10 @@ import {
   CARMA_STORY_MAPPING_ENGINES,
   type StoryMappingEngine,
 } from "../mappingEngines";
-import type { CesiumRuntimeHandle, SlotRuntimeHandle } from "../viewSyncStoryShared";
+import type {
+  CesiumRuntimeHandle,
+  SlotRuntimeHandle,
+} from "../viewSyncStoryShared";
 import { createRuntimeNavigationReference } from "./runtime-navigation-reference";
 
 const DEFAULT_CONTROL_STYLE = {
@@ -91,12 +95,16 @@ export const ViewSyncRuntimeNavigationControls = ({
       runtimeHandle &&
       engine === CARMA_STORY_MAPPING_ENGINES.CESIUM
     ) {
-      orbitControllerRef.current = createCesiumSceneOrbitController({
-        scene: (runtimeHandle as CesiumRuntimeHandle).widget.scene,
-        revolutionDurationSec: orbitOptions?.revolutionDurationSec,
-        direction: orbitOptions?.direction as "cw" | "ccw" | undefined,
-        minPitchDeg: orbitOptions?.minPitchDeg,
-      });
+      orbitControllerRef.current = createCesiumSceneOrbitController(
+        (runtimeHandle as CesiumRuntimeHandle).widget.scene,
+        {
+          revolutionDurationSec: orbitOptions?.revolutionDurationSec,
+          direction: orbitOptions?.direction as
+            | (typeof NAVIGATION_ORBIT_DIRECTIONS)[keyof typeof NAVIGATION_ORBIT_DIRECTIONS]
+            | undefined,
+          minPitchDeg: orbitOptions?.minPitchDeg,
+        }
+      );
     }
 
     return () => {
@@ -187,7 +195,8 @@ export const ViewSyncRuntimeNavigationControls = ({
             }
           : null,
     });
-  }, [ // eslint-disable-line react-hooks/exhaustive-deps -- orbitControllerRef is a ref, not a dep
+  }, [
+    // eslint-disable-line react-hooks/exhaustive-deps -- orbitControllerRef is a ref, not a dep
     controlId,
     disabled,
     engine,

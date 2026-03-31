@@ -3,17 +3,18 @@ import type { Degrees } from "@carma/units/types";
 import type { RuntimeAnnotationInfoBoxContext } from "../../components/annotation-info-box/annotationInfoBox.types";
 import { resolveMeasurementCoordinates } from "../../render/resolveMeasurementCoordinates";
 
-export const createPointToolInfoBoxSlots = ({
-  toolType,
-  headingTitle,
-  formatMeasurementLabelToken,
-  formatCoordinateValue,
-}: {
-  toolType: RuntimeAnnotationInfoBoxContext["annotation"]["toolType"];
-  headingTitle: string;
-  formatMeasurementLabelToken: (counter: number) => string;
-  formatCoordinateValue: (value: number) => string;
-}) => {
+export const createPointToolInfoBoxSlots = (
+  toolType: RuntimeAnnotationInfoBoxContext["annotation"]["toolType"],
+  {
+    headingTitle,
+    formatMeasurementLabelToken,
+    formatCoordinateValue,
+  }: {
+    headingTitle: string;
+    formatMeasurementLabelToken: (counter: number) => string;
+    formatCoordinateValue: (value: number) => string;
+  }
+) => {
   return ({
     annotation,
     annotationEntries,

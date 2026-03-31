@@ -1,4 +1,4 @@
-import * as CesiumNs from "../cesium";
+import * as CesiumNs from "cesium";
 
 const UNKNOWN_CESIUM_VERSION = "unknown" as const;
 

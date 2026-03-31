@@ -438,10 +438,8 @@ const appendZoomGroup = ({
 
   const group = document.createElement("div");
   applyInlineStyles(group, {
-    display: "flex",
+    display: hidden ? "none" : "flex",
     flexDirection: "column",
-    visibility: hidden ? "hidden" : "visible",
-    pointerEvents: hidden ? "none" : "auto",
   });
 
   if (zoomIn) {

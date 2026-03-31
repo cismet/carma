@@ -35,8 +35,7 @@ export const useCameraOrbit = ({
       return;
     }
 
-    const controller = createCesiumSceneOrbitController({
-      scene,
+    const controller = createCesiumSceneOrbitController(scene, {
       revolutionDurationSec,
       direction,
       minPitchDeg,

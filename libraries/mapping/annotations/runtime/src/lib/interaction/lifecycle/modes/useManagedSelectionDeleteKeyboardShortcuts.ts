@@ -10,25 +10,15 @@ import {
 
 import { findProtectedPolygonCandidateNodeIds } from "./selectionDeletionPolicy";
 
-type UseManagedSelectionDeleteKeyboardShortcutsParams = {
-  clearAnnotationsByIds: (ids: string[]) => void;
-  deleteSelectedAnnotations: () => void;
-  lockedAnnotationIdSet: ReadonlySet<string>;
-  selectablePointIds: ReadonlySet<string>;
-  selectedAnnotationId: string | null;
-  selectedAnnotationIds: string[];
-  nodeChainAnnotations: readonly NodeChainAnnotation[];
-};
-
-export const useManagedSelectionDeleteKeyboardShortcuts = ({
-  clearAnnotationsByIds,
-  deleteSelectedAnnotations,
-  lockedAnnotationIdSet,
-  selectablePointIds,
-  selectedAnnotationId,
-  selectedAnnotationIds,
-  nodeChainAnnotations,
-}: UseManagedSelectionDeleteKeyboardShortcutsParams) => {
+export const useManagedSelectionDeleteKeyboardShortcuts = (
+  selectedAnnotationIds: string[],
+  selectedAnnotationId: string | null,
+  selectablePointIds: ReadonlySet<string>,
+  lockedAnnotationIdSet: ReadonlySet<string>,
+  nodeChainAnnotations: readonly NodeChainAnnotation[],
+  clearAnnotationsByIds: (ids: string[]) => void,
+  deleteSelectedAnnotations: () => void
+) => {
   const deletableSelectedPointIds = useMemo(
     () =>
       selectedAnnotationIds.filter(

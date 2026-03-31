@@ -88,6 +88,7 @@ type AnnotationsRuntimeServices = {
   requestModeChange: (toolType: RuntimeToolId) => void;
   requestStartMeasurement: (toolType?: RuntimeToolId) => void;
   requestFinishMeasurement: () => boolean;
+  focusAdjacentAnnotationEntry: (offset: -1 | 1) => void;
   setPointTemporaryMode: (temporaryMode: boolean) => void;
   setSelectedAnnotationId: (annotationId: string | null) => void;
   setRenderLayer: (layerId: string, layer: RuntimeRenderLayer) => void;
@@ -193,6 +194,28 @@ const runtimeCoordinateFromCartesian = (
     latitude: coordinateWgs84.latitude,
     altitude: getEllipsoidalAltitudeOrZero(coordinateWgs84.altitude),
   };
+};
+
+const selectAdjacentRuntimeAnnotationEntryId = (
+  annotationEntries: readonly RuntimeAnnotationEntry[],
+  selectedAnnotationId: string | null,
+  offset: -1 | 1
+): string | null => {
+  if (annotationEntries.length === 0) {
+    return null;
+  }
+
+  const currentIndex = selectedAnnotationId
+    ? annotationEntries.findIndex((entry) => entry.id === selectedAnnotationId)
+    : -1;
+  const fallbackIndex = offset > 0 ? 0 : annotationEntries.length - 1;
+  const nextIndex =
+    currentIndex < 0
+      ? fallbackIndex
+      : (currentIndex + offset + annotationEntries.length) %
+        annotationEntries.length;
+
+  return annotationEntries[nextIndex]?.id ?? null;
 };
 
 const buildMeasurementEntities = ({
@@ -449,6 +472,7 @@ const RuntimeInteractionHost = ({
   registry,
   annotationsStore,
   setActiveToolTypeInStore,
+  focusAdjacentAnnotationEntry,
   addAnnotation,
   setRenderLayer,
   clearRenderLayer,
@@ -460,6 +484,7 @@ const RuntimeInteractionHost = ({
   registry: AnnotationToolRegistry;
   annotationsStore: AnnotationsStore;
   setActiveToolTypeInStore: (toolType: RuntimeToolId) => void;
+  focusAdjacentAnnotationEntry: (offset: -1 | 1) => void;
   addAnnotation: (
     toolType: RuntimeMeasurement["toolType"],
     coordinates: readonly RuntimeCoordinate[],
@@ -568,8 +593,7 @@ const RuntimeInteractionHost = ({
       !activeMoveGizmoNodeId
   );
 
-  useSceneCoordinateHandler({
-    scene,
+  useSceneCoordinateHandler(scene, {
     enabled: pointQueryEnabled,
     onCoordinate: handlePointQueryPointCreated,
     onDoubleCoordinate: activeToolSession?.finishesOnLoopClosure
@@ -686,6 +710,24 @@ const RuntimeInteractionHost = ({
       }
 
       if (
+        commonAction ===
+        ANNOTATION_COMMON_SHORTCUT_ACTIONS.FOCUS_PREVIOUS_NAVIGATION_ITEM
+      ) {
+        focusAdjacentAnnotationEntry(-1);
+        event.preventDefault();
+        return;
+      }
+
+      if (
+        commonAction ===
+        ANNOTATION_COMMON_SHORTCUT_ACTIONS.FOCUS_NEXT_NAVIGATION_ITEM
+      ) {
+        focusAdjacentAnnotationEntry(1);
+        event.preventDefault();
+        return;
+      }
+
+      if (
         activePlugin?.keyboard?.onKeyDown({
           event,
           activeToolType,
@@ -717,6 +759,7 @@ const RuntimeInteractionHost = ({
     activePlugin,
     activeToolSession,
     activeToolType,
+    focusAdjacentAnnotationEntry,
     requestFinishMeasurement,
     requestModeChange,
     requestStartMeasurement,
@@ -762,9 +805,7 @@ const RuntimeVisualizationHost = ({
     renderLayers: {},
     cursorScreenPosition: null,
   });
-  const { handleNodeLongPress } = usePointEditingGizmo({
-    scene,
-    nodes,
+  const { handleNodeLongPress } = usePointEditingGizmo(scene, nodes, {
     annotationsStore,
     setSelectedAnnotationId,
     onActiveMoveGizmoNodeIdChange,
@@ -984,6 +1025,20 @@ export const AnnotationsProvider = ({
     [annotationsStore]
   );
 
+  const focusAdjacentAnnotationEntry = useCallback(
+    (offset: -1 | 1) => {
+      const runtimeState = annotationsStore.getState();
+      const nextAnnotationId = selectAdjacentRuntimeAnnotationEntryId(
+        runtimeState.annotationEntries,
+        selectSelectedAnnotationId(runtimeState),
+        offset
+      );
+
+      annotationsStore.dispatch(setSelectedAnnotationId(nextAnnotationId));
+    },
+    [annotationsStore]
+  );
+
   const setPointTemporaryModeInStore = useCallback(
     (temporaryMode: boolean) => {
       annotationsStore.dispatch(
@@ -1043,6 +1098,7 @@ export const AnnotationsProvider = ({
         lifecycleHostApiRef.current.requestStartMeasurement(toolType),
       requestFinishMeasurement: () =>
         lifecycleHostApiRef.current.requestFinishMeasurement(),
+      focusAdjacentAnnotationEntry,
       setPointTemporaryMode: setPointTemporaryModeInStore,
       setSelectedAnnotationId: setSelectedAnnotationIdInStore,
       setRenderLayer: (layerId, layer) =>
@@ -1055,6 +1111,7 @@ export const AnnotationsProvider = ({
     [
       addAnnotation,
       annotationsStore,
+      focusAdjacentAnnotationEntry,
       registry,
       scene,
       setActiveToolType,
@@ -1078,6 +1135,7 @@ export const AnnotationsProvider = ({
           registry={registry}
           annotationsStore={annotationsStore}
           setActiveToolTypeInStore={setActiveToolTypeInStore}
+          focusAdjacentAnnotationEntry={focusAdjacentAnnotationEntry}
           addAnnotation={addAnnotation}
           setRenderLayer={(layerId, layer) =>
             renderHostApiRef.current.setRenderLayer(layerId, layer)
@@ -1116,6 +1174,7 @@ export const useAnnotationsRuntime = () => {
     requestModeChange,
     requestStartMeasurement,
     requestFinishMeasurement,
+    focusAdjacentAnnotationEntry,
     setPointTemporaryMode,
     setSelectedAnnotationId,
     setRenderLayer,
@@ -1145,6 +1204,7 @@ export const useAnnotationsRuntime = () => {
     requestModeChange,
     requestStartMeasurement,
     requestFinishMeasurement,
+    focusAdjacentAnnotationEntry,
     pointTemporaryMode,
     setPointTemporaryMode,
     nodes,

@@ -9,33 +9,29 @@ import {
 } from "../../store";
 
 type AddPointMeasurementArgs = {
-  toolType: RuntimeMeasurement["toolType"];
-  coordinate: RuntimeCoordinate;
   addAnnotation: (
     toolType: RuntimeMeasurement["toolType"],
     nextCoordinates: readonly RuntimeCoordinate[]
   ) => RuntimeMeasurement;
 };
 
-export const addPointMeasurement = ({
-  toolType,
-  coordinate,
-  addAnnotation,
-}: AddPointMeasurementArgs) => addAnnotation(toolType, [coordinate]);
+export const addPointMeasurement = (
+  toolType: RuntimeMeasurement["toolType"],
+  coordinate: RuntimeCoordinate,
+  { addAnnotation }: AddPointMeasurementArgs
+) => addAnnotation(toolType, [coordinate]);
 
 export type PointToolAction = "removeLatestPoint";
 
 type RemovePointMeasurementArgs = {
-  toolType: RuntimeMeasurement["toolType"];
   state: AnnotationsStoreState;
   dispatch: AnnotationsStore["dispatch"];
 };
 
-export const removeLatestPointMeasurement = ({
-  toolType,
-  state,
-  dispatch,
-}: RemovePointMeasurementArgs): boolean => {
+export const removeLatestPointMeasurement = (
+  toolType: RuntimeMeasurement["toolType"],
+  { state, dispatch }: RemovePointMeasurementArgs
+): boolean => {
   const selectedAnnotationId =
     state.selectionState.selectedAnnotationIds[
       state.selectionState.selectedAnnotationIds.length - 1

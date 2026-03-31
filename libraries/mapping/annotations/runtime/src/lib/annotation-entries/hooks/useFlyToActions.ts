@@ -32,17 +32,15 @@ const flyToPoints = (
   });
 };
 
-type UseAnnotationFlyToActionsParams = {
-  scene: Scene;
+type UseAnnotationFlyToActionsOptions = {
   annotations: AnnotationCollection;
   nodeChainAnnotations: NodeChainAnnotation[];
 };
 
-export const useFlyToActions = ({
-  scene,
-  annotations,
-  nodeChainAnnotations,
-}: UseAnnotationFlyToActionsParams) => {
+export const useFlyToActions = (
+  scene: Scene,
+  { annotations, nodeChainAnnotations }: UseAnnotationFlyToActionsOptions
+) => {
   const flyToAnnotationById = useCallback(
     (id: string) => {
       if (!id) return;

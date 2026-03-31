@@ -58,6 +58,10 @@ import {
 } from "@carma-mapping/engines/cesium/react/interactions";
 import { useCesiumSceneVisibilityIndex } from "@carma-mapping/engines/cesium/react/visibility";
 import { setupCesium } from "../../map-engine-switcher/helpers/cesium-setup";
+import {
+  formatStoryPerformanceLabel,
+  useCesiumFramePerformanceStatus,
+} from "./useStoryPerformanceStatus";
 
 import "cesium/Build/Cesium/Widgets/widgets.css";
 
@@ -71,6 +75,7 @@ type LandmarkLabelStoryArgs = {
   expandedSlotStepPx: number;
   hideChrome: boolean;
   scenePreset: "city" | "stack";
+  forceLayoutOnPortalRender: boolean;
 };
 
 const TOP_STATUS_BAR_OVERLAY_STYLE: CSSProperties = {
@@ -680,6 +685,7 @@ const CesiumLandmarksOverlay = ({
   expandedSlotStepPx,
   hideChrome,
   scenePreset,
+  forceLayoutOnPortalRender,
 }: {
   scene: Scene | null;
   landmarks: readonly LandmarkPoint[];
@@ -693,6 +699,7 @@ const CesiumLandmarksOverlay = ({
   expandedSlotStepPx: number;
   hideChrome: boolean;
   scenePreset: StoryScenePreset;
+  forceLayoutOnPortalRender: boolean;
 }) => {
   const overlayView = useCesiumOverlayView(scene);
   const cameraPitchRad = overlayView.derivedView?.pitch ?? 0;
@@ -1121,6 +1128,8 @@ const CesiumLandmarksOverlay = ({
           : "requested (no surface)"
       }`,
       `mesh ${occlusionAvailable ? "loaded" : "unavailable"}`,
+      `overlay ${forceLayoutOnPortalRender ? "forced" : "deferred"}`,
+      `perf ${formatStoryPerformanceLabel(performanceStatus)}`,
       `occluded ${occludedCount}/${labels.length}`,
       `hidden ${hiddenCount}/${labels.length}`,
       `terrainSampled ${terrainSourceCount}/${landmarks.length}`,
@@ -1132,10 +1141,12 @@ const CesiumLandmarksOverlay = ({
     displayEntries,
     enableOcclusionTesting,
     expandedClusterId,
+    forceLayoutOnPortalRender,
     labels,
     landmarks,
     layoutResult,
     occlusionAvailable,
+    performanceStatus,
     selectedLandmarkId,
     shouldTestOcclusion,
   ]);
@@ -1225,6 +1236,7 @@ const CesiumLandmarksStory = ({
   expandedSlotStepPx,
   hideChrome,
   scenePreset,
+  forceLayoutOnPortalRender,
 }: LandmarkLabelStoryArgs) => {
   const rootRef = useRef<HTMLDivElement | null>(null);
   const containerRef = useRef<HTMLDivElement | null>(null);
@@ -1236,9 +1248,11 @@ const CesiumLandmarksStory = ({
     () => resolveStoryLandmarks(scenePreset),
     [scenePreset]
   );
+  const performanceStatus = useCesiumFramePerformanceStatus(scene, true);
   const overlayHost = useCesiumLabelOverlayHost({
     scene,
     containerRef: rootRef,
+    forceLayoutOnPortalRender,
   });
 
   useEffect(() => {
@@ -1349,6 +1363,7 @@ const CesiumLandmarksStory = ({
           expandedSlotStepPx={expandedSlotStepPx}
           hideChrome={hideChrome}
           scenePreset={scenePreset}
+          forceLayoutOnPortalRender={forceLayoutOnPortalRender}
         />
       </LabelOverlayProvider>
     </div>
@@ -1388,6 +1403,11 @@ const meta: Meta<LandmarkLabelStoryArgs> = {
       control: { type: "boolean" },
       description: "Hide story-only chrome like the status bar and infobox.",
     },
+    forceLayoutOnPortalRender: {
+      control: { type: "boolean" },
+      description:
+        "Force a synchronous overlay position pass immediately after portal renders.",
+    },
     scenePreset: {
       control: { type: "inline-radio" },
       options: ["city", "stack"],
@@ -1407,7 +1427,8 @@ export const WuppertalLabelTestScene: StoryObj<LandmarkLabelStoryArgs> = {
     collapseDistancePx: 5,
     collapseMinimumSize: 2,
     expandedSlotStepPx: 40,
-    hideChrome: true,
+    hideChrome: false,
+    forceLayoutOnPortalRender: false,
     scenePreset: "city",
   },
 };
@@ -1423,6 +1444,7 @@ export const CollapsedLabelStacks: StoryObj<LandmarkLabelStoryArgs> = {
     collapseMinimumSize: 2,
     expandedSlotStepPx: 40,
     hideChrome: false,
+    forceLayoutOnPortalRender: false,
     scenePreset: "stack",
   },
 };
@@ -1438,6 +1460,7 @@ export const InteractiveClusterExpansion: StoryObj<LandmarkLabelStoryArgs> = {
     collapseMinimumSize: 2,
     expandedSlotStepPx: 40,
     hideChrome: false,
+    forceLayoutOnPortalRender: false,
     scenePreset: "stack",
   },
 };
@@ -1453,6 +1476,7 @@ export const AveragedCollapsedAnchors: StoryObj<LandmarkLabelStoryArgs> = {
     collapseMinimumSize: 2,
     expandedSlotStepPx: 40,
     hideChrome: true,
+    forceLayoutOnPortalRender: false,
     scenePreset: "stack",
   },
 };

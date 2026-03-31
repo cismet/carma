@@ -44,6 +44,9 @@ export const LabelOverlayProvider: React.FC<LabelOverlayProviderProps> = ({
   host,
 }) => {
   const overlayRef = useRef<HTMLDivElement | null>(null);
+  const overlayElementNodeByIdRef = useRef<Map<string, HTMLDivElement>>(
+    new Map()
+  );
   const overlayElementsRef = useRef<Map<string, LabelOverlayElement>>(
     new Map()
   );
@@ -64,6 +67,7 @@ export const LabelOverlayProvider: React.FC<LabelOverlayProviderProps> = ({
   }, []);
   const resolvedContainerRef = host.containerRef;
   const resolvedFrameSubscription = host.subscribeFrame;
+  const forceLayoutOnPortalRender = host.forceLayoutOnPortalRender ?? true;
 
   // Create overlay container
   useEffect(() => {
@@ -88,6 +92,7 @@ export const LabelOverlayProvider: React.FC<LabelOverlayProviderProps> = ({
     forceRender();
 
     return () => {
+      overlayElementNodeByIdRef.current.clear();
       if (overlayDiv && container.contains(overlayDiv)) {
         container.removeChild(overlayDiv);
       }
@@ -112,6 +117,7 @@ export const LabelOverlayProvider: React.FC<LabelOverlayProviderProps> = ({
     (id: string) => {
       if (!overlayElementsRef.current.has(id)) return;
       overlayElementsRef.current.delete(id);
+      overlayElementNodeByIdRef.current.delete(id);
       forceRender();
     },
     [forceRender]
@@ -136,6 +142,7 @@ export const LabelOverlayProvider: React.FC<LabelOverlayProviderProps> = ({
   const clearLabelOverlayElements = useCallback(() => {
     if (overlayElementsRef.current.size === 0) return;
     overlayElementsRef.current.clear();
+    overlayElementNodeByIdRef.current.clear();
     forceRender();
   }, [forceRender]);
 
@@ -145,9 +152,7 @@ export const LabelOverlayProvider: React.FC<LabelOverlayProviderProps> = ({
     if (!overlayContainer) return;
 
     overlayElementsRef.current.forEach((element, id) => {
-      const elementDiv = overlayContainer.querySelector(
-        `[data-label-overlay-id="${id}"]`
-      ) as HTMLElement;
+      const elementDiv = overlayElementNodeByIdRef.current.get(id);
       if (!elementDiv) return;
 
       if (element.isHidden === true) {
@@ -206,10 +211,13 @@ export const LabelOverlayProvider: React.FC<LabelOverlayProviderProps> = ({
     }
   }, [resolvedFrameSubscription, updatePositionsInternal]);
 
-  // Force update positions after DOM updates (e.g. adding new label)
   useLayoutEffect(() => {
+    if (!forceLayoutOnPortalRender) {
+      return;
+    }
+
     updatePositionsInternal();
-  }, [renderCounter, updatePositionsInternal]);
+  }, [forceLayoutOnPortalRender, renderCounter, updatePositionsInternal]);
 
   const contextValue: LabelOverlayContextType = useMemo(
     () => ({
@@ -237,6 +245,14 @@ export const LabelOverlayProvider: React.FC<LabelOverlayProviderProps> = ({
           <div
             key={id}
             data-label-overlay-id={id}
+            ref={(node) => {
+              if (node) {
+                overlayElementNodeByIdRef.current.set(id, node);
+                return;
+              }
+
+              overlayElementNodeByIdRef.current.delete(id);
+            }}
             style={{
               position: "absolute",
               zIndex: element.zIndex ?? 0,

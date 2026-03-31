@@ -48,5 +48,5 @@ const latLngJson = leafletLatLngToLatLngJson(leafletLatLng);
 ## Build
 
 ```sh
-nx build engines/leaflet
+nx build engines-leaflet
 ```

@@ -9,4 +9,5 @@ export type LabelOverlayHostBinding = {
   instanceId?: string;
   containerRef: RefObject<HTMLElement | null>;
   subscribeFrame?: LabelOverlayFrameSubscription;
+  forceLayoutOnPortalRender?: boolean;
 };

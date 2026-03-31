@@ -7,6 +7,11 @@ export const NAVIGATION_ZOOM_MODES = {
   DOLLY: "dolly",
 } as const;
 
+export const NAVIGATION_ZOOM_DIRECTIONS = {
+  IN: "in",
+  OUT: "out",
+} as const;
+
 export const DEFAULT_NAVIGATION_HOME_DURATION_MS = 900;
 export const DEFAULT_NAVIGATION_ORBIT_REVOLUTION_DURATION_SEC = 30 as Seconds;
 
@@ -56,8 +61,11 @@ export type NavigationZoomOptions = NavigationTransitionOptions & {
   maximumFovRad?: number;
 };
 
+export type NavigationZoomDirection =
+  (typeof NAVIGATION_ZOOM_DIRECTIONS)[keyof typeof NAVIGATION_ZOOM_DIRECTIONS];
+
 export type NavigationContinuousZoomOptions = {
-  direction: "in" | "out";
+  direction: NavigationZoomDirection;
   mode?: NavigationZoomMode;
   zoomDeltaPerSecond?: number;
   easeInDurationMs?: Milliseconds;

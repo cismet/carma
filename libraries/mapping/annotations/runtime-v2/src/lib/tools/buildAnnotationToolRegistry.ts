@@ -3,6 +3,7 @@ import type {
   AnnotationToolPluginCapability,
   AnnotationToolRegistry,
 } from "./annotationToolPlugin.types";
+import { ANNOTATION_TOOL_PLUGIN_CAPABILITIES } from "./annotationToolPlugin.types";
 import type { RuntimeToolId } from "../types/runtimeTool.types";
 
 const warnedFallbackKeys = new Set<string>();
@@ -56,16 +57,21 @@ const assertCapabilityContract = (
   capability: AnnotationToolPluginCapability
 ) =>
   Boolean(
-    (capability === "session" && plugin.session) ||
-      (capability === "pointQuery" && plugin.pointQuery) ||
-      ((capability === "preview" || capability === "previewPrimitives") &&
+    (capability === ANNOTATION_TOOL_PLUGIN_CAPABILITIES.SESSION &&
+      plugin.session) ||
+      (capability === ANNOTATION_TOOL_PLUGIN_CAPABILITIES.POINT_QUERY &&
+        plugin.pointQuery) ||
+      ((capability === ANNOTATION_TOOL_PLUGIN_CAPABILITIES.PREVIEW ||
+        capability ===
+          ANNOTATION_TOOL_PLUGIN_CAPABILITIES.PREVIEW_PRIMITIVES) &&
         plugin.renderLayer) ||
-      (capability === "infoBox" && plugin.infoBox) ||
-      (capability !== "session" &&
-        capability !== "pointQuery" &&
-        capability !== "preview" &&
-        capability !== "previewPrimitives" &&
-        capability !== "infoBox")
+      (capability === ANNOTATION_TOOL_PLUGIN_CAPABILITIES.INFO_BOX &&
+        plugin.infoBox) ||
+      (capability !== ANNOTATION_TOOL_PLUGIN_CAPABILITIES.SESSION &&
+        capability !== ANNOTATION_TOOL_PLUGIN_CAPABILITIES.POINT_QUERY &&
+        capability !== ANNOTATION_TOOL_PLUGIN_CAPABILITIES.PREVIEW &&
+        capability !== ANNOTATION_TOOL_PLUGIN_CAPABILITIES.PREVIEW_PRIMITIVES &&
+        capability !== ANNOTATION_TOOL_PLUGIN_CAPABILITIES.INFO_BOX)
   );
 
 const normalizePluginContract = (
@@ -86,7 +92,7 @@ const normalizePluginContract = (
 
     warnCapabilityFallback(plugin.id, capability);
 
-    if (capability === "session") {
+    if (capability === ANNOTATION_TOOL_PLUGIN_CAPABILITIES.SESSION) {
       normalizedPlugin = {
         ...normalizedPlugin,
         session: {
@@ -101,7 +107,7 @@ const normalizePluginContract = (
       return;
     }
 
-    if (capability === "pointQuery") {
+    if (capability === ANNOTATION_TOOL_PLUGIN_CAPABILITIES.POINT_QUERY) {
       normalizedPlugin = {
         ...normalizedPlugin,
         pointQuery: {
@@ -111,7 +117,10 @@ const normalizePluginContract = (
       return;
     }
 
-    if (capability === "preview" || capability === "previewPrimitives") {
+    if (
+      capability === ANNOTATION_TOOL_PLUGIN_CAPABILITIES.PREVIEW ||
+      capability === ANNOTATION_TOOL_PLUGIN_CAPABILITIES.PREVIEW_PRIMITIVES
+    ) {
       normalizedPlugin = {
         ...normalizedPlugin,
         renderLayer: {
@@ -121,7 +130,7 @@ const normalizePluginContract = (
       return;
     }
 
-    if (capability === "infoBox") {
+    if (capability === ANNOTATION_TOOL_PLUGIN_CAPABILITIES.INFO_BOX) {
       normalizedPlugin = {
         ...normalizedPlugin,
         infoBox: {

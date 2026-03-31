@@ -215,9 +215,7 @@ const readResolvedCesiumTargetFov = (
 
   const { minimumFovRad, maximumFovRad } = readResolvedCesiumFovBounds(options);
 
-  return computeNextCesiumFov({
-    scene: activeScene,
-    direction,
+  return computeNextCesiumFov(activeScene, direction, {
     zoomDelta: options.zoomDelta,
     minimumFovRad,
     maximumFovRad,
@@ -225,18 +223,19 @@ const readResolvedCesiumTargetFov = (
 };
 
 type CreateCesiumNavigationMethodsOptions = {
-  scene: CesiumSceneTarget;
   homeCameraState?: CameraStateRecord | null;
   disabled?: boolean;
   onInteractionStart?: () => boolean | void;
 };
 
-export const createCesiumNavigationMethods = ({
-  scene,
-  homeCameraState = null,
-  disabled = false,
-  onInteractionStart,
-}: CreateCesiumNavigationMethodsOptions): NavigationMethods<CameraStateRecord> => {
+export const createCesiumNavigationMethods = (
+  scene: CesiumSceneTarget,
+  {
+    homeCameraState = null,
+    disabled = false,
+    onInteractionStart,
+  }: CreateCesiumNavigationMethodsOptions = {}
+): NavigationMethods<CameraStateRecord> => {
   let cancelOrbitPreparationAnimation: (() => void) | null = null;
   let cancelContinuousOrbit: (() => void) | null = null;
   let cancelContinuousZoom: (() => void) | null = null;

@@ -35,6 +35,7 @@ type InteractionLifecycleState = {
   requestStartMeasurement: (toolType: AnnotationToolType) => void;
   requestCancelActiveMeasurementAndEnterSelection: () => boolean;
   requestFinishMeasurement: () => boolean;
+  focusAdjacentNavigationItem: (offset: -1 | 1) => void;
   isInteractionActive: boolean;
   distanceRelations: PointDistanceRelation[];
   nodeChainAnnotations: NodeChainAnnotation[];
@@ -66,6 +67,7 @@ export const useInteractionLifecycle = ({
   requestStartMeasurement,
   requestCancelActiveMeasurementAndEnterSelection,
   requestFinishMeasurement,
+  focusAdjacentNavigationItem,
   isInteractionActive,
   distanceRelations,
   nodeChainAnnotations,
@@ -79,15 +81,15 @@ export const useInteractionLifecycle = ({
     [annotations]
   );
 
-  useManagedSelectionDeleteKeyboardShortcuts({
-    clearAnnotationsByIds,
-    deleteSelectedAnnotations,
-    lockedAnnotationIdSet,
-    selectablePointIds,
-    selectedAnnotationId,
+  useManagedSelectionDeleteKeyboardShortcuts(
     selectedAnnotationIds,
+    selectedAnnotationId,
+    selectablePointIds,
+    lockedAnnotationIdSet,
     nodeChainAnnotations,
-  });
+    clearAnnotationsByIds,
+    deleteSelectedAnnotations
+  );
 
   useManagedToolKeyboardShortcuts({
     annotations,
@@ -98,6 +100,7 @@ export const useInteractionLifecycle = ({
     pointMeasurementEntries,
     requestCancelActiveMeasurementAndEnterSelection,
     requestFinishMeasurement,
+    focusAdjacentNavigationItem,
     selectAnnotationById,
     selectedAnnotationId,
     selectedAnnotationIds,

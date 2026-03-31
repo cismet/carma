@@ -10,6 +10,7 @@ export {
   NAVIGATION_COMPASS_CURSORS,
   NAVIGATION_ORBIT_DIRECTIONS,
   NAVIGATION_ORBIT_TARGETS,
+  NAVIGATION_ZOOM_DIRECTIONS,
   NAVIGATION_ZOOM_MODES,
   type NavigationCompassCursor,
   type NavigationContinuousZoomOptions,
@@ -23,6 +24,7 @@ export {
   type NavigationTransitionLifecycle,
   type NavigationTransitionOptions,
   type NavigationTransitionTiming,
+  type NavigationZoomDirection,
   type NavigationZoomMode,
   type NavigationZoomOptions,
 } from "./navigation-methods";

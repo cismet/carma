@@ -131,10 +131,10 @@ Toggle: calling while active stops the orbit. Not supported on Leaflet.
 Already available:
 
 - `NavigationMethods<TView>`
-- `NAVIGATION_ACTIONS`, `NAVIGATION_ZOOM_MODES`, `NAVIGATION_ORBIT_TARGETS`, `NAVIGATION_COMPASS_CURSORS`
+- `NAVIGATION_ACTIONS`, `NAVIGATION_ZOOM_MODES`, `NAVIGATION_ZOOM_DIRECTIONS`, `NAVIGATION_ORBIT_TARGETS`, `NAVIGATION_COMPASS_CURSORS`
 - `runNavigationAction(methods, action)`
 - `mountNavigationControlsOverlay(host, options)`
-- `createCesiumNavigationMethods({ scene, homeCameraState, ... })`
+- `createCesiumNavigationMethods(scene, { homeCameraState, ... })`
 
 Cesium-specific low-level runtime helpers now live in:
 

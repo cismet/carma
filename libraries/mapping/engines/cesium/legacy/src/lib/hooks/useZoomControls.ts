@@ -60,7 +60,7 @@ const zoom = (
 
     animateCesiumSceneTravelZoom(scene, {
       direction: isZoomOut ? "out" : "in",
-      durationSeconds: duration,
+      durationMs: duration * 1000,
       zoomDelta,
     });
   });

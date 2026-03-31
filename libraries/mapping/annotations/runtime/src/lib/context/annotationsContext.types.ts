@@ -116,6 +116,7 @@ export type AnnotationsContextType = {
     confirmLabelPlacementById: (id: string) => void;
     flyToById: (id: string) => void;
     focusById: (id: string | null) => void;
+    focusAdjacentNavigationItem: (offset: -1 | 1) => void;
     flyToAll: () => void;
   };
   edit: {

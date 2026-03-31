@@ -1,4 +1,7 @@
-import type { AnnotationToolPlugin } from "./annotationToolPlugin.types";
+import {
+  ANNOTATION_TOOL_PLUGIN_CAPABILITIES,
+  type AnnotationToolPlugin,
+} from "./annotationToolPlugin.types";
 
 const warnedFallbackKeys = new Set<string>();
 
@@ -30,41 +33,65 @@ export const createAnnotationToolPlugin = <
   const capabilities = plugin.capabilities ?? [];
   let normalizedPlugin: AnnotationToolPlugin = { ...plugin };
 
-  if (capabilities.includes("session") && !normalizedPlugin.session) {
+  if (
+    capabilities.includes(ANNOTATION_TOOL_PLUGIN_CAPABILITIES.SESSION) &&
+    !normalizedPlugin.session
+  ) {
     normalizedPlugin = {
       ...normalizedPlugin,
       session: {
         createSession: () => ({
           toolType: plugin.id,
           requestStart: () => {
-            warnFallback(plugin.id, "session", "requestStart");
+            warnFallback(
+              plugin.id,
+              ANNOTATION_TOOL_PLUGIN_CAPABILITIES.SESSION,
+              "requestStart"
+            );
           },
           requestFinish: () => {
-            warnFallback(plugin.id, "session", "requestFinish");
+            warnFallback(
+              plugin.id,
+              ANNOTATION_TOOL_PLUGIN_CAPABILITIES.SESSION,
+              "requestFinish"
+            );
             return false;
           },
           discardDraft: () => {
-            warnFallback(plugin.id, "session", "discardDraft");
+            warnFallback(
+              plugin.id,
+              ANNOTATION_TOOL_PLUGIN_CAPABILITIES.SESSION,
+              "discardDraft"
+            );
           },
         }),
       },
     };
   }
 
-  if (capabilities.includes("pointQuery") && !normalizedPlugin.pointQuery) {
+  if (
+    capabilities.includes(ANNOTATION_TOOL_PLUGIN_CAPABILITIES.POINT_QUERY) &&
+    !normalizedPlugin.pointQuery
+  ) {
     normalizedPlugin = {
       ...normalizedPlugin,
       pointQuery: {
         onPointCreated: () => {
-          warnFallback(plugin.id, "pointQuery", "onPointCreated");
+          warnFallback(
+            plugin.id,
+            ANNOTATION_TOOL_PLUGIN_CAPABILITIES.POINT_QUERY,
+            "onPointCreated"
+          );
         },
       },
     };
   }
 
   if (
-    (capabilities.includes("preview") ||
-      capabilities.includes("previewPrimitives")) &&
+    (capabilities.includes(ANNOTATION_TOOL_PLUGIN_CAPABILITIES.PREVIEW) ||
+      capabilities.includes(
+        ANNOTATION_TOOL_PLUGIN_CAPABILITIES.PREVIEW_PRIMITIVES
+      )) &&
     !normalizedPlugin.renderLayer
   ) {
     normalizedPlugin = {
@@ -78,12 +105,19 @@ export const createAnnotationToolPlugin = <
     };
   }
 
-  if (capabilities.includes("infoBox") && !normalizedPlugin.infoBox) {
+  if (
+    capabilities.includes(ANNOTATION_TOOL_PLUGIN_CAPABILITIES.INFO_BOX) &&
+    !normalizedPlugin.infoBox
+  ) {
     normalizedPlugin = {
       ...normalizedPlugin,
       infoBox: {
         getSlots: () => {
-          warnFallback(plugin.id, "infoBox", "getSlots");
+          warnFallback(
+            plugin.id,
+            ANNOTATION_TOOL_PLUGIN_CAPABILITIES.INFO_BOX,
+            "getSlots"
+          );
           return null;
         },
       },

@@ -357,7 +357,6 @@ const readOrbitSpeedDegPerSecond = (
   return directionSign * DEFAULT_ORBIT_SPEED_DEG_PER_SECOND;
 };
 
-
 const readResolvedCesiumFovBounds = (options: NavigationZoomOptions) => {
   const rawMinimumFovRad =
     typeof options.minimumFovRad === "number" &&
@@ -395,9 +394,7 @@ const readResolvedCesiumTargetFov = (
 
   const { minimumFovRad, maximumFovRad } = readResolvedCesiumFovBounds(options);
 
-  return computeNextCesiumFov({
-    scene,
-    direction,
+  return computeNextCesiumFov(scene, direction, {
     zoomDelta: options.zoomDelta,
     minimumFovRad,
     maximumFovRad,
@@ -416,8 +413,7 @@ const createStoryCesiumNavigationMethods = ({
   homeTarget: ViewState;
   disabled: boolean;
 }): NavigationMethods<ViewState> => {
-  const methods = createCesiumNavigationMethods({
-    scene: runtimeHandle.widget,
+  const methods = createCesiumNavigationMethods(runtimeHandle.widget, {
     homeCameraState: readCesiumCameraStateFromViewState(homeTarget),
     disabled,
     onInteractionStart: () =>
@@ -568,7 +564,8 @@ export const createRuntimeNavigationReference = ({
           : (now - orbitState.lastFrameTimeMs) / 1000;
       orbitState.lastFrameTimeMs = now;
 
-      const nextBearingDeg = map.getBearing() - speedDegPerSecond * deltaSeconds;
+      const nextBearingDeg =
+        map.getBearing() - speedDegPerSecond * deltaSeconds;
       orbitState.lastBearingDeg = nextBearingDeg;
       // Write directly to the transform to avoid jumpTo→stop() canceling drags.
       map.transform.setBearing(nextBearingDeg);
@@ -578,13 +575,15 @@ export const createRuntimeNavigationReference = ({
         const currentPitch = map.getPitch();
         if (currentPitch < minPitchDeg) {
           const pitchStep = ORBIT_PITCH_CORRECTION_DEG_PER_SEC * deltaSeconds;
-          map.transform.setPitch(Math.min(currentPitch + pitchStep, minPitchDeg));
+          map.transform.setPitch(
+            Math.min(currentPitch + pitchStep, minPitchDeg)
+          );
         }
       }
 
       // Fire move/rotate so compass and orbit icon subscribers receive bearing updates.
-      map.fire('move');
-      map.fire('rotate');
+      map.fire("move");
+      map.fire("rotate");
       map.triggerRepaint();
     };
 

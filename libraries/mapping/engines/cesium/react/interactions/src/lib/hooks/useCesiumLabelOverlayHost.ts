@@ -12,6 +12,7 @@ type UseCesiumLabelOverlayHostOptions = {
   containerRef: RefObject<HTMLElement | null>;
   kind?: string;
   instanceId?: string;
+  forceLayoutOnPortalRender?: boolean;
 };
 
 export const useCesiumLabelOverlayHost = ({
@@ -19,6 +20,7 @@ export const useCesiumLabelOverlayHost = ({
   containerRef,
   kind = "cesium",
   instanceId,
+  forceLayoutOnPortalRender = true,
 }: UseCesiumLabelOverlayHostOptions): LabelOverlayHostBinding => {
   const subscribeFrame = useCallback<LabelOverlayFrameSubscription>(
     (updateFn) => {
@@ -50,5 +52,6 @@ export const useCesiumLabelOverlayHost = ({
     containerRef,
     subscribeFrame,
     onResize: requestRender,
+    forceLayoutOnPortalRender,
   });
 };
