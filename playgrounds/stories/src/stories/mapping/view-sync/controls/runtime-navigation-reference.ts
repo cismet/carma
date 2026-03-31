@@ -1,6 +1,5 @@
 import {
   applyCesiumCompassBearingPitch,
-  animateOrbitHeadingPitchRange,
   beginCesiumCompassDrag,
   cancelCesiumSceneTravelZoom,
   Cartesian3,
@@ -11,7 +10,6 @@ import {
   Matrix4,
   MIN_CESIUM_COMPASS_PITCH_RAD,
   PerspectiveFrustum,
-  fromCompassPitchDegToCesiumPitchRad,
   type CesiumCompassDragSession,
 } from "@carma/cesium";
 import {
@@ -358,22 +356,6 @@ const readOrbitSpeedDegPerSecond = (
   return directionSign * DEFAULT_ORBIT_SPEED_DEG_PER_SECOND;
 };
 
-const readOrbitPrepDurationMs = (options: NavigationOrbitOptions): number =>
-  typeof options.duration === "number" &&
-  Number.isFinite(options.duration) &&
-  options.duration > 0
-    ? options.duration
-    : DEFAULT_ORBIT_PREP_DURATION_MS;
-
-const readMinimumOrbitPitchDeg = (options: NavigationOrbitOptions): number =>
-  clamp(
-    typeof options.minPitchDeg === "number" &&
-      Number.isFinite(options.minPitchDeg)
-      ? options.minPitchDeg
-      : DEFAULT_MIN_ORBIT_PITCH_DEG,
-    0,
-    MAX_MAPLIBRE_PITCH_DEG
-  );
 
 const readResolvedCesiumFovBounds = (options: NavigationZoomOptions) => {
   const rawMinimumFovRad =
@@ -474,7 +456,6 @@ export const createRuntimeNavigationReference = ({
     });
   }
 
-  let cancelOrbitPreparationAnimation: (() => void) | null = null;
   let cancelContinuousOrbit: (() => void) | null = null;
   let cesiumCompassDragSession: CesiumCompassDragSession | null = null;
   let isOrbitActive = false;
@@ -495,8 +476,6 @@ export const createRuntimeNavigationReference = ({
     activeRuntimeHandle: SlotRuntimeHandle,
     { keepSceneZoom = false }: { keepSceneZoom?: boolean } = {}
   ) => {
-    cancelOrbitPreparationAnimation?.();
-    cancelOrbitPreparationAnimation = null;
     cancelContinuousOrbit?.();
     cancelContinuousOrbit = null;
     publishOrbitActive(false);
@@ -537,38 +516,6 @@ export const createRuntimeNavigationReference = ({
     }
 
     requestStoryCesiumRender(scene);
-  };
-
-  const resolveCesiumOrbitCenter = (
-    scene: NonNullable<ReturnType<typeof readStoryCesiumScene>>,
-    target: NavigationOrbitTarget | undefined
-  ) => {
-    if (target && target !== NAVIGATION_ORBIT_TARGETS.CURRENT_VIEW) {
-      return Cartesian3.fromDegrees(
-        target.longitudeDeg,
-        target.latitudeDeg,
-        target.altitudeM ?? 0
-      );
-    }
-
-    const cachedCenter = readCachedCesiumSceneCenter(scene);
-    if (cachedCenter) {
-      return cachedCenter;
-    }
-
-    const fallbackState = readFromCesium(
-      scene,
-      CESIUM_FALLBACK_ORBIT_SOURCE_ID
-    );
-    if (!fallbackState) {
-      return null;
-    }
-
-    return Cartesian3.fromDegrees(
-      radToDegNumeric(fallbackState.anchorCartographic.longitude),
-      radToDegNumeric(fallbackState.anchorCartographic.latitude),
-      fallbackState.anchorCartographic.altitude as number
-    );
   };
 
   const startMapLibreOrbitLoop = (
@@ -626,60 +573,6 @@ export const createRuntimeNavigationReference = ({
     cancelContinuousOrbit = () => {
       map.off("render", step);
       MAPLIBRE_ORBIT_FRAME_STATE.delete(map);
-      cancelContinuousOrbit = null;
-    };
-  };
-
-  const startCesiumOrbitLoop = (
-    scene: NonNullable<ReturnType<typeof readStoryCesiumScene>>,
-    orbitCenter: Cartesian3,
-    options: NavigationOrbitOptions,
-    rangeM: number,
-    pitchDeg: number
-  ) => {
-    const targetPitchRad = fromCompassPitchDegToCesiumPitchRad(pitchDeg);
-    const orbitSpeedRadPerSecond = degToRadNumeric(
-      readOrbitSpeedDegPerSecond(options)
-    );
-    let frameId: number | null = null;
-    let lastFrameTime: number | null = null;
-
-    const step = (frameTime: number) => {
-      if (!isOrbitActive) {
-        cancelContinuousOrbit = null;
-        return;
-      }
-
-      const deltaSeconds =
-        lastFrameTime === null ? 0 : (frameTime - lastFrameTime) / 1000;
-      lastFrameTime = frameTime;
-
-      scene.camera.lookAt(
-        orbitCenter,
-        new HeadingPitchRange(
-          scene.camera.heading + orbitSpeedRadPerSecond * deltaSeconds,
-          targetPitchRad,
-          rangeM
-        )
-      );
-      requestStoryCesiumRender(scene);
-
-      frameId = window.requestAnimationFrame(step);
-    };
-
-    frameId = window.requestAnimationFrame(step);
-
-    cancelContinuousOrbit = () => {
-      if (frameId !== null) {
-        window.cancelAnimationFrame(frameId);
-        frameId = null;
-      }
-      try {
-        scene.camera.lookAtTransform(Matrix4.IDENTITY);
-      } catch {
-        // Ignore transient teardown races in Storybook.
-      }
-      requestStoryCesiumRender(scene);
       cancelContinuousOrbit = null;
     };
   };
@@ -1078,64 +971,7 @@ export const createRuntimeNavigationReference = ({
           return;
         }
 
-        const scene = readStoryCesiumScene(activeRuntimeHandle.widget);
-        if (!scene) {
-          publishOrbitActive(false);
-          return;
-        }
-
-        const orbitCenter = resolveCesiumOrbitCenter(scene, options.target);
-        if (!orbitCenter) {
-          publishOrbitActive(false);
-          return;
-        }
-
-        const targetRange =
-          typeof options.rangeM === "number" && Number.isFinite(options.rangeM)
-            ? options.rangeM
-            : Cartesian3.distance(orbitCenter, scene.camera.positionWC);
-        const currentPitchDeg =
-          readCachedCesiumCompassOrientationDeg(scene).pitchDeg;
-        const minimumPitchDeg = readMinimumOrbitPitchDeg(options);
-        const orbitPitchDeg = Math.max(currentPitchDeg, minimumPitchDeg);
-        const startContinuousOrbit = () => {
-          if (!isOrbitActive) {
-            return;
-          }
-
-          startCesiumOrbitLoop(
-            scene,
-            orbitCenter,
-            options,
-            targetRange,
-            orbitPitchDeg
-          );
-        };
-
-        if (currentPitchDeg < minimumPitchDeg) {
-          cancelOrbitPreparationAnimation = animateOrbitHeadingPitchRange(
-            scene,
-            orbitCenter,
-            {
-              heading: scene.camera.heading,
-              pitch: fromCompassPitchDegToCesiumPitchRad(orbitPitchDeg),
-              range: targetRange,
-            },
-            {
-              durationMs: readOrbitPrepDurationMs(options),
-              onComplete: () => {
-                cancelOrbitPreparationAnimation = null;
-                startContinuousOrbit();
-              },
-              onCancel: () => {
-                cancelOrbitPreparationAnimation = null;
-              },
-            }
-          );
-          return;
-        }
-
-        startContinuousOrbit();
+        // Cesium orbit is handled by CesiumSceneOrbitController in the component.
       },
       { stopMotion: false }
     );

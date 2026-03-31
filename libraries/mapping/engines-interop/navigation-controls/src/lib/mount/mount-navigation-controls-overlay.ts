@@ -167,11 +167,11 @@ export const mountNavigationControlsOverlay = <TView>(
     const orbitIconElement = createOrbitIconElement();
     const orbitIconController = createOrbitIconController(orbitIconElement, {
       mirrored:
-        resolvedOrbitOptions.direction === NAVIGATION_ORBIT_DIRECTIONS.CW ||
+        resolvedOrbitOptions.direction === NAVIGATION_ORBIT_DIRECTIONS.CCW ||
         (typeof resolvedOrbitOptions.direction !== "string" &&
           typeof resolvedOrbitOptions.bearingDeltaDeg === "number" &&
           Number.isFinite(resolvedOrbitOptions.bearingDeltaDeg) &&
-          resolvedOrbitOptions.bearingDeltaDeg > 0),
+          resolvedOrbitOptions.bearingDeltaDeg < 0),
     });
 
     orbitContent = orbitIconElement;

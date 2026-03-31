@@ -354,9 +354,7 @@ const MapLibreReferenceSurface = ({
 const CesiumReferenceSurface = ({
   orbitDirection = NAVIGATION_ORBIT_DIRECTIONS.CW,
   orbitRevolutionDurationSec = DEFAULT_NAVIGATION_ORBIT_REVOLUTION_DURATION_SEC,
-  orbitAnimationDurationMs = 300,
   orbitMinPitchDeg = 30,
-  orbitRangeM,
   zoomDelta = ZOOM_DELTA_PRESETS.ONE,
   animate = true,
   travelDurationMs = 250,
@@ -367,9 +365,7 @@ const CesiumReferenceSurface = ({
 }: {
   orbitDirection?: NavigationOrbitDirection;
   orbitRevolutionDurationSec?: number;
-  orbitAnimationDurationMs?: number;
   orbitMinPitchDeg?: number;
-  orbitRangeM?: number;
   zoomDelta?: number;
   animate?: boolean;
   travelDurationMs?: number;
@@ -397,17 +393,9 @@ const CesiumReferenceSurface = ({
       buildOrbitOptions({
         direction: orbitDirection,
         revolutionDurationSec: orbitRevolutionDurationSec,
-        durationMs: orbitAnimationDurationMs,
         minPitchDeg: orbitMinPitchDeg,
-        rangeM: orbitRangeM,
       }),
-    [
-      orbitAnimationDurationMs,
-      orbitDirection,
-      orbitMinPitchDeg,
-      orbitRangeM,
-      orbitRevolutionDurationSec,
-    ]
+    [orbitDirection, orbitMinPitchDeg, orbitRevolutionDurationSec]
   );
   const zoomOptions = useMemo(
     () =>
@@ -636,9 +624,7 @@ export const Cesium: StoryObj = {
     orbitDirection: NAVIGATION_ORBIT_DIRECTIONS.CW,
     orbitRevolutionDurationSec:
       DEFAULT_NAVIGATION_ORBIT_REVOLUTION_DURATION_SEC,
-    orbitAnimationDurationMs: 300,
     orbitMinPitchDeg: 30,
-    orbitRangeM: undefined,
     zoomDelta: "one",
     animate: true,
     travelDurationMs: 250,
@@ -671,20 +657,9 @@ export const Cesium: StoryObj = {
       },
       table: { category: "Orbit" },
     },
-    orbitAnimationDurationMs: {
-      name: "orbit prep animation duration (ms)",
-      control: { type: "range", min: 0, max: 2000, step: 25 },
-      table: { category: "Orbit" },
-    },
     orbitMinPitchDeg: {
       name: "orbit min pitch (deg)",
       control: { type: "range", min: 0, max: 85, step: 1 },
-      table: { category: "Orbit" },
-    },
-    orbitRangeM: {
-      name: "orbit radius (m)",
-      control: { type: "number", min: 1, step: 1 },
-      description: "Fixed camera distance to the orbit target. Empty = keep the current distance.",
       table: { category: "Orbit" },
     },
     minimumFovDeg: {
@@ -738,9 +713,7 @@ export const Cesium: StoryObj = {
     <CesiumReferenceSurface
       orbitDirection={args.orbitDirection}
       orbitRevolutionDurationSec={args.orbitRevolutionDurationSec}
-      orbitAnimationDurationMs={args.orbitAnimationDurationMs}
       orbitMinPitchDeg={args.orbitMinPitchDeg}
-      orbitRangeM={args.orbitRangeM}
       minimumFovDeg={args.minimumFovDeg}
       maximumFovDeg={args.maximumFovDeg}
       zoomDelta={readZoomDeltaArgValue(args.zoomDelta)}

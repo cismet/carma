@@ -9,14 +9,18 @@ import {
 interface UseCameraOrbitOptions {
   scene: Scene | null;
   enabled: boolean;
-  angularVelocity?: number;
+  revolutionDurationSec?: number;
+  direction?: "cw" | "ccw";
+  minPitchDeg?: number;
   restartDelayMs?: number;
 }
 
 export const useCameraOrbit = ({
   scene,
   enabled,
-  angularVelocity = 0.3,
+  revolutionDurationSec = 30,
+  direction = "cw",
+  minPitchDeg = 30,
   restartDelayMs = 300,
 }: UseCameraOrbitOptions) => {
   const [isOrbiting, setIsOrbiting] = useState(false);
@@ -32,7 +36,9 @@ export const useCameraOrbit = ({
 
     const controller = createCesiumSceneOrbitController({
       scene,
-      angularVelocity,
+      revolutionDurationSec,
+      direction,
+      minPitchDeg,
       restartDelayMs,
     });
 
@@ -50,7 +56,7 @@ export const useCameraOrbit = ({
       }
       controller.destroy();
     };
-  }, [scene, angularVelocity, restartDelayMs]);
+  }, [scene, revolutionDurationSec, direction, minPitchDeg, restartDelayMs]);
 
   useEffect(() => {
     controllerRef.current?.setEnabled(enabled);

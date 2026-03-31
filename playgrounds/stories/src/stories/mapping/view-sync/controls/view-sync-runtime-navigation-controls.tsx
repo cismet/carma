@@ -8,10 +8,14 @@ import {
 } from "@carma-mapping/engines-interop/navigation-controls";
 import type { ViewState } from "@carma-mapping/engines-interop/view-state";
 import {
+  createCesiumSceneOrbitController,
+  type CesiumSceneOrbitController,
+} from "@carma-mapping/engines/cesium/api";
+import {
   CARMA_STORY_MAPPING_ENGINES,
   type StoryMappingEngine,
 } from "../mappingEngines";
-import type { SlotRuntimeHandle } from "../viewSyncStoryShared";
+import type { CesiumRuntimeHandle, SlotRuntimeHandle } from "../viewSyncStoryShared";
 import { createRuntimeNavigationReference } from "./runtime-navigation-reference";
 
 const DEFAULT_CONTROL_STYLE = {
@@ -73,6 +77,30 @@ export const ViewSyncRuntimeNavigationControls = ({
   dollyZoomOptions?: NavigationZoomOptions;
 }) => {
   const hostRef = useRef<HTMLDivElement | null>(null);
+  const orbitControllerRef = useRef<CesiumSceneOrbitController | null>(null);
+
+  useEffect(() => {
+    orbitControllerRef.current?.destroy();
+    orbitControllerRef.current = null;
+
+    if (
+      !disabled &&
+      runtimeHandle &&
+      engine === CARMA_STORY_MAPPING_ENGINES.CESIUM
+    ) {
+      orbitControllerRef.current = createCesiumSceneOrbitController({
+        scene: (runtimeHandle as CesiumRuntimeHandle).widget.scene,
+        revolutionDurationSec: orbitOptions?.revolutionDurationSec,
+        direction: orbitOptions?.direction as "cw" | "ccw" | undefined,
+        minPitchDeg: orbitOptions?.minPitchDeg,
+      });
+    }
+
+    return () => {
+      orbitControllerRef.current?.destroy();
+      orbitControllerRef.current = null;
+    };
+  }, [disabled, engine, runtimeHandle, orbitOptions]);
 
   useEffect(() => {
     const host = hostRef.current;
@@ -86,13 +114,29 @@ export const ViewSyncRuntimeNavigationControls = ({
       homeTarget,
       disabled,
     });
-    const effectiveMethods =
+
+    const orbitController = orbitControllerRef.current;
+    const baseNavigationReference =
       typeof showCompass === "boolean"
-        ? {
-            ...navigationReference,
-            showCompass,
-          }
+        ? { ...navigationReference, showCompass }
         : navigationReference;
+    const effectiveMethods =
+      orbitController !== null
+        ? {
+            ...baseNavigationReference,
+            orbit: (options: NavigationOrbitOptions = {}) => {
+              if (orbitController.isOrbiting) {
+                orbitController.stopOrbit();
+                options.onCanceled?.();
+              } else {
+                options.onStarted?.();
+                orbitController.startOrbit();
+              }
+            },
+            subscribeOrbitActive: (sink: (active: boolean) => void) =>
+              orbitController.subscribeIsOrbiting(sink),
+          }
+        : baseNavigationReference;
 
     return mountNavigationControlsOverlay(host, {
       controlId,
@@ -139,7 +183,7 @@ export const ViewSyncRuntimeNavigationControls = ({
             }
           : null,
     });
-  }, [
+  }, [ // eslint-disable-line react-hooks/exhaustive-deps -- orbitControllerRef is a ref, not a dep
     controlId,
     disabled,
     engine,

@@ -18,6 +18,7 @@ import {
   createRotationAxisVisualizer,
   type RotationAxisVisualizer,
 } from "./rotation-axis-visualizer";
+import { readCachedCesiumSceneCenter } from "./per-frame-cache";
 
 export type CesiumSceneOrbitControllerStopOptions = {
   immediate?: boolean;
@@ -26,7 +27,16 @@ export type CesiumSceneOrbitControllerStopOptions = {
 export type CreateCesiumSceneOrbitControllerOptions = {
   scene: Scene;
   enabled?: boolean;
-  angularVelocity?: number;
+  /** Seconds per full revolution. Default: 30. */
+  revolutionDurationSec?: number;
+  /** Orbit direction. Default: "cw". */
+  direction?: "cw" | "ccw";
+  /**
+   * Minimum tilt away from nadir in MapLibre pitch convention (0 = nadir, 90 = horizon).
+   * When the camera is closer to nadir than this, the pitch is gradually corrected on orbit start.
+   * Default: 0 (no correction).
+   */
+  minPitchDeg?: number;
   restartDelayMs?: number;
 };
 
@@ -55,9 +65,11 @@ const BASE_PERSPECTIVE_SHIFT = 0.06;
 const EASE_DURATION_MS = 1000;
 const LINE_FADE_DURATION_MS = 500;
 const DEFAULT_RESTART_DELAY_MS = 300;
-const DEFAULT_ANGULAR_VELOCITY_RAD_PER_SECOND = 0.3;
 const STOP_VELOCITY_EPSILON = 0.0001;
 const DRAG_START_THRESHOLD_PX = 4;
+const PITCH_CORRECTION_RATE_RAD_PER_SEC = Math.PI / 3; // ~60°/s
+const DEFAULT_REVOLUTION_DURATION_SEC = 30;
+const DEFAULT_DIRECTION = "cw" as const;
 
 const getVerticalFov = (scene: Scene): number => {
   const frustum = scene.camera.frustum as { fovy?: number };
@@ -91,9 +103,15 @@ const getOrbitScreenY = (scene: Scene): number => {
 export const createCesiumSceneOrbitController = ({
   scene,
   enabled: initialEnabled = true,
-  angularVelocity = DEFAULT_ANGULAR_VELOCITY_RAD_PER_SECOND,
+  revolutionDurationSec = DEFAULT_REVOLUTION_DURATION_SEC,
+  direction = DEFAULT_DIRECTION,
+  minPitchDeg = 0,
   restartDelayMs = DEFAULT_RESTART_DELAY_MS,
 }: CreateCesiumSceneOrbitControllerOptions): CesiumSceneOrbitController => {
+  const directionSign = direction === "ccw" ? -1 : 1;
+  const angularVelocity =
+    ((2 * Math.PI) / Math.max(revolutionDurationSec, 0.1)) * directionSign;
+
   let enabled = initialEnabled;
   let isOrbiting = false;
   let isStopping = false;
@@ -112,6 +130,7 @@ export const createCesiumSceneOrbitController = ({
   let lastFrameTime = 0;
   let dragTimeout: ReturnType<typeof setTimeout> | null = null;
   let destroyed = false;
+  let pitchCorrectionRad = 0;
 
   const orbitingListeners = new Set<(isOrbiting: boolean) => void>();
   const ellipsoid = Ellipsoid.WGS84;
@@ -386,6 +405,53 @@ export const createCesiumSceneOrbitController = ({
         new Cartesian3()
       );
 
+      // Apply parallel pitch correction toward minPitchDeg if needed.
+      if (pitchCorrectionRad > 0.0001) {
+        const pitchAngleThisFrame = Math.min(
+          pitchCorrectionRad,
+          PITCH_CORRECTION_RATE_RAD_PER_SEC * deltaTimeSeconds
+        );
+        pitchCorrectionRad -= pitchAngleThisFrame;
+
+        const pitchAxis = scene.camera.right;
+        const pitchRotation = Quaternion.fromAxisAngle(
+          pitchAxis,
+          pitchAngleThisFrame,
+          new Quaternion()
+        );
+        const pitchMatrix = Matrix4.fromRotationTranslation(
+          Matrix3.fromQuaternion(pitchRotation, new Matrix3()),
+          Cartesian3.ZERO,
+          new Matrix4()
+        );
+
+        const pitchOffset = Cartesian3.subtract(
+          scene.camera.position,
+          groundPoint,
+          new Cartesian3()
+        );
+        scene.camera.position = Cartesian3.add(
+          groundPoint,
+          Matrix4.multiplyByPoint(pitchMatrix, pitchOffset, new Cartesian3()),
+          new Cartesian3()
+        );
+        scene.camera.direction = Matrix4.multiplyByPointAsVector(
+          pitchMatrix,
+          scene.camera.direction,
+          new Cartesian3()
+        );
+        scene.camera.up = Matrix4.multiplyByPointAsVector(
+          pitchMatrix,
+          scene.camera.up,
+          new Cartesian3()
+        );
+        scene.camera.right = Cartesian3.cross(
+          scene.camera.direction,
+          scene.camera.up,
+          new Cartesian3()
+        );
+      }
+
       requestRender();
       animationFrameId = requestAnimationFrame(animate);
     };
@@ -513,6 +579,7 @@ export const createCesiumSceneOrbitController = ({
     pointerDownPosition = null;
     wasDragging = false;
     isStopping = true;
+    pitchCorrectionRad = 0;
     startVelocityRamp(0);
     clearDragTimeout();
 
@@ -539,8 +606,26 @@ export const createCesiumSceneOrbitController = ({
     isPointerDown = false;
     pointerDownPosition = null;
     wasDragging = false;
-    orbitPoint = null;
     isStopping = false;
+
+    // Seed orbit center from the per-frame cache so the point is immediately
+    // available without a viewport pick on the first animation frame.
+    const cachedCenter = readCachedCesiumSceneCenter(scene);
+    orbitPoint = cachedCenter ? Cartesian3.clone(cachedCenter) : null;
+
+    // Compute pitch correction: if camera is closer to nadir than minPitchDeg
+    // (MapLibre convention: 0 = nadir, 90 = horizon), schedule a gradual tilt.
+    if (minPitchDeg > 0) {
+      const currentMaplibrePitchDeg =
+        (scene.camera.pitch + Math.PI / 2) * (180 / Math.PI);
+      pitchCorrectionRad = Math.max(
+        0,
+        (minPitchDeg - currentMaplibrePitchDeg) * (Math.PI / 180)
+      );
+    } else {
+      pitchCorrectionRad = 0;
+    }
+
     setOrbiting(true);
     startVelocityRamp(angularVelocity);
 
