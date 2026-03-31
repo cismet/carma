@@ -95,7 +95,7 @@ export const removeLeadingZeros = (numberStr, flur = false) => {
   const trimmedParts = parts.map((part) => {
     let startIndex = 0;
 
-    while (startIndex < part.length && part[startIndex] === "0") {
+    while (startIndex < part.length - 1 && part[startIndex] === "0") {
       startIndex++;
     }
 
