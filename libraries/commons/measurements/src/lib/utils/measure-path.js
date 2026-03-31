@@ -431,13 +431,11 @@ L.Control.MeasurePolygon = L.Control.extend({
           const clickLatLng = e.latlng;
           const markerLatLng = e.target.getLatLng();
 
-          // Use the ORIGINAL click position stored in map click handler
-          const originalClick = this._lastOriginalClick;
-
-          // Calculate pixel distance using ORIGINAL click position
-          const clickPoint = originalClick
-            ? originalClick.containerPoint
-            : this._map.latLngToContainerPoint(clickLatLng);
+          // Calculate pixel distance using the current event position.
+          // Note: _lastOriginalClick holds the position of the previously placed
+          // vertex (marker click fires before map click updates it), so we use
+          // e.latlng which is the actual click position on the marker.
+          const clickPoint = this._map.latLngToContainerPoint(clickLatLng);
           const markerPoint = this._map.latLngToContainerPoint(markerLatLng);
           const pixelDistance = Math.sqrt(
             Math.pow(clickPoint.x - markerPoint.x, 2) +
@@ -452,7 +450,7 @@ L.Control.MeasurePolygon = L.Control.extend({
           // Only apply distance check when snapping is enabled (desktop)
           // On mobile, snapping is disabled so let Leaflet.Draw handle closure normally
           if (this.options.snappingEnabled) {
-            // Check if original click is within snapping radius OR if snapping is active and brought us here
+            // Check if click is within snapping radius OR if snapping is active and brought us here
             const maxClickDistance = this.options.snappingQueryRadius || 40;
             const isWithinSnappingRadius = pixelDistance <= maxClickDistance;
             const isSnappedToFirstVertex =
@@ -463,7 +461,6 @@ L.Control.MeasurePolygon = L.Control.extend({
                 0.0000001;
 
             if (!isWithinSnappingRadius && !isSnappedToFirstVertex) {
-              // Don't process this click - it shouldn't close the polygon
               return;
             }
           }
