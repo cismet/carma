@@ -296,6 +296,8 @@ export function LandParcelSearch({
                 );
                 setSearchResult(gemarkungOpts);
                 setOptions([]);
+              } else if (value && landParcelData) {
+                handleSearch(value);
               }
             }
           }}
